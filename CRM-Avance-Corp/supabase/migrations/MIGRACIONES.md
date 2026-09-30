@@ -22,7 +22,10 @@ guardianes) y fail-closed.
 
 **Oráculo en producción ejecutando la migración real** (transacción deshecha; `scripts/gestion-diaria-operativos/ensayo-oraculo.sql`):
 gerencia y los 4 supervisores × {`gestion_diaria_avisos_fn()`, `gestion_diaria_equipo_fn(hoy,null)`,
-`gestion_diaria_equipo_fn(hoy,yo)`} sin campos de reloj: **15/15 iguales**. Tiempos: equipo de gerencia
+`gestion_diaria_equipo_fn(hoy,yo)`, `gestion_diaria_pulso_fn(hoy)` (tercer consumidor de `equipo_pendientes`,
+señalado por Codex)} sin campos de reloj: **20/20 iguales**. Una corrida intermedia en horario laboral dio 5
+diferencias en los actores grandes (gerencia y sup1): datos vivos cambiando entre las dos pasadas (READ COMMITTED
+obligatorio por `resolver_en_puertas_bajo_candado`); la corrida siguiente, mostrando clave a clave, dio 20/20. Tiempos: equipo de gerencia
 **1.804–1.853 → 1.215–1.232 ms**, sup1 avisos 1.002–1.031 → 838–848 y equipo 925–953 → 738–760, sup3 876–889 →
 607–620 y 812–815 → 539–547, sup2/sup4 ±20 ms. Guardianes tras el cambio: paraguas OK (57 ms), SLA OK.
 **Ciclo ensayado en producción con rollback** (`ensayo-ciclo.sql`): migración → repetida (idempotente) → reversa
@@ -33,7 +36,15 @@ Método de aplicación: `supabase db query --linked --file supabase/migrations/2
 OK, equipo de gerencia ≤ 1.300 ms) → advisors. Reversa: `reversa.sql` (restaura las cuatro funciones vivas y pasa
 los guardianes; conserva la fila de `schema_migrations`: anotarlo aquí el mismo día).
 
-Reviews: Codex (`docs/encargos/2026-09-30-codex-gestion-diaria-operativos.md`) y auditor-rls: ver abajo.
+**Reviews (LEVEL 3):** Codex (`docs/encargos/2026-09-30-codex-gestion-diaria-operativos.md`): **APPROVE**, sin
+hallazgos; refuerzos pedidos y hechos: (R5) negativo ensayado en producción con rollback
+(`ensayo-negativo-guardian.sql`: se quita a `crm_gestion_diaria_lector` el EXECUTE de `gestion_diaria_contexto`, el
+preflight pasa, los cuatro reemplazos se hacen y el paraguas falla → «F4: contexto o adaptador de pendientes alterado»
+→ la migración entera se deshace y las cuatro huellas y la ACL quedan intactas); (R1) inventario: consumidores vivos
+de `equipo_pendientes` = `gestion_diaria_equipo_core`, `gestion_diaria_pulso_fn` (añadido al oráculo) y su guardián;
+de `alertas_sla` = `gestion_diaria_contexto` (cadena de `gestion_diaria_avisos_fn`, en el oráculo); (R2) ningún otro
+gate sella por md5 las cuatro funciones: `assert_gestion_diaria_pendientes/pulso` solo llaman a
+`assert_gestion_diaria_equipo` y el paraguas pasó tras el resellado. auditor-rls: ver línea siguiente.
 No ejecutado: `test-rls.mjs` (no cambia policies ni grants) y banco Docker (ensayos sobre datos reales, deshechos).
 
 ## 20260930002929 — Resumen de avisos SLA: el adaptador evalúa solo las oportunidades que pueden avisar (`crm.avisos_sla_resumen_v2_fn` + `private.sla_leads_operativos`)

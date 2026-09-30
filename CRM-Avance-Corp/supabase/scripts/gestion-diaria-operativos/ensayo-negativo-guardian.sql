@@ -1,15 +1,13 @@
--- ENSAYO DESHECHO: oráculo de igualdad antes/después ejecutando la MIGRACIÓN real; 5 actores × 3 vistas. Termina en raise.
-do $do$
-declare sups uuid[]; ger uuid; a int; fase int; v jsonb; t0 timestamptz; res jsonb[]:=array['{}'::jsonb,'{}'::jsonb]; dur jsonb[]:=array['{}'::jsonb,'{}'::jsonb];
-  k text; iguales int:=0; distintos text[]:='{}'; hoy date:=(now() at time zone 'America/Lima')::date; actores uuid[]; nombres text[];
-begin
-  set local statement_timeout='170s';
-  select e.perfil_id into ger from crm.equipo e where e.rol_crm='gerencia' and e.activo order by e.perfil_id limit 1;
-  select array_agg(e.perfil_id order by e.perfil_id) into sups from crm.equipo e where e.rol_crm='supervisor' and e.activo;
-  actores:=ger||sups; nombres:=array['gerencia']||array(select 'sup'||g from generate_series(1,cardinality(sups)) g);
-  for fase in 1..2 loop
-    if fase=2 then
-      execute $x$do $mig$
+-- NEGATIVO R5 (Codex): fallo del guardián DESPUÉS de los cuatro reemplazos → la migración entera se deshace y quedan las
+-- cuatro funciones vivas con su ACL. Se provoca quitando a crm_gestion_diaria_lector el EXECUTE de gestion_diaria_contexto
+-- (sellado por assert_gestion_diaria_alertas_equipo); el preflight no lo mira, el paraguas sí. Termina en raise.
+begin;
+set local lock_timeout='10s';
+select set_config('ensayo.antes', ((select md5(p.prosrc) from pg_proc p where p.oid='private.gestion_diaria_alertas_sla()'::regprocedure)||' / '||md5(pg_get_functiondef('private.gestion_diaria_equipo_pendientes()'::regprocedure))||' / '||md5(pg_get_functiondef('private.assert_gestion_diaria_alertas_equipo()'::regprocedure))||' / '||md5(pg_get_functiondef('private.assert_gestion_diaria_equipo()'::regprocedure))||' / acl_alertas='||(select p.proacl::text from pg_proc p where p.oid='private.gestion_diaria_alertas_sla()'::regprocedure)), true);
+do $neg$ begin
+  execute 'revoke execute on function private.gestion_diaria_contexto(uuid[],timestamptz,jsonb) from crm_gestion_diaria_lector';
+  begin
+    execute $x$do $mig$
 declare
   h_a text; h_p text; h_1 text; h_2 text; r record; p_etapa text;
   v_owner text; v_acl text; v_secdef boolean; v_vol "char"; v_cfg text[];
@@ -203,32 +201,15 @@ $def$;
   raise notice 'assert_sla_avisos: %', private.assert_sla_avisos();
   raise notice 'gestion_diaria_solo_operativos: aplicada';
 end $mig$;$x$;
-    end if;
-    for a in 1..cardinality(actores) loop
-      perform set_config('request.jwt.claim.sub', actores[a]::text, true);
-      perform set_config('request.jwt.claims', json_build_object('sub', actores[a], 'role', 'authenticated')::text, true);
-      perform set_config('request.jwt.claim.role', 'authenticated', true);
-      t0:=clock_timestamp();
-      begin v:=crm.gestion_diaria_avisos_fn(); exception when others then v:=to_jsonb('ERROR '||sqlstate||' '||left(sqlerrm,50)); end;
-      dur[fase]:=dur[fase]||jsonb_build_object(nombres[a]||':avisos', round(extract(epoch from clock_timestamp()-t0)*1000));
-      res[fase]:=res[fase]||jsonb_build_object(nombres[a]||':avisos', md5((case when jsonb_typeof(v)='object' then v - 'generado_en' - 'calculado_en' - 'pendientes_al' - 'consultado_en' else v end)::text));
-      t0:=clock_timestamp();
-      begin v:=crm.gestion_diaria_equipo_fn(hoy, null); exception when others then v:=to_jsonb('ERROR '||sqlstate||' '||left(sqlerrm,50)); end;
-      dur[fase]:=dur[fase]||jsonb_build_object(nombres[a]||':equipo_null', round(extract(epoch from clock_timestamp()-t0)*1000));
-      res[fase]:=res[fase]||jsonb_build_object(nombres[a]||':equipo_null', md5((case when jsonb_typeof(v)='object' then v - 'generado_en' - 'calculado_en' - 'pendientes_al' - 'consultado_en' else v end)::text));
-      begin v:=crm.gestion_diaria_equipo_fn(hoy, actores[a]); exception when others then v:=to_jsonb('ERROR '||sqlstate||' '||left(sqlerrm,50)); end;
-      res[fase]:=res[fase]||jsonb_build_object(nombres[a]||':equipo_yo', md5((case when jsonb_typeof(v)='object' then v - 'generado_en' - 'calculado_en' - 'pendientes_al' - 'consultado_en' else v end)::text));
-      -- tercer consumidor de equipo_pendientes (Codex R1): el pulso
-      t0:=clock_timestamp();
-      begin v:=crm.gestion_diaria_pulso_fn(hoy); exception when others then v:=to_jsonb('ERROR '||sqlstate||' '||left(sqlerrm,50)); end;
-      dur[fase]:=dur[fase]||jsonb_build_object(nombres[a]||':pulso', round(extract(epoch from clock_timestamp()-t0)*1000));
-      v := case when jsonb_typeof(v)='object' then v - 'generado_en' - 'calculado_en' - 'pendientes_al' - 'consultado_en' - 'ahora' - 'actualizado_en' else v end;
-      res[fase]:=res[fase]||jsonb_build_object(nombres[a]||':pulso', md5(v::text));
-    end loop;
-  end loop;
-  for k in select jsonb_object_keys(res[1]) loop
-    if res[1]->>k = res[2]->>k then iguales:=iguales+1; else distintos:=distintos||(k||' antes='||(res[1]->>k)||' despues='||coalesce(res[2]->>k,'(sin valor)')); end if;
-  end loop;
-  raise exception E'ENSAYO DESHECHO (rollback)\ncasos iguales: % · distintos: %\n%\nDURACIONES antes: %\nDURACIONES despues: %',
-    iguales, cardinality(distintos), array_to_string(distintos,E'\n'), dur[1]::text, dur[2]::text;
-end $do$;
+    raise exception 'NEG3 FALLO: la migración confirmó con un guardián roto';
+  exception when others then
+    if sqlerrm like 'NEG3%%' then raise; end if;
+    perform set_config('ensayo.neg3', left(sqlerrm, 120), true);
+  end;
+  execute 'grant execute on function private.gestion_diaria_contexto(uuid[],timestamptz,jsonb) to crm_gestion_diaria_lector';
+end $neg$;
+select set_config('ensayo.despues', ((select md5(p.prosrc) from pg_proc p where p.oid='private.gestion_diaria_alertas_sla()'::regprocedure)||' / '||md5(pg_get_functiondef('private.gestion_diaria_equipo_pendientes()'::regprocedure))||' / '||md5(pg_get_functiondef('private.assert_gestion_diaria_alertas_equipo()'::regprocedure))||' / '||md5(pg_get_functiondef('private.assert_gestion_diaria_equipo()'::regprocedure))||' / acl_alertas='||(select p.proacl::text from pg_proc p where p.oid='private.gestion_diaria_alertas_sla()'::regprocedure)), true);
+do $$ begin
+  raise exception E'NEG3 (rollback)\nantes:   %\nerror:   %\ndespues: %\nintactas: %', current_setting('ensayo.antes',true), current_setting('ensayo.neg3',true), current_setting('ensayo.despues',true), current_setting('ensayo.antes',true)=current_setting('ensayo.despues',true);
+end $$;
+rollback;
