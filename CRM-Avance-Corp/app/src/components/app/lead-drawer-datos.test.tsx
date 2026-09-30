@@ -396,15 +396,21 @@ describe('LeadDrawer — «Completar» resuelve de verdad los datos que faltan',
     expect(editarLead).toHaveBeenCalledWith(LEAD.id, expect.objectContaining({ categoria_interes: null }))
   })
 
-  it('el DNI solo admite dígitos y como máximo 8 (regla del portal)', async () => {
+  it.each(['001234567', 'AB12345678'])('conserva %s para que la validación rechace el documento sin corromperlo', async (documento) => {
     const user = userEvent.setup()
-    const { editarLead } = montar()
+    const { editarLead } = montar({ resultadoEditar: {
+      ok: false, campo: 'dni', error: 'El DNI debe tener exactamente 8 dígitos',
+    } })
 
     await user.click(screen.getByRole('button', { name: 'Editar' }))
-    await user.type(screen.getByLabelText('DNI'), 'AB4578-1234999')
+    await user.click(screen.getByLabelText('DNI'))
+    await user.paste(documento)
+    expect(screen.getByLabelText('DNI')).toHaveValue(documento)
     await user.click(screen.getByRole('button', { name: 'Guardar' }))
 
-    expect(editarLead).toHaveBeenCalledWith(LEAD.id, expect.objectContaining({ dni: '45781234' }))
+    expect(editarLead).toHaveBeenCalledWith(LEAD.id, expect.objectContaining({ dni: documento }))
+    expect(screen.getByRole('alert')).toHaveTextContent('El DNI debe tener exactamente 8 dígitos')
+    expect(toast.success).not.toHaveBeenCalled()
   })
 
   it('pegar un DNI con puntos NO pierde dígitos (el tope va después de filtrar)', async () => {

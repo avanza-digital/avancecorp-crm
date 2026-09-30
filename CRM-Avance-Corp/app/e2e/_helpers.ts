@@ -115,6 +115,7 @@ const SESSION = {
 
 export interface LeadReal {
   id: string
+  documento?: { tipo: string; numero: string | null }
   reasignado?: boolean
   alta_manual?: boolean
   creado_por?: string | null
@@ -2656,7 +2657,7 @@ export async function montarBackendReal(
       estado.llamadas.rpcDisponibilidadLead += 1
       return json(route, estado.disponibilidadLead)
     }
-    if (p === '/rest/v1/rpc/crear_lead_si_disponible' && method === 'POST') {
+    if (['/rest/v1/rpc/crear_lead_si_disponible', '/rest/v1/rpc/crear_lead_documento_fn'].includes(p) && method === 'POST') {
       estado.llamadas.rpcCrearLeadAtomico += 1
       if (estado.fallarProximaCreacionLeadAtomica) {
         estado.fallarProximaCreacionLeadAtomica = false
@@ -2667,10 +2668,14 @@ export async function montarBackendReal(
         }, 409)
       }
 
-      const cuerpo = (req.postDataJSON() ?? {}) as Record<string, unknown>
+      const enviado = (req.postDataJSON() ?? {}) as Record<string, unknown>
+      const tipado = p.endsWith('/crear_lead_documento_fn')
+      const cuerpo = tipado ? Object.fromEntries(Object.entries(enviado.p_datos as Record<string, unknown>).map(([k,v]) => [`p_${k}`,v])) : enviado
+      const documento = tipado ? { tipo: String(enviado.p_tipo), numero: enviado.p_documento == null ? null : String(enviado.p_documento).toUpperCase() || null } : undefined
       const id = String(cuerpo.p_id ?? '')
       estado.leads = [leadReal({
         id,
+        ...(documento ? { documento } : {}),
         nombre_completo: String(cuerpo.p_nombre_completo ?? ''),
         telefono: String(cuerpo.p_telefono ?? ''),
         correo: (cuerpo.p_correo as string | null | undefined) ?? null,
@@ -3328,21 +3333,32 @@ export async function montarBackendReal(
     }
 
     // ── leads ──
-    if (p === '/rest/v1/rpc/editar_lead_fn' && method === 'POST') {
+    const documentoLead = (lead: LeadReal) => ({ lead_id: lead.id,
+      tipo: lead.documento?.tipo ?? 'DNI', numero: lead.documento?.numero ?? lead.dni,
+      inversionista_id: lead.documento ? lead.id : null,
+      identificador_id: lead.documento ? lead.id : null, puede_corregir: estado.rolPortal === 'admin' || estado.rolPortal === 'superadmin' })
+    if (p === '/rest/v1/rpc/documento_lead_fn' && method === 'POST') {
+      const lead = estado.leads.find((l) => l.id === req.postDataJSON()?.p_lead_id)
+      return lead ? json(route, documentoLead(lead)) : json(route, { code: 'P0002', message: 'Lead no encontrado' }, 404)
+    }
+    if (['/rest/v1/rpc/editar_lead_fn','/rest/v1/rpc/editar_lead_documento_fn'].includes(p) && method === 'POST') {
       estado.llamadas.rpcEditarLead += 1
       if (estado.fallarProximaEdicionTelefono) {
         estado.fallarProximaEdicionTelefono = false
         return json(route, { code: '23505', message: 'duplicate key', details: 'uq_leads_telefono_vivo' }, 400)
       }
-      const body = (req.postDataJSON() ?? {}) as { p_lead_id?: string; p_cambios?: Partial<LeadReal> }
+      const body = (req.postDataJSON() ?? {}) as { p_lead_id?: string; p_cambios?: Partial<LeadReal>; p_tipo?: string; p_documento?: string }
       if (!body.p_lead_id || !body.p_cambios) {
         return json(route, { code: '22023', message: 'Faltan datos de la edición' }, 400)
       }
       if (!estado.leads.some((lead) => lead.id === body.p_lead_id)) {
         return json(route, { code: 'P0002', message: 'Lead no encontrado' }, 400)
       }
+      if (body.p_tipo) body.p_cambios = { ...body.p_cambios,
+        dni: body.p_tipo === 'DNI' ? body.p_documento || null : null,
+        documento: { tipo: body.p_tipo, numero: body.p_documento?.toUpperCase() || null } }
       estado.leads = estado.leads.map((lead) => lead.id === body.p_lead_id ? { ...lead, ...body.p_cambios } : lead)
-      return json(route, null)
+      return json(route, body.p_tipo ? documentoLead(estado.leads.find((l) => l.id === body.p_lead_id)!) : null)
     }
     if (p === '/rest/v1/leads') {
       if (method === 'GET') {
@@ -3429,16 +3445,16 @@ export async function loginReal(
  * SQL, Auth y Storage reales se cubren en e2e-integration y en el banco HTTP. */
 export async function montarConversionCompartida(page:Page) {
   const persona='11111111-1111-4111-8111-111111111111'
-  let nombre='PERSONA SINTÉTICA',leadId:string|null=null,perfil:string|null=null
+  let nombre='PERSONA SINTÉTICA',leadId:string|null=null,perfil:string|null=null,tipo='DNI'
   let correoFicha='persona@pruebas.example'
   let solicitud:Record<string,unknown>|null=null
   await page.route('**/rest/v1/rpc/*',async route=>{
     const fn=new URL(route.request().url()).pathname.split('/').at(-1),b=route.request().postDataJSON()
     if(fn==='preparar_persona_lead_inversion_fn'){
-      nombre=b.p_nombre;leadId=b.p_lead
+      nombre=b.p_nombre;leadId=b.p_lead;tipo=b.p_tipo_documento
       return route.fulfill({json:{inversionista_id:persona,lead_id:leadId,solicitud_id:solicitud?.solicitud_id??null}})
     }
-    if(fn==='contexto_conversion_inversion_fn')return route.fulfill({json:{solicitud_id:solicitud?.solicitud_id??null,documento_tipo:'DNI',persona:{inversionista_id:persona,perfil_id:perfil,
+    if(fn==='contexto_conversion_inversion_fn')return route.fulfill({json:{solicitud_id:solicitud?.solicitud_id??null,documento_tipo:tipo,persona:{inversionista_id:persona,perfil_id:perfil,
       nombre,correo:correoFicha,telefono:'999888777',responsable_id:UID,responsable_nombre:'ANALISTA DEL LEAD'},
       capacidades:{nueva_inversion:true,motivo_no_operable:null}}})
     if(fn==='preparar_inversion_fn'){

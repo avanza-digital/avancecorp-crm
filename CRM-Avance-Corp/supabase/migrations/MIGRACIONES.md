@@ -1,3 +1,36 @@
+## 20260930193325 — Documento tipado del lead y conversión coherente
+
+**PREPARADA; SOLO APLICADA EN BANCO SINTÉTICO LOCAL. NO PUBLICADA.**
+Alta y edición con DNI/CE/PASAPORTE sin recortar números ni eliminar letras.
+`crm.leads.dni` conserva su contrato exclusivo de DNI; CE/pasaporte se guardan
+en la identidad canónica existente. Cuatro RPC: `crear_lead_documento_fn`,
+`documento_lead_fn`, `fijar_documento_lead_fn`, `editar_lead_documento_fn`.
+Esta última es INVOKER y guarda documento y ficha en una transacción.
+Lectura bajo el mismo ámbito de leads; escrituras solo vendedor/supervisor/gerencia
+activos y en ámbito. EXECUTE solo authenticated, helper privado sin grants API.
+No cambia tablas, policies, triggers ni objetos de public. La corrección de una
+identidad reconocida reutiliza la puerta administrativa auditada existente,
+con identificador anterior, motivo y postcondición que impide dejar el lead incoherente.
+No se corrigen datos reales automáticamente ni se adivinan documentos truncados.
+
+Preflight de diez fuentes cotejadas con producción; flag y jerarquía bajo candado,
+documento antes de persona y lead, rechazo por duplicidad, veto y conversión en curso.
+Banco `lead_documentos_20260930`: 52 aserciones SQL PASS con rollback; concurrencia
+en dos sesiones PASS. Gate frontend PASS (4958 tests, lint, tipos, build y bundle).
+E2E Docker completo: 297 passed, 26 skipped, 0 failed (incluye los 33 focales).
+Reversa y reaplicación PASS. Revisión inicial atendida; intento final sin VERDICT
+válido, no contado como aprobación independiente.
+Tipos de las cuatro RPC generados desde postgres-meta local; se conservan los otros
+cambios del árbol. Evidencia y límites en `supabase/scripts/lead-documentos/README.md`.
+Rama remota, matriz HTTP RLS completa y advisors pendientes antes de publicar.
+Reversa: retirar el frontend nuevo y eliminar estas cuatro RPC y el helper;
+las identidades ya guardadas siguen siendo válidas para el sistema existente.
+
+Preparación integrada: check 5.021 PASS y Docker 298 PASS / 26 omitidos. Usuario
+ordenó esperar su aviso antes de publicar. Banco remoto eliminado tras fallo
+de provisión de Storage; SQL/HTTP RLS/advisors remotos **NOT RUN**. Detalle y
+evaluación del review: `supabase/scripts/lead-documentos/README.md`.
+
 ## 20260930185623 — Conversión por analista para Coordinación (`crm.conversion_divisor_coordinacion_fn`, `private.conversion_divisor_empresa`)
 
 **⏸️ PENDIENTE DE APLICAR (lo lanza Miguel con `!`): `db query --linked --file` de la migración → `registrar-20260930185623.sql` → advisors → front por `/release-crm`.**

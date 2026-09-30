@@ -1,3 +1,4 @@
+import { TIPOS_DOCUMENTO_K, validarDocumento, type DocumentoIdentidad, type CorreccionDocumentoLead } from './documento'
 import { conservarLeadEmbebido } from '@/lib/agenda-vistas'
 import { ejecutarEnvioPostventa } from '@/data/postventa-envios'
 import { refrescarPostventa } from '@/data/postventa-queries'
@@ -194,6 +195,7 @@ export interface NuevoLeadInput {
   telefono_alternativo?: string | null
   correo?: string | null
   dni?: string | null
+  documento?: DocumentoIdentidad
   genero?: Genero | null
   fecha_nacimiento?: string | null
   distrito?: string | null
@@ -284,8 +286,9 @@ export type CambiosLead = Partial<
     | 'distrito'
     | 'genero'
     | 'fecha_nacimiento'
+    | 'documento'
   >
->
+> & { correccion_documento?: CorreccionDocumentoLead }
 
 /**
  * Ámbito por rol (espejo de la RLS jerárquica de F0 — contrato F1c).
@@ -440,7 +443,7 @@ export interface StoreDataApi {
     cierreReunion?: { motivo: MotivoNoRealizada; detalle?: string | null },
   ): ResultadoMut & { retroceso?: EtapaActiva; persistido?: Promise<boolean> }
   crearLead(input: NuevoLeadInput): ResultadoCrearLead
-  editarLead(id: string, cambios: CambiosLead): ResultadoMut
+  editarLead(id: string, cambios: CambiosLead): ResultadoMut & { persistido?: Promise<ResultadoPersistencia> }
   /** `capital` (opcional) viaja EN LA MISMA escritura que la etapa: pasar a
    *  "Propuesta enviada" es el momento de fijar lo que de verdad se propuso, y
    *  partirlo en dos updates dejaría el lead avanzado con la cifra vieja si el
@@ -761,6 +764,7 @@ function conflictoDedup(
   dni: string | null | undefined,
   exceptoId?: string,
   visibles?: ReadonlySet<string>,
+  documento?: DocumentoIdentidad,
 ): ResultadoMut | null {
   const abiertos = leads.filter((l) => esAbierto(l) && l.id !== exceptoId)
   const nombreSeguro = (l: Lead): string | null => (visibles?.has(l.id) ? l.nombre_completo : null)
@@ -776,8 +780,10 @@ function conflictoDedup(
         : 'Ese teléfono ya pertenece a otro lead abierto de la empresa',
     }
   }
-  if (dni) {
-    const porDni = abiertos.find((l) => l.dni === dni)
+  const tipo = documento?.tipo ?? 'DNI'
+  const numero = documento?.numero ?? dni
+  if (numero) {
+    const porDni = abiertos.find((l) => (l.documento?.tipo ?? 'DNI') === tipo && (l.documento?.numero ?? l.dni) === numero)
     if (porDni) {
       const nombre = nombreSeguro(porDni)
       return {
@@ -2410,13 +2416,21 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             error: 'Selecciona una moneda válida (PEN o USD)',
           }
         }
+        if (input.documento && !TIPOS_DOCUMENTO_K.includes(input.documento.tipo)) {
+          return { ok: false, codigo: 'dni_invalido', campo: 'dni', error: 'Selecciona un tipo de documento válido' }
+        }
+        const documento = input.documento ? validarDocumento(input.documento.tipo, input.documento.numero) : null
+        if (input.documento?.numero && documento && !documento.ok) {
+          return { ok: false, codigo: 'dni_invalido', campo: 'dni', error: documento.error }
+        }
+        const identidad = input.documento ? { tipo: input.documento.tipo, numero: documento?.valor || null } : undefined
         // Validación compartida (espejo de los CHECK de crm.leads) — la misma
         // fuente que editarLead y, a futuro, las mutaciones reales de Supabase.
         const v = validarCamposLead({
           nombre_completo: input.nombre_completo,
           telefono: input.telefono,
           telefono_alternativo: input.telefono_alternativo ?? null,
-          dni: input.dni ?? null,
+          dni: identidad ? (identidad.tipo === 'DNI' ? identidad.numero : null) : input.dni ?? null,
           correo: input.correo ?? null,
           origen: input.origen,
           monto_estimado: input.monto_estimado,
@@ -2449,7 +2463,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             error: 'Solo puedes crear leads asignados a ti mismo',
           }
         }
-        const choque = conflictoDedup(datos.leads, telefono, dni, undefined, idsDelAmbito)
+        const choque = conflictoDedup(datos.leads, telefono, dni, undefined, idsDelAmbito, identidad)
         if (choque) return choque
         // Resuelve el analista SIN tragar ids inválidos (mismo criterio que reasignar()).
         let vendedor_id: string | null = null
@@ -2499,6 +2513,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           creado_en: new Date().toISOString(),
           activo: true,
           dni,
+          ...(identidad ? { documento: identidad } : {}),
           genero,
           fecha_nacimiento: fechaNacimiento,
           distrito: input.distrito?.trim() || null,
@@ -2517,6 +2532,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
               telefono_alternativo: telefonoAlternativo,
               correo: lead.correo ?? null,
               dni,
+              ...(identidad ? { documento: identidad } : {}),
               genero,
               fecha_nacimiento: fechaNacimiento,
               distrito: lead.distrito ?? null,
@@ -2590,6 +2606,14 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
                 error: 'El lead está cerrado — reábrelo para editar sus datos',
               }
         }
+        if (cambios.documento && !TIPOS_DOCUMENTO_K.includes(cambios.documento.tipo)) {
+          return { ok: false, codigo: 'dni_invalido', campo: 'dni', error: 'Selecciona un tipo de documento válido' }
+        }
+        const documento = cambios.documento ? validarDocumento(cambios.documento.tipo, cambios.documento.numero) : null
+        if (cambios.documento?.numero && documento && !documento.ok) {
+          return { ok: false, codigo: 'dni_invalido', campo: 'dni', error: documento.error }
+        }
+        const identidad = cambios.documento ? { tipo: cambios.documento.tipo, numero: documento?.valor || null } : undefined
         // MISMA validación que crearLead (antes: dos copias divergentes; la
         // edición saltaba teléfono/correo/DNI si el texto cambiaba de forma).
         const v = validarCamposLead({
@@ -2607,11 +2631,13 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           ...(cambios.fecha_nacimiento !== undefined ? { fecha_nacimiento: cambios.fecha_nacimiento } : {}),
         })
         if (!v.ok) return v
-        const parche: CambiosLead = { ...cambios, ...v.valores }
+        const { correccion_documento, ...editables } = cambios
+        const parche: CambiosLead = { ...editables, ...v.valores,
+          ...(identidad ? { documento: identidad, dni: identidad.tipo === 'DNI' ? identidad.numero : null } : {}) }
         if (esAbierto(actual)) {
           const tel = parche.telefono ?? actual.telefono
           const dni = parche.dni !== undefined ? parche.dni : (actual.dni ?? null)
-          const choque = conflictoDedup(datos.leads, tel, dni, id, idsDelAmbito)
+          const choque = conflictoDedup(datos.leads, tel, dni, id, idsDelAmbito, identidad ?? actual.documento)
           if (choque) return choque
         }
         aplicar(id, parche)
@@ -2619,8 +2645,8 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         // (crm.editar_lead_fn, INVOKER: el UPDATE de hoy con la RLS de quien edita).
         // Con la identidad encendida el servidor pasa el DNI por su puerta dentro de
         // la misma transacción: todo o nada, y dos ediciones no se mezclan.
-        persistir(
-          () => editarLeadFn(id, parche),
+        const persistido = persistirConDetalle(
+          () => editarLeadFn(id, { ...parche, ...(correccion_documento ? { correccion_documento } : {}) }),
           {
             invalidarNucleosConversion:
               parche.origen !== undefined && parche.origen !== actual.origen,
@@ -2628,7 +2654,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
               parche.origen !== undefined && parche.origen !== actual.origen,
           },
         )
-        return { ok: true }
+        return cambios.documento ? { ok: true, persistido } : { ok: true }
       },
 
       cambiarEtapa: (id, etapa, capital) => {
@@ -2978,7 +3004,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             error: 'Solo se puede reabrir un lead descartado',
           }
         }
-        const choque = conflictoDedup(datos.leads, actual.telefono, actual.dni ?? null, id, idsDelAmbito)
+        const choque = conflictoDedup(datos.leads, actual.telefono, actual.dni ?? null, id, idsDelAmbito, actual.documento)
         if (choque) return choque
         aplicar(
           id,

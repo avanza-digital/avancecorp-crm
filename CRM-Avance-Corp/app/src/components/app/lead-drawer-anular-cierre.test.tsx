@@ -22,6 +22,7 @@ import { LeadDrawer } from './lead-drawer'
 vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
 }))
+vi.mock('@/data/documento-lead', () => ({ useDocumentoLead: () => ({ data: undefined, isPending: false, isError: false }) }))
 
 // El transporte tiene su propia suite (contrato valibot + gate de RLS). Aquí se
 // sustituye para que la ficha se monte sin QueryClient ni red, igual que hacen
