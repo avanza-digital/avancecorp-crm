@@ -1,3 +1,40 @@
+## 20260930000550 — Agenda de postventa: los perfiles de la persona se buscan en su familia (`private.postventa_tarea_json`)
+
+**⏸️ PENDIENTE DE APLICAR (lo lanza Miguel con `!`).** Paso 3 · fase 1 del refactor por módulos, aprobado por Miguel
+el 29/09 («dale»). Plan sin jerga en el chat; anclas en la nota del vault «CRM - perfil de carga lectura vs
+escritura (2026-09-29)».
+
+Problema medido (29/09, producción): la lista de tareas (`tareas_pendientes_fn`, 22 ms) arrastra la agenda de
+postventa (`postventa_agenda_fn`, 509–532 ms) en cada carga de Hoy/agenda de todos (~1.300 veces al día). De esos
+ms, 320–338 son `postventa_perfil_ids`: por cada una de las 16 tareas de postventa se recorren las 565 personas
+llamando a `inversionista_canonica()` dos veces por fila.
+
+Cambio: las candidatas salen de la FAMILIA de la persona (CTE recursiva desde su raíz canónica bajando por
+`inversionista_canonico_id`, tope 16 como `inversionista_canonica`) y sobre ese puñado se aplica el MISMO predicado
+de antes. `familia` es un superconjunto de «las de la misma canónica» (toda persona con esa canónica cuelga de la
+raíz en ≤ 15 saltos), así que el resultado es idéntico también con ciclos; hoy 0 personas tienen padre. Nada más
+cambia: firma, STABLE STRICT, INVOKER, `search_path` vacío, dueño y ACL (postflight). Ninguna puerta ni el front
+cambian. Huellas `md5(pg_get_functiondef)`: viva `c29fd1d25ab775ecd63ab2660a847d0e` → nueva
+`bff893c533d645be75d884788173bd50` (la huella local difería solo por el salto de línea final que
+`pg_get_functiondef` añade; se comprobó carácter a carácter en un ensayo deshecho).
+
+**Oráculo en producción** (transacción deshecha; `scripts/postventa-tarea-familia/ensayo-oraculo.sql`): md5 de
+`postventa_tarea_json(t)` de las 16 tareas con persona fila a fila, y para gerencia, supervisor con bandeja y los 2
+responsables con más postventa: `postventa_agenda_fn`, `cola_accion_v3_fn`, `tareas_pendientes_fn`: **13/13
+iguales, 0 distintos**. Tiempos: agenda gerencia 509 → **161 ms**, supervisor 418 → 162, responsables 426/215 →
+161/154; las 16 `tarea_json` 338 → **16 ms**. Prototipo previo: `perfil_ids` idéntico en las 568 personas.
+**Ciclo ensayado en producción con rollback** (`ensayo-ciclo.sql`): migración → repetida (idempotente) → reversa →
+migración → registrador; después: huella viva intacta, 0 registros.
+
+Método de aplicación: `supabase db query --linked --file supabase/migrations/20260930000550_crm_postventa_tarea_json_por_familia.sql`
+→ `supabase/scripts/postventa-tarea-familia/registrar.sql` → `verificar.sql` (termina en raise; esperado agenda
+< 250 ms) → advisors. Reversa: `reversa.sql` (cuerpo vivo del 29/09 byte a byte; conserva la fila de
+`schema_migrations`: anotarlo aquí el mismo día).
+
+Reviews: Codex (`docs/encargos/2026-09-30-codex-postventa-tarea-familia.md`) y auditor-rls: ver abajo.
+No ejecutado: `test-rls.mjs` (no cambia policies ni grants; la función no decide visibilidad) y banco Docker (los
+ensayos se hicieron sobre los datos reales, deshechos).
+
 ## 20260929230336 — Cartera de inversionistas: el nombre del cierre externo en un solo recorrido (`private.cartera_f5_personas_visibles(uuid)`)
 
 **✅ EN PROD 29/09/2026 ~18:25 Lima por `!` de Miguel: migración → `registrar.sql` (fila `20260929230336 /
