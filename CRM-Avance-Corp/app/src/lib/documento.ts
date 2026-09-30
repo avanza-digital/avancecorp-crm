@@ -29,7 +29,7 @@ export interface ReglaDocumento {
 // OJO: sin `maxlength` por tipo A PROPÓSITO (hallazgo del portal 2026-07-14):
 // un tope de 8 en modo DNI TRUNCA EN SILENCIO un CE de 9–12 pegado sin cambiar
 // el selector, y el resultado truncado VALIDA como DNI (documento corrupto).
-// El input usa un tope único de 12 y el largo exacto lo atrapa la validación.
+// Los formularios de lead conservan todo lo escrito y validan el largo al guardar.
 export const TIPOS_DOCUMENTO = Object.freeze({
   DNI: Object.freeze<ReglaDocumento>({
     etiqueta: 'DNI',
@@ -61,6 +61,17 @@ export const TIPOS_DOCUMENTO = Object.freeze({
 })
 
 export type TipoDocumento = keyof typeof TIPOS_DOCUMENTO
+
+/** Identidad completa; el número es texto para conservar sus ceros iniciales. */
+export interface DocumentoIdentidad {
+  tipo: TipoDocumento
+  numero: string | null
+}
+
+export interface CorreccionDocumentoLead {
+  identificador_anterior: string | null
+  motivo: string
+}
 
 /** Catálogo runtime para poblar selects POR CÓDIGO (nunca <option> a mano). */
 export const TIPOS_DOCUMENTO_K = Object.keys(TIPOS_DOCUMENTO) as TipoDocumento[]

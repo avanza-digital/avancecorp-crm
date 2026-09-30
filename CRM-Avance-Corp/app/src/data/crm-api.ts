@@ -1,3 +1,4 @@
+import { DocumentoLeadSchema } from '@/lib/documento-lead'
 import { TareaRowSchema } from '@/lib/tarea-schema'
 import * as v from 'valibot'
 import { ESTADOS_SOLICITUD_TASA_VIVOS } from '@/lib/rentabilidad'
@@ -66,7 +67,7 @@ import {
   type TitularInput,
 } from '@/lib/clientes-tipos'
 import { TAMANO_PAGINA_CARTERA, normalizarBusquedaCartera, textoBuscable } from '@/lib/cartera-keyset'
-import { TIPOS_DOCUMENTO, TIPOS_DOCUMENTO_K, type TipoDocumento } from '@/lib/documento'
+import { TIPOS_DOCUMENTO, TIPOS_DOCUMENTO_K, type TipoDocumento, type DocumentoIdentidad, type CorreccionDocumentoLead } from '@/lib/documento'
 import { CierresExternosSchema, COOPERATIVAS, type CierresExternos, type Cooperativa } from '@/lib/cierres-externos'
 import { CierresEstadoSchema, MAX_LEADS_ESTADO, type CierreEstado } from '@/lib/cierre-estado'
 import { ConversionEstadoSchema, type ConversionEstado } from '@/lib/conversion-estado'
@@ -2038,6 +2039,7 @@ export interface CrearLeadAtomicoInput {
   telefono_alternativo?: string | null
   correo?: CrearLeadArgs['p_correo'] | null
   dni?: CrearLeadArgs['p_dni'] | null
+  documento?: DocumentoIdentidad
   genero?: CrearLeadArgs['p_genero'] | null
   fecha_nacimiento?: CrearLeadArgs['p_fecha_nacimiento'] | null
   distrito?: CrearLeadArgs['p_distrito'] | null
@@ -2227,7 +2229,14 @@ function aErrorInsertarLead(error: {
 }
 
 export async function insertarLead(fila: CrearLeadAtomicoInput): Promise<ResultadoCreacionLeadAtomica> {
-  const { data, error } = await cliente()
+  const { documento, dni: _dni, ...datosTipados } = fila
+  const { data, error } = documento
+    ? await cliente().schema('crm').rpc('crear_lead_documento_fn', {
+      p_datos: sinIndefinidos(datosTipados) as Json,
+      p_tipo: documento.tipo,
+      p_documento: documento.numero ?? '',
+    })
+    : await cliente()
     .schema('crm')
     .rpc(
       'crear_lead_si_disponible',
@@ -2294,11 +2303,30 @@ export async function reabrirLead(leadId: string): Promise<void> {
  * y dos ediciones simultáneas no se mezclan (Codex bloque 4 #1). Los rechazos de
  * la puerta llegan con el texto del servidor (P0409 → CONFLICTO, P0429 → NO_INSISTA).
  */
-export async function editarLeadFn(leadId: string, cambios: LeadUpdate): Promise<void> {
-  const { error } = await cliente()
+export async function editarLeadFn(leadId: string, cambios: LeadUpdate & {
+  documento?: DocumentoIdentidad
+  correccion_documento?: CorreccionDocumentoLead
+}): Promise<void> {
+  const { documento, correccion_documento, dni: _dni, ...resto } = cambios
+  const { data, error } = documento
+    ? await cliente().schema('crm').rpc('editar_lead_documento_fn', {
+      p_lead_id: leadId, p_cambios: resto as Json,
+      p_tipo: documento.tipo, p_documento: documento.numero ?? '',
+      ...(correccion_documento?.identificador_anterior ? { p_identificador_anterior: correccion_documento.identificador_anterior } : {}),
+      ...(correccion_documento?.motivo ? { p_motivo: correccion_documento.motivo } : {}),
+    })
+    : await cliente()
     .schema('crm')
     .rpc('editar_lead_fn', { p_lead_id: leadId, p_cambios: cambios as Json })
   if (error) throw aErrorApi(error, 'crm.leads.editar_fallido')
+  if (documento) {
+    const lectura = v.safeParse(DocumentoLeadSchema, data)
+    if (!lectura.success || lectura.output.lead_id !== leadId ||
+      lectura.output.numero !== (documento.numero?.trim().toUpperCase() || null) ||
+      (documento.numero && lectura.output.tipo !== documento.tipo)) {
+      throw new CrmApiError('El servidor no confirmó el documento guardado. Recarga la ficha.', 'DOCUMENTO_LEAD_CONTRACT')
+    }
+  }
 }
 
 export async function insertarActividad(fila: ActividadInsert): Promise<void> {

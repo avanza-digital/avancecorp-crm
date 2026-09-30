@@ -116,7 +116,11 @@ test('rollback honesto: rechazo del servidor mapea el mensaje, restaura el valor
   ).toBeVisible()
   await expect.poll(() => estado.llamadas.rpcEditarLead).toBe(1)
   expect(estado.llamadas.patchLead).toBe(0)
-  // El valor editado se revirtió al del servidor (no quedó el optimista).
+  // El rechazo conserva el formulario para corregir, sin anunciar éxito.
+  await expect(drawer.getByRole('alert')).toContainText('Ese teléfono ya pertenece')
+  await expect(page.getByText('Cambios guardados', { exact: true })).toHaveCount(0)
+  await drawer.getByRole('button', { name: 'Cancelar', exact: true }).click()
+  // El valor persistido se revirtió al del servidor (no quedó el optimista).
   await expect(drawer.getByText('+51999000111')).toBeVisible()
   await expect(page.getByText('(demo)')).toHaveCount(0)
 })

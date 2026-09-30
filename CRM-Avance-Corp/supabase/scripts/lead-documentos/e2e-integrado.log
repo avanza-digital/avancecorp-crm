@@ -1,0 +1,13 @@
+npm notice run app@0.0.0 test:e2e:docker
+npm notice run bash scripts/e2e-docker.sh
+E2E en Docker · imagen mcr.microsoft.com/playwright:v1.61.1-noble
+
+Running 324 tests using 2 workers
+···················································°°°°°°°°°°°°°················
+·····°°°°°°°°°°°°°······························································
+················································································
+················································································
+····
+::notice title=🎭 Playwright Run Summary::  26 skipped%0A  298 passed (11.7m)
+  26 skipped
+  298 passed (11.7m)
