@@ -1,6 +1,10 @@
 ## 20260930154341 — Vigilante permanente del ayudante del núcleo SLA (`private.assert_sla_avisos`)
 
-**⏸️ PENDIENTE DE APLICAR (lo lanza Miguel con `!`).** Cierra el P2-2 del auditor-rls sobre `20260930002929`: el ayudante
+**✅ EN PROD 30/09/2026 ~10:57 Lima por `!` de Miguel: migración → `registrar.sql` (fila `20260930154341 /
+crm_sla_vigilante_ayudante`, 1 sentencia) → `verificar.sql`: huella `9b9edc86…` OK, guardián ampliado OK (10 ms),
+paraguas OK. Advisors (`db advisors --type all`): 242, los mismos de antes, ninguna clase nueva (el único que cita
+un objeto de esta migración es el preexistente de DEFINER ejecutable por `authenticated` sobre el adaptador).
+PR #143 (apilada sobre #142).** Cierra el P2-2 del auditor-rls sobre `20260930002929`: el ayudante
 `private.sla_leads_operativos()` y la línea del resumen que lo usa solo se comprobaban al aplicar. Aprobado por Miguel
 el 30/09 («dale»).
 
@@ -43,7 +47,7 @@ No ejecutado: `test-rls.mjs` (no cambia policies ni grants) y banco Docker (ensa
 
 ## 20260930150852 — Gestión Diaria: sus dos consultas al núcleo SLA evalúan solo las oportunidades que pueden avisar (+ resellado de sus guardianes)
 
-**✅ EN PROD 30/09/2026 ~11:05 Lima por `!` de Miguel: migración → `registrar.sql` (fila `20260930150852 /
+**✅ EN PROD 30/09/2026 ~10:25 Lima por `!` de Miguel: migración → `registrar.sql` (fila `20260930150852 /
 crm_gestion_diaria_solo_operativos`, 4 sentencias) → `verificar.sql`: las cuatro huellas nuevas OK, guardianes OK
 (paraguas, SLA, pulso), equipo de gerencia **1.350 ms** (antes 1.804–1.853; meta ≤ 1.300 rozada, con tráfico de
 mañana) y avisos del supervisor grande **864 ms** (antes 1.002–1.031). Advisors: sin clases nuevas.** Paso 4 · fase
