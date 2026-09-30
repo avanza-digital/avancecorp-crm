@@ -1,12 +1,12 @@
 ---
 tags: [crm, conversion, coordinacion, reparto, divisor]
 actualizado: 2026-09-30
-estado: preparado
+estado: produccion
 ---
 
 # Conversión: la coordinadora ve el divisor del núcleo, no el reporte de entregas
 
-**PREPARADO 30/09/2026, pendiente de que Miguel aplique la migración con `!` y publique el front.**
+**SERVIDOR EN PRODUCCIÓN 30/09/2026 (migración y registro por `!` de Miguel; Astrid 115 = 65 + 50 y Merlys 88 = 60 + 28 verificados en prod; PR #146 fusionada). Pendiente: advisors y publicar el front con `/release-crm`.**
 
 ## El síntoma y su causa real
 
