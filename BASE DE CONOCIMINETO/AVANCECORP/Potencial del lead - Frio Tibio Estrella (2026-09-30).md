@@ -1,16 +1,20 @@
 ---
 fecha: 2026-09-30
-estado: ✅ fase 1 EN PROD 30/09 (bandera APAGADA) · 🟡 fase 2 en el `main` de GitHub (PR #157): falta el `!` de Miguel · 🟡 fase 3 entrega A (marcar y ver) TERMINADA y revisada en la PR #158, sin fusionar ni publicar · entrega B (filtro) y fase 4 (Jev) sin empezar · ver «Para retomar»
+estado: ✅ fase 1 EN PROD 30/09 (bandera APAGADA) · 🟡 fase 2 en el `main` de GitHub (PR #157): falta el `!` de Miguel · 🟡 fase 3 entrega A (marcar y ver) TERMINADA, revisada y FUSIONADA en `main` (PR #158, `8eeaf805`), sin publicar · entrega B (filtro) y fase 4 (Jev) sin empezar · ver «Para retomar»
 ---
 
 # Potencial del lead: Frío · Tibio · Estrella (2026-09-30)
 
 ## ▶️ Para retomar (estado del 01/10/2026, mediodía)
 
-**Nada nuevo en producción todavía.** La entrega A de la fase 3 está terminada, revisada y en la **PR #158**
-(`crm/potencial-lead-f3a`, commits `8f3e69c4` servidor y `ee323a8a` pantalla, base `avancecorp/main` `78ede498`). Todo
-lo que queda son pasos de Miguel, EN ESTE ORDEN (cada `!` desde `CRM-Avance-Corp/` del taller, leyendo archivos del
-worktree `wt-potencial-lead`, que debe seguir en esa rama):
+**Nada del potencial nuevo en producción todavía.** La entrega A de la fase 3 está terminada, revisada y **fusionada
+en `avancecorp/main`** (PR #158, `8eeaf805`, el 01/10 a las 12:18; comprobado que llegó entera, migración con md5
+`7c2b8534…`). Después Miguel publicó OTRA cosa (PR #159, wizard de conversión, solo pantalla): el CRM VIVO pasó a ser
+`e304cc44` (rama `rescue/wizard-conversion-foco-20261001`, `build-20261001T174928972Z`). `avancecorp/main` (`12861fd9`)
+es exactamente ese vivo MÁS el potencial (27 archivos de `app/`, ni uno más), y sobre esa combinación `npm run check`
+pasa (340 archivos, 5 339 pruebas). El worktree `wt-potencial-lead` quedó en `avancecorp/main` (HEAD suelto): los
+archivos de los `!` están ahí con el mismo contenido. Lo que queda son pasos de Miguel, EN ESTE ORDEN (cada `!` desde
+`CRM-Avance-Corp/` del taller, leyendo archivos de ese worktree):
 
 1. **Fase 2** (pendiente desde el 30/09): la línea del punto 1 de abajo, sin cambios.
 2. **Volcado del esquema** (solo lectura; el modo automático bloqueó a la sesión leer producción): con él se monta un
@@ -22,11 +26,13 @@ worktree `wt-potencial-lead`, que debe seguir en esa rama):
    activo=true`, bandera false, registro presente. Después, advisors (ninguna clase nueva).
 4. **Tipos:** en `app/` del worktree, `npm run gen:types` (lee producción) y `npm run typecheck`. Traerá además
    bloques de otras sesiones que el repo no tenía (`contrato_pdf_anexo_*`, argumentos nuevos de la conversión).
-5. **Fusionar la PR #158** y comprobar que llegó a `avancecorp/main`.
-6. **Publicar el front** con `/release-crm`. 🔴 El CRM VIVO es `c6e65d9e` (rama `rescue/conversion-desglose-20261001`,
-   punta `dfb5b325`), que NO es ancestro de `main`: el preflight rechazará un build nacido de `main`. Receta: rama de
-   release desde esa punta + `git checkout crm/potencial-lead-f3a -- CRM-Avance-Corp/app` (el `app/` del vivo y el de
-   `main` eran idénticos el 01/10). El archivo de entorno lo copia Miguel (el hook se lo bloquea a la sesión).
+5. ✅ PR #158 fusionada (`8eeaf805`) y comprobada en `avancecorp/main`.
+6. **Publicar el front** con `/release-crm`. 🔴 El CRM VIVO es `e304cc44` (rama
+   `rescue/wizard-conversion-foco-20261001`), que NO es ancestro de `main`: el preflight rechazará un build nacido de
+   `main`. Receta: rama de release desde el commit vivo + `git checkout avancecorp/main -- CRM-Avance-Corp/app` (el
+   01/10 a las 13:30 `main` era el vivo más el potencial, sin nada más). 🔑 Antes de construir, volver a mirar
+   `crm.miavance.com/version.json`: el vivo cambió dos veces en un día. El archivo de entorno lo copia Miguel (el hook
+   se lo bloquea a la sesión).
 7. **Pasada visual** con movimiento activado (cuentagotas en hover sobre fila, botón y tarjeta Estrella; lector de
    pantalla en la ficha) y **encender**: `encender-bandera.sql` → `verificar-lectura.sql` («bandera true»). Anotar en
    `MIGRACIONES.md` quién y cuándo. Interruptor de emergencia: `apagar-bandera.sql`.
