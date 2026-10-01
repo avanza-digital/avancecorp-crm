@@ -7,9 +7,13 @@ montado desde cero (montaje + los dos ciclos en menos de tres minutos).
 | Script | Qué hace |
 |---|---|
 | `montar-banco.sh <esquema.sql>` | Levanta el contenedor (imagen `supabase/postgres:17.6.1.105`), crea los dos roles y las dos extensiones que el volcado espera, carga el esquema de producción, crea el historial de migraciones y activa `pg_cron` con los permisos de `postgres`. Imprime las huellas para comparar con producción. Se niega si el contenedor ya existe. |
-| `ciclo-fase1.sh` | Migración de la fase 1: ciclo aplicar/repetir/revertir, sintética (75), mutantes de la migración (9) y de lógica (7), concurrencia (11) con sus 3 mutantes, registro y verificación. Si la fase 2 está puesta, la retira y la repone. |
-| `ciclo-fase2.sh` | Migración de la fase 2: ciclo sin y con `pg_cron`, caducidad (51), fase 1 sin regresión (75), concurrencia (10), mutantes de lógica (13), de concurrencia (2) y de la migración (4), una corrida REAL de `pg_cron`, la medición del lote y registro y verificación. Exige la fase 1. |
+| `ciclo-fase1.sh` | Migración de la fase 1: ciclo aplicar/repetir/revertir, sintética (75), mutantes de la migración (9) y de lógica (7), concurrencia (11) con sus 3 mutantes, registro y verificación. Si la fase 2 o la puerta de lectura están puestas, las retira y las repone. |
+| `ciclo-fase2.sh` | Migración de la fase 2: ciclo sin y con `pg_cron`, caducidad (51), fase 1 sin regresión (75), concurrencia (10), mutantes de lógica (13), de concurrencia (2) y de la migración (4), una corrida REAL de `pg_cron`, la medición del lote y registro y verificación. Exige la fase 1. Si la puerta de lectura está puesta, la retira y la repone. |
 | `medir-lote.sql` | Cuánto dura una pasada de la tarea con 2 000 marcas vencidas (todo se deshace). |
+| `ciclo-fase3a.sh` | Migración de la puerta de lectura (fase 3, entrega A): ciclo aplicar/repetir/revertir, foto de los trinquetes sin y con la migración, lectura (94), fases 1 y 2 sin regresión (75 y 51), mutantes de lógica (30), de la migración y del preflight (28), el ensayo sin `pg_cron`, la medición, registro, verificación y el verificador frente a un ayudante abierto. Exige las fases 1 y 2. |
+| `trinquetes.sql` | Foto de los `private.assert_*()` y del censo de contadores, para compararla antes y después de una migración (todo se deshace). |
+| `medir-lectura.sql` | Cuánto tarda la puerta de lectura con 50 y con 200 ids, como analista y como supervisor (todo se deshace). |
+| `generar-registrador.py` | Genera el registrador de una migración con su md5 embebido. Si la migración cambia, se vuelve a generar. |
 
 ```bash
 # 1 · Volcado del esquema (solo lectura sobre producción; sin datos), desde CRM-Avance-Corp/:
@@ -18,6 +22,7 @@ supabase db dump --linked --schema public,crm,private --keep-comments -f /ruta/e
 BANCO_CONTENEDOR=avancecorp-potencial-AAAAMMDD BANCO_PUERTO=55470 bash montar-banco.sh /ruta/esquema.sql
 BANCO_CONTENEDOR=avancecorp-potencial-AAAAMMDD bash ciclo-fase1.sh
 BANCO_CONTENEDOR=avancecorp-potencial-AAAAMMDD bash ciclo-fase2.sh
+BANCO_CONTENEDOR=avancecorp-potencial-AAAAMMDD bash ciclo-fase3a.sh
 ```
 
 ## Cómo leer la salida
@@ -28,6 +33,8 @@ BANCO_CONTENEDOR=avancecorp-potencial-AAAAMMDD bash ciclo-fase2.sh
   propósito, porque la defensa está duplicada y el mutante solo rompe una mitad:
   `gerencia-pasa-solo-ayudante` (la puerta exige el rol antes), `cerrados-solo-filtro` y
   `corte-solo-filtro` (la relectura bajo candado los cubre). Sus mutantes **dobles** sí deben caer.
+- En la fase 3A sobrevive a propósito `sin-sesion` (sin sesión el gate ya rechaza); su doble
+  `sin-sesion-ni-gate` debe caer. Y la línea «trinquetes» debe decir «idénticos».
 - En los mutantes de **concurrencia**, lo correcto son líneas `✗`. Dos de la fase 1 (reversa sin
   candados y reversa con el orden viejo) BORRAN las tablas del banco: el ciclo las reaplica.
 

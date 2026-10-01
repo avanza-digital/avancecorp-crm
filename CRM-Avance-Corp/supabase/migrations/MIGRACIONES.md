@@ -1,3 +1,53 @@
+## 20261001151704 — Potencial del lead · fase 3, entrega A: la puerta de lectura (`crm.potencial_leads_fn`)
+
+**⏸️ PENDIENTE: ensayada en banco Docker propio; NO aplicada en producción.** Exige aplicar ANTES la fase 2
+(`20260930235917`): su preflight se niega si faltan el reloj y la regla. Gate `test:rls` con sesiones reales: NOT RUN
+(local sin gestor de credenciales). Plan aprobado por Miguel el 01/10/2026 («vamos dale»): la pantalla en dos entregas,
+A marcar y ver, B filtrar. **No modifica ninguna función, tabla ni policy existente.**
+
+Piezas: puerta `crm.potencial_leads_fn(uuid[])` (DEFINER, STABLE, **EXECUTE solo `authenticated`**; anon y service_role
+sin EXECUTE): sesión, gate restrictivo del CRM invocado (`private.puede_acceder_crm`), tope de 200 ids contando todos los
+elementos, y la bandera `potencial_lead`: apagada devuelve `{version:1, habilitada:false, items:[]}` sin leer nada.
+Núcleo `private.potencial_lectura(actor, ids, hoy, corte, próxima corrida)` (INVOKER, sin EXECUTE de la API; el actor
+debe ser el de la sesión): un ítem por cada lead pedido que el actor puede VER
+`{lead_id, nivel, origen, nivel_marcado, marcado_en, dias_sin_gestion, baja_a, baja_el, puede_marcar}`. Ayudantes
+`private.potencial_proxima_corrida` (horario NOMINAL de la tarea: hoy hasta las 05:45 Lima, después mañana; el
+postflight comprueba el job entero: horario, comando, usuario, base y zona) y `private.potencial_proxima_baja`
+(primera fecha en que la regla de la fase 2 da un nivel menor). `baja_el` no acredita ejecución: es la primera
+madrugada en que la regla la bajaría con lo que se sabe ahora. Sin datos
+personales en el payload (no viaja quién marcó). Sin agregados de conteo.
+
+**SECURITY DEFINER, justificación:** las tablas de la marca no tienen grants para la API (fase 1) y el reloj y la regla
+de la fase 2 no tienen EXECUTE para la API; la alternativa INVOKER obligaría a exponer `crm.lead_potencial` y su
+historial por PostgREST. Molde: `crm.cierres_estado_fn`. 🔴 **El núcleo COPIA la policy `leads_select`** (tercera copia
+manual, con `crm.cierres_estado_fn` y `private.conversion_estado_lead_v1`): **si cambian `leads_select` o
+`crm_actor_activo_gate`, hay que re-auditar `private.potencial_lectura`.** El preflight fija por md5 esas dos policies
+y seis ayudantes (protege el instante de aplicar); después, la comparación «puerta = RLS» del gate
+(`testPotencialLectura`, con la bandera encendida fuera de banda) es la que caza un espejo desincronizado. Deuda
+anotada: unificar el predicado de visibilidad en un solo lugar.
+
+Revisión: auditor-rls **PASS con observaciones** (0 P0, 0 P1; P2 gate inalcanzable con la bandera apagada y fila del
+ledger → aplicados; P3 actor = sesión y reversa de la fase 2 con la lectura puesta → aplicados). Codex r1
+**CHANGES_REQUESTED sin fuga de RLS**: postflight con configuración y ACL exactas y permisos efectivos (aplicado),
+verificador con ACL nula (aplicado), duplicados en el gate (aplicado), y `baja_el` que no coincidía con la tarea
+cuando la corrida de hoy ya pasó (aplicado: se cuenta desde la próxima corrida). Codex r2 (segunda y última)
+**CHANGES_REQUESTED, sin P0/P1 ni fuga**, con los tres hallazgos de la r1 dados por resueltos; sus tres P2:
+(1) «las 05:40 no implican que la pasada ya corrió» → ACEPTADO: horario nominal declarado como tal y cinco minutos de
+margen (corte a las 05:45); (2) el postflight podía aprobar sin comprobar la tarea → ACEPTADO: se comprueba el job
+entero como en la fase 2 y, sin pg_cron, el aviso dice «NO COMPROBADA»; (3) la reposición de la bandera en el gate era
+condicional → ACEPTADO en lo que cabe: dos intentos con relectura, mensaje con la orden de recuperación
+(`apagar-bandera.sql`) y aislamiento escrito; RIESGO ACEPTADO: si el proceso muere a mitad, la bandera queda encendida
+en ese banco, que es desechable (el gate se niega a correr contra producción: `test-rls.mjs:230`). Encargos y
+respuestas: `docs/encargos/2026-10-01-potencial-lead-f3a-r{1,2}*.md`.
+
+Banco: lectura 94/94 (incluye la equivalencia, actor por actor, con la RLS real de `crm.leads`, y `puede_marcar`
+contra marcar de verdad), fases 1 y 2 sin regresión 75/75 y 51/51; 30 mutantes de lógica (29 cazados; `sin-sesion`
+sobrevive a propósito y su doble cae) y 28 de la migración y el preflight rechazados; los 36 `private.assert_*()` y el
+censo de contadores idénticos sin y con la migración; supervisor con equipo de 67: 50 ids ≈ 8 ms, 200 ids ≈ 25 ms,
+marcas de 400 días ≈ 40 ms (con la máquina cargada, hasta cuatro veces más). Reversa y registro idempotentes (md5
+`7c2b8534…`). Encender y apagar la bandera: `encender-bandera.sql` y `apagar-bandera.sql`, ensayados. Scripts: `supabase/scripts/potencial-lead/` (LEEME,
+sección «Fase 3, entrega A»).
+
 ## 20260930235917 — Potencial del lead · fase 2: la marca baja sola (`private.potencial_caducar`, pg_cron `crm-potencial-lead-caducidad`)
 
 **⏸️ PENDIENTE: ensayada en banco Docker propio (con y sin pg_cron); NO aplicada en producción.** Miguel (30/09)
@@ -18,8 +68,9 @@ CHANGES_REQUESTED: P1 (el corte al inicio del día ignoraba contactos de la madr
 la corrida; P2 (candados retenidos todo el lote) ACEPTADO con lote acotado a 200 y dos pasadas, y MEDIDO: 200 leads =
 34 ms. Segunda y última ronda. Riesgos escritos: contacto confirmado entre la relectura y el UPDATE; lead ocupado
 en cada corrida se salta (regla acumulativa); preflight del job conservador.
-**Supuestos a confirmar con Miguel antes de encender la bandera:** Estrella llega a Frío a los 10 días en total (no
-5 + 10); el tiempo cerrado o inactivo cuenta como sin gestión; agendar o reasignar no reinicia el reloj.
+**Supuestos CONFIRMADOS por Miguel el 01/10/2026:** Estrella llega a Frío a los 10 días en total (no 5 + 10); el
+tiempo cerrado o inactivo cuenta como sin gestión; solo el contacto real o volver a marcar reinician el reloj (ni
+notas, ni tareas agendadas, ni reasignar); al reasignar, la marca viaja con el lead.
 
 Banco: caducidad 51/51 (como postgres, calendario simulado), fase 1 sin regresión 75/75, concurrencia 10/10, corrida
 REAL de pg_cron `succeeded`, ciclo con y sin pg_cron; 13 mutantes de lógica y concurrencia cazados y 4 de la migración
