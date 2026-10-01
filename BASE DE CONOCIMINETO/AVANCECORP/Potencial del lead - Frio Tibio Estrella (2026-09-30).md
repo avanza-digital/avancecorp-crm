@@ -31,17 +31,22 @@ archivos de los `!` están ahí con el mismo contenido. Lo que queda son pasos d
 3. ✅ **Puerta de lectura EN PROD** (Miguel con `!`, 01/10/2026 13:40 Lima). Salida de `verificar-lectura.sql`:
    ejecutan la puerta `[authenticated]`, 0 EXECUTE de la API en los 3 ayudantes, 0 funciones con ACL nula, forma
    `DEFINER/s/search_path=""`, job `10,40 10 * * * activo=true`, bandera false, 0 marcas, registro
-   `crm_potencial_lead_lectura`. Ledger a EN PROD en la rama `crm/potencial-lead-f3a-en-prod` (`b166f399`, sin PR
-   todavía: falta sumarle los tipos regenerados). Faltan los advisors de después (se espera 249: la puerta nueva).
-4. **Tipos:** en `app/` del worktree, `npm run gen:types` (lee producción) y `npm run typecheck`. Traerá además
-   bloques de otras sesiones que el repo no tenía (`contrato_pdf_anexo_*`, argumentos nuevos de la conversión).
+   `crm_potencial_lead_lectura`. Advisors de después: 249; el único nuevo es `crm.potencial_leads_fn` en la clase
+   `authenticated_security_definer_function_executable`, que ya existía. Ninguna clase nueva.
+4. ✅ **Tipos y ledger: PR #161** (`crm/potencial-lead-f3a-en-prod`, `b166f399` + `2f91fdd3`, sin fusionar). Miguel
+   corrió `npm run gen:types`: los bloques del potencial salieron IDÉNTICOS a los trasplantados desde el banco;
+   entraron además `contrato_pdf_anexo_*` y los argumentos `p_desde`/`p_hasta` de la conversión, que ya estaban en
+   producción. `npm run check` con esos tipos: PASS (340 archivos, 5 339 pruebas).
 5. ✅ PR #158 fusionada (`8eeaf805`) y comprobada en `avancecorp/main`.
-6. **Publicar el front** con `/release-crm`. 🔴 El CRM VIVO es `e304cc44` (rama
-   `rescue/wizard-conversion-foco-20261001`), que NO es ancestro de `main`: el preflight rechazará un build nacido de
-   `main`. Receta: rama de release desde el commit vivo + `git checkout avancecorp/main -- CRM-Avance-Corp/app` (el
-   01/10 a las 13:30 `main` era el vivo más el potencial, sin nada más). 🔑 Antes de construir, volver a mirar
-   `crm.miavance.com/version.json`: el vivo cambió dos veces en un día. El archivo de entorno lo copia Miguel (el hook
-   se lo bloquea a la sesión).
+6. **Publicar el front** con `/release-crm`. La rama YA ESTÁ PREPARADA en el worktree `wt-potencial-lead`:
+   `release/potencial-lead-f3a-20261001` (`54690b06`, solo local). Nace del commit VIVO `e304cc44` (lo contiene) y su
+   árbol es idéntico al de la rama de cierre (`main` en `12861fd9` + ledger + tipos), que pasó el check completo.
+   🔴 NO incluye la PR #160 (Llamadas F1, fusionada en `main` a las 13:38 y SIN publicar): la publica su sesión; quien
+   publique segundo debe partir de lo que haya vivo. 🔑 Antes de construir, volver a mirar
+   `crm.miavance.com/version.json`: si el vivo ya no es `build-20261001T174928972Z`, rehacer la rama sobre el nuevo.
+   Falta: que Miguel copie el archivo de entorno a `app/` del worktree (el hook se lo bloquea a la sesión) y que
+   invoque `/release-crm`. El ZIP y su manifiesto deben quedar en `CRM-Avance-Corp/releases/` del taller (ahí
+   resuelve el preflight el manifiesto vivo). Después de publicar: subir la rama de release y dejarla en `main`.
 7. **Pasada visual** con movimiento activado (cuentagotas en hover sobre fila, botón y tarjeta Estrella; lector de
    pantalla en la ficha) y **encender**: `encender-bandera.sql` → `verificar-lectura.sql` («bandera true»). Anotar en
    `MIGRACIONES.md` quién y cuándo. Interruptor de emergencia: `apagar-bandera.sql`.
