@@ -1,3 +1,18 @@
+## 20260930235814 — Analista asignado en el PDF contractual
+
+Preparada y probada; publicación autorizada por Miguel el 30/09/2026.
+El snapshot 3 separa `contrato.creadoPor` (autoría histórica) de
+`contrato.analistaId` (`public.contratos.analista_cierre_id`). El bloque analista
+se lee completo del perfil asignado: nombre, documento, teléfono y correo.
+El renderer admite snapshots 2 y 3 con validación estricta; conserva los bytes
+históricos y la plantilla v9. Los dos núcleos privados del anexo admiten ambos.
+Tres funciones privadas con preflight de huellas; no altera firmas, ACL,
+policies, tablas, triggers ni condiciones económicas. Sin analista/contacto,
+se rechaza la emisión; nunca se sustituye silenciosamente por el creador.
+Desplegar Edge compatible antes del merge SQL. Reversa de funciones en
+`supabase/scripts/pdf-analista/reversa.sql`, manteniendo el renderer dual.
+Pruebas/evidencia y secuencia: `supabase/scripts/pdf-analista/README.md`.
+
 ## 20260930193325 — Documento tipado del lead y conversión coherente
 
 **PUBLICADA Y VERIFICADA EN PRODUCCIÓN EL 30/09/2026 MEDIANTE merge_branch.**
