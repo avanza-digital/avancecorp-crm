@@ -29,6 +29,23 @@ export const MIN_DIGITOS_BUSQUEDA = 3
 
 const MAX_BUSQUEDA = 80
 
+/**
+ * Recorte por «gestión vigente» que entiende `crm.cartera_filtrada_fn`
+ * (`p_gestion`): ¿alguien intentó contactar al lead desde que su titular ACTUAL
+ * lo recibió? `con_gestion` = sí; `sin_gestion` = todavía no. Es lo que parte la
+ * etapa `nuevo` del Pipeline en «Nuevo» y «Gestionado» (lib/pipeline-columnas).
+ * Un resultado de llamada DESHECHO no cuenta: el lead vuelve a `sin_gestion`.
+ *
+ * Por eso una fila de `sin_gestion` puede traer un `ultimo_contacto_en`
+ * posterior a su `tenencia_desde` (la llamada existió y se deshizo) y es
+ * correcta: no se valida el recorte contra ese sello en ningún sitio.
+ *
+ * NO forma parte de `FiltrosCarteraLocal`: el espejo demo de este módulo solo
+ * conoce los leads, y la gestión se decide con el timeline. En demo la calcula
+ * quien tiene las actividades (`columnaDeLead`).
+ */
+export type GestionCartera = 'con_gestion' | 'sin_gestion'
+
 export interface FiltrosCarteraLocal {
   etapa?: Etapa | 'todas'
   vendedorId?: string | 'todos' | 'sin_asignar'

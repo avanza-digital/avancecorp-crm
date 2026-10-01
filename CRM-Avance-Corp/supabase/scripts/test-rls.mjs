@@ -10827,7 +10827,183 @@ async function testCarteraKeyset(sessions, seed) {
       client.schema('crm').rpc('cartera_filtrada_fn', { p_procedencia: 'automatico' }),
       ['22023'],
     );
+
+    // Gestion (20261001154153): p_gestion parte la MISMA cartera en con_gestion +
+    // sin_gestion sin salirse del ambito RLS. El payload NO cambia (ni eco ni
+    // campos nuevos). Con lo que la fila ya trae se comprueba UN sentido:
+    // con gestion => titular, tenencia y ultimo_contacto_en >= tenencia_desde.
+    // El reciproco NO vale: ultimo_contacto_en sigue viendo una llamada con el
+    // resultado deshecho, y para el filtro lo deshecho no ocurrio.
+    // Para que nada de esto pase EN VACIO (un con_gestion siempre vacio cumpliria
+    // todos los every/sumas): (a) un oraculo propio —titular, tenencia y contactos
+    // leidos de las TABLAS por la misma sesion, sin la funcion— dicta el veredicto
+    // de cada fila, y con la cartera en una pagina cada lead cae en exactamente una
+    // mitad; (b) el lead de vend1 que testAvanceEtapa dejo con un intento sin
+    // respuesta fija un caso permitido por rol; (c) gerencia tiene al menos uno.
+    const carteraConGestion = await positive(
+      `${key} obtiene cartera_filtrada_fn con gestion`,
+      client.schema('crm').rpc('cartera_filtrada_fn', { p_limite: 200, p_gestion: 'con_gestion' }),
+    );
+    const carteraSinGestion = await positive(
+      `${key} obtiene cartera_filtrada_fn sin gestion`,
+      client.schema('crm').rpc('cartera_filtrada_fn', { p_limite: 200, p_gestion: 'sin_gestion' }),
+    );
+    if (carteraTotal && carteraConGestion && carteraSinGestion) {
+      const t = carteraTotal.data ?? {};
+      const c = carteraConGestion.data ?? {};
+      const s = carteraSinGestion.data ?? {};
+      const vivos = (d) => Number(d.resumen?.totales?.vivos ?? -1);
+      // Microsegundos exactos: Date.parse corta en milisegundos y la regla es >=.
+      const micros = (iso) => {
+        const m = /^(.*?)(?:\.(\d{1,6}))?(Z|[+-]\d{2}(?::?\d{2})?)$/.exec(String(iso));
+        return m ? BigInt(Date.parse(`${m[1]}${m[3]}`)) * 1000n + BigInt((m[2] ?? '').padEnd(6, '0')) : null;
+      };
+      const contactoEnTenencia = (f) => f.vendedor_id !== null && f.tenencia_desde !== null
+        && f.ultimo_contacto_en !== null
+        && micros(f.ultimo_contacto_en) >= micros(f.tenencia_desde);
+      check(vivos(t) >= 0 && vivos(t) === vivos(c) + vivos(s),
+        `${key}: con gestion + sin gestion reconstruyen toda su cartera`,
+        JSON.stringify({ total: vivos(t), con: vivos(c), sin: vivos(s) }));
+      const idsCon = new Set((c.items ?? []).map((f) => f.id));
+      check((s.items ?? []).every((f) => !idsCon.has(f.id)),
+        `${key}: ningun lead aparece en las dos mitades de la gestion`);
+      check((c.items ?? []).every(contactoEnTenencia),
+        `${key}: toda fila con gestion trae titular y un ultimo contacto dentro de su tenencia`);
+      check(!('gestion' in c) && !('gestion' in s)
+        && JSON.stringify(Object.keys(c).sort()) === JSON.stringify(Object.keys(t).sort())
+        && ((c.items ?? []).length === 0 || (t.items ?? []).length === 0
+          || JSON.stringify(Object.keys(c.items[0]).sort()) === JSON.stringify(Object.keys(t.items[0]).sort())),
+        `${key}: el filtro de gestion no cambia la forma del payload (sin eco, sin campos nuevos)`);
+      check([...(c.items ?? []), ...(s.items ?? [])].every((f) => idsVisibles.has(f.id)),
+        `${key}: ningun recorte por gestion se sale de lo que su RLS ya mostraba`);
+      if (key === 'vend1') {
+        check([...(c.items ?? []), ...(s.items ?? [])].every((f) => f.vendedor_id === sessions.vend1.user.id),
+          'vend1: con el filtro de gestion sigue viendo solo leads propios');
+      }
+
+      // (a) Oraculo propio: con gestion <=> titular, tenencia y algun contacto NO
+      // deshecho con creado_en >= tenencia_desde, calculado con lo que esta misma
+      // sesion lee de las TABLAS (actividades_select es coextensiva con
+      // leads_select), sin pasar por la funcion.
+      const idsSin = new Set((s.items ?? []).map((f) => f.id));
+      const TIPOS_CONTACTO_GESTION = new Set([
+        'llamada_realizada', 'llamada_no_contestada',
+        'whatsapp_enviado', 'whatsapp_recibido', 'reunion_realizada',
+      ]);
+      // `count: 'exact'` delata un recorte (el max-rows de la API): un oraculo que
+      // no vio todos los contactos daria «sin gestion» falsos sin avisar.
+      const leadsPropios = await positive(
+        `${key} lista titular y tenencia de sus leads como oraculo de la gestion`,
+        client.schema('crm').from('leads')
+          .select('id, vendedor_id, tenencia_desde', { count: 'exact' })
+          .limit(5000),
+      );
+      const contactosPropios = await positive(
+        `${key} lista sus contactos como oraculo de la gestion`,
+        client.schema('crm').from('actividades')
+          .select('lead_id, tipo, creado_en, metadata', { count: 'exact' })
+          .in('tipo', [...TIPOS_CONTACTO_GESTION])
+          .limit(5000),
+      );
+      if (leadsPropios && contactosPropios) {
+        const leads = leadsPropios.data ?? [];
+        const contactos = contactosPropios.data ?? [];
+        const oraculoCompleto = leadsPropios.count === leads.length
+          && contactosPropios.count === contactos.length;
+        check(oraculoCompleto, `${key}: el oraculo de gestion leyo todos sus leads y contactos`,
+          JSON.stringify({ leads: [leadsPropios.count ?? null, leads.length], contactos: [contactosPropios.count ?? null, contactos.length] }));
+        if (oraculoCompleto) {
+          const contactosVigentes = new Map();
+          for (const a of contactos) {
+            if (!TIPOS_CONTACTO_GESTION.has(a.tipo)) continue;
+            if (a.metadata && typeof a.metadata === 'object' && 'deshecho_en' in a.metadata) continue;
+            contactosVigentes.set(a.lead_id, [...(contactosVigentes.get(a.lead_id) ?? []), micros(a.creado_en)]);
+          }
+          const leadPorId = new Map(leads.map((l) => [l.id, l]));
+          const esperadaCon = (id) => {
+            const l = leadPorId.get(id);
+            return l !== undefined && l.vendedor_id !== null && l.tenencia_desde !== null
+              && (contactosVigentes.get(id) ?? [])
+                .some((m) => m !== null && m >= micros(l.tenencia_desde));
+          };
+          check((c.items ?? []).every((f) => leadPorId.has(f.id) && esperadaCon(f.id)),
+            `${key}: toda fila de con_gestion tiene, segun sus propias lecturas, titular y un contacto vigente dentro de la tenencia`,
+            JSON.stringify({ filas: (c.items ?? []).length, fuera: (c.items ?? []).filter((f) => !esperadaCon(f.id)).length }));
+          check((s.items ?? []).every((f) => leadPorId.has(f.id) && !esperadaCon(f.id)),
+            `${key}: ninguna fila de sin_gestion lo tiene`,
+            JSON.stringify({ filas: (s.items ?? []).length, fuera: (s.items ?? []).filter((f) => esperadaCon(f.id)).length }));
+        }
+      }
+      // Igualdad exacta de conjuntos cuando la cartera cabe en la pagina (con el
+      // seed, siempre): cada lead visible cae en exactamente una mitad.
+      if (vivos(t) === (t.items ?? []).length) {
+        check(idsCon.size + idsSin.size === (t.items ?? []).length
+          && (t.items ?? []).every((f) => idsCon.has(f.id) !== idsSin.has(f.id)),
+          `${key}: cada lead de su cartera cae en exactamente una mitad de la gestion`,
+          JSON.stringify({ total: (t.items ?? []).length, con: idsCon.size, sin: idsSin.size }));
+      } else {
+        console.log(`  · ${key}: igualdad exacta de mitades NOT RUN (su cartera no cabe en una pagina de 200)`);
+      }
+
+      // (b) Caso permitido DETERMINISTA: testAvanceEtapa (antes, en esta misma
+      // corrida) dejo vivo un lead de vend1 en `nuevo` al que vend1 registro con su
+      // sesion un intento sin respuesta: sello del servidor, dentro de su tenencia.
+      // Quien lo ve lo tiene en con_gestion; quien no, en ninguna mitad.
+      const idIntentado = TRANSIENT_IDS.avanceLeadIntento;
+      if (['vend1', 'sup1', 'gerencia', 'directorio'].includes(key)) {
+        check(idsCon.has(idIntentado) && !idsSin.has(idIntentado),
+          `${key}: el lead que vend1 ya intento esta en con_gestion (y no en sin_gestion)`);
+      } else {
+        check(!idsCon.has(idIntentado) && !idsSin.has(idIntentado),
+          `${key}: el lead intentado por vend1 no aparece en ninguna mitad (fuera de su ambito)`);
+      }
+      // (c) No vacuidad global.
+      if (key === 'gerencia') {
+        check(idsCon.size >= 1, `gerencia: con_gestion no esta vacio (${idsCon.size} leads)`);
+      }
+    }
+    // Dominio: exactamente 22023 y el mensaje del bloque de validacion de la funcion.
+    await expectExpectedFailure(
+      `${key} recibe 22023 con una gestion fuera de dominio`,
+      client.schema('crm').rpc('cartera_filtrada_fn', { p_gestion: 'gestionado' }),
+      ['22023'], /Filtros de cartera inv/,
+    );
   }
+
+  // Quien no esta admitido al CRM tampoco entra con el filtro: 42501 de ADMISION
+  // (la guarda interna «No autorizado», no la ACL), con p_gestion y sin el.
+  for (const key of ['vendInactive', 'clientBank']) {
+    for (const args of [{ p_limite: 1 }, { p_limite: 1, p_gestion: 'con_gestion' }, { p_limite: 1, p_gestion: 'sin_gestion' }]) {
+      await expectExpectedFailure(
+        `${key}: no admitido al CRM → 42501 en cartera_filtrada_fn ${args.p_gestion ? `con ${args.p_gestion}` : 'sin p_gestion'}`,
+        sessions[key].client.schema('crm').rpc('cartera_filtrada_fn', args),
+        ['42501'], /no autorizado/i,
+      );
+    }
+  }
+
+  // Negativa cruzada con el filtro puesto: vend1 pide la cartera de vend3 (otro
+  // equipo) con cada mitad. El filtro no abre el ambito: cero leads.
+  for (const gestion of ['con_gestion', 'sin_gestion']) {
+    const ajena = await positive(
+      `vend1 pide la cartera de vend3 con ${gestion}`,
+      sessions.vend1.client.schema('crm').rpc('cartera_filtrada_fn', {
+        p_limite: 200, p_vendedor_id: seed.profileIdByKey.vend3, p_gestion: gestion,
+      }),
+    );
+    check(ajena !== null
+      && Number(ajena.data?.resumen?.totales?.vivos ?? -1) === 0
+      && (ajena.data?.items ?? []).length === 0,
+      `vend1 con p_vendedor_id de vend3 y ${gestion}: cero leads`,
+      JSON.stringify({ vivos: ajena?.data?.resumen?.totales?.vivos ?? null }));
+  }
+  // No vacuidad de la negativa: vend3 SI tiene cartera propia.
+  const propiaVend3 = await positive(
+    'vend3 obtiene su propia cartera (la negativa cruzada no es vacia)',
+    sessions.vend3.client.schema('crm').rpc('cartera_filtrada_fn', { p_limite: 200 }),
+  );
+  check(Number(propiaVend3?.data?.resumen?.totales?.vivos ?? 0) >= 1,
+    'vend3 tiene leads propios que vend1 no puede alcanzar con el filtro');
 
   // Anon no llega ni a la validacion de dominio: la firma nueva existe (no es
   // PGRST202) y se niega por permisos.
@@ -10837,6 +11013,36 @@ async function testCarteraKeyset(sessions, seed) {
     anonProcedencia.schema('crm').rpc('cartera_filtrada_fn', { p_procedencia: 'manual' }),
     ['42501'],
   );
+  // Y con el argumento nuevo igual: si la firma de 13 no existiera seria PGRST202.
+  await expectExplicitAuthorizationDenied(
+    'anon recibe 42501 en cartera_filtrada_fn con gestion',
+    anonProcedencia.schema('crm').rpc('cartera_filtrada_fn', { p_gestion: 'con_gestion' }),
+    ['42501'],
+  );
+
+  // ACL y forma de la firma de 13, leidas del CATALOGO (via fuera de banda del
+  // banco). El 42501 de anon de arriba no distingue «sin EXECUTE» de la guarda
+  // interna «No autorizado»; esto si: EXECUTE exactamente para authenticated,
+  // INVOKER, stable, search_path vacio y una sola firma.
+  if (process.env.CRM_BANCO_PSQL_URL) {
+    const F13 = 'crm.cartera_filtrada_fn(integer,timestamptz,uuid,text,uuid,boolean,text,date,date,text,text,boolean,text)';
+    const cuenta = (etiqueta, sql) => contarFueraDeBanda(`cartera con gestion: ${etiqueta}`, sql);
+    check(cuenta('una sola firma', `select count(*) from pg_proc where proname = 'cartera_filtrada_fn' and pronamespace = 'crm'::regnamespace`) === 1,
+      'cartera_filtrada_fn: una sola firma (dos candidatas romperian PostgREST)');
+    const existe = cuenta('firma de 13', `select count(*) from pg_proc p where p.oid = to_regprocedure('${F13}')`) === 1;
+    check(existe, 'cartera_filtrada_fn: la firma viva es la de 13 argumentos (con p_gestion)');
+    if (existe) {
+      check(cuenta('grants', `select count(*) from (select '${F13}'::text as firma) f
+        where has_function_privilege('anon', f.firma, 'EXECUTE') or has_function_privilege('service_role', f.firma, 'EXECUTE')
+           or not has_function_privilege('authenticated', f.firma, 'EXECUTE')
+           or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid = f.firma::regprocedure and a.grantee = 0)`) === 0,
+        'cartera_filtrada_fn(13): EXECUTE exactamente para authenticated (ni anon, ni service_role, ni PUBLIC)');
+      check(cuenta('forma', `select count(*) from pg_proc p where p.oid = '${F13}'::regprocedure and not p.prosecdef and p.provolatile = 's' and p.proconfig = array['search_path=""'] and p.pronargs = 13 and p.proargnames[13] = 'p_gestion'`) === 1,
+        'cartera_filtrada_fn(13): INVOKER, stable, search_path vacio y p_gestion como 13.o argumento');
+    }
+  } else {
+    console.log('  · ACL/forma de cartera_filtrada_fn(13): NOT RUN (sin CRM_BANCO_PSQL_URL)');
+  }
 
   // No vacuidad: si el seed dejara de poblar, todo lo de arriba pasaria vacio.
   const gerenciaCompleta = await positive(
