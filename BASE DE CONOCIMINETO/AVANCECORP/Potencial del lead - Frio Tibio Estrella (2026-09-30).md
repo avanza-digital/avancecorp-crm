@@ -1,6 +1,6 @@
 ---
 fecha: 2026-09-30
-estado: ✅ fase 1 EN PROD 30/09 (bandera APAGADA) · ✅ fase 2 EN PROD 01/10 13:27 (la marca baja sola) · ✅ puerta de lectura EN PROD 01/10 13:40 (fase 3A, servidor) · 🟡 pantalla de la fase 3A fusionada en `main` (PR #158), SIN publicar; bandera APAGADA · entrega B (filtro) y fase 4 (Jev) sin empezar · ver «Para retomar»
+estado: ✅ fase 1 EN PROD 30/09 (bandera APAGADA) · ✅ fase 2 EN PROD 01/10 13:27 (la marca baja sola) · ✅ puerta de lectura EN PROD 01/10 13:40 (fase 3A, servidor) · ✅ pantalla de la fase 3A PUBLICADA 01/10 13:57 (`build-20261001T185238130Z`, `54690b06`); bandera APAGADA: falta la pasada visual de Miguel y encenderla · entrega B (filtro) y fase 4 (Jev) sin empezar · ver «Para retomar»
 ---
 
 # Potencial del lead: Frío · Tibio · Estrella (2026-09-30)
@@ -38,7 +38,17 @@ archivos de los `!` están ahí con el mismo contenido. Lo que queda son pasos d
    entraron además `contrato_pdf_anexo_*` y los argumentos `p_desde`/`p_hasta` de la conversión, que ya estaban en
    producción. `npm run check` con esos tipos: PASS (340 archivos, 5 339 pruebas).
 5. ✅ PR #158 fusionada (`8eeaf805`) y comprobada en `avancecorp/main`.
-6. **Publicar el front** con `/release-crm`. La rama YA ESTÁ PREPARADA en el worktree `wt-potencial-lead`:
+6. ✅ **FRONT PUBLICADO** (Miguel invocó `/release-crm`; 01/10/2026 13:57 Lima): artefacto
+   `crm-20261001T185238Z-54690b06a861.zip` (SHA-256 `75a16bb1…`), commit `54690b06`, buildId
+   `build-20261001T185238130Z`. Check completo PASS (340 archivos, 5 339 pruebas), manifiesto verificado (391
+   migraciones, última la de la lectura), preflight OK contra el vivo `e304cc44`. La subida la lanzó Miguel con `!`
+   (token leído del llavero); el primer intento murió en «timeout initialize» SIN subir nada (ver lección 8). Smoke:
+   inicio 200, `version.json` nuevo, `index-Dxaq7Z7e.js` y otros 116 archivos byte a byte iguales al paquete; las 12
+   imágenes PNG difieren en bytes porque el CDN de Hostinger las recomprime; el ZIP no queda en la raíz web. Rama
+   subida a GitHub: `release/potencial-lead-f3a-20261001`. ZIP y manifiesto en `CRM-Avance-Corp/releases/` del taller.
+   🔴 **El CRM VIVO es ahora `54690b06`**: quien publique después (la #160 de Llamadas sigue en `main` sin publicar)
+   debe partir de esa rama. Con la bandera apagada la pantalla se ve igual que antes.
+   Cómo se preparó la rama, por si hay que repetirlo. La rama se armó en el worktree `wt-potencial-lead`:
    `release/potencial-lead-f3a-20261001` (`54690b06`, solo local). Nace del commit VIVO `e304cc44` (lo contiene) y su
    árbol es idéntico al de la rama de cierre (`main` en `12861fd9` + ledger + tipos), que pasó el check completo.
    🔴 NO incluye la PR #160 (Llamadas F1, fusionada en `main` a las 13:38 y SIN publicar): la publica su sesión; quien
@@ -401,6 +411,11 @@ sesiones reales NOT RUN · paridad del banco con la producción de hoy NOT RUN.
 6. El Escritorio de este Mac se sincroniza con iCloud y devuelve `.git/index.lock` viejos: comprobar que no hay git vivo y
    apartarlo con `mv`.
 7. Dentro de un `DO` con una variable `r record`, un alias SQL `r` choca con ella.
+8. El script de despliegue (`_DEV_NO_SUBIR/deploy-hostinger-mcp.mjs`) esperaba 60 s el arranque del conector de
+   Hostinger, y con `@latest` npx tarda ~50 s solo en preparar el paquete (medido dos veces): «ERR timeout initialize»
+   sin subir nada. Se subió esa espera a 180 s (un número; copia del script anterior en el scratchpad de la sesión).
+9. La rama de publicación debe llevar TODO el árbol de `main`, no solo `app/`: el manifiesto del release lista las
+   migraciones del árbol, y la línea viva (ramas de rescate) no traía las cuatro últimas ya aplicadas en producción.
 
 ## Propuesta INICIAL de servidor (superada: ver «Fase 1 · ejecución» y «Fase 2»)
 

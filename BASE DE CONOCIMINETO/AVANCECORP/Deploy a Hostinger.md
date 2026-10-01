@@ -40,6 +40,12 @@ caché, si hace falta, es la operación `hosting_cache_clear-website` por la mis
 
 ## CRM (crm.miavance.com)
 
+> **01/10/2026 · espera del arranque:** `deploy-hostinger-mcp.mjs` daba 60 s al `initialize` del conector y murió con
+> «ERR timeout initialize» (sin subir nada): con `@latest`, npx tarda ~50 s solo en preparar el paquete. La espera se
+> subió a 180 s. Si vuelve a pasar, medir con `npx --yes --package=hostinger-api-mcp@latest -c 'echo ok'`; fijar la
+> versión arrancaría en menos de un segundo, pero es decisión aparte. Publicado ese día: potencial del lead, fase 3A
+> (`build-20261001T185238130Z`, `54690b06`, rama `release/potencial-lead-f3a-20261001`).
+
 Mismo mecanismo, dominio distinto (**2026-07-10**, primer update por esta vía):
 
 Fuente vigente desde el 04/09/2026: Main local sigue **`avancecorp/main`**.
