@@ -1,3 +1,51 @@
+## 20260930213647 — Potencial del lead: Frío · Tibio · Estrella (`crm.marcar_potencial_lead_fn`, `crm.lead_potencial`, `crm.lead_potencial_eventos`)
+
+**✅ EN PROD 30/09/2026 por `!` de Miguel** («ya podemos publicar»): migración por `db query --linked --file`
+(preflight y postflight en verde) + `registrar.sql` + `verificar.sql` → «marcas 0, eventos 0, bandera false,
+EXECUTE puerta [authenticated,postgres], EXECUTE ajeno en privadas 0, permisos API en tablas 0, registro
+crm_potencial_lead». Antes, en solo lectura: 0 objetos previos y huellas de `rol_crm`/`vendedor_ids_visibles`
+idénticas a las ensayadas. Advisors después: 248 avisos; el único de los objetos nuevos es
+`authenticated_security_definer_function_executable` de la puerta (clase existente, 237 iguales: patrón de
+todas las puertas DEFINER); ninguna clase nueva. Bandera APAGADA: nadie marca hasta la fase 3.
+Fase 1 del plan aprobado el 30/09 («HAZLO»); nota del vault «Potencial del
+lead - Frio Tibio Estrella (2026-09-30)»; diseño aprobado en la pieza CRM-05 del UI Playground.
+
+Qué hace: los analistas marcan cada lead como frío, tibio o estrella. Tipo `crm.nivel_potencial`; estado
+vigente en `crm.lead_potencial` (una fila por lead, viaja al reasignar) y historial INMUTABLE en
+`crm.lead_potencial_eventos` (solo INSERT; UPDATE/DELETE/TRUNCATE → P0409; `orden` identity). Tabla propia
+y no columnas de `crm.leads`: sus ~20 disparadores reescriben `actualizado_en` (llave de orden de la
+cartera) y despiertan el SLA. El historial no vive en `crm.actividades`: marcar no es gestión.
+
+Puerta DEFINER `crm.marcar_potencial_lead_fn(uuid, crm.nivel_potencial)` (search_path vacío, lock_timeout
+5s, EXECUTE solo authenticated): sesión → rol → candado consultivo por lead + FOR SHARE de la fila del
+lead (`private.potencial_bloquear_lead`) → autorización decisiva (`private.potencial_rechazo`, token
+«ok») → bandera → núcleo INVOKER `private.potencial_marcar_nucleo` (estado + evento; doble clic de la
+misma persona y nivel en 60 s no escribe). Marcan el analista dueño y su supervisor (subárbol; parqueo solo
+un supervisor). Gerencia, coordinación, directorio y sin rol: 42501. Lead ajeno/inactivo/inexistente: P0002.
+Convertido/descartado: 22023. Bandera `potencial_lead` APAGADA (55000) hasta la fase 3. RLS ON con policy
+SELECT (segundo candado) pero SIN grants a la API: la fase 3 leerá por una puerta (4 capas). Sin
+`negocio_id` (el esquema crm no lo usa). Migración con `begin; set local lock_timeout = '5s'; … commit;`.
+
+Revisión: Codex r1 CHANGES_REQUESTED (F1 autorización obsoleta por carrera, F2 reversa con carrera, F3
+UUID en la suite, F4 bloque API que escribiría con la bandera encendida, F5 postflight sin definiciones)
+→ todo aplicado; auditor-rls r1 CHANGES_REQUESTED (P2 transacción con lock_timeout; P3 token «ok»,
+lista blanca de ACL/dueños, TOCTOU, matriz de la suite, lectura por puerta) → todo aplicado.
+Codex r2 CHANGES_REQUESTED: R2-1 (FOR SHARE sin fila → autorizaba sin bloqueo) ACEPTADO: el bloqueo
+devuelve si encontró la fila y sin ella P0002; R2-2 (el bloque API podría escribir si la bandera cambia a
+mitad de corrida) ACEPTADO COMO CONTRATO documentado: la suite solo corre en branch/staging (se niega con
+PRODUCTION_PROJECT_REF); R2-3 (interbloqueo de la reversa por el DROP de las FK) ACEPTADO y MEDIDO: el DROP
+toma AccessExclusiveLock sobre crm.leads y public.perfiles, la reversa los bloquea primero (lock_timeout 3s);
+R2-4 (antirrebote con now()) ACEPTADO: hora real clock_timestamp() tras el candado. Segunda y última ronda
+(máximo del protocolo). Riesgo residual: baja/jerarquía en crm.equipo simultánea no se serializa.
+
+Banco (`avancecorp-potencial-20260930`, esquema de prod del 30/09, paridad 280 crm + 540 private):
+sintética 75/75; concurrencia 11/11 con dos sesiones (y sus 3 mutantes reproducen los fallos de Codex); 9
+mutantes de la migración rechazados; 7 de lógica cazados; reversa y registro idempotentes (md5 del archivo
+`f4087876…`). `check:scripts` PASS.
+`test:rls:preflight` NOT RUN (exige credenciales; el hook bloquea pasarlas inline); bloque
+`testPotencialLead` lee la bandera fuera de banda y no llama a la puerta si está encendida.
+Scripts: `supabase/scripts/potencial-lead/` (LEEME con el orden de aplicación).
+
 ## 20260930193325 — Documento tipado del lead y conversión coherente
 
 **PUBLICADA Y VERIFICADA EN PRODUCCIÓN EL 30/09/2026 MEDIANTE merge_branch.**
