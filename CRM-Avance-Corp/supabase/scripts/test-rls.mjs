@@ -15160,6 +15160,99 @@ async function testCierreDeMes(sessions, seed) {
 
 let verifiedSeed = null;
 
+// ── Potencial del lead (20260930213647): puerta crm.marcar_potencial_lead_fn ──────────────────
+// Solo rechazos: con la bandera 'potencial_lead' APAGADA (así nace) nadie escribe. Quien pasa rol y
+// ámbito recibe 55000 «todavía no está activada»: ese rechazo ES el positivo sin escribir (la puerta
+// valida sesión → rol → candados → ámbito → etapa y solo después mira la bandera). Las escrituras,
+// el historial inmutable, la reasignación, el doble clic y que marcar no toca crm.leads ni
+// crm.actividades los prueba supabase/scripts/potencial-lead/prueba-sintetica.sql (75 casos, deshecha);
+// las carreras, prueba-concurrencia.sh. Los casos 22023 (convertido/descartado) y P0002 por lead
+// inactivo solo viven en la sintética: fixtures.mjs no tiene esos leads.
+// Contrato (Codex r1 F4, r2 R2-2): el bloque NO llama a la puerta si la bandera está encendida (la
+// lee fuera de banda antes): con la bandera encendida los «positivos» escribirían. Queda una ventana
+// (alguien la enciende a mitad de corrida) y los negativos DML escribirían si hubiera una regresión de
+// permisos: se acepta porque esta suite solo corre en branch/staging desechables (se niega a correr
+// contra PRODUCTION_PROJECT_REF) y el fallo se reporta. Salto RUIDOSO si la puerta no está en esta
+// base o falta la vía fuera de banda; con CRM_RLS_EXIGE_POTENCIAL=1 es un FALLO.
+async function testPotencialLead(sessions, seed) {
+  console.log('\n— Potencial del lead: puerta de la marca (rechazos, sin escribir) —');
+  const saltar = (msg) => {
+    if (process.env.CRM_RLS_EXIGE_POTENCIAL === '1') fail(msg);
+    else console.log(`  ${msg}`);
+  };
+  let aplicada;
+  let encendida;
+  try {
+    aplicada = contarFueraDeBanda('potencial: puerta aplicada',
+      `select (to_regprocedure('crm.marcar_potencial_lead_fn(uuid,crm.nivel_potencial)') is not null)::int`);
+    encendida = aplicada === 1 ? contarFueraDeBanda('potencial: bandera',
+      `select coalesce((select activo::int from crm.multiempresa_flags where nombre = 'potencial_lead'), 0)`) : 0;
+  } catch (error) {
+    saltar(`⚠ Potencial del lead SALTADO: sin vía fuera de banda para leer la bandera (${error?.message ?? String(error)})`);
+    return;
+  }
+  if (aplicada !== 1) {
+    saltar('⚠ crm.marcar_potencial_lead_fn NO desplegada en esta base: bloque de Potencial del lead SALTADO (no probado)');
+    return;
+  }
+  if (encendida !== 0) {
+    fail('potencial: la bandera potencial_lead está ENCENDIDA; este bloque no corre para no escribir marcas');
+    return;
+  }
+
+  const FN = 'marcar_potencial_lead_fn';
+  const idDe = (clave) => seed.leadByName.get(LEAD_BY_KEY[clave].name)?.id;
+  const marcarId = (cliente, leadId, nivel = 'estrella') => cliente.schema('crm').rpc(FN, { p_lead_id: leadId, p_nivel: nivel });
+  const marcar = (cliente, clave, nivel = 'estrella') => marcarId(cliente, idDe(clave), nivel);
+  const APAGADA = /todav[ií]a no est[aá] activada/i;
+  const FUERA = /no encontrado o fuera de tu [aá]mbito/i;
+  const ROL = /solo el analista del lead o su supervisor/i;
+  const DENEGADO = /permission denied|denegado/i;
+
+  // Pasan rol y ámbito → mueren en la bandera (el positivo sin escribir).
+  await expectExpectedFailure('potencial vend1 → su lead (juan) llega a la bandera', marcar(sessions.vend1.client, 'juan'), ['55000'], APAGADA);
+  await expectExpectedFailure('potencial sup1 → lead de su analista (juan) llega a la bandera', marcar(sessions.sup1.client, 'juan'), ['55000'], APAGADA);
+  await expectExpectedFailure('potencial sup1 → lead de su subárbol (carlos) llega a la bandera', marcar(sessions.sup1.client, 'carlos'), ['55000'], APAGADA);
+  await expectExpectedFailure('potencial sup1 → lead parqueado en su bandeja (luis) llega a la bandera', marcar(sessions.sup1.client, 'luis'), ['55000'], APAGADA);
+  await expectExpectedFailure('potencial sup2 → lead parqueado en su bandeja (rosa) llega a la bandera', marcar(sessions.sup2.client, 'rosa'), ['55000'], APAGADA);
+  await expectExpectedFailure('potencial sup2 → lead de su analista inactivo (inactiveOwned) llega a la bandera', marcar(sessions.sup2.client, 'inactiveOwned'), ['55000'], APAGADA);
+  // Fuera de ámbito: P0002 (no revela si el lead existe).
+  await expectExpectedFailure('potencial vend1 → lead de otro equipo (ana) → P0002', marcar(sessions.vend1.client, 'ana'), ['P0002'], FUERA);
+  await expectExpectedFailure('potencial vend1 → lead parqueado (luis) → P0002', marcar(sessions.vend1.client, 'luis'), ['P0002'], FUERA);
+  await expectExpectedFailure('potencial vend3 → lead de vend1 (juan) → P0002', marcar(sessions.vend3.client, 'juan'), ['P0002'], FUERA);
+  await expectExpectedFailure('potencial sup2 → lead de sup1 (juan) → P0002', marcar(sessions.sup2.client, 'juan'), ['P0002'], FUERA);
+  await expectExpectedFailure('potencial sup1Nested → lead de su jefe (juan) → P0002', marcar(sessions.sup1Nested.client, 'juan'), ['P0002'], FUERA);
+  await expectExpectedFailure('potencial vend1 → lead inexistente → P0002', marcarId(sessions.vend1.client, randomUUID()), ['P0002'], FUERA);
+  // Roles que nunca marcan: 42501 (antes de tocar el lead).
+  for (const clave of ['gerencia', 'coordinador', 'directorio', 'vendInactive']) {
+    await expectExpectedFailure(`potencial ${clave} → juan → 42501`, marcar(sessions[clave].client, 'juan'), ['42501'], ROL);
+  }
+  await expectExpectedFailure('potencial vendInactive → su propio lead (inactiveOwned) → 42501: la baja revoca la marca',
+    marcar(sessions.vendInactive.client, 'inactiveOwned'), ['42501'], ROL);
+  // Argumentos: nivel fuera del enum.
+  await expectExpectedFailure('potencial vend1 nivel inválido → 22P02', marcar(sessions.vend1.client, 'juan', 'dorado'), ['22P02'], /invalid input value for enum|valor de entrada no v[aá]lido/i);
+  // Sin EXECUTE para anon ni service_role.
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-potencial'));
+  await expectExpectedFailure('potencial anon → 42501 (sin EXECUTE)', marcar(anon, 'juan'), ['42501'], DENEGADO);
+  await expectExpectedFailure('potencial service_role → 42501 (sin EXECUTE)', marcar(admin, 'juan'), ['42501'], DENEGADO);
+  // Tablas: sin grants para la API (regla de 4 capas: la pantalla leerá por una puerta, fase 3).
+  for (const [clave, cliente] of [['vend1', sessions.vend1.client], ['gerencia', sessions.gerencia.client], ['anon', anon]]) {
+    await expectExpectedFailure(`potencial ${clave} no lee crm.lead_potencial (sin grants)`,
+      cliente.schema('crm').from('lead_potencial').select('lead_id').limit(1), ['42501'], DENEGADO);
+    await expectExpectedFailure(`potencial ${clave} no lee crm.lead_potencial_eventos (sin grants)`,
+      cliente.schema('crm').from('lead_potencial_eventos').select('lead_id').limit(1), ['42501'], DENEGADO);
+  }
+  await expectExpectedFailure('potencial vend1 INSERT directo en crm.lead_potencial → 42501',
+    sessions.vend1.client.schema('crm').from('lead_potencial').insert({ lead_id: idDe('juan'), nivel: 'estrella', origen: 'manual', marcado_por: seed.profileIdByKey.vend1, marcado_en: new Date().toISOString() }),
+    ['42501'], DENEGADO);
+  await expectExpectedFailure('potencial gerencia UPDATE directo en crm.lead_potencial → 42501',
+    sessions.gerencia.client.schema('crm').from('lead_potencial').update({ nivel: 'frio' }).eq('lead_id', idDe('juan')),
+    ['42501'], DENEGADO);
+  await expectExpectedFailure('potencial vend1 INSERT directo en crm.lead_potencial_eventos → 42501',
+    sessions.vend1.client.schema('crm').from('lead_potencial_eventos').insert({ lead_id: idDe('juan'), nivel_nuevo: 'estrella', motivo: 'manual', por: seed.profileIdByKey.vend1 }),
+    ['42501'], DENEGADO);
+}
+
 // ── Venta cruzada (20260924005126 … 20260924045245): puertas del cliente existente ──
 // Solo catálogo y rechazos: ninguna llamada de esta matriz llega a escribir. Una puerta que
 // rechaza aborta su transacción entera, así que ni la bitácora (inmutable) guarda rastro; los
@@ -15437,6 +15530,7 @@ async function main() {
       await testCapitalNucleo(sessions, verifiedSeed);
       await testCorreoAccesoCliente(sessions, verifiedSeed);
       await testVentaCruzada(sessions, verifiedSeed);
+      await testPotencialLead(sessions, verifiedSeed);
     }
   } catch (error) {
     primaryError = error;
