@@ -32,6 +32,10 @@ import { useEstadoSlaOperativo } from '@/data/use-estado-sla-operativo'
 import { useResumenCarteraOperativo } from '@/data/use-resumen-cartera-operativo'
 import { useCarteraPaginada, type CarteraPaginada } from '@/data/use-cartera-paginada'
 import { useLeadsSinAsignar } from '@/data/crm-queries'
+import { ChipPotencial } from '@/components/app/potencial-chip'
+import { potencialCarta } from '@/components/app/potencial-efectos'
+import { usePotencialLeads } from '@/data/potencial-queries'
+import type { PotencialLead } from '@/lib/potencial'
 
 // "hace X" compacto a partir de DÍAS ya calculados (el reloj lo decide
 // `semaforoEstancamiento`, para que color y número no puedan divergir).
@@ -83,13 +87,15 @@ interface LeadCardProps {
   semaforo: SemaforoEtapa
   escribe: boolean
   arrastrando: boolean
+  /** Marca de potencial del lead (undefined = sin dato o función apagada). */
+  potencial: PotencialLead | undefined
   onAbrir: () => void
   onMover: (etapa: EtapaActiva) => void
   onDragStart: (e: DragEvent<HTMLDivElement>) => void
   onDragEnd: () => void
 }
 
-function LeadCard({ l, nombreVendedor, semaforo, escribe, arrastrando, onAbrir, onMover, onDragStart, onDragEnd }: LeadCardProps) {
+function LeadCard({ l, nombreVendedor, semaforo, escribe, arrastrando, potencial, onAbrir, onMover, onDragStart, onDragEnd }: LeadCardProps) {
   // ac-lift (will-change) crea un stacking context por card: mientras el menú
   // está abierto hay que elevar ESTA card o el panel queda bajo la siguiente.
   const [menuAbierto, setMenuAbierto] = useState(false)
@@ -108,6 +114,7 @@ function LeadCard({ l, nombreVendedor, semaforo, escribe, arrastrando, onAbrir, 
       draggable={escribe || undefined}
       onDragStart={escribe ? onDragStart : undefined}
       onDragEnd={escribe ? onDragEnd : undefined}
+      {...potencialCarta(potencial, arrastrando || menuAbierto)}
     >
       <div className="flex items-start justify-between gap-2">
         <p className="min-w-0 truncate text-sm font-semibold text-foreground">{l.nombre_completo}</p>
@@ -121,6 +128,7 @@ function LeadCard({ l, nombreVendedor, semaforo, escribe, arrastrando, onAbrir, 
         ) : (
           <Badge color="var(--muted-foreground)" className="text-[10px]">{origenLabel(l.origen)}</Badge>
         )}
+        <ChipPotencial marca={potencial} pequeno />
       </div>
       <div className="mt-2.5 flex items-center justify-between border-t border-border pt-2">
         {l.vendedor_id == null ? (
@@ -265,6 +273,12 @@ export function Pipeline() {
     [sesionReal, columnaNuevo.leads, columnaContactado.leads, columnaReunion.leads, columnaPropuesta.leads],
   )
   useEffect(() => { conocerLeads(leadsEnTablero) }, [conocerLeads, leadsEnTablero])
+  // Potencial del lead: una lectura por las tarjetas del tablero (en demo, por
+  // el ámbito entero: ahí las columnas paginan una foto local).
+  const potencial = usePotencialLeads(useMemo(
+    () => (sesionReal ? leadsEnTablero : ambito.leads).map((l) => l.id),
+    [sesionReal, leadsEnTablero, ambito.leads],
+  ))
   const buscarEnTablero = (id: string): Lead | undefined =>
     sesionReal ? ETAPAS.flatMap((c) => columnasServidor[c.k].leads).find((x) => x.id === id) : ambito.leads.find((x) => x.id === id)
   // Solo las COLUMNAS se filtran; los stats y terminales resumen el ámbito completo.
@@ -521,6 +535,7 @@ export function Pipeline() {
                     )}
                     escribe={escribe}
                     arrastrando={dragId === l.id}
+                    potencial={potencial.porLead.get(l.id)}
                     onAbrir={() => abrir(l.id)}
                     onMover={(etapa) => mover(l.id, etapa)}
                     onDragStart={alDragStart(l.id)}

@@ -48,8 +48,11 @@ test('Analista: la fila elegida y «Ahora» son la misma persona, sin salir de �
 
   // Se elige la ÚLTIMA fila: así cambia de verdad quién está en «Ahora».
   const fila = page.getByRole('list', { name: /^Todo \(/ }).getByRole('listitem').last().getByRole('button')
-  // El botón concatena iniciales, nombre y chip: se lee el span del nombre.
-  const nombre = (await fila.locator('span > span').first().textContent() ?? '').trim()
+  // El botón concatena iniciales, nombre, marca de potencial y chip de tiempo.
+  // El nombre va en su propio span, el primero de la línea «nombre + marca»
+  // (span > span > span): se lee ese y no la línea entera, que arrastraría
+  // «Potencial: …» cuando el lead tiene marca.
+  const nombre = (await fila.locator('span > span > span').first().textContent() ?? '').trim()
   expect(nombre).not.toBe('')
   await fila.click()
   await expect(fila).toHaveAttribute('aria-current', 'true')
