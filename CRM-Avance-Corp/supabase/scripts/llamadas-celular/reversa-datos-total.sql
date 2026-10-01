@@ -18,6 +18,9 @@ begin
   if to_regclass('crm.llamadas_celular_eventos') is null then
     raise exception 'REVERSA_LLAMADAS_TOTAL: la migración 20261001145242 no está aplicada';
   end if;
+  if to_regprocedure('private.llamada_celular_ingerir(uuid,jsonb)') is not null then
+    raise exception 'REVERSA_LLAMADAS_TOTAL: el núcleo F2-c sigue instalado; corre antes reversa-nucleo.sql';
+  end if;
   lock table crm.llamadas_celular_eventos, crm.celulares_asignaciones in access exclusive mode;
   select count(*) into v_eventos from crm.llamadas_celular_eventos;
   select count(*) into v_asignaciones from crm.celulares_asignaciones;

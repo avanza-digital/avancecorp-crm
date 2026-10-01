@@ -7,10 +7,10 @@
 --   private.enmascarar_claves, private.log_audit_sin_secretos, private.tablas_sin_rastro y sus
 --   listas (20260829235000) · private.log_audit_crm (20260829233000) · private.normalizar_telefono
 --   (20260709000001) · private.canonizar_contacto (20260826182000) · private.sla_gestion_permitida
---   (20260907025220) · CHECK actividades_resultado_llamada_forma (20260920005000).
--- DOBLES DECLARADOS (F2-b solo exige que existan; los ejercitará F2-c contra un banco completo):
---   auth.uid, private.rol_crm, private.es_lector_global, private.vendedor_ids_visibles,
---   public.log_audit_change.
+--   (20260907025220) · private.rol_crm y private.es_lector_global (20260828210351) ·
+--   private.vendedor_ids_visibles (20260803164348, con su defensa: solo para quien llama) ·
+--   private.idem_hash (20260903205000) · CHECK actividades_resultado_llamada_forma (20260920005000).
+-- DOBLES DECLARADOS: auth.uid (lee request.jwt.claim.sub) y public.log_audit_change.
 -- COLUMNAS REDUCIDAS: public.perfiles, public.audit_log, crm.equipo, crm.leads, crm.actividades.
 --
 -- No sustituye el gate test-rls.mjs contra un banco con el esquema de producción.
@@ -23,6 +23,7 @@ create schema crm;
 create schema private;
 create schema extensions;
 create extension btree_gist with schema extensions;
+create extension pgcrypto with schema extensions;
 grant usage on schema auth, crm, private to anon, authenticated, service_role;
 
 -- ── identidad (doble) ──────────────────────────────────────────────────────────────────────
@@ -353,24 +354,102 @@ begin
 end;
 $function$;
 
--- ── ámbito (dobles declarados + copia real de sla_gestion_permitida) ───────────────────────
-create function private.rol_crm(p_perfil_id uuid) returns text
-language sql stable security definer set search_path = '' as $$
-  select e.rol_crm from crm.equipo e join public.perfiles p on p.id = e.perfil_id
-  where e.perfil_id = p_perfil_id and e.activo and p.activo
+-- ── idempotencia (copia real) ──────────────────────────────────────────────────────────────
+create function private.idem_hash(p_payload jsonb)
+returns text
+language sql
+immutable
+set search_path = ''
+as $$
+  select pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(p_payload::text, 'utf8')), 'hex')
 $$;
-create function private.es_lector_global() returns boolean
-language sql stable security definer set search_path = '' as $$
-  select false
-$$;
-create function private.vendedor_ids_visibles(p_perfil_id uuid) returns setof uuid
-language sql stable security definer set search_path = '' as $$
-  select p_perfil_id where private.rol_crm(p_perfil_id) = 'vendedor'
-  union
-  select e.perfil_id from crm.equipo e
-  where private.rol_crm(p_perfil_id) = 'supervisor' and (e.supervisor_id = p_perfil_id or e.perfil_id = p_perfil_id)
-  union
-  select e.perfil_id from crm.equipo e where private.rol_crm(p_perfil_id) = 'gerencia'
+
+-- ── ámbito (copias reales) ─────────────────────────────────────────────────────────────────
+create function private.rol_crm(p_perfil_id uuid)
+returns text
+language sql
+stable
+security definer
+set search_path = ''
+as $function$
+  select e.rol_crm
+  from crm.equipo e
+  join public.perfiles p on p.id = e.perfil_id
+  where e.perfil_id = p_perfil_id
+    and e.activo is true and p.activo is true
+    and e.rol_crm in (
+      'vendedor','supervisor','gerencia','coordinador','directorio'
+    )
+    and (
+      (p.rol = 'directorio' and e.rol_crm = 'directorio')
+      or (p.rol is distinct from 'directorio' and e.rol_crm <> 'directorio')
+    )
+    and (p.rol is distinct from 'superadmin' or e.rol_crm = 'gerencia');
+$function$;
+
+create function private.es_lector_global()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $function$
+  with actor as materialized (
+    select (select auth.uid()) as uid
+  )
+  select coalesce(private.rol_crm(a.uid) = 'directorio', false)
+    or exists (
+      select 1
+      from public.perfiles p
+      where p.id = a.uid
+        and p.activo is true
+        and p.rol = 'directorio'
+        and not exists (
+          select 1 from crm.equipo e where e.perfil_id = p.id
+        )
+    )
+  from actor a;
+$function$;
+
+create function private.vendedor_ids_visibles(p_perfil_id uuid)
+returns setof uuid
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_rol text;
+begin
+  if p_perfil_id is distinct from (select auth.uid())
+     and not private.es_lector_global() then
+    return; -- defensa en profundidad: no enumerar equipos ajenos
+  end if;
+
+  v_rol := private.rol_crm(p_perfil_id);
+
+  if v_rol is null then
+    return;
+  elsif v_rol = 'gerencia' then
+    return query select e.perfil_id from crm.equipo e; -- incluye históricos
+  elsif v_rol = 'supervisor' then
+    return query
+      with recursive subarbol as (
+        select e.perfil_id
+        from crm.equipo e
+        where e.perfil_id = p_perfil_id
+        union -- corta ciclos accidentales A↔B
+        select e.perfil_id
+        from crm.equipo e
+        join subarbol s on e.supervisor_id = s.perfil_id
+      )
+      select s.perfil_id from subarbol s;
+  elsif v_rol = 'vendedor' then
+    return next p_perfil_id;
+  else
+    return; -- coordinador/rol futuro: deny-by-default
+  end if;
+end;
 $$;
 create function private.sla_gestion_permitida(p_actor uuid,p_lead uuid) returns boolean
 language sql stable security invoker set search_path='' as $function$
@@ -387,15 +466,31 @@ language sql stable security invoker set search_path='' as $function$
 $function$;
 
 -- ── siembra sintética (sin datos reales) ───────────────────────────────────────────────────
-insert into public.perfiles (id, nombre_completo, rol) values
-  ('00000000-0000-0000-0000-0000000000a1', 'Analista Uno', 'vendedor'),
-  ('00000000-0000-0000-0000-0000000000a2', 'Analista Dos', 'vendedor'),
-  ('00000000-0000-0000-0000-0000000000b1', 'Supervisor Uno', 'supervisor');
+-- Equipo: sup1 (b1) con a1 y a2; sup2 (b2) con a3; a9 dado de baja; g1 gerencia.
+insert into public.perfiles (id, nombre_completo, rol, activo) values
+  ('00000000-0000-0000-0000-0000000000a1', 'Analista Uno', 'analista', true),
+  ('00000000-0000-0000-0000-0000000000a2', 'Analista Dos', 'analista', true),
+  ('00000000-0000-0000-0000-0000000000a3', 'Analista Tres', 'analista', true),
+  ('00000000-0000-0000-0000-0000000000a9', 'Analista de Baja', 'analista', true),
+  ('00000000-0000-0000-0000-0000000000b1', 'Supervisor Uno', 'comercial', true),
+  ('00000000-0000-0000-0000-0000000000b2', 'Supervisor Dos', 'comercial', true),
+  ('00000000-0000-0000-0000-0000000000f1', 'Gerencia Uno', 'admin', true);
 insert into crm.equipo (perfil_id, rol_crm, creado_en) values
-  ('00000000-0000-0000-0000-0000000000b1', 'supervisor', now() - interval '3 days');
-insert into crm.equipo (perfil_id, rol_crm, supervisor_id, creado_en) values
-  ('00000000-0000-0000-0000-0000000000a1', 'vendedor', '00000000-0000-0000-0000-0000000000b1', now() - interval '2 days'),
-  ('00000000-0000-0000-0000-0000000000a2', 'vendedor', '00000000-0000-0000-0000-0000000000b1', now() - interval '1 day');
-insert into crm.leads (id, nombre_completo, telefono, vendedor_id, creado_en) values
-  ('00000000-0000-0000-0000-0000000000c1', 'Lead Sintético Uno', '+51900000001', '00000000-0000-0000-0000-0000000000a1', now() - interval '2 days'),
-  ('00000000-0000-0000-0000-0000000000c2', 'Lead Sintético Dos', '+51900000002', '00000000-0000-0000-0000-0000000000a1', now() - interval '1 day');
+  ('00000000-0000-0000-0000-0000000000b1', 'supervisor', now() - interval '5 days'),
+  ('00000000-0000-0000-0000-0000000000b2', 'supervisor', now() - interval '5 days'),
+  ('00000000-0000-0000-0000-0000000000f1', 'gerencia', now() - interval '5 days');
+insert into crm.equipo (perfil_id, rol_crm, supervisor_id, activo, creado_en) values
+  ('00000000-0000-0000-0000-0000000000a1', 'vendedor', '00000000-0000-0000-0000-0000000000b1', true, now() - interval '3 days'),
+  ('00000000-0000-0000-0000-0000000000a2', 'vendedor', '00000000-0000-0000-0000-0000000000b1', true, now() - interval '2 days'),
+  ('00000000-0000-0000-0000-0000000000a3', 'vendedor', '00000000-0000-0000-0000-0000000000b2', true, now() - interval '1 day'),
+  ('00000000-0000-0000-0000-0000000000a9', 'vendedor', '00000000-0000-0000-0000-0000000000b1', false, now() - interval '4 days');
+-- Leads: c1 y c2 son los dos más antiguos (los usa el oráculo de F2-b).
+insert into crm.leads (id, nombre_completo, telefono, telefono_alternativo, etapa, no_contactar, vendedor_id, creado_en) values
+  ('00000000-0000-0000-0000-0000000000c1', 'Lead Sintético Uno', '+51900000001', null, 'nuevo', false, '00000000-0000-0000-0000-0000000000a1', now() - interval '9 days'),
+  ('00000000-0000-0000-0000-0000000000c2', 'Lead Sintético Dos', '+51900000002', null, 'nuevo', false, '00000000-0000-0000-0000-0000000000a1', now() - interval '8 days'),
+  ('00000000-0000-0000-0000-0000000000c3', 'Lead de Analista Dos', '+51900000003', null, 'contactado', false, '00000000-0000-0000-0000-0000000000a2', now() - interval '7 days'),
+  ('00000000-0000-0000-0000-0000000000c4', 'Lead No Contactar', '+51900000004', null, 'contactado', true, '00000000-0000-0000-0000-0000000000a1', now() - interval '6 days'),
+  ('00000000-0000-0000-0000-0000000000c5', 'Lead Convertido', '+51900000005', null, 'convertido', false, '00000000-0000-0000-0000-0000000000a1', now() - interval '5 days'),
+  ('00000000-0000-0000-0000-0000000000c6', 'Lead Ambiguo A', '+51900000006', null, 'nuevo', false, '00000000-0000-0000-0000-0000000000a1', now() - interval '4 days'),
+  ('00000000-0000-0000-0000-0000000000c7', 'Lead Ambiguo B', '+51900000007', '+51900000006', 'nuevo', false, '00000000-0000-0000-0000-0000000000a2', now() - interval '3 days'),
+  ('00000000-0000-0000-0000-0000000000c8', 'Lead de Otro Equipo', '+51900000008', null, 'nuevo', false, '00000000-0000-0000-0000-0000000000a3', now() - interval '2 days');

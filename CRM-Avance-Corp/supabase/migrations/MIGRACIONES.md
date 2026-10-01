@@ -1,3 +1,42 @@
+## 20261001160219 — Llamadas desde el celular · F2-c: núcleo y puertas (`private.llamada_celular_*`, `crm.*_llamada_celular`, `crm.*celular*`)
+
+**⏸️ EN RAMA `feat/llamadas-f2`, SIN APLICAR en ningún entorno compartido.** Depende de `20261001145242` (F2-b).
+Contrato con las 7 decisiones provisionales de Jhosep (30/09); Miguel las ratifica (LEVEL 3).
+
+Qué hace: núcleo en `private` **INVOKER y sin EXECUTE para nadie** (solo lo invocan las puertas DEFINER; excepción
+documentada del estándar) y 11 puertas en `crm` **DEFINER** con `search_path` vacío y EXECUTE solo `authenticated`.
+Ingesta `private.llamada_celular_ingerir(asignación, evento)` (sin puerta: la de servicio llega en F3): evento v1 con
+claves exactas, asignación vigente con analista activo (42501), número canonizado con las dos reglas del CRM y
+coincidencia exacta entre leads activos (uno → identificado; varios → ambiguo; ninguno → no se guarda, decisión 3;
+entrante con entrantes apagadas → no se guarda, decisión 2), idempotente por origen + hash (repetido / `P0409`) con
+la hora normalizada a UTC dentro del hash. Puertas: `llamadas_celular_pendientes_fn` (bandeja con la atención
+EFECTIVA recalculada al leer, decisión 1; tras una reasignación la ve el analista nuevo, decisión 7),
+`llamada_celular_detalle_fn` (con `efectos_anulados` derivado de `deshecho_en`, decisión 4),
+`asociar_llamada_celular` (solo a un lead del ámbito que tenga el número), `enlazar_llamada_celular` (uno a uno con un
+resultado de llamada del mismo lead, posterior a la llamada; si el enlazado fue deshecho, el enlace se mueve),
+`descartar_llamada_celular` (catálogo; «otro» con detalle), `celulares_asignaciones_fn` (gerencia; supervisión su
+equipo), `asignar_celular` / `cerrar_asignacion_celular` / `rotar_credencial_celular` (gerencia; credencial de 32
+bytes devuelta UNA vez, solo se guarda su sha256), `llamadas_celular_politica_fn` / `fijar_politica_llamadas_celular`
+(gerencia). **Decisiones de criterio de Claude, para Miguel:** solo gerencia asigna celulares y fija la política;
+la llamada a un lead fuera del ámbito de quien llama se guarda «por revisar» y la ve la cadena del dueño; el
+resultado se enlaza solo si se registró después de la llamada (10 min de tolerancia); celular para vendedor o
+supervisor activos.
+
+Reversa: `scripts/llamadas-celular/reversa-nucleo.sql` (retira puertas y núcleo; tablas y filas quedan). Las dos
+reversas de datos ahora se niegan si el núcleo sigue instalado (orden obligatorio: núcleo → datos).
+
+**Verificación 01/10 (banco REDUCIDO, no paridad):** `npm run test:llamadas:local` → **82/82**. Oráculo
+`tests/llamadas-celular/oraculo-nucleo.sql` (actores simulados como Supabase: rol `authenticated`/`anon` + `sub` del
+JWT; 43 defensas que muerden: asignación, ingesta, bandeja por ámbito de analista/supervisión/gerencia, asociar,
+enlazar y mover tras deshacer, descartar, reasignación, re-evaluación, política, anon y analista de baja sin acceso,
+`authenticated` sin acceso directo a las tablas). Reversas en orden y fuera de orden. **25/25 mutantes del núcleo
+cazados** (22 por el oráculo, 3 por el postflight; 4 los frena el candado de F2-b como segunda barrera) y los 32 de
+F2-b siguen cazados. El banco reducido usa ahora copias reales de `rol_crm`, `es_lector_global`,
+`vendedor_ids_visibles` (con su defensa «solo para quien llama») e `idem_hash`. Advisors previstos: 11 avisos de la
+clase existente `authenticated_security_definer_function_executable` (patrón de todas las puertas DEFINER), ninguna
+clase nueva. **NOT RUN:** banco con el esquema de producción, `test-rls.mjs` (F2-d), advisors reales, concurrencia
+con dos sesiones (F2-d), agente `auditor-rls` y Codex LEVEL 3.
+
 ## 20261001145242 — Llamadas desde el celular · F2-b: datos (`crm.celulares_asignaciones`, `crm.llamadas_celular_eventos`, `crm.llamadas_celular_enlaces`, `crm.llamadas_celular_politica`, `private.caducar_llamadas_celular`)
 
 **⏸️ EN RAMA `feat/llamadas-f2`, SIN APLICAR en ningún entorno compartido (ni branch de Supabase ni producción).**

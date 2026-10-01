@@ -18,6 +18,10 @@ begin
      or to_regclass('crm.celulares_asignaciones') is null then
     raise exception 'REVERSA_LLAMADAS: la migración 20261001145242 no está aplicada';
   end if;
+  -- Sin candados, las puertas de F2-c escribirían sin la segunda llave: primero se retiran ellas.
+  if to_regprocedure('private.llamada_celular_ingerir(uuid,jsonb)') is not null then
+    raise exception 'REVERSA_LLAMADAS: el núcleo F2-c sigue instalado; corre antes reversa-nucleo.sql';
+  end if;
 end;
 $precondicion$;
 

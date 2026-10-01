@@ -1,19 +1,20 @@
 #!/usr/bin/env node
-// Prueba la migración REAL 20261001145242 (Llamadas desde el celular · F2-b) en un PostgreSQL
-// 16/17 desechable: initdb en una carpeta temporal, escucha solo en 127.0.0.1, contraseña de usar
-// y tirar generada aquí (nunca se imprime ni sale de la carpeta temporal) y se borra al terminar.
-// Nunca acepta una URL ni variables PG* del entorno: este banco no puede apuntar a otro servidor.
+// Prueba las migraciones REALES de Llamadas desde el celular (F2-b datos 20261001145242 y F2-c
+// núcleo 20261001160219) en un PostgreSQL 16/17 desechable: initdb en una carpeta temporal,
+// escucha solo en 127.0.0.1, contraseña de usar y tirar generada aquí (nunca se imprime ni sale de
+// la carpeta temporal) y se borra al terminar. Nunca acepta una URL ni variables PG* del entorno.
 //
-// Banco reducido: supabase/tests/llamadas-celular/base.sql (auditoría, regla de rastro,
-// canonización y forma del resultado reales; identidad y ámbito como dobles declarados).
+// Banco reducido: supabase/tests/llamadas-celular/base.sql (auditoría, regla de rastro, ámbito,
+// canonización, idempotencia y forma del resultado reales; auth.uid como doble declarado).
 // Molde: supabase/scripts/test-sla-nucleo-local.py. No sustituye el gate test-rls.mjs.
 //
-// Dos pasadas:
-//   1. La migración tal cual: se aplica, se niega a sobrescribirse, el oráculo pasa, las dos
-//      reversas funcionan (la total se niega con filas) y se vuelve a aplicar.
-//   2. Mutantes: por cada defensa, una copia de la migración que la neutraliza. Un mutante «de
-//      oráculo» tiene que APLICARSE y hacer fallar el oráculo; uno «de postflight» tiene que ser
-//      rechazado por el propio postflight con su mensaje. Si sobrevive, esa defensa no está probada.
+// Tres pasadas:
+//   1. Las migraciones tal cual: se aplican, se niegan a sobrescribirse, pasan sus oráculos, sus
+//      reversas funcionan en orden (y se niegan fuera de orden o con filas) y se vuelven a aplicar.
+//   2. Mutantes de F2-b y 3. mutantes de F2-c: por cada defensa, una copia de la migración que la
+//      neutraliza. Un mutante «de oráculo» tiene que APLICARSE y hacer fallar su oráculo; uno «de
+//      postflight» tiene que ser rechazado por el postflight con su mensaje. Si sobrevive, esa
+//      defensa no está probada.
 //
 // Uso:  node supabase/scripts/test-llamadas-celular-local.mjs     (npm run test:llamadas:local)
 // Binarios: LLAMADAS_PG_BIN, o ~/.local/pg/pgsql/bin (zip oficial de EDB en Windows), o Homebrew.
@@ -25,18 +26,22 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const RAIZ = fileURLToPath(new URL('../..', import.meta.url));
-const MIGRACION = join(RAIZ, 'supabase/migrations/20261001145242_crm_llamadas_celular_datos.sql');
+const MIG_DATOS = join(RAIZ, 'supabase/migrations/20261001145242_crm_llamadas_celular_datos.sql');
+const MIG_NUCLEO = join(RAIZ, 'supabase/migrations/20261001160219_crm_llamadas_celular_nucleo.sql');
 const BASE = join(RAIZ, 'supabase/tests/llamadas-celular/base.sql');
-const ORACULO = join(RAIZ, 'supabase/scripts/llamadas-celular/verificar-datos.sql');
-const REVERSA = join(RAIZ, 'supabase/scripts/llamadas-celular/reversa-datos.sql');
+const ORACULO_DATOS = join(RAIZ, 'supabase/scripts/llamadas-celular/verificar-datos.sql');
+const ORACULO_NUCLEO = join(RAIZ, 'supabase/tests/llamadas-celular/oraculo-nucleo.sql');
+const REVERSA_DATOS = join(RAIZ, 'supabase/scripts/llamadas-celular/reversa-datos.sql');
 const REVERSA_TOTAL = join(RAIZ, 'supabase/scripts/llamadas-celular/reversa-datos-total.sql');
+const REVERSA_NUCLEO = join(RAIZ, 'supabase/scripts/llamadas-celular/reversa-nucleo.sql');
 const PUERTO = '55485';
 const USUARIO = 'llamadas_test_owner';
 const EXE = process.platform === 'win32' ? '.exe' : '';
 
 // Cada defensa y la copia de la migración que la neutraliza. `aviso` convierte su
-// `raise exception` en `raise notice` (la regla sigue escrita, pero ya no frena nada).
-const MUTANTES = [
+// `raise exception` en `raise notice` (la regla sigue escrita, pero ya no frena nada);
+// `ocurrencia`/`total` eligen cuál de varias iguales; `cambios` aplica varias a la vez.
+const MUTANTES_DATOS = [
   { nombre: 'auditoría con el número a la vista', buscar: "log_audit_sin_secretos('numero_canonico', 'hash_payload')", poner: "log_audit_sin_secretos('hash_payload')" },
   { nombre: 'auditoría con el hash del payload a la vista', buscar: "log_audit_sin_secretos('numero_canonico', 'hash_payload')", poner: "log_audit_sin_secretos('numero_canonico')" },
   { nombre: 'auditoría con la credencial a la vista', buscar: "private.log_audit_sin_secretos('credencial_hash');", poner: 'private.log_audit_crm();' },
@@ -74,6 +79,42 @@ const MUTANTES = [
     buscar: 'descartado_por          uuid references public.perfiles(id) on delete restrict,', poner: 'descartado_por          uuid references public.perfiles(id) on delete set null,' },
   { nombre: 'FK sin índice', por: 'postflight', espera: 'sin índice que la cubra',
     buscar: 'create index llamadas_celular_eventos_descartado_por_idx\n  on crm.llamadas_celular_eventos (descartado_por);\n', poner: '' },
+];
+
+const AMBITO = 'Llamada no encontrada o fuera de tu ámbito';
+const MUTANTES_NUCLEO = [
+  { nombre: 'asociar sin exigir el número de la llamada', aviso: 'Ese lead no tiene el número de la llamada' },
+  { nombre: 'asociar a un lead fuera de ámbito', aviso: 'Ese lead no es de tu ámbito' },
+  { nombre: 'asociar una llamada que no se ve', aviso: AMBITO, ocurrencia: 1, total: 4 },
+  { nombre: 'enlazar sin ámbito (decisión 7)', aviso: AMBITO, ocurrencia: 2, total: 4 },
+  { nombre: 'descartar sin ámbito', aviso: AMBITO, ocurrencia: 3, total: 4 },
+  { nombre: 'detalle sin ámbito', aviso: AMBITO, ocurrencia: 4, total: 4 },
+  { nombre: 'reenvío con otro contenido aceptado', aviso: 'Esta llamada ya llegó con otro contenido' },
+  { nombre: 'celular cerrado o analista de baja ingiere', aviso: 'Celular sin asignación vigente o analista inactivo' },
+  { nombre: 'entrante guardada con la perilla apagada', buscar: "if v_dir = 'entrante' and not coalesce(v_pol.entrantes_activas, false) then", poner: 'if false then' },
+  { nombre: 'número sin lead guardado con la perilla apagada', buscar: 'elsif coalesce(v_pol.guardar_sin_identificar, false) then', poner: 'elsif true then' },
+  { nombre: 'hora sin normalizar en el hash', buscar: `'ocurrio_en', pg_catalog.to_char(v_ocurrio at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`, poner: "'ocurrio_en', v_ocurrio" },
+  { nombre: 'enlace con un resultado anterior a la llamada', aviso: 'El resultado se registró antes de la llamada' },
+  { nombre: 'resultado vigente reemplazado', buscar: 'if v_enl.actividad_id is not null and not coalesce(v_deshecha, false) then', poner: 'if false then' },
+  { nombre: 'enlace a una llamada descartada', aviso: 'La llamada fue descartada' },
+  { nombre: 'enlace a una llamada sin lead', aviso: 'Primero asocia la llamada a un lead' },
+  { nombre: 'descarte reescrito con otro motivo', aviso: 'La llamada ya fue descartada con otro motivo' },
+  { nombre: 'bandeja sin filtro de ámbito', buscar: '\n      and private.llamada_celular_visible(p_actor, e.lead_id, e.analista_id)\n    order by e.recibido_en desc', poner: '\n    order by e.recibido_en desc' },
+  { nombre: 'atención efectiva sin re-evaluar la elegibilidad', buscar: "when p_atencion = 'requiere_resultado' and private.llamada_celular_elegible(p_actor, p_lead)", poner: "when p_atencion = 'requiere_resultado'" },
+  { nombre: 'credencial guardada en claro', buscar: 'values (p_etiqueta, p_analista_id, private.celular_credencial_hash(v_credencial), pg_catalog.clock_timestamp(), p_actor)', poner: 'values (p_etiqueta, p_analista_id, v_credencial, pg_catalog.clock_timestamp(), p_actor)' },
+  { nombre: 'un analista asigna celulares (puerta y núcleo)', cambios: [
+    { buscar: "  v_actor uuid := private.llamadas_celular_actor(array['gerencia']);\nbegin\n  return private.celular_asignar(", poner: "  v_actor uuid := private.llamadas_celular_actor(array['vendedor', 'supervisor', 'gerencia']);\nbegin\n  return private.celular_asignar(" },
+    { aviso: 'Solo gerencia asigna celulares' }] },
+  { nombre: 'supervisión ve celulares de otro equipo', buscar: '         and a.analista_id in (select private.vendedor_ids_visibles(p_actor)))', poner: '         and true)' },
+  { nombre: 'rotar el celular de un analista de baja', aviso: 'El analista del celular ya no está activo' },
+  { nombre: 'puerta abierta a anon', por: 'postflight', espera: 'EXECUTE inesperado',
+    buscar: "    execute pg_catalog.format('grant execute on function %s to authenticated', v_f);", poner: "    execute pg_catalog.format('grant execute on function %s to authenticated, anon', v_f);" },
+  { nombre: 'núcleo con EXECUTE para authenticated', por: 'postflight', espera: 'EXECUTE inesperado',
+    buscar: "    'private.celulares_asignaciones_listar(uuid)'] loop\n    execute pg_catalog.format('revoke all on function %s from public, anon, authenticated, service_role', v_f);",
+    poner: "    'private.celulares_asignaciones_listar(uuid)'] loop\n    execute pg_catalog.format('grant execute on function %s to authenticated', v_f);" },
+  { nombre: 'puerta INVOKER', por: 'postflight', espera: 'debería ser SECURITY DEFINER',
+    buscar: 'create function crm.asociar_llamada_celular(p_evento_id uuid, p_lead_id uuid)\nreturns jsonb\nlanguage plpgsql\nvolatile\nsecurity definer',
+    poner: 'create function crm.asociar_llamada_celular(p_evento_id uuid, p_lead_id uuid)\nreturns jsonb\nlanguage plpgsql\nvolatile\nsecurity invoker' },
 ];
 
 function carpetaBinarios() {
@@ -117,6 +158,10 @@ const psqlArchivo = (archivo, db) => correr('psql', ['-X', '-q', '-v', 'ON_ERROR
 const psqlSql = (sql, db) => correr('psql', ['-X', '-qAt', '-v', 'ON_ERROR_STOP=1', '-d', db, '-c', sql]);
 const cola = (texto, n = 700) => texto.trim().slice(-n);
 const lineasOraculo = (texto) => (texto.match(/ORACULO[^\n]*/g) ?? [cola(texto)]).join('\n');
+function lineaError(texto) {
+  const linea = texto.split('\n').find((l) => /ERROR:/.test(l)) ?? cola(texto, 200);
+  return linea.replace(/^.*ERROR:\s*/, '').slice(0, 170);
+}
 
 const pasos = [];
 function paso(nombre, ok, detalle = '') {
@@ -128,17 +173,54 @@ function paso(nombre, ok, detalle = '') {
 function escaparRegex(texto) {
   return texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
-function aplicarMutante(original, mutante) {
-  if (mutante.aviso) {
+function aplicarCambio(texto, cambio) {
+  if (cambio.aviso) {
     const patron = new RegExp(
-      `raise exception using errcode = '[0-9A-Z]{5}',(\\s*message = (?:pg_catalog\\.format\\()?'${escaparRegex(mutante.aviso)})`, 'g');
-    const encontrados = original.match(patron) ?? [];
-    if (encontrados.length !== 1) return { error: `el aviso aparece ${encontrados.length} veces` };
-    return { texto: original.replace(patron, 'raise notice using$1') };
+      `raise exception using errcode = '[0-9A-Z]{5}',(\\s*message = (?:pg_catalog\\.format\\()?'${escaparRegex(cambio.aviso)})`, 'g');
+    const total = (texto.match(patron) ?? []).length;
+    const esperado = cambio.total ?? 1;
+    if (total !== esperado) return { error: `el aviso «${cambio.aviso}» aparece ${total} veces (se esperaban ${esperado})` };
+    const objetivo = cambio.ocurrencia ?? 1;
+    let n = 0;
+    return { texto: texto.replace(patron, (todo, resto) => (++n === objetivo ? `raise notice using${resto}` : todo)) };
   }
-  const veces = original.split(mutante.buscar).length - 1;
+  const veces = texto.split(cambio.buscar).length - 1;
   if (veces !== 1) return { error: `el fragmento aparece ${veces} veces` };
-  return { texto: original.replace(mutante.buscar, mutante.poner) };
+  return { texto: texto.replace(cambio.buscar, cambio.poner) };
+}
+function aplicarMutante(original, mutante) {
+  let texto = original;
+  for (const cambio of mutante.cambios ?? [mutante]) {
+    const r = aplicarCambio(texto, cambio);
+    if (r.error) return r;
+    texto = r.texto;
+  }
+  return { texto };
+}
+
+function pasadaMutantes(titulo, migracion, mutantes, plantilla, oraculo, marca) {
+  console.log(`\n— ${titulo} —`);
+  const original = readFileSync(migracion, 'utf8').replace(/\r\n/g, '\n');
+  mutantes.forEach((mutante, i) => {
+    const etiqueta = `${marca} ${String(i + 1).padStart(2, '0')}: ${mutante.nombre}`;
+    const m = aplicarMutante(original, mutante);
+    if (m.error) { paso(etiqueta, false, `mutante obsoleto: ${m.error}`); return; }
+    const archivo = join(temporal, `${marca}-${i + 1}.sql`);
+    writeFileSync(archivo, m.texto);
+    const db = `${marca}_${i + 1}`;
+    psqlSql(`create database ${db} template ${plantilla}`, 'postgres');
+    const aplicado = psqlArchivo(archivo, db);
+    if (mutante.por === 'postflight') {
+      paso(etiqueta, !aplicado.ok && aplicado.salida.includes(mutante.espera),
+        aplicado.ok ? 'SOBREVIVE: la migración mutada se aplicó' : `cazado por el postflight: ${lineaError(aplicado.salida)}`);
+    } else if (!aplicado.ok) {
+      paso(etiqueta, false, `la migración mutada no se aplica (mutante inválido): ${lineaError(aplicado.salida)}`);
+    } else {
+      const r = psqlArchivo(oraculo, db);
+      paso(etiqueta, !r.ok, r.ok ? 'SOBREVIVE: el oráculo no lo nota' : `cazado por el oráculo: ${lineaError(r.salida)}`);
+    }
+    psqlSql(`drop database ${db}`, 'postgres');
+  });
 }
 
 let arrancado = false;
@@ -156,74 +238,80 @@ try {
   const version = psqlSql('show server_version', 'postgres');
   console.log(`Banco desechable: PostgreSQL ${version.salida.trim()} en 127.0.0.1:${PUERTO} (se borra al terminar)\n`);
 
-  // Plantilla con el banco reducido: cada pasada clona la suya.
+  // Plantillas: el banco reducido solo, y con los datos (F2-b) para los mutantes del núcleo.
   let r = psqlSql('create database plantilla', 'postgres');
   if (!r.ok) throw new Error(`no se pudo crear la plantilla:\n${cola(r.salida)}`);
   r = psqlArchivo(BASE, 'plantilla');
   paso('banco reducido sembrado', r.ok, r.ok ? '' : cola(r.salida));
   if (!r.ok) throw new Error('sin banco reducido no hay pruebas');
+  psqlSql('create database plantilla_datos template plantilla', 'postgres');
+  r = psqlArchivo(MIG_DATOS, 'plantilla_datos');
+  if (!r.ok) throw new Error(`la plantilla con datos no se pudo preparar:\n${cola(r.salida)}`);
   psqlSql('create database principal template plantilla', 'postgres');
 
-  console.log('\n— Pasada 1: la migración tal cual —');
-  r = psqlArchivo(MIGRACION, 'principal');
-  paso('migración aplicada (precondición, tablas, candados, purga, postflight)', r.ok, cola(r.salida, r.ok ? 300 : 800));
-  r = psqlArchivo(MIGRACION, 'principal');
-  paso('reaplicarla se niega a sobrescribir', !r.ok && r.salida.includes('los objetos ya existen'), r.ok ? 'se aplicó dos veces' : '');
-  r = psqlArchivo(ORACULO, 'principal');
-  paso('oráculo de la migración', r.ok && r.salida.includes('ORACULO F2-b OK'), lineasOraculo(r.salida));
-  r = psqlSql('select count(*) from crm.llamadas_celular_eventos', 'principal');
-  paso('el oráculo no dejó filas (termina en ROLLBACK)', r.ok && r.salida.trim() === '0', r.salida.trim());
-  r = psqlArchivo(REVERSA, 'principal');
-  paso('reversa que conserva los hechos', r.ok, r.ok ? '' : cola(r.salida));
-  r = psqlSql('select count(*) from crm.llamadas_celular_politica', 'principal');
+  console.log('\n— Pasada 1: las migraciones tal cual —');
+  const db = 'principal';
+  const oraculoDatos = (nombre) => {
+    const o = psqlArchivo(ORACULO_DATOS, db);
+    return paso(nombre, o.ok && o.salida.includes('ORACULO F2-b OK'), lineasOraculo(o.salida));
+  };
+  const oraculoNucleo = (nombre) => {
+    const o = psqlArchivo(ORACULO_NUCLEO, db);
+    return paso(nombre, o.ok && o.salida.includes('ORACULO F2-c OK'), lineasOraculo(o.salida));
+  };
+  r = psqlArchivo(MIG_DATOS, db);
+  paso('F2-b aplicada (precondición, tablas, candados, purga, postflight)', r.ok, r.ok ? '' : cola(r.salida));
+  r = psqlArchivo(MIG_DATOS, db);
+  paso('F2-b se niega a sobrescribirse', !r.ok && r.salida.includes('los objetos ya existen'), r.ok ? 'se aplicó dos veces' : '');
+  oraculoDatos('oráculo de F2-b');
+  r = psqlArchivo(MIG_NUCLEO, db);
+  paso('F2-c aplicada (núcleo, puertas, permisos, postflight)', r.ok, r.ok ? '' : cola(r.salida));
+  r = psqlArchivo(MIG_NUCLEO, db);
+  paso('F2-c se niega a sobrescribirse', !r.ok && r.salida.includes('los objetos ya existen'), r.ok ? 'se aplicó dos veces' : '');
+  oraculoNucleo('oráculo de F2-c');
+  oraculoDatos('oráculo de F2-b con F2-c instalado');
+  r = psqlSql('select count(*) from crm.llamadas_celular_eventos', db);
+  paso('los oráculos no dejaron filas (terminan en ROLLBACK)', r.ok && r.salida.trim() === '0', r.salida.trim());
+
+  r = psqlArchivo(REVERSA_DATOS, db);
+  paso('la reversa de datos se niega con el núcleo instalado', !r.ok && r.salida.includes('el núcleo F2-c sigue instalado'), r.ok ? 'se aplicó fuera de orden' : '');
+  r = psqlArchivo(REVERSA_NUCLEO, db);
+  paso('reversa del núcleo', r.ok, r.ok ? '' : cola(r.salida));
+  r = psqlSql('select count(*) from crm.llamadas_celular_politica', db);
+  paso('tras esa reversa las tablas siguen', r.ok && r.salida.trim() === '1', r.salida.trim());
+  r = psqlArchivo(MIG_NUCLEO, db);
+  paso('F2-c se vuelve a aplicar tras su reversa', r.ok, r.ok ? '' : cola(r.salida));
+  oraculoNucleo('oráculo de F2-c tras reaplicar');
+  r = psqlArchivo(REVERSA_NUCLEO, db);
+  paso('reversa del núcleo (otra vez, antes de los datos)', r.ok, r.ok ? '' : cola(r.salida));
+
+  r = psqlArchivo(REVERSA_DATOS, db);
+  paso('reversa de datos que conserva los hechos', r.ok, r.ok ? '' : cola(r.salida));
+  r = psqlSql('select count(*) from crm.llamadas_celular_politica', db);
   paso('tras esa reversa las tablas siguen (política con 1 fila)', r.ok && r.salida.trim() === '1', r.salida.trim());
   r = psqlSql("insert into crm.celulares_asignaciones (etiqueta, analista_id, credencial_hash) "
-    + "select 'C9', e.perfil_id, repeat('e', 64) from crm.equipo e where e.rol_crm = 'vendedor' order by e.perfil_id limit 1", 'principal');
+    + "select 'C9', e.perfil_id, repeat('e', 64) from crm.equipo e where e.rol_crm = 'vendedor' and e.activo order by e.perfil_id limit 1", db);
   paso('fila de prueba para la reversa total', r.ok, r.ok ? '' : cola(r.salida));
-  r = psqlArchivo(REVERSA_TOTAL, 'principal');
+  r = psqlArchivo(REVERSA_TOTAL, db);
   paso('reversa total se niega si hay filas', !r.ok && r.salida.includes('la evidencia no se borra'), r.ok ? 'borró con filas' : '');
-  r = psqlSql("delete from crm.celulares_asignaciones where etiqueta = 'C9'", 'principal');
+  r = psqlSql("delete from crm.celulares_asignaciones where etiqueta = 'C9'", db);
   paso('fila de prueba retirada', r.ok, r.ok ? '' : cola(r.salida));
-  r = psqlArchivo(REVERSA_TOTAL, 'principal');
+  r = psqlArchivo(REVERSA_TOTAL, db);
   paso('reversa total sin filas', r.ok, r.ok ? '' : cola(r.salida));
-  r = psqlArchivo(MIGRACION, 'principal');
-  paso('la migración se vuelve a aplicar tras la reversa total', r.ok, r.ok ? '' : cola(r.salida));
-  r = psqlArchivo(ORACULO, 'principal');
-  paso('oráculo tras reaplicar', r.ok && r.salida.includes('ORACULO F2-b OK'), lineasOraculo(r.salida));
+  r = psqlArchivo(MIG_DATOS, db);
+  paso('F2-b se vuelve a aplicar tras la reversa total', r.ok, r.ok ? '' : cola(r.salida));
+  r = psqlArchivo(MIG_NUCLEO, db);
+  paso('F2-c se vuelve a aplicar encima', r.ok, r.ok ? '' : cola(r.salida));
+  oraculoDatos('oráculo de F2-b tras reaplicar todo');
+  oraculoNucleo('oráculo de F2-c tras reaplicar todo');
 
-  console.log('\n— Pasada 2: mutantes (cada uno neutraliza una defensa) —');
-  const original = readFileSync(MIGRACION, 'utf8').replace(/\r\n/g, '\n');
-  MUTANTES.forEach((mutante, i) => {
-    const etiqueta = `mutante ${String(i + 1).padStart(2, '0')}: ${mutante.nombre}`;
-    const m = aplicarMutante(original, mutante);
-    if (m.error) { paso(etiqueta, false, `mutante obsoleto: ${m.error}`); return; }
-    const archivo = join(temporal, `mutante-${i + 1}.sql`);
-    writeFileSync(archivo, m.texto);
-    const db = `mutante_${i + 1}`;
-    psqlSql(`create database ${db} template plantilla`, 'postgres');
-    const aplicado = psqlArchivo(archivo, db);
-    if (mutante.por === 'postflight') {
-      paso(etiqueta, !aplicado.ok && aplicado.salida.includes(mutante.espera),
-        aplicado.ok ? 'SOBREVIVE: la migración mutada se aplicó' : `cazado por el postflight: ${lineaError(aplicado.salida)}`);
-    } else if (!aplicado.ok) {
-      paso(etiqueta, false, `la migración mutada no se aplica (mutante inválido): ${lineaError(aplicado.salida)}`);
-    } else {
-      const oraculo = psqlArchivo(ORACULO, db);
-      paso(etiqueta, !oraculo.ok,
-        oraculo.ok ? 'SOBREVIVE: el oráculo no lo nota' : `cazado por el oráculo: ${lineaError(oraculo.salida)}`);
-    }
-    psqlSql(`drop database ${db}`, 'postgres');
-  });
+  pasadaMutantes('Pasada 2: mutantes de F2-b (datos)', MIG_DATOS, MUTANTES_DATOS, 'plantilla', ORACULO_DATOS, 'mut_datos');
+  pasadaMutantes('Pasada 3: mutantes de F2-c (núcleo y puertas)', MIG_NUCLEO, MUTANTES_NUCLEO, 'plantilla_datos', ORACULO_NUCLEO, 'mut_nucleo');
 } catch (error) {
   paso('arranque del banco', false, error.message);
 } finally {
   if (arrancado) correr('pg_ctl', ['-D', datos, '-m', 'fast', '-w', 'stop'], { sinTuberias: true });
   try { rmSync(temporal, { recursive: true, force: true }); } catch { /* carpeta temporal */ }
-}
-
-function lineaError(texto) {
-  const linea = texto.split('\n').find((l) => /ERROR:/.test(l)) ?? cola(texto, 200);
-  return linea.replace(/^.*ERROR:\s*/, '').slice(0, 160);
 }
 
 const fallos = pasos.filter((p) => !p.ok).length;
