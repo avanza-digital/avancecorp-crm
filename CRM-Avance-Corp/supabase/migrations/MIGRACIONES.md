@@ -15,7 +15,14 @@ Pruebas/evidencia y secuencia: `supabase/scripts/pdf-analista/README.md`.
 
 ## 20260930221500 — Conversión de Coordinación v2: desglose de cierres (referidos, upgrade, renovación) y rango de fechas (`crm.conversion_divisor_coordinacion_fn(date,date,date)`)
 
-**⏸️ PENDIENTE DE APLICAR (lo lanza Miguel con `!`): `db query --linked --file` de la migración → `registrar-20260930221500.sql` → advisors → front por `/release-crm` (SQL antes que front: la pestaña v2 exige las claves nuevas).**
+**✅ APLICADA Y REGISTRADA EN PROD el 30/09/2026 (noche) por `!` de Miguel:** migración `rows: []` sin error;
+`registrar-20260930221500.sql` → `REGISTRO_CONVERSION_DESGLOSE_OK` con las cuatro huellas vivas iguales a las
+del artefacto (puerta `b881b83c…`, base `0a43b0f3…`, empresa `5700d277…`, totales `e97995f5…`); verificado en
+solo lectura: cuatro funciones DEFINER/STABLE/`search_path` vacío con ACL mínima, sin firmas viejas; humo con
+datos reales (setiembre: 1655 llegadas, 119,30 ponderados, 7,21 %, 18 analistas, 0 filas rotas; 1–15/09: 858 /
+64,40 / 7,51 %; 15/08–30/09: 2458 / 142,80 / 5,81 %, con 4 cierres de «otros orígenes» que antes no se veían).
+Pendiente: advisors (Miguel) y el front por `/release-crm` desde el worktree (la pestaña v1 viva tolera el
+payload v2 mientras tanto).
 
 Qué añade (pedido de Miguel el 30/09 tras publicar la v1): por analista y para la empresa, de dónde
 salen los cierres —formulario, landing, referido (cantidad y aporte al peso vigente), oficina (no
