@@ -7,7 +7,14 @@ job `10,40 10 * * * activo=true`, bandera false, 0 marcas, registro `crm_potenci
 montó un banco NUEVO con el volcado de producción de ese día (ya con la fase 2): 873 funciones, 110 policies, 1 336
 columnas y 337 disparadores idénticos a los del banco de las pruebas, y los tres ciclos en verde sobre él. Exigía la
 fase 2 (`20260930235917`), aplicada 13 minutos antes. Gate `test:rls` con sesiones reales: NOT RUN (local sin gestor de
-credenciales). La pantalla aún no está publicada: sin ella y sin la bandera, nada cambia para los usuarios. Plan aprobado por Miguel el 01/10/2026 («vamos dale»): la pantalla en dos entregas,
+credenciales).
+
+**Pantalla publicada y bandera ENCENDIDA el mismo día.** Front: `build-20261001T185238130Z`, commit `54690b06`, rama
+`release/potencial-lead-f3a-20261001` (01/10/2026 13:57 Lima; preflight y smoke OK). **Bandera `potencial_lead`
+encendida por Miguel el 01/10/2026 a las 14:04 Lima** con `!` (`encender-bandera.sql`); `verificar-lectura.sql`
+después: bandera true, 0 marcas. Desde ese momento el analista dueño y su supervisor marcan Frío, Tibio o Estrella, y
+la marca se ve en Leads, Pipeline, cola de hoy y ficha. Interruptor de emergencia: `apagar-bandera.sql` (no borra
+marcas). La bitácora (`public.audit_log`) no guarda el actor cuando el cambio sale de `db query`: queda anotado aquí. Plan aprobado por Miguel el 01/10/2026 («vamos dale»): la pantalla en dos entregas,
 A marcar y ver, B filtrar. **No modifica ninguna función, tabla ni policy existente.**
 
 Piezas: puerta `crm.potencial_leads_fn(uuid[])` (DEFINER, STABLE, **EXECUTE solo `authenticated`**; anon y service_role
