@@ -131,7 +131,7 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 | F0 · Piloto y línea base | 4 | 1/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-2) |
 | F1 · Formulario único y match exacto | 4 | 12/12 | Hecha | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-8) |
 | F2 · Núcleo confiable | 4 | 8/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-14) |
-| F3 · Captura y sincronización | 4 | 0/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-20) |
+| F3 · Captura y sincronización | 4 | 3/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-20) |
 | F4 · Pendientes y conciliación | 4 | 0/13 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-66) |
 | F5 · Jev para identificación asistida | 5 | 0/15 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-72) |
 | F6 · Gerencia y calidad | 4 | 0/12 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-78) |
@@ -333,25 +333,25 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 | Listar/alta/baja/rotar celular | Capacidad de administración resuelta en servidor |
 | Registrar salud | Credencial de equipo, datos mínimos; heartbeat no demuestra captura sana |
 
-**Seguimiento de F3:** 0/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
+**Seguimiento de F3:** 3/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
 
 ### F3.1 · Publicar el contrato de puertas
 
-**Estado:** en curso · **Avance:** 0/3 · **Responsable:** Jhosep (decisiones provisionales) · Miguel (ratifica) · Claude (construye).
+**Estado:** en curso · **Avance:** 2/3 · **Responsable:** Jhosep (decisiones provisionales) · Miguel (ratifica) · Claude (construye).
 
-- [ ] **F3.1.1** Implementar ingesta, listado paginado, detalle por UUID, asociación, enlace, descarte y salud.
-- [ ] **F3.1.2** Restringir administración de equipos por capacidad y resolver actor/ámbito en servidor.
-- [ ] **F3.1.3** Definir respuesta estable y errores distinguibles; generar tipos del contrato para sus consumidores.
+- [x] **F3.1.1** Implementar ingesta, listado paginado, detalle por UUID, asociación, enlace, descarte y salud.
+- [x] **F3.1.2** Restringir administración de equipos por capacidad y resolver actor/ámbito en servidor.
+- [ ] **F3.1.3** Definir respuesta estable y errores distinguibles; generar tipos del contrato para sus consumidores. — EN CURSO: Errores distinguibles definidos en la base: 42501 «No autorizado» uniforme, 22023 cuerpo inválido, P0409 conflicto y P0429 con la espera en reintentar_en_seg. Falta generar los tipos (npm run gen:types) tras aplicar en un banco con el esquema de producción.
 
 **Evidencia / fecha de validación:** pendiente.
 
 ### F3.2 · Proteger la ingesta
 
-**Estado:** pendiente · **Avance:** 0/3 · **Responsable:** por asignar.
+**Estado:** en curso · **Avance:** 1/3 · **Responsable:** Claude (construye) · Miguel (aprueba y aplica).
 
 - [ ] **F3.2.1** Configurar Edge con esquema estricto, tamaño limitado, token propio y autenticación de plataforma verificada.
-- [ ] **F3.2.2** Aplicar rate limit compartido, baja/inactividad y rotación/revocación con auditoría.
-- [ ] **F3.2.3** Mostrar token una vez; guardar hash y eliminar secretos de URL, logs y soporte.
+- [x] **F3.2.2** Aplicar rate limit compartido, baja/inactividad y rotación/revocación con auditoría.
+- [ ] **F3.2.3** Mostrar token una vez; guardar hash y eliminar secretos de URL, logs y soporte. — EN CURSO: En la base: la clave se muestra una vez y solo se guarda su sha256 (F2-c), y no aparece en la bitácora (oráculo de F2-c, A1). Falta la parte de la Edge (F3-b): la clave en una cabecera, nunca en la URL ni en los registros.
 
 **Evidencia / fecha de validación:** pendiente.
 

@@ -74,6 +74,29 @@ Miguel no estaba disponible el 01/10. **Jhosep tomó las decisiones 1 a 4 como p
 3. **F3-c · Macro**: tras las pruebas de C1 de arriba; guía en `macrodroid.md`.
 4. **F3-d · Recuperación en C1** (F3.4): respuesta perdida tras guardar, ráfagas, bloqueo, batería, desfase, permisos revocados, dos llamadas al mismo número, rotación y analista de baja.
 
+## Estado de F3-a (01/10/2026, 21:35 UTC)
+
+**Construida y probada en el banco reducido local, sin aplicar** (`11c5be43`): migración `20261001212258_crm_llamadas_celular_ingesta.sql`, reversa `scripts/llamadas-celular/reversa-ingesta.sql` y oráculo `tests/llamadas-celular/oraculo-ingesta.sql`.
+
+- Puertas de servicio `crm.ingerir_llamada_celular_servicio(text, jsonb)` y `crm.registrar_salud_celular_servicio(text, jsonb)`, con EXECUTE solo para `service_role`. Clave ausente, desconocida, cerrada o de un analista de baja: el mismo 42501 «No autorizado», también en carrera con una rotación. A la Edge solo le devuelven `evento_id`, `repetido`, `ignorado` y `motivo`.
+- Límite de la decisión 2 en la política (`limite_envios_minuto` 30 y `limite_envios_dia` 600), compartido por llamadas y latidos. Al pasarse, P0429 con `reintentar_en_seg=N` en el DETAIL, para el `Retry-After` de la Edge.
+- Salud de la decisión 3: latido v1 (`version_macro`, `en_cola` y `ocurrio_en` opcional) y lectura por rol con `crm.celulares_salud_fn`.
+- Bandeja paginada `crm.llamadas_celular_bandeja_fn(límite, recibido_en, evento_id)`, con las mismas filas que la de F2-c.
+
+Verificación: `npm run test:llamadas:local` → **138/138** (oráculo con 32 defensas, 36/36 mutantes cazados y la carrera de rotación). **NOT RUN:** banco con el esquema de producción, `test-rls.mjs`, advisors reales, Codex LEVEL 3 y `gen:types`. La lista de `auditor-rls` se pasó en línea, sin agente.
+
+**Cambios respecto al diseño de arriba (decisiones de criterio de Claude, para Miguel):**
+
+- Límite y salud viven en una sola tabla técnica, `private.celulares_estado`, en vez de `crm.celulares_ingesta_ventanas` más `crm.celulares_salud`. Es una fila por celular y no necesita purga. Queda fuera de la regla de rastro, como las colas y los contadores del repo: en `crm` habría que auditarla, y cambia con cada envío.
+- La decisión 4 (qué abre el celular) no toca la base: la resuelve la Edge en F3-b.
+
+**Hallazgos:**
+
+- **Propuesta #12** (`PROPUESTAS-DE-AJUSTE.md`): la respuesta al celular no debe delatar si un número es de un lead.
+- **F2-c, visto en el código y no probado en el banco:** la llamada del celular de un **supervisor** a un lead de su equipo entra «por revisar» y nunca pide resultado. La ingesta no tiene sesión y `private.vendedor_ids_visibles` se niega si el actor no es quien llama. Al analista no le pasa, porque su lead se reconoce por `vendedor_id`. El flujo de F1 no depende de esto: abre la encuesta por número con la sesión. Se corregiría en el núcleo con una migración nueva, si Miguel lo pide.
+
+**Siguiente: F3-b, la Edge Function.** Para correr `handler.test.ts` hace falta instalar Deno en esta máquina, y eso pide el OK de Jhosep. Sin Deno, el código quedaría escrito sin probar.
+
 ## Riesgos y límites
 
 - El mayor riesgo es la durabilidad de MacroDroid: no está documentada y solo C1 puede probarla.

@@ -1,19 +1,19 @@
 # Avance — Llamadas desde el celular al CRM
 
-Actualizado: 01/10/2026, 04:11 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
+Actualizado: 01/10/2026, 04:35 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
 
 Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact/Q3GmV9m6Cy2GPQGKAbNy8M · Plan completo: `PLAN.md` en esta carpeta.
 
-**Lo último:** 01/10 21:11 UTC: Jhosep tomó como provisionales 4 de las 5 decisiones de F3 (clave por celular, límite 30/min y 600/día, salud cada 6 h, abrir la encuesta de F1). Empieza F3-a (base) en el banco local, sin aplicar nada. F1 sigue fusionada en main pero sin publicar: la macro de C1 sigue con la URL sin número.
+**Lo último:** 01/10 21:35 UTC: F3-a construida y probada en el banco local (11c5be43). La base ya recibe las llamadas del celular por una puerta solo de servidor con la clave del celular, con límite de 30 por minuto y 600 al día, latidos de salud y bandeja paginada: 138/138 y 36 mutantes cazados. Nada aplicado. Siguiente: F3-b (la Edge Function), que pide instalar Deno. F1 sigue fusionada pero sin publicar.
 
-**Total:** 21 de 102 tareas · 1 de 8 fases hechas.
+**Total:** 24 de 102 tareas · 1 de 8 fases hechas.
 
 | Fase | Tareas | Estado | Subfases hechas |
 | --- | --- | --- | --- |
 | F0 · Piloto y línea base | 1/12 | En curso | 0/4 |
 | F1 · Formulario único y coincidencia exacta | 12/12 | Hecha | 4/4 |
 | F2 · Núcleo confiable y contrato de datos | 8/13 | En curso | 2/4 |
-| F3 · Captura, puertas y sincronización durable | 0/13 | En curso | 0/4 |
+| F3 · Captura, puertas y sincronización durable | 3/13 | En curso | 0/4 |
 | F4 · Bandeja y registro conciliado en celular y PC | 0/13 | Pendiente | 0/4 |
 | F5 · Jev para identificación asistida | 0/15 | Pendiente | 0/5 |
 | F6 · Gerencia y calidad de evidencia | 0/12 | Pendiente | 0/4 |
@@ -72,9 +72,14 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
     - ◐ F2.4.2 — SQL ejecutado en entorno aislado (banco reducido desechable, 87/87). Falta: banco con el esquema de producción, bloque testLlamadasCelular en test-rls.mjs, advisors reales, auditor-rls y revisión Codex LEVEL 3. Necesita a Miguel (banco o rama de Supabase). (01/10/2026, 11:37 a. m.)
     - ◐ F2.4.3 — COMMENT completos (el postflight los exige) y ledger con estado honesto (MIGRACIONES.md). Falta la evidencia de aceptación en el banco con el esquema de producción antes de habilitar consumidores (F3/F4). (01/10/2026, 11:37 a. m.)
 
-### F3 · Captura, puertas y sincronización durable — 0/13 · en curso
-- **F3.1 · Publicar el contrato de puertas** — 0/3 · en curso · Responsable: Jhosep (decisiones provisionales) · Miguel (ratifica) · Claude (construye) · 01/10 21:10 UTC: Jhosep tomó como provisionales 4 de las 5 decisiones de F3-PLAN-CORTO.md (Miguel no estaba disponible): clave por celular con verify_jwt=false, límite de 30 por minuto y 600 al día, salud cada 6 h y al vaciar la cola, y abrir la encuesta de F1 por número. La 5.ª (otro adaptador si MacroDroid no es durable) espera las pruebas en C1. Siguiente: F3-a (base) en la rama y en el banco local, sin aplicar.
-- **F3.2 · Proteger la ingesta** — 0/3 · pendiente · Responsable: por asignar
+### F3 · Captura, puertas y sincronización durable — 3/13 · en curso
+- **F3.1 · Publicar el contrato de puertas** — 2/3 · en curso · Responsable: Jhosep (decisiones provisionales) · Miguel (ratifica) · Claude (construye) · F3-a construida y probada en el banco local (11c5be43): F3.1.1 y F3.1.2 hechas; F3.1.3 en curso (faltan los tipos generados tras aplicar). Decisiones 1–4 provisionales de Jhosep; Miguel las ratifica. Nada aplicado.
+    - ✓ F3.1.1 — F3-a (11c5be43) sobre F2-c: ingesta por puerta de servicio con la clave del celular, bandeja paginada por cursor (las mismas filas que la de F2-c), detalle, asociar, enlazar y descartar (F2-c) y salud por latido. Banco local: npm run test:llamadas:local 138/138, oráculo de F3-a con 32 defensas, 36 mutantes cazados. En rama, sin aplicar. (01/10/2026, 04:35 p. m.)
+    - ✓ F3.1.2 — Asignar, cerrar y rotar celulares: solo gerencia (F2-c). La salud la lee gerencia (todos) o supervisión (su equipo). El actor sale de la sesión (auth.uid) o de la clave del celular, nunca de un parámetro. Probado en el banco local (oráculos de F2-c y F3-a). (01/10/2026, 04:35 p. m.)
+    - ◐ F3.1.3 — Errores distinguibles definidos en la base: 42501 «No autorizado» uniforme, 22023 cuerpo inválido, P0409 conflicto y P0429 con la espera en reintentar_en_seg. Falta generar los tipos (npm run gen:types) tras aplicar en un banco con el esquema de producción. (01/10/2026, 04:35 p. m.)
+- **F3.2 · Proteger la ingesta** — 1/3 · en curso · Responsable: Claude (construye) · Miguel (aprueba y aplica) · F3.2.2 hecha en el banco local (límite compartido; bajas y rotación con el mismo «No autorizado»). F3.2.3 a medias: falta la Edge. F3.2.1 (Edge con verify_jwt=false) es F3-b: Deno no está instalado en esta máquina y pide el OK de Jhosep.
+    - ✓ F3.2.2 — Límite compartido por llamadas y latidos (30 por minuto y 600 al día, en la política); analista de baja y celular rotado o cerrado reciben el mismo «No autorizado», también en carrera (rotación mientras una ingesta espera: ~1,7 s y «No autorizado»). Rotación y cierre auditados (F2-b); los contadores del límite no se auditan, por diseño. Banco local 138/138. (01/10/2026, 04:35 p. m.)
+    - ◐ F3.2.3 — En la base: la clave se muestra una vez y solo se guarda su sha256 (F2-c), y no aparece en la bitácora (oráculo de F2-c, A1). Falta la parte de la Edge (F3-b): la clave en una cabecera, nunca en la URL ni en los registros. (01/10/2026, 04:35 p. m.)
 - **F3.3 · Persistir y enviar** — 0/4 · en curso · Responsable: Jhosep (pruebas en C1) · Antes de escribir la macro: 6 pruebas en C1 (POST con cabecera y {call_number}, id de origen estable, cola persistente, reintento, doble disparo, credencial fuera del registro). Si la cola no es durable, se evalúa otro adaptador.
 - **F3.4 · Probar recuperación** — 0/3 · pendiente · Responsable: por asignar
 
@@ -105,6 +110,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 
 ## Últimos cambios
 
+- 01/10/2026, 04:35 p. m. · F3-a construida y probada en el banco local (11c5be43, migración 20261001212258, sin aplicar): puertas de servicio solo para service_role con la clave del celular y el mismo «No autorizado» ante cualquier fallo de clave; límite compartido de 30 por minuto y 600 al día con la espera en el error; latido de salud; bandeja paginada y salud por rol; tabla técnica en private sin auditoría, por diseño. npm run test:llamadas:local 138/138; oráculo de F3-a con 32 defensas; 36/36 mutantes; carrera de rotación con «No autorizado». Propuesta #12 para Miguel: que la respuesta al celular no delate si un número es lead.
 - 01/10/2026, 04:11 p. m. · F3: Jhosep tomó como provisionales las decisiones 1–4 (clave por celular con verify_jwt=false, 30 por minuto y 600 al día, salud cada 6 h y al vaciar la cola, abrir la encuesta de F1 por número); Miguel las ratifica. La 5 espera las pruebas en C1. Arranca F3-a en el banco local.
 - 01/10/2026, 02:16 p. m. · PR #160 aprobado y fusionado a main por Miguel (18:38 UTC, 20f7deea). No está publicado: la build viva build-20261001T185238130Z (18:52 UTC) contiene el PR #159 y no el receptor de F1. Método: el texto exclusivo del receptor no aparece en ninguno de los 86 archivos del sitio y sí en la build del PR #160. La macro sigue sin número hasta el release.
 - 01/10/2026, 01:21 p. m. · Reactivación de F1 preparada con la autorización de Miguel: PR #160 (https://github.com/avanza-digital/avancecorp-crm/pull/160), revert solo de 9815ad02. npm run check y pre-push 5316 pruebas, navegador PASS (encuesta en «Ahora» y aviso sin lead), E2E Docker 300 passed; los 2 fallos restantes ya fallan en main sin el cambio. El merge y el release los hace Miguel.
@@ -119,4 +125,3 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 - 30/09/2026, 04:46 p. m. · Miguel aprobó y fusionó el PR #148 a main (6ace8487, 21:41 UTC): F1 en main, sin publicar (producción vive la build de Coordinación de las 21:37, sin F1). Su merge de main a la rama quedó integrado (b4f49494). Aviso: main no contiene aún lo vivo (57e7b3b4 / rama de rescate); hay que fusionarlo antes del release de F1 o el preflight rechaza.
 - 30/09/2026, 04:41 p. m. · F2-PLAN-CORTO.md afinado con los tres mapas de solo lectura: enlace por actividad_id de v4, autor por ámbito, Deshacer sin desenlazar, F2 aditiva, credencial con hash, idempotencia P0409, RLS sin policies, auditoría sin teléfonos, purga, molde de migración, reversa y contrato de ingesta para F3. Sigue sin SQL hasta el OK de Miguel.
 - 30/09/2026, 04:21 p. m. · F2 en curso como análisis: F2-PLAN-CORTO.md (contrato con 7 decisiones para Miguel, diseño de datos, núcleo, RLS, verificación, orden de PRs). F2.1 y F2.2 en curso. Sin código ni SQL.
-- 30/09/2026, 04:08 p. m. · Publicación de F1 preparada para Miguel: PR #148 a main (https://github.com/avanza-digital/avancecorp-crm/pull/148) con IMPLEMENTED/REVIEW/VERIFICATION/RISKS y los pasos manuales del release. main fusionado en la rama (d326c6b9). Nada publicado.
