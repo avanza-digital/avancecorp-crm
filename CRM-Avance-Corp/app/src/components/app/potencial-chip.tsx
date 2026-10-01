@@ -1,4 +1,4 @@
-// Chip del potencial del lead: Frío (gris pizarra, copo), Tibio (azul,
+// Chip del potencial del lead: Frío (gris pizarra, copo), Tibio (naranja,
 // termómetro) y Estrella (dorado, estrella). Ícono y texto SIEMPRE: el color
 // nunca es la única señal. Mismas medidas que el `Badge` de la casa, en sólido.
 //
