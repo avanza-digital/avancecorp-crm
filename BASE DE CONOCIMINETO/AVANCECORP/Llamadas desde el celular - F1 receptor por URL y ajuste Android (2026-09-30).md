@@ -1,11 +1,14 @@
 # Llamadas desde el celular - F1 receptor por URL y ajuste Android (2026-09-30)
 
 Estado: F1 del plan «Llamadas desde el celular al CRM» (Versión 3 aprobada por Miguel)
-terminada en la rama `feat/llamadas-f0`, aprobada y fusionada a `main` por Miguel (PR #148,
-30/09 21:41 UTC) y **publicada el 01/10/2026 a las 00:21 UTC** (`build-20261001T002155841Z`,
-desde la rama de rescate `rescue/conversion-desglose-20261001`; verificado en el bundle vivo el
-01/10 a las 14:41 UTC). Desde ese momento la macro de C1 puede llevar `{call_number}`. F0 (piloto
-con el celular C1) sigue midiendo.
+terminada en la rama `feat/llamadas-f0` y aprobada y fusionada a `main` por Miguel (PR #148,
+30/09 21:41 UTC), pero **NO activa en producción**: al publicar la corrección de documentos,
+Miguel decidió «Solo documentos; mantener F1 pendiente» y el PR #151 retiró temporalmente su
+activación (el receptor no se monta; módulos, rutas y pruebas siguen en `main`). Reactivarla
+requiere su autorización. 🔑 Lección (01/10): para dar por viva una función no basta encontrar
+parte de su código en el bundle publicado; hay que comprobar su punto de entrada en el commit
+construido y leer la descripción del PR de publicación. F0 (piloto con el celular C1) sigue
+midiendo.
 
 Objetivo de negocio (Jhosep, 30/09): que los vendedores registren cada llamada sin
 esfuerzo. Al colgar, MacroDroid abre `https://crm.miavance.com/#/gestion-diaria/llamada/{call_number}`;
