@@ -1,3 +1,46 @@
+## 20261001145242 — Llamadas desde el celular · F2-b: datos (`crm.celulares_asignaciones`, `crm.llamadas_celular_eventos`, `crm.llamadas_celular_enlaces`, `crm.llamadas_celular_politica`, `private.caducar_llamadas_celular`)
+
+**⏸️ EN RAMA `feat/llamadas-f2`, SIN APLICAR en ningún entorno compartido (ni branch de Supabase ni producción).**
+Contrato con las **7 decisiones provisionales de Jhosep (30/09)**; Miguel las ratifica o cambia antes de aplicar
+(LEVEL 3). Plan: `docs/plans/llamadas-celular/F2-PLAN-CORTO.md`. Banco local: ver «Verificación».
+
+Qué hace: la llamada hecha desde un celular corporativo deja huella propia (hoy solo existe la actividad que el
+analista registra en la encuesta). Cuatro tablas en `crm`, RLS activa **sin policies** y sin privilegios para la
+API (todo llegará por puertas DEFINER en F2-c): `celulares_asignaciones` (qué analista tenía cada celular y desde
+cuándo; credencial de ingesta solo como hash sha256; una vigencia por etiqueta con índice parcial + exclusión por
+rango; cerrada = inmutable), `llamadas_celular_eventos` (payload inmutable + identidad estable asignación + id de
+origen + hash; identificación, atención, lead, método y descarte motivado con transiciones vigiladas por trigger;
+`lead_id` en cascada como `actividades`), `llamadas_celular_enlaces` (uno a uno con la actividad de llamada que la
+encuesta registró, mismo lead, `metadata.evento = resultado_llamada`; el enlace solo cambia si el resultado
+anterior tiene `deshecho_en`), `llamadas_celular_politica` (fila única: `guardar_sin_identificar=false`,
+`entrantes_activas=false`, retención 30 días para descartados y ambiguos). Purga `private.caducar_llamadas_celular`
++ pg_cron `crm-llamadas-celular-caducidad` (06:23 UTC); el candado solo deja pasar el DELETE bajo el GUC
+`crm.op_purga_llamadas` o en cascada. Auditoría `log_audit_sin_secretos` con `credencial_hash`, `numero_canonico`
+y `hash_payload` enmascarados (la purga copia filas a `audit_log`, que no tiene retención; el sha256 de un número
+de nueve dígitos se revierte por fuerza bruta). FK de autoría (`*_por`) y de analista a personas siempre
+**RESTRICT** con su índice: la baja de usuarios (`private.usuario_tiene_historial`) detecta el historial por esas
+FK y conserva la identidad; el postflight lo exige. Excepción single-tenant documentada en los comentarios.
+Vocabulario: «analista».
+
+Reversa: `scripts/llamadas-celular/reversa-datos.sql` (conserva los hechos: retira cron, purga y candados; deja
+tablas y auditoría) y `reversa-datos-total.sql` (borra las tablas; se niega si hay filas).
+
+**Verificación 01/10 (banco REDUCIDO, no paridad):** `npm run test:llamadas:local` levanta un PostgreSQL 17.7
+desechable (initdb en carpeta temporal, solo 127.0.0.1, clave de usar y tirar; molde `test-sla-nucleo-local.py`)
+con `supabase/tests/llamadas-celular/base.sql` (auditores, regla de rastro, canonización y forma del resultado
+copiados literal; identidad y ámbito como dobles declarados) y corre: migración PASS (sin pg_cron: el reloj no se
+programa y lo avisa), reaplicar se niega, oráculo `scripts/llamadas-celular/verificar-datos.sql` PASS (39 defensas
+que muerden + cascada del lead; en transacción con ROLLBACK), reversa que conserva los hechos PASS, reversa total
+se niega con filas y pasa sin ellas, reaplicar tras la reversa PASS. **32/32 mutantes cazados** (27 por el oráculo,
+5 por el postflight; 4 los frena una segunda barrera con otro código, la operación igual no pasa). 45/45 pasos.
+Hallazgo corregido por el banco: las reversas nombraban `cron.job` en la misma condición que comprueba pg_cron y
+morían en un banco sin reloj. Revisión en línea con la lista de `auditor-rls` (RLS sin policies, sin privilegios
+de la API, DEFINER con `search_path` vacío y comentado, no altera objetos de `public` (solo FK que referencian
+`public.perfiles`, como el resto del CRM), inmutabilidad de
+`actividades` y del ledger intacta: solo se añaden FK que la referencian; las comprobaciones existentes buscan
+disparadores por nombre, no por cantidad). **NOT RUN:** banco con el esquema de producción, `test-rls.mjs` (bloque
+`testLlamadasCelular` en F2-d), advisors, agente `auditor-rls` y Codex LEVEL 3.
+
 ## 20260930235917 — Potencial del lead · fase 2: la marca baja sola (`private.potencial_caducar`, pg_cron `crm-potencial-lead-caducidad`)
 
 **⏸️ PENDIENTE: ensayada en banco Docker propio (con y sin pg_cron); NO aplicada en producción.** Miguel (30/09)
