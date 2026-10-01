@@ -21,8 +21,13 @@ del artefacto (puerta `b881b83c…`, base `0a43b0f3…`, empresa `5700d277…`, 
 solo lectura: cuatro funciones DEFINER/STABLE/`search_path` vacío con ACL mínima, sin firmas viejas; humo con
 datos reales (setiembre: 1655 llegadas, 119,30 ponderados, 7,21 %, 18 analistas, 0 filas rotas; 1–15/09: 858 /
 64,40 / 7,51 %; 15/08–30/09: 2458 / 142,80 / 5,81 %, con 4 cierres de «otros orígenes» que antes no se veían).
-Pendiente: advisors (Miguel) y el front por `/release-crm` desde el worktree (la pestaña v1 viva tolera el
-payload v2 mientras tanto).
+**Front EN PROD el 01/10/2026 00:22 (Lima 30/09 19:22):** `build-20261001T002155841Z` (release
+`crm-20261001T002156Z-c6e65d9e8b4a`, SHA-256 `80c8c53f…`) publicado por `/release-crm` desde la rama de rescate
+`rescue/conversion-desglose-20261001` = vivo anterior `6a9ad5e6` (documentos del lead, otra sesión) + los 4
+commits de la v2; el primer intento desde `crm/conversion-coordinacion-desglose` lo rechazó el preflight porque
+el vivo había cambiado mientras se revisaba. Smoke: HTTP 200, `version.json` nuevo, bundle igual al del `dist`.
+El vivo `6a9ad5e6` traía marcas de conflicto sin resolver en este ledger y en `Inicio.md` (entrada de la v1):
+resueltas aquí quedándose con la versión de la rama de rescate de la v1. Advisors: pendientes de Miguel.
 
 Qué añade (pedido de Miguel el 30/09 tras publicar la v1): por analista y para la empresa, de dónde
 salen los cierres —formulario, landing, referido (cantidad y aporte al peso vigente), oficina (no
