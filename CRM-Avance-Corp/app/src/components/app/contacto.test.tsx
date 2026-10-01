@@ -7,6 +7,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { Tarea } from '@/lib/tipos'
+// El coordinador real (F1.1.1): aquí se prueba cómo lo usa AccionesContacto.
+import { armarIntencion, intencionDe, limpiarIntencionesContacto } from '@/lib/intencion-contacto'
 
 /** 10:00 de Lima: una tarea que vence a las 15:00 Lima es «de hoy». */
 const AHORA = Date.parse('2026-09-30T15:00:00Z')
@@ -76,7 +78,8 @@ const dialogoLlamada = () => screen.getByRole('dialog', { name: 'Resultado de la
 
 beforeEach(() => {
   vi.useFakeTimers({ now: AHORA, toFake: ['Date'] })
-  dobles.yo = { id: 'v1', rol: 'vendedor', demo: false, nombre_completo: 'ANALISTA UNO' }
+  limpiarIntencionesContacto()
+  dobles.yo ={ id: 'v1', rol: 'vendedor', demo: false, nombre_completo: 'ANALISTA UNO' }
   dobles.puedeMarcar = true
   dobles.tareas = [tarea({ id: 't-llamada' })]
   dobles.registro.props = null
@@ -141,6 +144,19 @@ describe('AccionesContacto en el celular (el aparato marca)', () => {
     await waitFor(() => expect(onRegistrarLlamada).toHaveBeenCalledTimes(1))
     expect(dobles.asegurarLead).toHaveBeenCalledWith('lead-1')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    // «Mi día» abre su propia tarjeta: la intención sigue ABIERTA (la siguiente
+    // llamada espera) hasta que esa pantalla cierre su sesión con cerrarIntencionesDe.
+    expect(intencionDe('v1', LEAD.id)).toMatchObject({ abierta: true })
+  })
+
+  it('la intención delegada en «Mi día» no muere con esta instancia: la tarjeta desmonta las acciones para pintar su formulario', async () => {
+    const { unmount } = render(<AccionesContacto lead={LEAD} onRegistrarLlamada={vi.fn()} />)
+    pulsar(enlaceLlamar())
+    vi.setSystemTime(AHORA + 4_000)
+    volver()
+    await waitFor(() => expect(intencionDe('v1', LEAD.id)).toMatchObject({ abierta: true }))
+    unmount()
+    expect(intencionDe('v1', LEAD.id)).toMatchObject({ abierta: true }) // la cierra «Mi día» al cerrar su sesión
   })
 
   it('si el lead ya no está en el ámbito lo dice y no abre nada', async () => {
@@ -212,6 +228,81 @@ describe('AccionesContacto en el escritorio (el aparato no marca)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Copiar el número de MARÍA PÉREZ y registrar la llamada' }))
     await waitFor(() => expect(dialogoLlamada()).toBeInTheDocument())
     expect(dobles.toast.info).toHaveBeenCalledWith('Marca +51999888777 desde tu celular')
+  })
+})
+
+describe('AccionesContacto con el coordinador de la intención (F1.1.2)', () => {
+  it('la intención sobrevive al remount: la instancia nueva pregunta al volver', async () => {
+    const { rerender } = render(<AccionesContacto key="a" lead={LEAD} />)
+    pulsar(enlaceLlamar())
+    // La cola se repintó durante la llamada: otra instancia para el mismo lead.
+    rerender(<AccionesContacto key="b" lead={LEAD} />)
+    vi.setSystemTime(AHORA + 4_000)
+    volver()
+    await waitFor(() => expect(dialogoLlamada()).toBeInTheDocument())
+    expect(dobles.asegurarLead).toHaveBeenCalledTimes(1)
+  })
+
+  it('tras una recarga con la llamada en curso, la instancia nueva pregunta al montar si ya pasaron los 4 s', async () => {
+    // Lo que dejó la página anterior en sessionStorage: el tap de hace 5 s.
+    armarIntencion({ actor: 'v1', leadId: LEAD.id, canal: 'tel', origen: 'pantalla', instancia: 'pagina-anterior' }, AHORA - 5_000)
+    render(<AccionesContacto lead={LEAD} />)
+    await waitFor(() => expect(dialogoLlamada()).toBeInTheDocument())
+    expect(intencionDe('v1', LEAD.id)).toMatchObject({ abierta: true })
+  })
+
+  it('un tap propio nunca se ofrece por reloj: solo al volver a la pestaña', async () => {
+    const { rerender } = render(<AccionesContacto lead={LEAD} />)
+    pulsar(enlaceLlamar())
+    vi.setSystemTime(AHORA + 60_000)
+    rerender(<AccionesContacto lead={LEAD} compacto />) // un repintado cualquiera (el reloj de la pantalla)
+    await act(async () => {})
+    expect(dobles.asegurarLead).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    volver()
+    await waitFor(() => expect(dialogoLlamada()).toBeInTheDocument())
+  })
+
+  it('una intención que llega del enlace se ofrece al montar sin esperar y termina al cerrar el diálogo', async () => {
+    armarIntencion({ actor: 'v1', leadId: LEAD.id, canal: 'tel', origen: 'enlace', numero: '+51999888777' })
+    render(<AccionesContacto lead={LEAD} />)
+    await waitFor(() => expect(dialogoLlamada()).toBeInTheDocument())
+    expect(dobles.asegurarLead).toHaveBeenCalledWith('lead-1')
+    expect(intencionDe('v1', LEAD.id)).toMatchObject({ abierta: true, numero: '+51999888777' })
+    const cerrar = dobles.registro.props?.onClose as (() => void) | undefined
+    act(() => { cerrar?.() })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(intencionDe('v1', LEAD.id)).toBeNull()
+  })
+
+  it('foco y hash en el otro orden: el tap propio queda pendiente y el enlace que llega después lo ofrece sin esperar', async () => {
+    render(<AccionesContacto lead={LEAD} />)
+    pulsar(enlaceLlamar())
+    vi.setSystemTime(AHORA + 1_000)
+    // El receptor del enlace renueva la misma intención (mismo actor, lead y canal) con el número.
+    act(() => { armarIntencion({ actor: 'v1', leadId: LEAD.id, canal: 'tel', origen: 'enlace', numero: '+51999888777' }) })
+    await waitFor(() => expect(dialogoLlamada()).toBeInTheDocument())
+    expect(dobles.asegurarLead).toHaveBeenCalledTimes(1)
+    expect(intencionDe('v1', LEAD.id)).toMatchObject({ origen: 'enlace', abierta: true })
+  })
+
+  it('una intención de otro lead no la toca', async () => {
+    armarIntencion({ actor: 'v1', leadId: 'lead-2', canal: 'tel', origen: 'enlace', numero: '+51988877766' })
+    render(<AccionesContacto lead={LEAD} />)
+    await act(async () => {})
+    expect(dobles.asegurarLead).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(intencionDe('v1', 'lead-2')).toMatchObject({ abierta: false })
+  })
+
+  it('si la instancia se va con el diálogo abierto (la fila desaparece), la pregunta se va con ella', async () => {
+    const { unmount } = render(<AccionesContacto lead={LEAD} />)
+    pulsar(enlaceLlamar())
+    vi.setSystemTime(AHORA + 4_000)
+    volver()
+    await waitFor(() => expect(dialogoLlamada()).toBeInTheDocument())
+    unmount()
+    expect(intencionDe('v1', LEAD.id)).toBeNull()
   })
 })
 
