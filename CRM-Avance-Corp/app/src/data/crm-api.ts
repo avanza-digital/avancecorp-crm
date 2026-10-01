@@ -66,7 +66,7 @@ import {
   type Titular,
   type TitularInput,
 } from '@/lib/clientes-tipos'
-import { TAMANO_PAGINA_CARTERA, normalizarBusquedaCartera, textoBuscable } from '@/lib/cartera-keyset'
+import { TAMANO_PAGINA_CARTERA, normalizarBusquedaCartera, textoBuscable, type GestionCartera } from '@/lib/cartera-keyset'
 import { TIPOS_DOCUMENTO, TIPOS_DOCUMENTO_K, type TipoDocumento, type DocumentoIdentidad, type CorreccionDocumentoLead } from '@/lib/documento'
 import { CierresExternosSchema, COOPERATIVAS, type CierresExternos, type Cooperativa } from '@/lib/cierres-externos'
 import { CierresEstadoSchema, MAX_LEADS_ESTADO, type CierreEstado } from '@/lib/cierre-estado'
@@ -654,6 +654,14 @@ export interface FiltrosCartera {
   procedencia?: Procedencia | 'todas'
   /** Solo leads que ya pasaron por un analista antes del reparto actual. */
   reasignados?: boolean
+  /**
+   * «Gestión vigente» (ver `GestionCartera`): parte la etapa `nuevo` del
+   * Pipeline en «Nuevo» (`sin_gestion`) y «Gestionado» (`con_gestion`). Un
+   * resultado de llamada deshecho no cuenta como gestión. Ausente es el valor
+   * neutro y no viaja. Solo lo entiende la lista integrada
+   * (`cartera_filtrada_fn`); en demo no recorta — ahí lo calcula el Pipeline.
+   */
+  gestion?: GestionCartera
   integrada?: boolean
   recepcion?: { desde: string; hasta: string } | null
 }
@@ -740,6 +748,15 @@ export async function listarCarteraPagina(
   if (procedenciaPedida !== null) argumentos.p_procedencia = procedenciaPedida
   const reasignadosPedidos = filtros.integrada && filtros.reasignados === true
   if (reasignadosPedidos) argumentos.p_reasignados = true
+  // La gestión solo viaja cuando recorta, y solo a la lista integrada: sin
+  // ella la llamada es idéntica a la de siempre (Leads y las demás columnas no
+  // dependen de que el servidor ya conozca `p_gestion`). El servidor NO devuelve
+  // eco de este filtro: la forma de la respuesta es la misma con o sin él.
+  // Tampoco se comprueba contra las filas: la regla descarta los resultados de
+  // llamada deshechos, así que un lead `sin_gestion` puede traer un
+  // `ultimo_contacto_en` posterior a su tenencia y estar bien servido.
+  const gestionPedida = filtros.integrada && filtros.gestion ? filtros.gestion : null
+  if (gestionPedida !== null) argumentos.p_gestion = gestionPedida
 
   lanzarAbortSiCorresponde(signal)
   let consulta = cliente().schema('crm').rpc(filtros.integrada ? 'cartera_filtrada_fn' : 'cartera_pagina_fn', argumentos)
@@ -762,6 +779,7 @@ export async function listarCarteraPagina(
       filtraOrigen: origenPedido !== null,
       filtraProcedencia: procedenciaPedida !== null,
       filtraReasignados: reasignadosPedidos,
+      filtraGestion: gestionPedida !== null,
       tieneBusqueda: texto !== null,
       conCursor: cursor != null,
     })

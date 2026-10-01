@@ -22,6 +22,12 @@ vi.mock('@/data/sla-operacion-comandos', () => ({
   ejecutarComandoSla: vi.fn(), tareaConConfirmacionPendiente: vi.fn(),
   hayIntencionPendienteSla: vi.fn(), hayLlamadaV3Pendiente: vi.fn(),
 }))
+import { deshacerResultadoLlamada as deshacerResultadoLlamadaFn } from '@/data/gestion-diaria-api'
+
+vi.mock('@/data/gestion-diaria-api', async (importActual) => ({
+  ...await importActual<typeof import('@/data/gestion-diaria-api')>(),
+  deshacerResultadoLlamada: vi.fn(),
+}))
 import { crmQueryKeys } from '@/data/crm-queries'
 import { slaOperacionKeys } from '@/data/sla-operacion-queries'
 import { queryClient } from './query-client'
@@ -94,6 +100,7 @@ const reprogramarReunionMock = vi.mocked(crmApi.reprogramarReunion)
 const obtenerMetasMock = vi.mocked(crmApi.obtenerMetasDelMes)
 const obtenerCumplimientoMock = vi.mocked(crmApi.obtenerCumplimientoMetas)
 const invalidarQueriesMock = vi.mocked(queryClient.invalidateQueries)
+const deshacerLlamadaMock = vi.mocked(deshacerResultadoLlamadaFn)
 
 const ROSTER = [
   {
@@ -1102,6 +1109,75 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     expect(invalidarQueriesMock).toHaveBeenCalledWith({
       queryKey: crmQueryKeys.metricasConversionesEquipoPrefijo(),
     })
+  })
+
+  // Pipeline, 01/10/2026 — columna «Gestionado». Un INTENTO (no contestó,
+  // WhatsApp enviado) no mueve la etapa: el lead sigue en `nuevo`. Pero sí
+  // cambia de columna, de «Nuevo» a «Gestionado», y eso lo decide el servidor:
+  // las dos son listas servidas bajo `crmQueryKeys.leads()`. Si este refresco
+  // se perdiera, la tarjeta se quedaría en «Nuevo» hasta recargar la página.
+  it.each([
+    ['llamada_no_contestada', (a: StoreDataApi, id: string) => a.registrarActividad(id, 'llamada_no_contestada')],
+    ['whatsapp_enviado', (a: StoreDataApi, id: string) => a.registrarActividad(id, 'whatsapp_enviado')],
+    ['resultado «no contestó»', (a: StoreDataApi, id: string) => a.registrarLlamada(id, { resultado: 'no_contesto' })],
+  ] as const)('registrar un intento (%s) deja la etapa en nuevo y vuelve a pedir las listas de leads', async (_caso, registrar) => {
+    const { api, mutar } = montar('vendedor')
+    await waitFor(() => expect(api().leads).toHaveLength(1))
+    const id = api().leads[0]!.id
+    const escritura = diferida<undefined>()
+    comandoSla.mockReturnValueOnce(escritura.promesa)
+    const cancelarQueriesMock = vi.mocked(queryClient.cancelQueries)
+    invalidarQueriesMock.mockClear()
+    cancelarQueriesMock.mockClear()
+
+    const r = mutar((a) => registrar(a, id))
+    expect(r).toMatchObject({ ok: true })
+    // Un intento no es una conversación: no hay avance de etapa que anunciar.
+    expect(r).not.toHaveProperty('avance')
+    // Mientras el servidor no confirma la escritura, las listas NO se vuelven a
+    // pedir: releerlas ahora traería el lead todavía en «Nuevo».
+    expect(invalidarQueriesMock).not.toHaveBeenCalledWith({ queryKey: crmQueryKeys.leads() })
+
+    await act(async () => {
+      escritura.resolver(undefined)
+      expect(await r.persistido).toBe(true)
+    })
+
+    expect(api().lead(id)?.etapa).toBe('nuevo')
+    await waitFor(() => expect(invalidarQueriesMock).toHaveBeenCalledWith({ queryKey: crmQueryKeys.leads() }))
+    // CANCELAR ANTES de invalidar, y en ese orden: una página de «Nuevo» o de
+    // «Gestionado» que ya viajaba traería la foto anterior a la gestión y la
+    // dejaría fresca en caché. (Que las dos listas cuelgan de `leads()` lo fija
+    // crm-queries.test; aquí importa que el prefijo se cancele y se caduque.)
+    const ordenDe = (mock: { mock: { calls: unknown[][]; invocationCallOrder: number[] } }) =>
+      mock.mock.invocationCallOrder[mock.mock.calls.findIndex(([arg]) =>
+        JSON.stringify((arg as { queryKey?: unknown }).queryKey) === JSON.stringify(crmQueryKeys.leads()))]
+    expect(ordenDe(cancelarQueriesMock)).toEqual(expect.any(Number))
+    expect(ordenDe(cancelarQueriesMock)!).toBeLessThan(ordenDe(invalidarQueriesMock)!)
+  })
+
+  // Regla del 01/10: un resultado de llamada DESHECHO deja de contar y el lead
+  // vuelve de «Gestionado» a «Nuevo». También lo decide el servidor: «Deshacer»
+  // tiene que volver a pedir las listas, o la tarjeta no regresaría sola.
+  it('deshacer el resultado de una llamada vuelve a pedir las listas de leads tras confirmarse', async () => {
+    const { api, mutar } = montar('vendedor')
+    await waitFor(() => expect(api().leads).toHaveLength(1))
+    const id = api().leads[0]!.id
+    const deshecho = diferida<{ lead_id: string }>()
+    deshacerLlamadaMock.mockReturnValueOnce(deshecho.promesa as never)
+    invalidarQueriesMock.mockClear()
+
+    const r = mutar((a) => a.deshacerResultadoLlamada('act-1'))
+    expect(r).toMatchObject({ ok: true })
+    expect(deshacerLlamadaMock).toHaveBeenCalledWith('act-1')
+    expect(invalidarQueriesMock).not.toHaveBeenCalledWith({ queryKey: crmQueryKeys.leads() })
+
+    await act(async () => {
+      deshecho.resolver({ lead_id: id })
+      expect(await r.persistido).toBe(true)
+    })
+
+    await waitFor(() => expect(invalidarQueriesMock).toHaveBeenCalledWith({ queryKey: crmQueryKeys.leads() }))
   })
 
   it('expone las metas en solo lectura; la escritura vive únicamente en Configuración', async () => {
