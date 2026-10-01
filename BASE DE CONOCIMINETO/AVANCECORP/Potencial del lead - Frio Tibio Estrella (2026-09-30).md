@@ -1,11 +1,41 @@
 ---
 fecha: 2026-09-30
-estado: ✅ fase 1 EN PROD 30/09 (bandera APAGADA) · 🟡 fase 2 lista, revisada y ya en el `main` de GitHub (PR #157 fusionada el 01/10, `78ede498`): falta el `!` de Miguel · ✅ supuestos confirmados 01/10 · fase 3 (pantalla) sin empezar · ver «Para retomar»
+estado: ✅ fase 1 EN PROD 30/09 (bandera APAGADA) · 🟡 fase 2 en el `main` de GitHub (PR #157): falta el `!` de Miguel · 🟡 fase 3 entrega A (marcar y ver) TERMINADA y revisada en la PR #158, sin fusionar ni publicar · entrega B (filtro) y fase 4 (Jev) sin empezar · ver «Para retomar»
 ---
 
 # Potencial del lead: Frío · Tibio · Estrella (2026-09-30)
 
-## ▶️ Para retomar (estado al cierre del 30/09/2026)
+## ▶️ Para retomar (estado del 01/10/2026, mediodía)
+
+**Nada nuevo en producción todavía.** La entrega A de la fase 3 está terminada, revisada y en la **PR #158**
+(`crm/potencial-lead-f3a`, commits `8f3e69c4` servidor y `ee323a8a` pantalla, base `avancecorp/main` `78ede498`). Todo
+lo que queda son pasos de Miguel, EN ESTE ORDEN (cada `!` desde `CRM-Avance-Corp/` del taller, leyendo archivos del
+worktree `wt-potencial-lead`, que debe seguir en esa rama):
+
+1. **Fase 2** (pendiente desde el 30/09): la línea del punto 1 de abajo, sin cambios.
+2. **Volcado del esquema** (solo lectura; el modo automático bloqueó a la sesión leer producción): con él se monta un
+   banco NUEVO a paridad y se repiten los tres ciclos antes de publicar la lectura.
+   `supabase db dump --linked --schema public,crm,private --keep-comments -f <scratchpad>/banco/esquema-20261001.sql`
+3. **Puerta de lectura** (exige la fase 2): migración `20261001151704_crm_potencial_lead_lectura.sql` →
+   `registrar-lectura.sql` → `verificar-lectura.sql`. Debe decir: ejecutan la puerta `[authenticated]`, 0 EXECUTE de
+   la API en los 3 ayudantes, 0 funciones con ACL nula, forma `DEFINER/s/search_path=""`, job `10,40 10 * * *
+   activo=true`, bandera false, registro presente. Después, advisors (ninguna clase nueva).
+4. **Tipos:** en `app/` del worktree, `npm run gen:types` (lee producción) y `npm run typecheck`. Traerá además
+   bloques de otras sesiones que el repo no tenía (`contrato_pdf_anexo_*`, argumentos nuevos de la conversión).
+5. **Fusionar la PR #158** y comprobar que llegó a `avancecorp/main`.
+6. **Publicar el front** con `/release-crm`. 🔴 El CRM VIVO es `c6e65d9e` (rama `rescue/conversion-desglose-20261001`,
+   punta `dfb5b325`), que NO es ancestro de `main`: el preflight rechazará un build nacido de `main`. Receta: rama de
+   release desde esa punta + `git checkout crm/potencial-lead-f3a -- CRM-Avance-Corp/app` (el `app/` del vivo y el de
+   `main` eran idénticos el 01/10). El archivo de entorno lo copia Miguel (el hook se lo bloquea a la sesión).
+7. **Pasada visual** con movimiento activado (cuentagotas en hover sobre fila, botón y tarjeta Estrella; lector de
+   pantalla en la ficha) y **encender**: `encender-bandera.sql` → `verificar-lectura.sql` («bandera true»). Anotar en
+   `MIGRACIONES.md` quién y cuándo. Interruptor de emergencia: `apagar-bandera.sql`.
+8. A la mañana siguiente de publicar la fase 2: `verificar-caducidad.sql` debe decir `succeeded`.
+
+Pendientes menores: ledger a «EN PROD» y traer al `main` local los archivos de las fases 2 y 3A cuando se publiquen;
+la entrega B (filtro con conteo en Leads) necesita su propio plan y OK.
+
+### Estado al cierre del 30/09/2026 (histórico)
 
 Miguel cerró el día con «guarda todo y seguimos mañana». En orden:
 
@@ -296,6 +326,61 @@ en dos entregas; **esperando el OK de Miguel. Nada de código todavía.**
 **Entrega B · filtrar:** filtro por potencial con conteo en Leads, resuelto en el servidor. Toca `cartera_filtrada_fn`
 (argumento nuevo, eco, coherencia por fila, conteos del resumen, clave de caché, espejo demo y espejo e2e) y, por ser
 INVOKER, necesita un ayudante DEFINER al estilo de `private.cartera_recepciones_fn`. Plan propio.
+
+## Fase 3 · entrega A: ejecución (01/10/2026, tras el «vamos dale» de Miguel)
+
+**Qué quedó hecho (PR #158, sin fusionar ni publicar):**
+- **Servidor**, migración `20261001151704_crm_potencial_lead_lectura` (no modifica nada existente):
+  `crm.potencial_leads_fn(uuid[])` (DEFINER, STABLE, EXECUTE solo authenticated; sesión, gate del CRM invocado, tope
+  de 200 ids, bandera) + `private.potencial_lectura` (espejo de `leads_select`, actor = sesión) +
+  `private.potencial_proxima_baja` y `private.potencial_proxima_corrida`. Devuelve
+  `{version, habilitada, items[{lead_id, nivel, origen, nivel_marcado, marcado_en, dias_sin_gestion, baja_a, baja_el,
+  puede_marcar}]}`; con la bandera apagada, `habilitada: false` sin leer nada. Scripts: reversa, registrador (con
+  generador `banco/generar-registrador.py`), verificación, `encender-bandera.sql` y `apagar-bandera.sql`.
+- **Pantalla:** archivos nuevos `lib/potencial*.ts`, `data/potencial-api.ts`, `data/potencial-queries.ts`,
+  `components/app/potencial-{chip,seccion,efectos}` y `potencial.css`, más UNA inserción por vista (tabla de Leads,
+  ficha, Pipeline, cola de hoy). Lectura aparte por ids con caché propia colgada de `['crm','leads','potencial']` (lo
+  que el store ya invalida al mutar un lead refresca la marca). La regla de la caducidad NO se copia en sesión real: el
+  optimista solo cambia el nivel y la nota dice «Guardando la marca…» hasta la relectura; el espejo vive solo en el
+  modo demo. Animación en CSS con eventos de puntero, sin dependencias nuevas.
+- **Gate:** `testPotencialLectura` en `test-rls.mjs` enciende la bandera fuera de banda, compara rol por rol lo que
+  entrega la puerta con lo que la RLS deja ver, y la repone.
+
+**Revisiones (todas aplicadas):** auditor-rls PASS con observaciones (0 P0/P1) · Codex r1 y r2 (máximo del protocolo),
+sin fuga de RLS en ninguna · revisor-a11y PASS con observaciones, sin bloqueantes (no se tocaron los bucles de
+animación de la pieza aprobada).
+
+**Verificación:** banco 94/94 + fases 1 y 2 sin regresión (75 y 51) · 30 mutantes de lógica (29 caen; `sin-sesion`
+sobrevive a propósito) y 28 de migración y preflight · trinquetes `private.assert_*()` y censo idénticos sin y con la
+migración · `npm run check` PASS (338 archivos, 5 306 pruebas) · e2e Docker 303 pasan, 26 saltadas y 2 fallan IGUAL en
+`avancecorp/main` sin el cambio (`gerencia-operativa.spec.ts:108`, `gestion-diaria-vuelta.spec.ts:11`) · gate RLS con
+sesiones reales NOT RUN · paridad del banco con la producción de hoy NOT RUN.
+
+**Decisiones de diseño que conviene recordar:**
+- `baja_el` es la primera madrugada, contando desde el siguiente horario NOMINAL de la tarea (hoy hasta las 05:45
+  Lima; después, mañana), en que la regla la bajaría con lo que se sabe ahora. No acredita ejecución. Por eso la
+  pantalla usa siempre el `baja_a` del servidor (una Estrella con 9 días vista tras la corrida anuncia Frío, no Tibio).
+- `puede_marcar` sale de `private.potencial_rechazo`, la misma función de la puerta de marcar.
+- Un ítem por cada lead visible pedido, también sin marca (`nivel: null`), para que la ficha sepa si puede marcar.
+- `crm_gestion_diaria_lector` es miembro de `authenticated` a propósito y hereda el EXECUTE de la puerta; sin sesión
+  recibe 42501.
+
+**🔑 Lecciones del día:**
+1. El clasificador del modo automático denegó LEER producción (`supabase db query --linked` de solo lectura). No se
+   rodea: línea con `!` para Miguel. Para acercar el banco sin leer producción se aplicaron las tres migraciones
+   posteriores al volcado que ya estaban en el repo (una exigió una fila sintética en `crm.conversion_pesos`).
+2. Un mutante que sobrevive enseña el caso que falta: quitar la rama «rol = gerencia» del espejo no rompía nada
+   porque esa rama solo decide para un lead SIN ASIGNAR, que la prueba no tenía.
+3. `leads_select` ya está copiada en tres funciones DEFINER (`cierres_estado_fn`, `conversion_estado_lead_v1`,
+   `potencial_lectura`): tocar la policy obliga a re-auditar las tres.
+4. e2e Docker en un worktree con `node_modules` ENLAZADO: el `npm ci` del contenedor borra el enlace y deja
+   dependencias de Linux en el worktree. Va un clon APFS (`cp -cR`), no un enlace, aunque el `CLAUDE.md` diga enlace.
+   Quedó apartada `app/.e2e-linux/` en el worktree (basura inofensiva, ignorada por git).
+5. La demo trae el potencial ENCENDIDO: un chip nuevo dentro de una fila cambia selectores estructurales de specs
+   demo (`span > span`).
+6. Tu Escritorio se sincroniza con iCloud y devuelve `.git/index.lock` viejos: comprobar que no hay git vivo y
+   apartarlo con `mv`.
+7. Dentro de un `DO` con una variable `r record`, un alias SQL `r` choca con ella.
 
 ## Propuesta INICIAL de servidor (superada: ver «Fase 1 · ejecución» y «Fase 2»)
 
