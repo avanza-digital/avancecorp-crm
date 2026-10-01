@@ -34,8 +34,12 @@ cazados** (22 por el oráculo, 3 por el postflight; 4 los frena el candado de F2
 F2-b siguen cazados. El banco reducido usa ahora copias reales de `rol_crm`, `es_lector_global`,
 `vendedor_ids_visibles` (con su defensa «solo para quien llama») e `idem_hash`. Advisors previstos: 11 avisos de la
 clase existente `authenticated_security_definer_function_executable` (patrón de todas las puertas DEFINER), ninguna
-clase nueva. **NOT RUN:** banco con el esquema de producción, `test-rls.mjs` (F2-d), advisors reales, concurrencia
-con dos sesiones (F2-d), agente `auditor-rls` y Codex LEVEL 3.
+clase nueva. **Concurrencia con dos sesiones reales (01/10, F2-d):** la primera retiene su transacción 2 s y la
+segunda tiene que esperar (medido ≈ 1,7 s) y responder bien: mismo origen y contenido → mismo evento «repetido»;
+otro contenido → `P0409`; dos consumidores enlazando la misma llamada → uno gana y el otro recibe 23505, queda un
+solo enlace. `npm run test:llamadas:local` → **87/87**, estable en dos corridas seguidas. **NOT RUN:** banco con el
+esquema de producción, `test-rls.mjs` (bloque `testLlamadasCelular`, F2-d), advisors reales, agente `auditor-rls` y
+Codex LEVEL 3.
 
 ## 20261001145242 — Llamadas desde el celular · F2-b: datos (`crm.celulares_asignaciones`, `crm.llamadas_celular_eventos`, `crm.llamadas_celular_enlaces`, `crm.llamadas_celular_politica`, `private.caducar_llamadas_celular`)
 

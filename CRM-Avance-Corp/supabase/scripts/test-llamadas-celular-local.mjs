@@ -15,10 +15,12 @@
 //      neutraliza. Un mutante «de oráculo» tiene que APLICARSE y hacer fallar su oráculo; uno «de
 //      postflight» tiene que ser rechazado por el postflight con su mensaje. Si sobrevive, esa
 //      defensa no está probada.
+//   4. Concurrencia con dos sesiones REALES: la primera abre su transacción y la retiene; la
+//      segunda llega mientras tanto, tiene que ESPERAR (se mide) y responder bien al soltarse.
 //
 // Uso:  node supabase/scripts/test-llamadas-celular-local.mjs     (npm run test:llamadas:local)
 // Binarios: LLAMADAS_PG_BIN, o ~/.local/pg/pgsql/bin (zip oficial de EDB en Windows), o Homebrew.
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
@@ -223,6 +225,79 @@ function pasadaMutantes(titulo, migracion, mutantes, plantilla, oraculo, marca) 
   });
 }
 
+// Una sesión psql en paralelo (para la concurrencia): devuelve su salida y cuánto tardó.
+function psqlParalelo(sql, db) {
+  return new Promise((resolve) => {
+    const archivo = join(temporal, `sesion-${randomBytes(4).toString('hex')}.sql`);
+    writeFileSync(archivo, sql);
+    const inicio = Date.now();
+    const p = spawn(join(PG, `psql${EXE}`), ['-X', '-qAt', '-v', 'ON_ERROR_STOP=1', '-d', db, '-f', archivo], { env });
+    let salida = '';
+    p.stdout.on('data', (d) => { salida += d; });
+    p.stderr.on('data', (d) => { salida += d; });
+    p.on('close', (code) => resolve({ ok: code === 0, salida: salida.split(clave).join('<clave>'), ms: Date.now() - inicio }));
+  });
+}
+const pausa = (ms) => new Promise((r) => { setTimeout(r, ms); });
+const RETIENE_MS = 2000;
+
+async function pasadaConcurrencia() {
+  console.log('\n— Pasada 4: concurrencia con dos sesiones reales —');
+  const db = 'concurrencia';
+  psqlSql(`create database ${db} template plantilla_datos`, 'postgres');
+  let r = psqlArchivo(MIG_NUCLEO, db);
+  if (!paso('banco de concurrencia listo (datos + núcleo)', r.ok, r.ok ? '' : cola(r.salida))) return;
+  const a1 = '00000000-0000-0000-0000-0000000000a1';
+  const c1 = '00000000-0000-0000-0000-0000000000c1';
+  r = psqlSql(`insert into crm.celulares_asignaciones (etiqueta, analista_id, credencial_hash) values ('C1', '${a1}', repeat('a', 64)) returning id`, db);
+  const asig = r.salida.trim();
+  const evento = (origen, extra = '') =>
+    `'{"v": 1, "evento_origen_id": "${origen}", "numero": "900000001", "direccion": "saliente"${extra}}'::jsonb`;
+  const ingerir = (origen, extra) => `select private.llamada_celular_ingerir('${asig}', ${evento(origen, extra)})::text;`;
+  const retener = (sql) => `begin;\n${sql}\nselect pg_sleep(${RETIENE_MS / 1000});\ncommit;\n`;
+
+  // Dos envíos del mismo origen con el MISMO contenido: la segunda espera y responde «repetido».
+  let [s1, s2] = await Promise.all([
+    psqlParalelo(retener(ingerir('conc-1')), db),
+    pausa(400).then(() => psqlParalelo(ingerir('conc-1'), db)),
+  ]);
+  const id1 = /"evento_id": "([0-9a-f-]{36})"/.exec(s1.salida)?.[1];
+  paso('mismo origen a la vez, mismo contenido → la segunda espera y devuelve el mismo evento',
+    s1.ok && s2.ok && id1 && s2.salida.includes(`"evento_id": "${id1}"`) && s2.salida.includes('"repetido": true') && s2.ms >= RETIENE_MS - 600,
+    `segunda sesión: ${s2.ms} ms · ${(s2.salida.trim().split('\n').pop() ?? '').slice(0, 140)}`);
+
+  // Mismo origen con OTRO contenido a la vez: la segunda espera y recibe el conflicto.
+  [s1, s2] = await Promise.all([
+    psqlParalelo(retener(ingerir('conc-2', ', "duracion_seg": 10')), db),
+    pausa(400).then(() => psqlParalelo(ingerir('conc-2', ', "duracion_seg": 20'), db)),
+  ]);
+  paso('mismo origen a la vez, otro contenido → la segunda espera y recibe el conflicto',
+    s1.ok && !s2.ok && s2.salida.includes('llegó a la vez con otro contenido') && s2.ms >= RETIENE_MS - 600,
+    `segunda sesión: ${s2.ms} ms · ${lineaError(s2.salida)}`);
+
+  // Dos consumidores enlazan la MISMA llamada con dos resultados distintos: uno gana.
+  r = psqlSql(`${ingerir('conc-3')}`, db);
+  const ev = /"evento_id": "([0-9a-f-]{36})"/.exec(r.salida)?.[1];
+  r = psqlSql(`select set_config('crm.op_resultado_llamada', 'on', false);
+    insert into crm.actividades (lead_id, tipo, metadata, creado_por) values
+      ('${c1}', 'llamada_realizada', '{"evento": "resultado_llamada", "resultado": "volver_a_llamar"}', '${a1}'),
+      ('${c1}', 'llamada_no_contestada', '{"evento": "resultado_llamada", "resultado": "no_contesto"}', '${a1}')
+    returning id;`, db);
+  // En Windows psql termina las líneas con \r\n.
+  const [actX, actY] = r.salida.trim().split(/\r?\n/).filter((l) => /^[0-9a-f-]{36}$/.test(l));
+  const como = `set local role authenticated;\nselect set_config('request.jwt.claim.sub', '${a1}', true);\n`;
+  const enlazar = (act) => `select crm.enlazar_llamada_celular('${ev}', '${act}')::text;`;
+  [s1, s2] = await Promise.all([
+    psqlParalelo(retener(`${como}${enlazar(actX)}`), db),
+    pausa(400).then(() => psqlParalelo(`begin;\n${como}${enlazar(actY)}\ncommit;\n`, db)),
+  ]);
+  paso('dos consumidores enlazan la misma llamada → el segundo espera y es rechazado',
+    Boolean(ev && actX && actY) && s1.ok && !s2.ok && s2.salida.includes('ya tiene su resultado registrado') && s2.ms >= RETIENE_MS - 600,
+    `segunda sesión: ${s2.ms} ms · ${lineaError(s2.salida)}`);
+  r = psqlSql(`select count(*) from crm.llamadas_celular_enlaces where evento_id = '${ev}'`, db);
+  paso('queda exactamente un enlace', r.ok && r.salida.trim() === '1', r.salida.trim());
+}
+
 let arrancado = false;
 try {
   const init = correr('initdb', ['-D', datos, '-U', USUARIO, '-A', 'scram-sha-256', '--pwfile', archivoClave,
@@ -307,6 +382,7 @@ try {
 
   pasadaMutantes('Pasada 2: mutantes de F2-b (datos)', MIG_DATOS, MUTANTES_DATOS, 'plantilla', ORACULO_DATOS, 'mut_datos');
   pasadaMutantes('Pasada 3: mutantes de F2-c (núcleo y puertas)', MIG_NUCLEO, MUTANTES_NUCLEO, 'plantilla_datos', ORACULO_NUCLEO, 'mut_nucleo');
+  await pasadaConcurrencia();
 } catch (error) {
   paso('arranque del banco', false, error.message);
 } finally {
