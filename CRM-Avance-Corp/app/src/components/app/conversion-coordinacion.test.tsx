@@ -75,6 +75,8 @@ describe('ConversionCoordinacion', () => {
 
     // Cabecera agrupada: Llegadas y Cierres con sus columnas.
     expect(within(tabla).getByRole('columnheader', { name: 'Cierres' })).toHaveAttribute('colspan', '7')
+    // El período de lo que se ve, a la vista y sin aviso de desfase cuando los controles coinciden.
+    expect(screen.getByTestId('periodo-visible')).toHaveTextContent(/^Conversión de setiembre 2026$/)
     expect(within(tabla).getByRole('columnheader', { name: 'Upgrade' })).toBeInTheDocument()
 
     const resumen = screen.getByRole('group', { name: 'Resumen de conversión del mes' })
@@ -125,8 +127,16 @@ describe('ConversionCoordinacion', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Elige un mes válido (año y mes) para consultar la conversión.')
     expect(screen.queryByText(/Revisa tu conexión/)).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Reintentar/ })).not.toBeInTheDocument()
-    // El error del formulario no borra lo último cargado: la tabla sigue mientras se corrige el campo.
+    // El error del formulario no borra lo último cargado: la tabla sigue mientras se corrige el
+    // campo, y dice A LA VISTA de qué período es y que los controles ya no coinciden.
     expect(screen.getByRole('table', { name: 'Conversión por analista' })).toBeInTheDocument()
+    expect(screen.getByTestId('periodo-visible')).toHaveTextContent(/^Conversión de setiembre 2026 · última consulta válida; corrige el período para actualizar$/)
+    expect(conversionMock.mock.calls.length).toBe(llamadas)
+    // Un mes anterior al mínimo tampoco consulta ni deja el campo sin marcar.
+    await usuario.type(mes, '2024-12')
+    expect(mes).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByRole('status')).toHaveTextContent('El mes más antiguo consultable es 2025-01.')
+    expect(conversionMock.mock.calls.length).toBe(llamadas)
     expect(conversionMock).toHaveBeenCalledTimes(llamadas)
   })
 

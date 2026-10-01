@@ -112,6 +112,11 @@ Codex r1 (5 hallazgos), `auditor-rls` y `revisor-a11y` pidieron cambios; se apli
   por ancho (desalineaba cabecera y cuerpo entre 1024 y 1279 px); teclear fechas espera 350 ms y no
   desmonta la tabla; `aria-invalid` solo en el campo que está mal.
 
+Codex r2 (sin P0/P1) añadió tres P2, también aplicados: mínimo `2025-01` en modo mes; la tabla
+que se conserva mientras se corrige el período dice a la vista de qué período es; el oráculo exige
+el mes anterior abierto en vez de suponerlo. Huellas finales del artefacto: puerta `b881b83c…`,
+base `0a43b0f3…`, empresa `5700d277…`, totales `e97995f5…`.
+
 **Pendiente de decisión de Miguel (auditor P3-3):** la coordinadora ve ahora, por persona, el ajuste
 pendiente y el bruto (deuda de cierres anulados tras pagar). No es PII; es un dato nuevo en su ámbito.
 
