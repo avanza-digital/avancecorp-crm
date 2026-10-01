@@ -1,6 +1,6 @@
 ---
 fecha: 2026-09-30
-estado: ✅ fase 1 EN PROD 30/09 (bandera APAGADA) · 🟡 fase 2 lista y revisada (PR #157 a `main`, sin fusionar): falta el `!` de Miguel · fase 3 (pantalla) sin empezar · ver «Para retomar»
+estado: ✅ fase 1 EN PROD 30/09 (bandera APAGADA) · 🟡 fase 2 lista, revisada y ya en el `main` de GitHub (PR #157 fusionada el 01/10, `78ede498`): falta el `!` de Miguel · ✅ supuestos confirmados 01/10 · fase 3 (pantalla) sin empezar · ver «Para retomar»
 ---
 
 # Potencial del lead: Frío · Tibio · Estrella (2026-09-30)
@@ -33,7 +33,8 @@ Miguel cerró el día con «guarda todo y seguimos mañana». En orden:
 5. **PRs:** la #153 (fase 1) ya está fusionada en el `main` de GitHub (`11ec4326`). La #156 (fase 2) se fusionó
    40 minutos después, pero sobre la rama `crm/potencial-lead-f1`: su contenido quedó ahí (`346d3a93`) y NO llegó a
    `main`. Por eso existe la **PR #157** (rama `crm/potencial-lead-f2-main`): el mismo contenido asentado sobre el
-   `main` actual, más los arneses del banco y esta nota. **Falta que Miguel la fusione.** 🔴 Lección: una PR apilada
+   `main` actual, más los arneses del banco y esta nota. ✅ **Miguel la fusionó el 01/10/2026 09:35** (`78ede498`) y se
+   comprobó que la migración de la fase 2 está en `avancecorp/main` con su md5 (`a4dbc97c…`). 🔴 Lección: una PR apilada
    que se fusiona después de su base cae en la rama base; «MERGED» no es «llegó a `main`».
 6. **Fase 3 (pantalla):** plan por fases en lenguaje de negocio y OK de Miguel ANTES de tocar código. Lleva: puerta
    de LECTURA (las tablas no tienen grants: 4 capas), chip con el `Badge` del CRM, selector en la ficha, filtro en Leads
