@@ -54,7 +54,7 @@
 
 .pot-chip--tibio {
   background: var(--pot-tibio);
-  color: #fff;
+  color: var(--pot-tibio-tinta);
 }
 
 .pot-chip--estrella {
@@ -313,7 +313,7 @@ button[data-potencial='estrella'] > :not(.sr-only) {
 .pot-seg--tibio[aria-pressed='true'] {
   border-color: var(--pot-tibio);
   background: var(--pot-tibio);
-  color: #fff;
+  color: var(--pot-tibio-tinta);
 }
 
 .pot-seg--estrella[aria-pressed='true'] {
