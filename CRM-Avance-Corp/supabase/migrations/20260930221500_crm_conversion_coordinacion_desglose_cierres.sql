@@ -96,6 +96,14 @@ begin
   if pg_catalog.to_regprocedure('private.conversion_mensual_por_vendedor(timestamptz,timestamptz,boolean,uuid[],numeric)') is null then
     raise exception 'PREFLIGHT: falta private.conversion_mensual_por_vendedor (pieza del modo rango)';
   end if;
+  -- El postflight compara el mes VIGENTE con el núcleo abierto (bruto, ajuste, desglose):
+  -- si ese mes estuviera sellado, abortaría con un mensaje confuso. Se dice aquí, claro.
+  if exists (
+    select 1 from crm.periodos_cerrados pc
+    where pc.periodo = pg_catalog.date_trunc('month', pg_catalog.now() at time zone 'America/Lima')::date
+  ) then
+    raise exception 'PREFLIGHT: el mes vigente está sellado; el postflight exige el mes vigente abierto. Aplicar en un mes abierto.';
+  end if;
   if pg_catalog.to_regprocedure('private.conversion_divisor_base(date,date)') is not null
      or pg_catalog.to_regprocedure('private.conversion_divisor_empresa(date,date)') is not null
      or pg_catalog.to_regprocedure('private.conversion_divisor_empresa_totales(date,date)') is not null
@@ -234,8 +242,11 @@ begin
     return query
     with foto as (
       select f.*,
-        coalesce((f.origenes_ranking ->> 'disponible')::boolean, false)
-          and f.cartera ? 'conversiones_upgrade' and f.cartera ? 'conversiones_renovacion' as con_desglose
+        coalesce(
+          coalesce((f.origenes_ranking ->> 'disponible')::boolean, false)
+            and f.cartera ? 'conversiones_upgrade' and f.cartera ? 'conversiones_renovacion',
+          false
+        ) as con_desglose
       from crm.cierre_mes_vendedor f
       where f.periodo = p_desde
     ),

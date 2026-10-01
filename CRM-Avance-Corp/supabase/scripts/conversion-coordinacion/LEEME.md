@@ -112,8 +112,11 @@ Reversa: `drop` de las cuatro funciones nuevas, volver a aplicar los tres `creat
   vivos que no existen).
 - El registrador acredita las cuatro huellas vivas (`md5(prosrc)`) contra las del artefacto probado
   en el banco antes de registrar: puerta `b881b83ca8d4dd2f0f081d736828c8c5`, base
-  `0a43b0f3b56026bd2c5bfa4a9d8942d9`, empresa `793a98fc4385fe714fff75290320c564`, totales
+  `0a43b0f3b56026bd2c5bfa4a9d8942d9`, empresa `5700d2770d1796440aa0184b035d623a`, totales
   `e97995f5ffd9109fce87f2e5dafb11a6`. Si en prod difieren, NO registra: averiguar por qué antes.
+- E09 exige el mes vigente y el anterior ABIERTOS en el banco (lo comprueba por el payload y
+  aborta con mensaje claro): el oráculo es un mundo de fixtures; si el banco trae un mes real
+  sellado, rehacerlo desde el dump de esquema.
 - Payload: `cierres.otros`, `periodo.cruza_meses_sellados`, `fuente.modo`. La rama sellada lee
   `cartera.conversiones_*` (nunca `operaciones_*`).
 

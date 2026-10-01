@@ -159,6 +159,8 @@ export function diasInclusivos(desde: string, hasta: string): number {
 export function motivoConsultaInvalida(consulta: ConsultaConversion, hoy: string): string | null {
   if (consulta.modo === 'mes') {
     if (!periodoDesdeMes(consulta.mes)) return 'Elige un mes válido (año y mes) para consultar la conversión.'
+    // El `min` del control no frena el onChange: un año tecleado a medias (0202-09) llegaría aquí.
+    if (consulta.mes < FECHA_MINIMA.slice(0, 7)) return `El mes más antiguo consultable es ${FECHA_MINIMA.slice(0, 7)}.`
     if (consulta.mes > hoy.slice(0, 7)) return `El mes no puede ser futuro: elige ${hoy.slice(0, 7)} o anterior.`
     return null
   }
