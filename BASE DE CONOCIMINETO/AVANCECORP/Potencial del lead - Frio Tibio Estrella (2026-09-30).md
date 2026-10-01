@@ -1,6 +1,6 @@
 ---
 fecha: 2026-09-30
-estado: ✅ fase 1 EN PROD 30/09 (bandera APAGADA) · ✅ fase 2 EN PROD 01/10 13:27 (la marca baja sola) · ✅ puerta de lectura EN PROD 01/10 13:40 (fase 3A, servidor) · ✅ pantalla de la fase 3A PUBLICADA 01/10 13:57 (`build-20261001T185238130Z`, `54690b06`); bandera APAGADA: falta la pasada visual de Miguel y encenderla · entrega B (filtro) y fase 4 (Jev) sin empezar · ver «Para retomar»
+estado: ✅ fase 1 EN PROD 30/09 (bandera APAGADA) · ✅ fase 2 EN PROD 01/10 13:27 (la marca baja sola) · ✅ puerta de lectura EN PROD 01/10 13:40 (fase 3A, servidor) · ✅ pantalla de la fase 3A PUBLICADA 01/10 13:57 (`build-20261001T185238130Z`, `54690b06`) · ✅ **BANDERA ENCENDIDA 01/10 14:04: el potencial está VIVO para los usuarios** · entrega B (filtro) y fase 4 (Jev) sin empezar · ver «Para retomar»
 ---
 
 # Potencial del lead: Frío · Tibio · Estrella (2026-09-30)
@@ -57,9 +57,11 @@ archivos de los `!` están ahí con el mismo contenido. Lo que queda son pasos d
    Falta: que Miguel copie el archivo de entorno a `app/` del worktree (el hook se lo bloquea a la sesión) y que
    invoque `/release-crm`. El ZIP y su manifiesto deben quedar en `CRM-Avance-Corp/releases/` del taller (ahí
    resuelve el preflight el manifiesto vivo). Después de publicar: subir la rama de release y dejarla en `main`.
-7. **Pasada visual** con movimiento activado (cuentagotas en hover sobre fila, botón y tarjeta Estrella; lector de
-   pantalla en la ficha) y **encender**: `encender-bandera.sql` → `verificar-lectura.sql` («bandera true»). Anotar en
-   `MIGRACIONES.md` quién y cuándo. Interruptor de emergencia: `apagar-bandera.sql`.
+7. ✅ **BANDERA ENCENDIDA por Miguel el 01/10/2026 14:04 Lima** (`encender-bandera.sql` con `!`);
+   `verificar-lectura.sql`: bandera true, 0 marcas. Anotado en el ledger (PR #161, `9db5a37e`). La sesión NO pudo
+   hacer la pasada visual (el conector de Chrome no estaba conectado; se dejó una vista previa demo en
+   `127.0.0.1:5180`, ya detenida) ni entrar a producción: **falta que alguien marque un lead de verdad y confirme que
+   el chip aparece en las cuatro vistas.** Interruptor de emergencia: `apagar-bandera.sql` (no borra marcas).
 8. A la mañana siguiente de publicar la fase 2: `verificar-caducidad.sql` debe decir `succeeded`.
 
 Pendientes menores: ledger a «EN PROD» y traer al `main` local los archivos de las fases 2 y 3A cuando se publiquen;
