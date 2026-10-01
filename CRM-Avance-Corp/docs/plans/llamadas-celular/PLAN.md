@@ -341,7 +341,7 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 
 - [x] **F3.1.1** Implementar ingesta, listado paginado, detalle por UUID, asociación, enlace, descarte y salud.
 - [x] **F3.1.2** Restringir administración de equipos por capacidad y resolver actor/ámbito en servidor.
-- [ ] **F3.1.3** Definir respuesta estable y errores distinguibles; generar tipos del contrato para sus consumidores. — EN CURSO: Errores distinguibles definidos en la base: 42501 «No autorizado» uniforme, 22023 cuerpo inválido, P0409 conflicto y P0429 con la espera en reintentar_en_seg. Falta generar los tipos (npm run gen:types) tras aplicar en un banco con el esquema de producción.
+- [ ] **F3.1.3** Definir respuesta estable y errores distinguibles; generar tipos del contrato para sus consumidores. — EN CURSO: Respuesta estable definida y probada: base (42501 uniforme, 22023, P0409, P0429 con la espera) y Edge (202 recibido con la URL de F1, 200 latido, 400, 401, 409, 413, 415, 429 con Retry-After, 503). Falta generar los tipos (npm run gen:types) tras aplicar en un banco con el esquema de producción.
 
 **Evidencia / fecha de validación:** pendiente.
 
@@ -349,9 +349,9 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 
 **Estado:** en curso · **Avance:** 1/3 · **Responsable:** Claude (construye) · Miguel (aprueba y aplica).
 
-- [ ] **F3.2.1** Configurar Edge con esquema estricto, tamaño limitado, token propio y autenticación de plataforma verificada.
+- [ ] **F3.2.1** Configurar Edge con esquema estricto, tamaño limitado, token propio y autenticación de plataforma verificada. — EN CURSO: Edge crm-llamadas-ingesta construida (ad4cf226): esquema estricto v1, cuerpo ≤ 4 KB, clave propia en la cabecera x-celular-credencial y verify_jwt=false documentado en config.toml. deno check y 16 pruebas en verde; 14 mutantes cazados. Falta desplegarla y comprobar en la plataforma que verify_jwt quedó apagado y que nada más entra (Miguel).
 - [x] **F3.2.2** Aplicar rate limit compartido, baja/inactividad y rotación/revocación con auditoría.
-- [ ] **F3.2.3** Mostrar token una vez; guardar hash y eliminar secretos de URL, logs y soporte. — EN CURSO: En la base: la clave se muestra una vez y solo se guarda su sha256 (F2-c), y no aparece en la bitácora (oráculo de F2-c, A1). Falta la parte de la Edge (F3-b): la clave en una cabecera, nunca en la URL ni en los registros.
+- [ ] **F3.2.3** Mostrar token una vez; guardar hash y eliminar secretos de URL, logs y soporte. — EN CURSO: La clave se muestra una vez y solo se guarda su sha256 (F2-c); viaja en una cabecera, nunca en la URL; la Edge no escribe nada en el registro (prueba que intercepta console). Falta la guía de soporte sin secretos (F3.4.3) y comprobarlo en el despliegue.
 
 **Evidencia / fecha de validación:** pendiente.
 

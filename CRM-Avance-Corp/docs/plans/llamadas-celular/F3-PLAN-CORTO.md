@@ -97,6 +97,27 @@ Verificación: `npm run test:llamadas:local` → **138/138** (oráculo con 32 de
 
 **Siguiente: F3-b, la Edge Function.** Para correr `handler.test.ts` hace falta instalar Deno en esta máquina, y eso pide el OK de Jhosep. Sin Deno, el código quedaría escrito sin probar.
 
+## Estado de F3-b (01/10/2026, 22:43 UTC)
+
+**Construida y probada, sin desplegar** (`ad4cf226`): `supabase/functions/crm-llamadas-ingesta/` con `index.ts` (cliente de servicio y las dos RPC de F3-a), `handler.ts` (lógica pura con dependencias inyectadas, molde `crm-notificaciones-tasa`) y `handler.test.ts`; bloque en `supabase/config.toml` con `verify_jwt = false` y su motivo; entrada en `supabase/functions/LEEME.md`. Deno 2.9.4 instalado en `~/.local/deno` con el OK de Jhosep (zip oficial, sha256 verificado).
+
+Contrato con el celular (POST con `Content-Type: application/json` y la clave en `x-celular-credencial`):
+
+| Cuerpo | Respuesta |
+| --- | --- |
+| `{"accion": "llamada", "evento": {…v1…}}` | **202** `{recibido: true, abrir}`, igual si la llamada se guardó, se repitió o se ignoró (propuesta #12); `abrir` = la encuesta de F1 por número (decisión 4) o Mi día si no hay número |
+| `{"accion": "latido", "latido": {v, version_macro, en_cola, ocurrio_en?}}` | **200** `{registrado: true}` |
+| Clave ausente, mal formada o rechazada por la base | **401** `{error: "No autorizado"}`, siempre igual |
+| Cuerpo inválido · demasiado grande · no JSON · otro método | **400** · **413** · **415** · **405** |
+| Mismo origen con otro contenido · límite | **409** · **429** con `Retry-After` y `reintentar_en_seg` |
+| Cualquier otro fallo | **503**: el celular reintenta |
+
+Verificación: `npm run test:llamadas-ingesta` (deno check + 16 pruebas) en verde y `npm run test:llamadas-ingesta:mutantes` → 14/14 mutantes del handler cazados. **NOT RUN:** despliegue (Miguel), prueba contra la base real y desde C1.
+
+Decisión de criterio de Claude, para Miguel: la Edge ya responde igual a guardada, repetida e ignorada (la variante segura de la propuesta #12) mientras él decide; con la decisión 4 el celular no necesita el UUID.
+
+**Siguiente: F3-c, la macro**, después de las 6 pruebas de MacroDroid en C1 (sección de arriba). Las pruebas 1, 4 y 6 necesitan una URL que conteste: puede servir esta Edge cuando Miguel la despliegue, o un receptor de pruebas con datos inventados.
+
 ## Riesgos y límites
 
 - El mayor riesgo es la durabilidad de MacroDroid: no está documentada y solo C1 puede probarla.
