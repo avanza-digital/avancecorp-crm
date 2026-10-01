@@ -13,6 +13,63 @@ Desplegar Edge compatible antes del merge SQL. Reversa de funciones en
 `supabase/scripts/pdf-analista/reversa.sql`, manteniendo el renderer dual.
 Pruebas/evidencia y secuencia: `supabase/scripts/pdf-analista/README.md`.
 
+## 20260930221500 — Conversión de Coordinación v2: desglose de cierres (referidos, upgrade, renovación) y rango de fechas (`crm.conversion_divisor_coordinacion_fn(date,date,date)`)
+
+**✅ APLICADA Y REGISTRADA EN PROD el 30/09/2026 (noche) por `!` de Miguel:** migración `rows: []` sin error;
+`registrar-20260930221500.sql` → `REGISTRO_CONVERSION_DESGLOSE_OK` con las cuatro huellas vivas iguales a las
+del artefacto (puerta `b881b83c…`, base `0a43b0f3…`, empresa `5700d277…`, totales `e97995f5…`); verificado en
+solo lectura: cuatro funciones DEFINER/STABLE/`search_path` vacío con ACL mínima, sin firmas viejas; humo con
+datos reales (setiembre: 1655 llegadas, 119,30 ponderados, 7,21 %, 18 analistas, 0 filas rotas; 1–15/09: 858 /
+64,40 / 7,51 %; 15/08–30/09: 2458 / 142,80 / 5,81 %, con 4 cierres de «otros orígenes» que antes no se veían).
+**Front EN PROD el 01/10/2026 00:22 (Lima 30/09 19:22):** `build-20261001T002155841Z` (release
+`crm-20261001T002156Z-c6e65d9e8b4a`, SHA-256 `80c8c53f…`) publicado por `/release-crm` desde la rama de rescate
+`rescue/conversion-desglose-20261001` = vivo anterior `6a9ad5e6` (documentos del lead, otra sesión) + los 4
+commits de la v2; el primer intento desde `crm/conversion-coordinacion-desglose` lo rechazó el preflight porque
+el vivo había cambiado mientras se revisaba. Smoke: HTTP 200, `version.json` nuevo, bundle igual al del `dist`.
+El vivo `6a9ad5e6` traía marcas de conflicto sin resolver en este ledger y en `Inicio.md` (entrada de la v1):
+resueltas aquí quedándose con la versión de la rama de rescate de la v1. Advisors: pendientes de Miguel.
+
+Qué añade (pedido de Miguel el 30/09 tras publicar la v1): por analista y para la empresa, de dónde
+salen los cierres —formulario, landing, referido (cantidad y aporte al peso vigente), oficina (no
+pesa), upgrade (pesa 1), renovación (cantidad y aporte a su peso)— más `numerador_bruto` y
+`ajuste_pendiente`; y la consulta por RANGO de fechas (`p_desde`, `p_hasta` inclusivos en Lima, ≤ 366
+días, sin futuro; un mes calendario exacto es ese mes; otro rango se calcula en vivo con
+`private.conversion_mensual_por_vendedor`, el precedente de `metricas_conversiones_equipo_fn`, con el
+peso del referido del mes de `hasta` y sin ajustes de meses pagados). `periodo` lleva ahora `modo`
+('mes' | 'rango'), `dias` y `hasta` INCLUSIVO. Todo sale de los MISMOS episodios del núcleo
+(`private.conversion_episodios`, tipos `cierre` y `operacion`): se agrupa, no se define nada nuevo.
+
+Piezas: preflight que acredita por md5 los tres cuerpos vivos de la v1 (`4c73a85e…`, `c62acbc0…`,
+`9b65271a…`) y se niega si alguien los tocó; DROP + CREATE (cambian firma y tipo de retorno) de
+`private.conversion_divisor_empresa(date,date)`, `private.conversion_divisor_empresa_totales(date,date)`
+y `crm.conversion_divisor_coordinacion_fn(date,date,date)`; núcleo nuevo
+`private.conversion_divisor_base(date,date)` que elige la pieza del núcleo según el modo. Mes sellado:
+la foto (`origenes_ranking.filas` y `cartera` de `crm.cierre_mes_vendedor` con los pesos sellados;
+bruto y ajuste en null; `desglose_disponible` dice si la foto lo trae). Postflight: propiedades y
+ACL (incl. `public`) de las cuatro, sin firmas viejas, candado de dispersión, puerta sin tablas y
+ejecutada sin actor (42501), paridad con el núcleo, INVARIANTE partes = bruto y neto = con_ajuste por
+fila y empresa, y «rango 1 → hoy reproduce el mes». Front: selector «Mes / Rango de fechas» (errores
+del formulario pegados al campo, sin llamar a la puerta), tabla con cabecera agrupada (Llegadas /
+Cierres: formulario, landing, referido «n · aporte», oficina, upgrade, renovación «n · aporte»,
+ponderados), 8 cifras de empresa y la fórmula del numerador con los pesos; candado de paridad del
+navegador ampliado (partes = bruto, neto = bruto − ajuste, rango sin nombre de mes ni ajuste ni foto).
+
+Verificación 30/09 (banco Docker propio rehecho desde el dump de prod con la v1 dentro, huellas de la
+v1 iguales a prod): migración en un solo mensaje PASS; oráculo v2 → OK sin residuo (E01 cuatro
+funciones, E05f/g invariante y período, E09 rango exacto = mes, 1 → hoy, rango que termina ayer, mes
+sellado por rango, 22023 ×5, 42501 para vendedor en modo rango); registrador v2 probado (md5 =
+archivo, idempotente, rechaza otro cuerpo). Validación read-only en PROD con setiembre real: 18
+analistas y 0 filas rotas (partes = bruto, referidos/no referidos casan con el núcleo, neto =
+con_ajuste); Astrid 5 + 2 + 1×0,15 + 4 upgrade = 11,15; Merlys 6 + 1 + 2 = 9; empresa formulario 65,
+landing 25, referido 19 (2,85), oficina 11, upgrade 24, renovación 3 (0,45); rango 1 → hoy = mes para
+todos; Astrid 1–15/09: 67 llegadas / 8,15; rango 15/08–15/09 (cruza mes): 1661 llegadas, 21 analistas.
+Front: vitest 158/158 en los archivos tocados; `npm run check` y E2E Docker: ver abajo. **NOT RUN:**
+`test-rls.mjs` completo (casos nuevos añadidos: 15 claves exactas por analista, partes = bruto,
+rango 1 → hoy = mes, 22023 rango cruzado y mes + rango, 42501 vendedor en rango) y advisors.
+Reviews: Codex, auditor-rls y revisor-a11y — actas en `docs/encargos/2026-09-30-conversion-coordinacion-desglose-rango-*.md`.
+
+Reversa: `drop` de las cuatro funciones nuevas + volver a aplicar los tres `create function` de
+`20260930185623` + borrar la versión del registro.
 ## 20260930213647 — Potencial del lead: Frío · Tibio · Estrella (`crm.marcar_potencial_lead_fn`, `crm.lead_potencial`, `crm.lead_potencial_eventos`)
 
 **✅ EN PROD 30/09/2026 por `!` de Miguel** («ya podemos publicar»): migración por `db query --linked --file`
@@ -97,6 +154,60 @@ Preparación integrada: check 5.021 PASS y Docker 298 PASS / 26 omitidos. Usuari
 ordenó esperar su aviso antes de publicar. Banco remoto eliminado tras fallo
 de provisión de Storage; SQL/HTTP RLS/advisors remotos **NOT RUN**. Detalle y
 evaluación del review: `supabase/scripts/lead-documentos/README.md`.
+
+**Revisiones (30/09 noche) y qué cambió tras ellas (huellas finales del artefacto: puerta
+`b881b83c…`, base `0a43b0f3…`, empresa `5700d277…`, totales `e97995f5…`):**
+- Codex r1 (LEVEL 3, CHANGES_REQUESTED, 5 hallazgos, todos aceptados): el navegador aplicaba el suelo
+  en cero al agregado (ahora empresa = Σ netos por persona); `desglose_disponible` de empresa exigía
+  solo las filas de la foto (ahora también que no haya producción fuera de la foto); la fórmula
+  prometía «n × peso» en rango y «=» en sellado (ahora no); el postflight y el oráculo dependían del
+  día (ahora comparan `numerador_bruto`, exigen ajuste 0 solo en rango real, y prueban el mes ANTERIOR
+  como rango exacto, el 15 del mes anterior → hoy como rango real aditivo, y un rango que toca un mes
+  sellado); el registrador no acreditaba los cuerpos vivos (ahora compara las cuatro huellas
+  `md5(prosrc)` con las del artefacto probado y se niega si difieren; mutante probado).
+- `auditor-rls` (CHANGES_REQUESTED): **P1** la rama sellada leía `cartera.operaciones_*` (todas las
+  operaciones) cuando el numerador suma `conversiones_*` (primera elegible por cliente/mes): corregido,
+  y el oráculo E07 siembra una foto con `operaciones_* ≠ conversiones_*` y afirma partes selladas =
+  numerador + `ajuste_numerador` con pesos sellados. P2: rango que toca meses sellados se calcula en
+  vivo y ahora LO DECLARA (`periodo.cruza_meses_sellados`, `fuente.modo` = 'foto' | 'mensual' |
+  'rango_vivo'; el front avisa); TDZ en `test-rls.mjs` corregido y casos de rango ampliados (futuro,
+  > 366 días, una sola fecha, gerencia = coordinador). P3: la paridad rango vs mes ignora filas que
+  solo traen deuda; cierres de otros orígenes (web, campaña, whatsapp, otro) se cuentan en
+  `cierres.otros` (no pesan); verificado que el front v1 vivo tolera el payload v2 (solo valida
+  `desde` y `mes`, `v.object`), así que la ventana SQL → front no rompe la pestaña. **P3-3 queda para
+  Miguel:** la coordinadora ahora ve `ajuste_pendiente` y `numerador_bruto` POR PERSONA (deuda de
+  cierres anulados tras pagar); no es PII, pero es un dato nuevo en su ámbito.
+- `revisor-a11y` (CHANGES_REQUESTED): P1 cabecera agrupada con `colSpan` fijos y subcolumnas ocultas
+  por ancho (desalineaba entre 1024 y 1279 px): ya no se oculta ninguna subcolumna de un grupo; P2 dos
+  `<thead>` en una tabla: `TheadCrm` admite `segundaFila` (un solo `<thead>`, `scope=col/colgroup`);
+  P2 consulta por cada dígito tecleado: espera de 350 ms al teclear fechas, `FECHA_MINIMA` 2025-01-01,
+  y el error del formulario ya no desmonta la tabla cargada; P3 `aria-invalid` por campo
+  (`camposInvalidos`), `fieldset` con leyenda, textos «del período» en rango, plural concordado, sin
+  `title` en `th` (leyenda visible), 14 px mínimos, fila «sin analista» por `CeldasCierres`.
+- Lección del oráculo: la foto sellada NO se puede sembrar con `origenes_ranking` a mano si el
+  trigger `trg_cierre_mes_vendedor_10_ranking_origen` está activo (lo recalcula sobre datos vivos que
+  no existen): se apaga solo para esa siembra, en el banco.
+
+- Codex r2 (CHANGES_REQUESTED, sin P0/P1; los tres P2 aceptados): el modo mes no aplicaba el mínimo
+  `2025-01` (ahora sí, con `aria-invalid` y sin consulta); la tabla conservada mientras el período
+  se corrige no decía a la vista de qué período era (ahora una línea visible «Conversión de
+  setiembre 2026 · última consulta válida; corrige el período para actualizar» cuando los
+  controles ya no coinciden con lo cargado); el oráculo E09 presuponía el mes anterior abierto
+  (ahora lo exige con un mensaje claro: el oráculo vive en un mundo de fixtures y los sellados
+  sintéticos van dos y tres meses atrás). Riesgo condicional aceptado por higiene: `con_desglose`
+  envuelto en `coalesce(…, false)` (`cartera` es NOT NULL con default, así que hoy no podía ser
+  NULL, pero un NULL futuro habría dejado `desglose_disponible` en NULL y el navegador rechazaría
+  el payload). Preflight nuevo: aborta con mensaje claro si el mes vigente estuviera sellado (el
+  postflight exige mes vigente abierto). Evidencia para Codex: `crm.cerrar_periodo(date)` escribe
+  `conversiones_*` y `operaciones_*` en `cartera` (leído en el banco); `cartera` NOT NULL con
+  default que incluye `conversiones_*`.
+
+Verificación final (banco Docker, 30/09 noche): migración COMMIT (v1 restaurada y v2 reaplicada
+tres veces, una por cada ronda), oráculo v2c OK, registrador OK/idempotente/fail-closed (md5 del
+registro = md5 del archivo; cuerpo vivo alterado → rechazado); `npm run check` 322 archivos / 5055
+pruebas PASS; E2E Docker completa 290 pasadas / 26 omitidas (11 min, antes de los retoques de la r2)
+y `repartir.spec.ts` de nuevo tras ellos (ver nota del vault). `test-rls.mjs` sigue NOT RUN (sin
+banco con Auth); `node --check` OK.
 
 ## 20260930185623 — Conversión por analista para Coordinación (`crm.conversion_divisor_coordinacion_fn`, `private.conversion_divisor_empresa`)
 

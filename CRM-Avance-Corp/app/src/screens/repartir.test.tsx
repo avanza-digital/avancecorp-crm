@@ -84,10 +84,15 @@ let REPORTE_DIARIO: ReporteDerivacionesCoordinacion = {
   }],
 }
 const reporteDiarioMock = vi.fn(async (_desde: string, _hasta: string) => REPORTE_DIARIO)
-const conversionMock = vi.fn(async (periodo: string) => ({
-  ...payloadConversionValido(),
-  periodo: { ...payloadConversionValido().periodo, mes: periodo.slice(0, 7), desde: periodo },
-}))
+const conversionMock = vi.fn(async (consulta: { modo: 'mes'; mes: string } | { modo: 'rango'; desde: string; hasta: string }) => {
+  const base = payloadConversionValido()
+  if (consulta.modo === 'rango') {
+    return { ...base, fuente: { ...base.fuente, modo: 'rango_vivo' as const }, periodo: { modo: 'rango' as const, mes: null, mes_nombre: null, anio: null, zona: 'America/Lima' as const, desde: consulta.desde, hasta: consulta.hasta, dias: 1, cruza_meses_sellados: false } }
+  }
+  const [anio, mesNum] = consulta.mes.split('-').map(Number) as [number, number]
+  const hasta = new Date(Date.UTC(anio, mesNum, 0)).toISOString().slice(0, 10)
+  return { ...base, periodo: { ...base.periodo, mes: consulta.mes, desde: `${consulta.mes}-01`, hasta, dias: Number(hasta.slice(8)) } }
+})
 let AGENDA: AgendaRepartoDiaria = {
   version: 1,
   fecha_desde: fechaHoyLima,
@@ -116,7 +121,7 @@ vi.mock('@/data/crm-api', async (importActual) => {
     historialDerivaciones: () => historialMock(),
     panelDistribucionReparto: () => panelMock(),
     listarReporteDerivacionesCoordinacion: (desde: string, hasta: string) => reporteDiarioMock(desde, hasta),
-    conversionCoordinacion: (periodo: string) => conversionMock(periodo),
+    conversionCoordinacion: (consulta: Parameters<typeof conversionMock>[0]) => conversionMock(consulta),
     agendaRepartoDiaria: () => agendaMock(),
     guardarAgendaRepartoDiaria: (fecha: string, landing: string, formulario: string) => guardarAgendaMock(fecha, landing, formulario),
   }
@@ -716,12 +721,17 @@ describe('pantalla Repartir leads', () => {
     await usuario.click(screen.getByRole('tab', { name: 'Conversiones' }))
     expect(await screen.findByRole('heading', { name: 'Conversiones' })).toBeInTheDocument()
     expect(conversionMock).toHaveBeenCalledTimes(1)
-    expect(conversionMock.mock.calls[0]?.[0]).toMatch(/^\d{4}-\d{2}-01$/)
+    expect(conversionMock.mock.calls[0]?.[0]).toEqual({ modo: 'mes', mes: expect.stringMatching(/^\d{4}-\d{2}$/) })
 
     const tabla = await screen.findByRole('table', { name: 'Conversión por analista' })
     const astrid = within(tabla).getByRole('row', { name: /ASTRID CENTENARO/ })
-    expect(within(astrid).getAllByRole('cell').map((celda) => celda.textContent))
-      .toEqual(['ASTRID CENTENARO', 'SUPERVISORA', '65', '50', '115', '11.15', '9.70%'])
+    const celdas = within(astrid).getAllByRole('cell').map((celda) => celda.textContent ?? '')
+    expect(celdas[0]).toBe('ASTRID CENTENARO')
+    expect(celdas.slice(2, 5)).toEqual(['65', '50', '115'])            // llegadas: formulario, landing, total
+    expect(celdas[7]).toContain('1 · 0.15')                              // referidos: cantidad · aporte
+    expect(celdas[9]).toBe('4')                                          // upgrade
+    expect(celdas[11]).toBe('11.15')                                     // cierres ponderados
+    expect(celdas[12]).toBe('9.70%')
     expect(screen.getByText(/Este conteo es distinto del reporte de entregas/)).toBeInTheDocument()
   })
 })

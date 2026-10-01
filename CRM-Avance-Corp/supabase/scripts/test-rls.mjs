@@ -9734,10 +9734,6 @@ async function testReparto(sessions, seed) {
       'coordinador sin p_periodo recibe el mes vigente en Lima',
       coordinador.schema('crm').rpc('conversion_divisor_coordinacion_fn'),
     );
-    if (convSinPeriodo) {
-      check(convSinPeriodo.data?.periodo?.desde === P_MES.p_periodo,
-        'sin p_periodo la puerta sirve el mes vigente', String(convSinPeriodo.data?.periodo?.desde));
-    }
     const convCoord = await positive(
       'coordinador obtiene la conversion por analista de toda la empresa',
       coordinador.schema('crm').rpc('conversion_divisor_coordinacion_fn', P_MES),
@@ -9752,11 +9748,19 @@ async function testReparto(sessions, seed) {
       check(Array.isArray(convCoord.data?.analistas), 'analistas es SIEMPRE un array');
       const claves = [...new Set((convCoord.data?.analistas ?? []).flatMap((f) => Object.keys(f)))].sort();
       check(claves.length === 0 || JSON.stringify(claves) === JSON.stringify([
-        'analista_id', 'conversion_pct', 'divisor', 'divisor_formulario', 'divisor_landing',
-        'en_nucleo', 'nombre', 'numerador', 'supervisor_id', 'supervisor_nombre',
-      ]), 'cada analista trae SOLO las 10 claves del contrato', claves.join(','));
+        'ajuste_pendiente', 'analista_id', 'cartera', 'cierres', 'conversion_pct', 'desglose_disponible',
+        'divisor', 'divisor_formulario', 'divisor_landing', 'en_nucleo', 'nombre', 'numerador',
+        'numerador_bruto', 'supervisor_id', 'supervisor_nombre',
+      ]), 'cada analista trae SOLO las 15 claves del contrato (v2 con desglose)', claves.join(','));
       check((convCoord.data?.analistas ?? []).every((f) => f.divisor_formulario + f.divisor_landing === f.divisor),
         'PARIDAD: formulario + landing = divisor en cada analista (mes abierto)');
+      // v2: el numerador bruto es la suma de sus partes y el neto lleva el ajuste (mes abierto).
+      check((convCoord.data?.analistas ?? []).every((f) => f.desglose_disponible && f.cierres && f.cartera
+        && Math.abs((f.cierres.formulario + f.cierres.landing + f.cierres.referido_aporte + f.cartera.upgrade + f.cartera.renovacion_aporte) - f.numerador_bruto) < 1e-6
+        && Math.abs(Math.max(f.numerador_bruto - f.ajuste_pendiente, 0) - f.numerador) < 1e-6),
+        'PARIDAD v2: cierres + referidos×peso + upgrade + renovación×peso = numerador bruto; neto = bruto − ajuste');
+      check(typeof convCoord.data?.peso_renovacion === 'number' && typeof convCoord.data?.peso_referido === 'number',
+        'la puerta declara los dos pesos vigentes (referido y renovación)');
       const sumaAnalistas = (convCoord.data?.analistas ?? []).reduce((acc, f) => acc + f.divisor, 0)
         + (convCoord.data?.sin_analista?.divisor ?? 0);
       check(sumaAnalistas === convCoord.data?.empresa?.divisor,
@@ -9768,6 +9772,63 @@ async function testReparto(sessions, seed) {
       const sinReloj = (d) => JSON.stringify({ ...d, generado_en: null });
       check(sinReloj(convCoord.data) === sinReloj(convGer.data),
         'gerencia y coordinador reciben el MISMO payload (ambito de toda la empresa)');
+    }
+    // v2: rango de fechas (inclusivo, Lima). Del 1 a hoy reproduce el mes; los
+    // rangos inválidos y «mes + rango a la vez» son 22023; el gate sigue primero.
+    const hoyLima = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    const convRango = await positive(
+      'coordinador consulta por rango de fechas (del 1 a hoy)',
+      coordinador.schema('crm').rpc('conversion_divisor_coordinacion_fn', { p_desde: P_MES.p_periodo, p_hasta: hoyLima }),
+    );
+    if (convRango && convCoord) {
+      check(['mes', 'rango'].includes(convRango.data?.periodo?.modo) && convRango.data?.periodo?.desde === P_MES.p_periodo
+        && convRango.data?.periodo?.hasta === hoyLima,
+        'el rango eco-a desde/hasta inclusivos y declara el modo', JSON.stringify(convRango.data?.periodo));
+      check(convRango.data?.empresa?.divisor === convCoord.data?.empresa?.divisor,
+        'PARIDAD v2: el rango del 1 a hoy tiene el mismo divisor que el mes');
+    }
+    const ayerLima = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(Date.now() - 86_400_000));
+    await expectBlockedMutation(
+      'coordinador: un rango con la fecha inicial posterior a la final se rechaza con 22023',
+      coordinador.schema('crm').rpc('conversion_divisor_coordinacion_fn', { p_desde: hoyLima, p_hasta: ayerLima }),
+      ['22023'],
+    );
+    await expectBlockedMutation(
+      'coordinador: un rango con fecha futura se rechaza con 22023',
+      coordinador.schema('crm').rpc('conversion_divisor_coordinacion_fn', { p_desde: hoyLima, p_hasta: '2999-01-01' }),
+      ['22023'],
+    );
+    await expectBlockedMutation(
+      'coordinador: un rango de más de 366 días se rechaza con 22023',
+      coordinador.schema('crm').rpc('conversion_divisor_coordinacion_fn', { p_desde: '2020-01-01', p_hasta: hoyLima }),
+      ['22023'],
+    );
+    await expectBlockedMutation(
+      'coordinador: un rango con una sola fecha se rechaza con 22023',
+      coordinador.schema('crm').rpc('conversion_divisor_coordinacion_fn', { p_desde: P_MES.p_periodo }),
+      ['22023'],
+    );
+    const convRangoGer = await positive(
+      'gerencia consulta el mismo rango',
+      gerencia.schema('crm').rpc('conversion_divisor_coordinacion_fn', { p_desde: P_MES.p_periodo, p_hasta: hoyLima }),
+    );
+    if (convRango && convRangoGer) {
+      const sinReloj = (d) => JSON.stringify({ ...d, generado_en: null });
+      check(sinReloj(convRango.data) === sinReloj(convRangoGer.data), 'gerencia y coordinador reciben el mismo rango');
+    }
+    await expectBlockedMutation(
+      'coordinador: mes y rango a la vez se rechaza con 22023',
+      coordinador.schema('crm').rpc('conversion_divisor_coordinacion_fn', { p_periodo: P_MES.p_periodo, p_desde: P_MES.p_periodo, p_hasta: hoyLima }),
+      ['22023'],
+    );
+    await expectBlockedMutation(
+      'vendedor: el modo rango tampoco entra (42501 antes que validar)',
+      sessions.vend1.client.schema('crm').rpc('conversion_divisor_coordinacion_fn', { p_desde: P_MES.p_periodo, p_hasta: hoyLima }),
+      ['42501'],
+    );
+    if (convSinPeriodo) {
+      check(convSinPeriodo.data?.periodo?.desde === P_MES.p_periodo,
+        'sin p_periodo la puerta sirve el mes vigente', String(convSinPeriodo.data?.periodo?.desde));
     }
   }
   for (const [rol, cliente] of [

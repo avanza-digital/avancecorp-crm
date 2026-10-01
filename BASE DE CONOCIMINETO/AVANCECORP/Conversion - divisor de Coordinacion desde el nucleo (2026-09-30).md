@@ -72,3 +72,61 @@ Deuda anotada por los revisores, fuera de este alcance: el `tablist` a mano de `
 Relacionado: [[Reporte diario de derivaciones para Coordinación]],
 [[Como se mide la conversion del asesor]], [[Conversion mensual - definicion cerrada]],
 [[Leads - marca y filtro de reasignados (2026-09-28)]] y [[Inicio]].
+
+## v2 (misma tarde): de dónde salen los cierres y rango de fechas
+
+Miguel pidió, ya publicada la v1, ver **referidos, upgrade y renovación** y poder consultar
+**entre dos fechas**. La migración `20260930221500` redefine la puerta (acreditando por md5 los
+cuerpos vivos) y sus núcleos: por analista y de la empresa, cierres de formulario, landing,
+referido (cantidad · aporte al peso, hoy 0,15), oficina (no pesa), upgrade (pesa 1) y renovación
+(cantidad · aporte a 0,15), con el numerador bruto y el ajuste de meses pagados; y un modo
+**rango** (`p_desde`/`p_hasta`, inclusivos en Lima, hasta 366 días, sin futuro): un mes
+calendario exacto es ese mes (con su foto si está sellado); cualquier otro tramo se calcula en
+vivo como hace la puerta de Gerencia (peso del referido del mes de `hasta`, sin ajustes).
+Invariante que el servidor exige con datos reales y el navegador vuelve a comprobar: **partes =
+numerador bruto** y **neto = bruto − ajuste**. Setiembre real: Astrid 5 + 2 + 1×0,15 + 4 upgrade =
+11,15; empresa 65 + 25 + 19×0,15 + 24 + 3×0,15 = 117,15. Pestaña: selector «Mes / Rango de
+fechas», cabecera agrupada Llegadas / Cierres y la fórmula del numerador escrita con los pesos.
+Estado: preparada y verificada (banco Docker, oráculo v2, registrador, prod en solo lectura,
+`npm run check` 322/5045, E2E Docker); pendiente de `!` de Miguel y release del front.
+
+### Revisiones de la v2 (30/09 noche) — lo que cambió
+
+Codex r1 (5 hallazgos), `auditor-rls` y `revisor-a11y` pidieron cambios; se aplicaron todos:
+
+- **La foto sellada guarda dos conteos de cartera** y solo uno sirve: `conversiones_*` (primera
+  operación elegible por cliente y mes, lo que suma el numerador). `operaciones_*` cuenta todas y
+  habría inflado upgrade y renovación de todo mes sellado. Hoy prod no tiene meses sellados; setiembre
+  será el primero, así que el error habría aparecido el 01/10. El oráculo siembra una foto con las dos
+  cifras distintas para cazarlo.
+- **La empresa no es «bruto − ajuste»**: el suelo en cero se aplica por analista y la empresa suma
+  netos. El navegador lo comprobaba mal (habría rechazado un total correcto con un solo analista en
+  el suelo). La fórmula ya no afirma igualdades que el servidor no garantiza (rango: sin «n × peso»;
+  sellado: sin «=»).
+- **Un rango libre que toca meses ya cerrados se calcula en vivo** (precedente de Gerencia) y ahora lo
+  declara: `periodo.cruza_meses_sellados` y `fuente.modo` ('foto' | 'mensual' | 'rango_vivo'); la
+  pestaña avisa «puede diferir de la foto del cierre».
+- **Cierres de otros orígenes** (web, campaña, whatsapp, otro) no pesan pero ya no se esconden:
+  `cierres.otros`; en la tabla, «Sin peso» = oficina + otros.
+- **Pruebas que dependían del calendario**: el 30/09 «1 → hoy» ES el mes, así que el postflight y el
+  oráculo no ejercitaban un rango real; ahora prueban el mes anterior como rango exacto y el 15 del mes
+  anterior → hoy como rango real (partes = bruto, ajuste 0, divisor aditivo).
+- **El registrador acredita los cuerpos vivos** por `md5(prosrc)` antes de registrar.
+- **Accesibilidad**: un solo `<thead>` con dos filas y `scope`; ninguna subcolumna agrupada se oculta
+  por ancho (desalineaba cabecera y cuerpo entre 1024 y 1279 px); teclear fechas espera 350 ms y no
+  desmonta la tabla; `aria-invalid` solo en el campo que está mal.
+
+Codex r2 (sin P0/P1) añadió tres P2, también aplicados: mínimo `2025-01` en modo mes; la tabla
+que se conserva mientras se corrige el período dice a la vista de qué período es; el oráculo exige
+el mes anterior abierto en vez de suponerlo. Huellas finales del artefacto: puerta `b881b83c…`,
+base `0a43b0f3…`, empresa `5700d277…`, totales `e97995f5…`.
+
+**v2 EN PROD (servidor 30/09 noche, front `build-20261001T002155841Z`)** desde `rescue/conversion-desglose-20261001`
+(= vivo `6a9ad5e6` + v2). Humo con datos reales: setiembre 1655 llegadas / 119,30 ponderados / 7,21 %; 15/08–30/09
+sacó a la luz 4 cierres de «otros orígenes» que antes no se veían.
+
+**Pendiente de decisión de Miguel (auditor P3-3):** la coordinadora ve ahora, por persona, el ajuste
+pendiente y el bruto (deuda de cierres anulados tras pagar). No es PII; es un dato nuevo en su ámbito.
+
+Ver [[Como se mide la conversion del asesor]], [[Cierre de mes]] y [[Auditoria de conversiones - capas backend a frontend (2026-09-21)]].
+

@@ -211,22 +211,34 @@ test('Conversiones: la coordinadora ve el divisor del núcleo (primer analista),
       version: 1,
       generado_en: '2026-09-30T18:00:00.000Z',
       alcance: 'global',
-      periodo: { mes: '2026-09', mes_nombre: 'setiembre', anio: 2026, zona: 'America/Lima', desde: '2026-09-01', hasta: '2026-10-01' },
+      periodo: { modo: 'mes', mes: '2026-09', mes_nombre: 'setiembre', anio: 2026, zona: 'America/Lima', desde: '2026-09-01', hasta: '2026-09-30', dias: 30, cruza_meses_sellados: false },
       sellado: false,
-      peso_referido: 0.5,
-      fuente: { divisor: 'private.conversion_neta_por_vendedor', origen: 'private.conversion_episodios', regla: 'una llegada por lead' },
-      empresa: { divisor: 205, numerador: 20.15, conversion_pct: 9.83, divisor_formulario: 126, divisor_landing: 79 },
+      peso_referido: 0.15,
+      peso_renovacion: 0.15,
+      fuente: { divisor: 'private.conversion_neta_por_vendedor', origen: 'private.conversion_episodios', regla: 'una llegada por lead', modo: 'mensual' },
+      empresa: {
+        divisor: 205, numerador: 20.15, conversion_pct: 9.83, divisor_formulario: 126, divisor_landing: 79,
+        numerador_bruto: 20.15, ajuste_pendiente: 0, desglose_disponible: true,
+        cierres: { formulario: 11, landing: 3, referido: 1, referido_aporte: 0.15, oficina: 1, otros: 0 },
+        cartera: { upgrade: 6, renovacion: 0, renovacion_aporte: 0 },
+      },
       sin_analista: { divisor: 2, numerador: 0 },
       analistas: [
         {
           analista_id: '20000000-0000-4000-8000-000000000001', nombre: 'ANA TORRES',
           supervisor_id: '10000000-0000-4000-8000-000000000001', supervisor_nombre: 'SUPERVISORA NORTE',
           en_nucleo: true, divisor: 115, divisor_formulario: 65, divisor_landing: 50, numerador: 11.15, conversion_pct: 9.7,
+          numerador_bruto: 11.15, ajuste_pendiente: 0, desglose_disponible: true,
+          cierres: { formulario: 5, landing: 2, referido: 1, referido_aporte: 0.15, oficina: 1, otros: 0 },
+          cartera: { upgrade: 4, renovacion: 0, renovacion_aporte: 0 },
         },
         {
           analista_id: '20000000-0000-4000-8000-000000000002', nombre: 'BRUNO LEÓN',
           supervisor_id: '10000000-0000-4000-8000-000000000001', supervisor_nombre: 'SUPERVISORA NORTE',
           en_nucleo: true, divisor: 88, divisor_formulario: 60, divisor_landing: 28, numerador: 9, conversion_pct: 10.23,
+          numerador_bruto: 9, ajuste_pendiente: 0, desglose_disponible: true,
+          cierres: { formulario: 6, landing: 1, referido: 0, referido_aporte: 0, oficina: 0, otros: 0 },
+          cartera: { upgrade: 2, renovacion: 0, renovacion_aporte: 0 },
         },
       ],
     },
@@ -245,7 +257,10 @@ test('Conversiones: la coordinadora ve el divisor del núcleo (primer analista),
   const ana = tabla.getByRole('row').filter({ hasText: 'ANA TORRES' })
   await expect(ana).toContainText('65')
   await expect(ana).toContainText('115')
+  await expect(ana).toContainText('1 · 0.15')
   await expect(ana).toContainText('9.70%')
+  await expect(cifra('Upgrade').getByText('6', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('formula-numerador')).toContainText('6 de upgrade')
   await expect(tabla.getByRole('row').filter({ hasText: 'Sin analista asignado' })).toContainText('2')
   await expect(page.getByText(/Este conteo es distinto del reporte de entregas/)).toBeVisible()
 
@@ -255,6 +270,17 @@ test('Conversiones: la coordinadora ve el divisor del núcleo (primer analista),
     && (req.postDataJSON() as { p_periodo?: string })?.p_periodo === '2026-08-01')
   await mes.fill('2026-08')
   await pedido
+
+  // Rango de fechas: viajan las dos fechas inclusivas y la pantalla lo dice.
+  await page.getByLabel('Tipo de período').selectOption('rango')
+  const pedidoRango = page.waitForRequest((req) => req.url().includes('/rpc/conversion_divisor_coordinacion_fn')
+    && (req.postDataJSON() as { p_desde?: string })?.p_desde === '2026-09-01'
+    && (req.postDataJSON() as { p_hasta?: string })?.p_hasta === '2026-09-15')
+  await page.getByLabel('Desde').fill('2026-09-01')
+  await page.getByLabel('Hasta').fill('2026-09-15')
+  await pedidoRango
+  await expect(page.getByText(/Rango libre: cifras en vivo/).first()).toBeVisible()
+  await expect(tabla.getByRole('row').filter({ hasText: 'ANA TORRES' })).toContainText('115')
 })
 
 test('Coordinación muestra la entrega real antes de que Supervisión la reparta a analistas', async ({ page }) => {
