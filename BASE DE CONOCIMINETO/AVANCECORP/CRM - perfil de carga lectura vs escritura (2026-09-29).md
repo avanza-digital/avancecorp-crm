@@ -131,6 +131,79 @@ la reducción se mide al día siguiente (los navegadores recargan el bundle poco
 🔑 Trampas de esta fase: el ZIP de release exige los `.env` de `app/` (copiarlos al worktree); una prueba E2E
 que salte de «sin solicitud» a «respondida» sin «pendiente» depende del sondeo fijo y ya no es realista.
 
+## Paso 3 · Fase 1 — ✅ EN PROD 29/09 ~19:35 Lima (Miguel aplicó con `!`)
+
+La lista de tareas (`tareas_pendientes_fn`, 22 ms) arrastra la agenda de postventa (`postventa_agenda_fn`) en cada
+carga de Hoy/agenda de todos (~1.300 veces al día). De sus 509–532 ms, 320–338 eran `postventa_perfil_ids` en
+`private.postventa_tarea_json`: por cada una de las 16 tareas se recorrían las 565 personas con
+`inversionista_canonica()` dos veces por fila. Migración `20260930000550_crm_postventa_tarea_json_por_familia`:
+las candidatas salen de la FAMILIA de la persona (CTE recursiva desde su raíz canónica, tope 16) y sobre ese puñado
+se aplica el mismo predicado de antes (superconjunto → idéntico también con ciclos). Verificado: agenda 16 tareas en
+**211 ms**; oráculo 13/13 idéntico (16 tareas fila a fila + 4 roles); prueba sintética 24/0; ciclo deshecho; Codex
+APPROVE; auditor-rls PASS (riesgo aceptado: hoy ninguna persona tiene padre, la rama recursiva se demuestra
+analítica y sintéticamente). PR #140 (apilada sobre #138). Reversa: `scripts/postventa-tarea-familia/reversa.sql`.
+Queda de la agenda: ~0,2 s en dos llamadas a `postventa_estado_fn` (antes y después) + `postventa_visible` por tarea.
+🔑 Trampa: la huella `md5(pg_get_functiondef)` incluye el salto de línea final que Postgres añade; calcularla en la
+base (ensayo deshecho), no en local.
+
+## Paso 4 · Fase 1 — ✅ EN PROD 29/09 ~20:05 Lima (Miguel aplicó con `!`)
+
+El contador de avisos SLA (`crm.avisos_sla_resumen_v2_fn`) pedía al núcleo las 2.583 oportunidades activas y solo
+contaba; 1.139 son terminales (descartadas/convertidas) y nunca avisan. Migración
+`20260930002929_crm_sla_resumen_solo_operativos`: nuevo `private.sla_leads_operativos()` (ids activos en las 4
+etapas comerciales; INVOKER, solo postgres) y el adaptador pasa esos ids al núcleo; el núcleo no cambia; la
+migración y la reversa terminan con `assert_sla_avisos()`. Oráculo 15/15 idéntico (5 actores); Codex ×2 (r1
+CHANGES_REQUESTED → r2 PASS); auditor-rls APPROVE. **Resultado: gerencia 1.735–1.792 → 1.256–1.289 ms (−27 %),
+supervisor ~813 → ~620; meta de ≤ 1.200 NO alcanzada del todo** (la cartera operativa creció a 1.513 y hay
+carga concurrente). Lo que queda son el bucle plpgsql del núcleo (~0,4 ms/oportunidad) y el armado del paquete:
+Fase 2 (núcleo: tareas pre-agregadas, no recalcular `sla_hechos_actuales` en `sla_tareas_hechos`) y Fase 3 (a
+decidir). Diferido: las dos puertas de Gestión Diaria que piden `(null,true)` (selladas por md5 en sus gates) y un
+trinquete vivo del ayudante (auditor P2-2). PR #141 (apilada sobre #140).
+🔑 Trampa: `$function$$def$` juntos forman `$$` y cierran un bloque `DO $$`: usar etiquetas distintas al anidar.
+
+## Paso 4 · Gestión Diaria — ✅ EN PROD 30/09 ~10:25 Lima (Miguel aplicó con `!`)
+
+`private.gestion_diaria_alertas_sla` y `private.gestion_diaria_equipo_pendientes` pasan al núcleo SLA solo las
+oportunidades operativas (`sla_leads_operativos()`); sus dos guardianes resellados por huella; migración y reversa
+pasan el paraguas `assert_gestion_diaria()`, `assert_sla_avisos()` y `assert_gestion_diaria_pulso()`. Migración
+`20260930150852_crm_gestion_diaria_solo_operativos`, PR #142 (apilada sobre #141). Oráculo con la migración real
+20/20 idéntico (gerencia + 4 supervisores × avisos/equipo/equipo propio/pulso); negativo del guardián (todo se
+deshace); Codex APPROVE; auditor-rls PASS. **Resultado verificado: equipo de gerencia 1,80–1,85 → 1,35 s; avisos
+del supervisor grande 1,00–1,03 → 0,86 s; supervisores pequeños sin cambio.** 🔑 En horario laboral el oráculo
+puede dar diferencias por datos vivos entre las dos pasadas (READ COMMITTED obligatorio): repetir y mirar clave a
+clave antes de concluir. Pendiente menor: caso «analista solo con leads terminales → (0,0)» en la suite local.
+
+## Paso 4 · Vigilante del ayudante — ✅ EN PROD 30/09 ~10:57 Lima (Miguel aplicó con `!`)
+
+El guardián `private.assert_sla_avisos()` (corre en cada migración del SLA y de Gestión Diaria a través del paraguas)
+vigila desde ahora al ayudante `private.sla_leads_operativos()`: existe con su huella `8d478d78…`, dueño postgres,
+INVOKER, STABLE, `search_path` vacío y ACL solo dueño; y **todas** las llamadas del contador `avisos_sla_resumen_v2_fn`
+al núcleo van acotadas por el ayudante (`regexp_count` de la forma acotada = total de llamadas, y ≥ 1). Mismo texto de
+OK; nada más cambia. Migración `20260930154341_crm_sla_vigilante_ayudante`, PR #143 (apilada sobre #142). Huellas del
+guardián: viva `bf835965…` → nueva `9b9edc86…`. Ciclo ensayado en prod y deshecho con **cuatro negativos** (grant del
+ayudante a `authenticated`, cuerpo del ayudante alterado, contador con `(null,true)`, contador con una llamada acotada
+y otra amplia): los cuatro saltan. Codex CHANGES_REQUESTED → aceptado (exigir igualdad de llamadas, no presencia;
+paraguas en la ruta idempotente); auditor-rls APPROVE (sin P0–P2). Verificado en vivo: guardián ampliado OK en 10 ms,
+paraguas OK, advisors 242 sin clases nuevas. Cierra el P2-2 del auditor sobre `20260930002929`. Cualquier cambio
+legítimo futuro del ayudante exige resellar aquí (patrón de la casa). Queda como ítem aparte: los cuatro negativos
+viven solo en el ensayo manual (`scripts/sla-vigilante-ayudante/ensayo-ciclo.sql`); falta
+`private.assert_sla_avisos_mutantes()` desde `test-rls.mjs`, como los otros trinquetes con mutantes.
+
+## Paso 4 · Fase 2 — MEDIDA Y DESCARTADA tal como se planeó (29/09 ~20:20 Lima)
+
+Con la cartera operativa (1.514 filas, gerencia): `sla_operacion_autorizada` 1.226 ms = núcleo `sla_operacion_leads`
+835–999 ms + post-proceso 312 ms (+26 ms `proximo_cambio_en` releyendo el JSON, +15 ms del conteo del adaptador).
+Dentro del núcleo, el SELECT del bucle es solo **133 ms** (`sla_hechos_actuales` 83, `sla_tareas_hechos` 84 que
+recalcula hechos, lateral de tareas por lead barato); el prototipo «tareas pre-agregadas» salió MÁS LENTO (251 ms).
+Las 3 sentencias SQL embebidas del bucle cuestan ~97 ms en total. **El coste real es el cuerpo plpgsql que arma
+la ficha JSON de cada oportunidad (~0,5 ms × 1.514 ≈ 770 ms; 7,8 MB de JSON por llamada) y su copia en el
+post-proceso (312 ms), para un contador que solo necesita 4 cifras.** La fase 2 «menos trabajo repetido en el
+SELECT» no paga: descartada. Lo que sí pagaría es un «modo resumen» del núcleo (no armar `estado`/`presentacion`
+cuando solo se cuenta): toca el motor sellado (`assert_sla_nucleo` referencia la firma exacta de
+`sla_operacion_leads(uuid[],boolean,uuid[],timestamptz)`: no se puede añadir un parámetro sin resellar) y sus 9
+puertas: es un mini-proyecto aparte (estimación: gerencia 1,27 → ~0,3–0,4 s). Alternativa no idéntica: caché del
+resumen por actor 20–30 s (decisión de Miguel).
+
 ## Plan técnico original del paso 2 (superado por la medición de arriba; se conserva como historia)
 
 - **Fase 1 (servidor, LEVEL 3):** `private.cartera_f5_personas_visibles(uuid)` y `private.cartera_f5_listar`:
