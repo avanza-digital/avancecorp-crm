@@ -1,3 +1,30 @@
+## 20261001222431 — Llamadas desde el celular · corrección de F2-c: la elegibilidad de la ingesta se evalúa como el dueño del celular (`private.llamada_celular_elegible_dueno`, `private.llamada_celular_ingerir`)
+
+**⏸️ EN RAMA `feat/llamadas-f2`, SIN APLICAR en ningún entorno compartido.** Depende de `20261001160219` (F2-c).
+OK de Jhosep (01/10) para corregirlo; Miguel lo revisa con el resto de F2.
+
+Qué hace: la ingesta llega sin sesión y la regla de ámbito del CRM (`sla_gestion_permitida` → `vendedor_ids_visibles`)
+solo responde a quien pregunta por sí mismo. Por eso la llamada del celular de un supervisor a un lead de su equipo
+entraba «por revisar» y nunca pedía resultado, contra la decisión 1 (comprobado en un banco desechable). Ayudante
+nuevo `private.llamada_celular_elegible_dueno(dueño, lead)`: evalúa la decisión 1 con la regla real COMO el dueño
+del celular. Fija `request.jwt.claim.sub` solo durante esa consulta y devuelve la identidad anterior antes de que la
+ingesta escriba, así que la bitácora no atribuye la llamada a nadie. `private.llamada_celular_ingerir`: el cuerpo de
+F2-c copiado tal cual con una sola línea cambiada (generado con un guion y comparado con `diff`). **Decisión de
+criterio de Claude, para Miguel:** reutilizar la regla real evaluándola como el dueño, en vez de copiarla en un
+ayudante propio que podría desviarse de ella.
+
+Reversa: `scripts/llamadas-celular/reversa-elegibilidad.sql` (devuelve el cuerpo de F2-c con su COMMENT y retira el
+ayudante). `reversa-nucleo.sql` se niega mientras esta corrección siga instalada.
+
+**Verificación 01/10 (banco REDUCIDO, no paridad):** `npm run test:llamadas:local` → **160/160**. Oráculo
+`tests/llamadas-celular/oraculo-elegibilidad.sql`: el celular del supervisor pide resultado para los leads de su
+equipo (de su analista, de otro analista del equipo y sin analista) y no para otro equipo ni para «no contactar»; el
+del analista no cambia; la identidad vuelve (también la que hubiera antes) y la bitácora no atribuye ninguna llamada;
+el supervisor ve sus llamadas como pendientes de resultado. **7/7 mutantes cazados** (4 por el oráculo, 3 por el
+postflight). Los oráculos de F2-b, F2-c y F3-a pasan con la corrección instalada. **NOT RUN:** banco con el esquema de
+producción y `test-rls.mjs`; allí hay que confirmar que el `auth.uid()` real de Supabase lee `request.jwt.claim.sub`
+(el banco reducido usa un doble que lo hace).
+
 ## 20261001212258 — Llamadas desde el celular · F3-a: puertas de servicio, límite, salud y bandeja paginada (`crm.ingerir_llamada_celular_servicio`, `crm.registrar_salud_celular_servicio`, `crm.llamadas_celular_bandeja_fn`, `crm.celulares_salud_fn`, `private.celulares_estado`)
 
 **⏸️ EN RAMA `feat/llamadas-f2`, SIN APLICAR en ningún entorno compartido.** Depende de `20261001160219` (F2-c).

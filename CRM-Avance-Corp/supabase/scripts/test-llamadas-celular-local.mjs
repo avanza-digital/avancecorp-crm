@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Prueba las migraciones REALES de Llamadas desde el celular (F2-b datos 20261001145242, F2-c
-// núcleo 20261001160219 y F3-a ingesta 20261001212258) en un PostgreSQL 16/17 desechable: initdb en una carpeta temporal,
+// núcleo 20261001160219, F3-a ingesta 20261001212258 y la corrección de elegibilidad 20261001222431)
+// en un PostgreSQL 16/17 desechable: initdb en una carpeta temporal,
 // escucha solo en 127.0.0.1, contraseña de usar y tirar generada aquí (nunca se imprime ni sale de
 // la carpeta temporal) y se borra al terminar. Nunca acepta una URL ni variables PG* del entorno.
 //
@@ -8,14 +9,14 @@
 // canonización, idempotencia y forma del resultado reales; auth.uid como doble declarado).
 // Molde: supabase/scripts/test-sla-nucleo-local.py. No sustituye el gate test-rls.mjs.
 //
-// Cinco pasadas:
+// Seis pasadas:
 //   1. Las migraciones tal cual: se aplican, se niegan a sobrescribirse, pasan sus oráculos, sus
 //      reversas funcionan en orden (y se niegan fuera de orden o con filas) y se vuelven a aplicar.
-//   2. Mutantes de F2-b, 3. mutantes de F2-c y 4. mutantes de F3-a: por cada defensa, una copia de
+//   2–5. Mutantes de F2-b, F2-c, F3-a y la corrección de elegibilidad: por cada defensa, una copia de
 //      la migración que la neutraliza. Un mutante «de oráculo» tiene que APLICARSE y hacer fallar su
 //      oráculo; uno «de postflight» tiene que ser rechazado por el postflight con su mensaje. Si
 //      sobrevive, esa defensa no está probada.
-//   5. Concurrencia con dos sesiones REALES: la primera abre su transacción y la retiene; la
+//   6. Concurrencia con dos sesiones REALES: la primera abre su transacción y la retiene; la
 //      segunda llega mientras tanto, tiene que ESPERAR (se mide) y responder bien al soltarse.
 //
 // Uso:  node supabase/scripts/test-llamadas-celular-local.mjs     (npm run test:llamadas:local)
@@ -31,6 +32,9 @@ const RAIZ = fileURLToPath(new URL('../..', import.meta.url));
 const MIG_DATOS = join(RAIZ, 'supabase/migrations/20261001145242_crm_llamadas_celular_datos.sql');
 const MIG_NUCLEO = join(RAIZ, 'supabase/migrations/20261001160219_crm_llamadas_celular_nucleo.sql');
 const MIG_INGESTA = join(RAIZ, 'supabase/migrations/20261001212258_crm_llamadas_celular_ingesta.sql');
+const MIG_ELEGIBILIDAD = join(RAIZ, 'supabase/migrations/20261001222431_crm_llamadas_celular_elegibilidad_dueno.sql');
+const ORACULO_ELEGIBILIDAD = join(RAIZ, 'supabase/tests/llamadas-celular/oraculo-elegibilidad.sql');
+const REVERSA_ELEGIBILIDAD = join(RAIZ, 'supabase/scripts/llamadas-celular/reversa-elegibilidad.sql');
 const BASE = join(RAIZ, 'supabase/tests/llamadas-celular/base.sql');
 const ORACULO_DATOS = join(RAIZ, 'supabase/scripts/llamadas-celular/verificar-datos.sql');
 const ORACULO_NUCLEO = join(RAIZ, 'supabase/tests/llamadas-celular/oraculo-nucleo.sql');
@@ -184,6 +188,22 @@ const MUTANTES_INGESTA = [
     buscar: 'add column limite_envios_dia integer not null default 600', poner: 'add column limite_envios_dia integer not null default 601' },
 ];
 
+const MUTANTES_ELEGIBILIDAD = [
+  { nombre: 'el ayudante no asume la identidad del dueño', buscar: "  perform pg_catalog.set_config('request.jwt.claim.sub', coalesce(p_dueno::text, ''), true);\n", poner: '' },
+  { nombre: 'la identidad del dueño no se devuelve', buscar: "  perform pg_catalog.set_config('request.jwt.claim.sub', coalesce(v_previo, ''), true);\n", poner: '' },
+  { nombre: 'la identidad anterior se pierde (se devuelve vacía)', buscar: "coalesce(v_previo, '')", poner: "''" },
+  { nombre: 'elegible sin mirar el ámbito', buscar: 'v_elegible := coalesce(private.llamada_celular_elegible(p_dueno, p_lead), false);', poner: 'v_elegible := true;' },
+  { nombre: 'la ingesta llama a la regla sin el dueño', por: 'postflight', espera: 'no evalúa la elegibilidad como el dueño',
+    buscar: '    v_aten := case when private.llamada_celular_elegible_dueno(v_asig.analista_id, v_lead)',
+    poner: '    v_aten := case when private.llamada_celular_elegible(v_asig.analista_id, v_lead)' },
+  { nombre: 'ayudante con EXECUTE para authenticated', por: 'postflight', espera: 'EXECUTE inesperado',
+    buscar: 'revoke all on function private.llamada_celular_elegible_dueno(uuid,uuid) from public, anon, authenticated, service_role;',
+    poner: 'grant execute on function private.llamada_celular_elegible_dueno(uuid,uuid) to authenticated;' },
+  { nombre: 'ayudante DEFINER', por: 'postflight', espera: 'debería ser SECURITY INVOKER',
+    buscar: "returns boolean\nlanguage plpgsql\nvolatile\nset search_path = ''",
+    poner: "returns boolean\nlanguage plpgsql\nvolatile\nsecurity definer\nset search_path = ''" },
+];
+
 function carpetaBinarios() {
   const candidatos = [
     process.env.LLAMADAS_PG_BIN,
@@ -307,7 +327,7 @@ const pausa = (ms) => new Promise((r) => { setTimeout(r, ms); });
 const RETIENE_MS = 2000;
 
 async function pasadaConcurrencia() {
-  console.log('\n— Pasada 5: concurrencia con dos sesiones reales —');
+  console.log('\n— Pasada 6: concurrencia con dos sesiones reales —');
   const db = 'concurrencia';
   psqlSql(`create database ${db} template plantilla_nucleo`, 'postgres');
   let r = psqlArchivo(MIG_INGESTA, db);
@@ -461,6 +481,29 @@ try {
   r = psqlArchivo(REVERSA_INGESTA, db);
   paso('reversa de F3-a (otra vez, antes del núcleo)', r.ok, r.ok ? '' : cola(r.salida));
 
+  // Corrección de F2-c (20261001222431): la ingesta evalúa la elegibilidad como el dueño del celular.
+  const oraculoElegibilidad = (nombre) => {
+    const o = psqlArchivo(ORACULO_ELEGIBILIDAD, db);
+    return paso(nombre, o.ok && o.salida.includes('ORACULO ELEGIBILIDAD OK'), lineasOraculo(o.salida));
+  };
+  r = psqlArchivo(MIG_ELEGIBILIDAD, db);
+  paso('corrección de elegibilidad aplicada (ayudante, ingesta con una línea cambiada, postflight)', r.ok, r.ok ? '' : cola(r.salida));
+  r = psqlArchivo(MIG_ELEGIBILIDAD, db);
+  paso('la corrección se niega a sobrescribirse', !r.ok && r.salida.includes('los objetos ya existen'), r.ok ? 'se aplicó dos veces' : '');
+  oraculoElegibilidad('oráculo de la corrección de elegibilidad');
+  oraculoNucleo('oráculo de F2-c con la corrección instalada');
+  oraculoDatos('oráculo de F2-b con la corrección instalada');
+  r = psqlArchivo(REVERSA_NUCLEO, db);
+  paso('la reversa del núcleo se niega con la corrección instalada', !r.ok && r.salida.includes('la corrección de elegibilidad sigue instalada'), r.ok ? 'se aplicó fuera de orden' : '');
+  r = psqlArchivo(REVERSA_ELEGIBILIDAD, db);
+  paso('reversa de la corrección (la ingesta vuelve al cuerpo de F2-c)', r.ok, r.ok ? '' : cola(r.salida));
+  oraculoNucleo('oráculo de F2-c tras revertir la corrección');
+  r = psqlArchivo(MIG_ELEGIBILIDAD, db);
+  paso('la corrección se vuelve a aplicar tras su reversa', r.ok, r.ok ? '' : cola(r.salida));
+  oraculoElegibilidad('oráculo de la corrección tras reaplicar');
+  r = psqlArchivo(REVERSA_ELEGIBILIDAD, db);
+  paso('reversa de la corrección (otra vez, antes del núcleo)', r.ok, r.ok ? '' : cola(r.salida));
+
   r = psqlArchivo(REVERSA_DATOS, db);
   paso('la reversa de datos se niega con el núcleo instalado', !r.ok && r.salida.includes('el núcleo F2-c sigue instalado'), r.ok ? 'se aplicó fuera de orden' : '');
   r = psqlArchivo(REVERSA_NUCLEO, db);
@@ -495,10 +538,16 @@ try {
   r = psqlArchivo(MIG_INGESTA, db);
   paso('F3-a se vuelve a aplicar encima de todo', r.ok, r.ok ? '' : cola(r.salida));
   oraculoIngesta('oráculo de F3-a tras reaplicar todo');
+  r = psqlArchivo(MIG_ELEGIBILIDAD, db);
+  paso('la corrección de elegibilidad se aplica encima de todo', r.ok, r.ok ? '' : cola(r.salida));
+  oraculoElegibilidad('oráculo de la corrección con todo instalado');
+  oraculoIngesta('oráculo de F3-a con la corrección instalada');
+  oraculoNucleo('oráculo de F2-c con todo instalado');
 
   pasadaMutantes('Pasada 2: mutantes de F2-b (datos)', MIG_DATOS, MUTANTES_DATOS, 'plantilla', ORACULO_DATOS, 'mut_datos');
   pasadaMutantes('Pasada 3: mutantes de F2-c (núcleo y puertas)', MIG_NUCLEO, MUTANTES_NUCLEO, 'plantilla_datos', ORACULO_NUCLEO, 'mut_nucleo');
   pasadaMutantes('Pasada 4: mutantes de F3-a (servicio, límite, salud y bandeja)', MIG_INGESTA, MUTANTES_INGESTA, 'plantilla_nucleo', ORACULO_INGESTA, 'mut_ingesta');
+  pasadaMutantes('Pasada 5: mutantes de la corrección de elegibilidad', MIG_ELEGIBILIDAD, MUTANTES_ELEGIBILIDAD, 'plantilla_nucleo', ORACULO_ELEGIBILIDAD, 'mut_elegib');
   await pasadaConcurrencia();
 } catch (error) {
   paso('arranque del banco', false, error.message);

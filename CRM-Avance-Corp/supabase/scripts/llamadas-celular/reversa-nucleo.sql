@@ -17,6 +17,10 @@ begin
   if to_regprocedure('crm.ingerir_llamada_celular_servicio(text,jsonb)') is not null then
     raise exception 'REVERSA_NUCLEO: la ingesta F3-a sigue instalada; corre antes reversa-ingesta.sql';
   end if;
+  -- La corrección 20261001222431 reemplazó la ingesta de este núcleo: primero se revierte ella.
+  if to_regprocedure('private.llamada_celular_elegible_dueno(uuid,uuid)') is not null then
+    raise exception 'REVERSA_NUCLEO: la corrección de elegibilidad sigue instalada; corre antes reversa-elegibilidad.sql';
+  end if;
 end;
 $precondicion$;
 
