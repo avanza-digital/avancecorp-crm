@@ -1,6 +1,6 @@
 ---
 fecha: 2026-09-30
-estado: ✅ fase 1 EN PROD 30/09 (bandera APAGADA) · 🟡 fase 2 en el `main` de GitHub (PR #157): falta el `!` de Miguel · 🟡 fase 3 entrega A (marcar y ver) TERMINADA, revisada y FUSIONADA en `main` (PR #158, `8eeaf805`), sin publicar · entrega B (filtro) y fase 4 (Jev) sin empezar · ver «Para retomar»
+estado: ✅ fase 1 EN PROD 30/09 (bandera APAGADA) · ✅ fase 2 EN PROD 01/10 13:27 (la marca baja sola) · 🟡 fase 3 entrega A (marcar y ver) TERMINADA, revisada y FUSIONADA en `main` (PR #158, `8eeaf805`), sin publicar · entrega B (filtro) y fase 4 (Jev) sin empezar · ver «Para retomar»
 ---
 
 # Potencial del lead: Frío · Tibio · Estrella (2026-09-30)
@@ -17,7 +17,12 @@ pasa (340 archivos, 5 339 pruebas) y el e2e en Docker da 304 en verde, 26 saltad
 archivos de los `!` están ahí con el mismo contenido. Lo que queda son pasos de Miguel, EN ESTE ORDEN (cada `!` desde
 `CRM-Avance-Corp/` del taller, leyendo archivos de ese worktree):
 
-1. **Fase 2** (pendiente desde el 30/09): la línea del punto 1 de abajo, sin cambios.
+1. ✅ **Fase 2 EN PROD** (Miguel con `!`, 01/10/2026 13:27 Lima): migración, registro y verificación. Salida:
+   job `[10,40 10 * * * select private.potencial_caducar() postgres@postgres activo=true]`, última corrida «aún no
+   corrió», 0 EXECUTE ajenos, 0 marcas vivas, 0 bajarían hoy, registro `crm_potencial_lead_caducidad`. Traída al `main`
+   local (`7aec101b`, junto con la migración y los scripts de la 3A). Faltan: advisors (los lanza Miguel: la sesión no
+   puede leer producción), ledger a «EN PROD» en GitHub, y mañana 02/10 tras las 05:40 `verificar-caducidad.sql` debe
+   decir `succeeded`.
 2. **Volcado del esquema** (solo lectura; el modo automático bloqueó a la sesión leer producción): con él se monta un
    banco NUEVO a paridad y se repiten los tres ciclos antes de publicar la lectura.
    `supabase db dump --linked --schema public,crm,private --keep-comments -f <scratchpad>/banco/esquema-20261001.sql`
