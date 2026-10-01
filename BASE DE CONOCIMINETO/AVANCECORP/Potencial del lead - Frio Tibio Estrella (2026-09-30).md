@@ -1,6 +1,6 @@
 ---
 fecha: 2026-09-30
-estado: ✅ fase 1 EN PROD 30/09 (bandera APAGADA) · ✅ fase 2 EN PROD 01/10 13:27 (la marca baja sola) · 🟡 fase 3 entrega A (marcar y ver) TERMINADA, revisada y FUSIONADA en `main` (PR #158, `8eeaf805`), sin publicar · entrega B (filtro) y fase 4 (Jev) sin empezar · ver «Para retomar»
+estado: ✅ fase 1 EN PROD 30/09 (bandera APAGADA) · ✅ fase 2 EN PROD 01/10 13:27 (la marca baja sola) · ✅ puerta de lectura EN PROD 01/10 13:40 (fase 3A, servidor) · 🟡 pantalla de la fase 3A fusionada en `main` (PR #158), SIN publicar; bandera APAGADA · entrega B (filtro) y fase 4 (Jev) sin empezar · ver «Para retomar»
 ---
 
 # Potencial del lead: Frío · Tibio · Estrella (2026-09-30)
@@ -23,13 +23,16 @@ archivos de los `!` están ahí con el mismo contenido. Lo que queda son pasos d
    local (`7aec101b`, junto con la migración y los scripts de la 3A). Faltan: advisors (los lanza Miguel: la sesión no
    puede leer producción), ledger a «EN PROD» en GitHub, y mañana 02/10 tras las 05:40 `verificar-caducidad.sql` debe
    decir `succeeded`.
-2. **Volcado del esquema** (solo lectura; el modo automático bloqueó a la sesión leer producción): con él se monta un
-   banco NUEVO a paridad y se repiten los tres ciclos antes de publicar la lectura.
-   `supabase db dump --linked --schema public,crm,private --keep-comments -f <scratchpad>/banco/esquema-20261001.sql`
-3. **Puerta de lectura** (exige la fase 2): migración `20261001151704_crm_potencial_lead_lectura.sql` →
-   `registrar-lectura.sql` → `verificar-lectura.sql`. Debe decir: ejecutan la puerta `[authenticated]`, 0 EXECUTE de
-   la API en los 3 ayudantes, 0 funciones con ACL nula, forma `DEFINER/s/search_path=""`, job `10,40 10 * * *
-   activo=true`, bandera false, registro presente. Después, advisors (ninguna clase nueva).
+2. ✅ **Volcado y banco a paridad** (01/10 13:31): Miguel sacó el volcado con `!`; banco NUEVO
+   `avancecorp-potencial-20261001` (puerto 55471). Comparado con el banco de las pruebas: 873 funciones (cuerpo,
+   DEFINER, volatilidad, configuración, dueño y ACL), 110 policies, 1 336 columnas y 337 disparadores IDÉNTICOS. Los
+   tres ciclos en verde sobre él (75, 51 y 94; pasada real de pg_cron; 30 + 28 mutantes). Advisors tras la fase 2:
+   248, las mismas 6 clases.
+3. ✅ **Puerta de lectura EN PROD** (Miguel con `!`, 01/10/2026 13:40 Lima). Salida de `verificar-lectura.sql`:
+   ejecutan la puerta `[authenticated]`, 0 EXECUTE de la API en los 3 ayudantes, 0 funciones con ACL nula, forma
+   `DEFINER/s/search_path=""`, job `10,40 10 * * * activo=true`, bandera false, 0 marcas, registro
+   `crm_potencial_lead_lectura`. Ledger a EN PROD en la rama `crm/potencial-lead-f3a-en-prod` (`b166f399`, sin PR
+   todavía: falta sumarle los tipos regenerados). Faltan los advisors de después (se espera 249: la puerta nueva).
 4. **Tipos:** en `app/` del worktree, `npm run gen:types` (lee producción) y `npm run typecheck`. Traerá además
    bloques de otras sesiones que el repo no tenía (`contrato_pdf_anexo_*`, argumentos nuevos de la conversión).
 5. ✅ PR #158 fusionada (`8eeaf805`) y comprobada en `avancecorp/main`.
