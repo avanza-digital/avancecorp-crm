@@ -95,8 +95,15 @@ verificar, prueba sintética, contexto de seguridad, ensayo-oraculo, LEEME con e
   inversionistas 1.596, **692 → 123 (−82 %)**; estado de cartera 163 → 44; estado de postventa 174 → 84; ficha de postventa 182 → 97;
   gestión del inversionista 584 → 170. Ledger `0e49bcc4`, PR #144. La media histórica incluye los días previos a los pasos 1–3
   del refactor, por eso la mejora real supera a la del ensayo aislado.
-- **Fase 4 (b), pendiente:** traer la cadena #140–#144 a `main`: Miguel fusiona las PR (por squash) y el `main` local sigue bloqueado por
-  `MIGRACIONES.md` e `Inicio.md` sin commitear de otras sesiones (además `main` local aún no contiene ni #139).
+- **Fase 4 (b), 01/10 — integración a `main` (PR #164):** las PR #138 y #140–#144 figuraban como fusionadas, pero cada una había
+  entrado en la rama de la PR anterior (estaban apiladas) y NO en `main`: GitHub solo tenía el índice de la #136. La #164 nace de
+  `avancecorp/main` y fusiona la punta de la cadena: 59 archivos nuevos (6 migraciones y sus scripts) y tres documentos unidos
+  (`MIGRACIONES.md`, `Inicio.md`, la nota de perfil de carga); ningún archivo de la app. Comprobado por árbol: el squash de cada PR
+  es idéntico a la cabeza de su PR. 🔑 Una PR apilada fusionada sin cambiarle antes la base a `main` no llega a `main`: tras
+  fusionar, comprobar con `git ls-tree avancecorp/main` que sus archivos están.
+  **`main` local:** entran los 65 archivos nuevos de la cadena (#136–#144). Sus entradas de `MIGRACIONES.md` e `Inicio.md` y las
+  otras PR del 30/09–01/10 quedan pendientes: la carpeta compartida tiene 37 archivos modificados sin commitear de otras sesiones
+  (entre ellos esos dos) que git se niega a pisar.
 
 ## Qué sí pagaría (por impacto)
 1. **`cartera_f5_fuentes()` con mapas** (arriba): migración de una función privada, misma firma y filas; LEVEL 2–3
