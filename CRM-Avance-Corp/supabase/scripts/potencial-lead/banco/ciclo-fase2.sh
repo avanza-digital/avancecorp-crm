@@ -37,6 +37,9 @@ if [ "$(q "select (to_regclass('crm.lead_potencial') is not null)::int")" != "1"
   echo "Falta la fase 1 en el banco: aplica antes 20260930213647_crm_potencial_lead.sql (o corre banco/ciclo-fase1.sh)." >&2; exit 2
 fi
 con_cron
+RL="$P/reversa-lectura.sql"; ML="$D/migrations/20261001151704_crm_potencial_lead_lectura.sql"
+f3a="$(q "select (to_regprocedure('crm.potencial_leads_fn(uuid[])') is not null)::int")"
+[ "$f3a" = "1" ] && echo "0 la puerta de lectura (fase 3A) está aplicada; se retira para el ciclo y se repone al final: $(msg "$RL")"
 [ "$(q "select (to_regprocedure('private.dias_lunes_a_sabado(date,date)') is not null)::int")" = "1" ] && echo "0 reversa del estado previo: $(msg "$R2")"
 
 echo "── 1 · SIN pg_cron"
@@ -144,4 +147,5 @@ docker exec -e PGPASSWORD=postgres "$C" psql -U supabase_admin -h 127.0.0.1 -d p
 echo "── 8 · registro y verificación"
 for i in 1 2; do echo "registrar #$i: $(docker exec -i -e PGPASSWORD=postgres "$C" psql -U postgres -h 127.0.0.1 -d postgres -v ON_ERROR_STOP=1 -qAt < "$P/registrar-caducidad.sql" 2>&1 | grep -o 'NOTICE:.*\|ERROR:.*' | head -1)"; done
 echo "verificar:    $(docker exec -i -e PGPASSWORD=postgres "$C" psql -U postgres -h 127.0.0.1 -d postgres -qAt < "$P/verificar-caducidad.sql" 2>&1 | grep -o 'VERIFICAR.*' | head -1)"
+[ "$f3a" = "1" ] && echo "puerta de lectura (fase 3A) repuesta: $(msg "$ML")"
 echo "FIN ciclo fase 2"

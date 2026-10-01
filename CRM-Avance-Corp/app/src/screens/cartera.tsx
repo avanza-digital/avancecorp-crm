@@ -17,6 +17,9 @@ import { TablaEnvoltura, Td, Th, TheadCrm } from '@/components/common/tabla'
 import { ETAPAS, TERMINALES, ETAPA_INFO, MOTIVOS_DESCARTE, CAT_LABEL, ORIGENES, ORIGENES_HEREDADOS, origenLabel, type Etapa, type Origen, type Procedencia } from '@/lib/tipos'
 import { ChipProcedencia } from '@/components/app/procedencia-chip'
 import { ChipReasignado } from '@/components/app/reasignado-chip'
+import { ChipPotencial } from '@/components/app/potencial-chip'
+import { idsDescripcion, potencialFila } from '@/components/app/potencial-efectos'
+import { usePotencialLeads } from '@/data/potencial-queries'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { capitalPrincipal } from '@/lib/inteligencia'
 import { money, fmtFecha } from '@/lib/format'
@@ -327,6 +330,9 @@ export function Cartera() {
     () => indexarCierresEstado(yo?.demo ? cierresEstado : (consultaEstado.data ?? [])),
     [yo?.demo, cierresEstado, consultaEstado.data],
   )
+  // Potencial del lead (Frío · Tibio · Estrella): otra lectura aparte, por los
+  // leads en pantalla. Con la bandera apagada no trae nada y no se pinta nada.
+  const potencial = usePotencialLeads(useMemo(() => visibles.map((l) => l.id), [visibles]))
 
   return (
     // Sin tope de ancho: la tabla es la protagonista y en monitores anchos el
@@ -560,10 +566,13 @@ export function Cartera() {
                       tabIndex={0}
                       // aria-label sobre role="row" (role="button" rompería la semántica de tabla)
                       aria-label={`Abrir ficha de ${l.nombre_completo}`}
-                      // La procedencia también llega al lector de pantalla (como
-                      // descripción), sin cambiar el nombre accesible que ya usan
-                      // tests y atajos.
-                      aria-describedby={descripcionProcedencia(l) ? `procedencia-${l.id}` : undefined}
+                      // La marca de potencial y la procedencia también llegan al
+                      // lector de pantalla (como descripción), sin cambiar el nombre
+                      // accesible que ya usan tests y atajos.
+                      aria-describedby={idsDescripcion(
+                        potencial.porLead.get(l.id)?.nivel && `potencial-${l.id}`,
+                        descripcionProcedencia(l) && `procedencia-${l.id}`,
+                      )}
                       onClick={() => abrirLead(l.id)}
                       onKeyDown={(ev) => {
                         if (ev.key === 'Enter' || ev.key === ' ') {
@@ -572,6 +581,7 @@ export function Cartera() {
                         }
                       }}
                       className="group cursor-pointer border-b border-border/60 transition-colors last:border-0 hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
+                      {...potencialFila(potencial.porLead.get(l.id))}
                     >
                       <Td className="lg:whitespace-nowrap">
                         <LeadHoverCard lead={l}>
@@ -582,6 +592,7 @@ export function Cartera() {
                                   FilaContrato — las tres carteras leen como una familia. */}
                               <p className="flex items-center gap-1.5 text-[13px] font-semibold">
                                 {l.nombre_completo}
+                                <ChipPotencial id={`potencial-${l.id}`} marca={potencial.porLead.get(l.id)} />
                                 {/* Procedencia a simple vista, pegada al nombre: lo manual
                                     en azul, lo del sistema en gris silencioso. */}
                                 <ChipProcedencia lead={l} />

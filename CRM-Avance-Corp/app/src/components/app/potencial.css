@@ -1,0 +1,496 @@
+/* ============================================================================
+   POTENCIAL DEL LEAD — Frío · Tibio · Estrella.
+   Estilos de la pieza aprobada por Miguel (CRM-05 del UI Playground), con las
+   medidas del CRM: chip = Badge (11 px bold; 10 px en el Pipeline), franja de
+   3 px en filas y tarjetas, y el trato dorado de Estrella.
+   Los colores son tokens de `index.css` (--pot-*). La pieza usa Motion; aquí
+   todo es CSS con variables que escriben los eventos de puntero
+   (`potencial-efectos.ts`), sin librerías.
+   Sin movimiento (`prefers-reduced-motion`) Estrella sigue viéndose dorada.
+   ========================================================================== */
+
+@property --pot-angulo {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+/* ── Chip (mismas medidas que el Badge, variante sólida) ─────────────────── */
+
+.pot-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  flex: none;
+}
+
+.pot-chip-ico {
+  width: 12px;
+  height: 12px;
+  flex: none;
+}
+
+.pot-chip--pequeno {
+  font-size: 10px;
+}
+
+.pot-chip--pequeno .pot-chip-ico {
+  width: 11px;
+  height: 11px;
+}
+
+.pot-chip--frio {
+  background: var(--pot-frio);
+  color: #fff;
+}
+
+.pot-chip--tibio {
+  background: var(--pot-tibio);
+  color: #fff;
+}
+
+.pot-chip--estrella {
+  background: var(--pot-oro-solido);
+  color: var(--pot-oro-tinta);
+  box-shadow: 0 1px 4px -1px rgb(200 146 42 / 0.6);
+  /* Contexto propio: el barrido (z-index: -1) queda sobre el dorado y DEBAJO
+     del texto, así el brillo nunca le quita contraste a la palabra. */
+  isolation: isolate;
+}
+
+/* Barrido de luz lento sobre el chip dorado. */
+.pot-chip--estrella::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  z-index: -1;
+  background: linear-gradient(105deg, transparent 38%, rgb(255 255 255 / 0.8) 50%, transparent 62%);
+  transform: translateX(-130%);
+  animation: pot-brillo 4.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* ── Color de la franja según el nivel ───────────────────────────────────── */
+
+[data-potencial='frio'] {
+  --pot-franja: var(--pot-frio);
+}
+
+[data-potencial='tibio'] {
+  --pot-franja: var(--pot-tibio);
+}
+
+[data-potencial='estrella'] {
+  --pot-franja: var(--pot-oro);
+}
+
+/* ── Tabla de Leads: franja en la primera celda y fila Estrella dorada ───── */
+
+tr[data-potencial] > td:first-child {
+  background-image: linear-gradient(var(--pot-franja), var(--pot-franja));
+  background-repeat: no-repeat;
+  background-size: 3px 100%;
+}
+
+tr[data-potencial='estrella'] {
+  background-color: var(--pot-oro-fondo);
+}
+
+/* Sobre el fondo dorado (y más con el foco de luz encima) el gris normal de
+   los datos secundarios se queda corto de contraste: aquí va el gris oscuro. */
+tr[data-potencial='estrella'] .text-muted-foreground,
+[data-slot='card'][data-potencial='estrella'] .text-muted-foreground {
+  color: var(--muted-foreground-strong);
+}
+
+/* Al pasar el mouse: un tono más y un foco de luz que sigue al cursor. */
+tr[data-potencial='estrella']:hover,
+tr[data-potencial='estrella']:focus-visible {
+  background-color: #fdf3dc;
+  background-image: radial-gradient(
+    220px circle at var(--pot-mx, -300px) var(--pot-my, 50%),
+    rgb(243 222 170 / 0.7),
+    transparent 70%
+  );
+  background-repeat: no-repeat;
+}
+
+/* ── Cola de hoy: la fila es un botón ────────────────────────────────────── */
+
+button[data-potencial] {
+  position: relative;
+}
+
+button[data-potencial]::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-left: 3px solid var(--pot-franja);
+}
+
+button[data-potencial='estrella'] {
+  background: var(--pot-oro-fondo);
+}
+
+/* La fila elegida no pierde su tinte de selección: se mezcla con el dorado. */
+button[data-potencial='estrella'][aria-current='true'] {
+  background: color-mix(in srgb, var(--accent) 6%, var(--pot-oro-fondo));
+}
+
+/* Foco dorado que sigue al mouse sobre la fila Estrella. */
+button[data-potencial='estrella']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    200px circle at var(--pot-mx, -200px) var(--pot-my, 50%),
+    rgb(243 222 170 / 0.55),
+    transparent 70%
+  );
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+
+button[data-potencial='estrella']:hover::after {
+  opacity: 1;
+}
+
+/* El contenido va por encima del foco. `.sr-only` se salta: es absoluto a
+   propósito y volverlo relativo le daría sitio (y hueco) en la fila. */
+button[data-potencial='estrella'] > :not(.sr-only) {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Pipeline: tarjeta ───────────────────────────────────────────────────── */
+
+[data-slot='card'][data-potencial] {
+  position: relative;
+}
+
+[data-slot='card'][data-potencial]::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 12px;
+  bottom: 12px;
+  border-left: 3px solid var(--pot-franja);
+  border-radius: 0 3px 3px 0;
+}
+
+/* Estrella: borde dorado que gira despacio, aura suave, se inclina hacia el
+   cursor y un reflejo lo sigue. Los tres estados repiten la transformación
+   para ganarle a `.ac-lift` (hover y active). */
+[data-slot='card'][data-potencial='estrella'],
+[data-slot='card'][data-potencial='estrella']:hover,
+[data-slot='card'][data-potencial='estrella']:active {
+  border: 1.5px solid transparent;
+  background:
+    linear-gradient(180deg, #fffaf0, #fff 70%) padding-box,
+    conic-gradient(from var(--pot-angulo), #b7862a, #f3d27a, #fff4cc, #c8922a, #e6b94f, #fff4cc, #b7862a) border-box;
+  transform: perspective(900px) rotateX(var(--pot-rx, 0deg)) rotateY(var(--pot-ry, 0deg)) translateY(var(--pot-alza, 0px));
+  transition: transform 0.18s ease-out, box-shadow 0.2s;
+  will-change: transform;
+  /* Contexto propio para que el reflejo (z-index: -1) quede sobre el fondo de
+     la tarjeta y debajo de su contenido. */
+  isolation: isolate;
+}
+
+[data-slot='card'][data-potencial='estrella'] {
+  animation: pot-giro 8s linear infinite, pot-aura 4s ease-in-out infinite;
+}
+
+[data-slot='card'][data-potencial='estrella']:hover {
+  box-shadow: var(--shadow-pop), 0 0 22px -6px rgb(227 194 122 / 0.9);
+  animation-play-state: running, paused;
+}
+
+/* El reflejo: sigue al cursor y solo aparece mientras la tarjeta se inclina.
+   Va DEBAJO del contenido y en mezcla normal (el mismo dorado del foco de la
+   cola): se ve moverse sobre la tarjeta sin aclarar el texto. */
+[data-slot='card'][data-potencial='estrella']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(
+    180px circle at var(--pot-mx, 50%) var(--pot-my, 50%),
+    rgb(243 222 170 / 0.55),
+    transparent 70%
+  );
+  opacity: var(--pot-luz, 0);
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+
+/* Mientras se arrastra (o con su menú abierto) la tarjeta se queda quieta. */
+[data-slot='card'][data-potencial='estrella'][data-pot-quieta],
+[data-slot='card'][data-potencial='estrella'][data-pot-quieta]:hover,
+[data-slot='card'][data-potencial='estrella'][data-pot-quieta]:active {
+  transform: none;
+}
+
+[data-slot='card'][data-potencial='estrella'][data-pot-quieta]::after {
+  opacity: 0;
+}
+
+/* ── Ficha: sección «Potencial» ──────────────────────────────────────────── */
+
+.pot-segmento {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.pot-seg {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted-foreground-strong);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.pot-seg:hover {
+  border-color: var(--border-strong);
+  color: var(--primary);
+}
+
+.pot-seg:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.pot-seg-ico {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+
+/* Mientras una marca viaja al servidor los tres botones lo dicen
+   (`aria-disabled`): el cursor espera y los no elegidos se atenúan. El foco no
+   se mueve del botón pulsado. */
+.pot-seg[aria-disabled='true'] {
+  cursor: progress;
+}
+
+.pot-seg[aria-disabled='true']:not([aria-pressed='true']) {
+  opacity: 0.55;
+}
+
+.pot-seg[aria-disabled='true']:not([aria-pressed='true']):hover {
+  border-color: var(--border);
+  color: var(--muted-foreground-strong);
+}
+
+.pot-seg--frio[aria-pressed='true'] {
+  border-color: var(--pot-frio);
+  background: var(--pot-frio);
+  color: #fff;
+}
+
+.pot-seg--tibio[aria-pressed='true'] {
+  border-color: var(--pot-tibio);
+  background: var(--pot-tibio);
+  color: #fff;
+}
+
+.pot-seg--estrella[aria-pressed='true'] {
+  border-color: var(--pot-oro);
+  background: var(--pot-oro-solido);
+  color: var(--pot-oro-tinta);
+  box-shadow: 0 0 0 3px rgb(200 146 42 / 0.15), 0 6px 14px -8px rgb(138 90 18 / 0.6);
+  overflow: visible;
+  animation: pot-pulso 0.35s ease-out;
+  /* Contexto propio: el foco (z-index: -1) queda debajo del texto. */
+  isolation: isolate;
+}
+
+/* Foco que sigue al mouse, recortado al botón. */
+.pot-seg--estrella[aria-pressed='true']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(90px circle at var(--pot-mx, 50%) var(--pot-my, 50%), rgb(255 255 255 / 0.6), transparent 70%);
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+
+.pot-seg--estrella[aria-pressed='true']:hover::before {
+  opacity: 1;
+}
+
+.pot-nota {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted-foreground-strong);
+}
+
+/* Chispas doradas al confirmar Estrella. */
+.pot-chispas {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.pot-chispa {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: 1px;
+  background: linear-gradient(135deg, #fff8e1, #d9a63e);
+  box-shadow: 0 0 5px rgb(227 194 122 / 0.8);
+  animation: pot-chispa 0.75s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+@media (pointer: coarse) {
+  .pot-seg {
+    height: 44px;
+  }
+}
+
+/* ── Animaciones ─────────────────────────────────────────────────────────── */
+
+@keyframes pot-brillo {
+  0%,
+  60% {
+    transform: translateX(-130%);
+  }
+  90%,
+  100% {
+    transform: translateX(130%);
+  }
+}
+
+@keyframes pot-giro {
+  to {
+    --pot-angulo: 360deg;
+  }
+}
+
+@keyframes pot-aura {
+  0%,
+  100% {
+    box-shadow: var(--shadow-card), 0 0 10px -6px rgb(227 194 122 / 0.5);
+  }
+  50% {
+    box-shadow: var(--shadow-card), 0 0 18px -4px rgb(227 194 122 / 0.8);
+  }
+}
+
+@keyframes pot-pulso {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.04);
+  }
+}
+
+@keyframes pot-chispa {
+  from {
+    transform: translate(0, 0) rotate(45deg) scale(1);
+    opacity: 0.9;
+  }
+  to {
+    transform: translate(var(--pot-dx, 0), var(--pot-dy, 0)) rotate(180deg) scale(0);
+    opacity: 0;
+  }
+}
+
+/* ── Sin movimiento: mismo dorado, nada se mueve ─────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .pot-chip--estrella::after {
+    content: none;
+  }
+
+  [data-slot='card'][data-potencial='estrella'],
+  [data-slot='card'][data-potencial='estrella']:hover,
+  [data-slot='card'][data-potencial='estrella']:active {
+    animation: none;
+    transform: none;
+    transition: none;
+  }
+
+  [data-slot='card'][data-potencial='estrella']::after {
+    content: none;
+  }
+
+  .pot-seg {
+    transition: none;
+  }
+
+  .pot-seg--estrella[aria-pressed='true'] {
+    animation: none;
+  }
+
+  .pot-chispas {
+    display: none;
+  }
+
+  /* El foco de luz que sigue al cursor también es movimiento: fuera. La
+     Estrella se sigue distinguiendo por su chip, su franja y su fondo crema. */
+  tr[data-potencial='estrella']:hover,
+  tr[data-potencial='estrella']:focus-visible {
+    background-image: none;
+  }
+
+  button[data-potencial='estrella']::after,
+  .pot-seg--estrella[aria-pressed='true']::before {
+    content: none;
+  }
+}
+
+/* ── Alto contraste de Windows: el nivel elegido se distingue sin colores ── */
+
+@media (forced-colors: active) {
+  .pot-seg[aria-pressed='true'] {
+    forced-color-adjust: none;
+    border-color: Highlight;
+    background: Highlight;
+    color: HighlightText;
+    box-shadow: none;
+  }
+
+  .pot-seg--estrella[aria-pressed='true']::before {
+    content: none;
+  }
+}
+
+/* Impresión: sin brillos ni inclinación. */
+@media print {
+  [data-slot='card'][data-potencial='estrella'] {
+    animation: none;
+    transform: none;
+  }
+}
