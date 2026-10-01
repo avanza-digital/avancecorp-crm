@@ -60,8 +60,8 @@ archivos de los `!` están ahí con el mismo contenido. Lo que queda son pasos d
 7. ✅ **BANDERA ENCENDIDA por Miguel el 01/10/2026 14:04 Lima** (`encender-bandera.sql` con `!`);
    `verificar-lectura.sql`: bandera true, 0 marcas. Anotado en el ledger (PR #161, `9db5a37e`). La sesión NO pudo
    hacer la pasada visual (el conector de Chrome no estaba conectado; se dejó una vista previa demo en
-   `127.0.0.1:5180`, ya detenida) ni entrar a producción: **falta que alguien marque un lead de verdad y confirme que
-   el chip aparece en las cuatro vistas.** Interruptor de emergencia: `apagar-bandera.sql` (no borra marcas).
+   `127.0.0.1:5180`, ya detenida) ni entrar a producción. ✅ **Miguel lo miró en producción el mismo 01/10: «hasta
+   ahora lo veo todo muy bien».** Interruptor de emergencia: `apagar-bandera.sql` (no borra marcas).
 8. A la mañana siguiente de publicar la fase 2: `verificar-caducidad.sql` debe decir `succeeded`.
 
 Pendientes menores: ledger a «EN PROD» y traer al `main` local los archivos de las fases 2 y 3A cuando se publiquen;
