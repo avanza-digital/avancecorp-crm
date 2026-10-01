@@ -47,6 +47,8 @@
     "evidencia:f7:gate": "node supabase/scripts/evidencia-f7-accesos.mjs --gate",
     "test:sla:nucleo": "python3 supabase/scripts/test-sla-nucleo-local.py",
     "test:llamadas:local": "node supabase/scripts/test-llamadas-celular-local.mjs",
+    "test:llamadas-ingesta": "deno check --node-modules-dir=auto --frozen supabase/functions/crm-llamadas-ingesta/index.ts && deno test --node-modules-dir=auto --frozen supabase/functions/crm-llamadas-ingesta/handler.test.ts",
+    "test:llamadas-ingesta:mutantes": "node supabase/scripts/llamadas-celular/mutantes-edge.mjs",
     "gate:sla": "node supabase/scripts/gate-sla-nucleo.mjs",
     "gate:sla:produccion": "node supabase/scripts/gate-sla-produccion.mjs",
     "test:f5:preflight": "node --test supabase/scripts/f5/preflight-merge.test.mjs supabase/scripts/f5/documento.test.mjs",
