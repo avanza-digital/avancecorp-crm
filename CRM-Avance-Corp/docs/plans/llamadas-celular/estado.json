@@ -1,13 +1,13 @@
 {
-  "actualizado": "2026-10-01T18:21:42Z",
+  "actualizado": "2026-10-01T19:16:17Z",
   "meta": {
-    "novedad": "01/10 18:21 UTC: reactivación de F1 lista en el PR #160 para que Miguel la fusione y publique (revert solo del aplazamiento 9815ad02; gate completo, navegador y E2E verificados; los 2 fallos de E2E ya fallan en main). Hasta que se publique, la macro de C1 debe seguir con la URL sin número. F2 construida y probada en el banco local (87/87) y F3 en análisis, sin aplicar nada.",
-    "actualizado": "2026-10-01T18:21:42Z"
+    "novedad": "01/10 19:16 UTC: Miguel aprobó y fusionó el PR #160 (reactivación de F1) a las 18:38 UTC, pero todavía no la publicó: la build viva de las 18:52 UTC trae otro cambio (#159) y no el receptor. La macro de C1 sigue con la URL sin número hasta el release. F2 construida y probada en el banco local (87/87) y F3 en análisis, sin aplicar nada.",
+    "actualizado": "2026-10-01T19:16:17Z"
   },
   "fases": {
     "F0": { "estado": "curso", "actualizado": "2026-09-29T22:42:31Z" },
     "F2": { "estado": "curso", "actualizado": "2026-10-01T16:37:47Z" },
-    "F1": { "estado": "hecha", "evidencia": "30/09/2026, rama feat/llamadas-f0 (9b638279…5d9f21c3): coordinador, ruta, coincidencia exacta y receptor con 4998 tests en verde, E2E Docker 285 passed, prueba física en C1 y aceptación de §7 cumplida. Sin tablas ni puertas nuevas. 30/09 21:41 UTC: PR #148 aprobado y fusionado a main por Miguel (6ace8487). NO ACTIVA EN PRODUCCIÓN: Miguel decidió «Solo documentos; mantener F1 pendiente» y el PR #151 (be280b6c) retiró temporalmente su activación. 01/10: con la autorización de Miguel (comunicada por Jhosep), REACTIVACIÓN PREPARADA en el PR #160 (feat/llamadas-f1-reactivar, ba811a74): revert solo de 9815ad02; npm run check y pre-push 5316 pruebas en verde, navegador PASS, E2E 300 passed con 2 fallos que ya fallan en main. Espera el merge y el release de Miguel.", "actualizado": "2026-10-01T18:21:42Z" },
+    "F1": { "estado": "hecha", "evidencia": "30/09/2026, rama feat/llamadas-f0 (9b638279…5d9f21c3): coordinador, ruta, coincidencia exacta y receptor con 4998 tests en verde, E2E Docker 285 passed, prueba física en C1 y aceptación de §7 cumplida. Sin tablas ni puertas nuevas. 30/09 21:41 UTC: PR #148 aprobado y fusionado a main por Miguel (6ace8487). NO ACTIVA EN PRODUCCIÓN: Miguel decidió «Solo documentos; mantener F1 pendiente» y el PR #151 (be280b6c) retiró temporalmente su activación. 01/10: con la autorización de Miguel (comunicada por Jhosep), REACTIVACIÓN PREPARADA en el PR #160 (feat/llamadas-f1-reactivar, ba811a74): revert solo de 9815ad02; npm run check y pre-push 5316 pruebas en verde, navegador PASS, E2E 300 passed con 2 fallos que ya fallan en main. 01/10 18:38 UTC: Miguel aprobó y fusionó el PR #160 a main (20f7deea). SIN PUBLICAR: la build viva build-20261001T185238130Z (18:52 UTC) trae el PR #159 pero no el receptor (comprobado a las 19:16 UTC en los 86 archivos del sitio; la build del PR #160 sí lo trae). Falta el release de F1, que es de Miguel.", "actualizado": "2026-10-01T19:16:17Z" },
     "F3": { "estado": "curso", "actualizado": "2026-10-01T16:51:32Z" }
   },
   "subfases": {
@@ -98,6 +98,7 @@
     { "at": "2026-10-01T16:37:47Z", "texto": "F2-d (parte local, 560fd922): concurrencia con dos sesiones reales en el banco desechable, 3 casos en verde; 87/87 estable. F2.4.1 hecha; F2.4.2 y F2.4.3 esperan un banco con el esquema de producción." },
     { "at": "2026-10-01T16:51:32Z", "texto": "F3 en curso como análisis: F3-PLAN-CORTO.md (contrato, Edge Function sobre el molde de crm-agenda-ics, decisiones para Miguel y pruebas de MacroDroid en C1 para Jhosep). Sin código." },
     { "at": "2026-10-01T17:21:42Z", "texto": "Corrección: F1 no está activa en producción. El PR #151 de Miguel («Solo documentos; mantener F1 pendiente») retiró su activación en App, contacto, auth y Gestión Diaria; la build viva no monta el receptor. Lo descubrió la prueba de Jhosep en C1 (la app abre sin encuesta). La verificación de las 14:41 UTC fue insuficiente: buscó el código del router, no el receptor montado." },
-    { "at": "2026-10-01T18:21:42Z", "texto": "Reactivación de F1 preparada con la autorización de Miguel: PR #160 (https://github.com/avanza-digital/avancecorp-crm/pull/160), revert solo de 9815ad02. npm run check y pre-push 5316 pruebas, navegador PASS (encuesta en «Ahora» y aviso sin lead), E2E Docker 300 passed; los 2 fallos restantes ya fallan en main sin el cambio. El merge y el release los hace Miguel." }
+    { "at": "2026-10-01T18:21:42Z", "texto": "Reactivación de F1 preparada con la autorización de Miguel: PR #160 (https://github.com/avanza-digital/avancecorp-crm/pull/160), revert solo de 9815ad02. npm run check y pre-push 5316 pruebas, navegador PASS (encuesta en «Ahora» y aviso sin lead), E2E Docker 300 passed; los 2 fallos restantes ya fallan en main sin el cambio. El merge y el release los hace Miguel." },
+    { "at": "2026-10-01T19:16:17Z", "texto": "PR #160 aprobado y fusionado a main por Miguel (18:38 UTC, 20f7deea). No está publicado: la build viva build-20261001T185238130Z (18:52 UTC) contiene el PR #159 y no el receptor de F1. Método: el texto exclusivo del receptor no aparece en ninguno de los 86 archivos del sitio y sí en la build del PR #160. La macro sigue sin número hasta el release." }
   ]
 }
