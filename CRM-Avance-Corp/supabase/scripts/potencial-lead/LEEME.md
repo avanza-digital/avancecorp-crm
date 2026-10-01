@@ -32,6 +32,10 @@ reintentar si salta el timeout.
 
 ## Banco
 
+**Repetible con un comando:** `banco/montar-banco.sh` monta el banco desde cero y `banco/ciclo-fase1.sh`
+y `banco/ciclo-fase2.sh` corren todo lo de abajo (ciclo, pruebas, mutantes, concurrencia, registro y
+verificación). Detalle y cómo leer la salida en `banco/LEEME.md`.
+
 Docker propio `avancecorp-potencial-20260930` (imagen `supabase/postgres:17.6.1.105`, puerto
 55470 en loopback), esquema `public,crm,private` volcado de producción el 30/09 con paridad de
 huellas: 280 funciones `crm` y 540 `private` idénticas (con el mismo `search_path`; el texto de
@@ -77,3 +81,74 @@ permisos de las privadas se leen del catálogo, nunca se llaman.
 mismo instante que una marca no se serializa con ella (la marca queda; el actor ya no la usa ni la ve).
 ⚠️ Fase 2 (caducidad): debe tomar el MISMO candado consultivo que `private.potencial_bloquear_lead`
 antes de escribir, o el `nivel_anterior` de sus eventos puede salir falso.
+
+---
+
+# Fase 2 · 20260930235917_crm_potencial_lead_caducidad — la marca baja sola
+
+Reglas de Miguel (30/09): Estrella → Tibio con 5 días sin gestión, Tibio → Frío con 10; cuentan de
+lunes a sábado; cada contacto o marca reinicia el reloj. Feriados: día normal (supuesto comunicado).
+
+- **Días completos:** `private.dias_lunes_a_sabado(desde, hasta)` cuenta los días ESTRICTAMENTE entre
+  las dos fechas (la tarea corre de madrugada: hoy aún no pasó).
+- **Corre todos los días** a las 05:10 y 05:40 Lima (`10,40 10 * * *`, pg_cron en GMT): el domingo no
+  cuenta como día, pero lo cumplido el sábado se aplica el domingo de madrugada (Codex f2 r1 F2).
+  Marcada un lunes y sin contacto, la Estrella baja el domingo de madrugada.
+- **Lote acotado** (Codex f2 r2 P2): como mucho 200 leads por pasada, de la marca más antigua a la más
+  nueva; la segunda pasada y los días siguientes recogen el resto. Los candados de una pasada se
+  sostienen hasta que termina: medido en el banco con 2 000 marcas vencidas, **200 leads = 34 ms**
+  (1 600 sin acotar = 162 ms). Ese es el máximo que puede esperar un usuario que toque uno de esos leads
+  a esa hora.
+- **Gestión = contacto:** los 5 tipos del índice `actividades_contacto_episodio_idx` (llamada realizada
+  o no contestada, WhatsApp enviado o recibido, reunión realizada). Las notas no cuentan. Cuentan los
+  contactos hasta el INSTANTE de la corrida (`p_corte`, Codex f2 r2 P1: un WhatsApp de la 01:00 salva
+  la marca en la corrida de las 05:10); uno con fecha futura no cuenta hasta su hora.
+- **La regla y el reloj en un solo lugar:** `private.potencial_nivel_tras` y `private.potencial_reloj`.
+- **Nunca espera** (Codex f2 r1 F1, auditor P3-1/P3-2): por candidato, `pg_try_advisory_xact_lock` (el
+  consultivo de la marca) y la fila del lead en `FOR SHARE SKIP LOCKED`; si algo está ocupado, el lead
+  queda para la próxima corrida. Bajo los candados revalida el lead (activo y abierto) y la marca, y
+  solo BAJA. `lock_timeout = 10s` como red. Un error real aborta la corrida del día (queda en
+  `cron.job_run_details`) y se pone al día al siguiente: la regla es acumulativa.
+- **Supuestos a confirmar con Miguel antes de encender la bandera** (auditor P3-5): Estrella llega a
+  Frío a los 10 días en total; el tiempo cerrado o inactivo cuenta como sin gestión; agendar o reasignar
+  no reinicia el reloj. Riesgo residual: un contacto confirmado entre la relectura y el UPDATE no se ve.
+
+## Orden en producción (Miguel con `!`, desde `CRM-Avance-Corp/`)
+
+1. `supabase db query --linked --file supabase/migrations/20260930235917_crm_potencial_lead_caducidad.sql`
+   — preflight: fase 1 con su candado, CHECK de tipos de `crm.actividades` igual al ensayado, contexto
+   del job (current_user postgres con BYPASSRLS, `cron.timezone` GMT, sin job previo con ese nombre);
+   postflight: 4 funciones INVOKER sin EXECUTE de la API (la tarea con `lock_timeout`), reloj y regla a
+   mano, y UN solo job con horario, comando, usuario y base exactos.
+2. `supabase db query --linked --file supabase/scripts/potencial-lead/registrar-caducidad.sql`.
+3. `supabase db query --linked --file supabase/scripts/potencial-lead/verificar-caducidad.sql` — solo
+   lectura: job, última corrida, permisos, marcas vivas y cuántas bajarían hoy.
+4. `supabase db advisors --linked --type all` — ninguna clase nueva.
+5. A la mañana siguiente, `verificar-caducidad.sql` otra vez: «última corrida» debe decir `succeeded`
+   (prueba de que el planificador ejecuta el job en producción).
+
+Reversa: `reversa-caducidad.sql` (desprograma el job y quita las funciones; el historial se queda;
+funciona con y sin pg_cron). La reversa de la fase 1 se niega mientras la fase 2 esté puesta.
+
+## Banco (mismo contenedor; pg_cron activado como en producción)
+
+- SIN pg_cron: migración → reversa → migración → reversa, todo en verde.
+- CON pg_cron: migración (job `10,40 10 * * *` postgres@postgres) → repetida (se niega) → reversa de la
+  fase 1 con la 2 puesta (se niega) → reversa f2 (sin job) → repetida (se niega) → migración.
+- **Corrida real de pg_cron** con la misma orden como `postgres`: `succeeded`.
+- `prueba-caducidad.sql` (la tarea llamada como postgres, corte a las 05:10): **51 de 51** con
+  calendario simulado de octubre (reloj, regla, contacto que reinicia, nota que no, contacto de 2099,
+  contacto viernes 21:00 Lima, contactos del domingo a las 00:00, 00:30 y 06:00 alrededor de la
+  corrida, lote con límite 2 y segunda pasada, bajada en domingo, convertido e inactivo intactos, idempotencia, re-marca, apagón de 11 días
+  directo a frío con un solo evento, auditoría con autor nulo). Fase 1 sin regresión: 75/75.
+- `prueba-concurrencia-caducidad.sh`: **10 de 10** (re-marca en vuelo y descarte en vuelo: salta sin
+  esperar; la corrida siguiente baja lo vencido).
+- Mutantes cazados: domingo cuenta, hoy incluido, nota es gestión, reloj sin contacto, contacto futuro
+  cuenta, sin zona Lima, umbral 4, tibio a los 5, sin límite, cerrados en filtro y relectura, corte al
+  inicio del día en filtro y relectura; esperar el consultivo y quitar SKIP LOCKED (concurrencia).
+  «Cerrados» y «corte» rotos SOLO en el filtro sobreviven: los cubre la relectura bajo candado (doble
+  cálculo, a propósito). Mutantes de la migración rechazados: EXECUTE abierto, una sola pasada, sin
+  `lock_timeout`, regla distinta.
+- Riesgos aceptados y escritos: un lead ocupado en cada corrida podría saltarse varios días (la regla
+  es acumulativa: baja cuando se procese); el preflight del contexto del job es conservador (otro alias
+  de UTC o rol equivalente daría rojo).

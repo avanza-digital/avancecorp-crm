@@ -1,3 +1,31 @@
+## 20260930235917 — Potencial del lead · fase 2: la marca baja sola (`private.potencial_caducar`, pg_cron `crm-potencial-lead-caducidad`)
+
+**⏸️ PENDIENTE: ensayada en banco Docker propio (con y sin pg_cron); NO aplicada en producción.** Miguel (30/09)
+«hazlo» tras publicar la fase 1; reglas suyas: Estrella → Tibio con 5 días sin gestión, Tibio → Frío con 10, lunes
+a sábado, cada gestión reinicia. Feriados como día normal (supuesto comunicado).
+
+Piezas (núcleo en private, sin puerta; INVOKER, sin EXECUTE de la API): `dias_lunes_a_sabado` (días completos
+estrictamente entre dos fechas, domingos fuera), `potencial_reloj` (marca o último CONTACTO hasta el instante de
+corte: los 5 tipos de `actividades_contacto_episodio_idx`; las notas no cuentan), `potencial_nivel_tras` (la regla,
+en un solo lugar) y `potencial_caducar(p_hoy, p_corte, p_limite)`: de la marca más antigua a la más nueva, como
+mucho 200 por pasada; NUNCA espera (consultivo de la fase 1 con try-lock y fila del lead `FOR SHARE SKIP LOCKED`;
+lo ocupado queda para la próxima pasada); revalida lead y marca bajo los candados; solo baja; origen `caducidad`
+y evento inmutable de autor nulo. pg_cron `10,40 10 * * *` (05:10 y 05:40 Lima, todos los días) como postgres.
+
+Revisión: auditor-rls PASS (7 P3, aplicados los de código). Codex r1 CHANGES_REQUESTED (elegibilidad sin revalidar,
+domingo aplazado, reversa sin pg_cron, contacto futuro, contexto del job) → todo aplicado. Codex r2
+CHANGES_REQUESTED: P1 (el corte al inicio del día ignoraba contactos de la madrugada) ACEPTADO: corte = instante de
+la corrida; P2 (candados retenidos todo el lote) ACEPTADO con lote acotado a 200 y dos pasadas, y MEDIDO: 200 leads =
+34 ms. Segunda y última ronda. Riesgos escritos: contacto confirmado entre la relectura y el UPDATE; lead ocupado
+en cada corrida se salta (regla acumulativa); preflight del job conservador.
+**Supuestos a confirmar con Miguel antes de encender la bandera:** Estrella llega a Frío a los 10 días en total (no
+5 + 10); el tiempo cerrado o inactivo cuenta como sin gestión; agendar o reasignar no reinicia el reloj.
+
+Banco: caducidad 51/51 (como postgres, calendario simulado), fase 1 sin regresión 75/75, concurrencia 10/10, corrida
+REAL de pg_cron `succeeded`, ciclo con y sin pg_cron; 13 mutantes de lógica y concurrencia cazados y 4 de la migración
+rechazados; reversa y registro idempotentes (md5 `a4dbc97c…`). Scripts: `supabase/scripts/potencial-lead/` (LEEME,
+sección «Fase 2»).
+
 ## 20260930235814 — Analista asignado en el PDF contractual
 
 Preparada y probada; publicación autorizada por Miguel el 30/09/2026.

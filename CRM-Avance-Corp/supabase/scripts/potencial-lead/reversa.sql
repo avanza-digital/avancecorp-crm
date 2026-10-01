@@ -22,6 +22,10 @@ begin
   ) is not true then
     raise exception 'REVERSA potencial_lead: la migración no está aplicada (faltan las tablas)';
   end if;
+  if exists (select 1 from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid = p.pronamespace
+             where n.nspname = 'private' and p.proname = 'potencial_caducar') then
+    raise exception 'REVERSA potencial_lead: la fase 2 (caducidad) sigue aplicada; corre antes reversa-caducidad.sql';
+  end if;
 end;
 $chk$;
 
