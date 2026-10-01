@@ -22,6 +22,7 @@ Consecuencia para el piloto: la gestión que se mide es la que el vendedor **hac
 | `actualizar-avance.mjs` | Regenera `PLAN.md` y `AVANCE.md` desde `estado.json` (`node actualizar-avance.mjs`) | — |
 | `PROPUESTAS-DE-AJUSTE.md` | Ajustes que Claude propone al plan, con evidencia. **No cambian el plan** hasta que Miguel los apruebe | Claude |
 | `F2-PLAN-CORTO.md` | Borrador del contrato y del diseño de F2 (tablas, núcleo, RLS, verificación, orden de PRs) apoyado en el catálogo real. Sin SQL hasta el OK de Miguel; incluye las 7 decisiones que él debe fijar | Claude |
+| `F3-PLAN-CORTO.md` | Borrador de F3 (Edge Function de ingesta, puerta de servicio, límite, salud, macro durable) con las 5 decisiones para Miguel y las 6 pruebas que Jhosep debe hacer en C1 antes de escribir la macro. Sin código hasta el OK | Claude |
 | `HANDOFF-<fecha>.md` | Cierre de cada sesión: qué se hizo, cómo probarlo, qué falta y el prompt para retomar | Claude |
 
 ## Dónde verlo en vivo

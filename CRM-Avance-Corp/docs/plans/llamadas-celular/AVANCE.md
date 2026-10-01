@@ -1,10 +1,10 @@
 # Avance — Llamadas desde el celular al CRM
 
-Actualizado: 01/10/2026, 11:37 a. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
+Actualizado: 01/10/2026, 11:51 a. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
 
 Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact/Q3GmV9m6Cy2GPQGKAbNy8M · Plan completo: `PLAN.md` en esta carpeta.
 
-**Lo último:** 01/10 16:37 UTC: concurrencia probada con dos sesiones reales (560fd922): mismo envío a la vez, otro contenido a la vez y dos consumidores enlazando; la segunda espera y responde bien. Banco local 87/87. F2.4.1 hecha. Lo que falta de F2 (contrato ratificado por Miguel, gate RLS con el esquema de producción, advisors, auditor-rls, Codex) depende de Miguel. Nada aplicado en ningún entorno compartido.
+**Lo último:** 01/10 16:51 UTC: F3 arranca como ANÁLISIS: F3-PLAN-CORTO.md (Edge Function de ingesta con credencial por celular, como crm-agenda-ics; puerta de servicio, límite y salud) con 5 decisiones para Miguel y 6 pruebas que Jhosep debe hacer en C1 con MacroDroid antes de escribir la macro. F2 construida y probada en el banco local (87/87), sin aplicar. Nada aplicado en ningún entorno compartido.
 
 **Total:** 21 de 102 tareas · 1 de 8 fases hechas.
 
@@ -13,7 +13,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 | F0 · Piloto y línea base | 1/12 | En curso | 0/4 |
 | F1 · Formulario único y coincidencia exacta | 12/12 | Hecha | 4/4 |
 | F2 · Núcleo confiable y contrato de datos | 8/13 | En curso | 2/4 |
-| F3 · Captura, puertas y sincronización durable | 0/13 | Pendiente | 0/4 |
+| F3 · Captura, puertas y sincronización durable | 0/13 | En curso | 0/4 |
 | F4 · Bandeja y registro conciliado en celular y PC | 0/13 | Pendiente | 0/4 |
 | F5 · Jev para identificación asistida | 0/15 | Pendiente | 0/5 |
 | F6 · Gerencia y calidad de evidencia | 0/12 | Pendiente | 0/4 |
@@ -72,10 +72,10 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
     - ◐ F2.4.2 — SQL ejecutado en entorno aislado (banco reducido desechable, 87/87). Falta: banco con el esquema de producción, bloque testLlamadasCelular en test-rls.mjs, advisors reales, auditor-rls y revisión Codex LEVEL 3. Necesita a Miguel (banco o rama de Supabase). (01/10/2026, 11:37 a. m.)
     - ◐ F2.4.3 — COMMENT completos (el postflight los exige) y ledger con estado honesto (MIGRACIONES.md). Falta la evidencia de aceptación en el banco con el esquema de producción antes de habilitar consumidores (F3/F4). (01/10/2026, 11:37 a. m.)
 
-### F3 · Captura, puertas y sincronización durable — 0/13 · pendiente
-- **F3.1 · Publicar el contrato de puertas** — 0/3 · pendiente · Responsable: por asignar
+### F3 · Captura, puertas y sincronización durable — 0/13 · en curso
+- **F3.1 · Publicar el contrato de puertas** — 0/3 · en curso · Responsable: Claude (borrador) · Miguel (decide) · Solo análisis: F3-PLAN-CORTO.md con el contrato (la mayoría de las puertas ya existe desde F2-c; falta la de servicio, la bandeja paginada y la salud) y 5 decisiones para Miguel. Sin código hasta su OK.
 - **F3.2 · Proteger la ingesta** — 0/3 · pendiente · Responsable: por asignar
-- **F3.3 · Persistir y enviar** — 0/4 · pendiente · Responsable: por asignar
+- **F3.3 · Persistir y enviar** — 0/4 · en curso · Responsable: Jhosep (pruebas en C1) · Antes de escribir la macro: 6 pruebas en C1 (POST con cabecera y {call_number}, id de origen estable, cola persistente, reintento, doble disparo, credencial fuera del registro). Si la cola no es durable, se evalúa otro adaptador.
 - **F3.4 · Probar recuperación** — 0/3 · pendiente · Responsable: por asignar
 
 ### F4 · Bandeja y registro conciliado en celular y PC — 0/13 · pendiente
@@ -105,6 +105,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 
 ## Últimos cambios
 
+- 01/10/2026, 11:51 a. m. · F3 en curso como análisis: F3-PLAN-CORTO.md (contrato, Edge Function sobre el molde de crm-agenda-ics, decisiones para Miguel y pruebas de MacroDroid en C1 para Jhosep). Sin código.
 - 01/10/2026, 11:37 a. m. · F2-d (parte local, 560fd922): concurrencia con dos sesiones reales en el banco desechable, 3 casos en verde; 87/87 estable. F2.4.1 hecha; F2.4.2 y F2.4.3 esperan un banco con el esquema de producción.
 - 01/10/2026, 11:19 a. m. · F2-c construida (fda9310e): núcleo y 11 puertas DEFINER con ámbito por lead; reversa del núcleo; oráculo con actores simulados (43 defensas) y 25 mutantes cazados. F2.2.3, F2.2.4 y F2.3.1–F2.3.3 hechas; F2.2 y F2.3 cerradas en el banco reducido. Cuatro decisiones de criterio anotadas para Miguel.
 - 01/10/2026, 10:51 a. m. · F2-b construida (eb73df1b): migración de datos de llamadas del celular + reversas + oráculo + banco reducido (npm run test:llamadas:local, 45/45, 32 mutantes cazados). Hallazgos corregidos por el banco: las reversas morían sin pg_cron; las FK de autoría vuelven a RESTRICT para que la baja de usuarios detecte el historial; el hash del payload se enmascara en la auditoría. F2.2.1 y F2.2.2 hechas.
@@ -119,4 +120,3 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 - 30/09/2026, 03:20 p. m. · F1.1.3 y F1.4.1 hechas (navegador contra la demo + tests); F1.1 cerrada. Correcciones: 600 ms para que «Ahora» tome la intención, la cola se atiende sola, la intención delegada es de «Mi día», sin duplicados sobre un lead abierto (5d9f21c3). Vitest a 15 s por test (39172c6e).
 - 30/09/2026, 02:25 p. m. · F1.4.2 hecha: prueba real en C1 con la build de la rama (macro real, login, build real con lead propio sin guardar). Macro devuelta a producción. Observación de Jhosep: para un lead que no es el de «Ahora» se abre la ficha con el diálogo (por diseño; posible ajuste para Miguel).
 - 30/09/2026, 01:58 p. m. · C1: la macro real (Abrir sitio web con {call_number}) abrió Chrome en la demo y el receptor mostró el aviso con el número marcado. El número viaja de MacroDroid al CRM. REGISTRO.md §5b.
-- 30/09/2026, 01:13 p. m. · C1: tras la corrección, la URL con número abrió la encuesta de TERESA en «Ahora» en el celular (demo). Registrado en REGISTRO.md §5b.

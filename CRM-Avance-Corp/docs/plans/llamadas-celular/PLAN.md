@@ -131,7 +131,7 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 | F0 · Piloto y línea base | 4 | 1/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-2) |
 | F1 · Formulario único y match exacto | 4 | 12/12 | Hecha | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-8) |
 | F2 · Núcleo confiable | 4 | 8/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-14) |
-| F3 · Captura y sincronización | 4 | 0/13 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-20) |
+| F3 · Captura y sincronización | 4 | 0/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-20) |
 | F4 · Pendientes y conciliación | 4 | 0/13 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-66) |
 | F5 · Jev para identificación asistida | 5 | 0/15 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-72) |
 | F6 · Gerencia y calidad | 4 | 0/12 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-78) |
@@ -333,11 +333,11 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 | Listar/alta/baja/rotar celular | Capacidad de administración resuelta en servidor |
 | Registrar salud | Credencial de equipo, datos mínimos; heartbeat no demuestra captura sana |
 
-**Seguimiento de F3:** 0/13 tareas completadas · Estado: pendiente · Responsable nominal: por asignar.
+**Seguimiento de F3:** 0/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
 
 ### F3.1 · Publicar el contrato de puertas
 
-**Estado:** pendiente · **Avance:** 0/3 · **Responsable:** por asignar.
+**Estado:** en curso · **Avance:** 0/3 · **Responsable:** Claude (borrador) · Miguel (decide).
 
 - [ ] **F3.1.1** Implementar ingesta, listado paginado, detalle por UUID, asociación, enlace, descarte y salud.
 - [ ] **F3.1.2** Restringir administración de equipos por capacidad y resolver actor/ámbito en servidor.
@@ -357,7 +357,7 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 
 ### F3.3 · Persistir y enviar
 
-**Estado:** pendiente · **Avance:** 0/4 · **Responsable:** por asignar.
+**Estado:** en curso · **Avance:** 0/4 · **Responsable:** Jhosep (pruebas en C1).
 
 - [ ] **F3.3.1** Crear ID, hora y payload una vez; guardar en cola local antes del POST.
 - [ ] **F3.3.2** Reintentar red caída, 429 y reinicio; retirar solo tras confirmación y visibilizar errores permanentes.
