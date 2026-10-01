@@ -1,10 +1,10 @@
 # Avance — Llamadas desde el celular al CRM
 
-Actualizado: 01/10/2026, 02:16 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
+Actualizado: 01/10/2026, 04:11 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
 
 Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact/Q3GmV9m6Cy2GPQGKAbNy8M · Plan completo: `PLAN.md` en esta carpeta.
 
-**Lo último:** 01/10 19:16 UTC: Miguel aprobó y fusionó el PR #160 (reactivación de F1) a las 18:38 UTC, pero todavía no la publicó: la build viva de las 18:52 UTC trae otro cambio (#159) y no el receptor. La macro de C1 sigue con la URL sin número hasta el release. F2 construida y probada en el banco local (87/87) y F3 en análisis, sin aplicar nada.
+**Lo último:** 01/10 21:11 UTC: Jhosep tomó como provisionales 4 de las 5 decisiones de F3 (clave por celular, límite 30/min y 600/día, salud cada 6 h, abrir la encuesta de F1). Empieza F3-a (base) en el banco local, sin aplicar nada. F1 sigue fusionada en main pero sin publicar: la macro de C1 sigue con la URL sin número.
 
 **Total:** 21 de 102 tareas · 1 de 8 fases hechas.
 
@@ -73,7 +73,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
     - ◐ F2.4.3 — COMMENT completos (el postflight los exige) y ledger con estado honesto (MIGRACIONES.md). Falta la evidencia de aceptación en el banco con el esquema de producción antes de habilitar consumidores (F3/F4). (01/10/2026, 11:37 a. m.)
 
 ### F3 · Captura, puertas y sincronización durable — 0/13 · en curso
-- **F3.1 · Publicar el contrato de puertas** — 0/3 · en curso · Responsable: Claude (borrador) · Miguel (decide) · Solo análisis: F3-PLAN-CORTO.md con el contrato (la mayoría de las puertas ya existe desde F2-c; falta la de servicio, la bandeja paginada y la salud) y 5 decisiones para Miguel. Sin código hasta su OK.
+- **F3.1 · Publicar el contrato de puertas** — 0/3 · en curso · Responsable: Jhosep (decisiones provisionales) · Miguel (ratifica) · Claude (construye) · 01/10 21:10 UTC: Jhosep tomó como provisionales 4 de las 5 decisiones de F3-PLAN-CORTO.md (Miguel no estaba disponible): clave por celular con verify_jwt=false, límite de 30 por minuto y 600 al día, salud cada 6 h y al vaciar la cola, y abrir la encuesta de F1 por número. La 5.ª (otro adaptador si MacroDroid no es durable) espera las pruebas en C1. Siguiente: F3-a (base) en la rama y en el banco local, sin aplicar.
 - **F3.2 · Proteger la ingesta** — 0/3 · pendiente · Responsable: por asignar
 - **F3.3 · Persistir y enviar** — 0/4 · en curso · Responsable: Jhosep (pruebas en C1) · Antes de escribir la macro: 6 pruebas en C1 (POST con cabecera y {call_number}, id de origen estable, cola persistente, reintento, doble disparo, credencial fuera del registro). Si la cola no es durable, se evalúa otro adaptador.
 - **F3.4 · Probar recuperación** — 0/3 · pendiente · Responsable: por asignar
@@ -105,6 +105,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 
 ## Últimos cambios
 
+- 01/10/2026, 04:11 p. m. · F3: Jhosep tomó como provisionales las decisiones 1–4 (clave por celular con verify_jwt=false, 30 por minuto y 600 al día, salud cada 6 h y al vaciar la cola, abrir la encuesta de F1 por número); Miguel las ratifica. La 5 espera las pruebas en C1. Arranca F3-a en el banco local.
 - 01/10/2026, 02:16 p. m. · PR #160 aprobado y fusionado a main por Miguel (18:38 UTC, 20f7deea). No está publicado: la build viva build-20261001T185238130Z (18:52 UTC) contiene el PR #159 y no el receptor de F1. Método: el texto exclusivo del receptor no aparece en ninguno de los 86 archivos del sitio y sí en la build del PR #160. La macro sigue sin número hasta el release.
 - 01/10/2026, 01:21 p. m. · Reactivación de F1 preparada con la autorización de Miguel: PR #160 (https://github.com/avanza-digital/avancecorp-crm/pull/160), revert solo de 9815ad02. npm run check y pre-push 5316 pruebas, navegador PASS (encuesta en «Ahora» y aviso sin lead), E2E Docker 300 passed; los 2 fallos restantes ya fallan en main sin el cambio. El merge y el release los hace Miguel.
 - 01/10/2026, 12:21 p. m. · Corrección: F1 no está activa en producción. El PR #151 de Miguel («Solo documentos; mantener F1 pendiente») retiró su activación en App, contacto, auth y Gestión Diaria; la build viva no monta el receptor. Lo descubrió la prueba de Jhosep en C1 (la app abre sin encuesta). La verificación de las 14:41 UTC fue insuficiente: buscó el código del router, no el receptor montado.
@@ -119,4 +120,3 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 - 30/09/2026, 04:41 p. m. · F2-PLAN-CORTO.md afinado con los tres mapas de solo lectura: enlace por actividad_id de v4, autor por ámbito, Deshacer sin desenlazar, F2 aditiva, credencial con hash, idempotencia P0409, RLS sin policies, auditoría sin teléfonos, purga, molde de migración, reversa y contrato de ingesta para F3. Sigue sin SQL hasta el OK de Miguel.
 - 30/09/2026, 04:21 p. m. · F2 en curso como análisis: F2-PLAN-CORTO.md (contrato con 7 decisiones para Miguel, diseño de datos, núcleo, RLS, verificación, orden de PRs). F2.1 y F2.2 en curso. Sin código ni SQL.
 - 30/09/2026, 04:08 p. m. · Publicación de F1 preparada para Miguel: PR #148 a main (https://github.com/avanza-digital/avancecorp-crm/pull/148) con IMPLEMENTED/REVIEW/VERIFICATION/RISKS y los pasos manuales del release. main fusionado en la rama (d326c6b9). Nada publicado.
-- 30/09/2026, 03:37 p. m. · F1.4.3 hecha y F1 cerrada: E2E Docker 285 passed / 26 skipped / 1 flaky ajeno / 0 failed (12,5 min). F1 completa en la rama; sin publicar.

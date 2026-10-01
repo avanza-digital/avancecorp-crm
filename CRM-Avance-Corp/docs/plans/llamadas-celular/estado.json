@@ -1,8 +1,8 @@
 {
-  "actualizado": "2026-10-01T19:16:17Z",
+  "actualizado": "2026-10-01T21:11:10Z",
   "meta": {
-    "novedad": "01/10 19:16 UTC: Miguel aprobó y fusionó el PR #160 (reactivación de F1) a las 18:38 UTC, pero todavía no la publicó: la build viva de las 18:52 UTC trae otro cambio (#159) y no el receptor. La macro de C1 sigue con la URL sin número hasta el release. F2 construida y probada en el banco local (87/87) y F3 en análisis, sin aplicar nada.",
-    "actualizado": "2026-10-01T19:16:17Z"
+    "novedad": "01/10 21:11 UTC: Jhosep tomó como provisionales 4 de las 5 decisiones de F3 (clave por celular, límite 30/min y 600/día, salud cada 6 h, abrir la encuesta de F1). Empieza F3-a (base) en el banco local, sin aplicar nada. F1 sigue fusionada en main pero sin publicar: la macro de C1 sigue con la URL sin número.",
+    "actualizado": "2026-10-01T21:11:10Z"
   },
   "fases": {
     "F0": { "estado": "curso", "actualizado": "2026-09-29T22:42:31Z" },
@@ -22,7 +22,7 @@
     "F0.4": { "estado": "curso", "nota": "Guía, registro y matriz entregados; falta la evidencia por equipo del piloto y la decisión.", "actualizado": "2026-09-29T22:42:31Z" },
     "F2.3": { "estado": "hecha", "responsable": "Claude (construye y prueba) · Miguel (aprueba y aplica)", "evidencia": "01/10/2026: núcleo y 11 puertas (fda9310e); oráculo con actores simulados (43 defensas), 25 mutantes del núcleo cazados, reversa del núcleo en orden y fuera de orden. Sin aplicar en ningún entorno compartido.", "nota": "Cerrada en el banco reducido. Decisiones de criterio de Claude para Miguel: solo gerencia asigna celulares y fija la política; llamada a un lead ajeno = por revisar para la cadena del dueño; resultado enlazable solo si es posterior a la llamada; celular para vendedor o supervisor activos.", "actualizado": "2026-10-01T16:19:47Z" },
     "F2.4": { "estado": "curso", "responsable": "Claude (banco local) · Miguel (banco de producción, revisión y OK)", "nota": "Concurrencia e idempotencia probadas con dos sesiones reales en el banco local (F2.4.1 hecha). Lo que falta (gate RLS ampliado, advisors, auditor-rls, Codex) necesita un banco con el esquema de producción.", "actualizado": "2026-10-01T16:37:47Z" },
-    "F3.1": { "estado": "curso", "responsable": "Claude (borrador) · Miguel (decide)", "nota": "Solo análisis: F3-PLAN-CORTO.md con el contrato (la mayoría de las puertas ya existe desde F2-c; falta la de servicio, la bandeja paginada y la salud) y 5 decisiones para Miguel. Sin código hasta su OK.", "actualizado": "2026-10-01T16:51:32Z" },
+    "F3.1": { "estado": "curso", "responsable": "Jhosep (decisiones provisionales) · Miguel (ratifica) · Claude (construye)", "nota": "01/10 21:10 UTC: Jhosep tomó como provisionales 4 de las 5 decisiones de F3-PLAN-CORTO.md (Miguel no estaba disponible): clave por celular con verify_jwt=false, límite de 30 por minuto y 600 al día, salud cada 6 h y al vaciar la cola, y abrir la encuesta de F1 por número. La 5.ª (otro adaptador si MacroDroid no es durable) espera las pruebas en C1. Siguiente: F3-a (base) en la rama y en el banco local, sin aplicar.", "actualizado": "2026-10-01T21:11:10Z" },
     "F3.3": { "estado": "curso", "responsable": "Jhosep (pruebas en C1)", "nota": "Antes de escribir la macro: 6 pruebas en C1 (POST con cabecera y {call_number}, id de origen estable, cola persistente, reintento, doble disparo, credencial fuera del registro). Si la cola no es durable, se evalúa otro adaptador.", "actualizado": "2026-10-01T16:51:32Z" }
   },
   "tareas": {
@@ -99,6 +99,7 @@
     { "at": "2026-10-01T16:51:32Z", "texto": "F3 en curso como análisis: F3-PLAN-CORTO.md (contrato, Edge Function sobre el molde de crm-agenda-ics, decisiones para Miguel y pruebas de MacroDroid en C1 para Jhosep). Sin código." },
     { "at": "2026-10-01T17:21:42Z", "texto": "Corrección: F1 no está activa en producción. El PR #151 de Miguel («Solo documentos; mantener F1 pendiente») retiró su activación en App, contacto, auth y Gestión Diaria; la build viva no monta el receptor. Lo descubrió la prueba de Jhosep en C1 (la app abre sin encuesta). La verificación de las 14:41 UTC fue insuficiente: buscó el código del router, no el receptor montado." },
     { "at": "2026-10-01T18:21:42Z", "texto": "Reactivación de F1 preparada con la autorización de Miguel: PR #160 (https://github.com/avanza-digital/avancecorp-crm/pull/160), revert solo de 9815ad02. npm run check y pre-push 5316 pruebas, navegador PASS (encuesta en «Ahora» y aviso sin lead), E2E Docker 300 passed; los 2 fallos restantes ya fallan en main sin el cambio. El merge y el release los hace Miguel." },
-    { "at": "2026-10-01T19:16:17Z", "texto": "PR #160 aprobado y fusionado a main por Miguel (18:38 UTC, 20f7deea). No está publicado: la build viva build-20261001T185238130Z (18:52 UTC) contiene el PR #159 y no el receptor de F1. Método: el texto exclusivo del receptor no aparece en ninguno de los 86 archivos del sitio y sí en la build del PR #160. La macro sigue sin número hasta el release." }
+    { "at": "2026-10-01T19:16:17Z", "texto": "PR #160 aprobado y fusionado a main por Miguel (18:38 UTC, 20f7deea). No está publicado: la build viva build-20261001T185238130Z (18:52 UTC) contiene el PR #159 y no el receptor de F1. Método: el texto exclusivo del receptor no aparece en ninguno de los 86 archivos del sitio y sí en la build del PR #160. La macro sigue sin número hasta el release." },
+    { "at": "2026-10-01T21:11:10Z", "texto": "F3: Jhosep tomó como provisionales las decisiones 1–4 (clave por celular con verify_jwt=false, 30 por minuto y 600 al día, salud cada 6 h y al vaciar la cola, abrir la encuesta de F1 por número); Miguel las ratifica. La 5 espera las pruebas en C1. Arranca F3-a en el banco local." }
   ]
 }

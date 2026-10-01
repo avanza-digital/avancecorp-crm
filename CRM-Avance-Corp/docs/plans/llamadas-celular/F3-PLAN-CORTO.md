@@ -2,6 +2,8 @@
 
 Claude, 01/10/2026. Solo análisis: **sin SQL ni código** hasta el OK. Sigue la §9 de `PLAN.md` (Versión 3 aprobada) y se apoya en lo que F2 ya dejó construido en `feat/llamadas-f2` (`eb73df1b`, `fda9310e`; sin aplicar). Abre un punto de entrada público con `verify_jwt = false` y una credencial por dispositivo → **LEVEL 3**: plan y OK de Miguel, banco, `auditor-rls` y Codex antes de aplicar.
 
+**Actualización 01/10, 21:10 UTC:** con las decisiones 1–4 que Jhosep tomó como provisionales (abajo), F3-a se construye en `feat/llamadas-f2` y se prueba en el banco reducido local, como F2. Nada se aplica al Supabase compartido ni a `main` sin el OK de Miguel.
+
 ## En una línea
 
 Con F2 la base sabe guardar y trabajar llamadas; con F3 **el celular las envía solo**: al colgar, MacroDroid guarda el evento en su cola, lo manda a una Edge Function con la credencial del celular, la base lo guarda una sola vez aunque el envío se repita, y el celular abre la encuesta. Si MacroDroid no demuestra una cola durable en C1, el plan manda documentar el límite y evaluar otro adaptador antes de prometer captura durable.
@@ -55,13 +57,15 @@ Si 3 o 4 fallan, MacroDroid no acredita durabilidad: se documenta el límite y s
 
 ## Decisiones que necesita Miguel
 
-| # | Decisión | Recomendación |
-| --- | --- | --- |
-| 1 | Excepción `verify_jwt = false` para la ingesta | Sí, como `crm-agenda-ics`: credencial por celular (solo su hash en la base), 401 uniforme, tope de cuerpo y límite |
-| 2 | Límite por celular | 30 eventos por minuto y 600 por día; al pasarse, 429 con `Retry-After` |
-| 3 | Salud del celular | Tabla mínima; latido cada 6 h y al vaciar la cola |
-| 4 | Qué abre el celular tras guardar | La URL de F1 por número hasta que F4 tenga la ruta por evento; también tras un 202 «ignorada», para que el analista vea el aviso de F1 |
-| 5 | Adaptador si MacroDroid no es durable | Documentar el límite y evaluar Tasker o una app mínima antes de prometer captura durable |
+Miguel no estaba disponible el 01/10. **Jhosep tomó las decisiones 1 a 4 como provisionales** (formulario, 01/10 hacia las 21:10 UTC) para que F3-a avance en el banco local; Miguel las ratifica o las cambia con él. La 5 depende de las pruebas en C1.
+
+| # | Decisión | Recomendación | Lo que decidió Jhosep (provisional) |
+| --- | --- | --- | --- |
+| 1 | Excepción `verify_jwt = false` para la ingesta | Sí, como `crm-agenda-ics`: credencial por celular (solo su hash en la base), 401 uniforme, tope de cuerpo y límite | **Sí, clave por celular.** Preguntó cómo llena la encuesta un analista sin sesión: la clave solo deja el aviso de la llamada; la encuesta la llena el analista en la app con su sesión (si no la tiene, el CRM le pide entrar y el enlace sobrevive al login, F1.2.2) |
+| 2 | Límite por celular | 30 eventos por minuto y 600 por día; al pasarse, 429 con `Retry-After` | **La recomendada:** 30 por minuto y 600 al día |
+| 3 | Salud del celular | Tabla mínima; latido cada 6 h y al vaciar la cola | **La recomendada:** cada 6 h y al vaciar la cola |
+| 4 | Qué abre el celular tras guardar | La URL de F1 por número hasta que F4 tenga la ruta por evento; también tras un 202 «ignorada», para que el analista vea el aviso de F1 | **La recomendada:** la encuesta de F1 por número |
+| 5 | Adaptador si MacroDroid no es durable | Documentar el límite y evaluar Tasker o una app mínima antes de prometer captura durable | Pendiente: depende de las pruebas 3 y 4 en C1 |
 
 ## Orden de trabajo (un PR por paso, cada uno con plan aprobado)
 

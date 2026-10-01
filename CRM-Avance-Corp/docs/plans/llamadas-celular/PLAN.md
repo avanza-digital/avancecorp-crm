@@ -337,7 +337,7 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 
 ### F3.1 · Publicar el contrato de puertas
 
-**Estado:** en curso · **Avance:** 0/3 · **Responsable:** Claude (borrador) · Miguel (decide).
+**Estado:** en curso · **Avance:** 0/3 · **Responsable:** Jhosep (decisiones provisionales) · Miguel (ratifica) · Claude (construye).
 
 - [ ] **F3.1.1** Implementar ingesta, listado paginado, detalle por UUID, asociación, enlace, descarte y salud.
 - [ ] **F3.1.2** Restringir administración de equipos por capacidad y resolver actor/ámbito en servidor.
