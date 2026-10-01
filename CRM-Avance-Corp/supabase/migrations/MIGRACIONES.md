@@ -1,7 +1,14 @@
 ## 20261001154153 — Pipeline «Gestionado»: filtro `p_gestion` en `crm.cartera_filtrada_fn`
 
-**⏸️ PENDIENTE: ensayada en banco Docker propio (`avancecorp-gestionado-20261001`); NO aplicada en producción (la
-publica Miguel).** Pedido de los analistas: una columna «Gestionado» entre «Nuevo» y «Contactado» para los leads que ya
+**✅ APLICADA Y REGISTRADA EN PRODUCCIÓN el 01/10/2026 (~15:20 Lima), por `!` de Miguel** (`db query --linked --file`
+de la migración y luego de `cartera-gestion/registrar.sql`). Verificado después, en solo lectura: `acreditar.sql` dice
+«DESPUES de publicar», 15 anclas `[OK]` y 0 diferencias (firma única de 13 argumentos, md5 `bf06666f…`, solo
+`authenticated` ejecuta, declaración analítica movida y sellada, fila en `schema_migrations`); sonda HTTP anónima con
+`p_gestion` → 401/`42501` (la API ya conoce el parámetro) y control con un parámetro inexistente → 404/`PGRST202`.
+El rojo ajeno del censo (`private.gestion_diaria_cola_hechos`) sigue igual que antes. **El frente que envía
+`p_gestion` aún NO está publicado.** NOT RUN: advisors (sin herramienta en la sesión) y la matriz de `test-rls.mjs`
+(exige credenciales). Antes se ensayó en banco Docker propio (`avancecorp-gestionado-20261001`), remontado el mismo día
+con el esquema de producción de la tarde (paridad de huellas: `crm` 286, `private` 553). Pedido de los analistas: una columna «Gestionado» entre «Nuevo» y «Contactado» para los leads que ya
 se intentaron contactar (llamada sin respuesta, WhatsApp enviado) y aún no responden. No nace una etapa guardada —el
 lead sigue en `etapa = 'nuevo'`—: la columna se calcula. Decisión de Miguel (01/10): un lead reasignado que el analista
 anterior ya intentó es «Nuevo» para el actual; solo cuenta lo gestionado desde que el titular ACTUAL lo recibió.

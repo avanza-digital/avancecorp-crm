@@ -1,7 +1,8 @@
 # Pipeline «Gestionado»: filtro `p_gestion` en `crm.cartera_filtrada_fn`
 
-Migración `20261001154153_crm_cartera_filtro_gestion.sql`. **Ensayada en banco Docker propio el
-01/10/2026; NO aplicada en producción** (la publica Miguel). Acta en `../../migrations/MIGRACIONES.md`.
+Migración `20261001154153_crm_cartera_filtro_gestion.sql`. **Ensayada en banco Docker propio y APLICADA en
+producción el 01/10/2026 (~15:20 Lima) por `!` de Miguel**; acreditada después en solo lectura (15 anclas `[OK]`)
+y con la sonda HTTP. El frente que envía `p_gestion` se publica aparte. Acta en `../../migrations/MIGRACIONES.md`.
 
 ## Qué hace
 
