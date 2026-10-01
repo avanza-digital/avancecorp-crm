@@ -2,8 +2,10 @@
 
 Estado: F1 del plan «Llamadas desde el celular al CRM» (Versión 3 aprobada por Miguel)
 terminada en la rama `feat/llamadas-f0`, aprobada y fusionada a `main` por Miguel (PR #148,
-30/09 21:41 UTC); **sin publicar**: producción vive la build de Coordinación de las 21:37 UTC,
-sin F1. F0 (piloto con el celular C1) sigue midiendo.
+30/09 21:41 UTC) y **publicada el 01/10/2026 a las 00:21 UTC** (`build-20261001T002155841Z`,
+desde la rama de rescate `rescue/conversion-desglose-20261001`; verificado en el bundle vivo el
+01/10 a las 14:41 UTC). Desde ese momento la macro de C1 puede llevar `{call_number}`. F0 (piloto
+con el celular C1) sigue midiendo.
 
 Objetivo de negocio (Jhosep, 30/09): que los vendedores registren cada llamada sin
 esfuerzo. Al colgar, MacroDroid abre `https://crm.miavance.com/#/gestion-diaria/llamada/{call_number}`;
