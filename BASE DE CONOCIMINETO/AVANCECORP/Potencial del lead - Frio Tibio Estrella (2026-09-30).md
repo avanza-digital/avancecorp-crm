@@ -237,6 +237,66 @@ leads con seguimientos; umbral según los seguimientos; bandera propia para apag
 - Banco: caducidad 51/51, fase 1 sin regresión 75/75, concurrencia 10/10, corrida real de pg_cron, ciclo con y sin
   pg_cron. auditor-rls PASS; Codex r1 + r2 aplicados.
 
+## Fase 3 · mapa y plan (01/10/2026, tras el «seguimos» de Miguel)
+
+**Estado:** PR #157 fusionada (`78ede498`); la fase 2 sigue sin el `!`; supuestos confirmados. Plan de la fase 3 presentado
+en dos entregas; **esperando el OK de Miguel. Nada de código todavía.**
+
+**Mapa (dos agentes Explore, front y servidor; rutas del worktree `wt-potencial-lead`):**
+- Las 4 vistas leen de TRES fuentes en sesión real. Tabla de Leads (`screens/cartera.tsx`) y Pipeline (`screens/pipeline.tsx`,
+  4 listas, una por columna) → `crm.cartera_filtrada_fn` (INVOKER, `to_jsonb` de un CTE, contrato con eco y coherencia por
+  fila; ojo: NO `cartera_pagina_fn`, aunque varios comentarios lo digan). Ficha (`components/app/lead-drawer.tsx`) → SELECT
+  directo a `crm.leads` (`obtenerLeadDelAmbitoPorId`, `data/crm-api.ts:611`). Cola de hoy
+  (`components/gestion-diaria/cola-de-hoy.tsx`) → `crm.gestion_diaria_cola_trabajo_fn` (`data/gestion-diaria-cola-api.ts`),
+  con filas que NO son `Lead`.
+- Varias puertas del SLA y de Gestión Diaria están selladas por md5 (`private.assert_cola_v3`,
+  `assert_gestion_diaria_analista`, `assert_sla_nucleo`) y hay un censo diario de «contadores crudos»
+  (`private.contadores_crudos_leads_citas`): toda función que nombre `crm.leads` y use `count(` debe estar declarada.
+- El store ya no carga todos los leads y en la fusión «la fila nueva manda» (`fusionarLeadsConocidos`, `lib/store.tsx:537`):
+  un dato que viaje en la lista y no en la ficha se pierde al abrirla (ya pasó con `reasignado`). Las listas pintan sus
+  páginas de TanStack, no el store.
+- No hay lector genérico de banderas en el front: cada módulo tiene su puerta de estado (`{version:1, habilitada}`; el error
+  `PGRST202` se trata como apagado: `data/inversionistas-api.ts:31`). `crm.bandera_activa(text)` existe (DEFINER, EXECUTE
+  para authenticated) pero el front no la llama.
+- **Precedente exacto:** `crm.cierres_estado_fn(p_lead_ids uuid[])` (DEFINER, tope de 200, admisión + `puede_acceder_crm()`,
+  espejo de la policy `leads_select`, devuelve solo los leads «con algo que decir»). En el front: `obtenerCierresEstado`
+  (lotes de 200, `data/crm-api.ts:6420`) y `useCierresEstado` (`data/crm-queries.ts:1188`), usados por la tabla con los ids
+  de la página (`cartera.tsx:325`) y por la ficha con `[l.id]` (`lead-drawer.tsx:406`).
+- Molde de escritura desde la ficha: «Reabrir» (`lead-drawer.tsx:412`, `store.tsx:2995`, `crm-api.ts:2295`); `aErrorApi`
+  traduce 42501, P0409, P0001 y 22023. La puerta de marcar lanza además 55000 (bandera apagada) y P0002 (fuera de ámbito).
+- `motion` NO es dependencia del CRM (sí `gsap` y `@gsap/react`): la pieza CRM-05 usa Motion, así que la animación se
+  porta a CSS con eventos de puntero o a GSAP. `prefers-reduced-motion` ya tiene bloque global (`index.css:391`). Tokens en
+  `index.css:24-106`; no hay token dorado; el ámbar `#d97706` ya significa cuatro cosas.
+- Las pruebas cierran en falso: una RPC nueva sin mock da 500 en todos los specs e2e de sesión real
+  (`e2e/_helpers.ts:3429`) y rompe los msw (`onUnhandledRequest: 'error'`). La demo guarda copia en `sessionStorage`
+  (`ac-crm-demo-datos-v2`). `database.types.ts` aún no conoce `marcar_potencial_lead_fn` (falta `gen:types`, que lee
+  producción).
+- El CRM VIVO es `c6e65d9e` (rama `rescue/conversion-desglose-20261001`, `build-20261001T002155841Z`): no es ancestro de
+  `main`, aunque `app/` es idéntico al de `avancecorp/main`. La rama del front debe contener ese commit para pasar el
+  preflight.
+- Otra sesión tiene cambios SIN commitear en el taller sobre `lead-drawer.tsx`, `cola-de-hoy.tsx`, `cartera.tsx`,
+  `store.tsx`, `crm-api.ts`, `tipos.ts` y `e2e/_helpers.ts`: tocar esos archivos lo mínimo y poner lo nuevo en archivos
+  propios.
+- El volcado del banco (30/09 16:32) va por detrás: faltan `20260930193325_crm_documentos_lead`,
+  `20260930221500_crm_conversion_coordinacion_desglose_cierres` y `20260930235814_crm_pdf_analista_asignado`. El 01/10 el
+  modo automático bloqueó a la sesión las lecturas de producción: el volcado nuevo lo lanza Miguel con `!`.
+
+**Entrega A · marcar y ver (diseño elegido: lectura APARTE, sin tocar ninguna puerta existente):**
+- Servidor: una migración con `crm.potencial_leads_fn(p_lead_ids uuid[]) returns jsonb`. DEFINER justificado: las tablas
+  no tienen grants y el núcleo no tiene EXECUTE para la API; molde `cierres_estado_fn`. Sobre `{version, habilitada, items}`;
+  con la bandera apagada devuelve `habilitada: false` sin leer nada. Por lead: nivel, origen, quién y cuándo, días sin
+  gestión, a qué nivel baja y qué día (con `potencial_reloj`, `dias_lunes_a_sabado` y `potencial_nivel_tras`: la regla
+  sigue en UN lugar) y `puede_marcar` (con `private.potencial_rechazo`: la misma regla de la puerta de marcar). Prueba de
+  equivalencia contra la RLS real de `crm.leads`, mutantes, auditor-rls y Codex (LEVEL 3).
+- Front: archivos nuevos (`data/potencial-api`, `data/potencial-queries`, `lib/potencial`, chip, selector y estilos) y UNA
+  inserción por vista; caché propia por ids; sin tocar `Lead`, `aLead` ni el store. Demo con marcas en memoria. Test en el
+  ESTADO DE PRODUCCIÓN (bandera apagada y bandera encendida sin marcas).
+- Orden: servidor con la bandera apagada → front (`/release-crm` de Miguel) → encender la bandera con `!` de Miguel.
+
+**Entrega B · filtrar:** filtro por potencial con conteo en Leads, resuelto en el servidor. Toca `cartera_filtrada_fn`
+(argumento nuevo, eco, coherencia por fila, conteos del resumen, clave de caché, espejo demo y espejo e2e) y, por ser
+INVOKER, necesita un ayudante DEFINER al estilo de `private.cartera_recepciones_fn`. Plan propio.
+
 ## Propuesta INICIAL de servidor (superada: ver «Fase 1 · ejecución» y «Fase 2»)
 
 - La sugerencia de Jev ya tiene casa en `crm.lead_temperatura` (F1 de temperatura, escrita y
