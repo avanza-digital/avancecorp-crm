@@ -1,8 +1,20 @@
 ## 20261001151704 — Potencial del lead · fase 3, entrega A: la puerta de lectura (`crm.potencial_leads_fn`)
 
-**⏸️ PENDIENTE: ensayada en banco Docker propio; NO aplicada en producción.** Exige aplicar ANTES la fase 2
-(`20260930235917`): su preflight se niega si faltan el reloj y la regla. Gate `test:rls` con sesiones reales: NOT RUN
-(local sin gestor de credenciales). Plan aprobado por Miguel el 01/10/2026 («vamos dale»): la pantalla en dos entregas,
+**✅ EN PROD desde el 01/10/2026 13:40 Lima (Miguel con `!`: migración → `registrar-lectura.sql` →
+`verificar-lectura.sql`), con la bandera `potencial_lead` APAGADA.** Verificación en producción: ejecutan la puerta
+`[authenticated]`, 0 EXECUTE de la API en los 3 ayudantes, 0 funciones con ACL nula, forma `DEFINER/s/search_path=""`,
+job `10,40 10 * * * activo=true`, bandera false, 0 marcas, registro `crm_potencial_lead_lectura`. Antes de aplicarla se
+montó un banco NUEVO con el volcado de producción de ese día (ya con la fase 2): 873 funciones, 110 policies, 1 336
+columnas y 337 disparadores idénticos a los del banco de las pruebas, y los tres ciclos en verde sobre él. Exigía la
+fase 2 (`20260930235917`), aplicada 13 minutos antes. Gate `test:rls` con sesiones reales: NOT RUN (local sin gestor de
+credenciales).
+
+**Pantalla publicada y bandera ENCENDIDA el mismo día.** Front: `build-20261001T185238130Z`, commit `54690b06`, rama
+`release/potencial-lead-f3a-20261001` (01/10/2026 13:57 Lima; preflight y smoke OK). **Bandera `potencial_lead`
+encendida por Miguel el 01/10/2026 a las 14:04 Lima** con `!` (`encender-bandera.sql`); `verificar-lectura.sql`
+después: bandera true, 0 marcas. Desde ese momento el analista dueño y su supervisor marcan Frío, Tibio o Estrella, y
+la marca se ve en Leads, Pipeline, cola de hoy y ficha. Interruptor de emergencia: `apagar-bandera.sql` (no borra
+marcas). La bitácora (`public.audit_log`) no guarda el actor cuando el cambio sale de `db query`: queda anotado aquí. Plan aprobado por Miguel el 01/10/2026 («vamos dale»): la pantalla en dos entregas,
 A marcar y ver, B filtrar. **No modifica ninguna función, tabla ni policy existente.**
 
 Piezas: puerta `crm.potencial_leads_fn(uuid[])` (DEFINER, STABLE, **EXECUTE solo `authenticated`**; anon y service_role
@@ -50,7 +62,11 @@ sección «Fase 3, entrega A»).
 
 ## 20260930235917 — Potencial del lead · fase 2: la marca baja sola (`private.potencial_caducar`, pg_cron `crm-potencial-lead-caducidad`)
 
-**⏸️ PENDIENTE: ensayada en banco Docker propio (con y sin pg_cron); NO aplicada en producción.** Miguel (30/09)
+**✅ EN PROD desde el 01/10/2026 13:27 Lima (Miguel con `!`: migración → `registrar-caducidad.sql` →
+`verificar-caducidad.sql`).** Verificación en producción: job `[10,40 10 * * * select private.potencial_caducar()
+postgres@postgres activo=true]`, última corrida «aún no corrió» (primera pasada el 02/10 a las 05:10 Lima), 0 EXECUTE
+ajenos, 0 marcas vivas, registro `crm_potencial_lead_caducidad`. Advisors tras aplicarla: 248, las mismas 6 clases que
+el 30/09 (ninguna nueva). Miguel (30/09)
 «hazlo» tras publicar la fase 1; reglas suyas: Estrella → Tibio con 5 días sin gestión, Tibio → Frío con 10, lunes
 a sábado, cada gestión reinicia. Feriados como día normal (supuesto comunicado).
 
