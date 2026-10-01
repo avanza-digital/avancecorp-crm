@@ -25,9 +25,11 @@ Miguel cerró el día con «guarda todo y seguimos mañana». En orden:
    tenga cambios sin commitear de otra sesión).
 3. **A la mañana siguiente de aplicarla:** `verificar-caducidad.sql` otra vez; «última corrida» debe decir
    `succeeded` (prueba de que el planificador de producción la ejecuta).
-4. **Confirmar con Miguel 3 supuestos** antes de encender la bandera: Estrella llega a Frío a los 10 días en total (no
-   5 + 10); el tiempo cerrado o inactivo cuenta como sin gestión; agendar o reasignar no reinicia el reloj. (Feriados
-   = día normal, ya comunicado.)
+4. ✅ **Supuestos CONFIRMADOS por Miguel el 01/10/2026** (cuatro preguntas con opciones; eligió en las cuatro lo ya
+   construido, así que la fase 2 queda como está, sin enmienda): Estrella llega a Frío a los 10 días en total (no
+   5 + 10); el tiempo cerrado o inactivo SÍ cuenta como sin gestión; solo el contacto real (y volver a marcar) reinicia
+   el reloj: notas, tareas agendadas y reasignaciones no; al reasignar, la marca viaja con el lead y la cuenta sigue
+   igual. (Feriados = día normal, ya comunicado.)
 5. **PRs:** la #153 (fase 1) ya está fusionada en el `main` de GitHub (`11ec4326`). La #156 (fase 2) se fusionó
    40 minutos después, pero sobre la rama `crm/potencial-lead-f1`: su contenido quedó ahí (`346d3a93`) y NO llegó a
    `main`. Por eso existe la **PR #157** (rama `crm/potencial-lead-f2-main`): el mismo contenido asentado sobre el
@@ -102,6 +104,9 @@ Archivo: `ui-playground/galeria/src/componentes/PotencialLead.tsx`.
 - **Quién la cambia:** el analista dueño del lead y su supervisor. Gerencia solo ve y filtra.
 - **No cambia el orden** de la cola del día: el vencimiento manda; el potencial se ve y se filtra.
 - **Arranque: primero la marca MANUAL.** Jev se suma después.
+- **Confirmado el 01/10:** Estrella llega a Frío a los 10 días en total; el tiempo con el lead cerrado o inactivo
+  cuenta; solo el contacto real o volver a marcar reinician la cuenta (ni notas, ni tareas agendadas, ni reasignar);
+  al reasignar, la marca viaja con el lead.
 - **Jev (fase 2):** no marca al inicio (lead sin seguimientos). Sugiere a partir de los
   **seguimientos**: si son positivos o comercialmente se acercan a una venta, sugiere Estrella.
   **Debe poder desactivarse** (interruptor) por si Jev no funciona bien.
@@ -225,7 +230,7 @@ leads con seguimientos; umbral según los seguimientos; bandera propia para apag
   contactos cuentan» es el INSTANTE de la corrida, no el inicio del día (un WhatsApp de la 01:00 debe salvar la marca a
   las 05:10); (4) un procedimiento con `SET search_path` no puede hacer COMMIT, por eso lote acotado y no «un commit por
   lead»; (5) `pg_cron` en Supabase corre como cliente (`cron.use_background_workers=off`), en GMT, como postgres.
-- **Supuestos a confirmar con Miguel antes de encender la bandera:** Estrella llega a Frío a los 10 días en total (no
+- **Supuestos (✅ confirmados por Miguel el 01/10/2026):** Estrella llega a Frío a los 10 días en total (no
   5 + 10); el tiempo cerrado o inactivo cuenta como sin gestión; agendar o reasignar no reinicia el reloj; feriados = día
   normal.
 - Banco: caducidad 51/51, fase 1 sin regresión 75/75, concurrencia 10/10, corrida real de pg_cron, ciclo con y sin
@@ -243,4 +248,4 @@ leads con seguimientos; umbral según los seguimientos; bandera propia para apag
 ## Abierto
 
 - «Frío» no es descartar: el descarte con motivo sigue siendo la única salida.
-- Al reasignar el lead, la marca viaja con él (supuesto, no preguntado).
+- ✅ Al reasignar el lead, la marca viaja con él y la cuenta de días sigue igual (confirmado por Miguel el 01/10/2026).
