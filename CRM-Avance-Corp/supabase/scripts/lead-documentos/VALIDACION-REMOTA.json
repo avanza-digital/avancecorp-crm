@@ -1,0 +1,91 @@
+{
+  "branch": {
+    "name": "lead-documentos-publicacion-20260930",
+    "id": "c333b3e1-2996-4bd2-a898-d4a86149d9a5",
+    "ref": "saiwhmjrgqdggscfimbu"
+  },
+  "state": "VALIDADA, pendiente merge y frontend",
+  "baselineCatalog": [
+    {
+      "clase": "columnas",
+      "huella": "ef4379894373ed679e4b85070b94e733",
+      "piezas": 1320
+    },
+    {
+      "clase": "funciones",
+      "huella": "9a54e4aac1b3e2a537de2cedfc514619",
+      "piezas": 858
+    },
+    {
+      "clase": "grants_columnas",
+      "huella": "e5bbbdd529eb722e8f728627fff1cefd",
+      "piezas": 7668
+    },
+    {
+      "clase": "indices",
+      "huella": "cfdef99c720999354b482e0afcbf1bfa",
+      "piezas": 478
+    },
+    {
+      "clase": "policies",
+      "huella": "dbb335032420616036a835aa84059594",
+      "piezas": 125
+    },
+    {
+      "clase": "tablas_rls",
+      "huella": "ab474bdabc4b6c8fb590af1ade8d00ac",
+      "piezas": 134
+    },
+    {
+      "clase": "triggers",
+      "huella": "2ccd18a5d3ed12e4d7085841d259bc80",
+      "piezas": 333
+    }
+  ],
+  "edgeFunctions": {
+    "count": 22,
+    "hashAndJwtParity": true
+  },
+  "storageBuckets": {
+    "count": 5,
+    "parity": true,
+    "productionObjectsCopied": 0
+  },
+  "ledger": {
+    "historicalCount": 400,
+    "md5": "1a622c80f35014b1fa4b3a9d31baf789",
+    "candidate": "20260930193325"
+  },
+  "advisors": {
+    "security": {
+      "before": 4,
+      "after": 4,
+      "added": []
+    },
+    "performance": {
+      "before": 6,
+      "after": 6,
+      "added": []
+    }
+  },
+  "tests": {
+    "app": {
+      "files": 328,
+      "passed": 5100
+    },
+    "docker": {
+      "passed": 298,
+      "skipped": 26,
+      "failed": 0
+    },
+    "sql": 52,
+    "http": 12,
+    "rlsContracts": 287,
+    "rlsIdentity": 30
+  },
+  "scope": {
+    "documents": true,
+    "llamadasF1": false,
+    "authorization": "dale ya pouedes; Solo documentos; mantener F1 pendiente"
+  }
+}

@@ -87,6 +87,21 @@ describe('mutaciones del store demo', () => {
   afterAll(() => vi.unstubAllEnvs())
 
   describe('crearLead', () => {
+    it.each([['CE', '001234567'], ['PASAPORTE', 'AB12345678']] as const)('conserva %s en la identidad y rechaza un duplicado', async (tipo, numero) => {
+      const { api, mutar } = await montarStore('vendedor')
+      const creado = mutar((a) => a.crearLead(inputBase({ documento: { tipo, numero } })))
+      expect(creado.ok).toBe(true)
+      expect(api().lead(creado.id!)).toMatchObject({ dni: null, documento: { tipo, numero } })
+      expect(mutar((a) => a.crearLead(inputBase({ telefono: '900000002', documento: { tipo, numero } })))).toMatchObject({ ok: false, codigo: 'duplicado_dni' })
+    })
+
+    it('rechaza CE inválido sin recortarlo y permite números iguales de tipos distintos', async () => {
+      const { mutar } = await montarStore('vendedor')
+      expect(mutar((a) => a.crearLead(inputBase({ documento: { tipo: 'CE', numero: '12345678' } })))).toMatchObject({ ok: false, campo: 'dni' })
+      expect(mutar((a) => a.crearLead(inputBase({ documento: { tipo: 'PASAPORTE', numero: '12345678' } })))).toMatchObject({ ok: true })
+      expect(mutar((a) => a.crearLead(inputBase({ telefono: '900000002', dni: '12345678' })))).toMatchObject({ ok: true })
+    })
+
     it.each(['monto_estimado', 'moneda'] as const)(
       'rechaza creación si la propiedad obligatoria %s fue omitida en runtime',
       async (campo) => {

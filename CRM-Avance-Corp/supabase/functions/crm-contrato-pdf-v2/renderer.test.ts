@@ -466,7 +466,10 @@ Deno.test("cuenta de pago registrada desde el portal: se acepta y no cambia un b
     } catch (error) {
       rechazo = error instanceof TypeError;
     }
-    assert(rechazo, `rechaza origen ${JSON.stringify(invalido) ?? "undefined"}`);
+    assert(
+      rechazo,
+      `rechaza origen ${JSON.stringify(invalido) ?? "undefined"}`,
+    );
   }
 });
 
@@ -955,5 +958,115 @@ Deno.test("anexo v1 con 60 cuotas cabe en varias hojas sin romper filas", async 
     (texto.match(/\/Type \/Page[^s]/g) ?? []).length,
     4,
     "cuatro hojas (60 cuotas + firmas)",
+  );
+});
+
+// Snapshot 3: el autor del registro no tiene por qué ser el analista asignado.
+function snapshotAnalistaAsignado() {
+  return {
+    ...structuredClone(SNAPSHOT),
+    snapshotVersion: 3,
+    contrato: {
+      ...SNAPSHOT.contrato,
+      analistaId: "22222222-2222-4222-8222-222222222222",
+    },
+    analista: {
+      ...SNAPSHOT.analista,
+      id: "22222222-2222-4222-8222-222222222222",
+      nombreCompleto: "ANALISTA ASIGNADA",
+      celular: "988111333",
+      correo: "asignada@example.test",
+    },
+  };
+}
+
+Deno.test("snapshot 3 separa analista asignado de autor y conserva sus contactos", () => {
+  const s = validarSnapshotContratoV2(snapshotAnalistaAsignado());
+  igual(s.snapshotVersion, 3, "versión preservada");
+  igual(s.contrato.creadoPor, SNAPSHOT.contrato.creadoPor, "autor intacto");
+  igual(
+    s.analista.id,
+    s.contrato.analistaId,
+    "analista autorizado por snapshot",
+  );
+  igual(s.analista.nombreCompleto, "ANALISTA ASIGNADA", "nombre asignado");
+  igual(s.analista.correo, "asignada@example.test", "contacto asignado");
+});
+
+type SnapshotParaMutar = {
+  contrato: Record<string, unknown>;
+  analista: Record<string, unknown>;
+  snapshotVersion: unknown;
+};
+
+for (
+  const [caso, mutar] of [
+    ["analistaId ausente", (s: SnapshotParaMutar) => {
+      delete s.contrato.analistaId;
+    }],
+    ["analistaId nulo", (s: SnapshotParaMutar) => {
+      s.contrato.analistaId = null;
+    }],
+    ["analistaId arreglo", (s: SnapshotParaMutar) => {
+      s.contrato.analistaId = [s.analista.id];
+    }],
+    ["analista diferente", (s: SnapshotParaMutar) => {
+      s.analista.id = s.contrato.creadoPor;
+    }],
+    ["autor inválido", (s: SnapshotParaMutar) => {
+      s.contrato.creadoPor = null;
+    }],
+    ["campo adicional", (s: SnapshotParaMutar) => {
+      s.contrato.responsable = s.analista.id;
+    }],
+    ["versión desconocida", (s: SnapshotParaMutar) => {
+      s.snapshotVersion = 4;
+    }],
+    ["versión como texto", (s: SnapshotParaMutar) => {
+      s.snapshotVersion = "3";
+    }],
+    ["v2 con analistaId", (s: SnapshotParaMutar) => {
+      s.snapshotVersion = 2;
+    }],
+  ] as const
+) {
+  Deno.test(`snapshot 3 rechaza ${caso}`, () => {
+    const s = snapshotAnalistaAsignado();
+    mutar(s);
+    let rechazo = false;
+    try {
+      validarSnapshotContratoV2(s);
+    } catch (e) {
+      rechazo = e instanceof TypeError;
+    }
+    assert(rechazo, caso);
+  });
+}
+
+Deno.test("snapshots 2 y 3 del mismo contenido producen bytes idénticos", async () => {
+  const s = {
+    ...structuredClone(SNAPSHOT),
+    snapshotVersion: 3,
+    contrato: { ...SNAPSHOT.contrato, analistaId: SNAPSHOT.analista.id },
+  };
+  const fecha = "2026-09-30T12:00:00Z";
+  const a = await renderizarContratoPdfV2(SNAPSHOT, fecha);
+  const b = await renderizarContratoPdfV2(s, fecha);
+  igual(
+    await sha256Bytes(new Uint8Array(await a.blob.arrayBuffer())),
+    await sha256Bytes(new Uint8Array(await b.blob.arrayBuffer())),
+    "plantilla y bytes intactos",
+  );
+});
+
+Deno.test("renderer emite PDF real de la analista asignada con autor distinto", async () => {
+  const pdf = await renderizarContratoPdfV2(
+    snapshotAnalistaAsignado(),
+    "2026-09-30T12:00:00Z",
+  );
+  igual(
+    new TextDecoder().decode((await pdf.blob.arrayBuffer()).slice(0, 5)),
+    "%PDF-",
+    "PDF real",
   );
 });

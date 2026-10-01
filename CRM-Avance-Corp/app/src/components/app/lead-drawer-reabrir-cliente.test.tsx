@@ -18,6 +18,7 @@ import type { Lead } from '@/lib/tipos'
 import { LeadDrawer } from './lead-drawer'
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() } }))
+vi.mock('@/data/documento-lead', () => ({ useDocumentoLead: () => ({ data: undefined, isPending: false, isError: false }) }))
 const { buscar } = vi.hoisted(() => ({ buscar: vi.fn() }))
 vi.mock('@/data/cliente-existente-api', () => ({ buscarClienteExistente: buscar, obtenerContextoClienteExistente: vi.fn(),
   cuentasClienteExistente: vi.fn(), datosLegalesClienteExistente: vi.fn(), contratosUpgradeClienteExistente: vi.fn() }))

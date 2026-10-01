@@ -4593,6 +4593,32 @@ export type Database = {
       }
     }
     Functions: {
+      crear_lead_documento_fn: {
+        Args: { p_datos: Json; p_documento: string; p_tipo: string }
+        Returns: Json
+      }
+      documento_lead_fn: { Args: { p_lead_id: string }; Returns: Json }
+      editar_lead_documento_fn: {
+        Args: {
+          p_cambios: Json
+          p_documento: string
+          p_identificador_anterior?: string
+          p_lead_id: string
+          p_motivo?: string
+          p_tipo: string
+        }
+        Returns: Json
+      }
+      fijar_documento_lead_fn: {
+        Args: {
+          p_documento: string
+          p_identificador_anterior?: string
+          p_lead_id: string
+          p_motivo?: string
+          p_tipo: string
+        }
+        Returns: Json
+      }
       abandonar_conversion_gerencia_fn: {
         Args: { p_lead_id: string; p_motivo: string }
         Returns: Json

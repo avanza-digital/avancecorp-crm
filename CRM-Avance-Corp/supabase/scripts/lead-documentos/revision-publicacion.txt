@@ -1,0 +1,107 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+The five functions implement the corrections from the first review: GUC restore, target postcondition, flag check under lock, validation before the resolver, and rollback on a rejected create. The read path mirrors a restrictive scope, and grants are tight. Two items still need action before the remote isolated gate:
+
+- **Unverified authorization inheritance.** Two `SECURITY DEFINER` wrappers delegate to pre-existing RPCs whose security mode was not attached (P1, stated as a hypothesis).
+- **The postcondition does not pin which lead the admin correction touched.** It rejects a stale DNI on the target but not a correction that landed on a different lead (P2).
+
+The remaining items are P3 edge cases and test gaps. I audited only the attached source. The PRIMARY's test results are not treated as my own evidence.
+
+FINDINGS:
+
+[P1] High. Definer wrappers may bypass RLS or column grants in the delegated legacy RPCs (hypothesis; missing evidence)
+File: migration, `crm.crear_lead_documento_fn` and `crm.fijar_documento_lead_fn`
+Lines: `crear_lead_documento_fn`, the `v_resultado := crm.crear_lead_si_disponible(...)` call; `fijar_documento_lead_fn`, `perform crm.fijar_dni_lead_fn(p_lead_id,v_numero)`
+Problem: Both wrappers are `security definer`. Nothing attached shows how `crm.crear_lead_si_disponible` and `crm.fijar_dni_lead_fn` authorize their callers. Their md5 is pinned, but their source and `prosecdef` are not attached.
+- If either is `SECURITY INVOKER` and relies on `leads_insert`/`leads_update` RLS or column grants, calling it from a definer wrapper runs it as the function owner. RLS would then be bypassed.
+- The alta allowlist accepts client-controlled `etapa`, `vendedor_id` and `id`. A vendedor could then create a lead assigned to another vendedor, or directly in `etapa='convertido'`/`'descartado'`, unless `crear_lead_si_disponible` validates those explicitly using `auth.uid()`.
+Evidence: `editar_lead_documento_fn` deliberately uses `SECURITY INVOKER` "para conservar RLS y grants por columna de editar_lead_fn". That comment shows the codebase does depend on invoker RLS for some legacy RPCs. `crear_lead_documento_fn` has no equivalent reasoning or test.
+Impact: If the hypothesis holds, this is a P0 privilege widening: cross-scope lead creation or a bypassed conversion flow. That contradicts "No widening of access intended."
+Recommendation:
+1. Attach `prosecdef` plus the authorization block of both RPCs.
+2. If either is invoker-reliant, re-implement its checks in the wrapper, or make the wrapper invoker and move only the identity step into a narrow definer helper.
+3. In either case, add SQL tests: a vendedor passing another `vendedor_id`, a vendedor passing `etapa:'convertido'`, and a lector_global calling create or fix.
+
+[P2] High-Medium. The admin correction can confirm while mutating and auditing a different lead than `p_lead_id`
+File: migration, `fijar_documento_lead_fn`, admin branch
+Lines: from `perform crm.corregir_documento_inversionista_fn(...)` to the postcondition `if private.inversionista_canonica(v_l.inversionista_id) ... or (v_l.dni is not null and ...)`
+Problem: `corregir_documento_inversionista_fn` chooses its lead with `select * into v_lead from crm.leads l where l.inversionista_id = p_inversionista order by l.id limit 1`. That lead can differ from `p_lead_id`. The wrapper's postcondition passes whenever the target lead has `dni is null` and a matching canonical identity.
+Evidence: Consider a person with a lower-id lead L1 (for example converted, with `dni` = old DNI) and a target lead L2 with `dni null` (an ordinary state for CE/passport leads or after an earlier correction). Correcting from L2:
+- nulls or rewrites `L1.dni`;
+- writes `inversionista_operaciones.lead_id = L1`;
+- inserts the "Documento corregido" actividad on L1;
+- passes the postcondition on L2, so the transaction commits.
+
+The test suite covers only the bridge-only case (`lead 002`, inversionista_id nulled), which aborts because the canonical identity differs. It does not cover two directly linked leads.
+Impact: The audit trail and actividad point to a lead the admin did not act on. A converted/closed lead's legacy `dni` is mutated from an open lead's ficha. That contradicts the fijar-level rule that closed leads are corrected "desde la ficha del cliente".
+Recommendation: Before calling `corregir`, require `array(select private.leads_de_identidades(array[persona])) = array[p_lead_id]`, or require that the first direct lead by id equals `p_lead_id`. Alternatively, after the call, assert `select lead_id from crm.inversionista_operaciones where id = (result->>'operacion_id')::uuid` equals `p_lead_id`. Otherwise raise the existing "requiere conciliar los leads" P0409. Add a test with two directly linked leads.
+
+[P2] Medium. Vendor-initiated identity link and legacy DNI removal leave no audit trail
+File: migration, `fijar_documento_lead_fn`, non-DNI new-identity branch
+Lines: `perform set_config('crm.op_privilegiada','on',true); update crm.leads set dni=null,inversionista_id=v_persona where id=p_lead_id;`
+Problem: A vendedor can replace a lead's legacy `dni` (`v_pre.dni`) with a CE/passport identity. The branch also creates an identity through `inversionista_resolver(...,true,'documento_lead')`. The update runs with `op_privilegiada='on'` and inserts no `crm.actividades` or operation row. The admin path always audits.
+Evidence: This branch contains no insert into `actividades` or `inversionista_operaciones`. Whether a trigger audits under `op_privilegiada` is not shown (hypothesis).
+Impact: A DNI can be silently dropped from a lead, and that DNI is the input to legacy dedupe gates keyed on `leads.dni`. That reopens the DNI for another live lead, with no trace of who did it.
+Recommendation: Insert an `actividades` note with the previous DNI masked or hashed, the new tipo and the actor. Alternatively, confirm with evidence that an existing trigger records it.
+
+[P3] Low. An idempotent create retry fails after the lead closes
+File: `crear_lead_documento_fn` → `fijar_documento_lead_fn`
+Lines: in fijar, the `v_pre.etapa in ('convertido','descartado')` check precedes the same-document early return.
+Problem: A retry of a CE/passport alta after the lead was converted or discarded raises P0409 "El lead está cerrado" instead of returning `creado`. The same happens if the lead was reassigned out of the creator's scope, which raises P0002.
+Impact: The client sees a hard error from an idempotent retry. No data is harmed.
+Recommendation: In the retry branch (`v_pre` found), return early once `v_doc` matches. Do not re-enter fijar.
+
+[P3] Low. The same-document early return runs `nowait` before rechecking scope
+File: `fijar_documento_lead_fn`, same-document path
+Problem: The path revalidates rol and etapa but not `vendedor_id` scope after the lock. A reassignment committed between the unlocked scope read and the lock would still return the document.
+Impact: The path is read-only and returns only data the caller could see moments earlier, so the practical impact is negligible.
+Recommendation: None required. If kept for consistency, reuse the scope predicate from the new-identity branch.
+
+[P3] Low. CE/PASAPORTE with an empty number silently clears the legacy DNI
+File: `fijar_documento_lead_fn`
+Lines: `if p_tipo='DNI' or v_numero is null then perform crm.fijar_dni_lead_fn(p_lead_id,v_numero);`
+Problem: If a UI bug sends `tipo=CE, numero=''` on a lead with a legacy DNI, the DNI is set to null.
+Recommendation: Only allow clearing the DNI with `p_tipo='DNI'`. Reject a non-DNI type with a null number, or treat it as a no-op.
+
+[P3] Low. An admin cannot correct a person without a verified vigente identifier
+File: `documento_lead_fn` / fijar admin branch
+Problem: `documento_lead_fn` only reads `verificado and estado='vigente'`. For a linked person with only unverified identifiers, the function returns `identificador_id=null` and `tipo='DNI'` as fallback. The admin branch requires `p_identificador_anterior is not null`, so the UI cannot correct that person. It also displays "DNI" when the person may hold an unverified CE.
+Recommendation: Document this as requiring an admin procedure, or fall back to `corregir(..., p_identificador_anterior => null)` when `identificador_id` is null.
+
+[P3] Low. The fingerprint gate misses some dependencies
+File: migration `do $$` block
+Problem: The new code depends on these unpinned functions: `private.identidad_bloquear_documento`, `private.inversionista_por_documento`, `private.inversionista_canonica`, `private.vendedor_ids_visibles`, `private.puede_acceder_crm`, `private.es_lector_global`, `public.es_admin`, `crm.marcar_no_contactar` (tests only), and `private.bloquear_leads_nowait` (indirect).
+Recommendation: Pin at least the scope helpers used in the security predicates: `vendedor_ids_visibles`, `puede_acceder_crm`, `es_lector_global`, `es_admin`.
+
+TEST GAPS:
+- Alta by a vendedor with a foreign `vendedor_id`, and with `etapa` set to `convertido`/`descartado`/`ganado` (depends on P1).
+- `es_lector_global`: may read via `documento_lead_fn`, must be denied on fijar, editar and crear.
+- Supervisor scope through `asignado_supervisor_id` with a null `vendedor_id`, for both read and write.
+- Gerencia outside hierarchy: allowed. Vendedor after demotion mid-transaction: the rol revalidation path.
+- Admin correction where the person has two direct leads (P2), and a CE→DNI correction (checks what `leads.dni` ends up as).
+- The flag turned off for `fijar`/`editar_lead_documento_fn`; currently only crear is tested.
+- An idempotent retry after close or reassignment (P3).
+- Remote: PostgREST exposure of `crm` for the four RPCs, `anon` 401/permission, `get_advisors` security lints on the new definer functions, and `service_role` revoke behaviour.
+
+ARCHITECTURE RISKS:
+- Composing definer wrappers around legacy RPCs whose authorization model is not uniform (invoker/RLS vs definer/explicit) is fragile. Each wrapper should state per call which model it relies on.
+- `corregir_documento_inversionista_fn` is person-scoped while the new UI is lead-scoped. P2 is the concrete seam between the two.
+
+SECURITY RISKS:
+- P1 (possible RLS bypass on create) is the only potential access widening found.
+- The read path is sound: auth.uid and CRM access are checked, the scope mirrors `leads_select`, the function is definer with an empty search_path, the P0409 multi-identity guard prevents mixing people, and the frontend keeps no PII cache (`gcTime: 0`, keyed by user).
+
+REGRESSION RISKS:
+- `editar_lead_documento_fn` always runs fijar first, so any ficha edit of a closed lead fails through it. Confirm the frontend routes closed leads to `editar_lead_fn`.
+- The legacy DNI-only dedupe no longer sees a lead after CE linking (see the second P2).
+
+RECOMMENDED NEXT ACTIONS:
+1. Attach `prosecdef` and the authorization block of `crm.crear_lead_si_disponible` and `crm.fijar_dni_lead_fn`. Resolve P1 and add the foreign-vendedor and etapa tests.
+2. Add the single-lead or operation-lead postcondition to the admin branch (P2), with a two-lead test.
+3. Add an audit actividad to the vendor CE/passport link branch, or show that a trigger covers it.
+4. Then run the remote HTTP/RLS/advisors gate as planned.
+
+CONFIDENCE:
+MEDIUM. High for P2 and the P3s, which follow directly from the attached source. P1 depends on source that was not attached.

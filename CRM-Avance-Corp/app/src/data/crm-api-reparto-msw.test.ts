@@ -678,34 +678,55 @@ describe('conversionCoordinacion (crm.conversion_divisor_coordinacion_fn)', () =
       })
     }))
 
-    const datos = await conversionCoordinacion('2026-09-01')
+    const datos = await conversionCoordinacion({ modo: 'mes', mes: '2026-09' })
     expect(cuerpo).toEqual({ p_periodo: '2026-09-01' })
     expect(datos.empresa.divisor).toBe(205)
     expect(datos.empresa.numerador).toBe(20.15)
     expect(datos.analistas[0]).toMatchObject({ divisor: 115, divisor_formulario: 65, divisor_landing: 50, conversion_pct: 9.7 })
   })
 
-  it('rechaza un período que no es el primer día del mes sin tocar la red', async () => {
-    await expect(conversionCoordinacion('2026-09-15')).rejects.toMatchObject({ code: 'PERIODO_INVALIDO' })
+  it('rechaza un mes mal formado y un rango cruzado sin tocar la red', async () => {
+    await expect(conversionCoordinacion({ modo: 'mes', mes: '2026-09-15' })).rejects.toMatchObject({ code: 'PERIODO_INVALIDO' })
+    await expect(conversionCoordinacion({ modo: 'rango', desde: '2026-09-16', hasta: '2026-09-15' })).rejects.toMatchObject({ code: 'PERIODO_INVALIDO' })
+  })
+
+  it('en modo rango manda p_desde/p_hasta y exige que el servidor eco-e el rango inclusivo', async () => {
+    let cuerpo: unknown = null
+    server.use(http.post(RPC('conversion_divisor_coordinacion_fn'), async ({ request }) => {
+      cuerpo = await request.json()
+      const datos = conversionValida()
+      return HttpResponse.json({
+        ...datos,
+        fuente: { ...datos.fuente, modo: 'rango_vivo' },
+        periodo: { modo: 'rango', mes: null, mes_nombre: null, anio: null, zona: 'America/Lima', desde: '2026-09-01', hasta: '2026-09-15', dias: '15', cruza_meses_sellados: false },
+      })
+    }))
+    const datos = await conversionCoordinacion({ modo: 'rango', desde: '2026-09-01', hasta: '2026-09-15' })
+    expect(cuerpo).toEqual({ p_desde: '2026-09-01', p_hasta: '2026-09-15' })
+    expect(datos.periodo).toMatchObject({ modo: 'rango', dias: 15 })
+
+    // Si el servidor devolviera el mes entero para un rango pedido, se rechaza.
+    server.use(http.post(RPC('conversion_divisor_coordinacion_fn'), () => HttpResponse.json(conversionValida())))
+    await expect(conversionCoordinacion({ modo: 'rango', desde: '2026-09-01', hasta: '2026-09-15' })).rejects.toMatchObject({ code: 'CONVERSION_COORDINACION_INCONSISTENTE' })
   })
 
   it('fail-closed: un payload fuera de contrato no se devuelve a medias', async () => {
     const { analistas: _fuera, ...roto } = conversionValida()
     server.use(http.post(RPC('conversion_divisor_coordinacion_fn'), () => HttpResponse.json(roto)))
-    await expect(conversionCoordinacion('2026-09-01')).rejects.toMatchObject({ code: 'CONVERSION_COORDINACION_CONTRACT' })
+    await expect(conversionCoordinacion({ modo: 'mes', mes: '2026-09' })).rejects.toMatchObject({ code: 'CONVERSION_COORDINACION_CONTRACT' })
   })
 
   it('PARIDAD: si formulario + landing no suman el divisor (el 62 del reporte), el paquete se rechaza entero', async () => {
     const datos = conversionValida()
     datos.analistas[0] = { ...datos.analistas[0]!, divisor_formulario: 62 }
     server.use(http.post(RPC('conversion_divisor_coordinacion_fn'), () => HttpResponse.json(datos)))
-    await expect(conversionCoordinacion('2026-09-01')).rejects.toMatchObject({ code: 'CONVERSION_COORDINACION_INCONSISTENTE' })
+    await expect(conversionCoordinacion({ modo: 'mes', mes: '2026-09' })).rejects.toMatchObject({ code: 'CONVERSION_COORDINACION_INCONSISTENTE' })
   })
 
   it('el gate de rol (42501) sube con su código y un mensaje entendible', async () => {
     server.use(http.post(RPC('conversion_divisor_coordinacion_fn'), () =>
       HttpResponse.json({ code: '42501', message: 'Solo Coordinación o Gerencia activa puede consultar la conversión por analista' }, { status: 403 })))
-    const fallo = await conversionCoordinacion('2026-09-01').catch((e: unknown) => e)
+    const fallo = await conversionCoordinacion({ modo: 'mes', mes: '2026-09' }).catch((e: unknown) => e)
     expect(fallo).toBeInstanceOf(CrmApiError)
     expect(fallo).toMatchObject({ code: '42501', message: 'No tienes permiso para consultar la conversión por analista.' })
   })

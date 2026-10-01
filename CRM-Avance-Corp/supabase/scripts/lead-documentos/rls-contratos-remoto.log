@@ -1,0 +1,307 @@
+✓ precondicion: seed completo y coherente verificado con service_role
+  ✓ login gerencia corresponde al correo esperado
+  ✓ login sup1 corresponde al correo esperado
+  ✓ login sup2 corresponde al correo esperado
+  ✓ login sup1Nested corresponde al correo esperado
+  ✓ login vend1 corresponde al correo esperado
+  ✓ login vend2 corresponde al correo esperado
+  ✓ login vend3 corresponde al correo esperado
+  ✓ login vend4 corresponde al correo esperado
+  ✓ login vendNested corresponde al correo esperado
+  ✓ login vendInactive corresponde al correo esperado
+  ✓ login coordinador corresponde al correo esperado
+  ✓ login directorio corresponde al correo esperado
+  ✓ login clientBank corresponde al correo esperado
+ALCANCE: contratos y frontera bancaria; no sustituye la matriz global.
+
+— Visibilidad jerarquica exacta —
+  ✓ gerencia: count exact coincide con las filas
+  ✓ gerencia ve 7 lead(s)
+  ✓ gerencia ve exactamente su conjunto
+  ✓ sup1: count exact coincide con las filas
+  ✓ sup1 ve 4 lead(s)
+  ✓ sup1 ve exactamente su conjunto
+  ✓ sup2: count exact coincide con las filas
+  ✓ sup2 ve 3 lead(s)
+  ✓ sup2 ve exactamente su conjunto
+  ✓ sup1Nested: count exact coincide con las filas
+  ✓ sup1Nested ve 1 lead(s)
+  ✓ sup1Nested ve exactamente su conjunto
+  ✓ vend1: count exact coincide con las filas
+  ✓ vend1 ve 2 lead(s)
+  ✓ vend1 ve exactamente su conjunto
+  ✓ vend2: count exact coincide con las filas
+  ✓ vend2 ve 0 lead(s)
+  ✓ vend2 ve exactamente su conjunto
+  ✓ vend3: count exact coincide con las filas
+  ✓ vend3 ve 1 lead(s)
+  ✓ vend3 ve exactamente su conjunto
+  ✓ vend4: count exact coincide con las filas
+  ✓ vend4 ve 0 lead(s)
+  ✓ vend4 ve exactamente su conjunto
+  ✓ vendNested: count exact coincide con las filas
+  ✓ vendNested ve 1 lead(s)
+  ✓ vendNested ve exactamente su conjunto
+  ✓ vendInactive: count exact coincide con las filas
+  ✓ vendInactive ve 0 lead(s)
+  ✓ vendInactive ve exactamente su conjunto
+  ✓ coordinador: count exact coincide con las filas
+  ✓ coordinador ve 0 lead(s)
+  ✓ coordinador ve exactamente su conjunto
+  ✓ directorio: count exact coincide con las filas
+  ✓ directorio ve 7 lead(s)
+  ✓ directorio ve exactamente su conjunto
+  ✓ clientBank: count exact coincide con las filas
+  ✓ clientBank ve 0 lead(s)
+  ✓ clientBank ve exactamente su conjunto
+
+— Actividades siguen la misma cartera —
+  ✓ gerencia: count exact de actividades coincide
+  ✓ gerencia ve exactamente 7 actividad(es) fixture
+  ✓ sup1: count exact de actividades coincide
+  ✓ sup1 ve exactamente 4 actividad(es) fixture
+  ✓ sup2: count exact de actividades coincide
+  ✓ sup2 ve exactamente 3 actividad(es) fixture
+  ✓ sup1Nested: count exact de actividades coincide
+  ✓ sup1Nested ve exactamente 1 actividad(es) fixture
+  ✓ vend1: count exact de actividades coincide
+  ✓ vend1 ve exactamente 2 actividad(es) fixture
+  ✓ vend2: count exact de actividades coincide
+  ✓ vend2 ve exactamente 0 actividad(es) fixture
+  ✓ vend3: count exact de actividades coincide
+  ✓ vend3 ve exactamente 1 actividad(es) fixture
+  ✓ vend4: count exact de actividades coincide
+  ✓ vend4 ve exactamente 0 actividad(es) fixture
+  ✓ vendNested: count exact de actividades coincide
+  ✓ vendNested ve exactamente 1 actividad(es) fixture
+  ✓ vendInactive: count exact de actividades coincide
+  ✓ vendInactive ve exactamente 0 actividad(es) fixture
+  ✓ coordinador: count exact de actividades coincide
+  ✓ coordinador ve exactamente 0 actividad(es) fixture
+  ✓ directorio: count exact de actividades coincide
+  ✓ directorio ve exactamente 7 actividad(es) fixture
+  ✓ clientBank: count exact de actividades coincide
+  ✓ clientBank ve exactamente 0 actividad(es) fixture
+
+— Tareas de agenda siguen la misma cartera —
+  ✓ gerencia: count exact de tareas coincide
+  ✓ gerencia ve 5 tarea(s)
+  ✓ gerencia ve exactamente sus tareas
+  ✓ sup1: count exact de tareas coincide
+  ✓ sup1 ve 3 tarea(s)
+  ✓ sup1 ve exactamente sus tareas
+  ✓ sup2: count exact de tareas coincide
+  ✓ sup2 ve 2 tarea(s)
+  ✓ sup2 ve exactamente sus tareas
+  ✓ sup1Nested: count exact de tareas coincide
+  ✓ sup1Nested ve 1 tarea(s)
+  ✓ sup1Nested ve exactamente sus tareas
+  ✓ vend1: count exact de tareas coincide
+  ✓ vend1 ve 1 tarea(s)
+  ✓ vend1 ve exactamente sus tareas
+  ✓ vend2: count exact de tareas coincide
+  ✓ vend2 ve 0 tarea(s)
+  ✓ vend2 ve exactamente sus tareas
+  ✓ vend3: count exact de tareas coincide
+  ✓ vend3 ve 1 tarea(s)
+  ✓ vend3 ve exactamente sus tareas
+  ✓ vend4: count exact de tareas coincide
+  ✓ vend4 ve 0 tarea(s)
+  ✓ vend4 ve exactamente sus tareas
+  ✓ vendNested: count exact de tareas coincide
+  ✓ vendNested ve 1 tarea(s)
+  ✓ vendNested ve exactamente sus tareas
+  ✓ vendInactive: count exact de tareas coincide
+  ✓ vendInactive ve 0 tarea(s)
+  ✓ vendInactive ve exactamente sus tareas
+  ✓ coordinador: count exact de tareas coincide
+  ✓ coordinador ve 0 tarea(s)
+  ✓ coordinador ve exactamente sus tareas
+  ✓ directorio: count exact de tareas coincide
+  ✓ directorio ve 5 tarea(s)
+  ✓ directorio ve exactamente sus tareas
+  ✓ clientBank: count exact de tareas coincide
+  ✓ clientBank ve 0 tarea(s)
+  ✓ clientBank ve exactamente sus tareas
+
+— Membresia y desactivacion —
+  ✓ gerencia resuelve su rol CRM activo
+  ✓ sup1 resuelve su rol CRM activo
+  ✓ sup2 resuelve su rol CRM activo
+  ✓ sup1Nested resuelve su rol CRM activo
+  ✓ vend1 resuelve su rol CRM activo
+  ✓ vend2 resuelve su rol CRM activo
+  ✓ vend3 resuelve su rol CRM activo
+  ✓ vend4 resuelve su rol CRM activo
+  ✓ vendNested resuelve su rol CRM activo
+  ✓ coordinador resuelve su rol CRM activo
+  ✓ usuario inactivo no resuelve membresia activa
+  ✓ usuario inactivo no lee ni su propia fila de crm.equipo (0 filas por RLS)
+  ✓ usuario inactivo no lee ni su lead previamente asignado (0 filas por RLS)
+  ✓ usuario inactivo no lee la actividad de su lead (0 filas por RLS)
+
+— Domicilio legal faltante —
+  ✓ el cliente de la sonda arranca SIN domicilio (si no, este bloque no prueba nada)
+  ✓ la lectura declara el domicilio ausente
+  ✓ el domicilio aparece nombrado en faltan_cliente
+  ✓ faltan_analista viaja siempre, aunque esté vacío
+  ✓ la lectura NO devuelve el valor del domicilio, solo nombres de campo
+  ✓ un analista de OTRO subárbol no lee los datos legales (rechazo esperado: 42501)
+  ✓ un analista de OTRO subárbol tampoco escribe el domicilio (rechazo esperado: 42501)
+  ✓ el supervisor de OTRO subárbol tampoco alcanza (rechazo esperado: 42501)
+  ✓ coordinación no tiene ámbito de cartera y queda fuera (rechazo esperado: 42501)
+  ✓ el lector global sin membresía CRM queda fuera (rechazo esperado: 42501)
+  ✓ el propio cliente no puede escribirse el domicilio legal (rechazo esperado: 42501)
+  ✓ un sujeto que NO es cliente se rechaza igual (rechazo esperado: 42501)
+  ✓ un cliente inexistente da el MISMO rechazo que uno ajeno (sin oráculo de existencia) (rechazo esperado: 42501)
+  ✓ ajeno e inexistente se rechazan por la misma vía
+  ✓ se rechaza un domicilio con cuatro caracteres (rechazo esperado: 22023)
+  ✓ se rechaza un domicilio con 241 caracteres (rechazo esperado: 22023)
+  ✓ se rechaza un domicilio con un control C0 (rechazo esperado: 22023)
+  ✓ se rechaza un domicilio con seis espacios de ancho cero (rechazo esperado: 22023)
+  ✓ se rechaza un domicilio con seis guiones suaves (rechazo esperado: 22023)
+  ✓ se rechaza un domicilio con un invisible escondido dentro (rechazo esperado: 22023)
+  ✓ ningún rechazo dejó rastro: la columna sigue vacía
+  ✓ las RPC del domicilio responden: el «no existe» de la sonda siguiente es real, no la migración ausente
+  ✓ el normalizador NO es superficie pública ni para un analista autorizado (denegado: 42501)
+  ✓ anon no lee los datos legales del contrato (denegado: 42501)
+  ✓ anon no escribe el domicilio legal (denegado: 42501)
+  ✓ la primera escritura responde completado
+  ✓ la respuesta NO devuelve el domicilio (sería lectura de PII para el supervisor)
+  ✓ la columna quedó escrita Y normalizada igual que en el navegador
+  ✓ la segunda escritura responde conservado
+  ✓ el domicilio existente NO fue sobrescrito
+  ✓ falta_domicilio vuelve a false
+  ✓ el domicilio desaparece de faltan_cliente
+
+— Frontera portal/CRM y datos bancarios —
+  ✓ clientes_basicos devuelve una fila conocida (prueba no vacia)
+  ✓ clientes_basicos no expone columnas bancarias
+  ✓ clientes_basicos rechaza incluso una proyeccion explicita de banco
+  ✓ clientes_basicos scopea por cartera: vend3 no ve el cliente de vend1 (0 filas por RLS)
+  ✓ cliente del portal lee crm.clientes_basicos: 0 filas (guardia de la fn) (0 filas por RLS)
+  ✓ cliente del portal lee crm.contratos_cartera: 0 filas (guardia de la fn) (0 filas por RLS)
+  ✓ rol CRM (comercial) no lee el perfil crudo de otro miembro del equipo (0 filas por RLS)
+  ✓ rol CRM no lee columnas bancarias del cliente crudo (0 filas por RLS)
+  ✓ Directorio tampoco lee el perfil crudo del cliente (0 filas por RLS)
+  ✓ Supervisor recibe una fila bancaria completa dentro de su árbol
+  ✓ analista de otro árbol no descubre el cliente por cliente_detalle_fn (0 filas por RLS)
+  ✓ Directorio recibe identidad mínima con domicilio y banca redactados
+  ✓ rol CRM no lee el contrato sensible desde public.contratos (0 filas por RLS)
+  ✓ rol CRM no alcanza datos bancarios mediante contratos crudos (0 filas por RLS)
+  ✓ RPC de DNI confirma el cliente fixture
+  ✓ cliente del portal no usa el RPC de enumeracion de DNI (bloqueado: 42501)
+  ✓ contrato_tiene_pagos: el dueño sigue viendo la señal real (true)
+  ✓ contrato_tiene_pagos devuelve false para un authenticated fuera de ámbito
+  ✓ contrato_tiene_pagos: service_role sin JWT recibe false (lee tablas directo)
+  ✓ service_role no agrega banca PEN en perfiles (bloqueado: 22023)
+  ✓ service_role no agrega banca USD en perfiles (bloqueado: 22023)
+  ✓ el cliente tampoco escribe banca en perfiles (bloqueado: 22023)
+
+— Cuenta bancaria fija por contrato —
+  ✓ el listado autorizado incluye la cuenta PEN conocida del cliente
+  ✓ la RPC devuelve la cuenta completa en la moneda solicitada
+  ✓ analista ajeno no lista cuentas fuera de su cartera (denegado: 42501)
+  ✓ directorio no lista cuentas bancarias de clientes (denegado: 42501)
+  ✓ banca P04 false/true: no lista cuentas contractuales (rechazo esperado: 42501)
+  ✓ banca P04 false/true: no crea contrato con cuenta (via pdf_v2) (rechazo esperado: 42501)
+  ✓ banca P04 false/true: no corrige contrato ya enlazado (via pdf_v3) (rechazo esperado: 42501)
+  ✓ banca P04 false/true: no corrige contrato legacy sin enlace (via pdf_v3) (rechazo esperado: 42501)
+  ✓ banca P04 false/true: no resuelve cuentas contractuales para Pagos (rechazo esperado: 42501)
+  ✓ banca P04 true/false: no lista cuentas contractuales (rechazo esperado: 42501)
+  ✓ banca P04 true/false: no crea contrato con cuenta (via pdf_v2) (rechazo esperado: 42501)
+  ✓ banca P04 true/false: no corrige contrato ya enlazado (via pdf_v3) (rechazo esperado: 42501)
+  ✓ banca P04 true/false: no corrige contrato legacy sin enlace (via pdf_v3) (rechazo esperado: 42501)
+  ✓ banca P04 true/false: no resuelve cuentas contractuales para Pagos (rechazo esperado: 42501)
+  ✓ admin con membresia CRM activa: el listado incluye la cuenta contractual
+  ✓ admin con membresia CRM activa: Pagos recibe la fotografia contractual esperada
+  ✓ banca P04 admin con membresia revocada: no lista cuentas contractuales (rechazo esperado: 42501)
+  ✓ banca P04 admin con membresia revocada: no crea contrato con cuenta (via pdf_v2) (rechazo esperado: 42501)
+  ✓ banca P04 admin con membresia revocada: no corrige contrato ya enlazado (via pdf_v3) (rechazo esperado: 42501)
+  ✓ banca P04 admin con membresia revocada: no corrige contrato legacy sin enlace (via pdf_v3) (rechazo esperado: 42501)
+  ✓ banca P04 admin con membresia revocada: no resuelve cuentas contractuales para Pagos (rechazo esperado: 42501)
+  ✓ admin global sin membresia CRM (fallback P04): el listado incluye la cuenta contractual
+  ✓ admin global sin membresia CRM (fallback P04): Pagos recibe la fotografia contractual esperada
+  ✓ analista sin membresia CRM: la cartera sigue cerrando la banca ajena (rechazo esperado: 42501)
+  ✓ analista vigente registra para cliente ajeno: la Opcion B ya NO cierra el alta por cartera (rechazo esperado: 23514)
+  ✓ admin con membresia CRM revocada: la revocacion prevalece sobre la banca (rechazo esperado: 42501)
+  ✓ admin con membresia CRM revocada: la revocacion prevalece sobre Pagos (rechazo esperado: 42501)
+  ✓ admin con membresia CRM revocada: no corrige terminos del contrato (rechazo esperado: 42501)
+  ✓ admin con membresia CRM revocada: no corrige N/notas aunque haya cuotas pagadas (rechazo esperado: 42501)
+  ✓ admin revocado: el contrato quedo intacto (el rechazo no escribio nada)
+  ✓ admin sin membresia CRM: la correccion de terminos NO se le cierra (rechazo esperado: P0001)
+  ✓ admin sin membresia CRM: la correccion de N/notas NO se le cierra (rechazo esperado: P0001)
+  ✓ admin sin membresia con perfil APAGADO: no lista cuentas bancarias (rechazo esperado: 42501)
+  ✓ admin sin membresia con perfil APAGADO: no resuelve cuentas para Pagos (rechazo esperado: 42501)
+  ✓ authenticated no tiene SELECT directo sobre crm.cuentas_bancarias (denegado: 42501)
+  ✓ authenticated no tiene SELECT directo sobre crm.contrato_cuentas_pago (denegado: 42501)
+  ✓ el alta rechaza una instantanea obsoleta de la cuenta del perfil (via pdf_v2) (rechazo esperado: P0001)
+  ✓ el alta rechaza un UUID de cuenta existente forjado (via pdf_v2) (rechazo esperado: 22023)
+  ✓ la cuenta sentinela es unica antes de probar el rollback
+  ✓ una falla del contrato revierte tambien la cuenta nueva de la misma RPC (via pdf_v2) (rechazo esperado: P0001)
+  ✓ rollback atomico: no quedo ninguna cuenta bancaria sentinela
+  ✓ rollback atomico: no quedo ningun enlace cuenta-contrato
+  ✓ idempotencia: la respuesta trae id, pdf.estado=sin_reserva, job_id=null y SIN marca idempotente
+  ✓ idempotencia: la MISMA clave con OTRO numero se rechaza nombrando el contrato ya creado (el incidente) (rechazo esperado: P0409)
+  ✓ idempotencia: el replay devuelve el MISMO contrato, idempotente=true y el pdf recalculado del mismo contrato
+  ✓ idempotencia: la MISMA clave con OTRO capital tampoco hace replay (P0409) (rechazo esperado: P0409)
+  ✓ idempotencia: hay UN solo contrato tras las cuatro llamadas (el duplicado del 05/09 no nace)
+  ✓ idempotencia: una clave que no es uuid se rechaza (22023) sin escribir (rechazo esperado: 22023)
+  ✓ idempotencia: la clave invalida no dejo contrato
+  ✓ idempotencia: la clave distinta produce un contrato distinto
+  ✓ idempotencia: gerencia no hereda ni el contrato de vend1 ni la marca idempotente
+  ✓ idempotencia: el replay de gerencia devuelve su contrato (no el de vend1) con idempotente=true
+  ✓ idempotencia: vend1 REVOCADO no recupera el alta por replay (denegado: 42501)
+  ✓ idempotencia: tras reactivar, el replay devuelve el contrato original con idempotente=true
+  ✓ idempotencia: el revocado no recreo el contrato
+  ✓ idempotencia: anon NO alcanza private.contrato_altas_idempotentes por la API (PGRST106)
+  ✓ idempotencia: vend1 NO alcanza private.contrato_altas_idempotentes por la API (PGRST106)
+  ✓ idempotencia: gerencia NO alcanza private.contrato_altas_idempotentes por la API (PGRST106)
+  ✓ idempotencia: service_role NO alcanza private.contrato_altas_idempotentes por la API (PGRST106)
+  ✓ idempotencia: dos envios simultaneos con la misma clave devuelven el MISMO contrato
+  ✓ idempotencia: en la carrera exactamente uno de los dos es el replay (idempotente=true)
+  ✓ idempotencia: la carrera dejo UN solo contrato
+  ✓ eliminación auditada: el contrato a borrar existe
+  ✓ anon no invoca eliminación auditada como service_role (denegado: 42501)
+  ✓ vend1 no invoca eliminación auditada como service_role (denegado: 42501)
+  ✓ service_role no prepara la ruta antigua que borraba Storage (denegado: 42501)
+  ✓ eliminación devuelve copia de auditoría
+  ✓ eliminación conserva exactamente una copia atribuida
+  ✓ eliminación por API atribuye el DELETE al actor
+  ✓ replay conserva el mismo acuse
+  ✓ service_role no lee directamente las copias privadas
+  ✓ vend3 no corrige el contrato bancario por el wrapper (via pdf_v3) (denegado: 42501)
+  ✓ directorio no corrige el contrato bancario por el wrapper (via pdf_v3) (denegado: 42501)
+  ✓ vend1 no usa el resolver de cuentas reservado al administrador (denegado: 42501)
+  ✓ directorio no usa el resolver de cuentas reservado al administrador (denegado: 42501)
+
+— Acceso anonimo —
+  ✓ anon no lee crm.leads (denegado por permisos)
+  ✓ anon no lee crm.equipo (denegado por permisos)
+  ✓ anon no lee crm.actividades (denegado por permisos)
+  ✓ anon no lee crm.tareas (denegado por permisos)
+  ✓ anon no lee crm.agenda_ics (denegado por permisos)
+  ✓ anon no ejecuta la configuracion versionada de metas (denegado: 42501)
+  ✓ anon no ejecuta el timeline del ambito (denegado: 42501)
+  ✓ anon no ejecuta el historial por lead (denegado: 42501)
+  ✓ anon no ejecuta las tareas pendientes por cursor (denegado: 42501)
+  ✓ anon no ejecuta la actividad reciente (denegado: 42501)
+  ✓ anon no ejecuta la cartera paginada por keyset (denegado: 42501)
+  ✓ anon no lee directamente crm.cuentas_bancarias (denegado: 42501)
+  ✓ anon no lee directamente crm.contrato_cuentas_pago (denegado: 42501)
+  ✓ anon no ejecuta el listado de cuentas bancarias por cliente (denegado: 42501)
+  ✓ anon no crea contratos con cuenta bancaria (denegado: 42501)
+  ✓ anon no corrige contratos legacy por el wrapper bancario (denegado: 42501)
+  ✓ anon no resuelve cuentas contractuales para Pagos (denegado: 42501)
+  ✓ anon no puede ver la cola por repartir (bloqueado: 42501)
+  ✓ anon no puede listar los supervisores de reparto (bloqueado: 42501)
+  ✓ anon no puede repartir un lead (bloqueado: 42501)
+  ✓ anon no puede listar los descartados de la cola (bloqueado: 42501)
+  ✓ anon no ejecuta resumen_cartera_fn (denegado: 42501)
+  ✓ anon no ejecuta cola_accion_fn (denegado: 42501)
+  ✓ anon no ejecuta metricas_vendedores_fn (denegado: 42501)
+  ✓ anon no ejecuta series_comerciales_fn (denegado: 42501)
+  ✓ anon no ejecuta metricas_conversiones_equipo_fn (denegado: 42501)
+  ✓ anon no lee datos bancarios public.perfiles (0 filas por RLS)
+
+✅ RLS CONTRATOS OK — 287 aserciones; gate aprobado
