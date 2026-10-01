@@ -20,10 +20,17 @@
 set -euo pipefail
 C="${BANCO_CONTENEDOR:-avancecorp-potencial-20260930}"
 DIR="$(cd "$(dirname "$0")" && pwd)"
+# REVERSA_SQL permite probar una reversa alterada (mutantes de banco/ciclo-fase1.sh).
+REVERSA="${REVERSA_SQL:-$DIR/reversa.sql}"
 psql_as() { # $1 = usuario, resto = argumentos de psql
   local u="$1"; shift
   docker exec -i -e PGPASSWORD=postgres "$C" psql -U "$u" -h 127.0.0.1 -d postgres -v ON_ERROR_STOP=1 -qAt "$@"
 }
+# Los casos C y D corren la reversa de la fase 1, que se niega si la fase 2 está aplicada.
+if [ "$(psql_as postgres -c "select (to_regprocedure('private.dias_lunes_a_sabado(date,date)') is not null)::int")" = "1" ]; then
+  echo "La fase 2 (caducidad) está aplicada: corre antes reversa-caducidad.sql, o usa banco/ciclo-fase1.sh (la retira y la repone)." >&2
+  exit 2
+fi
 V1=00000000-0000-4000-8000-00000000c0a1; V2=00000000-0000-4000-8000-00000000c0a2
 S1=00000000-0000-4000-8000-00000000c0b1; S2=00000000-0000-4000-8000-00000000c0b2
 L1=00000000-0000-4000-8000-00000000c0c1
@@ -99,7 +106,7 @@ mundo
 ( psql_as supabase_admin -c "begin; select set_config('request.jwt.claim.sub', '$V1', true), set_config('request.jwt.claims', json_build_object('sub', '$V1', 'role', 'authenticated')::text, true); set local role authenticated; select crm.marcar_potencial_lead_fn('$L1', 'estrella'); select pg_sleep(4); commit;" >/dev/null ) &
 sleep 1
 psql_as supabase_admin -c "update crm.multiempresa_flags set activo = false where nombre = 'potencial_lead';" >/dev/null
-r=$(docker exec -i -e PGPASSWORD=postgres "$C" psql -U postgres -h 127.0.0.1 -d postgres -v ON_ERROR_STOP=1 -qAt -c "$(cat "$DIR/reversa.sql")" 2>&1 | grep -m1 -o 'ERROR:.*\|NOTICE:.*REVERSA.*' || true); wait || true
+r=$(docker exec -i -e PGPASSWORD=postgres "$C" psql -U postgres -h 127.0.0.1 -d postgres -v ON_ERROR_STOP=1 -qAt -c "$(cat "$REVERSA")" 2>&1 | grep -m1 -o 'ERROR:.*\|NOTICE:.*REVERSA.*' || true); wait || true
 esperar "la reversa espera a la marca y se niega" 'REVERSA potencial_lead: hay marcas' "$r"
 esperar "la marca confirmada sigue en su tabla" '^1$' "$(psql_as supabase_admin -c "select count(*) from crm.lead_potencial where lead_id = '$L1'" 2>&1 | tail -1)"
 
@@ -109,7 +116,7 @@ psql_as supabase_admin -c "update crm.multiempresa_flags set activo = false wher
 d_out=$(mktemp)
 ( psql_as postgres -c "begin; select 1 from crm.leads where id = '$L1' for share; select pg_sleep(3); insert into crm.lead_potencial_eventos (lead_id, nivel_nuevo, motivo, por) values ('$L1', 'estrella', 'manual', '$V1'); commit;" > "$d_out" 2>&1 || true ) &
 sleep 1
-r=$(docker exec -i -e PGPASSWORD=postgres "$C" psql -U postgres -h 127.0.0.1 -d postgres -v ON_ERROR_STOP=1 -qAt -c "$(cat "$DIR/reversa.sql")" 2>&1 | grep -m1 -o 'ERROR:.*\|NOTICE:.*REVERSA.*' || true); wait || true
+r=$(docker exec -i -e PGPASSWORD=postgres "$C" psql -U postgres -h 127.0.0.1 -d postgres -v ON_ERROR_STOP=1 -qAt -c "$(cat "$REVERSA")" 2>&1 | grep -m1 -o 'ERROR:.*\|NOTICE:.*REVERSA.*' || true); wait || true
 esperar "la reversa no interbloquea y se niega" 'REVERSA potencial_lead: hay marcas' "$r"
 esperar "la marca a medio camino confirmó (sin deadlock)" '^$' "$(grep -o 'deadlock\|ERROR.*' "$d_out" || true)"
 rm -f "$d_out"

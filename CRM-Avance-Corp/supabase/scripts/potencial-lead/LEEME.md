@@ -32,6 +32,10 @@ reintentar si salta el timeout.
 
 ## Banco
 
+**Repetible con un comando:** `banco/montar-banco.sh` monta el banco desde cero y `banco/ciclo-fase1.sh`
+y `banco/ciclo-fase2.sh` corren todo lo de abajo (ciclo, pruebas, mutantes, concurrencia, registro y
+verificación). Detalle y cómo leer la salida en `banco/LEEME.md`.
+
 Docker propio `avancecorp-potencial-20260930` (imagen `supabase/postgres:17.6.1.105`, puerto
 55470 en loopback), esquema `public,crm,private` volcado de producción el 30/09 con paridad de
 huellas: 280 funciones `crm` y 540 `private` idénticas (con el mismo `search_path`; el texto de
