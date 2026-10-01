@@ -9,7 +9,7 @@ import type {StoreDataApi} from '@/lib/store'
 import type {Lead} from '@/lib/tipos'
 import {CrmApiError,type CrearContratoInput} from '@/data/crm-api'
 import type {CuotaCronograma} from '@/lib/cronograma'
-import {guardarIntentoInversion,leerIntentoInversion,nuevoIntentoInversion,type DatosInversion,type SolicitudInversion} from '@/lib/inversion-solicitud'
+import {guardarIntentoInversion,leerConversionAbierta,leerIntentoInversion,nuevoIntentoInversion,type DatosInversion,type SolicitudInversion} from '@/lib/inversion-solicitud'
 import {ACTOR_F5,PERSONA_F5,PERFIL_F5,FUENTE_F5,fichaF5} from '@/test/fixtures/f5'
 import {DialogConvertir} from './lead-drawer'
 
@@ -55,7 +55,7 @@ const preparada=(clave:string,datos:DatosInversion):SolicitudInversion=>({solici
 beforeEach(()=>{
   vi.resetAllMocks();sessionStorage.clear();vigente=null;perfil=null;correoFicha=fichaF5.persona.correo
   api.documento.mockImplementation((l:Lead)=>({data:{lead_id:l.id,inversionista_id:null,identificador_id:null,
-    tipo:l.documento?.tipo??'DNI',numero:l.documento?.numero??l.dni??null,puede_corregir:false},isPending:false,isError:false}))
+    tipo:l.documento?.tipo??'DNI',numero:l.documento?.numero??l.dni??null,puede_corregir:false},isPending:false,isError:false,isFetchedAfterMount:true}))
   api.persona.mockImplementation(async(leadId:string)=>({inversionista_id:PERSONA_F5,lead_id:leadId,solicitud_id:vigente?.solicitud_id??null}))
   api.contexto.mockImplementation(async()=>({...fichaF5,solicitud_id:vigente?.solicitud_id??null,documento_tipo:'DNI',persona:{...fichaF5.persona,perfil_id:perfil,correo:correoFicha}}))
   api.cancelar.mockImplementation(async()=>{vigente={...vigente!,estado:'cancelada'};return vigente})
@@ -87,13 +87,27 @@ async function entrar(user:ReturnType<typeof userEvent.setup>,empresa:string){
 
 describe('Documento vinculado al convertir',()=>{
   it.each([['CE','001234567'],['PASAPORTE','AB12345678']] as const)('precarga y utiliza %s aunque el DNI legado esté vacío',async(tipo,numero)=>{
-    api.documento.mockReturnValue({data:{lead_id:LEAD,tipo,numero,inversionista_id:PERSONA_F5,identificador_id:FUENTE_F5,puede_corregir:false}})
+    api.documento.mockReturnValue({data:{lead_id:LEAD,tipo,numero,inversionista_id:PERSONA_F5,identificador_id:FUENTE_F5,puede_corregir:false},isFetchedAfterMount:true})
     const {user}=montar({dni:null})
     expect(screen.getByLabelText('Tipo de documento')).toHaveValue(tipo)
     expect(screen.getByLabelText('Documento')).toHaveValue(numero)
     expect(screen.getByLabelText('Documento')).toBeDisabled()
     await user.click(screen.getByRole('button',{name:'Continuar a Nueva inversión'}))
     expect(api.persona).toHaveBeenCalledWith(LEAD,tipo,numero,lead.nombre_completo)
+  })
+
+  it('pasar a otro lead sin desmontar no arrastra la persona ni el documento del anterior',async()=>{
+    const {user,rerender}=montar()
+    await entrar(user,'Qorilazo')
+    // Mismo número de documento a propósito: lo único que separa a los dos leads es su id.
+    const qc=new QueryClient({defaultOptions:{queries:{retry:false}}})
+    const auth={yo:{id:ACTOR_F5,rol:'vendedor',nombre_completo:'ANALISTA F5',demo:false,puede_contratar:true}} as AuthContextValue
+    rerender(<QueryClientProvider client={qc}><AuthContext.Provider value={auth}>
+      <StoreDataContext.Provider value={{recargar:vi.fn(),equipo:[]} as unknown as StoreDataApi}>
+        <DialogConvertir l={{...lead,id:OTRO_LEAD,nombre_completo:'OTRA PERSONA'}} onClose={vi.fn()}/>
+      </StoreDataContext.Provider></AuthContext.Provider></QueryClientProvider>)
+    expect(await screen.findByLabelText('Nombre completo')).toHaveValue('OTRA PERSONA')
+    expect(screen.queryByLabelText('Número de operación del depósito')).not.toBeInTheDocument()
   })
 
   it('un error al consultar identidad no permite convertir con el DNI antiguo',()=>{
@@ -245,9 +259,10 @@ describe('Recuperar el primer acceso rechazado',()=>{
     await screen.findByRole('button',{name:'Retomar solicitud registrada'})
     let user=primera.user
     if(reabrir){
+      // Desmontar sin cerrar es recargar la página: el wizard se retoma sin volver a pedir la identidad.
       primera.unmount();user=montar().user
-      await user.click(screen.getByRole('button',{name:'Continuar a Nueva inversión'}))
       await screen.findByRole('button',{name:'Retomar solicitud registrada'})
+      expect(api.persona).toHaveBeenCalledOnce()
     }
     expect(screen.queryByLabelText('Nombres')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button',{name:'Retomar solicitud registrada'}))
@@ -291,6 +306,23 @@ describe('Convertir a cliente usa Nueva inversión',()=>{
     expect(screen.getByLabelText('Número de operación del depósito')).toHaveValue('')
     await llenarCoop(user);expect(vigente!.solicitud_id).not.toBe(id)
     expect(vigente!.datos?.empresa).toBe('qorilazo')
+  })
+  it('recargar tras cancelar muestra la cancelación; tras «Iniciar otra inversión», vuelve a elegir empresa sin resucitarla',async()=>{
+    const primera=montar();await entrar(primera.user,'Prodelco');await llenarCoop(primera.user)
+    await primera.user.click(screen.getByRole('button',{name:'Cancelar solicitud'}))
+    await primera.user.click(screen.getByRole('button',{name:'Confirmar cancelación'}))
+    await screen.findByRole('heading',{name:'Solicitud cancelada'})
+    // Desmontar sin cerrar es recargar la página: se retoma la misma pantalla, la que dice el servidor.
+    primera.unmount()
+    const segunda=montar()
+    await screen.findByRole('heading',{name:'Solicitud cancelada'})
+    await segunda.user.click(screen.getByRole('button',{name:'Iniciar otra inversión'}))
+    segunda.unmount()
+    montar()
+    expect(await screen.findByRole('button',{name:'Qorilazo'})).toBeInTheDocument()
+    expect(screen.queryByRole('heading',{name:'Solicitud cancelada'})).not.toBeInTheDocument()
+    expect(screen.queryByRole('button',{name:'Continuar a Nueva inversión'})).not.toBeInTheDocument()
+    expect(api.persona).toHaveBeenCalledOnce();expect(api.preparar).toHaveBeenCalledOnce()
   })
   it('una lectura fallida conserva campos y comprobante hasta recuperar permisos',async()=>{
     const {user,qc}=montar();await entrar(user,'Prodelco')
@@ -403,6 +435,28 @@ describe('Convertir a cliente usa Nueva inversión',()=>{
     expect(vigente!.datos!.contrato).not.toHaveProperty('analista_cierre_id');expect(vigente!.datos!.contrato).not.toHaveProperty('cliente_id')
     expect(api.convertirAnterior).not.toHaveBeenCalled()
   })
+  it('recargar la página en las condiciones del contrato retoma el wizard y el contrato se crea una sola vez',async()=>{
+    const primera=montar();await entrar(primera.user,'Avance')
+    await primera.user.type(screen.getByLabelText('Nombres'),'PERSONA');await primera.user.type(screen.getByLabelText('Apellidos'),'PRUEBA CONVERSIÓN')
+    await primera.user.type(screen.getByLabelText('Domicilio legal'),'AVENIDA SINTETICA 123 LIMA')
+    await primera.user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    await primera.user.click(await screen.findByRole('button',{name:'Completar acceso Avance'}))
+    await screen.findByRole('heading',{name:'Condiciones del contrato compartido'})
+    const clave=vigente!.solicitud_id
+    // Recargar no pasa por el cierre del diálogo: la pestaña conserva la solicitud y que el wizard estaba abierto.
+    primera.unmount()
+    const {user,recargar}=montar()
+    await screen.findByRole('heading',{name:'Condiciones del contrato compartido'})
+    expect(screen.queryByRole('button',{name:'Continuar a Nueva inversión'})).not.toBeInTheDocument()
+    expect(api.contexto).toHaveBeenLastCalledWith(LEAD,PERSONA_F5,expect.any(AbortSignal))
+    expect(api.consultar).toHaveBeenCalledWith(clave,expect.any(AbortSignal))
+    await user.click(screen.getByRole('button',{name:'Revisar contrato compartido'}))
+    await user.click(await screen.findByRole('button',{name:'Confirmar inversión'}))
+    await screen.findByRole('heading',{name:'Inversión confirmada'})
+    expect(api.persona).toHaveBeenCalledOnce();expect(api.preparar).toHaveBeenCalledOnce();expect(api.acceso).toHaveBeenCalledOnce()
+    expect(api.confirmar.mock.calls).toEqual([[clave,1]]);expect(recargar).toHaveBeenCalledOnce()
+    expect(leerConversionAbierta(ACTOR_F5,LEAD)).toBeNull()
+  })
   it('guarda y recupera el acceso; señala domicilio inválido y permite corregir el correo antes de crear la cuenta',async()=>{
     const primera=montar();await entrar(primera.user,'Avance')
     expect(screen.getByRole('navigation',{name:'Progreso de primera inversión Avance'})).toHaveTextContent('Paso 1 de 3')
@@ -494,8 +548,10 @@ describe('Convertir a cliente usa Nueva inversión',()=>{
     primera.unmount()
     correoFicha='ficha-actual@example.invalid'
     vigente={...vigente!,revision_datos:1,datos:{...vigente!.datos!,alta_portal:{...vigente!.datos!.alta_portal!,correo:correoFicha}}}
-    const segunda=montar();await segunda.user.click(screen.getByRole('button',{name:'Continuar a Nueva inversión'}))
+    // Desmontar sin cerrar es recargar la página: vuelve directo al acceso, con su borrador.
+    const segunda=montar()
     expect(await screen.findByLabelText('Correo de acceso Avance')).toHaveValue('anterior@example.invalid')
+    expect(screen.queryByRole('button',{name:'Continuar a Nueva inversión'})).not.toBeInTheDocument()
     expect(screen.getByText('ficha-actual@example.invalid')).toBeInTheDocument()
     await segunda.user.click(screen.getByRole('button',{name:'Usar correo de la ficha'}))
     expect(screen.getByLabelText('Correo de acceso Avance')).toHaveValue('ficha-actual@example.invalid')

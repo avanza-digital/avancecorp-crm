@@ -175,6 +175,36 @@ export function limpiarBorradorCondiciones(actor?: string, persona?: string, ori
   catch { /* El bloqueo de almacenamiento no puede impedir cerrar sesión. */ }
 }
 
+const PREFIJO_CONVERSION = 'crm:f5:conversion-abierta:'
+const ConversionAbiertaSchema = v.object({version: v.literal(1), actor: Uuid, lead: Uuid, inversionista_id: Uuid})
+const claveConversion = (actor: string, lead: string) => `${PREFIJO_CONVERSION}${actor}:${lead}`
+
+/** El wizard de conversión de este lead está abierto en ESTA pestaña: al recargar
+ * se retoma sin volver a pedir la identidad. Solo guarda de QUIÉN es (la persona);
+ * la solicitud la recupera el intento, que es el que sigue sus cambios, y el
+ * servidor vuelve a comprobar la persona y el ámbito al abrirlo. */
+export function guardarConversionAbierta(actor: string, lead: string, inversionista: string): void {
+  try {
+    sessionStorage.setItem(claveConversion(actor, lead), JSON.stringify(v.parse(ConversionAbiertaSchema, {
+      version: 1, actor, lead, inversionista_id: inversionista,
+    })))
+  } catch { /* Sin almacenamiento el wizard sigue abierto; solo no se retoma tras recargar. */ }
+}
+/** La persona del wizard abierto, o null si no hay nada que retomar. */
+export function leerConversionAbierta(actor: string, lead: string): string | null {
+  try {
+    const raw = sessionStorage.getItem(claveConversion(actor, lead))
+    const r = raw ? v.safeParse(ConversionAbiertaSchema, JSON.parse(raw)) : null
+    if (r?.success && r.output.actor === actor && r.output.lead === lead) return r.output.inversionista_id
+  } catch { /* Una marca dañada equivale a no tenerla: se vuelve a pedir la identidad. */ }
+  return null
+}
+export function limpiarConversionAbierta(actor?: string, lead?: string): void {
+  const prefijo = !actor ? PREFIJO_CONVERSION : !lead ? `${PREFIJO_CONVERSION}${actor}:` : claveConversion(actor, lead)
+  try {for (const k of Object.keys(sessionStorage)) if (k.startsWith(prefijo)) sessionStorage.removeItem(k)}
+  catch { /* El bloqueo de almacenamiento no puede impedir cerrar sesión. */ }
+}
+
 /** Solo en esta sesión del navegador: sobrevive a recarga/cierre de diálogo.
  * El contenido nunca viaja a logs, y se elimina al salir o perder acceso. */
 export function guardarIntentoInversion(intento: IntentoInversion): void {
@@ -200,6 +230,9 @@ export function limpiarIntentosInversion(actor?: string, persona?: string, orige
   catch { /* El bloqueo de almacenamiento no puede impedir cerrar sesión. */ }
   limpiarBorradorAcceso(actor, persona, origen)
   limpiarBorradorCondiciones(actor, persona, origen)
+  // Al salir o perder el acceso no queda ningún wizard por retomar. El de UN lead
+  // lo cierra quien lo abrió: aquí «Iniciar otra inversión» sigue con él abierto.
+  if (!actor) limpiarConversionAbierta()
 }
 export function nuevoIntentoInversion(actor: string, persona: string, id: string, datos: DatosInversion, origen?: string | null,
   ventaCruzada?: {busqueda_id: string; motivo: string}): IntentoInversion {
