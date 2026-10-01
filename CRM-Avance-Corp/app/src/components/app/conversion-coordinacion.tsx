@@ -30,6 +30,8 @@ const ESPERA_FECHAS_MS = 350
 
 interface EstadoConversion {
   datos: DatosConversion | null
+  /** La consulta a la que pertenecen `datos`; sirve para avisar si los controles ya dicen otra cosa. */
+  clave: string
   cargando: boolean
   error: string | null
 }
@@ -217,7 +219,7 @@ export function ConversionCoordinacion() {
   const [mes, setMes] = useState(mesMaximo)
   const [desde, setDesde] = useState(`${mesMaximo}-01`)
   const [hasta, setHasta] = useState(hoy)
-  const [estado, setEstado] = useState<EstadoConversion>({ datos: null, cargando: true, error: null })
+  const [estado, setEstado] = useState<EstadoConversion>({ datos: null, clave: '', cargando: true, error: null })
   const [pagina, setPagina] = useState(0)
   const abortRef = useRef<AbortController | null>(null)
   const contenidoRef = useRef<HTMLDivElement>(null)
@@ -259,15 +261,16 @@ export function ConversionCoordinacion() {
     abortRef.current = controlador
     // Se conserva el error solo al reintentar, para que el botón no se desmonte
     // bajo el foco; la carga se anuncia por el estado persistente.
-    setEstado((previo) => ({ datos: null, cargando: true, error: conservarError ? previo.error : null }))
+    setEstado((previo) => ({ datos: null, clave: previo.clave, cargando: true, error: conservarError ? previo.error : null }))
     try {
       const datos = await conversionCoordinacion(pedida, controlador.signal)
       if (controlador.signal.aborted) return
-      setEstado({ datos, cargando: false, error: null })
+      setEstado({ datos, clave: claveEstable, cargando: false, error: null })
     } catch (error) {
       if (controlador.signal.aborted) return
       setEstado({
         datos: null,
+        clave: '',
         cargando: false,
         error: error instanceof Error ? error.message : 'No se pudo cargar la conversión por analista.',
       })
@@ -309,6 +312,9 @@ export function ConversionCoordinacion() {
   // Lo que se ve es lo último cargado: sus textos van por SU período, no por el control.
   const periodoVisible = datos?.periodo.modo === 'rango' ? 'del período' : 'del mes'
   const tocaSellados = datos?.periodo.cruza_meses_sellados === true
+  // Si los controles ya dicen otra cosa (período inválido a medio corregir, o la espera
+  // al teclear), la tabla sigue siendo la de la última consulta válida y lo dice a la vista.
+  const datosDesfasados = datos !== null && estado.clave !== claveConsulta
 
   const etiquetaPeriodo = (d: DatosConversion) => (
     d.periodo.modo === 'mes' && d.periodo.mes_nombre
@@ -449,6 +455,13 @@ export function ConversionCoordinacion() {
         // Destino programático del foco tras reintentar: fuera del orden de Tab,
         // sin anillo (no es un control), igual que el patrón de Repartir.
         <div ref={contenidoRef} tabIndex={-1} role="region" aria-label={`Conversión ${periodoVisible}`} className="outline-none">
+          {/* El período de LO QUE SE VE, a la vista: el estado vivo es solo para el lector. */}
+          <p className="border-b border-border/70 px-5 py-2 text-sm font-semibold text-foreground" data-testid="periodo-visible">
+            Conversión {datos.periodo.modo === 'mes' ? 'de ' : ''}{etiquetaPeriodo(datos)}
+            {datosDesfasados ? (
+              <span className="font-normal text-muted-foreground"> · última consulta válida; corrige el período para actualizar</span>
+            ) : null}
+          </p>
           <div
             role="group"
             aria-label={`Resumen de conversión ${periodoVisible}`}

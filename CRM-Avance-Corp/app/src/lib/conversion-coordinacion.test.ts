@@ -284,8 +284,11 @@ describe('modo rango (v2)', () => {
     expect(motivoConsultaInvalida({ modo: 'rango', desde: '2026-09-01', hasta: '2026-10-01' }, hoy)).toMatch(/fechas futuras/)
     expect(motivoConsultaInvalida({ modo: 'rango', desde: '2025-09-01', hasta: '2026-09-30' }, hoy)).toMatch(/366 días/)
     expect(motivoConsultaInvalida({ modo: 'rango', desde: '', hasta: '2026-09-15' }, hoy)).toMatch(/dos fechas/)
-    // Un año tecleado a medias (0202-…) queda por debajo del mínimo y no dispara consulta.
+    // Un año tecleado a medias (0202-…) queda por debajo del mínimo y no dispara consulta, en los dos modos.
     expect(motivoConsultaInvalida({ modo: 'rango', desde: '0202-09-01', hasta: '2026-09-15' }, hoy)).toMatch(/empieza como pronto/)
+    expect(motivoConsultaInvalida({ modo: 'mes', mes: '2024-12' }, hoy)).toBe('El mes más antiguo consultable es 2025-01.')
+    expect(motivoConsultaInvalida({ modo: 'mes', mes: '0202-09' }, hoy)).toMatch(/más antiguo/)
+    expect(motivoConsultaInvalida({ modo: 'mes', mes: '2025-01' }, hoy)).toBeNull()
   })
 
   it('camposInvalidos marca solo el campo que está mal', () => {

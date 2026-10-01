@@ -111,6 +111,14 @@ begin
   if pg_catalog.to_regprocedure('private.conversion_mensual_por_vendedor(timestamptz,timestamptz,boolean,uuid[],numeric)') is null then
     raise exception 'PREFLIGHT: falta private.conversion_mensual_por_vendedor (pieza del modo rango)';
   end if;
+  -- El postflight compara el mes VIGENTE con el núcleo abierto (bruto, ajuste, desglose):
+  -- si ese mes estuviera sellado, abortaría con un mensaje confuso. Se dice aquí, claro.
+  if exists (
+    select 1 from crm.periodos_cerrados pc
+    where pc.periodo = pg_catalog.date_trunc('month', pg_catalog.now() at time zone 'America/Lima')::date
+  ) then
+    raise exception 'PREFLIGHT: el mes vigente está sellado; el postflight exige el mes vigente abierto. Aplicar en un mes abierto.';
+  end if;
   if pg_catalog.to_regprocedure('private.conversion_divisor_base(date,date)') is not null
      or pg_catalog.to_regprocedure('private.conversion_divisor_empresa(date,date)') is not null
      or pg_catalog.to_regprocedure('private.conversion_divisor_empresa_totales(date,date)') is not null
@@ -249,8 +257,11 @@ begin
     return query
     with foto as (
       select f.*,
-        coalesce((f.origenes_ranking ->> 'disponible')::boolean, false)
-          and f.cartera ? 'conversiones_upgrade' and f.cartera ? 'conversiones_renovacion' as con_desglose
+        coalesce(
+          coalesce((f.origenes_ranking ->> 'disponible')::boolean, false)
+            and f.cartera ? 'conversiones_upgrade' and f.cartera ? 'conversiones_renovacion',
+          false
+        ) as con_desglose
       from crm.cierre_mes_vendedor f
       where f.periodo = p_desde
     ),
@@ -910,7 +921,7 @@ begin
   for v_firma, v_md5 in select key, value #>> '{}' from pg_catalog.jsonb_each('{
     "crm.conversion_divisor_coordinacion_fn(date,date,date)": "b881b83ca8d4dd2f0f081d736828c8c5",
     "private.conversion_divisor_base(date,date)": "0a43b0f3b56026bd2c5bfa4a9d8942d9",
-    "private.conversion_divisor_empresa(date,date)": "793a98fc4385fe714fff75290320c564",
+    "private.conversion_divisor_empresa(date,date)": "5700d2770d1796440aa0184b035d623a",
     "private.conversion_divisor_empresa_totales(date,date)": "e97995f5ffd9109fce87f2e5dafb11a6"
   }'::jsonb) loop
     if (select md5(p.prosrc) from pg_catalog.pg_proc p where p.oid = pg_catalog.to_regprocedure(v_firma)) is distinct from v_md5 then

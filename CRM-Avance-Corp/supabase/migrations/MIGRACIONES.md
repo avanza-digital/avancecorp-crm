@@ -77,7 +77,7 @@ de provisión de Storage; SQL/HTTP RLS/advisors remotos **NOT RUN**. Detalle y
 evaluación del review: `supabase/scripts/lead-documentos/README.md`.
 
 **Revisiones (30/09 noche) y qué cambió tras ellas (huellas finales del artefacto: puerta
-`b881b83c…`, base `0a43b0f3…`, empresa `793a98fc…`, totales `e97995f5…`):**
+`b881b83c…`, base `0a43b0f3…`, empresa `5700d277…`, totales `e97995f5…`):**
 - Codex r1 (LEVEL 3, CHANGES_REQUESTED, 5 hallazgos, todos aceptados): el navegador aplicaba el suelo
   en cero al agregado (ahora empresa = Σ netos por persona); `desglose_disponible` de empresa exigía
   solo las filas de la foto (ahora también que no haya producción fuera de la foto); la fórmula
@@ -109,10 +109,26 @@ evaluación del review: `supabase/scripts/lead-documentos/README.md`.
   trigger `trg_cierre_mes_vendedor_10_ranking_origen` está activo (lo recalcula sobre datos vivos que
   no existen): se apaga solo para esa siembra, en el banco.
 
-Verificación tras las revisiones (banco Docker, 30/09 noche): migración COMMIT (v1 restaurada y v2
-reaplicada), oráculo v2b OK, registrador OK/idempotente/fail-closed (md5 del registro = md5 del
-archivo; cuerpo vivo alterado → rechazado); `npm run check` 322 archivos / 5055 pruebas PASS. E2E
-Docker y Codex r2: ver el estado final más abajo o en la nota del vault. `test-rls.mjs` sigue NOT RUN.
+- Codex r2 (CHANGES_REQUESTED, sin P0/P1; los tres P2 aceptados): el modo mes no aplicaba el mínimo
+  `2025-01` (ahora sí, con `aria-invalid` y sin consulta); la tabla conservada mientras el período
+  se corrige no decía a la vista de qué período era (ahora una línea visible «Conversión de
+  setiembre 2026 · última consulta válida; corrige el período para actualizar» cuando los
+  controles ya no coinciden con lo cargado); el oráculo E09 presuponía el mes anterior abierto
+  (ahora lo exige con un mensaje claro: el oráculo vive en un mundo de fixtures y los sellados
+  sintéticos van dos y tres meses atrás). Riesgo condicional aceptado por higiene: `con_desglose`
+  envuelto en `coalesce(…, false)` (`cartera` es NOT NULL con default, así que hoy no podía ser
+  NULL, pero un NULL futuro habría dejado `desglose_disponible` en NULL y el navegador rechazaría
+  el payload). Preflight nuevo: aborta con mensaje claro si el mes vigente estuviera sellado (el
+  postflight exige mes vigente abierto). Evidencia para Codex: `crm.cerrar_periodo(date)` escribe
+  `conversiones_*` y `operaciones_*` en `cartera` (leído en el banco); `cartera` NOT NULL con
+  default que incluye `conversiones_*`.
+
+Verificación final (banco Docker, 30/09 noche): migración COMMIT (v1 restaurada y v2 reaplicada
+tres veces, una por cada ronda), oráculo v2c OK, registrador OK/idempotente/fail-closed (md5 del
+registro = md5 del archivo; cuerpo vivo alterado → rechazado); `npm run check` 322 archivos / 5055
+pruebas PASS; E2E Docker completa 290 pasadas / 26 omitidas (11 min, antes de los retoques de la r2)
+y `repartir.spec.ts` de nuevo tras ellos (ver nota del vault). `test-rls.mjs` sigue NOT RUN (sin
+banco con Auth); `node --check` OK.
 
 ## 20260930185623 — Conversión por analista para Coordinación (`crm.conversion_divisor_coordinacion_fn`, `private.conversion_divisor_empresa`)
 
