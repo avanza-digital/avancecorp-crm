@@ -8,7 +8,11 @@ inversionista **302 ms** (antes ~500), `postventa_agenda_fn` **101 ms** (antes ~
 (antes ~190) → advisors (`db advisors --type all`): 242 antes y 242 después, ninguno nuevo ni desaparecido, ninguno cita la
 función. Foto de tráfico real T0 (`foto-trafico.sql`, acumulado desde el 25/09 20:50 UTC) para medir el tramo posterior:
 ficha 1.577 llamadas / 1.450.499 ms (media 920), agenda 6.423 / 1.836.377 (286), cartera filtrada 2.159 / 1.547.242 (717) +
-992 / 635.541 (641), estado 3.163 / 517.110 (164). PR #144 (apilada sobre #143).** Plan por fases aprobado por Miguel con
+992 / 635.541 (641), estado 3.163 / 517.110 (164). PR #144 (apilada sobre #143).
+**Medido con tráfico real el 01/10 (tramo 30/09 18:51 → 01/10 20:51 UTC, `foto-trafico.sql` menos T0):** ficha de inversionista
+670 llamadas, **351 ms** (antes 920, −62 %); agenda de postventa 1.997, **107 ms** (antes 286, −62 %); cartera de inversionistas
+1.596, **123 ms** (antes 692, −82 %); estado de cartera 1.524, 44 ms (antes 163); estado de postventa 683, 84 ms (antes 174); ficha de
+postventa 284, 97 ms (antes 182); gestión del inversionista 293, 170 ms (antes 584). Objetivo cumplido y comprobado con uso real.** Plan por fases aprobado por Miguel con
 `/goal` el 30/09; nota del vault «CRM - auditoria de indices (2026-09-30)».
 
 Problema medido (30/09, producción, `set local track_functions='all'` + `pg_stat_xact_user_functions` en transacción deshecha):
