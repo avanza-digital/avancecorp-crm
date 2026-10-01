@@ -93,7 +93,7 @@ Verificación: `npm run test:llamadas:local` → **138/138** (oráculo con 32 de
 **Hallazgos:**
 
 - **Propuesta #12** (`PROPUESTAS-DE-AJUSTE.md`): la respuesta al celular no debe delatar si un número es de un lead.
-- **F2-c, visto en el código y no probado en el banco:** la llamada del celular de un **supervisor** a un lead de su equipo entra «por revisar» y nunca pide resultado. La ingesta no tiene sesión y `private.vendedor_ids_visibles` se niega si el actor no es quien llama. Al analista no le pasa, porque su lead se reconoce por `vendedor_id`. El flujo de F1 no depende de esto: abre la encuesta por número con la sesión. Se corregiría en el núcleo con una migración nueva, si Miguel lo pide.
+- **F2-c, comprobado en un banco desechable (01/10, 21:50 UTC):** la llamada del celular de un **supervisor** a un lead de su equipo entra «por revisar» y nunca pide resultado, lo que contradice la decisión 1. Con el celular del analista, la misma llamada entra «requiere resultado». Causa: `private.llamada_celular_elegible` da `true` evaluada con la sesión del supervisor y `false` sin ella, porque `private.vendedor_ids_visibles` se niega si el actor no es quien llama, y la ingesta no tiene sesión. El flujo de F1 no depende de esto: abre la encuesta por número con la sesión. Corrección propuesta, con migración nueva y OK previo: que la ingesta evalúe el ámbito del dueño del celular con un ayudante que no dependa de `auth.uid()`.
 
 **Siguiente: F3-b, la Edge Function.** Para correr `handler.test.ts` hace falta instalar Deno en esta máquina, y eso pide el OK de Jhosep. Sin Deno, el código quedaría escrito sin probar.
 
