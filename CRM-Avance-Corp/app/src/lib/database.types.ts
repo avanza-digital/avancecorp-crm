@@ -4893,6 +4893,7 @@ export type Database = {
           p_antes_id?: string
           p_desde?: string
           p_etapa?: string
+          p_gestion?: string
           p_hasta?: string
           p_limite?: number
           p_origen?: string

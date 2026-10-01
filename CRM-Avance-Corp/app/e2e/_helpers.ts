@@ -135,6 +135,16 @@ export interface LeadReal {
   vendedor_id: string | null
   asignado_supervisor_id: string | null
   creado_en: string
+  /**
+   * Desde cuándo lo tiene su titular ACTUAL (`crm.leads.tenencia_desde`, que
+   * sella un trigger). El mock lo trata como el servidor — ver
+   * `tenenciaDeLeadReal` y `tenenciaTrasCambio`:
+   *   · AUSENTE en el fixture = la que le tocó al nacer (`creado_en` si tiene
+   *     analista y está en una etapa de trabajo; `null` si no);
+   *   · `null` EXPLÍCITO con analista = fila sin tenencia: para `p_gestion` es
+   *     «sin gestión», tenga los intentos que tenga.
+   */
+  tenencia_desde?: string | null
   /** Sello del cierre ganado (trigger del servidor); los fixtures viejos no lo traen. */
   convertido_en?: string | null
   actualizado_en: string
@@ -178,6 +188,47 @@ export function leadReal(over: Partial<LeadReal> = {}): LeadReal {
     lead.convertido_en = new Date().toISOString()
   }
   return lead
+}
+
+// ── `tenencia_desde`: espejo de `private.trg_leads_tenencia_desde` ────────────
+// En el servidor un lead con analista SIEMPRE tiene `tenencia_desde`: lo sella
+// un trigger al nacer con analista, al asignarlo, al reasignarlo y al reabrir un
+// descartado (aunque vuelva al mismo analista), y lo apaga al salir de la
+// tenencia operativa. El mock hace lo mismo, en los mismos momentos.
+
+const ETAPAS_DE_TRABAJO = ['nuevo', 'contactado', 'reunion_agendada', 'propuesta_enviada']
+
+/** Lo que el trigger de tenencia mira de una fila. */
+type FilaDeTenencia = Pick<LeadReal, 'activo' | 'etapa' | 'vendedor_id' | 'creado_en'>
+  & { tenencia_desde?: string | null | undefined }
+
+/** ¿Está en tenencia operativa? La misma condición (`v_new_debe`) que usa el trigger. */
+const enTenenciaOperativa = (l: FilaDeTenencia): boolean =>
+  l.activo && ETAPAS_DE_TRABAJO.includes(l.etapa) && l.vendedor_id != null
+
+/**
+ * La tenencia de una fila del mock. Un fixture que no la declara tiene la del
+ * ALTA, como el `INSERT` del trigger: `creado_en` si nace en tenencia operativa,
+ * `null` si no. Un valor declarado (también `null`) se respeta tal cual.
+ */
+export function tenenciaDeLeadReal(l: FilaDeTenencia): string | null {
+  if (l.tenencia_desde !== undefined) return l.tenencia_desde
+  return enTenenciaOperativa(l) ? l.creado_en : null
+}
+
+/**
+ * Lo que el trigger deja en `tenencia_desde` tras un `UPDATE`:
+ *   · sale de la tenencia operativa (se cierra, se da de baja o pierde al
+ *     analista) → `null`;
+ *   · entra en ella (se asigna, se REABRE un descartado, se reactiva) o cambia
+ *     de analista → el instante del cambio;
+ *   · cualquier otra edición (datos, etapa dentro de lo operativo, registrar
+ *     una gestión) → no se toca, mande lo que mande el cliente.
+ */
+export function tenenciaTrasCambio(antes: FilaDeTenencia, despues: FilaDeTenencia): string | null {
+  if (!enTenenciaOperativa(despues)) return null
+  if (!enTenenciaOperativa(antes) || despues.vendedor_id !== antes.vendedor_id) return new Date().toISOString()
+  return tenenciaDeLeadReal(antes)
 }
 
 // ── Clientes del portal (public.perfiles + vista crm.clientes_basicos) ────────
@@ -795,6 +846,12 @@ function metricasDistribucionVaciaReal(): unknown {
  * a propósito, así que este mock es también quien decide si aparece «Cargar
  * más». Si aquí se paginara mal, los specs de sesión real pasarían con una
  * lista que en producción se corta o se repite.
+ *
+ * `p_gestion` (01/10/2026, solo `cartera_filtrada_fn`) parte la etapa `nuevo`
+ * del Pipeline en «Nuevo» y «Gestionado». `conGestion` es quien responde por
+ * cada lead con la regla del servidor; lo arma `montarBackendReal`, que es quien
+ * tiene las gestiones. Sin él nadie tiene gestión — y sin entender el parámetro,
+ * cada lead `nuevo` saldría en las DOS columnas.
  */
 export function carteraPaginaReal(
   leads: LeadReal[],
@@ -810,7 +867,9 @@ export function carteraPaginaReal(
     p_hasta?: string | null
     p_origen?: string | null
     p_reasignados?: boolean
+    p_gestion?: string | null
   },
+  conGestion: (lead: LeadReal) => boolean = () => false,
 ): Record<string, unknown>[] {
   const corteMs = Date.now() - 45 * 86_400_000
   const texto = (args.p_texto ?? '').trim()
@@ -830,6 +889,7 @@ export function carteraPaginaReal(
     if (args.p_etapa && l.etapa !== args.p_etapa) return false
     if (args.p_sin_asignar && l.vendedor_id != null) return false
     if (args.p_vendedor_id && l.vendedor_id !== args.p_vendedor_id) return false
+    if (args.p_gestion && conGestion(l) !== (args.p_gestion === 'con_gestion')) return false
     if (texto.length >= 2) {
       const porNombre = l.nombre_completo.toLowerCase().includes(texto.toLowerCase())
       const porDigitos = digitos.length >= 3
@@ -853,7 +913,7 @@ export function carteraPaginaReal(
     .map((l) => ({ ...l, reasignado: Boolean(l.reasignado && l.vendedor_id),
       procedencia: l.alta_manual || l.creado_por ? 'manual' : 'sistema',
       cargado_por: l.creado_por ?? null,
-      genero: null, fecha_nacimiento: null, tenencia_desde: null,
+      genero: null, fecha_nacimiento: null, tenencia_desde: tenenciaDeLeadReal(l),
       convertido_en: l.convertido_en ?? null, contrato_id: null, no_contactar: false,
       ultimo_contacto_en: null }))
 }
@@ -1052,6 +1112,9 @@ export function colaAccionReal(leads: LeadReal[], pLimite: number): Record<strin
         monto_estimado: l.monto_estimado ?? 0,
         moneda: l.moneda,
         creado_en: l.creado_en,
+        // A propósito NO es la tenencia de la fila (`tenenciaDeLeadReal`): esta
+        // cola simplificada mide todo desde `creado_en` (ver `dias`, arriba), y
+        // servir aquí otro reloj sin rehacer su clasificación la contradiría.
         tenencia_desde: null,
         vendedor_id: l.vendedor_id,
         asignado_supervisor_id: l.asignado_supervisor_id,
@@ -1751,6 +1814,14 @@ function potencialDeLeadReal(
 
 export interface BackendReal {
   leads: LeadReal[]
+  /**
+   * Gestiones del timeline (`crm.actividades`): las que cada prueba registra
+   * por los comandos SLA y, si hacen falta, las que ya existían al empezar
+   * (`{ id, lead_id, tipo, creado_en, … }`). De ellas salen el historial de la
+   * ficha y la «gestión vigente» que reparte «Nuevo»/«Gestionado» en el Pipeline.
+   * VACÍO por defecto: nadie ha intentado contactar a nadie.
+   */
+  actividades: Record<string, unknown>[]
   /** Estado del cierre por lead. VACÍO por defecto, que es el estado real de
    *  producción hoy: ningún lead tiene anulación. Un test que quiera la marca
    *  tiene que ponerla a mano. */
@@ -1960,6 +2031,7 @@ export async function montarBackendReal(
   }
   const estado: BackendReal = {
     leads: init.leads ?? [leadReal()],
+    actividades: init.actividades ?? [],
     cierresEstado: init.cierresEstado ?? [],
     anulacionesAvance: init.anulacionesAvance ?? [],
     potencialHabilitado: init.potencialHabilitado ?? false,
@@ -2079,7 +2151,49 @@ export async function montarBackendReal(
   }
 
   const recibosSla = new Map<string, { huella: string; respuesta: Record<string, unknown> }>()
-  const actividadesSla: Record<string, unknown>[] = []
+  // El MISMO arreglo que `estado.actividades`: lo que una prueba siembra y lo
+  // que registran los comandos SLA viven en una sola lista.
+  const actividadesSla = estado.actividades
+
+  // «Gestión vigente» del Pipeline — espejo de `crm.cartera_filtrada_fn(p_gestion)`:
+  // el lead tiene titular y hay un CONTACTO (los cinco tipos; una nota no cuenta)
+  // registrado desde que ese titular lo recibió, que NO esté deshecho
+  // (`not (metadata ? 'deshecho_en')`: un resultado de llamada deshecho «no
+  // ocurrió»).
+  // La tenencia es la de la FILA (`tenenciaDeLeadReal`), la misma que se sirve
+  // en la lista: no hay un reloj aparte para decidir. Como en el servidor, un
+  // lead con analista y `tenencia_desde` NULO no tiene gestión vigente, tenga
+  // los intentos que tenga.
+  // La fila se sella en los mismos momentos que el trigger (ver
+  // `tenenciaTrasCambio`), y este mock los modela en: el alta, el PATCH de la
+  // fila (asignar, reasignar, soltar, dar de baja), la edición de la ficha, el
+  // descarte por resultado de llamada, su deshacer y la reapertura ordinaria
+  // (`reabrir_lead_fn`). Una prueba que cambie `backend.leads` a mano es ella
+  // quien declara la tenencia.
+  const TIPOS_GESTION = ['llamada_realizada', 'llamada_no_contestada', 'whatsapp_enviado', 'whatsapp_recibido', 'reunion_realizada']
+  const estaDeshecha = (a: Record<string, unknown>): boolean =>
+    typeof a.metadata === 'object' && a.metadata !== null && 'deshecho_en' in a.metadata
+  const conGestionVigente = (lead: LeadReal): boolean => {
+    const sello = tenenciaDeLeadReal(lead)
+    if (lead.vendedor_id == null || sello == null) return false
+    const desde = Date.parse(sello)
+    return actividadesSla.some((a) => a.lead_id === lead.id
+      && TIPOS_GESTION.includes(String(a.tipo)) && !estaDeshecha(a) && Date.parse(String(a.creado_en)) >= desde)
+  }
+  /** Sella EN LA MISMA FILA la tenencia que deja el trigger tras un cambio hecho sobre ella. */
+  const sellarTenencia = (antes: LeadReal, lead: LeadReal) => {
+    lead.tenencia_desde = tenenciaTrasCambio(antes, lead)
+  }
+  // Lo que el servidor escribe al cerrar una tarea de LEAD con resultado: la
+  // gestión entra al timeline y, si fue una conversación, la etapa sube sola
+  // (`trg_zz_actividades_avance_etapa`). Sin esto, cerrar una tarea con «No
+  // contestó» no dejaba rastro y el lead nunca pasaba a «Gestionado».
+  const registrarResultadoDeTarea = (lead: LeadReal, id: string, tipo: unknown, detalle: unknown) => {
+    if (typeof tipo !== 'string' || !tipo) return
+    actividadesSla.push({ id, lead_id: lead.id, tipo, detalle: typeof detalle === 'string' ? detalle : null,
+      creado_en: new Date().toISOString(), autor_nombre: 'Gerente Real' })
+    if (lead.etapa === 'nuevo' && ['llamada_realizada', 'whatsapp_recibido', 'reunion_realizada'].includes(tipo)) lead.etapa = 'contactado'
+  }
 
   await page.route(`${SUPABASE_ORIGIN}/**`, async (route) => {
     const req = route.request()
@@ -2978,6 +3092,7 @@ export async function montarBackendReal(
         return json(route, { code: '23514', message: 'Actividad rechazada' }, 400)
       }
       const siguiente = args.p_siguiente as Record<string, unknown> | null | undefined
+      const antesDelComando = { ...lead }
       const guardarSiguiente = () => {
         if (!siguiente) return
         estado.tareas.push({ ...siguiente, lead_id: lead.id, perfil_id: null,
@@ -3020,8 +3135,13 @@ export async function montarBackendReal(
         tarea!.reprogramaciones = Number(tarea!.reprogramaciones ?? 0) + 1
       } else {
         tarea!.estado = args.p_estado
+        // `cerrar_tarea_v2` con resultado escribe la gestión, como el servidor.
+        if (comandoSla === 'cerrar_tarea') registrarResultadoDeTarea(lead, operacion, args.p_resultado_tipo, args.p_resultado_detalle)
         guardarSiguiente()
       }
+      // Un descarte saca al lead de la tenencia operativa (queda sin reloj); el
+      // resto de comandos no la toca.
+      sellarTenencia(antesDelComando, lead)
       const respuesta = { version: 2, ok: true, operacion_id: operacion, lead_id: lead.id, comando: comandoSla, ...extraRespuesta }
       recibosSla.set(operacion, { huella, respuesta })
       if (estado.perderProximaRespuestaSla) {
@@ -3029,6 +3149,20 @@ export async function montarBackendReal(
         return route.abort('failed')
       }
       return json(route, respuesta)
+    }
+
+    // Reapertura ORDINARIA de un descartado: el botón «Reabrir» de la ficha
+    // (`crm.reabrir_lead_fn`). Vuelve a `nuevo` y ESTRENA tenencia aunque el
+    // analista sea el mismo: lo gestionado antes del descarte deja de contar.
+    if (p === '/rest/v1/rpc/reabrir_lead_fn' && method === 'POST') {
+      const args = (req.postDataJSON() ?? {}) as { p_lead_id?: string }
+      const lead = estado.leads.find((l) => l.id === args.p_lead_id && l.activo)
+      if (!lead) return json(route, { code: 'P0002', message: 'Lead no encontrado o fuera de tu ambito' }, 400)
+      if (lead.etapa !== 'descartado') return json(route, { code: 'P0409', message: `Solo se puede reabrir un lead descartado (este está en «${lead.etapa}»)` }, 400)
+      const antesDeReabrir = { ...lead }
+      lead.etapa = 'nuevo'; lead.motivo_descarte = null; lead.actualizado_en = new Date().toISOString()
+      sellarTenencia(antesDeReabrir, lead)
+      return json(route, { ok: true, lead_id: lead.id, etapa: lead.etapa })
     }
 
     // Gestión Diaria F2: deshacer los EFECTOS de un resultado de llamada.
@@ -3041,14 +3175,25 @@ export async function montarBackendReal(
       const sig = estado.tareas.find((t) => t.id === act.metadata?.siguiente_id && t.estado === 'pendiente')
       if (sig) sig.estado = 'cancelada'
       const revierte = act.metadata.descartado === true && lead.etapa === 'descartado'
-      if (revierte) { lead.etapa = act.metadata.etapa_anterior === 'nuevo' ? 'nuevo' : 'contactado'; lead.motivo_descarte = null }
+      if (revierte) {
+        const antesDeReabrir = { ...lead }
+        lead.etapa = act.metadata.etapa_anterior === 'nuevo' ? 'nuevo' : 'contactado'; lead.motivo_descarte = null
+        // Deshacer un descarte REABRE el lead: estrena tenencia, aunque vuelva
+        // al mismo analista (lo anterior a la reapertura deja de contar).
+        sellarTenencia(antesDeReabrir, lead)
+      }
       act.metadata = { ...act.metadata, deshecho_en: new Date().toISOString() }
       return json(route, { ok: true, actividad_id: act.id, lead_id: lead.id, tarea_cancelada: Boolean(sig), descarte_revertido: revierte, cita_no_restaurada: false, ciclo_nuevo: revierte, etapa: lead.etapa })
     }
 
     // ── RPC cerrar_tarea (cierre atómico: resultado al log + tarea siguiente) ──
     if (p === '/rest/v1/rpc/cerrar_tarea' && method === 'POST') {
-      const body = (req.postDataJSON() ?? {}) as { p_tarea_id?: string }
+      const body = (req.postDataJSON() ?? {}) as { p_tarea_id?: string; p_resultado_tipo?: string; p_resultado_detalle?: string }
+      // Solo las tareas de LEAD dejan su resultado en el timeline del lead; las
+      // de cliente (perfil) escriben en `actividades_cliente`, que es otra lista.
+      const cerrada = estado.tareas.find((t) => t.id === body.p_tarea_id)
+      const leadDeLaTarea = estado.leads.find((l) => l.id === cerrada?.lead_id)
+      if (leadDeLaTarea) registrarResultadoDeTarea(leadDeLaTarea, crypto.randomUUID(), body.p_resultado_tipo, body.p_resultado_detalle)
       estado.tareas = estado.tareas.filter((t) => t.id !== body.p_tarea_id)
       return json(route, { siguiente_id: null })
     }
@@ -3269,13 +3414,18 @@ export async function montarBackendReal(
         return json(route, { message: 'cartera caida', code: 'PGRST000', details: null, hint: null }, 500)
       }
       const body = (req.postDataJSON() ?? {}) as Parameters<typeof carteraPaginaReal>[1]
-      const todos = carteraPaginaReal(estado.leads, { ...body, p_antes_de: null, p_antes_id: null, p_limite: estado.leads.length + 1 })
+      // Como el servidor: un valor desconocido es un error, no «sin recorte».
+      if (body.p_gestion != null && !['con_gestion', 'sin_gestion'].includes(body.p_gestion)) {
+        return json(route, { message: 'p_gestion no válido', code: '22023', details: null, hint: null }, 400)
+      }
+      const todos = carteraPaginaReal(estado.leads, { ...body, p_antes_de: null, p_antes_id: null, p_limite: estado.leads.length + 1 }, conGestionVigente)
       const ids = new Set(todos.map((l) => l.id))
       const resumen = resumenCarteraReal(estado.leads.filter((l) => ids.has(l.id)))
+      // La FORMA de la respuesta no cambia con `p_gestion`: ni eco ni campos nuevos.
       return json(route, { version: 1, generado_en: new Date().toISOString(),
         desde: body.p_desde ?? null, hasta: body.p_hasta ?? null, origen: body.p_origen ?? null,
         reasignados: body.p_reasignados ?? false, resumen,
-        items: carteraPaginaReal(estado.leads, body).map((l) => ({ ...l,
+        items: carteraPaginaReal(estado.leads, body, conGestionVigente).map((l) => ({ ...l,
           recibido_en: body.p_desde ? l.creado_en : null, recepcion_aproximada: false })),
       })
     }
@@ -3474,10 +3624,17 @@ export async function montarBackendReal(
       if (body.p_tipo) body.p_cambios = { ...body.p_cambios,
         dni: body.p_tipo === 'DNI' ? body.p_documento || null : null,
         documento: { tipo: body.p_tipo, numero: body.p_documento?.toUpperCase() || null } }
-      estado.leads = estado.leads.map((lead) => lead.id === body.p_lead_id ? { ...lead, ...body.p_cambios } : lead)
+      // La edición es un UPDATE más: pasa por el trigger de tenencia.
+      estado.leads = estado.leads.map((lead) => {
+        if (lead.id !== body.p_lead_id) return lead
+        const editado = { ...lead, ...body.p_cambios }
+        return { ...editado, tenencia_desde: tenenciaTrasCambio(lead, editado) }
+      })
       return json(route, body.p_tipo ? documentoLead(estado.leads.find((l) => l.id === body.p_lead_id)!) : null)
     }
     if (p === '/rest/v1/leads') {
+      // La fila como la sirve PostgREST: con la tenencia que el trigger le dejó.
+      const filaDeLead = (lead: LeadReal) => ({ ...lead, tenencia_desde: tenenciaDeLeadReal(lead) })
       if (method === 'GET') {
         estado.llamadas.getLeads += 1
         if (estado.leadsSiempreCaido) return json(route, { message: 'server down' }, 500)
@@ -3488,11 +3645,11 @@ export async function montarBackendReal(
         const idPedido = url.searchParams.get('id')
         if (idPedido?.startsWith('eq.')) {
           return json(route, estado.leads.filter((lead) => lead.id === idPedido.slice(3)
-            && (url.searchParams.get('activo') !== 'eq.true' || lead.activo)))
+            && (url.searchParams.get('activo') !== 'eq.true' || lead.activo)).map(filaDeLead))
         }
         // `fueraDelBoot`: simula un lead que la FOTO inicial no trae (tope de
         // MAX_LEADS_AMBITO) pero que su lectura por id sí sirve (RLS lo ve).
-        return json(route, estado.leads.filter((lead) => !lead.fueraDelBoot))
+        return json(route, estado.leads.filter((lead) => !lead.fueraDelBoot).map(filaDeLead))
       }
       if (method === 'POST') {
         estado.llamadas.insertLeadDirecto += 1
@@ -3507,12 +3664,21 @@ export async function montarBackendReal(
         // Servidor con estado: aplica el update a la fila (el resync lo refleja).
         const idFiltro = (url.searchParams.get('id') ?? '').replace(/^eq\./, '')
         const cambios = (req.postDataJSON() ?? {}) as Partial<LeadReal>
-        estado.leads = estado.leads.map((l) => (l.id === idFiltro ? {
-          ...l, ...cambios,
-          reasignado: 'vendedor_id' in cambios
-            ? cambios.vendedor_id != null && (l.reasignado === true || l.vendedor_id != null)
-            : l.reasignado,
-        } : l))
+        // Todo UPDATE pasa por el trigger de tenencia: asignar o cambiar de
+        // analista estrena reloj (lo gestionado por el anterior deja de contar
+        // para «Gestionado»); soltar, cerrar o dar de baja lo apaga; el resto no
+        // lo toca, mande lo que mande el cliente.
+        estado.leads = estado.leads.map((l) => {
+          if (l.id !== idFiltro) return l
+          const cambiado = { ...l, ...cambios }
+          return {
+            ...cambiado,
+            reasignado: 'vendedor_id' in cambios
+              ? cambios.vendedor_id != null && (l.reasignado === true || l.vendedor_id != null)
+              : l.reasignado,
+            tenencia_desde: tenenciaTrasCambio(l, cambiado),
+          }
+        })
         return json(route, [{ id: idFiltro }])
       }
     }

@@ -1,3 +1,125 @@
+## 20261001154153 — Pipeline «Gestionado»: filtro `p_gestion` en `crm.cartera_filtrada_fn`
+
+**⏸️ PENDIENTE: ensayada en banco Docker propio (`avancecorp-gestionado-20261001`); NO aplicada en producción (la
+publica Miguel).** Pedido de los analistas: una columna «Gestionado» entre «Nuevo» y «Contactado» para los leads que ya
+se intentaron contactar (llamada sin respuesta, WhatsApp enviado) y aún no responden. No nace una etapa guardada —el
+lead sigue en `etapa = 'nuevo'`—: la columna se calcula. Decisión de Miguel (01/10): un lead reasignado que el analista
+anterior ya intentó es «Nuevo» para el actual; solo cuenta lo gestionado desde que el titular ACTUAL lo recibió.
+
+Qué cambia: la RPC INVOKER sustituye la firma de 12 argumentos por una de 13 con `p_gestion text default null`
+(`con_gestion` | `sin_gestion`; otro valor → 22023 por el bloque de validación existente). Con gestión = titular +
+`tenencia_desde` + al menos un contacto de los 5 tipos (`actividades_contacto_episodio_idx`) con
+`creado_en >= tenencia_desde` y no deshecho (`not (metadata ? 'deshecho_en')`); todo lo demás, sin gestión. Recorta
+la MISMA base (filas, totales, capital y embudo) y es independiente de `p_etapa`. **La forma del payload no cambia**
+(sin eco y sin campos nuevos por fila: hay bundles viejos leyéndolo); con `p_gestion` nulo la respuesta es idéntica.
+Mismo dueño, ACL (solo `authenticated`), `stable` y `search_path` vacío. La exención analítica se MUEVE a la firma
+nueva (misma clase y fecha) y se resella.
+
+Guardas, todas con `search_path` vacío fijado en la transacción (no dependen de quién aplique). La regla compara
+DOS relojes que sella el servidor, y la migración ancla los dos. Preflight: (1) función viva `7169d942…` y una sola
+firma; (2) declaración vigente, de inventario y sellada; (3) `assert_actividades_de_lead_base()` (el filtro lee
+actividades como INVOKER); (4) reloj del LEAD: trigger `trg_leads_zzz_tenencia_desde` activo, definición
+`f5849e26…`, función `900508fa…`; (5) reloj e integridad de la ACTIVIDAD: `trg_01_gestion_lead_serializada`
+(re-sella `creado_en` y revalida el ámbito; `a7d2d742…` / `7af0e66b…`) y `trg_00_actividades_resultado_solo_nucleo`
+(reserva el resultado de llamada y `deshecho_en`; `24037d11…` / `19952736…`) activos; RLS encendida en
+`crm.actividades` y `crm.leads`; una sola policy de INSERT (`actividades_insert`, `with check` `b2d6792b…`,
+re-medido con `search_path` vacío); ninguna permisiva ALL ni policies de UPDATE/DELETE; restrictivas de las dos
+tablas = exactamente `crm_actor_activo_gate` (`c5e6c906…`); `authenticated` y `anon` sin UPDATE ni DELETE.
+Postflight: cuerpo instalado `bf06666f…`, contrato de seguridad igual al de la firma retirada, mismo censo y mismo
+conjunto en rojo, declaraciones ajenas y `resumen_cartera_fn` intactos, y la guarda 5 repetida.
+
+Corrección tras las revisiones de auditor-rls y Codex (sin P0/P1; la función no cambió): la primera versión de esta
+entrada decía que las guardas de la fuente de actividades de 20260929195918 no se heredaban porque «protegen el
+evento reasignado». Era inexacto. La regla de gestión depende igual de que una actividad no se pueda fabricar,
+fechar, reescribir ni borrar: el preflight anclaba el reloj del lead y dejaba sin vigilar el de la actividad. Esas
+guardas vuelven, re-medidas y ampliadas (los dos triggers de sello, RLS, y el CONJUNTO de restrictivas: era el punto
+ciego de `assert_actividades_de_lead_base`, que sella las permisivas y solo la presencia del gate; una restrictiva
+de SELECT con `creado_por = auth.uid()` habría pasado y daría a titular y supervisor veredictos distintos sobre el
+mismo lead). Lo único que sigue sin heredarse es el ancla de `trg_leads_reasignacion`, que emite el evento
+«reasignado» y no interviene en este filtro.
+
+Límite conocido (carrera de relojes; el trigger no se toca aquí): la tenencia se sella con `statement_timestamp()` y
+el contacto con `clock_timestamp()` tras tomar el candado del lead. En una reasignación en lote, o en una que espera a
+una gestión en vuelo, el intento del titular saliente puede quedar fechado después de la tenencia nueva y contar
+para el entrante. Ventana estrecha; el efecto es un lead mal rotulado, sin exposición de datos.
+
+Consecuencias de la regla, fijadas en el oráculo y decididas el 01/10: reabrir un descartado devuelve el lead a
+«Nuevo» también con el mismo titular (la tenencia se renueva); cuenta la FECHA del contacto, no su autor (un intento
+del supervisor dentro de la tenencia cuenta); en etapas terminales (`tenencia_desde` nula) todo es «sin gestión».
+**Un resultado de llamada DESHECHO no cuenta** (ajuste del 01/10, tras acreditar en producción 11 contactos
+deshechos de 8 307 y 0 leads afectados): como en los núcleos de Gestión Diaria, lo deshecho «no ocurrió»; solo un
+intento deshecho ⇒ «Nuevo», deshecho + otro vigente ⇒ «Gestionado». `ultimo_contacto_en` y `sin_tocar` no cambian
+(siguen viendo esa llamada), así que la fila solo acredita el veredicto en un sentido: con gestión ⇒
+`ultimo_contacto_en >= tenencia_desde`.
+
+Ensayo (`supabase/scripts/cartera-gestion/ensayar.mjs`, 77 pasos PASS; detalle en su `verificacion.json`): oráculo de
+negocio 128/128 con la cadena REAL de triggers y puertas (entrega; llamada por `crm.registrar_llamada_v4`; deshacer
+por `crm.deshacer_resultado_llamada` ⇒ vuelve a «Nuevo»; nuevo intento; reasignación; descarte; reapertura), negativas
+de falsificación como `authenticated` (contacto en un lead ajeno, `deshecho_en` a mano, UPDATE y DELETE de
+actividades ⇒ rechazados; un `creado_en` futuro se re-sella y no sobrevive a la reasignación), partición
+exacta en totales, capital y embudo, validación, cursor y alcance por rol bajo RLS (analista, supervisor, otro
+equipo, gerencia, directorio; revocado, solo-portal y sin sesión → 42501; `anon` y `service_role` sin EXECUTE, leído
+del catálogo). Igualdad nueva-sin-filtro = vieja: 256/256 respuestas (8 actores × 16 llamadas × omitido y null,
+5 936 filas) y `resumen_cartera_fn` 8/8 antes = después en la misma sesión. El Pipeline con volumen, recorrido por
+cursor como gerencia, directorio, supervisor, analista y coordinador (5 302 filas, con 1 427 contactos deshechos
+sembrados: 23 leads quedan en «Nuevo» solo por eso), coincide con un oráculo independiente que no usa la función:
+ni una de más, ni una de menos, ni una repetida. Mutantes: 26 de preflight —8 de las guardas 1 a 4; 16 de la
+guarda 5, uno por cláusula (`trg_01` apagado o recreado con un `WHEN` que lo neutraliza, `trg_00` con otro cuerpo,
+RLS apagada, policy de INSERT con otro `with check` o abierta a otro rol, segunda policy de INSERT, policies ALL,
+UPDATE y DELETE, restrictiva de SELECT añadida, gate alterado, UPDATE o DELETE concedidos a `authenticated` o a
+`anon`); un gemelo sin la guarda 3, porque a la policy ALL la rechaza antes la 3 y así se prueba que la cláusula de
+la 5 no es código muerto; y uno que quita el `search_path` fijado (con `private` en el camino de la sesión el md5
+del trigger es otro)— y 6 de postflight (uno prueba que la repetición de la guarda 5 tampoco es código muerto),
+todos rechazados; 16 de lógica cazados por el oráculo (entre ellos «lo deshecho cuenta», 28 fallas; más 1 equivalente
+declarado); 3 de estado (el servidor deja de sellar `creado_en`, de reservar `deshecho_en`, o la API puede
+reescribir y borrar: las negativas de falsificación se ponen rojas); 2 por la igualdad y 2 por el de volumen.
+Instalación con un rojo ajeno: lo conserva. Reversa real: todo vuelve EXACTAMENTE al estado previo (`7169d942…`,
+sello vigente, gate igual) y repetida se niega; reaplicación determinista; registrador idempotente. Rendimiento con
+5 000 leads y 31 588 actividades (`p_etapa = 'nuevo'`, página de 200, misma sesión y datos): sin filtro no cuesta
+más que antes (diferencia pareada nueva − vieja entre −0,2 y +0,3 ms para un analista, sobre 7–11 ms, y entre −3,3
+y +0,7 ms para gerencia, sobre 50–75 ms, en once corridas con la máquina cargada de forma desigual); con filtro
+baja (la base es menor). El `exists` usa `actividades_contacto_episodio_idx` por lead y fecha, sin recorrido
+secuencial; con la exclusión de lo deshecho deja de ser «solo índice» (`metadata` no está en el índice) y pasa a
+`Index Scan`: +0,08 ms por 2 222 sondeos con páginas todo-visibles y dentro del ruido a través de la función
+(−0,2…+0,2 ms sobre ~33 ms; +0,05 ms sobre ~7 ms). Hallazgo AJENO a este cambio: el tiempo de gerencia lo decide la
+lateral de «reasignado» de 20260929195918, cuyo plan oscila entre recorrer el índice de reasignaciones por cada lead
+(~50 ms) y buscar por lead (~17 ms); no se toca aquí.
+
+Producción: NO aplicada. El PRIMARY corrió `acreditar.sql` (solo lectura) el 01/10, antes de los dos ajustes:
+estado ANTES y las anclas de las guardas 1 a 4 en [OK]; el censo trae un rojo ajeno y preexistente
+(`private.gestion_diaria_cola_hechos(uuid,timestamp with time zone)`), que la migración conserva tal cual. **Las
+anclas de la guarda 5 se midieron solo en el banco: falta acreditarlas en producción** corriendo otra vez
+`acreditar.sql`, que ya trae sus líneas [OK]/[DIFERENTE]; si alguna difiere, la migración se negará en su preflight.
+Realidad medida por el PRIMARY en producción, en solo lectura, el 01/10: 464 leads activos en `nuevo` · 311
+«Gestionado» · 153 «Nuevo» (38 sin titular, 6 con contactos anteriores a la tenencia) · con titular y sin
+`tenencia_desde`: 0 en `nuevo` y 0 en cualquier etapa abierta · 11 contactos deshechos de 8 307, 0 leads afectados ·
+0 leads «Gestionado» solo por una actividad de otra persona. (Los 311/153 son de antes de excluir lo deshecho; con 0
+afectados no cambian.)
+
+Revisiones (a cargo del PRIMARY): auditor-rls y Codex, sin P0/P1 y sin cambios en la función; de ellas salen la
+guarda 5, las negativas de falsificación, la matriz no vacía y las correcciones de esta entrada. El punto ciego de
+la guarda 3 se comprobó en el banco: con una restrictiva de SELECT `creado_por = auth.uid()` en `crm.actividades`,
+`assert_actividades_de_lead_base()` sigue diciendo OK y el analista y su supervisor dejan de coincidir (sobre los
+fixtures del oráculo, el supervisor pasa de 11 leads «con gestión» a 1). No acreditado: advisors; `test:rls`
+remoto: la matriz de `test-rls.mjs` quedó ampliada (oráculo propio por rol leyendo las tablas, caso permitido
+determinista, admisión de `vendInactive` y `clientBank`, catálogo de la firma de 13, dominio estricto y negativa
+cruzada) pero NO se ha ejecutado (`--preflight` NOT RUN: exige credenciales). Lo único probado de ella aquí es su
+oráculo de gestión: el ensayo extrae ese código del archivo y lo ejecuta, actor por actor bajo RLS, contra las
+tablas y la función, con tres controles negativos; no hay PostgREST ni sesiones, así que no cuenta como ejecución
+del gate. Gate offline `npm run check:scripts`: PASS.
+
+Efecto lateral declarado: a `supabase/scripts/gestion-diaria-cola/fixtures/acl.json` (foto de permisos de OTRO kit)
+se le añadió a mano la firma de 13 junto a la de 12, para que su `preparar.mjs` no deje la función sin EXECUTE en
+una plantilla posterior a esta migración; nota en el README de ese kit. Tras publicar, regenerar ese snapshot desde
+producción y retirar la firma de 12.
+
+Orden: antes de producción, la matriz `test-rls.mjs` en una rama con el seed (o la excepción a la vista); luego
+servidor primero (`acreditar.sql` → migración → `cartera-gestion/registrar.sql` → `acreditar.sql` → comprobar por
+HTTP que la RPC ya acepta `p_gestion`: `notify pgrst` no espera a que PostgREST recargue), pantalla después.
+Reversa: `supabase/scripts/cartera-gestion/reversa.sql`, tras retirar el frente que envía `p_gestion` (conserva la
+fila de `schema_migrations`; no detecta un consumidor de servidor que ya pase `p_gestion`, porque plpgsql enlaza
+tarde: hoy no hay ninguno). SQL SHA-256: `01255f7b2bd6cd5f25deab720583a4184ac31b532b0b2e058cfe5bbcb1ab86fa`.
+
 ## 20261001151704 — Potencial del lead · fase 3, entrega A: la puerta de lectura (`crm.potencial_leads_fn`)
 
 **✅ EN PROD desde el 01/10/2026 13:40 Lima (Miguel con `!`: migración → `registrar-lectura.sql` →

@@ -56,6 +56,10 @@ export function useCarteraPaginada(
   const origen = filtros.origen ?? 'todos'
   const procedencia = filtros.procedencia ?? 'todas'
   const reasignados = filtros.reasignados ?? false
+  // Gestión vigente (columnas «Nuevo»/«Gestionado» del Pipeline). Solo recorta
+  // en sesión real: el espejo demo de este hook conoce leads, no timelines, y
+  // ahí la reparte quien tiene las actividades (lib/pipeline-columnas).
+  const gestion = filtros.gestion
   const desde = filtros.recepcion?.desde ?? (esDemo ? filtros.recepcionDemo?.desde : undefined)
   const hasta = filtros.recepcion?.hasta ?? (esDemo ? filtros.recepcionDemo?.hasta : undefined)
   const filtrosEstables = useMemo<FiltrosCartera & FiltrosCarteraLocal>(
@@ -64,8 +68,9 @@ export function useCarteraPaginada(
       ...(origen !== 'todos' ? { origen } : {}),
       ...(procedencia !== 'todas' ? { procedencia } : {}),
       ...(reasignados ? { reasignados: true } : {}),
+      ...(gestion ? { gestion } : {}),
       ...(desde != null && hasta != null ? { recepcion: { desde, hasta }, recepcionDemo: { desde, hasta } } : {}) }),
-    [etapa, vendedorId, texto, origen, procedencia, reasignados, desde, hasta],
+    [etapa, vendedorId, texto, origen, procedencia, reasignados, gestion, desde, hasta],
   )
 
   const rangoValido = rangoFechaCarteraValido(filtrosEstables.recepcion ?? null, fechaLima(Date.now()))
@@ -76,7 +81,7 @@ export function useCarteraPaginada(
   // Cambiar de filtro EMPIEZA una lista nueva: conservar el número de páginas
   // dejaría la vista mostrando 150 resultados de una búsqueda que acaba de
   // cambiar (y en real el cursor viejo ni siquiera sería válido).
-  useEffect(() => { setPaginasDemo(1) }, [etapa, vendedorId, texto, origen, procedencia, reasignados, desde, hasta])
+  useEffect(() => { setPaginasDemo(1) }, [etapa, vendedorId, texto, origen, procedencia, reasignados, gestion, desde, hasta])
 
   const filtradosDemo = useMemo(
     () => (esDemo ? ordenarCarteraLocal(filtrarCarteraLocal(leadsDelAmbito, filtrosEstables)

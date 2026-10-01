@@ -19,8 +19,12 @@ const cambiarEtapa = vi.fn((id: string, etapa: EtapaActiva) => {
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: { id: 'v-1', rol: 'vendedor', demo: DEMO } }) }))
 vi.mock('@/data/use-cartera-paginada', () => ({
-  useCarteraPaginada: (_foto: readonly Lead[], f: { etapa?: string }) => {
-    const todos = LEADS.filter((l) => l.activo && (!f.etapa || f.etapa === 'todas' || l.etapa === f.etapa))
+  // La etapa `nuevo` se pide en dos mitades («Nuevo» y «Gestionado»); estos
+  // leads no tienen gestión, así que la mitad `con_gestion` va vacía. Sin esto
+  // cada lead `nuevo` saldría en las dos columnas.
+  useCarteraPaginada: (_foto: readonly Lead[], f: { etapa?: string; gestion?: string }) => {
+    const todos = LEADS.filter((l) => l.activo && f.gestion !== 'con_gestion'
+      && (!f.etapa || f.etapa === 'todas' || l.etapa === f.etapa))
     return {
       leads: todos, resumen: { totales: { vivos: todos.length } }, hayMas: false,
       cargando: false, cargandoMas: false, error: null, cargarMas: vi.fn(), recargar: vi.fn(),
