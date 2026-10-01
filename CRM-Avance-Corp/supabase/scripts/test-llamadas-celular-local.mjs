@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Prueba las migraciones REALES de Llamadas desde el celular (F2-b datos 20261001145242 y F2-c
-// núcleo 20261001160219) en un PostgreSQL 16/17 desechable: initdb en una carpeta temporal,
+// Prueba las migraciones REALES de Llamadas desde el celular (F2-b datos 20261001145242, F2-c
+// núcleo 20261001160219 y F3-a ingesta 20261001212258) en un PostgreSQL 16/17 desechable: initdb en una carpeta temporal,
 // escucha solo en 127.0.0.1, contraseña de usar y tirar generada aquí (nunca se imprime ni sale de
 // la carpeta temporal) y se borra al terminar. Nunca acepta una URL ni variables PG* del entorno.
 //
@@ -8,14 +8,14 @@
 // canonización, idempotencia y forma del resultado reales; auth.uid como doble declarado).
 // Molde: supabase/scripts/test-sla-nucleo-local.py. No sustituye el gate test-rls.mjs.
 //
-// Tres pasadas:
+// Cinco pasadas:
 //   1. Las migraciones tal cual: se aplican, se niegan a sobrescribirse, pasan sus oráculos, sus
 //      reversas funcionan en orden (y se niegan fuera de orden o con filas) y se vuelven a aplicar.
-//   2. Mutantes de F2-b y 3. mutantes de F2-c: por cada defensa, una copia de la migración que la
-//      neutraliza. Un mutante «de oráculo» tiene que APLICARSE y hacer fallar su oráculo; uno «de
-//      postflight» tiene que ser rechazado por el postflight con su mensaje. Si sobrevive, esa
-//      defensa no está probada.
-//   4. Concurrencia con dos sesiones REALES: la primera abre su transacción y la retiene; la
+//   2. Mutantes de F2-b, 3. mutantes de F2-c y 4. mutantes de F3-a: por cada defensa, una copia de
+//      la migración que la neutraliza. Un mutante «de oráculo» tiene que APLICARSE y hacer fallar su
+//      oráculo; uno «de postflight» tiene que ser rechazado por el postflight con su mensaje. Si
+//      sobrevive, esa defensa no está probada.
+//   5. Concurrencia con dos sesiones REALES: la primera abre su transacción y la retiene; la
 //      segunda llega mientras tanto, tiene que ESPERAR (se mide) y responder bien al soltarse.
 //
 // Uso:  node supabase/scripts/test-llamadas-celular-local.mjs     (npm run test:llamadas:local)
@@ -30,12 +30,15 @@ import { fileURLToPath } from 'node:url';
 const RAIZ = fileURLToPath(new URL('../..', import.meta.url));
 const MIG_DATOS = join(RAIZ, 'supabase/migrations/20261001145242_crm_llamadas_celular_datos.sql');
 const MIG_NUCLEO = join(RAIZ, 'supabase/migrations/20261001160219_crm_llamadas_celular_nucleo.sql');
+const MIG_INGESTA = join(RAIZ, 'supabase/migrations/20261001212258_crm_llamadas_celular_ingesta.sql');
 const BASE = join(RAIZ, 'supabase/tests/llamadas-celular/base.sql');
 const ORACULO_DATOS = join(RAIZ, 'supabase/scripts/llamadas-celular/verificar-datos.sql');
 const ORACULO_NUCLEO = join(RAIZ, 'supabase/tests/llamadas-celular/oraculo-nucleo.sql');
+const ORACULO_INGESTA = join(RAIZ, 'supabase/tests/llamadas-celular/oraculo-ingesta.sql');
 const REVERSA_DATOS = join(RAIZ, 'supabase/scripts/llamadas-celular/reversa-datos.sql');
 const REVERSA_TOTAL = join(RAIZ, 'supabase/scripts/llamadas-celular/reversa-datos-total.sql');
 const REVERSA_NUCLEO = join(RAIZ, 'supabase/scripts/llamadas-celular/reversa-nucleo.sql');
+const REVERSA_INGESTA = join(RAIZ, 'supabase/scripts/llamadas-celular/reversa-ingesta.sql');
 const PUERTO = '55485';
 const USUARIO = 'llamadas_test_owner';
 const EXE = process.platform === 'win32' ? '.exe' : '';
@@ -117,6 +120,68 @@ const MUTANTES_NUCLEO = [
   { nombre: 'puerta INVOKER', por: 'postflight', espera: 'debería ser SECURITY DEFINER',
     buscar: 'create function crm.asociar_llamada_celular(p_evento_id uuid, p_lead_id uuid)\nreturns jsonb\nlanguage plpgsql\nvolatile\nsecurity definer',
     poner: 'create function crm.asociar_llamada_celular(p_evento_id uuid, p_lead_id uuid)\nreturns jsonb\nlanguage plpgsql\nvolatile\nsecurity invoker' },
+];
+
+const CLAVE_VIGENTE_ACTIVA = "    and a.vigente_hasta is null\n    and coalesce(private.rol_crm(a.analista_id), '') in ('vendedor', 'supervisor')\n$function$;";
+const MUTANTES_INGESTA = [
+  { nombre: 'clave de un celular cerrado entra (el latido no re-chequea)', buscar: CLAVE_VIGENTE_ACTIVA,
+    poner: "    and coalesce(private.rol_crm(a.analista_id), '') in ('vendedor', 'supervisor')\n$function$;" },
+  { nombre: 'clave de un analista de baja entra (el latido no re-chequea)', buscar: CLAVE_VIGENTE_ACTIVA,
+    poner: '    and a.vigente_hasta is null\n$function$;' },
+  { nombre: 'clave desconocida sin frenar en la ingesta', aviso: 'No autorizado', ocurrencia: 1, total: 3 },
+  { nombre: 'clave desconocida sin frenar en el latido', aviso: 'No autorizado', ocurrencia: 3, total: 3 },
+  { nombre: 'sin chequeo propio de la clave ni respuesta uniforme: el núcleo da pistas', cambios: [
+    { buscar: CLAVE_VIGENTE_ACTIVA, poner: "    and coalesce(private.rol_crm(a.analista_id), '') in ('vendedor', 'supervisor')\n$function$;" },
+    { buscar: "  exception when insufficient_privilege then\n    -- Cerrada o dada de baja mientras esperaba el candado: la misma respuesta, sin pistas.\n    raise exception using errcode = '42501', message = 'No autorizado';\n  end;",
+      poner: '  exception when division_by_zero then\n    raise;\n  end;' }] },
+  { nombre: 'la ingesta no cuenta el envío', buscar: '  perform private.celular_consumir_envio(v_asig);\n  begin\n    v_r := private.llamada_celular_ingerir(v_asig, p_evento);',
+    poner: '  begin\n    v_r := private.llamada_celular_ingerir(v_asig, p_evento);' },
+  { nombre: 'el latido no cuenta el envío (límite no compartido)', buscar: '  perform private.celular_consumir_envio(v_asig);\n  return private.celular_registrar_salud(v_asig, p_latido);',
+    poner: '  return private.celular_registrar_salud(v_asig, p_latido);' },
+  { nombre: 'la respuesta al celular lleva el lead y su atención',
+    buscar: "  return pg_catalog.jsonb_build_object('evento_id', v_r -> 'evento_id', 'repetido', v_r -> 'repetido',\n    'ignorado', v_r -> 'ignorado', 'motivo', v_r -> 'motivo');",
+    poner: '  return v_r;' },
+  { nombre: 'último envío sin sellar', buscar: '  update private.celulares_estado set ultimo_envio_en = pg_catalog.now() where asignacion_id = v_asig;\n', poner: '' },
+  { nombre: 'límite por minuto apagado', buscar: 'if v_min >= v_pol.limite_envios_minuto then', poner: 'if false then' },
+  { nombre: 'límite diario apagado', buscar: 'if v_dia_n >= v_pol.limite_envios_dia then', poner: 'if false then' },
+  { nombre: 'el minuto no vuelve a cero', buscar: 'v_min := case when v_est.minuto_desde = v_minuto then v_est.envios_minuto else 0 end;', poner: 'v_min := v_est.envios_minuto;' },
+  { nombre: 'el día no vuelve a cero', buscar: 'v_dia_n := case when v_est.dia = v_dia then v_est.envios_dia else 0 end;', poner: 'v_dia_n := v_est.envios_dia;' },
+  { nombre: 'freno por minuto sin la espera', buscar: "      detail = pg_catalog.format('reintentar_en_seg=%s', greatest(1, pg_catalog.ceil(\n        extract(epoch from (v_minuto + interval '1 minute' - v_ahora)))::integer));",
+    poner: "      detail = 'reintentar_en_seg=0';" },
+  { nombre: 'freno diario sin la espera', buscar: "      detail = pg_catalog.format('reintentar_en_seg=%s', greatest(1, pg_catalog.ceil(\n        extract(epoch from (((v_dia + 1)::timestamp at time zone 'America/Lima') - v_ahora)))::integer));",
+    poner: "      detail = 'reintentar_en_seg=0';" },
+  { nombre: 'latido con claves no previstas', aviso: 'El latido trae claves no previstas' },
+  { nombre: 'latido de otra versión', aviso: 'Versión de latido no soportada' },
+  { nombre: 'latido sin versión de la macro', aviso: 'version_macro inválida' },
+  { nombre: 'latido sin cola', aviso: 'en_cola es obligatorio' },
+  { nombre: 'latido con hora ilegible', aviso: 'en_cola u ocurrio_en con formato inválido' },
+  { nombre: 'latido sin estado dado por bueno', aviso: 'El celular no tiene estado' },
+  { nombre: 'bandeja sin ámbito', buscar: '\n      and private.llamada_celular_visible(p_actor, e.lead_id, e.analista_id)\n    order by e.recibido_en desc, e.id desc',
+    poner: '\n    order by e.recibido_en desc, e.id desc' },
+  { nombre: 'bandeja que ignora el cursor', buscar: '      and (p_antes_recibido_en is null or (e.recibido_en, e.id) < (p_antes_recibido_en, p_antes_id))\n', poner: '' },
+  { nombre: 'cursor a medias aceptado', aviso: 'El cursor lleva recibido_en y evento_id juntos' },
+  { nombre: 'supervisión ve la salud de otro equipo', buscar: '             and a.analista_id in (select private.vendedor_ids_visibles(p_actor))))\n$function$;',
+    poner: '             and true))\n$function$;' },
+  { nombre: 'salud con celulares cerrados', buscar: "  where a.vigente_hasta is null\n    and (private.rol_crm(p_actor) = 'gerencia'",
+    poner: "  where (private.rol_crm(p_actor) = 'gerencia'" },
+  { nombre: 'estado del celular borrable (reinicia el límite)', aviso: 'El estado de un celular no se borra' },
+  { nombre: 'estado del celular que cambia de asignación', aviso: 'El estado de un celular no cambia de asignación' },
+  { nombre: 'límite por minuto mayor que el diario', buscar: ',\n  add constraint llamadas_celular_politica_limites_coherentes check (limite_envios_minuto <= limite_envios_dia);', poner: ';' },
+  { nombre: 'límite de cero envíos', buscar: 'check (limite_envios_minuto between 1 and 600)', poner: 'check (limite_envios_minuto between 0 and 600)' },
+  { nombre: 'puerta de servicio abierta a authenticated', por: 'postflight', espera: 'EXECUTE inesperado',
+    buscar: "    execute pg_catalog.format('grant execute on function %s to service_role', v_f);",
+    poner: "    execute pg_catalog.format('grant execute on function %s to service_role, authenticated', v_f);" },
+  { nombre: 'tabla técnica sin RLS', por: 'postflight', espera: 'quedó sin RLS',
+    buscar: 'alter table private.celulares_estado enable row level security;\n', poner: '' },
+  { nombre: 'tabla técnica abierta a la API', por: 'postflight', espera: 'accesible desde la API',
+    buscar: 'revoke all on private.celulares_estado from public, anon, authenticated, service_role;', poner: 'grant select on private.celulares_estado to authenticated;' },
+  { nombre: 'tabla técnica sin candado', por: 'postflight', espera: 'quedó sin su candado',
+    buscar: 'create trigger trg_celulares_estado_00_candado\n  before update or delete on private.celulares_estado\n  for each row execute function private.trg_celulares_estado_candado();\n', poner: '' },
+  { nombre: 'puerta de servicio INVOKER', por: 'postflight', espera: 'debería ser SECURITY DEFINER',
+    buscar: 'create function crm.ingerir_llamada_celular_servicio(p_credencial text, p_evento jsonb)\nreturns jsonb\nlanguage plpgsql\nvolatile\nsecurity definer',
+    poner: 'create function crm.ingerir_llamada_celular_servicio(p_credencial text, p_evento jsonb)\nreturns jsonb\nlanguage plpgsql\nvolatile\nsecurity invoker' },
+  { nombre: 'límites que no son los decididos', por: 'postflight', espera: 'no quedaron en 30 por minuto y 600 al día',
+    buscar: 'add column limite_envios_dia integer not null default 600', poner: 'add column limite_envios_dia integer not null default 601' },
 ];
 
 function carpetaBinarios() {
@@ -242,11 +307,11 @@ const pausa = (ms) => new Promise((r) => { setTimeout(r, ms); });
 const RETIENE_MS = 2000;
 
 async function pasadaConcurrencia() {
-  console.log('\n— Pasada 4: concurrencia con dos sesiones reales —');
+  console.log('\n— Pasada 5: concurrencia con dos sesiones reales —');
   const db = 'concurrencia';
-  psqlSql(`create database ${db} template plantilla_datos`, 'postgres');
-  let r = psqlArchivo(MIG_NUCLEO, db);
-  if (!paso('banco de concurrencia listo (datos + núcleo)', r.ok, r.ok ? '' : cola(r.salida))) return;
+  psqlSql(`create database ${db} template plantilla_nucleo`, 'postgres');
+  let r = psqlArchivo(MIG_INGESTA, db);
+  if (!paso('banco de concurrencia listo (datos + núcleo + ingesta)', r.ok, r.ok ? '' : cola(r.salida))) return;
   const a1 = '00000000-0000-0000-0000-0000000000a1';
   const c1 = '00000000-0000-0000-0000-0000000000c1';
   r = psqlSql(`insert into crm.celulares_asignaciones (etiqueta, analista_id, credencial_hash) values ('C1', '${a1}', repeat('a', 64)) returning id`, db);
@@ -296,6 +361,26 @@ async function pasadaConcurrencia() {
     `segunda sesión: ${s2.ms} ms · ${lineaError(s2.salida)}`);
   r = psqlSql(`select count(*) from crm.llamadas_celular_enlaces where evento_id = '${ev}'`, db);
   paso('queda exactamente un enlace', r.ok && r.salida.trim() === '1', r.salida.trim());
+
+  // F3-a: gerencia rota la clave de C7 mientras una ingesta con la clave vieja espera el candado
+  // de la asignación. La ingesta vio la asignación vigente al empezar; tras esperar, el núcleo la
+  // encuentra cerrada y la puerta responde el MISMO «No autorizado», sin el mensaje del núcleo.
+  const g1 = '00000000-0000-0000-0000-0000000000f1';
+  const claveC7 = randomBytes(32).toString('hex'); // sintética: no protege nada fuera de este banco
+  r = psqlSql(`insert into crm.celulares_asignaciones (etiqueta, analista_id, credencial_hash)
+    values ('C7', '${a1}', encode(sha256(convert_to('${claveC7}', 'utf8')), 'hex')) returning id`, db);
+  const comoGerencia = `set local role authenticated;\nselect set_config('request.jwt.claim.sub', '${g1}', true);\n`;
+  const comoServicio = `set local role service_role;\nselect set_config('request.jwt.claim.sub', '', true);\n`;
+  [s1, s2] = await Promise.all([
+    psqlParalelo(retener(`${comoGerencia}select crm.rotar_credencial_celular('C7') is not null;`), db),
+    pausa(400).then(() => psqlParalelo(`begin;\n${comoServicio}select crm.ingerir_llamada_celular_servicio('${claveC7}', ${evento('conc-4')})::text;\ncommit;\n`, db)),
+  ]);
+  paso('rotación mientras una ingesta espera → la ingesta espera y recibe el mismo «No autorizado»',
+    r.ok && s1.ok && !s2.ok && s2.salida.includes('No autorizado') && !s2.salida.includes('Celular sin asignación')
+      && s2.ms >= RETIENE_MS - 600,
+    `segunda sesión: ${s2.ms} ms · ${lineaError(s2.salida)}`);
+  r = psqlSql(`select count(*) from crm.llamadas_celular_eventos where evento_origen_id = 'conc-4'`, db);
+  paso('la ingesta rechazada no dejó la llamada guardada', r.ok && r.salida.trim() === '0', r.salida.trim());
 }
 
 let arrancado = false;
@@ -322,6 +407,9 @@ try {
   psqlSql('create database plantilla_datos template plantilla', 'postgres');
   r = psqlArchivo(MIG_DATOS, 'plantilla_datos');
   if (!r.ok) throw new Error(`la plantilla con datos no se pudo preparar:\n${cola(r.salida)}`);
+  psqlSql('create database plantilla_nucleo template plantilla_datos', 'postgres');
+  r = psqlArchivo(MIG_NUCLEO, 'plantilla_nucleo');
+  if (!r.ok) throw new Error(`la plantilla con el núcleo no se pudo preparar:\n${cola(r.salida)}`);
   psqlSql('create database principal template plantilla', 'postgres');
 
   console.log('\n— Pasada 1: las migraciones tal cual —');
@@ -333,6 +421,10 @@ try {
   const oraculoNucleo = (nombre) => {
     const o = psqlArchivo(ORACULO_NUCLEO, db);
     return paso(nombre, o.ok && o.salida.includes('ORACULO F2-c OK'), lineasOraculo(o.salida));
+  };
+  const oraculoIngesta = (nombre) => {
+    const o = psqlArchivo(ORACULO_INGESTA, db);
+    return paso(nombre, o.ok && o.salida.includes('ORACULO F3-a OK'), lineasOraculo(o.salida));
   };
   r = psqlArchivo(MIG_DATOS, db);
   paso('F2-b aplicada (precondición, tablas, candados, purga, postflight)', r.ok, r.ok ? '' : cola(r.salida));
@@ -347,6 +439,27 @@ try {
   oraculoDatos('oráculo de F2-b con F2-c instalado');
   r = psqlSql('select count(*) from crm.llamadas_celular_eventos', db);
   paso('los oráculos no dejaron filas (terminan en ROLLBACK)', r.ok && r.salida.trim() === '0', r.salida.trim());
+
+  // F3-a encima de F2: se aplica, se niega a repetirse, pasa su oráculo sin romper los de F2, la
+  // reversa del núcleo se niega mientras F3-a siga, y su propia reversa la retira y la deja reaplicar.
+  r = psqlArchivo(MIG_INGESTA, db);
+  paso('F3-a aplicada (límite, tabla técnica, puertas de servicio y de lectura, postflight)', r.ok, r.ok ? '' : cola(r.salida));
+  r = psqlArchivo(MIG_INGESTA, db);
+  paso('F3-a se niega a sobrescribirse', !r.ok && r.salida.includes('los objetos ya existen'), r.ok ? 'se aplicó dos veces' : '');
+  oraculoIngesta('oráculo de F3-a');
+  oraculoNucleo('oráculo de F2-c con F3-a instalada');
+  oraculoDatos('oráculo de F2-b con F3-a instalada');
+  r = psqlSql('select (select count(*) from crm.llamadas_celular_eventos) + (select count(*) from private.celulares_estado)', db);
+  paso('el oráculo de F3-a no dejó filas', r.ok && r.salida.trim() === '0', r.salida.trim());
+  r = psqlArchivo(REVERSA_NUCLEO, db);
+  paso('la reversa del núcleo se niega con F3-a instalada', !r.ok && r.salida.includes('la ingesta F3-a sigue instalada'), r.ok ? 'se aplicó fuera de orden' : '');
+  r = psqlArchivo(REVERSA_INGESTA, db);
+  paso('reversa de F3-a (puertas, núcleo, tabla técnica y límites)', r.ok, r.ok ? '' : cola(r.salida));
+  r = psqlArchivo(MIG_INGESTA, db);
+  paso('F3-a se vuelve a aplicar tras su reversa', r.ok, r.ok ? '' : cola(r.salida));
+  oraculoIngesta('oráculo de F3-a tras reaplicar');
+  r = psqlArchivo(REVERSA_INGESTA, db);
+  paso('reversa de F3-a (otra vez, antes del núcleo)', r.ok, r.ok ? '' : cola(r.salida));
 
   r = psqlArchivo(REVERSA_DATOS, db);
   paso('la reversa de datos se niega con el núcleo instalado', !r.ok && r.salida.includes('el núcleo F2-c sigue instalado'), r.ok ? 'se aplicó fuera de orden' : '');
@@ -379,9 +492,13 @@ try {
   paso('F2-c se vuelve a aplicar encima', r.ok, r.ok ? '' : cola(r.salida));
   oraculoDatos('oráculo de F2-b tras reaplicar todo');
   oraculoNucleo('oráculo de F2-c tras reaplicar todo');
+  r = psqlArchivo(MIG_INGESTA, db);
+  paso('F3-a se vuelve a aplicar encima de todo', r.ok, r.ok ? '' : cola(r.salida));
+  oraculoIngesta('oráculo de F3-a tras reaplicar todo');
 
   pasadaMutantes('Pasada 2: mutantes de F2-b (datos)', MIG_DATOS, MUTANTES_DATOS, 'plantilla', ORACULO_DATOS, 'mut_datos');
   pasadaMutantes('Pasada 3: mutantes de F2-c (núcleo y puertas)', MIG_NUCLEO, MUTANTES_NUCLEO, 'plantilla_datos', ORACULO_NUCLEO, 'mut_nucleo');
+  pasadaMutantes('Pasada 4: mutantes de F3-a (servicio, límite, salud y bandeja)', MIG_INGESTA, MUTANTES_INGESTA, 'plantilla_nucleo', ORACULO_INGESTA, 'mut_ingesta');
   await pasadaConcurrencia();
 } catch (error) {
   paso('arranque del banco', false, error.message);

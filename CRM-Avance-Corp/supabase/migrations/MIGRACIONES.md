@@ -1,3 +1,45 @@
+## 20261001212258 — Llamadas desde el celular · F3-a: puertas de servicio, límite, salud y bandeja paginada (`crm.ingerir_llamada_celular_servicio`, `crm.registrar_salud_celular_servicio`, `crm.llamadas_celular_bandeja_fn`, `crm.celulares_salud_fn`, `private.celulares_estado`)
+
+**⏸️ EN RAMA `feat/llamadas-f2`, SIN APLICAR en ningún entorno compartido.** Depende de `20261001160219` (F2-c).
+Decisiones 1–4 de F3 tomadas por Jhosep como provisionales (01/10); Miguel las ratifica (LEVEL 3: la Edge de F3-b
+abrirá una entrada pública con `verify_jwt=false` y credencial por celular).
+
+Qué hace: límite por celular como dato de la política (`limite_envios_minuto` 30 y `limite_envios_dia` 600,
+coherentes entre sí); tabla técnica `private.celulares_estado`, una fila por asignación con el último envío, el
+último latido (versión de la macro, cola) y los contadores del límite por minuto de reloj y día de Lima. Tiene RLS,
+está cerrada a la API, sin policies y con candado (sin DELETE, sin cambiar de asignación). **Sin auditoría por
+diseño:** vive en `private`, fuera de la regla de rastro de `crm`/`public`, como las colas y contadores del repo;
+cambia con cada envío y la evidencia de cada llamada ya está auditada en `crm.llamadas_celular_eventos`. Núcleo
+INVOKER sin EXECUTE: `celular_por_credencial` (sha256 de la clave → asignación vigente con analista activo),
+`celular_consumir_envio` (P0429 con `reintentar_en_seg=N` en el DETAIL; lo comparten llamadas y latidos),
+`celular_registrar_salud` (latido v1 con claves exactas), `llamadas_celular_bandeja` y `celulares_salud_listar`.
+Puertas de **servicio** DEFINER con EXECUTE solo `service_role` (las llamará la Edge `crm-llamadas-ingesta` de F3-b,
+como `crm.agenda_ics_feed_fn`): clave ausente, desconocida, cerrada o de un analista de baja → el mismo 42501
+«No autorizado», también si la asignación se cierra mientras la ingesta espera su candado; a la Edge solo le
+devuelven `evento_id`, `repetido`, `ignorado` y `motivo`. Puertas de lectura DEFINER con EXECUTE solo
+`authenticated`: la bandeja paginada por cursor (`recibido_en`, `evento_id`; las mismas filas que
+`llamadas_celular_pendientes_fn`) y la salud de los celulares (gerencia todos los vigentes; supervisión su equipo).
+**Decisiones de criterio de Claude, para Miguel:** tabla técnica en `private` sin auditoría; solo cuenta lo que se
+confirma (un envío que muere con error se deshace con su contador; la Edge filtra antes los cuerpos inválidos);
+ventanas fijas; los límites aún no tienen puerta para cambiarlos (llega con la pantalla de gerencia, F4).
+
+Reversa: `scripts/llamadas-celular/reversa-ingesta.sql` (puertas, núcleo, tabla técnica y columnas de límite; la
+evidencia queda). `reversa-nucleo.sql` ahora se niega si F3-a sigue instalada (orden: ingesta → núcleo → datos).
+
+**Verificación 01/10 (banco REDUCIDO, no paridad):** `npm run test:llamadas:local` → **138/138**. Oráculo
+`tests/llamadas-celular/oraculo-ingesta.sql` (actores simulados: `service_role` sin `sub`, `authenticated` y `anon`;
+32 defensas que muerden: puertas solo del servicio, autorización uniforme, respuesta mínima, idempotencia, límite
+por minuto y por día con su espera y el reinicio de sus ventanas, límite compartido con el latido, latidos
+inválidos, bandeja paginada sin huecos ni repetidos e igual a la de F2-c, ámbito por analista y por equipo, salud
+por rol, tabla técnica cerrada y con candado). Los oráculos de F2-b y F2-c pasan con F3-a instalada. **36/36
+mutantes de F3-a cazados** (27 por el oráculo, 3 por una segunda barrera de la tabla, 6 por el postflight) y los 57
+de F2 siguen cazados. Concurrencia con dos sesiones reales: gerencia rota la clave mientras una ingesta con la
+clave vieja espera el candado → la ingesta espera (≈ 1,7 s) y recibe el mismo «No autorizado», sin guardar la
+llamada. Advisors previstos, no corridos: 2 avisos de la clase existente
+`authenticated_security_definer_function_executable` (las dos puertas de lectura); las de servicio no son
+ejecutables por `authenticated`. **NOT RUN:** banco con el esquema de producción, `test-rls.mjs`, advisors reales,
+agente `auditor-rls`, Codex LEVEL 3 y `gen:types`.
+
 ## 20261001160219 — Llamadas desde el celular · F2-c: núcleo y puertas (`private.llamada_celular_*`, `crm.*_llamada_celular`, `crm.*celular*`)
 
 **⏸️ EN RAMA `feat/llamadas-f2`, SIN APLICAR en ningún entorno compartido.** Depende de `20261001145242` (F2-b).

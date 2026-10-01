@@ -13,6 +13,10 @@ begin
   if to_regprocedure('private.llamada_celular_ingerir(uuid,jsonb)') is null then
     raise exception 'REVERSA_NUCLEO: la migración 20261001160219 no está aplicada';
   end if;
+  -- La ingesta de F3-a (20261001212258) llama a este núcleo: primero se retira ella.
+  if to_regprocedure('crm.ingerir_llamada_celular_servicio(text,jsonb)') is not null then
+    raise exception 'REVERSA_NUCLEO: la ingesta F3-a sigue instalada; corre antes reversa-ingesta.sql';
+  end if;
 end;
 $precondicion$;
 
