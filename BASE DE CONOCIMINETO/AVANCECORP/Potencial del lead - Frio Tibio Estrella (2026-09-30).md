@@ -440,6 +440,29 @@ sesiones reales NOT RUN · paridad del banco con la producción de hoy NOT RUN.
 9. La rama de publicación debe llevar TODO el árbol de `main`, no solo `app/`: el manifiesto del release lista las
    migraciones del árbol, y la línea viva (ramas de rescate) no traía las cuatro últimas ya aplicadas en producción.
 
+## Fase 3 · entrega B: plan PROPUESTO (01/10/2026 tarde, SIN aprobar todavía)
+
+Miguel pidió «pásame el plan de la entrega B» y lo dejó en pausa por los colores. Lo propuesto:
+
+- **Qué se entrega:** en Leads, una fila «Por potencial» con cuatro botones con número (Estrella, Tibio, Frío, Sin
+  marcar). Al tocar uno, lista, totales y capital se quedan con ese nivel. Los números respetan los demás filtros y
+  la visibilidad de cada quien, y NO cambian al elegir un nivel (se cuentan antes de aplicar el filtro de potencial).
+- **Fases:** (1) pieza local a escala real para que Miguel apruebe viendo; (2) servidor; (3) pantalla.
+- **Servidor (LEVEL 3):** `crm.cartera_filtrada_fn` gana el argumento 14, `p_potencial` (`estrella`, `tibio`, `frio`,
+  `sin_marca`; null = como hoy), y el resumen gana los conteos por nivel. 🔴 La base ya NO es la firma de 12: el
+  01/10 la sesión del Pipeline «Gestionado» la llevó a 13 (`p_gestion`, migración `20261001154153`, EN PROD); su
+  cabecera es el molde (una sola firma, mover la exención analítica y resellar, servidor primero). La función es
+  INVOKER y las tablas del potencial no tienen grants: hace falta un ayudante en `private` con visibilidad propia
+  (molde `private.cartera_recepciones_fn`) o una policy de lectura atada a la visibilidad del lead; se decide con
+  auditor-rls y Codex. Los conteos nuevos son claves ADITIVAS: el esquema del front es `v.object` (valibot), que
+  tolera claves de más; comprobarlo contra el bundle vivo antes de publicar.
+- **Pantalla:** botones con conteo en `cartera.tsx`, argumento que solo viaja cuando recorta (como `p_gestion`),
+  clave de caché, espejo demo y e2e. Toca los mismos archivos que la #162 (Gestionado): se construye sobre `main`.
+- **Dependencias:** volcado nuevo de producción para el banco (lo lanza Miguel con `!`; hoy cambió la base) y que
+  las pantallas de Gestionado (#162) y Llamadas F1 (#160), en `main` sin publicar, salgan antes o junto con B.
+- **Decisiones de Miguel pendientes:** solo Leads o también Pipeline · «Sin marcar» como opción · uno o varios
+  niveles a la vez. Recomendado: solo Leads, con «Sin marcar», uno a la vez.
+
 ## Propuesta INICIAL de servidor (superada: ver «Fase 1 · ejecución» y «Fase 2»)
 
 - La sugerencia de Jev ya tiene casa en `crm.lead_temperatura` (F1 de temperatura, escrita y
