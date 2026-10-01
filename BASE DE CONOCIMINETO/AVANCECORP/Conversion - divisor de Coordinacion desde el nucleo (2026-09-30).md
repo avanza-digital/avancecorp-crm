@@ -121,6 +121,10 @@ que se conserva mientras se corrige el período dice a la vista de qué período
 el mes anterior abierto en vez de suponerlo. Huellas finales del artefacto: puerta `b881b83c…`,
 base `0a43b0f3…`, empresa `5700d277…`, totales `e97995f5…`.
 
+**v2 EN PROD (servidor 30/09 noche, front `build-20261001T002155841Z`)** desde `rescue/conversion-desglose-20261001`
+(= vivo `6a9ad5e6` + v2). Humo con datos reales: setiembre 1655 llegadas / 119,30 ponderados / 7,21 %; 15/08–30/09
+sacó a la luz 4 cierres de «otros orígenes» que antes no se veían.
+
 **Pendiente de decisión de Miguel (auditor P3-3):** la coordinadora ve ahora, por persona, el ajuste
 pendiente y el bruto (deuda de cierres anulados tras pagar). No es PII; es un dato nuevo en su ámbito.
 

@@ -15221,6 +15221,245 @@ async function testCierreDeMes(sessions, seed) {
 
 let verifiedSeed = null;
 
+// ── Potencial del lead (20260930213647): puerta crm.marcar_potencial_lead_fn ──────────────────
+// Solo rechazos: con la bandera 'potencial_lead' APAGADA (así nace) nadie escribe. Quien pasa rol y
+// ámbito recibe 55000 «todavía no está activada»: ese rechazo ES el positivo sin escribir (la puerta
+// valida sesión → rol → candados → ámbito → etapa y solo después mira la bandera). Las escrituras,
+// el historial inmutable, la reasignación, el doble clic y que marcar no toca crm.leads ni
+// crm.actividades los prueba supabase/scripts/potencial-lead/prueba-sintetica.sql (75 casos, deshecha);
+// las carreras, prueba-concurrencia.sh. Los casos 22023 (convertido/descartado) y P0002 por lead
+// inactivo solo viven en la sintética: fixtures.mjs no tiene esos leads.
+// Contrato (Codex r1 F4, r2 R2-2): el bloque NO llama a la puerta si la bandera está encendida (la
+// lee fuera de banda antes): con la bandera encendida los «positivos» escribirían. Queda una ventana
+// (alguien la enciende a mitad de corrida) y los negativos DML escribirían si hubiera una regresión de
+// permisos: se acepta porque esta suite solo corre en branch/staging desechables (se niega a correr
+// contra PRODUCTION_PROJECT_REF) y el fallo se reporta. Salto RUIDOSO si la puerta no está en esta
+// base o falta la vía fuera de banda; con CRM_RLS_EXIGE_POTENCIAL=1 es un FALLO.
+async function testPotencialLead(sessions, seed) {
+  console.log('\n— Potencial del lead: puerta de la marca (rechazos, sin escribir) —');
+  const saltar = (msg) => {
+    if (process.env.CRM_RLS_EXIGE_POTENCIAL === '1') fail(msg);
+    else console.log(`  ${msg}`);
+  };
+  let aplicada;
+  let encendida;
+  try {
+    aplicada = contarFueraDeBanda('potencial: puerta aplicada',
+      `select (to_regprocedure('crm.marcar_potencial_lead_fn(uuid,crm.nivel_potencial)') is not null)::int`);
+    encendida = aplicada === 1 ? contarFueraDeBanda('potencial: bandera',
+      `select coalesce((select activo::int from crm.multiempresa_flags where nombre = 'potencial_lead'), 0)`) : 0;
+  } catch (error) {
+    saltar(`⚠ Potencial del lead SALTADO: sin vía fuera de banda para leer la bandera (${error?.message ?? String(error)})`);
+    return;
+  }
+  if (aplicada !== 1) {
+    saltar('⚠ crm.marcar_potencial_lead_fn NO desplegada en esta base: bloque de Potencial del lead SALTADO (no probado)');
+    return;
+  }
+  if (encendida !== 0) {
+    fail('potencial: la bandera potencial_lead está ENCENDIDA; este bloque no corre para no escribir marcas. Si la dejó así una corrida interrumpida del bloque de lectura, repónla con supabase/scripts/potencial-lead/apagar-bandera.sql');
+    return;
+  }
+
+  const FN = 'marcar_potencial_lead_fn';
+  const idDe = (clave) => seed.leadByName.get(LEAD_BY_KEY[clave].name)?.id;
+  const marcarId = (cliente, leadId, nivel = 'estrella') => cliente.schema('crm').rpc(FN, { p_lead_id: leadId, p_nivel: nivel });
+  const marcar = (cliente, clave, nivel = 'estrella') => marcarId(cliente, idDe(clave), nivel);
+  const APAGADA = /todav[ií]a no est[aá] activada/i;
+  const FUERA = /no encontrado o fuera de tu [aá]mbito/i;
+  const ROL = /solo el analista del lead o su supervisor/i;
+  const DENEGADO = /permission denied|denegado/i;
+
+  // Pasan rol y ámbito → mueren en la bandera (el positivo sin escribir).
+  await expectExpectedFailure('potencial vend1 → su lead (juan) llega a la bandera', marcar(sessions.vend1.client, 'juan'), ['55000'], APAGADA);
+  await expectExpectedFailure('potencial sup1 → lead de su analista (juan) llega a la bandera', marcar(sessions.sup1.client, 'juan'), ['55000'], APAGADA);
+  await expectExpectedFailure('potencial sup1 → lead de su subárbol (carlos) llega a la bandera', marcar(sessions.sup1.client, 'carlos'), ['55000'], APAGADA);
+  await expectExpectedFailure('potencial sup1 → lead parqueado en su bandeja (luis) llega a la bandera', marcar(sessions.sup1.client, 'luis'), ['55000'], APAGADA);
+  await expectExpectedFailure('potencial sup2 → lead parqueado en su bandeja (rosa) llega a la bandera', marcar(sessions.sup2.client, 'rosa'), ['55000'], APAGADA);
+  await expectExpectedFailure('potencial sup2 → lead de su analista inactivo (inactiveOwned) llega a la bandera', marcar(sessions.sup2.client, 'inactiveOwned'), ['55000'], APAGADA);
+  // Fuera de ámbito: P0002 (no revela si el lead existe).
+  await expectExpectedFailure('potencial vend1 → lead de otro equipo (ana) → P0002', marcar(sessions.vend1.client, 'ana'), ['P0002'], FUERA);
+  await expectExpectedFailure('potencial vend1 → lead parqueado (luis) → P0002', marcar(sessions.vend1.client, 'luis'), ['P0002'], FUERA);
+  await expectExpectedFailure('potencial vend3 → lead de vend1 (juan) → P0002', marcar(sessions.vend3.client, 'juan'), ['P0002'], FUERA);
+  await expectExpectedFailure('potencial sup2 → lead de sup1 (juan) → P0002', marcar(sessions.sup2.client, 'juan'), ['P0002'], FUERA);
+  await expectExpectedFailure('potencial sup1Nested → lead de su jefe (juan) → P0002', marcar(sessions.sup1Nested.client, 'juan'), ['P0002'], FUERA);
+  await expectExpectedFailure('potencial vend1 → lead inexistente → P0002', marcarId(sessions.vend1.client, randomUUID()), ['P0002'], FUERA);
+  // Roles que nunca marcan: 42501 (antes de tocar el lead).
+  for (const clave of ['gerencia', 'coordinador', 'directorio', 'vendInactive']) {
+    await expectExpectedFailure(`potencial ${clave} → juan → 42501`, marcar(sessions[clave].client, 'juan'), ['42501'], ROL);
+  }
+  await expectExpectedFailure('potencial vendInactive → su propio lead (inactiveOwned) → 42501: la baja revoca la marca',
+    marcar(sessions.vendInactive.client, 'inactiveOwned'), ['42501'], ROL);
+  // Argumentos: nivel fuera del enum.
+  await expectExpectedFailure('potencial vend1 nivel inválido → 22P02', marcar(sessions.vend1.client, 'juan', 'dorado'), ['22P02'], /invalid input value for enum|valor de entrada no v[aá]lido/i);
+  // Sin EXECUTE para anon ni service_role.
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-potencial'));
+  await expectExpectedFailure('potencial anon → 42501 (sin EXECUTE)', marcar(anon, 'juan'), ['42501'], DENEGADO);
+  await expectExpectedFailure('potencial service_role → 42501 (sin EXECUTE)', marcar(admin, 'juan'), ['42501'], DENEGADO);
+  // Tablas: sin grants para la API (regla de 4 capas: la pantalla leerá por una puerta, fase 3).
+  for (const [clave, cliente] of [['vend1', sessions.vend1.client], ['gerencia', sessions.gerencia.client], ['anon', anon]]) {
+    await expectExpectedFailure(`potencial ${clave} no lee crm.lead_potencial (sin grants)`,
+      cliente.schema('crm').from('lead_potencial').select('lead_id').limit(1), ['42501'], DENEGADO);
+    await expectExpectedFailure(`potencial ${clave} no lee crm.lead_potencial_eventos (sin grants)`,
+      cliente.schema('crm').from('lead_potencial_eventos').select('lead_id').limit(1), ['42501'], DENEGADO);
+  }
+  await expectExpectedFailure('potencial vend1 INSERT directo en crm.lead_potencial → 42501',
+    sessions.vend1.client.schema('crm').from('lead_potencial').insert({ lead_id: idDe('juan'), nivel: 'estrella', origen: 'manual', marcado_por: seed.profileIdByKey.vend1, marcado_en: new Date().toISOString() }),
+    ['42501'], DENEGADO);
+  await expectExpectedFailure('potencial gerencia UPDATE directo en crm.lead_potencial → 42501',
+    sessions.gerencia.client.schema('crm').from('lead_potencial').update({ nivel: 'frio' }).eq('lead_id', idDe('juan')),
+    ['42501'], DENEGADO);
+  await expectExpectedFailure('potencial vend1 INSERT directo en crm.lead_potencial_eventos → 42501',
+    sessions.vend1.client.schema('crm').from('lead_potencial_eventos').insert({ lead_id: idDe('juan'), nivel_nuevo: 'estrella', motivo: 'manual', por: seed.profileIdByKey.vend1 }),
+    ['42501'], DENEGADO);
+}
+
+// ── Potencial del lead (20261001151704): puerta de LECTURA crm.potencial_leads_fn ─────────────
+// Solo lectura: no escribe marcas. Dos tiempos:
+//   1 · Bandera 'potencial_lead' APAGADA (así nace): la puerta admite y devuelve habilitada=false
+//       sin ítems.
+//   2 · El bloque la ENCIENDE fuera de banda y la repone (auditor-rls f3a P2-1: sin esto la
+//       comparación de abajo era inalcanzable en una corrida verde, porque el bloque de marcar exige
+//       la bandera apagada). Encendida, lo que entrega la puerta debe ser EXACTAMENTE lo que la RLS de
+//       crm.leads deja ver a ese actor, sin repetidos (Codex f3a r1): la puerta es DEFINER y copia la
+//       policy leads_select, y esta comparación es la que caza un espejo desincronizado DESPUÉS de
+//       aplicar (el preflight de la migración solo protege el instante de aplicar).
+// AISLAMIENTO (Codex f3a r2): el bloque deja la bandera ENCENDIDA y confirmada durante unos segundos.
+// Solo es aceptable porque esta suite se niega a correr contra producción (SUPABASE_URL con
+// PRODUCTION_PROJECT_REF, al arrancar) y corre en un branch o staging DESECHABLE y de uso exclusivo.
+// La reposición va en un finally y se vuelve a comprobar al final; si el proceso muere a mitad, la
+// bandera queda encendida en ese banco: la corrida siguiente lo detecta (el bloque de marcar falla con
+// «ENCENDIDA») y se repone con supabase/scripts/potencial-lead/apagar-bandera.sql.
+// Denegados en los dos tiempos: usuario dado de baja, authenticated ajeno al CRM, 201 ids, anon y
+// service_role. El calendario («baja el…»), «puede marcar» contra la puerta de marcar y los mutantes
+// viven en supabase/scripts/potencial-lead/prueba-lectura.sql y banco/ciclo-fase3a.sh. Salto RUIDOSO
+// si la puerta no está en esta base o falta la vía fuera de banda; con CRM_RLS_EXIGE_POTENCIAL=1 es
+// un FALLO.
+async function testPotencialLectura(sessions, seed) {
+  console.log('\n— Potencial del lead: puerta de lectura (sin escribir marcas) —');
+  const saltar = (msg) => {
+    if (process.env.CRM_RLS_EXIGE_POTENCIAL === '1') fail(msg);
+    else console.log(`  ${msg}`);
+  };
+  const leerBandera = () => contarFueraDeBanda('potencial lectura: bandera',
+    `select coalesce((select activo::int from crm.multiempresa_flags where nombre = 'potencial_lead'), 0)`);
+  const contarMarcas = () => contarFueraDeBanda('potencial lectura: marcas', `select count(*)::int from crm.lead_potencial`);
+  let aplicada;
+  let encendida;
+  let marcasAntes;
+  try {
+    aplicada = contarFueraDeBanda('potencial lectura: puerta aplicada',
+      `select (to_regprocedure('crm.potencial_leads_fn(uuid[])') is not null)::int`);
+    encendida = aplicada === 1 ? leerBandera() : 0;
+    marcasAntes = aplicada === 1 ? contarMarcas() : 0;
+  } catch (error) {
+    saltar(`⚠ Lectura del potencial SALTADA: sin vía fuera de banda para leer la bandera (${error?.message ?? String(error)})`);
+    return;
+  }
+  if (aplicada !== 1) {
+    saltar('⚠ crm.potencial_leads_fn NO desplegada en esta base: bloque de lectura del potencial SALTADO (no probado)');
+    return;
+  }
+  if (encendida !== 0) {
+    fail('potencial lectura: la bandera potencial_lead está ENCENDIDA al empezar; el bloque la espera apagada y la enciende él mismo. Si la dejó así una corrida anterior interrumpida, repónla con supabase/scripts/potencial-lead/apagar-bandera.sql');
+    return;
+  }
+
+  const FN = 'potencial_leads_fn';
+  const ROLES = ['vend1', 'vend3', 'sup1', 'sup1Nested', 'sup2', 'gerencia', 'coordinador', 'directorio'];
+  const ids = [...seed.leadByName.values()].map((lead) => lead.id).slice(0, 200);
+  const idDe = (clave) => seed.leadByName.get(LEAD_BY_KEY[clave].name)?.id;
+  const leer = (cliente, lista = ids) => cliente.schema('crm').rpc(FN, { p_lead_ids: lista });
+  const DENEGADO = /permission denied|denegado/i;
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-potencial-lectura'));
+  const denegados = async (momento) => {
+    await expectExpectedFailure(`potencial lectura vendInactive (${momento}) → 42501: la baja revoca la lectura`,
+      leer(sessions.vendInactive.client), ['42501'], /no autorizado/i);
+    await expectExpectedFailure(`potencial lectura clientBank, authenticated ajeno al CRM (${momento}) → 42501`,
+      leer(sessions.clientBank.client), ['42501'], /no autorizado/i);
+    await expectExpectedFailure(`potencial lectura con 201 ids (${momento}) → 22023`,
+      leer(sessions.vend1.client, Array.from({ length: 201 }, () => randomUUID())), ['22023'], /m[aá]ximo 200/i);
+    await expectExpectedFailure(`potencial lectura anon (${momento}) → 42501 (sin EXECUTE)`, leer(anon), ['42501'], DENEGADO);
+    await expectExpectedFailure(`potencial lectura service_role (${momento}) → 42501 (sin EXECUTE)`, leer(admin), ['42501'], DENEGADO);
+  };
+
+  // 1 · Bandera APAGADA: los admitidos reciben el sobre vacío.
+  for (const clave of ROLES) {
+    const { data, error } = await leer(sessions[clave].client);
+    if (error) {
+      fail(`potencial lectura ${clave} (apagada): error inesperado ${error.code ?? ''} ${error.message}`);
+      continue;
+    }
+    check(data?.version === 1 && data?.habilitada === false && Array.isArray(data?.items) && data.items.length === 0,
+      `potencial lectura ${clave}: bandera apagada → {version:1, habilitada:false, items:[]}`,
+      JSON.stringify(data ?? null).slice(0, 200));
+  }
+  await denegados('bandera apagada');
+
+  // 2 · Bandera ENCENDIDA fuera de banda; se repone pase lo que pase.
+  const fijarBandera = (valor) => ejecutarFueraDeBanda('bandera potencial_lead (lectura)',
+    `update crm.multiempresa_flags set activo = ${valor ? 'true' : 'false'}, actualizado_en = now() where nombre = 'potencial_lead';`);
+  try {
+    fijarBandera(true);
+    for (const clave of ROLES) {
+      const { data, error } = await leer(sessions[clave].client);
+      if (error) {
+        fail(`potencial lectura ${clave} (encendida): error inesperado ${error.code ?? ''} ${error.message}`);
+        continue;
+      }
+      if (!check(data?.version === 1 && data?.habilitada === true && Array.isArray(data?.items),
+        `potencial lectura ${clave}: bandera encendida → {version:1, habilitada:true, items:[…]}`,
+        JSON.stringify(data ?? null).slice(0, 200))) continue;
+      const visibles = await sessions[clave].client.schema('crm').from('leads').select('id').in('id', ids);
+      if (visibles.error) {
+        fail(`potencial lectura ${clave}: no se pudo leer crm.leads para comparar (${visibles.error.message})`);
+        continue;
+      }
+      const dePuerta = data.items.map((item) => item.lead_id);
+      check(new Set(dePuerta).size === dePuerta.length, `potencial lectura ${clave}: ningún lead repetido en los ítems`,
+        `${dePuerta.length} ítems, ${new Set(dePuerta).size} leads distintos`);
+      check(dePuerta.length === visibles.data.length
+        && [...dePuerta].sort().join(',') === visibles.data.map((fila) => fila.id).sort().join(','),
+      `potencial lectura ${clave}: los ítems son EXACTAMENTE los leads que su RLS deja ver`,
+      `puerta ${dePuerta.length} vs RLS ${visibles.data.length}`);
+      if (['gerencia', 'coordinador', 'directorio'].includes(clave)) {
+        check(data.items.every((item) => item.puede_marcar === false), `potencial lectura ${clave}: ve pero no puede marcar ninguno`);
+      }
+    }
+    // «Puede marcar», en los casos que el fixture permite (los cerrados e inactivos viven en la sintética).
+    const itemDe = async (clave, leadId) => {
+      const { data, error } = await leer(sessions[clave].client, [leadId]);
+      if (error) return { error };
+      return data?.items?.[0] ?? null;
+    };
+    const juan = idDe('juan');
+    check((await itemDe('vend1', juan))?.puede_marcar === true, 'potencial lectura vend1: puede marcar su lead (juan)');
+    check((await itemDe('sup1', juan))?.puede_marcar === true, 'potencial lectura sup1: puede marcar el lead de su analista (juan)');
+    check((await itemDe('gerencia', juan))?.puede_marcar === false, 'potencial lectura gerencia: ve a juan y no puede marcarlo');
+    check((await itemDe('vend3', juan)) === null, 'potencial lectura vend3: el lead de otro equipo (juan) no viaja');
+    check((await itemDe('sup1', idDe('luis')))?.puede_marcar === true, 'potencial lectura sup1: puede marcar el lead parqueado en su bandeja (luis)');
+    check((await itemDe('vend1', idDe('luis'))) === null, 'potencial lectura vend1: el lead parqueado en la bandeja de su supervisor (luis) no viaja');
+    await denegados('bandera encendida');
+  } finally {
+    // Dos intentos: un corte de red justo al reponer no debe dejar la bandera encendida.
+    let repuesta = false;
+    let ultimoError = null;
+    for (let intento = 0; intento < 2 && !repuesta; intento += 1) {
+      try {
+        fijarBandera(false);
+        repuesta = leerBandera() === 0;
+      } catch (error) {
+        ultimoError = error;
+      }
+    }
+    if (!repuesta) {
+      fail(`potencial lectura: la bandera potencial_lead NO quedó repuesta (${ultimoError?.message ?? 'sigue encendida'}). Apágala con supabase/scripts/potencial-lead/apagar-bandera.sql antes de volver a usar este banco`);
+    }
+  }
+  check(leerBandera() === 0, 'potencial lectura: la bandera quedó APAGADA, como estaba');
+  check(contarMarcas() === marcasAntes, 'potencial lectura: el bloque no creó ni borró marcas');
+}
+
 // ── Venta cruzada (20260924005126 … 20260924045245): puertas del cliente existente ──
 // Solo catálogo y rechazos: ninguna llamada de esta matriz llega a escribir. Una puerta que
 // rechaza aborta su transacción entera, así que ni la bitácora (inmutable) guarda rastro; los
@@ -15498,6 +15737,8 @@ async function main() {
       await testCapitalNucleo(sessions, verifiedSeed);
       await testCorreoAccesoCliente(sessions, verifiedSeed);
       await testVentaCruzada(sessions, verifiedSeed);
+      await testPotencialLead(sessions, verifiedSeed);
+      await testPotencialLectura(sessions, verifiedSeed);
     }
   } catch (error) {
     primaryError = error;
