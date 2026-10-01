@@ -1,18 +1,18 @@
 # Avance — Llamadas desde el celular al CRM
 
-Actualizado: 01/10/2026, 09:41 a. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
+Actualizado: 01/10/2026, 10:51 a. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
 
 Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact/Q3GmV9m6Cy2GPQGKAbNy8M · Plan completo: `PLAN.md` en esta carpeta.
 
-**Lo último:** 01/10 14:41 UTC: F1 YA ESTÁ EN PRODUCCIÓN. Miguel publicó build-20261001T002155841Z a las 00:21 UTC desde la rama de rescate rescue/conversion-desglose-20261001 (verificado en el bundle vivo: trae la ruta por número de F1). Pendiente inmediato: Jhosep cambia la macro de C1 a https://crm.miavance.com/#/gestion-diaria/llamada/{call_number} y prueba una llamada real. Hoy arranca F2-b (migración de datos) en feat/llamadas-f2, con main integrado, contra un banco local; nada al Supabase compartido.
+**Lo último:** 01/10 15:51 UTC: F2-b construida en feat/llamadas-f2 (eb73df1b) y probada en un banco reducido desechable: migración, reversas y oráculo en verde, 32 mutantes cazados (45/45 pasos). Sin aplicar en ningún entorno compartido; falta el banco con el esquema de producción y el gate RLS. F2.2.1 y F2.2.2 hechas; F2.2.3 y F2.2.4 esperan al núcleo (F2-c). F1 sigue en producción desde las 00:21 UTC; pendiente que Jhosep cambie la macro de C1.
 
-**Total:** 13 de 102 tareas · 1 de 8 fases hechas.
+**Total:** 15 de 102 tareas · 1 de 8 fases hechas.
 
 | Fase | Tareas | Estado | Subfases hechas |
 | --- | --- | --- | --- |
 | F0 · Piloto y línea base | 1/12 | En curso | 0/4 |
 | F1 · Formulario único y coincidencia exacta | 12/12 | Hecha | 4/4 |
-| F2 · Núcleo confiable y contrato de datos | 0/13 | En curso | 0/4 |
+| F2 · Núcleo confiable y contrato de datos | 2/13 | En curso | 0/4 |
 | F3 · Captura, puertas y sincronización durable | 0/13 | Pendiente | 0/4 |
 | F4 · Bandeja y registro conciliado en celular y PC | 0/13 | Pendiente | 0/4 |
 | F5 · Jev para identificación asistida | 0/15 | Pendiente | 0/5 |
@@ -53,12 +53,16 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
     - ✓ F1.4.2 — Retorno real en Android validado en C1 el 30/09 con la build de la rama servida desde el PC: (1) macro de MacroDroid con {call_number} → Chrome → CRM demo → aviso con el número marcado; (2) URL con número → login → encuesta de la persona de «Ahora»; (3) build real con la cuenta de Jhosep → encuesta de un lead propio (ficha + diálogo), cerrada sin registrar; (4) con el ajuste de Android la URL abre la app instalada. La alternativa de notificación local NO APLICA: la URL sí abre la PWA (plan §6, «Dos decisiones separadas»). Hallazgo corregido por el camino: la demo buscaba antes de cargar (3065b84e). Registro en REGISTRO.md §5b. (30/09/2026, 02:25 p. m.)
     - ✓ F1.4.3 — PASS: lint, typecheck, suite completa (4998 tests), cobertura líneas 81,8 % / ramas 75,8 %, build, verify:bundle y dup; a11y del receptor revisada en línea; E2E en Docker (imagen playwright v1.61.1, 2 workers): 285 passed, 26 skipped, 1 flaky ajeno (gestion-diaria-pulso, foco de Gerencia; pasó al reintentar), 0 failed, 12,5 min. Guía macrodroid.md con la URL y la reversa. Nota: scripts/e2e-docker.sh no arranca en Windows (rutas de Git Bash al Node de Windows); se corrió el mismo docker run a mano. Revisión Codex: no (LEVEL 2, 0–1 permitido). (30/09/2026, 03:37 p. m.)
 
-### F2 · Núcleo confiable y contrato de datos — 0/13 · en curso
+### F2 · Núcleo confiable y contrato de datos — 2/13 · en curso
 - **F2.1 · Cerrar el contrato** — 0/3 · en curso · Responsable: Jhosep (decisiones provisionales) · Miguel (ratifica) · Contrato con las 7 decisiones provisionales de Jhosep (30/09, 22:30–23:30 UTC) en F2-PLAN-CORTO.md; Miguel las revisa con él. Dos matices anotados: números sin lead no se guardan (perilla apagada; propuesta #10 por F5) y tras una reasignación la llamada la trabaja el nuevo analista, quién marcó se conserva para métricas. El SQL empieza el 01/10 en feat/llamadas-f2 contra un banco local; nada al Supabase compartido sin el OK de Miguel.
     - ◐ F2.1.1 — Decisión provisional de Jhosep (30/09): elegible = lead activo, etapa abierta, sin «no contactar» y dentro del ámbito → pide resultado; si no, «por revisar» sin encuesta, y se re-evalúa al leer. Entrantes definidas pero apagadas (solo salientes); dirección y estado técnico van separados en el esquema. Pendiente de la ratificación de Miguel. (30/09/2026, 06:48 p. m.)
     - ◐ F2.1.2 — Decisión provisional de Jhosep (30/09): los números sin lead NO se guardan (perilla apagada; propuesta #10 porque choca con F5); descarte con motivo obligatorio de lista cerrada + «otro» con texto; entrante perdida definida y apagada; Deshacer no borra ni desenlaza y el enlace pasa al resultado corregido. Pendiente de la ratificación de Miguel. (30/09/2026, 06:48 p. m.)
     - ◐ F2.1.3 — Decisión provisional de Jhosep (30/09): hora del celular si llega, si no la del servidor; analista = quien tenía el celular, fijo; retención 30 días para descartados y ambiguos sin resolver, sin número crudo; tras una reasignación (que viene de un descarte o lead libre) la llamada la ve y trabaja el nuevo analista y quién marcó se conserva para métricas. Pendiente de la ratificación de Miguel. (30/09/2026, 06:48 p. m.)
-- **F2.2 · Diseñar datos e identidad** — 0/4 · en curso · Responsable: Claude (borrador) · Miguel (aprueba) · Diseño de datos afinado con los tres mapas de solo lectura (30/09): tablas llamadas_celular_* (asignaciones con credencial en hash, eventos con origen + hash inmutables, enlace 1:1, política de retención); el enlace va por el actividad_id que devuelve v4, «autor compatible» = ámbito sobre el lead, efectos deshechos derivados de deshecho_en; F2 aditiva (no toca actividades ni funciones selladas); RLS sin policies con puertas DEFINER; auditoría con log_audit_sin_secretos; purga con cron; molde 20260927012948; reversa que conserva los hechos. Espera el OK de Miguel.
+- **F2.2 · Diseñar datos e identidad** — 2/4 · en curso · Responsable: Claude (construye y prueba) · Miguel (aprueba y aplica) · F2-b CONSTRUIDA en feat/llamadas-f2 (eb73df1b), sin aplicar en ningún entorno compartido: 4 tablas llamadas_celular_* y celulares_asignaciones con RLS sin policies, candados (payload inmutable, transiciones, enlace 1:1 que solo se mueve si el resultado fue deshecho), auditoría sin número ni hash, FK de personas RESTRICT con índice, retención por perillas y reversas. Probada en banco REDUCIDO (npm run test:llamadas:local): 45/45 pasos, 39 defensas que muerden y 32 mutantes cazados. NOT RUN: banco con esquema de producción, gate test-rls, advisors, auditor-rls y Codex.
+    - ✓ F2.2.1 — Migración 20261001145242 (eb73df1b): crm.celulares_asignaciones (analista histórico RESTRICT, credencial solo como sha256, una vigencia por etiqueta con índice parcial + exclusión por rango; cerrada = inmutable) y crm.llamadas_celular_eventos (identidad asignación + id de origen, payload inmutable). Probado en banco reducido: mutantes «payload editable», «asignación cerrada editable», «sin exclusión» cazados. Contrato provisional: Miguel ratifica. (01/10/2026, 10:51 a. m.)
+    - ✓ F2.2.2 — Tablas, índices y FK mínimos (eb73df1b): cada FK con su índice y las de personas RESTRICT (el postflight lo exige); actor histórico en analista_id; sin columna de número crudo (decisión 6). Probado en banco reducido (mutantes «FK sin índice» y «SET NULL» cazados por el postflight). (01/10/2026, 10:51 a. m.)
+    - ◐ F2.2.3 — En la tabla (eb73df1b): único (asignación, id de origen) y hash_payload; probado (mismo origen dos veces rechazado). Falta la mitad del núcleo: mismo contenido → mismo ID con repetido=true, distinto contenido → conflicto P0409 (F2-c). (01/10/2026, 10:51 a. m.)
+    - ◐ F2.2.4 — En la tabla (eb73df1b): enlace uno a uno en los dos sentidos, mismo lead, solo actividades llamada_* con metadata.evento = resultado_llamada; se mueve solo si el resultado anterior fue deshecho. Probado con 6 mutantes cazados. Falta «autor compatible» (ámbito sobre el lead) en el núcleo (F2-c). (01/10/2026, 10:51 a. m.)
 - **F2.3 · Aplicar ámbito y permisos** — 0/3 · pendiente · Responsable: por asignar
 - **F2.4 · Verificar el núcleo** — 0/3 · pendiente · Responsable: por asignar
 
@@ -95,6 +99,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 
 ## Últimos cambios
 
+- 01/10/2026, 10:51 a. m. · F2-b construida (eb73df1b): migración de datos de llamadas del celular + reversas + oráculo + banco reducido (npm run test:llamadas:local, 45/45, 32 mutantes cazados). Hallazgos corregidos por el banco: las reversas morían sin pg_cron; las FK de autoría vuelven a RESTRICT para que la baja de usuarios detecte el historial; el hash del payload se enmascara en la auditoría. F2.2.1 y F2.2.2 hechas.
 - 01/10/2026, 09:41 a. m. · F1 publicada: Miguel subió build-20261001T002155841Z el 01/10 a las 00:21 UTC desde su rama de rescate; verificado en el bundle vivo a las 14:41 UTC (ruta por número presente). Aviso a Jhosep para cambiar la macro de C1. main (78ede498) integrado en feat/llamadas-f2.
 - 30/09/2026, 06:48 p. m. · Contrato de F2: Jhosep tomó las 7 decisiones como provisionales (Miguel las ratifica); F2.1.1–F2.1.3 en curso. F2-PLAN-CORTO.md y PROPUESTAS #10–#11 actualizados. Handoff para el 01/10 escrito: mañana empieza F2-b (migración de datos) en feat/llamadas-f2 contra un banco local, sin tocar el Supabase compartido ni main.
 - 30/09/2026, 05:07 p. m. · El merge del PR #148 fue squash (un solo commit en main), así que feat/llamadas-f0 dejó de compartir historia con main. Decisión de Jhosep: el trabajo sigue en la rama nueva feat/llamadas-f2, creada desde main (da7217d7) con los dos commits de docs de hoy copiados (7a6bfcb1, 89cc9473) y subida a origin. feat/llamadas-f0 queda como histórica, sin borrar.
@@ -109,4 +114,3 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 - 30/09/2026, 01:13 p. m. · C1: tras la corrección, la URL con número abrió la encuesta de TERESA en «Ahora» en el celular (demo). Registrado en REGISTRO.md §5b.
 - 30/09/2026, 01:05 p. m. · C1: la URL con número sobrevive al login (F1.2.2 hecha, F1.2 cerrada). Hallazgo: en la demo la búsqueda corría antes de cargar los leads; corregido (3065b84e, 15 tests).
 - 30/09/2026, 12:51 p. m. · F1.4.1 verificada en el navegador del PC (demo): 4 caminos del receptor y limpieza del hash. F1.4.2: build servida desde el PC por HTTP y HTTPS; C1 fuerza HTTPS (ERR_SSL_PROTOCOL_ERROR con http).
-- 30/09/2026, 12:21 p. m. · F0.3.2 en C1: la URL abre la PWA con el ajuste de Android «Abrir vínculos admitidos» + dominio (PASS vía 1). Registrado en REGISTRO.md, compatibilidad.md y la guía. Resuelve cómo le llega el número a la app en F1.

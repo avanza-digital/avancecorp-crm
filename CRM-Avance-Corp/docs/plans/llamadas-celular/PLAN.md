@@ -130,7 +130,7 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 | --- | --- | --- | --- | --- |
 | F0 · Piloto y línea base | 4 | 1/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-2) |
 | F1 · Formulario único y match exacto | 4 | 12/12 | Hecha | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-8) |
-| F2 · Núcleo confiable | 4 | 0/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-14) |
+| F2 · Núcleo confiable | 4 | 2/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-14) |
 | F3 · Captura y sincronización | 4 | 0/13 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-20) |
 | F4 · Pendientes y conciliación | 4 | 0/13 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-66) |
 | F5 · Jev para identificación asistida | 5 | 0/15 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-72) |
@@ -273,7 +273,7 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 | No comercial/fuera de alcance | Descarte permitido, motivado y auditado; no salida libre para ocultar llamadas identificadas |
 | Actividad con efectos deshechos | Evidencia y enlace permanecen; anotar efectos anulados sin exigir automáticamente otro registro |
 
-**Seguimiento de F2:** 0/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
+**Seguimiento de F2:** 2/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
 
 ### F2.1 · Cerrar el contrato
 
@@ -287,12 +287,12 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 
 ### F2.2 · Diseñar datos e identidad
 
-**Estado:** en curso · **Avance:** 0/4 · **Responsable:** Claude (borrador) · Miguel (aprueba).
+**Estado:** en curso · **Avance:** 2/4 · **Responsable:** Claude (construye y prueba) · Miguel (aprueba y aplica).
 
-- [ ] **F2.2.1** Modelar asignaciones inmutables de equipo y eventos con ID de origen estable y payload inmutable.
-- [ ] **F2.2.2** Definir tablas, índices y FK mínimos; conservar actor histórico y número crudo solo si se justifica.
-- [ ] **F2.2.3** Aplicar unicidad de evento e idempotencia: mismo contenido devuelve mismo ID; distinto contenido genera conflicto.
-- [ ] **F2.2.4** Restringir enlace evento–actividad a uno a uno, con autor, lead y tipo compatibles.
+- [x] **F2.2.1** Modelar asignaciones inmutables de equipo y eventos con ID de origen estable y payload inmutable.
+- [x] **F2.2.2** Definir tablas, índices y FK mínimos; conservar actor histórico y número crudo solo si se justifica.
+- [ ] **F2.2.3** Aplicar unicidad de evento e idempotencia: mismo contenido devuelve mismo ID; distinto contenido genera conflicto. — EN CURSO: En la tabla (eb73df1b): único (asignación, id de origen) y hash_payload; probado (mismo origen dos veces rechazado). Falta la mitad del núcleo: mismo contenido → mismo ID con repetido=true, distinto contenido → conflicto P0409 (F2-c).
+- [ ] **F2.2.4** Restringir enlace evento–actividad a uno a uno, con autor, lead y tipo compatibles. — EN CURSO: En la tabla (eb73df1b): enlace uno a uno en los dos sentidos, mismo lead, solo actividades llamada_* con metadata.evento = resultado_llamada; se mueve solo si el resultado anterior fue deshecho. Probado con 6 mutantes cazados. Falta «autor compatible» (ámbito sobre el lead) en el núcleo (F2-c).
 
 **Evidencia / fecha de validación:** pendiente.
 

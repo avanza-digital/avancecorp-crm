@@ -94,7 +94,7 @@ Del modelo `20260927012948`: cabecera (qué, decisiones de Miguel, bloqueos, rut
 ## Orden de trabajo (un PR por paso, cada uno con plan aprobado)
 
 1. **F2-a · Contrato**: Miguel fija las 7 decisiones de arriba; este documento pasa a definitivo y cierra F2.1.
-2. **F2-b · Datos**: tablas, restricciones, RLS, auditoría, comentarios, reversa (F2.2).
+2. **F2-b · Datos**: tablas, restricciones, RLS, auditoría, comentarios, reversa (F2.2). **Construida el 01/10 (`eb73df1b`, rama `feat/llamadas-f2`), sin aplicar:** `20261001145242_crm_llamadas_celular_datos.sql` + `scripts/llamadas-celular/` (oráculo y dos reversas) + `tests/llamadas-celular/base.sql`; `npm run test:llamadas:local` en verde (45/45, 32 mutantes cazados). Ajustes al diseño de arriba que salieron al construirla: el enlace lleva su propio `id` con `evento_id` único; las FK de autoría (`*_por`) y de analista son **RESTRICT** con índice, porque la baja de usuarios detecta el historial por las FK y no debe desatribuir; `hash_payload` también se enmascara en la auditoría (con el resto de la fila a la vista revelaría el número por fuerza bruta).
 3. **F2-c · Núcleo y puertas**: funciones, grants, revokes (F2.3).
 4. **F2-d · Verificación**: gate RLS ampliado, concurrencia e idempotencia en el banco, ledger y evidencia (F2.4).
 
