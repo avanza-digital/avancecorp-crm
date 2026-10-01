@@ -1,13 +1,25 @@
 ---
 fecha: 2026-09-30
-estado: ✅ fase 1 EN PROD 30/09 (bandera APAGADA) · ✅ fase 2 EN PROD 01/10 13:27 (la marca baja sola) · ✅ puerta de lectura EN PROD 01/10 13:40 (fase 3A, servidor) · ✅ pantalla de la fase 3A PUBLICADA 01/10 13:57 (`build-20261001T185238130Z`, `54690b06`) · ✅ **BANDERA ENCENDIDA 01/10 14:04: el potencial está VIVO para los usuarios** · 🎨 01/10 tarde: Tibio pasa a NARANJA (PR #163; rama de publicación lista, SIN publicar) · entrega B (filtro) y fase 4 (Jev) sin empezar · ver «Para retomar»
+estado: ✅ fase 1 EN PROD 30/09 (bandera APAGADA) · ✅ fase 2 EN PROD 01/10 13:27 (la marca baja sola) · ✅ puerta de lectura EN PROD 01/10 13:40 (fase 3A, servidor) · ✅ pantalla de la fase 3A PUBLICADA 01/10 13:57 (`build-20261001T185238130Z`, `54690b06`) · ✅ **BANDERA ENCENDIDA 01/10 14:04: el potencial está VIVO para los usuarios** · 🎨 **Tibio NARANJA PUBLICADO 01/10 16:06** (`build-20261001T205946155Z`, `83674f19`; PR #163 sin fusionar) · entrega B (filtro) y fase 4 (Jev) sin empezar · ver «Para retomar»
 ---
 
 # Potencial del lead: Frío · Tibio · Estrella (2026-09-30)
 
 ## ▶️ Para retomar (estado del 01/10/2026, tarde)
 
-> **🎨 Colores (01/10/2026, tarde) — LISTO PARA PUBLICAR; falta el `/release-crm` de Miguel.** Antes de la entrega B
+> **🎨 Colores — ✅ PUBLICADO el 01/10/2026 16:06 Lima** (Miguel invocó `/release-crm` y lanzó la subida con `!`).
+> Artefacto `crm-20261001T205947Z-83674f19eb7e.zip` (SHA-256 `13d7639d…`), commit `83674f19`, buildId
+> `build-20261001T205946155Z`. Check completo PASS sobre ese commit (340 archivos, 5 339 pruebas), manifiesto
+> verificado (130 archivos, 391 migraciones: igual que el vivo anterior), preflight OK contra `54690b06`. Paquete
+> comparado con el vivo anterior archivo por archivo: quitando las huellas de los nombres solo cambian las 3 reglas
+> CSS de Tibio y el identificador de build. Smoke: inicio 200, `version.json` nuevo, 117 de 130 archivos byte a byte
+> iguales al paquete (los otros 13 son los falsos positivos de siempre: `.htaccess` 403 y 12 PNG que Hostinger
+> recomprime), el CSS vivo trae `--pot-tibio:#f97316`, el ZIP no queda en la raíz web. ZIP y manifiesto en
+> `CRM-Avance-Corp/releases/` del taller. 🔴 **El CRM VIVO es ahora `83674f19`** (rama
+> `release/potencial-tibio-naranja-20261001`, en GitHub): quien publique después (Gestionado #162, Llamadas #160)
+> debe partir de ahí. Falta: que Miguel fusione la PR #163 y mire el color en producción.
+>
+> **Cómo se preparó (01/10/2026, tarde).** Antes de la entrega B
 > Miguel quiso cambiar los colores y eligió en un probador local a escala real
 > (`ui-playground/colores-potencial.html`; pidió local, no artifact): **Frío se queda en gris pizarra `#64748b` y
 > Tibio pasa a naranja `#f97316`** con tinta oscura `#431407` (5,6 a 1; con letra blanca daba 2,8 a 1). Solo

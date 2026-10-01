@@ -45,6 +45,13 @@ caché, si hace falta, es la operación `hosting_cache_clear-website` por la mis
 > subió a 180 s. Si vuelve a pasar, medir con `npx --yes --package=hostinger-api-mcp@latest -c 'echo ok'`; fijar la
 > versión arrancaría en menos de un segundo, pero es decisión aparte. Publicado ese día: potencial del lead, fase 3A
 > (`build-20261001T185238130Z`, `54690b06`, rama `release/potencial-lead-f3a-20261001`).
+>
+> **01/10/2026 16:06 · potencial del lead, Tibio a naranja (solo CSS):** `build-20261001T205946155Z`, `83674f19`, rama
+> `release/potencial-tibio-naranja-20261001` (el vivo anterior + un commit). Subida al primer intento con la espera
+> de 180 s. 🔑 Para acreditar que un release «solo de estilos» es el vivo más ese cambio: descomprimir los dos ZIP y
+> comparar los textos quitando las huellas de los nombres (`-XXXXXXXX.js|css`) y el `buildId`. El cambio de nombre
+> del CSS arrastra el del archivo de entrada y el de todo chunk que lo importa (33 nombres nuevos), pero el contenido
+> es el mismo.
 
 Mismo mecanismo, dominio distinto (**2026-07-10**, primer update por esta vía):
 
