@@ -1,13 +1,32 @@
 ---
 fecha: 2026-09-30
-estado: ✅ fase 1 EN PROD 30/09 (bandera APAGADA) · ✅ fase 2 EN PROD 01/10 13:27 (la marca baja sola) · ✅ puerta de lectura EN PROD 01/10 13:40 (fase 3A, servidor) · ✅ pantalla de la fase 3A PUBLICADA 01/10 13:57 (`build-20261001T185238130Z`, `54690b06`) · ✅ **BANDERA ENCENDIDA 01/10 14:04: el potencial está VIVO para los usuarios** · entrega B (filtro) y fase 4 (Jev) sin empezar · ver «Para retomar»
+estado: ✅ fase 1 EN PROD 30/09 (bandera APAGADA) · ✅ fase 2 EN PROD 01/10 13:27 (la marca baja sola) · ✅ puerta de lectura EN PROD 01/10 13:40 (fase 3A, servidor) · ✅ pantalla de la fase 3A PUBLICADA 01/10 13:57 (`build-20261001T185238130Z`, `54690b06`) · ✅ **BANDERA ENCENDIDA 01/10 14:04: el potencial está VIVO para los usuarios** · 🎨 01/10 tarde: Tibio pasa a NARANJA (PR #163; rama de publicación lista, SIN publicar) · entrega B (filtro) y fase 4 (Jev) sin empezar · ver «Para retomar»
 ---
 
 # Potencial del lead: Frío · Tibio · Estrella (2026-09-30)
 
-## ▶️ Para retomar (estado del 01/10/2026, mediodía)
+## ▶️ Para retomar (estado del 01/10/2026, tarde)
 
-**Nada del potencial nuevo en producción todavía.** La entrega A de la fase 3 está terminada, revisada y **fusionada
+> **🎨 Colores (01/10/2026, tarde) — LISTO PARA PUBLICAR; falta el `/release-crm` de Miguel.** Antes de la entrega B
+> Miguel quiso cambiar los colores y eligió en un probador local a escala real
+> (`ui-playground/colores-potencial.html`; pidió local, no artifact): **Frío se queda en gris pizarra `#64748b` y
+> Tibio pasa a naranja `#f97316`** con tinta oscura `#431407` (5,6 a 1; con letra blanca daba 2,8 a 1). Solo
+> pantalla: tokens en `index.css` (nuevo `--pot-tibio-tinta`), dos reglas de `potencial.css` y una prueba e2e que
+> mide el contraste que pinta el navegador en el chip y en el botón elegido (su mutante de letra blanca cae con 2,80).
+> - Rama de publicación: `release/potencial-tibio-naranja-20261001` (`83674f19`) = el vivo `54690b06` + ese commit y
+>   nada más. NO lleva Llamadas F1 (#160) ni Pipeline «Gestionado» (#162), que están en `main` sin publicar. Subida
+>   a GitHub. El worktree `wt-potencial-lead` quedó en esa rama, limpio y con el archivo de entorno ya copiado.
+> - PR a `main`: **#163** (`crm/potencial-tibio-naranja`, `2b9a7aa3`), sin fusionar.
+> - Verificación: `npm run check` PASS sobre vivo + cambio (340 archivos, 5 339 pruebas); pruebas sobre `main` +
+>   cambio PASS (5 349); e2e Docker `potencial-lead.spec.ts` 8 de 8; fotos de Leads, ficha y Pipeline miradas.
+>   Suite e2e completa NOT RUN (cambio de dos colores). Codex: no (LEVEL 1).
+> - 🔑 Antes de publicar, volver a mirar `version.json`: si el vivo ya no es `build-20261001T185238130Z` (otra sesión
+>   publicó Gestionado o Llamadas), rehacer la rama sobre el nuevo vivo con `git cherry-pick 83674f19`.
+> - Las piezas del laboratorio (CRM-04 y CRM-05) siguen con el azul viejo: la referencia de color es el CRM.
+> - Sigue pendiente lo que Miguel pidió justo antes: **el plan de la entrega B**.
+
+*(Lo que sigue es el texto del mediodía, antes de publicar; lo que pasó después está en los pasos 1 a 7.)* Al
+mediodía no había nada del potencial nuevo en producción. La entrega A de la fase 3 está terminada, revisada y **fusionada
 en `avancecorp/main`** (PR #158, `8eeaf805`, el 01/10 a las 12:18; comprobado que llegó entera, migración con md5
 `7c2b8534…`). Después Miguel publicó OTRA cosa (PR #159, wizard de conversión, solo pantalla): el CRM VIVO pasó a ser
 `e304cc44` (rama `rescue/wizard-conversion-foco-20261001`, `build-20261001T174928972Z`). `avancecorp/main` (`12861fd9`)
@@ -138,8 +157,10 @@ potencial (verde).
 En el CRM el rojo significa «actuar hoy» y el ámbar «esta semana» (urgencia de tiempo), y el
 verde está fuera de la paleta ([[Fundamentos UX del CRM]]). Un lead «malo» en rojo llevaría la
 vista a los leads que menos valen. Por eso: **Frío** gris pizarra `#64748b` con copo,
-**Tibio** azul `#2563eb` con termómetro, **Estrella** dorado (marca `#c8922a`) con estrella.
-Gris, azul y dorado se distinguen también con daltonismo. Ícono y texto siempre.
+**Tibio** naranja `#f97316` con termómetro y tinta oscura `#431407`, **Estrella** dorado (marca `#c8922a`) con
+estrella. Tibio fue azul `#2563eb` hasta el 01/10/2026: Miguel lo cambió viéndolo junto al ámbar y al rojo del CRM
+(el ámbar de urgencia no se tocó). Con daltonismo rojo-verde el naranja y el dorado se parecen más que el azul y el
+dorado: ahí distinguen el ícono, el texto y el fondo crema de Estrella. Ícono y texto siempre.
 
 ## Cómo se ve (pieza CRM-04 del [[UI Playground (laboratorio de animaciones)]])
 
