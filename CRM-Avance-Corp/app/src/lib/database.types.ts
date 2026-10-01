@@ -4675,32 +4675,6 @@ export type Database = {
       }
     }
     Functions: {
-      crear_lead_documento_fn: {
-        Args: { p_datos: Json; p_documento: string; p_tipo: string }
-        Returns: Json
-      }
-      documento_lead_fn: { Args: { p_lead_id: string }; Returns: Json }
-      editar_lead_documento_fn: {
-        Args: {
-          p_cambios: Json
-          p_documento: string
-          p_identificador_anterior?: string
-          p_lead_id: string
-          p_motivo?: string
-          p_tipo: string
-        }
-        Returns: Json
-      }
-      fijar_documento_lead_fn: {
-        Args: {
-          p_documento: string
-          p_identificador_anterior?: string
-          p_lead_id: string
-          p_motivo?: string
-          p_tipo: string
-        }
-        Returns: Json
-      }
       abandonar_conversion_gerencia_fn: {
         Args: { p_lead_id: string; p_motivo: string }
         Returns: Json
@@ -5221,6 +5195,21 @@ export type Database = {
         Args: { p_actor_id: string; p_contrato_id: string }
         Returns: Json
       }
+      contrato_pdf_anexo_emitido: {
+        Args: {
+          p_actor_id: string
+          p_bytes: number
+          p_contrato_id: string
+          p_pdf_id: string
+          p_sha256: string
+          p_template: string
+        }
+        Returns: Json
+      }
+      contrato_pdf_anexo_snapshot: {
+        Args: { p_actor_id: string; p_contrato_id: string; p_template: string }
+        Returns: Json
+      }
       contrato_pdf_archivo_fn: {
         Args: { p_contrato_id: string }
         Returns: Json
@@ -5367,7 +5356,7 @@ export type Database = {
         Returns: Json
       }
       conversion_divisor_coordinacion_fn: {
-        Args: { p_periodo?: string }
+        Args: { p_desde?: string; p_hasta?: string; p_periodo?: string }
         Returns: Json
       }
       conversion_estado_lead_v1: { Args: { p_lead_id: string }; Returns: Json }
@@ -5454,6 +5443,10 @@ export type Database = {
       }
       crear_contrato_con_cuenta_pdf_v2: {
         Args: { p_contrato: Json; p_cronograma: Json; p_cuenta: Json }
+        Returns: Json
+      }
+      crear_lead_documento_fn: {
+        Args: { p_datos: Json; p_documento: string; p_tipo: string }
         Returns: Json
       }
       crear_lead_si_disponible: {
@@ -5599,6 +5592,18 @@ export type Database = {
           perfil_id: string
         }[]
       }
+      documento_lead_fn: { Args: { p_lead_id: string }; Returns: Json }
+      editar_lead_documento_fn: {
+        Args: {
+          p_cambios: Json
+          p_documento: string
+          p_identificador_anterior?: string
+          p_lead_id: string
+          p_motivo?: string
+          p_tipo: string
+        }
+        Returns: Json
+      }
       editar_lead_fn: {
         Args: { p_cambios: Json; p_lead_id: string }
         Returns: Json
@@ -5673,6 +5678,16 @@ export type Database = {
       }
       fijar_dni_lead_fn: {
         Args: { p_dni: string; p_lead_id: string }
+        Returns: Json
+      }
+      fijar_documento_lead_fn: {
+        Args: {
+          p_documento: string
+          p_identificador_anterior?: string
+          p_lead_id: string
+          p_motivo?: string
+          p_tipo: string
+        }
         Returns: Json
       }
       fijar_membresia_activa_fn: {
