@@ -1,6 +1,6 @@
 ---
 fecha: 2026-09-30
-estado: ✅ fase 1 EN PROD 30/09 (bandera APAGADA) · 🟡 fase 2 lista y revisada (PR #156): falta el `!` de Miguel · fase 3 (pantalla) sin empezar · ver «Para retomar»
+estado: ✅ fase 1 EN PROD 30/09 (bandera APAGADA) · 🟡 fase 2 lista y revisada (PR #157 a `main`, sin fusionar): falta el `!` de Miguel · fase 3 (pantalla) sin empezar · ver «Para retomar»
 ---
 
 # Potencial del lead: Frío · Tibio · Estrella (2026-09-30)
@@ -20,16 +20,19 @@ Miguel cerró el día con «guarda todo y seguimos mañana». En orden:
    Debe terminar en «VERIFICAR potencial_caducidad: job [10,40 10 * * * select private.potencial_caducar()
    postgres@postgres activo=true] … marcas vivas 0 … registro crm_potencial_lead_caducidad».
 2. **Después de aplicarla:** `supabase db advisors --linked --type all` (ninguna clase nueva; el 30/09 eran 248),
-   ledger a «EN PROD» en la rama `crm/potencial-lead-f2`, push, y traer migración y scripts al `main` local con
-   `git checkout crm/potencial-lead-f2 -- <rutas>` + `git commit -- <rutas>` (sin tocar `MIGRACIONES.md` mientras
+   ledger a «EN PROD» en la rama `crm/potencial-lead-f2-main`, push, y traer migración y scripts al `main` local con
+   `git checkout crm/potencial-lead-f2-main -- <rutas>` + `git commit -- <rutas>` (sin tocar `MIGRACIONES.md` mientras
    tenga cambios sin commitear de otra sesión).
 3. **A la mañana siguiente de aplicarla:** `verificar-caducidad.sql` otra vez; «última corrida» debe decir
    `succeeded` (prueba de que el planificador de producción la ejecuta).
 4. **Confirmar con Miguel 3 supuestos** antes de encender la bandera: Estrella llega a Frío a los 10 días en total (no
    5 + 10); el tiempo cerrado o inactivo cuenta como sin gestión; agendar o reasignar no reinicia el reloj. (Feriados
    = día normal, ya comunicado.)
-5. **PRs:** #153 (fase 1, ya en producción) y #156 (fase 2, apilada sobre la rama de la #153). Miguel fusiona por
-   squash: al fusionar la #153 hay que reapuntar la #156 a `main` y reubicar su commit (historial lineal).
+5. **PRs:** la #153 (fase 1) ya está fusionada en el `main` de GitHub (`11ec4326`). La #156 (fase 2) se fusionó
+   40 minutos después, pero sobre la rama `crm/potencial-lead-f1`: su contenido quedó ahí (`346d3a93`) y NO llegó a
+   `main`. Por eso existe la **PR #157** (rama `crm/potencial-lead-f2-main`): el mismo contenido asentado sobre el
+   `main` actual, más los arneses del banco y esta nota. **Falta que Miguel la fusione.** 🔴 Lección: una PR apilada
+   que se fusiona después de su base cae en la rama base; «MERGED» no es «llegó a `main`».
 6. **Fase 3 (pantalla):** plan por fases en lenguaje de negocio y OK de Miguel ANTES de tocar código. Lleva: puerta
    de LECTURA (las tablas no tienen grants: 4 capas), chip con el `Badge` del CRM, selector en la ficha, filtro en Leads
    resuelto en el servidor (el store no carga todos los leads), Pipeline, cola de hoy, «baja en N días» con fecha y
@@ -40,8 +43,9 @@ Miguel cerró el día con «guarda todo y seguimos mañana». En orden:
 
 **Dónde está cada cosa**
 
-- Servidor: worktree `/Users/usuario/Desktop/DESARROLLO/DESARROLLO/wt-potencial-lead` (base `avancecorp/main`), ramas
-  `crm/potencial-lead-f1` (PR #153) y `crm/potencial-lead-f2` (PR #156). `main` local: commit `ea5f84de` con la fase 1
+- Servidor: worktree `/Users/usuario/Desktop/DESARROLLO/DESARROLLO/wt-potencial-lead` (base `avancecorp/main`), hoy en la
+  rama `crm/potencial-lead-f2-main` (PR #157). Las ramas `crm/potencial-lead-f1` y `crm/potencial-lead-f2` siguen en
+  GitHub como referencia: no se borran sin que Miguel lo diga. `main` local: commit `ea5f84de` con la fase 1
   (falta su fila del ledger: `MIGRACIONES.md` tenía cambios sin commitear de otra sesión).
 - Banco: contenedor Docker `avancecorp-potencial-20260930` (puerto 55470, fases 1 y 2 aplicadas, `pg_cron`). Se dejó
   CORRIENDO a propósito (un contenedor parado lo borra `docker container prune`). Receta y ciclos repetibles en
@@ -208,7 +212,7 @@ leads con seguimientos; umbral según los seguimientos; bandera propia para apag
 
 ## Fase 2 · la marca baja sola (30/09 noche, tras el «hazlo» de Miguel)
 
-- Migración `20260930235917_crm_potencial_lead_caducidad`, rama `crm/potencial-lead-f2` (apilada sobre la f1), PR #156.
+- Migración `20260930235917_crm_potencial_lead_caducidad`, rama `crm/potencial-lead-f2` (apilada sobre la f1), PR #156. (La #156 cayó en la rama de la fase 1; a `main` va por la PR #157, rama `crm/potencial-lead-f2-main`.)
 - Regla en UN lugar: `private.potencial_nivel_tras` (≥10 días → frío; ≥5 y estrella → tibio) y `private.potencial_reloj`
   (última marca o último CONTACTO hasta el instante de la corrida). `private.dias_lunes_a_sabado` cuenta días COMPLETOS
   estrictamente entre dos fechas (domingo fuera). Tarea `pg_cron` 05:10 y 05:40 Lima, todos los días, como postgres.
