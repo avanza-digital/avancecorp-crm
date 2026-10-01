@@ -1,10 +1,10 @@
 # Avance — Llamadas desde el celular al CRM
 
-Actualizado: 01/10/2026, 04:35 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
+Actualizado: 01/10/2026, 05:31 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
 
 Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact/Q3GmV9m6Cy2GPQGKAbNy8M · Plan completo: `PLAN.md` en esta carpeta.
 
-**Lo último:** 01/10 21:35 UTC: F3-a construida y probada en el banco local (11c5be43). La base ya recibe las llamadas del celular por una puerta solo de servidor con la clave del celular, con límite de 30 por minuto y 600 al día, latidos de salud y bandeja paginada: 138/138 y 36 mutantes cazados. Nada aplicado. Siguiente: F3-b (la Edge Function), que pide instalar Deno. F1 sigue fusionada pero sin publicar.
+**Lo último:** 01/10 22:31 UTC: corregido (con el OK de Jhosep) que el celular de un supervisor dejara «por revisar» sus llamadas a leads de su equipo: banco local 160/160 (3faabcd0, sin aplicar). Deno 2.9.4 instalado para probar la Edge. Siguiente: F3-b, la Edge Function. F1 sigue fusionada pero sin publicar: la macro de C1 sigue con la URL sin número.
 
 **Total:** 24 de 102 tareas · 1 de 8 fases hechas.
 
@@ -110,6 +110,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 
 ## Últimos cambios
 
+- 01/10/2026, 05:31 p. m. · Corregido el hallazgo de F2-c con el OK de Jhosep (3faabcd0, migración 20261001222431, sin aplicar): la ingesta evalúa la elegibilidad con la regla de ámbito real como el dueño del celular y devuelve la identidad antes de escribir; las llamadas del supervisor a su equipo ya piden resultado. npm run test:llamadas:local 160/160; 7/7 mutantes. Deno 2.9.4 instalado en la carpeta de usuario (sha256 verificado) para F3-b.
 - 01/10/2026, 04:40 p. m. · Miguel publicó otra versión a las 21:13 UTC (build-20261001T211328361Z), tampoco con el receptor de F1 (texto exclusivo ausente en los 86 archivos del sitio). F1 sigue fusionada en main y sin publicar: la macro de C1 sigue con la URL sin número.
 - 01/10/2026, 04:35 p. m. · F3-a construida y probada en el banco local (11c5be43, migración 20261001212258, sin aplicar): puertas de servicio solo para service_role con la clave del celular y el mismo «No autorizado» ante cualquier fallo de clave; límite compartido de 30 por minuto y 600 al día con la espera en el error; latido de salud; bandeja paginada y salud por rol; tabla técnica en private sin auditoría, por diseño. npm run test:llamadas:local 138/138; oráculo de F3-a con 32 defensas; 36/36 mutantes; carrera de rotación con «No autorizado». Propuesta #12 para Miguel: que la respuesta al celular no delate si un número es lead.
 - 01/10/2026, 04:11 p. m. · F3: Jhosep tomó como provisionales las decisiones 1–4 (clave por celular con verify_jwt=false, 30 por minuto y 600 al día, salud cada 6 h y al vaciar la cola, abrir la encuesta de F1 por número); Miguel las ratifica. La 5 espera las pruebas en C1. Arranca F3-a en el banco local.
@@ -124,4 +125,3 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 - 30/09/2026, 06:48 p. m. · Contrato de F2: Jhosep tomó las 7 decisiones como provisionales (Miguel las ratifica); F2.1.1–F2.1.3 en curso. F2-PLAN-CORTO.md y PROPUESTAS #10–#11 actualizados. Handoff para el 01/10 escrito: mañana empieza F2-b (migración de datos) en feat/llamadas-f2 contra un banco local, sin tocar el Supabase compartido ni main.
 - 30/09/2026, 05:07 p. m. · El merge del PR #148 fue squash (un solo commit en main), así que feat/llamadas-f0 dejó de compartir historia con main. Decisión de Jhosep: el trabajo sigue en la rama nueva feat/llamadas-f2, creada desde main (da7217d7) con los dos commits de docs de hoy copiados (7a6bfcb1, 89cc9473) y subida a origin. feat/llamadas-f0 queda como histórica, sin borrar.
 - 30/09/2026, 04:46 p. m. · Miguel aprobó y fusionó el PR #148 a main (6ace8487, 21:41 UTC): F1 en main, sin publicar (producción vive la build de Coordinación de las 21:37, sin F1). Su merge de main a la rama quedó integrado (b4f49494). Aviso: main no contiene aún lo vivo (57e7b3b4 / rama de rescate); hay que fusionarlo antes del release de F1 o el preflight rechaza.
-- 30/09/2026, 04:41 p. m. · F2-PLAN-CORTO.md afinado con los tres mapas de solo lectura: enlace por actividad_id de v4, autor por ámbito, Deshacer sin desenlazar, F2 aditiva, credencial con hash, idempotencia P0409, RLS sin policies, auditoría sin teléfonos, purga, molde de migración, reversa y contrato de ingesta para F3. Sigue sin SQL hasta el OK de Miguel.
