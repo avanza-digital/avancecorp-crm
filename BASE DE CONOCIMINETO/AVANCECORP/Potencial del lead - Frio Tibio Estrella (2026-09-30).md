@@ -378,7 +378,7 @@ sesiones reales NOT RUN · paridad del banco con la producción de hoy NOT RUN.
    Quedó apartada `app/.e2e-linux/` en el worktree (basura inofensiva, ignorada por git).
 5. La demo trae el potencial ENCENDIDO: un chip nuevo dentro de una fila cambia selectores estructurales de specs
    demo (`span > span`).
-6. Tu Escritorio se sincroniza con iCloud y devuelve `.git/index.lock` viejos: comprobar que no hay git vivo y
+6. El Escritorio de este Mac se sincroniza con iCloud y devuelve `.git/index.lock` viejos: comprobar que no hay git vivo y
    apartarlo con `mv`.
 7. Dentro de un `DO` con una variable `r record`, un alias SQL `r` choca con ella.
 
