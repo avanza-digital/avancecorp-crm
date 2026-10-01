@@ -100,6 +100,21 @@ describe('sesión demo', () => {
     expect(mocks.listarCarteraPagina).not.toHaveBeenCalled()
   })
 
+  // La gestión se decide con el timeline, y este espejo solo conoce leads: en
+  // demo NO recorta (lo hace el Pipeline con `columnaDeLead`). Se fija para que
+  // nadie cuente con un filtro que aquí no existe — y para que siga sin red.
+  it('la gestión no saca ni un request en demo y no recorta la foto', () => {
+    const { wrapper } = arnes()
+    const foto = [lead(1), lead(2), lead(3)]
+    const { result } = renderHook(
+      () => useCarteraPaginada(foto, { etapa: 'nuevo', gestion: 'con_gestion', integrada: true }),
+      { wrapper },
+    )
+
+    expect(mocks.listarCarteraPagina).not.toHaveBeenCalled()
+    expect(result.current.leads).toHaveLength(3)
+  })
+
   it('cambiar de filtro devuelve la lista a la primera página', () => {
     const { wrapper } = arnes()
     const { rerender, result } = renderHook(
@@ -256,6 +271,92 @@ describe('sesión real', () => {
     expect(mocks.listarCarteraPagina.mock.calls[2]![0]).toMatchObject({ reasignados: true })
     expect(mocks.listarCarteraPagina.mock.calls[2]![1]).toBeNull()
     await waitFor(() => { expect(result.current.leads.map((l) => l.id)).toEqual(['lead-002']) })
+  })
+
+  // 01/10/2026 — «Nuevo» y «Gestionado» del Pipeline piden la MISMA etapa y el
+  // mismo analista; solo las separa la gestión. Si la gestión no estuviera en
+  // la clave de la consulta compartirían caché: una sola petición y las dos
+  // columnas pintando la misma lista, sin que ningún tipo se queje.
+  it('dos columnas de la misma etapa con distinta gestión son dos consultas, cada una con su lista', async () => {
+    const nuevo = { ...lead(1), nombre_completo: 'SIN INTENTOS' }
+    const gestionado = { ...lead(2), nombre_completo: 'YA INTENTADO' }
+    mocks.listarCarteraPagina.mockImplementation(async (filtros: { gestion?: string }) => ({
+      items: filtros.gestion === 'con_gestion' ? [gestionado] : [nuevo],
+      cursor: null,
+      resumen: { totales: { vivos: 1 } },
+    }))
+    const { wrapper } = arnes()
+    // MISMO QueryClient para las dos, como en el tablero.
+    const { result } = renderHook(() => ({
+      nuevo: useCarteraPaginada([], { etapa: 'nuevo', vendedorId: 'v-1', gestion: 'sin_gestion', integrada: true }),
+      gestionado: useCarteraPaginada([], { etapa: 'nuevo', vendedorId: 'v-1', gestion: 'con_gestion', integrada: true }),
+    }), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.nuevo.leads.map((l) => l.nombre_completo)).toEqual(['SIN INTENTOS'])
+      expect(result.current.gestionado.leads.map((l) => l.nombre_completo)).toEqual(['YA INTENTADO'])
+    })
+    expect(mocks.listarCarteraPagina).toHaveBeenCalledTimes(2)
+    expect(mocks.listarCarteraPagina.mock.calls.map(([filtros]) => filtros)).toEqual([
+      { integrada: true, etapa: 'nuevo', vendedorId: 'v-1', texto: '', gestion: 'sin_gestion' },
+      { integrada: true, etapa: 'nuevo', vendedorId: 'v-1', texto: '', gestion: 'con_gestion' },
+    ])
+  })
+
+  it('sin gestión, el filtro no viaja: ni la clave ni el request la llevan', async () => {
+    mocks.listarCarteraPagina.mockResolvedValue({ items: [], cursor: null })
+    const { wrapper } = arnes()
+    renderHook(() => useCarteraPaginada([], { etapa: 'contactado', vendedorId: 'v-1', integrada: true }), { wrapper })
+
+    await waitFor(() => { expect(mocks.listarCarteraPagina).toHaveBeenCalled() })
+    expect(mocks.listarCarteraPagina.mock.calls[0]![0]).not.toHaveProperty('gestion')
+  })
+
+  it('cambiar de gestión tras varias páginas empieza una lista nueva desde el cursor inicial', async () => {
+    mocks.listarCarteraPagina
+      .mockResolvedValueOnce({ items: [lead(0)], cursor: { actualizadoEn: lead(0).actualizado_en, id: lead(0).id } })
+      .mockResolvedValueOnce({ items: [lead(1)], cursor: null })
+      .mockResolvedValueOnce({ items: [lead(7)], cursor: null })
+    const { wrapper } = arnes()
+    const inicial: { gestion: 'sin_gestion' | 'con_gestion' } = { gestion: 'sin_gestion' }
+    const { result, rerender } = renderHook(
+      ({ gestion }: { gestion: 'sin_gestion' | 'con_gestion' }) => useCarteraPaginada([], { etapa: 'nuevo', gestion }),
+      { initialProps: inicial, wrapper },
+    )
+    await waitFor(() => { expect(result.current.leads).toHaveLength(1) })
+    act(() => { result.current.cargarMas() })
+    await waitFor(() => { expect(result.current.leads).toHaveLength(2) })
+
+    rerender({ gestion: 'con_gestion' })
+
+    await waitFor(() => { expect(mocks.listarCarteraPagina).toHaveBeenCalledTimes(3) })
+    expect(mocks.listarCarteraPagina.mock.calls[2]![0]).toMatchObject({ etapa: 'nuevo', gestion: 'con_gestion' })
+    expect(mocks.listarCarteraPagina.mock.calls[2]![1]).toBeNull()
+    await waitFor(() => { expect(result.current.leads.map((l) => l.id)).toEqual(['lead-007']) })
+  })
+
+  // ESTADO DE PRODUCCIÓN: un servidor que aún no conoce `p_gestion` rechaza las
+  // dos listas que lo mandan. La columna que falla expone su error; la vecina,
+  // que no lo manda, sigue sirviendo — un fallo no arrastra al otro.
+  it('una lista caída no tumba a la vecina: cada columna expone su propio estado', async () => {
+    mocks.listarCarteraPagina.mockImplementation(async (filtros: { gestion?: string }) => {
+      if (filtros.gestion) throw new Error('PGRST202')
+      return { items: [lead(3)], cursor: null, resumen: { totales: { vivos: 1 } } }
+    })
+    const { wrapper } = arnes()
+    const { result } = renderHook(() => ({
+      gestionado: useCarteraPaginada([], { etapa: 'nuevo', gestion: 'con_gestion', integrada: true }),
+      contactado: useCarteraPaginada([], { etapa: 'contactado', integrada: true }),
+    }), { wrapper })
+
+    await waitFor(() => { expect(result.current.gestionado.error).toBeTruthy() })
+    await waitFor(() => { expect(result.current.contactado.leads).toHaveLength(1) })
+    // Sin datos y sin total: quien pinta la columna no tiene de dónde sacar un cero.
+    expect(result.current.gestionado.leads).toEqual([])
+    expect(result.current.gestionado.resumen).toBeUndefined()
+    expect(result.current.gestionado.hayMas).toBe(false)
+    expect(result.current.contactado.error).toBeNull()
+    expect(result.current.contactado.resumen?.totales.vivos).toBe(1)
   })
 
   it('una página llena SIN cursor no promete más páginas', async () => {

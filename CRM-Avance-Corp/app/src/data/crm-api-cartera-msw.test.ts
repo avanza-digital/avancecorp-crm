@@ -179,6 +179,141 @@ describe('cartera integrada: listado y total del mismo filtro', () => {
   })
 })
 
+// «Gestión vigente» (01/10/2026): parte la etapa `nuevo` del Pipeline en
+// «Nuevo» y «Gestionado». A diferencia de origen y procedencia, el servidor NO
+// devuelve eco: la forma de la respuesta es la misma con o sin el recorte. Lo
+// que se fija aquí es qué viaja — y, sobre todo, cuándo NO viaja.
+describe('cartera integrada: recorte por gestión vigente (p_gestion)', () => {
+  /** Respuesta de una columna del Pipeline: sin rango de fechas. */
+  function payloadColumna(n = 2) {
+    return {
+      ...payloadFiltrado(n), desde: null, hasta: null,
+      items: Array.from({ length: n }, (_, i) => fila(i, { recibido_en: null, recepcion_aproximada: null })),
+    }
+  }
+  async function cuerpoDe(filtros: Parameters<typeof listarCarteraPagina>[0], ruta = RPC_INTEGRADA) {
+    let cuerpo: unknown
+    server.use(http.post(ruta, async ({ request }) => {
+      cuerpo = await request.json()
+      return HttpResponse.json(ruta === RPC ? [] : payloadColumna())
+    }))
+    const pagina = await listarCarteraPagina(filtros, null)
+    return { cuerpo, pagina }
+  }
+
+  it.each(['con_gestion', 'sin_gestion'] as const)('«%s» viaja tal cual junto a la etapa de la columna', async (gestion) => {
+    const { cuerpo, pagina } = await cuerpoDe({ integrada: true, etapa: 'nuevo', vendedorId: 'todos', gestion })
+
+    expect(cuerpo).toEqual({ p_limite: 51, p_etapa: 'nuevo', p_gestion: gestion })
+    // Sin eco que comprobar: la respuesta se acepta con su forma de siempre.
+    expect(pagina.items).toHaveLength(2)
+    expect(pagina.resumen?.totales.vivos).toBe(2)
+  })
+
+  it('las columnas que no parten su etapa NO mandan p_gestion', async () => {
+    for (const etapa of ['contactado', 'reunion_agendada', 'propuesta_enviada'] as const) {
+      const { cuerpo } = await cuerpoDe({ integrada: true, etapa, vendedorId: 'todos' })
+      expect(cuerpo).toEqual({ p_limite: 51, p_etapa: etapa })
+      expect(cuerpo).not.toHaveProperty('p_gestion')
+    }
+  })
+
+  it('viaja con el analista del filtro, y con «por repartir»', async () => {
+    const conAnalista = await cuerpoDe({ integrada: true, etapa: 'nuevo', vendedorId: 'v-7', gestion: 'con_gestion' })
+    expect(conAnalista.cuerpo).toEqual({ p_limite: 51, p_etapa: 'nuevo', p_vendedor_id: 'v-7', p_gestion: 'con_gestion' })
+
+    const sinAsignar = await cuerpoDe({ integrada: true, etapa: 'nuevo', vendedorId: 'sin_asignar', gestion: 'sin_gestion' })
+    expect(sinAsignar.cuerpo).toEqual({ p_limite: 51, p_etapa: 'nuevo', p_sin_asignar: true, p_gestion: 'sin_gestion' })
+  })
+
+  it('la página siguiente conserva el recorte junto al cursor', async () => {
+    let cuerpo: unknown
+    server.use(http.post(RPC_INTEGRADA, async ({ request }) => {
+      cuerpo = await request.json()
+      return HttpResponse.json(payloadColumna())
+    }))
+
+    await listarCarteraPagina(
+      { integrada: true, etapa: 'nuevo', gestion: 'con_gestion' },
+      { actualizadoEn: '2026-08-01T00:00:00.000Z', id: 'lead-050' },
+    )
+
+    expect(cuerpo).toEqual({
+      p_limite: 51, p_antes_de: '2026-08-01T00:00:00.000Z', p_antes_id: 'lead-050', p_etapa: 'nuevo', p_gestion: 'con_gestion',
+    })
+  })
+
+  it('fuera de la lista integrada no viaja: `cartera_pagina_fn` no conoce el parámetro', async () => {
+    const { cuerpo } = await cuerpoDe({ integrada: false, etapa: 'nuevo', gestion: 'con_gestion' }, RPC)
+
+    expect(cuerpo).toEqual({ p_limite: 51, p_etapa: 'nuevo' })
+  })
+
+  // ESTADO DE PRODUCCIÓN: la pantalla puede llegar antes que la migración. Un
+  // servidor que aún no tiene el parámetro no encuentra la función con esa
+  // firma (PGRST202). Eso es un ERROR con su código, nunca una lista vacía que
+  // la columna pintaría como «sin leads».
+  it('servidor todavía sin p_gestion: falla con su código, no devuelve una lista vacía', async () => {
+    server.use(http.post(RPC_INTEGRADA, () => HttpResponse.json(
+      { code: 'PGRST202', message: 'Could not find the function crm.cartera_filtrada_fn(p_etapa, p_gestion, p_limite) in the schema cache', details: null, hint: null },
+      { status: 404 },
+    )))
+
+    const intento = listarCarteraPagina({ integrada: true, etapa: 'nuevo', gestion: 'con_gestion' }, null)
+
+    await expect(intento).rejects.toBeInstanceOf(CrmApiError)
+    await expect(intento).rejects.toMatchObject({ code: 'PGRST202', message: 'No se pudo cargar la cartera.' })
+  })
+
+  it('un valor que el servidor rechaza (22023) también llega como error', async () => {
+    server.use(http.post(RPC_INTEGRADA, () => HttpResponse.json(
+      { code: '22023', message: 'Gestión no válida', details: null, hint: null },
+      { status: 400 },
+    )))
+
+    await expect(listarCarteraPagina({ integrada: true, etapa: 'nuevo', gestion: 'sin_gestion' }, null))
+      .rejects.toMatchObject({ code: '22023' })
+  })
+
+  // Regla del 01/10: un resultado de llamada DESHECHO no cuenta como gestión,
+  // pero la fila conserva su sello de último contacto. Una fila «sin gestión»
+  // con analista y con un contacto POSTERIOR a su tenencia es correcta: quien
+  // decide es el servidor mirando cada gestión, y aquí no se valida el recíproco.
+  it('acepta una fila «sin gestión» cuyo último contacto es posterior a su tenencia', async () => {
+    const deshecha = fila(0, {
+      vendedor_id: 'v-7',
+      tenencia_desde: '2026-09-20T15:00:00.000Z',
+      ultimo_contacto_en: '2026-09-28T16:30:00.000Z',
+      recibido_en: null, recepcion_aproximada: null,
+    })
+    server.use(http.post(RPC_INTEGRADA, () => HttpResponse.json({ ...payloadColumna(1), items: [deshecha] })))
+
+    const pagina = await listarCarteraPagina({ integrada: true, etapa: 'nuevo', vendedorId: 'v-7', gestion: 'sin_gestion' }, null)
+
+    expect(pagina.items).toHaveLength(1)
+    expect(pagina.items[0]).toMatchObject({
+      id: 'lead-000', vendedor_id: 'v-7',
+      tenencia_desde: '2026-09-20T15:00:00.000Z', ultimo_contacto_en: '2026-09-28T16:30:00.000Z',
+    })
+    expect(pagina.resumen?.totales.vivos).toBe(1)
+  })
+
+  // …y el otro lado tampoco: un lead sin sello de último contacto puede venir en
+  // «con gestión» (el sello y la regla son dos lecturas distintas del timeline).
+  it('acepta una fila «con gestión» sin sello de último contacto', async () => {
+    const sinSello = fila(0, {
+      vendedor_id: 'v-7', tenencia_desde: '2026-09-20T15:00:00.000Z', ultimo_contacto_en: null,
+      recibido_en: null, recepcion_aproximada: null,
+    })
+    server.use(http.post(RPC_INTEGRADA, () => HttpResponse.json({ ...payloadColumna(1), items: [sinSello] })))
+
+    const pagina = await listarCarteraPagina({ integrada: true, etapa: 'nuevo', vendedorId: 'v-7', gestion: 'con_gestion' }, null)
+
+    expect(pagina.items).toHaveLength(1)
+    expect(pagina.items[0]).toMatchObject({ id: 'lead-000', ultimo_contacto_en: null })
+  })
+})
+
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
 afterEach(() => server.resetHandlers())
 afterAll(() => server.close())
