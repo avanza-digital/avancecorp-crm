@@ -24,6 +24,9 @@ import {
   type FilaDiaria, type FiltroCola, type GrupoDia,
 } from '@/lib/gestion-diaria-analista'
 import { textoGestion, type ColaTrabajo } from '@/lib/gestion-diaria-cola'
+import { ChipPotencial } from '@/components/app/potencial-chip'
+import { potencialFila } from '@/components/app/potencial-efectos'
+import { usePotencialLeads } from '@/data/potencial-queries'
 
 export const FILAS_POR_PAGINA = 8
 
@@ -68,6 +71,9 @@ export function ColaDeHoy({
     paginas: Math.max(1, Math.ceil(trabajo.total / trabajo.limite)),
     rango: `${trabajo.total === 0 ? 0 : trabajo.pagina * trabajo.limite + 1}–${Math.min((trabajo.pagina + 1) * trabajo.limite, trabajo.total)} de ${trabajo.total}`,
   } : paginaDeFilas(lista, pagina, FILAS_POR_PAGINA)
+  // Potencial del lead: solo las filas de lead lo llevan (las de cliente no
+  // tienen `lead_id`). Una lectura por la página que se ve.
+  const potencial = usePotencialLeads(vista.filas.flatMap((fila) => (fila.lead_id ? [fila.lead_id] : [])))
   const sinAnterior = vista.pagina === 0
   const sinSiguiente = vista.pagina >= vista.paginas - 1
   const vacioTodo = trabajo ? trabajo.totales.todo.total === 0 : pestanas.every((p) => p.total === 0)
@@ -137,10 +143,14 @@ export function ColaDeHoy({
                             'focus-visible:-outline-offset-2 focus-visible:outline-2 focus-visible:outline-ring',
                             seleccionada ? 'bg-accent/[0.06]' : 'hover:bg-muted/50',
                           )}
+                          {...potencialFila(fila.lead_id ? potencial.porLead.get(fila.lead_id) : undefined)}
                         >
                           <Avatar nombre={fila.nombre_completo} color="var(--accent-press)" relleno={seleccionada} />
                           <span className="flex min-w-0 flex-1 flex-col gap-px">
-                            <span className={cn('truncate text-sm font-bold', seleccionada ? 'text-[var(--accent-press)]' : 'text-primary')}>{fila.nombre_completo}</span>
+                            <span className="flex min-w-0 items-center gap-1.5">
+                              <span className={cn('truncate text-sm font-bold', seleccionada ? 'text-[var(--accent-press)]' : 'text-primary')}>{fila.nombre_completo}</span>
+                              <ChipPotencial marca={fila.lead_id ? potencial.porLead.get(fila.lead_id) : undefined} />
+                            </span>
                             <span className="truncate text-xs font-medium text-[var(--muted-foreground-strong)]">{apoyo}</span>
                             {textoGestion(fila) && <span className="text-xs font-semibold text-[var(--accent-press)]">{textoGestion(fila)}</span>}
                           </span>

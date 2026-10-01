@@ -12,6 +12,7 @@
 @import '@fontsource/plus-jakarta-sans/latin-700.css';
 @import '@fontsource/plus-jakarta-sans/latin-800.css';
 @import './components/gerencia/gerencia.css';
+@import './components/app/potencial.css';
 
 /* ============================================================================
    CRM AVANCE CORP — sistema de diseño (F1)
@@ -103,6 +104,18 @@
   --aurora-1: color-mix(in srgb, var(--primary) 8%, transparent);
   --aurora-2: rgba(37, 99, 235, 0.07);
   --aurora-3: rgba(96, 130, 220, 0.05);
+
+  /* Potencial del lead (Frío · Tibio · Estrella) — pieza CRM-05. No es un
+     semáforo: rojo y ámbar ya significan urgencia de tiempo. Frío y Tibio
+     reusan el gris y el azul de la casa; el dorado es propio de Estrella y va
+     con tinta oscura (6:1 sobre el tono más oscuro del degradado), nunca con
+     texto blanco. Los estilos viven en components/app/potencial.css. */
+  --pot-frio: #64748b;
+  --pot-tibio: #2563eb;
+  --pot-oro: #c8922a;
+  --pot-oro-solido: linear-gradient(135deg, #f7d77f 0%, #e6b94f 55%, #d9a53a 100%);
+  --pot-oro-tinta: #3f2a04;
+  --pot-oro-fondo: #fffaf0;
 }
 
 @theme inline {

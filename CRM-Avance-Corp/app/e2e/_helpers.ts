@@ -1690,6 +1690,65 @@ export interface EntregaCoordinacionReal {
   derivados: number
 }
 
+export type NivelPotencialReal = 'frio' | 'tibio' | 'estrella'
+
+/**
+ * Una marca del fixture con lo que el SERVIDOR contestaría de ella. `baja_a` es
+ * el nivel que la marca tendrá el día de `baja_el` y lo decide el servidor: una
+ * Estrella con muchos días sin gestión baja directo a Frío. El front no lo
+ * deduce del nivel, y este mock tampoco: se escribe en el fixture.
+ */
+export interface PotencialRealDetalle {
+  nivel: NivelPotencialReal
+  origen?: 'manual' | 'caducidad'
+  nivel_marcado?: NivelPotencialReal
+  dias_sin_gestion?: number
+  baja_a?: 'tibio' | 'frio' | null
+  baja_el?: string | null
+}
+
+/** 'YYYY-MM-DD' de Lima, hoy más N días. */
+export function diaLimaReal(dias = 0): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(new Date(Date.now() + dias * 86_400_000))
+}
+
+/**
+ * Ítem de `crm.potencial_leads_fn` para un lead del fixture. Si el fixture da
+ * solo el nivel, es una marca RECIÉN PUESTA (hoy, reloj en cero): ahí el
+ * servidor contesta el primer escalón (Estrella → Tibio, Tibio → Frío) a varios
+ * días vista. Cualquier otro caso (vencida, bajó sola) se escribe con
+ * `PotencialRealDetalle`. Las fechas van relativas a hoy para que no caduquen.
+ */
+function potencialDeLeadReal(
+  lead: LeadReal,
+  marca: NivelPotencialReal | PotencialRealDetalle | null,
+  rolPuedeMarcar: boolean,
+): Record<string, unknown> {
+  const abierto = lead.etapa !== 'convertido' && lead.etapa !== 'descartado'
+  if (marca === null) {
+    return {
+      lead_id: lead.id, nivel: null, origen: null, nivel_marcado: null, marcado_en: null,
+      dias_sin_gestion: null, baja_a: null, baja_el: null, puede_marcar: rolPuedeMarcar && abierto,
+    }
+  }
+  const detalle: PotencialRealDetalle = typeof marca === 'string'
+    ? { nivel: marca, baja_a: marca === 'estrella' ? 'tibio' : marca === 'tibio' ? 'frio' : null,
+        baja_el: marca === 'frio' ? null : diaLimaReal(marca === 'estrella' ? 7 : 12) }
+    : marca
+  return {
+    lead_id: lead.id,
+    nivel: detalle.nivel,
+    origen: detalle.origen ?? 'manual',
+    nivel_marcado: detalle.nivel_marcado ?? detalle.nivel,
+    marcado_en: new Date().toISOString(),
+    dias_sin_gestion: detalle.dias_sin_gestion ?? 0,
+    // Un lead cerrado conserva su marca congelada: la tarea no la baja.
+    baja_a: abierto ? detalle.baja_a ?? null : null,
+    baja_el: abierto ? detalle.baja_el ?? null : null,
+    puede_marcar: rolPuedeMarcar && abierto,
+  }
+}
+
 export interface BackendReal {
   leads: LeadReal[]
   /** Estado del cierre por lead. VACÍO por defecto, que es el estado real de
@@ -1698,6 +1757,17 @@ export interface BackendReal {
   cierresEstado: CierreEstadoReal[]
   /** Lo que gerencia anuló durante la prueba, para aseverar la llamada. */
   anulacionesAvance: { lead_id: string; motivo: string }[]
+  /** Potencial del lead (Frío · Tibio · Estrella). APAGADO por defecto, que es
+   *  el estado real de producción hoy (bandera `potencial_lead` en false): un
+   *  test que quiera chips tiene que encenderlo a mano. */
+  potencialHabilitado: boolean
+  /** Marca por lead; el lead que no aparece no tiene marca. Solo el nivel =
+   *  marca recién puesta; con detalle, lo que el servidor contestaría. */
+  potencial: Record<string, NivelPotencialReal | PotencialRealDetalle>
+  /** Lo que se marcó durante la prueba, para aseverar la llamada. */
+  marcasPotencial: { lead_id: string; nivel: string }[]
+  /** La próxima marca recibe este rechazo del servidor, una sola vez. */
+  fallarProximaMarcaPotencial: { code: string; message: string } | null
   rolCrm: string
   /**
    * Rol del PORTAL del usuario (`perfiles.rol`). Define las capacidades nativas
@@ -1892,6 +1962,10 @@ export async function montarBackendReal(
     leads: init.leads ?? [leadReal()],
     cierresEstado: init.cierresEstado ?? [],
     anulacionesAvance: init.anulacionesAvance ?? [],
+    potencialHabilitado: init.potencialHabilitado ?? false,
+    potencial: init.potencial ?? {},
+    marcasPotencial: init.marcasPotencial ?? [],
+    fallarProximaMarcaPotencial: init.fallarProximaMarcaPotencial ?? null,
     rolCrm,
     rolPortal,
     fallarProximaCargaLeads: init.fallarProximaCargaLeads ?? false,
@@ -3085,6 +3159,38 @@ export async function montarBackendReal(
       // Se filtra por los ids PEDIDOS igual que el servidor: si el stub
       // devolviera todo, la pantalla parecería funcionar aunque preguntara mal.
       return json(route, estado.cierresEstado.filter((f) => pedidos.has(f.lead_id)))
+    }
+    // ── potencial del lead (Frío · Tibio · Estrella) ────────────────────────
+    if (p === '/rest/v1/rpc/potencial_leads_fn' && method === 'POST') {
+      // Bandera apagada: el servidor contesta sin leer nada.
+      if (!estado.potencialHabilitado) return json(route, { version: 1, habilitada: false, items: [] })
+      const body = (req.postDataJSON() ?? {}) as { p_lead_ids?: string[] }
+      const pedidos = new Set(body.p_lead_ids ?? [])
+      const rolPuedeMarcar = estado.rolCrm === 'vendedor' || estado.rolCrm === 'supervisor'
+      // Un ítem por lead PEDIDO y vivo, como el servidor: si el stub devolviera
+      // todo, la pantalla parecería funcionar aunque preguntara mal.
+      return json(route, {
+        version: 1,
+        habilitada: true,
+        items: estado.leads
+          .filter((l) => l.activo && pedidos.has(l.id))
+          .map((l) => potencialDeLeadReal(l, estado.potencial[l.id] ?? null, rolPuedeMarcar)),
+      })
+    }
+    if (p === '/rest/v1/rpc/marcar_potencial_lead_fn' && method === 'POST') {
+      const body = (req.postDataJSON() ?? {}) as { p_lead_id?: string; p_nivel?: NivelPotencialReal }
+      const leadId = body.p_lead_id ?? ''
+      const nivel = body.p_nivel ?? 'frio'
+      if (estado.fallarProximaMarcaPotencial) {
+        const rechazo = estado.fallarProximaMarcaPotencial
+        estado.fallarProximaMarcaPotencial = null
+        return json(route, { code: rechazo.code, message: rechazo.message, details: '' }, 400)
+      }
+      estado.marcasPotencial.push({ lead_id: leadId, nivel })
+      // El servidor guarda la marca, así que la RELECTURA tiene que traerla: sin
+      // esto el e2e bendeciría un optimismo del front que producción no tiene.
+      estado.potencial = { ...estado.potencial, [leadId]: nivel }
+      return json(route, { lead_id: leadId, nivel, origen: 'manual', marcado_por: UID, marcado_en: new Date().toISOString() })
     }
     if (p === '/rest/v1/rpc/anular_cierre_avance' && method === 'POST') {
       const body = (req.postDataJSON() ?? {}) as { p_lead_id?: string; p_motivo?: string }

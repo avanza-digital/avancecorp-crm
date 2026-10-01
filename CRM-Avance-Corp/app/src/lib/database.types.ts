@@ -2554,6 +2554,88 @@ export type Database = {
           },
         ]
       }
+      lead_potencial: {
+        Row: {
+          actualizado_en: string
+          creado_en: string
+          id: string
+          lead_id: string
+          marcado_en: string
+          marcado_por: string
+          nivel: Database["crm"]["Enums"]["nivel_potencial"]
+          origen: string
+        }
+        Insert: {
+          actualizado_en?: string
+          creado_en?: string
+          id?: string
+          lead_id: string
+          marcado_en: string
+          marcado_por: string
+          nivel: Database["crm"]["Enums"]["nivel_potencial"]
+          origen: string
+        }
+        Update: {
+          actualizado_en?: string
+          creado_en?: string
+          id?: string
+          lead_id?: string
+          marcado_en?: string
+          marcado_por?: string
+          nivel?: Database["crm"]["Enums"]["nivel_potencial"]
+          origen?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_potencial_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_potencial_eventos: {
+        Row: {
+          creado_en: string
+          id: string
+          lead_id: string
+          motivo: string
+          nivel_anterior: Database["crm"]["Enums"]["nivel_potencial"] | null
+          nivel_nuevo: Database["crm"]["Enums"]["nivel_potencial"]
+          orden: number
+          por: string | null
+        }
+        Insert: {
+          creado_en?: string
+          id?: string
+          lead_id: string
+          motivo: string
+          nivel_anterior?: Database["crm"]["Enums"]["nivel_potencial"] | null
+          nivel_nuevo: Database["crm"]["Enums"]["nivel_potencial"]
+          orden?: never
+          por?: string | null
+        }
+        Update: {
+          creado_en?: string
+          id?: string
+          lead_id?: string
+          motivo?: string
+          nivel_anterior?: Database["crm"]["Enums"]["nivel_potencial"] | null
+          nivel_nuevo?: Database["crm"]["Enums"]["nivel_potencial"]
+          orden?: never
+          por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_potencial_eventos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_sla_ciclos: {
         Row: {
           aproximado: boolean
@@ -5839,6 +5921,13 @@ export type Database = {
         Args: { p_lead_id: string; p_motivo?: string }
         Returns: Json
       }
+      marcar_potencial_lead_fn: {
+        Args: {
+          p_lead_id: string
+          p_nivel: Database["crm"]["Enums"]["nivel_potencial"]
+        }
+        Returns: Json
+      }
       materializar_envio_push_tasa_fn: {
         Args: { p_envio_id: string; p_reserva: string }
         Returns: Json
@@ -5992,6 +6081,7 @@ export type Database = {
         }
         Returns: Json
       }
+      potencial_leads_fn: { Args: { p_lead_ids: string[] }; Returns: Json }
       preparar_correccion_correo_acceso_fn: {
         Args: {
           p_actor_id: string
@@ -6486,7 +6576,7 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      nivel_potencial: "frio" | "tibio" | "estrella"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -7429,7 +7519,9 @@ export type CompositeTypes<
 
 export const Constants = {
   crm: {
-    Enums: {},
+    Enums: {
+      nivel_potencial: ["frio", "tibio", "estrella"],
+    },
   },
   public: {
     Enums: {},
