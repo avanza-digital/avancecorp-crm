@@ -1,8 +1,8 @@
 // Potencial del lead (Frío · Tibio · Estrella) de punta a punta, con el backend
 // simulado: la bandera apagada (el estado de producción hoy), marcar desde la
 // ficha y ver el chip en la tabla, quién puede marcar, el rechazo del servidor,
-// el Pipeline y el modo demo.
-import { expect, test, type Page } from '@playwright/test'
+// que el texto se lea sobre su color, el Pipeline y el modo demo.
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import {
   abrirLead, bloquearSupabase, diaLimaReal, entrarDemo, irACartera, irAPipeline, leadReal, loginReal, montarBackendReal, UID,
 } from './_helpers'
@@ -11,7 +11,31 @@ const LEAD = leadReal({
   id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', nombre_completo: 'GLORIA NAVARRO IBARRA', vendedor_id: UID, etapa: 'contactado',
 })
 
-const filaDe = (page: Page) => page.getByRole('row', { name: `Abrir ficha de ${LEAD.nombre_completo}` })
+const LEAD_FRIO = leadReal({
+  id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', nombre_completo: 'MARTIN CHAVEZ LEON', vendedor_id: UID, etapa: 'contactado',
+})
+
+const filaDe = (page: Page, lead = LEAD) => page.getByRole('row', { name: `Abrir ficha de ${lead.nombre_completo}` })
+
+/** Contraste WCAG entre el texto y el fondo que el navegador pinta de verdad. */
+async function contrasteDe(el: Locator): Promise<number> {
+  const { tinta, fondo } = await el.evaluate((nodo) => {
+    const estilo = getComputedStyle(nodo)
+    return { tinta: estilo.color, fondo: estilo.backgroundColor }
+  })
+  const luz = (color: string) => {
+    // Un fondo translúcido, o un degradado (deja el color en transparente), no
+    // se mide así: mejor fallar que dar un número inventado.
+    expect(color, 'color sólido').toMatch(/^rgb\(/)
+    const [r = 0, g = 0, b = 0] = (color.match(/[\d.]+/g) ?? []).map((v) => {
+      const c = Number(v) / 255
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+    })
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+  }
+  const [clara = 0, oscura = 0] = [luz(tinta), luz(fondo)].sort((a, b) => b - a)
+  return (clara + 0.05) / (oscura + 0.05)
+}
 
 /** Abre la ficha desde la tabla de Leads (la fila entera es el control). */
 async function abrirDesdeLaTabla(page: Page) {
@@ -93,6 +117,30 @@ test('gerencia ve la marca pero no la cambia', async ({ page }) => {
   await expect(seccion.getByTitle('Potencial: Tibio')).toBeVisible()
   await expect(seccion.getByRole('button')).toHaveCount(0)
   expect(estado.marcasPotencial).toEqual([])
+})
+
+test('el texto se lee sobre su color: Frío y Tibio pasan de 4,5 a 1 en el chip y en el botón elegido', async ({ page }) => {
+  // Frío y Tibio son colores sólidos con texto encima. Un color cambiado sin su
+  // tinta (naranja con letra blanca: 2,8 a 1) pasaría todos los demás tests.
+  await montarBackendReal(page, {
+    rolCrm: 'vendedor', leads: [LEAD, LEAD_FRIO], potencialHabilitado: true,
+    potencial: { [LEAD.id]: 'tibio', [LEAD_FRIO.id]: 'frio' },
+  })
+  await loginReal(page)
+  await irACartera(page)
+  await expect.poll(() => contrasteDe(filaDe(page).getByTitle('Potencial: Tibio'))).toBeGreaterThanOrEqual(4.5)
+  await expect.poll(() => contrasteDe(filaDe(page, LEAD_FRIO).getByTitle('Potencial: Frío'))).toBeGreaterThanOrEqual(4.5)
+
+  const ficha = await abrirDesdeLaTabla(page)
+  const grupo = ficha.getByRole('group', { name: 'Potencial del lead' })
+  const tibio = grupo.getByRole('button', { name: 'Tibio' })
+  await expect(tibio).toHaveAttribute('aria-pressed', 'true')
+  await expect.poll(() => contrasteDe(tibio)).toBeGreaterThanOrEqual(4.5)
+  // El botón de Frío, al elegirlo (el color hace una transición corta: por eso `poll`).
+  const frio = grupo.getByRole('button', { name: 'Frío' })
+  await frio.click()
+  await expect(frio).toHaveAttribute('aria-pressed', 'true')
+  await expect.poll(() => contrasteDe(frio)).toBeGreaterThanOrEqual(4.5)
 })
 
 test('si el servidor rechaza la marca, se deshace y se avisa', async ({ page }) => {
