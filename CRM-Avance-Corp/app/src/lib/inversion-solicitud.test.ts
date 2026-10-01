@@ -1,5 +1,6 @@
 import {describe,it,expect} from 'vitest'
 import {datosAvanceRevisados,mismoContenidoInversion,guardarBorradorAcceso,guardarBorradorCondiciones,guardarIntentoInversion,
+  guardarConversionAbierta,leerConversionAbierta,limpiarConversionAbierta,
   leerBorradorAcceso,leerBorradorCondiciones,leerIntentoInversion,limpiarIntentosInversion,nuevoIntentoInversion,
   solicitudCorresponde,SolicitudInversionSchema,type DatosBorradorCondiciones,type SolicitudInversion,type DatosInversion} from './inversion-solicitud'
 import * as v from 'valibot'
@@ -165,5 +166,36 @@ describe('Contenido de una solicitud F5',()=>{
     const {puerta:_puerta,...propia}=s
     expect(solicitudCorresponde(propia as SolicitudInversion,base.inversionista_id)).toBe(true)
     expect(solicitudCorresponde(propia as SolicitudInversion,base.inversionista_id,{ventaCruzada:true})).toBe(false)
+  })
+  it('la conversión abierta se retoma solo para su actor y su lead; revocar un lead no la toca y salir las borra todas',()=>{
+    sessionStorage.clear()
+    const actor='22222222-2222-4222-8222-222222222222',otro='55555555-5555-4555-8555-555555555555'
+    const lead='33333333-3333-4333-8333-333333333333',otroLead='66666666-6666-4666-8666-666666666666'
+    guardarConversionAbierta(actor,lead,base.inversionista_id)
+    guardarConversionAbierta(actor,otroLead,otro)
+    expect(leerConversionAbierta(actor,lead)).toBe(base.inversionista_id)
+    expect(leerConversionAbierta(actor,otroLead)).toBe(otro)
+    expect(leerConversionAbierta(otro,lead)).toBeNull()
+    // Solo de quién es: ni la solicitud ni nada de lo que el analista escribe viaja en la marca.
+    expect(Object.keys(JSON.parse(sessionStorage.getItem(`crm:f5:conversion-abierta:${actor}:${lead}`)!)).sort())
+      .toEqual(['actor','inversionista_id','lead','version'])
+    limpiarIntentosInversion(actor,base.inversionista_id,lead)
+    expect(leerConversionAbierta(actor,lead)).toBe(base.inversionista_id)
+    limpiarConversionAbierta(actor,lead)
+    expect(leerConversionAbierta(actor,lead)).toBeNull()
+    expect(leerConversionAbierta(actor,otroLead)).toBe(otro)
+    limpiarIntentosInversion()
+    expect(leerConversionAbierta(actor,otroLead)).toBeNull()
+  })
+  it('una marca dañada, de otra versión o copiada a otra clave equivale a no tenerla',()=>{
+    sessionStorage.clear()
+    const actor='22222222-2222-4222-8222-222222222222',lead='33333333-3333-4333-8333-333333333333'
+    const clave=`crm:f5:conversion-abierta:${actor}:${lead}`
+    const marca={version:1,actor,lead,inversionista_id:base.inversionista_id}
+    sessionStorage.setItem(clave,'{no es json');expect(leerConversionAbierta(actor,lead)).toBeNull()
+    sessionStorage.setItem(clave,JSON.stringify({...marca,version:2}));expect(leerConversionAbierta(actor,lead)).toBeNull()
+    sessionStorage.setItem(clave,JSON.stringify({...marca,inversionista_id:'no-es-uuid'}));expect(leerConversionAbierta(actor,lead)).toBeNull()
+    sessionStorage.setItem(clave,JSON.stringify({...marca,lead:base.inversionista_id}));expect(leerConversionAbierta(actor,lead)).toBeNull()
+    sessionStorage.setItem(clave,JSON.stringify(marca));expect(leerConversionAbierta(actor,lead)).toBe(base.inversionista_id)
   })
 })
