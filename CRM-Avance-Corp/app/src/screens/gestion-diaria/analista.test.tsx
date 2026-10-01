@@ -117,6 +117,9 @@ vi.mock('@/components/gestion-diaria/registro-actividad', () => ({
   RegistroActividad: (props: Record<string, unknown>) => <section aria-label="Registro del día (mock)" data-compacto={String(props['compacto'])} />,
 }))
 const { GestionDiariaAnalista } = await import('./analista')
+// El coordinador real (plan «Llamadas desde el celular», F1.1.3): la tarjeta debe
+// cerrar la intención que la abrió para que la siguiente llamada pueda ofrecerse.
+const { armarIntencion, intencionDe, limpiarIntencionesContacto, reclamarIntencion } = await import('@/lib/intencion-contacto')
 
 const senal = (id: string, extra: Record<string, unknown> = {}) => ({
   lead_id: id, nombre_completo: `LEAD ${id}`, etapa: 'nuevo', tenencia_desde: '2026-09-20T12:00:00Z',
@@ -618,6 +621,35 @@ describe('GestionDiariaAnalista · integración del taller y producción', () =>
     expect(dobles.recargar).toHaveBeenCalled()
     expect(dobles.cola.refetch).not.toHaveBeenCalled()
     soltar()
+  })
+
+  it('al cerrar o guardar el resultado de la tarjeta termina la intención de contacto que la abrió (la siguiente llamada deja de esperar)', async () => {
+    limpiarIntencionesContacto()
+    // Lo que deja AccionesContacto al delegar en «Mi día»: la intención del lead de «Ahora», abierta.
+    const abierta = armarIntencion({ actor: 'a1', leadId: 'l1', canal: 'tel', origen: 'enlace', numero: '+51999000111' })
+    reclamarIntencion(abierta.id)
+    const enCola = armarIntencion({ actor: 'a1', leadId: 'l2', canal: 'tel', origen: 'enlace', numero: '+51999000222' })
+    render(<GestionDiariaAnalista />)
+    dobles.contacto.onRegistrar?.()
+    await waitFor(() => expect(dobles.panel.props).not.toBeNull())
+    expect(intencionDe('a1', 'l2')).toBeNull() // espera detrás de la abierta
+    guardarDelPanel()
+    expect(intencionDe('a1', 'l1')).toBeNull()
+    expect(intencionDe('a1', 'l2')).toMatchObject({ id: enCola.id, abierta: false })
+    limpiarIntencionesContacto()
+  })
+
+  it('si la pantalla se va con la sesión de la tarjeta viva, libera su intención para no atascar la cola', async () => {
+    limpiarIntencionesContacto()
+    const abierta = armarIntencion({ actor: 'a1', leadId: 'l1', canal: 'tel', origen: 'enlace', numero: '+51999000111' })
+    reclamarIntencion(abierta.id)
+    const { unmount } = render(<GestionDiariaAnalista />)
+    dobles.contacto.onRegistrar?.()
+    await waitFor(() => expect(dobles.panel.props).not.toBeNull())
+    expect(intencionDe('a1', 'l1')).toMatchObject({ abierta: true })
+    unmount()
+    expect(intencionDe('a1', 'l1')).toBeNull()
+    limpiarIntencionesContacto()
   })
 
   it('al elegir una fila se enfoca el nombre de Ahora', async () => {
