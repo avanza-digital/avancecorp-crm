@@ -12,7 +12,8 @@ en `avancecorp/main`** (PR #158, `8eeaf805`, el 01/10 a las 12:18; comprobado qu
 `7c2b8534…`). Después Miguel publicó OTRA cosa (PR #159, wizard de conversión, solo pantalla): el CRM VIVO pasó a ser
 `e304cc44` (rama `rescue/wizard-conversion-foco-20261001`, `build-20261001T174928972Z`). `avancecorp/main` (`12861fd9`)
 es exactamente ese vivo MÁS el potencial (27 archivos de `app/`, ni uno más), y sobre esa combinación `npm run check`
-pasa (340 archivos, 5 339 pruebas). El worktree `wt-potencial-lead` quedó en `avancecorp/main` (HEAD suelto): los
+pasa (340 archivos, 5 339 pruebas) y el e2e en Docker da 304 en verde, 26 saltadas y los MISMOS 2 fallos que ya tenía
+`main` antes del potencial (`gerencia-operativa.spec.ts:108`, `gestion-diaria-vuelta.spec.ts:11`). El worktree `wt-potencial-lead` quedó en `avancecorp/main` (HEAD suelto): los
 archivos de los `!` están ahí con el mismo contenido. Lo que queda son pasos de Miguel, EN ESTE ORDEN (cada `!` desde
 `CRM-Avance-Corp/` del taller, leyendo archivos de ese worktree):
 
