@@ -1,18 +1,18 @@
 # Avance — Llamadas desde el celular al CRM
 
-Actualizado: 01/10/2026, 11:19 a. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
+Actualizado: 01/10/2026, 11:37 a. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
 
 Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact/Q3GmV9m6Cy2GPQGKAbNy8M · Plan completo: `PLAN.md` en esta carpeta.
 
-**Lo último:** 01/10 16:19 UTC: F2-c construida (fda9310e): núcleo de ingesta idempotente y 11 puertas (bandeja, detalle, asociar, enlazar, descartar, celulares, política) con ámbito por lead. Banco reducido: 82/82 pasos y 57 mutantes cazados. F2.2 y F2.3 cerradas en ese banco; la fase F2 sigue abierta hasta que Miguel ratifique el contrato (F2.1) y corra el gate con el esquema de producción (F2.4). Nada aplicado en ningún entorno compartido.
+**Lo último:** 01/10 16:37 UTC: concurrencia probada con dos sesiones reales (560fd922): mismo envío a la vez, otro contenido a la vez y dos consumidores enlazando; la segunda espera y responde bien. Banco local 87/87. F2.4.1 hecha. Lo que falta de F2 (contrato ratificado por Miguel, gate RLS con el esquema de producción, advisors, auditor-rls, Codex) depende de Miguel. Nada aplicado en ningún entorno compartido.
 
-**Total:** 20 de 102 tareas · 1 de 8 fases hechas.
+**Total:** 21 de 102 tareas · 1 de 8 fases hechas.
 
 | Fase | Tareas | Estado | Subfases hechas |
 | --- | --- | --- | --- |
 | F0 · Piloto y línea base | 1/12 | En curso | 0/4 |
 | F1 · Formulario único y coincidencia exacta | 12/12 | Hecha | 4/4 |
-| F2 · Núcleo confiable y contrato de datos | 7/13 | En curso | 2/4 |
+| F2 · Núcleo confiable y contrato de datos | 8/13 | En curso | 2/4 |
 | F3 · Captura, puertas y sincronización durable | 0/13 | Pendiente | 0/4 |
 | F4 · Bandeja y registro conciliado en celular y PC | 0/13 | Pendiente | 0/4 |
 | F5 · Jev para identificación asistida | 0/15 | Pendiente | 0/5 |
@@ -53,7 +53,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
     - ✓ F1.4.2 — Retorno real en Android validado en C1 el 30/09 con la build de la rama servida desde el PC: (1) macro de MacroDroid con {call_number} → Chrome → CRM demo → aviso con el número marcado; (2) URL con número → login → encuesta de la persona de «Ahora»; (3) build real con la cuenta de Jhosep → encuesta de un lead propio (ficha + diálogo), cerrada sin registrar; (4) con el ajuste de Android la URL abre la app instalada. La alternativa de notificación local NO APLICA: la URL sí abre la PWA (plan §6, «Dos decisiones separadas»). Hallazgo corregido por el camino: la demo buscaba antes de cargar (3065b84e). Registro en REGISTRO.md §5b. (30/09/2026, 02:25 p. m.)
     - ✓ F1.4.3 — PASS: lint, typecheck, suite completa (4998 tests), cobertura líneas 81,8 % / ramas 75,8 %, build, verify:bundle y dup; a11y del receptor revisada en línea; E2E en Docker (imagen playwright v1.61.1, 2 workers): 285 passed, 26 skipped, 1 flaky ajeno (gestion-diaria-pulso, foco de Gerencia; pasó al reintentar), 0 failed, 12,5 min. Guía macrodroid.md con la URL y la reversa. Nota: scripts/e2e-docker.sh no arranca en Windows (rutas de Git Bash al Node de Windows); se corrió el mismo docker run a mano. Revisión Codex: no (LEVEL 2, 0–1 permitido). (30/09/2026, 03:37 p. m.)
 
-### F2 · Núcleo confiable y contrato de datos — 7/13 · en curso
+### F2 · Núcleo confiable y contrato de datos — 8/13 · en curso
 - **F2.1 · Cerrar el contrato** — 0/3 · en curso · Responsable: Jhosep (decisiones provisionales) · Miguel (ratifica) · Contrato con las 7 decisiones provisionales de Jhosep (30/09, 22:30–23:30 UTC) en F2-PLAN-CORTO.md; Miguel las revisa con él. Dos matices anotados: números sin lead no se guardan (perilla apagada; propuesta #10 por F5) y tras una reasignación la llamada la trabaja el nuevo analista, quién marcó se conserva para métricas. El SQL empieza el 01/10 en feat/llamadas-f2 contra un banco local; nada al Supabase compartido sin el OK de Miguel.
     - ◐ F2.1.1 — Decisión provisional de Jhosep (30/09): elegible = lead activo, etapa abierta, sin «no contactar» y dentro del ámbito → pide resultado; si no, «por revisar» sin encuesta, y se re-evalúa al leer. Entrantes definidas pero apagadas (solo salientes); dirección y estado técnico van separados en el esquema. Pendiente de la ratificación de Miguel. (30/09/2026, 06:48 p. m.)
     - ◐ F2.1.2 — Decisión provisional de Jhosep (30/09): los números sin lead NO se guardan (perilla apagada; propuesta #10 porque choca con F5); descarte con motivo obligatorio de lista cerrada + «otro» con texto; entrante perdida definida y apagada; Deshacer no borra ni desenlaza y el enlace pasa al resultado corregido. Pendiente de la ratificación de Miguel. (30/09/2026, 06:48 p. m.)
@@ -67,7 +67,10 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
     - ✓ F2.3.1 — Migración 20261001160219 (fda9310e): núcleo de ingesta (claves exactas, v1, coincidencia exacta con las dos formas canónicas, idempotencia), detalle, bandeja, asociar, enlazar, descartar, celulares (asignar, cerrar, rotar) y política. Oráculo con actores simulados: 43 defensas que muerden. (01/10/2026, 11:19 a. m.)
     - ✓ F2.3.2 — El analista sale de la asignación vigente y tiene que estar activo (celular cerrado o analista de baja → 42501); cada operación bloquea la llamada y revalida el ámbito; resultado de otro lead rechazado; tras una reasignación el anterior recibe 42501 y la nueva analista ve la llamada pidiendo resultado. Probado: oráculo B14–B15, D2, D5, E4, G1–G3 y mutantes de ámbito cazados. (01/10/2026, 11:19 a. m.)
     - ✓ F2.3.3 — Tablas sin privilegios para la API y RLS sin policies (F2-b); núcleo INVOKER sin EXECUTE para nadie; 11 puertas DEFINER con search_path vacío y EXECUTE solo authenticated, exigidos por el postflight (mutantes «puerta abierta a anon», «núcleo con EXECUTE», «puerta INVOKER» cazados). Excepción single-tenant y contrato de cada puerta en sus COMMENT y en el ledger. Advisors reales: en F2.4.2. (01/10/2026, 11:19 a. m.)
-- **F2.4 · Verificar el núcleo** — 0/3 · pendiente · Responsable: por asignar
+- **F2.4 · Verificar el núcleo** — 1/3 · en curso · Responsable: Claude (banco local) · Miguel (banco de producción, revisión y OK) · Concurrencia e idempotencia probadas con dos sesiones reales en el banco local (F2.4.1 hecha). Lo que falta (gate RLS ampliado, advisors, auditor-rls, Codex) necesita un banco con el esquema de producción.
+    - ✓ F2.4.1 — Banco local (560fd922): IDs repetidos (mismo evento con repetido=true), contenido incompatible (P0409), dos consumidores a la vez con dos sesiones reales (la segunda espera ~1,7 s y responde bien: repetido, conflicto o 23505; queda un solo enlace), llamadas cercanas al mismo lead (dos eventos distintos; un resultado no se enlaza a las dos) y bajas (celular cerrado y analista de baja → 42501). npm run test:llamadas:local 87/87, estable en dos corridas. (01/10/2026, 11:37 a. m.)
+    - ◐ F2.4.2 — SQL ejecutado en entorno aislado (banco reducido desechable, 87/87). Falta: banco con el esquema de producción, bloque testLlamadasCelular en test-rls.mjs, advisors reales, auditor-rls y revisión Codex LEVEL 3. Necesita a Miguel (banco o rama de Supabase). (01/10/2026, 11:37 a. m.)
+    - ◐ F2.4.3 — COMMENT completos (el postflight los exige) y ledger con estado honesto (MIGRACIONES.md). Falta la evidencia de aceptación en el banco con el esquema de producción antes de habilitar consumidores (F3/F4). (01/10/2026, 11:37 a. m.)
 
 ### F3 · Captura, puertas y sincronización durable — 0/13 · pendiente
 - **F3.1 · Publicar el contrato de puertas** — 0/3 · pendiente · Responsable: por asignar
@@ -102,6 +105,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 
 ## Últimos cambios
 
+- 01/10/2026, 11:37 a. m. · F2-d (parte local, 560fd922): concurrencia con dos sesiones reales en el banco desechable, 3 casos en verde; 87/87 estable. F2.4.1 hecha; F2.4.2 y F2.4.3 esperan un banco con el esquema de producción.
 - 01/10/2026, 11:19 a. m. · F2-c construida (fda9310e): núcleo y 11 puertas DEFINER con ámbito por lead; reversa del núcleo; oráculo con actores simulados (43 defensas) y 25 mutantes cazados. F2.2.3, F2.2.4 y F2.3.1–F2.3.3 hechas; F2.2 y F2.3 cerradas en el banco reducido. Cuatro decisiones de criterio anotadas para Miguel.
 - 01/10/2026, 10:51 a. m. · F2-b construida (eb73df1b): migración de datos de llamadas del celular + reversas + oráculo + banco reducido (npm run test:llamadas:local, 45/45, 32 mutantes cazados). Hallazgos corregidos por el banco: las reversas morían sin pg_cron; las FK de autoría vuelven a RESTRICT para que la baja de usuarios detecte el historial; el hash del payload se enmascara en la auditoría. F2.2.1 y F2.2.2 hechas.
 - 01/10/2026, 09:41 a. m. · F1 publicada: Miguel subió build-20261001T002155841Z el 01/10 a las 00:21 UTC desde su rama de rescate; verificado en el bundle vivo a las 14:41 UTC (ruta por número presente). Aviso a Jhosep para cambiar la macro de C1. main (78ede498) integrado en feat/llamadas-f2.
@@ -116,4 +120,3 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 - 30/09/2026, 02:25 p. m. · F1.4.2 hecha: prueba real en C1 con la build de la rama (macro real, login, build real con lead propio sin guardar). Macro devuelta a producción. Observación de Jhosep: para un lead que no es el de «Ahora» se abre la ficha con el diálogo (por diseño; posible ajuste para Miguel).
 - 30/09/2026, 01:58 p. m. · C1: la macro real (Abrir sitio web con {call_number}) abrió Chrome en la demo y el receptor mostró el aviso con el número marcado. El número viaja de MacroDroid al CRM. REGISTRO.md §5b.
 - 30/09/2026, 01:13 p. m. · C1: tras la corrección, la URL con número abrió la encuesta de TERESA en «Ahora» en el celular (demo). Registrado en REGISTRO.md §5b.
-- 30/09/2026, 01:05 p. m. · C1: la URL con número sobrevive al login (F1.2.2 hecha, F1.2 cerrada). Hallazgo: en la demo la búsqueda corría antes de cargar los leads; corregido (3065b84e, 15 tests).

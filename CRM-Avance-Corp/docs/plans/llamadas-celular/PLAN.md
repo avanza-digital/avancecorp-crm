@@ -130,7 +130,7 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 | --- | --- | --- | --- | --- |
 | F0 · Piloto y línea base | 4 | 1/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-2) |
 | F1 · Formulario único y match exacto | 4 | 12/12 | Hecha | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-8) |
-| F2 · Núcleo confiable | 4 | 7/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-14) |
+| F2 · Núcleo confiable | 4 | 8/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-14) |
 | F3 · Captura y sincronización | 4 | 0/13 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-20) |
 | F4 · Pendientes y conciliación | 4 | 0/13 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-66) |
 | F5 · Jev para identificación asistida | 5 | 0/15 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-72) |
@@ -273,7 +273,7 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 | No comercial/fuera de alcance | Descarte permitido, motivado y auditado; no salida libre para ocultar llamadas identificadas |
 | Actividad con efectos deshechos | Evidencia y enlace permanecen; anotar efectos anulados sin exigir automáticamente otro registro |
 
-**Seguimiento de F2:** 7/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
+**Seguimiento de F2:** 8/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
 
 ### F2.1 · Cerrar el contrato
 
@@ -308,11 +308,11 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 
 ### F2.4 · Verificar el núcleo
 
-**Estado:** pendiente · **Avance:** 0/3 · **Responsable:** por asignar.
+**Estado:** en curso · **Avance:** 1/3 · **Responsable:** Claude (banco local) · Miguel (banco de producción, revisión y OK).
 
-- [ ] **F2.4.1** Probar IDs repetidos, payload incompatible, dos consumidores, llamadas cercanas y bajas de actor/equipo.
-- [ ] **F2.4.2** Ejecutar SQL y gate RLS ampliado en entorno aislado; revisión LEVEL 3 y advisors aplicables.
-- [ ] **F2.4.3** Completar comentarios, ledger de migraciones y evidencia de aceptación antes de habilitar consumidores.
+- [x] **F2.4.1** Probar IDs repetidos, payload incompatible, dos consumidores, llamadas cercanas y bajas de actor/equipo.
+- [ ] **F2.4.2** Ejecutar SQL y gate RLS ampliado en entorno aislado; revisión LEVEL 3 y advisors aplicables. — EN CURSO: SQL ejecutado en entorno aislado (banco reducido desechable, 87/87). Falta: banco con el esquema de producción, bloque testLlamadasCelular en test-rls.mjs, advisors reales, auditor-rls y revisión Codex LEVEL 3. Necesita a Miguel (banco o rama de Supabase).
+- [ ] **F2.4.3** Completar comentarios, ledger de migraciones y evidencia de aceptación antes de habilitar consumidores. — EN CURSO: COMMENT completos (el postflight los exige) y ledger con estado honesto (MIGRACIONES.md). Falta la evidencia de aceptación en el banco con el esquema de producción antes de habilitar consumidores (F3/F4).
 
 **Evidencia / fecha de validación:** pendiente.
 
