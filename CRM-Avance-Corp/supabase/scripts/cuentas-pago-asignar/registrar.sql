@@ -1,7 +1,7 @@
 -- REGISTRO en supabase_migrations.schema_migrations de 20261002005004_crm_asignar_cuenta_pago.
 -- `db query --linked --file` NO registra: correr DESPUÉS de aplicar la migración. Idempotente; se niega si
 -- los objetos no están, o si la versión ya está registrada con otro nombre u otro contenido.
--- Generado con banco/generar-registrador.py. statements = el archivo entero (md5 beea048bf51318ac6416872310c8e7f3).
+-- Generado con banco/generar-registrador.py. statements = el archivo entero (md5 85188d2a7397e3a956b50517cb58dc1c).
 begin;
 set local lock_timeout = '5s';
 select pg_advisory_xact_lock(hashtext('crm_asignar_cuenta_pago_registro'));
@@ -10,7 +10,7 @@ begin
   if (
     to_regprocedure('crm.asignar_cuenta_pago_contrato(uuid,uuid,uuid,text)') is not null
     and to_regclass('crm.contrato_cuenta_pago_asignaciones') is not null
-    and (select true from pg_catalog.pg_proc p where p.oid = to_regprocedure('private.asignar_cuenta_pago_contrato_autorizado(uuid,uuid,uuid,text)') and md5(p.prosrc) = '57297bc7f18279578c2f16f6aaad7247') is not null
+    and (select true from pg_catalog.pg_proc p where p.oid = to_regprocedure('private.asignar_cuenta_pago_contrato_autorizado(uuid,uuid,uuid,text)') and md5(p.prosrc) = '3642871283e7306a179ea3795bad1389') is not null
   ) is not true then
     raise exception 'REGISTRO: la migración 20261002005004 no está aplicada; aplícala primero';
   end if;
@@ -115,13 +115,16 @@ begin
   -- Un contrato solo puede tener UN vínculo: de eso depende que dos asignaciones a la vez no
   -- queden las dos.
   if not exists (
-    select 1 from pg_catalog.pg_index i
-    where i.indrelid = 'crm.contrato_cuentas_pago'::regclass and i.indisunique and i.indpred is null
-      and i.indisvalid and i.indimmediate and i.indnatts = 1
+    select 1
+    from pg_catalog.pg_constraint c
+    join pg_catalog.pg_index i on i.indexrelid = c.conindid
+    where c.conrelid = 'crm.contrato_cuentas_pago'::regclass and c.contype = 'u'
+      and c.conname = 'contrato_cuentas_pago_contrato_id_key' and not c.condeferrable
+      and i.indisunique and i.indpred is null and i.indisvalid and i.indimmediate and i.indnatts = 1
       and i.indkey[0] = (select a.attnum from pg_catalog.pg_attribute a
                          where a.attrelid = 'crm.contrato_cuentas_pago'::regclass and a.attname = 'contrato_id')
   ) then
-    raise exception 'ASIGNAR PREFLIGHT: el vínculo ya no es único por contrato';
+    raise exception 'ASIGNAR PREFLIGHT: el vínculo ya no es único por contrato (o su restricción cambió de nombre)';
   end if;
   if not pg_catalog.has_schema_privilege('authenticated', 'private', 'USAGE')
      or not pg_catalog.has_schema_privilege('authenticated', 'crm', 'USAGE') then
@@ -197,7 +200,15 @@ declare
   v_vinculo uuid;
   v_esquema text;
   v_tabla text;
+  v_restriccion text;
 begin
+  -- La compuerta, la idempotencia y las validaciones leen datos DESPUÉS de tomar sus candados.
+  -- Con una fotografía fija (REPEATABLE READ o SERIALIZABLE) se podría ver a un administrador ya
+  -- revocado como vigente, o no ver la asignación que acaba de hacer otro intento: no se admite.
+  if pg_catalog.current_setting('transaction_isolation') <> 'read committed' then
+    raise exception using errcode = '0A000',
+      message = 'La asignación no admite este modo de transacción';
+  end if;
   if not coalesce(private.admin_banca_vigente(v_actor), false) then
     raise exception using errcode = '42501',
       message = 'Solo administración puede asignar la cuenta de pago';
@@ -274,8 +285,10 @@ begin
     values (p_contrato_id, p_cuenta_id, v_actor)
     returning id into v_vinculo;
   exception when unique_violation then
-    get stacked diagnostics v_esquema = schema_name, v_tabla = table_name;
-    if v_esquema is distinct from 'crm' or v_tabla is distinct from 'contrato_cuentas_pago' then
+    get stacked diagnostics v_esquema = schema_name, v_tabla = table_name,
+                            v_restriccion = constraint_name;
+    if v_esquema is distinct from 'crm' or v_tabla is distinct from 'contrato_cuentas_pago'
+       or v_restriccion is distinct from 'contrato_cuentas_pago_contrato_id_key' then
       raise;
     end if;
     raise exception using errcode = '22023',
@@ -390,7 +403,7 @@ begin
   for v_f in
     select * from (values
       ('private.trg_contrato_cuenta_pago_asignaciones_inmutable()', null, true, '49bb93b9429aa7b0c168cc8ceb43acfc'),
-      ('private.asignar_cuenta_pago_contrato_autorizado(uuid,uuid,uuid,text)', 'authenticated', true, '57297bc7f18279578c2f16f6aaad7247'),
+      ('private.asignar_cuenta_pago_contrato_autorizado(uuid,uuid,uuid,text)', 'authenticated', true, '3642871283e7306a179ea3795bad1389'),
       ('crm.asignar_cuenta_pago_contrato(uuid,uuid,uuid,text)', 'authenticated', false, '46e03517fc68ffd79fed6892d1128c2b')
     ) as f(firma, rol, definer, huella)
   loop
@@ -433,7 +446,7 @@ commit;
 select case
          when (select pg_catalog.md5(p.prosrc) from pg_catalog.pg_proc p
                where p.oid = pg_catalog.to_regprocedure('private.asignar_cuenta_pago_contrato_autorizado(uuid,uuid,uuid,text)'))
-              = '57297bc7f18279578c2f16f6aaad7247'
+              = '3642871283e7306a179ea3795bad1389'
           and exists (select 1 from pg_catalog.pg_proc p, pg_catalog.aclexplode(p.proacl) a
                       where p.oid = pg_catalog.to_regprocedure('crm.asignar_cuenta_pago_contrato(uuid,uuid,uuid,text)')
                         and a.privilege_type = 'EXECUTE' and a.grantee = 'authenticated'::regrole::oid)
@@ -544,13 +557,16 @@ begin
   -- Un contrato solo puede tener UN vínculo: de eso depende que dos asignaciones a la vez no
   -- queden las dos.
   if not exists (
-    select 1 from pg_catalog.pg_index i
-    where i.indrelid = 'crm.contrato_cuentas_pago'::regclass and i.indisunique and i.indpred is null
-      and i.indisvalid and i.indimmediate and i.indnatts = 1
+    select 1
+    from pg_catalog.pg_constraint c
+    join pg_catalog.pg_index i on i.indexrelid = c.conindid
+    where c.conrelid = 'crm.contrato_cuentas_pago'::regclass and c.contype = 'u'
+      and c.conname = 'contrato_cuentas_pago_contrato_id_key' and not c.condeferrable
+      and i.indisunique and i.indpred is null and i.indisvalid and i.indimmediate and i.indnatts = 1
       and i.indkey[0] = (select a.attnum from pg_catalog.pg_attribute a
                          where a.attrelid = 'crm.contrato_cuentas_pago'::regclass and a.attname = 'contrato_id')
   ) then
-    raise exception 'ASIGNAR PREFLIGHT: el vínculo ya no es único por contrato';
+    raise exception 'ASIGNAR PREFLIGHT: el vínculo ya no es único por contrato (o su restricción cambió de nombre)';
   end if;
   if not pg_catalog.has_schema_privilege('authenticated', 'private', 'USAGE')
      or not pg_catalog.has_schema_privilege('authenticated', 'crm', 'USAGE') then
@@ -626,7 +642,15 @@ declare
   v_vinculo uuid;
   v_esquema text;
   v_tabla text;
+  v_restriccion text;
 begin
+  -- La compuerta, la idempotencia y las validaciones leen datos DESPUÉS de tomar sus candados.
+  -- Con una fotografía fija (REPEATABLE READ o SERIALIZABLE) se podría ver a un administrador ya
+  -- revocado como vigente, o no ver la asignación que acaba de hacer otro intento: no se admite.
+  if pg_catalog.current_setting('transaction_isolation') <> 'read committed' then
+    raise exception using errcode = '0A000',
+      message = 'La asignación no admite este modo de transacción';
+  end if;
   if not coalesce(private.admin_banca_vigente(v_actor), false) then
     raise exception using errcode = '42501',
       message = 'Solo administración puede asignar la cuenta de pago';
@@ -703,8 +727,10 @@ begin
     values (p_contrato_id, p_cuenta_id, v_actor)
     returning id into v_vinculo;
   exception when unique_violation then
-    get stacked diagnostics v_esquema = schema_name, v_tabla = table_name;
-    if v_esquema is distinct from 'crm' or v_tabla is distinct from 'contrato_cuentas_pago' then
+    get stacked diagnostics v_esquema = schema_name, v_tabla = table_name,
+                            v_restriccion = constraint_name;
+    if v_esquema is distinct from 'crm' or v_tabla is distinct from 'contrato_cuentas_pago'
+       or v_restriccion is distinct from 'contrato_cuentas_pago_contrato_id_key' then
       raise;
     end if;
     raise exception using errcode = '22023',
@@ -819,7 +845,7 @@ begin
   for v_f in
     select * from (values
       ('private.trg_contrato_cuenta_pago_asignaciones_inmutable()', null, true, '49bb93b9429aa7b0c168cc8ceb43acfc'),
-      ('private.asignar_cuenta_pago_contrato_autorizado(uuid,uuid,uuid,text)', 'authenticated', true, '57297bc7f18279578c2f16f6aaad7247'),
+      ('private.asignar_cuenta_pago_contrato_autorizado(uuid,uuid,uuid,text)', 'authenticated', true, '3642871283e7306a179ea3795bad1389'),
       ('crm.asignar_cuenta_pago_contrato(uuid,uuid,uuid,text)', 'authenticated', false, '46e03517fc68ffd79fed6892d1128c2b')
     ) as f(firma, rol, definer, huella)
   loop
@@ -862,7 +888,7 @@ commit;
 select case
          when (select pg_catalog.md5(p.prosrc) from pg_catalog.pg_proc p
                where p.oid = pg_catalog.to_regprocedure('private.asignar_cuenta_pago_contrato_autorizado(uuid,uuid,uuid,text)'))
-              = '57297bc7f18279578c2f16f6aaad7247'
+              = '3642871283e7306a179ea3795bad1389'
           and exists (select 1 from pg_catalog.pg_proc p, pg_catalog.aclexplode(p.proacl) a
                       where p.oid = pg_catalog.to_regprocedure('crm.asignar_cuenta_pago_contrato(uuid,uuid,uuid,text)')
                         and a.privilege_type = 'EXECUTE' and a.grantee = 'authenticated'::regrole::oid)
@@ -874,7 +900,7 @@ do $post$
 begin
   if not exists (select 1 from supabase_migrations.schema_migrations
                  where version = '20261002005004' and name = 'crm_asignar_cuenta_pago' and cardinality(statements) = 1
-                   and md5(statements[1]) = 'beea048bf51318ac6416872310c8e7f3') then
+                   and md5(statements[1]) = '85188d2a7397e3a956b50517cb58dc1c') then
     raise exception 'REGISTRO: la fila 20261002005004 / crm_asignar_cuenta_pago no quedó como se esperaba';
   end if;
   raise notice 'REGISTRO: 20261002005004 / crm_asignar_cuenta_pago (1 sentencia: el archivo entero)';

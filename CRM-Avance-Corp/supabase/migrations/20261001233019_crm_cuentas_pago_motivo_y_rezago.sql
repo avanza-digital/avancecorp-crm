@@ -53,6 +53,10 @@
 -- se lanza ../scripts/cuentas-pago-rezago/vincular-rezago.sql (la misma carga, sola).
 -- Reversión: ../scripts/cuentas-pago-rezago/reversa.sql (borra solo los vínculos de esta carga y
 -- se niega si alguno ya registró un pago, un cambio de cuenta o un PDF) y reversa-solo-codigo.sql.
+--
+-- La constancia de una corrida anterior en esta misma sesión se vacía ANTES del begin (esa
+-- sentencia se confirma sola): si esta corrida se niega, la fila final sale vacía, no repetida.
+select pg_catalog.set_config('crm.rezago_vinculos_resultado', '', false);
 begin;
 set local lock_timeout = '5s';
 set local statement_timeout = '60s';
@@ -523,4 +527,4 @@ notify pgrst, 'reload schema';
 commit;
 
 -- Constancia del conteo por caso antes y después de ESTA corrida (queda en la salida).
-select pg_catalog.current_setting('crm.rezago_vinculos_resultado', true)::jsonb as rezago_vinculos;
+select nullif(pg_catalog.current_setting('crm.rezago_vinculos_resultado', true), '')::jsonb as rezago_vinculos;

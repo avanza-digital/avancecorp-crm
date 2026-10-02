@@ -7,6 +7,9 @@
 -- Se niega si el bloqueo o el diagnóstico vivos no son los de la migración: la regla que aplica
 -- tiene que ser la que se ensayó.
 --   supabase db query --linked --file supabase/scripts/cuentas-pago-rezago/vincular-rezago.sql
+-- La constancia de una corrida anterior en esta misma sesión se vacía ANTES del begin (esa
+-- sentencia se confirma sola): si esta corrida se niega, la fila final sale vacía, no repetida.
+select pg_catalog.set_config('crm.rezago_vinculos_resultado', '', false);
 begin;
 set local lock_timeout = '5s';
 set local statement_timeout = '60s';
@@ -184,4 +187,4 @@ $rezago$;
 commit;
 
 -- Constancia del conteo por caso antes y después de ESTA corrida (queda en la salida).
-select pg_catalog.current_setting('crm.rezago_vinculos_resultado', true)::jsonb as rezago_vinculos;
+select nullif(pg_catalog.current_setting('crm.rezago_vinculos_resultado', true), '')::jsonb as rezago_vinculos;

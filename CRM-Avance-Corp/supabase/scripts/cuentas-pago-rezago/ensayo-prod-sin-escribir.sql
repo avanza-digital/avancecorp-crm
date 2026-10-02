@@ -1,5 +1,5 @@
 -- ENSAYO EN PRODUCCIÓN, SIN ESCRIBIR, de 20261001233019_crm_cuentas_pago_motivo_y_rezago.sql.
--- GENERADO por generar-derivados.py con el archivo real de la migración (md5 1f7b154d62932444e349ac382d7dac6a).
+-- GENERADO por generar-derivados.py con el archivo real de la migración (md5 f226ac450622e8021840d89db8046e9d).
 --
 -- Corre la migración entera dentro de una transacción que TERMINA SIEMPRE en un error a propósito
 -- («ENSAYO_DESHECHO»): no queda nada escrito, tampoco si algo falla antes. El resultado se lee en
@@ -12,7 +12,9 @@
 --                y qué texto recibe un analista (el genérico)
 --   veredicto  : PASA (todo se probó y salió como dicta la regla), FALLA (algo salió distinto;
 --                ver «fallos») o INCOMPLETO (nada falló, pero algo no se pudo probar; ver
---                «sin_probar»). todo_como_se_esperaba = true solo con PASA.
+--                «sin_probar»). todo_como_se_esperaba = true solo con PASA. Si alguien tiene
+--                un pago abierto sobre un contrato que el ensayo quiere probar, esa sonda sale
+--                «ocupada» y el veredicto INCOMPLETO: se vuelve a lanzar, no es un fallo.
 --   conexion   : con qué usuario de la base corrió (sirve para saber qué es «conexión directa»)
 -- Si la propia migración se niega (preflight, un candidato en conciliación, el tope, un candado
 -- ocupado), el error que verás es el SUYO y no ENSAYO_DESHECHO; tampoco queda nada escrito.
@@ -592,17 +594,41 @@ begin
                  fecha_pago_real = (now() at time zone 'America/Lima')::date,
                  monto_pagado = monto_programado
            where id = v_cuota;
-        v_resultado := 'pagada';
-      exception when others then
-        v_resultado := 'bloqueada';
-        v_codigo := sqlstate;
-        v_mensaje := sqlerrm;
+        -- Sin error no basta: la cuota tiene que haber quedado pagada y sellada en la cuenta de
+        -- pago de su contrato. Si no, el intento no tuvo efecto (y eso nunca es lo esperado).
+        if found
+           and exists (select 1 from public.cronograma_pagos cp
+                       where cp.id = v_cuota and cp.estado = 'pagado')
+           and exists (select 1 from crm.cuotas_cuenta_pagada q
+                       join crm.contrato_cuentas_pago l
+                         on l.contrato_id = q.contrato_id and l.cuenta_bancaria_id = q.cuenta_bancaria_id
+                       where q.cuota_id = v_cuota) then
+          v_resultado := 'pagada';
+        else
+          v_resultado := 'sin efecto';
+        end if;
+      exception
+        when lock_not_available then
+          -- Otra sesión tiene ocupada esa cuota o su contrato (p. ej. un pago real en curso).
+          v_resultado := 'ocupada';
+          v_codigo := sqlstate;
+          v_mensaje := sqlerrm;
+        when others then
+          v_resultado := 'bloqueada';
+          v_codigo := sqlstate;
+          v_mensaje := sqlerrm;
       end;
-      v_bien := case when r.caso = 'ok' then v_resultado = 'pagada'
-                     else v_resultado = 'bloqueada' and v_codigo = '23514' and v_mensaje = r.mensaje end;
-      if v_bien is not true then
-        v_fallos := v_fallos
-          || format('contrato %s (%s, caso %s): %s %s', r.numero_contrato, r.que, r.caso, v_resultado, coalesce(v_mensaje, ''));
+      if v_resultado = 'ocupada' then
+        v_bien := null;
+        v_sin_probar := v_sin_probar
+          || format('contrato %s (%s): otra sesión tenía ocupada la cuota o el contrato; vuelve a lanzar el ensayo', r.numero_contrato, r.que);
+      else
+        v_bien := case when r.caso = 'ok' then v_resultado = 'pagada'
+                       else v_resultado = 'bloqueada' and v_codigo = '23514' and v_mensaje = r.mensaje end;
+        if v_bien is not true then
+          v_fallos := v_fallos
+            || format('contrato %s (%s, caso %s): %s %s', r.numero_contrato, r.que, r.caso, v_resultado, coalesce(v_mensaje, ''));
+        end if;
       end if;
     end if;
     v_pagos := v_pagos || jsonb_build_object(
@@ -669,17 +695,41 @@ begin
                  fecha_pago_real = (now() at time zone 'America/Lima')::date,
                  monto_pagado = monto_programado
            where id = v_cuota;
-        v_resultado := 'pagada';
-      exception when others then
-        v_resultado := 'bloqueada';
-        v_codigo := sqlstate;
-        v_mensaje := sqlerrm;
+        -- Sin error no basta: la cuota tiene que haber quedado pagada y sellada en la cuenta de
+        -- pago de su contrato. Si no, el intento no tuvo efecto (y eso nunca es lo esperado).
+        if found
+           and exists (select 1 from public.cronograma_pagos cp
+                       where cp.id = v_cuota and cp.estado = 'pagado')
+           and exists (select 1 from crm.cuotas_cuenta_pagada q
+                       join crm.contrato_cuentas_pago l
+                         on l.contrato_id = q.contrato_id and l.cuenta_bancaria_id = q.cuenta_bancaria_id
+                       where q.cuota_id = v_cuota) then
+          v_resultado := 'pagada';
+        else
+          v_resultado := 'sin efecto';
+        end if;
+      exception
+        when lock_not_available then
+          -- Otra sesión tiene ocupada esa cuota o su contrato (p. ej. un pago real en curso).
+          v_resultado := 'ocupada';
+          v_codigo := sqlstate;
+          v_mensaje := sqlerrm;
+        when others then
+          v_resultado := 'bloqueada';
+          v_codigo := sqlstate;
+          v_mensaje := sqlerrm;
       end;
-      v_bien := v_resultado = 'bloqueada' and v_codigo = '23514'
-                and v_mensaje = case when v_quien.detalle then v_bloqueado.mensaje else c_generico end;
-      if v_bien is not true then
-        v_fallos := v_fallos
-          || format('identidad %s: %s %s', v_quien.papel, v_resultado, coalesce(v_mensaje, ''));
+      if v_resultado = 'ocupada' then
+        v_bien := null;
+        v_sin_probar := v_sin_probar
+          || format('identidad %s: otra sesión tenía ocupada la cuota o el contrato; vuelve a lanzar el ensayo', v_quien.papel);
+      else
+        v_bien := v_resultado = 'bloqueada' and v_codigo = '23514'
+                  and v_mensaje = case when v_quien.detalle then v_bloqueado.mensaje else c_generico end;
+        if v_bien is not true then
+          v_fallos := v_fallos
+            || format('identidad %s: %s %s', v_quien.papel, v_resultado, coalesce(v_mensaje, ''));
+        end if;
       end if;
       v_identidad := v_identidad || jsonb_build_object(
         'quien', v_quien.papel, 'contrato', v_bloqueado.numero_contrato, 'caso', v_bloqueado.caso,

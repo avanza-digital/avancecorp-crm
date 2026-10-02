@@ -98,13 +98,16 @@ begin
   -- Un contrato solo puede tener UN vínculo: de eso depende que dos asignaciones a la vez no
   -- queden las dos.
   if not exists (
-    select 1 from pg_catalog.pg_index i
-    where i.indrelid = 'crm.contrato_cuentas_pago'::regclass and i.indisunique and i.indpred is null
-      and i.indisvalid and i.indimmediate and i.indnatts = 1
+    select 1
+    from pg_catalog.pg_constraint c
+    join pg_catalog.pg_index i on i.indexrelid = c.conindid
+    where c.conrelid = 'crm.contrato_cuentas_pago'::regclass and c.contype = 'u'
+      and c.conname = 'contrato_cuentas_pago_contrato_id_key' and not c.condeferrable
+      and i.indisunique and i.indpred is null and i.indisvalid and i.indimmediate and i.indnatts = 1
       and i.indkey[0] = (select a.attnum from pg_catalog.pg_attribute a
                          where a.attrelid = 'crm.contrato_cuentas_pago'::regclass and a.attname = 'contrato_id')
   ) then
-    raise exception 'ASIGNAR PREFLIGHT: el vínculo ya no es único por contrato';
+    raise exception 'ASIGNAR PREFLIGHT: el vínculo ya no es único por contrato (o su restricción cambió de nombre)';
   end if;
   if not pg_catalog.has_schema_privilege('authenticated', 'private', 'USAGE')
      or not pg_catalog.has_schema_privilege('authenticated', 'crm', 'USAGE') then
@@ -180,7 +183,15 @@ declare
   v_vinculo uuid;
   v_esquema text;
   v_tabla text;
+  v_restriccion text;
 begin
+  -- La compuerta, la idempotencia y las validaciones leen datos DESPUÉS de tomar sus candados.
+  -- Con una fotografía fija (REPEATABLE READ o SERIALIZABLE) se podría ver a un administrador ya
+  -- revocado como vigente, o no ver la asignación que acaba de hacer otro intento: no se admite.
+  if pg_catalog.current_setting('transaction_isolation') <> 'read committed' then
+    raise exception using errcode = '0A000',
+      message = 'La asignación no admite este modo de transacción';
+  end if;
   if not coalesce(private.admin_banca_vigente(v_actor), false) then
     raise exception using errcode = '42501',
       message = 'Solo administración puede asignar la cuenta de pago';
@@ -257,8 +268,10 @@ begin
     values (p_contrato_id, p_cuenta_id, v_actor)
     returning id into v_vinculo;
   exception when unique_violation then
-    get stacked diagnostics v_esquema = schema_name, v_tabla = table_name;
-    if v_esquema is distinct from 'crm' or v_tabla is distinct from 'contrato_cuentas_pago' then
+    get stacked diagnostics v_esquema = schema_name, v_tabla = table_name,
+                            v_restriccion = constraint_name;
+    if v_esquema is distinct from 'crm' or v_tabla is distinct from 'contrato_cuentas_pago'
+       or v_restriccion is distinct from 'contrato_cuentas_pago_contrato_id_key' then
       raise;
     end if;
     raise exception using errcode = '22023',
@@ -373,7 +386,7 @@ begin
   for v_f in
     select * from (values
       ('private.trg_contrato_cuenta_pago_asignaciones_inmutable()', null, true, '49bb93b9429aa7b0c168cc8ceb43acfc'),
-      ('private.asignar_cuenta_pago_contrato_autorizado(uuid,uuid,uuid,text)', 'authenticated', true, '57297bc7f18279578c2f16f6aaad7247'),
+      ('private.asignar_cuenta_pago_contrato_autorizado(uuid,uuid,uuid,text)', 'authenticated', true, '3642871283e7306a179ea3795bad1389'),
       ('crm.asignar_cuenta_pago_contrato(uuid,uuid,uuid,text)', 'authenticated', false, '46e03517fc68ffd79fed6892d1128c2b')
     ) as f(firma, rol, definer, huella)
   loop
@@ -416,7 +429,7 @@ commit;
 select case
          when (select pg_catalog.md5(p.prosrc) from pg_catalog.pg_proc p
                where p.oid = pg_catalog.to_regprocedure('private.asignar_cuenta_pago_contrato_autorizado(uuid,uuid,uuid,text)'))
-              = '57297bc7f18279578c2f16f6aaad7247'
+              = '3642871283e7306a179ea3795bad1389'
           and exists (select 1 from pg_catalog.pg_proc p, pg_catalog.aclexplode(p.proacl) a
                       where p.oid = pg_catalog.to_regprocedure('crm.asignar_cuenta_pago_contrato(uuid,uuid,uuid,text)')
                         and a.privilege_type = 'EXECUTE' and a.grantee = 'authenticated'::regrole::oid)

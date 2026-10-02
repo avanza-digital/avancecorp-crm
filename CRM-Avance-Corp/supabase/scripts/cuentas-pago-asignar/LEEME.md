@@ -27,10 +27,11 @@ pagos: solo completa la instrucción que al contrato le faltaba.
 
 | Archivo | Para qué |
 |---|---|
-| `reversa.sql` | Sin asignaciones registradas (y con las piezas intactas), retira todo. En cualquier otro caso NO borra nada: solo cierra la puerta (retira el permiso de ejecutar). |
-| `reabrir-puerta.sql` | Devuelve el permiso de ejecutar tras haber cerrado la puerta. Se niega si las piezas no son las de la migración. |
+| `generar-derivados.py` | Genera los dos archivos de abajo con UNA sola definición de «las piezas están enteras». `--verificar` falla si alguno quedó viejo. Ninguno se edita a mano. |
+| `reversa.sql` | Generado. Sin asignaciones registradas y con las piezas enteras, retira todo y quita la versión del registro. En cualquier otro caso NO borra nada: solo cierra la puerta, quitándole el permiso de ejecutar a TODO el que lo tenga (aunque falte una pieza o alguna haya cambiado). |
+| `reabrir-puerta.sql` | Generado. Devuelve el permiso de ejecutar tras haber cerrado la puerta. Se niega si las piezas no están enteras: cuerpos, permisos, candados, bitácora, reglas de la tabla y las piezas de «Cambiar cuenta de pago» de las que depende. |
 | `registrar.sql` | Anota la versión en `supabase_migrations.schema_migrations`. Se regenera si la migración cambia. |
-| `siembra-extra.sql`, `test-asignar-cuenta-pago.sql`, `ciclo.sh` | Banco Docker propio: casos ficticios, pruebas y el ciclo completo. |
+| `siembra-extra.sql`, `test-asignar-cuenta-pago.sql`, `prueba-concurrencia.sh`, `ciclo.sh` | Banco Docker propio: casos ficticios, pruebas, dos sesiones a la vez y el ciclo completo. |
 
 ## Orden para publicar (lo lanza Miguel; nunca un revisor)
 
@@ -47,3 +48,15 @@ cualquier orden.
 
 Una asignación no se deshace desde pantalla ni se borra. Se corrige con «Cambiar cuenta de pago»
 (queda el historial del cambio, con el correo del cliente).
+
+## Límites conocidos
+
+- La asignación solo corre en el modo de transacción normal (READ COMMITTED, el de la API). En
+  otro modo se niega antes de mirar nada: con una fotografía fija podría ver vigente a un
+  administrador ya revocado o no ver la asignación que acaba de hacer otro intento.
+- Riesgo que ya existía y NO es de esta migración: «Retirar cuenta» y «Cambiar cuenta de pago» no
+  llevan esa misma negativa. Por la API siempre van en el modo normal; solo quien lance SQL a mano
+  en otro modo podría retirar una cuenta recién asignada. Arreglo propuesto, aparte y con OK de
+  Miguel: ponerles la misma negativa.
+- Una asignación que ya había empezado cuando se lanza `reversa.sql` espera a que termine y luego
+  se completa. Si el veredicto dice `PUERTA_CERRADA`, vuelve a contar las asignaciones un minuto después.

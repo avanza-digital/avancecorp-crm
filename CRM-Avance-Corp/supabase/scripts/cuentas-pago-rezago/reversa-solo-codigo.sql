@@ -80,6 +80,17 @@ drop function if exists crm.cuentas_pago_motivos_fn(uuid[]);
 drop function if exists private.cuentas_pago_motivos_autorizado(uuid[]);
 drop function if exists private.cuenta_pago_diagnostico(uuid[]);
 
+-- Sin su código la migración ya no está aplicada: que el registro de versiones tampoco lo diga
+-- (volver a aplicarla y a registrarla funciona igual).
+do $registro$
+begin
+  if pg_catalog.to_regclass('supabase_migrations.schema_migrations') is not null then
+    execute 'delete from supabase_migrations.schema_migrations where version = '
+      || pg_catalog.quote_literal('20261001233019');
+  end if;
+end;
+$registro$;
+
 do $postflight$
 begin
   if (select pg_catalog.md5(p.prosrc) from pg_catalog.pg_proc p

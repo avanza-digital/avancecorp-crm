@@ -1,7 +1,7 @@
 -- REGISTRO en supabase_migrations.schema_migrations de 20261001233019_crm_cuentas_pago_motivo_y_rezago.
 -- `db query --linked --file` NO registra: correr DESPUÉS de aplicar la migración. Idempotente; se niega si
 -- los objetos no están, o si la versión ya está registrada con otro nombre u otro contenido.
--- Generado con banco/generar-registrador.py. statements = el archivo entero (md5 1f7b154d62932444e349ac382d7dac6a).
+-- Generado con banco/generar-registrador.py. statements = el archivo entero (md5 f226ac450622e8021840d89db8046e9d).
 begin;
 set local lock_timeout = '5s';
 select pg_advisory_xact_lock(hashtext('crm_cuentas_pago_motivo_y_rezago_registro'));
@@ -71,6 +71,10 @@ begin
 -- se lanza ../scripts/cuentas-pago-rezago/vincular-rezago.sql (la misma carga, sola).
 -- Reversión: ../scripts/cuentas-pago-rezago/reversa.sql (borra solo los vínculos de esta carga y
 -- se niega si alguno ya registró un pago, un cambio de cuenta o un PDF) y reversa-solo-codigo.sql.
+--
+-- La constancia de una corrida anterior en esta misma sesión se vacía ANTES del begin (esa
+-- sentencia se confirma sola): si esta corrida se niega, la fila final sale vacía, no repetida.
+select pg_catalog.set_config('crm.rezago_vinculos_resultado', '', false);
 begin;
 set local lock_timeout = '5s';
 set local statement_timeout = '60s';
@@ -541,7 +545,7 @@ notify pgrst, 'reload schema';
 commit;
 
 -- Constancia del conteo por caso antes y después de ESTA corrida (queda en la salida).
-select pg_catalog.current_setting('crm.rezago_vinculos_resultado', true)::jsonb as rezago_vinculos;
+select nullif(pg_catalog.current_setting('crm.rezago_vinculos_resultado', true), '')::jsonb as rezago_vinculos;
 $mig$])) then
     raise exception 'REGISTRO: la versión 20261001233019 ya está registrada con otro nombre o contenido';
   end if;
@@ -602,6 +606,10 @@ values ('20261001233019', 'crm_cuentas_pago_motivo_y_rezago', array[$mig$-- Cuen
 -- se lanza ../scripts/cuentas-pago-rezago/vincular-rezago.sql (la misma carga, sola).
 -- Reversión: ../scripts/cuentas-pago-rezago/reversa.sql (borra solo los vínculos de esta carga y
 -- se niega si alguno ya registró un pago, un cambio de cuenta o un PDF) y reversa-solo-codigo.sql.
+--
+-- La constancia de una corrida anterior en esta misma sesión se vacía ANTES del begin (esa
+-- sentencia se confirma sola): si esta corrida se niega, la fila final sale vacía, no repetida.
+select pg_catalog.set_config('crm.rezago_vinculos_resultado', '', false);
 begin;
 set local lock_timeout = '5s';
 set local statement_timeout = '60s';
@@ -1072,14 +1080,14 @@ notify pgrst, 'reload schema';
 commit;
 
 -- Constancia del conteo por caso antes y después de ESTA corrida (queda en la salida).
-select pg_catalog.current_setting('crm.rezago_vinculos_resultado', true)::jsonb as rezago_vinculos;
+select nullif(pg_catalog.current_setting('crm.rezago_vinculos_resultado', true), '')::jsonb as rezago_vinculos;
 $mig$])
 on conflict (version) do nothing;
 do $post$
 begin
   if not exists (select 1 from supabase_migrations.schema_migrations
                  where version = '20261001233019' and name = 'crm_cuentas_pago_motivo_y_rezago' and cardinality(statements) = 1
-                   and md5(statements[1]) = '1f7b154d62932444e349ac382d7dac6a') then
+                   and md5(statements[1]) = 'f226ac450622e8021840d89db8046e9d') then
     raise exception 'REGISTRO: la fila 20261001233019 / crm_cuentas_pago_motivo_y_rezago no quedó como se esperaba';
   end if;
   raise notice 'REGISTRO: 20261001233019 / crm_cuentas_pago_motivo_y_rezago (1 sentencia: el archivo entero)';
