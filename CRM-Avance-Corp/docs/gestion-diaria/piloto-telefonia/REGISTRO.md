@@ -90,11 +90,19 @@ Receptor: `npm run receptor:llamadas-prueba` (mismo handler que la Edge `crm-lla
 
 **Resumen de las 6 pruebas (02/10):** todas PASS contra el receptor del PC. MacroDroid acredita en C1 lo que exige F3.3: envía solo el aviso con la clave en cabecera, crea un id por llamada y lo conserva al reintentar, guarda el aviso antes del envío y lo borra solo con 202, lo conserva sin red y tras reiniciar, lo reenvía solo al volver la conexión y no duplica en los casos probados. Quedan para la macro definitiva (F3-c): reintento periódico ante 429/5xx, disparador sin red concreta y sin ubicación (requisito de Jhosep), lista de varios pendientes, dirección correcta y no mostrar el número en notificaciones ni registro. Contra la Edge desplegada se repiten la 1 y la 6.
 
+## 5e. Macro definitiva de salientes (F3-c) — pruebas de aceptación contra el receptor del PC
+
+Macros armadas el 02/10 en C1 (MacroDroid gratuito, 5 macros como máximo): «Llamadas-Salientes» (Llamada saliente → `en_saliente` = Verdadero), «Llamadas-Al colgar» (copia de «Piloto F0»: Llamada terminada → Si `en_saliente` → `id_llamada` = `C1-{system_time}` → `cola_llamadas[{lv=id_llamada}]` = aviso con `"ocurrio_en":"{datetime}-05:00"` → Abrir sitio web F1 → Iniciar macro «Llamadas-Enviar cola» → Fin de Si → `en_saliente` = Falso) y «Llamadas-Enviar cola» (Datos Disponibles + Intervalo regular 5 min con alarma → espera 10 s → Iterar `cola_llamadas` → `codigo` = 0 → POST `{iterator_value}` → Si 202: Eliminar clave `[{iterator_dictionary_key}]` → Si 400: copiar a `errores_llamadas`, eliminar clave y notificación sin número). «Piloto F0» apagada; «Prueba F3», «Reintento F3» y `pendiente` borradas.
+
+| Fecha | Prueba | Resultado | Evidencia |
+| --- | --- | --- | --- |
+| 02/10/2026 17:21–17:26 (Lima) | A1 — saliente con Wi-Fi | PASS: 4 salientes (2 a un número sin lead, 2 a un lead): una sola pantalla del CRM por llamada (aviso ámbar sin lead; encuesta y ficha del lead como protagonista con lead), y un solo aviso «guardada» por llamada en el receptor, ~11 s después de colgar, con `ocurrio_en` = hora real de la llamada (p. ej. `2026-10-02 17:21:12-05:00`, id `C1-1790979672`) | Registro del receptor 17:21:23, 17:24:43, 17:25:21, 17:26:34; observado por Jhosep |
+
 ## 6. Incidencias
 
 | Fecha | Celular | Qué pasó | Impacto (perdida / duplicada / no abrió / otro) | Cómo se resolvió | Abierta o cerrada |
 | --- | --- | --- | --- | --- | --- |
-|  |  |  |  |  |  |
+| 02/10/2026 ~16:40 (Lima) | C1 | MacroDroid no dejó crear la sexta macro: la versión gratuita admite **5 macros** por celular | Otro: límite de la herramienta | Se borraron las macros de prueba «Prueba F3» y «Reintento F3» (su configuración está en §5d) y la variable `pendiente`. La macro definitiva de salientes usa 3 (Saliente, Al colgar, Enviar cola); con las entrantes (propuesta #14) harían falta más | **Abierta:** decisión de Miguel sobre comprar MacroDroid Pro para los celulares del piloto si se aprueban las entrantes (Jhosep, 02/10: «ya tendremos en cuenta ver si lo compramos») |
 
 ## 7. Decisión de cierre (F0.4.3)
 
