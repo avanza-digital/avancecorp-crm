@@ -7,6 +7,15 @@ Conclusión: **MacroDroid sirve** para la captura automática; no hace falta otr
 de F3, la ratifica Miguel). Ese mismo día, [[Llamadas desde el celular - F1 receptor por URL y ajuste Android (2026-09-30)|F1]]
 quedó probada en producción: al colgar se abre la encuesta del lead según el número.
 
+**Después, el mismo día: la macro definitiva de salientes (F3-c) quedó armada en C1 y pasó sus 7 pruebas
+de aceptación.** Son 3 macros («Llamadas-Salientes», «Llamadas-Al colgar» y «Llamadas-Enviar cola») con
+una lista de avisos pendientes. El celular avisa solo de cada saliente con su hora real, no pierde
+ninguna sin señal, con el servidor caído ni tras reiniciar, aparta los avisos dañados e ignora las
+entrantes. Guía paso a paso: `docs/gestion-diaria/piloto-telefonia/macrodroid.md` §3c. Lecciones:
+MacroDroid gratuito admite **5 macros** por celular (compra de Pro, decisión de Miguel si entran las
+entrantes); con los datos móviles activos, encender el Wi-Fi no dispara «Datos Disponibles», así que el
+intervalo de 5 minutos es el que recoge lo pendiente. Falta que Miguel aplique la base y publique la Edge.
+
 ## Qué quedó demostrado
 
 1. Al colgar, el celular envía solo el aviso de la llamada (POST con la clave en una cabecera y el
