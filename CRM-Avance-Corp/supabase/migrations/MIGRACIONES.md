@@ -1,3 +1,107 @@
+## 20261001212341 — Potencial del lead · fase 3, entrega B: filtrar y contar Leads por potencial (`p_potencial`)
+
+**✅ EN PRODUCCIÓN desde el 01/10/2026 ~19:30 Lima (Miguel con `!`: migración, registro y verificación). ⏳ La
+pantalla que envía `p_potencial` aún NO está publicada.** PASS en banco Docker propio (01/10/2026). Plan aprobado por
+Miguel el 01/10/2026 («ok dale con el plan B, todo lo recomendado»: el filtro va solo en Leads, «Sin marcar» es una
+opción y se elige un nivel a la vez). El frente que envía `p_potencial` se publica DESPUÉS (servidor primero).
+
+**Acta de la publicación (01/10/2026 ~19:30 Lima).** Salida de `verificar-filtro.sql` en producción: una sola firma,
+la de 14; md5 de la cartera `23a63cc3965472b9db85aa81cadffbeb` y del ayudante `73e993d618b203cdbe21e8127f7ea5b4` (los
+ensayados); ejecutan la cartera `[authenticated]` y el ayudante `[authenticated]`; forma del ayudante
+`DEFINER/s/search_path=""/postgres`; 0 funciones con ACL nula; nadie lee la tabla de marcas por la API; declaración
+analítica y sello vigentes; bandera `true`; 27 marcas vivas; registro `crm_cartera_filtro_potencial`.
+Advisors: 249 avisos en 6 clases antes y 249 después, archivos byte a byte iguales (el ayudante vive en `private`,
+fuera de la API, y no suma aviso). `npm run gen:types` contra producción no cambió `database.types.ts`.
+Sonda anónima por PostgREST con la clave pública del bundle vivo (`Content-Profile: crm`):
+`{"p_limite":1,"p_potencial":"estrella"}` y `{"p_limite":1,"p_gestion":"gestionado","p_potencial":"sin_marca"}` →
+401/`42501` `permission denied for schema crm` (la API ya conoce el parámetro); `{"p_limite":1}` → 401/`42501`;
+control `{"p_limite":1,"p_no_existe":"x"}` → 404/`PGRST202`. El frente vivo en ese momento (`a070838d`, build
+`build-20261001T211328361Z`) no envía `p_potencial` y lee el resumen con `v.object`: no cambia nada para el usuario
+hasta publicar la pantalla.
+
+Qué cambia: `crm.cartera_filtrada_fn` (INVOKER) sustituye la firma de 13 argumentos por una de 14 con
+`p_potencial text default null` (`estrella` | `tibio` | `frio` | `sin_marca`; otro valor → 22023). El resumen gana UNA
+clave, `resumen.potencial = {filtro, estrella, tibio, frio, sin_marca}`, contada ANTES de aplicar `p_potencial` (CTE
+`previa`): los cuatro números no cambian al elegir un nivel y suman el total sin ese filtro; el resto del resumen y las
+filas salen de `base` = `previa` recortada. Las filas tienen la forma de siempre (la columna de trabajo se quita) y no
+hay claves nuevas arriba. La clave solo viaja con la bandera `potencial_lead` encendida y para quien tiene ámbito de
+filas (global o con analistas visibles); sin eso la respuesta es byte a byte la de la firma de 13 y pedir el filtro da
+55000. El cuerpo nuevo se generó desde el texto de `20261001154153` con sustituciones exactas (no se retecleó).
+
+Cómo lee la marca: nace `private.cartera_potencial_fn()`, ayudante **SECURITY DEFINER** (molde
+`private.cartera_recepciones_fn`), porque las tablas del potencial no tienen grants de API y así se quedan. Sesión +
+gate `private.puede_acceder_crm()` + bandera + **espejo exacto de la policy `leads_select`** (cuarta copia: las otras
+son `crm.cierres_estado_fn`, `private.conversion_estado_lead_v1` y `private.potencial_lectura`; si la policy cambia,
+re-auditar las cuatro). EXECUTE solo `authenticated`; `private` no está expuesto en la API. `service_role`: sin cambios
+(no ejecuta ni antes ni después).
+
+**Decisión de ámbito (Codex f3b r1 + auditor-rls f3b P2-1).** La primera versión daba al ayudante el predicado de la
+base de la cartera (con la bandeja del reparto) para que `crm.resumen_cartera_fn` (DEFINER, llama a la cartera sin
+RLS) contara bien las marcas de esa bandeja. Eso habría entregado a coordinación conteos por nivel de leads que su RLS
+no le deja leer, sin decisión de Miguel. Se descartó: el ayudante es el espejo de la RLS y la cartera no emite
+`resumen.potencial` para quien no tiene ámbito de filas. Coordinación no recibe conteos por nivel ni por la API ni por
+el envoltorio. Regla que queda: ve (y cuenta) la marca solo quien ve el lead.
+
+Guardas, con `search_path` vacío y `quote_all_identifiers` off fijados en la transacción. Preflight: (1) función viva
+`bf06666f…` y una sola firma; (2) declaración analítica vigente, de inventario y sellada; (3)
+`assert_actividades_de_lead_base()`; (4) `crm.lead_potencial` como se ensayó (columnas, índice único por `lead_id`,
+RLS, sin SELECT para la API), RLS de `crm.leads` encendida, niveles del enum y bandera; (5) huellas de 5 ayudantes de
+visibilidad (las mismas que ya pasaron en producción con la 3A) y las dos policies de lectura de `crm.leads`; (6)
+permisos de `crm.bandera_activa` y del esquema `private`; (7) único consumidor de servidor: `crm.resumen_cartera_fn`,
+con su md5. Postflight: una firma (14) con md5 `23a63cc3…` y el mismo contrato de seguridad; ayudante con md5
+`73e993d6…`, DEFINER/STABLE/postgres/solo `search_path` vacío, ACL exacta y sin conteos; la tabla sigue sin grants;
+sello, censo, declaraciones ajenas, declaración propia y envoltorio intactos; policies sin cambios; y el ayudante y la
+cartera rechazan una llamada sin sesión por SU guarda («No autorizado»).
+
+Evidencia (banco `avancecorp-potencial-20261001`: esquema de producción del 01/10 13:31 + migraciones posteriores del
+repo + trinquete analítico sembrado; `banco/ciclo-fase3b.sh`, veredicto de máquina «TODO COMO SE ESPERABA»): ciclo
+aplicar/repetir/reversa/reaplicar PASS (tras la reversa, md5 de la de 13 = el de antes y la foto de trinquetes entera
+igual); `prueba-filtro.sql` 152 de 152 (igualdad byte a byte con la función anterior en 10 actores × 14 llamadas con la
+bandera apagada y otras 140 encendida quitando `resumen.potencial`; oráculo por rol y nivel contra la RLS real; cursor
+con empate; envoltorio; el ayudante por dentro y «ayudante ⊆ RLS» comparando ids; el ayudante no se llama con la
+bandera apagada ni para coordinación, tampoco por el envoltorio ni con plan genérico forzado); fases 1, 2 y 3A sin
+regresión (75, 51, 94); oráculo de la regla de gestión de `scripts/cartera-gestion` 128/128 contra la firma de 14; 28
+mutantes de lógica, todos cazados; 51 mutantes de migración y preflight, todos rechazados; 8 estados que la reversa no
+debe aceptar, todos rechazados (entre ellos un consumidor de servidor que ya pasa el argumento 14 con `=>`, con `:=` y
+por posición); trinquetes idénticos salvo la fila de la cartera; costo medido +1,5 a 2 ms por llamada (6 000 leads y
+2 400 marcas).
+
+Reviews: Codex r1 CHANGES_REQUESTED (2 P2 de verificación: identidad del ayudante y un verificador que aceptaba
+errores; aplicados) y auditor-rls CHANGES_REQUESTED sin P0/P1 (ámbito del coordinador, identidad del ayudante en
+postflight/verificador/reversa, ruta sin RLS en la matriz, anclas y mutantes; aplicados). Codex r2 (última ronda)
+CHANGES_REQUESTED sobre la VERIFICACIÓN, con el diseño confirmado (el espejo es exacto, los NULL fallan cerrado y la
+habilitación por ámbito de filas no tiene falsos negativos): el verificador de sumas aceptaba un bloque vacío; «ayudante
+⊆ RLS» podía aprobar con el oráculo caído; la reversa no veía un consumidor que pasara el argumento con `:=` o por
+posición (ahora exige el mismo censo estricto de consumidores que la guarda 7); y el gate debe exigir `PGRST106`. Todo
+aplicado y el ciclo repetido. Encargos y respuestas en `docs/encargos/2026-10-01-potencial-lead-f3b-r{1,2}*.md`.
+
+**NOT RUN:** la matriz `test-rls.mjs` con sesiones reales (exige credenciales de una rama; `node --check` PASS). Su
+bloque `testPotencialFiltro` cubre la API rol por rol, la ruta sin RLS (`resumen_cartera_fn`), que `private` no se
+alcanza por PostgREST y la identidad del ayudante. Para correrla: `CRM_RLS_EXIGE_POTENCIAL=1` y `CRM_BANCO_PSQL_URL`.
+Advisors: PASS al publicar (249 = 249, sin clases nuevas; ver el acta de arriba).
+
+**Paridad (01/10/2026, 19:17 Lima):** el ciclo entero se repitió sobre un banco montado desde un volcado NUEVO del
+esquema de producción (`crm` 286 funciones, `private` 553) y dio lo mismo: fases 1, 2 y 3A en verde, `ciclo-fase3b.sh`
+«TODO COMO SE ESPERABA» (152 de 152; 28, 51 y 8 mutantes sin supervivientes; reversa byte a byte; trinquetes idénticos
+salvo la fila de la cartera). En ese volcado la cartera viva es la firma de 13 con md5 `bf06666f…`, el envoltorio
+`4a896597…` y las huellas de los ayudantes de visibilidad y de las dos policies de lectura son las que exige el
+preflight. Los tipos generados desde ese banco con la migración aplicada coinciden con `database.types.ts`.
+
+Efectos laterales: el bloque de catálogo de gestión en `test-rls.mjs` acepta ahora la firma de 13 o la de 14; a
+`gestion-diaria-cola/fixtures/acl.json` se le añadieron a mano la firma de 14 y el ayudante; el kit
+`scripts/cartera-gestion/` queda atado a la firma de 13 (nota en su README; su oráculo se corre contra la de 14 desde
+`ciclo-fase3b.sh`); `potencial-lead/reversa.sql` (fase 1) se niega si este filtro sigue aplicado.
+
+Reversa: `supabase/scripts/potencial-lead/reversa-filtro.sql` (generada; reinstala la de 13 byte a byte, quita el
+ayudante, devuelve la exención y resella; conserva la fila de `schema_migrations`). ANTES retirar el frente que envía
+`p_potencial`. Orden de reversas: filtro → gestión (`cartera-gestion/reversa.sql`) y filtro → lectura → caducidad →
+fase 1.
+
+Orden en producción (Miguel con `!`, desde `CRM-Avance-Corp/`): `db query --linked --file` de la migración →
+`scripts/potencial-lead/registrar-filtro.sql` → `scripts/potencial-lead/verificar-filtro.sql` (termina en raise con
+las cifras) → sonda HTTP con `p_potencial` (401/42501 = la API ya conoce el parámetro; 404/PGRST202 = aún no recargó
+la caché) → advisors → publicar la pantalla.
+
 ## 20261001154153 — Pipeline «Gestionado»: filtro `p_gestion` en `crm.cartera_filtrada_fn`
 
 **✅ APLICADA Y REGISTRADA EN PRODUCCIÓN el 01/10/2026 (~15:20 Lima), por `!` de Miguel** (`db query --linked --file`
@@ -136,7 +240,14 @@ job `10,40 10 * * * activo=true`, bandera false, 0 marcas, registro `crm_potenci
 montó un banco NUEVO con el volcado de producción de ese día (ya con la fase 2): 873 funciones, 110 policies, 1 336
 columnas y 337 disparadores idénticos a los del banco de las pruebas, y los tres ciclos en verde sobre él. Exigía la
 fase 2 (`20260930235917`), aplicada 13 minutos antes. Gate `test:rls` con sesiones reales: NOT RUN (local sin gestor de
-credenciales). La pantalla aún no está publicada: sin ella y sin la bandera, nada cambia para los usuarios. Plan aprobado por Miguel el 01/10/2026 («vamos dale»): la pantalla en dos entregas,
+credenciales).
+
+**Pantalla publicada y bandera ENCENDIDA el mismo día.** Front: `build-20261001T185238130Z`, commit `54690b06`, rama
+`release/potencial-lead-f3a-20261001` (01/10/2026 13:57 Lima; preflight y smoke OK). **Bandera `potencial_lead`
+encendida por Miguel el 01/10/2026 a las 14:04 Lima** con `!` (`encender-bandera.sql`); `verificar-lectura.sql`
+después: bandera true, 0 marcas. Desde ese momento el analista dueño y su supervisor marcan Frío, Tibio o Estrella, y
+la marca se ve en Leads, Pipeline, cola de hoy y ficha. Interruptor de emergencia: `apagar-bandera.sql` (no borra
+marcas). La bitácora (`public.audit_log`) no guarda el actor cuando el cambio sale de `db query`: queda anotado aquí. Plan aprobado por Miguel el 01/10/2026 («vamos dale»): la pantalla en dos entregas,
 A marcar y ver, B filtrar. **No modifica ninguna función, tabla ni policy existente.**
 
 Piezas: puerta `crm.potencial_leads_fn(uuid[])` (DEFINER, STABLE, **EXECUTE solo `authenticated`**; anon y service_role
@@ -544,6 +655,382 @@ Reversa: retirar la puerta y los dos ayudantes; no hay datos que revertir.
 La publicación queda para la invocación humana de `$release-crm`, con rama
 Supabase, matriz/advisors y preflight del commit que se vaya a publicar.
 
+## 20260930172255 — Cartera F5: canónica y analista atribuido calculados una vez por llamada (`private.cartera_f5_fuentes`)
+
+**✅ EN PROD 30/09/2026 ~13:49 Lima (18:49 UTC) por `!` de Miguel: `ensayo-oraculo.sql` (deshecho) → 33/33 salidas idénticas,
+ficha 476 → 269 ms, agenda de postventa 159 → 98, cartera de inversionistas 178 → 125, estado 49 → 18 → migración (sin errores;
+huella `fa15f776…` y comentario comprobados) → `registrar.sql` (fila `20260930172255 / crm_cartera_f5_fuentes_mapas`, 2
+sentencias) → `verificar.sql`: huella OK, `cartera_f5_fuentes` 728 fuentes en **11,2 ms** por llamada (antes ~42), ficha de
+inversionista **302 ms** (antes ~500), `postventa_agenda_fn` **101 ms** (antes ~165), `cartera_inversionistas_filtrada_fn` **95 ms**
+(antes ~190) → advisors (`db advisors --type all`): 242 antes y 242 después, ninguno nuevo ni desaparecido, ninguno cita la
+función. Foto de tráfico real T0 (`foto-trafico.sql`, acumulado desde el 25/09 20:50 UTC) para medir el tramo posterior:
+ficha 1.577 llamadas / 1.450.499 ms (media 920), agenda 6.423 / 1.836.377 (286), cartera filtrada 2.159 / 1.547.242 (717) +
+992 / 635.541 (641), estado 3.163 / 517.110 (164). PR #144 (apilada sobre #143).
+**Medido con tráfico real el 01/10 (tramo 30/09 18:51 → 01/10 20:51 UTC, `foto-trafico.sql` menos T0):** ficha de inversionista
+670 llamadas, **351 ms** (antes 920, −62 %); agenda de postventa 1.997, **107 ms** (antes 286, −62 %); cartera de inversionistas
+1.596, **123 ms** (antes 692, −82 %); estado de cartera 1.524, 44 ms (antes 163); estado de postventa 683, 84 ms (antes 174); ficha de
+postventa 284, 97 ms (antes 182); gestión del inversionista 293, 170 ms (antes 584). Objetivo cumplido y comprobado con uso real.** Plan por fases aprobado por Miguel con
+`/goal` el 30/09; nota del vault «CRM - auditoria de indices (2026-09-30)».
+
+Problema medido (30/09, producción, `set local track_functions='all'` + `pg_stat_xact_user_functions` en transacción deshecha):
+la ficha de inversionista (`crm.inversionista_ficha_fn`, 490–535 ms, 1.575 llamadas en 4 días) calcula la cartera entera
+(`private.cartera_f5_fuentes()`, 726 fuentes) SIETE veces por llamada = 291 ms (ficha → `cartera_f5_exigir` ×2 →
+`cartera_inversionistas_estado_fn` ×4; `postventa_estado_fn` ×1; `cartera_f5_personas_visibles(uuid)` ×2; la CTE `fuentes`
+×1). Dentro de fuentes, por FILA se llama a `private.inversionista_canonica()` (13.408 llamadas por ficha = 218 ms) y a
+`private.analista_atribuido_cadena()` (4.795 = 123 ms), dos CTE recursivas. Hoy 0 personas con padre y 3 operaciones de
+cartera. (El recorrido de `crm.tareas` por la función en el `OR` de la ficha se ensayó primero y NO era el coste: 499 → 492 ms.)
+
+Cambio: el MISMO cuerpo con dos mapas jsonb calculados una vez por llamada (`canon_map`: id → canónica con el mismo paseo
+hacia la raíz, tope 16 y sin raíz el propio id; `atrib_map`: contrato → analista del primer ancestro «upgrade» por
+`operaciones_cartera`, visitados y tope 100) leídos con `->>`. `inversionista_canonica` y `analista_atribuido_cadena` NO
+cambian. Nada más cambia: misma firma, STABLE, SECURITY DEFINER (como estaba), `search_path` vacío, dueño y ACL
+`{postgres=X/postgres}` (nadie más la ejecuta). La nombran 11 funciones (9 DEFINER y 2 INVOKER, incluida la envoltura
+`cartera_f5_fuentes_reales`); ninguna cambia; el front no cambia. El preflight exige además las huellas del 30/09 de
+`inversionista_canonica` (`34702897…`) y `analista_atribuido_cadena` (`3c9cec30…`), cuyo criterio copian los mapas (Codex).
+La migración corre en REPEATABLE READ (las dos lecturas del oráculo ven el mismo snapshot); la reversa restaura también el
+COMMENT previo (NULL); el registro guarda 2 sentencias (función + comentario) y rechaza otro nombre u otro contenido. Huellas `md5(pg_get_functiondef)`, medidas en la base: viva `94fa33cfcca657f70a1a94f98c3bf482` → nueva
+`fa15f7765d0892c790c7a4b6822e756e`. Idempotente y fail-closed; la migración lleva su propio oráculo (mismo count y md5 del
+texto de fila antes y después, o se deshace). ⚠️ Un primer intento con subconsulta correlacionada sobre la CTE salió MÁS
+lento (82 ms); los mapas jsonb son los que bajan a 11 ms.
+
+Medido en producción (deshecho): fuentes 42 → 11 ms por llamada, 726/726 filas md5 igual; punta a punta con el reemplazo
+dentro de una transacción deshecha: **33/33 salidas idénticas** (29 fichas, agenda, estado, cartera, postventa_estado, como
+gerencia); ficha **509 → 284 ms**, agenda de postventa 164 → 97, cartera de inversionistas 193 → 126, estado 52 → 19.
+
+Banco Docker propio (`avancecorp-f5-fuentes-20260930`, imagen `supabase/postgres:17.6.1.105`, esquema `public,crm,private`
+volcado de prod; paridad de cuerpos `crm` 278 / `private` 536 con el MISMO md5 que prod): migración → repetida («ya
+aplicada») → reversa → repetida → migración → `registrar.sql` → repetido (fila `20260930172255 / crm_cartera_f5_fuentes_mapas`,
+2 sentencias); negativos: cuerpo ajeno (migración y reversa lo rechazan) y `inversionista_canonica` alterada (migración y
+registro lo rechazan). `prueba-sintetica.sql` (supabase_admin, deshecho): **15 fuentes idénticas** entre cuerpo vivo y nuevo
+y expectativas explícitas por caso: hijo y nieto fusionados (→ raíz), cadena de 17 (el nodo 1 no llega a la raíz en el tope
+16 y queda como su propia canónica; el nodo 2 sí llega), ciclo A↔B (cada uno él mismo), padre inexistente, perfil sin persona
+(identidad incoherente), identidad incoherente por inversión de otra persona, upgrades encadenados, renovación tras upgrade
+(analista del upgrade), ciclo de operaciones y upgrade con analista nulo. El empate de dos ancestros «upgrade» al mismo nivel
+NO puede darse: `operaciones_cartera.contrato_nuevo_id` es UNIQUE (`20260824231133`), la cadena es lineal (el intento de
+sembrarlo falló por esa clave). Seguridad (`contexto-seguridad.sql`, solo lectura): las 6 tablas leídas son de postgres con RLS no forzada; la función
+veía y ve todas las filas en ambas versiones.
+
+**No ejecutado:** `test-rls.mjs` (exige el stack completo con Auth y PostgREST; el cambio no toca policies, grants ni
+visibilidad, y la identidad de salida la cubren el oráculo de filas y el de 33 puertas). Advisors: al aplicar.
+
+**Reviews:** Codex r1 (LEVEL 2–3, `docs/encargos/2026-09-30-codex-cartera-f5-fuentes-mapas.md`): CHANGES_REQUESTED con
+dos P2: (1) «empates a igual nivel podrían elegir distinto» → **rechazado con evidencia**: `contrato_nuevo_id` UNIQUE hace
+lineal la cadena (un desempate delegado se ensayó y se retiró: complicaba sin caso posible; el cuerpo final es byte a byte el
+validado en prod, huella `fa15f776…`); (2) «el preflight no protege las dos funciones copiadas» → **aceptado** (huellas en
+migración y registro; negativo probado en el banco). Sus avisos menores: fixture de 17 nodos descrito mal → corregido con
+expectativas explícitas; empate y tope 100/101 → el primero imposible, el segundo idéntico en ambos cuerpos (riesgo aceptado).
+**Codex r2 (`…-r2.md`, con los scripts completos y la evidencia del UNIQUE): APPROVE**: retira el P2 de empates por el UNIQUE y
+acepta que la reversa no exija las huellas auxiliares; un P3 (la foto de la sintética marcaba igual `identidad_coherente` NULL y
+false) → corregido («?» = NULL, «!» = false) y añadidas las rutas que echaba en falta, cierre enlazado por inversión (TX-3) y por
+lead (TX-4): **15 fuentes idénticas**.
+**auditor-rls: PASS** (sin P0–P2; seis P3, todos atendidos): P3-1 REPEATABLE READ en la migración ✓ · P3-2 la reversa
+restaura el COMMENT previo ✓ · P3-3 el registro lleva las 2 sentencias ✓ · P3-4 censo de llamadores cuadrado (11) ✓ · P3-5
+caso de identidad incoherente en la sintética ✓ · P3-6 los scripts de un solo uso de F9 (`multiempresa-f9/apertura-2026-09-15/
+REVERTIR.sql`, `ACTIVAR.sql`, `POSTFLIGHT.sql`) fijan la huella vieja `94fa33cf…`: una reversión de F9 tendría que recapturarla
+(precedente ya anotado en este ledger; no hay trinquete vivo que la selle).
+
+Método de aplicación: `supabase db query --linked --file supabase/scripts/cartera-f5-fuentes-mapas/ensayo-oraculo.sql` →
+`… --file supabase/migrations/20260930172255_crm_cartera_f5_fuentes_mapas.sql` → `… --file
+supabase/scripts/cartera-f5-fuentes-mapas/registrar.sql` → `verificar.sql` (termina en raise; esperado fuentes ≤ 15 ms,
+ficha < 350, agenda < 130, cartera < 160) → advisors. Reversa: `reversa.sql` (cuerpo vivo del 30/09 byte a byte; conserva la
+fila de `schema_migrations`: anotarlo aquí el mismo día).
+
+## 20260930154341 — Vigilante permanente del ayudante del núcleo SLA (`private.assert_sla_avisos`)
+
+**✅ EN PROD 30/09/2026 ~10:57 Lima por `!` de Miguel: migración → `registrar.sql` (fila `20260930154341 /
+crm_sla_vigilante_ayudante`, 1 sentencia) → `verificar.sql`: huella `9b9edc86…` OK, guardián ampliado OK (10 ms),
+paraguas OK. Advisors (`db advisors --type all`): 242, los mismos de antes, ninguna clase nueva (el único que cita
+un objeto de esta migración es el preexistente de DEFINER ejecutable por `authenticated` sobre el adaptador).
+PR #143 (apilada sobre #142).** Cierra el P2-2 del auditor-rls sobre `20260930002929`: el ayudante
+`private.sla_leads_operativos()` y la línea del resumen que lo usa solo se comprobaban al aplicar. Aprobado por Miguel
+el 30/09 («dale»).
+
+Cambio: el guardián `private.assert_sla_avisos()` (corre en cada migración del SLA y de Gestión Diaria vía
+`assert_gestion_diaria_equipo` → paraguas) exige además: el ayudante existe con su huella
+`8d478d783e4c591662388ddf7405058a`, dueño postgres, INVOKER, STABLE, `search_path` vacío y ACL exacta
+`{postgres=X/postgres}`; y `crm.avisos_sla_resumen_v2_fn` sigue pasándolo a `sla_operacion_autorizada` (regex sobre
+`prosrc` sin comentarios, como el resto del guardián). Mismo texto de OK. Nada más cambia. Cualquier cambio legítimo
+futuro del ayudante exige resellar aquí (patrón de la casa). Huellas del guardián: viva
+`bf835965ea92cb14265b08b5e5b4f121` → nueva `9b9edc86c3a55d89367b6d64203d38dc` (medida en la base). Idempotente
+(la ruta «ya aplicada» pasa el guardián ampliado y el paraguas) y fail-closed.
+
+**Ciclo ensayado en producción con rollback** (`scripts/sla-vigilante-ayudante/ensayo-ciclo.sql`): migración → repetida →
+**tres negativos** (NEG1 `grant execute` del ayudante a `authenticated` → salta «el ayudante … no es el esperado»; NEG2
+cuerpo del ayudante sustituido → mismo salto; NEG3 resumen restaurado a `(null,true)` → salta «el resumen dejo de
+evaluar solo las oportunidades operativas»; **NEG4** resumen con la llamada acotada Y una segunda llamada amplia
+`(null,true)` → salta igual; todo restaurado → guardián OK) → reversa (guardián vivo) → migración → registrador
+(1 sentencia); después: huella viva intacta, 0 registros, ACL del ayudante intacta.
+
+Método de aplicación: `supabase db query --linked --file supabase/migrations/20260930154341_crm_sla_vigilante_ayudante.sql`
+→ `supabase/scripts/sla-vigilante-ayudante/registrar.sql` → `verificar.sql` (termina en raise; esperado guardián ampliado OK
+y paraguas OK) → advisors. Reversa: `reversa.sql` (conserva la fila de `schema_migrations`: anotarlo aquí el mismo día).
+
+**Reviews (LEVEL 2):** Codex (`docs/encargos/2026-09-30-codex-sla-vigilante-ayudante.md`) CHANGES_REQUESTED → aceptado:
+P2 «la regex solo exigía que EXISTIERA una llamada acotada; un resumen con una segunda llamada amplia `(null,true)`
+pasaría» → ahora el guardián exige que TODAS las llamadas a `sla_operacion_autorizada` del resumen vayan acotadas por
+el ayudante (`regexp_count` de ambas formas igual y ≥ 1) y NEG4 lo prueba; R4 «la ruta idempotente no pasaba el
+paraguas» → añadido. Las tres piezas se regeneraron con la huella nueva y el ciclo se repitió con los archivos
+finales. Limitación deliberada anotada: una llamada con el resultado del ayudante en una variable sería rechazada
+por el trinquete (se escribe la llamada directa).
+**auditor-rls: APPROVE** (sin P0–P2; no toca tablas, policies, grants, triggers ni `public`; el guardián solo lee `pg_proc`;
+DEFINER conservado con ACL solo dueño; `proacl` NULL salta como verdadero positivo; reversa restaura el cuerpo vivo byte a
+byte). Revisó la versión previa: sus P3-1 (presencia vs exclusividad) y P3-3 (paraguas en la ruta idempotente) son
+exactamente lo que ya corrigió el P2/R4 de Codex arriba. P3-4 (orden de limpieza de comentarios: solo puede dar salto
+ruidoso, nunca aceptar un resumen alterado) y P3-5 (`md5(pg_get_functiondef)` puede diferir en un banco con otra
+versión mayor; fallaría en voz alta) son informativos y preexistentes. **Queda anotado como ítem aparte (P3-2):** los
+negativos NEG1–NEG4 viven solo en el ensayo manual; falta `private.assert_sla_avisos_mutantes()` invocado desde
+`test-rls.mjs`, al estilo de los otros trinquetes con mutantes.
+No ejecutado: `test-rls.mjs` (no cambia policies ni grants) y banco Docker (ensayos sobre datos reales, deshechos).
+
+## 20260930150852 — Gestión Diaria: sus dos consultas al núcleo SLA evalúan solo las oportunidades que pueden avisar (+ resellado de sus guardianes)
+
+**✅ EN PROD 30/09/2026 ~10:25 Lima por `!` de Miguel: migración → `registrar.sql` (fila `20260930150852 /
+crm_gestion_diaria_solo_operativos`, 4 sentencias) → `verificar.sql`: las cuatro huellas nuevas OK, guardianes OK
+(paraguas, SLA, pulso), equipo de gerencia **1.350 ms** (antes 1.804–1.853; meta ≤ 1.300 rozada, con tráfico de
+mañana) y avisos del supervisor grande **864 ms** (antes 1.002–1.031). Advisors: sin clases nuevas.** Paso 4 · fase
+«Gestión Diaria» del refactor por módulos, aprobado por Miguel el 30/09 («dale»). Plan sin jerga en el chat; anclas en la nota del vault «CRM - perfil de carga
+lectura vs escritura (2026-09-29)».
+
+Problema medido (30/09, producción): las vistas de Gestión Diaria piden al núcleo SLA todas las oportunidades activas:
+equipo de gerencia 1.804–1.853 ms, avisos de supervisor hasta 1.031 ms, equipo de supervisor hasta 953 ms; 1.139 de
+las 2.583 son terminales y nunca aportan (`gestion_diaria_alertas_sla` usa solo `senales.pendientes`;
+`gestion_diaria_equipo_pendientes` cuenta `primera_atencion`/`datos_incompletos`, ambas `v_usable and …`, y su salida
+se une por `left join` al roster en `gestion_diaria_equipo_core`).
+
+Cambio: en `private.gestion_diaria_alertas_sla()` y `private.gestion_diaria_equipo_pendientes()` una línea:
+`sla_operacion_autorizada(null, true)` → `sla_operacion_autorizada(private.sla_leads_operativos(), true)` (ayudante de
+20260930002929, exigido con su huella). Ambas están selladas: `assert_gestion_diaria_alertas_equipo` (md5(prosrc) de
+alertas_sla) y `assert_gestion_diaria_equipo` (md5(def) de equipo_pendientes) se RESELLAN cambiando solo la huella;
+la migración termina pasando el paraguas `assert_gestion_diaria()` y `assert_sla_avisos()`. Huellas: alertas_sla
+prosrc `bca4ff0c…` → `94bbf61c…`; equipo_pendientes def `6de28503…` → `034cbb49…`; assert_alertas_equipo
+`abb5da73…` → `02c9cd9f…`; assert_equipo `38f2de1b…` → `28f82e7d…` (todas medidas en la base en ensayos deshechos).
+Ningún adaptador `crm.*`, policy, grant ni el núcleo cambian. Idempotente (las 4 huellas nuevas + invariantes +
+guardianes) y fail-closed.
+
+**Oráculo en producción ejecutando la migración real** (transacción deshecha; `scripts/gestion-diaria-operativos/ensayo-oraculo.sql`):
+gerencia y los 4 supervisores × {`gestion_diaria_avisos_fn()`, `gestion_diaria_equipo_fn(hoy,null)`,
+`gestion_diaria_equipo_fn(hoy,yo)`, `gestion_diaria_pulso_fn(hoy)` (tercer consumidor de `equipo_pendientes`,
+señalado por Codex)} sin campos de reloj: **20/20 iguales**. Una corrida intermedia en horario laboral dio 5
+diferencias en los actores grandes (gerencia y sup1): datos vivos cambiando entre las dos pasadas (READ COMMITTED
+obligatorio por `resolver_en_puertas_bajo_candado`); la corrida siguiente, mostrando clave a clave, dio 20/20. Tiempos: equipo de gerencia
+**1.804–1.853 → 1.215–1.232 ms**, sup1 avisos 1.002–1.031 → 838–848 y equipo 925–953 → 738–760, sup3 876–889 →
+607–620 y 812–815 → 539–547, sup2/sup4 ±20 ms. Guardianes tras el cambio: paraguas OK (57 ms), SLA OK.
+**Ciclo ensayado en producción con rollback** (`ensayo-ciclo.sql`): migración → repetida (idempotente) → reversa
+(4 funciones vivas, guardianes OK) → migración → registrador (4 sentencias); después: huellas vivas intactas, 0 registros.
+
+Método de aplicación: `supabase db query --linked --file supabase/migrations/20260930150852_crm_gestion_diaria_solo_operativos.sql`
+→ `supabase/scripts/gestion-diaria-operativos/registrar.sql` → `verificar.sql` (termina en raise; esperado guardianes
+OK, equipo de gerencia ≤ 1.300 ms) → advisors. Reversa: `reversa.sql` (restaura las cuatro funciones vivas y pasa
+los guardianes; conserva la fila de `schema_migrations`: anotarlo aquí el mismo día).
+
+**Reviews (LEVEL 3):** Codex (`docs/encargos/2026-09-30-codex-gestion-diaria-operativos.md`): **APPROVE**, sin
+hallazgos; refuerzos pedidos y hechos: (R5) negativo ensayado en producción con rollback
+(`ensayo-negativo-guardian.sql`: se quita a `crm_gestion_diaria_lector` el EXECUTE de `gestion_diaria_contexto`, el
+preflight pasa, los cuatro reemplazos se hacen y el paraguas falla → «F4: contexto o adaptador de pendientes alterado»
+→ la migración entera se deshace y las cuatro huellas y la ACL quedan intactas); (R1) inventario: consumidores vivos
+de `equipo_pendientes` = `gestion_diaria_equipo_core`, `gestion_diaria_pulso_fn` (añadido al oráculo) y su guardián;
+de `alertas_sla` = `gestion_diaria_contexto` (cadena de `gestion_diaria_avisos_fn`, en el oráculo); (R2) ningún otro
+gate sella por md5 las cuatro funciones: `assert_gestion_diaria_pendientes/pulso` solo llaman a
+`assert_gestion_diaria_equipo` y el paraguas pasó tras el resellado.
+**auditor-rls: PASS** (guardianes byte a byte iguales salvo la huella; ningún otro gate sella las cuatro funciones;
+visibilidad por rol intacta; atómica, idempotente y fail-closed; la fila (0,0) que desaparece la absorben por `left
+join` + `coalesce` sus dos consumidores). 4 P3 opcionales: pulso en el oráculo (hecho, 20/20) · pasar también
+`assert_gestion_diaria_pulso()` en el postflight de migración y reversa (hecho; ciclo repetido con los archivos
+finales) · caso «analista solo con leads terminales → (0,0)» para la suite local de equipo (pendiente, banco Docker)
+· variable `p_etapa` sin uso retirada; queda anotado que la reversa histórica de H3
+(`scripts/gestion-diaria-horizontal/reversa.sql`) restauraría un guardián con huella vieja y se negaría sola.
+No ejecutado: `test-rls.mjs` (no cambia policies ni grants) y banco Docker (ensayos sobre datos reales, deshechos).
+
+## 20260930002929 — Resumen de avisos SLA: el adaptador evalúa solo las oportunidades que pueden avisar (`crm.avisos_sla_resumen_v2_fn` + `private.sla_leads_operativos`)
+
+**✅ EN PROD 29/09/2026 ~20:05 Lima por `!` de Miguel: migración → `registrar.sql` (fila `20260930002929 /
+crm_sla_resumen_solo_operativos`, 2 sentencias) → `verificar.sql`: huella `e9ce617a…` OK, guardián OK, 1.513
+operativos (la cartera creció desde los 1.444 del ensayo), resumen de gerencia **1.289 ms** y en tres repeticiones
+1.281 / 1.651 / 1.256 ms (antes 1.735–1.792): **−27 %, por encima de la meta de 1.200 ms** — la meta se fijó con
+1.444 operativos y sin carga concurrente; queda registrada como no alcanzada del todo en esta fase. Advisors: 242,
+sin clases nuevas (el único aviso que cita el adaptador es el preexistente de DEFINER ejecutable por
+`authenticated`).** Paso 4 · fase 1 del refactor por módulos, aprobado por Miguel el 29/09 («DALE»). Plan sin jerga en el chat; anclas en la nota del vault «CRM - perfil de carga lectura vs
+escritura (2026-09-29)».
+
+Problema medido (29/09, producción): el contador de avisos (`avisos_sla_resumen_v2_fn`) tarda 1.735–1.792 ms como
+gerencia y ~810 como supervisor; es la puerta con más tiempo total (9.540 llamadas en 4 días, 3.005 s). Pide al
+núcleo TODAS las oportunidades activas (2.583 para gerencia) con `sla_operacion_autorizada(null,true)`; el núcleo
+evalúa la regla completa y arma la ficha de cada una (bucle plpgsql ≈1.000 ms + SELECT 174 ms + post-proceso
+≈550 ms) y el adaptador solo cuenta. 1.139 de las 2.583 están descartadas/convertidas: `lead_terminal` en
+`private.sla_operacion_leads`, nunca producen avisos ni «pendientes» ni `proximo_cambio_en`.
+
+Cambio: el adaptador pasa al núcleo solo los ids de las oportunidades activas en etapa comercial
+(`private.sla_leads_operativos()`: las mismas cuatro etapas no terminales del núcleo; INVOKER, `search_path`
+vacío, sin ejecutores de la API; vive en `private` porque `assert_sla_avisos` prohíbe al adaptador leer
+`crm.leads`). El núcleo, su autoridad, su reloj y las otras 8 puertas que lo usan NO cambian. Al final, la
+migración (y la reversa) ejecutan `private.assert_sla_avisos()`: el guardián tiene la última palabra. Huellas
+del adaptador: viva `7b5f75dfb6ac3e480659bdef3dc5ac0f` → nueva `e9ce617ab0cc33bc5614ef69e877cc71`.
+
+**Oráculo en producción** (transacción deshecha; `scripts/sla-resumen-operativos/ensayo-oraculo.sql`): 5 actores
+(gerencia, supervisor con bandeja, 2 analistas, coordinador), md5 del resumen sin `calculado_en` + controles
+`estado_sla_leads_v2_fn` y `cola_accion_v3_fn`: **15/15 iguales**; guardián OK tras el cambio. Tiempos: gerencia
+**1.761–1.792 → 1.130–1.146 ms**, supervisor **813 → 617–633 ms**, analistas 107–123 → 117–118 (el ayudante cuesta
+~8 ms; para ellos el núcleo ya evaluaba pocas filas), coordinador 11 → 24. Prototipo previo con las cifras: idéntico.
+**Ciclo ensayado en producción con rollback** (`ensayo-ciclo.sql`): migración → repetida (idempotente) →
+**negativos** (NEG1: ayudante con otro cuerpo → la migración repetida se niega por huella; NEG2: ayudante con
+EXECUTE a `authenticated` → se niega por invariantes) → reversa (adaptador vivo, sin ayudante, guardián OK) →
+migración → registrador (2 sentencias); después: huella viva intacta, sin ayudante, 0 registros.
+Huella del ayudante `8d478d783e4c591662388ddf7405058a` (medida en la base; `pg_get_functiondef` añade el salto
+de línea final).
+
+Método de aplicación: `supabase db query --linked --file supabase/migrations/20260930002929_crm_sla_resumen_solo_operativos.sql`
+→ `supabase/scripts/sla-resumen-operativos/registrar.sql` → `verificar.sql` (termina en raise; esperado guardián OK y
+resumen de gerencia ≤ 1.200 ms) → advisors. Reversa: `reversa.sql` (conserva la fila de `schema_migrations`:
+anotarlo aquí el mismo día).
+
+Diferido a una fase aparte: `private.gestion_diaria_alertas_sla` y `private.gestion_diaria_equipo_pendientes`
+también piden `(null,true)` (1,2 y 1,6 s) pero están sellados por md5 en `assert_gestion_diaria_alertas_equipo`
+y `assert_gestion_diaria_equipo`; cambiarlos exige resellar esos gates. Fase 2 (núcleo): pre-agregar tareas por
+lead y no recalcular `sla_hechos_actuales` dentro de `sla_tareas_hechos`.
+
+**Reviews (LEVEL 3):** Codex r1 (`docs/encargos/2026-09-30-codex-sla-resumen-operativos.md`) CHANGES_REQUESTED:
+P2 «la ruta "ya aplicada" aceptaba un ayudante sin validar y omitía el guardián» → aceptado: la ruta idempotente
+exige invariantes + huella del ayudante y pasa el guardián; el postflight y el registrador exigen la huella del
+ayudante; la reversa pasa el guardián también en su ruta idempotente; negativos NEG1/NEG2 añadidos al ciclo. R1
+(correspondencia de etapas y metadatos): `sla_hechos_actuales` devuelve `l.etapa` como `etapa_actual` y los
+metadatos del paquete salen de `sla_operacion_control` y del reloj, no de las filas (transcrito en r2). R2:
+coordinador añadido al oráculo; lector global sin actor real (0 perfiles).
+**Codex r2 (`…-r2.md`): PASS**, P2 cerrado, sin hallazgos nuevos. Evidencia que pidió: `crm.leads.etapa` es NOT NULL
+(catálogo, 0 leads sin etapa), así que «etapa NULL» no existe; `proximo_cambio_en` de una fila excluida es NULL
+(`select min(c.en) … where v_usable …` en el núcleo) y el `min` del paquete lo ignora. Límite anotado: el
+registrador no vuelve a pasar el guardián (corre después del commit; la migración sí lo pasa).
+**auditor-rls: APPROVE** (visibilidad por rol intacta línea a línea, ACL del ayudante solo dueño, fail-closed).
+P2-1 «suite local del resumen por rol no corrida» → **NOT RUN declarado**: exige banco Docker con esquema de prod;
+el gate 42501 vive en `sla_operacion_autorizada` (intacta) y el oráculo cubrió 5 actores reales incl. coordinador.
+P2-2 «sin trinquete vivo del ayudante» → ítem aparte (añadir `sla_leads_operativos` a `assert_sla_nucleo` o a
+`assert_sla_avisos` en una migración pequeña). P3-2 (reversa con ayudante huérfano → lo retira) y P3-3 (huellas
+comparadas con `is distinct from`) aplicados y el ciclo repetido con esos archivos (incluye «reversa repetida con
+ayudante huérfano»); P3-5 anotado en la cabecera de la reversa; P3-4 = Codex P2, ya cerrado; P3-1 (el ayudante se
+evalúa antes del 42501, ~8 ms en un camino denegado, sin datos fuera) aceptado y documentado aquí.
+No ejecutado: `test-rls.mjs` (no cambia policies ni grants de tablas) y banco Docker (ensayos sobre datos reales,
+deshechos).
+
+## 20260930000550 — Agenda de postventa: los perfiles de la persona se buscan en su familia (`private.postventa_tarea_json`)
+
+**✅ EN PROD 29/09/2026 ~19:35 Lima por `!` de Miguel: migración → `registrar.sql` (fila `20260930000550 /
+crm_postventa_tarea_json_por_familia`) → `verificar.sql`: huella `bff893c5…` OK, `postventa_agenda_fn` 16 tareas en
+**211 ms** (antes ~530; meta < 250), `tareas_pendientes_fn` 26 ms. Advisors: sin cambios ni avisos de esta función
+(ver línea de cierre).** Paso 3 · fase 1 del refactor por módulos, aprobado por Miguel el 29/09 («dale»). Plan sin jerga en el chat; anclas en la nota del vault «CRM - perfil de carga lectura vs
+escritura (2026-09-29)».
+
+Problema medido (29/09, producción): la lista de tareas (`tareas_pendientes_fn`, 22 ms) arrastra la agenda de
+postventa (`postventa_agenda_fn`, 509–532 ms) en cada carga de Hoy/agenda de todos (~1.300 veces al día). De esos
+ms, 320–338 son `postventa_perfil_ids`: por cada una de las 16 tareas de postventa se recorren las 565 personas
+llamando a `inversionista_canonica()` dos veces por fila.
+
+Cambio: las candidatas salen de la FAMILIA de la persona (CTE recursiva desde su raíz canónica bajando por
+`inversionista_canonico_id`, tope 16 como `inversionista_canonica`) y sobre ese puñado se aplica el MISMO predicado
+de antes. `familia` es un superconjunto de «las de la misma canónica» (toda persona con esa canónica cuelga de la
+raíz en ≤ 15 saltos), así que el resultado es idéntico también con ciclos; hoy 0 personas tienen padre. Nada más
+cambia: firma, STABLE STRICT, INVOKER, `search_path` vacío, dueño y ACL (postflight). Ninguna puerta ni el front
+cambian. Huellas `md5(pg_get_functiondef)`: viva `c29fd1d25ab775ecd63ab2660a847d0e` → nueva
+`bff893c533d645be75d884788173bd50` (la huella local difería solo por el salto de línea final que
+`pg_get_functiondef` añade; se comprobó carácter a carácter en un ensayo deshecho).
+
+**Oráculo en producción** (transacción deshecha; `scripts/postventa-tarea-familia/ensayo-oraculo.sql`): md5 de
+`postventa_tarea_json(t)` de las 16 tareas con persona fila a fila, y para gerencia, supervisor con bandeja y los 2
+responsables con más postventa: `postventa_agenda_fn`, `cola_accion_v3_fn`, `tareas_pendientes_fn`: **13/13
+iguales, 0 distintos**. Tiempos: agenda gerencia 509 → **161 ms**, supervisor 418 → 162, responsables 426/215 →
+161/154; las 16 `tarea_json` 338 → **16 ms**. Prototipo previo: `perfil_ids` idéntico en las 568 personas.
+**Ciclo ensayado en producción con rollback** (`ensayo-ciclo.sql`): migración → repetida (idempotente) → reversa →
+migración → registrador; después: huella viva intacta, 0 registros.
+
+Método de aplicación: `supabase db query --linked --file supabase/migrations/20260930000550_crm_postventa_tarea_json_por_familia.sql`
+→ `supabase/scripts/postventa-tarea-familia/registrar.sql` → `verificar.sql` (termina en raise; esperado agenda
+< 250 ms) → advisors. Reversa: `reversa.sql` (cuerpo vivo del 29/09 byte a byte; conserva la fila de
+`schema_migrations`: anotarlo aquí el mismo día).
+
+**Reviews:** Codex (LEVEL 2, `docs/encargos/2026-09-30-codex-postventa-tarea-familia.md`): **APPROVE**, sin
+hallazgos; dos riesgos condicionados, ambos cerrados con evidencia: (R1) «si `inversionista_canonica` viera filas
+que la CTE no ve» → medido (`contexto-seguridad.sql`): `inversionista_canonica` es DEFINER, `postventa_tarea_json`
+es INVOKER pero TODOS sus llamadores son puertas DEFINER (`postventa_agenda_fn`, `postventa_tarea_fn`,
+`postventa_agendar_fn`, `cola_accion_v3_fn`; `tareas_clientes_autorizadas` solo se llama desde `cola_accion_v3_fn`),
+así que corre como postgres (dueño de la tabla, RLS no forzada) y ambas formas ven las mismas filas; además la
+única policy de `crm.inversionistas` es todo-o-nada por rol (gerencia), sin «raíz invisible con hija visible».
+(R2) casos sintéticos → `prueba-sintetica.sql` (VALUES, réplica exacta de `inversionista_canonica`): cadena de 17
+(supera el tope 16), ciclo A↔B, padre inexistente, perfil repetido en la familia (se conserva repetido en ambas),
+persona sin perfil, singleton: **24 personas, 0 distintas**.
+**auditor-rls: PASS** (no amplía visibilidad por ningún camino: nuevo ⊆ viejo incluso bajo un rol hipotético con
+RLS; guardas fail-closed y NULL-safe; idempotencia correcta). P2 «la rama recursiva no se ejecutó con datos reales
+con padre (hoy 0)»: **riesgo aceptado** con la prueba analítica (superconjunto + predicado original) y la réplica
+sintética de arriba; no se monta banco Docker para esto (decisión de Miguel: el gasto va a la acción). P3 aceptados:
+consumidores REALES de `postventa_tarea_json` = `postventa_agenda_fn`, `postventa_tarea_fn`, `postventa_agendar_fn`
+(`tareas_clientes_autorizadas` solo la menciona en un comentario; el caso `cola_accion_v3_fn` del oráculo actúa como
+control «sin cambio»); esta fila se completa al aplicar. Con Codex + auditor-rls se alcanza el máximo de 2 reviews.
+No ejecutado: `test-rls.mjs` (no cambia policies ni grants; la función no decide visibilidad) y banco Docker (los
+ensayos se hicieron sobre los datos reales, deshechos).
+
+## 20260929230336 — Cartera de inversionistas: el nombre del cierre externo en un solo recorrido (`private.cartera_f5_personas_visibles(uuid)`)
+
+**✅ EN PROD 29/09/2026 ~18:25 Lima por `!` de Miguel: migración → `registrar.sql` (fila `20260929230336 /
+crm_cartera_personas_visibles_cierre_sin_bucle`) → `verificar.sql`: huella `bca76d60…` OK, `personas_visibles()`
+561 filas en **90 ms** (antes 2.200–4.500), listado de gerencia pág. 1 **189 ms** y con texto **189 ms** (antes
+2.300–3.200; meta < 400). Advisors (`db advisors --type all`): 242 avisos, los mismos de antes, ninguno de esta
+función. Nota: la primera versión de `verificar.sql` estaba marcada `read only` y falló porque el listado deja
+rastro en `crm.cartera_lecturas`; corregida (termina en `raise`, nada queda) y ejecutada después.** Paso 2 ·
+fase 1 del refactor por módulos, aprobado por Miguel el 29/09 («dale, arranca la Fase 1»). Plan sin jerga en el chat; anclas en la nota del vault «CRM -
+perfil de carga lectura vs escritura (2026-09-29)».
+
+Problema medido (EXPLAIN ANALYZE como gerencia, 29/09): el listado tardaba 2.384 ms y 2.283 ms eran UN
+lateral: por cada una de las 560 personas se recorría `crm.cierres_externos` (41 filas) y, por cada fila,
+la CTE `fuentes` (718): 22.897 recorridos de la CTE. El resto de la función: ~100 ms.
+
+Cambio: ese lateral pasa a una CTE `cierres_nombre` calculada una vez (`distinct on (inversionista_id) …
+order by inversionista_id, creado_en desc, id`, el mismo desempate del `order by … limit 1`) y un `left join`
+con la misma condición `and not i.lector`. Nada más cambia: mismas CTEs y reglas de acceso, misma firma,
+dueño, ACL, STABLE, DEFINER y `search_path` vacío (el postflight lo comprueba). Ninguna puerta ni el front
+cambian; `gen:types` no aplica. Huellas `md5(pg_get_functiondef)`: viva `45b18a6af966f0ddfd137aec0b9b653d`
+→ nueva `bca76d60bd56905eff978357f539d300`. Migración idempotente y fail-closed.
+
+**Oráculo de igualdad en producción** (una transacción deshecha; `scripts/cartera-personas-visibles/ensayo-oraculo.sql`):
+gerencia, supervisor con bandeja y 2 analistas con cartera; por actor md5 de `personas_visibles()` completa,
+listado en 11 variantes (páginas 1–3, texto, empresa, estado, por vencer, sin responsable, contacto, mes,
+tamaño 10; 3 para los no gerencia), estado, ficha (3/1), gestión, postventa perfil y vencimientos:
+**46/46 iguales, 0 distintos**. Tiempos antes → después: listado gerencia 2.357–3.216 → **181–232 ms**,
+supervisor 1.215 → 185–233, analista 377–1.282 → 159–162; `personas_visibles()` gerencia 4.527 → 157 ms.
+La ficha queda en ~480 ms (su coste está en otra parte; fuera de alcance).
+
+**Ciclo ensayado en producción con rollback:** migración → reversa → migración → registrador (huellas
+bca76… → 45b1… → bca76…, fila registrada) y comprobado después: huella viva intacta, 0 registros.
+
+Método de aplicación: `supabase db query --linked --file supabase/migrations/20260929230336_crm_cartera_personas_visibles_cierre_sin_bucle.sql`
+→ `supabase/scripts/cartera-personas-visibles/registrar.sql` → `verificar.sql` (solo lectura; esperado
+listado < 400 ms) → advisors. Reversa: `reversa.sql` (restaura el cuerpo vivo del 29/09 byte a byte;
+conserva la fila de `schema_migrations`: anotarlo aquí el mismo día).
+
+**Reviews (LEVEL 3, 2 rondas de Codex):** r1 (`docs/encargos/2026-09-29-codex-cartera-personas-visibles.md`)
+CHANGES_REQUESTED: P1 «registrador no ejecutable» era un artefacto del extracto (un filtro de líneas mutiló
+la transcripción; el archivo era correcto) → r2 con los archivos completos; P2 «la ruta idempotente no
+comprueba dueño/ACL» → aceptado. r2 (`…-r2.md`) CHANGES_REQUESTED: P1 «`if not (…)` deja pasar una ACL
+NULL» → aceptado (todas las guardas evalúan `is not true` y exigen `acl is not null`); P2 «reversa y
+registrador solo miran la huella» → aceptado (las tres piezas exigen dueño postgres, ACL
+`{postgres=X/postgres}`, DEFINER, STABLE y `search_path` vacío, que se guarda como `search_path=""`).
+Su petición de prueba sintética → hecha: `prueba-sintetica.sql` (VALUES: empate en `creado_en`, fuente
+duplicada, fuente sin persona, empresa avance excluida, nombre NULL y vacío, persona sin cierres, lector
+true/false): lateral viejo vs CTE nueva, `except all` en ambos sentidos = 0 y 0 (8 casos). Guardas probadas
+en negativo dentro del ciclo (funciones `pg_temp`): rechaza ACL nula, rechaza `authenticated`, acepta
+solo-postgres, rechaza dueño distinto (código 112 = esperado). Ciclo rehecho tras los cambios: verde.
+Aclaración a Codex: el ciclo concatena los CUERPOS sin `begin/commit` (`ensayo-ciclo.sql`), por eso cabe en
+una transacción deshecha. Sin tercera ronda (tope 2).
+**auditor-rls: PASS** (equivalencia semántica en todas las ramas de acceso, sin referencias sin calificar,
+sin cambios en reglas, grants, `public` ni inmutabilidad; 3 observaciones P3: el `is not true` del guard y
+los invariantes en la reversa —ya aplicados por Codex r2 antes del último ciclo— y trazabilidad del ledger
+—esta línea—). Trazabilidad: un PRIMER ciclo falló en el postflight por comparar `proconfig::text` con
+`{search_path=}` (el valor real es `search_path=""`, tercera vez que aparece la trampa); se corrigió y el
+ciclo se repitió con los archivos finales. Cobertura: 0 personas cuyo nombre salga solo del cierre externo
+y 0 filas en `crm.inversionista_datos_contacto`, así que la rama `nullif(btrim(ce.nombre_completo),'')` no
+se ejercita con datos reales de hoy; queda demostrada por análisis estático, por la prueba sintética y por
+el md5 completo de `personas_visibles()` en 4 actores. Hueco PREEXISTENTE señalado por el auditor:
+`test-rls.mjs` no cubre la cartera de inversionistas (5 casos propuestos: analista ve solo su cartera,
+supervisor solo su bandeja, coordinador 42501, miembro inactivo denegado, lector global solo perfiles
+cliente visibles); abrir como ítem aparte.
+No ejecutado: `test-rls.mjs` (no cambia policies ni grants; la visibilidad se probó por md5 con 4 actores
+reales) y banco Docker (el ensayo y el ciclo se hicieron sobre los datos reales, deshechos).
 
 ## 20260929220021 — Índice `crm.inversionistas (perfil_id)`: la cartera deja de recorrer la tabla por contrato
 

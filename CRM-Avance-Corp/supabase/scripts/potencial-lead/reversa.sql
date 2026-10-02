@@ -26,6 +26,11 @@ begin
              where n.nspname = 'private' and p.proname = 'potencial_caducar') then
     raise exception 'REVERSA potencial_lead: la fase 2 (caducidad) sigue aplicada; corre antes reversa-caducidad.sql';
   end if;
+  -- El filtro de Leads (fase 3B) lee crm.lead_potencial desde private.cartera_potencial_fn: sin la
+  -- tabla, la cartera entera fallaría con la bandera encendida (auditor-rls f3b). Primero su reversa.
+  if pg_catalog.to_regprocedure('private.cartera_potencial_fn()') is not null then
+    raise exception 'REVERSA potencial_lead: el filtro de Leads (fase 3B) sigue aplicado; corre antes reversa-filtro.sql';
+  end if;
 end;
 $chk$;
 

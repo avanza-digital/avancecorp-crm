@@ -355,6 +355,122 @@ function fila(i: number, over: Record<string, unknown> = {}) {
   }
 }
 
+describe('cartera integrada: filtro y conteos por potencial (p_potencial)', () => {
+  /** Diez leads repartidos: lo que el servidor cuenta ANTES de aplicar el filtro. */
+  const CONTEOS = { filtro: null, estrella: 2, tibio: 3, frio: 1, sin_marca: 4 }
+  /** Respuesta de la tabla de Leads (sin rango de fechas) con `n` leads y el bloque de potencial dado. */
+  function payloadLeads(n: number, potencial?: unknown) {
+    const base = {
+      ...payloadFiltrado(n), desde: null, hasta: null,
+      items: Array.from({ length: Math.min(n, 51) }, (_, i) => fila(i, { recibido_en: null, recepcion_aproximada: null })),
+    }
+    return potencial === undefined ? base : { ...base, resumen: { ...base.resumen, potencial } }
+  }
+  async function pedir(filtros: Parameters<typeof listarCarteraPagina>[0], respuesta: ReturnType<typeof payloadLeads>, cursor: Parameters<typeof listarCarteraPagina>[1] = null) {
+    let cuerpo: unknown
+    server.use(http.post(RPC_INTEGRADA, async ({ request }) => {
+      cuerpo = await request.json()
+      return HttpResponse.json(respuesta)
+    }))
+    const pagina = await listarCarteraPagina(filtros, cursor)
+    return { cuerpo, pagina }
+  }
+
+  it('sin filtro no viaja, y los conteos del servidor llegan a la pantalla', async () => {
+    const { cuerpo, pagina } = await pedir({ integrada: true }, payloadLeads(10, CONTEOS))
+    expect(cuerpo).toEqual({ p_limite: 51 })
+    expect(pagina.resumen?.potencial).toEqual(CONTEOS)
+    expect(pagina.resumen?.totales.vivos).toBe(10)
+  })
+
+  it.each(['estrella', 'tibio', 'frio', 'sin_marca'] as const)('«%s» viaja tal cual y vuelve con su eco y el total del nivel', async (nivel) => {
+    const { cuerpo, pagina } = await pedir({ integrada: true, potencial: nivel }, payloadLeads(CONTEOS[nivel], { ...CONTEOS, filtro: nivel }))
+    expect(cuerpo).toEqual({ p_limite: 51, p_potencial: nivel })
+    expect(pagina.items).toHaveLength(CONTEOS[nivel])
+    // Los cuatro conteos son los de SIN filtro: no cambian al elegir un nivel.
+    expect(pagina.resumen?.potencial).toEqual({ ...CONTEOS, filtro: nivel })
+  })
+
+  it('se combina con los demás filtros y la página siguiente lo conserva junto al cursor', async () => {
+    const { cuerpo } = await pedir(
+      { integrada: true, etapa: 'contactado', vendedorId: 'v-1', potencial: 'estrella' },
+      payloadLeads(2, { ...CONTEOS, filtro: 'estrella' }),
+      { actualizadoEn: '2026-08-01T00:00:00.000Z', id: 'lead-049' },
+    )
+    expect(cuerpo).toEqual({
+      p_limite: 51, p_antes_de: '2026-08-01T00:00:00.000Z', p_antes_id: 'lead-049',
+      p_etapa: 'contactado', p_vendedor_id: 'v-1', p_potencial: 'estrella',
+    })
+  })
+
+  it('ESTADO con el potencial apagado: un resumen sin el bloque es válido y no trae conteos', async () => {
+    const { pagina } = await pedir({ integrada: true }, payloadLeads(10))
+    expect(pagina.resumen).toBeDefined()
+    expect(pagina.resumen && 'potencial' in pagina.resumen).toBe(false)
+  })
+
+  it.each([
+    ['sin el bloque', payloadLeads(3)],
+    ['con el bloque en null', payloadLeads(3, null)],
+    ['con el eco de otro nivel', payloadLeads(3, { ...CONTEOS, filtro: 'estrella' })],
+    ['sin eco', payloadLeads(3, CONTEOS)],
+    ['con un total que no es el del nivel', payloadLeads(5, { ...CONTEOS, filtro: 'tibio' })],
+    ['con un bloque que no se entiende', payloadLeads(3, { ...CONTEOS, filtro: 'tibio', tibio: '3' })],
+  ])('con el filtro pedido, una respuesta %s se rechaza: nunca una lista sin acreditar', async (_caso, respuesta) => {
+    server.use(http.post(RPC_INTEGRADA, () => HttpResponse.json(respuesta)))
+    await expect(listarCarteraPagina({ integrada: true, potencial: 'tibio' }, null)).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
+  })
+
+  it.each([
+    ['conteos que no suman el total', payloadLeads(9, CONTEOS)],
+    ['un eco que nadie pidió', payloadLeads(3, { ...CONTEOS, filtro: 'tibio' })],
+  ])('sin filtro, se rechaza %s', async (_caso, respuesta) => {
+    server.use(http.post(RPC_INTEGRADA, () => HttpResponse.json(respuesta)))
+    await expect(listarCarteraPagina({ integrada: true }, null)).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
+  })
+
+  it('sin filtro, un bloque que este bundle no entiende NO tumba la lista: se queda sin fila de potencial', async () => {
+    // Un nivel nuevo en el servidor antes que en la pantalla: la lista sigue viva.
+    const { pagina } = await pedir({ integrada: true }, payloadLeads(10, { ...CONTEOS, filtro: 'caliente' }))
+    expect(pagina.items).toHaveLength(10)
+    expect(pagina.resumen && 'potencial' in pagina.resumen).toBe(false)
+  })
+
+  it('55000 con el filtro puesto = el potencial se apagó: error propio, no «se cayó la cartera»', async () => {
+    server.use(http.post(RPC_INTEGRADA, () => HttpResponse.json(
+      { code: '55000', message: 'El potencial del lead no está habilitado', details: null, hint: null }, { status: 400 },
+    )))
+    const intento = listarCarteraPagina({ integrada: true, potencial: 'estrella' }, null)
+    await expect(intento).rejects.toBeInstanceOf(CrmApiError)
+    await expect(intento).rejects.toMatchObject({ code: 'POTENCIAL_APAGADO' })
+  })
+
+  it('un 55000 sin el filtro pedido se queda con su código', async () => {
+    server.use(http.post(RPC_INTEGRADA, () => HttpResponse.json(
+      { code: '55000', message: 'otra cosa', details: null, hint: null }, { status: 400 },
+    )))
+    await expect(listarCarteraPagina({ integrada: true }, null)).rejects.toMatchObject({ code: '55000', message: 'No se pudo cargar la cartera.' })
+  })
+
+  it('servidor todavía sin p_potencial: falla con su código, no devuelve una lista vacía', async () => {
+    server.use(http.post(RPC_INTEGRADA, () => HttpResponse.json(
+      { code: 'PGRST202', message: 'Could not find the function crm.cartera_filtrada_fn(p_limite, p_potencial) in the schema cache', details: null, hint: null },
+      { status: 404 },
+    )))
+    await expect(listarCarteraPagina({ integrada: true, potencial: 'frio' }, null)).rejects.toMatchObject({ code: 'PGRST202' })
+  })
+
+  it('fuera de la lista integrada no viaja: `cartera_pagina_fn` no conoce el parámetro', async () => {
+    let cuerpo: unknown
+    server.use(http.post(RPC, async ({ request }) => {
+      cuerpo = await request.json()
+      return HttpResponse.json([])
+    }))
+    await listarCarteraPagina({ potencial: 'estrella' }, null)
+    expect(cuerpo).toEqual({ p_limite: 51 })
+  })
+})
+
 describe('listarCarteraPagina — argumentos que viajan', () => {
   it('pide UNA fila de más y omite los filtros en su valor neutro', async () => {
     let cuerpo: unknown = null

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/lib/auth-context'
 import {
   TAMANO_PAGINA_CARTERA,
@@ -8,9 +9,11 @@ import {
   type FiltrosCarteraLocal,
 } from '@/lib/cartera-keyset'
 import { enVentanaOperativa, resumenCarteraDesdeAmbito, type ResumenCartera } from '@/lib/resumen-cartera'
+import { contarPotencial } from '@/lib/potencial'
+import { leerPotencialDemo, suscribirPotencialDemo } from '@/lib/potencial-demo'
 import type { Lead } from '@/lib/tipos'
-import type { FiltrosCartera } from './crm-api'
-import { useCarteraInfinita } from './crm-queries'
+import { CrmApiError, type FiltrosCartera, type ResumenCarteraFiltrada } from './crm-api'
+import { crmQueryKeys, useCarteraInfinita } from './crm-queries'
 import { rangoFechaCarteraValido } from '@/lib/filtro-fecha-cartera'
 import { fechaLima } from '@/lib/agenda-derivada'
 
@@ -18,7 +21,8 @@ export interface CarteraPaginada {
   /** Páginas ya cargadas, concatenadas y sin repetidos. */
   leads: Lead[]
   resumenDemo?: ResumenCartera | undefined
-  resumen?: Pick<ResumenCartera, 'totales' | 'capital' | 'embudo'> | undefined
+  /** Con el potencial encendido trae además `potencial`: los conteos por nivel. */
+  resumen?: ResumenCarteraFiltrada | undefined
   hayMas: boolean
   /** Primera página en vuelo (la tabla aún no tiene nada que pintar). */
   cargando: boolean
@@ -60,6 +64,10 @@ export function useCarteraPaginada(
   // en sesión real: el espejo demo de este hook conoce leads, no timelines, y
   // ahí la reparte quien tiene las actividades (lib/pipeline-columnas).
   const gestion = filtros.gestion
+  // Potencial del lead (fila «Por potencial» de Leads). En sesión real lo
+  // recorta y lo cuenta el servidor; en demo, el espejo de abajo con las marcas
+  // en memoria.
+  const potencial = filtros.potencial
   const desde = filtros.recepcion?.desde ?? (esDemo ? filtros.recepcionDemo?.desde : undefined)
   const hasta = filtros.recepcion?.hasta ?? (esDemo ? filtros.recepcionDemo?.hasta : undefined)
   const filtrosEstables = useMemo<FiltrosCartera & FiltrosCarteraLocal>(
@@ -69,27 +77,49 @@ export function useCarteraPaginada(
       ...(procedencia !== 'todas' ? { procedencia } : {}),
       ...(reasignados ? { reasignados: true } : {}),
       ...(gestion ? { gestion } : {}),
+      ...(potencial ? { potencial } : {}),
       ...(desde != null && hasta != null ? { recepcion: { desde, hasta }, recepcionDemo: { desde, hasta } } : {}) }),
-    [etapa, vendedorId, texto, origen, procedencia, reasignados, gestion, desde, hasta],
+    [etapa, vendedorId, texto, origen, procedencia, reasignados, gestion, potencial, desde, hasta],
   )
 
   const rangoValido = rangoFechaCarteraValido(filtrosEstables.recepcion ?? null, fechaLima(Date.now()))
   const consulta = useCarteraInfinita(sesionReal && rangoValido, filtrosEstables)
+
+  // El servidor apagó el potencial con el filtro puesto. Las OTRAS listas en
+  // caché se pidieron cuando estaba encendido y aún traen sus conteos: si se
+  // sirvieran al soltar el filtro, la fila «Por potencial» seguiría ofreciendo
+  // algo que el servidor va a rechazar. Se retiran (solo las que nadie mira:
+  // la que falló es de quien la tiene en pantalla) para que se pidan de nuevo.
+  const cliente = useQueryClient()
+  const potencialApagado = consulta.error instanceof CrmApiError && consulta.error.code === 'POTENCIAL_APAGADO'
+  useEffect(() => {
+    if (potencialApagado) cliente.removeQueries({ queryKey: crmQueryKeys.carteraPaginas(), type: 'inactive' })
+  }, [potencialApagado, cliente])
 
   // ── Espejo demo: mismas reglas, paginación en memoria ──
   const [paginasDemo, setPaginasDemo] = useState(1)
   // Cambiar de filtro EMPIEZA una lista nueva: conservar el número de páginas
   // dejaría la vista mostrando 150 resultados de una búsqueda que acaba de
   // cambiar (y en real el cursor viejo ni siquiera sería válido).
-  useEffect(() => { setPaginasDemo(1) }, [etapa, vendedorId, texto, origen, procedencia, reasignados, gestion, desde, hasta])
+  useEffect(() => { setPaginasDemo(1) }, [etapa, vendedorId, texto, origen, procedencia, reasignados, gestion, potencial, desde, hasta])
 
-  const filtradosDemo = useMemo(
+  // Como en el servidor: primero todos los DEMÁS filtros (`previa`), de ahí salen
+  // los conteos por potencial, y después el recorte por potencial.
+  const previaDemo = useMemo(
     () => (esDemo ? ordenarCarteraLocal(filtrarCarteraLocal(leadsDelAmbito, filtrosEstables)
       .filter((lead) => filtrosEstables.recepcion ? lead.activo : enVentanaOperativa(lead, Date.now()))) : []),
     [esDemo, filtrosEstables, leadsDelAmbito],
   )
+  const marcasDemo = useSyncExternalStore(suscribirPotencialDemo, leerPotencialDemo, leerPotencialDemo)
+  const filtradosDemo = useMemo(() => {
+    if (!potencial) return previaDemo
+    return previaDemo.filter((lead) => (marcasDemo.get(lead.id)?.nivel ?? 'sin_marca') === potencial)
+  }, [previaDemo, marcasDemo, potencial])
   const resumenDemo = useMemo(() => esDemo
     ? resumenCarteraDesdeAmbito(filtradosDemo, [], Date.now(), Boolean(desde)) : undefined, [esDemo, filtradosDemo, desde])
+  const conteosDemo = useMemo(() => esDemo
+    ? contarPotencial(previaDemo.map((lead) => lead.id), (id) => marcasDemo.get(id)?.nivel, potencial ?? null)
+    : undefined, [esDemo, previaDemo, marcasDemo, potencial])
 
   const leadsReales = useMemo(
     () => concatenarPaginas((consulta.data?.pages ?? []).map((p) => p.items)),
@@ -111,7 +141,7 @@ export function useCarteraPaginada(
     return {
       leads: filtradosDemo.slice(0, tope),
       resumenDemo,
-      resumen: resumenDemo,
+      resumen: resumenDemo && conteosDemo ? { ...resumenDemo, potencial: conteosDemo } : resumenDemo,
       hayMas: filtradosDemo.length > tope,
       cargando: false,
       cargandoMas: false,

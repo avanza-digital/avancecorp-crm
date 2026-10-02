@@ -852,6 +852,10 @@ function metricasDistribucionVaciaReal(): unknown {
  * cada lead con la regla del servidor; lo arma `montarBackendReal`, que es quien
  * tiene las gestiones. Sin él nadie tiene gestión — y sin entender el parámetro,
  * cada lead `nuevo` saldría en las DOS columnas.
+ *
+ * `p_potencial` (01/10/2026, solo `cartera_filtrada_fn`) recorta por la marca de
+ * potencial: un nivel o `sin_marca`. `nivelDe` responde por cada lead; sin él
+ * nadie tiene marca.
  */
 export function carteraPaginaReal(
   leads: LeadReal[],
@@ -868,8 +872,10 @@ export function carteraPaginaReal(
     p_origen?: string | null
     p_reasignados?: boolean
     p_gestion?: string | null
+    p_potencial?: string | null
   },
   conGestion: (lead: LeadReal) => boolean = () => false,
+  nivelDe: (lead: LeadReal) => string | null = () => null,
 ): Record<string, unknown>[] {
   const corteMs = Date.now() - 45 * 86_400_000
   const texto = (args.p_texto ?? '').trim()
@@ -890,6 +896,7 @@ export function carteraPaginaReal(
     if (args.p_sin_asignar && l.vendedor_id != null) return false
     if (args.p_vendedor_id && l.vendedor_id !== args.p_vendedor_id) return false
     if (args.p_gestion && conGestion(l) !== (args.p_gestion === 'con_gestion')) return false
+    if (args.p_potencial && (nivelDe(l) ?? 'sin_marca') !== args.p_potencial) return false
     if (texto.length >= 2) {
       const porNombre = l.nombre_completo.toLowerCase().includes(texto.toLowerCase())
       const porDigitos = digitos.length >= 3
@@ -3418,14 +3425,36 @@ export async function montarBackendReal(
       if (body.p_gestion != null && !['con_gestion', 'sin_gestion'].includes(body.p_gestion)) {
         return json(route, { message: 'p_gestion no válido', code: '22023', details: null, hint: null }, 400)
       }
-      const todos = carteraPaginaReal(estado.leads, { ...body, p_antes_de: null, p_antes_id: null, p_limite: estado.leads.length + 1 }, conGestionVigente)
+      // Potencial, como el servidor: valor desconocido → 22023 (se valida antes);
+      // con la bandera apagada, pedir el filtro → 55000.
+      if (body.p_potencial != null && !['estrella', 'tibio', 'frio', 'sin_marca'].includes(body.p_potencial)) {
+        return json(route, { message: 'Filtros de cartera inválidos', code: '22023', details: null, hint: null }, 400)
+      }
+      if (body.p_potencial != null && !estado.potencialHabilitado) {
+        return json(route, { message: 'El potencial del lead no está habilitado', code: '55000', details: null, hint: null }, 400)
+      }
+      const nivelDe = (l: LeadReal): string | null => {
+        if (!estado.potencialHabilitado) return null
+        const marca = estado.potencial[l.id]
+        return marca == null ? null : typeof marca === 'string' ? marca : marca.nivel
+      }
+      const sinCursor = { ...body, p_antes_de: null, p_antes_id: null, p_limite: estado.leads.length + 1 }
+      const todos = carteraPaginaReal(estado.leads, sinCursor, conGestionVigente, nivelDe)
       const ids = new Set(todos.map((l) => l.id))
       const resumen = resumenCarteraReal(estado.leads.filter((l) => ids.has(l.id)))
+      // Los conteos por nivel salen de la base ANTES de aplicar `p_potencial` (no
+      // cambian al elegir un nivel) y solo viajan con la bandera encendida.
+      let potencial: Record<string, unknown> | null = null
+      if (estado.potencialHabilitado) {
+        const previa = new Set(carteraPaginaReal(estado.leads, { ...sinCursor, p_potencial: null }, conGestionVigente, nivelDe).map((l) => l.id))
+        const cuenta = (nivel: string | null) => estado.leads.filter((l) => previa.has(l.id) && nivelDe(l) === nivel).length
+        potencial = { filtro: body.p_potencial ?? null, estrella: cuenta('estrella'), tibio: cuenta('tibio'), frio: cuenta('frio'), sin_marca: cuenta(null) }
+      }
       // La FORMA de la respuesta no cambia con `p_gestion`: ni eco ni campos nuevos.
       return json(route, { version: 1, generado_en: new Date().toISOString(),
         desde: body.p_desde ?? null, hasta: body.p_hasta ?? null, origen: body.p_origen ?? null,
-        reasignados: body.p_reasignados ?? false, resumen,
-        items: carteraPaginaReal(estado.leads, body, conGestionVigente).map((l) => ({ ...l,
+        reasignados: body.p_reasignados ?? false, resumen: potencial ? { ...resumen, potencial } : resumen,
+        items: carteraPaginaReal(estado.leads, body, conGestionVigente, nivelDe).map((l) => ({ ...l,
           recibido_en: body.p_desde ? l.creado_en : null, recepcion_aproximada: false })),
       })
     }

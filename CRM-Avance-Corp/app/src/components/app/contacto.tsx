@@ -13,6 +13,10 @@
 // Directorio (solo lectura) copia/abre pero NO registra (sin seguimiento).
 // El contenedor corta la propagación: viven dentro de filas clicables (colas)
 // y no deben abrir la ficha al contactar.
+// F1.1.2 (30/09/2026, plan «Llamadas desde el celular»): la INTENCIÓN de
+// contacto («me fui a llamar y volví») ya no es un ref de cada instancia sino la
+// cola compartida de lib/intencion-contacto: sobrevive al remount y a la recarga
+// de la PWA, y puede llegar de FUERA (el enlace que arma el celular al colgar).
 import { useCallback, useEffect, useRef, useState, type JSX } from 'react'
 import { toast } from 'sonner'
 import {
@@ -54,6 +58,14 @@ import { enlaceTel, numeroWhatsapp } from '@/lib/telefono'
 import { sugerirSiguiente, type SugerenciaSiguiente } from '@/lib/motor-siguiente'
 import { proximoSlotSugerido, tareaAEvento } from '@/lib/agenda-derivada'
 import { TIPO_TAREA_DE_CANAL, tareaQueCierra, type Canal } from '@/lib/contacto-tarea'
+import {
+  armarIntencion,
+  cerrarIntencion,
+  estaLista,
+  intencionDe,
+  reclamarIntencion,
+  useIntencionContacto,
+} from '@/lib/intencion-contacto'
 import { esPlanVivo } from '@/lib/plan-lead'
 import { primerNombre } from '@/lib/format'
 import { presentarCitas } from '@/lib/terminologia'
@@ -70,9 +82,6 @@ import {
 /** Link de acción rápida — mismo estilo que usaban drawer y colas. */
 const CLASE_ACCION =
   'inline-flex h-7 items-center gap-1.5 rounded-lg border border-input bg-card px-2.5 text-[11px] font-semibold text-foreground transition-colors hover:bg-muted hover:border-border-strong [&_svg]:size-3.5'
-
-/** Tiempo mínimo fuera de la pestaña para considerar que hubo un intento real. */
-const ESPERA_MS = 4_000
 
 // ── Componente (export) ───────────────────────────────────────────────────────
 
@@ -128,35 +137,67 @@ export function AccionesContacto({
   const escribe = puedeEscribir(yo?.rol)
   // Escritorio y celular NO comparten camino de "Llamar" — ver la cabecera.
   const puedeMarcar = usePuedeMarcar()
-  // Contacto pendiente de ESTA instancia (canal + cuándo se hizo click).
-  const pendiente = useRef<{ canal: Canal; ts: number } | null>(null)
   const [dialogo, setDialogo] = useState<Canal | null>(null)
+  // La intención de ESTE lead en la cola compartida. `instancia` identifica a
+  // quien la armó (responde primero al volver); `montadoEn` distingue lo que ya
+  // estaba armado al nacer esta instancia (recarga, remount) de su propio tap;
+  // `tomada` es la que esta instancia tiene abierta: se cierra al terminar o al irse.
+  const actor = yo?.id ?? null
+  const instancia = useRef(`ac-${Math.random().toString(36).slice(2, 10)}`)
+  const montadoEn = useRef(Date.now())
+  const tomada = useRef<string | null>(null)
+  const intencion = useIntencionContacto(actor, lead.id)
   const vigente = useRef(true)
   useEffect(() => {
     vigente.current = true
-    return () => { vigente.current = false }
+    return () => {
+      vigente.current = false
+      // Con el diálogo abierto y la instancia yéndose, la pregunta se va con ella (como siempre).
+      if (tomada.current) { cerrarIntencion(tomada.current); tomada.current = null }
+    }
   }, [])
   // Fase 4e «sin topes»: antes de registrar un contacto el store tiene que
   // conocer el lead (sin foto inicial se relee por id bajo su RLS).
   const { asegurarLead } = useCRMData()
-  const abrirRegistro = useCallback((canal: Canal) => {
+  // `id` es la intención reclamada (null en el camino del escritorio, que no sale
+  // de la pestaña). Una salida sin formulario termina con ella (lead fuera del
+  // ámbito, sin red: la pregunta se pierde, como siempre). Con formulario, sigue
+  // ABIERTA hasta que se cierre: mientras, la siguiente llamada espera en la
+  // cola en vez de abrirse encima (visto el 30/09). El diálogo propio la cierra
+  // esta instancia (`tomada`). Al delegar en «Mi día» la intención pasa a ser de
+  // esa pantalla (`cerrarIntencionesDe` al cerrar su sesión): la tarjeta
+  // DESMONTA estas acciones para pintar su formulario, así que atarla a esta
+  // instancia la cerraría en el acto.
+  const abrirRegistro = useCallback((canal: Canal, id: string | null) => {
+    const terminar = () => { if (id) cerrarIntencion(id) }
     void asegurarLead(lead.id).then((ok) => {
-      if (!vigente.current) return
-      if (!ok) { toast.error('Este lead ya no está disponible en tu ámbito.'); return }
-      if (canal === 'tel' && onRegistrarLlamada) onRegistrarLlamada()
-      else setDialogo(canal)
-    }).catch(() => toast.error('No se pudo comprobar el lead. Revisa tu conexión y vuelve a intentarlo.'))
+      if (!vigente.current) { terminar(); return }
+      if (!ok) { toast.error('Este lead ya no está disponible en tu ámbito.'); terminar(); return }
+      if (canal === 'tel' && onRegistrarLlamada) { onRegistrarLlamada(); return }
+      tomada.current = id
+      setDialogo(canal)
+    }).catch(() => { toast.error('No se pudo comprobar el lead. Revisa tu conexión y vuelve a intentarlo.'); terminar() })
   }, [asegurarLead, lead.id, onRegistrarLlamada])
 
   useEffect(() => {
     if (!escribe) return
+    const tomar = (id: string) => {
+      const i = intencionDe(actor, lead.id)
+      if (!i || i.id !== id || i.abierta) return // ya la tomó otra instancia, o cambió
+      // Volvió casi al instante (< 4 s): no llegó a llamar/escribir — no
+      // preguntamos, y la intención se descarta (un solo disparo por contacto).
+      if (!estaLista(i)) { cerrarIntencion(i.id); return }
+      if (reclamarIntencion(i.id)) abrirRegistro(i.canal, i.id)
+    }
     const alVolver = () => {
-      const p = pendiente.current
-      if (!p || document.visibilityState !== 'visible') return
-      pendiente.current = null // un solo disparo por contacto (focus y visibilitychange llegan juntos)
-      // Volvió casi al instante (< 4 s): no llegó a llamar/escribir — no preguntamos.
-      if (Date.now() - p.ts < ESPERA_MS) return
-      abrirRegistro(p.canal)
+      if (document.visibilityState !== 'visible') return
+      const i = intencionDe(actor, lead.id)
+      if (!i || i.abierta) return
+      // La instancia que armó la intención responde primero (focus y
+      // visibilitychange llegan juntos: `reclamar` garantiza un solo disparo).
+      // Otra instancia del mismo lead solo actúa si aquella ya no está.
+      if (i.instancia === instancia.current) tomar(i.id)
+      else setTimeout(() => { if (vigente.current) tomar(i.id) }, 0)
     }
     window.addEventListener('focus', alVolver)
     document.addEventListener('visibilitychange', alVolver)
@@ -164,10 +205,25 @@ export function AccionesContacto({
       window.removeEventListener('focus', alVolver)
       document.removeEventListener('visibilitychange', alVolver)
     }
-  }, [escribe, abrirRegistro])
+  }, [escribe, actor, lead.id, abrirRegistro])
+
+  // Intención que llegó de FUERA (el enlace del celular) o que ya estaba armada
+  // antes de que esta instancia existiera (recarga, remount): se ofrece al
+  // montar, si ya está lista. La que armó esta misma instancia con su tap solo
+  // se ofrece al volver a la pestaña, como siempre — nunca por reloj.
+  useEffect(() => {
+    if (!escribe || !intencion || intencion.abierta) return
+    if (intencion.origen !== 'enlace' && intencion.ts >= montadoEn.current) return
+    if (!estaLista(intencion)) return
+    if (reclamarIntencion(intencion.id)) abrirRegistro(intencion.canal, intencion.id)
+  }, [escribe, intencion, abrirRegistro])
 
   const marcar = (canal: Canal) => () => {
-    if (escribe) pendiente.current = { canal, ts: Date.now() }
+    if (escribe && actor) armarIntencion({ actor, leadId: lead.id, canal, origen: 'pantalla', instancia: instancia.current })
+  }
+  const cerrarDialogo = () => {
+    if (tomada.current) { cerrarIntencion(tomada.current); tomada.current = null }
+    setDialogo(null)
   }
 
   // Llamar desde la laptop no marca: el analista usa su celular corporativo.
@@ -182,7 +238,7 @@ export function AccionesContacto({
       // Portapapeles no disponible (contexto inseguro o permiso denegado).
       toast.info(`Marca ${num} desde tu celular`)
     }
-    if (escribe) abrirRegistro('tel')
+    if (escribe) abrirRegistro('tel', null)
   }
 
   const wa = numeroWhatsapp(lead.telefono)
@@ -263,8 +319,8 @@ export function AccionesContacto({
       {conAgendar && escribe && <BotonAgendar lead={lead} labelCls={labelCls} />}
       {/* Gestión Diaria F2: TODA llamada se cierra con el resultado tipificado
           (panel del mockup 5). WhatsApp conserva su diálogo de dos opciones. */}
-      {dialogo === 'tel' && <DialogResultadoLlamada lead={lead} onClose={() => setDialogo(null)} onGuardado={onGuardado} />}
-      {dialogo === 'wa' && <DialogResultado lead={lead} canal={dialogo} onClose={() => setDialogo(null)} />}
+      {dialogo === 'tel' && <DialogResultadoLlamada lead={lead} onClose={cerrarDialogo} onGuardado={onGuardado} />}
+      {dialogo === 'wa' && <DialogResultado lead={lead} canal={dialogo} onClose={cerrarDialogo} />}
     </div>
   )
 }

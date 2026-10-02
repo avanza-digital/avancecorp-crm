@@ -4897,6 +4897,7 @@ export type Database = {
           p_hasta?: string
           p_limite?: number
           p_origen?: string
+          p_potencial?: string
           p_procedencia?: string
           p_reasignados?: boolean
           p_sin_asignar?: boolean

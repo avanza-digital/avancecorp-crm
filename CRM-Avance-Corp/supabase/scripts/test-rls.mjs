@@ -11020,28 +11020,34 @@ async function testCarteraKeyset(sessions, seed) {
     ['42501'],
   );
 
-  // ACL y forma de la firma de 13, leidas del CATALOGO (via fuera de banda del
+  // ACL y forma de la firma viva, leidas del CATALOGO (via fuera de banda del
   // banco). El 42501 de anon de arriba no distingue «sin EXECUTE» de la guarda
   // interna «No autorizado»; esto si: EXECUTE exactamente para authenticated,
-  // INVOKER, stable, search_path vacio y una sola firma.
+  // INVOKER, stable, search_path vacio y una sola firma. La viva es la de 13
+  // (20261001154153, p_gestion) o, desde la entrega B del potencial
+  // (20261001212341), la de 14: p_gestion sigue 13.o y p_potencial es el 14.o.
   if (process.env.CRM_BANCO_PSQL_URL) {
     const F13 = 'crm.cartera_filtrada_fn(integer,timestamptz,uuid,text,uuid,boolean,text,date,date,text,text,boolean,text)';
+    const F14 = 'crm.cartera_filtrada_fn(integer,timestamptz,uuid,text,uuid,boolean,text,date,date,text,text,boolean,text,text)';
     const cuenta = (etiqueta, sql) => contarFueraDeBanda(`cartera con gestion: ${etiqueta}`, sql);
     check(cuenta('una sola firma', `select count(*) from pg_proc where proname = 'cartera_filtrada_fn' and pronamespace = 'crm'::regnamespace`) === 1,
       'cartera_filtrada_fn: una sola firma (dos candidatas romperian PostgREST)');
-    const existe = cuenta('firma de 13', `select count(*) from pg_proc p where p.oid = to_regprocedure('${F13}')`) === 1;
-    check(existe, 'cartera_filtrada_fn: la firma viva es la de 13 argumentos (con p_gestion)');
+    const con14 = cuenta('firma de 14', `select count(*) from pg_proc p where p.oid = to_regprocedure('${F14}')`) === 1;
+    const VIVA = con14 ? F14 : F13;
+    const N = con14 ? 14 : 13;
+    const existe = cuenta('firma viva', `select count(*) from pg_proc p where p.oid = to_regprocedure('${VIVA}')`) === 1;
+    check(existe, `cartera_filtrada_fn: la firma viva es la de ${N} argumentos (con p_gestion${con14 ? ' y p_potencial' : ''})`);
     if (existe) {
-      check(cuenta('grants', `select count(*) from (select '${F13}'::text as firma) f
+      check(cuenta('grants', `select count(*) from (select '${VIVA}'::text as firma) f
         where has_function_privilege('anon', f.firma, 'EXECUTE') or has_function_privilege('service_role', f.firma, 'EXECUTE')
            or not has_function_privilege('authenticated', f.firma, 'EXECUTE')
            or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid = f.firma::regprocedure and a.grantee = 0)`) === 0,
-        'cartera_filtrada_fn(13): EXECUTE exactamente para authenticated (ni anon, ni service_role, ni PUBLIC)');
-      check(cuenta('forma', `select count(*) from pg_proc p where p.oid = '${F13}'::regprocedure and not p.prosecdef and p.provolatile = 's' and p.proconfig = array['search_path=""'] and p.pronargs = 13 and p.proargnames[13] = 'p_gestion'`) === 1,
-        'cartera_filtrada_fn(13): INVOKER, stable, search_path vacio y p_gestion como 13.o argumento');
+        `cartera_filtrada_fn(${N}): EXECUTE exactamente para authenticated (ni anon, ni service_role, ni PUBLIC)`);
+      check(cuenta('forma', `select count(*) from pg_proc p where p.oid = '${VIVA}'::regprocedure and not p.prosecdef and p.provolatile = 's' and p.proconfig = array['search_path=""'] and p.pronargs = ${N} and p.proargnames[13] = 'p_gestion'${con14 ? " and p.proargnames[14] = 'p_potencial'" : ''}`) === 1,
+        `cartera_filtrada_fn(${N}): INVOKER, stable, search_path vacio y p_gestion como 13.o argumento${con14 ? ' (p_potencial, 14.o)' : ''}`);
     }
   } else {
-    console.log('  · ACL/forma de cartera_filtrada_fn(13): NOT RUN (sin CRM_BANCO_PSQL_URL)');
+    console.log('  · ACL/forma de cartera_filtrada_fn: NOT RUN (sin CRM_BANCO_PSQL_URL)');
   }
 
   // No vacuidad: si el seed dejara de poblar, todo lo de arriba pasaria vacio.
@@ -15666,6 +15672,264 @@ async function testPotencialLectura(sessions, seed) {
   check(contarMarcas() === marcasAntes, 'potencial lectura: el bloque no creó ni borró marcas');
 }
 
+// ── Potencial del lead (20261001212341): filtro y conteos en crm.cartera_filtrada_fn ─────────
+// La cartera es INVOKER y lee la marca por un ayudante DEFINER (private.cartera_potencial_fn): este
+// bloque comprueba, con sesiones reales, que nadie recibe la marca de un lead que su RLS no deja ver.
+//   1 · Bandera APAGADA: el resumen no trae `potencial` y pedir el filtro da 55000.
+//   2 · El bloque siembra CUATRO marcas fuera de banda (juan estrella, maría tibio, luis frío, ana
+//       estrella; sin historial), ENCIENDE la bandera y, rol por rol: los cuatro conteos suman el
+//       total, no cambian al elegir un nivel, cada nivel devuelve EXACTAMENTE los leads de ese nivel
+//       que la RLS de crm.leads deja ver a ese actor, y «sin_marca» el resto. Después borra sus
+//       cuatro marcas y repone la bandera (finally), y comprueba las dos cosas.
+//   3 · La ruta SIN RLS (auditor-rls f3b): crm.resumen_cartera_fn es DEFINER y llama a la cartera
+//       sin RLS. Para quien tiene ámbito de filas sus conteos son los mismos que por la API;
+//       coordinación, que opera el reparto pero no lee leads, NO recibe conteos por nivel ni por la
+//       API ni por el envoltorio. Y el ayudante no se alcanza por PostgREST (esquema private).
+// Mismo AISLAMIENTO que el bloque de lectura: la suite se niega a correr contra producción y usa un
+// banco desechable; si el proceso muere a mitad quedan la bandera encendida y hasta cuatro marcas
+// sintéticas (apagar-bandera.sql y un delete de esas filas las reponen). Denegados: dado de baja,
+// authenticated ajeno al CRM, anon, service_role, un nivel inventado y la tabla por PostgREST.
+// Igualdad con la firma anterior, envoltorio DEFINER, cursor y mutantes: prueba-filtro.sql y
+// banco/ciclo-fase3b.sh. Salto RUIDOSO si la migración no está; con CRM_RLS_EXIGE_POTENCIAL=1, FALLO.
+async function testPotencialFiltro(sessions, seed) {
+  console.log('\n— Potencial del lead: filtro y conteos en la cartera —');
+  const saltar = (msg) => {
+    if (process.env.CRM_RLS_EXIGE_POTENCIAL === '1') fail(msg);
+    else console.log(`  ${msg}`);
+  };
+  const leerBandera = () => contarFueraDeBanda('potencial filtro: bandera',
+    `select coalesce((select activo::int from crm.multiempresa_flags where nombre = 'potencial_lead'), 0)`);
+  const contarMarcas = () => contarFueraDeBanda('potencial filtro: marcas', `select count(*)::int from crm.lead_potencial`);
+  let aplicada;
+  let encendida;
+  let marcasAntes;
+  try {
+    aplicada = contarFueraDeBanda('potencial filtro: migración aplicada',
+      `select (to_regprocedure('private.cartera_potencial_fn()') is not null)::int`);
+    encendida = aplicada === 1 ? leerBandera() : 0;
+    marcasAntes = aplicada === 1 ? contarMarcas() : 0;
+  } catch (error) {
+    saltar(`⚠ Filtro por potencial SALTADO: sin vía fuera de banda (${error?.message ?? String(error)})`);
+    return;
+  }
+  if (aplicada !== 1) {
+    saltar('⚠ private.cartera_potencial_fn NO desplegada en esta base: bloque del filtro por potencial SALTADO (no probado)');
+    return;
+  }
+  if (encendida !== 0 || marcasAntes !== 0) {
+    fail(`potencial filtro: el bloque espera la bandera APAGADA y la tabla de marcas VACÍA (bandera=${encendida}, marcas=${marcasAntes}). Si lo dejó así una corrida interrumpida: supabase/scripts/potencial-lead/apagar-bandera.sql y borrar las marcas sintéticas del banco`);
+    return;
+  }
+
+  const FN = 'cartera_filtrada_fn';
+  // Coordinación opera el reparto pero su RLS no le deja leer leads: no tiene ámbito de filas y
+  // para ella el potencial no existe (ni conteos ni filtro). Va aparte.
+  const CON_AMBITO = ['vend1', 'vend3', 'sup1', 'sup1Nested', 'sup2', 'gerencia', 'directorio'];
+  const ROLES = [...CON_AMBITO, 'coordinador'];
+  const NIVELES = ['estrella', 'tibio', 'frio'];
+  const AYUDANTE = 'private.cartera_potencial_fn()';
+  const resumenDe = (cliente) => cliente.schema('crm').rpc('resumen_cartera_fn');
+
+  // Catálogo del ayudante DEFINER (fuera de banda): por PostgREST no se puede ver si devuelve de
+  // más, así que se fija su identidad. La huella se mide como en la migración.
+  check(contarFueraDeBanda('potencial filtro: forma del ayudante',
+    `select count(*) from pg_proc p where p.oid = to_regprocedure('${AYUDANTE}') and p.prosecdef and p.provolatile = 's' and p.proowner = 'postgres'::regrole and p.proconfig = array['search_path=""']`) === 1,
+  'cartera_potencial_fn: DEFINER, stable, dueño postgres y solo search_path vacío');
+  check(contarFueraDeBanda('potencial filtro: grants del ayudante',
+    `select count(*) from (select '${AYUDANTE}'::text as f) x
+      where has_function_privilege('anon', x.f, 'EXECUTE') or has_function_privilege('service_role', x.f, 'EXECUTE')
+         or not has_function_privilege('authenticated', x.f, 'EXECUTE')
+         or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid = x.f::regprocedure
+                     and (a.grantee not in ('postgres'::regrole, 'authenticated'::regrole) or (a.grantee = 'authenticated'::regrole and a.is_grantable)))`) === 0,
+  'cartera_potencial_fn: EXECUTE exactamente para authenticated (ni anon, ni service_role, ni PUBLIC, sin opción de concederlo)');
+  check(contarFueraDeBanda('potencial filtro: huella del ayudante',
+    `set search_path = ''; set quote_all_identifiers = off; select (md5(pg_get_functiondef(to_regprocedure('${AYUDANTE}'))) = '73e993d618b203cdbe21e8127f7ea5b4')::int`) === 1,
+  'cartera_potencial_fn: el cuerpo es el ensayado (gate, bandera y espejo de leads_select)');
+  check(contarFueraDeBanda('potencial filtro: tabla sin grants',
+    `select (has_table_privilege('authenticated', 'crm.lead_potencial', 'SELECT') or has_any_column_privilege('authenticated', 'crm.lead_potencial', 'SELECT') or has_table_privilege('anon', 'crm.lead_potencial', 'SELECT') or has_any_column_privilege('anon', 'crm.lead_potencial', 'SELECT'))::int`) === 0,
+  'crm.lead_potencial: sigue sin SELECT para la API (ni por columna)');
+  const idDe = (clave) => seed.leadByName.get(LEAD_BY_KEY[clave].name)?.id;
+  const MARCAS = [
+    { lead: idDe('juan'), nivel: 'estrella', por: seed.profileIdByKey.vend1 },
+    { lead: idDe('maria'), nivel: 'tibio', por: seed.profileIdByKey.vend1 },
+    { lead: idDe('luis'), nivel: 'frio', por: seed.profileIdByKey.sup1 },
+    { lead: idDe('ana'), nivel: 'estrella', por: seed.profileIdByKey.vend3 },
+  ];
+  if (MARCAS.some((m) => !m.lead || !m.por)) {
+    fail('potencial filtro: la siembra no trae los leads juan, maria, luis y ana con sus dueños');
+    return;
+  }
+  const nivelDe = new Map(MARCAS.map((m) => [m.lead, m.nivel]));
+  const cartera = (cliente, extra = {}) => cliente.schema('crm').rpc(FN, { p_limite: 200, ...extra });
+  const DENEGADO = /permission denied|denegado/i;
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-potencial-filtro'));
+  const denegados = async (momento) => {
+    await expectExpectedFailure(`potencial filtro vendInactive (${momento}) → 42501: la baja revoca la cartera`,
+      cartera(sessions.vendInactive.client, { p_potencial: 'estrella' }), ['42501'], /no autorizado|acceso/i);
+    await expectExpectedFailure(`potencial filtro clientBank, authenticated ajeno al CRM (${momento}) → 42501`,
+      cartera(sessions.clientBank.client, { p_potencial: 'estrella' }), ['42501'], /no autorizado|acceso/i);
+    await expectExpectedFailure(`potencial filtro anon (${momento}) → 42501 (sin EXECUTE)`,
+      cartera(anon, { p_potencial: 'estrella' }), ['42501'], DENEGADO);
+    await expectExpectedFailure(`potencial filtro service_role (${momento}) → 42501 (sin EXECUTE)`,
+      cartera(admin, { p_potencial: 'estrella' }), ['42501'], DENEGADO);
+    await expectExpectedFailure(`potencial filtro con un nivel inventado (${momento}) → 22023`,
+      cartera(sessions.vend1.client, { p_potencial: 'caliente' }), ['22023'], /inv[aá]lid/i);
+    // La tabla de la marca no se lee por PostgREST: sin grants para la API, con o sin bandera.
+    await expectExpectedFailure(`potencial filtro: crm.lead_potencial por PostgREST (${momento}) → 42501`,
+      sessions.vend1.client.schema('crm').from('lead_potencial').select('lead_id').limit(1), ['42501'], DENEGADO);
+    // El ayudante DEFINER vive en private: PostgREST no lo expone, tenga o no EXECUTE quien llama.
+    // Se exige el rechazo ESPECÍFICO de esquema no expuesto (PGRST106): un error de red, de ejecución
+    // o un PGRST202 no acreditan que private esté fuera de la API (Codex f3b r2).
+    for (const [quien, cliente] of [['coordinador', sessions.coordinador.client], ['vend1', sessions.vend1.client], ['anon', anon]]) {
+      const { data, error } = await cliente.schema('private').rpc('cartera_potencial_fn');
+      check(error?.code === 'PGRST106' && data == null,
+        `potencial filtro: ${quien} NO alcanza private.cartera_potencial_fn por la API: esquema no expuesto, PGRST106 (${momento}; recibido ${error?.code ?? 'sin error'})`);
+    }
+  };
+
+  // 1 · Bandera APAGADA: la cartera responde como siempre y el filtro no existe.
+  for (const clave of ROLES) {
+    const { data, error } = await cartera(sessions[clave].client);
+    if (error) {
+      fail(`potencial filtro ${clave} (apagada): error inesperado ${error.code ?? ''} ${error.message}`);
+      continue;
+    }
+    check(data?.resumen && !('potencial' in data.resumen),
+      `potencial filtro ${clave}: bandera apagada → el resumen no trae la clave potencial`,
+      JSON.stringify(data?.resumen?.potencial ?? null));
+  }
+  await expectExpectedFailure('potencial filtro vend1 (apagada): pedir el filtro → 55000',
+    cartera(sessions.vend1.client, { p_potencial: 'estrella' }), ['55000'], /no est[aá] habilitado/i);
+  await expectExpectedFailure('potencial filtro gerencia (apagada): pedir «sin_marca» → 55000',
+    cartera(sessions.gerencia.client, { p_potencial: 'sin_marca' }), ['55000'], /no est[aá] habilitado/i);
+  // El envoltorio DEFINER, apagada: tampoco trae la clave.
+  for (const clave of ['vend1', 'coordinador', 'gerencia']) {
+    const { data, error } = await resumenDe(sessions[clave].client);
+    check(!error && data && !('potencial' in data),
+      `potencial filtro ${clave}: bandera apagada → resumen_cartera_fn no trae la clave potencial`,
+      error ? `${error.code ?? ''} ${error.message}` : JSON.stringify(data?.potencial ?? null));
+  }
+  await denegados('bandera apagada');
+
+  // 2 · Cuatro marcas sintéticas y la bandera ENCENDIDA, fuera de banda; todo se repone pase lo que pase.
+  const lista = MARCAS.map((m) => `'${m.lead}'`).join(', ');
+  const fijarBandera = (valor) => ejecutarFueraDeBanda('bandera potencial_lead (filtro)',
+    `update crm.multiempresa_flags set activo = ${valor ? 'true' : 'false'}, actualizado_en = now() where nombre = 'potencial_lead';`);
+  try {
+    ejecutarFueraDeBanda('potencial filtro: marcas sintéticas',
+      `insert into crm.lead_potencial (lead_id, nivel, origen, marcado_por, marcado_en) values ${MARCAS.map((m) =>
+        `('${m.lead}', '${m.nivel}', 'manual', '${m.por}', now())`).join(', ')};`);
+    fijarBandera(true);
+    // Coordinación: ni conteos ni filtro, por la API y por el envoltorio (que sí cuenta su bandeja).
+    {
+      const porApi = await cartera(sessions.coordinador.client);
+      check(!porApi.error && porApi.data?.resumen && !('potencial' in porApi.data.resumen),
+        'potencial filtro coordinador: encendida → por la API no recibe conteos por nivel',
+        porApi.error ? `${porApi.error.code ?? ''} ${porApi.error.message}` : JSON.stringify(porApi.data?.resumen?.potencial ?? null));
+      await expectExpectedFailure('potencial filtro coordinador: pedir un nivel → 55000 (sin ámbito de filas el filtro no existe)',
+        cartera(sessions.coordinador.client, { p_potencial: 'frio' }), ['55000'], /no est[aá] habilitado/i);
+      const porEnvoltorio = await resumenDe(sessions.coordinador.client);
+      check(!porEnvoltorio.error && porEnvoltorio.data && !('potencial' in porEnvoltorio.data),
+        'potencial filtro coordinador: encendida → resumen_cartera_fn (sin RLS) tampoco le da conteos por nivel',
+        porEnvoltorio.error ? `${porEnvoltorio.error.code ?? ''} ${porEnvoltorio.error.message}` : JSON.stringify(porEnvoltorio.data?.potencial ?? null));
+    }
+    for (const clave of CON_AMBITO) {
+      const cliente = sessions[clave].client;
+      const todos = await cartera(cliente);
+      if (todos.error) {
+        fail(`potencial filtro ${clave} (encendida): error inesperado ${todos.error.code ?? ''} ${todos.error.message}`);
+        continue;
+      }
+      const pot = todos.data?.resumen?.potencial;
+      const vivos = todos.data?.resumen?.totales?.vivos;
+      if (!check(pot && pot.filtro === null && ['estrella', 'tibio', 'frio', 'sin_marca'].every((k) => Number.isInteger(pot[k]) && pot[k] >= 0),
+        `potencial filtro ${clave}: encendida y sin filtro → resumen.potencial con sus cuatro conteos y filtro null`,
+        JSON.stringify(pot ?? null))) continue;
+      check(pot.estrella + pot.tibio + pot.frio + pot.sin_marca === vivos,
+        `potencial filtro ${clave}: los cuatro conteos suman el total`, `${JSON.stringify(pot)} vs ${vivos}`);
+      if (!check(Number.isInteger(vivos) && vivos <= 200 && todos.data.items.length === vivos,
+        `potencial filtro ${clave}: la siembra cabe en una página (para comparar listas enteras)`, `vivos=${vivos}`)) continue;
+      const base = todos.data.items.map((l) => l.id);
+      check(todos.data.items.every((l) => !('potencial_nivel' in l)),
+        `potencial filtro ${clave}: las filas no traen la columna de trabajo`);
+      // La vara independiente: lo que la RLS de crm.leads deja ver a este actor.
+      const rls = await cliente.schema('crm').from('leads').select('id').in('id', MARCAS.map((m) => m.lead));
+      if (rls.error) {
+        fail(`potencial filtro ${clave}: no se pudo leer crm.leads para comparar (${rls.error.message})`);
+        continue;
+      }
+      const visiblesMarcados = new Set(rls.data.map((fila) => fila.id));
+      for (const nivel of [...NIVELES, 'sin_marca']) {
+        const r = await cartera(cliente, { p_potencial: nivel });
+        if (r.error) {
+          fail(`potencial filtro ${clave} con ${nivel}: error inesperado ${r.error.code ?? ''} ${r.error.message}`);
+          continue;
+        }
+        const ids = r.data.items.map((l) => l.id).sort();
+        const esperados = (nivel === 'sin_marca'
+          ? base.filter((id) => !nivelDe.has(id))
+          : MARCAS.filter((m) => m.nivel === nivel && visiblesMarcados.has(m.lead)).map((m) => m.lead)).sort();
+        check(ids.join(',') === esperados.join(','),
+          `potencial filtro ${clave} con ${nivel}: EXACTAMENTE los leads de ese nivel que su RLS deja ver`,
+          `cartera ${ids.length} vs esperado ${esperados.length}`);
+        const p = r.data.resumen?.potencial;
+        check(p && p.filtro === nivel && p.estrella === pot.estrella && p.tibio === pot.tibio && p.frio === pot.frio && p.sin_marca === pot.sin_marca,
+          `potencial filtro ${clave} con ${nivel}: eco del filtro y conteos iguales a los de sin filtro`, JSON.stringify(p ?? null));
+        check(r.data.resumen?.totales?.vivos === pot[nivel] && ids.length === pot[nivel],
+          `potencial filtro ${clave} con ${nivel}: el total es el conteo de ese nivel`,
+          `vivos=${r.data.resumen?.totales?.vivos} conteo=${pot[nivel]} filas=${ids.length}`);
+      }
+      check(MARCAS.filter((m) => visiblesMarcados.has(m.lead)).length === pot.estrella + pot.tibio + pot.frio,
+        `potencial filtro ${clave}: cuenta tantas marcas como leads marcados ve por su RLS`,
+        `RLS ${visiblesMarcados.size} vs conteos ${pot.estrella + pot.tibio + pot.frio}`);
+      // La ruta sin RLS: el envoltorio DEFINER da a este rol los MISMOS conteos que la API.
+      const envoltorio = await resumenDe(cliente);
+      check(!envoltorio.error && JSON.stringify(envoltorio.data?.potencial ?? null) === JSON.stringify(pot),
+        `potencial filtro ${clave}: resumen_cartera_fn trae los mismos conteos que la cartera por la API`,
+        envoltorio.error ? `${envoltorio.error.code ?? ''} ${envoltorio.error.message}` : `${JSON.stringify(envoltorio.data?.potencial ?? null)} vs ${JSON.stringify(pot)}`);
+    }
+    // A mano, lo que el fixture garantiza. Un error NO es «lista vacía»: devuelve null y la aserción cae.
+    const idsDe = async (clave, nivel, extra = {}) => {
+      const { data, error } = await cartera(sessions[clave].client, { p_potencial: nivel, ...extra });
+      return error || !Array.isArray(data?.items) ? null : data.items.map((l) => l.id);
+    };
+    const esLista = (ids, esperados) => Array.isArray(ids) && [...ids].sort().join(',') === [...esperados].sort().join(',');
+    check(esLista(await idsDe('vend1', 'estrella'), [idDe('juan')]), 'potencial filtro vend1 con estrella: solo juan (ana es de otro equipo)');
+    check(esLista(await idsDe('vend3', 'estrella'), [idDe('ana')]), 'potencial filtro vend3 con estrella: solo ana');
+    check(esLista(await idsDe('vend1', 'frio'), []), 'potencial filtro vend1 con frío: el parqueado de la bandeja de su supervisor (luis) no viaja');
+    check(esLista(await idsDe('sup1', 'frio'), [idDe('luis')]), 'potencial filtro sup1 con frío: el parqueado de su bandeja (luis)');
+    check(esLista(await idsDe('sup2', 'tibio'), []), 'potencial filtro sup2 con tibio: maría es de otro equipo');
+    check(esLista(await idsDe('gerencia', 'estrella'), [idDe('juan'), idDe('ana')]), 'potencial filtro gerencia con estrella: juan y ana');
+    // Negativa cruzada: pedir el analista de OTRO equipo con un nivel no enseña nada ni cuenta nada.
+    {
+      const { data, error } = await cartera(sessions.vend1.client, { p_vendedor_id: seed.profileIdByKey.vend3, p_potencial: 'estrella' });
+      const p = data?.resumen?.potencial;
+      check(!error && Array.isArray(data?.items) && data.items.length === 0
+        && p && p.filtro === 'estrella' && p.estrella === 0 && p.tibio === 0 && p.frio === 0 && p.sin_marca === 0,
+      'potencial filtro vend1 pidiendo a vend3 con estrella: ni filas ni conteos (la estrella de ana no se revela)',
+      error ? `${error.code ?? ''} ${error.message}` : JSON.stringify(p ?? null));
+    }
+    await denegados('bandera encendida');
+  } finally {
+    let repuesto = false;
+    let ultimoError = null;
+    for (let intento = 0; intento < 2 && !repuesto; intento += 1) {
+      try {
+        ejecutarFueraDeBanda('potencial filtro: reponer',
+          `update crm.multiempresa_flags set activo = false, actualizado_en = now() where nombre = 'potencial_lead'; delete from crm.lead_potencial where lead_id in (${lista});`);
+        repuesto = leerBandera() === 0 && contarMarcas() === marcasAntes;
+      } catch (error) {
+        ultimoError = error;
+      }
+    }
+    if (!repuesto) {
+      fail(`potencial filtro: el banco NO quedó repuesto (${ultimoError?.message ?? 'bandera encendida o marcas sintéticas'}). Corre supabase/scripts/potencial-lead/apagar-bandera.sql y borra las marcas sintéticas antes de volver a usar este banco`);
+    }
+  }
+  check(leerBandera() === 0, 'potencial filtro: la bandera quedó APAGADA, como estaba');
+  check(contarMarcas() === marcasAntes, 'potencial filtro: no quedó ninguna marca sintética');
+}
+
 // ── Venta cruzada (20260924005126 … 20260924045245): puertas del cliente existente ──
 // Solo catálogo y rechazos: ninguna llamada de esta matriz llega a escribir. Una puerta que
 // rechaza aborta su transacción entera, así que ni la bitácora (inmutable) guarda rastro; los
@@ -15945,6 +16209,7 @@ async function main() {
       await testVentaCruzada(sessions, verifiedSeed);
       await testPotencialLead(sessions, verifiedSeed);
       await testPotencialLectura(sessions, verifiedSeed);
+      await testPotencialFiltro(sessions, verifiedSeed);
     }
   } catch (error) {
     primaryError = error;
