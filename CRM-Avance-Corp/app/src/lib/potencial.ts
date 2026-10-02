@@ -30,6 +30,54 @@ export const ETIQUETA_POTENCIAL: Record<NivelPotencial, string> = {
 
 const NivelSchema = v.picklist(NIVELES_POTENCIAL)
 
+// ── Filtro de Leads por potencial ────────────────────────────────────────────
+
+/**
+ * Los cuatro valores de `p_potencial` de `crm.cartera_filtrada_fn`: un nivel o
+ * «sin marca». En el orden en que se pintan: la escala de la ficha y, al final,
+ * lo que falta clasificar.
+ */
+export const FILTROS_POTENCIAL = ['frio', 'tibio', 'estrella', 'sin_marca'] as const
+export type FiltroPotencial = (typeof FILTROS_POTENCIAL)[number]
+
+export const ETIQUETA_FILTRO_POTENCIAL: Record<FiltroPotencial, string> = {
+  ...ETIQUETA_POTENCIAL,
+  sin_marca: 'Sin marcar',
+}
+
+const ConteoSchema = v.pipe(v.number(), v.safeInteger(), v.minValue(0))
+
+/**
+ * `resumen.potencial` de la cartera: cuántos leads hay de cada nivel con los
+ * DEMÁS filtros puestos. El servidor los cuenta ANTES de aplicar el filtro de
+ * potencial, así que no cambian al elegir un nivel; `filtro` es el eco del
+ * pedido. Solo viaja con la bandera del potencial encendida.
+ */
+export const ConteosPotencialSchema = v.object({
+  filtro: v.nullable(v.picklist(FILTROS_POTENCIAL)),
+  estrella: ConteoSchema,
+  tibio: ConteoSchema,
+  frio: ConteoSchema,
+  sin_marca: ConteoSchema,
+})
+export type ConteosPotencial = v.InferOutput<typeof ConteosPotencialSchema>
+
+/** Los cuatro conteos sumados: el total de la lista SIN el filtro de potencial. */
+export function totalConteosPotencial(conteos: ConteosPotencial): number {
+  return conteos.estrella + conteos.tibio + conteos.frio + conteos.sin_marca
+}
+
+/** Conteos por nivel de un conjunto de leads (espejo demo de `resumen.potencial`). */
+export function contarPotencial(
+  leadIds: readonly string[],
+  nivelDe: (leadId: string) => NivelPotencial | null | undefined,
+  filtro: FiltroPotencial | null,
+): ConteosPotencial {
+  const conteos: ConteosPotencial = { filtro, estrella: 0, tibio: 0, frio: 0, sin_marca: 0 }
+  for (const id of leadIds) conteos[nivelDe(id) ?? 'sin_marca'] += 1
+  return conteos
+}
+
 export const PotencialLeadSchema = v.object({
   lead_id: UuidSchema,
   /** null = el lead no tiene marca. */

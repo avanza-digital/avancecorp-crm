@@ -67,6 +67,7 @@ import {
   type TitularInput,
 } from '@/lib/clientes-tipos'
 import { TAMANO_PAGINA_CARTERA, normalizarBusquedaCartera, textoBuscable, type GestionCartera } from '@/lib/cartera-keyset'
+import { ConteosPotencialSchema, totalConteosPotencial, type ConteosPotencial, type FiltroPotencial } from '@/lib/potencial'
 import { TIPOS_DOCUMENTO, TIPOS_DOCUMENTO_K, type TipoDocumento, type DocumentoIdentidad, type CorreccionDocumentoLead } from '@/lib/documento'
 import { CierresExternosSchema, COOPERATIVAS, type CierresExternos, type Cooperativa } from '@/lib/cierres-externos'
 import { CierresEstadoSchema, MAX_LEADS_ESTADO, type CierreEstado } from '@/lib/cierre-estado'
@@ -662,6 +663,12 @@ export interface FiltrosCartera {
    * (`cartera_filtrada_fn`); en demo no recorta — ahí lo calcula el Pipeline.
    */
   gestion?: GestionCartera
+  /**
+   * Potencial del lead: un nivel o «sin marca». Ausente es el valor neutro y no
+   * viaja. Solo lo entiende la lista integrada (`cartera_filtrada_fn`) y solo
+   * con la bandera del potencial encendida en el servidor.
+   */
+  potencial?: FiltroPotencial
   integrada?: boolean
   recepcion?: { desde: string; hasta: string } | null
 }
@@ -676,7 +683,15 @@ export interface PaginaCartera {
   items: Lead[]
   /** `null` = no hay más páginas; nunca se infiere de `items.length`. */
   cursor: CursorCartera | null
-  resumen?: Pick<ResumenCartera, 'totales' | 'capital' | 'embudo'>
+  resumen?: ResumenCarteraFiltrada
+}
+
+/**
+ * Lo que la cartera integrada trae de resumen: los indicadores de siempre y,
+ * con el potencial encendido en el servidor, los conteos por nivel.
+ */
+export type ResumenCarteraFiltrada = Pick<ResumenCartera, 'totales' | 'capital' | 'embudo'> & {
+  potencial?: ConteosPotencial
 }
 
 const LeadCarteraRowSchema = v.object({
@@ -702,7 +717,14 @@ const CarteraFiltradaSchema = v.object({
     recibido_en: v.nullable(v.string()),
     recepcion_aproximada: v.nullable(v.boolean()),
   })),
-  resumen: v.pick(ResumenCarteraSchema, ['totales', 'capital', 'embudo']),
+  resumen: v.object({
+    ...v.pick(ResumenCarteraSchema, ['totales', 'capital', 'embudo']).entries,
+    // Conteos por potencial: solo con la bandera encendida y un servidor que ya
+    // los sirva. Un bloque que este bundle no entiende (un nivel nuevo, p. ej.)
+    // NO tumba la lista: se queda en null y la fila de potencial no se pinta.
+    // Con el filtro PEDIDO, en cambio, su ausencia sí es un desajuste (abajo).
+    potencial: v.optional(v.fallback(v.nullable(ConteosPotencialSchema), null)),
+  }),
 })
 
 /** Lo MÍNIMO para poder avanzar: si una fila no lo cumple, no hay cursor honesto. */
@@ -757,6 +779,10 @@ export async function listarCarteraPagina(
   // `ultimo_contacto_en` posterior a su tenencia y estar bien servido.
   const gestionPedida = filtros.integrada && filtros.gestion ? filtros.gestion : null
   if (gestionPedida !== null) argumentos.p_gestion = gestionPedida
+  // El potencial solo viaja cuando recorta, y solo a la lista integrada: un
+  // servidor anterior a `p_potencial` sigue resolviendo la llamada sin él.
+  const potencialPedido = filtros.integrada && filtros.potencial ? filtros.potencial : null
+  if (potencialPedido !== null) argumentos.p_potencial = potencialPedido
 
   lanzarAbortSiCorresponde(signal)
   let consulta = cliente().schema('crm').rpc(filtros.integrada ? 'cartera_filtrada_fn' : 'cartera_pagina_fn', argumentos)
@@ -768,10 +794,14 @@ export async function listarCarteraPagina(
     // diciendo que esta cuenta no pertenece al CRM (P04: revocado ≠ ajeno). Con
     // el mensaje genérico, un offboarding vivido como avería mandaría a alguien
     // a reintentar durante horas.
+    // 55000 con el filtro pedido = el potencial se apagó en el servidor mientras
+    // la pantalla lo tenía puesto. No es una avería: la pantalla suelta el filtro.
     const fallo =
       error.code === '42501'
         ? new CrmApiError('Tu cuenta no tiene acceso a la cartera del CRM.', '42501')
-        : new CrmApiError('No se pudo cargar la cartera.', error.code || 'POSTGREST_ERROR')
+        : error.code === '55000' && potencialPedido !== null
+          ? new CrmApiError('El filtro por potencial no está disponible en este momento.', 'POTENCIAL_APAGADO')
+          : new CrmApiError('No se pudo cargar la cartera.', error.code || 'POSTGREST_ERROR')
     // Sin texto ni IDs del filtro: pueden contener PII.
     registrarError('crm.leads.pagina_fallida', fallo, {
       etapa: filtros.etapa ?? 'todas',
@@ -780,6 +810,7 @@ export async function listarCarteraPagina(
       filtraProcedencia: procedenciaPedida !== null,
       filtraReasignados: reasignadosPedidos,
       filtraGestion: gestionPedida !== null,
+      filtraPotencial: potencialPedido !== null,
       tieneBusqueda: texto !== null,
       conCursor: cursor != null,
     })
@@ -791,6 +822,7 @@ export async function listarCarteraPagina(
     if (!resultado.success) throw new CrmApiError('La cartera y sus indicadores no cumplen el contrato esperado.', 'ROW_CONTRACT')
     const payload = resultado.output
     const total = payload.resumen.totales.vivos
+    const { potencial: conteosPotencial = null, ...indicadores } = payload.resumen
     if (payload.desde !== (filtros.recepcion?.desde ?? null)
       || payload.hasta !== (filtros.recepcion?.hasta ?? null)
       // El servidor devuelve el origen que aplicó: si no coincide con el pedido
@@ -807,6 +839,13 @@ export async function listarCarteraPagina(
         && (!Number.isSafeInteger(payload.resumen.totales.reasignados)
           || payload.resumen.totales.reasignados < 0
           || payload.resumen.totales.reasignados > total))
+      // Potencial: con el filtro pedido hacen falta el eco y que el total sea el
+      // conteo de ese nivel; sin filtro, los cuatro conteos suman el total (el
+      // servidor los cuenta antes de aplicar el filtro de potencial).
+      || (potencialPedido !== null && (conteosPotencial === null
+        || conteosPotencial.filtro !== potencialPedido || conteosPotencial[potencialPedido] !== total))
+      || (potencialPedido === null && conteosPotencial !== null
+        && (conteosPotencial.filtro !== null || totalConteosPotencial(conteosPotencial) !== total))
       || !Number.isSafeInteger(total) || total < payload.items.length
       || payload.resumen.embudo.reduce((n, e) => n + e.n, 0) !== total
       || payload.items.length > TAMANO_PAGINA_CARTERA + 1
@@ -821,7 +860,7 @@ export async function listarCarteraPagina(
       items: filas.map((l) => ({ ...aLead(l), ultimo_contacto_en: l.ultimo_contacto_en,
         recibido_en: l.recibido_en, recepcion_aproximada: l.recepcion_aproximada })),
       cursor: hayMas && ultima ? { actualizadoEn: ultima.actualizado_en, id: ultima.id } : null,
-      resumen: payload.resumen,
+      resumen: conteosPotencial ? { ...indicadores, potencial: conteosPotencial } : indicadores,
     }
   }
 

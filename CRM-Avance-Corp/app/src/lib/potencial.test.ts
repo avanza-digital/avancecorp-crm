@@ -8,8 +8,9 @@ import { describe, expect, it } from 'vitest'
 import * as v from 'valibot'
 import * as potencial from './potencial'
 import {
-  diaEnPalabras, indexarPotencial, notaPotencial, potencialRecienMarcado, PotencialLeadsSchema, sumarDiasFecha,
-  type PotencialLead,
+  contarPotencial, ConteosPotencialSchema, diaEnPalabras, ETIQUETA_FILTRO_POTENCIAL, FILTROS_POTENCIAL, indexarPotencial,
+  notaPotencial, potencialRecienMarcado, PotencialLeadsSchema, sumarDiasFecha, totalConteosPotencial,
+  type NivelPotencial, type PotencialLead,
 } from './potencial'
 
 const LEAD = '11111111-1111-4111-8111-111111111111'
@@ -157,5 +158,38 @@ describe('nota de la ficha', () => {
     // Sin `baja_a` (por ejemplo, el instante optimista) no se deduce del nivel.
     expect(notaPotencial(item({ baja_a: null, baja_el: null }), contexto)).toBe('Marcado como Estrella.')
     expect(notaPotencial(item({ nivel: 'tibio', nivel_marcado: 'tibio', baja_a: null, baja_el: '2026-10-06' }), contexto)).toBe('Marcado como Tibio.')
+  })
+})
+
+describe('filtro de Leads por potencial', () => {
+  const conteos = { filtro: null, estrella: 2, tibio: 3, frio: 1, sin_marca: 4 }
+
+  it('los cuatro valores, en el orden en que se pintan, con su nombre', () => {
+    expect(FILTROS_POTENCIAL).toEqual(['frio', 'tibio', 'estrella', 'sin_marca'])
+    expect(FILTROS_POTENCIAL.map((k) => ETIQUETA_FILTRO_POTENCIAL[k])).toEqual(['Frío', 'Tibio', 'Estrella', 'Sin marcar'])
+  })
+
+  it('contrato de `resumen.potencial`: cuatro conteos enteros y el eco del filtro', () => {
+    expect(v.parse(ConteosPotencialSchema, conteos)).toEqual(conteos)
+    expect(v.parse(ConteosPotencialSchema, { ...conteos, filtro: 'sin_marca' }).filtro).toBe('sin_marca')
+    // Una clave de más no rompe (la descarta). Un nivel que no existe, o un conteo
+    // negativo, decimal, de otro tipo o ausente, sí.
+    expect(v.parse(ConteosPotencialSchema, { ...conteos, caliente: 9 })).toEqual(conteos)
+    const malos = [
+      { ...conteos, filtro: 'caliente' }, { ...conteos, tibio: -1 }, { ...conteos, tibio: 1.5 },
+      { ...conteos, tibio: '3' }, { filtro: null, estrella: 1, tibio: 1, frio: 1 },
+    ]
+    for (const malo of malos) expect(v.safeParse(ConteosPotencialSchema, malo).success).toBe(false)
+  })
+
+  it('la suma de los cuatro es el total de la lista sin el filtro de potencial', () => {
+    expect(totalConteosPotencial(conteos)).toBe(10)
+  })
+
+  it('contarPotencial (espejo demo): cada lead cae en su nivel; sin marca o desconocido, en «sin marca»', () => {
+    const nivel = new Map<string, NivelPotencial | null>([['a', 'estrella'], ['b', 'tibio'], ['c', 'tibio'], ['d', null]])
+    expect(contarPotencial(['a', 'b', 'c', 'd', 'e'], (id) => nivel.get(id), 'tibio'))
+      .toEqual({ filtro: 'tibio', estrella: 1, tibio: 2, frio: 0, sin_marca: 2 })
+    expect(contarPotencial([], () => null, null)).toEqual({ filtro: null, estrella: 0, tibio: 0, frio: 0, sin_marca: 0 })
   })
 })

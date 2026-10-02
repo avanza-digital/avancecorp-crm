@@ -258,3 +258,46 @@ cargada (otras pruebas corriendo a la vez) las cifras suben hasta cuatro veces.
 🔑 Trampa de la prueba: dentro de un `DO` con una variable `r record`, un alias SQL `r` choca con ella
 («record "r" is not assigned yet»). Los alias de las consultas del bloque no pueden llamarse como sus
 variables.
+
+# Fase 3, entrega B · 20261001212341_crm_cartera_filtro_potencial — filtrar y contar Leads por potencial
+
+`crm.cartera_filtrada_fn` gana el argumento 14, `p_potencial` (`estrella`, `tibio`, `frio`, `sin_marca`), y el resumen
+gana `resumen.potencial` (cuatro conteos contados ANTES de aplicar el filtro, más el eco). La función es INVOKER y las
+tablas del potencial no tienen grants: lee la marca por el ayudante DEFINER `private.cartera_potencial_fn()`, que es el
+espejo de la policy `leads_select`. Solo con la bandera `potencial_lead` encendida y para quien tiene ámbito de filas;
+si no, la respuesta es la de antes y pedir el filtro da 55000. Detalle y decisiones en `../../migrations/MIGRACIONES.md`.
+
+**EN PRODUCCIÓN desde el 01/10/2026 ~19:30 Lima** (acta en el ledger). La pantalla que envía `p_potencial` se publicó
+el mismo día a las ~19:55 (release `crm-20261002T005155Z-4498582850b1`).
+
+| Archivo | Para qué |
+|---|---|
+| `prueba-filtro.sql` | Prueba sintética (152 casos). Va con `banco/anterior-13.sql` DELANTE: `cat banco/anterior-13.sql prueba-filtro.sql \| psql …`. Termina en raise; no deja nada. |
+| `reversa-filtro.sql` | Reversa. GENERADA por `banco/generar-anterior-y-reversa.py`: reinstala la firma de 13 byte a byte. Se niega si la entrega B no está tal como se publicó (huellas de la cartera y del ayudante) o si hay un consumidor de servidor de la cartera que no sea `crm.resumen_cartera_fn`. No editar a mano. |
+| `registrar-filtro.sql` | Registro en `schema_migrations` (lleva el md5 del archivo; regenerar con `banco/generar-registrador.py` si la migración cambia). |
+| `verificar-filtro.sql` | Solo lectura, termina SIEMPRE en raise: firma, huellas de la cartera y del ayudante, quién ejecuta, tabla sin grants, sello, bandera, marcas, registro. |
+
+## Orden en producción (Miguel con `!`, desde `CRM-Avance-Corp/`)
+
+1. `supabase db query --linked --file supabase/migrations/20261001212341_crm_cartera_filtro_potencial.sql`
+2. `supabase db query --linked --file supabase/scripts/potencial-lead/registrar-filtro.sql`
+3. `supabase db query --linked --file supabase/scripts/potencial-lead/verificar-filtro.sql` (el «error» VERIFICAR es la salida)
+4. Sonda HTTP: `POST /rest/v1/rpc/cartera_filtrada_fn` con `Content-Profile: crm` y `{"p_limite":1,"p_potencial":"estrella"}`.
+   Sin sesión debe dar 401/`42501` (la API ya conoce el parámetro) y no 404/`PGRST202` (aún no recargó su caché).
+5. Advisors sin clases nuevas. Después, la pantalla.
+
+Los frentes publicados no envían `p_potencial` y siguen igual. Con la bandera encendida, toda respuesta gana
+`resumen.potencial`; los frentes leen el resumen con `v.object` (valibot), que descarta las claves que no conoce.
+
+## Reversa
+
+Primero retirar el frente que envía `p_potencial`. Luego `reversa-filtro.sql`. Orden con las demás:
+filtro → lectura → caducidad → fase 1 (`reversa.sql` se niega si el filtro sigue puesto), y filtro → gestión
+(`../cartera-gestion/reversa.sql` exige la firma de 13).
+
+## Banco
+
+`BANCO_CONTENEDOR=avancecorp-potencial-AAAAMMDD bash banco/ciclo-fase3b.sh`. Exige las fases 1, 2 y 3A, la migración
+`20261001154153` y el trinquete analítico sembrado (`../cartera-gestion/siembra-control-banco.sql` en un banco recién
+montado: un volcado de solo esquema lo deja vacío). Termina con un veredicto de máquina y sale con 1 si algo no dio
+lo esperado. Detalle en `banco/LEEME.md`.

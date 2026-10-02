@@ -1,3 +1,120 @@
+## 20261001212341 — Potencial del lead · fase 3, entrega B: filtrar y contar Leads por potencial (`p_potencial`)
+
+**✅ EN PRODUCCIÓN desde el 01/10/2026 ~19:30 Lima (Miguel con `!`: migración, registro y verificación). ✅ PANTALLA
+PUBLICADA el 01/10/2026 ~19:55 Lima** (release `crm-20261002T005155Z-4498582850b1`, ver el acta). PASS en banco
+Docker propio (01/10/2026). Plan aprobado por
+Miguel el 01/10/2026 («ok dale con el plan B, todo lo recomendado»: el filtro va solo en Leads, «Sin marcar» es una
+opción y se elige un nivel a la vez). El frente que envía `p_potencial` se publica DESPUÉS (servidor primero).
+
+**Acta de la publicación (01/10/2026 ~19:30 Lima).** Salida de `verificar-filtro.sql` en producción: una sola firma,
+la de 14; md5 de la cartera `23a63cc3965472b9db85aa81cadffbeb` y del ayudante `73e993d618b203cdbe21e8127f7ea5b4` (los
+ensayados); ejecutan la cartera `[authenticated]` y el ayudante `[authenticated]`; forma del ayudante
+`DEFINER/s/search_path=""/postgres`; 0 funciones con ACL nula; nadie lee la tabla de marcas por la API; declaración
+analítica y sello vigentes; bandera `true`; 27 marcas vivas; registro `crm_cartera_filtro_potencial`.
+Advisors: 249 avisos en 6 clases antes y 249 después, archivos byte a byte iguales (el ayudante vive en `private`,
+fuera de la API, y no suma aviso). `npm run gen:types` contra producción no cambió `database.types.ts`.
+Sonda anónima por PostgREST con la clave pública del bundle vivo (`Content-Profile: crm`):
+`{"p_limite":1,"p_potencial":"estrella"}` y `{"p_limite":1,"p_gestion":"gestionado","p_potencial":"sin_marca"}` →
+401/`42501` `permission denied for schema crm` (la API ya conoce el parámetro); `{"p_limite":1}` → 401/`42501`;
+control `{"p_limite":1,"p_no_existe":"x"}` → 404/`PGRST202`. El frente vivo en ese momento (`a070838d`, build
+`build-20261001T211328361Z`) no envía `p_potencial` y lee el resumen con `v.object`: no cambia nada para el usuario
+hasta publicar la pantalla.
+
+**Pantalla publicada (01/10/2026 ~19:55 Lima).** Miguel invocó `/release-crm` y lanzó la subida con `!`. Artefacto
+`crm-20261002T005155Z-4498582850b1.zip` (SHA-256 `e57c5187a3315b3e42aeaed05a07f0a7dd93da5d1b74dc36116c7b8caf77cdde`),
+commit `44985828` (rama `release/potencial-filtro-llamadas-20261001`: nace del vivo `a070838d` y tiene el mismo
+árbol que la rama de la PR #165), build `build-20261002T005154879Z`. Por decisión de Miguel salió junto con Llamadas
+F1 (#160); Gestionado (#162) ya estaba vivo. `npm run check` PASS (346 archivos, 5 592 pruebas); e2e Docker completo
+sobre el código final: 321 pasan, 26 saltadas y los 2 fallos ajenos de siempre (`gerencia-operativa.spec.ts:108`,
+`gestion-diaria-vuelta.spec.ts:11`); manifiesto verificado (130 archivos, 399 migraciones); preflight OK
+(`live=build-20261001T211328361Z/a070838d1b0d candidate=4498582850b1`). Smoke: inicio 200, `version.json` nuevo, los
+94 archivos de código byte a byte iguales al paquete (117 de 130 en total: `.htaccess` da 403 y Hostinger recomprime
+12 PNG), el ZIP no queda en la raíz web (404), el CSS vivo trae las reglas `.pot-filtro`, y la pantalla de entrada
+carga en un navegador sin errores de consola. Falta la pasada visual de Miguel con su sesión.
+
+Qué cambia: `crm.cartera_filtrada_fn` (INVOKER) sustituye la firma de 13 argumentos por una de 14 con
+`p_potencial text default null` (`estrella` | `tibio` | `frio` | `sin_marca`; otro valor → 22023). El resumen gana UNA
+clave, `resumen.potencial = {filtro, estrella, tibio, frio, sin_marca}`, contada ANTES de aplicar `p_potencial` (CTE
+`previa`): los cuatro números no cambian al elegir un nivel y suman el total sin ese filtro; el resto del resumen y las
+filas salen de `base` = `previa` recortada. Las filas tienen la forma de siempre (la columna de trabajo se quita) y no
+hay claves nuevas arriba. La clave solo viaja con la bandera `potencial_lead` encendida y para quien tiene ámbito de
+filas (global o con analistas visibles); sin eso la respuesta es byte a byte la de la firma de 13 y pedir el filtro da
+55000. El cuerpo nuevo se generó desde el texto de `20261001154153` con sustituciones exactas (no se retecleó).
+
+Cómo lee la marca: nace `private.cartera_potencial_fn()`, ayudante **SECURITY DEFINER** (molde
+`private.cartera_recepciones_fn`), porque las tablas del potencial no tienen grants de API y así se quedan. Sesión +
+gate `private.puede_acceder_crm()` + bandera + **espejo exacto de la policy `leads_select`** (cuarta copia: las otras
+son `crm.cierres_estado_fn`, `private.conversion_estado_lead_v1` y `private.potencial_lectura`; si la policy cambia,
+re-auditar las cuatro). EXECUTE solo `authenticated`; `private` no está expuesto en la API. `service_role`: sin cambios
+(no ejecuta ni antes ni después).
+
+**Decisión de ámbito (Codex f3b r1 + auditor-rls f3b P2-1).** La primera versión daba al ayudante el predicado de la
+base de la cartera (con la bandeja del reparto) para que `crm.resumen_cartera_fn` (DEFINER, llama a la cartera sin
+RLS) contara bien las marcas de esa bandeja. Eso habría entregado a coordinación conteos por nivel de leads que su RLS
+no le deja leer, sin decisión de Miguel. Se descartó: el ayudante es el espejo de la RLS y la cartera no emite
+`resumen.potencial` para quien no tiene ámbito de filas. Coordinación no recibe conteos por nivel ni por la API ni por
+el envoltorio. Regla que queda: ve (y cuenta) la marca solo quien ve el lead.
+
+Guardas, con `search_path` vacío y `quote_all_identifiers` off fijados en la transacción. Preflight: (1) función viva
+`bf06666f…` y una sola firma; (2) declaración analítica vigente, de inventario y sellada; (3)
+`assert_actividades_de_lead_base()`; (4) `crm.lead_potencial` como se ensayó (columnas, índice único por `lead_id`,
+RLS, sin SELECT para la API), RLS de `crm.leads` encendida, niveles del enum y bandera; (5) huellas de 5 ayudantes de
+visibilidad (las mismas que ya pasaron en producción con la 3A) y las dos policies de lectura de `crm.leads`; (6)
+permisos de `crm.bandera_activa` y del esquema `private`; (7) único consumidor de servidor: `crm.resumen_cartera_fn`,
+con su md5. Postflight: una firma (14) con md5 `23a63cc3…` y el mismo contrato de seguridad; ayudante con md5
+`73e993d6…`, DEFINER/STABLE/postgres/solo `search_path` vacío, ACL exacta y sin conteos; la tabla sigue sin grants;
+sello, censo, declaraciones ajenas, declaración propia y envoltorio intactos; policies sin cambios; y el ayudante y la
+cartera rechazan una llamada sin sesión por SU guarda («No autorizado»).
+
+Evidencia (banco `avancecorp-potencial-20261001`: esquema de producción del 01/10 13:31 + migraciones posteriores del
+repo + trinquete analítico sembrado; `banco/ciclo-fase3b.sh`, veredicto de máquina «TODO COMO SE ESPERABA»): ciclo
+aplicar/repetir/reversa/reaplicar PASS (tras la reversa, md5 de la de 13 = el de antes y la foto de trinquetes entera
+igual); `prueba-filtro.sql` 152 de 152 (igualdad byte a byte con la función anterior en 10 actores × 14 llamadas con la
+bandera apagada y otras 140 encendida quitando `resumen.potencial`; oráculo por rol y nivel contra la RLS real; cursor
+con empate; envoltorio; el ayudante por dentro y «ayudante ⊆ RLS» comparando ids; el ayudante no se llama con la
+bandera apagada ni para coordinación, tampoco por el envoltorio ni con plan genérico forzado); fases 1, 2 y 3A sin
+regresión (75, 51, 94); oráculo de la regla de gestión de `scripts/cartera-gestion` 128/128 contra la firma de 14; 28
+mutantes de lógica, todos cazados; 51 mutantes de migración y preflight, todos rechazados; 8 estados que la reversa no
+debe aceptar, todos rechazados (entre ellos un consumidor de servidor que ya pasa el argumento 14 con `=>`, con `:=` y
+por posición); trinquetes idénticos salvo la fila de la cartera; costo medido +1,5 a 2 ms por llamada (6 000 leads y
+2 400 marcas).
+
+Reviews: Codex r1 CHANGES_REQUESTED (2 P2 de verificación: identidad del ayudante y un verificador que aceptaba
+errores; aplicados) y auditor-rls CHANGES_REQUESTED sin P0/P1 (ámbito del coordinador, identidad del ayudante en
+postflight/verificador/reversa, ruta sin RLS en la matriz, anclas y mutantes; aplicados). Codex r2 (última ronda)
+CHANGES_REQUESTED sobre la VERIFICACIÓN, con el diseño confirmado (el espejo es exacto, los NULL fallan cerrado y la
+habilitación por ámbito de filas no tiene falsos negativos): el verificador de sumas aceptaba un bloque vacío; «ayudante
+⊆ RLS» podía aprobar con el oráculo caído; la reversa no veía un consumidor que pasara el argumento con `:=` o por
+posición (ahora exige el mismo censo estricto de consumidores que la guarda 7); y el gate debe exigir `PGRST106`. Todo
+aplicado y el ciclo repetido. Encargos y respuestas en `docs/encargos/2026-10-01-potencial-lead-f3b-r{1,2}*.md`.
+
+**NOT RUN:** la matriz `test-rls.mjs` con sesiones reales (exige credenciales de una rama; `node --check` PASS). Su
+bloque `testPotencialFiltro` cubre la API rol por rol, la ruta sin RLS (`resumen_cartera_fn`), que `private` no se
+alcanza por PostgREST y la identidad del ayudante. Para correrla: `CRM_RLS_EXIGE_POTENCIAL=1` y `CRM_BANCO_PSQL_URL`.
+Advisors: PASS al publicar (249 = 249, sin clases nuevas; ver el acta de arriba).
+
+**Paridad (01/10/2026, 19:17 Lima):** el ciclo entero se repitió sobre un banco montado desde un volcado NUEVO del
+esquema de producción (`crm` 286 funciones, `private` 553) y dio lo mismo: fases 1, 2 y 3A en verde, `ciclo-fase3b.sh`
+«TODO COMO SE ESPERABA» (152 de 152; 28, 51 y 8 mutantes sin supervivientes; reversa byte a byte; trinquetes idénticos
+salvo la fila de la cartera). En ese volcado la cartera viva es la firma de 13 con md5 `bf06666f…`, el envoltorio
+`4a896597…` y las huellas de los ayudantes de visibilidad y de las dos policies de lectura son las que exige el
+preflight. Los tipos generados desde ese banco con la migración aplicada coinciden con `database.types.ts`.
+
+Efectos laterales: el bloque de catálogo de gestión en `test-rls.mjs` acepta ahora la firma de 13 o la de 14; a
+`gestion-diaria-cola/fixtures/acl.json` se le añadieron a mano la firma de 14 y el ayudante; el kit
+`scripts/cartera-gestion/` queda atado a la firma de 13 (nota en su README; su oráculo se corre contra la de 14 desde
+`ciclo-fase3b.sh`); `potencial-lead/reversa.sql` (fase 1) se niega si este filtro sigue aplicado.
+
+Reversa: `supabase/scripts/potencial-lead/reversa-filtro.sql` (generada; reinstala la de 13 byte a byte, quita el
+ayudante, devuelve la exención y resella; conserva la fila de `schema_migrations`). ANTES retirar el frente que envía
+`p_potencial`. Orden de reversas: filtro → gestión (`cartera-gestion/reversa.sql`) y filtro → lectura → caducidad →
+fase 1.
+
+Orden en producción (Miguel con `!`, desde `CRM-Avance-Corp/`): `db query --linked --file` de la migración →
+`scripts/potencial-lead/registrar-filtro.sql` → `scripts/potencial-lead/verificar-filtro.sql` (termina en raise con
+las cifras) → sonda HTTP con `p_potencial` (401/42501 = la API ya conoce el parámetro; 404/PGRST202 = aún no recargó
+la caché) → advisors → publicar la pantalla.
+
 ## 20261001154153 — Pipeline «Gestionado»: filtro `p_gestion` en `crm.cartera_filtrada_fn`
 
 **✅ APLICADA Y REGISTRADA EN PRODUCCIÓN el 01/10/2026 (~15:20 Lima), por `!` de Miguel** (`db query --linked --file`

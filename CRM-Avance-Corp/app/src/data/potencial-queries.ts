@@ -36,6 +36,12 @@ import { marcarPotencialLead, obtenerPotencialLeads } from './potencial-api'
  */
 export const potencialKeys = {
   raiz: () => ['crm', 'leads', 'potencial'] as const,
+  /**
+   * Las listas de la cartera (`crmQueryKeys.carteraPagina`, también literal y
+   * también fijada por una prueba): traen los conteos por potencial y pueden
+   * estar filtradas por él, así que una marca nueva las deja viejas.
+   */
+  cartera: () => ['crm', 'leads', 'cartera-pagina'] as const,
   leads: (ids: readonly string[]) => [...potencialKeys.raiz(), ids] as const,
   /** Clave de la MUTACIÓN de marcar: permite saber si ya hay una en curso. */
   marcar: () => [...potencialKeys.raiz(), 'marcar'] as const,
@@ -156,6 +162,10 @@ export function useMarcarPotencial(): { marcar: (leadId: string, nivel: NivelPot
       for (const [clave, foto] of contexto?.previas ?? []) cache.setQueryData(clave, foto)
       toast.error(error instanceof CrmApiError ? error.message : 'No se pudo guardar la marca de potencial.')
     },
+    // La marca cambia los conteos y el filtro de la tabla de Leads: sus listas se
+    // vuelven a pedir, pero SIN esperarlas (el «guardando» de la ficha depende
+    // solo de la relectura de la marca).
+    onSuccess: () => { void cache.invalidateQueries({ queryKey: potencialKeys.cartera() }) },
     onSettled: () => cache.invalidateQueries({ queryKey: potencialKeys.raiz() }),
   }, cache)
   const { mutate } = mutacion

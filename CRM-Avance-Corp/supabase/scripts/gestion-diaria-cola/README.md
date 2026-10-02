@@ -69,6 +69,13 @@ node supabase/scripts/gestion-diaria-cola/ensayar.mjs
 > una plantilla posterior a la migración (cada entrada se resuelve con
 > `to_regprocedure`, así que sirve en los dos estados). Cuando la migración esté
 > publicada, regenerar el snapshot desde producción y retirar la firma de 12.
+>
+> Nota del 01/10/2026 (migración `20261001212341_crm_cartera_filtro_potencial`):
+> por el mismo motivo se AÑADIERON a mano la firma de 14 argumentos (con
+> `p_potencial`) y su ayudante `private.cartera_potencial_fn()`. Sin ellas, una
+> plantilla posterior a esa migración dejaría la cartera sin `EXECUTE` para
+> `authenticated`. Al regenerar el snapshot desde producción, retirar las firmas
+> de 12 y 13.
 
 - `prueba.sql`: 530 leads, orden antes de paginar, llamadas repetidas, ancla,
   salto de página, reintento programado, límites de Lima, deshacer, exclusiones

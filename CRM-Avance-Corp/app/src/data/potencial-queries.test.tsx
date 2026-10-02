@@ -49,6 +49,15 @@ describe('claves de caché', () => {
     expect(potencialKeys.raiz().slice(0, prefijo.length)).toEqual([...prefijo])
     expect(potencialKeys.leads([A]).slice(0, potencialKeys.raiz().length)).toEqual([...potencialKeys.raiz()])
   })
+
+  it('la clave de las listas de la cartera es el prefijo exacto de `crmQueryKeys.carteraPagina`', () => {
+    // Se escribe literal en este módulo (no importa crm-queries): si alguien renombra
+    // la clave de la cartera, marcar dejaría de refrescar los conteos de Leads.
+    const deLaCartera = crmQueryKeys.carteraPagina('todas', 'todos', '', true)
+    expect(deLaCartera.slice(0, potencialKeys.cartera().length)).toEqual([...potencialKeys.cartera()])
+    // Y no es el prefijo del potencial: invalidar uno no arrastra al otro.
+    expect(potencialKeys.cartera()).not.toEqual(potencialKeys.raiz())
+  })
 })
 
 describe('usePotencialLeads · sesión real', () => {
@@ -235,6 +244,29 @@ describe('useMarcarPotencial · sesión real', () => {
     expect(ficha.result.current.item).toMatchObject({ nivel: 'estrella', baja_a: 'tibio', baja_el: '2026-10-09' })
     expect(lista.result.current.porLead.get(A)?.baja_el).toBe('2026-10-09')
     expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  it('una marca aceptada deja viejas las listas de la cartera (conteos y filtro por potencial); una rechazada, no', async () => {
+    api.obtenerPotencialLeads.mockImplementation(async (ids: string[]) => encendido(ids.map((x) => item(x))))
+    const { cliente, lista, accion } = montar()
+    await waitFor(() => expect(lista.result.current.habilitada).toBe(true))
+    const sinFiltro = crmQueryKeys.carteraPagina('todas', 'todos', '', true)
+    const tibio = crmQueryKeys.carteraPagina('todas', 'todos', '', true, null, null, 'todos', 'todas', false, null, 'tibio')
+    const ajena = crmQueryKeys.leadsSinAsignar()
+    for (const clave of [sinFiltro, tibio, ajena]) cliente.setQueryData(clave, { pages: [], pageParams: [] })
+
+    api.marcarPotencialLead.mockRejectedValueOnce(new CrmApiError('Solo el analista del lead o su supervisor pueden marcar su potencial', '42501'))
+    act(() => { accion.result.current.marcar(A, 'tibio') })
+    await waitFor(() => expect(toast.error).toHaveBeenCalled())
+    await waitFor(() => expect(accion.result.current.marcando).toBe(false))
+    expect(cliente.getQueryState(sinFiltro)?.isInvalidated).toBe(false)
+
+    api.marcarPotencialLead.mockResolvedValueOnce(undefined)
+    act(() => { accion.result.current.marcar(A, 'tibio') })
+    await waitFor(() => expect(cliente.getQueryState(sinFiltro)?.isInvalidated).toBe(true))
+    expect(cliente.getQueryState(tibio)?.isInvalidated).toBe(true)
+    // Solo las listas de la cartera: otras listas de leads no se tocan por una marca.
+    expect(cliente.getQueryState(ajena)?.isInvalidated).toBe(false)
   })
 
   it('dos activaciones en el mismo instante mandan UNA sola marca, sin esperar a que la pantalla se repinte', async () => {

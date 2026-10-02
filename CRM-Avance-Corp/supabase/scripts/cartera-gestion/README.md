@@ -4,6 +4,12 @@ Migración `20261001154153_crm_cartera_filtro_gestion.sql`. **Ensayada en banco 
 producción el 01/10/2026 (~15:20 Lima) por `!` de Miguel**; acreditada después en solo lectura (15 anclas `[OK]`)
 y con la sonda HTTP. El frente que envía `p_gestion` se publica aparte. Acta en `../../migrations/MIGRACIONES.md`.
 
+> **Desde `20261001212341_crm_cartera_filtro_potencial` la firma viva es la de 14** (se añadió `p_potencial`
+> al final; `p_gestion` sigue siendo el 13.º y su regla no cambió). Este kit queda como acta de SU migración:
+> `ensayar.mjs`, `acreditar.sql` y `reversa.sql` exigen la firma de 13. Para revertir esta migración hay que
+> revertir antes la del potencial (`../potencial-lead/reversa-filtro.sql`). El oráculo de la regla se corre
+> contra la firma de 14 desde `../potencial-lead/banco/ciclo-fase3b.sh` (paso 13).
+
 ## Qué hace
 
 Los analistas piden en el Pipeline una columna «Gestionado» entre «Nuevo» y «Contactado»: leads que
