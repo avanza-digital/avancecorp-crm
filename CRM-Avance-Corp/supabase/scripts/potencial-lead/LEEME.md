@@ -267,6 +267,8 @@ tablas del potencial no tienen grants: lee la marca por el ayudante DEFINER `pri
 espejo de la policy `leads_select`. Solo con la bandera `potencial_lead` encendida y para quien tiene ámbito de filas;
 si no, la respuesta es la de antes y pedir el filtro da 55000. Detalle y decisiones en `../../migrations/MIGRACIONES.md`.
 
+**EN PRODUCCIÓN desde el 01/10/2026 ~19:30 Lima** (acta en el ledger). La pantalla que envía `p_potencial` se publica aparte.
+
 | Archivo | Para qué |
 |---|---|
 | `prueba-filtro.sql` | Prueba sintética (152 casos). Va con `banco/anterior-13.sql` DELANTE: `cat banco/anterior-13.sql prueba-filtro.sql \| psql …`. Termina en raise; no deja nada. |

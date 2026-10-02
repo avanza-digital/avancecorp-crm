@@ -1,8 +1,23 @@
 ## 20261001212341 — Potencial del lead · fase 3, entrega B: filtrar y contar Leads por potencial (`p_potencial`)
 
-**⏳ NO APLICADA en producción. PASS en banco Docker propio (01/10/2026).** Plan aprobado por Miguel el 01/10/2026
-(«ok dale con el plan B, todo lo recomendado»: el filtro va solo en Leads, «Sin marcar» es una opción y se elige un
-nivel a la vez). El frente que envía `p_potencial` se publica DESPUÉS (servidor primero).
+**✅ EN PRODUCCIÓN desde el 01/10/2026 ~19:30 Lima (Miguel con `!`: migración, registro y verificación). ⏳ La
+pantalla que envía `p_potencial` aún NO está publicada.** PASS en banco Docker propio (01/10/2026). Plan aprobado por
+Miguel el 01/10/2026 («ok dale con el plan B, todo lo recomendado»: el filtro va solo en Leads, «Sin marcar» es una
+opción y se elige un nivel a la vez). El frente que envía `p_potencial` se publica DESPUÉS (servidor primero).
+
+**Acta de la publicación (01/10/2026 ~19:30 Lima).** Salida de `verificar-filtro.sql` en producción: una sola firma,
+la de 14; md5 de la cartera `23a63cc3965472b9db85aa81cadffbeb` y del ayudante `73e993d618b203cdbe21e8127f7ea5b4` (los
+ensayados); ejecutan la cartera `[authenticated]` y el ayudante `[authenticated]`; forma del ayudante
+`DEFINER/s/search_path=""/postgres`; 0 funciones con ACL nula; nadie lee la tabla de marcas por la API; declaración
+analítica y sello vigentes; bandera `true`; 27 marcas vivas; registro `crm_cartera_filtro_potencial`.
+Advisors: 249 avisos en 6 clases antes y 249 después, archivos byte a byte iguales (el ayudante vive en `private`,
+fuera de la API, y no suma aviso). `npm run gen:types` contra producción no cambió `database.types.ts`.
+Sonda anónima por PostgREST con la clave pública del bundle vivo (`Content-Profile: crm`):
+`{"p_limite":1,"p_potencial":"estrella"}` y `{"p_limite":1,"p_gestion":"gestionado","p_potencial":"sin_marca"}` →
+401/`42501` `permission denied for schema crm` (la API ya conoce el parámetro); `{"p_limite":1}` → 401/`42501`;
+control `{"p_limite":1,"p_no_existe":"x"}` → 404/`PGRST202`. El frente vivo en ese momento (`a070838d`, build
+`build-20261001T211328361Z`) no envía `p_potencial` y lee el resumen con `v.object`: no cambia nada para el usuario
+hasta publicar la pantalla.
 
 Qué cambia: `crm.cartera_filtrada_fn` (INVOKER) sustituye la firma de 13 argumentos por una de 14 con
 `p_potencial text default null` (`estrella` | `tibio` | `frio` | `sin_marca`; otro valor → 22023). El resumen gana UNA
@@ -63,7 +78,7 @@ aplicado y el ciclo repetido. Encargos y respuestas en `docs/encargos/2026-10-01
 **NOT RUN:** la matriz `test-rls.mjs` con sesiones reales (exige credenciales de una rama; `node --check` PASS). Su
 bloque `testPotencialFiltro` cubre la API rol por rol, la ruta sin RLS (`resumen_cartera_fn`), que `private` no se
 alcanza por PostgREST y la identidad del ayudante. Para correrla: `CRM_RLS_EXIGE_POTENCIAL=1` y `CRM_BANCO_PSQL_URL`.
-Advisors: NOT RUN (se miden al publicar; la foto de antes se tomó el 01/10/2026 con el volcado).
+Advisors: PASS al publicar (249 = 249, sin clases nuevas; ver el acta de arriba).
 
 **Paridad (01/10/2026, 19:17 Lima):** el ciclo entero se repitió sobre un banco montado desde un volcado NUEVO del
 esquema de producción (`crm` 286 funciones, `private` 553) y dio lo mismo: fases 1, 2 y 3A en verde, `ciclo-fase3b.sh`
