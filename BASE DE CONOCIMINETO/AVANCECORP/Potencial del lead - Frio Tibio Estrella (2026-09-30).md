@@ -485,8 +485,9 @@ Miguel pidió «pásame el plan de la entrega B» y lo dejó en pausa por los co
 Fila «Por potencial» debajo de «Por etapa», en la misma tarjeta de resumen: cuatro pastillas con número (Frío, Tibio,
 Estrella, Sin marcar). Tocar una filtra lista, totales y capital; los cuatro números NO cambian al elegir (se cuentan
 antes del filtro); una cifra en cero no se abre; la elegida se pinta con el color de su nivel. Maqueta local a escala
-real: `ui-playground/filtro-potencial-leads.html` (Miguel aún no contestó si le gusta «elegido en su color», que es
-lo construido; la otra variante es solo CSS). Fotos de la app real en el scratchpad `f3b/capturas/`.
+real: `ui-playground/filtro-potencial-leads.html`. ✅ **Miguel la aprobó el 01/10 (~19:04): «sí me gusta la
+maqueta»** (la variante construida: el botón elegido se pinta con el color de su nivel). Fotos de la app real en el
+scratchpad `f3b/capturas/`.
 
 ### Servidor — migración `20261001212341_crm_cartera_filtro_potencial` (SIN aplicar)
 - `crm.cartera_filtrada_fn` pasa de 13 a 14 argumentos (`p_potencial`: `estrella|tibio|frio|sin_marca`) y el resumen
