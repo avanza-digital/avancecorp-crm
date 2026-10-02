@@ -75,6 +75,14 @@ Cierre de F0.3 por celular: salientes con número __/10 · entrantes con número
 | --- | --- | --- | --- | --- | --- |
 | 02/10/2026, antes de las 10:06 (Lima) | C1 | producción `build-20261002T005154879Z` | Macro «Abrir sitio web» cambiada a `https://crm.miavance.com/#/gestion-diaria/llamada/{call_number}` (codificación de URL desmarcada) → llamada saliente a un lead → colgar | PASS: abre la encuesta según el número del lead | Observado por Jhosep («abre la encuesta según el número del lead»). Sin detalle de la cuenta usada ni de si se registró el resultado |
 
+## 5d. Pruebas de MacroDroid para F3 (F3.3) — contra el receptor de pruebas del PC
+
+Receptor: `npm run receptor:llamadas-prueba` (mismo handler que la Edge `crm-llamadas-ingesta`, base falsa en memoria, clave de prueba inventada). Las pruebas 1–6 son las de `docs/plans/llamadas-celular/F3-PLAN-CORTO.md`. Macro aparte «Prueba F3» para no tocar la de F1.
+
+| Fecha | Celular | Prueba | Configuración | Resultado | Evidencia |
+| --- | --- | --- | --- | --- | --- |
+| 02/10/2026 10:48 (Lima) | C1 | 1 — POST con cabecera y `{call_number}`, código y respuesta en variables | Disparador «Llamada terminada» → «Cualquier Número». Acción «Solicitud HTTP»: POST a `http://<PC>:8787/functions/v1/crm-llamadas-ingesta`, «Bloquear las siguientes acciones hasta completar» ✓, «Guardar el código de retorno HTTP en una variable entera» → `codigo` (local), «Guardar la respuesta HTTP en una variable de cadena» → `respuesta` (local); pestaña «Cuerpo del Contenido»: tipo `application/json`, texto con `"numero":"{call_number}"` e id fijo `C1-PRUEBA-0001`; pestaña «Parámetros de Encabezado»: solo `x-celular-credencial`. Acción «Mostrar notificación» con `{lv=codigo} {lv=respuesta}` | PASS: notificación `codigo: 202` + cuerpo `{"recibido":true,"abrir":"https://crm.miavance.com/#/gestion-diaria/llamada/<número>"}`; el receptor lo registró como guardada con la clave correcta y el número marcado (3 últimos dígitos coinciden). Comprobado de paso: Android 16 deja a MacroDroid usar `http` en la red local, el «Tipo de contenido» ya pone `Content-Type` (no hace falta a mano) y el número llega en formato nacional de 9 dígitos | Captura de la notificación (número no transcrito) y registro del receptor 10:48:53 |
+
 ## 6. Incidencias
 
 | Fecha | Celular | Qué pasó | Impacto (perdida / duplicada / no abrió / otro) | Cómo se resolvió | Abierta o cerrada |
