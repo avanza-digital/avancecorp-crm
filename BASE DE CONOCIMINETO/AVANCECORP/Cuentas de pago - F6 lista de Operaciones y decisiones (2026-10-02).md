@@ -85,6 +85,13 @@ PR #168 fusionada en squash el 02/10 (~12:35): `main` de GitHub `251f2b21`, mism
 `crm/cuentas-pago-rezago-20261001`. El `main` LOCAL del taller sigue en `759aa310` hasta que las otras sesiones
 commiteen su trabajo (entonces: `git merge --ff-only crm/cuentas-pago-rezago-20261001`).
 
+## Cierre de sesión (02/10 ~19:15)
+
+Miguel: «Gloria ya se va a encargar de seleccionar la cuenta». Al retomar: correr `censo.sql`; cuando solo queden los dos
+demo, cerrar esta nota y la del serial. Pendientes de taller: ff del `main` local a la rama `crm/cuentas-pago-rezago-20261001`
+cuando las otras sesiones commiteen; tablero de Figma `K2t5Padzr6FVXkFSPglILq` (F2–F5 ☑, F6 en curso) cuando se abra con
+edición; `docker rm -f avancecorp-cuentas-negativa-20261002`.
+
 ## Qué queda
 
 - ✅ Portal publicado 02/10 ~11:40 (`f69e190`, `pagos.js v47`, SW v139): 9/9 lecturas idénticas, `pagos.html` pide v47;
