@@ -1,7 +1,8 @@
 ## 20261002163158 — «Retirar cuenta» y «Cambiar cuenta de pago» solo en READ COMMITTED (`private.retirar_cuenta_cliente_autorizado`, `private.cambiar_cuenta_pago_contratos_autorizado`)
 
-**PREPARADA Y PROBADA EN BANCO. NO APLICADA EN PRODUCCIÓN.** Decisión de Miguel, 02/10/2026 (~11:05): «Sí,
-después de entregar F6». Cierra el riesgo medido en el banco de «Asignar cuenta» (`20261002005004`): en
+**✅ APLICADA EN PRODUCCIÓN EL 02/10/2026 (~12:20 Lima)** con `db query --linked --file`: devolvió
+`RETIRAR_CAMBIAR_SOLO_READ_COMMITTED_OK`; registrada con `scripts/cuentas-pago-negativa/registrar.sql`; huellas vivas
+`748918fb…` (retirar) y `1d6443c8…` (cambiar). Decisión de Miguel, 02/10/2026 (~11:05): «Sí, después de entregar F6». Cierra el riesgo medido en el banco de «Asignar cuenta» (`20261002005004`): en
 REPEATABLE READ o SERIALIZABLE, «Retirar cuenta» podía retirar una cuenta recién asignada y «Cambiar cuenta de
 pago» podía dar por vigente a un administrador ya revocado. Solo alcanzable con SQL a mano (PostgREST siempre va
 en READ COMMITTED): ninguna pantalla ni edge cambia.
