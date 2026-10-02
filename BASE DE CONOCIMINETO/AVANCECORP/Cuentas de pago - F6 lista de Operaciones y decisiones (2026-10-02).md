@@ -53,6 +53,23 @@ avancecorp26; copia en `~/Downloads`), columnas CUENTA · CCI · BANCO. Esa hoja
 **Faltan las hojas de mayo, julio, agosto y septiembre** (no están en el Gmail ni en el Drive de miguel@miavance.com):
 con ellas se resolvería el resto (000477 está en la de mayo).
 
+## Carga de cuentas desde la hoja maestra (02/10 ~19:00, decisión de Miguel: «cargar; Gloria asigna»)
+
+La hoja maestra «AVANCE 2026 - AL 31-08.xlsx» (Descargas de Miguel) trae banco, cuenta y CCI de **21 de los 22**
+bloqueados. Guiones en `_DEV_NO_SUBIR/cuentas-pago-f6/` (generados por `generar-carga.py`; llevan datos personales, no se
+versionan): `ensayo-carga.sql` (no escribe), `carga-cuentas-hoja-maestra.sql`, `reversa-carga.sql`. La carga valida con
+`private.validar_cuenta_bancaria` (la del portal), exige que el DNI de la hoja sea el del cliente del contrato, inserta con
+`origen = 'portal'`, tipo ahorros, titular no distinto, `creado_por` = administrador, y deja rastro en
+`private.backfill_cuentas_p0xx` con la marca `carga:hoja-maestra-20260831:20261002`. **Nunca vincula.**
+
+Resultado (ensayo = carga): **10 cuentas insertadas** (000477 Pichincha soles, 000644, 000753, 000762, 000859, 000915,
+000964, 001031, 001325 en dólares, 000983 en soles), **8 ya existían** con ese CCI (000793, 000856, 000858, 000900, 001010,
+001039, 001042, 001064: la hoja dice cuál de las dos es), **3 saltadas** (000009 demo; 000734 beneficiario distinto → a mano;
+000797 la hoja cobra en soles y el contrato es en dólares → confirmar). Censo después: 714 contratos, 692 ok, **12
+`una_cuenta`** (Gloria asigna la única que aparece), 7 `varias_cuentas` (la buena marcada en el Excel), 2 `otra_moneda`
+(000797 y demo 000009), 1 `sin_cuenta` (demo 444444). El Excel de Gloria lleva la columna verde «Estado tras la carga».
+Si se quisiera cero clics para los 12 `una_cuenta`: `cuentas-pago-rezago/vincular-rezago.sql` (la carga oficial) los vincula.
+
 ## Qué hace Operaciones por caso
 
 - **Dos cuentas:** llamar al cliente, confirmar en cuál cobra ESTE contrato, y en Pagos → fila del contrato →
