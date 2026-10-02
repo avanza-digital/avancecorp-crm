@@ -41,7 +41,12 @@ aplica; se regenera la migración sobre los cuerpos vivos.
 
 ## Verificación (banco `avancecorp-cuentas-negativa-20261002`, 02/10/2026)
 
-`ciclo.sh`: 24 pasos, 1 ✗ ajeno: `cuentas-gloria/test-cambio-cuenta-pago.sql` falla en su paso de `dry_run`
+`ciclo.sh`: 25 pasos, 24 ✓ (prueba de la negativa 14/14: núcleos y puertas en REPEATABLE READ, SERIALIZABLE y
+READ UNCOMMITTED → `0A000`; en READ COMMITTED explícito → `42501` sin actor; sin la migración, 10 casos fallan).
+Codex r1 (`docs/encargos/2026-10-02-codex-negativa-read-committed-r1*.md`): APPROVE_WITH_NITS; aplicados: READ COMMITTED
+explícito en la prueba, puertas en todos los modos, postflight con `proconfig` exacto y sin LEAKPROOF, comentario sin
+`rtrim` y reversa que quita solo el sufijo (NULL si no queda texto), atomicidad de `db query --file` documentada.
+1 ✗ ajeno: `cuentas-gloria/test-cambio-cuenta-pago.sql` falla en su paso de `dry_run`
 («Solo el servicio de avisos reclama avisos») **igual sin la migración** (comprobado revirtiéndola): es del
 banco sin datos, no de este cambio; hasta esa línea (551) los cambios reales de cuenta pasan en READ COMMITTED.
 `test-retirar-cuenta-cliente.sql` PASS. Preparación propia del banco (solo banco): `storage.objects` mínimo,

@@ -83,9 +83,10 @@ declare
 begin
 {exige('vivo', 'REVERSA SOLO_READ_COMMITTED', 'no quedó el anterior')}
   for v_f in select * from (values ('{PIEZAS[0]['firma']}'), ('{PIEZAS[1]['firma']}')) as f(firma) loop
+    -- Quita SOLO el sufijo que añadió la migración (anclado al final); si no queda texto, el comentario vuelve a NULL.
     execute pg_catalog.format('comment on function %s is %L', v_f.firma,
-      pg_catalog.rtrim(pg_catalog.replace(coalesce(pg_catalog.obj_description(pg_catalog.to_regprocedure(v_f.firma), 'pg_proc'), ''),
-        ' Solo admite READ COMMITTED (0A000 en cualquier otro modo; {VER}).', '')));
+      nullif(pg_catalog.regexp_replace(coalesce(pg_catalog.obj_description(pg_catalog.to_regprocedure(v_f.firma), 'pg_proc'), ''),
+        ' Solo admite READ COMMITTED \(0A000 en cualquier otro modo; {VER}\)\.$', ''), ''));
     if not exists (select 1 from pg_catalog.pg_proc p where p.oid = pg_catalog.to_regprocedure(v_f.firma)
                    and p.prosecdef and p.proconfig @> array['search_path=""'])
        or not pg_catalog.has_function_privilege('authenticated', v_f.firma, 'EXECUTE') then

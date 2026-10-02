@@ -18,6 +18,9 @@
 --
 -- Seguros: se niega si los cuerpos vivos no son exactamente los de hoy (huellas de abajo); tras aplicar,
 -- exige las huellas nuevas, SECURITY DEFINER, search_path vacío y la ACL de siempre (solo authenticated).
+-- Atomicidad: `supabase db query --linked --file` manda el archivo entero en UNA petición y Postgres lo corre en
+-- una sola transacción implícita (acreditado el 02/10/2026: el ensayo de 20261001233019 termina a propósito
+-- en error y no dejó rastro); si falla el pre o el postflight, no queda nada aplicado. En psql: `-1`.
 -- Reversa: supabase/scripts/cuentas-pago-negativa/reversa.sql (repone los cuerpos anteriores exactos).
 -- Registro: supabase/scripts/cuentas-pago-negativa/registrar.sql (db query no registra).
 -- Huellas (md5 de prosrc): retirar vivo 3ab8983f87f343e896acaefafbbcf4d4 → 748918fb544b22cd96c4daf884761b52;
@@ -374,7 +377,7 @@ begin
       ('private.cambiar_cuenta_pago_contratos_autorizado(uuid,uuid,uuid,uuid[],text,text)')) as f(firma)
   loop
     execute pg_catalog.format('comment on function %s is %L', v_f.firma,
-      pg_catalog.rtrim(coalesce(pg_catalog.obj_description(pg_catalog.to_regprocedure(v_f.firma), 'pg_proc'), ''))
+      coalesce(pg_catalog.obj_description(pg_catalog.to_regprocedure(v_f.firma), 'pg_proc'), '')
       || ' Solo admite READ COMMITTED (0A000 en cualquier otro modo; 20261002163158).');
   end loop;
 end $comentarios$;
@@ -396,8 +399,8 @@ begin
   loop
     if not exists (select 1 from pg_catalog.pg_proc p
                    where p.oid = pg_catalog.to_regprocedure(v_f.firma)
-                     and p.prosecdef and p.provolatile = 'v' and p.proconfig @> array['search_path=""']) then
-      raise exception 'SOLO_READ_COMMITTED: % perdió DEFINER, VOLATILE o el search_path vacío', v_f.firma;
+                     and p.prosecdef and p.provolatile = 'v' and not p.proleakproof and p.proconfig = array['search_path=""']) then
+      raise exception 'SOLO_READ_COMMITTED: % perdió DEFINER, VOLATILE, el search_path vacío exacto o ganó LEAKPROOF', v_f.firma;
     end if;
     if exists (select 1 from pg_catalog.pg_proc p, pg_catalog.aclexplode(p.proacl) a
                where p.oid = pg_catalog.to_regprocedure(v_f.firma) and a.privilege_type = 'EXECUTE'

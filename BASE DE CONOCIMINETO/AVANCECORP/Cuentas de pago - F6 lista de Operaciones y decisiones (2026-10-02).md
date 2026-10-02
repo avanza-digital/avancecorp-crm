@@ -50,6 +50,8 @@ otra moneda (pedir una en la moneda del contrato), 2 sin ninguna cuenta (pedir u
 
 - ✅ Portal publicado 02/10 ~11:40 (`f69e190`, `pagos.js v47`, SW v139): 9/9 lecturas idénticas, `pagos.html` pide v47;
   bitácora en `public_html/CLAUDE.md`; `main` del portal en `4fb7c37`.
-- Migración aparte con la negativa de modo de transacción para «Retirar cuenta» y «Cambiar cuenta de pago»
-  (plan corto antes de escribir SQL).
+- ✅ Migración `20261002163158_crm_retirar_y_cambiar_cuenta_solo_read_committed` PREPARADA y probada en banco
+  (25 pasos, 24 ✓; el ✗ es `test-cambio-cuenta-pago` en su `dry_run`, idéntico sin la migración); Codex r1
+  APPROVE_WITH_NITS aplicados. **Falta que Miguel la aplique con `!`** (migración → `registrar.sql`, guía en
+  `CRM-Avance-Corp/supabase/scripts/cuentas-pago-negativa/LEEME.md`).
 - Cuando Operaciones termine: nuevo censo (`censo.sql`) y cerrar esta nota.

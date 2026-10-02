@@ -15727,12 +15727,13 @@ a la de «Asignar». No toca puertas, grants, ACL, `search_path`, triggers, tabl
 comentario. Se niega a aplicarse dos veces. Derivados generados (`scripts/cuentas-pago-negativa/`): `registrar.sql`,
 `reversa.sql` (repone los cuerpos exactos de antes), `test-negativa.sql`, `ciclo.sh`.
 
-Banco Docker propio (esquema de producción sin datos): 24 pasos; aplicar, reaplicar (se niega), prueba de la
-negativa 8/8 (núcleos y puertas en RR y SERIALIZABLE → `0A000`; en READ COMMITTED → `42501` sin actor), sin la
+Banco Docker propio (esquema de producción sin datos): 25 pasos, 24 ✓; aplicar, reaplicar (se niega), prueba de la
+negativa 14/14 (núcleos y puertas en RR, SERIALIZABLE y READ UNCOMMITTED → `0A000`; en READ COMMITTED → `42501` sin actor), sin la
 migración la prueba FALLA (mutante natural, también tras la reversa), `test-retirar-cuenta-cliente` PASS,
 registrar ×2, reversa en RR se niega, reversa REVERTIDA con huellas y comentarios de antes. 1 ✗ ajeno:
 `test-cambio-cuenta-pago` falla en su `dry_run` («Solo el servicio de avisos reclama avisos») igual SIN la
-migración (banco sin datos). Reversa: `scripts/cuentas-pago-negativa/reversa.sql`.
+migración (banco sin datos). Codex r1 APPROVE_WITH_NITS (nits aplicados: RC explícito, puertas en todos los modos,
+postflight exacto, comentario/reversa sin restos, atomicidad documentada). Reversa: `scripts/cuentas-pago-negativa/reversa.sql`.
 
 ## 20261002061500 — Base para gestión del analista · B2 permisos (D5: Supervisión levanta «no contactar»)
 

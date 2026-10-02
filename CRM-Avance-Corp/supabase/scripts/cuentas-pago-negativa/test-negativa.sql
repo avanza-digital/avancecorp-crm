@@ -43,11 +43,35 @@ begin
     perform private.cambiar_cuenta_pago_contratos_autorizado(gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), array[gen_random_uuid()], 'motivo de prueba', 'ruta/x.pdf'); v_est := 'SIN ERROR';
   exception when others then v_est := sqlstate; end;
   insert into _veredicto(caso, esperado, obtenido, ok) values ('nucleo cambiar · SERIALIZABLE', '0A000', v_est, v_est = '0A000');
+  begin
+    perform crm.retirar_cuenta_cliente(gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), 'motivo de prueba', null); v_est := 'SIN ERROR';
+  exception when others then v_est := sqlstate; end;
+  insert into _veredicto(caso, esperado, obtenido, ok) values ('puerta retirar · SERIALIZABLE', '0A000', v_est, v_est = '0A000');
+  begin
+    perform crm.cambiar_cuenta_pago_contratos(gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), array[gen_random_uuid()], 'motivo de prueba', 'ruta/x.pdf'); v_est := 'SIN ERROR';
+  exception when others then v_est := sqlstate; end;
+  insert into _veredicto(caso, esperado, obtenido, ok) values ('puerta cambiar · SERIALIZABLE', '0A000', v_est, v_est = '0A000');
 end $t$;
 commit;
 
-\echo [negativa] READ COMMITTED: la negativa deja pasar y cae en la comprobación de administración (42501)
-begin;
+\echo [negativa] READ UNCOMMITTED: Postgres lo ejecuta como READ COMMITTED, pero el ajuste no dice 'read committed' y la negativa salta (igual que en «Asignar»)
+begin isolation level read uncommitted;
+do $t$
+declare v_est text;
+begin
+  begin
+    perform private.retirar_cuenta_cliente_autorizado(gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), 'motivo de prueba', null); v_est := 'SIN ERROR';
+  exception when others then v_est := sqlstate; end;
+  insert into _veredicto(caso, esperado, obtenido, ok) values ('nucleo retirar · READ UNCOMMITTED', '0A000', v_est, v_est = '0A000');
+  begin
+    perform private.cambiar_cuenta_pago_contratos_autorizado(gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), array[gen_random_uuid()], 'motivo de prueba', 'ruta/x.pdf'); v_est := 'SIN ERROR';
+  exception when others then v_est := sqlstate; end;
+  insert into _veredicto(caso, esperado, obtenido, ok) values ('nucleo cambiar · READ UNCOMMITTED', '0A000', v_est, v_est = '0A000');
+end $t$;
+commit;
+
+\echo [negativa] READ COMMITTED (explícito): la negativa deja pasar y cae en la comprobación de administración (42501)
+begin isolation level read committed;
 do $t$
 declare v_est text;
 begin
@@ -59,6 +83,14 @@ begin
     perform private.cambiar_cuenta_pago_contratos_autorizado(gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), array[gen_random_uuid()], 'motivo de prueba', 'ruta/x.pdf'); v_est := 'SIN ERROR';
   exception when others then v_est := sqlstate; end;
   insert into _veredicto(caso, esperado, obtenido, ok) values ('nucleo cambiar · READ COMMITTED sin actor', '42501', v_est, v_est = '42501');
+  begin
+    perform crm.retirar_cuenta_cliente(gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), 'motivo de prueba', null); v_est := 'SIN ERROR';
+  exception when others then v_est := sqlstate; end;
+  insert into _veredicto(caso, esperado, obtenido, ok) values ('puerta retirar · READ COMMITTED sin actor', '42501', v_est, v_est = '42501');
+  begin
+    perform crm.cambiar_cuenta_pago_contratos(gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), array[gen_random_uuid()], 'motivo de prueba', 'ruta/x.pdf'); v_est := 'SIN ERROR';
+  exception when others then v_est := sqlstate; end;
+  insert into _veredicto(caso, esperado, obtenido, ok) values ('puerta cambiar · READ COMMITTED sin actor', '42501', v_est, v_est = '42501');
 end $t$;
 commit;
 
