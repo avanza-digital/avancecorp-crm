@@ -65,7 +65,7 @@ con **«Parámetros de codificación de URL» desmarcado** (el `#` tiene que lle
 Sale de las 6 pruebas de F3.3 del 02/10 (todas PASS, `REGISTRO.md` §5d) y del **requisito de Jhosep**: el reenvío funciona desde cualquier red y sin pedir ubicación (`docs/plans/llamadas-celular/F3-PLAN-CORTO.md`). Los nombres de pantalla marcados ✓ se vieron en C1 (MacroDroid 5.67 en español); los marcados «por confirmar» salen de la documentación y se comprueban al armarla.
 
 **Decisiones de este borrador (de Claude, para Jhosep y Miguel):**
-- Solo las **salientes** entran en la cola y abren la encuesta: es el alcance acordado (Jhosep, 30/09) y así no salen del celular números de entrantes que el servidor descartaría.
+- **Por ahora** solo las **salientes** entran en la cola y abren la encuesta. Las entrantes de leads y clientes vuelven con la propuesta #14 (Jhosep, 02/10; pendiente de Miguel): entrante atendida → encuesta si el número es de un lead o cliente, en silencio si no; entrante perdida → tarea «devolver la llamada». Se añaden justo después de cerrar esta macro, con los disparadores «Llamada entrante» y «Llamada perdida»; mientras, no salen del celular números de entrantes que el servidor todavía descarta.
 - Al colgar, la encuesta se abre **enseguida** con la URL de F1, sin esperar la respuesta del servidor: funciona aunque el envío tarde o falle (es la misma URL de la decisión 4 de F3).
 - La **clave** vive en un solo sitio: la «Solicitud HTTP» de «Llamadas · Enviar cola».
 - Un error permanente (400, 409, 413, 415) se aparta con aviso y no bloquea la cola; cualquier otro (sin red, 401, 429, 5xx) corta la vuelta y espera al próximo intento.

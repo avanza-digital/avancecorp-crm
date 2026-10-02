@@ -20,6 +20,18 @@ Lo pidió al saber que un cliente puede necesitar una tarea para volver a llamar
 - La encuesta de «Llamar» no registra resultado en un lead cerrado (convertido o descartado): el núcleo v4
   responde «El lead esta cerrado».
 
+## Ampliación del 02/10: también las llamadas que hacen ellos (entrantes)
+Jhosep (02/10/2026): si un lead **o un cliente** llama al analista por iniciativa propia, debe contar.
+Es lo que ya decía el plan aprobado («entrantes atendidas; perdidas como devolución») y retira su recorte
+a «solo salientes» (propuesta #8). Quedó como propuestas **#14** y **#15** para Miguel:
+- Entrante atendida de un lead o cliente → al colgar se abre su registro (encuesta del lead; postventa del cliente).
+- Entrante perdida → tarea nueva «devolver la llamada».
+- Número que no es lead ni cliente → nada: ni encuesta ni aviso.
+- Métricas aparte (#15): llamadas recibidas, atendidas frente a perdidas, devolución de perdidas y
+  resultado tras una entrante. Nunca se suman a «llamadas hechas» ni al cumplimiento del analista.
+- Orden: primero se cierra la macro de salientes (F3-c); las entrantes van justo después. Ver
+  [[Llamadas desde el celular - pruebas de MacroDroid en C1 (2026-10-02)]].
+
 ## Lo que ya existe y sirve de base
 - **Agenda de postventa:** tareas colgadas del cliente (`crm.tareas.inversionista_id`) y gestiones por
   persona, detrás de la bandera `postventa_neutral`. Ver [[F6 - implementación de postventa (2026-09-10)]].
