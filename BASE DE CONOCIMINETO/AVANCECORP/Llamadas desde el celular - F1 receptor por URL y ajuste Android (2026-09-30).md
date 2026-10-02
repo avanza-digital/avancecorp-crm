@@ -1,11 +1,15 @@
 # Llamadas desde el celular - F1 receptor por URL y ajuste Android (2026-09-30)
 
-Estado: F1 del plan «Llamadas desde el celular al CRM» (Versión 3 aprobada por Miguel)
-terminada en la rama `feat/llamadas-f0` y aprobada y fusionada a `main` por Miguel (PR #148,
-30/09 21:41 UTC), pero **NO activa en producción**: al publicar la corrección de documentos,
-Miguel decidió «Solo documentos; mantener F1 pendiente» y el PR #151 retiró temporalmente su
-activación (el receptor no se monta; módulos, rutas y pruebas siguen en `main`). Reactivarla
-requiere su autorización. 🔑 Lección (01/10): para dar por viva una función no basta encontrar
+Estado: **F1 EN PRODUCCIÓN desde el 01/10/2026 (~19:55 Lima).** Miguel la publicó junto con el
+filtro por potencial de Leads (#165): release `crm-20261002T005155Z-4498582850b1`, commit
+`44985828`, build `build-20261002T005154879Z`; acta en `PUBLICACION-PENDIENTE-2026-09-30.md`.
+Comprobado el 02/10 a las 14:25 UTC: el texto exclusivo del receptor está en el sitio vivo.
+Falta la prueba real desde C1 con la macro en `{call_number}` y demo1234 (Jhosep).
+
+Historia: terminada en la rama `feat/llamadas-f0` y fusionada a `main` por Miguel (PR #148,
+30/09 21:41 UTC); al publicar la corrección de documentos, Miguel decidió «Solo documentos;
+mantener F1 pendiente» y el PR #151 retiró temporalmente su activación. La reactivó con su
+autorización el PR #160 (01/10). 🔑 Lección (01/10): para dar por viva una función no basta encontrar
 parte de su código en el bundle publicado; hay que comprobar su punto de entrada en el commit
 construido y leer la descripción del PR de publicación. F0 (piloto con el celular C1) sigue
 midiendo.
