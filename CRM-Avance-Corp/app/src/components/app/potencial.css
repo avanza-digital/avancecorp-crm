@@ -350,6 +350,66 @@ button[data-potencial='estrella'] > :not(.sr-only) {
   color: var(--muted-foreground-strong);
 }
 
+/* ── Leads: fila «Por potencial» (el número es el filtro) ─────────────────── */
+
+/* Misma pastilla que «Por etapa» (clases de la casa); aquí solo el color. Sin
+   elegir, el ícono lleva el color de su nivel; elegida, la pastilla se pinta
+   como la etiqueta de ese nivel en la lista. Los tres van con la tinta que da
+   contraste AA sobre su fondo (Frío blanco, Tibio y Estrella oscuro). */
+.pot-filtro-ico {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+
+.pot-filtro--frio:not([aria-pressed='true']) .pot-filtro-ico {
+  color: var(--pot-frio);
+}
+
+.pot-filtro--tibio:not([aria-pressed='true']) .pot-filtro-ico {
+  color: var(--pot-tibio);
+}
+
+.pot-filtro--estrella:not([aria-pressed='true']) .pot-filtro-ico {
+  color: var(--pot-oro);
+}
+
+.pot-filtro--frio[aria-pressed='true'] {
+  border-color: var(--pot-frio);
+  background: var(--pot-frio);
+  color: #fff;
+}
+
+.pot-filtro--tibio[aria-pressed='true'] {
+  border-color: var(--pot-tibio);
+  background: var(--pot-tibio);
+  color: var(--pot-tibio-tinta);
+}
+
+.pot-filtro--estrella[aria-pressed='true'] {
+  border-color: var(--pot-oro);
+  background: var(--pot-oro-solido);
+  color: var(--pot-oro-tinta);
+}
+
+.pot-filtro--sin_marca[aria-pressed='true'] {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+/* Cifra en cero: no se abre. Atenuada sin bajar de 4,5:1 (el «0» es un dato que
+   hay que poder leer) y sin reaccionar al mouse. */
+.pot-filtro--vacia,
+.pot-filtro--vacia:hover {
+  border-color: var(--border);
+  color: var(--muted-foreground);
+}
+
+.pot-filtro--vacia .pot-filtro-ico {
+  opacity: 0.5;
+}
+
 /* Chispas doradas al confirmar Estrella. */
 .pot-chispas {
   position: absolute;
@@ -474,6 +534,7 @@ button[data-potencial='estrella'] > :not(.sr-only) {
 /* ── Alto contraste de Windows: el nivel elegido se distingue sin colores ── */
 
 @media (forced-colors: active) {
+  .pot-filtro[aria-pressed='true'],
   .pot-seg[aria-pressed='true'] {
     forced-color-adjust: none;
     border-color: Highlight;
