@@ -207,7 +207,9 @@ begin
         'numero_contrato', (select ct.numero_contrato from public.contratos ct where ct.id = v_previa.contrato_id),
         'banco', (select cb.banco from crm.cuentas_bancarias cb where cb.id = v_previa.cuenta_bancaria_id),
         'moneda', (select cb.moneda from crm.cuentas_bancarias cb where cb.id = v_previa.cuenta_bancaria_id),
-        'ultimos', (select pg_catalog.right(cb.numero_cuenta, 4) from crm.cuentas_bancarias cb
+        'ultimos', (select case when pg_catalog.length(cb.numero_cuenta) >= 8
+                                then pg_catalog.right(cb.numero_cuenta, 4) end
+                    from crm.cuentas_bancarias cb
                     where cb.id = v_previa.cuenta_bancaria_id));
     end if;
     raise exception using errcode = '22023', message = 'Esta solicitud ya se usó con otros datos';
@@ -270,7 +272,9 @@ begin
   return pg_catalog.jsonb_build_object(
     'solicitud_id', p_solicitud_id, 'ya_aplicada', false,
     'numero_contrato', v_ct.numero_contrato, 'banco', v_cuenta.banco, 'moneda', v_cuenta.moneda,
-    'ultimos', pg_catalog.right(v_cuenta.numero_cuenta, 4));
+    -- Los 4 últimos solo de un número de 8 o más caracteres: nunca el número entero.
+    'ultimos', case when pg_catalog.length(v_cuenta.numero_cuenta) >= 8
+                    then pg_catalog.right(v_cuenta.numero_cuenta, 4) end);
 end;
 $function$;
 revoke all on function private.asignar_cuenta_pago_contrato_autorizado(uuid,uuid,uuid,text)
@@ -342,17 +346,34 @@ begin
       and t.tgqual is null and t.tgattr::text = ''
   ) or (select pg_catalog.count(*) from pg_catalog.pg_trigger t
         where t.tgrelid = 'crm.contrato_cuenta_pago_asignaciones'::regclass
-          and t.tgname in ('trg_contrato_cuenta_pago_asignaciones_00_no_borrar',
-                           'trg_contrato_cuenta_pago_asignaciones_00_inmutable',
-                           'trg_contrato_cuenta_pago_asignaciones_00_sin_vaciar')
-          and t.tgenabled = 'O') <> 3 then
+          and t.tgenabled = 'O' and t.tgqual is null and t.tgattr::text = ''
+          -- tgtype: fila 1 · antes 2 · borrar 8 · modificar 16 · vaciar 32
+          and (t.tgname, t.tgfoid, t.tgtype::integer) in (
+            ('trg_contrato_cuenta_pago_asignaciones_00_no_borrar',
+             'private.trg_registro_cuenta_pago_no_borrar()'::regprocedure::oid, 11),
+            ('trg_contrato_cuenta_pago_asignaciones_00_inmutable',
+             'private.trg_contrato_cuenta_pago_asignaciones_inmutable()'::regprocedure::oid, 19),
+            ('trg_contrato_cuenta_pago_asignaciones_00_sin_vaciar',
+             'private.trg_contrato_cuenta_pago_asignaciones_inmutable()'::regprocedure::oid, 34))) <> 3 then
     raise exception 'ASIGNAR POSTFLIGHT: la bitácora o los candados de la constancia no quedaron como se espera';
+  end if;
+  -- Las dos reglas de la tabla: el motivo y la solicitud única (de ella depende la idempotencia).
+  if not exists (
+       select 1 from pg_catalog.pg_constraint c
+       where c.conrelid = 'crm.contrato_cuenta_pago_asignaciones'::regclass and c.contype = 'c'
+         and c.conname = 'contrato_cuenta_pago_asignaciones_motivo_valido' and c.convalidated
+         and pg_catalog.pg_get_constraintdef(c.oid) like '%regexp_replace%')
+     or not exists (
+       select 1 from pg_catalog.pg_constraint c
+       where c.conrelid = 'crm.contrato_cuenta_pago_asignaciones'::regclass and c.contype = 'u'
+         and c.conname = 'contrato_cuenta_pago_asignaciones_solicitud_uq' and not c.condeferrable) then
+    raise exception 'ASIGNAR POSTFLIGHT: faltan las reglas de la constancia (motivo válido o solicitud única)';
   end if;
   -- Forma, cuerpo, EXECUTE exacto (rol NULL = solo su dueño), search_path vacío y comentario.
   for v_f in
     select * from (values
       ('private.trg_contrato_cuenta_pago_asignaciones_inmutable()', null, true, '49bb93b9429aa7b0c168cc8ceb43acfc'),
-      ('private.asignar_cuenta_pago_contrato_autorizado(uuid,uuid,uuid,text)', 'authenticated', true, 'c636b7394d82f9659cad78da2d3a301a'),
+      ('private.asignar_cuenta_pago_contrato_autorizado(uuid,uuid,uuid,text)', 'authenticated', true, '57297bc7f18279578c2f16f6aaad7247'),
       ('crm.asignar_cuenta_pago_contrato(uuid,uuid,uuid,text)', 'authenticated', false, '46e03517fc68ffd79fed6892d1128c2b')
     ) as f(firma, rol, definer, huella)
   loop
@@ -384,13 +405,20 @@ begin
   ) or pg_catalog.obj_description('crm.contrato_cuenta_pago_asignaciones'::regclass, 'pg_class') is null then
     raise exception 'ASIGNAR POSTFLIGHT: falta el comentario de la tabla o de alguna columna';
   end if;
-  perform pg_catalog.set_config('crm.asignar_cuenta_pago_resultado', 'ASIGNAR_CUENTA_PAGO_OK', false);
 end;
 $postflight$;
 
 notify pgrst, 'reload schema';
 commit;
 
--- El veredicto viaja como fila (el canal de `db query` no transporta los avisos) y solo existe si
--- la transacción de arriba se confirmó.
-select pg_catalog.current_setting('crm.asignar_cuenta_pago_resultado', true) as resultado;
+-- El veredicto viaja como fila (el canal de `db query` no transporta los avisos) y sale del
+-- estado real: el núcleo de ESTA migración está puesto y la puerta abierta para authenticated.
+select case
+         when (select pg_catalog.md5(p.prosrc) from pg_catalog.pg_proc p
+               where p.oid = pg_catalog.to_regprocedure('private.asignar_cuenta_pago_contrato_autorizado(uuid,uuid,uuid,text)'))
+              = '57297bc7f18279578c2f16f6aaad7247'
+          and exists (select 1 from pg_catalog.pg_proc p, pg_catalog.aclexplode(p.proacl) a
+                      where p.oid = pg_catalog.to_regprocedure('crm.asignar_cuenta_pago_contrato(uuid,uuid,uuid,text)')
+                        and a.privilege_type = 'EXECUTE' and a.grantee = 'authenticated'::regrole::oid)
+         then 'ASIGNAR_CUENTA_PAGO_OK'
+       end as resultado;

@@ -30,7 +30,8 @@
 --                 nuevas no existen, pero los vínculos de la carga SIGUEN (y se pueden pagar).
 --
 -- QUÉ CUBRE
---   T0  precondiciones: solo la siembra, sin restos, huellas del mundo y estado según el modo
+--   T0  precondiciones: solo la siembra, sin restos, huellas del mundo, estado según el modo, y que la
+--       prueba corre en READ COMMITTED (como entra producción, y lo exige la migración que inyecta un mutante)
 --   T1  censo por caso = lo sembrado; tras la carga una_cuenta = 0, ok sube en los vinculados, el resto igual
 --   T2  mensaje EXACTO (23514) de cada contrato bloqueado por UPDATE, INSERT y la RPC, como admin y operaciones
 --   T3  quién ve el detalle: conexión directa y service_role sí; revocada, analista, cliente y anon NUNCA;
@@ -45,6 +46,12 @@
 --   T8  propiedad: para CADA contrato, «el bloqueo deja pagar» ⇔ caso = ok
 --   T9  privacidad: ningún mensaje lleva número de cuenta, CCI, DNI, nombres ni identificadores
 --   T10 catálogo: el bloqueo conserva DEFINER, search_path, dueño y ACL; los disparadores, intactos
+--
+-- QUÉ NO CUBRE (va en ciclo.sh: hace falta más de una sesión, o más de una transacción)
+--   · el aislamiento: migración, reversas y vincular-rezago se niegan fuera de READ COMMITTED, y por qué
+--     hace falta (una segunda cuenta registrada a mitad de la carga; un pago a mitad de la reversa);
+--   · los pagos en vuelo frente a la carga, a reversa.sql y al ensayo (quién espera a quién);
+--   · el ensayo de producción en sus tres veredictos (PASA / INCOMPLETO / FALLA).
 --
 -- TRAMPAS DE ESTE BANCO (ver supabase/scripts/potencial-lead/banco/LEEME.md)
 --   · Llamar a una función SIN EXECUTE bajo «set role» tumba este Postgres: los permisos se leen del
@@ -377,6 +384,7 @@ begin
     (select r.rolsuper from pg_roles r where r.rolname = current_setting('rezago.conectado')), current_setting('rezago.conectado'));
   perform pg_temp.igual('T0 tras el «set session authorization», la sesión y el rol son postgres (la conexión directa)', 'postgres/postgres',
     session_user || '/' || current_user);
+  perform pg_temp.igual('T0 la prueba corre en READ COMMITTED', 'read committed', current_setting('transaction_isolation'));
   select format('%s contratos (%s sembrados), %s cuotas (%s sembradas y pendientes, %s pagada de antes), %s sellos, %s cambios de cuenta, %s cuentas, %s filas de conciliación, %s PDF',
     (select count(*) from public.contratos),
     (select count(*) from public.contratos c join esperado e on e.contrato_id = c.id),

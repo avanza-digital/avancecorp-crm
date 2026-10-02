@@ -1,10 +1,13 @@
 -- REVERSA de 20261002005004_crm_asignar_cuenta_pago.
 --   · Si NO hay ninguna asignación registrada y las piezas son las de la migración: deja todo
---     como antes (quita la puerta, el núcleo, el candado y la tabla de constancias, que está vacía).
+--     como antes (quita la puerta, el núcleo, el candado y la tabla de constancias, que está
+--     vacía) y borra su fila de supabase_migrations.schema_migrations, para que el registro no
+--     diga que está aplicada.
 --   · En cualquier otro caso NO borra nada: solo CIERRA la puerta (retira el permiso de
 --     ejecutar), para que nadie asigne más. Las constancias y los vínculos que crearon son
---     instrucciones de pago en uso. Cerrar es siempre seguro, por eso no exige que las piezas
---     sigan siendo las de la migración. Para reabrir: reabrir-puerta.sql.
+--     instrucciones de pago en uso, y la versión sigue registrada (sus piezas siguen ahí).
+--     Cerrar es siempre seguro, por eso no exige que las piezas sigan siendo las de la
+--     migración. Para reabrir: reabrir-puerta.sql.
 -- No toca ningún vínculo en ningún caso.
 -- Límite conocido: una asignación que ya había empezado cuando se lanza la reversa espera a que
 -- esta termine y luego se completa (el permiso se comprueba al entrar). Si el veredicto dice
@@ -39,7 +42,7 @@ begin
   v_intactas :=
     (select pg_catalog.md5(p.prosrc) from pg_catalog.pg_proc p
      where p.oid = 'private.asignar_cuenta_pago_contrato_autorizado(uuid,uuid,uuid,text)'::regprocedure)
-      = 'c636b7394d82f9659cad78da2d3a301a'
+      = '57297bc7f18279578c2f16f6aaad7247'
     and (select pg_catalog.md5(p.prosrc) from pg_catalog.pg_proc p
          where p.oid = 'crm.asignar_cuenta_pago_contrato(uuid,uuid,uuid,text)'::regprocedure)
       = '46e03517fc68ffd79fed6892d1128c2b'
@@ -58,8 +61,12 @@ begin
        or pg_catalog.to_regprocedure('private.trg_contrato_cuenta_pago_asignaciones_inmutable()') is not null then
       raise exception 'REVERSA ASIGNAR: quedó alguna pieza de la migración';
     end if;
+    -- Ya no está aplicada: que el registro de versiones tampoco lo diga.
+    if pg_catalog.to_regclass('supabase_migrations.schema_migrations') is not null then
+      execute 'delete from supabase_migrations.schema_migrations where version = ''20261002005004''';
+    end if;
     perform pg_catalog.set_config('crm.reversa_asignar_resultado',
-      'RETIRADA: sin asignaciones registradas; se quitaron la puerta, el núcleo, el candado y la tabla', false);
+      'RETIRADA: sin asignaciones registradas; se quitaron la puerta, el núcleo, el candado, la tabla y el registro de la versión', false);
   else
     execute 'revoke all on function crm.asignar_cuenta_pago_contrato(uuid,uuid,uuid,text) from public, anon, authenticated, service_role';
     execute 'revoke all on function private.asignar_cuenta_pago_contrato_autorizado(uuid,uuid,uuid,text) from public, anon, authenticated, service_role';
@@ -77,5 +84,6 @@ $reversa$;
 notify pgrst, 'reload schema';
 commit;
 
--- El veredicto viaja como fila.
+-- El veredicto viaja como fila. (Si este archivo se relanza en la MISMA sesión y se niega, esta
+-- fila repetiría el veredicto anterior: se lanza con `db query --file`, una sesión por archivo.)
 select pg_catalog.current_setting('crm.reversa_asignar_resultado', true) as resultado;
