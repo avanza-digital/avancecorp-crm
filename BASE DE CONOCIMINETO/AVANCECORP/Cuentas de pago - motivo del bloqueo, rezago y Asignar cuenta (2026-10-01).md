@@ -35,6 +35,13 @@ puntos de «Pendiente de decidir». Guías: `CRM-Avance-Corp/supabase/scripts/cu
    `enfriado_hasta`/`reactivado_en` de B1, que no están en producción); typecheck PASS. Portal:
    `cuentas-pago-20261001` → `main` del portal por fast-forward.
 8. NOT RUN hoy: matriz HTTP `test-rls.mjs`, advisors de Supabase, E2E (no cambió código de la app del CRM).
+9. GitHub (02/10 ~11:00): `main` de GitHub tenía 26 commits (PR #132–#166) que el tronco local no contenía; se
+   integraron en el worktree (7 conflictos: notas del vault con la versión local; `renderer.test.ts` con la de
+   #154; `Inicio.md`, `test-rls.mjs` y el ledger unidos; submódulo en `407ab46`), con typecheck, vitest 5.592 y
+   deno 84/84 PASS. El push directo a `main` lo rechazan las reglas del repo (sin merge commits, solo por PR,
+   check `verify`), así que va por la **PR #167**. El `main` LOCAL quedó en `759aa310` (contiene lo publicado hoy
+   pero no las PR de GitHub): el fast-forward a `da8a41b3` choca con trabajo sin commitear de otras sesiones
+   (19 archivos de la app distintos de lo fusionado + 6 nuevos); se hará cuando esas sesiones commiteen.
 
 ## Tablero en Figma (seguimiento)
 
