@@ -13536,6 +13536,19 @@ async function testIdentidadMultiempresa(sessions, seed) {
     await positive('#5 gerencia CON motivo levanta',
       sessions.gerencia.client.schema('crm').rpc('levantar_no_contactar', { p_lead_id: IDS_IDENTIDAD.veto, p_motivo: 'cliente pidió reactivar' }));
     if (cuenta('veto levantado', `select count(*) from crm.inversionistas where id in ${idsPorDoc(DOCS_IDENTIDAD.veto)} and not no_contactar`) !== 1) fail('#5: gerencia no pudo levantar el veto');
+    // B2 · Base para gestión (20261002061500, D5): Supervisión levanta dentro de su equipo; fuera, P0002; otros roles 42501.
+    await positive('#5 B2 re-marcar para probar Supervisión',
+      sessions.vend1.client.schema('crm').rpc('marcar_no_contactar', { p_lead_id: IDS_IDENTIDAD.veto, p_motivo: 'supervision' }));
+    await expectExpectedFailure('#5 B2 sup2 (otro equipo) no levanta → P0002 (no revela el lead)',
+      sessions.sup2.client.schema('crm').rpc('levantar_no_contactar', { p_lead_id: IDS_IDENTIDAD.veto, p_motivo: 'ajeno' }), ['P0002'], /fuera de tu [aá]mbito/i);
+    await expectExpectedFailure('#5 B2 coordinador no levanta → 42501',
+      sessions.coordinador.client.schema('crm').rpc('levantar_no_contactar', { p_lead_id: IDS_IDENTIDAD.veto, p_motivo: 'coordina' }), ['42501'], /Gerencia o Supervisi/i);
+    await expectExpectedFailure('#5 B2 sup1 sin motivo → 22023',
+      sessions.sup1.client.schema('crm').rpc('levantar_no_contactar', { p_lead_id: IDS_IDENTIDAD.veto, p_motivo: ' ' }), ['22023'], /motivo/i);
+    await positive('#5 B2 sup1 (su equipo) levanta CON motivo',
+      sessions.sup1.client.schema('crm').rpc('levantar_no_contactar', { p_lead_id: IDS_IDENTIDAD.veto, p_motivo: 'cliente pidió volver (supervisión)' }));
+    if (cuenta('veto levantado por supervisión', `select count(*) from crm.inversionistas where id in ${idsPorDoc(DOCS_IDENTIDAD.veto)} and not no_contactar`) !== 1) fail('#5 B2: supervisión no pudo levantar el veto de su equipo');
+    if (cuenta('historial por Supervisión', `select count(*) from crm.actividades where lead_id = '${IDS_IDENTIDAD.veto}' and detalle = 'Levantado No contactar por Supervisión' and metadata->>'rol' = 'supervisor'`) !== 1) fail('#5 B2: el historial no dice «por Supervisión» con rol');
     // herencia al INSERT: se vuelve a vetar y un lead NUEVO del mismo documento nace vetado
     await positive('#5 re-marcar para probar herencia',
       sessions.vend1.client.schema('crm').rpc('marcar_no_contactar', { p_lead_id: IDS_IDENTIDAD.veto, p_motivo: 'herencia' }));

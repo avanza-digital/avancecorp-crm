@@ -1,7 +1,7 @@
 # ESTADO del módulo «Base para gestión del analista»
 
-**Última sesión:** 02/10/2026 (madrugada) · **Fase en curso:** B1 (esquema) — lista en local, falta la rama y el merge.
-**Bloqueo:** el conector «claude.ai Supabase» no estaba cargado; Miguel lo conecta con `/mcp` o lanza el ciclo con `!`.
+**Última sesión:** 02/10/2026 · **Fase en curso:** B2 (permisos) — migración escrita y probada en banco; auditor-rls y Codex (B1+B2) lanzados, resultados pendientes de leer. **PAUSADO por Miguel.**
+**Bloqueos:** (1) el conector «claude.ai Supabase» no está cargado (B1 y B2 esperan la rama); (2) **D7-bis pendiente de Miguel:** el CRM no admite tareas nuevas en un lead cerrado (`trg_tareas_before_insert`: «El lead está cerrado»), así que la rellamada de la base NO puede ser una tarea. Opciones: (a) tocar ese trigger del núcleo SLA bajo un GUC; (b) columna sellada `crm.leads.proxima_llamada_en` + misma fecha en la metadata del intento, CHECK exige `proxima_llamada_en` en `volver_a_llamar` (migración B1b). Recomendación: (b).
 **Nada en producción. Último commit del módulo:** `4cbd3806` (02/10, main local, sin push). Siguientes: `git log --oneline -- "BASE PARA GESTION"`.
 
 | Fase | Estado | Evidencia / siguiente paso |
@@ -9,8 +9,8 @@
 | F0 Reconocimiento | ☑ 01/10, re-verificado 02/10 | Nota del vault; 2 choques nuevos (D9 `origen` inmutable, D10 puerta v4 rechaza descartados) |
 | D1–D10 Decisiones | ☑ 02/10 | Tabla en `README.md`; marcadas en FigJam |
 | **B1 Esquema** | **◉ local listo** | Migración `20261002054402`, banco PASS (aplicar + 5 negativos, test 12/12, reversa-y-reaplicar), `auditor-rls` con P1/P2 corregidos, typecheck/check:scripts/rls-preflight PASS. **Siguiente:** rama → aplicar → `test-rls.mjs` (`CRM_RLS_EXIGE_BASE_GESTION=1`) → advisors (y EXPLAIN con datos reales: ¿hace falta índice parcial `where etapa='descartado'`?) → merge |
-| B2 RLS / ámbito | ☐ | Plan corto para Miguel. Previsto: RLS sin cambios para el analista; acceso a la base por RPC DEFINER con gate por rol (vendedor/supervisor/gerencia) y `vendedor_ids_visibles`; ampliar `levantar_no_contactar` al supervisor (D5; no está sellada). Codex B1+B2 |
-| B3 Puertas | ☐ | `crm.obtener_base_gestion()`, `crm.registrar_intento_base(...)` + núcleo nuevo (2 GUC), `crm.reactivar_lead_base(...)` sobre `reabrir_lead_fn` + avance a `contactado` (D1), reuso de `marcar_no_contactar`/`levantar_no_contactar`. Probar con analista y supervisor en la rama |
+| B2 Permisos | ◉ local listo | **Sin migración de RLS**: la RLS vigente ya limita al analista a sus leads/actividades/tareas (demostrado con `b2-rls.sql`, 20/20 PASS bajo rol con impersonación). **Migración `20261002061500`** (D5): `levantar_no_contactar` para Gerencia o Supervisión en su ámbito (todos los leads de la persona en su equipo; si no, 42501 «pídelo a Gerencia»); historial con rol. Banco: `fixtures-b2`, `aplicar-b2`, `reversa-y-reaplicar-b2` PASS; `paridad-acl` copia la ACL del stack local (correr ANTES de aplicar). `test-rls.mjs`: 7 casos nuevos (#5 B2). check:scripts y rls-preflight PASS. **Pendiente:** leer auditor-rls B2 y Codex B1+B2 (`docs/encargos/2026-10-02-codex-base-gestion-b1-b2.md`), aplicar hallazgos, rama → test-rls → advisors → merge |
+| B3 Puertas | ☐ | **Primero resolver D7-bis (rellamada).** `crm.obtener_base_gestion()`, `crm.registrar_intento_base(...)` + núcleo nuevo (2 GUC), `crm.reactivar_lead_base(...)` sobre `reabrir_lead_fn` + avance a `contactado` (D1), reuso de `marcar_no_contactar`/`levantar_no_contactar`. Probar con analista y supervisor en la rama |
 | B4 Triggers | ☐ | Trigger AFTER INSERT en `actividades` (evento `intento_base`): 3.º intento sin cita/reactivación → `enfriado_hasta = hoy Lima + 30` (GUC del sello). SLA ya se reinicia al reabrir: verificar simulando fechas. Codex B3+B4 |
 | merge de Miguel | ☐ | Tras B4 |
 | F1 Vista analista | ☐ | `#/rescate` despacha por rol (como `gestion-diaria`); analista → lista plana por `obtener_base_gestion()` |

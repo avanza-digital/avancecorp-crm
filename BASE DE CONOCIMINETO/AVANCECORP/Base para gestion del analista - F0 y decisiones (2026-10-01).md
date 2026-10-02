@@ -1,7 +1,7 @@
 ---
 tags: [crm, base-para-gestion, rescate, analista, f0, decision, figma]
 fecha: 2026-10-01
-estado: F0 ☑ · D1–D10 ☑ (02/10) · B1 escrita, auditada y ensayada en banco (02/10) · falta rama + merge · nada en producción
+estado: F0 ☑ · D1–D10 ☑ · B1 y B2 escritas y ensayadas en banco (02/10) · auditor/Codex de B2 pendientes · D7-bis pendiente · falta rama + merge · nada en producción
 ---
 
 # Base para gestión del analista — F0 y decisiones (01/10/2026)
@@ -226,3 +226,18 @@ sigue habiendo un único escritor (esta sesión como PRIMARY).
   restaurando el valor previo. `reabrir_lead_fn` no tiene idempotencia: la reactivación añade la suya (recibos).
 - **Manual (Miguel):** conectar «claude.ai Supabase» con `/mcp` (o lanzar con `!`) para: rama → aplicar → `test-rls.mjs`
   con `CRM_RLS_EXIGE_BASE_GESTION=1` → advisors → merge. Nada se ha commiteado todavía.
+
+## B2 · Permisos — HECHO en local y ensayado (02/10/2026); PAUSADO esperando auditor-rls, Codex y D7-bis
+
+- **Sin migración de RLS:** las políticas vigentes ya limitan al analista a sus leads, actividades y tareas
+  (`vendedor_ids_visibles` = solo él). Demostrado en el banco con `b2-rls.sql` (20/20) bajo rol `authenticated` e
+  impersonación (ambas formas del claim). Banco con la ACL de producción copiada del stack local (`paridad-acl`).
+- **Migración `20261002061500_crm_base_gestion_no_contactar_supervisor.sql` (D5):** `levantar_no_contactar` para Gerencia o
+  Supervisión en su ámbito; regla «todos los leads de la persona en su equipo» (si no, 42501 «pídelo a Gerencia»); historial
+  con rol. Reversa byte a byte. 7 casos nuevos en `test-rls.mjs`.
+- **D7-bis (nuevo, pendiente de Miguel):** `trg_tareas_before_insert` dice «El lead está cerrado: no admite tareas nuevas» y
+  `trg_leads_zz_sync_tareas` cancela las pendientes al descartar: la rellamada de la base NO puede vivir en `crm.tareas`.
+  Recomendación: columna sellada `crm.leads.proxima_llamada_en` (+ fecha en la metadata del intento; el CHECK pasa a exigirla
+  en `volver_a_llamar`), sin tocar el núcleo SLA ni la cola diaria.
+- **Pendiente:** leer el informe del auditor-rls de B2 y el de Codex (B1+B2, encargo versionado en
+  `CRM-Avance-Corp/docs/encargos/2026-10-02-codex-base-gestion-b1-b2.md`), aplicar hallazgos, rama → test-rls → advisors → merge.

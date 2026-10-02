@@ -14752,3 +14752,23 @@ previo. Reensayo tras los cambios: `reversa-y-reaplicar` PASS, `test` 12/12, `no
 `test:rls:preflight` (entorno ficticio de CI) PASS, `check:scripts` PASS, `typecheck` PASS.
 **Ciclo pendiente:** rama de Supabase (conector «claude.ai Supabase») → aplicar → `test-rls.mjs` →
 advisors → merge de Miguel. Siguen B2 (RLS/ámbito por RPC), B3 (puertas), B4 (trigger de enfriamiento).
+
+## 20261002061500 — Base para gestión del analista · B2 permisos (D5: Supervisión levanta «no contactar»)
+
+**⏳ PENDIENTE DE RAMA (02/10/2026).** Ensayada en el banco `base_gestion_20261002` con la ACL de producción
+copiada del stack local (`banco.mjs paridad-acl`): aplicar OK (postflight con negativos de analista y de
+Supervisión fuera de ámbito), `reversa-y-reaplicar-b2` PASS, `b2-rls.sql` 20/20 PASS (impersonación bajo
+`authenticated`: analista propio permitido / ajeno denegado, sello 42501, reasignar y reabrir bloqueados,
+Supervisión en su equipo OK, fuera P0002, Gerencia OK, historial con rol). Plan B2 confirmado por Miguel el 02/10.
+**Qué.** `crm.levantar_no_contactar(uuid,text)` sale del texto vivo (20260906160000, md5 prosrc 3840a73f…) por
+sustituciones exactas: gate `v_rol in ('supervisor','gerencia')` (NULL rechaza); ámbito de Supervisión ANTES de la
+identidad y los candados (espejo de `leads_select` sin gerencia → P0002 «no encontrado o fuera de tu ámbito»),
+revalidado bajo candado y exigido para TODOS los leads de la persona (`v_leads`) → 42501 «La persona tiene leads
+fuera de tu equipo: pídelo a Gerencia»; actividad «por Gerencia|Supervisión» con `rol`. Identidad, candados, 40001 y
+escritura bajo `crm.op_privilegiada` byte a byte. ACL reafirmada (EXECUTE solo authenticated). No está sellada por
+ningún `private.assert_*`. **Sin migración de RLS:** la RLS vigente ya cumple el B2 del encargo para el analista.
+**Reversa:** `supabase/scripts/base-gestion/reversa-no-contactar-supervisor.sql` (texto vivo byte a byte).
+**Hallazgo para B3 (D7-bis, decisión pendiente de Miguel):** `trg_tareas_before_insert` prohíbe tareas nuevas en
+leads cerrados → la rellamada de la base no puede ser una tarea; se propone columna sellada
+`crm.leads.proxima_llamada_en` (B1b). **Pendiente:** auditor-rls B2 y Codex B1+B2
+(`docs/encargos/2026-10-02-codex-base-gestion-b1-b2.md`), rama → `test-rls.mjs` → advisors → merge.
