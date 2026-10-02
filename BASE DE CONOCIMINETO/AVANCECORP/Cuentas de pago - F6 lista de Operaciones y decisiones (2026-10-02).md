@@ -46,6 +46,12 @@ otra moneda (pedir una en la moneda del contrato), 2 sin ninguna cuenta (pedir u
   contrato) y después «Asignar cuenta». La asignación no avisa al cliente ni registra pagos.
 - Si se asigna mal: «Cambiar cuenta de pago» (con correo del cliente). No hay deshacer.
 
+## GitHub
+
+PR #168 fusionada en squash el 02/10 (~12:35): `main` de GitHub `251f2b21`, mismo árbol que la rama
+`crm/cuentas-pago-rezago-20261001`. El `main` LOCAL del taller sigue en `759aa310` hasta que las otras sesiones
+commiteen su trabajo (entonces: `git merge --ff-only crm/cuentas-pago-rezago-20261001`).
+
 ## Qué queda
 
 - ✅ Portal publicado 02/10 ~11:40 (`f69e190`, `pagos.js v47`, SW v139): 9/9 lecturas idénticas, `pagos.html` pide v47;
