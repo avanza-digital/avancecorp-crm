@@ -4681,6 +4681,29 @@ async function testContractBankAccounts(sessions, seed) {
     assertSeed(typeof actor.rol === 'string',
       `falta el rol original del actor bancario ${actor.id}`);
   }
+  // 20261001233019 (motivo del bloqueo de pagos) y 20261002005004 (asignar la cuenta de pago).
+  // Si la base aún no tiene una de las dos (suite corrida sin estas migraciones, p. ej. otra
+  // sesión en su banco), sus sondas se SALTAN — pero RUIDOSO: un salto silencioso pintaría de
+  // verde lo no probado. Con CRM_RLS_EXIGE_CUENTAS_PAGO=1 el salto es un FALLO. vend1 nunca pasa
+  // la compuerta: la sonda de despliegue no puede escribir.
+  const SOLICITUD_ASIGNAR_GATE = '00000000-0000-4000-8000-0000000a51a0';
+  async function puertaCuentasPagoDesplegada(fn, args) {
+    const probe = await sessions.vend1.client.schema('crm').rpc(fn, args);
+    if (probe.error?.code !== 'PGRST202') return true;
+    const msg = `⚠ ${fn} NO desplegada en esta base: sus sondas se SALTAN (no probado)`;
+    if (process.env.CRM_RLS_EXIGE_CUENTAS_PAGO === '1') fail(msg);
+    else console.log(`  ${msg}`);
+    return false;
+  }
+  const motivosDesplegada = await puertaCuentasPagoDesplegada('cuentas_pago_motivos_fn', {
+    p_contrato_ids: [],
+  });
+  const asignarDesplegada = await puertaCuentasPagoDesplegada('asignar_cuenta_pago_contrato', {
+    p_solicitud_id: SOLICITUD_ASIGNAR_GATE,
+    p_contrato_id: seed.legacyContract.id,
+    p_cuenta_id: seed.bankAccount.id,
+    p_motivo: 'Motivo de prueba del gate',
+  });
   const expectedProfileAccount = {
     banco: BANK_CLIENT.bank,
     tipo_cuenta: BANK_CLIENT.accountType,
@@ -4778,7 +4801,31 @@ async function testContractBankAccounts(sessions, seed) {
       ['42501'],
       /no autorizado para consultar cuentas de pago/i,
     );
+    if (motivosDesplegada) {
+      await expectExpectedFailure(
+        `${label}: no lee el motivo del bloqueo de pagos`,
+        sessions.vend1.client.schema('crm').rpc('cuentas_pago_motivos_fn', {
+          p_contrato_ids: [seed.legacyContract.id],
+        }),
+        ['42501'],
+        /no autorizado para consultar cuentas de pago/i,
+      );
+    }
+    if (asignarDesplegada) {
+      await expectExpectedFailure(
+        `${label}: no asigna la cuenta de pago de un contrato`,
+        sessions.vend1.client.schema('crm').rpc('asignar_cuenta_pago_contrato', {
+          p_solicitud_id: SOLICITUD_ASIGNAR_GATE,
+          p_contrato_id: seed.legacyContract.id,
+          p_cuenta_id: seed.bankAccount.id,
+          p_motivo: 'Motivo de prueba del gate',
+        }),
+        ['42501'],
+        /solo administración puede asignar la cuenta de pago/i,
+      );
+    }
   }
+
 
   async function assertAdminBankRead(client, label) {
     const listed = await positive(
@@ -4808,6 +4855,67 @@ async function testContractBankAccounts(sessions, seed) {
         ),
       `${label}: Pagos recibe la fotografia contractual esperada`,
     );
+
+    if (motivosDesplegada) {
+      // 20261001233019: el motivo del bloqueo solo viene para los contratos que
+      // NO se pueden pagar, redactado para la persona y sin datos bancarios.
+      const CASOS_SIN_PAGO = ['una_cuenta', 'varias_cuentas', 'otra_moneda', 'sin_cuenta', 'cuenta_no_corresponde'];
+      const motivos = await positive(
+        `${label}: lee el motivo del bloqueo de pagos`,
+        client.schema('crm').rpc('cuentas_pago_motivos_fn', {
+          p_contrato_ids: [seed.contract.id, seed.legacyContract.id],
+        }),
+      );
+      const filasMotivo = Array.isArray(motivos?.data) ? motivos.data : [];
+      check(
+        !filasMotivo.some((row) => row.contrato_id === seed.contract.id),
+        `${label}: un contrato con cuenta de pago no trae motivo`,
+      );
+      const motivoLegacy = filasMotivo.filter((row) => row.contrato_id === seed.legacyContract.id);
+      check(
+        motivoLegacy.length === 1
+          && CASOS_SIN_PAGO.includes(motivoLegacy[0].caso)
+          && typeof motivoLegacy[0].mensaje === 'string'
+          && motivoLegacy[0].mensaje.includes('cuenta de pago'),
+        `${label}: el contrato legacy sin enlace trae su caso y su motivo`,
+      );
+      check(
+        motivoLegacy.every((row) => !row.mensaje.includes(BANK_CLIENT.cci)),
+        `${label}: el motivo no expone el CCI del cliente`,
+      );
+      const sinIds = await positive(
+        `${label}: sin contratos pedidos no hay motivos`,
+        client.schema('crm').rpc('cuentas_pago_motivos_fn', { p_contrato_ids: [] }),
+      );
+      check(
+        Array.isArray(sinIds?.data) && sinIds.data.length === 0,
+        `${label}: la puerta de motivos nunca clasifica todos los contratos`,
+      );
+      await expectExpectedFailure(
+        `${label}: la puerta de motivos rechaza más de 5000 contratos`,
+        client.schema('crm').rpc('cuentas_pago_motivos_fn', {
+          p_contrato_ids: Array.from({ length: 5001 }, () => seed.contract.id),
+        }),
+        ['22023'],
+        /demasiados contratos en una sola consulta/i,
+      );
+    }
+    // 20261002005004: administración PASA la compuerta de la asignación (llega a la validación
+    // del motivo) sin escribir nada: el contrato legacy tiene que seguir sin enlace para el
+    // resto del gate.
+    if (asignarDesplegada) {
+      await expectExpectedFailure(
+        `${label}: la asignación de cuenta de pago llega al núcleo y exige el motivo`,
+        client.schema('crm').rpc('asignar_cuenta_pago_contrato', {
+          p_solicitud_id: SOLICITUD_ASIGNAR_GATE,
+          p_contrato_id: seed.legacyContract.id,
+          p_cuenta_id: seed.bankAccount.id,
+          p_motivo: '   ',
+        }),
+        ['22023'],
+        /escribe el motivo de la asignación/i,
+      );
+    }
   }
 
   // El fixture principal usa el rol portal neutro `comercial` para probar que el
@@ -5033,6 +5141,29 @@ async function testContractBankAccounts(sessions, seed) {
       ['42501'],
       /no autorizado para consultar cuentas de pago/i,
     );
+    if (motivosDesplegada) {
+      await expectExpectedFailure(
+        'admin con membresia CRM revocada: la revocacion prevalece sobre el motivo del bloqueo',
+        sessions.directorio.client.schema('crm').rpc('cuentas_pago_motivos_fn', {
+          p_contrato_ids: [seed.legacyContract.id],
+        }),
+        ['42501'],
+        /no autorizado para consultar cuentas de pago/i,
+      );
+    }
+    if (asignarDesplegada) {
+      await expectExpectedFailure(
+        'admin con membresia CRM revocada: no asigna la cuenta de pago de un contrato',
+        sessions.directorio.client.schema('crm').rpc('asignar_cuenta_pago_contrato', {
+          p_solicitud_id: SOLICITUD_ASIGNAR_GATE,
+          p_contrato_id: seed.legacyContract.id,
+          p_cuenta_id: seed.bankAccount.id,
+          p_motivo: 'Motivo de prueba del gate',
+        }),
+        ['42501'],
+        /solo administración puede asignar la cuenta de pago/i,
+      );
+    }
     // P04 sobre la CORRECCION de contratos por la via admin del Portal
     // (20260809003923). El alta ya estaba gateada para todo actor desde el
     // catalogo; corregir no lo estaba: la rama admin de public.actualizar_contrato
@@ -5170,6 +5301,29 @@ async function testContractBankAccounts(sessions, seed) {
       ['42501'],
       /no autorizado para consultar cuentas de pago/i,
     );
+    if (motivosDesplegada) {
+      await expectExpectedFailure(
+        'admin sin membresia con perfil APAGADO: no lee el motivo del bloqueo de pagos',
+        sessions.directorio.client.schema('crm').rpc('cuentas_pago_motivos_fn', {
+          p_contrato_ids: [seed.legacyContract.id],
+        }),
+        ['42501'],
+        /no autorizado para consultar cuentas de pago/i,
+      );
+    }
+    if (asignarDesplegada) {
+      await expectExpectedFailure(
+        'admin sin membresia con perfil APAGADO: no asigna la cuenta de pago de un contrato',
+        sessions.directorio.client.schema('crm').rpc('asignar_cuenta_pago_contrato', {
+          p_solicitud_id: SOLICITUD_ASIGNAR_GATE,
+          p_contrato_id: seed.legacyContract.id,
+          p_cuenta_id: seed.bankAccount.id,
+          p_motivo: 'Motivo de prueba del gate',
+        }),
+        ['42501'],
+        /solo administración puede asignar la cuenta de pago/i,
+      );
+    }
     await requireAdmin(
       'banca P04: reactivar el perfil portal de directorio',
       admin.from('perfiles').update({ activo: true }).eq('id', directorProfileId),
@@ -5741,6 +5895,35 @@ async function testContractBankAccounts(sessions, seed) {
         `${key} no usa el resolver de cuentas reservado al administrador`,
         sessions[key].client.schema('crm').rpc('cuentas_pago_contratos_fn', {
           p_contrato_ids: [seed.contract.id],
+        }),
+      );
+      if (motivosDesplegada) {
+        await expectExplicitAuthorizationDenied(
+          `${key} no lee el motivo del bloqueo de pagos reservado al gestor de cartera`,
+          sessions[key].client.schema('crm').rpc('cuentas_pago_motivos_fn', {
+            p_contrato_ids: [seed.legacyContract.id],
+          }),
+        );
+      }
+    }
+    // El propio cliente del contrato tampoco: el motivo cuenta cuántas cuentas tiene y en qué moneda.
+    if (motivosDesplegada) {
+      await expectExplicitAuthorizationDenied(
+        'clientBank no lee el motivo del bloqueo de pagos de su propio contrato',
+        sessions.clientBank.client.schema('crm').rpc('cuentas_pago_motivos_fn', {
+          p_contrato_ids: [seed.legacyContract.id],
+        }),
+      );
+    }
+    // Ni el analista, ni un rol global, ni el propio cliente deciden a qué cuenta se le paga.
+    for (const key of asignarDesplegada ? ['vend1', 'directorio', 'clientBank'] : []) {
+      await expectExplicitAuthorizationDenied(
+        `${key} no asigna la cuenta de pago de un contrato`,
+        sessions[key].client.schema('crm').rpc('asignar_cuenta_pago_contrato', {
+          p_solicitud_id: SOLICITUD_ASIGNAR_GATE,
+          p_contrato_id: seed.legacyContract.id,
+          p_cuenta_id: seed.bankAccount.id,
+          p_motivo: 'Motivo de prueba del gate',
         }),
       );
     }
@@ -14611,6 +14794,23 @@ async function testAnon(seed) {
     'anon no resuelve cuentas contractuales para Pagos',
     anon.schema('crm').rpc('cuentas_pago_contratos_fn', {
       p_contrato_ids: [seed.contract.id],
+    }),
+    ['PGRST202'],
+  );
+  await expectExplicitAuthorizationDenied(
+    'anon no lee el motivo del bloqueo de pagos',
+    anon.schema('crm').rpc('cuentas_pago_motivos_fn', {
+      p_contrato_ids: [seed.legacyContract.id],
+    }),
+    ['PGRST202'],
+  );
+  await expectExplicitAuthorizationDenied(
+    'anon no asigna la cuenta de pago de un contrato',
+    anon.schema('crm').rpc('asignar_cuenta_pago_contrato', {
+      p_solicitud_id: '00000000-0000-4000-8000-0000000a51a0',
+      p_contrato_id: seed.legacyContract.id,
+      p_cuenta_id: seed.bankAccount.id,
+      p_motivo: 'Motivo de prueba del gate',
     }),
     ['PGRST202'],
   );

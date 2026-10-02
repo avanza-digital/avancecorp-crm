@@ -1,3 +1,139 @@
+## 20261002005004 — Asignar la cuenta de pago a un contrato que no tiene ninguna (`crm.asignar_cuenta_pago_contrato`)
+
+**PREPARADA. NO APLICADA EN PRODUCCIÓN.** OK de Miguel, 01/10/2026 ~20:40 Lima: «solo quiero que
+pueda marcar los pagos… hagamos eso» y «no hace falta correo solo motivo sii» (botón «Asignar
+cuenta» en Pagos; solo administración; motivo obligatorio; sin adjunto). El OK cubre lo que roza
+`public`: el núcleo LEE y bloquea `FOR SHARE` la fila de `public.contratos`; no se crean ni cambian
+triggers, políticas ni tablas de `public`.
+
+Qué hace: tabla `crm.contrato_cuenta_pago_asignaciones` (constancia inmutable: solicitud, contrato,
+cliente, cuenta, vínculo, motivo, quién y cuándo; sin claves foráneas, RLS sin políticas, sin
+permisos para la API, no se borra ni se modifica, con bitácora) y la operación
+`crm.asignar_cuenta_pago_contrato(uuid, uuid, uuid, text)` (puerta INVOKER) →
+`private.asignar_cuenta_pago_contrato_autorizado` (núcleo DEFINER): PRIMERA cuenta de pago de un
+contrato abierto que no tiene ninguna, con una cuenta vigente del mismo cliente y moneda; solo
+admin o superadmin vigente (`private.admin_banca_vigente`); idempotente por solicitud; el vínculo
+queda con `creado_por` = quien asigna. Candados en el orden de F3: cuenta → contrato → vínculo;
+dos asignaciones a la vez las resuelve la unicidad del vínculo por contrato.
+
+Por qué una operación nueva y no ampliar F3: el historial de cambios
+(`crm.contrato_cuenta_pago_cambios`) exige cuenta anterior, respaldo del cliente y dispara un
+aviso; una primera asignación no es un cambio pedido por el cliente. No sella cuotas ya pagadas,
+no avisa al cliente y no cambia una cuenta ya asignada. Independiente de `20261001233019`.
+
+EXECUTE: puerta y núcleo, solo `authenticated`; el candado, nadie. `search_path` vacío; huellas de
+los tres cuerpos selladas en el postflight; ancla por md5 la compuerta de F3 y los candados del
+vínculo de los que depende. La constancia no se modifica, no se borra y no se vacía (TRUNCATE).
+Devuelve contrato, banco, moneda y los 4 últimos caracteres de la cuenta (nunca el número entero).
+
+Excepciones y límites anotados: (a) la tabla no lleva `negocio_id` ni `updated_at`, como las
+constancias de F3 y F4 del mismo módulo; (b) el motivo queda en claro en `public.audit_log`, igual
+que los de F3 y F4 (la pantalla pide no escribir números de cuenta, CCI ni documentos); (c) no hay
+todavía pantalla que LEA la constancia; (d) una asignación equivocada solo se corrige con «Cambiar
+cuenta de pago» (F3: correo del cliente y aviso); (e) como en la carga, si después se corrige la
+FECHA de una cuota pagada antes de asignar, el sello de F5 la marca «inferido» en la cuenta
+asignada; (f) con esta migración aplicada, la reversa de F3 se niega (comparte su candado «no se
+borra»); (g) `service_role` conserva el INSERT directo previo sobre el vínculo (20260803221622).
+
+Reversión: `supabase/scripts/cuentas-pago-asignar/reversa.sql` (sin asignaciones registradas retira
+todo; con asignaciones no borra nada y solo retira el EXECUTE). Guía en
+`supabase/scripts/cuentas-pago-asignar/LEEME.md`. El portal (botón en Pagos) se publica DESPUÉS.
+
+Verificación: se completa con el ciclo del banco y las revisiones (auditor-rls y Codex).
+
+## 20261001233019 — Cuentas de pago: el bloqueo dice por qué, diagnóstico y carga del rezago (`crm.cuentas_pago_motivos_fn`)
+
+**PREPARADA. NO APLICADA EN PRODUCCIÓN. Ensayo de producción PENDIENTE (lo lanza Miguel).**
+OK de Miguel, 01/10/2026 ~18:30 Lima: «dale» al plan por fases (censo → servidor → ensayo →
+portal), con los contratos de dos cuentas bloqueados hasta que Operaciones confirme. El OK cubre
+lo que roza `public`: la carga LEE y bloquea `FOR SHARE` filas de `public.contratos`, y cambia el
+TEXTO con que responden los dos triggers `trg_cronograma_pagos_10_exigir_cuenta_pago_*` de
+`public.cronograma_pagos` (no se crean, borran ni renombran triggers, tablas ni policies).
+
+Qué hace: (1) `private.cuenta_pago_diagnostico(uuid[])`, la regla única que clasifica cada
+contrato (`ok`, `una_cuenta`, `varias_cuentas`, `otra_moneda`, `sin_cuenta`,
+`cuenta_no_corresponde`) y redacta el motivo sin números de cuenta, CCI ni documentos;
+(2) `private.exigir_cuenta_pago_cronograma()` conserva su consulta `for share of cp, ct` y su
+23514; solo al rechazar dice el motivo, y solo a una conexión directa que no entra por la API, al
+rol de servicio o a un gestor de cartera con la membresía CRM vigente (un BEFORE INSERT corre
+antes de la RLS; a los demás, el texto genérico); (3) puerta `crm.cuentas_pago_motivos_fn(uuid[])`
+INVOKER → `private.cuentas_pago_motivos_autorizado(uuid[])` DEFINER, con la compuerta de
+`crm.cuentas_pago_contratos_fn`, tope de 5000 ids y sin ids no devuelve nada; (4) carga del
+rezago: vínculo solo donde el cliente tiene EXACTAMENTE UNA cuenta activa en la moneda del
+contrato, `creado_por` NULL, rastro en `private.backfill_cuentas_p0xx` con marca
+`migracion:rezago-vinculos:20261001`, tope de 23 y postcondiciones que cancelan todo si el antes y
+el después no cuadran o si el diagnóstico y el bloqueo discrepan en algún contrato real.
+
+EXECUTE: la puerta y su autorizador, solo `authenticated`; el diagnóstico y el bloqueo, nadie
+salvo el dueño (`service_role` tampoco). `search_path` vacío en las cuatro; huellas de los cuatro
+cuerpos selladas en preflight y postflight.
+
+Censo real del 01/10/2026 18:24 Lima (lo lanzó Miguel): 705 contratos · 682 `ok` · 1 con una sola
+cuenta (2026-01-001086) · 7 con dos cuentas · 12 con cuenta solo en la otra moneda · 3 sin cuenta.
+Resultado esperado de la carga: 683 / 0 / 7 / 12 / 3. Los 22 restantes NO se tocan: son de
+Operaciones. Cuando registren la cuenta que falta se lanza
+`supabase/scripts/cuentas-pago-rezago/vincular-rezago.sql` (la misma carga, sola).
+
+Decisiones anotadas: (a) inserción directa porque no existe función que vincule un contrato ya
+existente (el historial de cambios exige cuenta anterior y respaldo del cliente); (b) la guarda de
+S1 sobre perfiles legados en conciliación se conserva como CANCELACIÓN de la carga (en el censo
+ninguno de los 23 la tiene); (c) las cuotas ya pagadas de un contrato recién vinculado NO se
+sellan como «inferido»: se pagaron antes de existir el vínculo y un sello no se borra; (d) la
+CARGA nunca elige entre dos cuentas: quien elige es administración, con «Asignar cuenta»
+(`20261002005004`), después de confirmarlo con el cliente; (e) el detalle del motivo se le dice a
+toda sesión que no entra por la API (`session_user` distinto de `authenticator`) y no a una lista
+fija de usuarios: el canal con que se lanza el SQL crea su propio rol de acceso, así que una lista
+cerrada podría dejar a quien opera con el texto genérico; quien tiene una credencial de la base
+ya puede leerlo todo.
+
+Riesgos y huecos conocidos: no hay pantalla para vincular una cuenta a un contrato existente (la
+única vía es la carga); la matriz HTTP (`test-rls.mjs`) cubre la puerta por rol pero NO el mensaje
+del bloqueo por rol ni una sesión de `operaciones` (se probó en el banco con sesiones simuladas y
+el ensayo de producción simula gestor y analista); sin prueba de concurrencia a dos sesiones;
+`app/src/lib/database.types.ts` se regenera tras aplicar (ninguna pantalla del CRM usa la puerta).
+
+Reversión: `supabase/scripts/cuentas-pago-rezago/reversa.sql` (se niega si algún vínculo de la
+carga ya registró un pago, un cambio de cuenta o un PDF) y `reversa-solo-codigo.sql`. Guía y orden
+de publicación en `supabase/scripts/cuentas-pago-rezago/LEEME.md`.
+
+Verificación (01/10/2026, banco Docker propio con el esquema de producción del día, siembra
+ficticia de 15 contratos por caso; nada en producción):
+- `supabase/scripts/cuentas-pago-rezago/ciclo.sh`: 273 pasos, 0 fallos. Prueba: 1059 comprobaciones
+  en ANTES, 1496 en DESPUÉS, 885 tras la reversa solo del código. Aplicar, repetir, revertir,
+  reaplicar, negativas de la reversa (pago sellado, cambio de cuenta, PDF, triggers de sello
+  apagados), reversa solo del código, `vincular-rezago.sql` y registrador ×2: PASS.
+- Medido con el bloqueo anterior: analista, cliente y anon llegan al trigger por INSERT (antes de
+  la RLS). Con el nuevo reciben el texto genérico; gestor, rol de servicio y conexión directa, el
+  detalle; una sesión de la API sin claims, el genérico.
+- Mutantes sobre el texto real: 74 archivos; 24 los caza el postflight, 7 las postcondiciones, 3 el
+  `STRICT` de la carga y 38 la prueba. Quitar el `lock table` solo lo detecta el tramo de
+  concurrencia (cuenta a medio registrar en otra sesión: `lock timeout`).
+- Camino feliz: no invoca el diagnóstico (probado sustituyéndolo por uno que falla); 200 pagos,
+  26–33 ms antes y 26–29 ms después (ruido).
+- Trinquetes (`private.assert_*()` + censo de contadores): idénticos sin y con la migración.
+- Ensayo de producción corrido contra el banco (en ANTES y ya aplicada): `ENSAYO_DESHECHO`,
+  `todo_como_se_esperaba = true`, foto idéntica antes y después.
+- `npm run check:scripts` PASS · `npm run test:rls:preflight` PASS (variables ficticias, sin
+  conexión) · matriz HTTP `test-rls.mjs`: NOT RUN (exige un banco con API y credenciales).
+- auditor-rls: CHANGES_REQUESTED sin P0; aceptado todo salvo las sondas HTTP del mensaje por rol
+  (hueco declarado arriba).
+- Codex r1 (`docs/encargos/2026-10-01-codex-cuentas-pago-rezago-r1.md` y `-respuesta.md`):
+  CHANGES_REQUESTED sin P0. ACEPTADO: (P1) la carga, la carga relanzable y las reversas exigen
+  READ COMMITTED (en REPEATABLE READ leerían una fotografía anterior a su candado y la carga podría
+  elegir con dos cuentas); (P2) el ensayo distingue PASA / FALLA / INCOMPLETO y ya no da verde si
+  algo no se pudo probar; la reversa exige que los triggers de sello cuelguen de su función.
+  DOCUMENTADO (P2, previo a esta migración): un INSERT de alguien sin permiso ya permitía deducir
+  si un contrato está bloqueado (23514 frente al rechazo de la RLS; 55000 del trigger documental);
+  el texto genérico protege el DETALLE, no ese bit. REFUTADO con evidencia: «un pago necesita
+  candado sobre la tabla de cuentas por el FK del sello»: `crm.cuotas_cuenta_pagada` no tiene
+  claves foráneas (20260926204051, tabla y postflight). RECHAZADO: lista fija de usuarios para la
+  conexión directa (decisión (e) de arriba; el ensayo ahora informa con qué usuario corre).
+- Riesgos previos que NO cambia esta migración: `service_role` conserva INSERT directo sobre
+  `crm.contrato_cuentas_pago` (20260803221622) y el trigger de coherencia no exige cuenta vigente;
+  ninguna Edge Function del repo escribe ahí.
+- Comportamiento previo que sigue (F5): si se corrige la FECHA de una cuota pagada antes del
+  vínculo, su sello la marca «inferido» en la cuenta vinculada.
+
 ## 20260929151350 — Anexo de cronograma imprimible (`crm.contrato_pdf_anexo_snapshot`, `crm.contrato_pdf_anexo_emitido`)
 
 **✅ EN PROD 29/09/2026 por `!` de Miguel: `db query --linked --file` + registrador (REGISTRO_ANEXO_OK; huellas md5 iguales a las del banco) → edge `crm-contrato-pdf-v2` (10/10 módulos vivos = árbol) → front `crm-20260929T163329Z-fb79c46f8848` (build-20260929T163327395Z, preflight ok sobre 9a74a1d0). Pendiente: primer anexo real impreso por Miguel y verificación del asiento.** Decisión de Miguel (28/09): «todo sigue igual, solo que el
