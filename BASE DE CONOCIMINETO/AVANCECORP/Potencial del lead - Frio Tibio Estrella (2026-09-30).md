@@ -481,7 +481,9 @@ Miguel pidió «pásame el plan de la entrega B» y lo dejó en pausa por los co
 **Decidido por Miguel:** solo en Leads (no en Pipeline) · «Sin marcar» es una opción · un nivel a la vez.
 **Estado (01/10 ~20:00 Lima): ✅ ENTREGA B PUBLICADA ENTERA — servidor (~19:30) y pantalla (~19:55).**
 🔴 **El CRM VIVO es ahora `44985828`** (rama `release/potencial-filtro-llamadas-20261001`, en GitHub; build
-`build-20261002T005154879Z`): el próximo release nace de ahí. Rama `crm/potencial-lead-f3b` (`386ddd5b`, en GitHub;
+`build-20261002T005154879Z`): el próximo release nace de ahí. Llamadas F1 (#160) salió en ese mismo release: quedó
+anotado en `docs/plans/llamadas-celular/PUBLICACION-PENDIENTE-2026-09-30.md`; la nota del vault de Telefonía es de
+otra sesión y está sin versionar: no se tocó. Rama `crm/potencial-lead-f3b` (`fad2420d`, en GitHub;
 integra `avancecorp/main` `fd169aac`). **PR #165 LISTA** (sin fusionar: la fusiona Miguel por squash). Commits: pantalla `70ae49c4`, servidor `dd44c806`, fusión de main
 `364a0fc9`, ledger `795687f2` y acta de la publicación `a3c412c3`. En el `main` local: `cc0b0e0d` (migración,
 scripts y encargos; también la migración y los scripts de Gestionado, que no habían llegado).
