@@ -97,6 +97,7 @@ Macros armadas el 02/10 en C1 (MacroDroid gratuito, 5 macros como máximo): «Ll
 | Fecha | Prueba | Resultado | Evidencia |
 | --- | --- | --- | --- |
 | 02/10/2026 17:21–17:26 (Lima) | A1 — saliente con Wi-Fi | PASS: 4 salientes (2 a un número sin lead, 2 a un lead): una sola pantalla del CRM por llamada (aviso ámbar sin lead; encuesta y ficha del lead como protagonista con lead), y un solo aviso «guardada» por llamada en el receptor, ~11 s después de colgar, con `ocurrio_en` = hora real de la llamada (p. ej. `2026-10-02 17:21:12-05:00`, id `C1-1790979672`) | Registro del receptor 17:21:23, 17:24:43, 17:25:21, 17:26:34; observado por Jhosep |
+| 02/10/2026 17:35–17:40 (Lima) | A3 — dos salientes sin Wi-Fi (con datos móviles), Wi-Fi encendido a las 17:36 | PASS: la lista guardó los avisos (a las 17:38 quedaba 1 entrada, `C1-1790980502`); llegaron los dos, cada uno con la hora en que se colgó: `C1-1790980536` a las 17:36:49 (`ocurrio_en` 17:35:36) y `C1-1790980502` a las 17:40:10 (`ocurrio_en` 17:35:02), esta con el intervalo de las 17:40 + 10 s de espera. **Hallazgo:** encender el Wi-Fi con los datos móviles activos NO disparó «Datos Disponibles» (para el celular, el internet no se cortó); el intervalo de 5 min recoge lo pendiente: demora máxima ~5 min tras volver la red. Supuesto no comprobado: la primera entró porque la vuelta lanzada al colgar la segunda seguía en curso cuando volvió el Wi-Fi | Registro del receptor; captura de `cola_llamadas` a las 17:38 |
 
 ## 6. Incidencias
 
