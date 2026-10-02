@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type Ref } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type Ref } from 'react'
 import { Search, Users, TrendingUp, Activity, CheckCircle2, ChevronRight, Inbox, Check, type LucideIcon } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -11,11 +11,19 @@ import { SegmentBar, type Segment } from '@/components/common/stat-strip'
 import { AnimatedValue } from '@/components/common/animated-value'
 import { PILDORA, PILDORA_ACTIVA, PILDORA_INACTIVA } from '@/components/gestion-diaria/estilos-gestion'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { PanelVacio } from '@/components/common/estado-panel'
 import { TablaEnvoltura, Td, Th, TheadCrm } from '@/components/common/tabla'
 import { ETAPAS, TERMINALES, ETAPA_INFO, MOTIVOS_DESCARTE, CAT_LABEL, ORIGENES, ORIGENES_HEREDADOS, origenLabel, type Etapa, type Origen, type Procedencia } from '@/lib/tipos'
 import { ChipProcedencia } from '@/components/app/procedencia-chip'
+import { ChipReasignado } from '@/components/app/reasignado-chip'
+import { ChipPotencial } from '@/components/app/potencial-chip'
+import { FiltroPotencialCartera } from '@/components/app/potencial-filtro'
+import { idsDescripcion, potencialFila } from '@/components/app/potencial-efectos'
+import { usePotencialLeads } from '@/data/potencial-queries'
+import { CrmApiError } from '@/data/crm-api'
+import type { ConteosPotencial, FiltroPotencial } from '@/lib/potencial'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { capitalPrincipal } from '@/lib/inteligencia'
 import { money, fmtFecha } from '@/lib/format'
@@ -41,10 +49,11 @@ type FiltroOrigen = 'todos' | Origen
 type FiltroProcedencia = 'todas' | Procedencia
 
 /** Texto de la procedencia para el lector de pantalla; undefined si no viaja. */
-function descripcionProcedencia(l: { procedencia?: Procedencia | null; cargado_por_nombre?: string | null }): string | undefined {
-  if (l.procedencia === 'manual') return `Registro manual${l.cargado_por_nombre ? `, por ${l.cargado_por_nombre}` : ''}`
-  if (l.procedencia === 'sistema') return 'Del sistema'
-  return undefined
+function descripcionProcedencia(l: { procedencia?: Procedencia | null; cargado_por_nombre?: string | null; reasignado?: boolean | null }): string | undefined {
+  const alta = l.procedencia === 'manual'
+    ? `Registro manual${l.cargado_por_nombre ? `, por ${l.cargado_por_nombre}` : ''}`
+    : l.procedencia === 'sistema' ? 'Del sistema' : null
+  return [alta, l.reasignado === true ? 'Reasignado' : null].filter(Boolean).join('; ') || undefined
 }
 /** 'todos' | 'sin_asignar' | perfil_id de un analista del ámbito. */
 type FiltroVendedor = string
@@ -161,6 +170,9 @@ export function Cartera() {
   const [fEtapa, setFEtapa] = useState<FiltroEtapa>('todas')
   const [fOrigen, setFOrigen] = useState<FiltroOrigen>('todos')
   const [fProc, setFProc] = useState<FiltroProcedencia>('todas')
+  const [fReasignados, setFReasignados] = useState(false)
+  // Potencial del lead: un nivel a la vez o «sin marcar»; null = sin filtro.
+  const [fPotencial, setFPotencial] = useState<FiltroPotencial | null>(null)
   const [fVend, setFVend] = useState<FiltroVendedor>(() => can(yo?.rol, 'filtrarPorVendedor') ? desdeRendimiento?.id ?? 'todos' : 'todos')
   // Columna "Analista" = ver al equipo; filtro por analista = capacidad aparte.
   const verVendedor = can(yo?.rol, 'verEquipo')
@@ -182,9 +194,10 @@ export function Cartera() {
   const cartera = useCarteraPaginada(
     leadsDeConsulta,
     useMemo(
-      () => ({ etapa: fEtapa, vendedorId: fVend, texto: qDiferido, origen: fOrigen, procedencia: fProc,
+      () => ({ etapa: fEtapa, vendedorId: fVend, texto: qDiferido, origen: fOrigen, procedencia: fProc, reasignados: fReasignados,
+        ...(fPotencial ? { potencial: fPotencial } : {}),
         recepcion: periodo }),
-      [fEtapa, fVend, qDiferido, fOrigen, fProc, periodo],
+      [fEtapa, fVend, qDiferido, fOrigen, fProc, fReasignados, fPotencial, periodo],
     ),
   )
   // Fase 4e: el store conoce lo que la tabla muestra (verbos de escritura por id).
@@ -194,6 +207,7 @@ export function Cartera() {
   // línea «Convertido: …»): nunca se deja caer al <body>.
   const refTotal = useRef<HTMLButtonElement>(null)
   const refConvertidos = useRef<HTMLButtonElement>(null)
+  const enfocarTotal = useCallback(() => { refTotal.current?.focus() }, [])
 
   // Vista previa: KPIs y distribución de la misma colección filtrada completa.
   // Sin payload (cargando o RPC caída) los tiles dicen «—»: jamás se inventa
@@ -289,7 +303,28 @@ export function Cartera() {
   // cero, para poder soltarla con otro clic.
   const pildorasEtapa = (sinResumen ? previas.etapas : etapas).filter((e) => e.n > 0 || e.k === fEtapa)
 
-  const hayFiltro = q.trim() !== '' || fEtapa !== 'todas' || fOrigen !== 'todos' || fProc !== 'todas' || fVend !== 'todos' || modoFecha !== 'todas'
+  // Fila «Por potencial»: existe cuando el resumen trae sus conteos (bandera del
+  // potencial encendida en el servidor; en demo, siempre). Igual que las
+  // pastillas de etapa, mientras llega la consulta nueva se quedan las últimas
+  // conocidas —sin cifra— para que la pulsada no pierda el foco. Un resumen que
+  // llega SIN conteos (potencial apagado) retira la fila.
+  const conteosPotencial = resumen?.potencial ?? null
+  const [potencialPrevio, setPotencialPrevio] = useState<ConteosPotencial | null>(null)
+  if (resumen != null && conteosPotencial !== potencialPrevio
+    && JSON.stringify(conteosPotencial) !== JSON.stringify(potencialPrevio)) setPotencialPrevio(conteosPotencial)
+  const potencialVista = conteosPotencial ?? (sinResumen ? potencialPrevio : null)
+  // El potencial se apagó en el servidor con el filtro puesto: se suelta solo y
+  // se dice por qué (la fila se retira cuando llega la lista sin conteos, y el
+  // foco, si estaba en ella, pasa a «Total leads»).
+  const potencialApagado = cartera.error instanceof CrmApiError && cartera.error.code === 'POTENCIAL_APAGADO'
+  useEffect(() => {
+    if (!potencialApagado) return
+    setFPotencial(null)
+    setPotencialPrevio(null)
+    toast.info('El filtro por potencial ya no está disponible. Se quitó de la lista.')
+  }, [potencialApagado])
+
+  const hayFiltro = q.trim() !== '' || fEtapa !== 'todas' || fOrigen !== 'todos' || fProc !== 'todas' || fReasignados || fPotencial !== null || fVend !== 'todos' || modoFecha !== 'todas'
 
   // El nombre del analista lo resuelve el roster: `crm.leads` guarda el id y la
   // RPC de la página no lo desnormaliza (el store hace lo mismo con su ámbito).
@@ -324,6 +359,9 @@ export function Cartera() {
     () => indexarCierresEstado(yo?.demo ? cierresEstado : (consultaEstado.data ?? [])),
     [yo?.demo, cierresEstado, consultaEstado.data],
   )
+  // Potencial del lead (Frío · Tibio · Estrella): otra lectura aparte, por los
+  // leads en pantalla. Con la bandera apagada no trae nada y no se pinta nada.
+  const potencial = usePotencialLeads(useMemo(() => visibles.map((l) => l.id), [visibles]))
 
   return (
     // Sin tope de ancho: la tabla es la protagonista y en monitores anchos el
@@ -344,7 +382,7 @@ export function Cartera() {
       <section aria-label="Resumen de la cartera" aria-describedby="ayuda-resumen-cartera"
         className="overflow-hidden rounded-xl border border-border bg-card">
         <p id="ayuda-resumen-cartera" className="sr-only">
-          Los filtros actualizan juntos el listado, los indicadores y la distribución por etapa.
+          Los filtros actualizan juntos el listado, los indicadores y la distribución por etapa{potencialVista ? ' y por potencial' : ''}.
         </p>
         {/* gap-px sobre fondo de borde: separadores finos que sirven igual en
             2 columnas (móvil) que en 4 (escritorio). */}
@@ -360,7 +398,7 @@ export function Cartera() {
               sitio al contorno de foco, que el scroll recortaría (Codex, 28/09). */}
           <div role="group" aria-label="Distribución por etapa" aria-busy={recargando || undefined}
             className="flex w-full items-center gap-1.5 overflow-x-auto p-1 sm:w-auto sm:flex-wrap sm:overflow-visible sm:p-0">
-            <span aria-hidden className="mr-1 shrink-0 text-[11px] font-semibold text-muted-foreground">Por etapa</span>
+            <span aria-hidden className={cn('mr-1 shrink-0 text-[11px] font-semibold text-muted-foreground', potencialVista && 'min-w-[4.75rem]')}>Por etapa</span>
             {pildorasEtapa.length === 0 ? (
               <span className="text-xs text-muted-foreground">
                 {resumen ? 'Sin leads con estos filtros' : <><span aria-hidden="true">—</span><span className="sr-only">sin dato</span></>}
@@ -393,6 +431,10 @@ export function Cartera() {
               está en las pastillas de al lado. */}
           <SegmentBar segments={segmentos} legend={false} className="min-w-[160px] flex-1" />
         </div>
+        {potencialVista && (
+          <FiltroPotencialCartera conteos={potencialVista} valor={fPotencial} alRetirarConFoco={enfocarTotal}
+            sinCifras={conteosPotencial === null} ocupado={recargando} onCambio={setFPotencial} />
+        )}
       </section>
 
       {/* Buscador + filtros + contador en UNA fila (el contador a la derecha). */}
@@ -440,6 +482,15 @@ export function Cartera() {
             <option value="manual">Solo registro manual</option>
           </Select>
         </div>
+        <Button type="button" variant="outline" size="sm"
+          aria-label={`Filtrar reasignados: ${resumen?.totales.reasignados ?? 'sin dato'}`}
+          aria-pressed={fReasignados}
+          aria-disabled={!fReasignados && (resumen?.totales.reasignados ?? 0) <= 0 ? true : undefined}
+          onClick={(resumen?.totales.reasignados ?? 0) > 0 || fReasignados
+            ? () => setFReasignados((actual) => !actual) : undefined}
+          className={cn('gap-1.5 tabular-nums', fReasignados && 'border-accent bg-accent/[0.08] text-accent')}>
+          Reasignados <span aria-hidden="true">{resumen?.totales.reasignados ?? '—'}</span>
+        </Button>
         <FiltroFechaCartera modo={modoFecha} rango={rangoFecha} hoy={hoy}
           invalido={!rangoValido} onModo={(modo) => {
             setModoFecha(modo)
@@ -462,7 +513,7 @@ export function Cartera() {
             de 300» contando un array parcial es justo la mentira que esta fase
             viene a matar. */}
         {hayFiltro && <Button variant="ghost" size="sm" onClick={() => {
-          setQ(''); setFEtapa('todas'); setFOrigen('todos'); setFProc('todas'); setFVend('todos'); setModoFecha('todas')
+          setQ(''); setFEtapa('todas'); setFOrigen('todos'); setFProc('todas'); setFReasignados(false); setFPotencial(null); setFVend('todos'); setModoFecha('todas')
         }}>Limpiar filtros</Button>}
         {/* La región viva queda SIEMPRE montada y solo cambia su texto: una
             región que aparece ya escrita no se anuncia de forma fiable, y es el
@@ -488,8 +539,9 @@ export function Cartera() {
           falta son filas, y con páginas ya cargadas la lista sigue siendo
           operable (incompleta, pero honesta: `hayMas` queda en false y este
           aviso explica por qué). */}
+      {/* El rechazo por potencial apagado no es una avería: ya se avisó y el filtro se soltó. */}
       <AvisoDegradacion
-        activo={Boolean(cartera.error)}
+        activo={Boolean(cartera.error) && !potencialApagado}
         queReintenta="de la lista de leads"
         onReintentar={() => { void cartera.recargar() }}
       >
@@ -548,10 +600,13 @@ export function Cartera() {
                       tabIndex={0}
                       // aria-label sobre role="row" (role="button" rompería la semántica de tabla)
                       aria-label={`Abrir ficha de ${l.nombre_completo}`}
-                      // La procedencia también llega al lector de pantalla (como
-                      // descripción), sin cambiar el nombre accesible que ya usan
-                      // tests y atajos.
-                      aria-describedby={descripcionProcedencia(l) ? `procedencia-${l.id}` : undefined}
+                      // La marca de potencial y la procedencia también llegan al
+                      // lector de pantalla (como descripción), sin cambiar el nombre
+                      // accesible que ya usan tests y atajos.
+                      aria-describedby={idsDescripcion(
+                        potencial.porLead.get(l.id)?.nivel && `potencial-${l.id}`,
+                        descripcionProcedencia(l) && `procedencia-${l.id}`,
+                      )}
                       onClick={() => abrirLead(l.id)}
                       onKeyDown={(ev) => {
                         if (ev.key === 'Enter' || ev.key === ' ') {
@@ -560,6 +615,7 @@ export function Cartera() {
                         }
                       }}
                       className="group cursor-pointer border-b border-border/60 transition-colors last:border-0 hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
+                      {...potencialFila(potencial.porLead.get(l.id))}
                     >
                       <Td className="lg:whitespace-nowrap">
                         <LeadHoverCard lead={l}>
@@ -570,9 +626,11 @@ export function Cartera() {
                                   FilaContrato — las tres carteras leen como una familia. */}
                               <p className="flex items-center gap-1.5 text-[13px] font-semibold">
                                 {l.nombre_completo}
+                                <ChipPotencial id={`potencial-${l.id}`} marca={potencial.porLead.get(l.id)} />
                                 {/* Procedencia a simple vista, pegada al nombre: lo manual
                                     en azul, lo del sistema en gris silencioso. */}
                                 <ChipProcedencia lead={l} />
+                                <ChipReasignado lead={l} />
                                 {descripcionProcedencia(l) && (
                                   <span id={`procedencia-${l.id}`} className="sr-only">{descripcionProcedencia(l)}</span>
                                 )}

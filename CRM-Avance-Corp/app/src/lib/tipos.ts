@@ -1,3 +1,4 @@
+import type { DocumentoIdentidad } from './documento'
 import type { Moneda } from './format'
 import type { Rol } from './roles'
 
@@ -491,6 +492,7 @@ export interface Lead {
   activo: boolean
   // Espejo del esquema F0 (opcionales)
   dni?: string | null // exactamente 8 dígitos si existe
+  documento?: DocumentoIdentidad // identidad tipada; en real se consulta al abrir la ficha
   genero?: Genero | null // decide la silueta del avatar; null → neutra
   fecha_nacimiento?: string | null // ISO 'YYYY-MM-DD' (sin hora)
   distrito?: string | null
@@ -524,6 +526,8 @@ export interface Lead {
    * migración no lo devuelve y el chip entonces NO se pinta.
    */
   procedencia?: Procedencia | null
+  /** Ya había pasado por un analista antes del reparto actual; independiente del alta. */
+  reasignado?: boolean | null
   /** Autor del alta (perfil), tal como lo sella el servidor; null para el sistema. */
   cargado_por?: string | null
   /** Nombre del autor, resuelto en pantalla con el equipo visible; null si no se conoce. */

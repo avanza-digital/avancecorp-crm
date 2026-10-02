@@ -1,3 +1,4 @@
+import { DocumentoLeadSchema } from '@/lib/documento-lead'
 import { TareaRowSchema } from '@/lib/tarea-schema'
 import * as v from 'valibot'
 import { ESTADOS_SOLICITUD_TASA_VIVOS } from '@/lib/rentabilidad'
@@ -65,8 +66,9 @@ import {
   type Titular,
   type TitularInput,
 } from '@/lib/clientes-tipos'
-import { TAMANO_PAGINA_CARTERA, normalizarBusquedaCartera, textoBuscable } from '@/lib/cartera-keyset'
-import { TIPOS_DOCUMENTO, TIPOS_DOCUMENTO_K, type TipoDocumento } from '@/lib/documento'
+import { TAMANO_PAGINA_CARTERA, normalizarBusquedaCartera, textoBuscable, type GestionCartera } from '@/lib/cartera-keyset'
+import { ConteosPotencialSchema, totalConteosPotencial, type ConteosPotencial, type FiltroPotencial } from '@/lib/potencial'
+import { TIPOS_DOCUMENTO, TIPOS_DOCUMENTO_K, type TipoDocumento, type DocumentoIdentidad, type CorreccionDocumentoLead } from '@/lib/documento'
 import { CierresExternosSchema, COOPERATIVAS, type CierresExternos, type Cooperativa } from '@/lib/cierres-externos'
 import { CierresEstadoSchema, MAX_LEADS_ESTADO, type CierreEstado } from '@/lib/cierre-estado'
 import { ConversionEstadoSchema, type ConversionEstado } from '@/lib/conversion-estado'
@@ -131,6 +133,15 @@ import {
   reporteDerivacionesCoordinacionConsistente,
   type ReporteDerivacionesCoordinacion,
 } from '@/lib/reporte-derivaciones-coordinacion'
+import {
+  ConversionCoordinacionSchema,
+  conversionCoordinacionConsistente,
+  fechasDeConsulta,
+  hoyLima,
+  motivoConsultaInvalida,
+  type ConsultaConversion,
+  type ConversionCoordinacion,
+} from '@/lib/conversion-coordinacion'
 import { ESTADOS_CONTRATO_PDF, type EstadoContratoPdf } from '@/lib/contrato-pdf-archivo'
 import { ResumenRepartoSchema, type ResumenReparto } from '@/lib/resumen-reparto'
 import { IngresosRepartoMesSchema, inicioDeMes, type IngresosRepartoMes } from '@/lib/ingresos-reparto'
@@ -223,6 +234,7 @@ const LeadRowSchema = v.object({
   // anterior a la migración no lo devuelve y el lead debe seguir listándose
   // (sin chip) igual.
   procedencia: v.optional(v.nullable(v.picklist(['sistema', 'manual']))),
+  reasignado: v.optional(v.boolean()),
   cargado_por: v.optional(v.nullable(v.string())),
   alta_manual: v.optional(v.nullable(v.boolean())),
   creado_por: v.optional(v.nullable(v.string())),
@@ -466,6 +478,7 @@ function aLead(fila: LeadRow): Lead {
     distrito: fila.distrito,
     origen: fila.origen, // ya validado contra el catálogo por LeadRowSchema
     procedencia: procedenciaDeFila(fila),
+    reasignado: fila.reasignado ?? null,
     cargado_por: fila.cargado_por ?? fila.creado_por ?? null,
     etapa: fila.etapa,
     motivo_descarte: fila.motivo_descarte,
@@ -609,7 +622,20 @@ export async function obtenerLeadDelAmbitoPorId(id: string, signal?: AbortSignal
   if (!resultado.success || resultado.output.id !== id || !resultado.output.activo) {
     throw new CrmApiError('Los datos de esta ficha no cumplen el contrato del CRM. Solicita revisión a Gerencia.', 'ROW_CONTRACT')
   }
-  return aLead(resultado.output)
+  const lead = aLead(resultado.output)
+  if (lead.vendedor_id == null) return { ...lead, reasignado: false }
+  // La ficha se relee por id al abrirse y no hereda el dato de la página
+  // keyset. El mismo historial RLS que usa la RPC permite mostrar la marca
+  // aunque se abra el lead desde la búsqueda global o desde otra pantalla.
+  let historial = cliente().schema('crm').from('actividades').select('id')
+    .eq('lead_id', id).eq('tipo', 'reasignacion')
+    .not('metadata->>vendedor_anterior', 'is', null).limit(1)
+  if (signal) historial = historial.abortSignal(signal)
+  const { data: movimientos, error: errorHistorial } = await historial
+  lanzarAbortSiCorresponde(signal)
+  // La marca es adicional: si un servidor antiguo no permite esta consulta,
+  // la ficha sigue abriéndose y no se inventa un «no reasignado».
+  return { ...lead, reasignado: errorHistorial ? null : (movimientos?.length ?? 0) > 0 }
 }
 
 // ── Cartera paginada por CURSOR KEYSET (F2) ───────────────────────────────────
@@ -627,6 +653,22 @@ export interface FiltrosCartera {
   origen?: Origen | 'todos'
   /** Procedencia (sistema/manual); «todas» es el valor neutro y no viaja. */
   procedencia?: Procedencia | 'todas'
+  /** Solo leads que ya pasaron por un analista antes del reparto actual. */
+  reasignados?: boolean
+  /**
+   * «Gestión vigente» (ver `GestionCartera`): parte la etapa `nuevo` del
+   * Pipeline en «Nuevo» (`sin_gestion`) y «Gestionado» (`con_gestion`). Un
+   * resultado de llamada deshecho no cuenta como gestión. Ausente es el valor
+   * neutro y no viaja. Solo lo entiende la lista integrada
+   * (`cartera_filtrada_fn`); en demo no recorta — ahí lo calcula el Pipeline.
+   */
+  gestion?: GestionCartera
+  /**
+   * Potencial del lead: un nivel o «sin marca». Ausente es el valor neutro y no
+   * viaja. Solo lo entiende la lista integrada (`cartera_filtrada_fn`) y solo
+   * con la bandera del potencial encendida en el servidor.
+   */
+  potencial?: FiltroPotencial
   integrada?: boolean
   recepcion?: { desde: string; hasta: string } | null
 }
@@ -641,7 +683,15 @@ export interface PaginaCartera {
   items: Lead[]
   /** `null` = no hay más páginas; nunca se infiere de `items.length`. */
   cursor: CursorCartera | null
-  resumen?: Pick<ResumenCartera, 'totales' | 'capital' | 'embudo'>
+  resumen?: ResumenCarteraFiltrada
+}
+
+/**
+ * Lo que la cartera integrada trae de resumen: los indicadores de siempre y,
+ * con el potencial encendido en el servidor, los conteos por nivel.
+ */
+export type ResumenCarteraFiltrada = Pick<ResumenCartera, 'totales' | 'capital' | 'embudo'> & {
+  potencial?: ConteosPotencial
 }
 
 const LeadCarteraRowSchema = v.object({
@@ -660,12 +710,21 @@ const CarteraFiltradaSchema = v.object({
   origen: v.optional(v.nullable(v.string())),
   // Eco de la procedencia filtrada, con la misma lógica que `origen`.
   procedencia: v.optional(v.nullable(v.string())),
+  // Presente desde la migración de reasignados; un servidor previo no inventa cero.
+  reasignados: v.optional(v.boolean()),
   items: v.array(v.object({
     ...LeadCarteraRowSchema.entries,
     recibido_en: v.nullable(v.string()),
     recepcion_aproximada: v.nullable(v.boolean()),
   })),
-  resumen: v.pick(ResumenCarteraSchema, ['totales', 'capital', 'embudo']),
+  resumen: v.object({
+    ...v.pick(ResumenCarteraSchema, ['totales', 'capital', 'embudo']).entries,
+    // Conteos por potencial: solo con la bandera encendida y un servidor que ya
+    // los sirva. Un bloque que este bundle no entiende (un nivel nuevo, p. ej.)
+    // NO tumba la lista: se queda en null y la fila de potencial no se pinta.
+    // Con el filtro PEDIDO, en cambio, su ausencia sí es un desajuste (abajo).
+    potencial: v.optional(v.fallback(v.nullable(ConteosPotencialSchema), null)),
+  }),
 })
 
 /** Lo MÍNIMO para poder avanzar: si una fila no lo cumple, no hay cursor honesto. */
@@ -709,6 +768,21 @@ export async function listarCarteraPagina(
   // «todas» tampoco viaja: mismo motivo, misma tolerancia a un servidor previo.
   const procedenciaPedida = filtros.integrada && filtros.procedencia && filtros.procedencia !== 'todas' ? filtros.procedencia : null
   if (procedenciaPedida !== null) argumentos.p_procedencia = procedenciaPedida
+  const reasignadosPedidos = filtros.integrada && filtros.reasignados === true
+  if (reasignadosPedidos) argumentos.p_reasignados = true
+  // La gestión solo viaja cuando recorta, y solo a la lista integrada: sin
+  // ella la llamada es idéntica a la de siempre (Leads y las demás columnas no
+  // dependen de que el servidor ya conozca `p_gestion`). El servidor NO devuelve
+  // eco de este filtro: la forma de la respuesta es la misma con o sin él.
+  // Tampoco se comprueba contra las filas: la regla descarta los resultados de
+  // llamada deshechos, así que un lead `sin_gestion` puede traer un
+  // `ultimo_contacto_en` posterior a su tenencia y estar bien servido.
+  const gestionPedida = filtros.integrada && filtros.gestion ? filtros.gestion : null
+  if (gestionPedida !== null) argumentos.p_gestion = gestionPedida
+  // El potencial solo viaja cuando recorta, y solo a la lista integrada: un
+  // servidor anterior a `p_potencial` sigue resolviendo la llamada sin él.
+  const potencialPedido = filtros.integrada && filtros.potencial ? filtros.potencial : null
+  if (potencialPedido !== null) argumentos.p_potencial = potencialPedido
 
   lanzarAbortSiCorresponde(signal)
   let consulta = cliente().schema('crm').rpc(filtros.integrada ? 'cartera_filtrada_fn' : 'cartera_pagina_fn', argumentos)
@@ -720,16 +794,23 @@ export async function listarCarteraPagina(
     // diciendo que esta cuenta no pertenece al CRM (P04: revocado ≠ ajeno). Con
     // el mensaje genérico, un offboarding vivido como avería mandaría a alguien
     // a reintentar durante horas.
+    // 55000 con el filtro pedido = el potencial se apagó en el servidor mientras
+    // la pantalla lo tenía puesto. No es una avería: la pantalla suelta el filtro.
     const fallo =
       error.code === '42501'
         ? new CrmApiError('Tu cuenta no tiene acceso a la cartera del CRM.', '42501')
-        : new CrmApiError('No se pudo cargar la cartera.', error.code || 'POSTGREST_ERROR')
+        : error.code === '55000' && potencialPedido !== null
+          ? new CrmApiError('El filtro por potencial no está disponible en este momento.', 'POTENCIAL_APAGADO')
+          : new CrmApiError('No se pudo cargar la cartera.', error.code || 'POSTGREST_ERROR')
     // Sin texto ni IDs del filtro: pueden contener PII.
     registrarError('crm.leads.pagina_fallida', fallo, {
       etapa: filtros.etapa ?? 'todas',
       filtraVendedor: Boolean(filtros.vendedorId && filtros.vendedorId !== 'todos'),
       filtraOrigen: origenPedido !== null,
       filtraProcedencia: procedenciaPedida !== null,
+      filtraReasignados: reasignadosPedidos,
+      filtraGestion: gestionPedida !== null,
+      filtraPotencial: potencialPedido !== null,
       tieneBusqueda: texto !== null,
       conCursor: cursor != null,
     })
@@ -741,6 +822,7 @@ export async function listarCarteraPagina(
     if (!resultado.success) throw new CrmApiError('La cartera y sus indicadores no cumplen el contrato esperado.', 'ROW_CONTRACT')
     const payload = resultado.output
     const total = payload.resumen.totales.vivos
+    const { potencial: conteosPotencial = null, ...indicadores } = payload.resumen
     if (payload.desde !== (filtros.recepcion?.desde ?? null)
       || payload.hasta !== (filtros.recepcion?.hasta ?? null)
       // El servidor devuelve el origen que aplicó: si no coincide con el pedido
@@ -750,6 +832,20 @@ export async function listarCarteraPagina(
       // Misma exigencia para la procedencia: eco y filas coherentes, o nada.
       || (payload.procedencia ?? null) !== procedenciaPedida
       || (procedenciaPedida !== null && payload.items.some((l) => l.procedencia !== procedenciaPedida))
+      || (payload.reasignados ?? false) !== reasignadosPedidos
+      || (reasignadosPedidos && (payload.resumen.totales.reasignados !== total
+        || payload.items.some((l) => l.reasignado !== true)))
+      || (payload.resumen.totales.reasignados != null
+        && (!Number.isSafeInteger(payload.resumen.totales.reasignados)
+          || payload.resumen.totales.reasignados < 0
+          || payload.resumen.totales.reasignados > total))
+      // Potencial: con el filtro pedido hacen falta el eco y que el total sea el
+      // conteo de ese nivel; sin filtro, los cuatro conteos suman el total (el
+      // servidor los cuenta antes de aplicar el filtro de potencial).
+      || (potencialPedido !== null && (conteosPotencial === null
+        || conteosPotencial.filtro !== potencialPedido || conteosPotencial[potencialPedido] !== total))
+      || (potencialPedido === null && conteosPotencial !== null
+        && (conteosPotencial.filtro !== null || totalConteosPotencial(conteosPotencial) !== total))
       || !Number.isSafeInteger(total) || total < payload.items.length
       || payload.resumen.embudo.reduce((n, e) => n + e.n, 0) !== total
       || payload.items.length > TAMANO_PAGINA_CARTERA + 1
@@ -764,7 +860,7 @@ export async function listarCarteraPagina(
       items: filas.map((l) => ({ ...aLead(l), ultimo_contacto_en: l.ultimo_contacto_en,
         recibido_en: l.recibido_en, recepcion_aproximada: l.recepcion_aproximada })),
       cursor: hayMas && ultima ? { actualizadoEn: ultima.actualizado_en, id: ultima.id } : null,
-      resumen: payload.resumen,
+      resumen: conteosPotencial ? { ...indicadores, potencial: conteosPotencial } : indicadores,
     }
   }
 
@@ -2004,6 +2100,7 @@ export interface CrearLeadAtomicoInput {
   telefono_alternativo?: string | null
   correo?: CrearLeadArgs['p_correo'] | null
   dni?: CrearLeadArgs['p_dni'] | null
+  documento?: DocumentoIdentidad
   genero?: CrearLeadArgs['p_genero'] | null
   fecha_nacimiento?: CrearLeadArgs['p_fecha_nacimiento'] | null
   distrito?: CrearLeadArgs['p_distrito'] | null
@@ -2193,7 +2290,14 @@ function aErrorInsertarLead(error: {
 }
 
 export async function insertarLead(fila: CrearLeadAtomicoInput): Promise<ResultadoCreacionLeadAtomica> {
-  const { data, error } = await cliente()
+  const { documento, dni: _dni, ...datosTipados } = fila
+  const { data, error } = documento
+    ? await cliente().schema('crm').rpc('crear_lead_documento_fn', {
+      p_datos: sinIndefinidos(datosTipados) as Json,
+      p_tipo: documento.tipo,
+      p_documento: documento.numero ?? '',
+    })
+    : await cliente()
     .schema('crm')
     .rpc(
       'crear_lead_si_disponible',
@@ -2260,11 +2364,30 @@ export async function reabrirLead(leadId: string): Promise<void> {
  * y dos ediciones simultáneas no se mezclan (Codex bloque 4 #1). Los rechazos de
  * la puerta llegan con el texto del servidor (P0409 → CONFLICTO, P0429 → NO_INSISTA).
  */
-export async function editarLeadFn(leadId: string, cambios: LeadUpdate): Promise<void> {
-  const { error } = await cliente()
+export async function editarLeadFn(leadId: string, cambios: LeadUpdate & {
+  documento?: DocumentoIdentidad
+  correccion_documento?: CorreccionDocumentoLead
+}): Promise<void> {
+  const { documento, correccion_documento, dni: _dni, ...resto } = cambios
+  const { data, error } = documento
+    ? await cliente().schema('crm').rpc('editar_lead_documento_fn', {
+      p_lead_id: leadId, p_cambios: resto as Json,
+      p_tipo: documento.tipo, p_documento: documento.numero ?? '',
+      ...(correccion_documento?.identificador_anterior ? { p_identificador_anterior: correccion_documento.identificador_anterior } : {}),
+      ...(correccion_documento?.motivo ? { p_motivo: correccion_documento.motivo } : {}),
+    })
+    : await cliente()
     .schema('crm')
     .rpc('editar_lead_fn', { p_lead_id: leadId, p_cambios: cambios as Json })
   if (error) throw aErrorApi(error, 'crm.leads.editar_fallido')
+  if (documento) {
+    const lectura = v.safeParse(DocumentoLeadSchema, data)
+    if (!lectura.success || lectura.output.lead_id !== leadId ||
+      lectura.output.numero !== (documento.numero?.trim().toUpperCase() || null) ||
+      (documento.numero && lectura.output.tipo !== documento.tipo)) {
+      throw new CrmApiError('El servidor no confirmó el documento guardado. Recarga la ficha.', 'DOCUMENTO_LEAD_CONTRACT')
+    }
+  }
 }
 
 export async function insertarActividad(fila: ActividadInsert): Promise<void> {
@@ -5596,6 +5719,63 @@ export async function listarMetricasVendedores(
 }
 
 // ── Reportes históricos de derivaciones ──────────────────────────────────────
+
+/**
+ * Conversión por analista de TODA la empresa para Coordinación
+ * (`crm.conversion_divisor_coordinacion_fn`). El divisor es el del núcleo —una
+ * llegada por lead, por su alta original, en el primer analista que la
+ * recibió— y NO el reporte de entregas, que a propósito deja de sumar la
+ * entrega devuelta a la bandeja. El navegador solo pinta lo que el servidor
+ * dice; si las sumas del payload no cierran, se rechaza el paquete entero.
+ */
+export async function conversionCoordinacion(
+  consultaPedida: ConsultaConversion,
+  signal?: AbortSignal,
+): Promise<ConversionCoordinacion> {
+  const fechas = fechasDeConsulta(consultaPedida)
+  const motivo = motivoConsultaInvalida(consultaPedida, hoyLima())
+  if (!fechas || motivo) {
+    throw new CrmApiError(motivo ?? 'El período de conversión no es válido.', 'PERIODO_INVALIDO')
+  }
+  lanzarAbortSiCorresponde(signal)
+  const argumentos = consultaPedida.modo === 'mes'
+    ? { p_periodo: fechas.desde }
+    : { p_desde: fechas.desde, p_hasta: fechas.hasta }
+  let consulta = cliente().schema('crm').rpc('conversion_divisor_coordinacion_fn', argumentos)
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) {
+    const fallo = new CrmApiError(
+      error.code === '22023'
+        ? 'El período de conversión no es válido.'
+        : error.code === '42501' || error.code === 'PGRST301'
+          ? 'No tienes permiso para consultar la conversión por analista.'
+          : 'No se pudo cargar la conversión por analista.',
+      error.code || 'POSTGREST_ERROR',
+    )
+    registrarError('crm.reparto.conversion_coordinacion_fallida', fallo, { pg: error.code ?? '' })
+    throw fallo
+  }
+  const resultado = v.safeParse(ConversionCoordinacionSchema, data)
+  if (!resultado.success) {
+    const fallo = new CrmApiError(
+      'La conversión por analista no tiene el formato esperado.',
+      'CONVERSION_COORDINACION_CONTRACT',
+    )
+    registrarError('crm.reparto.conversion_coordinacion_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  if (!conversionCoordinacionConsistente(resultado.output, fechas.desde, fechas.hasta)) {
+    const fallo = new CrmApiError(
+      'La conversión por analista no reconcilia con el núcleo y no se mostrará.',
+      'CONVERSION_COORDINACION_INCONSISTENTE',
+    )
+    registrarError('crm.reparto.conversion_coordinacion_inconsistente', fallo)
+    throw fallo
+  }
+  return resultado.output
+}
 
 function falloReporteDerivaciones(
   error: { code?: string | null },

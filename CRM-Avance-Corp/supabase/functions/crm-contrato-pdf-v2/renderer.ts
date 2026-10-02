@@ -96,7 +96,7 @@ type CronogramaSnapshot = {
 };
 
 export type SnapshotContratoV2 = {
-  snapshotVersion: 2;
+  snapshotVersion: 2 | 3;
   contrato: {
     id: string;
     numero: string;
@@ -111,6 +111,8 @@ export type SnapshotContratoV2 = {
     fechaVencimiento: string;
     productoCondicionId: string | null;
     creadoPor: string;
+    /** Solo snapshot 3: analista asignado, independiente de quien registró. */
+    analistaId?: string;
   };
   titular: {
     id: string;
@@ -227,7 +229,7 @@ export function validarSnapshotContratoV2(valor: unknown): SnapshotContratoV2 {
       "cotitulares",
       "cronograma",
       "cuentaPago",
-    ]) || valor.snapshotVersion !== 2
+    ]) || (valor.snapshotVersion !== 2 && valor.snapshotVersion !== 3)
   ) fallo("raíz");
 
   const contrato = valor.contrato;
@@ -247,6 +249,7 @@ export function validarSnapshotContratoV2(valor: unknown): SnapshotContratoV2 {
       "fechaVencimiento",
       "productoCondicionId",
       "creadoPor",
+      ...(valor.snapshotVersion === 3 ? ["analistaId"] : []),
     ]) || !uuid(contrato.id) || !texto(contrato.numero, 1, 200) ||
     !uuid(contrato.clienteId) ||
     !numero(contrato.capital, 0.01, 999999999.99) ||
@@ -262,7 +265,8 @@ export function validarSnapshotContratoV2(valor: unknown): SnapshotContratoV2 {
     contrato.fechaVencimiento < contrato.fechaInicio ||
     (contrato.productoCondicionId !== null &&
       !uuid(contrato.productoCondicionId)) ||
-    !uuid(contrato.creadoPor)
+    !uuid(contrato.creadoPor) ||
+    (valor.snapshotVersion === 3 && !uuid(contrato.analistaId))
   ) fallo("contrato");
 
   const titular = valor.titular;
@@ -292,7 +296,8 @@ export function validarSnapshotContratoV2(valor: unknown): SnapshotContratoV2 {
       "correo",
     ]) || !uuid(analista.id) || !texto(analista.nombreCompleto, 1, 200) ||
     !texto(analista.documento, 5, 20) || !texto(analista.celular, 5, 30) ||
-    !correo(analista.correo) || analista.id !== contrato.creadoPor
+    !correo(analista.correo) || analista.id !==
+      (valor.snapshotVersion === 3 ? contrato.analistaId : contrato.creadoPor)
   ) fallo("analista");
 
   if (!Array.isArray(valor.cotitulares) || valor.cotitulares.length > 20) {
@@ -376,7 +381,7 @@ export function validarSnapshotContratoV2(valor: unknown): SnapshotContratoV2 {
   ) fallo("cuentaPago");
 
   return {
-    snapshotVersion: 2,
+    snapshotVersion: valor.snapshotVersion,
     contrato: contrato as SnapshotContratoV2["contrato"],
     titular: titular as SnapshotContratoV2["titular"],
     analista: analista as SnapshotContratoV2["analista"],

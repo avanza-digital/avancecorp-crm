@@ -1,7 +1,12 @@
+import { useDocumentoLead } from '@/data/documento-lead'
+import { TIPOS_DOCUMENTO, TIPOS_DOCUMENTO_K, type TipoDocumento } from '@/lib/documento'
 import { SolicitudTasaLeadPlegable, type EstadoCondicionesLead } from './condiciones-tasa-lead'
 import { InversionDesdeLead } from './inversion-desde-lead'
 import { InversionDesdeLeadDemo } from './inversion-desde-lead-demo'
+import { leerConversionAbierta } from '@/lib/inversion-solicitud'
 import { VentaCruzada } from './venta-cruzada'
+import { ChipPotencialDeLead } from './potencial-chip'
+import { SeccionPotencial } from './potencial-seccion'
 import { buscarClienteExistente, type BusquedaCliente } from '@/data/cliente-existente-api'
 import type { CondicionesTasaLead } from '@/data/crm-api'
 import { fechaSla, puedeRegistrarGestionSla, type AvisoSla } from '@/lib/sla-operacion'
@@ -98,6 +103,7 @@ import {
   type Tarea,
 } from '@/lib/tipos'
 import { ChipProcedencia } from '@/components/app/procedencia-chip'
+import { ChipReasignado } from '@/components/app/reasignado-chip'
 import { fechaLima, proximoSlotSugerido, tareaAEvento } from '@/lib/agenda-derivada'
 import { tituloProximaAccion } from '@/lib/campos-siguiente'
 import { presentarCitas } from '@/lib/terminologia'
@@ -169,6 +175,29 @@ function Ficha({ l }: { l: Lead }) {
   const [clienteDelLead, setClienteDelLead] = useState<BusquedaCliente | null>(null)
   const [condicionesLead, setCondicionesLead] = useState<EstadoCondicionesLead | null>(null)
   const bloqueoTasa = condicionesLead?.bloqueo ?? (condicionesLead ? null : 'Verifica las condiciones de inversión antes de convertir.')
+  // Recargar la página con el wizard de conversión abierto lo retoma, con el mismo
+  // permiso que sus botones. Espera a conocer las condiciones de tasa: el contrato
+  // las toma al montarse (un convertido ya no las tiene; un descartado no convierte).
+  // Si no llegan, «Convertir a cliente» lo retoma igual, sin volver a pedir la identidad.
+  const conversionAbierta = () => Boolean(yo && !yo.demo && leerConversionAbierta(yo.id, l.id))
+  const [retomarConversion, setRetomarConversion] = useState(conversionAbierta)
+  if (retomarConversion && puedeConvertir && (condicionesLead !== null || l.etapa === 'convertido')) {
+    setRetomarConversion(false)
+    // Se vuelve a mirar la marca: quien ya cerró el wizard a mano no quiere que reaparezca.
+    if (conversionAbierta()) setDialogo(actual => actual ?? 'convertir')
+  }
+  // Un modal que aparece solo le quita el foco a quien ya está trabajando en la ficha:
+  // al primer gesto la retoma queda para el botón, que tampoco vuelve a pedir la identidad.
+  useEffect(() => {
+    if (!retomarConversion) return
+    const desarmar = () => setRetomarConversion(false)
+    window.addEventListener('keydown', desarmar, true)
+    window.addEventListener('pointerdown', desarmar, true)
+    return () => {
+      window.removeEventListener('keydown', desarmar, true)
+      window.removeEventListener('pointerdown', desarmar, true)
+    }
+  }, [retomarConversion])
   // Señal header → Datos: el badge "Sin capital estimado" abre el modo edición
   // de la sección Datos sin duplicar su estado (contador incremental).
   const [pedirEditarDatos, setPedirEditarDatos] = useState(0)
@@ -212,6 +241,8 @@ function Ficha({ l }: { l: Lead }) {
               )}
               <Badge color="var(--muted-foreground)">{origenLabel(l.origen)}</Badge>
               <ChipProcedencia lead={l} conNombre />
+              <ChipReasignado lead={l} />
+              <ChipPotencialDeLead leadId={l.id} />
               {/* Capital ausente = vacío accionable: el badge ámbar abre Editar. */}
               {l.monto_estimado == null &&
                 (escribe && !esTerminal ? (
@@ -252,6 +283,7 @@ function Ficha({ l }: { l: Lead }) {
 
       <SheetBody className="space-y-5">
         <div ref={refEtapa} tabIndex={-1} className="rounded-lg focus-visible:outline-2 focus-visible:outline-ring">{esTerminal ? <BannerTerminal l={l} escribe={escribe} onClienteDelLead={setClienteDelLead} /> : <Stepper l={l} escribe={escribe} />}</div>
+        <SeccionPotencial lead={l} />
         {!esTerminal && tieneAnalista && <SolicitudTasaLeadPlegable lead={l} demo={Boolean(yo?.demo)} puedeEditar={puedeConvertir} onCambio={setCondicionesLead} />}
         {!esTerminal && <EstadoSlaFicha leadId={l.id} onActuar={escribe ? actuarSobreAviso : undefined} />}
         <ProximaAccion l={l} escribe={escribe} activa={!esTerminal} />
@@ -1070,6 +1102,9 @@ function Datos({
   const { editarLead, reasignar, ambito } = useCRMData()
   const { yo } = useAuth()
   const sufijoDemo = yo?.demo ? ' (demo)' : ''
+  const consultaDocumento = useDocumentoLead(l)
+  const documento = consultaDocumento.data
+  const [guardando, setGuardando] = useState(false)
   const [editando, setEditando] = useState(false)
   // El error se guarda CON su campo (código estructurado del store, nunca
   // adivinando por regex sobre el texto) para marcar como inválido el input
@@ -1083,6 +1118,13 @@ function Datos({
     monto: '',
     moneda: 'PEN' as Moneda,
     dni: '',
+    tipoDocumento: 'DNI' as TipoDocumento,
+    numeroAnterior: '',
+    tipoAnterior: 'DNI' as TipoDocumento,
+    identificadorAnterior: null as string | null,
+    reconocido: false,
+    puedeCorregir: false,
+    motivoDocumento: '',
     distrito: '',
     categoria: null as CategoriaInteres | null,
     nota: '',
@@ -1093,6 +1135,7 @@ function Datos({
   const vendedores = ambito.vendedores.filter((m) => m.rol_crm === 'vendedor' && m.activo)
 
   const empezar = () => {
+    if (!documento || consultaDocumento.isError) return
     setForm({
       nombre: l.nombre_completo,
       telefono: l.telefono,
@@ -1100,7 +1143,14 @@ function Datos({
       correo: l.correo ?? '',
       monto: l.monto_estimado != null ? String(l.monto_estimado) : '',
       moneda: l.moneda,
-      dni: l.dni ?? '',
+      dni: documento.numero ?? '',
+      tipoDocumento: documento.tipo,
+      numeroAnterior: documento.numero ?? '',
+      tipoAnterior: documento.tipo,
+      identificadorAnterior: documento.identificador_id,
+      reconocido: documento.inversionista_id !== null,
+      puedeCorregir: documento.puede_corregir,
+      motivoDocumento: '',
       distrito: l.distrito ?? '',
       categoria: l.categoria_interes ?? null,
       nota: l.nota ?? '',
@@ -1109,15 +1159,21 @@ function Datos({
     setEditando(true)
   }
 
-  const guardar = () => {
+  const documentoCambia = form.tipoDocumento !== form.tipoAnterior || form.dni.trim() !== form.numeroAnterior
+  const guardar = async () => {
+    if (guardando) return
+    if (form.reconocido && documentoCambia && form.motivoDocumento.trim().length < 3) {
+      setError({ campo: 'dni', mensaje: 'Indica el motivo de la corrección del documento' })
+      return
+    }
     const montoTxt = form.monto.trim()
     const monto = Number(montoTxt.replace(',', '.'))
     if (!montoTxt || !Number.isFinite(monto) || monto <= 0) {
       setError({ campo: 'monto_estimado', mensaje: 'El capital estimado es obligatorio y debe ser mayor que 0' })
       return
     }
-    // El DNI NO se revalida aquí: `editarLead` ya corre validarCamposLead (los
-    // 8 dígitos) y devuelve el error CON su `campo`. Una segunda copia de la
+    // El documento NO se revalida aquí: `editarLead` valida según su tipo
+    // y devuelve el error CON su `campo`. Una segunda copia de la
     // regla en la UI es exactamente lo que hace divergir los mensajes.
     const res = editarLead(l.id, {
       nombre_completo: form.nombre,
@@ -1129,7 +1185,12 @@ function Datos({
       correo: form.correo.trim() || null,
       monto_estimado: monto,
       moneda: form.moneda,
-      dni: form.dni.trim() || null,
+      ...(yo?.demo && form.tipoDocumento === 'DNI' && !l.documento
+        ? { dni: form.dni.trim() || null }
+        : { documento: { tipo: form.tipoDocumento, numero: form.dni.trim() || null },
+          ...(form.reconocido ? { correccion_documento: {
+            identificador_anterior: form.identificadorAnterior, motivo: form.motivoDocumento.trim(),
+          } } : {}) }),
       distrito: form.distrito.trim() || null,
       categoria_interes: form.categoria,
       nota: form.nota.trim() || null,
@@ -1138,6 +1199,16 @@ function Datos({
       setError({ campo: res.campo ?? null, mensaje: res.error ?? 'No se pudo guardar' })
       return
     }
+    if (res.persistido) {
+      setGuardando(true)
+      const persistido = await res.persistido
+      setGuardando(false)
+      if (!persistido.ok) {
+        setError({ campo: null, mensaje: persistido.error ?? 'No se pudo guardar' })
+        return
+      }
+    }
+    if (!yo?.demo) void consultaDocumento.refetch()
     setEditando(false)
     setError(null)
     toast.success(`Cambios guardados${sufijoDemo}`)
@@ -1173,7 +1244,7 @@ function Datos({
   const faltantes = [
     l.monto_estimado == null && 'capital estimado',
     !l.correo && 'correo',
-    !l.dni && 'DNI',
+    documento && !documento.numero && (documento.tipo === 'DNI' ? 'DNI' : 'documento'),
     !l.distrito && 'distrito',
     !l.categoria_interes && 'categoría',
     !l.nota && 'nota',
@@ -1184,14 +1255,18 @@ function Datos({
       <div className="flex items-center justify-between">
         <h3 className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Datos</h3>
         {escribe && activa && !editando && (
-          <Button size="xs" variant="ghost" onClick={empezar}>
+          <Button size="xs" variant="ghost" disabled={!documento || consultaDocumento.isError} onClick={empezar}>
             <Pencil /> Editar
           </Button>
         )}
       </div>
 
+      {consultaDocumento.isPending && <p className="text-xs text-muted-foreground">Consultando documento…</p>}
+      {consultaDocumento.isError && <p role="alert" className="text-xs text-destructive-text">
+        No se pudo consultar el documento. <button type="button" className="underline" onClick={() => void consultaDocumento.refetch()}>Reintentar</button>
+      </p>}
       {editando ? (
-        <div className="mt-2 space-y-3 rounded-xl border border-border bg-muted/40 p-3">
+        <fieldset disabled={guardando} className="mt-2 space-y-3 rounded-xl border border-border bg-muted/40 p-3">
           <div className="space-y-1.5">
             <Label htmlFor="ld-nombre">Nombre completo</Label>
             <Input
@@ -1262,32 +1337,40 @@ function Datos({
               aria-describedby={invalido('correo') ? 'ld-datos-error' : undefined}
             />
           </div>
-          {/* DNI y distrito viven AQUÍ y no solo en el alta: los pide la línea
-              "Faltan …" de abajo, y sin ellos ese aviso era un callejón sin
-              salida (el 100% de los leads importados llega sin DNI). El DNI
-              además es lo que desbloquea la conversión a cliente del portal. */}
+          {/* El documento de la ficha es el mismo que usará la conversión. */}
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="ld-dni">DNI</Label>
+              <Label htmlFor="ld-tipo-documento">Tipo de documento</Label>
+              <Select id="ld-tipo-documento" value={form.tipoDocumento} disabled={form.reconocido && !form.puedeCorregir}
+                onChange={(e) => { setError(null); setForm((f) => ({ ...f, tipoDocumento: e.target.value as TipoDocumento })) }}>
+                {TIPOS_DOCUMENTO_K.map((tipo) => <option key={tipo} value={tipo}>{TIPOS_DOCUMENTO[tipo].etiqueta}</option>)}
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ld-dni">{form.tipoDocumento === 'DNI' ? 'DNI' : 'Documento'}</Label>
               <Input
                 id="ld-dni"
                 className="tabular-nums"
-                inputMode="numeric"
+                inputMode={TIPOS_DOCUMENTO[form.tipoDocumento].inputmode}
                 value={form.dni}
-                placeholder="8 dígitos"
+                disabled={form.reconocido && !form.puedeCorregir}
+                placeholder={TIPOS_DOCUMENTO[form.tipoDocumento].regla}
                 aria-invalid={invalido('dni')}
                 aria-describedby={invalido('dni') ? 'ld-datos-error' : undefined}
-                // Se filtra a dígitos al teclear: el DNI peruano no tiene letras
-                // y así el error de formato casi nunca llega a hacer falta.
-                // El tope va DESPUÉS del filtro y no con maxLength, que cuenta
-                // caracteres crudos: pegar "12.345.678" se habría cortado a
-                // "12.345.6" → 6 dígitos guardados en silencio.
+                // Solo se retiran separadores de presentación. Recortar a ocho
+                // dígitos o borrar letras transformaría un CE/pasaporte en otro
+                // documento; el store debe recibirlo entero para rechazarlo.
                 onChange={(e) => {
                   setError(null)
-                  setForm((f) => ({ ...f, dni: e.target.value.replace(/\D/g, '').slice(0, 8) }))
+                  setForm((f) => ({ ...f, dni: f.tipoDocumento === 'DNI' ? e.target.value.replace(/[\s.-]/g, '') : e.target.value.toUpperCase() }))
                 }}
               />
             </div>
+            {form.reconocido && !form.puedeCorregir && <p className="text-xs text-muted-foreground sm:col-span-2">El documento ya está vinculado. Una corrección requiere Administración.</p>}
+            {form.reconocido && form.puedeCorregir && documentoCambia && <div className="space-y-1.5 sm:col-span-2">
+              <Label htmlFor="ld-motivo-documento">Motivo de la corrección del documento</Label>
+              <Textarea id="ld-motivo-documento" value={form.motivoDocumento} maxLength={500} onChange={campo('motivoDocumento')} />
+            </div>}
             <div className="space-y-1.5">
               <Label htmlFor="ld-distrito">Distrito</Label>
               <Input id="ld-distrito" value={form.distrito} onChange={campo('distrito')} placeholder="Miraflores" />
@@ -1332,7 +1415,7 @@ function Datos({
               Guardar
             </Button>
           </div>
-        </div>
+        </fieldset>
       ) : (
         <>
           {/* Orden comercial: capital → categoría → analista → contacto → resto.
@@ -1397,9 +1480,9 @@ function Datos({
               />
             </Fila>
             {l.correo && <Fila label="Correo">{l.correo}</Fila>}
-            {l.dni && (
-              <Fila label="DNI">
-                <span className="tabular-nums">{l.dni}</span>
+            {documento?.numero && !consultaDocumento.isError && (
+              <Fila label={TIPOS_DOCUMENTO[documento.tipo].etiqueta}>
+                <span className="tabular-nums">{documento.numero}</span>
               </Fila>
             )}
             {l.distrito && <Fila label="Distrito">{l.distrito}</Fila>}
@@ -1797,9 +1880,10 @@ export function DialogConvertir({l,onClose,condicionesTasa}: {
   l:Lead;onClose:()=>void;condicionesTasa?:CondicionesTasaLead|undefined;bloqueoTasa?:string|null
 }) {
   const {yo}=useAuth()
+  // La clave es la frontera del documento fijado y de la persona preparada: nunca pasan a otra cuenta ni a otro lead.
   return yo?.demo
     ? <InversionDesdeLeadDemo l={l} onClose={onClose} condicionesTasa={condicionesTasa}/>
-    : <InversionDesdeLead l={l} onClose={onClose} condicionesTasa={condicionesTasa}/>
+    : <InversionDesdeLead key={`${yo?.id}:${l.id}`} l={l} onClose={onClose} condicionesTasa={condicionesTasa}/>
 }
 
 function DialogDescartar({ l, onClose }: { l: Lead; onClose: () => void }) {

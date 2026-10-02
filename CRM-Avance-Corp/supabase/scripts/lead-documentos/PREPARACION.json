@@ -1,0 +1,18 @@
+{
+  "estado": "PREPARADO_LOCAL_NO_PUBLICADO",
+  "aviso_usuario_pendiente": true,
+  "remoto_pendiente": "Storage TenantNotFound en rama; replay MIGRATIONS_FAILED",
+  "branch_id": "ea9833de-a2a3-4453-92b6-5ce0574f9517",
+  "branch_ref": "kuqsmbfqvqzuktsdbugd",
+  "branch_eliminada": true,
+  "tests": {
+    "check": 5021,
+    "e2e_pass": 298,
+    "e2e_skip": 26,
+    "e2e_fail": 0,
+    "sql": 52
+  },
+  "sql_sha256": "89a760e86f4daa9ad41bd20a18b1ce6ba2c931b48a08886559a628cc7ab56e72",
+  "main_base": "6666eaf3",
+  "live_ancestor": "57e7b3b4a79634109041f5dcc7c5ccc72e75fa34"
+}

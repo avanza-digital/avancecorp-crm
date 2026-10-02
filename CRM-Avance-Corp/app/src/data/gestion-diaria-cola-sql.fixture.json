@@ -1,0 +1,122 @@
+{
+  "dia": "2026-09-30",
+  "zona": "America/Lima",
+  "items": [
+    {
+      "tipo": "lead",
+      "clave": "lead:183e5abf-406b-49ca-b57d-b9731f246476",
+      "etapa": "contactado",
+      "grupo": "sin_conversacion",
+      "senal": {
+        "etapa": "contactado",
+        "lead_id": "183e5abf-406b-49ca-b57d-b9731f246476",
+        "ciclo_desde": "2026-08-21T17:44:06.028831+00:00",
+        "llamadas_ciclo": 1,
+        "tenencia_desde": "2026-08-21T17:44:06.028831+00:00",
+        "nombre_completo": "COLA SINTETICA 530",
+        "numero_errado_en": null,
+        "proxima_tarea_en": null,
+        "sin_conversacion": true,
+        "ultima_llamada_en": "2026-08-24T02:34:06.028831+00:00",
+        "proxima_tarea_tipo": null,
+        "ultima_llamada_tipo": "llamada_realizada",
+        "dias_sin_conversacion": 37,
+        "numero_errado_detalle": null,
+        "intentos_sin_respuesta": 0,
+        "ultima_conversacion_en": "2026-08-24T02:34:06.028831+00:00",
+        "ultima_llamada_resultado": null
+      },
+      "lead_id": "183e5abf-406b-49ca-b57d-b9731f246476",
+      "tarea_id": null,
+      "severidad": "media",
+      "proxima_tarea": null,
+      "referencia_en": "2026-08-22T02:34:06.028831+00:00",
+      "estado_trabajo": "pendiente",
+      "ultima_gestion": null,
+      "nombre_completo": "COLA SINTETICA 530"
+    },
+    {
+      "tipo": "lead",
+      "clave": "lead:473fb2aa-e628-4d87-bcef-8bd13d77fa81",
+      "etapa": "contactado",
+      "grupo": "sin_conversacion",
+      "senal": {
+        "etapa": "contactado",
+        "lead_id": "473fb2aa-e628-4d87-bcef-8bd13d77fa81",
+        "ciclo_desde": "2026-08-21T17:44:06.028831+00:00",
+        "llamadas_ciclo": 2,
+        "tenencia_desde": "2026-08-21T17:44:06.028831+00:00",
+        "nombre_completo": "COLA SINTETICA 1",
+        "numero_errado_en": null,
+        "proxima_tarea_en": null,
+        "sin_conversacion": true,
+        "ultima_llamada_en": "2026-09-30T17:44:06.28211+00:00",
+        "proxima_tarea_tipo": null,
+        "ultima_llamada_tipo": "llamada_no_contestada",
+        "dias_sin_conversacion": 37,
+        "numero_errado_detalle": null,
+        "intentos_sin_respuesta": 1,
+        "ultima_conversacion_en": "2026-08-23T17:45:06.028831+00:00",
+        "ultima_llamada_resultado": "no_contesto"
+      },
+      "lead_id": "473fb2aa-e628-4d87-bcef-8bd13d77fa81",
+      "tarea_id": null,
+      "severidad": "media",
+      "proxima_tarea": null,
+      "referencia_en": "2026-08-21T17:45:06.028831+00:00",
+      "estado_trabajo": "gestionado",
+      "ultima_gestion": {
+        "en": "2026-09-30T17:44:06.28211+00:00",
+        "tarea_id": null,
+        "resultado": "no_contesto",
+        "actividad_id": "38b570ba-5540-4a5f-8abd-b2ec770bce80",
+        "grupo_origen": "sin_conversacion",
+        "etapa_anterior": "contactado"
+      },
+      "nombre_completo": "COLA SINTETICA 1"
+    }
+  ],
+  "total": 530,
+  "filtro": "sin_conversacion",
+  "limite": 8,
+  "pagina": 66,
+  "elegido": "lead:473fb2aa-e628-4d87-bcef-8bd13d77fa81",
+  "totales": {
+    "todo": {
+      "total": 532,
+      "pendientes": 531,
+      "gestionados": 1,
+      "programados": 0
+    },
+    "tarea_hoy": {
+      "total": 0,
+      "pendientes": 0,
+      "gestionados": 0,
+      "programados": 0
+    },
+    "tarea_vencida": {
+      "total": 0,
+      "pendientes": 0,
+      "gestionados": 0,
+      "programados": 0
+    },
+    "primera_atencion": {
+      "total": 2,
+      "pendientes": 2,
+      "gestionados": 0,
+      "programados": 0
+    },
+    "sin_conversacion": {
+      "total": 530,
+      "pendientes": 529,
+      "gestionados": 1,
+      "programados": 0
+    }
+  },
+  "version": 1,
+  "siguiente": "lead:a323ecdc-4db8-40bc-8df3-6598fbea0aa5",
+  "analista_id": "b0000000-0000-4000-8000-000000000002",
+  "generado_en": "2026-09-30T17:44:06.482735+00:00",
+  "vuelta_completa": false,
+  "proximo_cambio_en": "2026-10-01T05:00:00+00:00"
+}

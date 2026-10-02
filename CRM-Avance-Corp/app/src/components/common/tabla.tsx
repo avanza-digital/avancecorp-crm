@@ -33,12 +33,18 @@ export function TablaEnvoltura({ ariaLabel, children }: { ariaLabel?: string; ch
 }
 
 /** thead canónico del CRM: UNA fila de cabecera con el estilo de la casa. */
-export function TheadCrm({ children }: { children: ReactNode }) {
+const FILA_THEAD = 'border-b border-border bg-muted/50 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground'
+
+/**
+ * UNA cabecera por tabla. `segundaFila` permite cabeceras agrupadas (dos `<tr>`
+ * dentro del MISMO `<thead>`, con `rowSpan`/`colSpan` y `scope` en las celdas):
+ * repetir `TheadCrm` produciría dos `<thead>`, que es HTML inválido.
+ */
+export function TheadCrm({ children, segundaFila }: { children: ReactNode; segundaFila?: ReactNode }) {
   return (
     <thead>
-      <tr className="border-b border-border bg-muted/50 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-        {children}
-      </tr>
+      <tr className={FILA_THEAD}>{children}</tr>
+      {segundaFila ? <tr className={FILA_THEAD}>{segundaFila}</tr> : null}
     </thead>
   )
 }

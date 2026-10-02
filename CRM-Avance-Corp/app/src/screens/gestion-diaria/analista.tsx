@@ -1,14 +1,8 @@
-// Gestión Diaria · Fase 3 — «Mi día» del analista. Responde una sola pregunta:
-// ¿a quién llamo AHORA? La cola sale de `crm.cola_accion_v3_fn` (desde el
-// 29/09/2026: los leads del mundo SLA MÁS las tareas de clientes del día, cada
-// fila con su clave `lead:`/`tarea:`) y el resto del día —marcador, compromisos, señales por lead y los
-// descartes con su «Deshacer»— de `crm.gestion_diaria_analista_fn`. Aquí no se
-// calcula negocio: se ORDENA (`ordenarColaDiaria`, función pura probada) y se
-// presenta. Al guardar un resultado, la pantalla salta a la fila siguiente.
-//
-// «Hoy» NO cambia: sigue siendo «las 3 cosas de ahora» (decisión de Miguel).
-// Esta pantalla es la cola COMPLETA del día, y las dos comparten el primer
-// ítem: el lead sin primer intento manda en ambas (test compartido).
+// Gestión diaria del analista. `gestion_diaria_cola_trabajo_fn` decide el
+// orden y el avance de la cola completa ANTES de paginar. La actividad vigente
+// del día de Lima es la fuente del progreso; el navegador guarda navegación.
+// `gestion_diaria_analista_fn` conserva las cifras, actividad y seguimiento.
+// Una sesión inmutable fija a quién se llamó hasta confirmar el guardado.
 //
 // DISEÑO (27/09/2026, Miguel: «que prevalezca la organización del HTML y lo
 // limpio que se ve, con los colores del CRM»). La pantalla cabe entera, sin
@@ -51,16 +45,17 @@ import { enlaceTel } from '@/lib/telefono'
 import { ETAPA_INFO, TIPOS_ACTIVIDAD, TIPOS_TAREA, type Etapa, type Lead, type Tarea, type TipoActividad } from '@/lib/tipos'
 import { etiquetaResultado } from '@/lib/resultado-llamada'
 import { tareaQueCierra } from '@/lib/contacto-tarea'
+import { cerrarIntencionesDe } from '@/lib/intencion-contacto'
 import { presentarCitas } from '@/lib/terminologia'
 import {
-  COLOR_NIVEL, ETIQUETA_NIVEL, cuandoLimaDe, detalleDeFila, filasDelFiltro, filasDiariasDemo,
-  claveDeLead, finDelDiaLima, horaLimaDe, ordenarColaDiaria, paginaDeFilas, pestanasDiarias, siguienteTrasGuardar, tiempoDeFila,
+  COLOR_NIVEL, ETIQUETA_NIVEL, cuandoLimaDe, detalleDeFila,
+  finDelDiaLima, horaLimaDe, pestanasDiarias, tiempoDeFila,
   type Descartado, type DiaAnalista, type FilaCliente, type FilaDiaria, type FilaLead, type FiltroCola,
-  FILTROS_COLA_DIA,
-  LIMITE_COLA_DIA,
 } from '@/lib/gestion-diaria-analista'
 import { useDiaAnalista } from '@/data/gestion-diaria-queries'
-import { useColaDiaPagina } from '@/data/sla-operacion-queries'
+import { useColaTrabajo } from '@/data/gestion-diaria-cola-queries'
+import { filasTrabajoDemo, paginarTrabajoDemo } from '@/lib/gestion-diaria-cola-demo'
+import { leerContextoCola, guardarContextoCola, textoGestion } from '@/lib/gestion-diaria-cola'
 import { useContactoInversionista } from '@/data/inversionistas-queries'
 import { CerrarTareaDialog } from '@/components/app/cerrar-tarea'
 import { abrirInversionista } from '@/lib/router'
@@ -110,15 +105,22 @@ interface SesionLlamada {
   tarea: Tarea | null | undefined
   /** El formulario del resultado está a la vista en la tarjeta. */
   abierta: boolean
+  siguiente: { filtro: FiltroCola; clave: string | null }
 }
 const FECHA_LARGA = new Intl.DateTimeFormat('es-PE', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/Lima' })
 
 export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento?: ReactNode } = {}): JSX.Element {
   const { yo } = useAuth()
   const ahora = useAhora()
-  const { ambito, tareas, tareasDe, asegurarLead, obtenerTareaParaRevision } = useCRMData()
+  const dia = useDiaAnalista(null, null)
+  const { ambito, tareas, tareasDe, asegurarLead, obtenerTareaParaRevision, actividadesDelAmbito } = useCRMData()
   const { abrirLead } = usePanelesActions()
   const id = useId()
+  const hoy = dia.dia?.dia ?? fechaLima(ahora)
+  const alcanceNav = `${yo?.id ?? ''}:${hoy}`
+  const alcanceGuardado = useRef(alcanceNav)
+  const [contextoInicial] = useState(() => leerContextoCola(yo?.id ?? '', hoy))
+  const navegacionVigente = alcanceGuardado.current === alcanceNav
 
   // TODO el estado vive AQUÍ, por encima de la cascada de carga/error: el hook
   // del día es fail-closed (un refetch fallido devuelve `null`) y, si el filtro,
@@ -130,10 +132,19 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
   const sesionRef = useRef<SesionLlamada | null>(null)
   const contadorSesion = useRef(0)
   const setSesion = (s: SesionLlamada | null) => { sesionRef.current = s; setSesionEstado(s) }
+  // La intención de contacto que abrió la tarjeta es de ESTA pantalla mientras
+  // dure la sesión; si la pantalla se va con la sesión viva, se libera para que
+  // la cola de llamadas no quede atascada (F1.1.3).
+  const actorRef = useRef(yo?.id)
+  actorRef.current = yo?.id
+  useEffect(() => () => {
+    const viva = sesionRef.current
+    if (viva) cerrarIntencionesDe(actorRef.current, viva.lead.id)
+  }, [])
   const [deshaciendo, setDeshaciendo] = useState<string | null>(null)
   // La CLAVE de la fila elegida (`lead:<uuid>` | `tarea:<uuid>`), no un lead:
   // un cliente puede tener dos tareas en la cola.
-  const [elegido, setElegido] = useState<string | null>(null)
+  const [elegido, setElegido] = useState<string | null>(contextoInicial.elegido)
   // La tarea de CLIENTE abierta en el diálogo de cierre, con su fila. El ref
   // dice qué diálogo sigue ABIERTO: el diálogo avisa igual al guardar que al
   // cancelar, y puede avisar dos veces; solo el primer aviso cuenta.
@@ -143,15 +154,15 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
   // cuanto el store refleja lo que se hizo (ver `MARGEN_CIERRE_MS`).
   const [cierreAvisado, setCierreAvisado] = useState<CierreAvisado | null>(null)
   // El filtro que pidió el analista; `null` = «Todo», el de entrada.
-  const [filtroPedido, setFiltroPedido] = useState<FiltroCola | null>(null)
-  const [pagina, setPagina] = useState(0)
+  const [filtroPedido, setFiltroPedido] = useState<FiltroCola | null>(contextoInicial.filtro)
+  const [pagina, setPagina] = useState(contextoInicial.pagina)
   const [vistaDerecha, setVistaDerecha] = useState<VistaDerecha>('cola')
-  // Las filas (claves) cuyo resultado se acaba de guardar: siguen en la cola hasta que el
-  // servidor conteste, y sin esto «Ahora» volvería a proponer al que ya cerraste.
-  // Es un CONJUNTO y no un solo id: registrar dos seguidos antes de que vuelva
-  // el primero hacía que el `finally` de uno destapara al otro.
+  // Solo cierres de tareas de CLIENTE, hasta que la lectura confirme su salida.
+  // Los leads gestionados siguen visibles al final según la respuesta del servidor.
   const [cerrados, setCerrados] = useState<readonly string[]>([])
+  const [revisionCola, setRevisionCola] = useState(0)
   const nombreAhora = useRef<HTMLButtonElement>(null)
+  const focoPendiente = useRef(false)
   const tituloDescartes = useRef<HTMLHeadingElement>(null)
   const panelAhora = useRef<HTMLElement>(null)
   const encabezado = useRef<HTMLHeadingElement>(null)
@@ -161,48 +172,54 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
   const [cargandoLead, setCargandoLead] = useState<string | null>(null)
   const [abriendoPanel, setAbriendoPanel] = useState(false)
 
-  const dia = useDiaAnalista(null, null)
   // El último día CONFIRMADO: solo sirve para seguir pintando la llamada en curso
   // si un refresco falla (revisión a11y, 27/09). Las cifras y la cola NO se
   // pintan con él: el día es fail-closed.
   const ultimoDia = useRef<DiaAnalista | null>(null)
   useEffect(() => { if (dia.dia !== null) ultimoDia.current = dia.dia }, [dia.dia])
-  // La cola del día v3: leads (los mismos de «Seguimiento comercial») y clientes, sin filtros.
-  const cola = useColaDiaPagina(FILTROS_COLA_DIA, null, LIMITE_COLA_DIA, !yo?.demo)
-  const paginaCola = cola.error ? undefined : cola.data
-  // La cola y el día son DOS consultas: mientras la cola no ha llegado, decir
-  // «no tienes nada pendiente» sería mentir (solo estarían los sin conversación).
+  const pedidoCola = { filtro: navegacionVigente ? filtroPedido ?? 'todo' : 'todo',
+    pagina: navegacionVigente ? pagina : 0, limite: FILAS_POR_PAGINA,
+    elegido: navegacionVigente ? elegido : null }
+  const cola = useColaTrabajo(pedidoCola, hoy, revisionCola)
+  const filasDemo = useMemo(() => yo?.demo && dia.dia
+    ? filasTrabajoDemo(dia.dia, tareas, actividadesDelAmbito ?? [], ahora) : [],
+  [yo?.demo, dia.dia, tareas, actividadesDelAmbito, ahora])
+  const paginaCola = yo?.demo && dia.dia ? paginarTrabajoDemo(filasDemo, pedidoCola, yo.id, hoy, ahora)
+    : cola.error ? undefined : cola.data
   const colaCargando = !yo?.demo && cola.error == null && paginaCola === undefined
   const colaCaida = !yo?.demo && cola.error != null
-  const hayMas = paginaCola?.hay_mas === true
 
   const leadsPorId = useMemo(() => new Map(ambito.leads.map((l) => [l.id, l])), [ambito.leads])
   const filas = useMemo<FilaDiaria[]>(() => {
     if (dia.dia === null) return []
-    const todas = yo?.demo
-      ? filasDiariasDemo(dia.dia.cartera, ahora, dia.dia.dia, tareas, yo.id)
-      : ordenarColaDiaria(paginaCola?.items ?? [], dia.dia.cartera)
+    const todas = paginaCola?.items ?? []
     return cerrados.length === 0 ? todas : todas.filter((f) => !cerrados.includes(f.clave))
-  }, [ahora, cerrados, dia.dia, paginaCola?.items, tareas, yo?.demo, yo?.id])
+  }, [cerrados, dia.dia, paginaCola?.items])
 
   const pestanas = useMemo(() => pestanasDiarias(filas), [filas])
-  // El elegido se busca en TODAS las filas, no solo en el filtro abierto: un
-  // refetch puede moverlo de grupo (de «Hoy» a «Vencidas» al dar la hora) y la
-  // pantalla no puede perderlo de vista ni dejar un id fantasma guardado.
-  const elegida = elegido === null ? null : filas.find((f) => f.clave === elegido) ?? null
-  // El filtro que manda: el que pidió el analista (o «Todo»). Con un GRUPO a la
-  // vista, si el refresco mueve al elegido de grupo, la vista LO SIGUE; en
-  // «Todo» no hace falta: ahí están todos (hallazgo de Codex, 27/09/2026).
   const pedido: FiltroCola = filtroPedido ?? 'todo'
-  const filtro: FiltroCola = elegida !== null && pedido !== 'todo' && elegida.grupo !== pedido ? elegida.grupo : pedido
-  const lista = filasDelFiltro(pestanas, filtro)
-  // La página se deriva del elegido: si lo eligió, se ve; si no, la que pidió.
-  const indiceElegida = elegida === null ? -1 : lista.findIndex((f) => f.clave === elegida.clave)
-  const paginaPedida = indiceElegida >= 0 ? Math.floor(indiceElegida / FILAS_POR_PAGINA) : pagina
-  const vista = paginaDeFilas(lista, paginaPedida, FILAS_POR_PAGINA)
-  // Sin elección explícita, «Ahora» es el primero de la página: el orden del
-  // servidor ya dice quién urge más.
-  const fila = elegida ?? vista.filas[0] ?? null
+  const filtro: FiltroCola = paginaCola?.filtro ?? pedido
+  const lista = filas
+  const vista = {
+    filas, pagina: paginaCola?.pagina ?? pagina, total: paginaCola?.total ?? 0,
+    paginas: Math.max(1, Math.ceil((paginaCola?.total ?? 0) / FILAS_POR_PAGINA)),
+  }
+  const fila = filas.find((f) => f.clave === paginaCola?.elegido) ?? null
+
+  useEffect(() => {
+    if (navegacionVigente) return
+    const contexto = leerContextoCola(yo?.id ?? '', hoy)
+    const cambioActor = alcanceGuardado.current.split(':')[0] !== (yo?.id ?? '')
+    alcanceGuardado.current = alcanceNav
+    setFiltroPedido(contexto.filtro); setPagina(contexto.pagina); setElegido(contexto.elegido)
+    setCerrados([])
+    if (cambioActor) { setSesion(null); pedidos.current.clear() }
+  }, [alcanceNav, hoy, navegacionVigente, yo?.id])
+  useEffect(() => {
+    if (!navegacionVigente || !yo || (!yo.demo && !paginaCola)) return
+    guardarContextoCola(yo.id, hoy, { filtro, pagina: vista.pagina, elegido: fila?.clave ?? null })
+  }, [fila?.clave, filtro, hoy, navegacionVigente, paginaCola, vista.pagina, yo])
+  const proximo = () => ({ filtro, clave: paginaCola?.siguiente ?? null })
 
   // EL TELÉFONO NO VIAJA EN LA COLA. `cola_accion_v2_fn` devuelve del lead solo
   // id, nombre, etapa y analista; el número vive en el ámbito del store, que
@@ -232,6 +249,7 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
   }, [asegurarLead, leadDeFila, leadsPorId])
 
   function elegir(f: FilaDiaria) {
+    if (cerrados.includes(f.clave)) return
     const actual = sesionRef.current
     if (actual?.abierta) {
       toast.info(`Primero guarda o cierra el resultado de ${primerNombre(actual.lead.nombre_completo)}.`)
@@ -240,6 +258,7 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
     // Sin formulario abierto (p. ej. volvió del marcador antes de 4 s), elegir a
     // otra persona abandona la llamada fijada.
     if (actual !== null) setSesion(null)
+    focoPendiente.current = true
     setElegido(f.clave)
     requestAnimationFrame(() => {
       panelAhora.current?.scrollIntoView?.({ block: 'nearest' })
@@ -247,12 +266,15 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
     })
   }
   function cambiarFiltro(nuevo: FiltroCola) {
+    focoPendiente.current = false
     setFiltroPedido(nuevo === 'todo' ? null : nuevo)
     setPagina(0)
     setElegido(null)
   }
   /** Se guarda ya acotada: si la lista encoge y vuelve a crecer, no salta sola. */
   function irAPagina(p: number) {
+    focoPendiente.current = false
+    setElegido(null)
     setPagina(Math.min(Math.max(p, 0), vista.paginas - 1))
   }
   /**
@@ -267,7 +289,7 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
     if (filaActiva === null || filaActiva.tipo !== 'lead') return null
     const suyo = leadsPorId.get(filaActiva.lead_id)
     if (suyo === undefined) return null
-    const nueva: SesionLlamada = { id: ++contadorSesion.current, fila: filaActiva, lead: suyo, tarea: undefined, abierta: false }
+    const nueva: SesionLlamada = { id: ++contadorSesion.current, fila: filaActiva, lead: suyo, tarea: undefined, abierta: false, siguiente: proximo() }
     setSesion(nueva)
     setElegido(filaActiva.clave)
     return nueva
@@ -317,6 +339,10 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
   function cerrarSesion(id: number) {
     const actual = sesionRef.current
     if (actual?.id !== id) return
+    // La intención de contacto que abrió esta tarjeta (un tap en «Llamar» o el
+    // enlace del celular) termina aquí: mientras seguía abierta, la siguiente
+    // llamada esperaba en la cola en vez de abrirse encima (F1.1.3).
+    cerrarIntencionesDe(yo?.id, actual.lead.id)
     setSesion(null)
     setElegido(actual.fila.clave)
     requestAnimationFrame(() => {
@@ -330,18 +356,19 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
    * persona concreta, no «la primera de la página»: si el servidor tarda en
    * sacar al guardado, no se lo vuelve a proponer.
    */
-  async function alGuardar(clave: string) {
-    const siguiente = siguienteTrasGuardar(pestanas, filtro, clave)
-    setCerrados((c) => (c.includes(clave) ? c : [...c, clave]))
+  async function alGuardar(siguiente = proximo()) {
     setFiltroPedido(siguiente.filtro === 'todo' ? null : siguiente.filtro)
     setElegido(siguiente.clave)
+    setPagina(0)
+    // Una clave nueva de consulta nace DESPUÉS de confirmar la escritura.
+    // Ninguna foto anterior (ni de otro filtro) puede volver a proponer al
+    // gestionado. La primera respuesta nueva manda, incluso si hubo deshacer
+    // u otra gestión desde la ficha: no queda una máscara de negocio local.
+    setRevisionCola((r) => r + 1)
     recogerFocoSuelto()
-    // `allSettled` y no `all`: si una de las dos lecturas falla, la otra sigue
-    // su curso y aquí no queda un rechazo sin capturar. Y se destapa SOLO este
-    // lead, no el de un guardado que todavía esté en vuelo.
-    await Promise.allSettled([dia.recargar(), ...(yo?.demo ? [] : [cola.refetch()])])
-    setCerrados((c) => c.filter((x) => x !== clave))
+    await Promise.allSettled([dia.recargar()])
   }
+
   /**
    * Dos cuadros después (el diálogo restaura primero su foco): si el foco quedó
    * suelto —el botón que lo tenía se desmontó al cambiar de persona— o en las
@@ -349,6 +376,7 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
    * analista ya se movió a otro sitio, no se le roba el foco.
    */
   function recogerFocoSuelto() {
+    focoPendiente.current = true
     requestAnimationFrame(() => requestAnimationFrame(() => {
       const activo = document.activeElement
       const suelto = activo === null || activo === document.body || activo === document.documentElement
@@ -356,6 +384,20 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
       if (suelto) (nombreAhora.current ?? encabezado.current)?.focus()
     }))
   }
+  // Con una página remota lenta, los dos cuadros anteriores enfocan el título.
+  // Cuando llega la persona siguiente terminamos el relevo, sin quitarle el
+  // foco a quien ya se haya movido a otro control durante la espera.
+  useEffect(() => {
+    if (!focoPendiente.current || colaCargando || colaCaida || sesion !== null) return
+    const cuadro = requestAnimationFrame(() => {
+      const activo = document.activeElement
+      if (activo === document.body || activo === document.documentElement || activo === encabezado.current) {
+        (nombreAhora.current ?? encabezado.current)?.focus()
+      }
+      focoPendiente.current = false
+    })
+    return () => cancelAnimationFrame(cuadro)
+  }, [colaCargando, colaCaida, fila?.clave, sesion])
   /**
    * «Registrar resultado» de una tarea de CLIENTE: el cierre de tarea de
    * siempre (postventa si es de un inversionista), sobre la tarea del ámbito.
@@ -387,7 +429,7 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
     cierreAbierto.current = null
     setCierreCliente(null)
     setCierreAvisado({ fila: abierto.fila, venceAntes: abierto.tarea.vence_en,
-      siguiente: siguienteTrasGuardar(pestanas, filtro, abierto.fila.clave) })
+      siguiente: proximo() })
   }
   // Lo que se hizo lo dice el STORE, y se decide en cuanto lo refleja. No se
   // supone que eso ya esté en el commit del aviso (la postventa relee el ámbito
@@ -443,7 +485,7 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
   useEffect(() => {
     if (paginaCola === undefined) return
     setCerrados((c) => {
-      const quedan = c.filter((x) => !x.startsWith('tarea:') || paginaCola.items.some((i) => i.clave === x))
+      const quedan = c.filter((x) => paginaCola.items.some((i) => i.clave === x))
       return quedan.length === c.length ? c : quedan
     })
   }, [paginaCola])
@@ -453,10 +495,7 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
     try {
       const { deshacerResultadoLlamada } = await import('@/data/gestion-diaria-api')
       await deshacerResultadoLlamada(d.actividad_id)
-      // El lead vuelve a la cartera: si estaba tapado por un guardado propio,
-      // se destapa — pero solo ese, no los de otros guardados en vuelo.
-      setCerrados((c) => c.filter((x) => x !== claveDeLead(d.lead_id)))
-      await dia.recargar()
+      await Promise.allSettled([dia.recargar(), ...(yo?.demo ? [] : [cola.refetch()])])
       toast.success(`Deshecho: ${d.lead_nombre} vuelve a tu cartera`)
       requestAnimationFrame(() => {
         const activo = document.activeElement
@@ -479,17 +518,19 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
   // Lo que pinta la tarjeta: la sesión, si hay una; si no, la fila viva.
   const filaTarjeta = sesion?.fila ?? filaActiva
   const leadTarjeta = sesion?.lead ?? (filaActiva?.tipo === 'lead' ? leadsPorId.get(filaActiva.lead_id) ?? null : null)
-  const posicionTarjeta = filaTarjeta === null ? 0 : lista.findIndex((f) => f.clave === filaTarjeta.clave) + 1
+  const posicionLocal = filaTarjeta === null ? -1 : lista.findIndex((f) => f.clave === filaTarjeta.clave)
+  const posicionTarjeta = posicionLocal < 0 ? 0 : posicionLocal + 1 + vista.pagina * FILAS_POR_PAGINA
   const fecha = FECHA_LARGA.format(new Date(ahora))
-  const total = filas.length
-  const conteoCola = colaCaida ? '?' : hayMas ? `${total}+` : String(total)
+  const total = paginaCola?.totales.todo.total ?? 0
+  const conteoCola = colaCaida ? '?' : String(total)
 
   const tarjetaAhora = (
     <PanelAhora fila={filaTarjeta} lead={leadTarjeta}
       sinConversacionDias={dia.dia?.sin_conversacion_dias ?? ultimoDia.current?.sin_conversacion_dias ?? 0} ahora={ahora} cargando={colaCargando && sesion === null} colaCaida={colaCaida}
       filtroVacio={filaTarjeta === null && total > 0}
       seccionRef={panelAhora} nombreRef={nombreAhora}
-      posicion={posicionTarjeta} total={lista.length}
+      posicion={posicionTarjeta} total={vista.total}
+      vueltaCompleta={paginaCola?.vuelta_completa === true && vista.total > 0}
       cargandoLead={filaTarjeta?.tipo === 'lead' && cargandoLead === filaTarjeta.lead_id} abriendoPanel={abriendoPanel}
       // «Llamar» FIJA a la persona: nace la sesión de llamada. Si mientras
       // marca (en el celular, con el CRM en segundo plano) entra un lead
@@ -506,9 +547,9 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
       // minuto no puede cambiarle la persona a quien la está leyendo (a11y).
       onEnfoque={() => { if (elegido === null && sesion === null && filaActiva !== null) setElegido(filaActiva.clave) }}
       registro={sesion?.abierta ? (() => {
-        const { id: idSesion, lead: leadSesion, fila: filaSesion } = sesion
+        const { id: idSesion, lead: leadSesion } = sesion
         return <RegistroResultadoTarjeta key={idSesion} lead={leadSesion} tarea={sesion.tarea ?? null}
-          onClose={() => cerrarSesion(idSesion)} onGuardado={() => void alGuardar(filaSesion.clave)} />
+          onClose={() => cerrarSesion(idSesion)} onGuardado={() => void alGuardar(sesion.siguiente)} />
       })() : undefined} />
   )
 
@@ -556,14 +597,10 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
                 pestañas: se ven siempre, esté abierta la que esté. */}
             {colaCaida && (
               <p role="alert" className="shrink-0 rounded-xl bg-destructive/10 px-4 py-3 text-sm font-bold text-[var(--destructive-text)]">
-                No se pudo leer la cola del servidor: solo se muestran los leads sin conversación. Reintenta para verla completa.
+                No se pudo leer la cola del servidor. Pulsa «Actualizar» para recuperar tu lugar.
               </p>
             )}
-            {dia.dia.cartera_truncada && (
-              <p role="status" className="shrink-0 text-[13px] font-semibold text-[var(--muted-foreground-strong)]">
-                Tu cartera abierta pasa de 500 leads: las señales muestran los 500 que llevan más tiempo sin conversación.
-              </p>
-            )}
+
 
             <FranjaCifras etiqueta="Tu día en cifras" cifras={cifrasDelDia(dia.dia)} />
           </>
@@ -602,10 +639,10 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
               >
                 {vistaDerecha === 'cola' ? (
                   <ColaDeHoy
-                    idBase={id} pestanas={pestanas} filtro={filtro} onFiltro={cambiarFiltro}
+                    idBase={id} pestanas={pestanas} trabajo={paginaCola && { ...paginaCola, items: paginaCola.items.filter((f) => !cerrados.includes(f.clave)) }} filtro={filtro} onFiltro={cambiarFiltro}
                     pagina={vista.pagina} onPagina={irAPagina}
                     elegido={filaActiva?.clave ?? null} onElegir={elegir}
-                    ahora={ahora} cargando={colaCargando} hayMas={hayMas} colaCaida={colaCaida}
+                    ahora={ahora} cargando={colaCargando} colaCaida={colaCaida}
                     sinConversacionDias={dia.dia.sin_conversacion_dias}
                   />
                 ) : vistaDerecha === 'actividad' ? (
@@ -660,7 +697,7 @@ function cifrasDelDia(dia: DiaAnalista): CifraDelDia[] {
  * Lo secundario —ver la ficha, registrar desde el menú— vive detrás de «···»
  * (ley de Hick). Escala y medidas: las del diseño (384 px de ancho, radio 32).
  */
-function PanelAhora({ fila, lead, sinConversacionDias, ahora, cargando, colaCaida, filtroVacio, onLlamar, onRegistrar, onAbrirFicha, onRegistrarCliente, tareaCliente, onEnfoque, seccionRef, nombreRef, cargandoLead, abriendoPanel, posicion, total, registro }: {
+function PanelAhora({ fila, lead, sinConversacionDias, ahora, cargando, colaCaida, filtroVacio, vueltaCompleta, onLlamar, onRegistrar, onAbrirFicha, onRegistrarCliente, tareaCliente, onEnfoque, seccionRef, nombreRef, cargandoLead, abriendoPanel, posicion, total, registro }: {
   fila: FilaDiaria | null
   lead: Lead | null
   sinConversacionDias: number
@@ -669,6 +706,7 @@ function PanelAhora({ fila, lead, sinConversacionDias, ahora, cargando, colaCaid
   colaCaida: boolean
   /** La lista a la vista está vacía pero la cola no: el vacío es del filtro. */
   filtroVacio: boolean
+  vueltaCompleta: boolean
   cargandoLead: boolean
   abriendoPanel: boolean
   posicion: number
@@ -722,7 +760,8 @@ function PanelAhora({ fila, lead, sinConversacionDias, ahora, cargando, colaCaid
           <p className="grid flex-1 place-items-center px-6 py-8 text-center text-sm leading-relaxed text-[var(--muted-foreground-strong)]">
             {cargando ? 'Buscando a quién llamar…'
               : colaCaida ? 'No se pudo leer tu cola: no sabemos a quién te toca llamar. Pulsa «Actualizar».'
-                : filtroVacio ? 'Nada en este filtro. Vuelve a «Todo» para ver a quién llamar.'
+                : vueltaCompleta ? 'Vuelta completada. Puedes revisar los gestionados en la lista; los reintentos volverán a su hora.'
+                : filtroVacio ? 'No hay pendientes en esta página. Puedes revisar una fila o volver a «Todo».'
                   : 'Nada pendiente ahora. Cuando entre un lead nuevo aparecerá aquí.'}
           </p>
         ) : fila.tipo === 'cliente' ? (
@@ -739,6 +778,7 @@ function PanelAhora({ fila, lead, sinConversacionDias, ahora, cargando, colaCaid
                 {fila.nombre_completo}
               </button>
               <p className="text-[13px] text-[var(--muted-foreground-strong)]">{etapa}</p>
+              {textoGestion(fila) && <p className="text-xs font-semibold text-[var(--accent-press)]">{textoGestion(fila)}</p>}
             </div>
             {registro === undefined && <div className="flex flex-col items-start gap-2 rounded-xl bg-muted/70 px-3.5 py-3">
               {tiempo !== null && (
@@ -801,7 +841,7 @@ function PanelAhora({ fila, lead, sinConversacionDias, ahora, cargando, colaCaid
           </div>
         )}
         {registro === undefined && <p className="shrink-0 border-t border-border px-5 pb-1.5 pt-3 text-xs leading-relaxed text-[var(--muted-foreground-strong)]">
-          El orden lo pone el servidor: nuevo sin intento primero, luego lo vencido y lo de hoy. Al guardar pasas al siguiente.
+          Pendientes primero. Al guardar, este lead pasa al final y continúas con el siguiente.
         </p>}
         <span aria-hidden="true" className="mx-auto mb-2 block h-1 w-24 shrink-0 rounded-full bg-border-strong" />
       </section>

@@ -210,6 +210,675 @@ ficticia de 15 contratos por caso; nada en producción):
   ninguna Edge Function del repo escribe ahí.
 - Comportamiento previo que sigue (F5): si se corrige la FECHA de una cuota pagada antes del
   vínculo, su sello la marca «inferido» en la cuenta vinculada.
+## 20261001212341 — Potencial del lead · fase 3, entrega B: filtrar y contar Leads por potencial (`p_potencial`)
+
+**✅ EN PRODUCCIÓN desde el 01/10/2026 ~19:30 Lima (Miguel con `!`: migración, registro y verificación). ✅ PANTALLA
+PUBLICADA el 01/10/2026 ~19:55 Lima** (release `crm-20261002T005155Z-4498582850b1`, ver el acta). PASS en banco
+Docker propio (01/10/2026). Plan aprobado por
+Miguel el 01/10/2026 («ok dale con el plan B, todo lo recomendado»: el filtro va solo en Leads, «Sin marcar» es una
+opción y se elige un nivel a la vez). El frente que envía `p_potencial` se publica DESPUÉS (servidor primero).
+
+**Acta de la publicación (01/10/2026 ~19:30 Lima).** Salida de `verificar-filtro.sql` en producción: una sola firma,
+la de 14; md5 de la cartera `23a63cc3965472b9db85aa81cadffbeb` y del ayudante `73e993d618b203cdbe21e8127f7ea5b4` (los
+ensayados); ejecutan la cartera `[authenticated]` y el ayudante `[authenticated]`; forma del ayudante
+`DEFINER/s/search_path=""/postgres`; 0 funciones con ACL nula; nadie lee la tabla de marcas por la API; declaración
+analítica y sello vigentes; bandera `true`; 27 marcas vivas; registro `crm_cartera_filtro_potencial`.
+Advisors: 249 avisos en 6 clases antes y 249 después, archivos byte a byte iguales (el ayudante vive en `private`,
+fuera de la API, y no suma aviso). `npm run gen:types` contra producción no cambió `database.types.ts`.
+Sonda anónima por PostgREST con la clave pública del bundle vivo (`Content-Profile: crm`):
+`{"p_limite":1,"p_potencial":"estrella"}` y `{"p_limite":1,"p_gestion":"gestionado","p_potencial":"sin_marca"}` →
+401/`42501` `permission denied for schema crm` (la API ya conoce el parámetro); `{"p_limite":1}` → 401/`42501`;
+control `{"p_limite":1,"p_no_existe":"x"}` → 404/`PGRST202`. El frente vivo en ese momento (`a070838d`, build
+`build-20261001T211328361Z`) no envía `p_potencial` y lee el resumen con `v.object`: no cambia nada para el usuario
+hasta publicar la pantalla.
+
+**Pantalla publicada (01/10/2026 ~19:55 Lima).** Miguel invocó `/release-crm` y lanzó la subida con `!`. Artefacto
+`crm-20261002T005155Z-4498582850b1.zip` (SHA-256 `e57c5187a3315b3e42aeaed05a07f0a7dd93da5d1b74dc36116c7b8caf77cdde`),
+commit `44985828` (rama `release/potencial-filtro-llamadas-20261001`: nace del vivo `a070838d` y tiene el mismo
+árbol que la rama de la PR #165), build `build-20261002T005154879Z`. Por decisión de Miguel salió junto con Llamadas
+F1 (#160); Gestionado (#162) ya estaba vivo. `npm run check` PASS (346 archivos, 5 592 pruebas); e2e Docker completo
+sobre el código final: 321 pasan, 26 saltadas y los 2 fallos ajenos de siempre (`gerencia-operativa.spec.ts:108`,
+`gestion-diaria-vuelta.spec.ts:11`); manifiesto verificado (130 archivos, 399 migraciones); preflight OK
+(`live=build-20261001T211328361Z/a070838d1b0d candidate=4498582850b1`). Smoke: inicio 200, `version.json` nuevo, los
+94 archivos de código byte a byte iguales al paquete (117 de 130 en total: `.htaccess` da 403 y Hostinger recomprime
+12 PNG), el ZIP no queda en la raíz web (404), el CSS vivo trae las reglas `.pot-filtro`, y la pantalla de entrada
+carga en un navegador sin errores de consola. Falta la pasada visual de Miguel con su sesión.
+
+Qué cambia: `crm.cartera_filtrada_fn` (INVOKER) sustituye la firma de 13 argumentos por una de 14 con
+`p_potencial text default null` (`estrella` | `tibio` | `frio` | `sin_marca`; otro valor → 22023). El resumen gana UNA
+clave, `resumen.potencial = {filtro, estrella, tibio, frio, sin_marca}`, contada ANTES de aplicar `p_potencial` (CTE
+`previa`): los cuatro números no cambian al elegir un nivel y suman el total sin ese filtro; el resto del resumen y las
+filas salen de `base` = `previa` recortada. Las filas tienen la forma de siempre (la columna de trabajo se quita) y no
+hay claves nuevas arriba. La clave solo viaja con la bandera `potencial_lead` encendida y para quien tiene ámbito de
+filas (global o con analistas visibles); sin eso la respuesta es byte a byte la de la firma de 13 y pedir el filtro da
+55000. El cuerpo nuevo se generó desde el texto de `20261001154153` con sustituciones exactas (no se retecleó).
+
+Cómo lee la marca: nace `private.cartera_potencial_fn()`, ayudante **SECURITY DEFINER** (molde
+`private.cartera_recepciones_fn`), porque las tablas del potencial no tienen grants de API y así se quedan. Sesión +
+gate `private.puede_acceder_crm()` + bandera + **espejo exacto de la policy `leads_select`** (cuarta copia: las otras
+son `crm.cierres_estado_fn`, `private.conversion_estado_lead_v1` y `private.potencial_lectura`; si la policy cambia,
+re-auditar las cuatro). EXECUTE solo `authenticated`; `private` no está expuesto en la API. `service_role`: sin cambios
+(no ejecuta ni antes ni después).
+
+**Decisión de ámbito (Codex f3b r1 + auditor-rls f3b P2-1).** La primera versión daba al ayudante el predicado de la
+base de la cartera (con la bandeja del reparto) para que `crm.resumen_cartera_fn` (DEFINER, llama a la cartera sin
+RLS) contara bien las marcas de esa bandeja. Eso habría entregado a coordinación conteos por nivel de leads que su RLS
+no le deja leer, sin decisión de Miguel. Se descartó: el ayudante es el espejo de la RLS y la cartera no emite
+`resumen.potencial` para quien no tiene ámbito de filas. Coordinación no recibe conteos por nivel ni por la API ni por
+el envoltorio. Regla que queda: ve (y cuenta) la marca solo quien ve el lead.
+
+Guardas, con `search_path` vacío y `quote_all_identifiers` off fijados en la transacción. Preflight: (1) función viva
+`bf06666f…` y una sola firma; (2) declaración analítica vigente, de inventario y sellada; (3)
+`assert_actividades_de_lead_base()`; (4) `crm.lead_potencial` como se ensayó (columnas, índice único por `lead_id`,
+RLS, sin SELECT para la API), RLS de `crm.leads` encendida, niveles del enum y bandera; (5) huellas de 5 ayudantes de
+visibilidad (las mismas que ya pasaron en producción con la 3A) y las dos policies de lectura de `crm.leads`; (6)
+permisos de `crm.bandera_activa` y del esquema `private`; (7) único consumidor de servidor: `crm.resumen_cartera_fn`,
+con su md5. Postflight: una firma (14) con md5 `23a63cc3…` y el mismo contrato de seguridad; ayudante con md5
+`73e993d6…`, DEFINER/STABLE/postgres/solo `search_path` vacío, ACL exacta y sin conteos; la tabla sigue sin grants;
+sello, censo, declaraciones ajenas, declaración propia y envoltorio intactos; policies sin cambios; y el ayudante y la
+cartera rechazan una llamada sin sesión por SU guarda («No autorizado»).
+
+Evidencia (banco `avancecorp-potencial-20261001`: esquema de producción del 01/10 13:31 + migraciones posteriores del
+repo + trinquete analítico sembrado; `banco/ciclo-fase3b.sh`, veredicto de máquina «TODO COMO SE ESPERABA»): ciclo
+aplicar/repetir/reversa/reaplicar PASS (tras la reversa, md5 de la de 13 = el de antes y la foto de trinquetes entera
+igual); `prueba-filtro.sql` 152 de 152 (igualdad byte a byte con la función anterior en 10 actores × 14 llamadas con la
+bandera apagada y otras 140 encendida quitando `resumen.potencial`; oráculo por rol y nivel contra la RLS real; cursor
+con empate; envoltorio; el ayudante por dentro y «ayudante ⊆ RLS» comparando ids; el ayudante no se llama con la
+bandera apagada ni para coordinación, tampoco por el envoltorio ni con plan genérico forzado); fases 1, 2 y 3A sin
+regresión (75, 51, 94); oráculo de la regla de gestión de `scripts/cartera-gestion` 128/128 contra la firma de 14; 28
+mutantes de lógica, todos cazados; 51 mutantes de migración y preflight, todos rechazados; 8 estados que la reversa no
+debe aceptar, todos rechazados (entre ellos un consumidor de servidor que ya pasa el argumento 14 con `=>`, con `:=` y
+por posición); trinquetes idénticos salvo la fila de la cartera; costo medido +1,5 a 2 ms por llamada (6 000 leads y
+2 400 marcas).
+
+Reviews: Codex r1 CHANGES_REQUESTED (2 P2 de verificación: identidad del ayudante y un verificador que aceptaba
+errores; aplicados) y auditor-rls CHANGES_REQUESTED sin P0/P1 (ámbito del coordinador, identidad del ayudante en
+postflight/verificador/reversa, ruta sin RLS en la matriz, anclas y mutantes; aplicados). Codex r2 (última ronda)
+CHANGES_REQUESTED sobre la VERIFICACIÓN, con el diseño confirmado (el espejo es exacto, los NULL fallan cerrado y la
+habilitación por ámbito de filas no tiene falsos negativos): el verificador de sumas aceptaba un bloque vacío; «ayudante
+⊆ RLS» podía aprobar con el oráculo caído; la reversa no veía un consumidor que pasara el argumento con `:=` o por
+posición (ahora exige el mismo censo estricto de consumidores que la guarda 7); y el gate debe exigir `PGRST106`. Todo
+aplicado y el ciclo repetido. Encargos y respuestas en `docs/encargos/2026-10-01-potencial-lead-f3b-r{1,2}*.md`.
+
+**NOT RUN:** la matriz `test-rls.mjs` con sesiones reales (exige credenciales de una rama; `node --check` PASS). Su
+bloque `testPotencialFiltro` cubre la API rol por rol, la ruta sin RLS (`resumen_cartera_fn`), que `private` no se
+alcanza por PostgREST y la identidad del ayudante. Para correrla: `CRM_RLS_EXIGE_POTENCIAL=1` y `CRM_BANCO_PSQL_URL`.
+Advisors: PASS al publicar (249 = 249, sin clases nuevas; ver el acta de arriba).
+
+**Paridad (01/10/2026, 19:17 Lima):** el ciclo entero se repitió sobre un banco montado desde un volcado NUEVO del
+esquema de producción (`crm` 286 funciones, `private` 553) y dio lo mismo: fases 1, 2 y 3A en verde, `ciclo-fase3b.sh`
+«TODO COMO SE ESPERABA» (152 de 152; 28, 51 y 8 mutantes sin supervivientes; reversa byte a byte; trinquetes idénticos
+salvo la fila de la cartera). En ese volcado la cartera viva es la firma de 13 con md5 `bf06666f…`, el envoltorio
+`4a896597…` y las huellas de los ayudantes de visibilidad y de las dos policies de lectura son las que exige el
+preflight. Los tipos generados desde ese banco con la migración aplicada coinciden con `database.types.ts`.
+
+Efectos laterales: el bloque de catálogo de gestión en `test-rls.mjs` acepta ahora la firma de 13 o la de 14; a
+`gestion-diaria-cola/fixtures/acl.json` se le añadieron a mano la firma de 14 y el ayudante; el kit
+`scripts/cartera-gestion/` queda atado a la firma de 13 (nota en su README; su oráculo se corre contra la de 14 desde
+`ciclo-fase3b.sh`); `potencial-lead/reversa.sql` (fase 1) se niega si este filtro sigue aplicado.
+
+Reversa: `supabase/scripts/potencial-lead/reversa-filtro.sql` (generada; reinstala la de 13 byte a byte, quita el
+ayudante, devuelve la exención y resella; conserva la fila de `schema_migrations`). ANTES retirar el frente que envía
+`p_potencial`. Orden de reversas: filtro → gestión (`cartera-gestion/reversa.sql`) y filtro → lectura → caducidad →
+fase 1.
+
+Orden en producción (Miguel con `!`, desde `CRM-Avance-Corp/`): `db query --linked --file` de la migración →
+`scripts/potencial-lead/registrar-filtro.sql` → `scripts/potencial-lead/verificar-filtro.sql` (termina en raise con
+las cifras) → sonda HTTP con `p_potencial` (401/42501 = la API ya conoce el parámetro; 404/PGRST202 = aún no recargó
+la caché) → advisors → publicar la pantalla.
+
+## 20261001154153 — Pipeline «Gestionado»: filtro `p_gestion` en `crm.cartera_filtrada_fn`
+
+**✅ APLICADA Y REGISTRADA EN PRODUCCIÓN el 01/10/2026 (~15:20 Lima), por `!` de Miguel** (`db query --linked --file`
+de la migración y luego de `cartera-gestion/registrar.sql`). Verificado después, en solo lectura: `acreditar.sql` dice
+«DESPUES de publicar», 15 anclas `[OK]` y 0 diferencias (firma única de 13 argumentos, md5 `bf06666f…`, solo
+`authenticated` ejecuta, declaración analítica movida y sellada, fila en `schema_migrations`); sonda HTTP anónima con
+`p_gestion` → 401/`42501` (la API ya conoce el parámetro) y control con un parámetro inexistente → 404/`PGRST202`.
+El rojo ajeno del censo (`private.gestion_diaria_cola_hechos`) sigue igual que antes. **El frente que envía
+`p_gestion` aún NO está publicado.** NOT RUN: advisors (sin herramienta en la sesión) y la matriz de `test-rls.mjs`
+(exige credenciales). Antes se ensayó en banco Docker propio (`avancecorp-gestionado-20261001`), remontado el mismo día
+con el esquema de producción de la tarde (paridad de huellas: `crm` 286, `private` 553). Pedido de los analistas: una columna «Gestionado» entre «Nuevo» y «Contactado» para los leads que ya
+se intentaron contactar (llamada sin respuesta, WhatsApp enviado) y aún no responden. No nace una etapa guardada —el
+lead sigue en `etapa = 'nuevo'`—: la columna se calcula. Decisión de Miguel (01/10): un lead reasignado que el analista
+anterior ya intentó es «Nuevo» para el actual; solo cuenta lo gestionado desde que el titular ACTUAL lo recibió.
+
+Qué cambia: la RPC INVOKER sustituye la firma de 12 argumentos por una de 13 con `p_gestion text default null`
+(`con_gestion` | `sin_gestion`; otro valor → 22023 por el bloque de validación existente). Con gestión = titular +
+`tenencia_desde` + al menos un contacto de los 5 tipos (`actividades_contacto_episodio_idx`) con
+`creado_en >= tenencia_desde` y no deshecho (`not (metadata ? 'deshecho_en')`); todo lo demás, sin gestión. Recorta
+la MISMA base (filas, totales, capital y embudo) y es independiente de `p_etapa`. **La forma del payload no cambia**
+(sin eco y sin campos nuevos por fila: hay bundles viejos leyéndolo); con `p_gestion` nulo la respuesta es idéntica.
+Mismo dueño, ACL (solo `authenticated`), `stable` y `search_path` vacío. La exención analítica se MUEVE a la firma
+nueva (misma clase y fecha) y se resella.
+
+Guardas, todas con `search_path` vacío fijado en la transacción (no dependen de quién aplique). La regla compara
+DOS relojes que sella el servidor, y la migración ancla los dos. Preflight: (1) función viva `7169d942…` y una sola
+firma; (2) declaración vigente, de inventario y sellada; (3) `assert_actividades_de_lead_base()` (el filtro lee
+actividades como INVOKER); (4) reloj del LEAD: trigger `trg_leads_zzz_tenencia_desde` activo, definición
+`f5849e26…`, función `900508fa…`; (5) reloj e integridad de la ACTIVIDAD: `trg_01_gestion_lead_serializada`
+(re-sella `creado_en` y revalida el ámbito; `a7d2d742…` / `7af0e66b…`) y `trg_00_actividades_resultado_solo_nucleo`
+(reserva el resultado de llamada y `deshecho_en`; `24037d11…` / `19952736…`) activos; RLS encendida en
+`crm.actividades` y `crm.leads`; una sola policy de INSERT (`actividades_insert`, `with check` `b2d6792b…`,
+re-medido con `search_path` vacío); ninguna permisiva ALL ni policies de UPDATE/DELETE; restrictivas de las dos
+tablas = exactamente `crm_actor_activo_gate` (`c5e6c906…`); `authenticated` y `anon` sin UPDATE ni DELETE.
+Postflight: cuerpo instalado `bf06666f…`, contrato de seguridad igual al de la firma retirada, mismo censo y mismo
+conjunto en rojo, declaraciones ajenas y `resumen_cartera_fn` intactos, y la guarda 5 repetida.
+
+Corrección tras las revisiones de auditor-rls y Codex (sin P0/P1; la función no cambió): la primera versión de esta
+entrada decía que las guardas de la fuente de actividades de 20260929195918 no se heredaban porque «protegen el
+evento reasignado». Era inexacto. La regla de gestión depende igual de que una actividad no se pueda fabricar,
+fechar, reescribir ni borrar: el preflight anclaba el reloj del lead y dejaba sin vigilar el de la actividad. Esas
+guardas vuelven, re-medidas y ampliadas (los dos triggers de sello, RLS, y el CONJUNTO de restrictivas: era el punto
+ciego de `assert_actividades_de_lead_base`, que sella las permisivas y solo la presencia del gate; una restrictiva
+de SELECT con `creado_por = auth.uid()` habría pasado y daría a titular y supervisor veredictos distintos sobre el
+mismo lead). Lo único que sigue sin heredarse es el ancla de `trg_leads_reasignacion`, que emite el evento
+«reasignado» y no interviene en este filtro.
+
+Límite conocido (carrera de relojes; el trigger no se toca aquí): la tenencia se sella con `statement_timestamp()` y
+el contacto con `clock_timestamp()` tras tomar el candado del lead. En una reasignación en lote, o en una que espera a
+una gestión en vuelo, el intento del titular saliente puede quedar fechado después de la tenencia nueva y contar
+para el entrante. Ventana estrecha; el efecto es un lead mal rotulado, sin exposición de datos.
+
+Consecuencias de la regla, fijadas en el oráculo y decididas el 01/10: reabrir un descartado devuelve el lead a
+«Nuevo» también con el mismo titular (la tenencia se renueva); cuenta la FECHA del contacto, no su autor (un intento
+del supervisor dentro de la tenencia cuenta); en etapas terminales (`tenencia_desde` nula) todo es «sin gestión».
+**Un resultado de llamada DESHECHO no cuenta** (ajuste del 01/10, tras acreditar en producción 11 contactos
+deshechos de 8 307 y 0 leads afectados): como en los núcleos de Gestión Diaria, lo deshecho «no ocurrió»; solo un
+intento deshecho ⇒ «Nuevo», deshecho + otro vigente ⇒ «Gestionado». `ultimo_contacto_en` y `sin_tocar` no cambian
+(siguen viendo esa llamada), así que la fila solo acredita el veredicto en un sentido: con gestión ⇒
+`ultimo_contacto_en >= tenencia_desde`.
+
+Ensayo (`supabase/scripts/cartera-gestion/ensayar.mjs`, 77 pasos PASS; detalle en su `verificacion.json`): oráculo de
+negocio 128/128 con la cadena REAL de triggers y puertas (entrega; llamada por `crm.registrar_llamada_v4`; deshacer
+por `crm.deshacer_resultado_llamada` ⇒ vuelve a «Nuevo»; nuevo intento; reasignación; descarte; reapertura), negativas
+de falsificación como `authenticated` (contacto en un lead ajeno, `deshecho_en` a mano, UPDATE y DELETE de
+actividades ⇒ rechazados; un `creado_en` futuro se re-sella y no sobrevive a la reasignación), partición
+exacta en totales, capital y embudo, validación, cursor y alcance por rol bajo RLS (analista, supervisor, otro
+equipo, gerencia, directorio; revocado, solo-portal y sin sesión → 42501; `anon` y `service_role` sin EXECUTE, leído
+del catálogo). Igualdad nueva-sin-filtro = vieja: 256/256 respuestas (8 actores × 16 llamadas × omitido y null,
+5 936 filas) y `resumen_cartera_fn` 8/8 antes = después en la misma sesión. El Pipeline con volumen, recorrido por
+cursor como gerencia, directorio, supervisor, analista y coordinador (5 302 filas, con 1 427 contactos deshechos
+sembrados: 23 leads quedan en «Nuevo» solo por eso), coincide con un oráculo independiente que no usa la función:
+ni una de más, ni una de menos, ni una repetida. Mutantes: 26 de preflight —8 de las guardas 1 a 4; 16 de la
+guarda 5, uno por cláusula (`trg_01` apagado o recreado con un `WHEN` que lo neutraliza, `trg_00` con otro cuerpo,
+RLS apagada, policy de INSERT con otro `with check` o abierta a otro rol, segunda policy de INSERT, policies ALL,
+UPDATE y DELETE, restrictiva de SELECT añadida, gate alterado, UPDATE o DELETE concedidos a `authenticated` o a
+`anon`); un gemelo sin la guarda 3, porque a la policy ALL la rechaza antes la 3 y así se prueba que la cláusula de
+la 5 no es código muerto; y uno que quita el `search_path` fijado (con `private` en el camino de la sesión el md5
+del trigger es otro)— y 6 de postflight (uno prueba que la repetición de la guarda 5 tampoco es código muerto),
+todos rechazados; 16 de lógica cazados por el oráculo (entre ellos «lo deshecho cuenta», 28 fallas; más 1 equivalente
+declarado); 3 de estado (el servidor deja de sellar `creado_en`, de reservar `deshecho_en`, o la API puede
+reescribir y borrar: las negativas de falsificación se ponen rojas); 2 por la igualdad y 2 por el de volumen.
+Instalación con un rojo ajeno: lo conserva. Reversa real: todo vuelve EXACTAMENTE al estado previo (`7169d942…`,
+sello vigente, gate igual) y repetida se niega; reaplicación determinista; registrador idempotente. Rendimiento con
+5 000 leads y 31 588 actividades (`p_etapa = 'nuevo'`, página de 200, misma sesión y datos): sin filtro no cuesta
+más que antes (diferencia pareada nueva − vieja entre −0,2 y +0,3 ms para un analista, sobre 7–11 ms, y entre −3,3
+y +0,7 ms para gerencia, sobre 50–75 ms, en once corridas con la máquina cargada de forma desigual); con filtro
+baja (la base es menor). El `exists` usa `actividades_contacto_episodio_idx` por lead y fecha, sin recorrido
+secuencial; con la exclusión de lo deshecho deja de ser «solo índice» (`metadata` no está en el índice) y pasa a
+`Index Scan`: +0,08 ms por 2 222 sondeos con páginas todo-visibles y dentro del ruido a través de la función
+(−0,2…+0,2 ms sobre ~33 ms; +0,05 ms sobre ~7 ms). Hallazgo AJENO a este cambio: el tiempo de gerencia lo decide la
+lateral de «reasignado» de 20260929195918, cuyo plan oscila entre recorrer el índice de reasignaciones por cada lead
+(~50 ms) y buscar por lead (~17 ms); no se toca aquí.
+
+Producción: NO aplicada. El PRIMARY corrió `acreditar.sql` (solo lectura) el 01/10, antes de los dos ajustes:
+estado ANTES y las anclas de las guardas 1 a 4 en [OK]; el censo trae un rojo ajeno y preexistente
+(`private.gestion_diaria_cola_hechos(uuid,timestamp with time zone)`), que la migración conserva tal cual. **Las
+anclas de la guarda 5 se midieron solo en el banco: falta acreditarlas en producción** corriendo otra vez
+`acreditar.sql`, que ya trae sus líneas [OK]/[DIFERENTE]; si alguna difiere, la migración se negará en su preflight.
+Realidad medida por el PRIMARY en producción, en solo lectura, el 01/10: 464 leads activos en `nuevo` · 311
+«Gestionado» · 153 «Nuevo» (38 sin titular, 6 con contactos anteriores a la tenencia) · con titular y sin
+`tenencia_desde`: 0 en `nuevo` y 0 en cualquier etapa abierta · 11 contactos deshechos de 8 307, 0 leads afectados ·
+0 leads «Gestionado» solo por una actividad de otra persona. (Los 311/153 son de antes de excluir lo deshecho; con 0
+afectados no cambian.)
+
+Revisiones (a cargo del PRIMARY): auditor-rls y Codex, sin P0/P1 y sin cambios en la función; de ellas salen la
+guarda 5, las negativas de falsificación, la matriz no vacía y las correcciones de esta entrada. El punto ciego de
+la guarda 3 se comprobó en el banco: con una restrictiva de SELECT `creado_por = auth.uid()` en `crm.actividades`,
+`assert_actividades_de_lead_base()` sigue diciendo OK y el analista y su supervisor dejan de coincidir (sobre los
+fixtures del oráculo, el supervisor pasa de 11 leads «con gestión» a 1). No acreditado: advisors; `test:rls`
+remoto: la matriz de `test-rls.mjs` quedó ampliada (oráculo propio por rol leyendo las tablas, caso permitido
+determinista, admisión de `vendInactive` y `clientBank`, catálogo de la firma de 13, dominio estricto y negativa
+cruzada) pero NO se ha ejecutado (`--preflight` NOT RUN: exige credenciales). Lo único probado de ella aquí es su
+oráculo de gestión: el ensayo extrae ese código del archivo y lo ejecuta, actor por actor bajo RLS, contra las
+tablas y la función, con tres controles negativos; no hay PostgREST ni sesiones, así que no cuenta como ejecución
+del gate. Gate offline `npm run check:scripts`: PASS.
+
+Efecto lateral declarado: a `supabase/scripts/gestion-diaria-cola/fixtures/acl.json` (foto de permisos de OTRO kit)
+se le añadió a mano la firma de 13 junto a la de 12, para que su `preparar.mjs` no deje la función sin EXECUTE en
+una plantilla posterior a esta migración; nota en el README de ese kit. Tras publicar, regenerar ese snapshot desde
+producción y retirar la firma de 12.
+
+Orden: antes de producción, la matriz `test-rls.mjs` en una rama con el seed (o la excepción a la vista); luego
+servidor primero (`acreditar.sql` → migración → `cartera-gestion/registrar.sql` → `acreditar.sql` → comprobar por
+HTTP que la RPC ya acepta `p_gestion`: `notify pgrst` no espera a que PostgREST recargue), pantalla después.
+Reversa: `supabase/scripts/cartera-gestion/reversa.sql`, tras retirar el frente que envía `p_gestion` (conserva la
+fila de `schema_migrations`; no detecta un consumidor de servidor que ya pase `p_gestion`, porque plpgsql enlaza
+tarde: hoy no hay ninguno). SQL SHA-256: `01255f7b2bd6cd5f25deab720583a4184ac31b532b0b2e058cfe5bbcb1ab86fa`.
+
+## 20261001151704 — Potencial del lead · fase 3, entrega A: la puerta de lectura (`crm.potencial_leads_fn`)
+
+**✅ EN PROD desde el 01/10/2026 13:40 Lima (Miguel con `!`: migración → `registrar-lectura.sql` →
+`verificar-lectura.sql`), con la bandera `potencial_lead` APAGADA.** Verificación en producción: ejecutan la puerta
+`[authenticated]`, 0 EXECUTE de la API en los 3 ayudantes, 0 funciones con ACL nula, forma `DEFINER/s/search_path=""`,
+job `10,40 10 * * * activo=true`, bandera false, 0 marcas, registro `crm_potencial_lead_lectura`. Antes de aplicarla se
+montó un banco NUEVO con el volcado de producción de ese día (ya con la fase 2): 873 funciones, 110 policies, 1 336
+columnas y 337 disparadores idénticos a los del banco de las pruebas, y los tres ciclos en verde sobre él. Exigía la
+fase 2 (`20260930235917`), aplicada 13 minutos antes. Gate `test:rls` con sesiones reales: NOT RUN (local sin gestor de
+credenciales).
+
+**Pantalla publicada y bandera ENCENDIDA el mismo día.** Front: `build-20261001T185238130Z`, commit `54690b06`, rama
+`release/potencial-lead-f3a-20261001` (01/10/2026 13:57 Lima; preflight y smoke OK). **Bandera `potencial_lead`
+encendida por Miguel el 01/10/2026 a las 14:04 Lima** con `!` (`encender-bandera.sql`); `verificar-lectura.sql`
+después: bandera true, 0 marcas. Desde ese momento el analista dueño y su supervisor marcan Frío, Tibio o Estrella, y
+la marca se ve en Leads, Pipeline, cola de hoy y ficha. Interruptor de emergencia: `apagar-bandera.sql` (no borra
+marcas). La bitácora (`public.audit_log`) no guarda el actor cuando el cambio sale de `db query`: queda anotado aquí. Plan aprobado por Miguel el 01/10/2026 («vamos dale»): la pantalla en dos entregas,
+A marcar y ver, B filtrar. **No modifica ninguna función, tabla ni policy existente.**
+
+Piezas: puerta `crm.potencial_leads_fn(uuid[])` (DEFINER, STABLE, **EXECUTE solo `authenticated`**; anon y service_role
+sin EXECUTE): sesión, gate restrictivo del CRM invocado (`private.puede_acceder_crm`), tope de 200 ids contando todos los
+elementos, y la bandera `potencial_lead`: apagada devuelve `{version:1, habilitada:false, items:[]}` sin leer nada.
+Núcleo `private.potencial_lectura(actor, ids, hoy, corte, próxima corrida)` (INVOKER, sin EXECUTE de la API; el actor
+debe ser el de la sesión): un ítem por cada lead pedido que el actor puede VER
+`{lead_id, nivel, origen, nivel_marcado, marcado_en, dias_sin_gestion, baja_a, baja_el, puede_marcar}`. Ayudantes
+`private.potencial_proxima_corrida` (horario NOMINAL de la tarea: hoy hasta las 05:45 Lima, después mañana; el
+postflight comprueba el job entero: horario, comando, usuario, base y zona) y `private.potencial_proxima_baja`
+(primera fecha en que la regla de la fase 2 da un nivel menor). `baja_el` no acredita ejecución: es la primera
+madrugada en que la regla la bajaría con lo que se sabe ahora. Sin datos
+personales en el payload (no viaja quién marcó). Sin agregados de conteo.
+
+**SECURITY DEFINER, justificación:** las tablas de la marca no tienen grants para la API (fase 1) y el reloj y la regla
+de la fase 2 no tienen EXECUTE para la API; la alternativa INVOKER obligaría a exponer `crm.lead_potencial` y su
+historial por PostgREST. Molde: `crm.cierres_estado_fn`. 🔴 **El núcleo COPIA la policy `leads_select`** (tercera copia
+manual, con `crm.cierres_estado_fn` y `private.conversion_estado_lead_v1`): **si cambian `leads_select` o
+`crm_actor_activo_gate`, hay que re-auditar `private.potencial_lectura`.** El preflight fija por md5 esas dos policies
+y seis ayudantes (protege el instante de aplicar); después, la comparación «puerta = RLS» del gate
+(`testPotencialLectura`, con la bandera encendida fuera de banda) es la que caza un espejo desincronizado. Deuda
+anotada: unificar el predicado de visibilidad en un solo lugar.
+
+Revisión: auditor-rls **PASS con observaciones** (0 P0, 0 P1; P2 gate inalcanzable con la bandera apagada y fila del
+ledger → aplicados; P3 actor = sesión y reversa de la fase 2 con la lectura puesta → aplicados). Codex r1
+**CHANGES_REQUESTED sin fuga de RLS**: postflight con configuración y ACL exactas y permisos efectivos (aplicado),
+verificador con ACL nula (aplicado), duplicados en el gate (aplicado), y `baja_el` que no coincidía con la tarea
+cuando la corrida de hoy ya pasó (aplicado: se cuenta desde la próxima corrida). Codex r2 (segunda y última)
+**CHANGES_REQUESTED, sin P0/P1 ni fuga**, con los tres hallazgos de la r1 dados por resueltos; sus tres P2:
+(1) «las 05:40 no implican que la pasada ya corrió» → ACEPTADO: horario nominal declarado como tal y cinco minutos de
+margen (corte a las 05:45); (2) el postflight podía aprobar sin comprobar la tarea → ACEPTADO: se comprueba el job
+entero como en la fase 2 y, sin pg_cron, el aviso dice «NO COMPROBADA»; (3) la reposición de la bandera en el gate era
+condicional → ACEPTADO en lo que cabe: dos intentos con relectura, mensaje con la orden de recuperación
+(`apagar-bandera.sql`) y aislamiento escrito; RIESGO ACEPTADO: si el proceso muere a mitad, la bandera queda encendida
+en ese banco, que es desechable (el gate se niega a correr contra producción: `test-rls.mjs:230`). Encargos y
+respuestas: `docs/encargos/2026-10-01-potencial-lead-f3a-r{1,2}*.md`.
+
+Banco: lectura 94/94 (incluye la equivalencia, actor por actor, con la RLS real de `crm.leads`, y `puede_marcar`
+contra marcar de verdad), fases 1 y 2 sin regresión 75/75 y 51/51; 30 mutantes de lógica (29 cazados; `sin-sesion`
+sobrevive a propósito y su doble cae) y 28 de la migración y el preflight rechazados; los 36 `private.assert_*()` y el
+censo de contadores idénticos sin y con la migración; supervisor con equipo de 67: 50 ids ≈ 8 ms, 200 ids ≈ 25 ms,
+marcas de 400 días ≈ 40 ms (con la máquina cargada, hasta cuatro veces más). Reversa y registro idempotentes (md5
+`7c2b8534…`). Encender y apagar la bandera: `encender-bandera.sql` y `apagar-bandera.sql`, ensayados. Scripts: `supabase/scripts/potencial-lead/` (LEEME,
+sección «Fase 3, entrega A»).
+
+## 20260930235917 — Potencial del lead · fase 2: la marca baja sola (`private.potencial_caducar`, pg_cron `crm-potencial-lead-caducidad`)
+
+**✅ EN PROD desde el 01/10/2026 13:27 Lima (Miguel con `!`: migración → `registrar-caducidad.sql` →
+`verificar-caducidad.sql`).** Verificación en producción: job `[10,40 10 * * * select private.potencial_caducar()
+postgres@postgres activo=true]`, última corrida «aún no corrió» (primera pasada el 02/10 a las 05:10 Lima), 0 EXECUTE
+ajenos, 0 marcas vivas, registro `crm_potencial_lead_caducidad`. Advisors tras aplicarla: 248, las mismas 6 clases que
+el 30/09 (ninguna nueva). Miguel (30/09)
+«hazlo» tras publicar la fase 1; reglas suyas: Estrella → Tibio con 5 días sin gestión, Tibio → Frío con 10, lunes
+a sábado, cada gestión reinicia. Feriados como día normal (supuesto comunicado).
+
+Piezas (núcleo en private, sin puerta; INVOKER, sin EXECUTE de la API): `dias_lunes_a_sabado` (días completos
+estrictamente entre dos fechas, domingos fuera), `potencial_reloj` (marca o último CONTACTO hasta el instante de
+corte: los 5 tipos de `actividades_contacto_episodio_idx`; las notas no cuentan), `potencial_nivel_tras` (la regla,
+en un solo lugar) y `potencial_caducar(p_hoy, p_corte, p_limite)`: de la marca más antigua a la más nueva, como
+mucho 200 por pasada; NUNCA espera (consultivo de la fase 1 con try-lock y fila del lead `FOR SHARE SKIP LOCKED`;
+lo ocupado queda para la próxima pasada); revalida lead y marca bajo los candados; solo baja; origen `caducidad`
+y evento inmutable de autor nulo. pg_cron `10,40 10 * * *` (05:10 y 05:40 Lima, todos los días) como postgres.
+
+Revisión: auditor-rls PASS (7 P3, aplicados los de código). Codex r1 CHANGES_REQUESTED (elegibilidad sin revalidar,
+domingo aplazado, reversa sin pg_cron, contacto futuro, contexto del job) → todo aplicado. Codex r2
+CHANGES_REQUESTED: P1 (el corte al inicio del día ignoraba contactos de la madrugada) ACEPTADO: corte = instante de
+la corrida; P2 (candados retenidos todo el lote) ACEPTADO con lote acotado a 200 y dos pasadas, y MEDIDO: 200 leads =
+34 ms. Segunda y última ronda. Riesgos escritos: contacto confirmado entre la relectura y el UPDATE; lead ocupado
+en cada corrida se salta (regla acumulativa); preflight del job conservador.
+**Supuestos CONFIRMADOS por Miguel el 01/10/2026:** Estrella llega a Frío a los 10 días en total (no 5 + 10); el
+tiempo cerrado o inactivo cuenta como sin gestión; solo el contacto real o volver a marcar reinician el reloj (ni
+notas, ni tareas agendadas, ni reasignar); al reasignar, la marca viaja con el lead.
+
+Banco: caducidad 51/51 (como postgres, calendario simulado), fase 1 sin regresión 75/75, concurrencia 10/10, corrida
+REAL de pg_cron `succeeded`, ciclo con y sin pg_cron; 13 mutantes de lógica y concurrencia cazados y 4 de la migración
+rechazados; reversa y registro idempotentes (md5 `a4dbc97c…`). Scripts: `supabase/scripts/potencial-lead/` (LEEME,
+sección «Fase 2»).
+
+## 20260930235814 — Analista asignado en el PDF contractual
+
+Preparada y probada; publicación autorizada por Miguel el 30/09/2026.
+El snapshot 3 separa `contrato.creadoPor` (autoría histórica) de
+`contrato.analistaId` (`public.contratos.analista_cierre_id`). El bloque analista
+se lee completo del perfil asignado: nombre, documento, teléfono y correo.
+El renderer admite snapshots 2 y 3 con validación estricta; conserva los bytes
+históricos y la plantilla v9. Los dos núcleos privados del anexo admiten ambos.
+Tres funciones privadas con preflight de huellas; no altera firmas, ACL,
+policies, tablas, triggers ni condiciones económicas. Sin analista/contacto,
+se rechaza la emisión; nunca se sustituye silenciosamente por el creador.
+Desplegar Edge compatible antes del merge SQL. Reversa de funciones en
+`supabase/scripts/pdf-analista/reversa.sql`, manteniendo el renderer dual.
+Pruebas/evidencia y secuencia: `supabase/scripts/pdf-analista/README.md`.
+
+## 20260930221500 — Conversión de Coordinación v2: desglose de cierres (referidos, upgrade, renovación) y rango de fechas (`crm.conversion_divisor_coordinacion_fn(date,date,date)`)
+
+**✅ APLICADA Y REGISTRADA EN PROD el 30/09/2026 (noche) por `!` de Miguel:** migración `rows: []` sin error;
+`registrar-20260930221500.sql` → `REGISTRO_CONVERSION_DESGLOSE_OK` con las cuatro huellas vivas iguales a las
+del artefacto (puerta `b881b83c…`, base `0a43b0f3…`, empresa `5700d277…`, totales `e97995f5…`); verificado en
+solo lectura: cuatro funciones DEFINER/STABLE/`search_path` vacío con ACL mínima, sin firmas viejas; humo con
+datos reales (setiembre: 1655 llegadas, 119,30 ponderados, 7,21 %, 18 analistas, 0 filas rotas; 1–15/09: 858 /
+64,40 / 7,51 %; 15/08–30/09: 2458 / 142,80 / 5,81 %, con 4 cierres de «otros orígenes» que antes no se veían).
+**Front EN PROD el 01/10/2026 00:22 (Lima 30/09 19:22):** `build-20261001T002155841Z` (release
+`crm-20261001T002156Z-c6e65d9e8b4a`, SHA-256 `80c8c53f…`) publicado por `/release-crm` desde la rama de rescate
+`rescue/conversion-desglose-20261001` = vivo anterior `6a9ad5e6` (documentos del lead, otra sesión) + los 4
+commits de la v2; el primer intento desde `crm/conversion-coordinacion-desglose` lo rechazó el preflight porque
+el vivo había cambiado mientras se revisaba. Smoke: HTTP 200, `version.json` nuevo, bundle igual al del `dist`.
+El vivo `6a9ad5e6` traía marcas de conflicto sin resolver en este ledger y en `Inicio.md` (entrada de la v1):
+resueltas aquí quedándose con la versión de la rama de rescate de la v1. Advisors: pendientes de Miguel.
+
+Qué añade (pedido de Miguel el 30/09 tras publicar la v1): por analista y para la empresa, de dónde
+salen los cierres —formulario, landing, referido (cantidad y aporte al peso vigente), oficina (no
+pesa), upgrade (pesa 1), renovación (cantidad y aporte a su peso)— más `numerador_bruto` y
+`ajuste_pendiente`; y la consulta por RANGO de fechas (`p_desde`, `p_hasta` inclusivos en Lima, ≤ 366
+días, sin futuro; un mes calendario exacto es ese mes; otro rango se calcula en vivo con
+`private.conversion_mensual_por_vendedor`, el precedente de `metricas_conversiones_equipo_fn`, con el
+peso del referido del mes de `hasta` y sin ajustes de meses pagados). `periodo` lleva ahora `modo`
+('mes' | 'rango'), `dias` y `hasta` INCLUSIVO. Todo sale de los MISMOS episodios del núcleo
+(`private.conversion_episodios`, tipos `cierre` y `operacion`): se agrupa, no se define nada nuevo.
+
+Piezas: preflight que acredita por md5 los tres cuerpos vivos de la v1 (`4c73a85e…`, `c62acbc0…`,
+`9b65271a…`) y se niega si alguien los tocó; DROP + CREATE (cambian firma y tipo de retorno) de
+`private.conversion_divisor_empresa(date,date)`, `private.conversion_divisor_empresa_totales(date,date)`
+y `crm.conversion_divisor_coordinacion_fn(date,date,date)`; núcleo nuevo
+`private.conversion_divisor_base(date,date)` que elige la pieza del núcleo según el modo. Mes sellado:
+la foto (`origenes_ranking.filas` y `cartera` de `crm.cierre_mes_vendedor` con los pesos sellados;
+bruto y ajuste en null; `desglose_disponible` dice si la foto lo trae). Postflight: propiedades y
+ACL (incl. `public`) de las cuatro, sin firmas viejas, candado de dispersión, puerta sin tablas y
+ejecutada sin actor (42501), paridad con el núcleo, INVARIANTE partes = bruto y neto = con_ajuste por
+fila y empresa, y «rango 1 → hoy reproduce el mes». Front: selector «Mes / Rango de fechas» (errores
+del formulario pegados al campo, sin llamar a la puerta), tabla con cabecera agrupada (Llegadas /
+Cierres: formulario, landing, referido «n · aporte», oficina, upgrade, renovación «n · aporte»,
+ponderados), 8 cifras de empresa y la fórmula del numerador con los pesos; candado de paridad del
+navegador ampliado (partes = bruto, neto = bruto − ajuste, rango sin nombre de mes ni ajuste ni foto).
+
+Verificación 30/09 (banco Docker propio rehecho desde el dump de prod con la v1 dentro, huellas de la
+v1 iguales a prod): migración en un solo mensaje PASS; oráculo v2 → OK sin residuo (E01 cuatro
+funciones, E05f/g invariante y período, E09 rango exacto = mes, 1 → hoy, rango que termina ayer, mes
+sellado por rango, 22023 ×5, 42501 para vendedor en modo rango); registrador v2 probado (md5 =
+archivo, idempotente, rechaza otro cuerpo). Validación read-only en PROD con setiembre real: 18
+analistas y 0 filas rotas (partes = bruto, referidos/no referidos casan con el núcleo, neto =
+con_ajuste); Astrid 5 + 2 + 1×0,15 + 4 upgrade = 11,15; Merlys 6 + 1 + 2 = 9; empresa formulario 65,
+landing 25, referido 19 (2,85), oficina 11, upgrade 24, renovación 3 (0,45); rango 1 → hoy = mes para
+todos; Astrid 1–15/09: 67 llegadas / 8,15; rango 15/08–15/09 (cruza mes): 1661 llegadas, 21 analistas.
+Front: vitest 158/158 en los archivos tocados; `npm run check` y E2E Docker: ver abajo. **NOT RUN:**
+`test-rls.mjs` completo (casos nuevos añadidos: 15 claves exactas por analista, partes = bruto,
+rango 1 → hoy = mes, 22023 rango cruzado y mes + rango, 42501 vendedor en rango) y advisors.
+Reviews: Codex, auditor-rls y revisor-a11y — actas en `docs/encargos/2026-09-30-conversion-coordinacion-desglose-rango-*.md`.
+
+Reversa: `drop` de las cuatro funciones nuevas + volver a aplicar los tres `create function` de
+`20260930185623` + borrar la versión del registro.
+## 20260930213647 — Potencial del lead: Frío · Tibio · Estrella (`crm.marcar_potencial_lead_fn`, `crm.lead_potencial`, `crm.lead_potencial_eventos`)
+
+**✅ EN PROD 30/09/2026 por `!` de Miguel** («ya podemos publicar»): migración por `db query --linked --file`
+(preflight y postflight en verde) + `registrar.sql` + `verificar.sql` → «marcas 0, eventos 0, bandera false,
+EXECUTE puerta [authenticated,postgres], EXECUTE ajeno en privadas 0, permisos API en tablas 0, registro
+crm_potencial_lead». Antes, en solo lectura: 0 objetos previos y huellas de `rol_crm`/`vendedor_ids_visibles`
+idénticas a las ensayadas. Advisors después: 248 avisos; el único de los objetos nuevos es
+`authenticated_security_definer_function_executable` de la puerta (clase existente, 237 iguales: patrón de
+todas las puertas DEFINER); ninguna clase nueva. Bandera APAGADA: nadie marca hasta la fase 3.
+Fase 1 del plan aprobado el 30/09 («HAZLO»); nota del vault «Potencial del
+lead - Frio Tibio Estrella (2026-09-30)»; diseño aprobado en la pieza CRM-05 del UI Playground.
+
+Qué hace: los analistas marcan cada lead como frío, tibio o estrella. Tipo `crm.nivel_potencial`; estado
+vigente en `crm.lead_potencial` (una fila por lead, viaja al reasignar) y historial INMUTABLE en
+`crm.lead_potencial_eventos` (solo INSERT; UPDATE/DELETE/TRUNCATE → P0409; `orden` identity). Tabla propia
+y no columnas de `crm.leads`: sus ~20 disparadores reescriben `actualizado_en` (llave de orden de la
+cartera) y despiertan el SLA. El historial no vive en `crm.actividades`: marcar no es gestión.
+
+Puerta DEFINER `crm.marcar_potencial_lead_fn(uuid, crm.nivel_potencial)` (search_path vacío, lock_timeout
+5s, EXECUTE solo authenticated): sesión → rol → candado consultivo por lead + FOR SHARE de la fila del
+lead (`private.potencial_bloquear_lead`) → autorización decisiva (`private.potencial_rechazo`, token
+«ok») → bandera → núcleo INVOKER `private.potencial_marcar_nucleo` (estado + evento; doble clic de la
+misma persona y nivel en 60 s no escribe). Marcan el analista dueño y su supervisor (subárbol; parqueo solo
+un supervisor). Gerencia, coordinación, directorio y sin rol: 42501. Lead ajeno/inactivo/inexistente: P0002.
+Convertido/descartado: 22023. Bandera `potencial_lead` APAGADA (55000) hasta la fase 3. RLS ON con policy
+SELECT (segundo candado) pero SIN grants a la API: la fase 3 leerá por una puerta (4 capas). Sin
+`negocio_id` (el esquema crm no lo usa). Migración con `begin; set local lock_timeout = '5s'; … commit;`.
+
+Revisión: Codex r1 CHANGES_REQUESTED (F1 autorización obsoleta por carrera, F2 reversa con carrera, F3
+UUID en la suite, F4 bloque API que escribiría con la bandera encendida, F5 postflight sin definiciones)
+→ todo aplicado; auditor-rls r1 CHANGES_REQUESTED (P2 transacción con lock_timeout; P3 token «ok»,
+lista blanca de ACL/dueños, TOCTOU, matriz de la suite, lectura por puerta) → todo aplicado.
+Codex r2 CHANGES_REQUESTED: R2-1 (FOR SHARE sin fila → autorizaba sin bloqueo) ACEPTADO: el bloqueo
+devuelve si encontró la fila y sin ella P0002; R2-2 (el bloque API podría escribir si la bandera cambia a
+mitad de corrida) ACEPTADO COMO CONTRATO documentado: la suite solo corre en branch/staging (se niega con
+PRODUCTION_PROJECT_REF); R2-3 (interbloqueo de la reversa por el DROP de las FK) ACEPTADO y MEDIDO: el DROP
+toma AccessExclusiveLock sobre crm.leads y public.perfiles, la reversa los bloquea primero (lock_timeout 3s);
+R2-4 (antirrebote con now()) ACEPTADO: hora real clock_timestamp() tras el candado. Segunda y última ronda
+(máximo del protocolo). Riesgo residual: baja/jerarquía en crm.equipo simultánea no se serializa.
+
+Banco (`avancecorp-potencial-20260930`, esquema de prod del 30/09, paridad 280 crm + 540 private):
+sintética 75/75; concurrencia 11/11 con dos sesiones (y sus 3 mutantes reproducen los fallos de Codex); 9
+mutantes de la migración rechazados; 7 de lógica cazados; reversa y registro idempotentes (md5 del archivo
+`f4087876…`). `check:scripts` PASS.
+`test:rls:preflight` NOT RUN (exige credenciales; el hook bloquea pasarlas inline); bloque
+`testPotencialLead` lee la bandera fuera de banda y no llama a la puerta si está encendida.
+Scripts: `supabase/scripts/potencial-lead/` (LEEME con el orden de aplicación).
+
+## 20260930193325 — Documento tipado del lead y conversión coherente
+
+**PUBLICADA Y VERIFICADA EN PRODUCCIÓN EL 30/09/2026 MEDIANTE merge_branch.**
+Alta y edición con DNI/CE/PASAPORTE sin recortar números ni eliminar letras.
+`crm.leads.dni` conserva su contrato exclusivo de DNI; CE/pasaporte se guardan
+en la identidad canónica existente. Cuatro RPC: `crear_lead_documento_fn`,
+`documento_lead_fn`, `fijar_documento_lead_fn`, `editar_lead_documento_fn`.
+Esta última es INVOKER y guarda documento y ficha en una transacción.
+Lectura bajo el mismo ámbito de leads; escrituras solo vendedor/supervisor/gerencia
+activos y en ámbito. EXECUTE solo authenticated, helper privado sin grants API.
+No cambia tablas, policies, triggers ni objetos de public. La corrección de una
+identidad reconocida reutiliza la puerta administrativa auditada existente,
+con identificador anterior, motivo y postcondición que impide dejar el lead incoherente.
+No se corrigen datos reales automáticamente ni se adivinan documentos truncados.
+
+Preflight de diez fuentes cotejadas con producción; flag y jerarquía bajo candado,
+documento antes de persona y lead, rechazo por duplicidad, veto y conversión en curso.
+Banco `lead_documentos_20260930`: 52 aserciones SQL PASS con rollback; concurrencia
+en dos sesiones PASS. Gate frontend PASS (4958 tests, lint, tipos, build y bundle).
+E2E Docker completo: 297 passed, 26 skipped, 0 failed (incluye los 33 focales).
+Reversa y reaplicación PASS. Revisión inicial atendida; intento final sin VERDICT
+válido, no contado como aprobación independiente.
+Tipos de las cuatro RPC generados desde postgres-meta local; se conservan los otros
+cambios del árbol. Evidencia y límites en `supabase/scripts/lead-documentos/README.md`.
+Cierre: SQL remoto 52, HTTP real 12, RLS contractual 287 e identidad D5 30 PASS.
+Check final 5100 tests PASS; Docker 298 passed / 26 skipped / 0 failed.
+Catálogo posterior idéntico al banco probado; Edge y Storage conservados; advisors
+sin avisos nuevos. Banco temporal eliminado. Frontend publicado y verificado.
+Acta final: `docs/publicaciones/documentos-lead-2026-09-30.md`.
+Reversa: retirar el frontend nuevo y eliminar estas cuatro RPC y el helper;
+las identidades ya guardadas siguen siendo válidas para el sistema existente.
+
+Preparación integrada: check 5.021 PASS y Docker 298 PASS / 26 omitidos. Usuario
+ordenó esperar su aviso antes de publicar. Banco remoto eliminado tras fallo
+de provisión de Storage; SQL/HTTP RLS/advisors remotos **NOT RUN**. Detalle y
+evaluación del review: `supabase/scripts/lead-documentos/README.md`.
+
+**Revisiones (30/09 noche) y qué cambió tras ellas (huellas finales del artefacto: puerta
+`b881b83c…`, base `0a43b0f3…`, empresa `5700d277…`, totales `e97995f5…`):**
+- Codex r1 (LEVEL 3, CHANGES_REQUESTED, 5 hallazgos, todos aceptados): el navegador aplicaba el suelo
+  en cero al agregado (ahora empresa = Σ netos por persona); `desglose_disponible` de empresa exigía
+  solo las filas de la foto (ahora también que no haya producción fuera de la foto); la fórmula
+  prometía «n × peso» en rango y «=» en sellado (ahora no); el postflight y el oráculo dependían del
+  día (ahora comparan `numerador_bruto`, exigen ajuste 0 solo en rango real, y prueban el mes ANTERIOR
+  como rango exacto, el 15 del mes anterior → hoy como rango real aditivo, y un rango que toca un mes
+  sellado); el registrador no acreditaba los cuerpos vivos (ahora compara las cuatro huellas
+  `md5(prosrc)` con las del artefacto probado y se niega si difieren; mutante probado).
+- `auditor-rls` (CHANGES_REQUESTED): **P1** la rama sellada leía `cartera.operaciones_*` (todas las
+  operaciones) cuando el numerador suma `conversiones_*` (primera elegible por cliente/mes): corregido,
+  y el oráculo E07 siembra una foto con `operaciones_* ≠ conversiones_*` y afirma partes selladas =
+  numerador + `ajuste_numerador` con pesos sellados. P2: rango que toca meses sellados se calcula en
+  vivo y ahora LO DECLARA (`periodo.cruza_meses_sellados`, `fuente.modo` = 'foto' | 'mensual' |
+  'rango_vivo'; el front avisa); TDZ en `test-rls.mjs` corregido y casos de rango ampliados (futuro,
+  > 366 días, una sola fecha, gerencia = coordinador). P3: la paridad rango vs mes ignora filas que
+  solo traen deuda; cierres de otros orígenes (web, campaña, whatsapp, otro) se cuentan en
+  `cierres.otros` (no pesan); verificado que el front v1 vivo tolera el payload v2 (solo valida
+  `desde` y `mes`, `v.object`), así que la ventana SQL → front no rompe la pestaña. **P3-3 queda para
+  Miguel:** la coordinadora ahora ve `ajuste_pendiente` y `numerador_bruto` POR PERSONA (deuda de
+  cierres anulados tras pagar); no es PII, pero es un dato nuevo en su ámbito.
+- `revisor-a11y` (CHANGES_REQUESTED): P1 cabecera agrupada con `colSpan` fijos y subcolumnas ocultas
+  por ancho (desalineaba entre 1024 y 1279 px): ya no se oculta ninguna subcolumna de un grupo; P2 dos
+  `<thead>` en una tabla: `TheadCrm` admite `segundaFila` (un solo `<thead>`, `scope=col/colgroup`);
+  P2 consulta por cada dígito tecleado: espera de 350 ms al teclear fechas, `FECHA_MINIMA` 2025-01-01,
+  y el error del formulario ya no desmonta la tabla cargada; P3 `aria-invalid` por campo
+  (`camposInvalidos`), `fieldset` con leyenda, textos «del período» en rango, plural concordado, sin
+  `title` en `th` (leyenda visible), 14 px mínimos, fila «sin analista» por `CeldasCierres`.
+- Lección del oráculo: la foto sellada NO se puede sembrar con `origenes_ranking` a mano si el
+  trigger `trg_cierre_mes_vendedor_10_ranking_origen` está activo (lo recalcula sobre datos vivos que
+  no existen): se apaga solo para esa siembra, en el banco.
+
+- Codex r2 (CHANGES_REQUESTED, sin P0/P1; los tres P2 aceptados): el modo mes no aplicaba el mínimo
+  `2025-01` (ahora sí, con `aria-invalid` y sin consulta); la tabla conservada mientras el período
+  se corrige no decía a la vista de qué período era (ahora una línea visible «Conversión de
+  setiembre 2026 · última consulta válida; corrige el período para actualizar» cuando los
+  controles ya no coinciden con lo cargado); el oráculo E09 presuponía el mes anterior abierto
+  (ahora lo exige con un mensaje claro: el oráculo vive en un mundo de fixtures y los sellados
+  sintéticos van dos y tres meses atrás). Riesgo condicional aceptado por higiene: `con_desglose`
+  envuelto en `coalesce(…, false)` (`cartera` es NOT NULL con default, así que hoy no podía ser
+  NULL, pero un NULL futuro habría dejado `desglose_disponible` en NULL y el navegador rechazaría
+  el payload). Preflight nuevo: aborta con mensaje claro si el mes vigente estuviera sellado (el
+  postflight exige mes vigente abierto). Evidencia para Codex: `crm.cerrar_periodo(date)` escribe
+  `conversiones_*` y `operaciones_*` en `cartera` (leído en el banco); `cartera` NOT NULL con
+  default que incluye `conversiones_*`.
+
+Verificación final (banco Docker, 30/09 noche): migración COMMIT (v1 restaurada y v2 reaplicada
+tres veces, una por cada ronda), oráculo v2c OK, registrador OK/idempotente/fail-closed (md5 del
+registro = md5 del archivo; cuerpo vivo alterado → rechazado); `npm run check` 322 archivos / 5055
+pruebas PASS; E2E Docker completa 290 pasadas / 26 omitidas (11 min, antes de los retoques de la r2)
+y `repartir.spec.ts` de nuevo tras ellos (ver nota del vault). `test-rls.mjs` sigue NOT RUN (sin
+banco con Auth); `node --check` OK.
+
+## 20260930185623 — Conversión por analista para Coordinación (`crm.conversion_divisor_coordinacion_fn`, `private.conversion_divisor_empresa`)
+
+**✅ EN PROD 30/09/2026. Servidor por `!` de Miguel: migración por `db query --linked --file` (preflight y postflight de paridad contra setiembre real en verde) + registrador → `REGISTRO_CONVERSION_DIVISOR_COORDINACION_OK` (huellas puerta `4c73a85e…`, núcleo `c62acbc0…`, totales `9b65271a…`; versión 400 del registro, md5 `129e469e…` = archivo). Verificado en prod, solo lectura: Astrid 115 = 65 + 50 / 11.15 / 9,70 %; Merlys 88 = 60 + 28 / 9 / 10,23 %; paridad fila a fila con el núcleo. Advisors sin errores. Front ~16:38 Lima por `/release-crm`: release `crm-20260930T213752Z-6bb984edc63c` (ZIP SHA-256 `728bd278…`), build `build-20260930T213751470Z`, desde la rama de rescate `rescue/conversion-coordinacion-20260930` (tip vivo `57e7b3b4` + #146), preflight ok contra `build-20260930T195218921Z`, smoke PASS (index `CdudC-F4` idéntico, 3 lecturas estables, ZIP 404). PR #146 y #147 fusionadas; la rama de rescate vuelve a `main` por la PR #149.**
+
+Qué arregla: la coordinadora veía en «Supervisión → analistas» el reporte de ENTREGAS
+(`reporte_derivaciones_coordinacion_fn`), que cuenta por fecha de entrega y, a propósito,
+deja de sumar la entrega devuelta a la misma bandeja antes de gestionar (el lead queda en
+quien lo recibió después). Ese 62 de Astrid no era el divisor: el núcleo cuenta una llegada
+por lead, por su alta original en Lima, en el PRIMER analista del ledger (65 formulario +
+50 landing = 115). Hipótesis «cuenta por dueño actual» refutada (daría 63). Decisión de
+Miguel (30/09): el reporte de entregas no cambia; Coordinación lee la conversión real del
+núcleo por una puerta nueva con ámbito de TODA la empresa. **OK literal de Miguel (30/09):
+la coordinadora ve por analista y de la empresa el divisor, su desglose por origen, el
+numerador neto y el porcentaje (pestaña «Conversiones», aprobada con ese nombre); la puerta
+mensual oficial sigue denegando al coordinador.**
+
+Piezas (4 capas, sin saltos: la puerta no lee tablas): núcleo `private.conversion_divisor_empresa(date)`
+(una fila por analista) que compone `private.conversion_neta_por_vendedor` (la misma pieza que
+Metas: divisor, numerador neto y %) con el desglose por origen desde los episodios `recibido` de
+`private.conversion_episodios`; mes SELLADO → foto de `crm.cierre_mes_vendedor` (desglose por
+origen en null, nunca se recalcula). Núcleo `private.conversion_divisor_empresa_totales(date)`:
+total de la empresa y lo «sin analista» (abierto: suma de filas; sellado: foto + `cobertura.fuera_ranking`
++ `conversion_sin_analista`, solo objetos; la misma suma que la oficial). Ambos DEFINER con
+`search_path` vacío, sin autorización y sin ejecutores de la API, por instrucción del encargo y en
+paridad con `conversion_episodios`. Puerta `crm.conversion_divisor_coordinacion_fn(date default mes
+vigente)`: gate canónico del reparto (`puede_operar_reparto_crm() is not true` → 42501, antes que
+22023), valida el período, delega y da forma JSON; EXECUTE solo `authenticated`. Contrato abierto/
+sellado: en el mes abierto `analistas` trae a toda persona con llegadas o cierres; al sellar, las
+filas no rankeables pasan a `fuera_ranking` y suman al total sin aparecer como fila (semántica del
+sello). Postflight: propiedades,
+ACL, candado de dispersión (ninguna de las dos lee `crm.leads` ni `lead_asignaciones`) y
+paridad con el núcleo en el mes vigente (filas, divisor, formulario + landing = divisor).
+Front: pestaña «Conversiones» en `#/repartir` (selector de mes, resumen de empresa, tabla por
+analista, fila «sin analista», foto en mes cerrado), cliente con cinturón valibot + candado
+de paridad (`conversionCoordinacionConsistente`: si formulario + landing ≠ divisor o la
+empresa no suma, el paquete se rechaza entero). NO se tocan el núcleo, los pesos, el reporte
+de entregas, los conteos por dueño actual ni las puertas de conversión existentes.
+
+Verificación 30/09 (banco Docker propio `avancecorp-divisor-coord-20260930`, esquema de prod
+al byte, 13/13 huellas del núcleo iguales, configuración de prod sin datos personales):
+migración en un solo mensaje PASS (preflight, funciones, postflight); oráculo
+`scripts/conversion-coordinacion/oraculo-divisor-coordinacion.sql` → OK y cero filas después
+(recorre las puertas REALES del reparto: turno → repartir → derivar → devolver → derivar;
+A→B y A→B→A cuentan una vez en A y no suben a B; manual 0; referido 0; sin asignar cuenta
+en la empresa; alta 23:30 del último día del mes anterior queda en ese mes; paridad fila a
+fila con el núcleo; gerencia = coordinador; contraste con entregas; mes sellado; 42501 para
+vendedor/supervisor/directorio/coordinador inactivo/anónimo). 4 mutantes cazados (dueño
+actual, último receptor, formulario ×2, numerador +1). Registrador probado: misma md5 que el
+archivo, idempotente, rechaza otro cuerpo. Front: `npm run check` PASS (319 archivos / 4959 tests, cobertura,
+build, bundle, dup); E2E Docker `repartir.spec.ts` 31/31 (tres corridas, la última tras las reviews). Tipos: bloque generado con
+`gen types` contra el banco. **NOT RUN:** `test-rls.mjs` completo (bloque nuevo en
+`testReparto`, sintaxis verificada; requiere el banco con semilla y Auth); advisors (nube).
+Reviews (todas aplicadas; encargos y respuestas en `docs/encargos/2026-09-30-conversion-divisor-coordinacion-r{1,2}*.md`):
+- Codex r1 CHANGES_REQUESTED: P1 gate ante NULL → `is not true`; P2 foto con
+  `conversion_sin_analista: null` → solo objetos cuentan; roster `distinct on`; supervisor del mes
+  sin `coalesce` al de hoy; regex con identificadores entrecomillados; E07 con `fuera_ranking`.
+- Codex r2 CHANGES_REQUESTED: P2 mes cerrado con producción solo fuera del ranking mostraba «Sin
+  llegadas» → vacío propio («Sin filas por analista en este mes cerrado»); P3 mes futuro tecleado a
+  mano → inválido en el formulario, sin RPC; E07 con `is distinct from` (un NULL ya no pasa) y E07f:
+  la empresa sellada = `total` de `conversion_mensual_sin_cartera_fn` bajo gerencia. Riesgo que deja
+  abierto y se acepta: una foto con `conversion_sin_analista` sin `divisor` la rechazaría el esquema
+  del front (el sello siempre escribe divisor y numerador).
+- auditor-rls r1 CHANGES_REQUESTED sin P0/P1 → r2 PASS: P2 alcance del OK → constancia literal aquí y
+  en el comment; P2 salto de capa → la lectura de `periodos_cerrados` pasa al núcleo de totales; P3
+  DEFINER justificado, casos RLS extra, postflight ejecuta la puerta y comprueba `public`; r2 P3
+  `fuera_ranking` que no sea array → `[]`; P3 doble evaluación del núcleo por llamada → anotada
+  (2,3 ms en el banco; una consulta por cambio de mes).
+- revisor-a11y r1 CHANGES_REQUESTED → r2 PASS: «—» con motivo hablado, `role=status` persistente +
+  `role=group`, mes inválido como estado del formulario, foco al reintentar; r2 P3: el cambio de mes
+  no arrastra el error ni el foco pendiente, el mes inválido se anuncia, destino del foco con
+  `role=region` y carga con nombre de mes.
+
+Reversa: `drop function crm.conversion_divisor_coordinacion_fn(date); drop function
+private.conversion_divisor_empresa_totales(date); drop function private.conversion_divisor_empresa(date);`
++ borrar la versión del registro.
+Retoma final: Miguel autorizó publicar solo documentos. Banco remoto nuevo
+`saiwhmjrgqdggscfimbu`: SQL 52 PASS, HTTP 12 PASS, RLS contratos 287 PASS,
+identidad D5 30 PASS, advisors sin avisos nuevos. Paridad de esquema, historial,
+22 Edge Functions y cinco buckets comprobada; solo la candidata se promueve.
+Main integrado con F1 pendiente: check 5.100 PASS; Docker 298 PASS / 26 omitidos.
+Ver `supabase/scripts/lead-documentos/VALIDACION-REMOTA.json` y README actualizado.
+
+## 20260930190028 — Gestión diaria: vuelta persistente y cola completa
+
+**APLICADA Y VERIFICADA EN PRODUCCIÓN por merge_branch (30/09/2026).** Nueva puerta
+`crm.gestion_diaria_cola_trabajo_fn`, exclusiva del analista autenticado
+(vendedor/supervisor), sobre los ayudantes autorizados de SLA y clientes.
+El núcleo SLA recibe global=false y únicamente el actor visible, usando su
+acción de atención incluso si es supervisor. Ordena todas las filas antes de paginar: pendientes, luego gestiones del día de
+Lima por hora. La actividad tipificada vigente acredita el avance por autor,
+tenencia y ciclo; deshacer lo recalcula y un compromiso posterior lo reabre a
+su hora. No cambia el reloj de conversación ni escribe marcas adicionales.
+
+Dos ayudantes privados INVOKER sin ejecutores API y una puerta DEFINER con
+`search_path` vacío, actor de `auth.uid()` y EXECUTE solo authenticated.
+La nueva RPC no concede EXECUTE a anon ni service_role; los ayudantes tampoco.
+Sin tablas, policies, índices, triggers ni objetos de public modificados.
+Cola v3 y sus consumidores conservan su contrato.
+
+Banco sintético aislado: `supabase/scripts/gestion-diaria-cola/ensayar.mjs`.
+Ensayo de 530 leads, escritor v4, orden global, páginas, reintentos, Lima,
+deshacer, exclusiones y permisos PASS. Matriz propia de esta RPC en ensayar.mjs
+(complementa test-rls.mjs, que no conoce esta puerta); supervisor con cartera
+propia, llamada contestada, dos intentos con grupo conservado, metadata histórica,
+clientes y reasignación real por gerencia PASS. Dos revisiones independientes
+atendidas con decisiones y evidencia en `docs/encargos/gestion-diaria-cola/`.
+Gate frontend integrado PASS: 4945 tests y build. E2E Docker: 289 passed, 26 skipped;
+flujo final de teclado, guardado y vuelta repetido PASS (1/1).
+Gate de realidad HTTP: parcial FAIL; ambos oráculos pendientes completados por
+SQL read-only (cero revisiones fuera de sello, cinco caminos de conversión concordantes).
+Rama remota: 530 leads, roles y diez denegaciones PASS; RLS oficial 287 aserciones PASS.
+Advisors, tipos remotos y paridad productiva documentados en RELEASE.md.
+Banco temporal eliminado; 22 Edge Functions sin cambios. Frontend pendiente de publicación.
+Tipos generados con postgres-meta del banco e incorporada sólo la nueva RPC.
+Reversa: retirar la puerta y los dos ayudantes; no hay datos que revertir.
+La publicación queda para la invocación humana de `$release-crm`, con rama
+Supabase, matriz/advisors y preflight del commit que se vaya a publicar.
 
 ## 20260930172255 — Cartera F5: canónica y analista atribuido calculados una vez por llamada (`private.cartera_f5_fuentes`)
 
@@ -640,6 +1309,83 @@ Reversa: `drop index if exists crm.inversionistas_perfil_idx;`. Deja la fila de 
 No ejecutado: `test-rls.mjs` y `test:rls:preflight` (el preflight exige las variables del banco y el hook
 bloquea pasarlas en línea; la migración no cambia visibilidad, permisos ni la matriz) y banco Docker (el
 ensayo se hizo sobre los datos reales, que es lo que decide el plan). `npm run check:scripts` PASS.
+## 20260929201813 — Reasignación y conversión consistentes
+
+**VALIDADA EN RAMA REMOTA; PENDIENTE DE PUBLICAR.** Solución permanente autorizada
+por Miguel tras la conciliación puntual de Zoila. Un trigger privado AFTER diferido al cierre de la transacción en
+`crm.leads` acompaña las reasignaciones ya autorizadas por las puertas actuales:
+lleva el responsable de la persona y el borrador de conversión al nuevo analista,
+con tramos de responsabilidad, actividad y revisión auditada. La revisión del
+borrador usa `crm.revisar_solicitud_inversion_fn` sin modificarla: conserva
+datos, hash, creador, contexto de acceso y reglas de la saga/perfil.
+
+Sin RPC pública nueva, sin cambios de RLS/grants de tablas ni de objetos `public`.
+Función privada sin ejecutores API, `search_path` fijo y validación de actor/ámbito.
+La bandeja conserva el último responsable hasta la siguiente entrega; toma directa
+y derivación mantienen sus puertas y permisos. Contratos, cierres externos e
+inversiones existentes requieren la puerta gerencial de relación y conservan
+su atribución. Cuando identidad, saga, historial o una restricción impiden la
+sincronización, se deshacen únicamente sus efectos automáticos y se registra
+`reasignacion_conversion_requiere_revision`: la reasignación autorizada del lead
+continúa, y las puertas de inversión conservan el veto hasta conciliar. Así no se
+convierten los requisitos de invertir en bloqueos nuevos de reparto u offboarding.
+
+Concurrencia: después de bloquear el lead, documentos/persona/solicitud se
+adquieren sin esperar; un conflicto devuelve 40001 y revierte el movimiento
+completo. No se deshabilitan triggers ni se imita una sesión gerencial.
+
+Ensayo en copia Docker aislada: `supabase/scripts/reasignacion-conversion/test.sql`
+36 comprobaciones PASS (RLS real, supervisor/gerencia/vendedor, bandeja, toma
+directa, acceso pendiente y enlazado, rollback de saga, lote mixto, offboarding,
+restricciones, banderas e identidad sin verificar); `concurrencia.py` 4 PASS
+con dos sesiones reales y el candado documental oficial. Regresión económica
+completa `conversion-inversion/test-conversion.sql` PASS. Reversa/reinstalación
+probadas. Cliente: 88 tests PASS, incluidos dos nuevos MSW del contrato de
+reintento/éxito. Guardas: 27 PASS y 5 fallos anteriores idénticos sin la candidata,
+cero fallos nuevos. Preflights de scripts, seed/RLS offline y Edge PASS.
+Dos revisiones independientes atendidas. Rama remota: SQL 36 PASS, regresión
+económica PASS, PostgREST real 3 PASS y matrices RLS contratos 287 / identidad
+30 PASS. Advisors sin avisos nuevos. Tipos públicos no cambian.
+Detalle y límites: `supabase/scripts/reasignacion-conversion/README.md`.
+
+Reversa: `supabase/scripts/reasignacion-conversion/reversa.sql` retira únicamente
+el trigger y su función; conserva todas las asignaciones e historiales.
+
+## 20260929195918 — Leads reasignados (`crm.cartera_filtrada_fn`)
+
+**EN PRODUCCIÓN 29/09/2026, vía merge_branch del banco validado.** «Reasignado» cuenta un lead con analista actual y
+un evento de `crm.actividades.tipo='reasignacion'` anterior con
+`metadata.vendedor_anterior` no nulo. La primera
+entrega desde la bandeja no cuenta; A → B y A → bandeja → B/A sí cuentan.
+Sistema/Manual sigue describiendo el alta y aparece en paralelo. La RPC
+INVOKER sustituye la firma de 11 argumentos por una de 12 con `p_reasignados`,
+devuelve `reasignado` por fila, `resumen.totales.reasignados` y eco del filtro.
+Filas, cifra, capital y embudo usan la misma base antes de paginar, bajo la RLS
+de leads y actividades. Se mueve y resella la exención analítica.
+
+Ensayo: migración aplicada y fixture transaccional
+`supabase/scripts/test-leads-reasignados.sql` PASS en banco Docker aislado
+`avc_leads_reasignados_test4` (preflight/postflight de la versión actual);
+incluye el trigger real de primera entrega, A → A, A → B y bandeja; además
+la matriz de A → bandeja → B/A, filtros combinados, cursor, roles de Gerencia,
+analistas y supervisor, consumidor `resumen_cartera_fn`, veto de INSERT,
+UPDATE y DELETE de eventos falsos y denegación a anon. El preflight/postflight
+verifica la fuente trigger, la policy de INSERT, la ausencia de policies ALL
+permisivas o de UPDATE/DELETE y la ausencia de privilegios de escritura para
+`authenticated` y `anon`.
+
+Banco remoto `goqrvtqfovrvxhlzlhzx`: aplicación nativa `20260929195918`,
+oráculo SQL PASS, RLS HTTP focal 272/272 antes y después, filtro HTTP 41/41,
+advisors sin avisos nuevos. Historial base 389/389 exacto y 22 Edge iguales
+al padre. La suite global original falló por el fixture de canal antiguo;
+se incorporó la corrección #132 y se ejecutó la matriz pertinente, sin
+acreditar la suite global completa. SQL SHA-256:
+`67962db6cf5ff44c7452ee532ee3a955884af99a9ea8b46f67691cae2fcffbcc`.
+Producción verificada: 390 migraciones; función `7169d94239dcb191bafa3faed46f916f`, INVOKER, ACL exacta y sello vigente. Frontend `build-20260929T200401559Z`; 93 archivos HTTP con hash exacto. No hay cambios de RLS ni de tablas. Banco temporal eliminado.
+Reversa coordinada: restaurar la función de 11 argumentos de
+`20260919170500_crm_cartera_filtro_procedencia.sql`, devolverle la exención
+analítica y su sello, y publicar el frontend anterior en el mismo corte.
+
 ## 20260929151350 — Anexo de cronograma imprimible (`crm.contrato_pdf_anexo_snapshot`, `crm.contrato_pdf_anexo_emitido`)
 
 **✅ EN PROD 29/09/2026 por `!` de Miguel: `db query --linked --file` + registrador (REGISTRO_ANEXO_OK; huellas md5 iguales a las del banco) → edge `crm-contrato-pdf-v2` (10/10 módulos vivos = árbol) → front `crm-20260929T163329Z-fb79c46f8848` (build-20260929T163327395Z, preflight ok sobre 9a74a1d0). Pendiente: primer anexo real impreso por Miguel y verificación del asiento.** Decisión de Miguel (28/09): «todo sigue igual, solo que el

@@ -75,7 +75,7 @@ const LEADS_DEMO_BASE: Lead[] = [
 
   // ── ANALISTA TRES (d-v3) ── 3 abiertos · 1 convertido
   { id: 'l4', genero: 'F', nombre_completo: 'ANA TORRES QUISPE', telefono: '+51987654324', correo: 'anatorresq@hotmail.com', etapa: 'propuesta_enviada', origen: 'landing', monto_estimado: 50000, moneda: 'PEN', categoria_interes: 'renovacion', vendedor_id: 'd-v3', vendedor_nombre: 'ANALISTA TRES', creado_en: hace(8), activo: true, dni: '43619258', distrito: 'Santiago de Surco', nota: 'Cliente del portal; renueva y quiere subir el monto' }, // última act hace 6d → propuesta_sin_respuesta
-  { id: 'l7', genero: 'M', nombre_completo: 'PEDRO SÁNCHEZ VEGA', telefono: '+51987654327', correo: 'psanchezv@gmail.com', etapa: 'convertido', origen: 'oficina', monto_estimado: 80000, moneda: 'PEN', categoria_interes: 'nuevo', vendedor_id: 'd-v3', vendedor_nombre: 'ANALISTA TRES', creado_en: hace(12), activo: true, dni: '09845671', distrito: 'San Borja' },
+  { id: 'l7', genero: 'M', nombre_completo: 'PEDRO SÁNCHEZ VEGA', telefono: '+51987654327', correo: 'psanchezv@gmail.com', etapa: 'convertido', origen: 'oficina', monto_estimado: 80000, moneda: 'PEN', categoria_interes: 'nuevo', vendedor_id: 'd-v3', vendedor_nombre: 'ANALISTA TRES', reasignado: true, creado_en: hace(12), activo: true, dni: '09845671', distrito: 'San Borja' },
   { id: 'l13', genero: 'M', nombre_completo: 'MIGUEL CASTILLO RAMOS', telefono: '+51943218765', etapa: 'reunion_agendada', origen: 'formulario', monto_estimado: 35000, moneda: 'PEN', categoria_interes: 'nuevo', vendedor_id: 'd-v3', vendedor_nombre: 'ANALISTA TRES', creado_en: hace(2), activo: true, distrito: 'Jesús María' },
   { id: 'l20', genero: 'M', nombre_completo: 'HUGO ESPINOZA CÁRDENAS', telefono: '+51966778899', etapa: 'contactado', origen: 'otro', monto_estimado: 28000, moneda: 'PEN', categoria_interes: 'upgrade', vendedor_id: 'd-v3', vendedor_nombre: 'ANALISTA TRES', creado_en: hace(10), activo: true, distrito: 'Pueblo Libre' }, // última act hace 8d → seguimiento + estancado
 
@@ -129,7 +129,7 @@ export const ACTIVIDADES_DEMO: Actividad[] = [
   { id: 'act13', lead_id: 'l6', tipo: 'cambio_etapa', detalle: 'Nuevo → Contactado', autor_nombre: 'ANALISTA DOS', creado_en: hace(2.2) },
   // l7 — convertido (histórico)
   { id: 'act14', lead_id: 'l7', tipo: 'cambio_etapa', detalle: 'Nuevo → Contactado', autor_nombre: 'ANALISTA UNO', creado_en: hace(11) },
-  { id: 'act15', lead_id: 'l7', tipo: 'reasignacion', detalle: 'ANALISTA UNO → ANALISTA TRES', autor_nombre: 'SUPERVISOR DOS', creado_en: hace(10.5) },
+  { id: 'act15', lead_id: 'l7', tipo: 'reasignacion', detalle: 'ANALISTA UNO → ANALISTA TRES', autor_nombre: 'SUPERVISOR DOS', creado_en: hace(10.5), metadata: { vendedor_anterior: 'd-v1', vendedor_nuevo: 'd-v3' } },
   { id: 'act16', lead_id: 'l7', tipo: 'reunion_realizada', detalle: 'Cerró condiciones: S/ 80,000 a 24 meses', autor_nombre: 'ANALISTA TRES', creado_en: hace(9) },
   { id: 'act17', lead_id: 'l7', tipo: 'conversion', detalle: 'Contrato firmado — alta en el portal (demo)', autor_nombre: 'ANALISTA TRES', creado_en: hace(7) },
   // l8 — descartado (sin fondos)

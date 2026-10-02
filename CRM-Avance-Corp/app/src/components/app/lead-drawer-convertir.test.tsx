@@ -9,12 +9,13 @@ import type {StoreDataApi} from '@/lib/store'
 import type {Lead} from '@/lib/tipos'
 import {CrmApiError,type CrearContratoInput} from '@/data/crm-api'
 import type {CuotaCronograma} from '@/lib/cronograma'
-import {guardarIntentoInversion,leerIntentoInversion,nuevoIntentoInversion,type DatosInversion,type SolicitudInversion} from '@/lib/inversion-solicitud'
+import {guardarIntentoInversion,leerConversionAbierta,leerIntentoInversion,nuevoIntentoInversion,type DatosInversion,type SolicitudInversion} from '@/lib/inversion-solicitud'
 import {ACTOR_F5,PERSONA_F5,PERFIL_F5,FUENTE_F5,fichaF5} from '@/test/fixtures/f5'
 import {DialogConvertir} from './lead-drawer'
 
 const api=vi.hoisted(()=>({persona:vi.fn(),contexto:vi.fn(),ficha:vi.fn(),preparar:vi.fn(),consultar:vi.fn(),
-  corregir:vi.fn(),confirmar:vi.fn(),cancelar:vi.fn(),acceso:vi.fn(),subir:vi.fn(),bienvenida:vi.fn(),convertirAnterior:vi.fn()}))
+  corregir:vi.fn(),confirmar:vi.fn(),cancelar:vi.fn(),acceso:vi.fn(),subir:vi.fn(),bienvenida:vi.fn(),convertirAnterior:vi.fn(),documento:vi.fn()}))
+vi.mock('@/data/documento-lead',()=>({useDocumentoLead:api.documento}))
 vi.mock('@/data/inversion-solicitud-api',async original=>({...await original<typeof import('@/data/inversion-solicitud-api')>(),
   prepararPersonaLeadInversion:api.persona,obtenerContextoConversionInversion:api.contexto,
   prepararSolicitudInversion:api.preparar,consultarSolicitudInversion:api.consultar,
@@ -53,6 +54,8 @@ const preparada=(clave:string,datos:DatosInversion):SolicitudInversion=>({solici
   comprobante_bucket:datos.empresa==='avance'?null:'f4-comprobantes',comprobante_ruta:datos.evidencia?.ruta??null,resultado:null,datos})
 beforeEach(()=>{
   vi.resetAllMocks();sessionStorage.clear();vigente=null;perfil=null;correoFicha=fichaF5.persona.correo
+  api.documento.mockImplementation((l:Lead)=>({data:{lead_id:l.id,inversionista_id:null,identificador_id:null,
+    tipo:l.documento?.tipo??'DNI',numero:l.documento?.numero??l.dni??null,puede_corregir:false},isPending:false,isError:false,isFetchedAfterMount:true}))
   api.persona.mockImplementation(async(leadId:string)=>({inversionista_id:PERSONA_F5,lead_id:leadId,solicitud_id:vigente?.solicitud_id??null}))
   api.contexto.mockImplementation(async()=>({...fichaF5,solicitud_id:vigente?.solicitud_id??null,documento_tipo:'DNI',persona:{...fichaF5.persona,perfil_id:perfil,correo:correoFicha}}))
   api.cancelar.mockImplementation(async()=>{vigente={...vigente!,estado:'cancelada'};return vigente})
@@ -81,6 +84,40 @@ async function entrar(user:ReturnType<typeof userEvent.setup>,empresa:string){
   await user.click(screen.getByRole('button',{name:'Continuar a Nueva inversión'}))
   await user.click(await screen.findByRole('button',{name:empresa}))
 }
+
+describe('Documento vinculado al convertir',()=>{
+  it.each([['CE','001234567'],['PASAPORTE','AB12345678']] as const)('precarga y utiliza %s aunque el DNI legado esté vacío',async(tipo,numero)=>{
+    api.documento.mockReturnValue({data:{lead_id:LEAD,tipo,numero,inversionista_id:PERSONA_F5,identificador_id:FUENTE_F5,puede_corregir:false},isFetchedAfterMount:true})
+    const {user}=montar({dni:null})
+    expect(screen.getByLabelText('Tipo de documento')).toHaveValue(tipo)
+    expect(screen.getByLabelText('Documento')).toHaveValue(numero)
+    expect(screen.getByLabelText('Documento')).toBeDisabled()
+    await user.click(screen.getByRole('button',{name:'Continuar a Nueva inversión'}))
+    expect(api.persona).toHaveBeenCalledWith(LEAD,tipo,numero,lead.nombre_completo)
+  })
+
+  it('pasar a otro lead sin desmontar no arrastra la persona ni el documento del anterior',async()=>{
+    const {user,rerender}=montar()
+    await entrar(user,'Qorilazo')
+    // Mismo número de documento a propósito: lo único que separa a los dos leads es su id.
+    const qc=new QueryClient({defaultOptions:{queries:{retry:false}}})
+    const auth={yo:{id:ACTOR_F5,rol:'vendedor',nombre_completo:'ANALISTA F5',demo:false,puede_contratar:true}} as AuthContextValue
+    rerender(<QueryClientProvider client={qc}><AuthContext.Provider value={auth}>
+      <StoreDataContext.Provider value={{recargar:vi.fn(),equipo:[]} as unknown as StoreDataApi}>
+        <DialogConvertir l={{...lead,id:OTRO_LEAD,nombre_completo:'OTRA PERSONA'}} onClose={vi.fn()}/>
+      </StoreDataContext.Provider></AuthContext.Provider></QueryClientProvider>)
+    expect(await screen.findByLabelText('Nombre completo')).toHaveValue('OTRA PERSONA')
+    expect(screen.queryByLabelText('Número de operación del depósito')).not.toBeInTheDocument()
+  })
+
+  it('un error al consultar identidad no permite convertir con el DNI antiguo',()=>{
+    api.documento.mockReturnValue({data:undefined,isError:true,refetch:vi.fn()})
+    montar()
+    expect(screen.getByText(/No se pudo consultar el documento vinculado/)).toBeInTheDocument()
+    expect(screen.queryByRole('button',{name:'Continuar a Nueva inversión'})).not.toBeInTheDocument()
+    expect(api.persona).not.toHaveBeenCalled()
+  })
+})
 async function llenarCoop(user:ReturnType<typeof userEvent.setup>,moneda='PEN'){
   if(moneda==='USD')await user.selectOptions(screen.getByLabelText('Moneda'),'USD')
   const capital=screen.getByLabelText(new RegExp('Capital.*'+moneda))
@@ -100,6 +137,161 @@ async function llenarCoop(user:ReturnType<typeof userEvent.setup>,moneda='PEN'){
   fireEvent.submit(formulario)
   await screen.findByRole('button',{name:'Confirmar inversión'})
 }
+function llenarAcceso(datos: Partial<{nombres:string;apellidos:string;correo:string;telefono:string}> = {}) {
+  for (const [etiqueta, valor] of Object.entries({Apellidos: datos.apellidos ?? 'PRUEBA', Nombres: datos.nombres ?? 'PERSONA',
+    'Correo de acceso Avance': datos.correo ?? 'persona@example.invalid', 'Teléfono': datos.telefono ?? '999123456',
+    'Domicilio legal': 'AVENIDA SINTETICA 123 LIMA'})) {
+    fireEvent.change(screen.getByLabelText(etiqueta, {exact:true}), {target:{value:valor}})
+  }
+}
+describe('Recuperar el primer acceso rechazado',()=>{
+  it('normaliza espacios copiados antes de enviar los nombres legales',async()=>{
+    const {user}=montar();await entrar(user,'Avance')
+    llenarAcceso({nombres:'  PERSONA\t SEGUNDA  ',apellidos:'  PRUEBA\u00a0 APELLIDO  '})
+    await user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    await screen.findByRole('button',{name:'Completar acceso Avance'})
+    expect(vigente?.datos?.alta_portal).toMatchObject({nombres:'PERSONA SEGUNDA',apellidos:'PRUEBA APELLIDO',
+      nombre_completo:'PERSONA SEGUNDA PRUEBA APELLIDO'})
+    expect(api.acceso).not.toHaveBeenCalled();expect(api.confirmar).not.toHaveBeenCalled()
+  })
+  it.each([
+    [{nombres:'PERSONA\u0001'},'Nombres','caracteres no válidos'],
+    [{nombres:'A'.repeat(130),apellidos:'B'.repeat(130)},'Nombres','240 caracteres'],
+    [{correo:'persona\u0001@example.invalid'},'Correo de acceso Avance','correo de acceso válido'],
+  ])('explica datos que el servidor rechazaría sin guardar un intento: %j',async(datos,campo,mensaje)=>{
+    const {user}=montar();await entrar(user,'Avance');llenarAcceso(datos)
+    await user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    expect(screen.getByLabelText(campo)).toHaveAttribute('aria-invalid','true')
+    expect(screen.getByRole('alert')).toHaveTextContent(mensaje)
+    expect(api.preparar).not.toHaveBeenCalled();expect(leerIntentoInversion(ACTOR_F5,PERSONA_F5,LEAD)).toBeNull()
+  })
+  it('22023 permite corregir tras confirmar ausencia y conserva clave y token',async()=>{
+    api.preparar.mockRejectedValueOnce(new CrmApiError('Completa el nombre legal y un correo válido para el acceso Avance','22023'))
+    const {user}=montar();await entrar(user,'Avance');llenarAcceso()
+    await user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Completa el nombre legal')
+    expect(screen.getByLabelText('Nombres')).toHaveValue('PERSONA')
+    expect(screen.getByLabelText('Domicilio legal')).toHaveValue('AVENIDA SINTETICA 123 LIMA')
+    expect(screen.getByText(/La solicitud aún no está registrada/)).toBeInTheDocument()
+    const primero=leerIntentoInversion(ACTOR_F5,PERSONA_F5,LEAD)!
+    expect(api.consultar).toHaveBeenCalledWith(primero.clave)
+    fireEvent.change(screen.getByLabelText('Correo de acceso Avance'),{target:{value:'corregido@example.invalid'}})
+    await user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    await screen.findByRole('button',{name:'Completar acceso Avance'})
+    const segundo=api.preparar.mock.calls[1]![0]
+    expect(segundo).toMatchObject({clave:primero.clave,token:primero.token,datos:{alta_portal:{correo:'corregido@example.invalid'}}})
+    expect(api.preparar).toHaveBeenCalledTimes(2);expect(api.corregir).not.toHaveBeenCalled()
+    expect(api.acceso).not.toHaveBeenCalled();expect(api.confirmar).not.toHaveBeenCalled()
+  })
+  it('un intento antiguo inválido vuelve a campos editables sin reenviarlo automáticamente',async()=>{
+    const guardado=nuevoIntentoInversion(ACTOR_F5,PERSONA_F5,FUENTE_F5,{inversionista_id:PERSONA_F5,lead_id:LEAD,
+      empresa:'avance',contrato:{moneda:'PEN'},cronograma:[],cuenta:{},alta_portal:{nombres:'PERSONA\tSEGUNDA',apellidos:'PRUEBA',
+        nombre_completo:'PERSONA\tSEGUNDA PRUEBA',correo:'',telefono:'999123456',domicilio:'AVENIDA SINTETICA 123 LIMA'}})
+    guardarIntentoInversion(guardado)
+    const {user}=montar();await user.click(screen.getByRole('button',{name:'Continuar a Nueva inversión'}))
+    expect(await screen.findByLabelText('Nombres')).toHaveValue('PERSONA\tSEGUNDA')
+    expect(api.preparar).not.toHaveBeenCalled()
+    fireEvent.change(screen.getByLabelText('Correo de acceso Avance'),{target:{value:'corregido@example.invalid'}})
+    await user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    await screen.findByRole('button',{name:'Completar acceso Avance'})
+    expect(api.preparar).toHaveBeenCalledWith(expect.objectContaining({clave:guardado.clave,token:guardado.token}))
+    expect(vigente?.datos?.alta_portal?.nombre_completo).toBe('PERSONA SEGUNDA PRUEBA')
+  })
+  it('una consulta incierta mantiene recuperación hasta comprobar que no existe',async()=>{
+    api.preparar.mockRejectedValueOnce(new CrmApiError('Datos no válidos','22023'))
+    api.consultar.mockRejectedValueOnce(new TypeError('Conexión interrumpida'))
+    const {user}=montar();await entrar(user,'Avance');llenarAcceso()
+    await user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    await screen.findByRole('heading',{name:'Recuperar solicitud'})
+    expect(screen.queryByLabelText('Nombres')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button',{name:'Consultar y recuperar'}))
+    expect(await screen.findByLabelText('Nombres')).toHaveValue('PERSONA')
+    expect(api.preparar).toHaveBeenCalledOnce();expect(api.acceso).not.toHaveBeenCalled()
+  })
+  it('recupera una escritura confirmada cuya respuesta se perdió sin preparar otra',async()=>{
+    api.preparar.mockImplementationOnce(async i=>{vigente=preparada(i.clave,i.datos);correoFicha=i.datos.alta_portal.correo;throw new TypeError('Respuesta perdida')})
+    const {user}=montar();await entrar(user,'Avance');llenarAcceso()
+    await user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    await user.click(await screen.findByRole('button',{name:'Consultar y recuperar'}))
+    await screen.findByRole('button',{name:'Completar acceso Avance'})
+    expect(api.preparar).toHaveBeenCalledOnce();expect(api.acceso).not.toHaveBeenCalled()
+  })
+  it('si otro envío registra la misma clave durante la edición, recupera los datos del servidor',async()=>{
+    api.preparar.mockRejectedValueOnce(new CrmApiError('Datos no válidos','22023'))
+    const {user}=montar();await entrar(user,'Avance');llenarAcceso()
+    await user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    await screen.findByLabelText('Nombres')
+    const primero=leerIntentoInversion(ACTOR_F5,PERSONA_F5,LEAD)!
+    vigente=preparada(primero.clave,primero.datos);correoFicha=primero.datos.alta_portal!.correo
+    api.preparar.mockRejectedValueOnce(new CrmApiError('Clave ya utilizada','P0409'))
+    fireEvent.change(screen.getByLabelText('Correo de acceso Avance'),{target:{value:'nuevo@example.invalid'}})
+    await user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    await screen.findByRole('button',{name:'Completar acceso Avance'})
+    expect(screen.getByText('persona@example.invalid')).toBeInTheDocument()
+    expect(screen.queryByText('nuevo@example.invalid')).not.toBeInTheDocument()
+    expect(api.preparar.mock.calls[1]![0].clave).toBe(primero.clave)
+    expect(leerIntentoInversion(ACTOR_F5,PERSONA_F5,LEAD)?.datos).toEqual(vigente!.datos)
+    expect(api.acceso).not.toHaveBeenCalled();expect(api.confirmar).not.toHaveBeenCalled()
+  })
+  it('un conflicto de otra inversión conserva el error sin invitar a corregir datos',async()=>{
+    api.preparar.mockRejectedValueOnce(new CrmApiError('Ya existe otra inversión en preparación','P0409'))
+    const {user}=montar();await entrar(user,'Avance');llenarAcceso()
+    await user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Ya existe otra inversión')
+    expect(screen.queryByLabelText('Nombres')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button',{name:'Consultar y recuperar'}))
+    expect(screen.queryByLabelText('Nombres')).not.toBeInTheDocument()
+    expect(screen.queryByText(/La solicitud aún no está registrada/)).not.toBeInTheDocument()
+    expect(api.preparar).toHaveBeenCalledOnce()
+  })
+  it.each([false,true])('retoma otra solicitud existente del lead sin reenviar el intento local (reapertura=%s)',async(reabrir)=>{
+    const otraClave='77777777-7777-4777-8777-777777777777'
+    api.preparar.mockImplementationOnce(async i=>{
+      vigente=preparada(otraClave,i.datos);correoFicha=i.datos.alta_portal.correo
+      throw new CrmApiError('Este lead ya tiene una solicitud: retómala antes de crear otra','P0409')
+    })
+    api.consultar.mockImplementation(async id=>{
+      if(id!==vigente?.solicitud_id)throw new CrmApiError('Solicitud no encontrada','P0002')
+      return vigente
+    })
+    const primera=montar();await entrar(primera.user,'Avance');llenarAcceso()
+    await primera.user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    await screen.findByRole('button',{name:'Retomar solicitud registrada'})
+    let user=primera.user
+    if(reabrir){
+      // Desmontar sin cerrar es recargar la página: el wizard se retoma sin volver a pedir la identidad.
+      primera.unmount();user=montar().user
+      await screen.findByRole('button',{name:'Retomar solicitud registrada'})
+      expect(api.persona).toHaveBeenCalledOnce()
+    }
+    expect(screen.queryByLabelText('Nombres')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button',{name:'Retomar solicitud registrada'}))
+    await screen.findByRole('button',{name:'Completar acceso Avance'})
+    expect(leerIntentoInversion(ACTOR_F5,PERSONA_F5,LEAD)?.clave).toBe(otraClave)
+    expect(api.preparar).toHaveBeenCalledOnce();expect(api.acceso).not.toHaveBeenCalled()
+  })
+  it('conserva el token del primer envío si la lectura falla con 22023 después de guardar',async()=>{
+    api.preparar.mockImplementationOnce(async i=>{
+      vigente=preparada(i.clave,i.datos);correoFicha=i.datos.alta_portal.correo
+      throw new CrmApiError('Lectura rechazada después de preparar','22023')
+    })
+    const {user}=montar();await entrar(user,'Avance');llenarAcceso()
+    await user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    await screen.findByRole('button',{name:'Completar acceso Avance'})
+    expect(leerIntentoInversion(ACTOR_F5,PERSONA_F5,LEAD)).toMatchObject(api.preparar.mock.calls[0]![0])
+    expect(screen.queryByLabelText('Nombres')).not.toBeInTheDocument()
+    expect(api.preparar).toHaveBeenCalledOnce();expect(api.acceso).not.toHaveBeenCalled()
+  })
+  it('un permiso revocado durante la recuperación cierra el flujo sin habilitar edición',async()=>{
+    api.preparar.mockRejectedValueOnce(new CrmApiError('Datos no válidos','22023'))
+    api.consultar.mockRejectedValueOnce(new CrmApiError('Acceso revocado','42501'))
+    const {user,onClose}=montar();await entrar(user,'Avance');llenarAcceso()
+    await user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    await waitFor(()=>expect(onClose).toHaveBeenCalledOnce())
+    expect(screen.queryByLabelText('Nombres')).not.toBeInTheDocument()
+    expect(api.preparar).toHaveBeenCalledOnce();expect(api.acceso).not.toHaveBeenCalled()
+  })
+})
 describe('Convertir a cliente usa Nueva inversión',()=>{
   it('cancelar una solicitud permite elegir otra empresa sin convertir',async()=>{
     const {user,recargar}=montar();await entrar(user,'Prodelco');await llenarCoop(user)
@@ -114,6 +306,23 @@ describe('Convertir a cliente usa Nueva inversión',()=>{
     expect(screen.getByLabelText('Número de operación del depósito')).toHaveValue('')
     await llenarCoop(user);expect(vigente!.solicitud_id).not.toBe(id)
     expect(vigente!.datos?.empresa).toBe('qorilazo')
+  })
+  it('recargar tras cancelar muestra la cancelación; tras «Iniciar otra inversión», vuelve a elegir empresa sin resucitarla',async()=>{
+    const primera=montar();await entrar(primera.user,'Prodelco');await llenarCoop(primera.user)
+    await primera.user.click(screen.getByRole('button',{name:'Cancelar solicitud'}))
+    await primera.user.click(screen.getByRole('button',{name:'Confirmar cancelación'}))
+    await screen.findByRole('heading',{name:'Solicitud cancelada'})
+    // Desmontar sin cerrar es recargar la página: se retoma la misma pantalla, la que dice el servidor.
+    primera.unmount()
+    const segunda=montar()
+    await screen.findByRole('heading',{name:'Solicitud cancelada'})
+    await segunda.user.click(screen.getByRole('button',{name:'Iniciar otra inversión'}))
+    segunda.unmount()
+    montar()
+    expect(await screen.findByRole('button',{name:'Qorilazo'})).toBeInTheDocument()
+    expect(screen.queryByRole('heading',{name:'Solicitud cancelada'})).not.toBeInTheDocument()
+    expect(screen.queryByRole('button',{name:'Continuar a Nueva inversión'})).not.toBeInTheDocument()
+    expect(api.persona).toHaveBeenCalledOnce();expect(api.preparar).toHaveBeenCalledOnce()
   })
   it('una lectura fallida conserva campos y comprobante hasta recuperar permisos',async()=>{
     const {user,qc}=montar();await entrar(user,'Prodelco')
@@ -226,6 +435,28 @@ describe('Convertir a cliente usa Nueva inversión',()=>{
     expect(vigente!.datos!.contrato).not.toHaveProperty('analista_cierre_id');expect(vigente!.datos!.contrato).not.toHaveProperty('cliente_id')
     expect(api.convertirAnterior).not.toHaveBeenCalled()
   })
+  it('recargar la página en las condiciones del contrato retoma el wizard y el contrato se crea una sola vez',async()=>{
+    const primera=montar();await entrar(primera.user,'Avance')
+    await primera.user.type(screen.getByLabelText('Nombres'),'PERSONA');await primera.user.type(screen.getByLabelText('Apellidos'),'PRUEBA CONVERSIÓN')
+    await primera.user.type(screen.getByLabelText('Domicilio legal'),'AVENIDA SINTETICA 123 LIMA')
+    await primera.user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    await primera.user.click(await screen.findByRole('button',{name:'Completar acceso Avance'}))
+    await screen.findByRole('heading',{name:'Condiciones del contrato compartido'})
+    const clave=vigente!.solicitud_id
+    // Recargar no pasa por el cierre del diálogo: la pestaña conserva la solicitud y que el wizard estaba abierto.
+    primera.unmount()
+    const {user,recargar}=montar()
+    await screen.findByRole('heading',{name:'Condiciones del contrato compartido'})
+    expect(screen.queryByRole('button',{name:'Continuar a Nueva inversión'})).not.toBeInTheDocument()
+    expect(api.contexto).toHaveBeenLastCalledWith(LEAD,PERSONA_F5,expect.any(AbortSignal))
+    expect(api.consultar).toHaveBeenCalledWith(clave,expect.any(AbortSignal))
+    await user.click(screen.getByRole('button',{name:'Revisar contrato compartido'}))
+    await user.click(await screen.findByRole('button',{name:'Confirmar inversión'}))
+    await screen.findByRole('heading',{name:'Inversión confirmada'})
+    expect(api.persona).toHaveBeenCalledOnce();expect(api.preparar).toHaveBeenCalledOnce();expect(api.acceso).toHaveBeenCalledOnce()
+    expect(api.confirmar.mock.calls).toEqual([[clave,1]]);expect(recargar).toHaveBeenCalledOnce()
+    expect(leerConversionAbierta(ACTOR_F5,LEAD)).toBeNull()
+  })
   it('guarda y recupera el acceso; señala domicilio inválido y permite corregir el correo antes de crear la cuenta',async()=>{
     const primera=montar();await entrar(primera.user,'Avance')
     expect(screen.getByRole('navigation',{name:'Progreso de primera inversión Avance'})).toHaveTextContent('Paso 1 de 3')
@@ -317,8 +548,10 @@ describe('Convertir a cliente usa Nueva inversión',()=>{
     primera.unmount()
     correoFicha='ficha-actual@example.invalid'
     vigente={...vigente!,revision_datos:1,datos:{...vigente!.datos!,alta_portal:{...vigente!.datos!.alta_portal!,correo:correoFicha}}}
-    const segunda=montar();await segunda.user.click(screen.getByRole('button',{name:'Continuar a Nueva inversión'}))
+    // Desmontar sin cerrar es recargar la página: vuelve directo al acceso, con su borrador.
+    const segunda=montar()
     expect(await screen.findByLabelText('Correo de acceso Avance')).toHaveValue('anterior@example.invalid')
+    expect(screen.queryByRole('button',{name:'Continuar a Nueva inversión'})).not.toBeInTheDocument()
     expect(screen.getByText('ficha-actual@example.invalid')).toBeInTheDocument()
     await segunda.user.click(screen.getByRole('button',{name:'Usar correo de la ficha'}))
     expect(screen.getByLabelText('Correo de acceso Avance')).toHaveValue('ficha-actual@example.invalid')

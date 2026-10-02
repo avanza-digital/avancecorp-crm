@@ -36,14 +36,14 @@ test('Analista: las tareas de clientes entran en su cola, se registran y «Ahora
       tareaCliente(T_MANANA, fin + 10 * 3_600_000, 'Gestionar a ROSA: llamada de mañana'),
     ],
   })
-  const { pedidos } = await montarColaDiaV3(page, backend, [{ id: LEAD, nombre_completo: 'LEAD CON TAREA VENCIDA', etapa: 'contactado' }])
+  const { pedidosTrabajo } = await montarColaDiaV3(page, backend, [{ id: LEAD, nombre_completo: 'LEAD CON TAREA VENCIDA', etapa: 'contactado' }])
   await loginReal(page)
   await page.goto('/#/gestion-diaria')
   await expect(page.getByRole('heading', { level: 2, name: '¿A quién llamo ahora?' })).toBeVisible()
 
   // La pantalla lee la v3 con los filtros del día (sin cursor, sin etapa ni analista).
-  await expect.poll(() => pedidos.length).toBeGreaterThan(0)
-  expect(pedidos.at(-1)).toEqual({ p_limite: 200, p_senal: 'todas', p_cursor: null })
+  await expect.poll(() => pedidosTrabajo.length).toBeGreaterThan(0)
+  expect(pedidosTrabajo.at(-1)).toEqual({ p_limite: 8, p_filtro: 'todo', p_pagina: 0 })
 
   // Dos tareas de la MISMA persona = dos filas; la de mañana no entra.
   const todo = page.getByRole('list', { name: /^Todo/ })

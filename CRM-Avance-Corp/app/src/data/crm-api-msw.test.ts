@@ -262,6 +262,23 @@ describe('listarLeads (msw)', () => {
 // La foto del ámbito (`listarLeadsDelAmbito`, tope 5 000 y alarma 4 000) murió en la
 // Fase 4e «sin topes»: sus casos se retiraron con ella.
 describe('obtenerLeadDelAmbitoPorId (msw)', () => {
+  it('marca la ficha cuando hubo otro analista, sin convertir la primera asignación en reasignación', async () => {
+    const urlActividades = 'http://supabase.test/rest/v1/actividades'
+    let filtro: URL | undefined
+    server.use(
+      http.get(RUTA_LEADS, () => HttpResponse.json([fila({ vendedor_id: 'analista-b' })])),
+      http.get(urlActividades, ({ request }) => {
+        filtro = new URL(request.url)
+        return HttpResponse.json([{ id: 'movimiento' }])
+      }),
+    )
+    await expect(obtenerLeadDelAmbitoPorId('l-api-1')).resolves.toMatchObject({ reasignado: true })
+    expect(filtro?.searchParams.get('lead_id')).toBe('eq.l-api-1')
+    expect(filtro?.searchParams.get('tipo')).toBe('eq.reasignacion')
+    expect(filtro?.searchParams.get('metadata->>vendedor_anterior')).toBe('not.is.null')
+    server.use(http.get(urlActividades, () => HttpResponse.json([])))
+    await expect(obtenerLeadDelAmbitoPorId('l-api-1')).resolves.toMatchObject({ reasignado: false })
+  })
   it('lee la ficha completa por ID en crm con activo=true y aplica el mapeador canónico', async () => {
     let pedida: URL | undefined
     server.use(http.get(RUTA_LEADS, ({ request }) => {

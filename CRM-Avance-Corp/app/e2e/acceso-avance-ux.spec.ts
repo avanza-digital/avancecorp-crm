@@ -1,6 +1,58 @@
 import { expect, test, type Page } from '@playwright/test'
 import { abrirConversionAvance, leadReal, loginReal, montarBackendReal, UID } from './_helpers'
 
+for (const ancho of [1440, 390]) {
+  test(`un analista corrige el primer rechazo sin duplicar la solicitud (${ancho}px)`, async ({page}, info) => {
+    await page.setViewportSize({width: ancho, height: 940})
+    const ficha = await abrirLeadDePrueba(page, ancho)
+    let acceso = await abrirConversionAvance(page, ficha)
+    const claves: string[] = []
+    let registrada = false
+    let altas = 0
+    page.on('request', request => {
+      if (/crm-inversion-portal|confirmar_inversion_revisada_fn/.test(request.url())) altas++
+    })
+    await page.route('**/rest/v1/rpc/preparar_inversion_fn', async route => {
+      claves.push(route.request().postDataJSON().p_clave)
+      if (claves.length === 1) return route.fulfill({status: 400, json: {
+        code: '22023', message: 'Completa el nombre legal y un correo válido para el acceso Avance',
+      }})
+      registrada = true
+      return route.fallback()
+    })
+    await page.route('**/rest/v1/rpc/solicitud_inversion_fn', async route => {
+      if (!registrada) return route.fulfill({status: 404, json: {code: 'P0002', message: 'Solicitud no encontrada'}})
+      return route.fallback()
+    })
+    await acceso.getByLabel('Apellidos', {exact: true}).fill('PRUEBA')
+    await acceso.getByLabel('Nombres', {exact: true}).fill('PERSONA')
+    await acceso.getByLabel('Correo de acceso Avance').fill('primero@example.invalid')
+    await acceso.getByLabel('Domicilio legal').fill('AVENIDA SINTETICA 123 LIMA')
+    await acceso.getByRole('button', {name: 'Revisar acceso Avance'}).click()
+    await expect(acceso.getByRole('alert')).toContainText('Completa el nombre legal')
+    await expect(acceso.getByLabel('Nombres', {exact: true})).toHaveValue('PERSONA')
+    await expect(acceso.getByText(/La solicitud aún no está registrada/)).toBeVisible()
+    await acceso.screenshot({path: info.outputPath(`rechazo-editable-${ancho}.png`), animations: 'disabled'})
+
+    // Retomar un intento rechazado de una versión anterior tampoco lo reenvía
+    // a ciegas: conserva los datos y permite corregir con la misma referencia.
+    await acceso.getByRole('button', {name: 'Cerrar y continuar después'}).click()
+    await ficha.getByRole('button', {name: /Convertir a cliente/i}).click()
+    await page.getByRole('button', {name: 'Continuar a Nueva inversión'}).click()
+    acceso = page.getByRole('dialog', {name: 'Acceso Avance'})
+    await expect(acceso.getByLabel('Correo de acceso Avance')).toHaveValue('primero@example.invalid')
+    expect(claves).toHaveLength(1)
+    await acceso.getByLabel('Correo de acceso Avance').fill('corregido@example.invalid')
+    await acceso.getByRole('button', {name: 'Revisar acceso Avance'}).click()
+    await expect(acceso.getByRole('button', {name: 'Completar acceso Avance'})).toBeEnabled()
+    await expect(acceso.getByRole('definition').filter({hasText: /^corregido@example\.invalid$/})).toBeVisible()
+    expect(claves).toHaveLength(2)
+    expect(claves[1]).toBe(claves[0])
+    expect(altas).toBe(0)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  })
+}
+
 async function abrirLeadDePrueba(page: Page, ancho: number) {
   const lead = leadReal({
     vendedor_id: UID, nombre_completo: 'CLIENTE SINTÉTICO DE ACCESO', dni: '71309001',
@@ -127,8 +179,87 @@ test('corregir el correo permite continuar y un conflicto conocido conserva el f
   await expect(acceso.getByLabel('Correo de acceso Avance')).toHaveValue('corregido@example.invalid')
   await expect(page.getByRole('dialog', {name: 'Actualización pendiente'})).toHaveCount(0)
   await acceso.getByRole('button', {name: 'Revisar acceso Avance'}).click()
-  await expect(acceso.getByText('corregido@example.invalid', {exact: true})).toBeVisible()
+  await expect(acceso.getByRole('definition').filter({hasText: /^corregido@example\.invalid$/})).toBeVisible()
   await expect(acceso.getByRole('button', {name: 'Completar acceso Avance'})).toBeEnabled()
   await acceso.getByRole('button', {name: 'Completar acceso Avance'}).click()
   await expect(page.getByRole('dialog', {name: /Crear contrato de/})).toBeVisible()
+})
+
+test('volver a la ventana y recargar la página en las condiciones del contrato conservan el wizard y lo escrito', async ({page}) => {
+  const lead = leadReal({
+    vendedor_id: UID, nombre_completo: 'CLIENTE SINTÉTICO DE FOCO', dni: '71309001',
+    etapa: 'propuesta_enviada', monto_estimado: 20000,
+  })
+  const backend = await montarBackendReal(page, {rolCrm: 'vendedor', leads: [lead]})
+  await loginReal(page)
+  await page.goto('/#/cartera')
+  await page.getByRole('row', {name: `Abrir ficha de ${lead.nombre_completo}`, exact: true}).click()
+  const ficha = page.getByRole('dialog', {name: lead.nombre_completo, exact: true})
+  const llamadas = {identidad: 0, preparar: 0}
+  page.on('request', request => {
+    if (request.url().endsWith('/rpc/preparar_persona_lead_inversion_fn')) llamadas.identidad++
+    if (request.url().endsWith('/rpc/preparar_inversion_fn')) llamadas.preparar++
+  })
+  const acceso = await abrirConversionAvance(page, ficha)
+  await acceso.getByLabel('Apellidos', {exact: true}).fill('PRUEBA')
+  await acceso.getByLabel('Nombres', {exact: true}).fill('PERSONA')
+  await acceso.getByLabel('Correo de acceso Avance').fill('persona-foco@example.invalid')
+  await acceso.getByLabel('Domicilio legal').fill('Av. Javier Prado Este 123, San Isidro, Lima')
+  await acceso.getByRole('button', {name: 'Revisar acceso Avance'}).click()
+  await acceso.getByRole('button', {name: 'Completar acceso Avance'}).click()
+  const contrato = page.getByRole('dialog', {name: /Crear contrato de/})
+  const pasos = {name: 'Progreso de primera inversión Avance'}
+  await expect(contrato.getByRole('navigation', pasos)).toContainText('Paso 2 de 3')
+  await contrato.getByLabel('Capital', {exact: true}).fill('23000')
+  await contrato.getByLabel('N° de contrato', {exact: true}).fill('000719')
+  await contrato.getByRole('radio', {name: /BCP.*8901/i}).check()
+
+  // Preparar la identidad ESCRIBIÓ en el lead: el servidor ya tiene otra fecha de
+  // actualización y la cartera la trae al volver a la ventana. Antes eso cambiaba la
+  // consulta del documento, desmontaba el wizard y reaparecía el modal de identidad.
+  backend.leads = backend.leads.map(l => ({...l, actualizado_en: '2026-07-02T00:00:00.000Z'}))
+  // La ficha relee el documento con el lead nuevo: es la señal de que la resincronización llegó a pantalla.
+  const relectura = page.waitForResponse(r => r.url().endsWith('/rpc/documento_lead_fn'))
+  await page.evaluate(() => {
+    document.dispatchEvent(new Event('visibilitychange', {bubbles: true}))
+    window.dispatchEvent(new Event('focus'))
+  })
+  await relectura
+  await expect(contrato.getByRole('navigation', pasos)).toContainText('Paso 2 de 3')
+  await expect(contrato.getByLabel('Capital', {exact: true})).toHaveValue('23000')
+  await expect(contrato.getByLabel('N° de contrato', {exact: true})).toHaveValue('000719')
+  await expect(page.getByRole('dialog', {name: /Registrar la inversión del lead|Documento del lead/})).toHaveCount(0)
+
+  // Más de una hora con la pestaña oculta: el token ya venció y Auth lo renueva al volver.
+  // La renovación de la misma cuenta no puede remontar nada.
+  const renovacion = page.waitForResponse(r => r.url().includes('/auth/v1/token') && r.url().includes('grant_type=refresh_token'))
+  await page.evaluate(() => {
+    const llave = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token'))!
+    const sesion = JSON.parse(localStorage.getItem(llave)!)
+    localStorage.setItem(llave, JSON.stringify({...sesion, expires_at: Math.floor(Date.now() / 1000) - 60}))
+    document.dispatchEvent(new Event('visibilitychange', {bubbles: true}))
+    window.dispatchEvent(new Event('focus'))
+  })
+  expect((await renovacion).ok()).toBe(true)
+  await expect(contrato.getByRole('navigation', pasos)).toContainText('Paso 2 de 3')
+  await expect(contrato.getByLabel('Capital', {exact: true})).toHaveValue('23000')
+  await expect(contrato.getByLabel('N° de contrato', {exact: true})).toHaveValue('000719')
+
+  // Recargar: la ficha vuelve por la URL y reabre el wizard donde estaba, sin pedir otra vez la identidad.
+  await page.reload()
+  const retomado = page.getByRole('dialog', {name: /Crear contrato de/})
+  await expect(retomado.getByRole('navigation', pasos)).toContainText('Paso 2 de 3')
+  await expect(retomado.getByLabel('Capital', {exact: true})).toHaveValue('23000')
+  await expect(retomado.getByLabel('N° de contrato', {exact: true})).toHaveValue('000719')
+  await expect(retomado.getByRole('radio', {name: /BCP.*8901/i})).toBeChecked()
+  await retomado.getByRole('button', {name: 'Revisar inversión'}).click()
+  await expect(page.getByRole('dialog', {name: 'Revisar inversión'}).getByRole('navigation', pasos)).toContainText('Paso 3 de 3')
+  // Una sola identidad y una sola solicitud en todo el recorrido: nada se duplicó.
+  expect(llamadas).toEqual({identidad: 1, preparar: 1})
+  // Cerrado a mano, recargar otra vez ya no lo reabre: vuelve la ficha sola.
+  await page.getByRole('dialog', {name: 'Revisar inversión'}).getByRole('button', {name: 'Cerrar y continuar después'}).click()
+  await expect(page.getByRole('dialog', {name: 'Revisar inversión'})).toHaveCount(0)
+  await page.reload()
+  await expect(ficha.getByRole('button', {name: 'Convertir a cliente'})).toBeVisible()
+  await expect(page.getByRole('dialog', {name: /Crear contrato de|Revisar inversión|Nueva inversión|Documento del lead/})).toHaveCount(0)
 })
