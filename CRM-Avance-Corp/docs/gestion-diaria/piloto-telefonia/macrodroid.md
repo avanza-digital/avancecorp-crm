@@ -60,6 +60,74 @@ con **«Parámetros de codificación de URL» desmarcado** (el `#` tiene que lle
 
 **Reversa:** volver la acción a «Lanzar app → Avance CRM» (o a la URL sin número). En el CRM, si hiciera falta, basta con no montar `ReceptorLlamada` en `App.tsx`: la ruta se ignora y todo lo demás sigue igual.
 
+## 3c. Macro definitiva para F3 (F3-c) — BORRADOR para armar y probar en C1 (02/10/2026)
+
+Sale de las 6 pruebas de F3.3 del 02/10 (todas PASS, `REGISTRO.md` §5d) y del **requisito de Jhosep**: el reenvío funciona desde cualquier red y sin pedir ubicación (`docs/plans/llamadas-celular/F3-PLAN-CORTO.md`). Los nombres de pantalla marcados ✓ se vieron en C1 (MacroDroid 5.67 en español); los marcados «por confirmar» salen de la documentación y se comprueban al armarla.
+
+**Decisiones de este borrador (de Claude, para Jhosep y Miguel):**
+- Solo las **salientes** entran en la cola y abren la encuesta: es el alcance acordado (Jhosep, 30/09) y así no salen del celular números de entrantes que el servidor descartaría.
+- Al colgar, la encuesta se abre **enseguida** con la URL de F1, sin esperar la respuesta del servidor: funciona aunque el envío tarde o falle (es la misma URL de la decisión 4 de F3).
+- La **clave** vive en un solo sitio: la «Solicitud HTTP» de «Llamadas · Enviar cola».
+- Un error permanente (400, 409, 413, 415) se aparta con aviso y no bloquea la cola; cualquier otro (sin red, 401, 429, 5xx) corta la vuelta y espera al próximo intento.
+
+### Variables globales (MacroDroid → Variables → +)
+
+| Variable | Tipo | Para qué |
+| --- | --- | --- |
+| `cola_llamadas` | Diccionario (por confirmar) | Avisos pendientes: clave = id de la llamada, valor = el aviso JSON. Sustituye a `pendiente` de la prueba (un solo hueco) |
+| `errores_llamadas` | Diccionario | Avisos que el servidor rechazó para siempre, para revisarlos sin bloquear la cola |
+| `en_saliente` | Booleana (por confirmar) | La marca «Llamadas · Saliente» al marcar; «Al colgar» la lee y la apaga |
+
+### Macro «Llamadas · Saliente»
+
+- **Disparador:** «Llamada saliente» ✓ (está en Llamadas/SMS) → cualquier número.
+- **Acción:** «Fijar Variable» ✓ → `en_saliente` = verdadero.
+
+### Macro «Llamadas · Al colgar» (sustituye a «Piloto F0» y a «Prueba F3»)
+
+- **Disparador:** «Llamada terminada» ✓ → «Cualquier Número» ✓.
+- **Acciones:**
+  1. «Si» ✓ `en_saliente` = verdadero (condición «Variable MacroDroid» ✓, en «MacroDroid Propio»).
+  2. Dentro del «Si»: «Fijar Variable» → `id_llamada` (local, cadena) = `C1-{system_time}` ✓ (segundos; basta).
+  3. Dentro: fijar la entrada `{lv=id_llamada}` de `cola_llamadas` (por confirmar cómo pide la clave) con el valor:
+     ```
+     {"accion":"llamada","evento":{"v":1,"evento_origen_id":"{lv=id_llamada}","numero":"{call_number}","direccion":"saliente","ocurrio_en":"{datetime}-05:00"}}
+     ```
+     `{datetime}` da `aaaa-MM-dd HH:mm:ss` en la hora del celular; el `-05:00` (Lima, sin horario de verano) es obligatorio: sin él, el servidor, que trabaja en UTC, la leería 5 horas corrida (comprobado con el handler de la Edge el 02/10). Así un aviso reenviado horas después conserva la hora real de la llamada.
+  4. Dentro: «Abrir sitio web» ✓ → `https://crm.miavance.com/#/gestion-diaria/llamada/{call_number}`, «codificación de URL» desmarcada ✓ (F1).
+  5. Dentro: ejecutar la macro «Llamadas · Enviar cola» (acción de la categoría Macros; nombre por confirmar).
+  6. «Fin de Si» ✓, y después (fuera del «Si») «Fijar Variable» → `en_saliente` = falso.
+- **Sin notificación ni «Registrar evento» con el número** (observación de la prueba 6: no mostrarlo).
+
+### Macro «Llamadas · Enviar cola»
+
+- **Disparadores:** «Cambio de Conectividad de Datos» ✓ (en Conectividad; cualquier Wi-Fi o datos móviles, sin nombre de red) **y** «Intervalo regular» cada 5 minutos (en Fecha/Hora; por confirmar). **Nunca** «Conectado a la red» con un SSID (requisito de Jhosep). Comprobar al armarla que ninguno de los dos pide permiso de ubicación.
+- **Acciones:**
+  1. «Espera antes de la siguiente acción» ✓ (categoría Macros) → 10 s, «Usar alarma» ✓.
+  2. «Iterar Diccionario/Arreglo» (por confirmar; control de flujo) sobre `cola_llamadas`. Dentro del bucle:
+     1. «Fijar Variable» → `codigo` (local, entera) = 0 ✓.
+     2. «Solicitud HTTP» ✓: POST, URL del servidor, «Bloquear las siguientes acciones hasta completar» ✓, «Guardar el código de retorno HTTP en una variable entera» → `codigo` ✓; «Cuerpo del Contenido»: `application/json` ✓, texto `{iterator_value}`; «Parámetros de Encabezado»: solo `x-celular-credencial` ✓.
+     3. «Si» `codigo` = 202 → «Borrar Entrada de Arreglo/Diccionario» ✓ de `cola_llamadas` con la clave `{iterator_dictionary_key}`.
+     4. «O si» `codigo` es 400, 409, 413 o 415 → copiar la entrada a `errores_llamadas` y borrarla de la cola; notificación «Un aviso de llamada fue rechazado» **sin el número**.
+     5. «Si no» → salir del bucle (por confirmar el nombre de la acción): sin red, clave rechazada, límite o servidor caído; queda todo para el próximo intento.
+- Si dos disparos coinciden y un aviso sale dos veces, no pasa nada: el servidor responde 202 «repetida» (idempotencia por id).
+
+**URL del servidor:** mientras Miguel no despliegue la Edge, la del receptor de pruebas (`http://<IP del PC>:8787/functions/v1/crm-llamadas-ingesta`, solo dentro de la oficina). Al desplegar, solo cambia el servidor (misma ruta) y la clave de prueba por la del celular que da «asignar celular» (se muestra una vez).
+
+### Pruebas de aceptación de F3-c en C1 (contra el receptor)
+
+| # | Caso | Resultado esperado |
+| --- | --- | --- |
+| A1 | Saliente con Wi-Fi | Se abre la encuesta; llega 1 aviso «guardada» con `ocurrio_en` = hora de la llamada; la cola queda vacía |
+| A2 | Entrante | No se abre la encuesta ni llega aviso |
+| A3 | Dos salientes sin Wi-Fi | Las dos quedan en `cola_llamadas`; al volver el Wi-Fi llegan las dos, cada una con su id y su hora |
+| A4 | 503 forzado desde el PC (`/_control?modo=503&veces=1`) | La primera vuelta falla y deja el aviso; a los ≤ 5 min el intervalo lo reenvía |
+| A5 | Entrada inválida añadida a mano en `cola_llamadas` (valor `x`) junto a un aviso bueno | La inválida recibe 400 y pasa a `errores_llamadas` con notificación sin número; el aviso bueno llega igual |
+| A6 | Reinicio con avisos pendientes | Siguen en `cola_llamadas` y salen solos |
+| A7 | Ninguno de los disparadores pidió ubicación | Anotado |
+
+Con la Edge desplegada se repiten A1 y A3 **con datos móviles** (cualquier red), más las pruebas 1 y 6 de F3.3. Pendiente para después: el latido de salud (decisión 3 de F3: cada 6 h y al vaciar la cola) y la lista de casos de F3-d.
+
 ## 4. Cómo cerrar cada comprobación de F0.3
 
 | Tarea | Qué hacer | Qué anotar en `REGISTRO.md` |
