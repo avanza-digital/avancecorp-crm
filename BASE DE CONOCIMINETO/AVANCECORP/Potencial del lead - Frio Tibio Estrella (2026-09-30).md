@@ -479,9 +479,10 @@ Miguel pidió «pásame el plan de la entrega B» y lo dejó en pausa por los co
 ## Fase 3 · entrega B: ejecución (01/10/2026, noche)
 
 **Decidido por Miguel:** solo en Leads (no en Pipeline) · «Sin marcar» es una opción · un nivel a la vez.
-**Estado (01/10 ~19:50 Lima): SERVIDOR EN PRODUCCIÓN (~19:30); PANTALLA sin publicar.** Rama
-`crm/potencial-lead-f3b` (`a3c412c3`, en GitHub; integra `avancecorp/main` `fd169aac`). **PR #165 LISTA** (sin
-fusionar: la fusiona Miguel por squash). Commits: pantalla `70ae49c4`, servidor `dd44c806`, fusión de main
+**Estado (01/10 ~20:00 Lima): ✅ ENTREGA B PUBLICADA ENTERA — servidor (~19:30) y pantalla (~19:55).**
+🔴 **El CRM VIVO es ahora `44985828`** (rama `release/potencial-filtro-llamadas-20261001`, en GitHub; build
+`build-20261002T005154879Z`): el próximo release nace de ahí. Rama `crm/potencial-lead-f3b` (`386ddd5b`, en GitHub;
+integra `avancecorp/main` `fd169aac`). **PR #165 LISTA** (sin fusionar: la fusiona Miguel por squash). Commits: pantalla `70ae49c4`, servidor `dd44c806`, fusión de main
 `364a0fc9`, ledger `795687f2` y acta de la publicación `a3c412c3`. En el `main` local: `cc0b0e0d` (migración,
 scripts y encargos; también la migración y los scripts de Gestionado, que no habían llegado).
 
@@ -563,13 +564,18 @@ números. revisor-a11y aplicado (foco cuando la fila se retira, aviso, cifra en 
    quitando las huellas de los nombres: 81 piezas idénticas, 40 iguales salvo alias internos y 9 con cambio real
    (`index.js` +9 382, `crm-api.js` +2 894, `cartera.js` +2 279, `index.css` +999, `ui-vendor.js` +680,
    `use-cartera-paginada.js` +541, `gestion-diaria.js` +145, `crm-queries.js` +70; `gerencia.js` +31 son solo alias).
-   Rama de publicación subida a GitHub. ZIP y manifiesto en `CRM-Avance-Corp/releases/` del taller. **Falta la subida
-   (Miguel con `!`, token del llavero) y el smoke.**
+   Rama de publicación subida a GitHub. ZIP y manifiesto en `CRM-Avance-Corp/releases/` del taller.
+   **✅ SUBIDO por Miguel con `!` (01/10 ~19:55 Lima; a la primera, sin «timeout initialize»).** Smoke: inicio 200,
+   `version.json` = `build-20261002T005154879Z`, `index-1K8ykLlA.js` igual al del paquete, los 94 archivos de código
+   byte a byte iguales (117 de 130 en total: `.htaccess` 403 y 12 PNG que Hostinger recomprime), el ZIP no queda en
+   la raíz web (404), el CSS vivo trae 16 menciones de `.pot-filtro`, y la pantalla de entrada abre en un navegador
+   (Playwright) con 0 errores y 0 avisos de consola. Falta la pasada visual de Miguel con su sesión: fila «Por
+   potencial» en Leads y Llamadas desde el celular.
    🔑 Al comparar paquetes por nombre sin huella hay DOS piezas que se llaman igual (`gerencia.js` y
    `brand/avance.png`): emparejar por tamaño dentro del grupo o sale un falso «−91 KB».
-5. Miguel: fusionar la PR #165. Después de publicar la pantalla: ledger («pantalla publicada»), subir la rama de
-   publicación a GitHub y traer `app/` al `main` local cuando la carpeta del taller esté limpia (hoy tiene cambios
-   sin guardar de otras sesiones en `crm-api.ts`, `cartera.tsx` y otros: NO se pisan).
+5. ✅ Ledger con el acta de la pantalla (`386ddd5b`) y descripción de la PR #165 al día. **Falta: que Miguel fusione
+   la PR #165** y traer `app/` al `main` local cuando la carpeta del taller esté limpia (hoy tiene cambios sin
+   guardar de otras sesiones en `crm-api.ts`, `cartera.tsx` y otros: NO se pisan).
 6. Pendiente de integración en el `main` local (no se trajo para no pisar): `MIGRACIONES.md` y `test-rls.mjs`
    (difieren de GitHub), `gestion-diaria-cola/` (sin versionar, de otra sesión).
 
