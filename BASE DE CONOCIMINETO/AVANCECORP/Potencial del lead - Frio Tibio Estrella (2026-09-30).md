@@ -136,7 +136,8 @@ Miguel cerró el día con «guarda todo y seguimos mañana». En orden:
    hora prevista (reusar `potencial_nivel_tras`, `potencial_reloj` y `dias_lunes_a_sabado`), prueba en el estado de
    producción (ningún lead marcado) y encender la bandera al final. Diseño aprobado: pieza CRM-05.
 7. **Fase 4 (Jev):** depende de la temperatura (su F1 sigue sin branch: dos secretos, rotar la clave de TypeSafe,
-   desplegar la edge). Sugiere desde los seguimientos y lleva interruptor propio.
+   desplegar la edge). Sugiere desde los seguimientos y lleva interruptor propio. **Plan propuesto el 01/10 (sin
+   aprobar): ver «Fase 4 · Jev sugiere el potencial: PLAN PROPUESTO».**
 
 **Dónde está cada cosa**
 
@@ -594,6 +595,98 @@ números. revisor-a11y aplicado (foco cuando la fila se retira, aviso, cifra en 
    respuestas nulas, con error o sin el bloque, y probar el verificador con una respuesta rota.
 5. **El ciclo termina con veredicto de máquina** (sale con 1): un superviviente no puede depender de que alguien lea.
 6. **`sed` de macOS no entiende `\n` en el reemplazo:** para partir líneas, Python.
+
+## Fase 4 · Jev sugiere el potencial: PLAN PROPUESTO (01/10/2026, sin aprobar)
+
+**Estado:** PROPUESTA · espera tu aprobación. Plan del 01/10/2026 · nada de esta fase está construido ni publicado. Miguel pidió el detalle «en un archivo de Figma» el 01/10 por la noche.
+
+**En una frase:** Jev lee las notas que el analista ya escribe después de cada gestión y propone Frío, Tibio o Estrella. El analista confirma con un toque o elige otro nivel. Jev nunca marca por su cuenta.
+
+**Para qué sirve:**
+- Que ningún lead que ya dio señales de compra se quede «Sin marcar».
+- Quitarle al analista el trabajo de clasificar: solo confirma o corrige.
+- Que el supervisor vea de un vistazo dónde hay oportunidades sin atender.
+
+**Cómo funcionará:**
+1. **El analista registra su gestión.** Escribe la nota como siempre. No cambia nada en su trabajo.
+2. **Jev lee el historial.** Las últimas 12 gestiones: solo fecha, tipo y nota. Sin nombre, teléfono ni documento.
+3. **Jev da un nivel de 0 a 3.** 0 no se logró hablar o dijo que no · 1 se habló sin interés claro · 2 interés concreto, sin fecha ni monto · 3 por cerrar.
+4. **El CRM lo traduce.** 0 es Frío · 1 y 2 son Tibio · 3 es Estrella. Jev es exigente con la Estrella.
+5. **Aparece la sugerencia.** Insignia blanca con borde punteado y la palabra «Jev». Solo si nadie marcó ese lead.
+6. **La persona decide.** Confirma con un toque o elige otro nivel. Desde ahí es una marca normal y baja sola con las reglas de siempre.
+
+**Entregas, en orden (cada una con el OK de Miguel antes de la siguiente):**
+
+- **4.0 · Preparación** (La haces tú · 10 minutos). *Qué se construye:* Cambiar la clave de Jev (la anterior se pegó en un chat el 20/09) y cargar dos secretos en Supabase. *Qué ve Miguel:* Nada en el CRM. *Cómo se comprueba:* Te paso las líneas exactas. Yo nunca veo las claves.
+- **4.1 · Jev empieza a leer, en silencio** (Servidor · 1 a 2 días). *Qué se construye:* El motor que calcula el nivel de cada lead con seguimientos y lo guarda. Está escrito desde el 20/09 y nunca se publicó: se vuelve a probar contra la producción de hoy. *Qué ve Miguel:* Nada en pantalla. Un reporte: cuántos leads ya tienen nivel y cuánto costó. *Cómo se comprueba:* Banco de pruebas propio, revisión de seguridad y de Codex. Si Jev se cae, el CRM sigue igual.
+- **4.2 · Medición en sombra** (Sin trabajo de tu equipo · 1 a 2 semanas). *Qué se construye:* Comparar lo que Jev sugeriría con lo que los analistas marcan a mano. Nadie ve sugerencias todavía. *Qué ve Miguel:* Un cuadro: de los leads marcados, en cuántos coincide Jev, dónde discrepa y por qué. *Cómo se comprueba:* Decides tú con el cuadro delante: seguir, ajustar los cortes o parar aquí.
+- **4.3 · La sugerencia llega al servidor** (Servidor · 1 a 2 días). *Qué se construye:* El servidor entrega la sugerencia junto con la marca. Interruptor propio, apagado. *Qué ve Miguel:* Nada todavía. *Cómo se comprueba:* Cada rol recibe solo sugerencias de los leads que ya puede ver. Pruebas de permisos, Codex y auditor.
+- **4.4 · Pantalla: insignia «Jev» y confirmar** (Pantalla · 2 a 3 días). *Qué se construye:* Insignia punteada en Leads, ficha, Pipeline y cola del día; confirmar o cambiar con un toque; cómo encontrar los sugeridos en Leads; interruptor en Configuración. *Qué ve Miguel:* Primero una maqueta local a escala real para aprobar. Después, la pantalla. *Cómo se comprueba:* Pruebas en el estado real de producción, accesibilidad y la suite completa de punta a punta.
+- **4.5 · Encendido y evaluación** (Tú enciendes · 2 semanas de medición). *Qué se construye:* Encender para un equipo piloto o para todos, y medir. *Qué ve Miguel:* Cuántas sugerencias se confirmaron, cuántas se cambiaron y cuántas se ignoraron. *Cómo se comprueba:* Decides tú: dejarlo, ajustarlo o apagarlo con el interruptor.
+
+**Decisiones abiertas (ninguna tomada; con la recomendación):**
+
+| # | Pregunta | Recomendación | La otra opción |
+|---|---|---|---|
+| D1 | ¿Qué leads reciben sugerencia? | Solo los que no tienen marca de una persona y tienen al menos un seguimiento con nota. | Avisar también cuando Jev ve más potencial que la marca actual. |
+| D2 | ¿Cómo cuentan los sugeridos en el filtro «Por potencial»? | Siguen contando como «Sin marcar» y se añade un quinto botón «Sugeridos por Jev» con su número. | Contarlos dentro de su nivel, como si ya estuvieran marcados. |
+| D3 | ¿Con qué cortes se traduce el nivel? | Arrancar con 0 Frío · 1 y 2 Tibio · 3 Estrella, y ajustarlos con la medición de la fase 4.2. | Fijarlos ahora sin esperar la medición. |
+| D4 | ¿Quién ve la sugerencia? | Todo el que ya ve el lead. La confirman solo el analista dueño y su supervisor. | Que la vean solo quienes pueden confirmarla. |
+| D5 | ¿Encendido para todos o con piloto? | Un equipo piloto durante una semana y después todos. | Todos desde el primer día. |
+| D6 | ¿Quién puede apagar a Jev? | Gerencia, desde Configuración. | Solo desde el servidor, pidiéndolo a desarrollo. |
+| D7 | Si una marca bajó sola y después hay notas buenas, ¿Jev vuelve a sugerir? | Sí, solo cuando hay una gestión posterior a la bajada. | No: mientras exista una marca, Jev calla. |
+| D8 | ¿Se borran los números largos de las notas antes de enviarlas? | Sí: teléfonos y documentos escritos a mano en una nota no salen del CRM. | Enviar la nota tal como está. |
+
+**Reglas ya decididas por Miguel (30/09 y 01/10), no se vuelven a preguntar:**
+- Jev propone; la persona decide. Vale lo que marca la persona.
+- Jev no sugiere en leads sin seguimientos.
+- Estrella solo si el cliente dio fecha, monto o pidió el contrato.
+- Tiene que poder apagarse con un interruptor.
+- La sugerencia se ve distinta de la marca: punteada y con «Jev». El dorado completo aparece solo cuando una persona confirma.
+- No cambia el orden de las listas: manda el vencimiento.
+- Marcan el analista dueño y su supervisor. Gerencia y directorio solo ven y filtran.
+- Jev no opina de dinero, conversiones, permisos ni cierre de mes.
+
+**Qué NO cambia:**
+- La marca manual y sus reglas: quién marca y cuándo baja sola.
+- El orden de Leads, del Pipeline y de la cola del día.
+- El filtro «Por potencial» ya publicado (salvo lo que decidas en D2).
+- Metas, ranking, conversiones y dinero.
+- Descartar sigue siendo la única salida de un lead. Frío no es descartar.
+
+**Riesgos y cómo se cubren:**
+- **Notas pobres dan sugerencias pobres.** Se mide en la fase 4.2 antes de mostrar nada a nadie.
+- **Jev se equivoca.** Solo sugiere; decide la persona; hay interruptor para apagarlo.
+- **Jev o internet se caen.** No llegan sugerencias nuevas y el CRM funciona igual.
+- **Datos que salen del CRM.** Solo fecha, tipo y nota. La nota es texto libre: por eso la decisión D8.
+- **Costo.** Unos 30 centavos de dólar al mes con 500 leads recalculados a diario.
+- **La clave de Jev quedó expuesta el 20/09.** Se cambia en la fase 4.0, antes de empezar.
+
+**Fuera de esta fase:**
+- Usar la señal de Jev para desempatar el orden de «Mi día».
+- Que Jev marque sin que una persona confirme.
+- Jev en llamadas y telefonía: tiene su propio plan.
+
+**Para quien lo construya (técnico):**
+- Señal ya escrita y sin aplicar: migración 20260921034748_crm_temperatura_lead y Edge crm-temperatura-lead (tabla crm.lead_temperatura: cola y resultado; cron cada 2 minutos; firma HMAC desde Vault).
+- Secretos: cron_temperatura_secret (Vault) y TYPESAFE_API_KEY (solo en la Edge). Rotar la clave antes.
+- No se edita la migración vieja: migración nueva con fecha actual, revalidada contra el esquema de hoy; la vieja se anota como reemplazada en el ledger.
+- Lectura: clave nueva y aditiva (sugerencia) en crm.potencial_leads_fn y en el resumen de la cartera; el ayudante es otro espejo de leads_select (ya hay cuatro copias: re-auditar).
+- Confirmar usa la misma puerta crm.marcar_potencial_lead_fn; el evento guarda que venía de una sugerencia, para medir la fase 4.5.
+- Bandera propia potencial_jev, independiente de potencial_lead.
+- Nivel 3 de riesgo: Codex y auditor-rls, banco Docker con mutantes, e2e en Docker, revisor de accesibilidad y /release-crm.
+
+**Dónde está el tablero.** Pieza local: `ui-playground/potencial-fase4-plan/plan-fase4.svg` (se abre en el navegador) y
+`plan-fase4-para-figma.svg` (la misma, con la fuente Inter, para pegar en un archivo de DISEÑO de Figma: cada línea
+entra como capa de texto editable y los estados llevan nombre de capa «Estado · Fase 4.x» y «Estado · D1…D8»).
+El generador y el contenido único quedaron en el scratchpad de la sesión (`f4/contenido.py`, `f4/tablero.py`); si se
+pierden, el contenido es esta sección.
+🔴 **Figma (01/10, noche): el conector de Figma NO está activo en las sesiones** (el plugin `figma@synced` se usó por
+última vez el 26/09 y hoy no figura entre los habilitados): no hay herramientas `use_figma` ni skills `figma:*`.
+Se intentó crear el archivo manejando la app de escritorio de Figma, pero Miguel estaba escribiendo y sus teclas
+caían en Figma: se paró. Para terminarlo: (a) habilitar el conector y crear el tablero FigJam como los otros planes,
+o (b) pegar `plan-fase4-para-figma.svg` en un archivo de diseño nuevo. Cuando exista, anotar AQUÍ el enlace.
+🔑 Manejar el escritorio mientras el usuario teclea le roba el foco: avisar ANTES y esperar su «ya», o no hacerlo.
 
 ## Propuesta INICIAL de servidor (superada: ver «Fase 1 · ejecución» y «Fase 2»)
 
