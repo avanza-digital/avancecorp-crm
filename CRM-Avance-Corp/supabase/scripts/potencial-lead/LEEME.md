@@ -267,7 +267,8 @@ tablas del potencial no tienen grants: lee la marca por el ayudante DEFINER `pri
 espejo de la policy `leads_select`. Solo con la bandera `potencial_lead` encendida y para quien tiene ámbito de filas;
 si no, la respuesta es la de antes y pedir el filtro da 55000. Detalle y decisiones en `../../migrations/MIGRACIONES.md`.
 
-**EN PRODUCCIÓN desde el 01/10/2026 ~19:30 Lima** (acta en el ledger). La pantalla que envía `p_potencial` se publica aparte.
+**EN PRODUCCIÓN desde el 01/10/2026 ~19:30 Lima** (acta en el ledger). La pantalla que envía `p_potencial` se publicó
+el mismo día a las ~19:55 (release `crm-20261002T005155Z-4498582850b1`).
 
 | Archivo | Para qué |
 |---|---|

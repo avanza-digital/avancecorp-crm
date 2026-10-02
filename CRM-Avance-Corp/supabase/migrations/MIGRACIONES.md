@@ -1,7 +1,8 @@
 ## 20261001212341 — Potencial del lead · fase 3, entrega B: filtrar y contar Leads por potencial (`p_potencial`)
 
-**✅ EN PRODUCCIÓN desde el 01/10/2026 ~19:30 Lima (Miguel con `!`: migración, registro y verificación). ⏳ La
-pantalla que envía `p_potencial` aún NO está publicada.** PASS en banco Docker propio (01/10/2026). Plan aprobado por
+**✅ EN PRODUCCIÓN desde el 01/10/2026 ~19:30 Lima (Miguel con `!`: migración, registro y verificación). ✅ PANTALLA
+PUBLICADA el 01/10/2026 ~19:55 Lima** (release `crm-20261002T005155Z-4498582850b1`, ver el acta). PASS en banco
+Docker propio (01/10/2026). Plan aprobado por
 Miguel el 01/10/2026 («ok dale con el plan B, todo lo recomendado»: el filtro va solo en Leads, «Sin marcar» es una
 opción y se elige un nivel a la vez). El frente que envía `p_potencial` se publica DESPUÉS (servidor primero).
 
@@ -18,6 +19,18 @@ Sonda anónima por PostgREST con la clave pública del bundle vivo (`Content-Pro
 control `{"p_limite":1,"p_no_existe":"x"}` → 404/`PGRST202`. El frente vivo en ese momento (`a070838d`, build
 `build-20261001T211328361Z`) no envía `p_potencial` y lee el resumen con `v.object`: no cambia nada para el usuario
 hasta publicar la pantalla.
+
+**Pantalla publicada (01/10/2026 ~19:55 Lima).** Miguel invocó `/release-crm` y lanzó la subida con `!`. Artefacto
+`crm-20261002T005155Z-4498582850b1.zip` (SHA-256 `e57c5187a3315b3e42aeaed05a07f0a7dd93da5d1b74dc36116c7b8caf77cdde`),
+commit `44985828` (rama `release/potencial-filtro-llamadas-20261001`: nace del vivo `a070838d` y tiene el mismo
+árbol que la rama de la PR #165), build `build-20261002T005154879Z`. Por decisión de Miguel salió junto con Llamadas
+F1 (#160); Gestionado (#162) ya estaba vivo. `npm run check` PASS (346 archivos, 5 592 pruebas); e2e Docker completo
+sobre el código final: 321 pasan, 26 saltadas y los 2 fallos ajenos de siempre (`gerencia-operativa.spec.ts:108`,
+`gestion-diaria-vuelta.spec.ts:11`); manifiesto verificado (130 archivos, 399 migraciones); preflight OK
+(`live=build-20261001T211328361Z/a070838d1b0d candidate=4498582850b1`). Smoke: inicio 200, `version.json` nuevo, los
+94 archivos de código byte a byte iguales al paquete (117 de 130 en total: `.htaccess` da 403 y Hostinger recomprime
+12 PNG), el ZIP no queda en la raíz web (404), el CSS vivo trae las reglas `.pot-filtro`, y la pantalla de entrada
+carga en un navegador sin errores de consola. Falta la pasada visual de Miguel con su sesión.
 
 Qué cambia: `crm.cartera_filtrada_fn` (INVOKER) sustituye la firma de 13 argumentos por una de 14 con
 `p_potencial text default null` (`estrella` | `tibio` | `frio` | `sin_marca`; otro valor → 22023). El resumen gana UNA
