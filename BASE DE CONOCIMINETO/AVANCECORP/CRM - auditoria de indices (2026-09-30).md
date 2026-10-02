@@ -101,9 +101,11 @@ verificar, prueba sintética, contexto de seguridad, ensayo-oraculo, LEEME con e
   (`MIGRACIONES.md`, `Inicio.md`, la nota de perfil de carga); ningún archivo de la app. Comprobado por árbol: el squash de cada PR
   es idéntico a la cabeza de su PR. 🔑 Una PR apilada fusionada sin cambiarle antes la base a `main` no llega a `main`: tras
   fusionar, comprobar con `git ls-tree avancecorp/main` que sus archivos están.
-  **`main` local:** entran los 65 archivos nuevos de la cadena (#136–#144). Sus entradas de `MIGRACIONES.md` e `Inicio.md` y las
-  otras PR del 30/09–01/10 quedan pendientes: la carpeta compartida tiene 37 archivos modificados sin commitear de otras sesiones
-  (entre ellos esos dos) que git se niega a pisar.
+  **`main` local:** entran los 65 archivos nuevos de la cadena (#136–#144) y, desde el 01/10 por la noche (commit `875574b0`),
+  sus 7 entradas de `MIGRACIONES.md` (texto idéntico al de GitHub) y sus dos líneas de `Inicio.md`. Fue un commit parcial: esos
+  dos archivos tienen además líneas sin commitear de otras sesiones, que siguen en la carpeta tal cual. Las otras PR del
+  30/09–01/10 siguen pendientes: la carpeta compartida tiene 37 archivos modificados sin commitear de otras sesiones que git se
+  niega a pisar.
 
 ## Qué sí pagaría (por impacto)
 1. **`cartera_f5_fuentes()` con mapas** (arriba): migración de una función privada, misma firma y filas; LEVEL 2–3
