@@ -1,0 +1,987 @@
+{
+  "estado": "PASS",
+  "banco": "avancecorp-gestionado-20261001",
+  "fecha": "2026-10-01T20:00:10.563Z",
+  "migracion": "20261001154153_crm_cartera_filtro_gestion.sql",
+  "pasos": [
+    {
+      "paso": "0 · siembra de control (trinquete analítico) en el banco recién montado",
+      "resultado": "OK"
+    },
+    {
+      "paso": "1 · ANTES: función viva, gate analítico, sello y declaración",
+      "resultado": "PASS",
+      "resumen": "md5 7169d94239dcb191bafa3faed46f916f · OK: 38 candidatos declarados y con huella vigente; 14 de ana…",
+      "antes": {
+        "md5": "7169d94239dcb191bafa3faed46f916f",
+        "contrato": "postgres | definer=false | s | search_path=\"\" | {postgres=X/postgres,authenticated=X/postgres}",
+        "comentario": "Inventario de Leads con filtros comunes, incluido reasignados: titular actual con una asignacion anterior a un analista. Sistema/Manual conserva el alta. Filas, totales y embudo desde la misma base, bajo RLS.",
+        "exencion": {
+          "tipo": "funcion",
+          "clase": "operativo",
+          "razon": "Inventario operativo unico para listado y resumen: filtros de etapa, analista, busqueda, recepcion, origen, procedencia y reasignacion entre analistas. No calcula conversion mensual.",
+          "huella": "1e2cdd16e5d59f2dd6a8280052312009",
+          "objeto": "crm.cartera_filtrada_fn(integer,timestamp with time zone,uuid,text,uuid,boolean,text,date,date,text,text,boolean)",
+          "declarado_en": "2026-09-13T00:00:00+00:00"
+        },
+        "sello_vigente": true,
+        "gate": "OK: 38 candidatos declarados y con huella vigente; 14 de analitica/mixta sujetos al techo 14, 20 de inventario censados fuera del techo, 4 auxiliares verificados, 0 sin declarar",
+        "censo_rojo": "(ninguno)",
+        "resumen_md5": "4a896597486e8b23788a2b2497f16309"
+      }
+    },
+    {
+      "paso": "1 · acreditar.sql (solo lectura) en estado ANTES",
+      "resultado": "PASS",
+      "resumen": "todas las anclas coinciden; termina en raise"
+    },
+    {
+      "paso": "2 · control: migración + oráculo en transacción deshecha",
+      "resultado": "PASS",
+      "resumen": "128/128 aserciones"
+    },
+    {
+      "paso": "3 · igualdad: nueva sin p_gestion (omitido y null) = vieja, y resumen_cartera_fn antes = después en la misma sesión",
+      "resultado": "PASS",
+      "resumen": "256/256 respuestas idénticas (8 actores × 16 llamadas × 2), 5936 filas; resumen 8/8",
+      "igualdad": {
+        "total": 256,
+        "actores": 8,
+        "iguales": 256,
+        "llamadas": 16,
+        "distintas": "",
+        "filas_comparadas": 5936,
+        "respuestas_con_datos": 96
+      },
+      "volumen": {
+        "leads": 5000,
+        "actores": 27,
+        "actividades": 31588,
+        "recepciones": 4800,
+        "contactos_deshechos": 1427,
+        "leads_nuevo_activos": 2328,
+        "actividades_de_contacto": 19989
+      }
+    },
+    {
+      "paso": "4 · con un contador ajeno en rojo: instala, conserva ese rojo y declara la firma nueva",
+      "resultado": "PASS"
+    },
+    {
+      "paso": "5 · mutante de preflight: la función viva cambió (otro md5)",
+      "resultado": "PASS",
+      "resumen": "rechazado: PREFLIGHT: cartera_filtrada_fn no coincide con la version auditada"
+    },
+    {
+      "paso": "5 · mutante de preflight: hay una segunda firma",
+      "resultado": "PASS",
+      "resumen": "rechazado: PREFLIGHT: cartera_filtrada_fn no coincide con la version auditada"
+    },
+    {
+      "paso": "5 · mutante de preflight: el sello de la lista no cuadra",
+      "resultado": "PASS",
+      "resumen": "rechazado: PREFLIGHT: la declaracion analitica no esta vigente y sellada"
+    },
+    {
+      "paso": "5 · mutante de preflight: la huella declarada caducó",
+      "resultado": "PASS",
+      "resumen": "rechazado: PREFLIGHT: la declaracion analitica no esta vigente y sellada"
+    },
+    {
+      "paso": "5 · mutante de preflight: la declaración dejó de ser de inventario",
+      "resultado": "PASS",
+      "resumen": "rechazado: PREFLIGHT: la declaracion analitica no esta vigente y sellada"
+    },
+    {
+      "paso": "5 · mutante de preflight: el trigger de tenencia está apagado",
+      "resultado": "PASS",
+      "resumen": "rechazado: PREFLIGHT: el sello de tenencia_desde no coincide con la version auditada"
+    },
+    {
+      "paso": "5 · mutante de preflight: el trigger de tenencia cambió de cuerpo",
+      "resultado": "PASS",
+      "resumen": "rechazado: PREFLIGHT: el sello de tenencia_desde no coincide con la version auditada"
+    },
+    {
+      "paso": "5 · mutante de preflight: actividades ganó otra policy de lectura",
+      "resultado": "PASS",
+      "resumen": "rechazado: crm.actividades tiene otras permisivas de lectura (actividades_select,gestion_mutante): la"
+    },
+    {
+      "paso": "5 · mutante de preflight: el trigger que sella creado_en (trg_01) está apagado",
+      "resultado": "PASS",
+      "resumen": "rechazado: PREFLIGHT: la fuente de gestiones (crm.actividades) no coincide con la version auditada"
+    },
+    {
+      "paso": "5 · mutante de preflight: el trigger que reserva el resultado de llamada (trg_00) cambió de cuerpo",
+      "resultado": "PASS",
+      "resumen": "rechazado: PREFLIGHT: la fuente de gestiones (crm.actividades) no coincide con la version auditada"
+    },
+    {
+      "paso": "5 · mutante de preflight: authenticated recibe UPDATE sobre una columna de actividades",
+      "resultado": "PASS",
+      "resumen": "rechazado: PREFLIGHT: la fuente de gestiones (crm.actividades) no coincide con la version auditada"
+    },
+    {
+      "paso": "5 · mutante de preflight: aparece una policy permisiva ALL en actividades",
+      "resultado": "PASS",
+      "resumen": "rechazado: crm.actividades tiene otras permisivas de lectura (actividades_select,gestion_mutante_all)"
+    },
+    {
+      "paso": "5 · mutante de preflight: aparece una policy de UPDATE en actividades",
+      "resultado": "PASS",
+      "resumen": "rechazado: PREFLIGHT: la fuente de gestiones (crm.actividades) no coincide con la version auditada"
+    },
+    {
+      "paso": "5 · mutante de preflight: aparece una segunda policy de INSERT en actividades",
+      "resultado": "PASS",
+      "resumen": "rechazado: PREFLIGHT: la fuente de gestiones (crm.actividades) no coincide con la version auditada"
+    },
+    {
+      "paso": "5 · mutante de preflight: aparece una restrictiva de SELECT en actividades",
+      "resultado": "PASS",
+      "resumen": "rechazado: PREFLIGHT: la fuente de gestiones (crm.actividades) no coincide con la version auditada"
+    },
+    {
+      "paso": "5 · mutante de preflight: el gate restrictivo de leads cambió de expresión",
+      "resultado": "PASS",
+      "resumen": "rechazado: PREFLIGHT: la fuente de gestiones (crm.actividades) no coincide con la version auditada"
+    },
+    {
+      "paso": "5 · mutante de preflight: RLS apagada en actividades",
+      "resultado": "PASS",
+      "resumen": "rechazado: PREFLIGHT: la fuente de gestiones (crm.actividades) no coincide con la version auditada"
+    },
+    {
+      "paso": "5 · mutante de preflight: trg_01 recreado con un WHEN que lo neutraliza (mismo nombre, misma función)",
+      "resultado": "PASS",
+      "resumen": "rechazado: PREFLIGHT: la fuente de gestiones (crm.actividades) no coincide con la version auditada"
+    },
+    {
+      "paso": "5 · mutante de preflight: la policy de INSERT cambió su with check",
+      "resultado": "PASS",
+      "resumen": "rechazado: PREFLIGHT: la fuente de gestiones (crm.actividades) no coincide con la version auditada"
+    },
+    {
+      "paso": "5 · mutante de preflight: la policy de INSERT se abrió a otro rol",
+      "resultado": "PASS",
+      "resumen": "rechazado: PREFLIGHT: la fuente de gestiones (crm.actividades) no coincide con la version auditada"
+    },
+    {
+      "paso": "5 · mutante de preflight: aparece una policy de DELETE en actividades",
+      "resultado": "PASS",
+      "resumen": "rechazado: PREFLIGHT: la fuente de gestiones (crm.actividades) no coincide con la version auditada"
+    },
+    {
+      "paso": "5 · mutante de preflight: authenticated recibe DELETE sobre actividades",
+      "resultado": "PASS",
+      "resumen": "rechazado: PREFLIGHT: la fuente de gestiones (crm.actividades) no coincide con la version auditada"
+    },
+    {
+      "paso": "5 · mutante de preflight: anon recibe UPDATE sobre una columna de actividades",
+      "resultado": "PASS",
+      "resumen": "rechazado: PREFLIGHT: la fuente de gestiones (crm.actividades) no coincide con la version auditada"
+    },
+    {
+      "paso": "5 · mutante de preflight: anon recibe DELETE sobre actividades",
+      "resultado": "PASS",
+      "resumen": "rechazado: PREFLIGHT: la fuente de gestiones (crm.actividades) no coincide con la version auditada"
+    },
+    {
+      "paso": "5 · la migración pasa igual con `private` y `crm` en el search_path de la sesión, y aplicada con `set role postgres`",
+      "resultado": "PASS"
+    },
+    {
+      "paso": "5 · mutante: sin `set local search_path` y con ese camino de sesión, las anclas dejan de cuadrar",
+      "resultado": "PASS",
+      "resumen": "rechazado: PREFLIGHT: el sello de tenencia_desde no coincide con la version auditada"
+    },
+    {
+      "paso": "5 · mutante de preflight: policy permisiva ALL y sin la guarda 3, la caza la guarda 5",
+      "resultado": "PASS",
+      "resumen": "rechazado: PREFLIGHT: la fuente de gestiones (crm.actividades) no coincide con la version auditada"
+    },
+    {
+      "paso": "6 · mutante de postflight: el cuerpo instalado no es el ensayado",
+      "resultado": "PASS",
+      "resumen": "rechazado: POSTFLIGHT: firma, cuerpo, permisos o contrato invalido"
+    },
+    {
+      "paso": "6 · mutante de postflight: anon recibe EXECUTE",
+      "resultado": "PASS",
+      "resumen": "rechazado: POSTFLIGHT: firma, cuerpo, permisos o contrato invalido"
+    },
+    {
+      "paso": "6 · mutante de postflight: la función sale SECURITY DEFINER",
+      "resultado": "PASS",
+      "resumen": "rechazado: POSTFLIGHT: firma, cuerpo, permisos o contrato invalido"
+    },
+    {
+      "paso": "6 · mutante de postflight: la declaración analítica no se mueve",
+      "resultado": "PASS",
+      "resumen": "rechazado: POSTFLIGHT: cambio un contador, una declaracion o un consumidor ajeno"
+    },
+    {
+      "paso": "6 · mutante de postflight: la lista no se resella",
+      "resultado": "PASS",
+      "resumen": "rechazado: POSTFLIGHT: cambio un contador, una declaracion o un consumidor ajeno"
+    },
+    {
+      "paso": "6 · mutante de postflight: sin la guarda 5 del preflight y con trg_01 apagado, la caza su repetición",
+      "resultado": "PASS",
+      "resumen": "rechazado: POSTFLIGHT: la fuente de gestiones (crm.actividades) cambio durante la instalacion"
+    },
+    {
+      "paso": "7 · mutante de lógica: sin el ancla de la tenencia (cualquier intento, de cualquier época)",
+      "resultado": "PASS",
+      "resumen": "oráculo en rojo: 38 fallas de 132"
+    },
+    {
+      "paso": "7 · mutante de lógica: ancla invertida (solo lo de ANTES de la tenencia)",
+      "resultado": "PASS",
+      "resumen": "oráculo en rojo: 51 fallas de 118"
+    },
+    {
+      "paso": "7 · mutante de lógica: borde estricto (> en vez de >=)",
+      "resultado": "PASS",
+      "resumen": "oráculo en rojo: 24 fallas de 126"
+    },
+    {
+      "paso": "7 · mutante de lógica: mide desde el alta del lead, no desde la tenencia",
+      "resultado": "PASS",
+      "resumen": "oráculo en rojo: 38 fallas de 132"
+    },
+    {
+      "paso": "7 · mutante de lógica: una nota cuenta como gestión",
+      "resultado": "PASS",
+      "resumen": "oráculo en rojo: 30 fallas de 129"
+    },
+    {
+      "paso": "7 · mutante de lógica: el WhatsApp enviado no cuenta",
+      "resultado": "PASS",
+      "resumen": "oráculo en rojo: 39 fallas de 124"
+    },
+    {
+      "paso": "7 · mutante de lógica: la llamada no contestada no cuenta",
+      "resultado": "PASS",
+      "resumen": "oráculo en rojo: 31 fallas de 125"
+    },
+    {
+      "paso": "7 · mutante de lógica: solo cuenta lo que hizo el propio titular (por autor)",
+      "resultado": "PASS",
+      "resumen": "oráculo en rojo: 23 fallas de 126"
+    },
+    {
+      "paso": "7 · mutante de lógica: no exige titular",
+      "resultado": "PASS",
+      "resumen": "oráculo en rojo: 9 fallas de 128"
+    },
+    {
+      "paso": "7 · mutante de lógica: cuenta la gestión de cualquier lead",
+      "resultado": "PASS",
+      "resumen": "oráculo en rojo: 45 fallas de 137"
+    },
+    {
+      "paso": "7 · mutante de lógica: las dos mitades cambiadas",
+      "resultado": "PASS",
+      "resumen": "oráculo en rojo: 65 fallas de 128"
+    },
+    {
+      "paso": "7 · mutante de lógica: no valida el dominio",
+      "resultado": "PASS",
+      "resumen": "oráculo en rojo: 4 fallas de 128"
+    },
+    {
+      "paso": "7 · mutante de lógica: recorta aunque p_gestion venga nulo",
+      "resultado": "PASS",
+      "resumen": "oráculo en rojo: 12 fallas de 128"
+    },
+    {
+      "paso": "7 · mutante de lógica: añade un eco «gestion» al payload",
+      "resultado": "PASS",
+      "resumen": "oráculo en rojo: 1 fallas de 128"
+    },
+    {
+      "paso": "7 · mutante de lógica: lo deshecho cuenta (se quita la exclusión de `deshecho_en`)",
+      "resultado": "PASS",
+      "resumen": "oráculo en rojo: 28 fallas de 130"
+    },
+    {
+      "paso": "7 · mutante de lógica: solo cuenta lo deshecho (exclusión invertida)",
+      "resultado": "PASS",
+      "resumen": "oráculo en rojo: 48 fallas de 118"
+    },
+    {
+      "paso": "7 · mutante equivalente (sin `tenencia_desde is not null`): sobrevive, como se espera",
+      "resultado": "PASS",
+      "resumen": "la comparación con NULL ya lo cubre; documentado"
+    },
+    {
+      "paso": "7 · mutante de estado contra el oráculo: el servidor deja de sellar creado_en (trg_01 apagado)",
+      "resultado": "PASS",
+      "resumen": "oráculo en rojo: 7 fallas de 128"
+    },
+    {
+      "paso": "7 · mutante de estado contra el oráculo: el servidor deja de reservar deshecho_en (trg_00 apagado)",
+      "resultado": "PASS",
+      "resumen": "oráculo en rojo: 1 fallas de 128"
+    },
+    {
+      "paso": "7 · mutante de estado contra el oráculo: authenticated puede reescribir y borrar actividades",
+      "resultado": "PASS",
+      "resumen": "oráculo en rojo: 5 fallas de 128"
+    },
+    {
+      "paso": "7 · mutante contra la igualdad: recorta aunque p_gestion venga nulo",
+      "resultado": "PASS",
+      "resumen": "detectado: solo 64/256 idénticas"
+    },
+    {
+      "paso": "7 · mutante contra la igualdad: añade un eco «gestion» al payload",
+      "resultado": "PASS",
+      "resumen": "detectado: solo 0/256 idénticas"
+    },
+    {
+      "paso": "7 · mutante contra el oráculo independiente con volumen: sin el ancla de la tenencia",
+      "resultado": "PASS",
+      "resumen": "detectado: 3712 filas descuadradas"
+    },
+    {
+      "paso": "7 · mutante contra el oráculo independiente con volumen: lo deshecho cuenta",
+      "resultado": "PASS",
+      "resumen": "detectado: 108 filas descuadradas"
+    },
+    {
+      "paso": "8 · aplicación real (postgres, un mensaje) y medición DESPUÉS",
+      "resultado": "PASS",
+      "resumen": "md5 bf06666fb8ef533a39a50c7d70420153 · gate igual que antes · sello vigente · cuerpo = vivo + 2 inserciones (1084 caracteres)",
+      "despues": {
+        "md5": "bf06666fb8ef533a39a50c7d70420153",
+        "contrato": "postgres | definer=false | s | search_path=\"\" | {postgres=X/postgres,authenticated=X/postgres}",
+        "comentario": "Inventario de Leads con filtros comunes, incluidos reasignados (titular actual con una asignacion anterior a un analista) y gestion (p_gestion: con_gestion = el titular actual ya intento el contacto desde tenencia_desde, sin contar resultados de llamada deshechos; sin_gestion = el resto; no cambia la forma de la respuesta). Sistema/Manual conserva el alta. Filas, totales y embudo desde la misma base, bajo RLS.",
+        "exencion": {
+          "tipo": "funcion",
+          "clase": "operativo",
+          "razon": "Inventario operativo unico para listado y resumen: filtros de etapa, analista, busqueda, recepcion, origen, procedencia, reasignacion entre analistas y gestion del titular actual. No calcula conversion mensual.",
+          "huella": "22284ce4b9e70790d6e23622f4cd6682",
+          "objeto": "crm.cartera_filtrada_fn(integer,timestamp with time zone,uuid,text,uuid,boolean,text,date,date,text,text,boolean,text)",
+          "declarado_en": "2026-09-13T00:00:00+00:00"
+        },
+        "sello_vigente": true,
+        "gate": "OK: 38 candidatos declarados y con huella vigente; 14 de analitica/mixta sujetos al techo 14, 20 de inventario censados fuera del techo, 4 auxiliares verificados, 0 sin declarar",
+        "censo_rojo": "(ninguno)",
+        "resumen_md5": "4a896597486e8b23788a2b2497f16309"
+      }
+    },
+    {
+      "paso": "8 · la migración repetida se niega y no cambia nada",
+      "resultado": "PASS"
+    },
+    {
+      "paso": "9 · oráculo de negocio sobre la migración instalada",
+      "resultado": "PASS",
+      "resumen": "128/128 aserciones"
+    },
+    {
+      "paso": "9 · el oráculo de gestión de test-rls.mjs (código extraído del archivo) coincide con la función, actor por actor bajo RLS",
+      "resultado": "PASS",
+      "resumen": "analista_A 10+10 · supervisor_S1 11+14 · gerencia 12+16 · directorio 12+16 · analista_C 1+1 · supervisor_S2 1+1; se pone rojo con mitades intercambiadas (6/6), sin la marca de deshecho (4/6) y con la tenencia retrasada (4/6)",
+      "nota": "No es una ejecución del gate: sin PostgREST ni sesiones reales",
+      "con_mas_sin_por_actor": {
+        "analista_A": "10+10",
+        "supervisor_S1": "11+14",
+        "gerencia": "12+16",
+        "directorio": "12+16",
+        "analista_C": "1+1",
+        "supervisor_S2": "1+1"
+      },
+      "controles_negativos": {
+        "mitades_intercambiadas": 6,
+        "contactos_sin_la_marca_de_deshecho": 4,
+        "tenencia_retrasada": 4
+      }
+    },
+    {
+      "paso": "9 · igualdad con la migración instalada",
+      "resultado": "PASS",
+      "resumen": "256/256 respuestas idénticas, 5936 filas"
+    },
+    {
+      "paso": "9 · la siembra de volumen se niega si la base ya tiene datos",
+      "resultado": "PASS",
+      "resumen": "rechazado: VOLUMEN: la base tiene leads, perfiles, actividades o equipo; estos datos sinteticos solo "
+    },
+    {
+      "paso": "9 · Pipeline con volumen contra un oráculo independiente: por cursor, ni de más, ni de menos, ni repetidas",
+      "resultado": "PASS",
+      "resumen": "5302 filas recorridas; gerencia 1104 «Gestionado» en 6 páginas + 1224 «Nuevo» en 7; 23 leads están en «Nuevo» solo porque su contacto se deshizo",
+      "particion": {
+        "por_actor": [
+          {
+            "actor": 1,
+            "mitad": "con_gestion",
+            "de_mas": 0,
+            "paginas": 6,
+            "perdidas": 0,
+            "servidas": 1104,
+            "esperadas": 1104,
+            "repetidas": 0,
+            "total_declarado": 1104,
+            "totales_distintos": 1
+          },
+          {
+            "actor": 1,
+            "mitad": "sin_gestion",
+            "de_mas": 0,
+            "paginas": 7,
+            "perdidas": 0,
+            "servidas": 1224,
+            "esperadas": 1224,
+            "repetidas": 0,
+            "total_declarado": 1224,
+            "totales_distintos": 1
+          },
+          {
+            "actor": 2,
+            "mitad": "con_gestion",
+            "de_mas": 0,
+            "paginas": 6,
+            "perdidas": 0,
+            "servidas": 1104,
+            "esperadas": 1104,
+            "repetidas": 0,
+            "total_declarado": 1104,
+            "totales_distintos": 1
+          },
+          {
+            "actor": 2,
+            "mitad": "sin_gestion",
+            "de_mas": 0,
+            "paginas": 7,
+            "perdidas": 0,
+            "servidas": 1224,
+            "esperadas": 1224,
+            "repetidas": 0,
+            "total_declarado": 1224,
+            "totales_distintos": 1
+          },
+          {
+            "actor": 3,
+            "mitad": "con_gestion",
+            "de_mas": 0,
+            "paginas": 0,
+            "perdidas": 0,
+            "servidas": 0,
+            "esperadas": 0,
+            "repetidas": 0,
+            "total_declarado": 0,
+            "totales_distintos": 1
+          },
+          {
+            "actor": 3,
+            "mitad": "sin_gestion",
+            "de_mas": 0,
+            "paginas": 0,
+            "perdidas": 0,
+            "servidas": 0,
+            "esperadas": 0,
+            "repetidas": 0,
+            "total_declarado": 0,
+            "totales_distintos": 1
+          },
+          {
+            "actor": 11,
+            "mitad": "con_gestion",
+            "de_mas": 0,
+            "paginas": 2,
+            "perdidas": 0,
+            "servidas": 279,
+            "esperadas": 279,
+            "repetidas": 0,
+            "total_declarado": 279,
+            "totales_distintos": 1
+          },
+          {
+            "actor": 11,
+            "mitad": "sin_gestion",
+            "de_mas": 0,
+            "paginas": 2,
+            "perdidas": 0,
+            "servidas": 276,
+            "esperadas": 276,
+            "repetidas": 0,
+            "total_declarado": 276,
+            "totales_distintos": 1
+          },
+          {
+            "actor": 101,
+            "mitad": "con_gestion",
+            "de_mas": 0,
+            "paginas": 1,
+            "perdidas": 0,
+            "servidas": 44,
+            "esperadas": 44,
+            "repetidas": 0,
+            "total_declarado": 44,
+            "totales_distintos": 1
+          },
+          {
+            "actor": 101,
+            "mitad": "sin_gestion",
+            "de_mas": 0,
+            "paginas": 1,
+            "perdidas": 0,
+            "servidas": 47,
+            "esperadas": 47,
+            "repetidas": 0,
+            "total_declarado": 47,
+            "totales_distintos": 1
+          }
+        ],
+        "filas_recorridas": 5302,
+        "en_las_dos_mitades": 0,
+        "decididos_por_lo_deshecho": 23,
+        "descuadres": 0,
+        "cuadra": true
+      }
+    },
+    {
+      "paso": "9 · rendimiento con volumen: tiempos y plan del exists",
+      "resultado": "PASS",
+      "resumen": "analista 6.9 → 6.88 ms sin filtro (pareada -0.13 ms), 6.3 / 6.28 ms con/sin gestión; gerencia 49.84 → 49.59 ms (pareada -0.29 ms), 31.27 / 29.93 ms; exists: Index Scan sobre actividades_contacto_episodio_idx; lateral de reasignados (ajena): bitmap_and (lento)",
+      "volumen": {
+        "leads": 5000,
+        "actores": 27,
+        "actividades": 31588,
+        "recepciones": 4800,
+        "contactos_deshechos": 1427,
+        "leads_nuevo_activos": 2328,
+        "actividades_de_contacto": 19989
+      },
+      "tiempos": [
+        {
+          "rol": "analista",
+          "actor": 101,
+          "orden": 1,
+          "max_ms": 13.85,
+          "min_ms": 6.63,
+          "pasadas": 20,
+          "variante": "vieja",
+          "mediana_ms": 6.9,
+          "leads_en_la_base": 91
+        },
+        {
+          "rol": "analista",
+          "actor": 101,
+          "orden": 2,
+          "max_ms": 10.24,
+          "min_ms": 6.49,
+          "pasadas": 20,
+          "variante": "nueva_sin_filtro",
+          "mediana_ms": 6.88,
+          "leads_en_la_base": 91
+        },
+        {
+          "rol": "analista",
+          "actor": 101,
+          "orden": 3,
+          "max_ms": 9,
+          "min_ms": 6.04,
+          "pasadas": 20,
+          "variante": "nueva_con_gestion",
+          "mediana_ms": 6.3,
+          "leads_en_la_base": 44
+        },
+        {
+          "rol": "analista",
+          "actor": 101,
+          "orden": 4,
+          "max_ms": 9.13,
+          "min_ms": 5.98,
+          "pasadas": 20,
+          "variante": "nueva_sin_gestion",
+          "mediana_ms": 6.28,
+          "leads_en_la_base": 47
+        },
+        {
+          "rol": "gerencia",
+          "actor": 1,
+          "orden": 1,
+          "max_ms": 53.24,
+          "min_ms": 49.38,
+          "pasadas": 20,
+          "variante": "vieja",
+          "mediana_ms": 49.84,
+          "leads_en_la_base": 2328
+        },
+        {
+          "rol": "gerencia",
+          "actor": 1,
+          "orden": 2,
+          "max_ms": 50.39,
+          "min_ms": 49.2,
+          "pasadas": 20,
+          "variante": "nueva_sin_filtro",
+          "mediana_ms": 49.59,
+          "leads_en_la_base": 2328
+        },
+        {
+          "rol": "gerencia",
+          "actor": 1,
+          "orden": 3,
+          "max_ms": 34.22,
+          "min_ms": 30.82,
+          "pasadas": 20,
+          "variante": "nueva_con_gestion",
+          "mediana_ms": 31.27,
+          "leads_en_la_base": 1104
+        },
+        {
+          "rol": "gerencia",
+          "actor": 1,
+          "orden": 4,
+          "max_ms": 32.33,
+          "min_ms": 29.64,
+          "pasadas": 20,
+          "variante": "nueva_sin_gestion",
+          "mediana_ms": 29.93,
+          "leads_en_la_base": 1224
+        }
+      ],
+      "diferencia_pareada": [
+        {
+          "rol": "analista",
+          "actor": 101,
+          "rondas": 20,
+          "mediana_nueva_sin_filtro_menos_vieja_ms": -0.13
+        },
+        {
+          "rol": "gerencia",
+          "actor": 1,
+          "rondas": 20,
+          "mediana_nueva_sin_filtro_menos_vieja_ms": -0.29
+        }
+      ],
+      "primeras_llamadas_de_la_sesion": [
+        {
+          "rol": "analista",
+          "actor": 101,
+          "pasadas": 4,
+          "variante": "vieja",
+          "mediana_ms": 6.68
+        },
+        {
+          "rol": "analista",
+          "actor": 101,
+          "pasadas": 4,
+          "variante": "nueva_sin_filtro",
+          "mediana_ms": 6.65
+        },
+        {
+          "rol": "gerencia",
+          "actor": 1,
+          "pasadas": 4,
+          "variante": "vieja",
+          "mediana_ms": 49.84
+        },
+        {
+          "rol": "gerencia",
+          "actor": 1,
+          "pasadas": 4,
+          "variante": "nueva_sin_filtro",
+          "mediana_ms": 49.84
+        }
+      ],
+      "planes": [
+        {
+          "caso": "analista vieja",
+          "ms_instrumentado": 10.971,
+          "nodos_del_filtro": [],
+          "tipo_de_nodo": null,
+          "detalle_del_nodo": [],
+          "condicion_de_indice": null,
+          "seq_scan_sobre_actividades": 0,
+          "lateral_reasignados": "bitmap_and (lento)",
+          "plan": "genérico (guardado)",
+          "buffers": 3211
+        },
+        {
+          "caso": "analista nueva_sin_filtro",
+          "ms_instrumentado": 8.313,
+          "nodos_del_filtro": [],
+          "tipo_de_nodo": null,
+          "detalle_del_nodo": [],
+          "condicion_de_indice": null,
+          "seq_scan_sobre_actividades": 0,
+          "lateral_reasignados": "bitmap_and (lento)",
+          "plan": "a medida (planificado en la llamada)",
+          "buffers": 3193
+        },
+        {
+          "caso": "analista nueva_con_gestion",
+          "ms_instrumentado": 8.427,
+          "nodos_del_filtro": [
+            "->  Index Scan using actividades_contacto_episodio_idx on actividades g  (cost=0.55..49.39 rows=1 width=0) (actual time=0.013..0.013 rows=0 loops=91)"
+          ],
+          "tipo_de_nodo": "Index Scan",
+          "detalle_del_nodo": [
+            "Index Cond: ((lead_id = l_2.id) AND (creado_en >= l_2.tenencia_desde))",
+            "Filter: ((InitPlan 2).col1 AND EXISTS(SubPlan 18) AND (NOT (metadata ? 'deshecho_en'::text)))",
+            "Rows Removed by Filter: 0",
+            "Buffers: shared hit=381"
+          ],
+          "condicion_de_indice": "Index Cond: ((lead_id = l_2.id) AND (creado_en >= l_2.tenencia_desde))",
+          "seq_scan_sobre_actividades": 0,
+          "lateral_reasignados": "bitmap_and (lento)",
+          "plan": "a medida (planificado en la llamada)",
+          "buffers": 2189
+        },
+        {
+          "caso": "analista nueva_sin_gestion",
+          "ms_instrumentado": 6.377,
+          "nodos_del_filtro": [
+            "->  Index Scan using actividades_contacto_episodio_idx on actividades g  (cost=0.55..49.39 rows=1 width=0) (actual time=0.011..0.011 rows=0 loops=91)"
+          ],
+          "tipo_de_nodo": "Index Scan",
+          "detalle_del_nodo": [
+            "Index Cond: ((lead_id = l_2.id) AND (creado_en >= l_2.tenencia_desde))",
+            "Filter: ((InitPlan 2).col1 AND EXISTS(SubPlan 18) AND (NOT (metadata ? 'deshecho_en'::text)))",
+            "Rows Removed by Filter: 0",
+            "Buffers: shared hit=381"
+          ],
+          "condicion_de_indice": "Index Cond: ((lead_id = l_2.id) AND (creado_en >= l_2.tenencia_desde))",
+          "seq_scan_sobre_actividades": 0,
+          "lateral_reasignados": "bitmap_and (lento)",
+          "plan": "a medida (planificado en la llamada)",
+          "buffers": 1908
+        },
+        {
+          "caso": "gerencia vieja",
+          "ms_instrumentado": 70.902,
+          "nodos_del_filtro": [],
+          "tipo_de_nodo": null,
+          "detalle_del_nodo": [],
+          "condicion_de_indice": null,
+          "seq_scan_sobre_actividades": 0,
+          "lateral_reasignados": "bitmap_and (lento)",
+          "plan": "genérico (guardado)",
+          "buffers": 43853
+        },
+        {
+          "caso": "gerencia nueva_sin_filtro",
+          "ms_instrumentado": 60.461,
+          "nodos_del_filtro": [],
+          "tipo_de_nodo": null,
+          "detalle_del_nodo": [],
+          "condicion_de_indice": null,
+          "seq_scan_sobre_actividades": 0,
+          "lateral_reasignados": "bitmap_and (lento)",
+          "plan": "a medida (planificado en la llamada)",
+          "buffers": 43876
+        },
+        {
+          "caso": "gerencia nueva_con_gestion",
+          "ms_instrumentado": 38.911,
+          "nodos_del_filtro": [
+            "->  Index Scan using actividades_contacto_episodio_idx on actividades g  (cost=0.55..49.39 rows=1 width=0) (actual time=0.002..0.002 rows=0 loops=2222)"
+          ],
+          "tipo_de_nodo": "Index Scan",
+          "detalle_del_nodo": [
+            "Index Cond: ((lead_id = l_2.id) AND (creado_en >= l_2.tenencia_desde))",
+            "Filter: ((InitPlan 2).col1 AND EXISTS(SubPlan 18) AND (NOT (metadata ? 'deshecho_en'::text)))",
+            "Rows Removed by Filter: 0",
+            "Buffers: shared hit=9229"
+          ],
+          "condicion_de_indice": "Index Cond: ((lead_id = l_2.id) AND (creado_en >= l_2.tenencia_desde))",
+          "seq_scan_sobre_actividades": 0,
+          "lateral_reasignados": "bitmap_and (lento)",
+          "plan": "a medida (planificado en la llamada)",
+          "buffers": 34429
+        },
+        {
+          "caso": "gerencia nueva_sin_gestion",
+          "ms_instrumentado": 38.75,
+          "nodos_del_filtro": [
+            "->  Index Scan using actividades_contacto_episodio_idx on actividades g  (cost=0.55..49.39 rows=1 width=0) (actual time=0.002..0.002 rows=0 loops=2222)"
+          ],
+          "tipo_de_nodo": "Index Scan",
+          "detalle_del_nodo": [
+            "Index Cond: ((lead_id = l_2.id) AND (creado_en >= l_2.tenencia_desde))",
+            "Filter: ((InitPlan 2).col1 AND EXISTS(SubPlan 18) AND (NOT (metadata ? 'deshecho_en'::text)))",
+            "Rows Removed by Filter: 0",
+            "Buffers: shared hit=9229"
+          ],
+          "condicion_de_indice": "Index Cond: ((lead_id = l_2.id) AND (creado_en >= l_2.tenencia_desde))",
+          "seq_scan_sobre_actividades": 0,
+          "lateral_reasignados": "bitmap_and (lento)",
+          "plan": "a medida (planificado en la llamada)",
+          "buffers": 31197
+        }
+      ]
+    },
+    {
+      "paso": "10 · guardas de la reversa: función corregida y sello alterado se rechazan; un rojo ajeno se conserva",
+      "resultado": "PASS"
+    },
+    {
+      "paso": "10 · reversa real: todo vuelve EXACTAMENTE al estado de antes",
+      "resultado": "PASS",
+      "resumen": "md5 7169d94239dcb191bafa3faed46f916f · sello vigente · gate, contrato, comentario y declaración idénticos a ANTES",
+      "revertido": {
+        "md5": "7169d94239dcb191bafa3faed46f916f",
+        "contrato": "postgres | definer=false | s | search_path=\"\" | {postgres=X/postgres,authenticated=X/postgres}",
+        "comentario": "Inventario de Leads con filtros comunes, incluido reasignados: titular actual con una asignacion anterior a un analista. Sistema/Manual conserva el alta. Filas, totales y embudo desde la misma base, bajo RLS.",
+        "exencion": {
+          "tipo": "funcion",
+          "clase": "operativo",
+          "razon": "Inventario operativo unico para listado y resumen: filtros de etapa, analista, busqueda, recepcion, origen, procedencia y reasignacion entre analistas. No calcula conversion mensual.",
+          "huella": "1e2cdd16e5d59f2dd6a8280052312009",
+          "objeto": "crm.cartera_filtrada_fn(integer,timestamp with time zone,uuid,text,uuid,boolean,text,date,date,text,text,boolean)",
+          "declarado_en": "2026-09-13T00:00:00+00:00"
+        },
+        "sello_vigente": true,
+        "gate": "OK: 38 candidatos declarados y con huella vigente; 14 de analitica/mixta sujetos al techo 14, 20 de inventario censados fuera del techo, 4 auxiliares verificados, 0 sin declarar",
+        "censo_rojo": "(ninguno)",
+        "resumen_md5": "4a896597486e8b23788a2b2497f16309"
+      }
+    },
+    {
+      "paso": "10 · la reversa repetida se niega",
+      "resultado": "PASS"
+    },
+    {
+      "paso": "11 · reaplicación: mismo md5, misma declaración, gate verde y oráculo en verde",
+      "resultado": "PASS",
+      "resumen": "md5 bf06666fb8ef533a39a50c7d70420153"
+    },
+    {
+      "paso": "12 · registrador: se niega sin la migración, registra, es idempotente y no pisa otro contenido",
+      "resultado": "PASS"
+    },
+    {
+      "paso": "12 · acreditar.sql (solo lectura) en estado DESPUÉS",
+      "resultado": "PASS"
+    }
+  ],
+  "anclas": {
+    "f12_md5_functiondef": "7169d94239dcb191bafa3faed46f916f",
+    "f12_md5_prosrc": "e48f00b152c965d3bae303a9660dad09",
+    "f12_huella_censo": "1e2cdd16e5d59f2dd6a8280052312009",
+    "f13_md5_functiondef": "bf06666fb8ef533a39a50c7d70420153",
+    "f13_md5_prosrc": "cb7741fe73fe4da698943d78369bc4cc",
+    "f13_huella_censo": "22284ce4b9e70790d6e23622f4cd6682",
+    "trigger_tenencia_md5_triggerdef": "f5849e264eb05e8a253dbd78c2362fba",
+    "trigger_tenencia_md5_functiondef": "900508fa3ccf3eec2e738ccdeebad7be",
+    "guarda_5": {
+      "trg_01_gestion_lead_serializada": [
+        "a7d2d742991f2ac9fbf3d52343a25532",
+        "7af0e66b8a4849566e43b514245e1b86"
+      ],
+      "trg_00_actividades_resultado_solo_nucleo": [
+        "24037d111fc11c9b5fd3c9677e329bdf",
+        "19952736370f64026f747c19b54ab38e"
+      ],
+      "actividades_insert_with_check": "b2d6792bc6913861ca74f4398e6a12ab",
+      "crm_actor_activo_gate": "c5e6c90632bc616212336e1d089a68b3",
+      "nota": "por trigger: [md5 de pg_get_triggerdef, md5 de pg_get_functiondef]"
+    },
+    "nota": "todas con search_path vacío"
+  },
+  "archivos": {
+    "migracion_sha256": "01255f7b2bd6cd5f25deab720583a4184ac31b532b0b2e058cfe5bbcb1ab86fa",
+    "migracion_md5": "9236dd635b1dfadcff76d1cd2492df32",
+    "reversa_sha256": "fe3d72ce9f78796f153d788748dc172c9b11a00d707dd1bcb4d96e69d98d0974",
+    "registrador_sha256": "6c2d04ce8c7ab3ef596ff4cc085c7aa3cf09841a917a6dcef7fa3e9344dea512",
+    "oraculo_sha256": "2a66c28ebd2e742e9c9ab3c30853ec65bd72a435d583f48e4093c288a6168b1b"
+  },
+  "aserciones_del_oraculo": 128,
+  "mutantes_de_logica": [
+    {
+      "mutante": "sin el ancla de la tenencia (cualquier intento, de cualquier época)",
+      "fallas": 38,
+      "de": 132
+    },
+    {
+      "mutante": "ancla invertida (solo lo de ANTES de la tenencia)",
+      "fallas": 51,
+      "de": 118
+    },
+    {
+      "mutante": "borde estricto (> en vez de >=)",
+      "fallas": 24,
+      "de": 126
+    },
+    {
+      "mutante": "mide desde el alta del lead, no desde la tenencia",
+      "fallas": 38,
+      "de": 132
+    },
+    {
+      "mutante": "una nota cuenta como gestión",
+      "fallas": 30,
+      "de": 129
+    },
+    {
+      "mutante": "el WhatsApp enviado no cuenta",
+      "fallas": 39,
+      "de": 124
+    },
+    {
+      "mutante": "la llamada no contestada no cuenta",
+      "fallas": 31,
+      "de": 125
+    },
+    {
+      "mutante": "solo cuenta lo que hizo el propio titular (por autor)",
+      "fallas": 23,
+      "de": 126
+    },
+    {
+      "mutante": "no exige titular",
+      "fallas": 9,
+      "de": 128
+    },
+    {
+      "mutante": "cuenta la gestión de cualquier lead",
+      "fallas": 45,
+      "de": 137
+    },
+    {
+      "mutante": "las dos mitades cambiadas",
+      "fallas": 65,
+      "de": 128
+    },
+    {
+      "mutante": "no valida el dominio",
+      "fallas": 4,
+      "de": 128
+    },
+    {
+      "mutante": "recorta aunque p_gestion venga nulo",
+      "fallas": 12,
+      "de": 128
+    },
+    {
+      "mutante": "añade un eco «gestion» al payload",
+      "fallas": 1,
+      "de": 128
+    },
+    {
+      "mutante": "lo deshecho cuenta (se quita la exclusión de `deshecho_en`)",
+      "fallas": 28,
+      "de": 130
+    },
+    {
+      "mutante": "solo cuenta lo deshecho (exclusión invertida)",
+      "fallas": 48,
+      "de": 118
+    }
+  ],
+  "estado_final_del_banco": "migración instalada y registrada; sin datos",
+  "banco_de_pruebas": "esquema de producción SIN datos (paridad de funciones acreditada por huellas). El trinquete analítico se sembró con siembra-control-banco.sql (sintético): la fila de cartera_filtrada_fn lleva la clase, la razón y la huella reales; las demás declaraciones son de relleno.",
+  "no_acreditado_aqui": [
+    "producción: nada se aplicó ni se leyó; las anclas se acreditan allí con acreditar.sql (solo lectura)",
+    "advisors de Supabase (son de la nube)",
+    "test:rls con sesiones reales y PostgREST/HTTP (el banco no tiene API ni credenciales)"
+  ]
+}

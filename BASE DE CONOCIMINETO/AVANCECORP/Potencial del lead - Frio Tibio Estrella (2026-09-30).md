@@ -1,11 +1,65 @@
 ---
 fecha: 2026-09-30
-estado: ✅ fase 1 EN PROD 30/09 (bandera APAGADA) · ✅ fase 2 EN PROD 01/10 13:27 (la marca baja sola) · ✅ puerta de lectura EN PROD 01/10 13:40 (fase 3A, servidor) · ✅ pantalla de la fase 3A PUBLICADA 01/10 13:57 (`build-20261001T185238130Z`, `54690b06`) · ✅ **BANDERA ENCENDIDA 01/10 14:04: el potencial está VIVO para los usuarios** · 🎨 **Tibio NARANJA PUBLICADO 01/10 16:06** (`build-20261001T205946155Z`, `83674f19`; PR #163 sin fusionar) · entrega B (filtro) y fase 4 (Jev) sin empezar · ver «Para retomar»
+estado: ✅ fase 1 EN PROD 30/09 (bandera APAGADA) · ✅ fase 2 EN PROD 01/10 13:27 (la marca baja sola) · ✅ puerta de lectura EN PROD 01/10 13:40 (fase 3A, servidor) · ✅ pantalla de la fase 3A PUBLICADA 01/10 13:57 (`build-20261001T185238130Z`, `54690b06`) · ✅ **BANDERA ENCENDIDA 01/10 14:04: el potencial está VIVO para los usuarios** · 🎨 **Tibio NARANJA PUBLICADO 01/10 16:06** (`build-20261001T205946155Z`, `83674f19`; PR #163 fusionada) · ✅ **entrega B (filtro en Leads) PUBLICADA ENTERA el 01/10: servidor 19:30 y pantalla 19:55, junto con Llamadas F1** · 🔴 el CRM VIVO es `44985828` (`build-20261002T005154879Z`) · 📋 fase 4 (Jev sugiere): PLAN PROPUESTO el 01/10, sin aprobar · ver «Para retomar»
 ---
 
 # Potencial del lead: Frío · Tibio · Estrella (2026-09-30)
 
-## ▶️ Para retomar (estado del 01/10/2026, tarde)
+## ▶️ Para retomar (estado del 02/10/2026, madrugada)
+
+> ### 🌙 Cierre del 02/10/2026 (madrugada) — Miguel: «guarda todo y seguimos mañana»
+> **Todo guardado en local, nada subido a GitHub** (Miguel aún no respondió si se sube la rama).
+> Worktree `potencial-jev-f41-20261001` limpio en `972bb765`; este vault en el `main` local; banco
+> `avancecorp-potencial-jev-20261001` (55473) corriendo, con la migración aplicada y el motor apagado.
+> **Para retomar, en este orden:**
+> 1. Las tres respuestas pendientes de Miguel: ¿subir la rama y abrir la PR? · ¿retirar del repositorio la migración
+>    vieja `20260921034748`? · ¿con qué cuenta de Figma queda el tablero?
+> 2. Que Miguel haga la 4.0 (clave nueva de Jev, `TYPESAFE_API_KEY` en su terminal, `cargar-secreto-cron.sql` y
+>    `verificar-secretos.sql`). Si `pg_net` sale «FALTA», parar.
+> 3. Con su OK, publicar la 4.1 siguiendo `supabase/scripts/potencial-jev/LEEME.md` (migración → registrar →
+>    verificar → desplegar la Edge → advisors y tipos → `medir-redaccion.sql` → encender → reporte a los 10 minutos).
+> 4. Actualizar el tablero de Figma (bitácora y estados) cuando Miguel pueda verlo.
+> 5. Sigue pendiente de antes: `verificar-caducidad.sql` tras las 05:40, fusionar la #165 y la pasada visual.
+>
+> ### 🤖 Fase 4 (Jev sugiere): APROBADA el 01/10/2026 por la noche — 4.0 y 4.1 en curso
+> Miguel: «Todo lo recomendado» en las ocho decisiones (D1–D8) y «Aprobado: 4.0 y 4.1». **Nada de la fase 4 está en
+> producción.** Tablero de seguimiento en Figma: https://www.figma.com/board/UjDRlPWSOK94l7JF5KWKhI (ver abajo
+> «Fase 4 · entregas 4.0 y 4.1: ejecución», con los nodos para actualizarlo).
+> - **4.0 (la hace Miguel, 10 minutos):** cambiar la clave de Jev en el panel de TypeSafe, cargarla en SU terminal
+>   (no en el chat) y crear el secreto del cron con `cargar-secreto-cron.sql`. Líneas exactas en la sección de ejecución.
+> - **4.1 (servidor):** CONSTRUIDA y probada en banco propio, en el worktree
+>   `AVANCECORP-desktop-worktrees/potencial-jev-f41-20261001` (rama `crm/potencial-jev-f41`, commit local `972bb765`,
+>   SIN subir a GitHub ni PR). Falta el OK de Miguel para subirla y para publicarla; el orden está en
+>   `supabase/scripts/potencial-jev/LEEME.md`. Banco: `avancecorp-potencial-jev-20261001` (puerto 55473, corriendo).
+> - **Decisión pendiente de Miguel:** ¿se retira del repositorio la migración vieja `20260921034748_crm_temperatura_lead`
+>   (nunca aplicada y peligrosa si alguien la aplicara por error)?
+> - Lo demás de la lista de abajo (caducidad a las 05:40, fusionar la #165, pasada visual) sigue igual.
+
+> ### 🌙 Cierre del 01/10/2026 (~20:45 Lima) — Miguel: «mañana seguimos con todo»
+> **Todo guardado.** Rama de la PR `crm/potencial-lead-f3b` = `fad2420d` y rama viva
+> `release/potencial-filtro-llamadas-20261001` = `44985828`, las dos en GitHub; worktree `wt-potencial-lead` limpio;
+> `main` local con el servidor de B, sus scripts y este vault. Nada mío queda sin commit. (Los cambios sin guardar
+> que hay en `app/` del taller son de OTRAS sesiones: no se tocaron.)
+>
+> **Lo que quedó VIVO hoy:** fases 1, 2 y 3A con la bandera encendida · Tibio naranja · filtro «Por potencial» en
+> Leads (servidor 19:30, pantalla 19:55) · Llamadas F1 (salió en el mismo release). CRM vivo: `44985828`.
+>
+> **Para el 02/10, en este orden:**
+> 1. **Miguel, tras las 05:40:** `! cd …/AVANCECORP-desktop/CRM-Avance-Corp && supabase db query --linked --file
+>    supabase/scripts/potencial-lead/verificar-caducidad.sql` → debe decir `succeeded` (primera corrida real de la
+>    tarea que baja las marcas). Si falla o no corrió, revisar ANTES de nada más.
+> 2. **Miguel:** fusionar la PR #165 (squash) y hacer la pasada visual: fila «Por potencial» en Leads y una llamada
+>    desde el celular (Llamadas F1 no se probó desde un teléfono real).
+> 3. **Figma:** Miguel conecta «claude.ai Figma» con `/mcp` y se crea el tablero de la fase 4 (FigJam, como los
+>    otros planes). Contenido y generador en `ui-playground/potencial-fase4-plan/` (`contenido.py`, `tablero.py`,
+>    los dos SVG y un LEEME). Anotar el enlace aquí y en la memoria.
+> 4. **Fase 4 (Jev sugiere):** plan PROPUESTO más abajo; faltan sus 8 decisiones (D1–D8) y su OK. No se escribe
+>    código antes. La primera entrega (4.0) es suya: rotar la clave de Jev y cargar dos secretos.
+> 5. **Integración:** tras fusionar la #165, traer `avancecorp/main` al `main` local (ledger, `test-rls.mjs` y `app/`
+>    siguen fuera por la carpeta sucia del taller).
+> 6. **Sin correr todavía:** `test-rls.mjs` con sesiones reales (bloque `testPotencialFiltro`).
+> Bancos Docker que siguen arriba: `avancecorp-potencial-20261001b` (55472, producción de las 19:17 + entrega B),
+> `avancecorp-potencial-20261001` (55471) y `avancecorp-potencial-20260930`.
 
 > **🎨 Colores — ✅ PUBLICADO el 01/10/2026 16:06 Lima** (Miguel invocó `/release-crm` y lanzó la subida con `!`).
 > Artefacto `crm-20261001T205947Z-83674f19eb7e.zip` (SHA-256 `13d7639d…`), commit `83674f19`, buildId
@@ -15,9 +69,10 @@ estado: ✅ fase 1 EN PROD 30/09 (bandera APAGADA) · ✅ fase 2 EN PROD 01/10 1
 > CSS de Tibio y el identificador de build. Smoke: inicio 200, `version.json` nuevo, 117 de 130 archivos byte a byte
 > iguales al paquete (los otros 13 son los falsos positivos de siempre: `.htaccess` 403 y 12 PNG que Hostinger
 > recomprime), el CSS vivo trae `--pot-tibio:#f97316`, el ZIP no queda en la raíz web. ZIP y manifiesto en
-> `CRM-Avance-Corp/releases/` del taller. 🔴 **El CRM VIVO es ahora `83674f19`** (rama
-> `release/potencial-tibio-naranja-20261001`, en GitHub): quien publique después (Gestionado #162, Llamadas #160)
-> debe partir de ahí. Falta: que Miguel fusione la PR #163 y mire el color en producción.
+> `CRM-Avance-Corp/releases/` del taller. ~~El CRM VIVO es ahora `83674f19`~~ → **desde las ~16:15 del 01/10 el
+> VIVO es `a070838d`** (rama `rescue/pipeline-gestionado-20261001`, build `build-20261001T211328361Z`): otra sesión
+> publicó la pantalla de Gestionado (#162) encima del color. ✅ PR #163 fusionada. Falta que Miguel mire el color en
+> producción. 🔑 El vivo cambia varias veces al día: antes de armar una rama de publicación, mirar `version.json`.
 >
 > **Cómo se preparó (01/10/2026, tarde).** Antes de la entrega B
 > Miguel quiso cambiar los colores y eligió en un probador local a escala real
@@ -35,7 +90,7 @@ estado: ✅ fase 1 EN PROD 30/09 (bandera APAGADA) · ✅ fase 2 EN PROD 01/10 1
 > - 🔑 Antes de publicar, volver a mirar `version.json`: si el vivo ya no es `build-20261001T185238130Z` (otra sesión
 >   publicó Gestionado o Llamadas), rehacer la rama sobre el nuevo vivo con `git cherry-pick 83674f19`.
 > - Las piezas del laboratorio (CRM-04 y CRM-05) siguen con el azul viejo: la referencia de color es el CRM.
-> - Sigue pendiente lo que Miguel pidió justo antes: **el plan de la entrega B**.
+> - ✅ El plan de la entrega B se entregó y Miguel lo aprobó el mismo 01/10: ver «Fase 3 · entrega B: ejecución».
 
 *(Lo que sigue es el texto del mediodía, antes de publicar; lo que pasó después está en los pasos 1 a 7.)* Al
 mediodía no había nada del potencial nuevo en producción. La entrega A de la fase 3 está terminada, revisada y **fusionada
@@ -135,7 +190,8 @@ Miguel cerró el día con «guarda todo y seguimos mañana». En orden:
    hora prevista (reusar `potencial_nivel_tras`, `potencial_reloj` y `dias_lunes_a_sabado`), prueba en el estado de
    producción (ningún lead marcado) y encender la bandera al final. Diseño aprobado: pieza CRM-05.
 7. **Fase 4 (Jev):** depende de la temperatura (su F1 sigue sin branch: dos secretos, rotar la clave de TypeSafe,
-   desplegar la edge). Sugiere desde los seguimientos y lleva interruptor propio.
+   desplegar la edge). Sugiere desde los seguimientos y lleva interruptor propio. **Plan propuesto el 01/10 (sin
+   aprobar): ver «Fase 4 · Jev sugiere el potencial: PLAN PROPUESTO».**
 
 **Dónde está cada cosa**
 
@@ -452,7 +508,7 @@ sesiones reales NOT RUN · paridad del banco con la producción de hoy NOT RUN.
 9. La rama de publicación debe llevar TODO el árbol de `main`, no solo `app/`: el manifiesto del release lista las
    migraciones del árbol, y la línea viva (ramas de rescate) no traía las cuatro últimas ya aplicadas en producción.
 
-## Fase 3 · entrega B: plan PROPUESTO (01/10/2026 tarde, SIN aprobar todavía)
+## Fase 3 · entrega B: plan (01/10/2026 tarde) — ✅ APROBADO por Miguel: «ok dale con el plan B, todo lo recomendado»
 
 Miguel pidió «pásame el plan de la entrega B» y lo dejó en pausa por los colores. Lo propuesto:
 
@@ -474,6 +530,281 @@ Miguel pidió «pásame el plan de la entrega B» y lo dejó en pausa por los co
   las pantallas de Gestionado (#162) y Llamadas F1 (#160), en `main` sin publicar, salgan antes o junto con B.
 - **Decisiones de Miguel pendientes:** solo Leads o también Pipeline · «Sin marcar» como opción · uno o varios
   niveles a la vez. Recomendado: solo Leads, con «Sin marcar», uno a la vez.
+
+## Fase 3 · entrega B: ejecución (01/10/2026, noche)
+
+**Decidido por Miguel:** solo en Leads (no en Pipeline) · «Sin marcar» es una opción · un nivel a la vez.
+**Estado (01/10 ~20:00 Lima): ✅ ENTREGA B PUBLICADA ENTERA — servidor (~19:30) y pantalla (~19:55).**
+🔴 **El CRM VIVO es ahora `44985828`** (rama `release/potencial-filtro-llamadas-20261001`, en GitHub; build
+`build-20261002T005154879Z`): el próximo release nace de ahí. Llamadas F1 (#160) salió en ese mismo release: quedó
+anotado en `docs/plans/llamadas-celular/PUBLICACION-PENDIENTE-2026-09-30.md`; la nota del vault de Telefonía es de
+otra sesión y está sin versionar: no se tocó. Rama `crm/potencial-lead-f3b` (`fad2420d`, en GitHub;
+integra `avancecorp/main` `fd169aac`). **PR #165 LISTA** (sin fusionar: la fusiona Miguel por squash). Commits: pantalla `70ae49c4`, servidor `dd44c806`, fusión de main
+`364a0fc9`, ledger `795687f2` y acta de la publicación `a3c412c3`. En el `main` local: `cc0b0e0d` (migración,
+scripts y encargos; también la migración y los scripts de Gestionado, que no habían llegado).
+
+### Qué se ve
+Fila «Por potencial» debajo de «Por etapa», en la misma tarjeta de resumen: cuatro pastillas con número (Frío, Tibio,
+Estrella, Sin marcar). Tocar una filtra lista, totales y capital; los cuatro números NO cambian al elegir (se cuentan
+antes del filtro); una cifra en cero no se abre; la elegida se pinta con el color de su nivel. Maqueta local a escala
+real: `ui-playground/filtro-potencial-leads.html`. ✅ **Miguel la aprobó el 01/10 (~19:04): «sí me gusta la
+maqueta»** (la variante construida: el botón elegido se pinta con el color de su nivel). Fotos de la app real en el
+scratchpad `f3b/capturas/`.
+
+### Servidor — migración `20261001212341_crm_cartera_filtro_potencial` (SIN aplicar)
+- `crm.cartera_filtrada_fn` pasa de 13 a 14 argumentos (`p_potencial`: `estrella|tibio|frio|sin_marca`) y el resumen
+  gana `resumen.potencial = {filtro, estrella, tibio, frio, sin_marca}` contado sobre `previa` (antes del filtro).
+  🔴 La base ya era la de 13: la sesión del Pipeline «Gestionado» añadió `p_gestion` el mismo día. El cuerpo nuevo se
+  GENERÓ desde el texto de su migración con sustituciones exactas (una función viva no se reteclea).
+- Ayudante `private.cartera_potencial_fn()` DEFINER (las tablas del potencial no tienen grants): sesión + gate +
+  bandera + **espejo exacto de `leads_select`** (CUARTA copia de esa policy).
+- 🔑 **Decisión de ámbito.** La primera versión daba al ayudante el predicado de la base de la cartera (con la bandeja
+  del reparto) para que `crm.resumen_cartera_fn` —DEFINER, llama a la cartera SIN RLS— contara bien. Codex y el
+  auditor-rls vieron que así coordinación recibía conteos por nivel de leads que su RLS no deja leer. Se cambió sin
+  preguntarle a Miguel porque la alternativa no amplía nada: espejo de la RLS, y la cartera no emite
+  `resumen.potencial` (ni llama al ayudante) para quien no tiene ámbito de filas. Regla: ve y cuenta la marca solo
+  quien ve el lead.
+- Con la bandera apagada: respuesta byte a byte la de la firma de 13 y 55000 si se pide el filtro.
+- Huellas: cartera de 14 `23a63cc3…`, ayudante `73e993d6…`; la de 13 que se sustituye `bf06666f…`.
+- Evidencia en el banco `avancecorp-potencial-20261001` (`banco/ciclo-fase3b.sh`, veredicto de máquina «TODO COMO SE
+  ESPERABA»): 145 de 145; fases 1, 2 y 3A sin regresión (75, 51, 94); el oráculo de gestión de la otra sesión
+  128/128 contra la firma de 14; 28 mutantes de lógica, 51 de migración/preflight y 8 de la reversa, ninguno
+  sobrevive; reversa byte a byte; +1,5 a 2 ms por llamada. (Cifras finales: 152 de 152.)
+- Reviews: Codex r1 (2 P2 de verificación), auditor-rls (sin P0/P1) y Codex r2 (diseño confirmado; 3 P2 y 1 P3 de
+  VERIFICACIÓN: bloque vacío en el verificador de sumas, oráculo caído en «ayudante ⊆ RLS», reversa que no veía `:=`
+  ni llamadas por posición → censo estricto de consumidores, y `PGRST106` en el gate). Todo aplicado. Rondas agotadas.
+- NOT RUN: `test-rls.mjs` con sesiones reales (bloque `testPotencialFiltro` escrito) y advisors.
+
+### Pantalla (sobre `main`, que ya trae Gestionado #162 y Llamadas #160)
+`lib/potencial.ts` (tipos del filtro y esquema de conteos), `crm-api.ts` (`p_potencial`, eco y coherencia, 55000 →
+`POTENCIAL_APAGADO`), clave de caché, `use-cartera-paginada.ts` (espejo demo + limpiar caché si el servidor apaga el
+potencial), `potencial-filtro.tsx` + CSS, `cartera.tsx`, simulador e2e. Marcar un lead refresca la lista y los
+números. revisor-a11y aplicado (foco cuando la fila se retira, aviso, cifra en cero legible). e2e del potencial 13 de
+13; suite completa 320 pasan y los mismos 2 fallos ajenos de `main`.
+
+### Lo que falta, en orden
+1. ✅ Codex r2 aplicado, `npm run check` PASS (346 archivos, 5 592 pruebas), commits y PR #165 (borrador).
+2. ✅ **Volcado NUEVO de producción** (Miguel con `!`, 01/10 19:17 Lima) → banco NUEVO
+   `avancecorp-potencial-20261001b` (puerto 55472; `crm` 286 funciones, `private` 553). Sobre él: fases 1, 2 y 3A en
+   verde (75, 51, 94) y `ciclo-fase3b.sh` «TODO COMO SE ESPERABA» (152 de 152; 28 + 51 + 8 mutantes, ninguno
+   sobrevive; reversa byte a byte; gerencia 18,0 → 20,0 ms). En el volcado la cartera viva es la de 13 con md5
+   `bf06666f…` y el envoltorio `4a896597…`: lo que exige el preflight. Los tipos generados desde ese banco con la
+   migración puesta coinciden con `database.types.ts` (solo difiere el formato de la versión de la CLI). Foto de
+   advisors de ANTES guardada en el scratchpad (`f3b/advisors-antes.json`).
+   🔑 Un banco recién montado desde un volcado de solo esquema no trae la bandera, la tarea de `pg_cron` ni el
+   trinquete analítico: primero los ciclos de las fases 1, 2 y 3A (los reponen) y `siembra-control-banco.sql`.
+3. ✅ **SERVIDOR EN PRODUCCIÓN** (Miguel con `!`, 01/10/2026 ~19:30 Lima): migración, registro y verificación.
+   Salida de `verificar-filtro.sql`: una firma, la de 14; md5 de la cartera `23a63cc3…` y del ayudante `73e993d6…`
+   (los ensayados); ejecutan cartera y ayudante solo `[authenticated]`; ayudante `DEFINER/s/search_path=""/postgres`;
+   0 funciones con ACL nula; nadie lee la tabla de marcas por la API; declaración y sello vigentes; bandera `true`;
+   **27 marcas vivas**; registro `crm_cartera_filtro_potencial`. Advisors 249 = 249 (archivos byte a byte iguales).
+   `gen:types` contra producción: sin cambios. Sonda anónima por PostgREST (clave pública del bundle vivo, rol
+   `anon`): con `p_potencial` → 401/`42501`; control con un parámetro que no existe → 404/`PGRST202`.
+   🔑 La clave pública del bundle vivo ya no está en `index-*.js`: está en el trozo `assets/crm-api-*.js`.
+4. **Pantalla: falta `/release-crm` (solo Miguel).** Decisión de Miguel (01/10 ~19:35): «sí, esos dos también» →
+   sale junto con Gestionado y Llamadas. Gestionado YA está vivo (`a070838d`), así que el release añade a lo vivo
+   exactamente dos cosas en `app/` (25 archivos, comprobado uno por uno): **Llamadas F1** (#160: la activación en
+   `App.tsx`, `contacto.tsx`, `auth.tsx` y `gestion-diaria/analista.tsx`; sus piezas ya iban en el paquete vivo y
+   solo usa `crm.cartera_pagina_fn`, que ya está en producción) y **el filtro por potencial**. Rama de publicación
+   preparada, SOLO LOCAL: `release/potencial-filtro-llamadas-20261001` (`44985828`): nace del vivo `a070838d`, mismo
+   árbol que `crm/potencial-lead-f3b` (`a3c412c3`). Acreditado que nada vivo se pierde: de los 33 archivos que
+   difieren del vivo, en 32 la versión viva está en la historia de la rama y el ledger difiere en una línea ya
+   reemplazada. `app/` no cambió desde el commit que pasó `npm run check` (70ae49c4).
+   🔑 Fusionar a ciegas el vivo con la rama da conflictos (historias emparentadas por squash y cherry-pick): la
+   prueba de «contiene lo vivo» es archivo por archivo, no `git merge`.
+   **Paquete LISTO (01/10 19:52 Lima, tras el `/release-crm` de Miguel):** `crm-20261002T005155Z-4498582850b1.zip`
+   (SHA-256 `e57c5187…`), commit `44985828`, worktree limpio. `npm run check` PASS sobre la rama de publicación (346
+   archivos, 5 592 pruebas); e2e Docker COMPLETO sobre el código final: 321 pasan, 26 saltadas y los 2 fallos ajenos
+   de siempre (`gerencia-operativa.spec.ts:108`, `gestion-diaria-vuelta.spec.ts:11`, anteriores a la #160);
+   manifiesto verificado (130 archivos, 399 migraciones: las 392 del vivo + 6 del refactor #164 + la del filtro);
+   preflight OK (`live=build-20261001T211328361Z/a070838d1b0d candidate=4498582850b1`). Paquete comparado con el vivo
+   quitando las huellas de los nombres: 81 piezas idénticas, 40 iguales salvo alias internos y 9 con cambio real
+   (`index.js` +9 382, `crm-api.js` +2 894, `cartera.js` +2 279, `index.css` +999, `ui-vendor.js` +680,
+   `use-cartera-paginada.js` +541, `gestion-diaria.js` +145, `crm-queries.js` +70; `gerencia.js` +31 son solo alias).
+   Rama de publicación subida a GitHub. ZIP y manifiesto en `CRM-Avance-Corp/releases/` del taller.
+   **✅ SUBIDO por Miguel con `!` (01/10 ~19:55 Lima; a la primera, sin «timeout initialize»).** Smoke: inicio 200,
+   `version.json` = `build-20261002T005154879Z`, `index-1K8ykLlA.js` igual al del paquete, los 94 archivos de código
+   byte a byte iguales (117 de 130 en total: `.htaccess` 403 y 12 PNG que Hostinger recomprime), el ZIP no queda en
+   la raíz web (404), el CSS vivo trae 16 menciones de `.pot-filtro`, y la pantalla de entrada abre en un navegador
+   (Playwright) con 0 errores y 0 avisos de consola. Falta la pasada visual de Miguel con su sesión: fila «Por
+   potencial» en Leads y Llamadas desde el celular.
+   🔑 Al comparar paquetes por nombre sin huella hay DOS piezas que se llaman igual (`gerencia.js` y
+   `brand/avance.png`): emparejar por tamaño dentro del grupo o sale un falso «−91 KB».
+5. ✅ Ledger con el acta de la pantalla (`386ddd5b`) y descripción de la PR #165 al día. **Falta: que Miguel fusione
+   la PR #165** y traer `app/` al `main` local cuando la carpeta del taller esté limpia (hoy tiene cambios sin
+   guardar de otras sesiones en `crm-api.ts`, `cartera.tsx` y otros: NO se pisan).
+6. Pendiente de integración en el `main` local (no se trajo para no pisar): `MIGRACIONES.md` y `test-rls.mjs`
+   (difieren de GitHub), `gestion-diaria-cola/` (sin versionar, de otra sesión).
+
+### Lecciones de esta entrega
+1. **Un envoltorio DEFINER se salta la RLS de la función INVOKER que envuelve.** `crm.resumen_cartera_fn` llama a la
+   cartera como dueño: toda clave nueva del resumen sale también por ahí, con el ámbito del PREDICADO de la función y
+   no el de la RLS. Antes de añadir una clave, preguntar a `pg_proc` quién envuelve y probar esa ruta.
+2. **Un banco de solo esquema no trae el trinquete analítico** (`private.analitica_leads_citas_exenciones`, sello):
+   toda migración que toque `cartera_filtrada_fn` se niega. Sembrarlo con
+   `scripts/cartera-gestion/siembra-control-banco.sql` (de la otra sesión), no desmontar la guarda.
+3. **El kit de otra sesión atado a una firma no se edita:** su oráculo se corre contra la firma nueva cambiando al
+   vuelo solo la firma y su aserción de forma (lo hace el ciclo); en su README, una nota.
+4. **Un verificador que compara con `is distinct from` acepta errores** (NULL contra NULL): contar aparte las
+   respuestas nulas, con error o sin el bloque, y probar el verificador con una respuesta rota.
+5. **El ciclo termina con veredicto de máquina** (sale con 1): un superviviente no puede depender de que alguien lea.
+6. **`sed` de macOS no entiende `\n` en el reemplazo:** para partir líneas, Python.
+
+## Fase 4 · Jev sugiere el potencial: PLAN APROBADO por Miguel el 01/10/2026 (noche)
+
+**Estado:** APROBADO el 01/10/2026 · en construcción: 4.0 y 4.1 · nada de esta fase está publicado. Miguel respondió
+«Todo lo recomendado» a las ocho decisiones y «Aprobado: 4.0 y 4.1». Tablero de seguimiento:
+https://www.figma.com/board/UjDRlPWSOK94l7JF5KWKhI
+
+**En una frase:** Jev lee las notas que el analista ya escribe después de cada gestión y propone Frío, Tibio o Estrella. El analista confirma con un toque o elige otro nivel. Jev nunca marca por su cuenta.
+
+**Para qué sirve:**
+- Que ningún lead que ya dio señales de compra se quede «Sin marcar».
+- Quitarle al analista el trabajo de clasificar: solo confirma o corrige.
+- Que el supervisor vea de un vistazo dónde hay oportunidades sin atender.
+
+**Cómo funcionará:**
+1. **El analista registra su gestión.** Escribe la nota como siempre. No cambia nada en su trabajo.
+2. **Jev lee el historial.** Las últimas 12 gestiones: solo fecha, tipo y nota. Sin nombre, teléfono ni documento.
+3. **Jev da un nivel de 0 a 3.** 0 no se logró hablar o dijo que no · 1 se habló sin interés claro · 2 interés concreto, sin fecha ni monto · 3 por cerrar.
+4. **El CRM lo traduce.** 0 es Frío · 1 y 2 son Tibio · 3 es Estrella. Jev es exigente con la Estrella.
+5. **Aparece la sugerencia.** Insignia blanca con borde punteado y la palabra «Jev». Solo si nadie marcó ese lead.
+6. **La persona decide.** Confirma con un toque o elige otro nivel. Desde ahí es una marca normal y baja sola con las reglas de siempre.
+
+**Entregas, en orden (cada una con el OK de Miguel antes de la siguiente):**
+
+- **4.0 · Preparación** (La haces tú · 10 minutos). *Qué se construye:* Cambiar la clave de Jev (la anterior se pegó en un chat el 20/09) y cargar dos secretos en Supabase. *Qué ve Miguel:* Nada en el CRM. *Cómo se comprueba:* Te paso las líneas exactas. Yo nunca veo las claves.
+- **4.1 · Jev empieza a leer, en silencio** (Servidor · 1 a 2 días). *Qué se construye:* El motor que calcula el nivel de cada lead con seguimientos y lo guarda. Está escrito desde el 20/09 y nunca se publicó: se vuelve a probar contra la producción de hoy. *Qué ve Miguel:* Nada en pantalla. Un reporte: cuántos leads ya tienen nivel y cuánto costó. *Cómo se comprueba:* Banco de pruebas propio, revisión de seguridad y de Codex. Si Jev se cae, el CRM sigue igual.
+- **4.2 · Medición en sombra** (Sin trabajo de tu equipo · 1 a 2 semanas). *Qué se construye:* Comparar lo que Jev sugeriría con lo que los analistas marcan a mano. Nadie ve sugerencias todavía. *Qué ve Miguel:* Un cuadro: de los leads marcados, en cuántos coincide Jev, dónde discrepa y por qué. *Cómo se comprueba:* Decides tú con el cuadro delante: seguir, ajustar los cortes o parar aquí.
+- **4.3 · La sugerencia llega al servidor** (Servidor · 1 a 2 días). *Qué se construye:* El servidor entrega la sugerencia junto con la marca. Interruptor propio, apagado. *Qué ve Miguel:* Nada todavía. *Cómo se comprueba:* Cada rol recibe solo sugerencias de los leads que ya puede ver. Pruebas de permisos, Codex y auditor.
+- **4.4 · Pantalla: insignia «Jev» y confirmar** (Pantalla · 2 a 3 días). *Qué se construye:* Insignia punteada en Leads, ficha, Pipeline y cola del día; confirmar o cambiar con un toque; cómo encontrar los sugeridos en Leads; interruptor en Configuración. *Qué ve Miguel:* Primero una maqueta local a escala real para aprobar. Después, la pantalla. *Cómo se comprueba:* Pruebas en el estado real de producción, accesibilidad y la suite completa de punta a punta.
+- **4.5 · Encendido y evaluación** (Tú enciendes · 2 semanas de medición). *Qué se construye:* Encender para un equipo piloto o para todos, y medir. *Qué ve Miguel:* Cuántas sugerencias se confirmaron, cuántas se cambiaron y cuántas se ignoraron. *Cómo se comprueba:* Decides tú: dejarlo, ajustarlo o apagarlo con el interruptor.
+
+**Decisiones (las ocho TOMADAS el 01/10/2026: vale la columna «Recomendación»; la otra opción quedó descartada):**
+
+| # | Pregunta | Recomendación | La otra opción |
+|---|---|---|---|
+| D1 | ¿Qué leads reciben sugerencia? | Solo los que no tienen marca de una persona y tienen al menos un seguimiento con nota. | Avisar también cuando Jev ve más potencial que la marca actual. |
+| D2 | ¿Cómo cuentan los sugeridos en el filtro «Por potencial»? | Siguen contando como «Sin marcar» y se añade un quinto botón «Sugeridos por Jev» con su número. | Contarlos dentro de su nivel, como si ya estuvieran marcados. |
+| D3 | ¿Con qué cortes se traduce el nivel? | Arrancar con 0 Frío · 1 y 2 Tibio · 3 Estrella, y ajustarlos con la medición de la fase 4.2. | Fijarlos ahora sin esperar la medición. |
+| D4 | ¿Quién ve la sugerencia? | Todo el que ya ve el lead. La confirman solo el analista dueño y su supervisor. | Que la vean solo quienes pueden confirmarla. |
+| D5 | ¿Encendido para todos o con piloto? | Un equipo piloto durante una semana y después todos. | Todos desde el primer día. |
+| D6 | ¿Quién puede apagar a Jev? | Gerencia, desde Configuración. | Solo desde el servidor, pidiéndolo a desarrollo. |
+| D7 | Si una marca bajó sola y después hay notas buenas, ¿Jev vuelve a sugerir? | Sí, solo cuando hay una gestión posterior a la bajada. | No: mientras exista una marca, Jev calla. |
+| D8 | ¿Se borran los números largos de las notas antes de enviarlas? | Sí: teléfonos y documentos escritos a mano en una nota no salen del CRM. | Enviar la nota tal como está. |
+
+**Reglas ya decididas por Miguel (30/09 y 01/10), no se vuelven a preguntar:**
+- Jev propone; la persona decide. Vale lo que marca la persona.
+- Jev no sugiere en leads sin seguimientos.
+- Estrella solo si el cliente dio fecha, monto o pidió el contrato.
+- Tiene que poder apagarse con un interruptor.
+- La sugerencia se ve distinta de la marca: punteada y con «Jev». El dorado completo aparece solo cuando una persona confirma.
+- No cambia el orden de las listas: manda el vencimiento.
+- Marcan el analista dueño y su supervisor. Gerencia y directorio solo ven y filtran.
+- Jev no opina de dinero, conversiones, permisos ni cierre de mes.
+
+**Qué NO cambia:**
+- La marca manual y sus reglas: quién marca y cuándo baja sola.
+- El orden de Leads, del Pipeline y de la cola del día.
+- El filtro «Por potencial» ya publicado (salvo lo que decidas en D2).
+- Metas, ranking, conversiones y dinero.
+- Descartar sigue siendo la única salida de un lead. Frío no es descartar.
+
+**Riesgos y cómo se cubren:**
+- **Notas pobres dan sugerencias pobres.** Se mide en la fase 4.2 antes de mostrar nada a nadie.
+- **Jev se equivoca.** Solo sugiere; decide la persona; hay interruptor para apagarlo.
+- **Jev o internet se caen.** No llegan sugerencias nuevas y el CRM funciona igual.
+- **Datos que salen del CRM.** Solo fecha, tipo y nota. La nota es texto libre: por eso la decisión D8.
+- **Costo.** Unos 30 centavos de dólar al mes con 500 leads recalculados a diario.
+- **La clave de Jev quedó expuesta el 20/09.** Se cambia en la fase 4.0, antes de empezar.
+
+**Fuera de esta fase:**
+- Usar la señal de Jev para desempatar el orden de «Mi día».
+- Que Jev marque sin que una persona confirme.
+- Jev en llamadas y telefonía: tiene su propio plan.
+
+**Para quien lo construya (técnico):**
+- Señal ya escrita y sin aplicar: migración 20260921034748_crm_temperatura_lead y Edge crm-temperatura-lead (tabla crm.lead_temperatura: cola y resultado; cron cada 2 minutos; firma HMAC desde Vault).
+- Secretos: cron_temperatura_secret (Vault) y TYPESAFE_API_KEY (solo en la Edge). Rotar la clave antes.
+- No se edita la migración vieja: migración nueva con fecha actual, revalidada contra el esquema de hoy; la vieja se anota como reemplazada en el ledger.
+- Lectura: clave nueva y aditiva (sugerencia) en crm.potencial_leads_fn y en el resumen de la cartera; el ayudante es otro espejo de leads_select (ya hay cuatro copias: re-auditar).
+- Confirmar usa la misma puerta crm.marcar_potencial_lead_fn; el evento guarda que venía de una sugerencia, para medir la fase 4.5.
+- Bandera propia potencial_jev, independiente de potencial_lead.
+- Nivel 3 de riesgo: Codex y auditor-rls, banco Docker con mutantes, e2e en Docker, revisor de accesibilidad y /release-crm.
+
+**Dónde está el tablero.** En Figma (FigJam), creado por el conector el 01/10/2026 por la noche:
+https://www.figma.com/board/UjDRlPWSOK94l7JF5KWKhI (fileKey `UjDRlPWSOK94l7JF5KWKhI`).
+🔴 Quedó en **Borradores** de la cuenta con la que está conectado Figma en las sesiones, **«analu gomez»
+(analucia.gomez.sanchez@gmail.com)**, dentro de «El equipo de Avance Corp»: los borradores solo los ve esa cuenta.
+Miguel avisó de que no lo veía; tiene que abrirlo con ese enlace y moverlo a un proyecto del equipo, o reconectar
+Figma con su cuenta (`/mcp`) para volver a crearlo ahí.
+Nodos para actualizarlo al cerrar cada entrega (además del texto hay que cambiar su color y el fondo de la tarjeta):
+estado general `1:5` · línea «actualizado» `1:6` · bitácora `3:18` · entregas: 4.0 `2:6`, 4.1 `2:13`, 4.2 `2:20`,
+4.3 `2:27`, 4.4 `2:34`, 4.5 `2:41` (tarjetas `2:4`, `2:11`, `2:18`, `2:25`, `2:32`, `2:39`) · decisiones D1–D8:
+estado `2:50`, `2:55`, `2:60`, `2:65`, `2:70`, `2:75`, `2:80`, `2:85`.
+Copia local (se regenera con `python3 tablero.py plan-fase4.svg`): `ui-playground/potencial-fase4-plan/`, con
+`contenido.py` ya actualizado (estado de cada entrega y de cada decisión en `ESTADO_FASES` y `ESTADO_DECISIONES`).
+
+## Fase 4 · entregas 4.0 y 4.1: ejecución (01–02/10/2026, tras el «Aprobado: 4.0 y 4.1» de Miguel)
+
+**Estado:** 4.0 pendiente de Miguel · 4.1 construida y probada en banco, **nada en producción**.
+
+### 4.0 · lo que hace Miguel (10 minutos)
+1. En el panel de TypeSafe: crear una clave nueva y revocar la anterior (la vieja se pegó en un chat el 20/09).
+2. En SU terminal, no en el chat (la clave no queda escrita en ningún sitio):
+   `cd …/AVANCECORP-desktop/CRM-Avance-Corp && read -s "K?Pega la clave nueva de Jev: " && supabase secrets set TYPESAFE_API_KEY="$K"; unset K`
+   y `supabase secrets list` (debe aparecer `TYPESAFE_API_KEY`).
+3. Con `!`, el secreto del cron (64 caracteres al azar generados dentro de la base; nadie los ve) y su comprobación.
+   Los scripts viven en el worktree hasta que la rama se fusione:
+   `supabase db query --linked --file …/AVANCECORP-desktop-worktrees/potencial-jev-f41-20261001/CRM-Avance-Corp/supabase/scripts/potencial-jev/cargar-secreto-cron.sql`
+   y después `…/verificar-secretos.sql` (los tres deben decir «presente»).
+
+### 4.1 · qué se construyó
+Migración `20261002040413_crm_potencial_jev_senal` (reemplaza a `20260921034748_crm_temperatura_lead`, que nunca se
+aplicó), Edge `crm-temperatura-lead` y scripts en `supabase/scripts/potencial-jev/` (LEEME con el orden de producción).
+- Tabla `crm.lead_temperatura` (cola y resultado; sin policies ni grants; no guarda texto de notas, solo su huella),
+  14 funciones (núcleo INVOKER en `private`; DEFINER solo el trigger y las tres puertas de `service_role`), job de
+  pg_cron cada 2 minutos con firma HMAC e interruptor `potencial_jev_motor`, apagado.
+- Al revalidar contra el esquema de hoy apareció lo que la versión del 20/09 hacía mal: **el sistema también escribe
+  «notas»** (anular un cierre, No contactar, toma de la bolsa, reingreso…) y se habrían enviado a Jev como si fueran del
+  analista. Ahora «qué es un seguimiento» vive en una sola función: las notas con `evento` o `accion` no cuentan.
+- **D8:** se tapan correos, lo rotulado como documento o teléfono y toda serie de 7 o más dígitos (con espacios, puntos,
+  guiones, rayas o paréntesis). Las fechas sueltas de 2020 a 2039 se conservan. Residual: nombres propios, documentos
+  con letras y un documento sin rótulo con forma de fecha.
+- El analista no se frena: el trigger no hace cola (`nowait`) y atrapa todo; la reparación (dos veces por hora) repone
+  los encolados perdidos. Un nivel solo aterriza si el historial sigue siendo el que se envió.
+
+### Verificación (banco Docker propio `avancecorp-potencial-jev-20261001`, volcado de producción del 01/10 19:17)
+`banco/ciclo-fase41.sh` → **PASS**: 120 pruebas, 88 mutantes de lógica (sobreviven solo los 2 previstos) y 42 de
+migración; concurrencia con dos conexiones 25 de 25 y sus dos mutantes; trinquetes idénticos (censo 40 = 40); con
+6 000 leads y 38 556 actividades la migración dura ~0,3 s. Edge: 17 pruebas y `deno check`.
+**NOT RUN:** `test-rls.mjs` con sesiones reales (bloque `testPotencialJevSenal` añadido), advisors, la Edge contra la
+API real de Jev (su contrato se comprobó contra la documentación vigente), `npm run check:scripts` completo y los
+hooks de Lefthook (no están en el worktree).
+
+### Revisiones (LEVEL 3)
+auditor-rls (sin P0 ni P1) y Codex r1 + r2 (las dos `CHANGES_REQUESTED`). Se aceptó casi todo; se rechazó, con razón
+escrita en el ledger, la protección contra repetición de la firma del cron y la exclusión global entre lotes.
+🔴 Los arreglos de la r2 están probados pero no volvieron a pasar por un revisor (rondas agotadas). Encargos y
+respuestas en `CRM-Avance-Corp/docs/encargos/2026-10-0[12]-potencial-jev-f41-r*.md`.
+
+### Lecciones de esta entrega
+- **Revalidar contra el esquema de hoy encuentra lo que la prueba vieja no veía.** Antes de reutilizar una migración
+  escrita semanas atrás, listar quién escribe hoy en las tablas de las que lee (`prosrc ~ 'insert into …'`).
+- **Una función nueva que nombre `crm.leads` o «reunion» y use `count(` entra en el censo del trinquete analítico**, y
+  su techo solo baja: no se declara, se saca del alcance (`get diagnostics` para filas tocadas; el predicado del lead en
+  una función propia). El ciclo compara el censo antes y después.
+- **`READ COMMITTED`: reservar con `FOR UPDATE SKIP LOCKED` y leer en la MISMA sentencia puede leer un dato anterior a
+  la fila que se acaba de bloquear.** Reservar en una sentencia y leer en la siguiente. Se reproduce con dos
+  conexiones inyectando un `pg_sleep` en la sentencia que elige.
+- **Un efecto auxiliar colgado del registro del analista no hace cola:** `for update nowait` antes del upsert, y que lo
+  perdido lo reponga una reparación. `lock_timeout` es por candado, no por sentencia: con muchas filas se acumula.
+- **`lock table … nowait` en migración y reversa** evita ser parte de un interbloqueo, pero falla si el autovacuum pasa
+  por la tabla: se reintenta (el arnés del banco también).
+- **La herramienta de escritura convierte `\u00A0` en el carácter real** (queda invisible en el archivo): para dejar
+  un escape Unicode visible en SQL hay que construirlo (`chr(92) + 'u00A0'`).
+- **Dentro de una sola transacción el auditor no distingue una reescritura con los mismos valores**: para probar que una
+  fila NO se reescribe se compara su `ctid`.
 
 ## Propuesta INICIAL de servidor (superada: ver «Fase 1 · ejecución» y «Fase 2»)
 
