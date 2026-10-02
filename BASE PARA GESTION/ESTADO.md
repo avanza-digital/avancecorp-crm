@@ -2,7 +2,7 @@
 
 **Última sesión:** 02/10/2026 (madrugada) · **Fase en curso:** B1 (esquema) — lista en local, falta la rama y el merge.
 **Bloqueo:** el conector «claude.ai Supabase» no estaba cargado; Miguel lo conecta con `/mcp` o lanza el ciclo con `!`.
-**Nada en producción. Último commit del módulo:** ver `git log --oneline -- "BASE PARA GESTION"`.
+**Nada en producción. Último commit del módulo:** `4cbd3806` (02/10, main local, sin push). Siguientes: `git log --oneline -- "BASE PARA GESTION"`.
 
 | Fase | Estado | Evidencia / siguiente paso |
 |---|---|---|
