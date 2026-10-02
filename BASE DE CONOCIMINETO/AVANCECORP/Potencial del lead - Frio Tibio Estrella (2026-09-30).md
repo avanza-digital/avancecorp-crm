@@ -478,9 +478,9 @@ Miguel pidió «pásame el plan de la entrega B» y lo dejó en pausa por los co
 ## Fase 3 · entrega B: ejecución (01/10/2026, noche)
 
 **Decidido por Miguel:** solo en Leads (no en Pipeline) · «Sin marcar» es una opción · un nivel a la vez.
-**Estado (01/10 ~19:20 Lima): NADA publicado.** Rama `crm/potencial-lead-f3b` (`364a0fc9`, en GitHub; ya integra
-`avancecorp/main` `fd169aac`, que trae el color #163 y el refactor #164). **PR #165 en BORRADOR** hasta repetir el
-ciclo sobre un volcado nuevo de producción. Commits: pantalla `70ae49c4`, servidor `dd44c806`.
+**Estado (01/10 ~19:45 Lima): NADA publicado.** Rama `crm/potencial-lead-f3b` (`795687f2`, en GitHub; ya integra
+`avancecorp/main` `fd169aac`, que trae el color #163 y el refactor #164). **PR #165 LISTA para revisar** (ya no es
+borrador). Commits: pantalla `70ae49c4`, servidor `dd44c806`, fusión de main `364a0fc9`, ledger `795687f2`.
 
 ### Qué se ve
 Fila «Por potencial» debajo de «Por etapa», en la misma tarjeta de resumen: cuatro pastillas con número (Frío, Tibio,
@@ -523,9 +523,18 @@ números. revisor-a11y aplicado (foco cuando la fila se retira, aviso, cifra en 
 
 ### Lo que falta, en orden
 1. ✅ Codex r2 aplicado, `npm run check` PASS (346 archivos, 5 592 pruebas), commits y PR #165 (borrador).
-2. **Volcado NUEVO de producción (Miguel con `!`)** → banco nuevo a paridad → repetir `ciclo-fase3b.sh` ahí.
-3. Miguel publica el servidor con `!`: migración → `registrar-filtro.sql` → `verificar-filtro.sql` → sonda HTTP →
-   advisors → `gen:types`.
+2. ✅ **Volcado NUEVO de producción** (Miguel con `!`, 01/10 19:17 Lima) → banco NUEVO
+   `avancecorp-potencial-20261001b` (puerto 55472; `crm` 286 funciones, `private` 553). Sobre él: fases 1, 2 y 3A en
+   verde (75, 51, 94) y `ciclo-fase3b.sh` «TODO COMO SE ESPERABA» (152 de 152; 28 + 51 + 8 mutantes, ninguno
+   sobrevive; reversa byte a byte; gerencia 18,0 → 20,0 ms). En el volcado la cartera viva es la de 13 con md5
+   `bf06666f…` y el envoltorio `4a896597…`: lo que exige el preflight. Los tipos generados desde ese banco con la
+   migración puesta coinciden con `database.types.ts` (solo difiere el formato de la versión de la CLI). Foto de
+   advisors de ANTES guardada en el scratchpad (`f3b/advisors-antes.json`).
+   🔑 Un banco recién montado desde un volcado de solo esquema no trae la bandera, la tarea de `pg_cron` ni el
+   trinquete analítico: primero los ciclos de las fases 1, 2 y 3A (los reponen) y `siembra-control-banco.sql`.
+3. **Miguel publica el servidor con `!`** (línea entregada el 01/10 ~19:45): migración → `registrar-filtro.sql` →
+   `verificar-filtro.sql`; después sonda HTTP, advisors de después y `gen:types`. El front vivo (`83674f19`) lee el
+   resumen con `v.object` y no envía `p_potencial`: publicar el servidor antes que la pantalla no le cambia nada.
 4. Pantalla: `/release-crm`. 🔴 Se construyó sobre `main`: para publicarla, las pantallas de Gestionado (#162) y
    Llamadas (#160) tienen que estar ya vivas o salir junto con ella (el vivo hoy es `83674f19`, sin ellas).
 
