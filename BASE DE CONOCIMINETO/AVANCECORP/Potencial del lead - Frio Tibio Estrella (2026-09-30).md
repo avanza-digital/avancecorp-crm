@@ -15,9 +15,10 @@ estado: ✅ fase 1 EN PROD 30/09 (bandera APAGADA) · ✅ fase 2 EN PROD 01/10 1
 > CSS de Tibio y el identificador de build. Smoke: inicio 200, `version.json` nuevo, 117 de 130 archivos byte a byte
 > iguales al paquete (los otros 13 son los falsos positivos de siempre: `.htaccess` 403 y 12 PNG que Hostinger
 > recomprime), el CSS vivo trae `--pot-tibio:#f97316`, el ZIP no queda en la raíz web. ZIP y manifiesto en
-> `CRM-Avance-Corp/releases/` del taller. 🔴 **El CRM VIVO es ahora `83674f19`** (rama
-> `release/potencial-tibio-naranja-20261001`, en GitHub): quien publique después (Gestionado #162, Llamadas #160)
-> debe partir de ahí. Falta: que Miguel fusione la PR #163 y mire el color en producción.
+> `CRM-Avance-Corp/releases/` del taller. ~~El CRM VIVO es ahora `83674f19`~~ → **desde las ~16:15 del 01/10 el
+> VIVO es `a070838d`** (rama `rescue/pipeline-gestionado-20261001`, build `build-20261001T211328361Z`): otra sesión
+> publicó la pantalla de Gestionado (#162) encima del color. ✅ PR #163 fusionada. Falta que Miguel mire el color en
+> producción. 🔑 El vivo cambia varias veces al día: antes de armar una rama de publicación, mirar `version.json`.
 >
 > **Cómo se preparó (01/10/2026, tarde).** Antes de la entrega B
 > Miguel quiso cambiar los colores y eligió en un probador local a escala real
@@ -478,9 +479,11 @@ Miguel pidió «pásame el plan de la entrega B» y lo dejó en pausa por los co
 ## Fase 3 · entrega B: ejecución (01/10/2026, noche)
 
 **Decidido por Miguel:** solo en Leads (no en Pipeline) · «Sin marcar» es una opción · un nivel a la vez.
-**Estado (01/10 ~19:45 Lima): NADA publicado.** Rama `crm/potencial-lead-f3b` (`795687f2`, en GitHub; ya integra
-`avancecorp/main` `fd169aac`, que trae el color #163 y el refactor #164). **PR #165 LISTA para revisar** (ya no es
-borrador). Commits: pantalla `70ae49c4`, servidor `dd44c806`, fusión de main `364a0fc9`, ledger `795687f2`.
+**Estado (01/10 ~19:50 Lima): SERVIDOR EN PRODUCCIÓN (~19:30); PANTALLA sin publicar.** Rama
+`crm/potencial-lead-f3b` (`a3c412c3`, en GitHub; integra `avancecorp/main` `fd169aac`). **PR #165 LISTA** (sin
+fusionar: la fusiona Miguel por squash). Commits: pantalla `70ae49c4`, servidor `dd44c806`, fusión de main
+`364a0fc9`, ledger `795687f2` y acta de la publicación `a3c412c3`. En el `main` local: `cc0b0e0d` (migración,
+scripts y encargos; también la migración y los scripts de Gestionado, que no habían llegado).
 
 ### Qué se ve
 Fila «Por potencial» debajo de «Por etapa», en la misma tarjeta de resumen: cuatro pastillas con número (Frío, Tibio,
@@ -532,11 +535,30 @@ números. revisor-a11y aplicado (foco cuando la fila se retira, aviso, cifra en 
    advisors de ANTES guardada en el scratchpad (`f3b/advisors-antes.json`).
    🔑 Un banco recién montado desde un volcado de solo esquema no trae la bandera, la tarea de `pg_cron` ni el
    trinquete analítico: primero los ciclos de las fases 1, 2 y 3A (los reponen) y `siembra-control-banco.sql`.
-3. **Miguel publica el servidor con `!`** (línea entregada el 01/10 ~19:45): migración → `registrar-filtro.sql` →
-   `verificar-filtro.sql`; después sonda HTTP, advisors de después y `gen:types`. El front vivo (`83674f19`) lee el
-   resumen con `v.object` y no envía `p_potencial`: publicar el servidor antes que la pantalla no le cambia nada.
-4. Pantalla: `/release-crm`. 🔴 Se construyó sobre `main`: para publicarla, las pantallas de Gestionado (#162) y
-   Llamadas (#160) tienen que estar ya vivas o salir junto con ella (el vivo hoy es `83674f19`, sin ellas).
+3. ✅ **SERVIDOR EN PRODUCCIÓN** (Miguel con `!`, 01/10/2026 ~19:30 Lima): migración, registro y verificación.
+   Salida de `verificar-filtro.sql`: una firma, la de 14; md5 de la cartera `23a63cc3…` y del ayudante `73e993d6…`
+   (los ensayados); ejecutan cartera y ayudante solo `[authenticated]`; ayudante `DEFINER/s/search_path=""/postgres`;
+   0 funciones con ACL nula; nadie lee la tabla de marcas por la API; declaración y sello vigentes; bandera `true`;
+   **27 marcas vivas**; registro `crm_cartera_filtro_potencial`. Advisors 249 = 249 (archivos byte a byte iguales).
+   `gen:types` contra producción: sin cambios. Sonda anónima por PostgREST (clave pública del bundle vivo, rol
+   `anon`): con `p_potencial` → 401/`42501`; control con un parámetro que no existe → 404/`PGRST202`.
+   🔑 La clave pública del bundle vivo ya no está en `index-*.js`: está en el trozo `assets/crm-api-*.js`.
+4. **Pantalla: falta `/release-crm` (solo Miguel).** Decisión de Miguel (01/10 ~19:35): «sí, esos dos también» →
+   sale junto con Gestionado y Llamadas. Gestionado YA está vivo (`a070838d`), así que el release añade a lo vivo
+   exactamente dos cosas en `app/` (25 archivos, comprobado uno por uno): **Llamadas F1** (#160: la activación en
+   `App.tsx`, `contacto.tsx`, `auth.tsx` y `gestion-diaria/analista.tsx`; sus piezas ya iban en el paquete vivo y
+   solo usa `crm.cartera_pagina_fn`, que ya está en producción) y **el filtro por potencial**. Rama de publicación
+   preparada, SOLO LOCAL: `release/potencial-filtro-llamadas-20261001` (`44985828`): nace del vivo `a070838d`, mismo
+   árbol que `crm/potencial-lead-f3b` (`a3c412c3`). Acreditado que nada vivo se pierde: de los 33 archivos que
+   difieren del vivo, en 32 la versión viva está en la historia de la rama y el ledger difiere en una línea ya
+   reemplazada. `app/` no cambió desde el commit que pasó `npm run check` (70ae49c4).
+   🔑 Fusionar a ciegas el vivo con la rama da conflictos (historias emparentadas por squash y cherry-pick): la
+   prueba de «contiene lo vivo» es archivo por archivo, no `git merge`.
+5. Miguel: fusionar la PR #165. Después de publicar la pantalla: ledger («pantalla publicada»), subir la rama de
+   publicación a GitHub y traer `app/` al `main` local cuando la carpeta del taller esté limpia (hoy tiene cambios
+   sin guardar de otras sesiones en `crm-api.ts`, `cartera.tsx` y otros: NO se pisan).
+6. Pendiente de integración en el `main` local (no se trajo para no pisar): `MIGRACIONES.md` y `test-rls.mjs`
+   (difieren de GitHub), `gestion-diaria-cola/` (sin versionar, de otra sesión).
 
 ### Lecciones de esta entrega
 1. **Un envoltorio DEFINER se salta la RLS de la función INVOKER que envuelve.** `crm.resumen_cartera_fn` llama a la
