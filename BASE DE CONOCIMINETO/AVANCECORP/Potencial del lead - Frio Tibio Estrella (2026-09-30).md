@@ -1,6 +1,6 @@
 ---
 fecha: 2026-09-30
-estado: ✅ fase 1 EN PROD 30/09 (bandera APAGADA) · ✅ fase 2 EN PROD 01/10 13:27 (la marca baja sola) · ✅ puerta de lectura EN PROD 01/10 13:40 (fase 3A, servidor) · ✅ pantalla de la fase 3A PUBLICADA 01/10 13:57 (`build-20261001T185238130Z`, `54690b06`) · ✅ **BANDERA ENCENDIDA 01/10 14:04: el potencial está VIVO para los usuarios** · 🎨 **Tibio NARANJA PUBLICADO 01/10 16:06** (`build-20261001T205946155Z`, `83674f19`; PR #163 sin fusionar) · entrega B (filtro) y fase 4 (Jev) sin empezar · ver «Para retomar»
+estado: ✅ fase 1 EN PROD 30/09 (bandera APAGADA) · ✅ fase 2 EN PROD 01/10 13:27 (la marca baja sola) · ✅ puerta de lectura EN PROD 01/10 13:40 (fase 3A, servidor) · ✅ pantalla de la fase 3A PUBLICADA 01/10 13:57 (`build-20261001T185238130Z`, `54690b06`) · ✅ **BANDERA ENCENDIDA 01/10 14:04: el potencial está VIVO para los usuarios** · 🎨 **Tibio NARANJA PUBLICADO 01/10 16:06** (`build-20261001T205946155Z`, `83674f19`; PR #163 sin fusionar) · 🟡 **entrega B (filtro en Leads) APROBADA y EN CONSTRUCCIÓN 01/10 noche: servidor y pantalla listos en el worktree, SIN publicar** · fase 4 (Jev) sin empezar · ver «Para retomar»
 ---
 
 # Potencial del lead: Frío · Tibio · Estrella (2026-09-30)
@@ -35,7 +35,7 @@ estado: ✅ fase 1 EN PROD 30/09 (bandera APAGADA) · ✅ fase 2 EN PROD 01/10 1
 > - 🔑 Antes de publicar, volver a mirar `version.json`: si el vivo ya no es `build-20261001T185238130Z` (otra sesión
 >   publicó Gestionado o Llamadas), rehacer la rama sobre el nuevo vivo con `git cherry-pick 83674f19`.
 > - Las piezas del laboratorio (CRM-04 y CRM-05) siguen con el azul viejo: la referencia de color es el CRM.
-> - Sigue pendiente lo que Miguel pidió justo antes: **el plan de la entrega B**.
+> - ✅ El plan de la entrega B se entregó y Miguel lo aprobó el mismo 01/10: ver «Fase 3 · entrega B: ejecución».
 
 *(Lo que sigue es el texto del mediodía, antes de publicar; lo que pasó después está en los pasos 1 a 7.)* Al
 mediodía no había nada del potencial nuevo en producción. La entrega A de la fase 3 está terminada, revisada y **fusionada
@@ -452,7 +452,7 @@ sesiones reales NOT RUN · paridad del banco con la producción de hoy NOT RUN.
 9. La rama de publicación debe llevar TODO el árbol de `main`, no solo `app/`: el manifiesto del release lista las
    migraciones del árbol, y la línea viva (ramas de rescate) no traía las cuatro últimas ya aplicadas en producción.
 
-## Fase 3 · entrega B: plan PROPUESTO (01/10/2026 tarde, SIN aprobar todavía)
+## Fase 3 · entrega B: plan (01/10/2026 tarde) — ✅ APROBADO por Miguel: «ok dale con el plan B, todo lo recomendado»
 
 Miguel pidió «pásame el plan de la entrega B» y lo dejó en pausa por los colores. Lo propuesto:
 
@@ -474,6 +474,70 @@ Miguel pidió «pásame el plan de la entrega B» y lo dejó en pausa por los co
   las pantallas de Gestionado (#162) y Llamadas F1 (#160), en `main` sin publicar, salgan antes o junto con B.
 - **Decisiones de Miguel pendientes:** solo Leads o también Pipeline · «Sin marcar» como opción · uno o varios
   niveles a la vez. Recomendado: solo Leads, con «Sin marcar», uno a la vez.
+
+## Fase 3 · entrega B: ejecución (01/10/2026, noche)
+
+**Decidido por Miguel:** solo en Leads (no en Pipeline) · «Sin marcar» es una opción · un nivel a la vez.
+**Estado (01/10 ~19:00 Lima): NADA publicado.** Todo vive en el worktree `wt-potencial-lead`, rama
+`crm/potencial-lead-f3b` (nacida de `avancecorp/main` `79f9e40e` + el commit del color).
+
+### Qué se ve
+Fila «Por potencial» debajo de «Por etapa», en la misma tarjeta de resumen: cuatro pastillas con número (Frío, Tibio,
+Estrella, Sin marcar). Tocar una filtra lista, totales y capital; los cuatro números NO cambian al elegir (se cuentan
+antes del filtro); una cifra en cero no se abre; la elegida se pinta con el color de su nivel. Maqueta local a escala
+real: `ui-playground/filtro-potencial-leads.html` (Miguel aún no contestó si le gusta «elegido en su color», que es
+lo construido; la otra variante es solo CSS). Fotos de la app real en el scratchpad `f3b/capturas/`.
+
+### Servidor — migración `20261001212341_crm_cartera_filtro_potencial` (SIN aplicar)
+- `crm.cartera_filtrada_fn` pasa de 13 a 14 argumentos (`p_potencial`: `estrella|tibio|frio|sin_marca`) y el resumen
+  gana `resumen.potencial = {filtro, estrella, tibio, frio, sin_marca}` contado sobre `previa` (antes del filtro).
+  🔴 La base ya era la de 13: la sesión del Pipeline «Gestionado» añadió `p_gestion` el mismo día. El cuerpo nuevo se
+  GENERÓ desde el texto de su migración con sustituciones exactas (una función viva no se reteclea).
+- Ayudante `private.cartera_potencial_fn()` DEFINER (las tablas del potencial no tienen grants): sesión + gate +
+  bandera + **espejo exacto de `leads_select`** (CUARTA copia de esa policy).
+- 🔑 **Decisión de ámbito.** La primera versión daba al ayudante el predicado de la base de la cartera (con la bandeja
+  del reparto) para que `crm.resumen_cartera_fn` —DEFINER, llama a la cartera SIN RLS— contara bien. Codex y el
+  auditor-rls vieron que así coordinación recibía conteos por nivel de leads que su RLS no deja leer. Se cambió sin
+  preguntarle a Miguel porque la alternativa no amplía nada: espejo de la RLS, y la cartera no emite
+  `resumen.potencial` (ni llama al ayudante) para quien no tiene ámbito de filas. Regla: ve y cuenta la marca solo
+  quien ve el lead.
+- Con la bandera apagada: respuesta byte a byte la de la firma de 13 y 55000 si se pide el filtro.
+- Huellas: cartera de 14 `23a63cc3…`, ayudante `73e993d6…`; la de 13 que se sustituye `bf06666f…`.
+- Evidencia en el banco `avancecorp-potencial-20261001` (`banco/ciclo-fase3b.sh`, veredicto de máquina «TODO COMO SE
+  ESPERABA»): 145 de 145; fases 1, 2 y 3A sin regresión (75, 51, 94); el oráculo de gestión de la otra sesión
+  128/128 contra la firma de 14; 28 mutantes de lógica y 51 de migración/preflight, ninguno sobrevive; reversa
+  byte a byte; +1,5 a 2 ms por llamada.
+- Reviews: Codex r1 (2 P2 de verificación) y auditor-rls (sin P0/P1), aplicados; Codex r2 en curso al escribir esto.
+- NOT RUN: `test-rls.mjs` con sesiones reales (bloque `testPotencialFiltro` escrito) y advisors.
+
+### Pantalla (sobre `main`, que ya trae Gestionado #162 y Llamadas #160)
+`lib/potencial.ts` (tipos del filtro y esquema de conteos), `crm-api.ts` (`p_potencial`, eco y coherencia, 55000 →
+`POTENCIAL_APAGADO`), clave de caché, `use-cartera-paginada.ts` (espejo demo + limpiar caché si el servidor apaga el
+potencial), `potencial-filtro.tsx` + CSS, `cartera.tsx`, simulador e2e. Marcar un lead refresca la lista y los
+números. revisor-a11y aplicado (foco cuando la fila se retira, aviso, cifra en cero legible). e2e del potencial 13 de
+13; suite completa 320 pasan y los mismos 2 fallos ajenos de `main`.
+
+### Lo que falta, en orden
+1. Codex r2 y `npm run check` en verde → commit y PR (servidor + pantalla).
+2. **Volcado NUEVO de producción (Miguel con `!`)** → banco nuevo a paridad → repetir `ciclo-fase3b.sh` ahí.
+3. Miguel publica el servidor con `!`: migración → `registrar-filtro.sql` → `verificar-filtro.sql` → sonda HTTP →
+   advisors → `gen:types`.
+4. Pantalla: `/release-crm`. 🔴 Se construyó sobre `main`: para publicarla, las pantallas de Gestionado (#162) y
+   Llamadas (#160) tienen que estar ya vivas o salir junto con ella (el vivo hoy es `83674f19`, sin ellas).
+
+### Lecciones de esta entrega
+1. **Un envoltorio DEFINER se salta la RLS de la función INVOKER que envuelve.** `crm.resumen_cartera_fn` llama a la
+   cartera como dueño: toda clave nueva del resumen sale también por ahí, con el ámbito del PREDICADO de la función y
+   no el de la RLS. Antes de añadir una clave, preguntar a `pg_proc` quién envuelve y probar esa ruta.
+2. **Un banco de solo esquema no trae el trinquete analítico** (`private.analitica_leads_citas_exenciones`, sello):
+   toda migración que toque `cartera_filtrada_fn` se niega. Sembrarlo con
+   `scripts/cartera-gestion/siembra-control-banco.sql` (de la otra sesión), no desmontar la guarda.
+3. **El kit de otra sesión atado a una firma no se edita:** su oráculo se corre contra la firma nueva cambiando al
+   vuelo solo la firma y su aserción de forma (lo hace el ciclo); en su README, una nota.
+4. **Un verificador que compara con `is distinct from` acepta errores** (NULL contra NULL): contar aparte las
+   respuestas nulas, con error o sin el bloque, y probar el verificador con una respuesta rota.
+5. **El ciclo termina con veredicto de máquina** (sale con 1): un superviviente no puede depender de que alguien lea.
+6. **`sed` de macOS no entiende `\n` en el reemplazo:** para partir líneas, Python.
 
 ## Propuesta INICIAL de servidor (superada: ver «Fase 1 · ejecución» y «Fase 2»)
 
