@@ -118,6 +118,12 @@ Decisión de criterio de Claude, para Miguel: la Edge ya responde igual a guarda
 
 **Siguiente: F3-c, la macro**, después de las 6 pruebas de MacroDroid en C1 (sección de arriba). Las pruebas 1, 4 y 6 necesitan una URL que conteste: puede servir esta Edge cuando Miguel la despliegue, o un receptor de pruebas con datos inventados.
 
+### Receptor de pruebas en el PC (02/10, decisión de Jhosep)
+
+Jhosep eligió no esperar el despliegue: las pruebas de C1 se hacen contra `supabase/scripts/llamadas-celular/receptor-prueba.ts` (`npm run receptor:llamadas-prueba`, con Deno en el PATH). Corre el MISMO `crearHandler` de esta Edge con una base falsa en memoria que imita las puertas de servicio de F3-a: clave (401), 30 por minuto y 600 al día (429 con `Retry-After`), id de origen idempotente (repetida = 202; otro contenido = 409), entrantes ignoradas y `ocurrio_en` fuera de rango (400). Escucha en la misma ruta que Supabase (`/functions/v1/crm-llamadas-ingesta`), así que al desplegar solo cambia el servidor. `/_control?modo=503|429|401|normal&veces=N` fuerza fallas para la prueba 4 y `/_estado` da los contadores; los dos solo contestan desde el propio PC. El registro de la consola no lleva la clave ni el número completo (3 últimos dígitos).
+
+Verificación: `deno test supabase/scripts/llamadas-celular/receptor-prueba.test.ts` → 9/9; 5/5 mutantes cazados (hora sin normalizar, 409 que cuenta para el límite, control abierto al celular, línea compartida entre envíos, clave en el registro); humo por la IP de la red local (202 guardada, 202 repetida, 401 sin clave, `/_estado` 404 desde fuera). Límite: imita el contrato, no la base. La 1 y la 6 se repiten contra la Edge desplegada.
+
 ## Riesgos y límites
 
 - El mayor riesgo es la durabilidad de MacroDroid: no está documentada y solo C1 puede probarla.

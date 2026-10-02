@@ -357,7 +357,7 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 
 ### F3.3 · Persistir y enviar
 
-**Estado:** en curso · **Avance:** 0/4 · **Responsable:** Jhosep (pruebas en C1).
+**Estado:** en curso · **Avance:** 0/4 · **Responsable:** Jhosep (pruebas en C1) · Claude (receptor de pruebas).
 
 - [ ] **F3.3.1** Crear ID, hora y payload una vez; guardar en cola local antes del POST.
 - [ ] **F3.3.2** Reintentar red caída, 429 y reinicio; retirar solo tras confirmación y visibilizar errores permanentes.
