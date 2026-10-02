@@ -31,10 +31,13 @@ select pg_temp.err('A: intento sobre LA en descanso → 22023', '22023', format(
 reset role;
 -- Simular que pasan los 30 días: el descanso vence ayer (vía privilegiada del propio esquema).
 select set_config('crm.op_base_gestion','on',true); update crm.leads set enfriado_hasta = (select hoy - 1 from f) where id = (select la from f); select set_config('crm.op_base_gestion','off',true);
+-- …y que los tres intentos ocurrieron hace 40 días (antes de la ventana nueva, que arranca al vencer el descanso).
+update crm.actividades set creado_en = creado_en - interval '40 days' where lead_id = (select la from f) and metadata->>'evento' = 'intento_base';
 select pg_temp.sesion((select a from f)); set local role authenticated;
-select pg_temp.caso('A: pasados los 30 días LA reaparece con su historial (3 intentos)', 'ok', case when exists (select 1 from crm.obtener_base_gestion() b, f where b.lead_id = f.la and b.intentos = 3) then 'ok' else 'mal' end);
-select pg_temp.caso('A: un 4.º intento con rellamada NO vuelve a enfriar (gana la rellamada)', 'ok', case when (pg_temp.intento((select la from f), 'volver_a_llamar', now() + interval '2 days'))->>'enfriado_hasta' = (select (hoy - 1)::text from f) then 'ok' else 'mal' end);
-select pg_temp.caso('A: el 5.º intento sin rellamada vuelve a enfriar 30 días', 'ok', case when (pg_temp.intento((select la from f), 'no_interesado'))->>'enfriado_hasta' = (select (hoy + 30)::text from f) then 'ok' else 'mal' end);
+select pg_temp.caso('A: pasados los 30 días LA reaparece con el contador en 0 (D13) y su historial íntegro (3 actividades)', 'ok', case when exists (select 1 from crm.obtener_base_gestion() b, f where b.lead_id = f.la and b.intentos = 0) and (select count(*) from crm.actividades, f where lead_id = f.la and metadata->>'evento' = 'intento_base') = 3 then 'ok' else 'mal' end);
+select pg_temp.caso('A: tras el descanso, el 1.º intento con rellamada no enfría (D12)', 'ok', case when (pg_temp.intento((select la from f), 'volver_a_llamar', now() + interval '2 days'))->>'enfriado_hasta' = (select (hoy - 1)::text from f) then 'ok' else 'mal' end);
+select pg_temp.caso('A: tras el descanso, el 2.º intento sin rellamada tampoco enfría (D13: cupo nuevo)', 'ok', case when (pg_temp.intento((select la from f), 'no_interesado'))->>'enfriado_hasta' = (select (hoy - 1)::text from f) then 'ok' else 'mal' end);
+select pg_temp.caso('A: el 3.º intento de la nueva ventana sin rellamada vuelve a enfriar 30 días', 'ok', case when (pg_temp.intento((select la from f), 'no_contesto'))->>'enfriado_hasta' = (select (hoy + 30)::text from f) then 'ok' else 'mal' end);
 reset role;
 -- ───────── B: D12, el 3.º intento con rellamada no enfría; el 4.º sin rellamada sí ─────────
 select pg_temp.sesion((select b from f)); set local role authenticated;

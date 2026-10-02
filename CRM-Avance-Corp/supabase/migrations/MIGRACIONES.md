@@ -15079,3 +15079,15 @@ el descartado más antiguo, aviso en la reversa; `test-rls.mjs` con D12 por la A
 post-descanso (un intento más vuelve a enfriar) pendiente de confirmar con Miguel. Informe en
 `BASE PARA GESTION/revisiones/2026-10-02-auditor-rls-b4.md`. **Pendiente:** Codex B3+B4, rama con datos → `test-rls.mjs` →
 advisors → merge de Miguel.
+
+## 20261002235342 — Base para gestión del analista · B4b: la ventana de intentos se reinicia tras cada descanso (D13)
+
+**⏳ PENDIENTE DE RAMA (02/10/2026).** Decisión de Miguel (02/10, noche): «Tres intentos nuevos tras cada descanso».
+Ayudante inmutable `private.base_gestion_intentos_desde(descartado_en, creado_en, enfriado_hasta, hoy)` (el descarte o el
+inicio Lima del día en que venció el último descanso, el posterior) y `create or replace` del texto de B3/B4 con una
+sustitución exacta cada uno: `crm.obtener_base_gestion` (intentos/último resultado de la ventana), `private.base_gestion_intento_core`
+(`intento_n`) y `private.trg_actividades_enfriamiento_base` (cupo). Firmas, contratos, triggers y sellos iguales. Banco:
+aplicar + postflight (ventana calculada en tres casos) PASS, `b4-enfriamiento.sql` **17/17** (vencido el descanso el contador
+vuelve a 0 con el historial íntegro; 1.º con rellamada no enfría; 2.º sin rellamada tampoco; 3.º sí), `b3-puertas.sql` 44/44,
+`reversa-y-reaplicar-b4b` PASS. **Reversa:** `supabase/scripts/base-gestion/reversa-ventana-descanso.sql` (reinstala los cuerpos
+de B3/B4). **Pendiente:** Codex B3+B4 (en curso), rama con datos → `test-rls.mjs` → advisors → merge de Miguel.

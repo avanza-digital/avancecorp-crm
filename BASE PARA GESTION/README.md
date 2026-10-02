@@ -19,6 +19,7 @@ publicado y con QA cerrada, se borra entera; el conocimiento duradero vive en el
 ## Mapa de lo construido
 - Migración B1: `CRM-Avance-Corp/supabase/migrations/20261002054402_crm_base_gestion_esquema.sql`
 - Migración B1b (rellamada en el lead): `…/20261002224851_crm_base_gestion_proxima_llamada.sql`
+- Migración B3 (puertas y núcleos): `…/20261002231436_crm_base_gestion_puertas.sql` · B4 (trigger de enfriamiento): `…/20261002233851_crm_base_gestion_enfriamiento.sql` · B4b (D13): `…/20261002235342_crm_base_gestion_ventana_descanso.sql`
 - Migración B2 (D5, Supervisión levanta «no contactar»): `…/20261002061500_crm_base_gestion_no_contactar_supervisor.sql`
 - Revisiones (auditor-rls, Codex): `BASE PARA GESTION/revisiones/`
 - Banco Docker + pruebas + reversa: `CRM-Avance-Corp/supabase/scripts/base-gestion/` (`banco.mjs crear|aplicar|test|reversa-y-reaplicar`)
@@ -43,6 +44,7 @@ publicado y con QA cerrada, se borra entera; el conocimiento duradero vive en el
 | D7-bis | **Agenda propia de la base** (02/10 noche): la rellamada vive en `crm.leads.proxima_llamada_en` (sellada), NO en `crm.tareas` (el CRM rechaza tareas en leads cerrados). Pantallas: bloque «Llamar hoy», contador en el menú, línea «Base: N rellamadas para hoy» en «Hoy». Migración B1b `20261002224851` |
 | D11 | La rellamada se agenda **como máximo 10 días adelante** (`dias_max_rellamada = 10`) |
 | D12 | **Gana la rellamada:** el enfriamiento de 30 días arranca solo cuando el 3.º intento termina sin cita y sin rellamada agendada |
+| D13 | **Tres intentos nuevos tras cada descanso** (02/10 noche): la ventana de intentos empieza en el descarte o al vencer el último descanso. Migración B4b `20261002235342` |
 
 ## Reglas que no se negocian en este módulo
 - Arquitectura en 4 capas: puertas `crm.*` → núcleos `private.*` → tablas con RLS; la pantalla solo llama RPC.

@@ -1,7 +1,7 @@
 ---
 tags: [crm, base-para-gestion, rescate, analista, f0, decision, figma]
 fecha: 2026-10-01
-estado: F0 ☑ · D1–D12 ☑ · B1, B1b, B2, B3 y B4 escritas y ensayadas en banco (02/10) · B1–B3 auditadas; auditor B4 en curso · Codex B3+B4 pendiente · rama con datos lista, falta la URL de Miguel · nada en producción
+estado: F0 ☑ · D1–D13 ☑ · B1, B1b, B2, B3, B4 y B4b escritas, auditadas y ensayadas en banco (02/10) · Codex B3+B4 en curso · rama con datos lista, falta la URL de Miguel · nada en producción
 ---
 
 # Base para gestión del analista — F0 y decisiones (01/10/2026)
@@ -306,3 +306,15 @@ advisors y EXPLAIN reales; la rama vacía `base-gestion-20261002` se borró (rep
 - **Auditoría B3 aplicada antes:** sello de actividades (`intento_base`/`reactivacion_base`/`respuesta`/`via` solo por el núcleo),
   candados persona → lead al reactivar, replay tras el candado y por actor, resumen atribuido al dueño del lead.
 - **Pendiente:** auditor-rls B4 → Codex B3+B4 (LEVEL 3) → rama con datos (URL de Miguel) → `test-rls.mjs` → advisors → merge.
+
+## D13 y B4b (02/10/2026, noche) · auditoría de B4 aplicada
+
+- **D13 (Miguel):** tras cada descanso de 30 días el analista vuelve a tener **3 intentos nuevos** (antes, con el cupo del
+  ciclo agotado, un solo intento sin rellamada volvía a enfriar). Migración B4b `20261002235342`: ayudante
+  `private.base_gestion_intentos_desde` (el descarte o el inicio Lima del día en que venció el último descanso) y
+  `create or replace` de `obtener_base_gestion`, `base_gestion_intento_core` y del trigger de enfriamiento. El historial
+  completo sigue en la ficha; lo que se reinicia es el contador. Banco 17/17 (incluida la simulación de 30 días con los
+  intentos antiguos retrasados 40 días).
+- **auditor-rls B4 aplicado:** el trigger solo actúa bajo `crm.op_base_gestion` (un backfill sin usuario no enfría), DEFINER
+  redactado, ensayo del postflight sobre el descartado más antiguo, aviso de descansos vigentes en la reversa; `test-rls.mjs`
+  con D12 por la API y el contrato del trigger.
