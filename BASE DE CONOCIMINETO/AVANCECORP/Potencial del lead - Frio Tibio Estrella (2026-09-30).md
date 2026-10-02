@@ -684,9 +684,11 @@ pierden, el contenido es esta sección.
 🔴 **Figma (01/10, noche): el conector de Figma NO está activo en las sesiones** (el plugin `figma@synced` se usó por
 última vez el 26/09 y hoy no figura entre los habilitados): no hay herramientas `use_figma` ni skills `figma:*`.
 Se intentó crear el archivo manejando la app de escritorio de Figma, pero Miguel estaba escribiendo y sus teclas
-caían en Figma: se paró. Para terminarlo: (a) habilitar el conector y crear el tablero FigJam como los otros planes,
-o (b) pegar `plan-fase4-para-figma.svg` en un archivo de diseño nuevo. Cuando exista, anotar AQUÍ el enlace.
-🔑 Manejar el escritorio mientras el usuario teclea le roba el foco: avisar ANTES y esperar su «ya», o no hacerlo.
+caían en Figma: se paró sin crear ni modificar ningún archivo. **Miguel (01/10): «no necesitas hacer eso, vía MCP lo
+haces y ya».** O sea: Figma se hace SIEMPRE por el conector, no manejando su pantalla. El conector es «claude.ai
+Figma» (no está en la lista de desactivados del proyecto, pero esta sesión no lo cargó): pedirle a Miguel que lo
+conecte con `/mcp` y entonces crear el tablero FigJam como los otros planes. Cuando exista, anotar AQUÍ el enlace.
+🔑 Si falta un conector, decirlo de inmediato y pedir que lo conecte; no rodearlo manejando el escritorio.
 
 ## Propuesta INICIAL de servidor (superada: ver «Fase 1 · ejecución» y «Fase 2»)
 
