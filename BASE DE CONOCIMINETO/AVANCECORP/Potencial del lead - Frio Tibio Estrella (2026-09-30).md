@@ -7,6 +7,20 @@ estado: ✅ fase 1 EN PROD 30/09 (bandera APAGADA) · ✅ fase 2 EN PROD 01/10 1
 
 ## ▶️ Para retomar (estado del 02/10/2026, madrugada)
 
+> ### 🌙 Cierre del 02/10/2026 (madrugada) — Miguel: «guarda todo y seguimos mañana»
+> **Todo guardado en local, nada subido a GitHub** (Miguel aún no respondió si se sube la rama).
+> Worktree `potencial-jev-f41-20261001` limpio en `972bb765`; este vault en el `main` local; banco
+> `avancecorp-potencial-jev-20261001` (55473) corriendo, con la migración aplicada y el motor apagado.
+> **Para retomar, en este orden:**
+> 1. Las tres respuestas pendientes de Miguel: ¿subir la rama y abrir la PR? · ¿retirar del repositorio la migración
+>    vieja `20260921034748`? · ¿con qué cuenta de Figma queda el tablero?
+> 2. Que Miguel haga la 4.0 (clave nueva de Jev, `TYPESAFE_API_KEY` en su terminal, `cargar-secreto-cron.sql` y
+>    `verificar-secretos.sql`). Si `pg_net` sale «FALTA», parar.
+> 3. Con su OK, publicar la 4.1 siguiendo `supabase/scripts/potencial-jev/LEEME.md` (migración → registrar →
+>    verificar → desplegar la Edge → advisors y tipos → `medir-redaccion.sql` → encender → reporte a los 10 minutos).
+> 4. Actualizar el tablero de Figma (bitácora y estados) cuando Miguel pueda verlo.
+> 5. Sigue pendiente de antes: `verificar-caducidad.sql` tras las 05:40, fusionar la #165 y la pasada visual.
+>
 > ### 🤖 Fase 4 (Jev sugiere): APROBADA el 01/10/2026 por la noche — 4.0 y 4.1 en curso
 > Miguel: «Todo lo recomendado» en las ocho decisiones (D1–D8) y «Aprobado: 4.0 y 4.1». **Nada de la fase 4 está en
 > producción.** Tablero de seguimiento en Figma: https://www.figma.com/board/UjDRlPWSOK94l7JF5KWKhI (ver abajo
