@@ -29,6 +29,7 @@ administración con «Asignar cuenta» en Pagos (migración `20261002005004`, ve
 | Archivo | Para qué |
 |---|---|
 | `censo-sin-funciones.sql` | Solo lectura. Conteo por caso y detalle de los que no se pueden pagar (banco y origen de las cuentas candidatas, sin números). No usa funciones: sirve antes de la migración y tras revertirla. |
+| `lista-operaciones.sql` | Solo lectura. La lista de trabajo de F6 para Operaciones: los contratos que no se pueden pagar, con cliente, teléfono y correo (PII: el resultado NO se versiona), vencidos, próxima cuota y cuentas candidatas (banco y origen, sin números). Misma clasificación que `censo-sin-funciones.sql`. De ahí sale el Excel de Gloria (02/10/2026). |
 | `censo.sql` | Solo lectura. Lo mismo con la regla instalada (`private.cuenta_pago_diagnostico`), con el mensaje que ve quien registra el pago. |
 | `generar-derivados.py` | Genera los cuatro archivos de abajo desde los textos fuente. `--verificar` falla si alguno quedó viejo. Ninguno se edita a mano. |
 | `ensayo-prod-sin-escribir.sql` | Generado. Corre la migración en producción dentro de una transacción que termina SIEMPRE en error a propósito: no escribe nada. Devuelve el antes/después, el resultado de marcar una cuota real en un contrato de cada caso (comprobando que quedó pagada y sellada, no solo que no dio error) y qué texto recibe un gestor y un analista. Veredicto: `PASA`, `FALLA` o `INCOMPLETO`. |
