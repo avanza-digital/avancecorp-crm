@@ -4681,6 +4681,29 @@ async function testContractBankAccounts(sessions, seed) {
     assertSeed(typeof actor.rol === 'string',
       `falta el rol original del actor bancario ${actor.id}`);
   }
+  // 20261001233019 (motivo del bloqueo de pagos) y 20261002005004 (asignar la cuenta de pago).
+  // Si la base aún no tiene una de las dos (suite corrida sin estas migraciones, p. ej. otra
+  // sesión en su banco), sus sondas se SALTAN — pero RUIDOSO: un salto silencioso pintaría de
+  // verde lo no probado. Con CRM_RLS_EXIGE_CUENTAS_PAGO=1 el salto es un FALLO. vend1 nunca pasa
+  // la compuerta: la sonda de despliegue no puede escribir.
+  const SOLICITUD_ASIGNAR_GATE = '00000000-0000-4000-8000-0000000a51a0';
+  async function puertaCuentasPagoDesplegada(fn, args) {
+    const probe = await sessions.vend1.client.schema('crm').rpc(fn, args);
+    if (probe.error?.code !== 'PGRST202') return true;
+    const msg = `⚠ ${fn} NO desplegada en esta base: sus sondas se SALTAN (no probado)`;
+    if (process.env.CRM_RLS_EXIGE_CUENTAS_PAGO === '1') fail(msg);
+    else console.log(`  ${msg}`);
+    return false;
+  }
+  const motivosDesplegada = await puertaCuentasPagoDesplegada('cuentas_pago_motivos_fn', {
+    p_contrato_ids: [],
+  });
+  const asignarDesplegada = await puertaCuentasPagoDesplegada('asignar_cuenta_pago_contrato', {
+    p_solicitud_id: SOLICITUD_ASIGNAR_GATE,
+    p_contrato_id: seed.legacyContract.id,
+    p_cuenta_id: seed.bankAccount.id,
+    p_motivo: 'Motivo de prueba del gate',
+  });
   const expectedProfileAccount = {
     banco: BANK_CLIENT.bank,
     tipo_cuenta: BANK_CLIENT.accountType,
@@ -4778,7 +4801,31 @@ async function testContractBankAccounts(sessions, seed) {
       ['42501'],
       /no autorizado para consultar cuentas de pago/i,
     );
+    if (motivosDesplegada) {
+      await expectExpectedFailure(
+        `${label}: no lee el motivo del bloqueo de pagos`,
+        sessions.vend1.client.schema('crm').rpc('cuentas_pago_motivos_fn', {
+          p_contrato_ids: [seed.legacyContract.id],
+        }),
+        ['42501'],
+        /no autorizado para consultar cuentas de pago/i,
+      );
+    }
+    if (asignarDesplegada) {
+      await expectExpectedFailure(
+        `${label}: no asigna la cuenta de pago de un contrato`,
+        sessions.vend1.client.schema('crm').rpc('asignar_cuenta_pago_contrato', {
+          p_solicitud_id: SOLICITUD_ASIGNAR_GATE,
+          p_contrato_id: seed.legacyContract.id,
+          p_cuenta_id: seed.bankAccount.id,
+          p_motivo: 'Motivo de prueba del gate',
+        }),
+        ['42501'],
+        /solo administración puede asignar la cuenta de pago/i,
+      );
+    }
   }
+
 
   async function assertAdminBankRead(client, label) {
     const listed = await positive(
@@ -4808,6 +4855,67 @@ async function testContractBankAccounts(sessions, seed) {
         ),
       `${label}: Pagos recibe la fotografia contractual esperada`,
     );
+
+    if (motivosDesplegada) {
+      // 20261001233019: el motivo del bloqueo solo viene para los contratos que
+      // NO se pueden pagar, redactado para la persona y sin datos bancarios.
+      const CASOS_SIN_PAGO = ['una_cuenta', 'varias_cuentas', 'otra_moneda', 'sin_cuenta', 'cuenta_no_corresponde'];
+      const motivos = await positive(
+        `${label}: lee el motivo del bloqueo de pagos`,
+        client.schema('crm').rpc('cuentas_pago_motivos_fn', {
+          p_contrato_ids: [seed.contract.id, seed.legacyContract.id],
+        }),
+      );
+      const filasMotivo = Array.isArray(motivos?.data) ? motivos.data : [];
+      check(
+        !filasMotivo.some((row) => row.contrato_id === seed.contract.id),
+        `${label}: un contrato con cuenta de pago no trae motivo`,
+      );
+      const motivoLegacy = filasMotivo.filter((row) => row.contrato_id === seed.legacyContract.id);
+      check(
+        motivoLegacy.length === 1
+          && CASOS_SIN_PAGO.includes(motivoLegacy[0].caso)
+          && typeof motivoLegacy[0].mensaje === 'string'
+          && motivoLegacy[0].mensaje.includes('cuenta de pago'),
+        `${label}: el contrato legacy sin enlace trae su caso y su motivo`,
+      );
+      check(
+        motivoLegacy.every((row) => !row.mensaje.includes(BANK_CLIENT.cci)),
+        `${label}: el motivo no expone el CCI del cliente`,
+      );
+      const sinIds = await positive(
+        `${label}: sin contratos pedidos no hay motivos`,
+        client.schema('crm').rpc('cuentas_pago_motivos_fn', { p_contrato_ids: [] }),
+      );
+      check(
+        Array.isArray(sinIds?.data) && sinIds.data.length === 0,
+        `${label}: la puerta de motivos nunca clasifica todos los contratos`,
+      );
+      await expectExpectedFailure(
+        `${label}: la puerta de motivos rechaza más de 5000 contratos`,
+        client.schema('crm').rpc('cuentas_pago_motivos_fn', {
+          p_contrato_ids: Array.from({ length: 5001 }, () => seed.contract.id),
+        }),
+        ['22023'],
+        /demasiados contratos en una sola consulta/i,
+      );
+    }
+    // 20261002005004: administración PASA la compuerta de la asignación (llega a la validación
+    // del motivo) sin escribir nada: el contrato legacy tiene que seguir sin enlace para el
+    // resto del gate.
+    if (asignarDesplegada) {
+      await expectExpectedFailure(
+        `${label}: la asignación de cuenta de pago llega al núcleo y exige el motivo`,
+        client.schema('crm').rpc('asignar_cuenta_pago_contrato', {
+          p_solicitud_id: SOLICITUD_ASIGNAR_GATE,
+          p_contrato_id: seed.legacyContract.id,
+          p_cuenta_id: seed.bankAccount.id,
+          p_motivo: '   ',
+        }),
+        ['22023'],
+        /escribe el motivo de la asignación/i,
+      );
+    }
   }
 
   // El fixture principal usa el rol portal neutro `comercial` para probar que el
@@ -5033,6 +5141,29 @@ async function testContractBankAccounts(sessions, seed) {
       ['42501'],
       /no autorizado para consultar cuentas de pago/i,
     );
+    if (motivosDesplegada) {
+      await expectExpectedFailure(
+        'admin con membresia CRM revocada: la revocacion prevalece sobre el motivo del bloqueo',
+        sessions.directorio.client.schema('crm').rpc('cuentas_pago_motivos_fn', {
+          p_contrato_ids: [seed.legacyContract.id],
+        }),
+        ['42501'],
+        /no autorizado para consultar cuentas de pago/i,
+      );
+    }
+    if (asignarDesplegada) {
+      await expectExpectedFailure(
+        'admin con membresia CRM revocada: no asigna la cuenta de pago de un contrato',
+        sessions.directorio.client.schema('crm').rpc('asignar_cuenta_pago_contrato', {
+          p_solicitud_id: SOLICITUD_ASIGNAR_GATE,
+          p_contrato_id: seed.legacyContract.id,
+          p_cuenta_id: seed.bankAccount.id,
+          p_motivo: 'Motivo de prueba del gate',
+        }),
+        ['42501'],
+        /solo administración puede asignar la cuenta de pago/i,
+      );
+    }
     // P04 sobre la CORRECCION de contratos por la via admin del Portal
     // (20260809003923). El alta ya estaba gateada para todo actor desde el
     // catalogo; corregir no lo estaba: la rama admin de public.actualizar_contrato
@@ -5170,6 +5301,29 @@ async function testContractBankAccounts(sessions, seed) {
       ['42501'],
       /no autorizado para consultar cuentas de pago/i,
     );
+    if (motivosDesplegada) {
+      await expectExpectedFailure(
+        'admin sin membresia con perfil APAGADO: no lee el motivo del bloqueo de pagos',
+        sessions.directorio.client.schema('crm').rpc('cuentas_pago_motivos_fn', {
+          p_contrato_ids: [seed.legacyContract.id],
+        }),
+        ['42501'],
+        /no autorizado para consultar cuentas de pago/i,
+      );
+    }
+    if (asignarDesplegada) {
+      await expectExpectedFailure(
+        'admin sin membresia con perfil APAGADO: no asigna la cuenta de pago de un contrato',
+        sessions.directorio.client.schema('crm').rpc('asignar_cuenta_pago_contrato', {
+          p_solicitud_id: SOLICITUD_ASIGNAR_GATE,
+          p_contrato_id: seed.legacyContract.id,
+          p_cuenta_id: seed.bankAccount.id,
+          p_motivo: 'Motivo de prueba del gate',
+        }),
+        ['42501'],
+        /solo administración puede asignar la cuenta de pago/i,
+      );
+    }
     await requireAdmin(
       'banca P04: reactivar el perfil portal de directorio',
       admin.from('perfiles').update({ activo: true }).eq('id', directorProfileId),
@@ -5741,6 +5895,35 @@ async function testContractBankAccounts(sessions, seed) {
         `${key} no usa el resolver de cuentas reservado al administrador`,
         sessions[key].client.schema('crm').rpc('cuentas_pago_contratos_fn', {
           p_contrato_ids: [seed.contract.id],
+        }),
+      );
+      if (motivosDesplegada) {
+        await expectExplicitAuthorizationDenied(
+          `${key} no lee el motivo del bloqueo de pagos reservado al gestor de cartera`,
+          sessions[key].client.schema('crm').rpc('cuentas_pago_motivos_fn', {
+            p_contrato_ids: [seed.legacyContract.id],
+          }),
+        );
+      }
+    }
+    // El propio cliente del contrato tampoco: el motivo cuenta cuántas cuentas tiene y en qué moneda.
+    if (motivosDesplegada) {
+      await expectExplicitAuthorizationDenied(
+        'clientBank no lee el motivo del bloqueo de pagos de su propio contrato',
+        sessions.clientBank.client.schema('crm').rpc('cuentas_pago_motivos_fn', {
+          p_contrato_ids: [seed.legacyContract.id],
+        }),
+      );
+    }
+    // Ni el analista, ni un rol global, ni el propio cliente deciden a qué cuenta se le paga.
+    for (const key of asignarDesplegada ? ['vend1', 'directorio', 'clientBank'] : []) {
+      await expectExplicitAuthorizationDenied(
+        `${key} no asigna la cuenta de pago de un contrato`,
+        sessions[key].client.schema('crm').rpc('asignar_cuenta_pago_contrato', {
+          p_solicitud_id: SOLICITUD_ASIGNAR_GATE,
+          p_contrato_id: seed.legacyContract.id,
+          p_cuenta_id: seed.bankAccount.id,
+          p_motivo: 'Motivo de prueba del gate',
         }),
       );
     }
@@ -13878,6 +14061,19 @@ async function testIdentidadMultiempresa(sessions, seed) {
     await positive('#5 gerencia CON motivo levanta',
       sessions.gerencia.client.schema('crm').rpc('levantar_no_contactar', { p_lead_id: IDS_IDENTIDAD.veto, p_motivo: 'cliente pidió reactivar' }));
     if (cuenta('veto levantado', `select count(*) from crm.inversionistas where id in ${idsPorDoc(DOCS_IDENTIDAD.veto)} and not no_contactar`) !== 1) fail('#5: gerencia no pudo levantar el veto');
+    // B2 · Base para gestión (20261002061500, D5): Supervisión levanta dentro de su equipo; fuera, P0002; otros roles 42501.
+    await positive('#5 B2 re-marcar para probar Supervisión',
+      sessions.vend1.client.schema('crm').rpc('marcar_no_contactar', { p_lead_id: IDS_IDENTIDAD.veto, p_motivo: 'supervision' }));
+    await expectExpectedFailure('#5 B2 sup2 (otro equipo) no levanta → P0002 (no revela el lead)',
+      sessions.sup2.client.schema('crm').rpc('levantar_no_contactar', { p_lead_id: IDS_IDENTIDAD.veto, p_motivo: 'ajeno' }), ['P0002'], /fuera de tu [aá]mbito/i);
+    await expectExpectedFailure('#5 B2 coordinador no levanta → 42501',
+      sessions.coordinador.client.schema('crm').rpc('levantar_no_contactar', { p_lead_id: IDS_IDENTIDAD.veto, p_motivo: 'coordina' }), ['42501'], /Gerencia o Supervisi/i);
+    await expectExpectedFailure('#5 B2 sup1 sin motivo → 22023',
+      sessions.sup1.client.schema('crm').rpc('levantar_no_contactar', { p_lead_id: IDS_IDENTIDAD.veto, p_motivo: ' ' }), ['22023'], /motivo/i);
+    await positive('#5 B2 sup1 (su equipo) levanta CON motivo',
+      sessions.sup1.client.schema('crm').rpc('levantar_no_contactar', { p_lead_id: IDS_IDENTIDAD.veto, p_motivo: 'cliente pidió volver (supervisión)' }));
+    if (cuenta('veto levantado por supervisión', `select count(*) from crm.inversionistas where id in ${idsPorDoc(DOCS_IDENTIDAD.veto)} and not no_contactar`) !== 1) fail('#5 B2: supervisión no pudo levantar el veto de su equipo');
+    if (cuenta('historial por Supervisión', `select count(*) from crm.actividades where lead_id = '${IDS_IDENTIDAD.veto}' and detalle = 'Levantado No contactar por Supervisión' and metadata->>'rol' = 'supervisor'`) !== 1) fail('#5 B2: el historial no dice «por Supervisión» con rol');
     // herencia al INSERT: se vuelve a vetar y un lead NUEVO del mismo documento nace vetado
     await positive('#5 re-marcar para probar herencia',
       sessions.vend1.client.schema('crm').rpc('marcar_no_contactar', { p_lead_id: IDS_IDENTIDAD.veto, p_motivo: 'herencia' }));
@@ -14956,6 +15152,23 @@ async function testAnon(seed) {
     }),
     ['PGRST202'],
   );
+  await expectExplicitAuthorizationDenied(
+    'anon no lee el motivo del bloqueo de pagos',
+    anon.schema('crm').rpc('cuentas_pago_motivos_fn', {
+      p_contrato_ids: [seed.legacyContract.id],
+    }),
+    ['PGRST202'],
+  );
+  await expectExplicitAuthorizationDenied(
+    'anon no asigna la cuenta de pago de un contrato',
+    anon.schema('crm').rpc('asignar_cuenta_pago_contrato', {
+      p_solicitud_id: '00000000-0000-4000-8000-0000000a51a0',
+      p_contrato_id: seed.legacyContract.id,
+      p_cuenta_id: seed.bankAccount.id,
+      p_motivo: 'Motivo de prueba del gate',
+    }),
+    ['PGRST202'],
+  );
   // C1: las RPC de reparto solo tienen grant para `authenticated`.
   await expectBlockedMutation(
     'anon no puede ver la cola por repartir',
@@ -15469,6 +15682,7 @@ async function testPotencialLead(sessions, seed) {
     return;
   }
   if (encendida !== 0) {
+    fail('potencial: la bandera potencial_lead está ENCENDIDA; este bloque no corre para no escribir marcas');
     fail('potencial: la bandera potencial_lead está ENCENDIDA; este bloque no corre para no escribir marcas. Si la dejó así una corrida interrumpida del bloque de lectura, repónla con supabase/scripts/potencial-lead/apagar-bandera.sql');
     return;
   }
@@ -15524,6 +15738,75 @@ async function testPotencialLead(sessions, seed) {
   await expectExpectedFailure('potencial vend1 INSERT directo en crm.lead_potencial_eventos → 42501',
     sessions.vend1.client.schema('crm').from('lead_potencial_eventos').insert({ lead_id: idDe('juan'), nivel_nuevo: 'estrella', motivo: 'manual', por: seed.profileIdByKey.vend1 }),
     ['42501'], DENEGADO);
+}
+
+// ── Base para gestión del analista · B1 (20261002054402): columnas selladas y CHECK del intento ──
+// Qué prueba: (1) nadie escribe reactivado_en / enfriado_hasta por PATCH, ni el dueño ni su supervisor ni
+// gerencia (sello 42501); (2) un PATCH no-op con el mismo valor NULL pasa, para que los parches parciales del
+// drawer no se rompan; (3) las dos columnas viajan por la API (la falla silenciosa conocida de los grants por
+// columna); (4) un INSERT de actividad con evento intento_base desde la API muere en el trigger «solo núcleo»
+// si trae claves reservadas (42501) y en el CHECK si no trae resultado (23514); (5) fuera de banda, el
+// contrato del sello y de las constantes y la ACL por columna (pg_attribute.attacl, no column_privileges).
+// Salto RUIDOSO si la migración no está en esta base; con CRM_RLS_EXIGE_BASE_GESTION=1 es un FALLO.
+async function testBaseGestionB1(sessions, seed) {
+  console.log('\n— Base para gestión B1: reactivado_en / enfriado_hasta selladas y CHECK intento_base —');
+  const saltar = (msg) => {
+    if (process.env.CRM_RLS_EXIGE_BASE_GESTION === '1') fail(msg);
+    else console.log(`  ${msg}`);
+  };
+  let aplicada;
+  try {
+    aplicada = contarFueraDeBanda('base gestión: esquema aplicado',
+      `select (to_regprocedure('private.base_gestion_constantes()') is not null and exists (select 1 from information_schema.columns where table_schema = 'crm' and table_name = 'leads' and column_name = 'enfriado_hasta'))::int`);
+  } catch (error) {
+    saltar(`⚠ Base para gestión B1 SALTADO: sin vía fuera de banda (${error?.message ?? String(error)})`);
+    return;
+  }
+  if (aplicada !== 1) {
+    saltar('⚠ 20261002054402 (base gestión B1) NO desplegada en esta base: bloque SALTADO (no probado)');
+    return;
+  }
+  const idDe = (clave) => seed.leadByName.get(LEAD_BY_KEY[clave].name)?.id;
+  const SELLO = /base para gestion/i;
+  const hoy = new Date().toISOString().slice(0, 10);
+  const patch = (cliente, clave, cambios) => cliente.schema('crm').from('leads').update(cambios).eq('id', idDe(clave)).select('id');
+  // (1) Sello: 42501 para dueño, supervisor del subárbol y gerencia, en las dos columnas.
+  await expectExpectedFailure('B1 vend1 PATCH enfriado_hasta en su lead (juan) → 42501', patch(sessions.vend1.client, 'juan', { enfriado_hasta: hoy }), ['42501'], SELLO);
+  await expectExpectedFailure('B1 vend1 PATCH reactivado_en en su lead (juan) → 42501', patch(sessions.vend1.client, 'juan', { reactivado_en: new Date().toISOString() }), ['42501'], SELLO);
+  await expectExpectedFailure('B1 sup1 PATCH enfriado_hasta en lead de su subárbol (carlos) → 42501', patch(sessions.sup1.client, 'carlos', { enfriado_hasta: hoy }), ['42501'], SELLO);
+  await expectExpectedFailure('B1 gerencia PATCH enfriado_hasta (juan) → 42501', patch(sessions.gerencia.client, 'juan', { enfriado_hasta: hoy }), ['42501'], SELLO);
+  // (2) No-op: mismo valor NULL → pasa (los parches parciales del drawer siguen funcionando).
+  await positive('B1 vend1 PATCH enfriado_hasta: null sobre NULL → 200 (no-op)', patch(sessions.vend1.client, 'juan', { enfriado_hasta: null }));
+  // (3) Las columnas viajan por la API.
+  const sel = await positive('B1 vend1 SELECT id, enfriado_hasta, reactivado_en (juan)',
+    sessions.vend1.client.schema('crm').from('leads').select('id, enfriado_hasta, reactivado_en').eq('id', idDe('juan')).single());
+  assertions += 1;
+  if (sel?.data && 'enfriado_hasta' in sel.data && 'reactivado_en' in sel.data) console.log('  ✓ B1 enfriado_hasta y reactivado_en viajan por la API');
+  else fail('B1: la API no devolvió enfriado_hasta / reactivado_en (grant por columna ausente)');
+  // (4) El intento de la base no se forja desde la API.
+  const actividad = (metadata) => sessions.vend1.client.schema('crm').from('actividades').insert({
+    creado_por: sessions.vend1.user.id, detalle: 'B1 TRANSIENT', lead_id: idDe('juan'), tipo: 'nota', metadata,
+  }).select('id');
+  await expectExpectedFailure('B1 vend1 INSERT actividad intento_base con resultado → 42501 (claves del núcleo)',
+    actividad({ evento: 'intento_base', resultado: 'no_contesto', intento_n: 1, ciclo_n: 1 }), ['42501'], /solo lo escribe/i);
+  await expectExpectedFailure('B1 vend1 INSERT actividad intento_base sin resultado → 23514 (CHECK)',
+    actividad({ evento: 'intento_base', ciclo_n: 1 }), ['23514'], /actividades_intento_base_forma/i);
+  // (5) Fuera de banda: contrato del sello, constantes y ACL por columna.
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`base gestión: ${etiqueta}`, sql);
+  check(cuenta('sello definer', `select count(*) from pg_proc p where p.oid = 'private.trg_leads_zz_sello_base_gestion()'::regprocedure and p.prosecdef and p.proowner = 'postgres'::regrole and p.proconfig = array['search_path=""']::text[]`) === 1,
+    'B1 el sello es DEFINER de postgres con search_path vacío');
+  check(cuenta('sin execute API', `select count(*) from unnest(array['anon','authenticated','service_role']) r(rol) where has_function_privilege(r.rol, 'private.trg_leads_zz_sello_base_gestion()', 'EXECUTE') or has_function_privilege(r.rol, 'private.base_gestion_constantes()', 'EXECUTE')`) === 0,
+    'B1 sello y constantes sin EXECUTE para la API');
+  check(cuenta('trigger', `select count(*) from pg_trigger t where t.tgrelid = 'crm.leads'::regclass and t.tgname = 'trg_leads_zz_sello_base_gestion' and t.tgenabled = 'O' and (t.tgtype & 2) = 2 and (t.tgtype & 4) = 4 and (t.tgtype & 16) = 16`) === 1,
+    'B1 trigger del sello BEFORE INSERT OR UPDATE, habilitado');
+  check(cuenta('anon', `select (has_column_privilege('anon', 'crm.leads', 'enfriado_hasta', 'SELECT') or has_column_privilege('anon', 'crm.leads', 'reactivado_en', 'SELECT'))::int`) === 0,
+    'B1 anon no lee las columnas nuevas');
+  check(cuenta('acl por columna', `select count(*) from pg_attribute a, aclexplode(a.attacl) e where a.attrelid = 'crm.leads'::regclass and a.attname in ('reactivado_en', 'enfriado_hasta') and e.privilege_type in ('INSERT', 'UPDATE') and e.grantee in ('anon'::regrole, 'authenticated'::regrole)`) === 0,
+    'B1 sin INSERT/UPDATE por columna para la API (pg_attribute.attacl)');
+  check(cuenta('constantes', `select (c.max_intentos = 3 and c.dias_enfriamiento = 30)::int from private.base_gestion_constantes() c`) === 1,
+    'B1 constantes de negocio 3 intentos / 30 días');
+  check(cuenta('check validado', `select count(*) from pg_constraint where conrelid = 'crm.actividades'::regclass and conname = 'actividades_intento_base_forma' and convalidated`) === 1,
+    'B1 CHECK actividades_intento_base_forma validado');
 }
 
 // ── Potencial del lead (20261001151704): puerta de LECTURA crm.potencial_leads_fn ─────────────
@@ -16208,6 +16491,7 @@ async function main() {
       await testCorreoAccesoCliente(sessions, verifiedSeed);
       await testVentaCruzada(sessions, verifiedSeed);
       await testPotencialLead(sessions, verifiedSeed);
+      await testBaseGestionB1(sessions, verifiedSeed);
       await testPotencialLectura(sessions, verifiedSeed);
       await testPotencialFiltro(sessions, verifiedSeed);
     }

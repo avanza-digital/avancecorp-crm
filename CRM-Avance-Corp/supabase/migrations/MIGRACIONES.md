@@ -1,3 +1,215 @@
+## 20261002005004 — Asignar la cuenta de pago a un contrato que no tiene ninguna (`crm.asignar_cuenta_pago_contrato`)
+
+**✅ APLICADA EN PRODUCCIÓN EL 02/10/2026 (~10:01 Lima)** con `db query --linked --file`: devolvió
+`ASIGNAR_CUENTA_PAGO_OK`; registrada con `scripts/cuentas-pago-asignar/registrar.sql`. Portal (botón «Asignar
+cuenta») publicado el mismo día (`bd3aab6`, `pagos.js v46`, SW v138). OK de Miguel, 01/10/2026 ~20:40 Lima: «solo quiero que
+pueda marcar los pagos… hagamos eso» y «no hace falta correo solo motivo sii» (botón «Asignar
+cuenta» en Pagos; solo administración; motivo obligatorio; sin adjunto). El OK cubre lo que roza
+`public`: el núcleo LEE y bloquea `FOR SHARE` la fila de `public.contratos`; no se crean ni cambian
+triggers, políticas ni tablas de `public`.
+
+Qué hace: tabla `crm.contrato_cuenta_pago_asignaciones` (constancia inmutable: solicitud, contrato,
+cliente, cuenta, vínculo, motivo, quién y cuándo; sin claves foráneas, RLS sin políticas, sin
+permisos para la API, no se borra ni se modifica, con bitácora) y la operación
+`crm.asignar_cuenta_pago_contrato(uuid, uuid, uuid, text)` (puerta INVOKER) →
+`private.asignar_cuenta_pago_contrato_autorizado` (núcleo DEFINER): PRIMERA cuenta de pago de un
+contrato abierto que no tiene ninguna, con una cuenta vigente del mismo cliente y moneda; solo
+admin o superadmin vigente (`private.admin_banca_vigente`); idempotente por solicitud; el vínculo
+queda con `creado_por` = quien asigna. Candados en el orden de F3: cuenta → contrato → vínculo;
+dos asignaciones a la vez las resuelve la unicidad del vínculo por contrato.
+
+Por qué una operación nueva y no ampliar F3: el historial de cambios
+(`crm.contrato_cuenta_pago_cambios`) exige cuenta anterior, respaldo del cliente y dispara un
+aviso; una primera asignación no es un cambio pedido por el cliente. No sella cuotas ya pagadas,
+no avisa al cliente y no cambia una cuenta ya asignada. Independiente de `20261001233019`.
+
+EXECUTE: puerta y núcleo, solo `authenticated`; el candado, nadie. `search_path` vacío; huellas de
+los tres cuerpos selladas en el postflight; ancla por md5 la compuerta de F3 y los candados del
+vínculo de los que depende. La constancia no se modifica, no se borra y no se vacía (TRUNCATE).
+Devuelve contrato, banco, moneda y los 4 últimos caracteres de la cuenta (nunca el número entero).
+
+Excepciones y límites anotados: (a) la tabla no lleva `negocio_id` ni `updated_at`, como las
+constancias de F3 y F4 del mismo módulo; (b) el motivo queda en claro en `public.audit_log`, igual
+que los de F3 y F4 (la pantalla pide no escribir números de cuenta, CCI ni documentos); (c) no hay
+todavía pantalla que LEA la constancia; (d) una asignación equivocada solo se corrige con «Cambiar
+cuenta de pago» (F3: correo del cliente y aviso); (e) como en la carga, si después se corrige la
+FECHA de una cuota pagada antes de asignar, el sello de F5 la marca «inferido» en la cuenta
+asignada; (f) con esta migración aplicada, la reversa de F3 se niega (comparte su candado «no se
+borra»); (g) `service_role` conserva el INSERT directo previo sobre el vínculo (20260803221622).
+
+Reversión: `supabase/scripts/cuentas-pago-asignar/reversa.sql` (sin asignaciones registradas y con
+las piezas enteras retira todo y quita la versión del registro; en cualquier otro caso no borra
+nada y solo cierra la puerta, quitándole el EXECUTE a todo el que lo tenga) y `reabrir-puerta.sql`
+(se niega si las piezas no están enteras). Las dos se GENERAN con `generar-derivados.py`, con una
+sola definición de «piezas enteras». Guía en `supabase/scripts/cuentas-pago-asignar/LEEME.md`. El
+portal (botón en Pagos) se publica DESPUÉS.
+
+Verificación (01–02/10/2026, banco Docker propio con el esquema de producción del día y siembra
+ficticia; nada en producción):
+- `supabase/scripts/cuentas-pago-asignar/ciclo.sh`: 386 pasos, 0 fallos, 11 hechos medidos, 19 237
+  comprobaciones dentro de las pruebas, 16 tramos, 4 min. Aplicar (veredicto como fila), repetir
+  (se niega), reversa sin y con asignaciones, cerrar → reabrir → asignar, registrador, y las dos
+  migraciones juntas en los dos órdenes: PASS. Prueba SQL: 2 721 comprobaciones sola y 2 760 con
+  las dos migraciones, sin dejar nada escrito. Trinquetes: foto idéntica sin y con la migración.
+- A dos sesiones (`prueba-concurrencia.sh`, 24 casos + 3 con la carga): dos asignaciones a la vez
+  (una gana, la otra recibe «ya tiene cuenta de pago»), doble clic (idempotente), pago, F3, F4 y
+  la carga automática cruzados con «Asignar»: sin interbloqueos. El `for share` de la cuenta ANTES
+  de escribir es lo que evita el interbloqueo con la carga (su mutante da `deadlock detected`).
+- Guarda de aislamiento: REPEATABLE READ y SERIALIZABLE → `0A000` sin escribir nada. Sin la guarda
+  (mutante, dos sesiones) la solicitud repetida responde «ya tiene cuenta» en vez de `ya_aplicada`
+  y una administradora revocada tras la fotografía asigna.
+- Sellos: los previos quedan idénticos y el pago posterior sella en la cuenta asignada.
+- Mutantes: 67 de la migración (64 los para el postflight; el permiso por columna y el CHECK
+  aflojado los caza la prueba; uno es equivalente en este banco), 67 inyectados en la prueba (59
+  los caza algún tramo; de los otros 8, dos son equivalentes y seis los caza la concurrencia), 10 de
+  concurrencia, 14 mundos de preflight (todos negados), 19 de «piezas enteras» (cada cláusula,
+  quitada, hace que reabrir reabra exactamente en sus mundos; 37 mundos alterados se niegan) y 3
+  de la reversa (delatados).
+- auditor-rls: CHANGES_REQUESTED sin P0. Aceptado: la unicidad solo se traduce si es la del vínculo,
+  candado contra TRUNCATE, veredicto leído del estado, `ultimos` (4 caracteres y solo si el número
+  tiene 8 o más), preflight más estricto, sin índices que nadie usa, reversa en dos ramas y
+  `reabrir-puerta.sql`. Riesgo previo anotado: el INSERT directo de `service_role` sobre el vínculo.
+- Codex (`docs/encargos/2026-10-01-codex-asignar-cuenta-pago-r1.md` y `-respuesta.md`):
+  CHANGES_REQUESTED sin P0. ACEPTADO: (P1) el núcleo se niega fuera de READ COMMITTED (`0A000`):
+  con una fotografía fija vería vigente a una administradora ya revocada y perdería la
+  idempotencia; (P2) la reversa cierra aunque falte una pieza y a todo el que tenga EXECUTE; (P2)
+  reabrir comprueba la compuerta de F3, los candados y la bitácora; (P2) la unicidad se reconoce
+  por el NOMBRE de la restricción (una colisión de la clave primaria sube cruda); (P3) el portal
+  valida el motivo como el servidor y no abre otra ventana durante un envío. FUERA DE ALCANCE,
+  MEDIDO Y ANOTADO: (P1, riesgo previo) «Retirar cuenta» (F4) no lleva esa negativa: lanzado a
+  mano en REPEATABLE READ retira una cuenta recién asignada (en READ COMMITTED se niega en los dos
+  órdenes). Por la API no ocurre. Propuesta para Miguel: migración aparte que ponga la misma
+  negativa a F3 y F4.
+- Banco, hallazgos aplicados: «piezas enteras» ahora mira también la unicidad del vínculo por
+  contrato, que la puerta y el núcleo sean VOLATILE y que la constancia siga sin claves foráneas,
+  sin permisos por columna y sin disparadores de más; la reversa revoca con `cascade` (un permiso
+  dado con opción de concederlo y vuelto a conceder ya no la frena); el veredicto distingue
+  `RETIRADA` de `RESTOS`. Límites declarados: reabrir no compara la definición del CHECK del motivo
+  (el núcleo lo valida por su cuenta); solo se asigna a contratos abiertos (hoy los 23 sin cuenta
+  están activos, censo del 01/10).
+- Que la API corre en READ COMMITTED no se pudo leer de producción; evidencia: trece puertas vivas
+  de `crm` con la misma negativa `0A000` (p. ej. `crm.editar_lead_fn`, `crm.tomar_lead_libre`,
+  `crm.reabrir_lead_fn`) las ejecuta `authenticated` a diario.
+- `npm run test:rls:preflight` PASS (variables ficticias, sin conexión) · matriz HTTP `test-rls.mjs`
+  (sondas nuevas escritas, con salto ruidoso si la puerta no está desplegada): NOT RUN (exige el
+  banco local compartido) · advisors: NOT RUN · `npm run gen:types`: tras aplicar.
+- Portal (rama `cuentas-pago-20261001` del worktree del portal, sin publicar): 200/200 pruebas.
+
+## 20261001233019 — Cuentas de pago: el bloqueo dice por qué, diagnóstico y carga del rezago (`crm.cuentas_pago_motivos_fn`)
+
+**✅ APLICADA EN PRODUCCIÓN EL 02/10/2026 (~09:59 Lima)** con `db query --linked --file`, tras el ensayo sin
+escribir (`veredicto: PASA`, 5/5 pagos como se esperaba, `fallos` y `sin_probar` vacíos). La carga vinculó 1
+contrato (`2026-01-001086`); censo 684·1·7·12·3 → 685·0·7·12·3 sobre 707 contratos; registrada con
+`scripts/cuentas-pago-rezago/registrar.sql`. Los 22 restantes se destraban con «Asignar cuenta».
+OK de Miguel, 01/10/2026 ~18:30 Lima: «dale» al plan por fases (censo → servidor → ensayo →
+portal), con los contratos de dos cuentas bloqueados hasta que Operaciones confirme. El OK cubre
+lo que roza `public`: la carga LEE y bloquea `FOR SHARE` filas de `public.contratos`, y cambia el
+TEXTO con que responden los dos triggers `trg_cronograma_pagos_10_exigir_cuenta_pago_*` de
+`public.cronograma_pagos` (no se crean, borran ni renombran triggers, tablas ni policies).
+
+Qué hace: (1) `private.cuenta_pago_diagnostico(uuid[])`, la regla única que clasifica cada
+contrato (`ok`, `una_cuenta`, `varias_cuentas`, `otra_moneda`, `sin_cuenta`,
+`cuenta_no_corresponde`) y redacta el motivo sin números de cuenta, CCI ni documentos;
+(2) `private.exigir_cuenta_pago_cronograma()` conserva su consulta `for share of cp, ct` y su
+23514; solo al rechazar dice el motivo, y solo a una conexión directa que no entra por la API, al
+rol de servicio o a un gestor de cartera con la membresía CRM vigente (un BEFORE INSERT corre
+antes de la RLS; a los demás, el texto genérico); (3) puerta `crm.cuentas_pago_motivos_fn(uuid[])`
+INVOKER → `private.cuentas_pago_motivos_autorizado(uuid[])` DEFINER, con la compuerta de
+`crm.cuentas_pago_contratos_fn`, tope de 5000 ids y sin ids no devuelve nada; (4) carga del
+rezago: vínculo solo donde el cliente tiene EXACTAMENTE UNA cuenta activa en la moneda del
+contrato, `creado_por` NULL, rastro en `private.backfill_cuentas_p0xx` con marca
+`migracion:rezago-vinculos:20261001`, tope de 23 y postcondiciones que cancelan todo si el antes y
+el después no cuadran o si el diagnóstico y el bloqueo discrepan en algún contrato real.
+
+EXECUTE: la puerta y su autorizador, solo `authenticated`; el diagnóstico y el bloqueo, nadie
+salvo el dueño (`service_role` tampoco). `search_path` vacío en las cuatro; huellas de los cuatro
+cuerpos selladas en preflight y postflight.
+
+Censo real del 01/10/2026 18:24 Lima (lo lanzó Miguel): 705 contratos · 682 `ok` · 1 con una sola
+cuenta (2026-01-001086) · 7 con dos cuentas · 12 con cuenta solo en la otra moneda · 3 sin cuenta.
+Resultado esperado de la carga: 683 / 0 / 7 / 12 / 3. Los 22 restantes NO se tocan: son de
+Operaciones. Cuando registren la cuenta que falta se lanza
+`supabase/scripts/cuentas-pago-rezago/vincular-rezago.sql` (la misma carga, sola).
+
+Decisiones anotadas: (a) inserción directa porque no existe función que vincule un contrato ya
+existente (el historial de cambios exige cuenta anterior y respaldo del cliente); (b) la guarda de
+S1 sobre perfiles legados en conciliación se conserva como CANCELACIÓN de la carga (en el censo
+ninguno de los 23 la tiene); (c) las cuotas ya pagadas de un contrato recién vinculado NO se
+sellan como «inferido»: se pagaron antes de existir el vínculo y un sello no se borra; (d) la
+CARGA nunca elige entre dos cuentas: quien elige es administración, con «Asignar cuenta»
+(`20261002005004`), después de confirmarlo con el cliente; (e) el detalle del motivo se le dice a
+toda sesión que no entra por la API (`session_user` distinto de `authenticator`) y no a una lista
+fija de usuarios: el canal con que se lanza el SQL crea su propio rol de acceso, así que una lista
+cerrada podría dejar a quien opera con el texto genérico; quien tiene una credencial de la base
+ya puede leerlo todo.
+
+Riesgos y huecos conocidos: la carga nunca elige entre dos cuentas (eso lo hace administración con
+«Asignar cuenta», `20261002005004`); la matriz HTTP (`test-rls.mjs`) cubre la puerta por rol pero
+NO el mensaje del bloqueo por rol ni una sesión de `operaciones` (se probó en el banco con sesiones
+simuladas y el ensayo de producción simula gestor y analista); no se probó con PostgREST, el pooler
+ni `supabase db query --linked` reales (el modo «archivo en un solo mensaje» se probó con `psql -c`);
+`app/src/lib/database.types.ts` se regenera tras aplicar (ninguna pantalla del CRM usa la puerta).
+
+Reversión: `supabase/scripts/cuentas-pago-rezago/reversa.sql` (se niega si algún vínculo de la
+carga ya registró un pago, un cambio de cuenta o un PDF) y `reversa-solo-codigo.sql`; las dos
+quitan también la versión del registro de migraciones. Guía y orden de publicación en
+`supabase/scripts/cuentas-pago-rezago/LEEME.md`.
+
+Verificación (01–02/10/2026, banco Docker propio con el esquema de producción del día, siembra
+ficticia de 15 contratos por caso; nada en producción):
+- `supabase/scripts/cuentas-pago-rezago/ciclo.sh`: 523 pasos, 0 fallos, 20 731 comprobaciones de la
+  prueba, 3 min 25 s (tres pasadas completas seguidas, las tres sin fallos). Aplicar, repetir,
+  revertir, reaplicar, negativas de la reversa (pago sellado, cambio de cuenta, PDF, triggers de
+  sello apagados), reversa solo del código, `vincular-rezago.sql`, registrador y registro de
+  versiones tras cada reversa: PASS.
+- A dos sesiones: una segunda cuenta registrada a mitad de la carga; pagos en vuelo frente a la
+  migración, al ensayo y a `reversa.sql`. Un pago solo toma `AccessShareLock` sobre las cuentas: no
+  espera a la carga. Ningún interbloqueo ni fallo de serialización. Sin las guardas de READ
+  COMMITTED (mutantes en REPEATABLE READ y SERIALIZABLE) la carga, la carga relanzable y la reversa
+  hacen el daño que el archivo real evita.
+- Medido con el bloqueo anterior: analista, cliente y anon llegan al trigger por INSERT (antes de
+  la RLS). Con el nuevo reciben el texto genérico; gestor, rol de servicio y conexión directa, el
+  detalle; una sesión de la API sin claims, el genérico.
+- Mutantes sobre el texto real: 75 de una sesión (1 control + 74: 38 los caza la prueba, 24 el
+  postflight, 7 las postcondiciones y 3 el `STRICT` de la carga; quitar el `lock table` y quitar
+  la guarda de aislamiento solo se ven a dos sesiones, y ahí se cazan), 4 a dos sesiones, 3 del
+  bloqueo dentro del ensayo y 12 de la última ronda (11 cazados; el superviviente es equivalente:
+  quitar `found` de la sonda del ensayo da lo mismo, porque ya lo cubre la comprobación del estado).
+- Camino feliz: no invoca el diagnóstico (probado sustituyéndolo por uno que falla); 200 pagos,
+  26–32 ms con el bloqueo anterior y 26–33 ms con el nuevo (ruido).
+- Trinquetes (`private.assert_*()` + censo de contadores): idénticos sin y con la migración.
+- Ensayo de producción corrido contra el banco (en ANTES y ya aplicada) en sus tres veredictos:
+  `PASA` (foto idéntica antes y después), `INCOMPLETO` (un caso sin cuota que probar; una cuota
+  ocupada por un pago real en curso) y `FALLA` (bloqueo alterado; pago permitido que no tiene
+  efecto: UPDATE anulado, sello apagado, sello en otra cuenta, estado que no cambia).
+- Constancia de la carga: en una misma sesión, una corrida que se niega después de una buena no
+  repite la constancia anterior (sentencia a sentencia sale vacía; en un solo mensaje no sale fila).
+- `npm run check:scripts` PASS · `npm run test:rls:preflight` PASS (variables ficticias, sin
+  conexión) · matriz HTTP `test-rls.mjs`: NOT RUN (exige un banco con API y credenciales).
+- auditor-rls: CHANGES_REQUESTED sin P0; aceptado todo salvo las sondas HTTP del mensaje por rol
+  (hueco declarado arriba).
+- Codex r1 (`docs/encargos/2026-10-01-codex-cuentas-pago-rezago-r1.md` y `-respuesta.md`):
+  CHANGES_REQUESTED sin P0. ACEPTADO: (P1) la carga, la carga relanzable y las reversas exigen
+  READ COMMITTED (en REPEATABLE READ leerían una fotografía anterior a su candado y la carga podría
+  elegir con dos cuentas); (P2) el ensayo distingue PASA / FALLA / INCOMPLETO y ya no da verde si
+  algo no se pudo probar; la reversa exige que los triggers de sello cuelguen de su función.
+  DOCUMENTADO (P2, previo a esta migración): un INSERT de alguien sin permiso ya permitía deducir
+  si un contrato está bloqueado (23514 frente al rechazo de la RLS; 55000 del trigger documental);
+  el texto genérico protege el DETALLE, no ese bit. REFUTADO con evidencia: «un pago necesita
+  candado sobre la tabla de cuentas por el FK del sello»: `crm.cuotas_cuenta_pagada` no tiene
+  claves foráneas (20260926204051, tabla y postflight). RECHAZADO: lista fija de usuarios para la
+  conexión directa (decisión (e) de arriba; el ensayo ahora informa con qué usuario corre).
+- Codex, seguimiento (va dentro de `docs/encargos/2026-10-01-codex-asignar-cuenta-pago-r1.md` y su
+  `-respuesta.md`). ACEPTADO: (P2) el ensayo daba «pagada» con solo no recibir error → ahora exige
+  la cuota en pagado y su sello en la cuenta del vínculo; (riesgo) la constancia de la carga podía
+  repetirse dentro de una misma sesión → se vacía antes del `begin`. De la observación del banco:
+  un `lock timeout` en una sonda del ensayo ya no es FALLA sino INCOMPLETO. Codex no reabrió ni la
+  objeción de la FK del sello ni la de la lista fija de `session_user`.
+- Riesgos previos que NO cambia esta migración: `service_role` conserva INSERT directo sobre
+  `crm.contrato_cuentas_pago` (20260803221622) y el trigger de coherencia no exige cuenta vigente;
+  ninguna Edge Function del repo escribe ahí.
+- Comportamiento previo que sigue (F5): si se corrige la FECHA de una cuota pagada antes del
+  vínculo, su sello la marca «inferido» en la cuenta vinculada.
 ## 20261001212341 — Potencial del lead · fase 3, entrega B: filtrar y contar Leads por potencial (`p_potencial`)
 
 **✅ EN PRODUCCIÓN desde el 01/10/2026 ~19:30 Lima (Miguel con `!`: migración, registro y verificación). ✅ PANTALLA
@@ -1219,6 +1431,38 @@ TODO integrador: `db query --linked --file` de la migración → registrador
 **Reversa:** `supabase/scripts/anexo-cronograma/reversa-anexo-snapshot.sql` (drop de las
 4 funciones + notify pgrst; CONSERVA la bitácora) + retirar esta fila. Si la Edge ya
 expone «anexo», revertir primero front y Edge.
+
+## 20260929010707 — Leads reasignados (`crm.cartera_filtrada_fn`)
+
+**PENDIENTE DE PUBLICAR.** El filtro y la cifra «Reasignados» cuentan leads con
+analista actual y una asignación anterior a un analista, según el evento
+`crm.actividades.tipo='reasignacion'` y `metadata.vendedor_anterior` no nulo.
+La primera entrega desde la bandeja no cuenta; A → bandeja → A sí cuenta.
+Sistema/Manual conserva la procedencia del alta y se muestra en paralelo.
+La RPC INVOKER pasa de 11 a 12 argumentos (`p_reasignados` al final) y retira
+la firma anterior; devuelve `reasignado` por fila, `resumen.totales.reasignados`
+y eco del filtro. Filas, cifra, capital y embudo usan la misma base antes de
+paginar. La consulta del historial hereda la RLS de actividades, coextensiva
+con leads. La exención analítica se mueve a la nueva firma y se resella.
+
+Ensayo: migración aplicada y fixture transaccional
+`supabase/scripts/test-leads-reasignados.sql` PASS en banco Docker aislado
+`avc_leads_reasignados_test3` (preflight/postflight de la versión actual);
+incluye el trigger real de primera entrega, A → A, A → B y bandeja; además
+la matriz de A → bandeja → B/A, filtros combinados, cursor, roles de Gerencia,
+analistas y supervisor, consumidor `resumen_cartera_fn`, veto de INSERT falso
+y denegación a anon. Se sellaron en el preflight/postflight la fuente trigger
+y la policy de INSERT que impide fabricar la marca. La branch temporal de
+Supabase falló antes de esta migración durante el replay histórico y fue
+eliminada; no equivale al ensayo remoto ni a los advisors. Lectura
+agregada de producción el 28/09: los 4.817 eventos de reasignación de agosto
+y setiembre tienen la clave `vendedor_anterior`; 152 contienen un analista
+anterior. La regla produce 104 leads de la cartera operativa global actual. Es una
+comprobación de datos, no una publicación de la migración. No se aplicó en
+producción.
+Reversa coordinada: restaurar la función de 11 argumentos de
+`20260919170500_crm_cartera_filtro_procedencia.sql`, devolverle la exención
+analítica y su sello, y publicar el frontend anterior en el mismo corte.
 
 ## 20260929004455 — Cola del día con clientes (`crm.cola_accion_v3_fn`)
 
@@ -15424,3 +15668,66 @@ coincide con `database.types.ts`.
 y fallo con `CRM_RLS_EXIGE_GESTION_DIARIA=1`) requiere el banco con semilla de actores y Auth: solo
 se comprobó su sintaxis. La sonda de anon pasó en el banco local; no se lanza contra producción.
 Advisors: no aplican al banco local.
+
+## 20261002054402 — Base para gestión del analista · B1 esquema
+
+**⏳ PENDIENTE DE RAMA (02/10/2026).** Ensayada en el banco sintético `base_gestion_20261002`
+(Docker, creado desde `conversion_tipos_v3_20260927`; `supabase/scripts/base-gestion/banco.mjs`):
+aplicar OK (postflight con negativos del CHECK y del sello), `test` 10/10, `reversa-y-reaplicar`
+PASS. Encargo P-0XX; decisiones D1–D10 de Miguel del 02/10 y plan B1 confirmado el mismo día
+(vault «Base para gestion del analista - F0 y decisiones (2026-10-01)»; FigJam `zbgq3gjYGsaaMCo6e140bU`).
+**Qué.** `crm.leads.reactivado_en timestamptz` (D9: marca de reactivación; `origen` no se toca) y
+`crm.leads.enfriado_hasta date` (D8: descanso de 30 días tras 3 intentos), ambas NULL, con GRANT
+SELECT por columna a authenticated/service_role y sello `trg_leads_zz_sello_base_gestion`
+(BEFORE INSERT OR UPDATE OF ambas; solo bajo GUC `crm.op_base_gestion=on` o sin usuario), porque
+la tabla concede a authenticated privilegios de TABLA y un grant por columna no protege.
+CHECK `actividades_intento_base_forma` (evento `intento_base` con el MISMO catálogo de 7 resultados
+de Gestión Diaria, `intento_n`/`ciclo_n` ≥ 1, `tarea_id` uuid obligatorio en `volver_a_llamar`),
+`not valid` + `validate`. `private.base_gestion_constantes()` = (3, 30), INVOKER, IMMUTABLE,
+sin EXECUTE para la API. **Sin índices nuevos** (`idx_leads_vendedor`, `tareas_pendientes_keyset_idx`
+ya cubren; EXPLAIN con datos reales queda para la rama). **Reutiliza, no crea:** resultado de llamada
+en `metadata`, rellamada en `crm.tareas`, `no_contactar` + actividad con motivo,
+`lead_asignaciones.motivo_apertura = 'reactivado'`. No reemplaza ninguna función sellada por huella.
+**Reversa:** `supabase/scripts/base-gestion/reversa-esquema.sql` (solo pierde los valores de las dos
+columnas). **Tipos:** `database.types.ts` con las dos columnas añadidas a mano en `leads`
+(Row/Insert/Update); el `gen:types` real se corre tras aplicar en la rama.
+**auditor-rls (02/10): CAMBIOS REQUERIDOS → aplicados y reensayados.** P1 aceptado: el postflight
+consultaba `information_schema.column_privileges`, que expande el grant de TABLA a cada columna y en
+producción (`authenticated=rw`, 20260919211105) habría abortado la migración; ahora comprueba la ACL por
+columna con `pg_attribute.attacl` (4 entradas SELECT exactas). El banco no replicaba ese ACL: se alineó
+(`authenticated=rw`, `service_role=arwd`) y se reensayó. P2 aceptado: el CHECK pasaba un `intento_base`
+SIN `resultado` (trampa NULL) → `coalesce` + negativo nuevo en el postflight. P2 aceptado: `test-rls.mjs`
+gana el bloque `testBaseGestionB1` (PATCH 42501 para dueño/supervisor/gerencia, no-op NULL → 200,
+SELECT con las columnas, INSERT de `intento_base` 42501/23514, contrato del sello y constantes fuera de
+banda; salto ruidoso si la migración no está, `CRM_RLS_EXIGE_BASE_GESTION=1` lo vuelve fallo). P3 aplicados:
+negativo del sello filtra `SQLERRM`, positivo con SQLSTATE propio `ZZ0B1`, lead del ensayo vivo y no terminal,
+comentario de grants sin el mito de «la red», justificación del DEFINER corregida, reversa con guarda por
+`prosrc`. **Exención documentada:** el sello deja escribir sin GUC a una sesión sin usuario (`auth.uid()`
+null: migraciones, jobs, service_role sin JWT), igual que el trigger «solo núcleo» de actividades;
+`anon` no llega (sin grants sobre `crm.leads`). **Nota para B3:** el CHECK exige `resultado` e `intento_n`,
+claves reservadas por `trg_00_actividades_resultado_solo_nucleo` bajo `crm.op_resultado_llamada`: el núcleo
+del intento encenderá los dos GUC (`crm.op_base_gestion` y `crm.op_resultado_llamada`) restaurando el valor
+previo. Reensayo tras los cambios: `reversa-y-reaplicar` PASS, `test` 12/12, `node --check` y
+`test:rls:preflight` (entorno ficticio de CI) PASS, `check:scripts` PASS, `typecheck` PASS.
+**Ciclo pendiente:** rama de Supabase (conector «claude.ai Supabase») → aplicar → `test-rls.mjs` →
+advisors → merge de Miguel. Siguen B2 (RLS/ámbito por RPC), B3 (puertas), B4 (trigger de enfriamiento).
+
+## 20261002061500 — Base para gestión del analista · B2 permisos (D5: Supervisión levanta «no contactar»)
+
+**⏳ PENDIENTE DE RAMA (02/10/2026).** Ensayada en el banco `base_gestion_20261002` con la ACL de producción
+copiada del stack local (`banco.mjs paridad-acl`): aplicar OK (postflight con negativos de analista y de
+Supervisión fuera de ámbito), `reversa-y-reaplicar-b2` PASS, `b2-rls.sql` 20/20 PASS (impersonación bajo
+`authenticated`: analista propio permitido / ajeno denegado, sello 42501, reasignar y reabrir bloqueados,
+Supervisión en su equipo OK, fuera P0002, Gerencia OK, historial con rol). Plan B2 confirmado por Miguel el 02/10.
+**Qué.** `crm.levantar_no_contactar(uuid,text)` sale del texto vivo (20260906160000, md5 prosrc 3840a73f…) por
+sustituciones exactas: gate `v_rol in ('supervisor','gerencia')` (NULL rechaza); ámbito de Supervisión ANTES de la
+identidad y los candados (espejo de `leads_select` sin gerencia → P0002 «no encontrado o fuera de tu ámbito»),
+revalidado bajo candado y exigido para TODOS los leads de la persona (`v_leads`) → 42501 «La persona tiene leads
+fuera de tu equipo: pídelo a Gerencia»; actividad «por Gerencia|Supervisión» con `rol`. Identidad, candados, 40001 y
+escritura bajo `crm.op_privilegiada` byte a byte. ACL reafirmada (EXECUTE solo authenticated). No está sellada por
+ningún `private.assert_*`. **Sin migración de RLS:** la RLS vigente ya cumple el B2 del encargo para el analista.
+**Reversa:** `supabase/scripts/base-gestion/reversa-no-contactar-supervisor.sql` (texto vivo byte a byte).
+**Hallazgo para B3 (D7-bis, decisión pendiente de Miguel):** `trg_tareas_before_insert` prohíbe tareas nuevas en
+leads cerrados → la rellamada de la base no puede ser una tarea; se propone columna sellada
+`crm.leads.proxima_llamada_en` (B1b). **Pendiente:** auditor-rls B2 y Codex B1+B2
+(`docs/encargos/2026-10-02-codex-base-gestion-b1-b2.md`), rama → `test-rls.mjs` → advisors → merge.
