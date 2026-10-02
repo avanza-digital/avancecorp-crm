@@ -54,8 +54,10 @@
 -- Reversión: ../scripts/cuentas-pago-rezago/reversa.sql (borra solo los vínculos de esta carga y
 -- se niega si alguno ya registró un pago, un cambio de cuenta o un PDF) y reversa-solo-codigo.sql.
 --
--- La constancia de una corrida anterior en esta misma sesión se vacía ANTES del begin (esa
--- sentencia se confirma sola): si esta corrida se niega, la fila final sale vacía, no repetida.
+-- La constancia de una corrida anterior en esta misma sesión se vacía ANTES del begin. Lanzado
+-- sentencia a sentencia, ese vaciado se confirma solo y una corrida que se niega deja la fila
+-- final vacía; lanzado entero en un solo mensaje, el error corta el resto y no sale fila final.
+-- En ningún caso sale repetida la constancia de otra corrida.
 select pg_catalog.set_config('crm.rezago_vinculos_resultado', '', false);
 begin;
 set local lock_timeout = '5s';

@@ -49,11 +49,33 @@ cualquier orden.
 Una asignación no se deshace desde pantalla ni se borra. Se corrige con «Cambiar cuenta de pago»
 (queda el historial del cambio, con el correo del cliente).
 
+## Cómo leer la última fila de cada guion
+
+La migración, `reversa.sql` y `reabrir-puerta.sql` terminan con una fila que dice el ESTADO en que
+está la base, no lo que hizo esa corrida. Si arriba hay un `ERROR`, la corrida no cambió nada y la
+fila describe lo que ya había.
+
+| Fila | Qué significa |
+|---|---|
+| `ASIGNAR_CUENTA_PAGO_OK` | Las piezas están puestas y la puerta abierta. |
+| `PUERTA_CERRADA: …` | Las piezas siguen, pero nadie puede asignar. No se borró nada. |
+| `PUERTA_REABIERTA` | Las piezas están enteras y se puede asignar otra vez. |
+| `RETIRADA: …` | No queda ninguna pieza de la migración. |
+| `RESTOS: …` | No quedan la puerta ni el núcleo, pero sí alguna otra pieza (alguien borró a mano). Se retira a mano antes de volver a aplicar la migración. |
+| `SIN_CAMBIOS: …` | La puerta sigue abierta. |
+
 ## Límites conocidos
 
 - La asignación solo corre en el modo de transacción normal (READ COMMITTED, el de la API). En
   otro modo se niega antes de mirar nada: con una fotografía fija podría ver vigente a un
-  administrador ya revocado o no ver la asignación que acaba de hacer otro intento.
+  administrador ya revocado o no ver la asignación que acaba de hacer otro intento. La API ya
+  trabaja en ese modo: trece puertas vivas del CRM (editar un lead, tomar un lead libre, reabrir
+  un lead…) llevan la misma negativa, las ejecuta `authenticated` y funcionan a diario.
+- Solo se asigna a contratos abiertos (activo o vencido). Hoy los 23 contratos sin cuenta están
+  activos. Si algún día un contrato cerrado sin cuenta tuviera cuotas por pagar, la pantalla no
+  ofrecerá el botón: es una decisión de negocio que se toma cuando aparezca.
+- `reabrir-puerta.sql` no compara la definición del CHECK del motivo (sí que exista y esté
+  validado); el núcleo valida el motivo por su cuenta.
 - Riesgo que ya existía y NO es de esta migración: «Retirar cuenta» y «Cambiar cuenta de pago» no
   llevan esa misma negativa. Por la API siempre van en el modo normal; solo quien lance SQL a mano
   en otro modo podría retirar una cuenta recién asignada. Arreglo propuesto, aparte y con OK de

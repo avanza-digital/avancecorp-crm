@@ -81,6 +81,36 @@ begin
       select 1 from pg_catalog.pg_constraint c
       where c.conrelid = pg_catalog.to_regclass('crm.contrato_cuenta_pago_asignaciones') and c.contype = 'c'
         and c.conname = 'contrato_cuenta_pago_asignaciones_motivo_valido' and c.convalidated)
+    -- lo que el núcleo da por hecho del vínculo: UNO por contrato, con el nombre por el que lo reconoce
+    and exists (
+      select 1
+      from pg_catalog.pg_constraint c
+      join pg_catalog.pg_index i on i.indexrelid = c.conindid
+      where c.conrelid = pg_catalog.to_regclass('crm.contrato_cuentas_pago') and c.contype = 'u'
+        and c.conname = 'contrato_cuentas_pago_contrato_id_key' and not c.condeferrable
+        and i.indisunique and i.indpred is null and i.indisvalid and i.indimmediate and i.indnatts = 1
+        and i.indkey[0] = (select a.attnum from pg_catalog.pg_attribute a
+                           where a.attrelid = pg_catalog.to_regclass('crm.contrato_cuentas_pago')
+                             and a.attname = 'contrato_id'))
+    -- la puerta y el núcleo escriben: las dos VOLATILE
+    and (select pg_catalog.count(*) from pg_catalog.pg_proc p
+         where p.oid in (pg_catalog.to_regprocedure('crm.asignar_cuenta_pago_contrato(uuid,uuid,uuid,text)'), pg_catalog.to_regprocedure('private.asignar_cuenta_pago_contrato_autorizado(uuid,uuid,uuid,text)'))
+           and p.provolatile = 'v') = 2
+    -- la constancia sigue sin claves foráneas, sin permisos por columna y sin disparadores de más
+    and not exists (
+      select 1 from pg_catalog.pg_constraint c
+      where c.conrelid = pg_catalog.to_regclass('crm.contrato_cuenta_pago_asignaciones') and c.contype = 'f')
+    and not exists (
+      select 1 from pg_catalog.pg_attribute a
+      where a.attrelid = pg_catalog.to_regclass('crm.contrato_cuenta_pago_asignaciones') and a.attnum > 0 and not a.attisdropped
+        and a.attacl is not null)
+    and not exists (
+      select 1 from pg_catalog.pg_trigger t
+      where t.tgrelid = pg_catalog.to_regclass('crm.contrato_cuenta_pago_asignaciones') and not t.tgisinternal
+        and t.tgname not in ('trg_contrato_cuenta_pago_asignaciones_00_no_borrar',
+                             'trg_contrato_cuenta_pago_asignaciones_00_inmutable',
+                             'trg_contrato_cuenta_pago_asignaciones_00_sin_vaciar',
+                             'trg_audit_contrato_cuenta_pago_asignaciones'))
   ), false) then
     raise exception 'REABRIR ASIGNAR: las piezas no están enteras como las dejó la migración 20261002005004 (cuerpos, forma, permisos, candados, bitácora, reglas o las piezas de F3 de las que depende); no se reabre';
   end if;
@@ -155,6 +185,36 @@ begin
       select 1 from pg_catalog.pg_constraint c
       where c.conrelid = pg_catalog.to_regclass('crm.contrato_cuenta_pago_asignaciones') and c.contype = 'c'
         and c.conname = 'contrato_cuenta_pago_asignaciones_motivo_valido' and c.convalidated)
+    -- lo que el núcleo da por hecho del vínculo: UNO por contrato, con el nombre por el que lo reconoce
+    and exists (
+      select 1
+      from pg_catalog.pg_constraint c
+      join pg_catalog.pg_index i on i.indexrelid = c.conindid
+      where c.conrelid = pg_catalog.to_regclass('crm.contrato_cuentas_pago') and c.contype = 'u'
+        and c.conname = 'contrato_cuentas_pago_contrato_id_key' and not c.condeferrable
+        and i.indisunique and i.indpred is null and i.indisvalid and i.indimmediate and i.indnatts = 1
+        and i.indkey[0] = (select a.attnum from pg_catalog.pg_attribute a
+                           where a.attrelid = pg_catalog.to_regclass('crm.contrato_cuentas_pago')
+                             and a.attname = 'contrato_id'))
+    -- la puerta y el núcleo escriben: las dos VOLATILE
+    and (select pg_catalog.count(*) from pg_catalog.pg_proc p
+         where p.oid in (pg_catalog.to_regprocedure('crm.asignar_cuenta_pago_contrato(uuid,uuid,uuid,text)'), pg_catalog.to_regprocedure('private.asignar_cuenta_pago_contrato_autorizado(uuid,uuid,uuid,text)'))
+           and p.provolatile = 'v') = 2
+    -- la constancia sigue sin claves foráneas, sin permisos por columna y sin disparadores de más
+    and not exists (
+      select 1 from pg_catalog.pg_constraint c
+      where c.conrelid = pg_catalog.to_regclass('crm.contrato_cuenta_pago_asignaciones') and c.contype = 'f')
+    and not exists (
+      select 1 from pg_catalog.pg_attribute a
+      where a.attrelid = pg_catalog.to_regclass('crm.contrato_cuenta_pago_asignaciones') and a.attnum > 0 and not a.attisdropped
+        and a.attacl is not null)
+    and not exists (
+      select 1 from pg_catalog.pg_trigger t
+      where t.tgrelid = pg_catalog.to_regclass('crm.contrato_cuenta_pago_asignaciones') and not t.tgisinternal
+        and t.tgname not in ('trg_contrato_cuenta_pago_asignaciones_00_no_borrar',
+                             'trg_contrato_cuenta_pago_asignaciones_00_inmutable',
+                             'trg_contrato_cuenta_pago_asignaciones_00_sin_vaciar',
+                             'trg_audit_contrato_cuenta_pago_asignaciones'))
   ), false) then
     raise exception 'REABRIR ASIGNAR: tras abrir, las piezas no quedaron como las de la migración';
   end if;
@@ -237,6 +297,36 @@ select case
       select 1 from pg_catalog.pg_constraint c
       where c.conrelid = pg_catalog.to_regclass('crm.contrato_cuenta_pago_asignaciones') and c.contype = 'c'
         and c.conname = 'contrato_cuenta_pago_asignaciones_motivo_valido' and c.convalidated)
+    -- lo que el núcleo da por hecho del vínculo: UNO por contrato, con el nombre por el que lo reconoce
+    and exists (
+      select 1
+      from pg_catalog.pg_constraint c
+      join pg_catalog.pg_index i on i.indexrelid = c.conindid
+      where c.conrelid = pg_catalog.to_regclass('crm.contrato_cuentas_pago') and c.contype = 'u'
+        and c.conname = 'contrato_cuentas_pago_contrato_id_key' and not c.condeferrable
+        and i.indisunique and i.indpred is null and i.indisvalid and i.indimmediate and i.indnatts = 1
+        and i.indkey[0] = (select a.attnum from pg_catalog.pg_attribute a
+                           where a.attrelid = pg_catalog.to_regclass('crm.contrato_cuentas_pago')
+                             and a.attname = 'contrato_id'))
+    -- la puerta y el núcleo escriben: las dos VOLATILE
+    and (select pg_catalog.count(*) from pg_catalog.pg_proc p
+         where p.oid in (pg_catalog.to_regprocedure('crm.asignar_cuenta_pago_contrato(uuid,uuid,uuid,text)'), pg_catalog.to_regprocedure('private.asignar_cuenta_pago_contrato_autorizado(uuid,uuid,uuid,text)'))
+           and p.provolatile = 'v') = 2
+    -- la constancia sigue sin claves foráneas, sin permisos por columna y sin disparadores de más
+    and not exists (
+      select 1 from pg_catalog.pg_constraint c
+      where c.conrelid = pg_catalog.to_regclass('crm.contrato_cuenta_pago_asignaciones') and c.contype = 'f')
+    and not exists (
+      select 1 from pg_catalog.pg_attribute a
+      where a.attrelid = pg_catalog.to_regclass('crm.contrato_cuenta_pago_asignaciones') and a.attnum > 0 and not a.attisdropped
+        and a.attacl is not null)
+    and not exists (
+      select 1 from pg_catalog.pg_trigger t
+      where t.tgrelid = pg_catalog.to_regclass('crm.contrato_cuenta_pago_asignaciones') and not t.tgisinternal
+        and t.tgname not in ('trg_contrato_cuenta_pago_asignaciones_00_no_borrar',
+                             'trg_contrato_cuenta_pago_asignaciones_00_inmutable',
+                             'trg_contrato_cuenta_pago_asignaciones_00_sin_vaciar',
+                             'trg_audit_contrato_cuenta_pago_asignaciones'))
   ), false)
            then 'PUERTA_REABIERTA'
          else 'PUERTA_CERRADA: no se reabrió'

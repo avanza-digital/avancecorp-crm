@@ -22,20 +22,24 @@
 #        directorio temporal; restos fuera, y el banco en ANTES
 #    1 · siembra → prueba ANTES → foto; censo sin funciones; trinquetes SIN la migración
 #    2 · lo que debe NEGARSE o no hacer nada en ANTES: vincular-rezago, registrar, las dos reversas; el ENSAYO en ANTES: PASA
-#    3 · el ENSAYO en sus otros veredictos: INCOMPLETO (falta algo que probar) y FALLA (ensayos mutantes); el banco queda igual
+#    3 · el ENSAYO en sus otros veredictos: INCOMPLETO (falta algo que probar) y FALLA (ensayos mutantes, y un pago
+#        permitido que NO tiene efecto: anulado, sin sello, con el sello en otra cuenta, sin cambiar de estado); el banco queda igual
 #    4 · lo que debe CANCELAR la migración entera: conciliación del perfil, tope de candidatos, cuenta a medio
 #        registrar, el bloqueo vivo con otro cuerpo (huella) y otro aislamiento que READ COMMITTED
 #    5 · aislamiento a DOS sesiones: una segunda cuenta registrada a mitad de la carga (confirmada mientras la carga
 #        espera el candado, o registrada y confirmada entre su fotografía y el candado); el archivo real no vincula,
 #        el mutante sin la guarda (en REPEATABLE READ y en SERIALIZABLE) sí
 #    6 · pagos en vuelo frente a la migración, a dos sesiones: de un contrato ok y de uno una_cuenta, en los dos órdenes
-#    7 · pagos en vuelo frente al ENSAYO, a dos sesiones (en ANTES): espera y PASA; con un pago lento, FALLA por lock timeout
+#    7 · pagos en vuelo frente al ENSAYO, a dos sesiones (en ANTES): espera y PASA; con un pago lento, la sonda sale
+#        «ocupada» y el veredicto INCOMPLETO (las dos sondas: por contrato y por identidad)
 #    8 · migración (con filas de conciliación que NO deben cancelarla) → prueba DESPUÉS; censo; trinquetes CON:
 #        idénticos; y una conexión REAL de la API (authenticator) con y sin claims
-#    9 · migración otra vez (idempotencia)
+#    9 · migración otra vez (idempotencia); y la CONSTANCIA (fila final): en una sesión, una corrida que se niega la da
+#        vacía y no repite la de la anterior (migración y vincular-rezago; sentencia a sentencia y en un solo mensaje)
 #   10 · el ENSAYO con la migración aplicada: PASA, INCOMPLETO; un ensayo mutante no llega a correr
-#   11 · reversa → ANTES; reversa repetida
-#   12 · volver a aplicar
+#   11 · reversa → ANTES (y la versión deja de estar registrada); reversa repetida
+#   12 · volver a aplicar (y registrar): la fila de la versión vuelve; las dos reversas la quitan en su transacción y no
+#        fallan en una base sin el esquema supabase_migrations
 #   13 · huellas y guardas: con una de las cuatro funciones vivas alterada se niegan migración, reversas,
 #        vincular-rezago y registrar; las demás guardas de sus preflight; y los cuatro archivos en otro aislamiento
 #   14 · negativas de reversa.sql: pago sellado, cambio de cuenta, PDF (trabajo y archivo), disparadores de sello apagados
@@ -101,6 +105,7 @@ ANALISTA='c9e00000-0000-4000-8000-000000000004'
 CUENTA_01='c9ec0000-0000-4000-8000-000000000001'    # la cuenta vinculada de REZAGO-01 (ok)
 CUOTA_0101='c9ee0000-0000-4000-8000-000000000101'   # REZAGO-01, cuota 1: la que el ENSAYO elige como «ya estaba bien»
 CUOTA_0102='c9ee0000-0000-4000-8000-000000000102'
+CUOTA_0701='c9ee0000-0000-4000-8000-000000000701'   # REZAGO-07 (varias_cuentas): la cuota de la sonda de identidad del ENSAYO
 REZAGO_11='c9ed0000-0000-4000-8000-000000000011'
 # Otro aislamiento por defecto para UNA sesión (lo que haría un ALTER ROLE … SET o un cliente configurado así).
 RR='-c default_transaction_isolation=repeatable\ read'
@@ -232,6 +237,50 @@ print("veredicto=%s · todo_como_se_esperaba=%s · vinculados=%s · %d como se e
     x.count(True), x.count(False), x.count(None), j["conexion"]["session_user"], j["conexion"]["current_user"],
     json.dumps(j["fallos"], ensure_ascii=False), json.dumps(j["sin_probar"], ensure_ascii=False)))'
 }
+
+# La fila FINAL de un archivo (su constancia), reducida: «constancia vinculados=N» · «(null)» · «sin fila final».
+# Lee por la entrada estándar las filas que psql sacó por su salida (los errores van aparte, a un archivo).
+fila_final() {
+  python3 -c '
+import json, sys
+filas = sys.stdin.read().split("\n")
+if filas and filas[-1] == "": filas = filas[:-1]
+u = filas[-1] if filas else ""
+if u == "(null)": print("(null)")
+elif u.startswith("{"): print("constancia vinculados=%s" % json.loads(u).get("vinculados"))
+elif u == "": print("sin fila final")
+else: print(u[:200])'
+}
+# UNA sesión de psql, sentencia a sentencia y SIN ON_ERROR_STOP: el archivo $1 tal cual y, en la misma sesión, otra vez
+# tras poner el aislamiento por defecto en REPEATABLE READ (se niega). Devuelve la fila final de cada corrida y el
+# primer error de la segunda: «corrida 1: … · corrida 2 (se niega): … · <error>».
+dos_corridas() {
+  { printf '%s\n' '\pset null (null)'; cat "$1"
+    printf '\n%s\n' '\echo == corrida 2' "set default_transaction_isolation = 'repeatable read';"; cat "$1"; printf '\n'; } \
+    | docker exec -i -e PGPASSWORD=postgres -e PGAPPNAME=ciclo "$C" psql -U postgres -h 127.0.0.1 -d postgres -qAt > "$T/dos-corridas.txt" 2> "$T/dos-corridas.err"
+  echo "corrida 1: $(sed '/^== corrida 2/,$d' "$T/dos-corridas.txt" | fila_final) · corrida 2 (se niega): $(sed '1,/^== corrida 2/d' "$T/dos-corridas.txt" | fila_final) · $(grep -m1 -o 'ERROR:.*' "$T/dos-corridas.err" | cut -c1-110) · último error: $(grep -o 'ERROR:.*' "$T/dos-corridas.err" | tail -1 | cut -c1-90)"
+}
+# El archivo $1 ENTERO como una sola consulta simple (psql -c), como lo mandaría una CLI: su fila final y su primer error.
+un_mensaje() {
+  docker exec -i -e PGPASSWORD=postgres -e PGOPTIONS="${Q_OPCIONES:-}" -e PGAPPNAME=ciclo "$C" psql -U postgres -h 127.0.0.1 -d postgres -qAt -P 'null=(null)' -c "$(cat "$1")" > "$T/un-mensaje.txt" 2> "$T/un-mensaje.err"
+  echo "$(fila_final < "$T/un-mensaje.txt") · $(grep -m1 -o 'ERROR:.*' "$T/un-mensaje.err" | cut -c1-110 || true)"
+}
+# UNA sesión, y en ella cada archivo como UN mensaje: $1 bien, $1 otra vez en REPEATABLE READ (se niega) y, tras el
+# rollback, qué constancia queda en la sesión. Devuelve la fila final de la segunda corrida y lo que queda.
+dos_mensajes() {
+  docker exec -i -e PGPASSWORD=postgres -e PGAPPNAME=ciclo "$C" psql -U postgres -h 127.0.0.1 -d postgres -qAt -P 'null=(null)' \
+    -c "$(cat "$1")" -c "select '== corrida 2'" -c "set default_transaction_isolation = 'repeatable read'" -c "$(cat "$1")" -c "rollback" \
+    -c "select '== queda'" -c "select coalesce(nullif(current_setting('crm.rezago_vinculos_resultado', true), ''), '(null)')" > "$T/dos-mensajes.txt" 2> "$T/dos-mensajes.err"
+  echo "corrida 2 (se niega): $(sed '1,/^== corrida 2/d; /^== queda/,$d' "$T/dos-mensajes.txt" | fila_final) · en la sesión queda: $(sed '1,/^== queda/d' "$T/dos-mensajes.txt" | fila_final) · $(grep -m1 -o 'ERROR:.*' "$T/dos-mensajes.err" | cut -c1-110)"
+}
+# Corre el cuerpo del archivo $1 dentro de una transacción que se deshace (después de un SQL previo, $2) y dice si al
+# terminar la versión sigue registrada: «registro: N», o el primer ERROR.
+registro_tras() {
+  local o
+  o=$(q "begin; ${2:-} $(sin_transaccion "$1") select 'registro: ' || count(*) from supabase_migrations.schema_migrations where version = '$VERSION'; rollback;")
+  if grep -q 'ERROR:' <<<"$o"; then grep -m1 -o 'ERROR:.*' <<<"$o" | cut -c1-260; else grep -o 'registro: [0-9]*' <<<"$o" | tail -1; fi
+}
+registro() { q "select count(*) || ' fila · ' || coalesce(max(cardinality(statements))::text, '-') || ' sentencia · ' || coalesce(max(md5(statements[1])), '-') from supabase_migrations.schema_migrations where version = '$VERSION';"; }
 
 # SOLO BANCO. Deshace lo que el ciclo (o una corrida que murió a medias) dejó CONFIRMADO sobre el
 # mundo sembrado: un pago y su sello, una cuota insertada, un cambio de cuenta, un PDF, filas de
@@ -447,11 +496,16 @@ volver_a_antes() {
 #   · la migración real y la sin guarda, con 4 s de pausa justo antes de «lock table» (para que OTRA sesión
 #     registre y confirme una cuenta después de fijada la fotografía y antes del candado);
 #   · tres ensayos mutantes (el bloqueo de la migración que lleva dentro, alterado y con su huella actualizada);
-#   · el ensayo con una pausa antes de su error final (para tenerlo EN VUELO).
+#   · el ensayo con una pausa antes de su error final (para tenerlo EN VUELO);
+#   · ensayos con la SONDA de pago alterada: «pagada» sin comprobar nada, sin exigir el sello, sin exigir que el sello
+#     sea de la cuenta del vínculo, sin «found», sin mirar el estado; y el lock timeout otra vez a «when others»;
+#   · el ensayo con lock_timeout de 1 s (solo cambia el tiempo: deja ver la sonda de identidad «ocupada» en un vuelo corto);
+#   · migración y vincular-rezago SIN vaciar la constancia antes del begin, y la migración sin el nullif de la fila final;
+#   · las dos reversas SIN el borrado de la fila de supabase_migrations.schema_migrations.
 generar_copias() {
-  python3 - "$T" "$M" "$R" "$VR" "$ENSAYO" <<'PY'
+  python3 - "$T" "$M" "$R" "$VR" "$ENSAYO" "$RC" <<'PY'
 import hashlib, io, sys
-DEST, MIG, REV, VINC, ENS = sys.argv[1:]
+DEST, MIG, REV, VINC, ENS, REVC = sys.argv[1:]
 lee = lambda p: io.open(p, encoding="utf-8").read()
 def escribe(nombre, texto): io.open(f"{DEST}/{nombre}", "w", encoding="utf-8").write(texto)
 def cambiar(texto, a, b):
@@ -492,7 +546,50 @@ ensayo_mutante("ensayo-bloquea-todo.sql", RECHAZA, RECHAZA.replace("if not found
 ensayo_mutante("ensayo-detalle-a-todos.sql", COND, "    if true then")
 FIN = "  raise exception 'ENSAYO_DESHECHO >> %', jsonb_build_object(\n"
 escribe("ensayo-con-pausa.sql", cambiar(ens, FIN, "  perform pg_sleep(4);\n" + FIN))
-print("9 copias")
+
+# ── Fase D ──
+def cambiar_n(texto, a, b, veces):
+    assert texto.count(a) == veces, ("se esperaban", veces, "y hay", texto.count(a), a[:70])
+    return texto.replace(a, b)
+ESTADO = "           and exists (select 1 from public.cronograma_pagos cp\n                       where cp.id = v_cuota and cp.estado = 'pagado')\n"
+SELLO = ("           and exists (select 1 from crm.cuotas_cuenta_pagada q\n"
+         "                       join crm.contrato_cuentas_pago l\n"
+         "                         on l.contrato_id = q.contrato_id and l.cuenta_bancaria_id = q.cuenta_bancaria_id\n"
+         "                       where q.cuota_id = v_cuota) then\n")
+COMPROBACION = ("        if found\n" + ESTADO + SELLO +
+                "          v_resultado := 'pagada';\n        else\n          v_resultado := 'sin efecto';\n        end if;\n")
+# Las dos sondas (por contrato y por identidad) llevan el mismo texto: cada cambio va en las DOS.
+escribe("ensayo-pagada-sin-comprobar.sql", cambiar_n(ens, COMPROBACION, "        v_resultado := 'pagada';\n", 2))
+escribe("ensayo-sin-exigir-sello.sql", cambiar_n(ens, "'pagado')\n" + SELLO, "'pagado') then\n", 2))
+escribe("ensayo-sello-de-cualquier-cuenta.sql", cambiar_n(ens, " and l.cuenta_bancaria_id = q.cuenta_bancaria_id", "", 2))
+escribe("ensayo-sin-found.sql", cambiar_n(ens, "        if found\n" + ESTADO, "        if exists (select 1 from public.cronograma_pagos cp\n                       where cp.id = v_cuota and cp.estado = 'pagado')\n", 2))
+escribe("ensayo-sin-mirar-estado.sql", cambiar_n(ens, "        if found\n" + ESTADO + SELLO, "        if found\n" + SELLO, 2))
+OCUPADA = ("        when lock_not_available then\n"
+           "          -- Otra sesión tiene ocupada esa cuota o su contrato (p. ej. un pago real en curso).\n"
+           "          v_resultado := 'ocupada';\n          v_codigo := sqlstate;\n          v_mensaje := sqlerrm;\n")
+escribe("ensayo-timeout-a-others.sql", cambiar_n(ens, OCUPADA, "", 2))
+UN_SEGUNDO = lambda x: cambiar_n(x, "set local lock_timeout = '5s';", "set local lock_timeout = '1s';", 2)
+escribe("ensayo-timeout-1s.sql", UN_SEGUNDO(ens))
+escribe("ensayo-timeout-1s-a-others.sql", UN_SEGUNDO(cambiar_n(ens, OCUPADA, "", 2)))
+LIMPIA = "select pg_catalog.set_config('crm.rezago_vinculos_resultado', '', false);\n"
+escribe("migracion-sin-limpiar-constancia.sql", cambiar(lee(MIG), LIMPIA, ""))
+escribe("vincular-sin-limpiar-constancia.sql", cambiar(lee(VINC), LIMPIA, ""))
+escribe("migracion-sin-nullif.sql", cambiar(lee(MIG),
+    "select nullif(pg_catalog.current_setting('crm.rezago_vinculos_resultado', true), '')::jsonb as rezago_vinculos;",
+    "select pg_catalog.current_setting('crm.rezago_vinculos_resultado', true)::jsonb as rezago_vinculos;"))
+def sin_registro(texto):
+    a, b = texto.index("do $registro$\n"), texto.index("$registro$;\n") + len("$registro$;\n")
+    assert texto.count("do $registro$\n") == 1 and a < b
+    return texto[:a] + texto[b:]
+escribe("reversa-sin-registro.sql", sin_registro(lee(REV)))
+escribe("reversa-solo-codigo-sin-registro.sql", sin_registro(lee(REVC)))
+CONDICION = ("  if pg_catalog.to_regclass('supabase_migrations.schema_migrations') is not null then\n"
+             "    execute 'delete from supabase_migrations.schema_migrations where version = '\n"
+             "      || pg_catalog.quote_literal('20261001233019');\n"
+             "  end if;\n")
+escribe("reversa-registro-sin-condicion.sql", cambiar(lee(REV), CONDICION,
+    "  execute 'delete from supabase_migrations.schema_migrations where version = '\n      || pg_catalog.quote_literal('20261001233019');\n"))
+print("23 copias")
 PY
 }
 
@@ -846,7 +943,7 @@ principal() {
     paso "derivados al día (generar-derivados.py --verificar)" '^derivados al día' "$(python3 "$DERIVADOS" --verificar 2>&1 | tail -1)"
     paso "registrar.sql lleva el md5 de la migración de hoy" "md5 ${md5_migracion}" "$(sed -n '4p' "$REGISTRAR")"
     paso "el ensayo se generó con ese mismo archivo" "md5 ${md5_migracion}" "$(sed -n '2p' "$ENSAYO")"
-    paso "copias alteradas en el directorio temporal (sin guarda de aislamiento, ensayos mutantes)" '^9 copias$' "$(generar_copias 2>&1 | tail -1)"
+    paso "copias alteradas en el directorio temporal (sin guardas, ensayos mutantes, sin constancia, sin registro)" '^23 copias$' "$(generar_copias 2>&1 | tail -1)"
     paso "ninguna otra sesión abierta en el banco (los tramos a dos sesiones miran quién espera a quién)" '^0 sesiones$' "$(q "select count(*) || ' sesiones' from pg_stat_activity where pid <> pg_backend_pid() and backend_type = 'client backend';" supabase_admin)"
   fi
   paso "restos de corridas anteriores" '^restos limpios$' "$(limpiar_restos)"
@@ -907,14 +1004,43 @@ principal() {
   # FALLA = algún pago salió distinto de lo que dicta la regla. Tres ensayos MUTANTES: el bloqueo de la migración que
   # llevan dentro está alterado, con su huella actualizada en pre y postflight (si no, lo pararía el postflight).
   j=$(ensayo "$T/ensayo-deja-pasar.sql"); echo "$j" > "$SALIDA/ensayo-falla-deja-pasar.txt"
-  paso "MUTANTE el bloqueo deja pasar: FALLA (los 4 bloqueados se pagan, y las 2 identidades)" '^veredicto=FALLA · todo_como_se_esperaba=false · vinculados=4 · 5 como se esperaba, 6 no, 0 sin probar · conexion=postgres/postgres · fallos=\["contrato REZAGO-14 \(bloqueado, caso cuenta_no_corresponde\): pagada ", "contrato REZAGO-09 \(bloqueado, caso otra_moneda\): pagada ", "contrato REZAGO-11 \(bloqueado, caso sin_cuenta\): pagada ", "contrato REZAGO-07 \(bloqueado, caso varias_cuentas\): pagada ", "identidad gestor de cartera: pagada ", "identidad analista \(no gestor\): pagada "\] · sin_probar=\[\]$' "$(resumen_ensayo <<<"$j")"
+  paso "MUTANTE el bloqueo deja pasar: FALLA (el de vínculo ajeno se paga; los sin vínculo, «sin efecto»; y las 2 identidades)" '^veredicto=FALLA · todo_como_se_esperaba=false · vinculados=4 · 5 como se esperaba, 6 no, 0 sin probar · conexion=postgres/postgres · fallos=\["contrato REZAGO-14 \(bloqueado, caso cuenta_no_corresponde\): pagada ", "contrato REZAGO-09 \(bloqueado, caso otra_moneda\): sin efecto ", "contrato REZAGO-11 \(bloqueado, caso sin_cuenta\): sin efecto ", "contrato REZAGO-07 \(bloqueado, caso varias_cuentas\): sin efecto ", "identidad gestor de cartera: sin efecto ", "identidad analista \(no gestor\): sin efecto "\] · sin_probar=\[\]$' "$(resumen_ensayo <<<"$j")"
   j=$(ensayo "$T/ensayo-bloquea-todo.sql"); echo "$j" > "$SALIDA/ensayo-falla-bloquea-todo.txt"
   paso "MUTANTE el bloqueo lo rechaza todo: FALLA (los 4 vinculados y el que ya estaba bien)" '^veredicto=FALLA · todo_como_se_esperaba=false · vinculados=4 · 6 como se esperaba, 5 no, 0 sin probar · conexion=postgres/postgres · fallos=\[("contrato REZAGO-0[3-6] \(vinculado por la carga, caso ok\): bloqueada Sin cuenta de pago — requiere conciliación", ){4}"contrato REZAGO-01 \(ya estaba bien, caso ok\): bloqueada Sin cuenta de pago — requiere conciliación"\] · sin_probar=\[\]$' "$(resumen_ensayo <<<"$j")"
   j=$(ensayo "$T/ensayo-detalle-a-todos.sql"); echo "$j" > "$SALIDA/ensayo-falla-detalle-a-todos.txt"
   paso "MUTANTE el bloqueo da el detalle a todos: FALLA (solo la identidad del analista)" '^veredicto=FALLA · todo_como_se_esperaba=false · vinculados=4 · 10 como se esperaba, 1 no, 0 sin probar · conexion=postgres/postgres · fallos=\["identidad analista \(no gestor\): bloqueada Contrato REZAGO-07 sin cuenta de pago: el cliente tiene 2 cuentas en soles; confirma con él en cuál cobra este contrato\."\] · sin_probar=\[\]$' "$(resumen_ensayo <<<"$j")"
   paso "FALLA gana a INCOMPLETO (deja pasar + sin analista)" '^veredicto=FALLA · todo_como_se_esperaba=false · vinculados=4 · 5 como se esperaba, 5 no, 0 sin probar · .* · sin_probar=\["identidad: falta un gestor de cartera vigente o un analista activo con quien probar"\]$' "$(ensayo_tras "$SIN_ANALISTA" "$T/ensayo-deja-pasar.sql" | resumen_ensayo)"
+  # Un pago PERMITIDO que no tiene efecto. Para el ensayo, «pagada» no es «no hubo error»: la cuota tiene que quedar pagada
+  # y sellada en la cuenta del vínculo. Cinco maneras de que no pase, montadas en la MISMA transacción del ensayo (su error
+  # final las deshace: en el banco no queda nada): un trigger que anula el UPDATE; el sello apagado; el sello en otra
+  # cuenta; el estado que no cambia; y eso mismo con un sello viejo (una cuota pagada que volvió a pendiente lo conserva).
+  local ANULA="create function public.zzz_ciclo_anula() returns trigger language plpgsql as \$t\$ begin return null; end \$t\$;
+     create trigger zzz_ciclo_anula before update on public.cronograma_pagos for each row execute function public.zzz_ciclo_anula();"
+  local SIN_SELLO="alter table public.cronograma_pagos disable trigger trg_cronograma_pagos_20_sellar_cuenta_update;"
+  local OTRA_CUENTA="create function public.zzz_ciclo_otra_cuenta() returns trigger language plpgsql as \$t\$ begin new.cuenta_bancaria_id := 'c9ec0000-0000-4000-8000-000000000010'; return new; end \$t\$;
+     create trigger zzz_ciclo_otra_cuenta before insert or update on crm.cuotas_cuenta_pagada for each row execute function public.zzz_ciclo_otra_cuenta();"
+  local SIGUE_PENDIENTE="create function public.zzz_ciclo_pendiente() returns trigger language plpgsql as \$t\$ begin new.estado := old.estado; new.fecha_pago_real := old.fecha_pago_real; new.monto_pagado := old.monto_pagado; return new; end \$t\$;
+     create trigger zzz_ciclo_pendiente before update on public.cronograma_pagos for each row execute function public.zzz_ciclo_pendiente();"
+  local SELLO_VIEJO="insert into crm.cuotas_cuenta_pagada (cuota_id, contrato_id, cuenta_bancaria_id, origen) values ('$CUOTA_0101', 'c9ed0000-0000-4000-8000-000000000001', '$CUENTA_01', 'registro'); $SIGUE_PENDIENTE"
+  local SIN_EFECTO_5='^veredicto=FALLA · todo_como_se_esperaba=false · vinculados=4 · 6 como se esperaba, 5 no, 0 sin probar · conexion=postgres/postgres · fallos=\[("contrato REZAGO-0[3-6] \(vinculado por la carga, caso ok\): sin efecto ", ){4}"contrato REZAGO-01 \(ya estaba bien, caso ok\): sin efecto "\] · sin_probar=\[\]$'
+  local variante real iguales=0
+  local -a VARIANTES=("$ANULA" "$SIN_SELLO" "$OTRA_CUENTA" "$SIGUE_PENDIENTE" "$SELLO_VIEJO")
+  local -a NOMBRES=("un trigger anula el UPDATE" "el sello está apagado" "el sello cae en otra cuenta" "el estado no cambia" "el estado no cambia y hay un sello viejo")
+  for variante in 0 1 2 3 4; do
+    j=$(ensayo_tras "${VARIANTES[$variante]}"); real=$(resumen_ensayo <<<"$j")
+    [ "$variante" = 0 ] && echo "$j" > "$SALIDA/ensayo-falla-sin-efecto.txt"
+    paso "pago permitido sin efecto (${NOMBRES[$variante]}): FALLA, los 5 contratos ok «sin efecto»" "$SIN_EFECTO_5" "$real"
+    [ "$real" = "$(ensayo_tras "${VARIANTES[$variante]}" "$T/ensayo-sin-found.sql" | resumen_ensayo)" ] && iguales=$((iguales + 1))
+  done
+  # Los mutantes de esa sonda: cada cláusula quitada, frente a la variante que solo ella caza.
+  paso "MUTANTE del ensayo («pagada» = no hubo error), con el UPDATE anulado: da PASA → cazado" "^${E_PASA_ANTES}" "$(ensayo_tras "$ANULA" "$T/ensayo-pagada-sin-comprobar.sql" | resumen_ensayo)"
+  paso "MUTANTE sin exigir el sello, con el sello apagado: da PASA → cazado" "^${E_PASA_ANTES}" "$(ensayo_tras "$SIN_SELLO" "$T/ensayo-sin-exigir-sello.sql" | resumen_ensayo)"
+  paso "MUTANTE sello de cualquier cuenta, con el sello en otra cuenta: da PASA → cazado" "^${E_PASA_ANTES}" "$(ensayo_tras "$OTRA_CUENTA" "$T/ensayo-sello-de-cualquier-cuenta.sql" | resumen_ensayo)"
+  paso "MUTANTE sin mirar el estado, con el sello viejo: REZAGO-01 se le escapa como «pagada» → cazado" '^veredicto=FALLA · todo_como_se_esperaba=false · vinculados=4 · 7 como se esperaba, 4 no, 0 sin probar · conexion=postgres/postgres · fallos=\[("contrato REZAGO-0[3-6] \(vinculado por la carga, caso ok\): sin efecto "(, )?){4}\] · sin_probar=\[\]$' "$(ensayo_tras "$SELLO_VIEJO" "$T/ensayo-sin-mirar-estado.sql" | resumen_ensayo)"
+  paso "MUTANTE sin «found»: SOBREVIVE (igual que el real en las cinco variantes: lo cubre la comprobación del estado)" '^5 de 5 iguales$' "$iguales de 5 iguales"
   igual "ninguno de esos ensayos dejó nada: misma foto" "$e_antes" "$(estado)"
   igual "ninguno de esos ensayos dejó nada: mismos conteos (bitácora incluida)" "$c0" "$(conteos)"
+  paso "ni triggers ni funciones del ciclo en el banco (iban en la transacción del ensayo)" '^0 · 0$' "$(q "select (select count(*) from pg_proc where proname like 'zzz%ciclo%') || ' · ' || (select count(*) from pg_trigger where tgname like 'zzz%ciclo%');")"
 
   tramo "4 · lo que debe cancelar la migración entera (el banco sigue en ANTES)"
   # La guarda de S1: una fila de conciliación de PERFIL, del cliente y la moneda de un candidato.
@@ -1099,11 +1225,31 @@ principal() {
   volver_a_antes "(f) otra cuota"
   ( pago_en_vuelo "$CUOTA_0101" 8 > "$T/pago.txt" 2>&1 ) &
   en_vuelo pago-en-vuelo
-  j=$(Q_NOMBRE=ensayo cronometrado ensayo); echo "$j" > "$SALIDA/ensayo-falla-pago-lento.txt"
-  paso "(f) si el pago tarda más de 5 s: FALLA, y el fallo es un «lock timeout», no la regla" '^5\.[0-9] s · veredicto=FALLA · todo_como_se_esperaba=false · vinculados=4 · 10 como se esperaba, 1 no, 0 sin probar · conexion=postgres/postgres · fallos=\["contrato REZAGO-01 \(ya estaba bien, caso ok\): bloqueada canceling statement due to lock timeout"\] · sin_probar=\[\]$' "$(cut -d' ' -f1-3 <<<"$j") $(resumen_ensayo <<<"$j")"
+  j=$(Q_NOMBRE=ensayo cronometrado ensayo); echo "$j" > "$SALIDA/ensayo-incompleto-pago-lento.txt"
+  paso "(f) si el pago tarda más de 5 s: la sonda sale «ocupada» y el veredicto INCOMPLETO (no es un fallo)" '^5\.[0-9] s · veredicto=INCOMPLETO · todo_como_se_esperaba=false · vinculados=4 · 10 como se esperaba, 0 no, 1 sin probar · conexion=postgres/postgres · fallos=\[\] · sin_probar=\["contrato REZAGO-01 \(ya estaba bien\): otra sesión tenía ocupada la cuota o el contrato; vuelve a lanzar el ensayo"\]$' "$(cut -d' ' -f1-3 <<<"$j") $(resumen_ensayo <<<"$j")"
   wait
   paso "(f) el pago real quedó confirmado y sellado; del ensayo no quedó nada" "^${CUOTA_0101} · ${CUENTA_01}\\|registro · 0 · 0 ${revertidos}\$" "$(head -1 "$T/pago.txt") · $(sello "$CUOTA_0101") · $(aplicada) · $(rastro)"
   volver_a_antes "(f) pago lento"
+  # MUTANTE del ensayo: el lock timeout otra vez a «when others» (como antes): lo da por «bloqueada» y el veredicto es FALLA.
+  ( pago_en_vuelo "$CUOTA_0101" 8 > "$T/pago.txt" 2>&1 ) &
+  en_vuelo pago-en-vuelo
+  j=$(Q_NOMBRE=ensayo cronometrado ensayo "$T/ensayo-timeout-a-others.sql")
+  paso "MUTANTE del ensayo (lock timeout a «when others»), mismo trance: FALLA → cazado" '^5\.[0-9] s · veredicto=FALLA · todo_como_se_esperaba=false · vinculados=4 · 10 como se esperaba, 1 no, 0 sin probar · conexion=postgres/postgres · fallos=\["contrato REZAGO-01 \(ya estaba bien, caso ok\): bloqueada canceling statement due to lock timeout"\] · sin_probar=\[\]$' "$(cut -d' ' -f1-3 <<<"$j") $(resumen_ensayo <<<"$j")"
+  wait
+  volver_a_antes "(f) pago lento, mutante"
+  # La otra sonda, la de identidad: un cambio de cuota de REZAGO-07 (el contrato bloqueado con el que se prueba a quién se
+  # le dice el detalle) en vuelo 6 s, y el ensayo con su lock_timeout en 1 s (solo cambia el tiempo: tres esperas de 1 s).
+  ( cambio_en_vuelo "$CUOTA_0701" 6 >/dev/null 2>&1 ) &
+  en_vuelo cambio-en-vuelo
+  j=$(Q_NOMBRE=ensayo cronometrado ensayo "$T/ensayo-timeout-1s.sql"); echo "$j" > "$SALIDA/ensayo-incompleto-identidad-ocupada.txt"
+  paso "(f) la cuota de la sonda de identidad, ocupada: «ocupada» las tres veces e INCOMPLETO" '^[2-4]\.[0-9] s · veredicto=INCOMPLETO · todo_como_se_esperaba=false · vinculados=4 · 8 como se esperaba, 0 no, 3 sin probar · conexion=postgres/postgres · fallos=\[\] · sin_probar=\["contrato REZAGO-07 \(bloqueado\): otra sesión tenía ocupada la cuota o el contrato; vuelve a lanzar el ensayo", "identidad gestor de cartera: otra sesión tenía ocupada la cuota o el contrato; vuelve a lanzar el ensayo", "identidad analista \(no gestor\): otra sesión tenía ocupada la cuota o el contrato; vuelve a lanzar el ensayo"\]$' "$(cut -d' ' -f1-3 <<<"$j") $(resumen_ensayo <<<"$j")"
+  wait
+  ( cambio_en_vuelo "$CUOTA_0701" 6 >/dev/null 2>&1 ) &
+  en_vuelo cambio-en-vuelo
+  j=$(Q_NOMBRE=ensayo cronometrado ensayo "$T/ensayo-timeout-1s-a-others.sql")
+  paso "MUTANTE (lock timeout a «when others»), mismo trance: tres «bloqueada» y FALLA → cazado" '^[2-4]\.[0-9] s · veredicto=FALLA · todo_como_se_esperaba=false · vinculados=4 · 8 como se esperaba, 3 no, 0 sin probar · conexion=postgres/postgres · fallos=\["contrato REZAGO-07 \(bloqueado, caso varias_cuentas\): bloqueada canceling statement due to lock timeout", "identidad gestor de cartera: bloqueada canceling statement due to lock timeout", "identidad analista \(no gestor\): bloqueada canceling statement due to lock timeout"\] · sin_probar=\[\]$' "$(cut -d' ' -f1-3 <<<"$j") $(resumen_ensayo <<<"$j")"
+  wait
+  igual "(f) tras las sondas ocupadas, el banco sigue en ANTES" "$e_antes" "$(estado)"
   # Al revés: el ENSAYO en vuelo (una copia con 4 s de pausa antes de su error final) y llegan DOS pagos reales: el de
   # esa misma cuota de REZAGO-01, y uno de REZAGO-03, que el ensayo acaba de vincular (y de pagar) DENTRO de su transacción.
   ( Q_NOMBRE=ensayo ensayo "$T/ensayo-con-pausa.sql" > "$T/ensayo.txt" ) &
@@ -1157,6 +1303,24 @@ principal() {
   igual "misma foto tras repetir" "$e_despues" "$(estado)"
   igual "mismos conteos (ni vínculos ni rastro ni bitácora de más)" "$c_despues" "$(conteos)"
   paso "sin filas repetidas" 'contratos_con_dos_vinculos=0 .*contratos_con_dos_rastros_vigentes=0 ' "$(conteos)"
+  # La constancia (la fila final del archivo). En UNA sesión de psql, sentencia a sentencia y sin ON_ERROR_STOP: el archivo
+  # bien y, después, otra vez de modo que se niegue (REPEATABLE READ). La segunda no puede enseñar la de la primera.
+  local C0='^corrida 1: constancia vinculados=0 · corrida 2 \(se niega\): '
+  paso "una sesión, dos corridas: la que se niega da la fila final VACÍA" "${C0}\\(null\\) · ERROR:  REZAGO PREFLIGHT: la transacción debe ir en READ COMMITTED \\(va en repeatable read\\)" "$(dos_corridas "$M")"
+  paso "MUTANTE sin vaciar la constancia antes del begin: reaparece la de la corrida anterior → cazado" "${C0}constancia vinculados=0 · ERROR:  REZAGO PREFLIGHT" "$(dos_corridas "$T/migracion-sin-limpiar-constancia.sql")"
+  paso "MUTANTE sin el nullif de la fila final: la corrida negada acaba en error, sin fila → cazado" "${C0}sin fila final · .* · último error: ERROR:  invalid input syntax for type json" "$(dos_corridas "$T/migracion-sin-nullif.sql")"
+  paso "vincular-rezago.sql, igual: fila final VACÍA cuando se niega" "${C0}\\(null\\) · ERROR:  VINCULAR: la transacción debe ir en READ COMMITTED \\(va en repeatable read\\)" "$(dos_corridas "$VR")"
+  paso "MUTANTE vincular-rezago sin vaciar la constancia: reaparece → cazado" "${C0}constancia vinculados=0 · ERROR:  VINCULAR" "$(dos_corridas "$T/vincular-sin-limpiar-constancia.sql")"
+  # El archivo entero como UNA consulta simple (psql -c), como podría mandarlo una CLI: un error corta el resto del mensaje.
+  paso "en un solo mensaje, bien: sale su constancia" '^constancia vinculados=0 · $' "$(un_mensaje "$M")"
+  paso "en un solo mensaje y negada: NO hay fila final" '^sin fila final · ERROR:  REZAGO PREFLIGHT: la transacción debe ir en READ COMMITTED \(va en repeatable read\)' "$(Q_OPCIONES="$RR" un_mensaje "$M")"
+  paso "vincular-rezago.sql en un solo mensaje, bien: sale su constancia" '^constancia vinculados=0 · $' "$(un_mensaje "$VR")"
+  paso "vincular-rezago.sql en un solo mensaje y negada: NO hay fila final" '^sin fila final · ERROR:  VINCULAR: la transacción debe ir en READ COMMITTED \(va en repeatable read\)' "$(Q_OPCIONES="$RR" un_mensaje "$VR")"
+  # Lo que el ciclo deja anotado (no es un fallo del archivo): en ese modo la limpieza previa al begin NO se confirma sola
+  # (va dentro de la transacción del mensaje), así que tras el rollback la sesión conserva la constancia anterior.
+  paso "una sesión, cada archivo en UN mensaje: la negada no enseña fila; la constancia vieja sigue en la sesión" '^corrida 2 \(se niega\): sin fila final · en la sesión queda: constancia vinculados=0 · ERROR:  REZAGO PREFLIGHT' "$(dos_mensajes "$M")"
+  igual "la constancia no escribe nada: misma foto" "$e_despues" "$(estado)"
+  igual "ni filas de más (vínculos, rastro, bitácora)" "$c_despues" "$(conteos)"
   prueba_paso "prueba DESPUÉS" despues
 
   tramo "10 · el ENSAYO con la migración aplicada"
@@ -1173,7 +1337,12 @@ principal() {
   igual "no dejaron nada: mismos conteos (bitácora incluida)" "$c_despues" "$(conteos)"
 
   tramo "11 · reversa: todo vuelve al estado ANTES"
+  # Con la versión registrada: la reversa, además de revertir, la saca de supabase_migrations.schema_migrations.
+  local REGISTRO_OK='^NOTICE:  REGISTRO: 20261001233019 / crm_cuentas_pago_motivo_y_rezago \(1 sentencia'
+  paso "registrar.sql (para ver que la reversa quita el registro)" "$REGISTRO_OK" "$(msg "$REGISTRAR")"
+  paso "registrada: una fila, 1 sentencia, md5 del archivo" "^1 fila · 1 sentencia · ${md5_migracion}\$" "$(registro)"
   paso "reversa" '^NOTICE:  REVERSA: 4 vínculos de la carga borrados' "$(msg "$R")"
+  paso "la reversa quitó la fila de la versión" '^0 fila · - sentencia · -$' "$(registro)"
   prueba_paso "prueba ANTES" antes
   igual "misma foto que antes de aplicar" "$e_antes" "$(estado)"
   paso "rastro: ninguno vigente y 4 más con revertida_en" "^0 $((revertidos + 4))\$" "$(rastro)"
@@ -1182,9 +1351,27 @@ principal() {
   revertidos=$((revertidos + 4))
 
   tramo "12 · volver a aplicar"
-  paso "migración" '^NOTICE:  REZAGO: antes .* vinculados 4 ' "$(msg "$M")"
+  # Se aplica en una sesión que después lo intenta OTRA vez de modo que se niegue: la constancia de la primera, y vacía la segunda.
+  paso "migración, y en la misma sesión otra vez pero negada: su constancia, y después fila vacía" '^corrida 1: constancia vinculados=4 · corrida 2 \(se niega\): \(null\) · ERROR:  REZAGO PREFLIGHT: la transacción debe ir en READ COMMITTED \(va en repeatable read\)' "$(dos_corridas "$M")"
   prueba_paso "prueba DESPUÉS" despues
   paso "rastro: 4 vigentes y los revertidos de antes" "^4 ${revertidos}\$" "$(rastro)"
+  # Reaplicada, se vuelve a registrar; y con la versión registrada, lo que hacen las dos reversas con esa fila.
+  paso "registrar.sql tras reaplicar" "$REGISTRO_OK" "$(msg "$REGISTRAR")"
+  paso "vuelve a estar registrada: una fila, 1 sentencia, md5 del archivo" "^1 fila · 1 sentencia · ${md5_migracion}\$" "$(registro)"
+  local YA_OTRA='^ERROR:  REGISTRO: la versión 20261001233019 ya está registrada con otro nombre o contenido'
+  paso "registrada con OTRO contenido (p. ej. el archivo de antes): registrar.sql se niega y no la pisa" "$YA_OTRA" "$(tras "update supabase_migrations.schema_migrations set statements = array['-- el archivo de antes'] where version = '$VERSION';" "$REGISTRAR")"
+  paso "registrada con OTRO nombre: registrar.sql se niega" "$YA_OTRA" "$(tras "update supabase_migrations.schema_migrations set name = 'otro_nombre' where version = '$VERSION';" "$REGISTRAR")"
+  paso "reversa.sql quita la fila de la versión (visto dentro de una transacción que se deshace)" '^registro: 0$' "$(registro_tras "$R")"
+  paso "MUTANTE reversa.sql sin ese borrado: la fila se queda → cazado" '^registro: 1$' "$(registro_tras "$T/reversa-sin-registro.sql")"
+  paso "reversa-solo-codigo.sql quita la fila de la versión" '^registro: 0$' "$(registro_tras "$RC")"
+  paso "MUTANTE reversa-solo-codigo.sql sin ese borrado: la fila se queda → cazado" '^registro: 1$' "$(registro_tras "$T/reversa-solo-codigo-sin-registro.sql")"
+  # En una base sin el esquema supabase_migrations (aquí: renombrado dentro de una transacción que se deshace) no fallan.
+  local SIN_ESQUEMA="alter schema supabase_migrations rename to supabase_migrations_apartado;"
+  paso "sin el esquema supabase_migrations: reversa.sql no falla por eso" '^NOTICE:  REVERSA: 4 vínculos de la carga borrados' "$(tras "$SIN_ESQUEMA" "$R")"
+  paso "sin el esquema supabase_migrations: reversa-solo-codigo.sql no falla por eso" "$SIN_ERROR" "$(tras "$SIN_ESQUEMA" "$RC")"
+  paso "MUTANTE que borra el registro sin mirar si el esquema existe: falla → cazado" '^ERROR:  relation "supabase_migrations.schema_migrations" does not exist' "$(tras "$SIN_ESQUEMA" "$T/reversa-registro-sin-condicion.sql")"
+  paso "el esquema y la fila siguen en su sitio" "^1 · 1 fila · 1 sentencia · ${md5_migracion}\$" "$(q "select count(*) from pg_namespace where nspname = 'supabase_migrations';") · $(registro)"
+  paso "registro fuera (para los tramos que siguen)" '^registro fuera$' "$(quitar_registro)"
   local e_limpio; e_limpio=$(estado)
 
   tramo "13 · huellas y guardas: lo que hace negarse a cada archivo (y nada cambia)"
@@ -1226,11 +1413,14 @@ principal() {
   local e_x c_x r_x
   local NEGATIVA='^ERROR:  REVERSA: el contrato REZAGO-03 ya registró un pago, un cambio de cuenta o un PDF con su vínculo; no se borra nada'
   # 14a · un pago sellado
+  paso "registrar.sql (una reversa que se NIEGA no debe tocar el registro)" "$REGISTRO_OK" "$(msg "$REGISTRAR")"
   paso "pago confirmado de REZAGO-03 (cuota 1) por la RPC" "^${CUOTA_0301}\$" "$(pagar "$CUOTA_0301")"
   paso "sellado en la cuenta que vinculó la carga" "^${CUENTA_04}\\|registro\$" "$(sello "$CUOTA_0301")"
   e_x=$(estado); c_x=$(conteos); r_x=$(rastro)
   paso "con un pago sellado: la reversa se niega" "$NEGATIVA" "$(msg "$R")"
+  paso "y la versión sigue registrada" "^1 fila · 1 sentencia · ${md5_migracion}\$" "$(registro)"
   igual "no cambió nada (foto)" "$e_x" "$(estado)"; igual "no cambió nada (conteos)" "$c_x" "$(conteos)"; igual "no cambió nada (rastro)" "$r_x" "$(rastro)"
+  paso "registro fuera" '^registro fuera$' "$(quitar_registro)"
   paso "se retira el pago" '^restos limpios$' "$(limpiar_restos)"
   igual "el banco vuelve a la foto de antes" "$e_limpio" "$(estado)"
   # 14b · un cambio de cuenta
@@ -1310,8 +1500,8 @@ principal() {
   # (f) con la migración aplicada: el ENSAYO frente a un pago real lento del contrato que elige (REZAGO-01).
   ( pago_en_vuelo "$CUOTA_0101" 8 > "$T/pago.txt" 2>&1 ) &
   en_vuelo pago-en-vuelo
-  j=$(Q_NOMBRE=ensayo cronometrado ensayo); echo "$j" > "$SALIDA/ensayo-aplicada-falla-pago-lento.txt"
-  paso "(f) con la migración aplicada y un pago real lento: el ENSAYO da FALLA por «lock timeout»" '^5\.[0-9] s · veredicto=FALLA · todo_como_se_esperaba=false · vinculados=0 · 6 como se esperaba, 1 no, 0 sin probar · conexion=postgres/postgres · fallos=\["contrato REZAGO-01 \(ya estaba bien, caso ok\): bloqueada canceling statement due to lock timeout"\] · sin_probar=\[\]$' "$(cut -d' ' -f1-3 <<<"$j") $(resumen_ensayo <<<"$j")"
+  j=$(Q_NOMBRE=ensayo cronometrado ensayo); echo "$j" > "$SALIDA/ensayo-aplicada-incompleto-pago-lento.txt"
+  paso "(f) con la migración aplicada y un pago real lento: sonda «ocupada», veredicto INCOMPLETO" '^5\.[0-9] s · veredicto=INCOMPLETO · todo_como_se_esperaba=false · vinculados=0 · 6 como se esperaba, 0 no, 1 sin probar · conexion=postgres/postgres · fallos=\[\] · sin_probar=\["contrato REZAGO-01 \(ya estaba bien\): otra sesión tenía ocupada la cuota o el contrato; vuelve a lanzar el ensayo"\]$' "$(cut -d' ' -f1-3 <<<"$j") $(resumen_ensayo <<<"$j")"
   wait
   paso "se retira el pago" '^restos limpios$' "$(limpiar_restos)"
   igual "el banco vuelve a la foto de antes" "$e_limpio" "$(estado)"
@@ -1343,7 +1533,9 @@ principal() {
   prueba_paso "prueba DESPUÉS" despues
 
   tramo "16 · reversa solo del código"
+  paso "registrar.sql (para ver que la reversa del código quita el registro)" "$REGISTRO_OK" "$(msg "$REGISTRAR")"
   paso "reversa-solo-codigo.sql" "$SIN_ERROR" "$(msg "$RC")"
+  paso "la reversa del código quitó la fila de la versión" '^0 fila · - sentencia · -$' "$(registro)"
   prueba_paso "prueba SOLO CÓDIGO: bloqueo anterior, 3 funciones fuera, vínculos intactos y pagables" solo_codigo
   paso "rastro: los 4 siguen vigentes" "^4 ${revertidos}\$" "$(rastro)"
   paso "vincular-rezago.sql se niega (el diagnóstico ya no está)" '^ERROR:  VINCULAR: el bloqueo o el diagnóstico vivos no son los de la migración' "$(msg "$VR")"

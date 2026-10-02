@@ -1,7 +1,7 @@
 -- REGISTRO en supabase_migrations.schema_migrations de 20261001233019_crm_cuentas_pago_motivo_y_rezago.
 -- `db query --linked --file` NO registra: correr DESPUÉS de aplicar la migración. Idempotente; se niega si
 -- los objetos no están, o si la versión ya está registrada con otro nombre u otro contenido.
--- Generado con banco/generar-registrador.py. statements = el archivo entero (md5 f226ac450622e8021840d89db8046e9d).
+-- Generado con banco/generar-registrador.py. statements = el archivo entero (md5 4f9def427f4b0539063a70560867cf62).
 begin;
 set local lock_timeout = '5s';
 select pg_advisory_xact_lock(hashtext('crm_cuentas_pago_motivo_y_rezago_registro'));
@@ -72,8 +72,10 @@ begin
 -- Reversión: ../scripts/cuentas-pago-rezago/reversa.sql (borra solo los vínculos de esta carga y
 -- se niega si alguno ya registró un pago, un cambio de cuenta o un PDF) y reversa-solo-codigo.sql.
 --
--- La constancia de una corrida anterior en esta misma sesión se vacía ANTES del begin (esa
--- sentencia se confirma sola): si esta corrida se niega, la fila final sale vacía, no repetida.
+-- La constancia de una corrida anterior en esta misma sesión se vacía ANTES del begin. Lanzado
+-- sentencia a sentencia, ese vaciado se confirma solo y una corrida que se niega deja la fila
+-- final vacía; lanzado entero en un solo mensaje, el error corta el resto y no sale fila final.
+-- En ningún caso sale repetida la constancia de otra corrida.
 select pg_catalog.set_config('crm.rezago_vinculos_resultado', '', false);
 begin;
 set local lock_timeout = '5s';
@@ -607,8 +609,10 @@ values ('20261001233019', 'crm_cuentas_pago_motivo_y_rezago', array[$mig$-- Cuen
 -- Reversión: ../scripts/cuentas-pago-rezago/reversa.sql (borra solo los vínculos de esta carga y
 -- se niega si alguno ya registró un pago, un cambio de cuenta o un PDF) y reversa-solo-codigo.sql.
 --
--- La constancia de una corrida anterior en esta misma sesión se vacía ANTES del begin (esa
--- sentencia se confirma sola): si esta corrida se niega, la fila final sale vacía, no repetida.
+-- La constancia de una corrida anterior en esta misma sesión se vacía ANTES del begin. Lanzado
+-- sentencia a sentencia, ese vaciado se confirma solo y una corrida que se niega deja la fila
+-- final vacía; lanzado entero en un solo mensaje, el error corta el resto y no sale fila final.
+-- En ningún caso sale repetida la constancia de otra corrida.
 select pg_catalog.set_config('crm.rezago_vinculos_resultado', '', false);
 begin;
 set local lock_timeout = '5s';
@@ -1087,7 +1091,7 @@ do $post$
 begin
   if not exists (select 1 from supabase_migrations.schema_migrations
                  where version = '20261001233019' and name = 'crm_cuentas_pago_motivo_y_rezago' and cardinality(statements) = 1
-                   and md5(statements[1]) = 'f226ac450622e8021840d89db8046e9d') then
+                   and md5(statements[1]) = '4f9def427f4b0539063a70560867cf62') then
     raise exception 'REGISTRO: la fila 20261001233019 / crm_cuentas_pago_motivo_y_rezago no quedó como se esperaba';
   end if;
   raise notice 'REGISTRO: 20261001233019 / crm_cuentas_pago_motivo_y_rezago (1 sentencia: el archivo entero)';

@@ -124,6 +124,36 @@ INTACTAS = f"""coalesce((
       select 1 from pg_catalog.pg_constraint c
       where c.conrelid = pg_catalog.to_regclass('{TABLA}') and c.contype = 'c'
         and c.conname = 'contrato_cuenta_pago_asignaciones_motivo_valido' and c.convalidated)
+    -- lo que el núcleo da por hecho del vínculo: UNO por contrato, con el nombre por el que lo reconoce
+    and exists (
+      select 1
+      from pg_catalog.pg_constraint c
+      join pg_catalog.pg_index i on i.indexrelid = c.conindid
+      where c.conrelid = pg_catalog.to_regclass('crm.contrato_cuentas_pago') and c.contype = 'u'
+        and c.conname = 'contrato_cuentas_pago_contrato_id_key' and not c.condeferrable
+        and i.indisunique and i.indpred is null and i.indisvalid and i.indimmediate and i.indnatts = 1
+        and i.indkey[0] = (select a.attnum from pg_catalog.pg_attribute a
+                           where a.attrelid = pg_catalog.to_regclass('crm.contrato_cuentas_pago')
+                             and a.attname = 'contrato_id'))
+    -- la puerta y el núcleo escriben: las dos VOLATILE
+    and (select pg_catalog.count(*) from pg_catalog.pg_proc p
+         where p.oid in (pg_catalog.to_regprocedure('{F_PUERTA}'), pg_catalog.to_regprocedure('{F_NUCLEO}'))
+           and p.provolatile = 'v') = 2
+    -- la constancia sigue sin claves foráneas, sin permisos por columna y sin disparadores de más
+    and not exists (
+      select 1 from pg_catalog.pg_constraint c
+      where c.conrelid = pg_catalog.to_regclass('{TABLA}') and c.contype = 'f')
+    and not exists (
+      select 1 from pg_catalog.pg_attribute a
+      where a.attrelid = pg_catalog.to_regclass('{TABLA}') and a.attnum > 0 and not a.attisdropped
+        and a.attacl is not null)
+    and not exists (
+      select 1 from pg_catalog.pg_trigger t
+      where t.tgrelid = pg_catalog.to_regclass('{TABLA}') and not t.tgisinternal
+        and t.tgname not in ('trg_contrato_cuenta_pago_asignaciones_00_no_borrar',
+                             'trg_contrato_cuenta_pago_asignaciones_00_inmutable',
+                             'trg_contrato_cuenta_pago_asignaciones_00_sin_vaciar',
+                             'trg_audit_contrato_cuenta_pago_asignaciones'))
   ), false)"""
 
 REVERSA = f"""-- REVERSA de {MIG}. GENERADA por generar-derivados.py (no se edita a mano).
@@ -199,7 +229,9 @@ begin
       where p.oid in (pg_catalog.to_regprocedure('{F_PUERTA}'), pg_catalog.to_regprocedure('{F_NUCLEO}'))
         and a.privilege_type = 'EXECUTE' and a.grantee <> p.proowner
     loop
-      execute pg_catalog.format('revoke all on function %s from %s', v_f.firma, v_f.quien);
+      -- cascade: si alguien recibió el permiso con opción de concederlo y lo volvió a conceder,
+      -- esos permisos de segunda mano se van con el suyo (sin cascade, el revoke fallaría).
+      execute pg_catalog.format('revoke all on function %s from %s cascade', v_f.firma, v_f.quien);
     end loop;
     if {ALGUIEN_EJECUTA} then
       raise exception 'REVERSA ASIGNAR: la puerta no quedó cerrada';
@@ -211,12 +243,17 @@ $reversa$;
 notify pgrst, 'reload schema';
 commit;
 
--- El veredicto viaja como fila y sale del ESTADO real (si la reversa se negó, dice lo que hay).
+-- El veredicto viaja como fila y sale del ESTADO real: dice lo que HAY, no lo que hizo esta corrida
+-- (si arriba hay un ERROR, esta corrida no cambió nada y la fila describe lo que ya había).
 select case
          when pg_catalog.to_regclass('{TABLA}') is null
           and pg_catalog.to_regprocedure('{F_PUERTA}') is null
           and pg_catalog.to_regprocedure('{F_NUCLEO}') is null
+          and pg_catalog.to_regprocedure('{F_INMUTABLE}') is null
            then 'RETIRADA: no queda la puerta, el núcleo ni la tabla de constancias'
+         when pg_catalog.to_regprocedure('{F_PUERTA}') is null
+          and pg_catalog.to_regprocedure('{F_NUCLEO}') is null
+           then 'RESTOS: no quedan la puerta ni el núcleo, pero sí otras piezas de la migración; hay que retirarlas a mano antes de volver a aplicarla'
          when not {ALGUIEN_EJECUTA}
            then 'PUERTA_CERRADA: nadie puede asignar; no se borró nada (las constancias y los vínculos siguen)'
          else 'SIN_CAMBIOS: la puerta sigue abierta'

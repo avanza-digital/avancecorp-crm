@@ -28,7 +28,7 @@
 --   T2   efecto: vínculo, constancia completa (motivo recortado), bitácora de los dos, retorno sin datos
 --        sensibles y NINGUNA otra tabla cambia
 --   T3   después se paga: antes 23514; después, pagado y sellado (declarando el CCI y sin declararlo);
---        la cuota que ya estaba pagada NO se sella
+--        la cuota que ya estaba pagada NO se sella y los sellos previos quedan intactos
 --   T4   rechazos, cada uno con su mensaje EXACTO y sin escribir nada; un 23505 ajeno NO se disfraza de «ya tiene cuenta»
 --   T5   idempotencia por solicitud
 --   T6   elegir entre varias; una_cuenta; otra_moneda y sin_cuenta hasta registrar una; y la propiedad:
@@ -37,7 +37,9 @@
 --   T8   convivencia con F3 (cambiar cuenta de pago) y F4 (retirar cuenta)
 --   T10  con la otra migración: diagnóstico y puerta de motivos antes y después de asignar
 --   TC   catálogo de las tres funciones, verificado aparte del postflight
---   (T9, concurrencia con dos sesiones reales, va en prueba-concurrencia.sh)
+--   (T9, concurrencia con dos sesiones reales, va en prueba-concurrencia.sh; ahí va también la guarda de
+--    aislamiento del núcleo —REPEATABLE READ y SERIALIZABLE dan 0A000—, que esta prueba no puede ver
+--    porque toda ella corre en UNA transacción READ COMMITTED)
 --
 -- TRAMPAS DE ESTE BANCO (ver supabase/scripts/potencial-lead/banco/LEEME.md)
 --   · Llamar a una función SIN EXECUTE bajo «set role» tumba este Postgres: los permisos se leen del
@@ -90,7 +92,7 @@ insert into constantes values
   ('nucleo',         'private.asignar_cuenta_pago_contrato_autorizado(uuid,uuid,uuid,text)'),
   ('candado',        'private.trg_contrato_cuenta_pago_asignaciones_inmutable()'),
   ('md5_puerta',     '46e03517fc68ffd79fed6892d1128c2b'),
-  ('md5_nucleo',     'c636b7394d82f9659cad78da2d3a301a'),
+  ('md5_nucleo',     '3642871283e7306a179ea3795bad1389'),
   ('md5_candado',    '49bb93b9429aa7b0c168cc8ceb43acfc'),
   ('marca_carga',    'migracion:rezago-vinculos:20261001'),
   ('no_admin',       'ERR:42501:Solo administración puede asignar la cuenta de pago'),
@@ -584,7 +586,10 @@ declare
   l record;
   a record;
   b record;
-  v_corta text;
+  n record;
+  v_cta uuid;
+  v_esperado jsonb;
+  v_llamada text;
 begin
   execute $q$select md5(coalesce(string_agg(md5(to_jsonb(x)::text), ',' order by x.id), '')) from crm.cuentas_bancarias x$q$ into v_cuentas;
   execute $q$select md5(coalesce(string_agg(md5(to_jsonb(x)::text), ',' order by x.id), '')) from public.contratos x$q$ into v_contratos;
@@ -645,26 +650,34 @@ begin
   perform pg_temp.igual('T2 ninguna cuota cambió', v_cuotas, r);
   execute $q$select md5(coalesce(string_agg(md5(to_jsonb(x)::text), ',' order by x.id), '')) from public.perfiles x$q$ into r;
   perform pg_temp.igual('T2 ningún perfil cambió', v_perfiles, r);
-  -- Medición (no es parte del contrato): «ultimos» son los 4 últimos caracteres. La regla de las cuentas
-  -- (crm.cuentas_bancarias_numero_valido) admite números de 1 a 30 caracteres: con uno de 4 o menos,
-  -- «ultimos» ES el número entero. Se registra una cuenta así por la puerta real y se asigna (todo se deshace).
+  -- «ultimos» solo sale de un número de 8 o más caracteres; con uno más corto viene null: NUNCA el número
+  -- entero (la regla de las cuentas admite números de 1 a 30 caracteres). Igual en la repetición. Cada
+  -- cuenta se registra por la puerta real y se asigna a un contrato distinto (todo se deshace). La
+  -- respuesta se compara ENTERA con lo esperado.
   begin
-    r := pg_temp.registrar_cuenta('admin', 'a5190000-0000-4000-8000-000000000041',
-           '{"moneda": "PEN", "banco": "BCP", "tipo_cuenta": "ahorros", "numero_cuenta": "4321", "cci": "00251900000000004321"}');
-    if r like 'OK:%' and r <> 'OK:(null)' then
-      r := pg_temp.como('admin', array[pg_temp.k('puerta'), pg_temp.k('nucleo')],
-             format('select crm.asignar_cuenta_pago_contrato(gen_random_uuid(), %L::uuid, %L::uuid, %L) ->> ''ultimos''',
-                    pg_temp.xc(2), substr(r, 4), pg_temp.k('motivo_bueno')));
-      v_corta := case when r = 'OK:4321' then 'con una cuenta de número «4321» (4 caracteres, que la regla de cuentas admite) «ultimos» devuelve el número ENTERO'
-                      else 'con una cuenta de número «4321» vino ' || r end;
-    else
-      v_corta := 'no se pudo registrar una cuenta de 4 caracteres: ' || r;
-    end if;
+    for n in select * from (values ('4321', '00251900000000004321', 2), ('7654321', '00251900000007654321', 6),
+                                   ('87654321', '00251900000087654321', 7)) as t(numero, cci, contrato) loop
+      r := pg_temp.registrar_cuenta('admin', 'a5190000-0000-4000-8000-000000000041',
+             jsonb_build_object('moneda', 'PEN', 'banco', 'BCP', 'tipo_cuenta', 'ahorros', 'numero_cuenta', n.numero, 'cci', n.cci));
+      perform pg_temp.cierto(format('T2 se registra una cuenta de número «%s» (%s caracteres)', n.numero, length(n.numero)), r like 'OK:%' and r <> 'OK:(null)', r);
+      v_cta := substr(r, 4)::uuid;
+      v_esperado := jsonb_build_object('solicitud_id', pg_temp.sol(210 + n.contrato), 'ya_aplicada', false,
+                      'numero_contrato', 'ASIGNAR-0' || n.contrato, 'banco', 'BCP', 'moneda', 'PEN',
+                      'ultimos', case when length(n.numero) >= 8 then right(n.numero, 4) end);
+      v_llamada := format('select (crm.asignar_cuenta_pago_contrato(%L::uuid, %L::uuid, %L::uuid, %L))::text',
+                          pg_temp.sol(210 + n.contrato), pg_temp.xc(n.contrato), v_cta, pg_temp.k('motivo_bueno'));
+      perform pg_temp.igual(format('T2 número de %s caracteres: «ultimos» es %s', length(n.numero),
+                                   case when length(n.numero) >= 8 then 'los 4 últimos' else 'null (nunca el número entero)' end),
+        'OK:' || v_esperado::text, pg_temp.como('admin', array[pg_temp.k('puerta'), pg_temp.k('nucleo')], v_llamada));
+      perform pg_temp.igual(format('T2 número de %s caracteres: la repetición devuelve lo mismo, con ya_aplicada', length(n.numero)),
+        'OK:' || (v_esperado || jsonb_build_object('ya_aplicada', true))::text,
+        pg_temp.como('admin', array[pg_temp.k('puerta'), pg_temp.k('nucleo')], v_llamada));
+    end loop;
     raise exception using errcode = 'P0001', message = 'ASIGNAR_DESHACER';
   exception when others then
     if sqlerrm <> 'ASIGNAR_DESHACER' then raise; end if;
   end;
-  return 'vínculo con la cuenta elegida y creado_por = quien asigna; constancia completa con el motivo recortado; una fila de bitácora del vínculo y otra de la constancia, con su autor; retorno de seis claves sin datos sensibles (ultimos = 4 últimos caracteres); ninguna otra tabla cambió · MEDIDO, fuera del contrato: ' || v_corta;
+  return 'vínculo con la cuenta elegida y creado_por = quien asigna; constancia completa con el motivo recortado; una fila de bitácora del vínculo y otra de la constancia, con su autor; retorno de seis claves sin datos sensibles; «ultimos» son los 4 últimos solo si el número tiene 8 o más caracteres (con 4 y con 7 viene null, también en la repetición); ninguna otra tabla cambió';
 end;
 $f$;
 
@@ -680,6 +693,8 @@ declare
   v_cci text;
   v_cci_otra text;
   v_desvinculados integer;
+  v_previos uuid[];
+  v_sellos text;
   a text;
   r text;
 begin
@@ -700,12 +715,22 @@ begin
   perform pg_temp.igual('T3 los intentos rechazados no dejaron la cuota pagada ni sellos', 'pendiente/0',
     (select q.estado from public.cronograma_pagos q where q.id = pg_temp.cuota(4, 1)) || '/' || (select count(*) from crm.cuotas_cuenta_pagada));
 
+  -- Sellos PREVIOS a la asignación, que no deben moverse: el de un pago de otro contrato (REZAGO-01,
+  -- que ya tenía cuenta) y uno de este mismo contrato puesto a mano (inferido, en la otra cuenta del cliente).
+  perform pg_temp.igual('T3 preparación: un pago de otro contrato deja su sello', 'PAGADO:' || pg_temp.cta(1) || ':registro', pg_temp.pagar('oper', pg_temp.cuota(1, 1)));
+  insert into crm.cuotas_cuenta_pagada (cuota_id, contrato_id, cuenta_bancaria_id, origen, sellada_en)
+  values (gen_random_uuid(), K4, pg_temp.cta(8), 'inferido', timestamptz '2026-05-05 12:00+00');
+  select array_agg(s.id order by s.id), count(*) || ':' || md5(string_agg(md5(to_jsonb(s)::text), ',' order by s.id))
+    into v_previos, v_sellos from crm.cuotas_cuenta_pagada s;
+  perform pg_temp.igual('T3 preparación: hay dos sellos previos (uno de otro contrato y uno de este)', '2', cardinality(v_previos)::text);
+
   r := pg_temp.asignar('admin', pg_temp.sol(301), K4, A7, MOT);
   perform pg_temp.cierto('T3 admin asigna a REZAGO-04 su cuenta en dólares', r like 'OK:%', r);
   perform pg_temp.igual('T3 asignar NO sella la cuota que el contrato ya tenía pagada', 'pagado/0',
     (select q.estado from public.cronograma_pagos q where q.id = PAGADA_ANTES) || '/' ||
     (select count(*) from crm.cuotas_cuenta_pagada s where s.cuota_id = PAGADA_ANTES));
-  perform pg_temp.igual('T3 asignar no crea ningún sello', '0', (select count(*)::text from crm.cuotas_cuenta_pagada));
+  perform pg_temp.igual('T3 asignar no crea ni toca ningún sello: los sellos previos siguen idénticos (todas sus columnas)', v_sellos,
+    (select count(*) || ':' || md5(string_agg(md5(to_jsonb(s)::text), ',' order by s.id)) from crm.cuotas_cuenta_pagada s));
 
   -- Después: se paga y queda sellado en la cuenta asignada.
   perform pg_temp.igual('T3 operaciones paga la cuota 1 DECLARANDO el CCI de la cuenta asignada', 'PAGADO:' || A7 || ':declarado',
@@ -718,11 +743,13 @@ begin
   perform pg_temp.igual('T3 declarar el CCI de OTRA cuenta del cliente (la que no se asignó) se rechaza',
     'ERR:22023:El CCI del depósito no es de una cuenta de pago de este contrato', r);
   perform pg_temp.igual('T3 admin paga la cuota 3 declarando el CCI bueno', 'PAGADO:' || A7 || ':declarado', pg_temp.pagar('admin', pg_temp.cuota(4, 3), v_cci));
-  perform pg_temp.igual('T3 REZAGO-04 tiene tres sellos, los tres en la cuenta asignada; la cuota 0 sigue sin sello',
+  perform pg_temp.igual('T3 los tres pagos posteriores crean tres sellos NUEVOS, los tres en la cuenta asignada; la cuota 0 sigue sin sello',
     '3/3/0',
-    (select count(*) from crm.cuotas_cuenta_pagada s where s.contrato_id = K4) || '/' ||
-    (select count(*) from crm.cuotas_cuenta_pagada s where s.contrato_id = K4 and s.cuenta_bancaria_id = A7) || '/' ||
+    (select count(*) from crm.cuotas_cuenta_pagada s where s.contrato_id = K4 and s.id <> all (v_previos)) || '/' ||
+    (select count(*) from crm.cuotas_cuenta_pagada s where s.contrato_id = K4 and s.id <> all (v_previos) and s.cuenta_bancaria_id = A7) || '/' ||
     (select count(*) from crm.cuotas_cuenta_pagada s where s.cuota_id = PAGADA_ANTES));
+  perform pg_temp.igual('T3 tras los pagos, los sellos previos siguen idénticos (ni re-sellados ni movidos a la cuenta asignada)', v_sellos,
+    (select count(*) || ':' || md5(string_agg(md5(to_jsonb(s)::text), ',' order by s.id)) from crm.cuotas_cuenta_pagada s where s.id = any (v_previos)));
 
   -- Un contrato VENCIDO es un contrato abierto: se asigna y se paga igual.
   r := pg_temp.pagar('oper', pg_temp.xcuota(2, 1));
@@ -730,7 +757,7 @@ begin
   r := pg_temp.asignar('super', pg_temp.sol(302), K2X, A1X, MOT);
   perform pg_temp.cierto('T3 superadmin asigna a un contrato VENCIDO', r like 'OK:%', r);
   perform pg_temp.igual('T3 la cuota del contrato vencido se paga y queda sellada', 'PAGADO:' || A1X || ':registro', pg_temp.pagar('oper', pg_temp.xcuota(2, 1)));
-  return format('antes de asignar el pago cae con 23514 (operaciones y admin, con y sin CCI); después se paga y se sella en la cuenta asignada (declarado y registro); el CCI de otra cuenta del cliente se rechaza; la cuota que ya estaba pagada sigue sin sello; un contrato vencido también se asigna y se paga%s',
+  return format('antes de asignar el pago cae con 23514 (operaciones y admin, con y sin CCI); después se paga y se sella en la cuenta asignada (declarado y registro); el CCI de otra cuenta del cliente se rechaza; la cuota que ya estaba pagada sigue sin sello; los sellos previos (de otro contrato y de este) quedan intactos al asignar y al pagar después; un contrato vencido también se asigna y se paga%s',
     case when v_desvinculados > 0 then format(' · (se retiraron en el tramo los %s vínculos de la carga de la otra migración)', v_desvinculados) else '' end);
 end;
 $f$;
@@ -741,7 +768,14 @@ $f$;
 --   otro_esquema un 23505 que dice venir de public.contrato_cuentas_pago (mismo nombre, otro esquema)
 --   otra_tabla   un 23505 que dice venir de crm.otra_tabla
 --   sin_origen   un 23505 sin esquema ni tabla
---   el_vinculo   un 23505 que dice venir de crm.contrato_cuentas_pago (el testigo: ese SÍ se traduce)
+--   pk_del_vinculo  un 23505 DE VERDAD del propio vínculo, pero de su clave primaria (el disparador le pone
+--                   al vínculo nuevo el id de uno que ya existe): no es «el contrato ya tiene cuenta»
+--   sin_restriccion un 23505 que dice venir de crm.contrato_cuentas_pago, sin nombre de restricción
+--   otra_restriccion un 23505 de crm.contrato_cuentas_pago con otra restricción
+--   esquema_ajeno_misma_restriccion  un 23505 de public.contrato_cuentas_pago con el MISMO nombre de restricción
+--   tabla_ajena_misma_restriccion    un 23505 de crm.otra_tabla con el MISMO nombre de restricción
+--   el_vinculo   un 23505 de crm.contrato_cuentas_pago y de su restricción contrato_cuentas_pago_contrato_id_key
+--                (el testigo: ese SÍ se traduce)
 create function pg_temp.unicidad_ajena(p_clase text, p_contrato uuid, p_cuenta uuid) returns text language plpgsql as $f$
 declare
   r text;
@@ -759,7 +793,12 @@ begin
         when 'otro_esquema' then $x$raise exception using errcode = '23505', message = 'duplicado ajeno de prueba', schema = 'public', table = 'contrato_cuentas_pago';$x$
         when 'otra_tabla'   then $x$raise exception using errcode = '23505', message = 'duplicado ajeno de prueba', schema = 'crm', table = 'otra_tabla';$x$
         when 'sin_origen'   then $x$raise exception using errcode = '23505', message = 'duplicado ajeno de prueba';$x$
-        when 'el_vinculo'   then $x$raise exception using errcode = '23505', message = 'duplicado de prueba', schema = 'crm', table = 'contrato_cuentas_pago';$x$
+        when 'pk_del_vinculo' then $x$new.id := (select l.id from crm.contrato_cuentas_pago l order by l.id limit 1);$x$
+        when 'sin_restriccion' then $x$raise exception using errcode = '23505', message = 'duplicado ajeno de prueba', schema = 'crm', table = 'contrato_cuentas_pago';$x$
+        when 'otra_restriccion' then $x$raise exception using errcode = '23505', message = 'duplicado ajeno de prueba', schema = 'crm', table = 'contrato_cuentas_pago', constraint = 'contrato_cuentas_pago_otra_key';$x$
+        when 'esquema_ajeno_misma_restriccion' then $x$raise exception using errcode = '23505', message = 'duplicado ajeno de prueba', schema = 'public', table = 'contrato_cuentas_pago', constraint = 'contrato_cuentas_pago_contrato_id_key';$x$
+        when 'tabla_ajena_misma_restriccion' then $x$raise exception using errcode = '23505', message = 'duplicado ajeno de prueba', schema = 'crm', table = 'otra_tabla', constraint = 'contrato_cuentas_pago_contrato_id_key';$x$
+        when 'el_vinculo'   then $x$raise exception using errcode = '23505', message = 'duplicado de prueba', schema = 'crm', table = 'contrato_cuentas_pago', constraint = 'contrato_cuentas_pago_contrato_id_key';$x$
       end);
     execute 'create trigger zz_prueba_unicidad_ajena before insert on crm.contrato_cuentas_pago
              for each row execute function private.zz_prueba_unicidad_ajena()';
@@ -869,12 +908,15 @@ begin
 
   -- Una violación de unicidad AJENA (no la del vínculo por contrato) sube tal cual: no se disfraza de
   -- «ya tiene cuenta de pago». Se provoca con un disparador de prueba sobre el vínculo (se va con el tramo).
-  foreach b in array array['real_bitacora', 'otro_esquema', 'otra_tabla', 'sin_origen'] loop
+  foreach b in array array['real_bitacora', 'otro_esquema', 'otra_tabla', 'sin_origen', 'pk_del_vinculo', 'sin_restriccion', 'otra_restriccion',
+                           'esquema_ajeno_misma_restriccion', 'tabla_ajena_misma_restriccion'] loop
     r := pg_temp.unicidad_ajena(b, K1, A1);
     perform pg_temp.cierto(format('T4 un 23505 ajeno (%s) sube como 23505', b), r like 'ERR:23505:%', r);
     perform pg_temp.cierto(format('T4 un 23505 ajeno (%s) NO sale como «ya tiene cuenta de pago»', b), r not like '%ya tiene cuenta de pago%', r);
   end loop;
-  perform pg_temp.igual('T4 testigo: con el disparador de prueba apuntando al propio vínculo, SÍ se traduce (el filtro es por tabla, no un «todo sube»)',
+  perform pg_temp.igual('T4 la colisión de la CLAVE PRIMARIA del vínculo sube cruda, con el nombre de su restricción',
+    'ERR:23505:duplicate key value violates unique constraint "contrato_cuentas_pago_pkey"', pg_temp.unicidad_ajena('pk_del_vinculo', K1, A1));
+  perform pg_temp.igual('T4 testigo: la violación de la unicidad POR CONTRATO del vínculo SÍ se traduce (el filtro es por restricción, no un «todo sube»)',
     format(pg_temp.k('ya_tiene'), 'ASIGNAR-01'), pg_temp.unicidad_ajena('el_vinculo', K1, A1));
   perform pg_temp.igual('T4 las violaciones de unicidad provocadas no escribieron nada', v_huella, pg_temp.huella_mundo());
 
@@ -900,7 +942,7 @@ begin
       v_pasan := v_pasan || ' U+' || upper(to_hex(n));
     end if;
   end loop;
-  return format('cada rechazo con su mensaje exacto y sin escribir nada: cuenta ajena, otra moneda, inactiva, inexistente; contrato inexistente, con cuenta (ok, incoherente y recién asignado), cerrado (renovado y retirado); nulos uno a uno; motivo vacío, corto, en blanco, de 501 y los 26 espacios; un 23505 ajeno sube tal cual · MEDIDO, fuera del contrato: cinco caracteres invisibles que la lista no trae pasan como motivo válido →%s',
+  return format('cada rechazo con su mensaje exacto y sin escribir nada: cuenta ajena, otra moneda, inactiva, inexistente; contrato inexistente, con cuenta (ok, incoherente y recién asignado), cerrado (renovado y retirado); nulos uno a uno; motivo vacío, corto, en blanco, de 501 y los 26 espacios; un 23505 ajeno (otra tabla, otro esquema —aun con el mismo nombre de restricción—, la clave primaria del vínculo u otra restricción) sube tal cual · MEDIDO, fuera del contrato: cinco caracteres invisibles que la lista no trae pasan como motivo válido →%s',
     case when v_pasan = '' then ' ninguno' else v_pasan end);
 end;
 $f$;
@@ -1274,6 +1316,7 @@ declare
   v_ok_despues integer;
   v_nueva uuid;
   v_todos uuid[];
+  v_cerrado text;
   n integer;
   r text;
 begin
@@ -1355,8 +1398,12 @@ begin
               join crm.cuentas_bancarias cb on cb.id = cp.cuenta_bancaria_id
               where cp.contrato_id = d.contrato_id and cb.cliente_id = ct.cliente_id and cb.moneda = ct.moneda)$q$ into n;
   perform pg_temp.igual('T10 en ningún contrato el diagnóstico y la condición del bloqueo dicen cosas distintas', '0', n::text);
-  return format('con las dos migraciones (la carga de la otra tiene %s vínculos vivos): antes de asignar el diagnóstico da el caso sin vínculo, la puerta de motivos lo devuelve y el bloqueo se lo dice al gestor; después da ok, la puerta ya no lo trae y se paga; los vinculados por la carga se rechazan con «ya tiene cuenta de pago»; los ok suben de %s a %s',
-    v_carga, v_ok_antes, v_ok_despues);
+  -- MEDIDO, sin exigir nada (el diagnóstico es de la otra migración): un contrato CERRADO sin cuenta de pago.
+  -- El diagnóstico no mira el estado del contrato; «Asignar» solo admite contratos abiertos.
+  v_cerrado := format('contrato cerrado ASIGNAR-03 (renovado): el diagnóstico dice «%s» y asignar responde «%s»',
+    pg_temp.diagnostico(pg_temp.xc(3)), pg_temp.asignar('admin', gen_random_uuid(), pg_temp.xc(3), pg_temp.xcta(1), MOT));
+  return format('con las dos migraciones (la carga de la otra tiene %s vínculos vivos): antes de asignar el diagnóstico da el caso sin vínculo, la puerta de motivos lo devuelve y el bloqueo se lo dice al gestor; después da ok, la puerta ya no lo trae y se paga; los vinculados por la carga se rechazan con «ya tiene cuenta de pago»; los ok suben de %s a %s · MEDIDO %s',
+    v_carga, v_ok_antes, v_ok_despues, v_cerrado);
 end;
 $f$;
 

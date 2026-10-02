@@ -35,11 +35,63 @@ FECHA de una cuota pagada antes de asignar, el sello de F5 la marca «inferido»
 asignada; (f) con esta migración aplicada, la reversa de F3 se niega (comparte su candado «no se
 borra»); (g) `service_role` conserva el INSERT directo previo sobre el vínculo (20260803221622).
 
-Reversión: `supabase/scripts/cuentas-pago-asignar/reversa.sql` (sin asignaciones registradas retira
-todo; con asignaciones no borra nada y solo retira el EXECUTE). Guía en
-`supabase/scripts/cuentas-pago-asignar/LEEME.md`. El portal (botón en Pagos) se publica DESPUÉS.
+Reversión: `supabase/scripts/cuentas-pago-asignar/reversa.sql` (sin asignaciones registradas y con
+las piezas enteras retira todo y quita la versión del registro; en cualquier otro caso no borra
+nada y solo cierra la puerta, quitándole el EXECUTE a todo el que lo tenga) y `reabrir-puerta.sql`
+(se niega si las piezas no están enteras). Las dos se GENERAN con `generar-derivados.py`, con una
+sola definición de «piezas enteras». Guía en `supabase/scripts/cuentas-pago-asignar/LEEME.md`. El
+portal (botón en Pagos) se publica DESPUÉS.
 
-Verificación: se completa con el ciclo del banco y las revisiones (auditor-rls y Codex).
+Verificación (01–02/10/2026, banco Docker propio con el esquema de producción del día y siembra
+ficticia; nada en producción):
+- `supabase/scripts/cuentas-pago-asignar/ciclo.sh`: 386 pasos, 0 fallos, 11 hechos medidos, 19 237
+  comprobaciones dentro de las pruebas, 16 tramos, 4 min. Aplicar (veredicto como fila), repetir
+  (se niega), reversa sin y con asignaciones, cerrar → reabrir → asignar, registrador, y las dos
+  migraciones juntas en los dos órdenes: PASS. Prueba SQL: 2 721 comprobaciones sola y 2 760 con
+  las dos migraciones, sin dejar nada escrito. Trinquetes: foto idéntica sin y con la migración.
+- A dos sesiones (`prueba-concurrencia.sh`, 24 casos + 3 con la carga): dos asignaciones a la vez
+  (una gana, la otra recibe «ya tiene cuenta de pago»), doble clic (idempotente), pago, F3, F4 y
+  la carga automática cruzados con «Asignar»: sin interbloqueos. El `for share` de la cuenta ANTES
+  de escribir es lo que evita el interbloqueo con la carga (su mutante da `deadlock detected`).
+- Guarda de aislamiento: REPEATABLE READ y SERIALIZABLE → `0A000` sin escribir nada. Sin la guarda
+  (mutante, dos sesiones) la solicitud repetida responde «ya tiene cuenta» en vez de `ya_aplicada`
+  y una administradora revocada tras la fotografía asigna.
+- Sellos: los previos quedan idénticos y el pago posterior sella en la cuenta asignada.
+- Mutantes: 67 de la migración (64 los para el postflight; el permiso por columna y el CHECK
+  aflojado los caza la prueba; uno es equivalente en este banco), 67 inyectados en la prueba (59
+  los caza algún tramo; de los otros 8, dos son equivalentes y seis los caza la concurrencia), 10 de
+  concurrencia, 14 mundos de preflight (todos negados), 19 de «piezas enteras» (cada cláusula,
+  quitada, hace que reabrir reabra exactamente en sus mundos; 37 mundos alterados se niegan) y 3
+  de la reversa (delatados).
+- auditor-rls: CHANGES_REQUESTED sin P0. Aceptado: la unicidad solo se traduce si es la del vínculo,
+  candado contra TRUNCATE, veredicto leído del estado, `ultimos` (4 caracteres y solo si el número
+  tiene 8 o más), preflight más estricto, sin índices que nadie usa, reversa en dos ramas y
+  `reabrir-puerta.sql`. Riesgo previo anotado: el INSERT directo de `service_role` sobre el vínculo.
+- Codex (`docs/encargos/2026-10-01-codex-asignar-cuenta-pago-r1.md` y `-respuesta.md`):
+  CHANGES_REQUESTED sin P0. ACEPTADO: (P1) el núcleo se niega fuera de READ COMMITTED (`0A000`):
+  con una fotografía fija vería vigente a una administradora ya revocada y perdería la
+  idempotencia; (P2) la reversa cierra aunque falte una pieza y a todo el que tenga EXECUTE; (P2)
+  reabrir comprueba la compuerta de F3, los candados y la bitácora; (P2) la unicidad se reconoce
+  por el NOMBRE de la restricción (una colisión de la clave primaria sube cruda); (P3) el portal
+  valida el motivo como el servidor y no abre otra ventana durante un envío. FUERA DE ALCANCE,
+  MEDIDO Y ANOTADO: (P1, riesgo previo) «Retirar cuenta» (F4) no lleva esa negativa: lanzado a
+  mano en REPEATABLE READ retira una cuenta recién asignada (en READ COMMITTED se niega en los dos
+  órdenes). Por la API no ocurre. Propuesta para Miguel: migración aparte que ponga la misma
+  negativa a F3 y F4.
+- Banco, hallazgos aplicados: «piezas enteras» ahora mira también la unicidad del vínculo por
+  contrato, que la puerta y el núcleo sean VOLATILE y que la constancia siga sin claves foráneas,
+  sin permisos por columna y sin disparadores de más; la reversa revoca con `cascade` (un permiso
+  dado con opción de concederlo y vuelto a conceder ya no la frena); el veredicto distingue
+  `RETIRADA` de `RESTOS`. Límites declarados: reabrir no compara la definición del CHECK del motivo
+  (el núcleo lo valida por su cuenta); solo se asigna a contratos abiertos (hoy los 23 sin cuenta
+  están activos, censo del 01/10).
+- Que la API corre en READ COMMITTED no se pudo leer de producción; evidencia: trece puertas vivas
+  de `crm` con la misma negativa `0A000` (p. ej. `crm.editar_lead_fn`, `crm.tomar_lead_libre`,
+  `crm.reabrir_lead_fn`) las ejecuta `authenticated` a diario.
+- `npm run test:rls:preflight` PASS (variables ficticias, sin conexión) · matriz HTTP `test-rls.mjs`
+  (sondas nuevas escritas, con salto ruidoso si la puerta no está desplegada): NOT RUN (exige el
+  banco local compartido) · advisors: NOT RUN · `npm run gen:types`: tras aplicar.
+- Portal (rama `cuentas-pago-20261001` del worktree del portal, sin publicar): 200/200 pruebas.
 
 ## 20261001233019 — Cuentas de pago: el bloqueo dice por qué, diagnóstico y carga del rezago (`crm.cuentas_pago_motivos_fn`)
 
@@ -86,33 +138,47 @@ fija de usuarios: el canal con que se lanza el SQL crea su propio rol de acceso,
 cerrada podría dejar a quien opera con el texto genérico; quien tiene una credencial de la base
 ya puede leerlo todo.
 
-Riesgos y huecos conocidos: no hay pantalla para vincular una cuenta a un contrato existente (la
-única vía es la carga); la matriz HTTP (`test-rls.mjs`) cubre la puerta por rol pero NO el mensaje
-del bloqueo por rol ni una sesión de `operaciones` (se probó en el banco con sesiones simuladas y
-el ensayo de producción simula gestor y analista); sin prueba de concurrencia a dos sesiones;
+Riesgos y huecos conocidos: la carga nunca elige entre dos cuentas (eso lo hace administración con
+«Asignar cuenta», `20261002005004`); la matriz HTTP (`test-rls.mjs`) cubre la puerta por rol pero
+NO el mensaje del bloqueo por rol ni una sesión de `operaciones` (se probó en el banco con sesiones
+simuladas y el ensayo de producción simula gestor y analista); no se probó con PostgREST, el pooler
+ni `supabase db query --linked` reales (el modo «archivo en un solo mensaje» se probó con `psql -c`);
 `app/src/lib/database.types.ts` se regenera tras aplicar (ninguna pantalla del CRM usa la puerta).
 
 Reversión: `supabase/scripts/cuentas-pago-rezago/reversa.sql` (se niega si algún vínculo de la
-carga ya registró un pago, un cambio de cuenta o un PDF) y `reversa-solo-codigo.sql`. Guía y orden
-de publicación en `supabase/scripts/cuentas-pago-rezago/LEEME.md`.
+carga ya registró un pago, un cambio de cuenta o un PDF) y `reversa-solo-codigo.sql`; las dos
+quitan también la versión del registro de migraciones. Guía y orden de publicación en
+`supabase/scripts/cuentas-pago-rezago/LEEME.md`.
 
-Verificación (01/10/2026, banco Docker propio con el esquema de producción del día, siembra
+Verificación (01–02/10/2026, banco Docker propio con el esquema de producción del día, siembra
 ficticia de 15 contratos por caso; nada en producción):
-- `supabase/scripts/cuentas-pago-rezago/ciclo.sh`: 273 pasos, 0 fallos. Prueba: 1059 comprobaciones
-  en ANTES, 1496 en DESPUÉS, 885 tras la reversa solo del código. Aplicar, repetir, revertir,
-  reaplicar, negativas de la reversa (pago sellado, cambio de cuenta, PDF, triggers de sello
-  apagados), reversa solo del código, `vincular-rezago.sql` y registrador ×2: PASS.
+- `supabase/scripts/cuentas-pago-rezago/ciclo.sh`: 523 pasos, 0 fallos, 20 731 comprobaciones de la
+  prueba, 3 min 25 s (tres pasadas completas seguidas, las tres sin fallos). Aplicar, repetir,
+  revertir, reaplicar, negativas de la reversa (pago sellado, cambio de cuenta, PDF, triggers de
+  sello apagados), reversa solo del código, `vincular-rezago.sql`, registrador y registro de
+  versiones tras cada reversa: PASS.
+- A dos sesiones: una segunda cuenta registrada a mitad de la carga; pagos en vuelo frente a la
+  migración, al ensayo y a `reversa.sql`. Un pago solo toma `AccessShareLock` sobre las cuentas: no
+  espera a la carga. Ningún interbloqueo ni fallo de serialización. Sin las guardas de READ
+  COMMITTED (mutantes en REPEATABLE READ y SERIALIZABLE) la carga, la carga relanzable y la reversa
+  hacen el daño que el archivo real evita.
 - Medido con el bloqueo anterior: analista, cliente y anon llegan al trigger por INSERT (antes de
   la RLS). Con el nuevo reciben el texto genérico; gestor, rol de servicio y conexión directa, el
   detalle; una sesión de la API sin claims, el genérico.
-- Mutantes sobre el texto real: 74 archivos; 24 los caza el postflight, 7 las postcondiciones, 3 el
-  `STRICT` de la carga y 38 la prueba. Quitar el `lock table` solo lo detecta el tramo de
-  concurrencia (cuenta a medio registrar en otra sesión: `lock timeout`).
+- Mutantes sobre el texto real: 75 de una sesión (1 control + 74: 38 los caza la prueba, 24 el
+  postflight, 7 las postcondiciones y 3 el `STRICT` de la carga; quitar el `lock table` y quitar
+  la guarda de aislamiento solo se ven a dos sesiones, y ahí se cazan), 4 a dos sesiones, 3 del
+  bloqueo dentro del ensayo y 12 de la última ronda (11 cazados; el superviviente es equivalente:
+  quitar `found` de la sonda del ensayo da lo mismo, porque ya lo cubre la comprobación del estado).
 - Camino feliz: no invoca el diagnóstico (probado sustituyéndolo por uno que falla); 200 pagos,
-  26–33 ms antes y 26–29 ms después (ruido).
+  26–32 ms con el bloqueo anterior y 26–33 ms con el nuevo (ruido).
 - Trinquetes (`private.assert_*()` + censo de contadores): idénticos sin y con la migración.
-- Ensayo de producción corrido contra el banco (en ANTES y ya aplicada): `ENSAYO_DESHECHO`,
-  `todo_como_se_esperaba = true`, foto idéntica antes y después.
+- Ensayo de producción corrido contra el banco (en ANTES y ya aplicada) en sus tres veredictos:
+  `PASA` (foto idéntica antes y después), `INCOMPLETO` (un caso sin cuota que probar; una cuota
+  ocupada por un pago real en curso) y `FALLA` (bloqueo alterado; pago permitido que no tiene
+  efecto: UPDATE anulado, sello apagado, sello en otra cuenta, estado que no cambia).
+- Constancia de la carga: en una misma sesión, una corrida que se niega después de una buena no
+  repite la constancia anterior (sentencia a sentencia sale vacía; en un solo mensaje no sale fila).
 - `npm run check:scripts` PASS · `npm run test:rls:preflight` PASS (variables ficticias, sin
   conexión) · matriz HTTP `test-rls.mjs`: NOT RUN (exige un banco con API y credenciales).
 - auditor-rls: CHANGES_REQUESTED sin P0; aceptado todo salvo las sondas HTTP del mensaje por rol
@@ -128,6 +194,12 @@ ficticia de 15 contratos por caso; nada en producción):
   candado sobre la tabla de cuentas por el FK del sello»: `crm.cuotas_cuenta_pagada` no tiene
   claves foráneas (20260926204051, tabla y postflight). RECHAZADO: lista fija de usuarios para la
   conexión directa (decisión (e) de arriba; el ensayo ahora informa con qué usuario corre).
+- Codex, seguimiento (va dentro de `docs/encargos/2026-10-01-codex-asignar-cuenta-pago-r1.md` y su
+  `-respuesta.md`). ACEPTADO: (P2) el ensayo daba «pagada» con solo no recibir error → ahora exige
+  la cuota en pagado y su sello en la cuenta del vínculo; (riesgo) la constancia de la carga podía
+  repetirse dentro de una misma sesión → se vacía antes del `begin`. De la observación del banco:
+  un `lock timeout` en una sonda del ensayo ya no es FALLA sino INCOMPLETO. Codex no reabrió ni la
+  objeción de la FK del sello ni la de la lista fija de `session_user`.
 - Riesgos previos que NO cambia esta migración: `service_role` conserva INSERT directo sobre
   `crm.contrato_cuentas_pago` (20260803221622) y el trigger de coherencia no exige cuenta vigente;
   ninguna Edge Function del repo escribe ahí.

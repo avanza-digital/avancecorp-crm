@@ -1,5 +1,5 @@
 -- ENSAYO EN PRODUCCIÓN, SIN ESCRIBIR, de 20261001233019_crm_cuentas_pago_motivo_y_rezago.sql.
--- GENERADO por generar-derivados.py con el archivo real de la migración (md5 f226ac450622e8021840d89db8046e9d).
+-- GENERADO por generar-derivados.py con el archivo real de la migración (md5 4f9def427f4b0539063a70560867cf62).
 --
 -- Corre la migración entera dentro de una transacción que TERMINA SIEMPRE en un error a propósito
 -- («ENSAYO_DESHECHO»): no queda nada escrito, tampoco si algo falla antes. El resultado se lee en
