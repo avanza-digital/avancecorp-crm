@@ -1,6 +1,6 @@
 # Avance — Llamadas desde el celular al CRM
 
-Actualizado: 02/10/2026, 12:18 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
+Actualizado: 02/10/2026, 12:47 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
 
 Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact/Q3GmV9m6Cy2GPQGKAbNy8M · Plan completo: `PLAN.md` en esta carpeta.
 
@@ -111,6 +111,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 
 ## Últimos cambios
 
+- 02/10/2026, 12:47 p. m. · Requisito de Jhosep para la macro definitiva (F3-c): el reenvío de avisos pendientes no depende de ninguna red concreta. Disparador por cualquier cambio de conectividad (cualquier Wi-Fi o datos móviles) más un reintento periódico mientras haya pendiente; nunca «Conectado a la red» atado a un nombre de Wi-Fi (hay analistas en otra oficina) y sin pedir permiso de ubicación. Anotado en F3-PLAN-CORTO.md.
 - 02/10/2026, 12:18 p. m. · Prueba 3 de MacroDroid en C1 PASS (12:06–12:17 Lima): variable global pendiente con el aviso antes del envío, codigo a 0, cuerpo {v=pendiente} y borrado solo si codigo = 202. Con Wi-Fi llegó y se borró; sin Wi-Fi (solo datos móviles) no llegó y se conservó; tras reiniciar el celular seguía en MacroDroid → Variables. REGISTRO.md §5d.
 - 02/10/2026, 11:21 a. m. · Prueba 6 de MacroDroid en C1 PASS (11:19 Lima): el registro del sistema solo muestra «Solicitud HTTP (POST)» y el código 202, sin cabecera, clave ni URL. Observaciones para la macro definitiva: la clave es visible dentro de la acción y en una macro exportada (control: rotarla); el número aparece en el registro por las notificaciones y la macro F0. Cada llamada disparó una sola vez cada macro (pista para la 5). REGISTRO.md §5d.
 - 02/10/2026, 11:15 a. m. · Prueba 2 de MacroDroid en C1 PASS parcial (11:13–11:14 Lima): primera acción «Fijar Variable» id_llamada = C1-{system_time} (en segundos, suficiente) y el cuerpo con {lv=id_llamada}; dos llamadas al mismo número → dos «guardada» con ids distintos. Una sola notificación por llamada en las 3 de hoy. Falta reutilizar el mismo id al reintentar, que depende de la cola (pruebas 3 y 4). REGISTRO.md §5d.
@@ -125,4 +126,3 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 - 01/10/2026, 04:11 p. m. · F3: Jhosep tomó como provisionales las decisiones 1–4 (clave por celular con verify_jwt=false, 30 por minuto y 600 al día, salud cada 6 h y al vaciar la cola, abrir la encuesta de F1 por número); Miguel las ratifica. La 5 espera las pruebas en C1. Arranca F3-a en el banco local.
 - 01/10/2026, 02:16 p. m. · PR #160 aprobado y fusionado a main por Miguel (18:38 UTC, 20f7deea). No está publicado: la build viva build-20261001T185238130Z (18:52 UTC) contiene el PR #159 y no el receptor de F1. Método: el texto exclusivo del receptor no aparece en ninguno de los 86 archivos del sitio y sí en la build del PR #160. La macro sigue sin número hasta el release.
 - 01/10/2026, 01:21 p. m. · Reactivación de F1 preparada con la autorización de Miguel: PR #160 (https://github.com/avanza-digital/avancecorp-crm/pull/160), revert solo de 9815ad02. npm run check y pre-push 5316 pruebas, navegador PASS (encuesta en «Ahora» y aviso sin lead), E2E Docker 300 passed; los 2 fallos restantes ya fallan en main sin el cambio. El merge y el release los hace Miguel.
-- 01/10/2026, 12:21 p. m. · Corrección: F1 no está activa en producción. El PR #151 de Miguel («Solo documentos; mantener F1 pendiente») retiró su activación en App, contacto, auth y Gestión Diaria; la build viva no monta el receptor. Lo descubrió la prueba de Jhosep en C1 (la app abre sin encuesta). La verificación de las 14:41 UTC fue insuficiente: buscó el código del router, no el receptor montado.

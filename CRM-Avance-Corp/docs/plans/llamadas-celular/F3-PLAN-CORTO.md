@@ -124,6 +124,16 @@ Jhosep eligió no esperar el despliegue: las pruebas de C1 se hacen contra `supa
 
 Verificación: `deno test supabase/scripts/llamadas-celular/receptor-prueba.test.ts` → 9/9; 5/5 mutantes cazados (hora sin normalizar, 409 que cuenta para el límite, control abierto al celular, línea compartida entre envíos, clave en el registro); humo por la IP de la red local (202 guardada, 202 repetida, 401 sin clave, `/_estado` 404 desde fuera). Límite: imita el contrato, no la base. La 1 y la 6 se repiten contra la Edge desplegada.
 
+### Requisito de Jhosep para la macro definitiva (F3-c): el reenvío no depende de ninguna red concreta (02/10/2026)
+
+Jhosep (02/10): «esto es importante… debe ser así». Hay analistas en otra oficina con otro Wi-Fi, y celulares que salen a la calle con datos móviles. La macro definitiva tiene que reenviar los avisos pendientes desde **cualquier conexión**:
+
+- **Disparador del reenvío:** cualquier cambio de conectividad, sea Wi-Fi de cualquier red o datos móviles (en MacroDroid, «Cambio de Conectividad de Datos» o equivalente), **más un reintento periódico** cada pocos minutos mientras haya algo pendiente. **Nunca** «Conectado a la red» atado a un nombre de Wi-Fi (SSID): los celulares de otra oficina no reenviarían jamás.
+- **Sin permiso de ubicación:** Android lo pide para leer el nombre del Wi-Fi; un disparador que no mire la red evita pedirlo en los celulares de los analistas (consentimiento).
+- La dirección del envío es la Edge en internet (Supabase), no una IP de la oficina: el receptor del PC (`192.168.30.222`) es solo para las pruebas de C1.
+
+En la prueba 4 de C1 se usa «Conectado a la red» → MASCAPITAL solo porque el receptor de pruebas vive en esa red; no es el diseño final. Antes de dar F3-c por buena se prueba el disparador sin red concreta (otra Wi-Fi o datos móviles contra la Edge desplegada).
+
 ## Riesgos y límites
 
 - El mayor riesgo es la durabilidad de MacroDroid: no está documentada y solo C1 puede probarla.
