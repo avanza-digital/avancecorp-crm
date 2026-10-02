@@ -478,8 +478,9 @@ Miguel pidió «pásame el plan de la entrega B» y lo dejó en pausa por los co
 ## Fase 3 · entrega B: ejecución (01/10/2026, noche)
 
 **Decidido por Miguel:** solo en Leads (no en Pipeline) · «Sin marcar» es una opción · un nivel a la vez.
-**Estado (01/10 ~19:00 Lima): NADA publicado.** Todo vive en el worktree `wt-potencial-lead`, rama
-`crm/potencial-lead-f3b` (nacida de `avancecorp/main` `79f9e40e` + el commit del color).
+**Estado (01/10 ~19:20 Lima): NADA publicado.** Rama `crm/potencial-lead-f3b` (`364a0fc9`, en GitHub; ya integra
+`avancecorp/main` `fd169aac`, que trae el color #163 y el refactor #164). **PR #165 en BORRADOR** hasta repetir el
+ciclo sobre un volcado nuevo de producción. Commits: pantalla `70ae49c4`, servidor `dd44c806`.
 
 ### Qué se ve
 Fila «Por potencial» debajo de «Por etapa», en la misma tarjeta de resumen: cuatro pastillas con número (Frío, Tibio,
@@ -506,9 +507,11 @@ scratchpad `f3b/capturas/`.
 - Huellas: cartera de 14 `23a63cc3…`, ayudante `73e993d6…`; la de 13 que se sustituye `bf06666f…`.
 - Evidencia en el banco `avancecorp-potencial-20261001` (`banco/ciclo-fase3b.sh`, veredicto de máquina «TODO COMO SE
   ESPERABA»): 145 de 145; fases 1, 2 y 3A sin regresión (75, 51, 94); el oráculo de gestión de la otra sesión
-  128/128 contra la firma de 14; 28 mutantes de lógica y 51 de migración/preflight, ninguno sobrevive; reversa
-  byte a byte; +1,5 a 2 ms por llamada.
-- Reviews: Codex r1 (2 P2 de verificación) y auditor-rls (sin P0/P1), aplicados; Codex r2 en curso al escribir esto.
+  128/128 contra la firma de 14; 28 mutantes de lógica, 51 de migración/preflight y 8 de la reversa, ninguno
+  sobrevive; reversa byte a byte; +1,5 a 2 ms por llamada. (Cifras finales: 152 de 152.)
+- Reviews: Codex r1 (2 P2 de verificación), auditor-rls (sin P0/P1) y Codex r2 (diseño confirmado; 3 P2 y 1 P3 de
+  VERIFICACIÓN: bloque vacío en el verificador de sumas, oráculo caído en «ayudante ⊆ RLS», reversa que no veía `:=`
+  ni llamadas por posición → censo estricto de consumidores, y `PGRST106` en el gate). Todo aplicado. Rondas agotadas.
 - NOT RUN: `test-rls.mjs` con sesiones reales (bloque `testPotencialFiltro` escrito) y advisors.
 
 ### Pantalla (sobre `main`, que ya trae Gestionado #162 y Llamadas #160)
@@ -519,7 +522,7 @@ números. revisor-a11y aplicado (foco cuando la fila se retira, aviso, cifra en 
 13; suite completa 320 pasan y los mismos 2 fallos ajenos de `main`.
 
 ### Lo que falta, en orden
-1. Codex r2 y `npm run check` en verde → commit y PR (servidor + pantalla).
+1. ✅ Codex r2 aplicado, `npm run check` PASS (346 archivos, 5 592 pruebas), commits y PR #165 (borrador).
 2. **Volcado NUEVO de producción (Miguel con `!`)** → banco nuevo a paridad → repetir `ciclo-fase3b.sh` ahí.
 3. Miguel publica el servidor con `!`: migración → `registrar-filtro.sql` → `verificar-filtro.sql` → sonda HTTP →
    advisors → `gen:types`.
