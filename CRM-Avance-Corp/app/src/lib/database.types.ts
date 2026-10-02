@@ -2749,6 +2749,7 @@ export type Database = {
           descartado_por: string | null
           distrito: string | null
           dni: string | null
+          enfriado_hasta: string | null
           etapa: string
           fecha_nacimiento: string | null
           genero: string | null
@@ -2762,6 +2763,7 @@ export type Database = {
           nota: string | null
           origen: string
           perfil_id: string | null
+          reactivado_en: string | null
           sla_global_aproximado: boolean
           sla_global_iniciado_en: string
           telefono: string
@@ -2789,6 +2791,7 @@ export type Database = {
           descartado_por?: string | null
           distrito?: string | null
           dni?: string | null
+          enfriado_hasta?: string | null
           etapa?: string
           fecha_nacimiento?: string | null
           genero?: string | null
@@ -2802,6 +2805,7 @@ export type Database = {
           nota?: string | null
           origen: string
           perfil_id?: string | null
+          reactivado_en?: string | null
           sla_global_aproximado?: boolean
           sla_global_iniciado_en?: string
           telefono: string
@@ -2829,6 +2833,7 @@ export type Database = {
           descartado_por?: string | null
           distrito?: string | null
           dni?: string | null
+          enfriado_hasta?: string | null
           etapa?: string
           fecha_nacimiento?: string | null
           genero?: string | null
@@ -2842,6 +2847,7 @@ export type Database = {
           nota?: string | null
           origen?: string
           perfil_id?: string | null
+          reactivado_en?: string | null
           sla_global_aproximado?: boolean
           sla_global_iniciado_en?: string
           telefono?: string

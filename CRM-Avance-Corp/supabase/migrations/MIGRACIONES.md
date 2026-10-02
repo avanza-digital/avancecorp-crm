@@ -14709,3 +14709,46 @@ coincide con `database.types.ts`.
 y fallo con `CRM_RLS_EXIGE_GESTION_DIARIA=1`) requiere el banco con semilla de actores y Auth: solo
 se comprobó su sintaxis. La sonda de anon pasó en el banco local; no se lanza contra producción.
 Advisors: no aplican al banco local.
+
+## 20261002054402 — Base para gestión del analista · B1 esquema
+
+**⏳ PENDIENTE DE RAMA (02/10/2026).** Ensayada en el banco sintético `base_gestion_20261002`
+(Docker, creado desde `conversion_tipos_v3_20260927`; `supabase/scripts/base-gestion/banco.mjs`):
+aplicar OK (postflight con negativos del CHECK y del sello), `test` 10/10, `reversa-y-reaplicar`
+PASS. Encargo P-0XX; decisiones D1–D10 de Miguel del 02/10 y plan B1 confirmado el mismo día
+(vault «Base para gestion del analista - F0 y decisiones (2026-10-01)»; FigJam `zbgq3gjYGsaaMCo6e140bU`).
+**Qué.** `crm.leads.reactivado_en timestamptz` (D9: marca de reactivación; `origen` no se toca) y
+`crm.leads.enfriado_hasta date` (D8: descanso de 30 días tras 3 intentos), ambas NULL, con GRANT
+SELECT por columna a authenticated/service_role y sello `trg_leads_zz_sello_base_gestion`
+(BEFORE INSERT OR UPDATE OF ambas; solo bajo GUC `crm.op_base_gestion=on` o sin usuario), porque
+la tabla concede a authenticated privilegios de TABLA y un grant por columna no protege.
+CHECK `actividades_intento_base_forma` (evento `intento_base` con el MISMO catálogo de 7 resultados
+de Gestión Diaria, `intento_n`/`ciclo_n` ≥ 1, `tarea_id` uuid obligatorio en `volver_a_llamar`),
+`not valid` + `validate`. `private.base_gestion_constantes()` = (3, 30), INVOKER, IMMUTABLE,
+sin EXECUTE para la API. **Sin índices nuevos** (`idx_leads_vendedor`, `tareas_pendientes_keyset_idx`
+ya cubren; EXPLAIN con datos reales queda para la rama). **Reutiliza, no crea:** resultado de llamada
+en `metadata`, rellamada en `crm.tareas`, `no_contactar` + actividad con motivo,
+`lead_asignaciones.motivo_apertura = 'reactivado'`. No reemplaza ninguna función sellada por huella.
+**Reversa:** `supabase/scripts/base-gestion/reversa-esquema.sql` (solo pierde los valores de las dos
+columnas). **Tipos:** `database.types.ts` con las dos columnas añadidas a mano en `leads`
+(Row/Insert/Update); el `gen:types` real se corre tras aplicar en la rama.
+**auditor-rls (02/10): CAMBIOS REQUERIDOS → aplicados y reensayados.** P1 aceptado: el postflight
+consultaba `information_schema.column_privileges`, que expande el grant de TABLA a cada columna y en
+producción (`authenticated=rw`, 20260919211105) habría abortado la migración; ahora comprueba la ACL por
+columna con `pg_attribute.attacl` (4 entradas SELECT exactas). El banco no replicaba ese ACL: se alineó
+(`authenticated=rw`, `service_role=arwd`) y se reensayó. P2 aceptado: el CHECK pasaba un `intento_base`
+SIN `resultado` (trampa NULL) → `coalesce` + negativo nuevo en el postflight. P2 aceptado: `test-rls.mjs`
+gana el bloque `testBaseGestionB1` (PATCH 42501 para dueño/supervisor/gerencia, no-op NULL → 200,
+SELECT con las columnas, INSERT de `intento_base` 42501/23514, contrato del sello y constantes fuera de
+banda; salto ruidoso si la migración no está, `CRM_RLS_EXIGE_BASE_GESTION=1` lo vuelve fallo). P3 aplicados:
+negativo del sello filtra `SQLERRM`, positivo con SQLSTATE propio `ZZ0B1`, lead del ensayo vivo y no terminal,
+comentario de grants sin el mito de «la red», justificación del DEFINER corregida, reversa con guarda por
+`prosrc`. **Exención documentada:** el sello deja escribir sin GUC a una sesión sin usuario (`auth.uid()`
+null: migraciones, jobs, service_role sin JWT), igual que el trigger «solo núcleo» de actividades;
+`anon` no llega (sin grants sobre `crm.leads`). **Nota para B3:** el CHECK exige `resultado` e `intento_n`,
+claves reservadas por `trg_00_actividades_resultado_solo_nucleo` bajo `crm.op_resultado_llamada`: el núcleo
+del intento encenderá los dos GUC (`crm.op_base_gestion` y `crm.op_resultado_llamada`) restaurando el valor
+previo. Reensayo tras los cambios: `reversa-y-reaplicar` PASS, `test` 12/12, `node --check` y
+`test:rls:preflight` (entorno ficticio de CI) PASS, `check:scripts` PASS, `typecheck` PASS.
+**Ciclo pendiente:** rama de Supabase (conector «claude.ai Supabase») → aplicar → `test-rls.mjs` →
+advisors → merge de Miguel. Siguen B2 (RLS/ámbito por RPC), B3 (puertas), B4 (trigger de enfriamiento).
