@@ -39,15 +39,17 @@ q "create schema if not exists supabase_migrations; create table if not exists s
 espera_huellas "$H_CAM_VIVO" "$H_RET_VIVO" && ok "0.3 huellas vivas = las de producción" || ko "0.3 huellas vivas distintas: $(huellas)"
 ACL0=$(acl); COM0=$(q "select string_agg(coalesce(obj_description(p.oid,'pg_proc'),''), ' | ' order by p.proname) from pg_proc p where p.proname in ('retirar_cuenta_cliente_autorizado','cambiar_cuenta_pago_contratos_autorizado')")
 
+python3 "$AQUI/generar-derivados.py" --verificar >/tmp/verificar.txt 2>&1 && ok "0.5 derivados al día ($(cat /tmp/verificar.txt))" || ko "0.5 derivados viejos: $(cat /tmp/verificar.txt)"
+
 echo "── 1 · mundo SIN la migración ──"
 if psql "$DB_URL" -v ON_ERROR_STOP=1 -q -f "$AQUI/test-negativa.sql" >/tmp/neg-sin.txt 2>&1; then ko "1.1 la prueba PASÓ sin la migración (no detecta la falta de guarda)"; else ok "1.1 sin la migración la prueba FALLA ($(grep -c '✗' /tmp/neg-sin.txt) casos sin 0A000): detecta el mundo sin guarda"; fi
 
 echo "── 2 · migración ──"
-if psql "$DB_URL" -v ON_ERROR_STOP=1 -1 -qAt -f "$MIG" >/tmp/mig1.txt 2>&1 && grep -q RETIRAR_CAMBIAR_SOLO_READ_COMMITTED_OK /tmp/mig1.txt; then ok "2.1 migración aplicada: fila RETIRAR_CAMBIAR_SOLO_READ_COMMITTED_OK"; else ko "2.1 migración falló: $(tail -2 /tmp/mig1.txt)"; fi
+if psql "$DB_URL" -v ON_ERROR_STOP=1 -qAt -f "$MIG" >/tmp/mig1.txt 2>&1 && grep -q RETIRAR_CAMBIAR_SOLO_READ_COMMITTED_OK /tmp/mig1.txt; then ok "2.1 migración aplicada: fila RETIRAR_CAMBIAR_SOLO_READ_COMMITTED_OK"; else ko "2.1 migración falló: $(tail -2 /tmp/mig1.txt)"; fi
 espera_huellas "$H_CAM_NUEVO" "$H_RET_NUEVO" && ok "2.2 huellas nuevas = las declaradas en la migración" || ko "2.2 huellas tras aplicar: $(huellas)"
 [ "$(acl)" = "$ACL0" ] && ok "2.3 ACL, DEFINER y search_path intactos" || ko "2.3 ACL cambió: $(acl)"
 q "select count(*) from pg_proc p where p.proname in ('retirar_cuenta_cliente_autorizado','cambiar_cuenta_pago_contratos_autorizado') and obj_description(p.oid,'pg_proc') like '% Solo admite READ COMMITTED (0A000 en cualquier otro modo; $VER).'" | grep -qx 2 && ok "2.4 comentarios conservan su texto y añaden la frase" || ko "2.4 comentarios inesperados"
-if psql "$DB_URL" -v ON_ERROR_STOP=1 -1 -qAt -f "$MIG" >/tmp/mig2.txt 2>&1; then ko "2.5 la migración se aplicó dos veces"; else grep -q "no tiene el cuerpo esperado" /tmp/mig2.txt && espera_huellas "$H_CAM_NUEVO" "$H_RET_NUEVO" && ok "2.5 segunda aplicación se niega y nada cambia" || ko "2.5 segunda aplicación falló por otro motivo: $(tail -1 /tmp/mig2.txt)"; fi
+if psql "$DB_URL" -v ON_ERROR_STOP=1 -qAt -f "$MIG" >/tmp/mig2.txt 2>&1; then ko "2.5 la migración se aplicó dos veces"; else grep -q "no tiene el cuerpo esperado" /tmp/mig2.txt && espera_huellas "$H_CAM_NUEVO" "$H_RET_NUEVO" && ok "2.5 segunda aplicación se niega y nada cambia" || ko "2.5 segunda aplicación falló por otro motivo: $(tail -1 /tmp/mig2.txt)"; fi
 
 echo "── 3 · pruebas ──"
 if psql "$DB_URL" -v ON_ERROR_STOP=1 -q -f "$AQUI/test-negativa.sql" >/tmp/neg-con.txt 2>&1 && grep -q "PASS" /tmp/neg-con.txt; then ok "3.1 prueba de la negativa PASS ($(grep -o 'PASS: [0-9]* casos' /tmp/neg-con.txt))"; else ko "3.1 prueba de la negativa: $(grep -E '✗|FALLOS|ERROR' /tmp/neg-con.txt | head -3)"; fi
@@ -68,7 +70,7 @@ espera_huellas "$H_CAM_VIVO" "$H_RET_VIVO" && ok "5.3 huellas de antes repuestas
 [ "$(registro)" = 0 ] && ok "5.4 registro borrado" || ko "5.4 el registro sigue"
 [ "$(q "select string_agg(coalesce(obj_description(p.oid,'pg_proc'),''), ' | ' order by p.proname) from pg_proc p where p.proname in ('retirar_cuenta_cliente_autorizado','cambiar_cuenta_pago_contratos_autorizado')")" = "$COM0" ] && ok "5.5 comentarios como antes" || ko "5.5 comentarios no volvieron"
 if psql "$DB_URL" -v ON_ERROR_STOP=1 -q -f "$AQUI/test-negativa.sql" >/tmp/neg-rev.txt 2>&1; then ko "5.6 tras la reversa la prueba PASÓ (no detecta el mundo sin guarda)"; else ok "5.6 tras la reversa la prueba FALLA otra vez (mutante detectado)"; fi
-psql "$DB_URL" -v ON_ERROR_STOP=1 -1 -qAt -f "$MIG" >/tmp/mig3.txt 2>&1 && psql "$DB_URL" -v ON_ERROR_STOP=1 -qAt -f "$AQUI/registrar.sql" >/tmp/reg3.txt 2>&1 && espera_huellas "$H_CAM_NUEVO" "$H_RET_NUEVO" && [ "$(registro)" = 1 ] && ok "5.7 reaplicada y registrada" || ko "5.7 reaplicar/registrar: $(tail -1 /tmp/mig3.txt) $(tail -1 /tmp/reg3.txt)"
+psql "$DB_URL" -v ON_ERROR_STOP=1 -qAt -f "$MIG" >/tmp/mig3.txt 2>&1 && psql "$DB_URL" -v ON_ERROR_STOP=1 -qAt -f "$AQUI/registrar.sql" >/tmp/reg3.txt 2>&1 && espera_huellas "$H_CAM_NUEVO" "$H_RET_NUEVO" && [ "$(registro)" = 1 ] && ok "5.7 reaplicada y registrada" || ko "5.7 reaplicar/registrar: $(tail -1 /tmp/mig3.txt) $(tail -1 /tmp/reg3.txt)"
 psql "$DB_URL" -v ON_ERROR_STOP=1 -q -f "$AQUI/test-negativa.sql" >/tmp/neg-fin.txt 2>&1 && grep -q PASS /tmp/neg-fin.txt && ok "5.8 prueba de la negativa PASS al final" || ko "5.8 prueba final: $(grep -E '✗|ERROR' /tmp/neg-fin.txt | head -2)"
 
 echo; echo "── Resumen ──"; printf '%s\n' "${RES[@]}"; echo "fallos: $FALLOS"; [ "$FALLOS" -eq 0 ]

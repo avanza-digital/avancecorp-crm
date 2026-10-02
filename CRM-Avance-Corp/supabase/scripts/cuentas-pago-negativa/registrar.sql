@@ -1,7 +1,7 @@
 -- REGISTRO en supabase_migrations.schema_migrations de 20261002163158_crm_retirar_y_cambiar_cuenta_solo_read_committed.sql.
 -- `db query --linked --file` NO registra: correr DESPUÉS de aplicar la migración. Idempotente; se niega si
 -- los cuerpos vivos no son los de la migración, o si la versión ya está registrada con otro contenido.
--- GENERADO por generar-derivados.py. statements = el archivo entero (md5 4424f9f658a3bfb7ab7e57fe762804f8).
+-- GENERADO por generar-derivados.py. statements = el archivo entero (md5 050bb71a4f92122ed57eab19a16b4591).
 begin;
 set local lock_timeout = '5s';
 select pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('crm_retirar_y_cambiar_cuenta_solo_read_committed_registro'));
@@ -34,13 +34,17 @@ begin
 --
 -- Seguros: se niega si los cuerpos vivos no son exactamente los de hoy (huellas de abajo); tras aplicar,
 -- exige las huellas nuevas, SECURITY DEFINER, search_path vacío y la ACL de siempre (solo authenticated).
--- Atomicidad: `supabase db query --linked --file` manda el archivo entero en UNA petición y Postgres lo corre en
--- una sola transacción implícita (acreditado el 02/10/2026: el ensayo de 20261001233019 termina a propósito
--- en error y no dejó rastro); si falla el pre o el postflight, no queda nada aplicado. En psql: `-1`.
+-- Atomicidad: va envuelta en begin/commit con lock_timeout 5 s y statement_timeout 60 s, como sus hermanas de
+-- octubre; si falla el pre o el postflight, no queda nada aplicado (`db query --file` manda el archivo entero en
+-- una petición; acreditado el 02/10/2026 con el ensayo de 20261001233019, que termina en error sin dejar rastro).
 -- Reversa: supabase/scripts/cuentas-pago-negativa/reversa.sql (repone los cuerpos anteriores exactos).
 -- Registro: supabase/scripts/cuentas-pago-negativa/registrar.sql (db query no registra).
 -- Huellas (md5 de prosrc): retirar vivo 3ab8983f87f343e896acaefafbbcf4d4 → 748918fb544b22cd96c4daf884761b52;
 --                          cambiar vivo 61bec6b3d7d7589e67b4740bd9e7d630 → 1d6443c826ecd6b64db32c9dc247f7f8.
+
+begin;
+set local lock_timeout = '5s';
+set local statement_timeout = '60s';
 
 -- ── 1. Preflight: los cuerpos vivos son los de hoy ─────────────────────────────────────────────
 do $preflight$
@@ -429,6 +433,7 @@ begin
 end $postflight$;
 
 select 'RETIRAR_CAMBIAR_SOLO_READ_COMMITTED_OK' as resultado;
+commit;
 $mig$])) then
     raise exception 'REGISTRO: la versión 20261002163158 ya está registrada con otro nombre u otro contenido';
   end if;
@@ -454,13 +459,17 @@ values ('20261002163158', 'crm_retirar_y_cambiar_cuenta_solo_read_committed', ar
 --
 -- Seguros: se niega si los cuerpos vivos no son exactamente los de hoy (huellas de abajo); tras aplicar,
 -- exige las huellas nuevas, SECURITY DEFINER, search_path vacío y la ACL de siempre (solo authenticated).
--- Atomicidad: `supabase db query --linked --file` manda el archivo entero en UNA petición y Postgres lo corre en
--- una sola transacción implícita (acreditado el 02/10/2026: el ensayo de 20261001233019 termina a propósito
--- en error y no dejó rastro); si falla el pre o el postflight, no queda nada aplicado. En psql: `-1`.
+-- Atomicidad: va envuelta en begin/commit con lock_timeout 5 s y statement_timeout 60 s, como sus hermanas de
+-- octubre; si falla el pre o el postflight, no queda nada aplicado (`db query --file` manda el archivo entero en
+-- una petición; acreditado el 02/10/2026 con el ensayo de 20261001233019, que termina en error sin dejar rastro).
 -- Reversa: supabase/scripts/cuentas-pago-negativa/reversa.sql (repone los cuerpos anteriores exactos).
 -- Registro: supabase/scripts/cuentas-pago-negativa/registrar.sql (db query no registra).
 -- Huellas (md5 de prosrc): retirar vivo 3ab8983f87f343e896acaefafbbcf4d4 → 748918fb544b22cd96c4daf884761b52;
 --                          cambiar vivo 61bec6b3d7d7589e67b4740bd9e7d630 → 1d6443c826ecd6b64db32c9dc247f7f8.
+
+begin;
+set local lock_timeout = '5s';
+set local statement_timeout = '60s';
 
 -- ── 1. Preflight: los cuerpos vivos son los de hoy ─────────────────────────────────────────────
 do $preflight$
@@ -849,13 +858,14 @@ begin
 end $postflight$;
 
 select 'RETIRAR_CAMBIAR_SOLO_READ_COMMITTED_OK' as resultado;
+commit;
 $mig$])
 on conflict (version) do nothing;
 do $post$
 begin
   if not exists (select 1 from supabase_migrations.schema_migrations
                  where version = '20261002163158' and name = 'crm_retirar_y_cambiar_cuenta_solo_read_committed' and cardinality(statements) = 1
-                   and md5(statements[1]) = '4424f9f658a3bfb7ab7e57fe762804f8') then
+                   and md5(statements[1]) = '050bb71a4f92122ed57eab19a16b4591') then
     raise exception 'REGISTRO: la fila 20261002163158 / crm_retirar_y_cambiar_cuenta_solo_read_committed no quedó como se esperaba';
   end if;
   raise notice 'REGISTRO: 20261002163158 / crm_retirar_y_cambiar_cuenta_solo_read_committed (1 sentencia: el archivo entero)';

@@ -46,6 +46,11 @@ READ UNCOMMITTED → `0A000`; en READ COMMITTED explícito → `42501` sin actor
 Codex r1 (`docs/encargos/2026-10-02-codex-negativa-read-committed-r1*.md`): APPROVE_WITH_NITS; aplicados: READ COMMITTED
 explícito en la prueba, puertas en todos los modos, postflight con `proconfig` exacto y sin LEAKPROOF, comentario sin
 `rtrim` y reversa que quita solo el sufijo (NULL si no queda texto), atomicidad de `db query --file` documentada.
+auditor-rls: APPROVE_WITH_NITS, sin P0/P1; aplicados: envoltorio `begin/commit` con timeouts (P3-1), `--verificar`
+en el ciclo (P3-2), límite del LEEME corregido (P3-3), post de la reversa igual al postflight (P3-4), fila del ledger
+arriba (P3-5) y, por el P2, la suite de «Asignar» (`prueba-concurrencia.sh` H1b/H3/H4) ahora AFIRMA el cierre del
+riesgo cuando la guarda está presente (adaptada y `bash -n` OK; NOT RUN hoy: pide el banco de «Asignar» con su siembra).
+`test-rls.mjs`: dos sondas de regresión por HTTP (vendedor → 42501 en las dos puertas), escritas, NOT RUN (banco compartido).
 1 ✗ ajeno: `cuentas-gloria/test-cambio-cuenta-pago.sql` falla en su paso de `dry_run`
 («Solo el servicio de avisos reclama avisos») **igual sin la migración** (comprobado revirtiéndola): es del
 banco sin datos, no de este cambio; hasta esa línea (551) los cambios reales de cuenta pasan en READ COMMITTED.
@@ -55,4 +60,8 @@ banco sin datos, no de este cambio; hasta esa línea (551) los cambios reales de
 ## Límites
 
 - La negativa está en los núcleos; las puertas INVOKER la heredan (probado).
-- No cubre otras funciones de cuentas (alta, historial): no escriben vínculos de pago.
+- No cubre otras funciones de cuentas: no escriben CAMBIOS de vínculo sobre contratos existentes. El alta de
+  contrato (`crm.crear_contrato_con_cuenta*`) sí crea el vínculo inicial y no lleva esta negativa: queda como
+  decisión pendiente, fuera del alcance de esta migración (auditor-rls P3-3, 02/10/2026).
+- La suite de «Asignar» (`../cuentas-pago-asignar/prueba-concurrencia.sh`, H1b/H3/H4) se adapta a la guarda:
+  con la migración aplicada, F4 en REPEATABLE READ debe negarse con `0A000` y no escribir.

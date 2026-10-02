@@ -344,10 +344,17 @@ begin
     execute pg_catalog.format('comment on function %s is %L', v_f.firma,
       nullif(pg_catalog.regexp_replace(coalesce(pg_catalog.obj_description(pg_catalog.to_regprocedure(v_f.firma), 'pg_proc'), ''),
         ' Solo admite READ COMMITTED \(0A000 en cualquier otro modo; 20261002163158\)\.$', ''), ''));
-    if not exists (select 1 from pg_catalog.pg_proc p where p.oid = pg_catalog.to_regprocedure(v_f.firma)
-                   and p.prosecdef and p.proconfig @> array['search_path=""'])
+    if not exists (select 1 from pg_catalog.pg_proc p
+                   where p.oid = pg_catalog.to_regprocedure(v_f.firma)
+                     and p.prosecdef and p.provolatile = 'v' and not p.proleakproof and p.proconfig = array['search_path=""']) then
+      raise exception 'REVERSA SOLO_READ_COMMITTED: % perdió DEFINER, VOLATILE, el search_path vacío exacto o ganó LEAKPROOF', v_f.firma;
+    end if;
+    if exists (select 1 from pg_catalog.pg_proc p, pg_catalog.aclexplode(p.proacl) a
+               where p.oid = pg_catalog.to_regprocedure(v_f.firma) and a.privilege_type = 'EXECUTE'
+                 and a.grantee <> p.proowner and a.grantee <> 'authenticated'::regrole::oid)
+       or (select p.proacl is null from pg_catalog.pg_proc p where p.oid = pg_catalog.to_regprocedure(v_f.firma))
        or not pg_catalog.has_function_privilege('authenticated', v_f.firma, 'EXECUTE') then
-      raise exception 'REVERSA SOLO_READ_COMMITTED: % perdió DEFINER, search_path o el permiso de authenticated', v_f.firma;
+      raise exception 'REVERSA SOLO_READ_COMMITTED: ACL inesperada en %', v_f.firma;
     end if;
   end loop;
   if pg_catalog.to_regclass('supabase_migrations.schema_migrations') is not null then

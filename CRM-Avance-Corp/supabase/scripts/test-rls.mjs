@@ -4704,6 +4704,33 @@ async function testContractBankAccounts(sessions, seed) {
     p_cuenta_id: seed.bankAccount.id,
     p_motivo: 'Motivo de prueba del gate',
   });
+  // 20261002163158 · «Retirar cuenta» y «Cambiar cuenta de pago» solo en READ COMMITTED. La negativa (0A000) no
+  // se puede provocar por HTTP (PostgREST siempre va en READ COMMITTED): estas sondas afirman que por la API nada
+  // cambió — un vendedor sigue recibiendo 42501 «Solo administración…» en las dos puertas, nunca 0A000.
+  const SOLICITUD_RETIRAR_GATE = '00000000-0000-4000-8000-0000000a51a1';
+  const SOLICITUD_CAMBIAR_GATE = '00000000-0000-4000-8000-0000000a51a2';
+  if (await puertaCuentasPagoDesplegada('retirar_cuenta_cliente', {
+    p_solicitud_id: SOLICITUD_RETIRAR_GATE, p_cliente_id: seed.legacyContract.cliente_id ?? SOLICITUD_RETIRAR_GATE,
+    p_cuenta_id: seed.bankAccount.id, p_motivo: 'Motivo de prueba del gate', p_respaldo_ruta: null,
+  })) {
+    await expectExpectedFailure('retirar_cuenta_cliente: vendedor → 42501 (la negativa de modo no asoma por la API)',
+      sessions.vend1.client.schema('crm').rpc('retirar_cuenta_cliente', {
+        p_solicitud_id: SOLICITUD_RETIRAR_GATE, p_cliente_id: seed.legacyContract.cliente_id ?? SOLICITUD_RETIRAR_GATE,
+        p_cuenta_id: seed.bankAccount.id, p_motivo: 'Motivo de prueba del gate', p_respaldo_ruta: null,
+      }), ['42501'], /Solo administración/);
+  }
+  if (await puertaCuentasPagoDesplegada('cambiar_cuenta_pago_contratos', {
+    p_solicitud_id: SOLICITUD_CAMBIAR_GATE, p_cliente_id: seed.legacyContract.cliente_id ?? SOLICITUD_CAMBIAR_GATE,
+    p_cuenta_nueva_id: seed.bankAccount.id, p_contrato_ids: [seed.legacyContract.id],
+    p_motivo: 'Motivo de prueba del gate', p_respaldo_ruta: 'gate/respaldo.pdf',
+  })) {
+    await expectExpectedFailure('cambiar_cuenta_pago_contratos: vendedor → 42501 (la negativa de modo no asoma por la API)',
+      sessions.vend1.client.schema('crm').rpc('cambiar_cuenta_pago_contratos', {
+        p_solicitud_id: SOLICITUD_CAMBIAR_GATE, p_cliente_id: seed.legacyContract.cliente_id ?? SOLICITUD_CAMBIAR_GATE,
+        p_cuenta_nueva_id: seed.bankAccount.id, p_contrato_ids: [seed.legacyContract.id],
+        p_motivo: 'Motivo de prueba del gate', p_respaldo_ruta: 'gate/respaldo.pdf',
+      }), ['42501'], /Solo administración/);
+  }
   const expectedProfileAccount = {
     banco: BANK_CLIENT.bank,
     tipo_cuenta: BANK_CLIENT.accountType,
