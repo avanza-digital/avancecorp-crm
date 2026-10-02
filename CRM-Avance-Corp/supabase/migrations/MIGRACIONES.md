@@ -63,7 +63,14 @@ aplicado y el ciclo repetido. Encargos y respuestas en `docs/encargos/2026-10-01
 **NOT RUN:** la matriz `test-rls.mjs` con sesiones reales (exige credenciales de una rama; `node --check` PASS). Su
 bloque `testPotencialFiltro` cubre la API rol por rol, la ruta sin RLS (`resumen_cartera_fn`), que `private` no se
 alcanza por PostgREST y la identidad del ayudante. Para correrla: `CRM_RLS_EXIGE_POTENCIAL=1` y `CRM_BANCO_PSQL_URL`.
-Advisors: NOT RUN (se miden al publicar).
+Advisors: NOT RUN (se miden al publicar; la foto de antes se tomó el 01/10/2026 con el volcado).
+
+**Paridad (01/10/2026, 19:17 Lima):** el ciclo entero se repitió sobre un banco montado desde un volcado NUEVO del
+esquema de producción (`crm` 286 funciones, `private` 553) y dio lo mismo: fases 1, 2 y 3A en verde, `ciclo-fase3b.sh`
+«TODO COMO SE ESPERABA» (152 de 152; 28, 51 y 8 mutantes sin supervivientes; reversa byte a byte; trinquetes idénticos
+salvo la fila de la cartera). En ese volcado la cartera viva es la firma de 13 con md5 `bf06666f…`, el envoltorio
+`4a896597…` y las huellas de los ayudantes de visibilidad y de las dos policies de lectura son las que exige el
+preflight. Los tipos generados desde ese banco con la migración aplicada coinciden con `database.types.ts`.
 
 Efectos laterales: el bloque de catálogo de gestión en `test-rls.mjs` acepta ahora la firma de 13 o la de 14; a
 `gestion-diaria-cola/fixtures/acl.json` se le añadieron a mano la firma de 14 y el ayudante; el kit
