@@ -15,7 +15,7 @@ function psql(base, texto, { candado = true } = {}) {
   const r = spawnSync('docker', ['exec','-i',contenedor,'psql','-X','-qAt','-U','postgres',
     '-d',base,'-v','ON_ERROR_STOP=1','-f','-'], {encoding:'utf8',maxBuffer:8*1024*1024, input: guardia + texto});
   assert.equal(r.status,0,(r.stderr || r.error?.message || '') + '\n' + (r.stdout || ''));
-  if (['test','aplicar','fixtures-b2','fixtures-b2-persona','aplicar-b2','test-b2'].includes(process.argv[2])) process.stderr.write(r.stderr);
+  if (['test','aplicar','aplicar-b1b','fixtures-b2','fixtures-b2-persona','aplicar-b2','test-b2'].includes(process.argv[2])) process.stderr.write(r.stderr);
   return r.stdout.trim();
 }
 export const sql = (texto) => psql(db, texto);
@@ -35,6 +35,9 @@ if (orden==='reversa-y-reaplicar') {
   sql(readFileSync(migracion,'utf8'));
   console.log('PASS: reversa y reaplicación con preflight en banco sintético');
 }
+const migracionB1b = new URL('../../migrations/20261002224851_crm_base_gestion_proxima_llamada.sql', import.meta.url);
+if (orden==='aplicar-b1b') { sql(readFileSync(migracionB1b,'utf8')); console.log('PASS: migración B1b aplicada en el banco'); }
+if (orden==='reversa-y-reaplicar-b1b') { sql(readFileSync(new URL('./reversa-proxima-llamada.sql',import.meta.url),'utf8')); sql(readFileSync(migracionB1b,'utf8')); console.log('PASS: reversa y reaplicación de B1b con preflight en banco sintético'); }
 const migracionB2 = new URL('../../migrations/20261002061500_crm_base_gestion_no_contactar_supervisor.sql', import.meta.url);
 if (orden==='fixtures-b2') { console.log(sql(readFileSync(new URL('./fixtures-b2.sql',import.meta.url),'utf8'))); console.log('PASS: fixtures B2 en el banco'); }
 if (orden==='fixtures-b2-persona') { console.log(sql(readFileSync(new URL('./fixtures-b2-persona.sql',import.meta.url),'utf8'))); console.log('PASS: fixtures B2 persona en el banco'); }
@@ -79,5 +82,5 @@ select string_agg(stmt, E'\n' order by orden, stmt) from (
   sql("set search_path=''; set quote_all_identifiers=off;\n" + envueltas.join('\n'));
   console.log(`PASS: paridad de ACL aplicada al banco (${stmts.length} sentencias del stack local; las de objetos ausentes se saltaron)`);
 }
-const ORDENES = ['crear','aplicar','test','reversa-y-reaplicar','fixtures-b2','aplicar-b2','test-b2','reversa-y-reaplicar-b2','paridad-acl','fixtures-b2-persona','restaurar-levantar-vivo'];
+const ORDENES = ['crear','aplicar','test','reversa-y-reaplicar','fixtures-b2','aplicar-b2','test-b2','reversa-y-reaplicar-b2','paridad-acl','fixtures-b2-persona','restaurar-levantar-vivo','aplicar-b1b','reversa-y-reaplicar-b1b'];
 if (!ORDENES.includes(orden)) { console.error('Uso: banco.mjs ' + ORDENES.join(' | ')); process.exit(2); }

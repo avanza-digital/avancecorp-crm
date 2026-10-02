@@ -15001,3 +15001,28 @@ con `crm.op_privilegiada`. `reversa-y-reaplicar-b2` PASS tras los cambios.
 datos): el replay automático del historial quedó en `MIGRATIONS_FAILED` (igual que `banco-f7` el 01/09); ver
 «Rama» en la nota del vault para el estado. **Pendiente:** aplicar B1+B2 en la rama → `test-rls.mjs` → advisors →
 merge de Miguel.
+
+## 20261002224851 — Base para gestión del analista · B1b: la rellamada vive en el lead (agenda propia de la base)
+
+**⏳ PENDIENTE DE RAMA (02/10/2026).** Decisiones de Miguel (02/10, noche): **D7-bis** agenda propia de la base
+(«Sí, así»: columna sellada + bloque «Llamar hoy» + contador en el menú + línea en «Hoy»); **D11** la rellamada se
+agenda como máximo 10 días adelante; **D12** gana la rellamada: el lead descansa solo cuando el 3.º intento termina
+sin cita y sin rellamada. Motivo: `trg_tareas_before_insert` rechaza tareas nuevas en leads cerrados y
+`trg_leads_zz_sync_tareas` cancela las pendientes al descartar: D7 (rellamada en `crm.tareas`) no es posible sin
+tocar el núcleo SLA. **Qué.** `crm.leads.proxima_llamada_en timestamptz` (NULL; GRANT SELECT por columna); el sello
+`trg_leads_zz_sello_base_gestion` cubre las tres columnas (función + trigger `update of` las tres); el CHECK
+`actividades_intento_base_forma` exige `proxima_llamada_en` ISO-8601 con zona en `volver_a_llamar` (antes `tarea_id`);
+`private.base_gestion_constantes()` → (3, 30, 10) con drop+create (nada dependía de ella); índice parcial
+`idx_leads_base_rellamada (vendedor_id, proxima_llamada_en) where etapa='descartado' and proxima_llamada_en is not
+null` para «Llamar hoy» y el contador del menú (EXPLAIN con datos en la rama). Ensayada en el banco
+`base_gestion_20261002`: aplicar + postflight (negativos: sin fecha, fecha no ISO, sello sin GUC; positivos deshechos
+con SQLSTATE propio) PASS, `test` PASS (6 ACL por columna, sello de 3 columnas, constantes 3/30/10, índice válido),
+`reversa-y-reaplicar-b1b` PASS, `test-b2` 25/25 sigue en verde. Tipos: `proxima_llamada_en` a mano en
+`database.types.ts`, typecheck PASS. **Reversa:** `supabase/scripts/base-gestion/reversa-proxima-llamada.sql`
+(aplicar antes que la de B1; solo se pierden rellamadas). **auditor-rls B1b (02/10): CHANGES_REQUESTED → aplicado:**
+matriz `test-rls.mjs` con los casos de `proxima_llamada_en` (sello por API, SELECT, ACL 6, `tgattr` 3, constantes 3/30/10,
+índice); la reversa de B1 se niega si B1b sigue aplicada (verificado en banco); postflight reverifica contratos y prueba
+las dos formas ISO (`±hh:mm` con microsegundos y `.000Z`); la reversa de B1b restaura comentarios y verifica `tgattr` = 2 y
+`tarea_id` en el CHECK. Informe en `BASE PARA GESTION/revisiones/2026-10-02-auditor-rls-b1b.md`. **Pendiente:** rama con datos
+(`base-gestion-datos-20261002`, ref `dpjojnpfcwkeikyagtxj`, `--with-data`) → aplicar B1, B1b, B2 → `test-rls.mjs` →
+advisors → merge de Miguel.

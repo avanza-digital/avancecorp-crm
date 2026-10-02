@@ -1,7 +1,7 @@
 ---
 tags: [crm, base-para-gestion, rescate, analista, f0, decision, figma]
 fecha: 2026-10-01
-estado: F0 ☑ · D1–D10 ☑ · B1 y B2 escritas, revisadas (auditor-rls + Codex) y ensayadas en banco (02/10) · D7-bis pendiente · rama creada por CLI con replay fallido · nada en producción
+estado: F0 ☑ · D1–D12 ☑ · B1, B1b y B2 escritas y ensayadas en banco (02/10) · B1 y B2 revisadas; auditor B1b en curso · rama con datos creándose · nada en producción
 ---
 
 # Base para gestión del analista — F0 y decisiones (01/10/2026)
@@ -257,3 +257,17 @@ sigue habiendo un único escritor (esta sesión como PRIMARY).
   historial se detiene en una base vacía, como `banco-f7` el 01/09; la de 25/09 sí llegó a FUNCTIONS_DEPLOYED). La CLI de
   Supabase está autenticada y enlazada aunque el conector MCP no aparezca en la sesión; `branches list|get|create|delete`
   funcionan; no hay `merge` por CLI (la aplicación en producción sigue siendo de Miguel con `!`).
+
+## Decisiones D7-bis, D11 y D12 (02/10/2026, noche) y migración B1b
+
+| # | Decisión | Consecuencia |
+|---|---|---|
+| D7-bis | **Agenda propia de la base** («Sí, así»): la rellamada vive en `crm.leads.proxima_llamada_en` (sellada), no en `crm.tareas`. Pantallas: bloque «Llamar hoy» (vencidas + hoy), contador en el menú «Base para gestión», línea «Base: N rellamadas para hoy» en «Hoy» (solo lectura). | Migración B1b `20261002224851`: columna + sello de 3 columnas + CHECK (fecha ISO en `volver_a_llamar`) + constantes (3, 30, 10) + índice parcial. Nada entra en la cola diaria ni en el SLA. |
+| D11 | La rellamada se agenda **como máximo 10 días adelante**. | `dias_max_rellamada = 10` en `private.base_gestion_constantes()`; la puerta del intento rechaza fechas más lejanas (B3). |
+| D12 | **Gana la rellamada:** el lead descansa (30 días) solo cuando el 3.º intento termina sin cita y sin rellamada. | El trigger de enfriamiento (B4) no actúa si el intento trae `proxima_llamada_en`; la rellamada se consume con el siguiente intento. |
+
+Reglas de la rellamada acordadas: una nueva «volver a llamar» sustituye la fecha; el siguiente intento la consume;
+reactivar o vetar la limpia; el supervisor la ve como columna «Próxima llamada». Ensayo en banco de B1b: aplicar +
+postflight, `test`, `reversa-y-reaplicar-b1b` PASS; `test-b2` 25/25 sigue verde; typecheck PASS. Rama de Supabase con
+datos: `base-gestion-datos-20261002` (ref `dpjojnpfcwkeikyagtxj`, `--with-data`, decisión de Miguel) para `test-rls`,
+advisors y EXPLAIN reales; la rama vacía `base-gestion-20261002` se borró (replay 86/400).

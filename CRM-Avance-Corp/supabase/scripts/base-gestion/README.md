@@ -13,11 +13,13 @@ node supabase/scripts/base-gestion/banco.mjs paridad-acl           # ANTES de ap
                                                                    # columna de B1 (semántica medida en 20260919211105): reaplicar B1.
 node supabase/scripts/base-gestion/banco.mjs aplicar               # 20261002054402_crm_base_gestion_esquema.sql
 node supabase/scripts/base-gestion/banco.mjs test                  # test.sql: contrato, CHECK, sello, EXPLAIN
-node supabase/scripts/base-gestion/banco.mjs reversa-y-reaplicar   # reversa-esquema.sql + preflight otra vez
+node supabase/scripts/base-gestion/banco.mjs reversa-y-reaplicar   # reversa-esquema.sql + preflight otra vez (solo si B1b NO está aplicada)
+node supabase/scripts/base-gestion/banco.mjs aplicar-b1b           # 20261002224851_crm_base_gestion_proxima_llamada.sql (rellamada en el lead)
+node supabase/scripts/base-gestion/banco.mjs reversa-y-reaplicar-b1b
 node supabase/scripts/base-gestion/banco.mjs fixtures-b2           # actores (sup2, analistas B y C), 5 descartados, 2 vetados
 node supabase/scripts/base-gestion/banco.mjs aplicar-b2            # 20261002061500_crm_base_gestion_no_contactar_supervisor.sql
 node supabase/scripts/base-gestion/banco.mjs test-b2               # b2-rls.sql: 20 casos bajo rol (impersonación), termina en ROLLBACK
 node supabase/scripts/base-gestion/banco.mjs reversa-y-reaplicar-b2
 ```
 
-Fases siguientes (B2–B4) añaden aquí sus propios `.sql` de prueba. Reversa de B1: `reversa-esquema.sql`.
+Reversas, en este orden: B2 (`reversa-no-contactar-supervisor.sql`, independiente) · B1b (`reversa-proxima-llamada.sql`) · B1 (`reversa-esquema.sql`, se niega si B1b sigue aplicada). Rama de Supabase con datos: `rama.mjs estado | aplicar | explain | gate` (la URL del pooler la aporta Miguel por archivo; ver `BASE PARA GESTION/ESTADO.md`).

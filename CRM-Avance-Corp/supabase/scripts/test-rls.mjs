@@ -15417,14 +15417,15 @@ async function testBaseGestionB1(sessions, seed) {
   };
   let aplicada;
   try {
+    // B1 + B1b (20261002224851): las tres columnas selladas. Si falta cualquiera, el bloque se salta ruidoso.
     aplicada = contarFueraDeBanda('base gestión: esquema aplicado',
-      `select (to_regprocedure('private.base_gestion_constantes()') is not null and exists (select 1 from information_schema.columns where table_schema = 'crm' and table_name = 'leads' and column_name = 'enfriado_hasta'))::int`);
+      `select (to_regprocedure('private.base_gestion_constantes()') is not null and (select count(*) from information_schema.columns where table_schema = 'crm' and table_name = 'leads' and column_name in ('enfriado_hasta', 'reactivado_en', 'proxima_llamada_en')) = 3)::int`);
   } catch (error) {
     saltar(`⚠ Base para gestión B1 SALTADO: sin vía fuera de banda (${error?.message ?? String(error)})`);
     return;
   }
   if (aplicada !== 1) {
-    saltar('⚠ 20261002054402 (base gestión B1) NO desplegada en esta base: bloque SALTADO (no probado)');
+    saltar('⚠ 20261002054402 (B1) o 20261002224851 (B1b) de base gestión NO desplegadas en esta base: bloque SALTADO (no probado)');
     return;
   }
   const idDe = (clave) => seed.leadByName.get(LEAD_BY_KEY[clave].name)?.id;
@@ -15436,14 +15437,18 @@ async function testBaseGestionB1(sessions, seed) {
   await expectExpectedFailure('B1 vend1 PATCH reactivado_en en su lead (juan) → 42501', patch(sessions.vend1.client, 'juan', { reactivado_en: new Date().toISOString() }), ['42501'], SELLO);
   await expectExpectedFailure('B1 sup1 PATCH enfriado_hasta en lead de su subárbol (carlos) → 42501', patch(sessions.sup1.client, 'carlos', { enfriado_hasta: hoy }), ['42501'], SELLO);
   await expectExpectedFailure('B1 gerencia PATCH enfriado_hasta (juan) → 42501', patch(sessions.gerencia.client, 'juan', { enfriado_hasta: hoy }), ['42501'], SELLO);
+  await expectExpectedFailure('B1b vend1 PATCH proxima_llamada_en en su lead (juan) → 42501', patch(sessions.vend1.client, 'juan', { proxima_llamada_en: new Date(Date.now() + 86400000).toISOString() }), ['42501'], SELLO);
+  await expectExpectedFailure('B1b sup1 PATCH proxima_llamada_en en lead de su subárbol (carlos) → 42501', patch(sessions.sup1.client, 'carlos', { proxima_llamada_en: new Date().toISOString() }), ['42501'], SELLO);
+  await expectExpectedFailure('B1b gerencia PATCH proxima_llamada_en (juan) → 42501', patch(sessions.gerencia.client, 'juan', { proxima_llamada_en: new Date().toISOString() }), ['42501'], SELLO);
+  await positive('B1b vend1 PATCH proxima_llamada_en: null sobre NULL → 200 (no-op)', patch(sessions.vend1.client, 'juan', { proxima_llamada_en: null }));
   // (2) No-op: mismo valor NULL → pasa (los parches parciales del drawer siguen funcionando).
   await positive('B1 vend1 PATCH enfriado_hasta: null sobre NULL → 200 (no-op)', patch(sessions.vend1.client, 'juan', { enfriado_hasta: null }));
   // (3) Las columnas viajan por la API.
-  const sel = await positive('B1 vend1 SELECT id, enfriado_hasta, reactivado_en (juan)',
-    sessions.vend1.client.schema('crm').from('leads').select('id, enfriado_hasta, reactivado_en').eq('id', idDe('juan')).single());
+  const sel = await positive('B1/B1b vend1 SELECT id, enfriado_hasta, reactivado_en, proxima_llamada_en (juan)',
+    sessions.vend1.client.schema('crm').from('leads').select('id, enfriado_hasta, reactivado_en, proxima_llamada_en').eq('id', idDe('juan')).single());
   assertions += 1;
-  if (sel?.data && 'enfriado_hasta' in sel.data && 'reactivado_en' in sel.data) console.log('  ✓ B1 enfriado_hasta y reactivado_en viajan por la API');
-  else fail('B1: la API no devolvió enfriado_hasta / reactivado_en (grant por columna ausente)');
+  if (sel?.data && 'enfriado_hasta' in sel.data && 'reactivado_en' in sel.data && 'proxima_llamada_en' in sel.data) console.log('  ✓ B1/B1b las tres columnas viajan por la API');
+  else fail('B1/B1b: la API no devolvió enfriado_hasta / reactivado_en / proxima_llamada_en (grant por columna ausente)');
   // (4) El intento de la base no se forja desde la API.
   const actividad = (metadata) => sessions.vend1.client.schema('crm').from('actividades').insert({
     creado_por: sessions.vend1.user.id, detalle: 'B1 TRANSIENT', lead_id: idDe('juan'), tipo: 'nota', metadata,
@@ -15458,14 +15463,18 @@ async function testBaseGestionB1(sessions, seed) {
     'B1 el sello es DEFINER de postgres con search_path vacío');
   check(cuenta('sin execute API', `select count(*) from unnest(array['anon','authenticated','service_role']) r(rol) where has_function_privilege(r.rol, 'private.trg_leads_zz_sello_base_gestion()', 'EXECUTE') or has_function_privilege(r.rol, 'private.base_gestion_constantes()', 'EXECUTE')`) === 0,
     'B1 sello y constantes sin EXECUTE para la API');
-  check(cuenta('trigger', `select count(*) from pg_trigger t where t.tgrelid = 'crm.leads'::regclass and t.tgname = 'trg_leads_zz_sello_base_gestion' and t.tgenabled = 'O' and (t.tgtype & 2) = 2 and (t.tgtype & 4) = 4 and (t.tgtype & 16) = 16`) === 1,
-    'B1 trigger del sello BEFORE INSERT OR UPDATE, habilitado');
-  check(cuenta('anon', `select (has_column_privilege('anon', 'crm.leads', 'enfriado_hasta', 'SELECT') or has_column_privilege('anon', 'crm.leads', 'reactivado_en', 'SELECT'))::int`) === 0,
-    'B1 anon no lee las columnas nuevas');
-  check(cuenta('acl por columna', `select count(*) from pg_attribute a, aclexplode(a.attacl) e where a.attrelid = 'crm.leads'::regclass and a.attname in ('reactivado_en', 'enfriado_hasta') and e.privilege_type in ('INSERT', 'UPDATE') and e.grantee in ('anon'::regrole, 'authenticated'::regrole)`) === 0,
-    'B1 sin INSERT/UPDATE por columna para la API (pg_attribute.attacl)');
-  check(cuenta('constantes', `select (c.max_intentos = 3 and c.dias_enfriamiento = 30)::int from private.base_gestion_constantes() c`) === 1,
-    'B1 constantes de negocio 3 intentos / 30 días');
+  check(cuenta('trigger', `select count(*) from pg_trigger t where t.tgrelid = 'crm.leads'::regclass and t.tgname = 'trg_leads_zz_sello_base_gestion' and t.tgenabled = 'O' and (t.tgtype & 2) = 2 and (t.tgtype & 4) = 4 and (t.tgtype & 16) = 16 and t.tgfoid = to_regprocedure('private.trg_leads_zz_sello_base_gestion()') and array_length(t.tgattr::smallint[], 1) = 3 and (select attnum from pg_attribute where attrelid = 'crm.leads'::regclass and attname = 'proxima_llamada_en') = any(t.tgattr::smallint[])`) === 1,
+    'B1/B1b trigger del sello BEFORE INSERT OR UPDATE OF las tres columnas, habilitado');
+  check(cuenta('anon', `select (has_column_privilege('anon', 'crm.leads', 'enfriado_hasta', 'SELECT') or has_column_privilege('anon', 'crm.leads', 'reactivado_en', 'SELECT') or has_column_privilege('anon', 'crm.leads', 'proxima_llamada_en', 'SELECT'))::int`) === 0,
+    'B1/B1b anon no lee las columnas nuevas');
+  check(cuenta('acl por columna', `select count(*) from pg_attribute a, aclexplode(a.attacl) e where a.attrelid = 'crm.leads'::regclass and a.attname in ('reactivado_en', 'enfriado_hasta', 'proxima_llamada_en') and e.privilege_type in ('INSERT', 'UPDATE') and e.grantee in ('anon'::regrole, 'authenticated'::regrole)`) === 0,
+    'B1/B1b sin INSERT/UPDATE por columna para la API (pg_attribute.attacl)');
+  check(cuenta('acl exacta', `select count(*) from pg_attribute a, aclexplode(a.attacl) e where a.attrelid = 'crm.leads'::regclass and a.attname in ('reactivado_en', 'enfriado_hasta', 'proxima_llamada_en') and e.privilege_type = 'SELECT' and not e.is_grantable and e.grantee in ('authenticated'::regrole, 'service_role'::regrole)`) === 6,
+    'B1/B1b ACL por columna exacta: 6 entradas SELECT (authenticated + service_role × 3)');
+  check(cuenta('constantes', `select (c.max_intentos = 3 and c.dias_enfriamiento = 30 and c.dias_max_rellamada = 10)::int from private.base_gestion_constantes() c`) === 1,
+    'B1/B1b constantes de negocio 3 intentos / 30 días / rellamada máx. 10 días');
+  check(cuenta('indice', `select count(*) from pg_index i join pg_class c on c.oid = i.indexrelid where c.relname = 'idx_leads_base_rellamada' and i.indpred is not null and i.indisvalid`) === 1,
+    'B1b índice parcial idx_leads_base_rellamada válido');
   check(cuenta('check validado', `select count(*) from pg_constraint where conrelid = 'crm.actividades'::regclass and conname = 'actividades_intento_base_forma' and convalidated`) === 1,
     'B1 CHECK actividades_intento_base_forma validado');
 }

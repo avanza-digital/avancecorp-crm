@@ -2799,6 +2799,7 @@ export type Database = {
           nota: string | null
           origen: string
           perfil_id: string | null
+          proxima_llamada_en: string | null
           reactivado_en: string | null
           sla_global_aproximado: boolean
           sla_global_iniciado_en: string
@@ -2841,6 +2842,7 @@ export type Database = {
           nota?: string | null
           origen: string
           perfil_id?: string | null
+          proxima_llamada_en?: string | null
           reactivado_en?: string | null
           sla_global_aproximado?: boolean
           sla_global_iniciado_en?: string
@@ -2883,6 +2885,7 @@ export type Database = {
           nota?: string | null
           origen?: string
           perfil_id?: string | null
+          proxima_llamada_en?: string | null
           reactivado_en?: string | null
           sla_global_aproximado?: boolean
           sla_global_iniciado_en?: string
