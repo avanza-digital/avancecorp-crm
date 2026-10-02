@@ -65,7 +65,7 @@ Miguel no estaba disponible el 01/10. **Jhosep tomó las decisiones 1 a 4 como p
 | 2 | Límite por celular | 30 eventos por minuto y 600 por día; al pasarse, 429 con `Retry-After` | **La recomendada:** 30 por minuto y 600 al día |
 | 3 | Salud del celular | Tabla mínima; latido cada 6 h y al vaciar la cola | **La recomendada:** cada 6 h y al vaciar la cola |
 | 4 | Qué abre el celular tras guardar | La URL de F1 por número hasta que F4 tenga la ruta por evento; también tras un 202 «ignorada», para que el analista vea el aviso de F1 | **La recomendada:** la encuesta de F1 por número |
-| 5 | Adaptador si MacroDroid no es durable | Documentar el límite y evaluar Tasker o una app mínima antes de prometer captura durable | Pendiente: depende de las pruebas 3 y 4 en C1 |
+| 5 | Adaptador si MacroDroid no es durable | Documentar el límite y evaluar Tasker o una app mínima antes de prometer captura durable | **Evidencia 02/10: las pruebas 3 y 4 pasaron en C1** (el aviso se guarda antes del envío, sobrevive sin red y al reiniciar, y se reenvía solo al volver la conexión con el mismo id; `REGISTRO.md` §5d). El supuesto de la decisión no se dio: se sigue con MacroDroid, sin otro adaptador. Miguel lo ratifica |
 
 ## Orden de trabajo (un PR por paso, cada uno con plan aprobado)
 
