@@ -1,7 +1,7 @@
 ---
 tags: [crm, base-para-gestion, rescate, analista, f0, decision, figma]
 fecha: 2026-10-01
-estado: F0 ☑ · D1–D12 ☑ · B1, B1b y B2 escritas y ensayadas en banco (02/10) · B1 y B2 revisadas; auditor B1b en curso · rama con datos creándose · nada en producción
+estado: F0 ☑ · D1–D12 ☑ · B1, B1b, B2 y B3 escritas y ensayadas en banco (02/10) · B1/B1b/B2 auditadas; auditor B3 en curso · rama con datos lista, falta la URL de Miguel · nada en producción
 ---
 
 # Base para gestión del analista — F0 y decisiones (01/10/2026)
@@ -271,3 +271,27 @@ reactivar o vetar la limpia; el supervisor la ve como columna «Próxima llamada
 postflight, `test`, `reversa-y-reaplicar-b1b` PASS; `test-b2` 25/25 sigue verde; typecheck PASS. Rama de Supabase con
 datos: `base-gestion-datos-20261002` (ref `dpjojnpfcwkeikyagtxj`, `--with-data`, decisión de Miguel) para `test-rls`,
 advisors y EXPLAIN reales; la rama vacía `base-gestion-20261002` se borró (replay 86/400).
+
+## B3 · Puertas y núcleos — HECHO en local y ensayado (02/10/2026, noche)
+
+- **Migración `20261002231436_crm_base_gestion_puertas.sql`.** Cuatro puertas `crm.*` DEFINER (EXECUTE solo authenticated):
+  `obtener_base_gestion(p_vendedor_id)` (lectura por rol con ámbito explícito, espejo de `leads_select`; excluye veto y descanso;
+  intentos del ciclo desde `descartado_en`, último resultado, próxima rellamada, **etapa máxima alcanzada desde la última
+  reapertura del historial** —acotar con `inicio_ciclo_lead` fallaba en transacciones multi-sentencia porque `now()` del log y
+  `statement_timestamp()` del ledger difieren—, días desde el descarte, quién gestiona; orden rellamada vencida/hoy → etapa
+  máxima → menos días; sin fecha o sin etapa al final), `registrar_intento_base`, `reactivar_lead_base` y
+  `base_gestion_resumen` (Supervisión/Gerencia, cifras de F4). Núcleos `private.base_gestion_intento_core` (7 resultados,
+  rellamada futura ≤ 10 días, veto P0429, descanso 22023, actividad `intento_base` con `id = operación` bajo los dos GUC,
+  fija/limpia `proxima_llamada_en`, `agendo_reunion` reactiva en la misma transacción, idempotencia por `metadata.respuesta`)
+  y `base_gestion_reactivar_core` (llama a `reabrir_lead_fn` sellada → `nuevo`; avanza a `contactado` en la misma transacción;
+  sella `reactivado_en`; limpia rellamada y descanso; actividad `reactivacion_base`). Ayudantes `base_gestion_rol`,
+  `base_gestion_lead_visible` (`is true` ante NULL), `base_gestion_etapa_rango`.
+- **Banco:** `b3-puertas.sql` **40/40** bajo rol: analista propio/ajeno, veto, 10 días, idempotencia y doble clic, 23505 con
+  otro contenido, rellamada consumida por el siguiente intento, orden, reactivación (contactado, ciclo 2, SLA global reiniciado
+  y episodio abierto en contactado), agendó cita reactiva, reactivado y descartado otra vez con contador 0, Supervisión por
+  equipo y filtro por analista, Gerencia todo, resumen. `reversa-y-reaplicar-b3` PASS. `test-rls.mjs`: bloque
+  `testBaseGestionB3` por la API (roles 42501, validaciones sin escribir, camino bueno con lead transitorio, soft-delete).
+- **Pendiente:** auditor-rls B3; Codex B3+B4; rama con datos (URL de Miguel) → aplicar B1/B1b/B2/B3 → `test-rls` → advisors.
+- **Sigue B4:** trigger AFTER INSERT en `actividades` (evento `intento_base`): al `max_intentos`-ésimo intento del ciclo sin
+  cita ni rellamada (D12), `enfriado_hasta = hoy Lima + dias_enfriamiento` bajo el GUC del sello. El SLA al reactivar ya está
+  verificado en B3 (reloj global y episodio).

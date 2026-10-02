@@ -15026,3 +15026,35 @@ las dos formas ISO (`±hh:mm` con microsegundos y `.000Z`); la reversa de B1b re
 `tarea_id` en el CHECK. Informe en `BASE PARA GESTION/revisiones/2026-10-02-auditor-rls-b1b.md`. **Pendiente:** rama con datos
 (`base-gestion-datos-20261002`, ref `dpjojnpfcwkeikyagtxj`, `--with-data`) → aplicar B1, B1b, B2 → `test-rls.mjs` →
 advisors → merge de Miguel.
+
+## 20261002231436 — Base para gestión del analista · B3 puertas y núcleos
+
+**⏳ PENDIENTE DE RAMA (02/10/2026).** Plan B3 confirmado por Miguel el 02/10 («siii»). Ensayada en el banco
+`base_gestion_20261002`: aplicar + postflight (contratos de 4 puertas, 2 núcleos y 3 ayudantes; negativos sin escribir:
+resultado inválido, rellamada a 11 días, fecha en otro resultado, lead inexistente, analista no ve ajenos, analista sin
+resumen, coordinación 42501, sin sesión 42501) PASS; `b3-puertas.sql` **40/40** (impersonación: analista propio/ajeno,
+veto P0429, 10 días, idempotencia y doble clic, replay con otro contenido 23505, rellamada consumida, orden rellamada hoy
+→ etapa máxima → días, reactivación a contactado con ciclo 2 y SLA reiniciado, agendó cita reactiva, reactivado y
+descartado otra vez con contador en 0, Supervisión por equipo y filtro por analista, Gerencia todo, resumen por analista);
+`reversa-y-reaplicar-b3` PASS.
+**Qué.** `crm.obtener_base_gestion(p_vendedor_id)` (lectura por rol; excluye no_contactar y descanso; intentos del
+ciclo desde `descartado_en`, último resultado, próxima rellamada, etapa máxima alcanzada desde la última reapertura del
+historial, días desde el descarte, quién gestiona; orden rellamada vencida/hoy → etapa máxima → menos días; sin fecha o
+sin etapa al final), `crm.registrar_intento_base(op, lead, resultado, nota, proxima)` → `private.base_gestion_intento_core`
+(7 resultados; volver_a_llamar exige fecha futura ≤ `dias_max_rellamada`; descanso vigente y veto rechazan; actividad
+`intento_base` con `id = op` bajo los dos GUC; fija/limpia `proxima_llamada_en`; agendó cita reactiva; idempotente por
+`metadata.respuesta`), `crm.reactivar_lead_base(op, lead, nota)` → `private.base_gestion_reactivar_core` (llama a
+`crm.reabrir_lead_fn` sellada, avanza a `contactado` en la misma transacción, sella `reactivado_en`, limpia rellamada y
+descanso, actividad `reactivacion_base`), `crm.base_gestion_resumen()` (Supervisión/Gerencia: en base, rellamadas hoy,
+intentos hoy, reactivaciones del mes). Ayudantes `private.base_gestion_rol`, `base_gestion_lead_visible` (espejo de
+`leads_select` con `is true`), `base_gestion_etapa_rango`. DEFINER con ámbito explícito; EXECUTE solo authenticated en las
+puertas; núcleos y ayudantes cerrados. No reemplaza ninguna función sellada. El enfriamiento (D4/D12) lo pone el trigger
+de B4. **Reversa:** `supabase/scripts/base-gestion/reversa-puertas.sql` (no toca datos).
+**auditor-rls B3 (02/10): CHANGES_REQUESTED → aplicado y reensayado (43/43).** P1: sello nuevo
+`trg_00_actividades_base_gestion_solo_nucleo` (reserva `intento_base`/`reactivacion_base`/`respuesta`/`via` bajo
+`crm.op_base_gestion`); P2: candados persona → lead antes del `for update` cuando habrá reactivación; P2: replay leído
+tras el candado y solo del mismo actor; P3: resumen atribuido al DUEÑO del lead (+ `p.activo`), ayudantes INVOKER,
+UPDATE condicional. `test-rls.mjs`: bloque `testBaseGestionB3` por la API (service_role/anon/roles 42501, `p_vendedor_id`
+por rol, forja 42501, sup1/sup2, replay y 23505, rellamada primera, reactivar, agendó cita, ACL fuera de banda).
+Informe en `BASE PARA GESTION/revisiones/2026-10-02-auditor-rls-b3.md`. **Pendiente:** Codex B3+B4, rama con datos →
+`test-rls.mjs` → advisors → merge de Miguel.
