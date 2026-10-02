@@ -52,6 +52,15 @@ caché, si hace falta, es la operación `hosting_cache_clear-website` por la mis
 > comparar los textos quitando las huellas de los nombres (`-XXXXXXXX.js|css`) y el `buildId`. El cambio de nombre
 > del CSS arrastra el del archivo de entrada y el de todo chunk que lo importa (33 nombres nuevos), pero el contenido
 > es el mismo.
+>
+> **01/10/2026 ~19:55 · potencial del lead, filtro en Leads + Llamadas F1:** `build-20261002T005154879Z`, `44985828`,
+> rama `release/potencial-filtro-llamadas-20261001` (nace del vivo `a070838d`, el de Gestionado; mismo árbol que la
+> rama de la PR #165). Subida al primer intento. 🔑 Para acreditar que la rama «contiene lo vivo» cuando las historias
+> están emparentadas por squash y cherry-pick: NO sirve `git merge` (da conflictos); se comprueba archivo por archivo
+> que la versión VIVA de cada archivo que difiere aparece en la historia de la rama. 🔑 Al comparar dos paquetes por
+> nombre sin huella hay dos piezas que se llaman igual (`gerencia.js`, `brand/avance.png`): emparejarlas por tamaño.
+> 🔑 El humo con `curl` no ve un error de arranque: abrir la pantalla de entrada en un navegador y leer la consola
+> (Playwright sí carga producción; la extensión de Chrome puede no estar conectada).
 
 Mismo mecanismo, dominio distinto (**2026-07-10**, primer update por esta vía):
 
