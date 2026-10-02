@@ -69,6 +69,12 @@ Cierre de F0.3 por celular: salientes con número __/10 · entrantes con número
 | 30/09/2026 ~14:20 | C1 | **real** (`http://<PC>:4173`, misma base que producción) | Sesión con la cuenta de Jhosep; URL con el número de un lead propio escrita en Chrome | PASS: se abrió la encuesta del lead (su ficha lateral con el diálogo encima, porque no era la persona de «Ahora»). Se cerró **sin registrar**: nada guardado en la base. Observación: Jhosep preguntó si es normal que se abra la ficha; es el camino previsto para un lead distinto al de «Ahora» (posible ajuste de diseño para Miguel) | Observado por Jhosep |
 | 30/09/2026 ~14:25 | C1 | — | Macro devuelta a `https://crm.miavance.com/#/gestion-diaria` y probada | PASS: al colgar abre la app instalada en Gestión Diaria (como por la mañana) | Observado por Jhosep |
 
+## 5c. F1 en producción (desde el 01/10/2026, `build-20261002T005154879Z`)
+
+| Fecha | Celular | Build | Caso | Resultado | Evidencia |
+| --- | --- | --- | --- | --- | --- |
+| 02/10/2026, antes de las 10:06 (Lima) | C1 | producción `build-20261002T005154879Z` | Macro «Abrir sitio web» cambiada a `https://crm.miavance.com/#/gestion-diaria/llamada/{call_number}` (codificación de URL desmarcada) → llamada saliente a un lead → colgar | PASS: abre la encuesta según el número del lead | Observado por Jhosep («abre la encuesta según el número del lead»). Sin detalle de la cuenta usada ni de si se registró el resultado |
+
 ## 6. Incidencias
 
 | Fecha | Celular | Qué pasó | Impacto (perdida / duplicada / no abrió / otro) | Cómo se resolvió | Abierta o cerrada |

@@ -52,6 +52,8 @@ con **«Parámetros de codificación de URL» desmarcado** (el `#` tiene que lle
 1. **Ajuste de Android, sin paquete — es la vía que funcionó en C1 (30/09/2026):** Ajustes → Aplicaciones → **CRM Avance Corp** → «Definir como predeterminada» → «Abrir vínculos admitidos» ✓ → «Direcciones web admitidas» → `crm.miavance.com` ✓. Con eso la acción **«Abrir sitio web»** del F0 vale tal cual, solo cambiando la URL. Los dos interruptores tienen que estar encendidos: con el dominio apagado sigue abriendo Chrome.
 2. **Send Intent con el paquete del WebAPK** (solo si en algún celular la vía 1 no existe): Target `Activity`, Action `android.intent.action.VIEW`, Data = la URL de arriba, Package = `org.chromium.webapk.…` (se obtiene exportando la macro: el archivo trae el `packageName` de la acción «Lanzar app»).
 
+**Vigente en C1 desde el 02/10/2026:** F1 está en producción desde el 01/10 y la macro de C1 ya usa esta URL (PASS en `REGISTRO.md` §5c).
+
 **«Lanzar app» ya no basta** para F1: abre la app pero no puede pasarle el número.
 
 **Qué mirar en el celular (F1.4.2):** que la app se abra en Gestión Diaria y aparezca la encuesta (o el aviso) para el número marcado; que funcione con la sesión ya iniciada y también si toca iniciar sesión (el número debe sobrevivir al login); que Atrás no vuelva a abrir la búsqueda; y que con la encuesta abierta una segunda llamada no la pise (espera a que se cierre la primera). Anotar cada caso en `REGISTRO.md` sin el número real.

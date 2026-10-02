@@ -4,7 +4,8 @@ Estado: **F1 EN PRODUCCIÓN desde el 01/10/2026 (~19:55 Lima).** Miguel la publi
 filtro por potencial de Leads (#165): release `crm-20261002T005155Z-4498582850b1`, commit
 `44985828`, build `build-20261002T005154879Z`; acta en `PUBLICACION-PENDIENTE-2026-09-30.md`.
 Comprobado el 02/10 a las 14:25 UTC: el texto exclusivo del receptor está en el sitio vivo.
-Falta la prueba real desde C1 con la macro en `{call_number}` y demo1234 (Jhosep).
+**Probada en C1 contra producción el 02/10 (PASS, Jhosep):** con la macro en `{call_number}`, al
+colgar se abre la encuesta según el número del lead.
 
 Historia: terminada en la rama `feat/llamadas-f0` y fusionada a `main` por Miguel (PR #148,
 30/09 21:41 UTC); al publicar la corrección de documentos, Miguel decidió «Solo documentos;
