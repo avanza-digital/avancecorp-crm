@@ -5,6 +5,44 @@ Lo lanza Miguel con `!` (ver «Cómo publicar»). Continuación de [[Cuentas ban
 [[P-0XX - cierre productivo verificado (2026-09-26)]] y
 [[Cuentas de Gloria - F3 cambiar la cuenta de pago, en producción (2026-09-26)]].
 
+## 🔖 Serial de continuación: `AVC-CUENTAS-PAGO-20261002-R1`
+
+Pausa del 02/10/2026 01:30 Lima (Miguel: «guarda todo y seguimos mañana»). Al oír «retomemos
+AVC-CUENTAS-PAGO-20261002-R1»: leer esta nota y los dos `LEEME.md` de
+`CRM-Avance-Corp/supabase/scripts/cuentas-pago-rezago/` y `…/cuentas-pago-asignar/` en el worktree
+`AVANCECORP-desktop-worktrees/cuentas-pago-rezago-20261001`. **Siguiente paso: la Fase 5 del tablero**
+(Miguel lanza con `!` el ensayo y las dos migraciones, en el orden de «Cómo publicar»; se lee cada
+resultado antes del siguiente), luego publicar el portal, `gen:types`, fusionar las dos ramas a
+`main` y marcar el tablero. No se rehacen pruebas ni revisiones salvo que cambie un archivo
+(`generar-derivados.py --verificar` en las dos carpetas lo dice). La conversación original se reabre
+con `claude --resume 4115f385-de84-4f7a-b81d-77e5ca39e0ea`.
+
+## Tablero en Figma (seguimiento)
+
+**Tablero editable (FigJam):** https://www.figma.com/board/K2t5Padzr6FVXkFSPglILq
+Mismo formato que [[Portal Pagos - plan de mejora en Figma (2026-09-26)]]: título, línea
+«actualizado», leyenda ☑ / ◉ / ☐ y tres columnas (Diagnóstico · Fases · Reglas y pendientes).
+
+**Política:** actualizar ESTE tablero al cerrar cada fase verificada (☐ → ◉ → ☑ en los ítems, el
+texto y el color de la píldora de estado, y la línea «actualizado»). No recrearlo. No marcar hecho
+sin evidencia. Se edita por el conector de Figma (`use_figma`), nunca manejando la pantalla.
+
+Nodos (para actualizar sin buscar):
+- Tablero `1:2` · título `1:3` · subtítulo `1:4` · **actualizado `1:5`** · leyenda `1:6`
+- Columnas: diagnóstico `1:7` · fases `2:2` · reglas `2:67`
+- Diagnóstico: números `1:12` · casos `1:14` · hallazgos `1:17` · esperado `1:20`
+- F1 tarjeta `2:5` · estado `2:8` (píldora `2:7`) · objetivo `2:10` · ítems `2:12` · ves `2:14`
+- F2 tarjeta `2:15` · estado `2:18` (píldora `2:17`) · objetivo `2:20` · ítems `2:22` · ves `2:24` · prueba `2:26`
+- F3 tarjeta `2:27` · estado `2:30` (píldora `2:29`) · objetivo `2:32` · ítems `2:34` · ves `2:36`
+- F4 tarjeta `2:37` · estado `2:40` (píldora `2:39`) · objetivo `2:42` · ítems `2:44` · ves `2:46`
+- F5 tarjeta `2:47` · estado `2:50` (píldora `2:49`) · objetivo `2:52` · pasos `2:54` · prueba `2:56`
+- F6 tarjeta `2:57` · estado `2:60` (píldora `2:59`) · objetivo `2:62` · pasos `2:64` · ves `2:66`
+- Reglas: no cambia `2:72` · decisiones `2:75` · falta decidir `2:80` (píldora `2:79`) · riesgos `2:83` · dónde está `2:86`
+- Colores de píldora: hecho verde `#1F804D` · construido azul `#3866BF` · te toca rosa `#B33373` · pendiente gris `#595959`
+
+Estado del tablero al crearlo: F1 ☑ hecha · F2, F3 y F4 ◉ construidas, falta lanzarlas · F5 ☐ la
+lanza Miguel · F6 ☐ Operaciones destraba los 22 restantes.
+
 ## El problema
 
 Una cuota solo se puede marcar «pagado» si su contrato tiene una **cuenta de pago** vinculada
