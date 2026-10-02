@@ -11,6 +11,9 @@ montado desde cero (montaje + los dos ciclos en menos de tres minutos).
 | `ciclo-fase2.sh` | Migración de la fase 2: ciclo sin y con `pg_cron`, caducidad (51), fase 1 sin regresión (75), concurrencia (10), mutantes de lógica (13), de concurrencia (2) y de la migración (4), una corrida REAL de `pg_cron`, la medición del lote y registro y verificación. Exige la fase 1. Si la puerta de lectura está puesta, la retira y la repone. |
 | `medir-lote.sql` | Cuánto dura una pasada de la tarea con 2 000 marcas vencidas (todo se deshace). |
 | `ciclo-fase3a.sh` | Migración de la puerta de lectura (fase 3, entrega A): ciclo aplicar/repetir/revertir, foto de los trinquetes sin y con la migración, lectura (94), fases 1 y 2 sin regresión (75 y 51), mutantes de lógica (30), de la migración y del preflight (28), el ensayo sin `pg_cron`, la medición, registro, verificación y el verificador frente a un ayudante abierto. Exige las fases 1 y 2. |
+| `ciclo-fase3b.sh` | Migración del filtro por potencial (fase 3, entrega B): ciclo aplicar/repetir/reversa (la firma de 13 vuelve byte a byte), foto de los trinquetes, filtro (152), fases 1, 2 y 3A sin regresión, el oráculo de gestión de `scripts/cartera-gestion` contra la firma de 14 (128), mutantes de lógica (28), de migración y preflight (51) y de la reversa (8), la medición, registro y verificación frente a tres estados malos. Termina con un VEREDICTO de máquina (sale con 1 si algo no dio lo esperado). Exige además el trinquete analítico sembrado. |
+| `generar-anterior-y-reversa.py` | Genera, desde el texto de `20261001154153`, `anterior-13.sql` (la función anterior como `pg_temp.cartera_filtrada_anterior`, la vara de la igualdad) y `../reversa-filtro.sql`. Con `--comprobar` dice si están al día. |
+| `medir-filtro.sql` | La función anterior contra la nueva, sin y con filtro, con 6 000 leads y 2 400 marcas, como gerencia, supervisor y analista (mediana de 5; todo se deshace). Va con `anterior-13.sql` delante. |
 | `trinquetes.sql` | Foto de los `private.assert_*()` y del censo de contadores, para compararla antes y después de una migración (todo se deshace). |
 | `medir-lectura.sql` | Cuánto tarda la puerta de lectura con 50 y con 200 ids, como analista y como supervisor (todo se deshace). |
 | `generar-registrador.py` | Genera el registrador de una migración con su md5 embebido. Si la migración cambia, se vuelve a generar. |
@@ -23,6 +26,10 @@ BANCO_CONTENEDOR=avancecorp-potencial-AAAAMMDD BANCO_PUERTO=55470 bash montar-ba
 BANCO_CONTENEDOR=avancecorp-potencial-AAAAMMDD bash ciclo-fase1.sh
 BANCO_CONTENEDOR=avancecorp-potencial-AAAAMMDD bash ciclo-fase2.sh
 BANCO_CONTENEDOR=avancecorp-potencial-AAAAMMDD bash ciclo-fase3a.sh
+# Fase 3B: antes, en un banco recién montado, el trinquete analítico y la migración de gestión.
+docker exec -i -e PGPASSWORD=postgres avancecorp-potencial-AAAAMMDD psql -U postgres -h 127.0.0.1 -d postgres -v ON_ERROR_STOP=1 -q < ../../cartera-gestion/siembra-control-banco.sql
+docker exec -i -e PGPASSWORD=postgres avancecorp-potencial-AAAAMMDD psql -U postgres -h 127.0.0.1 -d postgres -v ON_ERROR_STOP=1 -q < ../../../migrations/20261001154153_crm_cartera_filtro_gestion.sql   # solo si el volcado es anterior a ella
+BANCO_CONTENEDOR=avancecorp-potencial-AAAAMMDD bash ciclo-fase3b.sh
 ```
 
 ## Cómo leer la salida
@@ -35,6 +42,9 @@ BANCO_CONTENEDOR=avancecorp-potencial-AAAAMMDD bash ciclo-fase3a.sh
   `corte-solo-filtro` (la relectura bajo candado los cubre). Sus mutantes **dobles** sí deben caer.
 - En la fase 3A sobrevive a propósito `sin-sesion` (sin sesión el gate ya rechaza); su doble
   `sin-sesion-ni-gate` debe caer. Y la línea «trinquetes» debe decir «idénticos».
+- En la fase 3B no sobrevive ningún mutante: los 28 de lógica dan «N FALLAS», los 51 de migración un
+  `ERROR: PREFLIGHT…` o `POSTFLIGHT…` (o el error de un trinquete ajeno) y los 8 de la reversa un
+  `ERROR: REVERSA filtro_potencial…`. La última línea es el veredicto.
 - En los mutantes de **concurrencia**, lo correcto son líneas `✗`. Dos de la fase 1 (reversa sin
   candados y reversa con el orden viejo) BORRAN las tablas del banco: el ciclo las reaplica.
 
