@@ -86,6 +86,42 @@ describe('claves de la caché de cartera (contrato con las invalidaciones)', () 
     expect(crmQueryKeys.resumenReparto()).toEqual(['crm', 'metricas-ambito', 'resumen-reparto'])
   })
 
+  // Pipeline, 01/10/2026: «Nuevo» y «Gestionado» son la MISMA etapa y el mismo
+  // analista. Si la gestión no formara parte de la clave compartirían caché y
+  // las dos columnas pintarían la misma lista. Y las dos cuelgan de leads():
+  // es el prefijo que el store invalida tras cada mutación, y por eso un
+  // intento registrado mueve la tarjeta de una columna a la otra sin recargar.
+  it('la gestión separa la caché de «Nuevo» y «Gestionado», y las dos caducan con leads()', async () => {
+    const nuevo = crmQueryKeys.carteraPagina('nuevo', 'v-1', '', true, null, null, 'todos', 'todas', false, 'sin_gestion')
+    const gestionado = crmQueryKeys.carteraPagina('nuevo', 'v-1', '', true, null, null, 'todos', 'todas', false, 'con_gestion')
+    const etapaEntera = crmQueryKeys.carteraPagina('nuevo', 'v-1', '', true)
+
+    // Literal A PROPÓSITO: el penúltimo componente es la gestión y el último el
+    // potencial (Leads); `null` = sin recorte.
+    expect(gestionado).toEqual([
+      'crm', 'leads', 'cartera-pagina', 'nuevo', 'v-1', '', true, null, null, 'todos', 'todas', false, 'con_gestion', null,
+    ])
+    expect(etapaEntera.at(-2)).toBeNull()
+    expect(etapaEntera.at(-1)).toBeNull()
+    expect(new Set([nuevo, gestionado, etapaEntera].map((clave) => JSON.stringify(clave))).size).toBe(3)
+
+    const { cliente } = arnes()
+    for (const clave of [nuevo, gestionado, etapaEntera]) cliente.setQueryData(clave, { pages: [], pageParams: [] })
+    await cliente.invalidateQueries({ queryKey: crmQueryKeys.leads() })
+    for (const clave of [nuevo, gestionado, etapaEntera]) expect(cliente.getQueryState(clave)?.isInvalidated).toBe(true)
+  })
+
+  // Leads, 01/10/2026: filtrar por potencial es otra lista. Sin el potencial en
+  // la clave, elegir «Tibio» serviría de caché la lista sin filtro.
+  it('el potencial separa la caché de cada nivel y de la lista sin filtro', () => {
+    const base = ['todas', 'todos', '', true, null, null, 'todos', 'todas', false, null] as const
+    const sinFiltro = crmQueryKeys.carteraPagina(...base)
+    const claves = [sinFiltro, ...(['frio', 'tibio', 'estrella', 'sin_marca'] as const).map((p) => crmQueryKeys.carteraPagina(...base, p))]
+    expect(new Set(claves.map((clave) => JSON.stringify(clave))).size).toBe(5)
+    expect(crmQueryKeys.carteraPagina(...base, 'tibio').at(-1)).toBe('tibio')
+    expect(sinFiltro.at(-1)).toBeNull()
+  })
+
   it('abre una foto operativa nueva cuando cambia el mes calendario', () => {
     const { cliente, wrapper } = arnes()
     const { rerender } = renderHook(

@@ -14,13 +14,14 @@ export async function obtenerDocumentoLead(lead: string, signal?: AbortSignal): 
   return documento
 }
 
-/** Solo al abrir una ficha/conversión; nunca una consulta extra por fila de cartera. */
-export function useDocumentoLead(lead: Lead) {
+/** Solo al abrir una ficha/conversión; nunca una consulta extra por fila de cartera.
+ * `activa` en falso deja de leer: quien ya fijó el documento no necesita relecturas. */
+export function useDocumentoLead(lead: Lead, activa = true) {
   const { yo } = useAuth()
   const consulta = useQuery({
     queryKey: ['crm', 'leads', 'documento', yo?.id, lead.id, lead.actualizado_en],
     queryFn: ({ signal }) => obtenerDocumentoLead(lead.id, signal),
-    enabled: Boolean(yo && !yo.demo), retry: false, staleTime: 0, gcTime: 0,
+    enabled: Boolean(yo && !yo.demo) && activa, retry: false, staleTime: 0, gcTime: 0,
   })
   const demo: DocumentoLead = {
     lead_id: lead.id, inversionista_id: null, identificador_id: null,
@@ -28,5 +29,6 @@ export function useDocumentoLead(lead: Lead) {
     puede_corregir: false,
   }
   return { ...consulta, data: yo?.demo ? demo : consulta.data,
-    isPending: Boolean(!yo?.demo && consulta.isPending), isError: Boolean(!yo?.demo && consulta.isError) }
+    isPending: Boolean(!yo?.demo && consulta.isPending), isError: Boolean(!yo?.demo && consulta.isError),
+    isFetchedAfterMount: Boolean(yo?.demo) || consulta.isFetchedAfterMount }
 }

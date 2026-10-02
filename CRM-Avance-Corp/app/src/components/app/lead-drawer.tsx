@@ -3,7 +3,10 @@ import { TIPOS_DOCUMENTO, TIPOS_DOCUMENTO_K, type TipoDocumento } from '@/lib/do
 import { SolicitudTasaLeadPlegable, type EstadoCondicionesLead } from './condiciones-tasa-lead'
 import { InversionDesdeLead } from './inversion-desde-lead'
 import { InversionDesdeLeadDemo } from './inversion-desde-lead-demo'
+import { leerConversionAbierta } from '@/lib/inversion-solicitud'
 import { VentaCruzada } from './venta-cruzada'
+import { ChipPotencialDeLead } from './potencial-chip'
+import { SeccionPotencial } from './potencial-seccion'
 import { buscarClienteExistente, type BusquedaCliente } from '@/data/cliente-existente-api'
 import type { CondicionesTasaLead } from '@/data/crm-api'
 import { fechaSla, puedeRegistrarGestionSla, type AvisoSla } from '@/lib/sla-operacion'
@@ -172,6 +175,29 @@ function Ficha({ l }: { l: Lead }) {
   const [clienteDelLead, setClienteDelLead] = useState<BusquedaCliente | null>(null)
   const [condicionesLead, setCondicionesLead] = useState<EstadoCondicionesLead | null>(null)
   const bloqueoTasa = condicionesLead?.bloqueo ?? (condicionesLead ? null : 'Verifica las condiciones de inversión antes de convertir.')
+  // Recargar la página con el wizard de conversión abierto lo retoma, con el mismo
+  // permiso que sus botones. Espera a conocer las condiciones de tasa: el contrato
+  // las toma al montarse (un convertido ya no las tiene; un descartado no convierte).
+  // Si no llegan, «Convertir a cliente» lo retoma igual, sin volver a pedir la identidad.
+  const conversionAbierta = () => Boolean(yo && !yo.demo && leerConversionAbierta(yo.id, l.id))
+  const [retomarConversion, setRetomarConversion] = useState(conversionAbierta)
+  if (retomarConversion && puedeConvertir && (condicionesLead !== null || l.etapa === 'convertido')) {
+    setRetomarConversion(false)
+    // Se vuelve a mirar la marca: quien ya cerró el wizard a mano no quiere que reaparezca.
+    if (conversionAbierta()) setDialogo(actual => actual ?? 'convertir')
+  }
+  // Un modal que aparece solo le quita el foco a quien ya está trabajando en la ficha:
+  // al primer gesto la retoma queda para el botón, que tampoco vuelve a pedir la identidad.
+  useEffect(() => {
+    if (!retomarConversion) return
+    const desarmar = () => setRetomarConversion(false)
+    window.addEventListener('keydown', desarmar, true)
+    window.addEventListener('pointerdown', desarmar, true)
+    return () => {
+      window.removeEventListener('keydown', desarmar, true)
+      window.removeEventListener('pointerdown', desarmar, true)
+    }
+  }, [retomarConversion])
   // Señal header → Datos: el badge "Sin capital estimado" abre el modo edición
   // de la sección Datos sin duplicar su estado (contador incremental).
   const [pedirEditarDatos, setPedirEditarDatos] = useState(0)
@@ -216,6 +242,7 @@ function Ficha({ l }: { l: Lead }) {
               <Badge color="var(--muted-foreground)">{origenLabel(l.origen)}</Badge>
               <ChipProcedencia lead={l} conNombre />
               <ChipReasignado lead={l} />
+              <ChipPotencialDeLead leadId={l.id} />
               {/* Capital ausente = vacío accionable: el badge ámbar abre Editar. */}
               {l.monto_estimado == null &&
                 (escribe && !esTerminal ? (
@@ -256,6 +283,7 @@ function Ficha({ l }: { l: Lead }) {
 
       <SheetBody className="space-y-5">
         <div ref={refEtapa} tabIndex={-1} className="rounded-lg focus-visible:outline-2 focus-visible:outline-ring">{esTerminal ? <BannerTerminal l={l} escribe={escribe} onClienteDelLead={setClienteDelLead} /> : <Stepper l={l} escribe={escribe} />}</div>
+        <SeccionPotencial lead={l} />
         {!esTerminal && tieneAnalista && <SolicitudTasaLeadPlegable lead={l} demo={Boolean(yo?.demo)} puedeEditar={puedeConvertir} onCambio={setCondicionesLead} />}
         {!esTerminal && <EstadoSlaFicha leadId={l.id} onActuar={escribe ? actuarSobreAviso : undefined} />}
         <ProximaAccion l={l} escribe={escribe} activa={!esTerminal} />
@@ -1852,9 +1880,10 @@ export function DialogConvertir({l,onClose,condicionesTasa}: {
   l:Lead;onClose:()=>void;condicionesTasa?:CondicionesTasaLead|undefined;bloqueoTasa?:string|null
 }) {
   const {yo}=useAuth()
+  // La clave es la frontera del documento fijado y de la persona preparada: nunca pasan a otra cuenta ni a otro lead.
   return yo?.demo
     ? <InversionDesdeLeadDemo l={l} onClose={onClose} condicionesTasa={condicionesTasa}/>
-    : <InversionDesdeLead l={l} onClose={onClose} condicionesTasa={condicionesTasa}/>
+    : <InversionDesdeLead key={`${yo?.id}:${l.id}`} l={l} onClose={onClose} condicionesTasa={condicionesTasa}/>
 }
 
 function DialogDescartar({ l, onClose }: { l: Lead; onClose: () => void }) {

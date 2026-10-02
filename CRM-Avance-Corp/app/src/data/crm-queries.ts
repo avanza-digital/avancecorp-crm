@@ -257,8 +257,14 @@ export const crmQueryKeys = {
   // combinación es una lista distinta con su propio cursor.
   // La procedencia también es parte de la clave: si solo cambiara el request,
   // TanStack Query serviría la lista anterior sin volver a pedir (P1 de Codex, 19/09).
-  carteraPagina: (etapa: string, vendedor: string, texto: string, integrada = false, desde: string | null = null, hasta: string | null = null, origen = 'todos', procedencia = 'todas', reasignados = false) =>
-    [...crmQueryKeys.leads(), 'cartera-pagina', etapa, vendedor, texto, integrada, desde, hasta, origen, procedencia, reasignados] as const,
+  // La gestión, igual y con más motivo: «Nuevo» y «Gestionado» del Pipeline son
+  // la MISMA etapa y el mismo analista — sin ella en la clave compartirían
+  // caché y las dos columnas pintarían la misma lista. `null` = sin recorte.
+  // El potencial (Frío · Tibio · Estrella · sin marca), por el mismo motivo.
+  carteraPagina: (etapa: string, vendedor: string, texto: string, integrada = false, desde: string | null = null, hasta: string | null = null, origen = 'todos', procedencia = 'todas', reasignados = false, gestion: string | null = null, potencial: string | null = null) =>
+    [...crmQueryKeys.carteraPaginas(), etapa, vendedor, texto, integrada, desde, hasta, origen, procedencia, reasignados, gestion, potencial] as const,
+  /** Prefijo de TODAS las listas de la cartera (cualquier combinación de filtros). */
+  carteraPaginas: () => [...crmQueryKeys.leads(), 'cartera-pagina'] as const,
 }
 
 // Política interna única de caché para mutaciones que cambian atribución o
@@ -621,7 +627,7 @@ export function useCarteraInfinita(habilitada: boolean, filtros: FiltrosCartera)
   const vendedor = filtros.vendedorId ?? 'todos'
   const texto = filtros.texto ?? ''
   return useInfiniteQuery({
-    queryKey: crmQueryKeys.carteraPagina(etapa, vendedor, texto, filtros.integrada, filtros.recepcion?.desde, filtros.recepcion?.hasta, filtros.origen ?? 'todos', filtros.procedencia ?? 'todas', filtros.reasignados ?? false),
+    queryKey: crmQueryKeys.carteraPagina(etapa, vendedor, texto, filtros.integrada, filtros.recepcion?.desde, filtros.recepcion?.hasta, filtros.origen ?? 'todos', filtros.procedencia ?? 'todas', filtros.reasignados ?? false, filtros.gestion ?? null, filtros.potencial ?? null),
     queryFn: ({ pageParam, signal }) => listarCarteraPagina(filtros, pageParam, signal),
     initialPageParam: null as CursorCartera | null,
     // `cursor: null` significa "no hay más" y lo decide el SERVIDOR (pidió una

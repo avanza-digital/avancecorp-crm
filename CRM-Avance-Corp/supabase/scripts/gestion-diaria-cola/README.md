@@ -61,6 +61,22 @@ la candidata dentro del banco y es el comando de regresión habitual:
 node supabase/scripts/gestion-diaria-cola/ensayar.mjs
 ```
 
+> Nota del 01/10/2026 (migración `20261001154153_crm_cartera_filtro_gestion`):
+> a `fixtures/acl.json` se le AÑADIÓ a mano la firma de 13 argumentos de
+> `crm.cartera_filtrada_fn` (con `p_gestion`), junto a la de 12 que ya traía. No
+> viene de una lectura de producción: es para que `preparar.mjs`, que revoca todo
+> y solo repone lo que el snapshot nombra, no deje esa función sin `EXECUTE` en
+> una plantilla posterior a la migración (cada entrada se resuelve con
+> `to_regprocedure`, así que sirve en los dos estados). Cuando la migración esté
+> publicada, regenerar el snapshot desde producción y retirar la firma de 12.
+>
+> Nota del 01/10/2026 (migración `20261001212341_crm_cartera_filtro_potencial`):
+> por el mismo motivo se AÑADIERON a mano la firma de 14 argumentos (con
+> `p_potencial`) y su ayudante `private.cartera_potencial_fn()`. Sin ellas, una
+> plantilla posterior a esa migración dejaría la cartera sin `EXECUTE` para
+> `authenticated`. Al regenerar el snapshot desde producción, retirar las firmas
+> de 12 y 13.
+
 - `prueba.sql`: 530 leads, orden antes de paginar, llamadas repetidas, ancla,
   salto de página, reintento programado, límites de Lima, deshacer, exclusiones
   y fin de vuelta. Usa el escritor real v4 para llamadas y programación.

@@ -27,12 +27,30 @@ interface SheetProps {
   modal?: boolean
 }
 
+/**
+ * La «gemela» de un origen que ya no existe: el elemento de la página que
+ * declara su misma `data-foco-clave`. Se compara el atributo (sin selector por
+ * valor: la clave lleva ids y no hay que escaparla).
+ */
+function gemelaDeFoco(clave: string): HTMLElement | null {
+  for (const candidata of document.querySelectorAll<HTMLElement>('[data-foco-clave]')) {
+    if (candidata.getAttribute('data-foco-clave') === clave) return candidata
+  }
+  return null
+}
+
 export function Sheet({ open, onClose, children, ariaLabel, className, modal = true }: SheetProps) {
   // Radix solo restaura el foco automáticamente cuando conoce un Dialog.Trigger.
   // Los drawers del CRM se abren desde filas y acciones globales, así que no
   // tienen Trigger declarativo: capturamos el origen justo antes del autofocus
   // y lo recuperamos al cerrar si el nodo sigue en la página.
   const origenFoco = useRef<HTMLElement | null>(null)
+  // Clave ESTABLE del origen (`data-foco-clave`, suya o de quien lo contiene).
+  // El nodo puede desaparecer con la ficha abierta —en el Pipeline, registrar
+  // un intento saca la tarjeta de «Nuevo» y la pinta en «Gestionado»: mismo
+  // lead, otro nodo— y entonces el foco se devuelve a la gemela. Solo actúa si
+  // el origen ya no está conectado Y había clave: lo demás, como siempre.
+  const claveFoco = useRef<string | null>(null)
   const contenido = useRef<HTMLDivElement | null>(null)
   return (
     <RadixDialog.Root open={open} modal={modal} onOpenChange={(sigueAbierto) => { if (!sigueAbierto) onClose() }}>
@@ -49,20 +67,33 @@ export function Sheet({ open, onClose, children, ariaLabel, className, modal = t
           onOpenAutoFocus={() => {
             const activo = document.activeElement
             origenFoco.current = activo instanceof HTMLElement ? activo : null
+            claveFoco.current = origenFoco.current?.closest('[data-foco-clave]')?.getAttribute('data-foco-clave') ?? null
           }}
           onCloseAutoFocus={(evento) => {
             const destino = origenFoco.current
+            const clave = claveFoco.current
             origenFoco.current = null
+            claveFoco.current = null
             if (!modal) {
               evento.preventDefault()
               // Si el usuario ya pasó a un filtro u otro panel, conserva ese
               // foco. El inspector no tiene focus trap ni necesita diferirlo.
               if (document.activeElement === document.body || contenido.current?.contains(document.activeElement)) {
                 if (destino?.isConnected) destino.focus()
+                else if (clave != null) gemelaDeFoco(clave)?.focus()
               }
               return
             }
-            if (!destino?.isConnected) return
+            if (!destino?.isConnected) {
+              // El origen se desmontó con la ficha abierta: a su gemela, si la
+              // hay. Sin clave o sin gemela no se inventa destino (como antes).
+              if (clave == null || gemelaDeFoco(clave) == null) return
+              evento.preventDefault()
+              // Se vuelve a buscar dentro del cuadro: entre el cierre y el
+              // siguiente pintado la lista puede haberse vuelto a renderizar.
+              requestAnimationFrame(() => gemelaDeFoco(clave)?.focus())
+              return
+            }
             evento.preventDefault()
             requestAnimationFrame(() => destino.focus())
           }}

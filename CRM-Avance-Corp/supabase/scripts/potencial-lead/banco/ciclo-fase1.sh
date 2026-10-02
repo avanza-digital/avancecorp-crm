@@ -41,6 +41,9 @@ limpiar_conc() { q "set session_replication_role = replica; do \$l\$ begin if to
 f2=$(q "select (to_regprocedure('private.dias_lunes_a_sabado(date,date)') is not null)::int")
 f1=$(q "select (to_regclass('crm.lead_potencial') is not null)::int")
 limpiar_conc
+RL="$P/reversa-lectura.sql"; ML="$D/migrations/20261001151704_crm_potencial_lead_lectura.sql"
+f3a="$(q "select (to_regprocedure('crm.potencial_leads_fn(uuid[])') is not null)::int")"
+[ "$f3a" = "1" ] && echo "0 la puerta de lectura (fase 3A) está aplicada; se retira para el ciclo y se repone al final: $(msg "$RL")"
 [ "$f2" = "1" ] && echo "0 la fase 2 está aplicada; se retira para el ciclo y se repone al final: $(msg "$R2")"
 [ "$f1" = "1" ] && echo "0 reversa del estado previo:  $(msg "$R")"
 
@@ -132,4 +135,5 @@ echo "── 6 · registro y verificación"
 for i in 1 2; do echo "registrar #$i: $(docker exec -i -e PGPASSWORD=postgres "$C" psql -U postgres -h 127.0.0.1 -d postgres -v ON_ERROR_STOP=1 -qAt < "$P/registrar.sql" 2>&1 | grep -o 'NOTICE:.*\|ERROR:.*' | head -1)"; done
 echo "verificar:    $(docker exec -i -e PGPASSWORD=postgres "$C" psql -U postgres -h 127.0.0.1 -d postgres -qAt < "$P/verificar.sql" 2>&1 | grep -o 'VERIFICAR.*' | head -1)"
 [ "$f2" = "1" ] && echo "fase 2 repuesta: $(msg "$M2")"
+[ "$f3a" = "1" ] && echo "puerta de lectura (fase 3A) repuesta: $(msg "$ML")"
 echo "FIN ciclo fase 1"
