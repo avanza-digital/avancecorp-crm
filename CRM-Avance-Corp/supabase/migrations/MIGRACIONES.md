@@ -15712,6 +15712,28 @@ previo. Reensayo tras los cambios: `reversa-y-reaplicar` PASS, `test` 12/12, `no
 **Ciclo pendiente:** rama de Supabase (conector «claude.ai Supabase») → aplicar → `test-rls.mjs` →
 advisors → merge de Miguel. Siguen B2 (RLS/ámbito por RPC), B3 (puertas), B4 (trigger de enfriamiento).
 
+## 20261002163158 — «Retirar cuenta» y «Cambiar cuenta de pago» solo en READ COMMITTED (`private.retirar_cuenta_cliente_autorizado`, `private.cambiar_cuenta_pago_contratos_autorizado`)
+
+**PREPARADA Y PROBADA EN BANCO. NO APLICADA EN PRODUCCIÓN.** Decisión de Miguel, 02/10/2026 (~11:05): «Sí,
+después de entregar F6». Cierra el riesgo medido en el banco de «Asignar cuenta» (`20261002005004`): en
+REPEATABLE READ o SERIALIZABLE, «Retirar cuenta» podía retirar una cuenta recién asignada y «Cambiar cuenta de
+pago» podía dar por vigente a un administrador ya revocado. Solo alcanzable con SQL a mano (PostgREST siempre va
+en READ COMMITTED): ninguna pantalla ni edge cambia.
+
+Qué hace: `create or replace` de los dos núcleos con el MISMO cuerpo (huellas vivas `3ab8983f…` retirar y
+`61bec6b3…` cambiar, comprobadas en el preflight; nuevas `748918fb…` y `1d6443c8…` exigidas en el postflight)
+más la primera comprobación `current_setting('transaction_isolation') <> 'read committed'` → `0A000`, idéntica
+a la de «Asignar». No toca puertas, grants, ACL, `search_path`, triggers, tablas ni `public`; añade una frase al
+comentario. Se niega a aplicarse dos veces. Derivados generados (`scripts/cuentas-pago-negativa/`): `registrar.sql`,
+`reversa.sql` (repone los cuerpos exactos de antes), `test-negativa.sql`, `ciclo.sh`.
+
+Banco Docker propio (esquema de producción sin datos): 24 pasos; aplicar, reaplicar (se niega), prueba de la
+negativa 8/8 (núcleos y puertas en RR y SERIALIZABLE → `0A000`; en READ COMMITTED → `42501` sin actor), sin la
+migración la prueba FALLA (mutante natural, también tras la reversa), `test-retirar-cuenta-cliente` PASS,
+registrar ×2, reversa en RR se niega, reversa REVERTIDA con huellas y comentarios de antes. 1 ✗ ajeno:
+`test-cambio-cuenta-pago` falla en su `dry_run` («Solo el servicio de avisos reclama avisos») igual SIN la
+migración (banco sin datos). Reversa: `scripts/cuentas-pago-negativa/reversa.sql`.
+
 ## 20261002061500 — Base para gestión del analista · B2 permisos (D5: Supervisión levanta «no contactar»)
 
 **⏳ PENDIENTE DE RAMA (02/10/2026).** Ensayada en el banco `base_gestion_20261002` con la ACL de producción
