@@ -78,7 +78,7 @@ fila describe lo que ya había.
   validado); el núcleo valida el motivo por su cuenta.
 - Riesgo que ya existía y NO es de esta migración: «Retirar cuenta» y «Cambiar cuenta de pago» no
   llevan esa misma negativa. Por la API siempre van en el modo normal; solo quien lance SQL a mano
-  en otro modo podría retirar una cuenta recién asignada. Arreglo propuesto, aparte y con OK de
-  Miguel: ponerles la misma negativa.
+  en otro modo podría retirar una cuenta recién asignada. Arreglo preparado el 02/10/2026 con OK de
+  Miguel: migración `20261002163158` (`../cuentas-pago-negativa/LEEME.md`) les pone la misma negativa.
 - Una asignación que ya había empezado cuando se lanza `reversa.sql` espera a que termine y luego
   se completa. Si el veredicto dice `PUERTA_CERRADA`, vuelve a contar las asignaciones un minuto después.

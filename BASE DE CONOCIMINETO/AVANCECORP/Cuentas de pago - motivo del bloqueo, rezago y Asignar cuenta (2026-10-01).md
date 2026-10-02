@@ -17,6 +17,9 @@ puntos de «Pendiente de decidir». Guías: `CRM-Avance-Corp/supabase/scripts/cu
 `claude --resume 4115f385-de84-4f7a-b81d-77e5ca39e0ea`; la de publicación es la del 02/10 (sesión
 `crm-avance-corp-21`).
 
+**F6 y las decisiones pendientes (botón, 444444, negativa de «Retirar»/«Cambiar»):** ver
+[[Cuentas de pago - F6 lista de Operaciones y decisiones (2026-10-02)]].
+
 ## Publicación del 02/10/2026 (evidencia, todo lanzado por Miguel con `!`)
 
 1. `ensayo-prod-sin-escribir.sql` → `ENSAYO_DESHECHO`, **`veredicto: PASA`**, 5/5 pagos como se esperaba

@@ -275,6 +275,8 @@ rastro_de_carga() { q "select count(*) || ':' || coalesce(string_agg(b.marca_act
 sin_abrazos() { # $1 $2 = las dos sesiones (sus .out y .err) · $3 = interbloqueos antes
   echo "$(cat "$T/$1.out" "$T/$1.err" "$T/$2.out" "$T/$2.err" 2>/dev/null | grep -ci 'deadlock\|40P01' | tr -d ' ')/$(cat "$T/$1.out" "$T/$1.err" "$T/$2.out" "$T/$2.err" 2>/dev/null | grep -ci 'lock timeout\|55P03' | tr -d ' ')/$(( $(interbloqueos) - $3 ))"
 }
+# ¿F4 lleva ya la negativa de modo de transacción (20261002163158)? Cambia lo que se espera en H1b/H3/H4.
+f4_con_guarda() { q "select (p.prosrc like '%transaction_isolation%')::int from pg_proc p where p.oid = to_regprocedure('private.retirar_cuenta_cliente_autorizado(uuid,uuid,uuid,text,text)')"; }
 f4_listo() { q "select (to_regclass('storage.objects') is not null and has_function_privilege('authenticated', 'crm.retirar_cuenta_cliente(uuid,uuid,uuid,text,text)', 'EXECUTE') and has_function_privilege('authenticated', 'private.retirar_cuenta_cliente_autorizado(uuid,uuid,uuid,text,text)', 'EXECUTE'))::int"; }
 
 # ── Punto de partida ─────────────────────────────────────────────────────────────────────────
@@ -536,6 +538,19 @@ fi
 
 for caso in H1 H1b; do
   if quiere "$caso"; then
+    if [ "$caso" = "H1b" ] && [ "$(f4_con_guarda)" = "1" ]; then
+      # Con 20261002163158 el riesgo que este caso MEDÍA está cerrado: F4 en REPEATABLE READ se niega (0A000)
+      # antes de leer nada y no retira; la asignación entra sin esperar.
+      echo "H1b · con la guarda (20261002163158): F4 en REPEATABLE READ se niega antes de retirar y la asignación entra"
+      limpiar
+      r=$(retirar "$(s 31)" "$(x 6)" 'repeatable read')
+      esperar "F4 en REPEATABLE READ recibe 0A000 sin escribir" '^RESULTADO ERR:0A000:El retiro de cuenta no admite este modo de transacción ESPERA_MS' "$r"
+      esperar "la cuenta sigue vigente y sin retiros" '^t/0$' "$(cuenta_activa "$(x 6)")/$(retiros "$(x 6)")"
+      r=$(asignar "$ADMIN" "$(s 32)" "$(k 1)" "$(x 6)")
+      esperar "la asignación entra" '^RESULTADO OK:\{.*"ya_aplicada": false.* ESPERA_MS' "$r"
+      esperar "estado final coherente: cuenta vigente, contrato vinculado, sin retiro" "^t/$(x 6)\|$ADMIN/0$" "$(cuenta_activa "$(x 6)")/$(vinculo "$(k 1)")/$(retiros "$(x 6)")"
+      continue
+    fi
     [ "$caso" = "H1" ] && modo='read committed' || modo='repeatable read'
     echo "$caso · F4 ($modo) retira la cuenta, sin confirmar, y llega la asignación de esa cuenta"
     limpiar
@@ -569,6 +584,10 @@ if quiere H3; then
   if cruzar vueloH3; then
     r=$(retirar "$(s 36)" "$(x 6)" 'repeatable read'); wait
     esperar "la asignación se confirmó" 'EN_VUELO vueloH3 \{.*"ya_aplicada": false' "$(cat "$T/vueloH3.out")"
+    if [ "$(f4_con_guarda)" = "1" ]; then
+      esperar "con la guarda: F4 en REPEATABLE READ recibe 0A000 y no retira" '^RESULTADO ERR:0A000:El retiro de cuenta no admite este modo de transacción ESPERA_MS' "$r"
+      esperar "con la guarda: cuenta vigente, vínculo intacto, sin retiros" "^t / $(x 6)\|$ADMIN / 0" "$(cuenta_activa "$(x 6)") / $(vinculo "$(k 1)") / $(retiros "$(x 6)")"
+    fi
     medido "F4 en REPEATABLE READ, tras esperar a la asignación de esa cuenta" "$(sed 's/"solicitud_id": "[0-9a-f-]*"/…/' <<<"$r")"
     medido "estado final (cuenta vigente / vínculo de ASIGNAR-01 / retiros de la cuenta)" "$(cuenta_activa "$(x 6)") / $(vinculo "$(k 1)") / $(retiros "$(x 6)") → $([ "$(cuenta_activa "$(x 6)")" = "f" ] && [ "$(vinculo "$(k 1)")" != "sin vínculo" ] && echo 'F4 RETIRÓ la cuenta que un contrato abierto acaba de recibir' || echo 'F4 no la retiró')"
   else wait; fi
@@ -581,6 +600,10 @@ if quiere H4; then
   if cruzar fotoH4; then
     r=$(asignar "$ADMIN" "$(s 38)" "$(k 1)" "$(x 6)"); wait
     esperar "la asignación, entera y confirmada, entró mientras F4 esperaba con su fotografía" '^RESULTADO OK:\{.*"ya_aplicada": false.* ESPERA_MS' "$r"
+    if [ "$(f4_con_guarda)" = "1" ]; then
+      esperar "con la guarda: F4 con fotografía anterior recibe 0A000 y no retira" '^RESULTADO ERR:0A000:El retiro de cuenta no admite este modo de transacción' "$(resultado_de fotoH4)"
+      esperar "con la guarda: cuenta vigente, vínculo intacto, sin retiros" "^t / $(x 6)\|$ADMIN / 0" "$(cuenta_activa "$(x 6)") / $(vinculo "$(k 1)") / $(retiros "$(x 6)")"
+    fi
     medido "F4 en REPEATABLE READ con la fotografía de antes de la asignación" "$(resultado_de fotoH4 | sed 's/"solicitud_id": "[0-9a-f-]*"/…/')"
     medido "estado final (cuenta vigente / vínculo de ASIGNAR-01 / retiros de la cuenta)" "$(cuenta_activa "$(x 6)") / $(vinculo "$(k 1)") / $(retiros "$(x 6)") → $([ "$(cuenta_activa "$(x 6)")" = "f" ] && [ "$(vinculo "$(k 1)")" != "sin vínculo" ] && echo 'F4 RETIRÓ la cuenta que un contrato abierto ya tenía asignada' || echo 'F4 no la retiró')"
   else wait; fi
