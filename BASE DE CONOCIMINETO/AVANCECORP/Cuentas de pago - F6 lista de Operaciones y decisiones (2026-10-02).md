@@ -37,6 +37,22 @@ clasificación que `censo-sin-funciones.sql`, más cliente y vencidos): para otr
 Por caso (reales): 7 con dos cuentas en la moneda (confirmar con el cliente cuál), 11 con cuenta solo en la
 otra moneda (pedir una en la moneda del contrato), 2 sin ninguna cuenta (pedir una).
 
+## Dónde estaba la cuenta «perdida» (investigación 02/10 ~17:00–18:30)
+
+Miguel preguntó por BERNUY MONTES GIANINA (`000477`, `000856`): se le pagaron 6 cuotas (mayo–agosto) y en el portal no
+tiene cuenta. Tres agentes (archivos, base solo lectura, vault) + Gmail/Drive: **no se perdió nada en la base, nunca se
+capturó**. `000477` es el PRIMER contrato de toda la plataforma (22/05/2026, cuatro días antes del importador de clientes
+con datos bancarios obligatorios); el 2.º cliente (23/05) también nació sin cuenta; del 3.º en adelante los perfiles ya
+traían cuenta. Bitácora completa del perfil (8 cambios desde 05/06) con los campos bancarios vacíos antes y después, cero
+filas en cualquier tabla/jsonb/storage/auth con datos bancarios suyos, y P-0XX (26/09) ya la listaba como `sin_cuenta`.
+Las cuotas se marcaron pagadas cuando el sistema aún no exigía cuenta (hasta el 25/09). **La cuenta vivía fuera del
+sistema:** la hoja mensual de Operaciones «Contratos Junio 2026.xlsx» (correo de Miguel del 13/07/2026 a
+avancecorp26; copia en `~/Downloads`), columnas CUENTA · CCI · BANCO. Esa hoja resuelve **8 de los 22** bloqueados
+(000856 Pichincha soles; 000734/000793 BBVA y 000858 Falabella, que deshacen la duda de «dos cuentas»; 000753, 000762,
+000797, 000859 con su cuenta en la otra moneda). El Excel de Operaciones lleva ahora esas columnas (azules) con la fuente.
+**Faltan las hojas de mayo, julio, agosto y septiembre** (no están en el Gmail ni en el Drive de miguel@miavance.com):
+con ellas se resolvería el resto (000477 está en la de mayo).
+
 ## Qué hace Operaciones por caso
 
 - **Dos cuentas:** llamar al cliente, confirmar en cuál cobra ESTE contrato, y en Pagos → fila del contrato →
