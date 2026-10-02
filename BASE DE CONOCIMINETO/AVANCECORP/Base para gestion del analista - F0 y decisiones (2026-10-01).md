@@ -1,7 +1,7 @@
 ---
 tags: [crm, base-para-gestion, rescate, analista, f0, decision, figma]
 fecha: 2026-10-01
-estado: F0 ☑ · D1–D10 ☑ · B1 y B2 escritas y ensayadas en banco (02/10) · auditor/Codex de B2 pendientes · D7-bis pendiente · falta rama + merge · nada en producción
+estado: F0 ☑ · D1–D10 ☑ · B1 y B2 escritas, revisadas (auditor-rls + Codex) y ensayadas en banco (02/10) · D7-bis pendiente · rama creada por CLI con replay fallido · nada en producción
 ---
 
 # Base para gestión del analista — F0 y decisiones (01/10/2026)
@@ -241,3 +241,19 @@ sigue habiendo un único escritor (esta sesión como PRIMARY).
   en `volver_a_llamar`), sin tocar el núcleo SLA ni la cola diaria.
 - **Pendiente:** leer el informe del auditor-rls de B2 y el de Codex (B1+B2, encargo versionado en
   `CRM-Avance-Corp/docs/encargos/2026-10-02-codex-base-gestion-b1-b2.md`), aplicar hallazgos, rama → test-rls → advisors → merge.
+
+## Revisiones de B2 aplicadas y rama de Supabase (02/10/2026, noche)
+
+- **Codex (BLOCK → corregido):** P1 real de semántica NULL en la revalidación bajo candado: un lead parqueado (sin
+  vendedor) en la bandeja de otro supervisor daba NULL y `not NULL` lo dejaba pasar. Ahora `(…) is not true` en las dos
+  comprobaciones. Huella nueva `05df49be…` (md5 de `prosrc` calculado en local con el método verificado contra la viva
+  `3840a73f…`, y confirmado en el banco). **auditor-rls:** `activo` en el espejo de la policy; reversa con guarda de prosrc +
+  contrato/ACL; fixtures con persona real y pruebas estrictas (25/25, el script falla si hay FAIL). Informes en
+  `BASE PARA GESTION/revisiones/`.
+- **Por qué el caso de dos equipos vive solo en el banco:** por la API no se puede crear un lead nuevo con el documento de una
+  persona reconocida (puertas b1/D-13); los fixtures lo hacen bajo `crm.op_privilegiada`.
+- **Rama de Supabase por CLI:** `supabase branches create base-gestion-20261002 --project-ref dctqcbznekcyxhjujuci --region
+  us-east-2 --size micro` → ref `dmhewdxipdspvojaudvu`, `ACTIVE_HEALTHY` pero `MIGRATIONS_FAILED` (el replay automático del
+  historial se detiene en una base vacía, como `banco-f7` el 01/09; la de 25/09 sí llegó a FUNCTIONS_DEPLOYED). La CLI de
+  Supabase está autenticada y enlazada aunque el conector MCP no aparezca en la sesión; `branches list|get|create|delete`
+  funcionan; no hay `merge` por CLI (la aplicación en producción sigue siendo de Miguel con `!`).

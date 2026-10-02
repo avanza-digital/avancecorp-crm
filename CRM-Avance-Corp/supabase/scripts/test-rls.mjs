@@ -13724,6 +13724,10 @@ async function testIdentidadMultiempresa(sessions, seed) {
       sessions.vend1.client.schema('crm').rpc('marcar_no_contactar', { p_lead_id: IDS_IDENTIDAD.veto, p_motivo: 'supervision' }));
     await expectExpectedFailure('#5 B2 sup2 (otro equipo) no levanta → P0002 (no revela el lead)',
       sessions.sup2.client.schema('crm').rpc('levantar_no_contactar', { p_lead_id: IDS_IDENTIDAD.veto, p_motivo: 'ajeno' }), ['P0002'], /fuera de tu [aá]mbito/i);
+    for (const clave of ['directorio', 'clientBank', 'vendInactive']) {
+      await expectExpectedFailure(`#5 B2 ${clave} no levanta → 42501`,
+        sessions[clave].client.schema('crm').rpc('levantar_no_contactar', { p_lead_id: IDS_IDENTIDAD.veto, p_motivo: 'rol sin permiso' }), ['42501'], /Gerencia o Supervisi|permission denied|denegado/i);
+    }
     await expectExpectedFailure('#5 B2 coordinador no levanta → 42501',
       sessions.coordinador.client.schema('crm').rpc('levantar_no_contactar', { p_lead_id: IDS_IDENTIDAD.veto, p_motivo: 'coordina' }), ['42501'], /Gerencia o Supervisi/i);
     await expectExpectedFailure('#5 B2 sup1 sin motivo → 22023',

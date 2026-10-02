@@ -14983,5 +14983,21 @@ ningún `private.assert_*`. **Sin migración de RLS:** la RLS vigente ya cumple 
 **Reversa:** `supabase/scripts/base-gestion/reversa-no-contactar-supervisor.sql` (texto vivo byte a byte).
 **Hallazgo para B3 (D7-bis, decisión pendiente de Miguel):** `trg_tareas_before_insert` prohíbe tareas nuevas en
 leads cerrados → la rellamada de la base no puede ser una tarea; se propone columna sellada
-`crm.leads.proxima_llamada_en` (B1b). **Pendiente:** auditor-rls B2 y Codex B1+B2
-(`docs/encargos/2026-10-02-codex-base-gestion-b1-b2.md`), rama → `test-rls.mjs` → advisors → merge.
+`crm.leads.proxima_llamada_en` (B1b).
+**Revisiones (02/10): auditor-rls B2 CHANGES_REQUESTED y Codex B1+B2 BLOCK → todo aceptado y corregido, reensayado.**
+Codex P1 (real): la revalidación bajo candado usaba `not (vendedor_id in (…) or (vendedor_id is null and
+asignado_supervisor_id in (…)))`, que da NULL para un lead parqueado en la bandeja de otro supervisor y un `not NULL`
+lo dejaba pasar → ahora `(…) is not true` en las dos comprobaciones (md5 prosrc nuevo 05df49be…, calculado en local
+y confirmado en el banco). auditor P3: el espejo de `leads_select` incluye ya `activo`; reversa con guarda de prosrc
+(solo revierte el texto de B2) y verificación de contrato/ACL. auditor P2 + Codex P2: fixtures con PERSONA REAL
+(`fixtures-b2-persona.sql`: inversionista + identificador DNI verificado + enlace canónico; P con leads en dos equipos
+y parqueado en S2, Q solo equipo 1 con parqueado en S1, R parqueado en S2 = caso NULL puro) y `b2-rls.sql` estricto
+(42501 + «pídelo a Gerencia», veto intacto tras el rechazo, S1 levanta Q ok leads=2 con historial, G levanta P ok
+leads=3, P sin veto) que ahora FALLA el proceso si hay algún FAIL: **25/25 PASS**. `test-rls.mjs`: negativos de
+directorio, clientBank y vendInactive sobre `levantar`. El caso de dos equipos no es reproducible por la API
+(un lead nuevo con el documento de una persona reconocida se rechaza por las puertas: b1/D-13): vive en el banco
+con `crm.op_privilegiada`. `reversa-y-reaplicar-b2` PASS tras los cambios.
+**Rama de Supabase:** `base-gestion-20261002` creada por CLI (ref `dmhewdxipdspvojaudvu`, micro, us-east-2, sin
+datos): el replay automático del historial quedó en `MIGRATIONS_FAILED` (igual que `banco-f7` el 01/09); ver
+«Rama» en la nota del vault para el estado. **Pendiente:** aplicar B1+B2 en la rama → `test-rls.mjs` → advisors →
+merge de Miguel.

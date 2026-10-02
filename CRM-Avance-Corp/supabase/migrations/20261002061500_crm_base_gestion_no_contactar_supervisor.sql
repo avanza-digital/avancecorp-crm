@@ -10,10 +10,13 @@
 --   1. Gate: `v_rol in ('supervisor','gerencia')` (con `v_rol is null` rechazando). Analistas, coordinación y directorio: 42501.
 --   2. Ámbito de Supervisión: ANTES de resolver la identidad o tomar candados, el lead pedido debe estar en su ámbito
 --      (espejo de la policy `leads_select` sin la rama de gerencia) → si no, P0002 «no encontrado o fuera de tu ámbito»
---      (no revela si existe). Bajo candado se revalida y, además, TODOS los leads de la persona que se van a tocar
+--      (no revela si existe; incluye `activo`, como la policy). Bajo candado se revalida y, además, TODOS los leads de la persona que se van a tocar
 --      (`v_leads`: enlace ∪ puente ∪ sueltos ∪ el propio) deben estar en su equipo; si alguno es de otro equipo →
 --      42501 «La persona tiene leads fuera de tu equipo: pídelo a Gerencia». La Ley 29571 trata el veto por persona:
 --      Supervisión no puede levantar un veto que alcanza leads que no gestiona.
+--      Ambas comprobaciones usan `(…) is not true`: un lead parqueado (sin vendedor) en la bandeja de otro supervisor
+--      da NULL y un `not NULL` lo dejaría pasar (Codex, P1). Canal lateral aceptado (auditor-rls P3): los 40001/22023
+--      del bloque de identidad corren antes del «todos en tu equipo»; se conserva ese bloque byte a byte.
 --   3. Historial: la actividad dice «por Gerencia» o «por Supervisión» y lleva `rol` en la metadata.
 --   La resolución de identidad, los candados (documentos → persona → leads), las 40001 y la escritura bajo
 --   `crm.op_privilegiada` quedan byte a byte como estaban. El motivo sigue siendo obligatorio.
@@ -81,6 +84,7 @@ begin
   if v_rol = 'supervisor' and not exists (
        select 1 from crm.leads l
         where l.id = p_lead_id
+          and l.activo
           and (l.vendedor_id in (select private.vendedor_ids_visibles(v_uid))
                or (l.vendedor_id is null and l.asignado_supervisor_id in (select private.vendedor_ids_visibles(v_uid))))) then
     raise exception 'Lead no encontrado o fuera de tu ámbito' using errcode = 'P0002';
@@ -173,15 +177,18 @@ begin
     raise exception 'Lead no encontrado' using errcode = 'P0002';
   end if;
   -- B2 (D5): bajo candado, el ámbito se revalida y se exige para TODOS los leads de la persona que se van a tocar.
+  -- Las dos comprobaciones van con `is not true`: un lead sin vendedor cuyo supervisor no está en el ámbito da NULL
+  -- (NULL in (...)) y un `not NULL` dejaría pasar (Codex B1+B2, P1). Fail-closed también ante NULL.
   if v_rol = 'supervisor' then
-    if not (v_lead.vendedor_id in (select private.vendedor_ids_visibles(v_uid))
-            or (v_lead.vendedor_id is null and v_lead.asignado_supervisor_id in (select private.vendedor_ids_visibles(v_uid)))) then
+    if (v_lead.activo
+        and (v_lead.vendedor_id in (select private.vendedor_ids_visibles(v_uid))
+             or (v_lead.vendedor_id is null and v_lead.asignado_supervisor_id in (select private.vendedor_ids_visibles(v_uid))))) is not true then
       raise exception 'Lead no encontrado o fuera de tu ámbito' using errcode = 'P0002';
     end if;
     if exists (select 1 from crm.leads l
                 where l.id = any(v_leads)
-                  and not (l.vendedor_id in (select private.vendedor_ids_visibles(v_uid))
-                           or (l.vendedor_id is null and l.asignado_supervisor_id in (select private.vendedor_ids_visibles(v_uid))))) then
+                  and (l.vendedor_id in (select private.vendedor_ids_visibles(v_uid))
+                       or (l.vendedor_id is null and l.asignado_supervisor_id in (select private.vendedor_ids_visibles(v_uid)))) is not true) then
       raise exception 'La persona tiene leads fuera de tu equipo: pídelo a Gerencia' using errcode = '42501';
     end if;
   end if;
@@ -253,7 +260,7 @@ begin
   select p.prosrc into v_src from pg_proc p where p.oid = to_regprocedure(f);
   -- 1. Cuerpo ENSAYADO (md5 medido en el banco), contrato intacto, ACL exacta.
   if (
-    md5(v_src) = '2467b5068fc814ce42f18596d740ebcb'
+    md5(v_src) = '05df49be43869cd8e5f75330fa592a84'
     and v_src like '%Solo Gerencia o Supervisión pueden levantar No contactar%'
     and v_src like '%pídelo a Gerencia%'
     and v_src like '%''rol'', v_rol%'

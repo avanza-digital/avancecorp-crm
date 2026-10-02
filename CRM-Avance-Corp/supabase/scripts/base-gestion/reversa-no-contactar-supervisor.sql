@@ -6,6 +6,14 @@ set local lock_timeout = '10s';
 set local statement_timeout = '30s';
 set local search_path = '';
 set local quote_all_identifiers = off;
+do $pre$
+begin
+  -- Solo revierte B2: si el texto vivo no es el de B2 (md5 05df49be…), no se pisa a ciegas (auditor-rls B2, P3).
+  if (select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.levantar_no_contactar(uuid,text)')) is distinct from '05df49be43869cd8e5f75330fa592a84' then
+    raise exception 'REVERSA B2: crm.levantar_no_contactar no es el texto de B2 (05df49be…); revisar antes de revertir';
+  end if;
+end;
+$pre$;
 create or replace function crm.levantar_no_contactar(p_lead_id uuid, p_motivo text)
 returns jsonb
 language plpgsql
@@ -180,7 +188,19 @@ begin
   if (select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.levantar_no_contactar(uuid,text)')) <> '3840a73fc3a1db8f27ea921fad1bd65a' then
     raise exception 'REVERSA B2: el texto reinstalado no es el vivo (3840a73f…)';
   end if;
-  raise notice 'reversa B2 OK: levantar_no_contactar vuelve al texto vivo anterior';
+  if (
+    exists (select 1 from pg_proc p where p.oid = to_regprocedure('crm.levantar_no_contactar(uuid,text)') and p.prosecdef
+             and p.proowner = 'postgres'::regrole and p.proconfig = array['search_path=""']::text[])
+    and has_function_privilege('authenticated', 'crm.levantar_no_contactar(uuid,text)', 'EXECUTE')
+    and not has_function_privilege('anon', 'crm.levantar_no_contactar(uuid,text)', 'EXECUTE')
+    and not has_function_privilege('service_role', 'crm.levantar_no_contactar(uuid,text)', 'EXECUTE')
+    and not exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid = to_regprocedure('crm.levantar_no_contactar(uuid,text)')
+                     and (a.grantee not in ('postgres'::regrole, 'authenticated'::regrole)
+                          or (a.grantee = 'authenticated'::regrole and (a.is_grantable or a.privilege_type <> 'EXECUTE'))))
+  ) is not true then
+    raise exception 'REVERSA B2: contrato DEFINER/postgres/search_path vacio o ACL exacta no restaurados';
+  end if;
+  raise notice 'reversa B2 OK: levantar_no_contactar vuelve al texto vivo anterior, con su contrato y ACL';
 end;
 $post$;
 notify pgrst, 'reload schema';
