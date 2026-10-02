@@ -40,6 +40,28 @@ caché, si hace falta, es la operación `hosting_cache_clear-website` por la mis
 
 ## CRM (crm.miavance.com)
 
+> **01/10/2026 · espera del arranque:** `deploy-hostinger-mcp.mjs` daba 60 s al `initialize` del conector y murió con
+> «ERR timeout initialize» (sin subir nada): con `@latest`, npx tarda ~50 s solo en preparar el paquete. La espera se
+> subió a 180 s. Si vuelve a pasar, medir con `npx --yes --package=hostinger-api-mcp@latest -c 'echo ok'`; fijar la
+> versión arrancaría en menos de un segundo, pero es decisión aparte. Publicado ese día: potencial del lead, fase 3A
+> (`build-20261001T185238130Z`, `54690b06`, rama `release/potencial-lead-f3a-20261001`).
+>
+> **01/10/2026 16:06 · potencial del lead, Tibio a naranja (solo CSS):** `build-20261001T205946155Z`, `83674f19`, rama
+> `release/potencial-tibio-naranja-20261001` (el vivo anterior + un commit). Subida al primer intento con la espera
+> de 180 s. 🔑 Para acreditar que un release «solo de estilos» es el vivo más ese cambio: descomprimir los dos ZIP y
+> comparar los textos quitando las huellas de los nombres (`-XXXXXXXX.js|css`) y el `buildId`. El cambio de nombre
+> del CSS arrastra el del archivo de entrada y el de todo chunk que lo importa (33 nombres nuevos), pero el contenido
+> es el mismo.
+>
+> **01/10/2026 ~19:55 · potencial del lead, filtro en Leads + Llamadas F1:** `build-20261002T005154879Z`, `44985828`,
+> rama `release/potencial-filtro-llamadas-20261001` (nace del vivo `a070838d`, el de Gestionado; mismo árbol que la
+> rama de la PR #165). Subida al primer intento. 🔑 Para acreditar que la rama «contiene lo vivo» cuando las historias
+> están emparentadas por squash y cherry-pick: NO sirve `git merge` (da conflictos); se comprueba archivo por archivo
+> que la versión VIVA de cada archivo que difiere aparece en la historia de la rama. 🔑 Al comparar dos paquetes por
+> nombre sin huella hay dos piezas que se llaman igual (`gerencia.js`, `brand/avance.png`): emparejarlas por tamaño.
+> 🔑 El humo con `curl` no ve un error de arranque: abrir la pantalla de entrada en un navegador y leer la consola
+> (Playwright sí carga producción; la extensión de Chrome puede no estar conectada).
+
 Mismo mecanismo, dominio distinto (**2026-07-10**, primer update por esta vía):
 
 Fuente vigente desde el 04/09/2026: Main local sigue **`avancecorp/main`**.
