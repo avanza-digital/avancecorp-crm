@@ -1,11 +1,37 @@
 ---
 fecha: 2026-09-30
-estado: ✅ fase 1 EN PROD 30/09 (bandera APAGADA) · ✅ fase 2 EN PROD 01/10 13:27 (la marca baja sola) · ✅ puerta de lectura EN PROD 01/10 13:40 (fase 3A, servidor) · ✅ pantalla de la fase 3A PUBLICADA 01/10 13:57 (`build-20261001T185238130Z`, `54690b06`) · ✅ **BANDERA ENCENDIDA 01/10 14:04: el potencial está VIVO para los usuarios** · 🎨 **Tibio NARANJA PUBLICADO 01/10 16:06** (`build-20261001T205946155Z`, `83674f19`; PR #163 sin fusionar) · 🟡 **entrega B (filtro en Leads) APROBADA y EN CONSTRUCCIÓN 01/10 noche: servidor y pantalla listos en el worktree, SIN publicar** · fase 4 (Jev) sin empezar · ver «Para retomar»
+estado: ✅ fase 1 EN PROD 30/09 (bandera APAGADA) · ✅ fase 2 EN PROD 01/10 13:27 (la marca baja sola) · ✅ puerta de lectura EN PROD 01/10 13:40 (fase 3A, servidor) · ✅ pantalla de la fase 3A PUBLICADA 01/10 13:57 (`build-20261001T185238130Z`, `54690b06`) · ✅ **BANDERA ENCENDIDA 01/10 14:04: el potencial está VIVO para los usuarios** · 🎨 **Tibio NARANJA PUBLICADO 01/10 16:06** (`build-20261001T205946155Z`, `83674f19`; PR #163 fusionada) · ✅ **entrega B (filtro en Leads) PUBLICADA ENTERA el 01/10: servidor 19:30 y pantalla 19:55, junto con Llamadas F1** · 🔴 el CRM VIVO es `44985828` (`build-20261002T005154879Z`) · 📋 fase 4 (Jev sugiere): PLAN PROPUESTO el 01/10, sin aprobar · ver «Para retomar»
 ---
 
 # Potencial del lead: Frío · Tibio · Estrella (2026-09-30)
 
 ## ▶️ Para retomar (estado del 01/10/2026, tarde)
+
+> ### 🌙 Cierre del 01/10/2026 (~20:45 Lima) — Miguel: «mañana seguimos con todo»
+> **Todo guardado.** Rama de la PR `crm/potencial-lead-f3b` = `fad2420d` y rama viva
+> `release/potencial-filtro-llamadas-20261001` = `44985828`, las dos en GitHub; worktree `wt-potencial-lead` limpio;
+> `main` local con el servidor de B, sus scripts y este vault. Nada mío queda sin commit. (Los cambios sin guardar
+> que hay en `app/` del taller son de OTRAS sesiones: no se tocaron.)
+>
+> **Lo que quedó VIVO hoy:** fases 1, 2 y 3A con la bandera encendida · Tibio naranja · filtro «Por potencial» en
+> Leads (servidor 19:30, pantalla 19:55) · Llamadas F1 (salió en el mismo release). CRM vivo: `44985828`.
+>
+> **Para el 02/10, en este orden:**
+> 1. **Miguel, tras las 05:40:** `! cd …/AVANCECORP-desktop/CRM-Avance-Corp && supabase db query --linked --file
+>    supabase/scripts/potencial-lead/verificar-caducidad.sql` → debe decir `succeeded` (primera corrida real de la
+>    tarea que baja las marcas). Si falla o no corrió, revisar ANTES de nada más.
+> 2. **Miguel:** fusionar la PR #165 (squash) y hacer la pasada visual: fila «Por potencial» en Leads y una llamada
+>    desde el celular (Llamadas F1 no se probó desde un teléfono real).
+> 3. **Figma:** Miguel conecta «claude.ai Figma» con `/mcp` y se crea el tablero de la fase 4 (FigJam, como los
+>    otros planes). Contenido y generador en `ui-playground/potencial-fase4-plan/` (`contenido.py`, `tablero.py`,
+>    los dos SVG y un LEEME). Anotar el enlace aquí y en la memoria.
+> 4. **Fase 4 (Jev sugiere):** plan PROPUESTO más abajo; faltan sus 8 decisiones (D1–D8) y su OK. No se escribe
+>    código antes. La primera entrega (4.0) es suya: rotar la clave de Jev y cargar dos secretos.
+> 5. **Integración:** tras fusionar la #165, traer `avancecorp/main` al `main` local (ledger, `test-rls.mjs` y `app/`
+>    siguen fuera por la carpeta sucia del taller).
+> 6. **Sin correr todavía:** `test-rls.mjs` con sesiones reales (bloque `testPotencialFiltro`).
+> Bancos Docker que siguen arriba: `avancecorp-potencial-20261001b` (55472, producción de las 19:17 + entrega B),
+> `avancecorp-potencial-20261001` (55471) y `avancecorp-potencial-20260930`.
 
 > **🎨 Colores — ✅ PUBLICADO el 01/10/2026 16:06 Lima** (Miguel invocó `/release-crm` y lanzó la subida con `!`).
 > Artefacto `crm-20261001T205947Z-83674f19eb7e.zip` (SHA-256 `13d7639d…`), commit `83674f19`, buildId
