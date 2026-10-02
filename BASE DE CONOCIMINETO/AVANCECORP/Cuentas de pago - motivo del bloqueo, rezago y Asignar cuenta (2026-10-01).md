@@ -1,21 +1,40 @@
 # Cuentas de pago — motivo del bloqueo, rezago y «Asignar cuenta» (2026-10-01)
 
-**Estado: CONSTRUIDO, REVISADO Y PROBADO EN LOCAL. NADA APLICADO EN PRODUCCIÓN NI PUBLICADO.**
-Lo lanza Miguel con `!` (ver «Cómo publicar»). Continuación de [[Cuentas bancarias por contrato]],
+**Estado: ✅ EN PRODUCCIÓN 02/10/2026 — servidor ~09:59–10:01 Lima (dos migraciones) y portal ~10:05 (`bd3aab6`,
+SW v138); fusionado a `main` el mismo día.** Lo lanzó Miguel con `!` en el orden de «Cómo publicar»; la evidencia
+está en «Publicación del 02/10». Continuación de [[Cuentas bancarias por contrato]],
 [[P-0XX - cierre productivo verificado (2026-09-26)]] y
 [[Cuentas de Gloria - F3 cambiar la cuenta de pago, en producción (2026-09-26)]].
 
 ## 🔖 Serial de continuación: `AVC-CUENTAS-PAGO-20261002-R1`
 
-Pausa del 02/10/2026 01:30 Lima (Miguel: «guarda todo y seguimos mañana»). Al oír «retomemos
-AVC-CUENTAS-PAGO-20261002-R1»: leer esta nota y los dos `LEEME.md` de
-`CRM-Avance-Corp/supabase/scripts/cuentas-pago-rezago/` y `…/cuentas-pago-asignar/` en el worktree
-`AVANCECORP-desktop-worktrees/cuentas-pago-rezago-20261001`. **Siguiente paso: la Fase 5 del tablero**
-(Miguel lanza con `!` el ensayo y las dos migraciones, en el orden de «Cómo publicar»; se lee cada
-resultado antes del siguiente), luego publicar el portal, `gen:types`, fusionar las dos ramas a
-`main` y marcar el tablero. No se rehacen pruebas ni revisiones salvo que cambie un archivo
-(`generar-derivados.py --verificar` en las dos carpetas lo dice). La conversación original se reabre
-con `claude --resume 4115f385-de84-4f7a-b81d-77e5ca39e0ea`.
+Pausa del 02/10/2026 01:30 Lima («guarda todo y seguimos mañana») y **reanudación el 02/10 ~09:45: Fase 5
+CERRADA** (ensayo → migraciones → registradores → portal → fusión). Al oír «retomemos
+AVC-CUENTAS-PAGO-20261002-R1» ya no queda nada técnico por lanzar: lo que sigue es **F6** (Operaciones destraba
+los 22 contratos con «Asignar cuenta» en Pagos, o registrando la cuenta que falta en Clientes → Cuentas) y los
+puntos de «Pendiente de decidir». Guías: `CRM-Avance-Corp/supabase/scripts/cuentas-pago-rezago/LEEME.md` y
+`…/cuentas-pago-asignar/LEEME.md`. La conversación de construcción se reabre con
+`claude --resume 4115f385-de84-4f7a-b81d-77e5ca39e0ea`; la de publicación es la del 02/10 (sesión
+`crm-avance-corp-21`).
+
+## Publicación del 02/10/2026 (evidencia, todo lanzado por Miguel con `!`)
+
+1. `ensayo-prod-sin-escribir.sql` → `ENSAYO_DESHECHO`, **`veredicto: PASA`**, 5/5 pagos como se esperaba
+   (bloqueados 000644/000477/000734 con su motivo, 001086 pagada tras la carga, 645645 pagada), `fallos` y
+   `sin_probar` vacíos; antes 684·1·7·12·3 sobre **707** contratos (dos más que el 01/10, ambos `ok`).
+2. `censo-sin-funciones.sql` → idéntico al «antes»; cero vínculos de la carga (el ensayo no dejó rastro).
+3. Migración `20261001233019` (~09:59) → `vinculados: 1` (`2026-01-001086`), después **685 · 0 · 7 · 12 · 3**;
+   `registrar.sql` sin error (su comprobación final exige la fila).
+4. `censo.sql` → los 22 bloqueados ya dicen su motivo (12 `otra_moneda`, 7 `varias_cuentas`, 3 `sin_cuenta`).
+5. Migración `20261002005004` (~10:01) → **`ASIGNAR_CUENTA_PAGO_OK`**; `registrar.sql` sin error.
+6. Portal: kit `_DEV_NO_SUBIR/portal-cuentas-pago-bd3aab6` (5 archivos, `plan` OK; lo vivo = `main` local byte a
+   byte antes de subir) subido por TUS con `subir-portal-archivos.mjs` 5/5 + purga; verificación 15/15 lecturas
+   idénticas, SW `avance-v138`, `pagos.js?v=46` importa `asignar-cuenta-core.js?v=1` (200), `pagos.html` pide v46.
+7. Fusión: `crm/cuentas-pago-rezago-20261001` ← `main` (ledger resuelto; `test-rls.mjs` automático) y luego
+   `main` al día; `database.types.ts` solo con los tres objetos nuevos (regenerar todo quitaría
+   `enfriado_hasta`/`reactivado_en` de B1, que no están en producción); typecheck PASS. Portal:
+   `cuentas-pago-20261001` → `main` del portal por fast-forward.
+8. NOT RUN hoy: matriz HTTP `test-rls.mjs`, advisors de Supabase, E2E (no cambió código de la app del CRM).
 
 ## Tablero en Figma (seguimiento)
 
@@ -96,7 +115,7 @@ Del servidor (a quien puede registrar pagos; nunca llevan número de cuenta, CCI
 Etiquetas del portal: «Falta vincular su cuenta» · «Tiene varias cuentas: confirmar cuál» · «Falta
 cuenta en dólares/soles» · «El cliente no tiene cuenta» · «La cuenta no corresponde».
 
-## Cómo publicar (lo lanza Miguel; el servidor antes que el portal)
+## Cómo publicar (ejecutado el 02/10; queda como referencia — el servidor antes que el portal)
 
 Desde `CRM-Avance-Corp/` del worktree `AVANCECORP-desktop-worktrees/cuentas-pago-rezago-20261001`
 (rama `crm/cuentas-pago-rezago-20261001`):

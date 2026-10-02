@@ -641,6 +641,42 @@ export type Database = {
           },
         ]
       }
+      contrato_cuenta_pago_asignaciones: {
+        Row: {
+          asignado_en: string
+          asignado_por: string
+          cliente_id: string
+          contrato_id: string
+          cuenta_bancaria_id: string
+          id: string
+          motivo: string
+          solicitud_id: string
+          vinculo_id: string
+        }
+        Insert: {
+          asignado_en?: string
+          asignado_por: string
+          cliente_id: string
+          contrato_id: string
+          cuenta_bancaria_id: string
+          id?: string
+          motivo: string
+          solicitud_id: string
+          vinculo_id: string
+        }
+        Update: {
+          asignado_en?: string
+          asignado_por?: string
+          cliente_id?: string
+          contrato_id?: string
+          cuenta_bancaria_id?: string
+          id?: string
+          motivo?: string
+          solicitud_id?: string
+          vinculo_id?: string
+        }
+        Relationships: []
+      }
       contrato_cuenta_pago_cambios: {
         Row: {
           cambiado_en: string
@@ -4733,6 +4769,15 @@ export type Database = {
         Args: { p_expected_revision: number; p_producto_id: string }
         Returns: Json
       }
+      asignar_cuenta_pago_contrato: {
+        Args: {
+          p_contrato_id: string
+          p_cuenta_id: string
+          p_motivo: string
+          p_solicitud_id: string
+        }
+        Returns: Json
+      }
       asignar_rol_usuario_fn: {
         Args: {
           p_idempotencia: string
@@ -5456,6 +5501,14 @@ export type Database = {
         }[]
       }
       cumplimiento_metas_fn: { Args: { p_periodo: string }; Returns: Json }
+      cuentas_pago_motivos_fn: {
+        Args: { p_contrato_ids: string[] }
+        Returns: {
+          caso: string
+          contrato_id: string
+          mensaje: string
+        }[]
+      }
       cumplimiento_metas_sin_cartera_fn: {
         Args: { p_periodo: string }
         Returns: Json
