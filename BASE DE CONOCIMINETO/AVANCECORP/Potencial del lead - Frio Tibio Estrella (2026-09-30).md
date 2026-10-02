@@ -554,6 +554,19 @@ números. revisor-a11y aplicado (foco cuando la fila se retira, aviso, cifra en 
    reemplazada. `app/` no cambió desde el commit que pasó `npm run check` (70ae49c4).
    🔑 Fusionar a ciegas el vivo con la rama da conflictos (historias emparentadas por squash y cherry-pick): la
    prueba de «contiene lo vivo» es archivo por archivo, no `git merge`.
+   **Paquete LISTO (01/10 19:52 Lima, tras el `/release-crm` de Miguel):** `crm-20261002T005155Z-4498582850b1.zip`
+   (SHA-256 `e57c5187…`), commit `44985828`, worktree limpio. `npm run check` PASS sobre la rama de publicación (346
+   archivos, 5 592 pruebas); e2e Docker COMPLETO sobre el código final: 321 pasan, 26 saltadas y los 2 fallos ajenos
+   de siempre (`gerencia-operativa.spec.ts:108`, `gestion-diaria-vuelta.spec.ts:11`, anteriores a la #160);
+   manifiesto verificado (130 archivos, 399 migraciones: las 392 del vivo + 6 del refactor #164 + la del filtro);
+   preflight OK (`live=build-20261001T211328361Z/a070838d1b0d candidate=4498582850b1`). Paquete comparado con el vivo
+   quitando las huellas de los nombres: 81 piezas idénticas, 40 iguales salvo alias internos y 9 con cambio real
+   (`index.js` +9 382, `crm-api.js` +2 894, `cartera.js` +2 279, `index.css` +999, `ui-vendor.js` +680,
+   `use-cartera-paginada.js` +541, `gestion-diaria.js` +145, `crm-queries.js` +70; `gerencia.js` +31 son solo alias).
+   Rama de publicación subida a GitHub. ZIP y manifiesto en `CRM-Avance-Corp/releases/` del taller. **Falta la subida
+   (Miguel con `!`, token del llavero) y el smoke.**
+   🔑 Al comparar paquetes por nombre sin huella hay DOS piezas que se llaman igual (`gerencia.js` y
+   `brand/avance.png`): emparejar por tamaño dentro del grupo o sale un falso «−91 KB».
 5. Miguel: fusionar la PR #165. Después de publicar la pantalla: ledger («pantalla publicada»), subir la rama de
    publicación a GitHub y traer `app/` al `main` local cuando la carpeta del taller esté limpia (hoy tiene cambios
    sin guardar de otras sesiones en `crm-api.ts`, `cartera.tsx` y otros: NO se pisan).
