@@ -15581,6 +15581,26 @@ async function testBaseGestionB3(sessions, seed) {
     const fila = Array.isArray(base2?.data) ? base2.data.find((r) => r.lead_id === L) : null;
     if (fila && fila.intentos === 2 && fila.ultimo_resultado === 'volver_a_llamar' && fila.rellamada_hoy === true && base2.data[0]?.lead_id === L) console.log('  ✓ B3 la rellamada de hoy va primera con intentos=2');
     else fail(`B3: la base no refleja la rellamada ${JSON.stringify(fila)}`);
+    // B4 (20261002233851): el 3.º intento sin rellamada ni cita pone al lead a descansar 30 días y lo saca de la base.
+    const b4 = cuenta('B4 aplicada', `select count(*) from pg_trigger where tgrelid = 'crm.actividades'::regclass and tgname = 'trg_zz_actividades_enfriamiento_base' and tgenabled = 'O'`) === 1;
+    if (b4) {
+      const i3 = await positive('B4 vend1 registra el 3.º intento sin rellamada', vend1.rpc('registrar_intento_base', { p_operacion_id: randomUUID(), p_lead_id: L, p_resultado: 'no_contesto' }));
+      assertions += 1;
+      if (i3?.data?.intento_n === 3 && typeof i3.data.enfriado_hasta === 'string') console.log(`  ✓ B4 el 3.º intento pone al lead a descansar hasta ${i3.data.enfriado_hasta}`);
+      else fail(`B4: el 3.º intento no puso a descansar ${JSON.stringify(i3?.data)}`);
+      check(cuenta('descanso de 30 días', `select count(*) from crm.leads where id = '${L}' and enfriado_hasta = ((now() at time zone 'America/Lima')::date + (select dias_enfriamiento from private.base_gestion_constantes()))`) === 1,
+        'B4 enfriado_hasta = hoy Lima + dias_enfriamiento');
+      const baseFria = await positive('B4 la base ya no lista el lead en descanso', vend1.rpc('obtener_base_gestion'));
+      assertions += 1;
+      if (Array.isArray(baseFria?.data) && !baseFria.data.some((r) => r.lead_id === L)) console.log('  ✓ B4 el lead en descanso no está en la base'); else fail('B4: el lead en descanso sigue en la base');
+      await expectExpectedFailure('B4 intento sobre un lead en descanso → 22023', vend1.rpc('registrar_intento_base', { p_operacion_id: randomUUID(), p_lead_id: L, p_resultado: 'no_contesto' }), ['22023'], /descanso/i);
+      check(cuenta('contrato del trigger B4', `select count(*) from pg_proc p where p.oid = to_regprocedure('private.trg_actividades_enfriamiento_base()') and p.prosecdef and p.proowner = 'postgres'::regrole and p.proconfig = array['search_path=""']::text[] and not has_function_privilege('anon', p.oid, 'EXECUTE') and not has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('service_role', p.oid, 'EXECUTE')`) === 1
+          && cuenta('trigger B4 AFTER INSERT con WHEN', `select count(*) from pg_trigger t where t.tgrelid = 'crm.actividades'::regclass and t.tgname = 'trg_zz_actividades_enfriamiento_base' and t.tgenabled = 'O' and (t.tgtype & 2) = 0 and (t.tgtype & 4) = 4 and t.tgqual is not null`) === 1,
+        'B4 el trigger de enfriamiento es AFTER INSERT con WHEN, DEFINER de postgres, search_path vacío y sin EXECUTE para la API');
+    } else {
+      console.log('  (B4 20261002233851 no está en esta base: se saltan sus casos)');
+      if (process.env.CRM_RLS_EXIGE_BASE_GESTION === '1') fail('B4 no desplegada');
+    }
     await expectExpectedFailure('B3 vend3 reactiva el lead de vend1 → P0002', sessions.vend3.client.schema('crm').rpc('reactivar_lead_base', { p_operacion_id: randomUUID(), p_lead_id: L }), ['P0002'], AMBITO);
     const op3 = randomUUID();
     const r1 = await positive('B3 vend1 reactiva', vend1.rpc('reactivar_lead_base', { p_operacion_id: op3, p_lead_id: L, p_nota: 'volvió a interesarse' }));
@@ -15618,6 +15638,30 @@ async function testBaseGestionB3(sessions, seed) {
       'B3 tras «agendó cita»: contactado, ciclo 2, intento + reactivación en el historial');
   } finally {
     await requireAdmin('B3: retirar el segundo lead transitorio (soft-delete)', admin.schema('crm').from('leads').update({ activo: false }).eq('id', L2));
+  }
+  // B4 · D12 por la API: el 3.º intento CON rellamada no enfría; el 4.º sin rellamada sí.
+  if (cuenta('B4 aplicada (D12)', `select count(*) from pg_trigger where tgrelid = 'crm.actividades'::regclass and tgname = 'trg_zz_actividades_enfriamiento_base' and tgenabled = 'O'`) === 1) {
+    const L3 = randomUUID();
+    try {
+      await requireAdmin('B4: sembrar un tercer lead nuevo de vend1', admin.schema('crm').from('leads').insert({
+        activo: true, asignado_supervisor_id: null, etapa: 'nuevo', moneda: 'PEN', no_contactar: false, origen: 'oficina', monto_estimado: 5000,
+        id: L3, nombre_completo: 'B4 D12 TRANSIENT', telefono: TEL_IDENTIDAD(63), creado_por: vend1Id, vendedor_id: vend1Id,
+      }));
+      await requireAdmin('B4: vend1 descarta el tercero', vend1.from('leads').update({ etapa: 'descartado', motivo_descarte: 'no_responde' }).eq('id', L3));
+      await positive('B4 D12 intento 1', vend1.rpc('registrar_intento_base', { p_operacion_id: randomUUID(), p_lead_id: L3, p_resultado: 'no_contesto' }));
+      await positive('B4 D12 intento 2', vend1.rpc('registrar_intento_base', { p_operacion_id: randomUUID(), p_lead_id: L3, p_resultado: 'numero_errado' }));
+      const d3 = await positive('B4 D12 intento 3 = volver_a_llamar (+1 día)', vend1.rpc('registrar_intento_base', { p_operacion_id: randomUUID(), p_lead_id: L3, p_resultado: 'volver_a_llamar', p_proxima_llamada: new Date(Date.now() + 86400000).toISOString() }));
+      assertions += 1;
+      if (d3?.data?.intento_n === 3 && d3.data.enfriado_hasta == null) console.log('  ✓ B4 D12: el 3.º intento con rellamada no enfría'); else fail(`B4 D12: el 3.º con rellamada enfrió ${JSON.stringify(d3?.data)}`);
+      const baseD12 = await positive('B4 D12 sigue en la base con su rellamada', vend1.rpc('obtener_base_gestion'));
+      assertions += 1;
+      if (Array.isArray(baseD12?.data) && baseD12.data.some((r) => r.lead_id === L3 && r.proxima_llamada_en)) console.log('  ✓ B4 D12: sigue en la base con la rellamada'); else fail('B4 D12: el lead con rellamada desapareció de la base');
+      const d4 = await positive('B4 D12 intento 4 sin rellamada', vend1.rpc('registrar_intento_base', { p_operacion_id: randomUUID(), p_lead_id: L3, p_resultado: 'no_contesto' }));
+      assertions += 1;
+      if (d4?.data?.intento_n === 4 && typeof d4.data.enfriado_hasta === 'string') console.log('  ✓ B4 D12: el 4.º intento sin rellamada pone a descansar'); else fail(`B4 D12: el 4.º no enfrió ${JSON.stringify(d4?.data)}`);
+    } finally {
+      await requireAdmin('B4: retirar el tercer lead transitorio (soft-delete)', admin.schema('crm').from('leads').update({ activo: false }).eq('id', L3));
+    }
   }
 }
 

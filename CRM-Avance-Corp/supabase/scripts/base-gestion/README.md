@@ -23,6 +23,9 @@ node supabase/scripts/base-gestion/banco.mjs reversa-y-reaplicar-b2
 node supabase/scripts/base-gestion/banco.mjs aplicar-b3            # 20261002231436_crm_base_gestion_puertas.sql
 node supabase/scripts/base-gestion/banco.mjs test-b3               # b3-puertas.sql: 40 casos de comportamiento bajo rol, termina en ROLLBACK
 node supabase/scripts/base-gestion/banco.mjs reversa-y-reaplicar-b3
+node supabase/scripts/base-gestion/banco.mjs aplicar-b4            # 20261002233851_crm_base_gestion_enfriamiento.sql (trigger de descanso)
+node supabase/scripts/base-gestion/banco.mjs test-b4               # b4-enfriamiento.sql: 15 casos con fechas simuladas, ROLLBACK
+node supabase/scripts/base-gestion/banco.mjs reversa-y-reaplicar-b4
 ```
 
-Reversas, en este orden: B3 (`reversa-puertas.sql`) · B2 (`reversa-no-contactar-supervisor.sql`, independiente) · B1b (`reversa-proxima-llamada.sql`, se niega si quedan núcleos de B3) · B1 (`reversa-esquema.sql`, se niega si B1b sigue aplicada). Rama de Supabase con datos: `rama.mjs estado | aplicar | explain | gate` (la URL del pooler la aporta Miguel por archivo; ver `BASE PARA GESTION/ESTADO.md`).
+Reversas, en este orden: B4 (`reversa-enfriamiento.sql`) · B3 (`reversa-puertas.sql`, se niega si queda el trigger de B4) · B2 (`reversa-no-contactar-supervisor.sql`, independiente) · B1b (`reversa-proxima-llamada.sql`, se niega si quedan núcleos de B3) · B1 (`reversa-esquema.sql`, se niega si B1b sigue aplicada). Rama de Supabase con datos: `rama.mjs estado | aplicar | explain | gate` (la URL del pooler la aporta Miguel por archivo; ver `BASE PARA GESTION/ESTADO.md`).

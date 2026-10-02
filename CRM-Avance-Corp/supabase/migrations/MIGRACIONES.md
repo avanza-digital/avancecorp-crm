@@ -15058,3 +15058,24 @@ UPDATE condicional. `test-rls.mjs`: bloque `testBaseGestionB3` por la API (servi
 por rol, forja 42501, sup1/sup2, replay y 23505, rellamada primera, reactivar, agendó cita, ACL fuera de banda).
 Informe en `BASE PARA GESTION/revisiones/2026-10-02-auditor-rls-b3.md`. **Pendiente:** Codex B3+B4, rama con datos →
 `test-rls.mjs` → advisors → merge de Miguel.
+
+## 20261002233851 — Base para gestión del analista · B4 trigger de enfriamiento
+
+**⏳ PENDIENTE DE RAMA (02/10/2026).** Plan B4 confirmado por Miguel el 02/10 («vamos si»). Trigger AFTER INSERT
+`trg_zz_actividades_enfriamiento_base` en `crm.actividades` (WHEN `evento = intento_base`) → `private.trg_actividades_enfriamiento_base()`
+(DEFINER, escribe bajo el sello `crm.op_base_gestion` restaurando el valor previo): si el intento trae rellamada o es
+`agendo_reunion`, nada (D12/D3); si el lead sigue descartado y vivo y los intentos del ciclo (desde `descartado_en`, incluido
+este) llegan a `max_intentos` (3), `enfriado_hasta = hoy Lima + dias_enfriamiento` (30). En descanso el lead no aparece en la
+base y la puerta rechaza intentos (22023); vencido el plazo reaparece; reactivar lo limpia (B3). El SLA al reactivar no
+necesita trigger (reinicio por cambio de ciclo verificado en B3 y aquí). Ensayada en el banco: aplicar + postflight (ensayo
+real por la puerta, deshecho con `ZZ0B4`) PASS; `b4-enfriamiento.sql` **15/15** con fechas simuladas (3 intentos → descansa; en
+descanso fuera de la base y 22023; vencido reaparece con su historial; 4.º con rellamada no enfría, 5.º sí; D12 con el 3.º =
+rellamada; agendó cita nunca enfría; reactivar limpia el descanso y reinicia el SLA); `b3-puertas.sql` ajustado a B4 (44/44);
+`reversa-y-reaplicar-b4` PASS. `test-rls.mjs`: casos B4 dentro del bloque B3 (3.º intento → `enfriado_hasta`, fuera de la base,
+22023), condicionados a que el trigger exista. **Reversa:** `supabase/scripts/base-gestion/reversa-enfriamiento.sql` (no toca
+datos; avisa cuántos descansos vigentes quedan). **auditor-rls B4 (02/10): CHANGES_REQUESTED → aplicado (16/16):** gate por
+`crm.op_base_gestion` (un backfill sin usuario no enfría; caso en banco y en el postflight), DEFINER redactado, ensayo sobre
+el descartado más antiguo, aviso en la reversa; `test-rls.mjs` con D12 por la API y contrato del trigger. Semántica
+post-descanso (un intento más vuelve a enfriar) pendiente de confirmar con Miguel. Informe en
+`BASE PARA GESTION/revisiones/2026-10-02-auditor-rls-b4.md`. **Pendiente:** Codex B3+B4, rama con datos → `test-rls.mjs` →
+advisors → merge de Miguel.

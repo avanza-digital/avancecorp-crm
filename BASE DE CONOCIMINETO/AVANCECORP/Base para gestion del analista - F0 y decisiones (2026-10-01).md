@@ -1,7 +1,7 @@
 ---
 tags: [crm, base-para-gestion, rescate, analista, f0, decision, figma]
 fecha: 2026-10-01
-estado: F0 ☑ · D1–D12 ☑ · B1, B1b, B2 y B3 escritas y ensayadas en banco (02/10) · B1/B1b/B2 auditadas; auditor B3 en curso · rama con datos lista, falta la URL de Miguel · nada en producción
+estado: F0 ☑ · D1–D12 ☑ · B1, B1b, B2, B3 y B4 escritas y ensayadas en banco (02/10) · B1–B3 auditadas; auditor B4 en curso · Codex B3+B4 pendiente · rama con datos lista, falta la URL de Miguel · nada en producción
 ---
 
 # Base para gestión del analista — F0 y decisiones (01/10/2026)
@@ -295,3 +295,14 @@ advisors y EXPLAIN reales; la rama vacía `base-gestion-20261002` se borró (rep
 - **Sigue B4:** trigger AFTER INSERT en `actividades` (evento `intento_base`): al `max_intentos`-ésimo intento del ciclo sin
   cita ni rellamada (D12), `enfriado_hasta = hoy Lima + dias_enfriamiento` bajo el GUC del sello. El SLA al reactivar ya está
   verificado en B3 (reloj global y episodio).
+
+## B4 · Trigger de enfriamiento — HECHO en local y ensayado (02/10/2026, noche)
+
+- **Migración `20261002233851_crm_base_gestion_enfriamiento.sql`:** `trg_zz_actividades_enfriamiento_base` (AFTER INSERT, WHEN
+  `evento = intento_base`). Regla: sin rellamada ni cita, al llegar a 3 intentos en el ciclo → `enfriado_hasta = hoy Lima + 30`
+  bajo el sello. Con rellamada o cita no enfría (D12/D3). Tras el descanso, un intento más sin rellamada vuelve a enfriar
+  (el cupo del ciclo ya está agotado); reactivar limpia el descanso y reinicia el SLA (cambio de ciclo).
+- **Banco:** 15/15 con fechas simuladas; `b3-puertas.sql` ajustado (con B4, el 3.º intento de LA la pone a descansar): 44/44.
+- **Auditoría B3 aplicada antes:** sello de actividades (`intento_base`/`reactivacion_base`/`respuesta`/`via` solo por el núcleo),
+  candados persona → lead al reactivar, replay tras el candado y por actor, resumen atribuido al dueño del lead.
+- **Pendiente:** auditor-rls B4 → Codex B3+B4 (LEVEL 3) → rama con datos (URL de Miguel) → `test-rls.mjs` → advisors → merge.
