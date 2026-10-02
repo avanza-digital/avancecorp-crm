@@ -5,7 +5,21 @@ estado: ✅ fase 1 EN PROD 30/09 (bandera APAGADA) · ✅ fase 2 EN PROD 01/10 1
 
 # Potencial del lead: Frío · Tibio · Estrella (2026-09-30)
 
-## ▶️ Para retomar (estado del 01/10/2026, tarde)
+## ▶️ Para retomar (estado del 02/10/2026, madrugada)
+
+> ### 🤖 Fase 4 (Jev sugiere): APROBADA el 01/10/2026 por la noche — 4.0 y 4.1 en curso
+> Miguel: «Todo lo recomendado» en las ocho decisiones (D1–D8) y «Aprobado: 4.0 y 4.1». **Nada de la fase 4 está en
+> producción.** Tablero de seguimiento en Figma: https://www.figma.com/board/UjDRlPWSOK94l7JF5KWKhI (ver abajo
+> «Fase 4 · entregas 4.0 y 4.1: ejecución», con los nodos para actualizarlo).
+> - **4.0 (la hace Miguel, 10 minutos):** cambiar la clave de Jev en el panel de TypeSafe, cargarla en SU terminal
+>   (no en el chat) y crear el secreto del cron con `cargar-secreto-cron.sql`. Líneas exactas en la sección de ejecución.
+> - **4.1 (servidor):** CONSTRUIDA y probada en banco propio, en el worktree
+>   `AVANCECORP-desktop-worktrees/potencial-jev-f41-20261001` (rama `crm/potencial-jev-f41`, commit local `972bb765`,
+>   SIN subir a GitHub ni PR). Falta el OK de Miguel para subirla y para publicarla; el orden está en
+>   `supabase/scripts/potencial-jev/LEEME.md`. Banco: `avancecorp-potencial-jev-20261001` (puerto 55473, corriendo).
+> - **Decisión pendiente de Miguel:** ¿se retira del repositorio la migración vieja `20260921034748_crm_temperatura_lead`
+>   (nunca aplicada y peligrosa si alguien la aplicara por error)?
+> - Lo demás de la lista de abajo (caducidad a las 05:40, fusionar la #165, pasada visual) sigue igual.
 
 > ### 🌙 Cierre del 01/10/2026 (~20:45 Lima) — Miguel: «mañana seguimos con todo»
 > **Todo guardado.** Rama de la PR `crm/potencial-lead-f3b` = `fad2420d` y rama viva
@@ -622,9 +636,11 @@ números. revisor-a11y aplicado (foco cuando la fila se retira, aviso, cifra en 
 5. **El ciclo termina con veredicto de máquina** (sale con 1): un superviviente no puede depender de que alguien lea.
 6. **`sed` de macOS no entiende `\n` en el reemplazo:** para partir líneas, Python.
 
-## Fase 4 · Jev sugiere el potencial: PLAN PROPUESTO (01/10/2026, sin aprobar)
+## Fase 4 · Jev sugiere el potencial: PLAN APROBADO por Miguel el 01/10/2026 (noche)
 
-**Estado:** PROPUESTA · espera tu aprobación. Plan del 01/10/2026 · nada de esta fase está construido ni publicado. Miguel pidió el detalle «en un archivo de Figma» el 01/10 por la noche.
+**Estado:** APROBADO el 01/10/2026 · en construcción: 4.0 y 4.1 · nada de esta fase está publicado. Miguel respondió
+«Todo lo recomendado» a las ocho decisiones y «Aprobado: 4.0 y 4.1». Tablero de seguimiento:
+https://www.figma.com/board/UjDRlPWSOK94l7JF5KWKhI
 
 **En una frase:** Jev lee las notas que el analista ya escribe después de cada gestión y propone Frío, Tibio o Estrella. El analista confirma con un toque o elige otro nivel. Jev nunca marca por su cuenta.
 
@@ -650,7 +666,7 @@ números. revisor-a11y aplicado (foco cuando la fila se retira, aviso, cifra en 
 - **4.4 · Pantalla: insignia «Jev» y confirmar** (Pantalla · 2 a 3 días). *Qué se construye:* Insignia punteada en Leads, ficha, Pipeline y cola del día; confirmar o cambiar con un toque; cómo encontrar los sugeridos en Leads; interruptor en Configuración. *Qué ve Miguel:* Primero una maqueta local a escala real para aprobar. Después, la pantalla. *Cómo se comprueba:* Pruebas en el estado real de producción, accesibilidad y la suite completa de punta a punta.
 - **4.5 · Encendido y evaluación** (Tú enciendes · 2 semanas de medición). *Qué se construye:* Encender para un equipo piloto o para todos, y medir. *Qué ve Miguel:* Cuántas sugerencias se confirmaron, cuántas se cambiaron y cuántas se ignoraron. *Cómo se comprueba:* Decides tú: dejarlo, ajustarlo o apagarlo con el interruptor.
 
-**Decisiones abiertas (ninguna tomada; con la recomendación):**
+**Decisiones (las ocho TOMADAS el 01/10/2026: vale la columna «Recomendación»; la otra opción quedó descartada):**
 
 | # | Pregunta | Recomendación | La otra opción |
 |---|---|---|---|
@@ -702,19 +718,79 @@ números. revisor-a11y aplicado (foco cuando la fila se retira, aviso, cifra en 
 - Bandera propia potencial_jev, independiente de potencial_lead.
 - Nivel 3 de riesgo: Codex y auditor-rls, banco Docker con mutantes, e2e en Docker, revisor de accesibilidad y /release-crm.
 
-**Dónde está el tablero.** Pieza local: `ui-playground/potencial-fase4-plan/plan-fase4.svg` (se abre en el navegador) y
-`plan-fase4-para-figma.svg` (la misma, con la fuente Inter, para pegar en un archivo de DISEÑO de Figma: cada línea
-entra como capa de texto editable y los estados llevan nombre de capa «Estado · Fase 4.x» y «Estado · D1…D8»).
-El generador y el contenido único quedaron en el scratchpad de la sesión (`f4/contenido.py`, `f4/tablero.py`); si se
-pierden, el contenido es esta sección.
-🔴 **Figma (01/10, noche): el conector de Figma NO está activo en las sesiones** (el plugin `figma@synced` se usó por
-última vez el 26/09 y hoy no figura entre los habilitados): no hay herramientas `use_figma` ni skills `figma:*`.
-Se intentó crear el archivo manejando la app de escritorio de Figma, pero Miguel estaba escribiendo y sus teclas
-caían en Figma: se paró sin crear ni modificar ningún archivo. **Miguel (01/10): «no necesitas hacer eso, vía MCP lo
-haces y ya».** O sea: Figma se hace SIEMPRE por el conector, no manejando su pantalla. El conector es «claude.ai
-Figma» (no está en la lista de desactivados del proyecto, pero esta sesión no lo cargó): pedirle a Miguel que lo
-conecte con `/mcp` y entonces crear el tablero FigJam como los otros planes. Cuando exista, anotar AQUÍ el enlace.
-🔑 Si falta un conector, decirlo de inmediato y pedir que lo conecte; no rodearlo manejando el escritorio.
+**Dónde está el tablero.** En Figma (FigJam), creado por el conector el 01/10/2026 por la noche:
+https://www.figma.com/board/UjDRlPWSOK94l7JF5KWKhI (fileKey `UjDRlPWSOK94l7JF5KWKhI`).
+🔴 Quedó en **Borradores** de la cuenta con la que está conectado Figma en las sesiones, **«analu gomez»
+(analucia.gomez.sanchez@gmail.com)**, dentro de «El equipo de Avance Corp»: los borradores solo los ve esa cuenta.
+Miguel avisó de que no lo veía; tiene que abrirlo con ese enlace y moverlo a un proyecto del equipo, o reconectar
+Figma con su cuenta (`/mcp`) para volver a crearlo ahí.
+Nodos para actualizarlo al cerrar cada entrega (además del texto hay que cambiar su color y el fondo de la tarjeta):
+estado general `1:5` · línea «actualizado» `1:6` · bitácora `3:18` · entregas: 4.0 `2:6`, 4.1 `2:13`, 4.2 `2:20`,
+4.3 `2:27`, 4.4 `2:34`, 4.5 `2:41` (tarjetas `2:4`, `2:11`, `2:18`, `2:25`, `2:32`, `2:39`) · decisiones D1–D8:
+estado `2:50`, `2:55`, `2:60`, `2:65`, `2:70`, `2:75`, `2:80`, `2:85`.
+Copia local (se regenera con `python3 tablero.py plan-fase4.svg`): `ui-playground/potencial-fase4-plan/`, con
+`contenido.py` ya actualizado (estado de cada entrega y de cada decisión en `ESTADO_FASES` y `ESTADO_DECISIONES`).
+
+## Fase 4 · entregas 4.0 y 4.1: ejecución (01–02/10/2026, tras el «Aprobado: 4.0 y 4.1» de Miguel)
+
+**Estado:** 4.0 pendiente de Miguel · 4.1 construida y probada en banco, **nada en producción**.
+
+### 4.0 · lo que hace Miguel (10 minutos)
+1. En el panel de TypeSafe: crear una clave nueva y revocar la anterior (la vieja se pegó en un chat el 20/09).
+2. En SU terminal, no en el chat (la clave no queda escrita en ningún sitio):
+   `cd …/AVANCECORP-desktop/CRM-Avance-Corp && read -s "K?Pega la clave nueva de Jev: " && supabase secrets set TYPESAFE_API_KEY="$K"; unset K`
+   y `supabase secrets list` (debe aparecer `TYPESAFE_API_KEY`).
+3. Con `!`, el secreto del cron (64 caracteres al azar generados dentro de la base; nadie los ve) y su comprobación.
+   Los scripts viven en el worktree hasta que la rama se fusione:
+   `supabase db query --linked --file …/AVANCECORP-desktop-worktrees/potencial-jev-f41-20261001/CRM-Avance-Corp/supabase/scripts/potencial-jev/cargar-secreto-cron.sql`
+   y después `…/verificar-secretos.sql` (los tres deben decir «presente»).
+
+### 4.1 · qué se construyó
+Migración `20261002040413_crm_potencial_jev_senal` (reemplaza a `20260921034748_crm_temperatura_lead`, que nunca se
+aplicó), Edge `crm-temperatura-lead` y scripts en `supabase/scripts/potencial-jev/` (LEEME con el orden de producción).
+- Tabla `crm.lead_temperatura` (cola y resultado; sin policies ni grants; no guarda texto de notas, solo su huella),
+  14 funciones (núcleo INVOKER en `private`; DEFINER solo el trigger y las tres puertas de `service_role`), job de
+  pg_cron cada 2 minutos con firma HMAC e interruptor `potencial_jev_motor`, apagado.
+- Al revalidar contra el esquema de hoy apareció lo que la versión del 20/09 hacía mal: **el sistema también escribe
+  «notas»** (anular un cierre, No contactar, toma de la bolsa, reingreso…) y se habrían enviado a Jev como si fueran del
+  analista. Ahora «qué es un seguimiento» vive en una sola función: las notas con `evento` o `accion` no cuentan.
+- **D8:** se tapan correos, lo rotulado como documento o teléfono y toda serie de 7 o más dígitos (con espacios, puntos,
+  guiones, rayas o paréntesis). Las fechas sueltas de 2020 a 2039 se conservan. Residual: nombres propios, documentos
+  con letras y un documento sin rótulo con forma de fecha.
+- El analista no se frena: el trigger no hace cola (`nowait`) y atrapa todo; la reparación (dos veces por hora) repone
+  los encolados perdidos. Un nivel solo aterriza si el historial sigue siendo el que se envió.
+
+### Verificación (banco Docker propio `avancecorp-potencial-jev-20261001`, volcado de producción del 01/10 19:17)
+`banco/ciclo-fase41.sh` → **PASS**: 120 pruebas, 88 mutantes de lógica (sobreviven solo los 2 previstos) y 42 de
+migración; concurrencia con dos conexiones 25 de 25 y sus dos mutantes; trinquetes idénticos (censo 40 = 40); con
+6 000 leads y 38 556 actividades la migración dura ~0,3 s. Edge: 17 pruebas y `deno check`.
+**NOT RUN:** `test-rls.mjs` con sesiones reales (bloque `testPotencialJevSenal` añadido), advisors, la Edge contra la
+API real de Jev (su contrato se comprobó contra la documentación vigente), `npm run check:scripts` completo y los
+hooks de Lefthook (no están en el worktree).
+
+### Revisiones (LEVEL 3)
+auditor-rls (sin P0 ni P1) y Codex r1 + r2 (las dos `CHANGES_REQUESTED`). Se aceptó casi todo; se rechazó, con razón
+escrita en el ledger, la protección contra repetición de la firma del cron y la exclusión global entre lotes.
+🔴 Los arreglos de la r2 están probados pero no volvieron a pasar por un revisor (rondas agotadas). Encargos y
+respuestas en `CRM-Avance-Corp/docs/encargos/2026-10-0[12]-potencial-jev-f41-r*.md`.
+
+### Lecciones de esta entrega
+- **Revalidar contra el esquema de hoy encuentra lo que la prueba vieja no veía.** Antes de reutilizar una migración
+  escrita semanas atrás, listar quién escribe hoy en las tablas de las que lee (`prosrc ~ 'insert into …'`).
+- **Una función nueva que nombre `crm.leads` o «reunion» y use `count(` entra en el censo del trinquete analítico**, y
+  su techo solo baja: no se declara, se saca del alcance (`get diagnostics` para filas tocadas; el predicado del lead en
+  una función propia). El ciclo compara el censo antes y después.
+- **`READ COMMITTED`: reservar con `FOR UPDATE SKIP LOCKED` y leer en la MISMA sentencia puede leer un dato anterior a
+  la fila que se acaba de bloquear.** Reservar en una sentencia y leer en la siguiente. Se reproduce con dos
+  conexiones inyectando un `pg_sleep` en la sentencia que elige.
+- **Un efecto auxiliar colgado del registro del analista no hace cola:** `for update nowait` antes del upsert, y que lo
+  perdido lo reponga una reparación. `lock_timeout` es por candado, no por sentencia: con muchas filas se acumula.
+- **`lock table … nowait` en migración y reversa** evita ser parte de un interbloqueo, pero falla si el autovacuum pasa
+  por la tabla: se reintenta (el arnés del banco también).
+- **La herramienta de escritura convierte `\u00A0` en el carácter real** (queda invisible en el archivo): para dejar
+  un escape Unicode visible en SQL hay que construirlo (`chr(92) + 'u00A0'`).
+- **Dentro de una sola transacción el auditor no distingue una reescritura con los mismos valores**: para probar que una
+  fila NO se reescribe se compara su `ctid`.
 
 ## Propuesta INICIAL de servidor (superada: ver «Fase 1 · ejecución» y «Fase 2»)
 
