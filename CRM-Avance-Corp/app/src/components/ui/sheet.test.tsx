@@ -17,10 +17,14 @@ import { Sheet, SheetTitle } from './sheet'
 
 type Lugar = 'nuevo' | 'gestionado' | 'fuera'
 
-function Tablero({ conClave = true, modal = true, origenInterno = false, conDoble = false }: {
+function Tablero({ conClave = true, modal = true, origenInterno = false, conDoble = false, conRespaldo = false, conInicial = false }: {
   conClave?: boolean; modal?: boolean; origenInterno?: boolean
   /** Otro elemento con la MISMA clave, antes que el origen en la página. */
   conDoble?: boolean
+  /** La pantalla dice a dónde va el foco si el origen y su gemela ya no existen. */
+  conRespaldo?: boolean
+  /** La pantalla dice dónde empieza el foco al abrir. */
+  conInicial?: boolean
 }) {
   const [abierta, setAbierta] = useState(false)
   const [lugar, setLugar] = useState<Lugar>('nuevo')
@@ -39,9 +43,17 @@ function Tablero({ conClave = true, modal = true, origenInterno = false, conDobl
       <section aria-label="Nuevo">{lugar === 'nuevo' && tarjeta()}</section>
       <section aria-label="Gestionado">{lugar === 'gestionado' && tarjeta()}</section>
       <button>Otro control</button>
-      <Sheet open={abierta} onClose={() => setAbierta(false)} modal={modal}>
+      <button>Respaldo del foco</button>
+      <Sheet
+        open={abierta}
+        onClose={() => setAbierta(false)}
+        modal={modal}
+        {...(conRespaldo ? { focoRespaldo: () => screen.getByRole('button', { name: 'Respaldo del foco' }) } : {})}
+        {...(conInicial ? { focoInicial: () => document.getElementById('foco-inicial') } : {})}
+      >
         <SheetTitle>Ficha</SheetTitle>
         <button onClick={() => setLugar('gestionado')}>Registrar intento</button>
+        <button id="foco-inicial">Primer resultado</button>
         <button onClick={() => setLugar('fuera')}>Descartar</button>
       </Sheet>
     </>
@@ -150,5 +162,39 @@ describe('Sheet · retorno del foco con clave estable', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Ficha' })).not.toBeInTheDocument())
     expect(screen.queryByRole('button', { name: 'Tarjeta de ROSA' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Otro control' })).not.toHaveFocus()
+  })
+
+  it('sin gemela, con respaldo: el foco va al respaldo (no cae en <body>)', async () => {
+    const usuario = userEvent.setup()
+    render(<Tablero conRespaldo />)
+    await abrirYRegistrar(usuario, 'Descartar')
+
+    await usuario.keyboard('{Escape}')
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Respaldo del foco' })).toHaveFocus())
+  })
+
+  it('con la gemela viva el respaldo no se usa', async () => {
+    const usuario = userEvent.setup()
+    render(<Tablero conRespaldo />)
+    await abrirYRegistrar(usuario)
+
+    await usuario.keyboard('{Escape}')
+
+    await waitFor(() => expect(tarjetaEn('Gestionado')).toHaveFocus())
+    expect(screen.getByRole('button', { name: 'Respaldo del foco' })).not.toHaveFocus()
+  })
+})
+
+describe('Sheet · foco inicial', () => {
+  it('con focoInicial el foco empieza ahí; sin él, en el primer control (como siempre)', async () => {
+    const usuario = userEvent.setup()
+    const { unmount } = render(<Tablero conInicial />)
+    await usuario.click(screen.getByRole('button', { name: 'Tarjeta de ROSA' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Primer resultado' })).toHaveFocus())
+    unmount()
+    render(<Tablero />)
+    await usuario.click(screen.getByRole('button', { name: 'Tarjeta de ROSA' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Registrar intento' })).toHaveFocus())
   })
 })
