@@ -131,7 +131,7 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 | F0 · Piloto y línea base | 4 | 1/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-2) |
 | F1 · Formulario único y match exacto | 4 | 12/12 | Hecha | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-8) |
 | F2 · Núcleo confiable | 4 | 8/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-14) |
-| F3 · Captura y sincronización | 4 | 3/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-20) |
+| F3 · Captura y sincronización | 4 | 4/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-20) |
 | F4 · Pendientes y conciliación | 4 | 0/13 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-66) |
 | F5 · Jev para identificación asistida | 5 | 0/15 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-72) |
 | F6 · Gerencia y calidad | 4 | 0/12 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-78) |
@@ -333,7 +333,7 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 | Listar/alta/baja/rotar celular | Capacidad de administración resuelta en servidor |
 | Registrar salud | Credencial de equipo, datos mínimos; heartbeat no demuestra captura sana |
 
-**Seguimiento de F3:** 3/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
+**Seguimiento de F3:** 4/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
 
 ### F3.1 · Publicar el contrato de puertas
 
@@ -351,28 +351,28 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 
 - [ ] **F3.2.1** Configurar Edge con esquema estricto, tamaño limitado, token propio y autenticación de plataforma verificada. — EN CURSO: Edge crm-llamadas-ingesta construida (ad4cf226): esquema estricto v1, cuerpo ≤ 4 KB, clave propia en la cabecera x-celular-credencial y verify_jwt=false documentado en config.toml. deno check y 16 pruebas en verde; 14 mutantes cazados. Falta desplegarla y comprobar en la plataforma que verify_jwt quedó apagado y que nada más entra (Miguel).
 - [x] **F3.2.2** Aplicar rate limit compartido, baja/inactividad y rotación/revocación con auditoría.
-- [ ] **F3.2.3** Mostrar token una vez; guardar hash y eliminar secretos de URL, logs y soporte. — EN CURSO: La clave se muestra una vez y solo se guarda su sha256 (F2-c); viaja en una cabecera, nunca en la URL; la Edge no escribe nada en el registro (prueba que intercepta console). Falta la guía de soporte sin secretos (F3.4.3) y comprobarlo en el despliegue.
+- [ ] **F3.2.3** Mostrar token una vez; guardar hash y eliminar secretos de URL, logs y soporte. — EN CURSO: La clave se muestra una vez y solo se guarda su sha256 (F2-c); viaja en una cabecera, nunca en la URL; la Edge no escribe nada en el registro (prueba que intercepta console). Falta la guía de soporte sin secretos (F3.4.3) y comprobarlo en el despliegue. 02/10: en C1, el registro del sistema de MacroDroid no muestra la cabecera ni la clave (prueba 6); la clave sí es visible dentro de la acción, y el control es rotarla.
 
 **Evidencia / fecha de validación:** pendiente.
 
 ### F3.3 · Persistir y enviar
 
-**Estado:** en curso · **Avance:** 0/4 · **Responsable:** Jhosep (pruebas en C1) · Claude (receptor de pruebas).
+**Estado:** en curso · **Avance:** 1/4 · **Responsable:** Jhosep (pruebas en C1) · Claude (receptor de pruebas).
 
-- [ ] **F3.3.1** Crear ID, hora y payload una vez; guardar en cola local antes del POST.
-- [ ] **F3.3.2** Reintentar red caída, 429 y reinicio; retirar solo tras confirmación y visibilizar errores permanentes.
-- [ ] **F3.3.3** Parsear respuesta y abrir UUID confirmado; mantener fallback manual si falta UUID.
-- [ ] **F3.3.4** Correlacionar doble trigger y validar dirección/duración por evento sin confundir desconocido con cero.
+- [x] **F3.3.1** Crear ID, hora y payload una vez; guardar en cola local antes del POST.
+- [ ] **F3.3.2** Reintentar red caída, 429 y reinicio; retirar solo tras confirmación y visibilizar errores permanentes. — EN CURSO: Hecho en C1 (02/10): sin red (A3), servidor caído con 503 (A4) y reinicio (A6) dejan el aviso en la cola, y el intervalo de 5 min lo reenvía con el mismo id; solo un 202 lo retira; un 400 se aparta a errores_llamadas con una notificación sin el número (A5). Falta ensayar un 429 explícito (el receptor lo fuerza con /_control?modo=429): necesita C1.
+- [ ] **F3.3.3** Parsear respuesta y abrir UUID confirmado; mantener fallback manual si falta UUID. — EN CURSO: Cambia con la propuesta #12 (pendiente de Miguel): la respuesta no trae el UUID y el celular abre la encuesta de F1 por número, enseguida y sin esperar al servidor (decisión 4 de F3; probado en C1, A1). El respaldo manual es el aviso con buscador de F1. Se cierra cuando Miguel decida la #12.
+- [ ] **F3.3.4** Correlacionar doble trigger y validar dirección/duración por evento sin confundir desconocido con cero. — EN CURSO: En C1 (02/10): una sola notificación y un solo aviso por llamada en más de 8 llamadas, incluidas colgar antes de que contesten y sin respuesta (prueba 5). La dirección la marca «Llamadas-Salientes» y las entrantes no generan aviso (A2). La duración no se envía (MacroDroid no la da) y llega null, no 0. Falta: llamada en espera, doble SIM y entrantes si se aprueba la #14.
 
 **Evidencia / fecha de validación:** pendiente.
 
 ### F3.4 · Probar recuperación
 
-**Estado:** pendiente · **Avance:** 0/3 · **Responsable:** por asignar.
+**Estado:** en curso · **Avance:** 0/3 · **Responsable:** Jhosep (pruebas en C1) · Claude (receptor de pruebas y guía).
 
-- [ ] **F3.4.1** Ensayar respuesta perdida tras commit, ráfagas, bloqueo, batería, desfase y permisos revocados.
-- [ ] **F3.4.2** Verificar dos llamadas al mismo número, baja/rotación de token y actor inactivo, por equipo piloto.
-- [ ] **F3.4.3** Entregar guía de soporte y salud de cola; decidir otro adaptador si MacroDroid no acredita durabilidad.
+- [ ] **F3.4.1** Ensayar respuesta perdida tras commit, ráfagas, bloqueo, batería, desfase y permisos revocados. — EN CURSO: Parcial en C1 contra el receptor de pruebas (02/10): sin red (A3), servidor caído (A4) y reinicio (A6). Falta: respuesta perdida tras guardar, ráfagas, pantalla bloqueada, batería baja, desfase de hora y permisos revocados.
+- [ ] **F3.4.2** Verificar dos llamadas al mismo número, baja/rotación de token y actor inactivo, por equipo piloto. — EN CURSO: Dos llamadas al mismo número → dos eventos, cada uno con su id (prueba 2 en C1). Rotación, cierre de la clave y analista de baja: probados en el banco reducido y escritos en el bloque testLlamadasCelular del gate (sin correr aquí). Falta repetirlo con la Edge desplegada y por equipo piloto.
+- [ ] **F3.4.3** Entregar guía de soporte y salud de cola; decidir otro adaptador si MacroDroid no acredita durabilidad. — EN CURSO: Guía de la macro definitiva en macrodroid.md §3c (pasos, trampas y pruebas). MacroDroid acredita durabilidad en C1 (A3, A4, A6): no hace falta otro adaptador (decisión 5 de F3, la ratifica Miguel). Falta la guía de soporte y la salud de la cola (el latido).
 
 **Evidencia / fecha de validación:** pendiente.
 
