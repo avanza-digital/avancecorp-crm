@@ -434,7 +434,7 @@ migraciones aplicadas. Nada en producción.
   entradas (archivo Excel/CSV con contactos nuevos **y** lotes de leads viejos del CRM); **E2** duplicado (mismo teléfono
   o DNI) se salta y se informa; **E3** el analista la trabaja dentro de su Base para gestión, con las mismas reglas;
   **E4** supervisor a su equipo, gerencia a todos. Fases B7–B10 + F5–F6, después de F2–F4.
-- **FigJam** (`zbgq3gjYGsaaMCo6e140bU`): sección nueva «5 · Bases cargadas» `28:2` (decisiones E1 `28:11` … E4 `28:17`,
+- **FigJam** (`zbgq3gjYGsaaMCo6e140bU`), nodos nuevos: fases B3c `39:32`/`39:33` · B5 `27:2`/`27:3` · B6 `27:4`/`27:5` (las tres ☑ en producción 03/10); sección nueva «5 · Bases cargadas» `28:2` (decisiones E1 `28:11` … E4 `28:17`,
   flujo `29:3`→`29:23`, fases B7 `31:32` … F6 `31:42`, bocetos «Repartir» `32:35` y «Seguimiento» `33:33`); fases B5
   `27:2` y B6 `27:4` entre F1 y F2.
 - **Listo para el `!` (03/10, tarde):** Codex r1 BLOCK (las suites aceptaban NULL como PASS; el detail del candado llevaba el
