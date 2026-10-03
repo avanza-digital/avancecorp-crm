@@ -106,8 +106,17 @@ bandeja ya distingue «devolver» y el enlace no depende de que sea lead.
 
 ## Lo que se puede adelantar sin Miguel
 
-- **Prototipo visual de la bandeja y de «Celulares»** con `/design`, antes de tocar código (regla del proyecto para
-  cambios visuales grandes).
+- **Prototipo visual, HECHO el 03/10:** https://claude.ai/artifact/NcXoy3g69AVv7vTWxD5mgv (privado hasta que Jhosep lo
+  comparta). Lleva cuatro tableros:
+  - **Gestión Diaria en el PC, interactivo.** Pestaña «Llamadas del celular» con «Pendientes» y «Qué pasó hoy». Se
+    puede registrar, unir a un resultado ya guardado, elegir el lead, descartar con motivo y deshacer; cada llamada
+    pasa al registro con lo que pasó.
+  - La misma bandeja en el celular.
+  - La encuesta abierta desde una llamada, que dice a qué llamada quedará unida.
+  - **«Celulares» en Configuración, interactivo:** asignar con la clave mostrada una vez, rotar, cerrar con motivo y
+    ver la salud.
+
+  Datos de la demo, sin conexión al CRM.
 - **F4-a en el banco reducido**, sin aplicar, como se hizo con F2 y F3, si Miguel aprueba antes las decisiones 1 y 2.
 
 ## Riesgos y límites
