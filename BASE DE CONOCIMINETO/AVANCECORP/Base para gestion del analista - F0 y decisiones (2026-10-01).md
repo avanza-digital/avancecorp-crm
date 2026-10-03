@@ -1,7 +1,7 @@
 ---
 tags: [crm, base-para-gestion, rescate, analista, f0, decision, figma]
 fecha: 2026-10-01
-estado: F0 ☑ · D1–D13 ☑ · B1, B1b, B2, B3, B4 y B4b escritas, auditadas y ensayadas en banco (02/10) · Codex B3+B4 en curso · rama con datos lista, falta la URL de Miguel · nada en producción
+estado: F0 ☑ · D1–D13 ☑ · B1, B1b, B2, B3, B4, B4b y B3b escritas, auditadas y ensayadas en banco (03/10 madrugada) · Codex B3+B4 aplicado (B3b) · rama con datos lista, falta la URL de Miguel · nada en producción
 ---
 
 # Base para gestión del analista — F0 y decisiones (01/10/2026)
@@ -318,3 +318,14 @@ advisors y EXPLAIN reales; la rama vacía `base-gestion-20261002` se borró (rep
 - **auditor-rls B4 aplicado:** el trigger solo actúa bajo `crm.op_base_gestion` (un backfill sin usuario no enfría), DEFINER
   redactado, ensayo del postflight sobre el descartado más antiguo, aviso de descansos vigentes en la reversa; `test-rls.mjs`
   con D12 por la API y el contrato del trigger.
+
+## Codex B3+B4 (BLOCK) → B3b (03/10/2026, madrugada)
+
+Seis P2, cinco aceptados y uno parcial, en la migración de enmienda `20261003001014_crm_base_gestion_idempotencia_y_orden.sql`
+(las commiteadas no se editan): el replay de un intento se resuelve antes de las validaciones temporales (un reintento de
+rellamada ya vencida sigue devolviendo su respuesta); la identidad de la operación incluye fecha de rellamada y nota (otra
+fecha u otra nota → 23505); la reactivación hija de «agendó cita» usa un uuid nuevo y se verifica; el orden de la base sigue
+el contrato (rellamada hoy → etapa máxima → días; la hora solo desempata); el último resultado desempata por `intento_n`; el
+descarte del ciclo anterior que comparta instante con la reapertura no cuenta para la etapa máxima. Banco 48/48 y 17/17.
+Riesgo operativo que queda: el postflight de B4 ensaya sobre un lead real con candado breve → aplicar B4 en producción fuera
+de horario. Informe en `BASE PARA GESTION/revisiones/2026-10-02-codex-b3-b4.md`.

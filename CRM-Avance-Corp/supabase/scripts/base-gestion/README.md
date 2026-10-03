@@ -28,6 +28,8 @@ node supabase/scripts/base-gestion/banco.mjs test-b4               # b4-enfriami
 node supabase/scripts/base-gestion/banco.mjs reversa-y-reaplicar-b4
 node supabase/scripts/base-gestion/banco.mjs aplicar-b4b           # 20261002235342 (D13: ventana de intentos desde el fin del último descanso)
 node supabase/scripts/base-gestion/banco.mjs reversa-y-reaplicar-b4b
+node supabase/scripts/base-gestion/banco.mjs aplicar-b3b           # 20261003001014 (enmiendas de Codex: idempotencia, hija con uuid nuevo, orden)
+node supabase/scripts/base-gestion/banco.mjs reversa-y-reaplicar-b3b
 ```
 
-Reversas, en este orden: B4b (`reversa-ventana-descanso.sql`) · B4 (`reversa-enfriamiento.sql`) · B3 (`reversa-puertas.sql`, se niega si queda el trigger de B4) · B2 (`reversa-no-contactar-supervisor.sql`, independiente) · B1b (`reversa-proxima-llamada.sql`, se niega si quedan núcleos de B3) · B1 (`reversa-esquema.sql`, se niega si B1b sigue aplicada). Rama de Supabase con datos: `rama.mjs estado | aplicar | explain | gate` (la URL del pooler la aporta Miguel por archivo; ver `BASE PARA GESTION/ESTADO.md`).
+Reversas, en este orden: B3b (`reversa-idempotencia-y-orden.sql`) · B4b (`reversa-ventana-descanso.sql`) · B4 (`reversa-enfriamiento.sql`) · B3 (`reversa-puertas.sql`, se niega si queda el trigger de B4) · B2 (`reversa-no-contactar-supervisor.sql`, independiente) · B1b (`reversa-proxima-llamada.sql`, se niega si quedan núcleos de B3) · B1 (`reversa-esquema.sql`, se niega si B1b sigue aplicada). Rama de Supabase con datos: `rama.mjs estado | aplicar | explain | gate` (la URL del pooler la aporta Miguel por archivo; ver `BASE PARA GESTION/ESTADO.md`).

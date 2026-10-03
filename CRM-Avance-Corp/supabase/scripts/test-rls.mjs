@@ -15579,7 +15579,10 @@ async function testBaseGestionB3(sessions, seed) {
     const base2 = await positive('B3 la base trae la rellamada primero', vend1.rpc('obtener_base_gestion'));
     assertions += 1;
     const fila = Array.isArray(base2?.data) ? base2.data.find((r) => r.lead_id === L) : null;
-    if (fila && fila.intentos === 2 && fila.ultimo_resultado === 'volver_a_llamar' && fila.rellamada_hoy === true && base2.data[0]?.lead_id === L) console.log('  ✓ B3 la rellamada de hoy va primera con intentos=2');
+    // Cerca de medianoche (Lima) «+2 min» puede caer mañana: la expectativa de «hoy» se calcula fuera de banda (Codex B3).
+    const esHoy = cuenta('rellamada cae hoy (Lima)', `select ((proxima_llamada_en at time zone 'America/Lima')::date = (now() at time zone 'America/Lima')::date)::int from crm.leads where id = '${L}'`) === 1;
+    if (fila && fila.intentos === 2 && fila.ultimo_resultado === 'volver_a_llamar' && fila.rellamada_hoy === esHoy
+        && (!esHoy || base2.data.findIndex((r) => r.lead_id === L) <= base2.data.filter((r) => r.rellamada_hoy).length - 1)) console.log(`  ✓ B3 la rellamada se refleja (intentos=2, hoy=${esHoy}) y, si es de hoy, va en el bloque «Llamar hoy»`);
     else fail(`B3: la base no refleja la rellamada ${JSON.stringify(fila)}`);
     // B4 (20261002233851): el 3.º intento sin rellamada ni cita pone al lead a descansar 30 días y lo saca de la base.
     const b4 = cuenta('B4 aplicada', `select count(*) from pg_trigger where tgrelid = 'crm.actividades'::regclass and tgname = 'trg_zz_actividades_enfriamiento_base' and tgenabled = 'O'`) === 1;

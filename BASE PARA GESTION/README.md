@@ -19,7 +19,7 @@ publicado y con QA cerrada, se borra entera; el conocimiento duradero vive en el
 ## Mapa de lo construido
 - Migración B1: `CRM-Avance-Corp/supabase/migrations/20261002054402_crm_base_gestion_esquema.sql`
 - Migración B1b (rellamada en el lead): `…/20261002224851_crm_base_gestion_proxima_llamada.sql`
-- Migración B3 (puertas y núcleos): `…/20261002231436_crm_base_gestion_puertas.sql` · B4 (trigger de enfriamiento): `…/20261002233851_crm_base_gestion_enfriamiento.sql` · B4b (D13): `…/20261002235342_crm_base_gestion_ventana_descanso.sql`
+- Migración B3 (puertas y núcleos): `…/20261002231436_crm_base_gestion_puertas.sql` · B4 (trigger de enfriamiento): `…/20261002233851_crm_base_gestion_enfriamiento.sql` · B4b (D13): `…/20261002235342_crm_base_gestion_ventana_descanso.sql` · B3b (Codex): `…/20261003001014_crm_base_gestion_idempotencia_y_orden.sql`
 - Migración B2 (D5, Supervisión levanta «no contactar»): `…/20261002061500_crm_base_gestion_no_contactar_supervisor.sql`
 - Revisiones (auditor-rls, Codex): `BASE PARA GESTION/revisiones/`
 - Banco Docker + pruebas + reversa: `CRM-Avance-Corp/supabase/scripts/base-gestion/` (`banco.mjs crear|aplicar|test|reversa-y-reaplicar`)

@@ -15091,3 +15091,18 @@ aplicar + postflight (ventana calculada en tres casos) PASS, `b4-enfriamiento.sq
 vuelve a 0 con el historial íntegro; 1.º con rellamada no enfría; 2.º sin rellamada tampoco; 3.º sí), `b3-puertas.sql` 44/44,
 `reversa-y-reaplicar-b4b` PASS. **Reversa:** `supabase/scripts/base-gestion/reversa-ventana-descanso.sql` (reinstala los cuerpos
 de B3/B4). **Pendiente:** Codex B3+B4 (en curso), rama con datos → `test-rls.mjs` → advisors → merge de Miguel.
+
+## 20261003001014 — Base para gestión del analista · B3b: enmiendas de Codex (idempotencia, hija con uuid nuevo, orden)
+
+**⏳ PENDIENTE DE RAMA (03/10/2026).** Codex (LEVEL 3, encargo `docs/encargos/2026-10-02-codex-base-gestion-b3-b4.md`)
+devolvió BLOCK con seis P2; cinco aceptados y uno parcial, todos en esta migración de enmienda (B3 y B4 están commiteadas
+y no se editan). `create or replace` del texto de B4b con sustituciones exactas: `private.base_gestion_intento_core`
+(replay antes de las validaciones temporales; identidad de la operación con fecha de rellamada y nota → otra fecha/nota
+23505; reactivación hija de «agendó cita» con `gen_random_uuid()` y verificación de que quedó en contactado) y
+`crm.obtener_base_gestion` (orden del contrato rellamada hoy → etapa máxima → días, hora solo desempata; último resultado
+desempata por `intento_n`; el descarte del ciclo anterior que comparta instante con la reapertura queda fuera de la etapa
+máxima). Banco: aplicar + postflight PASS, `b3-puertas.sql` **48/48** (4 regresiones nuevas), `b4-enfriamiento.sql` 17/17,
+`reversa-y-reaplicar-b3b` PASS. `test-rls.mjs`: la expectativa de «rellamada de hoy» se calcula fuera de banda (medianoche
+Lima). **Riesgo operativo anotado:** el postflight de B4 ensaya por la puerta sobre un lead real (candado breve): aplicar B4
+en producción fuera de horario de gestión. **Reversa:** `supabase/scripts/base-gestion/reversa-idempotencia-y-orden.sql`.
+**Pendiente:** Codex r2 corta sobre B3b, rama con datos → `test-rls.mjs` → advisors → merge de Miguel.
