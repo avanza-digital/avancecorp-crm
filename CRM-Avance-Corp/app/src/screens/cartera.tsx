@@ -39,10 +39,18 @@ import { FiltroFechaCartera } from '@/components/common/filtro-fecha-cartera'
 import { fechaLima } from '@/lib/agenda-derivada'
 import { desplazarFechaDerivaciones } from '@/lib/use-periodo-derivaciones'
 import { fechaRecepcionDemo, periodoFechaCartera, rangoFechaCarteraValido, type ModoFechaCartera } from '@/lib/filtro-fecha-cartera'
+import { agruparPorColumna, COLOR_GESTIONADO } from '@/lib/pipeline-columnas'
 
 const MOTIVO_LABEL: Record<string, string> = Object.fromEntries(MOTIVOS_DESCARTE.map((m) => [m.k, m.label]))
 
-type FiltroEtapa = 'todas' | Etapa
+type FiltroEtapa = 'todas' | Etapa | 'gestionado'
+const GESTIONADO = { k: 'gestionado', label: 'Gestionado', color: COLOR_GESTIONADO } as const
+// En Leads «Nuevo» conserva la etapa completa; «Gestionado» permite ver su
+// subconjunto con gestión. El Pipeline, en cambio, separa ambas columnas.
+const OPCIONES_ETAPA = [
+  ...ETAPAS.flatMap<(typeof ETAPAS)[number] | typeof GESTIONADO>((e) => e.k === 'nuevo' ? [e, GESTIONADO] : [e]),
+  ...TERMINALES,
+]
 /** 'todos' | un origen del catálogo completo (vigentes e históricos). */
 type FiltroOrigen = 'todos' | Origen
 /** 'todas' | sistema (puente) | manual (registrado por una persona). */
@@ -75,7 +83,7 @@ interface IndicadorCartera {
 }
 
 /** Una etapa de la distribución, con su clave para poder filtrar por ella. */
-interface EtapaResumen { k: Etapa; label: string; color: string; n: number }
+interface EtapaResumen { k: Exclude<FiltroEtapa, 'todas'>; label: string; color: string; n: number }
 
 /** Suma de los convertidos en texto, cada moneda por su lado (PEN y USD JAMÁS se suman). */
 function textoConvertido(ganado: { pen: number; usd: number }): string {
@@ -157,7 +165,7 @@ export function Cartera() {
   const { yo } = useAuth()
   const memoriaGerencia = useConsultaGerencia()
   const desdeRendimiento = yo?.rol === 'gerencia' ? memoriaGerencia?.consulta.gestionAnalista : null
-  const { ambito, cierresEstado, conocerLeads } = useCRMData()
+  const { ambito, actividadesDelAmbito, cierresEstado, conocerLeads } = useCRMData()
   const { abrirLead } = usePanelesActions()
   // Cartera consciente del rol (F1c): SIEMPRE el ámbito, nunca el global.
   const leads = ambito.leads
@@ -185,6 +193,11 @@ export function Cartera() {
     const analistas = new Set(ambito.vendedores.map((miembro) => miembro.perfil_id))
     return leads.filter((lead) => lead.vendedor_id != null && analistas.has(lead.vendedor_id))
   }, [soloRecibidosEquipo, leads, ambito.vendedores])
+  // Solo la demo clasifica en el navegador y lo hace ANTES de contar/paginar.
+  // En real, la colección parcial del store nunca decide quién está gestionado.
+  const leadsParaTabla = useMemo(() => yo?.demo && fEtapa === 'gestionado'
+    ? agruparPorColumna(leadsDeConsulta, actividadesDelAmbito).gestionado
+    : leadsDeConsulta, [yo?.demo, fEtapa, leadsDeConsulta, actividadesDelAmbito])
 
   // F2: la TABLA ya no sale del store. Se pagina por cursor keyset contra el
   // servidor y los tres filtros viajan con la consulta — con keyset, filtrar en
@@ -192,9 +205,11 @@ export function Cartera() {
   // para no lanzar una consulta por tecla.
   const qDiferido = useValorDiferido(q)
   const cartera = useCarteraPaginada(
-    leadsDeConsulta,
+    leadsParaTabla,
     useMemo(
-      () => ({ etapa: fEtapa, vendedorId: fVend, texto: qDiferido, origen: fOrigen, procedencia: fProc, reasignados: fReasignados,
+      () => ({ etapa: fEtapa === 'gestionado' ? 'nuevo' : fEtapa,
+        ...(fEtapa === 'gestionado' ? { gestion: 'con_gestion' as const } : {}),
+        vendedorId: fVend, texto: qDiferido, origen: fOrigen, procedencia: fProc, reasignados: fReasignados,
         ...(fPotencial ? { potencial: fPotencial } : {}),
         recepcion: periodo }),
       [fEtapa, fVend, qDiferido, fOrigen, fProc, fReasignados, fPotencial, periodo],
@@ -277,9 +292,11 @@ export function Cartera() {
       { icon: CheckCircle2, label: 'Convertidos', value: String(nConvertidos), tone: 'primary', sub: 'Dentro de los filtros elegidos', filtro: filtroConvertidos },
     ]
     const porEtapa = new Map(resumen.embudo.map((p) => [p.etapa, p.n]))
-    const etapas: EtapaResumen[] = [...ETAPAS, ...TERMINALES].map((e) => ({
-      k: e.k, label: e.label, color: e.color, n: porEtapa.get(e.k) ?? 0,
-    }))
+    const etapas: EtapaResumen[] = fEtapa === 'gestionado'
+      ? [{ ...GESTIONADO, n: porEtapa.get('nuevo') ?? 0 }]
+      : [...ETAPAS, ...TERMINALES].map((e) => ({
+          k: e.k, label: e.label, color: e.color, n: porEtapa.get(e.k) ?? 0,
+        }))
     return { indicadores, etapas }
   }, [resumen, fEtapa])
   const segmentos: Segment[] = useMemo(
@@ -452,7 +469,7 @@ export function Cartera() {
         <div className="w-[190px]">
           <Select aria-label="Filtrar por etapa" value={fEtapa} onChange={(e) => { setFEtapa(e.target.value as FiltroEtapa) }}>
             <option value="todas">Todas las etapas</option>
-            {[...ETAPAS, ...TERMINALES].map((e) => (
+            {OPCIONES_ETAPA.map((e) => (
               <option key={e.k} value={e.k}>{e.label}</option>
             ))}
           </Select>
@@ -593,7 +610,7 @@ export function Cartera() {
             </TheadCrm>
             <tbody>
               {visibles.map((l) => {
-                  const e = ETAPA_INFO[l.etapa]
+                  const e = fEtapa === 'gestionado' && l.etapa === 'nuevo' ? GESTIONADO : ETAPA_INFO[l.etapa]
                   return (
                     <tr
                       key={l.id}

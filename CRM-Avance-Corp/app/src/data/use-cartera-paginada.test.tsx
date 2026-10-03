@@ -206,6 +206,26 @@ describe('sesión demo', () => {
 })
 
 describe('sesión real', () => {
+  it('Nuevo y Gestionado tienen listas y cursores separados aunque compartan etapa', async () => {
+    mocks.listarCarteraPagina.mockImplementation(async (filtros, cursor) => ({
+      items: [lead(filtros.gestion ? 55 : cursor ? 1 : 0)],
+      cursor: filtros.gestion || cursor ? null : { actualizadoEn: lead(0).actualizado_en, id: lead(0).id },
+    }))
+    const { wrapper } = arnes()
+    const { result, rerender } = renderHook(({ gestionado }) => useCarteraPaginada([], {
+      etapa: 'nuevo', ...(gestionado ? { gestion: 'con_gestion' as const } : {}),
+    }), { wrapper, initialProps: { gestionado: false } })
+    await waitFor(() => expect(result.current.leads[0]?.id).toBe('lead-000'))
+    act(() => result.current.cargarMas())
+    await waitFor(() => expect(result.current.leads).toHaveLength(2))
+    rerender({ gestionado: true })
+    await waitFor(() => expect(result.current.leads.map(l => l.id)).toEqual(['lead-055']))
+    expect(mocks.listarCarteraPagina.mock.lastCall?.[0]).toMatchObject({ etapa: 'nuevo', gestion: 'con_gestion' })
+    expect(mocks.listarCarteraPagina.mock.lastCall?.[1]).toBeNull()
+    expect(result.current.hayMas).toBe(false)
+    rerender({ gestionado: false })
+    await waitFor(() => expect(result.current.leads.map(l => l.id)).toEqual(['lead-000', 'lead-001']))
+  })
   it('las fechas cambian la consulta completa y un rango inválido no consulta', async () => {
     mocks.listarCarteraPagina.mockResolvedValue({ items: [lead(0)], cursor: null })
     const { wrapper } = arnes()

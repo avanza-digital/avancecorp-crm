@@ -11,7 +11,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import type { FiltrosCarteraLocal } from '@/lib/cartera-keyset'
-import type { Lead } from '@/lib/tipos'
+import type { Actividad, Lead } from '@/lib/tipos'
 import type { CierreEstado } from '@/lib/cierre-estado'
 import type { FiltrosCartera } from '@/data/crm-api'
 import { fechaLima } from '@/lib/agenda-derivada'
@@ -19,6 +19,8 @@ import { desplazarFechaDerivaciones } from '@/lib/use-periodo-derivaciones'
 
 let YO: { id: string; rol: string; demo: boolean } | null = null
 let LEADS: Lead[] = []
+let ACTIVIDADES: Actividad[] = []
+const CONSULTAR_CARTERA = vi.fn()
 let ESTADO_CIERRES: CierreEstado[] = []
 /** Simula el payload ausente (cargando o RPC caída): el resumen no llega. */
 let RESUMEN_CAIDO = false
@@ -32,6 +34,8 @@ const ABRIR_LEAD = vi.fn()
 
 beforeEach(() => {
   ABRIR_LEAD.mockClear()
+  CONSULTAR_CARTERA.mockClear()
+  ACTIVIDADES = []
   RESUMEN_CAIDO = false
   CARGANDO = false
   FALLO = false
@@ -47,7 +51,7 @@ vi.mock('@/lib/store-context', () => ({
       { perfil_id: 'v-1', nombre_completo: 'ANA TORRES' },
       { perfil_id: 'v-2', nombre_completo: 'LUIS PEREZ' },
     ], esGlobal: YO?.rol === 'gerencia' },
-    actividadesDelAmbito: [],
+    actividadesDelAmbito: ACTIVIDADES,
     // Espejo demo del estado de los cierres, leído en cada render igual que
     // LEADS: los dos mundos sirven la MISMA forma.
     cierresEstado: ESTADO_CIERRES,
@@ -70,20 +74,71 @@ vi.mock('@/data/use-cartera-paginada', async () => {
   const { filtrarCarteraLocal, ordenarCarteraLocal } = await import('@/lib/cartera-keyset')
   const { resumenCarteraDesdeAmbito } = await import('@/lib/resumen-cartera')
   return {
-    useCarteraPaginada: (leads: Lead[], filtros: FiltrosCartera & FiltrosCarteraLocal) => ({
-      leads: ordenarCarteraLocal(filtrarCarteraLocal(leads, { ...filtros, recepcionDemo: filtros.recepcion ?? null })),
-      resumen: RESUMEN_CAIDO || CARGANDO || FALLO ? undefined : resumenCarteraDesdeAmbito(filtrarCarteraLocal(leads, { ...filtros, recepcionDemo: filtros.recepcion ?? null }), [], Date.now(), Boolean(filtros.recepcion)),
-      hayMas: false,
-      cargando: CARGANDO,
-      cargandoMas: false,
-      error: FALLO ? new Error('RPC caída') : null,
-      cargarMas: vi.fn(),
-      recargar: vi.fn(),
-    }),
+    useCarteraPaginada: (leads: Lead[], filtros: FiltrosCartera & FiltrosCarteraLocal) => {
+      CONSULTAR_CARTERA(leads, filtros)
+      return {
+        leads: ordenarCarteraLocal(filtrarCarteraLocal(leads, { ...filtros, recepcionDemo: filtros.recepcion ?? null })),
+        resumen: RESUMEN_CAIDO || CARGANDO || FALLO ? undefined : resumenCarteraDesdeAmbito(filtrarCarteraLocal(leads, { ...filtros, recepcionDemo: filtros.recepcion ?? null }), [], Date.now(), Boolean(filtros.recepcion)),
+        hayMas: false,
+        cargando: CARGANDO,
+        cargandoMas: false,
+        error: FALLO ? new Error('RPC caída') : null,
+        cargarMas: vi.fn(),
+        recargar: vi.fn(),
+      }
+    },
   }
 })
 
 const { Cartera } = await import('./cartera')
+
+describe('Cartera · filtro Gestionado', () => {
+  it('pide la clasificación al servidor, compone con origen y la retira al cambiar de etapa', () => {
+    montar([lead()])
+    const etapa = screen.getByLabelText('Filtrar por etapa')
+    expect(within(etapa).getAllByRole('option').map((o) => o.textContent)).toEqual([
+      'Todas las etapas', 'Nuevo', 'Gestionado', 'Contactado', 'Cita agendada',
+      'Entrevista realizada', 'Convertido', 'Descartado',
+    ])
+    fireEvent.change(screen.getByLabelText('Filtrar por origen'), { target: { value: 'landing' } })
+    fireEvent.change(etapa, { target: { value: 'gestionado' } })
+    expect(CONSULTAR_CARTERA).toHaveBeenLastCalledWith(LEADS, expect.objectContaining({
+      etapa: 'nuevo', gestion: 'con_gestion', origen: 'landing',
+    }))
+    expect(pildorasEtapa().map((b) => b.textContent)).toEqual(['Gestionado 1'])
+    expect(screen.getByRole('row', { name: /ROSA QUISPE/ })).toHaveTextContent('Gestionado')
+    fireEvent.change(etapa, { target: { value: 'nuevo' } })
+    expect(CONSULTAR_CARTERA.mock.lastCall?.[1]).not.toHaveProperty('gestion')
+    fireEvent.change(etapa, { target: { value: 'todas' } })
+    expect(CONSULTAR_CARTERA.mock.lastCall?.[1]).toMatchObject({ etapa: 'todas', origen: 'landing' })
+    expect(CONSULTAR_CARTERA.mock.lastCall?.[1]).not.toHaveProperty('gestion')
+  })
+
+  it('demo: cuenta y muestra solo la gestión vigente, sin notas, intentos deshechos ni tenencias anteriores', () => {
+    YO = { id: 'v-1', rol: 'vendedor', demo: true }
+    LEADS = ['vigente', 'anterior', 'deshecho', 'nota', 'contactado'].map((id) => lead({
+      id, nombre_completo: `PERSONA ${id.toUpperCase()}`, tenencia_desde: '2026-10-03T10:00:00Z',
+      etapa: id === 'contactado' ? 'contactado' : 'nuevo',
+    }))
+    ACTIVIDADES = LEADS.map((l) => ({
+      id: `actividad-${l.id}`, lead_id: l.id, detalle: null, autor_nombre: 'ANALISTA',
+      tipo: l.id === 'nota' ? 'nota' : 'llamada_no_contestada',
+      creado_en: l.id === 'anterior' ? '2026-10-02T10:00:00Z' : '2026-10-03T11:00:00Z',
+      ...(l.id === 'deshecho' ? { metadata: { deshecho_en: '2026-10-03T11:01:00Z' } } : {}),
+    }))
+    render(<Cartera />)
+    fireEvent.change(screen.getByLabelText('Filtrar por etapa'), { target: { value: 'gestionado' } })
+    expect(screen.getByRole('row', { name: 'Abrir ficha de PERSONA VIGENTE' })).toBeInTheDocument()
+    for (const nombre of ['ANTERIOR', 'DESHECHO', 'NOTA', 'CONTACTADO']) {
+      expect(screen.queryByRole('row', { name: `Abrir ficha de PERSONA ${nombre}` })).not.toBeInTheDocument()
+    }
+    expect(chipDe('Total leads')).toHaveTextContent('1')
+    expect(pildorasEtapa().map((b) => b.textContent)).toEqual(['Gestionado 1'])
+    fireEvent.click(screen.getByRole('button', { name: /Gestionado 1/ }))
+    expect(screen.getByLabelText('Filtrar por etapa')).toHaveValue('todas')
+    expect(chipDe('Total leads')).toHaveTextContent('5')
+  })
+})
 
 describe('Cartera · vista previa local conectada', () => {
   function montarVistaPrevia(rol = 'vendedor', adicionales: Lead[] = []) {

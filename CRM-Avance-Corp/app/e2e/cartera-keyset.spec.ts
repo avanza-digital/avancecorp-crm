@@ -58,6 +58,55 @@ test('filtrar por etapa vuelve a preguntar al servidor', async ({ page }) => {
   await expect.poll(() => estado.llamadas.rpcCarteraPagina).toBeGreaterThan(llamadasIniciales)
 })
 
+test('Gestionado busca fuera de la página cargada, pagina y no mezcla su caché con Nuevo', async ({ page }) => {
+  const leads = carteraGrande(120).map(l => ({ ...l, etapa: 'nuevo' }))
+  // Ninguno está en las primeras 50 filas de la lista sin filtro.
+  const gestionados = leads.slice(60, 115)
+  const consultas: Record<string, unknown>[] = []
+  await montarBackendReal(page, { leads })
+  await page.route('**/rest/v1/rpc/cartera_filtrada_fn', async route => {
+    const body = route.request().postDataJSON() as Record<string, unknown>
+    if (body.p_gestion !== 'con_gestion') return route.fallback()
+    consultas.push(body)
+    expect(body.p_etapa).toBe('nuevo')
+    const inicio = body.p_antes_id ? gestionados.findIndex(l => l.id === body.p_antes_id) + 1 : 0
+    await route.fulfill({ json: {
+      version: 1, generado_en: new Date().toISOString(), desde: null, hasta: null,
+      items: gestionados.slice(inicio, inicio + Number(body.p_limite)).map(l => ({
+        ...l, ultimo_contacto_en: null, recibido_en: null, recepcion_aproximada: false,
+      })),
+      resumen: {
+        totales: { vivos: 55, abiertos: 55, asignados: 55, parkeados: 0, convertidos: 0,
+          descartados: 0, asignados_pen: 55, asignados_usd: 0, reasignados: 0 },
+        capital: { asignado: { pen: 550000, usd: 0 }, parkeado: { pen: 0, usd: 0 }, ganado: { pen: 0, usd: 0 } },
+        embudo: [{ etapa: 'nuevo', n: 55 }],
+      },
+    } })
+  })
+  await loginReal(page)
+  await irACartera(page)
+  const tabla = page.getByRole('table', { name: 'Cartera de leads' })
+  const filas = tabla.locator('tbody tr')
+  const etapa = page.getByLabel('Filtrar por etapa')
+  await expect(filas).toHaveCount(50)
+  await expect(page.getByText('LEAD PAGINADO 060')).toHaveCount(0)
+  await etapa.selectOption('gestionado')
+  await expect(page.getByText('LEAD PAGINADO 060')).toBeVisible()
+  await expect(filas).toHaveCount(50)
+  await expect(page.getByRole('button', { name: /Gestionado 55/ })).toBeVisible()
+  await expect(filas.first()).toContainText('Gestionado')
+  await page.getByRole('button', { name: /cargar más leads/i }).click()
+  await expect(filas).toHaveCount(55)
+  await expect(page.getByText('LEAD PAGINADO 114')).toBeVisible()
+  expect(consultas).toHaveLength(2)
+  expect(consultas[0]).not.toHaveProperty('p_antes_id')
+  expect(consultas[1]?.p_antes_id).toBe(gestionados[49]?.id)
+  await etapa.selectOption('nuevo')
+  await expect(page.getByText('LEAD PAGINADO 000')).toBeVisible()
+  await expect(filas).toHaveCount(50)
+  await expect(page.getByText('LEAD PAGINADO 114')).toHaveCount(0)
+})
+
 test('reasignados muestra cifra, conserva procedencia y abre la ficha con ambas marcas', async ({ page }) => {
   const leads = [
     leadReal({ id: 'bbbbbbbb-0000-4000-8000-000000000101', nombre_completo: 'LEAD TRANSFERIDO',
