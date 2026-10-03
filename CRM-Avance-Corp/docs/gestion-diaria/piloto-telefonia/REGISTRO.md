@@ -109,7 +109,7 @@ Macros armadas el 02/10 en C1 (MacroDroid gratuito, 5 macros como máximo): «Ll
 
 | Fecha | Celular | Qué pasó | Impacto (perdida / duplicada / no abrió / otro) | Cómo se resolvió | Abierta o cerrada |
 | --- | --- | --- | --- | --- | --- |
-| 02/10/2026 ~16:40 (Lima) | C1 | MacroDroid no dejó crear la sexta macro: la versión gratuita admite **5 macros** por celular | Otro: límite de la herramienta | Se borraron las macros de prueba «Prueba F3» y «Reintento F3» (su configuración está en §5d) y la variable `pendiente`. La macro definitiva de salientes usa 3 (Saliente, Al colgar, Enviar cola); con las entrantes (propuesta #14) harían falta más | **Abierta:** decisión de Miguel sobre comprar MacroDroid Pro para los celulares del piloto si se aprueban las entrantes (Jhosep, 02/10: «ya tendremos en cuenta ver si lo compramos») |
+| 02/10/2026 ~16:40 (Lima) | C1 | MacroDroid no dejó crear la sexta macro: la versión gratuita admite **5 macros** por celular | Otro: límite de la herramienta | Se borraron las macros de prueba «Prueba F3» y «Reintento F3» (su configuración está en §5d) y la variable `pendiente`. La macro definitiva de salientes usa 3 (Saliente, Al colgar, Enviar cola); con las entrantes (propuesta #14) harían falta más | **Cerrada el 03/10:** Miguel aprobó las entrantes (#14) el 02/10 y Jhosep decidió comprar MacroDroid Pro (S/19 por celular, pago único por cuenta de Google) para usar las macros necesarias. Diseño: `macrodroid.md` §3d (sin probar) |
 
 ## 7. Decisión de cierre (F0.4.3)
 

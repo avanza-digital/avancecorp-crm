@@ -71,7 +71,7 @@ con **«Parámetros de codificación de URL» desmarcado** (el `#` tiene que lle
 - Solo el **400** se trata como rechazo definitivo (se aparta con aviso): los demás errores permanentes (409, 413, 415) no pueden salir de esta macro, porque el aviso se arma una sola vez con un tamaño y un formato fijos. Cualquier otro fallo (sin red, 401, 429, 5xx) deja el aviso en la cola para el próximo intento.
 - No se sale del bucle al fallar un envío: sin red, cada intento falla y el aviso se queda igual; salir antes solo ahorraba segundos.
 
-**Límite de MacroDroid gratuito: 5 macros por celular.** Estas tres + «Piloto F0» (apagada, de reserva) = 4. Con las entrantes (#14) harían falta más: decisión de Miguel sobre comprar MacroDroid Pro (`REGISTRO.md` §6).
+**Límite de MacroDroid gratuito: 5 macros por celular.** Estas tres + «Piloto F0» (apagada, de reserva) = 4. Con las entrantes (#14) harían falta más: decisión de Miguel sobre comprar MacroDroid Pro (`REGISTRO.md` §6). **03/10: Jhosep decidió comprar Pro** (S/19 por celular): el diseño con entrantes y latido está en §3d.
 
 ### Paso 1 — Variables globales
 
@@ -164,7 +164,158 @@ Se arma clonando «Piloto F0» (mantener pulsada → Clonar) para conservar la a
 | A6 | Reinicio con un aviso pendiente | Sobrevive y sale solo con su hora original; el intervalo se reactiva solo |
 | A7 | Permiso de ubicación | Ningún disparador definitivo lo pidió |
 
-Con la Edge desplegada se repiten A1 y A3 **con datos móviles** (cualquier red), más las pruebas 1 y 6 de F3.3. Pendiente para después: el latido de salud (decisión 3 de F3: cada 6 h y al vaciar la cola), las entrantes (#14) y la lista de casos de F3-d.
+Con la Edge desplegada se repiten A1 y A3 **con datos móviles** (cualquier red), más las pruebas 1 y 6 de F3.3. Pendiente para después: el latido de salud (decisión 3 de F3: cada 6 h y al vaciar la cola), las entrantes (#14) y la lista de casos de F3-d. **El diseño del latido y de las entrantes está en §3d (03/10), sin probar.**
+
+## 3d. Entrantes y latido, con MacroDroid Pro — diseño del 03/10/2026, SIN ARMAR NI PROBAR
+
+**Estado:** diseño. Nada de esta sección se armó ni se probó todavía. Decisión de Jhosep (03/10): **comprar MacroDroid Pro** (S/19 por celular, pago único ligado a la cuenta de Google del teléfono) para usar las macros que hagan falta. Se descartó quedarse en 5 macros: para distinguir una entrante contestada de una perdida había que esperar unos segundos al colgar, y una perdida podía quedar registrada como contestada.
+
+**Qué cambia frente a §3c:**
+- **Entrantes de leads (#14, aprobada el 02/10)**: la contestada manda un aviso «conectada» y la no contestada uno «no_atendida». Con este último, el CRM creará «devolver la llamada» cuando exista el servidor de la #14. Hasta entonces el servidor las recibe y no las guarda (perilla de entrantes apagada; la corrección de F2 + F3 la bloquea).
+- **Latido** (decisión 3 de F3, ratificada): cada 6 h y cuando la cola se vacía.
+- **Menor 16 de la revisión** (`REVISION-2026-10-02.md`): si «Llamada terminada» no se disparara, `en_saliente` quedaba en Verdadero y la siguiente entrante se colaba como saliente. Ahora «Al colgar» ignora una marca de saliente con más de 2 h (`t_saliente`): ninguna llamada dura tanto.
+
+**Decisiones de Claude:**
+- La contestada se detecta **con un disparador propio** («Llamada activa», que en una entrante se dispara al contestar). Nunca esperando: un hecho, no una suposición.
+- **Saliente y entrante no se pisan.** «Llamadas-Entrante» no toca nada de la saliente. Si entra una llamada en espera mientras el analista habla con un lead, la saliente conserva su aviso y su encuesta, y la entrante en espera sale como no atendida si no se contesta. Apagar `en_saliente` al sonar una entrante, como proponía el plan, rompería justo ese caso.
+- **Una sola clave por entrante**, creada cuando suena (`id_entrante`) y con la hora del timbre (`hora_entrante`). «Perdida» y «Al colgar» escriben la misma entrada con el mismo contenido. Se dispare primero la que se dispare, sale un solo aviso, y el servidor lo ve como repetido si llegara dos veces.
+- **Las entrantes todavía no abren la encuesta.** Hoy F1 muestra «ningún lead» con cualquier número que no sea lead, y abrirla con cada llamada personal molestaría. Se añade cuando F1 sepa callar con esos números (#14, caso c). Es un cambio pequeño de pantalla, y el objetivo sigue siendo que la encuesta se abra siempre con leads.
+
+### Paso 0 — Antes de armar
+- Comprar Pro en C1: menú de MacroDroid → «Pro». Comprobar que ya no aparece el aviso de 5 macros.
+- Borrar «Piloto F0»: con Pro ya no hace falta de reserva.
+- Vaciar `cola_llamadas` si tiene avisos de prueba (ver «Antes de usarla» en §3c).
+
+### Paso 1 — Variables globales nuevas
+| Variable | Tipo | Para qué |
+| --- | --- | --- |
+| `en_entrante` | Booleana, Falso | «Llamadas-Entrante» la pone en Verdadero al sonar; «Al colgar» y «Perdida» la vuelven a Falso |
+| `en_contestada` | Booleana, Falso | «Llamadas-Contestada» la pone en Verdadero si la entrante se contesta |
+| `id_entrante` | Cadena | Id de la entrante, creado al sonar: `C1-{system_time}` |
+| `hora_entrante` | Cadena | Hora del timbre: `{datetime}` |
+| `ultimo_latido` | Entera, 0 | `{system_time}` del último latido aceptado (200) |
+| `t_saliente` | Entera, 0 | `{system_time}` de cuando empezó la saliente: con más de 2 h, «Al colgar» la ignora (menor 16) |
+
+### Paso 2 — «Llamadas-Salientes» (ya existe): añadir una acción
+Después de `en_saliente = Verdadero`: `t_saliente = {system_time}`. No toca las variables de las entrantes, porque una entrante contestada puede seguir en espera.
+
+### Paso 3 — Macro nueva «Llamadas-Entrante»
+- **Disparador:** «Llamada entrante» → «Cualquier Número». Se dispara cuando empieza a sonar.
+- **Acciones:**
+  ```
+  Fijar Variable: en_entrante = Verdadero
+  Fijar Variable: en_contestada = Falso
+  Fijar Variable: id_entrante (Cadena) = C1-{system_time}
+  Fijar Variable: hora_entrante (Cadena) = {datetime}
+  ```
+
+### Paso 4 — Macro nueva «Llamadas-Contestada»
+- **Disparador:** «Llamada activa» (en inglés «Call Active»; confirmar el nombre en pantalla) → «Cualquier Número». Si deja elegir «entrante», elegirla.
+- **Acciones:**
+  ```
+  Si en_entrante = Verdadero
+      Fijar Variable: en_contestada = Verdadero
+  Fin de Si
+  ```
+  La condición evita que una saliente cuente como contestada, porque «Llamada activa» también se dispara al marcar.
+
+### Paso 5 — Macro nueva «Llamadas-Perdida»
+- **Disparador:** «Llamada perdida» → «Cualquier Número».
+- **Acciones:**
+  ```
+  Si en_entrante = Verdadero
+      Fijar Variable: cola_llamadas[{v=id_entrante}] (Cadena) = el aviso «no atendida» (abajo)
+      Fijar Variable: en_entrante = Falso
+      Iniciar macro: Llamadas-Enviar cola   («Omitir restricciones» ✓, «Siempre iniciar» ✓)
+  Fin de Si
+  ```
+
+### Paso 6 — «Llamadas-Al colgar» (ya existe): una guarda ANTES y un bloque DESPUÉS de las salientes
+```
+Fijar Variable: desde_saliente (local, Entera) = {system_time} - {v=t_saliente}     (va al principio)
+Si desde_saliente >= 7200                                                         (2 h: marca vieja)
+    Fijar Variable: en_saliente = Falso
+Fin de Si
+Si en_saliente = Verdadero
+    … igual que en §3c, sin cambios …
+Fin de Si
+Si en_entrante = Verdadero
+    Si en_contestada = Verdadero
+        Fijar Variable: cola_llamadas[{v=id_entrante}] (Cadena) = el aviso «conectada» (abajo)
+    Fin de Si
+    Si en_contestada = Falso
+        Fijar Variable: cola_llamadas[{v=id_entrante}] (Cadena) = el aviso «no atendida» (abajo)
+    Fin de Si
+    Iniciar macro: Llamadas-Enviar cola   («Omitir restricciones» ✓, «Siempre iniciar» ✓)
+Fin de Si
+Fijar Variable: en_saliente = Falso
+Fijar Variable: en_entrante = Falso
+Fijar Variable: en_contestada = Falso
+```
+Si «Llamada perdida» ya se disparó, puso `en_entrante = Falso` y este bloque no hace nada. Si se dispara después, encuentra `en_entrante = Falso` y tampoco. En los dos órdenes queda un solo aviso.
+
+**Los avisos** (pegarlos, no teclearlos: el teclado cambia las comillas rectas por curvas):
+```
+conectada:    {"accion":"llamada","evento":{"v":1,"evento_origen_id":"{v=id_entrante}","numero":"{call_number}","direccion":"entrante","estado_tecnico":"conectada","ocurrio_en":"{v=hora_entrante}-05:00"}}
+no atendida:  {"accion":"llamada","evento":{"v":1,"evento_origen_id":"{v=id_entrante}","numero":"{call_number}","direccion":"entrante","estado_tecnico":"no_atendida","ocurrio_en":"{v=hora_entrante}-05:00"}}
+```
+`{v=…}` es el texto mágico de una variable **global**; el `{lv=…}` de §3c es el de una local. La hora es la del timbre: así el aviso de «Perdida» y el de «Al colgar» son idénticos.
+
+### Paso 7 — «Llamadas-Enviar cola» (ya existe): el latido, al final
+Después de `Fin de Bucle`:
+```
+Fijar Variable: quedan (local, Entera) = 0
+Iterar Diccionario/Arreglo: cola_llamadas
+    Fijar Variable: quedan = {lv=quedan} + 1        (valor como expresión; confirmar en pantalla)
+Fin de Bucle
+Fijar Variable: desde_latido (local, Entera) = {system_time} - {v=ultimo_latido}
+Fijar Variable: toca (local, Booleana) = Falso
+Si desde_latido >= 21600                            (6 h)
+    Fijar Variable: toca = Verdadero
+Fin de Si
+Si habia > 0
+    Si quedan = 0                                   (la cola se acaba de vaciar)
+        Fijar Variable: toca = Verdadero
+    Fin de Si
+Fin de Si
+Si toca = Verdadero
+    Fijar Variable: codigo_latido (local, Entera) = 0
+    Solicitud HTTP (POST): la misma URL y la misma clave; cuerpo = el latido (abajo); código → codigo_latido
+    Si codigo_latido = 200
+        Fijar Variable: ultimo_latido = {system_time}
+    Fin de Si
+Fin de Si
+```
+`habia` se cuenta igual que `quedan`, pero **antes** del bucle de envío (un «Iterar» más al principio de la macro).
+**El latido:**
+```
+{"accion":"latido","latido":{"v":1,"version_macro":"llamadas-v2","en_cola":{lv=quedan},"ocurrio_en":"{datetime}-05:00"}}
+```
+El servidor exige exactamente esas cuatro claves. `version_macro` admite letras, dígitos, espacio y `. _ -`, y `en_cola` va de 0 a 100000. Responde **200**, no 202.
+
+### Antes de usarla
+| Macro | Estado |
+| --- | --- |
+| Llamadas-Salientes | Encendida (con las 2 acciones nuevas) |
+| Llamadas-Entrante | Encendida |
+| Llamadas-Contestada | Encendida |
+| Llamadas-Perdida | Encendida |
+| Llamadas-Al colgar | Encendida (con el bloque de entrantes) |
+| Llamadas-Enviar cola | Encendida (con el latido) |
+
+### Pruebas de aceptación (contra el receptor del PC; anotar en `REGISTRO.md`)
+| # | Caso | Qué se espera |
+| --- | --- | --- |
+| B1 | Entrante **contestada** de un número de prueba | Un solo aviso «entrante · conectada» con la hora del timbre; sin encuesta (todavía) |
+| B2 | Entrante **no contestada** (dejar sonar hasta que corte) | Un solo aviso «entrante · no_atendida», aunque se disparen «Perdida» y «Al colgar» |
+| B3 | Entrante **rechazada** (colgar sin contestar) | Un aviso «no_atendida». Si no sale ninguno, anotarlo: dice qué disparadores usa Android al rechazar |
+| B4 | Saliente justo después de una entrante | Aviso «saliente» normal y encuesta |
+| B5 | **Llamada en espera:** entra una llamada mientras hablas con un lead y no la contestas | La saliente conserva su aviso y su encuesta al colgar; la de espera sale «no_atendida». Caso pendiente desde F3.3.4 |
+| B5b | Llamada en espera contestada (cambias de llamada) | Anotar qué pasa: es el caso raro, y dice qué número entrega «Llamada terminada» |
+| B6 | Latido al vaciar la cola: una saliente y esperar el envío | Llega un latido con `en_cola` 0 (en el receptor, `/_estado` muestra el último latido) |
+| B7 | Latido cada 6 h, sin llamadas | Anotar la hora del siguiente latido |
+| B8 | Repetir A1 y A3 de §3c | Igual que el 02/10: las salientes no cambiaron |
+| B9 | Ningún disparador pide permiso de ubicación | Como A7 |
 
 ## 4. Cómo cerrar cada comprobación de F0.3
 
