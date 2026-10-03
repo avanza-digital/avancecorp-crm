@@ -26,7 +26,7 @@ publicado y con QA cerrada, se borra entera; el conocimiento duradero vive en el
 - Matriz RLS: bloque `testBaseGestionB1` en `CRM-Avance-Corp/supabase/scripts/test-rls.mjs`
 - Ledger: entrada `20261002054402` en `CRM-Avance-Corp/supabase/migrations/MIGRACIONES.md`
 - Tipos: `reactivado_en` / `enfriado_hasta` añadidos a mano en `app/src/lib/database.types.ts` (regenerar tras la rama)
-- Encargo original: `ENCARGO.md` (texto íntegro de Miguel)
+- Encargo original: `ENCARGO.md` (texto íntegro de Miguel) · Plan técnico del frontend: `FRONTEND.md` (F1–F4, hechos del front que mandan)
 
 ## Decisiones de Miguel (02/10/2026) — mandan sobre el encargo
 | # | Decisión |
