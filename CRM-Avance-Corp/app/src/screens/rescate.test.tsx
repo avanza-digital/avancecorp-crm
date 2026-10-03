@@ -179,3 +179,72 @@ describe('la base del analista', () => {
     expect(screen.queryByText('DEMO AJENO')).toBeNull()
   })
 })
+
+describe('el MES del lead (Miguel, 02/10: «mis leads de enero, de marzo, de agosto»)', () => {
+  it('columna «Mes» tras el lead y un selector con el conteo; al elegir un mes, la hoja, el # y las pastillas cuentan solo ese mes', async () => {
+    CONSULTA.data = [
+      fila(1, { recibido_en: '2026-09-10T15:00:00Z', rellamada_hoy: true, proxima_llamada_en: '2026-10-02T20:00:00Z' }),
+      fila(2, { recibido_en: '2026-08-15T15:00:00Z' }),
+      // 1 de septiembre a las 02:00 UTC es todavía 31 de agosto en Lima: el mes es el de Lima.
+      fila(3, { recibido_en: '2026-09-01T02:00:00Z' }),
+    ]
+    render(<BaseGestion />)
+    const encabezados = screen.getAllByRole('columnheader').map((c) => c.textContent)
+    expect(encabezados.slice(0, 3)).toEqual(['#', 'Lead', 'Mes'])
+    const selector = screen.getByRole('combobox', { name: 'Mes' })
+    expect(within(selector).getAllByRole('option').map((o) => o.textContent)).toEqual([
+      'Todos (3)', 'Septiembre 2026 (1)', 'Agosto 2026 (2)',
+    ])
+
+    await userEvent.selectOptions(selector, '2026-08')
+    const filas = within(screen.getByRole('table')).getAllByRole('row').slice(1)
+    expect(filas.map((f) => within(f).getByRole('rowheader').textContent)).toEqual(['LEAD BASE 2', 'LEAD BASE 3'])
+    expect(filas.map((f) => f.querySelector('td')?.textContent)).toEqual(['1', '2'])
+    expect(within(filas[0] as HTMLElement).getByText('Agosto 2026')).toBeInTheDocument()
+    const resumen = screen.getByRole('region', { name: 'Resumen de tu base' })
+    // El número exacto (el texto de la pastilla contiene «2026»: un toHaveTextContent('2') no probaría nada).
+    expect(within(resumen).getByText('De Agosto 2026').closest('p')?.querySelector('strong')).toHaveTextContent(/^2$/)
+    expect(within(resumen).getByText('Para llamar hoy').closest('p')?.querySelector('strong')).toHaveTextContent(/^0$/)
+    expect(screen.getByRole('table', { name: /Tus leads descartados de Agosto 2026/ })).toBeInTheDocument()
+  })
+
+  it('si el mes elegido se vacía, vuelve a «Todos» y lo olvida: cuando ese mes reaparece, la hoja no se filtra sola', async () => {
+    CONSULTA.data = [fila(1, { recibido_en: '2026-09-10T15:00:00Z' }), fila(2, { recibido_en: '2026-08-15T15:00:00Z' })]
+    const { rerender } = render(<BaseGestion />)
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Mes' }), '2026-08')
+    expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(2)
+    CONSULTA = { ...CONSULTA, data: [fila(1, { recibido_en: '2026-09-10T15:00:00Z' })] }
+    rerender(<BaseGestion />)
+    expect(screen.getByRole('combobox', { name: 'Mes' })).toHaveValue('todos')
+    CONSULTA = { ...CONSULTA, data: [fila(1, { recibido_en: '2026-09-10T15:00:00Z' }), fila(2, { recibido_en: '2026-08-15T15:00:00Z' })] }
+    rerender(<BaseGestion />)
+    expect(screen.getByRole('combobox', { name: 'Mes' })).toHaveValue('todos')
+    expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(3)
+  })
+
+  it('ESTADO DE PRODUCCIÓN (antes de la B5, el servidor no manda el mes): ni columna ni selector, y la hoja sigue entera', () => {
+    CONSULTA.data = [fila(1, { recibido_en: null }), fila(2, { recibido_en: null })]
+    render(<BaseGestion />)
+    expect(screen.queryByRole('columnheader', { name: 'Mes' })).toBeNull()
+    expect(screen.queryByRole('combobox', { name: 'Mes' })).toBeNull()
+    expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(3)
+    const resumen = screen.getByRole('region', { name: 'Resumen de tu base' })
+    expect(within(resumen).getByText('En tu base').parentElement).toHaveTextContent('2')
+  })
+
+  it('en el celular la tarjeta dice el mes', () => {
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: () => ({ matches: true, addEventListener: () => {}, removeEventListener: () => {} }),
+    })
+    try {
+      CONSULTA.data = [fila(1, { recibido_en: '2026-08-15T15:00:00Z' })]
+      render(<BaseGestion />)
+      const tarjeta = screen.getByRole('listitem')
+      expect(within(tarjeta).getByText('Mes')).toBeInTheDocument()
+      expect(within(tarjeta).getByText('Agosto 2026')).toBeInTheDocument()
+    } finally {
+      Reflect.deleteProperty(window, 'matchMedia')
+    }
+  })
+})

@@ -7,7 +7,10 @@
 // solo una de las dos). «Llamar» depende del APARATO, como en Gestión Diaria: el celular abre el marcador (`tel:`)
 // y la laptop copia el número; en la hoja, el propio teléfono es el botón. Registrar el intento, reactivar y la
 // ficha con el historial llegan en F2.
-import { useMemo, type JSX } from 'react'
+// El MES del lead (Miguel, 02/10/2026: «mis leads de enero, de marzo, de agosto»): columna «Mes» tras el lead y un
+// selector pequeño con el conteo de cada mes; el número de fila y las pastillas cuentan lo filtrado. Sin el mes del
+// servidor (antes de la migración B5) no hay ni columna ni selector: nada de una columna llena de rayas.
+import { useId, useMemo, useState, type JSX } from 'react'
 import { toast } from 'sonner'
 import { ArchiveRestore, Phone, RotateCcw } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
@@ -15,6 +18,7 @@ import { useCRMData } from '@/lib/store-context'
 import { useBaseGestion } from '@/data/crm-queries'
 import { PanelCargando, PanelError, PanelVacio } from '@/components/common/estado-panel'
 import { Button } from '@/components/ui/button'
+import { Select } from '@/components/ui/select'
 import { FOCO } from '@/components/gestion-diaria/estilos-gestion'
 import { cn } from '@/lib/utils'
 import { useEsMovil, usePuedeMarcar } from '@/lib/media'
@@ -25,16 +29,21 @@ import {
   DIAS_DESCANSO_BASE,
   DIAS_MAX_RELLAMADA,
   MAX_INTENTOS_BASE,
+  MES_TODOS,
   estadoRellamada,
   etiquetaDiasDescarte,
   etiquetaEtapaMaxima,
   etiquetaIntentos,
+  etiquetaMesLead,
   etiquetaMomento,
   etiquetaMotivoDescarte,
   etiquetaOrigen,
   etiquetaRellamada,
   etiquetaUltimoResultado,
+  filasDelMes,
   filasDemoBaseGestion,
+  mesDelLead,
+  mesesDeLaBase,
   type EtapaMaxima,
   type FilaBaseGestion,
 } from '@/lib/base-gestion'
@@ -67,6 +76,12 @@ export function BaseGestionAnalista(): JSX.Element {
     () => (real ? consulta.data ?? [] : filasDemoBaseGestion(leads, yo?.id ?? '')),
     [real, consulta.data, leads, yo?.id],
   )
+  const meses = useMemo(() => mesesDeLaBase(filas), [filas])
+  const [mesElegido, setMesElegido] = useState<string>(MES_TODOS)
+  const idMes = useId()
+  // Si el mes elegido se vacía al refrescar (el último lead de ese mes salió de la base), se vuelve a «Todos» y se
+  // OLVIDA: si un refresco posterior lo trae de vuelta, la hoja no se filtra sola.
+  if (mesElegido !== MES_TODOS && !meses.some((m) => m.clave === mesElegido)) setMesElegido(MES_TODOS)
 
   if (!yo) return <PanelVacio icono={ArchiveRestore} titulo="Sin sesión" detalle="Vuelve a entrar para ver tu base para gestión." />
   if (real && consulta.isPending) return <PanelCargando filas={6} />
@@ -77,17 +92,33 @@ export function BaseGestionAnalista(): JSX.Element {
   }
   const recargaFallida = real && consulta.isError
 
+  const conMes = meses.length > 0
+  const mes = meses.some((m) => m.clave === mesElegido) ? mesElegido : MES_TODOS
+  const visibles = filasDelMes(filas, mes)
   const ahora = Date.now()
-  const llamarHoy = filas.filter((f) => f.rellamada_hoy).length
-  const agendadas = filas.filter((f) => f.proxima_llamada_en !== null && !f.rellamada_hoy).length
+  const llamarHoy = visibles.filter((f) => f.rellamada_hoy).length
+  const agendadas = visibles.filter((f) => f.proxima_llamada_en !== null && !f.rellamada_hoy).length
 
   return (
     <div className="mx-auto w-full max-w-[1640px] space-y-3">
-      <section aria-label="Resumen de tu base" className="flex flex-wrap items-center gap-2">
-        <Pastilla etiqueta="En tu base" valor={filas.length} />
-        <Pastilla etiqueta="Para llamar hoy" valor={llamarHoy} urgente={llamarHoy > 0} />
-        <Pastilla etiqueta="Rellamadas agendadas" valor={agendadas} />
-      </section>
+      <div className="flex flex-wrap items-center gap-2">
+        <section aria-label="Resumen de tu base" className="flex flex-wrap items-center gap-2">
+          <Pastilla etiqueta={mes === MES_TODOS ? 'En tu base' : `De ${etiquetaMesLead(mes)}`} valor={visibles.length} />
+          <Pastilla etiqueta="Para llamar hoy" valor={llamarHoy} urgente={llamarHoy > 0} />
+          <Pastilla etiqueta="Rellamadas agendadas" valor={agendadas} />
+        </section>
+        {conMes && (
+          <div className="flex items-center gap-2 sm:ml-auto">
+            <label htmlFor={idMes} className="text-sm font-semibold text-[var(--muted-foreground-strong)]">Mes</label>
+            <div className="w-52">
+              <Select id={idMes} value={mes} onChange={(e) => { setMesElegido(e.target.value) }} className="pointer-coarse:h-11 pointer-coarse:text-base">
+                <option value={MES_TODOS}>Todos ({filas.length})</option>
+                {meses.map((m) => <option key={m.clave} value={m.clave}>{m.etiqueta} ({m.leads})</option>)}
+              </Select>
+            </div>
+          </div>
+        )}
+      </div>
 
       {recargaFallida && (
         <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-4 py-2.5">
@@ -114,19 +145,20 @@ export function BaseGestionAnalista(): JSX.Element {
       ) : esMovil ? (
         // Rol explícito: con el list-style:none del preflight, Safari + VoiceOver deja de anunciar un <ul> como lista.
         <div role="list" aria-label="Tu base para gestión" className="space-y-3">
-          {filas.map((fila) => <TarjetaBase key={fila.lead_id} fila={fila} ahora={ahora} puedeMarcar={puedeMarcar} />)}
+          {visibles.map((fila) => <TarjetaBase key={fila.lead_id} fila={fila} ahora={ahora} puedeMarcar={puedeMarcar} conMes={conMes} />)}
         </div>
       ) : (
         // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- La hoja se desplaza con el teclado en los dos ejes.
         <div className={cn('ac-scroll max-h-[calc(100dvh-14rem)] overflow-auto rounded-lg border border-[var(--border-strong)] bg-card', FOCO)} tabIndex={0} role="region" aria-label="Tu base para gestión">
           <table className="min-w-full border-separate border-spacing-0">
             <caption className="sr-only">
-              Tus leads descartados. Primero los que toca llamar hoy; después los que llegaron más lejos en el pipeline y los descartados más recientes.
+              Tus leads descartados{mes === MES_TODOS ? '' : ` de ${etiquetaMesLead(mes)}`}. Primero los que toca llamar hoy; después los que llegaron más lejos en el pipeline y los descartados más recientes.
             </caption>
             <thead>
               <tr>
                 <th scope="col" className={cn(ENCABEZADO, FIJA_NUMERO, ANCHO_NUMERO, 'z-20 text-center')}>#</th>
                 <th scope="col" className={cn(ENCABEZADO, FIJA_LEAD, ANCHO_LEAD, 'z-20')}>Lead</th>
+                {conMes && <th scope="col" className={ENCABEZADO}>Mes</th>}
                 <th scope="col" className={ENCABEZADO}>Teléfono</th>
                 <th scope="col" className={ENCABEZADO}>Próxima llamada</th>
                 <th scope="col" className={ENCABEZADO}>Intentos</th>
@@ -140,7 +172,7 @@ export function BaseGestionAnalista(): JSX.Element {
               </tr>
             </thead>
             <tbody>
-              {filas.map((fila, i) => <FilaHoja key={fila.lead_id} numero={i + 1} fila={fila} ahora={ahora} puedeMarcar={puedeMarcar} />)}
+              {visibles.map((fila, i) => <FilaHoja key={fila.lead_id} numero={i + 1} fila={fila} ahora={ahora} puedeMarcar={puedeMarcar} conMes={conMes} />)}
             </tbody>
           </table>
         </div>
@@ -161,13 +193,14 @@ function Pastilla({ etiqueta, valor, urgente = false }: { etiqueta: string; valo
       'inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm',
       urgente ? 'border-destructive/40 bg-destructive/[0.06] text-[var(--destructive-text)]' : 'border-border bg-card text-[var(--muted-foreground-strong)]',
     )}>
-      <span>{etiqueta}</span>
+      {/* El «:» oculto separa la etiqueta del número para el lector («De Agosto 2026: 2», no «20262»). */}
+      <span>{etiqueta}<span className="sr-only">:</span></span>
       <strong className={cn('font-bold tabular-nums', urgente ? 'text-[var(--destructive-text)]' : 'text-foreground')}>{valor}</strong>
     </p>
   )
 }
 
-function FilaHoja({ numero, fila, ahora, puedeMarcar }: { numero: number; fila: FilaBaseGestion; ahora: number; puedeMarcar: boolean }) {
+function FilaHoja({ numero, fila, ahora, puedeMarcar, conMes }: { numero: number; fila: FilaBaseGestion; ahora: number; puedeMarcar: boolean; conMes: boolean }) {
   const hoy = fila.rellamada_hoy
   // Las celdas fijas llevan fondo opaco (tapan lo que pasa por debajo al desplazar); la fila «hoy» lo tiñe igual.
   const fondoFijo = hoy ? 'bg-[color-mix(in_srgb,var(--destructive)_6%,var(--card))]' : 'bg-card group-hover:bg-[color-mix(in_srgb,var(--accent)_5%,var(--card))]'
@@ -180,6 +213,7 @@ function FilaHoja({ numero, fila, ahora, puedeMarcar }: { numero: number; fila: 
         {fila.nombre_completo}
         {hoy && <span className="sr-only"> — toca llamar hoy</span>}
       </th>
+      {conMes && <td className={CELDA}><MesDelLead fila={fila} /></td>}
       <td className={CELDA}><TelefonoLlamable fila={fila} puedeMarcar={puedeMarcar} /></td>
       <td className={CELDA}><ProximaLlamada iso={fila.proxima_llamada_en} ahora={ahora} /></td>
       <td className={CELDA}><Intentos n={fila.intentos} /></td>
@@ -230,7 +264,7 @@ function contactoDe(fila: FilaBaseGestion): string {
     .join(' · ')
 }
 
-function TarjetaBase({ fila, ahora, puedeMarcar }: { fila: FilaBaseGestion; ahora: number; puedeMarcar: boolean }) {
+function TarjetaBase({ fila, ahora, puedeMarcar, conMes }: { fila: FilaBaseGestion; ahora: number; puedeMarcar: boolean; conMes: boolean }) {
   const dato = 'text-sm text-foreground'
   const rotulo = 'text-[13px] font-semibold text-[var(--muted-foreground-strong)]'
   return (
@@ -238,6 +272,7 @@ function TarjetaBase({ fila, ahora, puedeMarcar }: { fila: FilaBaseGestion; ahor
       <p className="text-base font-semibold text-foreground">{fila.nombre_completo}</p>
       <p className="text-sm text-[var(--muted-foreground-strong)]">{contactoDe(fila)}</p>
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2">
+        {conMes && <div><dt className={rotulo}>Mes</dt><dd className={dato}><MesDelLead fila={fila} /></dd></div>}
         <div><dt className={rotulo}>Próxima llamada</dt><dd className={dato}><ProximaLlamada iso={fila.proxima_llamada_en} ahora={ahora} /></dd></div>
         <div><dt className={rotulo}>Intentos</dt><dd className={dato}><Intentos n={fila.intentos} /></dd></div>
         <div><dt className={rotulo}>Motivo del descarte</dt><dd className={dato}>{etiquetaMotivoDescarte(fila.motivo_descarte)}</dd></div>
@@ -276,6 +311,11 @@ function AccionLlamar({ fila, puedeMarcar }: { fila: FilaBaseGestion; puedeMarca
       Llamar
     </button>
   )
+}
+
+function MesDelLead({ fila }: { fila: FilaBaseGestion }) {
+  const mes = mesDelLead(fila)
+  return mes ? <span>{etiquetaMesLead(mes)}</span> : <span className="text-[var(--muted-foreground-strong)]">Sin fecha</span>
 }
 
 function EtapaMaximaChip({ etapa }: { etapa: EtapaMaxima }) {
