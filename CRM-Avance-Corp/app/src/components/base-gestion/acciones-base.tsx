@@ -86,12 +86,13 @@ function NoContactarDialogo({ fila, demo, abierto, onCerrar, onHecho }: { fila: 
   const id = useId()
   const mutacion = useMarcarNoContactarBase()
   const [motivo, setMotivo] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  // Solo el motivo corto marca el campo como inválido; un fallo del servidor se dice, pero no culpa al campo.
+  const [error, setError] = useState<{ tipo: 'motivo' | 'envio'; texto: string } | null>(null)
   const cerrar = () => { if (mutacion.isPending) return; setMotivo(''); setError(null); onCerrar() }
 
   async function confirmar() {
     if (mutacion.isPending) return
-    if (motivo.trim().length < MOTIVO_MINIMO) { setError(`Escribe el motivo (mínimo ${MOTIVO_MINIMO} caracteres): por ejemplo, «pidió que no lo llamen más».`); return }
+    if (motivo.trim().length < MOTIVO_MINIMO) { setError({ tipo: 'motivo', texto: `Escribe el motivo (mínimo ${MOTIVO_MINIMO} caracteres): por ejemplo, «pidió que no lo llamen más».` }); return }
     if (demo) { toast.info('En la demo no se marca'); return }
     setError(null)
     try {
@@ -100,7 +101,7 @@ function NoContactarDialogo({ fila, demo, abierto, onCerrar, onHecho }: { fila: 
       onCerrar()
       onHecho()
     } catch (causa: unknown) {
-      setError(causa instanceof CrmApiError ? causa.message : 'No se pudo marcar. Inténtalo de nuevo.')
+      setError({ tipo: 'envio', texto: causa instanceof CrmApiError ? causa.message : 'No se pudo marcar. Inténtalo de nuevo.' })
     }
   }
 
@@ -122,13 +123,13 @@ function NoContactarDialogo({ fila, demo, abierto, onCerrar, onHecho }: { fila: 
           required
           value={motivo}
           onChange={(e) => { setMotivo(e.target.value); setError(null) }}
-          aria-invalid={error != null || undefined}
+          aria-invalid={error?.tipo === 'motivo' || undefined}
           aria-describedby={`${id}-consecuencia ${id}-ayuda${error ? ` ${id}-error` : ''}`}
           className={AREA}
           placeholder="Por ejemplo: pidió que no lo llamen más"
         />
         <p id={`${id}-ayuda`} className="mt-1 text-[13px] text-[var(--muted-foreground-strong)]">Obligatorio · mínimo {MOTIVO_MINIMO} caracteres</p>
-        {error && <p id={`${id}-error`} role="alert" className="mt-2 text-sm font-medium text-[var(--destructive-text)]">{error}</p>}
+        {error && <p id={`${id}-error`} role="alert" className="mt-2 text-sm font-medium text-[var(--destructive-text)]">{error.texto}</p>}
       </DialogBody>
       <DialogFooter>
         <Button type="button" variant="ghost" onClick={cerrar}>Cancelar</Button>

@@ -114,7 +114,7 @@ export function BaseGestionAnalista(): JSX.Element {
   return (
     <div className="mx-auto w-full max-w-[1640px] space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <section ref={resumen} tabIndex={-1} aria-label="Resumen de tu base" className="flex flex-wrap items-center gap-2 outline-none">
+        <section ref={resumen} tabIndex={-1} aria-label="Resumen de tu base" className={cn('flex flex-wrap items-center gap-2 rounded-lg', FOCO)}>
           <Pastilla etiqueta={mes === MES_TODOS ? 'En tu base' : `De ${etiquetaMesLead(mes)}`} valor={visibles.length} />
           <Pastilla etiqueta="Para llamar hoy" valor={llamarHoy} urgente={llamarHoy > 0} />
           <Pastilla etiqueta="Rellamadas agendadas" valor={agendadas} />
@@ -156,7 +156,7 @@ export function BaseGestionAnalista(): JSX.Element {
         </div>
       ) : esMovil ? (
         // Rol explícito: con el list-style:none del preflight, Safari + VoiceOver deja de anunciar un <ul> como lista.
-        <div ref={listaTarjetas} tabIndex={-1} role="list" aria-label="Tu base para gestión" className="space-y-3 outline-none">
+        <div ref={listaTarjetas} tabIndex={-1} role="list" aria-label="Tu base para gestión" className={cn('space-y-3 rounded-lg', FOCO)}>
           {visibles.map((fila) => <TarjetaBase key={fila.lead_id} fila={fila} ahora={ahora} puedeMarcar={puedeMarcar} conMes={conMes} onAbrir={() => abrirFicha(fila.lead_id)} />)}
         </div>
       ) : (
