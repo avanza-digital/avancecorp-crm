@@ -1,8 +1,8 @@
 {
-  "actualizado": "2026-10-03T14:08:38Z",
+  "actualizado": "2026-10-03T14:23:54Z",
   "meta": {
-    "novedad": "03/10 14:08 UTC: bloque de pruebas de seguridad testLlamadasCelular escrito en test-rls.mjs para el ensayo de Miguel (sin correr aquí: no hay banco con el esquema de producción). PR #169 sigue esperando a Miguel. Siguiente: el espejo de la Edge (paso 0.4).",
-    "actualizado": "2026-10-03T14:08:38Z"
+    "novedad": "03/10 14:23 UTC: nuestro paso 0 para publicar está completo: bloque de pruebas de seguridad del gate escrito y la Edge copiada a la carpeta compartida. El PR #169 dice que Miguel ya puede empezar (decidir, revisar con Codex, ensayar y aplicar). Nada aplicado todavía.",
+    "actualizado": "2026-10-03T14:23:54Z"
   },
   "fases": {
     "F0": { "estado": "curso", "actualizado": "2026-09-29T22:42:31Z" },
@@ -132,6 +132,7 @@
     { "at": "2026-10-02T23:35:50Z", "texto": "A2 de F3-c PASS: una llamada entrante a C1 no abrió encuesta ni generó aviso. Con esto la macro definitiva de salientes pasó A1–A7. macrodroid.md §3c reescrita con los nombres reales de MacroDroid en C1 y las trampas vistas (claves entre corchetes, «Eliminar clave», un «Si» por caso, sin Content-Type a mano, límite de 5 macros). Handoff para el 03/10: HANDOFF-2026-10-03.md." },
     { "at": "2026-10-02T23:56:31Z", "texto": "PR #169 feat/llamadas-f2 → main, con Miguel como revisor: migraciones de F2 y F3 (sin aplicar), Edge crm-llamadas-ingesta (sin desplegar), receptor de pruebas, guía de la macro, registro del piloto, propuestas #13–#15 y PUBLICAR-F2-F3.md. Rama integrada con main hasta el #168; aviso PARA MIGUEL en Inicio.md. Re-verificado tras los merges: test:llamadas:local 160/160, Edge 16/16 y 14/14 mutantes, receptor 9/9, pre-push 5592." },
     { "at": "2026-10-03T00:05:10Z", "texto": "Handoff para el 03/10 (HANDOFF-2026-10-03.md): PR #169 abierto esperando a Miguel; lo nuestro es el paso 0 de PUBLICAR-F2-F3.md: el bloque testLlamadasCelular de test-rls.mjs (no existe todavía; especificación en F2-PLAN-CORTO.md) y el espejo de la Edge. Las revisiones auditor-rls y Codex LEVEL 3 las hace Miguel." },
-    { "at": "2026-10-03T14:08:38Z", "texto": "Paso 0.1 de PUBLICAR-F2-F3.md: bloque testLlamadasCelular en test-rls.mjs (último del gate, interruptor CRM_RLS_EXIGE_LLAMADAS). Prueba que nadie lee ni toca las 4 tablas directo, que cada puerta es solo de su rol (gerencia asigna/rota/cierra; supervisión ve su equipo; servicio solo service_role; anon, coordinación, directorio y analista de baja, nada), la ingesta (clave desconocida 42501, repetida, P0409, dos envíos a la vez, número sin lead no se guarda), el ámbito por equipo, la corrección del supervisor y la rotación/cierre de la clave. node --check y oxlint limpios; NOT RUN: lo corre Miguel en su ensayo." }
+    { "at": "2026-10-03T14:08:38Z", "texto": "Paso 0.1 de PUBLICAR-F2-F3.md: bloque testLlamadasCelular en test-rls.mjs (último del gate, interruptor CRM_RLS_EXIGE_LLAMADAS). Prueba que nadie lee ni toca las 4 tablas directo, que cada puerta es solo de su rol (gerencia asigna/rota/cierra; supervisión ve su equipo; servicio solo service_role; anon, coordinación, directorio y analista de baja, nada), la ingesta (clave desconocida 42501, repetida, P0409, dos envíos a la vez, número sin lead no se guarda), el ámbito por equipo, la corrección del supervisor y la rotación/cierre de la clave. node --check y oxlint limpios; NOT RUN: lo corre Miguel en su ensayo." },
+    { "at": "2026-10-03T14:23:54Z", "texto": "Paso 0.4 de PUBLICAR-F2-F3.md: espejo de la Edge en _supabase_functions/functions/crm-llamadas-ingesta/ (index.ts y handler.ts, mismo blob de git que el original). Con 0.1 (bloque testLlamadasCelular) el paso 0 queda completo; descripción del PR #169 y aviso PARA MIGUEL de Inicio.md actualizados: Miguel ya puede empezar." }
   ]
 }

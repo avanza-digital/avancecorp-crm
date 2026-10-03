@@ -1,10 +1,10 @@
 # Avance — Llamadas desde el celular al CRM
 
-Actualizado: 03/10/2026, 09:08 a. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
+Actualizado: 03/10/2026, 09:23 a. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
 
 Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact/Q3GmV9m6Cy2GPQGKAbNy8M · Plan completo: `PLAN.md` en esta carpeta.
 
-**Lo último:** 03/10 14:08 UTC: bloque de pruebas de seguridad testLlamadasCelular escrito en test-rls.mjs para el ensayo de Miguel (sin correr aquí: no hay banco con el esquema de producción). PR #169 sigue esperando a Miguel. Siguiente: el espejo de la Edge (paso 0.4).
+**Lo último:** 03/10 14:23 UTC: nuestro paso 0 para publicar está completo: bloque de pruebas de seguridad del gate escrito y la Edge copiada a la carpeta compartida. El PR #169 dice que Miguel ya puede empezar (decidir, revisar con Codex, ensayar y aplicar). Nada aplicado todavía.
 
 **Total:** 24 de 102 tareas · 1 de 8 fases hechas.
 
@@ -111,6 +111,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 
 ## Últimos cambios
 
+- 03/10/2026, 09:23 a. m. · Paso 0.4 de PUBLICAR-F2-F3.md: espejo de la Edge en _supabase_functions/functions/crm-llamadas-ingesta/ (index.ts y handler.ts, mismo blob de git que el original). Con 0.1 (bloque testLlamadasCelular) el paso 0 queda completo; descripción del PR #169 y aviso PARA MIGUEL de Inicio.md actualizados: Miguel ya puede empezar.
 - 03/10/2026, 09:08 a. m. · Paso 0.1 de PUBLICAR-F2-F3.md: bloque testLlamadasCelular en test-rls.mjs (último del gate, interruptor CRM_RLS_EXIGE_LLAMADAS). Prueba que nadie lee ni toca las 4 tablas directo, que cada puerta es solo de su rol (gerencia asigna/rota/cierra; supervisión ve su equipo; servicio solo service_role; anon, coordinación, directorio y analista de baja, nada), la ingesta (clave desconocida 42501, repetida, P0409, dos envíos a la vez, número sin lead no se guarda), el ámbito por equipo, la corrección del supervisor y la rotación/cierre de la clave. node --check y oxlint limpios; NOT RUN: lo corre Miguel en su ensayo.
 - 02/10/2026, 07:05 p. m. · Handoff para el 03/10 (HANDOFF-2026-10-03.md): PR #169 abierto esperando a Miguel; lo nuestro es el paso 0 de PUBLICAR-F2-F3.md: el bloque testLlamadasCelular de test-rls.mjs (no existe todavía; especificación en F2-PLAN-CORTO.md) y el espejo de la Edge. Las revisiones auditor-rls y Codex LEVEL 3 las hace Miguel.
 - 02/10/2026, 06:56 p. m. · PR #169 feat/llamadas-f2 → main, con Miguel como revisor: migraciones de F2 y F3 (sin aplicar), Edge crm-llamadas-ingesta (sin desplegar), receptor de pruebas, guía de la macro, registro del piloto, propuestas #13–#15 y PUBLICAR-F2-F3.md. Rama integrada con main hasta el #168; aviso PARA MIGUEL en Inicio.md. Re-verificado tras los merges: test:llamadas:local 160/160, Edge 16/16 y 14/14 mutantes, receptor 9/9, pre-push 5592.
@@ -125,4 +126,3 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 - 02/10/2026, 02:25 p. m. · Prueba 5 de MacroDroid en C1 PASS (14:22–14:24 Lima, Wi-Fi encendido): colgar antes de que contesten y dejar sonar sin respuesta dieron un solo aviso por llamada, con ids distintos. Con esto las 6 pruebas pasan; la decisión 5 de F3 (otro adaptador si MacroDroid no fuera durable) no hace falta. Hallazgo: «Llamada terminada» también dispara con entrantes y el cuerpo de la prueba dice siempre saliente; la macro definitiva fija la dirección. REGISTRO.md §5d con el resumen.
 - 02/10/2026, 02:19 p. m. · Prueba 4 de MacroDroid en C1 PASS (14:18 Lima): macro «Reintento F3» (Conectado a la red → MASCAPITAL, solo para la prueba; espera 10 s; codigo a 0; POST con {v=pendiente}; borra pendiente solo con 202). Al apagar y encender el Wi-Fi llegó solo el aviso C1-1790961656, creado a las 12:20:56 en la llamada sin Wi-Fi, ~2 h después y tras un reinicio: mismo id, así que la prueba 2 queda completa. Falta el reintento periódico ante 429/5xx, que va en la macro definitiva. El receptor se apagó a las 13:20 por el límite de 2 h y se encendió de nuevo a las 14:16 con la misma clave.
 - 02/10/2026, 12:47 p. m. · Requisito de Jhosep para la macro definitiva (F3-c): el reenvío de avisos pendientes no depende de ninguna red concreta. Disparador por cualquier cambio de conectividad (cualquier Wi-Fi o datos móviles) más un reintento periódico mientras haya pendiente; nunca «Conectado a la red» atado a un nombre de Wi-Fi (hay analistas en otra oficina) y sin pedir permiso de ubicación. Anotado en F3-PLAN-CORTO.md.
-- 02/10/2026, 12:18 p. m. · Prueba 3 de MacroDroid en C1 PASS (12:06–12:17 Lima): variable global pendiente con el aviso antes del envío, codigo a 0, cuerpo {v=pendiente} y borrado solo si codigo = 202. Con Wi-Fi llegó y se borró; sin Wi-Fi (solo datos móviles) no llegó y se conservó; tras reiniciar el celular seguía en MacroDroid → Variables. REGISTRO.md §5d.

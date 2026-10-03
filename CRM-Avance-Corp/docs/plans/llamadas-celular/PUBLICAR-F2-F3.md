@@ -14,8 +14,10 @@ advisors → merge. **Nunca `apply_migration` directo a producción.**
 | 0.1 | Escribir el bloque `testLlamadasCelular` en `supabase/scripts/test-rls.mjs` (con su interruptor `CRM_RLS_EXIGE_LLAMADAS`), como pide `F2-PLAN-CORTO.md` | **Escrito el 03/10, sin correr**: `node --check` y `oxlint` limpios. Aquí no hay un banco con el esquema de producción: **lo corre Miguel en el paso 2** |
 | 0.2 | ~~Revisión `auditor-rls`~~ → **la hace Miguel** (paso 2) | Jhosep, 02/10: las revisiones las hace Miguel |
 | 0.3 | ~~Revisión Codex LEVEL 3~~ → **la hace Miguel** (paso 2): él tiene Codex | Ídem |
-| 0.4 | Espejo de la Edge en `_supabase_functions/functions/crm-llamadas-ingesta/` (`index.ts` y `handler.ts` byte a byte, como `crm-notificaciones-tasa`) | Pendiente |
-| 0.5 | PR `feat/llamadas-f2` → `main`. `main` tiene que contener lo que se aplica en producción | Pendiente |
+| 0.4 | Espejo de la Edge en `_supabase_functions/functions/crm-llamadas-ingesta/` (`index.ts` y `handler.ts` byte a byte, como `crm-notificaciones-tasa`) | **Hecho el 03/10**: mismo blob de git que el original |
+| 0.5 | PR `feat/llamadas-f2` → `main`. `main` tiene que contener lo que se aplica en producción | **Hecho: PR #169** (02/10) |
+
+**Paso 0 completo el 03/10: Miguel puede empezar.**
 
 ## 1. Decisiones de Miguel antes de aplicar
 
