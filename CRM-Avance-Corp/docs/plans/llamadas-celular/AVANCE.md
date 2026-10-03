@@ -1,10 +1,10 @@
 # Avance — Llamadas desde el celular al CRM
 
-Actualizado: 03/10/2026, 02:08 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
+Actualizado: 03/10/2026, 02:18 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
 
 Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact/Q3GmV9m6Cy2GPQGKAbNy8M · Plan completo: `PLAN.md` en esta carpeta.
 
-**Lo último:** 03/10 19:08 UTC: guía de publicación con los puntos 17–20 de la revisión de Miguel en el PR #173: registradores de las 4 migraciones, archivo del alta de un celular, espejo viejo de la Edge retirado y MIGRACIONES.md al día. Sigue esperando su OK a las seis decisiones de la corrección.
+**Lo último:** 03/10 19:18 UTC: en el PR #173, además de la guía, el encargo para el revisor de Miguel sobre el plan de la corrección (11 preguntas, diseño antes del código). Miguel responde las seis decisiones ahí; nada se programa hasta su OK.
 
 **Total:** 25 de 102 tareas · 1 de 8 fases hechas.
 
@@ -118,6 +118,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 
 ## Últimos cambios
 
+- 03/10/2026, 02:18 p. m. · Encargo para el revisor de Miguel sobre el PLAN de la corrección (docs/encargos/2026-10-03-codex-llamadas-celular-correccion-r1.md, en el PR #173): ronda 1 de máx. 2 de la tarea «corrección», solo diseño, con 11 preguntas (P1–P11) y el código transcrito con número de línea; la ronda 2 queda para el diff de la quinta migración.
 - 03/10/2026, 02:08 p. m. · Guía de publicación con los puntos 17–20 de la revisión (PR #173, 61100e39): registradores de las 4 migraciones (contenido y md5 comprobados), alta-celular.sql para el ensayo y producción, espejo legado de la Edge retirado (deja sin efecto el paso 0.4 del 14:23) y MIGRACIONES.md al día.
 - 03/10/2026, 01:57 p. m. · PR #171 fusionado por Miguel (b6c4e3b4, 18:40 UTC) sin revisión formal ni respuesta a las seis decisiones: nada se programa hasta su OK. Seguimiento en el PR #172 (corrección del vault sobre el cierre de tareas de clientes).
 - 03/10/2026, 12:11 p. m. · F4-PLAN-CORTO.md al día: se adapta la Gestión Diaria que ya existe, sin rediseñar (pestaña «Llamadas del celular», encuesta en «Ahora», marca «Celular», pestaña de gerencia). Prototipo del analista rehecho sobre la pantalla real. Requisito de Jhosep: la encuesta se abre siempre al colgar.
@@ -132,4 +133,3 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 - 02/10/2026, 06:30 p. m. · A5 de F3-c PASS: una entrada dañada añadida a mano en cola_llamadas recibió 400, se apartó a errores_llamadas con la notificación sin número y no bloqueó la cola: la saliente siguiente llegó con 202 al volver el Wi-Fi. A7 también: ningún disparador definitivo pidió ubicación. Solo queda A2 (entrante). REGISTRO.md §5e.
 - 02/10/2026, 06:15 p. m. · A6 de F3-c PASS: saliente sin Wi-Fi a las 17:59:56 → 1 entrada en cola_llamadas → reinicio del celular → la entrada seguía y MacroDroid estaba en marcha → al encender el Wi-Fi llegó a las 18:15:10 con su hora original. El intervalo de 5 min se reactiva solo tras reiniciar. REGISTRO.md §5e.
 - 02/10/2026, 05:45 p. m. · A4 de F3-c PASS: con un 503 forzado en el receptor, el aviso C1-1790980958 se quedó en cola_llamadas y el intervalo de las 17:45 lo reintentó con el mismo id y la misma hora de colgado → 202. Cubre el reintento ante fallas del servidor que quedaba pendiente de la prueba 4. REGISTRO.md §5e.
-- 02/10/2026, 05:40 p. m. · A3 de F3-c PASS: dos salientes sin Wi-Fi (con datos móviles) quedaron en cola_llamadas; al encender el Wi-Fi llegaron las dos con su hora de colgado (17:36:49 y 17:40:10). Hallazgo: con datos móviles activos, encender el Wi-Fi no dispara «Datos Disponibles»; el intervalo de 5 minutos recoge lo pendiente (demora máxima ~5 min). REGISTRO.md §5e.
