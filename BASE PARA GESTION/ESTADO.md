@@ -11,6 +11,7 @@ Tipos regenerados desde producción en `9c1d7296` (typecheck PASS). Rama de Supa
 gate en `revisiones/2026-10-02-rama-y-gate.md`.
 **GitHub:** `main` local y `avancecorp/main` divergen (285 commits solo en local, entre ellos lo de Gloria, que NO sube;
 28 solo en GitHub). No se hizo push: la integración va por una PR que decide Miguel.
+**Frontend:** la rama `crm/base-gestion-front` nace del VIVO `44985828` (que NO está en `main` local: el tronco está partido, 52 commits del vivo faltan en `main`). Se publica desde esa rama con preflight y después se integra a `main` (decisión de Miguel sobre la carpeta sucia).
 **Bloqueos:** ninguno.
 
 | Fase | Estado | Evidencia / siguiente paso |
@@ -25,7 +26,7 @@ gate en `revisiones/2026-10-02-rama-y-gate.md`.
 | B4b Ventana (D13) `20261002235342` | ☑ EN PRODUCCIÓN 02/10 | |
 | B3b Codex `20261003001014` | ☑ EN PRODUCCIÓN 02/10 | Punto (a) de Codex r2 acreditado: «intentos previos 0» antes de aplicar |
 | Merge de Miguel | ☑ 02/10 20:15 | 7/7 `OK`; huellas de producción = rama; tipos `9c1d7296`; rama borrada |
-| F1 Vista analista | ◉ **en curso** | Plan en `FRONTEND.md`: `#/rescate` despacha por rol (como `gestion-diaria`); el analista ve una lista plana por `obtener_base_gestion()` |
+| F1 Vista analista | ◉ código listo, falta la revisión a11y | Rama `crm/base-gestion-front` (worktree `AVANCECORP-desktop-worktrees/base-gestion-front-20261002`, NACE DEL VIVO `44985828`): tipos `c11a8840` + F1 `7231672e`. `#/rescate` despacha por rol; analista → resumen + tabla (escritorio) / tarjetas (celular), «Llamar» según el aparato (tel: o copiar). `npm run check` PASS (5615 pruebas), 42 pruebas nuevas o ajustadas, captura demo 1440/390 px sin errores de consola |
 | F2 Ficha | ☐ | Historial completo y legible con buscador; formulario de intento (7 resultados, fecha en «volver a llamar»); Reactivar (confirmación, idempotente); No contactar con motivo |
 | F3 Organización | ☐ | «Llamar hoy» arriba; filtros por motivo, etapa máxima y último resultado; contador de intentos |
 | F4 Supervisor | ☐ (plan en `FRONTEND.md`; B5 «ver vetados» pendiente de OK) | Columnas Intentos · Último resultado · Gestiona; quitar «no contactar» (D5); reactivaciones por analista. Gerencia recibe 1069 filas: filtrar por analista o paginar |
