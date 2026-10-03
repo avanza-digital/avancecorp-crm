@@ -1,8 +1,8 @@
 {
-  "actualizado": "2026-10-03T19:08:31Z",
+  "actualizado": "2026-10-03T19:18:43Z",
   "meta": {
-    "novedad": "03/10 19:08 UTC: guía de publicación con los puntos 17–20 de la revisión de Miguel en el PR #173: registradores de las 4 migraciones, archivo del alta de un celular, espejo viejo de la Edge retirado y MIGRACIONES.md al día. Sigue esperando su OK a las seis decisiones de la corrección.",
-    "actualizado": "2026-10-03T19:08:31Z"
+    "novedad": "03/10 19:18 UTC: en el PR #173, además de la guía, el encargo para el revisor de Miguel sobre el plan de la corrección (11 preguntas, diseño antes del código). Miguel responde las seis decisiones ahí; nada se programa hasta su OK.",
+    "actualizado": "2026-10-03T19:18:43Z"
   },
   "fases": {
     "F0": { "estado": "curso", "actualizado": "2026-09-29T22:42:31Z" },
@@ -148,6 +148,7 @@
     { "at": "2026-10-03T16:46:09Z", "texto": "Revisión de Miguel (PR #170, fusionado): F2 y F3 FRENADAS por 5 fallos (auditor-rls pidió cambios; Codex LEVEL 3 r1: BLOCK). Plan corto de la corrección (CORRECCION-PLAN-CORTO.md) con seis decisiones para Miguel, en el PR #171. Miguel aprobó #13–#15." },
     { "at": "2026-10-03T17:11:10Z", "texto": "F4-PLAN-CORTO.md al día: se adapta la Gestión Diaria que ya existe, sin rediseñar (pestaña «Llamadas del celular», encuesta en «Ahora», marca «Celular», pestaña de gerencia). Prototipo del analista rehecho sobre la pantalla real. Requisito de Jhosep: la encuesta se abre siempre al colgar." },
     { "at": "2026-10-03T18:57:39Z", "texto": "PR #171 fusionado por Miguel (b6c4e3b4, 18:40 UTC) sin revisión formal ni respuesta a las seis decisiones: nada se programa hasta su OK. Seguimiento en el PR #172 (corrección del vault sobre el cierre de tareas de clientes)." },
-    { "at": "2026-10-03T19:08:31Z", "texto": "Guía de publicación con los puntos 17–20 de la revisión (PR #173, 61100e39): registradores de las 4 migraciones (contenido y md5 comprobados), alta-celular.sql para el ensayo y producción, espejo legado de la Edge retirado (deja sin efecto el paso 0.4 del 14:23) y MIGRACIONES.md al día." }
+    { "at": "2026-10-03T19:08:31Z", "texto": "Guía de publicación con los puntos 17–20 de la revisión (PR #173, 61100e39): registradores de las 4 migraciones (contenido y md5 comprobados), alta-celular.sql para el ensayo y producción, espejo legado de la Edge retirado (deja sin efecto el paso 0.4 del 14:23) y MIGRACIONES.md al día." },
+    { "at": "2026-10-03T19:18:43Z", "texto": "Encargo para el revisor de Miguel sobre el PLAN de la corrección (docs/encargos/2026-10-03-codex-llamadas-celular-correccion-r1.md, en el PR #173): ronda 1 de máx. 2 de la tarea «corrección», solo diseño, con 11 preguntas (P1–P11) y el código transcrito con número de línea; la ronda 2 queda para el diff de la quinta migración." }
   ]
 }
