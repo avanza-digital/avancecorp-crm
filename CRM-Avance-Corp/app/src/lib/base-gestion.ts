@@ -5,6 +5,7 @@
 // cada fila y se redacta lo que la pantalla muestra.
 import * as v from 'valibot'
 import { DIAS, MESES, fechaLima, horaLima } from './agenda-derivada'
+import { etiquetaDeMes, mesLima } from './cartera-meses'
 import { EnteroNoNegativoRpcSchema, NumeroRpcSchema } from './esquemas-rpc'
 import { etiquetaResultado } from './resultado-llamada'
 import { ETAPA_INFO, MOTIVOS_DESCARTE, origenLabel, type Lead } from './tipos'
@@ -44,6 +45,9 @@ export const FilaBaseGestionSchema = v.object({
   ciclo_n: v.nullable(EnteroNoNegativoRpcSchema),
   vendedor_id: TextoONulo,
   gestiona: TextoONulo,
+  /** Cuándo le llegó el lead al analista (`coalesce(tenencia_desde, creado_en)`): el MES por el que se organiza
+   *  (Miguel, 02/10/2026). Lo añade la migración B5; opcional para que la pantalla sirva antes y después de ella. */
+  recibido_en: v.optional(TextoONulo, null),
 })
 export type FilaBaseGestion = v.InferOutput<typeof FilaBaseGestionSchema>
 
@@ -133,7 +137,47 @@ export function filasDemoBaseGestion(leads: readonly Lead[], analistaId: string,
         etapa_maxima: 'sin_datos' as const, intentos: 0, ultimo_resultado: null, ultimo_intento_en: null,
         proxima_llamada_en: null, rellamada_hoy: false, enfriado_hasta: null, ciclo_n: null,
         vendedor_id: analistaId, gestiona: l.vendedor_nombre ?? null,
+        recibido_en: l.tenencia_desde ?? l.creado_en,
       }
     })
     .sort((a, b) => (a.dias_desde_descarte ?? 0) - (b.dias_desde_descarte ?? 0))
 }
+
+// ── El MES del lead: «mis leads de enero, de marzo, de agosto» (Miguel, 02/10/2026) ──────────────────────────
+/** Valor del selector que apaga el recorte por mes. */
+export const MES_TODOS = 'todos'
+
+/** 'YYYY-MM' en Lima del mes en que le llegó el lead al analista; null si el servidor aún no lo manda. */
+export function mesDelLead(fila: FilaBaseGestion): string | null {
+  return mesLima(fila.recibido_en)
+}
+
+/** 'Agosto 2026' (rótulo largo de la casa, el de los bloques de «Mi cartera»). */
+export function etiquetaMesLead(clave: string): string {
+  return etiquetaDeMes(clave)
+}
+
+export interface MesDeLaBase {
+  clave: string
+  etiqueta: string
+  leads: number
+}
+
+/** Los meses presentes en la base con su conteo, del más reciente al más antiguo. Vacío si ninguna fila trae el mes. */
+export function mesesDeLaBase(filas: readonly FilaBaseGestion[]): MesDeLaBase[] {
+  const conteo = new Map<string, number>()
+  for (const f of filas) {
+    const mes = mesDelLead(f)
+    if (mes) conteo.set(mes, (conteo.get(mes) ?? 0) + 1)
+  }
+  return [...conteo.entries()]
+    .sort(([a], [b]) => (a < b ? 1 : a > b ? -1 : 0))
+    .map(([clave, leads]) => ({ clave, etiqueta: etiquetaMesLead(clave), leads }))
+}
+
+/** Las filas del mes elegido (o todas). Una fila sin mes solo aparece en «todos». */
+export function filasDelMes(filas: readonly FilaBaseGestion[], mes: string): FilaBaseGestion[] {
+  if (mes === MES_TODOS) return [...filas]
+  return filas.filter((f) => mesDelLead(f) === mes)
+}
+

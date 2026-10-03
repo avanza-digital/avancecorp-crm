@@ -28,7 +28,7 @@ function fila(n: number, sobre: Partial<FilaBaseGestion> = {}): FilaBaseGestion 
     categoria_interes: null, monto_estimado: 10000, moneda: 'PEN', motivo_descarte: 'no_responde',
     descartado_en: '2026-09-25T15:00:00Z', dias_desde_descarte: 7, etapa_maxima: 'contactado', intentos: 1,
     ultimo_resultado: 'no_contesto', ultimo_intento_en: '2026-09-30T15:00:00Z', proxima_llamada_en: null,
-    rellamada_hoy: false, enfriado_hasta: null, ciclo_n: 1, vendedor_id: 'analista-a', gestiona: 'ANALISTA A', ...sobre,
+    rellamada_hoy: false, enfriado_hasta: null, ciclo_n: 1, vendedor_id: 'analista-a', gestiona: 'ANALISTA A', recibido_en: '2026-08-15T15:00:00Z', ...sobre,
   }
 }
 
@@ -76,7 +76,9 @@ describe('la base del analista', () => {
     vi.useRealTimers()
     expect(screen.getByRole('table', { name: /Tus leads descartados/ })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Tu base para gestión' })).toHaveAttribute('tabindex', '0')
-    expect(screen.getByRole('columnheader', { name: 'Acciones' })).toBeInTheDocument()
+    // La hoja (Miguel, 02/10): número de fila, y el teléfono es el botón de llamar.
+    expect(screen.getByRole('columnheader', { name: '#' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Teléfono' })).toBeInTheDocument()
     const filas = within(screen.getByRole('table')).getAllByRole('row').slice(1)
     expect(filas.map((f) => within(f).getByRole('rowheader').textContent)).toEqual([
       expect.stringContaining('LEAD BASE 1'), expect.stringContaining('LEAD BASE 2'),
@@ -100,7 +102,7 @@ describe('la base del analista', () => {
     CONSULTA.data = [fila(1), fila(2, { telefono: null })]
     render(<BaseGestion />)
     expect(screen.queryByRole('link', { name: /Llamar a/ })).toBeNull()
-    await userEvent.click(screen.getByRole('button', { name: 'Llamar a LEAD BASE 1: copia su número' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Llamar a LEAD BASE 1, 987 654 321: copia su número' }))
     expect(writeText).toHaveBeenCalledWith('+51987654321')
     expect(toastSuccess).toHaveBeenCalledWith('Número copiado: 987 654 321 — márcalo desde tu celular')
     expect(screen.getByText('Sin teléfono')).toBeInTheDocument()

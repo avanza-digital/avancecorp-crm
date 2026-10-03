@@ -1,9 +1,12 @@
-// La base del analista (F1, 02/10/2026): sus leads descartados para volver a intentarlo, en una lista plana
-// y legible (nombre 16 px, detalle 14 px, filas altas). El SERVIDOR decide qué entra y en qué orden
-// (rellamada de hoy → etapa máxima → menos días desde el descarte) y aplica las reglas; la pantalla solo
-// presenta. Escritorio pinta una tabla; el celular, tarjetas con «Llamar» a la vista (useEsMovil monta solo
-// una de las dos). «Llamar» depende del APARATO, como en Gestión Diaria: el celular abre el marcador
-// (`tel:`) y la laptop copia el número. Registrar el intento, reactivar y la ficha con el historial llegan en F2.
+// La base del analista (F1, 02/10/2026): sus leads descartados para volver a intentarlo. El SERVIDOR decide qué
+// entra y en qué orden (rellamada de hoy → etapa máxima → menos días desde el descarte) y aplica las reglas; la
+// pantalla solo presenta.
+// Forma (Miguel, 02/10/2026): las cifras de arriba son PEQUEÑAS (el analista trabaja la lista, no mira cifras) y la
+// lista de escritorio es una HOJA DE CÁLCULO: cuadrícula, un dato por celda, número de fila, encabezado y primeras
+// columnas fijos al desplazar, y la fila «hoy» con formato condicional. El celular pinta tarjetas (useEsMovil monta
+// solo una de las dos). «Llamar» depende del APARATO, como en Gestión Diaria: el celular abre el marcador (`tel:`)
+// y la laptop copia el número; en la hoja, el propio teléfono es el botón. Registrar el intento, reactivar y la
+// ficha con el historial llegan en F2.
 import { useMemo, type JSX } from 'react'
 import { toast } from 'sonner'
 import { ArchiveRestore, Phone, RotateCcw } from 'lucide-react'
@@ -43,6 +46,15 @@ const BOTON_LLAMAR = cn(
   FOCO,
 )
 
+// ── La hoja: celdas de cuadrícula, una línea por celda ──────────────────────────────────────────────────────
+const ANCHO_NUMERO = 'w-12 min-w-12'
+const ANCHO_LEAD = 'w-64 min-w-64'
+const CELDA = 'whitespace-nowrap border-b border-r border-border px-3 py-2 text-left align-middle text-sm text-foreground'
+const ENCABEZADO = 'sticky top-0 z-10 whitespace-nowrap border-b border-r border-[var(--border-strong)] bg-muted px-3 py-2 text-left text-[13px] font-semibold text-[var(--muted-foreground-strong)]'
+// Las dos primeras columnas quedan fijas al desplazar en horizontal (como «inmovilizar paneles»): necesitan fondo propio.
+const FIJA_NUMERO = 'sticky left-0'
+const FIJA_LEAD = 'sticky left-12'
+
 export function BaseGestionAnalista(): JSX.Element {
   const { yo } = useAuth()
   const { leads } = useCRMData()
@@ -70,26 +82,15 @@ export function BaseGestionAnalista(): JSX.Element {
   const agendadas = filas.filter((f) => f.proxima_llamada_en !== null && !f.rellamada_hoy).length
 
   return (
-    <div className="mx-auto w-full max-w-[1640px] space-y-5">
-      <section aria-label="Resumen de tu base">
-        {esMovil ? (
-          // En el celular, una franja de texto que se acomoda a cualquier ancho (a 320 px tres tarjetas no caben).
-          <p className="flex flex-wrap items-baseline gap-x-4 gap-y-1 rounded-xl border border-border bg-card px-4 py-3 text-sm text-[var(--muted-foreground-strong)]">
-            <span><strong className="text-xl font-extrabold tabular-nums text-primary">{filas.length}</strong> en tu base</span>
-            <span><strong className={cn('text-xl font-extrabold tabular-nums', llamarHoy > 0 ? 'text-[var(--destructive-text)]' : 'text-primary')}>{llamarHoy}</strong> para llamar hoy</span>
-            <span><strong className="text-xl font-extrabold tabular-nums text-primary">{agendadas}</strong> rellamadas agendadas</span>
-          </p>
-        ) : (
-          <div className="grid grid-cols-3 gap-3">
-            <Cifra titulo="En tu base" valor={filas.length} detalle="Descartados que puedes volver a intentar" />
-            <Cifra titulo="Para llamar hoy" valor={llamarHoy} detalle="Rellamadas de hoy o ya vencidas" urgente={llamarHoy > 0} />
-            <Cifra titulo="Rellamadas agendadas" valor={agendadas} detalle="Para los próximos días" />
-          </div>
-        )}
+    <div className="mx-auto w-full max-w-[1640px] space-y-3">
+      <section aria-label="Resumen de tu base" className="flex flex-wrap items-center gap-2">
+        <Pastilla etiqueta="En tu base" valor={filas.length} />
+        <Pastilla etiqueta="Para llamar hoy" valor={llamarHoy} urgente={llamarHoy > 0} />
+        <Pastilla etiqueta="Rellamadas agendadas" valor={agendadas} />
       </section>
 
       {recargaFallida && (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-4 py-2.5">
           <p role="status" className="text-sm text-[var(--muted-foreground-strong)]">No pudimos actualizar tu base. Se muestran los últimos datos.</p>
           <Button
             variant="outline"
@@ -103,7 +104,7 @@ export function BaseGestionAnalista(): JSX.Element {
       )}
 
       {filas.length === 0 ? (
-        <div className="rounded-xl border border-border bg-card">
+        <div className="rounded-lg border border-border bg-card">
           <PanelVacio
             icono={ArchiveRestore}
             titulo="No tienes leads descartados por gestionar"
@@ -116,26 +117,30 @@ export function BaseGestionAnalista(): JSX.Element {
           {filas.map((fila) => <TarjetaBase key={fila.lead_id} fila={fila} ahora={ahora} puedeMarcar={puedeMarcar} />)}
         </div>
       ) : (
-        // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- La región permite desplazar la tabla con el teclado.
-        <div className={cn('ac-scroll overflow-x-auto rounded-xl border border-border bg-card', FOCO)} tabIndex={0} role="region" aria-label="Tu base para gestión">
-          <table className="w-full min-w-[1080px] border-separate border-spacing-0 text-sm">
+        // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- La hoja se desplaza con el teclado en los dos ejes.
+        <div className={cn('ac-scroll max-h-[calc(100dvh-14rem)] overflow-auto rounded-lg border border-[var(--border-strong)] bg-card', FOCO)} tabIndex={0} role="region" aria-label="Tu base para gestión">
+          <table className="min-w-full border-separate border-spacing-0">
             <caption className="sr-only">
               Tus leads descartados. Primero los que toca llamar hoy; después los que llegaron más lejos en el pipeline y los descartados más recientes.
             </caption>
-            <thead className="bg-muted/70 text-[13px] text-[var(--muted-foreground-strong)]">
+            <thead>
               <tr>
-                <th scope="col" className="px-4 py-2.5 text-left font-semibold">Lead</th>
-                <th scope="col" className="px-4 py-2.5 text-left font-semibold">Motivo del descarte</th>
-                <th scope="col" className="px-4 py-2.5 text-left font-semibold">Etapa máxima</th>
-                <th scope="col" className="px-4 py-2.5 text-left font-semibold">Descartado</th>
-                <th scope="col" className="px-4 py-2.5 text-left font-semibold">Intentos</th>
-                <th scope="col" className="px-4 py-2.5 text-left font-semibold">Último resultado</th>
-                <th scope="col" className="px-4 py-2.5 text-left font-semibold">Próxima llamada</th>
-                <th scope="col" className="px-4 py-2.5 text-right font-semibold"><span className="sr-only">Acciones</span></th>
+                <th scope="col" className={cn(ENCABEZADO, FIJA_NUMERO, ANCHO_NUMERO, 'z-20 text-center')}>#</th>
+                <th scope="col" className={cn(ENCABEZADO, FIJA_LEAD, ANCHO_LEAD, 'z-20')}>Lead</th>
+                <th scope="col" className={ENCABEZADO}>Teléfono</th>
+                <th scope="col" className={ENCABEZADO}>Próxima llamada</th>
+                <th scope="col" className={ENCABEZADO}>Intentos</th>
+                <th scope="col" className={ENCABEZADO}>Último resultado</th>
+                <th scope="col" className={ENCABEZADO}>Último intento</th>
+                <th scope="col" className={ENCABEZADO}>Etapa máxima</th>
+                <th scope="col" className={ENCABEZADO}>Motivo del descarte</th>
+                <th scope="col" className={ENCABEZADO}>Descartado</th>
+                <th scope="col" className={ENCABEZADO}>Distrito</th>
+                <th scope="col" className={cn(ENCABEZADO, 'border-r-0')}>Origen</th>
               </tr>
             </thead>
             <tbody>
-              {filas.map((fila) => <FilaBase key={fila.lead_id} fila={fila} ahora={ahora} puedeMarcar={puedeMarcar} />)}
+              {filas.map((fila, i) => <FilaHoja key={fila.lead_id} numero={i + 1} fila={fila} ahora={ahora} puedeMarcar={puedeMarcar} />)}
             </tbody>
           </table>
         </div>
@@ -149,43 +154,80 @@ export function BaseGestionAnalista(): JSX.Element {
   )
 }
 
-function Cifra({ titulo, valor, detalle, urgente = false }: { titulo: string; valor: number; detalle: string; urgente?: boolean }) {
+/** Cifra del resumen, pequeña a propósito: el protagonismo es de la hoja. */
+function Pastilla({ etiqueta, valor, urgente = false }: { etiqueta: string; valor: number; urgente?: boolean }) {
   return (
-    <div className={cn('rounded-xl border bg-card px-5 py-4', urgente ? 'border-destructive/40' : 'border-border')}>
-      <p className="text-sm font-semibold text-[var(--muted-foreground-strong)]">{titulo}</p>
-      <p className={cn('text-3xl font-extrabold tabular-nums', urgente ? 'text-[var(--destructive-text)]' : 'text-primary')}>{valor}</p>
-      <p className="text-sm text-[var(--muted-foreground-strong)]">{detalle}</p>
-    </div>
+    <p className={cn(
+      'inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm',
+      urgente ? 'border-destructive/40 bg-destructive/[0.06] text-[var(--destructive-text)]' : 'border-border bg-card text-[var(--muted-foreground-strong)]',
+    )}>
+      <span>{etiqueta}</span>
+      <strong className={cn('font-bold tabular-nums', urgente ? 'text-[var(--destructive-text)]' : 'text-foreground')}>{valor}</strong>
+    </p>
   )
 }
 
-/** Teléfono · distrito · origen: lo que el analista necesita a la vista para ubicar al lead. */
+function FilaHoja({ numero, fila, ahora, puedeMarcar }: { numero: number; fila: FilaBaseGestion; ahora: number; puedeMarcar: boolean }) {
+  const hoy = fila.rellamada_hoy
+  // Las celdas fijas llevan fondo opaco (tapan lo que pasa por debajo al desplazar); la fila «hoy» lo tiñe igual.
+  const fondoFijo = hoy ? 'bg-[color-mix(in_srgb,var(--destructive)_6%,var(--card))]' : 'bg-card group-hover:bg-[color-mix(in_srgb,var(--accent)_5%,var(--card))]'
+  return (
+    <tr className={cn('group', hoy ? 'bg-destructive/[0.06]' : 'hover:bg-accent/5')}>
+      <td className={cn(CELDA, FIJA_NUMERO, ANCHO_NUMERO, 'z-[1] text-center text-[13px] tabular-nums', hoy ? 'bg-[color-mix(in_srgb,var(--destructive)_15%,var(--card))] font-bold text-[var(--destructive-text)]' : 'bg-muted text-[var(--muted-foreground-strong)]')}>
+        {numero}
+      </td>
+      <th scope="row" className={cn(CELDA, FIJA_LEAD, ANCHO_LEAD, 'z-[1] max-w-64 truncate text-base font-semibold', fondoFijo)} title={fila.nombre_completo}>
+        {fila.nombre_completo}
+        {hoy && <span className="sr-only"> — toca llamar hoy</span>}
+      </th>
+      <td className={CELDA}><TelefonoLlamable fila={fila} puedeMarcar={puedeMarcar} /></td>
+      <td className={CELDA}><ProximaLlamada iso={fila.proxima_llamada_en} ahora={ahora} /></td>
+      <td className={CELDA}><Intentos n={fila.intentos} /></td>
+      <td className={CELDA}>{etiquetaUltimoResultado(fila.ultimo_resultado)}</td>
+      <td className={cn(CELDA, 'tabular-nums text-[var(--muted-foreground-strong)]')}>{fila.ultimo_intento_en ? etiquetaMomento(fila.ultimo_intento_en, ahora) : '—'}</td>
+      <td className={CELDA}><EtapaMaximaChip etapa={fila.etapa_maxima} /></td>
+      <td className={CELDA}>{etiquetaMotivoDescarte(fila.motivo_descarte)}</td>
+      <td className={cn(CELDA, 'tabular-nums')}>{etiquetaDiasDescarte(fila.dias_desde_descarte)}</td>
+      <td className={CELDA}>{fila.distrito ?? '—'}</td>
+      <td className={cn(CELDA, 'border-r-0')}>{etiquetaOrigen(fila.origen)}</td>
+    </tr>
+  )
+}
+
+/** En la hoja, el teléfono ES el botón de llamar: marca en el celular, copia en la laptop. */
+function TelefonoLlamable({ fila, puedeMarcar }: { fila: FilaBaseGestion; puedeMarcar: boolean }) {
+  const tel = enlaceTel(fila.telefono)
+  if (!tel || !fila.telefono) return <span className="text-[var(--muted-foreground-strong)]">Sin teléfono</span>
+  const legible = telefonoLegible(fila.telefono)
+  const estilo = cn('inline-flex items-center gap-1.5 rounded px-1 font-semibold tabular-nums text-accent underline-offset-2 hover:underline', FOCO)
+  if (puedeMarcar) {
+    return (
+      <a href={tel} aria-label={`Llamar a ${fila.nombre_completo}, ${legible}`} className={estilo}>
+        <Phone className="size-3.5" aria-hidden />{legible}
+      </a>
+    )
+  }
+  return (
+    <button type="button" onClick={() => copiarNumero(tel, legible)} aria-label={`Llamar a ${fila.nombre_completo}, ${legible}: copia su número`} title="Copiar el número" className={estilo}>
+      <Phone className="size-3.5" aria-hidden />{legible}
+    </button>
+  )
+}
+
+// En la laptop un `tel:` no marca nada: se copia el número (el mismo de enlaceTel) para marcarlo desde el celular.
+function copiarNumero(tel: string, legible: string): void {
+  const copia = navigator.clipboard?.writeText(tel.slice('tel:'.length)) ?? Promise.reject(new Error('sin portapapeles'))
+  void copia.then(
+    () => { toast.success(`Número copiado: ${legible} — márcalo desde tu celular`) },
+    () => { toast.info(`Marca ${legible} desde tu celular`) },
+  )
+}
+
+/** Teléfono · distrito · origen: lo que el analista necesita a la vista para ubicar al lead (tarjeta del celular). */
 function contactoDe(fila: FilaBaseGestion): string {
   return [fila.telefono ? telefonoLegible(fila.telefono) : null, fila.distrito, etiquetaOrigen(fila.origen)]
     .filter((parte): parte is string => !!parte)
     .join(' · ')
-}
-
-function FilaBase({ fila, ahora, puedeMarcar }: { fila: FilaBaseGestion; ahora: number; puedeMarcar: boolean }) {
-  const celda = 'border-t border-border px-4 py-3 align-middle text-foreground'
-  return (
-    <tr className={cn(fila.rellamada_hoy && 'bg-destructive/[0.04]')}>
-      <th scope="row" className={cn(celda, 'text-left font-normal', fila.rellamada_hoy && 'shadow-[inset_4px_0_0_var(--destructive)]')}>
-        <span className="block text-base font-semibold">
-          {fila.nombre_completo}
-          {fila.rellamada_hoy && <span className="sr-only"> — toca llamar hoy</span>}
-        </span>
-        <span className="block text-sm text-[var(--muted-foreground-strong)]">{contactoDe(fila)}</span>
-      </th>
-      <td className={celda}>{etiquetaMotivoDescarte(fila.motivo_descarte)}</td>
-      <td className={celda}><EtapaMaximaChip etapa={fila.etapa_maxima} /></td>
-      <td className={cn(celda, 'tabular-nums')}>{etiquetaDiasDescarte(fila.dias_desde_descarte)}</td>
-      <td className={celda}><Intentos n={fila.intentos} /></td>
-      <td className={celda}><UltimoResultado fila={fila} ahora={ahora} /></td>
-      <td className={celda}><ProximaLlamada iso={fila.proxima_llamada_en} ahora={ahora} /></td>
-      <td className={cn(celda, 'text-right')}><AccionLlamar fila={fila} puedeMarcar={puedeMarcar} /></td>
-    </tr>
-  )
 }
 
 function TarjetaBase({ fila, ahora, puedeMarcar }: { fila: FilaBaseGestion; ahora: number; puedeMarcar: boolean }) {
@@ -201,13 +243,20 @@ function TarjetaBase({ fila, ahora, puedeMarcar }: { fila: FilaBaseGestion; ahor
         <div><dt className={rotulo}>Motivo del descarte</dt><dd className={dato}>{etiquetaMotivoDescarte(fila.motivo_descarte)}</dd></div>
         <div><dt className={rotulo}>Etapa máxima</dt><dd className={dato}><EtapaMaximaChip etapa={fila.etapa_maxima} /></dd></div>
         <div><dt className={rotulo}>Descartado</dt><dd className={dato}>{etiquetaDiasDescarte(fila.dias_desde_descarte)}</dd></div>
-        <div><dt className={rotulo}>Último resultado</dt><dd className={dato}><UltimoResultado fila={fila} ahora={ahora} /></dd></div>
+        <div>
+          <dt className={rotulo}>Último resultado</dt>
+          <dd className={dato}>
+            <span className="block">{etiquetaUltimoResultado(fila.ultimo_resultado)}</span>
+            {fila.ultimo_intento_en && <span className="block text-[13px] text-[var(--muted-foreground-strong)]">{etiquetaMomento(fila.ultimo_intento_en, ahora)}</span>}
+          </dd>
+        </div>
       </dl>
       <div className="mt-4 [&>*]:w-full"><AccionLlamar fila={fila} puedeMarcar={puedeMarcar} /></div>
     </div>
   )
 }
 
+/** Botón grande de la tarjeta del celular. */
 function AccionLlamar({ fila, puedeMarcar }: { fila: FilaBaseGestion; puedeMarcar: boolean }) {
   // Fuente única (lib/telefono): un número que no sirve no se ofrece, ni como enlace ni para copiar.
   const tel = enlaceTel(fila.telefono)
@@ -220,18 +269,9 @@ function AccionLlamar({ fila, puedeMarcar }: { fila: FilaBaseGestion; puedeMarca
       </a>
     )
   }
-  // En la laptop un `tel:` no marca nada: se copia el número para marcarlo desde el celular.
-  const marcable = tel.slice('tel:'.length)
   const legible = telefonoLegible(fila.telefono)
-  const copiar = () => {
-    const copia = navigator.clipboard?.writeText(marcable) ?? Promise.reject(new Error('sin portapapeles'))
-    void copia.then(
-      () => { toast.success(`Número copiado: ${legible} — márcalo desde tu celular`) },
-      () => { toast.info(`Marca ${legible} desde tu celular`) },
-    )
-  }
   return (
-    <button type="button" onClick={copiar} aria-label={`Llamar a ${fila.nombre_completo}: copia su número`} className={BOTON_LLAMAR}>
+    <button type="button" onClick={() => copiarNumero(tel, legible)} aria-label={`Llamar a ${fila.nombre_completo}: copia su número`} className={BOTON_LLAMAR}>
       <Phone className="size-4" aria-hidden />
       Llamar
     </button>
@@ -244,15 +284,6 @@ function EtapaMaximaChip({ etapa }: { etapa: EtapaMaxima }) {
       <span aria-hidden className="size-2.5 shrink-0 rounded-full" style={{ background: colorEtapa(etapa) }} />
       {etiquetaEtapaMaxima(etapa)}
     </span>
-  )
-}
-
-function UltimoResultado({ fila, ahora }: { fila: FilaBaseGestion; ahora: number }) {
-  return (
-    <>
-      <span className="block">{etiquetaUltimoResultado(fila.ultimo_resultado)}</span>
-      {fila.ultimo_intento_en && <span className="block text-[13px] text-[var(--muted-foreground-strong)]">{etiquetaMomento(fila.ultimo_intento_en, ahora)}</span>}
-    </>
   )
 }
 
@@ -275,6 +306,6 @@ function ProximaLlamada({ iso, ahora }: { iso: string | null; ahora: number }) {
   const texto = etiquetaRellamada(iso, ahora)
   if (estado === 'futura') return <span className="font-semibold text-[var(--warning-text)]">{texto}</span>
   return (
-    <span className="inline-flex rounded-md bg-destructive/10 px-2 py-1 font-semibold text-[var(--destructive-text)]">{texto}</span>
+    <span className="inline-flex rounded bg-destructive/10 px-1.5 py-0.5 font-semibold text-[var(--destructive-text)]">{texto}</span>
   )
 }
