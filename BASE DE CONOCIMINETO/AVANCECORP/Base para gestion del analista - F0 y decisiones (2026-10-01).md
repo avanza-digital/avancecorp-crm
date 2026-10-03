@@ -452,3 +452,17 @@ migraciones aplicadas. Nada en producción.
   🔑 El `.env` de un worktree lo copia Miguel con `!` (el hook bloquea tocarlo) y iCloud deja copias « 2» al cambiar de
   commit: apartarlas antes de construir.
 
+## F2 · Ficha del lead de la base — HECHA en la rama (03/10/2026, tarde), sin publicar
+
+- Rama `crm/base-gestion-f2` (`0f33bb0f` + `3e248407`), nacida del vivo `c489d487`. Hoja lateral ANCHA en dos columnas
+  (regla «horizontal»): izquierda, registrar el intento (7 resultados con atajos 1–7, nota, fecha y hora para «volver a
+  llamar» ≤ 10 días, aviso antes del 3.er intento); derecha, historial COMPLETO de corrido con buscador sin tildes;
+  arriba, Reactivar y «No contactar» con motivo. Se abre tocando el nombre en la hoja («Ver ficha» en el celular).
+- 🔑 Idempotencia en pantalla: un `p_operacion_id` por contenido (firma de resultado + nota + fecha): el doble clic o el
+  reintento tras un corte reusan el id (replay); si cambia lo que se manda, id nuevo (si no, la puerta da 23505).
+- 🔑 Cuando una acción saca la fila de la lista con la ficha abierta, el foco caía en `<body>`: `Sheet` ganó
+  `focoRespaldo` (vecino → hoja/lista → resumen) y `focoInicial` (primer resultado). Probado en E2E.
+- 🔑 El historial con `min-h-0` medía 0 px en el celular (grilla de una columna): el recorte va solo en `lg:`.
+- «Quitar No contactar» va en F4: la base no lista vetados.
+- revisor-a11y: CHANGES_REQUESTED → APPROVE. Pruebas y E2E Docker en verde; `npm run check` PASS (5667).
+
