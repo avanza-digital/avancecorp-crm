@@ -12,8 +12,8 @@ advisors → merge. **Nunca `apply_migration` directo a producción.**
 | # | Qué | Estado al 02/10 |
 | --- | --- | --- |
 | 0.1 | Escribir el bloque `testLlamadasCelular` en `supabase/scripts/test-rls.mjs` (con su interruptor `CRM_RLS_EXIGE_LLAMADAS`), como pide `F2-PLAN-CORTO.md` | **No existe todavía**: los planes lo citan, pero no se escribió |
-| 0.2 | Revisión `auditor-rls` de las 4 migraciones (regla del CRM para todo lo que toca funciones y grants) | Pendiente |
-| 0.3 | Revisión Codex LEVEL 3 (`scripts/codex-review-mcp`, encargo por stdin) | Pendiente |
+| 0.2 | ~~Revisión `auditor-rls`~~ → **la hace Miguel** (paso 2) | Jhosep, 02/10: las revisiones las hace Miguel |
+| 0.3 | ~~Revisión Codex LEVEL 3~~ → **la hace Miguel** (paso 2): él tiene Codex | Ídem |
 | 0.4 | Espejo de la Edge en `_supabase_functions/functions/crm-llamadas-ingesta/` (`index.ts` y `handler.ts` byte a byte, como `crm-notificaciones-tasa`) | Pendiente |
 | 0.5 | PR `feat/llamadas-f2` → `main`. `main` tiene que contener lo que se aplica en producción | Pendiente |
 
@@ -32,8 +32,15 @@ Nota para Miguel: las migraciones **no modifican nada de `public`**. Solo refere
 las llaves de autoría, con `ON DELETE RESTRICT`, para que la baja de usuarios detecte su historial (el mismo
 criterio que el resto del CRM).
 
-## 2. Ensayo en un banco con el esquema de producción (rama de Supabase o copia)
+## 2. Revisiones y ensayo en un banco con el esquema de producción (rama de Supabase o copia)
 
+0. **Revisiones (las hace Miguel; Jhosep, 02/10):**
+   - `auditor-rls` (subagente de Claude) sobre las 4 migraciones: lo que toca funciones, grants y RLS.
+   - Codex LEVEL 3 (`scripts/codex-review-mcp`, encargo por stdin que empieza por `ROLE: SECONDARY_REVIEWER.`).
+     Codex no ve la base: se le transcriben las 4 migraciones y lo que haya que juzgar. Máximo 2 rondas, con
+     evidencia nueva (`.ai/REVIEW_PROTOCOL.md`).
+   - Lo que acepten las revisiones va en una migración nueva antes de aplicar; las migraciones ya commiteadas
+     no se editan.
 1. Aplicar **en este orden**:
    1. `20261001145242_crm_llamadas_celular_datos.sql`
    2. `20261001160219_crm_llamadas_celular_nucleo.sql`
