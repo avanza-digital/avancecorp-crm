@@ -15140,7 +15140,7 @@ Rama `base-gestion-datos-20261002` borrada.
 
 ## 20261003162300 — Base para gestión del analista · B3c: las cuatro funciones del módulo salen del censo analítico
 
-**✅ LISTA PARA EL `!` DE MIGUEL (03/10/2026): banco · auditor-rls · Codex r2 PASS · rama con datos · gate 68 = 68.** Desde el 02/10 (20:15)
+**✅ APLICADA Y REGISTRADA EN PRODUCCIÓN el 03/10/2026 (~14:30 Lima)** — Miguel con `!`, en orden y con su registrador; comprobada en solo lectura (huellas del gate, ACL, registro con el md5 del archivo). Antes: banco · auditor-rls · Codex r2 PASS · rama con datos · gate 68 = 68. Desde el 02/10 (20:15)
 `private.assert_analitica_leads_citas()` cae y el vigía abre una alerta diaria (fase `f6a_analitica_leads_citas`):
 `crm.obtener_base_gestion`, `crm.base_gestion_resumen`, `private.base_gestion_intento_core` y
 `private.trg_actividades_enfriamiento_base` nombran `crm.leads`/«reunion» y usan `count(` sin declarar (leído en producción
@@ -15155,7 +15155,7 @@ Miguel el 03/10.
 
 ## 20261003162400 — Base para gestión del analista · B5: el MES del lead (`recibido_en`)
 
-**✅ LISTA PARA EL `!` DE MIGUEL (03/10/2026): banco · auditor-rls · Codex r2 PASS · rama con datos · gate 68 = 68.** Miguel (02/10): «saber qué mes estoy
+**✅ APLICADA Y REGISTRADA EN PRODUCCIÓN el 03/10/2026 (~14:30 Lima)** — Miguel con `!`, en orden y con su registrador; comprobada en solo lectura (huellas del gate, ACL, registro con el md5 del archivo). Antes: banco · auditor-rls · Codex r2 PASS · rama con datos · gate 68 = 68. Miguel (02/10): «saber qué mes estoy
 gestionando». `crm.obtener_base_gestion` devuelve al final `recibido_en = coalesce(tenencia_desde, creado_en)`. Drop +
 create (cambia el `returns table`) sobre el cuerpo de B3c (md5 en el preflight), mismo dueño, ámbito y EXECUTE solo
 authenticated; su único envoltorio (`base_gestion_resumen`, B3c) lee columnas que siguen. Postflight: md5 del cuerpo, ACL
@@ -15164,7 +15164,7 @@ exacta, fuera del censo. La pantalla (rama `crm/base-gestion-front`, `c9e772fd`)
 
 ## 20261003162500 — Base para gestión del analista · B6: candado de seguimiento activo en el lead
 
-**✅ LISTA PARA EL `!` DE MIGUEL (03/10/2026): banco · auditor-rls · Codex r2 PASS · rama con datos · gate 68 = 68.** Regla de Miguel (02/10) y respuestas
+**✅ APLICADA Y REGISTRADA EN PRODUCCIÓN el 03/10/2026 (~14:30 Lima)** — Miguel con `!`, en orden y con su registrador; comprobada en solo lectura (huellas del gate, ACL, registro con el md5 del archivo). Antes: banco · auditor-rls · Codex r2 PASS · rama con datos · gate 68 = 68. Regla de Miguel (02/10) y respuestas
 (03/10): seguimiento activo = último intento de la base del ciclo + 7 días, o rellamada agendada en ese ciclo; el
 supervisor lo ve **en gris** «En gestión por X hasta el día Y»; y el candado va **en el lead, para toda vía** (el
 auditor-rls y el banco probaron que la ficha —PATCH de `vendedor_id`— y «tomar lead libre» también movían el lead). Nueva
