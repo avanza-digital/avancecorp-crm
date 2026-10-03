@@ -132,7 +132,7 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 | F1 · Formulario único y match exacto | 4 | 12/12 | Hecha | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-8) |
 | F2 · Núcleo confiable | 4 | 8/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-14) |
 | F3 · Captura y sincronización | 4 | 4/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-20) |
-| F4 · Pendientes y conciliación | 4 | 0/13 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-66) |
+| F4 · Pendientes y conciliación | 4 | 0/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-66) |
 | F5 · Jev para identificación asistida | 5 | 0/15 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-72) |
 | F6 · Gerencia y calidad | 4 | 0/12 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-78) |
 | F7 · Despliegue y operación | 4 | 0/12 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-84) |
@@ -384,7 +384,7 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 
 **Objetivo:** cerrar el circuito recuperando fallos sin duplicar gestiones.
 
-**Seguimiento de F4:** 0/13 tareas completadas · Estado: pendiente · Responsable nominal: por asignar.
+**Seguimiento de F4:** 0/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
 
 ### F4.1 · Construir la bandeja
 

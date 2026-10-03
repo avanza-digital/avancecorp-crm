@@ -1,10 +1,10 @@
 # Avance — Llamadas desde el celular al CRM
 
-Actualizado: 03/10/2026, 09:29 a. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
+Actualizado: 03/10/2026, 09:34 a. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
 
 Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact/Q3GmV9m6Cy2GPQGKAbNy8M · Plan completo: `PLAN.md` en esta carpeta.
 
-**Lo último:** 03/10 14:29 UTC: tablero al día con las pruebas del 02/10 en C1: F3.3.1 hecha (el aviso se crea una vez y se guarda antes de enviar) y F3.3.2–F3.4.3 en curso con lo que falta de cada una. Sigue: el plan corto de F4 (la bandeja de llamadas sin registrar).
+**Lo último:** 03/10 14:34 UTC: F4 arranca como análisis: plan corto escrito (F4-PLAN-CORTO.md) con la bandeja de llamadas sin registrar en Gestión Diaria, el emparejamiento exacto por el id del celular y la pantalla de celulares para gerencia. Cinco decisiones para Miguel; nada de código hasta su OK.
 
 **Total:** 25 de 102 tareas · 1 de 8 fases hechas.
 
@@ -14,7 +14,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 | F1 · Formulario único y coincidencia exacta | 12/12 | Hecha | 4/4 |
 | F2 · Núcleo confiable y contrato de datos | 8/13 | En curso | 2/4 |
 | F3 · Captura, puertas y sincronización durable | 4/13 | En curso | 0/4 |
-| F4 · Bandeja y registro conciliado en celular y PC | 0/13 | Pendiente | 0/4 |
+| F4 · Bandeja y registro conciliado en celular y PC | 0/13 | En curso | 0/4 |
 | F5 · Jev para identificación asistida | 0/15 | Pendiente | 0/5 |
 | F6 · Gerencia y calidad de evidencia | 0/12 | Pendiente | 0/4 |
 | F7 · Despliegue gradual y operación | 0/12 | Pendiente | 0/4 |
@@ -91,7 +91,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
     - ◐ F3.4.2 — Dos llamadas al mismo número → dos eventos, cada uno con su id (prueba 2 en C1). Rotación, cierre de la clave y analista de baja: probados en el banco reducido y escritos en el bloque testLlamadasCelular del gate (sin correr aquí). Falta repetirlo con la Edge desplegada y por equipo piloto. (03/10/2026, 09:29 a. m.)
     - ◐ F3.4.3 — Guía de la macro definitiva en macrodroid.md §3c (pasos, trampas y pruebas). MacroDroid acredita durabilidad en C1 (A3, A4, A6): no hace falta otro adaptador (decisión 5 de F3, la ratifica Miguel). Falta la guía de soporte y la salud de la cola (el latido). (03/10/2026, 09:29 a. m.)
 
-### F4 · Bandeja y registro conciliado en celular y PC — 0/13 · pendiente
+### F4 · Bandeja y registro conciliado en celular y PC — 0/13 · en curso · 03/10: F4 en curso como ANÁLISIS (sin código): F4-PLAN-CORTO.md. Diseño: emparejar resultado y llamada por el id de origen del celular (#12) en una puerta v5 con intención de enlace (#4); bandeja «Llamadas sin registrar» como pestaña de Gestión Diaria; tarjeta «Celulares» en Configuración para gerencia. Cinco decisiones para Miguel. Depende de F2 y F3 aplicadas.
 - **F4.1 · Construir la bandeja** — 0/3 · pendiente · Responsable: por asignar
 - **F4.2 · Registrar y enlazar** — 0/4 · pendiente · Responsable: por asignar
 - **F4.3 · Resolver casos operativos** — 0/3 · pendiente · Responsable: por asignar
@@ -118,6 +118,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 
 ## Últimos cambios
 
+- 03/10/2026, 09:34 a. m. · F4 en curso como análisis: F4-PLAN-CORTO.md. Hallazgo que guía el diseño: la encuesta se guarda ANTES de que llegue el aviso del celular (~11 s, o horas sin señal), así que resultado y llamada se emparejan por el id de origen que crea la macro (propuesta #12) en una puerta v5 con intención de enlace (propuesta #4), nunca por la hora. Reutiliza las puertas de F2-c/F3-a, la misma encuesta, los comandos con recibo y el deshacer del servidor. Cinco decisiones para Miguel; orden F4-a servidor → F4-b bandeja → F4-c celulares → F4-d macro y validación.
 - 03/10/2026, 09:29 a. m. · Tablero al día con la evidencia de C1 del 02/10 (REGISTRO.md §5d y §5e): F3.3.1 HECHA; F3.3.2 en curso (falta un 429 explícito); F3.3.3 en curso (depende de la propuesta #12); F3.3.4 en curso (faltan llamada en espera, doble SIM y entrantes); F3.4.1–F3.4.3 en curso con la recuperación parcial (A3, A4, A6) y la guía de la macro; F3.2.3 suma la prueba 6.
 - 03/10/2026, 09:23 a. m. · Paso 0.4 de PUBLICAR-F2-F3.md: espejo de la Edge en _supabase_functions/functions/crm-llamadas-ingesta/ (index.ts y handler.ts, mismo blob de git que el original). Con 0.1 (bloque testLlamadasCelular) el paso 0 queda completo; descripción del PR #169 y aviso PARA MIGUEL de Inicio.md actualizados: Miguel ya puede empezar.
 - 03/10/2026, 09:08 a. m. · Paso 0.1 de PUBLICAR-F2-F3.md: bloque testLlamadasCelular en test-rls.mjs (último del gate, interruptor CRM_RLS_EXIGE_LLAMADAS). Prueba que nadie lee ni toca las 4 tablas directo, que cada puerta es solo de su rol (gerencia asigna/rota/cierra; supervisión ve su equipo; servicio solo service_role; anon, coordinación, directorio y analista de baja, nada), la ingesta (clave desconocida 42501, repetida, P0409, dos envíos a la vez, número sin lead no se guarda), el ámbito por equipo, la corrección del supervisor y la rotación/cierre de la clave. node --check y oxlint limpios; NOT RUN: lo corre Miguel en su ensayo.
@@ -132,4 +133,3 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 - 02/10/2026, 03:02 p. m. · Propuestas #14 y #15 para Miguel (Jhosep, 02/10), que retiran el recorte #8 a «solo salientes» y vuelven al plan aprobado: las llamadas ENTRANTES de leads y clientes cuentan. Atendida → se abre su registro (encuesta del lead; postventa del cliente, vía #13); perdida → tarea «devolver la llamada»; número que no es lead ni cliente → nada. Métricas aparte (#15): recibidas, atendidas frente a perdidas, devolución de perdidas y resultado; nunca se suman al esfuerzo del analista. Orden: primero se cierra la macro de salientes (F3-c).
 - 02/10/2026, 02:45 p. m. · F3-c en curso: borrador de la macro definitiva en docs/gestion-diaria/piloto-telefonia/macrodroid.md §3c. Tres macros (Saliente, Al colgar, Enviar cola) y una cola en diccionario global; solo salientes; ocurrio_en = {datetime}-05:00 (sin la zona, el servidor en UTC la leería 5 h corrida: comprobado con el handler de la Edge); reenvío por «Cambio de Conectividad de Datos» + intervalo de 5 min, sin red concreta ni ubicación; 400/409/413/415 apartados a errores_llamadas; 7 pruebas de aceptación. Nombres de pantalla verificados en C1 marcados ✓.
 - 02/10/2026, 02:25 p. m. · Prueba 5 de MacroDroid en C1 PASS (14:22–14:24 Lima, Wi-Fi encendido): colgar antes de que contesten y dejar sonar sin respuesta dieron un solo aviso por llamada, con ids distintos. Con esto las 6 pruebas pasan; la decisión 5 de F3 (otro adaptador si MacroDroid no fuera durable) no hace falta. Hallazgo: «Llamada terminada» también dispara con entrantes y el cuerpo de la prueba dice siempre saliente; la macro definitiva fija la dirección. REGISTRO.md §5d con el resumen.
-- 02/10/2026, 02:19 p. m. · Prueba 4 de MacroDroid en C1 PASS (14:18 Lima): macro «Reintento F3» (Conectado a la red → MASCAPITAL, solo para la prueba; espera 10 s; codigo a 0; POST con {v=pendiente}; borra pendiente solo con 202). Al apagar y encender el Wi-Fi llegó solo el aviso C1-1790961656, creado a las 12:20:56 en la llamada sin Wi-Fi, ~2 h después y tras un reinicio: mismo id, así que la prueba 2 queda completa. Falta el reintento periódico ante 429/5xx, que va en la macro definitiva. El receptor se apagó a las 13:20 por el límite de 2 h y se encendió de nuevo a las 14:16 con la misma clave.
