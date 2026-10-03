@@ -79,6 +79,10 @@ con dos llamadas seguidas al mismo lead se equivocaría.
   - «Elegir el lead» muestra solo leads de su cartera.
   - «Descartar» pide el motivo (lista cerrada + «otro»).
 - Cerrar la encuesta **no** quita la llamada de la pestaña (F4.1.3).
+- **El objetivo es que la encuesta se abra siempre al colgar** (Jhosep, 03/10). La pestaña es solo la red de seguridad:
+  cada llamada registrada desde ella y no al colgar es una falla de ese celular. Se cuenta por celular («encuesta
+  abierta al colgar: 48 de 50») para encontrar el que falla. Antes de entregar un celular, la encuesta tiene que abrirse
+  en todas las llamadas de prueba.
 - **«Qué pasó hoy»:** lo resuelto del día, con su resultado o su motivo y «Deshacer» (hallazgo 1).
 - **Detalle (F4.1.2):** explica «ya registrada» o «descartada», o «no está disponible» para las que no existen, son de
   otro equipo o ya se depuraron (el servidor responde lo mismo a las tres, 42501, para no filtrar datos), y los errores
