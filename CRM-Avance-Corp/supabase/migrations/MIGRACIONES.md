@@ -15105,4 +15105,10 @@ máxima). Banco: aplicar + postflight PASS, `b3-puertas.sql` **48/48** (4 regres
 `reversa-y-reaplicar-b3b` PASS. `test-rls.mjs`: la expectativa de «rellamada de hoy» se calcula fuera de banda (medianoche
 Lima). **Riesgo operativo anotado:** el postflight de B4 ensaya por la puerta sobre un lead real (candado breve): aplicar B4
 en producción fuera de horario de gestión. **Reversa:** `supabase/scripts/base-gestion/reversa-idempotencia-y-orden.sql`.
-**Pendiente:** Codex r2 corta sobre B3b, rama con datos → `test-rls.mjs` → advisors → merge de Miguel.
+**Codex r2 (03/10, encargo `docs/encargos/2026-10-03-codex-base-gestion-b3b.md`): BLOCK con 2 P2, resueltos sin código:**
+(a) «los replays anteriores a B3b no llevan `solicitud_proxima`/`nota_md5` y darían 23505» → NO APLICA: B3/B4b nunca se
+aplicaron fuera del banco local (ninguna rama ni producción tiene operaciones de la base; `rama.mjs estado` lo acredita con
+el conteo «intentos previos» antes de aplicar) y en el banco las suites recrean sus operaciones. (b) #6 «empates de instante»
+→ aceptado como limitación: solo ocurren en transacciones multi-sentencia sintéticas; por las puertas cada RPC es su propia
+transacción. Informe en `BASE PARA GESTION/revisiones/2026-10-03-codex-b3b.md`. **Pendiente:** rama con datos → `test-rls.mjs`
+→ advisors → merge de Miguel (B4 fuera de horario de gestión).

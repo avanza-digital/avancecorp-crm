@@ -9,7 +9,8 @@ import { randomBytes } from 'node:crypto';
 export const RAMA = 'base-gestion-datos-20261002';
 const PARENT = 'dctqcbznekcyxhjujuci';
 const AQUI = new URL('.', import.meta.url);
-const MIGS = ['20261002054402_crm_base_gestion_esquema.sql', '20261002224851_crm_base_gestion_proxima_llamada.sql', '20261002061500_crm_base_gestion_no_contactar_supervisor.sql'];
+const MIGS = ['20261002054402_crm_base_gestion_esquema.sql', '20261002224851_crm_base_gestion_proxima_llamada.sql', '20261002061500_crm_base_gestion_no_contactar_supervisor.sql',
+  '20261002231436_crm_base_gestion_puertas.sql', '20261002233851_crm_base_gestion_enfriamiento.sql', '20261002235342_crm_base_gestion_ventana_descanso.sql', '20261003001014_crm_base_gestion_idempotencia_y_orden.sql'];
 function env() {
   const r = spawnSync('supabase', ['branches', 'get', RAMA, '--project-ref', PARENT, '-o', 'env'], { encoding: 'utf8' });
   assert.equal(r.status, 0, 'supabase branches get fallo');
@@ -52,7 +53,12 @@ if (orden === 'estado') {
   console.log(psql(`select 'historial: '||count(*)||' versiones · ultima '||coalesce(max(version),'-') from supabase_migrations.schema_migrations;
 select 'B1: '||(to_regprocedure('private.base_gestion_constantes()') is not null and exists(select 1 from information_schema.columns where table_schema='crm' and table_name='leads' and column_name='enfriado_hasta'))::text
   ||' · B1b: '||exists(select 1 from information_schema.columns where table_schema='crm' and table_name='leads' and column_name='proxima_llamada_en')::text
-  ||' · B2: '||((select md5(p.prosrc) from pg_proc p where p.oid=to_regprocedure('crm.levantar_no_contactar(uuid,text)'))='05df49be43869cd8e5f75330fa592a84')::text;
+  ||' · B2: '||((select md5(p.prosrc) from pg_proc p where p.oid=to_regprocedure('crm.levantar_no_contactar(uuid,text)'))='05df49be43869cd8e5f75330fa592a84')::text
+  ||' · B3: '||(to_regprocedure('crm.obtener_base_gestion(uuid)') is not null)::text
+  ||' · B4: '||exists(select 1 from pg_trigger where tgrelid='crm.actividades'::regclass and tgname='trg_zz_actividades_enfriamiento_base')::text
+  ||' · B4b: '||(to_regprocedure('private.base_gestion_intentos_desde(timestamptz,timestamptz,date,date)') is not null)::text
+  ||' · B3b: '||coalesce((select p.prosrc like '%solicitud_proxima%' from pg_proc p where p.oid=to_regprocedure('private.base_gestion_intento_core(uuid,uuid,uuid,text,text,timestamptz)')), false)::text
+  ||' · intentos previos: '||(select count(*) from crm.actividades where metadata->>'evento' in ('intento_base','reactivacion_base'))::text;
 select 'leads: '||count(*)||' · descartados vivos: '||count(*) filter (where activo and etapa='descartado')||' · analistas: '||(select count(*) from crm.equipo where rol_crm='vendedor' and activo) from crm.leads;
 select 'relacl leads: '||relacl::text from pg_class where oid='crm.leads'::regclass;`).out);
 }
