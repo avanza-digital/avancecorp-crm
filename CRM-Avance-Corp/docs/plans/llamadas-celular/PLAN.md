@@ -311,7 +311,7 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 **Estado:** en curso · **Avance:** 1/3 · **Responsable:** Claude (banco local) · Miguel (banco de producción, revisión y OK).
 
 - [x] **F2.4.1** Probar IDs repetidos, payload incompatible, dos consumidores, llamadas cercanas y bajas de actor/equipo.
-- [ ] **F2.4.2** Ejecutar SQL y gate RLS ampliado en entorno aislado; revisión LEVEL 3 y advisors aplicables. — EN CURSO: SQL ejecutado en entorno aislado (banco reducido desechable, 87/87). Falta: banco con el esquema de producción, bloque testLlamadasCelular en test-rls.mjs, advisors reales, auditor-rls y revisión Codex LEVEL 3. Necesita a Miguel (banco o rama de Supabase).
+- [ ] **F2.4.2** Ejecutar SQL y gate RLS ampliado en entorno aislado; revisión LEVEL 3 y advisors aplicables. — EN CURSO: SQL ejecutado en entorno aislado (banco reducido desechable, 160/160). 03/10: bloque testLlamadasCelular escrito en test-rls.mjs (permisos por rol y tabla, puertas de servicio, idempotencia, dos envíos a la vez, ámbito por equipo, corrección del supervisor, rotación y cierre; deja la corrida limpia), con node --check y oxlint limpios, SIN CORRER: aquí no hay banco con el esquema de producción. Falta (Miguel): correrlo en su ensayo con CRM_RLS_EXIGE_LLAMADAS=1, advisors, auditor-rls y Codex LEVEL 3.
 - [ ] **F2.4.3** Completar comentarios, ledger de migraciones y evidencia de aceptación antes de habilitar consumidores. — EN CURSO: COMMENT completos (el postflight los exige) y ledger con estado honesto (MIGRACIONES.md). Falta la evidencia de aceptación en el banco con el esquema de producción antes de habilitar consumidores (F3/F4).
 
 **Evidencia / fecha de validación:** pendiente.

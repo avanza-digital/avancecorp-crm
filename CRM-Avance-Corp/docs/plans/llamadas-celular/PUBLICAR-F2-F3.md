@@ -11,7 +11,7 @@ advisors → merge. **Nunca `apply_migration` directo a producción.**
 
 | # | Qué | Estado al 02/10 |
 | --- | --- | --- |
-| 0.1 | Escribir el bloque `testLlamadasCelular` en `supabase/scripts/test-rls.mjs` (con su interruptor `CRM_RLS_EXIGE_LLAMADAS`), como pide `F2-PLAN-CORTO.md` | **No existe todavía**: los planes lo citan, pero no se escribió |
+| 0.1 | Escribir el bloque `testLlamadasCelular` en `supabase/scripts/test-rls.mjs` (con su interruptor `CRM_RLS_EXIGE_LLAMADAS`), como pide `F2-PLAN-CORTO.md` | **Escrito el 03/10, sin correr**: `node --check` y `oxlint` limpios. Aquí no hay un banco con el esquema de producción: **lo corre Miguel en el paso 2** |
 | 0.2 | ~~Revisión `auditor-rls`~~ → **la hace Miguel** (paso 2) | Jhosep, 02/10: las revisiones las hace Miguel |
 | 0.3 | ~~Revisión Codex LEVEL 3~~ → **la hace Miguel** (paso 2): él tiene Codex | Ídem |
 | 0.4 | Espejo de la Edge en `_supabase_functions/functions/crm-llamadas-ingesta/` (`index.ts` y `handler.ts` byte a byte, como `crm-notificaciones-tasa`) | Pendiente |
@@ -53,7 +53,20 @@ criterio que el resto del CRM).
    select pg_get_functiondef('auth.uid()'::regprocedure);
    ```
    La definición tiene que consultar `current_setting('request.jwt.claim.sub', true)`.
-3. Gate: `CRM_RLS_EXIGE_LLAMADAS=1 node supabase/scripts/test-rls.mjs` (con el bloque del paso 0.1).
+3. Gate: `node supabase/scripts/test-rls.mjs` con `CRM_RLS_EXIGE_LLAMADAS=1` (si el bloque se salta, falla) y con
+   `CRM_BANCO_PSQL_URL` (detecta la instalación por el catálogo). El bloque `testLlamadasCelular` va el último y prueba:
+   - nadie lee ni toca las 4 tablas directo;
+   - cada puerta, solo su rol: gerencia asigna, rota y cierra celulares; supervisión ve los de su equipo; las puertas de
+     servicio son solo de `service_role`; anon, coordinación, directorio y un analista de baja, nada;
+   - ingesta: clave desconocida → 42501; repetida → mismo evento; otro contenido → P0409; dos envíos a la vez → un
+     solo evento; número sin lead → no se guarda;
+   - ámbito: dueño, su supervisor y gerencia ven la llamada; otro equipo no la ve ni la toca;
+   - la corrección del supervisor (si falla, revisar `auth.uid()`);
+   - rotación y cierre: la clave vieja deja de valer.
+
+   Deja la corrida limpia: descarta los eventos, cierra los celulares y desactiva su lead. Lo que no cubre (reasignación
+   del lead, enlace con la encuesta, límite por minuto) lo prueban los oráculos del banco reducido
+   (`npm run test:llamadas:local`).
 4. `supabase/scripts/llamadas-celular/verificar-datos.sql`.
 5. El trabajo de retención quedó programado:
    ```sql

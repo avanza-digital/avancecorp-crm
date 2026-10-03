@@ -16392,6 +16392,244 @@ async function testVentaCruzada(sessions, seed) {
     'venta cruzada: la matriz no dejó ninguna búsqueda en la bitácora');
 }
 
+// Llamadas desde el celular, F2 + F3-a + corrección (20261001145242, 20261001160219, 20261001212258,
+// 20261001222431). Especificación: docs/plans/llamadas-celular/F2-PLAN-CORTO.md («Verificación (F2.4)»).
+// Las reglas de negocio finas (reasignación del lead, enlace con la encuesta, límite por minuto, carreras con
+// rotación) las prueban los oráculos del banco reducido (supabase/tests/llamadas-celular/); este bloque prueba
+// los PERMISOS con sesiones reales contra el esquema de producción. Las tablas son de solo inserción por diseño:
+// los eventos de la corrida quedan (descartados, con id de origen aleatorio) y el branch se descarta.
+async function testLlamadasCelular(sessions, seed) {
+  console.log('\n— Llamadas desde el celular (F2 + F3-a): puertas, ámbito e ingesta de servicio —');
+  const id = (key) => seed.profileIdByKey[key];
+  const rpc = (quien, fn, args = {}) => sessions[quien].client.schema('crm').rpc(fn, args);
+  const servicio = (fn, args) => admin.schema('crm').rpc(fn, args);
+  const instalada = contarFueraDeBanda('Llamadas del celular: presencia de la migración',
+    "select case when to_regclass('crm.llamadas_celular_eventos') is not null then 1 else 0 end") === 1;
+  const sonda = await rpc('gerencia', 'llamadas_celular_politica_fn');
+  const sondaServicio = await servicio('ingerir_llamada_celular_servicio', { p_credencial: '0'.repeat(64), p_evento: {} });
+  if (!instalada || sonda.error?.code === 'PGRST202' || sondaServicio.error?.code === 'PGRST202') {
+    const msg = instalada
+      ? '✗ Llamadas del celular: la tabla existe pero falta una puerta (F2-c o F3-a sin aplicar)'
+      : '⚠ Llamadas del celular no instaladas: SALTADAS (no probado)';
+    if (instalada || process.env.CRM_RLS_EXIGE_LLAMADAS === '1') fail(msg);
+    else console.log(`  ${msg}`);
+    return;
+  }
+  check(!sonda.error && sonda.data?.guardar_sin_identificar === false && sonda.data?.entrantes_activas === false,
+    'gerencia lee la política: números sin lead no se guardan y entrantes apagadas (decisiones 2 y 3)',
+    errorText(sonda.error));
+
+  // Lead transitorio de vend1 con un teléfono aleatorio: único en la base, así la coincidencia es exacta.
+  const numero = `9${randomInt(10000000, 99999999)}`;
+  const leadId = randomUUID();
+  const ajeno = LEADS.find((l) => l.sellerKey === 'vend3');
+  const asignaciones = [];
+  const eventos = [];
+  let claveNueva = null;
+  const evento = (extra = {}) => ({
+    v: 1, evento_origen_id: `RLS-${randomUUID()}`, numero, direccion: 'saliente', estado_tecnico: 'conectada',
+    duracion_seg: 42, ocurrio_en: new Date(Date.now() - 60_000).toISOString(), ...extra,
+  });
+  const ingerir = (credencial, ev) => servicio('ingerir_llamada_celular_servicio', { p_credencial: credencial, p_evento: ev });
+  async function asignar(quien) {
+    for (let intento = 0; intento < 3; intento += 1) {
+      const etiqueta = `C${randomInt(100, 1000)}`;
+      const r = await rpc('gerencia', 'asignar_celular', { p_etiqueta: etiqueta, p_analista_id: id(quien) });
+      if (r.error?.code === '23505') continue; // etiqueta vigente de otra corrida: otra al azar
+      if (r.error) throw new Error(`asignar celular a ${quien}: ${errorText(r.error)}`);
+      asignaciones.push(r.data.asignacion_id);
+      return { ...r.data, etiqueta };
+    }
+    throw new Error(`asignar celular a ${quien}: tres etiquetas ocupadas seguidas`);
+  }
+  const contiene = (data, eventoId) => (Array.isArray(data) ? data : data?.filas ?? []).some((f) => f.evento_id === eventoId);
+
+  try {
+    await requireAdmin('crear el lead transitorio de llamadas',
+      admin.schema('crm').from('leads').insert({
+        id: leadId, nombre_completo: 'LLAMADAS CELULAR TRANSIENT', telefono: numero, creado_por: id('vend1'),
+        vendedor_id: id('vend1'), asignado_supervisor_id: null, etapa: 'nuevo', moneda: 'PEN',
+        monto_estimado: 1000, origen: 'oficina',
+      }));
+
+    // ── Tablas: sin acceso directo para nadie (todo pasa por las puertas) ──
+    const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-llamadas'));
+    for (const tabla of ['celulares_asignaciones', 'llamadas_celular_eventos', 'llamadas_celular_enlaces', 'llamadas_celular_politica']) {
+      for (const quien of ['vend1', 'sup1', 'gerencia', 'coordinador', 'directorio']) {
+        await expectExplicitAuthorizationDenied(`${quien}: no lee crm.${tabla} directo`,
+          sessions[quien].client.schema('crm').from(tabla).select('*').limit(1));
+      }
+      await expectExplicitAuthorizationDenied(`anon: no lee crm.${tabla}`, anon.schema('crm').from(tabla).select('*').limit(1));
+    }
+    for (const quien of ['vend1', 'gerencia']) {
+      await expectBlockedMutation(`${quien}: no actualiza eventos directo`,
+        sessions[quien].client.schema('crm').from('llamadas_celular_eventos').update({ atencion: 'registrado' })
+          .eq('lead_id', leadId).select('id'));
+      await expectBlockedMutation(`${quien}: no borra eventos directo`,
+        sessions[quien].client.schema('crm').from('llamadas_celular_eventos').delete().eq('lead_id', leadId).select('id'));
+    }
+
+    // ── Puertas: quién ejecuta qué. Con argumentos de la forma exacta: sin ellos PostgREST responde
+    // PGRST202 (función no encontrada) y la prueba fallaría por la razón equivocada. ──
+    const argumentos = {
+      llamadas_celular_pendientes_fn: {},
+      llamadas_celular_bandeja_fn: {},
+      llamada_celular_detalle_fn: { p_evento_id: randomUUID() },
+      asociar_llamada_celular: { p_evento_id: randomUUID(), p_lead_id: leadId },
+      enlazar_llamada_celular: { p_evento_id: randomUUID(), p_actividad_id: randomUUID() },
+      descartar_llamada_celular: { p_evento_id: randomUUID(), p_motivo: 'personal' },
+      celulares_asignaciones_fn: {},
+      celulares_salud_fn: {},
+      asignar_celular: { p_etiqueta: 'C999', p_analista_id: id('vend1') },
+      rotar_credencial_celular: { p_etiqueta: 'C999' },
+      cerrar_asignacion_celular: { p_asignacion_id: randomUUID(), p_motivo: 'otro' },
+      llamadas_celular_politica_fn: {},
+      fijar_politica_llamadas_celular: {},
+      ingerir_llamada_celular_servicio: { p_credencial: '0'.repeat(64), p_evento: evento() },
+      registrar_salud_celular_servicio: { p_credencial: '0'.repeat(64), p_latido: { v: 1, version_macro: 'gate', en_cola: 0 } },
+    };
+    const soloGerencia = ['asignar_celular', 'rotar_credencial_celular', 'cerrar_asignacion_celular',
+      'llamadas_celular_politica_fn', 'fijar_politica_llamadas_celular'];
+    for (const fn of soloGerencia) {
+      for (const quien of ['sup1', 'vend1', 'coordinador', 'directorio', 'vendInactive']) {
+        await expectExplicitAuthorizationDenied(`${quien}: ${fn} es solo de gerencia`, rpc(quien, fn, argumentos[fn]));
+      }
+    }
+    for (const fn of ['celulares_asignaciones_fn', 'celulares_salud_fn']) {
+      for (const quien of ['vend1', 'coordinador', 'directorio', 'vendInactive']) {
+        await expectExplicitAuthorizationDenied(`${quien}: ${fn} es de supervisión y gerencia`, rpc(quien, fn, argumentos[fn]));
+      }
+    }
+    for (const fn of ['llamadas_celular_pendientes_fn', 'llamadas_celular_bandeja_fn', 'llamada_celular_detalle_fn',
+      'asociar_llamada_celular', 'enlazar_llamada_celular', 'descartar_llamada_celular']) {
+      for (const quien of ['coordinador', 'directorio', 'vendInactive']) {
+        await expectExplicitAuthorizationDenied(`${quien}: sin ${fn}`, rpc(quien, fn, argumentos[fn]));
+      }
+    }
+    for (const [fn, args] of Object.entries(argumentos)) {
+      await expectExplicitAuthorizationDenied(`anon: no ejecuta ${fn}`, anon.schema('crm').rpc(fn, args));
+    }
+    for (const fn of ['ingerir_llamada_celular_servicio', 'registrar_salud_celular_servicio']) {
+      for (const quien of ['vend1', 'sup1', 'gerencia']) {
+        await expectExplicitAuthorizationDenied(`${quien}: la puerta de servicio ${fn} es solo de service_role`,
+          rpc(quien, fn, argumentos[fn]));
+      }
+    }
+
+    // ── Asignar celulares: solo gerencia; la clave sale una vez y no se vuelve a leer ──
+    const cel = await asignar('vend1');
+    check(/^[0-9a-f]{64}$/.test(cel.credencial ?? ''), 'gerencia asigna un celular a vend1: la clave sale una vez (64 hex)');
+    await expectExpectedFailure('gerencia: no asigna un celular a un analista dado de baja',
+      rpc('gerencia', 'asignar_celular', { p_etiqueta: `C${randomInt(100, 1000)}`, p_analista_id: id('vendInactive') }),
+      ['22023'], /activo/i);
+    await expectExpectedFailure('gerencia: etiqueta inválida rechazada',
+      rpc('gerencia', 'asignar_celular', { p_etiqueta: 'celular', p_analista_id: id('vend1') }), ['22023'], /etiqueta/i);
+    const lecturaG = await rpc('gerencia', 'celulares_asignaciones_fn');
+    check(!lecturaG.error && (lecturaG.data ?? []).some((a) => a.asignacion_id === cel.asignacion_id)
+      && !/[0-9a-f]{64}/.test(JSON.stringify(lecturaG.data)),
+    'gerencia ve la asignación y la lectura no expone ningún hash de clave', errorText(lecturaG.error));
+    const lecturaS1 = await rpc('sup1', 'celulares_asignaciones_fn');
+    const lecturaS2 = await rpc('sup2', 'celulares_asignaciones_fn');
+    check(!lecturaS1.error && (lecturaS1.data ?? []).some((a) => a.asignacion_id === cel.asignacion_id)
+      && !lecturaS2.error && !(lecturaS2.data ?? []).some((a) => a.asignacion_id === cel.asignacion_id),
+    'supervisión ve los celulares de su equipo (sup1 sí, sup2 no)');
+
+    // ── Ingesta de servicio: clave, identificación, idempotencia ──
+    await expectExpectedFailure('servicio: clave desconocida → el mismo 42501', ingerir('f'.repeat(64), evento()), ['42501'], /no autorizado/i);
+    const ev1 = evento();
+    const r1 = await ingerir(cel.credencial, ev1);
+    check(!r1.error && r1.data?.evento_id && r1.data?.repetido === false && r1.data?.ignorado === false
+      && Object.keys(r1.data ?? {}).sort().join() === 'evento_id,ignorado,motivo,repetido',
+    'servicio: la llamada a un lead se guarda y la respuesta no trae el lead ni su atención', errorText(r1.error));
+    const eventoId = r1.data?.evento_id;
+    if (eventoId) eventos.push(eventoId);
+    const r1b = await ingerir(cel.credencial, ev1);
+    check(!r1b.error && r1b.data?.evento_id === eventoId && r1b.data?.repetido === true,
+      'servicio: el mismo origen con el mismo contenido → el mismo evento, repetido', errorText(r1b.error));
+    await expectExpectedFailure('servicio: el mismo origen con otro contenido → P0409',
+      ingerir(cel.credencial, { ...ev1, duracion_seg: 43 }), ['P0409'], /otro contenido/i);
+    const evDoble = evento();
+    const [d1, d2] = await Promise.all([ingerir(cel.credencial, evDoble), ingerir(cel.credencial, evDoble)]);
+    check(!d1.error && !d2.error && d1.data?.evento_id === d2.data?.evento_id
+      && [d1.data?.repetido, d2.data?.repetido].filter(Boolean).length === 1,
+    'servicio: dos envíos a la vez del mismo origen → un solo evento', `${errorText(d1.error)} / ${errorText(d2.error)}`);
+    if (d1.data?.evento_id) eventos.push(d1.data.evento_id);
+    const sinLead = await ingerir(cel.credencial, evento({ numero: `9${randomInt(10000000, 99999999)}` }));
+    check(!sinLead.error && sinLead.data?.ignorado === true && !sinLead.data?.evento_id,
+      'servicio: un número que no es de ningún lead no se guarda (decisión 3)', errorText(sinLead.error));
+    const latido = await servicio('registrar_salud_celular_servicio',
+      { p_credencial: cel.credencial, p_latido: { v: 1, version_macro: 'gate rls', en_cola: 0 } });
+    check(!latido.error, 'servicio: el latido de salud se registra con la clave', errorText(latido.error));
+    const saludG = await rpc('gerencia', 'celulares_salud_fn');
+    const saludS2 = await rpc('sup2', 'celulares_salud_fn');
+    check(!saludG.error && JSON.stringify(saludG.data ?? '').includes(cel.asignacion_id)
+      && !saludS2.error && !JSON.stringify(saludS2.data ?? '').includes(cel.asignacion_id),
+    'salud: gerencia ve el celular; sup2 (otro equipo) no');
+
+    // ── Ámbito de lectura: dueño, su supervisión y gerencia sí; otro equipo no ──
+    for (const [quien, ve] of [['vend1', true], ['sup1', true], ['gerencia', true], ['vend3', false], ['sup2', false]]) {
+      const pend = await rpc(quien, 'llamadas_celular_pendientes_fn');
+      const band = await rpc(quien, 'llamadas_celular_bandeja_fn');
+      check(!pend.error && !band.error && contiene(pend.data, eventoId) === ve && contiene(band.data, eventoId) === ve,
+        `${quien}: ${ve ? 've' : 'no ve'} la llamada en pendientes y bandeja`, `${errorText(pend.error)} / ${errorText(band.error)}`);
+    }
+    const det = await rpc('vend1', 'llamada_celular_detalle_fn', { p_evento_id: eventoId });
+    check(!det.error && det.data?.atencion === 'requiere_resultado' && det.data?.lead_id === leadId,
+      'vend1: su llamada pide resultado y está asociada a su lead', errorText(det.error));
+    for (const quien of ['vend3', 'sup2']) {
+      await expectExplicitAuthorizationDenied(`${quien}: no abre el detalle de una llamada ajena`,
+        rpc(quien, 'llamada_celular_detalle_fn', { p_evento_id: eventoId }));
+      await expectExplicitAuthorizationDenied(`${quien}: no descarta una llamada ajena`,
+        rpc(quien, 'descartar_llamada_celular', { p_evento_id: eventoId, p_motivo: 'personal' }));
+    }
+    await expectExplicitAuthorizationDenied('vend1: no asocia su llamada a un lead de otro equipo',
+      rpc('vend1', 'asociar_llamada_celular', { p_evento_id: eventoId, p_lead_id: ajeno.id }));
+    await expectExpectedFailure('vend1: no enlaza la llamada a un resultado que no es de ese lead',
+      rpc('vend1', 'enlazar_llamada_celular', { p_evento_id: eventoId, p_actividad_id: randomUUID() }), ['22023'], /no es del lead/i);
+    await expectExpectedFailure('vend1: descartar con «otro» exige el motivo escrito',
+      rpc('vend1', 'descartar_llamada_celular', { p_evento_id: eventoId, p_motivo: 'otro' }), ['22023'], /otro/i);
+
+    // ── Corrección 20261001222431: el celular de un SUPERVISOR evalúa la regla como su dueño ──
+    // Depende de que auth.uid() lea request.jwt.claim.sub (lo que fija la ingesta antes de evaluar).
+    const celSup = await asignar('sup1');
+    const rs = await ingerir(celSup.credencial, evento());
+    if (rs.data?.evento_id) eventos.push(rs.data.evento_id);
+    const detSup = rs.data?.evento_id ? await rpc('sup1', 'llamada_celular_detalle_fn', { p_evento_id: rs.data.evento_id }) : null;
+    check(!rs.error && detSup && !detSup.error && detSup.data?.atencion === 'requiere_resultado',
+      'sup1: su llamada a un lead de su equipo pide resultado (la ingesta evalúa como el dueño del celular)',
+      `${errorText(rs.error)} / ${errorText(detSup?.error)}`);
+
+    // ── Rotar y cerrar: la clave vieja deja de valer con el mismo 42501 ──
+    const rot = await rpc('gerencia', 'rotar_credencial_celular', { p_etiqueta: cel.etiqueta });
+    check(!rot.error && /^[0-9a-f]{64}$/.test(rot.data?.credencial ?? '') && rot.data?.credencial !== cel.credencial,
+      'gerencia rota la clave del celular', errorText(rot.error));
+    if (rot.data?.asignacion_id) {
+      // La rotación ya cerró la anterior: solo queda por cerrar la nueva.
+      asignaciones.splice(asignaciones.indexOf(cel.asignacion_id), 1, rot.data.asignacion_id);
+      claveNueva = rot.data.credencial;
+    }
+    await expectExpectedFailure('servicio: la clave rotada ya no entra', ingerir(cel.credencial, evento()), ['42501'], /no autorizado/i);
+    const conNueva = await ingerir(claveNueva ?? '', evento({ numero: `9${randomInt(10000000, 99999999)}` }));
+    check(!conNueva.error, 'servicio: la clave nueva sí entra', errorText(conNueva.error));
+  } finally {
+    // Deja las llamadas de la corrida descartadas (sin pendientes para nadie), cierra los celulares y
+    // desactiva el lead. 22023 al descartar = ya estaba descartada.
+    for (const eventoId of eventos) {
+      const r = await rpc('vend1', 'descartar_llamada_celular', { p_evento_id: eventoId, p_motivo: 'numero_de_prueba' });
+      if (r.error && r.error.code !== '22023') fail(`llamadas: no se pudo descartar el evento de prueba — ${errorText(r.error)}`);
+    }
+    for (const asignacionId of asignaciones) {
+      const r = await rpc('gerencia', 'cerrar_asignacion_celular', { p_asignacion_id: asignacionId, p_motivo: 'reemplazo' });
+      if (r.error) fail(`llamadas: no se pudo cerrar un celular de prueba — ${errorText(r.error)}`);
+    }
+    await admin.schema('crm').from('leads').update({ activo: false }).eq('id', leadId);
+  }
+  if (claveNueva) {
+    await expectExpectedFailure('servicio: con el celular cerrado, su clave ya no entra',
+      ingerir(claveNueva, evento()), ['42501'], /no autorizado/i);
+  }
+}
+
 async function main() {
   let primaryError = null;
   const recoveryErrors = [];
@@ -16521,6 +16759,7 @@ async function main() {
       await testBaseGestionB1(sessions, verifiedSeed);
       await testPotencialLectura(sessions, verifiedSeed);
       await testPotencialFiltro(sessions, verifiedSeed);
+      await testLlamadasCelular(sessions, verifiedSeed);
     }
   } catch (error) {
     primaryError = error;
