@@ -15137,3 +15137,49 @@ enfriados o rellamadas (los postflights deshicieron sus ensayos); **las huellas 
 (cuerpos, ACL, políticas, relaciones, triggers, `auth.uid`). Advisors de producción iguales a la rama, sin contar
 `unused_index`; respecto al antes, nuevas solo las 4 WARN de las puertas. Tipos regenerados en `9c1d7296` (typecheck PASS).
 Rama `base-gestion-datos-20261002` borrada.
+
+## 20261003162300 — Base para gestión del analista · B3c: las cuatro funciones del módulo salen del censo analítico
+
+**⏳ PENDIENTE (03/10/2026): banco PASS; falta Codex, gate y aplicación de Miguel.** Desde el 02/10 (20:15)
+`private.assert_analitica_leads_citas()` cae y el vigía abre una alerta diaria (fase `f6a_analitica_leads_citas`):
+`crm.obtener_base_gestion`, `crm.base_gestion_resumen`, `private.base_gestion_intento_core` y
+`private.trg_actividades_enfriamiento_base` nombran `crm.leads`/«reunion» y usan `count(` sin declarar (leído en producción
+el 03/10; hallazgo P1 del auditor-rls). Tres cuentan intentos, no leads. Declarar no cabe (techo solo baja): se sacan del
+alcance. Nuevas `private.base_gestion_intentos_ciclo(uuid[],timestamptz[])` (UNA definición de «intentos del ciclo», antes
+tres copias) y `private.base_gestion_leads_de(uuid)` (solo predicado); el resumen cuenta la lista de
+`crm.obtener_base_gestion` (antes copiaba su predicado). `create or replace` del texto vivo (md5 en el preflight), mismos
+permisos. Postflight: el censo pierde EXACTAMENTE las cuatro y no gana nada; sello del trinquete intacto. Banco: B2 25/25,
+B3 48/48, B4 17/17; mutante (la ayudante cuenta de más) → B3 y B4 FALLAN. La alerta de `private.gestion_diaria_cola_hechos`
+(otra sesión) sigue. **Reversa:** `supabase/scripts/base-gestion/reversa-conteos-fuera-del-censo.sql`. Plan aprobado por
+Miguel el 03/10.
+
+## 20261003162400 — Base para gestión del analista · B5: el MES del lead (`recibido_en`)
+
+**⏳ PENDIENTE (03/10/2026): banco PASS; falta Codex, gate y aplicación de Miguel.** Miguel (02/10): «saber qué mes estoy
+gestionando». `crm.obtener_base_gestion` devuelve al final `recibido_en = coalesce(tenencia_desde, creado_en)`. Drop +
+create (cambia el `returns table`) sobre el cuerpo de B3c (md5 en el preflight), mismo dueño, ámbito y EXECUTE solo
+authenticated; su único envoltorio (`base_gestion_resumen`, B3c) lee columnas que siguen. Postflight: md5 del cuerpo, ACL
+exacta, fuera del censo. La pantalla (rama `crm/base-gestion-front`, `c9e772fd`) ya la lee como opcional. **Reversa:**
+`supabase/scripts/base-gestion/reversa-mes-del-lead.sql`.
+
+## 20261003162500 — Base para gestión del analista · B6: candado de seguimiento activo en el lead
+
+**⏳ PENDIENTE (03/10/2026): banco PASS; falta Codex, gate y aplicación de Miguel.** Regla de Miguel (02/10) y respuestas
+(03/10): seguimiento activo = último intento de la base del ciclo + 7 días, o rellamada agendada en ese ciclo; el
+supervisor lo ve **en gris** «En gestión por X hasta el día Y»; y el candado va **en el lead, para toda vía** (el
+auditor-rls y el banco probaron que la ficha —PATCH de `vendedor_id`— y «tomar lead libre» también movían el lead). Nueva
+`private.base_gestion_en_gestion_hasta(uuid)` (regla única; una baja —dueño inactivo— libera; una rellamada de un ciclo
+anterior no bloquea). Trigger `trg_leads_00_seguimiento_activo` (BEFORE UPDATE, WHEN descartado y cambia `vendedor_id`) con
+`private.trg_leads_guard_seguimiento_activo()` (DEFINER, sin EXECUTE para la API): P0409, detail `estado=en_gestion`, sin
+nombres en el mensaje. `crm.rescate_descartes_mes`: drop + create con `en_gestion_por`/`en_gestion_hasta`; `estado` no
+cambia (bundle viejo). **`crm.rescatar_descartes` NO se toca** (está declarada con su huella en el censo: cambiarla la
+caducaría). Límite aceptado y probado: devolverlo a su MISMO analista no es reasignar (el dueño no cambia). Cuerpo vivo de
+`rescate_descartes_mes` (md5 `7c6363fb…`): no lo produce ninguna migración del repo; consta en
+`SERVIDOR-CRM/evidencia-funciones-conexiones.json` (anotado por el auditor). Banco: `b6-seguimiento.sql` **29/29** (rescate,
+lote atómico, ficha, tomar lead libre, baja, día 7/8, rellamada vigente/vencida/de otro ciclo, gerencia, permisos, B5,
+censo); mutantes (sin regla, sin candado) → FALLAN. ⚠️ En el Docker local no se llama a la ayudante sin permiso (tumba
+Postgres). **Reversa:** `supabase/scripts/base-gestion/reversa-seguimiento-activo.sql`.
+
+**Paquete B3c → B5 → B6 (03/10):** cadena de reversas B6 → B5 → B3c deja las seis funciones con las huellas de PRODUCCIÓN y
+sin restos; reaplicación + suites en verde. Registradores `supabase/scripts/base-gestion/registrar/2026100316{23,24,25}00.sql`
+(md5 = archivo; segunda pasada no duplica). Se aplican en ese orden, cada una seguida de su registrador.
