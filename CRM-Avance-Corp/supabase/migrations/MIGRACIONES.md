@@ -15130,3 +15130,10 @@ con `potencial-lead/banco/generar-registrador.py`; `statements` es el archivo en
 después el de su registrador. Producción leída el 02/10 a las 20:10: ninguna aplicada ni registrada. Evidencia:
 `BASE PARA GESTION/revisiones/2026-10-02-rama-y-gate.md`. 🔴 La reversa de B1b no corre si ya hay intentos con fecha
 escritos: el CHECK de B1 los rechaza.
+**✅ APLICADA Y REGISTRADA EN PRODUCCIÓN el 02/10/2026 (20:15 Lima) — las 7.** Miguel con `!`: por cada versión,
+`db query --linked --file` de la migración y luego el de su registrador, en orden: 7/7 OK. Comprobado después, en solo
+lectura: las 7 en true; 7 registradas con `statements` = el archivo (md5) y 1 elemento cada una; 0 intentos, reactivados,
+enfriados o rellamadas (los postflights deshicieron sus ensayos); **las huellas de producción son las de la rama**
+(cuerpos, ACL, políticas, relaciones, triggers, `auth.uid`). Advisors de producción iguales a la rama, sin contar
+`unused_index`; respecto al antes, nuevas solo las 4 WARN de las puertas. Tipos regenerados en `9c1d7296` (typecheck PASS).
+Rama `base-gestion-datos-20261002` borrada.

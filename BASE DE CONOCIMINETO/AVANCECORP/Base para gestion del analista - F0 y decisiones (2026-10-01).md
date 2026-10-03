@@ -1,7 +1,7 @@
 ---
 tags: [crm, base-para-gestion, rescate, analista, f0, decision, figma]
 fecha: 2026-10-01
-estado: F0 ☑ · D1–D13 ☑ · B1–B3b auditadas, aplicadas en la rama con datos y con gate de RLS en Docker a paridad (02/10 noche, 74/74, 0 rojos nuevos) · falta el merge de Miguel · nada en producción
+estado: F0 ☑ · D1–D13 ☑ · B1–B3b EN PRODUCCIÓN (02/10 20:15, registradas, huellas = rama) · tipos regenerados · sigue el frontend F1–F4
 ---
 
 # Base para gestión del analista — F0 y decisiones (01/10/2026)
@@ -359,3 +359,16 @@ migraciones aplicadas. Nada en producción.
   exige tratar antes esas actividades.
 - **Sigue:** merge de Miguel con `!`, fuera del horario de gestión (`BASE PARA GESTION/ESTADO.md`, paso 1). Después:
   gen:types, push, borrar la rama, y luego F1–F4.
+
+## EN PRODUCCIÓN (02/10/2026, 20:15 Lima)
+
+- Miguel aplicó con `!` las 7, cada una con su registrador, en orden: 7/7 `OK`.
+- Comprobado después, en solo lectura: las 7 en true y 7 registradas con el md5 de su archivo; 0 intentos, reactivados,
+  enfriados o rellamadas (los postflights deshicieron sus ensayos); **huellas de producción = rama** (cuerpos, ACL,
+  políticas, relaciones, triggers); advisors iguales a la rama.
+- Tipos regenerados desde producción (`9c1d7296`, typecheck PASS). También trajeron tipos de otros módulos ya publicados
+  que `main` no tenía.
+- Rama de Supabase borrada.
+- 🔴 `main` local y `avancecorp/main` DIVERGEN (285 commits solo en local, 28 solo en GitHub). No se hizo push: la
+  integración va por una PR sin lo de Gloria y la decide Miguel.
+- **Sigue:** frontend F1 → F4 (`BASE PARA GESTION/FRONTEND.md`).
