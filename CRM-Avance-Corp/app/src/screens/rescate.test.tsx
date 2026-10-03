@@ -74,11 +74,16 @@ describe('la base del analista', () => {
     ]
     render(<BaseGestion />)
     vi.useRealTimers()
+    expect(screen.getByRole('table', { name: /Tus leads descartados/ })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Tu base para gestión' })).toHaveAttribute('tabindex', '0')
+    expect(screen.getByRole('columnheader', { name: 'Acciones' })).toBeInTheDocument()
     const filas = within(screen.getByRole('table')).getAllByRole('row').slice(1)
     expect(filas.map((f) => within(f).getByRole('rowheader').textContent)).toEqual([
       expect.stringContaining('LEAD BASE 1'), expect.stringContaining('LEAD BASE 2'),
     ])
     const [primera, segunda] = filas as [HTMLElement, HTMLElement]
+    expect(within(primera).getByRole('rowheader')).toHaveTextContent('toca llamar hoy')
+    expect(within(segunda).getByRole('rowheader')).not.toHaveTextContent('toca llamar hoy')
     expect(within(primera).getByText('Hoy, 15:00')).toBeInTheDocument()
     expect(within(primera).getByText('2 de 3')).toBeInTheDocument()
     expect(within(segunda).getByText('Cita agendada')).toBeInTheDocument()
@@ -101,6 +106,13 @@ describe('la base del analista', () => {
     expect(screen.getByText('Sin teléfono')).toBeInTheDocument()
   })
 
+  it('un teléfono que no sirve (menos de 7 dígitos) no se ofrece para llamar', () => {
+    CONSULTA.data = [fila(1, { telefono: '12345' })]
+    render(<BaseGestion />)
+    expect(screen.queryByRole('button', { name: /Llamar a/ })).toBeNull()
+    expect(screen.getByText('Sin teléfono')).toBeInTheDocument()
+  })
+
   it('en el celular la base es una lista de tarjetas y «Llamar» abre el marcador', () => {
     Object.defineProperty(window, 'matchMedia', {
       configurable: true,
@@ -111,6 +123,8 @@ describe('la base del analista', () => {
       render(<BaseGestion />)
       expect(screen.queryByRole('table')).toBeNull()
       const lista = screen.getByRole('list', { name: 'Tu base para gestión' })
+      expect(lista).toHaveAttribute('role', 'list')
+      expect(within(lista).getAllByRole('listitem')).toHaveLength(1)
       expect(within(lista).getByText('LEAD BASE 1')).toBeInTheDocument()
       expect(within(lista).getByRole('link', { name: 'Llamar a LEAD BASE 1' })).toHaveAttribute('href', 'tel:+51987654321')
     } finally {
@@ -131,6 +145,23 @@ describe('la base del analista', () => {
     expect(screen.getByText('No se pudo cargar tu base para gestión.')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: /Reintentar/ }))
     expect(refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('si falla el refresco con datos ya cargados, los conserva y avisa en línea', async () => {
+    CONSULTA = { data: [fila(1)], isPending: false, isError: true, isFetching: false, refetch }
+    render(<BaseGestion />)
+    expect(screen.getByRole('table')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('No pudimos actualizar tu base. Se muestran los últimos datos.')
+    expect(screen.queryByText('No se pudo cargar tu base para gestión.')).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: /Reintentar/ }))
+    expect(refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('mientras carga por primera vez lo dice (aria-busy) y no pinta una base vacía', () => {
+    CONSULTA = { isPending: true, isError: false, isFetching: true, refetch }
+    const { container } = render(<BaseGestion />)
+    expect(container.querySelector('[aria-busy]')).not.toBeNull()
+    expect(screen.queryByText('No tienes leads descartados por gestionar')).toBeNull()
   })
 
   it('en demo no sale ni un request: la base se arma con los descartados propios del store', () => {
