@@ -1,8 +1,8 @@
 {
-  "actualizado": "2026-10-03T19:18:43Z",
+  "actualizado": "2026-10-03T22:57:28Z",
   "meta": {
-    "novedad": "03/10 19:18 UTC: en el PR #173, además de la guía, el encargo para el revisor de Miguel sobre el plan de la corrección (11 preguntas, diseño antes del código). Miguel responde las seis decisiones ahí; nada se programa hasta su OK.",
-    "actualizado": "2026-10-03T19:18:43Z"
+    "novedad": "03/10 22:57 UTC: plan v2 de la corrección en un PR borrador, para el OK de Miguel: sus siete decisiones y cada hallazgo de Codex r1 con su arreglo, más una propuesta nueva (la salud del celular sin los datos que cuentan llamadas personales). Nada se programa hasta su OK; después, la quinta migración.",
+    "actualizado": "2026-10-03T22:57:28Z"
   },
   "fases": {
     "F0": { "estado": "curso", "actualizado": "2026-09-29T22:42:31Z" },
@@ -149,6 +149,10 @@
     { "at": "2026-10-03T17:11:10Z", "texto": "F4-PLAN-CORTO.md al día: se adapta la Gestión Diaria que ya existe, sin rediseñar (pestaña «Llamadas del celular», encuesta en «Ahora», marca «Celular», pestaña de gerencia). Prototipo del analista rehecho sobre la pantalla real. Requisito de Jhosep: la encuesta se abre siempre al colgar." },
     { "at": "2026-10-03T18:57:39Z", "texto": "PR #171 fusionado por Miguel (b6c4e3b4, 18:40 UTC) sin revisión formal ni respuesta a las seis decisiones: nada se programa hasta su OK. Seguimiento en el PR #172 (corrección del vault sobre el cierre de tareas de clientes)." },
     { "at": "2026-10-03T19:08:31Z", "texto": "Guía de publicación con los puntos 17–20 de la revisión (PR #173, 61100e39): registradores de las 4 migraciones (contenido y md5 comprobados), alta-celular.sql para el ensayo y producción, espejo legado de la Edge retirado (deja sin efecto el paso 0.4 del 14:23) y MIGRACIONES.md al día." },
-    { "at": "2026-10-03T19:18:43Z", "texto": "Encargo para el revisor de Miguel sobre el PLAN de la corrección (docs/encargos/2026-10-03-codex-llamadas-celular-correccion-r1.md, en el PR #173): ronda 1 de máx. 2 de la tarea «corrección», solo diseño, con 11 preguntas (P1–P11) y el código transcrito con número de línea; la ronda 2 queda para el diff de la quinta migración." }
+    { "at": "2026-10-03T19:18:43Z", "texto": "Encargo para el revisor de Miguel sobre el PLAN de la corrección (docs/encargos/2026-10-03-codex-llamadas-celular-correccion-r1.md, en el PR #173): ronda 1 de máx. 2 de la tarea «corrección», solo diseño, con 11 preguntas (P1–P11) y el código transcrito con número de línea; la ronda 2 queda para el diff de la quinta migración." },
+    { "at": "2026-10-03T21:47:42Z", "texto": "El encargo para el revisor quedó fuera del #173 (fusionado segundos antes); va en el PR #175 con el aviso PARA MIGUEL del vault al día. Decisión de Jhosep: comprar MacroDroid Pro (S/19 por celular). Guía de las macros con entrantes y latido (macrodroid.md §3d, sin probar) en el PR #176: contestada detectada con «Llamada activa», una sola clave por entrante, la llamada en espera no borra la saliente y latido cada 6 h y al vaciar la cola." },
+    { "at": "2026-10-03T22:10:44Z", "texto": "Codex r1 sobre el plan de la corrección: BLOCK al diseño (6 P2 + 1 P3: contrato Edge–RPC, id de origen, candados, reloj adelantado, barrera si falla la quinta). Miguel decidió las seis decisiones y una séptima (los leads sin dueño y los descartados reutilizables son candidatos); la #12 queda con el tiempo como riesgo aceptado; MacroDroid Pro todavía no. PR #175 y #176 fusionados. Sigue: plan v2 de la corrección." },
+    { "at": "2026-10-03T22:42:10Z", "texto": "Análisis adelantado de F5, F6 y F7 (F5-F7-ANALISIS.md, PR #178, borrador: no pide revisión hasta que toque F5). F5 casi sin casos: medir antes de construir. F6 necesita su diccionario antes de la pestaña de gerencia de F4-e. F7 depende de cerrar F0. Dejó dos propuestas para la corrección: la salud del celular sin envios_hoy ni ultimo_envio_en (cuentan llamadas personales) y cola en 0 antes de pasar un celular a otro analista." },
+    { "at": "2026-10-03T22:57:28Z", "texto": "Plan v2 de la corrección (CORRECCION-PLAN-CORTO.md, PR borrador): las siete decisiones de Miguel y cada hallazgo de Codex r1 con su arreglo. Id con forma fija C<n>-<segundos>, guardado tal cual; recepción en private con 32 días; la base como única validadora (todo inválido gasta cupo); candidatos del ámbito del dueño más los leads sin dueño y los reutilizables; candados en un solo orden (resultado → lead → llamada → enlace); 30 días para las llamadas sin resultado y las registradas se conservan. Nuevo, para su OK: la salud del celular sin envíos. Se publica junto con F4-a." }
   ]
 }
