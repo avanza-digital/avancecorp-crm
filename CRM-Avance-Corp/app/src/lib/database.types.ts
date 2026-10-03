@@ -6117,6 +6117,7 @@ export type Database = {
           nombre_completo: string
           origen: string
           proxima_llamada_en: string
+          recibido_en: string
           rellamada_hoy: boolean
           telefono: string
           ultimo_intento_en: string
@@ -6518,6 +6519,8 @@ export type Database = {
           categoria_interes: string
           descartado_en: string
           distrito: string
+          en_gestion_hasta: string
+          en_gestion_por: string
           episodio_id: string
           estado: string
           lead_id: string
