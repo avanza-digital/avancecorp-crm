@@ -437,3 +437,8 @@ migraciones aplicadas. Nada en producción.
 - **FigJam** (`zbgq3gjYGsaaMCo6e140bU`): sección nueva «5 · Bases cargadas» `28:2` (decisiones E1 `28:11` … E4 `28:17`,
   flujo `29:3`→`29:23`, fases B7 `31:32` … F6 `31:42`, bocetos «Repartir» `32:35` y «Seguimiento» `33:33`); fases B5
   `27:2` y B6 `27:4` entre F1 y F2.
+- **Listo para el `!` (03/10, tarde):** Codex r1 BLOCK (las suites aceptaban NULL como PASS; el detail del candado llevaba el
+  lead_id) → arreglado → r2 PASS. Rama con datos (borrada): censo 42 → 38, advisors iguales, mismos resultados que los cuerpos
+  vivos con los datos reales. Gate de RLS en Docker: ningún rojo nuevo, bloque nuevo 17/17. Evidencia en
+  `BASE PARA GESTION/revisiones/2026-10-03-rama-b3c-b5-b6.md`. Orden de aplicación: B3c → B5 → B6, cada una con su registrador.
+
