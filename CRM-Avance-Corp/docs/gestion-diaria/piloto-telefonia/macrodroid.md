@@ -52,11 +52,119 @@ con **«Parámetros de codificación de URL» desmarcado** (el `#` tiene que lle
 1. **Ajuste de Android, sin paquete — es la vía que funcionó en C1 (30/09/2026):** Ajustes → Aplicaciones → **CRM Avance Corp** → «Definir como predeterminada» → «Abrir vínculos admitidos» ✓ → «Direcciones web admitidas» → `crm.miavance.com` ✓. Con eso la acción **«Abrir sitio web»** del F0 vale tal cual, solo cambiando la URL. Los dos interruptores tienen que estar encendidos: con el dominio apagado sigue abriendo Chrome.
 2. **Send Intent con el paquete del WebAPK** (solo si en algún celular la vía 1 no existe): Target `Activity`, Action `android.intent.action.VIEW`, Data = la URL de arriba, Package = `org.chromium.webapk.…` (se obtiene exportando la macro: el archivo trae el `packageName` de la acción «Lanzar app»).
 
+**Vigente en C1 desde el 02/10/2026:** F1 está en producción desde el 01/10 y la macro de C1 ya usa esta URL (PASS en `REGISTRO.md` §5c).
+
 **«Lanzar app» ya no basta** para F1: abre la app pero no puede pasarle el número.
 
 **Qué mirar en el celular (F1.4.2):** que la app se abra en Gestión Diaria y aparezca la encuesta (o el aviso) para el número marcado; que funcione con la sesión ya iniciada y también si toca iniciar sesión (el número debe sobrevivir al login); que Atrás no vuelva a abrir la búsqueda; y que con la encuesta abierta una segunda llamada no la pise (espera a que se cierre la primera). Anotar cada caso en `REGISTRO.md` sin el número real.
 
 **Reversa:** volver la acción a «Lanzar app → Avance CRM» (o a la URL sin número). En el CRM, si hiciera falta, basta con no montar `ReceptorLlamada` en `App.tsx`: la ruta se ignora y todo lo demás sigue igual.
+
+## 3c. Macro definitiva de salientes para F3 (F3-c) — armada y probada en C1 el 02/10/2026
+
+**Estado:** armada en C1 (Samsung A16, Android 16, MacroDroid 5.67 gratuito, en español) y **las 7 pruebas de aceptación PASS** contra el receptor de pruebas del PC (`REGISTRO.md` §5e). Sale de las 6 pruebas de F3.3 (§5d) y del **requisito de Jhosep**: el reenvío funciona desde cualquier red y sin pedir ubicación (`docs/plans/llamadas-celular/F3-PLAN-CORTO.md`). Todos los nombres de pantalla de esta sección son los que se vieron en C1.
+
+**Decisiones (de Claude, para Jhosep y Miguel):**
+- **Por ahora solo salientes** entran en la cola y abren la encuesta. Las entrantes de leads y clientes vuelven con la propuesta #14 (pendiente de Miguel), con los disparadores «Llamada entrante» y «Llamada perdida».
+- Al colgar, la encuesta se abre **enseguida** con la URL de F1, sin esperar al servidor.
+- La **clave** y la **URL del servidor** viven en un solo sitio: la «Solicitud HTTP» de «Llamadas-Enviar cola».
+- Solo el **400** se trata como rechazo definitivo (se aparta con aviso): los demás errores permanentes (409, 413, 415) no pueden salir de esta macro, porque el aviso se arma una sola vez con un tamaño y un formato fijos. Cualquier otro fallo (sin red, 401, 429, 5xx) deja el aviso en la cola para el próximo intento.
+- No se sale del bucle al fallar un envío: sin red, cada intento falla y el aviso se queda igual; salir antes solo ahorraba segundos.
+
+**Límite de MacroDroid gratuito: 5 macros por celular.** Estas tres + «Piloto F0» (apagada, de reserva) = 4. Con las entrantes (#14) harían falta más: decisión de Miguel sobre comprar MacroDroid Pro (`REGISTRO.md` §6).
+
+### Paso 1 — Variables globales
+
+Pantalla principal de MacroDroid → recuadro **«Variables globales»** → botón **+** (abajo a la derecha). Todo lo creado ahí es global: lo comparten las macros y sobrevive al reinicio.
+
+| Variable | Tipo | Para qué |
+| --- | --- | --- |
+| `cola_llamadas` | Diccionario | Avisos pendientes: clave = id de la llamada, valor = el aviso JSON |
+| `errores_llamadas` | Diccionario | Avisos que el servidor rechazó para siempre (400), para revisarlos sin bloquear la cola |
+| `en_saliente` | Booleana, valor Falso | «Llamadas-Salientes» la pone en Verdadero al marcar; «Al colgar» la lee y la vuelve a Falso |
+
+### Paso 2 — Macro «Llamadas-Salientes»
+
+- **Disparador:** «Llamada saliente» → «Cualquier Número».
+- **Acción:** Variables → «Fijar Variable» → `en_saliente` → **Verdadero** (no tocar «PROBAR»).
+
+### Paso 3 — Macro «Llamadas-Enviar cola»
+
+- **Disparadores:**
+  - Conectividad → **«Cambio de Conectividad de Datos»** → **«Datos Disponibles»**.
+  - Fecha/Hora → **«Intervalo regular»** → 0 h **5 min** 0 s; «Usar hora de inicio de referencia» ✓ 00:00 (dispara en minutos terminados en 0 y 5); «Usar alarma» ✓ (dispara con la pantalla apagada).
+  - **Nunca** «Cambio de estado de Wifi → Conectado a la red» con un nombre de red: pide permiso de ubicación y no funciona en otra oficina (requisito de Jhosep).
+  - Hallazgo (A3): con los datos móviles activos, encender el Wi-Fi **no** dispara «Datos Disponibles» (para el celular, el internet no se cortó); el intervalo recoge lo pendiente. Demora máxima tras volver la red: ~5 min + 10 s.
+- **Acciones**, en este orden (lo sangrado va **dentro** del bloque de arriba; en pantalla se ve corrido a la derecha):
+  ```
+  Espera antes de la siguiente acción: 10 s («Usar alarma» ✓)       (categoría Macros)
+  Iterar Diccionario/Arreglo: cola_llamadas → «Este Diccionario»     (Condiciones/Bucles)
+      Fijar Variable: codigo (local, entera) = 0
+      Solicitud HTTP (POST)
+      Si codigo = 202                                                (condición «Variable MacroDroid», en MacroDroid Propio)
+          Borrar Entrada de Arreglo/Diccionario: cola_llamadas[{iterator_dictionary_key}] → «Eliminar clave»
+      Fin de Si
+      Si codigo = 400
+          Fijar Variable: errores_llamadas[{iterator_dictionary_key}] = {iterator_value}   (tipo Cadena)
+          Borrar Entrada de Arreglo/Diccionario: cola_llamadas[{iterator_dictionary_key}] → «Eliminar clave»
+          Mostrar notificación: «Llamadas» / «Un aviso de llamada fue rechazado»          (sin el número)
+      Fin de Si
+  Fin de Bucle
+  ```
+- **«Solicitud HTTP»:** método **POST**; la URL del servidor; «Bloquear las siguientes acciones hasta completar» ✓; «Guardar el código de retorno HTTP en una variable entera» → `codigo`; pestaña **«Cuerpo del Contenido»**: tipo `application/json`, Texto `{iterator_value}`; pestaña **«Parámetros de Encabezado»**: solo `x-celular-credencial` = la clave (**no** añadir `Content-Type` a mano: lo pone el tipo de contenido y duplicado daría 415).
+- **Trampas vistas al armarla:**
+  - La clave de un diccionario va **entre corchetes** en «Define manualmente»: `[{iterator_dictionary_key}]` (sin corchetes sale una X roja y «ACEPTAR» queda gris).
+  - Borrar una entrada: **«Eliminar clave»**, no «Borrar valor» (este deja el compartimento vacío y la siguiente vuelta mandaría un aviso vacío).
+  - Para un segundo caso usar **otro «Si» con su propio «Fin de Si»**; un «Si» sin cerrar da «Macro inválido: Estructura de control no válido en: Fin de Bucle».
+  - La lista de acciones solo muestra la URL de la «Solicitud HTTP», no su cuerpo: para revisarlo hay que abrirla.
+- Si dos disparos coinciden y un aviso sale dos veces, no pasa nada: el servidor responde 202 «repetida» (idempotencia por id).
+
+### Paso 4 — Macro «Llamadas-Al colgar» (sustituye a «Piloto F0»)
+
+Se arma clonando «Piloto F0» (mantener pulsada → Clonar) para conservar la acción «Abrir Sitio web» ya configurada; se borran su notificación, su «Registrar evento» (los dos mostraban el número) y la acción apagada «Lanzar CRM Avance Corp».
+
+- **Disparador:** «Llamada terminada» → «Cualquier Número» (no ofrece elegir saliente o entrante: por eso existe `en_saliente`).
+- **Acciones:**
+  ```
+  Si en_saliente = Verdadero
+      Fijar Variable: id_llamada (local, Cadena) = C1-{system_time}
+      Fijar Variable: cola_llamadas[{lv=id_llamada}] (Cadena) = el aviso (abajo)
+      Abrir Sitio web: https://crm.miavance.com/#/gestion-diaria/llamada/{call_number}   («codificación de URL» desmarcada)
+      Iniciar macro: Llamadas-Enviar cola   («Omitir restricciones» ✓, «Siempre iniciar» ✓, «Bloquear…» sin marcar)
+  Fin de Si
+  Fijar Variable: en_saliente = Falso
+  ```
+- **El aviso** (pegarlo, no teclearlo: el teclado cambia las comillas rectas por curvas y el servidor lo rechaza con 400):
+  ```
+  {"accion":"llamada","evento":{"v":1,"evento_origen_id":"{lv=id_llamada}","numero":"{call_number}","direccion":"saliente","ocurrio_en":"{datetime}-05:00"}}
+  ```
+  `{datetime}` es texto mágico de MacroDroid (`aaaa-MM-dd HH:mm:ss` en la hora del celular); el `-05:00` (Lima, sin horario de verano) es obligatorio: sin él, el servidor, que trabaja en UTC, la leería 5 horas corrida. Así un aviso reenviado horas después conserva la hora real de la llamada (comprobado en A3, A4 y A6). `{system_time}` está en segundos: basta, un celular no termina dos llamadas en el mismo segundo.
+- **Sin notificación ni «Registrar evento» con el número** (prueba 6).
+
+### Antes de usarla
+
+| Macro | Estado |
+| --- | --- |
+| Piloto F0 | Apagada (si siguiera encendida se abrirían dos encuestas) |
+| Llamadas-Salientes | Encendida |
+| Llamadas-Al colgar | Encendida |
+| Llamadas-Enviar cola | Encendida (la copia sale desactivada) |
+
+**URL del servidor:** mientras Miguel no despliegue la Edge, la del receptor de pruebas (`http://<IP del PC>:8787/functions/v1/crm-llamadas-ingesta`, solo dentro de la oficina y con el receptor encendido). Al desplegar, en la «Solicitud HTTP» cambian solo el servidor (misma ruta) y la clave de prueba por la del celular que da «asignar celular» (se muestra una vez).
+
+### Pruebas de aceptación (todas PASS el 02/10, detalle en `REGISTRO.md` §5e)
+
+| # | Caso | Resultado |
+| --- | --- | --- |
+| A1 | Saliente con Wi-Fi (a un número sin lead y a un lead) | Una sola pantalla del CRM y un solo aviso por llamada, ~11 s después, con la hora real |
+| A2 | Entrante | Ni encuesta ni aviso |
+| A3 | Dos salientes sin Wi-Fi | Quedan en la cola y llegan las dos con su hora (el intervalo recoge la vuelta del Wi-Fi) |
+| A4 | 503 forzado desde el PC | El aviso se queda y el intervalo lo reintenta con el mismo id → 202 |
+| A5 | Entrada dañada añadida a mano | 400 → pasa a `errores_llamadas` con aviso sin número; la cola sigue |
+| A6 | Reinicio con un aviso pendiente | Sobrevive y sale solo con su hora original; el intervalo se reactiva solo |
+| A7 | Permiso de ubicación | Ningún disparador definitivo lo pidió |
+
+Con la Edge desplegada se repiten A1 y A3 **con datos móviles** (cualquier red), más las pruebas 1 y 6 de F3.3. Pendiente para después: el latido de salud (decisión 3 de F3: cada 6 h y al vaciar la cola), las entrantes (#14) y la lista de casos de F3-d.
 
 ## 4. Cómo cerrar cada comprobación de F0.3
 

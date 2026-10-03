@@ -396,6 +396,14 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/crm-notificaciones-tasa/index.ts"
 
+[functions.crm-llamadas-ingesta]
+enabled = true
+# La macro del celular no tiene JWT. Control alternativo (F3, decisión 1 provisional de Jhosep,
+# 01/10/2026; la ratifica Miguel): clave del celular en la cabecera x-celular-credencial, validada
+# por una RPC solo de service_role contra su sha256; 401 uniforme, cuerpo ≤ 4 KB y límite por celular.
+verify_jwt = false
+entrypoint = "./functions/crm-llamadas-ingesta/index.ts"
+
 [analytics]
 enabled = true
 port = 55327

@@ -4681,6 +4681,56 @@ async function testContractBankAccounts(sessions, seed) {
     assertSeed(typeof actor.rol === 'string',
       `falta el rol original del actor bancario ${actor.id}`);
   }
+  // 20261001233019 (motivo del bloqueo de pagos) y 20261002005004 (asignar la cuenta de pago).
+  // Si la base aún no tiene una de las dos (suite corrida sin estas migraciones, p. ej. otra
+  // sesión en su banco), sus sondas se SALTAN — pero RUIDOSO: un salto silencioso pintaría de
+  // verde lo no probado. Con CRM_RLS_EXIGE_CUENTAS_PAGO=1 el salto es un FALLO. vend1 nunca pasa
+  // la compuerta: la sonda de despliegue no puede escribir.
+  const SOLICITUD_ASIGNAR_GATE = '00000000-0000-4000-8000-0000000a51a0';
+  async function puertaCuentasPagoDesplegada(fn, args) {
+    const probe = await sessions.vend1.client.schema('crm').rpc(fn, args);
+    if (probe.error?.code !== 'PGRST202') return true;
+    const msg = `⚠ ${fn} NO desplegada en esta base: sus sondas se SALTAN (no probado)`;
+    if (process.env.CRM_RLS_EXIGE_CUENTAS_PAGO === '1') fail(msg);
+    else console.log(`  ${msg}`);
+    return false;
+  }
+  const motivosDesplegada = await puertaCuentasPagoDesplegada('cuentas_pago_motivos_fn', {
+    p_contrato_ids: [],
+  });
+  const asignarDesplegada = await puertaCuentasPagoDesplegada('asignar_cuenta_pago_contrato', {
+    p_solicitud_id: SOLICITUD_ASIGNAR_GATE,
+    p_contrato_id: seed.legacyContract.id,
+    p_cuenta_id: seed.bankAccount.id,
+    p_motivo: 'Motivo de prueba del gate',
+  });
+  // 20261002163158 · «Retirar cuenta» y «Cambiar cuenta de pago» solo en READ COMMITTED. La negativa (0A000) no
+  // se puede provocar por HTTP (PostgREST siempre va en READ COMMITTED): estas sondas afirman que por la API nada
+  // cambió — un vendedor sigue recibiendo 42501 «Solo administración…» en las dos puertas, nunca 0A000.
+  const SOLICITUD_RETIRAR_GATE = '00000000-0000-4000-8000-0000000a51a1';
+  const SOLICITUD_CAMBIAR_GATE = '00000000-0000-4000-8000-0000000a51a2';
+  if (await puertaCuentasPagoDesplegada('retirar_cuenta_cliente', {
+    p_solicitud_id: SOLICITUD_RETIRAR_GATE, p_cliente_id: seed.legacyContract.cliente_id ?? SOLICITUD_RETIRAR_GATE,
+    p_cuenta_id: seed.bankAccount.id, p_motivo: 'Motivo de prueba del gate', p_respaldo_ruta: null,
+  })) {
+    await expectExpectedFailure('retirar_cuenta_cliente: vendedor → 42501 (la negativa de modo no asoma por la API)',
+      sessions.vend1.client.schema('crm').rpc('retirar_cuenta_cliente', {
+        p_solicitud_id: SOLICITUD_RETIRAR_GATE, p_cliente_id: seed.legacyContract.cliente_id ?? SOLICITUD_RETIRAR_GATE,
+        p_cuenta_id: seed.bankAccount.id, p_motivo: 'Motivo de prueba del gate', p_respaldo_ruta: null,
+      }), ['42501'], /Solo administración/);
+  }
+  if (await puertaCuentasPagoDesplegada('cambiar_cuenta_pago_contratos', {
+    p_solicitud_id: SOLICITUD_CAMBIAR_GATE, p_cliente_id: seed.legacyContract.cliente_id ?? SOLICITUD_CAMBIAR_GATE,
+    p_cuenta_nueva_id: seed.bankAccount.id, p_contrato_ids: [seed.legacyContract.id],
+    p_motivo: 'Motivo de prueba del gate', p_respaldo_ruta: 'gate/respaldo.pdf',
+  })) {
+    await expectExpectedFailure('cambiar_cuenta_pago_contratos: vendedor → 42501 (la negativa de modo no asoma por la API)',
+      sessions.vend1.client.schema('crm').rpc('cambiar_cuenta_pago_contratos', {
+        p_solicitud_id: SOLICITUD_CAMBIAR_GATE, p_cliente_id: seed.legacyContract.cliente_id ?? SOLICITUD_CAMBIAR_GATE,
+        p_cuenta_nueva_id: seed.bankAccount.id, p_contrato_ids: [seed.legacyContract.id],
+        p_motivo: 'Motivo de prueba del gate', p_respaldo_ruta: 'gate/respaldo.pdf',
+      }), ['42501'], /Solo administración/);
+  }
   const expectedProfileAccount = {
     banco: BANK_CLIENT.bank,
     tipo_cuenta: BANK_CLIENT.accountType,
@@ -4778,7 +4828,31 @@ async function testContractBankAccounts(sessions, seed) {
       ['42501'],
       /no autorizado para consultar cuentas de pago/i,
     );
+    if (motivosDesplegada) {
+      await expectExpectedFailure(
+        `${label}: no lee el motivo del bloqueo de pagos`,
+        sessions.vend1.client.schema('crm').rpc('cuentas_pago_motivos_fn', {
+          p_contrato_ids: [seed.legacyContract.id],
+        }),
+        ['42501'],
+        /no autorizado para consultar cuentas de pago/i,
+      );
+    }
+    if (asignarDesplegada) {
+      await expectExpectedFailure(
+        `${label}: no asigna la cuenta de pago de un contrato`,
+        sessions.vend1.client.schema('crm').rpc('asignar_cuenta_pago_contrato', {
+          p_solicitud_id: SOLICITUD_ASIGNAR_GATE,
+          p_contrato_id: seed.legacyContract.id,
+          p_cuenta_id: seed.bankAccount.id,
+          p_motivo: 'Motivo de prueba del gate',
+        }),
+        ['42501'],
+        /solo administración puede asignar la cuenta de pago/i,
+      );
+    }
   }
+
 
   async function assertAdminBankRead(client, label) {
     const listed = await positive(
@@ -4808,6 +4882,67 @@ async function testContractBankAccounts(sessions, seed) {
         ),
       `${label}: Pagos recibe la fotografia contractual esperada`,
     );
+
+    if (motivosDesplegada) {
+      // 20261001233019: el motivo del bloqueo solo viene para los contratos que
+      // NO se pueden pagar, redactado para la persona y sin datos bancarios.
+      const CASOS_SIN_PAGO = ['una_cuenta', 'varias_cuentas', 'otra_moneda', 'sin_cuenta', 'cuenta_no_corresponde'];
+      const motivos = await positive(
+        `${label}: lee el motivo del bloqueo de pagos`,
+        client.schema('crm').rpc('cuentas_pago_motivos_fn', {
+          p_contrato_ids: [seed.contract.id, seed.legacyContract.id],
+        }),
+      );
+      const filasMotivo = Array.isArray(motivos?.data) ? motivos.data : [];
+      check(
+        !filasMotivo.some((row) => row.contrato_id === seed.contract.id),
+        `${label}: un contrato con cuenta de pago no trae motivo`,
+      );
+      const motivoLegacy = filasMotivo.filter((row) => row.contrato_id === seed.legacyContract.id);
+      check(
+        motivoLegacy.length === 1
+          && CASOS_SIN_PAGO.includes(motivoLegacy[0].caso)
+          && typeof motivoLegacy[0].mensaje === 'string'
+          && motivoLegacy[0].mensaje.includes('cuenta de pago'),
+        `${label}: el contrato legacy sin enlace trae su caso y su motivo`,
+      );
+      check(
+        motivoLegacy.every((row) => !row.mensaje.includes(BANK_CLIENT.cci)),
+        `${label}: el motivo no expone el CCI del cliente`,
+      );
+      const sinIds = await positive(
+        `${label}: sin contratos pedidos no hay motivos`,
+        client.schema('crm').rpc('cuentas_pago_motivos_fn', { p_contrato_ids: [] }),
+      );
+      check(
+        Array.isArray(sinIds?.data) && sinIds.data.length === 0,
+        `${label}: la puerta de motivos nunca clasifica todos los contratos`,
+      );
+      await expectExpectedFailure(
+        `${label}: la puerta de motivos rechaza más de 5000 contratos`,
+        client.schema('crm').rpc('cuentas_pago_motivos_fn', {
+          p_contrato_ids: Array.from({ length: 5001 }, () => seed.contract.id),
+        }),
+        ['22023'],
+        /demasiados contratos en una sola consulta/i,
+      );
+    }
+    // 20261002005004: administración PASA la compuerta de la asignación (llega a la validación
+    // del motivo) sin escribir nada: el contrato legacy tiene que seguir sin enlace para el
+    // resto del gate.
+    if (asignarDesplegada) {
+      await expectExpectedFailure(
+        `${label}: la asignación de cuenta de pago llega al núcleo y exige el motivo`,
+        client.schema('crm').rpc('asignar_cuenta_pago_contrato', {
+          p_solicitud_id: SOLICITUD_ASIGNAR_GATE,
+          p_contrato_id: seed.legacyContract.id,
+          p_cuenta_id: seed.bankAccount.id,
+          p_motivo: '   ',
+        }),
+        ['22023'],
+        /escribe el motivo de la asignación/i,
+      );
+    }
   }
 
   // El fixture principal usa el rol portal neutro `comercial` para probar que el
@@ -5033,6 +5168,29 @@ async function testContractBankAccounts(sessions, seed) {
       ['42501'],
       /no autorizado para consultar cuentas de pago/i,
     );
+    if (motivosDesplegada) {
+      await expectExpectedFailure(
+        'admin con membresia CRM revocada: la revocacion prevalece sobre el motivo del bloqueo',
+        sessions.directorio.client.schema('crm').rpc('cuentas_pago_motivos_fn', {
+          p_contrato_ids: [seed.legacyContract.id],
+        }),
+        ['42501'],
+        /no autorizado para consultar cuentas de pago/i,
+      );
+    }
+    if (asignarDesplegada) {
+      await expectExpectedFailure(
+        'admin con membresia CRM revocada: no asigna la cuenta de pago de un contrato',
+        sessions.directorio.client.schema('crm').rpc('asignar_cuenta_pago_contrato', {
+          p_solicitud_id: SOLICITUD_ASIGNAR_GATE,
+          p_contrato_id: seed.legacyContract.id,
+          p_cuenta_id: seed.bankAccount.id,
+          p_motivo: 'Motivo de prueba del gate',
+        }),
+        ['42501'],
+        /solo administración puede asignar la cuenta de pago/i,
+      );
+    }
     // P04 sobre la CORRECCION de contratos por la via admin del Portal
     // (20260809003923). El alta ya estaba gateada para todo actor desde el
     // catalogo; corregir no lo estaba: la rama admin de public.actualizar_contrato
@@ -5170,6 +5328,29 @@ async function testContractBankAccounts(sessions, seed) {
       ['42501'],
       /no autorizado para consultar cuentas de pago/i,
     );
+    if (motivosDesplegada) {
+      await expectExpectedFailure(
+        'admin sin membresia con perfil APAGADO: no lee el motivo del bloqueo de pagos',
+        sessions.directorio.client.schema('crm').rpc('cuentas_pago_motivos_fn', {
+          p_contrato_ids: [seed.legacyContract.id],
+        }),
+        ['42501'],
+        /no autorizado para consultar cuentas de pago/i,
+      );
+    }
+    if (asignarDesplegada) {
+      await expectExpectedFailure(
+        'admin sin membresia con perfil APAGADO: no asigna la cuenta de pago de un contrato',
+        sessions.directorio.client.schema('crm').rpc('asignar_cuenta_pago_contrato', {
+          p_solicitud_id: SOLICITUD_ASIGNAR_GATE,
+          p_contrato_id: seed.legacyContract.id,
+          p_cuenta_id: seed.bankAccount.id,
+          p_motivo: 'Motivo de prueba del gate',
+        }),
+        ['42501'],
+        /solo administración puede asignar la cuenta de pago/i,
+      );
+    }
     await requireAdmin(
       'banca P04: reactivar el perfil portal de directorio',
       admin.from('perfiles').update({ activo: true }).eq('id', directorProfileId),
@@ -5741,6 +5922,35 @@ async function testContractBankAccounts(sessions, seed) {
         `${key} no usa el resolver de cuentas reservado al administrador`,
         sessions[key].client.schema('crm').rpc('cuentas_pago_contratos_fn', {
           p_contrato_ids: [seed.contract.id],
+        }),
+      );
+      if (motivosDesplegada) {
+        await expectExplicitAuthorizationDenied(
+          `${key} no lee el motivo del bloqueo de pagos reservado al gestor de cartera`,
+          sessions[key].client.schema('crm').rpc('cuentas_pago_motivos_fn', {
+            p_contrato_ids: [seed.legacyContract.id],
+          }),
+        );
+      }
+    }
+    // El propio cliente del contrato tampoco: el motivo cuenta cuántas cuentas tiene y en qué moneda.
+    if (motivosDesplegada) {
+      await expectExplicitAuthorizationDenied(
+        'clientBank no lee el motivo del bloqueo de pagos de su propio contrato',
+        sessions.clientBank.client.schema('crm').rpc('cuentas_pago_motivos_fn', {
+          p_contrato_ids: [seed.legacyContract.id],
+        }),
+      );
+    }
+    // Ni el analista, ni un rol global, ni el propio cliente deciden a qué cuenta se le paga.
+    for (const key of asignarDesplegada ? ['vend1', 'directorio', 'clientBank'] : []) {
+      await expectExplicitAuthorizationDenied(
+        `${key} no asigna la cuenta de pago de un contrato`,
+        sessions[key].client.schema('crm').rpc('asignar_cuenta_pago_contrato', {
+          p_solicitud_id: SOLICITUD_ASIGNAR_GATE,
+          p_contrato_id: seed.legacyContract.id,
+          p_cuenta_id: seed.bankAccount.id,
+          p_motivo: 'Motivo de prueba del gate',
         }),
       );
     }
@@ -13878,6 +14088,19 @@ async function testIdentidadMultiempresa(sessions, seed) {
     await positive('#5 gerencia CON motivo levanta',
       sessions.gerencia.client.schema('crm').rpc('levantar_no_contactar', { p_lead_id: IDS_IDENTIDAD.veto, p_motivo: 'cliente pidió reactivar' }));
     if (cuenta('veto levantado', `select count(*) from crm.inversionistas where id in ${idsPorDoc(DOCS_IDENTIDAD.veto)} and not no_contactar`) !== 1) fail('#5: gerencia no pudo levantar el veto');
+    // B2 · Base para gestión (20261002061500, D5): Supervisión levanta dentro de su equipo; fuera, P0002; otros roles 42501.
+    await positive('#5 B2 re-marcar para probar Supervisión',
+      sessions.vend1.client.schema('crm').rpc('marcar_no_contactar', { p_lead_id: IDS_IDENTIDAD.veto, p_motivo: 'supervision' }));
+    await expectExpectedFailure('#5 B2 sup2 (otro equipo) no levanta → P0002 (no revela el lead)',
+      sessions.sup2.client.schema('crm').rpc('levantar_no_contactar', { p_lead_id: IDS_IDENTIDAD.veto, p_motivo: 'ajeno' }), ['P0002'], /fuera de tu [aá]mbito/i);
+    await expectExpectedFailure('#5 B2 coordinador no levanta → 42501',
+      sessions.coordinador.client.schema('crm').rpc('levantar_no_contactar', { p_lead_id: IDS_IDENTIDAD.veto, p_motivo: 'coordina' }), ['42501'], /Gerencia o Supervisi/i);
+    await expectExpectedFailure('#5 B2 sup1 sin motivo → 22023',
+      sessions.sup1.client.schema('crm').rpc('levantar_no_contactar', { p_lead_id: IDS_IDENTIDAD.veto, p_motivo: ' ' }), ['22023'], /motivo/i);
+    await positive('#5 B2 sup1 (su equipo) levanta CON motivo',
+      sessions.sup1.client.schema('crm').rpc('levantar_no_contactar', { p_lead_id: IDS_IDENTIDAD.veto, p_motivo: 'cliente pidió volver (supervisión)' }));
+    if (cuenta('veto levantado por supervisión', `select count(*) from crm.inversionistas where id in ${idsPorDoc(DOCS_IDENTIDAD.veto)} and not no_contactar`) !== 1) fail('#5 B2: supervisión no pudo levantar el veto de su equipo');
+    if (cuenta('historial por Supervisión', `select count(*) from crm.actividades where lead_id = '${IDS_IDENTIDAD.veto}' and detalle = 'Levantado No contactar por Supervisión' and metadata->>'rol' = 'supervisor'`) !== 1) fail('#5 B2: el historial no dice «por Supervisión» con rol');
     // herencia al INSERT: se vuelve a vetar y un lead NUEVO del mismo documento nace vetado
     await positive('#5 re-marcar para probar herencia',
       sessions.vend1.client.schema('crm').rpc('marcar_no_contactar', { p_lead_id: IDS_IDENTIDAD.veto, p_motivo: 'herencia' }));
@@ -14956,6 +15179,23 @@ async function testAnon(seed) {
     }),
     ['PGRST202'],
   );
+  await expectExplicitAuthorizationDenied(
+    'anon no lee el motivo del bloqueo de pagos',
+    anon.schema('crm').rpc('cuentas_pago_motivos_fn', {
+      p_contrato_ids: [seed.legacyContract.id],
+    }),
+    ['PGRST202'],
+  );
+  await expectExplicitAuthorizationDenied(
+    'anon no asigna la cuenta de pago de un contrato',
+    anon.schema('crm').rpc('asignar_cuenta_pago_contrato', {
+      p_solicitud_id: '00000000-0000-4000-8000-0000000a51a0',
+      p_contrato_id: seed.legacyContract.id,
+      p_cuenta_id: seed.bankAccount.id,
+      p_motivo: 'Motivo de prueba del gate',
+    }),
+    ['PGRST202'],
+  );
   // C1: las RPC de reparto solo tienen grant para `authenticated`.
   await expectBlockedMutation(
     'anon no puede ver la cola por repartir',
@@ -15469,6 +15709,7 @@ async function testPotencialLead(sessions, seed) {
     return;
   }
   if (encendida !== 0) {
+    fail('potencial: la bandera potencial_lead está ENCENDIDA; este bloque no corre para no escribir marcas');
     fail('potencial: la bandera potencial_lead está ENCENDIDA; este bloque no corre para no escribir marcas. Si la dejó así una corrida interrumpida del bloque de lectura, repónla con supabase/scripts/potencial-lead/apagar-bandera.sql');
     return;
   }
@@ -15524,6 +15765,75 @@ async function testPotencialLead(sessions, seed) {
   await expectExpectedFailure('potencial vend1 INSERT directo en crm.lead_potencial_eventos → 42501',
     sessions.vend1.client.schema('crm').from('lead_potencial_eventos').insert({ lead_id: idDe('juan'), nivel_nuevo: 'estrella', motivo: 'manual', por: seed.profileIdByKey.vend1 }),
     ['42501'], DENEGADO);
+}
+
+// ── Base para gestión del analista · B1 (20261002054402): columnas selladas y CHECK del intento ──
+// Qué prueba: (1) nadie escribe reactivado_en / enfriado_hasta por PATCH, ni el dueño ni su supervisor ni
+// gerencia (sello 42501); (2) un PATCH no-op con el mismo valor NULL pasa, para que los parches parciales del
+// drawer no se rompan; (3) las dos columnas viajan por la API (la falla silenciosa conocida de los grants por
+// columna); (4) un INSERT de actividad con evento intento_base desde la API muere en el trigger «solo núcleo»
+// si trae claves reservadas (42501) y en el CHECK si no trae resultado (23514); (5) fuera de banda, el
+// contrato del sello y de las constantes y la ACL por columna (pg_attribute.attacl, no column_privileges).
+// Salto RUIDOSO si la migración no está en esta base; con CRM_RLS_EXIGE_BASE_GESTION=1 es un FALLO.
+async function testBaseGestionB1(sessions, seed) {
+  console.log('\n— Base para gestión B1: reactivado_en / enfriado_hasta selladas y CHECK intento_base —');
+  const saltar = (msg) => {
+    if (process.env.CRM_RLS_EXIGE_BASE_GESTION === '1') fail(msg);
+    else console.log(`  ${msg}`);
+  };
+  let aplicada;
+  try {
+    aplicada = contarFueraDeBanda('base gestión: esquema aplicado',
+      `select (to_regprocedure('private.base_gestion_constantes()') is not null and exists (select 1 from information_schema.columns where table_schema = 'crm' and table_name = 'leads' and column_name = 'enfriado_hasta'))::int`);
+  } catch (error) {
+    saltar(`⚠ Base para gestión B1 SALTADO: sin vía fuera de banda (${error?.message ?? String(error)})`);
+    return;
+  }
+  if (aplicada !== 1) {
+    saltar('⚠ 20261002054402 (base gestión B1) NO desplegada en esta base: bloque SALTADO (no probado)');
+    return;
+  }
+  const idDe = (clave) => seed.leadByName.get(LEAD_BY_KEY[clave].name)?.id;
+  const SELLO = /base para gestion/i;
+  const hoy = new Date().toISOString().slice(0, 10);
+  const patch = (cliente, clave, cambios) => cliente.schema('crm').from('leads').update(cambios).eq('id', idDe(clave)).select('id');
+  // (1) Sello: 42501 para dueño, supervisor del subárbol y gerencia, en las dos columnas.
+  await expectExpectedFailure('B1 vend1 PATCH enfriado_hasta en su lead (juan) → 42501', patch(sessions.vend1.client, 'juan', { enfriado_hasta: hoy }), ['42501'], SELLO);
+  await expectExpectedFailure('B1 vend1 PATCH reactivado_en en su lead (juan) → 42501', patch(sessions.vend1.client, 'juan', { reactivado_en: new Date().toISOString() }), ['42501'], SELLO);
+  await expectExpectedFailure('B1 sup1 PATCH enfriado_hasta en lead de su subárbol (carlos) → 42501', patch(sessions.sup1.client, 'carlos', { enfriado_hasta: hoy }), ['42501'], SELLO);
+  await expectExpectedFailure('B1 gerencia PATCH enfriado_hasta (juan) → 42501', patch(sessions.gerencia.client, 'juan', { enfriado_hasta: hoy }), ['42501'], SELLO);
+  // (2) No-op: mismo valor NULL → pasa (los parches parciales del drawer siguen funcionando).
+  await positive('B1 vend1 PATCH enfriado_hasta: null sobre NULL → 200 (no-op)', patch(sessions.vend1.client, 'juan', { enfriado_hasta: null }));
+  // (3) Las columnas viajan por la API.
+  const sel = await positive('B1 vend1 SELECT id, enfriado_hasta, reactivado_en (juan)',
+    sessions.vend1.client.schema('crm').from('leads').select('id, enfriado_hasta, reactivado_en').eq('id', idDe('juan')).single());
+  assertions += 1;
+  if (sel?.data && 'enfriado_hasta' in sel.data && 'reactivado_en' in sel.data) console.log('  ✓ B1 enfriado_hasta y reactivado_en viajan por la API');
+  else fail('B1: la API no devolvió enfriado_hasta / reactivado_en (grant por columna ausente)');
+  // (4) El intento de la base no se forja desde la API.
+  const actividad = (metadata) => sessions.vend1.client.schema('crm').from('actividades').insert({
+    creado_por: sessions.vend1.user.id, detalle: 'B1 TRANSIENT', lead_id: idDe('juan'), tipo: 'nota', metadata,
+  }).select('id');
+  await expectExpectedFailure('B1 vend1 INSERT actividad intento_base con resultado → 42501 (claves del núcleo)',
+    actividad({ evento: 'intento_base', resultado: 'no_contesto', intento_n: 1, ciclo_n: 1 }), ['42501'], /solo lo escribe/i);
+  await expectExpectedFailure('B1 vend1 INSERT actividad intento_base sin resultado → 23514 (CHECK)',
+    actividad({ evento: 'intento_base', ciclo_n: 1 }), ['23514'], /actividades_intento_base_forma/i);
+  // (5) Fuera de banda: contrato del sello, constantes y ACL por columna.
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`base gestión: ${etiqueta}`, sql);
+  check(cuenta('sello definer', `select count(*) from pg_proc p where p.oid = 'private.trg_leads_zz_sello_base_gestion()'::regprocedure and p.prosecdef and p.proowner = 'postgres'::regrole and p.proconfig = array['search_path=""']::text[]`) === 1,
+    'B1 el sello es DEFINER de postgres con search_path vacío');
+  check(cuenta('sin execute API', `select count(*) from unnest(array['anon','authenticated','service_role']) r(rol) where has_function_privilege(r.rol, 'private.trg_leads_zz_sello_base_gestion()', 'EXECUTE') or has_function_privilege(r.rol, 'private.base_gestion_constantes()', 'EXECUTE')`) === 0,
+    'B1 sello y constantes sin EXECUTE para la API');
+  check(cuenta('trigger', `select count(*) from pg_trigger t where t.tgrelid = 'crm.leads'::regclass and t.tgname = 'trg_leads_zz_sello_base_gestion' and t.tgenabled = 'O' and (t.tgtype & 2) = 2 and (t.tgtype & 4) = 4 and (t.tgtype & 16) = 16`) === 1,
+    'B1 trigger del sello BEFORE INSERT OR UPDATE, habilitado');
+  check(cuenta('anon', `select (has_column_privilege('anon', 'crm.leads', 'enfriado_hasta', 'SELECT') or has_column_privilege('anon', 'crm.leads', 'reactivado_en', 'SELECT'))::int`) === 0,
+    'B1 anon no lee las columnas nuevas');
+  check(cuenta('acl por columna', `select count(*) from pg_attribute a, aclexplode(a.attacl) e where a.attrelid = 'crm.leads'::regclass and a.attname in ('reactivado_en', 'enfriado_hasta') and e.privilege_type in ('INSERT', 'UPDATE') and e.grantee in ('anon'::regrole, 'authenticated'::regrole)`) === 0,
+    'B1 sin INSERT/UPDATE por columna para la API (pg_attribute.attacl)');
+  check(cuenta('constantes', `select (c.max_intentos = 3 and c.dias_enfriamiento = 30)::int from private.base_gestion_constantes() c`) === 1,
+    'B1 constantes de negocio 3 intentos / 30 días');
+  check(cuenta('check validado', `select count(*) from pg_constraint where conrelid = 'crm.actividades'::regclass and conname = 'actividades_intento_base_forma' and convalidated`) === 1,
+    'B1 CHECK actividades_intento_base_forma validado');
 }
 
 // ── Potencial del lead (20261001151704): puerta de LECTURA crm.potencial_leads_fn ─────────────
@@ -16082,6 +16392,244 @@ async function testVentaCruzada(sessions, seed) {
     'venta cruzada: la matriz no dejó ninguna búsqueda en la bitácora');
 }
 
+// Llamadas desde el celular, F2 + F3-a + corrección (20261001145242, 20261001160219, 20261001212258,
+// 20261001222431). Especificación: docs/plans/llamadas-celular/F2-PLAN-CORTO.md («Verificación (F2.4)»).
+// Las reglas de negocio finas (reasignación del lead, enlace con la encuesta, límite por minuto, carreras con
+// rotación) las prueban los oráculos del banco reducido (supabase/tests/llamadas-celular/); este bloque prueba
+// los PERMISOS con sesiones reales contra el esquema de producción. Las tablas son de solo inserción por diseño:
+// los eventos de la corrida quedan (descartados, con id de origen aleatorio) y el branch se descarta.
+async function testLlamadasCelular(sessions, seed) {
+  console.log('\n— Llamadas desde el celular (F2 + F3-a): puertas, ámbito e ingesta de servicio —');
+  const id = (key) => seed.profileIdByKey[key];
+  const rpc = (quien, fn, args = {}) => sessions[quien].client.schema('crm').rpc(fn, args);
+  const servicio = (fn, args) => admin.schema('crm').rpc(fn, args);
+  const instalada = contarFueraDeBanda('Llamadas del celular: presencia de la migración',
+    "select case when to_regclass('crm.llamadas_celular_eventos') is not null then 1 else 0 end") === 1;
+  const sonda = await rpc('gerencia', 'llamadas_celular_politica_fn');
+  const sondaServicio = await servicio('ingerir_llamada_celular_servicio', { p_credencial: '0'.repeat(64), p_evento: {} });
+  if (!instalada || sonda.error?.code === 'PGRST202' || sondaServicio.error?.code === 'PGRST202') {
+    const msg = instalada
+      ? '✗ Llamadas del celular: la tabla existe pero falta una puerta (F2-c o F3-a sin aplicar)'
+      : '⚠ Llamadas del celular no instaladas: SALTADAS (no probado)';
+    if (instalada || process.env.CRM_RLS_EXIGE_LLAMADAS === '1') fail(msg);
+    else console.log(`  ${msg}`);
+    return;
+  }
+  check(!sonda.error && sonda.data?.guardar_sin_identificar === false && sonda.data?.entrantes_activas === false,
+    'gerencia lee la política: números sin lead no se guardan y entrantes apagadas (decisiones 2 y 3)',
+    errorText(sonda.error));
+
+  // Lead transitorio de vend1 con un teléfono aleatorio: único en la base, así la coincidencia es exacta.
+  const numero = `9${randomInt(10000000, 99999999)}`;
+  const leadId = randomUUID();
+  const ajeno = LEADS.find((l) => l.sellerKey === 'vend3');
+  const asignaciones = [];
+  const eventos = [];
+  let claveNueva = null;
+  const evento = (extra = {}) => ({
+    v: 1, evento_origen_id: `RLS-${randomUUID()}`, numero, direccion: 'saliente', estado_tecnico: 'conectada',
+    duracion_seg: 42, ocurrio_en: new Date(Date.now() - 60_000).toISOString(), ...extra,
+  });
+  const ingerir = (credencial, ev) => servicio('ingerir_llamada_celular_servicio', { p_credencial: credencial, p_evento: ev });
+  async function asignar(quien) {
+    for (let intento = 0; intento < 3; intento += 1) {
+      const etiqueta = `C${randomInt(100, 1000)}`;
+      const r = await rpc('gerencia', 'asignar_celular', { p_etiqueta: etiqueta, p_analista_id: id(quien) });
+      if (r.error?.code === '23505') continue; // etiqueta vigente de otra corrida: otra al azar
+      if (r.error) throw new Error(`asignar celular a ${quien}: ${errorText(r.error)}`);
+      asignaciones.push(r.data.asignacion_id);
+      return { ...r.data, etiqueta };
+    }
+    throw new Error(`asignar celular a ${quien}: tres etiquetas ocupadas seguidas`);
+  }
+  const contiene = (data, eventoId) => (Array.isArray(data) ? data : data?.filas ?? []).some((f) => f.evento_id === eventoId);
+
+  try {
+    await requireAdmin('crear el lead transitorio de llamadas',
+      admin.schema('crm').from('leads').insert({
+        id: leadId, nombre_completo: 'LLAMADAS CELULAR TRANSIENT', telefono: numero, creado_por: id('vend1'),
+        vendedor_id: id('vend1'), asignado_supervisor_id: null, etapa: 'nuevo', moneda: 'PEN',
+        monto_estimado: 1000, origen: 'oficina',
+      }));
+
+    // ── Tablas: sin acceso directo para nadie (todo pasa por las puertas) ──
+    const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-llamadas'));
+    for (const tabla of ['celulares_asignaciones', 'llamadas_celular_eventos', 'llamadas_celular_enlaces', 'llamadas_celular_politica']) {
+      for (const quien of ['vend1', 'sup1', 'gerencia', 'coordinador', 'directorio']) {
+        await expectExplicitAuthorizationDenied(`${quien}: no lee crm.${tabla} directo`,
+          sessions[quien].client.schema('crm').from(tabla).select('*').limit(1));
+      }
+      await expectExplicitAuthorizationDenied(`anon: no lee crm.${tabla}`, anon.schema('crm').from(tabla).select('*').limit(1));
+    }
+    for (const quien of ['vend1', 'gerencia']) {
+      await expectBlockedMutation(`${quien}: no actualiza eventos directo`,
+        sessions[quien].client.schema('crm').from('llamadas_celular_eventos').update({ atencion: 'registrado' })
+          .eq('lead_id', leadId).select('id'));
+      await expectBlockedMutation(`${quien}: no borra eventos directo`,
+        sessions[quien].client.schema('crm').from('llamadas_celular_eventos').delete().eq('lead_id', leadId).select('id'));
+    }
+
+    // ── Puertas: quién ejecuta qué. Con argumentos de la forma exacta: sin ellos PostgREST responde
+    // PGRST202 (función no encontrada) y la prueba fallaría por la razón equivocada. ──
+    const argumentos = {
+      llamadas_celular_pendientes_fn: {},
+      llamadas_celular_bandeja_fn: {},
+      llamada_celular_detalle_fn: { p_evento_id: randomUUID() },
+      asociar_llamada_celular: { p_evento_id: randomUUID(), p_lead_id: leadId },
+      enlazar_llamada_celular: { p_evento_id: randomUUID(), p_actividad_id: randomUUID() },
+      descartar_llamada_celular: { p_evento_id: randomUUID(), p_motivo: 'personal' },
+      celulares_asignaciones_fn: {},
+      celulares_salud_fn: {},
+      asignar_celular: { p_etiqueta: 'C999', p_analista_id: id('vend1') },
+      rotar_credencial_celular: { p_etiqueta: 'C999' },
+      cerrar_asignacion_celular: { p_asignacion_id: randomUUID(), p_motivo: 'otro' },
+      llamadas_celular_politica_fn: {},
+      fijar_politica_llamadas_celular: {},
+      ingerir_llamada_celular_servicio: { p_credencial: '0'.repeat(64), p_evento: evento() },
+      registrar_salud_celular_servicio: { p_credencial: '0'.repeat(64), p_latido: { v: 1, version_macro: 'gate', en_cola: 0 } },
+    };
+    const soloGerencia = ['asignar_celular', 'rotar_credencial_celular', 'cerrar_asignacion_celular',
+      'llamadas_celular_politica_fn', 'fijar_politica_llamadas_celular'];
+    for (const fn of soloGerencia) {
+      for (const quien of ['sup1', 'vend1', 'coordinador', 'directorio', 'vendInactive']) {
+        await expectExplicitAuthorizationDenied(`${quien}: ${fn} es solo de gerencia`, rpc(quien, fn, argumentos[fn]));
+      }
+    }
+    for (const fn of ['celulares_asignaciones_fn', 'celulares_salud_fn']) {
+      for (const quien of ['vend1', 'coordinador', 'directorio', 'vendInactive']) {
+        await expectExplicitAuthorizationDenied(`${quien}: ${fn} es de supervisión y gerencia`, rpc(quien, fn, argumentos[fn]));
+      }
+    }
+    for (const fn of ['llamadas_celular_pendientes_fn', 'llamadas_celular_bandeja_fn', 'llamada_celular_detalle_fn',
+      'asociar_llamada_celular', 'enlazar_llamada_celular', 'descartar_llamada_celular']) {
+      for (const quien of ['coordinador', 'directorio', 'vendInactive']) {
+        await expectExplicitAuthorizationDenied(`${quien}: sin ${fn}`, rpc(quien, fn, argumentos[fn]));
+      }
+    }
+    for (const [fn, args] of Object.entries(argumentos)) {
+      await expectExplicitAuthorizationDenied(`anon: no ejecuta ${fn}`, anon.schema('crm').rpc(fn, args));
+    }
+    for (const fn of ['ingerir_llamada_celular_servicio', 'registrar_salud_celular_servicio']) {
+      for (const quien of ['vend1', 'sup1', 'gerencia']) {
+        await expectExplicitAuthorizationDenied(`${quien}: la puerta de servicio ${fn} es solo de service_role`,
+          rpc(quien, fn, argumentos[fn]));
+      }
+    }
+
+    // ── Asignar celulares: solo gerencia; la clave sale una vez y no se vuelve a leer ──
+    const cel = await asignar('vend1');
+    check(/^[0-9a-f]{64}$/.test(cel.credencial ?? ''), 'gerencia asigna un celular a vend1: la clave sale una vez (64 hex)');
+    await expectExpectedFailure('gerencia: no asigna un celular a un analista dado de baja',
+      rpc('gerencia', 'asignar_celular', { p_etiqueta: `C${randomInt(100, 1000)}`, p_analista_id: id('vendInactive') }),
+      ['22023'], /activo/i);
+    await expectExpectedFailure('gerencia: etiqueta inválida rechazada',
+      rpc('gerencia', 'asignar_celular', { p_etiqueta: 'celular', p_analista_id: id('vend1') }), ['22023'], /etiqueta/i);
+    const lecturaG = await rpc('gerencia', 'celulares_asignaciones_fn');
+    check(!lecturaG.error && (lecturaG.data ?? []).some((a) => a.asignacion_id === cel.asignacion_id)
+      && !/[0-9a-f]{64}/.test(JSON.stringify(lecturaG.data)),
+    'gerencia ve la asignación y la lectura no expone ningún hash de clave', errorText(lecturaG.error));
+    const lecturaS1 = await rpc('sup1', 'celulares_asignaciones_fn');
+    const lecturaS2 = await rpc('sup2', 'celulares_asignaciones_fn');
+    check(!lecturaS1.error && (lecturaS1.data ?? []).some((a) => a.asignacion_id === cel.asignacion_id)
+      && !lecturaS2.error && !(lecturaS2.data ?? []).some((a) => a.asignacion_id === cel.asignacion_id),
+    'supervisión ve los celulares de su equipo (sup1 sí, sup2 no)');
+
+    // ── Ingesta de servicio: clave, identificación, idempotencia ──
+    await expectExpectedFailure('servicio: clave desconocida → el mismo 42501', ingerir('f'.repeat(64), evento()), ['42501'], /no autorizado/i);
+    const ev1 = evento();
+    const r1 = await ingerir(cel.credencial, ev1);
+    check(!r1.error && r1.data?.evento_id && r1.data?.repetido === false && r1.data?.ignorado === false
+      && Object.keys(r1.data ?? {}).sort().join() === 'evento_id,ignorado,motivo,repetido',
+    'servicio: la llamada a un lead se guarda y la respuesta no trae el lead ni su atención', errorText(r1.error));
+    const eventoId = r1.data?.evento_id;
+    if (eventoId) eventos.push(eventoId);
+    const r1b = await ingerir(cel.credencial, ev1);
+    check(!r1b.error && r1b.data?.evento_id === eventoId && r1b.data?.repetido === true,
+      'servicio: el mismo origen con el mismo contenido → el mismo evento, repetido', errorText(r1b.error));
+    await expectExpectedFailure('servicio: el mismo origen con otro contenido → P0409',
+      ingerir(cel.credencial, { ...ev1, duracion_seg: 43 }), ['P0409'], /otro contenido/i);
+    const evDoble = evento();
+    const [d1, d2] = await Promise.all([ingerir(cel.credencial, evDoble), ingerir(cel.credencial, evDoble)]);
+    check(!d1.error && !d2.error && d1.data?.evento_id === d2.data?.evento_id
+      && [d1.data?.repetido, d2.data?.repetido].filter(Boolean).length === 1,
+    'servicio: dos envíos a la vez del mismo origen → un solo evento', `${errorText(d1.error)} / ${errorText(d2.error)}`);
+    if (d1.data?.evento_id) eventos.push(d1.data.evento_id);
+    const sinLead = await ingerir(cel.credencial, evento({ numero: `9${randomInt(10000000, 99999999)}` }));
+    check(!sinLead.error && sinLead.data?.ignorado === true && !sinLead.data?.evento_id,
+      'servicio: un número que no es de ningún lead no se guarda (decisión 3)', errorText(sinLead.error));
+    const latido = await servicio('registrar_salud_celular_servicio',
+      { p_credencial: cel.credencial, p_latido: { v: 1, version_macro: 'gate rls', en_cola: 0 } });
+    check(!latido.error, 'servicio: el latido de salud se registra con la clave', errorText(latido.error));
+    const saludG = await rpc('gerencia', 'celulares_salud_fn');
+    const saludS2 = await rpc('sup2', 'celulares_salud_fn');
+    check(!saludG.error && JSON.stringify(saludG.data ?? '').includes(cel.asignacion_id)
+      && !saludS2.error && !JSON.stringify(saludS2.data ?? '').includes(cel.asignacion_id),
+    'salud: gerencia ve el celular; sup2 (otro equipo) no');
+
+    // ── Ámbito de lectura: dueño, su supervisión y gerencia sí; otro equipo no ──
+    for (const [quien, ve] of [['vend1', true], ['sup1', true], ['gerencia', true], ['vend3', false], ['sup2', false]]) {
+      const pend = await rpc(quien, 'llamadas_celular_pendientes_fn');
+      const band = await rpc(quien, 'llamadas_celular_bandeja_fn');
+      check(!pend.error && !band.error && contiene(pend.data, eventoId) === ve && contiene(band.data, eventoId) === ve,
+        `${quien}: ${ve ? 've' : 'no ve'} la llamada en pendientes y bandeja`, `${errorText(pend.error)} / ${errorText(band.error)}`);
+    }
+    const det = await rpc('vend1', 'llamada_celular_detalle_fn', { p_evento_id: eventoId });
+    check(!det.error && det.data?.atencion === 'requiere_resultado' && det.data?.lead_id === leadId,
+      'vend1: su llamada pide resultado y está asociada a su lead', errorText(det.error));
+    for (const quien of ['vend3', 'sup2']) {
+      await expectExplicitAuthorizationDenied(`${quien}: no abre el detalle de una llamada ajena`,
+        rpc(quien, 'llamada_celular_detalle_fn', { p_evento_id: eventoId }));
+      await expectExplicitAuthorizationDenied(`${quien}: no descarta una llamada ajena`,
+        rpc(quien, 'descartar_llamada_celular', { p_evento_id: eventoId, p_motivo: 'personal' }));
+    }
+    await expectExplicitAuthorizationDenied('vend1: no asocia su llamada a un lead de otro equipo',
+      rpc('vend1', 'asociar_llamada_celular', { p_evento_id: eventoId, p_lead_id: ajeno.id }));
+    await expectExpectedFailure('vend1: no enlaza la llamada a un resultado que no es de ese lead',
+      rpc('vend1', 'enlazar_llamada_celular', { p_evento_id: eventoId, p_actividad_id: randomUUID() }), ['22023'], /no es del lead/i);
+    await expectExpectedFailure('vend1: descartar con «otro» exige el motivo escrito',
+      rpc('vend1', 'descartar_llamada_celular', { p_evento_id: eventoId, p_motivo: 'otro' }), ['22023'], /otro/i);
+
+    // ── Corrección 20261001222431: el celular de un SUPERVISOR evalúa la regla como su dueño ──
+    // Depende de que auth.uid() lea request.jwt.claim.sub (lo que fija la ingesta antes de evaluar).
+    const celSup = await asignar('sup1');
+    const rs = await ingerir(celSup.credencial, evento());
+    if (rs.data?.evento_id) eventos.push(rs.data.evento_id);
+    const detSup = rs.data?.evento_id ? await rpc('sup1', 'llamada_celular_detalle_fn', { p_evento_id: rs.data.evento_id }) : null;
+    check(!rs.error && detSup && !detSup.error && detSup.data?.atencion === 'requiere_resultado',
+      'sup1: su llamada a un lead de su equipo pide resultado (la ingesta evalúa como el dueño del celular)',
+      `${errorText(rs.error)} / ${errorText(detSup?.error)}`);
+
+    // ── Rotar y cerrar: la clave vieja deja de valer con el mismo 42501 ──
+    const rot = await rpc('gerencia', 'rotar_credencial_celular', { p_etiqueta: cel.etiqueta });
+    check(!rot.error && /^[0-9a-f]{64}$/.test(rot.data?.credencial ?? '') && rot.data?.credencial !== cel.credencial,
+      'gerencia rota la clave del celular', errorText(rot.error));
+    if (rot.data?.asignacion_id) {
+      // La rotación ya cerró la anterior: solo queda por cerrar la nueva.
+      asignaciones.splice(asignaciones.indexOf(cel.asignacion_id), 1, rot.data.asignacion_id);
+      claveNueva = rot.data.credencial;
+    }
+    await expectExpectedFailure('servicio: la clave rotada ya no entra', ingerir(cel.credencial, evento()), ['42501'], /no autorizado/i);
+    const conNueva = await ingerir(claveNueva ?? '', evento({ numero: `9${randomInt(10000000, 99999999)}` }));
+    check(!conNueva.error, 'servicio: la clave nueva sí entra', errorText(conNueva.error));
+  } finally {
+    // Deja las llamadas de la corrida descartadas (sin pendientes para nadie), cierra los celulares y
+    // desactiva el lead. 22023 al descartar = ya estaba descartada.
+    for (const eventoId of eventos) {
+      const r = await rpc('vend1', 'descartar_llamada_celular', { p_evento_id: eventoId, p_motivo: 'numero_de_prueba' });
+      if (r.error && r.error.code !== '22023') fail(`llamadas: no se pudo descartar el evento de prueba — ${errorText(r.error)}`);
+    }
+    for (const asignacionId of asignaciones) {
+      const r = await rpc('gerencia', 'cerrar_asignacion_celular', { p_asignacion_id: asignacionId, p_motivo: 'reemplazo' });
+      if (r.error) fail(`llamadas: no se pudo cerrar un celular de prueba — ${errorText(r.error)}`);
+    }
+    await admin.schema('crm').from('leads').update({ activo: false }).eq('id', leadId);
+  }
+  if (claveNueva) {
+    await expectExpectedFailure('servicio: con el celular cerrado, su clave ya no entra',
+      ingerir(claveNueva, evento()), ['42501'], /no autorizado/i);
+  }
+}
+
 async function main() {
   let primaryError = null;
   const recoveryErrors = [];
@@ -16208,8 +16756,10 @@ async function main() {
       await testCorreoAccesoCliente(sessions, verifiedSeed);
       await testVentaCruzada(sessions, verifiedSeed);
       await testPotencialLead(sessions, verifiedSeed);
+      await testBaseGestionB1(sessions, verifiedSeed);
       await testPotencialLectura(sessions, verifiedSeed);
       await testPotencialFiltro(sessions, verifiedSeed);
+      await testLlamadasCelular(sessions, verifiedSeed);
     }
   } catch (error) {
     primaryError = error;

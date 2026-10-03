@@ -41,7 +41,9 @@ begin
              fecha_pago_real = (now() at time zone 'America/Lima')::date
        where id = v_cuota_sin;
     exception when check_violation then
-      if sqlerrm <> 'Sin cuenta de pago — requiere conciliación' then raise; end if;
+      -- Desde 20261001233019 el rechazo dice el motivo («Contrato N sin cuenta de pago: …») a una
+      -- conexión directa como esta; antes era siempre el texto genérico. Valen los dos.
+      if sqlerrm not like '%in cuenta de pago%' then raise; end if;
       v_bloqueado := true;
     end;
     if not v_bloqueado then
@@ -57,7 +59,7 @@ begin
               (now() at time zone 'America/Lima')::date, 100,
               'pagado', 100, (now() at time zone 'America/Lima')::date);
     exception when check_violation then
-      if sqlerrm <> 'Sin cuenta de pago — requiere conciliación' then raise; end if;
+      if sqlerrm not like '%in cuenta de pago%' then raise; end if;
       v_bloqueado := true;
     end;
     if not v_bloqueado then
