@@ -703,6 +703,9 @@ export interface EpisodioRescateDescarte {
   puede_rescatar: boolean
   /** `pendiente` sigue en bandeja; los demás son evidencia histórica. */
   estado: 'pendiente' | 'rescatado' | 'historial'
+  /** B6: quién lo está trabajando y hasta qué día (Lima, 'YYYY-MM-DD'); null sin seguimiento activo. */
+  en_gestion_por?: string | null
+  en_gestion_hasta?: string | null
 }
 
 /** Un punto de la franja temporal de Base para gestión, en hora Lima. */
