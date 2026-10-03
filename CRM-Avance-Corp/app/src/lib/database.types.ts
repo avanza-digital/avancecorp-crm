@@ -2590,6 +2590,88 @@ export type Database = {
           },
         ]
       }
+      lead_potencial: {
+        Row: {
+          actualizado_en: string
+          creado_en: string
+          id: string
+          lead_id: string
+          marcado_en: string
+          marcado_por: string
+          nivel: Database["crm"]["Enums"]["nivel_potencial"]
+          origen: string
+        }
+        Insert: {
+          actualizado_en?: string
+          creado_en?: string
+          id?: string
+          lead_id: string
+          marcado_en: string
+          marcado_por: string
+          nivel: Database["crm"]["Enums"]["nivel_potencial"]
+          origen: string
+        }
+        Update: {
+          actualizado_en?: string
+          creado_en?: string
+          id?: string
+          lead_id?: string
+          marcado_en?: string
+          marcado_por?: string
+          nivel?: Database["crm"]["Enums"]["nivel_potencial"]
+          origen?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_potencial_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_potencial_eventos: {
+        Row: {
+          creado_en: string
+          id: string
+          lead_id: string
+          motivo: string
+          nivel_anterior: Database["crm"]["Enums"]["nivel_potencial"] | null
+          nivel_nuevo: Database["crm"]["Enums"]["nivel_potencial"]
+          orden: number
+          por: string | null
+        }
+        Insert: {
+          creado_en?: string
+          id?: string
+          lead_id: string
+          motivo: string
+          nivel_anterior?: Database["crm"]["Enums"]["nivel_potencial"] | null
+          nivel_nuevo: Database["crm"]["Enums"]["nivel_potencial"]
+          orden?: never
+          por?: string | null
+        }
+        Update: {
+          creado_en?: string
+          id?: string
+          lead_id?: string
+          motivo?: string
+          nivel_anterior?: Database["crm"]["Enums"]["nivel_potencial"] | null
+          nivel_nuevo?: Database["crm"]["Enums"]["nivel_potencial"]
+          orden?: never
+          por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_potencial_eventos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_sla_ciclos: {
         Row: {
           aproximado: boolean
@@ -4795,6 +4877,17 @@ export type Database = {
       avisos_sla_resumen_v2_fn: { Args: never; Returns: Json }
       ayuda_vendedor_inicio: { Args: { p_vista: string }; Returns: Json }
       bandera_activa: { Args: { p_nombre: string }; Returns: boolean }
+      base_gestion_resumen: {
+        Args: never
+        Returns: {
+          en_base: number
+          intentos_hoy: number
+          nombre: string
+          reactivaciones_mes: number
+          rellamadas_hoy: number
+          vendedor_id: string
+        }[]
+      }
       bienvenida_inversion_entrega_fn: {
         Args: {
           p_paso: string
@@ -4865,10 +4958,13 @@ export type Database = {
           p_antes_id?: string
           p_desde?: string
           p_etapa?: string
+          p_gestion?: string
           p_hasta?: string
           p_limite?: number
           p_origen?: string
+          p_potencial?: string
           p_procedencia?: string
+          p_reasignados?: boolean
           p_sin_asignar?: boolean
           p_texto?: string
           p_vendedor_id?: string
@@ -5166,6 +5262,21 @@ export type Database = {
         Args: { p_actor_id: string; p_contrato_id: string }
         Returns: Json
       }
+      contrato_pdf_anexo_emitido: {
+        Args: {
+          p_actor_id: string
+          p_bytes: number
+          p_contrato_id: string
+          p_pdf_id: string
+          p_sha256: string
+          p_template: string
+        }
+        Returns: Json
+      }
+      contrato_pdf_anexo_snapshot: {
+        Args: { p_actor_id: string; p_contrato_id: string; p_template: string }
+        Returns: Json
+      }
       contrato_pdf_archivo_fn: {
         Args: { p_contrato_id: string }
         Returns: Json
@@ -5311,6 +5422,10 @@ export type Database = {
         }
         Returns: Json
       }
+      conversion_divisor_coordinacion_fn: {
+        Args: { p_desde?: string; p_hasta?: string; p_periodo?: string }
+        Returns: Json
+      }
       conversion_estado_lead_v1: { Args: { p_lead_id: string }; Returns: Json }
       conversion_mensual_fn: { Args: { p_periodo: string }; Returns: Json }
       conversion_mensual_sin_cartera_fn: {
@@ -5395,6 +5510,10 @@ export type Database = {
       }
       crear_contrato_con_cuenta_pdf_v2: {
         Args: { p_contrato: Json; p_cronograma: Json; p_cuenta: Json }
+        Returns: Json
+      }
+      crear_lead_documento_fn: {
+        Args: { p_datos: Json; p_documento: string; p_tipo: string }
         Returns: Json
       }
       crear_lead_si_disponible: {
@@ -5503,7 +5622,6 @@ export type Database = {
           titular_distinto: boolean
         }[]
       }
-      cumplimiento_metas_fn: { Args: { p_periodo: string }; Returns: Json }
       cuentas_pago_motivos_fn: {
         Args: { p_contrato_ids: string[] }
         Returns: {
@@ -5512,6 +5630,7 @@ export type Database = {
           mensaje: string
         }[]
       }
+      cumplimiento_metas_fn: { Args: { p_periodo: string }; Returns: Json }
       cumplimiento_metas_sin_cartera_fn: {
         Args: { p_periodo: string }
         Returns: Json
@@ -5547,6 +5666,18 @@ export type Database = {
           correo: string
           perfil_id: string
         }[]
+      }
+      documento_lead_fn: { Args: { p_lead_id: string }; Returns: Json }
+      editar_lead_documento_fn: {
+        Args: {
+          p_cambios: Json
+          p_documento: string
+          p_identificador_anterior?: string
+          p_lead_id: string
+          p_motivo?: string
+          p_tipo: string
+        }
+        Returns: Json
       }
       editar_lead_fn: {
         Args: { p_cambios: Json; p_lead_id: string }
@@ -5624,6 +5755,16 @@ export type Database = {
         Args: { p_dni: string; p_lead_id: string }
         Returns: Json
       }
+      fijar_documento_lead_fn: {
+        Args: {
+          p_documento: string
+          p_identificador_anterior?: string
+          p_lead_id: string
+          p_motivo?: string
+          p_tipo: string
+        }
+        Returns: Json
+      }
       fijar_membresia_activa_fn: {
         Args: {
           p_activo: boolean
@@ -5660,6 +5801,15 @@ export type Database = {
           p_dia: string
           p_id?: string
           p_limite?: number
+        }
+        Returns: Json
+      }
+      gestion_diaria_cola_trabajo_fn: {
+        Args: {
+          p_elegido?: string
+          p_filtro?: string
+          p_limite?: number
+          p_pagina?: number
         }
         Returns: Json
       }
@@ -5861,6 +6011,13 @@ export type Database = {
         Args: { p_lead_id: string; p_motivo?: string }
         Returns: Json
       }
+      marcar_potencial_lead_fn: {
+        Args: {
+          p_lead_id: string
+          p_nivel: Database["crm"]["Enums"]["nivel_potencial"]
+        }
+        Returns: Json
+      }
       materializar_envio_push_tasa_fn: {
         Args: { p_envio_id: string; p_reserva: string }
         Returns: Json
@@ -5941,6 +6098,32 @@ export type Database = {
         Args: { p_desde?: string; p_hasta?: string }
         Returns: Json
       }
+      obtener_base_gestion: {
+        Args: { p_vendedor_id?: string }
+        Returns: {
+          categoria_interes: string
+          ciclo_n: number
+          descartado_en: string
+          dias_desde_descarte: number
+          distrito: string
+          enfriado_hasta: string
+          etapa_maxima: string
+          gestiona: string
+          intentos: number
+          lead_id: string
+          moneda: string
+          monto_estimado: number
+          motivo_descarte: string
+          nombre_completo: string
+          origen: string
+          proxima_llamada_en: string
+          rellamada_hoy: boolean
+          telefono: string
+          ultimo_intento_en: string
+          ultimo_resultado: string
+          vendedor_id: string
+        }[]
+      }
       panel_distribucion_reparto: {
         Args: {
           p_analista?: string
@@ -6014,6 +6197,7 @@ export type Database = {
         }
         Returns: Json
       }
+      potencial_leads_fn: { Args: { p_lead_ids: string[] }; Returns: Json }
       preparar_correccion_correo_acceso_fn: {
         Args: {
           p_actor_id: string
@@ -6162,6 +6346,10 @@ export type Database = {
         Returns: Json
       }
       reabrir_lead_fn: { Args: { p_lead_id: string }; Returns: Json }
+      reactivar_lead_base: {
+        Args: { p_lead_id: string; p_nota?: string; p_operacion_id: string }
+        Returns: Json
+      }
       reasignar_responsable_relacion_fn: {
         Args: {
           p_inversionista: string
@@ -6201,6 +6389,16 @@ export type Database = {
       registrar_cuenta_cliente: {
         Args: { p_cliente_id: string; p_cuenta: Json }
         Returns: string
+      }
+      registrar_intento_base: {
+        Args: {
+          p_lead_id: string
+          p_nota?: string
+          p_operacion_id: string
+          p_proxima_llamada?: string
+          p_resultado: string
+        }
+        Returns: Json
       }
       registrar_llamada_v3: {
         Args: {
@@ -6508,7 +6706,7 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      nivel_potencial: "frio" | "tibio" | "estrella"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -7451,7 +7649,9 @@ export type CompositeTypes<
 
 export const Constants = {
   crm: {
-    Enums: {},
+    Enums: {
+      nivel_potencial: ["frio", "tibio", "estrella"],
+    },
   },
   public: {
     Enums: {},
