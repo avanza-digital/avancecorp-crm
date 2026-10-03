@@ -240,7 +240,9 @@ ficticia de 15 contratos por caso; nada en producción):
 
 ## 20261001222431 — Llamadas desde el celular · corrección de F2-c: la elegibilidad de la ingesta se evalúa como el dueño del celular (`private.llamada_celular_elegible_dueno`, `private.llamada_celular_ingerir`)
 
-**⏸️ EN RAMA `feat/llamadas-f2`, SIN APLICAR en ningún entorno compartido.** Depende de `20261001160219` (F2-c).
+**⏸️ EN `main` desde el PR #169 (03/10), SIN APLICAR. ⛔ BLOQUEADA por la revisión de Miguel (PR #170,
+`docs/plans/llamadas-celular/REVISION-2026-10-02.md`): no se aplica sin la quinta migración de la corrección
+(`CORRECCION-PLAN-CORTO.md`). Registrador: `supabase/scripts/llamadas-celular/registrar-*.sql`.** Depende de `20261001160219` (F2-c).
 OK de Jhosep (01/10) para corregirlo; Miguel lo revisa con el resto de F2.
 
 Qué hace: la ingesta llega sin sesión y la regla de ámbito del CRM (`sla_gestion_permitida` → `vendedor_ids_visibles`)
@@ -384,7 +386,9 @@ la caché) → advisors → publicar la pantalla.
 
 ## 20261001212258 — Llamadas desde el celular · F3-a: puertas de servicio, límite, salud y bandeja paginada (`crm.ingerir_llamada_celular_servicio`, `crm.registrar_salud_celular_servicio`, `crm.llamadas_celular_bandeja_fn`, `crm.celulares_salud_fn`, `private.celulares_estado`)
 
-**⏸️ EN RAMA `feat/llamadas-f2`, SIN APLICAR en ningún entorno compartido.** Depende de `20261001160219` (F2-c).
+**⏸️ EN `main` desde el PR #169 (03/10), SIN APLICAR. ⛔ BLOQUEADA por la revisión de Miguel (PR #170,
+`docs/plans/llamadas-celular/REVISION-2026-10-02.md`): no se aplica sin la quinta migración de la corrección
+(`CORRECCION-PLAN-CORTO.md`). Registrador: `supabase/scripts/llamadas-celular/registrar-*.sql`.** Depende de `20261001160219` (F2-c).
 Decisiones 1–4 de F3 tomadas por Jhosep como provisionales (01/10); Miguel las ratifica (LEVEL 3: la Edge de F3-b
 abrirá una entrada pública con `verify_jwt=false` y credencial por celular).
 
@@ -426,7 +430,9 @@ agente `auditor-rls`, Codex LEVEL 3 y `gen:types`.
 
 ## 20261001160219 — Llamadas desde el celular · F2-c: núcleo y puertas (`private.llamada_celular_*`, `crm.*_llamada_celular`, `crm.*celular*`)
 
-**⏸️ EN RAMA `feat/llamadas-f2`, SIN APLICAR en ningún entorno compartido.** Depende de `20261001145242` (F2-b).
+**⏸️ EN `main` desde el PR #169 (03/10), SIN APLICAR. ⛔ BLOQUEADA por la revisión de Miguel (PR #170,
+`docs/plans/llamadas-celular/REVISION-2026-10-02.md`): no se aplica sin la quinta migración de la corrección
+(`CORRECCION-PLAN-CORTO.md`). Registrador: `supabase/scripts/llamadas-celular/registrar-*.sql`.** Depende de `20261001145242` (F2-b).
 Contrato con las 7 decisiones provisionales de Jhosep (30/09); Miguel las ratifica (LEVEL 3).
 
 Qué hace: núcleo en `private` **INVOKER y sin EXECUTE para nadie** (solo lo invocan las puertas DEFINER; excepción
@@ -660,7 +666,10 @@ sección «Fase 3, entrega A»).
 
 ## 20261001145242 — Llamadas desde el celular · F2-b: datos (`crm.celulares_asignaciones`, `crm.llamadas_celular_eventos`, `crm.llamadas_celular_enlaces`, `crm.llamadas_celular_politica`, `private.caducar_llamadas_celular`)
 
-**⏸️ EN RAMA `feat/llamadas-f2`, SIN APLICAR en ningún entorno compartido (ni branch de Supabase ni producción).**
+**⏸️ EN `main` desde el PR #169 (03/10), SIN APLICAR en ningún entorno compartido (ni branch de Supabase ni
+producción). ⛔ BLOQUEADA por la revisión de Miguel (PR #170, `docs/plans/llamadas-celular/REVISION-2026-10-02.md`):
+no se aplica sin la quinta migración de la corrección (`CORRECCION-PLAN-CORTO.md`). Registrador:
+`supabase/scripts/llamadas-celular/registrar-*.sql`.**
 Contrato con las **7 decisiones provisionales de Jhosep (30/09)**; Miguel las ratifica o cambia antes de aplicar
 (LEVEL 3). Plan: `docs/plans/llamadas-celular/F2-PLAN-CORTO.md`. Banco local: ver «Verificación».
 
