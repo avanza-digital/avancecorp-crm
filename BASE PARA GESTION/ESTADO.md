@@ -1,6 +1,6 @@
 # ESTADO del módulo «Base para gestión del analista»
 
-**Última sesión:** 02/10/2026, noche (sesión `119d2a01`) · **Fase en curso:** FRONTEND — F1 ☑ (en la rama); sigue F2 (ficha) con el OK de Miguel.
+**Última sesión:** 02/10/2026, noche (sesión `119d2a01`) · **Fase en curso:** FRONTEND — F1 en ajuste de FORMA (hoja de Excel + MES del lead) y dos migraciones chicas propuestas (B5 mes, B6 seguimiento activo) a la espera de 2 respuestas de Miguel; F2 después.
 **La base de datos está EN PRODUCCIÓN desde el 02/10, 20:15 Lima.** Miguel aplicó con `!` las 7 migraciones, cada una con
 su registrador. Comprobado después, en solo lectura:
 - las 7 en true y las 7 registradas con el md5 de su archivo;
@@ -26,7 +26,9 @@ gate en `revisiones/2026-10-02-rama-y-gate.md`.
 | B4b Ventana (D13) `20261002235342` | ☑ EN PRODUCCIÓN 02/10 | |
 | B3b Codex `20261003001014` | ☑ EN PRODUCCIÓN 02/10 | Punto (a) de Codex r2 acreditado: «intentos previos 0» antes de aplicar |
 | Merge de Miguel | ☑ 02/10 20:15 | 7/7 `OK`; huellas de producción = rama; tipos `9c1d7296`; rama borrada |
-| F1 Vista analista | ☑ 02/10 (en la rama, sin publicar) | Rama `crm/base-gestion-front` (nace del vivo `44985828`): `c11a8840` tipos · `7231672e` F1 · `becbd7ea` a11y. `#/rescate` despacha por rol; analista → resumen + tabla (escritorio) o tarjetas `role=list` (celular), «Llamar» con `enlaceTel()` (tel: en celular, copiar en laptop), refresco fallido conserva los datos. `revisor-a11y` CHANGES_REQUESTED (2 P2 + 3 P3) → aplicado. `npm run check` PASS (5619). Capturas demo 1440/390/320 px sin desborde ni errores |
+| F1 Vista analista | ◉ funciona; forma en ajuste | Rama `crm/base-gestion-front` (nace del vivo `44985828`): `c11a8840` tipos · `7231672e` F1 · `becbd7ea` a11y · `8570cdfb` hoja + helpers del mes. Miguel (02/10): «cifras de arriba pequeñas; que parezca una hoja de Excel» → hecho (pastillas, cuadrícula, # de fila, columnas # y Lead fijas, teléfono = botón de llamar). «Saber qué MES estoy gestionando» → el dominio ya calcula el mes (`mesesDeLaBase`, `filasDelMes`); FALTA en la pantalla la columna «Mes» y el selector con conteo, y en el servidor B5. `npm run check` PASS, 45 pruebas del módulo |
+| **B5 Mes del lead** (servidor) | ☐ plan propuesto 02/10 | `crm.obtener_base_gestion` devuelve `recibido_en = coalesce(tenencia_desde, creado_en)` (cuándo le llegó el lead). Cambia el `returns table` → drop + create, re-grant EXECUTE solo authenticated, comentario; preflight anclado a B3b. La pantalla ya lo lee (opcional). Circuito: banco → gate → Codex → `!` |
+| **B6 Seguimiento activo** (servidor) | ☐ plan propuesto 02/10 · ESPERA 2 RESPUESTAS | Regla de Miguel: el supervisor no ve (o ve en gris) los descartados con intento ≤ 7 días, y `rescatar_descartes` RECHAZA repartirlos. Preguntas: (1) ¿la rellamada agendada vigente también cuenta? (rec.: sí) (2) ¿ocultar o en gris «En gestión por X hasta Y»? Detalle en la nota del vault |
 | F2 Ficha | ☐ | Historial completo y legible con buscador; formulario de intento (7 resultados, fecha en «volver a llamar»); Reactivar (confirmación, idempotente); No contactar con motivo |
 | F3 Organización | ☐ | «Llamar hoy» arriba; filtros por motivo, etapa máxima y último resultado; contador de intentos |
 | F4 Supervisor | ☐ (plan en `FRONTEND.md`; B5 «ver vetados» pendiente de OK) | Columnas Intentos · Último resultado · Gestiona; quitar «no contactar» (D5); reactivaciones por analista. Gerencia recibe 1069 filas: filtrar por analista o paginar |
@@ -37,6 +39,8 @@ Al cerrar cada paso: cambia el estado (☐ → ◉ → ☑), escribe la evidenci
 siguiente paso concreto. Actualiza también la línea «Última sesión» y la nota del vault. No marques ☑ sin evidencia.
 
 ## Cómo continuar — en este orden
+
+**Mañana (03/10), en este orden:** (a) las 2 respuestas de Miguel sobre B6; (b) terminar en `screens/rescate/analista.tsx` la columna «Mes» (3.ª, tras Lead) y el selector pequeño «Mes: Todos (N) · Agosto 2026 (n)…» con `mesesDeLaBase`/`filasDelMes` (el `#` de fila y las pastillas cuentan lo filtrado); probar en demo (Vite propio: `VITE_ENABLE_DEMO=true npx vite --port 5191` en el worktree); (c) plan corto B5+B6 → OK → banco Docker (`supabase start --workdir <scratchpad>/gate/stack` recupera el stack parado) → gate → Codex → Miguel con `!`; (d) F2.
 
 0. Lee `README.md` de esta carpeta, `FRONTEND.md` y la nota del vault. El código se toca en un worktree propio, nunca en
    la carpeta compartida (regla de Miguel). A `main` solo llegan commits parciales, con `git commit -- <rutas>` o con

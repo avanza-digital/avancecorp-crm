@@ -385,3 +385,20 @@ migraciones aplicadas. Nada en producción.
 - 🔑 Un refresco fallido con datos ya cargados NO desmonta la lista: aviso en línea (el refetch salta al volver del marcador).
 - Verificado: `npm run check` PASS (5619 pruebas), `revisor-a11y` (2 P2 + 3 P3 aplicados), capturas demo 1440/390/320 px.
 - **Sigue:** F2, la ficha (historial completo + buscador, registrar intento, reactivar, «no contactar»).
+
+## Cierre del 02/10 (noche): forma de la lista, el MES del lead y la regla del seguimiento activo
+
+- **Miguel vio F1 y le gustó.** Dos correcciones de forma, ya aplicadas en `8570cdfb`: las cifras de arriba PEQUEÑAS (pastillas)
+  y la lista como **hoja de Excel** (cuadrícula, un dato por celda, número de fila, columnas # y Lead fijas, fila «hoy» con
+  formato condicional; el teléfono es el botón de llamar). En el celular siguen las tarjetas.
+- **«MUY IMPORTANTE saber qué mes estoy gestionando»**: el analista se organiza por el mes en que le llegó el lead («mis leads
+  de enero, marzo, agosto»). Mes = `coalesce(tenencia_desde, creado_en)` en Lima (el criterio de recepción de la casa:
+  `private.cartera_recepciones_fn`). La RPC no lo devuelve hoy → **B5** añade `recibido_en` a `crm.obtener_base_gestion`
+  (drop + create por el `returns table`). El dominio del front ya lo calcula (`lib/base-gestion.ts`: `mesesDeLaBase`,
+  `filasDelMes`, `etiquetaMesLead`, reutilizando `cartera-meses`); falta la columna y el selector en la pantalla.
+- **Regla nueva (B6, pendiente de 2 respuestas):** al supervisor se le ocultan los descartados con **seguimiento activo**
+  (intento con nota del analista en los últimos 7 días) para que no reasigne un lead que se está trabajando; además
+  `rescatar_descartes` debe rechazarlo en el servidor. Preguntas abiertas: ¿la rellamada agendada vigente también cuenta?
+  (recomendado: sí) · ¿ocultar o mostrar en gris «En gestión por X hasta Y»?
+- **Estado al cierre:** nada publicado; rama `crm/base-gestion-front` en `8570cdfb` (verde); `main` local con la
+  documentación. Servidor Vite y Docker del gate apagados.
