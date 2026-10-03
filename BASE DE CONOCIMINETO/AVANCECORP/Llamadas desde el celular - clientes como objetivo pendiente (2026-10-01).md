@@ -1,7 +1,7 @@
 ---
 tags: [crm, gestion-diaria, llamadas, clientes, postventa, pendiente, objetivo]
 fecha: 2026-10-01
-estado: OBJETIVO PENDIENTE (decisión de Jhosep, 01/10/2026) · propuesta #13 para Miguel
+estado: OBJETIVO PENDIENTE (decisión de Jhosep, 01/10/2026) · propuesta #13 APROBADA por Miguel el 02/10/2026
 ---
 
 # Llamadas desde el celular — clientes como objetivo pendiente (2026-10-01)
@@ -43,6 +43,16 @@ a «solo salientes» (propuesta #8). Quedó como propuestas **#14** y **#15** pa
   también [[Gestión comercial de clientes - renovaciones y upgrades]].
 - Al convertirse un lead, el sistema cancela sus tareas de lead; el seguimiento sigue en la postventa.
 
+## Comprobado en el código (03/10/2026)
+- Un cliente aparece en Gestión Diaria **solo si tiene una tarea agendada**; sin tarea, no aparece.
+- Su «Registrar resultado» **no es la encuesta del lead**: abre el cierre de esa tarea (`components/app/cerrar-tarea.tsx`),
+  con opciones como «Contestó» o «No contestó».
+- La encuesta al colgar (receptor de F1, `components/app/receptor-llamada.tsx`) **busca el número solo entre los
+  leads**. Si el teléfono sigue en la ficha de lead del cliente, encuentra ese lead convertido y la encuesta no deja
+  registrar («El lead está cerrado»).
+- Regla de Jhosep (03/10): al colgar, la encuesta se abre **siempre**: hoy para leads, y para clientes cuando exista el
+  paso 1 de abajo. Hasta entonces no se propone encuesta para clientes.
+
 ## Lo que faltaría para el objetivo
 1. Completar la gestión de clientes en Gestión Diaria (lo que Jhosep pone primero).
 2. Que la ingesta del celular reconozca también el teléfono del cliente y deje la llamada pendiente del cliente.
@@ -50,5 +60,5 @@ a «solo salientes» (propuesta #8). Quedó como propuestas **#14** y **#15** pa
 4. Que la llamada quede enlazada con la gestión registrada, y que las cifras separen leads y clientes.
 
 ## Dónde está escrito
-- Propuesta #13 en `CRM-Avance-Corp/docs/plans/llamadas-celular/PROPUESTAS-DE-AJUSTE.md` (rama `feat/llamadas-f2`).
+- Propuesta #13 en `CRM-Avance-Corp/docs/plans/llamadas-celular/PROPUESTAS-DE-AJUSTE.md` (en `main` desde el PR #169).
 - Plan de llamadas: [[Llamadas desde el celular - F1 receptor por URL y ajuste Android (2026-09-30)]].
