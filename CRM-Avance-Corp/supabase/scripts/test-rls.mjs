@@ -15449,14 +15449,19 @@ async function testBaseGestionB1(sessions, seed) {
   assertions += 1;
   if (sel?.data && 'enfriado_hasta' in sel.data && 'reactivado_en' in sel.data && 'proxima_llamada_en' in sel.data) console.log('  ✓ B1/B1b las tres columnas viajan por la API');
   else fail('B1/B1b: la API no devolvió enfriado_hasta / reactivado_en / proxima_llamada_en (grant por columna ausente)');
-  // (4) El intento de la base no se forja desde la API.
+  // (4) El intento de la base no se forja desde la API. Con B3 (20261002231436) el trigger
+  // trg_00_actividades_base_gestion_solo_nucleo corta ANTES que las guardas de B1: los dos INSERT mueren en su
+  // 42501. Sin B3, cada guarda de B1 responde con lo suyo. El CHECK sigue acreditado fuera de banda (5).
+  const conB3 = contarFueraDeBanda('base gestión: trigger solo núcleo (B3)',
+    `select count(*) from pg_trigger t where t.tgrelid = 'crm.actividades'::regclass and t.tgname = 'trg_00_actividades_base_gestion_solo_nucleo' and t.tgenabled = 'O'`) === 1;
+  const SOLO_NUCLEO_BASE = /base para gestion solo las escribe su nucleo/i;
   const actividad = (metadata) => sessions.vend1.client.schema('crm').from('actividades').insert({
     creado_por: sessions.vend1.user.id, detalle: 'B1 TRANSIENT', lead_id: idDe('juan'), tipo: 'nota', metadata,
   }).select('id');
-  await expectExpectedFailure('B1 vend1 INSERT actividad intento_base con resultado → 42501 (claves del núcleo)',
-    actividad({ evento: 'intento_base', resultado: 'no_contesto', intento_n: 1, ciclo_n: 1 }), ['42501'], /solo lo escribe/i);
-  await expectExpectedFailure('B1 vend1 INSERT actividad intento_base sin resultado → 23514 (CHECK)',
-    actividad({ evento: 'intento_base', ciclo_n: 1 }), ['23514'], /actividades_intento_base_forma/i);
+  await expectExpectedFailure(`B1 vend1 INSERT actividad intento_base con resultado → 42501 (${conB3 ? 'solo núcleo de la base, B3' : 'claves del núcleo'})`,
+    actividad({ evento: 'intento_base', resultado: 'no_contesto', intento_n: 1, ciclo_n: 1 }), ['42501'], conB3 ? SOLO_NUCLEO_BASE : /solo lo escribe/i);
+  await expectExpectedFailure(`B1 vend1 INSERT actividad intento_base sin resultado → ${conB3 ? '42501 (solo núcleo de la base, B3)' : '23514 (CHECK)'}`,
+    actividad({ evento: 'intento_base', ciclo_n: 1 }), conB3 ? ['42501'] : ['23514'], conB3 ? SOLO_NUCLEO_BASE : /actividades_intento_base_forma/i);
   // (5) Fuera de banda: contrato del sello, constantes y ACL por columna.
   const cuenta = (etiqueta, sql) => contarFueraDeBanda(`base gestión: ${etiqueta}`, sql);
   check(cuenta('sello definer', `select count(*) from pg_proc p where p.oid = 'private.trg_leads_zz_sello_base_gestion()'::regprocedure and p.prosecdef and p.proowner = 'postgres'::regrole and p.proconfig = array['search_path=""']::text[]`) === 1,
