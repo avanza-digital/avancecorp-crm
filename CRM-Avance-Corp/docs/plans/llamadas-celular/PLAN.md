@@ -130,9 +130,9 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 | --- | --- | --- | --- | --- |
 | F0 · Piloto y línea base | 4 | 1/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-2) |
 | F1 · Formulario único y match exacto | 4 | 12/12 | Hecha | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-8) |
-| F2 · Núcleo confiable | 4 | 0/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-14) |
-| F3 · Captura y sincronización | 4 | 0/13 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-20) |
-| F4 · Pendientes y conciliación | 4 | 0/13 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-66) |
+| F2 · Núcleo confiable | 4 | 8/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-14) |
+| F3 · Captura y sincronización | 4 | 4/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-20) |
+| F4 · Pendientes y conciliación | 4 | 0/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-66) |
 | F5 · Jev para identificación asistida | 5 | 0/15 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-72) |
 | F6 · Gerencia y calidad | 4 | 0/12 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-78) |
 | F7 · Despliegue y operación | 4 | 0/12 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-84) |
@@ -273,46 +273,46 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 | No comercial/fuera de alcance | Descarte permitido, motivado y auditado; no salida libre para ocultar llamadas identificadas |
 | Actividad con efectos deshechos | Evidencia y enlace permanecen; anotar efectos anulados sin exigir automáticamente otro registro |
 
-**Seguimiento de F2:** 0/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
+**Seguimiento de F2:** 8/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
 
 ### F2.1 · Cerrar el contrato
 
-**Estado:** en curso · **Avance:** 0/3 · **Responsable:** Claude (borrador) · Miguel (decide).
+**Estado:** en curso · **Avance:** 0/3 · **Responsable:** Jhosep (decisiones provisionales) · Miguel (ratifica).
 
-- [ ] **F2.1.1** Definir elegibilidad comercial, identificación, atención, dirección y estado técnico por separado.
-- [ ] **F2.1.2** Acordar descarte motivado, entrante perdida como devolución y semántica de Deshacer.
-- [ ] **F2.1.3** Fijar hora de ocurrencia/recepción, retención por estado y atribución tras reasignaciones.
+- [ ] **F2.1.1** Definir elegibilidad comercial, identificación, atención, dirección y estado técnico por separado. — EN CURSO: Decisión provisional de Jhosep (30/09): elegible = lead activo, etapa abierta, sin «no contactar» y dentro del ámbito → pide resultado; si no, «por revisar» sin encuesta, y se re-evalúa al leer. Entrantes definidas pero apagadas (solo salientes); dirección y estado técnico van separados en el esquema. Pendiente de la ratificación de Miguel.
+- [ ] **F2.1.2** Acordar descarte motivado, entrante perdida como devolución y semántica de Deshacer. — EN CURSO: Decisión provisional de Jhosep (30/09): los números sin lead NO se guardan (perilla apagada; propuesta #10 porque choca con F5); descarte con motivo obligatorio de lista cerrada + «otro» con texto; entrante perdida definida y apagada; Deshacer no borra ni desenlaza y el enlace pasa al resultado corregido. Pendiente de la ratificación de Miguel.
+- [ ] **F2.1.3** Fijar hora de ocurrencia/recepción, retención por estado y atribución tras reasignaciones. — EN CURSO: Decisión provisional de Jhosep (30/09): hora del celular si llega, si no la del servidor; analista = quien tenía el celular, fijo; retención 30 días para descartados y ambiguos sin resolver, sin número crudo; tras una reasignación (que viene de un descarte o lead libre) la llamada la ve y trabaja el nuevo analista y quién marcó se conserva para métricas. Pendiente de la ratificación de Miguel.
 
 **Evidencia / fecha de validación:** pendiente.
 
 ### F2.2 · Diseñar datos e identidad
 
-**Estado:** en curso · **Avance:** 0/4 · **Responsable:** Claude (borrador) · Miguel (aprueba).
+**Estado:** hecha · **Avance:** 4/4 · **Responsable:** Claude (construye y prueba) · Miguel (aprueba y aplica).
 
-- [ ] **F2.2.1** Modelar asignaciones inmutables de equipo y eventos con ID de origen estable y payload inmutable.
-- [ ] **F2.2.2** Definir tablas, índices y FK mínimos; conservar actor histórico y número crudo solo si se justifica.
-- [ ] **F2.2.3** Aplicar unicidad de evento e idempotencia: mismo contenido devuelve mismo ID; distinto contenido genera conflicto.
-- [ ] **F2.2.4** Restringir enlace evento–actividad a uno a uno, con autor, lead y tipo compatibles.
+- [x] **F2.2.1** Modelar asignaciones inmutables de equipo y eventos con ID de origen estable y payload inmutable.
+- [x] **F2.2.2** Definir tablas, índices y FK mínimos; conservar actor histórico y número crudo solo si se justifica.
+- [x] **F2.2.3** Aplicar unicidad de evento e idempotencia: mismo contenido devuelve mismo ID; distinto contenido genera conflicto.
+- [x] **F2.2.4** Restringir enlace evento–actividad a uno a uno, con autor, lead y tipo compatibles.
 
-**Evidencia / fecha de validación:** pendiente.
+**Evidencia / fecha de validación:** 01/10/2026: migración de datos 20261001145242 (eb73df1b) y núcleo 20261001160219 (fda9310e) en feat/llamadas-f2; npm run test:llamadas:local 82/82 en banco reducido (57 mutantes cazados). Sin aplicar en ningún entorno compartido..
 
 ### F2.3 · Aplicar ámbito y permisos
 
-**Estado:** pendiente · **Avance:** 0/3 · **Responsable:** por asignar.
+**Estado:** hecha · **Avance:** 3/3 · **Responsable:** Claude (construye y prueba) · Miguel (aprueba y aplica).
 
-- [ ] **F2.3.1** Implementar núcleo de ingesta, match exacto, detalle, listado, asociación, enlace, descarte y gestión de equipos.
-- [ ] **F2.3.2** Resolver actor activo desde asignación; revalidar ámbito, actividad ajena y lead reasignado.
-- [ ] **F2.3.3** Cerrar RLS y EXECUTE; documentar excepción single-tenant y contratos de puertas DEFINER.
+- [x] **F2.3.1** Implementar núcleo de ingesta, match exacto, detalle, listado, asociación, enlace, descarte y gestión de equipos.
+- [x] **F2.3.2** Resolver actor activo desde asignación; revalidar ámbito, actividad ajena y lead reasignado.
+- [x] **F2.3.3** Cerrar RLS y EXECUTE; documentar excepción single-tenant y contratos de puertas DEFINER.
 
-**Evidencia / fecha de validación:** pendiente.
+**Evidencia / fecha de validación:** 01/10/2026: núcleo y 11 puertas (fda9310e); oráculo con actores simulados (43 defensas), 25 mutantes del núcleo cazados, reversa del núcleo en orden y fuera de orden. Sin aplicar en ningún entorno compartido..
 
 ### F2.4 · Verificar el núcleo
 
-**Estado:** pendiente · **Avance:** 0/3 · **Responsable:** por asignar.
+**Estado:** en curso · **Avance:** 1/3 · **Responsable:** Claude (banco local) · Miguel (banco de producción, revisión y OK).
 
-- [ ] **F2.4.1** Probar IDs repetidos, payload incompatible, dos consumidores, llamadas cercanas y bajas de actor/equipo.
-- [ ] **F2.4.2** Ejecutar SQL y gate RLS ampliado en entorno aislado; revisión LEVEL 3 y advisors aplicables.
-- [ ] **F2.4.3** Completar comentarios, ledger de migraciones y evidencia de aceptación antes de habilitar consumidores.
+- [x] **F2.4.1** Probar IDs repetidos, payload incompatible, dos consumidores, llamadas cercanas y bajas de actor/equipo.
+- [ ] **F2.4.2** Ejecutar SQL y gate RLS ampliado en entorno aislado; revisión LEVEL 3 y advisors aplicables. — EN CURSO: SQL ejecutado en entorno aislado (banco reducido desechable, 160/160). 03/10: bloque testLlamadasCelular escrito en test-rls.mjs (permisos por rol y tabla, puertas de servicio, idempotencia, dos envíos a la vez, ámbito por equipo, corrección del supervisor, rotación y cierre; deja la corrida limpia), con node --check y oxlint limpios, SIN CORRER: aquí no hay banco con el esquema de producción. Falta (Miguel): correrlo en su ensayo con CRM_RLS_EXIGE_LLAMADAS=1, advisors, auditor-rls y Codex LEVEL 3.
+- [ ] **F2.4.3** Completar comentarios, ledger de migraciones y evidencia de aceptación antes de habilitar consumidores. — EN CURSO: COMMENT completos (el postflight los exige) y ledger con estado honesto (MIGRACIONES.md). Falta la evidencia de aceptación en el banco con el esquema de producción antes de habilitar consumidores (F3/F4).
 
 **Evidencia / fecha de validación:** pendiente.
 
@@ -333,46 +333,46 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 | Listar/alta/baja/rotar celular | Capacidad de administración resuelta en servidor |
 | Registrar salud | Credencial de equipo, datos mínimos; heartbeat no demuestra captura sana |
 
-**Seguimiento de F3:** 0/13 tareas completadas · Estado: pendiente · Responsable nominal: por asignar.
+**Seguimiento de F3:** 4/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
 
 ### F3.1 · Publicar el contrato de puertas
 
-**Estado:** pendiente · **Avance:** 0/3 · **Responsable:** por asignar.
+**Estado:** en curso · **Avance:** 2/3 · **Responsable:** Jhosep (decisiones provisionales) · Miguel (ratifica) · Claude (construye).
 
-- [ ] **F3.1.1** Implementar ingesta, listado paginado, detalle por UUID, asociación, enlace, descarte y salud.
-- [ ] **F3.1.2** Restringir administración de equipos por capacidad y resolver actor/ámbito en servidor.
-- [ ] **F3.1.3** Definir respuesta estable y errores distinguibles; generar tipos del contrato para sus consumidores.
+- [x] **F3.1.1** Implementar ingesta, listado paginado, detalle por UUID, asociación, enlace, descarte y salud.
+- [x] **F3.1.2** Restringir administración de equipos por capacidad y resolver actor/ámbito en servidor.
+- [ ] **F3.1.3** Definir respuesta estable y errores distinguibles; generar tipos del contrato para sus consumidores. — EN CURSO: Respuesta estable definida y probada: base (42501 uniforme, 22023, P0409, P0429 con la espera) y Edge (202 recibido con la URL de F1, 200 latido, 400, 401, 409, 413, 415, 429 con Retry-After, 503). Falta generar los tipos (npm run gen:types) tras aplicar en un banco con el esquema de producción.
 
 **Evidencia / fecha de validación:** pendiente.
 
 ### F3.2 · Proteger la ingesta
 
-**Estado:** pendiente · **Avance:** 0/3 · **Responsable:** por asignar.
+**Estado:** en curso · **Avance:** 1/3 · **Responsable:** Claude (construye) · Miguel (aprueba y aplica).
 
-- [ ] **F3.2.1** Configurar Edge con esquema estricto, tamaño limitado, token propio y autenticación de plataforma verificada.
-- [ ] **F3.2.2** Aplicar rate limit compartido, baja/inactividad y rotación/revocación con auditoría.
-- [ ] **F3.2.3** Mostrar token una vez; guardar hash y eliminar secretos de URL, logs y soporte.
+- [ ] **F3.2.1** Configurar Edge con esquema estricto, tamaño limitado, token propio y autenticación de plataforma verificada. — EN CURSO: Edge crm-llamadas-ingesta construida (ad4cf226): esquema estricto v1, cuerpo ≤ 4 KB, clave propia en la cabecera x-celular-credencial y verify_jwt=false documentado en config.toml. deno check y 16 pruebas en verde; 14 mutantes cazados. Falta desplegarla y comprobar en la plataforma que verify_jwt quedó apagado y que nada más entra (Miguel).
+- [x] **F3.2.2** Aplicar rate limit compartido, baja/inactividad y rotación/revocación con auditoría.
+- [ ] **F3.2.3** Mostrar token una vez; guardar hash y eliminar secretos de URL, logs y soporte. — EN CURSO: La clave se muestra una vez y solo se guarda su sha256 (F2-c); viaja en una cabecera, nunca en la URL; la Edge no escribe nada en el registro (prueba que intercepta console). Falta la guía de soporte sin secretos (F3.4.3) y comprobarlo en el despliegue. 02/10: en C1, el registro del sistema de MacroDroid no muestra la cabecera ni la clave (prueba 6); la clave sí es visible dentro de la acción, y el control es rotarla.
 
 **Evidencia / fecha de validación:** pendiente.
 
 ### F3.3 · Persistir y enviar
 
-**Estado:** pendiente · **Avance:** 0/4 · **Responsable:** por asignar.
+**Estado:** en curso · **Avance:** 1/4 · **Responsable:** Jhosep (pruebas en C1) · Claude (receptor de pruebas).
 
-- [ ] **F3.3.1** Crear ID, hora y payload una vez; guardar en cola local antes del POST.
-- [ ] **F3.3.2** Reintentar red caída, 429 y reinicio; retirar solo tras confirmación y visibilizar errores permanentes.
-- [ ] **F3.3.3** Parsear respuesta y abrir UUID confirmado; mantener fallback manual si falta UUID.
-- [ ] **F3.3.4** Correlacionar doble trigger y validar dirección/duración por evento sin confundir desconocido con cero.
+- [x] **F3.3.1** Crear ID, hora y payload una vez; guardar en cola local antes del POST.
+- [ ] **F3.3.2** Reintentar red caída, 429 y reinicio; retirar solo tras confirmación y visibilizar errores permanentes. — EN CURSO: Hecho en C1 (02/10): sin red (A3), servidor caído con 503 (A4) y reinicio (A6) dejan el aviso en la cola, y el intervalo de 5 min lo reenvía con el mismo id; solo un 202 lo retira; un 400 se aparta a errores_llamadas con una notificación sin el número (A5). Falta ensayar un 429 explícito (el receptor lo fuerza con /_control?modo=429): necesita C1.
+- [ ] **F3.3.3** Parsear respuesta y abrir UUID confirmado; mantener fallback manual si falta UUID. — EN CURSO: Cambia con la propuesta #12 (pendiente de Miguel): la respuesta no trae el UUID y el celular abre la encuesta de F1 por número, enseguida y sin esperar al servidor (decisión 4 de F3; probado en C1, A1). El respaldo manual es el aviso con buscador de F1. Se cierra cuando Miguel decida la #12.
+- [ ] **F3.3.4** Correlacionar doble trigger y validar dirección/duración por evento sin confundir desconocido con cero. — EN CURSO: En C1 (02/10): una sola notificación y un solo aviso por llamada en más de 8 llamadas, incluidas colgar antes de que contesten y sin respuesta (prueba 5). La dirección la marca «Llamadas-Salientes» y las entrantes no generan aviso (A2). La duración no se envía (MacroDroid no la da) y llega null, no 0. Falta: llamada en espera, doble SIM y entrantes si se aprueba la #14.
 
 **Evidencia / fecha de validación:** pendiente.
 
 ### F3.4 · Probar recuperación
 
-**Estado:** pendiente · **Avance:** 0/3 · **Responsable:** por asignar.
+**Estado:** en curso · **Avance:** 0/3 · **Responsable:** Jhosep (pruebas en C1) · Claude (receptor de pruebas y guía).
 
-- [ ] **F3.4.1** Ensayar respuesta perdida tras commit, ráfagas, bloqueo, batería, desfase y permisos revocados.
-- [ ] **F3.4.2** Verificar dos llamadas al mismo número, baja/rotación de token y actor inactivo, por equipo piloto.
-- [ ] **F3.4.3** Entregar guía de soporte y salud de cola; decidir otro adaptador si MacroDroid no acredita durabilidad.
+- [ ] **F3.4.1** Ensayar respuesta perdida tras commit, ráfagas, bloqueo, batería, desfase y permisos revocados. — EN CURSO: Parcial en C1 contra el receptor de pruebas (02/10): sin red (A3), servidor caído (A4) y reinicio (A6). Falta: respuesta perdida tras guardar, ráfagas, pantalla bloqueada, batería baja, desfase de hora y permisos revocados.
+- [ ] **F3.4.2** Verificar dos llamadas al mismo número, baja/rotación de token y actor inactivo, por equipo piloto. — EN CURSO: Dos llamadas al mismo número → dos eventos, cada uno con su id (prueba 2 en C1). Rotación, cierre de la clave y analista de baja: probados en el banco reducido y escritos en el bloque testLlamadasCelular del gate (sin correr aquí). Falta repetirlo con la Edge desplegada y por equipo piloto.
+- [ ] **F3.4.3** Entregar guía de soporte y salud de cola; decidir otro adaptador si MacroDroid no acredita durabilidad. — EN CURSO: Guía de la macro definitiva en macrodroid.md §3c (pasos, trampas y pruebas). MacroDroid acredita durabilidad en C1 (A3, A4, A6): no hace falta otro adaptador (decisión 5 de F3, la ratifica Miguel). Falta la guía de soporte y la salud de la cola (el latido).
 
 **Evidencia / fecha de validación:** pendiente.
 
@@ -384,7 +384,7 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 
 **Objetivo:** cerrar el circuito recuperando fallos sin duplicar gestiones.
 
-**Seguimiento de F4:** 0/13 tareas completadas · Estado: pendiente · Responsable nominal: por asignar.
+**Seguimiento de F4:** 0/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
 
 ### F4.1 · Construir la bandeja
 

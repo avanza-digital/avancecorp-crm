@@ -237,6 +237,34 @@ ficticia de 15 contratos por caso; nada en producción):
   ninguna Edge Function del repo escribe ahí.
 - Comportamiento previo que sigue (F5): si se corrige la FECHA de una cuota pagada antes del
   vínculo, su sello la marca «inferido» en la cuenta vinculada.
+
+## 20261001222431 — Llamadas desde el celular · corrección de F2-c: la elegibilidad de la ingesta se evalúa como el dueño del celular (`private.llamada_celular_elegible_dueno`, `private.llamada_celular_ingerir`)
+
+**⏸️ EN RAMA `feat/llamadas-f2`, SIN APLICAR en ningún entorno compartido.** Depende de `20261001160219` (F2-c).
+OK de Jhosep (01/10) para corregirlo; Miguel lo revisa con el resto de F2.
+
+Qué hace: la ingesta llega sin sesión y la regla de ámbito del CRM (`sla_gestion_permitida` → `vendedor_ids_visibles`)
+solo responde a quien pregunta por sí mismo. Por eso la llamada del celular de un supervisor a un lead de su equipo
+entraba «por revisar» y nunca pedía resultado, contra la decisión 1 (comprobado en un banco desechable). Ayudante
+nuevo `private.llamada_celular_elegible_dueno(dueño, lead)`: evalúa la decisión 1 con la regla real COMO el dueño
+del celular. Fija `request.jwt.claim.sub` solo durante esa consulta y devuelve la identidad anterior antes de que la
+ingesta escriba, así que la bitácora no atribuye la llamada a nadie. `private.llamada_celular_ingerir`: el cuerpo de
+F2-c copiado tal cual con una sola línea cambiada (generado con un guion y comparado con `diff`). **Decisión de
+criterio de Claude, para Miguel:** reutilizar la regla real evaluándola como el dueño, en vez de copiarla en un
+ayudante propio que podría desviarse de ella.
+
+Reversa: `scripts/llamadas-celular/reversa-elegibilidad.sql` (devuelve el cuerpo de F2-c con su COMMENT y retira el
+ayudante). `reversa-nucleo.sql` se niega mientras esta corrección siga instalada.
+
+**Verificación 01/10 (banco REDUCIDO, no paridad):** `npm run test:llamadas:local` → **160/160**. Oráculo
+`tests/llamadas-celular/oraculo-elegibilidad.sql`: el celular del supervisor pide resultado para los leads de su
+equipo (de su analista, de otro analista del equipo y sin analista) y no para otro equipo ni para «no contactar»; el
+del analista no cambia; la identidad vuelve (también la que hubiera antes) y la bitácora no atribuye ninguna llamada;
+el supervisor ve sus llamadas como pendientes de resultado. **7/7 mutantes cazados** (4 por el oráculo, 3 por el
+postflight). Los oráculos de F2-b, F2-c y F3-a pasan con la corrección instalada. **NOT RUN:** banco con el esquema de
+producción y `test-rls.mjs`; allí hay que confirmar que el `auth.uid()` real de Supabase lee `request.jwt.claim.sub`
+(el banco reducido usa un doble que lo hace).
+
 ## 20261001212341 — Potencial del lead · fase 3, entrega B: filtrar y contar Leads por potencial (`p_potencial`)
 
 **✅ EN PRODUCCIÓN desde el 01/10/2026 ~19:30 Lima (Miguel con `!`: migración, registro y verificación). ✅ PANTALLA
@@ -353,6 +381,91 @@ Orden en producción (Miguel con `!`, desde `CRM-Avance-Corp/`): `db query --lin
 `scripts/potencial-lead/registrar-filtro.sql` → `scripts/potencial-lead/verificar-filtro.sql` (termina en raise con
 las cifras) → sonda HTTP con `p_potencial` (401/42501 = la API ya conoce el parámetro; 404/PGRST202 = aún no recargó
 la caché) → advisors → publicar la pantalla.
+
+## 20261001212258 — Llamadas desde el celular · F3-a: puertas de servicio, límite, salud y bandeja paginada (`crm.ingerir_llamada_celular_servicio`, `crm.registrar_salud_celular_servicio`, `crm.llamadas_celular_bandeja_fn`, `crm.celulares_salud_fn`, `private.celulares_estado`)
+
+**⏸️ EN RAMA `feat/llamadas-f2`, SIN APLICAR en ningún entorno compartido.** Depende de `20261001160219` (F2-c).
+Decisiones 1–4 de F3 tomadas por Jhosep como provisionales (01/10); Miguel las ratifica (LEVEL 3: la Edge de F3-b
+abrirá una entrada pública con `verify_jwt=false` y credencial por celular).
+
+Qué hace: límite por celular como dato de la política (`limite_envios_minuto` 30 y `limite_envios_dia` 600,
+coherentes entre sí); tabla técnica `private.celulares_estado`, una fila por asignación con el último envío, el
+último latido (versión de la macro, cola) y los contadores del límite por minuto de reloj y día de Lima. Tiene RLS,
+está cerrada a la API, sin policies y con candado (sin DELETE, sin cambiar de asignación). **Sin auditoría por
+diseño:** vive en `private`, fuera de la regla de rastro de `crm`/`public`, como las colas y contadores del repo;
+cambia con cada envío y la evidencia de cada llamada ya está auditada en `crm.llamadas_celular_eventos`. Núcleo
+INVOKER sin EXECUTE: `celular_por_credencial` (sha256 de la clave → asignación vigente con analista activo),
+`celular_consumir_envio` (P0429 con `reintentar_en_seg=N` en el DETAIL; lo comparten llamadas y latidos),
+`celular_registrar_salud` (latido v1 con claves exactas), `llamadas_celular_bandeja` y `celulares_salud_listar`.
+Puertas de **servicio** DEFINER con EXECUTE solo `service_role` (las llamará la Edge `crm-llamadas-ingesta` de F3-b,
+como `crm.agenda_ics_feed_fn`): clave ausente, desconocida, cerrada o de un analista de baja → el mismo 42501
+«No autorizado», también si la asignación se cierra mientras la ingesta espera su candado; a la Edge solo le
+devuelven `evento_id`, `repetido`, `ignorado` y `motivo`. Puertas de lectura DEFINER con EXECUTE solo
+`authenticated`: la bandeja paginada por cursor (`recibido_en`, `evento_id`; las mismas filas que
+`llamadas_celular_pendientes_fn`) y la salud de los celulares (gerencia todos los vigentes; supervisión su equipo).
+**Decisiones de criterio de Claude, para Miguel:** tabla técnica en `private` sin auditoría; solo cuenta lo que se
+confirma (un envío que muere con error se deshace con su contador; la Edge filtra antes los cuerpos inválidos);
+ventanas fijas; los límites aún no tienen puerta para cambiarlos (llega con la pantalla de gerencia, F4).
+
+Reversa: `scripts/llamadas-celular/reversa-ingesta.sql` (puertas, núcleo, tabla técnica y columnas de límite; la
+evidencia queda). `reversa-nucleo.sql` ahora se niega si F3-a sigue instalada (orden: ingesta → núcleo → datos).
+
+**Verificación 01/10 (banco REDUCIDO, no paridad):** `npm run test:llamadas:local` → **138/138**. Oráculo
+`tests/llamadas-celular/oraculo-ingesta.sql` (actores simulados: `service_role` sin `sub`, `authenticated` y `anon`;
+32 defensas que muerden: puertas solo del servicio, autorización uniforme, respuesta mínima, idempotencia, límite
+por minuto y por día con su espera y el reinicio de sus ventanas, límite compartido con el latido, latidos
+inválidos, bandeja paginada sin huecos ni repetidos e igual a la de F2-c, ámbito por analista y por equipo, salud
+por rol, tabla técnica cerrada y con candado). Los oráculos de F2-b y F2-c pasan con F3-a instalada. **36/36
+mutantes de F3-a cazados** (27 por el oráculo, 3 por una segunda barrera de la tabla, 6 por el postflight) y los 57
+de F2 siguen cazados. Concurrencia con dos sesiones reales: gerencia rota la clave mientras una ingesta con la
+clave vieja espera el candado → la ingesta espera (≈ 1,7 s) y recibe el mismo «No autorizado», sin guardar la
+llamada. Advisors previstos, no corridos: 2 avisos de la clase existente
+`authenticated_security_definer_function_executable` (las dos puertas de lectura); las de servicio no son
+ejecutables por `authenticated`. **NOT RUN:** banco con el esquema de producción, `test-rls.mjs`, advisors reales,
+agente `auditor-rls`, Codex LEVEL 3 y `gen:types`.
+
+## 20261001160219 — Llamadas desde el celular · F2-c: núcleo y puertas (`private.llamada_celular_*`, `crm.*_llamada_celular`, `crm.*celular*`)
+
+**⏸️ EN RAMA `feat/llamadas-f2`, SIN APLICAR en ningún entorno compartido.** Depende de `20261001145242` (F2-b).
+Contrato con las 7 decisiones provisionales de Jhosep (30/09); Miguel las ratifica (LEVEL 3).
+
+Qué hace: núcleo en `private` **INVOKER y sin EXECUTE para nadie** (solo lo invocan las puertas DEFINER; excepción
+documentada del estándar) y 11 puertas en `crm` **DEFINER** con `search_path` vacío y EXECUTE solo `authenticated`.
+Ingesta `private.llamada_celular_ingerir(asignación, evento)` (sin puerta: la de servicio llega en F3): evento v1 con
+claves exactas, asignación vigente con analista activo (42501), número canonizado con las dos reglas del CRM y
+coincidencia exacta entre leads activos (uno → identificado; varios → ambiguo; ninguno → no se guarda, decisión 3;
+entrante con entrantes apagadas → no se guarda, decisión 2), idempotente por origen + hash (repetido / `P0409`) con
+la hora normalizada a UTC dentro del hash. Puertas: `llamadas_celular_pendientes_fn` (bandeja con la atención
+EFECTIVA recalculada al leer, decisión 1; tras una reasignación la ve el analista nuevo, decisión 7),
+`llamada_celular_detalle_fn` (con `efectos_anulados` derivado de `deshecho_en`, decisión 4),
+`asociar_llamada_celular` (solo a un lead del ámbito que tenga el número), `enlazar_llamada_celular` (uno a uno con un
+resultado de llamada del mismo lead, posterior a la llamada; si el enlazado fue deshecho, el enlace se mueve),
+`descartar_llamada_celular` (catálogo; «otro» con detalle), `celulares_asignaciones_fn` (gerencia; supervisión su
+equipo), `asignar_celular` / `cerrar_asignacion_celular` / `rotar_credencial_celular` (gerencia; credencial de 32
+bytes devuelta UNA vez, solo se guarda su sha256), `llamadas_celular_politica_fn` / `fijar_politica_llamadas_celular`
+(gerencia). **Decisiones de criterio de Claude, para Miguel:** solo gerencia asigna celulares y fija la política;
+la llamada a un lead fuera del ámbito de quien llama se guarda «por revisar» y la ve la cadena del dueño; el
+resultado se enlaza solo si se registró después de la llamada (10 min de tolerancia); celular para vendedor o
+supervisor activos.
+
+Reversa: `scripts/llamadas-celular/reversa-nucleo.sql` (retira puertas y núcleo; tablas y filas quedan). Las dos
+reversas de datos ahora se niegan si el núcleo sigue instalado (orden obligatorio: núcleo → datos).
+
+**Verificación 01/10 (banco REDUCIDO, no paridad):** `npm run test:llamadas:local` → **82/82**. Oráculo
+`tests/llamadas-celular/oraculo-nucleo.sql` (actores simulados como Supabase: rol `authenticated`/`anon` + `sub` del
+JWT; 43 defensas que muerden: asignación, ingesta, bandeja por ámbito de analista/supervisión/gerencia, asociar,
+enlazar y mover tras deshacer, descartar, reasignación, re-evaluación, política, anon y analista de baja sin acceso,
+`authenticated` sin acceso directo a las tablas). Reversas en orden y fuera de orden. **25/25 mutantes del núcleo
+cazados** (22 por el oráculo, 3 por el postflight; 4 los frena el candado de F2-b como segunda barrera) y los 32 de
+F2-b siguen cazados. El banco reducido usa ahora copias reales de `rol_crm`, `es_lector_global`,
+`vendedor_ids_visibles` (con su defensa «solo para quien llama») e `idem_hash`. Advisors previstos: 11 avisos de la
+clase existente `authenticated_security_definer_function_executable` (patrón de todas las puertas DEFINER), ninguna
+clase nueva. **Concurrencia con dos sesiones reales (01/10, F2-d):** la primera retiene su transacción 2 s y la
+segunda tiene que esperar (medido ≈ 1,7 s) y responder bien: mismo origen y contenido → mismo evento «repetido»;
+otro contenido → `P0409`; dos consumidores enlazando la misma llamada → uno gana y el otro recibe 23505, queda un
+solo enlace. `npm run test:llamadas:local` → **87/87**, estable en dos corridas seguidas. **NOT RUN:** banco con el
+esquema de producción, `test-rls.mjs` (bloque `testLlamadasCelular`, F2-d), advisors reales, agente `auditor-rls` y
+Codex LEVEL 3.
 
 ## 20261001154153 — Pipeline «Gestionado»: filtro `p_gestion` en `crm.cartera_filtrada_fn`
 
@@ -544,6 +657,49 @@ censo de contadores idénticos sin y con la migración; supervisor con equipo de
 marcas de 400 días ≈ 40 ms (con la máquina cargada, hasta cuatro veces más). Reversa y registro idempotentes (md5
 `7c2b8534…`). Encender y apagar la bandera: `encender-bandera.sql` y `apagar-bandera.sql`, ensayados. Scripts: `supabase/scripts/potencial-lead/` (LEEME,
 sección «Fase 3, entrega A»).
+
+## 20261001145242 — Llamadas desde el celular · F2-b: datos (`crm.celulares_asignaciones`, `crm.llamadas_celular_eventos`, `crm.llamadas_celular_enlaces`, `crm.llamadas_celular_politica`, `private.caducar_llamadas_celular`)
+
+**⏸️ EN RAMA `feat/llamadas-f2`, SIN APLICAR en ningún entorno compartido (ni branch de Supabase ni producción).**
+Contrato con las **7 decisiones provisionales de Jhosep (30/09)**; Miguel las ratifica o cambia antes de aplicar
+(LEVEL 3). Plan: `docs/plans/llamadas-celular/F2-PLAN-CORTO.md`. Banco local: ver «Verificación».
+
+Qué hace: la llamada hecha desde un celular corporativo deja huella propia (hoy solo existe la actividad que el
+analista registra en la encuesta). Cuatro tablas en `crm`, RLS activa **sin policies** y sin privilegios para la
+API (todo llegará por puertas DEFINER en F2-c): `celulares_asignaciones` (qué analista tenía cada celular y desde
+cuándo; credencial de ingesta solo como hash sha256; una vigencia por etiqueta con índice parcial + exclusión por
+rango; cerrada = inmutable), `llamadas_celular_eventos` (payload inmutable + identidad estable asignación + id de
+origen + hash; identificación, atención, lead, método y descarte motivado con transiciones vigiladas por trigger;
+`lead_id` en cascada como `actividades`), `llamadas_celular_enlaces` (uno a uno con la actividad de llamada que la
+encuesta registró, mismo lead, `metadata.evento = resultado_llamada`; el enlace solo cambia si el resultado
+anterior tiene `deshecho_en`), `llamadas_celular_politica` (fila única: `guardar_sin_identificar=false`,
+`entrantes_activas=false`, retención 30 días para descartados y ambiguos). Purga `private.caducar_llamadas_celular`
++ pg_cron `crm-llamadas-celular-caducidad` (06:23 UTC); el candado solo deja pasar el DELETE bajo el GUC
+`crm.op_purga_llamadas` o en cascada. Auditoría `log_audit_sin_secretos` con `credencial_hash`, `numero_canonico`
+y `hash_payload` enmascarados (la purga copia filas a `audit_log`, que no tiene retención; el sha256 de un número
+de nueve dígitos se revierte por fuerza bruta). FK de autoría (`*_por`) y de analista a personas siempre
+**RESTRICT** con su índice: la baja de usuarios (`private.usuario_tiene_historial`) detecta el historial por esas
+FK y conserva la identidad; el postflight lo exige. Excepción single-tenant documentada en los comentarios.
+Vocabulario: «analista».
+
+Reversa: `scripts/llamadas-celular/reversa-datos.sql` (conserva los hechos: retira cron, purga y candados; deja
+tablas y auditoría) y `reversa-datos-total.sql` (borra las tablas; se niega si hay filas).
+
+**Verificación 01/10 (banco REDUCIDO, no paridad):** `npm run test:llamadas:local` levanta un PostgreSQL 17.7
+desechable (initdb en carpeta temporal, solo 127.0.0.1, clave de usar y tirar; molde `test-sla-nucleo-local.py`)
+con `supabase/tests/llamadas-celular/base.sql` (auditores, regla de rastro, canonización y forma del resultado
+copiados literal; identidad y ámbito como dobles declarados) y corre: migración PASS (sin pg_cron: el reloj no se
+programa y lo avisa), reaplicar se niega, oráculo `scripts/llamadas-celular/verificar-datos.sql` PASS (39 defensas
+que muerden + cascada del lead; en transacción con ROLLBACK), reversa que conserva los hechos PASS, reversa total
+se niega con filas y pasa sin ellas, reaplicar tras la reversa PASS. **32/32 mutantes cazados** (27 por el oráculo,
+5 por el postflight; 4 los frena una segunda barrera con otro código, la operación igual no pasa). 45/45 pasos.
+Hallazgo corregido por el banco: las reversas nombraban `cron.job` en la misma condición que comprueba pg_cron y
+morían en un banco sin reloj. Revisión en línea con la lista de `auditor-rls` (RLS sin policies, sin privilegios
+de la API, DEFINER con `search_path` vacío y comentado, no altera objetos de `public` (solo FK que referencian
+`public.perfiles`, como el resto del CRM), inmutabilidad de
+`actividades` y del ledger intacta: solo se añaden FK que la referencian; las comprobaciones existentes buscan
+disparadores por nombre, no por cantidad). **NOT RUN:** banco con el esquema de producción, `test-rls.mjs` (bloque
+`testLlamadasCelular` en F2-d), advisors, agente `auditor-rls` y Codex LEVEL 3.
 
 ## 20260930235917 — Potencial del lead · fase 2: la marca baja sola (`private.potencial_caducar`, pg_cron `crm-potencial-lead-caducidad`)
 
@@ -2074,7 +2230,6 @@ advisors sin ERROR nuevo, INFO privado deny-all y dos WARN de RPC con guardas
 gerenciales previstos. Merge nativo de solo estos dos SQL; 358 migraciones previas
 intactas y 21 Edge Functions sin cambios. Cuerpos/ACL/triggers cotejados en
 producción. Rama temporal eliminada; pantallas todavía pendientes de publicación.
-
 
 ## 20260925202140 — P-0XX: cuentas visibles para el propio cliente, S4
 
@@ -4784,7 +4939,6 @@ y luego `supabase/scripts/registrar-20260919211958.sql` (generado, fail-closed).
 **Reversa:** `scripts/gestion-diaria/reversa.sql` (solo retira objetos nuevos; tras
 retirar el front). Detalle en `scripts/gestion-diaria/README.md`.
 
-
 ## 20260919185718 — Historial por lead: completo e igual para todos los roles
 
 **✅ SQL EN PRODUCCIÓN el 19/09/2026 (~15:50 Lima, Miguel con `!` + `db query --linked --file`, archivo
@@ -5332,7 +5486,6 @@ Advisors revisados y documentados; el merge recompuso los paquetes Edge, cuyas
 95 comprobaciones HTTP PASS. SQL, reversa no destructiva, revisiones, limitaciones
 y evidencias en [gestion-multiempresa](../scripts/gestion-multiempresa/README.md).
 
-
 ## 20260916040442 — Activación F8 serializada sin interbloqueos
 
 **INSTALADA Y VERIFICADA 16/09/2026 10:31 Lima**, registro remoto
@@ -5358,7 +5511,6 @@ previas del historial, datos/flags y permisos idénticos. Cartera correcta para
 nuevas alertas. [Recibo productivo](../scripts/rls-vigente/PRODUCCION.json).
 Tipos sin cambios: solo cuerpo de trigger privado. Reversa literal con huellas
 incluida en el mismo directorio. Revisiones y evaluación del PRIMARY adjuntas.
-
 
 ## 20260916023055 — Filtros comerciales de cartera multiempresa
 
@@ -13033,7 +13185,6 @@ Un replay de paridad total (las 203) por el arnés `scripts/banco/` sigue dispon
 
 **Gate G3-comportamiento:** ensayo en banco con oráculo de comportamiento (bandera on reconoce, off idéntica) y arnés de concurrencia (`oraculo-f3-concurrencia.sh`). Reversa: `scripts/rollback-f3-puerta-unica.sql` (suelta trigger + función + apaga bandera; no deshace identidades ya enlazadas).
 
-
 ## 20260903210000 · `crm_f2_convertir_lead_identidad`
 
 **Estado: ✅ PRODUCCIÓN 2026-09-04 (3/8).** Auditada por auditor-rls (núcleo técnico correcto; fixes B1/M2/N1 aplicados). Lote Contrato-F2.
@@ -13045,7 +13196,6 @@ Un replay de paridad total (las 203) por el arnés `scripts/banco/` sigue dispon
 **Guardas.** TODO detrás de la bandera `resolver_en_puertas`: APAGADA = comportamiento equivalente a hoy (lectura del perfil tras el lock del lead, misma precedencia de errores; el JSON gana una clave aditiva). Grants idénticos a la versión previa. Conserva `UNIQUE(lead_id)` (N inversiones por persona = F5). Requiere F1, F2-backfill y 20260903190000.
 
 **Pendiente del lote (antes de banco):** reescribir `convertir_lead_externo`, RETIRAR el trigger 200000, cablear idempotencia (`crm.multiempresa_idempotencia`), `no_contactar` por RPC ordenada, puerta de fusión/corrección, y casos nuevos en `test-rls.mjs`.
-
 
 ## 20260903220000 · `crm_f2_convertir_lead_externo_identidad`
 
@@ -13068,7 +13218,6 @@ Un replay de paridad total (las 203) por el arnés `scripts/banco/` sigue dispon
 **Guardas.** Postflight verifica trigger retirado, función ausente y bandera apagada. Reversa: `scripts/rollback-f2-cierre-lote.sql` (no recrea el trigger).
 
 **Pendiente del lote (antes de banco):** cablear idempotencia (`crm.multiempresa_idempotencia`), `no_contactar` por RPC ordenada, puerta de fusión/corrección, casos en `test-rls.mjs` y oráculos que ejerciten LAS PUERTAS (no el trigger) con la bandera encendida, en transacciones concurrentes reales.
-
 
 ## 20260903240000 · `crm_f2_no_contactar_por_persona`
 
@@ -13640,7 +13789,6 @@ La v1 nunca se aplicó. `auditor-rls` (04/09) la tumbó con NO-GO: usaba `at tim
 
 **`auditor-rls` (05/09): GO.** Sin bloqueantes; su reserva mayor (el UPDATE anidado de la renovación) está atendida arriba y medida en E; menores atendidos (denegados en la matriz, restauración con claim NULL, limpieza de fixtures, filtro de firma en registro y select final). **Ciclo:** ~~Miguel aplica en prod → registro~~ HECHO (05/09 ~19:10 Lima). Sin release del front: el botón de Gerencia atribuye bien desde ya.
 
-
 ## 20260905234500 · `crm_alta_idempotente_replay_no_en_eliminacion`
 
 **Estado: ✅ APLICADA EN PRODUCCIÓN el 05/09/2026 ~19:10 Lima (00:10 UTC del 06/09) por `db query --linked --file` y REGISTRADA (md5 archivo `5187b573…`). Preflight de solo lectura justo antes: functiondef vivo `3d7680ae…` (v2.1), versión no registrada. Verificado tras aplicar: functiondef `9833ed52…`, ACL `{postgres,authenticated}` intacta. El mapeo del 55000 en el front está PUBLICADO (release `crm-20260906T002236Z-701edc43866e`, buildId `build-20260906T002235989Z`, 05/09 ~19:25 Lima; smoke OK, chunk `crm-api-CL9UILZ2.js` con el mensaje). Antes: construida y ensayada en banco-f7, auditor-rls PASA.** Enmienda **m3 del `auditor-rls`** sobre la v2.1 de `20260905190000` (ya viva en prod). Solo servidor: misma firma, retorno, dueño `postgres`, DEFINER, `search_path=""` y ACL `{postgres,authenticated}` de `crm.crear_contrato_con_cuenta_pdf_v2`; **sin DROP; nada de `public`**; la memoria `private.contrato_altas_idempotentes` intacta. Generador `scripts/idempotencia-m3/gen-alta-replay-no-en-eliminacion.py` desde el functiondef VIVO en `scripts/idempotencia-m3/vivas/` (md5(pg_get_functiondef) `3d7680ae…` → `9833ed52…`; md5 archivo `5187b573…`). Reversa `scripts/rollback-alta-replay-en-eliminacion.sql`; registro `scripts/registrar-alta-replay-en-eliminacion.sql`; oráculo `scripts/oraculo-alta-replay-en-eliminacion.sh`.
@@ -13915,7 +14063,6 @@ interruptores `inversiones_escritura` y `ficha_360_neutral` siguen en `false`. P
 
 **Reversa:** `scripts/rollback-f2b-d20.sql` (restaura el importador byte a byte y suelta el ayudante). ⚠️ **No borra las notas ni las tareas ya creadas**: son trabajo real de la operación. **Registro:** `scripts/registrar-f2b-d20.sql`.
 
-
 ## 20260907001024 — SLA N1: núcleo operativo de lectura
 
 **APLICADA en producción el 07/09/2026 UTC. SLA PUBLICADO Y ACTIVO.** SQL generado por Supabase CLI; versión final con 47/47 casos N1 y ensayo de instalación en esquema integral PG17. Cuatro tablas aditivas cerradas/auditadas, núcleo privado de hechos y decisión, ventana común y estado/cola v2 con filtros y cursor opaco. V1 conserva firma/ACL/payload mediante el proveedor compartido. No publica política, captura stock, concede ajustes ni activa; control inicial legado/revisión 0.
@@ -14055,7 +14202,6 @@ Reconciliación DML ejecutada correctamente con [reconciliar-ledger-sla.sql](../
 
 RLS sin policies en tablas privadas es deliberada: niega acceso directo y deja las operaciones a RPC autorizadas. Las puertas SECURITY DEFINER para authenticated conservan `search_path` fijo, ACL y ámbito certificados por gates. La FK del singleton de control no genera un problema de escala por falta de índice adicional. Los índices nuevos sin uso observado permanecen: estadísticas iniciales vacías no prueban inutilidad. No abrir policies/grants ni borrar índices para silenciar estos avisos; revisar de nuevo si cambian esos supuestos.
 
-
 ## 20260907155813 — Avisos contextuales de seguimiento (APLICADA en producción)
 
 Miguel confirmó «ok publica» el 07/09/2026 tras recibir el SQL concreto, conforme a [[Inicio]]. Aplicada mediante MCP como `20260907165929`; reconciliada con la versión canónica `20260907155813` verificando SHA-256 `6da2960e0d7c80a0bb562f1b7c8e491efe5f69bf140d57e212e45a512bc768bd`. [Reconciliación](../scripts/reconciliar-ledger-sla-avisos.sql): una fila, solo versión, demás campos intactos, ensayo con ROLLBACK y comprobación final. No se reaplicaron efectos.
@@ -14067,7 +14213,6 @@ Verificado localmente: 56 casos PostgreSQL 16; migración, reversión y reaplica
 Frontend publicado desde fuente limpia `8bb960672fb2a6d14e728e96b8ff611e30f3d9cb`, idéntica a Main/avancecorp/main al publicar: release `crm-20260907T165158Z-8bb960672fb2`, build `build-20260907T165116731Z`. HTTP: 78 archivos, 65 hashes exactos, 12 imágenes optimizadas, configuración protegida y cero fallos. [Evidencia](../../PROPUESTA%20DE%20SLA%20PARA%20ETAPAS/avisos-contextuales-20260907/implementacion/produccion-verificacion.json). El commit de cierre documental no altera esa fuente.
 
 El nuevo aviso de advisors corresponde a la RPC SECURITY DEFINER autorizada para authenticated; se verificaron ACL, search_path y ámbito. No se añadieron policies para silenciarlo. Reversión: `../scripts/rollback-sla-avisos-contextuales.sql`, primero recuperar el frontend anterior compatible.
-
 
 ## 20260907194622 — Citas de Gerencia: bases y alcance (APLICADA)
 
@@ -14098,7 +14243,6 @@ Sustituye tres cuerpos existentes: `sla_operacion_leads`, `sla_operacion_autoriz
 Publicación frontend limpia desde `1e580d77f95efb014199ad3e7acbd45e0b514a76`, igual a Main/remoto al construir; build `build-20260907T231539249Z`. 78 archivos, dos ZIP 404 y tres versiones estables sin fallos. Dos analistas, supervisión y Gerencia verificados con lectores reales READ ONLY; ficha/cola/campana concordantes, acceso ajeno denegado y páginas sin duplicados. Fuentes, permisos, control y política comprobados; advisors 210→210 sin novedades. Reversión: [rollback-sla-accion-rol.sql](../scripts/rollback-sla-accion-rol.sql), después frontend anterior `crm-20260907T195955Z-431e926e6d8d.zip`.
 
 Seis controles y cierre de reconstrucción correctos. El control ampliado de analítica falla por una huella de excepción previa de Citas desactualizada tras `20260907194622`; se documenta y no se modifica ni se declara aprobado. Evidencia y límites en [produccion-verificacion.json](../../PROPUESTA%20DE%20SLA%20PARA%20ETAPAS/avisos-accion-rol-20260907/produccion-verificacion.json) y [[Control de Citas pendiente - huella de excepcion 2026-09-07]].
-
 
 ## 20260908165706 — Solicitud de tasa pendiente bloquea el alta
 
