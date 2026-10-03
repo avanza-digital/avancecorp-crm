@@ -441,4 +441,8 @@ migraciones aplicadas. Nada en producción.
   lead_id) → arreglado → r2 PASS. Rama con datos (borrada): censo 42 → 38, advisors iguales, mismos resultados que los cuerpos
   vivos con los datos reales. Gate de RLS en Docker: ningún rojo nuevo, bloque nuevo 17/17. Evidencia en
   `BASE PARA GESTION/revisiones/2026-10-03-rama-b3c-b5-b6.md`. Orden de aplicación: B3c → B5 → B6, cada una con su registrador.
+- **EN PRODUCCIÓN el 03/10 (~14:30 Lima):** Miguel aplicó con `!` B3c → B5 → B6, cada una seguida de su registrador.
+  Comprobado en solo lectura tras cada paso (huellas del gate, ACL, trigger habilitado, registro con el md5 del archivo).
+  El censo analítico quedó en rojo SOLO por `private.gestion_diaria_cola_hechos` (de otra sesión): la alerta f6a sigue hasta
+  que esa sesión la arregle. Tipos regenerados (`390e21bc` en la rama del front, `083b0c57` en `main`). Falta publicar el front.
 
