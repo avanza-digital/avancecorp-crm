@@ -188,4 +188,43 @@ describe('Base para gestión', () => {
     ))
     expect(toastSuccess).toHaveBeenCalledWith('2 leads reactivados y repartidos')
   })
+
+  it('B6: un lead que el analista está trabajando se ve en gris «En gestión por X hasta el día Y» y no se puede elegir', async () => {
+    const usuario = userEvent.setup()
+    episodiosMock.mockResolvedValue([
+      episodio(1),
+      episodio(2, { puede_rescatar: false, en_gestion_por: 'ANALISTA ORIGEN', en_gestion_hasta: '2026-10-10' }),
+    ])
+    mesesMock.mockResolvedValue([{ mes: mesActualLima(), total: 2, pendientes: 2 }])
+    window.history.replaceState(null, '', `/?rescate_carpeta=sin_interes&rescate_mes=${mesActualLima()}#/rescate-carpeta`)
+    render(<RescateCarpeta />)
+
+    await screen.findByText('LEAD RESCATE 1')
+    expect(screen.getByText('En gestión por ANALISTA ORIGEN hasta el 10/10')).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Seleccionar LEAD RESCATE 2' })).toBeDisabled()
+    expect(screen.getByText('En gestión').nextElementSibling).toHaveTextContent(/^1$/)
+    // «Seleccionar esta página» solo toma los que se pueden repartir.
+    await usuario.click(screen.getByRole('button', { name: 'Seleccionar esta página (1)' }))
+    await usuario.click(screen.getByRole('button', { name: 'Reactivar y repartir' }))
+    await usuario.selectOptions(screen.getByLabelText('Analista de destino'), 'asesor-destino')
+    await usuario.click(screen.getByRole('button', { name: 'Reactivar 1 y repartir' }))
+    await waitFor(() => expect(rescatarMock).toHaveBeenCalledWith(['episodio-1'], ['asesor-destino'], true))
+  })
+
+  it('B6: si el servidor rechaza el reparto porque un lead está en gestión, se muestra su mensaje tal cual', async () => {
+    const usuario = userEvent.setup()
+    // aErrorApi deja el texto del servidor tal cual para P0409 (CONFLICTO): llega como el mensaje del error.
+    rescatarMock.mockRejectedValue(new Error('Uno de los leads está en gestión por ANALISTA ORIGEN hasta el 10/10/2026: no se puede repartir'))
+    episodiosMock.mockResolvedValue([episodio(1)])
+    mesesMock.mockResolvedValue([{ mes: mesActualLima(), total: 1, pendientes: 1 }])
+    window.history.replaceState(null, '', `/?rescate_carpeta=sin_interes&rescate_mes=${mesActualLima()}#/rescate-carpeta`)
+    render(<RescateCarpeta />)
+
+    await screen.findByText('LEAD RESCATE 1')
+    await usuario.click(screen.getByRole('button', { name: 'Seleccionar esta página (1)' }))
+    await usuario.click(screen.getByRole('button', { name: 'Reactivar y repartir' }))
+    await usuario.selectOptions(screen.getByLabelText('Analista de destino'), 'asesor-destino')
+    await usuario.click(screen.getByRole('button', { name: 'Reactivar 1 y repartir' }))
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith(expect.stringContaining('está en gestión por ANALISTA ORIGEN hasta el 10/10/2026')))
+  })
 })

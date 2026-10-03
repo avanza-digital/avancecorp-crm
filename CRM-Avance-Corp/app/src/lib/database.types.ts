@@ -2881,6 +2881,7 @@ export type Database = {
           nota: string | null
           origen: string
           perfil_id: string | null
+          proxima_llamada_en: string | null
           reactivado_en: string | null
           sla_global_aproximado: boolean
           sla_global_iniciado_en: string
@@ -2923,6 +2924,7 @@ export type Database = {
           nota?: string | null
           origen: string
           perfil_id?: string | null
+          proxima_llamada_en?: string | null
           reactivado_en?: string | null
           sla_global_aproximado?: boolean
           sla_global_iniciado_en?: string
@@ -2965,6 +2967,7 @@ export type Database = {
           nota?: string | null
           origen?: string
           perfil_id?: string | null
+          proxima_llamada_en?: string | null
           reactivado_en?: string | null
           sla_global_aproximado?: boolean
           sla_global_iniciado_en?: string
@@ -4874,6 +4877,17 @@ export type Database = {
       avisos_sla_resumen_v2_fn: { Args: never; Returns: Json }
       ayuda_vendedor_inicio: { Args: { p_vista: string }; Returns: Json }
       bandera_activa: { Args: { p_nombre: string }; Returns: boolean }
+      base_gestion_resumen: {
+        Args: never
+        Returns: {
+          en_base: number
+          intentos_hoy: number
+          nombre: string
+          reactivaciones_mes: number
+          rellamadas_hoy: number
+          vendedor_id: string
+        }[]
+      }
       bienvenida_inversion_entrega_fn: {
         Args: {
           p_paso: string
@@ -5608,7 +5622,6 @@ export type Database = {
           titular_distinto: boolean
         }[]
       }
-      cumplimiento_metas_fn: { Args: { p_periodo: string }; Returns: Json }
       cuentas_pago_motivos_fn: {
         Args: { p_contrato_ids: string[] }
         Returns: {
@@ -5617,6 +5630,7 @@ export type Database = {
           mensaje: string
         }[]
       }
+      cumplimiento_metas_fn: { Args: { p_periodo: string }; Returns: Json }
       cumplimiento_metas_sin_cartera_fn: {
         Args: { p_periodo: string }
         Returns: Json
@@ -6084,6 +6098,33 @@ export type Database = {
         Args: { p_desde?: string; p_hasta?: string }
         Returns: Json
       }
+      obtener_base_gestion: {
+        Args: { p_vendedor_id?: string }
+        Returns: {
+          categoria_interes: string
+          ciclo_n: number
+          descartado_en: string
+          dias_desde_descarte: number
+          distrito: string
+          enfriado_hasta: string
+          etapa_maxima: string
+          gestiona: string
+          intentos: number
+          lead_id: string
+          moneda: string
+          monto_estimado: number
+          motivo_descarte: string
+          nombre_completo: string
+          origen: string
+          proxima_llamada_en: string
+          recibido_en: string
+          rellamada_hoy: boolean
+          telefono: string
+          ultimo_intento_en: string
+          ultimo_resultado: string
+          vendedor_id: string
+        }[]
+      }
       panel_distribucion_reparto: {
         Args: {
           p_analista?: string
@@ -6306,6 +6347,10 @@ export type Database = {
         Returns: Json
       }
       reabrir_lead_fn: { Args: { p_lead_id: string }; Returns: Json }
+      reactivar_lead_base: {
+        Args: { p_lead_id: string; p_nota?: string; p_operacion_id: string }
+        Returns: Json
+      }
       reasignar_responsable_relacion_fn: {
         Args: {
           p_inversionista: string
@@ -6345,6 +6390,16 @@ export type Database = {
       registrar_cuenta_cliente: {
         Args: { p_cliente_id: string; p_cuenta: Json }
         Returns: string
+      }
+      registrar_intento_base: {
+        Args: {
+          p_lead_id: string
+          p_nota?: string
+          p_operacion_id: string
+          p_proxima_llamada?: string
+          p_resultado: string
+        }
+        Returns: Json
       }
       registrar_llamada_v3: {
         Args: {
@@ -6464,6 +6519,8 @@ export type Database = {
           categoria_interes: string
           descartado_en: string
           distrito: string
+          en_gestion_hasta: string
+          en_gestion_por: string
           episodio_id: string
           estado: string
           lead_id: string
