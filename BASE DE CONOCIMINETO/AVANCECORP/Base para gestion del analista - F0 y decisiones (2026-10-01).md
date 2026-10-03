@@ -329,3 +329,10 @@ el contrato (rellamada hoy → etapa máxima → días; la hora solo desempata);
 descarte del ciclo anterior que comparta instante con la reapertura no cuenta para la etapa máxima. Banco 48/48 y 17/17.
 Riesgo operativo que queda: el postflight de B4 ensaya sobre un lead real con candado breve → aplicar B4 en producción fuera
 de horario. Informe en `BASE PARA GESTION/revisiones/2026-10-02-codex-b3-b4.md`.
+
+## Traspaso a otra sesión (03/10/2026)
+
+Miguel pasa el módulo a una sesión con la contraseña de BD. Todo está commiteado en `main` local (sin push). Punto de
+entrada para la sesión siguiente: `BASE PARA GESTION/ESTADO.md` → «Cómo continuar» (pasos 0–9 con comandos), más
+`FRONTEND.md` para F1–F4. Rama de Supabase con datos: `base-gestion-datos-20261002` (ref `dpjojnpfcwkeikyagtxj`), viva y sin
+migraciones aplicadas. Nada en producción.

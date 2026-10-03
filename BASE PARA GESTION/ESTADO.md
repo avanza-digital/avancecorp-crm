@@ -1,5 +1,7 @@
 # ESTADO del módulo «Base para gestión del analista»
 
+**TRASPASO (03/10/2026):** Miguel pasa el módulo a una sesión que tiene la contraseña de BD de la rama/producción. Esta sesión (id `251c677b-7a2b-4135-bb20-db2eff4659c2`) deja todo commiteado en `main` local; la siguiente retoma por la sección «Cómo continuar» de abajo.
+
 **Última sesión:** 03/10/2026 · **Fase en curso:** B3 (puertas) escrita y ensayada en banco (40/40); B3 auditada y corregida; B4 auditada; B4b (D13: tres intentos nuevos tras cada descanso) escrita y verde (17/17). Codex B3+B4 BLOCK → enmiendas en B3b `20261003001014` (48/48). **Codex r2 (03/10) BLOCK con 2 P2, RESUELTOS sin código (ledger):** (a) replays de operaciones anteriores a B3b no llevarían `solicitud_proxima`/`nota_md5` → 23505: NO aplica fuera del banco (B3/B4b nunca se aplicaron en rama ni prod; acreditarlo en el ledger al retomar); (b) #6 sigue parcial (empates de instante solo sintéticos; aceptado como limitación o acotar el ciclo por `lead_asignaciones.ciclo_n`). Informe en `revisiones/2026-10-03-codex-b3b.md`. **Sigue:** rama (URL de Miguel) → `rama.mjs estado | aplicar | explain | gate` → advisors → merge (B4 fuera de horario). Rama con datos `base-gestion-datos-20261002` (ref `dpjojnpfcwkeikyagtxj`) creándose (RESTORING). Sigue: auditor-rls B1b → aplicar B1/B1b/B2 en la rama → test-rls → advisors → merge.
 **Bloqueos:** (1) **Rama con datos `base-gestion-datos-20261002` (ref `dpjojnpfcwkeikyagtxj`, `--with-data`, ACTIVE_HEALTHY):** hereda la contraseña de BD de producción y la CLI la enmascara; `supabase db query --project-ref` solo sirve para el proyecto enlazado (no se cambia el link de la carpeta compartida). **Miguel debe dejar la URL del pooler en modo sesión** (`postgresql://postgres.dpjojnpfcwkeikyagtxj:<contraseña>@aws-0-us-east-2.pooler.supabase.com:5432/postgres`) en `~/.config/avancecorp/rama-base-gestion.pgurl` (chmod 600) o exportar `CRM_RAMA_DB_URL`; luego `node supabase/scripts/base-gestion/rama.mjs estado | aplicar | explain | gate` (el `gate` TRUNCA leads/actividades/tareas del clon: correr `explain` antes). La rama vacía `base-gestion-20261002` se borró (replay 86/400). Borrar la rama con datos al terminar; (2) D7-bis RESUELTA (agenda propia de la base, B1b `20261002224851`); D11 = rellamada máx. 10 días; D12 = gana la rellamada al enfriamiento.
 **Nada en producción. Último commit del módulo:** `4cbd3806` (02/10, main local, sin push). Siguientes: `git log --oneline -- "BASE PARA GESTION"`.
@@ -23,3 +25,34 @@
 ## Cómo actualizar este archivo
 Al cerrar cada paso: cambia el estado (☐ → ◉ → ☑), escribe la evidencia (qué se corrió y resultado PASS/FAIL/NOT RUN) y el
 siguiente paso concreto. Actualiza también la línea «Última sesión» y la nota del vault. No marques ☑ sin evidencia.
+
+## Cómo continuar (para la sesión que tiene la clave) — en este orden
+
+0. Lee `README.md` de esta carpeta, `FRONTEND.md` y la nota del vault. Comprueba `git log --oneline -12` (último commit del
+   módulo: ver abajo) y que estás en `main`. Docker encendido si quieres repetir el banco (`banco.mjs …`, opcional).
+1. **Credencial de la rama** `base-gestion-datos-20261002` (ref `dpjojnpfcwkeikyagtxj`, copia de producción con datos):
+   crea `~/.config/avancecorp/rama-base-gestion.pgurl` (chmod 600) con
+   `postgresql://postgres.dpjojnpfcwkeikyagtxj:<CONTRASEÑA>@aws-0-us-east-2.pooler.supabase.com:5432/postgres`
+   (o exporta `CRM_RAMA_DB_URL`). Nunca inline en un comando (el hook lo bloquea). Si la rama no existe ya
+   (`supabase branches list --project-ref dctqcbznekcyxhjujuci`), créala: `supabase branches create base-gestion-datos-<fecha>
+   --project-ref dctqcbznekcyxhjujuci --region us-east-2 --size micro --with-data` y actualiza `RAMA` en `rama.mjs`.
+2. `node supabase/scripts/base-gestion/rama.mjs estado` (desde `CRM-Avance-Corp`) → debe decir B1..B3b false e
+   «intentos previos: 0» (acredita el punto (a) de Codex r2).
+3. `node supabase/scripts/base-gestion/rama.mjs aplicar` → aplica en orden B1, B1b, B2, B3, B4, B4b, B3b (un mensaje cada
+   una, como `supabase db query --file`). Si una falla, el NOTICE/ERROR dice cuál; las reversas están en
+   `supabase/scripts/base-gestion/reversa-*.sql` (orden: B3b, B4b, B4, B3, B2, B1b, B1).
+4. `node supabase/scripts/base-gestion/rama.mjs explain` → con datos reales: si «base por analista» o «llamar hoy» salen
+   SEQ SCAN, añadir índice parcial `where etapa = 'descartado'` en una migración B5 y anotarlo.
+5. `CRM_RAMA_LOG=/ruta/log node supabase/scripts/base-gestion/rama.mjs gate` → gate completo de RLS (`test-rls.mjs` con
+   `CRM_RLS_EXIGE_BASE_GESTION=1`). ⚠️ TRUNCA leads/actividades/tareas del clon (siembra sus fixtures): por eso va después
+   del EXPLAIN. Los bloques nuevos: `testBaseGestionB1` (sello, B1b), `testBaseGestionB3` (puertas, B4, D12) y los casos
+   `#5 B2` (Supervisión levanta «no contactar»).
+6. Advisors de Supabase (seguridad y rendimiento) en la rama: sin alertas nuevas respecto a producción. Anotar en el ledger.
+7. **Merge de Miguel** (producción, con `!`): `supabase db query --linked --file <migración>` en el orden del punto 3; B4
+   fuera del horario de gestión (su postflight toma un candado breve sobre un lead real). Después, los registradores del
+   historial si el proyecto los exige (ver precedentes en `MIGRACIONES.md`), `npm run gen:types` en `app/` (quitar las
+   líneas a mano de `database.types.ts` si difieren), commit, `git push avancecorp main`. Borrar la rama con datos
+   (`supabase branches delete …`).
+8. Actualizar `MIGRACIONES.md` («APLICADA Y REGISTRADA EN PRODUCCIÓN …»), esta carpeta, la nota del vault y el tablero
+   FigJam (B1..B3b → ☑).
+9. Frontend: F1 → F4 según `FRONTEND.md` (cada fase: ejecutar, verificar, reportar). Pedir OK para B5 al llegar a F4.
