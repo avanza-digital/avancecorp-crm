@@ -58,6 +58,10 @@ encuentra lead. Propuesta: medirla en el banco (p50/p95 con lead y sin lead) y d
   - uno → identificada;
   - dos o más → ambigua, solo con leads suyos y sin guardar el conteo (`calidad.candidatos` desaparece);
   - ninguno → igual que un número sin lead (decisión 3 del contrato), aunque el número sea de un lead ajeno.
+  - Cuando llegue la #13 (clientes, aprobada), la búsqueda incluirá los clientes de la cartera del dueño con la
+    misma regla.
+- Objetivo de negocio (Jhosep, 03/10): registrar y medir la gestión de cada analista sobre **sus** leads, y más
+  adelante sobre sus clientes.
 - Por qué «solo su ámbito» y no «como hoy cuando hay un único candidato ajeno»: con la perilla
   `guardar_sin_identificar` encendida, un número cualquiera le aparece al analista «sin identificar» y el de un lead
   ajeno no, y esa diferencia vuelve a delatar. Costo: la llamada a un lead de otro equipo ya no le aparece a ese
@@ -115,7 +119,7 @@ Hoy nada las une hasta F4: toda llamada a un lead queda «pide resultado» para 
 | --- | --- | --- | --- |
 | 1 | Fallo 5: unir encuesta y llamada | **A**: publicar con el enlace exacto de F4-a | B: publicar antes y limpiar después |
 | 2 | Fallo 3: entrantes | **Bloquear la perilla** y hacer la #14 como paso propio | Construir la #14 dentro de la corrección: más grande y más lenta de revisar |
-| 3 | Llamada a un lead fuera del ámbito del dueño | **Tratarla como número sin lead** | Guardarla para el equipo del lead, como hoy con un candidato: con la perilla de «sin identificar» encendida, reabre una pista |
+| 3 | Llamada a un lead fuera del ámbito del dueño | **Tratarla como número sin lead** (Jhosep está de acuerdo, 03/10) | Guardarla para el equipo del lead, como hoy con un candidato: con la perilla de «sin identificar» encendida, reabre una pista |
 | 4 | Retención de las identificadas sin resultado | **30 días**, como las demás | Otro plazo; «nunca» no, porque guardan un teléfono |
 | 5 | Pista por tiempo (#12) | **Medirla y aceptarla si es pequeña** frente a la red | Desacoplar el acuse del proceso: choca con no guardar números sin identificar |
 | 6 | Bandeja duplicada | **Retirar** la primera | Mantenerla: dos copias que cuidar |
