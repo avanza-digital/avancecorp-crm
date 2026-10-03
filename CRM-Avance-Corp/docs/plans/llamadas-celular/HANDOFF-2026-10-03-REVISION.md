@@ -2,6 +2,22 @@
 
 Complementa `HANDOFF-2026-10-03.md` (el de Jhosep). Qué se hizo el 02/10 y dónde quedó cada cosa.
 
+## Novedad del 03/10 — léelo primero (también Jhosep y su Claude)
+
+- El PR #169 se **fusionó a `main` el 03/10 a las 09:41 Lima** (`adec5807`) con las 4 migraciones **sin
+  corregir**. Fusionar no es aplicar: **no aplicar F2 + F3 en producción** hasta cerrar los 5 fallos de la
+  sección A de `REVISION-2026-10-02.md`. Las migraciones ya fusionadas no se editan: las correcciones van en
+  una migración nueva.
+- Esta revisión llega a GitHub por la rama `crm/llamadas-revision-20261002` (PR aparte), porque la rama del
+  #169 ya estaba fusionada. Trae solo documentos y los scripts del banco que reproducen los fallos.
+- **No viene** el bloque `testLlamadasCelular` de Claude (`897f9553`, solo en la Mac de Miguel): choca con el
+  de Jhosep (`1a5974b9`), que es el que está en `main`. Ojo con el punto 22: un bloque que exija el `P0409`
+  del reenvío está exigiendo la fuga #1; al corregir, el gate debe pedir el comportamiento corregido.
+- `F4-PLAN-CORTO.md` (puerta `registrar_llamada_v5`, enlace por id de origen) responde al fallo 5; falta la
+  retención de las identificadas sin enlace y la decisión de Miguel.
+- En el «Orden para mañana», el paso 1 ya no aplica como está (la rama se fusionó: se parte de `main`) y el
+  paso 6 queda sustituido por este PR.
+
 ## Estado
 
 - **Nada aplicado en producción.** Solo lecturas: volcado de esquema, huellas, `auth.uid()`, configuración
