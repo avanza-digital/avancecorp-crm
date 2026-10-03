@@ -65,7 +65,7 @@ update r set ok = case when esperado = '42501 pídelo' then obtenido = '42501 p�
                        when esperado = 'error' then obtenido like 'error%'
                        when esperado = 'ok' then obtenido like 'ok%'
                        else obtenido = esperado end;
-select format('%s %s · esperado %s · obtenido %s', case when ok then 'PASS' else 'FAIL' end, caso, esperado, obtenido) from r order by n;
-select format('TOTAL: %s PASS · %s FAIL', count(*) filter (where ok), count(*) filter (where not ok)) from r;
-do $$ begin if exists (select 1 from r where not ok) then raise exception 'B2 RLS: hay casos FAIL'; end if; end $$;
+select format('%s %s · esperado %s · obtenido %s', case when ok is true then 'PASS' else 'FAIL' end, caso, esperado, obtenido) from r order by n;
+select format('TOTAL: %s PASS · %s FAIL', count(*) filter (where ok), count(*) filter (where ok is not true)) from r;
+do $$ begin if exists (select 1 from r where ok is not true) then raise exception 'B2 RLS: hay casos FAIL'; end if; end $$;
 rollback;

@@ -105,8 +105,8 @@ do $$ declare j jsonb; begin j := crm.registrar_intento_base((select op9 from f)
 select pg_temp.caso('G: resumen incluye a C con el intento de Gerencia atribuido a C', 'ok', case when exists (select 1 from crm.base_gestion_resumen() x, f where x.vendedor_id = f.c and x.en_base = 1 and x.intentos_hoy = 1) then 'ok' else (select string_agg(left(vendedor_id::text,8)||':'||en_base||'/'||intentos_hoy, ' ') from crm.base_gestion_resumen()) end);
 reset role;
 -- ───────── Resultado ─────────
-update r set ok = (obtenido = esperado);
-select format('%s %s · esperado %s · obtenido %s', case when ok then 'PASS' else 'FAIL' end, caso, esperado, left(obtenido, 160)) from r order by n;
-select format('TOTAL: %s PASS · %s FAIL', count(*) filter (where ok), count(*) filter (where not ok)) from r;
-do $$ begin if exists (select 1 from r where not ok) then raise exception 'B3: hay casos FAIL'; end if; end $$;
+update r set ok = coalesce(obtenido = esperado, false);  -- Codex 03/10: un NULL no es PASS
+select format('%s %s · esperado %s · obtenido %s', case when ok is true then 'PASS' else 'FAIL' end, caso, esperado, left(obtenido, 160)) from r order by n;
+select format('TOTAL: %s PASS · %s FAIL', count(*) filter (where ok), count(*) filter (where ok is not true)) from r;
+do $$ begin if exists (select 1 from r where ok is not true) then raise exception 'B3: hay casos FAIL'; end if; end $$;
 rollback;

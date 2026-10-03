@@ -402,3 +402,38 @@ migraciones aplicadas. Nada en producción.
   (recomendado: sí) · ¿ocultar o mostrar en gris «En gestión por X hasta Y»?
 - **Estado al cierre:** nada publicado; rama `crm/base-gestion-front` en `8570cdfb` (verde); `main` local con la
   documentación. Servidor Vite y Docker del gate apagados.
+
+## 03/10/2026: columna «Mes», B5 y B6 escritas, y el pedido de «Bases cargadas»
+
+- **F1 terminada en la rama** (`c9e772fd`): columna «Mes» tras el lead y selector «Mes: Todos (N) · Agosto 2026 (n)…»; el
+  número de fila, las pastillas y el título de la tabla cuentan lo filtrado. 🔑 Sin `recibido_en` (producción antes de B5)
+  no se pinta ni columna ni selector: nunca una columna llena de rayas. `revisor-a11y` APPROVE (5 P3 aplicados: separador
+  oculto en la pastilla, `label htmlFor`, selector alto en el celular, el mes vaciado se olvida, título con el mes).
+- **B6 decidida por Miguel (03/10):** seguimiento activo = intento de la base del ciclo vigente hace ≤ 7 días **o**
+  rellamada agendada vigente; el supervisor lo ve **en gris** «En gestión por X hasta el día Y», sin casilla, y
+  `crm.rescatar_descartes` rechaza el lote entero (P0409).
+- **Paquete de servidor (03/10), en este orden:** `20261003162300` B3c · `20261003162400` B5 · `20261003162500` B6. Cuerpos
+  tomados del texto VIVO (md5 de `prosrc` igual en producción y en el banco), sustituciones exactas, preflight y postflight
+  por md5 y ACL exacta. 🔑 `estado` del Centro de rescate NO cambia: el bundle viejo valida con lista cerrada y un valor
+  nuevo le haría desaparecer la fila; con `puede_rescatar = false` la pinta «Solo historial». Pantalla del supervisor `5475be81`.
+- 🔴 **Lección del censo analítico:** B3/B4 llegaron a producción el 02/10 y desde las 06:49 del 03/10 hay una alerta diaria:
+  4 funciones del módulo nombran `crm.leads`/«reunion» y usan `count(` sin declarar. Ningún banco de solo esquema lo ve
+  (exenciones vacías). **B3c** las saca del alcance: «intentos del ciclo» en UNA función que solo lee actividades
+  (`private.base_gestion_intentos_ciclo`, antes eran tres copias) y el resumen cuenta la lista de `obtener_base_gestion`.
+  Antes de aplicar cualquier cosa que nombre leads y cuente: mirar el censo en producción.
+- 🔑 **Una regla «aunque lo intenten por otra vía» va en el LEAD, no en una puerta.** El auditor-rls y el banco mostraron
+  que la ficha (PATCH de `vendedor_id`) y «tomar lead libre» movían un descartado en gestión. B6 es un trigger BEFORE UPDATE
+  en `crm.leads` (descartado + cambia `vendedor_id`) que cubre las tres vías; y así `rescatar_descartes`, declarada con su
+  huella en el censo, no se toca. Una baja (dueño inactivo) libera; devolverlo a su MISMO analista no es reasignar.
+- Banco: B2 25/25 · B3 48/48 · B4 17/17 · B6 29/29; mutantes → FALLAN; reversas B6 → B5 → B3c → huellas de producción.
+  Revisión del auditor en `BASE PARA GESTION/revisiones/2026-10-03-auditor-rls-b5-b6.md`.
+- 🔴 En el Docker local, llamar a una función sin EXECUTE tumba Postgres (ya conocido del 20/08): se cayó una vez con la
+  prueba de la ayudante privada. Ese caso se prueba con `has_function_privilege`, nunca llamándola.
+- **Pedido nuevo — «Bases cargadas»** (detalle y plan en `BASE PARA GESTION/BASES-CARGADAS.md`): el supervisor carga bases
+  antiguas y las reparte «40 a uno, 30 a otro» o una por una, y ve si se trabajan. Decisiones de Miguel: **E1** las dos
+  entradas (archivo Excel/CSV con contactos nuevos **y** lotes de leads viejos del CRM); **E2** duplicado (mismo teléfono
+  o DNI) se salta y se informa; **E3** el analista la trabaja dentro de su Base para gestión, con las mismas reglas;
+  **E4** supervisor a su equipo, gerencia a todos. Fases B7–B10 + F5–F6, después de F2–F4.
+- **FigJam** (`zbgq3gjYGsaaMCo6e140bU`): sección nueva «5 · Bases cargadas» `28:2` (decisiones E1 `28:11` … E4 `28:17`,
+  flujo `29:3`→`29:23`, fases B7 `31:32` … F6 `31:42`, bocetos «Repartir» `32:35` y «Seguimiento» `33:33`); fases B5
+  `27:2` y B6 `27:4` entre F1 y F2.

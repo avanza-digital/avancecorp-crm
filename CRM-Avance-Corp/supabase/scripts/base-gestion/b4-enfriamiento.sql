@@ -67,8 +67,8 @@ insert into crm.actividades (lead_id, tipo, detalle, metadata)
 select (select lc from f), 'llamada_no_contestada', 'backfill', jsonb_build_object('evento','intento_base','resultado','no_contesto','intento_n',g,'ciclo_n',3) from generate_series(1,3) g;
 select pg_temp.caso('Backfill: 3 intento_base sin usuario ni GUC no ponen a descansar', 'null', coalesce((select enfriado_hasta::text from crm.leads, f where id = f.lc), 'null'));
 -- ───────── Resultado ─────────
-update r set ok = (obtenido = esperado);
-select format('%s %s · esperado %s · obtenido %s', case when ok then 'PASS' else 'FAIL' end, caso, esperado, left(obtenido, 120)) from r order by n;
-select format('TOTAL: %s PASS · %s FAIL', count(*) filter (where ok), count(*) filter (where not ok)) from r;
-do $$ begin if exists (select 1 from r where not ok) then raise exception 'B4: hay casos FAIL'; end if; end $$;
+update r set ok = coalesce(obtenido = esperado, false);  -- Codex 03/10: un NULL no es PASS
+select format('%s %s · esperado %s · obtenido %s', case when ok is true then 'PASS' else 'FAIL' end, caso, esperado, left(obtenido, 120)) from r order by n;
+select format('TOTAL: %s PASS · %s FAIL', count(*) filter (where ok), count(*) filter (where ok is not true)) from r;
+do $$ begin if exists (select 1 from r where ok is not true) then raise exception 'B4: hay casos FAIL'; end if; end $$;
 rollback;
