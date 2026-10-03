@@ -1,10 +1,10 @@
 # Avance — Llamadas desde el celular al CRM
 
-Actualizado: 03/10/2026, 11:46 a. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
+Actualizado: 03/10/2026, 12:11 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
 
 Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact/Q3GmV9m6Cy2GPQGKAbNy8M · Plan completo: `PLAN.md` en esta carpeta.
 
-**Lo último:** 03/10 16:46 UTC: la revisión de Miguel (PR #170) frena F2 y F3: encontró 5 fallos que hay que corregir antes de publicar, y nada llegó a producción. Aprobó #13, #14 y #15. El plan corto de la corrección está en el PR #171, todavía sin SQL y con 6 decisiones para Miguel: nada se programa hasta su OK.
+**Lo último:** 03/10 17:11 UTC: plan de F4 al día con el encaje real en Gestión Diaria: se adapta lo que ya existe, sin rediseñar. Prototipo del analista rehecho sobre la pantalla real; a Miguel le gustó. F2 y F3 siguen esperando su OK al plan de la corrección (PR #171).
 
 **Total:** 25 de 102 tareas · 1 de 8 fases hechas.
 
@@ -91,7 +91,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
     - ◐ F3.4.2 — Dos llamadas al mismo número → dos eventos, cada uno con su id (prueba 2 en C1). Rotación, cierre de la clave y analista de baja: probados en el banco reducido y escritos en el bloque testLlamadasCelular del gate (sin correr aquí). Falta repetirlo con la Edge desplegada y por equipo piloto. (03/10/2026, 09:29 a. m.)
     - ◐ F3.4.3 — Guía de la macro definitiva en macrodroid.md §3c (pasos, trampas y pruebas). MacroDroid acredita durabilidad en C1 (A3, A4, A6): no hace falta otro adaptador (decisión 5 de F3, la ratifica Miguel). Falta la guía de soporte y la salud de la cola (el latido). (03/10/2026, 09:29 a. m.)
 
-### F4 · Bandeja y registro conciliado en celular y PC — 0/13 · en curso · 03/10: F4 en curso como ANÁLISIS (sin código): F4-PLAN-CORTO.md. Diseño: emparejar resultado y llamada por el id de origen del celular (#12) en una puerta v5 con intención de enlace (#4); bandeja «Llamadas sin registrar» como pestaña de Gestión Diaria; tarjeta «Celulares» en Configuración para gerencia. Cinco decisiones para Miguel. Depende de F2 y F3 aplicadas.
+### F4 · Bandeja y registro conciliado en celular y PC — 0/13 · en curso · 03/10: F4 en curso como ANÁLISIS (sin código). F4-PLAN-CORTO.md al día: se adapta la Gestión Diaria que ya existe, sin rediseñar. Se añaden la pestaña «Llamadas del celular» del analista, la encuesta de siempre en «Ahora» unida a la llamada, la marca «Celular» en «¿Qué hice hoy?», una tercera pestaña en «Toda la operación hoy» y la tarjeta «Celulares» en Configuración. Prototipo rehecho sobre la pantalla real; a Miguel le gustó (según Jhosep). Cinco decisiones para Miguel; depende de la corrección de F2 y F3 (PR #171).
 - **F4.1 · Construir la bandeja** — 0/3 · pendiente · Responsable: por asignar
 - **F4.2 · Registrar y enlazar** — 0/4 · pendiente · Responsable: por asignar
 - **F4.3 · Resolver casos operativos** — 0/3 · pendiente · Responsable: por asignar
