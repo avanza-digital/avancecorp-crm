@@ -1599,6 +1599,11 @@ const EpisodioRescateDescarteSchema = v.object({
   asesor_nombre: v.string(),
   puede_rescatar: v.boolean(),
   estado: EstadoRescateSchema,
+  /** B6 (Miguel, 03/10/2026): seguimiento activo del analista — intento de la base hace 7 días o menos, o rellamada
+   *  vigente. Mientras dure, `puede_rescatar` llega en false y la fila se pinta en gris. Opcionales: el servidor sin
+   *  B6 no los manda. `en_gestion_hasta` es una fecha 'YYYY-MM-DD' (día de Lima). */
+  en_gestion_por: v.optional(v.nullable(v.string()), null),
+  en_gestion_hasta: v.optional(v.nullable(v.string()), null),
 })
 const MesRescateDescartesSchema = v.object({
   mes: v.string(),
