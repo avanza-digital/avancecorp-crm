@@ -15112,3 +15112,21 @@ el conteo «intentos previos» antes de aplicar) y en el banco las suites recrea
 → aceptado como limitación: solo ocurren en transacciones multi-sentencia sintéticas; por las puertas cada RPC es su propia
 transacción. Informe en `BASE PARA GESTION/revisiones/2026-10-03-codex-b3b.md`. **Pendiente:** rama con datos → `test-rls.mjs`
 → advisors → merge de Miguel (B4 fuera de horario de gestión).
+
+**✅ RAMA + GATE (02/10/2026, noche) — las 7 listas para el merge de Miguel.** Rama `base-gestion-datos-20261002`
+por la Management API, sin contraseña (`supabase db query --linked --project-ref dpjojnpfcwkeikyagtxj --workdir <carpeta
+aparte>`). Estado antes: B1–B4b en false e **intentos previos 0** (acredita el punto (a) de Codex r2). Aplicadas en orden
+B1, B1b, B2, B3, B4, B4b, B3b, un mensaje cada una: 7/7. Después: las 7 en true y 0 intentos, reactivados, enfriados y
+rellamadas. EXPLAIN con datos reales: la base por analista usa índices (1,7 ms) y «llamar hoy» usa
+`idx_leads_base_rellamada` (0,05 ms), así que **la B5 de índice no hace falta**. Puertas: analista 73 ms, gerencia 78 ms
+(1069 filas), supervisores hasta 137 ms. Advisors (todos los niveles): 0 ERROR; solo 4 WARN nuevas
+`authenticated_security_definer_function_executable`, que son las 4 puertas (patrón por diseño). Gate de RLS completo en
+banco Docker propio a paridad total: huellas iguales a la rama y, tras las 7 reversas, iguales a PRODUCCIÓN. A/B: de 77 a
+68 rojos y ninguno nuevo. Los 68 son de fondo y salen idénticos en las dos corridas; los 9 que desaparecen son `#5 B2`.
+**Base para gestión 74/74.** El gate cazó 2 expectativas viejas del bloque B1 (con B3, el sello «solo núcleo» corta
+antes): corregidas en `72189f04`. **Registradores:** `supabase/scripts/base-gestion/registrar/<version>.sql`, generados
+con `potencial-lead/banco/generar-registrador.py`; `statements` es el archivo entero y se probaron dos veces en el banco.
+**Merge:** lo lanza Miguel con `!`, fuera de horario: por cada versión, `db query --linked --file` de la migración y
+después el de su registrador. Producción leída el 02/10 a las 20:10: ninguna aplicada ni registrada. Evidencia:
+`BASE PARA GESTION/revisiones/2026-10-02-rama-y-gate.md`. 🔴 La reversa de B1b no corre si ya hay intentos con fecha
+escritos: el CHECK de B1 los rechaza.

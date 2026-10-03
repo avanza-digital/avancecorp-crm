@@ -1,7 +1,7 @@
 ---
 tags: [crm, base-para-gestion, rescate, analista, f0, decision, figma]
 fecha: 2026-10-01
-estado: F0 ☑ · D1–D13 ☑ · B1, B1b, B2, B3, B4, B4b y B3b escritas, auditadas y ensayadas en banco (03/10 madrugada) · Codex B3+B4 aplicado (B3b) · rama con datos lista, falta la URL de Miguel · nada en producción
+estado: F0 ☑ · D1–D13 ☑ · B1–B3b auditadas, aplicadas en la rama con datos y con gate de RLS en Docker a paridad (02/10 noche, 74/74, 0 rojos nuevos) · falta el merge de Miguel · nada en producción
 ---
 
 # Base para gestión del analista — F0 y decisiones (01/10/2026)
@@ -336,3 +336,26 @@ Miguel pasa el módulo a una sesión con la contraseña de BD. Todo está commit
 entrada para la sesión siguiente: `BASE PARA GESTION/ESTADO.md` → «Cómo continuar» (pasos 0–9 con comandos), más
 `FRONTEND.md` para F1–F4. Rama de Supabase con datos: `base-gestion-datos-20261002` (ref `dpjojnpfcwkeikyagtxj`), viva y sin
 migraciones aplicadas. Nada en producción.
+
+## Rama y gate de RLS (02/10/2026, noche) — listas para el merge
+
+- **Sin contraseña de BD.** El MCP de Supabase no estaba conectado. Todo fue por la Management API: la CLI con
+  `--linked --project-ref <rama> --workdir <carpeta aparte>` (`db query`, `db advisors`, `db dump`). La carpeta compartida
+  sigue enlazada a producción. Es la misma vía del merge: el CRM no necesita la contraseña para una rama con datos.
+- **Rama:** las 7 aplicadas; antes había 0 intentos previos (eso acredita el punto (a) de Codex r2). Con datos reales:
+  2806 leads, 1078 descartados vivos y 26 analistas. El EXPLAIN usa índices (1,7 ms; «llamar hoy» 0,05 ms), así que
+  **la B5 de índice no hace falta**. Puertas: analista 73 ms, gerencia 78 ms con 1069 filas (en F4, filtrar o paginar),
+  supervisores hasta 137 ms. Advisors: solo 4 WARN nuevas, las del patrón DEFINER de las puertas; 0 ERROR.
+- **Gate en Docker propio a paridad total.** Las huellas del banco son idénticas a las de la rama. Tras aplicar las
+  reversas, son idénticas a PRODUCCIÓN: eso acredita las 7 reversas. A/B: 77 rojos antes y 68 después; los 68 son de fondo
+  y salen igual en las dos corridas. Base para gestión 74/74.
+- El gate cazó 2 expectativas viejas del test: con B3, el sello «solo núcleo» corta antes. Corregidas en `72189f04`.
+- **Registradores** de las 7 versionados y probados (idempotentes). Evidencia completa en
+  `BASE PARA GESTION/revisiones/2026-10-02-rama-y-gate.md`.
+- 🔑 **Un banco Docker a paridad se acredita en los dos sentidos:** con las migraciones debe dar las huellas de la rama, y
+  sin ellas las de producción. Las ACL se igualan objeto por objeto, incluido el orden de los aclitem y los privilegios por
+  defecto. El stack local trae `public` más permisivo.
+- 🔴 La reversa de B1b no corre si ya hay intentos con fecha: el CHECK de B1 los rechaza. Con el módulo en uso, revertir
+  exige tratar antes esas actividades.
+- **Sigue:** merge de Miguel con `!`, fuera del horario de gestión (`BASE PARA GESTION/ESTADO.md`, paso 1). Después:
+  gen:types, push, borrar la rama, y luego F1–F4.
