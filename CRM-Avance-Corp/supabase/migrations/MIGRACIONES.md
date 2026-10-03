@@ -15140,7 +15140,7 @@ Rama `base-gestion-datos-20261002` borrada.
 
 ## 20261003162300 — Base para gestión del analista · B3c: las cuatro funciones del módulo salen del censo analítico
 
-**⏳ PENDIENTE (03/10/2026): banco PASS; falta Codex, gate y aplicación de Miguel.** Desde el 02/10 (20:15)
+**✅ LISTA PARA EL `!` DE MIGUEL (03/10/2026): banco · auditor-rls · Codex r2 PASS · rama con datos · gate 68 = 68.** Desde el 02/10 (20:15)
 `private.assert_analitica_leads_citas()` cae y el vigía abre una alerta diaria (fase `f6a_analitica_leads_citas`):
 `crm.obtener_base_gestion`, `crm.base_gestion_resumen`, `private.base_gestion_intento_core` y
 `private.trg_actividades_enfriamiento_base` nombran `crm.leads`/«reunion» y usan `count(` sin declarar (leído en producción
@@ -15155,7 +15155,7 @@ Miguel el 03/10.
 
 ## 20261003162400 — Base para gestión del analista · B5: el MES del lead (`recibido_en`)
 
-**⏳ PENDIENTE (03/10/2026): banco PASS; falta Codex, gate y aplicación de Miguel.** Miguel (02/10): «saber qué mes estoy
+**✅ LISTA PARA EL `!` DE MIGUEL (03/10/2026): banco · auditor-rls · Codex r2 PASS · rama con datos · gate 68 = 68.** Miguel (02/10): «saber qué mes estoy
 gestionando». `crm.obtener_base_gestion` devuelve al final `recibido_en = coalesce(tenencia_desde, creado_en)`. Drop +
 create (cambia el `returns table`) sobre el cuerpo de B3c (md5 en el preflight), mismo dueño, ámbito y EXECUTE solo
 authenticated; su único envoltorio (`base_gestion_resumen`, B3c) lee columnas que siguen. Postflight: md5 del cuerpo, ACL
@@ -15164,7 +15164,7 @@ exacta, fuera del censo. La pantalla (rama `crm/base-gestion-front`, `c9e772fd`)
 
 ## 20261003162500 — Base para gestión del analista · B6: candado de seguimiento activo en el lead
 
-**⏳ PENDIENTE (03/10/2026): banco PASS; falta Codex, gate y aplicación de Miguel.** Regla de Miguel (02/10) y respuestas
+**✅ LISTA PARA EL `!` DE MIGUEL (03/10/2026): banco · auditor-rls · Codex r2 PASS · rama con datos · gate 68 = 68.** Regla de Miguel (02/10) y respuestas
 (03/10): seguimiento activo = último intento de la base del ciclo + 7 días, o rellamada agendada en ese ciclo; el
 supervisor lo ve **en gris** «En gestión por X hasta el día Y»; y el candado va **en el lead, para toda vía** (el
 auditor-rls y el banco probaron que la ficha —PATCH de `vendedor_id`— y «tomar lead libre» también movían el lead). Nueva
@@ -15183,3 +15183,8 @@ Postgres). **Reversa:** `supabase/scripts/base-gestion/reversa-seguimiento-activ
 **Paquete B3c → B5 → B6 (03/10):** cadena de reversas B6 → B5 → B3c deja las seis funciones con las huellas de PRODUCCIÓN y
 sin restos; reaplicación + suites en verde. Registradores `supabase/scripts/base-gestion/registrar/2026100316{23,24,25}00.sql`
 (md5 = archivo; segunda pasada no duplica). Se aplican en ese orden, cada una seguida de su registrador.
+**Rama con datos + gate (03/10):** rama `base-gestion-b3c-b6-20261003` (borrada): 3/3 aplicadas, censo 42 → 38 (salen las 4
+del módulo; queda solo `gestion_diaria_cola_hechos`, de otra sesión), advisors 626 = 626, equivalencia con datos reales
+(obtener y resumen nuevos = copias de los vivos, gerencia/supervisores/analistas) 0 diferencias; el resumen pasa de 36 a 85 ms
+en gerencia (cuenta la lista real; hoy sin pantalla). Gate de RLS en Docker a paridad: 68 = 68 rojos de fondo, bloque
+B3c/B5/B6 17/17, trinquetes completos. Evidencia: `BASE PARA GESTION/revisiones/2026-10-03-rama-b3c-b5-b6.md`.
