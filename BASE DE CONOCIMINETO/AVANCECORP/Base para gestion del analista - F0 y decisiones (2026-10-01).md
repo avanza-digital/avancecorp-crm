@@ -445,4 +445,10 @@ migraciones aplicadas. Nada en producción.
   Comprobado en solo lectura tras cada paso (huellas del gate, ACL, trigger habilitado, registro con el md5 del archivo).
   El censo analítico quedó en rojo SOLO por `private.gestion_diaria_cola_hechos` (de otra sesión): la alerta f6a sigue hasta
   que esa sesión la arregle. Tipos regenerados (`390e21bc` en la rama del front, `083b0c57` en `main`). Falta publicar el front.
+- **Front PUBLICADO el 03/10 (17:10 Lima)** con `/release-crm`: `build-20261003T221026768Z`, commit `c489d487` (el vivo de otra
+  sesión `8db0d4f1` + F1 con «Mes» + gris del supervisor + tipos). Hubo que rearmar la rama: a las 14:26 otra sesión publicó
+  `8db0d4f1` y nuestra rama nacía de `44985828`; el preflight lo habría rechazado (y habría borrado su filtro). Preflight OK,
+  smoke con `index-*.js` idéntico. E2E: 2 rojos que también fallan en `8db0d4f1` (previos). PR #177 para el tronco de GitHub.
+  🔑 El `.env` de un worktree lo copia Miguel con `!` (el hook bloquea tocarlo) y iCloud deja copias « 2» al cambiar de
+  commit: apartarlas antes de construir.
 
