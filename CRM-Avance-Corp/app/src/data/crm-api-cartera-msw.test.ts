@@ -36,6 +36,21 @@ function payloadFiltrado(n = 60) {
 
 describe('cartera integrada: listado y total del mismo filtro', () => {
   const filtros = { integrada: true, recepcion: { desde: '2026-09-01', hasta: '2026-09-03' } }
+  it('Gestionado envía etapa nuevo y gestión vigente, también al pedir la segunda página', async () => {
+    const cuerpos: Record<string, unknown>[] = []
+    server.use(http.post(RPC_INTEGRADA, async ({ request }) => {
+      cuerpos.push(await request.json() as Record<string, unknown>)
+      return HttpResponse.json(payloadFiltrado())
+    }))
+    const gestionados = { ...filtros, etapa: 'nuevo' as const, gestion: 'con_gestion' as const }
+    const primera = await listarCarteraPagina(gestionados, null)
+    await listarCarteraPagina(gestionados, primera.cursor)
+    expect(cuerpos[0]).toMatchObject({ p_etapa: 'nuevo', p_gestion: 'con_gestion' })
+    expect(cuerpos[1]).toMatchObject({ p_etapa: 'nuevo', p_gestion: 'con_gestion', p_antes_id: primera.cursor?.id })
+    expect(primera.resumen?.totales.vivos).toBe(60)
+    await listarCarteraPagina(filtros, null)
+    expect(cuerpos[2]).not.toHaveProperty('p_gestion')
+  })
   it('envía fechas inclusivas y mantiene el total completo al paginar', async () => {
     let cuerpo: unknown
     server.use(http.post(RPC_INTEGRADA, async ({ request }) => {

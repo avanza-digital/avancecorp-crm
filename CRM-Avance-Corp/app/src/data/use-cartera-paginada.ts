@@ -40,6 +40,8 @@ export interface CarteraPaginada {
  * reglas —filtros, orden, tamaño de página— se aplican sobre el ámbito VIVO del
  * store, de modo que crear un lead en demo lo hace aparecer donde aparecería en
  * real.
+ * Si se usa `gestion` en demo, la pantalla debe entregar `leadsDelAmbito` ya
+ * clasificados con el timeline completo: el hook no recibe actividades.
  *
  * Lo que este hook NO hace: filtrar en el cliente lo ya cargado. Con keyset eso
  * produce vacíos falsos («no hay resultados» cuando solo no están en las
