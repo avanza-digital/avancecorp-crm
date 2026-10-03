@@ -98,7 +98,19 @@ function construirMeses(meses: MesRescateDescartes[]): MesRescateDescartes[] {
   return resultado
 }
 
+/** B6: el analista lo está trabajando (intento ≤ 7 días o rellamada vigente). Se ve en gris y no se elige. */
+const enGestion = (episodio: EpisodioRescateDescarte): boolean => !episodio.puede_rescatar && episodio.en_gestion_hasta != null
+
+/** 'YYYY-MM-DD' → 'DD/MM'. */
+function diaMes(fecha: string): string {
+  const [, mes, dia] = fecha.split('-')
+  return `${dia}/${mes}`
+}
+
 function EstadoEpisodio({ episodio }: { episodio: EpisodioRescateDescarte }) {
+  if (enGestion(episodio)) {
+    return <Badge color="#64748b">En gestión por {episodio.en_gestion_por ?? 'su analista'} hasta el {diaMes(episodio.en_gestion_hasta ?? '')}</Badge>
+  }
   if (episodio.puede_rescatar) return <Badge color="#0f8c82" dot>Pendiente de revisión</Badge>
   if (episodio.estado === 'rescatado') return <Badge color="#2563eb" dot>Ya reactivado</Badge>
   return <Badge color="#64748b">Solo historial</Badge>
@@ -338,7 +350,8 @@ export function RescateDescartados({ modoCarpeta = false }: { modoCarpeta?: bool
 
   const filtrados = useMemo(() => episodios.filter((episodio) => {
     if (filtro === 'todos') return true
-    if (filtro === 'recuperables') return episodio.puede_rescatar
+    // Los que están en gestión se quedan a la vista (en gris): el supervisor ve que alguien los trabaja.
+    if (filtro === 'recuperables') return episodio.puede_rescatar || enGestion(episodio)
     return episodio.motivo_descarte === filtro
   }), [episodios, filtro])
   const grupos = useMemo(() => MOTIVOS_DESCARTE
@@ -353,9 +366,9 @@ export function RescateDescartados({ modoCarpeta = false }: { modoCarpeta?: bool
   const episodiosCarpetaFiltrados = useMemo(() => {
     const busqueda = busquedaCarpeta.trim().toLocaleLowerCase('es-PE')
     const resultados = episodiosCarpeta.filter((episodio) => {
-      if (filtroCarpeta === 'recuperables' && !episodio.puede_rescatar) return false
+      if (filtroCarpeta === 'recuperables' && !episodio.puede_rescatar && !enGestion(episodio)) return false
       if (filtroCarpeta === 'rescatados' && episodio.estado !== 'rescatado') return false
-      if (filtroCarpeta === 'historico' && (episodio.puede_rescatar || episodio.estado === 'rescatado')) return false
+      if (filtroCarpeta === 'historico' && (episodio.puede_rescatar || enGestion(episodio) || episodio.estado === 'rescatado')) return false
       if (!busqueda) return true
       return [episodio.nombre_completo, episodio.asesor_nombre, episodio.distrito, origenLabel(episodio.origen)]
         .filter(Boolean)
@@ -510,7 +523,8 @@ export function RescateDescartados({ modoCarpeta = false }: { modoCarpeta?: bool
     }
     const recuperables = episodiosCarpeta.filter((episodio) => episodio.puede_rescatar).length
     const rescatados = episodiosCarpeta.filter((episodio) => episodio.estado === 'rescatado').length
-    const soloHistorial = episodiosCarpeta.length - recuperables - rescatados
+    const enGestionCarpeta = episodiosCarpeta.filter(enGestion).length
+    const soloHistorial = episodiosCarpeta.length - recuperables - rescatados - enGestionCarpeta
     const recuperablesFiltrados = episodiosCarpetaFiltrados.filter((episodio) => episodio.puede_rescatar).length
     const recuperablesPagina = paginacionCarpeta.visibles.filter((episodio) => episodio.puede_rescatar).length
     return (
@@ -548,6 +562,10 @@ export function RescateDescartados({ modoCarpeta = false }: { modoCarpeta?: bool
                   <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Repartidos</p>
                   <p className="mt-0.5 text-lg font-extrabold tabular-nums">{rescatados}</p>
                 </div>
+                {enGestionCarpeta > 0 && <div className="min-w-[92px] rounded-xl border border-border bg-card/85 px-3 py-2">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">En gestión</p>
+                  <p className="mt-0.5 text-lg font-extrabold tabular-nums">{enGestionCarpeta}</p>
+                </div>}
                 {soloHistorial > 0 && <div className="min-w-[92px] rounded-xl border border-border bg-card/85 px-3 py-2">
                   <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Historial</p>
                   <p className="mt-0.5 text-lg font-extrabold tabular-nums">{soloHistorial}</p>
