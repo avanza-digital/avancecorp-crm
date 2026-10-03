@@ -39,6 +39,9 @@ import {
   listarLeadsSinAsignar,
   listarLeadsPropios,
   obtenerBaseGestion,
+  registrarIntentoBase,
+  reactivarLeadBase,
+  marcarNoContactar,
   listarResumenReparto,
   listarMetricasConversiones,
   listarMetricasConversionesEquipo,
@@ -593,6 +596,39 @@ export function useBaseGestion(habilitada: boolean, vendedorId: string | null = 
     enabled: habilitada,
     staleTime: 30_000,
     refetchOnWindowFocus: 'always',
+  })
+}
+
+/** Tras escribir en la base: la lista (contador, orden, quién sale) y el historial de ESE lead. Una reactivación
+ *  devuelve el lead a la cartera: también se refresca todo lo que cuelga de `leads()` (la base vive debajo). */
+async function invalidarBaseGestion(queryClient: QueryClient, leadId: string, alPipeline: boolean) {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: alPipeline ? crmQueryKeys.leads() : crmQueryKeys.baseGestionPrefijo() }),
+    queryClient.invalidateQueries({ queryKey: crmQueryKeys.historialLead(leadId) }),
+  ])
+}
+
+export function useRegistrarIntentoBase() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: registrarIntentoBase,
+    onSuccess: async (respuesta, entrada) => { await invalidarBaseGestion(queryClient, entrada.leadId, respuesta.reactivado) },
+  })
+}
+
+export function useReactivarLeadBase() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: reactivarLeadBase,
+    onSuccess: async (_respuesta, entrada) => { await invalidarBaseGestion(queryClient, entrada.leadId, true) },
+  })
+}
+
+export function useMarcarNoContactarBase() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (entrada: { leadId: string; motivo: string }) => marcarNoContactar(entrada.leadId, entrada.motivo),
+    onSuccess: async (_r, entrada) => { await invalidarBaseGestion(queryClient, entrada.leadId, false) },
   })
 }
 
