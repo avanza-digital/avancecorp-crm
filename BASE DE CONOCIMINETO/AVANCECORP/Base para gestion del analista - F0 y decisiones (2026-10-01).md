@@ -372,3 +372,16 @@ migraciones aplicadas. Nada en producción.
 - 🔴 `main` local y `avancecorp/main` DIVERGEN (285 commits solo en local, 28 solo en GitHub). No se hizo push: la
   integración va por una PR sin lo de Gloria y la decide Miguel.
 - **Sigue:** frontend F1 → F4 (`BASE PARA GESTION/FRONTEND.md`).
+
+## F1 · Vista del analista — HECHA en la rama (02/10/2026, noche)
+
+- Rama `crm/base-gestion-front`, worktree `AVANCECORP-desktop-worktrees/base-gestion-front-20261002`. **Nace del VIVO
+  `44985828`**, no de `main`: el tronco está partido (el vivo tiene 52 commits que `main` no tiene) y la publicación debe
+  contener el vivo. Commits: `c11a8840` tipos de producción · `7231672e` F1 · `becbd7ea` accesibilidad.
+- `#/rescate` despacha por rol: el analista ve SU base (sin `repartirLeads`); Supervisión y Gerencia, el Centro de rescate
+  intacto. Resumen (en base · llamar hoy · agendadas), tabla en escritorio y tarjetas en el celular, orden del servidor.
+- 🔑 **«Llamar» depende del APARATO** (convención de la casa, `usePuedeMarcar`): `tel:` en el celular, copiar el número en la
+  laptop; siempre por `enlaceTel()` (fuente única: un número que no sirve no se ofrece).
+- 🔑 Un refresco fallido con datos ya cargados NO desmonta la lista: aviso en línea (el refetch salta al volver del marcador).
+- Verificado: `npm run check` PASS (5619 pruebas), `revisor-a11y` (2 P2 + 3 P3 aplicados), capturas demo 1440/390/320 px.
+- **Sigue:** F2, la ficha (historial completo + buscador, registrar intento, reactivar, «no contactar»).

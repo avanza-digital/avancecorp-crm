@@ -1,6 +1,6 @@
 # ESTADO del módulo «Base para gestión del analista»
 
-**Última sesión:** 02/10/2026, noche (sesión `119d2a01`) · **Fase en curso:** FRONTEND F1 (vista del analista).
+**Última sesión:** 02/10/2026, noche (sesión `119d2a01`) · **Fase en curso:** FRONTEND — F1 ☑ (en la rama); sigue F2 (ficha) con el OK de Miguel.
 **La base de datos está EN PRODUCCIÓN desde el 02/10, 20:15 Lima.** Miguel aplicó con `!` las 7 migraciones, cada una con
 su registrador. Comprobado después, en solo lectura:
 - las 7 en true y las 7 registradas con el md5 de su archivo;
@@ -26,7 +26,7 @@ gate en `revisiones/2026-10-02-rama-y-gate.md`.
 | B4b Ventana (D13) `20261002235342` | ☑ EN PRODUCCIÓN 02/10 | |
 | B3b Codex `20261003001014` | ☑ EN PRODUCCIÓN 02/10 | Punto (a) de Codex r2 acreditado: «intentos previos 0» antes de aplicar |
 | Merge de Miguel | ☑ 02/10 20:15 | 7/7 `OK`; huellas de producción = rama; tipos `9c1d7296`; rama borrada |
-| F1 Vista analista | ◉ código listo, falta la revisión a11y | Rama `crm/base-gestion-front` (worktree `AVANCECORP-desktop-worktrees/base-gestion-front-20261002`, NACE DEL VIVO `44985828`): tipos `c11a8840` + F1 `7231672e`. `#/rescate` despacha por rol; analista → resumen + tabla (escritorio) / tarjetas (celular), «Llamar» según el aparato (tel: o copiar). `npm run check` PASS (5615 pruebas), 42 pruebas nuevas o ajustadas, captura demo 1440/390 px sin errores de consola |
+| F1 Vista analista | ☑ 02/10 (en la rama, sin publicar) | Rama `crm/base-gestion-front` (nace del vivo `44985828`): `c11a8840` tipos · `7231672e` F1 · `becbd7ea` a11y. `#/rescate` despacha por rol; analista → resumen + tabla (escritorio) o tarjetas `role=list` (celular), «Llamar» con `enlaceTel()` (tel: en celular, copiar en laptop), refresco fallido conserva los datos. `revisor-a11y` CHANGES_REQUESTED (2 P2 + 3 P3) → aplicado. `npm run check` PASS (5619). Capturas demo 1440/390/320 px sin desborde ni errores |
 | F2 Ficha | ☐ | Historial completo y legible con buscador; formulario de intento (7 resultados, fecha en «volver a llamar»); Reactivar (confirmación, idempotente); No contactar con motivo |
 | F3 Organización | ☐ | «Llamar hoy» arriba; filtros por motivo, etapa máxima y último resultado; contador de intentos |
 | F4 Supervisor | ☐ (plan en `FRONTEND.md`; B5 «ver vetados» pendiente de OK) | Columnas Intentos · Último resultado · Gestiona; quitar «no contactar» (D5); reactivaciones por analista. Gerencia recibe 1069 filas: filtrar por analista o paginar |
