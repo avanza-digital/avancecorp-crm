@@ -38,6 +38,7 @@ import {
   buscarLeadsGlobal,
   listarLeadsSinAsignar,
   listarLeadsPropios,
+  obtenerBaseGestion,
   listarResumenReparto,
   listarMetricasConversiones,
   listarMetricasConversionesEquipo,
@@ -234,6 +235,10 @@ export const crmQueryKeys = {
   leadsSinAsignar: () => [...crmQueryKeys.leads(), 'sin-asignar'] as const,
   // Los leads del propio analista (Fase 4d): Hoy · Analista sin la foto inicial.
   leadsPropios: () => [...crmQueryKeys.leads(), 'propios'] as const,
+  // Base para gestión (02/10/2026): cuelga de `leads` para que descartar o reabrir un lead en
+  // cualquier pantalla la invalide como al resto de listas de leads.
+  baseGestionPrefijo: () => [...crmQueryKeys.leads(), 'base-gestion'] as const,
+  baseGestion: (vendedorId: string | null) => [...crmQueryKeys.baseGestionPrefijo(), vendedorId] as const,
   colaAccion: (limite: number) => [...crmQueryKeys.metricasAmbito(), 'cola-accion', limite] as const,
   // Aunque la RPC resuelve el mes vigente con su propio reloj, el período es
   // parte de la identidad de la foto: al cruzar medianoche en Lima no se puede
@@ -572,6 +577,19 @@ export function useLeadsPropios(habilitada: boolean) {
   return useQuery({
     queryKey: crmQueryKeys.leadsPropios(),
     queryFn: ({ signal }) => listarLeadsPropios(signal),
+    enabled: habilitada,
+    staleTime: 30_000,
+    refetchOnWindowFocus: 'always',
+  })
+}
+
+/** Base para gestión del actor (analista: la suya; Supervisión y Gerencia: su ámbito o un analista).
+ *  SOLO sesión real. Sin intervalo: el orden cambia con los intentos y con el día; lo primero ya la
+ *  invalida (mutación de lead) y lo segundo la refresca al volver a la pestaña. */
+export function useBaseGestion(habilitada: boolean, vendedorId: string | null = null) {
+  return useQuery({
+    queryKey: crmQueryKeys.baseGestion(vendedorId),
+    queryFn: ({ signal }) => obtenerBaseGestion(vendedorId, signal),
     enabled: habilitada,
     staleTime: 30_000,
     refetchOnWindowFocus: 'always',

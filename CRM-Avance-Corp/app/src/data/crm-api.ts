@@ -114,6 +114,7 @@ import {
   type ResumenCartera,
 } from '@/lib/resumen-cartera'
 import { ColaAccionSchema, LIMITE_COLA_ACCION, type ColaAccion } from '@/lib/cola-accion'
+import { FilaBaseGestionSchema, type FilaBaseGestion } from '@/lib/base-gestion'
 import { MetricasVendedoresSchema, type MetricasVendedoresPayload } from '@/lib/metricas-vendedores'
 import {
   ReporteDerivacionesEquipoSchema,
@@ -1651,6 +1652,30 @@ export async function rescatarDescartes(
     p_evitar_asesor_origen: evitarAsesorOrigen,
   })
   if (error) throw aErrorApi(error, 'crm.rescate.reparto_fallido')
+}
+
+// ── Base para gestión del analista (B3 `crm.obtener_base_gestion`, en producción 02/10/2026) ──────────
+/**
+ * Los leads descartados que el actor puede volver a gestionar, ya ordenados por el servidor (rellamada de
+ * hoy → etapa máxima → menos días desde el descarte). El analista recibe SOLO los suyos; Supervisión y
+ * Gerencia, su ámbito o el de un analista (`vendedorId`). Excluye «no contactar» y descanso vigente.
+ * Una fila fuera de contrato no se pinta, pero se registra: la lista no se recorta en silencio.
+ */
+export async function obtenerBaseGestion(vendedorId?: string | null, signal?: AbortSignal): Promise<FilaBaseGestion[]> {
+  let consulta = cliente().schema('crm').rpc('obtener_base_gestion', vendedorId ? { p_vendedor_id: vendedorId } : {})
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw aErrorApi(error, 'crm.base_gestion.lista_fallida')
+  const filas: FilaBaseGestion[] = []
+  let invalidas = 0
+  for (const cruda of data ?? []) {
+    const r = v.safeParse(FilaBaseGestionSchema, cruda)
+    if (r.success) filas.push(r.output)
+    else invalidas += 1
+  }
+  if (invalidas > 0) registrarError('crm.base_gestion.filas_fuera_de_contrato', new Error(`${invalidas} filas descartadas`), { invalidas })
+  return filas
 }
 
 // ── Timeline del ámbito con AUTOR (RPC SECURITY DEFINER actividades_del_ambito_fn)

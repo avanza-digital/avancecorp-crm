@@ -108,6 +108,9 @@ export function vistaPermitida(
   // Gestión Diaria: los mismos tres roles operativos. Directorio tiene `verLeads`
   // pero es lector: no entra a un módulo de gestión (decisión de Miguel, 19/09/2026).
   if (vista === 'gestion-diaria') return rol === 'gerencia' || rol === 'supervisor' || rol === 'vendedor'
+  // Base para gestión (02/10/2026): el analista trabaja SU base (sin repartir: no recibe `repartirLeads`);
+  // Supervisión y Gerencia conservan el Centro de rescate. La carpeta sigue siendo solo de quien reparte.
+  if (vista === 'rescate') return rol === 'vendedor' || can(rol, 'repartirLeads')
 
   const capacidad = CAPACIDAD_POR_VISTA[vista]
   return capacidad === null || can(rol, capacidad)

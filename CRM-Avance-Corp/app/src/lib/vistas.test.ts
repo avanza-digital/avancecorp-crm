@@ -9,7 +9,8 @@ import { sanearVista, vistaBase, vistaPermitida } from './vistas'
 
 const VISTAS_POR_GATE = {
   abierto: {
-    vendedor: ['hoy', 'alertas', 'seguimiento', 'gestion-diaria', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'config'],
+    // Base para gestión (02/10/2026): el analista entra a SU base, no a la carpeta de reparto.
+    vendedor: ['hoy', 'alertas', 'seguimiento', 'gestion-diaria', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'rescate', 'config'],
     supervisor: ['hoy', 'alertas', 'seguimiento', 'gestion-diaria', 'reuniones', 'facturacion', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'rescate', 'rescate-carpeta', 'derivaciones', 'equipo'],
     gerencia: ['hoy', 'alertas', 'seguimiento', 'gestion-diaria', 'conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento', 'facturacion', 'informes-empresas', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'repartir', 'rescate', 'rescate-carpeta', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla', 'config-gestion-diaria', 'config-rentabilidad'],
     directorio: ['hoy', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla', 'config-gestion-diaria', 'config-rentabilidad'],
@@ -137,6 +138,16 @@ describe('sanearVista — expulsión por URL', () => {
       expect(sanearVista(vista, 'gerencia', true)).toBe(vista)
       expect(sanearVista(vista, 'gerencia', false)).toBe(vista)
     }
+  })
+
+  it('abre la base para gestión al analista sin regalarle la carpeta de reparto (02/10/2026)', () => {
+    expect(sanearVista('rescate', 'vendedor', true)).toBe('rescate')
+    expect(sanearVista('rescate-carpeta', 'vendedor', true)).toBe('hoy')
+    // Es del mundo leads: con la llave cerrada cae a la base del rol.
+    expect(sanearVista('rescate', 'vendedor', false)).toBe('mi-cartera')
+    // Directorio es lector y el coordinador no tiene leads: no entran.
+    expect(sanearVista('rescate', 'directorio', true)).toBe('hoy')
+    expect(sanearVista('rescate', 'coordinador', true)).toBe('repartir')
   })
 
   it('abre #/alertas para los roles destinatarios y respeta el gate operativo', () => {
