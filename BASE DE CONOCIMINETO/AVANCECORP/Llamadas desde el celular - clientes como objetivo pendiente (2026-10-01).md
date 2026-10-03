@@ -45,8 +45,11 @@ a «solo salientes» (propuesta #8). Quedó como propuestas **#14** y **#15** pa
 
 ## Comprobado en el código (03/10/2026)
 - Un cliente aparece en Gestión Diaria **solo si tiene una tarea agendada**; sin tarea, no aparece.
-- Su «Registrar resultado» **no es la encuesta del lead**: abre el cierre de esa tarea (`components/app/cerrar-tarea.tsx`),
-  con opciones como «Contestó» o «No contestó».
+- Su «Registrar resultado» **no es la encuesta del lead**: abre «Gestionar tarea de postventa»
+  (`components/app/cerrar-tarea.tsx` → `FormTareaPostventa` de `postventa-tarea.tsx`), con «Gestión realizada»,
+  «Cancelar tarea» o «Cambiar fecha» (en reuniones, también «El cliente no asistió» y «Confirmar asistencia»), un
+  detalle libre y «Programar el siguiente contacto». **No guarda qué pasó en la llamada** (contestó, volver a llamar,
+  interés…). Probado por Jhosep el 03/10 con un cliente de prueba y una tarea para el mismo día.
 - La encuesta al colgar (receptor de F1, `components/app/receptor-llamada.tsx`) **busca el número solo entre los
   leads**. Si el teléfono sigue en la ficha de lead del cliente, encuentra ese lead convertido y la encuesta no deja
   registrar («El lead está cerrado»).
