@@ -525,3 +525,4 @@ migraciones aplicadas. Nada en producción.
   producción, comparar `prosrc`.
 - Pantalla `crm/base-gestion-f4` (`538ca9ec`): revisor-a11y, Codex r1/r2 aplicados; degrada si falta B6b (PGRST202).
 - Pendiente: **B6c** (reservar `metadata.evento='no_contactar'` para las puertas oficiales; decisión de Miguel).
+- ✅ **Pantalla F4 PUBLICADA 04/10 ~07:31 Lima**: `build-20261004T123104606Z`, commit `538ca9ec` (sobre `82cac826`). PR #184.
