@@ -37,6 +37,7 @@ import { objetivosCero, type CumplimientoMetasJerarquico, type ObjetivosPorRol }
 import { money } from '@/lib/format'
 import type { Actividad, Lead, Tarea, Yo } from '@/lib/tipos'
 import type { ConversionMensual } from '@/lib/conversion-mensual'
+import type { FilaBaseGestion } from '@/lib/base-gestion'
 
 // El arnés monta SIN QueryClientProvider a propósito (sin red): el hook de la
 // conversión mensual se sustituye aquí y cada test decide qué payload «llegó».
@@ -65,8 +66,29 @@ vi.mock('@/data/crm-queries', async (importActual) => {
       isFetching: CONVERSION_MENSUAL_PENDING,
       refetch: REFETCH_MENSUAL,
     }),
+    // F3 de la Base para gestión: la lista de la base (la misma consulta que abre #/rescate). El hook
+    // REAL `use-conteo-base-gestion` cuenta sobre ella; aquí solo se fija qué «llegó».
+    useBaseGestion: (habilitada: boolean, vendedorId: string | null = null) => {
+      LLAMADAS_BASE_GESTION.push({ habilitada, vendedorId })
+      return consultaBaseGestion(habilitada)
+    },
   }
 })
+
+// La consulta de la base tal como la devolvería TanStack en cada estado. Por defecto, el ESTADO DE
+// PRODUCCIÓN: una base con descartados y NINGUNA rellamada para hoy (beforeEach).
+type EstadoBaseGestion = 'lista' | 'cargando' | 'error' | 'refresco-fallido'
+let BASE_GESTION_ESTADO: EstadoBaseGestion = 'lista'
+let BASE_GESTION_FILAS: FilaBaseGestion[] = []
+const LLAMADAS_BASE_GESTION: { habilitada: boolean; vendedorId: string | null }[] = []
+function consultaBaseGestion(habilitada: boolean) {
+  const sinPermiso = Object.assign(new Error('Sin permiso'), { code: 'SIN_PERMISO' })
+  if (!habilitada || BASE_GESTION_ESTADO === 'cargando') return { data: undefined, error: null, isPending: true, dataUpdatedAt: 0 }
+  if (BASE_GESTION_ESTADO === 'error') return { data: undefined, error: sinPermiso, isPending: false, dataUpdatedAt: 0 }
+  // Un refresco caído: TanStack CONSERVA la foto anterior junto al error.
+  const error = BASE_GESTION_ESTADO === 'refresco-fallido' ? sinPermiso : null
+  return { data: BASE_GESTION_FILAS, error, isPending: false, dataUpdatedAt: Date.now() }
+}
 
 // Miércoles 2026-07-15, 10:00 en Lima (UTC-5) — día normal, sin higiene.
 const MIERCOLES_10AM = new Date('2026-07-15T15:00:00Z')
@@ -500,11 +522,28 @@ beforeEach(() => {
   COLA_CARGANDO = false
   COLA_ERROR = false
   TC = { promedio: 3.5, fuente: 'BCRP · prom. 7d' }
+  // ESTADO DE PRODUCCIÓN de la base (F3): descartados por gestionar, ninguno con rellamada para hoy.
+  BASE_GESTION_ESTADO = 'lista'
+  BASE_GESTION_FILAS = [filaBase(), filaBase({ lead_id: 'b-2', proxima_llamada_en: '2026-07-20T15:00:00Z' })]
+  LLAMADAS_BASE_GESTION.length = 0
 })
 
 afterEach(() => {
   vi.useRealTimers()
 })
+
+/** Una fila de `crm.obtener_base_gestion` ya validada (la forma de `FilaBaseGestion`). */
+function filaBase(over: Partial<FilaBaseGestion> = {}): FilaBaseGestion {
+  return {
+    lead_id: 'b-1', nombre_completo: 'DESCARTADO UNO', telefono: '+51987000111', distrito: null, origen: 'landing',
+    categoria_interes: null, monto_estimado: 20_000, moneda: 'PEN', motivo_descarte: 'no_responde',
+    descartado_en: '2026-07-01T15:00:00Z', dias_desde_descarte: 14, etapa_maxima: 'contactado', intentos: 1,
+    ultimo_resultado: 'no_contesto', ultimo_intento_en: '2026-07-10T15:00:00Z', proxima_llamada_en: null,
+    rellamada_hoy: false, enfriado_hasta: null, ciclo_n: 1, vendedor_id: 'v-1', gestiona: 'ANALISTA UNO',
+    recibido_en: '2026-06-20T15:00:00Z',
+    ...over,
+  }
+}
 
 it('recarga una sola vez si la foto del store quedó en el mes anterior', () => {
   montar({ periodoObjetivos: '2026-06-01' })
@@ -1079,6 +1118,26 @@ describe('Hoy · analista — meta del mes', () => {
     expect(screen.queryByText('Capital confirmado PEN')).not.toBeInTheDocument()
     expect(screen.queryByText('Capital confirmado USD')).not.toBeInTheDocument()
   })
+  // Gate de realidad de la F3 de la Base para gestión: en producción la base del
+  // analista tiene descartados pero, el día en que se publica, NINGUNA rellamada
+  // agendada para hoy (la función salió el 02/10). Ese mundo, y no el fixture con
+  // rellamadas, es el que tiene que dejar «Hoy» exactamente como estaba.
+  it('ESTADO DE PRODUCCIÓN (base sin rellamadas para hoy): no hay línea de la base y «Hoy» sigue igual', () => {
+    // Las del beforeEach: una sin agendar y otra agendada para el lunes 20.
+    expect(BASE_GESTION_FILAS.some((f) => f.rellamada_hoy)).toBe(false)
+    montar({ objetivos: objetivosCero('2026-07-01').vendedor, cumplimiento: null })
+
+    // La lista SÍ se pidió (misma consulta que #/rescate) y llegó: no es un «cargando» disfrazado.
+    expect(LLAMADAS_BASE_GESTION).toContainEqual({ habilitada: true, vendedorId: null })
+    expect(screen.queryByRole('link', { name: /^Base:/ })).not.toBeInTheDocument()
+    expect(screen.queryByText(/rellamada/i)).not.toBeInTheDocument()
+    // La cabecera es la de siempre: saludo, fecha y el botón «GESTIÓN DIARIA»; nada más.
+    const saludo = screen.getByRole('heading', { name: 'Hola, Analista.' })
+    expect(saludo.parentElement?.children).toHaveLength(3)
+    expect(within(saludo.closest('header') as HTMLElement).getAllByRole('link')).toHaveLength(1)
+    // Y el resto del día no cambia: la meta sigue diciendo su verdad.
+    expect(screen.getAllByText('Sin meta fijada para este mes')).toHaveLength(1)
+  })
   it('si falla el cumplimiento no usa el pronóstico abierto como sustituto', () => {
     montar({
       leads: [lead({ monto_estimado: 900_000, etapa: 'propuesta_enviada' })],
@@ -1545,5 +1604,99 @@ describe('Hoy · analista — CTA «GESTIÓN DIARIA» en la cabecera (pieza CRM-
     montar()
     const enlace = screen.getByRole('link', { name: 'Ir a Gestión diaria. Sin cifras del día todavía' })
     expect(enlace.closest('.bgd')).toHaveAttribute('data-nivel', 'sin-cifras')
+  })
+})
+
+// F3 de la Base para gestión (03/10/2026): bajo la fecha, «Base: N rellamadas
+// para hoy» lleva a #/rescate. El conteo es el hook REAL sobre la misma consulta
+// de la lista (`useBaseGestion(…, null)`); sin cifra fiable o con 0, no hay línea.
+describe('Hoy · analista — línea «Base: N rellamadas para hoy» (F3 de la Base para gestión)', () => {
+  // Miércoles 15/07 10:00 en Lima: dos ya pasaron su hora (hoy 09:00 y ayer 15:00) y una es a las 16:00.
+  const RELLAMADAS = [
+    filaBase({ lead_id: 'r-1', proxima_llamada_en: '2026-07-15T14:00:00Z', rellamada_hoy: true }),
+    filaBase({ lead_id: 'r-2', proxima_llamada_en: '2026-07-15T21:00:00Z', rellamada_hoy: true }),
+    filaBase({ lead_id: 'r-3', proxima_llamada_en: '2026-07-14T20:00:00Z', rellamada_hoy: true }),
+    filaBase({ lead_id: 'r-4', proxima_llamada_en: '2026-07-20T15:00:00Z' }),
+    filaBase({ lead_id: 'r-5' }),
+  ]
+
+  afterEach(() => {
+    window.location.hash = ''
+  })
+
+  it.each([
+    ['legado', false],
+    ['activo', true],
+  ] as const)('en modo %s la línea va bajo la fecha, cuenta las de hoy y marca en rojo las vencidas', (_modo, modoActivo) => {
+    BASE_GESTION_FILAS = RELLAMADAS
+    montar({ modoActivo })
+
+    const enlace = screen.getByRole('link', { name: 'Base: 3 rellamadas para hoy, 2 vencidas. Ir a tu base para gestión' })
+    expect(enlace).toHaveAttribute('href', '#/rescate')
+    // Bajo la fecha, en la columna del saludo (no compite con «GESTIÓN DIARIA»).
+    const fecha = screen.getByText(/primero resolvemos; después revisamos el contexto\./)
+    expect(fecha.nextElementSibling).toBe(enlace)
+    expect(within(enlace).getByText('3 rellamadas para hoy')).toBeInTheDocument()
+    // Azul de acción para el enlace; rojo SOLO en el tramo de lo vencido.
+    expect(enlace).toHaveClass('text-accent')
+    expect(within(enlace).getByText('2 vencidas').closest('span')).toHaveClass('text-[var(--destructive-text)]')
+    // Lee la MISMA consulta que la lista de la base (vendedorId null): una sola petición entre las dos.
+    expect(LLAMADAS_BASE_GESTION.every((l) => l.habilitada && l.vendedorId === null)).toBe(true)
+  })
+
+  it('singular correcto y sin rojo cuando ninguna pasó su hora', () => {
+    BASE_GESTION_FILAS = [RELLAMADAS[1]!, RELLAMADAS[3]!]
+    montar()
+    const enlace = screen.getByRole('link', { name: 'Base: 1 rellamada para hoy. Ir a tu base para gestión' })
+    expect(within(enlace).getByText('1 rellamada para hoy')).toBeInTheDocument()
+    expect(within(enlace).queryByText(/vencida/)).not.toBeInTheDocument()
+  })
+
+  it('«1 vencida» en singular', () => {
+    BASE_GESTION_FILAS = [RELLAMADAS[0]!]
+    montar()
+    expect(screen.getByRole('link', { name: 'Base: 1 rellamada para hoy, 1 vencida. Ir a tu base para gestión' })).toBeInTheDocument()
+  })
+
+  it('el reloj vivo pasa a rojo la de las 16:00 sin volver a pedir', () => {
+    BASE_GESTION_FILAS = [RELLAMADAS[1]!]
+    montar()
+    expect(screen.getByRole('link', { name: 'Base: 1 rellamada para hoy. Ir a tu base para gestión' })).toBeInTheDocument()
+    act(() => {
+      vi.setSystemTime(new Date('2026-07-15T21:30:00Z'))
+      window.dispatchEvent(new Event('focus'))
+    })
+    expect(screen.getByRole('link', { name: 'Base: 1 rellamada para hoy, 1 vencida. Ir a tu base para gestión' })).toBeInTheDocument()
+  })
+
+  it('al hacer clic navega a la base por el hash (la vía que App.tsx escucha)', () => {
+    BASE_GESTION_FILAS = RELLAMADAS
+    montar()
+    fireEvent.click(screen.getByRole('link', { name: /^Base: 3 rellamadas para hoy/ }))
+    expect(window.location.hash).toBe('#/rescate')
+  })
+
+  it('accesible: alto mínimo de 24 px, 44 px en pantallas táctiles y foco visible', () => {
+    BASE_GESTION_FILAS = RELLAMADAS
+    montar()
+    const enlace = screen.getByRole('link', { name: /^Base:/ })
+    expect(enlace).toHaveClass('min-h-6', 'pointer-coarse:min-h-11', 'focus-visible:outline-2', 'focus-visible:outline-ring')
+  })
+
+  it.each<[string, EstadoBaseGestion, FilaBaseGestion[]]>([
+    ['la base no tiene rellamadas para hoy (0)', 'lista', [filaBase()]],
+    ['la base está vacía', 'lista', []],
+    ['la lista aún carga', 'cargando', [filaBase({ rellamada_hoy: true, proxima_llamada_en: '2026-07-15T21:00:00Z' })]],
+    ['la lista dio error (42501)', 'error', [filaBase({ rellamada_hoy: true, proxima_llamada_en: '2026-07-15T21:00:00Z' })]],
+    ['el refresco falló (foto vieja en caché)', 'refresco-fallido', [filaBase({ rellamada_hoy: true, proxima_llamada_en: '2026-07-15T21:00:00Z' })]],
+  ])('no pinta la línea (ni un «0» ni un error) cuando %s', (_caso, estado, filas) => {
+    BASE_GESTION_ESTADO = estado
+    BASE_GESTION_FILAS = filas
+    montar()
+    expect(screen.queryByRole('link', { name: /^Base:/ })).not.toBeInTheDocument()
+    expect(screen.queryByText(/rellamada/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/base para gestión/i)).not.toBeInTheDocument()
+    // «Hoy» sigue en pie: el saludo y la CTA de Gestión diaria.
+    expect(screen.getByRole('link', { name: /^Ir a Gestión diaria\./ })).toBeInTheDocument()
   })
 })

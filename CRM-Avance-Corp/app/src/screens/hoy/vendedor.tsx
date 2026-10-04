@@ -1,7 +1,8 @@
-import { abrirInversionista, escribirHash } from '@/lib/router'
+import { abrirInversionista, escribirHash, hashDe } from '@/lib/router'
 import { SlaOperacionBoundary } from '@/components/app/sla-operacion'
 import { BotonGestionDiaria } from '@/components/app/boton-gestion-diaria'
 import { useConteoGestionDiaria } from '@/data/use-conteo-gestion-diaria'
+import { useConteoBaseGestion } from '@/data/use-conteo-base-gestion'
 import { useModoSla } from '@/data/sla-operacion-queries'
 // Hoy · ANALISTA (F1c) — la pantalla diaria del analista: SU cartera, SU cola de
 // acción y SU meta. ambito.leads YA viene recortado por el store (solo los
@@ -791,6 +792,48 @@ function FranjaAhora({
   )
 }
 
+// ── Base para gestión (F3, 03/10/2026) ───────────────────────────────────────
+
+function contar(n: number, singular: string, plural: string): string {
+  return `${n} ${n === 1 ? singular : plural}`
+}
+
+/**
+ * «Base: N rellamadas para hoy» bajo la fecha: lleva a la base para gestión
+ * (#/rescate) por el hash, la vía que App.tsx escucha. La pantalla la monta
+ * SOLO con cifra fiable y N > 0 (`useConteoBaseGestion` es fail-closed): «Hoy»
+ * no gana ruido con un «0» ni con un error. Azul de acción; el tramo
+ * «· M vencidas» va en rojo porque ya pasó su hora, la única urgencia real.
+ */
+function LineaBaseGestion({ paraHoy, vencidas }: { paraHoy: number; vencidas: number }): JSX.Element {
+  const rellamadas = `${contar(paraHoy, 'rellamada', 'rellamadas')} para hoy`
+  const atrasadas = vencidas > 0 ? contar(vencidas, 'vencida', 'vencidas') : null
+  return (
+    <a
+      href={hashDe('rescate')}
+      // Coma y no «·» para el lector de pantalla (NVDA se salta el punto medio).
+      aria-label={`Base: ${rellamadas}${atrasadas ? `, ${atrasadas}` : ''}. Ir a tu base para gestión`}
+      onClick={(e) => {
+        // Con modificadores manda el navegador (pestaña nueva, etc.): no se secuestra.
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return
+        e.preventDefault()
+        escribirHash('rescate')
+      }}
+      className="group mt-1.5 inline-flex min-h-6 items-center gap-1.5 rounded-md text-[13px] font-semibold text-accent transition-colors hover:text-[var(--accent-press)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:min-h-11"
+    >
+      <span className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[var(--muted-foreground-strong)]">Base:</span>
+      <span className="tabular-nums underline-offset-2 group-hover:underline">{rellamadas}</span>
+      {atrasadas && (
+        <span className="tabular-nums text-[var(--destructive-text)]">
+          <span aria-hidden>· </span>
+          {atrasadas}
+        </span>
+      )}
+      <ChevronRight className="size-3.5 transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none" aria-hidden />
+    </a>
+  )
+}
+
 // ── Pantalla ──────────────────────────────────────────────────────────────────
 
 export function HoyVendedor(): JSX.Element {
@@ -819,6 +862,9 @@ export function HoyVendedor(): JSX.Element {
   // CTA «GESTIÓN DIARIA» de la cabecera (28/09/2026): cuenta el día que ya
   // sirve `useDiaAnalista` y recuerda si el analista ya entró hoy.
   const conteoGd = useConteoGestionDiaria()
+  // Línea «Base: N rellamadas para hoy» (F3 de la Base para gestión): comparte
+  // la consulta de la lista de la base; sin cifra fiable no se pinta.
+  const conteoBase = useConteoBaseGestion()
   const periodoVigente = periodoLima(ahora)
   const periodoStoreIntentado = useRef<string | null>(null)
   const [recargaPeriodoFallida, setRecargaPeriodoFallida] = useState(false)
@@ -1332,6 +1378,9 @@ export function HoyVendedor(): JSX.Element {
           <p className="mt-1 text-xs text-muted-foreground">
             {fechaLarga(ahora)} · primero resolvemos; después revisamos el contexto.
           </p>
+          {conteoBase.disponible && conteoBase.paraHoy > 0 && (
+            <LineaBaseGestion paraHoy={conteoBase.paraHoy} vencidas={conteoBase.vencidas} />
+          )}
         </div>
         {/* Esquina derecha: el botón «GESTIÓN DIARIA» es el único protagonista
             (pieza CRM-02 del UI Playground); sin pastilla debajo (Miguel,
