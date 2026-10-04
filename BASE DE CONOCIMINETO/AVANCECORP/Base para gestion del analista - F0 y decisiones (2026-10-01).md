@@ -536,3 +536,11 @@ migraciones aplicadas. Nada en producción.
   se comprueba DESPUÉS del commit (`b6c-comprobar-tras-aplicar.sql`, siempre ROLLBACK, `SKIP LOCKED`, `ROW_COUNT = 1`).
 - 🔑 Recrear una función que otras sesiones pueden estar ejecutando deja una ventana: una llamada en curso termina con el
   cuerpo viejo. Si el cambio y un sello nuevo dependen uno del otro, la forma sin ventana es partirlo en dos migraciones.
+
+### QA final (04/10) — módulo completo
+- Servidor: 8/8 puntos del encargo en PASS (77/77 casos, `supabase/scripts/base-gestion/qa-final.sql`); gate sin rojos nuevos.
+  Front publicado (`538ca9ec`): check PASS, E2E completo sin fallos nuevos (los 2 rojos son previos, fechas del 30/09).
+  PR #184 fusionada. Evidencia: `BASE PARA GESTION/revisiones/2026-10-04-qa-final.md`.
+- A tener en cuenta: con la regla B6, un lead con rellamada vigente no se reasigna salvo baja del analista; tras reactivar,
+  el ciclo SLA nuevo empieza con «primera gestión» pendiente.
+- Sigue: [[bases-cargadas-supervisor]] (B7–B10 + F5–F6).
