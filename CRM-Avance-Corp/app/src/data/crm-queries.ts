@@ -702,18 +702,14 @@ export function useBaseGestionResumenDetalle(habilitada: boolean, vendedorId: st
 }
 
 /** Quitar «No contactar» (D5): se levanta para la persona y TODOS sus leads, que pueden estar en otras listas
- *  (cartera, pipeline) y tener su historial abierto en otra ficha: se refresca todo lo que cuelga de `leads()` (la
- *  base incluida) y el historial de CUALQUIER lead (prefijo; solo se vuelven a pedir los que están en pantalla). */
+ *  (cartera, pipeline): se refresca todo lo que cuelga de `leads()` (la base incluida, con la marca de cada lead). El
+ *  historial, solo el de ESE lead: el servidor escribe la actividad «Levantado No contactar» únicamente sobre
+ *  `p_lead_id` (migración 20261002061500, líneas 235-236); en los otros leads de la persona solo cambia la marca. */
 export function useLevantarNoContactarBase() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (entrada: { leadId: string; motivo: string }) => levantarNoContactar(entrada.leadId, entrada.motivo),
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: crmQueryKeys.leads() }),
-        queryClient.invalidateQueries({ queryKey: crmQueryKeys.historialLeads() }),
-      ])
-    },
+    onSuccess: async (_r, entrada) => { await invalidarBaseGestion(queryClient, entrada.leadId, true) },
   })
 }
 

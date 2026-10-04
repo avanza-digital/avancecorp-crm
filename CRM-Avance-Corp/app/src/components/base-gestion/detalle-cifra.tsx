@@ -17,7 +17,8 @@ export interface CifraAbierta {
   vendedorId: string
   nombre: string
   cifra: CifraDetalle
-  valor: number
+  /** La cifra del panel del período VIGENTE; `null` mientras ese panel no llegó (o falló): se muestra pendiente. */
+  valor: number | null
 }
 
 export function DetalleCifra({ abierta, filas, cargando, error, reintentando, onReintentar, ahora, esMovil, onCerrar, abrible, onAbrirLead, focoRespaldo }: {
@@ -54,7 +55,18 @@ export function DetalleCifra({ abierta, filas, cargando, error, reintentando, on
             <div className="flex items-start justify-between gap-3">
               <div ref={cabecera} tabIndex={-1} className={cn('min-w-0 rounded', FOCO)}>
                 <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--muted-foreground-strong)]">{abierta.nombre}</p>
-                <SheetTitle className="text-lg">{titulo} <span className="tabular-nums text-primary">· {abierta.valor}</span></SheetTitle>
+                <SheetTitle className="text-lg">
+                  {titulo}{' '}
+                  <span className="tabular-nums text-primary">
+                    ·{' '}
+                    {abierta.valor ?? (
+                      <>
+                        <span aria-hidden>…</span>
+                        <span className="sr-only">cargando</span>
+                      </>
+                    )}
+                  </span>
+                </SheetTitle>
                 <SheetDescription className="text-[13px] text-[var(--muted-foreground-strong)]">
                   {abierta.cifra === 'intentos_hoy'
                     ? 'Intentos registrados hoy sobre los leads de su base (cuentan para su analista aunque los registre Supervisión).'

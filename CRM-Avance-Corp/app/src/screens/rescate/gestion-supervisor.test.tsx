@@ -3,7 +3,7 @@
 // PRODUCCIÓN (gate de realidad): la B6b no está aplicada (sin vetados ni detalle), la base puede estar vacía y un
 // supervisor puede no tener analistas.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { FilaBaseGestion, FilaDetalleCifra, FilaResumenBase } from '@/lib/base-gestion'
 import type { LecturaBaseGestion } from '@/data/crm-api'
@@ -24,8 +24,9 @@ const abrirLead = vi.fn()
 /** Los leads que el CRM tiene cargados (la ficha normal solo abre esos). */
 let EN_CARTERA = new Set<string>()
 const toastInfo = vi.fn()
+const toastError = vi.fn()
 
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), info: toastInfo, error: vi.fn() } }))
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), info: toastInfo, error: toastError } }))
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
 vi.mock('@/lib/store-context', () => ({
   useCRMData: () => ({ leads: LEADS, equipo: EQUIPO, lead: (id: string) => (EN_CARTERA.has(id) ? ({ id } as Lead) : undefined), recargar: async () => true }),
@@ -310,6 +311,80 @@ describe('el panel por analista: todo número se abre', () => {
     await userEvent.click(within(screen.getByRole('dialog', { name: /Intentos de hoy/ })).getByRole('button', { name: 'LEAD BASE 7' }))
     expect(toastInfo).toHaveBeenCalledWith('Ese lead ya no aparece en la base. La lista se actualizó.')
     expect(screen.queryByText(/Ficha de LEAD BASE 7/)).toBeNull()
+  })
+
+  it('un refresco FALLIDO al ir a abrir no afirma que el lead salió de la base: error con «Reintentar»', async () => {
+    const refetchBase = vi.fn(async () => ({ data: { filas: [fila(1)], conVetados: true }, isSuccess: false, isError: true }))
+    BASE = () => ({ ...listo<LecturaBaseGestion>({ filas: [fila(1)], conVetados: true }), refetch: refetchBase })
+    DETALLE = listo([{ lead_id: 'lead-7', nombre_completo: 'LEAD BASE 7', en: '2026-10-03T15:00:00Z', detalle: 'no_contesto', autor: 'ANA PÉREZ', sigue_en_base: true }])
+    montar()
+    await userEvent.click(within(panel()).getByRole('button', { name: /ANA PÉREZ, intentos de hoy:\s?3/ }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: /Intentos de hoy/ })).getByRole('button', { name: 'LEAD BASE 7' }))
+    expect(refetchBase).toHaveBeenCalled()
+    expect(toastInfo).not.toHaveBeenCalled()
+    expect(toastError).toHaveBeenCalledWith('No se pudo actualizar la base para abrir este lead.', expect.objectContaining({ action: expect.objectContaining({ label: 'Reintentar' }) }))
+    expect(screen.queryByText(/Ficha de LEAD BASE 7/)).toBeNull()
+  })
+
+  describe('una respuesta tardía no abre nada que ya no se pidió (Codex F4 r2)', () => {
+    /** Un refresco de la base que queda pendiente hasta que la prueba lo suelte. */
+    function refrescoPendiente() {
+      let soltar: () => void = () => {}
+      let filas = [fila(1)]
+      const refetchBase = vi.fn(() => new Promise((resolver) => {
+        soltar = () => { filas = [fila(1), fila(7)]; resolver({ data: { filas, conVetados: true }, isSuccess: true, isError: false }) }
+      }))
+      BASE = () => ({ ...listo<LecturaBaseGestion>({ filas, conVetados: true }), refetch: refetchBase })
+      DETALLE = listo([
+        { lead_id: 'lead-7', nombre_completo: 'LEAD BASE 7', en: '2026-10-03T15:00:00Z', detalle: 'no_contesto', autor: 'ANA PÉREZ', sigue_en_base: true },
+        { lead_id: 'lead-1', nombre_completo: 'LEAD BASE 1', en: '2026-10-03T14:00:00Z', detalle: 'no_contesto', autor: 'ANA PÉREZ', sigue_en_base: true },
+      ])
+      return { refetchBase, soltar: () => act(async () => { soltar(); await Promise.resolve() }) }
+    }
+
+    it('refresco pendiente → se cierra el detalle → llega la respuesta: no se abre ninguna ficha ni se avisa nada', async () => {
+      const { refetchBase, soltar } = refrescoPendiente()
+      montar()
+      await userEvent.click(within(panel()).getByRole('button', { name: /ANA PÉREZ, intentos de hoy:\s?3/ }))
+      await userEvent.click(within(screen.getByRole('dialog', { name: /Intentos de hoy/ })).getByRole('button', { name: 'LEAD BASE 7' }))
+      expect(refetchBase).toHaveBeenCalled()
+      await userEvent.click(screen.getByRole('button', { name: 'Cerrar el detalle' }))
+      await soltar()
+      expect(screen.queryByText(/Ficha de LEAD BASE 7/)).toBeNull()
+      expect(toastInfo).not.toHaveBeenCalled()
+    })
+
+    it('si mientras tanto se elige otro lead, gana la selección posterior', async () => {
+      const { soltar } = refrescoPendiente()
+      montar()
+      await userEvent.click(within(panel()).getByRole('button', { name: /ANA PÉREZ, intentos de hoy:\s?3/ }))
+      const detalle = screen.getByRole('dialog', { name: /Intentos de hoy/ })
+      await userEvent.click(within(detalle).getByRole('button', { name: 'LEAD BASE 7' }))
+      await userEvent.click(within(detalle).getByRole('button', { name: 'LEAD BASE 1' }))
+      expect(screen.getByText('Ficha de LEAD BASE 1 (supervision)')).toBeInTheDocument()
+      await soltar()
+      expect(screen.getByText('Ficha de LEAD BASE 1 (supervision)')).toBeInTheDocument()
+      expect(screen.queryByText(/Ficha de LEAD BASE 7/)).toBeNull()
+    })
+  })
+
+  it('cambio de período con el detalle ya servido y el panel nuevo lento o fallido: la cifra del título queda pendiente, no la del período anterior', async () => {
+    DETALLE = listo([{ lead_id: 'lead-1', nombre_completo: 'LEAD BASE 1', en: '2026-10-04T05:10:00Z', detalle: 'no_contesto', autor: 'ANA PÉREZ', sigue_en_base: true }])
+    const { rerender } = montar()
+    await userEvent.click(within(panel()).getByRole('button', { name: /ANA PÉREZ, intentos de hoy:\s?3/ }))
+    const titulo = () => within(screen.getByRole('dialog', { name: /Intentos de hoy/ })).getByRole('heading', { level: 2 })
+    expect(titulo()).toHaveTextContent(/·\s?3$/)
+    // Medianoche: el panel del día nuevo aún no llega (su clave lleva el día); el detalle del día nuevo ya está.
+    PANEL = { isPending: true, isError: false, isFetching: true, refetch }
+    rerender(<GestionSupervisor analistaInicial={null} onAnalista={onAnalista} />)
+    expect(titulo()).toHaveTextContent(/cargando/)
+    expect(titulo()).not.toHaveTextContent(/3/)
+    expect(within(screen.getByRole('dialog', { name: /Intentos de hoy/ })).getByRole('button', { name: 'LEAD BASE 1' })).toBeInTheDocument()
+    // Y si ese panel falla sin datos, sigue pendiente (nunca la cifra guardada de ayer).
+    PANEL = { isPending: false, isError: true, isFetching: false, refetch }
+    rerender(<GestionSupervisor analistaInicial={null} onAnalista={onAnalista} />)
+    expect(titulo()).toHaveTextContent(/cargando/)
+    expect(titulo()).not.toHaveTextContent(/3/)
   })
 
   it('el detalle que el servidor aún no tiene (null) dice «no disponible», nunca «cero»', async () => {
