@@ -17,6 +17,16 @@
 -- Mutantes: `node supabase/scripts/base-gestion/b6b-mutantes.mjs --puerto <puerto del banco local>` inyecta cada uno en la
 -- línea @@MUTANTE@@ y exige que esta suite FALLE.
 \set ON_ERROR_STOP on
+-- Solo banco LOCAL (P3 del auditor-rls de B6b; añadido con B6c): el secreto JWT de la base tiene que ser el valor de
+-- desarrollo PÚBLICO del Supabase CLI (se compara su md5; un proyecto alojado tiene el suyo) y la conexión no va por SSL.
+-- La suite cambia la bandera resolver_en_puertas y neutraliza private.cartera_f5_exigir dentro de su transacción.
+do $solo_banco_local$
+begin
+  if (md5(coalesce(current_setting('app.settings.jwt_secret', true), '')) = '2a60121f68a3f2b1fb7de7040cb89646'
+      and (select not s.ssl from pg_stat_ssl s where s.pid = pg_backend_pid())) is not true then
+    raise exception 'b6b-vetados: solo corre en un banco LOCAL de Docker (Supabase CLI); esta base no lo es';
+  end if;
+end $solo_banco_local$;
 begin;
 -- @@MUTANTE@@
 -- Copia EXACTA del cuerpo vivo de B5 (20261003162400) en pg_temp: el oráculo de «con false, lo mismo que B5».

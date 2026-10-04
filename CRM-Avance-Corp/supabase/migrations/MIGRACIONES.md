@@ -15240,3 +15240,63 @@ primera versión r2 recorría `actividades_recientes_idx` hacia atrás (69 ms) y
 **Reversa:** `supabase/scripts/base-gestion/reversa-b6b.sql` (antes que la de B5). **Registrador:**
 `supabase/scripts/base-gestion/registrar/20261004045038.sql`. Falta: re-revisión (auditor-rls, Codex), rama con datos + gate +
 advisors + EXPLAIN real, OK de Miguel y `!` + registrador, regenerar tipos y B6c.
+
+## 20261004123611 — Base para gestión del analista · B6c: la nota del veto queda reservada a sus puertas e inmutable
+
+**✅ APLICADA EN PRODUCCIÓN 04/10/2026** (Miguel con `!`: `supabase db query --linked --file` + registrador; versión registrada con md5 de statements `abd20c56…` = archivo). Verificado después en solo lectura: `md5(prosrc)` del sello `private.trg_actividades_no_contactar_solo_puerta()` `af83cbd6…` (ACL solo postgres), trigger `trg_00_actividades_no_contactar_solo_puerta` tipo 31 habilitado, `crm.levantar_no_contactar` `663780d2…`, comentario de `obtener_base_gestion` `67f83881…`, cuerpo de B6b intacto `36af7e9c…`. Antes: banco (suite 76/76, mutantes 16/16, gate 0 rojos nuevos), auditor-rls PASS, Codex r1/r2 BLOCK resueltos (P2 de la r2 aceptado como riesgo documentado: una llamada a levantar en curso con el cuerpo viejo justo al commit falla con 42501 reintentable; aplicada un domingo temprano), rama con datos (`BASE PARA GESTION/revisiones/2026-10-04-rama-b6c.md`: OK 10/10, advisors 0 nuevos, reversa OK).
+
+_Historial: construida y probada en banco Docker local (04/10/2026), r1, antes de aplicar._
+
+Decisión de Miguel (04/10, P2b del auditor-rls de B6b, `BASE PARA GESTION/F4-SUPERVISOR.md`): reservar
+`metadata.evento='no_contactar'` en `crm.actividades` para las puertas oficiales. Hoy la policy `actividades_insert`
+(`20260807123000:85-115`) deja insertar esa nota desde la API en un lead propio o del ámbito y `trg_01_gestion_lead_serializada`
+no la frena (`20260904130000:1082-1088`, solo tipos de contacto): quien escribe en un lead podía firmar la «marca vigente» que B6b
+muestra a Supervisión y Gerencia (o un «levantar» que la ocultara). authenticated solo tiene INSERT/SELECT en la tabla.
+**Qué:** (1) sello NUEVO `trg_00_actividades_no_contactar_solo_puerta` (BEFORE INSERT OR UPDATE OR DELETE, por fila, toda
+columna) con `private.trg_actividades_no_contactar_solo_puerta()` (DEFINER, `search_path` vacío, dueño postgres, sin EXECUTE para
+la API). Con usuario y sin la válvula `crm.op_privilegiada = on` → 42501 «La nota de No contactar solo la escriben sus puertas
+(marcar, levantar o postventa); no se cambia ni se borra» para: INSERT de una nota del veto; UPDATE de cualquier columna de una
+fila que es o pasa a ser nota del veto; DELETE de una nota del veto (r1, auditor P3: inmutables). «Nota del veto» =
+`lower(btrim(metadata->>'evento'))` = `no_contactar` (r1, auditor P3: variantes como `No_Contactar` o ` no_contactar `). Exentos:
+la válvula y las sesiones sin usuario (migraciones, backfills, jobs y la clave de servicio SIN sub — exención ACEPTADA, como en
+los sellos vecinos `trg_actividades_resultado_solo_nucleo` y `trg_actividades_base_gestion_solo_nucleo`). Función PROPIA: cada
+sello con su válvula y el del resultado está sellado por huella en `private.assert_gestion_diaria_resultado`. Vale siempre (no mira
+`resolver_en_puertas`). **No acredita las notas del veto escritas antes de su instalación.** (2) `crm.levantar_no_contactar`: texto
+vivo de B2 (md5 `05df49be…`) con UN cambio: el `set_config('crm.op_privilegiada','off')` pasa de antes del insert de su nota
+(`20261002061500:233`) a justo después → md5 `663780d2…`. (3) Solo el COMENTARIO de `crm.obtener_base_gestion(uuid,boolean)`
+(cuerpo `36af7e9c…` intacto): nota reservada e inmutable, no acredita las anteriores, y residuo P3 del auditor de B6b (no lee la
+bandera `resolver_en_puertas`, encendida desde el 07/09).
+**Escritores de la nota:** solo `marcar_no_contactar` (`20260910150039:976/1016/1023`, válvula on → insert → off; sellada por
+huella, no se toca), `postventa_veto_fn` (`:488/511/516`, envuelta por `20260910190000`; no se toca) y `levantar_no_contactar`
+(el corregido); ningún backfill, fusión, importador, seed ni el front (notas sin metadata). **Quién cambia o borra actividades:**
+solo cuatro funciones hacen UPDATE y ninguna DELETE, y ninguna cae sobre una nota del veto: `base_gestion_intento_core` (su propia
+fila recién insertada, `20261003162300:199`), `llamada_registrar`/`_v4` (su propia actividad de llamada, `20260921153654:264/315`)
+y `deshacer_resultado_llamada` (exige `evento = resultado_llamada`, `20260920005000:654`). Acciones referenciales: un lead con
+dueño no se puede borrar (`lead_asignaciones_lead_id_fkey`, probado) y ninguna función borra `crm.leads`; `eliminar_usuario_fn`
+solo borra `auth.users` si `private.usuario_tiene_historial` es falso (cuenta toda FK, también `actividades.creado_por`) y
+`eliminar_cliente_fn` exige `auth.uid()` nulo: el SET NULL del autor no puede llegar a una nota del veto con usuario (si llegara,
+el sello lo rechaza). El preflight exige que sigan siendo solo esos tres escritores y esas cuatro funciones de UPDATE/DELETE, los md5
+de levantar/marcar/postventa y del comentario de B6b, y que ningún rol/base encienda la válvula por configuración.
+**Despliegue (r1, Codex P2):** la r0 insertaba notas de prueba en el postflight con el SHARE ROW EXCLUSIVE del `CREATE TRIGGER`
+puesto; con `marcar_no_contactar` concurrente sobre el mismo lead formaba un ciclo → **40P01 reproducido en el banco con dos
+sesiones** (copia con `pg_sleep` tras el trigger). La r1 **no hace DML**: postflight SOLO de catálogo (md5, contrato y ACL del sello y
+de levantar, `tgtype` 31, sin WHEN ni columnas, comentarios exactos, censo) y el trigger se crea al final; con la misma pausa, la
+sesión concurrente espera al commit (~4 s) y termina: **sin ciclo**. El aviso dice «CATALOGO OK … COMPORTAMIENTO NO PROBADO» (r1,
+Codex P3). El comportamiento va en `b6c-comprobar-tras-aplicar.sql` (tras el commit; ROLLBACK siempre; `lock_timeout` 2 s; lead con
+`FOR UPDATE SKIP LOCKED` antes de insertar; «NOT RUN» explícito si no hay lead libre, si B6c no está o si un candado está ocupado):
+la API no escribe la nota (marcar, levantar, sin acción, dos variantes), entran —con ROW_COUNT = 1 (Codex r2, P3: un sello que descartara en silencio con `return null` daba OK)— la nota normal, la de la válvula y la sin usuario,
+y service_role con usuario no cambia ni borra una nota del veto. READ COMMITTED explícito.
+**Banco** (stack propio `avancecorp-b6b-20261003`, B6b aplicada): suite `b6c-nota-veto.sql` **76/76** (catálogo; la API —analista,
+Supervisión, Gerencia, tipo de contacto, tres variantes, bandera apagada— no escribe la nota y la marca no cambia; notas normales y
+un evento parecido sí; marcar, levantar de Supervisión y de Gerencia, persona por enlace y puente, postventa vetar/levantar y marcar
+con la bandera apagada, REALES, escriben su nota y B6b muestra la marca correcta; la válvula nunca queda encendida; sin usuario y
+service_role sin sub pueden; service_role con sub no inserta, no cambia ninguna columna —metadata, detalle, creado_en, autor a NULL,
+variante— ni borra; con la válvula sí); mutantes `b6c-mutantes.mjs` **16/16 caen** (los 11 de r0 y: UPDATE solo de metadata, sin
+DELETE, comparación exacta, sin recorte, fila vieja sin normalizar); B6b **92/92** y sus 20 mutantes caen; guardas en negativo:
+preflight **15/15** (+ control como supabase_admin), postflight **11/11**; script post-aplicación: **OK 10/10**, con el lead más
+antiguo bloqueado por otra sesión OK 10/10 en 0,07 s, con todos bloqueados PARCIAL/NOT RUN, sin B6c NOT RUN, con un sello que no
+rechaza FALLA (salida ≠ 0), sin restos; gate de RLS antes 2534/68 → después **2542/68** (0 rojos nuevos; bloque B6c 8/8); reversa →
+huellas de B6b/B2 (= producción); reaplicación OK; trinquetes 29/7 y censo 38 iguales antes, tras aplicar, tras la reversa y tras
+el gate; registrador idempotente. Las suites `b6b-vetados.sql` y `b6c-nota-veto.sql` llevan la guarda «solo banco local» (P3 del
+auditor de B6b). **Reversa:** `supabase/scripts/base-gestion/reversa-b6c.sql` (antes que la de B6b; la de B2 se niega mientras
+levantar tenga el cuerpo de B6c).

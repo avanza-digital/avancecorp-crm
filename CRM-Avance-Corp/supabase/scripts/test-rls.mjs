@@ -15969,6 +15969,72 @@ async function testBaseGestionB6b(sessions, seed) {
   }
 }
 
+// ── Base para gestión B6c (20261004123611): la nota del veto solo la escriben sus puertas ──
+// Bloque corto por la API real (PostgREST): el resto (service_role con usuario, UPDATE/DELETE de la nota, variantes, postventa,
+// persona, bandera apagada y 16 mutantes) lo cubre supabase/scripts/base-gestion/b6c-nota-veto.sql en el banco.
+async function testBaseGestionB6c(sessions, seed) {
+  console.log('\n— Base para gestión B6c: la nota del veto (metadata evento = no_contactar) solo la escriben sus puertas —');
+  const saltar = (msg) => {
+    if (process.env.CRM_RLS_EXIGE_BASE_GESTION === '1') fail(msg);
+    else console.log(`  ${msg}`);
+  };
+  let aplicada;
+  try {
+    aplicada = contarFueraDeBanda('base gestión B6c: aplicada',
+      `select (to_regprocedure('private.trg_actividades_no_contactar_solo_puerta()') is not null and exists (select 1 from pg_trigger t where t.tgrelid = 'crm.actividades'::regclass and t.tgname = 'trg_00_actividades_no_contactar_solo_puerta'))::int`);
+  } catch (error) {
+    saltar(`⚠ Base para gestión B6c SALTADO: sin vía fuera de banda (${error?.message ?? String(error)})`);
+    return;
+  }
+  if (aplicada !== 1) {
+    saltar('⚠ 20261004123611 (base gestión B6c) NO desplegada en esta base: bloque SALTADO (no probado)');
+    return;
+  }
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`base gestión B6c: ${etiqueta}`, sql);
+  const vend1Id = seed.profileIdByKey.vend1;
+  const sup1Id = seed.profileIdByKey.sup1;
+  const vend1 = sessions.vend1.client.schema('crm');
+  const sup1 = sessions.sup1.client.schema('crm');
+  const SELLO = /La nota de No contactar solo la escriben sus puertas/i;
+  check(cuenta('sello', `select count(*) from pg_trigger t join pg_proc p on p.oid = t.tgfoid where t.tgrelid = 'crm.actividades'::regclass and t.tgname = 'trg_00_actividades_no_contactar_solo_puerta' and t.tgenabled = 'O' and t.tgtype = 31 and t.tgqual is null and t.tgattr = ''::int2vector and p.prosecdef and p.proowner = 'postgres'::regrole and p.proconfig = array['search_path=""']::text[] and not has_function_privilege('anon', p.oid, 'EXECUTE') and not has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('service_role', p.oid, 'EXECUTE')`) === 1,
+    'B6c sello habilitado (BEFORE INSERT OR UPDATE OR DELETE de toda columna, por fila, sin WHEN), DEFINER de postgres con search_path vacío y sin EXECUTE para la API');
+  const L = randomUUID();
+  const MOTIVO = 'B6c gate: pidió que no lo llamen';
+  const notasVeto = () => cuenta('notas del veto', `select count(*) from crm.actividades where lead_id = '${L}' and metadata->>'evento' = 'no_contactar'`);
+  const forjada = (accion, motivo, autor) => ({ lead_id: L, tipo: 'nota', detalle: 'B6c gate: nota forjada', creado_por: autor, metadata: { evento: 'no_contactar', accion, motivo } });
+  try {
+    await requireAdmin('B6c: sembrar un lead nuevo de vend1', admin.schema('crm').from('leads').insert({
+      activo: true, asignado_supervisor_id: null, etapa: 'nuevo', moneda: 'PEN', no_contactar: false, origen: 'oficina', monto_estimado: 5000,
+      id: L, nombre_completo: 'B6C VETADO TRANSIENT', telefono: TEL_IDENTIDAD(67), creado_por: vend1Id, vendedor_id: vend1Id,
+    }));
+    await requireAdmin('B6c: vend1 descarta el suyo', vend1.from('leads').update({ etapa: 'descartado', motivo_descarte: 'no_responde' }).eq('id', L));
+    await positive('B6c vend1 marca No contactar por la puerta', vend1.rpc('marcar_no_contactar', { p_lead_id: L, p_motivo: MOTIVO }));
+    // La API no escribe la nota del veto: ni el analista en su lead ni Supervisión en uno de su equipo (la policy los dejaría).
+    await expectExpectedFailure('B6c vend1 inserta por la API un «marcar» con motivo falso → 42501', vend1.from('actividades').insert(forjada('marcar', 'motivo falso', vend1Id)), ['42501'], SELLO);
+    await expectExpectedFailure('B6c vend1 inserta por la API un «levantar» (ocultaría la marca) → 42501', vend1.from('actividades').insert(forjada('levantar', 'levantar falso', vend1Id)), ['42501'], SELLO);
+    await expectExpectedFailure('B6c sup1 inserta por la API un «marcar» en un lead de su equipo → 42501', sup1.from('actividades').insert(forjada('marcar', 'sup falso', sup1Id)), ['42501'], SELLO);
+    await expectExpectedFailure('B6c vend1 inserta por la API la variante « No_Contactar » → 42501', vend1.from('actividades').insert({ ...forjada('marcar', 'variante', vend1Id), metadata: { evento: ' No_Contactar ', accion: 'marcar' } }), ['42501'], SELLO);
+    await positive('B6c vend1 sigue pudiendo dejar una nota normal', vend1.from('actividades').insert({ lead_id: L, tipo: 'nota', detalle: 'B6c gate: nota normal', creado_por: vend1Id }));
+    assertions += 1;
+    if (notasVeto() === 1) console.log('  ✓ B6c en el lead hay UNA sola nota del veto (la de la puerta)'); else fail(`B6c: notas del veto en el lead = ${notasVeto()} (esperado 1)`);
+    const s1t = await positive('B6c sup1 obtiene la base con vetados', sup1.rpc('obtener_base_gestion', { p_incluir_vetados: true }));
+    const fila = Array.isArray(s1t?.data) ? s1t.data.find((r) => r.lead_id === L) : null;
+    assertions += 1;
+    if (fila && fila.no_contactar === true && fila.no_contactar_motivo === MOTIVO && fila.no_contactar_por === USER_BY_KEY.vend1.name) console.log('  ✓ B6c sup1 ve la marca REAL (motivo y autor de la puerta), no la forjada');
+    else fail(`B6c: la marca que ve sup1 no es la real ${JSON.stringify(fila)}`);
+    // levantar_no_contactar escribe ahora su nota ANTES de apagar la válvula: tiene que seguir funcionando.
+    await positive('B6c sup1 levanta No contactar por la puerta', sup1.rpc('levantar_no_contactar', { p_lead_id: L, p_motivo: 'B6c gate: volvió a pedir información' }));
+    const lev = cuenta('nota de levantar', `select count(*) from crm.actividades where lead_id = '${L}' and metadata->>'evento' = 'no_contactar' and metadata->>'accion' = 'levantar' and metadata->>'rol' = 'supervisor' and creado_por = '${sup1Id}'`);
+    assertions += 1;
+    if (lev === 1 && notasVeto() === 2) console.log('  ✓ B6c levantar_no_contactar escribió su nota (levantar, rol supervisor, autor sup1)');
+    else fail(`B6c: la nota de levantar no quedó (${lev} de levantar, ${notasVeto()} en total)`);
+    // La clave de servicio (sin usuario: migraciones, backfills) sigue pudiendo.
+    await positive('B6c service_role sin usuario sigue pudiendo escribir la nota (backfills)', admin.schema('crm').from('actividades').insert(forjada('marcar', 'B6c gate: backfill', vend1Id)));
+  } finally {
+    await requireAdmin('B6c: retirar el lead transitorio (soft-delete)', admin.schema('crm').from('leads').update({ activo: false }).eq('id', L));
+  }
+}
+
 // ── Venta cruzada (20260924005126 … 20260924045245): puertas del cliente existente ──
 // Solo catálogo y rechazos: ninguna llamada de esta matriz llega a escribir. Una puerta que
 // rechaza aborta su transacción entera, así que ni la bitácora (inmutable) guarda rastro; los
@@ -16251,6 +16317,7 @@ async function main() {
       await testBaseGestionB3(sessions, verifiedSeed);
       await testBaseGestionB6(sessions, verifiedSeed);
       await testBaseGestionB6b(sessions, verifiedSeed);
+      await testBaseGestionB6c(sessions, verifiedSeed);
     }
   } catch (error) {
     primaryError = error;

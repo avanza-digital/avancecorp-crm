@@ -44,4 +44,18 @@ psql … -f supabase/scripts/base-gestion/reversa-b6b.sql                       
 psql … -f supabase/scripts/base-gestion/registrar/20261004045038.sql                            # tras aplicar; idempotente
 ```
 
-Reversas, en este orden: B6b (`reversa-b6b.sql`, antes que todas) · B3b (`reversa-idempotencia-y-orden.sql`) · B4b (`reversa-ventana-descanso.sql`) · B4 (`reversa-enfriamiento.sql`) · B3 (`reversa-puertas.sql`, se niega si queda el trigger de B4) · B2 (`reversa-no-contactar-supervisor.sql`, independiente) · B1b (`reversa-proxima-llamada.sql`, se niega si quedan núcleos de B3) · B1 (`reversa-esquema.sql`, se niega si B1b sigue aplicada). Rama de Supabase con datos: `rama.mjs estado | aplicar | explain | gate` (la URL del pooler la aporta Miguel por archivo; ver `BASE PARA GESTION/ESTADO.md`).
+**B6c (20261004123611, la nota del veto reservada a sus puertas e inmutable).** La migración solo comprueba catálogo (sin DML con
+el candado del `CREATE TRIGGER`: Codex r1); el comportamiento se comprueba DESPUÉS con `b6c-comprobar-tras-aplicar.sql`. Mismo banco que B6b (actores de `seed:demo`, B6b aplicada).
+Las dos suites (`b6b-vetados.sql` y `b6c-nota-veto.sql`) se niegan a correr fuera de un banco LOCAL de Docker (secreto JWT de
+desarrollo del CLI y conexión sin SSL). Aplicar en UN mensaje y luego:
+
+```sh
+psql -h 127.0.0.1 -p <puerto> -U postgres -f supabase/scripts/base-gestion/b6c-nota-veto.sql    # 76 casos, ROLLBACK al final
+node supabase/scripts/base-gestion/b6c-mutantes.mjs --puerto <puerto>                          # 16 mutantes: todos deben CAER
+psql … -f supabase/scripts/base-gestion/b6c-comprobar-tras-aplicar.sql                          # TRAS el commit (banco, rama y, si Miguel quiere, producción): comportamiento, ROLLBACK, veredicto en una fila
+node supabase/scripts/base-gestion/b6b-mutantes.mjs --puerto <puerto> --solo-suite             # B6b sigue 92/92 con B6c
+psql … -f supabase/scripts/base-gestion/reversa-b6c.sql                                         # vuelve a B6b exacto (antes que la de B6b)
+psql … -f supabase/scripts/base-gestion/registrar/20261004123611.sql                            # tras aplicar; idempotente
+```
+
+Reversas, en este orden: B6c (`reversa-b6c.sql`, antes que todas; la de B2 se niega mientras levantar tenga el cuerpo de B6c) · B6b (`reversa-b6b.sql`) · B3b (`reversa-idempotencia-y-orden.sql`) · B4b (`reversa-ventana-descanso.sql`) · B4 (`reversa-enfriamiento.sql`) · B3 (`reversa-puertas.sql`, se niega si queda el trigger de B4) · B2 (`reversa-no-contactar-supervisor.sql`, independiente) · B1b (`reversa-proxima-llamada.sql`, se niega si quedan núcleos de B3) · B1 (`reversa-esquema.sql`, se niega si B1b sigue aplicada). Rama de Supabase con datos: `rama.mjs estado | aplicar | explain | gate` (la URL del pooler la aporta Miguel por archivo; ver `BASE PARA GESTION/ESTADO.md`).
