@@ -31,14 +31,18 @@ interface RadioGroupProps<V extends string> {
   invalido?: boolean | undefined
   /** Formularios operativos: todas las etiquetas y ayudas con piso de 16 px. */
   grande?: boolean | undefined
+  /** Ids de textos de FUERA del grupo (p. ej. el error de un formulario) que
+   *  también lo describen. Se SUMAN a la `descripcion` propia, nunca la tapan. */
+  describedBy?: string | undefined
 }
 
-export function RadioGroup<V extends string>({ leyenda, opciones, valor, onCambio, nombre, obligatorio, className, descripcion, invalido, grande }: RadioGroupProps<V>) {
+export function RadioGroup<V extends string>({ leyenda, opciones, valor, onCambio, nombre, obligatorio, className, descripcion, invalido, grande, describedBy }: RadioGroupProps<V>) {
   const idAuto = useId()
   const name = nombre ?? `radio${idAuto.replaceAll(':', '')}`
   const idDescripcion = `${name}-descripcion`
+  const descritoPor = [descripcion !== undefined ? idDescripcion : null, describedBy?.trim() || null].filter(Boolean).join(' ') || undefined
   return (
-    <fieldset className={cn('space-y-2', className)} aria-describedby={descripcion !== undefined ? idDescripcion : undefined} aria-invalid={invalido || undefined}>
+    <fieldset className={cn('space-y-2', className)} aria-describedby={descritoPor} aria-invalid={invalido || undefined}>
       <legend className={cn('mb-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground', grande && 'text-base normal-case tracking-normal')}>
         {leyenda}
         {obligatorio && <span className="ml-1 normal-case tracking-normal text-[var(--muted-foreground-strong)]">· obligatorio</span>}

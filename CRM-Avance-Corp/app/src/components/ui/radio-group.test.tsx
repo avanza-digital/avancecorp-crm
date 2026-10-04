@@ -79,4 +79,25 @@ describe('RadioGroup — descripción y error', () => {
     expect(grupo).toHaveAttribute('aria-invalid', 'true')
     expect(descripcion).toHaveClass('text-destructive')
   })
+
+  it('`describedBy` SUMA ids externos a la descripción propia (no la tapa)', () => {
+    render(
+      <>
+        <p id="error-externo">Falta el resultado.</p>
+        <RadioGroup leyenda="Resultado" opciones={OPCIONES} valor={null} onCambio={() => {}} descripcion="Atajos: 1 a 7." describedBy="error-externo" />
+      </>,
+    )
+    const grupo = screen.getByRole('group', { name: /Resultado/ })
+    const propia = screen.getByText('Atajos: 1 a 7.')
+    expect(grupo).toHaveAttribute('aria-describedby', `${propia.id} error-externo`)
+    expect(grupo).toHaveAccessibleDescription('Atajos: 1 a 7. Falta el resultado.')
+  })
+
+  it('`describedBy` sin descripción propia enlaza solo el id externo; sin ninguno, no hay atributo', () => {
+    const { unmount } = render(<RadioGroup leyenda="Resultado" opciones={OPCIONES} valor={null} onCambio={() => {}} describedBy="error-externo" />)
+    expect(screen.getByRole('group', { name: /Resultado/ })).toHaveAttribute('aria-describedby', 'error-externo')
+    unmount()
+    render(<Pantalla />)
+    expect(screen.getByRole('group', { name: /Resultado/ })).not.toHaveAttribute('aria-describedby')
+  })
 })

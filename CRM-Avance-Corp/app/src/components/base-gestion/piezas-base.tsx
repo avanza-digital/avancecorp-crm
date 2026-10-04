@@ -1,8 +1,8 @@
 // Piezas de presentación de un lead de la base que comparten la hoja del analista (F1) y su ficha (F2).
 import { cn } from '@/lib/utils'
-import { ETAPA_INFO } from '@/lib/tipos'
 import {
   MAX_INTENTOS_BASE,
+  colorEtapaMaxima,
   estadoRellamada,
   etiquetaEtapaMaxima,
   etiquetaIntentos,
@@ -13,9 +13,6 @@ import {
   type FilaBaseGestion,
 } from '@/lib/base-gestion'
 
-const COLOR_SIN_HISTORIAL = '#94a3b8'
-const colorEtapa = (etapa: EtapaMaxima): string => (etapa === 'sin_datos' ? COLOR_SIN_HISTORIAL : ETAPA_INFO[etapa].color)
-
 export function MesDelLead({ fila }: { fila: FilaBaseGestion }) {
   const mes = mesDelLead(fila)
   return mes ? <span>{etiquetaMesLead(mes)}</span> : <span className="text-[var(--muted-foreground-strong)]">Sin fecha</span>
@@ -24,7 +21,7 @@ export function MesDelLead({ fila }: { fila: FilaBaseGestion }) {
 export function EtapaMaximaChip({ etapa }: { etapa: EtapaMaxima }) {
   return (
     <span className="inline-flex items-center gap-2">
-      <span aria-hidden className="size-2.5 shrink-0 rounded-full" style={{ background: colorEtapa(etapa) }} />
+      <span aria-hidden className="size-2.5 shrink-0 rounded-full" style={{ background: colorEtapaMaxima(etapa) }} />
       {etiquetaEtapaMaxima(etapa)}
     </span>
   )
