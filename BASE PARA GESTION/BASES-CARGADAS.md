@@ -101,3 +101,12 @@ lo aplica Miguel con `!`. Se publica primero el servidor y después la pantalla.
 - **B7 ✅ EN PRODUCCIÓN 04/10** (`20261004160034`, Miguel con `!` + registrador; md5 `93e857c9`): tablas `crm.bases_carga`, `crm.base_carga_leads`, `crm.base_carga_operaciones` (RLS, sin acceso de la API), origen/motivo `base_cargada` reservados a la válvula `crm.op_bases_carga`, capital vacío solo con origen `base_cargada` y etapa descartado. Revisiones: auditor-rls PASS, Codex r1/r2 BLOCK (reversa) resueltos, rama con datos (bloqueo real ~0,35 s). En `main` local `1d6fcc1d`.
 - Pendientes para B8/B10 detectados: `zz_sello_descarte` pone `descartado_en` NULL al insertar (contacto que nace descartado); ¿los contactos de base salen en «Descartes del mes» del rescate?; `p_sin_asignar` de la bandeja descargaría miles de dormidos; editar datos de un contacto sin capital hoy exige capital en la ficha.
 - **B8 ✅ EN PRODUCCIÓN 04/10** (`20261004184501`, md5 `ca81559b`; en `main` local `4bc57334`): `crm.crear_base`, `crm.cargar_base_lote` (≤ 100 filas por lote, ≤ 5000 por base, ~1,6 s por lote en la rama), `crm.armar_base_crm` (≤ 2000, solo descartados elegibles del subárbol del supervisor dueño, `SKIP LOCKED` → `ocupado`). Nunca duplica (verificador + «existe cualquier lead»); fuera del ámbito del actor solo `ya_existia` sin motivo; el contacto nace dormido con fecha de descarte, sin SLA ni episodio. Revisiones: auditor-rls PASS, Codex r1/r2 BLOCK resueltos, dos ramas con datos (r1 y final). **Sigue: B9** (repartir y recoger) y **B10** (seguimiento; excluir los dormidos sin repartir de «Gestión de la base»).
+
+## Decisión de Miguel (04/10) — candado de 7 días (B6)
+- **Solo cuentan los intentos hechos desde que el dueño actual recibió el lead.** Si el supervisor llama a un contacto de su bandeja y luego lo reparte, el analista nuevo no queda bloqueado; un intento del analista sí activa los 7 días. Se implementa en B9 (cambia `private.base_gestion_en_gestion_hasta`, en toda vía).
+
+## Avance (04/10 tarde)
+- **B9** construido (`e68361c5`): auditor PASS; Codex r1 BLOCK (re-reparto de gerencia fuera del subárbol, bloqueo sin acotar, preflight sin definición de trigger) → r1 en curso con el cambio de B6.
+- **B10** en construcción (banco B). Añadido: capital también al registrar «agendó cita» sobre un contacto sin capital.
+- **F5/F6** construidas (`43e9246d`…`9f7a41bc`, check 6030, E2E 8/8); revisor-a11y CHANGES_REQUESTED (5 P2 de foco/scroll/reparto) + ajustes del contrato de B9 → en curso.
+- **B11** (conversión) pendiente: no hace falta para usar las bases.
