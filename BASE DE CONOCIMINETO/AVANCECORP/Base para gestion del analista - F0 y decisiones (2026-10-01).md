@@ -509,3 +509,19 @@ migraciones aplicadas. Nada en producción.
   fusionar la remota (nunca forzar) y volver a comprobar `app/` contra lo publicado.
 - Nota: los datos de muestra de la demo viajan en el bundle de producción, como los demás datos de demo (`lib/demo.ts`);
   `verificar-bundle-produccion.mjs` solo prohíbe los fixtures sensibles (contrato de demo y sus nombres).
+
+### F4 · Vista del supervisor (04/10) — B6b EN PRODUCCIÓN, pantalla lista
+- Decisiones de Miguel (03/10): pestañas «Descartes del mes» (intacto) / «Gestión de la base»; «Ver no contactar» solo
+  supervisor y gerencia con marca completa; todo número del panel se abre; ficha del supervisor = consulta + «Quitar No
+  contactar». Plan y contrato: `BASE PARA GESTION/F4-SUPERVISOR.md`.
+- **B6b** `20261004045038` aplicada por Miguel con `!` + registrador el 04/10; verificada en solo lectura. Ciclo: banco Docker
+  → auditor-rls (3 pasadas, PASS) → Codex r1 BLOCK (foto sin REPEATABLE READ) → r2 BLOCK (ancla por hora) → decisión del
+  PRIMARY → rama con datos (borrada).
+- 🔑 La marca vigente de «No contactar» NO se puede anclar por hora: marcar/levantar escriben la actividad solo en un lead
+  y `now()` empata dentro de una transacción. Lo fiable es el ÚLTIMO evento de veto entre TODOS los leads de la persona
+  (`private.leads_de_persona_veto` ∪ el propio), ordenado por `creado_en` (que el trigger de gestión serializada sella con
+  `clock_timestamp()` en la vía real), y sus datos solo si ese lead es visible para quien llama.
+- 🔑 Las huellas de las migraciones del módulo son `md5(prosrc)`, no `md5(pg_get_functiondef)`: para acreditar en
+  producción, comparar `prosrc`.
+- Pantalla `crm/base-gestion-f4` (`538ca9ec`): revisor-a11y, Codex r1/r2 aplicados; degrada si falta B6b (PGRST202).
+- Pendiente: **B6c** (reservar `metadata.evento='no_contactar'` para las puertas oficiales; decisión de Miguel).
