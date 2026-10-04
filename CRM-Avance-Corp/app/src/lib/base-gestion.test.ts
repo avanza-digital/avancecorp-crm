@@ -12,6 +12,7 @@ import {
   etiquetaRellamada,
   etiquetaUltimoResultado,
   filasDemoBaseGestion,
+  type FilaBaseGestion,
 } from './base-gestion'
 
 // Viernes 2 de octubre de 2026, 20:00 en Lima (01:00 UTC del sábado 3): la hora en que el UTC ya es «mañana».
@@ -76,14 +77,53 @@ describe('espejo demo', () => {
     actualizado_en: '2026-09-30T15:00:00Z', motivo_descarte: 'no_responde', ...sobre,
   } as Lead)
 
-  it('solo trae los descartados vivos del propio analista y nunca los de «no contactar»', () => {
+  // Los leads de MUESTRA (F3) viven solo en la base demo; los del store se reconocen por no llevar el prefijo.
+  const delStore = (filas: { lead_id: string }[]) => filas.filter((f) => !f.lead_id.startsWith('demo-base-'))
+
+  it('del store solo trae los descartados vivos del propio analista y nunca los de «no contactar»', () => {
     const filas = filasDemoBaseGestion([
       lead({ id: 'mio' }),
       lead({ id: 'ajeno', vendedor_id: 'otro' }),
       lead({ id: 'vivo', etapa: 'contactado' }),
       lead({ id: 'vetado', no_contactar: true }),
     ], 'yo', AHORA)
-    expect(filas.map((f) => f.lead_id)).toEqual(['mio'])
-    expect(filas[0]).toMatchObject({ intentos: 0, etapa_maxima: 'sin_datos', dias_desde_descarte: 2, motivo_descarte: 'no_responde' })
+    expect(delStore(filas).map((f) => f.lead_id)).toEqual(['mio'])
+    expect(filas.find((f) => f.lead_id === 'mio')).toMatchObject({ intentos: 0, etapa_maxima: 'sin_datos', dias_desde_descarte: 2, motivo_descarte: 'no_responde' })
+  })
+
+  it('sin analista no fabrica nada (ni siquiera la muestra)', () => {
+    expect(filasDemoBaseGestion([lead({ id: 'mio' })], '', AHORA)).toEqual([])
+  })
+
+  it('la muestra deja ver «Llamar hoy» (una de hoy y una vencida, en días de Lima) y da variedad a los filtros', () => {
+    const filas = filasDemoBaseGestion([lead({ id: 'mio', vendedor_nombre: 'ANALISTA UNO' })], 'yo', AHORA)
+    const hoy = filas.filter((f) => f.rellamada_hoy)
+    expect(hoy.length).toBeGreaterThanOrEqual(2)
+    // 20:00 del viernes en Lima (ya sábado en UTC): la de las 10:00 de HOY sigue siendo de hoy; la de ayer, vencida.
+    expect(hoy.map((f) => estadoRellamada(f.proxima_llamada_en ?? '', AHORA)).sort()).toEqual(['hoy', 'vencida'])
+    // Una rellamada de otro día NO es de hoy.
+    expect(filas.some((f) => f.proxima_llamada_en !== null && !f.rellamada_hoy)).toBe(true)
+    expect(new Set(filas.map((f) => f.motivo_descarte)).size).toBeGreaterThanOrEqual(3)
+    expect(new Set(filas.map((f) => f.etapa_maxima)).size).toBeGreaterThanOrEqual(3)
+    expect(new Set(filas.map((f) => f.ultimo_resultado)).size).toBeGreaterThanOrEqual(3)
+    expect(new Set(filas.map((f) => f.recibido_en?.slice(0, 7))).size).toBeGreaterThanOrEqual(2)
+    // Son del analista y la ficha dice quién los gestiona.
+    expect(filas.every((f) => f.vendedor_id === 'yo' && f.gestiona === 'ANALISTA UNO')).toBe(true)
+  })
+
+  it('ordenada como el servidor: rellamadas de hoy → etapa máxima → descarte más reciente', () => {
+    const filas = filasDemoBaseGestion([lead({ id: 'mio' })], 'yo', AHORA)
+    const rango = { sin_datos: 0, nuevo: 1, contactado: 2, reunion_agendada: 3, propuesta_enviada: 4, convertido: 5 } as const
+    const clave = (f: FilaBaseGestion) => [f.rellamada_hoy ? 0 : 1, -rango[f.etapa_maxima], f.dias_desde_descarte ?? Infinity]
+    const noDespues = (a: number[], b: number[]): boolean => {
+      for (let k = 0; k < a.length; k += 1) if (a[k] !== b[k]) return (a[k] ?? 0) < (b[k] ?? 0)
+      return true
+    }
+    for (let i = 1; i < filas.length; i += 1) {
+      const [a, b] = [filas[i - 1], filas[i]] as [FilaBaseGestion, FilaBaseGestion]
+      expect(noDespues(clave(a), clave(b)), `${a.lead_id} antes que ${b.lead_id}`).toBe(true)
+    }
+    expect(filas[0]?.rellamada_hoy).toBe(true)
+    expect(filas.at(-1)?.lead_id).toBe('mio') // sin historial y sin rellamada: al final
   })
 })
