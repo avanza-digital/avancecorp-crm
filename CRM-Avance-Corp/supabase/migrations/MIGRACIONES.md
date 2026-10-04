@@ -1,3 +1,7 @@
+## 20261003225551 — Lectura de Gestionado para ficha y listados
+
+**AUTORIZADA, EN VERIFICACIÓN (03/10/2026):** Miguel autorizó «Sí, probar y publicar todo» tras revisar la propuesta. Nueva puerta `crm.gestion_vigente_fn(uuid[])` → `private.gestion_vigente_lectura(uuid[])`, ambas INVOKER, RLS vigente, actor CRM admitido, lote máximo 100. Devuelve solo estado e identidad de tenencia de nuevos activos; no modifica datos, tablas, políticas ni etapas. Excluye cualquier `deshecho_en` y gestiones anteriores a la tenencia. SQL y frontend deben publicarse en ese orden. Reversa: volver al frontend anterior y retirar ambas funciones en migración separada. Estado de producción y gates se completarán al finalizar.
+
 ## 20261002163158 — «Retirar cuenta» y «Cambiar cuenta de pago» solo en READ COMMITTED (`private.retirar_cuenta_cliente_autorizado`, `private.cambiar_cuenta_pago_contratos_autorizado`)
 
 **✅ APLICADA EN PRODUCCIÓN EL 02/10/2026 (~12:20 Lima)** con `db query --linked --file`: devolvió

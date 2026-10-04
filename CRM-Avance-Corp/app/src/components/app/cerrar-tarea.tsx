@@ -1,3 +1,4 @@
+import { useEtapaVisible } from '@/lib/use-etapa-visible'
 import { FormTareaPostventa } from './postventa-tarea'
 // Diálogo de cierre de tarea — el corazón del MOTOR (Fase B del plan v2).
 //
@@ -182,6 +183,7 @@ export function CerrarTareaDialog({ tarea, onCerrar }: { tarea: Tarea | null; on
 function FormCierre({ tarea, onCerrar, onRegistrarLlamada }: { tarea: Tarea; onCerrar: () => void; onRegistrarLlamada?: (() => void) | undefined }) {
   // Tarea de LLAMADA de un lead: el resultado (siete opciones) vive en el panel
   // de Gestión Diaria; aquí quedan el contexto del lead y «anular».
+  const etapaDe = useEtapaVisible()
   const llamadaTipificada = onRegistrarLlamada != null
   const { lead, completarTarea, anularTarea, descartar, tareasDe } = useCRMData()
   const ahora = useAhora()
@@ -600,8 +602,8 @@ function FormCierre({ tarea, onCerrar, onRegistrarLlamada }: { tarea: Tarea; onC
           <div className="mt-1 flex items-center gap-2 rounded-lg bg-muted/40 px-2.5 py-1.5">
             <Avatar nombre={l.nombre_completo} genero={l.genero ?? null} className="size-6 text-[9px]" />
             <span className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground">{l.nombre_completo}</span>
-            <Badge color={ETAPA_INFO[l.etapa].color} dot className="shrink-0 text-[10px]">
-              {ETAPA_INFO[l.etapa].label}
+            <Badge color={etapaDe(l).color} dot className="shrink-0 text-[10px]">
+              {etapaDe(l).label}
             </Badge>
             {l.monto_estimado != null && (
               <span className="shrink-0 text-sm font-extrabold tabular-nums text-primary">

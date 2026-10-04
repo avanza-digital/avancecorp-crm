@@ -94,7 +94,7 @@ const { Cartera } = await import('./cartera')
 
 describe('Cartera · filtro Gestionado', () => {
   it('pide la clasificación al servidor, compone con origen y la retira al cambiar de etapa', () => {
-    montar([lead()])
+    montar([lead({ gestion_vigente: true })])
     const etapa = screen.getByLabelText('Filtrar por etapa')
     expect(within(etapa).getAllByRole('option').map((o) => o.textContent)).toEqual([
       'Todas las etapas', 'Nuevo', 'Gestionado', 'Contactado', 'Cita agendada',
@@ -110,6 +110,7 @@ describe('Cartera · filtro Gestionado', () => {
     fireEvent.change(etapa, { target: { value: 'nuevo' } })
     expect(CONSULTAR_CARTERA.mock.lastCall?.[1]).not.toHaveProperty('gestion')
     fireEvent.change(etapa, { target: { value: 'todas' } })
+    expect(screen.getByRole('row', { name: /ROSA QUISPE/ })).toHaveTextContent('Gestionado')
     expect(CONSULTAR_CARTERA.mock.lastCall?.[1]).toMatchObject({ etapa: 'todas', origen: 'landing' })
     expect(CONSULTAR_CARTERA.mock.lastCall?.[1]).not.toHaveProperty('gestion')
   })
