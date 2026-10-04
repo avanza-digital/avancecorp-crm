@@ -66,7 +66,7 @@ test('cargar un CSV: vista previa → crear_base + lotes → informe por veredic
   await page.getByRole('button', { name: 'Cargar base' }).first().click()
   const hoja = page.getByRole('dialog', { name: 'Cargar base' })
   const csv = ['Nombre;Celular;DNI;Distrito', 'ROSA QUISPE;987654321;45871236;Surco', 'LUIS RÍOS;987000111;;', 'SIN CELULAR;12345;;', 'ANA PÉREZ;987000222;;Lince'].join('\n')
-  await hoja.getByLabel('Elegir el archivo').setInputFiles({ name: 'Feria 2025.csv', mimeType: 'text/csv', buffer: Buffer.from(csv, 'utf-8') })
+  await hoja.getByLabel('Elegir archivo').setInputFiles({ name: 'Feria 2025.csv', mimeType: 'text/csv', buffer: Buffer.from(csv, 'utf-8') })
   await expect(hoja.getByText('Feria 2025.csv · 4 filas con datos')).toBeVisible()
   await expect(hoja.getByRole('button', { name: /Se enviarán\s?:?\s?3/ })).toBeVisible()
   await expect(hoja.getByRole('button', { name: /Inválidas\s?:?\s?1/ })).toBeVisible()
@@ -117,12 +117,16 @@ test('dentro de una base: repartir por cantidades («En partes iguales») y segu
   const repartos: Record<string, unknown>[] = []
   await page.route('**/rest/v1/rpc/repartir_base', async (route) => {
     repartos.push(route.request().postDataJSON() as Record<string, unknown>)
-    await route.fulfill({ json: { repartidos: 85, por_analista: [{ analista_id: 'vend-1', cantidad: 43 }, { analista_id: 'vend-2', cantidad: 42 }], omitidos: [] } })
+    await route.fulfill({ json: {
+      ok: true, operacion_id: 'x', base_id: BASE, modo: 'bloque', repartidos: 85,
+      por_analista: [{ analista_id: 'vend-2', cantidad: 43 }, { analista_id: 'vend-1', cantidad: 42 }],
+      omitidos: [{ lead_id: null, motivo: 'en_gestion', cantidad: 2 }],
+    } })
   })
   const recoger: Record<string, unknown>[] = []
   await page.route('**/rest/v1/rpc/recoger_de_base', async (route) => {
     recoger.push(route.request().postDataJSON() as Record<string, unknown>)
-    await route.fulfill({ json: { recogidos: 12, omitidos: 28 } })
+    await route.fulfill({ json: { ok: true, operacion_id: 'x', base_id: BASE, analista_id: ANA, recogidos: 12, omitidos: 28, pendientes: 0 } })
   })
 
   await loginReal(page)
@@ -137,6 +141,7 @@ test('dentro de una base: repartir por cantidades («En partes iguales») y segu
   await expect(page.getByText('85 de 85 por repartir')).toBeVisible()
   await page.getByRole('button', { name: 'Repartir 85' }).click()
   await expect.poll(() => repartos.length).toBe(1)
+  await expect(page.getByText(/No se pudieron elegir 2: 2 · en gestión/)).toBeVisible()
   expect(repartos[0]).toEqual({
     p_operacion_id: expect.any(String), p_base_id: BASE,
     p_reparto: { modo: 'bloque', asignaciones: [{ analista_id: UID_EQUIPO[1], cantidad: 43 }, { analista_id: UID_EQUIPO[0], cantidad: 42 }] },
@@ -153,4 +158,6 @@ test('dentro de una base: repartir por cantidades («En partes iguales») y segu
   await expect.poll(() => recoger.length).toBe(1)
   expect(recoger[0]).toEqual({ p_operacion_id: expect.any(String), p_base_id: BASE, p_analista_id: ANA })
   await expect(page.getByText(/Recogidos 12/)).toBeVisible()
+  // Tras recoger, el foco no cae en <body>: vuelve a la hoja del seguimiento.
+  await expect(seguimiento).toBeFocused()
 })

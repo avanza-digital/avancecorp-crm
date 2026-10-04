@@ -35,11 +35,14 @@ export function NumeroAbrible({ valor, contexto, pista = 'ver la lista', urgente
   )
 }
 
-/** Un refresco o una lectura que falló, con «Reintentar» (aria-disabled mientras reintenta: el foco no se pierde). */
-export function AvisoReintentar({ mensaje, reintentando, onReintentar }: { mensaje: string; reintentando: boolean; onReintentar: () => void }) {
+/**
+ * Un refresco o una lectura que falló, con «Reintentar» (aria-disabled mientras reintenta: el foco no se pierde). Si aún se
+ * muestran los últimos datos (`conDatos`) es un aviso cortés (`status`); si no hay nada que ver, una alerta.
+ */
+export function AvisoReintentar({ mensaje, reintentando, onReintentar, conDatos = false }: { mensaje: string; reintentando: boolean; onReintentar: () => void; conDatos?: boolean }) {
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-4 py-2.5">
-      <p role="alert" className="text-sm text-[var(--muted-foreground-strong)]">{mensaje}</p>
+      <p role={conDatos ? 'status' : 'alert'} className="text-sm text-[var(--muted-foreground-strong)]">{mensaje}</p>
       <Button variant="outline" size="sm" className="pointer-coarse:h-11" aria-disabled={reintentando || undefined} onClick={() => { if (!reintentando) onReintentar() }}>
         <RotateCcw aria-hidden /> Reintentar
       </Button>

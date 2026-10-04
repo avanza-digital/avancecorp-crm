@@ -3,7 +3,7 @@
 // resultado): se ve el conteo, se le pone nombre y se arma con `crm.armar_base_crm`. Lo que tiene seguimiento activo (B6:
 // un intento de los últimos 7 días o una rellamada agendada) sale en gris y no se envía; el servidor vuelve a decidir y
 // devuelve los incluidos y los excluidos con su motivo («ocupado» = otro proceso lo tenía: reintenta).
-import { useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Layers, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,6 +12,7 @@ import { BarraFiltros, Pastilla } from '@/components/base-gestion/filtros-base'
 import { EtapaMaximaChip, MesDelLead } from '@/components/base-gestion/piezas-base'
 import { PanelCargando, PanelVacio } from '@/components/common/estado-panel'
 import { Paginacion } from '@/components/common/paginacion'
+import { FOCO } from '@/components/gestion-diaria/estilos-gestion'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData } from '@/lib/store-context'
 import { useAhora } from '@/lib/ahora'
@@ -86,6 +87,16 @@ export function ArmarDesdeCrm({ puertas, esGerencia, supervisores, onVerBase }: 
   const [resultado, setResultado] = useState<{ respuesta: RespuestaArmarBase; nombre: string } | null>(null)
   const envio = useRef<{ id: string; firma: string } | null>(null)
   const primerFiltro = useRef<HTMLSelectElement>(null)
+  const tituloResultado = useRef<HTMLHeadingElement>(null)
+  const campoNombre = useRef<HTMLInputElement>(null)
+  const volverAlNombre = useRef(false)
+  // El éxito se ANUNCIA llevando el foco a su título; «Armar otra» lo devuelve al nombre (o al primer filtro).
+  useEffect(() => {
+    if (resultado) { tituloResultado.current?.focus(); return }
+    if (!volverAlNombre.current) return
+    volverAlNombre.current = false
+    ;(campoNombre.current ?? primerFiltro.current)?.focus()
+  }, [resultado])
 
   // Los candidatos: los descartados vivos del ámbito, sin «No contactar» ni otra base. Gerencia arma para UN supervisor:
   // solo los leads de sus analistas (la bandeja de cada supervisor no se distingue en esta lista).
@@ -102,7 +113,7 @@ export function ArmarDesdeCrm({ puertas, esGerencia, supervisores, onVerBase }: 
     const r = resultado.respuesta
     return (
       <section aria-labelledby={`${id}-resultado`} className="space-y-3">
-        <h3 id={`${id}-resultado`} tabIndex={-1} className="text-[15px] font-bold text-primary">Base «{resultado.nombre}» armada</h3>
+        <h3 ref={tituloResultado} id={`${id}-resultado`} tabIndex={-1} className={cn('rounded text-[15px] font-bold text-primary', FOCO)}>Base «{resultado.nombre}» armada</h3>
         <div className="flex flex-wrap gap-2">
           <Pastilla etiqueta="Incluidos" valor={r.incluidos} />
           <Pastilla etiqueta="Quedaron fuera" valor={r.excluidos} />
@@ -117,7 +128,7 @@ export function ArmarDesdeCrm({ puertas, esGerencia, supervisores, onVerBase }: 
           </div>
         )}
         <div className="flex flex-wrap justify-end gap-2">
-          <Button type="button" variant="outline" className="h-9 pointer-coarse:h-11" onClick={() => { setResultado(null); setNombre(''); envio.current = null }}>Armar otra</Button>
+          <Button type="button" variant="outline" className="h-9 pointer-coarse:h-11" onClick={() => { volverAlNombre.current = true; setResultado(null); setNombre(''); envio.current = null }}>Armar otra</Button>
           <Button type="button" className="h-9 pointer-coarse:h-11" onClick={() => onVerBase(r.base_id)}>Ver la base y repartir</Button>
         </div>
       </section>
@@ -157,6 +168,7 @@ export function ArmarDesdeCrm({ puertas, esGerencia, supervisores, onVerBase }: 
         setError({ tipo: 'envio', texto: 'Ningún lead de la lista es elegible: no se creó la base.', porMotivo: causa.detalle as Record<string, number[]> })
       } else if (causa instanceof CrmApiError && causa.code === 'NOMBRE_REPETIDO') {
         setError({ tipo: 'nombre', texto: causa.message })
+        campoNombre.current?.focus()
       } else {
         setError({ tipo: 'envio', texto: causa instanceof CrmApiError ? causa.message : 'No se pudo armar la base. Vuelve a intentarlo.' })
       }
@@ -211,7 +223,8 @@ export function ArmarDesdeCrm({ puertas, esGerencia, supervisores, onVerBase }: 
               etiqueta="Filtrar los descartados"
             />
           </div>
-          <div className="ac-scroll max-h-[18rem] overflow-auto rounded-lg border border-[var(--border-strong)] bg-card">
+          {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- La lista no tiene controles: se desplaza con el teclado desde aquí. */}
+          <div tabIndex={0} role="region" aria-label="Descartes que entrarían a la base" className={cn('ac-scroll max-h-[18rem] overflow-auto rounded-lg border border-[var(--border-strong)] bg-card', FOCO)}>
             <table className="min-w-full border-separate border-spacing-0">
               <caption className="sr-only">Descartados que entrarían a la base{hayFiltros(filtros) ? ', con los filtros elegidos' : ''}; los que tienen seguimiento activo, al final y en gris.</caption>
               <thead>
@@ -245,6 +258,7 @@ export function ArmarDesdeCrm({ puertas, esGerencia, supervisores, onVerBase }: 
             <div className="flex w-full flex-col gap-1 sm:w-80">
               <label htmlFor={`${id}-nombre`} className="text-[13px] font-semibold text-foreground">Nombre de la base</label>
               <Input
+                ref={campoNombre}
                 id={`${id}-nombre`}
                 value={nombre}
                 maxLength={80}

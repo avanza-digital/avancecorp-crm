@@ -62,6 +62,7 @@ function ReactivarDialogo({ fila, demo, abierto, onCerrar, onHecho }: { fila: Fi
   const [capital, setCapital] = useState('')
   const [moneda, setMoneda] = useState<Moneda>(fila.moneda ?? 'PEN')
   const [error, setError] = useState<{ tipo: 'capital' | 'envio'; texto: string } | null>(null)
+  const campoCapital = useRef<HTMLInputElement>(null)
   // El MISMO contenido reusa su id de operación (un doble clic o un reintento devuelven la respuesta original).
   const envio = useRef<{ id: string; firma: string } | null>(null)
   const cerrar = () => { if (mutacion.isPending) return; setNota(''); setCapital(''); setError(null); envio.current = null; onCerrar() }
@@ -71,6 +72,7 @@ function ReactivarDialogo({ fila, demo, abierto, onCerrar, onHecho }: { fila: Fi
     const monto = pideCapital ? normalizarCapital(capital) : null
     if (pideCapital && monto === null) {
       setError({ tipo: 'capital', texto: 'Indica el capital estimado (un número mayor que 0) para reactivarlo: el pipeline no recibe leads sin capital.' })
+      campoCapital.current?.focus()
       return
     }
     if (demo) { toast.info('En la demo no se reactiva'); return }
@@ -99,10 +101,11 @@ function ReactivarDialogo({ fila, demo, abierto, onCerrar, onHecho }: { fila: Fi
       </DialogHeader>
       <DialogBody>
         {pideCapital && (
-          <div className="mb-4 grid grid-cols-[1fr_8rem] gap-3">
+          <div className="mb-4 grid grid-cols-1 gap-3 min-[400px]:grid-cols-[1fr_10rem]">
             <div>
               <label htmlFor={`${id}-capital`} className="mb-1 block text-sm font-semibold text-foreground">Capital estimado</label>
               <Input
+                ref={campoCapital}
                 id={`${id}-capital`}
                 inputMode="decimal"
                 autoComplete="off"
@@ -122,7 +125,7 @@ function ReactivarDialogo({ fila, demo, abierto, onCerrar, onHecho }: { fila: Fi
                 <option value="USD">Dólares (US$)</option>
               </Select>
             </div>
-            <p id={`${id}-ayuda-capital`} className="col-span-2 text-[13px] text-[var(--muted-foreground-strong)]">
+            <p id={`${id}-ayuda-capital`} className="text-[13px] text-[var(--muted-foreground-strong)] min-[400px]:col-span-2">
               Este contacto llegó sin capital. Es obligatorio para volver al pipeline.
             </p>
           </div>

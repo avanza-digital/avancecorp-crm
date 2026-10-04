@@ -1,6 +1,7 @@
 // «Cargar base» (F5, E1 de Miguel: «las dos cosas»): una hoja lateral ancha con dos caminos que terminan en el mismo
-// reparto: subir un archivo (.xlsx/.csv) o armarla con descartados del CRM. Mientras una carga corre, la hoja no se cierra
-// (cerrarla a medias dejaría la base incompleta sin informe).
+// reparto: subir un archivo (.xlsx/.csv) o armarla con descartados del CRM. Mientras una carga corre, ni la hoja se cierra
+// ni se cambia de camino (se avisa): cerrarla a medias dejaría la base incompleta sin informe. Los dos caminos se quedan
+// montados (el oculto, con `hidden`): ir y volver no pierde el archivo ni los filtros elegidos.
 import { useCallback, useState, type JSX } from 'react'
 import { toast } from 'sonner'
 import { X } from 'lucide-react'
@@ -28,6 +29,7 @@ export function CargarBase({ abierta, puertas, esGerencia, supervisores, onCerra
   onVerBase: (baseId: string) => void
 }): JSX.Element {
   const [camino, setCamino] = useState<Camino>('archivo')
+  const [visitados, setVisitados] = useState<ReadonlySet<Camino>>(() => new Set(['archivo']))
   const [enCurso, setEnCurso] = useState(false)
   const alEnCurso = useCallback((v: boolean) => setEnCurso(v), [])
   const cerrar = () => {
@@ -35,6 +37,11 @@ export function CargarBase({ abierta, puertas, esGerencia, supervisores, onCerra
     onCerrar()
   }
   const verBase = (baseId: string) => { onCerrar(); onVerBase(baseId) }
+  const cambiarCamino = (c: Camino) => {
+    if (enCurso) { toast.info('Espera a que termine la carga para cambiar de camino.'); return }
+    setCamino(c)
+    setVisitados((v) => (v.has(c) ? v : new Set([...v, c])))
+  }
   return (
     <Sheet open={abierta} onClose={cerrar} className="w-full max-w-full sm:w-[1080px] sm:max-w-[96vw]">
       {abierta && (
@@ -59,10 +66,15 @@ export function CargarBase({ abierta, puertas, esGerencia, supervisores, onCerra
             </div>
           </SheetHeader>
           <SheetBody>
-            <Tabs etiqueta="Cómo cargar la base" pestanas={CAMINOS} valor={camino} onCambio={(c) => { if (!enCurso) setCamino(c) }} variante="pastilla" panelEnfocable={false}>
-              {camino === 'archivo'
-                ? <CargaArchivo puertas={puertas} esGerencia={esGerencia} supervisores={supervisores} onVerBase={verBase} onEnCurso={alEnCurso} />
-                : <ArmarDesdeCrm puertas={puertas} esGerencia={esGerencia} supervisores={supervisores} onVerBase={verBase} />}
+            <Tabs etiqueta="Cómo cargar la base" pestanas={CAMINOS} valor={camino} onCambio={cambiarCamino} variante="pastilla" panelEnfocable={false}>
+              <div hidden={camino !== 'archivo'}>
+                <CargaArchivo puertas={puertas} esGerencia={esGerencia} supervisores={supervisores} onVerBase={verBase} onEnCurso={alEnCurso} />
+              </div>
+              {visitados.has('crm') && (
+                <div hidden={camino !== 'crm'}>
+                  <ArmarDesdeCrm puertas={puertas} esGerencia={esGerencia} supervisores={supervisores} onVerBase={verBase} />
+                </div>
+              )}
             </Tabs>
           </SheetBody>
         </>

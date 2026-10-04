@@ -51,6 +51,9 @@ import { CELDA_COMPACTA, ENCABEZADO_COMPACTO, ROTULO } from './piezas-bases'
 type Fase = 'preparando' | 'cargando' | 'pausada' | 'terminada'
 type Errores = { nombre?: string | undefined; supervisor?: string | undefined; envio?: string | undefined }
 type FiltroVista = 'todas' | 'validas' | 'invalidas' | 'repetidas'
+const FILTRO_VISTA_TEXTO: Readonly<Record<FiltroVista, string>> = {
+  todas: '', validas: ', solo las que se enviarán', invalidas: ', solo las inválidas', repetidas: ', solo las repetidas en el archivo',
+}
 
 const esperar = (ms: number) => new Promise<void>((resolver) => { setTimeout(resolver, ms) })
 
@@ -95,6 +98,9 @@ export function CargaArchivo({ puertas, esGerencia, supervisores, onVerBase, onE
   const [terminadaAMedias, setTerminadaAMedias] = useState(false)
   const corriendo = useRef(false)
   const entrada = useRef<HTMLInputElement>(null)
+  const campoNombre = useRef<HTMLInputElement>(null)
+  // Tras un cambio de fase que retira el control pulsado, adónde va el foco (se aplica después de pintar).
+  const [focoPendiente, setFocoPendiente] = useState<'progreso' | 'nombre' | 'archivo' | null>(null)
   const tituloProgreso = useRef<HTMLHeadingElement>(null)
 
   const preparacion = useMemo(() => (tabla ? prepararFilas(tabla, mapeo) : null), [tabla, mapeo])
@@ -109,6 +115,12 @@ export function CargaArchivo({ puertas, esGerencia, supervisores, onVerBase, onE
     return () => window.removeEventListener('beforeunload', avisar)
   }, [fase, onEnCurso])
   useEffect(() => () => onEnCurso(false), [onEnCurso])
+  useEffect(() => {
+    if (!focoPendiente) return
+    const destino = focoPendiente === 'progreso' ? tituloProgreso.current : focoPendiente === 'nombre' ? campoNombre.current : entrada.current
+    destino?.focus()
+    setFocoPendiente(null)
+  }, [focoPendiente])
 
   async function elegirArchivo(elegido: File | null | undefined) {
     if (!elegido || leyendo) return
@@ -140,7 +152,10 @@ export function CargaArchivo({ puertas, esGerencia, supervisores, onVerBase, onE
       // Una regla del servidor al CREAR la base (nombre repetido, sin permiso): se vuelve al formulario a corregir.
       if (fin.avance.baseId === null && fin.error.code !== CODIGO_RED) {
         setPlan(null); setFase('preparando')
-        setErrores(fin.error.code === CODIGO_NO_DISPONIBLE || fin.error.code === 'SIN_PERMISO' ? { envio: fin.error.message } : { nombre: fin.error.message })
+        const enEnvio = fin.error.code === CODIGO_NO_DISPONIBLE || fin.error.code === 'SIN_PERMISO'
+        setErrores(enEnvio ? { envio: fin.error.message } : { nombre: fin.error.message })
+        // El botón «Cargar» vuelve a pintarse; el foco va al nombre a corregir (o al botón, que lleva el error).
+        setFocoPendiente(enEnvio ? null : 'nombre')
         return
       }
       setErrorCarga(fin.error); setFase('pausada')
@@ -170,6 +185,7 @@ export function CargaArchivo({ puertas, esGerencia, supervisores, onVerBase, onE
   function reiniciar() {
     setArchivo(null); setTabla(null); setMapeo(MAPEO_VACIO); setNombre(''); setSupervisorId(''); setErrores({})
     setPlan(null); setAvance(AVANCE_INICIAL); setErrorCarga(null); setFase('preparando'); setTerminadaAMedias(false)
+    setFocoPendiente('archivo')
   }
 
   // ── Cargando, pausada o terminada ───────────────────────────────────────────────────────────────────────────
@@ -178,7 +194,8 @@ export function CargaArchivo({ puertas, esGerencia, supervisores, onVerBase, onE
     const pct = totalFilas === 0 ? 100 : Math.round((avance.filasHechas / totalFilas) * 100)
     // Lo que se ANUNCIA (cada cuarto del camino, el reintento y el final); el texto visible dice el detalle exacto.
     const hito = Math.min(4, Math.floor(pct / 25))
-    const anuncio = fase === 'terminada' ? `Carga terminada: ${avance.filasHechas} de ${totalFilas} filas enviadas.`
+    const anuncio = fase === 'terminada'
+      ? (terminadaAMedias ? `Carga detenida: se enviaron ${avance.filasHechas} de ${totalFilas} filas.` : `Carga terminada: ${avance.filasHechas} de ${totalFilas} filas enviadas.`)
       : fase === 'pausada' ? 'La carga se detuvo.'
         : avance.reintento > 0 ? `La base estaba ocupada: reintento ${avance.reintento}.`
           : `Cargando: ${hito * 25} %.`
@@ -204,7 +221,7 @@ export function CargaArchivo({ puertas, esGerencia, supervisores, onVerBase, onE
                 <RotateCcw aria-hidden /> Reintentar
               </Button>
               {avance.baseId && (
-                <Button type="button" variant="outline" size="sm" className="pointer-coarse:h-11" onClick={() => { setTerminadaAMedias(true); setFase('terminada') }}>
+                <Button type="button" variant="outline" size="sm" className="pointer-coarse:h-11" onClick={() => { setTerminadaAMedias(true); setFase('terminada'); setFocoPendiente('progreso') }}>
                   Terminar aquí y ver el informe
                 </Button>
               )}
@@ -257,7 +274,6 @@ export function CargaArchivo({ puertas, esGerencia, supervisores, onVerBase, onE
             id={`${id}-archivo-control`}
             type="file"
             accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
-            aria-label={archivo ? 'Cambiar el archivo' : 'Elegir el archivo'}
             aria-describedby={`${id}-archivo-ayuda${errorArchivo ? ` ${id}-archivo-error` : ''}`}
             aria-invalid={errorArchivo ? true : undefined}
             onChange={(e: ChangeEvent<HTMLInputElement>) => void elegirArchivo(e.target.files?.[0])}
@@ -295,6 +311,8 @@ export function CargaArchivo({ puertas, esGerencia, supervisores, onVerBase, onE
                       id={`${id}-col-${campo}`}
                       value={mapeo[campo] === null ? '' : String(mapeo[campo])}
                       aria-invalid={falta || undefined}
+                      aria-required={obligatorio || undefined}
+                      aria-describedby={falta ? `${id}-faltan` : undefined}
                       onChange={(e) => { setMapeo((m) => ({ ...m, [campo]: e.target.value === '' ? null : Number(e.target.value) })); setPagina(0) }}
                       className={cn('pointer-coarse:h-11', falta && 'border-[var(--destructive-text)]')}
                     >
@@ -305,6 +323,11 @@ export function CargaArchivo({ puertas, esGerencia, supervisores, onVerBase, onE
                 )
               })}
             </div>
+            {faltan.length > 0 && (
+              <p id={`${id}-faltan`} className="text-sm font-medium text-[var(--destructive-text)]">
+                Elige la columna de {faltan.map((c) => ROTULO_CAMPO[c]).join(' y ')}: {faltan.length === 1 ? 'es obligatoria' : 'son obligatorias'}.
+              </p>
+            )}
           </section>
 
           {/* 3 · Vista previa */}
@@ -312,14 +335,15 @@ export function CargaArchivo({ puertas, esGerencia, supervisores, onVerBase, onE
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 id={`${id}-paso3`} className={ROTULO}>3 · Vista previa</h3>
               <div role="group" aria-label="Filas de la vista previa" className="flex flex-wrap gap-2">
-                <Pastilla etiqueta="Se enviarán" valor={preparacion.validas.length} presionada={filtroVista === 'validas'} pista="ver solo esas" onAbrir={preparacion.validas.length > 0 ? () => alternarVista('validas') : undefined} />
-                <Pastilla etiqueta="Inválidas" valor={preparacion.invalidas} urgente={preparacion.invalidas > 0} presionada={filtroVista === 'invalidas'} pista="ver solo esas" onAbrir={preparacion.invalidas > 0 ? () => alternarVista('invalidas') : undefined} />
-                <Pastilla etiqueta="Repetidas en el archivo" valor={preparacion.repetidas} presionada={filtroVista === 'repetidas'} pista="ver solo esas" onAbrir={preparacion.repetidas > 0 ? () => alternarVista('repetidas') : undefined} />
+                <Pastilla etiqueta="Se enviarán" valor={preparacion.validas.length} presionada={filtroVista === 'validas'} pista="ver solo esas" onAbrir={preparacion.validas.length > 0 || filtroVista === 'validas' ? () => alternarVista('validas') : undefined} />
+                <Pastilla etiqueta="Inválidas" valor={preparacion.invalidas} urgente={preparacion.invalidas > 0} presionada={filtroVista === 'invalidas'} pista="ver solo esas" onAbrir={preparacion.invalidas > 0 || filtroVista === 'invalidas' ? () => alternarVista('invalidas') : undefined} />
+                <Pastilla etiqueta="Repetidas en el archivo" valor={preparacion.repetidas} presionada={filtroVista === 'repetidas'} pista="ver solo esas" onAbrir={preparacion.repetidas > 0 || filtroVista === 'repetidas' ? () => alternarVista('repetidas') : undefined} />
               </div>
             </div>
-            <div className="ac-scroll max-h-[18rem] overflow-auto rounded-lg border border-[var(--border-strong)] bg-card">
+            {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- La vista previa no tiene controles: se desplaza con el teclado desde aquí. */}
+            <div tabIndex={0} role="region" aria-label="Vista previa del archivo" className={cn('ac-scroll max-h-[18rem] overflow-auto rounded-lg border border-[var(--border-strong)] bg-card', FOCO)}>
               <table className="min-w-full border-separate border-spacing-0">
-                <caption className="sr-only">Vista previa del archivo: cada fila con lo que se enviaría o por qué no se envía.</caption>
+                <caption className="sr-only">Vista previa del archivo{FILTRO_VISTA_TEXTO[filtroVista]}: cada fila con lo que se enviaría o por qué no se envía.</caption>
                 <thead>
                   <tr>
                     {['Fila', 'Nombre', 'Teléfono', 'DNI', 'Distrito', 'Capital', 'Estado'].map((c, i) => (
@@ -357,6 +381,7 @@ export function CargaArchivo({ puertas, esGerencia, supervisores, onVerBase, onE
               <div className="flex w-full flex-col gap-1 sm:w-80">
                 <label htmlFor={`${id}-nombre`} className="text-[13px] font-semibold text-foreground">Nombre de la base</label>
                 <Input
+                  ref={campoNombre}
                   id={`${id}-nombre`}
                   value={nombre}
                   maxLength={80}

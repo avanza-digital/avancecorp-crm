@@ -5,11 +5,15 @@
 // Se ve y se maneja como «¿Qué pasó con la llamada?» de Gestión Diaria (Miguel, 03/10): el paso 1 es el selector
 // compartido (`SelectorResultado`: atajos, «Cambiar resultado», foco) y la tarjeta copia la de «Mi día», con la
 // barra de guardar pegada abajo.
+// Bases cargadas (F6, E8 y contrato de la B10): «Contestó · agendó cita» REACTIVA el lead; si es un contacto de base SIN
+// capital, el formulario pide el capital (y la moneda) antes de guardar y usa `crm.registrar_intento_base_v2`. Con capital,
+// o con cualquier otro resultado, todo sigue igual (la puerta de siempre).
 import { useId, useRef, useState, type JSX, type RefObject } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { SelectorResultado } from '@/components/gestion-diaria/selector-resultado'
 import { CrmApiError, type RespuestaIntentoBase } from '@/data/crm-api'
@@ -25,10 +29,12 @@ import {
   type FilaBaseGestion,
 } from '@/lib/base-gestion'
 import type { ResultadoLlamada } from '@/lib/resultado-llamada'
+import { normalizarCapital } from '@/lib/bases-cargadas'
+import type { Moneda } from '@/lib/format'
 
 const DIA_MS = 86_400_000
 /** Qué campo provocó el error: así se asocia (aria-describedby / aria-invalid) al control correcto. */
-type CampoConError = 'resultado' | 'rellamada' | 'envio'
+type CampoConError = 'resultado' | 'rellamada' | 'capital' | 'envio'
 
 export interface DesenlaceIntento {
   /** El lead dejó la base: «agendó cita» lo reactivó, o el tercer intento lo puso a descansar. */
@@ -52,6 +58,9 @@ export function RegistrarIntentoBase({ fila, demo, onDejaLaBase, formRef }: {
   const [nota, setNota] = useState('')
   const [fecha, setFecha] = useState(() => fechaLima(Date.now() + DIA_MS))
   const [hora, setHora] = useState('10:00')
+  const [capital, setCapital] = useState('')
+  const [moneda, setMoneda] = useState<Moneda>(fila.moneda ?? 'PEN')
+  const campoCapital = useRef<HTMLInputElement>(null)
   const [error, setError] = useState<{ campo: CampoConError; texto: string } | null>(null)
   const envio = useRef<{ id: string; firma: string } | null>(null)
   const guardando = mutacion.isPending
@@ -64,6 +73,8 @@ export function RegistrarIntentoBase({ fila, demo, onDejaLaBase, formRef }: {
   const idAviso = `${id}-aviso`
   const idTope = `${id}-tope`
   const intentoN = fila.intentos + 1
+  // «Agendó cita» reactiva: un lead SIN capital no puede volver al pipeline sin él (E8).
+  const pideCapital = resultado === 'agendo_reunion' && fila.monto_estimado === null
 
   // Con este intento llega al tope y el lead descansa (salvo rellamada o cita, que ganan: D12 y D3).
   const descansaria = resultado != null && resultado !== 'volver_a_llamar' && resultado !== 'agendo_reunion'
@@ -119,11 +130,21 @@ export function RegistrarIntentoBase({ fila, demo, onDejaLaBase, formRef }: {
       }
       proxima = rellamada.iso
     }
+    const monto = pideCapital ? normalizarCapital(capital) : null
+    if (pideCapital && monto === null) {
+      setError({ campo: 'capital', texto: 'Indica el capital estimado (un número mayor que 0): al agendar la cita el lead vuelve al pipeline y necesita su capital.' })
+      campoCapital.current?.focus()
+      return
+    }
     if (demo) { toast.info('En la demo los intentos no se guardan'); return }
-    const firma = firmaIntento({ resultado, nota, proximaLlamada: proxima })
+    // El capital también es parte de lo que se manda: con otro capital, otro id de operación.
+    const firma = firmaIntento({ resultado, nota, proximaLlamada: proxima }) + (monto !== null ? JSON.stringify([monto, moneda]) : '')
     if (envio.current?.firma !== firma) envio.current = { id: crypto.randomUUID(), firma }
     try {
-      const r = await mutacion.mutateAsync({ operacionId: envio.current.id, leadId: fila.lead_id, resultado, nota, proximaLlamada: proxima })
+      const r = await mutacion.mutateAsync({
+        operacionId: envio.current.id, leadId: fila.lead_id, resultado, nota, proximaLlamada: proxima,
+        ...(monto !== null ? { montoEstimado: Number(monto), moneda } : {}),
+      })
       envio.current = null
       anunciar(r)
     } catch (causa: unknown) {
@@ -195,6 +216,40 @@ export function RegistrarIntentoBase({ fila, demo, onDejaLaBase, formRef }: {
                   />
                 </div>
                 <p id={idTope} className="text-[13px] text-[var(--muted-foreground-strong)] sm:col-span-2">Como máximo a {DIAS_MAX_RELLAMADA} días desde hoy.</p>
+              </div>
+            </div>
+          )}
+
+          {pideCapital && (
+            <div role="group" aria-labelledby={`${id}-capital-titulo`} className="space-y-2 rounded-xl border border-[var(--accent)]/40 p-2.5">
+              <p id={`${id}-capital-titulo`} className="text-[13px] font-bold text-[var(--muted-foreground-strong)]">Capital para volver al pipeline</p>
+              <div className="grid grid-cols-1 gap-3 min-[400px]:grid-cols-[1fr_10rem]">
+                <div>
+                  <Label htmlFor={`${id}-capital`} className="text-[13px]">Capital estimado</Label>
+                  <Input
+                    ref={campoCapital}
+                    id={`${id}-capital`}
+                    inputMode="decimal"
+                    autoComplete="off"
+                    required
+                    value={capital}
+                    onChange={(e) => { setCapital(e.target.value); if (errorEn('capital')) setError(null) }}
+                    aria-invalid={errorEn('capital') || undefined}
+                    aria-describedby={[`${id}-capital-ayuda`, errorEn('capital') ? idError : null].filter(Boolean).join(' ')}
+                    placeholder="Por ejemplo: 20000"
+                    className="h-10 text-[13px]"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor={`${id}-moneda`} className="text-[13px]">Moneda</Label>
+                  <Select id={`${id}-moneda`} value={moneda} onChange={(e) => setMoneda(e.target.value === 'USD' ? 'USD' : 'PEN')} className="h-10 text-[13px]">
+                    <option value="PEN">Soles (S/)</option>
+                    <option value="USD">Dólares (US$)</option>
+                  </Select>
+                </div>
+                <p id={`${id}-capital-ayuda`} className="text-[13px] text-[var(--muted-foreground-strong)] min-[400px]:col-span-2">
+                  Este contacto llegó sin capital. Al agendar la cita vuelve a tu cartera y el capital es obligatorio.
+                </p>
               </div>
             </div>
           )}

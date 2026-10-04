@@ -1825,18 +1825,51 @@ export interface IntentoBaseEntrada {
   nota?: string | null
   /** ISO con zona; solo con «volver a llamar» (máximo 10 días: lo decide la puerta). */
   proximaLlamada?: string | null
+  /** Bases cargadas (E8, B10): el capital que pide el formulario cuando «agendó cita» reactiva un lead SIN capital. Solo
+   *  entonces viaja, por la puerta nueva `registrar_intento_base_v2`; el resto de intentos usa la de siempre. */
+  montoEstimado?: number | null
+  moneda?: Moneda | null
+}
+
+type RespuestaSinTipos = { data: unknown; error: { code?: string | null; message?: string | null; details?: string | null } | null }
+
+/**
+ * Una puerta de la B10 que aún no sale de `gen:types` (las `_v2` con capital): misma llamada, respuesta validada con su
+ * esquema. Se retira cuando los tipos generados la conozcan.
+ */
+function rpcFueraDeTipos(nombre: string, args: Record<string, unknown>): PromiseLike<RespuestaSinTipos> {
+  const crm = cliente().schema('crm') as unknown as { rpc: (fn: string, a: Record<string, unknown>) => PromiseLike<RespuestaSinTipos> }
+  return crm.rpc(nombre, args)
+}
+
+/** Mensaje cuando el servidor todavía no tiene las puertas con capital (antes de la B10: PGRST202). */
+export const MENSAJE_REACTIVAR_CAPITAL_PRONTO =
+  'Reactivar un contacto sin capital llega con la próxima actualización del servidor: disponible pronto.'
+export const MENSAJE_CITA_CAPITAL_PRONTO =
+  'Agendar la cita de un contacto sin capital llega con la próxima actualización del servidor: disponible pronto.'
+
+/** PGRST202 de una puerta `_v2` con capital: «disponible pronto» (no se reactivó ni se registró nada). */
+function capitalNoDisponible(mensaje: string, evento: string): CrmApiError {
+  const fallo = new CrmApiError(mensaje, 'NO_DISPONIBLE')
+  registrarError(evento, fallo)
+  return fallo
 }
 
 /** Registra un intento sobre un lead de la base. «Agendó cita» reactiva en la misma operación (D3). */
 export async function registrarIntentoBase(entrada: IntentoBaseEntrada): Promise<RespuestaIntentoBase> {
   const nota = entrada.nota?.trim()
-  const { data, error } = await cliente().schema('crm').rpc('registrar_intento_base', sinIndefinidos({
+  const args = sinIndefinidos({
     p_operacion_id: entrada.operacionId,
     p_lead_id: entrada.leadId,
     p_resultado: entrada.resultado,
     p_nota: nota ? nota : undefined,
     p_proxima_llamada: entrada.proximaLlamada ?? undefined,
-  }))
+  })
+  const conCapital = entrada.montoEstimado != null
+  const { data, error } = conCapital
+    ? await rpcFueraDeTipos('registrar_intento_base_v2', { ...args, p_monto_estimado: entrada.montoEstimado, p_moneda: entrada.moneda ?? undefined })
+    : await cliente().schema('crm').rpc('registrar_intento_base', args)
+  if (conCapital && error?.code === 'PGRST202') throw capitalNoDisponible(MENSAJE_CITA_CAPITAL_PRONTO, 'crm.base_gestion.intento_capital_no_disponible')
   if (error) throw aErrorApi(error, 'crm.base_gestion.intento_fallido')
   const r = v.safeParse(RespuestaIntentoBaseSchema, data)
   if (!r.success) {
@@ -1852,19 +1885,15 @@ export interface ReactivarBaseEntrada {
   leadId: string
   nota?: string | null
   /** Bases cargadas (E8, B10): el capital que pide el diálogo cuando el lead NO lo tiene (contacto de un archivo sin
-   *  capital). Solo entonces viaja (con su moneda): un lead con capital usa la firma de siempre. */
+   *  capital). Solo entonces viaja (con su moneda), por la puerta nueva `reactivar_lead_base_v2`. */
   montoEstimado?: number | null
   moneda?: Moneda | null
 }
 
-/** Mensaje cuando el servidor todavía no acepta el capital al reactivar (antes de la B10: PGRST202). */
-export const MENSAJE_REACTIVAR_CAPITAL_PRONTO =
-  'Reactivar un contacto sin capital llega con la próxima actualización del servidor: disponible pronto.'
-
 /**
  * Reactiva un lead de la base: vuelve a la cartera del MISMO analista en «Contactado» (D1, D2), con ciclo nuevo. Con
- * `montoEstimado`, usa la firma nueva de la B10 (`p_monto_estimado`, `p_moneda`), que aún no está en los tipos
- * generados; si el servidor no la tiene (PGRST202) se dice «disponible pronto» y no se reactiva nada.
+ * `montoEstimado` usa la puerta versionada de la B10 `crm.reactivar_lead_base_v2` (la publicada no cambia); si el
+ * servidor aún no la tiene (PGRST202) se dice «disponible pronto» y no se reactiva nada.
  */
 export async function reactivarLeadBase(entrada: ReactivarBaseEntrada): Promise<RespuestaReactivarBase> {
   const nota = entrada.nota?.trim()
@@ -1875,15 +1904,9 @@ export async function reactivarLeadBase(entrada: ReactivarBaseEntrada): Promise<
   })
   const conCapital = entrada.montoEstimado != null
   const { data, error } = conCapital
-    // La firma de la B10 todavía no sale de `gen:types`: misma llamada con dos claves más (la respuesta se valida igual).
-    ? await (cliente().schema('crm') as unknown as { rpc: (fn: string, a: Record<string, unknown>) => PromiseLike<{ data: unknown; error: { code?: string | null; message?: string | null; details?: string | null } | null }> })
-      .rpc('reactivar_lead_base', { ...args, p_monto_estimado: entrada.montoEstimado, p_moneda: entrada.moneda ?? 'PEN' })
+    ? await rpcFueraDeTipos('reactivar_lead_base_v2', { ...args, p_monto_estimado: entrada.montoEstimado, p_moneda: entrada.moneda ?? undefined })
     : await cliente().schema('crm').rpc('reactivar_lead_base', args)
-  if (conCapital && error?.code === 'PGRST202') {
-    const fallo = new CrmApiError(MENSAJE_REACTIVAR_CAPITAL_PRONTO, 'NO_DISPONIBLE')
-    registrarError('crm.base_gestion.reactivar_capital_no_disponible', fallo)
-    throw fallo
-  }
+  if (conCapital && error?.code === 'PGRST202') throw capitalNoDisponible(MENSAJE_REACTIVAR_CAPITAL_PRONTO, 'crm.base_gestion.reactivar_capital_no_disponible')
   if (error) throw aErrorApi(error, 'crm.base_gestion.reactivar_fallido')
   const r = v.safeParse(RespuestaReactivarBaseSchema, data)
   if (!r.success) {

@@ -51,7 +51,7 @@ export function HojaBases({ filas, esMovil, onAbrirBase, onAbrirCifra, regionRef
       <div ref={regionRef} tabIndex={-1} role="list" aria-label="Bases cargadas" className={cn('space-y-3 rounded-lg', FOCO)}>
         {filas.map((f) => (
           <div role="listitem" key={f.base_id} className="rounded-xl border border-border bg-card p-4">
-            <p className="text-base">{nombre(f)}</p>
+            <p className="text-base">{nombre(f, 'pointer-coarse:inline-flex pointer-coarse:min-h-11 pointer-coarse:items-center')}</p>
             <p className="text-sm text-[var(--muted-foreground-strong)]">
               {etiquetaOrigenBase(f.origen)} · {f.supervisor_nombre ?? 'Sin supervisor'} · {fmtFecha(f.creado_en)}
             </p>

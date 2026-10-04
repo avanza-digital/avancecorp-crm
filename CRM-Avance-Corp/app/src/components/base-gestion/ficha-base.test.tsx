@@ -368,6 +368,7 @@ describe('F6 · Reactivar un contacto de base SIN capital (E8)', () => {
     await usuario.click(within(dialogo).getByRole('button', { name: 'Reactivar' }))
     expect(within(dialogo).getByRole('alert')).toHaveTextContent('Indica el capital estimado')
     expect(capital).toHaveAttribute('aria-invalid', 'true')
+    expect(capital).toHaveFocus()
     expect(reactivar.mutateAsync).not.toHaveBeenCalled()
     await usuario.type(capital, '25,000')
     await usuario.selectOptions(within(dialogo).getByLabelText('Moneda'), 'USD')
@@ -393,6 +394,61 @@ describe('F6 · Reactivar un contacto de base SIN capital (E8)', () => {
     expect(await within(dialogo).findByRole('alert')).toHaveTextContent('disponible pronto')
     await usuario.click(within(dialogo).getByRole('button', { name: 'Reactivar' }))
     const [a, b] = reactivar.mutateAsync.mock.calls.map(([e]) => (e as { operacionId: string }).operacionId)
+    expect(a).toBe(b)
+    expect(onCerrar).not.toHaveBeenCalled()
+  })
+})
+
+describe('F6 · «Contestó · agendó cita» de un contacto SIN capital (B10: registrar_intento_base_v2)', () => {
+  const guardar = () => within(formulario()).getByRole('button', { name: 'Guardar intento' })
+
+  it('pide capital y moneda antes de guardar; sin capital no envía y el foco va al campo; con él viaja con el intento', async () => {
+    const usuario = userEvent.setup()
+    intento.mutateAsync.mockResolvedValue({ ...RESPUESTA, reactivado: true, etapa: 'contactado' })
+    abrir({ monto_estimado: null, origen: 'base_cargada', motivo_descarte: 'base_cargada' })
+    expect(within(formulario()).queryByLabelText('Capital estimado')).toBeNull()
+    await usuario.click(radio(/agendó cita/))
+    const capital = within(formulario()).getByLabelText('Capital estimado')
+    expect(capital).toHaveAccessibleDescription(/llegó sin capital/)
+    await usuario.click(guardar())
+    expect(within(formulario()).getByRole('alert')).toHaveTextContent('Indica el capital estimado')
+    expect(capital).toHaveAttribute('aria-invalid', 'true')
+    expect(capital).toHaveFocus()
+    expect(intento.mutateAsync).not.toHaveBeenCalled()
+    await usuario.type(capital, '15,000')
+    await usuario.selectOptions(within(formulario()).getByLabelText('Moneda'), 'USD')
+    await usuario.click(guardar())
+    expect(intento.mutateAsync).toHaveBeenCalledWith({
+      operacionId: expect.any(String), leadId: 'lead-1', resultado: 'agendo_reunion', nota: '', proximaLlamada: null, montoEstimado: 15000, moneda: 'USD',
+    })
+  })
+
+  it('con capital ya puesto, o con otro resultado, no lo pide (la puerta de siempre)', async () => {
+    const usuario = userEvent.setup()
+    abrir()
+    await usuario.click(radio(/agendó cita/))
+    expect(within(formulario()).queryByLabelText('Capital estimado')).toBeNull()
+    await usuario.click(guardar())
+    expect(intento.mutateAsync).toHaveBeenCalledWith(expect.not.objectContaining({ montoEstimado: expect.anything() }))
+  })
+
+  it('sin capital pero «No contestó»: no lo pide (no reactiva)', async () => {
+    const usuario = userEvent.setup()
+    abrir({ monto_estimado: null })
+    await usuario.click(radio(/No contestó/))
+    expect(within(formulario()).queryByLabelText('Capital estimado')).toBeNull()
+  })
+
+  it('el servidor aún sin la _v2 (PGRST202): «disponible pronto», nada se cierra y el MISMO pedido reusa su id', async () => {
+    const usuario = userEvent.setup()
+    intento.mutateAsync.mockRejectedValue(new CrmApiError('Agendar la cita de un contacto sin capital llega con la próxima actualización del servidor: disponible pronto.', 'NO_DISPONIBLE'))
+    abrir({ monto_estimado: null })
+    await usuario.click(radio(/agendó cita/))
+    await usuario.type(within(formulario()).getByLabelText('Capital estimado'), '5000')
+    await usuario.click(guardar())
+    expect(await within(formulario()).findByRole('alert')).toHaveTextContent('disponible pronto')
+    await usuario.click(guardar())
+    const [a, b] = intento.mutateAsync.mock.calls.map(([e]) => (e as { operacionId: string }).operacionId)
     expect(a).toBe(b)
     expect(onCerrar).not.toHaveBeenCalled()
   })

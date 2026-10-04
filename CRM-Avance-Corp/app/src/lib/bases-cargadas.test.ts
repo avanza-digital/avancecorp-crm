@@ -4,7 +4,11 @@ import { describe, expect, it } from 'vitest'
 import {
   MAPEO_VACIO,
   MAX_FILAS_BASE,
+  MAX_REPARTO_CONTACTOS,
   analistasDelReparto,
+  errorTopeBloque,
+  etiquetaMotivoReparto,
+  resumenOmitidos,
   cantidadDesdeTexto,
   contarVeredictos,
   detectarColumnas,
@@ -218,9 +222,25 @@ describe('repartir por cantidades', () => {
     expect(cantidadDesdeTexto('4a0')).toBe(40)
     expect(cantidadDesdeTexto('')).toBe(0)
     expect(totalAsignado({ a: 40, b: 30 })).toBe(70)
-    expect(estadoContador(70, 85)).toEqual({ texto: '70 de 85 por repartir', excede: false, listo: true })
+    expect(estadoContador(70, 85)).toEqual({ texto: '70 de 85 por repartir', excede: false, sobreTope: false, listo: true })
     expect(estadoContador(90, 85)).toMatchObject({ excede: true, listo: false })
     expect(estadoContador(0, 85)).toMatchObject({ listo: false })
+    // B9: hasta 500 por operación aunque haya más disponibles.
+    expect(estadoContador(501, 5000)).toMatchObject({ excede: false, sobreTope: true, listo: false })
+  })
+
+  it('topes de B9 (500 contactos, 100 analistas por operación) y los motivos del reparto en palabras', () => {
+    expect(MAX_REPARTO_CONTACTOS).toBe(500)
+    expect(errorTopeBloque({ a: 300, b: 201 }, 5000)).toMatch(/hasta 500 contactos por vez \(pides 501\)/)
+    expect(errorTopeBloque({ a: 90 }, 85)).toMatch(/Te pasas por 5/)
+    expect(errorTopeBloque(Object.fromEntries(Array.from({ length: 101 }, (_, i) => [`a${i}`, 1])), 5000)).toMatch(/100 analistas/)
+    expect(errorTopeBloque({ a: 40, b: 30 }, 85)).toBeNull()
+    expect(etiquetaMotivoReparto('en_gestion')).toBe('En gestión: tiene seguimiento activo')
+    expect(etiquetaMotivoReparto('ya_asignado')).toBe('Ya era de ese analista')
+    expect(etiquetaMotivoReparto('motivo_nuevo')).toBe('motivo_nuevo')
+    expect(resumenOmitidos([{ motivo: 'ocupado', cantidad: 1 }, { motivo: 'en_gestion', cantidad: 3 }, { motivo: 'ocupado', cantidad: 1 }]))
+      .toEqual({ total: 5, detalle: '3 · en gestión: tiene seguimiento activo; 2 · otra operación lo tenía tomado: reintenta en un momento' })
+    expect(resumenOmitidos([])).toEqual({ total: 0, detalle: '' })
   })
 
   it('«En partes iguales»: entre los que tienen cantidad (o todos); el resto de a uno a los primeros', () => {

@@ -115,7 +115,7 @@ export function BasesSupervision({ base, onBase }: {
               <Plus aria-hidden /> Cargar base
             </Button>
           </div>
-          {lista.isError && <AvisoReintentar mensaje="No se pudo actualizar la hoja de bases. Se muestran los últimos datos." reintentando={lista.isFetching} onReintentar={() => void lista.refetch()} />}
+          {lista.isError && <AvisoReintentar conDatos mensaje="No se pudo actualizar la hoja de bases. Se muestran los últimos datos." reintentando={lista.isFetching} onReintentar={() => void lista.refetch()} />}
           {filas.length === 0 ? (
             <div className="rounded-lg border border-border bg-card">
               <PanelVacio

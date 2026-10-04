@@ -8,6 +8,7 @@ import type { FuenteBases } from '@/data/bases-cargadas-fuente'
 import { ErrorBases } from '@/data/bases-cargadas-api'
 import {
   DIAS_SIN_TOCAR,
+  MAX_REPARTO_CONTACTOS,
   type CifraSeguimiento,
   type ContactoBase,
   type FilaDetalleSeguimiento,
@@ -274,6 +275,8 @@ export function crearFuenteDemoBases(contexto: { leads: readonly Lead[]; equipo:
         if (!a) throw errorDemo('El analista no está activo o no es de tu equipo')
         Object.assign(c, { analista_id: a.perfil_id, analista_nombre: a.nombre_completo, asignado_en: ahora, estado: 'sin_tocar' })
       }
+      const pedidosTotal = reparto.modo === 'bloque' ? reparto.asignaciones.reduce((s, x) => s + x.cantidad, 0) : reparto.asignaciones.length
+      if (pedidosTotal > MAX_REPARTO_CONTACTOS) throw errorDemo(`Un reparto mueve hasta ${MAX_REPARTO_CONTACTOS} contactos por operación (este pide ${pedidosTotal})`)
       if (reparto.modo === 'bloque') {
         const libres = b.contactos.filter((c) => c.analista_id === null)
         const pedidos = reparto.asignaciones.reduce((s, x) => s + x.cantidad, 0)
@@ -282,15 +285,22 @@ export function crearFuenteDemoBases(contexto: { leads: readonly Lead[]; equipo:
         for (const x of reparto.asignaciones) for (let k = 0; k < x.cantidad; k += 1) { const c = libres[i++]; if (c) asignar(c, x.analista_id) }
         return { repartidos: pedidos, por_analista: reparto.asignaciones.map((x) => ({ analista_id: x.analista_id, cantidad: x.cantidad })), omitidos: [] }
       }
-      for (const x of reparto.asignaciones) { const c = b.contactos.find((y) => y.lead_id === x.lead_id); if (c) asignar(c, x.analista_id) }
-      return { repartidos: reparto.asignaciones.length, por_analista: [], omitidos: [] }
+      // Como el servidor: el que ya es de ese analista sale «omitido» (ya_asignado); los demás se asignan.
+      const omitidos: { lead_id: string; motivo: string; cantidad: number }[] = []
+      for (const x of reparto.asignaciones) {
+        const c = b.contactos.find((y) => y.lead_id === x.lead_id)
+        if (!c) continue
+        if (c.analista_id === x.analista_id) omitidos.push({ lead_id: c.lead_id, motivo: 'ya_asignado', cantidad: 1 })
+        else asignar(c, x.analista_id)
+      }
+      return { repartidos: reparto.asignaciones.length - omitidos.length, por_analista: [], omitidos }
     },
     async recogerDeBase({ baseId, analistaId }) {
       await pausa(200)
       const deEl = base(baseId).contactos.filter((c) => c.analista_id === analistaId)
       const sinTocar = deEl.filter((c) => c.estado === 'sin_tocar')
       for (const c of sinTocar) Object.assign(c, { analista_id: null, analista_nombre: null, asignado_en: null, estado: 'sin_repartir' })
-      return { recogidos: sinTocar.length, omitidos: deEl.length - sinTocar.length }
+      return { recogidos: sinTocar.length, omitidos: deEl.length - sinTocar.length, pendientes: 0 }
     },
   }
 }

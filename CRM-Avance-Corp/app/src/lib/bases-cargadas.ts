@@ -18,6 +18,10 @@ export const MAX_LEADS_ARMAR = 2000
 export const MAX_NOMBRE_BASE = 80
 /** E6 (Miguel, 04/10): un contacto repartido que nadie toca en 3 días se marca en rojo (nada se mueve solo). */
 export const DIAS_SIN_TOCAR = 3
+/** Espejo de `private.bases_carga_reparto_constantes()` (B9, medido frente al statement_timeout de 8 s): por operación de
+ *  reparto, hasta 500 contactos (bloque: la suma; individual: las filas) y hasta 100 analistas. Recoger también va de a 500. */
+export const MAX_REPARTO_CONTACTOS = 500
+export const MAX_REPARTO_ANALISTAS = 100
 
 const TextoONulo = v.nullable(v.string())
 const Entero = EnteroNoNegativoRpcSchema
@@ -479,15 +483,19 @@ export const FilaSeguimientoBaseSchema = v.object({
 })
 export type FilaSeguimientoBase = v.InferOutput<typeof FilaSeguimientoBaseSchema>
 
+/** Una fila del detalle (B10). Un contacto que salió del ámbito del actor llega SIN id ni nombre (NULL): la pantalla dice
+ *  «Contacto fuera de tu equipo» y no inventa nada. */
 export const FilaDetalleSeguimientoSchema = v.object({
-  lead_id: v.string(),
-  nombre_completo: v.string(),
+  lead_id: TextoONulo,
+  nombre_completo: TextoONulo,
   estado: v.string(),
   asignado_en: TextoONulo,
   ultimo_intento_en: TextoONulo,
   ultimo_resultado: TextoONulo,
 })
 export type FilaDetalleSeguimiento = v.InferOutput<typeof FilaDetalleSeguimientoSchema>
+
+export const TEXTO_FUERA_DE_EQUIPO = 'Contacto fuera de tu equipo'
 
 /** Las cifras de la hoja de bases que se abren (`p_cifra` de `seguimiento_base_detalle`). */
 export const CIFRAS_BASE = ['total', 'sin_repartir', 'repartidos', 'sin_tocar', 'trabajados', 'en_descanso', 'citas', 'reactivados'] as const
@@ -529,15 +537,66 @@ export type ContactoBase = v.InferOutput<typeof ContactoBaseSchema>
 
 export type EstadoContactos = 'sin_repartir' | 'repartidos' | 'todos'
 
+/** Un omitido del reparto (B9). En bloque van agrupados por motivo (`lead_id` null y su `cantidad`); en individual, uno por
+ *  contacto (`ya_asignado`: ya era de ese analista). */
+export const OmitidoRepartoSchema = v.looseObject({
+  lead_id: v.optional(v.nullable(v.string()), null),
+  motivo: v.string(),
+  cantidad: v.optional(Entero, 1),
+})
+
 export const RespuestaRepartirSchema = v.looseObject({
   repartidos: Entero,
   por_analista: v.optional(v.array(v.looseObject({ analista_id: v.string(), cantidad: Entero })), []),
-  omitidos: v.optional(v.array(v.looseObject({ lead_id: v.optional(v.nullable(v.string()), null), motivo: v.string() })), []),
+  omitidos: v.optional(v.array(OmitidoRepartoSchema), []),
 })
 export type RespuestaRepartir = v.InferOutput<typeof RespuestaRepartirSchema>
 
-export const RespuestaRecogerSchema = v.looseObject({ recogidos: Entero, omitidos: Entero })
+/** `pendientes` (B9): lo recogible que quedó para otra operación por el tope de 500 (0 casi siempre). */
+export const RespuestaRecogerSchema = v.looseObject({ recogidos: Entero, omitidos: Entero, pendientes: v.optional(Entero, 0) })
 export type RespuestaRecoger = v.InferOutput<typeof RespuestaRecogerSchema>
+
+/** Un contacto que el reparto individual rechazó (22023, `detail = {"rechazados": [...]}`): no se repartió NINGUNO. */
+export const RechazadoRepartoSchema = v.object({ lead_id: v.string(), motivo: v.string() })
+export type RechazadoReparto = v.InferOutput<typeof RechazadoRepartoSchema>
+
+const MOTIVO_REPARTO: Readonly<Record<string, string>> = {
+  inactivo: 'Está inactivo (retirado)',
+  retirado: 'Está retirado',
+  fuera_de_ambito: 'Salió del equipo del supervisor dueño (lo movió otra vía)',
+  no_descartado: 'Ya no está descartado (se reactivó o lo movió otra vía)',
+  no_contactar: 'Marcado «No contactar»',
+  en_descanso: 'Está en descanso',
+  en_gestion: 'En gestión: tiene seguimiento activo',
+  ocupado: 'Otra operación lo tenía tomado: reintenta en un momento',
+  ya_asignado: 'Ya era de ese analista',
+}
+
+/** Por qué un contacto no se repartió, en palabras (un motivo nuevo del servidor se muestra tal cual). */
+export function etiquetaMotivoReparto(motivo: string): string {
+  return MOTIVO_REPARTO[motivo] ?? motivo
+}
+
+/** «3 en gestión · 1 ocupado»: los omitidos agrupados por motivo, del más numeroso al menos. */
+export function resumenOmitidos(omitidos: readonly { motivo: string; cantidad: number }[]): { total: number; detalle: string } {
+  const porMotivo = new Map<string, number>()
+  for (const o of omitidos) porMotivo.set(o.motivo, (porMotivo.get(o.motivo) ?? 0) + o.cantidad)
+  const lista = [...porMotivo.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+  return {
+    total: lista.reduce((s, [, n]) => s + n, 0),
+    detalle: lista.map(([m, n]) => `${n} · ${etiquetaMotivoReparto(m).toLowerCase()}`).join('; '),
+  }
+}
+
+/** Lo que impide enviar un reparto en bloque (topes de B9, sin pasar los disponibles), o null. */
+export function errorTopeBloque(cantidades: Readonly<Record<string, number>>, disponibles: number): string | null {
+  const total = totalAsignado(cantidades)
+  const analistas = Object.values(cantidades).filter((n) => n > 0).length
+  if (total > disponibles) return `Te pasas por ${total - disponibles}: hay ${disponibles} por repartir.`
+  if (total > MAX_REPARTO_CONTACTOS) return `Un reparto mueve hasta ${MAX_REPARTO_CONTACTOS} contactos por vez (pides ${total}). Reparte en dos o más veces.`
+  if (analistas > MAX_REPARTO_ANALISTAS) return `Un reparto va a lo más a ${MAX_REPARTO_ANALISTAS} analistas por vez.`
+  return null
+}
 
 export type RepartoBase =
   | { modo: 'bloque'; asignaciones: { analista_id: string; cantidad: number }[] }
@@ -555,7 +614,8 @@ export function totalAsignado(cantidades: Readonly<Record<string, number>>): num
 
 /**
  * «En partes iguales»: reparte los disponibles entre los analistas que ya tienen cantidad (si ninguno tiene, entre todos).
- * El resto de la división va de a uno a los primeros (en el orden de la lista). Los demás quedan en 0.
+ * El resto de la división va de a uno a los primeros (en el orden de la lista). Los demás quedan en 0. Quien lo llama pasa
+ * `disponibles` ya acotado al tope por operación ({@link MAX_REPARTO_CONTACTOS}).
  */
 export function repartirEnPartesIguales(analistas: readonly string[], disponibles: number, actuales: Readonly<Record<string, number>> = {}): Record<string, number> {
   const conCantidad = analistas.filter((id) => (actuales[id] ?? 0) > 0)
@@ -596,13 +656,15 @@ export function supervisoresActivos(equipo: readonly Miembro[]): Miembro[] {
 /** Estados de un contacto que se pueden asignar a mano (el servidor rechaza todo el reparto si uno no es elegible). */
 export const ESTADOS_ASIGNABLES: ReadonlySet<string> = new Set(['sin_repartir', 'sin_tocar', 'trabajado'])
 
-/** Lo que el contador dice y si se puede enviar. */
-export function estadoContador(asignado: number, disponibles: number): { texto: string; excede: boolean; listo: boolean } {
+/** Lo que el contador dice y si se puede enviar (sin pasarse de los disponibles ni del tope por operación). */
+export function estadoContador(asignado: number, disponibles: number): { texto: string; excede: boolean; sobreTope: boolean; listo: boolean } {
   const excede = asignado > disponibles
+  const sobreTope = asignado > MAX_REPARTO_CONTACTOS
   return {
     texto: `${asignado} de ${disponibles} por repartir`,
     excede,
-    listo: asignado > 0 && !excede,
+    sobreTope,
+    listo: asignado > 0 && !excede && !sobreTope,
   }
 }
 

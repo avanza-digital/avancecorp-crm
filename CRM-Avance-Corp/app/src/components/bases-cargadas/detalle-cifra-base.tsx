@@ -10,7 +10,7 @@ import { FOCO } from '@/components/gestion-diaria/estilos-gestion'
 import { cn } from '@/lib/utils'
 import { etiquetaMomento } from '@/lib/base-gestion'
 import { etiquetaResultado } from '@/lib/resultado-llamada'
-import { etiquetaEstadoContacto, ROTULO_CIFRA, type CifraSeguimiento, type FilaDetalleSeguimiento } from '@/lib/bases-cargadas'
+import { etiquetaEstadoContacto, ROTULO_CIFRA, TEXTO_FUERA_DE_EQUIPO, type CifraSeguimiento, type FilaDetalleSeguimiento } from '@/lib/bases-cargadas'
 import { AvisoReintentar, CELDA_COMPACTA, ENCABEZADO_COMPACTO, ROTULO } from './piezas-bases'
 
 export interface CifraBaseAbierta {
@@ -58,9 +58,11 @@ export function DetalleCifraBase({ abierta, filas, cargando, error, reintentando
               </button>
             </div>
           </SheetHeader>
-          <SheetBody className="scroll-pt-10 px-0 py-0">
+          {/* El cuerpo se desplaza con el teclado (la lista no tiene controles por los que pasar con Tab). */}
+          {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Región desplazable sin controles dentro: necesita su parada de tabulador. */}
+          <SheetBody tabIndex={0} role="region" aria-label={`${titulo} de ${abierta.baseNombre}`} className={cn('scroll-pt-10 px-0 py-0', FOCO, 'focus-visible:-outline-offset-2')}>
             {error && filas !== undefined && (
-              <div className="m-4"><AvisoReintentar mensaje="No se pudo actualizar el detalle. Se muestran los últimos datos." reintentando={reintentando} onReintentar={() => void reintentar()} /></div>
+              <div className="m-4"><AvisoReintentar conDatos mensaje="No se pudo actualizar el detalle. Se muestran los últimos datos." reintentando={reintentando} onReintentar={() => void reintentar()} /></div>
             )}
             {cargando && filas === undefined ? (
               <div className="pt-4"><PanelCargando filas={5} /></div>
@@ -72,9 +74,9 @@ export function DetalleCifraBase({ abierta, filas, cargando, error, reintentando
               <PanelVacio icono={ListX} titulo="Ya no hay contactos detrás de esta cifra" detalle="Pudo cambiar desde que se cargó la hoja: vuelve a abrirla para ver la cifra al día." />
             ) : esMovil ? (
               <div role="list" aria-label={`${titulo} de ${abierta.baseNombre}`} className="space-y-2 p-4">
-                {filas.map((f) => (
-                  <div role="listitem" key={f.lead_id} className="rounded-xl border border-border bg-card p-3">
-                    <p className="text-base font-semibold">{f.nombre_completo}</p>
+                {filas.map((f, i) => (
+                  <div role="listitem" key={f.lead_id ?? `fuera-${i}`} className="rounded-xl border border-border bg-card p-3">
+                    <p className={cn('text-base font-semibold', !f.nombre_completo && 'text-[var(--muted-foreground-strong)]')}>{f.nombre_completo ?? TEXTO_FUERA_DE_EQUIPO}</p>
                     <p className="text-sm">{etiquetaEstadoContacto(f.estado)}{f.ultimo_resultado ? ` · ${etiquetaResultado(f.ultimo_resultado)}` : ''}</p>
                     <p className="text-[13px] text-[var(--muted-foreground-strong)]">Asignado: {momento(f.asignado_en, ahora)} · Último intento: {momento(f.ultimo_intento_en, ahora)}</p>
                   </div>
@@ -92,9 +94,9 @@ export function DetalleCifraBase({ abierta, filas, cargando, error, reintentando
                 </thead>
                 <tbody>
                   {filas.map((f, i) => (
-                    <tr key={f.lead_id} className="hover:bg-accent/5">
+                    <tr key={f.lead_id ?? `fuera-${i}`} className="hover:bg-accent/5">
                       <td className={cn(CELDA_COMPACTA, 'text-center text-[13px] tabular-nums text-[var(--muted-foreground-strong)]')}>{i + 1}</td>
-                      <th scope="row" className={cn(CELDA_COMPACTA, 'max-w-56 truncate text-left font-semibold')}>{f.nombre_completo}</th>
+                      <th scope="row" className={cn(CELDA_COMPACTA, 'max-w-56 truncate text-left font-semibold', !f.nombre_completo && 'font-normal italic text-[var(--muted-foreground-strong)]')}>{f.nombre_completo ?? TEXTO_FUERA_DE_EQUIPO}</th>
                       <td className={CELDA_COMPACTA}>{etiquetaEstadoContacto(f.estado)}</td>
                       <td className={cn(CELDA_COMPACTA, 'tabular-nums')}>{momento(f.asignado_en, ahora)}</td>
                       <td className={cn(CELDA_COMPACTA, 'tabular-nums')}>{momento(f.ultimo_intento_en, ahora)}</td>

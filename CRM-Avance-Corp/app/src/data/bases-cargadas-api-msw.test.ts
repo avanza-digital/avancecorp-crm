@@ -23,7 +23,7 @@ import {
   seguimientoBaseDetalle,
   seguimientoBases,
 } from './bases-cargadas-api'
-import { reactivarLeadBase } from './crm-api'
+import { reactivarLeadBase, registrarIntentoBase } from './crm-api'
 
 const RPC = (fn: string) => `http://supabase.test/rest/v1/rpc/${fn}`
 const server = setupServer()
@@ -142,6 +142,11 @@ describe('B10 · seguimiento: con el servidor de hoy (PGRST202) es «disponible 
     expect(await seguimientoBase(BASE)).toBeNull()
     expect(await seguimientoBaseDetalle(BASE, null, 'sin_repartir')).toBeNull()
   })
+  it('detalle: un contacto fuera del ámbito llega sin id ni nombre (NULL) y se lee igual', async () => {
+    capturar('seguimiento_base_detalle', () => HttpResponse.json([{ lead_id: null, nombre_completo: null, estado: 'movido_otra_via', asignado_en: null, ultimo_intento_en: null, ultimo_resultado: null }]))
+    expect(await seguimientoBaseDetalle(BASE, null, 'repartidos')).toEqual([expect.objectContaining({ lead_id: null, nombre_completo: null })])
+  })
+
   it('seguimiento_base y su detalle: la base, el analista (solo si hay) y la cifra', async () => {
     const cuerpos = capturar('seguimiento_base', () => HttpResponse.json([{
       analista_id: ANA, analista_nombre: 'ANA', asignados: 40, sin_tocar: 12, sin_tocar_3_dias: 4, trabajados: 28, en_descanso: 2, citas: 3, reactivados: 1,
@@ -169,15 +174,32 @@ describe('B9 · repartir, recoger y contactos', () => {
     expect(await contactosDeBase(BASE)).toBeNull()
     expect(cuerpos).toEqual([{ p_base_id: BASE, p_estado: 'todos' }, { p_base_id: BASE, p_estado: 'sin_repartir' }])
   })
-  it('repartir en bloque: «Ana 40 · Luis 30» tal cual; lee repartidos y por analista', async () => {
-    const cuerpos = capturar('repartir_base', () => HttpResponse.json({ repartidos: 70, por_analista: [{ analista_id: ANA, cantidad: 40 }, { analista_id: 'luis', cantidad: 30 }], omitidos: [] }))
+  it('repartir en bloque: «Ana 40 · Luis 30» tal cual; lee repartidos, por analista y los omitidos POR MOTIVO (B9)', async () => {
+    const cuerpos = capturar('repartir_base', () => HttpResponse.json({
+      ok: true, operacion_id: OP, base_id: BASE, modo: 'bloque', repartidos: 70,
+      por_analista: [{ analista_id: ANA, cantidad: 40 }, { analista_id: 'luis', cantidad: 30 }],
+      omitidos: [{ lead_id: null, motivo: 'en_gestion', cantidad: '3' }, { lead_id: null, motivo: 'ocupado', cantidad: 1 }],
+    }))
     const reparto = { modo: 'bloque' as const, asignaciones: [{ analista_id: ANA, cantidad: 40 }, { analista_id: 'luis', cantidad: 30 }] }
     const r = await repartirBase({ operacionId: OP, baseId: BASE, reparto })
     expect(cuerpos).toEqual([{ p_operacion_id: OP, p_base_id: BASE, p_reparto: reparto }])
     expect(r.repartidos).toBe(70)
+    expect(r.omitidos).toEqual([{ lead_id: null, motivo: 'en_gestion', cantidad: 3 }, { lead_id: null, motivo: 'ocupado', cantidad: 1 }])
+  })
+
+  it('individual con un «ya_asignado»: el omitido trae su lead (cantidad 1 por defecto)', async () => {
+    capturar('repartir_base', () => HttpResponse.json({ ok: true, modo: 'individual', repartidos: 1, por_analista: [{ analista_id: ANA, cantidad: 1 }], omitidos: [{ lead_id: LEAD, motivo: 'ya_asignado' }] }))
+    const r = await repartirBase({ operacionId: OP, baseId: BASE, reparto: { modo: 'individual', asignaciones: [{ lead_id: LEAD, analista_id: ANA }, { lead_id: 'otro', analista_id: ANA }] } })
+    expect(r.omitidos).toEqual([{ lead_id: LEAD, motivo: 'ya_asignado', cantidad: 1 }])
+  })
+
+  it('individual con un contacto no elegible (22023, detail {rechazados}): RECHAZADOS con cada lead y su motivo', async () => {
+    capturar('repartir_base', () => error('22023', 'Hay contactos que no se pueden repartir', JSON.stringify({ rechazados: [{ lead_id: LEAD, motivo: 'en_gestion' }, { lead_id: 'otro', motivo: 'en_descanso' }] })))
+    await expect(repartirBase({ operacionId: OP, baseId: BASE, reparto: { modo: 'individual', asignaciones: [{ lead_id: LEAD, analista_id: ANA }] } }))
+      .rejects.toMatchObject({ code: 'RECHAZADOS', detalle: [{ lead_id: LEAD, motivo: 'en_gestion' }, { lead_id: 'otro', motivo: 'en_descanso' }], message: expect.stringContaining('2 contactos no se pueden repartir') })
   })
   it('no alcanzan (22023 con los disponibles en el detail): SIN_DISPONIBLES y no se repartió ninguno', async () => {
-    capturar('repartir_base', () => error('22023', 'No alcanzan los contactos disponibles', '62'))
+    capturar('repartir_base', () => error('22023', 'Solo hay 62 contactos disponibles para repartir en esta base (pediste 70)', '62'))
     await expect(repartirBase({ operacionId: OP, baseId: BASE, reparto: { modo: 'bloque', asignaciones: [{ analista_id: ANA, cantidad: 70 }] } }))
       .rejects.toMatchObject({ code: 'SIN_DISPONIBLES', detalle: 62, message: expect.stringContaining('hay 62 contactos disponibles') })
     capturar('repartir_base', () => error('22023', 'No alcanzan', JSON.stringify({ disponibles: 1 })))
@@ -196,21 +218,23 @@ describe('B9 · repartir, recoger y contactos', () => {
     await expect(repartirBase({ operacionId: OP, baseId: BASE, reparto: { modo: 'bloque', asignaciones: [] } })).rejects.toMatchObject({ code: 'NO_DISPONIBLE', message: expect.stringContaining('disponible pronto') })
     await expect(recogerDeBase({ operacionId: OP, baseId: BASE, analistaId: ANA })).rejects.toMatchObject({ code: 'NO_DISPONIBLE' })
   })
-  it('recoger: operación, base y analista; lee recogidos y omitidos', async () => {
-    const cuerpos = capturar('recoger_de_base', () => HttpResponse.json({ recogidos: '12', omitidos: 3 }))
-    expect(await recogerDeBase({ operacionId: OP, baseId: BASE, analistaId: ANA })).toEqual({ recogidos: 12, omitidos: 3 })
+  it('recoger: operación, base y analista; lee recogidos, omitidos y pendientes (tope de 500 por llamada)', async () => {
+    const cuerpos = capturar('recoger_de_base', () => HttpResponse.json({ ok: true, operacion_id: OP, base_id: BASE, analista_id: ANA, recogidos: '500', omitidos: 3, pendientes: 20 }))
+    expect(await recogerDeBase({ operacionId: OP, baseId: BASE, analistaId: ANA })).toMatchObject({ recogidos: 500, omitidos: 3, pendientes: 20 })
     expect(cuerpos).toEqual([{ p_operacion_id: OP, p_base_id: BASE, p_analista_id: ANA }])
+    capturar('recoger_de_base', () => HttpResponse.json({ recogidos: 1, omitidos: 0 }))
+    expect(await recogerDeBase({ operacionId: OP, baseId: BASE, analistaId: ANA })).toMatchObject({ pendientes: 0 })
   })
 })
 
-describe('reactivarLeadBase con capital (F6, firma de la B10)', () => {
-  it('sin capital en el lead: viajan el capital y la moneda', async () => {
-    const cuerpos = capturar('reactivar_lead_base', () => HttpResponse.json({ replay: false, etapa: 'contactado', ciclo_n: 2 }))
+describe('reactivarLeadBase con capital (F6: la puerta versionada reactivar_lead_base_v2 de la B10)', () => {
+  it('sin capital en el lead: va a la _v2 con el capital y la moneda', async () => {
+    const cuerpos = capturar('reactivar_lead_base_v2', () => HttpResponse.json({ replay: false, etapa: 'contactado', ciclo_n: 2 }))
     await reactivarLeadBase({ operacionId: OP, leadId: LEAD, nota: 'retoma', montoEstimado: 20000, moneda: 'USD' })
     expect(cuerpos).toEqual([{ p_operacion_id: OP, p_lead_id: LEAD, p_nota: 'retoma', p_monto_estimado: 20000, p_moneda: 'USD' }])
   })
   it('el servidor de hoy no la tiene (PGRST202): «disponible pronto», no se reactiva', async () => {
-    capturar('reactivar_lead_base', () => PGRST202('reactivar_lead_base'))
+    capturar('reactivar_lead_base_v2', () => PGRST202('reactivar_lead_base_v2'))
     await expect(reactivarLeadBase({ operacionId: OP, leadId: LEAD, montoEstimado: 20000 })).rejects.toMatchObject({ code: 'NO_DISPONIBLE', message: expect.stringContaining('disponible pronto') })
   })
   it('con capital ya puesto: la llamada de siempre (sin claves nuevas)', async () => {
@@ -219,7 +243,26 @@ describe('reactivarLeadBase con capital (F6, firma de la B10)', () => {
     expect(cuerpos).toEqual([{ p_operacion_id: OP, p_lead_id: LEAD }])
   })
   it('el servidor exige el capital (22023): su texto llega tal cual', async () => {
-    capturar('reactivar_lead_base', () => error('22023', 'Indica el capital estimado para reactivar'))
+    capturar('reactivar_lead_base_v2', () => error('22023', 'Indica el capital estimado para reactivar'))
     await expect(reactivarLeadBase({ operacionId: OP, leadId: LEAD, montoEstimado: 1 })).rejects.toMatchObject({ message: 'Indica el capital estimado para reactivar' })
+  })
+})
+
+describe('registrarIntentoBase con capital (F6: «agendó cita» de un lead sin capital → registrar_intento_base_v2)', () => {
+  const RESPUESTA = { ok: true, replay: false, intento_n: 1, etapa: 'contactado', reactivado: true, enfriado_hasta: null, proxima_llamada_en: null }
+  it('con capital: va a la _v2 con el resultado, el capital y la moneda', async () => {
+    const cuerpos = capturar('registrar_intento_base_v2', () => HttpResponse.json(RESPUESTA))
+    const r = await registrarIntentoBase({ operacionId: OP, leadId: LEAD, resultado: 'agendo_reunion', nota: ' cita el lunes ', montoEstimado: 15000, moneda: 'PEN' })
+    expect(cuerpos).toEqual([{ p_operacion_id: OP, p_lead_id: LEAD, p_resultado: 'agendo_reunion', p_nota: 'cita el lunes', p_monto_estimado: 15000, p_moneda: 'PEN' }])
+    expect(r.reactivado).toBe(true)
+  })
+  it('sin capital (el resto de intentos): la puerta de siempre, sin claves nuevas', async () => {
+    const cuerpos = capturar('registrar_intento_base', () => HttpResponse.json({ ...RESPUESTA, reactivado: false, etapa: 'descartado' }))
+    await registrarIntentoBase({ operacionId: OP, leadId: LEAD, resultado: 'no_contesto' })
+    expect(cuerpos).toEqual([{ p_operacion_id: OP, p_lead_id: LEAD, p_resultado: 'no_contesto' }])
+  })
+  it('el servidor de hoy no la tiene (PGRST202): «disponible pronto», no se registra nada', async () => {
+    capturar('registrar_intento_base_v2', () => PGRST202('registrar_intento_base_v2'))
+    await expect(registrarIntentoBase({ operacionId: OP, leadId: LEAD, resultado: 'agendo_reunion', montoEstimado: 1 })).rejects.toMatchObject({ code: 'NO_DISPONIBLE', message: expect.stringContaining('disponible pronto') })
   })
 })

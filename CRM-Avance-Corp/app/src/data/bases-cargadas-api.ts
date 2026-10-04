@@ -21,6 +21,7 @@ import {
   RespuestaCargarLoteSchema,
   RespuestaCrearBaseSchema,
   RespuestaRecogerSchema,
+  RechazadoRepartoSchema,
   RespuestaRepartirSchema,
   type ContactoBase,
   type CifraSeguimiento,
@@ -238,8 +239,10 @@ export function contactosDeBase(baseId: string, estado: EstadoContactos = 'sin_r
 }
 
 /**
- * Reparte la base (todo o nada): en bloque («Ana 40 · Luis 30») o individual. Si no alcanzan los disponibles, el
- * servidor rechaza TODO (22023) con los disponibles en el `detail`: llegan en `ErrorBases.detalle` (`SIN_DISPONIBLES`).
+ * Reparte la base (todo o nada, hasta 500 contactos y 100 analistas por operación): en bloque («Ana 40 · Luis 30») o
+ * individual. En bloque, si no alcanzan los disponibles, el servidor rechaza TODO (22023) con los disponibles en el `detail`
+ * (el número en texto): llegan en `ErrorBases.detalle` (`SIN_DISPONIBLES`). En individual, si un contacto no es elegible,
+ * tampoco reparte ninguno (22023, `detail = {"rechazados": [{lead_id, motivo}]}`): llegan en `detalle` (`RECHAZADOS`).
  */
 export async function repartirBase(entrada: { operacionId: string; baseId: string; reparto: RepartoBase }): Promise<RespuestaRepartir> {
   const { data, error } = await rpcDelContrato('repartir_base', {
@@ -255,6 +258,11 @@ export async function repartirBase(entrada: { operacionId: string; baseId: strin
           : null
     if (error.code === '22023' && disponibles !== null && entrada.reparto.modo === 'bloque') {
       throw new ErrorBases(`No alcanzan: hay ${disponibles} ${disponibles === 1 ? 'contacto disponible' : 'contactos disponibles'} para repartir (los que tienen seguimiento activo, veto o descanso no se reparten). No se repartió ninguno.`, 'SIN_DISPONIBLES', disponibles)
+    }
+    const rechazados = v.safeParse(v.object({ rechazados: v.array(RechazadoRepartoSchema) }), fallo.detalle)
+    if (error.code === '22023' && rechazados.success && rechazados.output.rechazados.length > 0) {
+      const n = rechazados.output.rechazados.length
+      throw new ErrorBases(`${n === 1 ? 'Un contacto no se puede' : `${n} contactos no se pueden`} repartir ahora: no se repartió ninguno. Quítalos de la selección y vuelve a asignar.`, 'RECHAZADOS', rechazados.output.rechazados)
     }
     throw fallo
   }

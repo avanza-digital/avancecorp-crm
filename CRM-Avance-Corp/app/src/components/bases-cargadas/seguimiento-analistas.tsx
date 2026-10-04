@@ -1,8 +1,9 @@
 // Seguimiento de una base POR ANALISTA (F5, `crm.seguimiento_base`, B10): asignados · sin tocar · sin tocar 3 días (en
 // ROJO: E6, nada se mueve solo) · trabajados · en descanso · citas · reactivados · movidos por otra vía (E14) · último
 // intento. Todo número se abre en su lista. «Recoger» (B9) devuelve a «sin repartir» lo que ese analista no tocó (sin
-// intento desde que se lo asignaron y sin seguimiento activo), tras confirmar.
-import { useRef, useState } from 'react'
+// intento desde que se lo asignaron y sin seguimiento activo), tras confirmar. Al cerrar el diálogo el foco vuelve al botón
+// que lo abrió; si se recogió (el botón puede volverse «Nada por recoger»), a la hoja del seguimiento: nunca a <body>.
+import { useId, useRef, useState, type MouseEvent, type RefObject } from 'react'
 import { toast } from 'sonner'
 import { Undo2, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -13,7 +14,7 @@ import { cn } from '@/lib/utils'
 import { etiquetaMomento } from '@/lib/base-gestion'
 import { CrmApiError } from '@/data/crm-api'
 import { useRecogerDeBase, useSeguimientoBase, type PuertasBases } from '@/data/bases-cargadas-queries'
-import { CIFRAS_ANALISTA, DIAS_SIN_TOCAR, ROTULO_CIFRA, esUrgenteSinTocar, type CifraAnalista, type FilaSeguimientoBase, type FilaSeguimientoBases } from '@/lib/bases-cargadas'
+import { CIFRAS_ANALISTA, DIAS_SIN_TOCAR, ROTULO_CIFRA, esUrgenteSinTocar, type CifraAnalista, type FilaSeguimientoBase, type FilaSeguimientoBases, type RespuestaRecoger } from '@/lib/bases-cargadas'
 import { AvisoReintentar, CELDA_COMPACTA, DisponiblePronto, ENCABEZADO_COMPACTO, NumeroAbrible } from './piezas-bases'
 
 const nombreDe = (f: FilaSeguimientoBase) => f.analista_nombre ?? 'Analista sin nombre'
@@ -27,6 +28,10 @@ export function SeguimientoAnalistas({ puertas, base, esMovil, ahora, onAbrirCif
 }) {
   const seguimiento = useSeguimientoBase(puertas, base.base_id)
   const [recoger, setRecoger] = useState<FilaSeguimientoBase | null>(null)
+  const hoja = useRef<HTMLDivElement>(null)
+  // Adónde vuelve el foco al cerrar «Recoger»: el botón que lo abrió (cancelar) o la hoja (tras recoger).
+  const focoTrasRecoger = useRef<HTMLElement | null>(null)
+  const abrirRecoger = (f: FilaSeguimientoBase, e: MouseEvent<HTMLButtonElement>) => { focoTrasRecoger.current = e.currentTarget; setRecoger(f) }
 
   if (seguimiento.isPending) return <div className="rounded-lg border border-border bg-card pt-4"><PanelCargando filas={3} /></div>
   if (seguimiento.isError && seguimiento.data === undefined) {
@@ -40,21 +45,21 @@ export function SeguimientoAnalistas({ puertas, base, esMovil, ahora, onAbrirCif
     <NumeroAbrible valor={f[c]} contexto={`${nombreDe(f)}, ${ROTULO_CIFRA[c].toLowerCase()}`} urgente={c === 'sin_tocar_3_dias'} onAbrir={() => onAbrirCifra(f, c)} />
   )
   const botonRecoger = (f: FilaSeguimientoBase) => f.sin_tocar > 0 ? (
-    <Button type="button" variant="outline" size="sm" className="pointer-coarse:h-11" aria-label={`Recoger lo que ${nombreDe(f)} no tocó`} onClick={() => setRecoger(f)}>
+    <Button type="button" variant="outline" size="sm" className="pointer-coarse:h-11" aria-label={`Recoger lo que ${nombreDe(f)} no tocó`} onClick={(e) => abrirRecoger(f, e)}>
       <Undo2 aria-hidden /> Recoger
     </Button>
   ) : <span className="text-[13px] text-[var(--muted-foreground-strong)]">Nada por recoger</span>
 
   return (
     <div className="space-y-2">
-      {seguimiento.isError && <AvisoReintentar mensaje="No se pudo actualizar el seguimiento. Se muestran los últimos datos." reintentando={seguimiento.isFetching} onReintentar={() => void seguimiento.refetch()} />}
+      {seguimiento.isError && <AvisoReintentar conDatos mensaje="No se pudo actualizar el seguimiento. Se muestran los últimos datos." reintentando={seguimiento.isFetching} onReintentar={() => void seguimiento.refetch()} />}
       {filas.length === 0 ? (
         <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
           <Users className="size-4 shrink-0 text-[var(--muted-foreground-strong)]" aria-hidden />
           <p className="text-sm text-[var(--muted-foreground-strong)]">Aún no repartiste esta base. Cuando lo hagas, aquí verás cómo la trabaja cada analista.</p>
         </div>
       ) : esMovil ? (
-        <div role="list" aria-label={`Seguimiento de ${base.nombre} por analista`} className="space-y-2">
+        <div ref={hoja} tabIndex={-1} role="list" aria-label={`Seguimiento de ${base.nombre} por analista`} className={cn('space-y-2 rounded-lg', FOCO)}>
           {filas.map((f) => (
             <div role="listitem" key={f.analista_id} className={cn('rounded-xl border bg-card p-3', esUrgenteSinTocar(f) ? 'border-destructive/40 shadow-[inset_4px_0_0_var(--destructive)]' : 'border-border')}>
               <p className="text-[15px] font-bold text-primary">{nombreDe(f)}</p>
@@ -73,7 +78,7 @@ export function SeguimientoAnalistas({ puertas, base, esMovil, ahora, onAbrirCif
         </div>
       ) : (
         // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Con muchos analistas la hoja se desplaza con el teclado.
-        <div tabIndex={0} role="region" aria-label={`Seguimiento de ${base.nombre} por analista`} className={cn('ac-scroll max-h-[24rem] scroll-pt-10 overflow-auto rounded-lg border border-[var(--border-strong)] bg-card', FOCO)}>
+        <div ref={hoja} tabIndex={0} role="region" aria-label={`Seguimiento de ${base.nombre} por analista`} className={cn('ac-scroll max-h-[24rem] scroll-pt-10 overflow-auto rounded-lg border border-[var(--border-strong)] bg-card', FOCO)}>
           <table className="min-w-full border-separate border-spacing-0">
             <caption className="sr-only">
               Cómo trabaja cada analista los contactos de {base.nombre}. En rojo, los que llevan {DIAS_SIN_TOCAR} días o más sin tocar. Cada número abre su lista.
@@ -99,12 +104,34 @@ export function SeguimientoAnalistas({ puertas, base, esMovil, ahora, onAbrirCif
           </table>
         </div>
       )}
-      <RecogerDialogo puertas={puertas} base={base} fila={recoger} onCerrar={() => setRecoger(null)} />
+      <RecogerDialogo
+        puertas={puertas}
+        base={base}
+        fila={recoger}
+        focoAlCerrar={focoTrasRecoger}
+        onRecogido={() => { focoTrasRecoger.current = hoja.current }}
+        onCerrar={() => setRecoger(null)}
+      />
     </div>
   )
 }
 
-function RecogerDialogo({ puertas, base, fila, onCerrar }: { puertas: PuertasBases; base: FilaSeguimientoBases; fila: FilaSeguimientoBase | null; onCerrar: () => void }) {
+/** «Recogidos 12: vuelven a «sin repartir». 28 se quedan con ANA… · Quedan 3 por recoger: vuelve a pulsar «Recoger».» */
+function avisoRecogido(r: RespuestaRecoger, nombre: string): string {
+  return `Recogidos ${r.recogidos}: vuelven a «sin repartir».`
+    + (r.omitidos > 0 ? ` ${r.omitidos} se quedan con ${nombre} (los trabajó o tienen seguimiento activo).` : '')
+    + (r.pendientes > 0 ? ` Quedan ${r.pendientes} por recoger (van de a 500): vuelve a pulsar «Recoger».` : '')
+}
+
+function RecogerDialogo({ puertas, base, fila, focoAlCerrar, onRecogido, onCerrar }: {
+  puertas: PuertasBases
+  base: FilaSeguimientoBases
+  fila: FilaSeguimientoBase | null
+  focoAlCerrar: RefObject<HTMLElement | null>
+  onRecogido: () => void
+  onCerrar: () => void
+}) {
+  const idConsecuencia = useId()
   const mutacion = useRecogerDeBase(puertas)
   const [error, setError] = useState<string | null>(null)
   // Un id por diálogo abierto: el reintento tras un corte devuelve lo mismo (no recoge dos veces).
@@ -116,20 +143,21 @@ function RecogerDialogo({ puertas, base, fila, onCerrar }: { puertas: PuertasBas
     setError(null)
     try {
       const r = await mutacion.mutateAsync({ operacionId: operacion.current.id, baseId: base.base_id, analistaId: fila.analista_id })
-      toast.success(`Recogidos ${r.recogidos}: vuelven a «sin repartir».${r.omitidos > 0 ? ` ${r.omitidos} se quedan con ${nombreDe(fila)} (los trabajó o tienen seguimiento activo).` : ''}`)
+      toast.success(avisoRecogido(r, nombreDe(fila)))
       operacion.current = null
+      onRecogido()
       onCerrar()
     } catch (causa: unknown) {
       setError(causa instanceof CrmApiError ? causa.message : 'No se pudo recoger. Vuelve a intentarlo.')
     }
   }
   return (
-    <Dialog open={fila !== null} onClose={cerrar}>
+    <Dialog open={fila !== null} onClose={cerrar} focoAlCerrar={focoAlCerrar}>
       {fila && (
         <>
           <DialogHeader>
             <DialogTitle>¿Recoger lo que {nombreDe(fila)} no tocó?</DialogTitle>
-            <DialogDescription id="recoger-consecuencia" className="text-sm">
+            <DialogDescription id={idConsecuencia} className="text-sm">
               Vuelven a «sin repartir» los contactos de «{base.nombre}» que no intentó desde que se los asignaste (hoy, {fila.sin_tocar}). Los que ya trabajó o tienen seguimiento activo se quedan con {nombreDe(fila)}.
             </DialogDescription>
           </DialogHeader>
@@ -138,7 +166,7 @@ function RecogerDialogo({ puertas, base, fila, onCerrar }: { puertas: PuertasBas
           </DialogBody>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={cerrar}>Cancelar</Button>
-            <Button type="button" aria-disabled={mutacion.isPending || undefined} aria-describedby="recoger-consecuencia" onClick={() => void confirmar()}>
+            <Button type="button" aria-disabled={mutacion.isPending || undefined} aria-describedby={idConsecuencia} onClick={() => void confirmar()}>
               <Undo2 aria-hidden /> {mutacion.isPending ? 'Recogiendo…' : 'Recoger'}
             </Button>
           </DialogFooter>
