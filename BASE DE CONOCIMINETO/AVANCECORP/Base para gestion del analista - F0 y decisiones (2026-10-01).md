@@ -487,3 +487,7 @@ migraciones aplicadas. Nada en producción.
   `style`. Los chips grises/ámbar a 11 px no llegan a 4,5:1 (deuda también en la ficha del lead).
 - 🔑 Los eventos `reactivacion_base` y `no_contactar` se guardan como `tipo='nota'`: `iconoActividad()` los distingue
   por `metadata.evento`.
+- ✅ **PUBLICADA 03/10 ~22:35 Lima**: `build-20261004T033439267Z`, commit `0e28f3a7`. Entre medias otra sesión publicó
+  `6b1c2538` (#181): se rearmó con cherry-pick encima (limpio), check PASS 5737, E2E 33/33, preflight y smoke OK.
+  PR #183 (choca con la #181 solo en `lead-drawer.tsx`). 🔑 Copiar el manifiesto del release a
+  `CRM-Avance-Corp/releases/` del taller: ahí lo busca el preflight de la próxima sesión.

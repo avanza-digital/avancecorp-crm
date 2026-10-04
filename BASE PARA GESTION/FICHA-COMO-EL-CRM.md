@@ -16,8 +16,11 @@
   comparada con la pieza a 1440 y 390: igual (sin WhatsApp; sin «Lead creado»: la base no trae `creado_en`).
   `revisor-a11y`: CHANGES_REQUESTED (7 P2) → aplicado → APPROVE. `npm run check` PASS (5714); E2E Docker 20/20
   (`base-gestion-ficha`, `gestion-diaria-resultado`, `acciones-demo`) + cierre 25 pasan / 1 rojo previo
-  (`gestion-diaria-vuelta.spec.ts:11`). **Sigue:** `/release-crm` desde `crm/base-gestion-ficha-crm` (lo invoca Miguel)
-  → PR a `main` de GitHub. P3 abiertos (opcionales): `tabIndex` de la región solo en lg; «Reintentando…».
+  (`gestion-diaria-vuelta.spec.ts:11`). **✅ PUBLICADO 03/10 ~22:35 Lima** (`/release-crm`): otra sesión había publicado `6b1c2538` (#181,
+  «Gestionado» en la ficha) a las 21:56 → rearmado con cherry-pick encima (rama `crm/base-gestion-ficha-crm-sobre-vivo`,
+  limpio; su cambio en `lead-drawer.tsx` sigue entero) → check PASS 5737, E2E 33/33, preflight OK, smoke OK.
+  `build-20261004T033439267Z`, commit `0e28f3a7` = VIVO. Respaldo `rescue/base-gestion-ficha-crm-20261003`. **PR #183**
+  (choca con la #181 solo en `lead-drawer.tsx`). P3 abiertos (opcionales): `tabIndex` de la región solo en lg; «Reintentando…».
 
 Pieza visual a escala real: `../ui-playground/ficha-base-gestion.html` (fuera del repo).
 
