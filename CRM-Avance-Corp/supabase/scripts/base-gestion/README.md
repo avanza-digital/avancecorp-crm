@@ -32,4 +32,16 @@ node supabase/scripts/base-gestion/banco.mjs aplicar-b3b           # 20261003001
 node supabase/scripts/base-gestion/banco.mjs reversa-y-reaplicar-b3b
 ```
 
-Reversas, en este orden: B3b (`reversa-idempotencia-y-orden.sql`) · B4b (`reversa-ventana-descanso.sql`) · B4 (`reversa-enfriamiento.sql`) · B3 (`reversa-puertas.sql`, se niega si queda el trigger de B4) · B2 (`reversa-no-contactar-supervisor.sql`, independiente) · B1b (`reversa-proxima-llamada.sql`, se niega si quedan núcleos de B3) · B1 (`reversa-esquema.sql`, se niega si B1b sigue aplicada). Rama de Supabase con datos: `rama.mjs estado | aplicar | explain | gate` (la URL del pooler la aporta Miguel por archivo; ver `BASE PARA GESTION/ESTADO.md`).
+**B6b (20261004045038, «Ver no contactar» + detalle de las cifras).** No usa este banco sintético: corre en un banco con los
+actores de `seed:demo` (el del gate de RLS en un stack Docker propio, a paridad con producción; en la construcción del 04/10,
+`avancecorp-b6b-20261003`, puerto 58122, clon del volumen del gate del 03/10). Aplicar la migración en UN mensaje
+(`psql -c "$(cat <archivo>)"`, como `db query --file`) y luego:
+
+```sh
+psql -h 127.0.0.1 -p <puerto> -U postgres -f supabase/scripts/base-gestion/b6b-vetados.sql      # 92 casos, ROLLBACK al final
+node supabase/scripts/base-gestion/b6b-mutantes.mjs --puerto <puerto>                          # 20 mutantes: todos deben CAER
+psql … -f supabase/scripts/base-gestion/reversa-b6b.sql                                         # vuelve a B5 exacto (antes que la de B5)
+psql … -f supabase/scripts/base-gestion/registrar/20261004045038.sql                            # tras aplicar; idempotente
+```
+
+Reversas, en este orden: B6b (`reversa-b6b.sql`, antes que todas) · B3b (`reversa-idempotencia-y-orden.sql`) · B4b (`reversa-ventana-descanso.sql`) · B4 (`reversa-enfriamiento.sql`) · B3 (`reversa-puertas.sql`, se niega si queda el trigger de B4) · B2 (`reversa-no-contactar-supervisor.sql`, independiente) · B1b (`reversa-proxima-llamada.sql`, se niega si quedan núcleos de B3) · B1 (`reversa-esquema.sql`, se niega si B1b sigue aplicada). Rama de Supabase con datos: `rama.mjs estado | aplicar | explain | gate` (la URL del pooler la aporta Miguel por archivo; ver `BASE PARA GESTION/ESTADO.md`).

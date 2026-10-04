@@ -15498,7 +15498,8 @@ async function testBaseGestionB3(sessions, seed) {
   let aplicada;
   try {
     aplicada = contarFueraDeBanda('base gestión B3: puertas aplicadas',
-      `select (to_regprocedure('crm.obtener_base_gestion(uuid)') is not null and to_regprocedure('crm.registrar_intento_base(uuid,uuid,text,text,timestamptz)') is not null and to_regprocedure('crm.reactivar_lead_base(uuid,uuid,text)') is not null and to_regprocedure('crm.base_gestion_resumen()') is not null)::int`);
+      // B6b (20261004045038) cambia la firma a (uuid, boolean): el bloque vale con la de B3–B6 y con la de B6b.
+      `select (coalesce(to_regprocedure('crm.obtener_base_gestion(uuid,boolean)'), to_regprocedure('crm.obtener_base_gestion(uuid)')) is not null and to_regprocedure('crm.registrar_intento_base(uuid,uuid,text,text,timestamptz)') is not null and to_regprocedure('crm.reactivar_lead_base(uuid,uuid,text)') is not null and to_regprocedure('crm.base_gestion_resumen()') is not null)::int`);
   } catch (error) {
     saltar(`⚠ Base para gestión B3 SALTADO: sin vía fuera de banda (${error?.message ?? String(error)})`);
     return;
@@ -15529,7 +15530,7 @@ async function testBaseGestionB3(sessions, seed) {
   await expectExpectedFailure('B3 sup1 pide la base de vend3 (otro equipo) → P0002', sessions.sup1.client.schema('crm').rpc('obtener_base_gestion', { p_vendedor_id: seed.profileIdByKey.vend3 }), ['P0002'], AMBITO);
   await positive('B3 sup1 pide la base de vend1 (su analista)', sessions.sup1.client.schema('crm').rpc('obtener_base_gestion', { p_vendedor_id: vend1Id }));
   await expectExpectedFailure('B3 vend1 → base_gestion_resumen 42501', vend1.rpc('base_gestion_resumen'), ['42501'], /Supervision y Gerencia/i);
-  check(cuenta('acl puertas', `select count(*) from unnest(array['crm.obtener_base_gestion(uuid)','crm.registrar_intento_base(uuid,uuid,text,text,timestamptz)','crm.reactivar_lead_base(uuid,uuid,text)','crm.base_gestion_resumen()']) f(firma) where has_function_privilege('anon', f.firma, 'EXECUTE') or has_function_privilege('service_role', f.firma, 'EXECUTE') or not has_function_privilege('authenticated', f.firma, 'EXECUTE') or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid = f.firma::regprocedure and a.grantee = 0)`) === 0,
+  check(cuenta('acl puertas', `select count(*) from unnest(array[coalesce(to_regprocedure('crm.obtener_base_gestion(uuid,boolean)'), to_regprocedure('crm.obtener_base_gestion(uuid)'))::text,'crm.registrar_intento_base(uuid,uuid,text,text,timestamptz)','crm.reactivar_lead_base(uuid,uuid,text)','crm.base_gestion_resumen()']) f(firma) where has_function_privilege('anon', f.firma, 'EXECUTE') or has_function_privilege('service_role', f.firma, 'EXECUTE') or not has_function_privilege('authenticated', f.firma, 'EXECUTE') or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid = f.firma::regprocedure and a.grantee = 0)`) === 0,
     'B3 las cuatro puertas exponen EXECUTE exactamente a authenticated (ni anon, ni service_role, ni PUBLIC)');
   check(cuenta('acl privadas', `select count(*) from unnest(array['private.base_gestion_intento_core(uuid,uuid,uuid,text,text,timestamptz)','private.base_gestion_reactivar_core(uuid,uuid,uuid,text)','private.base_gestion_rol(uuid)','private.base_gestion_lead_visible(uuid,text,uuid,uuid)','private.base_gestion_etapa_rango(text)','private.trg_actividades_base_gestion_solo_nucleo()']) f(firma) where has_function_privilege('anon', f.firma, 'EXECUTE') or has_function_privilege('authenticated', f.firma, 'EXECUTE') or has_function_privilege('service_role', f.firma, 'EXECUTE')`) === 0,
     'B3 núcleos, ayudantes y sello sin EXECUTE para la API');
@@ -15777,6 +15778,194 @@ async function testBaseGestionB6(sessions, seed) {
     else fail(`B3c: el resumen no cuadra ${JSON.stringify(filaV1)} vs en_base=${esperadoBase} intentos_hoy=${esperadoHoy}`);
   } finally {
     await requireAdmin('B6: retirar el lead transitorio (soft-delete)', admin.schema('crm').from('leads').update({ activo: false }).eq('id', L));
+  }
+}
+
+// ── Base para gestión · B6b (20261004045038): vetados a pedido de Supervisión/Gerencia y detalle de las cifras ──────
+// Un lead transitorio de vend1, descartado y marcado «No contactar» por su analista. vend1 no lo ve ni pidiéndolo (42501);
+// coordinación, directorio, anon y service_role tampoco; sup1 lo ve con cuándo, motivo y quién, al final y fuera de «Llamar
+// hoy», y nada fuera de su ámbito; sup2 no (y con vend1 → P0002); Gerencia con true = false + los vetados; null = false; el
+// resumen no lo cuenta. sup1 levanta la marca y vuelve a la base de vend1. La detalle de cada cifra da tantas filas como el
+// resumen (como Supervisión y como Gerencia). El lead se retira con soft-delete al final.
+async function testBaseGestionB6b(sessions, seed) {
+  console.log('\n— Base para gestión B6b: ver vetados (Supervisión y Gerencia) y detalle de las cifras del resumen —');
+  const saltar = (msg) => {
+    if (process.env.CRM_RLS_EXIGE_BASE_GESTION === '1') fail(msg);
+    else console.log(`  ${msg}`);
+  };
+  let aplicada;
+  try {
+    aplicada = contarFueraDeBanda('base gestión B6b: aplicada',
+      `select (to_regprocedure('crm.obtener_base_gestion(uuid,boolean)') is not null and to_regprocedure('crm.base_gestion_resumen_detalle(uuid,text)') is not null)::int`);
+  } catch (error) {
+    saltar(`⚠ Base para gestión B6b SALTADO: sin vía fuera de banda (${error?.message ?? String(error)})`);
+    return;
+  }
+  if (aplicada !== 1) {
+    saltar('⚠ 20261004045038 (base gestión B6b) NO desplegada en esta base: bloque SALTADO (no probado)');
+    return;
+  }
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`base gestión B6b: ${etiqueta}`, sql);
+  const texto = (etiqueta, sql) => textoFueraDeBanda(`base gestión B6b: ${etiqueta}`, sql);
+  const vend1Id = seed.profileIdByKey.vend1;
+  const sup1Id = seed.profileIdByKey.sup1;
+  const vend1 = sessions.vend1.client.schema('crm');
+  const sup1 = sessions.sup1.client.schema('crm');
+  const sup2 = sessions.sup2.client.schema('crm');
+  const ger = sessions.gerencia.client.schema('crm');
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-base-gestion-b6b'));
+  const DENEGADO = /permission denied|denegado/i;
+  const SIN_ROL = /analistas, Supervision y Gerencia|No autorizado|permission denied|denegado/i;
+  const SOLO_SUP = /Solo Supervision y Gerencia ven los leads marcados No contactar/i;
+  const AMBITO = /fuera de tu [aá]mbito/i;
+  const ids = (resp) => (Array.isArray(resp?.data) ? resp.data.map((r) => r.lead_id) : []);
+  // Vetados descartados vivos que Supervisión 1 ve (su subárbol; o bandeja de su subárbol), leídos fuera de banda.
+  const SUBARBOL_SUP1 = `with recursive s as (select perfil_id from crm.equipo where perfil_id = '${sup1Id}' union select e.perfil_id from crm.equipo e join s on e.supervisor_id = s.perfil_id) select perfil_id from s`;
+  const vetadosDe = (filtro) => cuenta(`vetados ${filtro}`, `select count(*) from crm.leads l where l.activo and l.etapa = 'descartado' and l.no_contactar and (${filtro})`);
+  // Contrato fuera de banda.
+  check(cuenta('acl', `select count(*) from unnest(array['crm.obtener_base_gestion(uuid,boolean)','crm.base_gestion_resumen_detalle(uuid,text)']) f(firma) where has_function_privilege('anon', f.firma, 'EXECUTE') or has_function_privilege('service_role', f.firma, 'EXECUTE') or not has_function_privilege('authenticated', f.firma, 'EXECUTE') or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid = f.firma::regprocedure and a.grantee = 0)`) === 0,
+    'B6b las dos puertas exponen EXECUTE exactamente a authenticated (ni anon, ni service_role, ni PUBLIC)');
+  check(cuenta('una sobrecarga', `select count(*) from pg_proc where proname = 'obtener_base_gestion' and pronamespace = 'crm'::regnamespace`) === 1
+      && cuenta('definer', `select count(*) from pg_proc p where p.oid in ('crm.obtener_base_gestion(uuid,boolean)'::regprocedure, 'crm.base_gestion_resumen_detalle(uuid,text)'::regprocedure) and p.prosecdef and p.proowner = 'postgres'::regrole and p.proconfig = array['search_path=""']::text[]`) === 2,
+    'B6b una sola sobrecarga de obtener_base_gestion; las dos puertas son DEFINER de postgres con search_path vacío');
+  check(cuenta('fuera del censo', `select count(*) from private.contadores_crudos_leads_citas() c where c.objeto in ('crm.obtener_base_gestion(uuid,boolean)', 'crm.base_gestion_resumen_detalle(uuid,text)')`) === 0,
+    'B6b ninguna de las dos está en el censo analítico');
+  // Quién NO pide los vetados.
+  await expectExpectedFailure('B6b anon → obtener_base_gestion con vetados 42501 (sin EXECUTE)', anon.schema('crm').rpc('obtener_base_gestion', { p_incluir_vetados: true }), ['42501'], DENEGADO);
+  await expectExpectedFailure('B6b service_role → obtener_base_gestion con vetados 42501 (sin EXECUTE)', admin.schema('crm').rpc('obtener_base_gestion', { p_incluir_vetados: true }), ['42501'], DENEGADO);
+  // r1 (auditor-rls): también un miembro DESACTIVADO (vendInactive: membresía inactiva) → 42501 en las dos.
+  for (const clave of ['coordinador', 'directorio', 'vendInactive']) {
+    await expectExpectedFailure(`B6b ${clave} → obtener_base_gestion con vetados 42501`, sessions[clave].client.schema('crm').rpc('obtener_base_gestion', { p_incluir_vetados: true }), ['42501'], SIN_ROL);
+    await expectExpectedFailure(`B6b ${clave} → base_gestion_resumen_detalle 42501`, sessions[clave].client.schema('crm').rpc('base_gestion_resumen_detalle', { p_vendedor_id: vend1Id, p_cifra: 'intentos_hoy' }), ['42501'], SIN_ROL);
+  }
+  await expectExpectedFailure('B6b vend1 pide los vetados → 42501', vend1.rpc('obtener_base_gestion', { p_incluir_vetados: true }), ['42501'], SOLO_SUP);
+  await expectExpectedFailure('B6b vend1 pide los vetados de su propia base → 42501', vend1.rpc('obtener_base_gestion', { p_vendedor_id: vend1Id, p_incluir_vetados: true }), ['42501'], SOLO_SUP);
+  await expectExpectedFailure('B6b anon → base_gestion_resumen_detalle 42501 (sin EXECUTE)', anon.schema('crm').rpc('base_gestion_resumen_detalle', { p_vendedor_id: vend1Id, p_cifra: 'intentos_hoy' }), ['42501'], DENEGADO);
+  await expectExpectedFailure('B6b service_role → base_gestion_resumen_detalle 42501 (sin EXECUTE)', admin.schema('crm').rpc('base_gestion_resumen_detalle', { p_vendedor_id: vend1Id, p_cifra: 'intentos_hoy' }), ['42501'], DENEGADO);
+  await expectExpectedFailure('B6b vend1 → base_gestion_resumen_detalle 42501', vend1.rpc('base_gestion_resumen_detalle', { p_vendedor_id: vend1Id, p_cifra: 'intentos_hoy' }), ['42501'], /Supervision y Gerencia/i);
+  await expectExpectedFailure('B6b sup1 detalle con cifra desconocida → 22023', sup1.rpc('base_gestion_resumen_detalle', { p_vendedor_id: vend1Id, p_cifra: 'en_base' }), ['22023'], /Cifra invalida/i);
+  await expectExpectedFailure('B6b sup1 detalle de vend3 (otro equipo) → P0002', sup1.rpc('base_gestion_resumen_detalle', { p_vendedor_id: seed.profileIdByKey.vend3, p_cifra: 'intentos_hoy' }), ['P0002'], AMBITO);
+  await expectExpectedFailure('B6b sup2 detalle de vend1 (otro equipo) → P0002', sup2.rpc('base_gestion_resumen_detalle', { p_vendedor_id: vend1Id, p_cifra: 'reactivaciones_mes' }), ['P0002'], AMBITO);
+  // Camino con un lead transitorio de vend1: lo descarta y lo marca su analista.
+  const L = randomUUID();
+  const MOTIVO = 'B6b gate: pidió que no lo llamen';
+  try {
+    await requireAdmin('B6b: sembrar un lead nuevo de vend1', admin.schema('crm').from('leads').insert({
+      activo: true, asignado_supervisor_id: null, etapa: 'nuevo', moneda: 'PEN', no_contactar: false, origen: 'oficina', monto_estimado: 5000,
+      id: L, nombre_completo: 'B6B VETADO TRANSIENT', telefono: TEL_IDENTIDAD(65), creado_por: vend1Id, vendedor_id: vend1Id,
+    }));
+    await requireAdmin('B6b: vend1 descarta el suyo', vend1.from('leads').update({ etapa: 'descartado', motivo_descarte: 'no_responde' }).eq('id', L));
+    await requireAdmin('B6b: vend1 lo marca No contactar', vend1.rpc('marcar_no_contactar', { p_lead_id: L, p_motivo: MOTIVO }));
+    // El analista no lo ve.
+    const v1 = await positive('B6b vend1 obtiene su base', vend1.rpc('obtener_base_gestion'));
+    assertions += 1;
+    if (Array.isArray(v1?.data) && !ids(v1).includes(L) && v1.data.every((r) => r.no_contactar === false && r.no_contactar_en == null && r.no_contactar_motivo == null && r.no_contactar_por == null)) console.log('  ✓ B6b vend1 no ve su lead vetado; sus filas traen no_contactar=false y la marca vacía');
+    else fail(`B6b: la base de vend1 trae el vetado o columnas de marca ${JSON.stringify(v1?.data?.find((r) => r.lead_id === L) ?? v1?.error)}`);
+    // Supervisión 1: sin parámetro no lo ve; con true lo ve completo, al final y fuera de «Llamar hoy».
+    const s1f = await positive('B6b sup1 obtiene la base sin vetados', sup1.rpc('obtener_base_gestion'));
+    const s1t = await positive('B6b sup1 obtiene la base con vetados', sup1.rpc('obtener_base_gestion', { p_incluir_vetados: true }));
+    const s1n = await positive('B6b sup1 con p_incluir_vetados = null', sup1.rpc('obtener_base_gestion', { p_incluir_vetados: null }));
+    assertions += 1;
+    if (!ids(s1f).includes(L) && JSON.stringify(s1n?.data) === JSON.stringify(s1f?.data)) console.log('  ✓ B6b sup1 sin pedirlos no ve vetados; null = false (misma lista, mismo orden)');
+    else fail('B6b: sup1 ve el vetado sin pedirlo o null no es false');
+    const fila = Array.isArray(s1t?.data) ? s1t.data.find((r) => r.lead_id === L) : null;
+    const marcaEn = texto('instante de la marca', `select to_char(creado_en at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS') from crm.actividades where lead_id = '${L}' and metadata->>'evento' = 'no_contactar' and metadata->>'accion' = 'marcar' order by creado_en desc limit 1`);
+    assertions += 1;
+    if (fila && fila.no_contactar === true && fila.no_contactar_motivo === MOTIVO && fila.no_contactar_por === USER_BY_KEY.vend1.name
+        && typeof fila.no_contactar_en === 'string' && fila.no_contactar_en.replace(' ', 'T').startsWith(marcaEn ?? '∅') && fila.rellamada_hoy === false) console.log(`  ✓ B6b sup1 ve el vetado con cuándo (${marcaEn}), motivo y quién (${fila.no_contactar_por}), fuera de «Llamar hoy»`);
+    else fail(`B6b: la fila del vetado no trae la marca completa ${JSON.stringify(fila)} (esperado en ${marcaEn})`);
+    const primerVetado = Array.isArray(s1t?.data) ? s1t.data.findIndex((r) => r.no_contactar) : -1;
+    const esperadoSup1 = vetadosDe(`l.vendedor_id in (${SUBARBOL_SUP1}) or (l.vendedor_id is null and l.asignado_supervisor_id in (${SUBARBOL_SUP1}))`);
+    assertions += 1;
+    if (primerVetado >= 0 && s1t.data.slice(primerVetado).every((r) => r.no_contactar) && s1t.data.length - s1f.data.length === esperadoSup1
+        && JSON.stringify(s1t.data.slice(0, primerVetado)) === JSON.stringify(s1f.data)) console.log(`  ✓ B6b sup1 con true = la lista sin vetados + sus ${esperadoSup1} vetados del ámbito, al final`);
+    else fail(`B6b: sup1 con true no es «sin vetados + vetados del ámbito al final» (${s1t?.data?.length} vs ${s1f?.data?.length} + ${esperadoSup1})`);
+    // Supervisión 2 (otro equipo).
+    const s2t = await positive('B6b sup2 obtiene la base con vetados', sup2.rpc('obtener_base_gestion', { p_incluir_vetados: true }));
+    assertions += 1;
+    if (Array.isArray(s2t?.data) && !ids(s2t).includes(L)) console.log('  ✓ B6b sup2 (otro equipo) no ve el vetado de vend1'); else fail('B6b: sup2 ve el vetado de vend1');
+    await expectExpectedFailure('B6b sup2 pide los vetados de vend1 → P0002', sup2.rpc('obtener_base_gestion', { p_vendedor_id: vend1Id, p_incluir_vetados: true }), ['P0002'], AMBITO);
+    // Gerencia: true = false + TODOS los vetados descartados vivos.
+    const gF = await positive('B6b gerencia sin vetados', ger.rpc('obtener_base_gestion'));
+    const gT = await positive('B6b gerencia con vetados', ger.rpc('obtener_base_gestion', { p_incluir_vetados: true }));
+    const vetadosTodos = vetadosDe('true');
+    const corte = Array.isArray(gT?.data) ? gT.data.findIndex((r) => r.no_contactar) : -1;
+    assertions += 1;
+    if (corte >= 0 && ids(gT).includes(L) && gT.data.length - gF.data.length === vetadosTodos && JSON.stringify(gT.data.slice(0, corte)) === JSON.stringify(gF.data)
+        && gT.data.slice(corte).every((r) => r.no_contactar && r.rellamada_hoy === false)) console.log(`  ✓ B6b gerencia con true = sin vetados + los ${vetadosTodos} vetados de la operación, al final`);
+    else fail(`B6b: gerencia con true no cuadra (${gT?.data?.length} vs ${gF?.data?.length} + ${vetadosTodos})`);
+    // El resumen no cuenta el vetado.
+    const res = await positive('B6b sup1 lee el resumen', sup1.rpc('base_gestion_resumen'));
+    const filaRes = Array.isArray(res?.data) ? res.data.find((r) => r.vendedor_id === vend1Id) : null;
+    assertions += 1;
+    if (filaRes && filaRes.en_base === v1.data.length) console.log(`  ✓ B6b el resumen no cuenta el vetado (en base ${filaRes.en_base} = la lista de vend1)`);
+    else fail(`B6b: el resumen cuenta distinto que la lista de vend1 ${JSON.stringify(filaRes)} vs ${v1?.data?.length}`);
+    // Supervisión levanta la marca → vuelve a la base de vend1, sin marca.
+    await positive('B6b sup1 levanta No contactar', sup1.rpc('levantar_no_contactar', { p_lead_id: L, p_motivo: 'B6b gate: volvió a pedir información' }));
+    const v2 = await positive('B6b vend1 relee su base', vend1.rpc('obtener_base_gestion'));
+    assertions += 1;
+    const vuelta = Array.isArray(v2?.data) ? v2.data.find((r) => r.lead_id === L) : null;
+    if (vuelta && vuelta.no_contactar === false && vuelta.no_contactar_en == null && vuelta.no_contactar_por == null) console.log('  ✓ B6b tras levantar la marca el lead vuelve a la base de vend1, sin marca');
+    else fail(`B6b: el lead no volvió a la base de vend1 ${JSON.stringify(vuelta)}`);
+    // Detalle = cifra: vend1 y sup1 registran un intento cada uno sobre L (el de sup1 cuenta para vend1, su dueño).
+    await positive('B6b vend1 registra un intento', vend1.rpc('registrar_intento_base', { p_operacion_id: randomUUID(), p_lead_id: L, p_resultado: 'no_contesto' }));
+    await positive('B6b sup1 registra un intento sobre el lead de vend1', sup1.rpc('registrar_intento_base', { p_operacion_id: randomUUID(), p_lead_id: L, p_resultado: 'volver_a_llamar', p_proxima_llamada: new Date(Date.now() + 2 * 86400000).toISOString() }));
+    const detalleCuadra = async (actor, cliente) => {
+      const r = await positive(`B6b ${actor} lee el resumen`, cliente.rpc('base_gestion_resumen'));
+      const f = Array.isArray(r?.data) ? r.data.find((x) => x.vendedor_id === vend1Id) : null;
+      const dI = await positive(`B6b ${actor} abre «Intentos de hoy» de vend1`, cliente.rpc('base_gestion_resumen_detalle', { p_vendedor_id: vend1Id, p_cifra: 'intentos_hoy' }));
+      const dR = await positive(`B6b ${actor} abre «Reactivaciones del mes» de vend1`, cliente.rpc('base_gestion_resumen_detalle', { p_vendedor_id: vend1Id, p_cifra: 'reactivaciones_mes' }));
+      return { f, dI: dI?.data ?? [], dR: dR?.data ?? [] };
+    };
+    const enOrden = (filas) => filas.every((x, i) => i === 0 || Date.parse(filas[i - 1].en) >= Date.parse(x.en));
+    const a1 = await detalleCuadra('sup1', sup1);
+    const deL = a1.dI.filter((x) => x.lead_id === L);
+    assertions += 1;
+    if (a1.f && a1.dI.length === a1.f.intentos_hoy && a1.dR.length === a1.f.reactivaciones_mes && a1.f.intentos_hoy >= 2 && enOrden(a1.dI) && enOrden(a1.dR)
+        && deL.length === 2 && deL[0].detalle === 'volver_a_llamar' && deL[0].autor === USER_BY_KEY.sup1.name && deL[1].autor === USER_BY_KEY.vend1.name
+        && deL.every((x) => x.sigue_en_base === true && x.nombre_completo === 'B6B VETADO TRANSIENT')) console.log(`  ✓ B6b detalle = cifra para sup1 (intentos hoy ${a1.dI.length}, reactivaciones ${a1.dR.length}), más reciente primero, con autor y «sigue en base»`);
+    else fail(`B6b: la detalle de sup1 no cuadra con el resumen ${JSON.stringify(a1.f)} · intentos ${a1.dI.length} · reactivaciones ${a1.dR.length} · de L ${JSON.stringify(deL)}`);
+    // vend1 lo reactiva: sale de la base y la reactivación aparece en su cifra del mes, con «sigue en base» = false.
+    await positive('B6b vend1 reactiva el lead', vend1.rpc('reactivar_lead_base', { p_operacion_id: randomUUID(), p_lead_id: L, p_nota: 'B6b gate: quiere reunión' }));
+    const a2 = await detalleCuadra('gerencia', ger);
+    const reacL = a2.dR.find((x) => x.lead_id === L);
+    assertions += 1;
+    if (a2.f && a2.dI.length === a2.f.intentos_hoy && a2.dR.length === a2.f.reactivaciones_mes && reacL && reacL.sigue_en_base === false
+        && reacL.detalle === 'B6b gate: quiere reunión' && reacL.autor === USER_BY_KEY.vend1.name && a2.dI.filter((x) => x.lead_id === L).every((x) => x.sigue_en_base === false)) console.log(`  ✓ B6b detalle = cifra para gerencia (intentos hoy ${a2.dI.length}, reactivaciones ${a2.dR.length}); el reactivado ya no sigue en base`);
+    else fail(`B6b: la detalle de gerencia no cuadra ${JSON.stringify(a2.f)} · intentos ${a2.dI.length} · reactivaciones ${a2.dR.length} · reactivación de L ${JSON.stringify(reacL)}`);
+    // r1: las reactivaciones del mes sobre leads RETIRADOS (las de B3, ya con soft-delete) salen sin nombre NI nota.
+    const reactRetiradas = cuenta('reactivaciones del mes de leads retirados de vend1', `select count(*) from crm.actividades a join crm.leads l on l.id = a.lead_id where l.vendedor_id = '${vend1Id}' and not l.activo and a.metadata->>'evento' = 'reactivacion_base' and date_trunc('month', a.creado_en at time zone 'America/Lima') = date_trunc('month', now() at time zone 'America/Lima')`);
+    const sinNombreR = a2.dR.filter((x) => x.nombre_completo === null);
+    assertions += 1;
+    if (reactRetiradas >= 1 && sinNombreR.length === reactRetiradas && sinNombreR.every((x) => x.detalle === null && x.sigue_en_base === false)) console.log(`  ✓ B6b las ${reactRetiradas} reactivaciones del mes sobre leads retirados salen sin nombre ni nota`);
+    else fail(`B6b: reactivaciones de leads retirados mal (${sinNombreR.length} sin nombre de ${reactRetiradas}; ${JSON.stringify(sinNombreR.slice(0, 2))})`);
+    // Un lead retirado (los transitorios de B3/B6, ya con soft-delete) cuenta en la cifra pero sin nombre (la RLS no lo deja leer).
+    const retirados = cuenta('intentos de hoy de leads retirados de vend1', `select count(*) from crm.actividades a join crm.leads l on l.id = a.lead_id where l.vendedor_id = '${vend1Id}' and not l.activo and a.metadata->>'evento' = 'intento_base' and (a.creado_en at time zone 'America/Lima')::date = (now() at time zone 'America/Lima')::date`);
+    assertions += 1;
+    if (a2.dI.filter((x) => x.nombre_completo === null).length === retirados && a2.dI.filter((x) => x.nombre_completo === null).every((x) => x.sigue_en_base === false)) console.log(`  ✓ B6b los ${retirados} intentos de hoy sobre leads retirados cuentan sin nombre`);
+    else fail(`B6b: los leads retirados no salen como se esperaba (${retirados} esperados)`);
+  } finally {
+    await requireAdmin('B6b: retirar el lead transitorio (soft-delete)', admin.schema('crm').from('leads').update({ activo: false }).eq('id', L));
+  }
+  // r1 (auditor-rls): un vetado en BANDEJA (sin analista, asignado a sup1): sup1 lo ve con su marca, sup2 no.
+  const LB = randomUUID();
+  try {
+    await requireAdmin('B6b: sembrar un lead de bandeja de sup1', admin.schema('crm').from('leads').insert({
+      activo: true, asignado_supervisor_id: sup1Id, etapa: 'nuevo', moneda: 'PEN', no_contactar: false, origen: 'oficina', monto_estimado: 5000,
+      id: LB, nombre_completo: 'B6B BANDEJA TRANSIENT', telefono: TEL_IDENTIDAD(66), creado_por: sup1Id, vendedor_id: null,
+    }));
+    await requireAdmin('B6b: sup1 descarta el de su bandeja', sup1.from('leads').update({ etapa: 'descartado', motivo_descarte: 'no_responde' }).eq('id', LB));
+    await requireAdmin('B6b: sup1 lo marca No contactar', sup1.rpc('marcar_no_contactar', { p_lead_id: LB, p_motivo: 'B6b gate: bandeja vetada' }));
+    const b1 = await positive('B6b sup1 con vetados (bandeja)', sup1.rpc('obtener_base_gestion', { p_incluir_vetados: true }));
+    const fb = Array.isArray(b1?.data) ? b1.data.find((r) => r.lead_id === LB) : null;
+    assertions += 1;
+    if (fb && fb.vendedor_id === null && fb.no_contactar === true && fb.no_contactar_motivo === 'B6b gate: bandeja vetada' && fb.no_contactar_por === USER_BY_KEY.sup1.name) console.log('  ✓ B6b sup1 ve el vetado de su bandeja (sin analista) con su marca');
+    else fail(`B6b: sup1 no ve el vetado de su bandeja ${JSON.stringify(fb)}`);
+    const b2 = await positive('B6b sup2 con vetados (bandeja ajena)', sup2.rpc('obtener_base_gestion', { p_incluir_vetados: true }));
+    assertions += 1;
+    if (Array.isArray(b2?.data) && !ids(b2).includes(LB)) console.log('  ✓ B6b sup2 no ve el vetado de la bandeja de sup1'); else fail('B6b: sup2 ve la bandeja de sup1');
+  } finally {
+    await requireAdmin('B6b: retirar el lead de bandeja (soft-delete)', admin.schema('crm').from('leads').update({ activo: false }).eq('id', LB));
   }
 }
 
@@ -16061,6 +16250,7 @@ async function main() {
       await testBaseGestionB1(sessions, verifiedSeed);
       await testBaseGestionB3(sessions, verifiedSeed);
       await testBaseGestionB6(sessions, verifiedSeed);
+      await testBaseGestionB6b(sessions, verifiedSeed);
     }
   } catch (error) {
     primaryError = error;

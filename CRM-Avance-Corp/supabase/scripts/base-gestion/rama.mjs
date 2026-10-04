@@ -54,10 +54,11 @@ if (orden === 'estado') {
 select 'B1: '||(to_regprocedure('private.base_gestion_constantes()') is not null and exists(select 1 from information_schema.columns where table_schema='crm' and table_name='leads' and column_name='enfriado_hasta'))::text
   ||' · B1b: '||exists(select 1 from information_schema.columns where table_schema='crm' and table_name='leads' and column_name='proxima_llamada_en')::text
   ||' · B2: '||((select md5(p.prosrc) from pg_proc p where p.oid=to_regprocedure('crm.levantar_no_contactar(uuid,text)'))='05df49be43869cd8e5f75330fa592a84')::text
-  ||' · B3: '||(to_regprocedure('crm.obtener_base_gestion(uuid)') is not null)::text
+  ||' · B3: '||(coalesce(to_regprocedure('crm.obtener_base_gestion(uuid,boolean)'), to_regprocedure('crm.obtener_base_gestion(uuid)')) is not null)::text
   ||' · B4: '||exists(select 1 from pg_trigger where tgrelid='crm.actividades'::regclass and tgname='trg_zz_actividades_enfriamiento_base')::text
   ||' · B4b: '||(to_regprocedure('private.base_gestion_intentos_desde(timestamptz,timestamptz,date,date)') is not null)::text
   ||' · B3b: '||coalesce((select p.prosrc like '%solicitud_proxima%' from pg_proc p where p.oid=to_regprocedure('private.base_gestion_intento_core(uuid,uuid,uuid,text,text,timestamptz)')), false)::text
+  ||' · B6b: '||(to_regprocedure('crm.obtener_base_gestion(uuid,boolean)') is not null and to_regprocedure('crm.base_gestion_resumen_detalle(uuid,text)') is not null)::text
   ||' · intentos previos: '||(select count(*) from crm.actividades where metadata->>'evento' in ('intento_base','reactivacion_base'))::text;
 select 'leads: '||count(*)||' · descartados vivos: '||count(*) filter (where activo and etapa='descartado')||' · analistas: '||(select count(*) from crm.equipo where rol_crm='vendedor' and activo) from crm.leads;
 select 'relacl leads: '||relacl::text from pg_class where oid='crm.leads'::regclass;`).out);

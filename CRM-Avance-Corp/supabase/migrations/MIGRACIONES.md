@@ -15188,3 +15188,55 @@ del módulo; queda solo `gestion_diaria_cola_hechos`, de otra sesión), advisors
 (obtener y resumen nuevos = copias de los vivos, gerencia/supervisores/analistas) 0 diferencias; el resumen pasa de 36 a 85 ms
 en gerencia (cuenta la lista real; hoy sin pantalla). Gate de RLS en Docker a paridad: 68 = 68 rojos de fondo, bloque
 B3c/B5/B6 17/17, trinquetes completos. Evidencia: `BASE PARA GESTION/revisiones/2026-10-03-rama-b3c-b5-b6.md`.
+
+## 20261004045038 — Base para gestión del analista · B6b: «Ver no contactar» (Supervisión y Gerencia) y detalle de las cifras
+
+**✅ APLICADA EN PRODUCCIÓN 04/10/2026** (Miguel con `!`: `supabase db query --linked --file` + registrador `supabase/scripts/base-gestion/registrar/20261004045038.sql`; versión registrada con md5 de statements `510d3bba…` = archivo). Verificado después en solo lectura: `md5(prosrc)` de `crm.obtener_base_gestion(uuid,boolean)` `36af7e9c…`, de `crm.base_gestion_resumen_detalle(uuid,text)` `06837224…` y del resumen intacto `b773a7c4…`; ACL `{postgres=X/postgres,authenticated=X/postgres}`, `search_path=""`, una sola sobrecarga cada una. Antes: banco Docker (suite 92/92, mutantes 20/20, gate 0 rojos nuevos), auditor-rls PASS (3.ª pasada), Codex r1/r2 BLOCK resueltos, rama con datos (`BASE PARA GESTION/revisiones/2026-10-04-rama-b6b.md`: equivalencia 0/0 en 9 actores, advisors +1 WARN, reversa OK).
+
+_Historial: construida y probada en banco Docker local (04/10/2026) antes de aplicar._
+Revisiones incorporadas: r1 (Codex P2 consistencia; auditor-rls P2a/P3) y r2 (Codex r2 P2-1/P2-2; auditor-rls r2 P3).
+Decisiones de Miguel del 03/10 (`BASE PARA GESTION/F4-SUPERVISOR.md`): los leads «No contactar» se ven en la base con el
+interruptor «Ver no contactar», solo Supervisión y Gerencia (opción a), completos (marca, cuándo, motivo, quién), también en
+descanso; «Intentos de hoy» y «Reactivaciones del mes» del panel por analista se abren.
+(1) `crm.obtener_base_gestion(uuid)` → `(uuid, boolean)`: drop + create sobre el texto vivo de B5 (md5 `b2629fba…` en el
+preflight) con `p_incluir_vetados boolean default false` (null = false; otro rol con true → 42501), el veto
+`(not l.no_contactar or v_vetados)`, el descanso que deja pasar solo a los vetados cuando se piden, `rellamada_hoy` = false
+para un vetado, los vetados al final y cuatro columnas al final (`no_contactar`, `no_contactar_en`, `no_contactar_motivo`,
+`no_contactar_por`) = la nota del **evento vigente** del veto, solo si es un «marcar» (también el de postventa: motivo en el
+detalle «No contactar: …») y su lead es visible para quien llama (`private.base_gestion_lead_visible` + activo); si no, NULL.
+**Evento vigente (r2):** si la persona del lead está vetada, la ÚLTIMA nota del veto entre TODOS sus leads — el mismo conjunto
+que actualizan las puertas: `private.leads_de_persona_veto(persona) ∪ el propio lead` (`20260910150039:904`,
+`20261002061500:152`; postventa `20260910150039:477`) —, por `creado_en desc, id desc` (la última de cada lead por
+`idx_actividades_lead`, y la más reciente de esas); si no hay persona o no está vetada (veto solo del lead), la última del
+propio lead. Persona = EXACTAMENTE la de marcar/levantar: enlace `leads.inversionista_id`; si no, puente canónico; si no,
+`private.inversionista_por_documento('DNI', dni)` (`20260910150039:855-872`, `20261002061500:103-120`). Sin anclas por hora: el
+orden lo da el sello del servidor (`trg_01_gestion_lead_serializada` fija `creado_en := clock_timestamp()` en toda nota con
+usuario, postventa incluida). La regla r1 (nota ≥ `no_contactar_en` + 1 min de holgura para postventa) se **sustituyó**: no
+distinguía periodos de veto (Codex r2: postventa → levantar → re-vetar en < 60 s; marcar → levantar → marcar en UNA
+transacción). Residuo: empate exacto de `clock_timestamp` (desempate por id). Un lead vetado enlazado a una persona NO vetada
+muestra su propia nota (con r1 salía NULL).
+(2) NUEVA `crm.base_gestion_resumen_detalle(uuid, text)` (`intentos_hoy` | `reactivaciones_mes`; otro → 22023): mismo rol que
+el resumen (42501), ámbito = ser una fila de ESE resumen (P0002), los MISMOS predicados de las cifras (filas = cifra),
+`sigue_en_base` contra la lista del analista, más reciente primero; un lead retirado cuenta sin nombre ni nota. Las dos DEFINER
+de postgres, `search_path` vacío, EXECUTE solo authenticated, sin contadores (fuera del censo). `crm.base_gestion_resumen` NO
+cambia. ⚠️ Desde B6b la lista tiene DOS envoltorios DEFINER (resumen y detalle): el preflight «único envoltorio» de esta
+migración no vale para las siguientes; si cambian `leads_select` o el gate de actor, re-auditar las dos.
+**Consistencia (Codex r1 P2):** REPEATABLE READ como primera sentencia tras el `begin` (precedente en producción con
+`db query --linked --file`: 20260930172255). Banco, dos sesiones con una copia con `pg_sleep(8)` en el postflight: en READ
+COMMITTED un intento + una reactivación ajenos durante la pausa tumban la migración; en REPEATABLE READ pasa sin bloquear a la
+otra sesión. (`supabase db query --local` no acepta archivos de varias sentencias: no sirve de banco para esto.)
+La nota de veto que `actividades_insert` deja escribir desde la API (`evento=no_contactar`, `accion=marcar`) se cierra en
+**B6c** (decisión de Miguel 04/10); B6b no la toca.
+Postflight: md5 de los dos cuerpos, una sola sobrecarga, ACL exacta, resumen intacto, censo igual a la foto, con false la lista
+es la de B5 para Gerencia (misma instantánea), null = false, detalle = cifra, analista con true → 42501; guardas en negativo
+con datos 6/6. Banco (stack propio `avancecorp-b6b-20261003`): suite `supabase/scripts/base-gestion/b6b-vetados.sql`
+**92/92** (con ejecución REAL de `marcar_no_contactar`, `levantar_no_contactar` y `postventa_veto_fn` bajo sesión de usuario y
+la bandera encendida; andamio en la transacción: solo `private.cartera_f5_exigir`, porque el banco del gate tiene contratos sin
+identidad coherente), mutantes `b6b-mutantes.mjs` **20/20 caen** (entre ellos «vuelve la regla por hora», que tumba los dos
+contraejemplos de Codex); gate de RLS antes 2500/68 rojos → después 2534/68 (0 nuevos; bloque B6b 34/34); reversa → huellas
+= producción; reaplicación → huellas de la migración; trinquetes 29/7 antes y después; censo 38 = 38. EXPLAIN sintético de
+Gerencia con true (1100 descartados, 61 vetados, 40 con persona vetada y 3 leads de puente cada una): 17 ms (false 13 ms); la
+primera versión r2 recorría `actividades_recientes_idx` hacia atrás (69 ms) y se cambió a la última nota por lead.
+**Reversa:** `supabase/scripts/base-gestion/reversa-b6b.sql` (antes que la de B5). **Registrador:**
+`supabase/scripts/base-gestion/registrar/20261004045038.sql`. Falta: re-revisión (auditor-rls, Codex), rama con datos + gate +
+advisors + EXPLAIN real, OK de Miguel y `!` + registrador, regenerar tipos y B6c.
