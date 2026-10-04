@@ -1,6 +1,9 @@
 import { useEffect, useRef } from 'react'
 import type { DecisionSolicitudTasa, EstadoSolicitudTasa, IntencionContrato, PublicacionPoliticaRentabilidad } from './crm-api'
 import type { CategoriaContrato } from '@/lib/cronograma'
+import type { CifraDetalle } from '@/lib/base-gestion'
+import { useAhora } from '@/lib/ahora'
+import { fechaLima } from '@/lib/agenda-derivada'
 import { senalarSolicitudTasaCreada } from '@/lib/respuestas-tasa'
 import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient, type InfiniteData, type QueryClient, type QueryKey } from '@tanstack/react-query'
 import type { CursorCartera, FiltrosCartera, PaginaCartera } from './crm-api'
@@ -39,9 +42,13 @@ import {
   listarLeadsSinAsignar,
   listarLeadsPropios,
   obtenerBaseGestion,
+  leerBaseGestion,
+  baseGestionResumen,
+  baseGestionResumenDetalle,
   registrarIntentoBase,
   reactivarLeadBase,
   marcarNoContactar,
+  levantarNoContactar,
   listarResumenReparto,
   listarMetricasConversiones,
   listarMetricasConversionesEquipo,
@@ -241,7 +248,15 @@ export const crmQueryKeys = {
   // Base para gestión (02/10/2026): cuelga de `leads` para que descartar o reabrir un lead en
   // cualquier pantalla la invalide como al resto de listas de leads.
   baseGestionPrefijo: () => [...crmQueryKeys.leads(), 'base-gestion'] as const,
-  baseGestion: (vendedorId: string | null) => [...crmQueryKeys.baseGestionPrefijo(), vendedorId] as const,
+  // El DÍA de Lima es parte de la identidad de la foto (Codex F4 r1): «para llamar hoy», los intentos de hoy y el
+  // orden los calcula el servidor para un día; al cruzar la medianoche no se reutiliza la respuesta de ayer.
+  baseGestion: (vendedorId: string | null, dia: string) => [...crmQueryKeys.baseGestionPrefijo(), vendedorId, dia] as const,
+  // Vista del supervisor (F4): la base del ámbito entero (con o sin los «No contactar»), el panel por analista y el
+  // detalle de una cifra. Bajo el mismo prefijo: toda escritura en la base (o en un lead) los refresca juntos.
+  baseGestionEquipo: (incluirVetados: boolean, dia: string) => [...crmQueryKeys.baseGestionPrefijo(), 'equipo', incluirVetados, dia] as const,
+  baseGestionResumen: (dia: string) => [...crmQueryKeys.baseGestionPrefijo(), 'resumen', dia] as const,
+  /** `periodo`: el día de Lima para «intentos de hoy», el mes ('YYYY-MM') para «reactivaciones del mes». */
+  baseGestionResumenDetalle: (vendedorId: string, cifra: CifraDetalle, periodo: string) => [...crmQueryKeys.baseGestionPrefijo(), 'resumen-detalle', vendedorId, cifra, periodo] as const,
   colaAccion: (limite: number) => [...crmQueryKeys.metricasAmbito(), 'cola-accion', limite] as const,
   // Aunque la RPC resuelve el mes vigente con su propio reloj, el período es
   // parte de la identidad de la foto: al cruzar medianoche en Lima no se puede
@@ -586,13 +601,24 @@ export function useLeadsPropios(habilitada: boolean) {
   })
 }
 
+/**
+ * El día de Lima ('YYYY-MM-DD') del reloj vivo (`useAhora`: cada minuto y al volver a la pestaña). Entra en la clave
+ * de las lecturas de la base: al cruzar la medianoche la clave cambia, la consulta se repite SIN quitar el foco y la
+ * foto de ayer no se presenta como de hoy (sin `placeholderData` entre días: mientras llega, «cargando»). Todas las
+ * pantallas lo derivan igual, así que «Hoy» del analista y su base siguen compartiendo UNA petición.
+ */
+export function useDiaLima(): string {
+  return fechaLima(useAhora())
+}
+
 /** Base para gestión del actor (analista: la suya; Supervisión y Gerencia: su ámbito o un analista).
  *  SOLO sesión real. Sin intervalo: el orden cambia con los intentos y con el día; lo primero ya la
- *  invalida (mutación de lead) y lo segundo la refresca al volver a la pestaña. */
+ *  invalida (mutación de lead) y lo segundo cambia la clave (el día de Lima es parte de ella). */
 export function useBaseGestion(habilitada: boolean, vendedorId: string | null = null) {
+  const dia = useDiaLima()
   return useQuery({
-    queryKey: crmQueryKeys.baseGestion(vendedorId),
-    queryFn: ({ signal }) => obtenerBaseGestion(vendedorId, signal),
+    queryKey: crmQueryKeys.baseGestion(vendedorId, dia),
+    queryFn: ({ signal }) => obtenerBaseGestion(vendedorId, { signal }),
     enabled: habilitada,
     staleTime: 30_000,
     refetchOnWindowFocus: 'always',
@@ -629,6 +655,61 @@ export function useMarcarNoContactarBase() {
   return useMutation({
     mutationFn: (entrada: { leadId: string; motivo: string }) => marcarNoContactar(entrada.leadId, entrada.motivo),
     onSuccess: async (_r, entrada) => { await invalidarBaseGestion(queryClient, entrada.leadId, false) },
+  })
+}
+
+/**
+ * La base del ámbito entero para Supervisión y Gerencia (F4): UNA carga, filtros y páginas en el navegador. Con
+ * `incluirVetados` pide también los «No contactar» (B6b). Al encender o apagar el interruptor, la hoja conserva lo
+ * que ya mostraba mientras llega la otra lista (no se vacía ni pierde la posición). SOLO sesión real.
+ */
+export function useBaseGestionEquipo(habilitada: boolean, incluirVetados: boolean) {
+  const dia = useDiaLima()
+  return useQuery({
+    queryKey: crmQueryKeys.baseGestionEquipo(incluirVetados, dia),
+    queryFn: ({ signal }) => leerBaseGestion(null, { incluirVetados, signal }),
+    enabled: habilitada,
+    staleTime: 30_000,
+    refetchOnWindowFocus: 'always',
+    // Solo entre las dos listas del MISMO día (el interruptor): la foto de ayer nunca hace de la de hoy.
+    placeholderData: (anterior, consultaAnterior) => (consultaAnterior?.queryKey.at(-1) === dia ? anterior : undefined),
+  })
+}
+
+/** El panel por analista (F4). Las cifras de HOY y del mes dependen del reloj: el día de Lima va en la clave. */
+export function useBaseGestionResumen(habilitada: boolean) {
+  const dia = useDiaLima()
+  return useQuery({
+    queryKey: crmQueryKeys.baseGestionResumen(dia),
+    queryFn: ({ signal }) => baseGestionResumen(signal),
+    enabled: habilitada,
+    staleTime: 30_000,
+    refetchOnWindowFocus: 'always',
+  })
+}
+
+/** El detalle de una cifra del panel; solo mientras está abierto. `null` en `data` = el servidor aún no lo tiene. */
+export function useBaseGestionResumenDetalle(habilitada: boolean, vendedorId: string | null, cifra: CifraDetalle | null) {
+  const dia = useDiaLima()
+  // Los intentos son de HOY (cambian a medianoche); las reactivaciones, del MES (cambian al empezar el mes).
+  const periodo = cifra === 'reactivaciones_mes' ? dia.slice(0, 7) : dia
+  return useQuery({
+    queryKey: crmQueryKeys.baseGestionResumenDetalle(vendedorId ?? '', cifra ?? 'intentos_hoy', periodo),
+    queryFn: ({ signal }) => baseGestionResumenDetalle(vendedorId ?? '', cifra ?? 'intentos_hoy', signal),
+    enabled: habilitada && vendedorId !== null && cifra !== null,
+    staleTime: 30_000,
+  })
+}
+
+/** Quitar «No contactar» (D5): se levanta para la persona y TODOS sus leads, que pueden estar en otras listas
+ *  (cartera, pipeline): se refresca todo lo que cuelga de `leads()` (la base incluida, con la marca de cada lead). El
+ *  historial, solo el de ESE lead: el servidor escribe la actividad «Levantado No contactar» únicamente sobre
+ *  `p_lead_id` (migración 20261002061500, líneas 235-236); en los otros leads de la persona solo cambia la marca. */
+export function useLevantarNoContactarBase() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (entrada: { leadId: string; motivo: string }) => levantarNoContactar(entrada.leadId, entrada.motivo),
+    onSuccess: async (_r, entrada) => { await invalidarBaseGestion(queryClient, entrada.leadId, true) },
   })
 }
 

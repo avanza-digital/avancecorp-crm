@@ -4888,6 +4888,17 @@ export type Database = {
           vendedor_id: string
         }[]
       }
+      base_gestion_resumen_detalle: {
+        Args: { p_cifra: string; p_vendedor_id: string }
+        Returns: {
+          autor: string
+          detalle: string
+          en: string
+          lead_id: string
+          nombre_completo: string
+          sigue_en_base: boolean
+        }[]
+      }
       bienvenida_inversion_entrega_fn: {
         Args: {
           p_paso: string
@@ -6100,7 +6111,7 @@ export type Database = {
         Returns: Json
       }
       obtener_base_gestion: {
-        Args: { p_vendedor_id?: string }
+        Args: { p_incluir_vetados?: boolean; p_vendedor_id?: string }
         Returns: {
           categoria_interes: string
           ciclo_n: number
@@ -6115,6 +6126,10 @@ export type Database = {
           moneda: string
           monto_estimado: number
           motivo_descarte: string
+          no_contactar: boolean
+          no_contactar_en: string
+          no_contactar_motivo: string
+          no_contactar_por: string
           nombre_completo: string
           origen: string
           proxima_llamada_en: string

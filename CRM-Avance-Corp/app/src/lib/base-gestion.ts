@@ -10,7 +10,7 @@ import { EnteroNoNegativoRpcSchema, NumeroRpcSchema } from './esquemas-rpc'
 import { isoDeCampos } from './campos-siguiente'
 import { normalizar } from './clientes-vista'
 import { RESULTADOS_LLAMADA, etiquetaResultado } from './resultado-llamada'
-import { ETAPA_INFO, MOTIVOS_DESCARTE, TIPOS_ACTIVIDAD, origenLabel, type Actividad, type Lead } from './tipos'
+import { ETAPA_INFO, MOTIVOS_DESCARTE, TIPOS_ACTIVIDAD, origenLabel, type Actividad, type Lead, type Miembro } from './tipos'
 
 /** Espejo de `private.base_gestion_constantes()`: solo para redactar; el servidor manda. */
 export const MAX_INTENTOS_BASE = 3
@@ -50,8 +50,74 @@ export const FilaBaseGestionSchema = v.object({
   /** Cuándo le llegó el lead al analista (`coalesce(tenencia_desde, creado_en)`): el MES por el que se organiza
    *  (Miguel, 02/10/2026). Lo añade la migración B5; opcional para que la pantalla sirva antes y después de ella. */
   recibido_en: v.optional(TextoONulo, null),
+  /** «No contactar» (B6b, F4): la marca y de dónde viene (cuándo, motivo y quién, de la última actividad que la puso
+   *  sobre ESTE lead; nulos si vino de otro lead de la persona). Solo Supervisión y Gerencia piden los vetados
+   *  (`p_incluir_vetados`). Opcionales sin valor por defecto: antes de la B6b el servidor no los manda y la fila
+   *  sencillamente no está vetada (el molde de `recibido_en` antes de la B5). */
+  no_contactar: v.optional(v.boolean()),
+  no_contactar_en: v.optional(TextoONulo),
+  no_contactar_motivo: v.optional(TextoONulo),
+  no_contactar_por: v.optional(TextoONulo),
 })
 export type FilaBaseGestion = v.InferOutput<typeof FilaBaseGestionSchema>
+
+/** El lead lleva «No contactar» (Ley 29571): nadie lo llama; solo se ve con «Ver no contactar» (F4). */
+export function esVetada(fila: FilaBaseGestion): boolean {
+  return fila.no_contactar === true
+}
+
+// ── Vista del supervisor (F4): el panel por analista y el detalle de sus cifras ──────────────────────────────
+/** Una fila de `crm.base_gestion_resumen`: un analista ACTIVO del ámbito con sus cuatro cifras. */
+export const FilaResumenBaseSchema = v.object({
+  vendedor_id: v.string(),
+  nombre: v.string(),
+  en_base: EnteroNoNegativoRpcSchema,
+  rellamadas_hoy: EnteroNoNegativoRpcSchema,
+  intentos_hoy: EnteroNoNegativoRpcSchema,
+  reactivaciones_mes: EnteroNoNegativoRpcSchema,
+})
+export type FilaResumenBase = v.InferOutput<typeof FilaResumenBaseSchema>
+
+/** Las dos cifras del panel que se abren en un detalle propio (las otras dos filtran la hoja). */
+export const CIFRAS_DETALLE = ['intentos_hoy', 'reactivaciones_mes'] as const
+export type CifraDetalle = (typeof CIFRAS_DETALLE)[number]
+
+export const TITULO_CIFRA: Readonly<Record<CifraDetalle, string>> = {
+  intentos_hoy: 'Intentos de hoy',
+  reactivaciones_mes: 'Reactivaciones del mes',
+}
+
+/** Una fila de `crm.base_gestion_resumen_detalle` (B6b): qué hay detrás de una cifra, del más reciente al más antiguo. */
+export const FilaDetalleCifraSchema = v.object({
+  lead_id: v.string(),
+  nombre_completo: v.string(),
+  en: v.string(),
+  detalle: TextoONulo,
+  autor: TextoONulo,
+  sigue_en_base: v.boolean(),
+})
+export type FilaDetalleCifra = v.InferOutput<typeof FilaDetalleCifraSchema>
+
+/**
+ * Lo que se dice tras «Quitar No contactar» (Codex F4 r1): solo lo que pasó —se quitó la marca, para la persona y sus
+ * leads— sin prometer que se le puede llamar ya: si el lead está en descanso, sigue en descanso y se dice hasta cuándo.
+ */
+export function mensajeNoContactarQuitado(leadsAfectados: number, enfriadoHasta: string | null, ahora: number = Date.now()): string {
+  const base = leadsAfectados > 1
+    ? `«No contactar» quitado para la persona y sus ${leadsAfectados} leads.`
+    : leadsAfectados === 1 ? '«No contactar» quitado para la persona y su lead.' : '«No contactar» quitado.'
+  const hasta = enfriadoHasta ? Date.parse(enfriadoHasta) : Number.NaN
+  if (!Number.isFinite(hasta) || hasta <= ahora) return base
+  const [, mes, dia] = fechaLima(hasta).split('-')
+  return `${base} Este lead sigue en descanso hasta el ${dia}/${mes}.`
+}
+
+/** El detalle de un INTENTO trae la clave del resultado y se lee con su nombre («No contestó»); el de una
+ *  reactivación es la nota que escribió quien reactivó y se muestra tal cual, aunque parezca una clave (Codex F4 r1). */
+export function etiquetaDetalleCifra(detalle: string | null, cifra: CifraDetalle): string | null {
+  if (!detalle) return null
+  return cifra === 'intentos_hoy' ? etiquetaResultado(detalle) : detalle
+}
 
 /** «Cita agendada», «Entrevista realizada»… con los mismos nombres que el pipeline. */
 export function etiquetaEtapaMaxima(etapa: EtapaMaxima): string {
@@ -210,6 +276,114 @@ export function filasDemoBaseGestion(leads: readonly Lead[], analistaId: string,
   return [...propios, ...filasMuestraDemo(analistaId, gestiona, ahora)].sort(ordenDelServidor)
 }
 
+// ── Demo de la vista del supervisor (F4) ──────────────────────────────────────────────────────────────────────
+/** Muestra del EQUIPO para la demo de Supervisión y Gerencia: leads repartidos entre los analistas del ámbito (por
+ *  turno), uno en la bandeja (sin analista) y tres con «No contactar» (uno con la marca de otro lead de la persona y
+ *  otro en descanso). `intentoHoy` = el último intento fue hoy (alimenta «Intentos de hoy»). */
+const MUESTRA_DEMO_EQUIPO: ReadonlyArray<{
+  nombre: string; distrito: string; origen: string; motivo: string; dias: number; etapa: EtapaMaxima; intentos: number
+  resultado: string | null; intentoHoy: boolean; rellamada: { dia: number; hora: string } | null; recibidoHace: number
+  bandeja?: boolean; veto?: { haceDias: number; motivo: string | null; por: string | null }; descansa?: number
+}> = [
+  { nombre: 'ROBERTO MEZA LIZARRAGA', distrito: 'Santiago de Surco', origen: 'landing', motivo: 'sin_fondos', dias: 20, etapa: 'reunion_agendada', intentos: 2, resultado: 'volver_a_llamar', intentoHoy: false, rellamada: { dia: 0, hora: '10:00' }, recibidoHace: 62 },
+  { nombre: 'LUCÍA PAREDES OCHOA', distrito: 'Lince', origen: 'whatsapp', motivo: 'no_responde', dias: 12, etapa: 'contactado', intentos: 1, resultado: 'volver_a_llamar', intentoHoy: false, rellamada: { dia: -1, hora: '16:30' }, recibidoHace: 35 },
+  { nombre: 'VÍCTOR HUAMÁN SALAS', distrito: 'Los Olivos', origen: 'formulario', motivo: 'competencia', dias: 30, etapa: 'propuesta_enviada', intentos: 1, resultado: 'no_contesto', intentoHoy: true, rellamada: null, recibidoHace: 64 },
+  { nombre: 'SOFÍA RAMÍREZ CÓRDOVA', distrito: 'Barranco', origen: 'referido', motivo: 'sin_interes', dias: 9, etapa: 'contactado', intentos: 3, resultado: 'volver_a_llamar', intentoHoy: true, rellamada: { dia: 2, hora: '11:00' }, recibidoHace: 34 },
+  { nombre: 'ANDRÉS QUISPE MORALES', distrito: 'Comas', origen: 'campania', motivo: 'no_responde', dias: 45, etapa: 'nuevo', intentos: 0, resultado: null, intentoHoy: false, rellamada: null, recibidoHace: 70 },
+  { nombre: 'KAREN TORRES VILCHEZ', distrito: 'San Miguel', origen: 'landing', motivo: 'sin_fondos', dias: 5, etapa: 'contactado', intentos: 1, resultado: 'no_interesado', intentoHoy: true, rellamada: null, recibidoHace: 12 },
+  { nombre: 'MARÍA ELENA CASTRO RÍOS', distrito: 'Jesús María', origen: 'landing', motivo: 'no_responde', dias: 16, etapa: 'contactado', intentos: 2, resultado: 'no_contesto', intentoHoy: true, rellamada: null, recibidoHace: 40 },
+  { nombre: 'JORGE LUIS PALACIOS VEGA', distrito: 'La Molina', origen: 'referido', motivo: 'pide_credito', dias: 7, etapa: 'reunion_agendada', intentos: 1, resultado: 'volver_a_llamar', intentoHoy: false, rellamada: { dia: 0, hora: '17:00' }, recibidoHace: 22 },
+  { nombre: 'PATRICIA NÚÑEZ ARANDA', distrito: 'Surquillo', origen: 'formulario', motivo: 'sin_interes', dias: 25, etapa: 'nuevo', intentos: 0, resultado: null, intentoHoy: false, rellamada: null, recibidoHace: 58 },
+  { nombre: 'CÉSAR AUGUSTO LEÓN TAPIA', distrito: 'Ate', origen: 'campania', motivo: 'otro', dias: 3, etapa: 'contactado', intentos: 1, resultado: 'no_contesto', intentoHoy: false, rellamada: null, recibidoHace: 9, bandeja: true },
+  { nombre: 'ELENA VARGAS PRADO', distrito: 'Miraflores', origen: 'landing', motivo: 'sin_interes', dias: 14, etapa: 'contactado', intentos: 2, resultado: 'no_interesado', intentoHoy: false, rellamada: null, recibidoHace: 30, veto: { haceDias: 4, motivo: 'Pidió por WhatsApp que no lo llamen más', por: 'ANALISTA UNO' } },
+  { nombre: 'RAÚL MENDOZA CHÁVEZ', distrito: 'San Borja', origen: 'referido', motivo: 'no_responde', dias: 21, etapa: 'nuevo', intentos: 3, resultado: 'no_contesto', intentoHoy: false, rellamada: null, recibidoHace: 50, veto: { haceDias: 11, motivo: null, por: null }, descansa: 19 },
+  { nombre: 'GLADYS FLORES CANALES', distrito: 'Pueblo Libre', origen: 'whatsapp', motivo: 'sin_fondos', dias: 33, etapa: 'propuesta_enviada', intentos: 1, resultado: 'no_interesado', intentoHoy: false, rellamada: null, recibidoHace: 66, veto: { haceDias: 2, motivo: 'Molesto: dice que ya lo llamaron cinco veces', por: 'SUPERVISOR UNO' } },
+]
+
+/** Reactivaciones del mes de la demo: leads que volvieron a la cartera (ya no están en la base). */
+const REACTIVADOS_DEMO = ['HÉCTOR SALAZAR PINTO', 'ROSA ELVIRA QUISPE', 'DIEGO ALARCÓN SOTO', 'MILAGROS TELLO RUIZ', 'FERNANDO OCAMPO LUNA']
+
+export interface DemoBaseEquipo {
+  /** La base del ámbito, con los «No contactar» al final (como `p_incluir_vetados = true`). */
+  filas: FilaBaseGestion[]
+  resumen: FilaResumenBase[]
+  detalle: (vendedorId: string, cifra: CifraDetalle) => FilaDetalleCifra[]
+}
+
+/**
+ * Espejo DEMO (sin red) de la vista del supervisor: los analistas activos del ámbito (Gerencia: todos; Supervisión: los
+ * suyos), sus descartados del store y una muestra repartida por turno, con el panel y el detalle calculados de esas
+ * mismas filas (las cifras cuadran con la hoja). Ordenado como el servidor: los vetados, al final.
+ */
+export function demoBaseEquipo(
+  leads: readonly Lead[],
+  equipo: readonly Miembro[],
+  yo: { id: string; rol: string } | null,
+  ahora: number = Date.now(),
+): DemoBaseEquipo {
+  if (!yo) return { filas: [], resumen: [], detalle: () => [] }
+  const analistas = equipo
+    .filter((m) => m.activo && m.rol_crm === 'vendedor' && (yo.rol === 'gerencia' || m.supervisor_id === yo.id))
+    .sort((a, b) => a.nombre_completo.localeCompare(b.nombre_completo, 'es'))
+  const hoy = fechaLima(ahora)
+  // Los momentos «de hoy» y «de este mes» se acotan al día y al mes de Lima (la demo también se abre a medianoche).
+  const inicioHoy = Date.parse(`${hoy}T00:00:00-05:00`)
+  const inicioMes = Date.parse(`${hoy.slice(0, 8)}01T00:00:00-05:00`)
+  const propios = analistas.flatMap((a) =>
+    filasDemoBaseGestion(leads, a.perfil_id, ahora).filter((f) => !f.lead_id.startsWith('demo-base-')))
+  const muestra: FilaBaseGestion[] = analistas.length === 0 ? [] : MUESTRA_DEMO_EQUIPO.map((m, i) => {
+    const a = analistas[i % analistas.length]!
+    const proxima = m.rellamada ? new Date(Date.parse(`${fechaLima(ahora + m.rellamada.dia * DIA_MS)}T${m.rellamada.hora}:00-05:00`)).toISOString() : null
+    const descartadoEn = new Date(ahora - m.dias * DIA_MS).toISOString()
+    const haceUnRato = Math.min(ahora, Math.max(inicioHoy + (i + 1) * 60_000, ahora - (i + 1) * 37 * 60_000))
+    const ultimoIntento = m.resultado ? new Date(m.intentoHoy ? haceUnRato : ahora - (i + 2) * DIA_MS).toISOString() : null
+    const vetada = m.veto !== undefined
+    return {
+      lead_id: `demo-equipo-${i + 1}`, nombre_completo: m.nombre, telefono: `+5198${String(1000000 + i * 1111).padStart(7, '0')}`,
+      distrito: m.distrito, origen: m.origen, categoria_interes: null, monto_estimado: 10000 + i * 2500, moneda: 'PEN' as const,
+      motivo_descarte: m.motivo, descartado_en: descartadoEn, dias_desde_descarte: diasLimaDesde(descartadoEn, ahora),
+      etapa_maxima: m.etapa, intentos: m.intentos, ultimo_resultado: m.resultado, ultimo_intento_en: ultimoIntento,
+      proxima_llamada_en: proxima,
+      // Como el servidor: un vetado nunca está en «Llamar hoy».
+      rellamada_hoy: !vetada && proxima !== null && fechaLima(Date.parse(proxima)) <= hoy,
+      enfriado_hasta: m.descansa ? new Date(ahora + m.descansa * DIA_MS).toISOString() : null, ciclo_n: 1,
+      vendedor_id: m.bandeja ? null : a.perfil_id, gestiona: m.bandeja ? null : a.nombre_completo,
+      recibido_en: new Date(ahora - m.recibidoHace * DIA_MS).toISOString(),
+      no_contactar: vetada,
+      no_contactar_en: m.veto && (m.veto.motivo || m.veto.por) ? new Date(ahora - m.veto.haceDias * DIA_MS).toISOString() : null,
+      no_contactar_motivo: m.veto?.motivo ?? null,
+      no_contactar_por: m.veto?.por ?? null,
+    }
+  })
+  const todas = [...propios, ...muestra]
+  const vivas = todas.filter((f) => !esVetada(f)).sort(ordenDelServidor)
+  const vetadas = todas.filter(esVetada).sort(ordenDelServidor)
+  const intentosHoy = (id: string) => vivas.filter((f) => f.vendedor_id === id && f.ultimo_intento_en !== null && fechaLima(Date.parse(f.ultimo_intento_en)) === hoy)
+  const reactivados = (indice: number, a: Miembro): FilaDetalleCifra[] =>
+    REACTIVADOS_DEMO.filter((_, j) => j % analistas.length === indice).map((nombre, j) => ({
+      lead_id: `demo-reactivado-${indice}-${j}`, nombre_completo: nombre,
+      en: new Date(Math.min(ahora, Math.max(inicioMes + (j + 1) * 3_600_000, ahora - (j + 1) * 3 * 3_600_000))).toISOString(),
+      detalle: 'Reactivado desde la base', autor: a.nombre_completo, sigue_en_base: false,
+    }))
+  const resumen: FilaResumenBase[] = analistas.map((a, i) => ({
+    vendedor_id: a.perfil_id, nombre: a.nombre_completo,
+    en_base: vivas.filter((f) => f.vendedor_id === a.perfil_id).length,
+    rellamadas_hoy: vivas.filter((f) => f.vendedor_id === a.perfil_id && f.rellamada_hoy).length,
+    intentos_hoy: intentosHoy(a.perfil_id).length,
+    reactivaciones_mes: reactivados(i, a).length,
+  }))
+  const detalle = (vendedorId: string, cifra: CifraDetalle): FilaDetalleCifra[] => {
+    const i = analistas.findIndex((a) => a.perfil_id === vendedorId)
+    const a = analistas[i]
+    if (!a) return []
+    if (cifra === 'reactivaciones_mes') return reactivados(i, a)
+    return intentosHoy(vendedorId)
+      .map((f) => ({ lead_id: f.lead_id, nombre_completo: f.nombre_completo, en: f.ultimo_intento_en ?? '', detalle: f.ultimo_resultado, autor: f.gestiona, sigue_en_base: true }))
+      .sort((x, y) => (x.en < y.en ? 1 : x.en > y.en ? -1 : 0))
+  }
+  return { filas: [...vivas, ...vetadas], resumen, detalle }
+}
+
 // ── El MES del lead: «mis leads de enero, de marzo, de agosto» (Miguel, 02/10/2026) ──────────────────────────
 /** Valor del selector que apaga el recorte por mes. */
 export const MES_TODOS = 'todos'
@@ -250,19 +424,28 @@ export const FILTRO_TODOS = MES_TODOS
 /** Clave de la opción «sin dato» (lead sin motivo de descarte o sin intentos): no choca con ninguna clave del catálogo. */
 export const SIN_DATO = '(sin dato)'
 
-export type DimensionFiltro = 'mes' | 'motivo' | 'etapa' | 'resultado'
-const DIMENSIONES: readonly DimensionFiltro[] = ['mes', 'motivo', 'etapa', 'resultado']
+/** `analista` (F4) solo lo ofrece la vista del supervisor: la base del analista es toda suya y no lo muestra. */
+export type DimensionFiltro = 'mes' | 'motivo' | 'etapa' | 'resultado' | 'analista'
+const DIMENSIONES: readonly DimensionFiltro[] = ['mes', 'motivo', 'etapa', 'resultado', 'analista']
 
 export interface FiltrosBase {
   mes: string
   motivo: string
   etapa: string
   resultado: string
+  /** Quién lo gestiona (`vendedor_id`); {@link SIN_DATO} = la bandeja, sin analista. */
+  analista: string
   /** Solo los que tienen una rellamada agendada para otro día (la pastilla «Rellamadas agendadas» se abre así). */
   agendadas: boolean
 }
 
-export const SIN_FILTROS: FiltrosBase = { mes: FILTRO_TODOS, motivo: FILTRO_TODOS, etapa: FILTRO_TODOS, resultado: FILTRO_TODOS, agendadas: false }
+export const SIN_FILTROS: FiltrosBase = { mes: FILTRO_TODOS, motivo: FILTRO_TODOS, etapa: FILTRO_TODOS, resultado: FILTRO_TODOS, analista: FILTRO_TODOS, agendadas: false }
+
+/** Quién gestiona el lead, como lo lee el supervisor: su analista o «Sin analista» (la bandeja del equipo). */
+export function etiquetaAnalista(fila: Pick<FilaBaseGestion, 'vendedor_id' | 'gestiona'>): string {
+  if (!fila.vendedor_id) return 'Sin analista'
+  return fila.gestiona ?? 'Analista sin nombre'
+}
 
 /** Rellamada agendada para más adelante (las de hoy o vencidas van en «Llamar hoy»). */
 export function tieneRellamadaAgendada(fila: FilaBaseGestion): boolean {
@@ -276,6 +459,7 @@ function claveDe(fila: FilaBaseGestion, dimension: DimensionFiltro): string | nu
     case 'motivo': return fila.motivo_descarte ?? SIN_DATO
     case 'etapa': return fila.etapa_maxima
     case 'resultado': return fila.ultimo_resultado ?? SIN_DATO
+    case 'analista': return fila.vendedor_id ?? SIN_DATO
   }
 }
 
@@ -326,6 +510,8 @@ export function etiquetaOpcion(dimension: DimensionFiltro, clave: string): strin
     case 'motivo': return etiquetaMotivoDescarte(clave === SIN_DATO ? null : clave)
     case 'etapa': return esEtapaMaxima(clave) ? etiquetaEtapaMaxima(clave) : clave
     case 'resultado': return etiquetaUltimoResultado(clave === SIN_DATO ? null : clave)
+    // El nombre lo sabe la fila (`gestiona`): `opcionesFiltro` lo pone. Sin filas, solo se reconoce la bandeja.
+    case 'analista': return clave === SIN_DATO ? 'Sin analista' : clave
   }
 }
 
@@ -341,6 +527,7 @@ function rangoOpcion(dimension: DimensionFiltro, clave: string): number {
 }
 
 function ordenarOpciones(dimension: DimensionFiltro, opciones: OpcionFiltro[]): OpcionFiltro[] {
+  // El analista, por nombre (como el panel); «Sin analista» al final (su clave es la de «sin dato»).
   // El mes, del más reciente al más antiguo (como el selector de F1).
   if (dimension === 'mes') return opciones.sort((a, b) => (a.clave < b.clave ? 1 : a.clave > b.clave ? -1 : 0))
   return opciones.sort((a, b) => rangoOpcion(dimension, a.clave) - rangoOpcion(dimension, b.clave) || a.etiqueta.localeCompare(b.etiqueta, 'es'))
@@ -352,6 +539,11 @@ function ordenarOpciones(dimension: DimensionFiltro, opciones: OpcionFiltro[]): 
  * la elegida se lista siempre (aunque los otros filtros la dejen en 0), para que el selector no muestre un valor ausente.
  */
 export function opcionesFiltro(filas: readonly FilaBaseGestion[], filtros: FiltrosBase = SIN_FILTROS): OpcionesFiltro {
+  // El nombre de cada analista, de sus filas (el de la primera que lo trae).
+  const nombres = new Map<string, string>()
+  for (const f of filas) if (f.vendedor_id && !nombres.has(f.vendedor_id)) nombres.set(f.vendedor_id, etiquetaAnalista(f))
+  const etiqueta = (dimension: DimensionFiltro, clave: string) =>
+    (dimension === 'analista' ? nombres.get(clave) : undefined) ?? etiquetaOpcion(dimension, clave)
   const faceta = (dimension: DimensionFiltro): FacetaFiltro => {
     const conteo = new Map<string, number>()
     let total = 0
@@ -363,10 +555,10 @@ export function opcionesFiltro(filas: readonly FilaBaseGestion[], filtros: Filtr
     }
     const elegido = filtros[dimension]
     if (elegido !== FILTRO_TODOS && !conteo.has(elegido)) conteo.set(elegido, 0)
-    const opciones = [...conteo.entries()].map(([clave, leads]) => ({ clave, etiqueta: etiquetaOpcion(dimension, clave), leads }))
+    const opciones = [...conteo.entries()].map(([clave, leads]) => ({ clave, etiqueta: etiqueta(dimension, clave), leads }))
     return { total, opciones: ordenarOpciones(dimension, opciones) }
   }
-  return { mes: faceta('mes'), motivo: faceta('motivo'), etapa: faceta('etapa'), resultado: faceta('resultado') }
+  return { mes: faceta('mes'), motivo: faceta('motivo'), etapa: faceta('etapa'), resultado: faceta('resultado'), analista: faceta('analista') }
 }
 
 /**
