@@ -64,7 +64,33 @@ lo aplica Miguel con `!`. Se publica primero el servidor y después la pantalla.
 | E5 | Tope por archivo y columnas obligatorias | **Hasta 5000 filas por archivo; obligatorios nombre + teléfono válido.** DNI, distrito y comentario opcionales; las filas sin teléfono válido se informan y no se cargan. |
 | E6 | Lead de base sin tocar | **Solo se marca en rojo** a los 3 días sin tocar en el seguimiento; el supervisor decide recogerlo. Nada se mueve solo. |
 
-## Abierto (antes del 04/10; E5 y E6 ya lo resuelven)
+| E7 | Estado del contacto de archivo | **Nace «dormido»:** se crea descartado con motivo nuevo `base_cargada` en la bandeja del supervisor; reutiliza toda la mecánica B1–B6 sin cambiarla. Origen nuevo `base_cargada`. |
+| E8 | Capital | **Sin capital si el Excel no lo trae** (columna opcional). Se pide **al reactivar** (el diálogo lo exige si falta): el pipeline, la cartera y la conversión nunca reciben un lead sin capital. |
+| E9 | Dónde vive «Bases» | **Tercera pestaña** de «Base para gestión» (Descartes del mes · Gestión de la base · Bases). |
+| E10 | Conversión | **Cierre entero (peso 1) para el analista, fuera del divisor** (los contactos cargados no suman a las llegadas del mes), como la regla cerrada del registro manual. |
+| E11 | Base cargada por gerencia | **Elige el supervisor dueño** (sus contactos quedan en esa bandeja); puede repartir a cualquiera. |
+| E12 | Armar desde el CRM | **Solo descartados elegibles** (sin «No contactar», sin descanso, sin seguimiento activo, sin `datos_invalidos`, sin otra base viva). |
+| E13 | Intentos de un lead armado | **Conserva** su cuenta del ciclo (no se toca la lógica en producción). |
+| E14 | Otras vías sobre un lead repartido sin tocar | **No se bloquean**; el seguimiento lo muestra como «movido por otra vía». |
+
+## Hallazgos del F0 (04/10) que mandan
+- Toda la mecánica de la base exige `etapa = descartado` (lista, intento, descanso, B6) → E7.
+- Duplicados: `private.verificar_disponibilidad_lead_impl` da el veredicto (no_contactar, ya_es_cliente, en_bolsa, tomado, enfriamiento, reutilizable, libre) pero dice «libre» con leads retirados, descartados de < 24 h o convertidos con otro teléfono → B8 necesita un envoltorio «existe cualquier lead con ese teléfono o DNI».
+- Cambiar el analista de un descartado NO escribe en `lead_asignaciones` → la base lleva su propio rastro (recibos).
+- `authenticated` tiene `statement_timeout = 8s` y cada fila toma 2–4 candados advisory → **carga en lotes** (~200, a medir).
+- El front publicado descarta en silencio filas con valores fuera de contrato (origen/motivo cerrados, capital obligatorio) → **la pantalla se publica ANTES** del primer contacto de base.
+- Las tablas del CRM no llevan `negocio_id`; usan `creado_en`/`actualizado_en`, `set_actualizado_en_crm`, `log_audit_crm`, RLS con policy SELECT como segundo candado y sin grants a la API. No se añaden columnas a `crm.leads`.
+
+## Orden de trabajo (cada paso de servidor: banco → auditor-rls → Codex → rama con datos → `!` de Miguel)
+1. **F5a (pantalla, primero):** aceptar `base_cargada` como origen y motivo de solo lectura y capital vacío en los leads de base.
+2. **B7 esquema:** `crm.bases_carga`, `crm.base_carga_leads`, `crm.base_carga_operaciones` (recibos inmutables); CHECK de origen y motivo con `base_cargada` (+ política de enfriamiento); capital vacío permitido SOLO con origen `base_cargada`.
+3. **B8 cargar y armar:** `crm.crear_base`, `crm.cargar_base_lote` (lotes, idempotente, envoltorio de identidad), `crm.armar_base_crm`.
+4. **B9 repartir y recoger:** en bloque («Ana 40 · Luis 30») o individual, todo o nada, respetando B6; recoger lo no tocado.
+5. **B10 seguimiento y analista:** seguimiento por base y por analista (todo número se abre); `obtener_base_gestion` con la base; reactivar exige capital si falta.
+6. **B11 conversión:** cierre de `base_cargada` con peso 1 fuera del divisor (área sensible: sellos de mes; fase propia).
+7. **F5 pantalla «Bases»** (tercera pestaña) y **F6** columna/selector «Base» del analista.
+
+## Abierto (antes del 04/10; ya resuelto por E5–E14)
 
 - Tope por archivo (propuesto: 2000 filas) y columnas obligatorias (propuesto: nombre + teléfono).
 - Si un lead de base que el analista no tocó en N días vuelve solo a «sin repartir» o solo se marca en rojo
