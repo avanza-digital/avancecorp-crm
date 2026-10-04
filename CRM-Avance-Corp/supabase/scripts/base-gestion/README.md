@@ -68,4 +68,20 @@ psql … -f supabase/scripts/base-gestion/reversa-b7.sql                        
 psql … -f supabase/scripts/base-gestion/registrar/20261004160034.sql                                      # tras aplicar; idempotente
 ```
 
-Reversas, en este orden: B7 (`reversa-b7.sql`, antes que todas) · B6c (`reversa-b6c.sql`, antes que todas; la de B2 se niega mientras levantar tenga el cuerpo de B6c) · B6b (`reversa-b6b.sql`) · B3b (`reversa-idempotencia-y-orden.sql`) · B4b (`reversa-ventana-descanso.sql`) · B4 (`reversa-enfriamiento.sql`) · B3 (`reversa-puertas.sql`, se niega si queda el trigger de B4) · B2 (`reversa-no-contactar-supervisor.sql`, independiente) · B1b (`reversa-proxima-llamada.sql`, se niega si quedan núcleos de B3) · B1 (`reversa-esquema.sql`, se niega si B1b sigue aplicada). Rama de Supabase con datos: `rama.mjs estado | aplicar | explain | gate` (la URL del pooler la aporta Miguel por archivo; ver `BASE PARA GESTION/ESTADO.md`).
+**B8 · Bases cargadas, cargar y armar (20261004184501).** Mismo banco (actores de `seed:demo`, B6b, B6c y B7 aplicadas). Aplicar en UN mensaje y luego:
+
+```sh
+psql -h 127.0.0.1 -p <puerto> -U postgres -f supabase/scripts/base-gestion/b8-cargar.sql                  # 124 casos (identidad encendida y apagada), ROLLBACK al final
+node supabase/scripts/base-gestion/b8-mutantes.mjs --puerto <puerto>                                     # 68 mutantes deben CAER + la reversa revierte en 4 controles y niega 16 derivas; banco SIN bases
+node supabase/scripts/base-gestion/b8-mutantes.mjs --puerto <puerto> --concurrencia                      # 3 mutantes que solo ve la concurrencia (confirma datos: luego limpiar)
+bash supabase/scripts/base-gestion/b8-concurrencia.sh --puerto <puerto>                                  # dos sesiones reales (13 escenarios: NOWAIT, armado con SKIP LOCKED e intercalaciones); CONFIRMA datos: luego limpiar-entre-corridas.sql
+psql … -f supabase/scripts/base-gestion/b8-telefonos-sin-normalizar.sql                                   # solo lectura: teléfonos/DNI fuera de forma (para la rama y producción)
+psql … -f supabase/scripts/base-gestion/b8-comprobar-tras-aplicar.sql                                     # TRAS el commit (banco, rama, producción): veredicto en una fila
+psql … -f supabase/scripts/base-gestion/reversa-b8.sql                                                    # vuelve a B7 exacto (antes que la de B7)
+psql … -f supabase/scripts/base-gestion/registrar/20261004184501.sql                                      # tras aplicar; idempotente
+```
+
+El gate (`test-rls.mjs`, bloque «Bases cargadas B8») deja una base y una armada de sup1 (sin DELETE por diseño):
+`supabase/scripts/banco/limpiar-entre-corridas.sql` vacía las tablas de bases entre corridas del banco.
+
+Reversas, en este orden: B8 (`reversa-b8.sql`, antes que todas) · B7 (`reversa-b7.sql`, antes que la de B6c) · B6c (`reversa-b6c.sql`, antes que todas; la de B2 se niega mientras levantar tenga el cuerpo de B6c) · B6b (`reversa-b6b.sql`) · B3b (`reversa-idempotencia-y-orden.sql`) · B4b (`reversa-ventana-descanso.sql`) · B4 (`reversa-enfriamiento.sql`) · B3 (`reversa-puertas.sql`, se niega si queda el trigger de B4) · B2 (`reversa-no-contactar-supervisor.sql`, independiente) · B1b (`reversa-proxima-llamada.sql`, se niega si quedan núcleos de B3) · B1 (`reversa-esquema.sql`, se niega si B1b sigue aplicada). Rama de Supabase con datos: `rama.mjs estado | aplicar | explain | gate` (la URL del pooler la aporta Miguel por archivo; ver `BASE PARA GESTION/ESTADO.md`).

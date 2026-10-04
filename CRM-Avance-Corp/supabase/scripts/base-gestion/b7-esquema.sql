@@ -8,7 +8,8 @@
 --     Gerencia todas, el analista y Coordinación nada (filas y recibos siguen a su base);
 --   D los recibos son inmutables (UPDATE, DELETE y TRUNCATE → P0409, también para el dueño) y únicos por actor e id;
 --   E capital NULL solo con origen base_cargada Y etapa descartado (cualquier otro origen o etapa → 23514) y un capital no se
---     vacía; el contacto sin capital solo puede NACER descartado y queda sin descartado_en (E17–E19: pendiente de B8, el alta lo
+--     vacía; el contacto sin capital solo puede NACER descartado y, sin B8, queda sin descartado_en (E17–E19; con B8 nace con la
+--     fecha y el alta ve «enfriamiento»: el pendiente lo resuelve 20261004184501). Sin B8 el alta lo
 --     ve «libre»); con fecha de descarte, la política base_cargada (30 días) da «enfriamiento»;
 --   V ninguna vía real saca del descarte a un lead sin capital (reactivar_lead_base, reabrir_lead_fn, tomar_lead_libre,
 --     rescatar_descartes → 23514 del CHECK) y con el capital puesto pasan;
@@ -322,12 +323,17 @@ select pg_temp.prueba('E13 sacarlo del descarte completando el capital en el mis
   format('update crm.leads set etapa = ''nuevo'', motivo_descarte = null, monto_estimado = 2000 where id = %L', (select lb from f)));
 select pg_temp.prueba('E14 tocar otra columna del lead sin capital mientras sigue descartado → entra', 'paso',
   format('update crm.leads set nota = ''B7 nota'' where id = %L', (select lb from f)));
-select pg_temp.caso('E17 PENDIENTE B8 (a): el contacto que nace descartado queda SIN descartado_en (trg_leads_zz_sello_descarte, sellado)', 'descartado|base_cargada|true|false',
+-- E17–E19: el pendiente (a) lo resuelve B8 (20261004184501): con B8 aplicada el dormido nace CON descartado_en (disparador
+-- trg_leads_zz_sello_descarte_base_cargada) y el alta y «tomar lead libre» ven «enfriamiento». Sin B8, lo de B7.
+select pg_temp.caso('E17 el contacto que nace descartado: sin B8 queda SIN descartado_en (sello del descarte); con B8 nace con la fecha',
+  case when (to_regprocedure('private.bases_carga_nace_dormido(text,text,text,boolean)') is not null) then 'descartado|base_cargada|true|true' else 'descartado|base_cargada|true|false' end,
   (select format('%s|%s|%s|%s', etapa, motivo_descarte, (monto_estimado is null)::text, (descartado_en is not null)::text)
      from crm.leads where id = (select lb from f)));
-select pg_temp.caso('E18 PENDIENTE B8 (a): sin descartado_en el alta de ese teléfono ve «libre» (duplicaría; el enfriamiento no le aplica)', 'libre',
+select pg_temp.caso('E18 el alta de ese teléfono: sin B8 ve «libre» (duplicaría); con B8, «enfriamiento» (base_cargada 30 días)',
+  case when (to_regprocedure('private.bases_carga_nace_dormido(text,text,text,boolean)') is not null) then 'enfriamiento' else 'libre' end,
   (select private.verificar_disponibilidad_lead_impl((select tel_lb from f), null, null)->>'estado'));
-select pg_temp.caso('E19 PENDIENTE B8 (a): «tomar lead libre» tampoco lo ve (responde «libre» y el lead sigue en la bandeja de S1)', 'libre|descartado|true',
+select pg_temp.caso('E19 «tomar lead libre»: sin B8 no lo ve («libre»); con B8, «enfriamiento»; el lead sigue en la bandeja de S1',
+  case when (to_regprocedure('private.bases_carga_nace_dormido(text,text,text,boolean)') is not null) then 'enfriamiento|descartado|true' else 'libre|descartado|true' end,
   pg_temp.valor(format('select crm.tomar_lead_libre(%L, null)->>''estado''', (select tel_lb from f)), 'authenticated', (select v1 from f))
   || (select format('|%s|%s', etapa, (vendedor_id is null and asignado_supervisor_id = (select s1 from f))::text) from crm.leads where id = (select lb from f)));
 select pg_temp.caso('E20 con fecha de descarte (hace 10 días), la política base_cargada (30 días) da «enfriamiento» hasta descartado_en + 30', 'enfriamiento|base_cargada|true',

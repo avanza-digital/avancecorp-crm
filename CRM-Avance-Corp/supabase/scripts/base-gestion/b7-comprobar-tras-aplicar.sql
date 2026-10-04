@@ -80,7 +80,10 @@ begin
   for v_caso in select * from (values
       (1, 'K1 lead de origen oficina sin capital', '23514 new row for relation "leads" violates check constraint "leads_monto_estimado_valido"'),
       (2, 'K2 lead base_cargada sin la válvula', '42501 El origen base_cargada solo lo pone la carga de bases'),
-      (3, 'K3 un contacto sin capital nace descartado con base_cargada (sin descartado_en: pendiente de B8)', 'descartado|base_cargada|true|false'),
+      -- Con B8 (20261004184501) el contacto que nace dormido recibe la fecha de su descarte (el pendiente de B7 resuelto).
+      (3, 'K3 un contacto sin capital nace descartado con base_cargada (sin B8: sin descartado_en; con B8: con la fecha)',
+          case when to_regprocedure('private.bases_carga_nace_dormido(text,text,text,boolean)') is not null
+               then 'descartado|base_cargada|true|true' else 'descartado|base_cargada|true|false' end),
       (4, 'K4 sin capital no puede nacer nuevo, ni con la válvula', '23514 new row for relation "leads" violates check constraint "leads_monto_estimado_valido"'),
       (5, 'K5 sacarlo del descarte sin capital (solo puede frenarlo el CHECK)', '23514 new row for relation "leads" violates check constraint "leads_monto_estimado_valido"'),
       (7, 'K5b control: la misma reapertura con el capital puesto pasa', 'paso'),

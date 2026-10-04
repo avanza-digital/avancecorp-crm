@@ -15394,3 +15394,144 @@ capital NULL); (d) el front publicado descarta filas fuera de contrato: F5a ante
 **Reversa:** `supabase/scripts/base-gestion/reversa-b7.sql` (se niega si hay bases, filas, recibos o leads con origen/motivo
 `base_cargada` o sin capital; candados en orden fijo `crm.leads` → `public.perfiles` → enfriamiento → tablas nuevas antes de
 comprobar el vacío). **Registrador:** `supabase/scripts/base-gestion/registrar/20261004160034.sql`.
+
+## 20261004184501 — Bases cargadas · B8: cargar un archivo y armar bases desde el CRM (`crear_base`, `cargar_base_lote`, `armar_base_crm`)
+
+**✅ APLICADA EN PRODUCCIÓN 04/10/2026** (Miguel con `!` + registrador; versión registrada con md5 de statements `ca81559b…` = archivo). Verificado después en solo lectura: `crm.crear_base`, `crm.cargar_base_lote`, `crm.armar_base_crm` DEFINER con ACL `{postgres=X,authenticated=X}`; trigger `trg_leads_zz_sello_descarte_base_cargada` habilitado; CHECK `enfriamiento_politica_base_cargada_dias_positivos` validado; sello `trg_leads_zz_sello_descarte` intacto (`150d7ae5…`); 0 bases y 0 contactos. Rama con datos de la versión final (`BASE PARA GESTION/revisiones/2026-10-04-rama-b8-r2.md`): lote de 100 en 1,62 s, 0 duplicados, reversa OK; bloqueo de escrituras ~0,36 s.
+
+_Historial —_ PENDIENTE (04/10/2026), r2. Construida y probada SOLO en banco Docker local (stack propio `avancecorp-b6b-20261003`, a paridad
+con producción con B6b, B6c y B7; al terminar quedó REVERTIDA —banco = producción: B7 sí, B8 no; su fila de registro del banco
+borrada— y el banco PARADO). r0 `ee93bbb8` (md5 `5c4b2b09…`), r1 `23a22b29` (md5 `d803ef92…`, APTA en la rama con datos salvo la
+reversa y el tiempo del lote). Revisiones: Codex r1 BLOCK (2 P1 + 1 P2 + riesgos) y auditor-rls PASS con P3 → r1; **Codex r2 BLOCK
+(2 P1 + P3, última ronda)** y la rama con datos (reversa y lote) → r2 (abajo). Falta: OK de Miguel y `!` + registrador. md5 del
+archivo r2 **`ca81559b…`** (registrador `e12473d9…`, reversa `f9d80014…`, post-aplicación `f1933f9d…`). Decisiones de Miguel E1–E14
+(`BASE PARA GESTION/BASES-CARGADAS.md`).
+**r2 (04/10), por hallazgo:** (P1 Codex r2) `armar_base_crm` bloquea `FOR UPDATE SKIP LOCKED`, en orden de id, los leads del
+ámbito del dueño, GUARDA el conjunto efectivamente bloqueado y evalúa e inserta SOLO ese: lo que otro proceso tiene tomado sale
+`ocupado` (motivo nuevo: reintenta) sin esperar; lo que no estaba en el ámbito al bloquear sale `no_encontrado` u `ocupado` según
+se vea ahora (nunca se evalúa sin candado: un lead que entra al ámbito después de bloquear y se reactiva antes del INSERT NO
+entra); sin esperas, sin interbloqueo con escritores masivos en otro orden. (P1 Codex r2) El replay vuelve a juzgar CADA lead que
+nombra el recibo con el actor de hoy: carga → cada `lead_id` por `private.bases_carga_lead_ref`; armado → los incluidos por
+`lead_ref` (reasignado fuera o retirado ⇒ rechazo) y los excluidos por su estado (todos menos `no_encontrado`/`repetido`) por
+`base_gestion_lead_visible` (sin exigir activo: «inactivo» es ese estado); si uno no está a su alcance → P0002 «La respuesta
+guardada nombra leads que ya no están a tu alcance…». (Riesgo Codex r2) El respaldo fila a fila NO atrapa lo transitorio
+(`private.bases_carga_error_transitorio`: 40P01, 55P03, 57014, 40001, 25P02 y las clases 53/54/57/58): aborta el lote entero, con
+el MISMO código y «La carga se interrumpió (código); reintenta», sin el detail (57014 no se puede atrapar: sale tal cual).
+(Riesgo Codex r2) El respaldo juzga un P0429 con la MISMA regla del ámbito que el veredicto
+(`private.bases_carga_fuera_de_ambito`, una sola definición): con algún lead fuera del ámbito, solo `ya_existia`. (P3 Codex r2) El
+comentario de `crm.armar_base_crm` dice el ámbito real (subárbol del supervisor dueño; Gerencia no arma fuera de él) y `ocupado`.
+`crm.enfriamiento_politica.dias` es NOT NULL (medido; el preflight lo exige): el CHECK no necesita tratar NULL. (Rama con datos, A)
+La reversa ya no compara huellas «globales» medidas en el banco (el md5 de los 31 triggers de `crm.leads` CON comentarios daba
+`85dcb456` en el banco y `48d0bd41` en producción): exige la huella exacta de lo de B8 (funciones, su trigger y su CHECK) y, para lo
+ajeno, que la reversa no lo cambie (foto bajo candados ANTES y comparación DESPUÉS de los triggers de `crm.leads` —nombre, función,
+habilitado; sin comentarios— y de las restricciones del enfriamiento). Revisadas las demás huellas de la migración y la reversa: las
+de objetos ajenos (`leads_before_insert`, disponibilidad, `sla_versionado`, ayudantes) ya las fija el preflight y la rama las
+validó en producción-copia. (Rama con datos, B) Lote máximo **100** (en la rama, micro con datos: 200 nuevas tardaron 3,27 s el
+mínimo y 5,46 s en frío frente a los 8 s); 5000 filas = 50 lotes.
+**Banco r2:** suite **124/124** (estable en 3 pasadas; nuevos: replay con lead retirado / reasignado fuera / incluido retirado /
+excluido por su estado fuera del ámbito → P0002 y excluido inactivo → pasa; lote lleno con la fila 100 rechazada → respaldo, 99 +
+1, 2 intentos, sin residuos, 411 ms; 40001 y 55P03 → aborta con 1 intento, sin detail ni residuos; P0429 en el respaldo con lead
+fuera del ámbito → `ya_existia`); mutantes **68/68** caen + **3/3** de concurrencia (`--concurrencia`: evaluar todos los ids como
+en r1 → cae el escenario 12; sin `FOR UPDATE SKIP LOCKED` → caen 7–10 y 13; sin `NOWAIT` → cae 1); reversa: **4 controles revierten**
+(sin deriva y con comentarios de triggers ajenos cambiados, quitados o añadidos, como difieren en producción) y **16/16 derivas**
+se niegan (entre ellas el comentario del trigger de B8); concurrencia **28/28 PASS** (13 escenarios: con el lead tomado, el armado
+no espera y da `ocupado`, y el reintento el motivo real; (12) el lead que entra al ámbito tras el bloqueo y se reactiva antes del
+INSERT NO entra —la reactivación no espera: 80 ms—; (13) lead tomado → `ocupado` en 65 ms; 0 interbloqueos ni duplicados); gate
+2553/68 → **2570/68** (mismos 68 rojos, bloque B8 17/17); trinquetes 29/7 y censo 38 (`fe51c7e2…`) iguales en cada paso; B6b 92/92,
+B6c 76/76, B7 177/177, QA 77/77; post-aplicación B8 **12/12** y B7 12/12 (bandera apagada y encendida). Candados: aplicar retiene
+SHARE ROW EXCLUSIVE de `crm.leads` (y ACCESS EXCLUSIVE del enfriamiento, mismo intervalo) ~92 ms (lecturas sin espera, escrituras
+≤ 88 ms); la reversa, ACCESS EXCLUSIVE ~84 ms (lecturas ≤ 77 ms, escrituras ≤ 79 ms). Doble aplicación rechazada; registrador
+idempotente (md5 = archivo); `check:scripts` PASS.
+_r1 (lo que la r2 cambia, arriba):_
+**r1 (04/10), por hallazgo:** (P1 Codex) `armar_base_crm` bloquea `FOR UPDATE`, en orden de id, los leads del ámbito ANTES de
+evaluar (reactivar, marcar No contactar, reasignar y el intento B6 toman la fila del lead: quedan en serie; un lead que en la espera
+sale del ámbito no se bloquea y sale `no_encontrado`; no se escribe el lead). (P1 Codex) Toda referencia (`lead_id`) pasa por
+`private.bases_carga_lead_ref` (el actor la ve Y el lead sigue activo —auditor P3—), también la de `repetida/en_base`, que además
+solo mira pertenencias VIVAS (`bl.activo`); la categoría `en_base` se conserva sin id. (Decisión del PRIMARY) Con ALGÚN lead del
+teléfono/DNI fuera del ámbito del actor (`bool_or` sobre todas las coincidencias del envoltorio, que ahora las devuelve todas con
+su orden), el veredicto es `ya_existia` SIN motivo ni id; dentro del ámbito, los motivos de siempre. (P2 Codex) `armar` rechaza
+(22023) un `uuid[]` que no sea unidimensional con `array_lower = 1` (antes del md5). (Riesgo Codex) El replay devuelve el recibo
+solo si el actor sigue viendo la base (`operacion_previa` recibe el rol; si no, P0002). (Riesgo Codex) Si la tanda del INSERT
+choca (carrera), se repite fila a fila en subtransacciones: P0481/P0409 → `ya_existia`, P0429 → `no_contactar`, sin el detail del
+disparador; cualquier otra excepción aborta con «No se pudo cargar la fila N (código)», sin detail. (Riesgo Codex) La fila de la
+base se toma `FOR UPDATE NOWAIT`: el segundo lote de la misma base falla AL INSTANTE (55P03, «Hay otra carga en curso de esta base;
+reintenta»; medido 38–56 ms) en vez de consumir sus 8 s; el front reintenta con el mismo id. Lote: se mantiene en 200. (Hueco
+Codex) Teléfonos/DNI sin normalizar: banco 0 de 90; el DNI no puede estar fuera de forma (`leads_dni_check` validado); el teléfono
+no tiene CHECK → `supabase/scripts/base-gestion/b8-telefonos-sin-normalizar.sql` (solo lectura, sin datos) para la rama. Si da > 0:
+comparar normalizando ambos lados (medido, ~3400 leads: igualdad exacta 0,07 ms por fila; normalizando sin índice 2,5 ms; con
+índice de expresión sobre `crm.leads` 0,7 ms); el verificador de la casa tiene el mismo hueco. (P3 auditor) CHECK
+`enfriamiento_politica_base_cargada_dias_positivos` (`motivo <> 'base_cargada' or dias > 0`): Gerencia puede editar los días por la
+API (policy `enfriamiento_update`) y con 0 el alta vería «libre» 24 h → duplicado; candado ACCESS EXCLUSIVE de esa tabla (8 filas)
+tras `crm.leads`, orden de B7. (P3 auditor) Armar por Gerencia usa el ámbito del SUPERVISOR dueño (`private.bases_carga_subarbol`,
+espejo de la rama supervisor de `vendedor_ids_visibles`, que solo enumera el del usuario de la sesión; y
+`private.bases_carga_en_subarbol`, una sola definición para el candado y la evaluación). **Para B10 (no se resuelve aquí):** los
+dormidos sin repartir aparecen en «Gestión de la base» (F4) de Supervisión y Gerencia por `obtener_base_gestion` (rama
+`vendedor_id null` de la bandeja): excluirlos o separarlos.
+**Banco r1:** suite **115/115**; mutantes **61/61** caen (14 nuevos: referencia sin visibilidad / de retirado, `en_base` sin control
+o con pertenencias retiradas, sin la regla del ámbito o mirando solo la coincidencia más relevante, INSERT sin respaldo o
+re-lanzando el detail, veto mal clasificado, replay sin ámbito, sin el CHECK, ámbito del actor en vez del dueño, subárbol sin
+hijos, sin la bandeja, arreglos con otro límite); reversa: control OK + **15/15** derivas; concurrencia **todo PASS** (nuevas:
+55P03 al instante y reintento; reactivar/vetar/sacar del ámbito/intento B6 mientras se arma → el armado espera ~1,5 s y excluye
+`no_descartado`/`no_contactar`/`no_encontrado`/`en_gestion`; armar primero → reactivar espera y pasa; armar y lote a la vez sin
+esperas; 0 interbloqueos) y, **sin** el `FOR UPDATE` ni el `NOWAIT` (mutante temporal), fallan justo 1 y 7–10; gate 2553/68 →
+**2570/68** (mismos rojos, bloque B8 17/17); trinquetes 29/7 y censo 38 (`fe51c7e2…`) iguales en cada paso; B6b 92/92, B6c 76/76,
+B7 177/177, QA 77/77; post-aplicación B8 **11/11** y B7 12/12 (bandera apagada y encendida). Candados: aplicar retiene SHARE ROW
+EXCLUSIVE de `crm.leads` (y ACCESS EXCLUSIVE del enfriamiento, en el mismo intervalo) ~96 ms (lecturas de leads sin espera,
+escrituras ≤ 94 ms); la reversa, ACCESS EXCLUSIVE ~72 ms (lecturas ≤ 58 ms, escrituras ≤ 59 ms). Doble aplicación rechazada;
+registrador idempotente (md5 = archivo); `check:scripts` PASS.
+_r0 (como se construyó; lo que la r1 cambia, arriba):_
+**Qué:** (1) Tres puertas DEFINER en `crm` (search_path vacío, EXECUTE solo `authenticated`; validan, resuelven rol y ámbito en el
+servidor y delegan en `private`): `crm.crear_base` (Supervisión: la base es suya, otro supervisor → 42501; Gerencia DEBE elegir un
+supervisor activo, E11 → 22023; analista/otros → 42501; nombre 1–80 único entre las vivas del supervisor → 23505; solo origen
+`archivo`), `crm.cargar_base_lote` (lote ≤ 200 filas, base ≤ 5000 filas E5; base visible para el actor o P0002; viva, de archivo
+y con su supervisor activo) y `crm.armar_base_crm` (≤ 2000 leads; solo descartados ELEGIBLES E12 del ámbito del actor; NO toca el
+lead E13). Idempotencia por (actor, id de operación) con recibo en `crm.base_carga_operaciones` (replay = la MISMA respuesta; el
+mismo id con otro pedido → 22023). (2) Veredicto por fila: `cargada` · `ya_existia` (cliente, con_dueno, en_bolsa, descartado,
+convertido, retirado; `lead_id` solo si el actor ve ese lead) · `no_contactar` · `invalida` (nombre_vacio/largo,
+telefono_invalido, dni_invalido, capital_invalido, moneda_invalida, distrito_largo, comentario_largo) · `repetida` (en_archivo,
+en_base). Identidad (E2): `private.verificar_disponibilidad_lead_impl` + envoltorio `private.bases_carga_contacto_existente`
+(«existe CUALQUIER lead con ese teléfono o DNI»). Teléfono con la regla del alta. Candados del lote en el orden de la casa, una
+vez: fila de la base → documentos → personas → contactos. (3) El contacto nace DORMIDO (E7): descartado, motivo y origen
+`base_cargada`, bandeja del supervisor de la base, sin analista, capital del archivo o NULL (E8), `alta_manual = false` (su
+comentario: true solo por `crear_lead_si_disponible`), `creado_por` = actor. Una sola definición de «nace dormido»:
+`private.bases_carga_nace_dormido` (válvula `crm.op_bases_carga`, que el núcleo enciende solo alrededor de su INSERT y apaga,
++ origen/etapa/motivo base_cargada + activo). Cambios mínimos (texto vivo + UNA condición) en `private.leads_before_insert`
+(dejaba nacer terminal solo con `crm.op_privilegiada`, que NO se enciende), `private.trg_leads_disponibilidad_atomica` (exigía
+nacer operativo a toda alta con usuario; el veredicto debe seguir «libre») y `private.trg_leads_sla_versionado` (abría SIEMPRE el
+ciclo 1: `crm.metricas_sla_fn` lo contaría «fuera de objetivo»; el dormido no abre ciclo, el suyo nace al reactivarlo — ciclo 2 —;
+`crm.tareas` no admite tareas sobre descartados, nadie exige su ciclo 1). (4) **Fecha del descarte** (pendiente de B7): disparador
+NUEVO `trg_leads_zz_sello_descarte_base_cargada` (BEFORE INSERT, WHEN origen base_cargada; corre después de
+`trg_leads_zz_sello_descarte` por nombre) → `descartado_en` = momento de la carga, `descartado_por` = actor. NO se modificó
+`trg_leads_zz_sello_descarte`: su `pg_get_functiondef` está SELLADO (md5 `150d7ae5…`) en `private.assert_gestion_diaria_resultado`
+(20260921153654:525); el postflight lo exige intacto. Con la fecha: el alta y «tomar lead libre» del mismo teléfono/DNI ven
+«enfriamiento» (base_cargada 30 días) y después «reutilizable» — nunca un duplicado —; la base para gestión cuenta sus días.
+**Efectos del INSERT (inventario de los 31 disparadores):** sello B7 (válvula) · hereda_veto y enlaza_identidad (persona vetada o
+con lead: el veredicto lo atrapa antes; persona sin lead → se ENLAZA, medido) · guard_tenencia (bandeja de supervisor activo) ·
+sla_global (sello del lead, inocuo) · sla_versionado (neutralizado) · asignaciones (sin episodio: no operativo) ·
+tenencia_desde (NULL) · usuario_retirado (no aplica) · auditoría (una fila por contacto, DNI enmascarado) · puente de identidad
+(si se enlazó). Llegadas: `conversion_episodios` solo cuenta landing/formulario/referido (E10). «Descartes del mes» (rescate) sale
+del ledger: el dormido NO aparece. La cola del coordinador exige lead sin bandeja: tampoco. Realtime: ninguna tabla crm en
+publicaciones. **Observado para B10:** los dormidos SÍ salen en `obtener_base_gestion()` del supervisor dueño (bandeja), con 0
+días desde el descarte.
+**LOTE (medido, banco, identidad encendida, ~3400 leads):** el costo es el verificador de la casa: recorre los clientes del portal
+con `normalizar_telefono` (sin índice): ~0,5 ms + ~2,8 ms por cada 1000 clientes, dos veces por contacto nuevo (núcleo y
+disparador). Con ~700 clientes (producción ~420–514): 200 nuevas (todas con DNI) 1,1 s · 200 ya existentes 0,6 s · 500 nuevas
+2,8 s; con ~1600: 200 nuevas 2,3 s · 500 nuevas 5,5 s. Candados: ~2–3 por fila (≤ 601 en un lote de 200). Respuesta de 200 filas
+ya existentes: 23,5 KB (recibo ≤ 64 KB). Armar 2000: 90 ms (recibo compacto por posiciones; la respuesta lo expande). Tope = 200:
+dos lotes de la misma base (van de a uno) caben en 8 s con margen frente a la rama micro (~1,5–3× el banco en B7). Un índice por
+teléfono normalizado en `public.perfiles` lo abarataría (toca el portal: decide Miguel).
+**Banco:** suite `b8-cargar.sql` **101/101** (identidad encendida + sección con ella apagada); mutantes **47/47** caen; reversa:
+control OK + **12/12** derivas negadas; concurrencia `b8-concurrencia.sh` todo PASS (dos lotes de la misma base: el segundo espera
+~1,5 s y ve `repetida/en_base`; bases distintas en orden cruzado; lote vs alta manual en los dos órdenes: «enfriamiento» /
+`ya_existia`; dos armados cruzados: `en_otra_base`; 5 rondas simultáneas con DNI: 0 interbloqueos, 0 duplicados); gate
+2553/68 → **2570/68** (mismos 68 rojos, bloque B8 17/17); trinquetes 29/7 y censo 38 (`fe51c7e2…`) iguales antes, tras aplicar,
+tras el gate, tras la reversa y tras reaplicar; B6b 92/92, B6c 76/76, B7 177/177 (E17–E19 ahora condicionales: con B8 la fecha y
+«enfriamiento»), QA final 77/77; post-aplicación B8 OK 10/10 y B7 OK 12/12 (K3 condicional), con la bandera apagada y encendida;
+sin B8: NOT RUN. Candados: aplicar retiene SHARE ROW EXCLUSIVE de `crm.leads` ~101 ms (lecturas sin espera, escrituras ≤ 99 ms);
+la reversa, ACCESS EXCLUSIVE ~73 ms (lecturas ≤ 62 ms, escrituras ≤ 65 ms). Doble aplicación rechazada por el preflight;
+registrador idempotente (md5 = archivo). `check:scripts` PASS; `test:rls:preflight` NOT RUN (pide la contraseña de la siembra; el
+gate completo sí corrió).
+**Reversa:** `supabase/scripts/base-gestion/reversa-b8.sql` (antes que la de B7; se niega si hay bases, filas, recibos o leads con
+origen/motivo `base_cargada`, o si B9+ usa B8; huellas de las 19 funciones y del disparador; candados `crm.leads` ACCESS EXCLUSIVE
+→ tablas de bases SHARE antes de comprobar). **Registrador:** `supabase/scripts/base-gestion/registrar/20261004184501.sql`.
+**Comprobación tras aplicar:** `supabase/scripts/base-gestion/b8-comprobar-tras-aplicar.sql` (ROLLBACK siempre, veredicto en una fila).

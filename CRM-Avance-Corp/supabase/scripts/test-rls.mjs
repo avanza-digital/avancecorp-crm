@@ -16103,6 +16103,95 @@ async function testBasesCargadasB7(sessions, seed) {
   }
 }
 
+// ── Bases cargadas B8 (20261004184501): cargar un archivo y armar bases desde el CRM ──
+// Bloque corto por la API real (PostgREST, con el statement_timeout de authenticated): contrato de las tres puertas, roles,
+// ámbito, un lote pequeño con sus veredictos, el contacto nace dormido (con fecha de descarte, sin ciclo SLA), el alta posterior
+// del mismo teléfono no duplica, replay idéntico y un armado desde el CRM. La matriz completa (124 casos, 68 mutantes, la
+// identidad encendida y apagada) la cubre supabase/scripts/base-gestion/b8-cargar.sql en el banco. Deja una base de sup1 y
+// otra armada (sin DELETE por diseño): limpiar-entre-corridas.sql las vacía entre corridas del banco.
+async function testBasesCargadasB8(sessions, seed) {
+  console.log('\n— Bases cargadas B8: crear_base, cargar_base_lote y armar_base_crm por la API —');
+  const saltar = (msg) => {
+    if (process.env.CRM_RLS_EXIGE_BASE_GESTION === '1') fail(msg);
+    else console.log(`  ${msg}`);
+  };
+  let aplicada;
+  try {
+    aplicada = contarFueraDeBanda('bases cargadas B8: aplicada',
+      `select (to_regprocedure('crm.cargar_base_lote(uuid,uuid,jsonb)') is not null and to_regprocedure('private.bases_carga_nace_dormido(text,text,text,boolean)') is not null)::int`);
+  } catch (error) {
+    saltar(`⚠ Bases cargadas B8 SALTADO: sin vía fuera de banda (${error?.message ?? String(error)})`);
+    return;
+  }
+  if (aplicada !== 1) {
+    saltar('⚠ 20261004184501 (bases cargadas B8) NO desplegada en esta base: bloque SALTADO (no probado)');
+    return;
+  }
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`bases cargadas B8: ${etiqueta}`, sql);
+  const texto = (etiqueta, sql) => textoFueraDeBanda(`bases cargadas B8: ${etiqueta}`, sql);
+  const vend1Id = seed.profileIdByKey.vend1;
+  const sup1Id = seed.profileIdByKey.sup1;
+  const vend1 = sessions.vend1.client.schema('crm');
+  const sup1 = sessions.sup1.client.schema('crm');
+  const sup2 = sessions.sup2.client.schema('crm');
+  const ger = sessions.gerencia.client.schema('crm');
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-bases-cargadas-b8'));
+  const PUERTAS = ['crm.crear_base(uuid,text,text,uuid,text)', 'crm.cargar_base_lote(uuid,uuid,jsonb)', 'crm.armar_base_crm(uuid,text,uuid,uuid[])'];
+  check(cuenta('puertas', `select count(*) from pg_proc p where p.oid in (${PUERTAS.map((f) => `'${f}'::regprocedure`).join(', ')}) and p.prosecdef and p.proowner = 'postgres'::regrole and p.proconfig @> array['search_path=""'] and has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('anon', p.oid, 'EXECUTE') and not has_function_privilege('service_role', p.oid, 'EXECUTE') and not exists (select 1 from aclexplode(p.proacl) a where a.grantee = 0)`) === 3,
+    'B8 las 3 puertas DEFINER de postgres con search_path vacío y EXECUTE solo para authenticated');
+  check(cuenta('nucleo', `select count(*) from pg_proc p cross join unnest(array['anon','authenticated','service_role']) r(rol) where p.pronamespace = 'private'::regnamespace and (p.proname like 'bases\\_carga\\_%' or p.proname = 'trg_leads_sello_descarte_base_cargada') and has_function_privilege(r.rol, p.oid, 'EXECUTE')`) === 0,
+    'B8 el núcleo privado sin EXECUTE para la API');
+  const ROL = /Solo Supervisión y Gerencia cargan y arman bases/;
+  const DENEGADO = /permission denied/i;
+  await expectExpectedFailure('B8 anon → crear_base 42501 (sin EXECUTE)', anon.schema('crm').rpc('crear_base', { p_operacion_id: randomUUID(), p_nombre: 'X', p_origen: 'archivo', p_archivo_nombre: 'x.csv' }), ['42501'], DENEGADO);
+  await expectExpectedFailure('B8 service_role → cargar_base_lote 42501 (sin EXECUTE)', admin.schema('crm').rpc('cargar_base_lote', { p_operacion_id: randomUUID(), p_base_id: randomUUID(), p_filas: [] }), ['42501'], DENEGADO);
+  await expectExpectedFailure('B8 vend1 → crear_base 42501', vend1.rpc('crear_base', { p_operacion_id: randomUUID(), p_nombre: 'X', p_origen: 'archivo', p_archivo_nombre: 'x.csv' }), ['42501'], ROL);
+  await expectExpectedFailure('B8 gerencia sin supervisor → 22023', ger.rpc('crear_base', { p_operacion_id: randomUUID(), p_nombre: 'X', p_origen: 'archivo', p_archivo_nombre: 'x.csv' }), ['22023'], /Gerencia debe elegir el supervisor/);
+  const L = randomUUID();
+  const TEL_NUEVO = TEL_IDENTIDAD(71);
+  const opCrear = randomUUID();
+  const opLote = randomUUID();
+  let dormido = null;
+  try {
+    await requireAdmin('B8: sembrar un lead nuevo de vend1', admin.schema('crm').from('leads').insert({
+      activo: true, asignado_supervisor_id: null, etapa: 'nuevo', moneda: 'PEN', no_contactar: false, origen: 'oficina', monto_estimado: 5000,
+      id: L, nombre_completo: 'B8 EXISTENTE TRANSIENT', telefono: TEL_IDENTIDAD(72), creado_por: vend1Id, vendedor_id: vend1Id,
+    }));
+    const base = await positive('B8 sup1 crea su base', sup1.rpc('crear_base', { p_operacion_id: opCrear, p_nombre: `B8 gate ${RUN_IDENTIDAD}`, p_origen: 'archivo', p_archivo_nombre: 'gate.csv' }));
+    const baseId = base?.data?.base_id;
+    check(Boolean(baseId) && base?.data?.supervisor_id === sup1Id && base?.data?.origen === 'archivo', 'B8 la base es de sup1, origen archivo', JSON.stringify(base?.data));
+    const filas = [
+      { fila: 2, nombre: 'B8 GATE NUEVO', telefono: TEL_NUEVO },
+      { fila: 3, nombre: 'B8 GATE MALO', telefono: '12345' },
+      { fila: 4, nombre: 'B8 GATE YA EXISTE', telefono: TEL_IDENTIDAD(72) },
+    ];
+    await expectExpectedFailure('B8 sup2 carga en la base de sup1 → P0002', sup2.rpc('cargar_base_lote', { p_operacion_id: randomUUID(), p_base_id: baseId, p_filas: filas }), ['P0002'], /fuera de tu ámbito/);
+    const lote = await positive('B8 sup1 carga un lote de 3 filas', sup1.rpc('cargar_base_lote', { p_operacion_id: opLote, p_base_id: baseId, p_filas: filas }));
+    const v = (lote?.data?.filas ?? []).map((x) => `${x.fila}:${x.veredicto}${x.motivo ? `/${x.motivo}` : ''}${x.lead_id ? `+${x.lead_id === L ? 'L' : 'otro'}` : ''}`).join(',');
+    check(v === '2:cargada,3:invalida/telefono_invalido,4:ya_existia/con_dueno+L', 'B8 veredictos del lote (cargada · invalida · ya_existia con el lead visible)', v);
+    check(!JSON.stringify(lote?.data ?? {}).includes('B8 GATE') && !JSON.stringify(lote?.data ?? {}).includes(TEL_NUEVO), 'B8 la respuesta no lleva nombres ni teléfonos');
+    dormido = texto('dormido', `select id from crm.leads where telefono = '+51${TEL_NUEVO}'`);
+    check(cuenta('dormido', `select count(*) from crm.leads l where l.telefono = '+51${TEL_NUEVO}' and l.origen = 'base_cargada' and l.etapa = 'descartado' and l.motivo_descarte = 'base_cargada' and l.monto_estimado is null and l.asignado_supervisor_id = '${sup1Id}' and l.vendedor_id is null and l.descartado_en is not null and l.descartado_por = '${sup1Id}' and not exists (select 1 from crm.lead_sla_ciclos c where c.lead_id = l.id) and exists (select 1 from crm.base_carga_leads bl where bl.lead_id = l.id and bl.base_id = '${baseId}' and bl.procedencia = 'archivo')`) === 1,
+      'B8 el contacto nace dormido: descartado base_cargada sin capital, bandeja de sup1, con fecha de descarte, sin ciclo SLA, en la base');
+    check(cuenta('valvula', `select count(*) from pg_db_role_setting s cross join lateral unnest(s.setconfig) c(x) where c.x ilike 'crm.op_bases_carga=%'`) === 0, 'B8 la válvula no está encendida por configuración de rol o de base');
+    const alta = await positive('B8 vend1 intenta dar de alta el mismo teléfono', vend1.rpc('crear_lead_si_disponible', { p_nombre_completo: 'B8 DUPLICADO', p_telefono: TEL_NUEVO, p_origen: 'oficina', p_monto_estimado: 1000, p_moneda: 'PEN' }));
+    check(alta?.data?.estado === 'enfriamiento' && cuenta('sin duplicado', `select count(*) from crm.leads where telefono = '+51${TEL_NUEVO}'`) === 1,
+      'B8 el alta posterior del mismo teléfono ve «enfriamiento» y no crea un duplicado', JSON.stringify(alta?.data));
+    const replay = await positive('B8 replay del lote', sup1.rpc('cargar_base_lote', { p_operacion_id: opLote, p_base_id: baseId, p_filas: filas }));
+    check(JSON.stringify(replay?.data) === JSON.stringify(lote?.data), 'B8 el replay devuelve la MISMA respuesta');
+    await expectExpectedFailure('B8 mismo id de operación con otras filas → 22023', sup1.rpc('cargar_base_lote', { p_operacion_id: opLote, p_base_id: baseId, p_filas: filas.slice(0, 1) }), ['22023'], /ya se usó con un pedido distinto/);
+    await positive('B8 vend1 descarta su lead', vend1.from('leads').update({ etapa: 'descartado', motivo_descarte: 'no_responde' }).eq('id', L));
+    const armado = await positive('B8 sup1 arma una base con el descartado de vend1 y un id ajeno', sup1.rpc('armar_base_crm', { p_operacion_id: randomUUID(), p_nombre: `B8 gate armada ${RUN_IDENTIDAD}`, p_lead_ids: [L, randomUUID()] }));
+    check(armado?.data?.incluidos === 1 && JSON.stringify(armado?.data?.excluidos_por_motivo) === '{"no_encontrado":[2]}'
+      && cuenta('armada', `select count(*) from crm.base_carga_leads bl join crm.bases_carga b on b.id = bl.base_id where bl.lead_id = '${L}' and bl.procedencia = 'crm' and b.origen = 'crm' and b.supervisor_id = '${sup1Id}'`) === 1,
+      'B8 armar: incluye el descartado elegible de su equipo y excluye el id desconocido (no_encontrado)', JSON.stringify(armado?.data));
+    await expectExpectedFailure('B8 vend1 → armar_base_crm 42501', vend1.rpc('armar_base_crm', { p_operacion_id: randomUUID(), p_nombre: 'X', p_lead_ids: [L] }), ['42501'], ROL);
+  } finally {
+    await requireAdmin('B8: retirar el lead transitorio (soft-delete)', admin.schema('crm').from('leads').update({ activo: false }).eq('id', L));
+    if (dormido) await requireAdmin('B8: retirar el contacto dormido (soft-delete)', admin.schema('crm').from('leads').update({ activo: false }).eq('id', dormido));
+  }
+}
+
 // ── Venta cruzada (20260924005126 … 20260924045245): puertas del cliente existente ──
 // Solo catálogo y rechazos: ninguna llamada de esta matriz llega a escribir. Una puerta que
 // rechaza aborta su transacción entera, así que ni la bitácora (inmutable) guarda rastro; los
@@ -16387,6 +16476,7 @@ async function main() {
       await testBaseGestionB6b(sessions, verifiedSeed);
       await testBaseGestionB6c(sessions, verifiedSeed);
       await testBasesCargadasB7(sessions, verifiedSeed);
+      await testBasesCargadasB8(sessions, verifiedSeed);
     }
   } catch (error) {
     primaryError = error;
