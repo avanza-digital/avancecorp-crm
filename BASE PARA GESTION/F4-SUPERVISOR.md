@@ -40,3 +40,15 @@
 5. Ficha según el rol: consulta + «Quitar No contactar» (motivo ≥ 5; avisa que se levanta para la persona y todos sus
    leads).
 6. `revisor-a11y`, `npm run check`, E2E Docker, Codex LEVEL 2 de F3–F4.
+
+## Revisiones de B6b (03–04/10)
+- **Codex r1: BLOCK** (1 P2): la foto de `$foto$` y el `$postflight$` no comparten instantánea bajo READ COMMITTED; un
+  intento o una reactivación concurrente revierte una migración correcta (falla cerrada, sin fuga). Arreglo:
+  `REPEATABLE READ` al empezar + caso concurrente reproducido en el banco.
+- **auditor-rls: CHANGES_REQUESTED** (sin P0/P1): P2a marca desfasada entre leads de la misma persona (marcar/levantar
+  escriben la actividad solo en un lead) → ancla con `inversionistas.no_contactar_en`; P2b la nota del veto es
+  falsificable por `actividades_insert`; P3 motivo de postventa, casos del gate (miembro desactivado, bandeja, retirado
+  en reactivaciones), comentario.
+- **Decisión de Miguel (04/10) sobre P2b:** B6b sale con el riesgo escrito y **justo después una migración pequeña
+  (B6c) reserva `metadata.evento='no_contactar'` para las puertas oficiales** (mover el `set_config(..,'off')` de
+  `levantar_no_contactar` detrás de su insert), con su propio ciclo.
