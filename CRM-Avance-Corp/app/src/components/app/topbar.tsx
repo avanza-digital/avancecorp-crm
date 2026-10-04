@@ -1,3 +1,4 @@
+import { useEtapaVisible } from '@/lib/use-etapa-visible'
 // Topbar — título de vista (+ chip DEMO si la sesión es demo), búsqueda global
 // real (leads del ÁMBITO por nombre/teléfono/DNI — espejo RLS F1c: un analista
 // no encuentra leads ajenos), bandeja de pendientes con conteo real por rol y
@@ -28,7 +29,7 @@ import { administraSoloRolesCrm, can, puedeEscribir, type Rol } from '@/lib/role
 import { vistaPermitida } from '@/lib/vistas'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
-import { ETAPA_INFO, type Lead } from '@/lib/tipos'
+import { type Lead } from '@/lib/tipos'
 import { moneyK } from '@/lib/format'
 import { hashDe, type Vista } from '@/lib/router'
 import { useAlertasCRM } from '@/lib/alertas-context'
@@ -140,6 +141,7 @@ export function Topbar({
   onAlternarAyuda?: () => void
 }) {
   const { yo } = useAuth()
+  const etapaDe = useEtapaVisible()
   const soloRoles = administraSoloRolesCrm(yo)
   const { ambito, conocerLeads } = useCRMData()
   // F4: la campana cuenta `pendientes` (las que piden acción hoy), no todo lo
@@ -423,7 +425,7 @@ export function Topbar({
               ) : (
                 <ul role="listbox" aria-label="Resultados de búsqueda" className="ac-scroll max-h-72 overflow-y-auto py-1">
                   {resultados.map((l, i) => {
-                    const et = ETAPA_INFO[l.etapa]
+                    const et = etapaDe(l)
                     return (
                       <li key={l.id} id={`topbar-busqueda-op-${l.id}`} role="option" aria-selected={i === iActivo}>
                         <button
