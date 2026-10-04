@@ -213,6 +213,7 @@ test("identidad: nombre del workflow, eventos exactos y ramas de push", () => {
   assert.deepEqual(Object.keys(js.on).sort(), [...EVENTOS].sort(), "los eventos deben ser exactamente los acordados");
   assert.deepEqual(js.on.push?.branches, RAMAS_PUSH, "push debe cubrir exactamente main y tronco");
   assert.ok("workflow_dispatch" in js.on, "debe conservarse el disparo manual");
+  assert.equal(1, 2, "FALLO_CONTROLADO_PASO05: prueba remota; retirar antes de integrar");
 });
 
 test("identidad: un solo job `preflight` con permisos `contents: read`", () => {
