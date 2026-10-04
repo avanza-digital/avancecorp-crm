@@ -16,7 +16,9 @@ const toastSuccess = vi.fn()
 
 vi.mock('sonner', () => ({ toast: { success: toastSuccess, info: vi.fn(), error: vi.fn() } }))
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
-vi.mock('@/lib/store-context', () => ({ useCRMData: () => ({ leads: LEADS }) }))
+vi.mock('@/lib/store-context', () => ({ useCRMData: () => ({ leads: LEADS, recargar: async () => true, actividadesDe: () => [] }), usePanelesActions: () => ({ abrirLead: vi.fn() }) }))
+// La ficha (F2) tiene sus propias pruebas: aquí basta con saber que se abre desde la hoja.
+vi.mock('@/components/base-gestion/ficha-base', () => ({ FichaBase: ({ fila }: { fila: { nombre_completo: string } | null }) => (fila ? <p>Ficha de {fila.nombre_completo}</p> : null) }))
 vi.mock('@/data/crm-queries', () => ({ useBaseGestion: (habilitada: boolean, vendedorId?: string | null) => useBaseGestion(habilitada, vendedorId) }))
 vi.mock('@/screens/rescate-descartados', () => ({ RescateDescartados: () => <p>Centro de rescate del equipo</p> }))
 
@@ -177,6 +179,15 @@ describe('la base del analista', () => {
     expect(useBaseGestion).toHaveBeenCalledWith(false, undefined)
     expect(screen.getByText('DEMO PROPIO')).toBeInTheDocument()
     expect(screen.queryByText('DEMO AJENO')).toBeNull()
+  })
+})
+
+describe('la ficha del lead (F2)', () => {
+  it('el nombre del lead abre su ficha; en el celular, «Ver ficha»', async () => {
+    CONSULTA.data = [fila(1), fila(2)]
+    render(<BaseGestion />)
+    await userEvent.click(screen.getByRole('button', { name: 'LEAD BASE 2' }))
+    expect(screen.getByText('Ficha de LEAD BASE 2')).toBeInTheDocument()
   })
 })
 

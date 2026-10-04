@@ -25,6 +25,13 @@ interface SheetProps {
   className?: string
   /** Un inspector no modal permite seguir consultando la pantalla de fondo. */
   modal?: boolean
+  /** Dónde empieza el foco al abrir, en vez del primer control (p. ej. el primer resultado de un formulario). */
+  focoInicial?: () => HTMLElement | null
+  /**
+   * Destino del foco al cerrar cuando el origen YA NO existe y tampoco su gemela (p. ej. la fila salió de la lista
+   * al registrar algo): el vecino o la propia lista. Sin él, el foco caería en <body> (WCAG 2.4.3).
+   */
+  focoRespaldo?: () => HTMLElement | null
 }
 
 /**
@@ -39,7 +46,7 @@ function gemelaDeFoco(clave: string): HTMLElement | null {
   return null
 }
 
-export function Sheet({ open, onClose, children, ariaLabel, className, modal = true }: SheetProps) {
+export function Sheet({ open, onClose, children, ariaLabel, className, modal = true, focoInicial, focoRespaldo }: SheetProps) {
   // Radix solo restaura el foco automáticamente cuando conoce un Dialog.Trigger.
   // Los drawers del CRM se abren desde filas y acciones globales, así que no
   // tienen Trigger declarativo: capturamos el origen justo antes del autofocus
@@ -64,10 +71,15 @@ export function Sheet({ open, onClose, children, ariaLabel, className, modal = t
           ref={contenido}
           onEscapeKeyDown={(evento) => protegerEscapeAnidado(evento, contenido.current)}
           onKeyDown={(evento) => cerrarEscapeAnidado(evento, onClose)}
-          onOpenAutoFocus={() => {
+          onOpenAutoFocus={(evento) => {
             const activo = document.activeElement
             origenFoco.current = activo instanceof HTMLElement ? activo : null
             claveFoco.current = origenFoco.current?.closest('[data-foco-clave]')?.getAttribute('data-foco-clave') ?? null
+            const inicial = focoInicial?.()
+            if (inicial) {
+              evento.preventDefault()
+              inicial.focus()
+            }
           }}
           onCloseAutoFocus={(evento) => {
             const destino = origenFoco.current
@@ -86,12 +98,14 @@ export function Sheet({ open, onClose, children, ariaLabel, className, modal = t
             }
             if (!destino?.isConnected) {
               // El origen se desmontó con la ficha abierta: a su gemela, si la
-              // hay. Sin clave o sin gemela no se inventa destino (como antes).
-              if (clave == null || gemelaDeFoco(clave) == null) return
+              // hay; si no, al respaldo que diga quien abrió la ficha. Sin
+              // ninguno de los dos no se inventa destino (como antes).
+              const buscar = (): HTMLElement | null => (clave != null ? gemelaDeFoco(clave) : null) ?? focoRespaldo?.() ?? null
+              if (buscar() == null) return
               evento.preventDefault()
               // Se vuelve a buscar dentro del cuadro: entre el cierre y el
               // siguiente pintado la lista puede haberse vuelto a renderizar.
-              requestAnimationFrame(() => gemelaDeFoco(clave)?.focus())
+              requestAnimationFrame(() => buscar()?.focus())
               return
             }
             evento.preventDefault()
