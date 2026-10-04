@@ -120,7 +120,7 @@ function alcanzaDeno(script, scripts, vistos = new Set()) {
  * repositorio (se comprueba que existen) para que el caso no sea hipotético.
  */
 const CAMBIOS_SENSIBLES = [
-  ["migración SQL", "CRM-Avance-Corp/supabase/migrations/20261003162500_crm_base_gestion_seguimiento_activo.sql"],
+  ["migración SQL", "CRM-Avance-Corp/supabase/migrations/20261002054402_crm_base_gestion_esquema.sql"],
   ["Edge Function del CRM (usuarios)", "CRM-Avance-Corp/supabase/functions/crm-usuarios/handler.ts"],
   ["Edge Function compartida", "_supabase_functions/functions/crm-convertir-lead/preflight.test.mjs"],
   ["scripts del arnés de mutantes", "CRM-Avance-Corp/scripts/mutantes-puente.mjs"],
