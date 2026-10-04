@@ -52,3 +52,11 @@
 - **Decisión de Miguel (04/10) sobre P2b:** B6b sale con el riesgo escrito y **justo después una migración pequeña
   (B6c) reserva `metadata.evento='no_contactar'` para las puertas oficiales** (mover el `set_config(..,'off')` de
   `levantar_no_contactar` detrás de su insert), con su propio ciclo.
+- **r1 de B6b** (REPEATABLE READ, ancla de persona por hora, motivo de postventa, casos del gate): auditor-rls r2 **PASS**
+  con P3; **Codex r2: BLOCK** (2 P2): el ancla por hora no distingue periodos de veto (holgura de postventa acepta una
+  nota vieja; dentro de una transacción `now()` empata). Máximo de rondas de Codex alcanzado → decide el PRIMARY:
+  **r2 = la marca vigente es el ÚLTIMO evento de veto entre TODOS los leads de la persona** (mismo conjunto que
+  marcar/levantar; persona por enlace → puente → DNI), sus datos solo si ese lead es visible para quien llama (si no,
+  NULL = «viene de otro lead»); sin holgura. En la vía real las notas se sellan con `clock_timestamp()` (trigger de
+  gestión serializada), así que el orden es estricto. Pruebas con llamadas REALES a marcar/levantar/postventa.
+  Verificación final: auditor-rls (tercera pasada) + rama con datos + gate.
