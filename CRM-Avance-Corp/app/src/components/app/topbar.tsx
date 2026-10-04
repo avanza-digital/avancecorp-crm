@@ -153,6 +153,8 @@ export function Topbar({
       ? { t: 'Resumen', s: 'Estado comercial del equipo' }
       : vista === 'mi-cartera'
       ? { t: rotuloCartera(yo?.rol), s: 'Tus clientes y el capital invertido' }
+      : vista === 'rescate' && yo?.rol === 'vendedor'
+      ? { t: 'Base para gestión', s: 'Tus leads descartados para volver a intentar' }
       : TITULOS[vista]
   // Gate de leads (espejo del sidebar): con las funciones de leads sin aprobar,
   // la búsqueda de leads y el alta de lead no se ofrecen a cuentas reales.
