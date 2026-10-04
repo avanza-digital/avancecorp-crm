@@ -15300,3 +15300,97 @@ huellas de B6b/B2 (= producción); reaplicación OK; trinquetes 29/7 y censo 38 
 el gate; registrador idempotente. Las suites `b6b-vetados.sql` y `b6c-nota-veto.sql` llevan la guarda «solo banco local» (P3 del
 auditor de B6b). **Reversa:** `supabase/scripts/base-gestion/reversa-b6c.sql` (antes que la de B6b; la de B2 se niega mientras
 levantar tenga el cuerpo de B6c).
+
+## 20261004160034 — Bases cargadas · B7: esquema (tablas de bases, recibos inmutables, origen/motivo `base_cargada`, capital vacío del contacto dormido)
+
+**✅ APLICADA EN PRODUCCIÓN 04/10/2026** (Miguel con `!` + registrador; versión registrada con md5 de statements `93e857c9…` = archivo). Verificado después en solo lectura: las 3 tablas con RLS y sin SELECT para anon/authenticated; `monto_estimado` nullable; CHECK de origen y de capital validados; `private.leads_before_insert` `de4823ae…`; trigger `trg_leads_000_base_cargada_solo_puerta` habilitado. Rama con datos (`BASE PARA GESTION/revisiones/2026-10-04-rama-b7.md`): bloqueo real de `crm.leads` ~0,35 s al aplicar y ~0,29 s al revertir; advisors 0 WARN/ERROR nuevos. Codex r2 (reversa sin attacl/permissive/FORCE RLS) resuelto en `5481d235`. Pendiente antes de B8: `descartado_en` NULL de un contacto que nace descartado.
+
+_Historial —_ PENDIENTE (04/10/2026), r1: construida y probada SOLO en banco Docker local (stack propio `avancecorp-b6b-20261003`, a
+paridad con producción con B6b y B6c; al terminar quedó revertida y el banco PARADO). r0 commiteada en `23bdde79`. Revisiones r0:
+**Codex r1 BLOCK (2 P2)** y **auditor-rls PASS con P3**, aplicadas en r1 (abajo). Falta: re-revisión, rama con datos + gate +
+advisors (medir candados con datos reales), OK de Miguel y `!` + registrador. md5 del archivo `93e857c9…`.
+Decisiones de Miguel E1–E14 (`BASE PARA GESTION/BASES-CARGADAS.md`). Solo esquema: las puertas (cargar, armar, repartir, recoger,
+seguimiento) son B8–B10.
+**Qué:** (1) `crm.bases_carga` (nombre 1–80 único por supervisor entre las vivas sin distinguir mayúsculas; origen
+`archivo`|`crm`; `supervisor_id` dueño; `creada_por`; `operacion_id` único; `archivo_nombre` solo con origen archivo; totales del
+informe ≥ 0 que no suman más que `filas_recibidas`; sin capital por defecto, E8), `crm.base_carga_leads` (base, lead,
+procedencia, `analista_id`/`asignado_en`/`asignado_por` los tres NULL o los tres con valor, `agregado_por`; único (base, lead) y
+un lead en UNA base viva: índice único parcial `lead_id where activo`) y `crm.base_carga_operaciones` (recibos INMUTABLES:
+UPDATE/DELETE/TRUNCATE → P0409; único (actor, operación); md5 del pedido; respuesta objeto ≤ 64 KB sin datos personales). Las
+tres: RLS ON, SIN grants para nadie (ni service_role), sin DELETE, `log_audit_crm`, `set_actualizado_en_crm` (las dos con
+fechas), comentarios en tabla y columnas, todas las FK con índice. Policy SELECT de segundo candado: Supervisión ve las bases
+cuyo dueño está en su subárbol, Gerencia todas, el analista y cualquier otro rol nada (su vista será la puerta DEFINER de B10);
+filas y recibos siguen a su base. (2) `crm.leads` sin columnas nuevas: `base_cargada` en `leads_origen_check`, en
+`leads_motivo_descarte_check` y en la lista de `private.leads_before_insert` (texto vivo de 20260928192822 + ese valor; misma
+identidad y ACL); `enfriamiento_politica_motivo_check` + fila `base_cargada` = 30 días. (3) Capital: `monto_estimado` sin NOT NULL y
+`leads_monto_estimado_valido` (mismo nombre: el front lo traduce) = `(monto is null and origen = 'base_cargada' and etapa =
+'descartado') or (monto is not null and > 0 and ≤ 9999999999.99 and 2 decimales)` — la etapa en el CHECK por ajuste del
+coordinador (regla «toda vía va en el lead»): reactivar, «Reabrir», tomar lead libre y el rescate fallan con 23514 en su propio
+UPDATE si falta el capital; el `monto is not null` de la segunda rama es obligatorio (sin él un NULL pasa en cualquier origen y
+etapa: mutante medido). (4) Sello `trg_leads_000_base_cargada_solo_puerta` (BEFORE INSERT OR UPDATE, INVOKER): origen o motivo
+`base_cargada` solo con la válvula `crm.op_bases_carga` (42501; sin exención para sesiones sin usuario: el importador corre sin
+usuario) y un capital que existe no se vacía (23514, también con la válvula).
+**Candados:** ACCESS EXCLUSIVE de `crm.leads` y `crm.enfriamiento_politica` y SHARE ROW EXCLUSIVE de `public.perfiles` tomados
+al principio en orden fijo (lock_timeout 5 s); postflight SOLO de catálogo; la única escritura es la fila de configuración.
+Aplicar en horario bajo. **Comportamiento tras aplicar:** `supabase/scripts/base-gestion/b7-comprobar-tras-aplicar.sql` (ROLLBACK
+siempre, veredicto en una fila: banco `B7_COMPORTAMIENTO_OK 11/11`; sin B7, `PARCIAL/NOT RUN`).
+**Banco:** suite `b7-esquema.sql` **172/172** (catálogo; la API —anon, analista, Supervisión, Gerencia, Coordinación,
+service_role— no lee ni escribe las tablas: 72 casos; policies con SELECT concedido en la transacción; recibos; capital; las
+cuatro puertas reales reactivar_lead_base / reabrir_lead_fn / tomar_lead_libre / rescatar_descartes → 23514 sin capital y pasan con
+él; motivo/origen; un lead en una base viva; reparto; restricciones; auditoría; regresión); mutantes `b7-mutantes.mjs` **44/44
+caen**; gate de RLS antes 2542/68 → después **2553/68** (0 rojos nuevos; bloque B7 11/11; la aserción P04 «siete motivos de
+enfriamiento» acepta ahora 7, u 8 exactamente con `base_cargada`); trinquetes 29/7 y censo 38 iguales antes, tras aplicar, tras
+el gate y tras la reversa; B6b 92/92, B6c 76/76 y QA final 77/77 (8/8 puntos) con B7 aplicada; reversa → huellas = producción
+(dos ciclos) y se niega con datos (3 casos); preflight se niega a la doble aplicación; registrador idempotente;
+`npm run check:scripts` PASS; `test:rls:preflight` PASS.
+**r1 (04/10, hallazgos de Codex r1 y del auditor-rls):** (1) **reversa con huellas** (Codex P2): antes de sobrescribir exige,
+bajo los candados, las huellas exactas que deja B7 (cuerpo + identidad + ACL + comentario de `leads_before_insert`, del sello y del
+inmutable; trigger del sello; los tres CHECK; la columna `monto_estimado`; CHECK y fila del enfriamiento; columnas, restricciones,
+índices, policies y disparadores de las tres tablas) y se niega nombrando la deriva; migración y reversa toman el candado de la casa
+`crm_migracion_funciones` (precedente `20260902200000:39`). Batería en `b7-mutantes.mjs`: control sin deriva revierte y **15/15
+derivas** se niegan (entre ellas «`leads_before_insert` cambiada tras B7», su ACL, el sello deshabilitado, una columna o policy
+nueva, la fila de enfriamiento en 45 días, una función de B8 que usa las tablas, una base o un dormido). (2) **Candados** (Codex
+P2): la cabecera ya no promete «milisegundos»; ACCESS EXCLUSIVE de `crm.leads` porque cambiar un CHECK y quitar un NOT NULL lo
+exigen (validar en otra transacción solo ahorraría ~2 ms: no se parte). **Medido** (3083 leads, 961 descartados, una sesión que lee
+y otra que escribe `crm.leads` cada 50 ms): aplicar retiene **115–250 ms** (5 corridas; la r0 retenía **369 ms** porque el censo
+—~0,1 s por llamada— corría 4 veces bajo el candado: ahora la foto va ANTES de los candados de tabla y el postflight lo llama una
+vez); la lectura concurrente esperó como máximo 228 ms y la escritura 121 ms (una sentencia de cada sonda, sin errores); los tres
+CHECK se validan en ~2 ms. La reversa retiene **90–144 ms** (esperas ≤ 94 ms lectura, ≤ 71 ms escritura). (3) **Triggers BEFORE de
+`crm.leads`** (Codex, riesgo): en orden efectivo (nombre, colación C) el sello `trg_leads_000_base_cargada_solo_puerta` va primero; los
+21 posteriores BEFORE INSERT/UPDATE por fila (`000_hereda_veto`, `000_no_contactar_puerta`, `00_devolucion_equipo_solo_rpc`,
+`00_disponibilidad_insert/update`, `00_guard_tenencia`, `00_seguimiento_activo`, `01_sla_global`, `before_insert`, `before_update`,
+`bloquear_reasignacion`, `cambio_etapa`, `conversion_con_inversion`, `normalizar_tel`, `protege_inversionista_id`, `reasignacion`,
+`zz_enlaza_identidad`, `zz_reapertura_solo_rpc`, `zz_sello_base_gestion`, `zz_sello_descarte`, `zzz_tenencia_desde`,
+`zzzz_usuario_retirado`) NO asignan `new.origen`, `new.motivo_descarte` ni `new.monto_estimado` (ni con `:=` ni con `=`), no
+reasignan `new` entero y no devuelven `old` ni `null` (comprobado en `pg_proc` del banco); los CHECK se evalúan después de todos.
+(4) El 23514 «El capital del lead no se puede vaciar» lleva `detail = 'leads_monto_estimado_valido'` (el front arma
+`message + details`, `app/src/data/crm-api.ts:2033`, y lo traduce a «El capital estimado es obligatorio…», `:2055-2059`); el gate lo
+exige. (5) Candados de tabla en orden fijo ANTES del preflight (que lee `crm.enfriamiento_politica`). (6) Un dormido no se
+«despierta» cambiándole el motivo: sin la válvula, cambiar el motivo `base_cargada` de un lead que sigue descartado → 42501
+(evita `datos_invalidos` → 0 días → «libre» 24 h → duplicado). (7) **`public.perfiles`** se toca solo por las FK de las tablas nuevas:
+SHARE ROW EXCLUSIVE breve al aplicar (frena escrituras del portal, no lecturas) y ACCESS EXCLUSIVE en la reversa (DROP de tablas con
+FK); no se crean ni cambian objetos de `public` (precedentes `20260930213647`, `20260922184459`).
+**Banco r1:** suite **177/177**, mutantes **47/47** (nuevos: sin el `detail`, despertar por el motivo, despertar solo sin capital) +
+reversa 15/15 con control OK; gate 2542/68 → **2553/68** (0 rojos nuevos, bloque B7 11/11); trinquetes 29/7 y censo 38 iguales antes,
+tras aplicar, tras el gate y tras la reversa; B6b 92/92, B6c 76/76, QA final 77/77 (8/8); script post-aplicación OK 11/11 (sin B7:
+NOT RUN); reversa → huellas = producción; doble aplicación rechazada por el preflight; registrador idempotente (md5 = archivo);
+`check:scripts` y `test:rls:preflight` PASS.
+**r2 de la reversa (04/10, Codex r2 P2; la migración NO cambia, md5 `93e857c9…`):** las huellas de cada tabla suman dueño, RLS
+FORCE, ACL por columna (`attacl`), policy PERMISSIVE/RESTRICTIVE con sus roles (de `pg_policy`), identidad/generada/colación de
+columna, validez y comentarios de restricciones e índices, comentarios de policies y disparadores, reglas, publicaciones (realtime),
+opciones, persistencia e identidad de réplica. Huellas re-medidas con B7 recién aplicada. Batería: control sin deriva revierte y
+**21/21** derivas se niegan en el bloque de huellas (línea 69, antes del primer DROP, línea 155), entre ellas las tres de Codex r2
+(grant por columna, policy recreada AS RESTRICTIVE, FORCE RLS) y otro dueño, publicación realtime y una regla; mutantes 47/47; suite
+177/177; reversa → reaplicación (OK 11/11 post-aplicación) → reversa con huellas = producción; trinquetes 29/7 y censo 38 iguales.
+**⚠️ Pendientes para B8/B10/B11 (no se resuelven en B7):** (a) un contacto sin capital solo puede NACER descartado (con
+`crm.op_bases_carga` + `crm.op_privilegiada`) y `trg_leads_zz_sello_descarte` (sellado) le deja `descartado_en` NULL: el alta de
+su teléfono ve «libre» (duplicaría, contra E2), `tomar_lead_libre` no lo ve, el enfriamiento no le aplica y la base no tiene «días
+desde el descarte» → B8 necesita el envoltorio de identidad y/o fecha de descarte (suite E17–E19); (b) un contacto dormido no tiene
+episodios en `lead_asignaciones` (0 al nacer y 0 al asignarlo descartado, medido): no sale en «Descartes del mes» ni en el rescate
+mientras duerma; sí, si se reactiva (con capital) y se vuelve a descartar; (c) `cartera_filtrada_fn`/`cartera_pagina_fn` con
+`p_sin_asignar` (20261001212341:392, 20260831055000:2460) incluyen descartados de la bandeja: descargarían miles de dormidos (con
+capital NULL); (d) el front publicado descarta filas fuera de contrato: F5a antes del primer contacto; (e) el oráculo histórico
+`supabase/scripts/test-monto-obligatorio.sql` (contrato 4B, fuera de todo gate) espera NOT NULL y queda desfasado.
+**Reversa:** `supabase/scripts/base-gestion/reversa-b7.sql` (se niega si hay bases, filas, recibos o leads con origen/motivo
+`base_cargada` o sin capital; candados en orden fijo `crm.leads` → `public.perfiles` → enfriamiento → tablas nuevas antes de
+comprobar el vacío). **Registrador:** `supabase/scripts/base-gestion/registrar/20261004160034.sql`.

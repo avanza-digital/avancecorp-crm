@@ -58,4 +58,14 @@ psql … -f supabase/scripts/base-gestion/reversa-b6c.sql                       
 psql … -f supabase/scripts/base-gestion/registrar/20261004123611.sql                            # tras aplicar; idempotente
 ```
 
-Reversas, en este orden: B6c (`reversa-b6c.sql`, antes que todas; la de B2 se niega mientras levantar tenga el cuerpo de B6c) · B6b (`reversa-b6b.sql`) · B3b (`reversa-idempotencia-y-orden.sql`) · B4b (`reversa-ventana-descanso.sql`) · B4 (`reversa-enfriamiento.sql`) · B3 (`reversa-puertas.sql`, se niega si queda el trigger de B4) · B2 (`reversa-no-contactar-supervisor.sql`, independiente) · B1b (`reversa-proxima-llamada.sql`, se niega si quedan núcleos de B3) · B1 (`reversa-esquema.sql`, se niega si B1b sigue aplicada). Rama de Supabase con datos: `rama.mjs estado | aplicar | explain | gate` (la URL del pooler la aporta Miguel por archivo; ver `BASE PARA GESTION/ESTADO.md`).
+**B7 · Bases cargadas, esquema (20261004160034).** Mismo banco (actores de `seed:demo`, B6b y B6c aplicadas). Aplicar en UN mensaje y luego:
+
+```sh
+psql -h 127.0.0.1 -p <puerto> -U postgres -f supabase/scripts/base-gestion/b7-esquema.sql                 # 177 casos, ROLLBACK al final
+node supabase/scripts/base-gestion/b7-mutantes.mjs --puerto <puerto>                                     # 47 mutantes deben CAER + la reversa niega 21 derivas (control OK)
+psql … -f supabase/scripts/base-gestion/b7-comprobar-tras-aplicar.sql                                     # TRAS el commit (banco, rama, producción): veredicto en una fila
+psql … -f supabase/scripts/base-gestion/reversa-b7.sql                                                    # vuelve a B6c exacto (antes que la de B6c)
+psql … -f supabase/scripts/base-gestion/registrar/20261004160034.sql                                      # tras aplicar; idempotente
+```
+
+Reversas, en este orden: B7 (`reversa-b7.sql`, antes que todas) · B6c (`reversa-b6c.sql`, antes que todas; la de B2 se niega mientras levantar tenga el cuerpo de B6c) · B6b (`reversa-b6b.sql`) · B3b (`reversa-idempotencia-y-orden.sql`) · B4b (`reversa-ventana-descanso.sql`) · B4 (`reversa-enfriamiento.sql`) · B3 (`reversa-puertas.sql`, se niega si queda el trigger de B4) · B2 (`reversa-no-contactar-supervisor.sql`, independiente) · B1b (`reversa-proxima-llamada.sql`, se niega si quedan núcleos de B3) · B1 (`reversa-esquema.sql`, se niega si B1b sigue aplicada). Rama de Supabase con datos: `rama.mjs estado | aplicar | explain | gate` (la URL del pooler la aporta Miguel por archivo; ver `BASE PARA GESTION/ESTADO.md`).

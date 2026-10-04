@@ -3350,8 +3350,12 @@ async function testOffboardingMatrix(sessions, seed) {
         .select('motivo', { count: 'exact' }),
     );
     if (cooling) {
-      check(cooling.count === 7 && cooling.data.length === 7,
-        'P04 true/true: conserva los siete motivos de enfriamiento');
+      // Los siete de siempre; desde B7 (20261004160034, Bases cargadas) además base_cargada, y nada más.
+      const SIETE = ['competencia', 'datos_invalidos', 'no_responde', 'otro', 'pide_credito', 'sin_fondos', 'sin_interes'];
+      const motivos = (cooling.data ?? []).map((r) => r.motivo).sort();
+      const igual = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+      check(cooling.count === motivos.length && (igual(motivos, SIETE) || igual(motivos, [...SIETE, 'base_cargada'].sort())),
+        'P04 true/true: conserva los siete motivos de enfriamiento (más base_cargada desde B7, y ninguno otro)', JSON.stringify(motivos));
     }
 
     // ── F1 lead libre (20260816221500): perillas, log anti-pesca, clave nueva ──
@@ -16035,6 +16039,70 @@ async function testBaseGestionB6c(sessions, seed) {
   }
 }
 
+// ── Bases cargadas B7 (20261004160034): esquema, sin puertas ──
+// Bloque corto por la API real (PostgREST): las tres tablas nuevas no se leen ni se escriben por la API (ni service_role), y
+// el origen y el motivo base_cargada y el capital vacío solo los pone la carga de bases (válvula de B8). El resto —policies
+// con SELECT concedido, recibos inmutables, CHECK, el camino de B8 con su enfriamiento y 44 mutantes— lo cubre
+// supabase/scripts/base-gestion/b7-esquema.sql en el banco.
+async function testBasesCargadasB7(sessions, seed) {
+  console.log('\n— Bases cargadas B7: tablas sin API; origen, motivo y capital vacío reservados a la carga de bases —');
+  const saltar = (msg) => {
+    if (process.env.CRM_RLS_EXIGE_BASE_GESTION === '1') fail(msg);
+    else console.log(`  ${msg}`);
+  };
+  let aplicada;
+  try {
+    aplicada = contarFueraDeBanda('bases cargadas B7: aplicada',
+      `select (to_regclass('crm.bases_carga') is not null and to_regprocedure('private.trg_leads_base_cargada_solo_puerta()') is not null)::int`);
+  } catch (error) {
+    saltar(`⚠ Bases cargadas B7 SALTADO: sin vía fuera de banda (${error?.message ?? String(error)})`);
+    return;
+  }
+  if (aplicada !== 1) {
+    saltar('⚠ 20261004160034 (bases cargadas B7) NO desplegada en esta base: bloque SALTADO (no probado)');
+    return;
+  }
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`bases cargadas B7: ${etiqueta}`, sql);
+  const vend1Id = seed.profileIdByKey.vend1;
+  const sup1Id = seed.profileIdByKey.sup1;
+  const vend1 = sessions.vend1.client.schema('crm');
+  const sup1 = sessions.sup1.client.schema('crm');
+  const ger = sessions.gerencia.client.schema('crm');
+  check(cuenta('tablas', `select count(*) from pg_class c where c.oid in ('crm.bases_carga'::regclass, 'crm.base_carga_leads'::regclass, 'crm.base_carga_operaciones'::regclass) and c.relrowsecurity and c.relacl is not null and not exists (select 1 from aclexplode(c.relacl) a where a.grantee <> 'postgres'::regrole)`) === 3,
+    'B7 las 3 tablas con RLS y sin ningún grant fuera de postgres');
+  check(cuenta('sello', `select count(*) from pg_trigger t join pg_proc p on p.oid = t.tgfoid where t.tgrelid = 'crm.leads'::regclass and t.tgname = 'trg_leads_000_base_cargada_solo_puerta' and t.tgenabled = 'O' and t.tgtype = 23 and t.tgqual is null and t.tgattr = ''::int2vector and not p.prosecdef and p.proconfig = array['search_path=""']::text[] and not has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('service_role', p.oid, 'EXECUTE')`) === 1,
+    'B7 sello de crm.leads habilitado (BEFORE INSERT OR UPDATE, por fila, sin WHEN), INVOKER con search_path vacío y sin EXECUTE para la API');
+  const DENEGADO = /permission denied for table/i;
+  await expectExpectedFailure('B7 vend1 no lee crm.bases_carga', vend1.from('bases_carga').select('id').limit(1), ['42501'], DENEGADO);
+  await expectExpectedFailure('B7 sup1 no lee crm.base_carga_leads', sup1.from('base_carga_leads').select('id').limit(1), ['42501'], DENEGADO);
+  await expectExpectedFailure('B7 gerencia no lee crm.base_carga_operaciones', ger.from('base_carga_operaciones').select('id').limit(1), ['42501'], DENEGADO);
+  await expectExpectedFailure('B7 sup1 no crea una base por la API', sup1.from('bases_carga').insert({ nombre: 'B7 gate', origen: 'crm', supervisor_id: sup1Id, creada_por: sup1Id, operacion_id: randomUUID() }), ['42501'], DENEGADO);
+  await expectExpectedFailure('B7 service_role tampoco lee las bases (solo las puertas de B8–B10)', admin.schema('crm').from('bases_carga').select('id').limit(1), ['42501'], DENEGADO);
+  const L = randomUUID();
+  const lead = (extra) => ({ activo: true, asignado_supervisor_id: null, etapa: 'nuevo', moneda: 'PEN', no_contactar: false, creado_por: vend1Id, vendedor_id: vend1Id, ...extra });
+  try {
+    await requireAdmin('B7: sembrar un lead nuevo de vend1', admin.schema('crm').from('leads').insert(lead({
+      id: L, nombre_completo: 'B7 BASES TRANSIENT', telefono: TEL_IDENTIDAD(68), origen: 'oficina', monto_estimado: 5000,
+    })));
+    await expectExpectedFailure('B7 vend1 descarta su lead con motivo base_cargada → 42501', vend1.from('leads').update({ etapa: 'descartado', motivo_descarte: 'base_cargada' }).eq('id', L), ['42501'], /El motivo base_cargada solo lo pone la carga de bases/);
+    // auditor-rls r1 (P3): el 23514 lleva detail = nombre del CHECK, que es lo que app/src/data/crm-api.ts:2055-2059 reconoce
+    // (texto = message + details) para mostrar «El capital estimado es obligatorio y debe ser mayor que 0».
+    const vaciar = await vend1.from('leads').update({ monto_estimado: null }).eq('id', L);
+    check(vaciar.error?.code === '23514' && /El capital del lead no se puede vaciar/.test(vaciar.error?.message ?? '')
+      && vaciar.error?.details === 'leads_monto_estimado_valido',
+      'B7 vend1 vacía el capital de su lead → 23514 con detail leads_monto_estimado_valido (el front muestra su mensaje de capital)', errorText(vaciar.error));
+    await positive('B7 vend1 sigue descartando con un motivo normal', vend1.from('leads').update({ etapa: 'descartado', motivo_descarte: 'no_responde' }).eq('id', L));
+    await expectExpectedFailure('B7 service_role (sin usuario, como el importador) no crea un lead base_cargada → 42501',
+      admin.schema('crm').from('leads').insert(lead({ id: randomUUID(), nombre_completo: 'B7 BASE TRANSIENT', telefono: TEL_IDENTIDAD(69), origen: 'base_cargada', monto_estimado: null })),
+      ['42501'], /El origen base_cargada solo lo pone la carga de bases/);
+    await expectExpectedFailure('B7 un lead de otro origen sin capital → 23514',
+      admin.schema('crm').from('leads').insert(lead({ id: randomUUID(), nombre_completo: 'B7 SIN CAPITAL TRANSIENT', telefono: TEL_IDENTIDAD(70), origen: 'oficina', monto_estimado: null })),
+      ['23514'], /leads_monto_estimado_valido/);
+  } finally {
+    await requireAdmin('B7: retirar el lead transitorio (soft-delete)', admin.schema('crm').from('leads').update({ activo: false }).eq('id', L));
+  }
+}
+
 // ── Venta cruzada (20260924005126 … 20260924045245): puertas del cliente existente ──
 // Solo catálogo y rechazos: ninguna llamada de esta matriz llega a escribir. Una puerta que
 // rechaza aborta su transacción entera, así que ni la bitácora (inmutable) guarda rastro; los
@@ -16318,6 +16386,7 @@ async function main() {
       await testBaseGestionB6(sessions, verifiedSeed);
       await testBaseGestionB6b(sessions, verifiedSeed);
       await testBaseGestionB6c(sessions, verifiedSeed);
+      await testBasesCargadasB7(sessions, verifiedSeed);
     }
   } catch (error) {
     primaryError = error;
