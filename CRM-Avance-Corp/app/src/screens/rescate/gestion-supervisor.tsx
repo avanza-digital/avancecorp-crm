@@ -98,11 +98,14 @@ export function GestionSupervisor({ analistaInicial, onAnalista }: {
   useEffect(() => { onAnalista(analistaUrl) }, [analistaUrl, onAnalista])
 
   const [fichaId, setFichaId] = useState<string | null>(null)
-  const [cifraAbierta, setCifraAbierta] = useState<CifraAbierta | null>(null)
+  const [cifraAbierta, setCifraAbierta] = useState<Omit<CifraAbierta, 'valor'> | null>(null)
   const detalle = useBaseGestionResumenDetalle(real && cifraAbierta !== null, cifraAbierta?.vendedorId ?? null, cifraAbierta?.cifra ?? null)
 
   const vecino = useRef<string | null>(null)
   const fichaDeVetado = useRef(false)
+  // Cada apertura de un lead desde el detalle lleva un número (Codex F4 r2): si mientras se pone al día la lista se
+  // cierra el detalle, se abre otra cifra o se elige otro lead, la respuesta tardía ya no abre nada.
+  const aperturaDetalle = useRef(0)
   const regionHoja = useRef<HTMLDivElement>(null)
   const listaTarjetas = useRef<HTMLDivElement>(null)
   const resumen = useRef<HTMLElement>(null)
@@ -152,8 +155,14 @@ export function GestionSupervisor({ analistaInicial, onAnalista }: {
     flushSync(() => { setFiltros({ ...SIN_FILTROS, analista: vendedorId }); setPagina(0); setPaginaVetados(0) })
     ;(a === 'hoy' ? tituloHoy.current ?? destinoHoja() : destinoHoja())?.focus()
   }
-  const abrirDetalle = (fila: FilaResumenBase, cifra: CifraDetalle) =>
-    setCifraAbierta({ vendedorId: fila.vendedor_id, nombre: fila.nombre, cifra, valor: fila[cifra] })
+  const abrirDetalle = (fila: FilaResumenBase, cifra: CifraDetalle) => {
+    aperturaDetalle.current += 1
+    setCifraAbierta({ vendedorId: fila.vendedor_id, nombre: fila.nombre, cifra })
+  }
+  const cerrarDetalle = () => {
+    aperturaDetalle.current += 1
+    setCifraAbierta(null)
+  }
   const cambiarFiltro = (dimension: DimensionFiltro, valor: string) => {
     setFiltros((f) => ({ ...f, [dimension]: valor })); setPagina(0); setPaginaVetados(0)
   }
@@ -195,13 +204,24 @@ export function GestionSupervisor({ analistaInicial, onAnalista }: {
   // puede ser de hace un rato (Codex F4 r1): si otro usuario reactivó el lead, la ficha de la base ya no aplica.
   const enLaBase = (leadId: string) => filasTodas.some((f) => f.lead_id === leadId)
   const abribleDetalle = (f: FilaDetalleCifra) => f.sigue_en_base || lead(f.lead_id) !== undefined
-  const abrirDesdeDetalle = async (f: FilaDetalleCifra) => {
+  const abrirDesdeDetalle = async (f: FilaDetalleCifra): Promise<void> => {
+    const apertura = ++aperturaDetalle.current
     const enLista = enLaBase(f.lead_id)
     if (f.sigue_en_base) {
       if (enLista) { setFichaId(f.lead_id); return }
+      if (!real) { toast.info('Ese lead ya no aparece en la base.'); return }
       // Sigue en la base pero la lista no lo tiene (volvió hace poco): se pone al día ANTES de abrir.
-      const filas = real ? (await base.refetch()).data?.filas : undefined
-      if (filas?.some((x) => x.lead_id === f.lead_id)) setFichaId(f.lead_id)
+      const r = await base.refetch()
+      if (apertura !== aperturaDetalle.current) return
+      // Un refresco fallido no dice nada del lead: no se afirma que salió de la base (Codex F4 r2).
+      if (r.isError || !r.isSuccess) {
+        toast.error('No se pudo actualizar la base para abrir este lead.', {
+          duration: 12_000,
+          action: { label: 'Reintentar', onClick: () => void abrirDesdeDetalle(f) },
+        })
+        return
+      }
+      if (r.data?.filas.some((x) => x.lead_id === f.lead_id)) setFichaId(f.lead_id)
       else toast.info('Ese lead ya no aparece en la base. La lista se actualizó.')
       return
     }
@@ -409,8 +429,9 @@ export function GestionSupervisor({ analistaInicial, onAnalista }: {
       )}
 
       <DetalleCifra
-        // La cifra del título sigue al panel vigente (tras la medianoche o un refresco, no se queda con la de antes).
-        abierta={cifraAbierta && { ...cifraAbierta, valor: resumenPanel?.find((r) => r.vendedor_id === cifraAbierta.vendedorId)?.[cifraAbierta.cifra] ?? cifraAbierta.valor }}
+        // La cifra del título sale SOLO del panel del período vigente (su clave lleva el día de Lima): si aún no llegó o
+        // falló, queda pendiente; nunca se mezcla la cifra de un período con las filas de otro (Codex F4 r2).
+        abierta={cifraAbierta && { ...cifraAbierta, valor: resumenPanel?.find((r) => r.vendedor_id === cifraAbierta.vendedorId)?.[cifraAbierta.cifra] ?? null }}
         filas={real ? detalle.data : cifraAbierta && demo ? demo.detalle(cifraAbierta.vendedorId, cifraAbierta.cifra) : undefined}
         cargando={real && detalle.isPending}
         error={real && detalle.isError}
@@ -418,7 +439,7 @@ export function GestionSupervisor({ analistaInicial, onAnalista }: {
         onReintentar={async () => (await detalle.refetch()).isSuccess}
         ahora={ahora}
         esMovil={esMovil}
-        onCerrar={() => setCifraAbierta(null)}
+        onCerrar={cerrarDetalle}
         abrible={abribleDetalle}
         onAbrirLead={(f) => void abrirDesdeDetalle(f)}
         focoRespaldo={() => regionPanel.current ?? tituloPanel.current}
