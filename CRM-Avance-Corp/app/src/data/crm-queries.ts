@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type { DecisionSolicitudTasa, EstadoSolicitudTasa, IntencionContrato, PublicacionPoliticaRentabilidad } from './crm-api'
 import type { CategoriaContrato } from '@/lib/cronograma'
+import type { CifraDetalle } from '@/lib/base-gestion'
 import { senalarSolicitudTasaCreada } from '@/lib/respuestas-tasa'
 import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient, type InfiniteData, type QueryClient, type QueryKey } from '@tanstack/react-query'
 import type { CursorCartera, FiltrosCartera, PaginaCartera } from './crm-api'
@@ -39,9 +40,13 @@ import {
   listarLeadsSinAsignar,
   listarLeadsPropios,
   obtenerBaseGestion,
+  leerBaseGestion,
+  baseGestionResumen,
+  baseGestionResumenDetalle,
   registrarIntentoBase,
   reactivarLeadBase,
   marcarNoContactar,
+  levantarNoContactar,
   listarResumenReparto,
   listarMetricasConversiones,
   listarMetricasConversionesEquipo,
@@ -242,6 +247,11 @@ export const crmQueryKeys = {
   // cualquier pantalla la invalide como al resto de listas de leads.
   baseGestionPrefijo: () => [...crmQueryKeys.leads(), 'base-gestion'] as const,
   baseGestion: (vendedorId: string | null) => [...crmQueryKeys.baseGestionPrefijo(), vendedorId] as const,
+  // Vista del supervisor (F4): la base del ámbito entero (con o sin los «No contactar»), el panel por analista y el
+  // detalle de una cifra. Bajo el mismo prefijo: toda escritura en la base (o en un lead) los refresca juntos.
+  baseGestionEquipo: (incluirVetados: boolean) => [...crmQueryKeys.baseGestionPrefijo(), 'equipo', incluirVetados] as const,
+  baseGestionResumen: () => [...crmQueryKeys.baseGestionPrefijo(), 'resumen'] as const,
+  baseGestionResumenDetalle: (vendedorId: string, cifra: CifraDetalle) => [...crmQueryKeys.baseGestionPrefijo(), 'resumen-detalle', vendedorId, cifra] as const,
   colaAccion: (limite: number) => [...crmQueryKeys.metricasAmbito(), 'cola-accion', limite] as const,
   // Aunque la RPC resuelve el mes vigente con su propio reloj, el período es
   // parte de la identidad de la foto: al cruzar medianoche en Lima no se puede
@@ -592,7 +602,7 @@ export function useLeadsPropios(habilitada: boolean) {
 export function useBaseGestion(habilitada: boolean, vendedorId: string | null = null) {
   return useQuery({
     queryKey: crmQueryKeys.baseGestion(vendedorId),
-    queryFn: ({ signal }) => obtenerBaseGestion(vendedorId, signal),
+    queryFn: ({ signal }) => obtenerBaseGestion(vendedorId, { signal }),
     enabled: habilitada,
     staleTime: 30_000,
     refetchOnWindowFocus: 'always',
@@ -629,6 +639,53 @@ export function useMarcarNoContactarBase() {
   return useMutation({
     mutationFn: (entrada: { leadId: string; motivo: string }) => marcarNoContactar(entrada.leadId, entrada.motivo),
     onSuccess: async (_r, entrada) => { await invalidarBaseGestion(queryClient, entrada.leadId, false) },
+  })
+}
+
+/**
+ * La base del ámbito entero para Supervisión y Gerencia (F4): UNA carga, filtros y páginas en el navegador. Con
+ * `incluirVetados` pide también los «No contactar» (B6b). Al encender o apagar el interruptor, la hoja conserva lo
+ * que ya mostraba mientras llega la otra lista (no se vacía ni pierde la posición). SOLO sesión real.
+ */
+export function useBaseGestionEquipo(habilitada: boolean, incluirVetados: boolean) {
+  return useQuery({
+    queryKey: crmQueryKeys.baseGestionEquipo(incluirVetados),
+    queryFn: ({ signal }) => leerBaseGestion(null, { incluirVetados, signal }),
+    enabled: habilitada,
+    staleTime: 30_000,
+    refetchOnWindowFocus: 'always',
+    placeholderData: (anterior) => anterior,
+  })
+}
+
+/** El panel por analista (F4). Las cifras de HOY dependen del reloj: se refrescan al volver a la pestaña. */
+export function useBaseGestionResumen(habilitada: boolean) {
+  return useQuery({
+    queryKey: crmQueryKeys.baseGestionResumen(),
+    queryFn: ({ signal }) => baseGestionResumen(signal),
+    enabled: habilitada,
+    staleTime: 30_000,
+    refetchOnWindowFocus: 'always',
+  })
+}
+
+/** El detalle de una cifra del panel; solo mientras está abierto. `null` en `data` = el servidor aún no lo tiene. */
+export function useBaseGestionResumenDetalle(habilitada: boolean, vendedorId: string | null, cifra: CifraDetalle | null) {
+  return useQuery({
+    queryKey: crmQueryKeys.baseGestionResumenDetalle(vendedorId ?? '', cifra ?? 'intentos_hoy'),
+    queryFn: ({ signal }) => baseGestionResumenDetalle(vendedorId ?? '', cifra ?? 'intentos_hoy', signal),
+    enabled: habilitada && vendedorId !== null && cifra !== null,
+    staleTime: 30_000,
+  })
+}
+
+/** Quitar «No contactar» (D5): se levanta para la persona y TODOS sus leads, que pueden estar en otras listas
+ *  (cartera, pipeline): se refresca todo lo que cuelga de `leads()` (la base incluida) y el historial del lead. */
+export function useLevantarNoContactarBase() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (entrada: { leadId: string; motivo: string }) => levantarNoContactar(entrada.leadId, entrada.motivo),
+    onSuccess: async (_r, entrada) => { await invalidarBaseGestion(queryClient, entrada.leadId, true) },
   })
 }
 
