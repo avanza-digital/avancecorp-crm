@@ -22,7 +22,7 @@ rellamada vigente) sale en gris «En gestión por X hasta el día Y» y el servi
    Origen (archivo / CRM) · Cargada · Leads · Sin repartir · Repartidos · Sin tocar · Trabajados · Citas · Avance (%).
    Cada número se abre en su lista (regla «todo número se abre»).
 2. **Cargar base** → dos caminos:
-   - **Subir archivo** (.xlsx o .csv, hasta 2000 filas): se suelta el archivo, el CRM reconoce las columnas (nombre,
+   - **Subir archivo** (.xlsx o .csv, hasta 5000 filas): se suelta el archivo, el CRM reconoce las columnas (nombre,
      teléfono, DNI, distrito, comentario) y muestra una vista previa. Al confirmar, el **servidor** valida y responde con
      el informe: «38 cargados · 2 ya estaban (1 de Juan, 1 cliente) · 1 con No insistir · 3 sin teléfono válido».
    - **Armar desde el CRM**: filtros por mes del descarte, motivo, etapa máxima y analista anterior; se ve el conteo y se
@@ -41,7 +41,7 @@ rellamada vigente) sale en gris «En gestión por X hasta el día Y» y el servi
 | Paso | Qué | Notas |
 |---|---|---|
 | **B7 Esquema** | `crm.bases_carga` (la base: nombre, origen `archivo`/`crm`, creada por, totales del informe) y `crm.base_carga_leads` (qué lead está en qué base, a quién se asignó, cuándo, por quién). RLS ON, deny-by-default, sin DELETE; auditoría. | `crm.leads` lleva grants POR COLUMNA: si se agrega una columna (p. ej. `base_carga_id`), sus grants explícitos. Origen nuevo del lead para lo que viene de archivo (`base_cargada`), con su etiqueta en el front. |
-| **B8 Cargar** | `crm.cargar_base_archivo(nombre, filas jsonb)`: valida (≤ 2000 filas, teléfono normalizado, DNI), descarta duplicados con la **regla de identidad que ya existe** (la misma de alta de leads), crea los leads sin dueño dentro de la base y devuelve el informe. `crm.armar_base_crm(nombre, filtros)`: arma la base con leads existentes elegibles. | Idempotente por id de operación (un doble clic no carga dos veces). El navegador lee el Excel; el servidor decide. |
+| **B8 Cargar** | `crm.cargar_base_archivo(nombre, filas jsonb)`: valida (≤ 5000 filas, teléfono normalizado, DNI), descarta duplicados con la **regla de identidad que ya existe** (la misma de alta de leads), crea los leads sin dueño dentro de la base y devuelve el informe. `crm.armar_base_crm(nombre, filtros)`: arma la base con leads existentes elegibles. | Idempotente por id de operación (un doble clic no carga dos veces). El navegador lee el Excel; el servidor decide. |
 | **B9 Repartir** | `crm.repartir_base(base_id, reparto jsonb)`: en bloque (`[{analista, cantidad}]`) o individual (`[{lead, analista}]`); valida que el analista sea del equipo (gerencia: cualquiera), rechaza leads con seguimiento activo (B6) y ya repartidos. `crm.recoger_de_base(base_id, analista)`: devuelve a «sin repartir» lo que no se tocó. | Todo o nada. Deja rastro en el ledger de asignaciones. |
 | **B10 Seguimiento** | `crm.seguimiento_bases()` (una fila por base) y `crm.seguimiento_base(base_id)` (una fila por analista), con los conteos de arriba. `crm.obtener_base_gestion` incluye los leads de base asignados al analista (con `base_nombre`). | Medir con datos reales: gerencia ya recibe 1069 filas en la base. |
 
@@ -57,7 +57,14 @@ rellamada vigente) sale en gris «En gestión por X hasta el día Y» y el servi
 B5 + B6 (en curso) → F2–F4 del plan original → **B7–B10 + F5–F6**. Cada paso con su plan corto, banco, gate y Codex;
 lo aplica Miguel con `!`. Se publica primero el servidor y después la pantalla.
 
-## Abierto (se decide en el F0 de este paso, con evidencia)
+## Decisiones de Miguel (04/10/2026)
+
+| # | Pregunta | Decisión |
+|---|---|---|
+| E5 | Tope por archivo y columnas obligatorias | **Hasta 5000 filas por archivo; obligatorios nombre + teléfono válido.** DNI, distrito y comentario opcionales; las filas sin teléfono válido se informan y no se cargan. |
+| E6 | Lead de base sin tocar | **Solo se marca en rojo** a los 3 días sin tocar en el seguimiento; el supervisor decide recogerlo. Nada se mueve solo. |
+
+## Abierto (antes del 04/10; E5 y E6 ya lo resuelven)
 
 - Tope por archivo (propuesto: 2000 filas) y columnas obligatorias (propuesto: nombre + teléfono).
 - Si un lead de base que el analista no tocó en N días vuelve solo a «sin repartir» o solo se marca en rojo
