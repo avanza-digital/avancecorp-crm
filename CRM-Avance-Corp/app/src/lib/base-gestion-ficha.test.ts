@@ -47,6 +47,18 @@ describe('etiquetaActividadBase', () => {
     expect(etiquetaActividadBase(act({ metadata: { evento: 'reactivacion_base' } }))).toBe('Reactivado desde la base')
     expect(etiquetaActividadBase(act({ tipo: 'reasignacion' }))).toBe('Reasignación')
   })
+  it('«No contactar» (una nota con evento) dice si se marcó o se levantó, no «Nota»', () => {
+    expect(etiquetaActividadBase(act({ metadata: { evento: 'no_contactar', accion: 'marcar', motivo: 'Lo pidió' } }))).toBe('Marcado «No contactar»')
+    expect(etiquetaActividadBase(act({ metadata: { evento: 'no_contactar', accion: 'levantar', rol: 'supervisor' } }))).toBe('Levantado «No contactar»')
+    // Sin `accion` no se adivina cuál fue: se dice solo qué evento es.
+    expect(etiquetaActividadBase(act({ metadata: { evento: 'no_contactar' } }))).toBe('No contactar')
+    expect(etiquetaActividadBase(act({ detalle: 'Marcado como No contactar' }))).toBe('Nota')
+  })
+  it('el buscador encuentra el «No contactar» por lo que el analista lee', () => {
+    const items = [act({ id: 'nc', metadata: { evento: 'no_contactar', accion: 'levantar' } }), act({ id: 'n' })]
+    expect(filtrarHistorial(items, 'no contactar').map((a) => a.id)).toEqual(['nc'])
+    expect(filtrarHistorial(items, 'LEVANTADO').map((a) => a.id)).toEqual(['nc'])
+  })
 })
 
 describe('filtrarHistorial', () => {

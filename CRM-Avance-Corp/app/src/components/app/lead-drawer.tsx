@@ -18,10 +18,9 @@ import { RegistrarResultado } from '@/components/gestion-diaria/registrar-result
 // la UI oculta acciones (directorio = solo lectura total) y el store re-valida.
 // Los errores de validación del store ({ok:false, error} SIN toast) se muestran
 // inline en los forms o con toast.error en acciones sueltas.
-import { Fragment, useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type ReactNode } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties } from 'react'
 import { toast } from 'sonner'
 import {
-  ArrowRightLeft,
   BadgeCheck,
   Ban,
   CalendarCheck,
@@ -66,7 +65,9 @@ import { useAuth } from '@/lib/auth-context'
 import { can, puedeEscribir } from '@/lib/roles'
 import { useCRMData, usePanelesActions, usePanelesState } from '@/lib/store-context'
 import { useActividadesDeLead } from '@/data/use-actividades-de-lead'
-import { haceRelativo, ICONO_ACTIVIDAD } from './actividad-visual'
+import { haceRelativo } from './actividad-visual'
+import { Fila } from './fila-dato'
+import { CLASE_HITO, EsqueletoLinea, LineaDeTiempo } from './linea-de-tiempo'
 import { MOTIVOS_CON_EVIDENCIA, VETO_CORTO, vetoNoResponde } from '@/lib/descarte-evidencia'
 import { DialogCapitalPropuesta } from '@/components/app/capital-propuesta'
 import { useAhora } from '@/lib/ahora'
@@ -91,7 +92,6 @@ import {
   textoCargadoPor,
   TIPOS_ACTIVIDAD,
   TIPOS_TAREA,
-  type Actividad,
   type CategoriaInteres,
   type Etapa,
   type EtapaActiva,
@@ -1069,15 +1069,7 @@ export function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolea
 }
 
 // ── Sección Datos ─────────────────────────────────────────────────────────────
-
-function Fila({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="grid grid-cols-[96px_1fr] items-baseline gap-2 py-1">
-      <dt className="text-[11px] font-semibold text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 text-[13px] text-foreground">{children}</dd>
-    </div>
-  )
-}
+// `Fila` (etiqueta → valor) vive en ./fila-dato: la reutiliza la ficha de la base.
 
 /** Lista es-PE: "a, b y c" (para la línea de datos faltantes). */
 function listarFaltantes(xs: string[]): string {
@@ -1514,84 +1506,13 @@ function Datos({
 
 // ── Timeline + composer ───────────────────────────────────────────────────────
 
-const CLASE_HITO =
-  'relative z-[1] grid size-7 shrink-0 place-items-center rounded-full border border-border bg-card text-muted-foreground [&_svg]:size-3.5'
+// Las piezas de la línea (riel, hito, fila de actividad, racha de etapas y
+// esqueleto) viven en ./linea-de-tiempo: la reutiliza la ficha de la base.
 
 // Tope de entradas visibles por defecto: el resto queda tras "Ver anteriores".
 // El historial de un lead trabajado meses crece sin cota; sin tope el scroll
 // interno se vuelve interminable (problema reportado 2026-07-17).
 const TOPE_TIMELINE = 8
-
-/** Una actividad suelta del timeline (hito + título + detalle + autor/tiempo). */
-function FilaActividad({ a, ahora }: { a: Actividad; ahora: number }) {
-  const Icono = ICONO_ACTIVIDAD[a.tipo]
-  const esConversion = a.tipo === 'conversion'
-  return (
-    <li className="flex gap-2.5">
-      <span className={cn(CLASE_HITO, esConversion && 'border-primary/30 text-primary')}>
-        <Icono aria-hidden />
-      </span>
-      <div className="min-w-0 flex-1 pt-0.5">
-        <p className="text-xs font-bold text-foreground">{TIPOS_ACTIVIDAD[a.tipo]}</p>
-        {a.detalle && (
-          <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{presentarCitas(a.detalle)}</p>
-        )}
-        <p className="mt-0.5 text-[11px] text-muted-foreground/80">
-          {a.autor_nombre} · {haceRelativo(a.creado_en, ahora)}
-        </p>
-      </div>
-    </li>
-  )
-}
-
-/** Racha colapsada de cambios de etapa: resumen contraído + expandir a la lista. */
-function GrupoEtapa({ items, ahora }: { items: Actividad[]; ahora: number }) {
-  const [abierto, setAbierto] = useState(false)
-  const reciente = items[0]
-  if (!reciente) return null
-  if (abierto) {
-    return (
-      <>
-        {items.map((a) => (
-          <FilaActividad key={a.id} a={a} ahora={ahora} />
-        ))}
-        <li className="flex gap-2.5">
-          <span className="w-7 shrink-0" aria-hidden />
-          <button
-            type="button"
-            onClick={() => setAbierto(false)}
-            className="cursor-pointer text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Agrupar {items.length} cambios de etapa
-          </button>
-        </li>
-      </>
-    )
-  }
-  return (
-    <li className="flex gap-2.5">
-      <span className={CLASE_HITO}>
-        <ArrowRightLeft aria-hidden />
-      </span>
-      <button
-        type="button"
-        onClick={() => setAbierto(true)}
-        className="min-w-0 flex-1 cursor-pointer pt-0.5 text-left"
-        aria-label={`Ver los ${items.length} cambios de etapa`}
-      >
-        <p className="text-xs font-bold text-foreground">{items.length} cambios de etapa</p>
-        {reciente.detalle && (
-          <p className="mt-0.5 truncate text-xs leading-relaxed text-muted-foreground">
-            Último: {presentarCitas(reciente.detalle)}
-          </p>
-        )}
-        <p className="mt-0.5 text-[11px] text-muted-foreground/80">
-          {reciente.autor_nombre} · {haceRelativo(reciente.creado_en, ahora)} · toca para ver todos
-        </p>
-      </button>
-    </li>
-  )
-}
 
 // Exportado para probar sus estados (cargando / error / vacío / cargar más)
 // sin montar el drawer entero, como ProximaAccion.
@@ -1746,128 +1667,118 @@ export function Timeline({ l, escribe, activa, puedeRegistrarGestion, componiend
         aria-label="Historial de actividades"
         className="ac-scroll mt-2 max-h-80 overflow-y-auto overscroll-contain rounded-lg pr-2 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
       >
-        <ol
-          className="relative space-y-4 before:absolute before:inset-y-2 before:left-[13px] before:w-px before:bg-border"
-          aria-busy={historial.cargando || historial.cargandoMas}
+        <LineaDeTiempo
+          items={visibles}
+          ahora={ahora}
+          ariaBusy={historial.cargando || historial.cargandoMas}
+          antes={
+            <>
+              {/* Estados HONESTOS del historial servido: cargando, fallo y vacío se
+                  distinguen entre sí y de «Lead creado» (que hoy era la única señal). */}
+              {historial.cargando && <EsqueletoLinea />}
+              {historial.error != null && !historial.cargando && (
+                <li className="flex gap-2.5">
+                  <span className="w-7 shrink-0" aria-hidden />
+                  <div className="min-w-0 flex-1 pt-0.5">
+                    <p role="alert" className="text-xs text-destructive">
+                      {acts.length === 0
+                        ? 'No se pudo cargar el historial de este lead.'
+                        : 'No se pudo cargar el resto del historial.'}
+                    </p>
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      className="mt-1"
+                      onClick={() => {
+                        refSeccion.current?.focus({ preventScroll: true })
+                        historial.reintentar()
+                      }}
+                    >
+                      Reintentar
+                    </Button>
+                  </div>
+                </li>
+              )}
+              {!historial.cargando && historial.error == null && acts.length === 0 && (
+                <li className="flex gap-2.5">
+                  <span className="w-7 shrink-0" aria-hidden />
+                  <p className="pt-0.5 text-xs text-muted-foreground">Sin gestiones todavía.</p>
+                </li>
+              )}
+            </>
+          }
         >
-        {/* Estados HONESTOS del historial servido: cargando, fallo y vacío se
-            distinguen entre sí y de «Lead creado» (que hoy era la única señal). */}
-        {historial.cargando && [0, 1].map((n) => (
-          <li key={`esq-${n}`} className="flex gap-2.5" aria-hidden>
-            <span className={CLASE_HITO} />
-            <div className="min-w-0 flex-1 pt-1">
-              <div className="h-3 w-40 animate-pulse rounded bg-muted motion-reduce:animate-none" />
-              <div className="mt-1.5 h-2.5 w-24 animate-pulse rounded bg-muted motion-reduce:animate-none" />
-            </div>
-          </li>
-        ))}
-        {historial.error != null && !historial.cargando && (
-          <li className="flex gap-2.5">
-            <span className="w-7 shrink-0" aria-hidden />
-            <div className="min-w-0 flex-1 pt-0.5">
-              <p role="alert" className="text-xs text-destructive">
-                {acts.length === 0
-                  ? 'No se pudo cargar el historial de este lead.'
-                  : 'No se pudo cargar el resto del historial.'}
-              </p>
-              <Button
-                size="xs"
-                variant="ghost"
-                className="mt-1"
-                onClick={() => {
-                  refSeccion.current?.focus({ preventScroll: true })
-                  historial.reintentar()
-                }}
-              >
-                Reintentar
-              </Button>
-            </div>
-          </li>
-        )}
-        {!historial.cargando && historial.error == null && acts.length === 0 && (
-          <li className="flex gap-2.5">
-            <span className="w-7 shrink-0" aria-hidden />
-            <p className="pt-0.5 text-xs text-muted-foreground">Sin gestiones todavía.</p>
-          </li>
-        )}
-        {visibles.map((it) =>
-          it.clase === 'act' ? (
-            <FilaActividad key={it.act.id} a={it.act} ahora={ahora} />
-          ) : (
-            <GrupoEtapa key={it.id} items={it.items} ahora={ahora} />
-          ),
-        )}
-        {/* Tope: el resto del historial queda a un clic, para no crecer sin cota */}
-        {ocultos > 0 && (
-          <li className="flex gap-2.5">
-            <span className="grid size-7 shrink-0 place-items-center text-muted-foreground [&_svg]:size-3.5">
-              <MoreHorizontal aria-hidden />
-            </span>
-            <button
-              type="button"
-              onClick={() => setVerTodo(true)}
-              className="cursor-pointer pt-1 text-left text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Ver {ocultos} {ocultos === 1 ? 'entrada anterior' : 'entradas anteriores'}
-            </button>
-          </li>
-        )}
-        {verTodo && items.length > TOPE_TIMELINE && (
-          <li className="flex gap-2.5">
-            <span className="w-7 shrink-0" aria-hidden />
-            <button
-              type="button"
-              onClick={() => setVerTodo(false)}
-              className="cursor-pointer pt-1 text-left text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Ver menos
-            </button>
-          </li>
-        )}
-        {muestraCargarMas && (
-          <li className="flex gap-2.5">
-            <span className="grid size-7 shrink-0 place-items-center text-muted-foreground [&_svg]:size-3.5">
-              <MoreHorizontal aria-hidden />
-            </span>
-            <div className="min-w-0 flex-1">
+          {/* Tope: el resto del historial queda a un clic, para no crecer sin cota */}
+          {ocultos > 0 && (
+            <li className="flex gap-2.5">
+              <span className="grid size-7 shrink-0 place-items-center text-muted-foreground [&_svg]:size-3.5">
+                <MoreHorizontal aria-hidden />
+              </span>
               <button
                 type="button"
-                aria-disabled={cargarMasInerte || undefined}
-                onClick={() => {
-                  if (cargarMasInerte) return
-                  setPidioMas(true)
-                  // Pedir más implica desplegar: si no, la página nueva podría
-                  // quedar plegada tras «Ver N anteriores» y este botón
-                  // desmontarse con el foco dentro.
-                  setVerTodo(true)
-                  historial.cargarMas()
-                }}
-                className="min-h-6 cursor-pointer pt-1 text-left text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground pointer-coarse:min-h-8 aria-disabled:cursor-default aria-disabled:hover:text-muted-foreground"
+                onClick={() => setVerTodo(true)}
+                className="cursor-pointer pt-1 text-left text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
               >
-                {historial.cargandoMas
-                  ? 'Cargando más gestiones…'
-                  : historial.error != null
-                    ? 'No se pudo cargar más'
-                    : historial.hayMas
-                      ? 'Cargar más gestiones'
-                      : 'Historial completo'}
+                Ver {ocultos} {ocultos === 1 ? 'entrada anterior' : 'entradas anteriores'}
               </button>
+            </li>
+          )}
+          {verTodo && items.length > TOPE_TIMELINE && (
+            <li className="flex gap-2.5">
+              <span className="w-7 shrink-0" aria-hidden />
+              <button
+                type="button"
+                onClick={() => setVerTodo(false)}
+                className="cursor-pointer pt-1 text-left text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Ver menos
+              </button>
+            </li>
+          )}
+          {muestraCargarMas && (
+            <li className="flex gap-2.5">
+              <span className="grid size-7 shrink-0 place-items-center text-muted-foreground [&_svg]:size-3.5">
+                <MoreHorizontal aria-hidden />
+              </span>
+              <div className="min-w-0 flex-1">
+                <button
+                  type="button"
+                  aria-disabled={cargarMasInerte || undefined}
+                  onClick={() => {
+                    if (cargarMasInerte) return
+                    setPidioMas(true)
+                    // Pedir más implica desplegar: si no, la página nueva podría
+                    // quedar plegada tras «Ver N anteriores» y este botón
+                    // desmontarse con el foco dentro.
+                    setVerTodo(true)
+                    historial.cargarMas()
+                  }}
+                  className="min-h-6 cursor-pointer pt-1 text-left text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground pointer-coarse:min-h-8 aria-disabled:cursor-default aria-disabled:hover:text-muted-foreground"
+                >
+                  {historial.cargandoMas
+                    ? 'Cargando más gestiones…'
+                    : historial.error != null
+                      ? 'No se pudo cargar más'
+                      : historial.hayMas
+                        ? 'Cargar más gestiones'
+                        : 'Historial completo'}
+                </button>
+              </div>
+            </li>
+          )}
+          {/* La creación NO es una actividad: ítem estático al final con creado_en */}
+          <li className="flex gap-2.5">
+            <span className={CLASE_HITO}>
+              <Sparkles aria-hidden />
+            </span>
+            <div className="min-w-0 flex-1 pt-0.5">
+              <p className="text-xs font-bold text-foreground">Lead creado</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground/80">
+                {fmtFecha(l.creado_en)} · {haceRelativo(l.creado_en, ahora)}
+              </p>
             </div>
           </li>
-        )}
-        {/* La creación NO es una actividad: ítem estático al final con creado_en */}
-        <li className="flex gap-2.5">
-          <span className={CLASE_HITO}>
-            <Sparkles aria-hidden />
-          </span>
-          <div className="min-w-0 flex-1 pt-0.5">
-            <p className="text-xs font-bold text-foreground">Lead creado</p>
-            <p className="mt-0.5 text-[11px] text-muted-foreground/80">
-              {fmtFecha(l.creado_en)} · {haceRelativo(l.creado_en, ahora)}
-            </p>
-          </div>
-        </li>
-        </ol>
+        </LineaDeTiempo>
       </div>
     </section>
   )

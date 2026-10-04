@@ -201,7 +201,8 @@ export function firmaIntento(entrada: { resultado: string; nota: string; proxima
   return JSON.stringify([entrada.resultado, entrada.nota.trim(), entrada.proximaLlamada])
 }
 
-/** Cómo se lee una actividad en el historial de la base: los intentos y la reactivación dicen lo que fueron. */
+/** Cómo se lee una actividad en el historial de la base: los intentos, la reactivación y el «No contactar» dicen lo
+ *  que fueron (el servidor los guarda como `nota` con el evento en la metadata; sin esto se leerían «Nota»). */
 export function etiquetaActividadBase(a: Actividad): string {
   const meta = a.metadata ?? {}
   if (meta.evento === 'intento_base') {
@@ -210,6 +211,12 @@ export function etiquetaActividadBase(a: Actividad): string {
     return Number.isFinite(n) && n > 0 ? `Intento ${n} · ${resultado}` : resultado
   }
   if (meta.evento === 'reactivacion_base') return 'Reactivado desde la base'
+  if (meta.evento === 'no_contactar') {
+    // `accion` la escriben crm.marcar_no_contactar ('marcar') y crm.levantar_no_contactar ('levantar').
+    if (meta.accion === 'marcar') return 'Marcado «No contactar»'
+    if (meta.accion === 'levantar') return 'Levantado «No contactar»'
+    return 'No contactar'
+  }
   return TIPOS_ACTIVIDAD[a.tipo] ?? 'Actividad'
 }
 
