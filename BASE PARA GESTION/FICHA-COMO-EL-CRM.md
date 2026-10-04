@@ -12,7 +12,12 @@
 ## Avance
 - Paso 1 ☑ `f9f87685` · Paso 2 ☑ `8706aacc` (rama `crm/base-gestion-ficha-crm` sobre el vivo `3e248407`). `npm run check` PASS (5696);
   E2E Docker 45 pasan + 1 rojo previo (`gestion-diaria-vuelta.spec.ts:11`, fecha fija del 30/09).
-- Pasos 3 y 4 ◉ en construcción.
+- Pasos 3 y 4 ☑ `736f528f` (cabecera, DATOS, selector compartido, línea de tiempo, Llamar/Copiar, pie fijo). Ficha real
+  comparada con la pieza a 1440 y 390: igual (sin WhatsApp; sin «Lead creado»: la base no trae `creado_en`).
+  `revisor-a11y`: CHANGES_REQUESTED (7 P2) → aplicado → APPROVE. `npm run check` PASS (5714); E2E Docker 20/20
+  (`base-gestion-ficha`, `gestion-diaria-resultado`, `acciones-demo`) + cierre 25 pasan / 1 rojo previo
+  (`gestion-diaria-vuelta.spec.ts:11`). **Sigue:** `/release-crm` desde `crm/base-gestion-ficha-crm` (lo invoca Miguel)
+  → PR a `main` de GitHub. P3 abiertos (opcionales): `tabIndex` de la región solo en lg; «Reintentando…».
 
 Pieza visual a escala real: `../ui-playground/ficha-base-gestion.html` (fuera del repo).
 

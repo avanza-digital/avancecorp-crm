@@ -474,3 +474,16 @@ migraciones aplicadas. Nada en producción.
 - 🔑 El worktree de una PR necesita `node_modules` (CLON APFS `cp -c -R`) o el pre-push muere con `vitest: command not found`.
 - Pedido de Miguel tras verla: «me gusta la ficha, pero que se adapte más a la ficha que ya tenemos en el CRM y en
   Gestión Diaria». Sigue: comparar las tres fichas → plan corto → pieza visual → OK → construir.
+
+### Ficha con el aspecto del CRM (03/10 noche) — construida, sin publicar
+- Miguel decidió: ficha ancha con el lenguaje de la ficha del lead · «¿Qué pasó con la llamada?» en UNA pieza
+  compartida (`SelectorResultado`, la usan Mi día, la ficha del CRM y la base) · «No contactar»/«Reactivar» en pie
+  fijo · sin WhatsApp (la puerta de la base solo registra llamadas). Aprobó al VER la pieza a escala real
+  (`ui-playground/ficha-base-gestion.html`): «me gusta mucho cómo se ve».
+- Rama `crm/base-gestion-ficha-crm`: `f9f87685` selector compartido · `8706aacc` `linea-de-tiempo.tsx` + `fila-dato.tsx`
+  sacados de `lead-drawer.tsx` · `736f528f` la ficha. check PASS (5714), E2E Docker verdes salvo el rojo previo de
+  `gestion-diaria-vuelta.spec.ts:11` (fecha fija del 30/09), revisor-a11y APPROVE en segunda pasada.
+- 🔑 `.ac-chip` está fuera de `@layer`: una clase `text-*` no le gana; el color del texto de un `Badge` se cambia con
+  `style`. Los chips grises/ámbar a 11 px no llegan a 4,5:1 (deuda también en la ficha del lead).
+- 🔑 Los eventos `reactivacion_base` y `no_contactar` se guardan como `tipo='nota'`: `iconoActividad()` los distingue
+  por `metadata.evento`.

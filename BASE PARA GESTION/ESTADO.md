@@ -1,6 +1,6 @@
 # ESTADO del módulo «Base para gestión del analista»
 
-**Última sesión:** 03/10/2026 noche (sesión `6e2ffadc`) · **Fase en curso:** servidor B1–B6, front F1 y **F2 (la ficha) EN PRODUCCIÓN desde el 03/10** (F2 a las ~21:10 Lima, `3e248407`); PR #177 fusionada (`896d1377`); **PR #180** (F2) abierta. Miguel pidió (03/10 noche) **acercar la ficha de F2 a la ficha del CRM y a la de Gestión Diaria**: en análisis. **Pedido nuevo de Miguel (03/10): «Bases cargadas»** — plan en `BASES-CARGADAS.md` (decisiones E1–E4 cerradas), fases B7–B10 + F5–F6 después de F2–F4.
+**Última sesión:** 03/10/2026 noche (sesión `6e2ffadc`) · **Fase en curso:** servidor B1–B6, front F1 y **F2 (la ficha) EN PRODUCCIÓN desde el 03/10** (F2 a las ~21:10 Lima, `3e248407`); PR #177 fusionada (`896d1377`); **PR #180** (F2) abierta. Miguel pidió (03/10 noche) **acercar la ficha de F2 a la ficha del CRM y a la de Gestión Diaria**: pieza aprobada y ficha CONSTRUIDA en `crm/base-gestion-ficha-crm` (`736f528f`, sin publicar). Detalle en `FICHA-COMO-EL-CRM.md`. **Pedido nuevo de Miguel (03/10): «Bases cargadas»** — plan en `BASES-CARGADAS.md` (decisiones E1–E4 cerradas), fases B7–B10 + F5–F6 después de F2–F4.
 **La base de datos está EN PRODUCCIÓN desde el 02/10, 20:15 Lima.** Miguel aplicó con `!` las 7 migraciones, cada una con
 su registrador. Comprobado después, en solo lectura:
 - las 7 en true y las 7 registradas con el md5 de su archivo;
@@ -44,7 +44,7 @@ siguiente paso concreto. Actualiza también la línea «Última sesión» y la n
 
 ## Cómo continuar — en este orden
 
-**Al retomar (03/10 noche):** (a) Miguel fusiona la PR #180 (F2, ya publicada) por squash. (b) Ajuste de la ficha de F2 para que se parezca a la ficha del CRM y a la de Gestión Diaria (pedido de Miguel): plan corto → pieza visual → OK → construir → `/release-crm`. 🔴 El VIVO del CRM es `3e248407` (03/10 ~21:10): la próxima publicación debe contenerlo.
+**Al retomar (03/10 noche):** (a) Miguel fusiona la PR #180 (F2, ya publicada) por squash. (b) Publicar la ficha rediseñada: `/release-crm` desde el worktree `base-gestion-front-20261002`, rama `crm/base-gestion-ficha-crm` (`736f528f`, nace del vivo `3e248407`) → PR a `main` de GitHub. (c) F3. 🔴 El VIVO del CRM es `3e248407` (03/10 ~21:10): la próxima publicación debe contenerlo.
 (c) F3 (Llamar hoy arriba, filtros, línea en «Hoy»).
 Demo local para ver F2: `VITE_ENABLE_DEMO=true npx vite --port 5191` en `…/base-gestion-front-20261002/CRM-Avance-Corp/app` (rama `crm/base-gestion-f2`) → «Explorar en modo demo» → Analista → «Base para gestión» → tocar el nombre. 🔴 El VIVO del CRM es `c489d487` (03/10 17:10): la próxima publicación debe contenerlo. El scratchpad del stack del gate del 02/10 ya no existe: quedan sus volúmenes Docker (`supabase_db_avancecorp-base-gestion-20261002`), hay que recrear su `config.toml` con el mismo `project_id` y puertos 569xx. (b) F2. (c) Después de F2–F4: Bases cargadas (B7–B10 + F5–F6), plan en `BASES-CARGADAS.md`.
 
