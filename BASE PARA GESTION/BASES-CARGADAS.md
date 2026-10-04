@@ -95,3 +95,8 @@ lo aplica Miguel con `!`. Se publica primero el servidor y después la pantalla.
 - Tope por archivo (propuesto: 2000 filas) y columnas obligatorias (propuesto: nombre + teléfono).
 - Si un lead de base que el analista no tocó en N días vuelve solo a «sin repartir» o solo se marca en rojo
   (propuesto: solo se marca; el supervisor decide recoger).
+
+## Avance
+- **F5a ☑ lista sin publicar** (04/10): rama `crm/bases-cargadas-f5a` `73c9b908` sobre el vivo `538ca9ec`. Catálogos de lectura separados (origen y motivo `base_cargada` solo lectura), capital null como «Sin capital». check 5943, E2E 24/24, mutantes OK. Codex: BLOCK por un filtro local del mosaico de rescate → resuelto por alcance (`revisiones/2026-10-04-codex-f5a.md`). Sigue: `/release-crm` (puede ir antes que el servidor).
+- **B7** en construcción (banco local). Ajuste: capital vacío solo con origen `base_cargada` **y** etapa descartado (toda vía).
+- Pendientes para B8/B10 detectados: `zz_sello_descarte` pone `descartado_en` NULL al insertar (contacto que nace descartado); ¿los contactos de base salen en «Descartes del mes» del rescate?; `p_sin_asignar` de la bandeja descargaría miles de dormidos; editar datos de un contacto sin capital hoy exige capital en la ficha.
