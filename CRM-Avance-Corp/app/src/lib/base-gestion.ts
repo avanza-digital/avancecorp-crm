@@ -7,8 +7,10 @@ import * as v from 'valibot'
 import { DIAS, MESES, fechaLima, horaLima } from './agenda-derivada'
 import { etiquetaDeMes, mesLima } from './cartera-meses'
 import { EnteroNoNegativoRpcSchema, NumeroRpcSchema } from './esquemas-rpc'
+import { isoDeCampos } from './campos-siguiente'
+import { normalizar } from './clientes-vista'
 import { etiquetaResultado } from './resultado-llamada'
-import { ETAPA_INFO, MOTIVOS_DESCARTE, origenLabel, type Lead } from './tipos'
+import { ETAPA_INFO, MOTIVOS_DESCARTE, TIPOS_ACTIVIDAD, origenLabel, type Actividad, type Lead } from './tipos'
 
 /** Espejo de `private.base_gestion_constantes()`: solo para redactar; el servidor manda. */
 export const MAX_INTENTOS_BASE = 3
@@ -179,5 +181,53 @@ export function mesesDeLaBase(filas: readonly FilaBaseGestion[]): MesDeLaBase[] 
 export function filasDelMes(filas: readonly FilaBaseGestion[], mes: string): FilaBaseGestion[] {
   if (mes === MES_TODOS) return [...filas]
   return filas.filter((f) => mesDelLead(f) === mes)
+}
+
+// ── La ficha del lead de la base (F2) ─────────────────────────────────────────────────────────────────────
+/** «Volver a llamar» exige fecha y hora: futura y como máximo a {@link DIAS_MAX_RELLAMADA} días. La pantalla avisa
+ *  antes de enviar; la puerta vuelve a validar (manda ella). Devuelve el instante ISO o el motivo para no enviarlo. */
+export function validarRellamada(fecha: string, hora: string, ahora: number = Date.now()): { iso: string } | { error: string } {
+  const iso = isoDeCampos({ tipo: 'llamada', titulo: '', fecha, hora })
+  if (!iso) return { error: 'Elige la fecha y la hora de la próxima llamada.' }
+  const ms = Date.parse(iso)
+  if (ms <= ahora) return { error: 'La próxima llamada tiene que ser más adelante que ahora.' }
+  if (ms > ahora + DIAS_MAX_RELLAMADA * 86_400_000) return { error: `La próxima llamada puede agendarse como máximo a ${DIAS_MAX_RELLAMADA} días.` }
+  return { iso }
+}
+
+/** Lo que se envía con un intento, como texto estable: el MISMO contenido reusa su `p_operacion_id` (un doble clic o
+ *  un reintento tras un corte devuelven la respuesta original); otro contenido lleva un id nuevo (si no, 23505). */
+export function firmaIntento(entrada: { resultado: string; nota: string; proximaLlamada: string | null }): string {
+  return JSON.stringify([entrada.resultado, entrada.nota.trim(), entrada.proximaLlamada])
+}
+
+/** Cómo se lee una actividad en el historial de la base: los intentos y la reactivación dicen lo que fueron. */
+export function etiquetaActividadBase(a: Actividad): string {
+  const meta = a.metadata ?? {}
+  if (meta.evento === 'intento_base') {
+    const n = typeof meta.intento_n === 'number' ? meta.intento_n : Number(meta.intento_n)
+    const resultado = typeof meta.resultado === 'string' ? etiquetaResultado(meta.resultado) : 'Intento'
+    return Number.isFinite(n) && n > 0 ? `Intento ${n} · ${resultado}` : resultado
+  }
+  if (meta.evento === 'reactivacion_base') return 'Reactivado desde la base'
+  return TIPOS_ACTIVIDAD[a.tipo] ?? 'Actividad'
+}
+
+/** Fecha de una fila del historial: «Hoy, 15:30», «Ayer, 10:00», «Vie 9 Oct, 10:00» y, si es de otro año, con el año. */
+export function etiquetaFechaHistorial(iso: string, ahora: number = Date.now()): string {
+  const ms = Date.parse(iso)
+  if (!Number.isFinite(ms)) return 'Sin fecha'
+  const anio = fechaLima(ms).slice(0, 4)
+  const base = etiquetaMomento(iso, ahora)
+  return anio === fechaLima(ahora).slice(0, 4) || base.startsWith('Hoy') || base.startsWith('Ayer')
+    ? base
+    : base.replace(/, (\d{2}:\d{2})$/, ` ${anio}, $1`)
+}
+
+/** Buscador del historial: sin mayúsculas ni tildes, sobre lo que el analista lee (qué pasó, nota y quién). */
+export function filtrarHistorial(items: readonly Actividad[], texto: string): Actividad[] {
+  const buscado = normalizar(texto.trim())
+  if (!buscado) return [...items]
+  return items.filter((a) => normalizar(`${etiquetaActividadBase(a)} ${a.detalle ?? ''} ${a.autor_nombre}`).includes(buscado))
 }
 

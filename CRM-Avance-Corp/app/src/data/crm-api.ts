@@ -1685,6 +1685,80 @@ export async function obtenerBaseGestion(vendedorId?: string | null, signal?: Ab
   return filas
 }
 
+// ── Base para gestión · escrituras de la ficha (F2). Las puertas son idempotentes por `p_operacion_id` (B3/B3b):
+//    el MISMO id con el mismo contenido devuelve la respuesta original (`replay`); con otro contenido, 23505. La
+//    pantalla fija un id por envío y solo lo renueva cuando cambia lo que se manda.
+const RespuestaIntentoBaseSchema = v.looseObject({
+  ok: v.literal(true),
+  replay: v.boolean(),
+  intento_n: EnteroNoNegativoRpcSchema,
+  etapa: v.string(),
+  reactivado: v.boolean(),
+  enfriado_hasta: v.nullable(v.string()),
+  proxima_llamada_en: v.nullable(v.string()),
+})
+export type RespuestaIntentoBase = v.InferOutput<typeof RespuestaIntentoBaseSchema>
+
+const RespuestaReactivarBaseSchema = v.looseObject({
+  replay: v.boolean(),
+  etapa: v.string(),
+  ciclo_n: v.nullable(EnteroNoNegativoRpcSchema),
+})
+export type RespuestaReactivarBase = v.InferOutput<typeof RespuestaReactivarBaseSchema>
+
+export interface IntentoBaseEntrada {
+  operacionId: string
+  leadId: string
+  resultado: string
+  nota?: string | null
+  /** ISO con zona; solo con «volver a llamar» (máximo 10 días: lo decide la puerta). */
+  proximaLlamada?: string | null
+}
+
+/** Registra un intento sobre un lead de la base. «Agendó cita» reactiva en la misma operación (D3). */
+export async function registrarIntentoBase(entrada: IntentoBaseEntrada): Promise<RespuestaIntentoBase> {
+  const nota = entrada.nota?.trim()
+  const { data, error } = await cliente().schema('crm').rpc('registrar_intento_base', sinIndefinidos({
+    p_operacion_id: entrada.operacionId,
+    p_lead_id: entrada.leadId,
+    p_resultado: entrada.resultado,
+    p_nota: nota ? nota : undefined,
+    p_proxima_llamada: entrada.proximaLlamada ?? undefined,
+  }))
+  if (error) throw aErrorApi(error, 'crm.base_gestion.intento_fallido')
+  const r = v.safeParse(RespuestaIntentoBaseSchema, data)
+  if (!r.success) {
+    const fallo = new CrmApiError('El servidor no confirmó el intento.', 'INTENTO_BASE_CONTRACT')
+    registrarError('crm.base_gestion.intento_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return r.output
+}
+
+/** Reactiva un lead de la base: vuelve a la cartera del MISMO analista en «Contactado» (D1, D2), con ciclo nuevo. */
+export async function reactivarLeadBase(entrada: { operacionId: string; leadId: string; nota?: string | null }): Promise<RespuestaReactivarBase> {
+  const nota = entrada.nota?.trim()
+  const { data, error } = await cliente().schema('crm').rpc('reactivar_lead_base', sinIndefinidos({
+    p_operacion_id: entrada.operacionId,
+    p_lead_id: entrada.leadId,
+    p_nota: nota ? nota : undefined,
+  }))
+  if (error) throw aErrorApi(error, 'crm.base_gestion.reactivar_fallido')
+  const r = v.safeParse(RespuestaReactivarBaseSchema, data)
+  if (!r.success) {
+    const fallo = new CrmApiError('El servidor no confirmó la reactivación.', 'REACTIVAR_BASE_CONTRACT')
+    registrarError('crm.base_gestion.reactivar_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return r.output
+}
+
+/** «No contactar» (No insista, Ley 29571): el lead sale de la base. Quitar la marca es de Supervisión/Gerencia (D5). */
+export async function marcarNoContactar(leadId: string, motivo: string): Promise<void> {
+  const { error } = await cliente().schema('crm').rpc('marcar_no_contactar', { p_lead_id: leadId, p_motivo: motivo.trim() })
+  if (error) throw aErrorApi(error, 'crm.base_gestion.no_contactar_fallido')
+}
+
 // ── Timeline del ámbito con AUTOR (RPC SECURITY DEFINER actividades_del_ambito_fn)
 const TIPOS_ACT = Object.keys(TIPOS_ACTIVIDAD) as [TipoActividad, ...TipoActividad[]]
 const ActividadRowSchema = v.object({
