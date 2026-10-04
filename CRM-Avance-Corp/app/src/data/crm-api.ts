@@ -155,6 +155,7 @@ import {
 import type { Vista } from '@/lib/router'
 import { EnteroNoNegativoRpcSchema, FechaSchema } from '@/lib/esquemas-rpc'
 import { presentarCitas } from '@/lib/terminologia'
+import { conGestionVigente } from './gestion-vigente'
 
 export type { DisponibilidadLead, ResultadoCreacionLeadAtomica, ResultadoTomaLead } from '@/lib/disponibilidad-lead'
 export type { RecordatorioDisponibilidad } from '@/lib/recordatorios-disponibilidad'
@@ -593,7 +594,7 @@ export async function listarLeads(filtros: FiltrosLeads, signal?: AbortSignal): 
 
   const total = count ?? 0
   return {
-    items,
+    items: await conGestionVigente(cliente(), items, signal),
     pagina,
     tamano,
     total,
@@ -636,7 +637,8 @@ export async function obtenerLeadDelAmbitoPorId(id: string, signal?: AbortSignal
   lanzarAbortSiCorresponde(signal)
   // La marca es adicional: si un servidor antiguo no permite esta consulta,
   // la ficha sigue abriéndose y no se inventa un «no reasignado».
-  return { ...lead, reasignado: errorHistorial ? null : (movimientos?.length ?? 0) > 0 }
+  const [conGestion] = await conGestionVigente(cliente(), [lead], signal)
+  return { ...conGestion!, reasignado: errorHistorial ? null : (movimientos?.length ?? 0) > 0 }
 }
 
 // ── Cartera paginada por CURSOR KEYSET (F2) ───────────────────────────────────
@@ -858,8 +860,8 @@ export async function listarCarteraPagina(
     const filas = payload.items.slice(0, TAMANO_PAGINA_CARTERA)
     const ultima = filas.at(-1)
     return {
-      items: filas.map((l) => ({ ...aLead(l), ultimo_contacto_en: l.ultimo_contacto_en,
-        recibido_en: l.recibido_en, recepcion_aproximada: l.recepcion_aproximada })),
+      items: await conGestionVigente(cliente(), filas.map((l) => ({ ...aLead(l), ultimo_contacto_en: l.ultimo_contacto_en,
+        recibido_en: l.recibido_en, recepcion_aproximada: l.recepcion_aproximada })), signal, gestionPedida),
       cursor: hayMas && ultima ? { actualizadoEn: ultima.actualizado_en, id: ultima.id } : null,
       resumen: conteosPotencial ? { ...indicadores, potencial: conteosPotencial } : indicadores,
     }
@@ -910,7 +912,7 @@ export async function listarCarteraPagina(
     }
   }
 
-  return { items, cursor: siguiente }
+  return { items: await conGestionVigente(cliente(), items, signal), cursor: siguiente }
 }
 
 /**
@@ -1029,7 +1031,7 @@ export async function buscarLeadsGlobal(
   if (new Set(items.map((l) => l.id)).size !== items.length) {
     throw new CrmApiError('La búsqueda devolvió leads repetidos.', 'ROW_CONTRACT')
   }
-  return items
+  return conGestionVigente(cliente(), items, signal)
 }
 
 // ── Roster del equipo con NOMBRES (RPC SECURITY DEFINER equipo_visible_fn) ─────

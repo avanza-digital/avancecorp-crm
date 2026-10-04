@@ -1,3 +1,7 @@
+## 20261003225551 — Lectura de Gestionado para ficha y listados
+
+**APLICADA EN PRODUCCIÓN (03/10/2026):** autorizada por Miguel («Sí, probar y publicar todo») y publicada mediante `merge_branch` después de 2.823 aserciones RLS PASS, SQL de seis roles y 22 escenarios HTTP. Nueva puerta `crm.gestion_vigente_fn(uuid[])` → `private.gestion_vigente_lectura(uuid[])`, ambas INVOKER/STABLE, RLS vigente, actor CRM admitido, lote máximo 100. Solo estado e identidad de tenencia de nuevos activos; sin cambios de datos, tablas, policies o etapas. Postflight: cuerpos/ACL idénticos, catálogo anterior intacto, tres roles productivos y cero diferencias de clasificación. Frontend `build-20261004T025651347Z`, 98 archivos HTTPS verificados. Banco propio retirado. Acta: `docs/publicaciones/gestionado-ficha-2026-10-03.md`. Reversa: frontend anterior y retirada de funciones en otra migración, sin revertir datos.
+
 ## 20261002163158 — «Retirar cuenta» y «Cambiar cuenta de pago» solo en READ COMMITTED (`private.retirar_cuenta_cliente_autorizado`, `private.cambiar_cuenta_pago_contratos_autorizado`)
 
 **✅ APLICADA EN PRODUCCIÓN EL 02/10/2026 (~12:20 Lima)** con `db query --linked --file`: devolvió

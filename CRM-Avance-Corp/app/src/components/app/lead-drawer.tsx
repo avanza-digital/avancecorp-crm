@@ -1,3 +1,5 @@
+import { useEtapaVisible } from '@/lib/use-etapa-visible'
+import { COLUMNAS_TABLERO } from '@/lib/pipeline-columnas'
 import { useDocumentoLead } from '@/data/documento-lead'
 import { TIPOS_DOCUMENTO, TIPOS_DOCUMENTO_K, type TipoDocumento } from '@/lib/documento'
 import { SolicitudTasaLeadPlegable, type EstadoCondicionesLead } from './condiciones-tasa-lead'
@@ -83,7 +85,6 @@ import { ChipAnulado } from '@/components/app/chip-anulado'
 import {
   CATEGORIAS_INTERES,
   CAT_LABEL,
-  ETAPAS,
   ETAPA_INFO,
   esTipoTarea,
   MOTIVOS_NO_REALIZADA,
@@ -148,6 +149,7 @@ export function LeadDrawer() {
 // ── Ficha (contenido del sheet) ───────────────────────────────────────────────
 
 function Ficha({ l }: { l: Lead }) {
+  const etapaDe = useEtapaVisible()
   const { cerrarPaneles } = usePanelesActions()
   const { yo } = useAuth()
   const { obtenerTareaParaRevision, ambito } = useCRMData()
@@ -225,7 +227,7 @@ function Ficha({ l }: { l: Lead }) {
       destino.current?.scrollIntoView({ block: 'nearest' })
     }
   }
-  const info = ETAPA_INFO[l.etapa]
+  const info = etapaDe(l)
 
   return (
     <>
@@ -282,7 +284,7 @@ function Ficha({ l }: { l: Lead }) {
       </SheetHeader>
 
       <SheetBody className="space-y-5">
-        <div ref={refEtapa} tabIndex={-1} className="rounded-lg focus-visible:outline-2 focus-visible:outline-ring">{esTerminal ? <BannerTerminal l={l} escribe={escribe} onClienteDelLead={setClienteDelLead} /> : <Stepper l={l} escribe={escribe} />}</div>
+        <div ref={refEtapa} tabIndex={-1} className="rounded-lg focus-visible:outline-2 focus-visible:outline-ring">{esTerminal ? <BannerTerminal l={l} escribe={escribe} onClienteDelLead={setClienteDelLead} /> : <Stepper l={l} escribe={escribe} etapaVisible={info.k} />}</div>
         <SeccionPotencial lead={l} />
         {!esTerminal && tieneAnalista && <SolicitudTasaLeadPlegable lead={l} demo={Boolean(yo?.demo)} puedeEditar={puedeConvertir} onCambio={setCondicionesLead} />}
         {!esTerminal && <EstadoSlaFicha leadId={l.id} onActuar={escribe ? actuarSobreAviso : undefined} />}
@@ -354,9 +356,9 @@ function Ficha({ l }: { l: Lead }) {
 
 // ── Stepper de etapas activas ─────────────────────────────────────────────────
 
-function Stepper({ l, escribe }: { l: Lead; escribe: boolean }) {
+function Stepper({ l, escribe, etapaVisible }: { l: Lead; escribe: boolean; etapaVisible: string }) {
   const { cambiarEtapa } = useCRMData()
-  const idx = ETAPAS.findIndex((e) => e.k === l.etapa)
+  const idx = COLUMNAS_TABLERO.findIndex((e) => e.k === etapaVisible)
   // Mismo diálogo que el kanban: la pregunta del capital no puede depender de
   // POR DÓNDE se movió el lead, o la mitad de las propuestas guardaría la
   // corazonada del primer contacto.
@@ -377,7 +379,7 @@ function Stepper({ l, escribe }: { l: Lead; escribe: boolean }) {
       {pidiendoCapital && (
         <DialogCapitalPropuesta lead={l} onClose={() => setPidiendoCapital(false)} />
       )}
-      {ETAPAS.map((e, i) => {
+      {COLUMNAS_TABLERO.map((e, i) => {
         const actual = i === idx
         const pasada = i < idx
         const st: CSSProperties | undefined = actual
@@ -388,10 +390,10 @@ function Stepper({ l, escribe }: { l: Lead; escribe: boolean }) {
         return (
           <Fragment key={e.k}>
             {i > 0 && <span aria-hidden className="h-px w-2 shrink-0 bg-border" />}
-            <button
+            {e.esDestino ? <button
               type="button"
               disabled={!escribe}
-              onClick={() => mover(e.k)}
+              onClick={() => mover(e.etapa)}
               title={escribe && !actual ? `Mover a ${e.label}` : undefined}
               aria-current={actual ? 'step' : undefined}
               className={cn(
@@ -402,7 +404,13 @@ function Stepper({ l, escribe }: { l: Lead; escribe: boolean }) {
               style={st}
             >
               {e.label}
-            </button>
+            </button> : <span
+              aria-current={actual ? 'step' : undefined}
+              title="Se marca al registrar una gestión de contacto en la asignación actual."
+              className={cn('whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-bold leading-none',
+                !actual && !pasada && 'bg-muted text-muted-foreground')}
+              style={st}
+            >{e.label}</span>}
           </Fragment>
         )
       })}
