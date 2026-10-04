@@ -127,14 +127,34 @@ export const ORIGENES = [
   { k: 'oficina', label: 'Walking' },
 ] as const
 
-/** Catálogo completo para lectura, validación de Supabase y métricas históricas. */
+/** Vigentes + heredados: lo que se escribe, se valida al editar y viaja como FILTRO al servidor. */
 export const ORIGENES_TODOS = [...ORIGENES, ...ORIGENES_HEREDADOS] as const
 
 export type Origen = (typeof ORIGENES_TODOS)[number]['k']
 
+/**
+ * Orígenes que SOLO pone el servidor (Bases cargadas, 04/10/2026): el contacto que el supervisor sube en un archivo
+ * nace con origen `base_cargada` (B7). Se LEEN y se rotulan, pero no se eligen en el alta ni viajan como filtro:
+ * el CHECK y los filtros del servidor los estrenan después (B7–B10). F5a los tolera ANTES del primer contacto.
+ */
+export const ORIGENES_SOLO_LECTURA = [
+  { k: 'base_cargada', label: 'Base cargada' },
+] as const
+
+/** Catálogo completo para LEER filas del servidor (validación runtime, rótulos, métricas históricas). */
+export const ORIGENES_LECTURA = [...ORIGENES_TODOS, ...ORIGENES_SOLO_LECTURA] as const
+
+/** Origen tal como lo puede devolver el servidor; `Origen` es el subconjunto que el front escribe o filtra. */
+export type OrigenLectura = (typeof ORIGENES_LECTURA)[number]['k']
+
 /** Alta manual: exige un canal concreto; los heredados solo se leen. */
 export function esOrigenAlta(valor: unknown): valor is (typeof ORIGENES)[number]['k'] {
   return typeof valor === 'string' && ORIGENES.some((o) => o.k === valor)
+}
+
+/** Type guard de LECTURA: ¿origen que el servidor puede devolver (incluidos los de solo lectura)? */
+export function esOrigenLectura(valor: unknown): valor is OrigenLectura {
+  return typeof valor === 'string' && ORIGENES_LECTURA.some((o) => o.k === valor)
 }
 
 /**
@@ -163,16 +183,17 @@ export function textoCargadoPor(l: { procedencia?: Procedencia | null; cargado_p
 /** Etiqueta legible de un origen para rótulos de filtro ('sin_origen' incluido). */
 export function etiquetaOrigen(k: string): string {
   if (k === 'sin_origen') return 'Sin origen registrado'
-  return ORIGENES_TODOS.find((o) => o.k === k)?.label ?? k
+  return ORIGENES_LECTURA.find((o) => o.k === k)?.label ?? k
 }
 
-/** Type guard para datos externos (Supabase/formularios): ¿origen del catálogo? */
+/** Type guard para lo que se ESCRIBE (formularios, edición): ¿origen vigente o heredado? Para leer filas del
+ *  servidor, `esOrigenLectura`. */
 export function esOrigen(valor: unknown): valor is Origen {
   return typeof valor === 'string' && ORIGENES_TODOS.some((o) => o.k === valor)
 }
 
 /** Label es-PE de un origen — fuente única (antes copiado en 5 pantallas). */
-export const origenLabel = (k: string): string => ORIGENES_TODOS.find((o) => o.k === k)?.label ?? k
+export const origenLabel = (k: string): string => ORIGENES_LECTURA.find((o) => o.k === k)?.label ?? k
 
 /** Categorías de interés del CHECK de crm.leads.categoria_interes (F0). */
 export const CATEGORIAS_INTERES = [
@@ -385,6 +406,27 @@ export const MOTIVOS_DESCARTE: ReadonlyArray<{ k: MotivoDescarte; label: string 
   { k: 'otro', label: 'Otro' },
 ]
 
+/**
+ * Motivos que SOLO pone el servidor (Bases cargadas, E7 de Miguel 04/10/2026): el contacto de archivo nace «dormido»,
+ * descartado con motivo `base_cargada` en la bandeja del supervisor (B7). Se LEE y se rotula; nadie lo elige al
+ * descartar (los selects siguen saliendo de `MOTIVOS_DESCARTE`).
+ */
+export const MOTIVOS_DESCARTE_SOLO_LECTURA = [
+  { k: 'base_cargada', label: 'Base cargada' },
+] as const
+
+/** Motivo tal como lo puede devolver el servidor; `MotivoDescarte` es el subconjunto que se elige al descartar. */
+export type MotivoDescarteLectura = MotivoDescarte | (typeof MOTIVOS_DESCARTE_SOLO_LECTURA)[number]['k']
+
+/** Catálogo completo para LEER (validación runtime, rótulos, carpetas): los elegibles y, al final, los de solo lectura. */
+export const MOTIVOS_DESCARTE_LECTURA: ReadonlyArray<{ k: MotivoDescarteLectura; label: string }> = [
+  ...MOTIVOS_DESCARTE,
+  ...MOTIVOS_DESCARTE_SOLO_LECTURA,
+]
+
+/** Label es-PE de un motivo de descarte (incluidos los de solo lectura); un valor desconocido se muestra tal cual. */
+export const motivoDescarteLabel = (k: string): string => MOTIVOS_DESCARTE_LECTURA.find((m) => m.k === k)?.label ?? k
+
 export const TIPOS_ACTIVIDAD: Record<TipoActividad, string> = {
   llamada_realizada: 'Llamada realizada',
   llamada_no_contestada: 'Llamada no contestada',
@@ -455,8 +497,13 @@ export interface Lead {
   telefono_alternativo_crudo?: string | null
   correo?: string | null
   etapa: Etapa
-  origen: Origen
-  monto_estimado: number
+  origen: OrigenLectura
+  /**
+   * Capital estimado. `null` SOLO cuando el servidor lo devuelve vacío: un contacto de base cargada sin capital
+   * en el Excel (E8, Miguel 04/10/2026; la base lo permite solo con origen `base_cargada`). Nunca se inventa 0:
+   * se muestra «Sin capital», las sumas lo ignoran y los formularios que lo exigen lo siguen exigiendo.
+   */
+  monto_estimado: number | null
   moneda: Moneda
   categoria_interes?: CategoriaInteres | null
   vendedor_id?: string | null
@@ -499,7 +546,7 @@ export interface Lead {
   fecha_nacimiento?: string | null // ISO 'YYYY-MM-DD' (sin hora)
   distrito?: string | null
   nota?: string | null
-  motivo_descarte?: MotivoDescarte | null // solo si etapa === 'descartado'
+  motivo_descarte?: MotivoDescarteLectura | null // solo si etapa === 'descartado'
   /**
    * "No Insista" (Ley 29571 / INDECOPI): el titular pidió no ser contactado.
    * La columna existe en `crm.leads` desde F0 y ya la respeta el reparto
@@ -555,9 +602,9 @@ export interface ColaLead {
   id: string
   nombre_completo: string
   distrito?: string | null
-  origen: Origen
+  origen: OrigenLectura
   categoria_interes?: CategoriaInteres | null
-  monto_estimado: number
+  monto_estimado: number | null // null: base cargada sin capital (F5a); se muestra «Sin capital»
   moneda: Moneda
   creado_en: string
   /** C1-bis: veredicto del clasificador (trigger del INSERT). MARCA, nunca
@@ -574,8 +621,8 @@ export interface HistorialDerivacion {
   lead_id: string
   nombre_completo: string
   distrito?: string | null
-  origen: Origen
-  monto_estimado: number
+  origen: OrigenLectura
+  monto_estimado: number | null // null: base cargada sin capital (F5a); se muestra «Sin capital»
   moneda: Moneda
   etapa_actual: Etapa
   movimiento: string
@@ -667,15 +714,15 @@ export interface LeadDescartado {
   id: string
   nombre_completo: string
   distrito?: string | null
-  origen: Origen
+  origen: OrigenLectura
   categoria_interes?: CategoriaInteres | null
-  monto_estimado: number
+  monto_estimado: number | null // null: base cargada sin capital (F5a); se muestra «Sin capital»
   moneda: Moneda
   creado_en: string
   clasificacion_auto?: 'posible_credito' | null
   comentario?: string | null
   nota_descarte?: string | null
-  motivo_descarte?: MotivoDescarte | null
+  motivo_descarte?: MotivoDescarteLectura | null
   descartado_en: string
   descartado_por_nombre: string
   es_mio: boolean
@@ -693,11 +740,11 @@ export interface EpisodioRescateDescarte {
   lead_id: string
   nombre_completo: string
   distrito?: string | null
-  origen: Origen
+  origen: OrigenLectura
   categoria_interes?: CategoriaInteres | null
-  monto_estimado: number
+  monto_estimado: number | null // null: base cargada sin capital (F5a); se muestra «Sin capital»
   moneda: Moneda
-  motivo_descarte: MotivoDescarte
+  motivo_descarte: MotivoDescarteLectura
   descartado_en: string
   asesor_id: string
   asesor_nombre: string

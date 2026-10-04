@@ -30,15 +30,16 @@ import {
 } from '@/data/crm-api'
 import {
   MOTIVOS_DESCARTE,
+  MOTIVOS_DESCARTE_LECTURA,
   origenLabel,
   type ColaLead,
   type DiaAgendaReparto,
   type LeadDescartado,
   type MotivoDescarte,
-  type Origen,
+  type OrigenLectura,
   type SupervisorReparto,
 } from '@/lib/tipos'
-import { fechaHora, moneyK } from '@/lib/format'
+import { capitalLead, fechaHora, moneyK } from '@/lib/format'
 import {
   FILTROS_INICIALES,
   contarMarcados,
@@ -84,9 +85,9 @@ function refrescarResumenReparto(): void {
   void queryClient.invalidateQueries({ queryKey: crmQueryKeys.resumenReparto() })
 }
 
-/** Etiqueta humana de cada motivo de descarte (fuente única MOTIVOS_DESCARTE). */
+/** Etiqueta humana de cada motivo de descarte LEÍDO (incluye los de solo lectura, como «Base cargada»). */
 const MOTIVO_LABEL: Record<string, string> =
-  Object.fromEntries(MOTIVOS_DESCARTE.map((m) => [m.k, m.label]))
+  Object.fromEntries(MOTIVOS_DESCARTE_LECTURA.map((m) => [m.k, m.label]))
 
 /** Badge "Posible crédito" — mismo en la cola y en descartados (a11y idéntica). */
 function BadgeCredito() {
@@ -125,14 +126,14 @@ interface EstadoReparto {
   error: string | null
 }
 
-function origenUsaTurno(origen: Origen): origen is 'landing' | 'formulario' {
+function origenUsaTurno(origen: OrigenLectura): origen is 'landing' | 'formulario' {
   return origen === 'landing' || origen === 'formulario'
 }
 
 /** Mantiene visible el contador del turno mientras Rosa sigue en la cola. */
 function sumarEntregaLocal(
   agendaHoy: DiaAgendaReparto | null,
-  origen: Origen,
+  origen: OrigenLectura,
   supervisorId: string,
 ): DiaAgendaReparto | null {
   if (!agendaHoy || !origenUsaTurno(origen)) return agendaHoy
@@ -490,7 +491,7 @@ function PanelCola() {
               <div className="sm:w-[170px]">
                 <Select
                   value={filtros.origen}
-                  onChange={(e) => setFiltro({ origen: e.target.value as Origen | '' })}
+                  onChange={(e) => setFiltro({ origen: e.target.value as OrigenLectura | '' })}
                   aria-label="Filtrar por origen del lead"
                 >
                   <option value="">Todos los orígenes</option>
@@ -567,7 +568,7 @@ function PanelCola() {
                           {origenLabel(lead.origen)}
                           {' · '}
                           <span className="font-semibold text-foreground">
-                            {moneyK(lead.monto_estimado, lead.moneda)}
+                            {capitalLead(lead.monto_estimado, lead.moneda, true)}
                           </span>
                           {lead.distrito ? ` · ${lead.distrito}` : ''}
                           {' · entró '}
@@ -841,7 +842,7 @@ function PanelDescartados({ onCambio }: { onCambio: () => void }) {
                     {origenLabel(lead.origen)}
                     {' · '}
                     <span className="font-semibold text-foreground">
-                      {moneyK(lead.monto_estimado, lead.moneda)}
+                      {capitalLead(lead.monto_estimado, lead.moneda, true)}
                     </span>
                     {lead.distrito ? ` · ${lead.distrito}` : ''}
                     {' · descartado '}

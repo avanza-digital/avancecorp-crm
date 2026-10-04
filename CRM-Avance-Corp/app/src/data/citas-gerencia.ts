@@ -12,13 +12,16 @@ import { CamposGestionMensualSchema, TestigoCitasSchema } from '@/lib/gestion-ci
 
 const Instante = v.pipe(v.string(), v.check(s => Number.isFinite(Date.parse(s))))
 const Id = v.pipe(v.string(), v.uuid())
+// Capital estimado del LEAD: null es un valor posible del servidor (base cargada sin capital, F5a). Este contrato
+// se valida ENTERO: un solo null fuera de contrato apagaría todo el módulo de citas.
+const MontoLead = v.nullable(v.pipe(v.number(),v.finite(),v.minValue(0)))
 const CitaSchema = v.object({
   id: Id, lead_id: Id, nombre: v.string(), telefono: v.string(),
   analista_id: v.nullable(Id), analista_nombre: v.string(), supervisor_id: v.nullable(Id), supervisor_nombre: v.string(),
   vence_en: Instante, estado: v.picklist(['pendiente','completada','no_show','cancelada','reprogramada']),
   estado_comercial: v.optional(v.picklist(['vencida','programada','realizada','no_show','cancelada','reprogramada','sistema'])),
   cancelada_por: v.nullable(v.string()), modalidad: v.string(), origen: v.string(),
-  moneda: v.picklist(['PEN','USD']), monto_estimado: v.pipe(v.number(),v.finite(),v.minValue(0)),
+  moneda: v.picklist(['PEN','USD']), monto_estimado: MontoLead,
   resultado: v.string(), nota: v.string(), reagendada_de: v.nullable(Id), creado_en: Instante,
   asistencia_registrada_en: v.nullable(Instante), cierre_posterior: v.boolean(),
   manual_propio: v.optional(v.boolean()),
@@ -35,7 +38,7 @@ const CamposGestion = {
     asignado_en: Instante, manual_propio: v.boolean(),
     registro_manual: v.optional(v.boolean()),
     nombre: v.string(), telefono: v.string(), origen: v.string(),
-    moneda: v.picklist(['PEN','USD']), monto_estimado: v.pipe(v.number(),v.finite(),v.minValue(0)),
+    moneda: v.picklist(['PEN','USD']), monto_estimado: MontoLead,
   })),v.maxLength(10000)),
 }
 const GestionCitasSchema = v.variant('version', [

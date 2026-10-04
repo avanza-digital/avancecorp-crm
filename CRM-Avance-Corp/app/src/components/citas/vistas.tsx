@@ -2,7 +2,7 @@ import { useDatosCitas } from './contexto'
 import { CalendarDays, ChevronRight, Clock3, Video, MapPin } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { money, fmtFecha, iniciales } from '@/lib/format'
+import { capitalLead, money, fmtFecha, iniciales } from '@/lib/format'
 import { ESTADOS, ordenar, type EstadoCita } from './modelo'
 import type { CitaConLead as CitaEjemplo } from './datos'
 import { siguientePaso, contextoCita } from './presentacion'
@@ -35,7 +35,7 @@ export function Bandeja({ citas, onDetalle }: PropsCitas) {
           <td><p className="font-medium">{fmtFecha(cita.fecha)}</p><p className="mt-1 text-xs text-muted-foreground-strong">{cita.hora} · {cita.modalidad}</p></td>
           <td><Responsable cita={cita} /></td>
           <td><Estado cita={cita} /><p className="mt-1.5 max-w-52 text-xs text-muted-foreground-strong">{contextoCita(cita)}</p></td>
-          <td><div className="flex items-center justify-between gap-3"><div><p className="font-medium">{siguientePaso(cita)}</p><p className="mt-1 text-xs text-muted-foreground-strong">{money(cita.monto, cita.moneda)} estimados</p></div><Button variant="ghost" size="icon" aria-label={`Ver detalle de ${cita.nombre}`} onClick={() => onDetalle(cita)}><ChevronRight aria-hidden /></Button></div></td>
+          <td><div className="flex items-center justify-between gap-3"><div><p className="font-medium">{siguientePaso(cita)}</p><p className="mt-1 text-xs text-muted-foreground-strong">{cita.monto != null ? `${money(cita.monto, cita.moneda)} estimados` : capitalLead(null)}</p></div><Button variant="ghost" size="icon" aria-label={`Ver detalle de ${cita.nombre}`} onClick={() => onDetalle(cita)}><ChevronRight aria-hidden /></Button></div></td>
         </tr>)}</tbody>
       </table>
     </div>
@@ -43,7 +43,7 @@ export function Bandeja({ citas, onDetalle }: PropsCitas) {
       <div className="flex flex-wrap items-start justify-between gap-2"><Button variant="link" className="h-auto p-0 text-left" onClick={() => onDetalle(cita)}>{cita.nombre}</Button><Estado cita={cita} /></div>
       <p className="text-xs text-muted-foreground-strong">{fmtFecha(cita.fecha)} · {cita.hora} · {cita.modalidad}</p>
       <Responsable cita={cita} />
-      <div className="flex items-center justify-between gap-2 border-t border-border pt-3"><div><p className="text-sm font-semibold">{siguientePaso(cita)}</p><p className="mt-1 text-xs text-muted-foreground-strong">{money(cita.monto, cita.moneda)} · {cita.origen}</p></div><Button variant="outline" size="sm" aria-label={`Ver detalle de ${cita.nombre}`} onClick={() => onDetalle(cita)}>Detalle <ChevronRight aria-hidden /></Button></div>
+      <div className="flex items-center justify-between gap-2 border-t border-border pt-3"><div><p className="text-sm font-semibold">{siguientePaso(cita)}</p><p className="mt-1 text-xs text-muted-foreground-strong">{capitalLead(cita.monto, cita.moneda)} · {cita.origen}</p></div><Button variant="outline" size="sm" aria-label={`Ver detalle de ${cita.nombre}`} onClick={() => onDetalle(cita)}>Detalle <ChevronRight aria-hidden /></Button></div>
     </li>)}</ul>
   </>
 }

@@ -13,7 +13,8 @@ export const CamposGestionMensualSchema = {
   poblacion: v.pipe(v.array(v.object({
     lead_id: Id, nombre: v.string(), telefono: v.string(), origen: v.string(),
     identidad_persona: v.optional(v.pipe(v.string(), v.regex(/^(perfil|persona|lead):[0-9a-f-]{36}$/i))),
-    moneda: v.picklist(['PEN', 'USD']), monto_estimado: Importe,
+    // null: base cargada sin capital (F5a). El contrato se valida entero: un null no puede apagar el avance.
+    moneda: v.picklist(['PEN', 'USD']), monto_estimado: v.nullable(Importe),
     registro_manual: v.boolean(), creado_por: v.nullable(Id),
     analista_origen_id: v.nullable(Id), primera_asignacion_en: v.nullable(Instante),
     analista_origen_nombre: v.string(), supervisor_origen_id: v.nullable(Id), supervisor_origen_nombre: v.string(),

@@ -68,3 +68,12 @@ describe('ameritaRecordatorio', () => {
     expect(ameritaRecordatorio(cita({ tipo: 'llamada' }), AHORA)).toBe(false)
   })
 })
+
+// F5a «Bases cargadas»: sin capital (null) el recordatorio no inventa «S/ 0».
+describe('mensajeRecordatorio · sin capital', () => {
+  it('omite la cifra en vez de escribir S/ 0', () => {
+    const msg = mensajeRecordatorio(cita({}), { ...LEAD, monto_estimado: null }, AHORA)
+    expect(msg).toContain('Te muestro los números de tu inversión. ')
+    expect(msg).not.toContain('S/ 0')
+  })
+})

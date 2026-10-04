@@ -87,7 +87,8 @@ export function seriesComerciales(leads: Lead[], ahoraMs: number, meses = 6): Se
     ))
     if (mesCierre == null) continue
     cierres[mesCierre] = (cierres[mesCierre] ?? 0) + 1
-    if (lead.moneda === 'PEN') {
+    // Sin capital (null, base cargada) no suma: ni NaN ni un 0 inventado en la serie.
+    if (lead.moneda === 'PEN' && lead.monto_estimado != null) {
       capital[mesCierre] = (capital[mesCierre] ?? 0) + lead.monto_estimado
     }
   }

@@ -4,7 +4,7 @@ import { CalendarDays, ChartNoAxesCombined, ChevronLeft, ChevronRight, CircleHel
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
 import { Sheet, SheetBody, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { money, fmtFecha } from '@/lib/format'
+import { capitalLead, fmtFecha } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { ESTADOS, errorFiltros, ordenar, csv, type EstadoCita } from './modelo'
 import { consultaInicial as defaults, consultarCitas as filtrar, rangoConsulta, type CitaConLead as CitaEjemplo, type ConsultaCitas as FiltrosCitas } from './datos'
@@ -46,7 +46,7 @@ function Ficha({ cita, onCerrar, onAnalista, onAgenda }: { cita: CitaEjemplo | n
     <SheetHeader><div className="flex items-start justify-between gap-3"><div><p className="mb-1 text-xs text-muted-foreground-strong">Detalle de cita · {cita?.id}</p><SheetTitle>{cita?.nombre ?? 'Detalle de cita'}</SheetTitle></div><Button variant="ghost" size="icon" aria-label="Cerrar detalle" onClick={onCerrar}><X aria-hidden /></Button></div></SheetHeader>
     {cita && <><SheetBody className="space-y-6"><Estado cita={cita} /><dl className="grid grid-cols-2 gap-x-4 gap-y-5 text-sm">{[
       ['Fecha prevista', fmtFecha(cita.fecha)], ['Hora de Lima', cita.hora], ['Analista', nombreAnalista(cita.analista)], ['Supervisor', cita.supervisor],
-      ['Modalidad', cita.modalidad], ['Origen', cita.origen], ['Monto estimado', money(cita.monto, cita.moneda)], ['Teléfono', cita.telefono],
+      ['Modalidad', cita.modalidad], ['Origen', cita.origen], ['Monto estimado', capitalLead(cita.monto, cita.moneda)], ['Teléfono', cita.telefono],
     ].map(([etiqueta, valor]) => <div key={etiqueta}><dt className="text-xs text-muted-foreground-strong">{etiqueta}</dt><dd className="mt-1 font-semibold">{valor}</dd></div>)}</dl>
       <section className="rounded-xl border border-border bg-muted/40 p-4"><h3 className="text-sm font-semibold">Siguiente paso: {siguientePaso(cita)}</h3><p className="mt-2 text-sm text-muted-foreground-strong">{contextoCita(cita)}</p></section>
       <section><h3 className="text-sm font-semibold">Resultado registrado</h3><p className="mt-2 text-sm text-muted-foreground-strong">{cita.resultado}</p></section>

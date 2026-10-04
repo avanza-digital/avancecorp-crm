@@ -735,3 +735,21 @@ describe('pantalla Repartir leads', () => {
     expect(screen.getByText(/Este conteo es distinto del reporte de entregas/)).toBeInTheDocument()
   })
 })
+
+// F5a «Bases cargadas»: una fila de la cola con origen `base_cargada` y capital vacío se rotula «Base cargada · Sin
+// capital» y no suma al capital en juego (sin «S/ 0» inventado).
+describe('Repartir · F5a contacto de base cargada', () => {
+  it('rotula «Base cargada · Sin capital» y el tile de capital solo suma los que lo tienen', async () => {
+    COLA = [
+      lead({ id: 'l-pen', monto_estimado: 12000, moneda: 'PEN' }),
+      lead({ id: 'l-base', origen: 'base_cargada', monto_estimado: null, moneda: 'PEN', nombre_completo: 'CONTACTO DE BASE' }),
+    ]
+    render(<Repartir />)
+    await abrirCola()
+
+    expect(await screen.findByText('CONTACTO DE BASE')).toBeInTheDocument()
+    expect(screen.getAllByText('Sin capital').length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Base cargada/).length).toBeGreaterThan(0)
+    await valorDelTile('Capital en juego (PEN)', 'S/ 12k')
+  })
+})

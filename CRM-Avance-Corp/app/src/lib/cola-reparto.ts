@@ -9,7 +9,7 @@
 // por el número crudo compararía monedas distintas (la regla de la casa es que
 // PEN/USD jamás se suman ni se comparan sin conversión).
 
-import type { ColaLead, Origen } from '@/lib/tipos'
+import type { ColaLead, OrigenLectura } from '@/lib/tipos'
 
 export type OrdenCola = 'recientes' | 'antiguos'
 
@@ -18,8 +18,8 @@ export interface FiltrosCola {
   busqueda: string
   /** Solo los que el clasificador marcó posible_credito. */
   soloMarcados: boolean
-  /** '' = todos los orígenes. */
-  origen: Origen | ''
+  /** '' = todos los orígenes. Filtro LOCAL (no viaja): acepta cualquier origen que traiga la cola. */
+  origen: OrigenLectura | ''
   orden: OrdenCola
 }
 
@@ -57,7 +57,7 @@ export function filtrarYOrdenarCola(cola: ColaLead[], f: FiltrosCola): ColaLead[
 }
 
 /** Orígenes presentes en la cola, para poblar el filtro sin opciones muertas. */
-export function origenesDeCola(cola: ColaLead[]): Origen[] {
+export function origenesDeCola(cola: ColaLead[]): OrigenLectura[] {
   return [...new Set(cola.map((l) => l.origen))]
 }
 

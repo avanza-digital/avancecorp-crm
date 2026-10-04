@@ -28,11 +28,12 @@ export function mensajeRecordatorio(t: Tarea, lead: LeadDeAgenda, ahora: number)
   const cuando = dia === 'Hoy' || dia === 'Mañana'
     ? `${(dia ?? '').toLowerCase()} a las ${hora}`
     : `el ${dia} a las ${hora}`
-  const capital = money(lead.monto_estimado, lead.moneda)
+  // Sin capital (null) no se inventa «S/ 0»: la frase se queda sin cifra.
+  const deCapital = lead.monto_estimado != null ? ` de ${money(lead.monto_estimado, lead.moneda)}` : ''
   return (
     `Hola ${primerNombre(lead.nombre_completo)}, te saluda tu analista de Avance Corp. ` +
     `¿Confirmamos nuestra cita de ${cuando}? ` +
-    `Te muestro los números de tu inversión de ${capital}. ` +
+    `Te muestro los números de tu inversión${deCapital}. ` +
     `Si te queda mejor otro horario, dime y lo movemos.`
   )
 }

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, History, Search } from 'lucide-react'
 import { historialDerivaciones, TAMANO_PAGINA_HISTORIAL_REPARTO } from '@/data/crm-api'
 import { ETAPA_INFO, origenLabel, type HistorialDerivacion } from '@/lib/tipos'
-import { fechaHora, moneyK } from '@/lib/format'
+import { capitalLead, fechaHora } from '@/lib/format'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -180,7 +180,7 @@ export function HistorialDerivaciones() {
                     <span className="font-medium text-foreground">{fila.responsable_nuevo}</span>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {origenLabel(fila.origen)} · <span className="font-semibold text-foreground">{moneyK(fila.monto_estimado, fila.moneda)}</span>
+                    {origenLabel(fila.origen)} · <span className="font-semibold text-foreground">{capitalLead(fila.monto_estimado, fila.moneda, true)}</span>
                     {fila.distrito ? ` · ${fila.distrito}` : ''}
                     {' · '}{fechaHora(fila.derivado_en)} por {fila.derivado_por_nombre}
                   </p>

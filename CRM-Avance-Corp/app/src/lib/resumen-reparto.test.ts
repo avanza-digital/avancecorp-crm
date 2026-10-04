@@ -126,3 +126,12 @@ describe('resumenRepartoDesdeCola — marcas y orígenes', () => {
     ])
   })
 })
+
+// F5a «Bases cargadas»: el capital vacío (null) no suma ni vuelve NaN el total de la cola.
+describe('F5a · capital vacío en el resumen de la cola', () => {
+  it('lo ignora en el capital y lo cuenta en el total y por origen', () => {
+    const resumen = resumenRepartoDesdeCola([fila(), fila({ origen: 'base_cargada', monto_estimado: null })], AHORA)
+    expect(resumen.cola).toMatchObject({ total: 2, capital: { pen: 10_000, usd: 0 } })
+    expect(v.safeParse(ResumenRepartoSchema, resumen).success).toBe(true)
+  })
+})

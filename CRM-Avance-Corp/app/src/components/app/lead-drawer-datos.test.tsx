@@ -853,3 +853,35 @@ describe('confirmación de actividad SLA', () => {
     expect(registrarActividad).toHaveBeenCalledTimes(1)
   })
 })
+
+// F5a «Bases cargadas»: el contacto de archivo nace descartado con origen y motivo `base_cargada` y, a veces, sin
+// capital (E8). La ficha lo rotula sin siglas, reutiliza «Sin capital estimado» y no inventa «S/ 0»; descartar NO
+// ofrece «Base cargada» (lo pone solo el servidor).
+describe('F5a · ficha de un contacto de base cargada', () => {
+  it('rotula origen y motivo «Base cargada» y muestra «Sin capital estimado», nunca «S/ 0»', () => {
+    montar({ lead: { etapa: 'descartado', origen: 'base_cargada', motivo_descarte: 'base_cargada', monto_estimado: null, vendedor_id: null } })
+
+    expect(screen.getAllByText('Base cargada').length).toBeGreaterThan(0)
+    expect(screen.getByText('Motivo: Base cargada')).toBeInTheDocument()
+    expect(screen.getByText('Sin capital estimado')).toBeInTheDocument()
+    expect(screen.queryByText(/S\/ 0\b/)).not.toBeInTheDocument()
+  })
+
+  it('el select de Descartar no ofrece «Base cargada»; sí los motivos de siempre', async () => {
+    const usuario = userEvent.setup()
+    montar()
+    await usuario.click(screen.getByRole('button', { name: /Descartar/ }))
+
+    const opciones = Array.from((screen.getByLabelText('Motivo') as HTMLSelectElement).options).map((o) => o.value)
+    expect(opciones).not.toContain('base_cargada')
+    expect(opciones).toEqual(['sin_interes', 'sin_fondos', 'competencia', 'no_responde', 'datos_invalidos', 'pide_credito', 'otro'])
+  })
+
+  it('ESTADO DE PRODUCCIÓN: un lead con capital lo muestra y no aparece «Sin capital estimado»', () => {
+    montar()
+
+    expect(screen.getAllByText('S/ 5,000').length).toBeGreaterThan(0)
+    expect(screen.queryByText(/Sin capital estimado/)).not.toBeInTheDocument()
+    expect(screen.queryByText('Base cargada')).not.toBeInTheDocument()
+  })
+})

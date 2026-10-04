@@ -10,7 +10,7 @@ import { EnteroNoNegativoRpcSchema, NumeroRpcSchema } from './esquemas-rpc'
 import { isoDeCampos } from './campos-siguiente'
 import { normalizar } from './clientes-vista'
 import { RESULTADOS_LLAMADA, etiquetaResultado } from './resultado-llamada'
-import { ETAPA_INFO, MOTIVOS_DESCARTE, TIPOS_ACTIVIDAD, origenLabel, type Actividad, type Lead, type Miembro } from './tipos'
+import { ETAPA_INFO, MOTIVOS_DESCARTE_LECTURA, TIPOS_ACTIVIDAD, motivoDescarteLabel, origenLabel, type Actividad, type Lead, type Miembro } from './tipos'
 
 /** Espejo de `private.base_gestion_constantes()`: solo para redactar; el servidor manda. */
 export const MAX_INTENTOS_BASE = 3
@@ -131,7 +131,7 @@ export function colorEtapaMaxima(etapa: EtapaMaxima): string {
 
 export function etiquetaMotivoDescarte(motivo: string | null): string {
   if (!motivo) return 'Sin motivo'
-  return MOTIVOS_DESCARTE.find((m) => m.k === motivo)?.label ?? motivo
+  return motivoDescarteLabel(motivo)
 }
 
 export function etiquetaOrigen(origen: string | null): string {
@@ -519,7 +519,7 @@ export function etiquetaOpcion(dimension: DimensionFiltro, clave: string): strin
  *  la que llegó más lejos primero (como la hoja). Lo que el catálogo no conoce va después y «sin dato», al final. */
 function rangoOpcion(dimension: DimensionFiltro, clave: string): number {
   if (clave === SIN_DATO) return Number.POSITIVE_INFINITY
-  const i = dimension === 'motivo' ? MOTIVOS_DESCARTE.findIndex((m) => m.k === clave)
+  const i = dimension === 'motivo' ? MOTIVOS_DESCARTE_LECTURA.findIndex((m) => m.k === clave)
     : dimension === 'resultado' ? (RESULTADOS_LLAMADA as readonly string[]).indexOf(clave)
       : dimension === 'etapa' && esEtapaMaxima(clave) ? (clave === 'sin_datos' ? 99 : 5 - RANGO_ETAPA[clave])
         : -1
