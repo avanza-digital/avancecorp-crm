@@ -15,12 +15,16 @@
 // ella y fuera de un campo, Escape = «Cerrar sin registrar» salvo mientras
 // guarda— y el foco lo maneja quien la monta.
 //
+// El paso 1 (los siete resultados, sus atajos y «Cambiar resultado») es el
+// componente compartido `SelectorResultado` (03/10/2026): aquí solo se le pasa
+// el estado y dónde valen los atajos (`dentro`).
+//
 // Nada en silencio: el toast enumera lo que ocurrió DE VERDAD (registrado,
 // tarea cerrada, etapa, siguiente, descarte, No insistir) y ofrece «Deshacer»
 // 15 s, que llama a `crm.deshacer_resultado_llamada` (24 h, solo el autor).
 // La regla comercial vive en el servidor (`crm.registrar_llamada_v4`): aquí
 // solo se arma la petición y se espeja lo que él rechazaría.
-import { useEffect, useId, useMemo, useRef, useState, type JSX, type KeyboardEvent as EventoTeclado, type RefObject } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type JSX, type KeyboardEvent as EventoTeclado } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -30,6 +34,7 @@ import { Select } from '@/components/ui/select'
 import { RadioGroup, type OpcionRadio } from '@/components/ui/radio-group'
 import { Textarea } from '@/components/ui/textarea'
 import { CAMPOS_REUNION_VACIOS, CamposReunion, camposTareaDeReunion, type EstadoCamposReunion } from '@/components/app/campos-reunion'
+import { SelectorResultado } from '@/components/gestion-diaria/selector-resultado'
 import { useActividadesDeLead } from '@/data/use-actividades-de-lead'
 import { fechaLima, horaLima, proximoSlotSugerido, tareaAEvento } from '@/lib/agenda-derivada'
 import { useAhora } from '@/lib/ahora'
@@ -40,7 +45,7 @@ import { esPlanVivo } from '@/lib/plan-lead'
 import { primerNombre } from '@/lib/format'
 import { slotHabil, sugerirSiguiente } from '@/lib/motor-siguiente'
 import {
-  INTENTOS_PARA_OFRECER_PERDIDO, RESULTADOS, SUBMOTIVOS, definicionResultado, dentroDeVentanaLegal, etiquetaResultado, tiposSiguientesDeResultado,
+  INTENTOS_PARA_OFRECER_PERDIDO, SUBMOTIVOS, definicionResultado, dentroDeVentanaLegal, etiquetaResultado, tiposSiguientesDeResultado,
   type ResultadoLlamada, type SubmotivoLlamada,
 } from '@/lib/resultado-llamada'
 import { validarReunionOperativa } from '@/lib/reunion-operativa'
@@ -75,23 +80,15 @@ function camposPara(tipo: CamposSiguiente['tipo'], titulo: string, ms: number): 
   return { tipo, titulo, fecha: fechaLima(ms), hora: horaLima(ms) }
 }
 
-/** Campos donde se ESCRIBE: ahí los dígitos son texto, no atajos. Los radios y
- *  casillas (donde cae el foco inicial) sí aceptan los atajos. */
-const ES_CAMPO = (el: EventTarget | null): boolean => {
-  if (!(el instanceof HTMLElement)) return false
-  if (el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable) return true
-  return el instanceof HTMLInputElement && !['radio', 'checkbox', 'button', 'submit'].includes(el.type)
-}
-
 /**
  * La lógica ÚNICA del resultado de una llamada. `dentro` dice si una tecla
  * pertenece a esta presentación (el diálogo o la tarjeta): los atajos de un
  * carácter se acotan al componente (WCAG 2.1.4), nunca a cualquier cosa que
- * esté en pantalla.
+ * esté en pantalla. El hook no escucha el teclado: lo devuelve para que
+ * `SelectorResultado` acote sus atajos.
  */
 function useRegistroResultado(
   { lead, tarea, notaInicial, onClose, onGuardado }: RegistrarResultadoProps,
-  raiz: RefObject<HTMLElement | null>,
   dentro: (objetivo: EventTarget | null) => boolean,
 ) {
   const { registrarLlamada, deshacerResultadoLlamada, tareasDe } = useCRMData()
@@ -104,7 +101,6 @@ function useRegistroResultado(
 
   const [resultado, setResultado] = useState<ResultadoLlamada | null>(null)
   const [mostrarOpciones, setMostrarOpciones] = useState(true)
-  const enfocarResultado = useRef(false)
   const [submotivo, setSubmotivo] = useState<SubmotivoLlamada | null>(null)
   const [decision, setDecision] = useState<DecisionNumero | null>(null)
   // ANTI-DUPLICADO (misma regla que el diálogo anterior): si el lead ya tiene
@@ -137,10 +133,10 @@ function useRegistroResultado(
   const ofrecePerdido = resultado === 'no_contesto' && intentosPrevios !== null && intentosPrevios + 1 >= INTENTOS_PARA_OFRECER_PERDIDO
   const tieneSegundoNumero = Boolean(lead.telefono_alternativo)
 
-  const elegir = (r: ResultadoLlamada, desdeAtajo = false) => {
+  // Lo llama `SelectorResultado` (clic o atajo). La regla «contraído = solo el
+  // mismo atajo» y el foco ya los aplica él; aquí queda el seguro de «guardando».
+  const elegir = (r: ResultadoLlamada) => {
     if (enviando.current || sinConfirmar) return
-    if (desdeAtajo && !mostrarOpciones && r !== resultado) return
-    enfocarResultado.current = true
     setMostrarOpciones(false)
     if (r === resultado) return
     setResultado(r)
@@ -155,6 +151,7 @@ function useRegistroResultado(
     setCamposReunion(CAMPOS_REUNION_VACIOS)
     setTsEleccion(Date.now())
   }
+  const alternarOpciones = () => setMostrarOpciones((abierto) => !abierto)
 
   // La SUGERENCIA del motor (cadencia D1/D3, alternancia de canal, ventana
   // legal) es el punto de partida editable; el analista manda.
@@ -190,31 +187,6 @@ function useRegistroResultado(
   const tiposSiguientes = resultado ? tiposSiguientesDeResultado(resultado) : []
   const cancelaria = descarta ? pendientes.filter((t) => t.id !== tarea?.id).length : 0
 
-  // Atajos 1–7: SOLO cuando el foco no está en un campo (teclear «1» en la nota
-  // no debe cambiar el resultado), sin modificadores y dentro de ESTA
-  // presentación. Se escucha en el documento porque el foco inicial del diálogo
-  // queda en su contenedor, fuera de este árbol.
-  const elegirRef = useRef(elegir)
-  elegirRef.current = elegir
-  const dentroRef = useRef(dentro)
-  dentroRef.current = dentro
-  useEffect(() => {
-    if (!enfocarResultado.current || !resultado) return
-    enfocarResultado.current = false
-    raiz.current?.querySelector<HTMLInputElement>(`input[type="radio"][value="${resultado}"]`)?.focus()
-  }, [mostrarOpciones, resultado, raiz])
-  useEffect(() => {
-    const onKeyDown = (e: globalThis.KeyboardEvent) => {
-      if (e.altKey || e.ctrlKey || e.metaKey || e.isComposing || ES_CAMPO(e.target)) return
-      if (!dentroRef.current(e.target)) return
-      const r = RESULTADOS.find((x) => x.atajo === e.key)
-      if (!r) return
-      e.preventDefault()
-      elegirRef.current(r.clave, true)
-    }
-    document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
-  }, [])
   useEffect(() => { setNota(notaInicial ?? '') }, [notaInicial])
 
   const armar = (): RegistrarLlamadaInput | string => {
@@ -311,7 +283,6 @@ function useRegistroResultado(
     else toast.info('Llamada sin registrar: no quedó en el historial')
   }
 
-  const opciones: OpcionRadio<ResultadoLlamada>[] = RESULTADOS.filter((r) => mostrarOpciones || r.clave === resultado).map((r) => ({ valor: r.clave, etiqueta: r.etiqueta, detalle: r.detalle, atajo: r.atajo }))
   const opcionesSubmotivo: OpcionRadio<SubmotivoLlamada>[] = def?.paso === 'submotivo'
     ? SUBMOTIVOS[def.clave as 'no_interesado' | 'pide_otro_producto'].map((s) => ({ valor: s.clave, etiqueta: s.etiqueta }))
     : []
@@ -326,14 +297,14 @@ function useRegistroResultado(
   const estaEnviando = () => enviando.current
 
   return {
-    lead, tarea, nombre, soyDueno, ahora, estaEnviando,
-    resultado, def, mostrarOpciones, setMostrarOpciones, enfocarResultado, elegir,
+    lead, tarea, nombre, soyDueno, ahora, estaEnviando, dentro,
+    resultado, def, mostrarOpciones, alternarOpciones, elegir,
     submotivo, setSubmotivo, decision, setDecision, agendar, setAgendar, perdido, setPerdido,
     descartarInteres, setDescartarInteres, noInsista, setNoInsista, cierraTarea, setCierraTarea,
     nota, setNota, campos, editar, setTituloEditado, tituloEditado, camposReunion, setCamposReunion,
     procesando, sinConfirmar, enviar, guardar, cerrarSinRegistrar,
     intentosPrevios, ofrecePerdido, descarta, muestraSiguiente, siguienteOpcional, tiposSiguientes, cancelaria,
-    opciones, opcionesSubmotivo, opcionesDecision,
+    opcionesSubmotivo, opcionesDecision,
   }
 }
 type ControlRegistro = ReturnType<typeof useRegistroResultado>
@@ -352,15 +323,18 @@ function CamposResultado({ c, grande, idBase }: { c: ControlRegistro; grande: bo
   const sufijo = idBase.replaceAll(':', '')
   const ids = { opciones: `${idBase}-opciones`, submotivo: `${idBase}-submotivo`, tipo: `${idBase}-siguiente-tipo`, titulo: `${idBase}-siguiente-titulo`, fecha: `${idBase}-siguiente-fecha`, hora: `${idBase}-siguiente-hora` }
   const { def, campos } = c
+  const congelado = c.procesando || c.sinConfirmar !== null
   return (
-    <fieldset disabled={c.procesando || c.sinConfirmar !== null} className="min-w-0 space-y-3">
-      <div id={ids.opciones}>
-        <RadioGroup<ResultadoLlamada> grande={grande} leyenda="Resultado" opciones={grande ? c.opciones : c.opciones.map((o) => ({ ...o, detalle: undefined }))} valor={c.resultado} onCambio={c.elegir} obligatorio nombre={`resultado-llamada-${sufijo}`} descripcion={c.mostrarOpciones ? (grande ? 'Atajos: las teclas 1 a 7 eligen el resultado.' : 'Atajos: 1 a 7 eligen el resultado; Esc cierra sin registrar.') : 'Para elegir otro, usa «Cambiar resultado».'} />
-      </div>
-      {c.resultado && <Button type="button" variant="outline" size={grande ? 'default' : 'sm'} aria-expanded={c.mostrarOpciones} aria-controls={ids.opciones} onClick={() => {
-        c.enfocarResultado.current = true
-        c.setMostrarOpciones(!c.mostrarOpciones)
-      }}>{c.mostrarOpciones ? 'Mantener resultado' : 'Cambiar resultado'}</Button>}
+    // El selector va DENTRO del fieldset: mientras guarda (o queda por
+    // confirmar), sus radios y «Cambiar resultado» quedan deshabilitados.
+    <fieldset disabled={congelado} className="min-w-0 space-y-3">
+      <SelectorResultado
+        valor={c.resultado} abierto={c.mostrarOpciones} onElegir={c.elegir} onAlternar={c.alternarOpciones} dentro={c.dentro}
+        nombre={sufijo} idOpciones={ids.opciones} leyenda="Resultado" grande={grande} deshabilitado={congelado}
+        // La tarjeta es compacta: el detalle de cada opción queda para el diálogo.
+        detalles={grande ? undefined : null}
+        ayudaAtajos={grande ? 'Atajos: las teclas 1 a 7 eligen el resultado.' : 'Atajos: 1 a 7 eligen el resultado; Esc cierra sin registrar.'}
+      />
 
       {def?.paso === 'submotivo' && (
         <div className="space-y-3">
@@ -471,7 +445,7 @@ function CamposResultado({ c, grande, idBase }: { c: ControlRegistro; grande: bo
 export function RegistrarResultado(props: RegistrarResultadoProps): JSX.Element {
   const raiz = useRef<HTMLDivElement>(null)
   const idBase = useId()
-  const c = useRegistroResultado(props, raiz, (objetivo) => {
+  const c = useRegistroResultado(props, (objetivo) => {
     // Solo mientras ESTE diálogo tiene el foco (WCAG 2.1.4), no cualquier modal apilado.
     const dialogo = raiz.current?.closest<HTMLElement>('[role="dialog"]')
     return Boolean(dialogo) && objetivo instanceof Node && dialogo!.contains(objetivo)
@@ -516,7 +490,7 @@ export function RegistrarResultado(props: RegistrarResultadoProps): JSX.Element 
 export function RegistroResultadoTarjeta(props: RegistrarResultadoProps): JSX.Element {
   const raiz = useRef<HTMLElement>(null)
   const idBase = useId()
-  const c = useRegistroResultado(props, raiz, (objetivo) => objetivo instanceof Node && Boolean(raiz.current?.contains(objetivo)))
+  const c = useRegistroResultado(props, (objetivo) => objetivo instanceof Node && Boolean(raiz.current?.contains(objetivo)))
   useEffect(() => {
     raiz.current?.querySelector<HTMLInputElement>('input[type="radio"]')?.focus()
   }, [])
