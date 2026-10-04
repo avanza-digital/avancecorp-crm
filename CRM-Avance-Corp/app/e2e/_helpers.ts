@@ -3661,6 +3661,15 @@ export async function montarBackendReal(
       })
       return json(route, body.p_tipo ? documentoLead(estado.leads.find((l) => l.id === body.p_lead_id)!) : null)
     }
+    if (p === '/rest/v1/rpc/gestion_vigente_fn' && method === 'POST') {
+      const { p_lead_ids: ids } = route.request().postDataJSON() as { p_lead_ids: string[] }
+      if (!Array.isArray(ids) || ids.length > 100) return json(route, { code: '22023' }, 400)
+      if (estado.leadsSiempreCaido) return json(route, { message: 'server down' }, 500)
+      return json(route, { version: 1, items: estado.leads
+        .filter((l) => ids.includes(l.id) && l.activo && l.etapa === 'nuevo')
+        .map((l) => ({ lead_id: l.id, vendedor_id: l.vendedor_id,
+          tenencia_desde: tenenciaDeLeadReal(l), gestion_vigente: conGestionVigente(l) })) })
+    }
     if (p === '/rest/v1/leads') {
       // La fila como la sirve PostgREST: con la tenencia que el trigger le dejó.
       const filaDeLead = (lead: LeadReal) => ({ ...lead, tenencia_desde: tenenciaDeLeadReal(lead) })

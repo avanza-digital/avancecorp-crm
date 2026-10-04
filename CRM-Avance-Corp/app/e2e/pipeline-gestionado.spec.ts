@@ -48,6 +48,9 @@ async function registrarNoContestoEn(page: Page, ficha: Locator) {
 async function registrarNoContesto(page: Page, nombre: RegExp) {
   const ficha = await abrirLead(page, nombre)
   await registrarNoContestoEn(page, ficha)
+  // La ficha abierta se actualiza con la misma gestión que mueve la tarjeta.
+  await expect(ficha.getByRole('group', { name: 'Etapa del lead' }).locator('[aria-current="step"]')).toHaveText('Gestionado')
+  await expect(ficha.getByText('Gestionado', { exact: true })).toHaveCount(2)
   await page.keyboard.press('Escape')
   await expect(ficha).toBeHidden()
 }
@@ -244,6 +247,9 @@ test('sesión real: «Deshacer» el resultado de la llamada devuelve la tarjeta 
   await expect(tarjeta(page, 'Nuevo', 'CLIENTE REAL UNO')).toBeVisible()
   await expect(tarjeta(page, 'Gestionado', 'CLIENTE REAL UNO')).toHaveCount(0)
   await expect(columna(page, 'Gestionado').getByText('Sin leads gestionados por ahora')).toBeVisible()
+  const ficha = await abrirLead(page, /CLIENTE REAL UNO/)
+  await expect(ficha.getByRole('group', { name: 'Etapa del lead' }).locator('[aria-current="step"]')).toHaveText('Nuevo')
+  await expect(ficha.getByText('Nuevo', { exact: true })).toHaveCount(2)
 })
 
 // La tenencia es de la FILA y la sella el servidor: al nacer con analista, al

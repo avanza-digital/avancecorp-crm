@@ -1,3 +1,4 @@
+import { useEtapaVisible } from '@/lib/use-etapa-visible'
 import { useCallback, useEffect, useMemo, useRef, useState, type Ref } from 'react'
 import { Search, Users, TrendingUp, Activity, CheckCircle2, ChevronRight, Inbox, Check, type LucideIcon } from 'lucide-react'
 import { Card } from '@/components/ui/card'
@@ -15,7 +16,7 @@ import { toast } from 'sonner'
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { PanelVacio } from '@/components/common/estado-panel'
 import { TablaEnvoltura, Td, Th, TheadCrm } from '@/components/common/tabla'
-import { ETAPAS, TERMINALES, ETAPA_INFO, MOTIVOS_DESCARTE, CAT_LABEL, ORIGENES, ORIGENES_HEREDADOS, origenLabel, type Etapa, type Origen, type Procedencia } from '@/lib/tipos'
+import { ETAPAS, TERMINALES, MOTIVOS_DESCARTE, CAT_LABEL, ORIGENES, ORIGENES_HEREDADOS, origenLabel, type Etapa, type Origen, type Procedencia } from '@/lib/tipos'
 import { ChipProcedencia } from '@/components/app/procedencia-chip'
 import { ChipReasignado } from '@/components/app/reasignado-chip'
 import { ChipPotencial } from '@/components/app/potencial-chip'
@@ -162,6 +163,7 @@ function Indicador({ d, ref }: { d: IndicadorCartera; ref?: Ref<HTMLButtonElemen
 }
 
 export function Cartera() {
+  const etapaDe = useEtapaVisible()
   const { yo } = useAuth()
   const memoriaGerencia = useConsultaGerencia()
   const desdeRendimiento = yo?.rol === 'gerencia' ? memoriaGerencia?.consulta.gestionAnalista : null
@@ -610,7 +612,7 @@ export function Cartera() {
             </TheadCrm>
             <tbody>
               {visibles.map((l) => {
-                  const e = fEtapa === 'gestionado' && l.etapa === 'nuevo' ? GESTIONADO : ETAPA_INFO[l.etapa]
+                  const e = etapaDe(l)
                   return (
                     <tr
                       key={l.id}
