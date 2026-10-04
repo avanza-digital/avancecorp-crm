@@ -474,6 +474,8 @@ export interface Lead {
    * modo demo no lo trae y una base sin la migración tampoco.
    */
   tenencia_desde?: string | null
+  /** Lectura operativa adicional; null/ausente = no verificada. No se persiste. */
+  gestion_vigente?: boolean | null
   /**
    * Sello del CIERRE GANADO, puesto por el trigger `trg_leads_cambio_etapa` en
    * la misma transacción en que la etapa pasa a `convertido`, e INMUTABLE para

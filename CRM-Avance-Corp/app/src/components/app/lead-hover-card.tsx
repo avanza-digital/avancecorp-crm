@@ -1,3 +1,4 @@
+import { useEtapaVisible } from '@/lib/use-etapa-visible'
 // Preview de LEAD al pasar el mouse sobre su nombre (Cartera, cola de "Hoy", …).
 // Lógica comercial: el analista/supervisor dimensiona el lead —etapa, CAPITAL,
 // teléfono— sin abrir el drawer; el click sigue abriendo la ficha completa.
@@ -8,7 +9,7 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/h
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { money, fmtFecha } from '@/lib/format'
-import { CAT_LABEL, ETAPA_INFO, MOTIVOS_DESCARTE, origenLabel, textoCargadoPor, type Lead } from '@/lib/tipos'
+import { CAT_LABEL, MOTIVOS_DESCARTE, origenLabel, textoCargadoPor, type Lead } from '@/lib/tipos'
 
 function Fila({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -20,7 +21,7 @@ function Fila({ label, children }: { label: string; children: ReactNode }) {
 }
 
 export function LeadHoverCard({ lead, children }: { lead: Lead; children: ReactNode }) {
-  const info = ETAPA_INFO[lead.etapa]
+  const info = useEtapaVisible()(lead)
   const motivo = MOTIVOS_DESCARTE.find((m) => m.k === lead.motivo_descarte)?.label
 
   return (
