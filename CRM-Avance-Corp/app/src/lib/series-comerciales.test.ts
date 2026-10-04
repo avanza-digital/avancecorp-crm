@@ -86,3 +86,16 @@ describe('seriesComerciales', () => {
     expect(etiquetasMeses('2026-08-05', 3)).toEqual(['Jun', 'Jul', 'Ago'])
   })
 })
+
+// F5a «Bases cargadas»: un cierre sin capital (null) cuenta como cierre pero no suma capital (ni NaN).
+describe('F5a · capital vacío en las series', () => {
+  it('cuenta el cierre y deja el capital del mes en número', () => {
+    const series = seriesComerciales([
+      lead({ etapa: 'convertido', contrato_id: 'c-1', monto_estimado: 20_000, actualizado_en: '2026-07-12T15:00:00Z' }),
+      lead({ id: 'sin', etapa: 'convertido', contrato_id: 'c-2', monto_estimado: null, actualizado_en: '2026-07-12T15:00:00Z' }),
+    ], AHORA)
+    expect(series.cierres.at(-1)).toBe(2)
+    expect(series.capital.at(-1)).toBe(20_000)
+    expect(series.capital.every((c) => Number.isFinite(c))).toBe(true)
+  })
+})

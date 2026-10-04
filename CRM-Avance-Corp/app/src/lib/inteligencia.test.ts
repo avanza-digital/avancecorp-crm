@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  capitalPorMoneda,
   capitalPrincipal,
   colaDe,
+  compararCapitalDesc,
   colorMeta,
   comparativaEquipos,
   diasSinActividad,
@@ -681,5 +683,28 @@ describe('`sin_avance` usa el episodio sellado, no constantes del navegador', ()
   it('una nueva versión solo afecta episodios nuevos, no el deadline recibido', () => {
     const mismaFechaOtraVersion = { ...fotografia, etapa_politica_version: 99 }
     expect(clavado(mismaFechaOtraVersion)[0]?.dias).toBe(clavado(fotografia)[0]?.dias)
+  })
+})
+
+// F5a «Bases cargadas»: un lead SIN capital (null, E8) no se resta ni se suma como si fuera 0.
+describe('F5a · capital vacío en orden y sumas', () => {
+  it('ordenar por capital deja al final de su moneda a los leads sin capital (sin NaN)', () => {
+    const leads = [
+      lead({ id: 'pen-sin', moneda: 'PEN', monto_estimado: null }),
+      lead({ id: 'pen-chico', moneda: 'PEN', monto_estimado: 10_000 }),
+      lead({ id: 'usd-sin', moneda: 'USD', monto_estimado: null }),
+      lead({ id: 'pen-grande', moneda: 'PEN', monto_estimado: 50_000 }),
+      lead({ id: 'usd', moneda: 'USD', monto_estimado: 5_000 }),
+    ]
+    expect(sinProximaAccion(leads, new Set()).map((l) => l.id)).toEqual(['pen-grande', 'pen-chico', 'pen-sin', 'usd', 'usd-sin'])
+    expect(compararCapitalDesc({ monto_estimado: null }, { monto_estimado: null })).toBe(0)
+  })
+
+  it('capitalPorMoneda ignora el capital vacío', () => {
+    expect(capitalPorMoneda([
+      lead({ moneda: 'PEN', monto_estimado: 10_000 }),
+      lead({ moneda: 'PEN', monto_estimado: null }),
+      lead({ moneda: 'USD', monto_estimado: null }),
+    ])).toEqual({ pen: 10_000, usd: 0 })
   })
 })

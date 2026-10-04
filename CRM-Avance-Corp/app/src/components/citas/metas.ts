@@ -5,7 +5,8 @@ import { normalizar, type FiltrosCitas, type PersonaCitas } from './modelo'
 
 export interface LeadBaseCitas extends PersonaCitas {
   leadId: string; nombreLead: string; telefono: string; asignadoEn: string;
-  manualPropio: boolean; origen: string; moneda: string; monto: number;
+  /** null: lead sin capital (base cargada, F5a); un filtro de monto lo excluye. */
+  manualPropio: boolean; origen: string; moneda: string; monto: number | null;
   registroManual?: boolean;
 }
 export interface GestionCitas {
@@ -30,8 +31,8 @@ export function baseCitasFiltrada(base: LeadBaseCitas[], f: FiltrosCitas) {
       && (!f.analista || l.id === f.analista) && (!f.equipo || l.supervisorId === f.equipo)
       && (!f.origen || l.origen === f.origen) && (!f.moneda || l.moneda === f.moneda)
       && (!f.registro || (l.registroManual ?? l.manualPropio) === (f.registro === 'manual'))
-      && (!f.moneda || f.min === '' || l.monto >= Number(f.min))
-      && (!f.moneda || f.max === '' || l.monto <= Number(f.max))
+      && (!f.moneda || f.min === '' || (l.monto != null && l.monto >= Number(f.min)))
+      && (!f.moneda || f.max === '' || (l.monto != null && l.monto <= Number(f.max)))
   })
 }
 

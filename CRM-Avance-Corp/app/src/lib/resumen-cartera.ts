@@ -83,8 +83,9 @@ export const ResumenCarteraSchema = v.object({
 
 export type ResumenCartera = v.InferOutput<typeof ResumenCarteraSchema>
 
+/** Sin capital (null, base cargada) no suma — igual que `sum()` en el servidor, que ignora los nulos. */
 const montoDe = (l: Lead): number =>
-  Number.isFinite(l.monto_estimado) ? l.monto_estimado : 0
+  l.monto_estimado != null && Number.isFinite(l.monto_estimado) ? l.monto_estimado : 0
 
 /** USD estricto: cualquier otra moneda cae a PEN (espejo de capitalPorMoneda). */
 const esUsd = (l: Lead): boolean => l.moneda === 'USD'

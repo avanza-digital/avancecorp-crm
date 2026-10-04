@@ -10,8 +10,8 @@ import {
   CATEGORIAS_INTERES,
   ETAPAS,
   GENEROS,
-  MOTIVOS_DESCARTE,
-  ORIGENES_TODOS,
+  MOTIVOS_DESCARTE_LECTURA,
+  ORIGENES_LECTURA,
   TERMINALES,
   TIPOS_ACTIVIDAD,
   type Actividad,
@@ -32,7 +32,9 @@ import {
   type MesRescateDescartes,
   type Miembro,
   type MotivoDescarte,
+  type MotivoDescarteLectura,
   type Origen,
+  type OrigenLectura,
   type Procedencia,
   type PanelDistribucionReparto,
   type SupervisorReparto,
@@ -222,6 +224,15 @@ const MontoEstimadoSchema = v.pipe(
   v.check((valor) => Number.isFinite(Number(valor)) && Number(valor) > 0),
 )
 
+/**
+ * Capital de LECTURA (F5a, Bases cargadas): `null` es un valor posible del servidor —el contacto de base sin capital
+ * en el Excel (E8)— y la fila NO se descarta por él. Con número, la misma exigencia de siempre (finito y > 0).
+ */
+const MontoEstimadoLecturaSchema = v.nullable(MontoEstimadoSchema)
+
+/** Capital de las proyecciones sin PII (cola, derivaciones, descartados): mismo trato que antes, más el `null`. */
+const MontoProyeccionSchema = v.nullable(v.pipe(v.union([v.number(), v.string()]), v.transform(Number)))
+
 const LeadRowSchema = v.object({
   id: v.string(),
   nombre_completo: v.string(),
@@ -237,7 +248,9 @@ const LeadRowSchema = v.object({
   genero: v.optional(v.nullable(v.picklist(GENEROS.map((g) => g.k)))),
   fecha_nacimiento: v.optional(v.nullable(v.string())),
   distrito: v.nullable(v.string()),
-  origen: v.picklist(ORIGENES_TODOS.map((o) => o.k)),
+  // Catálogo de LECTURA: incluye `base_cargada` (solo lo pone el servidor, B7). Un origen cerrado al alta
+  // descartaba EN SILENCIO al contacto de base y lo hacía desaparecer de toda lista (hallazgo del F0, 04/10).
+  origen: v.picklist(ORIGENES_LECTURA.map((o) => o.k)),
   // Procedencia: la RPC de la cartera manda `procedencia` + `cargado_por` ya
   // resueltos; el ámbito (select directo) manda las columnas crudas
   // `alta_manual` + `creado_por` y el mapper deriva. Todo opcional: un servidor
@@ -249,9 +262,11 @@ const LeadRowSchema = v.object({
   alta_manual: v.optional(v.nullable(v.boolean())),
   creado_por: v.optional(v.nullable(v.string())),
   etapa: v.picklist([...ETAPAS.map((e) => e.k), ...TERMINALES.map((t) => t.k)]),
-  motivo_descarte: v.nullable(v.picklist(MOTIVOS_DESCARTE.map((m) => m.k))),
-  // numeric con CHECK de rango/2 decimales: PostgREST puede serializarlo como string
-  monto_estimado: MontoEstimadoSchema,
+  // Catálogo de LECTURA: incluye `base_cargada` (E7: el contacto de archivo nace descartado con ese motivo).
+  motivo_descarte: v.nullable(v.picklist(MOTIVOS_DESCARTE_LECTURA.map((m) => m.k))),
+  // numeric con CHECK de rango/2 decimales: PostgREST puede serializarlo como string.
+  // null: contacto de base cargada sin capital (E8); se muestra «Sin capital», nunca 0.
+  monto_estimado: MontoEstimadoLecturaSchema,
   moneda: v.picklist(['PEN', 'USD']),
   categoria_interes: v.nullable(v.picklist(CATEGORIAS_INTERES.map((c) => c.k))),
   vendedor_id: v.nullable(v.string()),
@@ -492,7 +507,8 @@ function aLead(fila: LeadRow): Lead {
     cargado_por: fila.cargado_por ?? fila.creado_por ?? null,
     etapa: fila.etapa,
     motivo_descarte: fila.motivo_descarte,
-    monto_estimado: Number(fila.monto_estimado),
+    // null se conserva (base cargada sin capital): convertirlo con Number() lo volvería 0, un capital inventado.
+    monto_estimado: fila.monto_estimado == null ? null : Number(fila.monto_estimado),
     moneda: fila.moneda,
     categoria_interes: fila.categoria_interes,
     vendedor_id: fila.vendedor_id,
@@ -1171,7 +1187,8 @@ export async function obtenerCierreMesEstado(signal?: AbortSignal): Promise<Cier
 // ── Reparto de la cola global (C1) — 3 RPC SECURITY DEFINER con gate propio ───
 // El coordinador NO ve leads por RLS (ámbito ∅): todo su trabajo pasa por aquí.
 
-const ORIGENES_K = ORIGENES_TODOS.map((o) => o.k) as [Origen, ...Origen[]]
+// Catálogo de LECTURA (incluye `base_cargada`): estas proyecciones solo se leen; ningún filtro al servidor sale de aquí.
+const ORIGENES_K = ORIGENES_LECTURA.map((o) => o.k) as [OrigenLectura, ...OrigenLectura[]]
 const CATEGORIAS_K = CATEGORIAS_INTERES.map((c) => c.k) as [CategoriaInteres, ...CategoriaInteres[]]
 const ETAPAS_TODAS_K = [...ETAPAS.map((e) => e.k), ...TERMINALES.map((e) => e.k)] as [Etapa, ...Etapa[]]
 
@@ -1181,7 +1198,7 @@ const ColaLeadSchema = v.object({
   distrito: v.nullable(v.string()),
   origen: v.picklist(ORIGENES_K),
   categoria_interes: v.nullable(v.picklist(CATEGORIAS_K)),
-  monto_estimado: v.pipe(v.union([v.number(), v.string()]), v.transform(Number)),
+  monto_estimado: MontoProyeccionSchema,
   moneda: v.picklist(['PEN', 'USD'] as const),
   creado_en: v.string(),
   // C1-bis — OPCIONALES a propósito: si el front corre contra una BD sin la
@@ -1204,7 +1221,7 @@ const HistorialDerivacionSchema = v.object({
   nombre_completo: v.string(),
   distrito: v.nullable(v.string()),
   origen: v.picklist(ORIGENES_K),
-  monto_estimado: v.pipe(v.union([v.number(), v.string()]), v.transform(Number)),
+  monto_estimado: MontoProyeccionSchema,
   moneda: v.picklist(['PEN', 'USD'] as const),
   etapa_actual: v.picklist(ETAPAS_TODAS_K),
   movimiento: v.string(),
@@ -1551,14 +1568,15 @@ export async function deshacerDescarte(leadId: string): Promise<void> {
 }
 
 // ── C1-ter: la pestaña "Descartados" del coordinador (solo lectura) ──────────
-const MOTIVOS_K = MOTIVOS_DESCARTE.map((m) => m.k) as [MotivoDescarte, ...MotivoDescarte[]]
+// Catálogo de LECTURA (incluye `base_cargada`): descartar sigue aceptando solo `MotivoDescarte`.
+const MOTIVOS_K = MOTIVOS_DESCARTE_LECTURA.map((m) => m.k) as [MotivoDescarteLectura, ...MotivoDescarteLectura[]]
 const LeadDescartadoSchema = v.object({
   id: v.string(),
   nombre_completo: v.string(),
   distrito: v.nullable(v.string()),
   origen: v.picklist(ORIGENES_K),
   categoria_interes: v.nullable(v.picklist(CATEGORIAS_K)),
-  monto_estimado: v.pipe(v.union([v.number(), v.string()]), v.transform(Number)),
+  monto_estimado: MontoProyeccionSchema,
   moneda: v.picklist(['PEN', 'USD'] as const),
   creado_en: v.string(),
   clasificacion_auto: v.optional(v.nullable(v.picklist(['posible_credito'] as const)), null),
@@ -1601,7 +1619,7 @@ const EpisodioRescateDescarteSchema = v.object({
   distrito: v.nullable(v.string()),
   origen: v.picklist(ORIGENES_K),
   categoria_interes: v.nullable(v.picklist(CATEGORIAS_K)),
-  monto_estimado: v.pipe(v.union([v.number(), v.string()]), v.transform(Number)),
+  monto_estimado: MontoProyeccionSchema,
   moneda: v.picklist(['PEN', 'USD'] as const),
   motivo_descarte: v.picklist(MOTIVOS_K),
   descartado_en: v.string(),

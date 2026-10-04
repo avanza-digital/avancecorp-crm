@@ -29,7 +29,7 @@ import { useAuth } from '@/lib/auth-context'
 import { useCRMData } from '@/lib/store-context'
 import { useAhora } from '@/lib/ahora'
 import { totalEnSoles } from '@/lib/capital-unificado'
-import { moneyK } from '@/lib/format'
+import { capitalLead, moneyK } from '@/lib/format'
 import { diasDesdeReferencia, esAbierto, haceCortoTexto } from '@/lib/inteligencia'
 import { paginar } from '@/lib/paginacion'
 import type {
@@ -221,9 +221,7 @@ function BandejaDerivacion({
                 <p className="truncate text-[11px] text-muted-foreground">
                   {origenLabel(lead.origen)}
                   {' · '}
-                  {lead.monto_estimado != null
-                    ? moneyK(lead.monto_estimado, lead.moneda)
-                    : 'Sin monto'}
+                  {capitalLead(lead.monto_estimado, lead.moneda, true)}
                   {' · entró '}
                   <span
                     style={dias >= 1
@@ -357,9 +355,7 @@ function GuardadasHoy({
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold">{movimiento.nombre_completo}</p>
               <p className="truncate text-[11px] text-muted-foreground">
-                {movimiento.monto_estimado != null
-                  ? moneyK(movimiento.monto_estimado, movimiento.moneda)
-                  : 'Sin monto'}
+                {capitalLead(movimiento.monto_estimado, movimiento.moneda, true)}
                 {' · '}
                 {movimiento.asesor_nombre}
               </p>

@@ -228,3 +228,43 @@ describe('Base para gestión', () => {
     await waitFor(() => expect(toastError).toHaveBeenCalledWith(expect.stringContaining('está en gestión por ANALISTA ORIGEN hasta el 10/10/2026')))
   })
 })
+
+// F5a «Bases cargadas»: el episodio con motivo `base_cargada` (contacto de archivo, E7) tiene su carpeta «Base cargada»
+// y su chip de filtro; sin esos episodios (ESTADO DE PRODUCCIÓN) el mosaico y los chips son los de siempre.
+describe('F5a · descartes de base cargada', () => {
+  it('el episodio de base tiene carpeta propia, chip de filtro y su ficha dice «Base cargada» y «Sin capital»', async () => {
+    const usuario = userEvent.setup()
+    episodiosMock.mockResolvedValue([
+      episodio(1),
+      episodio(2, { origen: 'base_cargada', motivo_descarte: 'base_cargada', monto_estimado: null }),
+    ])
+    mesesMock.mockResolvedValue([{ mes: mesActualLima(), total: 2, pendientes: 2 }])
+    render(<RescateDescartados />)
+
+    expect(await screen.findByRole('button', { name: 'Abrir carpeta Base cargada' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Abrir carpeta Sin interés' })).toBeInTheDocument()
+    await usuario.click(screen.getByRole('button', { name: 'Base cargada' }))
+    expect(screen.queryByRole('button', { name: 'Abrir carpeta Sin interés' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Abrir carpeta Base cargada' })).toBeInTheDocument()
+  })
+
+  it('la carpeta «Base cargada» se abre por URL y muestra el capital vacío como «Sin capital»', async () => {
+    episodiosMock.mockResolvedValue([episodio(2, { origen: 'base_cargada', motivo_descarte: 'base_cargada', monto_estimado: null })])
+    window.history.replaceState(null, '', `/?rescate_carpeta=base_cargada&rescate_mes=${mesActualLima()}#/rescate-carpeta`)
+    render(<RescateCarpeta />)
+
+    const fila = (await screen.findByText('LEAD RESCATE 2')).closest('tr')!
+    expect(fila).toHaveTextContent('Base cargada')
+    expect(fila).toHaveTextContent('Sin capital')
+    expect(fila).not.toHaveTextContent('S/ 0')
+  })
+
+  it('ESTADO DE PRODUCCIÓN: sin episodios de base no aparece ni la carpeta ni el chip «Base cargada»', async () => {
+    render(<RescateDescartados />)
+
+    expect(await screen.findByRole('button', { name: 'Abrir carpeta Sin interés' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Abrir carpeta Base cargada' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Base cargada' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Otro' })).toBeInTheDocument()
+  })
+})

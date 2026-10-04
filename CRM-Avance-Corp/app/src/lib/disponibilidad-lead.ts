@@ -1,7 +1,9 @@
 import * as v from 'valibot'
-import { ETAPAS, MOTIVOS_DESCARTE, type MotivoDescarte } from './tipos'
+import { ETAPAS, MOTIVOS_DESCARTE_LECTURA, type MotivoDescarteLectura } from './tipos'
 
-const MOTIVOS_DISPONIBILIDAD = MOTIVOS_DESCARTE.map((motivo) => motivo.k)
+// Catálogo de LECTURA: un contacto de base cargada (descartado con motivo `base_cargada`, E7) puede volver como
+// «enfriamiento» o «reutilizable». Con el catálogo cerrado, el veredicto entero fallaba y el alta quedaba sin respuesta.
+const MOTIVOS_DISPONIBILIDAD = MOTIVOS_DESCARTE_LECTURA.map((motivo) => motivo.k)
 
 /** Contrato estricto de P-047. Vive junto a su presentación para que consulta
  * y creación atómica compartan una sola frontera runtime, sin ciclos con API. */
@@ -33,7 +35,7 @@ export const DisponibilidadLeadSchema = v.variant('estado', [
   // vivo (migración 20260817164745, en prod): las claves llegan SIEMPRE
   // (jsonb_build_object no omite nulos), por eso nullable sin optional.
   // Nulabilidad con evidencia: motivo_descarte jamás es null en un descartado
-  // (CHECK de cimientos) y el catálogo es espejo 7/7 del constraint;
+  // (CHECK de cimientos) y el catálogo de lectura es el CHECK (7) + `base_cargada` (B7);
   // descartado_en lo exige el WHERE del impl; quedo_libre_en siempre se
   // calcula; descartado_por sale de un LEFT JOIN y ultima_conversacion_en de
   // un max() — esos dos sí pueden ser null. Veneno conocido (auditoría
@@ -143,8 +145,8 @@ const PRESENTACION_LIBRE: PresentacionDisponibilidadLead = Object.freeze({
 })
 
 const ETIQUETA_MOTIVO = Object.fromEntries(
-  MOTIVOS_DESCARTE.map(({ k, label }) => [k, label]),
-) as Readonly<Record<MotivoDescarte, string>>
+  MOTIVOS_DESCARTE_LECTURA.map(({ k, label }) => [k, label]),
+) as Readonly<Record<MotivoDescarteLectura, string>>
 
 /** Texto de BD listo para una oración: acotado y sin caracteres de control. */
 function textoPresentable(valor: string | null): string | null {

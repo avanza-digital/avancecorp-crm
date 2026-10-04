@@ -16,7 +16,7 @@ import { toast } from 'sonner'
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { PanelVacio } from '@/components/common/estado-panel'
 import { TablaEnvoltura, Td, Th, TheadCrm } from '@/components/common/tabla'
-import { ETAPAS, TERMINALES, MOTIVOS_DESCARTE, CAT_LABEL, ORIGENES, ORIGENES_HEREDADOS, origenLabel, type Etapa, type Origen, type Procedencia } from '@/lib/tipos'
+import { ETAPAS, TERMINALES, MOTIVOS_DESCARTE_LECTURA, CAT_LABEL, ORIGENES, ORIGENES_HEREDADOS, origenLabel, type Etapa, type Origen, type Procedencia } from '@/lib/tipos'
 import { ChipProcedencia } from '@/components/app/procedencia-chip'
 import { ChipReasignado } from '@/components/app/reasignado-chip'
 import { ChipPotencial } from '@/components/app/potencial-chip'
@@ -27,7 +27,7 @@ import { CrmApiError } from '@/data/crm-api'
 import type { ConteosPotencial, FiltroPotencial } from '@/lib/potencial'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { capitalPrincipal } from '@/lib/inteligencia'
-import { money, fmtFecha } from '@/lib/format'
+import { capitalLead, money, fmtFecha } from '@/lib/format'
 import { useCarteraPaginada } from '@/data/use-cartera-paginada'
 import { useCierresEstado } from '@/data/crm-queries'
 import { estadoDelCierre, indexarCierresEstado } from '@/lib/cierre-estado'
@@ -42,7 +42,8 @@ import { desplazarFechaDerivaciones } from '@/lib/use-periodo-derivaciones'
 import { fechaRecepcionDemo, periodoFechaCartera, rangoFechaCarteraValido, type ModoFechaCartera } from '@/lib/filtro-fecha-cartera'
 import { agruparPorColumna, COLOR_GESTIONADO } from '@/lib/pipeline-columnas'
 
-const MOTIVO_LABEL: Record<string, string> = Object.fromEntries(MOTIVOS_DESCARTE.map((m) => [m.k, m.label]))
+// Catálogo de LECTURA: un descarte con motivo de solo lectura («Base cargada») se rotula, no sale crudo.
+const MOTIVO_LABEL: Record<string, string> = Object.fromEntries(MOTIVOS_DESCARTE_LECTURA.map((m) => [m.k, m.label]))
 
 type FiltroEtapa = 'todas' | Etapa | 'gestionado'
 const GESTIONADO = { k: 'gestionado', label: 'Gestionado', color: COLOR_GESTIONADO } as const
@@ -687,7 +688,7 @@ export function Cartera() {
                         </div>
                       </Td>
                       <Td className="text-right font-extrabold tabular-nums text-primary">
-                        {l.monto_estimado != null ? money(l.monto_estimado, l.moneda) : '—'}
+                        {capitalLead(l.monto_estimado, l.moneda)}
                       </Td>
                       {verVendedor && (
                         <Td>

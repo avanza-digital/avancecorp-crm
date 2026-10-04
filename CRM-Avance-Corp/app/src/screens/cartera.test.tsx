@@ -802,3 +802,34 @@ describe('Cartera · franja: las cifras filtran y el capital convertido', () => 
     expect(etapaElegida()).toBe('todas')
   })
 })
+
+// F5a «Bases cargadas»: el contacto de base (origen y motivo `base_cargada`, capital vacío) se lista con sus rótulos,
+// su celda de capital dice «Sin capital» y el chip «Capital en juego» lo ignora (ni NaN ni «S/ 0» inventado).
+describe('Cartera · F5a contacto de base cargada', () => {
+  it('la fila rotula «Base cargada», dice «Sin capital» y el capital del chip solo suma los que lo tienen', () => {
+    montar([
+      lead(),
+      lead({ id: 'base', nombre_completo: 'CONTACTO DE BASE', etapa: 'descartado', origen: 'base_cargada', motivo_descarte: 'base_cargada', monto_estimado: null }),
+      lead({ id: 'activo-sin', nombre_completo: 'ACTIVO SIN CAPITAL', origen: 'base_cargada', monto_estimado: null }),
+    ])
+
+    const fila = screen.getByRole('row', { name: /CONTACTO DE BASE/ })
+    expect(fila).toHaveTextContent('Base cargada')
+    expect(fila).toHaveTextContent('Sin capital')
+    expect(fila).not.toHaveTextContent('S/ 0')
+    expect(screen.getByRole('row', { name: /ACTIVO SIN CAPITAL/ })).toHaveTextContent('Sin capital')
+    expect(within(chipDe('Capital en juego')).getByText('S/ 12,000')).toBeInTheDocument()
+  })
+
+  it('el filtro de origen NO ofrece «Base cargada» (el servidor aún no lo filtra)', () => {
+    montar([lead()])
+    const opciones = Array.from((screen.getByLabelText('Filtrar por origen') as HTMLSelectElement).options).map((o) => o.value)
+    expect(opciones).not.toContain('base_cargada')
+  })
+
+  it('ESTADO DE PRODUCCIÓN: sin contactos de base la fila muestra su capital y no aparece «Sin capital»', () => {
+    montar([lead()])
+    expect(screen.getByRole('row', { name: /ROSA QUISPE/ })).toHaveTextContent('S/ 12,000')
+    expect(screen.queryByText('Sin capital')).not.toBeInTheDocument()
+  })
+})

@@ -285,3 +285,24 @@ describe('mapearColaAccion — la foto envejece con la deriva local', () => {
     expect(mapeada.items[0]?.motivo).toContain('el cliente escribió hace 6 días')
   })
 })
+
+// F5a «Bases cargadas»: la cola se valida ENTERA. Un lead de base sin capital (si alguna vía lo saca del descarte
+// antes de que el servidor exija capital) no puede apagar la cola ni rotularse «Otro».
+describe('F5a · lead de base cargada en la cola de acción', () => {
+  it('capital null y origen base_cargada: la cola parsea y el lead mínimo conserva ambos', () => {
+    const conBase = payload({
+      resumen: { total: 1, por_bucket: { sin_responder: 1 }, por_sev: { media: 1 } },
+      items: [itemPayload({}, { origen: 'base_cargada', monto_estimado: null })],
+    })
+    const mapeada = mapearColaAccion(conBase, () => undefined)
+    expect(mapeada.items[0]?.lead).toMatchObject({ origen: 'base_cargada', monto_estimado: null })
+  })
+
+  it('ESTADO DE PRODUCCIÓN: un origen desconocido sigue cayendo a «otro» y el capital numérico pasa igual', () => {
+    const mapeada = mapearColaAccion(payload({
+      resumen: { total: 1, por_bucket: { sin_responder: 1 }, por_sev: { media: 1 } },
+      items: [itemPayload({}, { origen: 'facebook', monto_estimado: 12_000 })],
+    }), () => undefined)
+    expect(mapeada.items[0]?.lead).toMatchObject({ origen: 'otro', monto_estimado: 12_000 })
+  })
+})

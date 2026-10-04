@@ -1893,7 +1893,7 @@ function FilaAmarillo({ lead, abrirLead }: { lead: Lead; abrirLead: (id: string)
           </Badge>
         </div>
         <p className="mt-0.5 truncate text-xs text-muted-foreground">
-          {money(lead.monto_estimado, lead.moneda)} en juego — agéndale el siguiente paso
+          {lead.monto_estimado != null ? `${money(lead.monto_estimado, lead.moneda)} en juego — agéndale el siguiente paso` : 'Agéndale el siguiente paso'}
         </p>
       </div>
       {/* `conAgendar` es justo lo que pide esta fila: son los leads SIN próxima

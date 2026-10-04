@@ -19,7 +19,7 @@ import type { EstadoSlaLead } from './sla-versionado'
 import {
   CATEGORIAS_INTERES,
   esGenero,
-  esOrigen,
+  esOrigenLectura,
   type Actividad,
   type Lead,
   type Tarea,
@@ -65,7 +65,8 @@ const LeadColaSchema = v.object({
   etapa: v.picklist(['nuevo', 'contactado', 'reunion_agendada', 'propuesta_enviada']),
   origen: v.nullable(v.string()),
   categoria_interes: v.nullable(v.string()),
-  monto_estimado: v.number(),
+  // null: base cargada sin capital (F5a). La cola se valida ENTERA: un null no puede apagarla.
+  monto_estimado: v.nullable(v.number()),
   moneda: v.nullable(v.string()),
   creado_en: v.string(),
   tenencia_desde: v.nullable(v.string()),
@@ -144,7 +145,7 @@ function leadDesdeItem(item: {
     correo: l.correo,
     genero: l.genero != null && esGenero(l.genero) ? l.genero : null,
     etapa: l.etapa,
-    origen: l.origen != null && esOrigen(l.origen) ? l.origen : 'otro',
+    origen: l.origen != null && esOrigenLectura(l.origen) ? l.origen : 'otro',
     monto_estimado: l.monto_estimado,
     moneda: l.moneda === 'USD' ? 'USD' : 'PEN',
     categoria_interes: CATEGORIAS_INTERES.some((c) => c.k === l.categoria_interes)

@@ -441,3 +441,37 @@ describe('ya_es_cliente vía identidad (multiempresa)', () => {
     expect(v.safeParse(DisponibilidadLeadSchema, { estado: 'ya_es_cliente', asesor: 'ROSA', lead_id: 'x' }).success).toBe(false)
   })
 })
+
+// F5a «Bases cargadas»: el contacto de base nace descartado con motivo `base_cargada` (E7). Si alguien da de alta el
+// mismo teléfono, el veredicto puede volver como enfriamiento o reutilizable con ese motivo: con el catálogo cerrado,
+// la respuesta entera fallaba y el alta quedaba sin veredicto.
+describe('F5a · veredicto sobre un contacto de base cargada', () => {
+  const REUTILIZABLE = {
+    estado: 'reutilizable',
+    motivo_descarte: 'no_responde',
+    descartado_en: '2026-10-01T15:00:00.123456+00:00',
+    quedo_libre_en: '2026-10-02T15:00:00.123456+00:00',
+    descartado_por: null,
+    ultima_conversacion_en: null,
+  } as const
+
+  it('«enfriamiento» con motivo base_cargada parsea y se redacta con «Base cargada»', () => {
+    const r = v.parse(DisponibilidadLeadSchema, {
+      estado: 'enfriamiento', motivo_descarte: 'base_cargada',
+      disponible_desde: '2026-10-10T15:00:00Z', descartado_por: null,
+    })
+    const p = presentarDisponibilidadLead(r)
+    expect(p.bloquea).toBe(true)
+    expect(p.mensaje).toContain('«Base cargada»')
+  })
+
+  it('«reutilizable» con motivo base_cargada parsea (alta y toma comparten el contrato)', () => {
+    const reutilizable = { ...REUTILIZABLE, motivo_descarte: 'base_cargada' }
+    expect(v.parse(DisponibilidadLeadSchema, reutilizable).estado).toBe('reutilizable')
+    expect(v.safeParse(ResultadoTomaLeadSchema, reutilizable).success).toBe(true)
+  })
+
+  it('ESTADO DE PRODUCCIÓN: un motivo fuera del catálogo de lectura sigue siendo error', () => {
+    expect(v.safeParse(DisponibilidadLeadSchema, { ...REUTILIZABLE, motivo_descarte: 'cualquiera' }).success).toBe(false)
+  })
+})
