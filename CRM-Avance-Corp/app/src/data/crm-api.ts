@@ -155,6 +155,7 @@ import {
 import type { Vista } from '@/lib/router'
 import { EnteroNoNegativoRpcSchema, FechaSchema } from '@/lib/esquemas-rpc'
 import { presentarCitas } from '@/lib/terminologia'
+import { conGestionVigente } from './gestion-vigente'
 
 export type { DisponibilidadLead, ResultadoCreacionLeadAtomica, ResultadoTomaLead } from '@/lib/disponibilidad-lead'
 export type { RecordatorioDisponibilidad } from '@/lib/recordatorios-disponibilidad'
@@ -593,7 +594,7 @@ export async function listarLeads(filtros: FiltrosLeads, signal?: AbortSignal): 
 
   const total = count ?? 0
   return {
-    items,
+    items: await conGestionVigente(cliente(), items, signal),
     pagina,
     tamano,
     total,
@@ -636,7 +637,8 @@ export async function obtenerLeadDelAmbitoPorId(id: string, signal?: AbortSignal
   lanzarAbortSiCorresponde(signal)
   // La marca es adicional: si un servidor antiguo no permite esta consulta,
   // la ficha sigue abriéndose y no se inventa un «no reasignado».
-  return { ...lead, reasignado: errorHistorial ? null : (movimientos?.length ?? 0) > 0 }
+  const [conGestion] = await conGestionVigente(cliente(), [lead], signal)
+  return { ...conGestion!, reasignado: errorHistorial ? null : (movimientos?.length ?? 0) > 0 }
 }
 
 // ── Cartera paginada por CURSOR KEYSET (F2) ───────────────────────────────────
@@ -858,8 +860,8 @@ export async function listarCarteraPagina(
     const filas = payload.items.slice(0, TAMANO_PAGINA_CARTERA)
     const ultima = filas.at(-1)
     return {
-      items: filas.map((l) => ({ ...aLead(l), ultimo_contacto_en: l.ultimo_contacto_en,
-        recibido_en: l.recibido_en, recepcion_aproximada: l.recepcion_aproximada })),
+      items: await conGestionVigente(cliente(), filas.map((l) => ({ ...aLead(l), ultimo_contacto_en: l.ultimo_contacto_en,
+        recibido_en: l.recibido_en, recepcion_aproximada: l.recepcion_aproximada })), signal, gestionPedida),
       cursor: hayMas && ultima ? { actualizadoEn: ultima.actualizado_en, id: ultima.id } : null,
       resumen: conteosPotencial ? { ...indicadores, potencial: conteosPotencial } : indicadores,
     }
@@ -910,7 +912,7 @@ export async function listarCarteraPagina(
     }
   }
 
-  return { items, cursor: siguiente }
+  return { items: await conGestionVigente(cliente(), items, signal), cursor: siguiente }
 }
 
 /**
@@ -1029,7 +1031,7 @@ export async function buscarLeadsGlobal(
   if (new Set(items.map((l) => l.id)).size !== items.length) {
     throw new CrmApiError('La búsqueda devolvió leads repetidos.', 'ROW_CONTRACT')
   }
-  return items
+  return conGestionVigente(cliente(), items, signal)
 }
 
 // ── Roster del equipo con NOMBRES (RPC SECURITY DEFINER equipo_visible_fn) ─────
@@ -1681,6 +1683,80 @@ export async function obtenerBaseGestion(vendedorId?: string | null, signal?: Ab
   }
   if (invalidas > 0) registrarError('crm.base_gestion.filas_fuera_de_contrato', new Error(`${invalidas} filas descartadas`), { invalidas })
   return filas
+}
+
+// ── Base para gestión · escrituras de la ficha (F2). Las puertas son idempotentes por `p_operacion_id` (B3/B3b):
+//    el MISMO id con el mismo contenido devuelve la respuesta original (`replay`); con otro contenido, 23505. La
+//    pantalla fija un id por envío y solo lo renueva cuando cambia lo que se manda.
+const RespuestaIntentoBaseSchema = v.looseObject({
+  ok: v.literal(true),
+  replay: v.boolean(),
+  intento_n: EnteroNoNegativoRpcSchema,
+  etapa: v.string(),
+  reactivado: v.boolean(),
+  enfriado_hasta: v.nullable(v.string()),
+  proxima_llamada_en: v.nullable(v.string()),
+})
+export type RespuestaIntentoBase = v.InferOutput<typeof RespuestaIntentoBaseSchema>
+
+const RespuestaReactivarBaseSchema = v.looseObject({
+  replay: v.boolean(),
+  etapa: v.string(),
+  ciclo_n: v.nullable(EnteroNoNegativoRpcSchema),
+})
+export type RespuestaReactivarBase = v.InferOutput<typeof RespuestaReactivarBaseSchema>
+
+export interface IntentoBaseEntrada {
+  operacionId: string
+  leadId: string
+  resultado: string
+  nota?: string | null
+  /** ISO con zona; solo con «volver a llamar» (máximo 10 días: lo decide la puerta). */
+  proximaLlamada?: string | null
+}
+
+/** Registra un intento sobre un lead de la base. «Agendó cita» reactiva en la misma operación (D3). */
+export async function registrarIntentoBase(entrada: IntentoBaseEntrada): Promise<RespuestaIntentoBase> {
+  const nota = entrada.nota?.trim()
+  const { data, error } = await cliente().schema('crm').rpc('registrar_intento_base', sinIndefinidos({
+    p_operacion_id: entrada.operacionId,
+    p_lead_id: entrada.leadId,
+    p_resultado: entrada.resultado,
+    p_nota: nota ? nota : undefined,
+    p_proxima_llamada: entrada.proximaLlamada ?? undefined,
+  }))
+  if (error) throw aErrorApi(error, 'crm.base_gestion.intento_fallido')
+  const r = v.safeParse(RespuestaIntentoBaseSchema, data)
+  if (!r.success) {
+    const fallo = new CrmApiError('El servidor no confirmó el intento.', 'INTENTO_BASE_CONTRACT')
+    registrarError('crm.base_gestion.intento_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return r.output
+}
+
+/** Reactiva un lead de la base: vuelve a la cartera del MISMO analista en «Contactado» (D1, D2), con ciclo nuevo. */
+export async function reactivarLeadBase(entrada: { operacionId: string; leadId: string; nota?: string | null }): Promise<RespuestaReactivarBase> {
+  const nota = entrada.nota?.trim()
+  const { data, error } = await cliente().schema('crm').rpc('reactivar_lead_base', sinIndefinidos({
+    p_operacion_id: entrada.operacionId,
+    p_lead_id: entrada.leadId,
+    p_nota: nota ? nota : undefined,
+  }))
+  if (error) throw aErrorApi(error, 'crm.base_gestion.reactivar_fallido')
+  const r = v.safeParse(RespuestaReactivarBaseSchema, data)
+  if (!r.success) {
+    const fallo = new CrmApiError('El servidor no confirmó la reactivación.', 'REACTIVAR_BASE_CONTRACT')
+    registrarError('crm.base_gestion.reactivar_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return r.output
+}
+
+/** «No contactar» (No insista, Ley 29571): el lead sale de la base. Quitar la marca es de Supervisión/Gerencia (D5). */
+export async function marcarNoContactar(leadId: string, motivo: string): Promise<void> {
+  const { error } = await cliente().schema('crm').rpc('marcar_no_contactar', { p_lead_id: leadId, p_motivo: motivo.trim() })
+  if (error) throw aErrorApi(error, 'crm.base_gestion.no_contactar_fallido')
 }
 
 // ── Timeline del ámbito con AUTOR (RPC SECURITY DEFINER actividades_del_ambito_fn)

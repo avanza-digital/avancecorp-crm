@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.18"
   }
   crm: {
     Tables: {
@@ -5840,6 +5840,7 @@ export type Database = {
         Args: { p_accion: string; p_alerta_id: string; p_solicitud_id: string }
         Returns: Json
       }
+      gestion_vigente_fn: { Args: { p_lead_ids: string[] }; Returns: Json }
       guardar_agenda_reparto_diaria: {
         Args: { p_fecha: string; p_formulario: string; p_landing: string }
         Returns: Json

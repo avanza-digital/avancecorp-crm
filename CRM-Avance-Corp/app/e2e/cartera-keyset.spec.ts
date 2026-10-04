@@ -59,7 +59,7 @@ test('filtrar por etapa vuelve a preguntar al servidor', async ({ page }) => {
 })
 
 test('Gestionado busca fuera de la página cargada, pagina y no mezcla su caché con Nuevo', async ({ page }) => {
-  const leads = carteraGrande(120).map(l => ({ ...l, etapa: 'nuevo' }))
+  const leads = carteraGrande(120).map(l => ({ ...l, etapa: 'nuevo', tenencia_desde: l.creado_en }))
   // Ninguno está en las primeras 50 filas de la lista sin filtro.
   const gestionados = leads.slice(60, 115)
   const consultas: Record<string, unknown>[] = []
