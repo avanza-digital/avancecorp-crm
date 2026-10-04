@@ -503,3 +503,9 @@ migraciones aplicadas. Nada en producción.
 - 🔑 `index.css:486` devuelve un outline de 2 px a todo control con `focus-visible:outline-none`: el foco del `Select` nunca
   queda sin indicador aunque el componente quite el outline.
 - check PASS 5801, E2E 43/43, revisor-a11y APPROVE en segunda pasada.
+- ✅ **F3 PUBLICADA 03/10 ~23:20 Lima**: `build-20261004T041923701Z`, commit `82cac826` (sobre `0e28f3a7`). Preflight y smoke OK.
+  Va en la PR #183 con la ficha: la rama se integró con `main` de GitHub (ya con la #181) sin conflictos y su `app/` es
+  idéntico a lo publicado. 🔑 Una rama de PR puede recibir «Update branch» desde GitHub: si el push se rechaza, traer y
+  fusionar la remota (nunca forzar) y volver a comprobar `app/` contra lo publicado.
+- Nota: los datos de muestra de la demo viajan en el bundle de producción, como los demás datos de demo (`lib/demo.ts`);
+  `verificar-bundle-produccion.mjs` solo prohíbe los fixtures sensibles (contrato de demo y sus nombres).
