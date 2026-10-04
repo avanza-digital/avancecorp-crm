@@ -526,3 +526,13 @@ migraciones aplicadas. Nada en producción.
 - Pantalla `crm/base-gestion-f4` (`538ca9ec`): revisor-a11y, Codex r1/r2 aplicados; degrada si falta B6b (PGRST202).
 - Pendiente: **B6c** (reservar `metadata.evento='no_contactar'` para las puertas oficiales; decisión de Miguel).
 - ✅ **Pantalla F4 PUBLICADA 04/10 ~07:31 Lima**: `build-20261004T123104606Z`, commit `538ca9ec` (sobre `82cac826`). PR #184.
+- ✅ **B6c `20261004123611` EN PRODUCCIÓN 04/10**: la nota `metadata.evento='no_contactar'` en `crm.actividades` solo la
+  escriben `marcar_no_contactar`, `levantar_no_contactar` y `postventa_veto_fn` (válvula `crm.op_privilegiada`), y es
+  inmutable (sello BEFORE INSERT OR UPDATE OR DELETE, evento comparado con `lower(btrim)`). `levantar` ahora apaga la
+  válvula DESPUÉS de insertar su nota. Exentos: la válvula y las sesiones sin usuario. Las 9 notas anteriores no quedan
+  acreditadas.
+- 🔑 Nunca DML de prueba dentro de la transacción de un `CREATE TRIGGER`: el candado SHARE ROW EXCLUSIVE + el FOR UPDATE
+  del lead de `trg_gestion_lead_serializada` forman un interbloqueo con `marcar` (reproducido: 40P01). El comportamiento
+  se comprueba DESPUÉS del commit (`b6c-comprobar-tras-aplicar.sql`, siempre ROLLBACK, `SKIP LOCKED`, `ROW_COUNT = 1`).
+- 🔑 Recrear una función que otras sesiones pueden estar ejecutando deja una ventana: una llamada en curso termina con el
+  cuerpo viejo. Si el cambio y un sello nuevo dependen uno del otro, la forma sin ventana es partirlo en dos migraciones.
