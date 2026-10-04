@@ -3,7 +3,7 @@
 // el lead, cuándo, qué pasó y quién lo registró, y si sigue en la base. El lead que sigue en la base abre su ficha de
 // la base; el que volvió a la cartera, su ficha normal (si el CRM lo tiene cargado). Estados honestos: cargando,
 // error con reintento, «aún no disponible» (servidor sin la B6b: nunca un cero inventado) y vacío.
-import type { JSX } from 'react'
+import { useRef, type JSX } from 'react'
 import { ListX, RotateCcw, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -29,7 +29,8 @@ export function DetalleCifra({ abierta, filas, cargando, error, reintentando, on
   cargando: boolean
   error: boolean
   reintentando: boolean
-  onReintentar: () => void
+  /** Vuelve a pedir el detalle; `true` si salió bien (el aviso desaparece y el foco pasa a la cabecera). */
+  onReintentar: () => Promise<boolean>
   ahora: number
   onCerrar: () => void
   /** ¿El lead se puede abrir (está en la base cargada o en el CRM)? */
@@ -39,13 +40,19 @@ export function DetalleCifra({ abierta, filas, cargando, error, reintentando, on
   focoRespaldo?: () => HTMLElement | null
 }): JSX.Element {
   const titulo = abierta ? TITULO_CIFRA[abierta.cifra] : ''
+  const cabecera = useRef<HTMLDivElement>(null)
+  // El botón «Reintentar» desaparece si sale bien: el foco va a la cabecera del detalle, no cae en <body>.
+  const reintentar = async () => {
+    if (reintentando) return
+    if (await onReintentar()) requestAnimationFrame(() => cabecera.current?.focus())
+  }
   return (
     <Sheet open={abierta !== null} onClose={onCerrar} className="w-full max-w-full sm:w-[760px] sm:max-w-[94vw]" {...(focoRespaldo ? { focoRespaldo } : {})}>
       {abierta && (
         <>
           <SheetHeader>
             <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
+              <div ref={cabecera} tabIndex={-1} className={cn('min-w-0 rounded', FOCO)}>
                 <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--muted-foreground-strong)]">{abierta.nombre}</p>
                 <SheetTitle className="text-lg">{titulo} <span className="tabular-nums text-primary">· {abierta.valor}</span></SheetTitle>
                 <SheetDescription className="text-[13px] text-[var(--muted-foreground-strong)]">
@@ -67,12 +74,21 @@ export function DetalleCifra({ abierta, filas, cargando, error, reintentando, on
           </SheetHeader>
           {/* `scroll-pt-10`: el lead enfocado no queda bajo la cabecera fija de la tabla (WCAG 2.4.11). */}
           <SheetBody className="scroll-pt-10 px-0 py-0">
+            {/* Refresco fallido con la lista en caché (Codex F4 r1): se conserva, pero se DICE que no está al día. */}
+            {error && filas !== undefined && (
+              <div className="m-4 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-4 py-2.5">
+                <p role="alert" className="text-sm text-[var(--muted-foreground-strong)]">No se pudo actualizar el detalle. Se muestran los últimos datos.</p>
+                <Button variant="outline" size="sm" className="pointer-coarse:h-11" aria-disabled={reintentando || undefined} onClick={() => void reintentar()}>
+                  <RotateCcw aria-hidden /> Reintentar
+                </Button>
+              </div>
+            )}
             {cargando && filas === undefined ? (
               <div className="pt-4"><PanelCargando filas={5} /></div>
             ) : error && filas === undefined ? (
               <div className="flex flex-col items-center gap-3 px-6 py-12 text-center">
                 <p role="alert" className="text-base font-semibold text-foreground">No se pudo cargar el detalle.</p>
-                <Button variant="outline" size="sm" className="pointer-coarse:h-11" aria-disabled={reintentando || undefined} onClick={() => { if (!reintentando) onReintentar() }}>
+                <Button variant="outline" size="sm" className="pointer-coarse:h-11" aria-disabled={reintentando || undefined} onClick={() => void reintentar()}>
                   <RotateCcw aria-hidden /> Reintentar
                 </Button>
               </div>
@@ -95,7 +111,7 @@ export function DetalleCifra({ abierta, filas, cargando, error, reintentando, on
                         ? <Badge color="var(--primary)">En la base</Badge>
                         : <Badge color="var(--muted-foreground-strong)">Salió de la base</Badge>}
                     </div>
-                    <p className="mt-1 text-sm">{etiquetaDetalleCifra(f.detalle) ?? 'Sin detalle'}</p>
+                    <p className="mt-1 text-sm">{etiquetaDetalleCifra(f.detalle, abierta.cifra) ?? 'Sin detalle'}</p>
                     <p className="text-[13px] text-[var(--muted-foreground-strong)]">{etiquetaMomento(f.en, ahora)} · {f.autor ?? 'Sin dato'}</p>
                   </div>
                 ))}
@@ -126,7 +142,7 @@ export function DetalleCifra({ abierta, filas, cargando, error, reintentando, on
                         ) : <span className="block truncate">{f.nombre_completo}</span>}
                       </th>
                       <td className="whitespace-nowrap border-b border-border px-3 py-2 text-sm tabular-nums">{etiquetaMomento(f.en, ahora)}</td>
-                      <td className="min-w-28 border-b border-border px-3 py-2 text-sm">{etiquetaDetalleCifra(f.detalle) ?? <span className="text-[var(--muted-foreground-strong)]">Sin detalle</span>}</td>
+                      <td className="min-w-28 border-b border-border px-3 py-2 text-sm">{etiquetaDetalleCifra(f.detalle, abierta.cifra) ?? <span className="text-[var(--muted-foreground-strong)]">Sin detalle</span>}</td>
                       <td className="whitespace-nowrap border-b border-border px-3 py-2 text-sm">{f.autor ?? <span className="text-[var(--muted-foreground-strong)]">Sin dato</span>}</td>
                       <td className="whitespace-nowrap border-b border-border px-3 py-2">
                         {f.sigue_en_base

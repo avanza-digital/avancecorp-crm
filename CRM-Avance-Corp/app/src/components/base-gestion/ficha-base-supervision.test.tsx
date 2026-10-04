@@ -91,10 +91,23 @@ describe('consulta (Supervisión y Gerencia)', () => {
     await usuario.type(motivo, ' Volvió a pedir información ')
     await usuario.click(within(dialogo).getByRole('button', { name: 'Quitar la marca' }))
     expect(levantar.mutateAsync).toHaveBeenCalledWith({ leadId: 'lead-1', motivo: ' Volvió a pedir información ' })
-    expect(toastSuccess).toHaveBeenCalledWith('«No contactar» quitado: los 3 leads de la persona pueden volver a llamarse')
+    // Dice lo que pasó, sin prometer que ya se le puede llamar.
+    expect(toastSuccess).toHaveBeenCalledWith('«No contactar» quitado para la persona y sus 3 leads.')
     expect(screen.queryByRole('dialog', { name: /Quitar «No contactar»/ })).toBeNull()
     // El botón «Quitar» desaparece con la marca: el foco va al cerrar de la ficha, no se pierde.
     await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Cerrar la ficha' })).toHaveFocus())
+  })
+
+  it('si el lead está en descanso, el aviso lo dice: la marca se quitó, pero sigue descansando hasta esa fecha', async () => {
+    const usuario = userEvent.setup()
+    levantar.mutateAsync.mockResolvedValue({ leadsAfectados: 1 })
+    abrir({ ...VETADA, enfriado_hasta: new Date(Date.now() + 10 * 86_400_000).toISOString() })
+    await usuario.click(within(ficha()).getByRole('button', { name: /Quitar «No contactar»/ }))
+    const dialogo = screen.getByRole('dialog', { name: 'Quitar «No contactar» a ROSA QUISPE' })
+    await usuario.type(within(dialogo).getByLabelText('Motivo'), 'Volvió a pedir información')
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Quitar la marca' }))
+    expect(toastSuccess).toHaveBeenCalledWith(expect.stringMatching(/^«No contactar» quitado para la persona y su lead\. Este lead sigue en descanso hasta el \d{2}\/\d{2}\.$/))
+    expect(toastSuccess.mock.calls[0]?.[0]).not.toMatch(/llamar/)
   })
 
   it('42501 «pídelo a Gerencia» se muestra en el diálogo (no culpa al motivo) y no cierra', async () => {

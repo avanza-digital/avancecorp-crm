@@ -9,6 +9,7 @@ import {
   esVetada,
   etiquetaAnalista,
   etiquetaDetalleCifra,
+  mensajeNoContactarQuitado,
   filtrarBase,
   opcionesFiltro,
   type FilaBaseGestion,
@@ -69,10 +70,16 @@ describe('marca y detalle', () => {
     expect(esVetada(fila(1))).toBe(false)
   })
 
-  it('el detalle de un intento se lee con el nombre del resultado; otro texto, tal cual', () => {
-    expect(etiquetaDetalleCifra('no_contesto')).toBe('No contestó')
-    expect(etiquetaDetalleCifra('Reactivado desde la base')).toBe('Reactivado desde la base')
-    expect(etiquetaDetalleCifra(null)).toBeNull()
+  it('el detalle de un INTENTO se lee con el nombre del resultado; lo que el catálogo no conoce, tal cual', () => {
+    expect(etiquetaDetalleCifra('no_contesto', 'intentos_hoy')).toBe('No contestó')
+    expect(etiquetaDetalleCifra('un_resultado_nuevo', 'intentos_hoy')).toBe('un_resultado_nuevo')
+    expect(etiquetaDetalleCifra(null, 'intentos_hoy')).toBeNull()
+  })
+
+  it('el detalle de una REACTIVACIÓN es la nota de quien reactivó: literal, aunque parezca una clave de resultado', () => {
+    expect(etiquetaDetalleCifra('no_contesto', 'reactivaciones_mes')).toBe('no_contesto')
+    expect(etiquetaDetalleCifra('Reactivado desde la base', 'reactivaciones_mes')).toBe('Reactivado desde la base')
+    expect(etiquetaDetalleCifra(null, 'reactivaciones_mes')).toBeNull()
   })
 })
 
@@ -114,5 +121,18 @@ describe('demo del equipo (sin red)', () => {
     }
     expect(demo.resumen.some((r) => r.intentos_hoy > 0)).toBe(true)
     expect(demo.resumen.some((r) => r.reactivaciones_mes > 0)).toBe(true)
+  })
+})
+
+describe('aviso tras «Quitar No contactar»', () => {
+  const AHORA = Date.parse('2026-10-04T15:00:00Z')
+  it('dice lo que pasó (para la persona y cuántos leads), sin prometer que ya se le puede llamar', () => {
+    expect(mensajeNoContactarQuitado(3, null, AHORA)).toBe('«No contactar» quitado para la persona y sus 3 leads.')
+    expect(mensajeNoContactarQuitado(1, null, AHORA)).toBe('«No contactar» quitado para la persona y su lead.')
+    expect(mensajeNoContactarQuitado(0, null, AHORA)).toBe('«No contactar» quitado.')
+  })
+  it('con descanso vigente añade hasta cuándo (día de Lima); un descanso vencido no se menciona', () => {
+    expect(mensajeNoContactarQuitado(2, '2026-10-23T05:00:00Z', AHORA)).toBe('«No contactar» quitado para la persona y sus 2 leads. Este lead sigue en descanso hasta el 23/10.')
+    expect(mensajeNoContactarQuitado(2, '2026-10-01T05:00:00Z', AHORA)).toBe('«No contactar» quitado para la persona y sus 2 leads.')
   })
 })

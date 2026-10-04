@@ -1,5 +1,5 @@
 // La línea «Base: N rellamadas para hoy» de «Hoy» del analista (F3 de la Base para gestión): cuenta la MISMA
-// lectura que abre el destino (`crm.obtener_base_gestion`, clave `crmQueryKeys.baseGestion(null)`), así que
+// lectura que abre el destino (`crm.obtener_base_gestion`, clave `crmQueryKeys.baseGestion(null, DIA)`), así que
 // las dos pantallas comparten UNA petición. Fail-closed: cargando, error (42501 incluido), refresco fallido,
 // foto de otro día o rol que no es analista ⇒ sin cifra (la pantalla no pinta nada). Contrato HTTP con MSW.
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -30,6 +30,8 @@ const { crmQueryKeys, useBaseGestion } = await import('./crm-queries')
 const { filasDemoBaseGestion } = await import('@/lib/base-gestion')
 
 const AHORA = Date.parse('2026-10-03T15:00:00Z')
+/** El día de Lima de AHORA: va en la clave (Codex F4 r1). */
+const DIA = '2026-10-03'
 const RPC = 'http://supabase.test/rest/v1/rpc/obtener_base_gestion'
 const servidor = setupServer()
 let cuerpos: unknown[] = []
@@ -172,7 +174,7 @@ describe('useConteoBaseGestion · sesión real del analista', () => {
     await waitFor(() => expect(juntos.result.current.conteo.disponible).toBe(true))
     expect(juntos.result.current.lista.data).toHaveLength(5)
     expect(cuerpos).toHaveLength(1)
-    expect(cliente.getQueryData(crmQueryKeys.baseGestion(null))).toHaveLength(5)
+    expect(cliente.getQueryData(crmQueryKeys.baseGestion(null, DIA))).toHaveLength(5)
     // … y al navegar de «Hoy» a la base dentro del tiempo de frescura: el destino lee la caché.
     const destino = renderHook(() => useBaseGestion(true), { wrapper: envoltorio(cliente) })
     expect(destino.result.current.data).toHaveLength(5)
@@ -198,15 +200,15 @@ describe('useConteoBaseGestion · fail-closed', () => {
   it('42501 (sin permiso): sin cifra y sin error hacia «Hoy»', async () => {
     servidor.use(http.post(RPC, () => HttpResponse.json({ code: '42501', message: 'Sin permiso' }, { status: 403 })))
     const { result, cliente } = montar()
-    await waitFor(() => expect(cliente.getQueryState(crmQueryKeys.baseGestion(null))?.status).toBe('error'))
-    expect(cliente.getQueryState(crmQueryKeys.baseGestion(null))?.error).toMatchObject({ code: 'SIN_PERMISO' })
+    await waitFor(() => expect(cliente.getQueryState(crmQueryKeys.baseGestion(null, DIA))?.status).toBe('error'))
+    expect(cliente.getQueryState(crmQueryKeys.baseGestion(null, DIA))?.error).toMatchObject({ code: 'SIN_PERMISO' })
     expect(result.current).toEqual({ paraHoy: 0, vencidas: 0, disponible: false })
   })
 
   it('error del servidor: sin cifra', async () => {
     servidor.use(http.post(RPC, () => HttpResponse.json({ code: 'XX000', message: 'caída' }, { status: 500 })))
     const { result, cliente } = montar()
-    await waitFor(() => expect(cliente.getQueryState(crmQueryKeys.baseGestion(null))?.status).toBe('error'))
+    await waitFor(() => expect(cliente.getQueryState(crmQueryKeys.baseGestion(null, DIA))?.status).toBe('error'))
     expect(result.current.disponible).toBe(false)
   })
 
@@ -215,9 +217,9 @@ describe('useConteoBaseGestion · fail-closed', () => {
     const { result, cliente } = montar()
     await waitFor(() => expect(result.current.disponible).toBe(true))
     servidor.use(http.post(RPC, () => HttpResponse.json({ code: 'XX000', message: 'caída' }, { status: 500 })))
-    await act(async () => { await cliente.invalidateQueries({ queryKey: crmQueryKeys.baseGestion(null) }) })
+    await act(async () => { await cliente.invalidateQueries({ queryKey: crmQueryKeys.baseGestion(null, DIA) }) })
     await waitFor(() => expect(result.current.disponible).toBe(false))
-    expect(cliente.getQueryData(crmQueryKeys.baseGestion(null))).toHaveLength(5) // la foto vieja sigue en caché
+    expect(cliente.getQueryData(crmQueryKeys.baseGestion(null, DIA))).toHaveLength(5) // la foto vieja sigue en caché
     expect(result.current).toEqual({ paraHoy: 0, vencidas: 0, disponible: false })
   })
 
@@ -228,6 +230,24 @@ describe('useConteoBaseGestion · fail-closed', () => {
     dobles.ahora = Date.parse('2026-10-04T05:30:00Z') // domingo 00:30 en Lima
     rerender()
     expect(result.current.disponible).toBe(false)
+  })
+
+  it('al cruzar la medianoche (sin cambiar el foco) se vuelve a pedir la base del NUEVO día, una sola vez para «Hoy» y la lista', async () => {
+    responder(BASE_CON_RELLAMADAS)
+    const cliente = clienteDePrueba()
+    const juntos = renderHook(() => ({ conteo: useConteoBaseGestion(), lista: useBaseGestion(true) }), { wrapper: envoltorio(cliente) })
+    await waitFor(() => expect(juntos.result.current.conteo.disponible).toBe(true))
+    expect(cuerpos).toHaveLength(1)
+    // El reloj vivo marca las 00:01 del domingo en Lima.
+    vi.setSystemTime(Date.parse('2026-10-04T05:01:00Z'))
+    dobles.ahora = Date.parse('2026-10-04T05:01:00Z')
+    juntos.rerender()
+    // La foto de ayer no se presenta como de hoy mientras llega la nueva.
+    expect(juntos.result.current.lista.data).toBeUndefined()
+    expect(juntos.result.current.conteo.disponible).toBe(false)
+    await waitFor(() => expect(juntos.result.current.conteo.disponible).toBe(true))
+    expect(cuerpos).toHaveLength(2)
+    expect(cliente.getQueryData(crmQueryKeys.baseGestion(null, '2026-10-04'))).toHaveLength(5)
   })
 
   it.each<Rol>(['supervisor', 'gerencia', 'directorio', 'coordinador'])('rol %s: ni pide ni cuenta', async (rol) => {
