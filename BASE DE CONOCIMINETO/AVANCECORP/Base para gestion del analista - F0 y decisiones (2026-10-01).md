@@ -466,3 +466,11 @@ migraciones aplicadas. Nada en producción.
 - «Quitar No contactar» va en F4: la base no lista vetados.
 - revisor-a11y: CHANGES_REQUESTED → APPROVE. Pruebas y E2E Docker en verde; `npm run check` PASS (5667).
 
+
+### F2 publicada (03/10, ~21:10 Lima)
+- `/release-crm` de Miguel: `build-20261004T020813803Z`, commit `3e248407` sobre el vivo `c489d487`. Preflight OK; smoke OK
+  (home 200 y `index-CEKVImAR.js` servido idéntico al dist). Respaldo en GitHub `rescue/base-gestion-f2-20261003`.
+- PR #180 a `main` de GitHub: cherry-pick de los 2 commits sobre `c17db1fb`, con `app/` idéntico a lo publicado.
+- 🔑 El worktree de una PR necesita `node_modules` (CLON APFS `cp -c -R`) o el pre-push muere con `vitest: command not found`.
+- Pedido de Miguel tras verla: «me gusta la ficha, pero que se adapte más a la ficha que ya tenemos en el CRM y en
+  Gestión Diaria». Sigue: comparar las tres fichas → plan corto → pieza visual → OK → construir.
