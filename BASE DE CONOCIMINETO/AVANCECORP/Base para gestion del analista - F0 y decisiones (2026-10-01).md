@@ -491,3 +491,15 @@ migraciones aplicadas. Nada en producción.
   `6b1c2538` (#181): se rearmó con cherry-pick encima (limpio), check PASS 5737, E2E 33/33, preflight y smoke OK.
   PR #183 (choca con la #181 solo en `lead-drawer.tsx`). 🔑 Copiar el manifiesto del release a
   `CRM-Avance-Corp/releases/` del taller: ahí lo busca el preflight de la próxima sesión.
+
+### F3 · Organización del trabajo (03/10 noche) — construida, sin publicar
+- Rama `crm/base-gestion-f3` sobre el vivo `0e28f3a7`: `3f5ea749` («Llamar hoy» + filtros) y `82cac826` (línea en «Hoy»).
+- «Llamar hoy» = `rellamada_hoy` del servidor, que incluye las VENCIDAS de días anteriores (migración `20261003162400`).
+  En «Hoy» el rojo marca solo las que ya pasaron su hora; en la hoja, `ProximaLlamada` pinta en rojo todo lo de hoy.
+- Cada opción de filtro cuenta lo que dejan pasar los demás (Mes incluido): elegir con los menús nunca lleva a una lista
+  vacía; solo un refresco puede (vacío «Ningún lead coincide · Quitar filtros»).
+- 🔑 La línea de «Hoy» comparte la query key de la lista (`crmQueryKeys.baseGestion(null)`): una sola petición; colgar de
+  `leads()` hace que cada guardado de lead la refresque también desde «Hoy».
+- 🔑 `index.css:486` devuelve un outline de 2 px a todo control con `focus-visible:outline-none`: el foco del `Select` nunca
+  queda sin indicador aunque el componente quite el outline.
+- check PASS 5801, E2E 43/43, revisor-a11y APPROVE en segunda pasada.
