@@ -9,7 +9,10 @@
 --   K1 un lead de origen oficina sin capital → 23514; K2 un lead base_cargada sin la válvula → 42501;
 --   K3 con las válvulas (crm.op_bases_carga + crm.op_privilegiada) un contacto sin capital NACE descartado con motivo
 --      base_cargada (y sin descartado_en: pendiente de B8); K4 sin capital no puede nacer 'nuevo', ni con la válvula → 23514;
---   K5 sacarlo del descarte sin capital → 23514 (CHECK); K6 vaciar un capital → 23514 (sello);
+--   K5 sacarlo del descarte sin capital → 23514 (CHECK), con la válvula de las puertas de reapertura encendida para que el
+--      ÚNICO freno posible sea el CHECK, con la bandera resolver_en_puertas encendida (producción) o apagada; un P0409 del
+--      candado de reapertura es FAIL, nunca PASS (r3: hallazgo de la rama con datos); K5b control: con el capital puesto la
+--      misma reapertura pasa; K6 vaciar un capital → 23514 (sello);
 --   R1/R2 un recibo no se cambia ni se borra → P0409.
 -- El VEREDICTO viaja como FILA (db query no trae los avisos): B7_COMPORTAMIENTO_OK n/n · B7_COMPORTAMIENTO_PARCIAL (con los
 --   NOT RUN) · B7_COMPORTAMIENTO_FALLA (y además aborta).
@@ -79,14 +82,15 @@ begin
       (2, 'K2 lead base_cargada sin la válvula', '42501 El origen base_cargada solo lo pone la carga de bases'),
       (3, 'K3 un contacto sin capital nace descartado con base_cargada (sin descartado_en: pendiente de B8)', 'descartado|base_cargada|true|false'),
       (4, 'K4 sin capital no puede nacer nuevo, ni con la válvula', '23514 new row for relation "leads" violates check constraint "leads_monto_estimado_valido"'),
-      (5, 'K5 sacarlo del descarte sin capital', '23514 new row for relation "leads" violates check constraint "leads_monto_estimado_valido"'),
+      (5, 'K5 sacarlo del descarte sin capital (solo puede frenarlo el CHECK)', '23514 new row for relation "leads" violates check constraint "leads_monto_estimado_valido"'),
+      (7, 'K5b control: la misma reapertura con el capital puesto pasa', 'paso'),
       (6, 'K6 vaciar el capital de un lead de base', '23514 El capital del lead no se puede vaciar')) x(k, caso, esperado) loop
     v_r := null;
     begin
       if v_caso.k >= 2 then
-        -- K2 sin válvulas; K4 solo con la de bases y naciendo 'nuevo'; K3/K5/K6 con las dos, naciendo descartado.
+        -- K2 sin válvulas; K4 solo con la de bases y naciendo 'nuevo'; K3/K5/K5b/K6 con las dos, naciendo descartado.
         if v_caso.k >= 3 then perform pg_catalog.set_config('crm.op_bases_carga', 'on', true); end if;
-        if v_caso.k in (3, 5, 6) then perform pg_catalog.set_config('crm.op_privilegiada', 'on', true); end if;
+        if v_caso.k in (3, 5, 6, 7) then perform pg_catalog.set_config('crm.op_privilegiada', 'on', true); end if;
         insert into crm.leads (id, nombre_completo, telefono, origen, etapa, motivo_descarte, asignado_supervisor_id, vendedor_id, monto_estimado, moneda, creado_por, activo)
         values (v_lead, 'COMPROBACION B7', v_tel, 'base_cargada',
                 case when v_caso.k in (2, 4) then 'nuevo' else 'descartado' end,
@@ -106,8 +110,17 @@ begin
           into v_r from crm.leads l where l.id = v_lead;
       elsif v_caso.k = 4 then
         v_r := 'paso';
-      elsif v_caso.k = 5 then
-        update crm.leads set etapa = 'nuevo', motivo_descarte = null where id = v_lead;
+      elsif v_caso.k in (5, 7) then
+        -- r3 (rama con datos, 04/10): con resolver_en_puertas ENCENDIDA (producción) trg_leads_zz_reapertura_solo_rpc frena el
+        -- UPDATE directo con P0409 ANTES del CHECK. Las puertas de reapertura (reabrir_lead_fn, tomar_lead_libre,
+        -- rescatar_descartes) encienden crm.reapertura_identidad; se enciende igual aquí (sin crm.op_privilegiada), así lo único
+        -- que puede frenar K5 es el CHECK, con la bandera encendida o apagada. K5b pone el capital en el mismo UPDATE.
+        perform pg_catalog.set_config('crm.reapertura_identidad', 'on', true);
+        if v_caso.k = 5 then
+          update crm.leads set etapa = 'nuevo', motivo_descarte = null where id = v_lead;
+        else
+          update crm.leads set etapa = 'nuevo', motivo_descarte = null, monto_estimado = 2000 where id = v_lead;
+        end if;
         v_r := 'paso';
       else
         update crm.leads set monto_estimado = null where id = v_lead;
@@ -117,6 +130,7 @@ begin
     exception when others then
       if v_r is null then v_r := sqlstate || ' ' || sqlerrm; end if;
     end;
+    -- Solo la coincidencia EXACTA es PASS: un P0409 del candado de reapertura (u otro rechazo) en K5 es FAIL.
     insert into pg_temp._b7_r (caso, esperado, obtenido, estado)
     values (v_caso.caso, v_caso.esperado, v_r, case when v_r = v_caso.esperado then 'PASS' when v_r like '55P03 %' then 'NOT RUN' else 'FAIL' end);
   end loop;
