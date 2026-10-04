@@ -1847,14 +1847,43 @@ export async function registrarIntentoBase(entrada: IntentoBaseEntrada): Promise
   return r.output
 }
 
-/** Reactiva un lead de la base: vuelve a la cartera del MISMO analista en «Contactado» (D1, D2), con ciclo nuevo. */
-export async function reactivarLeadBase(entrada: { operacionId: string; leadId: string; nota?: string | null }): Promise<RespuestaReactivarBase> {
+export interface ReactivarBaseEntrada {
+  operacionId: string
+  leadId: string
+  nota?: string | null
+  /** Bases cargadas (E8, B10): el capital que pide el diálogo cuando el lead NO lo tiene (contacto de un archivo sin
+   *  capital). Solo entonces viaja (con su moneda): un lead con capital usa la firma de siempre. */
+  montoEstimado?: number | null
+  moneda?: Moneda | null
+}
+
+/** Mensaje cuando el servidor todavía no acepta el capital al reactivar (antes de la B10: PGRST202). */
+export const MENSAJE_REACTIVAR_CAPITAL_PRONTO =
+  'Reactivar un contacto sin capital llega con la próxima actualización del servidor: disponible pronto.'
+
+/**
+ * Reactiva un lead de la base: vuelve a la cartera del MISMO analista en «Contactado» (D1, D2), con ciclo nuevo. Con
+ * `montoEstimado`, usa la firma nueva de la B10 (`p_monto_estimado`, `p_moneda`), que aún no está en los tipos
+ * generados; si el servidor no la tiene (PGRST202) se dice «disponible pronto» y no se reactiva nada.
+ */
+export async function reactivarLeadBase(entrada: ReactivarBaseEntrada): Promise<RespuestaReactivarBase> {
   const nota = entrada.nota?.trim()
-  const { data, error } = await cliente().schema('crm').rpc('reactivar_lead_base', sinIndefinidos({
+  const args = sinIndefinidos({
     p_operacion_id: entrada.operacionId,
     p_lead_id: entrada.leadId,
     p_nota: nota ? nota : undefined,
-  }))
+  })
+  const conCapital = entrada.montoEstimado != null
+  const { data, error } = conCapital
+    // La firma de la B10 todavía no sale de `gen:types`: misma llamada con dos claves más (la respuesta se valida igual).
+    ? await (cliente().schema('crm') as unknown as { rpc: (fn: string, a: Record<string, unknown>) => PromiseLike<{ data: unknown; error: { code?: string | null; message?: string | null; details?: string | null } | null }> })
+      .rpc('reactivar_lead_base', { ...args, p_monto_estimado: entrada.montoEstimado, p_moneda: entrada.moneda ?? 'PEN' })
+    : await cliente().schema('crm').rpc('reactivar_lead_base', args)
+  if (conCapital && error?.code === 'PGRST202') {
+    const fallo = new CrmApiError(MENSAJE_REACTIVAR_CAPITAL_PRONTO, 'NO_DISPONIBLE')
+    registrarError('crm.base_gestion.reactivar_capital_no_disponible', fallo)
+    throw fallo
+  }
   if (error) throw aErrorApi(error, 'crm.base_gestion.reactivar_fallido')
   const r = v.safeParse(RespuestaReactivarBaseSchema, data)
   if (!r.success) {

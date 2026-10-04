@@ -57,10 +57,12 @@ export function Pastilla({ etiqueta, valor, urgente = false, presionada, pista, 
 }
 
 /** Los filtros en UNA fila (Miguel: horizontal antes que vertical), junto al Mes. En el celular, de dos en dos.
- *  `conAnalista` (F4) pone primero «Analista»: la vista del supervisor filtra la base de su equipo por quién la gestiona. */
-export function BarraFiltros({ conMes, conAnalista = false, opciones, filtros, onCambiar, onQuitar, mostrados, total, primerFiltro, etiqueta = 'Filtrar tu base' }: {
+ *  `conAnalista` (F4) pone primero «Analista»: la vista del supervisor filtra la base de su equipo por quién la gestiona.
+ *  `conBase` (F6) pone «Base» junto al Mes («Base: Todas · Feria 2025 (40)»). */
+export function BarraFiltros({ conMes, conAnalista = false, conBase = false, opciones, filtros, onCambiar, onQuitar, mostrados, total, primerFiltro, etiqueta = 'Filtrar tu base' }: {
   conMes: boolean
   conAnalista?: boolean
+  conBase?: boolean
   opciones: OpcionesFiltro
   filtros: FiltrosBase
   onCambiar: (dimension: DimensionFiltro, valor: string) => void
@@ -72,20 +74,22 @@ export function BarraFiltros({ conMes, conAnalista = false, opciones, filtros, o
   etiqueta?: string
 }) {
   const filtrando = hayFiltros(filtros)
-  const filtro = (dimension: DimensionFiltro, rotulo: string, primero: boolean) => (
+  const filtro = (dimension: DimensionFiltro, rotulo: string, primero: boolean, rotuloTodos = 'Todos') => (
     <FiltroSelect
       etiqueta={rotulo}
       faceta={opciones[dimension]}
       valor={filtros[dimension]}
       onCambiar={(v) => onCambiar(dimension, v)}
       selectRef={primero ? primerFiltro : undefined}
+      rotuloTodos={rotuloTodos}
     />
   )
   return (
     <div role="group" aria-label={etiqueta} className="grid w-full grid-cols-2 items-end gap-x-3 gap-y-2 sm:flex sm:w-auto sm:flex-wrap">
       {conAnalista && filtro('analista', 'Analista', true)}
       {conMes && filtro('mes', 'Mes', !conAnalista)}
-      {filtro('motivo', 'Motivo del descarte', !conAnalista && !conMes)}
+      {conBase && filtro('base', 'Base', !conAnalista && !conMes, 'Todas')}
+      {filtro('motivo', 'Motivo del descarte', !conAnalista && !conMes && !conBase)}
       {filtro('etapa', 'Etapa máxima', false)}
       {filtro('resultado', 'Último resultado', false)}
       <div className="col-span-2 flex min-h-9 items-center gap-3">
@@ -103,12 +107,14 @@ export function BarraFiltros({ conMes, conAnalista = false, opciones, filtros, o
   )
 }
 
-function FiltroSelect({ etiqueta, faceta, valor, onCambiar, selectRef }: {
+function FiltroSelect({ etiqueta, faceta, valor, onCambiar, selectRef, rotuloTodos }: {
   etiqueta: string
   faceta: FacetaFiltro
   valor: string
   onCambiar: (valor: string) => void
   selectRef?: Ref<HTMLSelectElement> | undefined
+  /** «Todos» o «Todas» (la Base). */
+  rotuloTodos: string
 }) {
   const id = useId()
   const activo = valor !== FILTRO_TODOS
@@ -124,7 +130,7 @@ function FiltroSelect({ etiqueta, faceta, valor, onCambiar, selectRef }: {
         // con desplazamiento lo refuerza. El activo NO usa anillos: se marca con borde y fondo.
         className={cn('pointer-coarse:h-11 pointer-coarse:text-base focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2', activo && 'border-accent bg-accent/[0.06] font-semibold text-foreground')}
       >
-        <option value={FILTRO_TODOS}>Todos ({faceta.total})</option>
+        <option value={FILTRO_TODOS}>{rotuloTodos} ({faceta.total})</option>
         {faceta.opciones.map((o) => <option key={o.clave} value={o.clave}>{o.etiqueta} ({o.leads})</option>)}
       </Select>
     </div>

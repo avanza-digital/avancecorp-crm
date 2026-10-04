@@ -357,6 +357,47 @@ describe('pie: No contactar · Reactivar', () => {
   })
 })
 
+describe('F6 · Reactivar un contacto de base SIN capital (E8)', () => {
+  it('pide el capital (obligatorio) y la moneda; sin él no envía; con él viaja con la reactivación', async () => {
+    const usuario = userEvent.setup()
+    abrir({ monto_estimado: null, moneda: 'PEN', origen: 'base_cargada', motivo_descarte: 'base_cargada' })
+    await usuario.click(screen.getByRole('button', { name: 'Reactivar' }))
+    const dialogo = screen.getByRole('dialog', { name: '¿Reactivar a ROSA QUISPE?' })
+    const capital = within(dialogo).getByLabelText('Capital estimado')
+    expect(capital).toHaveAccessibleDescription(/llegó sin capital/)
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Reactivar' }))
+    expect(within(dialogo).getByRole('alert')).toHaveTextContent('Indica el capital estimado')
+    expect(capital).toHaveAttribute('aria-invalid', 'true')
+    expect(reactivar.mutateAsync).not.toHaveBeenCalled()
+    await usuario.type(capital, '25,000')
+    await usuario.selectOptions(within(dialogo).getByLabelText('Moneda'), 'USD')
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Reactivar' }))
+    expect(reactivar.mutateAsync).toHaveBeenCalledWith({ operacionId: expect.any(String), leadId: 'lead-1', nota: '', montoEstimado: 25000, moneda: 'USD' })
+  })
+
+  it('con capital ya puesto no lo pide (la llamada de siempre)', async () => {
+    const usuario = userEvent.setup()
+    abrir()
+    await usuario.click(screen.getByRole('button', { name: 'Reactivar' }))
+    expect(within(screen.getByRole('dialog', { name: '¿Reactivar a ROSA QUISPE?' })).queryByLabelText('Capital estimado')).toBeNull()
+  })
+
+  it('el servidor aún sin la firma nueva: dice «disponible pronto» y el MISMO pedido reusa su id al reintentar', async () => {
+    const usuario = userEvent.setup()
+    reactivar.mutateAsync.mockRejectedValue(new CrmApiError('Reactivar un contacto sin capital llega con la próxima actualización del servidor: disponible pronto.', 'NO_DISPONIBLE'))
+    abrir({ monto_estimado: null })
+    await usuario.click(screen.getByRole('button', { name: 'Reactivar' }))
+    const dialogo = screen.getByRole('dialog', { name: '¿Reactivar a ROSA QUISPE?' })
+    await usuario.type(within(dialogo).getByLabelText('Capital estimado'), '5000')
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Reactivar' }))
+    expect(await within(dialogo).findByRole('alert')).toHaveTextContent('disponible pronto')
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Reactivar' }))
+    const [a, b] = reactivar.mutateAsync.mock.calls.map(([e]) => (e as { operacionId: string }).operacionId)
+    expect(a).toBe(b)
+    expect(onCerrar).not.toHaveBeenCalled()
+  })
+})
+
 describe('actividad', () => {
   it('se recorre hasta el final sin que nadie pulse «cargar más»', () => {
     HIST = { ...HIST, items: [act('a1')], hayMas: true }
