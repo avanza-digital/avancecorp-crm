@@ -140,6 +140,36 @@ describe('GrupoEtapa — desplegable', () => {
     expect(screen.queryByText('Cambio de etapa')).not.toBeInTheDocument()
   })
 
+  it('el foco sigue al botón que sustituye al pulsado: tras desplegar, en «Agrupar»; tras agrupar, en «Ver los…»', async () => {
+    const user = userEvent.setup()
+    render(
+      <ol>
+        <GrupoEtapa items={etapas} ahora={AHORA} />
+      </ol>,
+    )
+
+    // Al montar no se roba el foco.
+    expect(document.body).toHaveFocus()
+    await user.click(screen.getByRole('button', { name: 'Ver los 3 cambios de etapa' }))
+    expect(screen.getByRole('button', { name: 'Agrupar 3 cambios de etapa' })).toHaveFocus()
+    await user.keyboard('{Enter}')
+    expect(screen.getByRole('button', { name: 'Ver los 3 cambios de etapa' })).toHaveFocus()
+  })
+
+  it('el renglón de autor y tiempo usa el gris de texto con contraste AA (no el atenuado al 80 %)', () => {
+    render(
+      <ol>
+        <GrupoEtapa items={etapas} ahora={AHORA} />
+        <FilaActividad a={act({ id: 'x' })} ahora={AHORA} />
+      </ol>,
+    )
+    const renglones = [screen.getByText(/toca para ver todos/), screen.getByText('ANA PÉREZ · hace 2 h')]
+    for (const p of renglones) {
+      expect(p).toHaveClass('text-muted-foreground')
+      expect(p.className).not.toContain('text-muted-foreground/80')
+    }
+  })
+
   it('sin ítems no pinta nada', () => {
     const { container } = render(
       <ol>

@@ -23,18 +23,27 @@ export function AccionesBase({ fila, demo, onReactivado, onNoContactar }: {
   onNoContactar: () => void
 }): JSX.Element {
   const [dialogo, setDialogo] = useState<'reactivar' | 'no_contactar' | null>(null)
-  // En la cabecera de la ficha, a la vista sin desplazarse (Miguel: lo que se usa, arriba y en horizontal).
+  // En el pie fijo de la ficha, como «Descartar · Convertir» en la del lead (Miguel, 03/10): lo que saca al lead de
+  // la base a la izquierda y en rojo; lo que lo devuelve a la cartera a la derecha, como acción principal. Quien lo
+  // monta pone el contenedor (`SheetFooter`); los diálogos van en portal y no ocupan sitio en él.
   return (
-    <div role="group" aria-label="Acciones del lead" className="flex flex-wrap items-center gap-2">
-      <Button type="button" variant="outline" onClick={() => setDialogo('reactivar')}>
-        <ArchiveRestore aria-hidden /> Reactivar
-      </Button>
-      <Button type="button" variant="outline" className="text-[var(--destructive-text)]" onClick={() => setDialogo('no_contactar')}>
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        // El rojo de TEXTO (--destructive-text): el rojo de relleno no llega a 4,5:1 sobre el tinte del hover.
+        className="border-destructive/40 text-[var(--destructive-text)] hover:border-destructive/60 hover:bg-destructive/10"
+        onClick={() => setDialogo('no_contactar')}
+      >
         <Ban aria-hidden /> No contactar
+      </Button>
+      <Button type="button" size="sm" onClick={() => setDialogo('reactivar')}>
+        <ArchiveRestore aria-hidden /> Reactivar
       </Button>
       <ReactivarDialogo fila={fila} demo={demo} abierto={dialogo === 'reactivar'} onCerrar={() => setDialogo(null)} onHecho={onReactivado} />
       <NoContactarDialogo fila={fila} demo={demo} abierto={dialogo === 'no_contactar'} onCerrar={() => setDialogo(null)} onHecho={onNoContactar} />
-    </div>
+    </>
   )
 }
 
@@ -65,16 +74,26 @@ function ReactivarDialogo({ fila, demo, abierto, onCerrar, onHecho }: { fila: Fi
     <Dialog open={abierto} onClose={cerrar}>
       <DialogHeader>
         <DialogTitle>¿Reactivar a {fila.nombre_completo}?</DialogTitle>
-        <DialogDescription className="text-sm">Vuelve a tu cartera como Contactado, con un ciclo nuevo, y sale de tu base.</DialogDescription>
+        <DialogDescription id={`${id}-consecuencia`} className="text-sm">Vuelve a tu cartera como Contactado, con un ciclo nuevo, y sale de tu base.</DialogDescription>
       </DialogHeader>
       <DialogBody>
         <label htmlFor={`${id}-nota`} className="mb-1 block text-sm font-semibold text-foreground">Nota <span className="font-normal text-[var(--muted-foreground-strong)]">(opcional)</span></label>
-        <textarea id={`${id}-nota`} rows={3} maxLength={1000} value={nota} onChange={(e) => setNota(e.target.value)} className={AREA} placeholder="Por qué lo retomas" />
-        {error && <p role="alert" className="mt-2 text-sm font-medium text-[var(--destructive-text)]">{error}</p>}
+        {/* La consecuencia (sale de tu base) se lee con el campo y con el botón, como en «No contactar» (WCAG 1.3.1). */}
+        <textarea
+          id={`${id}-nota`}
+          rows={3}
+          maxLength={1000}
+          value={nota}
+          onChange={(e) => setNota(e.target.value)}
+          aria-describedby={`${id}-consecuencia${error ? ` ${id}-error` : ''}`}
+          className={AREA}
+          placeholder="Por qué lo retomas"
+        />
+        {error && <p id={`${id}-error`} role="alert" className="mt-2 text-sm font-medium text-[var(--destructive-text)]">{error}</p>}
       </DialogBody>
       <DialogFooter>
         <Button type="button" variant="ghost" onClick={cerrar}>Cancelar</Button>
-        <Button type="button" aria-disabled={mutacion.isPending || undefined} onClick={() => void confirmar()}>
+        <Button type="button" aria-disabled={mutacion.isPending || undefined} aria-describedby={`${id}-consecuencia${error ? ` ${id}-error` : ''}`} onClick={() => void confirmar()}>
           {mutacion.isPending ? 'Reactivando…' : 'Reactivar'}
         </Button>
       </DialogFooter>

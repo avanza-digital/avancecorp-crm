@@ -4,7 +4,7 @@
 // pinte su historial con la MISMA línea; la ficha del lead las usa sin cambiar nada
 // de lo que se ve. Lo propio de cada ficha (qué título e icono lleva una actividad,
 // qué filas extra van en el riel) entra por props, no se copia.
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { LucideIcon } from 'lucide-react'
 import { ArrowRightLeft } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -43,7 +43,7 @@ export function FilaActividad({ a, ahora, titulo, Icono, cuando }: { a: Activida
             {presentarCitas(a.detalle)}
           </p>
         )}
-        <p className="mt-0.5 text-[11px] text-muted-foreground/80">
+        <p className="mt-0.5 text-[11px] text-muted-foreground">
           {a.autor_nombre} · {cuando ?? haceRelativo(a.creado_en, ahora)}
         </p>
       </div>
@@ -62,6 +62,19 @@ export function GrupoEtapa({
   presentar?: ((a: Actividad) => PresentacionActividad) | undefined
 }) {
   const [abierto, setAbierto] = useState(false)
+  // Desplegar o agrupar cambia de rama y el botón pulsado se desmonta: el foco pasa al botón que lo sustituye
+  // (si no, caería en <body>; WCAG 2.4.3). Solo tras un clic del usuario, nunca al montar.
+  const alternado = useRef(false)
+  const boton = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    if (!alternado.current) return
+    alternado.current = false
+    boton.current?.focus()
+  }, [abierto])
+  const alternar = () => {
+    alternado.current = true
+    setAbierto((v) => !v)
+  }
   const reciente = items[0]
   if (!reciente) return null
   if (abierto) {
@@ -73,8 +86,9 @@ export function GrupoEtapa({
         <li className="flex gap-2.5">
           <span className="w-7 shrink-0" aria-hidden />
           <button
+            ref={boton}
             type="button"
-            onClick={() => setAbierto(false)}
+            onClick={alternar}
             className="cursor-pointer text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
           >
             Agrupar {items.length} cambios de etapa
@@ -89,8 +103,9 @@ export function GrupoEtapa({
         <ArrowRightLeft aria-hidden />
       </span>
       <button
+        ref={boton}
         type="button"
-        onClick={() => setAbierto(true)}
+        onClick={alternar}
         className="min-w-0 flex-1 cursor-pointer pt-0.5 text-left"
         aria-label={`Ver los ${items.length} cambios de etapa`}
       >
@@ -100,7 +115,7 @@ export function GrupoEtapa({
             Último: {presentarCitas(reciente.detalle)}
           </p>
         )}
-        <p className="mt-0.5 text-[11px] text-muted-foreground/80">
+        <p className="mt-0.5 text-[11px] text-muted-foreground">
           {reciente.autor_nombre} · {haceRelativo(reciente.creado_en, ahora)} · toca para ver todos
         </p>
       </button>

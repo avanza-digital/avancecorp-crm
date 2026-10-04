@@ -58,6 +58,11 @@ export function etiquetaEtapaMaxima(etapa: EtapaMaxima): string {
   return etapa === 'sin_datos' ? 'Sin historial' : ETAPA_INFO[etapa].label
 }
 
+/** Color de la etapa máxima: el del pipeline, o gris si no hay historial (el punto de la hoja y el chip de la ficha). */
+export function colorEtapaMaxima(etapa: EtapaMaxima): string {
+  return etapa === 'sin_datos' ? '#94a3b8' : ETAPA_INFO[etapa].color
+}
+
 export function etiquetaMotivoDescarte(motivo: string | null): string {
   if (!motivo) return 'Sin motivo'
   return MOTIVOS_DESCARTE.find((m) => m.k === motivo)?.label ?? motivo
@@ -218,17 +223,6 @@ export function etiquetaActividadBase(a: Actividad): string {
     return 'No contactar'
   }
   return TIPOS_ACTIVIDAD[a.tipo] ?? 'Actividad'
-}
-
-/** Fecha de una fila del historial: «Hoy, 15:30», «Ayer, 10:00», «Vie 9 Oct, 10:00» y, si es de otro año, con el año. */
-export function etiquetaFechaHistorial(iso: string, ahora: number = Date.now()): string {
-  const ms = Date.parse(iso)
-  if (!Number.isFinite(ms)) return 'Sin fecha'
-  const anio = fechaLima(ms).slice(0, 4)
-  const base = etiquetaMomento(iso, ahora)
-  return anio === fechaLima(ahora).slice(0, 4) || base.startsWith('Hoy') || base.startsWith('Ayer')
-    ? base
-    : base.replace(/, (\d{2}:\d{2})$/, ` ${anio}, $1`)
 }
 
 /** Buscador del historial: sin mayúsculas ni tildes, sobre lo que el analista lee (qué pasó, nota y quién). */
