@@ -64,9 +64,16 @@
     "test:rls:f8": "node --test --test-concurrency=1 supabase/scripts/rls-vigente/f8-candado.test.mjs supabase/scripts/rls-vigente/guardas.test.mjs",
     "gate:conversion": "node supabase/scripts/conversion/gate-conversion.mjs",
     "test:conversion:gate": "node --test supabase/scripts/conversion/coherencia.test.mjs",
-    "test:jev": "node --test scripts/jev/preguntas.test.mjs"
+    "test:jev": "node --test scripts/jev/preguntas.test.mjs",
+    "test:backend-gates": "node --test --test-reporter=tap scripts/backend-gates.test.mjs",
+    "test:backend-additional": "deno test --cached-only --node-modules-dir=auto --frozen supabase/functions/crm-usuarios/auth-attributes.test.ts supabase/functions/crm-importar-leads/telefonos.test.ts supabase/functions/crm-temperatura-lead/handler.test.ts supabase/functions/crm-usuarios/handler.test.ts",
+    "test:contrato-pdf": "deno test --cached-only --config supabase/functions/crm-contrato-pdf-v2/deno.json --allow-read supabase/functions/crm-contrato-pdf-v2",
+    "test:mutantes:aislamiento": "node --test --test-reporter=tap scripts/mutantes-puente-aislamiento.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.110.2"
+  },
+  "devDependencies": {
+    "yaml": "2.9.1"
   }
 }

@@ -1,25 +1,13 @@
 name: CRM RLS preflight
 
+# Sin filtros de rutas a propósito: una migración, una Edge Function o el propio arnés
+# quedaban fuera de la lista anterior y el check no se reportaba. El job corre y reporta
+# en cada PR y en cada push a main/tronco, cambie o no el backend (contrato en
+# CRM-Avance-Corp/scripts/backend-gates.test.mjs).
 on:
   pull_request:
-    paths:
-      - 'CRM-Avance-Corp/package.json'
-      - 'CRM-Avance-Corp/package-lock.json'
-      - 'CRM-Avance-Corp/deno.lock'
-      - 'CRM-Avance-Corp/supabase/scripts/**'
-      - 'CRM-Avance-Corp/supabase/functions/crm-tipo-cambio/**'
-      - '_supabase_functions/functions/**'
-      - '.github/workflows/crm-rls-preflight.yml'
   push:
     branches: [main, tronco]
-    paths:
-      - 'CRM-Avance-Corp/package.json'
-      - 'CRM-Avance-Corp/package-lock.json'
-      - 'CRM-Avance-Corp/deno.lock'
-      - 'CRM-Avance-Corp/supabase/scripts/**'
-      - 'CRM-Avance-Corp/supabase/functions/crm-tipo-cambio/**'
-      - '_supabase_functions/functions/**'
-      - '.github/workflows/crm-rls-preflight.yml'
   workflow_dispatch:
 
 permissions:
@@ -33,8 +21,11 @@ jobs:
   preflight:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # Shell explícita: `bash` en Actions es `bash --noprofile --norc -eo pipefail {0}`, la
+    # misma invocación que usa el replay del contrato. Ningún paso redefine shell ni directorio.
     defaults:
       run:
+        shell: bash
         working-directory: CRM-Avance-Corp
     env:
       # Valores deliberadamente ficticios. Los comandos --preflight no abren red.
@@ -62,6 +53,20 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
+      # Descarga los imports Deno de TODOS los gates antes del primero: `check:scripts` ya
+      # llega a Deno (test:importar-leads-edge), `test:edge-preflight` hace `deno check`/`deno
+      # test` y encadena `test:push-tasa`; las suites nuevas corren luego con --cached-only.
+      # Una línea por grupo de entradas; el PDF usa su propio deno.json. Mismos flags de
+      # resolución que los gates (--node-modules-dir=auto --frozen): deno.lock debe registrar
+      # cada dependencia directa del package.json, incluido el parser yaml.
+      - name: Prepare Deno imports for every Deno gate
+        run: |
+          deno install --entrypoint --node-modules-dir=auto --frozen supabase/functions/crm-importar-leads/autorizacion-contacto.test.ts supabase/functions/crm-importar-leads/destinos.test.ts supabase/functions/crm-importar-leads/resultado-importacion.test.ts supabase/functions/crm-importar-leads/catalogo.test.ts
+          deno install --entrypoint --node-modules-dir=auto --frozen ../_supabase_functions/functions/crm-inversion-portal/index.ts ../_supabase_functions/functions/crm-convertir-lead/index.ts ../_supabase_functions/functions/crear-cliente/index.ts supabase/functions/crm-inversion-bienvenida/index.ts supabase/functions/crm-tipo-cambio/index.ts supabase/functions/crm-tipo-cambio/handler.ts supabase/functions/crm-tipo-cambio/handler.test.ts
+          deno install --entrypoint --node-modules-dir=auto --frozen supabase/functions/crm-notificaciones-tasa/index.ts supabase/functions/crm-notificaciones-tasa/handler.test.ts supabase/functions/crm-notificaciones-tasa/transporte.test.ts
+          deno install --entrypoint --node-modules-dir=auto --frozen supabase/functions/crm-usuarios/auth-attributes.test.ts supabase/functions/crm-importar-leads/telefonos.test.ts supabase/functions/crm-temperatura-lead/handler.test.ts supabase/functions/crm-usuarios/handler.test.ts
+          deno install --entrypoint --config supabase/functions/crm-contrato-pdf-v2/deno.json supabase/functions/crm-contrato-pdf-v2/handler.test.ts supabase/functions/crm-contrato-pdf-v2/renderer.test.ts supabase/functions/crm-contrato-pdf-v2/storage.test.ts
+
       - name: Check script syntax
         run: npm run check:scripts
 
@@ -76,3 +81,22 @@ jobs:
       # nadie los corría en CI: se ejecutan aquí, sin red.
       - name: Validate edge function boundaries
         run: npm run test:edge-preflight
+
+      # Contrato de este control (activación sin filtros, suites cableadas, sin verde
+      # falso). Es un paso propio: ningún script npm lo encadena, así no hay recursión.
+      - name: Validate backend gate contract
+        run: npm run test:backend-gates
+
+      # Suites unitarias Deno de usuarios, teléfonos y temperatura (34 pruebas en E1).
+      # Offline (--cached-only sobre la preparación anterior): no son la matriz RLS viva ni E2E.
+      - name: Validate additional edge unit suites (offline)
+        run: npm run test:backend-additional
+
+      # Suite unitaria del contrato PDF v2 con su deno.json y lectura de recursos (72 en E1).
+      - name: Validate contract PDF unit suite (offline)
+        run: npm run test:contrato-pdf
+
+      # Aislamiento del arnés de mutantes aceptado en Etapa 1 (28 pruebas): el árbol de
+      # entrada no se toca jamás.
+      - name: Validate mutant harness isolation
+        run: npm run test:mutantes:aislamiento
