@@ -114,7 +114,15 @@ import {
   type ResumenCartera,
 } from '@/lib/resumen-cartera'
 import { ColaAccionSchema, LIMITE_COLA_ACCION, type ColaAccion } from '@/lib/cola-accion'
-import { FilaBaseGestionSchema, type FilaBaseGestion } from '@/lib/base-gestion'
+import {
+  FilaBaseGestionSchema,
+  FilaDetalleCifraSchema,
+  FilaResumenBaseSchema,
+  type CifraDetalle,
+  type FilaBaseGestion,
+  type FilaDetalleCifra,
+  type FilaResumenBase,
+} from '@/lib/base-gestion'
 import { MetricasVendedoresSchema, type MetricasVendedoresPayload } from '@/lib/metricas-vendedores'
 import {
   ReporteDerivacionesEquipoSchema,
@@ -1662,17 +1670,52 @@ export async function rescatarDescartes(
 }
 
 // ── Base para gestión del analista (B3 `crm.obtener_base_gestion`, en producción 02/10/2026) ──────────
+export interface OpcionesBaseGestion {
+  /** Supervisión y Gerencia (B6b, F4): también los «No contactar» (al final, incluso los que descansan). El analista
+   *  no lo pide: el servidor se lo niega (42501). Sin la opción no viaja el parámetro (la llamada de siempre). */
+  incluirVetados?: boolean
+  signal?: AbortSignal
+}
+
+export interface LecturaBaseGestion {
+  filas: FilaBaseGestion[]
+  /**
+   * ¿El servidor ya tiene la B6b? `true` si aceptó `p_incluir_vetados`; `false` si no lo conoce (PGRST202: se volvió a
+   * pedir sin él); `null` si no se preguntó. Con `false` la pantalla no ofrece «Ver no contactar» ni abre el detalle
+   * de las cifras del panel (los dos llegan con la misma migración).
+   */
+  conVetados: boolean | null
+}
+
+type ArgsBaseGestion = Database['crm']['Functions']['obtener_base_gestion']['Args']
+
+async function consultarBaseGestion(args: ArgsBaseGestion, signal?: AbortSignal) {
+  let consulta = cliente().schema('crm').rpc('obtener_base_gestion', args)
+  if (signal) consulta = consulta.abortSignal(signal)
+  const respuesta = await consulta
+  lanzarAbortSiCorresponde(signal)
+  return respuesta
+}
+
 /**
  * Los leads descartados que el actor puede volver a gestionar, ya ordenados por el servidor (rellamada de
  * hoy → etapa máxima → menos días desde el descarte). El analista recibe SOLO los suyos; Supervisión y
- * Gerencia, su ámbito o el de un analista (`vendedorId`). Excluye «no contactar» y descanso vigente.
+ * Gerencia, su ámbito o el de un analista (`vendedorId`). Excluye «no contactar» (salvo `incluirVetados`, que
+ * los pone al final) y el descanso vigente.
  * Una fila fuera de contrato no se pinta, pero se registra: la lista no se recorta en silencio.
  */
-export async function obtenerBaseGestion(vendedorId?: string | null, signal?: AbortSignal): Promise<FilaBaseGestion[]> {
-  let consulta = cliente().schema('crm').rpc('obtener_base_gestion', vendedorId ? { p_vendedor_id: vendedorId } : {})
-  if (signal) consulta = consulta.abortSignal(signal)
-  const { data, error } = await consulta
-  lanzarAbortSiCorresponde(signal)
+export async function leerBaseGestion(vendedorId?: string | null, opciones: OpcionesBaseGestion = {}): Promise<LecturaBaseGestion> {
+  const { incluirVetados, signal } = opciones
+  const base: ArgsBaseGestion = vendedorId ? { p_vendedor_id: vendedorId } : {}
+  const preguntaVetados = incluirVetados !== undefined
+  let { data, error } = await consultarBaseGestion(preguntaVetados ? { ...base, p_incluir_vetados: incluirVetados } : base, signal)
+  let conVetados: boolean | null = preguntaVetados ? true : null
+  // Antes de la B6b el servidor no conoce el parámetro (firma desconocida): se vuelve a pedir SIN él. La lista sale
+  // igual que siempre y la pantalla no ofrece lo que el servidor aún no tiene (el molde de `recibido_en` antes de la B5).
+  if (preguntaVetados && error?.code === 'PGRST202') {
+    ;({ data, error } = await consultarBaseGestion(base, signal))
+    conVetados = false
+  }
   if (error) throw aErrorApi(error, 'crm.base_gestion.lista_fallida')
   const filas: FilaBaseGestion[] = []
   let invalidas = 0
@@ -1682,6 +1725,57 @@ export async function obtenerBaseGestion(vendedorId?: string | null, signal?: Ab
     else invalidas += 1
   }
   if (invalidas > 0) registrarError('crm.base_gestion.filas_fuera_de_contrato', new Error(`${invalidas} filas descartadas`), { invalidas })
+  return { filas, conVetados }
+}
+
+/** La lista de la base, sin más (la del analista y la de quien no necesita saber si el servidor ya tiene la B6b). */
+export async function obtenerBaseGestion(vendedorId?: string | null, opciones: OpcionesBaseGestion = {}): Promise<FilaBaseGestion[]> {
+  return (await leerBaseGestion(vendedorId, opciones)).filas
+}
+
+/**
+ * Panel de la vista del supervisor (F4, `crm.base_gestion_resumen`, en producción desde B3): un renglón por analista
+ * ACTIVO del ámbito (Supervisión → su equipo; Gerencia → todos) con en base, para llamar hoy, intentos de hoy y
+ * reactivaciones del mes. El analista recibe SIN_PERMISO (42501). Una fila fuera de contrato no se pinta y se registra.
+ */
+export async function baseGestionResumen(signal?: AbortSignal): Promise<FilaResumenBase[]> {
+  let consulta = cliente().schema('crm').rpc('base_gestion_resumen')
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw aErrorApi(error, 'crm.base_gestion.resumen_fallido')
+  const filas: FilaResumenBase[] = []
+  let invalidas = 0
+  for (const cruda of data ?? []) {
+    const r = v.safeParse(FilaResumenBaseSchema, cruda)
+    if (r.success) filas.push(r.output)
+    else invalidas += 1
+  }
+  if (invalidas > 0) registrarError('crm.base_gestion.resumen_fuera_de_contrato', new Error(`${invalidas} filas descartadas`), { invalidas })
+  return filas
+}
+
+/**
+ * Lo que hay detrás de «Intentos de hoy» o «Reactivaciones del mes» de UN analista (B6b,
+ * `crm.base_gestion_resumen_detalle`): mismas definiciones, ámbito y rol que el panel, del más reciente al más antiguo.
+ * `null` = el servidor aún no tiene la lectura (PGRST202, antes de la B6b): la pantalla dice «no disponible», nunca
+ * una lista vacía (cero sería mentira).
+ */
+export async function baseGestionResumenDetalle(vendedorId: string, cifra: CifraDetalle, signal?: AbortSignal): Promise<FilaDetalleCifra[] | null> {
+  let consulta = cliente().schema('crm').rpc('base_gestion_resumen_detalle', { p_vendedor_id: vendedorId, p_cifra: cifra })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error?.code === 'PGRST202') return null
+  if (error) throw aErrorApi(error, 'crm.base_gestion.detalle_fallido')
+  const filas: FilaDetalleCifra[] = []
+  let invalidas = 0
+  for (const cruda of data ?? []) {
+    const r = v.safeParse(FilaDetalleCifraSchema, cruda)
+    if (r.success) filas.push(r.output)
+    else invalidas += 1
+  }
+  if (invalidas > 0) registrarError('crm.base_gestion.detalle_fuera_de_contrato', new Error(`${invalidas} filas descartadas`), { invalidas })
   return filas
 }
 
@@ -1757,6 +1851,31 @@ export async function reactivarLeadBase(entrada: { operacionId: string; leadId: 
 export async function marcarNoContactar(leadId: string, motivo: string): Promise<void> {
   const { error } = await cliente().schema('crm').rpc('marcar_no_contactar', { p_lead_id: leadId, p_motivo: motivo.trim() })
   if (error) throw aErrorApi(error, 'crm.base_gestion.no_contactar_fallido')
+}
+
+/** Contexto de error de «Quitar No contactar»: `aErrorApi` le da textos propios (42501 «pídelo a Gerencia», 40001). */
+const CONTEXTO_LEVANTAR_NO_CONTACTAR = 'crm.base_gestion.levantar_fallido'
+
+const RespuestaLevantarNoContactarSchema = v.looseObject({
+  ok: v.literal(true),
+  leads_afectados: EnteroNoNegativoRpcSchema,
+})
+
+/**
+ * Quita «No contactar» (D5, B2 en producción desde el 02/10): Gerencia en toda la operación; Supervisión solo si la
+ * persona y TODOS sus leads son de su equipo (si no, 42501: «pídelo a Gerencia»). Se levanta para la PERSONA y todos
+ * sus leads, con motivo obligatorio que queda en el historial. Devuelve cuántos leads dejaron de estar vetados.
+ */
+export async function levantarNoContactar(leadId: string, motivo: string): Promise<{ leadsAfectados: number }> {
+  const { data, error } = await cliente().schema('crm').rpc('levantar_no_contactar', { p_lead_id: leadId, p_motivo: motivo.trim() })
+  if (error) throw aErrorApi(error, CONTEXTO_LEVANTAR_NO_CONTACTAR)
+  const r = v.safeParse(RespuestaLevantarNoContactarSchema, data)
+  if (!r.success) {
+    const fallo = new CrmApiError('El servidor no confirmó que se quitara «No contactar».', 'LEVANTAR_NO_CONTACTAR_CONTRACT')
+    registrarError('crm.base_gestion.levantar_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return { leadsAfectados: r.output.leads_afectados }
 }
 
 // ── Timeline del ámbito con AUTOR (RPC SECURITY DEFINER actividades_del_ambito_fn)
@@ -2236,7 +2355,18 @@ function aErrorApi(
   const texto = `${error.message ?? ''} ${error.details ?? ''}`
   let code = 'POSTGREST_ERROR'
   let mensaje = 'No se pudo guardar el cambio.'
-  if (codigoPg === '23505') {
+  if (contexto === CONTEXTO_LEVANTAR_NO_CONTACTAR && codigoPg === '42501') {
+    // B2 (D5): Supervisión solo levanta la marca si la persona entera es de su equipo; el genérico «No tienes permiso»
+    // no le diría qué hacer.
+    code = 'SIN_PERMISO'
+    mensaje = texto.includes('Gerencia') && texto.includes('fuera de tu equipo')
+      ? 'La persona tiene leads fuera de tu equipo: pídelo a Gerencia.'
+      : 'Solo Supervisión o Gerencia pueden quitar «No contactar».'
+  } else if (contexto === CONTEXTO_LEVANTAR_NO_CONTACTAR && codigoPg === '40001') {
+    // La marca se levanta para todos los leads de la persona: si otra sesión tiene uno, el servidor no espera.
+    code = 'REINTENTAR'
+    mensaje = 'Otra sesión está trabajando uno de los leads de la persona. Vuelve a intentarlo en unos segundos.'
+  } else if (codigoPg === '23505') {
     // Índices únicos parciales del dedup GLOBAL (uq_leads_*_vivo): el espejo
     // local solo ve el ámbito; el servidor cubre choques con leads ajenos.
     if (texto.includes('uq_leads_telefono_vivo')) {
