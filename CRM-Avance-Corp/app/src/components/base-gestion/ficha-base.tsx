@@ -6,6 +6,10 @@
 // Se ve como la ficha del lead (`lead-drawer.tsx`, Miguel, 03/10): avatar, nombre, chips, botones de contacto,
 // sección DATOS con su rejilla, la misma línea de tiempo y el pie «Descartar · Convertir» hecho «No contactar ·
 // Reactivar». Maqueta aprobada: `ui-playground/ficha-base-gestion.html` (fuera del repo).
+// Según el rol (F4, decisión 5 de Miguel, 03/10): para Supervisión y Gerencia (`modo="supervision"`) es de CONSULTA
+// —datos e historial—, sin registrar intentos, sin reactivar y sin botones de llamar (eso es del analista; repartir
+// sigue en «Descartes del mes»). Si el lead está vetado, muestra la marca (cuándo, motivo, quién) y ofrece «Quitar No
+// contactar». La ficha del analista no cambia.
 import { useId, useRef, type JSX } from 'react'
 import { toast } from 'sonner'
 import { X } from 'lucide-react'
@@ -15,6 +19,7 @@ import { Sheet, SheetBody, SheetFooter, SheetHeader, SheetTitle } from '@/compon
 import { Fila } from '@/components/app/fila-dato'
 import { FOCO } from '@/components/gestion-diaria/estilos-gestion'
 import { useAhora } from '@/lib/ahora'
+import { fechaLima } from '@/lib/agenda-derivada'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { telefonoLegible } from '@/lib/recordatorios-disponibilidad'
 import { cn } from '@/lib/utils'
@@ -27,6 +32,7 @@ import {
   etiquetaMotivoDescarte,
   etiquetaOrigen,
   etiquetaUltimoResultado,
+  esVetada,
   mesDelLead,
   type FilaBaseGestion,
 } from '@/lib/base-gestion'
@@ -35,13 +41,14 @@ import { HistorialBase } from './historial-base'
 import { RegistrarIntentoBase, type DesenlaceIntento } from './intento-base'
 import { ContactoBase } from './llamar-base'
 import { Intentos, ProximaLlamada } from './piezas-base'
+import { QuitarNoContactar } from './quitar-no-contactar'
 
 /** Un dato que falta, en gris. */
 function SinDato({ children }: { children: string }) {
   return <span className="text-[var(--muted-foreground-strong)]">{children}</span>
 }
 
-export function FichaBase({ fila, demo, puedeMarcar, onCerrar, focoRespaldo }: {
+export function FichaBase({ fila, demo, puedeMarcar, onCerrar, focoRespaldo, modo = 'analista' }: {
   /** La fila abierta; null = cerrada. */
   fila: FilaBaseGestion | null
   demo: boolean
@@ -49,13 +56,18 @@ export function FichaBase({ fila, demo, puedeMarcar, onCerrar, focoRespaldo }: {
   onCerrar: () => void
   /** A dónde vuelve el foco si el lead salió de la lista con la ficha abierta (su vecino o la hoja). */
   focoRespaldo?: () => HTMLElement | null
+  /** `supervision` (F4): consulta + «Quitar No contactar»; sin registrar intentos ni reactivar. */
+  modo?: 'analista' | 'supervision'
 }): JSX.Element {
+  const consulta = modo === 'supervision'
   const { recargar } = useCRMData()
   const { abrirLead } = usePanelesActions()
   const ahora = useAhora()
   const id = useId()
   // El formulario del intento: ahí van el foco inicial y el de «Llamar» (sin buscarlo en la página).
   const formulario = useRef<HTMLFormElement>(null)
+  // Tras «Quitar No contactar» el pie desaparece: el foco va al cerrar de la ficha (siempre está), no se pierde.
+  const botonCerrar = useRef<HTMLButtonElement>(null)
   /** Un radio del resultado: el elegido, si `elegido` y hay uno; si no, el primero. */
   const radioDelResultado = (elegido = false): HTMLInputElement | null =>
     (elegido ? formulario.current?.querySelector<HTMLInputElement>('input[type="radio"]:checked') : null)
@@ -89,8 +101,9 @@ export function FichaBase({ fila, demo, puedeMarcar, onCerrar, focoRespaldo }: {
       open={fila != null}
       onClose={onCerrar}
       className="w-full max-w-full sm:w-[1120px] sm:max-w-[96vw]"
-      // Se abre para registrar: el foco empieza en el primer resultado y los atajos 1–7 funcionan de entrada.
-      focoInicial={() => radioDelResultado()}
+      // Se abre para registrar: el foco empieza en el primer resultado y los atajos 1–7 funcionan de entrada. En
+      // consulta no hay formulario: el foco va al primer control, como en cualquier hoja lateral.
+      focoInicial={() => (consulta ? null : radioDelResultado())}
       {...(focoRespaldo ? { focoRespaldo } : {})}
     >
       {fila && (
@@ -106,6 +119,7 @@ export function FichaBase({ fila, demo, puedeMarcar, onCerrar, focoRespaldo }: {
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Descartado</p>
               </div>
               <button
+                ref={botonCerrar}
                 type="button"
                 onClick={onCerrar}
                 aria-label="Cerrar la ficha"
@@ -122,9 +136,10 @@ export function FichaBase({ fila, demo, puedeMarcar, onCerrar, focoRespaldo }: {
                 {mes && <Badge color="var(--primary)">{etiquetaMesLead(mes)}</Badge>}
                 {/* Un solo hijo: el chip es flex con `gap` y dos piezas sueltas se separarían de más. */}
                 <Badge color="var(--muted-foreground-strong)"><span>Descarte · <span>{etiquetaMotivoDescarte(fila.motivo_descarte)}</span></span></Badge>
+                {esVetada(fila) && <Badge color="var(--destructive)" style={{ color: 'var(--destructive-text)' }}>No contactar</Badge>}
               </div>
             </div>
-            <ContactoBase fila={fila} puedeMarcar={puedeMarcar} onLlamar={alLlamar} />
+            {!consulta && <ContactoBase fila={fila} puedeMarcar={puedeMarcar} onLlamar={alLlamar} />}
           </SheetHeader>
 
           {/* `scroll-pb-28`: al enfocar un campo, el navegador lo deja por encima de la barra fija de «Guardar» (WCAG
@@ -152,21 +167,71 @@ export function FichaBase({ fila, demo, puedeMarcar, onCerrar, focoRespaldo }: {
                   <Fila label="Próxima llamada" className="lg:col-span-2"><ProximaLlamada iso={fila.proxima_llamada_en} ahora={ahora} /></Fila>
                 </dl>
               </section>
-              <RegistrarIntentoBase key={fila.lead_id} fila={fila} demo={demo} formRef={formulario} onDejaLaBase={(d) => alDejarLaBase(d, fila.lead_id)} />
+              {consulta ? (
+                <>
+                  {esVetada(fila) && <MarcaNoContactar fila={fila} ahora={ahora} />}
+                  <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-[13px] text-[var(--muted-foreground-strong)]">
+                    Ficha de consulta: los intentos y la reactivación los registra {fila.gestiona ?? 'su analista'} desde su base.
+                    Para repartir este descarte, usa «Descartes del mes».
+                  </p>
+                </>
+              ) : (
+                <RegistrarIntentoBase key={fila.lead_id} fila={fila} demo={demo} formRef={formulario} onDejaLaBase={(d) => alDejarLaBase(d, fila.lead_id)} />
+              )}
             </div>
             <HistorialBase leadId={fila.lead_id} />
           </SheetBody>
 
-          <SheetFooter role="group" aria-label="Acciones del lead" className="flex-wrap justify-between">
-            <AccionesBase
-              fila={fila}
-              demo={demo}
-              onReactivado={() => void alVolverACartera('Reactivado: el lead volvió a tu cartera como Contactado', fila.lead_id)}
-              onNoContactar={() => { onCerrar(); toast.info('Marcado «No contactar»: el lead salió de tu base') }}
-            />
-          </SheetFooter>
+          {!consulta ? (
+            <SheetFooter role="group" aria-label="Acciones del lead" className="flex-wrap justify-between">
+              <AccionesBase
+                fila={fila}
+                demo={demo}
+                onReactivado={() => void alVolverACartera('Reactivado: el lead volvió a tu cartera como Contactado', fila.lead_id)}
+                onNoContactar={() => { onCerrar(); toast.info('Marcado «No contactar»: el lead salió de tu base') }}
+              />
+            </SheetFooter>
+          ) : esVetada(fila) && (
+            <SheetFooter role="group" aria-label="Acciones del lead" className="flex-wrap justify-between">
+              <p className="text-[13px] text-[var(--muted-foreground-strong)]">Se levanta para la persona y todos sus leads.</p>
+              <QuitarNoContactar
+                fila={fila}
+                demo={demo}
+                focoTrasQuitar={botonCerrar}
+                onHecho={(n) => toast.success(n > 1
+                  ? `«No contactar» quitado: los ${n} leads de la persona pueden volver a llamarse`
+                  : '«No contactar» quitado: el lead puede volver a llamarse')}
+              />
+            </SheetFooter>
+          )}
         </>
       )}
     </Sheet>
+  )
+}
+
+/** La marca «No contactar» de un lead vetado (consulta de Supervisión y Gerencia): cuándo, motivo y quién; si vino de
+ *  otro lead de la persona, se dice. Si además descansa, hasta cuándo. */
+function MarcaNoContactar({ fila, ahora }: { fila: FilaBaseGestion; ahora: number }) {
+  const id = useId()
+  const propia = Boolean(fila.no_contactar_en || fila.no_contactar_motivo || fila.no_contactar_por)
+  const hasta = fila.enfriado_hasta ? Date.parse(fila.enfriado_hasta) : Number.NaN
+  const descansa = Number.isFinite(hasta) && hasta > ahora ? fechaLima(hasta).split('-').reverse().slice(0, 2).join('/') : null
+  return (
+    <section aria-labelledby={id} className="rounded-lg border border-destructive/40 bg-destructive/[0.04] px-3 py-2">
+      <h3 id={id} className="text-[11px] font-bold uppercase tracking-wide text-[var(--destructive-text)]">No contactar · Ley 29571</h3>
+      <dl className="mt-1 grid lg:grid-cols-2 lg:gap-x-5">
+        {propia ? (
+          <>
+            <Fila label="Desde">{fila.no_contactar_en ? etiquetaMomento(fila.no_contactar_en, ahora) : <SinDato>Sin dato</SinDato>}</Fila>
+            <Fila label="Marcó">{fila.no_contactar_por ?? <SinDato>Sin dato</SinDato>}</Fila>
+            <Fila label="Motivo" className="lg:col-span-2">{fila.no_contactar_motivo ?? <SinDato>Sin motivo</SinDato>}</Fila>
+          </>
+        ) : (
+          <Fila label="Origen" className="lg:col-span-2">La marca viene de otro lead de la misma persona.</Fila>
+        )}
+        {descansa && <Fila label="Descanso" className="lg:col-span-2">Descansa hasta el {descansa}</Fila>}
+      </dl>
+    </section>
   )
 }
