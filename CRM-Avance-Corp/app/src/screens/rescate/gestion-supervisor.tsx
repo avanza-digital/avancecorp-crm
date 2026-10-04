@@ -12,6 +12,7 @@
 // cifras; la lista llega igual (reintento sin el parámetro) y la pantalla no ofrece lo que aún no existe.
 import { useEffect, useId, useMemo, useRef, useState, type JSX } from 'react'
 import { flushSync } from 'react-dom'
+import { toast } from 'sonner'
 import { ArchiveRestore, Ban, FunnelX, RotateCcw, X } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
@@ -190,11 +191,24 @@ export function GestionSupervisor({ analistaInicial, onAnalista }: {
     const r = await base.refetch()
     if (r.isSuccess) requestAnimationFrame(() => resumen.current?.focus())
   }
+  // Desde el detalle de una cifra manda `sigue_en_base` (lo acaba de leer el servidor), no la lista de la hoja, que
+  // puede ser de hace un rato (Codex F4 r1): si otro usuario reactivó el lead, la ficha de la base ya no aplica.
   const enLaBase = (leadId: string) => filasTodas.some((f) => f.lead_id === leadId)
-  const abribleDetalle = (f: FilaDetalleCifra) => enLaBase(f.lead_id) || lead(f.lead_id) !== undefined
-  const abrirDesdeDetalle = (f: FilaDetalleCifra) => {
-    if (enLaBase(f.lead_id)) setFichaId(f.lead_id)
-    else abrirLead(f.lead_id)
+  const abribleDetalle = (f: FilaDetalleCifra) => f.sigue_en_base || lead(f.lead_id) !== undefined
+  const abrirDesdeDetalle = async (f: FilaDetalleCifra) => {
+    const enLista = enLaBase(f.lead_id)
+    if (f.sigue_en_base) {
+      if (enLista) { setFichaId(f.lead_id); return }
+      // Sigue en la base pero la lista no lo tiene (volvió hace poco): se pone al día ANTES de abrir.
+      const filas = real ? (await base.refetch()).data?.filas : undefined
+      if (filas?.some((x) => x.lead_id === f.lead_id)) setFichaId(f.lead_id)
+      else toast.info('Ese lead ya no aparece en la base. La lista se actualizó.')
+      return
+    }
+    // Salió de la base: si la lista aún lo muestra, está vieja y se refresca; se abre su ficha normal (cartera).
+    if (enLista && real) void base.refetch()
+    if (lead(f.lead_id)) abrirLead(f.lead_id)
+    else toast.info('Ese lead ya salió de la base y no está entre los leads que puedes abrir.')
   }
 
   return (
@@ -219,17 +233,28 @@ export function GestionSupervisor({ analistaInicial, onAnalista }: {
             </Button>
           </div>
         ) : (
-          <PanelAnalistas
-            idTitulo={idPanel}
-            regionRef={regionPanel}
-            filas={resumenPanel ?? []}
-            esMovil={esMovil}
-            conDetalle={conB6b}
-            analistaActivo={filtros.analista === FILTRO_TODOS ? null : filtros.analista}
-            onVerEnBase={(id) => verAnalista(id, 'hoja')}
-            onVerHoy={(id) => verAnalista(id, 'hoy')}
-            onDetalle={abrirDetalle}
-          />
+          <>
+            {/* Refresco fallido con datos en caché (Codex F4 r1): se conservan, pero se DICE que no están al día. */}
+            {real && panel.isError && (
+              <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-4 py-2.5">
+                <p role="alert" className="text-sm text-[var(--muted-foreground-strong)]">No se pudo actualizar el panel por analista. Se muestran los últimos datos.</p>
+                <Button variant="outline" size="sm" className="pointer-coarse:h-11" aria-disabled={panel.isFetching || undefined} onClick={() => void reintentarPanel()}>
+                  <RotateCcw aria-hidden /> Reintentar
+                </Button>
+              </div>
+            )}
+            <PanelAnalistas
+              idTitulo={idPanel}
+              regionRef={regionPanel}
+              filas={resumenPanel ?? []}
+              esMovil={esMovil}
+              conDetalle={conB6b}
+              analistaActivo={filtros.analista === FILTRO_TODOS ? null : filtros.analista}
+              onVerEnBase={(id) => verAnalista(id, 'hoja')}
+              onVerHoy={(id) => verAnalista(id, 'hoy')}
+              onDetalle={abrirDetalle}
+            />
+          </>
         )}
       </div>
 
@@ -384,17 +409,18 @@ export function GestionSupervisor({ analistaInicial, onAnalista }: {
       )}
 
       <DetalleCifra
-        abierta={cifraAbierta}
+        // La cifra del título sigue al panel vigente (tras la medianoche o un refresco, no se queda con la de antes).
+        abierta={cifraAbierta && { ...cifraAbierta, valor: resumenPanel?.find((r) => r.vendedor_id === cifraAbierta.vendedorId)?.[cifraAbierta.cifra] ?? cifraAbierta.valor }}
         filas={real ? detalle.data : cifraAbierta && demo ? demo.detalle(cifraAbierta.vendedorId, cifraAbierta.cifra) : undefined}
         cargando={real && detalle.isPending}
         error={real && detalle.isError}
         reintentando={real && detalle.isFetching}
-        onReintentar={() => void detalle.refetch()}
+        onReintentar={async () => (await detalle.refetch()).isSuccess}
         ahora={ahora}
         esMovil={esMovil}
         onCerrar={() => setCifraAbierta(null)}
         abrible={abribleDetalle}
-        onAbrirLead={abrirDesdeDetalle}
+        onAbrirLead={(f) => void abrirDesdeDetalle(f)}
         focoRespaldo={() => regionPanel.current ?? tituloPanel.current}
       />
 

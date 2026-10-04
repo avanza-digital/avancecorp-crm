@@ -33,6 +33,7 @@ import {
   etiquetaOrigen,
   etiquetaUltimoResultado,
   esVetada,
+  mensajeNoContactarQuitado,
   mesDelLead,
   type FilaBaseGestion,
 } from '@/lib/base-gestion'
@@ -198,9 +199,7 @@ export function FichaBase({ fila, demo, puedeMarcar, onCerrar, focoRespaldo, mod
                 fila={fila}
                 demo={demo}
                 focoTrasQuitar={botonCerrar}
-                onHecho={(n) => toast.success(n > 1
-                  ? `«No contactar» quitado: los ${n} leads de la persona pueden volver a llamarse`
-                  : '«No contactar» quitado: el lead puede volver a llamarse')}
+                onHecho={(n) => toast.success(mensajeNoContactarQuitado(n, fila.enfriado_hasta, Date.now()))}
               />
             </SheetFooter>
           )}

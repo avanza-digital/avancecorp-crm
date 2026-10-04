@@ -151,7 +151,7 @@ test('«Ver no contactar» → ficha de consulta → «Quitar No contactar» man
   expect(levantar).toHaveLength(0)
   await dialogo.getByLabel('Motivo').fill('Volvió a pedir información por WhatsApp')
   await dialogo.getByRole('button', { name: 'Quitar la marca' }).click()
-  await expect(page.getByText('«No contactar» quitado: los 2 leads de la persona pueden volver a llamarse')).toBeVisible()
+  await expect(page.getByText('«No contactar» quitado para la persona y sus 2 leads.')).toBeVisible()
   expect(levantar).toEqual([{ p_lead_id: VETADO, p_motivo: 'Volvió a pedir información por WhatsApp' }])
   // Tras refrescar, el lead ya no está vetado: la ficha sigue abierta sin la marca y sin el botón.
   await expect(ficha.getByRole('button', { name: /Quitar «No contactar»/ })).toHaveCount(0)

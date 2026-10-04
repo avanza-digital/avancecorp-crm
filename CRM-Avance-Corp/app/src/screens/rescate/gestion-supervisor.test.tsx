@@ -12,7 +12,7 @@ import type { Lead, Miembro } from '@/lib/tipos'
 let YO: { id: string; rol: string; demo: boolean } | null = null
 let LEADS: Lead[] = []
 let EQUIPO: Miembro[] = []
-const refetch = vi.fn()
+const refetch = vi.fn(async () => ({ isSuccess: false, data: undefined }))
 type Consulta<T> = { data?: T; isPending: boolean; isError: boolean; isFetching: boolean; isPlaceholderData?: boolean; refetch: () => void }
 let BASE: (incluirVetados: boolean) => Consulta<LecturaBaseGestion>
 let PANEL: Consulta<FilaResumenBase[]>
@@ -21,11 +21,14 @@ const useBaseGestionEquipo = vi.fn((_h: boolean, v: boolean) => BASE(v))
 const useBaseGestionResumen = vi.fn((_h: boolean) => PANEL)
 const useBaseGestionResumenDetalle = vi.fn((_h: boolean, _id: string | null, _c: string | null) => DETALLE)
 const abrirLead = vi.fn()
+/** Los leads que el CRM tiene cargados (la ficha normal solo abre esos). */
+let EN_CARTERA = new Set<string>()
+const toastInfo = vi.fn()
 
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), info: vi.fn(), error: vi.fn() } }))
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), info: toastInfo, error: vi.fn() } }))
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
 vi.mock('@/lib/store-context', () => ({
-  useCRMData: () => ({ leads: LEADS, equipo: EQUIPO, lead: (id: string) => (id === 'en-cartera' ? ({ id } as Lead) : undefined), recargar: async () => true }),
+  useCRMData: () => ({ leads: LEADS, equipo: EQUIPO, lead: (id: string) => (EN_CARTERA.has(id) ? ({ id } as Lead) : undefined), recargar: async () => true }),
   usePanelesActions: () => ({ abrirLead }),
 }))
 vi.mock('@/data/crm-queries', () => ({
@@ -75,6 +78,7 @@ beforeEach(() => {
   BASE = (v) => listo({ filas: [fila(1), fila(2, { vendedor_id: BETO, gestiona: 'BETO RÍOS' })], conVetados: true }, { isPlaceholderData: false, ...(v ? {} : {}) })
   PANEL = listo([resumen(), resumen({ vendedor_id: BETO, nombre: 'BETO RÍOS', en_base: 1, rellamadas_hoy: 0, intentos_hoy: 0, reactivaciones_mes: 2 })])
   DETALLE = { isPending: true, isError: false, isFetching: true, refetch }
+  EN_CARTERA = new Set(['en-cartera'])
 })
 afterEach(() => { vi.clearAllMocks(); vi.useRealTimers() })
 
@@ -117,6 +121,14 @@ describe('ESTADO DE PRODUCCIÓN (gate de realidad)', () => {
     await userEvent.click(screen.getByRole('button', { name: /Reintentar/ }))
     rerender(<GestionSupervisor analistaInicial={null} onAnalista={onAnalista} />)
     await vi.waitFor(() => expect(screen.getByRole('heading', { name: 'Por analista' })).toHaveFocus())
+  })
+
+  it('refresco del panel FALLIDO con datos en caché: se conservan, pero se dice que no están al día y se ofrece reintentar', () => {
+    PANEL = listo([resumen()], { isError: true })
+    montar()
+    expect(screen.getByRole('alert')).toHaveTextContent('No se pudo actualizar el panel por analista. Se muestran los últimos datos.')
+    expect(within(panel()).getByRole('rowheader', { name: /ANA PÉREZ/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Reintentar/ })).toBeInTheDocument()
   })
 
   it('si la base falla sin datos, error con reintento', () => {
@@ -234,6 +246,70 @@ describe('el panel por analista: todo número se abre', () => {
     expect(abrirLead).toHaveBeenCalledWith('en-cartera')
     await userEvent.click(within(detalle).getByRole('button', { name: 'LEAD BASE 1' }))
     expect(screen.getByText('Ficha de LEAD BASE 1 (supervision)')).toBeInTheDocument()
+  })
+
+  it('refresco del detalle FALLIDO con la lista en caché: la conserva y avisa con «Reintentar»', async () => {
+    DETALLE = listo([{ lead_id: 'lead-1', nombre_completo: 'LEAD BASE 1', en: '2026-10-03T15:00:00Z', detalle: 'no_contesto', autor: 'ANA PÉREZ', sigue_en_base: true }], { isError: true })
+    montar()
+    await userEvent.click(within(panel()).getByRole('button', { name: /ANA PÉREZ, intentos de hoy:\s?3/ }))
+    const detalle = screen.getByRole('dialog', { name: /Intentos de hoy/ })
+    expect(within(detalle).getByRole('alert')).toHaveTextContent('No se pudo actualizar el detalle. Se muestran los últimos datos.')
+    expect(within(detalle).getByRole('button', { name: 'LEAD BASE 1' })).toBeInTheDocument()
+    await userEvent.click(within(detalle).getByRole('button', { name: /Reintentar/ }))
+    expect(refetch).toHaveBeenCalled()
+  })
+
+  it('«Reactivaciones del mes»: la nota de quien reactivó se lee literal (no se traduce como resultado)', async () => {
+    DETALLE = listo([{ lead_id: 'x', nombre_completo: 'LEAD REACTIVADO', en: '2026-10-03T15:00:00Z', detalle: 'no_contesto', autor: 'BETO RÍOS', sigue_en_base: false }])
+    montar()
+    await userEvent.click(within(panel()).getByRole('button', { name: /BETO RÍOS, reactivaciones del mes:\s?2/ }))
+    const detalle = screen.getByRole('dialog', { name: /Reactivaciones del mes/ })
+    expect(within(detalle).getByText('no_contesto')).toBeInTheDocument()
+    expect(within(detalle).queryByText('No contestó')).toBeNull()
+  })
+
+  it('REACTIVADO POR OTRO USUARIO: la hoja aún lo muestra, pero el detalle dice que salió; manda el servidor: se refresca la lista y se abre su ficha normal, no la de la base', async () => {
+    const refetchBase = vi.fn(async () => ({ data: { filas: [fila(2, { vendedor_id: BETO, gestiona: 'BETO RÍOS' })], conVetados: true }, isSuccess: true }))
+    BASE = () => ({ ...listo<LecturaBaseGestion>({ filas: [fila(1), fila(2, { vendedor_id: BETO, gestiona: 'BETO RÍOS' })], conVetados: true }), refetch: refetchBase })
+    EN_CARTERA = new Set(['lead-1'])
+    DETALLE = listo([{ lead_id: 'lead-1', nombre_completo: 'LEAD BASE 1', en: '2026-10-03T15:00:00Z', detalle: 'agendo_reunion', autor: 'OTRO USUARIO', sigue_en_base: false }])
+    montar()
+    await userEvent.click(within(panel()).getByRole('button', { name: /ANA PÉREZ, intentos de hoy:\s?3/ }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: /Intentos de hoy/ })).getByRole('button', { name: 'LEAD BASE 1' }))
+    expect(refetchBase).toHaveBeenCalled()
+    expect(abrirLead).toHaveBeenCalledWith('lead-1')
+    expect(screen.queryByText(/Ficha de LEAD BASE 1/)).toBeNull()
+  })
+
+  it('reactivado por otro y fuera del CRM cargado: se lee pero no se abre (ni la ficha de la base con la lista vieja)', async () => {
+    DETALLE = listo([{ lead_id: 'lead-1', nombre_completo: 'LEAD BASE 1', en: '2026-10-03T15:00:00Z', detalle: null, autor: null, sigue_en_base: false }])
+    montar()
+    await userEvent.click(within(panel()).getByRole('button', { name: /ANA PÉREZ, intentos de hoy:\s?3/ }))
+    const detalle = screen.getByRole('dialog', { name: /Intentos de hoy/ })
+    expect(within(detalle).queryByRole('button', { name: 'LEAD BASE 1' })).toBeNull()
+  })
+
+  it('SIGUE en la base pero la hoja aún no lo tiene: se pone al día la lista ANTES de abrir su ficha', async () => {
+    let filas = [fila(1)]
+    const refetchBase = vi.fn(async () => { filas = [fila(1), fila(7)]; return { data: { filas, conVetados: true }, isSuccess: true } })
+    BASE = () => ({ ...listo<LecturaBaseGestion>({ filas, conVetados: true }), refetch: refetchBase })
+    DETALLE = listo([{ lead_id: 'lead-7', nombre_completo: 'LEAD BASE 7', en: '2026-10-03T15:00:00Z', detalle: 'no_contesto', autor: 'ANA PÉREZ', sigue_en_base: true }])
+    montar()
+    await userEvent.click(within(panel()).getByRole('button', { name: /ANA PÉREZ, intentos de hoy:\s?3/ }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: /Intentos de hoy/ })).getByRole('button', { name: 'LEAD BASE 7' }))
+    expect(refetchBase).toHaveBeenCalled()
+    expect(await screen.findByText('Ficha de LEAD BASE 7 (supervision)')).toBeInTheDocument()
+  })
+
+  it('sigue en la base según el servidor, pero tras ponerse al día tampoco está: lo dice, no abre nada', async () => {
+    const refetchBase = vi.fn(async () => ({ data: { filas: [fila(1)], conVetados: true }, isSuccess: true }))
+    BASE = () => ({ ...listo<LecturaBaseGestion>({ filas: [fila(1)], conVetados: true }), refetch: refetchBase })
+    DETALLE = listo([{ lead_id: 'lead-7', nombre_completo: 'LEAD BASE 7', en: '2026-10-03T15:00:00Z', detalle: 'no_contesto', autor: 'ANA PÉREZ', sigue_en_base: true }])
+    montar()
+    await userEvent.click(within(panel()).getByRole('button', { name: /ANA PÉREZ, intentos de hoy:\s?3/ }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: /Intentos de hoy/ })).getByRole('button', { name: 'LEAD BASE 7' }))
+    expect(toastInfo).toHaveBeenCalledWith('Ese lead ya no aparece en la base. La lista se actualizó.')
+    expect(screen.queryByText(/Ficha de LEAD BASE 7/)).toBeNull()
   })
 
   it('el detalle que el servidor aún no tiene (null) dice «no disponible», nunca «cero»', async () => {

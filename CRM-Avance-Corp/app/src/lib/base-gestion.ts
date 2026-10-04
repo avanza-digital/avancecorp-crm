@@ -98,10 +98,25 @@ export const FilaDetalleCifraSchema = v.object({
 })
 export type FilaDetalleCifra = v.InferOutput<typeof FilaDetalleCifraSchema>
 
-/** El detalle de un intento dice su resultado con los nombres de siempre («No contestó»); otro texto, tal cual. */
-export function etiquetaDetalleCifra(detalle: string | null): string | null {
+/**
+ * Lo que se dice tras «Quitar No contactar» (Codex F4 r1): solo lo que pasó —se quitó la marca, para la persona y sus
+ * leads— sin prometer que se le puede llamar ya: si el lead está en descanso, sigue en descanso y se dice hasta cuándo.
+ */
+export function mensajeNoContactarQuitado(leadsAfectados: number, enfriadoHasta: string | null, ahora: number = Date.now()): string {
+  const base = leadsAfectados > 1
+    ? `«No contactar» quitado para la persona y sus ${leadsAfectados} leads.`
+    : leadsAfectados === 1 ? '«No contactar» quitado para la persona y su lead.' : '«No contactar» quitado.'
+  const hasta = enfriadoHasta ? Date.parse(enfriadoHasta) : Number.NaN
+  if (!Number.isFinite(hasta) || hasta <= ahora) return base
+  const [, mes, dia] = fechaLima(hasta).split('-')
+  return `${base} Este lead sigue en descanso hasta el ${dia}/${mes}.`
+}
+
+/** El detalle de un INTENTO trae la clave del resultado y se lee con su nombre («No contestó»); el de una
+ *  reactivación es la nota que escribió quien reactivó y se muestra tal cual, aunque parezca una clave (Codex F4 r1). */
+export function etiquetaDetalleCifra(detalle: string | null, cifra: CifraDetalle): string | null {
   if (!detalle) return null
-  return etiquetaResultado(detalle)
+  return cifra === 'intentos_hoy' ? etiquetaResultado(detalle) : detalle
 }
 
 /** «Cita agendada», «Entrevista realizada»… con los mismos nombres que el pipeline. */
