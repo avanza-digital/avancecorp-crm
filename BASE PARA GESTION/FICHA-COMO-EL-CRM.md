@@ -6,7 +6,13 @@
 1. **Forma:** ancha (1120 px, dos columnas) con el lenguaje de la ficha del lead (`lead-drawer.tsx`).
 2. **«¿Qué pasó con la llamada?»: UNA sola pieza** compartida por Mi día, la ficha del CRM y la base (nada de copias).
 3. **«No contactar» y «Reactivar» en un pie fijo**, como «Descartar · Convertir».
-4. Pendiente: ¿WhatsApp en la ficha de la base? La puerta de la base solo registra llamadas.
+4. Sin WhatsApp: solo Llamar y Copiar número (la puerta de la base solo registra llamadas).
+5. **Pieza APROBADA** (03/10 noche): «me gusta mucho cómo se ve».
+
+## Avance
+- Paso 1 ☑ `f9f87685` · Paso 2 ☑ `8706aacc` (rama `crm/base-gestion-ficha-crm` sobre el vivo `3e248407`). `npm run check` PASS (5696);
+  E2E Docker 45 pasan + 1 rojo previo (`gestion-diaria-vuelta.spec.ts:11`, fecha fija del 30/09).
+- Pasos 3 y 4 ◉ en construcción.
 
 Pieza visual a escala real: `../ui-playground/ficha-base-gestion.html` (fuera del repo).
 
