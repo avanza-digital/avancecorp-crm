@@ -15,6 +15,12 @@ pre-commit:
       # Incremental (tsbuildinfo): rápido tras la primera corrida.
       run: npm run typecheck
 
+# Aplica a TODO commit (sin glob): quita la atribución de IA del mensaje.
+commit-msg:
+  jobs:
+    - name: sin-atribucion-ia
+      run: sh scripts/commit-msg-sin-claude.sh {1}
+
 pre-push:
   jobs:
     - name: crm-tests
