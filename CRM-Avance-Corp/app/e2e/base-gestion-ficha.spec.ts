@@ -46,8 +46,13 @@ test('la ficha de la base registra «volver a llamar» con su fecha y reactiva e
   const ficha = page.getByRole('dialog', { name: 'ROSA BASE E2E' })
   await expect(ficha.getByText('Intento 1 · No contestó')).toBeVisible()
 
-  const formulario = ficha.getByRole('form', { name: 'Registrar el intento' })
+  const formulario = ficha.getByRole('form', { name: '¿Qué pasó con la llamada?' })
   await formulario.getByText('No contestó', { exact: true }).click()
+  // Elegido, la lista se contrae (el selector de Gestión Diaria): otro atajo no lo cambia hasta «Cambiar resultado».
+  await expect(formulario.getByRole('radio')).toHaveCount(1)
+  await page.keyboard.press('2')
+  await expect(formulario.getByRole('radio', { name: /No contestó/ })).toBeChecked()
+  await formulario.getByRole('button', { name: 'Cambiar resultado' }).click()
   await page.keyboard.press('2')
   await expect(formulario.getByRole('radio', { name: /volver a llamar/ })).toBeChecked()
   await formulario.getByLabel(/Nota/).fill('pidió que lo llamen mañana')

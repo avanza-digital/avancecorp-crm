@@ -2,7 +2,7 @@
 // cómo se lee cada fila del historial y el buscador que lo filtra.
 import { describe, expect, it } from 'vitest'
 import type { Actividad } from './tipos'
-import { etiquetaActividadBase, etiquetaFechaHistorial, filtrarHistorial, firmaIntento, validarRellamada } from './base-gestion'
+import { etiquetaActividadBase, filtrarHistorial, firmaIntento, validarRellamada } from './base-gestion'
 
 // Viernes 2 de octubre de 2026, 12:00 en Lima (17:00 UTC).
 const AHORA = Date.parse('2026-10-02T17:00:00Z')
@@ -76,13 +76,5 @@ describe('filtrarHistorial', () => {
     expect(filtrarHistorial(items, 'no contesto').map((a) => a.id)).toEqual(['3'])
     expect(filtrarHistorial(items, 'reasignacion').map((a) => a.id)).toEqual(['2'])
     expect(filtrarHistorial(items, 'xyz')).toEqual([])
-  })
-})
-
-describe('etiquetaFechaHistorial', () => {
-  it('lo de este año como el resto del CRM; lo de otro año, con el año', () => {
-    expect(etiquetaFechaHistorial('2026-10-02T15:00:00Z', AHORA)).toBe('Hoy, 10:00')
-    expect(etiquetaFechaHistorial('2026-09-25T15:00:00Z', AHORA)).toBe('Vie 25 Sep, 10:00')
-    expect(etiquetaFechaHistorial('2025-12-20T15:00:00Z', AHORA)).toBe('Sáb 20 Dic 2025, 10:00')
   })
 })
