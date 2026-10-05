@@ -19,6 +19,7 @@ vi.mock('@/data/crm-api', async (original) => ({
   ...await original<typeof import('@/data/crm-api')>(), listarCarteraPagina: mocks.listar,
 }))
 import { LeadsRecibidosHoy } from './leads-recibidos-hoy'
+import { AgendaLeadsHoy } from './agenda-leads-hoy'
 
 const AHORA = Date.parse('2026-10-05T15:00:00Z')
 const clientes: QueryClient[] = []
@@ -34,10 +35,10 @@ function pagina(items: Lead[], total = items.length, cursor: PaginaCartera['curs
     embudo: [{ etapa: 'nuevo', n: total }],
   } }
 }
-function montar(ahora = AHORA) {
+function montar(ahora = AHORA, conPestanas = false) {
   const cliente = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
   clientes.push(cliente)
-  return render(<LeadsRecibidosHoy ahora={ahora} />, {
+  return render(conPestanas ? <AgendaLeadsHoy ahora={ahora} agenda={<p>Agenda visible</p>} /> : <LeadsRecibidosHoy ahora={ahora} />, {
     wrapper: ({ children }) => <QueryClientProvider client={cliente}>{children}</QueryClientProvider>,
   })
 }
@@ -46,6 +47,99 @@ beforeEach(() => {
   vi.spyOn(Date, 'now').mockReturnValue(AHORA)
   mocks.yo = { id: 'v-1', demo: false }
   mocks.leads = []
+})
+
+describe('Agenda y contador de recibidos hoy', () => {
+  it('el sondeo no cancela una página en vuelo ni pierde el foco de sus filas nuevas', async () => {
+    const reloj = vi.spyOn(window, 'setInterval')
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+    let resolver!: (valor: PaginaCartera) => void
+    const siguiente = new Promise<PaginaCartera>(res => { resolver = res })
+    mocks.listar.mockResolvedValueOnce(pagina([lead('primero')], 2, { id: 'primero', actualizadoEn: '2026-10-05T14:00:00Z' }))
+      .mockReturnValueOnce(siguiente)
+    montar(AHORA, true)
+    fireEvent.click(await screen.findByRole('tab', { name: 'Leads de hoy 2' }))
+    const cargar = screen.getByRole('button', { name: 'Cargar más leads de hoy' })
+    cargar.focus()
+    fireEvent.click(cargar)
+    await waitFor(() => expect(cargar).toHaveAttribute('aria-disabled', 'true'))
+    const tick = reloj.mock.calls.find(([, ms]) => ms === 60_000)?.[0]
+    if (typeof tick !== 'function') throw new Error('Falta el sondeo de un minuto')
+    await act(async () => { tick() })
+    expect(mocks.listar).toHaveBeenCalledTimes(2)
+    await act(async () => { resolver(pagina([lead('segundo')], 2)) })
+    expect(await screen.findByRole('button', { name: 'Abrir lead LEAD segundo' })).toHaveFocus()
+  })
+
+  it('avisa del total completo desde la agenda y no lo borra al abrir la lista o una ficha', async () => {
+    mocks.listar.mockResolvedValue(pagina([lead('primero')], 55, { id: 'primero', actualizadoEn: '2026-10-05T14:00:00Z' }))
+    montar(AHORA, true)
+    const pestana = await screen.findByRole('tab', { name: 'Leads de hoy 55' })
+    expect(screen.getByText('Agenda visible')).toBeInTheDocument()
+    expect(pestana.querySelector('[data-aviso="true"]')).not.toBeNull()
+    fireEvent.click(pestana)
+    expect(pestana).toHaveAttribute('aria-selected', 'true')
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir lead LEAD primero' }))
+    expect(mocks.abrirLead).toHaveBeenCalledWith('primero')
+    expect(pestana).toHaveTextContent('55')
+    expect(pestana.querySelector('[data-aviso="true"]')).not.toBeNull()
+    fireEvent.keyDown(pestana, { key: 'ArrowLeft' })
+    expect(screen.getByRole('tab', { name: 'Tu agenda de hoy' })).toHaveFocus()
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Tu agenda de hoy' }), { key: 'ArrowRight' })
+    expect(pestana).toHaveFocus()
+    expect(mocks.listar).toHaveBeenCalledTimes(1)
+  })
+
+  it('recibe nuevas asignaciones con la agenda abierta y comparte la lista ya actualizada', async () => {
+    const reloj = vi.spyOn(window, 'setInterval')
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+    mocks.listar.mockResolvedValueOnce(pagina([lead('primero')])).mockResolvedValue(pagina([lead('primero'), lead('nuevo')]))
+    montar(AHORA, true)
+    await screen.findByRole('tab', { name: 'Leads de hoy 1' })
+    expect(screen.queryByRole('region', { name: 'Leads recibidos hoy' })).not.toBeInTheDocument()
+    const intervalos = reloj.mock.calls.filter(([, ms]) => ms === 60_000)
+    expect(intervalos).toHaveLength(1)
+    const tick = intervalos[0]?.[0]
+    if (typeof tick !== 'function') throw new Error('Falta el sondeo de un minuto')
+    await act(async () => { tick() })
+    const pestana = await screen.findByRole('tab', { name: 'Leads de hoy 2' })
+    expect(screen.getByText('Agenda visible')).toBeInTheDocument()
+    fireEvent.click(pestana)
+    expect(screen.getByRole('button', { name: 'Abrir lead LEAD nuevo' })).toBeInTheDocument()
+    expect(mocks.listar).toHaveBeenCalledTimes(2)
+  })
+
+  it('no presenta el error como cero y el vacío confirmado no lleva aviso', async () => {
+    mocks.listar.mockRejectedValueOnce(new Error('sin conexión')).mockResolvedValue(pagina([]))
+    montar(AHORA, true)
+    fireEvent.click(screen.getByRole('tab', { name: 'Leads de hoy' }))
+    await screen.findByRole('alert')
+    expect(screen.getByRole('tab', { name: 'Leads de hoy' }).querySelector('.hoy-leads-contador')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+    const pestana = await screen.findByRole('tab', { name: 'Leads de hoy 0' })
+    expect(pestana.querySelector('[data-aviso="true"]')).toBeNull()
+    expect(screen.getByText('Todavía no has recibido leads hoy.')).toBeInTheDocument()
+  })
+
+  it('cambia contador y consulta al cruzar el día de Lima o cambiar de analista', async () => {
+    mocks.listar.mockResolvedValueOnce(pagina([lead('ayer')], 7)).mockResolvedValue(pagina([]))
+    const antes = Date.parse('2026-10-06T04:59:00Z')
+    vi.mocked(Date.now).mockReturnValue(antes)
+    const vista = montar(antes, true)
+    await screen.findByRole('tab', { name: 'Leads de hoy 7' })
+    const despues = Date.parse('2026-10-06T05:00:00Z')
+    vi.mocked(Date.now).mockReturnValue(despues)
+    vista.rerender(<AgendaLeadsHoy ahora={despues} agenda={<p>Agenda visible</p>} />)
+    expect(screen.queryByRole('tab', { name: 'Leads de hoy 7' })).not.toBeInTheDocument()
+    await screen.findByRole('tab', { name: 'Leads de hoy 0' })
+    expect(mocks.listar).toHaveBeenLastCalledWith(expect.objectContaining({ recepcion: { desde: '2026-10-06', hasta: '2026-10-06' } }), null, expect.any(AbortSignal))
+    mocks.yo = { id: 'v-2', demo: false }
+    mocks.listar.mockResolvedValue(pagina([lead('otro-titular', { vendedor_id: 'v-2' })], 2))
+    vista.rerender(<AgendaLeadsHoy ahora={despues} agenda={<p>Agenda visible</p>} />)
+    expect(screen.queryByRole('tab', { name: 'Leads de hoy 0' })).not.toBeInTheDocument()
+    await screen.findByRole('tab', { name: 'Leads de hoy 2' })
+    expect(mocks.listar).toHaveBeenLastCalledWith(expect.objectContaining({ vendedorId: 'v-2' }), null, expect.any(AbortSignal))
+  })
 })
 afterEach(() => { clientes.splice(0).forEach(c => c.clear()); vi.restoreAllMocks() })
 

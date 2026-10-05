@@ -3,41 +3,28 @@ import { ChevronRight, RefreshCw, UserPlus } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { useCarteraPaginada } from '@/data/use-cartera-paginada'
-import { fechaLima } from '@/lib/agenda-derivada'
-import { useAuth } from '@/lib/auth-context'
 import { numero } from '@/lib/format'
-import { useCRMData, usePanelesActions } from '@/lib/store-context'
+import { usePanelesActions } from '@/lib/store-context'
 import { cn } from '@/lib/utils'
+import { useLeadsRecibidosHoy, type DatosLeadsRecibidosHoy } from './use-leads-recibidos-hoy'
 
 /** Recepción, no creación ni etapa: incluye los recibidos hoy aunque ya se
  * hayan gestionado. En real el ledger del servidor filtra ANTES de paginar. */
-export function LeadsRecibidosHoy({ ahora, className }: { ahora: number; className?: string }): JSX.Element {
+export function LeadsRecibidosHoy({ ahora, className, integrado = false }: { ahora: number; className?: string; integrado?: boolean }): JSX.Element {
+  const datos = useLeadsRecibidosHoy(ahora)
+  return <ListaLeadsRecibidosHoy datos={datos} className={className} integrado={integrado} />
+}
+
+/** El panel y su pestaña consumen la misma foto, sin consultas ni sondeos dobles. */
+export function ListaLeadsRecibidosHoy({ datos, className, integrado = false }: {
+  datos: DatosLeadsRecibidosHoy; className?: string | undefined; integrado?: boolean
+}): JSX.Element {
   const tituloId = useId()
-  const { yo } = useAuth()
-  const { ambito } = useCRMData()
+  const { cartera, total, demo } = datos
   const { abrirLead } = usePanelesActions()
-  const hoy = fechaLima(ahora)
-  const cartera = useCarteraPaginada(ambito.leads, {
-    vendedorId: yo?.id ?? 'sin_asignar',
-    recepcion: { desde: hoy, hasta: hoy },
-  })
-  const total = cartera.cargando || cartera.error ? null : cartera.resumen?.totales.vivos
-  const sesionReal = Boolean(yo && !yo.demo)
-  const recargarRef = useRef(cartera.recargar)
   const listaRef = useRef<HTMLUListElement>(null)
   const reintentarRef = useRef<HTMLButtonElement>(null)
   const enfocarDesde = useRef<number | null>(null)
-  useEffect(() => { recargarRef.current = cartera.recargar }, [cartera.recargar])
-  // Las asignaciones de otro usuario no disparan una mutación en esta pestaña.
-  // El foco/reconexión ya refresca la caché; este sondeo cubre quedarse en Hoy.
-  useEffect(() => {
-    if (!sesionReal) return
-    const intervalo = window.setInterval(() => {
-      if (document.visibilityState !== 'hidden') void recargarRef.current()
-    }, 60_000)
-    return () => window.clearInterval(intervalo)
-  }, [yo?.id, sesionReal])
   useEffect(() => {
     if (enfocarDesde.current == null || cartera.cargandoMas) return
     if (cartera.leads.length > enfocarDesde.current) {
@@ -49,22 +36,23 @@ export function LeadsRecibidosHoy({ ahora, className }: { ahora: number; classNa
   }, [cartera.leads.length, cartera.cargandoMas, cartera.error])
 
   return (
-    <Card role="region" aria-labelledby={tituloId} className={cn('flex min-h-0 min-w-0 flex-col', className)}>
-      <div className="flex shrink-0 items-center gap-2 px-5 pt-3 pb-1">
-        <UserPlus className="size-4 shrink-0 text-accent" aria-hidden />
-        <h3 id={tituloId} className="text-[15px] font-bold tracking-tight">Leads recibidos hoy</h3>
+    <Card role="region" aria-labelledby={tituloId} className={cn('flex min-h-0 min-w-0 flex-col', integrado && 'flex-1 rounded-none border-0 bg-transparent shadow-none', className)}>
+      <div className={cn('flex shrink-0 items-center gap-2 px-5 pb-1', integrado ? 'pt-0' : 'pt-3')}>
+        {!integrado && <UserPlus className="size-4 shrink-0 text-accent" aria-hidden />}
+        <h3 id={tituloId} className={integrado ? 'sr-only' : 'text-[15px] font-bold tracking-tight'}>Leads recibidos hoy</h3>
+        {integrado && <span className="text-xs text-muted-foreground">Recibidos hoy</span>}
         {total != null && <>
           <Badge aria-hidden>{numero(total)}</Badge>
           <span className="sr-only">{numero(total)} {total === 1 ? 'lead recibido hoy' : 'leads recibidos hoy'}</span>
         </>}
-        {!yo?.demo && <Button className="ml-auto shrink-0" variant="ghost" size="icon"
+        {!demo && <Button className="ml-auto shrink-0" variant="ghost" size="icon"
           aria-label="Actualizar leads recibidos hoy" disabled={cartera.cargando || cartera.cargandoMas}
           onClick={() => void cartera.recargar()}>
           <RefreshCw className="size-3.5" aria-hidden />
         </Button>}
       </div>
       <p className="shrink-0 px-5 pb-2 text-xs text-muted-foreground">Asignados a ti · hora de Lima</p>
-      <CardContent className="ac-scroll min-h-0 max-h-48 overflow-y-auto pt-0" aria-busy={cartera.cargando || cartera.cargandoMas}>
+      <CardContent className={cn('ac-scroll min-h-0 overflow-y-auto pt-0', integrado ? 'max-h-80 lg:max-h-none lg:flex-1' : 'max-h-48')} aria-busy={cartera.cargando || cartera.cargandoMas}>
         {Boolean(cartera.error) && (
           <div role="alert" className="flex flex-wrap items-center gap-2 py-2">
             <p className="text-sm">No se pudieron cargar los leads recibidos hoy.{cartera.leads.length > 0 ? ' Se conserva la última lista cargada.' : ''}</p>
@@ -80,7 +68,7 @@ export function LeadsRecibidosHoy({ ahora, className }: { ahora: number; classNa
             <ul ref={listaRef} aria-label="Leads recibidos hoy" className="divide-y divide-border">
               {cartera.leads.map((lead) => {
                 // La demo no tiene ledger; usa el mismo sello de su filtro.
-                const recibido = yo?.demo ? (lead.tenencia_desde ?? lead.creado_en) : lead.recibido_en
+                const recibido = demo ? (lead.tenencia_desde ?? lead.creado_en) : lead.recibido_en
                 const instante = recibido ? Date.parse(recibido) : Number.NaN
                 const hora = Number.isFinite(instante)
                   ? new Date(instante).toLocaleTimeString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })

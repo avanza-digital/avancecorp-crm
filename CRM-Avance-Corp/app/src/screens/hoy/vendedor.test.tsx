@@ -1520,12 +1520,13 @@ describe('Hoy · analista — modo ACTIVO: la pantalla cabe en la ventana', () =
     // El pie «Día con espacio» sigue a las filas, no al fondo de la tarjeta.
     expect(within(agenda).getByText(/Día con espacio/).parentElement).not.toHaveClass('mt-auto')
 
-    const columnaIzquierda = agenda.parentElement
+    const tarjetaAlternable = agenda.closest('[role="tabpanel"]')?.parentElement?.parentElement
+    const columnaIzquierda = tarjetaAlternable?.parentElement
     if (!(columnaIzquierda instanceof HTMLElement)) throw new Error('sin columna izquierda')
     expect(columnaIzquierda).toHaveClass('flex', 'flex-col', 'min-h-0', 'lg:col-span-3')
     // «Tu cumplimiento del mes» va DEBAJO de la agenda, en la misma columna, sin comprimirse.
     const cumplimiento = tarjetaCumplimiento()
-    expect(columnaIzquierda.children[0]).toBe(agenda)
+    expect(columnaIzquierda.children[0]).toBe(tarjetaAlternable)
     expect(columnaIzquierda.children[1]).toBe(cumplimiento)
     expect(cumplimiento).toHaveClass('shrink-0')
     expect(within(cumplimiento).getByText('Capital confirmado')).toBeInTheDocument()
@@ -1534,11 +1535,15 @@ describe('Hoy · analista — modo ACTIVO: la pantalla cabe en la ventana', () =
     expect(fila).toHaveClass('grid', 'min-h-0', 'flex-1', 'lg:grid-cols-5', 'lg:items-stretch', 'lg:grid-rows-[minmax(0,1fr)]')
 
     const citas = panelCitas()
-    const columnaDerecha = citas.parentElement
-    expect(columnaDerecha?.parentElement).toBe(fila)
-    expect(columnaDerecha).toHaveClass('flex', 'flex-col', 'min-h-0', 'lg:col-span-2')
-    expect(columnaDerecha?.firstElementChild).toBe(screen.getByRole('region', { name: 'Leads recibidos hoy' }))
-    expect(citas).toHaveClass('flex', 'flex-col', 'min-h-0', 'lg:flex-1')
+    expect(citas.parentElement).toBe(fila)
+    expect(citas).toHaveClass('flex', 'flex-col', 'min-h-0', 'lg:col-span-2')
+    expect(screen.queryByRole('region', { name: 'Leads recibidos hoy' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: 'Leads de hoy' }))
+    expect(screen.getByRole('tabpanel', { name: 'Leads de hoy' })).toContainElement(screen.getByRole('region', { name: 'Leads recibidos hoy' }))
+    expect(citas.parentElement).toBe(fila)
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Leads de hoy' }), { key: 'ArrowLeft' })
+    expect(screen.getByRole('tab', { name: 'Tu agenda de hoy' })).toHaveFocus()
+    expect(screen.getByRole('tabpanel', { name: 'Tu agenda de hoy' })).toBeInTheDocument()
     const listaCitas = citas.querySelector('.overflow-y-auto')
     expect(listaCitas).toHaveClass('ac-scroll', 'min-h-0', 'flex-1')
     expect(listaCitas).not.toHaveClass('max-h-[60vh]')
