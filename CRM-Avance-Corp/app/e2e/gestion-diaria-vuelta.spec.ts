@@ -12,7 +12,8 @@ test('vuelta real: guardar, error recuperable, siguiente entre páginas y progre
   await page.clock.install({ time: new Date(instante) })
   const leads = Array.from({ length: 25 }, (_, i) => leadReal({ id: idLead(i + 1), nombre_completo: `COLA ${String(i + 1).padStart(2, '0')}`, vendedor_id: UID, etapa: 'contactado', fueraDelBoot: i > 7 }))
   const backend = await montarBackendReal(page, { rolCrm: 'vendedor', leads })
-  await montarColaDiaV3(page, backend, [])
+  // El día simulado del servidor comparte el reloj fijado en el navegador.
+  await montarColaDiaV3(page, backend, [], () => Date.parse(instante))
   const gestionadas = new Map<string, string>()
   const pedidos: PedidoColaTrabajo[] = []
   const guardados: string[] = []

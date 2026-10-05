@@ -82,6 +82,8 @@ import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { seleccionarPrioridadesVendedor, type PrioridadVendedor } from './prioridades-vendedor'
 import { TasasAutorizadasAnalistaPanel } from './tasas-autorizadas-analista'
 import { CitasAnalista } from './citas-analista'
+import { LeadsRecibidosHoy } from './leads-recibidos-hoy'
+import { AgendaLeadsHoy } from './agenda-leads-hoy'
 import { cn } from '@/lib/utils'
 
 // ── Helpers puros ─────────────────────────────────────────────────────────────
@@ -445,6 +447,7 @@ function AgendaHoy({
   nPropuestas,
   vencidasAbajo,
   listaDesplazable = false,
+  integrada = false,
   className,
   title = 'Tu agenda de hoy',
 }: {
@@ -462,6 +465,7 @@ function AgendaHoy({
   /** Modo activo: la tarjeta se estira a su columna y las filas se desplazan
    *  DENTRO del contenido (la pantalla entera cabe en la ventana). */
   listaDesplazable?: boolean
+  integrada?: boolean
   className?: string
   title?: string
 }): JSX.Element {
@@ -491,10 +495,11 @@ function AgendaHoy({
   const { pen, usd } = capitalPorMoneda(leadsHoy)
 
   return (
-    <Card className={className}>
+    <Card className={cn(className, integrada && 'rounded-none border-0 bg-transparent shadow-none')}>
       <SectionHead
         icon={CalendarDays}
         title={title}
+        className={integrada ? '[&_h3]:sr-only [&_svg]:hidden pt-0 pb-2' : ''}
         right={
           nHoy > 0 || nVence > 0 ? (
             <Badge color={nVence > 0 ? '#d97706' : 'var(--accent)'}>
@@ -1447,6 +1452,8 @@ export function HoyVendedor(): JSX.Element {
         />
       ))}
 
+      {!modoSla.activo && <LeadsRecibidosHoy ahora={ahora} />}
+
       {/* Después de las tres prioridades: solo el remanente. La proximidad
           separa lo inmediato de lo que mantiene el ritmo del resto del día. */}
       <SlaOperacionBoundary legado={(
@@ -1620,29 +1627,30 @@ export function HoyVendedor(): JSX.Element {
             `min-h-0` en cadena son lo que impide que el contenido empuje la
             pantalla más allá de la ventana. Izquierda: la agenda se estira y
             desplaza sus filas dentro, con «Tu cumplimiento del mes» debajo.
-            Derecha: «Tus citas» llena la columna y desplaza su lista. El
+            Derecha: citas conserva toda su columna. Agenda y leads de hoy
+            alternan en la tarjeta izquierda. El
             `lg:min-h-[26rem]` es el suelo: si lo fijo de arriba (cabecera,
             tasas autorizadas, avisos) no deja sitio, la pantalla se desplaza
             antes que aplastar las dos tarjetas. */}
         <div className="grid min-h-0 flex-1 gap-5 lg:min-h-[26rem] lg:grid-cols-5 lg:grid-rows-[minmax(0,1fr)] lg:items-stretch">
           <div className="flex min-h-0 min-w-0 flex-col gap-5 lg:col-span-3">
-            <AgendaHoy eventos={agendaHoy} leadPorId={leadPorId} abrirLead={abrirLead}
+            <AgendaLeadsHoy ahora={ahora} agenda={<AgendaHoy eventos={agendaHoy} leadPorId={leadPorId} abrirLead={abrirLead}
               onCompletar={(id) => { const tarea = tareas.find((item) => item.id === id); if (tarea) setTareaACerrar(tarea) }}
               demo={false} nReuniones={reunionesAgendadas} nPropuestas={nPropuestas}
-              vencidasAbajo={0} title="Tu agenda de hoy" listaDesplazable
-              className="flex min-h-0 min-w-0 flex-1 flex-col" />
+              vencidasAbajo={0} title="Tu agenda de hoy" listaDesplazable integrada
+              className="flex min-h-0 min-w-0 flex-1 flex-col" />} />
             {tarjetaCumplimiento}
           </div>
-          <CitasAnalista
-            citas={citas}
-            tareaPorId={tareaPorId}
-            leadPorId={leadPorId}
-            abrirLead={abrirLead}
-            onCompletar={cerrarTareaPorId}
-            ahora={ahora}
-            disposicion="columna"
-            className="min-h-0 min-w-0 lg:col-span-2"
-          />
+            <CitasAnalista
+              citas={citas}
+              tareaPorId={tareaPorId}
+              leadPorId={leadPorId}
+              abrirLead={abrirLead}
+              onCompletar={cerrarTareaPorId}
+              ahora={ahora}
+              disposicion="columna"
+              className="min-h-0 min-w-0 lg:col-span-2"
+            />
         </div>
       </SlaOperacionBoundary>
 

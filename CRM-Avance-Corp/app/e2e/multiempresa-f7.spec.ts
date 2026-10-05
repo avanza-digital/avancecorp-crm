@@ -1,3 +1,4 @@
+import { irAModulo } from './_navegacion'
 import { expect, test } from '@playwright/test'
 import { entrarDemo, loginReal, montarBackendReal } from './_helpers'
 import { metricasMultiempresaDemo } from '../src/lib/demo-metricas-multiempresa'
@@ -6,7 +7,7 @@ test.use({ locale: 'es-PE' })
 
 test('F7: Gerencia consulta empresas, moneda y tipo de capital en demo', async ({ page }) => {
   await entrarDemo(page, 'Gerencia')
-  await page.getByRole('button', { name: 'Empresas', exact: true }).click()
+  await irAModulo(page, 'Empresas')
   await expect(page.getByRole('heading', { name: 'Empresas', exact: true })).toBeVisible()
   await expect(page.getByText(/todas estas cifras son ficticias/)).toBeVisible()
   const capital = page.getByRole('table', { name: 'Capital por empresa y moneda' })
@@ -21,7 +22,7 @@ test('F7: Gerencia consulta empresas, moneda y tipo de capital en demo', async (
 
 test('F7: a 320 px las tablas desplazan dentro del panel', async ({ page }) => {
   await entrarDemo(page, 'Gerencia')
-  await page.getByRole('button', { name: 'Empresas', exact: true }).click()
+  await irAModulo(page, 'Empresas')
   await page.setViewportSize({ width: 320, height: 780 })
   await page.getByRole('button', { name: 'Ocultar menú', exact: true }).click()
   await page.getByLabel('Mes de producción', { exact: true }).click()
@@ -59,7 +60,7 @@ test('F7: ruta real OFF nunca pide datos; ON valida el contrato del servidor', a
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(informe) })
   })
   await loginReal(page)
-  await page.getByRole('button', { name: 'Empresas', exact: true }).click()
+  await irAModulo(page, 'Empresas')
   await expect(page.getByText('Informe en preparación')).toBeVisible()
   expect(solicitudes).toBe(0)
   habilitada = true
