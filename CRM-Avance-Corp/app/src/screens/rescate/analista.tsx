@@ -15,6 +15,9 @@
 // el estado de producción de hoy, sin intentos, no gasta una fila en decir «nada»). Filtros en el navegador por motivo,
 // etapa máxima y último resultado, en la MISMA fila que el Mes; cada opción dice cuántos leads deja ver. El orden lo
 // trae el servidor y no se toca: filtrar solo quita filas.
+// Bases cargadas (F6, 04/10/2026): los contactos de una base que el supervisor le repartió entran aquí como cualquier lead
+// de su base (mismas reglas). Con alguno, la hoja lleva la columna «Base» y el selector «Base: Todas · Feria 2025 (40)»
+// junto al del Mes; sin ninguno (o antes de la B10, que trae `base_nombre`), nada cambia.
 import { useId, useMemo, useRef, useState, type JSX } from 'react'
 import { ArchiveRestore, FunnelX, RotateCcw, X } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
@@ -34,6 +37,7 @@ import {
   FILTRO_TODOS,
   MAX_INTENTOS_BASE,
   SIN_FILTROS,
+  conBaseCargada,
   depurarFiltros,
   etiquetaMesLead,
   filasDemoBaseGestion,
@@ -92,6 +96,7 @@ export function BaseGestionAnalista(): JSX.Element {
   const recargaFallida = real && consulta.isError
 
   const conMes = meses.length > 0
+  const conBase = conBaseCargada(filas)
   const opciones = opcionesFiltro(filas, filtros)
   const visibles = filtrarBase(filas, filtros)
   const { hoy, resto } = separarLlamarHoy(visibles)
@@ -100,6 +105,8 @@ export function BaseGestionAnalista(): JSX.Element {
   const conBloques = hoy.length > 0
   const filtrando = hayFiltros(filtros)
   const soloMes = filtrando && hayFiltros({ ...filtros, mes: FILTRO_TODOS }) === false
+  const soloBase = filtrando && filtros.base !== FILTRO_TODOS && hayFiltros({ ...filtros, base: FILTRO_TODOS }) === false
+  const nombreBase = opciones.base.opciones.find((o) => o.clave === filtros.base)?.etiqueta ?? ''
   const agendadas = visibles.filter(tieneRellamadaAgendada).length
   const ahora = Date.now()
 
@@ -122,7 +129,7 @@ export function BaseGestionAnalista(): JSX.Element {
     // abre nada): el foco va al resumen que la contiene, no cae en <body>.
     if (filtros.agendadas && filtrarBase(filas, { ...filtros, agendadas: false }).filter(tieneRellamadaAgendada).length === 0) resumen.current?.focus()
   }
-  const etiquetaTotal = !filtrando ? 'En tu base' : soloMes ? `De ${etiquetaMesLead(filtros.mes)}` : 'Coinciden'
+  const etiquetaTotal = !filtrando ? 'En tu base' : soloMes ? `De ${etiquetaMesLead(filtros.mes)}` : soloBase ? `De ${nombreBase}` : 'Coinciden'
   // Con rellamadas de hoy, dos bloques con título; sin ellas, la hoja de F1 (una sola lista, sin título).
   const bloques: BloqueHoja[] = conBloques
     ? [
@@ -155,6 +162,7 @@ export function BaseGestionAnalista(): JSX.Element {
         {filas.length > 0 && (
           <BarraFiltros
             conMes={conMes}
+            conBase={conBase}
             opciones={opciones}
             filtros={filtros}
             onCambiar={cambiarFiltro}
@@ -211,6 +219,7 @@ export function BaseGestionAnalista(): JSX.Element {
             </>
           }
           conMes={conMes}
+          conBase={conBase}
           ahora={ahora}
           puedeMarcar={puedeMarcar}
           onAbrir={abrirFicha}

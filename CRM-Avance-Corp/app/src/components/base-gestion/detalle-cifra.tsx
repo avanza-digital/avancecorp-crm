@@ -84,8 +84,11 @@ export function DetalleCifra({ abierta, filas, cargando, error, reintentando, on
               </button>
             </div>
           </SheetHeader>
-          {/* `scroll-pt-10`: el lead enfocado no queda bajo la cabecera fija de la tabla (WCAG 2.4.11). */}
-          <SheetBody className="scroll-pt-10 px-0 py-0">
+          {/* `scroll-pt-10`: el lead enfocado no queda bajo la cabecera fija de la tabla (WCAG 2.4.11). El cuerpo es una parada
+              del tabulador: un lead que salió y no se puede abrir no tiene botón, y sin ella la lista no se desplazaría con el
+              teclado (revisor-a11y F5). */}
+          {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Región desplazable: puede no tener controles dentro. */}
+          <SheetBody tabIndex={0} role="region" aria-label={`${titulo} de ${abierta.nombre}`} className={cn('scroll-pt-10 px-0 py-0', FOCO, 'focus-visible:-outline-offset-2')}>
             {/* Refresco fallido con la lista en caché (Codex F4 r1): se conserva, pero se DICE que no está al día. */}
             {error && filas !== undefined && (
               <div className="m-4 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-4 py-2.5">

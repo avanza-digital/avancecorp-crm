@@ -5,7 +5,8 @@
 // Los bloques (F3): con `conBandas`, cada bloque («Llamar hoy», «El resto») lleva su título dentro de la hoja y su
 // grupo de filas; sin bandas, una sola lista. El número de fila sigue de un bloque al otro (y de una página a otra
 // con `numeroInicial`). La vista del supervisor (F4) añade la columna «Gestiona», fija como tercera, y la consulta
-// sin llamar: el teléfono se lee pero no marca ni copia (`llamable = false`).
+// sin llamar: el teléfono se lee pero no marca ni copia (`llamable = false`). Con contactos de bases cargadas (F6), la
+// columna «Base» va junto al Mes (`conBase`): «Feria 2025» o «—».
 import type { ReactNode, Ref } from 'react'
 import { Phone } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -24,7 +25,7 @@ import {
 } from '@/lib/base-gestion'
 import { TelefonoLlamable } from './llamar-base'
 import { copiarNumero } from './copiar-numero'
-import { EtapaMaximaChip, Intentos, MesDelLead, ProximaLlamada } from './piezas-base'
+import { BaseDelLead, EtapaMaximaChip, Intentos, MesDelLead, ProximaLlamada } from './piezas-base'
 
 const BOTON_LLAMAR = cn(
   'inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground transition-colors hover:bg-[var(--accent-press)] pointer-coarse:h-11',
@@ -58,7 +59,7 @@ export interface BloqueHoja {
 }
 
 export function HojaBase({
-  bloques, conBandas, esMovil, etiqueta, caption, conMes, conGestiona = false, llamable = true, numeroInicial = 1,
+  bloques, conBandas, esMovil, etiqueta, caption, conMes, conGestiona = false, conBase = false, llamable = true, numeroInicial = 1,
   ahora, puedeMarcar, onAbrir, regionRef, listaRef,
 }: {
   /** En orden; sin filas no se pasan (no se pinta un bloque vacío). */
@@ -73,6 +74,8 @@ export function HojaBase({
   conMes: boolean
   /** F4: columna «Gestiona», fija como tercera. */
   conGestiona?: boolean
+  /** F6: columna «Base» (de qué base cargada viene el lead), junto al Mes. */
+  conBase?: boolean
   /** El teléfono marca (celular) o copia (laptop); `false` = solo se lee (la vista del supervisor consulta). */
   llamable?: boolean
   /** Número de la primera fila (páginas: el # es continuo). */
@@ -83,16 +86,16 @@ export function HojaBase({
   regionRef?: Ref<HTMLDivElement> | undefined
   listaRef?: Ref<HTMLDivElement> | undefined
 }) {
-  const columnas = COLUMNAS_BASE + (conMes ? 1 : 0) + (conGestiona ? 1 : 0)
+  const columnas = COLUMNAS_BASE + (conMes ? 1 : 0) + (conGestiona ? 1 : 0) + (conBase ? 1 : 0)
   // El número de fila sigue de un bloque al otro: el último número es el total que dice la pastilla.
   const inicios: number[] = []
   let siguiente = numeroInicial
   for (const b of bloques) { inicios.push(siguiente); siguiente += b.filas.length }
   const filaHoja = (f: FilaBaseGestion, numero: number) => (
-    <FilaHoja key={f.lead_id} numero={numero} fila={f} ahora={ahora} puedeMarcar={puedeMarcar} conMes={conMes} conGestiona={conGestiona} llamable={llamable} onAbrir={() => onAbrir(f.lead_id)} />
+    <FilaHoja key={f.lead_id} numero={numero} fila={f} ahora={ahora} puedeMarcar={puedeMarcar} conMes={conMes} conGestiona={conGestiona} conBase={conBase} llamable={llamable} onAbrir={() => onAbrir(f.lead_id)} />
   )
   const tarjeta = (f: FilaBaseGestion) => (
-    <TarjetaBase key={f.lead_id} fila={f} ahora={ahora} puedeMarcar={puedeMarcar} conMes={conMes} conGestiona={conGestiona} llamable={llamable} onAbrir={() => onAbrir(f.lead_id)} />
+    <TarjetaBase key={f.lead_id} fila={f} ahora={ahora} puedeMarcar={puedeMarcar} conMes={conMes} conGestiona={conGestiona} conBase={conBase} llamable={llamable} onAbrir={() => onAbrir(f.lead_id)} />
   )
 
   if (esMovil) {
@@ -123,6 +126,7 @@ export function HojaBase({
             <th scope="col" className={cn(ENCABEZADO, FIJA_LEAD, ANCHO_LEAD, 'z-20')}>Lead</th>
             {conGestiona && <th scope="col" className={cn(ENCABEZADO, FIJA_GESTIONA, ANCHO_GESTIONA, 'z-20')}>Gestiona</th>}
             {conMes && <th scope="col" className={ENCABEZADO}>Mes</th>}
+            {conBase && <th scope="col" className={ENCABEZADO}>Base</th>}
             <th scope="col" className={ENCABEZADO}>Teléfono</th>
             <th scope="col" className={ENCABEZADO}>Próxima llamada</th>
             <th scope="col" className={ENCABEZADO}>Intentos</th>
@@ -213,13 +217,14 @@ function TelefonoLeido({ fila }: { fila: FilaBaseGestion }) {
   return <span className="tabular-nums">{telefonoLegible(fila.telefono)}</span>
 }
 
-function FilaHoja({ numero, fila, ahora, puedeMarcar, conMes, conGestiona, llamable, onAbrir }: {
+function FilaHoja({ numero, fila, ahora, puedeMarcar, conMes, conGestiona, conBase, llamable, onAbrir }: {
   numero: number
   fila: FilaBaseGestion
   ahora: number
   puedeMarcar: boolean
   conMes: boolean
   conGestiona: boolean
+  conBase: boolean
   llamable: boolean
   onAbrir: () => void
 }) {
@@ -244,6 +249,7 @@ function FilaHoja({ numero, fila, ahora, puedeMarcar, conMes, conGestiona, llama
         </td>
       )}
       {conMes && <td className={CELDA}><MesDelLead fila={fila} /></td>}
+      {conBase && <td className={cn(CELDA, 'max-w-48 truncate')} title={fila.base_nombre ?? undefined}><BaseDelLead fila={fila} /></td>}
       <td className={CELDA}>{llamable ? <TelefonoLlamable fila={fila} puedeMarcar={puedeMarcar} /> : <TelefonoLeido fila={fila} />}</td>
       <td className={CELDA}><ProximaLlamada iso={fila.proxima_llamada_en} ahora={ahora} /></td>
       <td className={CELDA}><Intentos n={fila.intentos} /></td>
@@ -265,12 +271,13 @@ function contactoDe(fila: FilaBaseGestion): string {
     .join(' · ')
 }
 
-function TarjetaBase({ fila, ahora, puedeMarcar, conMes, conGestiona, llamable, onAbrir }: {
+function TarjetaBase({ fila, ahora, puedeMarcar, conMes, conGestiona, conBase, llamable, onAbrir }: {
   fila: FilaBaseGestion
   ahora: number
   puedeMarcar: boolean
   conMes: boolean
   conGestiona: boolean
+  conBase: boolean
   llamable: boolean
   onAbrir: () => void
 }) {
@@ -283,6 +290,7 @@ function TarjetaBase({ fila, ahora, puedeMarcar, conMes, conGestiona, llamable, 
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2">
         {conGestiona && <div className="col-span-2"><dt className={rotulo}>Gestiona</dt><dd className={dato}>{etiquetaAnalista(fila)}</dd></div>}
         {conMes && <div><dt className={rotulo}>Mes</dt><dd className={dato}><MesDelLead fila={fila} /></dd></div>}
+        {conBase && <div><dt className={rotulo}>Base</dt><dd className={dato}><BaseDelLead fila={fila} /></dd></div>}
         <div><dt className={rotulo}>Próxima llamada</dt><dd className={dato}><ProximaLlamada iso={fila.proxima_llamada_en} ahora={ahora} /></dd></div>
         <div><dt className={rotulo}>Intentos</dt><dd className={dato}><Intentos n={fila.intentos} /></dd></div>
         <div><dt className={rotulo}>Motivo del descarte</dt><dd className={dato}>{etiquetaMotivoDescarte(fila.motivo_descarte)}</dd></div>

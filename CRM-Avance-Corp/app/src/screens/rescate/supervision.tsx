@@ -1,14 +1,17 @@
-// «Base para gestión» de Supervisión y Gerencia (F4, decisión de Miguel del 03/10/2026): dos pestañas.
+// «Base para gestión» de Supervisión y Gerencia (F4, decisión de Miguel del 03/10/2026): tres pestañas.
 //  · «Descartes del mes»: el Centro de rescate de siempre (franja de meses, mosaico, carpeta en otra pestaña y
 //    reparto), INTACTO. Es la pestaña por defecto: al entrar abre ahí.
 //  · «Gestión de la base»: cómo va el trabajo de la base por analista (panel), la hoja del equipo y los «No contactar».
+//  · «Bases» (F5, E9 de Miguel, 04/10): las bases cargadas (archivo o desde el CRM): cargarlas, repartirlas y seguirlas.
 // La pestaña y el analista elegido viven en la URL (`?rescate_vista=gestion&rescate_analista=…`, el patrón de la
-// carpeta): sobreviven a recargar. Al salir de la pantalla se limpian, para que al volver se entre por «Descartes».
+// carpeta): sobreviven a recargar; en «Bases», también la base abierta (`rescate_base`). Al salir de la pantalla se
+// limpian, para que al volver se entre por «Descartes».
 // Una pestaña ya visitada se conserva montada (oculta): volver no recarga el mes ni pierde la carpeta elegida.
-import { useCallback, useEffect, useState, type JSX } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useState, type JSX } from 'react'
 import { Tabs } from '@/components/ui/tabs'
 import { RescateDescartados } from '@/screens/rescate-descartados'
 import { GestionSupervisor } from '@/screens/rescate/gestion-supervisor'
+import { PanelCargando } from '@/components/common/estado-panel'
 import { SIN_DATO } from '@/lib/base-gestion'
 import {
   ANALISTA_URL_SIN,
@@ -18,9 +21,13 @@ import {
   type VistaSupervision,
 } from '@/lib/base-gestion-url'
 
+// «Bases» se descarga al visitarla (su código —carga de archivos, reparto, seguimiento— no lo paga quien no la abre).
+const BasesSupervision = lazy(() => import('@/screens/rescate/bases').then((m) => ({ default: m.BasesSupervision })))
+
 const PESTANAS = [
   { valor: 'descartes', etiqueta: 'Descartes del mes' },
   { valor: 'gestion', etiqueta: 'Gestión de la base' },
+  { valor: 'bases', etiqueta: 'Bases' },
 ] as const satisfies readonly { valor: VistaSupervision; etiqueta: string }[]
 
 export function BaseGestionSupervision(): JSX.Element {
@@ -29,7 +36,7 @@ export function BaseGestionSupervision(): JSX.Element {
 
   // La URL sigue al estado; al desmontar (otra pantalla) se limpia: «al entrar abre Descartes del mes».
   useEffect(() => { escribirEstadoSupervision(estado) }, [estado])
-  useEffect(() => () => escribirEstadoSupervision({ vista: 'descartes', analista: null }), [])
+  useEffect(() => () => escribirEstadoSupervision({ vista: 'descartes', analista: null, base: null }), [])
 
   const cambiarVista = (vista: VistaSupervision) => {
     // El analista se recuerda aunque se pase a «Descartes» (la hoja oculta lo conserva); la URL solo lo lleva en «Gestión».
@@ -42,6 +49,10 @@ export function BaseGestionSupervision(): JSX.Element {
     setEstado((e) => (e.analista === enUrl ? e : { ...e, analista: enUrl }))
   }, [])
   const [analistaInicial] = useState(() => (estado.analista === ANALISTA_URL_SIN ? SIN_DATO : estado.analista))
+  // La base abierta en «Bases» (la URL la lleva solo en esa pestaña; la pestaña oculta la conserva).
+  const alCambiarBase = useCallback((base: string | null) => {
+    setEstado((e) => (e.base === base ? e : { ...e, base }))
+  }, [])
 
   return (
     <div className="mx-auto w-full max-w-[1640px]">
@@ -60,6 +71,13 @@ export function BaseGestionSupervision(): JSX.Element {
         {visitadas.has('gestion') && (
           <div hidden={estado.vista !== 'gestion'}>
             <GestionSupervisor analistaInicial={analistaInicial} onAnalista={alCambiarAnalista} />
+          </div>
+        )}
+        {visitadas.has('bases') && (
+          <div hidden={estado.vista !== 'bases'}>
+            <Suspense fallback={<div className="rounded-lg border border-border bg-card pt-4"><PanelCargando filas={5} /></div>}>
+              <BasesSupervision base={estado.base} onBase={alCambiarBase} />
+            </Suspense>
           </div>
         )}
       </Tabs>
