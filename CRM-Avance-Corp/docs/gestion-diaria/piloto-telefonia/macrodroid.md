@@ -185,7 +185,7 @@ Se arma clonando «Piloto F0» (mantener pulsada → Clonar) para conservar la a
 - **Sin notificación ni «Registrar evento» con el número** (prueba 6).
 
 ### Pendiente: la URL con el id de la llamada (F4-d) — NO cambiar todavía
-Cuando F4-b esté publicado (F1 lleva el id hasta la encuesta y la encuesta llama a `crm.registrar_llamada_v5`), «Abrir sitio web» pasará a `https://crm.miavance.com/#/gestion-diaria/llamada/{call_number}/{lv=id_llamada}` (`F4-PLAN-CORTO.md` §1). Hoy el router solo lee el número: el id se perdería sin unir nada.
+Cuando F4-b esté publicado (F1 lleva el id hasta la encuesta y la encuesta llama a `crm.registrar_llamada_v5`), «Abrir sitio web» pasará a `https://crm.miavance.com/#/gestion-diaria/llamada/{call_number}/{lv=id_llamada}` (`F4-PLAN-CORTO.md` §1). Se cambia **al activar C1, en F4-d** (decisión de Jhosep, 05/10: instalar no es activar). La parte A de F4-b (PR #193, 05/10) ya lee ese id y lo muestra en la encuesta; el router publicado hoy ignora el segmento extra y el enlace funciona como F1, así que adelantar la URL no rompe nada, pero tampoco une.
 
 ### Antes de usarla
 
