@@ -2,7 +2,8 @@ import { createClient } from 'npm:@supabase/supabase-js@2.110.2';
 import { crearHandler } from './handler.ts';
 
 // La clave de servicio vive en los secretos de Supabase y no sale de esta función: solo la usan las
-// dos RPC de servicio de F3-a (20261001212258), que validan la clave del celular en la base.
+// dos RPC de servicio (F3-a 20261001212258, con el contrato de 20261005143843), que validan la clave del
+// celular y el contenido en la base y devuelven {resultado, mensaje}.
 const fetchAcotado: typeof fetch = (entrada, opciones) => fetch(entrada, {
   ...opciones, signal: AbortSignal.timeout(8000),
 });

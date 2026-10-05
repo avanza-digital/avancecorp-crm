@@ -17,20 +17,23 @@ const DENO = process.env.LLAMADAS_DENO
   ?? (existsSync(join(homedir(), `.local/deno/deno${EXE}`)) ? join(homedir(), `.local/deno/deno${EXE}`) : 'deno');
 const original = readFileSync(join(ORIGEN, 'handler.ts'), 'utf8').replace(/\r\n/g, '\n');
 
+// Contrato de 20261005143843 (plan v2 §1): la Edge solo revisa el transporte y traduce el resultado de la base.
 const MUTANTES = [
   ['clave sin comprobar su forma', 'const CREDENCIAL = /^[0-9a-f]{64}$/;', 'const CREDENCIAL = /./;'],
   ['sin tope de 4 KB', 'const TOPE_BYTES = 4096;', 'const TOPE_BYTES = 1_000_000;'],
-  ['claves de más en el cuerpo', ' || Object.keys(cuerpo).length !== 2) return', ') return'],
-  ['evento con claves no previstas', 'if (!esObjeto(e) || Object.keys(e).some((k) => !CLAVES_EVENTO.has(k))) return false;', 'if (!esObjeto(e)) return false;'],
-  ['evento de otra versión', '  return e.v === 1\n', '  return true\n'],
-  ['duración sin rango', 'opcional(e.duracion_seg, (d) => entero(d, 0, 86400))', 'opcional(e.duracion_seg, () => true)'],
-  ['latido sin cola obligatoria', '&& entero(l.en_cola, 0, 100000)', '&& opcional(l.en_cola, () => true)'],
+  ['un sobre con claves de más pasa su carga', ' && Object.keys(cuerpo).length === 2 ? cuerpo : null;', ' ? cuerpo : null;'],
+  ['el JSON mal formado no llega a la base (no gasta cupo)', "    if (cuerpo === GRANDE) return respuesta(413, { error: 'Petición demasiado grande' });\n",
+    "    if (cuerpo === GRANDE) return respuesta(413, { error: 'Petición demasiado grande' });\n    if (cuerpo === MAL_FORMADO) return respuesta(400, { error: 'Petición inválida' });\n"],
+  ['el latido va a la puerta de llamadas', 'esLatido ? await d.registrarSalud(credencial, carga) : await d.ingerir(credencial, carga)', 'await d.ingerir(credencial, carga)'],
+  ['el «invalido» de la base sale como aceptado', "  if (dato.resultado === 'invalido') {", "  if (dato.resultado === 'invalido') return { aceptado: true };\n  if (false) {"],
+  ['el «invalido» sin el mensaje de la base', "typeof dato.mensaje === 'string' && dato.mensaje !== '' ? dato.mensaje.slice(0, 200) : 'Petición inválida'", "'Petición inválida'"],
+  ['el mensaje sin recortar', 'dato.mensaje.slice(0, 200)', 'dato.mensaje'],
+  ['un resultado sin la forma pactada se da por aceptado', '  if (!esObjeto(dato)) return null;\n', '  if (!esObjeto(dato)) return { aceptado: true };\n'],
   ['42501 con otra respuesta', "if (e.code === '42501') return noAutorizado();", "if (e.code === '42501') return respuesta(403, { error: 'Prohibido' });"],
   ['la respuesta delata lo que contestó la base',
-    '        await d.ingerir(credencial, evento);\n        // Guardada, repetida o ignorada: la misma respuesta (propuesta #12).\n        return respuesta(202, { recibido: true, abrir: urlAbrir(d.urlCrm, evento.numero) });',
-    '        const dato = await d.ingerir(credencial, evento) as Json;\n        return respuesta(202, { ...dato, recibido: true, abrir: urlAbrir(d.urlCrm, evento.numero) });'],
+    "      return respuesta(202, { recibido: true, abrir: urlAbrir(d.urlCrm, esObjeto(carga) ? carga.numero : null) });",
+    "      return respuesta(202, { recibido: true, base: resultado, abrir: urlAbrir(d.urlCrm, esObjeto(carga) ? carga.numero : null) });"],
   ['429 sin Retry-After', "{ 'Retry-After': String(espera) });", '{});'],
-  ['P0409 como 503', "if (e.code === 'P0409') return", "if (e.code === 'P0409x') return"],
   ['URL de F1 sin codificar el número', '${encodeURIComponent(numero.trim())}', '${numero.trim()}'],
   ['acepta otros métodos', "if (req.method !== 'POST') return", "if (req.method === 'TRACE') return"],
   ['acepta cuerpos que no se declaran JSON', "if (tipo !== 'application/json') return", "if (tipo === 'x/nada') return"],
