@@ -1,0 +1,72 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+The count logic is sound. It reuses the authoritative server predicate, uses `abiertos` computed before pagination, nests its query key under the existing invalidation hierarchy, and hides the badge rather than showing an invented zero. Demo parity and the poll/refresh wiring are coherent. One requirement-level gap remains: a pending lead whose stage is not `nuevo` cannot be distinguished in the list. There is also one a11y regression in the badge meaning. The full `npm check` gate had not finished when this evidence was captured.
+
+FINDINGS:
+
+[P2] Pending leads in non-`nuevo` stages are counted but invisible as pending in the list
+File:
+`CRM-Avance-Corp/app/src/lib/use-etapa-visible.ts:8`, `CRM-Avance-Corp/app/src/screens/hoy/leads-recibidos-hoy.tsx` (row badge hunk)
+Problem:
+The badge counts leads with no qualifying activity since `tenencia_desde`. The SQL predicate ignores `etapa`. The row label comes from `etapaVisible`, which only evaluates management when `lead.etapa === 'nuevo'`. Any other stage returns its stored stage label directly.
+Evidence:
+- `etapaVisible` line 8: `if (lead.etapa !== 'nuevo' || ...) return { k: lead.etapa, ...ETAPA_INFO[lead.etapa] }`.
+- The SQL `p_gestion` predicate has no etapa condition.
+- The E2E fixture itself shows a lead with `tenencia_desde` today and `etapa: 'propuesta_enviada'`, so reassignment today with a carried-over stage is a realistic case. The fixture gives leads 0–1 activities, so the scenario "advanced stage + no current-tenure activity" is never exercised.
+Impact:
+A lead reassigned today in `contactado` or `propuesta_enviada` shows "Contactado" or "Entrevista realizada" while still counted in the orange badge. The analyst sees N pending but cannot find which rows they are. This is the inverse of the user's goal: the lead looks touched, but the system demands management. Live data today is all `nuevo`, so the current impact is low, but nothing prevents the case.
+Recommendation:
+Decide and document one of two options:
+- (a) Accept "stage shown, pending implied" as a product decision. Add a test pinning that behavior.
+- (b) Preferred: add a small per-row "Sin gestionar" marker for rows that match the pending predicate. This works if the RPC row already exposes `gestion_vigente`, which `etapaVisible` reads for real sessions, so it should. In demo, use `tieneGestionVigente`. No backend change is needed.
+
+Also add a unit/E2E case with `etapa: 'contactado'`, `tenencia_desde` today, and no activity, asserting both the count and the row rendering.
+
+[P3] Tab accessible name no longer conveys what the number means
+File:
+`CRM-Avance-Corp/app/src/screens/hoy/agenda-leads-hoy.tsx` (badge hunk)
+Problem:
+The number changed meaning from received total to pending count. The only disambiguation is a `title` attribute on an inner span.
+Evidence:
+The tests assert the accessible name `'Leads de hoy 53'` while the panel says "55 leads recibidos hoy". `title` on a non-focusable descendant does not reliably contribute to the tab's name or description.
+Impact:
+Screen-reader users hear "Leads de hoy 53" and then "55 leads recibidos hoy" with no explanation of the mismatch.
+Recommendation:
+Add sr-only text inside the badge, for example `<span className="sr-only"> sin gestionar</span>`. Update the name assertions accordingly. Keep the visible digit unchanged.
+
+[P3] `cartera: { ...cartera, recargar }` creates a new object every render (hypothesis)
+File:
+`CRM-Avance-Corp/app/src/screens/hoy/use-leads-recibidos-hoy.ts:47`
+Problem:
+If `ListaLeadsRecibidosHoy` uses `cartera` as an effect or memo dependency, for example in the focus logic with `enfocarDesde` or `reintentarRef`, those effects now run every render.
+Evidence:
+Not visible in the attached excerpt. The focus-preservation test passes, which lowers the risk.
+Recommendation:
+Confirm that no effect depends on the `cartera` object identity. Otherwise, memoize the merged object.
+
+TEST GAPS:
+- A lead with a non-`nuevo` stage, tenure today, and no current-tenure activity (see P2).
+- A closed lead (`convertido`/`descartado`) without activity in the **real** path, asserting it does not count. The unit test only sets `abiertos` by hand. The E2E mock sets `abiertos: total` regardless of stage, so the closed exclusion is only proven by the server SQL and the demo test.
+- Demo parity: the row label uses `columnaDeLead(...) === 'gestionado'` while the count uses `tieneGestionVigente`. Assert they agree, including the undo case. The demo test partially covers this for `nuevo`.
+- An activity written before `tenencia_desde` (prior owner) must not reduce the count. This is covered in SQL and the E2E mock but not asserted in any test.
+
+ARCHITECTURE RISKS:
+- List and count are two independent queries, so they can disagree briefly after invalidation, for example a row showing "Gestionado" while the badge still says 1. They converge on the next invalidation or poll. Acceptable, but don't rely on them being in sync in tests without `waitFor`.
+- If the count query fails while the user is on the agenda tab, the badge disappears silently. The retry alert is only in the leads panel. This is consistent with "never invent zero"; just note it as intended behavior.
+
+SECURITY RISKS:
+- None identified. No backend, RLS, or auth changes. The function is `security_invoker`, and ownership filtering comes from the existing `vendedorId` parameter.
+
+REGRESSION RISKS:
+- The poll now issues two RPCs per minute per analyst, and the count RPC computes metrics with an EXISTS over `crm.actividades`. The scope is small (one analyst, one day), but confirm there is an index covering `actividades(lead_id, ...)`. Hypothesis; not verified.
+- The aria-description strings changed ("Etapa actual: …"). Any other test or snapshot asserting the old description will break.
+
+RECOMMENDED NEXT ACTIONS:
+1. Resolve P2: either add the per-row pending marker plus a test, or record an explicit product decision plus a test pinning the current behavior.
+2. Add sr-only "sin gestionar" to the badge (P3) and update the name assertions.
+3. Finish the full `npm check` and report its actual result before declaring DONE.
+
+CONFIDENCE:
+MEDIUM. The count and invalidation path is well evidenced. P2's real-world frequency depends on whether reassignment keeps the prior stage, which the E2E fixture suggests but the live data does not show.
