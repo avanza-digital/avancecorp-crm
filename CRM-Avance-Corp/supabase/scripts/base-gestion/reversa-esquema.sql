@@ -8,6 +8,10 @@ set local statement_timeout = '60s';
 set local search_path = '';
 do $pre$
 begin
+  -- Orden de reversas: B1b (reversa-proxima-llamada.sql) ANTES que B1; si no, quedaría proxima_llamada_en sin sello.
+  if exists (select 1 from information_schema.columns where table_schema = 'crm' and table_name = 'leads' and column_name = 'proxima_llamada_en') then
+    raise exception 'REVERSA B1: B1b sigue aplicada (proxima_llamada_en); aplicar antes reversa-proxima-llamada.sql';
+  end if;
   if exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
               where n.nspname in ('crm', 'private')
                 and p.proname <> 'trg_leads_zz_sello_base_gestion'
