@@ -158,8 +158,8 @@ los clientes de la cartera del dueño con la misma regla.
 0. **Antes:** la corrección de F2 + F3 (PR #171). Si Miguel elige ahí la opción A, F4-a se publica junto con F2 + F3.
 1. **F4-a · Servidor:** migración de `crm.registrar_llamada_v5` + intención de enlace por id de origen + la ingesta la
    consume. Oráculo en el banco reducido (`npm run test:llamadas:local`), bloque nuevo en el gate y comando con recibo
-   nuevo. **Hecho el 05/10 (`20261005155914`, en el PR #190 con la quinta, sin aplicar); el bloque del gate y el
-   comando con recibo van con los pasos 4 y F4-b.** «Qué pasó hoy» pasó a F4-b.
+   nuevo. **Hecho el 05/10 (`20261005155914`, en el PR #190 con la quinta, sin aplicar); el bloque del gate, también
+   el 05/10 (paso 4, sin correr); el comando con recibo va con F4-b.** «Qué pasó hoy» pasó a F4-b.
 2. **F4-b · Pantalla del analista:** módulo de datos (`data/llamadas-celular-api.ts`, un solo cliente para las puertas),
    la pestaña nueva, la encuesta con contexto, la marca «Celular» (hallazgo 3) y F1 con id de origen. Pruebas unitarias
    y E2E en Docker.

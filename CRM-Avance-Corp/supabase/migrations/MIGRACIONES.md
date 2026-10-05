@@ -44,8 +44,9 @@ PR #179, fusionado por Miguel el 04/10; Jhosep confirmó el 05/10 que esa fusió
 recomendación). Se publica JUNTO con F4-a y la Edge nueva (decisión 1), después de Codex r2 y auditor-rls (los corre
 Miguel). Orden: datos → registrador → núcleo → registrador → ingesta → registrador → elegibilidad → registrador →
 **esta** → `scripts/llamadas-celular/registrar-correccion.sql` (con fila de veredicto). Barrera: no se despliega la Edge
-ni se da de alta un celular hasta verificarla. ⚠️ El bloque `testLlamadasCelular` del gate todavía exige `P0409`: se
-pone al día en el paso 4 del plan; hasta entonces, el gate con esta migración aplicada falla en ese bloque.
+ni se da de alta un celular hasta verificarla. El bloque `testLlamadasCelular` del gate ya está al día (paso 4 del plan,
+05/10): sin `P0409`, con la recepción, el contrato `{resultado, mensaje}` y la v5 de F4-a; exige las dos migraciones
+juntas. Sin correr aquí (necesita el esquema de producción).
 
 Qué hace (sin editar las cuatro):
 - **§1** Id con forma fija `C<n>-<10 dígitos>` (etiqueta de la asignación + segundos del celular, entre hace 30 días y

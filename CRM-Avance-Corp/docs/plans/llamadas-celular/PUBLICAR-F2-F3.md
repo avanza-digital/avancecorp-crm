@@ -19,7 +19,7 @@ merge. **Nunca `apply_migration` directo a producción.**
 | 0.1 | Seis migraciones, cada una con su registrador (`supabase/scripts/llamadas-celular/registrar-{datos,nucleo,ingesta,elegibilidad,correccion,enlace-exacto}.sql`); los dos últimos terminan con una fila de veredicto | Hecho. `npm run test:llamadas:local`: 281/281 |
 | 0.2 | Reversas de las seis (`reversa-*.sql`) | Hecho; las de la quinta y F4-a, solo antes de dar de alta celulares («Reversa») |
 | 0.3 | Edge con el contrato nuevo | Hecho: 15/15 y mutantes 15/15; sin desplegar |
-| 0.4 | Bloque `testLlamadasCelular` del gate al día con la quinta y F4-a (paso 4 del plan v2) | Escrito, **sin correr** (necesita el esquema de producción) |
+| 0.4 | Bloque `testLlamadasCelular` del gate al día con la quinta y F4-a (paso 4 del plan v2), y `banco/limpiar-entre-corridas.sql` vaciando las asignaciones | Hecho (05/10): cotejado con las migraciones; `node --check` y oxlint limpios; **sin correr** (necesita el esquema de producción) |
 | 0.5 | `alta-celular.sql`, `rotar-celular.sql` y `cerrar-celular.sql` | Hechos (05/10): una sola sentencia cada uno, porque `db query` solo devuelve el último resultado; probados en un Postgres local |
 | 0.6 | Codex r2 y `auditor-rls` sobre la quinta + F4-a + la Edge | **Pendiente; los corre Miguel** |
 | 0.7 | PR #190 → `main` (`main` tiene que contener lo que se aplica) | Pendiente |
