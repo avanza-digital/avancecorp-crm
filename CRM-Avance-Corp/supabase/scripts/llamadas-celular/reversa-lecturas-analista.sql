@@ -3,8 +3,8 @@
 -- «Qué pasó hoy» y la marca «Celular»). El banco reducido compara la huella del catálogo antes de la octava y después
 -- de esta reversa.
 --
--- Orden de las reversas: esta → séptima (reversa-enlace-sin-ciclo.sql) → F4-a → corrección → elegibilidad → ingesta →
--- núcleo → datos.
+-- Orden de las reversas: novena (reversa-resueltas-paginadas.sql) → esta → séptima (reversa-enlace-sin-ciclo.sql) →
+-- F4-a → corrección → elegibilidad → ingesta → núcleo → datos.
 --
 --   psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/scripts/llamadas-celular/reversa-lecturas-analista.sql
 begin;
@@ -13,6 +13,9 @@ set local statement_timeout = '60s';
 
 do $precondicion$
 begin
+  if to_regprocedure('crm.llamadas_celular_resueltas_hoy_fn(integer,timestamptz,uuid)') is not null then
+    raise exception 'REVERSA_LECTURAS_ANALISTA: la novena (20261005224330) sigue instalada; corre antes reversa-resueltas-paginadas.sql';
+  end if;
   if to_regprocedure('crm.llamadas_celular_resueltas_hoy_fn(integer)') is null
      or to_regprocedure('crm.actividades_con_llamada_celular_fn(uuid[])') is null then
     raise exception 'REVERSA_LECTURAS_ANALISTA: la migración 20261005201010 no está aplicada';

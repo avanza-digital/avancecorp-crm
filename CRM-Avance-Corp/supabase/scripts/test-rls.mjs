@@ -17855,24 +17855,42 @@ async function testLlamadasCelular(sessions, seed) {
     await expectExplicitAuthorizationDenied('v5: vend3 no registra por el lead de vend1', rpc('vend3', 'registrar_llamada_v5', {
       p_operacion_id: randomUUID(), p_lead_id: leadId, p_resultado: 'no_contesto', p_evento_origen_id: idAntes, p_via: 'al_colgar' }));
 
-    // ── Lecturas de F4-b (octava, 20261005201010): «Qué pasó hoy» y la marca «Celular». Se publican con F4-b, no con
-    // las siete: sin ellas, el tramo se salta (o falla con CRM_RLS_EXIGE_LLAMADAS_F4B=1). ──
+    // ── Lecturas de F4-b (octava 20261005201010 + novena 20261005224330): «Qué pasó hoy» (paginada, por la hora en que
+    // se resolvió) y la marca «Celular». Se publican con F4-b, no con las siete: sin las dos, el tramo se salta (o
+    // falla con CRM_RLS_EXIGE_LLAMADAS_F4B=1). ──
     const conLecturas = contarFueraDeBanda('Llamadas del celular: lecturas de F4-b',
-      "select case when to_regprocedure('crm.actividades_con_llamada_celular_fn(uuid[])') is not null then 1 else 0 end") === 1;
+      "select case when to_regprocedure('crm.actividades_con_llamada_celular_fn(uuid[])') is not null"
+      + " and to_regprocedure('crm.llamadas_celular_resueltas_hoy_fn(integer,timestamptz,uuid)') is not null then 1 else 0 end") === 1;
     if (!conLecturas) {
-      const msg = '⚠ Lecturas de F4-b (octava) no instaladas: SALTADAS (no probado)';
+      const msg = '⚠ Lecturas de F4-b (octava + novena) no instaladas: SALTADAS (no probado)';
       if (process.env.CRM_RLS_EXIGE_LLAMADAS_F4B === '1') fail(msg);
       else console.log(`  ${msg}`);
     } else {
+      // Todas las páginas de «Qué pasó hoy», con el cursor tal cual lo devuelve cada una.
+      const resueltasHoy = async (quien) => {
+        const filas = [];
+        let cursor = {};
+        for (let vuelta = 0; vuelta < 40; vuelta += 1) {
+          const r = await rpc(quien, 'llamadas_celular_resueltas_hoy_fn', { p_limite: 50, ...cursor });
+          if (r.error || !Array.isArray(r.data?.filas)) return { error: r.error ?? new Error(`respuesta inesperada: ${JSON.stringify(r.data)}`), filas };
+          filas.push(...r.data.filas);
+          if (!r.data.siguiente) return { error: null, filas };
+          cursor = { p_antes_resuelto_en: r.data.siguiente.resuelto_en, p_antes_id: r.data.siguiente.evento_id };
+        }
+        return { error: new Error('el cursor no avanza'), filas };
+      };
       for (const [quien, debe] of [['vend1', true], ['sup1', true], ['gerencia', true], ['vend3', false], ['sup2', false]]) {
-        const r = await rpc(quien, 'llamadas_celular_resueltas_hoy_fn', { p_limite: 200 });
-        check(!r.error && Array.isArray(r.data) && r.data.some((f) => f.evento_id === evA?.id) === debe,
-          `«Qué pasó hoy»: ${quien} ${debe ? 've' : 'no ve'} la llamada registrada hoy`, errorText(r.error));
+        const r = await resueltasHoy(quien);
+        check(!r.error && r.filas.some((f) => f.evento_id === evA?.id) === debe
+          && new Set(r.filas.map((f) => f.evento_id)).size === r.filas.length,
+          `«Qué pasó hoy»: ${quien} ${debe ? 've' : 'no ve'} la llamada registrada hoy (páginas sin repetidas)`, errorText(r.error));
       }
-      const propia = (await rpc('vend1', 'llamadas_celular_resueltas_hoy_fn', { p_limite: 200 })).data?.find((f) => f.evento_id === evA?.id);
+      const propia = (await resueltasHoy('vend1')).filas.find((f) => f.evento_id === evA?.id);
       check(propia?.atencion === 'registrado' && propia?.actividad_id === opA && propia?.via === 'al_colgar'
-        && propia?.resultado === 'no_contesto' && propia?.es_propia === true,
-      '«Qué pasó hoy»: la fila trae su resultado, la vía y que es propia', JSON.stringify(propia));
+        && propia?.resultado === 'no_contesto' && propia?.es_propia === true && typeof propia?.resuelto_en === 'string',
+      '«Qué pasó hoy»: la fila trae su resultado, la vía, la hora de resolución y que es propia', JSON.stringify(propia));
+      await expectExpectedFailure('«Qué pasó hoy»: cursor a medias → 22023',
+        rpc('vend1', 'llamadas_celular_resueltas_hoy_fn', { p_limite: 10, p_antes_resuelto_en: new Date().toISOString() }), ['22023'], /cursor/i);
       const marca1 = await rpc('vend1', 'actividades_con_llamada_celular_fn', { p_actividad_ids: [opA, opD, randomUUID()] });
       const marca3 = await rpc('vend3', 'actividades_con_llamada_celular_fn', { p_actividad_ids: [opA, opD] });
       check(!marca1.error && marca1.data?.length === 2
