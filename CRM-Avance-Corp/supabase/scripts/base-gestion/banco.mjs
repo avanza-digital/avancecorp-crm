@@ -15,7 +15,7 @@ function psql(base, texto, { candado = true } = {}) {
   const r = spawnSync('docker', ['exec','-i',contenedor,'psql','-X','-qAt','-U','postgres',
     '-d',base,'-v','ON_ERROR_STOP=1','-f','-'], {encoding:'utf8',maxBuffer:8*1024*1024, input: guardia + texto});
   assert.equal(r.status,0,(r.stderr || r.error?.message || '') + '\n' + (r.stdout || ''));
-  if (['test','aplicar','fixtures-b2','aplicar-b2','test-b2'].includes(process.argv[2])) process.stderr.write(r.stderr);
+  if (['test','aplicar','aplicar-b1b','fixtures-b2','fixtures-b2-persona','aplicar-b2','test-b2','aplicar-b3','test-b3','aplicar-b4','test-b4','aplicar-b4b','aplicar-b3b','aplicar-b3c','test-b3c','aplicar-b5','aplicar-b6','test-b6'].includes(process.argv[2])) process.stderr.write(r.stderr);
   return r.stdout.trim();
 }
 export const sql = (texto) => psql(db, texto);
@@ -35,8 +35,38 @@ if (orden==='reversa-y-reaplicar') {
   sql(readFileSync(migracion,'utf8'));
   console.log('PASS: reversa y reaplicación con preflight en banco sintético');
 }
+const migracionB1b = new URL('../../migrations/20261002224851_crm_base_gestion_proxima_llamada.sql', import.meta.url);
+if (orden==='aplicar-b1b') { sql(readFileSync(migracionB1b,'utf8')); console.log('PASS: migración B1b aplicada en el banco'); }
+if (orden==='reversa-y-reaplicar-b1b') { sql(readFileSync(new URL('./reversa-proxima-llamada.sql',import.meta.url),'utf8')); sql(readFileSync(migracionB1b,'utf8')); console.log('PASS: reversa y reaplicación de B1b con preflight en banco sintético'); }
+const migracionB3 = new URL('../../migrations/20261002231436_crm_base_gestion_puertas.sql', import.meta.url);
+if (orden==='aplicar-b3') { sql(readFileSync(migracionB3,'utf8')); console.log('PASS: migración B3 aplicada en el banco'); }
+if (orden==='test-b3') console.log(sql(readFileSync(new URL('./b3-puertas.sql',import.meta.url),'utf8')));
+if (orden==='reversa-y-reaplicar-b3') { sql(readFileSync(new URL('./reversa-puertas.sql',import.meta.url),'utf8')); sql(readFileSync(migracionB3,'utf8')); console.log('PASS: reversa y reaplicación de B3 con preflight en banco sintético'); }
+const migracionB4 = new URL('../../migrations/20261002233851_crm_base_gestion_enfriamiento.sql', import.meta.url);
+if (orden==='aplicar-b4') { sql(readFileSync(migracionB4,'utf8')); console.log('PASS: migración B4 aplicada en el banco'); }
+if (orden==='test-b4') console.log(sql(readFileSync(new URL('./b4-enfriamiento.sql',import.meta.url),'utf8')));
+if (orden==='reversa-y-reaplicar-b4') { sql(readFileSync(new URL('./reversa-enfriamiento.sql',import.meta.url),'utf8')); sql(readFileSync(migracionB4,'utf8')); console.log('PASS: reversa y reaplicación de B4 con preflight en banco sintético'); }
+const migracionB4b = new URL('../../migrations/20261002235342_crm_base_gestion_ventana_descanso.sql', import.meta.url);
+if (orden==='aplicar-b4b') { sql(readFileSync(migracionB4b,'utf8')); console.log('PASS: migración B4b aplicada en el banco'); }
+if (orden==='reversa-y-reaplicar-b4b') { sql(readFileSync(new URL('./reversa-ventana-descanso.sql',import.meta.url),'utf8')); sql(readFileSync(migracionB4b,'utf8')); console.log('PASS: reversa y reaplicación de B4b con preflight en banco sintético'); }
+const migracionB3b = new URL('../../migrations/20261003001014_crm_base_gestion_idempotencia_y_orden.sql', import.meta.url);
+if (orden==='aplicar-b3b') { sql(readFileSync(migracionB3b,'utf8')); console.log('PASS: migración B3b aplicada en el banco'); }
+if (orden==='reversa-y-reaplicar-b3b') { sql(readFileSync(new URL('./reversa-idempotencia-y-orden.sql',import.meta.url),'utf8')); sql(readFileSync(migracionB3b,'utf8')); console.log('PASS: reversa y reaplicación de B3b con preflight en banco sintético'); }
+const migracionB3c = new URL('../../migrations/20261003162300_crm_base_gestion_conteos_fuera_del_censo.sql', import.meta.url);
+if (orden==='aplicar-b3c') { sql(readFileSync(migracionB3c,'utf8')); console.log('PASS: migración B3c aplicada en el banco'); }
+if (orden==='test-b3c') console.log(sql(readFileSync(new URL('./b3c-resumen-equivalente.sql',import.meta.url),'utf8')));
+if (orden==='reversa-y-reaplicar-b3c') { sql(readFileSync(new URL('./reversa-conteos-fuera-del-censo.sql',import.meta.url),'utf8')); sql(readFileSync(migracionB3c,'utf8')); console.log('PASS: reversa y reaplicación de B3c con preflight en banco sintético'); }
+const migracionB5 = new URL('../../migrations/20261003162400_crm_base_gestion_mes_del_lead.sql', import.meta.url);
+if (orden==='aplicar-b5') { sql(readFileSync(migracionB5,'utf8')); console.log('PASS: migración B5 aplicada en el banco'); }
+if (orden==='reversa-y-reaplicar-b5') { sql(readFileSync(new URL('./reversa-mes-del-lead.sql',import.meta.url),'utf8')); sql(readFileSync(migracionB5,'utf8')); console.log('PASS: reversa y reaplicación de B5 con preflight en banco sintético'); }
+const migracionB6 = new URL('../../migrations/20261003162500_crm_base_gestion_seguimiento_activo.sql', import.meta.url);
+if (orden==='aplicar-b6') { sql(readFileSync(migracionB6,'utf8')); console.log('PASS: migración B6 aplicada en el banco'); }
+if (orden==='test-b6') console.log(sql(readFileSync(new URL('./b6-seguimiento.sql',import.meta.url),'utf8')));
+if (orden==='reversa-y-reaplicar-b6') { sql(readFileSync(new URL('./reversa-seguimiento-activo.sql',import.meta.url),'utf8')); sql(readFileSync(migracionB6,'utf8')); console.log('PASS: reversa y reaplicación de B6 con preflight en banco sintético'); }
 const migracionB2 = new URL('../../migrations/20261002061500_crm_base_gestion_no_contactar_supervisor.sql', import.meta.url);
 if (orden==='fixtures-b2') { console.log(sql(readFileSync(new URL('./fixtures-b2.sql',import.meta.url),'utf8'))); console.log('PASS: fixtures B2 en el banco'); }
+if (orden==='fixtures-b2-persona') { console.log(sql(readFileSync(new URL('./fixtures-b2-persona.sql',import.meta.url),'utf8'))); console.log('PASS: fixtures B2 persona en el banco'); }
+if (orden==='restaurar-levantar-vivo') { const r=readFileSync(new URL('./reversa-no-contactar-supervisor.sql',import.meta.url),'utf8'); const i=r.indexOf('create or replace function'); const j=r.indexOf('$function$;', i)+'$function$;'.length; sql("set search_path=''; set quote_all_identifiers=off;\n"+r.slice(i,j)); console.log('PASS: levantar_no_contactar restaurada al texto vivo (solo banco, sin guarda)'); }
 if (orden==='aplicar-b2') { sql(readFileSync(migracionB2,'utf8')); console.log('PASS: migración B2 aplicada en el banco'); }
 if (orden==='test-b2') console.log(sql(readFileSync(new URL('./b2-rls.sql',import.meta.url),'utf8')));
 if (orden==='reversa-y-reaplicar-b2') {
@@ -77,5 +107,5 @@ select string_agg(stmt, E'\n' order by orden, stmt) from (
   sql("set search_path=''; set quote_all_identifiers=off;\n" + envueltas.join('\n'));
   console.log(`PASS: paridad de ACL aplicada al banco (${stmts.length} sentencias del stack local; las de objetos ausentes se saltaron)`);
 }
-const ORDENES = ['crear','aplicar','test','reversa-y-reaplicar','fixtures-b2','aplicar-b2','test-b2','reversa-y-reaplicar-b2','paridad-acl'];
+const ORDENES = ['crear','aplicar','test','reversa-y-reaplicar','fixtures-b2','aplicar-b2','test-b2','reversa-y-reaplicar-b2','paridad-acl','fixtures-b2-persona','restaurar-levantar-vivo','aplicar-b1b','reversa-y-reaplicar-b1b','aplicar-b3','test-b3','reversa-y-reaplicar-b3','aplicar-b4','test-b4','reversa-y-reaplicar-b4','aplicar-b4b','reversa-y-reaplicar-b4b','aplicar-b3b','reversa-y-reaplicar-b3b','aplicar-b3c','test-b3c','reversa-y-reaplicar-b3c','aplicar-b5','reversa-y-reaplicar-b5','aplicar-b6','test-b6','reversa-y-reaplicar-b6'];
 if (!ORDENES.includes(orden)) { console.error('Uso: banco.mjs ' + ORDENES.join(' | ')); process.exit(2); }
