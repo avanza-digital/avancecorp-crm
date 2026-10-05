@@ -135,8 +135,11 @@ base \`private.verificar_disponibilidad_lead_impl\`.
   dependa de lo que pasó dentro de la base, o algún orden 401/413 que distinga más de lo aceptado?
 - **P9 (lecturas).** Salud, bandeja, detalle y asignaciones: ¿alguna deja ver llamadas personales, llamadas de leads dados
   de baja o de otro equipo?
-- **P10 (pruebas).** El banco reducido usa la v4 como DOBLE declarado y no corre el gate con el esquema de producción.
-  ¿Qué casos faltan antes de publicar?
+- **P10 (pruebas).** El banco reducido usa la v4 como DOBLE declarado. El bloque \`testLlamadasCelular\` del gate
+  (transcrito) usa la v4 REAL y sesiones reales, pero todavía NO SE CORRIÓ. ¿Qué prueba mal o le falta antes de
+  publicar? Riesgos que el PRIMARY no pudo descartar sin correrlo: \`tomar_lead_libre\` sobre un reutilizable (nunca
+  corrió en el gate; con \`resolver_en_puertas\` encendida decide el juicio de reapertura), la v4 real sobre un lead
+  creado por inserción de admin y el descarte vencido fechado fuera de banda en \`replica\`.
 
 ## Tu r1 (BLOCK, 6 P2 + 1 P3) → dónde se cierra en el código
 | Hallazgo r1 | Dónde mirar |
@@ -162,6 +165,8 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
   exacta del catálogo, 41 mutantes, 9 carreras con dos sesiones + 4 mutantes de candados) y de F4-a (oráculo, reversa
   con huella exacta, 26 mutantes, 4 carreras), más la regresión del [P2] — todo en verde en el commit generado.
 - Edge: \`handler.test.ts\` 15/15 y 15 mutantes cazados; receptor de pruebas del PC 10/10.
+- Gate: bloque \`testLlamadasCelular\` cotejado a mano con las migraciones (firmas, códigos, mensajes y formas de
+  respuesta); \`node --check\` y oxlint limpios. La limpieza entre corridas, probada en un Postgres local.
 - NOT RUN: gate \`test-rls.mjs\` con el esquema de producción, advisors, la v4 real y \`banco/verificar-hallazgos.sql\`
   (los corre Miguel en su banco).
 `);
@@ -195,10 +200,15 @@ if (existe(`${SUB}supabase/scripts/test-rls.mjs`)) {
   const gate = blob(`${SUB}supabase/scripts/test-rls.mjs`).split('\n');
   const i = gate.findIndex((l) => /^async function testLlamadasCelular\(/.test(l));
   if (i >= 0) {
+    let k = i;
+    while (k > 0 && /^\/\//.test(gate[k - 1])) k--; // con su comentario de cabecera
     let j = i + 1;
     while (j < gate.length && !/^}\s*$/.test(gate[j])) j++;
-    partes.push(tramo('supabase/scripts/test-rls.mjs', i + 1, j + 1, 'bloque testLlamadasCelular del gate'));
+    partes.push(tramo('supabase/scripts/test-rls.mjs', k + 1, j + 1, 'bloque testLlamadasCelular del gate (SIN CORRER)'));
   }
+}
+if (existe(`${SUB}supabase/scripts/banco/limpiar-entre-corridas.sql`)) {
+  partes.push(archivo('supabase/scripts/banco/limpiar-entre-corridas.sql', 'limpieza del banco entre corridas del gate'));
 }
 if (existe(`${SUB}docs/plans/llamadas-celular/PUBLICAR-F2-F3.md`)) {
   partes.push(archivo('docs/plans/llamadas-celular/PUBLICAR-F2-F3.md', 'guía de publicación'));
