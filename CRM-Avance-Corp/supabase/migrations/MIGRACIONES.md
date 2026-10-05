@@ -1,3 +1,46 @@
+## 20261005143843 — Llamadas desde el celular · QUINTA: corrección de F2 + F3 (`private.llamadas_celular_recepciones`, `private.llamada_celular_ingerir(uuid,jsonb,timestamptz)`, `private.llamada_celular_candidatos_dueno`, candados, entrantes, retención, salud)
+
+**⏸️ ESCRITA, SIN APLICAR (05/10/2026). Paso 1 del orden de trabajo del plan v2** (`docs/plans/llamadas-celular/CORRECCION-PLAN-CORTO.md`,
+PR #179, fusionado por Miguel el 04/10; Jhosep confirmó el 05/10 que esa fusión es el OK, con la N1 según la
+recomendación). Se publica JUNTO con F4-a y la Edge nueva (decisión 1), después de Codex r2 y auditor-rls (los corre
+Miguel). Orden: datos → registrador → núcleo → registrador → ingesta → registrador → elegibilidad → registrador →
+**esta** → `scripts/llamadas-celular/registrar-correccion.sql` (con fila de veredicto). Barrera: no se despliega la Edge
+ni se da de alta un celular hasta verificarla. ⚠️ El bloque `testLlamadasCelular` del gate todavía exige `P0409`: se
+pone al día en el paso 4 del plan; hasta entonces, el gate con esta migración aplicada falla en ese bloque.
+
+Qué hace (sin editar las cuatro):
+- **§1** Id con forma fija `C<n>-<10 dígitos>` (etiqueta de la asignación + segundos del celular, entre hace 30 días y
+  dentro de 1 día). `private.llamadas_celular_recepciones`: una fila por aviso aceptado ANTES de buscar el lead, única
+  por id, 32 días; el primer envío gana. Llamadas únicas por id y sin `hash_payload`. Puerta: clave (asignación
+  `FOR SHARE` revalidada) → estado `FOR UPDATE` y la hora una sola vez → cupo (sin política, 55000) → validación en un
+  bloque que atrapa solo 22023 (`invalido` con el cupo gastado) → recepción → lead. Contrato: `{resultado, mensaje}`.
+  Sin `P0409`.
+- **§2** Candidatos del dueño evaluados como él: (a) su ámbito, (b) sin dueño en etapa abierta, (c) descartados
+  reutilizables (regla de «Nuevo lead»). Uno → identificada; varios → ambigua sin conteo; ninguno → no se guarda.
+  Visibles solo con el lead activo, también para gerencia.
+- **§3** Candados resultado → lead(s) → llamada → enlace; 40001 si el lead de la llamada cambió; enlazar rechaza un
+  resultado deshecho.
+- **§4** Entrantes bloqueadas (CHECK + puerta); entrantes y desconocidas se ignoran.
+- **§5** Purga: sin resolver (identificadas sin enlace y ambiguas) a 30 días desde `recibido_en`; registradas se
+  conservan; recepciones a 32.
+- **§6** Salud sin `envios_hoy` ni `ultimo_envio_en` (la columna se retira). **§8** Fuera la bandeja duplicada.
+
+**Decisiones de criterio de Claude, para Miguel:** retirar `ultimo_envio_en` (no solo ocultarlo);
+`dias_retencion_sin_resolver` cubre ambiguas e identificadas sin enlace (sin cambiar la firma de la puerta); los 32
+días son constante; la recepción guarda id y asignación, sin número ni hash; los leads se bloquean `FOR SHARE`; el
+postflight prohíbe `WHEN OTHERS` en las piezas de llamadas (Codex P3).
+
+Verificación (banco reducido, `npm run test:llamadas:local`, PostgreSQL 17): oráculo nuevo
+`tests/llamadas-celular/oraculo-correccion.sql` (sin pistas, bolsa, reutilizables, propios terminales, id, latido y
+fecha estricta, cupo, identidad, lead borrado, entrantes, salud, purga); reversa que vuelve a la **huella exacta del
+catálogo** de las cuatro (`tests/llamadas-celular/huella-catalogo.sql`) y se niega tras el primer aviso; la quinta se
+niega con filas; 41 mutantes de la quinta y 9 carreras con dos sesiones (más 4 mutantes de candados): **232/232 en
+verde el 05/10** (160 de las cuatro + 72 de la quinta). Gate completo,
+advisors y `banco/verificar-hallazgos.sql` con el esquema de producción: NOT RUN (los corre Miguel).
+
+Reversa: `scripts/llamadas-celular/reversa-correccion.sql` (solo antes del primer aviso; generada copiando los cuerpos
+de las cuatro desde el blob de git). Después del primer aviso no se revierte: se apaga y se corrige hacia adelante.
+
 ## 20261003225551 — Lectura de Gestionado para ficha y listados
 
 **APLICADA EN PRODUCCIÓN (03/10/2026):** autorizada por Miguel («Sí, probar y publicar todo») y publicada mediante `merge_branch` después de 2.823 aserciones RLS PASS, SQL de seis roles y 22 escenarios HTTP. Nueva puerta `crm.gestion_vigente_fn(uuid[])` → `private.gestion_vigente_lectura(uuid[])`, ambas INVOKER/STABLE, RLS vigente, actor CRM admitido, lote máximo 100. Solo estado e identidad de tenencia de nuevos activos; sin cambios de datos, tablas, policies o etapas. Postflight: cuerpos/ACL idénticos, catálogo anterior intacto, tres roles productivos y cero diferencias de clasificación. Frontend `build-20261004T025651347Z`, 98 archivos HTTPS verificados. Banco propio retirado. Acta: `docs/publicaciones/gestionado-ficha-2026-10-03.md`. Reversa: frontend anterior y retirada de funciones en otra migración, sin revertir datos.

@@ -67,9 +67,22 @@ create table crm.leads (
   no_contactar boolean not null default false,
   vendedor_id uuid references crm.equipo(perfil_id) on delete set null,
   asignado_supervisor_id uuid references crm.equipo(perfil_id) on delete set null,
+  -- Descarte (20260723120000 y 20260724203052): lo leen los candidatos «reutilizables» de la quinta.
+  motivo_descarte text,
+  descartado_en timestamptz,
+  descartado_por uuid references public.perfiles(id) on delete set null,
   creado_en timestamptz not null default now(),
   actualizado_en timestamptz not null default now()
 );
+-- Copia real reducida de crm.enfriamiento_politica (20260801212050, con 'base_cargada' de 20261004160034): la espera
+-- de un descartado antes de ser reutilizable. Sin auditoría en el banco (declarada exenta abajo).
+create table crm.enfriamiento_politica (
+  motivo text primary key,
+  dias integer not null check (dias >= 0)
+);
+insert into crm.enfriamiento_politica (motivo, dias) values
+  ('sin_interes', 30), ('sin_fondos', 90), ('competencia', 180), ('no_responde', 15), ('otro', 20),
+  ('pide_credito', 0), ('datos_invalidos', 0), ('base_cargada', 30);
 create table crm.actividades (
   id uuid primary key default gen_random_uuid(),
   lead_id uuid not null references crm.leads(id) on delete cascade,
@@ -106,6 +119,8 @@ create table private.auditoria_condicionada (
   razon        text        not null,
   declarada_en timestamptz not null default pg_catalog.now()
 );
+insert into private.auditoria_exenciones (tabla, razon) values
+  ('crm.enfriamiento_politica', 'Banco reducido: copia sin su auditoría real; solo la leen los candidatos de la quinta.');
 
 create function private.enmascarar_claves(p_fila jsonb, p_claves text[])
 returns jsonb

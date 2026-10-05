@@ -9,7 +9,7 @@
 // canonización, idempotencia y forma del resultado reales; auth.uid como doble declarado).
 // Molde: supabase/scripts/test-sla-nucleo-local.py. No sustituye el gate test-rls.mjs.
 //
-// Seis pasadas:
+// Nueve pasadas:
 //   1. Las migraciones tal cual: se aplican, se niegan a sobrescribirse, pasan sus oráculos, sus
 //      reversas funcionan en orden (y se niegan fuera de orden o con filas) y se vuelven a aplicar.
 //   2–5. Mutantes de F2-b, F2-c, F3-a y la corrección de elegibilidad: por cada defensa, una copia de
@@ -18,6 +18,14 @@
 //      sobrevive, esa defensa no está probada.
 //   6. Concurrencia con dos sesiones REALES: la primera abre su transacción y la retiene; la
 //      segunda llega mientras tanto, tiene que ESPERAR (se mide) y responder bien al soltarse.
+//   7. La QUINTA (20261005143843, corrección de F2 + F3) sobre las cuatro: se aplica, se niega a
+//      repetirse y con filas, pasa su oráculo, su reversa vuelve a la huella exacta del catálogo de las
+//      cuatro (y se niega tras el primer aviso), y las reversas viejas se niegan mientras siga puesta.
+//   8. Mutantes de la quinta (oráculo o postflight, como en 2–5).
+//   9. Concurrencia de la quinta con dos sesiones reales (cierre durante un latido, reasignación durante
+//      descartar, asociar y enlazar, Deshacer durante enlazar en los dos órdenes, mismo id a la vez, la
+//      llamada que cambia mientras se asocia) y mutantes de candados: cada uno quita un candado y su
+//      carrera tiene que dejar de comportarse bien.
 //
 // Uso:  node supabase/scripts/test-llamadas-celular-local.mjs     (npm run test:llamadas:local)
 // Binarios: LLAMADAS_PG_BIN, o ~/.local/pg/pgsql/bin (zip oficial de EDB en Windows), o Homebrew.
@@ -43,6 +51,10 @@ const REVERSA_DATOS = join(RAIZ, 'supabase/scripts/llamadas-celular/reversa-dato
 const REVERSA_TOTAL = join(RAIZ, 'supabase/scripts/llamadas-celular/reversa-datos-total.sql');
 const REVERSA_NUCLEO = join(RAIZ, 'supabase/scripts/llamadas-celular/reversa-nucleo.sql');
 const REVERSA_INGESTA = join(RAIZ, 'supabase/scripts/llamadas-celular/reversa-ingesta.sql');
+const MIG_CORRECCION = join(RAIZ, 'supabase/migrations/20261005143843_crm_llamadas_celular_correccion.sql');
+const ORACULO_CORRECCION = join(RAIZ, 'supabase/tests/llamadas-celular/oraculo-correccion.sql');
+const REVERSA_CORRECCION = join(RAIZ, 'supabase/scripts/llamadas-celular/reversa-correccion.sql');
+const HUELLA = join(RAIZ, 'supabase/tests/llamadas-celular/huella-catalogo.sql');
 const PUERTO = '55485';
 const USUARIO = 'llamadas_test_owner';
 const EXE = process.platform === 'win32' ? '.exe' : '';
@@ -202,6 +214,84 @@ const MUTANTES_ELEGIBILIDAD = [
   { nombre: 'ayudante DEFINER', por: 'postflight', espera: 'debería ser SECURITY INVOKER',
     buscar: "returns boolean\nlanguage plpgsql\nvolatile\nset search_path = ''",
     poner: "returns boolean\nlanguage plpgsql\nvolatile\nsecurity definer\nset search_path = ''" },
+];
+
+// Mutantes de la quinta (20261005143843). Los candados no se ven en un solo hilo: van en MUTANTES_CANDADOS.
+const VALIDACION_INGESTA = "  exception when sqlstate '22023' then\n    return pg_catalog.jsonb_build_object('resultado', 'invalido', 'mensaje', sqlerrm);\n  end;\n\n  -- Recepción";
+const VALIDACION_LATIDO = "  exception when sqlstate '22023' then\n    return pg_catalog.jsonb_build_object('resultado', 'invalido', 'mensaje', sqlerrm);\n  end;\n  update private.celulares_estado";
+const SIN_RESOLVER = "     and e.atencion in ('por_revisar', 'requiere_resultado', 'requiere_devolucion')\n     and not exists (select 1 from crm.llamadas_celular_enlaces l where l.evento_id = e.id)\n     and e.recibido_en < pg_catalog.now() - pg_catalog.make_interval(days => v_pol.dias_retencion_sin_resolver);";
+const MUTANTES_CORRECCION = [
+  { nombre: 'un reenvío vuelve a buscar el lead (la recepción no corta)', buscar: '  if v_recepcion is null then\n    return v_aceptado;\n  end if;\n', poner: '' },
+  { nombre: 'id sin forma fija', aviso: 'evento_origen_id inválido: se espera' },
+  { nombre: 'id con la etiqueta de otro celular', aviso: 'evento_origen_id con la etiqueta de otro celular' },
+  { nombre: 'id fuera de la ventana', aviso: 'evento_origen_id fuera de la ventana' },
+  { nombre: 'un inválido revierte el cupo (sin respuesta normal)', buscar: VALIDACION_INGESTA, poner: VALIDACION_INGESTA.replace("    return pg_catalog.jsonb_build_object('resultado', 'invalido', 'mensaje', sqlerrm);", '    raise;') },
+  { nombre: 'la dirección desconocida se guarda', buscar: "  if v_dir <> 'saliente' then\n    return v_aceptado;", poner: "  if v_dir = 'entrante' then\n    return v_aceptado;" },
+  { nombre: 'un lead ajeno con dueño es candidato', buscar: '    and (coalesce(private.sla_gestion_permitida(p_dueno, l.id), false)\n', poner: '    and (true\n' },
+  { nombre: 'los candidatos no se evalúan como el dueño', buscar: "  perform pg_catalog.set_config('request.jwt.claim.sub', p_dueno::text, true);\n", poner: '' },
+  { nombre: 'la identidad no vuelve tras los candidatos', buscar: "  perform pg_catalog.set_config('request.jwt.claim.sub', coalesce(v_previo, ''), true);\n  return v_cand;", poner: '  return v_cand;' },
+  { nombre: 'la bolsa no es candidata', buscar: "         or (l.vendedor_id is null and l.asignado_supervisor_id is null\n             and l.etapa not in ('convertido', 'descartado'))\n", poner: '' },
+  { nombre: 'un descartado es reutilizable sin esperar su enfriamiento', buscar: "else interval '24 hours' end <= p_ahora));", poner: "else interval '24 hours' end <= p_ahora + interval '365 days'));" },
+  { nombre: 'sin la carencia de 24 h', buscar: "else interval '24 hours' end <= p_ahora));", poner: "else interval '0 hours' end <= p_ahora));" },
+  { nombre: 'la ambigua guarda cuántos candidatos', buscar: "    v_ident := 'ambiguo';\n    v_aten := 'por_revisar';\n  elsif",
+    poner: "    v_ident := 'ambiguo';\n    v_aten := 'por_revisar';\n    v_calidad := v_calidad || pg_catalog.jsonb_build_object('candidatos', pg_catalog.cardinality(v_cand));\n  elsif" },
+  { nombre: 'gerencia ve llamadas de leads dados de baja', buscar: '      exists (select 1 from crm.leads l where l.id = p_lead and l.activo)\n      and (coalesce', poner: '      (coalesce' },
+  { nombre: 'enlazar acepta un resultado deshecho', aviso: 'Ese resultado se deshizo' },
+  { nombre: 'enlace manual sin la regla de los 10 minutos', aviso: 'El resultado se registró antes de la llamada' },
+  { nombre: 'la purga borra registradas', buscar: SIN_RESOLVER, poner: '     and e.recibido_en < pg_catalog.now() - pg_catalog.make_interval(days => v_pol.dias_retencion_sin_resolver);' },
+  { nombre: 'las identificadas sin enlace no caducan', buscar: "   where e.identificacion in ('identificado', 'ambiguo')", poner: "   where e.identificacion in ('ambiguo')" },
+  { nombre: 'las recepciones no caducan', buscar: "  delete from private.llamadas_celular_recepciones r\n   where r.recibido_en < pg_catalog.now() - interval '32 days';",
+    poner: '  delete from private.llamadas_celular_recepciones r\n   where false;' },
+  { nombre: 'las recepciones caducan dentro de la ventana (liberan ids)', buscar: "interval '32 days';", poner: "interval '30 days';" },
+  { nombre: 'la ventana del minuto retrocede', buscar: 'v_est.minuto_desde >= v_minuto', poner: 'v_est.minuto_desde = v_minuto' },
+  { nombre: 'la ventana del día retrocede', buscar: 'v_est.dia >= v_dia', poner: 'v_est.dia = v_dia' },
+  { nombre: 'sin política, sin error', aviso: 'Falta la política de llamadas del celular' },
+  { nombre: 'las entrantes se encienden por la puerta', aviso: 'Las llamadas entrantes siguen bloqueadas' },
+  { nombre: 'entrantes sin CHECK en la tabla', buscar: 'check (not entrantes_activas);', poner: 'check (true);' },
+  { nombre: 'un latido inválido revierte el cupo', buscar: VALIDACION_LATIDO, poner: VALIDACION_LATIDO.replace("    return pg_catalog.jsonb_build_object('resultado', 'invalido', 'mensaje', sqlerrm);", '    raise;') },
+  { nombre: 'el latido usa now() y no la hora de la puerta', buscar: '     set ultimo_latido_en = p_ahora,', poner: '     set ultimo_latido_en = pg_catalog.now(),' },
+  // (Sin «$'» en `poner`: String.replace lo leería como «lo que sigue a la coincidencia».)
+  { nombre: 'una fecha sin zona se acepta', buscar: '(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})', poner: '(\\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})?' },
+  { nombre: 'la puerta devuelve más que el resultado',
+    buscar: "  return pg_catalog.jsonb_strip_nulls(pg_catalog.jsonb_build_object(\n    'resultado', v_r ->> 'resultado', 'mensaje', v_r ->> 'mensaje'));\nend;\n$function$;\n\ncreate or replace function crm.registrar_salud_celular_servicio",
+    poner: "  return v_r || pg_catalog.jsonb_build_object('asignacion_id', v_asig);\nend;\n$function$;\n\ncreate or replace function crm.registrar_salud_celular_servicio" },
+  { nombre: 'la salud muestra los envíos', buscar: "'eventos_en_cola', s.eventos_en_cola)", poner: "'eventos_en_cola', s.eventos_en_cola, 'envios_hoy', s.envios_dia)" },
+  { nombre: 'una recepción se borra a mano', aviso: 'Una recepción de llamada no se borra a mano' },
+  { nombre: 'una recepción se edita', aviso: 'Una recepción de llamada es inmutable' },
+  { nombre: 'recepción sin RLS', por: 'postflight', espera: 'quedó sin RLS',
+    buscar: 'alter table private.llamadas_celular_recepciones enable row level security;\n', poner: '' },
+  { nombre: 'recepción abierta a la API', por: 'postflight', espera: 'accesible desde la API',
+    buscar: 'revoke all on private.llamadas_celular_recepciones from public, anon, authenticated, service_role;', poner: 'grant select on private.llamadas_celular_recepciones to authenticated;' },
+  { nombre: 'recepción sin candado', por: 'postflight', espera: 'quedó sin sus candados',
+    buscar: 'create trigger trg_llamadas_celular_recepciones_00_candado\n  before update or delete on private.llamadas_celular_recepciones\n  for each row execute function private.trg_llamadas_celular_recepciones_candado();\n', poner: '' },
+  { nombre: 'la llamada sigue única por asignación + id (rotar duplicaría)', por: 'postflight', espera: 'no quedó única por id',
+    buscar: '  add constraint llamadas_celular_eventos_origen_uq unique (evento_origen_id);', poner: '  add constraint llamadas_celular_eventos_origen_uq unique (asignacion_id, evento_origen_id);' },
+  { nombre: 'la bitácora muestra el número', por: 'postflight', espera: 'número enmascarado',
+    buscar: "for each row execute function private.log_audit_sin_secretos('numero_canonico');", poner: 'for each row execute function private.log_audit_crm();' },
+  { nombre: 'núcleo nuevo con EXECUTE para authenticated', por: 'postflight', espera: 'EXECUTE inesperado',
+    buscar: "    'private.llamada_celular_ingerir(uuid,jsonb,timestamptz)'] loop\n    execute pg_catalog.format('revoke all on function %s from public, anon, authenticated, service_role', v_f);",
+    poner: "    'private.llamada_celular_ingerir(uuid,jsonb,timestamptz)'] loop\n    execute pg_catalog.format('grant execute on function %s to authenticated', v_f);" },
+  { nombre: 'el 409 sigue en la ingesta', por: 'postflight', espera: 'todavía lanza P0409',
+    buscar: '  if v_recepcion is null then\n    return v_aceptado;\n  end if;\n', poner: "  if v_recepcion is null then\n    raise exception using errcode = 'P0409', message = 'conflicto';\n  end if;\n" },
+  { nombre: 'la validación atrapa cualquier error', por: 'postflight', espera: 'atrapa cualquier error',
+    buscar: VALIDACION_INGESTA, poner: VALIDACION_INGESTA.replace("exception when sqlstate '22023' then", 'exception when others then') },
+  { nombre: 'puerta de servicio INVOKER', por: 'postflight', espera: 'debería ser SECURITY DEFINER',
+    buscar: 'create or replace function crm.ingerir_llamada_celular_servicio(p_credencial text, p_evento jsonb)\nreturns jsonb\nlanguage plpgsql\nvolatile\nsecurity definer',
+    poner: 'create or replace function crm.ingerir_llamada_celular_servicio(p_credencial text, p_evento jsonb)\nreturns jsonb\nlanguage plpgsql\nvolatile\nsecurity invoker' },
+];
+
+// Mutantes de candados: cada uno quita una defensa de concurrencia y su carrera (pasada 9) tiene que fallar.
+const MUTANTES_CANDADOS = [
+  { nombre: 'descartar no bloquea el lead', escenario: 'reasignarDuranteDescartar',
+    buscar: "    raise exception using errcode = '42501', message = 'Llamada no encontrada o fuera de tu ámbito';\n  end if;\n  perform 1 from crm.leads l where l.id = v_ev.lead_id for share;\n",
+    poner: "    raise exception using errcode = '42501', message = 'Llamada no encontrada o fuera de tu ámbito';\n  end if;\n" },
+  { nombre: 'enlazar no bloquea el resultado', escenario: 'deshacerDuranteEnlazar',
+    buscar: '  select * into v_act from crm.actividades a where a.id = p_actividad_id for share;', poner: '  select * into v_act from crm.actividades a where a.id = p_actividad_id;' },
+  { nombre: 'la clave no bloquea la asignación', escenario: 'cierreDuranteLatido',
+    buscar: '    and a.vigente_hasta is null\n  for share;', poner: '    and a.vigente_hasta is null;' },
+  { nombre: 'asociar no revisa si la llamada cambió', escenario: 'llamadaCambiaAlAsociar',
+    buscar: "  if not found or v_ev.lead_id is distinct from v_lead_leido then\n    raise exception using errcode = '40001', message = 'La llamada cambió mientras la asociabas",
+    poner: "  if not found then\n    raise exception using errcode = '40001', message = 'La llamada cambió mientras la asociabas" },
 ];
 
 function carpetaBinarios() {
@@ -403,6 +493,181 @@ async function pasadaConcurrencia() {
   paso('la ingesta rechazada no dejó la llamada guardada', r.ok && r.salida.trim() === '0', r.salida.trim());
 }
 
+// ── Quinta: siembra y carreras (pasada 9) ──────────────────────────────────────────────────────
+const ACT = {
+  a1: '00000000-0000-0000-0000-0000000000a1', a2: '00000000-0000-0000-0000-0000000000a2',
+  a3: '00000000-0000-0000-0000-0000000000a3', b1: '00000000-0000-0000-0000-0000000000b1',
+  g1: '00000000-0000-0000-0000-0000000000f1', c1: '00000000-0000-0000-0000-0000000000c1',
+  c6: '00000000-0000-0000-0000-0000000000c6', c7: '00000000-0000-0000-0000-0000000000c7',
+};
+const SERVICIO = "set local role service_role;\nselect set_config('request.jwt.claim.sub', '', true);\n";
+const comoSql = (u) => `set local role authenticated;\nselect set_config('request.jwt.claim.sub', '${u}', true);\n`;
+const enTx = (sql) => `begin;\n${sql}\ncommit;\n`;
+const retenerTx = (sql) => `begin;\n${sql}\nselect pg_sleep(${RETIENE_MS / 1000});\ncommit;\n`;
+const esperoYo = (s) => s.ms >= RETIENE_MS - 600;
+const ultima = (s) => (s.salida.trim().split('\n').pop() ?? '').slice(0, 140);
+
+// Asignaciones con claves sintéticas (no protegen nada fuera del banco) y cupo alto para las carreras.
+function sembrarCorreccion(db) {
+  const k = { C1: randomBytes(32).toString('hex'), C2: randomBytes(32).toString('hex'),
+              C4: randomBytes(32).toString('hex'), C5: randomBytes(32).toString('hex') };
+  const hash = (x) => `encode(sha256(convert_to('${x}', 'utf8')), 'hex')`;
+  const r = psqlSql(`update crm.llamadas_celular_politica set limite_envios_minuto = 600, limite_envios_dia = 20000;
+    insert into crm.celulares_asignaciones (etiqueta, analista_id, credencial_hash) values
+      ('C1', '${ACT.a1}', ${hash(k.C1)}), ('C2', '${ACT.a3}', ${hash(k.C2)}),
+      ('C4', '${ACT.b1}', ${hash(k.C4)}), ('C5', '${ACT.a2}', ${hash(k.C5)})
+    returning etiqueta || '=' || id;`, db);
+  const asig = Object.fromEntries(r.salida.trim().split(/\r?\n/).filter((l) => l.includes('=')).map((l) => l.split('=')));
+  let segundo = Math.floor(Date.now() / 1000) - 20000;
+  return { db, k, asig, ok: r.ok, nuevoId: (et) => `${et}-${segundo++}` };
+}
+const ingerirSql = (clave, id, numero) => `select crm.ingerir_llamada_celular_servicio('${clave}', '{"v": 1, "evento_origen_id": "${id}", "numero": "${numero}", "direccion": "saliente"}'::jsonb)::text;`;
+const latidoSql = (clave) => `select crm.registrar_salud_celular_servicio('${clave}', '{"v": 1, "version_macro": "banco", "en_cola": 0}'::jsonb)::text;`;
+function llamada(ctx, et, numero) {
+  const id = ctx.nuevoId(et);
+  psqlSql(enTx(SERVICIO + ingerirSql(ctx.k[et], id, numero)), ctx.db);
+  return psqlSql(`select id from crm.llamadas_celular_eventos where evento_origen_id = '${id}'`, ctx.db).salida.trim();
+}
+function resultado(ctx, lead, autor) {
+  const r = psqlSql(`insert into crm.actividades (lead_id, tipo, metadata, creado_por)
+    values ('${lead}', 'llamada_realizada', '{"evento": "resultado_llamada", "resultado": "volver_a_llamar"}', '${autor}') returning id;`, ctx.db);
+  return r.salida.trim().split(/\r?\n/).find((l) => /^[0-9a-f-]{36}$/.test(l));
+}
+// Deshacer real (crm.deshacer_resultado_llamada, 20260920005000:649 y 682): resultado FOR UPDATE → lead FOR UPDATE → sello.
+const deshacerSql = (act, lead) => `select 1 from crm.actividades where id = '${act}' for update;
+select 1 from crm.leads where id = '${lead}' for update;
+update crm.actividades set metadata = metadata || jsonb_build_object('deshecho_en', now()) where id = '${act}';`;
+const reasignarSql = (lead, a) => `update crm.leads set vendedor_id = '${a}' where id = '${lead}';`;
+
+const CARRERAS = {
+  async mismoIdALaVez(ctx) {
+    const id = ctx.nuevoId('C1');
+    const [s1, s2] = await Promise.all([
+      psqlParalelo(retenerTx(SERVICIO + ingerirSql(ctx.k.C1, id, '900000001')), ctx.db),
+      pausa(400).then(() => psqlParalelo(enTx(SERVICIO + ingerirSql(ctx.k.C1, id, '900000001')), ctx.db)),
+    ]);
+    const n = psqlSql(`select count(*) from crm.llamadas_celular_eventos where evento_origen_id = '${id}'`, ctx.db).salida.trim();
+    return { ok: s1.ok && s2.ok && s2.salida.includes('"resultado": "aceptado"') && esperoYo(s2) && n === '1',
+             detalle: `segunda: ${s2.ms} ms · ${ultima(s2)} · llamadas con ese id: ${n}` };
+  },
+  async cierreDuranteLatido(ctx) {
+    const [s1, s2] = await Promise.all([
+      psqlParalelo(retenerTx(`${comoSql(ACT.g1)}select crm.cerrar_asignacion_celular('${ctx.asig.C2}', 'extravio') is not null;`), ctx.db),
+      pausa(400).then(() => psqlParalelo(enTx(SERVICIO + latidoSql(ctx.k.C2)), ctx.db)),
+    ]);
+    const n = psqlSql(`select count(*) from private.celulares_estado where asignacion_id = '${ctx.asig.C2}'`, ctx.db).salida.trim();
+    return { ok: s1.ok && !s2.ok && s2.salida.includes('No autorizado') && esperoYo(s2) && n === '0',
+             detalle: `latido: ${s2.ms} ms · ${lineaError(s2.salida)} · filas de estado: ${n}` };
+  },
+  async latidoDuranteCierre(ctx) {
+    const [s1, s2] = await Promise.all([
+      psqlParalelo(retenerTx(SERVICIO + latidoSql(ctx.k.C5)), ctx.db),
+      pausa(400).then(() => psqlParalelo(enTx(`${comoSql(ACT.g1)}select crm.cerrar_asignacion_celular('${ctx.asig.C5}', 'extravio') is not null;`), ctx.db)),
+    ]);
+    return { ok: s1.ok && s2.ok && esperoYo(s2) && s1.salida.includes('"resultado": "aceptado"'),
+             detalle: `cierre: ${s2.ms} ms · latido: ${ultima(s1)}` };
+  },
+  async reasignarDuranteDescartar(ctx) {
+    const ev = llamada(ctx, 'C1', '900000001');
+    const [s1, s2] = await Promise.all([
+      psqlParalelo(retenerTx(reasignarSql(ACT.c1, ACT.a2)), ctx.db),
+      pausa(400).then(() => psqlParalelo(enTx(`${comoSql(ACT.a1)}select crm.descartar_llamada_celular('${ev}', 'personal')::text;`), ctx.db)),
+    ]);
+    psqlSql(reasignarSql(ACT.c1, ACT.a1), ctx.db);
+    return { ok: Boolean(ev) && s1.ok && !s2.ok && s2.salida.includes('fuera de tu ámbito') && esperoYo(s2),
+             detalle: `descartar: ${s2.ms} ms · ${s2.ok ? ultima(s2) : lineaError(s2.salida)}` };
+  },
+  async reasignarDuranteAsociar(ctx) {
+    const ev = llamada(ctx, 'C4', '900000006');
+    const [s1, s2] = await Promise.all([
+      psqlParalelo(retenerTx(reasignarSql(ACT.c7, ACT.a3)), ctx.db),
+      pausa(400).then(() => psqlParalelo(enTx(`${comoSql(ACT.b1)}select crm.asociar_llamada_celular('${ev}', '${ACT.c7}')::text;`), ctx.db)),
+    ]);
+    psqlSql(reasignarSql(ACT.c7, ACT.a2), ctx.db);
+    return { ok: Boolean(ev) && s1.ok && !s2.ok && s2.salida.includes('no es de tu ámbito') && esperoYo(s2),
+             detalle: `asociar: ${s2.ms} ms · ${s2.ok ? ultima(s2) : lineaError(s2.salida)}` };
+  },
+  async llamadaCambiaAlAsociar(ctx) {
+    const ev = llamada(ctx, 'C4', '900000006');
+    const [s1, s2] = await Promise.all([
+      psqlParalelo(retenerTx(`${comoSql(ACT.b1)}select crm.asociar_llamada_celular('${ev}', '${ACT.c6}')::text;`), ctx.db),
+      pausa(400).then(() => psqlParalelo(enTx(`${comoSql(ACT.b1)}select crm.asociar_llamada_celular('${ev}', '${ACT.c7}')::text;`), ctx.db)),
+    ]);
+    return { ok: Boolean(ev) && s1.ok && !s2.ok && s2.salida.includes('cambió mientras la asociabas') && esperoYo(s2),
+             detalle: `segunda: ${s2.ms} ms · ${s2.ok ? ultima(s2) : lineaError(s2.salida)}` };
+  },
+  async reasignarDuranteEnlazar(ctx) {
+    const ev = llamada(ctx, 'C1', '900000001');
+    const act = resultado(ctx, ACT.c1, ACT.a1);
+    const [s1, s2] = await Promise.all([
+      psqlParalelo(retenerTx(reasignarSql(ACT.c1, ACT.a2)), ctx.db),
+      pausa(400).then(() => psqlParalelo(enTx(`${comoSql(ACT.a1)}select crm.enlazar_llamada_celular('${ev}', '${act}')::text;`), ctx.db)),
+    ]);
+    psqlSql(reasignarSql(ACT.c1, ACT.a1), ctx.db);
+    return { ok: Boolean(ev && act) && s1.ok && !s2.ok && s2.salida.includes('fuera de tu ámbito') && esperoYo(s2),
+             detalle: `enlazar: ${s2.ms} ms · ${s2.ok ? ultima(s2) : lineaError(s2.salida)}` };
+  },
+  async deshacerDuranteEnlazar(ctx) {
+    const ev = llamada(ctx, 'C1', '900000001');
+    const act = resultado(ctx, ACT.c1, ACT.a1);
+    const [s1, s2] = await Promise.all([
+      psqlParalelo(retenerTx(deshacerSql(act, ACT.c1)), ctx.db),
+      pausa(400).then(() => psqlParalelo(enTx(`${comoSql(ACT.a1)}select crm.enlazar_llamada_celular('${ev}', '${act}')::text;`), ctx.db)),
+    ]);
+    return { ok: Boolean(ev && act) && s1.ok && !s2.ok && s2.salida.includes('se deshizo') && !s2.salida.includes('deadlock') && esperoYo(s2),
+             detalle: `enlazar: ${s2.ms} ms · ${s2.ok ? ultima(s2) : lineaError(s2.salida)}` };
+  },
+  async enlazarDuranteDeshacer(ctx) {
+    const ev = llamada(ctx, 'C1', '900000001');
+    const act = resultado(ctx, ACT.c1, ACT.a1);
+    const [s1, s2] = await Promise.all([
+      psqlParalelo(retenerTx(`${comoSql(ACT.a1)}select crm.enlazar_llamada_celular('${ev}', '${act}')::text;`), ctx.db),
+      pausa(400).then(() => psqlParalelo(enTx(deshacerSql(act, ACT.c1)), ctx.db)),
+    ]);
+    return { ok: Boolean(ev && act) && s1.ok && s2.ok && esperoYo(s2) && !`${s1.salida}${s2.salida}`.includes('deadlock'),
+             detalle: `deshacer: ${s2.ms} ms · enlazar: ${s1.ok ? 'ok' : lineaError(s1.salida)}` };
+  },
+};
+const CARRERAS_TITULOS = [
+  ['mismoIdALaVez', 'mismo id a la vez → la segunda espera, responde «aceptado» y queda una llamada'],
+  ['cierreDuranteLatido', 'cierre durante un latido → el latido espera y recibe «No autorizado», sin gastar cupo'],
+  ['latidoDuranteCierre', 'latido durante un cierre → el cierre espera al latido'],
+  ['reasignarDuranteDescartar', 'reasignación durante descartar → descartar espera y revalida el ámbito (42501)'],
+  ['reasignarDuranteAsociar', 'reasignación del destino durante asociar → asociar espera y revalida (42501)'],
+  ['llamadaCambiaAlAsociar', 'la llamada cambia de lead mientras se asocia → 40001 «vuelve a intentarlo»'],
+  ['reasignarDuranteEnlazar', 'reasignación durante enlazar → enlazar espera y revalida el ámbito (42501)'],
+  ['deshacerDuranteEnlazar', 'Deshacer durante enlazar → enlazar espera y rechaza el resultado deshecho, sin interbloqueo'],
+  ['enlazarDuranteDeshacer', 'enlazar durante Deshacer → Deshacer espera, sin interbloqueo'],
+];
+
+async function pasadaConcurrenciaCorreccion() {
+  console.log('\n— Pasada 9: concurrencia de la quinta con dos sesiones reales —');
+  psqlSql('create database conc_quinta template plantilla_cuatro', 'postgres');
+  let r = psqlArchivo(MIG_CORRECCION, 'conc_quinta');
+  if (!paso('banco de concurrencia listo (las cuatro + la quinta)', r.ok, r.ok ? '' : cola(r.salida))) return;
+  const ctx = sembrarCorreccion('conc_quinta');
+  if (!paso('celulares sembrados (C1, C2, C4, C5)', ctx.ok && Object.keys(ctx.asig).length === 4, JSON.stringify(ctx.asig))) return;
+  for (const [clave, titulo] of CARRERAS_TITULOS) {
+    const c = await CARRERAS[clave](ctx);
+    paso(titulo, c.ok, c.detalle);
+  }
+  const original = readFileSync(MIG_CORRECCION, 'utf8').replace(/\r\n/g, '\n');
+  for (const [i, mutante] of MUTANTES_CANDADOS.entries()) {
+    const etiqueta = `mut_candado ${String(i + 1).padStart(2, '0')}: ${mutante.nombre}`;
+    const m = aplicarMutante(original, mutante);
+    if (m.error) { paso(etiqueta, false, `mutante obsoleto: ${m.error}`); continue; }
+    const archivo = join(temporal, `mut-candado-${i + 1}.sql`);
+    writeFileSync(archivo, m.texto);
+    const db = `mut_candado_${i + 1}`;
+    psqlSql(`create database ${db} template plantilla_cuatro`, 'postgres');
+    r = psqlArchivo(archivo, db);
+    if (!r.ok) { paso(etiqueta, false, `la migración mutada no se aplica: ${lineaError(r.salida)}`); continue; }
+    const c = await CARRERAS[mutante.escenario](sembrarCorreccion(db));
+    paso(etiqueta, !c.ok, c.ok ? 'SOBREVIVE: la carrera no lo nota' : `cazado por la carrera: ${c.detalle}`);
+    psqlSql(`drop database ${db}`, 'postgres');
+  }
+}
+
 let arrancado = false;
 try {
   const init = correr('initdb', ['-D', datos, '-U', USUARIO, '-A', 'scram-sha-256', '--pwfile', archivoClave,
@@ -430,6 +695,11 @@ try {
   psqlSql('create database plantilla_nucleo template plantilla_datos', 'postgres');
   r = psqlArchivo(MIG_NUCLEO, 'plantilla_nucleo');
   if (!r.ok) throw new Error(`la plantilla con el núcleo no se pudo preparar:\n${cola(r.salida)}`);
+  // Las cuatro, en el orden de publicación: el punto de partida de la quinta (pasadas 7–9).
+  psqlSql('create database plantilla_cuatro template plantilla_nucleo', 'postgres');
+  r = psqlArchivo(MIG_INGESTA, 'plantilla_cuatro');
+  if (r.ok) r = psqlArchivo(MIG_ELEGIBILIDAD, 'plantilla_cuatro');
+  if (!r.ok) throw new Error(`la plantilla con las cuatro no se pudo preparar:\n${cola(r.salida)}`);
   psqlSql('create database principal template plantilla', 'postgres');
 
   console.log('\n— Pasada 1: las migraciones tal cual —');
@@ -549,6 +819,58 @@ try {
   pasadaMutantes('Pasada 4: mutantes de F3-a (servicio, límite, salud y bandeja)', MIG_INGESTA, MUTANTES_INGESTA, 'plantilla_nucleo', ORACULO_INGESTA, 'mut_ingesta');
   pasadaMutantes('Pasada 5: mutantes de la corrección de elegibilidad', MIG_ELEGIBILIDAD, MUTANTES_ELEGIBILIDAD, 'plantilla_nucleo', ORACULO_ELEGIBILIDAD, 'mut_elegib');
   await pasadaConcurrencia();
+
+  // ── Pasada 7: la quinta sobre las cuatro ──
+  console.log('\n— Pasada 7: la quinta (corrección de F2 + F3) —');
+  const dq = 'quinta';
+  const oraculoEn = (nombre, archivo, marca, base) => {
+    const o = psqlArchivo(archivo, base);
+    return paso(nombre, o.ok && o.salida.includes(marca), lineasOraculo(o.salida));
+  };
+  const huella = (base) => correr('psql', ['-X', '-qAt', '-v', 'ON_ERROR_STOP=1', '-d', base, '-f', HUELLA]);
+  psqlSql(`create database ${dq} template plantilla_cuatro`, 'postgres');
+  const h0 = huella(dq);
+  const lineasH0 = h0.salida.trim().split(/\r?\n/);
+  paso('huella del catálogo de las cuatro', h0.ok && lineasH0.length > 100, h0.ok ? `${lineasH0.length} líneas` : cola(h0.salida));
+  r = psqlArchivo(MIG_CORRECCION, dq);
+  paso('quinta aplicada (recepción, id fijo, candidatos, candados, entrantes, retención, salud, postflight)', r.ok, r.ok ? '' : cola(r.salida));
+  r = psqlArchivo(MIG_CORRECCION, dq);
+  paso('la quinta se niega a sobrescribirse', !r.ok && r.salida.includes('los objetos ya existen'), r.ok ? 'se aplicó dos veces' : '');
+  oraculoEn('oráculo de la quinta', ORACULO_CORRECCION, 'ORACULO CORRECCION OK', dq);
+  r = psqlSql(`select (select count(*) from crm.llamadas_celular_eventos) + (select count(*) from private.llamadas_celular_recepciones)
+    + (select count(*) from private.celulares_estado) + (select count(*) from crm.celulares_asignaciones)`, dq);
+  paso('el oráculo de la quinta no dejó filas', r.ok && r.salida.trim() === '0', r.salida.trim());
+  r = psqlArchivo(REVERSA_ELEGIBILIDAD, dq);
+  paso('la reversa de elegibilidad se niega con la quinta puesta', !r.ok && r.salida.includes('la corrección 20261005143843 sigue instalada'), r.ok ? 'se aplicó fuera de orden' : '');
+  r = psqlArchivo(REVERSA_INGESTA, dq);
+  paso('la reversa de la ingesta se niega con la quinta puesta', !r.ok && r.salida.includes('la corrección 20261005143843 sigue instalada'), r.ok ? 'se aplicó fuera de orden' : '');
+  r = psqlArchivo(REVERSA_CORRECCION, dq);
+  paso('reversa de la quinta (antes del primer aviso)', r.ok, r.ok ? '' : cola(r.salida));
+  const h1 = huella(dq);
+  const distintas = h1.salida.trim().split(/\r?\n/).filter((l, i) => l !== lineasH0[i]);
+  paso('la reversa vuelve EXACTAMENTE a la huella de las cuatro', h1.ok && h1.salida === h0.salida,
+    h1.ok ? distintas.slice(0, 4).join('\n') : cola(h1.salida));
+  oraculoEn('oráculo de la corrección de elegibilidad tras la reversa', ORACULO_ELEGIBILIDAD, 'ORACULO ELEGIBILIDAD OK', dq);
+  oraculoEn('oráculo de F3-a tras la reversa', ORACULO_INGESTA, 'ORACULO F3-a OK', dq);
+  oraculoEn('oráculo de F2-c tras la reversa', ORACULO_NUCLEO, 'ORACULO F2-c OK', dq);
+  r = psqlArchivo(MIG_CORRECCION, dq);
+  paso('la quinta se vuelve a aplicar tras su reversa', r.ok, r.ok ? '' : cola(r.salida));
+  oraculoEn('oráculo de la quinta tras reaplicar', ORACULO_CORRECCION, 'ORACULO CORRECCION OK', dq);
+  // Barrera: con filas, la quinta se niega; tras el primer aviso, su reversa también.
+  psqlSql('create database quinta_filas template plantilla_cuatro', 'postgres');
+  psqlSql(`insert into crm.celulares_asignaciones (etiqueta, analista_id, credencial_hash) values ('C9', '${ACT.a1}', repeat('e', 64))`, 'quinta_filas');
+  r = psqlArchivo(MIG_CORRECCION, 'quinta_filas');
+  paso('la quinta se niega si hay filas (barrera)', !r.ok && r.salida.includes('hay filas en las tablas de llamadas'), r.ok ? 'se aplicó con filas' : '');
+  psqlSql('drop database quinta_filas', 'postgres');
+  psqlSql(`create database quinta_aviso template ${dq}`, 'postgres');
+  r = psqlSql(`insert into crm.celulares_asignaciones (etiqueta, analista_id, credencial_hash) values ('C9', '${ACT.a1}', repeat('e', 64)) returning id`, 'quinta_aviso');
+  psqlSql(`insert into private.llamadas_celular_recepciones (evento_origen_id, asignacion_id, recibido_en) values ('C9-1790000000', '${r.salida.trim()}', now())`, 'quinta_aviso');
+  r = psqlArchivo(REVERSA_CORRECCION, 'quinta_aviso');
+  paso('la reversa de la quinta se niega tras el primer aviso', !r.ok && r.salida.includes('ya hubo avisos'), r.ok ? 'revirtió con avisos' : '');
+  psqlSql('drop database quinta_aviso', 'postgres');
+
+  pasadaMutantes('Pasada 8: mutantes de la quinta', MIG_CORRECCION, MUTANTES_CORRECCION, 'plantilla_cuatro', ORACULO_CORRECCION, 'mut_quinta');
+  await pasadaConcurrenciaCorreccion();
 } catch (error) {
   paso('arranque del banco', false, error.message);
 } finally {
