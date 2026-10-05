@@ -9,7 +9,7 @@
 // canonización, idempotencia y forma del resultado reales; auth.uid como doble declarado).
 // Molde: supabase/scripts/test-sla-nucleo-local.py. No sustituye el gate test-rls.mjs.
 //
-// Quince pasadas:
+// Dieciséis pasadas:
 //   1. Las migraciones tal cual: se aplican, se niegan a sobrescribirse, pasan sus oráculos, sus
 //      reversas funcionan en orden (y se niegan fuera de orden o con filas) y se vuelven a aplicar.
 //   2–5. Mutantes de F2-b, F2-c, F3-a y la corrección de elegibilidad: por cada defensa, una copia de
@@ -42,6 +42,9 @@
 //  15. La OCTAVA (20261005201010, lecturas de F4-b) sobre las siete: se aplica, se niega a repetirse, pasan su
 //      oráculo y los de F4-a y la quinta, las reversas de la séptima y F4-a se niegan con ella puesta, la suya
 //      vuelve a la huella exacta de las siete; y sus mutantes.
+//  16. La NOVENA (20261005224330, «Qué pasó hoy» paginada y por la hora de resolución) sobre las ocho: se niega sin la
+//      octava, se aplica, se niega a repetirse, pasan su oráculo y los de F4-a y la quinta, la reversa de la octava se
+//      niega con ella puesta, la suya vuelve a la huella exacta de las ocho; y sus mutantes.
 //
 // Uso:  node supabase/scripts/test-llamadas-celular-local.mjs     (npm run test:llamadas:local)
 // Binarios: LLAMADAS_PG_BIN, o ~/.local/pg/pgsql/bin (zip oficial de EDB en Windows), o Homebrew.
@@ -79,6 +82,9 @@ const REVERSA_SIN_CICLO = join(RAIZ, 'supabase/scripts/llamadas-celular/reversa-
 const MIG_LECTURAS = join(RAIZ, 'supabase/migrations/20261005201010_crm_llamadas_celular_lecturas_analista.sql');
 const ORACULO_LECTURAS = join(RAIZ, 'supabase/tests/llamadas-celular/oraculo-lecturas-analista.sql');
 const REVERSA_LECTURAS = join(RAIZ, 'supabase/scripts/llamadas-celular/reversa-lecturas-analista.sql');
+const MIG_PAGINADAS = join(RAIZ, 'supabase/migrations/20261005224330_crm_llamadas_celular_resueltas_paginadas.sql');
+const ORACULO_PAGINADAS = join(RAIZ, 'supabase/tests/llamadas-celular/oraculo-resueltas-paginadas.sql');
+const REVERSA_PAGINADAS = join(RAIZ, 'supabase/scripts/llamadas-celular/reversa-resueltas-paginadas.sql');
 const PUERTO = '55485';
 const USUARIO = 'llamadas_test_owner';
 const EXE = process.platform === 'win32' ? '.exe' : '';
@@ -403,6 +409,46 @@ const MUTANTES_LECTURAS = [
   { nombre: 'la puerta INVOKER', por: 'postflight', espera: 'debería ser SECURITY DEFINER',
     buscar: "create function crm.actividades_con_llamada_celular_fn(p_actividad_ids uuid[])\nreturns jsonb\nlanguage plpgsql\nstable\nsecurity definer",
     poner: "create function crm.actividades_con_llamada_celular_fn(p_actividad_ids uuid[])\nreturns jsonb\nlanguage plpgsql\nstable\nsecurity invoker" },
+];
+
+// Mutantes de la novena (20261005224330, «Qué pasó hoy» paginada y por la hora de resolución): los caza su oráculo o
+// el postflight.
+const MUTANTES_PAGINADAS = [
+  { nombre: 'sin cursor en la rama de registradas',
+    buscar: '      and (p_antes_resuelto_en is null or (en.actualizado_en, en.evento_id) < (p_antes_resuelto_en, p_antes_id))\n', poner: '' },
+  { nombre: 'sin cursor en la rama de descartadas',
+    buscar: '      and (p_antes_resuelto_en is null or (e.descartado_en, e.id) < (p_antes_resuelto_en, p_antes_id))\n', poner: '' },
+  { nombre: 'sin la rama de descartadas', buscar: "    where e.atencion = 'descartado_con_motivo'\n",
+    poner: "    where false and e.atencion = 'descartado_con_motivo'\n" },
+  { nombre: 'la registrada cuenta cuando nació el enlace (creado_en), no cuando pasó al corregido',
+    buscar: "      and en.actualizado_en >= dia.desde and en.actualizado_en < dia.desde + interval '1 day'\n",
+    poner: "      and en.creado_en >= dia.desde and en.creado_en < dia.desde + interval '1 day'\n" },
+  { nombre: 'la descartada cuenta el día en que se recibió, no el del descarte',
+    buscar: "      and e.descartado_en >= dia.desde and e.descartado_en < dia.desde + interval '1 day'\n",
+    poner: "      and e.recibido_en >= dia.desde and e.recibido_en < dia.desde + interval '1 day'\n" },
+  { nombre: 'el día en UTC, no en Lima', buscar: "'America/Lima') at time zone 'America/Lima') as desde",
+    poner: "'UTC') at time zone 'UTC') as desde" },
+  { nombre: 'sin la fila de más (limit sin +1)', buscar: '    limit p_limite + 1\n', poner: '    limit p_limite\n' },
+  { nombre: 'la página se corta por la hora de recepción', buscar: '    order by r.resuelto_en desc, e.id desc\n',
+    poner: '    order by e.recibido_en desc, e.id desc\n' },
+  { nombre: '«Qué pasó hoy» sin ámbito',
+    buscar: '    where private.llamada_celular_visible(p_actor, e.lead_id, e.analista_id)\n    order by', poner: '    order by' },
+  { nombre: 'el cursor a medias se acepta', buscar: '  if (p_antes_resuelto_en is null) <> (p_antes_id is null) then', poner: '  if false then' },
+  { nombre: 'el límite sin validar', buscar: '  if p_limite is null or p_limite not between 1 and 200 then', poner: '  if false then' },
+  { nombre: 'el deshecho no se marca', buscar: "'deshecho', coalesce(p.deshecho, false)", poner: "'deshecho', false" },
+  { nombre: 'la lectura de la octava sigue (dos firmas)', por: 'postflight', espera: 'sigue la lectura de la octava',
+    buscar: 'drop function crm.llamadas_celular_resueltas_hoy_fn(integer);\n', poner: '' },
+  { nombre: 'el índice de descartadas sin filtrar', por: 'postflight', espera: 'faltan los índices',
+    buscar: "  on crm.llamadas_celular_eventos (descartado_en, id) where atencion = 'descartado_con_motivo';",
+    poner: '  on crm.llamadas_celular_eventos (descartado_en, id);' },
+  { nombre: '«Qué pasó hoy» abierta a anon', por: 'postflight', espera: 'EXECUTE inesperado',
+    buscar: 'grant execute on function crm.llamadas_celular_resueltas_hoy_fn(integer,timestamptz,uuid) to authenticated;',
+    poner: 'grant execute on function crm.llamadas_celular_resueltas_hoy_fn(integer,timestamptz,uuid) to authenticated, anon;' },
+  { nombre: 'el núcleo con EXECUTE para authenticated', por: 'postflight', espera: 'EXECUTE inesperado',
+    buscar: 'revoke all on function private.llamadas_celular_resueltas_hoy(uuid,integer,timestamptz,timestamptz,uuid)\n  from public, anon, authenticated, service_role;',
+    poner: 'grant execute on function private.llamadas_celular_resueltas_hoy(uuid,integer,timestamptz,timestamptz,uuid)\n  to authenticated;' },
+  { nombre: 'la puerta INVOKER', por: 'postflight', espera: 'debería ser SECURITY DEFINER',
+    buscar: 'stable\nsecurity definer', poner: 'stable\nsecurity invoker' },
 ];
 
 function carpetaBinarios() {
@@ -949,6 +995,10 @@ try {
   psqlSql('create database plantilla_siete template plantilla_seis', 'postgres');
   r = psqlArchivo(MIG_SIN_CICLO, 'plantilla_siete');
   if (!r.ok) throw new Error(`la plantilla con las siete no se pudo preparar:\n${cola(r.salida)}`);
+  // Y con la octava: el punto de partida de la novena (pasada 16).
+  psqlSql('create database plantilla_ocho template plantilla_siete', 'postgres');
+  r = psqlArchivo(MIG_LECTURAS, 'plantilla_ocho');
+  if (!r.ok) throw new Error(`la plantilla con las ocho no se pudo preparar:\n${cola(r.salida)}`);
   psqlSql('create database principal template plantilla', 'postgres');
 
   console.log('\n— Pasada 1: las migraciones tal cual —');
@@ -1336,6 +1386,39 @@ try {
   oraculoEn('oráculo de la octava tras reaplicar', ORACULO_LECTURAS, 'ORACULO LECTURAS ANALISTA OK', dl);
   psqlSql(`drop database ${dl}`, 'postgres');
   pasadaMutantes('Pasada 15b: mutantes de la octava', MIG_LECTURAS, MUTANTES_LECTURAS, 'plantilla_siete', ORACULO_LECTURAS, 'mut_lecturas');
+
+  // ── Pasada 16: la novena («Qué pasó hoy» paginada y por la hora de resolución) sobre las ocho ──
+  console.log('\n— Pasada 16: la novena («Qué pasó hoy» paginada y por la hora en que se resolvió) —');
+  const dp = 'paginadas';
+  psqlSql(`create database ${dp}_sin_octava template plantilla_siete`, 'postgres');
+  r = psqlArchivo(MIG_PAGINADAS, `${dp}_sin_octava`);
+  paso('la novena se niega sin la octava', !r.ok && r.salida.includes('falta la octava'), r.ok ? 'se aplicó sin la octava' : '');
+  psqlSql(`drop database ${dp}_sin_octava`, 'postgres');
+  psqlSql(`create database ${dp} template plantilla_ocho`, 'postgres');
+  const n0 = huella(dp);
+  const lineasN0 = n0.salida.trim().split(/\r?\n/);
+  paso('huella del catálogo de las ocho', n0.ok && lineasN0.length > 100, n0.ok ? `${lineasN0.length} líneas` : cola(n0.salida));
+  r = psqlArchivo(MIG_PAGINADAS, dp);
+  paso('novena aplicada (retira la lectura de la octava, dos índices, lectura paginada, permisos, postflight)', r.ok, r.ok ? '' : cola(r.salida));
+  r = psqlArchivo(MIG_PAGINADAS, dp);
+  paso('la novena se niega a sobrescribirse', !r.ok && r.salida.includes('los objetos ya existen'), r.ok ? 'se aplicó dos veces' : '');
+  oraculoEn('oráculo de la novena', ORACULO_PAGINADAS, 'ORACULO RESUELTAS PAGINADAS OK', dp);
+  oraculoEn('oráculo de F4-a con la novena puesta', ORACULO_ENLACE, 'ORACULO ENLACE EXACTO OK', dp);
+  oraculoEn('oráculo de la quinta con la novena puesta', ORACULO_CORRECCION, 'ORACULO CORRECCION OK', dp);
+  r = psqlArchivo(REVERSA_LECTURAS, dp);
+  paso('la reversa de la octava se niega con la novena puesta', !r.ok && r.salida.includes('la novena (20261005224330) sigue instalada'), r.ok ? 'se aplicó fuera de orden' : '');
+  r = psqlArchivo(REVERSA_PAGINADAS, dp);
+  paso('reversa de la novena', r.ok, r.ok ? '' : cola(r.salida));
+  const n1 = huella(dp);
+  const distintasN = n1.salida.trim().split(/\r?\n/).filter((l, i) => l !== lineasN0[i]);
+  paso('la reversa de la novena vuelve EXACTAMENTE a la huella de las ocho', n1.ok && n1.salida === n0.salida,
+    n1.ok ? distintasN.slice(0, 4).join('\n') : cola(n1.salida));
+  oraculoEn('oráculo de la octava tras la reversa de la novena', ORACULO_LECTURAS, 'ORACULO LECTURAS ANALISTA OK', dp);
+  r = psqlArchivo(MIG_PAGINADAS, dp);
+  paso('la novena se vuelve a aplicar tras su reversa', r.ok, r.ok ? '' : cola(r.salida));
+  oraculoEn('oráculo de la novena tras reaplicar', ORACULO_PAGINADAS, 'ORACULO RESUELTAS PAGINADAS OK', dp);
+  psqlSql(`drop database ${dp}`, 'postgres');
+  pasadaMutantes('Pasada 16b: mutantes de la novena', MIG_PAGINADAS, MUTANTES_PAGINADAS, 'plantilla_ocho', ORACULO_PAGINADAS, 'mut_paginadas');
 } catch (error) {
   paso('arranque del banco', false, error.message);
 } finally {
