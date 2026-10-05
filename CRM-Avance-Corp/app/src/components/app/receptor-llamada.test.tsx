@@ -151,6 +151,31 @@ describe('ReceptorLlamada', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
+  // F4-b: el id de la llamada viaja con la intención; el hash se limpia entero.
+  it('con el id de la llamada en el enlace: lo quita del hash con el número y lo lleva en la intención', async () => {
+    window.location.hash = '#/gestion-diaria/llamada/%2B51999888777/C1-1790980958'
+    dobles.resolver.mockResolvedValue({ estado: 'unico', numero: '+51999888777', lead: L1, terminales: [] })
+    render(<ReceptorLlamada />)
+    expect(window.location.hash).toBe('#/gestion-diaria')
+    await waitFor(() => expect(intencionDe('v1', 'lead-1')).toMatchObject({ origen: 'enlace', origenLlamada: 'C1-1790980958' }))
+  })
+
+  it('sin id en el enlace (la macro de hoy) la intención no inventa uno', async () => {
+    window.location.hash = '#/gestion-diaria/llamada/%2B51999888777'
+    dobles.resolver.mockResolvedValue({ estado: 'unico', numero: '+51999888777', lead: L1, terminales: [] })
+    render(<ReceptorLlamada />)
+    await waitFor(() => expect(intencionDe('v1', 'lead-1')).toMatchObject({ origen: 'enlace' }))
+    expect(intencionDe('v1', 'lead-1')?.origenLlamada).toBeUndefined()
+  })
+
+  it('ambiguo con id: el lead elegido a mano también lleva el id de la llamada', async () => {
+    window.location.hash = '#/hoy/llamada/999888777/C3-1790980958'
+    dobles.resolver.mockResolvedValue({ estado: 'ambiguo', numero: '+51999888777', leads: [L1, L2] })
+    render(<ReceptorLlamada />)
+    fireEvent.click(await screen.findByRole('button', { name: /JUAN QUISPE/ }))
+    await waitFor(() => expect(intencionDe('v1', 'lead-2')).toMatchObject({ origen: 'enlace', origenLlamada: 'C3-1790980958' }))
+  })
+
   it('sin coincidencia: avisa, precarga la búsqueda manual con los dígitos y deja elegir un resultado', async () => {
     window.location.hash = '#/hoy/llamada/%2B51999888777'
     const L11 = lead('lead-11', 'CARLOS RUIZ', '+51999888777', { etapa: 'convertido' })
