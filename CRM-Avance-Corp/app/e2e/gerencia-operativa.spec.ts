@@ -1,3 +1,4 @@
+import { irAModulo } from './_navegacion'
 // E2E mínimo de la ampliación 2026-08-07. A diferencia de acciones-real.spec,
 // este caso no depende del gate general de la fuerza de ventas: Gerencia ya
 // tiene aprobadas las vistas de leads y debe poder operar un lead ajeno.
@@ -11,7 +12,7 @@ import type { Page } from '@playwright/test'
  *  tarjetas que se puedan abrir. */
 async function abrirFichaDesdeLeads(page: Page, nombre: RegExp) {
   // `exact`: sin él también casa «Repartir leads», que es otra pantalla.
-  await page.getByRole('button', { name: 'Leads', exact: true }).click()
+  await irAModulo(page, 'Leads')
   await page.getByRole('row', { name: new RegExp(`Abrir ficha de ${nombre.source}`, 'i') }).click()
   const drawer = page.getByRole('dialog', { name: nombre })
   await expect(drawer).toBeVisible()
@@ -65,7 +66,7 @@ test('Leads conecta el inventario y sus indicadores a los filtros de la tabla', 
     body: JSON.stringify(resumen),
   }))
   await loginReal(page)
-  await page.getByRole('button', { name: 'Leads', exact: true }).click()
+  await irAModulo(page, 'Leads')
 
   const chips = page.locator('[data-slot="card"]')
   const total = chips.filter({ hasText: 'Total leads' }).first()
@@ -112,7 +113,7 @@ test('Equipo (gerencia real): comparativa y chips cargan desde metricas_vendedor
     leads: [leadReal({ vendedor_id: 'vend-1', monto_estimado: 12000, moneda: 'PEN' })],
   })
   await loginReal(page)
-  await page.getByRole('button', { name: 'Equipo' }).click()
+  await irAModulo(page, 'Gestión de equipo')
 
   // El payload parsea y la pantalla pinta: chips con números (no «—») y la
   // tabla en su estado honesto (el ROSTER del mock no tiene supervisores).
@@ -134,7 +135,7 @@ test('métricas de equipo caídas: Equipo degrada a «—» con aviso y reintent
     leads: [leadReal({ vendedor_id: 'vend-1' })],
   })
   await loginReal(page)
-  await page.getByRole('button', { name: 'Equipo' }).click()
+  await irAModulo(page, 'Gestión de equipo')
 
   await expect(page.getByText(/No se pudieron cargar las métricas por equipo/)).toBeVisible()
   await expect(page.getByText('La comparativa no está disponible en este momento.')).toBeVisible()

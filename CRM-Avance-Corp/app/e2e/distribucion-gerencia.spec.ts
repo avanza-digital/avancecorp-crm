@@ -1,3 +1,4 @@
+import { irAModulo } from './_navegacion'
 import { expect, test } from '@playwright/test'
 import {
   ANALISTA_ANA_ID,
@@ -18,8 +19,8 @@ test.describe('distribución de leads en Hoy > Gerencia', () => {
     })
 
     await loginReal(page)
-    await expect(page.getByRole('button', { name: 'Pipeline' })).toBeVisible()
-    await page.getByRole('button', { name: 'Rendimiento' }).click()
+    await expect(page.getByRole('button', { name: 'Resumen', exact: true })).toBeVisible()
+    await irAModulo(page, 'Rendimiento')
 
     await expect(page.getByRole('heading', { name: 'Rendimiento y capacidad comercial' })).toBeVisible()
     await expect(page.getByText('Altas por analista', { exact: true })).toHaveCount(0)
@@ -86,7 +87,7 @@ test.describe('distribución de leads en Hoy > Gerencia', () => {
     await bloquearSupabase(page)
 
     await entrarDemo(page, 'Gerencia')
-    await page.getByRole('button', { name: 'Rendimiento' }).click()
+    await irAModulo(page, 'Rendimiento')
     await expect(page.getByRole('heading', { name: 'Rendimiento y capacidad comercial' })).toBeVisible()
     const primeraFicha = page.getByRole('article', { name: /^Ficha de/ }).first()
     await expect(primeraFicha).toBeVisible()
@@ -116,7 +117,7 @@ test.describe('distribución de leads en Hoy > Gerencia', () => {
     const requestsSupabase = await bloquearSupabase(page)
 
     await entrarDemo(page, 'Gerencia')
-    await page.getByRole('button', { name: 'Rendimiento' }).click()
+    await irAModulo(page, 'Rendimiento')
 
     await expect(page.getByRole('heading', { name: 'Rendimiento y capacidad comercial' })).toBeVisible()
     await expect(page.getByText('Datos ficticios de demostración', { exact: true })).toBeVisible()

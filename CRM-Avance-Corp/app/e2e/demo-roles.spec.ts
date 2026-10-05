@@ -1,3 +1,4 @@
+import { irAModulo } from './_navegacion'
 // Smoke E2E por ROL sobre la demo (hallazgo Alta de auditoría 2026-07-10:
 // no existía ninguna prueba end-to-end). Verifica el recorrido real: login
 // demo → panel Hoy → navegación → ficha de lead (incluido el manejo por
@@ -11,7 +12,7 @@ async function entrarDemo(page: Page, rol: (typeof ROLES)[number]): Promise<void
   await page.getByRole('button', { name: /explorar en modo demo/i }).click()
   await page.getByRole('button', { name: new RegExp(`^${rol}`) }).click()
   // El workspace queda listo cuando aparece la navegación lateral.
-  await expect(page.getByRole('button', { name: 'Pipeline' })).toBeVisible()
+  await expect(page.locator('aside').getByRole('navigation').getByRole('button', { name: rol === 'Gerencia' ? 'Resumen' : 'Hoy', exact: true })).toBeVisible()
 }
 
 for (const rol of ROLES) {
@@ -27,7 +28,7 @@ for (const rol of ROLES) {
     ).toBeVisible()
 
     // Navegación al pipeline: las 4 etapas activas del embudo están pintadas.
-    await page.getByRole('button', { name: 'Pipeline' }).click()
+    await irAModulo(page, 'Pipeline')
     for (const etapa of ['Nuevo', 'Contactado', 'Cita agendada', 'Entrevista realizada']) {
       await expect(page.getByText(etapa, { exact: true }).first()).toBeVisible()
     }
@@ -114,7 +115,7 @@ test('Analista móvil: la primera acción cabe a 390 px, conserva targets tácti
 
 test('Analista: abre la ficha de un lead POR TECLADO y el drawer atrapa y devuelve el foco', async ({ page }) => {
   await entrarDemo(page, 'Analista')
-  await page.getByRole('button', { name: 'Pipeline' }).click()
+  await irAModulo(page, 'Pipeline')
 
   // Deliberadamente no esperamos un heading de Pipeline: esta secuencia fija la
   // regresión donde el hash cambiaba antes que la pantalla y Enter accionaba una
@@ -145,7 +146,7 @@ test('Analista: abre la ficha de un lead POR TECLADO y el drawer atrapa y devuel
 
 test('Directorio: es lector global (ve el pipeline completo sin acciones de alta)', async ({ page }) => {
   await entrarDemo(page, 'Directorio')
-  await page.getByRole('button', { name: 'Pipeline' }).click()
+  await irAModulo(page, 'Pipeline')
 
   // Ve leads de TODOS los equipos (l1 de d-v1 y l4 de d-v3)…
   await expect(page.getByText('JUAN PÉREZ ROJAS').first()).toBeVisible()

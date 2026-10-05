@@ -1,3 +1,4 @@
+import { irAModulo } from './_navegacion'
 // Recorrido E2E del gobierno comercial en DEMO. Las cuatro tarjetas deben ser
 // navegables por Gerencia y Directorio sin que una sola lectura salga a
 // Supabase; toda la fotografía demo es explícitamente de solo lectura.
@@ -35,7 +36,7 @@ for (const rol of ['Gerencia', 'Directorio'] as const satisfies readonly RolDemo
   test(`demo ${rol.toLocaleLowerCase('es-PE')}: recorre las cuatro configuraciones sin red`, async ({ page }) => {
     const requestsSupabase = await bloquearSupabase(page)
     await entrarDemo(page, rol)
-    await page.getByRole('button', { name: 'Configuración' }).click()
+    await irAModulo(page, 'Configuración')
 
     await expect(page.getByRole('heading', { name: 'Configuración del CRM' })).toBeVisible()
     await expect(page.getByText(/Demostración de solo lectura/)).toBeVisible()

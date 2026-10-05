@@ -1,3 +1,4 @@
+import { irAModulo } from './_navegacion'
 // E2E del Resumen analítico de Gerencia. La pantalla vigente combina las RPC
 // de conversiones/reuniones con Metas versionadas; las antiguas gráficas
 // financieras ya no forman parte de la navegación.
@@ -74,7 +75,7 @@ test.describe('resumen de Gerencia en sesión real', () => {
     await page.screenshot({ path: testInfo.outputPath('resumen-mobile.png'), fullPage: true, animations: 'disabled' })
     await page.setViewportSize({ width: 1280, height: 900 })
 
-    await page.getByRole('button', { name: 'Conversiones', exact: true }).click()
+    await irAModulo(page, 'Conversiones')
     await expect(page.getByRole('heading', { name: 'Conversión del equipo' })).toBeVisible()
     const avance = page.locator('[data-gi-kpi]').filter({ hasText: 'Reunión o avance posterior' })
     await expect(avance).toContainText('6')
@@ -83,8 +84,9 @@ test.describe('resumen de Gerencia en sesión real', () => {
     await expect(page.getByRole('heading', { name: 'Avance comercial inferido' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Resultados por semana de ingreso' })).toBeVisible()
     await expect(page.getByText(/no cierres ocurridos esa semana/)).toBeVisible()
+    await page.getByRole('button', { name: 'Ocultar menú', exact: true }).click()
     await page.mouse.move(1200, 70)
-    await expect(page.getByRole('button', { name: 'Conversiones', exact: true })).toHaveAttribute('title', 'Conversiones')
+    await expect(page.getByRole('button', { name: 'Análisis', exact: true })).toHaveAttribute('title', 'Análisis')
     await page.screenshot({ path: testInfo.outputPath('conversiones-desktop.png'), fullPage: true, animations: 'disabled' })
     await page.setViewportSize({ width: 390, height: 844 })
     await page.mouse.move(380, 70)

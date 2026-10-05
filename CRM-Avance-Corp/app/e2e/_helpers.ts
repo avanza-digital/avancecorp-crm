@@ -1,3 +1,4 @@
+import { irAModulo } from './_navegacion'
 // Helpers compartidos de los E2E del CRM. Dos mundos:
 //  - DEMO: login demo por rol (sin backend, datos de lib/demo.ts).
 //  - REAL: sesión autenticada (yo.demo=false) con TODO el backend Supabase
@@ -21,12 +22,12 @@ export async function entrarDemo(page: Page, rol: RolDemo): Promise<void> {
   await page.goto('/')
   await page.getByRole('button', { name: /explorar en modo demo/i }).click()
   await page.getByRole('button', { name: new RegExp(`^${rol}`) }).click()
-  await expect(page.getByRole('button', { name: 'Pipeline' })).toBeVisible({ timeout: 10_000 })
+  await expect(page.locator('aside').getByRole('navigation').getByRole('button', { name: rol === 'Gerencia' ? 'Resumen' : 'Hoy', exact: true })).toBeVisible({ timeout: 10_000 })
 }
 
 /** Navega al Pipeline (donde viven las cards de lead operables). */
 export async function irAPipeline(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Pipeline' }).click()
+  await irAModulo(page, 'Pipeline')
   await expect(page.getByText('Nuevo', { exact: true }).first()).toBeVisible()
 }
 
@@ -52,7 +53,7 @@ export async function irAMiCartera(page: Page): Promise<void> {
  * pedir «Cartera» aquí aterrizaba en la pantalla equivocada. */
 export async function irACartera(page: Page): Promise<void> {
   // exact: gerencia ve además «Repartir leads», que contiene esta palabra.
-  await page.getByRole('button', { name: 'Leads', exact: true }).click()
+  await irAModulo(page, 'Leads')
   await expect(page.getByRole('table', { name: 'Cartera de leads' })).toBeVisible()
 }
 

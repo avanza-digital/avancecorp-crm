@@ -1,3 +1,4 @@
+import { irAModulo } from './_navegacion'
 import { expect, test } from '@playwright/test'
 import { loginReal, montarBackendReal } from './_helpers'
 
@@ -42,7 +43,7 @@ test('Gerencia activa avisos, envía prueba y los desactiva con el worker real',
     await route.fulfill({ json: null })
   })
   await loginReal(page)
-  await page.getByRole('button', { name: 'Configuración', exact: true }).click()
+  await irAModulo(page, 'Configuración')
   await page.getByRole('button', { name: 'Activar notificaciones', exact: true }).click()
   await expect(page.getByText('Activados en este dispositivo')).toBeVisible()
   await page.getByRole('region', { name: 'Notificaciones de solicitudes de tasa' }).screenshot({ path: 'test-results/push-tasa-activado.png' })
@@ -52,7 +53,7 @@ test('Gerencia activa avisos, envía prueba y los desactiva con el worker real',
   expect(acciones).toContain('prueba')
   await page.getByRole('button', { name: 'Resumen', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Notificaciones de solicitudes de tasa' })).toHaveCount(0)
-  await page.getByRole('button', { name: 'Configuración', exact: true }).click()
+  await irAModulo(page, 'Configuración')
   await expect(page.getByText('Activados en este dispositivo')).toBeVisible()
   await page.getByRole('button', { name: 'Desactivar', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Activar notificaciones' })).toBeVisible()
