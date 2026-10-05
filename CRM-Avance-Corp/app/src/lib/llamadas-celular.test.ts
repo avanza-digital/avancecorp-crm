@@ -15,7 +15,7 @@ const fila = (extra: Partial<FilaBandeja> = {}): FilaBandeja => ({
   atencion: 'requiere_resultado', lead_id: 'l2', lead_nombre: 'MARÍA LÓPEZ', analista_id: 'a1', es_propia: true, ...extra,
 })
 const resuelta = (extra: Partial<ResueltaHoy> = {}): ResueltaHoy => ({
-  evento_id: 'e2', recibido_en: '2026-10-05T14:00:11Z', ocurrio_en: '2026-10-05T14:00:00Z', numero: '+51911223344',
+  evento_id: 'e2', resuelto_en: '2026-10-05T14:04:00.123456+00:00', recibido_en: '2026-10-05T14:00:11Z', ocurrio_en: '2026-10-05T14:00:00Z', numero: '+51911223344',
   atencion: 'registrado', lead_id: 'l15', lead_nombre: 'TERESA', analista_id: 'a1', es_propia: true, etiqueta: 'C1',
   actividad_id: 'act', resultado: 'agendo_reunion', deshecho: false, via: 'al_colgar', motivo_descarte: null,
   motivo_descarte_detalle: null, ...extra,
@@ -31,8 +31,16 @@ describe('contrato de las puertas de llamadas del celular', () => {
   })
 
   it('«Qué pasó hoy», la marca y el detalle validan su forma', () => {
-    expect(v.safeParse(ResueltasHoySchema, [resuelta(), resuelta({ atencion: 'descartado_con_motivo', via: null, resultado: null })]).success).toBe(true)
-    expect(v.safeParse(ResueltasHoySchema, [resuelta({ atencion: 'requiere_resultado' as never })]).success).toBe(false)
+    const pagina = v.safeParse(ResueltasHoySchema, {
+      filas: [resuelta(), resuelta({ atencion: 'descartado_con_motivo', via: null, resultado: null })],
+      siguiente: { resuelto_en: '2026-10-05T14:04:00.123456+00:00', evento_id: 'e2' },
+    })
+    expect(pagina.success).toBe(true)
+    // El cursor sale tal cual: los microsegundos no se pierden.
+    expect(pagina.success && pagina.output.siguiente?.resuelto_en).toBe('2026-10-05T14:04:00.123456+00:00')
+    expect(v.safeParse(ResueltasHoySchema, { filas: [resuelta({ atencion: 'requiere_resultado' as never })], siguiente: null }).success).toBe(false)
+    expect(v.safeParse(ResueltasHoySchema, { filas: [{ ...resuelta(), resuelto_en: undefined }], siguiente: null }).success).toBe(false)
+    expect(v.safeParse(ResueltasHoySchema, [resuelta()]).success).toBe(false)
     expect(v.safeParse(MarcaCelularSchema, [{ actividad_id: 'a', evento_id: 'e', etiqueta: 'C1', via: 'pestana' }]).success).toBe(true)
     expect(v.safeParse(MarcaCelularSchema, [{ actividad_id: 'a', evento_id: 'e', etiqueta: 'C1', via: 'adivinada' }]).success).toBe(false)
     const { evento_id: _e, ...sinId } = { ...fila(), calidad: {}, metodo_asociacion: 'exacto', motivo_descarte: null, motivo_descarte_detalle: null, actividad_id: null, efectos_anulados: false }

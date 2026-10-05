@@ -1,6 +1,7 @@
 // Llamadas desde el celular (F4-b) — contrato de las puertas de la pestaña «Llamadas del celular» y sus textos.
 // Fuentes: crm.llamadas_celular_bandeja_fn (20261001212258, con la atención efectiva), crm.llamada_celular_detalle_fn
-// (20261001160219), crm.llamadas_celular_resueltas_hoy_fn y crm.actividades_con_llamada_celular_fn (20261005201010) y
+// (20261001160219), crm.llamadas_celular_resueltas_hoy_fn (20261005224330: paginada y por la hora de resolución),
+// crm.actividades_con_llamada_celular_fn (20261005201010) y
 // el `enlace` de crm.registrar_llamada_v5 (20261005155914 + 20261005182227). Aquí se valida la FORMA en la frontera y se
 // arman los textos; el ámbito, la elegibilidad y el enlace los decide el servidor.
 import * as v from 'valibot'
@@ -79,6 +80,8 @@ export type DetalleLlamada = v.InferOutput<typeof DetalleLlamadaSchema>
 
 export const ResueltaHoySchema = v.object({
   evento_id: v.string(),
+  /** Cuándo se resolvió (el enlace al resultado o el descarte): «hoy» es lo resuelto hoy en Lima, aunque la llamada sea de ayer. */
+  resuelto_en: v.string(),
   recibido_en: v.string(),
   ocurrio_en: v.nullable(v.string()),
   numero: v.nullable(v.string()),
@@ -96,7 +99,12 @@ export const ResueltaHoySchema = v.object({
   motivo_descarte_detalle: v.nullable(v.string()),
 })
 export type ResueltaHoy = v.InferOutput<typeof ResueltaHoySchema>
-export const ResueltasHoySchema = v.array(ResueltaHoySchema)
+/** Paginada como la bandeja: el cursor se devuelve TAL CUAL (texto con microsegundos; pasarlo por Date pierde filas empatadas). */
+export const ResueltasHoySchema = v.object({
+  filas: v.array(ResueltaHoySchema),
+  siguiente: v.nullable(v.object({ resuelto_en: v.string(), evento_id: v.string() })),
+})
+export type ResueltasHoy = v.InferOutput<typeof ResueltasHoySchema>
 
 export const MarcaCelularSchema = v.array(v.object({
   actividad_id: v.string(),

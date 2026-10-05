@@ -14,7 +14,7 @@ const fila = (id: string, extra: Partial<FilaBandeja> = {}): FilaBandeja => ({
   atencion: 'requiere_resultado', lead_id: 'l2', lead_nombre: 'MARÍA LÓPEZ CASTRO', analista_id: 'a1', es_propia: true, ...extra,
 })
 const resuelta: ResueltaHoy = {
-  evento_id: 'r1', recibido_en: '2026-10-05T14:00:11Z', ocurrio_en: '2026-10-05T14:00:00Z', numero: '+51911223344',
+  evento_id: 'r1', resuelto_en: '2026-10-05T14:04:00Z', recibido_en: '2026-10-05T14:00:11Z', ocurrio_en: '2026-10-05T14:00:00Z', numero: '+51911223344',
   atencion: 'registrado', lead_id: 'l15', lead_nombre: 'TERESA GONZALES PAZ', analista_id: 'a1', es_propia: true, etiqueta: 'C1',
   actividad_id: 'act', resultado: 'agendo_reunion', deshecho: false, via: 'al_colgar', motivo_descarte: null, motivo_descarte_detalle: null,
 }
