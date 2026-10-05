@@ -1052,7 +1052,7 @@ export function metricasVendedoresReal(leads: LeadReal[]): Record<string, unknow
     generado_en: new Date().toISOString(),
     ventana_convertidos_dias: 45,
     ventana_metrica: 'mes_calendario',
-    mes_metrica: '2026-09-01',
+    mes_metrica: `${diaLimaReal().slice(0, 7)}-01`,
     peso_referido: 0.15,
     cobertura_conversion: {
       medible: true,

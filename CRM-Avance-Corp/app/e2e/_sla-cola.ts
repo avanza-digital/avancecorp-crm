@@ -155,12 +155,12 @@ export function finDelDiaLima(desde: number): number {
  * cierra una con `cerrar_tarea`, la siguiente lectura ya no la trae. La
  * respuesta hace ECO de los argumentos. No acredita RLS: eso lo hace el banco.
  */
-export async function montarColaDiaV3(page: Page, backend: BackendReal, leadsVencidos: { id: string; nombre_completo: string; etapa: string }[]) {
+export async function montarColaDiaV3(page: Page, backend: BackendReal, leadsVencidos: { id: string; nombre_completo: string; etapa: string }[], reloj: () => number = Date.now) {
   const pedidos: PedidoColaDia[] = []
   const pedidosTrabajo: Record<string, unknown>[] = []
   const plantillaLead = muestraV3.items.find((i) => i.lead_id !== null)!
   const filasActuales = () => {
-    const ahora = Date.now()
+    const ahora = reloj()
     const fin = finDelDiaLima(ahora)
     const leads = leadsVencidos.map((l, i) => ({ ...plantillaLead, lead_id: l.id, clave: `lead:${l.id}`,
       sujeto: { tipo: 'lead', id: l.id, nombre: l.nombre_completo },
@@ -205,7 +205,7 @@ export async function montarColaDiaV3(page: Page, backend: BackendReal, leadsVen
       items } })
   })
   await page.route('**/rest/v1/rpc/gestion_diaria_analista_fn', async (route) => {
-    const ahora = Date.now()
+    const ahora = reloj()
     const dia = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(new Date(ahora))
     await route.fulfill({ json: { version: 1, generado_en: new Date(ahora).toISOString(), dia, zona: 'America/Lima', analista_id: UID,
       umbrales: { version: 1, bien_min_pct: 45, atencion_min_pct: 25, minimo_llamadas_utiles: 5 }, sin_conversacion_dias: 7,
