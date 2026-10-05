@@ -35,6 +35,7 @@ import {
   DIAS_DESCANSO_BASE,
   FILTRO_TODOS,
   SIN_FILTROS,
+  conBaseCargada,
   demoBaseEquipo,
   depurarFiltros,
   esVetada,
@@ -124,6 +125,8 @@ export function GestionSupervisor({ analistaInicial, onAnalista }: {
 
   const resumenPanel: readonly FilaResumenBase[] | undefined = real ? panel.data : demo?.resumen
   const conMes = mesesDeLaBase(filasTodas).length > 0
+  // F6: tras la B10, los contactos REPARTIDOS de las bases cargadas llegan aquí con su base (los sin repartir, en «Bases»).
+  const conBase = conBaseCargada(filasTodas)
   const visibles = filtrarBase(filasTodas, filtros)
   const vivas = visibles.filter((f) => !esVetada(f))
   const vetadas = visibles.filter(esVetada)
@@ -341,6 +344,7 @@ export function GestionSupervisor({ analistaInicial, onAnalista }: {
               <BarraFiltros
                 conAnalista
                 conMes={conMes}
+                conBase={conBase}
                 opciones={opciones}
                 filtros={filtros}
                 onCambiar={cambiarFiltro}
@@ -392,6 +396,7 @@ export function GestionSupervisor({ analistaInicial, onAnalista }: {
                   </>
                 }
                 conMes={conMes}
+                conBase={conBase}
                 conGestiona
                 llamable={false}
                 numeroInicial={paginado.paginaActual * POR_PAGINA + 1}

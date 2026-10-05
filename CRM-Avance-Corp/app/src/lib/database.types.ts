@@ -280,6 +280,161 @@ export type Database = {
           },
         ]
       }
+      base_carga_leads: {
+        Row: {
+          activo: boolean
+          actualizado_en: string
+          agregado_por: string
+          analista_id: string | null
+          asignado_en: string | null
+          asignado_por: string | null
+          base_id: string
+          creado_en: string
+          id: string
+          lead_id: string
+          procedencia: string
+        }
+        Insert: {
+          activo?: boolean
+          actualizado_en?: string
+          agregado_por: string
+          analista_id?: string | null
+          asignado_en?: string | null
+          asignado_por?: string | null
+          base_id: string
+          creado_en?: string
+          id?: string
+          lead_id: string
+          procedencia: string
+        }
+        Update: {
+          activo?: boolean
+          actualizado_en?: string
+          agregado_por?: string
+          analista_id?: string | null
+          asignado_en?: string | null
+          asignado_por?: string | null
+          base_id?: string
+          creado_en?: string
+          id?: string
+          lead_id?: string
+          procedencia?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "base_carga_leads_base_id_fkey"
+            columns: ["base_id"]
+            isOneToOne: false
+            referencedRelation: "bases_carga"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "base_carga_leads_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      base_carga_operaciones: {
+        Row: {
+          actor: string
+          base_id: string
+          creado_en: string
+          id: string
+          operacion_id: string
+          pedido_md5: string
+          respuesta: Json
+          tipo: string
+        }
+        Insert: {
+          actor: string
+          base_id: string
+          creado_en?: string
+          id?: string
+          operacion_id: string
+          pedido_md5: string
+          respuesta: Json
+          tipo: string
+        }
+        Update: {
+          actor?: string
+          base_id?: string
+          creado_en?: string
+          id?: string
+          operacion_id?: string
+          pedido_md5?: string
+          respuesta?: Json
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "base_carga_operaciones_base_id_fkey"
+            columns: ["base_id"]
+            isOneToOne: false
+            referencedRelation: "bases_carga"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bases_carga: {
+        Row: {
+          activo: boolean
+          actualizado_en: string
+          archivo_nombre: string | null
+          cargadas: number
+          creada_por: string
+          creado_en: string
+          filas_recibidas: number
+          id: string
+          invalidas: number
+          no_contactar: number
+          nombre: string
+          operacion_id: string
+          origen: string
+          repetidas: number
+          supervisor_id: string
+          ya_existian: number
+        }
+        Insert: {
+          activo?: boolean
+          actualizado_en?: string
+          archivo_nombre?: string | null
+          cargadas?: number
+          creada_por: string
+          creado_en?: string
+          filas_recibidas?: number
+          id?: string
+          invalidas?: number
+          no_contactar?: number
+          nombre: string
+          operacion_id: string
+          origen: string
+          repetidas?: number
+          supervisor_id: string
+          ya_existian?: number
+        }
+        Update: {
+          activo?: boolean
+          actualizado_en?: string
+          archivo_nombre?: string | null
+          cargadas?: number
+          creada_por?: string
+          creado_en?: string
+          filas_recibidas?: number
+          id?: string
+          invalidas?: number
+          no_contactar?: number
+          nombre?: string
+          operacion_id?: string
+          origen?: string
+          repetidas?: number
+          supervisor_id?: string
+          ya_existian?: number
+        }
+        Relationships: []
+      }
       busquedas_cliente_existente: {
         Row: {
           consultado_por: string
@@ -2874,7 +3029,7 @@ export type Database = {
           id: string
           inversionista_id: string | null
           moneda: string
-          monto_estimado: number
+          monto_estimado: number | null
           motivo_descarte: string | null
           no_contactar: boolean
           nombre_completo: string
@@ -2917,7 +3072,7 @@ export type Database = {
           id?: string
           inversionista_id?: string | null
           moneda?: string
-          monto_estimado: number
+          monto_estimado?: number | null
           motivo_descarte?: string | null
           no_contactar?: boolean
           nombre_completo: string
@@ -2960,7 +3115,7 @@ export type Database = {
           id?: string
           inversionista_id?: string | null
           moneda?: string
-          monto_estimado?: number
+          monto_estimado?: number | null
           motivo_descarte?: string | null
           no_contactar?: boolean
           nombre_completo?: string
@@ -4854,6 +5009,15 @@ export type Database = {
         Args: { p_expected_revision: number; p_producto_id: string }
         Returns: Json
       }
+      armar_base_crm: {
+        Args: {
+          p_lead_ids?: string[]
+          p_nombre: string
+          p_operacion_id: string
+          p_supervisor_id?: string
+        }
+        Returns: Json
+      }
       asignar_cuenta_pago_contrato: {
         Args: {
           p_contrato_id: string
@@ -4961,6 +5125,10 @@ export type Database = {
       }
       cancelar_solicitud_inversion_fn: {
         Args: { p_revision_datos_esperada: number; p_solicitud: string }
+        Returns: Json
+      }
+      cargar_base_lote: {
+        Args: { p_base_id: string; p_filas: Json; p_operacion_id: string }
         Returns: Json
       }
       cartera_filtrada_fn: {
@@ -5512,6 +5680,16 @@ export type Database = {
           p_motivo: string
           p_revision_datos_esperada: number
           p_solicitud: string
+        }
+        Returns: Json
+      }
+      crear_base: {
+        Args: {
+          p_archivo_nombre?: string
+          p_nombre: string
+          p_operacion_id: string
+          p_origen: string
+          p_supervisor_id?: string
         }
         Returns: Json
       }

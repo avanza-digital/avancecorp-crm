@@ -2,14 +2,20 @@
 // «No contactar» (No insista, Ley 29571: el lead sale de la base y nadie puede volver a llamarlo; quitar la marca
 // lo decide Supervisión o Gerencia: D5). Las dos confirman en un diálogo. Reactivar es idempotente por
 // `p_operacion_id`: el id nace al abrir el diálogo y se reusa en un reintento con la misma nota.
+// Bases cargadas (F6, E8 de Miguel): un contacto de archivo puede no tener capital; el pipeline, la cartera y la conversión
+// nunca reciben un lead sin capital, así que «Reactivar» lo PIDE (con su moneda) cuando falta. Con capital, nada cambia.
 import { useId, useRef, useState, type JSX } from 'react'
 import { toast } from 'sonner'
 import { ArchiveRestore, Ban } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 import { Dialog, DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { CrmApiError } from '@/data/crm-api'
 import { useMarcarNoContactarBase, useReactivarLeadBase } from '@/data/crm-queries'
 import type { FilaBaseGestion } from '@/lib/base-gestion'
+import { normalizarCapital } from '@/lib/bases-cargadas'
+import { money, type Moneda } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { FOCO } from '@/components/gestion-diaria/estilos-gestion'
 
@@ -19,7 +25,8 @@ const MOTIVO_MINIMO = 5
 export function AccionesBase({ fila, demo, onReactivado, onNoContactar }: {
   fila: FilaBaseGestion
   demo: boolean
-  onReactivado: () => void
+  /** `capital`: el capital EFECTIVO con que volvió (lo que devuelve el servidor), si se pidió en el diálogo. */
+  onReactivado: (capital?: string) => void
   onNoContactar: () => void
 }): JSX.Element {
   const [dialogo, setDialogo] = useState<'reactivar' | 'no_contactar' | null>(null)
@@ -47,28 +54,48 @@ export function AccionesBase({ fila, demo, onReactivado, onNoContactar }: {
   )
 }
 
-function ReactivarDialogo({ fila, demo, abierto, onCerrar, onHecho }: { fila: FilaBaseGestion; demo: boolean; abierto: boolean; onCerrar: () => void; onHecho: () => void }) {
+function ReactivarDialogo({ fila, demo, abierto, onCerrar, onHecho }: { fila: FilaBaseGestion; demo: boolean; abierto: boolean; onCerrar: () => void; onHecho: (capital?: string) => void }) {
   const id = useId()
   const mutacion = useReactivarLeadBase()
   const [nota, setNota] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const envio = useRef<{ id: string; nota: string } | null>(null)
-  const cerrar = () => { if (mutacion.isPending) return; setNota(''); setError(null); envio.current = null; onCerrar() }
+  // E8: sin capital, el diálogo lo pide (obligatorio) con su moneda; con capital, ni se muestra.
+  const pideCapital = fila.monto_estimado === null
+  const [capital, setCapital] = useState('')
+  const [moneda, setMoneda] = useState<Moneda>(fila.moneda ?? 'PEN')
+  const [error, setError] = useState<{ tipo: 'capital' | 'envio'; texto: string } | null>(null)
+  const campoCapital = useRef<HTMLInputElement>(null)
+  // El MISMO contenido reusa su id de operación (un doble clic o un reintento devuelven la respuesta original).
+  const envio = useRef<{ id: string; firma: string } | null>(null)
+  const cerrar = () => { if (mutacion.isPending) return; setNota(''); setCapital(''); setError(null); envio.current = null; onCerrar() }
 
   async function confirmar() {
     if (mutacion.isPending) return
+    const monto = pideCapital ? normalizarCapital(capital) : null
+    if (pideCapital && monto === null) {
+      setError({ tipo: 'capital', texto: 'Indica el capital estimado (un número mayor que 0) para reactivarlo: el pipeline no recibe leads sin capital.' })
+      campoCapital.current?.focus()
+      return
+    }
     if (demo) { toast.info('En la demo no se reactiva'); return }
     setError(null)
-    if (envio.current?.nota !== nota.trim()) envio.current = { id: crypto.randomUUID(), nota: nota.trim() }
+    const firma = JSON.stringify([nota.trim(), monto, pideCapital ? moneda : null])
+    if (envio.current?.firma !== firma) envio.current = { id: crypto.randomUUID(), firma }
     try {
-      await mutacion.mutateAsync({ operacionId: envio.current.id, leadId: fila.lead_id, nota })
-      setNota(''); envio.current = null
+      const r = await mutacion.mutateAsync({
+        operacionId: envio.current.id, leadId: fila.lead_id, nota,
+        ...(monto !== null ? { montoEstimado: Number(monto), moneda } : {}),
+      })
+      setNota(''); setCapital(''); envio.current = null
       onCerrar()
-      onHecho()
+      // El capital que se dice es el EFECTIVO que devuelve el servidor (no lo pedido): si ya tenía, manda el suyo.
+      onHecho(monto !== null && r.monto_estimado != null ? money(r.monto_estimado, r.moneda === 'USD' ? 'USD' : 'PEN') : undefined)
     } catch (causa: unknown) {
-      setError(causa instanceof CrmApiError ? causa.message : 'No se pudo reactivar. Inténtalo de nuevo.')
+      // «Otro contenido» (mismo id con otros datos) es un rechazo definitivo: el próximo envío lleva un id nuevo.
+      if (causa instanceof CrmApiError && causa.code === 'OTRO_CONTENIDO') envio.current = null
+      setError({ tipo: 'envio', texto: causa instanceof CrmApiError ? causa.message : 'No se pudo reactivar. Inténtalo de nuevo.' })
     }
   }
+  const describe = `${id}-consecuencia${error ? ` ${id}-error` : ''}`
 
   return (
     <Dialog open={abierto} onClose={cerrar}>
@@ -77,6 +104,36 @@ function ReactivarDialogo({ fila, demo, abierto, onCerrar, onHecho }: { fila: Fi
         <DialogDescription id={`${id}-consecuencia`} className="text-sm">Vuelve a tu cartera como Contactado, con un ciclo nuevo, y sale de tu base.</DialogDescription>
       </DialogHeader>
       <DialogBody>
+        {pideCapital && (
+          <div className="mb-4 grid grid-cols-1 gap-3 min-[400px]:grid-cols-[1fr_10rem]">
+            <div>
+              <label htmlFor={`${id}-capital`} className="mb-1 block text-sm font-semibold text-foreground">Capital estimado</label>
+              <Input
+                ref={campoCapital}
+                id={`${id}-capital`}
+                inputMode="decimal"
+                autoComplete="off"
+                required
+                value={capital}
+                onChange={(e) => { setCapital(e.target.value); if (error?.tipo === 'capital') setError(null) }}
+                aria-invalid={error?.tipo === 'capital' || undefined}
+                aria-describedby={`${id}-ayuda-capital${error?.tipo === 'capital' ? ` ${id}-error` : ''}`}
+                placeholder="Por ejemplo: 20000"
+                className="h-10"
+              />
+            </div>
+            <div>
+              <label htmlFor={`${id}-moneda`} className="mb-1 block text-sm font-semibold text-foreground">Moneda</label>
+              <Select id={`${id}-moneda`} value={moneda} onChange={(e) => setMoneda(e.target.value === 'USD' ? 'USD' : 'PEN')} className="h-10">
+                <option value="PEN">Soles (S/)</option>
+                <option value="USD">Dólares (US$)</option>
+              </Select>
+            </div>
+            <p id={`${id}-ayuda-capital`} className="text-[13px] text-[var(--muted-foreground-strong)] min-[400px]:col-span-2">
+              Este contacto llegó sin capital. Es obligatorio para volver al pipeline.
+            </p>
+          </div>
+        )}
         <label htmlFor={`${id}-nota`} className="mb-1 block text-sm font-semibold text-foreground">Nota <span className="font-normal text-[var(--muted-foreground-strong)]">(opcional)</span></label>
         {/* La consecuencia (sale de tu base) se lee con el campo y con el botón, como en «No contactar» (WCAG 1.3.1). */}
         <textarea
@@ -85,15 +142,15 @@ function ReactivarDialogo({ fila, demo, abierto, onCerrar, onHecho }: { fila: Fi
           maxLength={1000}
           value={nota}
           onChange={(e) => setNota(e.target.value)}
-          aria-describedby={`${id}-consecuencia${error ? ` ${id}-error` : ''}`}
+          aria-describedby={describe}
           className={AREA}
           placeholder="Por qué lo retomas"
         />
-        {error && <p id={`${id}-error`} role="alert" className="mt-2 text-sm font-medium text-[var(--destructive-text)]">{error}</p>}
+        {error && <p id={`${id}-error`} role="alert" className="mt-2 text-sm font-medium text-[var(--destructive-text)]">{error.texto}</p>}
       </DialogBody>
       <DialogFooter>
         <Button type="button" variant="ghost" onClick={cerrar}>Cancelar</Button>
-        <Button type="button" aria-disabled={mutacion.isPending || undefined} aria-describedby={`${id}-consecuencia${error ? ` ${id}-error` : ''}`} onClick={() => void confirmar()}>
+        <Button type="button" aria-disabled={mutacion.isPending || undefined} aria-describedby={describe} onClick={() => void confirmar()}>
           {mutacion.isPending ? 'Reactivando…' : 'Reactivar'}
         </Button>
       </DialogFooter>
