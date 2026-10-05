@@ -1,7 +1,7 @@
 ---
 tags: [crm, base-para-gestion, rescate, analista, f0, decision, figma]
 fecha: 2026-10-01
-estado: F0 ☑ · D1–D10 ☑ · B1 y B2 escritas y ensayadas en banco (02/10) · auditor/Codex de B2 pendientes · D7-bis pendiente · falta rama + merge · nada en producción
+estado: F0 ☑ · D1–D13 ☑ · B1–B3b EN PRODUCCIÓN (02/10 20:15, registradas, huellas = rama) · tipos regenerados · sigue el frontend F1–F4
 ---
 
 # Base para gestión del analista — F0 y decisiones (01/10/2026)
@@ -241,3 +241,306 @@ sigue habiendo un único escritor (esta sesión como PRIMARY).
   en `volver_a_llamar`), sin tocar el núcleo SLA ni la cola diaria.
 - **Pendiente:** leer el informe del auditor-rls de B2 y el de Codex (B1+B2, encargo versionado en
   `CRM-Avance-Corp/docs/encargos/2026-10-02-codex-base-gestion-b1-b2.md`), aplicar hallazgos, rama → test-rls → advisors → merge.
+
+## Revisiones de B2 aplicadas y rama de Supabase (02/10/2026, noche)
+
+- **Codex (BLOCK → corregido):** P1 real de semántica NULL en la revalidación bajo candado: un lead parqueado (sin
+  vendedor) en la bandeja de otro supervisor daba NULL y `not NULL` lo dejaba pasar. Ahora `(…) is not true` en las dos
+  comprobaciones. Huella nueva `05df49be…` (md5 de `prosrc` calculado en local con el método verificado contra la viva
+  `3840a73f…`, y confirmado en el banco). **auditor-rls:** `activo` en el espejo de la policy; reversa con guarda de prosrc +
+  contrato/ACL; fixtures con persona real y pruebas estrictas (25/25, el script falla si hay FAIL). Informes en
+  `BASE PARA GESTION/revisiones/`.
+- **Por qué el caso de dos equipos vive solo en el banco:** por la API no se puede crear un lead nuevo con el documento de una
+  persona reconocida (puertas b1/D-13); los fixtures lo hacen bajo `crm.op_privilegiada`.
+- **Rama de Supabase por CLI:** `supabase branches create base-gestion-20261002 --project-ref dctqcbznekcyxhjujuci --region
+  us-east-2 --size micro` → ref `dmhewdxipdspvojaudvu`, `ACTIVE_HEALTHY` pero `MIGRATIONS_FAILED` (el replay automático del
+  historial se detiene en una base vacía, como `banco-f7` el 01/09; la de 25/09 sí llegó a FUNCTIONS_DEPLOYED). La CLI de
+  Supabase está autenticada y enlazada aunque el conector MCP no aparezca en la sesión; `branches list|get|create|delete`
+  funcionan; no hay `merge` por CLI (la aplicación en producción sigue siendo de Miguel con `!`).
+
+## Decisiones D7-bis, D11 y D12 (02/10/2026, noche) y migración B1b
+
+| # | Decisión | Consecuencia |
+|---|---|---|
+| D7-bis | **Agenda propia de la base** («Sí, así»): la rellamada vive en `crm.leads.proxima_llamada_en` (sellada), no en `crm.tareas`. Pantallas: bloque «Llamar hoy» (vencidas + hoy), contador en el menú «Base para gestión», línea «Base: N rellamadas para hoy» en «Hoy» (solo lectura). | Migración B1b `20261002224851`: columna + sello de 3 columnas + CHECK (fecha ISO en `volver_a_llamar`) + constantes (3, 30, 10) + índice parcial. Nada entra en la cola diaria ni en el SLA. |
+| D11 | La rellamada se agenda **como máximo 10 días adelante**. | `dias_max_rellamada = 10` en `private.base_gestion_constantes()`; la puerta del intento rechaza fechas más lejanas (B3). |
+| D12 | **Gana la rellamada:** el lead descansa (30 días) solo cuando el 3.º intento termina sin cita y sin rellamada. | El trigger de enfriamiento (B4) no actúa si el intento trae `proxima_llamada_en`; la rellamada se consume con el siguiente intento. |
+
+Reglas de la rellamada acordadas: una nueva «volver a llamar» sustituye la fecha; el siguiente intento la consume;
+reactivar o vetar la limpia; el supervisor la ve como columna «Próxima llamada». Ensayo en banco de B1b: aplicar +
+postflight, `test`, `reversa-y-reaplicar-b1b` PASS; `test-b2` 25/25 sigue verde; typecheck PASS. Rama de Supabase con
+datos: `base-gestion-datos-20261002` (ref `dpjojnpfcwkeikyagtxj`, `--with-data`, decisión de Miguel) para `test-rls`,
+advisors y EXPLAIN reales; la rama vacía `base-gestion-20261002` se borró (replay 86/400).
+
+## B3 · Puertas y núcleos — HECHO en local y ensayado (02/10/2026, noche)
+
+- **Migración `20261002231436_crm_base_gestion_puertas.sql`.** Cuatro puertas `crm.*` DEFINER (EXECUTE solo authenticated):
+  `obtener_base_gestion(p_vendedor_id)` (lectura por rol con ámbito explícito, espejo de `leads_select`; excluye veto y descanso;
+  intentos del ciclo desde `descartado_en`, último resultado, próxima rellamada, **etapa máxima alcanzada desde la última
+  reapertura del historial** —acotar con `inicio_ciclo_lead` fallaba en transacciones multi-sentencia porque `now()` del log y
+  `statement_timestamp()` del ledger difieren—, días desde el descarte, quién gestiona; orden rellamada vencida/hoy → etapa
+  máxima → menos días; sin fecha o sin etapa al final), `registrar_intento_base`, `reactivar_lead_base` y
+  `base_gestion_resumen` (Supervisión/Gerencia, cifras de F4). Núcleos `private.base_gestion_intento_core` (7 resultados,
+  rellamada futura ≤ 10 días, veto P0429, descanso 22023, actividad `intento_base` con `id = operación` bajo los dos GUC,
+  fija/limpia `proxima_llamada_en`, `agendo_reunion` reactiva en la misma transacción, idempotencia por `metadata.respuesta`)
+  y `base_gestion_reactivar_core` (llama a `reabrir_lead_fn` sellada → `nuevo`; avanza a `contactado` en la misma transacción;
+  sella `reactivado_en`; limpia rellamada y descanso; actividad `reactivacion_base`). Ayudantes `base_gestion_rol`,
+  `base_gestion_lead_visible` (`is true` ante NULL), `base_gestion_etapa_rango`.
+- **Banco:** `b3-puertas.sql` **40/40** bajo rol: analista propio/ajeno, veto, 10 días, idempotencia y doble clic, 23505 con
+  otro contenido, rellamada consumida por el siguiente intento, orden, reactivación (contactado, ciclo 2, SLA global reiniciado
+  y episodio abierto en contactado), agendó cita reactiva, reactivado y descartado otra vez con contador 0, Supervisión por
+  equipo y filtro por analista, Gerencia todo, resumen. `reversa-y-reaplicar-b3` PASS. `test-rls.mjs`: bloque
+  `testBaseGestionB3` por la API (roles 42501, validaciones sin escribir, camino bueno con lead transitorio, soft-delete).
+- **Pendiente:** auditor-rls B3; Codex B3+B4; rama con datos (URL de Miguel) → aplicar B1/B1b/B2/B3 → `test-rls` → advisors.
+- **Sigue B4:** trigger AFTER INSERT en `actividades` (evento `intento_base`): al `max_intentos`-ésimo intento del ciclo sin
+  cita ni rellamada (D12), `enfriado_hasta = hoy Lima + dias_enfriamiento` bajo el GUC del sello. El SLA al reactivar ya está
+  verificado en B3 (reloj global y episodio).
+
+## B4 · Trigger de enfriamiento — HECHO en local y ensayado (02/10/2026, noche)
+
+- **Migración `20261002233851_crm_base_gestion_enfriamiento.sql`:** `trg_zz_actividades_enfriamiento_base` (AFTER INSERT, WHEN
+  `evento = intento_base`). Regla: sin rellamada ni cita, al llegar a 3 intentos en el ciclo → `enfriado_hasta = hoy Lima + 30`
+  bajo el sello. Con rellamada o cita no enfría (D12/D3). Tras el descanso, un intento más sin rellamada vuelve a enfriar
+  (el cupo del ciclo ya está agotado); reactivar limpia el descanso y reinicia el SLA (cambio de ciclo).
+- **Banco:** 15/15 con fechas simuladas; `b3-puertas.sql` ajustado (con B4, el 3.º intento de LA la pone a descansar): 44/44.
+- **Auditoría B3 aplicada antes:** sello de actividades (`intento_base`/`reactivacion_base`/`respuesta`/`via` solo por el núcleo),
+  candados persona → lead al reactivar, replay tras el candado y por actor, resumen atribuido al dueño del lead.
+- **Pendiente:** auditor-rls B4 → Codex B3+B4 (LEVEL 3) → rama con datos (URL de Miguel) → `test-rls.mjs` → advisors → merge.
+
+## D13 y B4b (02/10/2026, noche) · auditoría de B4 aplicada
+
+- **D13 (Miguel):** tras cada descanso de 30 días el analista vuelve a tener **3 intentos nuevos** (antes, con el cupo del
+  ciclo agotado, un solo intento sin rellamada volvía a enfriar). Migración B4b `20261002235342`: ayudante
+  `private.base_gestion_intentos_desde` (el descarte o el inicio Lima del día en que venció el último descanso) y
+  `create or replace` de `obtener_base_gestion`, `base_gestion_intento_core` y del trigger de enfriamiento. El historial
+  completo sigue en la ficha; lo que se reinicia es el contador. Banco 17/17 (incluida la simulación de 30 días con los
+  intentos antiguos retrasados 40 días).
+- **auditor-rls B4 aplicado:** el trigger solo actúa bajo `crm.op_base_gestion` (un backfill sin usuario no enfría), DEFINER
+  redactado, ensayo del postflight sobre el descartado más antiguo, aviso de descansos vigentes en la reversa; `test-rls.mjs`
+  con D12 por la API y el contrato del trigger.
+
+## Codex B3+B4 (BLOCK) → B3b (03/10/2026, madrugada)
+
+Seis P2, cinco aceptados y uno parcial, en la migración de enmienda `20261003001014_crm_base_gestion_idempotencia_y_orden.sql`
+(las commiteadas no se editan): el replay de un intento se resuelve antes de las validaciones temporales (un reintento de
+rellamada ya vencida sigue devolviendo su respuesta); la identidad de la operación incluye fecha de rellamada y nota (otra
+fecha u otra nota → 23505); la reactivación hija de «agendó cita» usa un uuid nuevo y se verifica; el orden de la base sigue
+el contrato (rellamada hoy → etapa máxima → días; la hora solo desempata); el último resultado desempata por `intento_n`; el
+descarte del ciclo anterior que comparta instante con la reapertura no cuenta para la etapa máxima. Banco 48/48 y 17/17.
+Riesgo operativo que queda: el postflight de B4 ensaya sobre un lead real con candado breve → aplicar B4 en producción fuera
+de horario. Informe en `BASE PARA GESTION/revisiones/2026-10-02-codex-b3-b4.md`.
+
+## Traspaso a otra sesión (03/10/2026)
+
+Miguel pasa el módulo a una sesión con la contraseña de BD. Todo está commiteado en `main` local (sin push). Punto de
+entrada para la sesión siguiente: `BASE PARA GESTION/ESTADO.md` → «Cómo continuar» (pasos 0–9 con comandos), más
+`FRONTEND.md` para F1–F4. Rama de Supabase con datos: `base-gestion-datos-20261002` (ref `dpjojnpfcwkeikyagtxj`), viva y sin
+migraciones aplicadas. Nada en producción.
+
+## Rama y gate de RLS (02/10/2026, noche) — listas para el merge
+
+- **Sin contraseña de BD.** El MCP de Supabase no estaba conectado. Todo fue por la Management API: la CLI con
+  `--linked --project-ref <rama> --workdir <carpeta aparte>` (`db query`, `db advisors`, `db dump`). La carpeta compartida
+  sigue enlazada a producción. Es la misma vía del merge: el CRM no necesita la contraseña para una rama con datos.
+- **Rama:** las 7 aplicadas; antes había 0 intentos previos (eso acredita el punto (a) de Codex r2). Con datos reales:
+  2806 leads, 1078 descartados vivos y 26 analistas. El EXPLAIN usa índices (1,7 ms; «llamar hoy» 0,05 ms), así que
+  **la B5 de índice no hace falta**. Puertas: analista 73 ms, gerencia 78 ms con 1069 filas (en F4, filtrar o paginar),
+  supervisores hasta 137 ms. Advisors: solo 4 WARN nuevas, las del patrón DEFINER de las puertas; 0 ERROR.
+- **Gate en Docker propio a paridad total.** Las huellas del banco son idénticas a las de la rama. Tras aplicar las
+  reversas, son idénticas a PRODUCCIÓN: eso acredita las 7 reversas. A/B: 77 rojos antes y 68 después; los 68 son de fondo
+  y salen igual en las dos corridas. Base para gestión 74/74.
+- El gate cazó 2 expectativas viejas del test: con B3, el sello «solo núcleo» corta antes. Corregidas en `72189f04`.
+- **Registradores** de las 7 versionados y probados (idempotentes). Evidencia completa en
+  `BASE PARA GESTION/revisiones/2026-10-02-rama-y-gate.md`.
+- 🔑 **Un banco Docker a paridad se acredita en los dos sentidos:** con las migraciones debe dar las huellas de la rama, y
+  sin ellas las de producción. Las ACL se igualan objeto por objeto, incluido el orden de los aclitem y los privilegios por
+  defecto. El stack local trae `public` más permisivo.
+- 🔴 La reversa de B1b no corre si ya hay intentos con fecha: el CHECK de B1 los rechaza. Con el módulo en uso, revertir
+  exige tratar antes esas actividades.
+- **Sigue:** merge de Miguel con `!`, fuera del horario de gestión (`BASE PARA GESTION/ESTADO.md`, paso 1). Después:
+  gen:types, push, borrar la rama, y luego F1–F4.
+
+## EN PRODUCCIÓN (02/10/2026, 20:15 Lima)
+
+- Miguel aplicó con `!` las 7, cada una con su registrador, en orden: 7/7 `OK`.
+- Comprobado después, en solo lectura: las 7 en true y 7 registradas con el md5 de su archivo; 0 intentos, reactivados,
+  enfriados o rellamadas (los postflights deshicieron sus ensayos); **huellas de producción = rama** (cuerpos, ACL,
+  políticas, relaciones, triggers); advisors iguales a la rama.
+- Tipos regenerados desde producción (`9c1d7296`, typecheck PASS). También trajeron tipos de otros módulos ya publicados
+  que `main` no tenía.
+- Rama de Supabase borrada.
+- 🔴 `main` local y `avancecorp/main` DIVERGEN (285 commits solo en local, 28 solo en GitHub). No se hizo push: la
+  integración va por una PR sin lo de Gloria y la decide Miguel.
+- **Sigue:** frontend F1 → F4 (`BASE PARA GESTION/FRONTEND.md`).
+
+## F1 · Vista del analista — HECHA en la rama (02/10/2026, noche)
+
+- Rama `crm/base-gestion-front`, worktree `AVANCECORP-desktop-worktrees/base-gestion-front-20261002`. **Nace del VIVO
+  `44985828`**, no de `main`: el tronco está partido (el vivo tiene 52 commits que `main` no tiene) y la publicación debe
+  contener el vivo. Commits: `c11a8840` tipos de producción · `7231672e` F1 · `becbd7ea` accesibilidad.
+- `#/rescate` despacha por rol: el analista ve SU base (sin `repartirLeads`); Supervisión y Gerencia, el Centro de rescate
+  intacto. Resumen (en base · llamar hoy · agendadas), tabla en escritorio y tarjetas en el celular, orden del servidor.
+- 🔑 **«Llamar» depende del APARATO** (convención de la casa, `usePuedeMarcar`): `tel:` en el celular, copiar el número en la
+  laptop; siempre por `enlaceTel()` (fuente única: un número que no sirve no se ofrece).
+- 🔑 Un refresco fallido con datos ya cargados NO desmonta la lista: aviso en línea (el refetch salta al volver del marcador).
+- Verificado: `npm run check` PASS (5619 pruebas), `revisor-a11y` (2 P2 + 3 P3 aplicados), capturas demo 1440/390/320 px.
+- **Sigue:** F2, la ficha (historial completo + buscador, registrar intento, reactivar, «no contactar»).
+
+## Cierre del 02/10 (noche): forma de la lista, el MES del lead y la regla del seguimiento activo
+
+- **Miguel vio F1 y le gustó.** Dos correcciones de forma, ya aplicadas en `8570cdfb`: las cifras de arriba PEQUEÑAS (pastillas)
+  y la lista como **hoja de Excel** (cuadrícula, un dato por celda, número de fila, columnas # y Lead fijas, fila «hoy» con
+  formato condicional; el teléfono es el botón de llamar). En el celular siguen las tarjetas.
+- **«MUY IMPORTANTE saber qué mes estoy gestionando»**: el analista se organiza por el mes en que le llegó el lead («mis leads
+  de enero, marzo, agosto»). Mes = `coalesce(tenencia_desde, creado_en)` en Lima (el criterio de recepción de la casa:
+  `private.cartera_recepciones_fn`). La RPC no lo devuelve hoy → **B5** añade `recibido_en` a `crm.obtener_base_gestion`
+  (drop + create por el `returns table`). El dominio del front ya lo calcula (`lib/base-gestion.ts`: `mesesDeLaBase`,
+  `filasDelMes`, `etiquetaMesLead`, reutilizando `cartera-meses`); falta la columna y el selector en la pantalla.
+- **Regla nueva (B6, pendiente de 2 respuestas):** al supervisor se le ocultan los descartados con **seguimiento activo**
+  (intento con nota del analista en los últimos 7 días) para que no reasigne un lead que se está trabajando; además
+  `rescatar_descartes` debe rechazarlo en el servidor. Preguntas abiertas: ¿la rellamada agendada vigente también cuenta?
+  (recomendado: sí) · ¿ocultar o mostrar en gris «En gestión por X hasta Y»?
+- **Estado al cierre:** nada publicado; rama `crm/base-gestion-front` en `8570cdfb` (verde); `main` local con la
+  documentación. Servidor Vite y Docker del gate apagados.
+
+## 03/10/2026: columna «Mes», B5 y B6 escritas, y el pedido de «Bases cargadas»
+
+- **F1 terminada en la rama** (`c9e772fd`): columna «Mes» tras el lead y selector «Mes: Todos (N) · Agosto 2026 (n)…»; el
+  número de fila, las pastillas y el título de la tabla cuentan lo filtrado. 🔑 Sin `recibido_en` (producción antes de B5)
+  no se pinta ni columna ni selector: nunca una columna llena de rayas. `revisor-a11y` APPROVE (5 P3 aplicados: separador
+  oculto en la pastilla, `label htmlFor`, selector alto en el celular, el mes vaciado se olvida, título con el mes).
+- **B6 decidida por Miguel (03/10):** seguimiento activo = intento de la base del ciclo vigente hace ≤ 7 días **o**
+  rellamada agendada vigente; el supervisor lo ve **en gris** «En gestión por X hasta el día Y», sin casilla, y
+  `crm.rescatar_descartes` rechaza el lote entero (P0409).
+- **Paquete de servidor (03/10), en este orden:** `20261003162300` B3c · `20261003162400` B5 · `20261003162500` B6. Cuerpos
+  tomados del texto VIVO (md5 de `prosrc` igual en producción y en el banco), sustituciones exactas, preflight y postflight
+  por md5 y ACL exacta. 🔑 `estado` del Centro de rescate NO cambia: el bundle viejo valida con lista cerrada y un valor
+  nuevo le haría desaparecer la fila; con `puede_rescatar = false` la pinta «Solo historial». Pantalla del supervisor `5475be81`.
+- 🔴 **Lección del censo analítico:** B3/B4 llegaron a producción el 02/10 y desde las 06:49 del 03/10 hay una alerta diaria:
+  4 funciones del módulo nombran `crm.leads`/«reunion» y usan `count(` sin declarar. Ningún banco de solo esquema lo ve
+  (exenciones vacías). **B3c** las saca del alcance: «intentos del ciclo» en UNA función que solo lee actividades
+  (`private.base_gestion_intentos_ciclo`, antes eran tres copias) y el resumen cuenta la lista de `obtener_base_gestion`.
+  Antes de aplicar cualquier cosa que nombre leads y cuente: mirar el censo en producción.
+- 🔑 **Una regla «aunque lo intenten por otra vía» va en el LEAD, no en una puerta.** El auditor-rls y el banco mostraron
+  que la ficha (PATCH de `vendedor_id`) y «tomar lead libre» movían un descartado en gestión. B6 es un trigger BEFORE UPDATE
+  en `crm.leads` (descartado + cambia `vendedor_id`) que cubre las tres vías; y así `rescatar_descartes`, declarada con su
+  huella en el censo, no se toca. Una baja (dueño inactivo) libera; devolverlo a su MISMO analista no es reasignar.
+- Banco: B2 25/25 · B3 48/48 · B4 17/17 · B6 29/29; mutantes → FALLAN; reversas B6 → B5 → B3c → huellas de producción.
+  Revisión del auditor en `BASE PARA GESTION/revisiones/2026-10-03-auditor-rls-b5-b6.md`.
+- 🔴 En el Docker local, llamar a una función sin EXECUTE tumba Postgres (ya conocido del 20/08): se cayó una vez con la
+  prueba de la ayudante privada. Ese caso se prueba con `has_function_privilege`, nunca llamándola.
+- **Pedido nuevo — «Bases cargadas»** (detalle y plan en `BASE PARA GESTION/BASES-CARGADAS.md`): el supervisor carga bases
+  antiguas y las reparte «40 a uno, 30 a otro» o una por una, y ve si se trabajan. Decisiones de Miguel: **E1** las dos
+  entradas (archivo Excel/CSV con contactos nuevos **y** lotes de leads viejos del CRM); **E2** duplicado (mismo teléfono
+  o DNI) se salta y se informa; **E3** el analista la trabaja dentro de su Base para gestión, con las mismas reglas;
+  **E4** supervisor a su equipo, gerencia a todos. Fases B7–B10 + F5–F6, después de F2–F4.
+- **FigJam** (`zbgq3gjYGsaaMCo6e140bU`), nodos nuevos: fases B3c `39:32`/`39:33` · B5 `27:2`/`27:3` · B6 `27:4`/`27:5` (las tres ☑ en producción 03/10); sección nueva «5 · Bases cargadas» `28:2` (decisiones E1 `28:11` … E4 `28:17`,
+  flujo `29:3`→`29:23`, fases B7 `31:32` … F6 `31:42`, bocetos «Repartir» `32:35` y «Seguimiento» `33:33`); fases B5
+  `27:2` y B6 `27:4` entre F1 y F2.
+- **Listo para el `!` (03/10, tarde):** Codex r1 BLOCK (las suites aceptaban NULL como PASS; el detail del candado llevaba el
+  lead_id) → arreglado → r2 PASS. Rama con datos (borrada): censo 42 → 38, advisors iguales, mismos resultados que los cuerpos
+  vivos con los datos reales. Gate de RLS en Docker: ningún rojo nuevo, bloque nuevo 17/17. Evidencia en
+  `BASE PARA GESTION/revisiones/2026-10-03-rama-b3c-b5-b6.md`. Orden de aplicación: B3c → B5 → B6, cada una con su registrador.
+- **EN PRODUCCIÓN el 03/10 (~14:30 Lima):** Miguel aplicó con `!` B3c → B5 → B6, cada una seguida de su registrador.
+  Comprobado en solo lectura tras cada paso (huellas del gate, ACL, trigger habilitado, registro con el md5 del archivo).
+  El censo analítico quedó en rojo SOLO por `private.gestion_diaria_cola_hechos` (de otra sesión): la alerta f6a sigue hasta
+  que esa sesión la arregle. Tipos regenerados (`390e21bc` en la rama del front, `083b0c57` en `main`). Falta publicar el front.
+- **Front PUBLICADO el 03/10 (17:10 Lima)** con `/release-crm`: `build-20261003T221026768Z`, commit `c489d487` (el vivo de otra
+  sesión `8db0d4f1` + F1 con «Mes» + gris del supervisor + tipos). Hubo que rearmar la rama: a las 14:26 otra sesión publicó
+  `8db0d4f1` y nuestra rama nacía de `44985828`; el preflight lo habría rechazado (y habría borrado su filtro). Preflight OK,
+  smoke con `index-*.js` idéntico. E2E: 2 rojos que también fallan en `8db0d4f1` (previos). PR #177 para el tronco de GitHub.
+  🔑 El `.env` de un worktree lo copia Miguel con `!` (el hook bloquea tocarlo) y iCloud deja copias « 2» al cambiar de
+  commit: apartarlas antes de construir.
+
+## F2 · Ficha del lead de la base — HECHA en la rama (03/10/2026, tarde), sin publicar
+
+- Rama `crm/base-gestion-f2` (`0f33bb0f` + `3e248407`), nacida del vivo `c489d487`. Hoja lateral ANCHA en dos columnas
+  (regla «horizontal»): izquierda, registrar el intento (7 resultados con atajos 1–7, nota, fecha y hora para «volver a
+  llamar» ≤ 10 días, aviso antes del 3.er intento); derecha, historial COMPLETO de corrido con buscador sin tildes;
+  arriba, Reactivar y «No contactar» con motivo. Se abre tocando el nombre en la hoja («Ver ficha» en el celular).
+- 🔑 Idempotencia en pantalla: un `p_operacion_id` por contenido (firma de resultado + nota + fecha): el doble clic o el
+  reintento tras un corte reusan el id (replay); si cambia lo que se manda, id nuevo (si no, la puerta da 23505).
+- 🔑 Cuando una acción saca la fila de la lista con la ficha abierta, el foco caía en `<body>`: `Sheet` ganó
+  `focoRespaldo` (vecino → hoja/lista → resumen) y `focoInicial` (primer resultado). Probado en E2E.
+- 🔑 El historial con `min-h-0` medía 0 px en el celular (grilla de una columna): el recorte va solo en `lg:`.
+- «Quitar No contactar» va en F4: la base no lista vetados.
+- revisor-a11y: CHANGES_REQUESTED → APPROVE. Pruebas y E2E Docker en verde; `npm run check` PASS (5667).
+
+
+### F2 publicada (03/10, ~21:10 Lima)
+- `/release-crm` de Miguel: `build-20261004T020813803Z`, commit `3e248407` sobre el vivo `c489d487`. Preflight OK; smoke OK
+  (home 200 y `index-CEKVImAR.js` servido idéntico al dist). Respaldo en GitHub `rescue/base-gestion-f2-20261003`.
+- PR #180 a `main` de GitHub: cherry-pick de los 2 commits sobre `c17db1fb`, con `app/` idéntico a lo publicado.
+- 🔑 El worktree de una PR necesita `node_modules` (CLON APFS `cp -c -R`) o el pre-push muere con `vitest: command not found`.
+- Pedido de Miguel tras verla: «me gusta la ficha, pero que se adapte más a la ficha que ya tenemos en el CRM y en
+  Gestión Diaria». Sigue: comparar las tres fichas → plan corto → pieza visual → OK → construir.
+
+### Ficha con el aspecto del CRM (03/10 noche) — construida, sin publicar
+- Miguel decidió: ficha ancha con el lenguaje de la ficha del lead · «¿Qué pasó con la llamada?» en UNA pieza
+  compartida (`SelectorResultado`, la usan Mi día, la ficha del CRM y la base) · «No contactar»/«Reactivar» en pie
+  fijo · sin WhatsApp (la puerta de la base solo registra llamadas). Aprobó al VER la pieza a escala real
+  (`ui-playground/ficha-base-gestion.html`): «me gusta mucho cómo se ve».
+- Rama `crm/base-gestion-ficha-crm`: `f9f87685` selector compartido · `8706aacc` `linea-de-tiempo.tsx` + `fila-dato.tsx`
+  sacados de `lead-drawer.tsx` · `736f528f` la ficha. check PASS (5714), E2E Docker verdes salvo el rojo previo de
+  `gestion-diaria-vuelta.spec.ts:11` (fecha fija del 30/09), revisor-a11y APPROVE en segunda pasada.
+- 🔑 `.ac-chip` está fuera de `@layer`: una clase `text-*` no le gana; el color del texto de un `Badge` se cambia con
+  `style`. Los chips grises/ámbar a 11 px no llegan a 4,5:1 (deuda también en la ficha del lead).
+- 🔑 Los eventos `reactivacion_base` y `no_contactar` se guardan como `tipo='nota'`: `iconoActividad()` los distingue
+  por `metadata.evento`.
+- ✅ **PUBLICADA 03/10 ~22:35 Lima**: `build-20261004T033439267Z`, commit `0e28f3a7`. Entre medias otra sesión publicó
+  `6b1c2538` (#181): se rearmó con cherry-pick encima (limpio), check PASS 5737, E2E 33/33, preflight y smoke OK.
+  PR #183 (choca con la #181 solo en `lead-drawer.tsx`). 🔑 Copiar el manifiesto del release a
+  `CRM-Avance-Corp/releases/` del taller: ahí lo busca el preflight de la próxima sesión.
+
+### F3 · Organización del trabajo (03/10 noche) — construida, sin publicar
+- Rama `crm/base-gestion-f3` sobre el vivo `0e28f3a7`: `3f5ea749` («Llamar hoy» + filtros) y `82cac826` (línea en «Hoy»).
+- «Llamar hoy» = `rellamada_hoy` del servidor, que incluye las VENCIDAS de días anteriores (migración `20261003162400`).
+  En «Hoy» el rojo marca solo las que ya pasaron su hora; en la hoja, `ProximaLlamada` pinta en rojo todo lo de hoy.
+- Cada opción de filtro cuenta lo que dejan pasar los demás (Mes incluido): elegir con los menús nunca lleva a una lista
+  vacía; solo un refresco puede (vacío «Ningún lead coincide · Quitar filtros»).
+- 🔑 La línea de «Hoy» comparte la query key de la lista (`crmQueryKeys.baseGestion(null)`): una sola petición; colgar de
+  `leads()` hace que cada guardado de lead la refresque también desde «Hoy».
+- 🔑 `index.css:486` devuelve un outline de 2 px a todo control con `focus-visible:outline-none`: el foco del `Select` nunca
+  queda sin indicador aunque el componente quite el outline.
+- check PASS 5801, E2E 43/43, revisor-a11y APPROVE en segunda pasada.
+- ✅ **F3 PUBLICADA 03/10 ~23:20 Lima**: `build-20261004T041923701Z`, commit `82cac826` (sobre `0e28f3a7`). Preflight y smoke OK.
+  Va en la PR #183 con la ficha: la rama se integró con `main` de GitHub (ya con la #181) sin conflictos y su `app/` es
+  idéntico a lo publicado. 🔑 Una rama de PR puede recibir «Update branch» desde GitHub: si el push se rechaza, traer y
+  fusionar la remota (nunca forzar) y volver a comprobar `app/` contra lo publicado.
+- Nota: los datos de muestra de la demo viajan en el bundle de producción, como los demás datos de demo (`lib/demo.ts`);
+  `verificar-bundle-produccion.mjs` solo prohíbe los fixtures sensibles (contrato de demo y sus nombres).
+
+### F4 · Vista del supervisor (04/10) — B6b EN PRODUCCIÓN, pantalla lista
+- Decisiones de Miguel (03/10): pestañas «Descartes del mes» (intacto) / «Gestión de la base»; «Ver no contactar» solo
+  supervisor y gerencia con marca completa; todo número del panel se abre; ficha del supervisor = consulta + «Quitar No
+  contactar». Plan y contrato: `BASE PARA GESTION/F4-SUPERVISOR.md`.
+- **B6b** `20261004045038` aplicada por Miguel con `!` + registrador el 04/10; verificada en solo lectura. Ciclo: banco Docker
+  → auditor-rls (3 pasadas, PASS) → Codex r1 BLOCK (foto sin REPEATABLE READ) → r2 BLOCK (ancla por hora) → decisión del
+  PRIMARY → rama con datos (borrada).
+- 🔑 La marca vigente de «No contactar» NO se puede anclar por hora: marcar/levantar escriben la actividad solo en un lead
+  y `now()` empata dentro de una transacción. Lo fiable es el ÚLTIMO evento de veto entre TODOS los leads de la persona
+  (`private.leads_de_persona_veto` ∪ el propio), ordenado por `creado_en` (que el trigger de gestión serializada sella con
+  `clock_timestamp()` en la vía real), y sus datos solo si ese lead es visible para quien llama.
+- 🔑 Las huellas de las migraciones del módulo son `md5(prosrc)`, no `md5(pg_get_functiondef)`: para acreditar en
+  producción, comparar `prosrc`.
+- Pantalla `crm/base-gestion-f4` (`538ca9ec`): revisor-a11y, Codex r1/r2 aplicados; degrada si falta B6b (PGRST202).
+- Pendiente: **B6c** (reservar `metadata.evento='no_contactar'` para las puertas oficiales; decisión de Miguel).
+- ✅ **Pantalla F4 PUBLICADA 04/10 ~07:31 Lima**: `build-20261004T123104606Z`, commit `538ca9ec` (sobre `82cac826`). PR #184.
+- ✅ **B6c `20261004123611` EN PRODUCCIÓN 04/10**: la nota `metadata.evento='no_contactar'` en `crm.actividades` solo la
+  escriben `marcar_no_contactar`, `levantar_no_contactar` y `postventa_veto_fn` (válvula `crm.op_privilegiada`), y es
+  inmutable (sello BEFORE INSERT OR UPDATE OR DELETE, evento comparado con `lower(btrim)`). `levantar` ahora apaga la
+  válvula DESPUÉS de insertar su nota. Exentos: la válvula y las sesiones sin usuario. Las 9 notas anteriores no quedan
+  acreditadas.
+- 🔑 Nunca DML de prueba dentro de la transacción de un `CREATE TRIGGER`: el candado SHARE ROW EXCLUSIVE + el FOR UPDATE
+  del lead de `trg_gestion_lead_serializada` forman un interbloqueo con `marcar` (reproducido: 40P01). El comportamiento
+  se comprueba DESPUÉS del commit (`b6c-comprobar-tras-aplicar.sql`, siempre ROLLBACK, `SKIP LOCKED`, `ROW_COUNT = 1`).
+- 🔑 Recrear una función que otras sesiones pueden estar ejecutando deja una ventana: una llamada en curso termina con el
+  cuerpo viejo. Si el cambio y un sello nuevo dependen uno del otro, la forma sin ventana es partirlo en dos migraciones.
+
+### QA final (04/10) — módulo completo
+- Servidor: 8/8 puntos del encargo en PASS (77/77 casos, `supabase/scripts/base-gestion/qa-final.sql`); gate sin rojos nuevos.
+  Front publicado (`538ca9ec`): check PASS, E2E completo sin fallos nuevos (los 2 rojos son previos, fechas del 30/09).
+  PR #184 fusionada. Evidencia: `BASE PARA GESTION/revisiones/2026-10-04-qa-final.md`.
+- A tener en cuenta: con la regla B6, un lead con rellamada vigente no se reasigna salvo baja del analista; tras reactivar,
+  el ciclo SLA nuevo empieza con «primera gestión» pendiente.
+- Sigue: [[bases-cargadas-supervisor]] (B7–B10 + F5–F6).

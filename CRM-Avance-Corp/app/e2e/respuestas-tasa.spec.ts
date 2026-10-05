@@ -1,3 +1,4 @@
+import { irAModulo } from './_navegacion'
 import { expect, test, type Page } from '@playwright/test'
 import { loginReal, montarBackendReal, UID } from './_helpers'
 
@@ -91,7 +92,7 @@ test('aprobación: sonido, aviso sobre otra ventana, detalle y lectura persisten
   await esperarRegistro(page)
   await expect(page.getByRole('button', { name: /Abrir notificaciones: 0 respuestas/ })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Alertas de respuestas de tasa' })).toHaveCount(0)
-  await page.getByRole('button', { name: 'Configuración', exact: true }).click()
+  await irAModulo(page, 'Configuración')
   await expect(page.getByRole('button', { name: 'Silenciar sonido' })).toBeVisible()
   expect(peticiones.some(p => p.p_solo_mias === true && p.p_limite === 500)).toBe(true)
 })
@@ -143,7 +144,7 @@ test('permiso denegado y red caída conservan bandeja; cerrar sesión retira los
   await loginReal(page)
   await esperarRegistro(page)
   await page.getByRole('button', { name: 'Activar alertas y sonido' }).click()
-  await page.getByRole('button', { name: 'Configuración', exact: true }).click()
+  await irAModulo(page, 'Configuración')
   await expect(page.getByRole('status').filter({ hasText: 'permite las notificaciones' })).toBeVisible()
   await page.getByRole('button', { name: 'Silenciar sonido' }).click()
   const antes = await contarTonos(page)

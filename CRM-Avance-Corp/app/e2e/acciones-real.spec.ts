@@ -238,5 +238,5 @@ test('carga inicial caída: pantalla de error con Reintentar (no pinta el CRM va
   // El servidor se recupera y el reintento carga el workspace.
   estado.leadsSiempreCaido = false
   await reintentar.click()
-  await expect(page.getByRole('button', { name: 'Pipeline' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Ocultar menú', exact: true })).toBeVisible()
 })
