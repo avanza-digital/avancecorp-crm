@@ -166,7 +166,9 @@ los clientes de la cartera del dueño con la misma regla.
 3. **F4-c · Celulares en Configuración** (gerencia).
 4. **F4-d · Macro y validación (F4.4):** URL con el id de origen (el latido ya está en la guía «sin Pro» desde el 05/10); casos de F4.4 en E2E y en C1, entre ellos
    evento antes/después, dos llamadas en diez minutos, dos pestañas, guardado con enlace fallido, deshacer y lead
-   reasignado.
+   reasignado. **Aquí se activa C1** (alta de la clave y macro productiva, `PUBLICAR-F2-F3.md` §4–§5): no antes,
+   porque sin la pestaña de F4-b las llamadas pendientes no tendrían dónde resolverse (decisión de Jhosep, 05/10, tras
+   la segunda revisión de Miguel en el #190).
 5. **F4-e · Supervisor y gerencia** (si Miguel lo elige en la decisión 4): puerta agregada (hallazgo 2), pestaña de
    gerencia y bloque del supervisor.
 

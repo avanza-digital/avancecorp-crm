@@ -12,6 +12,13 @@ merge. **Nunca `apply_migration` directo a producción.**
 > además, solo entiende la respuesta de la quinta: contra las cuatro contestaría 503 a todo. **Al revés tampoco:** un
 > alta antes de la quinta la deja sin poder aplicarse (exige tablas vacías y una asignación no se borra nunca).
 
+> **Instalar no es activar** (decisión de Jhosep, 05/10, tras la segunda revisión de Miguel en el #190). Esta guía
+> instala las migraciones y la Edge (§2 y §3). **El alta de claves (§4) y la macro productiva (§5) esperan a F4-b** (la
+> pestaña «Llamadas del celular» y el id hasta la encuesta) **y a su prueba en C1 (F4-d)**. Antes, una llamada en «pide
+> resultado» —también la que la séptima deja para unir a mano— no tendría pantalla donde resolverse y se borraría a los
+> 30 días. Sin claves, la Edge desplegada solo responde 401 y no capta nada. Hasta entonces, C1 sigue apuntando al
+> receptor de pruebas del PC.
+
 ## 0. Antes de que Miguel empiece
 
 | # | Qué | Estado al 05/10 |
@@ -21,8 +28,9 @@ merge. **Nunca `apply_migration` directo a producción.**
 | 0.3 | Edge con el contrato nuevo | Hecho: 16/16 y mutantes 17/17 (05/10: un corte al leer el cuerpo responde 503); sin desplegar |
 | 0.4 | Bloque `testLlamadasCelular` del gate al día con la quinta y F4-a (paso 4 del plan v2), y `banco/limpiar-entre-corridas.sql` vaciando las asignaciones | Hecho (05/10): cotejado con las migraciones; `node --check` y oxlint limpios; **sin correr** (necesita el esquema de producción) |
 | 0.5 | `alta-celular.sql`, `rotar-celular.sql` y `cerrar-celular.sql` | Hechos (05/10): una sola sentencia cada uno, porque `db query` solo devuelve el último resultado; probados en un Postgres local |
-| 0.6 | Codex r2 y `auditor-rls` sobre la quinta + F4-a + la séptima + la Edge | 05/10: su agente revisó (CHANGES_REQUESTED, un [P2] → la séptima). **Pendiente su nueva revisión** |
+| 0.6 | Codex r2 y `auditor-rls` sobre la quinta + F4-a + la séptima + la Edge | 05/10: su agente revisó dos veces; la segunda (18:46 UTC) da por cerrado el interbloqueo y pide el gate completo y separar la activación. **Pendiente: el gate (§2.5) y los advisors (§2.8)** |
 | 0.7 | PR #190 → `main` (`main` tiene que contener lo que se aplica) | Pendiente |
+| 0.8 | Activar C1: alta de la clave (§4) y macro productiva (§5) | **Después de F4-b y F4-d** (decisión de Jhosep, 05/10) |
 
 ## 1. Decisiones
 
@@ -151,7 +159,9 @@ varias sentencias. Con `psql` sí se ven los `raise notice`.
    Esperado, las dos veces: `{"error":"No autorizado"}`. La segunda llega a la base y no reconoce la clave. Un 503 en la
    segunda: la Edge no llega a la puerta. «Invalid JWT»: `verify_jwt` quedó encendido.
 
-## 4. Dar de alta un celular (C1 primero)
+## 4. Dar de alta un celular (C1 primero) — solo después de F4-b y F4-d
+
+Activación, no instalación: no se hace al publicar (ver «Instalar no es activar», arriba).
 
 - Solo gerencia: `crm.asignar_celular('<etiqueta>', '<uuid del analista>')`. Etiqueta de `C1` a `C999`. El dueño,
   analista (`vendedor`) o supervisor activo. La `credencial` se devuelve **una sola vez**: en la base queda su sha256.
@@ -172,7 +182,7 @@ varias sentencias. Con `psql` sí se ven los `raise notice`.
 - Rotar la clave (`rotar-celular.sql`, misma vía y misma advertencia) reinicia el límite de envíos (el estado va por
   asignación). Solo gerencia rota.
 
-## 5. Cambiar la macro del celular (Jhosep, con Claude): `macrodroid.md` §3c
+## 5. Cambiar la macro del celular (Jhosep, con Claude): `macrodroid.md` §3c — junto con el alta, después de F4-b y F4-d
 
 1. Vaciar `cola_llamadas` **y** `errores_llamadas` (MacroDroid → Variables globales). La cola de C1 tiene avisos de
    prueba con números reales y con ids que todavía caben en la ventana de 30 días: entrarían como llamadas de verdad.
