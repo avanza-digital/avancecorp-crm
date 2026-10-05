@@ -1,15 +1,12 @@
 name: CRM RLS preflight
 
 on:
+  # SIN filtro `paths` en `pull_request`, A PROPÓSITO (igual que crm-app-quality.yml).
+  # Desde el 04/10 el ruleset «crm-backend-preflight-obligatorio» exige el check
+  # `preflight` en toda PR a `main`, y un workflow que no se dispara NO publica su
+  # resultado: una PR que solo toca la app se quedaba «Expected — Waiting for status»
+  # para siempre (#186/#187). Corre entero en toda PR: son ~2–3 min y no se salta nada.
   pull_request:
-    paths:
-      - 'CRM-Avance-Corp/package.json'
-      - 'CRM-Avance-Corp/package-lock.json'
-      - 'CRM-Avance-Corp/deno.lock'
-      - 'CRM-Avance-Corp/supabase/scripts/**'
-      - 'CRM-Avance-Corp/supabase/functions/crm-tipo-cambio/**'
-      - '_supabase_functions/functions/**'
-      - '.github/workflows/crm-rls-preflight.yml'
   push:
     branches: [main, tronco]
     paths:
