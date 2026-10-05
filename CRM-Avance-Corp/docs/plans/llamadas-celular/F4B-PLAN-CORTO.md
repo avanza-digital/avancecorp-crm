@@ -24,7 +24,7 @@ encuesta que se abre al colgar queda unida a su llamada exacta.
 | Paso | Qué | Depende de |
 | --- | --- | --- |
 | B1 | **Tipos** de las puertas de llamadas en `database.types.ts` | Miguel: generarlos desde su banco con las siete aplicadas (pedido en el #190). Nunca a mano (estándar de 4 capas) |
-| B2 | **Octava migración: dos lecturas** (abajo) | Tu OK y el de Miguel a este plan |
+| B2 | **Octava migración: dos lecturas** (abajo) | **Hecha el 05/10** (`20261005201010`, OK de Jhosep; PR apilado sobre el #190, sin aplicar). Banco 330/330. Falta la revisión de Miguel |
 | B3 | **Módulo de datos** `data/llamadas-celular-api.ts`: bandeja, detalle, asociar, enlazar, descartar y las dos lecturas nuevas, con su rama de demo | B1 (y B2 para las lecturas nuevas) |
 | B4 | **La encuesta llama a la v5** cuando la intención trae id: `p_evento_origen_id` + vía (`al_colgar` desde el enlace, `pestana` desde la pestaña). Sin id, sigue la v4 tal cual. Comando con recibo nuevo (`registrar_llamada_v5` en `data/sla-operacion-comandos.ts`, para que un reintento no duplique). El aviso dice lo que pasó: unida, o «no se pudo unir» y por qué | B1 |
 | B5 | **Pestaña «Llamadas del celular · N»** en «Tu cola y tu actividad» (`screens/gestion-diaria/analista.tsx`): «Pendientes» (registrar, elegir el lead de su cartera, descartar con motivo), «Qué pasó hoy» y el detalle (ya registrada, descartada, «no está disponible», reintento) | B3, B4 |
@@ -49,7 +49,7 @@ delegan en un núcleo INVOKER de `private`. El ámbito lo decide el servidor con
 Cada una con su oráculo en el banco reducido (ámbito por rol, lead dado de baja, otro equipo), su reversa y su
 registrador, como las siete.
 
-## Decisiones (recomendación de Claude)
+## Decisiones (tomadas por Jhosep el 05/10, con la recomendación)
 
 | # | Decisión | Recomendación | Alternativa |
 | --- | --- | --- | --- |
