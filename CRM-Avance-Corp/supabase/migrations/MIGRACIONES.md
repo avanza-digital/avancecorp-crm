@@ -1,3 +1,29 @@
+## 20261005201010 — Llamadas desde el celular · OCTAVA: lecturas de F4-b (`crm.llamadas_celular_resueltas_hoy_fn`, `crm.actividades_con_llamada_celular_fn`)
+
+**⏸️ ESCRITA, SIN APLICAR (05/10/2026). F4-b, paso B2 de `docs/plans/llamadas-celular/F4B-PLAN-CORTO.md`, aprobado por
+Jhosep el 05/10.** Se publica con F4-b (la pestaña), después de las siete; no entra en la guía de las siete. Registrador:
+`scripts/llamadas-celular/registrar-lecturas-analista.sql` (con fila de veredicto).
+
+Qué hace (solo lectura; sin tablas ni datos; no toca puertas existentes):
+- `crm.llamadas_celular_resueltas_hoy_fn(p_limite)`: «Qué pasó hoy» (hallazgo 1 de F4). Las llamadas recibidas hoy en
+  Lima ya resueltas (registradas o descartadas), con su resultado (y si se deshizo), la vía del enlace o el motivo.
+  **Decisión de Jhosep: solo el día de hoy.**
+- `crm.actividades_con_llamada_celular_fn(p_actividad_ids)`: la marca «Celular C1» en «¿Qué hice hoy?» (hallazgo 3). De
+  hasta 500 gestiones, cuáles están unidas a una llamada del celular, con etiqueta y vía. **No cambia
+  `crm.registro_actividad_fn`** (sería un cambio de contrato de una puerta que usan otras pantallas).
+- Ámbito: el de la bandeja (`private.llamada_celular_visible`). Roles: analista, supervisión y gerencia (42501 los
+  demás). Puertas DEFINER con EXECUTE solo `authenticated`; núcleo INVOKER en `private` sin EXECUTE para nadie; todo
+  STABLE.
+
+Verificación: pasada 15 de `npm run test:llamadas:local` (oráculo `tests/llamadas-celular/oraculo-lecturas-analista.sql`:
+ámbito por rol y equipo, solo hoy, pendientes fuera, resultado, deshecho, vía, motivo, lead dado de baja, límites y
+roles; los oráculos de F4-a y la quinta siguen; reversa con la huella exacta de las siete; las reversas de la séptima y
+F4-a se niegan con ella puesta; mutantes). Gate `test-rls.mjs`: tramo nuevo en `testLlamadasCelular` (se salta si no está
+instalada; `CRM_RLS_EXIGE_LLAMADAS_F4B=1` lo exige). NOT RUN: el gate con el esquema de producción.
+
+Reversa: `scripts/llamadas-celular/reversa-lecturas-analista.sql` (quita las cuatro funciones; sin datos, corre en
+cualquier momento). Orden: esta → la de la séptima → la de F4-a → …
+
 ## 20261005182227 — Llamadas desde el celular · SÉPTIMA: enlace exacto sin ciclo con Deshacer (`private.llamada_celular_cumplir_intencion`, `private.llamada_celular_enlazar_exacto`)
 
 **⏸️ ESCRITA, SIN APLICAR (05/10/2026). Corrige el [P2] de la segunda revisión del agente de Miguel en el PR #190**

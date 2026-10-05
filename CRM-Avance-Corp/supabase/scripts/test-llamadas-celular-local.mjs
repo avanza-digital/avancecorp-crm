@@ -9,7 +9,7 @@
 // canonización, idempotencia y forma del resultado reales; auth.uid como doble declarado).
 // Molde: supabase/scripts/test-sla-nucleo-local.py. No sustituye el gate test-rls.mjs.
 //
-// Catorce pasadas:
+// Quince pasadas:
 //   1. Las migraciones tal cual: se aplican, se niegan a sobrescribirse, pasan sus oráculos, sus
 //      reversas funcionan en orden (y se niegan fuera de orden o con filas) y se vuelven a aplicar.
 //   2–5. Mutantes de F2-b, F2-c, F3-a y la corrección de elegibilidad: por cada defensa, una copia de
@@ -39,6 +39,9 @@
 //      reintento de la v5 en medio, en los dos órdenes y con Deshacer revertido; las de F4-a otra vez; un
 //      control sin la séptima que reproduce el interbloqueo de la revisión de Miguel (#190); y mutantes que
 //      la carrera tiene que cazar.
+//  15. La OCTAVA (20261005201010, lecturas de F4-b) sobre las siete: se aplica, se niega a repetirse, pasan su
+//      oráculo y los de F4-a y la quinta, las reversas de la séptima y F4-a se niegan con ella puesta, la suya
+//      vuelve a la huella exacta de las siete; y sus mutantes.
 //
 // Uso:  node supabase/scripts/test-llamadas-celular-local.mjs     (npm run test:llamadas:local)
 // Binarios: LLAMADAS_PG_BIN, o ~/.local/pg/pgsql/bin (zip oficial de EDB en Windows), o Homebrew.
@@ -73,6 +76,9 @@ const ORACULO_ENLACE = join(RAIZ, 'supabase/tests/llamadas-celular/oraculo-enlac
 const REVERSA_ENLACE = join(RAIZ, 'supabase/scripts/llamadas-celular/reversa-enlace-exacto.sql');
 const MIG_SIN_CICLO = join(RAIZ, 'supabase/migrations/20261005182227_crm_llamadas_celular_enlace_sin_ciclo.sql');
 const REVERSA_SIN_CICLO = join(RAIZ, 'supabase/scripts/llamadas-celular/reversa-enlace-sin-ciclo.sql');
+const MIG_LECTURAS = join(RAIZ, 'supabase/migrations/20261005201010_crm_llamadas_celular_lecturas_analista.sql');
+const ORACULO_LECTURAS = join(RAIZ, 'supabase/tests/llamadas-celular/oraculo-lecturas-analista.sql');
+const REVERSA_LECTURAS = join(RAIZ, 'supabase/scripts/llamadas-celular/reversa-lecturas-analista.sql');
 const PUERTO = '55485';
 const USUARIO = 'llamadas_test_owner';
 const EXE = process.platform === 'win32' ? '.exe' : '';
@@ -376,6 +382,27 @@ const MUTANTES_SIN_CICLO = [
     buscar: 'where a.id = p_actividad_id for key share nowait;', poner: 'where a.id = p_actividad_id for key share;' },
   { nombre: 'cumplir sin NOWAIT atrapa cualquier error', por: 'postflight', espera: 'atrapa cualquier error',
     buscar: '  exception when lock_not_available then\n    return;\n  end;', poner: '  exception when others then\n    return;\n  end;' },
+];
+
+// Mutantes de la octava (20261005201010, lecturas de F4-b): los caza su oráculo o el postflight.
+const MUTANTES_LECTURAS = [
+  { nombre: '«Qué pasó hoy» sin el filtro del día', buscar: "      and e.recibido_en >= dia.desde and e.recibido_en < dia.desde + interval '1 day'\n", poner: '' },
+  { nombre: '«Qué pasó hoy» con las pendientes', buscar: "    where e.atencion in ('registrado', 'descartado_con_motivo')",
+    poner: "    where e.atencion in ('registrado', 'descartado_con_motivo', 'requiere_resultado')" },
+  { nombre: '«Qué pasó hoy» sin ámbito', buscar: "      and private.llamada_celular_visible(p_actor, e.lead_id, e.analista_id)\n    order by", poner: '    order by' },
+  { nombre: 'la marca sin ámbito', buscar: "    and private.llamada_celular_visible(p_actor, e.lead_id, e.analista_id)\n$function$;", poner: '$function$;' },
+  { nombre: 'la marca sin tope de 500', buscar: 'pg_catalog.cardinality(p_actividad_ids) > 500', poner: 'pg_catalog.cardinality(p_actividad_ids) > 100000' },
+  { nombre: 'el límite sin validar', buscar: '  if p_limite is null or p_limite not between 1 and 200 then', poner: '  if false then' },
+  { nombre: 'el deshecho no se marca', buscar: "'deshecho', coalesce(r.deshecho, false)", poner: "'deshecho', false" },
+  { nombre: '«Qué pasó hoy» abierta a anon', por: 'postflight', espera: 'EXECUTE inesperado',
+    buscar: "    'crm.llamadas_celular_resueltas_hoy_fn(integer)',\n    'crm.actividades_con_llamada_celular_fn(uuid[])'] loop\n    execute pg_catalog.format('revoke all on function %s from public, anon, authenticated, service_role', v_f);\n    execute pg_catalog.format('grant execute on function %s to authenticated', v_f);",
+    poner: "    'crm.llamadas_celular_resueltas_hoy_fn(integer)',\n    'crm.actividades_con_llamada_celular_fn(uuid[])'] loop\n    execute pg_catalog.format('revoke all on function %s from public, anon, authenticated, service_role', v_f);\n    execute pg_catalog.format('grant execute on function %s to authenticated, anon', v_f);" },
+  { nombre: 'el núcleo con EXECUTE para authenticated', por: 'postflight', espera: 'EXECUTE inesperado',
+    buscar: "    'private.actividades_con_llamada_celular(uuid,uuid[])'] loop\n    execute pg_catalog.format('revoke all on function %s from public, anon, authenticated, service_role', v_f);\n  end loop;",
+    poner: "    'private.actividades_con_llamada_celular(uuid,uuid[])'] loop\n    execute pg_catalog.format('grant execute on function %s to authenticated', v_f);\n  end loop;" },
+  { nombre: 'la puerta INVOKER', por: 'postflight', espera: 'debería ser SECURITY DEFINER',
+    buscar: "create function crm.actividades_con_llamada_celular_fn(p_actividad_ids uuid[])\nreturns jsonb\nlanguage plpgsql\nstable\nsecurity definer",
+    poner: "create function crm.actividades_con_llamada_celular_fn(p_actividad_ids uuid[])\nreturns jsonb\nlanguage plpgsql\nstable\nsecurity invoker" },
 ];
 
 function carpetaBinarios() {
@@ -918,6 +945,10 @@ try {
   psqlSql('create database plantilla_seis template plantilla_cinco', 'postgres');
   r = psqlArchivo(MIG_ENLACE, 'plantilla_seis');
   if (!r.ok) throw new Error(`la plantilla con las seis no se pudo preparar:\n${cola(r.salida)}`);
+  // Y con la séptima: el punto de partida de la octava (pasada 15).
+  psqlSql('create database plantilla_siete template plantilla_seis', 'postgres');
+  r = psqlArchivo(MIG_SIN_CICLO, 'plantilla_siete');
+  if (!r.ok) throw new Error(`la plantilla con las siete no se pudo preparar:\n${cola(r.salida)}`);
   psqlSql('create database principal template plantilla', 'postgres');
 
   console.log('\n— Pasada 1: las migraciones tal cual —');
@@ -1275,6 +1306,36 @@ try {
     }
     psqlSql(`drop database ${dbm}`, 'postgres');
   }
+
+  // ── Pasada 15: la octava (lecturas de F4-b) sobre las siete ──
+  console.log('\n— Pasada 15: la octava (lecturas de F4-b: «Qué pasó hoy» y la marca «Celular») —');
+  const dl = 'lecturas';
+  psqlSql(`create database ${dl} template plantilla_siete`, 'postgres');
+  const m0 = huella(dl);
+  const lineasM0 = m0.salida.trim().split(/\r?\n/);
+  paso('huella del catálogo de las siete', m0.ok && lineasM0.length > 100, m0.ok ? `${lineasM0.length} líneas` : cola(m0.salida));
+  r = psqlArchivo(MIG_LECTURAS, dl);
+  paso('octava aplicada (dos puertas de lectura, su núcleo, permisos, postflight)', r.ok, r.ok ? '' : cola(r.salida));
+  r = psqlArchivo(MIG_LECTURAS, dl);
+  paso('la octava se niega a sobrescribirse', !r.ok && r.salida.includes('los objetos ya existen'), r.ok ? 'se aplicó dos veces' : '');
+  oraculoEn('oráculo de la octava', ORACULO_LECTURAS, 'ORACULO LECTURAS ANALISTA OK', dl);
+  oraculoEn('oráculo de F4-a con la octava puesta', ORACULO_ENLACE, 'ORACULO ENLACE EXACTO OK', dl);
+  oraculoEn('oráculo de la quinta con la octava puesta', ORACULO_CORRECCION, 'ORACULO CORRECCION OK', dl);
+  r = psqlArchivo(REVERSA_SIN_CICLO, dl);
+  paso('la reversa de la séptima se niega con la octava puesta', !r.ok && r.salida.includes('la octava (20261005201010) sigue instalada'), r.ok ? 'se aplicó fuera de orden' : '');
+  r = psqlArchivo(REVERSA_ENLACE, dl);
+  paso('la reversa de F4-a se niega con la octava puesta', !r.ok && r.salida.includes('sigue instalada'), r.ok ? 'se aplicó fuera de orden' : '');
+  r = psqlArchivo(REVERSA_LECTURAS, dl);
+  paso('reversa de la octava', r.ok, r.ok ? '' : cola(r.salida));
+  const m1 = huella(dl);
+  const distintasM = m1.salida.trim().split(/\r?\n/).filter((l, i) => l !== lineasM0[i]);
+  paso('la reversa de la octava vuelve EXACTAMENTE a la huella de las siete', m1.ok && m1.salida === m0.salida,
+    m1.ok ? distintasM.slice(0, 4).join('\n') : cola(m1.salida));
+  r = psqlArchivo(MIG_LECTURAS, dl);
+  paso('la octava se vuelve a aplicar tras su reversa', r.ok, r.ok ? '' : cola(r.salida));
+  oraculoEn('oráculo de la octava tras reaplicar', ORACULO_LECTURAS, 'ORACULO LECTURAS ANALISTA OK', dl);
+  psqlSql(`drop database ${dl}`, 'postgres');
+  pasadaMutantes('Pasada 15b: mutantes de la octava', MIG_LECTURAS, MUTANTES_LECTURAS, 'plantilla_siete', ORACULO_LECTURAS, 'mut_lecturas');
 } catch (error) {
   paso('arranque del banco', false, error.message);
 } finally {
