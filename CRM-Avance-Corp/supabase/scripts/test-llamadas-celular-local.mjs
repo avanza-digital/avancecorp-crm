@@ -9,7 +9,7 @@
 // canonización, idempotencia y forma del resultado reales; auth.uid como doble declarado).
 // Molde: supabase/scripts/test-sla-nucleo-local.py. No sustituye el gate test-rls.mjs.
 //
-// Nueve pasadas:
+// Catorce pasadas:
 //   1. Las migraciones tal cual: se aplican, se niegan a sobrescribirse, pasan sus oráculos, sus
 //      reversas funcionan en orden (y se niegan fuera de orden o con filas) y se vuelven a aplicar.
 //   2–5. Mutantes de F2-b, F2-c, F3-a y la corrección de elegibilidad: por cada defensa, una copia de
@@ -32,6 +32,13 @@
 //  11. Mutantes de F4-a.
 //  12. Carreras de F4-a: el aviso llega mientras se guarda la encuesta y al revés, dos encuestas con el
 //      mismo id y Deshacer mientras la ingesta cumple la intención.
+//  13. La SÉPTIMA (20261005182227, enlace sin ciclo con Deshacer) sobre las seis: se aplica, se niega a
+//      repetirse, pasan los oráculos de F4-a y de la quinta, la reversa de F4-a se niega con ella puesta y la
+//      suya vuelve a la huella exacta de las seis (también con datos: solo cambia cuerpos).
+//  14. Carreras de la séptima: Deshacer PAUSADO entre sus dos candados (resultado → lead) con el aviso o un
+//      reintento de la v5 en medio, en los dos órdenes y con Deshacer revertido; las de F4-a otra vez; un
+//      control sin la séptima que reproduce el interbloqueo de la revisión de Miguel (#190); y mutantes que
+//      la carrera tiene que cazar.
 //
 // Uso:  node supabase/scripts/test-llamadas-celular-local.mjs     (npm run test:llamadas:local)
 // Binarios: LLAMADAS_PG_BIN, o ~/.local/pg/pgsql/bin (zip oficial de EDB en Windows), o Homebrew.
@@ -64,6 +71,8 @@ const HUELLA = join(RAIZ, 'supabase/tests/llamadas-celular/huella-catalogo.sql')
 const MIG_ENLACE = join(RAIZ, 'supabase/migrations/20261005155914_crm_llamadas_celular_enlace_exacto.sql');
 const ORACULO_ENLACE = join(RAIZ, 'supabase/tests/llamadas-celular/oraculo-enlace-exacto.sql');
 const REVERSA_ENLACE = join(RAIZ, 'supabase/scripts/llamadas-celular/reversa-enlace-exacto.sql');
+const MIG_SIN_CICLO = join(RAIZ, 'supabase/migrations/20261005182227_crm_llamadas_celular_enlace_sin_ciclo.sql');
+const REVERSA_SIN_CICLO = join(RAIZ, 'supabase/scripts/llamadas-celular/reversa-enlace-sin-ciclo.sql');
 const PUERTO = '55485';
 const USUARIO = 'llamadas_test_owner';
 const EXE = process.platform === 'win32' ? '.exe' : '';
@@ -352,6 +361,21 @@ const MUTANTES_ENLACE = [
     poner: '  p_no_insista boolean default false, p_evento_origen_id text default null, p_via text default null)\nreturns jsonb\nlanguage plpgsql\nvolatile\nsecurity invoker' },
   { nombre: 'cumplir la intención atrapa cualquier error', por: 'postflight', espera: 'atrapa cualquier error',
     buscar: '  exception when unique_violation then\n    return;  -- ese resultado', poner: '  exception when others then\n    return;  -- ese resultado' },
+];
+
+// Mutantes de la séptima (20261005182227). Los caza la carrera con Deshacer pausado entre sus dos candados (pasada 14):
+// sin el NOWAIT, la ingesta o la v5 esperan el resultado con el lead ya tomado y vuelve el interbloqueo del #190.
+const MUTANTES_SIN_CICLO = [
+  { nombre: 'la ingesta lee el resultado sin candado (el cuerpo de F4-a)', escenario: 'deshacerEntreCandados',
+    buscar: 'where a.id = v_int.actividad_id for key share nowait;', poner: 'where a.id = v_int.actividad_id;' },
+  { nombre: 'la ingesta espera el resultado (sin NOWAIT)', escenario: 'deshacerEntreCandados',
+    buscar: 'where a.id = v_int.actividad_id for key share nowait;', poner: 'where a.id = v_int.actividad_id for key share;' },
+  { nombre: 'la v5 lee el resultado sin candado (el cuerpo de F4-a)', escenario: 'reintentoV5DuranteDeshacer',
+    buscar: 'where a.id = p_actividad_id for key share nowait;', poner: 'where a.id = p_actividad_id;' },
+  { nombre: 'la v5 espera el resultado (sin NOWAIT)', escenario: 'reintentoV5DuranteDeshacer',
+    buscar: 'where a.id = p_actividad_id for key share nowait;', poner: 'where a.id = p_actividad_id for key share;' },
+  { nombre: 'cumplir sin NOWAIT atrapa cualquier error', por: 'postflight', espera: 'atrapa cualquier error',
+    buscar: '  exception when lock_not_available then\n    return;\n  end;', poner: '  exception when others then\n    return;\n  end;' },
 ];
 
 function carpetaBinarios() {
@@ -786,6 +810,74 @@ const CARRERAS_ENLACE_TITULOS = [
   ['deshacerDuranteCumplir', 'Deshacer mientras la ingesta cumple la intención → la ingesta espera y no une el resultado deshecho, sin interbloqueo'],
 ];
 
+// ── Séptima: Deshacer PAUSADO entre sus dos candados (pasada 14) ───────────────────────────────
+// El orden real de Deshacer (20260920005000:649 y 682) con una pausa en medio: fuerza la intercalación que reprodujo la
+// revisión de Miguel en el #190 (Deshacer tiene el resultado y espera el lead; el otro tiene el lead y pide el resultado).
+const deshacerPausadoSql = (act, lead, fin = 'commit') => `begin;
+select 1 from crm.actividades where id = '${act}' for update;
+select pg_sleep(1.2);
+select 1 from crm.leads where id = '${lead}' for update;
+update crm.actividades set metadata = metadata || jsonb_build_object('deshecho_en', now()) where id = '${act}';
+${fin};
+`;
+const sinInterbloqueo = (...ss) => !ss.some((s) => /deadlock|40P01/.test(s.salida));
+const v5SinIdSql = (op, lead) => `select crm.registrar_llamada_v5('${op}', '${lead}', 'volver_a_llamar', null, null, null, null, false, false, null, null)::text;`;
+// enlaces del resultado / intenciones del id / recepciones del id / atención de la llamada / ¿resultado deshecho?
+const estadoEnlace = (db, id, op) => cuenta(db, `select (select count(*) from crm.llamadas_celular_enlaces where actividad_id = '${op}') || '/'
+  || (select count(*) from private.llamadas_celular_intenciones where evento_origen_id = '${id}') || '/'
+  || (select count(*) from private.llamadas_celular_recepciones where evento_origen_id = '${id}') || '/'
+  || coalesce((select atencion from crm.llamadas_celular_eventos where evento_origen_id = '${id}'), '-') || '/'
+  || (select (metadata ? 'deshecho_en')::text from crm.actividades where id = '${op}')`);
+const ambas = (s1, s2) => `deshacer: ${s1.ok ? 'ok' : lineaError(s1.salida)} · otra: ${s2.ms} ms, ${s2.ok ? ultima(s2) : lineaError(s2.salida)}`;
+const CARRERAS_SIN_CICLO = {
+  async deshacerEntreCandados(ctx, fin = 'commit') {
+    const id = ctx.nuevoId('C1'); const op = uuid();
+    psqlSql(enTx(comoSql(ACT.a1) + v5Sql(op, ACT.c1, id, 'al_colgar')), ctx.db);
+    const [s1, s2] = await Promise.all([
+      psqlParalelo(deshacerPausadoSql(op, ACT.c1, fin), ctx.db),
+      pausa(250).then(() => psqlParalelo(enTx(SERVICIO + ingerirSql(ctx.k.C1, id, '900000001')), ctx.db)),
+    ]);
+    const estado = estadoEnlace(ctx.db, id, op);
+    const esperado = `0/0/1/requiere_resultado/${fin === 'commit' ? 'true' : 'false'}`;
+    return { ok: s1.ok && s2.ok && s2.salida.includes('"resultado": "aceptado"') && sinInterbloqueo(s1, s2) && estado === esperado,
+             detalle: `enlaces/intenciones/recepciones/atención/deshecho: ${estado} · ${ambas(s1, s2)}` };
+  },
+  async cumplirAntesDeDeshacer(ctx) {
+    const id = ctx.nuevoId('C1'); const op = uuid();
+    psqlSql(enTx(comoSql(ACT.a1) + v5Sql(op, ACT.c1, id, 'al_colgar')), ctx.db);
+    const [s1, s2] = await Promise.all([
+      psqlParalelo(retenerTx(SERVICIO + ingerirSql(ctx.k.C1, id, '900000001')), ctx.db),
+      pausa(400).then(() => psqlParalelo(enTx(deshacerSql(op, ACT.c1)), ctx.db)),
+    ]);
+    const estado = estadoEnlace(ctx.db, id, op);
+    return { ok: s1.ok && s1.salida.includes('"resultado": "aceptado"') && s2.ok && esperoYo(s2) && sinInterbloqueo(s1, s2)
+               && estado === '1/0/1/registrado/true',
+             detalle: `enlaces/intenciones/recepciones/atención/deshecho: ${estado} · deshacer: ${s2.ms} ms, ${s2.ok ? 'ok' : lineaError(s2.salida)}` };
+  },
+  async deshacerRevertido(ctx) {
+    return CARRERAS_SIN_CICLO.deshacerEntreCandados(ctx, 'rollback');
+  },
+  async reintentoV5DuranteDeshacer(ctx) {
+    const id = ctx.nuevoId('C1'); const op = uuid();
+    psqlSql(enTx(SERVICIO + ingerirSql(ctx.k.C1, id, '900000001')), ctx.db); // la llamada ya llegó
+    psqlSql(enTx(comoSql(ACT.a1) + v5SinIdSql(op, ACT.c1)), ctx.db); // la encuesta se guardó sin el id
+    const [s1, s2] = await Promise.all([
+      psqlParalelo(deshacerPausadoSql(op, ACT.c1), ctx.db),
+      pausa(250).then(() => psqlParalelo(enTx(comoSql(ACT.a1) + v5Sql(op, ACT.c1, id, 'al_colgar')), ctx.db)),
+    ]);
+    const estado = estadoEnlace(ctx.db, id, op);
+    return { ok: s1.ok && s2.ok && s2.salida.includes('"motivo": "resultado_en_uso"') && sinInterbloqueo(s1, s2)
+               && estado === '0/0/1/requiere_resultado/true',
+             detalle: `enlaces/intenciones/recepciones/atención/deshecho: ${estado} · ${ambas(s1, s2)}` };
+  },
+};
+const CARRERAS_SIN_CICLO_TITULOS = [
+  ['deshacerEntreCandados', 'Deshacer pausado entre resultado y lead, con el aviso en medio → sin interbloqueo: el aviso se guarda y no se une; la intención se retira'],
+  ['cumplirAntesDeDeshacer', 'el aviso cumple la intención y Deshacer llega después → Deshacer espera, sin interbloqueo; el enlace queda'],
+  ['deshacerRevertido', 'Deshacer pausado que se revierte → sin interbloqueo; la llamada queda para unirla a mano (lo aceptado al no esperar)'],
+  ['reintentoV5DuranteDeshacer', 'reintento de la v5 con Deshacer entre sus candados → no_enlazado «resultado_en_uso», sin interbloqueo'],
+];
+
 let arrancado = false;
 try {
   const init = correr('initdb', ['-D', datos, '-U', USUARIO, '-A', 'scram-sha-256', '--pwfile', archivoClave,
@@ -822,6 +914,10 @@ try {
   psqlSql('create database plantilla_cinco template plantilla_cuatro', 'postgres');
   r = psqlArchivo(MIG_CORRECCION, 'plantilla_cinco');
   if (!r.ok) throw new Error(`la plantilla con las cinco no se pudo preparar:\n${cola(r.salida)}`);
+  // Y con F4-a: el punto de partida de la séptima (pasadas 13–14).
+  psqlSql('create database plantilla_seis template plantilla_cinco', 'postgres');
+  r = psqlArchivo(MIG_ENLACE, 'plantilla_seis');
+  if (!r.ok) throw new Error(`la plantilla con las seis no se pudo preparar:\n${cola(r.salida)}`);
   psqlSql('create database principal template plantilla', 'postgres');
 
   console.log('\n— Pasada 1: las migraciones tal cual —');
@@ -1103,6 +1199,81 @@ try {
       const c = await CARRERAS_ENLACE[clave](ctxE);
       paso(titulo, c.ok, c.detalle);
     }
+  }
+
+  // ── Pasada 13: la séptima sobre las seis ──
+  console.log('\n— Pasada 13: la séptima (enlace exacto sin ciclo con Deshacer) —');
+  const ds = 'sin_ciclo';
+  psqlSql(`create database ${ds} template plantilla_seis`, 'postgres');
+  const k0 = huella(ds);
+  const lineasK0 = k0.salida.trim().split(/\r?\n/);
+  paso('huella del catálogo de las seis', k0.ok && lineasK0.length > 100, k0.ok ? `${lineasK0.length} líneas` : cola(k0.salida));
+  r = psqlArchivo(MIG_SIN_CICLO, ds);
+  paso('séptima aplicada (resultado FOR KEY SHARE NOWAIT en la v5 y al cumplir la intención, postflight)', r.ok, r.ok ? '' : cola(r.salida));
+  r = psqlArchivo(MIG_SIN_CICLO, ds);
+  paso('la séptima se niega a sobrescribirse', !r.ok && r.salida.includes('ya está aplicada'), r.ok ? 'se aplicó dos veces' : '');
+  oraculoEn('oráculo de F4-a con la séptima puesta', ORACULO_ENLACE, 'ORACULO ENLACE EXACTO OK', ds);
+  oraculoEn('oráculo de la quinta con la séptima puesta', ORACULO_CORRECCION, 'ORACULO CORRECCION OK', ds);
+  r = psqlArchivo(REVERSA_ENLACE, ds);
+  paso('la reversa de F4-a se niega con la séptima puesta', !r.ok && r.salida.includes('la séptima (20261005182227) sigue instalada'), r.ok ? 'se aplicó fuera de orden' : '');
+  r = psqlArchivo(REVERSA_SIN_CICLO, ds);
+  paso('reversa de la séptima', r.ok, r.ok ? '' : cola(r.salida));
+  const k1 = huella(ds);
+  const distintasK = k1.salida.trim().split(/\r?\n/).filter((l, i) => l !== lineasK0[i]);
+  paso('la reversa de la séptima vuelve EXACTAMENTE a la huella de las seis', k1.ok && k1.salida === k0.salida,
+    k1.ok ? distintasK.slice(0, 4).join('\n') : cola(k1.salida));
+  oraculoEn('oráculo de F4-a tras la reversa de la séptima', ORACULO_ENLACE, 'ORACULO ENLACE EXACTO OK', ds);
+  r = psqlArchivo(MIG_SIN_CICLO, ds);
+  paso('la séptima se vuelve a aplicar tras su reversa', r.ok, r.ok ? '' : cola(r.salida));
+  // Solo cuerpos y COMMENT, sin datos: su reversa no depende de que haya celulares dados de alta.
+  psqlSql(`insert into crm.celulares_asignaciones (etiqueta, analista_id, credencial_hash) values ('C9', '${ACT.a1}', repeat('e', 64))`, ds);
+  r = psqlArchivo(REVERSA_SIN_CICLO, ds);
+  paso('la reversa de la séptima corre también con un celular dado de alta', r.ok, r.ok ? '' : cola(r.salida));
+  r = psqlArchivo(MIG_SIN_CICLO, ds);
+  paso('y la séptima se vuelve a aplicar con datos', r.ok, r.ok ? '' : cola(r.salida));
+  psqlSql(`drop database ${ds}`, 'postgres');
+
+  // ── Pasada 14: carreras de la séptima ──
+  console.log('\n— Pasada 14: carreras de la séptima con dos sesiones reales —');
+  psqlSql('create database conc_sin_ciclo template plantilla_seis', 'postgres');
+  r = psqlArchivo(MIG_SIN_CICLO, 'conc_sin_ciclo');
+  if (paso('banco de carreras listo (las seis + la séptima)', r.ok, r.ok ? '' : cola(r.salida))) {
+    const ctxS = sembrarCorreccion('conc_sin_ciclo');
+    for (const [clave, titulo] of CARRERAS_ENLACE_TITULOS) {
+      const c = await CARRERAS_ENLACE[clave](ctxS);
+      paso(`con la séptima: ${titulo}`, c.ok, c.detalle);
+    }
+    for (const [clave, titulo] of CARRERAS_SIN_CICLO_TITULOS) {
+      const c = await CARRERAS_SIN_CICLO[clave](ctxS);
+      paso(titulo, c.ok, c.detalle);
+    }
+  }
+  // Control: con F4-a sola, la misma carrera reproduce el interbloqueo de la revisión (la prueba distingue).
+  psqlSql('create database conc_sin_septima template plantilla_seis', 'postgres');
+  {
+    const c = await CARRERAS_SIN_CICLO.deshacerEntreCandados(sembrarCorreccion('conc_sin_septima'));
+    paso('control: sin la séptima, la misma carrera reproduce el interbloqueo del #190', !c.ok && /deadlock/.test(c.detalle), c.detalle);
+  }
+  const originalS = readFileSync(MIG_SIN_CICLO, 'utf8').replace(/\r\n/g, '\n');
+  for (const [i, mutante] of MUTANTES_SIN_CICLO.entries()) {
+    const etiqueta = `mut_sin_ciclo ${String(i + 1).padStart(2, '0')}: ${mutante.nombre}`;
+    const m = aplicarMutante(originalS, mutante);
+    if (m.error) { paso(etiqueta, false, `mutante obsoleto: ${m.error}`); continue; }
+    const archivo = join(temporal, `mut-sin-ciclo-${i + 1}.sql`);
+    writeFileSync(archivo, m.texto);
+    const dbm = `mut_sin_ciclo_${i + 1}`;
+    psqlSql(`create database ${dbm} template plantilla_seis`, 'postgres');
+    r = psqlArchivo(archivo, dbm);
+    if (mutante.por === 'postflight') {
+      paso(etiqueta, !r.ok && r.salida.includes(mutante.espera),
+        r.ok ? 'SOBREVIVE: la migración mutada se aplicó' : `cazado por el postflight: ${lineaError(r.salida)}`);
+    } else if (!r.ok) {
+      paso(etiqueta, false, `la migración mutada no se aplica (mutante inválido): ${lineaError(r.salida)}`);
+    } else {
+      const c = await CARRERAS_SIN_CICLO[mutante.escenario](sembrarCorreccion(dbm));
+      paso(etiqueta, !c.ok, c.ok ? 'SOBREVIVE: la carrera no lo nota' : `cazado por la carrera: ${c.detalle}`);
+    }
+    psqlSql(`drop database ${dbm}`, 'postgres');
   }
 } catch (error) {
   paso('arranque del banco', false, error.message);

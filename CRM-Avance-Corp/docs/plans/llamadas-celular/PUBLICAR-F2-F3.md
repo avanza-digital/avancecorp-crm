@@ -1,14 +1,14 @@
 # Publicar F2 + F3 + F4-a de «Llamadas desde el celular» — guía técnica (05/10/2026)
 
-Seis migraciones, **ninguna aplicada ni desplegada**. Las cuatro primeras están en `main` (PR #169); la quinta
-(corrección) y la sexta (F4-a, enlace exacto) están en el PR #190. Se publican **juntas** y con la Edge del contrato
+Siete migraciones, **ninguna aplicada ni desplegada**. Las cuatro primeras están en `main` (PR #169); la quinta
+(corrección), la sexta (F4-a, enlace exacto) y la séptima (enlace sin ciclo con Deshacer) están en el PR #190. Se publican **juntas** y con la Edge del contrato
 nuevo (decisión 1 de Miguel). F1 (la encuesta al colgar) ya está en producción y no cambia.
 
 Regla del proyecto (`CRM-Avance-Corp/CLAUDE.md`): rama de Supabase → aplicar → gate `test-rls.mjs` → advisors →
 merge. **Nunca `apply_migration` directo a producción.**
 
-> **Barrera.** No se despliega la Edge ni se da de alta ningún celular hasta aplicar y verificar la quinta **y** F4-a
-> (paso 3.4). Sin Edge y sin claves, las puertas de las cuatro no exponen nada: las tablas están vacías. La Edge nueva,
+> **Barrera.** No se despliega la Edge ni se da de alta ningún celular hasta aplicar y verificar la quinta, F4-a **y** la
+> séptima (paso 3.4). Sin Edge y sin claves, las puertas de las cuatro no exponen nada: las tablas están vacías. La Edge nueva,
 > además, solo entiende la respuesta de la quinta: contra las cuatro contestaría 503 a todo. **Al revés tampoco:** un
 > alta antes de la quinta la deja sin poder aplicarse (exige tablas vacías y una asignación no se borra nunca).
 
@@ -16,18 +16,18 @@ merge. **Nunca `apply_migration` directo a producción.**
 
 | # | Qué | Estado al 05/10 |
 | --- | --- | --- |
-| 0.1 | Seis migraciones, cada una con su registrador (`supabase/scripts/llamadas-celular/registrar-{datos,nucleo,ingesta,elegibilidad,correccion,enlace-exacto}.sql`); los dos últimos terminan con una fila de veredicto | Hecho. `npm run test:llamadas:local`: 281/281 |
-| 0.2 | Reversas de las seis (`reversa-*.sql`) | Hecho; las de la quinta y F4-a, solo antes de dar de alta celulares («Reversa») |
-| 0.3 | Edge con el contrato nuevo | Hecho: 15/15 y mutantes 15/15; sin desplegar |
+| 0.1 | Siete migraciones, cada una con su registrador (`supabase/scripts/llamadas-celular/registrar-{datos,nucleo,ingesta,elegibilidad,correccion,enlace-exacto,enlace-sin-ciclo}.sql`); los tres últimos terminan con una fila de veredicto | Hecho. `npm run test:llamadas:local`: 308/308 |
+| 0.2 | Reversas de las siete (`reversa-*.sql`) | Hecho; las de la quinta y F4-a, solo antes de dar de alta celulares; la de la séptima solo cambia cuerpos («Reversa») |
+| 0.3 | Edge con el contrato nuevo | Hecho: 16/16 y mutantes 17/17 (05/10: un corte al leer el cuerpo responde 503); sin desplegar |
 | 0.4 | Bloque `testLlamadasCelular` del gate al día con la quinta y F4-a (paso 4 del plan v2), y `banco/limpiar-entre-corridas.sql` vaciando las asignaciones | Hecho (05/10): cotejado con las migraciones; `node --check` y oxlint limpios; **sin correr** (necesita el esquema de producción) |
 | 0.5 | `alta-celular.sql`, `rotar-celular.sql` y `cerrar-celular.sql` | Hechos (05/10): una sola sentencia cada uno, porque `db query` solo devuelve el último resultado; probados en un Postgres local |
-| 0.6 | Codex r2 y `auditor-rls` sobre la quinta + F4-a + la Edge | **Pendiente; los corre Miguel** |
+| 0.6 | Codex r2 y `auditor-rls` sobre la quinta + F4-a + la séptima + la Edge | 05/10: su agente revisó (CHANGES_REQUESTED, un [P2] → la séptima). **Pendiente su nueva revisión** |
 | 0.7 | PR #190 → `main` (`main` tiene que contener lo que se aplica) | Pendiente |
 
 ## 1. Decisiones
 
 - Tomadas: las siete de la corrección y sus confirmaciones (`CORRECCION-PLAN-CORTO.md`, «Decisiones»), la N1 según la
-  recomendación (`MIGRACIONES.md`, `20261005143843`) y las de Jhosep para F4-a (`MIGRACIONES.md`, `20261005155914`).
+  recomendación (`MIGRACIONES.md`, `20261005143843`) y las de Jhosep para F4-a (`MIGRACIONES.md`, `20261005155914`) y la séptima (`20261005182227`: no esperar).
   MacroDroid Pro: todavía no.
 - Para que Miguel las vea: los «criterios de Claude» de esas dos entradas de `MIGRACIONES.md`.
 - Las migraciones no modifican nada de `public`: solo lo referencian (autoría con `ON DELETE RESTRICT`, lecturas).
@@ -50,6 +50,7 @@ varias sentencias. Con `psql` sí se ven los `raise notice`.
    | 4 | `20261001222431_crm_llamadas_celular_elegibilidad_dueno.sql` | `registrar-elegibilidad.sql` | ídem |
    | 5 | `20261005143843_crm_llamadas_celular_correccion.sql` | `registrar-correccion.sql` | fila `veredicto_registro_20261005143843 = t` |
    | 6 | `20261005155914_crm_llamadas_celular_enlace_exacto.sql` | `registrar-enlace-exacto.sql` | fila `veredicto_registro_20261005155914 = t` |
+   | 7 | `20261005182227_crm_llamadas_celular_enlace_sin_ciclo.sql` | `registrar-enlace-sin-ciclo.sql` | fila `veredicto_registro_20261005182227 = t` |
 
    - No van todos al final: `registrar-nucleo` exige `crm.llamadas_celular_pendientes_fn` y `registrar-elegibilidad`,
      la ingesta de dos argumentos, y la quinta retira las dos.
@@ -59,9 +60,10 @@ varias sentencias. Con `psql` sí se ven los `raise notice`.
      Tampoco corren con la quinta `banco/verificar-hallazgos.sql` ni `banco/medir-bandeja.sql`: son de las cuatro.
 3. Verificar con V1–V5 del paso 3.4.
 4. Ensayar la reversa **antes de crear ninguna asignación** (el gate y el alta las crean, y desde ahí las reversas se
-   niegan): `reversa-enlace-exacto.sql` → `reversa-correccion.sql` → `reversa-elegibilidad.sql` →
-   `reversa-ingesta.sql` → `reversa-nucleo.sql` → `reversa-datos-total.sql` (con `reversa-datos.sql` las tablas se
-   quedan y no se puede volver a aplicar). Fuera de orden, cada una se niega. Después, volver a aplicar las seis con sus
+   niegan): `reversa-enlace-sin-ciclo.sql` → `reversa-enlace-exacto.sql` → `reversa-correccion.sql` →
+   `reversa-elegibilidad.sql` → `reversa-ingesta.sql` → `reversa-nucleo.sql` → `reversa-datos-total.sql` (con
+   `reversa-datos.sql` las tablas se quedan y no se puede volver a aplicar). Fuera de orden, cada una se niega.
+   Después, volver a aplicar las siete con sus
    registradores (son idempotentes: la fila del historial se quedó).
 5. Gate: `node supabase/scripts/test-rls.mjs` con `CRM_RLS_EXIGE_LLAMADAS=1` y `CRM_BANCO_PSQL_URL`. Tiene que probar:
    nadie toca las tablas directo; cada puerta, solo su rol; clave desconocida → 42501; el mismo id con otro contenido →
@@ -79,28 +81,29 @@ varias sentencias. Con `psql` sí se ven los `raise notice`.
 ## 3. Producción (con el `!` de Miguel)
 
 1. Antes, que no exista nada: `select to_regclass('crm.llamadas_celular_eventos') is null as limpio;` → `t`. Y el 2.1.
-2. Las seis, en el orden del 2.2, **una por mensaje** y cada una seguida de su registrador, desde `CRM-Avance-Corp/` en
+2. Las siete, en el orden del 2.2, **una por mensaje** y cada una seguida de su registrador, desde `CRM-Avance-Corp/` en
    un checkout LF (la Mac de Miguel):
    `npx supabase db query --linked --file supabase/migrations/<migración>.sql`, y después
    `npx supabase db query --linked --file supabase/scripts/llamadas-celular/<registrador>.sql`.
    - Por esta vía no se ven los `raise notice` y solo vuelve el último resultado. Una migración o uno de los cuatro
      registradores viejos que sale bien **no muestra nada** (su última sentencia es `commit`). Uno que falla muestra el
-     error y no deja nada (cada archivo es una transacción). Los dos registradores nuevos muestran su fila de veredicto.
+     error y no deja nada (cada archivo es una transacción). Los tres registradores nuevos muestran su fila de veredicto.
    - Después de cada registrador viejo, V1: la fila de esa versión tiene que salir con `ok = t`.
    - Si algo falla, parar ahí: la siguiente migración se niega sin la anterior.
-3. Marcar las seis «EN PROD» en `MIGRACIONES.md`.
+3. Marcar las siete «EN PROD» en `MIGRACIONES.md`.
 4. **Verificar (levanta la barrera).** Cada consulta es un solo `select`, para que se vea por `db query --linked`:
    ```sql
-   -- V1 · historial: 6 filas, todas ok = t
+   -- V1 · historial: 7 filas, todas ok = t
    select e.version, (m.name = e.nombre and cardinality(m.statements) = 1 and md5(m.statements[1]) = e.md5) is true as ok
    from (values ('20261001145242','crm_llamadas_celular_datos','a431978920a73d38f5c8cf121ad94327'),
                 ('20261001160219','crm_llamadas_celular_nucleo','4d78907164c4a77b12ea35f354aebc3e'),
                 ('20261001212258','crm_llamadas_celular_ingesta','90d544e9e96c637bcab2869225333ceb'),
                 ('20261001222431','crm_llamadas_celular_elegibilidad_dueno','0a4e5b9c148208cc660616bf84d585a9'),
                 ('20261005143843','crm_llamadas_celular_correccion','306d706b4b8020b0a7e585300f233d14'),
-                ('20261005155914','crm_llamadas_celular_enlace_exacto','69d2137ecf345dda3e8be66b3d6b44fb')) e(version, nombre, md5)
+                ('20261005155914','crm_llamadas_celular_enlace_exacto','69d2137ecf345dda3e8be66b3d6b44fb'),
+                ('20261005182227','crm_llamadas_celular_enlace_sin_ciclo','6dea6bd39fa2435ae883396e2c957783')) e(version, nombre, md5)
    left join supabase_migrations.schema_migrations m on m.version = e.version order by e.version;
-   -- V2 · forma de la quinta y de F4-a: todo t
+   -- V2 · forma de la quinta, de F4-a y de la séptima: todo t
    select to_regclass('private.llamadas_celular_recepciones') is not null as recepciones,
           to_regclass('private.llamadas_celular_intenciones') is not null as intenciones,
           to_regprocedure('private.llamada_celular_ingerir(uuid,jsonb,timestamptz)') is not null as ingesta_nueva,
@@ -112,7 +115,9 @@ varias sentencias. Con `psql` sí se ven los `raise notice`.
           not exists (select 1 from pg_attribute where attrelid = 'crm.llamadas_celular_eventos'::regclass
                       and attname = 'hash_payload' and not attisdropped) as sin_hash_payload,
           exists (select 1 from pg_attribute where attrelid = 'crm.llamadas_celular_enlaces'::regclass
-                  and attname = 'via' and not attisdropped) as enlace_con_via;
+                  and attname = 'via' and not attisdropped) as enlace_con_via,
+          strpos(pg_get_functiondef('private.llamada_celular_cumplir_intencion(uuid)'::regprocedure),
+                 'for key share nowait') > 0 as sin_ciclo;
    -- V3 · vacías: todo 0
    select (select count(*) from crm.celulares_asignaciones) as asignaciones, (select count(*) from private.celulares_estado) as estado,
           (select count(*) from private.llamadas_celular_recepciones) as recepciones, (select count(*) from crm.llamadas_celular_eventos) as llamadas,
@@ -203,9 +208,11 @@ analista nuevo.
 
 **Solo antes de dar de alta ningún celular**: sin asignaciones (ni cerradas), estado, recepciones, llamadas, enlaces ni
 intenciones. Cada reversa lo comprueba bajo candado y, si no se cumple, se niega.
-- Base, una por mensaje: `reversa-enlace-exacto.sql` → `reversa-correccion.sql` → `reversa-elegibilidad.sql` →
-  `reversa-ingesta.sql` → `reversa-nucleo.sql` → `reversa-datos.sql` (conserva las tablas) o `reversa-datos-total.sql`
-  (las borra). Fuera de orden, cada una se niega.
+- Base, una por mensaje: `reversa-enlace-sin-ciclo.sql` → `reversa-enlace-exacto.sql` → `reversa-correccion.sql` →
+  `reversa-elegibilidad.sql` → `reversa-ingesta.sql` → `reversa-nucleo.sql` → `reversa-datos.sql` (conserva las tablas)
+  o `reversa-datos-total.sql` (las borra). Fuera de orden, cada una se niega.
+- La de la séptima solo devuelve dos cuerpos y sus COMMENT (sin tablas ni datos): corre también después del alta, pero
+  devuelve el interbloqueo con Deshacer que la séptima corrige.
 - La fila de `supabase_migrations.schema_migrations` se queda (regla de la casa, `scripts/potencial-lead/reversa.sql`):
   anotar la reversa en `MIGRACIONES.md`.
 - Es más estricto que «antes del primer aviso» a propósito (revisión de Miguel en el #190): recepciones e intenciones

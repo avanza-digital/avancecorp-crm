@@ -1,3 +1,38 @@
+## 20261005182227 — Llamadas desde el celular · SÉPTIMA: enlace exacto sin ciclo con Deshacer (`private.llamada_celular_cumplir_intencion`, `private.llamada_celular_enlazar_exacto`)
+
+**⏸️ ESCRITA, SIN APLICAR (05/10/2026). Corrige el [P2] de la segunda revisión del agente de Miguel en el PR #190**
+(18:13 UTC, sobre `53a72f17`, reproducido con dos sesiones). Se aplica después de `20261005155914` y su registrador;
+registrador propio: `scripts/llamadas-celular/registrar-enlace-sin-ciclo.sql` (con fila de veredicto; md5 LF
+`6dea6bd39fa2435ae883396e2c957783`). Se publica junto con las seis.
+
+El fallo: al unir un resultado con su llamada, la llave foránea del enlace (y la de la intención) toma el resultado
+`FOR KEY SHARE` aunque nadie lo pida. Deshacer (`20260920005000:649` y `682`) bloquea resultado → lead `FOR UPDATE`; la
+ingesta y la v5 llegan con el lead ya tomado y esperaban el resultado: interbloqueo (40P01). El comentario de F4-a «sin
+candado sobre el resultado» no lo evitaba: el candado lo pedía la llave foránea.
+
+Qué hace (sin editar F4-a; mismas firmas y permisos; sin tablas ni datos):
+- Al cumplir la intención (ingesta) y en el enlace de la v5, el resultado se toma `FOR KEY SHARE NOWAIT`. Se atrapa
+  solo `lock_not_available` (55P03).
+- **Decisión de Jhosep (05/10): no esperar.** Si Deshacer tiene el resultado, la intención se retira sin enlace y la
+  llamada queda en la pestaña para unirla a mano; la v5 responde `no_enlazado` con motivo `resultado_en_uso` (el
+  resultado ya quedó guardado). La alternativa descartada: tomar el resultado antes que el lead en la ingesta.
+- Solo Deshacer bloquea un resultado `FOR UPDATE` (buscado en todas las migraciones el 05/10); la actualización de la
+  v4 (`FOR NO KEY UPDATE`) no choca con `FOR KEY SHARE`. Por eso el «no esperar» no falla por otros escritores.
+- Cuerpos generados con un guion desde el blob de F4-a, con exactamente dos cambios.
+- Capas: solo núcleo de `private` (INVOKER, sin EXECUTE); las puertas no cambian de firma. La v5 suma el valor de
+  motivo `resultado_en_uso`; ninguna pantalla la usa todavía (F4-b).
+
+Verificación (banco reducido, v4 como doble declarado): pasadas 13 y 14 de `npm run test:llamadas:local` — huella,
+oráculos de F4-a y de la quinta con la séptima puesta, reversa con la huella exacta de las seis (también con datos), la
+reversa de F4-a se niega con la séptima puesta; carreras con Deshacer **pausado entre sus dos candados** (el aviso en
+medio, el reintento de la v5 en medio, los dos órdenes y Deshacer revertido) y las cuatro de F4-a otra vez; un control
+sin la séptima reproduce el `deadlock detected` de la revisión; 4 mutantes cazados por la carrera y 1 por el postflight:
+**308/308 en verde el 05/10**. La v4 real, Deshacer real y el gate completo: NOT RUN (esquema de producción, Miguel).
+
+Reversa: `scripts/llamadas-celular/reversa-enlace-sin-ciclo.sql` (generada desde el blob de git). Solo devuelve los dos
+cuerpos y sus COMMENT de F4-a: corre también después del alta, pero devuelve el interbloqueo. Orden de las reversas:
+esta → la de F4-a (que ahora se niega con la séptima puesta) → la de la quinta → las de las cuatro.
+
 ## 20261005155914 — Llamadas desde el celular · F4-a: enlace exacto encuesta ↔ llamada (`crm.registrar_llamada_v5`, `private.llamadas_celular_intenciones`, `crm.llamadas_celular_enlaces.via`)
 
 **⏸️ ESCRITA, SIN APLICAR (05/10/2026). Paso 2 del plan v2 (§7), en el PR #190 junto con la quinta.** Se aplica después

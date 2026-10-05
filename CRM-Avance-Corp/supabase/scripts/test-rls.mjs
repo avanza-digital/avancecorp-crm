@@ -17485,7 +17485,7 @@ async function testVentaCruzada(sessions, seed) {
     'venta cruzada: la matriz no dejó ninguna búsqueda en la bitácora');
 }
 
-// Llamadas desde el celular: F2 + F3 + elegibilidad + QUINTA (20261005143843) + F4-a (20261005155914).
+// Llamadas desde el celular: F2 + F3 + elegibilidad + QUINTA (20261005143843) + F4-a (20261005155914) + SÉPTIMA (20261005182227).
 // Especificación: F2-PLAN-CORTO.md («Verificación (F2.4)») y CORRECCION-PLAN-CORTO.md («Pruebas»). Purga, cupo con la
 // hora movida, carreras e identidad temporal van en los oráculos del banco reducido (supabase/tests/llamadas-celular/);
 // aquí: permisos, contrato y enlace con sesiones reales, la v4 REAL y el esquema de producción. Ya no exige P0409
@@ -17493,22 +17493,24 @@ async function testVentaCruzada(sessions, seed) {
 // ventana de la quinta: no chocan con otra corrida. Las tablas son de solo inserción: los eventos de la corrida quedan
 // descartados o registrados, las asignaciones cerradas y los leads dados de baja; el branch se descarta.
 async function testLlamadasCelular(sessions, seed) {
-  console.log('\n— Llamadas desde el celular (F2 + F3 + quinta + F4-a): puertas, ámbito, ingesta y enlace —');
+  console.log('\n— Llamadas desde el celular (F2 + F3 + quinta + F4-a + séptima): puertas, ámbito, ingesta y enlace —');
   const id = (key) => seed.profileIdByKey[key];
   const rpc = (quien, fn, args = {}) => sessions[quien].client.schema('crm').rpc(fn, args);
   const servicio = (fn, args) => admin.schema('crm').rpc(fn, args);
   const instalada = contarFueraDeBanda('Llamadas del celular: presencia de la migración',
     "select case when to_regclass('crm.llamadas_celular_eventos') is not null then 1 else 0 end") === 1;
-  const corregida = instalada && contarFueraDeBanda('Llamadas del celular: quinta y F4-a',
+  // to_regprocedure (no ::regprocedure): sin F4-a da null y la condición es 0, sin error.
+  const corregida = instalada && contarFueraDeBanda('Llamadas del celular: quinta, F4-a y séptima',
     "select case when to_regclass('private.llamadas_celular_recepciones') is not null and "
-    + "to_regclass('private.llamadas_celular_intenciones') is not null then 1 else 0 end") === 1;
+    + "to_regclass('private.llamadas_celular_intenciones') is not null and strpos(pg_get_functiondef("
+    + "to_regprocedure('private.llamada_celular_cumplir_intencion(uuid)')), 'for key share nowait') > 0 then 1 else 0 end") === 1;
   const sonda = await rpc('gerencia', 'llamadas_celular_politica_fn');
   const sondaServicio = await servicio('ingerir_llamada_celular_servicio', { p_credencial: '0'.repeat(64), p_evento: {} });
   const sondaV5 = await rpc('gerencia', 'registrar_llamada_v5', { p_operacion_id: randomUUID(),
     p_lead_id: '00000000-0000-4000-8000-000000000000', p_resultado: 'no_contesto' });
   if (!instalada || !corregida || [sonda, sondaServicio, sondaV5].some((r) => r.error?.code === 'PGRST202')) {
     const msg = instalada
-      ? '✗ Llamadas del celular: F2 + F3 sin la quinta o sin F4-a (o falta una puerta): la barrera no deja usarlas así'
+      ? '✗ Llamadas del celular: F2 + F3 sin la quinta, F4-a o la séptima (o falta una puerta): la barrera no deja usarlas así'
       : '⚠ Llamadas del celular no instaladas: SALTADAS (no probado)';
     if (instalada || process.env.CRM_RLS_EXIGE_LLAMADAS === '1') fail(msg);
     else console.log(`  ${msg}`);

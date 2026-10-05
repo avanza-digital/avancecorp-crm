@@ -60,19 +60,25 @@ export function leerResultado(dato: unknown): { aceptado: true } | { aceptado: f
   return null;
 }
 
-// Marcas que ningún JSON puede producir: cuerpo demasiado grande y cuerpo que no es JSON.
+// Marcas que ningún JSON puede producir: cuerpo demasiado grande, cuerpo que no se pudo leer y cuerpo que no es JSON.
 const GRANDE = Symbol('grande');
+const ILEGIBLE = Symbol('ilegible');
 const MAL_FORMADO = Symbol('mal formado');
 async function leerJson(req: Request): Promise<unknown> {
-  const lector = req.body?.getReader();
   const partes: Uint8Array<ArrayBuffer>[] = [];
   let longitud = 0;
-  if (lector) for (;;) {
-    const { done, value } = await lector.read();
-    if (done) break;
-    longitud += value.byteLength;
-    if (longitud > TOPE_BYTES) { await lector.cancel(); return GRANDE; }
-    partes.push(new Uint8Array(value));
+  try {
+    const lector = req.body?.getReader();
+    if (lector) for (;;) {
+      const { done, value } = await lector.read();
+      if (done) break;
+      longitud += value.byteLength;
+      if (longitud > TOPE_BYTES) { await lector.cancel(); return GRANDE; }
+      partes.push(new Uint8Array(value));
+    }
+  } catch {
+    // La conexión se cortó a mitad del cuerpo: es transporte, no contenido (revisión de Miguel, #190).
+    return ILEGIBLE;
   }
   try {
     return JSON.parse(await new Blob(partes).text());
@@ -102,6 +108,8 @@ export function crearHandler(d: Dependencias) {
 
     const cuerpo = await leerJson(req);
     if (cuerpo === GRANDE) return respuesta(413, { error: 'Petición demasiado grande' });
+    // Un corte al leer es pasajero: 503 deja el aviso en la cola del celular para reintentar (un 400 lo apartaría).
+    if (cuerpo === ILEGIBLE) return respuesta(503, { error: 'No se pudo leer la petición; vuelve a intentarlo' });
 
     // La puerta se elige por `accion`; un sobre que no es exactamente {accion, evento|latido} llega con la
     // carga en null y la base lo responde «invalido» (después de autenticar y gastar cupo).

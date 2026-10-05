@@ -37,6 +37,9 @@ const MUTANTES = [
   ['URL de F1 sin codificar el número', '${encodeURIComponent(numero.trim())}', '${numero.trim()}'],
   ['acepta otros métodos', "if (req.method !== 'POST') return", "if (req.method === 'TRACE') return"],
   ['acepta cuerpos que no se declaran JSON', "if (tipo !== 'application/json') return", "if (tipo === 'x/nada') return"],
+  // Revisión de Miguel en el #190 (P3): un corte al leer el cuerpo devuelve una respuesta controlada, y es reintentable.
+  ['un corte al leer el cuerpo rompe el handler', '    return ILEGIBLE;\n', "    throw new Error('corte');\n"],
+  ['un corte al leer el cuerpo aparta el aviso (400)', "if (cuerpo === ILEGIBLE) return respuesta(503,", "if (cuerpo === ILEGIBLE) return respuesta(400,"],
 ];
 
 let cazados = 0;

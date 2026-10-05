@@ -24,10 +24,12 @@ const hoy = new Date().toISOString().slice(0, 10);
 
 function numerar(texto, desde = 1) {
   const lineas = texto.replace(/\n$/, '').split('\n');
-  return lineas.map((l, i) => `${String(desde + i).padStart(4)}| ${l}`).join('\n');
+  // Sin espacio final en las líneas vacías (git diff --check; revisión de Miguel en el #190).
+  return lineas.map((l, i) => `${String(desde + i).padStart(4)}|${l ? ` ${l}` : ''}`).join('\n');
 }
-function archivo(ruta, nota = '') {
-  const texto = blob(SUB + ruta);
+// raiz = la ruta es desde la raíz del repo (p. ej. .ai/REVIEW_PROTOCOL.md), no desde CRM-Avance-Corp/.
+function archivo(ruta, nota = '', raiz = false) {
+  const texto = blob(raiz ? ruta : SUB + ruta);
   const n = texto.replace(/\n$/, '').split('\n').length;
   return `## Archivo: ${ruta} (${n} líneas)${nota ? ` — ${nota}` : ''}\n\`\`\`\n${numerar(texto)}\n\`\`\`\n`;
 }
@@ -49,6 +51,7 @@ function funcion(ruta, nombre, nota = '') {
 const M = 'supabase/migrations/';
 const QUINTA = `${M}20261005143843_crm_llamadas_celular_correccion.sql`;
 const F4A = `${M}20261005155914_crm_llamadas_celular_enlace_exacto.sql`;
+const SEPTIMA = `${M}20261005182227_crm_llamadas_celular_enlace_sin_ciclo.sql`;
 const DATOS = `${M}20261001145242_crm_llamadas_celular_datos.sql`;
 const NUCLEO = `${M}20261001160219_crm_llamadas_celular_nucleo.sql`;
 const INGESTA = `${M}20261001212258_crm_llamadas_celular_ingesta.sql`;
@@ -72,7 +75,7 @@ archivos llevan número de línea). Formato: VERDICT (PASS/BLOCK), SUMMARY, RESP
 por qué, con evidencia archivo:línea del texto transcrito), FINDINGS P0–P3 nuevos, RIESGOS y test gaps, NEXT ACTIONS,
 CONFIDENCE. Pídete REFUTAR: busca lo que el diff no cierra o lo que rompe, no lo que está bien.
 
-# Encargo: «Llamadas desde el celular» — DIFF de la corrección de F2 + F3 (quinta migración, F4-a y Edge) — LEVEL 3
+# Encargo: «Llamadas desde el celular» — DIFF de la corrección de F2 + F3 (quinta migración, F4-a, séptima y Edge) — LEVEL 3
 (datos, permisos, autenticación por credencial de dispositivo, migraciones, concurrencia).
 **Ronda 2 de máx. 2 (la última de la tarea).** La ronda 1 revisó el diseño (BLOCK, 6 P2 + 1 P3); esta revisa el
 código. Generado el ${hoy} desde \`${commit}\` (rama \`crm/llamadas-quinta-migracion-20261005\`, PR #190) con
@@ -83,8 +86,9 @@ CRM interno (Supabase/Postgres 17). Esquema \`crm\` expuesto por PostgREST (puer
 núcleo en \`private\`, tablas con RLS sin policies ni grants. Un celular corporativo (Android + MacroDroid) avisa cada
 llamada del analista: POST a la Edge \`crm-llamadas-ingesta\` (verify_jwt=false) con la clave del celular en
 \`x-celular-credencial\`; la Edge llama con service_role a \`crm.ingerir_llamada_celular_servicio\`. El analista registra
-el resultado con su sesión (encuesta v4 en producción; con F4-a, la v5). Seis migraciones SIN aplicar: las cuatro de
-F2 + F3 (en \`main\`), la quinta (corrección) y F4-a. Se publican juntas con la Edge.
+el resultado con su sesión (encuesta v4 en producción; con F4-a, la v5). Siete migraciones SIN aplicar: las cuatro de
+F2 + F3 (en \`main\`), la quinta (corrección), F4-a y la séptima (enlace sin ciclo con Deshacer). Se publican juntas con
+la Edge.
 
 ## Commits que se revisan (sobre \`origin/main\`)
 ${historia || '- (sin commits nuevos respecto de origin/main en las rutas revisadas)'}
@@ -159,26 +163,44 @@ conservadora: las reversas de la quinta y de F4-a exigen bajo candado que no hay
 recepciones ni llamadas (y en F4-a, tampoco enlaces ni intenciones). Regresión (aviso ignorado → purga real → claves
 rotadas y cerradas → la reversa se niega) y un mutante por reversa.
 
+## Segunda revisión del agente de Miguel (05/10 18:13 UTC, sobre \`53a72f17\`): CHANGES_REQUESTED, [P2] reproducido
+- **[P2] Interbloqueo entre cumplir la intención y Deshacer.** La ingesta toma el lead y, al crear el enlace, la llave
+  foránea pide el resultado FOR KEY SHARE; Deshacer (20260920005000:649 y 682) tiene el resultado FOR UPDATE y espera el
+  lead → 40P01. Corregido en la **séptima** (\`20261005182227\`, transcrita): el resultado se toma FOR KEY SHARE NOWAIT al
+  cumplir la intención y en la v5; si lo tiene otro, la intención se retira sin enlace (la llamada va a la pestaña) o la
+  v5 responde \`no_enlazado\` / \`resultado_en_uso\`. Se atrapa SOLO \`lock_not_available\`. Decisión de Jhosep (05/10): no
+  esperar (la alternativa era tomar el resultado antes que el lead en la ingesta). Solo Deshacer bloquea un resultado FOR
+  UPDATE (comprobado en todas las migraciones); la actualización de la v4 (FOR NO KEY UPDATE) no choca con FOR KEY SHARE.
+- **[P3] Edge:** un corte al leer el cuerpo ya devuelve 503 controlado (reintentable), sin tocar la base, con su prueba.
+- **Encargo:** el protocolo se transcribe desde la raíz del repo y las líneas vacías no llevan espacio final.
+- **P7** quedó resuelta en esa revisión; **P4** tenía un ciclo demostrado: es el [P2] de arriba.
+
 ## Verificación ejecutada por el PRIMARY (no la repites: no tienes shell)
 - \`npm run test:llamadas:local\` (PostgreSQL 17, banco reducido con copias reales de auditoría, ámbito, canonización
   e idempotencia, y la v4 como doble declarado): pasadas de las cuatro (160), de la quinta (oráculo, reversa con huella
   exacta del catálogo, 41 mutantes, 9 carreras con dos sesiones + 4 mutantes de candados) y de F4-a (oráculo, reversa
   con huella exacta, 26 mutantes, 4 carreras), más la regresión del [P2] — todo en verde en el commit generado.
 - Edge: \`handler.test.ts\` 15/15 y 15 mutantes cazados; receptor de pruebas del PC 10/10.
+- Séptima (pasadas 13 y 14): huella, oráculos, reversa exacta; carreras con Deshacer PAUSADO entre sus dos candados (el
+  aviso o el reintento de la v5 en medio, los dos órdenes, Deshacer revertido) y un control sin la séptima que reproduce
+  el \`deadlock detected\` de la revisión; 4 mutantes cazados por la carrera y 1 por el postflight. Banco: 308/308. Edge:
+  16/16 y 17 mutantes (el corte al leer el cuerpo incluido).
 - Gate: bloque \`testLlamadasCelular\` cotejado a mano con las migraciones (firmas, códigos, mensajes y formas de
   respuesta); \`node --check\` y oxlint limpios. La limpieza entre corridas, probada en un Postgres local.
 - NOT RUN: gate \`test-rls.mjs\` con el esquema de producción, advisors, la v4 real y \`banco/verificar-hallazgos.sql\`
   (los corre Miguel en su banco).
 `);
 
-partes.push(archivo('../.ai/REVIEW_PROTOCOL.md'.replace('../', '').replace(/^/, '../'), 'protocolo de revisión') .replace(`## Archivo: ../.ai/REVIEW_PROTOCOL.md`, '## Archivo: .ai/REVIEW_PROTOCOL.md'));
+partes.push(archivo('.ai/REVIEW_PROTOCOL.md', 'protocolo de revisión', true));
 partes.push(archivo('docs/plans/llamadas-celular/CORRECCION-PLAN-CORTO.md', 'el plan v2 que el código implementa'));
 partes.push(archivo(QUINTA, 'la quinta (lo que se revisa)'));
 partes.push(archivo(F4A, 'F4-a (lo que se revisa)'));
+partes.push(archivo(SEPTIMA, 'la séptima: enlace sin ciclo con Deshacer (lo que se revisa)'));
 partes.push(archivo('supabase/functions/crm-llamadas-ingesta/handler.ts', 'la Edge (lo que se revisa)'));
 partes.push(archivo('supabase/functions/crm-llamadas-ingesta/index.ts'));
 partes.push(tramo('supabase/scripts/llamadas-celular/reversa-correccion.sql', 1, 50, 'cabecera y guarda de la reversa de la quinta (el resto son los cuerpos de las cuatro, copiados con un guion desde el blob y comprobados con la huella del catálogo)'));
-partes.push(tramo('supabase/scripts/llamadas-celular/reversa-enlace-exacto.sql', 1, 45, 'cabecera y guarda de la reversa de F4-a'));
+partes.push(tramo('supabase/scripts/llamadas-celular/reversa-enlace-exacto.sql', 1, 70, 'cabecera y guardas de la reversa de F4-a'));
+partes.push(tramo('supabase/scripts/llamadas-celular/reversa-enlace-sin-ciclo.sql', 1, 25, 'cabecera y precondición de la reversa de la séptima (el resto: los dos cuerpos y COMMENT de F4-a, copiados con un guion)'));
 partes.push(archivo(DATOS, 'tablas, candados y purga original de F2-b (la quinta los enmienda)'));
 for (const [ruta, nombre] of [
   [NUCLEO, 'private.llamada_celular_formas'], [NUCLEO, 'private.llamada_celular_candidatos'],

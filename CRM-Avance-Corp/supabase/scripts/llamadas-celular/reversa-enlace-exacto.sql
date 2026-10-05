@@ -6,7 +6,8 @@
 -- el blob de git (nada a mano), y el banco reducido compara la huella del catálogo antes de F4-a y después de esta
 -- reversa. Después del primer aviso no se revierte: se apaga y se corrige hacia adelante.
 --
--- Orden de las reversas: esta → corrección (reversa-correccion.sql) → elegibilidad → ingesta → núcleo → datos.
+-- Orden de las reversas: séptima (reversa-enlace-sin-ciclo.sql) → esta → corrección (reversa-correccion.sql) →
+-- elegibilidad → ingesta → núcleo → datos.
 --
 --   psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/scripts/llamadas-celular/reversa-enlace-exacto.sql
 begin;
@@ -18,6 +19,10 @@ begin
   if to_regclass('private.llamadas_celular_intenciones') is null
      or to_regprocedure('crm.registrar_llamada_v5(uuid,uuid,text,text,text,jsonb,uuid,boolean,boolean,text,text)') is null then
     raise exception 'REVERSA_ENLACE_EXACTO: la migración 20261005155914 no está aplicada';
+  end if;
+  if pg_catalog.strpos(pg_catalog.pg_get_functiondef('private.llamada_celular_cumplir_intencion(uuid)'::regprocedure),
+                       'for key share nowait') > 0 then
+    raise exception 'REVERSA_ENLACE_EXACTO: la séptima (20261005182227) sigue instalada; revierte primero reversa-enlace-sin-ciclo.sql';
   end if;
 end;
 $precondicion$;

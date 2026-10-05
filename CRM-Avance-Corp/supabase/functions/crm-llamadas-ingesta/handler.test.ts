@@ -85,6 +85,30 @@ Deno.test('más de 4 KB: 413 sin tocar la base', async () => {
   assert.equal(b.llamadas.length, 0);
 });
 
+Deno.test('se corta la lectura del cuerpo: 503 controlado para que el celular reintente, sin tocar la base', async () => {
+  // Revisión de Miguel en el #190: un ReadableStream que falla hacía rechazar al handler sin devolver Response.
+  const llamadas: unknown[] = [];
+  const handler = crearHandler({
+    urlCrm: BASE,
+    ingerir: async (...args) => { llamadas.push(args); return ACEPTADO; },
+    registrarSalud: async (...args) => { llamadas.push(args); return ACEPTADO; },
+  });
+  let enviado = false;
+  const cuerpo = new ReadableStream<Uint8Array>({
+    pull(c) {
+      if (enviado) c.error(new Error('conexión cortada'));
+      else { enviado = true; c.enqueue(new TextEncoder().encode('{"accion":"llamada",')); }
+    },
+  });
+  const r = await handler(new Request('https://ejemplo.invalid/crm-llamadas-ingesta', {
+    method: 'POST', headers: { 'content-type': 'application/json', 'x-celular-credencial': CLAVE }, body: cuerpo,
+    duplex: 'half',
+  } as RequestInit));
+  assert.equal(r.status, 503);
+  assert.deepEqual(await r.json(), { error: 'No se pudo leer la petición; vuelve a intentarlo' });
+  assert.equal(llamadas.length, 0);
+});
+
 Deno.test('JSON mal formado o sobre inválido: llega a la base con la carga en null (gasta cupo) y su «invalido» es 400', async () => {
   const mensaje = 'El evento debe ser un objeto JSON';
   for (const cuerpo of ['{', '[]', '"grande"', 'null', '42', JSON.stringify({ ...llamada(), extra: 1 }),
