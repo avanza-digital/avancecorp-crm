@@ -188,7 +188,7 @@ export function FichaBase({ fila, demo, puedeMarcar, onCerrar, focoRespaldo, mod
               <AccionesBase
                 fila={fila}
                 demo={demo}
-                onReactivado={() => void alVolverACartera('Reactivado: el lead volvió a tu cartera como Contactado', fila.lead_id)}
+                onReactivado={(capital) => void alVolverACartera(`Reactivado: el lead volvió a tu cartera como Contactado${capital ? `, con ${capital} de capital` : ''}`, fila.lead_id)}
                 onNoContactar={() => { onCerrar(); toast.info('Marcado «No contactar»: el lead salió de tu base') }}
               />
             </SheetFooter>
