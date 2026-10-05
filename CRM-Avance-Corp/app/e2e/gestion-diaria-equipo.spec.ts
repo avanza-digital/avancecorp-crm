@@ -1,3 +1,4 @@
+import { irAModulo } from './_navegacion'
 import { expect, test } from '@playwright/test'
 import { writeFile } from 'node:fs/promises'
 import { entrarDemo, leadReal, loginReal, montarBackendReal, UID } from './_helpers'
@@ -313,7 +314,7 @@ test('H2 nombre largo, varios motivos, control de foco y cambio de ruta', async 
   await page.keyboard.press('Escape')
   await expect(dialogo).toHaveCount(0)
   await expect(seleccion).toBeFocused()
-  await page.getByRole('button', { name: 'Agenda', exact: true }).click()
+  await irAModulo(page, 'Agenda')
   await page.getByRole('button', { name: 'Gestión Diaria', exact: true }).click()
   // Al volver, la pantalla abre sola con quien más atención necesita (plan v2, 27/09), sin mover el foco.
   await expect(page.getByRole('region', { name: `Detalle de ${nombre}` })).toBeVisible()

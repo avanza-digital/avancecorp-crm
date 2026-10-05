@@ -40,10 +40,10 @@ function montar({
     ...identidad,
   }
   const onNavegar = vi.fn()
-  const { container, unmount } = render(<Sidebar vista={vista} onNavegar={onNavegar} />)
+  const { container, unmount, rerender } = render(<Sidebar vista={vista} onNavegar={onNavegar} />)
   const panel = container.querySelector('aside > div')
   if (!panel) throw new Error('no se montó el panel del menú')
-  return { panel, unmount, onNavegar }
+  return { panel, unmount, onNavegar, cambiarVista: (destino: Vista) => rerender(<Sidebar vista={destino} onNavegar={onNavegar} />) }
 }
 
 /** El panel asoma a w-60 y se repliega al riel de w-16. */
@@ -57,6 +57,7 @@ describe('Sidebar — temporizadores del asomo', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     window.location.hash = ''
+    localStorage.clear()
   })
   afterEach(() => {
     vi.useRealTimers()
@@ -112,33 +113,102 @@ describe('Sidebar — temporizadores del asomo', () => {
     expect(asomado(panel)).toBe(true)
   })
 
-  // Plan UX Gerencia (06/09/2026, §5.10): tres grupos con una pregunta cada uno,
-  // en vez de una lista plana. Fija el grupo Y el orden de cada entrada.
-  it('Gerencia ve su menú en tres grupos: Dirección, Operación y Administración', () => {
+  it('Gerencia prioriza siete accesos y conserva los demás en tres grupos desplegables', () => {
     montar({ movil: false, rol: 'gerencia' })
-    const navegacion = screen.getByRole('navigation')
-
+    const navegacion = within(screen.getByRole('navigation'))
+    const principales = ['Resumen', 'Facturación', 'Ranking', 'Citas', 'Gestión Diaria', 'Metas y cumplimiento', 'Cartera']
     const grupos = {
-      Dirección: ['Resumen', 'Ranking', 'Rendimiento', 'Conversiones', 'Citas', 'Facturación', 'Empresas'],
-      Operación: ['Seguimiento', 'Gestión Diaria', 'Pipeline', 'Leads', 'Agenda', 'Cartera', 'Repartir leads', 'Base para gestión', 'Gestión de equipo'],
-      Administración: ['Metas', 'Configuración'],
-    }
-    const nombres = Object.values(grupos).flat()
-    expect(within(navegacion).getAllByRole('group').map((g) => g.getAttribute('aria-label'))).toEqual(Object.keys(grupos))
+      Análisis: ['Rendimiento', 'Conversiones', 'Empresas'],
+      Operación: ['Leads', 'Pipeline', 'Agenda', 'Repartir leads', 'Base para gestión', 'Seguimiento'],
+      Administración: ['Gestión de equipo', 'Configuración'],
+    } as const
+    expect(navegacion.getAllByRole('button').map((b) => b.textContent?.trim())).toEqual([...principales, ...Object.keys(grupos)])
+    expect(navegacion.getByRole('button', { name: 'Resumen' })).toHaveAttribute('aria-current', 'page')
     for (const [grupo, entradas] of Object.entries(grupos)) {
-      const seccion = within(navegacion).getByRole('group', { name: grupo })
-      expect(within(seccion).getByText(grupo)).toBeVisible()
-      expect(within(seccion).getAllByRole('button').map((boton) => boton.textContent?.trim())).toEqual(entradas)
+      const seccion = within(navegacion.getByRole('group', { name: grupo }))
+      const cabecera = seccion.getByRole('button', { name: grupo })
+      expect(cabecera).toHaveAttribute('aria-expanded', 'false')
+      const contenido = document.getElementById(cabecera.getAttribute('aria-controls')!)
+      expect(contenido).not.toBeVisible()
+      expect(seccion.queryByRole('button', { name: entradas[0] })).not.toBeInTheDocument()
+      fireEvent.click(cabecera)
+      expect(cabecera).toHaveAttribute('aria-expanded', 'true')
+      expect(contenido).toBeVisible()
+      expect(seccion.getAllByRole('button').slice(1).map((b) => b.textContent?.trim())).toEqual(entradas)
     }
-    expect(within(navegacion).getAllByRole('button')).toHaveLength(nombres.length)
-    expect(within(navegacion).getAllByRole('button').map((boton) => boton.textContent?.trim())).toEqual(nombres)
-    for (const nombre of nombres) {
-      expect(within(navegacion).getByRole('button', { name: nombre })).toBeVisible()
-    }
-    expect(within(navegacion).queryByRole('button', { name: 'Alertas' })).not.toBeInTheDocument()
-    expect(within(navegacion).queryByRole('button', { name: 'Capital' })).not.toBeInTheDocument()
-    expect(within(navegacion).queryByRole('button', { name: 'Derivar leads' })).not.toBeInTheDocument()
-    expect(within(navegacion).queryByText('Principal')).not.toBeInTheDocument()
+    // 18 destinos autorizados + tres controles para desplegarlos.
+    expect(navegacion.getAllByRole('button')).toHaveLength(21)
+    expect(navegacion.queryByRole('button', { name: 'Alertas' })).not.toBeInTheDocument()
+    expect(navegacion.queryByRole('button', { name: 'Derivar leads' })).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['conversiones', 'Análisis', 'Conversiones'],
+    ['pipeline', 'Operación', 'Pipeline'],
+    ['config-usuarios', 'Administración', 'Configuración'],
+    ['rescate-carpeta', 'Operación', 'Base para gestión'],
+  ] as const)('Gerencia revela el destino directo %s y marca su entrada activa', (vista, grupo, entrada) => {
+    montar({ movil: false, rol: 'gerencia', vista })
+    expect(screen.getByRole('button', { name: grupo })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('button', { name: entrada })).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('volver por una ruta abre su grupo aunque se hubiese cerrado manualmente', () => {
+    const { cambiarVista } = montar({ movil: false, rol: 'gerencia', vista: 'conversiones' })
+    const analisis = screen.getByRole('button', { name: 'Análisis' })
+    fireEvent.click(analisis)
+    expect(analisis).toHaveAttribute('aria-expanded', 'false')
+    cambiarVista('hoy')
+    cambiarVista('conversiones')
+    expect(analisis).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('button', { name: 'Conversiones' })).toBeVisible()
+  })
+
+  it('móvil: tocar un grupo desde el riel abre sus destinos y navegar cierra sin rebote', () => {
+    const { panel, onNavegar } = montar({ rol: 'gerencia' })
+    fireEvent.mouseEnter(panel)
+    fireEvent.click(screen.getByRole('button', { name: 'Operación' }))
+    expect(asomado(panel)).toBe(true)
+    fireEvent.mouseLeave(panel)
+    act(() => vi.advanceTimersByTime(1000))
+    expect(asomado(panel)).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Pipeline' }))
+    expect(onNavegar).toHaveBeenCalledWith('pipeline')
+    expect(asomado(panel)).toBe(false)
+    act(() => vi.advanceTimersByTime(1000))
+    expect(asomado(panel)).toBe(false)
+    expect(localStorage.getItem('ac-crm-sidebar-colapsado')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Fijar menú abierto' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Ocultar menú' }))
+    act(() => vi.advanceTimersByTime(1000))
+    expect(asomado(panel)).toBe(false)
+  })
+
+  it('escritorio: abrir un grupo durante el asomo conserva la preferencia del riel', () => {
+    localStorage.setItem('ac-crm-sidebar-colapsado', '1')
+    const { panel } = montar({ movil: false, rol: 'gerencia' })
+    fireEvent.mouseEnter(panel)
+    act(() => vi.advanceTimersByTime(ABRIR_MS))
+    fireEvent.click(screen.getByRole('button', { name: 'Análisis' }))
+    fireEvent.mouseLeave(panel)
+    act(() => vi.advanceTimersByTime(1000))
+    expect(asomado(panel)).toBe(true)
+    expect(localStorage.getItem('ac-crm-sidebar-colapsado')).toBe('1')
+    fireEvent.click(screen.getByRole('button', { name: 'Ocultar menú' }))
+    expect(asomado(panel)).toBe(false)
+  })
+
+  it('un grupo abierto manualmente se conserva al navegar a un acceso principal', () => {
+    const { cambiarVista } = montar({ movil: false, rol: 'gerencia' })
+    fireEvent.click(screen.getByRole('button', { name: 'Operación' }))
+    cambiarVista('facturacion')
+    expect(screen.getByRole('button', { name: 'Operación' })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('button', { name: 'Pipeline' })).toBeVisible()
+  })
+
+  it('Directorio conserva Configuración seleccionada dentro de sus subrutas', () => {
+    montar({ movil: false, rol: 'directorio', vista: 'config-usuarios' })
+    expect(screen.getByRole('button', { name: 'Configuración' })).toHaveAttribute('aria-current', 'page')
   })
 
   it('los demás roles conservan el menú histórico (Principal, y Administración si aplica)', () => {

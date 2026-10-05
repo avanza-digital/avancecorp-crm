@@ -1,3 +1,4 @@
+import { irAModulo } from './_navegacion'
 // E2E de la cartera paginada por cursor keyset (F2), en sesión REAL y con todo
 // el HTTP de Supabase interceptado. Lo que aquí se prueba no lo pueden probar
 // los unitarios: que la pantalla PIDE páginas al servidor (y no recorta un
@@ -148,7 +149,7 @@ test('RPC caída: la tabla degrada con aviso y NO ofrece más páginas', async (
   await montarBackendReal(page, { leads: carteraGrande(), fallarCarteraPagina: true })
   await loginReal(page)
 
-  await page.getByRole('button', { name: 'Leads', exact: true }).click()
+  await irAModulo(page, 'Leads')
 
   await expect(page.getByText(/No se pudo cargar la lista de leads/i)).toBeVisible()
   await expect(page.getByRole('button', { name: /reintentar/i })).toBeVisible()

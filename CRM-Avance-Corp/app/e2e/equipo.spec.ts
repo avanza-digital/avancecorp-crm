@@ -1,3 +1,4 @@
+import { irAModulo } from './_navegacion'
 // E2E de la pantalla EQUIPO en modo DEMO (sin backend) — la red de seguridad
 // del refactor de presentación: supervisor ve cards de SUS analistas + su
 // cola, mientras el reparto vive en un módulo aparte; gerencia ve un bloque
@@ -19,7 +20,7 @@ test('demo supervisor: Gestión de equipo conserva seguimiento y separa el repar
   const requestsSupabase = await bloquearSupabase(page)
 
   await entrarDemo(page, 'Supervisor')
-  await page.getByRole('button', { name: 'Gestión de equipo' }).click()
+  await irAModulo(page, 'Gestión de equipo')
 
   // Cards SOLO de sus analistas directos (d-sup1 → d-v1 y d-v2); el equipo
   // de d-sup2 queda fuera del ámbito (anti-fuga, espejo de store-ambito).
@@ -83,7 +84,7 @@ test('supervisor real: el selector mensual recupera la foto completa de agosto',
     },
   })
   await loginReal(page)
-  await page.getByRole('button', { name: 'Gestión de equipo', exact: true }).click()
+  await irAModulo(page, 'Gestión de equipo')
 
   const selectorMes = page.getByLabel('Mes del ranking')
   await expect(selectorMes).toHaveValue('2026-09')
@@ -138,7 +139,7 @@ test('demo gerencia: un bloque por supervisor con la TABLA comparativa de analis
   const requestsSupabase = await bloquearSupabase(page)
 
   await entrarDemo(page, 'Gerencia')
-  await page.getByRole('button', { name: 'Equipo' }).click()
+  await irAModulo(page, 'Gestión de equipo')
 
   // Refactor de comodidad (2026-07-18): PRIMERO la tabla comparativa de
   // supervisores; el detalle por equipo se abre BAJO DEMANDA (patrón
@@ -176,7 +177,7 @@ test('demo gerencia: reparte desde la bandeja global (optgroup por equipo) con t
   const requestsSupabase = await bloquearSupabase(page)
 
   await entrarDemo(page, 'Gerencia')
-  await page.getByRole('button', { name: 'Equipo' }).click()
+  await irAModulo(page, 'Gestión de equipo')
 
   // La bandeja global existe para gerencia y ve parkeados de TODAS las
   // bandejas (l14 es de la bandeja de d-sup2).
@@ -195,7 +196,7 @@ test('demo directorio: la misma radiografía en tabla pero SIN botones de acció
   const requestsSupabase = await bloquearSupabase(page)
 
   await entrarDemo(page, 'Directorio')
-  await page.getByRole('button', { name: 'Equipo' }).click()
+  await irAModulo(page, 'Gestión de equipo')
 
   // Misma radiografía que gerencia: comparativa primero, detalle bajo demanda.
   await expect(page.getByText(/Vista de auditoría del Directorio/)).toBeVisible()
