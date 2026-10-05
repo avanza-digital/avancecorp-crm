@@ -1267,3 +1267,25 @@ describe('GestionDiariaAnalista · tareas de CLIENTES (cola v3)', () => {
     expect(dobles.cola.refetch).not.toHaveBeenCalled()
   })
 })
+
+// F4-b: la pestaña «Llamadas del celular». Mientras las puertas no tengan sus tipos generados, solo la DEMO la muestra;
+// en la sesión real no aparece (nunca una pestaña sin datos detrás).
+describe('GestionDiariaAnalista · «Llamadas del celular» (F4-b)', () => {
+  it('en la sesión real no aparece: sus puertas todavía no tienen tipos', () => {
+    render(<GestionDiariaAnalista />)
+    expect(screen.queryByRole('tab', { name: /^Celular/ })).toBeNull()
+  })
+
+  it('en DEMO aparece con sus pendientes; «Registrar resultado» arma la intención con el id y la vía «pestana»', async () => {
+    dobles.yo = { id: 'a1', rol: 'vendedor', demo: true, nombre_completo: 'ANALISTA UNO' }
+    render(<GestionDiariaAnalista />)
+    // El nombre accesible pega la cifra a la etiqueta («Cola de hoy· 2»): el espacio es opcional.
+    const pestana = screen.getByRole('tab', { name: /^Celular\s*· 4/ })
+    fireEvent.click(pestana)
+    const lista = await screen.findByRole('list', { name: 'Llamadas pendientes' })
+    const maria = within(lista).getAllByRole('listitem').find((li) => /MARÍA LÓPEZ CASTRO/.test(li.textContent ?? ''))!
+    fireEvent.click(within(maria).getByRole('button', { name: 'Registrar resultado' }))
+    expect(intencionDe('a1', 'l2')).toMatchObject({ origen: 'enlace', numero: '+51987654322', viaLlamada: 'pestana' })
+    expect(intencionDe('a1', 'l2')?.origenLlamada).toMatch(/^C1-\d{10}$/)
+  })
+})

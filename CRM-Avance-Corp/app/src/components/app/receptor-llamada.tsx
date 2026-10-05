@@ -250,8 +250,11 @@ function ListaLeads({ etiqueta, leads, onElegir }: { etiqueta: string; leads: re
   )
 }
 
-/** La misma búsqueda de la barra (nombre, teléfono o DNI), aquí porque en el celular no hay barra. */
-function BusquedaManual({ inicial, manual, onElegir }: { inicial: string; manual: OpcionesResolucion; onElegir: (lead: Lead) => void }): JSX.Element {
+/**
+ * La misma búsqueda de la barra (nombre, teléfono o DNI), aquí porque en el celular no hay barra. La reutiliza
+ * «Elegir el lead» de la pestaña «Llamadas del celular» (F4-b).
+ */
+export function BusquedaManual({ inicial, manual, onElegir }: { inicial: string; manual: OpcionesResolucion; onElegir: (lead: Lead) => void }): JSX.Element {
   const id = useId()
   const [texto, setTexto] = useState(inicial)
   const [resultados, setResultados] = useState<Lead[] | null>(null)

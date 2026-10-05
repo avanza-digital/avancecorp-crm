@@ -27,6 +27,8 @@ import { origenLlamadaValido } from './router'
 
 /** De dónde nació: un tap en «Llamar» o el enlace que arma el celular al colgar. */
 export type OrigenIntencion = 'pantalla' | 'enlace'
+/** Las dos vías de la v5 (`p_via`): la encuesta que abrió el celular al colgar o la pestaña «Llamadas del celular». */
+export type ViaLlamada = 'al_colgar' | 'pestana'
 
 export interface IntencionContacto {
   id: string
@@ -40,6 +42,8 @@ export interface IntencionContacto {
    * dice de qué llamada es y la base la une exacta. Solo con `origen: 'enlace'`.
    */
   origenLlamada?: string | undefined
+  /** Por dónde se abrió la encuesta de esa llamada: el enlace al colgar o la pestaña «Llamadas del celular» (la v5 la guarda). */
+  viaLlamada?: ViaLlamada | undefined
   origen: OrigenIntencion
   /** Cuándo se armó (ms). Con `origen: 'pantalla'` es el momento del tap en «Llamar». */
   ts: number
@@ -84,6 +88,7 @@ function valida(v: unknown): v is IntencionContacto {
     && typeof i.ts === 'number' && typeof i.caduca === 'number' && typeof i.abierta === 'boolean'
     && esTextoOpcional(i.abiertaEn) && esTextoOpcional(i.instancia)
     && (i.origenLlamada === undefined || (typeof i.origenLlamada === 'string' && origenLlamadaValido(i.origenLlamada)))
+    && (i.viaLlamada === undefined || i.viaLlamada === 'al_colgar' || i.viaLlamada === 'pestana')
 }
 
 function cargar(): IntencionContacto[] {
@@ -143,7 +148,7 @@ export function estaLista(intencion: IntencionContacto, ahora: number = Date.now
  * El id de la llamada solo viaja con el enlace y con la forma de la base.
  */
 export function armarIntencion(
-  datos: { actor: string; leadId: string; canal: Canal; origen: OrigenIntencion; numero?: string | null; instancia?: string; origenLlamada?: string },
+  datos: { actor: string; leadId: string; canal: Canal; origen: OrigenIntencion; numero?: string | null; instancia?: string; origenLlamada?: string; viaLlamada?: ViaLlamada },
   ahora: number = Date.now(),
 ): IntencionContacto {
   const actual = vigentes(ahora)
@@ -161,8 +166,9 @@ export function armarIntencion(
     caduca: ahora + CADUCIDAD_MS,
     abierta: false,
     ...(datos.instancia ? { instancia: datos.instancia } : {}),
+    // El id y su vía viajan juntos: sin id no hay nada que unir, y la vía por defecto es la del enlace al colgar.
     ...(datos.origen === 'enlace' && datos.origenLlamada && origenLlamadaValido(datos.origenLlamada)
-      ? { origenLlamada: datos.origenLlamada } : {}),
+      ? { origenLlamada: datos.origenLlamada, viaLlamada: datos.viaLlamada ?? 'al_colgar' } : {}),
   }
   const indice = actual.findIndex((i) =>
     !i.abierta && i.actor === datos.actor && i.leadId === datos.leadId && i.canal === datos.canal)

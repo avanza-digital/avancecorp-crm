@@ -162,6 +162,19 @@ describe('coordinador de la intención de contacto', () => {
     expect(otra.listarIntenciones('v1', T0)).toEqual([])
   })
 
+  it('la vía de la llamada viaja con su id: al colgar por defecto, «pestana» desde la pestaña; sin id no hay vía', async () => {
+    const m = await cargarPagina()
+    const colgar = m.armarIntencion({ actor: 'v1', leadId: 'l1', canal: 'tel', origen: 'enlace', origenLlamada: 'C1-1790980958' }, T0)
+    expect(colgar).toMatchObject({ origenLlamada: 'C1-1790980958', viaLlamada: 'al_colgar' })
+    const pestana = m.armarIntencion({ actor: 'v1', leadId: 'l2', canal: 'tel', origen: 'enlace', origenLlamada: 'C1-1790980959', viaLlamada: 'pestana' }, T0)
+    expect(pestana.viaLlamada).toBe('pestana')
+    const sinId = m.armarIntencion({ actor: 'v1', leadId: 'l3', canal: 'tel', origen: 'enlace', viaLlamada: 'pestana' }, T0)
+    expect(sinId.viaLlamada).toBeUndefined()
+    sessionStorage.setItem(LLAVE, JSON.stringify([{ ...colgar, viaLlamada: 'adivinada' }]))
+    const otra = await cargarPagina()
+    expect(otra.listarIntenciones('v1', T0)).toEqual([])
+  })
+
   it('un dato corrupto o ajeno en el almacenamiento no rompe nada: se empieza limpio', async () => {
     sessionStorage.setItem(LLAVE, '{no es json')
     const m1 = await cargarPagina()
