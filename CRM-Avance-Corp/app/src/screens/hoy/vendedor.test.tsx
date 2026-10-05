@@ -32,6 +32,7 @@ vi.mock('@/data/sla-operacion-queries', () => ({ useModoSla: () => MODO_SLA }))
 // pasarían o fallarían según la hora en que se ejecuten.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { CUMPLIMIENTO_METAS_DEMO, METAS_DEMO } from '@/lib/demo'
 import { objetivosCero, type CumplimientoMetasJerarquico, type ObjetivosPorRol } from '@/lib/objetivos'
 import { money } from '@/lib/format'
@@ -39,9 +40,10 @@ import type { Actividad, Lead, Tarea, Yo } from '@/lib/tipos'
 import type { ConversionMensual } from '@/lib/conversion-mensual'
 import type { FilaBaseGestion } from '@/lib/base-gestion'
 
-// El arnés monta SIN QueryClientProvider a propósito (sin red): el hook de la
-// conversión mensual se sustituye aquí y cada test decide qué payload «llegó».
+// Los hooks de red se sustituyen aquí y cada test decide qué payload «llegó».
+// La cartera usa además el contexto de caché, como en la aplicación real.
 // En demo la pantalla ni lo consulta (deriva de demo-conversion-mensual).
+const clienteCartera = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
 let CONVERSION_MENSUAL: ConversionMensual | null = null
 let CONVERSION_MENSUAL_ERROR = false
 let CONVERSION_MENSUAL_PENDING = false
@@ -54,6 +56,8 @@ vi.mock('@/data/crm-queries', async (importActual) => {
     useSolicitudesTasa: () => ({ data: [], isPending: false, isError: false, refetch: () => {} }),
     // Fase 4d: la cartera propia viene del servidor; aquí, la misma foto del fixture.
     useLeadsPropios: () => ({ data: LEADS, isPending: false, isFetching: false, error: null, refetch: () => {} }),
+    // El bloque de recepción se verifica con su hook real en leads-recibidos-hoy.test.tsx.
+    useCarteraInfinita: () => ({ data: undefined, isPending: false, hasNextPage: false, isFetchingNextPage: false, error: null, refetch: async () => {} }),
     useResolverSolicitudTasa: () => ({ mutateAsync: async () => ({}), isPending: false }),
     useResponderTopeTasa: () => ({ mutateAsync: async () => ({}), isPending: false }),
     useResolucionTasa: () => ({ data: undefined, isPending: false, isError: false, refetch: () => {} }),
@@ -151,7 +155,7 @@ vi.mock('@/components/common/animated-value', () => ({
   AnimatedValue: ({ value }: { value: string }) => <>{value}</>,
 }))
 // El diálogo real de cierre consulta el historial del lead por react-query (sin
-// QueryClientProvider en este arnés) y tiene sus propios tests: aquí solo se
+// red en este arnés) y tiene sus propios tests: aquí solo se
 // comprueba que la pantalla le entrega la tarea elegida.
 vi.mock('@/components/app/cerrar-tarea', () => ({
   CerrarTareaDialog: ({ tarea }: { tarea: Tarea | null }) =>
@@ -168,7 +172,7 @@ vi.mock('@/data/use-estado-sla-operativo', () => ({
 
 // F1b: los hooks operativos se sustituyen por los ESPEJOS puros sobre los
 // mismos datos del mock — la pantalla se prueba con números derivados de
-// verdad, sin red ni QueryClientProvider (el shape es el del RPC, validado en
+// verdad, sin red (el shape es el del RPC, validado en
 // los tests de lib/).
 vi.mock('@/data/use-resumen-cartera-operativo', async () => {
   const { resumenCarteraDesdeAmbito } = await import('@/lib/resumen-cartera')
@@ -201,7 +205,7 @@ vi.mock('@/data/use-cola-accion-operativa', async () => {
   }
 })
 // La CTA «GESTIÓN DIARIA» de la cabecera cuenta el día con `useDiaAnalista`
-// (react-query, sin QueryClientProvider en este arnés): aquí se fija a mano.
+// (react-query): aquí se fija a mano, sin peticiones de red.
 // Su mapeo tiene sus propios tests en data/use-conteo-gestion-diaria.test.ts.
 const CONTEO_GD_BASE = { vencidas: 2, pendientes: 3, hechas: 4, yaVisitoHoy: false, cargando: false, disponible: true }
 let CONTEO_GD = CONTEO_GD_BASE
@@ -317,7 +321,7 @@ function montar(
   CUMPLIMIENTO = over.cumplimiento == null
     ? (over.cumplimiento ?? null)
     : { ...over.cumplimiento, periodo: OBJETIVOS.periodo }
-  render(<HoyVendedor />)
+  render(<QueryClientProvider client={clienteCartera}><HoyVendedor /></QueryClientProvider>)
 }
 
 /**
@@ -529,6 +533,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  clienteCartera.clear()
   vi.useRealTimers()
 })
 
@@ -1529,8 +1534,11 @@ describe('Hoy · analista — modo ACTIVO: la pantalla cabe en la ventana', () =
     expect(fila).toHaveClass('grid', 'min-h-0', 'flex-1', 'lg:grid-cols-5', 'lg:items-stretch', 'lg:grid-rows-[minmax(0,1fr)]')
 
     const citas = panelCitas()
-    expect(citas.parentElement).toBe(fila)
-    expect(citas).toHaveClass('flex', 'flex-col', 'min-h-0', 'lg:col-span-2')
+    const columnaDerecha = citas.parentElement
+    expect(columnaDerecha?.parentElement).toBe(fila)
+    expect(columnaDerecha).toHaveClass('flex', 'flex-col', 'min-h-0', 'lg:col-span-2')
+    expect(columnaDerecha?.firstElementChild).toBe(screen.getByRole('region', { name: 'Leads recibidos hoy' }))
+    expect(citas).toHaveClass('flex', 'flex-col', 'min-h-0', 'lg:flex-1')
     const listaCitas = citas.querySelector('.overflow-y-auto')
     expect(listaCitas).toHaveClass('ac-scroll', 'min-h-0', 'flex-1')
     expect(listaCitas).not.toHaveClass('max-h-[60vh]')
