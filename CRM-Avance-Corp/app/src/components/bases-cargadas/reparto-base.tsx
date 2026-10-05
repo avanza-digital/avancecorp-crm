@@ -7,9 +7,11 @@
 //    «Ver también los repartidos» se puede reasignar. Si uno no es elegible, el servidor no asigna ninguno y dice cuál y
 //    por qué (`rechazados`).
 // Cada envío lleva un id de operación fijo mientras no cambie lo que se manda (un doble clic o un reintento no reparten
-// dos veces). Antes de la B9: «disponible pronto». Foco: si tras repartir o limpiar el control pulsado desaparece, el
-// foco va al título «Repartir» o a la primera casilla, nunca a <body>.
-import { useId, useRef, useState, type RefObject } from 'react'
+// dos veces). La operación pendiente vive POR ENCIMA de las dos formas (Codex F5 r1): cambiar de pestaña no la pierde,
+// no se cambia mientras se envía y, si un envío quedó sin respuesta (pudo hacerse), se CONFIRMA con su mismo id (replay)
+// antes de admitir otro. Antes de la B9: «disponible pronto». Foco: si tras repartir o limpiar el control pulsado
+// desaparece, el foco va al título «Repartir» o a la primera casilla, nunca a <body>.
+import { useEffect, useId, useRef, useState, type RefObject } from 'react'
 import { toast } from 'sonner'
 import { Equal, Send, UserCheck, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -23,7 +25,7 @@ import { cn } from '@/lib/utils'
 import { paginar, POR_PAGINA } from '@/lib/paginacion'
 import { fmtFecha } from '@/lib/format'
 import { telefonoLegible } from '@/lib/recordatorios-disponibilidad'
-import { CODIGO_NO_DISPONIBLE, ErrorBases } from '@/data/bases-cargadas-api'
+import { CODIGO_NO_DISPONIBLE, ErrorBases, esFalloIncierto } from '@/data/bases-cargadas-api'
 import { CrmApiError } from '@/data/crm-api'
 import { useContactosDeBase, useRepartirBase, type PuertasBases } from '@/data/bases-cargadas-queries'
 import {
@@ -57,25 +59,52 @@ const PRONTO = { titulo: 'Repartir: disponible pronto', detalle: 'El reparto de 
 
 type ResultadoEnvio = { ok: true; respuesta: RespuestaRepartir } | { ok: false; mensaje: string; rechazados: RechazadoReparto[] }
 
-/** El envío de un reparto con su id de operación fijo mientras no cambie lo que se manda. */
-function useEnvioReparto(puertas: PuertasBases, baseId: string) {
+/** Un reparto con su id: el MISMO contenido reusa el id; `incierto` = se envió y no hubo respuesta (pudo hacerse). */
+interface OperacionReparto { id: string; firma: string; reparto: RepartoBase; incierto: boolean }
+
+export interface EnvioReparto {
+  enviar: (reparto: RepartoBase) => Promise<ResultadoEnvio>
+  enviando: boolean
+  noDisponible: boolean
+  /** Un reparto enviado sin respuesta: hay que confirmarlo (replay) antes de mandar otro. */
+  incierto: OperacionReparto | null
+}
+
+const MENSAJE_PENDIENTE = 'El reparto anterior se envió y no hubo respuesta: pudo hacerse. Confírmalo antes de repartir otro.'
+
+/** El envío de un reparto (UNO para las dos formas): id fijo por contenido y la operación incierta guardada hasta confirmarla. */
+function useEnvioReparto(puertas: PuertasBases, baseId: string): EnvioReparto {
   const mutacion = useRepartirBase(puertas)
-  const envio = useRef<{ id: string; firma: string } | null>(null)
+  const operacion = useRef<OperacionReparto | null>(null)
+  const [incierto, setIncierto] = useState<OperacionReparto | null>(null)
   const [noDisponible, setNoDisponible] = useState(false)
   const enviar = async (reparto: RepartoBase): Promise<ResultadoEnvio> => {
     const firma = JSON.stringify(reparto)
-    if (envio.current?.firma !== firma) envio.current = { id: crypto.randomUUID(), firma }
+    const previa = operacion.current
+    // Con un envío sin respuesta, solo se admite repetir ESE (su replay dice si se hizo); otro reparto, no.
+    if (previa?.incierto && previa.firma !== firma) return { ok: false, mensaje: 'Primero confirma el reparto anterior (aviso de arriba): pudo haberse hecho.', rechazados: [] }
+    const actual: OperacionReparto = previa && previa.firma === firma ? previa : { id: crypto.randomUUID(), firma, reparto, incierto: false }
+    operacion.current = actual
     try {
-      const respuesta = await mutacion.mutateAsync({ operacionId: envio.current.id, baseId, reparto })
-      envio.current = null
+      const respuesta = await mutacion.mutateAsync({ operacionId: actual.id, baseId, reparto })
+      operacion.current = null
+      setIncierto(null)
       return { ok: true, respuesta }
     } catch (causa: unknown) {
       if (causa instanceof CrmApiError && causa.code === CODIGO_NO_DISPONIBLE) setNoDisponible(true)
+      if (esFalloIncierto(causa)) {
+        operacion.current = { ...actual, incierto: true }
+        setIncierto(operacion.current)
+      } else if (actual.incierto) {
+        // El replay terminó en un rechazo concreto: el envío original NO se hizo; ya se puede repartir otra cosa.
+        operacion.current = { ...actual, incierto: false }
+        setIncierto(null)
+      }
       const rechazados = causa instanceof ErrorBases && causa.code === 'RECHAZADOS' ? (causa.detalle as RechazadoReparto[]) : []
       return { ok: false, mensaje: causa instanceof CrmApiError ? causa.message : 'No se pudo repartir. Vuelve a intentarlo.', rechazados }
     }
   }
-  return { enviar, enviando: mutacion.isPending, noDisponible }
+  return { enviar, enviando: mutacion.isPending, noDisponible, incierto }
 }
 
 /** «Repartidos 70: ANA 40 · LUIS 30. No se pudieron elegir 5: 3 · en gestión; 2 · ocupado.» */
@@ -102,20 +131,44 @@ export function RepartoBase({ puertas, base, analistas, tituloRef }: {
   tituloRef: RefObject<HTMLElement | null>
 }) {
   const [forma, setForma] = useState<Forma>('cantidades')
+  const envio = useEnvioReparto(puertas, base.base_id)
+  const [errorPendiente, setErrorPendiente] = useState<string | null>(null)
+  const nombres = new Map(analistas.map((a) => [a.perfil_id, a.nombre_completo]))
+  const cambiarForma = (f: Forma) => {
+    if (envio.enviando) { toast.info('Espera a que termine el reparto para cambiar de forma.'); return }
+    setForma(f)
+  }
+  const confirmarPendiente = async () => {
+    const pendiente = envio.incierto
+    if (!pendiente || envio.enviando) return
+    const r = await envio.enviar(pendiente.reparto)
+    if (r.ok) { setErrorPendiente(null); toast.success(avisoRepartido(r.respuesta, nombres)); rescatarFoco(tituloRef) }
+    else setErrorPendiente(r.mensaje)
+  }
   return (
-    <Tabs etiqueta="Cómo repartir" pestanas={FORMAS} valor={forma} onCambio={setForma} variante="subrayado" panelEnfocable={false}>
-      {analistas.length === 0 ? (
-        <p className="text-sm text-[var(--muted-foreground-strong)]">No hay analistas activos a quien repartir.</p>
-      ) : forma === 'cantidades'
-        ? <PorCantidades puertas={puertas} base={base} analistas={analistas} tituloRef={tituloRef} />
-        : <PorSeleccion puertas={puertas} base={base} analistas={analistas} tituloRef={tituloRef} />}
-    </Tabs>
+    <div className="space-y-3">
+      {envio.incierto && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-[var(--warning-text)]/40 bg-[var(--warning-text)]/[0.06] px-3 py-2.5">
+          <p role="alert" className="text-sm font-medium text-[var(--warning-text)]">{errorPendiente ?? MENSAJE_PENDIENTE}</p>
+          <Button type="button" size="sm" className="pointer-coarse:h-11" aria-disabled={envio.enviando || undefined} onClick={() => void confirmarPendiente()}>
+            {envio.enviando ? 'Confirmando…' : 'Confirmar el reparto anterior'}
+          </Button>
+        </div>
+      )}
+      <Tabs etiqueta="Cómo repartir" pestanas={FORMAS} valor={forma} onCambio={cambiarForma} variante="subrayado" panelEnfocable={false}>
+        {analistas.length === 0 ? (
+          <p className="text-sm text-[var(--muted-foreground-strong)]">No hay analistas activos a quien repartir.</p>
+        ) : forma === 'cantidades'
+          ? <PorCantidades envio={envio} base={base} analistas={analistas} tituloRef={tituloRef} />
+          : <PorSeleccion puertas={puertas} envio={envio} base={base} analistas={analistas} tituloRef={tituloRef} />}
+      </Tabs>
+    </div>
   )
 }
 
-function PorCantidades({ puertas, base, analistas, tituloRef }: { puertas: PuertasBases; base: FilaSeguimientoBases; analistas: readonly Miembro[]; tituloRef: RefObject<HTMLElement | null> }) {
+function PorCantidades({ envio, base, analistas, tituloRef }: { envio: EnvioReparto; base: FilaSeguimientoBases; analistas: readonly Miembro[]; tituloRef: RefObject<HTMLElement | null> }) {
   const id = useId()
-  const { enviar, enviando, noDisponible } = useEnvioReparto(puertas, base.base_id)
+  const { enviar, enviando, noDisponible } = envio
   const [textos, setTextos] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
   const primeraCasilla = useRef<HTMLInputElement>(null)
@@ -129,6 +182,16 @@ function PorCantidades({ puertas, base, analistas, tituloRef }: { puertas: Puert
   const idContador = `${id}-contador`
   const idError = `${id}-error`
   const describe = [idContador, error ? idError : null].filter(Boolean).join(' ')
+  // Si al repartir se acaban los disponibles, «Repartir» deja de pintarse: el foco va al título «Repartir», pase lo que
+  // pase primero (la respuesta o el refresco de la lista).
+  const acabaDeRepartir = useRef(false)
+  const disponiblesActuales = useRef(disponibles)
+  disponiblesActuales.current = disponibles
+  useEffect(() => {
+    if (!acabaDeRepartir.current || disponibles > 0) return
+    acabaDeRepartir.current = false
+    tituloRef.current?.focus()
+  }, [disponibles, tituloRef])
 
   if (noDisponible) return <DisponiblePronto {...PRONTO} />
   if (disponibles === 0) {
@@ -154,7 +217,9 @@ function PorCantidades({ puertas, base, analistas, tituloRef }: { puertas: Puert
     if (r.ok) {
       toast.success(avisoRepartido(r.respuesta, nombres))
       setTextos({})
-      rescatarFoco(tituloRef)
+      // Si la lista ya se refrescó a 0, el botón ya no está: foco al título ahora; si no, el efecto lo hará al llegar.
+      if (disponiblesActuales.current === 0) tituloRef.current?.focus()
+      else acabaDeRepartir.current = true
     } else setError(r.mensaje)
   }
   return (
@@ -209,12 +274,21 @@ function PorCantidades({ puertas, base, analistas, tituloRef }: { puertas: Puert
   )
 }
 
-function PorSeleccion({ puertas, base, analistas, tituloRef }: { puertas: PuertasBases; base: FilaSeguimientoBases; analistas: readonly Miembro[]; tituloRef: RefObject<HTMLElement | null> }) {
+function PorSeleccion({ puertas, envio, base, analistas, tituloRef }: { puertas: PuertasBases; envio: EnvioReparto; base: FilaSeguimientoBases; analistas: readonly Miembro[]; tituloRef: RefObject<HTMLElement | null> }) {
   const id = useId()
   const [verRepartidos, setVerRepartidos] = useState(false)
   const contactos = useContactosDeBase(puertas, base.base_id, verRepartidos ? 'todos' : 'sin_repartir')
-  const { enviar, enviando, noDisponible } = useEnvioReparto(puertas, base.base_id)
+  const { enviar, enviando, noDisponible } = envio
   const [elegidos, setElegidos] = useState<ReadonlySet<string>>(new Set())
+  // Reconciliar con la lista al día (Codex F5 r1): con «Ver también los repartidos» la lista es la base entera, así que un
+  // elegido que ya no está en ella salió de la base (o del ámbito) y se suelta solo. Con el filtro «sin repartir», un
+  // elegido puede estar oculto (ya repartido): se cuenta y se puede quitar.
+  useEffect(() => {
+    const lista = contactos.data
+    if (!verRepartidos || !lista) return
+    const vigentes = new Set(lista.map((c) => c.lead_id))
+    setElegidos((e) => ([...e].every((x) => vigentes.has(x)) ? e : new Set([...e].filter((x) => vigentes.has(x)))))
+  }, [contactos.data, verRepartidos])
   const [destino, setDestino] = useState('')
   const [pagina, setPagina] = useState(0)
   const [error, setError] = useState<{ texto: string; rechazados: RechazadoReparto[] } | null>(null)
@@ -226,6 +300,9 @@ function PorSeleccion({ puertas, base, analistas, tituloRef }: { puertas: Puerta
   }
   const filas = contactos.data ?? []
   const paginado = paginar(filas, pagina)
+  const visiblesIds = new Set(filas.map((c) => c.lead_id))
+  const ocultos = [...elegidos].filter((x) => !visiblesIds.has(x))
+  const noAsignables = filas.filter((c) => elegidos.has(c.lead_id) && !ESTADOS_ASIGNABLES.has(c.estado)).length
   const asignablesPagina = paginado.visibles.filter((c) => ESTADOS_ASIGNABLES.has(c.estado))
   const todaLaPagina = asignablesPagina.length > 0 && asignablesPagina.every((c) => elegidos.has(c.lead_id))
   const nombreDe = new Map(filas.map((c) => [c.lead_id, c.nombre_completo]))
@@ -249,6 +326,11 @@ function PorSeleccion({ puertas, base, analistas, tituloRef }: { puertas: Puerta
       rescatarFoco(tituloRef)
     } else setError({ texto: r.mensaje, rechazados: r.rechazados })
   }
+  const quitarOcultos = () => setElegidos((e) => new Set([...e].filter((x) => visiblesIds.has(x))))
+  const quitarNoAsignables = () => {
+    const fuera = new Set(filas.filter((c) => !ESTADOS_ASIGNABLES.has(c.estado)).map((c) => c.lead_id))
+    setElegidos((e) => new Set([...e].filter((x) => !fuera.has(x))))
+  }
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-end gap-3">
@@ -269,9 +351,23 @@ function PorSeleccion({ puertas, base, analistas, tituloRef }: { puertas: Puerta
           </Button>
         </div>
       </div>
-      <p id={`${id}-elegidos`} role="status" className="text-sm tabular-nums text-[var(--muted-foreground-strong)]">
-        {elegidos.size > 0 ? `${elegidos.size} ${elegidos.size === 1 ? 'contacto elegido' : 'contactos elegidos'}` : ''}
-      </p>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <p id={`${id}-elegidos`} role="status" className="text-sm tabular-nums text-[var(--muted-foreground-strong)]">
+          {elegidos.size > 0 ? `${elegidos.size} ${elegidos.size === 1 ? 'contacto elegido' : 'contactos elegidos'}` : ''}
+          {ocultos.length > 0 ? ` · ${ocultos.length} no se ${ocultos.length === 1 ? 've' : 'ven'} con este filtro` : ''}
+          {noAsignables > 0 ? ` · ${noAsignables} ya no se ${noAsignables === 1 ? 'puede' : 'pueden'} asignar` : ''}
+        </p>
+        {ocultos.length > 0 && (
+          <Button type="button" variant="ghost" size="sm" className="pointer-coarse:h-11" onClick={quitarOcultos}>
+            <X aria-hidden /> Quitar {ocultos.length === 1 ? 'el oculto' : `los ${ocultos.length} ocultos`}
+          </Button>
+        )}
+        {noAsignables > 0 && (
+          <Button type="button" variant="ghost" size="sm" className="pointer-coarse:h-11" onClick={quitarNoAsignables}>
+            <X aria-hidden /> Quitar los que ya no se pueden asignar
+          </Button>
+        )}
+      </div>
       {error && (
         <div id={`${id}-error`} role="alert" className="space-y-1">
           <p className="text-sm font-medium text-[var(--destructive-text)]">{error.texto}</p>
@@ -317,7 +413,8 @@ function PorSeleccion({ puertas, base, analistas, tituloRef }: { puertas: Puerta
                             aria-label={`Elegir a ${c.nombre_completo}`}
                             className="size-4 accent-[var(--accent)]"
                             checked={elegidos.has(c.lead_id)}
-                            disabled={!asignable}
+                            // Marcar, solo lo asignable; DESMARCAR, siempre (si cambió de estado, no queda atrapado).
+                            disabled={!asignable && !elegidos.has(c.lead_id)}
                             onChange={() => alternar(c.lead_id)}
                           />
                         </label>

@@ -90,6 +90,14 @@ export const MOTIVOS_INVALIDA = [
 ] as const
 export type MotivoInvalida = (typeof MOTIVOS_INVALIDA)[number]
 
+/**
+ * Motivos que solo pone la vista previa (más precisos que el `capital_invalido` del servidor, que tampoco los acepta):
+ * capital negativo, con más de 2 decimales o ambiguo (¿miles o decimales?), y una FECHA de Excel donde va texto o capital.
+ * Ninguno se adivina ni se «arregla»: la fila no se envía y el informe dice por qué.
+ */
+export const MOTIVOS_SOLO_PANTALLA = ['capital_negativo', 'capital_decimales', 'capital_ambiguo', 'celda_fecha'] as const
+export type MotivoSoloPantalla = (typeof MOTIVOS_SOLO_PANTALLA)[number]
+
 /** Espejo de `private.normalizar_telefono` (la regla del alta y de `cargar_base_lote`): 9 dígitos → +51; si no, + y
  *  los dígitos. El resultado vale solo si es un celular peruano (`^\+519\d{8}$`). */
 export function normalizarTelefonoBase(valor: string): string | null {
@@ -102,34 +110,83 @@ export function esCelularPeruano(e164: string | null): boolean {
   return e164 !== null && /^\+519\d{8}$/.test(e164)
 }
 
+export type MotivoCapital = 'capital_invalido' | 'capital_negativo' | 'capital_decimales' | 'capital_ambiguo'
+export type LecturaCapital = { valor: string } | { error: MotivoCapital }
+
+/** El texto final que acepta el servidor (`^\d{1,10}(\.\d{1,2})?$`, > 0), a partir de la parte entera y la decimal. */
+function capitalFinal(enteros: string, decimales: string): LecturaCapital {
+  const e = enteros.replace(/^0+(?=\d)/, '')
+  if (decimales.length > 2) return { error: 'capital_decimales' }
+  if (!/^\d{1,10}$/.test(e) || !/^\d{0,2}$/.test(decimales)) return { error: 'capital_invalido' }
+  const valor = decimales ? `${e}.${decimales}` : e
+  return Number(valor) > 0 ? { valor } : { error: 'capital_invalido' }
+}
+
+/** Separadores de miles bien puestos: un primer grupo de 1 a 3 dígitos y los demás de 3 exactos. */
+const MILES_BIEN_PUESTOS = (texto: string, separador: string) =>
+  new RegExp(`^\\d{1,3}(\\${separador}\\d{3})+$`).test(texto)
+
 /**
- * El capital como lo escribe la gente («S/ 30,000», «30 000.50», «1.500,75») convertido al formato que acepta el
- * servidor (`^\d{1,10}(\.\d{1,2})?$`, > 0). Con punto y coma a la vez, el ÚLTIMO es el decimal; con uno solo, es decimal
- * si va seguido de 1 o 2 dígitos al final (si no, separa miles). `null` si no se puede leer.
+ * El capital ESCRITO (texto de un CSV o de una celda de texto) al formato del servidor, SIN ADIVINAR (Codex F5 r1):
+ *  · el signo se mira ANTES de quitar símbolos: «-S/ 50», «S/ -50» o «(50)» son negativos → inválido;
+ *  · solo se admiten dígitos, «.», «,», espacios y la moneda (S/, US$, $, PEN, USD, soles, dólares); otra cosa → inválido;
+ *  · punto y coma a la vez: el ÚLTIMO es el decimal y el otro debe separar miles bien («1.500,75», «1,500.75»);
+ *  · un separador repetido solo puede ser de miles bien puestos («1,500,000»);
+ *  · uno solo seguido de 1 o 2 dígitos es decimal («30000.5»); de 3 dígitos es AMBIGUO («1.500»: ¿mil quinientos o
+ *    uno y medio?) → inválido con su motivo; de 4 o más, más de 2 decimales → inválido. Nunca se multiplica.
  */
-export function normalizarCapital(valor: string): string | null {
-  // Un capital negativo no se «arregla» quitándole el signo: es inválido (el servidor también lo rechaza).
-  if (/-\s*[\d.,]/.test(valor)) return null
-  const limpio = valor.replace(/[^\d.,]/g, '')
-  if (!/\d/.test(limpio)) return null
-  const ultimoPunto = limpio.lastIndexOf('.')
-  const ultimaComa = limpio.lastIndexOf(',')
-  let enteros: string
-  let decimales = ''
-  const separador = Math.max(ultimoPunto, ultimaComa)
-  const cola = separador >= 0 ? limpio.slice(separador + 1) : ''
-  const ambos = ultimoPunto >= 0 && ultimaComa >= 0
-  const unicoSeparador = separador >= 0 && limpio.split(limpio[separador] ?? '').length === 2
-  if (separador >= 0 && (ambos || (unicoSeparador && /^\d{1,2}$/.test(cola)))) {
-    enteros = limpio.slice(0, separador).replace(/[.,]/g, '')
-    decimales = cola.replace(/[.,]/g, '')
-  } else {
-    enteros = limpio.replace(/[.,]/g, '')
+export function leerCapitalTexto(texto: string): LecturaCapital {
+  const t = texto.trim()
+  if (/-|\(.*\)/.test(t)) return { error: 'capital_negativo' }
+  const sinMoneda = normalizar(t).replace(/us\$|s\/\.?|\$|\bpen\b|\busd\b|soles|dolares|[\s ]/g, '')
+  if (!/^[\d.,]+$/.test(sinMoneda) || !/\d/.test(sinMoneda)) return { error: 'capital_invalido' }
+  const puntos = (sinMoneda.match(/\./g) ?? []).length
+  const comas = (sinMoneda.match(/,/g) ?? []).length
+  if (puntos === 0 && comas === 0) return capitalFinal(sinMoneda, '')
+  if (puntos > 0 && comas > 0) {
+    const decimal = sinMoneda.lastIndexOf('.') > sinMoneda.lastIndexOf(',') ? '.' : ','
+    const miles = decimal === '.' ? ',' : '.'
+    const corte = sinMoneda.lastIndexOf(decimal)
+    const entera = sinMoneda.slice(0, corte)
+    const decimales = sinMoneda.slice(corte + 1)
+    if ((decimal === '.' ? puntos : comas) !== 1 || !MILES_BIEN_PUESTOS(entera, miles) || !/^\d+$/.test(decimales)) return { error: 'capital_invalido' }
+    return capitalFinal(entera.split(miles).join(''), decimales)
   }
-  enteros = enteros.replace(/^0+(?=\d)/, '')
-  if (!/^\d{1,10}$/.test(enteros) || !/^\d{0,2}$/.test(decimales)) return null
-  const texto = decimales ? `${enteros}.${decimales}` : enteros
-  return Number(texto) > 0 ? texto : null
+  const separador = puntos > 0 ? '.' : ','
+  if ((puntos || comas) > 1) {
+    return MILES_BIEN_PUESTOS(sinMoneda, separador) ? capitalFinal(sinMoneda.split(separador).join(''), '') : { error: 'capital_invalido' }
+  }
+  const [entera = '', cola = ''] = sinMoneda.split(separador)
+  if (!/^\d+$/.test(cola) || (entera !== '' && !/^\d+$/.test(entera))) return { error: 'capital_invalido' }
+  if (cola.length <= 2) return capitalFinal(entera || '0', cola)
+  if (cola.length === 3 && /^\d{1,3}$/.test(entera) && entera !== '0') return { error: 'capital_ambiguo' }
+  return { error: 'capital_decimales' }
+}
+
+/**
+ * El capital de una CELDA: un número de Excel conserva su precisión (0.001 o 1234.567 tienen más de 2 decimales →
+ * inválido, como el CHECK del servidor; nada se redondea); un texto se lee con {@link leerCapitalTexto}.
+ */
+export function leerCapital(celda: Celda): LecturaCapital | null {
+  if (celda === null || (typeof celda === 'string' && celda.trim() === '')) return null
+  if (typeof celda === 'number') {
+    if (!Number.isFinite(celda)) return { error: 'capital_invalido' }
+    if (celda < 0) return { error: 'capital_negativo' }
+    // `String` da la representación más corta que vuelve al mismo número: sus decimales son los de la celda (0.001 → «0.001»;
+    // 30000.1 → «30000.1», sin la cola binaria). Solo con notación científica (1e-7, 1e21) se expande.
+    const corto = String(celda)
+    const texto = /e/i.test(corto) ? celda.toLocaleString('en-US', { useGrouping: false, maximumFractionDigits: 20 }) : corto
+    const [entera = '', decimales = ''] = texto.split('.')
+    return capitalFinal(entera, decimales)
+  }
+  if (typeof celda === 'boolean' || celda instanceof Date) return { error: 'capital_invalido' }
+  return leerCapitalTexto(celda)
+}
+
+/** Compatibilidad: el capital tecleado en un campo (el diálogo «Reactivar» y el intento) o `null` si no vale. */
+export function normalizarCapital(valor: string): string | null {
+  const r = leerCapitalTexto(valor)
+  return 'valor' in r ? r.valor : null
 }
 
 /** «S/», «soles» → PEN; «US$», «$», «dólares» → USD; vacío → null (el servidor pone PEN). Otro valor: inválido. */
@@ -141,9 +198,10 @@ export function normalizarMoneda(valor: string): Moneda | 'invalida' | null {
   return 'invalida'
 }
 
-/** Texto de una celda: los números de Excel sin notación científica ni «.0»; el DNI numérico recupera sus ceros. */
+/** Texto de una celda: los números de Excel sin notación científica ni «.0»; el DNI numérico recupera sus ceros. Una
+ *  FECHA no se convierte en texto (sería inventar un dato): quien valida la rechaza con `celda_fecha`. */
 export function textoCelda(celda: Celda, campo: CampoArchivo): string {
-  if (celda === null) return ''
+  if (celda === null || celda instanceof Date) return ''
   if (typeof celda === 'number') {
     if (!Number.isFinite(celda)) return ''
     if (Number.isInteger(celda)) {
@@ -154,7 +212,6 @@ export function textoCelda(celda: Celda, campo: CampoArchivo): string {
     return String(celda)
   }
   if (typeof celda === 'boolean') return celda ? 'VERDADERO' : 'FALSO'
-  if (celda instanceof Date) return Number.isNaN(celda.getTime()) ? '' : celda.toISOString().slice(0, 10)
   return celda.trim()
 }
 
@@ -170,9 +227,9 @@ export interface FilaEnvio {
   moneda?: Moneda
 }
 
-export type MotivoLocal = MotivoInvalida | 'en_archivo'
+export type MotivoLocal = MotivoInvalida | MotivoSoloPantalla
 
-/** Una fila del archivo ya leída: lo que se enviaría, o por qué NO se envía (inválida o repetida en el archivo). */
+/** Una fila del archivo ya leída: lo que se enviaría, o por qué NO se envía (inválida). */
 export interface FilaPreparada {
   /** Número de fila del archivo, como lo ve quien lo abre en Excel (el encabezado es la 1). */
   fila: number
@@ -186,9 +243,17 @@ export interface FilaPreparada {
   moneda: Moneda | null
   /** null = se envía. */
   error: MotivoLocal | null
+  /**
+   * Repite el celular o el DNI de una fila ANTERIOR válida del archivo (la primera que lo trae). Es solo un AVISO: la fila
+   * se envía igual y el servidor decide (Codex F5 r1, riesgo de deduplicación): si la primera entró, esta sale «repetida»;
+   * si la primera ya existía en el CRM, esta se juzga por su cuenta. Marcarla aquí y no enviarla podría ocultar una fila
+   * que el servidor habría aceptado (otro DNI, o la primera rechazada por identidad).
+   */
+  repiteFila: number | null
 }
 
-function validarFila(fila: number, leer: (campo: CampoArchivo) => string): FilaPreparada {
+function validarFila(fila: number, celdas: Readonly<Record<CampoArchivo, Celda>>): FilaPreparada {
+  const leer = (campo: CampoArchivo) => textoCelda(celdas[campo], campo)
   const nombre = [leer('nombre'), leer('apellidos')].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim()
   const telefonoLeido = leer('telefono')
   const telefono = normalizarTelefonoBase(telefonoLeido) ?? ''
@@ -197,23 +262,26 @@ function validarFila(fila: number, leer: (campo: CampoArchivo) => string): FilaP
   const dni = /^[\d\s.-]+$/.test(dniLeido) ? dniLeido.replace(/\D/g, '') : dniLeido
   const distrito = leer('distrito')
   const comentario = leer('comentario')
-  const capitalLeido = leer('capital')
-  const capital = capitalLeido ? normalizarCapital(capitalLeido) : ''
+  const capital = leerCapital(celdas.capital)
   const moneda = normalizarMoneda(leer('moneda'))
-  // El orden de las comprobaciones es el del servidor (bases_carga_cargar_lote_core): el primer motivo gana.
-  const error: MotivoInvalida | null =
-    !nombre ? 'nombre_vacio'
-      : nombre.length > 200 ? 'nombre_largo'
-        : !esCelularPeruano(telefono || null) ? 'telefono_invalido'
-          : dni && !/^\d{8}$/.test(dni) ? 'dni_invalido'
-            : capital === null ? 'capital_invalido'
-              : moneda === 'invalida' ? 'moneda_invalida'
-                : distrito.length > 120 ? 'distrito_largo'
-                  : comentario.length > 1000 ? 'comentario_largo'
-                    : null
+  const conFecha = CAMPOS_ARCHIVO.some((c) => celdas[c] instanceof Date)
+  // El orden de las comprobaciones es el del servidor (bases_carga_cargar_lote_core): el primer motivo gana. Una fecha de
+  // Excel donde va texto o capital va primero: no se puede leer como el dato que se esperaba.
+  const error: MotivoLocal | null =
+    conFecha ? 'celda_fecha'
+      : !nombre ? 'nombre_vacio'
+        : nombre.length > 200 ? 'nombre_largo'
+          : !esCelularPeruano(telefono || null) ? 'telefono_invalido'
+            : dni && !/^\d{8}$/.test(dni) ? 'dni_invalido'
+              : capital && 'error' in capital ? capital.error
+                : moneda === 'invalida' ? 'moneda_invalida'
+                  : distrito.length > 120 ? 'distrito_largo'
+                    : comentario.length > 1000 ? 'comentario_largo'
+                      : null
   return {
-    fila, nombre, telefono, telefonoLeido, dni, distrito, comentario, capital: capital ?? capitalLeido,
-    moneda: moneda === 'invalida' ? null : moneda, error,
+    fila, nombre, telefono, telefonoLeido, dni, distrito, comentario,
+    capital: capital && 'valor' in capital ? capital.valor : leer('capital'),
+    moneda: moneda === 'invalida' ? null : moneda, error, repiteFila: null,
   }
 }
 
@@ -226,36 +294,36 @@ export interface TablaArchivo {
 export interface Preparacion {
   /** Todas las filas con datos (las vacías no cuentan), en el orden del archivo. */
   filas: FilaPreparada[]
-  /** Las que se envían. */
+  /** Las que se envían (las repetidas en el archivo también: decide el servidor). */
   validas: FilaPreparada[]
   invalidas: number
+  /** Cuántas válidas repiten el celular o el DNI de una anterior (aviso). */
   repetidas: number
 }
 
 /**
- * Valida el archivo entero con el mapeo elegido: cada fila como el servidor y, entre las válidas, la repetida (mismo
- * teléfono o mismo DNI que una anterior) queda fuera —la primera aparición gana, como en el servidor—. Las filas
+ * Valida el archivo entero con el mapeo elegido: cada fila como el servidor. Entre las válidas, la que repite el celular o
+ * el DNI de una anterior lleva el aviso `repiteFila` pero SE ENVÍA (ver {@link FilaPreparada.repiteFila}). Las filas
  * completamente vacías no cuentan (Excel deja muchas al final).
  */
 export function prepararFilas(tabla: TablaArchivo, mapeo: MapeoColumnas): Preparacion {
   const filas: FilaPreparada[] = []
-  const vistos = new Set<string>()
+  const primera = new Map<string, number>()
   let invalidas = 0
   let repetidas = 0
   for (const { numero, celdas } of tabla.filas) {
-    const leer = (campo: CampoArchivo) => {
-      const i = mapeo[campo]
-      return i === null ? '' : textoCelda(celdas[i] ?? null, campo)
-    }
-    if (CAMPOS_ARCHIVO.every((c) => leer(c) === '')) continue
-    const preparada = validarFila(numero, leer)
+    const porCampo = Object.fromEntries(CAMPOS_ARCHIVO.map((c) => {
+      const i = mapeo[c]
+      return [c, i === null ? null : (celdas[i] ?? null)]
+    })) as Record<CampoArchivo, Celda>
+    if (CAMPOS_ARCHIVO.every((c) => porCampo[c] === null || (typeof porCampo[c] === 'string' && (porCampo[c] as string).trim() === ''))) continue
+    const preparada = validarFila(numero, porCampo)
     if (preparada.error) invalidas += 1
-    else if (vistos.has(`t:${preparada.telefono}`) || (preparada.dni && vistos.has(`d:${preparada.dni}`))) {
-      preparada.error = 'en_archivo'
-      repetidas += 1
-    } else {
-      vistos.add(`t:${preparada.telefono}`)
-      if (preparada.dni) vistos.add(`d:${preparada.dni}`)
+    else {
+      const claves = [`t:${preparada.telefono}`, ...(preparada.dni ? [`d:${preparada.dni}`] : [])]
+      const anterior = claves.map((k) => primera.get(k)).find((x) => x !== undefined)
+      if (anterior !== undefined) { preparada.repiteFila = anterior; repetidas += 1 }
+      for (const k of claves) if (!primera.has(k)) primera.set(k, numero)
     }
     filas.push(preparada)
   }
@@ -308,10 +376,13 @@ const ROTULO_VEREDICTO_FILA: Readonly<Record<Veredicto, string>> = {
 
 /** Una fila válida que no llegó a enviarse (la carga se detuvo antes y quien carga decidió terminar ahí). */
 export const VEREDICTO_SIN_ENVIAR = 'sin_enviar'
+/** Una fila de un lote que se ENVIÓ pero cuya respuesta se perdió (y el replay tampoco respondió): pudo cargarse o no. */
+export const VEREDICTO_SIN_CONFIRMAR = 'sin_confirmar'
 
 /** El resultado de UNA fila, en palabras («Ya existía»); un veredicto que el catálogo no conoce se muestra tal cual. */
 export function etiquetaVeredictoFila(veredicto: string): string {
   if (veredicto === VEREDICTO_SIN_ENVIAR) return 'Sin enviar'
+  if (veredicto === VEREDICTO_SIN_CONFIRMAR) return 'Sin confirmar'
   return (VEREDICTOS as readonly string[]).includes(veredicto) ? ROTULO_VEREDICTO_FILA[veredicto as Veredicto] : veredicto
 }
 
@@ -336,6 +407,11 @@ const MOTIVO_FILA: Readonly<Record<string, string>> = {
   comentario_largo: 'El comentario pasa de 1000 caracteres',
   // repetida
   en_archivo: 'Repetida en el archivo',
+  // solo de la vista previa
+  capital_negativo: 'El capital es negativo',
+  capital_decimales: 'El capital tiene más de 2 decimales',
+  capital_ambiguo: 'El capital es ambiguo (¿miles o decimales?): escríbelo sin separador de miles, por ejemplo 1500 o 1500.50',
+  celda_fecha: 'Una celda trae una fecha donde va un texto o el capital',
   en_base: 'Ya está en esta base',
 }
 
@@ -349,6 +425,7 @@ export function etiquetaMotivoFila(veredicto: string, motivo: string | null | un
     case 'no_contactar': return 'Marcado «No contactar» (Ley 29571)'
     case 'repetida': return 'Repetida'
     case VEREDICTO_SIN_ENVIAR: return 'No se envió: la carga se detuvo antes'
+    case VEREDICTO_SIN_CONFIRMAR: return 'Se envió pero no hubo respuesta: puede haber entrado. Si subes el archivo de nuevo, saldrá «repetida» si ya está'
     default: return 'Sin detalle'
   }
 }
@@ -368,11 +445,11 @@ export function contarVeredictos(resultados: readonly ResultadoFila[]): ConteoVe
   return conteo
 }
 
-/** Lo que la vista previa ya decidió (no se envía): inválidas y repetidas en el archivo, con su motivo. */
+/** Lo que la vista previa ya decidió (no se envía): las inválidas, con su motivo. */
 export function resultadosLocales(preparacion: Preparacion): ResultadoFila[] {
   return preparacion.filas
     .filter((f) => f.error !== null)
-    .map((f) => ({ fila: f.fila, veredicto: f.error === 'en_archivo' ? 'repetida' : 'invalida', motivo: f.error }))
+    .map((f) => ({ fila: f.fila, veredicto: 'invalida', motivo: f.error }))
 }
 
 /**

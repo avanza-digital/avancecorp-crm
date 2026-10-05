@@ -89,13 +89,16 @@ export function ArmarDesdeCrm({ puertas, esGerencia, supervisores, onVerBase }: 
   const primerFiltro = useRef<HTMLSelectElement>(null)
   const tituloResultado = useRef<HTMLHeadingElement>(null)
   const campoNombre = useRef<HTMLInputElement>(null)
+  const campoSupervisor = useRef<HTMLSelectElement>(null)
+  const vacio = useRef<HTMLDivElement>(null)
   const volverAlNombre = useRef(false)
   // El éxito se ANUNCIA llevando el foco a su título; «Armar otra» lo devuelve al nombre (o al primer filtro).
   useEffect(() => {
     if (resultado) { tituloResultado.current?.focus(); return }
     if (!volverAlNombre.current) return
     volverAlNombre.current = false
-    ;(campoNombre.current ?? primerFiltro.current)?.focus()
+    // Sin candidatos no hay nombre ni filtros: el foco va al supervisor (Gerencia) o al aviso de que no hay descartados.
+    ;(campoNombre.current ?? primerFiltro.current ?? campoSupervisor.current ?? vacio.current)?.focus()
   }, [resultado])
 
   // Los candidatos: los descartados vivos del ámbito, sin «No contactar» ni otra base. Gerencia arma para UN supervisor:
@@ -181,6 +184,7 @@ export function ArmarDesdeCrm({ puertas, esGerencia, supervisores, onVerBase }: 
         <div className="flex w-full flex-col gap-1 sm:w-72">
           <label htmlFor={`${id}-supervisor`} className="text-[13px] font-semibold text-foreground">Supervisor dueño</label>
           <Select
+            ref={campoSupervisor}
             id={`${id}-supervisor`}
             value={supervisorId}
             onChange={(e) => { setSupervisorId(e.target.value); setFiltros(SIN_FILTROS); setPagina(0); setError(null) }}
@@ -200,7 +204,7 @@ export function ArmarDesdeCrm({ puertas, esGerencia, supervisores, onVerBase }: 
       ) : real && lista.isError && lista.data === undefined ? (
         <AvisoReintentar mensaje="No se pudo cargar la lista de descartados." reintentando={lista.isFetching} onReintentar={() => void lista.refetch()} />
       ) : esGerencia && !supervisorId ? null : candidatos.length === 0 ? (
-        <div className="rounded-lg border border-border bg-card">
+        <div ref={vacio} tabIndex={-1} className={cn('rounded-lg border border-border bg-card', FOCO)}>
           <PanelVacio icono={Layers} titulo="No hay descartados para armar una base" detalle="Los descartados con «No contactar» o que ya están en otra base no se ofrecen." />
         </div>
       ) : (

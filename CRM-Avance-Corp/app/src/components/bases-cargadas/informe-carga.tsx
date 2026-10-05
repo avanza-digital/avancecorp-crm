@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils'
 import {
   ROTULO_VEREDICTO,
   VEREDICTOS,
+  VEREDICTO_SIN_CONFIRMAR,
   VEREDICTO_SIN_ENVIAR,
   contarVeredictos,
   etiquetaMotivoFila,
@@ -40,6 +41,7 @@ export function InformeCarga({ resultados, nombreBase, archivoNombre }: {
   const conteo = contarVeredictos(resultados)
   // Si la carga se terminó a medias, lo que no llegó a enviarse también se cuenta (y se abre).
   const sinEnviar = resultados.filter((r) => r.veredicto === VEREDICTO_SIN_ENVIAR).length
+  const sinConfirmar = resultados.filter((r) => r.veredicto === VEREDICTO_SIN_CONFIRMAR).length
   const alternar = (v: string) => { setFiltro((f) => (f === v ? null : v)); setPagina(0) }
   const ordenadas = [...resultados].sort((a, b) => a.fila - b.fila)
   const visibles = filtro ? ordenadas.filter((r) => r.veredicto === filtro) : ordenadas
@@ -71,6 +73,9 @@ export function InformeCarga({ resultados, nombreBase, archivoNombre }: {
             onAbrir={conteo[v] > 0 || filtro === v ? () => alternar(v) : undefined}
           />
         ))}
+        {sinConfirmar > 0 && (
+          <Pastilla etiqueta="Sin confirmar" valor={sinConfirmar} urgente presionada={filtro === VEREDICTO_SIN_CONFIRMAR} pista="ver solo esas filas" onAbrir={() => alternar(VEREDICTO_SIN_CONFIRMAR)} />
+        )}
         {sinEnviar > 0 && (
           <Pastilla etiqueta="Sin enviar" valor={sinEnviar} urgente presionada={filtro === VEREDICTO_SIN_ENVIAR} pista="ver solo esas filas" onAbrir={() => alternar(VEREDICTO_SIN_ENVIAR)} />
         )}
@@ -90,7 +95,7 @@ export function InformeCarga({ resultados, nombreBase, archivoNombre }: {
             {paginado.visibles.map((r) => (
               <tr key={r.fila}>
                 <th scope="row" className={cn(CELDA_COMPACTA, 'text-right font-normal tabular-nums text-[var(--muted-foreground-strong)]')}>{r.fila}</th>
-                <td className={cn(CELDA_COMPACTA, r.veredicto === 'invalida' || r.veredicto === VEREDICTO_SIN_ENVIAR ? 'font-semibold text-[var(--destructive-text)]' : r.veredicto === 'cargada' ? 'font-semibold text-primary' : '')}>
+                <td className={cn(CELDA_COMPACTA, r.veredicto === 'invalida' || r.veredicto === VEREDICTO_SIN_ENVIAR || r.veredicto === VEREDICTO_SIN_CONFIRMAR ? 'font-semibold text-[var(--destructive-text)]' : r.veredicto === 'cargada' ? 'font-semibold text-primary' : '')}>
                   {etiquetaVeredictoFila(r.veredicto)}
                 </td>
                 <td className={cn(CELDA_COMPACTA, 'whitespace-normal')}>{etiquetaMotivoFila(r.veredicto, r.motivo)}</td>

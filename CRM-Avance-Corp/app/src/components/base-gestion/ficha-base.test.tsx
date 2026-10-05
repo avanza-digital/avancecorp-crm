@@ -370,7 +370,7 @@ describe('F6 · Reactivar un contacto de base SIN capital (E8)', () => {
     expect(capital).toHaveAttribute('aria-invalid', 'true')
     expect(capital).toHaveFocus()
     expect(reactivar.mutateAsync).not.toHaveBeenCalled()
-    await usuario.type(capital, '25,000')
+    await usuario.type(capital, '25000')
     await usuario.selectOptions(within(dialogo).getByLabelText('Moneda'), 'USD')
     await usuario.click(within(dialogo).getByRole('button', { name: 'Reactivar' }))
     expect(reactivar.mutateAsync).toHaveBeenCalledWith({ operacionId: expect.any(String), leadId: 'lead-1', nota: '', montoEstimado: 25000, moneda: 'USD' })
@@ -415,7 +415,7 @@ describe('F6 · «Contestó · agendó cita» de un contacto SIN capital (B10: r
     expect(capital).toHaveAttribute('aria-invalid', 'true')
     expect(capital).toHaveFocus()
     expect(intento.mutateAsync).not.toHaveBeenCalled()
-    await usuario.type(capital, '15,000')
+    await usuario.type(capital, '15000')
     await usuario.selectOptions(within(formulario()).getByLabelText('Moneda'), 'USD')
     await usuario.click(guardar())
     expect(intento.mutateAsync).toHaveBeenCalledWith({

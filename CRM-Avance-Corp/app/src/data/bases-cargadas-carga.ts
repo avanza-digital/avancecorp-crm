@@ -6,7 +6,7 @@
 //  · cualquier otro fallo (la red, una regla del servidor) → la carga se PAUSA en ese lote y quien carga decide
 //    «Reintentar» (mismo id) o cerrar: lo cargado se queda en la base.
 // Lógica sin React: la pantalla le pasa las puertas y un `esperar` (las pruebas, uno instantáneo).
-import { ErrorBases, CODIGO_OCUPADO } from './bases-cargadas-api'
+import { ErrorBases, CODIGO_OCUPADO, esFalloIncierto } from './bases-cargadas-api'
 import type { FilaEnvio, ResultadoFila, RespuestaCargarLote, RespuestaCrearBase } from '@/lib/bases-cargadas'
 import type { CrearBaseEntrada } from './bases-cargadas-api'
 import { CrmApiError } from './crm-api'
@@ -53,6 +53,26 @@ function comoErrorBases(causa: unknown): CrmApiError {
 /** ¿Se reintenta solo? Solo lo que el servidor dice que es pasajero (otra carga en curso, ocupado). */
 function esPasajero(error: CrmApiError): boolean {
   return error.code === CODIGO_OCUPADO
+}
+
+/**
+ * Antes de terminar una carga pausada por un fallo INCIERTO (red, respuesta ilegible) en el lote `avance.lotesHechos`: ese
+ * lote pudo quedar guardado sin que lo supiéramos. Se repite UNA vez con su MISMO id (si ya estaba, el servidor devuelve la
+ * misma respuesta). `confirmado: false` = sigue sin saberse: la pantalla lo marca «sin confirmar», no «sin enviar».
+ */
+export async function confirmarLoteIncierto(plan: PlanCarga, avance: AvanceCarga, puertas: PuertasCarga): Promise<{ avance: AvanceCarga; confirmado: boolean }> {
+  const lote = plan.lotes[avance.lotesHechos]
+  if (!lote || avance.baseId === null) return { avance, confirmado: true }
+  const baseId = avance.baseId
+  const enviado = await conReintentos(() => puertas.cargarBaseLote({ operacionId: lote.operacionId, baseId, filas: lote.filas }), avance, puertas)
+  if (!enviado.ok) return { avance, confirmado: !esFalloIncierto(enviado.error) }
+  const nuevo: AvanceCarga = {
+    baseId, lotesHechos: avance.lotesHechos + 1, filasHechas: avance.filasHechas + lote.filas.length,
+    resultados: [...avance.resultados, ...enviado.valor.filas.map((f) => ({ fila: f.fila, veredicto: f.veredicto, motivo: f.motivo ?? null }))],
+    reintento: 0,
+  }
+  puertas.alAvanzar(nuevo)
+  return { avance: nuevo, confirmado: true }
 }
 
 /** Ejecuta una operación con los reintentos automáticos de lo pasajero. */

@@ -63,7 +63,7 @@ const archivo = (contenido: BlobPart, nombre: string) => new File([contenido], n
 
 describe('CSV', () => {
   it('comillas, comillas escapadas, saltos de línea dentro de comillas, CRLF y BOM; separador «;» detectado', () => {
-    const texto = '﻿Nombre;Teléfono;Comentario\r\n"QUISPE; ROSA";987654321;"dijo ""llámame""\nmañana"\r\nLUIS;987000111;\r\n'
+    const texto = '\uFEFFNombre;Teléfono;Comentario\r\n"QUISPE; ROSA";987654321;"dijo ""llámame""\nmañana"\r\nLUIS;987000111;\r\n'
     expect(parsearCsv(texto)).toEqual([
       ['Nombre', 'Teléfono', 'Comentario'],
       ['QUISPE; ROSA', '987654321', 'dijo "llámame"\nmañana'],
@@ -71,6 +71,17 @@ describe('CSV', () => {
     ])
     expect(parsearCsv('a,b\n1,2')).toEqual([['a', 'b'], ['1', '2']])
     expect(parsearCsv('a\tb\n1\t2\n')).toEqual([['a', 'b'], ['1', '2']])
+  })
+
+  it('el separador sale de la primera línea NO vacía («;» o tabulador tras líneas en blanco)', () => {
+    expect(parsearCsv('\n\nNombre;Celular\nROSA;987654321\n')).toEqual([[''], [''], ['Nombre', 'Celular'], ['ROSA', '987654321']])
+    expect(parsearCsv('\r\n  \r\nNombre\tCelular\r\nROSA\t987654321')).toEqual([[''], ['  '], ['Nombre', 'Celular'], ['ROSA', '987654321']])
+    expect(tablaDesdeFilas(parsearCsv('\n\nNombre;Celular\nROSA;987654321\n')).encabezados).toEqual(['Nombre', 'Celular'])
+  })
+
+  it('comillas sin cerrar: se rechaza el archivo con un mensaje claro (no se «come» el resto en silencio)', () => {
+    expect(() => parsearCsv('Nombre;Celular\nROSA;987654321\n"LUIS;987000111\nANA;987000222\n')).toThrow(ErrorArchivoBase)
+    expect(() => parsearCsv('Nombre;Celular\nROSA;987654321\n"LUIS;987000111\nANA;987000222\n')).toThrow(/comillas sin cerrar \(desde la fila 3\)/)
   })
 
   it('UTF-8 si lo es; si no, Windows-1252 (el CSV que guarda Excel en Windows)', () => {

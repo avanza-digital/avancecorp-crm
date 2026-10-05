@@ -52,6 +52,24 @@ export class ErrorBases extends CrmApiError {
 export const CODIGO_NO_DISPONIBLE = 'NO_DISPONIBLE'
 export const CODIGO_RED = 'RED'
 export const CODIGO_OCUPADO = 'OCUPADO'
+export const CODIGO_CONTRATO = 'BASES_CONTRACT'
+
+/**
+ * ¿Pudo el servidor haber hecho la escritura aunque no lo sepamos? (Codex F5 r1). Sí cuando no hubo respuesta (red), la
+ * respuesta no se pudo leer (contrato) o el fallo no es uno de los nuestros: hay que REPETIR con el MISMO id de operación
+ * (el replay devuelve la respuesta original) antes de darla por no hecha. No, cuando el servidor rechazó algo concreto (una
+ * regla, permisos, «otra operación en curso»): ahí la transacción se deshizo entera.
+ */
+export function esFalloIncierto(causa: unknown): boolean {
+  if (!(causa instanceof CrmApiError)) return true
+  return causa.code === CODIGO_RED || causa.code === CODIGO_CONTRATO || causa.code === 'POSTGREST_ERROR' || causa.code === 'DESCONOCIDO'
+}
+
+/** Rechazos de negocio DEFINITIVOS (nada se hizo y repetir no cambia nada): se corrige el pedido. */
+export function esRechazoDefinitivo(causa: unknown): boolean {
+  return causa instanceof CrmApiError
+    && ['NOMBRE_REPETIDO', 'SIN_PERMISO', 'REGLA_SERVIDOR', CODIGO_NO_DISPONIBLE, 'FUERA_DE_AMBITO'].includes(causa.code)
+}
 
 type ErrorPostgrest = { code?: string | null; message?: string | null; details?: string | null }
 type RespuestaRpc = { data: unknown; error: ErrorPostgrest | null }
@@ -120,21 +138,28 @@ export function aErrorBases(error: ErrorPostgrest, contexto: string): ErrorBases
 }
 
 function falloDeContrato(contexto: string, mensaje: string): ErrorBases {
-  const fallo = new ErrorBases(mensaje, 'BASES_CONTRACT')
+  const fallo = new ErrorBases(mensaje, CODIGO_CONTRATO)
   registrarError(contexto, fallo)
   return fallo
 }
 
-/** Valida cada fila: una fuera de contrato no se pinta, pero se registra (la lista no se recorta en silencio). */
+/**
+ * Valida la lista ENTERA (Codex F5 r1): una respuesta que no es una lista, o con alguna fila fuera de contrato, NO se
+ * presenta como una lista correcta (con filas de menos se leerían cifras falsas): es un error de contrato y la pantalla
+ * dice «No se pudo leer…» con «Reintentar».
+ */
 function filasValidas<T>(esquema: v.GenericSchema<unknown, T>, datos: unknown, contexto: string): T[] {
+  if (!Array.isArray(datos)) throw falloDeContrato(contexto, 'El servidor devolvió una respuesta que no se pudo leer. Vuelve a intentarlo.')
   const filas: T[] = []
   let invalidas = 0
-  for (const cruda of Array.isArray(datos) ? datos : []) {
+  for (const cruda of datos) {
     const r = v.safeParse(esquema, cruda)
     if (r.success) filas.push(r.output)
     else invalidas += 1
   }
-  if (invalidas > 0) registrarError(contexto, new Error(`${invalidas} filas descartadas`), { invalidas })
+  if (invalidas > 0) {
+    throw falloDeContrato(contexto, `El servidor devolvió ${invalidas} ${invalidas === 1 ? 'fila' : 'filas'} que no se pudieron leer: no se muestra una lista incompleta. Vuelve a intentarlo.`)
+  }
   return filas
 }
 

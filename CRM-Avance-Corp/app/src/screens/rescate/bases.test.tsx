@@ -72,10 +72,18 @@ beforeEach(() => {
   fuente.repartirBase.mockResolvedValue({ repartidos: 70, por_analista: [{ analista_id: ANA, cantidad: 35 }, { analista_id: LUIS, cantidad: 35 }], omitidos: [] })
   fuente.recogerDeBase.mockResolvedValue({ recogidos: 12, omitidos: 28 })
   fuente.crearBase.mockResolvedValue({ ok: true, base_id: BASE, supervisor_id: SUP })
-  fuente.cargarBaseLote.mockImplementation(async ({ filas }: { filas: { fila: number; telefono: string }[] }) => ({
-    ok: true, base_id: BASE, lote: { cargadas: 0, ya_existian: 0, no_contactar: 0, invalidas: 0, repetidas: 0 }, base: { filas_recibidas: 0, cargadas: 0 },
-    filas: filas.map((f) => (f.telefono.endsWith('7') ? { fila: f.fila, veredicto: 'ya_existia', motivo: 'con_dueno', lead_id: null } : { fila: f.fila, veredicto: 'cargada', motivo: null, lead_id: null })),
-  }))
+  // Como el servidor: dentro del lote, el mismo celular otra vez sale «repetida» (en_archivo).
+  fuente.cargarBaseLote.mockImplementation(async ({ filas }: { filas: { fila: number; telefono: string }[] }) => {
+    const vistos = new Set<string>()
+    return {
+      ok: true, base_id: BASE, lote: { cargadas: 0, ya_existian: 0, no_contactar: 0, invalidas: 0, repetidas: 0 }, base: { filas_recibidas: 0, cargadas: 0 },
+      filas: filas.map((f) => {
+        if (vistos.has(f.telefono)) return { fila: f.fila, veredicto: 'repetida', motivo: 'en_archivo', lead_id: null }
+        vistos.add(f.telefono)
+        return f.telefono.endsWith('7') ? { fila: f.fila, veredicto: 'ya_existia', motivo: 'con_dueno', lead_id: null } : { fila: f.fila, veredicto: 'cargada', motivo: null, lead_id: null }
+      }),
+    }
+  })
 })
 afterEach(() => { vi.clearAllMocks() })
 
@@ -245,6 +253,74 @@ describe('dentro de una base: repartir', () => {
     expect(alerta).toHaveTextContent('CARLOS DOS: En gestión: tiene seguimiento activo')
   })
 
+  it('un reparto sin respuesta (pudo hacerse) se guarda POR ENCIMA de las dos formas: no se reparte otro hasta confirmarlo con su MISMO id', async () => {
+    fuente.repartirBase.mockRejectedValueOnce(new ErrorBases('Se cortó la conexión', 'RED'))
+    montar(BASE)
+    await userEvent.type(await screen.findByLabelText('ANA PÉREZ'), '10')
+    await userEvent.click(screen.getByRole('button', { name: /^Repartir 10/ }))
+    expect(await screen.findByText(/El reparto anterior se envió y no hubo respuesta/)).toBeInTheDocument()
+    // Otra forma, otro pedido: no sale hasta confirmar el anterior.
+    await userEvent.click(screen.getByRole('tab', { name: 'Por selección' }))
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'Elegir a CARLOS DOS' }))
+    await userEvent.selectOptions(screen.getByLabelText('Asignar a…'), LUIS)
+    await userEvent.click(screen.getByRole('button', { name: /^Asignar 1/ }))
+    expect(fuente.repartirBase).toHaveBeenCalledTimes(1)
+    expect(screen.getAllByRole('alert').map((x) => x.textContent).join(' ')).toMatch(/Primero confirma el reparto anterior/)
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar el reparto anterior' }))
+    await waitFor(() => expect(fuente.repartirBase).toHaveBeenCalledTimes(2))
+    const [a, b] = fuente.repartirBase.mock.calls.map(([e]) => e as { operacionId: string; reparto: unknown })
+    expect(b?.operacionId).toBe(a?.operacionId)
+    expect(b?.reparto).toEqual({ modo: 'bloque', asignaciones: [{ analista_id: ANA, cantidad: 10 }] })
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Confirmar el reparto anterior' })).toBeNull())
+  })
+
+  it('mientras se envía un reparto no se cambia de forma (se avisa)', async () => {
+    fuente.repartirBase.mockImplementation(() => new Promise(() => undefined))
+    montar(BASE)
+    await userEvent.type(await screen.findByLabelText('ANA PÉREZ'), '10')
+    await userEvent.click(screen.getByRole('button', { name: /^Repartir 10/ }))
+    await userEvent.click(screen.getByRole('tab', { name: 'Por selección' }))
+    expect(toastInfo).toHaveBeenCalledWith('Espera a que termine el reparto para cambiar de forma.')
+    expect(screen.getByRole('tab', { name: 'Por cantidades' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('selección: lo elegido que cambió de estado se puede DESMARCAR; lo oculto por el filtro se cuenta y se quita', async () => {
+    fuente.contactosDeBase.mockImplementation(async (_b: string, estado: string) => (estado === 'todos'
+      ? [
+          { lead_id: 'c1', nombre_completo: 'CARLOS UNO', telefono: null, distrito: null, agregado_en: '2026-10-01T15:00:00Z', analista_id: null, analista_nombre: null, estado: 'sin_repartir' },
+          { lead_id: 'c9', nombre_completo: 'CARLOS NUEVE', telefono: null, distrito: null, agregado_en: '2026-10-01T15:00:00Z', analista_id: ANA, analista_nombre: 'ANA PÉREZ', estado: 'sin_tocar' },
+        ]
+      : [{ lead_id: 'c1', nombre_completo: 'CARLOS UNO', telefono: null, distrito: null, agregado_en: '2026-10-01T15:00:00Z', analista_id: null, analista_nombre: null, estado: 'sin_repartir' }]))
+    montar(BASE)
+    await userEvent.click(await screen.findByRole('tab', { name: 'Por selección' }))
+    await userEvent.click(await screen.findByRole('checkbox', { name: /Ver también los repartidos/ }))
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'Elegir a CARLOS NUEVE' }))
+    // Se quita el filtro: CARLOS NUEVE (repartido) queda oculto, se cuenta y se puede quitar.
+    await userEvent.click(screen.getByRole('checkbox', { name: /Ver también los repartidos/ }))
+    expect(await screen.findByText(/1 contacto elegido · 1 no se ve con este filtro/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /Quitar el oculto/ }))
+    expect(screen.queryByText(/contacto elegido/)).toBeNull()
+  })
+
+  it('selección: un elegido que pasó a «trabajado en descanso» sigue desmarcable (no queda atrapado)', async () => {
+    let estado = 'sin_tocar'
+    fuente.contactosDeBase.mockImplementation(async () => [
+      { lead_id: 'c5', nombre_completo: 'CARLOS CINCO', telefono: null, distrito: null, agregado_en: '2026-10-01T15:00:00Z', analista_id: ANA, analista_nombre: 'ANA PÉREZ', estado },
+    ])
+    const { unmount } = montar(BASE)
+    await userEvent.click(await screen.findByRole('tab', { name: 'Por selección' }))
+    const casilla = await screen.findByRole('checkbox', { name: 'Elegir a CARLOS CINCO' })
+    await userEvent.click(casilla)
+    expect(casilla).toBeChecked()
+    unmount()
+    estado = 'en_descanso'
+    montar(BASE)
+    await userEvent.click(await screen.findByRole('tab', { name: 'Por selección' }))
+    const otra = await screen.findByRole('checkbox', { name: 'Elegir a CARLOS CINCO' })
+    // Sin marcar y no asignable: no se puede marcar.
+    expect(otra).toBeDisabled()
+  })
+
   it('por selección: se marcan contactos y «Asignar a…» manda el reparto individual', async () => {
     montar(BASE)
     await userEvent.click(await screen.findByRole('tab', { name: 'Por selección' }))
@@ -313,17 +389,22 @@ describe('cargar un archivo', () => {
     await userEvent.upload(within(hoja).getByLabelText('Elegir archivo'), new File([CSV], 'Feria 2025.csv', { type: 'text/csv' }))
     expect(await within(hoja).findByText(/Feria 2025\.csv · 4 filas con datos/)).toBeInTheDocument()
     expect(within(hoja).getByLabelText(/Nombre.*obligatorio/)).toHaveDisplayValue('A · Nombres y apellidos')
-    expect(within(hoja).getByRole('button', { name: /Se enviarán:\s?2/ })).toBeInTheDocument()
+    expect(within(hoja).getByRole('button', { name: /Se enviarán:\s?3/ })).toBeInTheDocument()
     expect(within(hoja).getByRole('button', { name: /Inválidas:\s?1/ })).toBeInTheDocument()
     expect(within(hoja).getByRole('button', { name: /Repetidas en el archivo:\s?1/ })).toBeInTheDocument()
     expect(within(hoja).getByText('El teléfono no es un celular peruano válido')).toBeInTheDocument()
     expect(within(hoja).getByLabelText('Nombre de la base')).toHaveValue('Feria 2025')
-    await userEvent.click(within(hoja).getByRole('button', { name: /Cargar 2 contactos/ }))
+    await userEvent.click(within(hoja).getByRole('button', { name: /Cargar 3 contactos/ }))
     expect(await within(hoja).findByRole('heading', { name: /Informe de «Feria 2025»/ })).toBeInTheDocument()
     expect(fuente.crearBase).toHaveBeenCalledWith({ operacionId: expect.any(String), nombre: 'Feria 2025', supervisorId: null, archivoNombre: 'Feria 2025.csv' })
     expect(fuente.cargarBaseLote).toHaveBeenCalledWith({
       operacionId: expect.any(String), baseId: BASE,
-      filas: [{ fila: 2, nombre: 'ROSA QUISPE', telefono: '+51987654321', dni: '45871236', capital: '30000' }, { fila: 3, nombre: 'LUIS RÍOS', telefono: '+51987000117' }],
+      // La repetida en el archivo también viaja: decide el servidor (aquí, «repetida» porque la primera entró).
+      filas: [
+        { fila: 2, nombre: 'ROSA QUISPE', telefono: '+51987654321', dni: '45871236', capital: '30000' },
+        { fila: 3, nombre: 'LUIS RÍOS', telefono: '+51987000117' },
+        { fila: 5, nombre: 'ROSA OTRA VEZ', telefono: '+51987654321' },
+      ],
     })
     const informe = within(hoja).getByRole('group', { name: 'Resultado por tipo' })
     expect(within(informe).getByRole('button', { name: /Cargadas:\s?1/ })).toBeInTheDocument()
@@ -339,7 +420,7 @@ describe('cargar un archivo', () => {
   it('«Cargar otro archivo» vuelve al principio con el foco en el control del archivo', async () => {
     const hoja = await abrirCarga()
     await userEvent.upload(within(hoja).getByLabelText('Elegir archivo'), new File([CSV], 'feria.csv'))
-    await userEvent.click(await within(hoja).findByRole('button', { name: /Cargar 2 contactos/ }))
+    await userEvent.click(await within(hoja).findByRole('button', { name: /Cargar 3 contactos/ }))
     await within(hoja).findByRole('heading', { name: /Informe de/ })
     await userEvent.click(within(hoja).getByRole('button', { name: 'Cargar otro archivo' }))
     await waitFor(() => expect(within(hoja).getByLabelText('Elegir archivo')).toHaveFocus())
@@ -349,19 +430,19 @@ describe('cargar un archivo', () => {
     fuente.cargarBaseLote.mockRejectedValue(new ErrorBases('Una base recibe hasta 5000 filas', 'REGLA_SERVIDOR'))
     const hoja = await abrirCarga()
     await userEvent.upload(within(hoja).getByLabelText('Elegir archivo'), new File([CSV], 'feria.csv'))
-    await userEvent.click(await within(hoja).findByRole('button', { name: /Cargar 2 contactos/ }))
+    await userEvent.click(await within(hoja).findByRole('button', { name: /Cargar 3 contactos/ }))
     await userEvent.click(await within(hoja).findByRole('button', { name: 'Terminar aquí y ver el informe' }))
     const titulo = within(hoja).getByRole('heading', { name: 'Carga detenida: «feria»' })
     await waitFor(() => expect(titulo).toHaveFocus())
-    expect(within(hoja).getByText('Carga detenida: se enviaron 0 de 2 filas.')).toHaveAttribute('role', 'status')
-    expect(within(within(hoja).getByRole('group', { name: 'Resultado por tipo' })).getByRole('button', { name: /Sin enviar:\s?2/ })).toBeInTheDocument()
+    expect(within(hoja).getByText('Carga detenida: se enviaron 0 de 3 filas.')).toHaveAttribute('role', 'status')
+    expect(within(within(hoja).getByRole('group', { name: 'Resultado por tipo' })).getByRole('button', { name: /Sin enviar:\s?3/ })).toBeInTheDocument()
   })
 
   it('mientras carga no se cambia de camino (se avisa) ni se pierde el archivo', async () => {
     fuente.cargarBaseLote.mockImplementation(() => new Promise(() => undefined))
     const hoja = await abrirCarga()
     await userEvent.upload(within(hoja).getByLabelText('Elegir archivo'), new File([CSV], 'feria.csv'))
-    await userEvent.click(await within(hoja).findByRole('button', { name: /Cargar 2 contactos/ }))
+    await userEvent.click(await within(hoja).findByRole('button', { name: /Cargar 3 contactos/ }))
     await within(hoja).findByRole('heading', { name: 'Cargando «feria»' })
     await userEvent.click(within(hoja).getByRole('tab', { name: 'Armar desde el CRM' }))
     expect(toastInfo).toHaveBeenCalledWith('Espera a que termine la carga para cambiar de camino.')
@@ -384,7 +465,7 @@ describe('cargar un archivo', () => {
     fuente.cargarBaseLote.mockRejectedValueOnce(new ErrorBases('Se cortó la conexión. Revisa tu internet y vuelve a intentarlo.', 'RED'))
     const hoja = await abrirCarga()
     await userEvent.upload(within(hoja).getByLabelText('Elegir archivo'), new File([CSV], 'feria.csv'))
-    await userEvent.click(await within(hoja).findByRole('button', { name: /Cargar 2 contactos/ }))
+    await userEvent.click(await within(hoja).findByRole('button', { name: /Cargar 3 contactos/ }))
     expect(await within(hoja).findByRole('alert')).toHaveTextContent('Se cortó la conexión')
     await userEvent.click(within(hoja).getByRole('button', { name: 'Reintentar' }))
     expect(await within(hoja).findByRole('heading', { name: /Informe de/ })).toBeInTheDocument()
@@ -399,11 +480,11 @@ describe('cargar un archivo', () => {
     fuente.crearBase.mockRejectedValueOnce(new ErrorBases('Ya hay una base viva con ese nombre en la bandeja de ese supervisor', 'NOMBRE_REPETIDO'))
     const hoja = await abrirCarga()
     await userEvent.upload(within(hoja).getByLabelText('Elegir archivo'), new File([CSV], 'feria.csv'))
-    await userEvent.click(await within(hoja).findByRole('button', { name: /Cargar 2 contactos/ }))
+    await userEvent.click(await within(hoja).findByRole('button', { name: /Cargar 3 contactos/ }))
     expect(within(hoja).getByLabelText('Supervisor dueño')).toHaveAccessibleDescription(/Elige el supervisor dueño/)
     expect(fuente.crearBase).not.toHaveBeenCalled()
     await userEvent.selectOptions(within(hoja).getByLabelText('Supervisor dueño'), SUP)
-    await userEvent.click(within(hoja).getByRole('button', { name: /Cargar 2 contactos/ }))
+    await userEvent.click(within(hoja).getByRole('button', { name: /Cargar 3 contactos/ }))
     const nombre = await within(hoja).findByLabelText('Nombre de la base')
     expect(nombre).toHaveAccessibleDescription(/Ya hay una base viva con ese nombre/)
     // El foco va al nombre a corregir (el formulario se volvió a pintar).
@@ -452,6 +533,22 @@ describe('armar desde el CRM', () => {
     // «Armar otra» devuelve el foco al nombre.
     await userEvent.click(within(hoja).getByRole('button', { name: 'Armar otra' }))
     await waitFor(() => expect(within(hoja).getByRole('textbox', { name: 'Nombre de la base' })).toHaveFocus())
+  })
+
+  it('«Armar otra» cuando ya no quedan candidatos: el foco va al aviso de que no hay descartados (nunca a <body>)', async () => {
+    let armada = false
+    EQUIPO_BASE = [descartado(1)]
+    fuente.armarBaseCrm.mockImplementation(async () => { armada = true; return { ok: true, base_id: 'n', recibidos: 1, incluidos: 1, excluidos: 0, excluidos_por_motivo: {}, excluidos_detalle: [] } })
+    const hoja = await abrirCarga()
+    await userEvent.click(within(hoja).getByRole('tab', { name: 'Armar desde el CRM' }))
+    await userEvent.type(within(hoja).getByRole('textbox', { name: 'Nombre de la base' }), 'Julio')
+    await userEvent.click(within(hoja).getByRole('button', { name: /Armar base con 1 lead/ }))
+    await within(hoja).findByRole('heading', { name: 'Base «Julio» armada' })
+    expect(armada).toBe(true)
+    EQUIPO_BASE = []
+    await userEvent.click(within(hoja).getByRole('button', { name: 'Armar otra' }))
+    const vacio = within(hoja).getByText('No hay descartados para armar una base').closest('[tabindex="-1"]')
+    await waitFor(() => expect(vacio).toHaveFocus())
   })
 
   it('ningún elegible según el servidor: no se crea nada y se dicen los motivos', async () => {

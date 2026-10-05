@@ -24,28 +24,38 @@ export function tipoDeArchivo(nombre: string): TipoArchivo | null {
 }
 
 // ── CSV ────────────────────────────────────────────────────────────────────────────────────────────────────────────
-/** El separador de la primera línea (fuera de comillas): el que más aparece entre «,», «;» y tabulador. */
+/** El separador de la primera línea NO VACÍA (fuera de comillas): el que más aparece entre «,», «;» y tabulador. Las
+ *  líneas en blanco del principio (Excel a veces las deja) no cuentan. */
 function separadorDe(texto: string): string {
   const conteo = new Map<string, number>([[',', 0], [';', 0], ['\t', 0]])
   let entreComillas = false
+  let lineaConAlgo = false
   for (const c of texto) {
-    if (c === '"') entreComillas = !entreComillas
-    else if (!entreComillas && (c === '\n' || c === '\r')) break
-    else if (!entreComillas && conteo.has(c)) conteo.set(c, (conteo.get(c) ?? 0) + 1)
+    if (c === '"') { entreComillas = !entreComillas; lineaConAlgo = true }
+    else if (!entreComillas && (c === '\n' || c === '\r')) {
+      if (lineaConAlgo) break
+    } else if (!entreComillas && conteo.has(c)) { conteo.set(c, (conteo.get(c) ?? 0) + 1); lineaConAlgo = true }
+    else if (c.trim() !== '') lineaConAlgo = true
   }
   let mejor = ','
   for (const [sep, n] of conteo) if (n > (conteo.get(mejor) ?? 0)) mejor = sep
   return mejor
 }
 
-/** Registros de un CSV (RFC 4180: comillas dobles, comillas escapadas «""», saltos de línea dentro de comillas). */
+/**
+ * Registros de un CSV (RFC 4180: comillas dobles, comillas escapadas «""», saltos de línea dentro de comillas). Un archivo
+ * que TERMINA dentro de un campo entrecomillado (comillas sin cerrar) se rechaza: el resto del archivo se habría leído como
+ * un solo campo y sus filas desaparecerían en silencio.
+ */
 export function parsearCsv(texto: string): string[][] {
-  const limpio = texto.replace(/^﻿/, '')
+  // El BOM de UTF-8 (U+FEFF) al principio no es parte del primer encabezado.
+  const limpio = texto.replace(/^\uFEFF/, '')
   const sep = separadorDe(limpio)
   const registros: string[][] = []
   let registro: string[] = []
   let campo = ''
   let entreComillas = false
+  let filaDeLaComilla = 0
   for (let i = 0; i < limpio.length; i += 1) {
     const c = limpio[i]
     if (entreComillas) {
@@ -54,12 +64,15 @@ export function parsearCsv(texto: string): string[][] {
       else campo += c
       continue
     }
-    if (c === '"') entreComillas = true
+    if (c === '"') { entreComillas = true; filaDeLaComilla = registros.length + 1 }
     else if (c === sep) { registro.push(campo); campo = '' }
     else if (c === '\n' || c === '\r') {
       if (c === '\r' && limpio[i + 1] === '\n') i += 1
       registro.push(campo); registros.push(registro); registro = []; campo = ''
     } else campo += c
+  }
+  if (entreComillas) {
+    throw new ErrorArchivoBase(`El CSV tiene unas comillas sin cerrar (desde la fila ${filaDeLaComilla}): ábrelo en Excel, revisa esa fila y vuelve a guardarlo.`)
   }
   if (campo !== '' || registro.length > 0) { registro.push(campo); registros.push(registro) }
   return registros

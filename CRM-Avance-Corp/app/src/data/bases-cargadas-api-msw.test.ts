@@ -130,9 +130,15 @@ describe('B10 · seguimiento: con el servidor de hoy (PGRST202) es «disponible 
     base_id: BASE, nombre: 'Feria 2025', origen: 'archivo', supervisor_id: SUP, supervisor_nombre: 'SUPERVISOR UNO', creado_en: '2026-10-04T15:00:00Z',
     total: 85, sin_repartir: 15, repartidos: '70', sin_tocar: 10, trabajados: 35, en_descanso: 2, citas: 3, reactivados: 1, avance: '0.5',
   }
-  it('seguimiento_bases: lee las filas (números de texto incluidos); una fila fuera de contrato no se pinta', async () => {
-    capturar('seguimiento_bases', () => HttpResponse.json([BASE_FILA, { ...BASE_FILA, base_id: 'x', total: -1 }]))
+  it('seguimiento_bases: lee las filas (números de texto incluidos)', async () => {
+    capturar('seguimiento_bases', () => HttpResponse.json([BASE_FILA]))
     expect(await seguimientoBases()).toEqual([expect.objectContaining({ base_id: BASE, repartidos: 70, avance: 0.5 })])
+  })
+  it('una fila fuera de contrato o una respuesta que no es lista NO se muestra como lista correcta (error de contrato)', async () => {
+    capturar('seguimiento_bases', () => HttpResponse.json([BASE_FILA, { ...BASE_FILA, base_id: 'x', total: -1 }]))
+    await expect(seguimientoBases()).rejects.toMatchObject({ code: 'BASES_CONTRACT', message: expect.stringContaining('1 fila') })
+    capturar('contactos_de_base', () => HttpResponse.json({ no: 'es lista' }))
+    await expect(contactosDeBase(BASE)).rejects.toMatchObject({ code: 'BASES_CONTRACT' })
   })
   it('PGRST202 → null en las tres lecturas', async () => {
     capturar('seguimiento_bases', () => PGRST202('seguimiento_bases'))

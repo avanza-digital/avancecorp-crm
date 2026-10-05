@@ -30,6 +30,7 @@ export function DetalleBase({ puertas, base, analistas, esMovil, ahora, onVolver
   const titulo = useRef<HTMLHeadingElement>(null)
   // Adónde vuelve el foco si, tras repartir, el control pulsado desaparece (p. ej. ya no quedan por repartir).
   const tituloReparto = useRef<HTMLHeadingElement>(null)
+  const tituloSeguimiento = useRef<HTMLHeadingElement>(null)
   // Al abrir una base, el foco va a su título (quien usa lector sabe dónde está; nada cae en <body>).
   useEffect(() => { titulo.current?.focus() }, [base.base_id])
   return (
@@ -60,8 +61,8 @@ export function DetalleBase({ puertas, base, analistas, esMovil, ahora, onVolver
           <RepartoBase puertas={puertas} base={base} analistas={analistas} tituloRef={tituloReparto} />
         </section>
         <section aria-labelledby={`seguimiento-${base.base_id}`} className="min-w-0 space-y-2">
-          <h3 id={`seguimiento-${base.base_id}`} className={ROTULO}>Seguimiento por analista</h3>
-          <SeguimientoAnalistas puertas={puertas} base={base} esMovil={esMovil} ahora={ahora} onAbrirCifra={onAbrirCifraAnalista} />
+          <h3 ref={tituloSeguimiento} tabIndex={-1} id={`seguimiento-${base.base_id}`} className={cn(ROTULO, 'rounded', FOCO)}>Seguimiento por analista</h3>
+          <SeguimientoAnalistas puertas={puertas} base={base} esMovil={esMovil} ahora={ahora} onAbrirCifra={onAbrirCifraAnalista} tituloRef={tituloSeguimiento} />
         </section>
       </div>
     </div>

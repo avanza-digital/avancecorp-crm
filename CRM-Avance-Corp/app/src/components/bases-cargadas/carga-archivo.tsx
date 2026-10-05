@@ -25,6 +25,7 @@ import {
   MAPEO_VACIO,
   MAX_FILAS_BASE,
   ROTULO_CAMPO,
+  VEREDICTO_SIN_CONFIRMAR,
   VEREDICTO_SIN_ENVIAR,
   detectarColumnas,
   errorNombreBase,
@@ -37,11 +38,12 @@ import {
   type CampoArchivo,
   type FilaPreparada,
   type MapeoColumnas,
+  type ResultadoFila,
   type TablaArchivo,
 } from '@/lib/bases-cargadas'
 import { ErrorArchivoBase, leerArchivoBase } from '@/lib/bases-cargadas-archivo'
-import { CODIGO_NO_DISPONIBLE, CODIGO_RED } from '@/data/bases-cargadas-api'
-import { AVANCE_INICIAL, ejecutarCarga, type AvanceCarga, type PlanCarga } from '@/data/bases-cargadas-carga'
+import { CODIGO_NO_DISPONIBLE, esFalloIncierto, esRechazoDefinitivo } from '@/data/bases-cargadas-api'
+import { AVANCE_INICIAL, confirmarLoteIncierto, ejecutarCarga, type AvanceCarga, type PlanCarga, type PuertasCarga } from '@/data/bases-cargadas-carga'
 import { useInvalidarBases, type PuertasBases } from '@/data/bases-cargadas-queries'
 import type { CrmApiError } from '@/data/crm-api'
 import type { Miembro } from '@/lib/tipos'
@@ -65,9 +67,20 @@ function letraColumna(i: number): string {
   return letra
 }
 
-/** Las filas que la carga no llegó a enviar (si se terminó a medias). */
-function sinEnviar(plan: PlanCarga, avance: AvanceCarga) {
-  return plan.lotes.slice(avance.lotesHechos).flatMap((l) => l.filas.map((f) => ({ fila: f.fila, veredicto: VEREDICTO_SIN_ENVIAR, motivo: null })))
+/**
+ * Todo lo que la carga y su informe necesitan, fijado al pulsar «Cargar» (Codex F5 r1): el pedido de cada envío con su id,
+ * el nombre del archivo y lo que la vista previa ya decidió. Cambiar después de archivo, de columnas o de nombre no lo toca.
+ */
+interface PlanPantalla extends PlanCarga {
+  archivoNombre: string
+  locales: ResultadoFila[]
+}
+
+/** Si se terminó a medias: el lote de resultado incierto (`sinConfirmar`) y los que no llegaron a enviarse. */
+function pendientesDelInforme(plan: PlanPantalla, avance: AvanceCarga, sinConfirmar: boolean): ResultadoFila[] {
+  return plan.lotes.slice(avance.lotesHechos).flatMap((l, i) => l.filas.map((f) => ({
+    fila: f.fila, veredicto: i === 0 && sinConfirmar ? VEREDICTO_SIN_CONFIRMAR : VEREDICTO_SIN_ENVIAR, motivo: null,
+  })))
 }
 
 export function CargaArchivo({ puertas, esGerencia, supervisores, onVerBase, onEnCurso }: {
@@ -92,15 +105,21 @@ export function CargaArchivo({ puertas, esGerencia, supervisores, onVerBase, onE
   const [filtroVista, setFiltroVista] = useState<FiltroVista>('todas')
   const [pagina, setPagina] = useState(0)
   const [fase, setFase] = useState<Fase>('preparando')
-  const [plan, setPlan] = useState<PlanCarga | null>(null)
+  const [plan, setPlan] = useState<PlanPantalla | null>(null)
   const [avance, setAvance] = useState<AvanceCarga>(AVANCE_INICIAL)
   const [errorCarga, setErrorCarga] = useState<CrmApiError | null>(null)
-  const [terminadaAMedias, setTerminadaAMedias] = useState(false)
+  // Terminada a medias: «sin enviar» lo que falta; `sinConfirmar` = el lote del corte no se pudo confirmar (ver Terminar).
+  const [aMedias, setAMedias] = useState<{ sinConfirmar: boolean } | null>(null)
+  const [confirmando, setConfirmando] = useState(false)
   const corriendo = useRef(false)
+  // Cada lectura lleva un número: si mientras se lee A se elige B, la respuesta de A llega tarde y no escribe nada.
+  const lectura = useRef(0)
   const entrada = useRef<HTMLInputElement>(null)
   const campoNombre = useRef<HTMLInputElement>(null)
+  const campoSupervisor = useRef<HTMLSelectElement>(null)
+  const botonCargar = useRef<HTMLButtonElement>(null)
   // Tras un cambio de fase que retira el control pulsado, adónde va el foco (se aplica después de pintar).
-  const [focoPendiente, setFocoPendiente] = useState<'progreso' | 'nombre' | 'archivo' | null>(null)
+  const [focoPendiente, setFocoPendiente] = useState<'progreso' | 'nombre' | 'archivo' | 'cargar' | null>(null)
   const tituloProgreso = useRef<HTMLHeadingElement>(null)
 
   const preparacion = useMemo(() => (tabla ? prepararFilas(tabla, mapeo) : null), [tabla, mapeo])
@@ -117,45 +136,52 @@ export function CargaArchivo({ puertas, esGerencia, supervisores, onVerBase, onE
   useEffect(() => () => onEnCurso(false), [onEnCurso])
   useEffect(() => {
     if (!focoPendiente) return
-    const destino = focoPendiente === 'progreso' ? tituloProgreso.current : focoPendiente === 'nombre' ? campoNombre.current : entrada.current
+    const destino = focoPendiente === 'progreso' ? tituloProgreso.current : focoPendiente === 'nombre' ? campoNombre.current
+      : focoPendiente === 'cargar' ? botonCargar.current : entrada.current
     destino?.focus()
     setFocoPendiente(null)
   }, [focoPendiente])
 
   async function elegirArchivo(elegido: File | null | undefined) {
-    if (!elegido || leyendo) return
+    if (!elegido) return
+    // La última elección manda: una lectura anterior que termine después no pisa nada.
+    const numero = ++lectura.current
     setLeyendo(true); setErrorArchivo(null)
+    if (entrada.current) entrada.current.value = ''
     try {
       const leida = await leerArchivoBase(elegido)
+      if (numero !== lectura.current) return
       setArchivo(elegido); setTabla(leida); setMapeo(detectarColumnas(leida.encabezados))
       setNombre((n) => n || nombreDesdeArchivo(elegido.name)); setFiltroVista('todas'); setPagina(0); setErrores({})
     } catch (causa: unknown) {
+      if (numero !== lectura.current) return
       setErrorArchivo(causa instanceof ErrorArchivoBase ? causa.message : 'No se pudo leer el archivo. Revisa que sea un .xlsx o .csv.')
     } finally {
-      setLeyendo(false)
-      if (entrada.current) entrada.current.value = ''
+      if (numero === lectura.current) setLeyendo(false)
     }
   }
 
-  async function correr(p: PlanCarga, desde: AvanceCarga) {
+  const puertasCarga: PuertasCarga = { crearBase: puertas.fuente.crearBase, cargarBaseLote: puertas.fuente.cargarBaseLote, esperar, alAvanzar: setAvance }
+
+  async function correr(p: PlanPantalla, desde: AvanceCarga) {
     if (corriendo.current) return
     corriendo.current = true
     setFase('cargando'); setErrorCarga(null)
     requestAnimationFrame(() => tituloProgreso.current?.focus())
     try {
-      const fin = await ejecutarCarga(p, desde, {
-        crearBase: puertas.fuente.crearBase, cargarBaseLote: puertas.fuente.cargarBaseLote, esperar, alAvanzar: setAvance,
-      })
+      const fin = await ejecutarCarga(p, desde, puertasCarga)
       setAvance(fin.avance)
       if (fin.avance.baseId) void invalidar()
       if (fin.tipo === 'completa') { setFase('terminada'); return }
-      // Una regla del servidor al CREAR la base (nombre repetido, sin permiso): se vuelve al formulario a corregir.
-      if (fin.avance.baseId === null && fin.error.code !== CODIGO_RED) {
+      // Al CREAR la base, solo un rechazo de negocio DEFINITIVO (nombre repetido, sin permiso, una regla) vuelve al
+      // formulario. Un fallo incierto (red, respuesta ilegible) puede haber creado la base: se pausa con el MISMO plan y
+      // «Reintentar» repite crear_base con su MISMO id (replay), nunca otra base.
+      if (fin.avance.baseId === null && esRechazoDefinitivo(fin.error)) {
         setPlan(null); setFase('preparando')
         const enEnvio = fin.error.code === CODIGO_NO_DISPONIBLE || fin.error.code === 'SIN_PERMISO'
         setErrores(enEnvio ? { envio: fin.error.message } : { nombre: fin.error.message })
-        // El botón «Cargar» vuelve a pintarse; el foco va al nombre a corregir (o al botón, que lleva el error).
-        setFocoPendiente(enEnvio ? null : 'nombre')
+        // El formulario vuelve a pintarse: el foco va al nombre a corregir, o al botón «Cargar», que lleva el error.
+        setFocoPendiente(enEnvio ? 'cargar' : 'nombre')
         return
       }
       setErrorCarga(fin.error); setFase('pausada')
@@ -164,7 +190,31 @@ export function CargaArchivo({ puertas, esGerencia, supervisores, onVerBase, onE
     }
   }
 
+  /**
+   * «Terminar aquí»: si el lote del corte se ENVIÓ y no hubo respuesta (fallo incierto), pudo quedar guardado. Antes de
+   * cerrar se repite UNA vez con su MISMO id (si ya estaba, vuelve la misma respuesta y sus filas salen con su veredicto
+   * real). Si tampoco responde, ese lote sale «Sin confirmar» —no «Sin enviar»—; los siguientes, «Sin enviar».
+   */
+  async function terminarAqui(p: PlanPantalla) {
+    if (confirmando || corriendo.current) return
+    let final = avance
+    let sinConfirmar = false
+    if (errorCarga && esFalloIncierto(errorCarga)) {
+      setConfirmando(true)
+      try {
+        const r = await confirmarLoteIncierto(p, avance, puertasCarga)
+        final = r.avance
+        sinConfirmar = !r.confirmado
+      } finally {
+        setConfirmando(false)
+      }
+    }
+    setAvance(final); setAMedias({ sinConfirmar }); setFase('terminada'); setFocoPendiente('progreso')
+  }
+
   function cargar() {
+    // Mientras se lee otro archivo no se carga: la vista previa sería la del archivo anterior.
+    if (leyendo) { setErrores({ envio: 'Espera a que termine de leerse el archivo.' }); return }
     if (!preparacion || !archivo) return
     const nuevos: Errores = {}
     const eNombre = errorNombreBase(nombre)
@@ -173,23 +223,32 @@ export function CargaArchivo({ puertas, esGerencia, supervisores, onVerBase, onE
     if (faltan.length > 0) nuevos.envio = `Falta elegir la columna de ${faltan.map((c) => ROTULO_CAMPO[c]).join(' y ')}.`
     else if (preparacion.validas.length === 0) nuevos.envio = 'Ninguna fila es válida: revisa las columnas elegidas.'
     setErrores(nuevos)
-    if (Object.keys(nuevos).length > 0) return
-    const nuevoPlan: PlanCarga = {
+    if (Object.keys(nuevos).length > 0) {
+      // El foco va al primer campo a corregir; si el problema es del archivo, se queda en «Cargar», que lo describe.
+      if (nuevos.nombre) campoNombre.current?.focus()
+      else if (nuevos.supervisor) campoSupervisor.current?.focus()
+      return
+    }
+    const nuevoPlan: PlanPantalla = {
       crear: { operacionId: crypto.randomUUID(), nombre: nombre.trim(), supervisorId: esGerencia ? supervisorId : null, archivoNombre: archivo.name.slice(0, 255) },
       lotes: partirEnLotes(preparacion.validas.map(filaEnvio)).map((filas) => ({ operacionId: crypto.randomUUID(), filas })),
+      archivoNombre: archivo.name,
+      locales: resultadosLocales(preparacion),
     }
-    setPlan(nuevoPlan); setAvance(AVANCE_INICIAL); setTerminadaAMedias(false)
+    setPlan(nuevoPlan); setAvance(AVANCE_INICIAL); setAMedias(null)
     void correr(nuevoPlan, AVANCE_INICIAL)
   }
 
   function reiniciar() {
-    setArchivo(null); setTabla(null); setMapeo(MAPEO_VACIO); setNombre(''); setSupervisorId(''); setErrores({})
-    setPlan(null); setAvance(AVANCE_INICIAL); setErrorCarga(null); setFase('preparando'); setTerminadaAMedias(false)
+    lectura.current += 1
+    setArchivo(null); setTabla(null); setMapeo(MAPEO_VACIO); setNombre(''); setSupervisorId(''); setErrores({}); setLeyendo(false)
+    setPlan(null); setAvance(AVANCE_INICIAL); setErrorCarga(null); setFase('preparando'); setAMedias(null)
     setFocoPendiente('archivo')
   }
 
-  // ── Cargando, pausada o terminada ───────────────────────────────────────────────────────────────────────────
-  if (fase !== 'preparando' && plan && preparacion && archivo) {
+  // ── Cargando, pausada o terminada: TODO sale del plan fijado al pulsar «Cargar» ──────────────────────────────
+  if (fase !== 'preparando' && plan) {
+    const terminadaAMedias = aMedias !== null
     const totalFilas = plan.lotes.reduce((s, l) => s + l.filas.length, 0)
     const pct = totalFilas === 0 ? 100 : Math.round((avance.filasHechas / totalFilas) * 100)
     // Lo que se ANUNCIA (cada cuarto del camino, el reintento y el final); el texto visible dice el detalle exacto.
@@ -199,7 +258,7 @@ export function CargaArchivo({ puertas, esGerencia, supervisores, onVerBase, onE
       : fase === 'pausada' ? 'La carga se detuvo.'
         : avance.reintento > 0 ? `La base estaba ocupada: reintento ${avance.reintento}.`
           : `Cargando: ${hito * 25} %.`
-    const resultados = [...resultadosLocales(preparacion), ...avance.resultados, ...(terminadaAMedias ? sinEnviar(plan, avance) : [])]
+    const resultados = [...plan.locales, ...avance.resultados, ...(aMedias ? pendientesDelInforme(plan, avance, aMedias.sinConfirmar) : [])]
     return (
       <div className="space-y-4">
         <div className="space-y-2 rounded-lg border border-border bg-card p-4">
@@ -221,8 +280,8 @@ export function CargaArchivo({ puertas, esGerencia, supervisores, onVerBase, onE
                 <RotateCcw aria-hidden /> Reintentar
               </Button>
               {avance.baseId && (
-                <Button type="button" variant="outline" size="sm" className="pointer-coarse:h-11" onClick={() => { setTerminadaAMedias(true); setFase('terminada'); setFocoPendiente('progreso') }}>
-                  Terminar aquí y ver el informe
+                <Button type="button" variant="outline" size="sm" className="pointer-coarse:h-11" aria-disabled={confirmando || undefined} onClick={() => void terminarAqui(plan)}>
+                  {confirmando ? 'Confirmando el último lote…' : 'Terminar aquí y ver el informe'}
                 </Button>
               )}
             </div>
@@ -230,7 +289,7 @@ export function CargaArchivo({ puertas, esGerencia, supervisores, onVerBase, onE
           {fase === 'cargando' && <p className="text-[13px] text-[var(--muted-foreground-strong)]">No cierres esta ventana hasta que termine. Si la conexión se corta, podrás reintentar sin cargar nada dos veces.</p>}
         </div>
         {(fase === 'terminada' || (fase === 'pausada' && avance.resultados.length > 0)) && (
-          <InformeCarga resultados={resultados} nombreBase={plan.crear.nombre} archivoNombre={archivo.name} />
+          <InformeCarga resultados={resultados} nombreBase={plan.crear.nombre} archivoNombre={plan.archivoNombre} />
         )}
         {fase === 'terminada' && (
           <div className="flex flex-wrap justify-end gap-2">
@@ -246,8 +305,8 @@ export function CargaArchivo({ puertas, esGerencia, supervisores, onVerBase, onE
   const vistas: Record<FiltroVista, FilaPreparada[]> = {
     todas: preparacion?.filas ?? [],
     validas: preparacion?.validas ?? [],
-    invalidas: preparacion?.filas.filter((f) => f.error !== null && f.error !== 'en_archivo') ?? [],
-    repetidas: preparacion?.filas.filter((f) => f.error === 'en_archivo') ?? [],
+    invalidas: preparacion?.filas.filter((f) => f.error !== null) ?? [],
+    repetidas: preparacion?.filas.filter((f) => f.repiteFila !== null) ?? [],
   }
   const paginado = paginar(vistas[filtroVista], pagina)
   const alternarVista = (v: FiltroVista) => { setFiltroVista((f) => (f === v ? 'todas' : v)); setPagina(0) }
@@ -361,7 +420,8 @@ export function CargaArchivo({ puertas, esGerencia, supervisores, onVerBase, onE
                       <td className={cn(CELDA_COMPACTA, 'max-w-40 truncate')}>{f.distrito || '—'}</td>
                       <td className={cn(CELDA_COMPACTA, 'tabular-nums')}>{f.capital && !f.error?.startsWith('capital') ? `${f.moneda === 'USD' ? 'US$' : 'S/'} ${Number(f.capital).toLocaleString('es-PE')}` : f.capital || 'Sin capital'}</td>
                       <td className={cn(CELDA_COMPACTA, f.error ? 'font-semibold text-[var(--destructive-text)]' : 'text-primary')}>
-                        {f.error ? etiquetaMotivoFila(f.error === 'en_archivo' ? 'repetida' : 'invalida', f.error) : 'Se envía'}
+                        {f.error ? etiquetaMotivoFila('invalida', f.error)
+                          : f.repiteFila !== null ? `Se envía · repite la fila ${f.repiteFila} (decide el servidor)` : 'Se envía'}
                       </td>
                     </tr>
                   ))}
@@ -370,7 +430,7 @@ export function CargaArchivo({ puertas, esGerencia, supervisores, onVerBase, onE
             </div>
             <Paginacion paginaActual={paginado.paginaActual} paginas={paginado.paginas} total={vistas[filtroVista].length} onCambio={setPagina} ariaLabel="Páginas de la vista previa" />
             <p className="text-[13px] text-[var(--muted-foreground-strong)]">
-              Esta revisión es una ayuda: al cargar, el servidor vuelve a validar y salta a quien ya existe en el CRM (lead, cliente o «No contactar»). Nunca crea un duplicado.
+              Esta revisión es una ayuda: al cargar, el servidor vuelve a validar y salta a quien ya existe en el CRM (lead, cliente o «No contactar»). Nunca crea un duplicado. Las repetidas en el archivo también se envían: si la primera entra, el servidor marca las demás «repetidas»; si la primera ya existía, juzga cada una por su cuenta.
             </p>
           </section>
 
@@ -397,6 +457,7 @@ export function CargaArchivo({ puertas, esGerencia, supervisores, onVerBase, onE
                 <div className="flex w-full flex-col gap-1 sm:w-72">
                   <label htmlFor={`${id}-supervisor`} className="text-[13px] font-semibold text-foreground">Supervisor dueño</label>
                   <Select
+                    ref={campoSupervisor}
                     id={`${id}-supervisor`}
                     value={supervisorId}
                     onChange={(e) => { setSupervisorId(e.target.value); setErrores((x) => ({ ...x, supervisor: undefined })) }}
@@ -411,7 +472,7 @@ export function CargaArchivo({ puertas, esGerencia, supervisores, onVerBase, onE
                 </div>
               )}
               <div className="flex flex-col gap-1 sm:mt-6">
-                <Button type="button" className="h-10 pointer-coarse:h-11" aria-describedby={errores.envio ? `${id}-envio-error` : undefined} onClick={cargar}>
+                <Button ref={botonCargar} type="button" className="h-10 pointer-coarse:h-11" aria-disabled={leyendo || undefined} aria-describedby={errores.envio ? `${id}-envio-error` : undefined} onClick={cargar}>
                   <FileSpreadsheet aria-hidden /> Cargar {preparacion.validas.length.toLocaleString('es-PE')} {preparacion.validas.length === 1 ? 'contacto' : 'contactos'}
                 </Button>
               </div>

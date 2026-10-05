@@ -40,7 +40,7 @@ export function HojaBases({ filas, esMovil, onAbrirBase, onAbrirCifra, regionRef
       type="button"
       onClick={() => onAbrirBase(f.base_id)}
       data-foco-clave={`base-carga-${f.base_id}`}
-      className={cn('max-w-full cursor-pointer truncate rounded text-left font-semibold underline decoration-[var(--border-strong)] decoration-dotted underline-offset-4 hover:decoration-solid', FOCO, clase)}
+      className={cn('max-w-full cursor-pointer rounded text-left font-semibold underline decoration-[var(--border-strong)] decoration-dotted underline-offset-4 hover:decoration-solid', FOCO, clase)}
     >
       {f.nombre}
     </button>
@@ -51,7 +51,8 @@ export function HojaBases({ filas, esMovil, onAbrirBase, onAbrirCifra, regionRef
       <div ref={regionRef} tabIndex={-1} role="list" aria-label="Bases cargadas" className={cn('space-y-3 rounded-lg', FOCO)}>
         {filas.map((f) => (
           <div role="listitem" key={f.base_id} className="rounded-xl border border-border bg-card p-4">
-            <p className="text-base">{nombre(f, 'pointer-coarse:inline-flex pointer-coarse:min-h-11 pointer-coarse:items-center')}</p>
+            {/* En la tarjeta el nombre se parte en líneas (no se corta) y en pantallas táctiles mide 44 px. */}
+            <p className="text-base">{nombre(f, 'break-words pointer-coarse:inline-flex pointer-coarse:min-h-11 pointer-coarse:items-center')}</p>
             <p className="text-sm text-[var(--muted-foreground-strong)]">
               {etiquetaOrigenBase(f.origen)} · {f.supervisor_nombre ?? 'Sin supervisor'} · {fmtFecha(f.creado_en)}
             </p>
@@ -92,7 +93,7 @@ export function HojaBases({ filas, esMovil, onAbrirBase, onAbrirCifra, regionRef
             <tr key={f.base_id} className="group hover:bg-accent/5">
               <td className={cn(CELDA, 'sticky left-0 z-[1] w-12 min-w-12 bg-muted text-center text-[13px] tabular-nums text-[var(--muted-foreground-strong)]')}>{i + 1}</td>
               <th scope="row" className={cn(CELDA, 'sticky left-12 z-[1] w-48 min-w-48 max-w-48 bg-card text-[15px] group-hover:bg-[color-mix(in_srgb,var(--accent)_5%,var(--card))]')} title={f.nombre}>
-                {nombre(f)}
+                {nombre(f, 'truncate')}
               </th>
               <td className={CELDA}>{etiquetaOrigenBase(f.origen)}</td>
               <td className={cn(CELDA, 'max-w-40 truncate')} title={f.supervisor_nombre ?? undefined}>{f.supervisor_nombre ?? '—'}</td>

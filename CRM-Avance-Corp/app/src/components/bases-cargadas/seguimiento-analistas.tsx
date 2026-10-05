@@ -3,7 +3,7 @@
 // intento. Todo número se abre en su lista. «Recoger» (B9) devuelve a «sin repartir» lo que ese analista no tocó (sin
 // intento desde que se lo asignaron y sin seguimiento activo), tras confirmar. Al cerrar el diálogo el foco vuelve al botón
 // que lo abrió; si se recogió (el botón puede volverse «Nada por recoger»), a la hoja del seguimiento: nunca a <body>.
-import { useId, useRef, useState, type MouseEvent, type RefObject } from 'react'
+import { useEffect, useId, useRef, useState, type MouseEvent, type RefObject } from 'react'
 import { toast } from 'sonner'
 import { Undo2, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -19,19 +19,33 @@ import { AvisoReintentar, CELDA_COMPACTA, DisponiblePronto, ENCABEZADO_COMPACTO,
 
 const nombreDe = (f: FilaSeguimientoBase) => f.analista_nombre ?? 'Analista sin nombre'
 
-export function SeguimientoAnalistas({ puertas, base, esMovil, ahora, onAbrirCifra }: {
+export function SeguimientoAnalistas({ puertas, base, esMovil, ahora, onAbrirCifra, tituloRef }: {
   puertas: PuertasBases
   base: FilaSeguimientoBases
   esMovil: boolean
   ahora: number
   onAbrirCifra: (fila: FilaSeguimientoBase, cifra: CifraAnalista) => void
+  /** El título de la sección (enfocable): el último respaldo del foco tras recoger. */
+  tituloRef?: RefObject<HTMLElement | null>
 }) {
   const seguimiento = useSeguimientoBase(puertas, base.base_id)
   const [recoger, setRecoger] = useState<FilaSeguimientoBase | null>(null)
   const hoja = useRef<HTMLDivElement>(null)
-  // Adónde vuelve el foco al cerrar «Recoger»: el botón que lo abrió (cancelar) o la hoja (tras recoger).
+  const vacio = useRef<HTMLDivElement>(null)
+  // Adónde vuelve el foco al cerrar «Recoger» sin recoger: el botón que lo abrió.
   const focoTrasRecoger = useRef<HTMLElement | null>(null)
   const abrirRecoger = (f: FilaSeguimientoBase, e: MouseEvent<HTMLButtonElement>) => { focoTrasRecoger.current = e.currentTarget; setRecoger(f) }
+  // Tras recoger, el botón puede volverse «Nada por recoger» y la hoja, vaciarse: el foco va a lo que haya cuando el diálogo
+  // termine de cerrarse (la hoja, el aviso de vacío o el título de la sección), nunca a <body>.
+  const [recogido, setRecogido] = useState(0)
+  useEffect(() => {
+    if (recogido === 0) return
+    let segundo = 0
+    const primero = requestAnimationFrame(() => {
+      segundo = requestAnimationFrame(() => (hoja.current ?? vacio.current ?? tituloRef?.current)?.focus())
+    })
+    return () => { cancelAnimationFrame(primero); cancelAnimationFrame(segundo) }
+  }, [recogido, tituloRef])
 
   if (seguimiento.isPending) return <div className="rounded-lg border border-border bg-card pt-4"><PanelCargando filas={3} /></div>
   if (seguimiento.isError && seguimiento.data === undefined) {
@@ -54,7 +68,7 @@ export function SeguimientoAnalistas({ puertas, base, esMovil, ahora, onAbrirCif
     <div className="space-y-2">
       {seguimiento.isError && <AvisoReintentar conDatos mensaje="No se pudo actualizar el seguimiento. Se muestran los últimos datos." reintentando={seguimiento.isFetching} onReintentar={() => void seguimiento.refetch()} />}
       {filas.length === 0 ? (
-        <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
+        <div ref={vacio} tabIndex={-1} className={cn('flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3', FOCO)}>
           <Users className="size-4 shrink-0 text-[var(--muted-foreground-strong)]" aria-hidden />
           <p className="text-sm text-[var(--muted-foreground-strong)]">Aún no repartiste esta base. Cuando lo hagas, aquí verás cómo la trabaja cada analista.</p>
         </div>
@@ -109,7 +123,8 @@ export function SeguimientoAnalistas({ puertas, base, esMovil, ahora, onAbrirCif
         base={base}
         fila={recoger}
         focoAlCerrar={focoTrasRecoger}
-        onRecogido={() => { focoTrasRecoger.current = hoja.current }}
+        // El diálogo no lleva el foco a ningún lado (el efecto de arriba lo hace cuando la hoja ya se repintó).
+        onRecogido={() => { focoTrasRecoger.current = null; setRecogido((n) => n + 1) }}
         onCerrar={() => setRecoger(null)}
       />
     </div>

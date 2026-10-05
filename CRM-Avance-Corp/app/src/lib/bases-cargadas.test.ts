@@ -12,6 +12,8 @@ import {
   cantidadDesdeTexto,
   contarVeredictos,
   detectarColumnas,
+  leerCapital,
+  leerCapitalTexto,
   enGestionHasta,
   errorNombreBase,
   esCelularPeruano,
@@ -66,18 +68,51 @@ describe('teléfono, capital y moneda como el servidor', () => {
     expect(esCelularPeruano(null)).toBe(false)
   })
 
-  it('capital: miles y decimales como los escribe la gente; > 0 y hasta 2 decimales (el formato que acepta el servidor)', () => {
-    expect(normalizarCapital('S/ 30,000')).toBe('30000')
-    expect(normalizarCapital('30 000.50')).toBe('30000.50')
-    expect(normalizarCapital('1.500,75')).toBe('1500.75')
-    expect(normalizarCapital('1,500,000')).toBe('1500000')
-    expect(normalizarCapital('1.500')).toBe('1500')
-    expect(normalizarCapital('30000.5')).toBe('30000.5')
-    expect(normalizarCapital('US$ 0012')).toBe('12')
-    expect(normalizarCapital('0')).toBeNull()
-    expect(normalizarCapital('-500')).toBeNull()
-    expect(normalizarCapital('mucho')).toBeNull()
-    expect(normalizarCapital('12345678901')).toBeNull() // más de 10 dígitos enteros
+  it('capital escrito: lo que no tiene duda se lee; lo ambiguo, negativo o con más de 2 decimales es inválido (nunca se multiplica)', () => {
+    const t = (x: string) => leerCapitalTexto(x)
+    expect(t('30000')).toEqual({ valor: '30000' })
+    expect(t('S/ 30 000.50')).toEqual({ valor: '30000.50' })
+    expect(t('1.500,75')).toEqual({ valor: '1500.75' })
+    expect(t('1,500.75')).toEqual({ valor: '1500.75' })
+    expect(t('1,500,000')).toEqual({ valor: '1500000' })
+    expect(t('1.500.000')).toEqual({ valor: '1500000' })
+    expect(t('30000.5')).toEqual({ valor: '30000.5' })
+    expect(t('30000,50')).toEqual({ valor: '30000.50' })
+    expect(t('US$ 0012')).toEqual({ valor: '12' })
+    expect(t('soles 2500')).toEqual({ valor: '2500' })
+    // Ambiguos: un solo separador seguido de 3 dígitos (¿mil quinientos o uno y medio?).
+    expect(t('1.500')).toEqual({ error: 'capital_ambiguo' })
+    expect(t('S/ 30,000')).toEqual({ error: 'capital_ambiguo' })
+    // Más de 2 decimales: nada se redondea ni se convierte en miles (Codex: 1234.567 era 1234567).
+    expect(t('1234.567')).toEqual({ error: 'capital_decimales' })
+    expect(t('0.001')).toEqual({ error: 'capital_decimales' })
+    expect(t('10.5000')).toEqual({ error: 'capital_decimales' })
+    // El signo se mira antes de quitar símbolos (Codex: «-S/ 50» era 50).
+    expect(t('-S/ 50')).toEqual({ error: 'capital_negativo' })
+    expect(t('S/ -50')).toEqual({ error: 'capital_negativo' })
+    expect(t('(50)')).toEqual({ error: 'capital_negativo' })
+    // Mal puestos o con texto: inválido.
+    expect(t('1.50,75')).toEqual({ error: 'capital_invalido' })
+    expect(t('1,5,0')).toEqual({ error: 'capital_invalido' })
+    expect(t('30 mil')).toEqual({ error: 'capital_invalido' })
+    expect(t('0')).toEqual({ error: 'capital_invalido' })
+    expect(t('12345678901')).toEqual({ error: 'capital_invalido' })
+    expect(normalizarCapital('25000')).toBe('25000')
+    expect(normalizarCapital('25,000')).toBeNull()
+  })
+
+  it('capital de una celda numérica de Excel: conserva su precisión (más de 2 decimales → inválido; negativo → inválido)', () => {
+    expect(leerCapital(30000)).toEqual({ valor: '30000' })
+    expect(leerCapital(30000.5)).toEqual({ valor: '30000.5' })
+    expect(leerCapital(30000.1)).toEqual({ valor: '30000.1' })
+    expect(leerCapital(0.001)).toEqual({ error: 'capital_decimales' })
+    expect(leerCapital(1234.567)).toEqual({ error: 'capital_decimales' })
+    expect(leerCapital(-50)).toEqual({ error: 'capital_negativo' })
+    expect(leerCapital(0)).toEqual({ error: 'capital_invalido' })
+    expect(leerCapital(1e-7)).toEqual({ error: 'capital_decimales' })
+    expect(leerCapital(new Date('2026-01-15T00:00:00Z'))).toEqual({ error: 'capital_invalido' })
+    expect(leerCapital(null)).toBeNull()
+    expect(leerCapital('  ')).toBeNull()
   })
 
   it('moneda: soles o dólares en sus formas; vacío = PEN en el servidor; otra cosa, inválida', () => {
@@ -97,7 +132,8 @@ describe('teléfono, capital y moneda como el servidor', () => {
     expect(textoCelda(null, 'nombre')).toBe('')
     expect(textoCelda('  ROSA  ', 'nombre')).toBe('ROSA')
     expect(textoCelda(true, 'comentario')).toBe('VERDADERO')
-    expect(textoCelda(new Date('2026-01-15T00:00:00Z'), 'comentario')).toBe('2026-01-15')
+    // Una fecha no se convierte en texto (sería inventar el dato): la fila se rechaza con `celda_fecha`.
+    expect(textoCelda(new Date('2026-01-15T00:00:00Z'), 'comentario')).toBe('')
   })
 })
 
@@ -106,7 +142,7 @@ describe('preparar el archivo (vista previa)', () => {
 
   it('el primer motivo gana, en el orden del servidor; las filas vacías no cuentan', () => {
     const p = prepararFilas(tabla(['Nombre', 'Teléfono', 'DNI', 'Distrito', 'Comentario', 'Capital', 'Moneda'], [
-      ['ROSA QUISPE', '987654321', '45871236', 'Surco', 'Feria', '30,000', 'S/'],
+      ['ROSA QUISPE', '987654321', '45871236', 'Surco', 'Feria', '30000', 'S/'],
       ['', '987654322', '', '', '', '', ''],
       ['X'.repeat(201), '987654323', '', '', '', '', ''],
       ['LUIS', '12345', '1234', '', '', '', ''],
@@ -116,17 +152,23 @@ describe('preparar el archivo (vista previa)', () => {
       ['DIEGO', '987654327', '', 'D'.repeat(121), '', '', ''],
       ['ELSA', '987654328', '', '', 'C'.repeat(1001), '', ''],
       [null, null, null, null, null, null, null],
+      ['FECHA', '987654329', '', new Date('2026-01-15T00:00:00Z'), '', '', ''],
+      ['AMBIGUO', '987654330', '', '', '', '1.500', ''],
+      ['DECIMALES', '987654331', '', '', '', 1234.567, ''],
     ]), mapeo)
     expect(p.filas.map((f) => [f.fila, f.error])).toEqual([
       [2, null], [3, 'nombre_vacio'], [4, 'nombre_largo'], [5, 'telefono_invalido'], [6, 'dni_invalido'],
-      [7, 'capital_invalido'], [8, 'moneda_invalida'], [9, 'distrito_largo'], [10, 'comentario_largo'],
+      [7, 'capital_negativo'], [8, 'moneda_invalida'], [9, 'distrito_largo'], [10, 'comentario_largo'],
+      [12, 'celda_fecha'], [13, 'capital_ambiguo'], [14, 'capital_decimales'],
     ])
-    expect(p.invalidas).toBe(8)
+    expect(p.invalidas).toBe(11)
+    expect(etiquetaMotivoFila('invalida', 'capital_ambiguo')).toMatch(/ambiguo/)
+    expect(etiquetaMotivoFila('invalida', 'celda_fecha')).toMatch(/fecha/)
     expect(p.validas).toHaveLength(1)
     expect(filaEnvio(p.validas[0]!)).toEqual({ fila: 2, nombre: 'ROSA QUISPE', telefono: '+51987654321', dni: '45871236', distrito: 'Surco', comentario: 'Feria', capital: '30000', moneda: 'PEN' })
   })
 
-  it('repetidas en el archivo (mismo celular o mismo DNI): la primera aparición gana; las inválidas no ocupan el lugar', () => {
+  it('repetidas en el archivo (mismo celular o mismo DNI): es un AVISO, se envían igual y decide el servidor; las inválidas no cuentan como primera', () => {
     const p = prepararFilas(tabla(['Nombre', 'Teléfono', 'DNI'], [
       ['ROSA', '987654321', '45871236'],
       ['ROSA BIS', '+51 987 654 321', ''],
@@ -134,13 +176,10 @@ describe('preparar el archivo (vista previa)', () => {
       ['MALA', '987', '11111111'],
       ['BUENA', '987000222', '11111111'],
     ]), detectarColumnas(['Nombre', 'Teléfono', 'DNI']))
-    expect(p.filas.map((f) => f.error)).toEqual([null, 'en_archivo', 'en_archivo', 'telefono_invalido', null])
-    expect([p.invalidas, p.repetidas, p.validas.length]).toEqual([1, 2, 2])
-    expect(resultadosLocales(p)).toEqual([
-      { fila: 3, veredicto: 'repetida', motivo: 'en_archivo' },
-      { fila: 4, veredicto: 'repetida', motivo: 'en_archivo' },
-      { fila: 5, veredicto: 'invalida', motivo: 'telefono_invalido' },
-    ])
+    expect(p.filas.map((f) => [f.error, f.repiteFila])).toEqual([[null, null], [null, 2], [null, 2], ['telefono_invalido', null], [null, null]])
+    expect([p.invalidas, p.repetidas, p.validas.length]).toEqual([1, 2, 4])
+    // Lo que el servidor habría aceptado no se oculta: solo la inválida queda fuera del envío.
+    expect(resultadosLocales(p)).toEqual([{ fila: 5, veredicto: 'invalida', motivo: 'telefono_invalido' }])
   })
 
   it('nombre y apellidos en dos columnas se juntan; sin capital no viaja ni el capital ni la moneda', () => {
@@ -192,13 +231,13 @@ describe('el informe', () => {
 
   it('el CSV: fila, resultado y motivo, ordenado por fila, con BOM y sin ids ni nombres de leads ajenos', () => {
     const csv = informeCsv([...resultados, { fila: 9, veredicto: 'ya_existia', motivo: 'cliente', lead_id: 'secreto-1' } as never])
-    const lineas = csv.replace('﻿', '').split('\r\n')
+    const lineas = csv.replace('\uFEFF', '').split('\r\n')
     expect(lineas[0]).toBe('"Fila del archivo","Resultado","Motivo"')
     expect(lineas[1]).toBe('"2","Cargada","Entró a la base sin repartir"')
     expect(lineas[4]).toBe('"5","Ya existía","Ya es lead de un analista"')
     expect(lineas.map((l) => l.split(',')[0])).toEqual(['"Fila del archivo"', '"2"', '"3"', '"4"', '"5"', '"6"', '"7"', '"8"', '"9"'])
     expect(csv).not.toContain('secreto-1')
-    expect(csv.startsWith('﻿')).toBe(true)
+    expect(csv.startsWith('\uFEFF')).toBe(true)
   })
 })
 

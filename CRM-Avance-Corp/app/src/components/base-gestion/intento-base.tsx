@@ -220,6 +220,8 @@ export function RegistrarIntentoBase({ fila, demo, onDejaLaBase, formRef }: {
             </div>
           )}
 
+          {/* Siempre montado: al elegir «agendó cita» en un contacto sin capital, el lector oye que aparece el campo. */}
+          <p role="status" className="sr-only">{pideCapital ? 'Este contacto no tiene capital: indícalo abajo para agendar la cita.' : ''}</p>
           {pideCapital && (
             <div role="group" aria-labelledby={`${id}-capital-titulo`} className="space-y-2 rounded-xl border border-[var(--accent)]/40 p-2.5">
               <p id={`${id}-capital-titulo`} className="text-[13px] font-bold text-[var(--muted-foreground-strong)]">Capital para volver al pipeline</p>

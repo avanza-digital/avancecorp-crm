@@ -3,7 +3,8 @@
 // mismo lote con el MISMO id (el servidor devuelve la misma respuesta: nunca carga dos veces).
 import { describe, expect, it, vi } from 'vitest'
 import { ErrorBases } from './bases-cargadas-api'
-import { AVANCE_INICIAL, MAX_REINTENTOS_OCUPADO, ejecutarCarga, esperaReintento, type PlanCarga, type PuertasCarga } from './bases-cargadas-carga'
+import { AVANCE_INICIAL, MAX_REINTENTOS_OCUPADO, confirmarLoteIncierto, ejecutarCarga, esperaReintento, type PlanCarga, type PuertasCarga } from './bases-cargadas-carga'
+import { esFalloIncierto, esRechazoDefinitivo } from './bases-cargadas-api'
 
 vi.mock('@/lib/supabase', () => ({ sb: null }))
 
@@ -88,5 +89,27 @@ describe('ejecutarCarga', () => {
     expect(p.cargarBaseLote).not.toHaveBeenCalled()
     const raro = puertas({ crearBase: vi.fn(async () => { throw new TypeError('x') }) as never })
     expect(await ejecutarCarga(PLAN, AVANCE_INICIAL, raro)).toMatchObject({ tipo: 'pausada', error: { code: 'DESCONOCIDO' } })
+  })
+
+  it('confirmarLoteIncierto: repite el lote del corte con su MISMO id; si responde, sus filas cuentan; si no, queda sin confirmar', async () => {
+    const desde = { baseId: 'base-1', lotesHechos: 1, filasHechas: 2, resultados: [], reintento: 0 }
+    const p = puertas()
+    const r = await confirmarLoteIncierto(PLAN, desde, p)
+    expect(p.cargarBaseLote).toHaveBeenCalledWith({ operacionId: 'op-2', baseId: 'base-1', filas: PLAN.lotes[1]?.filas })
+    expect(r).toMatchObject({ confirmado: true, avance: { lotesHechos: 2, filasHechas: 3 } })
+    const sinRespuesta = puertas({ cargarBaseLote: vi.fn(async () => { throw new ErrorBases('red', 'RED') }) as never })
+    expect(await confirmarLoteIncierto(PLAN, desde, sinRespuesta)).toMatchObject({ confirmado: false, avance: { lotesHechos: 1 } })
+    const rechazo = puertas({ cargarBaseLote: vi.fn(async () => { throw new ErrorBases('regla', 'REGLA_SERVIDOR') }) as never })
+    expect(await confirmarLoteIncierto(PLAN, desde, rechazo)).toMatchObject({ confirmado: true, avance: { lotesHechos: 1 } })
+  })
+
+  it('qué es incierto (repetir con el mismo id) y qué es un rechazo definitivo (corregir el pedido)', () => {
+    expect(esFalloIncierto(new ErrorBases('x', 'RED'))).toBe(true)
+    expect(esFalloIncierto(new ErrorBases('x', 'BASES_CONTRACT'))).toBe(true)
+    expect(esFalloIncierto(new TypeError('x'))).toBe(true)
+    expect(esFalloIncierto(new ErrorBases('x', 'OCUPADO'))).toBe(false)
+    expect(esFalloIncierto(new ErrorBases('x', 'REGLA_SERVIDOR'))).toBe(false)
+    expect(esRechazoDefinitivo(new ErrorBases('x', 'NOMBRE_REPETIDO'))).toBe(true)
+    expect(esRechazoDefinitivo(new ErrorBases('x', 'RED'))).toBe(false)
   })
 })
