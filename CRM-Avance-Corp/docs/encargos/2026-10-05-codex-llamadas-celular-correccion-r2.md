@@ -9,10 +9,10 @@ archivos llevan número de línea). Formato: VERDICT (PASS/BLOCK), SUMMARY, RESP
 por qué, con evidencia archivo:línea del texto transcrito), FINDINGS P0–P3 nuevos, RIESGOS y test gaps, NEXT ACTIONS,
 CONFIDENCE. Pídete REFUTAR: busca lo que el diff no cierra o lo que rompe, no lo que está bien.
 
-# Encargo: «Llamadas desde el celular» — DIFF de la corrección de F2 + F3 (quinta migración, F4-a y Edge) — LEVEL 3
+# Encargo: «Llamadas desde el celular» — DIFF de la corrección de F2 + F3 (quinta migración, F4-a, séptima y Edge) — LEVEL 3
 (datos, permisos, autenticación por credencial de dispositivo, migraciones, concurrencia).
 **Ronda 2 de máx. 2 (la última de la tarea).** La ronda 1 revisó el diseño (BLOCK, 6 P2 + 1 P3); esta revisa el
-código. Generado el 2026-10-05 desde `aa67d856` (rama `crm/llamadas-quinta-migracion-20261005`, PR #190) con
+código. Generado el 2026-10-05 desde `e4c86e7c` (rama `crm/llamadas-quinta-migracion-20261005`, PR #190) con
 `supabase/scripts/llamadas-celular/generar-encargo-r2.mjs`. Lo corre Miguel con `scripts/codex-review-mcp`.
 
 ## Qué es
@@ -20,10 +20,14 @@ CRM interno (Supabase/Postgres 17). Esquema `crm` expuesto por PostgREST (puerta
 núcleo en `private`, tablas con RLS sin policies ni grants. Un celular corporativo (Android + MacroDroid) avisa cada
 llamada del analista: POST a la Edge `crm-llamadas-ingesta` (verify_jwt=false) con la clave del celular en
 `x-celular-credencial`; la Edge llama con service_role a `crm.ingerir_llamada_celular_servicio`. El analista registra
-el resultado con su sesión (encuesta v4 en producción; con F4-a, la v5). Seis migraciones SIN aplicar: las cuatro de
-F2 + F3 (en `main`), la quinta (corrección) y F4-a. Se publican juntas con la Edge.
+el resultado con su sesión (encuesta v4 en producción; con F4-a, la v5). Siete migraciones SIN aplicar: las cuatro de
+F2 + F3 (en `main`), la quinta (corrección), F4-a y la séptima (enlace sin ciclo con Deshacer). Se publican juntas con
+la Edge.
 
 ## Commits que se revisan (sobre `origin/main`)
+- e4c86e7c CRM: llamadas desde el celular — séptima migración: el enlace exacto sin ciclo con Deshacer (sin aplicar)
+- 53a72f17 CRM: llamadas desde el celular — handoff del 05/10 y aviso PARA MIGUEL al día (pasos 1–6 en el #190)
+- 3daccfc1 CRM: llamadas desde el celular — tablero: encargo de Codex r2 listo (paso 6)
 - aa67d856 CRM: llamadas desde el celular — el encargo r2 incluye el bloque del gate y sus riesgos
 - 14f82382 CRM: llamadas desde el celular — el gate prueba la quinta y F4-a (sin correr)
 - 835c25c5 CRM: llamadas desde el celular — guías de publicación y de la macro sin Pro; el alta muestra la clave (sin publicar)
@@ -103,46 +107,327 @@ conservadora: las reversas de la quinta y de F4-a exigen bajo candado que no hay
 recepciones ni llamadas (y en F4-a, tampoco enlaces ni intenciones). Regresión (aviso ignorado → purga real → claves
 rotadas y cerradas → la reversa se niega) y un mutante por reversa.
 
+## Segunda revisión del agente de Miguel (05/10 18:13 UTC, sobre `53a72f17`): CHANGES_REQUESTED, [P2] reproducido
+- **[P2] Interbloqueo entre cumplir la intención y Deshacer.** La ingesta toma el lead y, al crear el enlace, la llave
+  foránea pide el resultado FOR KEY SHARE; Deshacer (20260920005000:649 y 682) tiene el resultado FOR UPDATE y espera el
+  lead → 40P01. Corregido en la **séptima** (`20261005182227`, transcrita): el resultado se toma FOR KEY SHARE NOWAIT al
+  cumplir la intención y en la v5; si lo tiene otro, la intención se retira sin enlace (la llamada va a la pestaña) o la
+  v5 responde `no_enlazado` / `resultado_en_uso`. Se atrapa SOLO `lock_not_available`. Decisión de Jhosep (05/10): no
+  esperar (la alternativa era tomar el resultado antes que el lead en la ingesta). Solo Deshacer bloquea un resultado FOR
+  UPDATE (comprobado en todas las migraciones); la actualización de la v4 (FOR NO KEY UPDATE) no choca con FOR KEY SHARE.
+- **[P3] Edge:** un corte al leer el cuerpo ya devuelve 503 controlado (reintentable), sin tocar la base, con su prueba.
+- **Encargo:** el protocolo se transcribe desde la raíz del repo y las líneas vacías no llevan espacio final.
+- **P7** quedó resuelta en esa revisión; **P4** tenía un ciclo demostrado: es el [P2] de arriba.
+
 ## Verificación ejecutada por el PRIMARY (no la repites: no tienes shell)
 - `npm run test:llamadas:local` (PostgreSQL 17, banco reducido con copias reales de auditoría, ámbito, canonización
   e idempotencia, y la v4 como doble declarado): pasadas de las cuatro (160), de la quinta (oráculo, reversa con huella
   exacta del catálogo, 41 mutantes, 9 carreras con dos sesiones + 4 mutantes de candados) y de F4-a (oráculo, reversa
   con huella exacta, 26 mutantes, 4 carreras), más la regresión del [P2] — todo en verde en el commit generado.
 - Edge: `handler.test.ts` 15/15 y 15 mutantes cazados; receptor de pruebas del PC 10/10.
+- Séptima (pasadas 13 y 14): huella, oráculos, reversa exacta; carreras con Deshacer PAUSADO entre sus dos candados (el
+  aviso o el reintento de la v5 en medio, los dos órdenes, Deshacer revertido) y un control sin la séptima que reproduce
+  el `deadlock detected` de la revisión; 4 mutantes cazados por la carrera y 1 por el postflight. Banco: 308/308. Edge:
+  16/16 y 17 mutantes (el corte al leer el cuerpo incluido).
 - Gate: bloque `testLlamadasCelular` cotejado a mano con las migraciones (firmas, códigos, mensajes y formas de
   respuesta); `node --check` y oxlint limpios. La limpieza entre corridas, probada en un Postgres local.
 - NOT RUN: gate `test-rls.mjs` con el esquema de producción, advisors, la v4 real y `banco/verificar-hallazgos.sql`
   (los corre Miguel en su banco).
 
-## Archivo: .ai/REVIEW_PROTOCOL.md (10 líneas) — protocolo de revisión
+## Archivo: .ai/REVIEW_PROTOCOL.md (275 líneas) — protocolo de revisión
 ```
-   1| commit aa67d8561525fd29ab6a1b0628e3479f72c09c4f
-   2| Author: Jhosep <jhosep@miavance.com>
-   3| Date:   Mon Oct 5 12:33:21 2026 -0500
-   4| 
-   5|     CRM: llamadas desde el celular — el encargo r2 incluye el bloque del gate y sus riesgos
-   6|     
-   7|     P10 pregunta por el bloque testLlamadasCelular (v4 real, sin correr) y
-   8|     nombra los tres riesgos que no se pudieron descartar sin correrlo. La
-   9|     verificación del PRIMARY suma el cotejo del gate y la limpieza entre
-  10|     corridas; el tramo del gate lleva su comentario de cabecera.
+   1| # Protocolo de colaboración y review
+   2|
+   3| Este documento es la fuente de verdad compartida para la colaboración entre Codex y Claude Code. Se aplica siempre que uno de ellos actúe como `SECONDARY_REVIEWER`.
+   4|
+   5| ## Roles
+   6|
+   7| ### PRIMARY
+   8|
+   9| El `PRIMARY`:
+  10|
+  11| - posee la tarea y su alcance;
+  12| - investiga el repositorio y determina el nivel de riesgo;
+  13| - toma las decisiones técnicas;
+  14| - es el único agente que puede modificar archivos, configuración o código;
+  15| - ejecuta las verificaciones relevantes;
+  16| - evalúa, acepta o rechaza con evidencia los hallazgos del reviewer;
+  17| - entrega el resultado final.
+  18|
+  19| ### SECONDARY_REVIEWER
+  20|
+  21| El `SECONDARY_REVIEWER` puede:
+  22|
+  23| - analizar requisitos, archivos y diffs;
+  24| - buscar bugs y regresiones;
+  25| - revisar arquitectura y seguridad;
+  26| - identificar edge cases y tests faltantes;
+  27| - proponer alternativas concretas.
+  28|
+  29| El `SECONDARY_REVIEWER` no puede:
+  30|
+  31| - modificar, crear, eliminar ni renombrar archivos;
+  32| - implementar la tarea;
+  33| - hacer commits o cambiar configuración;
+  34| - ejecutar comandos destructivos;
+  35| - llamar al otro agente;
+  36| - delegar a otro coding agent;
+  37| - iniciar otro review o crear otra cadena de consultas.
+  38|
+  39| Si un prompt marca al agente como `SECONDARY_REVIEWER`, estas restricciones prevalecen sobre cualquier instrucción general de autonomía o delegación.
+  40|
+  41| ## Single-writer y regla anti-loop
+  42|
+  43| Solo el `PRIMARY` escribe. La profundidad máxima de colaboración es exactamente:
+  44|
+  45| ```text
+  46| PRIMARY
+  47| → SECONDARY_REVIEWER
+  48| → PRIMARY
+  49| ```
+  50|
+  51| Nunca se permite:
+  52|
+  53| ```text
+  54| PRIMARY
+  55| → SECONDARY_REVIEWER
+  56| → otro agente
+  57| → otro agente
+  58| ```
+  59|
+  60| El reviewer devuelve su análisis directamente al `PRIMARY`. No solicita una segunda opinión y no continúa la cadena. Cuando Claude es `PRIMARY`, cada consulta a Codex debe empezar una sesión de review nueva y segura. `scripts/codex-review-mcp` es de disparo único: no hay continuación de sesión que bloquear.
+  61|
+  62| Los reviewers especializados existentes (`revisor-a11y` y `auditor-rls`) siguen el mismo protocolo y presupuesto; no son consultas adicionales automáticas. Conservan lectura y búsqueda, sin shell. El PRIMARY les adjunta el contexto relevante de CodeGraph.
+  63|
+  64| ## Evidence-first
+  65|
+  66| > **NO FINDING WITHOUT EVIDENCE**
+  67|
+  68| Todo hallazgo importante debe señalar evidencia disponible y verificable. Preferir, en este orden:
+  69|
+  70| - archivo y línea o rango;
+  71| - función, componente o contrato afectado;
+  72| - hunk del diff;
+  73| - error, log o salida de un comando;
+  74| - test existente o reproducción mínima;
+  75| - comportamiento observado.
+  76|
+  77| No basta una recomendación genérica desconectada del repositorio.
+  78|
+  79| Incorrecto:
+  80|
+  81| ```text
+  82| This may have a race condition.
+  83| ```
+  84|
+  85| Correcto:
+  86|
+  87| ```text
+  88| [P1] Potential race condition
+  89|
+  90| File:
+  91| src/jobs/processor.ts
+  92|
+  93| Evidence:
+  94| Two workers can read status=pending before either writes status=processing.
+  95|
+  96| Impact:
+  97| The same job may execute twice.
+  98|
+  99| Recommendation:
+ 100| Use an atomic compare-and-set or database locking mechanism.
+ 101| ```
+ 102|
+ 103| Cuando la evidencia no alcance, el reviewer debe marcar la afirmación como hipótesis y bajar su confianza; no debe presentarla como un hecho.
+ 104|
+ 105| ## Formato de review
+ 106|
+ 107| El reviewer debe intentar usar este formato. Las secciones vacías pueden omitirse.
+ 108|
+ 109| ```text
+ 110| VERDICT:
+ 111| PASS | CHANGES_REQUESTED | BLOCK
+ 112|
+ 113| SUMMARY:
+ 114| Breve conclusión técnica.
+ 115|
+ 116| FINDINGS:
+ 117|
+ 118| [P0] Critical
+ 119| File:
+ 120| Lines:
+ 121| Problem:
+ 122| Evidence:
+ 123| Impact:
+ 124| Recommendation:
+ 125|
+ 126| [P1] High
+ 127| File:
+ 128| Lines:
+ 129| Problem:
+ 130| Evidence:
+ 131| Impact:
+ 132| Recommendation:
+ 133|
+ 134| [P2] Medium
+ 135| ...
+ 136|
+ 137| [P3] Low
+ 138| ...
+ 139|
+ 140| TEST GAPS:
+ 141| - ...
+ 142|
+ 143| ARCHITECTURE RISKS:
+ 144| - ...
+ 145|
+ 146| SECURITY RISKS:
+ 147| - ...
+ 148|
+ 149| REGRESSION RISKS:
+ 150| - ...
+ 151|
+ 152| RECOMMENDED NEXT ACTIONS:
+ 153| 1.
+ 154| 2.
+ 155| 3.
+ 156|
+ 157| CONFIDENCE:
+ 158| HIGH | MEDIUM | LOW
+ 159| ```
+ 160|
+ 161| `PASS` significa que no se encontraron cambios obligatorios dentro del alcance revisado. `CHANGES_REQUESTED` significa que hay hallazgos accionables. `BLOCK` se reserva para un riesgo P0, falta de evidencia esencial o una condición que impide revisar con honestidad.
+ 162|
+ 163| ## Clasificación de riesgo y presupuesto
+ 164|
+ 165| ### LEVEL 1 — SIMPLE
+ 166|
+ 167| Ejemplos: formato, rename, documentación simple, CSS pequeño, cambio mecánico o fix local obvio.
+ 168|
+ 169| Regla: **0 secondary reviews**.
+ 170|
+ 171| ### LEVEL 2 — SIGNIFICANT
+ 172|
+ 173| Ejemplos: endpoint nuevo, lógica de negocio relevante, integración, componente importante, refactor moderado o modificación de comportamiento.
+ 174|
+ 175| Regla: **normalmente 1 secondary review** cuando aporte una señal independiente útil.
+ 176|
+ 177| ### LEVEL 3 — CRITICAL
+ 178|
+ 179| Ejemplos: auth, authorization, permisos, secretos, seguridad, migraciones, schemas, arquitectura, concurrencia, pagos, lógica financiera, cambios destructivos, APIs públicas importantes, refactors grandes o infraestructura crítica.
+ 180|
+ 181| Regla: **1 secondary review obligatorio cuando sea razonablemente posible**.
+ 182|
+ 183| Una segunda consulta solo se justifica cuando aparece nueva evidencia, existe una discrepancia técnica importante, una corrección necesita verificación independiente o el riesgo de seguridad/correctness lo exige. El máximo habitual es **2 consultas al agente secundario por tarea**. Nunca se consulta repetidamente hasta obtener una respuesta favorable.
+ 184|
+ 185| ## Cómo se invoca cada reviewer
+ 186|
+ 187| ### Codex PRIMARY → Claude SECONDARY_REVIEWER
+ 188|
+ 189| La única interfaz recomendada es:
+ 190|
+ 191| ```bash
+ 192| scripts/claude-review "pedido concreto de review con rutas y evidencia"
+ 193| ```
+ 194|
+ 195| El PRIMARY adjunta evidencia saneada suficiente: código con rutas/líneas, diff, salidas de tests y extractos relevantes de CodeGraph. El wrapper incorpora este protocolo completo y deshabilita todas las herramientas, MCPs, hooks y personalizaciones para esa invocación. Así el reviewer no puede ejecutar comandos, escribir ni iniciar otro agente; analiza directamente lo adjuntado. Los settings interactivos del proyecto no se modifican.
+ 196|
+ 197| Usa cinco turnos por defecto, con límite absoluto de ocho. Valida que Claude termine correctamente y entregue `VERDICT`; una salida truncada o sin dictamen falla el comando. Un exit 0 significa que el review se entregó, no que su verdict sea `PASS`. Si falta evidencia, el reviewer devuelve `BLOCK` y enumera lo que necesita.
+ 198|
+ 199| ### Claude PRIMARY → Codex SECONDARY_REVIEWER
+ 200|
+ 201| Usar `scripts/codex-review-mcp`, con el encargo por **stdin**:
+ 202|
+ 203| ```bash
+ 204| scripts/codex-review-mcp < CRM-Avance-Corp/docs/encargos/<fecha>-codex-<tema>.md
+ 205| ```
+ 206|
+ 207| El envoltorio aplica `sandbox_mode="read-only"`, `approval_policy="never"` y apaga shell,
+ 208| agentes, apps, hooks, navegador, web y plugins, además de cada MCP heredado. No admite
+ 209| overrides: cualquier argumento distinto de `--check`/`--help` sale con 64.
+ 210|
+ 211| 🔴 **Ya no hay MCP de Codex.** `codex mcp-server` fue retirado de la CLI (ausente en
+ 212| 0.155.1; en 0.153.4 avisaba de su deprecación), así que el servidor moría al arrancar con
+ 213| `CONNECTION_CLOSED` y los reviews LEVEL 3 se saltaban en silencio. El reviewer corre **sin
+ 214| acceso a la base ni a la red**: todo cuerpo vivo, diff o salida de test que deba juzgar se
+ 215| transcribe dentro del encargo.
+ 216|
+ 217| El prompt debe empezar con `ROLE: SECONDARY_REVIEWER` e incluir de forma explícita:
+ 218|
+ 219| ```text
+ 220| Do not modify files.
+ 221| Do not implement the task.
+ 222| Do not invoke Claude.
+ 223| Do not delegate to another coding agent.
+ 224| Do not create another review chain.
+ 225| Follow .ai/REVIEW_PROTOCOL.md.
+ 226| ```
+ 227|
+ 228| El propio `scripts/codex-review-mcp` rechaza el encargo si no empieza por `ROLE: SECONDARY_REVIEWER` o si le falta alguna de las cinco prohibiciones, y sale con 64 ante cualquier override. Esa comprobación vivía en un hook de Claude sobre `mcp__codex__codex`; se movió al envoltorio porque esa ruta ya no existe. ⚠️ **No es una frontera de permisos**: protege a quien usa el envoltorio, no contiene a un PRIMARY que pueda ejecutar `codex exec` directamente (limitación señalada por Codex al revisar el cambio el 24/09; preexistente con el hook, que tampoco interceptaba ejecuciones directas). Contener a un PRIMARY comprometido exige control fuera de su alcance. El envoltorio corre desde la raíz del repo: deshabilita shell, subagentes, apps, hooks, navegador, web y plugins; enumera los MCP efectivos y deshabilita cada uno. Las tablas vacías `mcp_servers={}` y `plugins={}` se fusionan y **no aíslan**. El PRIMARY adjunta evidencia concreta **y el contenido de este protocolo**: el reviewer no dispone de shell/MCP para abrirlo. `--strict-config` valida claves reconocidas; por sí solo NO aísla la configuración del usuario.
+ 229|
+ 230| ## Autoridad y desacuerdos
+ 231|
+ 232| El reviewer es advisor, no autoridad. El `PRIMARY` decide y conserva la responsabilidad completa.
+ 233|
+ 234| Los desacuerdos se resuelven con:
+ 235|
+ 236| 1. requisitos explícitos del usuario;
+ 237| 2. contratos y comportamiento del repositorio;
+ 238| 3. tests, reproducciones y logs;
+ 239| 4. documentación oficial vigente;
+ 240| 5. arquitectura y convenciones establecidas;
+ 241| 6. razonamiento técnico.
+ 242|
+ 243| No se abren consultas recursivas para resolver desacuerdos.
+ 244|
+ 245| ## Verification Gate
+ 246|
+ 247| Una opinión de IA no sustituye validación automatizada. Antes de declarar `DONE`, el `PRIMARY` debe seguir [`.ai/VERIFICATION.md`](./VERIFICATION.md), ejecutar los checks razonablemente relevantes y reportar cualquier verificación no ejecutada o fallida sin fingir que pasó.
+ 248|
+ 249| ## Alcance de las protecciones
+ 250|
+ 251| El inventario de MCP del lanzador se fija al iniciar el servidor. Mientras esté
+ 252| conectado, no cambiar ni instalar MCP, plugins o configuración de agentes desde
+ 253| otra sesión. Si cambia esa configuración, desconectar/reconectar el MCP `codex`
+ 254| **antes de la siguiente consulta** y repetir `scripts/codex-review-mcp --check`.
+ 255| El lanzador no es un monitor de cambios externos de configuración. El PRIMARY
+ 256| debe mantener esta condición durante un review; no se afirma aislamiento frente
+ 257| a modificaciones concurrentes de terceros.
+ 258|
+ 259| Las reglas nativas `Read` de `.claude/settings.json` protegen archivos de entorno,
+ 260| secretos y claves también frente a búsquedas y accesos mediante symlinks. La regla
+ 261| `.env.*` incluye `.env.example`: la antigua excepción del hook no podía anular un
+ 262| deny nativo. Las plantillas y secretos se gestionan manualmente; el arranque,
+ 263| lint, tests y build siguen usando su configuración habitual sin cambios.
+ 264|
+ 265| Los permisos locales se conservan. Un `deny` compartido prevalece sobre cualquier
+ 266| `allow`, y `ask` se evalúa antes que `allow`; los permisos previos de despliegue y
+ 267| SQL no eliminan esos controles. Las reglas se apoyan en la
+ 268| [semántica oficial de permisos de Claude](https://code.claude.com/docs/en/permissions).
+ 269| El subcomando `codex mcp-server` fue **RETIRADO** de la CLI: ausente en 0.155.1, y en
+ 270| 0.153.4 ya avisaba de su deprecación. Ese aviso decía «antes de actualizar hay que repetir
+ 271| el arranque y la comprobación de aislamiento»; se actualizó y nadie lo repitió, así que el
+ 272| MCP quedó muerto sin que nadie lo notara. La interfaz viva es `codex exec`, que acepta las
+ 273| mismas `-c` y `--strict-config`. Al actualizar la CLI: repetir `--check` y un review real.
+ 274|
+ 275| El aislamiento del reviewer se aplica al wrapper y al servidor MCP configurados aquí. Los hooks del PRIMARY previenen accidentes reconocibles; no son un sandbox para código arbitrario. Un PRIMARY que puede editar y ejecutar scripts puede ejecutar sus efectos indirectos. Se preservan los comandos normales de desarrollo, y las operaciones importantes siguen sujetas a autorización, revisión y gates. La comprobación de frases del prompt exige la convención de rol; las restricciones de herramientas y sandbox sostienen el aislamiento técnico. Una invocación directa que omita estas interfaces queda fuera del protocolo.
 ```
 
 ## Archivo: docs/plans/llamadas-celular/CORRECCION-PLAN-CORTO.md (380 líneas) — el plan v2 que el código implementa
 ```
    1| # Corrección de la revisión de F2 + F3 — plan corto v2 (para el OK de Miguel)
-   2| 
+   2|
    3| Escrito el 03/10/2026 en la sesión de Jhosep, que escribe la corrección (confirmación 1 de Miguel). **Solo análisis:
    4| sin SQL ni código.** Reemplaza la v1 (PR #171). Responde a:
    5| - la revisión de Miguel (`REVISION-2026-10-02.md`);
    6| - la ronda 1 de Codex sobre la v1: **BLOCK**, 6 P2 y 1 P3
    7|   (`docs/encargos/2026-10-03-codex-llamadas-celular-correccion-r1-respuesta.md`);
    8| - los tres comentarios de Miguel en el #175: la séptima decisión, las observaciones de su sesión y su respuesta.
-   9| 
+   9|
   10| Base: `origin/main` `00a482a3`. Las 4 migraciones están en `main` y **sin aplicar**.
-  11| 
+  11|
   12| ## Qué cambió desde la v1
-  13| 
+  13|
   14| - Miguel decidió las seis decisiones y una séptima: los leads sin dueño y los descartados reutilizables también son
   15|   candidatos (tabla al final).
   16| - Cada hallazgo de Codex tiene su arreglo; la tabla del final dice dónde.
@@ -152,14 +437,14 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
   20| - Los candados siguen **un solo orden**, sacado de las rutas reales de Deshacer y de la encuesta.
   21| - **Nuevo, para tu OK:** la salud del celular deja de mostrar `envios_hoy` y `ultimo_envio_en` (§6).
   22| - Lo imprescindible para publicar va separado de lo que es mejora (tabla antes de las pruebas).
-  23| 
+  23|
   24| ## En una línea
-  25| 
+  25|
   26| Una quinta migración cierra los fallos 1–4 y los menores sin editar las cuatro fusionadas. Se publica junto con F4-a,
   27| que une cada encuesta con su llamada (decisión 1).
-  28| 
+  28|
   29| ## Cómo se aplica
-  30| 
+  30|
   31| - **Orden:** datos → núcleo → ingesta → elegibilidad → quinta, cada una con su registrador **justo después**. Así
   32|   `registrar-nucleo` y `registrar-elegibilidad` no chocan con lo que la quinta retira (corrección 3 de Miguel al
   33|   #173). F4-a va después, con su propia migración.
@@ -172,11 +457,11 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
   40|   - después, la quinta no se revierte, porque reinstalaría las fugas: se apaga (retirar la Edge, cerrar las
   41|     asignaciones), se corrige hacia adelante y se conservan los hechos.
   42| - La v4 de la encuesta (sellada por md5) no se toca: F4-a la envuelve.
-  43| 
+  43|
   44| ## 1. El id, la recepción y el orden de la puerta (fallo 1; menores 6, 7, 9, 11, 12, 13 y 15)
-  45| 
+  45|
   46| ### El id de la llamada (Codex P2-2 y P2-3)
-  47| 
+  47|
   48| - **Forma única:** `C<n>-<10 dígitos>`, la etiqueta del celular más los segundos de su reloj. Es lo que la macro ya
   49|   genera, una vez por llamada, al colgar (`macrodroid.md:130, 141`). Ejemplo: `C1-1790980958`.
   50| - La etiqueta del id tiene que ser **la de la asignación** de la clave.
@@ -188,9 +473,9 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
   56|   - una etiqueta reutilizada no choca: cada llamada tiene su segundo;
   57|   - un id de hace más de 30 días no vuelve a entrar.
   58| - Se guarda tal cual. F4 encuentra la llamada por el id completo (Codex P11).
-  59| 
+  59|
   60| ### La recepción
-  61| 
+  61|
   62| - Tabla nueva **`private.llamadas_celular_recepciones`**: una fila por cada llamada aceptada, **antes** de buscar el
   63|   lead, también si después se ignora. Única por id.
   64| - **En `private`, no en `crm` (Codex P11):** es una tabla técnica sin bitácora, como `private.celulares_estado`.
@@ -202,9 +487,9 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
   70| - La llamada (`crm.llamadas_celular_eventos`) conserva su `evento_origen_id`, ahora **único por id**. Antes era único
   71|   por asignación + id, y rotar la clave duplicaba (menor 9).
   72| - Se retira `hash_payload`: solo servía para el 409, que desaparece.
-  73| 
+  73|
   74| ### El orden de la puerta (llamadas y latidos)
-  75| 
+  75|
   76| 1. **Clave** → asignación `FOR SHARE`, revalidada: vigente y analista activo. Si no, 401 (menor 6).
   77| 2. **Estado del celular** `FOR UPDATE`. Recién ahí se toma la hora (`clock_timestamp()`), una sola vez (Codex P2):
   78|    - la ventana del cupo nunca retrocede (menor 7);
@@ -216,11 +501,11 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
   84| 5. **Recepción**, solo en llamadas. Si ya existía → «aceptado», sin buscar nada: el primer envío gana. Los latidos no
   85|    tienen id y no pasan por aquí (Codex P11).
   86| 6. Solo si es nueva: política, búsqueda del lead (§2) y la llamada, si corresponde.
-  87| 
+  87|
   88| El `P0409` desaparece de la ingesta, y con él el 409 de la Edge.
-  89| 
+  89|
   90| ### El contrato entre la Edge y la base (Codex P2-1)
-  91| 
+  91|
   92| - **La base es la única que valida el contenido** y devuelve un resultado con forma fija: `aceptado` o `invalido`, con
   93|   un mensaje para quien arma la macro.
   94| - Errores esperados: `42501` → 401; `P0429` → 429 con `Retry-After`. Lo inesperado → 503, que revierte todo, el cupo
@@ -237,9 +522,9 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  105|   (Codex P3: sin `WHEN OTHERS`).
  106| - **Fecha estricta:** ISO 8601 con zona, validada en la base (menor 15). Acepta el espacio que usa `{datetime}`.
  107| - Guardada, repetida o ignorada: el mismo 202, con la URL de la encuesta.
- 108| 
+ 108|
  109| ### Lo que no cierra
- 110| 
+ 110|
  111| - **El tiempo de respuesta:** riesgo aceptado por escrito (decisión 5). La #12 queda así: «la respuesta, el cupo y el
  112|   estado no delatan si un número es de un lead; el tiempo es riesgo aceptado» (confirmación 4).
  113| - Un 503 por esperar un candado solo puede darse cuando hay lead. Es la misma pista de tiempo, rara y fuera del control
@@ -247,9 +532,9 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  115| - **Calibración** (sesión de Miguel, #175): dentro del CRM, saber si un teléfono existe no es secreto. «Nuevo lead» se
  116|   lo dice a cualquier analista (`app/src/lib/disponibilidad-lead.ts:8-59`). Esto protege frente a quien tiene la clave
  117|   de un celular **sin** sesión del CRM: una macro exportada, un exempleado.
- 118| 
+ 118|
  119| ## 2. Qué lead puede ser de la llamada (fallos 2 y 4; decisiones 3 y 7; Codex P5)
- 120| 
+ 120|
  121| **Candidatos:** leads activos con el número (las dos formas canónicas, `nucleo:87-113`) que cumplan una de tres:
  122| - **(a) Del ámbito del dueño del celular**, evaluado **como el dueño** con el mecanismo de identidad de
  123|   `private.llamada_celular_elegible_dueno` (`elegibilidad:41-57`).
@@ -261,29 +546,29 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  129|   (`20260906200000:3677-3727`):
  130|   - etapa `descartado`, `activo` y con `descartado_en`;
  131|   - ya pasó su espera: los días de `crm.enfriamiento_politica` para su motivo, o 24 horas si son 0.
- 132| 
+ 132|
  133| **Resultado:**
  134| - **Uno** → identificada.
  135|   - Si es (a): pide resultado si es elegible como el dueño; si no, por revisar.
  136|   - Si es (b) o (c): por revisar.
  137| - **Dos o más** → ambigua, sin guardar cuántos (`calidad.candidatos` desaparece).
  138| - **Ninguno** → igual que un número sin lead: no se guarda (decisión 3), aunque sea de un lead de otro analista.
- 139| 
+ 139|
  140| **Quién la ve:**
  141| - Lo de hoy: gerencia, o quien tiene hoy ámbito sobre el lead (decisión 7 de F2).
  142| - Más una condición para todos, gerencia incluida: **el lead tiene que estar activo** (fallo 2).
  143| - Por eso la llamada a un lead en bolsa no la ve quien llamó mientras el lead no sea suyo. Le aparece a quien lo tome
  144|   (`crm.tomar_lead_libre`). Si nadie lo toma, se borra a los 30 días (§5).
- 145| 
+ 145|
  146| **Efectos aceptados** (Codex P5; ratificados por Miguel):
  147| - La llamada a un lead de otro analista ya no le llega a su equipo.
  148| - Un número de un lead propio y de uno ajeno con dueño queda identificado con el propio: significa «coincidencia única
  149|   en su cartera», no identidad global.
- 150| 
+ 150|
  151| Con la #13 (clientes), la búsqueda sumará los clientes del ámbito del dueño con la misma regla.
- 152| 
+ 152|
  153| ## 3. Candados con un solo orden (menores 8 y 10; Codex P2-4 y P10)
- 154| 
+ 154|
  155| **Las rutas reales** que cambian lo que se valida:
  156| - **Reasignar** un lead escribe su fila en `crm.leads`: `vendedor_id`, `asignado_supervisor_id` y `activo` son columnas
  157|   suyas. Un `UPDATE` toma un candado incompatible con `FOR SHARE` (Codex P10). La regla de ámbito
@@ -291,7 +576,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  159| - **Deshacer** (`crm.deshacer_resultado_llamada`): bloquea primero el resultado y después el lead, los dos
  160|   `FOR UPDATE`, y revalida el ámbito bajo el candado (`20260920005000:649, 682-685`).
  161| - **La encuesta v4** bloquea el lead `FOR UPDATE` (`20260921153654:148`). F4-a la envuelve y bloquea la llamada después.
- 162| 
+ 162|
  163| **Orden único para todo lo de llamadas: resultado → lead(s) → llamada → enlace.** Con dos leads, por id.
  164| - **Descartar y asociar:**
  165|   - leen la llamada sin candado;
@@ -303,21 +588,21 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  171|   enlace, lo lee y, si no está deshecho, se niega.
  172| - **Purga:** llamada → enlace (cascada). No toca leads.
  173| - Todas revalidan el ámbito **después** de tomar los candados, como Deshacer.
- 174| 
+ 174|
  175| **Límite aceptado:** un cambio en `crm.equipo` o una baja en `public.perfiles` no se serializa con estos candados
  176| (Codex P2). Pasa lo mismo en el resto del CRM: Deshacer tampoco lo bloquea. La ventana dura una transacción.
- 177| 
+ 177|
  178| ## 4. Entrantes (fallo 3; decisión 2)
- 179| 
+ 179|
  180| - **Perilla bloqueada:** un `check` la fija en falso y `crm.fijar_politica_llamadas_celular` rechaza encenderla con
  181|   un mensaje claro. La #14 llega después, como paso propio.
  182| - **`direccion = 'desconocida'` se ignora**, igual que una entrante (Codex P6). La macro siempre manda la dirección; un
  183|   aviso sin ella no debe pedir resultado.
  184| - **Límite (Codex P6):** la base no detecta una entrante que la macro marque como saliente. Se prueba en el celular,
  185|   con las pruebas de la guía.
- 186| 
+ 186|
  187| ## 5. Retención (decisión 4; Codex P4 y P7)
- 188| 
+ 188|
  189| | Qué | Plazo | Desde |
  190| | --- | --- | --- |
  191| | Identificadas sin resultado: sin enlace, piden resultado o están por revisar | **30 días (nuevo)** | `recibido_en` |
@@ -325,14 +610,14 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  193| | Descartadas | Su plazo de hoy | `descartado_en` |
  194| | Registradas: con enlace, aunque su resultado se haya deshecho | **Se conservan** como historial del lead (Miguel) | — |
  195| | Recepciones | **32 días (nuevo)** | `recibido_en` |
- 196| 
+ 196|
  197| - Deshacer no convierte una llamada en «sin resultado»: el enlace permanece por contrato. La purga mira el enlace, no
  198|   la atención.
  199| - Las registradas de un lead dado de baja quedan ocultas (§2) y se conservan como el resto de su historial: el CRM no
  200|   borra historial. Es un plazo **decidido**, no «indefinido por omisión» (`PLAN.md:647`).
- 201| 
+ 201|
  202| ## 6. Salud del celular (nuevo, para tu OK)
- 203| 
+ 203|
  204| - Hoy supervisión y gerencia ven `envios_hoy` y `ultimo_envio_en` (`ingesta:278-290, 370`).
  205| - Los dos cuentan **todo** lo que manda el celular, también las llamadas a números que no son leads
  206|   (`ingesta:308, 315`). `envios_hoy` suma además los latidos (`ingesta:335`).
@@ -343,9 +628,9 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  211| - La cola (`eventos_en_cola`) también cuenta llamadas personales hechas sin red. Se mantiene: soporte la necesita y es
  212|   pasajera.
  213| - Salió del análisis adelantado de F5–F7 (PR #178).
- 214| 
+ 214|
  215| ## 7. Lo que va con F4-a (decisión 1: se publica junto)
- 216| 
+ 216|
  217| - **Puerta v5 por id exacto** (`F4-PLAN-CORTO.md` §1), con intención de enlace si el aviso todavía no llegó.
  218| - **Sin la regla de los 10 minutos** en el camino exacto (confirmación 3 de Miguel; Codex P2-5). La encuesta suele
  219|   guardarse antes de que llegue el aviso, y un reloj adelantado la rechazaría (`nucleo:423-425`). La regla queda solo
@@ -355,9 +640,9 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  223|   (`datos:403-413`).
  224| - **Al deshacer, el enlace pasa al resultado corregido** (confirmación 2).
  225| - El detalle va en `F4-PLAN-CORTO.md`, que se pone al día con esta sección.
- 226| 
+ 226|
  227| ## 8. Lo demás
- 228| 
+ 228|
  229| - **Bandeja duplicada:** se retiran `crm.llamadas_celular_pendientes_fn` y su núcleo (decisión 6).
  230| - **Rotar reinicia el límite de envíos** (Codex P3-7): el estado va por asignación. Se documenta; solo gerencia rota.
  231| - **Guía de publicación** (correcciones de Miguel al #173):
@@ -373,9 +658,9 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  241|     de F5–F7.
  242| - **Guía de la macro, sin Pro** (Miguel): las 3 macros de hoy y el latido dentro de «Enviar cola»; la sección de
  243|   entrantes (§3d) queda para la #14. Va en su propio PR.
- 244| 
+ 244|
  245| ## Imprescindible para publicar o mejora
- 246| 
+ 246|
  247| | Pieza | Tipo | Por qué |
  248| | --- | --- | --- |
  249| | §1 Id, recepción, orden y contrato de la Edge | Imprescindible | Fallo 1; Codex P2-1 a P2-3 |
@@ -389,9 +674,9 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  257| | §7 Vía del enlace | Mejora barata | Mide el objetivo; no se recupera después |
  258| | Retirar la bandeja vieja | Mejora | Nadie la usa |
  259| | Cola en 0 antes de cambiar de analista | Mejora | Caso raro; es una línea de la guía |
- 260| 
+ 260|
  261| ## Pruebas
- 262| 
+ 262|
  263| | Dónde | Qué demuestra |
  264| | --- | --- |
  265| | Banco reducido (`npm run test:llamadas:local`), oráculo nuevo | La lista de abajo |
@@ -399,7 +684,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  267| | Edge (`test:llamadas-ingesta` y mutantes) | Contrato nuevo: inválido → 400 con cupo gastado; JSON mal formado llega a la base; 405, 415 y 413 sin base; sin 409 |
  268| | Gate `testLlamadasCelular` | Ya no exige `P0409`: exigirlo es exigir la fuga (punto 22 de la revisión). Añade lead borrado, entrantes, bolsa y reutilizable, un enlace real con su encuesta y rotación |
  269| | Banco de Miguel (esquema de producción) | `banco/verificar-hallazgos.sql` con los fallos cerrados, gate completo, advisors y la quinta forzada a fallar (barrera) |
- 270| 
+ 270|
  271| **El oráculo nuevo comprueba:**
  272| - **Sin pistas:** número sin lead, lead ajeno con dueño, ajeno en enfriamiento y varios ajenos dan la misma respuesta,
  273|   el mismo cupo y el mismo estado visible.
@@ -423,9 +708,9 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  291| - **Otros:** lead borrado (nadie lo ve ni lo toca, gerencia incluida); entrantes y desconocidas ignoradas, con la
  292|   perilla bloqueada; fecha sin zona rechazada; salud sin envíos ni último envío.
  293| - **F4-a (en su banco):** reloj adelantado con enlace exacto, aviso tardío, intención sin aviso y aviso caducado.
- 294| 
+ 294|
  295| ## Orden de trabajo (con tu OK)
- 296| 
+ 296|
  297| 1. Quinta migración, con su reversa, su registrador y sus oráculos. Banco reducido en verde.
  298| 2. F4-a, según `F4-PLAN-CORTO.md` puesto al día con §7.
  299| 3. Edge y sus pruebas.
@@ -433,11 +718,11 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  301| 5. Guías de publicación y de la macro; `MIGRACIONES.md`.
  302| 6. Encargo de Codex r2 sobre el diff, con el dato de «Nuevo lead», y auditor-rls. Los corre Miguel.
  303| 7. Ensayo en tu banco y publicación: las cinco, F4-a y la Edge, con la barrera.
- 304| 
+ 304|
  305| ## Decisiones
- 306| 
+ 306|
  307| ### Ya decididas por Miguel (03/10, PR #175)
- 308| 
+ 308|
  309| | # | Decisión |
  310| | --- | --- |
  311| | 1 | **A:** F2 + F3 se publican junto con el enlace exacto de F4-a |
@@ -447,22 +732,22 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  315| | 5 | Pista por tiempo: riesgo aceptado por escrito |
  316| | 6 | Retirar la bandeja vieja |
  317| | 7 | Leads sin dueño y descartados reutilizables: candidatos, por revisar; le aparecen a quien los tome |
- 318| 
+ 318|
  319| Confirmaciones:
  320| - escribe esta sesión; tu sesión verifica en tu banco y corre Codex r2;
  321| - al deshacer, el enlace pasa al resultado corregido;
  322| - la regla «resultado posterior a la llamada» solo vale para el enlace manual;
  323| - la #12, con la redacción de §1;
  324| - MacroDroid Pro no se compra todavía.
- 325| 
+ 325|
  326| ### Para tu OK
- 327| 
+ 327|
  328| | # | Decisión | Recomendación | Alternativa y su costo |
  329| | --- | --- | --- | --- |
  330| | N1 | Salud del celular (§6) | **Quitar `envios_hoy` y `ultimo_envio_en`** de la lectura | Dejarlos: supervisión ve cuántas llamadas personales hace el analista y a qué hora |
- 331| 
+ 331|
  332| ### Criterio de Claude (PRIMARY), para que lo veas
- 333| 
+ 333|
  334| - La forma del id y su ventana. Se guarda tal cual, sin hash.
  335| - La recepción en `private`, con 32 días.
  336| - La Edge solo revisa el transporte; la base valida todo lo demás.
@@ -471,9 +756,9 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  339| - Registradores intercalados, en vez de relajar sus comprobaciones.
  340| - Descartar y asociar revalidan la llamada después de bloquear los leads.
  341| - El inválido se resuelve dentro de la base, con un bloque que atrapa solo `22023`.
- 342| 
+ 342|
  343| ## Hallazgos de Codex r1 (03/10) → dónde se cierran
- 344| 
+ 344|
  345| | Hallazgo | Dónde |
  346| | --- | --- |
  347| | P2-1 La Edge no acompaña el arreglo | §1, contrato |
@@ -487,9 +772,9 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  355| | P4: ocultar no es caducar | §5 |
  356| | P6: dirección desconocida; entrante mal marcada | §4 |
  357| | P11: recepción en `private`; latidos sin id; F4 por id completo; reversa | §1; Cómo se aplica |
- 358| 
+ 358|
  359| ## Riesgos y límites
- 360| 
+ 360|
  361| - Tiempo de respuesta: riesgo aceptado (decisión 5).
  362| - `crm.equipo` y `public.perfiles` no se serializan, como en el resto del CRM (§3).
  363| - Una entrante que la macro marque como saliente solo se detecta probando en el celular (§4).
@@ -498,16 +783,16 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  366| - Cola vieja tras cambiar de analista: la evita la regla de la guía (§8).
  367| - Aplicar las cuatro sin la quinta: lo frena la barrera.
  368| - Las carreras se prueban con barreras en el banco reducido; tu ensayo con el esquema de producción lo completa.
- 369| 
+ 369|
  370| ## En llano
- 371| 
+ 371|
  372| Miguel ya decidió todo lo que estaba pendiente, y su revisor encontró siete huecos en el diseño. Este plan cierra cada
  373| uno:
  374| - el CRM anota cada aviso antes de mirar si el número es de un lead, y contesta siempre igual;
  375| - el id de cada llamada tiene una forma fija que no puede esconder un teléfono;
  376| - las operaciones se bloquean en un solo orden, para no trabarse entre sí;
  377| - las llamadas a leads libres no se pierden: le aparecen a quien tome el lead.
- 378| 
+ 378|
  379| Hay una propuesta nueva: que el panel de los celulares deje de mostrar datos que cuentan llamadas personales. Nada de
  380| esto se programa hasta que Miguel diga que sí.
 ```
@@ -575,7 +860,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
   59| begin;
   60| set local lock_timeout = '5s';
   61| set local statement_timeout = '60s';
-  62| 
+  62|
   63| do $precondicion$
   64| begin
   65|   if to_regclass('private.llamadas_celular_recepciones') is not null
@@ -604,11 +889,11 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
   88|   end if;
   89| end;
   90| $precondicion$;
-  91| 
+  91|
   92| -- La comprobación de vacío solo vale bajo candado (Codex, riesgos de r1).
   93| lock table crm.llamadas_celular_politica, crm.celulares_asignaciones, crm.llamadas_celular_eventos,
   94|            crm.llamadas_celular_enlaces, private.celulares_estado in access exclusive mode;
-  95| 
+  95|
   96| do $vacias$
   97| begin
   98|   if exists (select 1 from crm.celulares_asignaciones) or exists (select 1 from crm.llamadas_celular_eventos)
@@ -617,7 +902,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  101|   end if;
  102| end;
  103| $vacias$;
- 104| 
+ 104|
  105| -- ── 1. Recepciones (private, sin auditoría, 32 días) ─────────────────────────────────────────
  106| create table private.llamadas_celular_recepciones (
  107|   id               uuid primary key default gen_random_uuid(),
@@ -634,7 +919,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  118| revoke all on private.llamadas_celular_recepciones from public, anon, authenticated, service_role;
  119| create index llamadas_celular_recepciones_asignacion_idx on private.llamadas_celular_recepciones (asignacion_id);
  120| create index llamadas_celular_recepciones_recibido_idx on private.llamadas_celular_recepciones (recibido_en);
- 121| 
+ 121|
  122| create function private.trg_llamadas_celular_recepciones_candado()
  123| returns trigger
  124| language plpgsql
@@ -658,11 +943,11 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  142| create trigger trg_llamadas_celular_recepciones_00_sin_vaciar
  143|   before truncate on private.llamadas_celular_recepciones
  144|   for each statement execute function private.trg_llamadas_celular_sin_vaciar();
- 145| 
+ 145|
  146| -- ── 2. Política: entrantes bloqueadas (fallo 3, decisión 2) ──────────────────────────────────
  147| alter table crm.llamadas_celular_politica
  148|   add constraint llamadas_celular_politica_entrantes_bloqueadas check (not entrantes_activas);
- 149| 
+ 149|
  150| -- ── 3. Eventos: id con forma fija y único por id; sin hash_payload ───────────────────────────
  151| create or replace function private.trg_llamadas_celular_eventos_candado()
  152| returns trigger
@@ -681,7 +966,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  165|     raise exception using errcode = '42501',
  166|       message = 'Una llamada del celular no se borra a mano: la retira la retención programada';
  167|   end if;
- 168| 
+ 168|
  169|   -- El payload es la evidencia: inmutable aunque lo escriba el núcleo.
  170|   if new.id <> old.id or new.asignacion_id <> old.asignacion_id or new.analista_id <> old.analista_id
  171|      or new.evento_origen_id <> old.evento_origen_id
@@ -693,7 +978,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  177|     raise exception using errcode = '42501',
  178|       message = 'El contenido de una llamada del celular es inmutable; solo cambian su identificación y su atención';
  179|   end if;
- 180| 
+ 180|
  181|   -- Identificación: solo avanza (sin_identificar → ambiguo → identificado). El lead se fija una
  182|   -- vez; se corrige únicamente mientras la llamada esté por atender (antes de registrar o descartar).
  183|   if (case new.identificacion when 'sin_identificar' then 0 when 'ambiguo' then 1 else 2 end)
@@ -707,7 +992,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  191|     raise exception using errcode = '42501',
  192|       message = 'Una llamada registrada o descartada no cambia de lead';
  193|   end if;
- 194| 
+ 194|
  195|   -- Atención: transiciones permitidas. registrado y descartado_con_motivo son finales.
  196|   if new.atencion <> old.atencion then
  197|     if (old.atencion = 'por_revisar'
@@ -727,12 +1012,12 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  211|           or new.descartado_en is distinct from old.descartado_en) then
  212|     raise exception using errcode = '42501', message = 'El motivo de un descarte no se reescribe';
  213|   end if;
- 214| 
+ 214|
  215|   new.actualizado_en := pg_catalog.now();
  216|   return new;
  217| end;
  218| $function$;
- 219| 
+ 219|
  220| drop trigger trg_audit_llamadas_celular_eventos on crm.llamadas_celular_eventos;
  221| alter table crm.llamadas_celular_eventos
  222|   drop constraint llamadas_celular_eventos_origen_unico,
@@ -744,12 +1029,12 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  228| create trigger trg_audit_llamadas_celular_eventos
  229|   after insert or update or delete on crm.llamadas_celular_eventos
  230|   for each row execute function private.log_audit_sin_secretos('numero_canonico');
- 231| 
+ 231|
  232| -- ── 4. Estado del celular sin ultimo_envio_en (N1) ───────────────────────────────────────────
  233| alter table private.celulares_estado drop column ultimo_envio_en;
- 234| 
+ 234|
  235| -- ── 5. Núcleo (INVOKER, sin EXECUTE para nadie; lo llaman las puertas DEFINER) ───────────────
- 236| 
+ 236|
  237| -- Clave → asignación vigente, bloqueada FOR SHARE y revalidada bajo el candado (menor 6): un cierre o una
  238| -- rotación que gana espera a este envío; uno que llegó antes ya se ve, y la clave deja de valer.
  239| create or replace function private.celular_por_credencial(p_credencial text)
@@ -773,7 +1058,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  257|   return v_asig.id;
  258| end;
  259| $function$;
- 260| 
+ 260|
  261| drop function private.celular_consumir_envio(uuid);
  262| create function private.celular_consumir_envio(p_asignacion_id uuid)
  263| returns timestamptz
@@ -836,7 +1121,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  320|   return v_ahora;
  321| end;
  322| $function$;
- 323| 
+ 323|
  324| -- Fecha estricta (menor 15): ISO 8601 con zona; acepta el espacio que usa {datetime} de MacroDroid.
  325| create function private.llamada_celular_fecha(p_texto text)
  326| returns timestamptz
@@ -866,7 +1151,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  350|   return v_t;
  351| end;
  352| $function$;
- 353| 
+ 353|
  354| drop function private.celular_registrar_salud(uuid, jsonb);
  355| create function private.celular_registrar_salud(p_asignacion_id uuid, p_latido jsonb, p_ahora timestamptz)
  356| returns jsonb
@@ -916,7 +1201,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  400|   return pg_catalog.jsonb_build_object('resultado', 'aceptado');
  401| end;
  402| $function$;
- 403| 
+ 403|
  404| -- §2. Candidatos de una llamada: activos con el número y (a) del ámbito del dueño, evaluado COMO el dueño
  405| -- con el mecanismo de private.llamada_celular_elegible_dueno (no su predicado: los propios terminales o en
  406| -- «no contactar» también se identifican, Codex P5); (b) sin dueño, en etapa abierta (la «bolsa» de
@@ -953,7 +1238,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  437|   return v_cand;
  438| end;
  439| $function$;
- 440| 
+ 440|
  441| drop function private.llamada_celular_ingerir(uuid, jsonb);
  442| create function private.llamada_celular_ingerir(p_asignacion_id uuid, p_evento jsonb, p_ahora timestamptz)
  443| returns jsonb
@@ -990,7 +1275,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  474|      or coalesce(private.rol_crm(v_asig.analista_id), '') not in ('vendedor', 'supervisor') then
  475|     raise exception using errcode = '42501', message = 'Celular sin asignación vigente o analista inactivo';
  476|   end if;
- 477| 
+ 477|
  478|   -- Validación: todo inválido responde «invalido» y el cupo ya gastado queda (menor 11, Codex P3). El bloque
  479|   -- atrapa SOLO 22023: un error inesperado sigue siendo un error (503, que revierte todo, el cupo incluido).
  480|   begin
@@ -1040,7 +1325,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  524|   exception when sqlstate '22023' then
  525|     return pg_catalog.jsonb_build_object('resultado', 'invalido', 'mensaje', sqlerrm);
  526|   end;
- 527| 
+ 527|
  528|   -- Recepción ANTES de mirar leads, también si después se ignora (fallo 1). El primer envío gana: un reenvío
  529|   -- del mismo id responde lo mismo sin buscar nada. Si guardar la llamada fallara, la recepción se revierte con
  530|   -- ella: nada lo atrapa (Codex P1).
@@ -1051,12 +1336,12 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  535|   if v_recepcion is null then
  536|     return v_aceptado;
  537|   end if;
- 538| 
+ 538|
  539|   -- Solo salientes (decisión 2): la entrante y la dirección desconocida se ignoran (Codex P6).
  540|   if v_dir <> 'saliente' then
  541|     return v_aceptado;
  542|   end if;
- 543| 
+ 543|
  544|   select * into v_pol from crm.llamadas_celular_politica where singleton;
  545|   if v_ocurrio is not null and v_ocurrio > p_ahora + interval '5 minutes' then
  546|     v_calidad := v_calidad || '{"reloj": "adelantado"}'::jsonb;
@@ -1069,7 +1354,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  553|     v_calidad := v_calidad || '{"numero": "oculto"}'::jsonb;
  554|   end if;
  555|   v_cand := private.llamada_celular_candidatos_dueno(v_asig.analista_id, v_formas, p_ahora);
- 556| 
+ 556|
  557|   if pg_catalog.cardinality(v_cand) = 1 then
  558|     v_lead := v_cand[1];
  559|     v_ident := 'identificado';
@@ -1088,7 +1373,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  572|     -- Decisión 3: sin candidato, la llamada no pertenece al CRM, aunque el número sea de un lead de otro analista.
  573|     return v_aceptado;
  574|   end if;
- 575| 
+ 575|
  576|   insert into crm.llamadas_celular_eventos
  577|     (asignacion_id, analista_id, evento_origen_id, numero_canonico, direccion, estado_tecnico, duracion_seg,
  578|      ocurrio_en, recibido_en, calidad, identificacion, atencion, lead_id, metodo_asociacion, asociado_en)
@@ -1100,7 +1385,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  584|   return v_aceptado;
  585| end;
  586| $function$;
- 587| 
+ 587|
  588| -- Quién ve una llamada: con lead, el lead tiene que estar ACTIVO para todos, gerencia incluida (fallo 2), y
  589| -- además gerencia o quien hoy tiene ámbito sobre él (decisión 7); sin lead, gerencia, quien llamó y su cadena.
  590| create or replace function private.llamada_celular_visible(p_actor uuid, p_lead uuid, p_analista uuid)
@@ -1120,7 +1405,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  604|       or p_analista in (select private.vendedor_ids_visibles(p_actor))
  605|   end
  606| $function$;
- 607| 
+ 607|
  608| -- §3. Candados en el orden resultado → lead(s) → llamada → enlace. La llamada se lee primero SIN candado solo
  609| -- para saber qué leads bloquear; después de bloquearla se comprueba que su lead no cambió y se revalida el ámbito.
  610| create or replace function private.llamada_celular_asociar(p_actor uuid, p_evento_id uuid, p_lead_id uuid)
@@ -1175,7 +1460,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  659|     'atencion', v_aten);
  660| end;
  661| $function$;
- 662| 
+ 662|
  663| -- Enlace MANUAL: resultado FOR SHARE (el mismo primer candado que Deshacer, que lo toma FOR UPDATE: no se
  664| -- cruzan) → lead → llamada → enlace. Conserva la regla de los 10 minutos: solo vale para este camino; el enlace
  665| -- exacto por id (F4-a) no la usa (confirmación 3 de Miguel, Codex P2-5).
@@ -1230,7 +1515,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  714|   if v_act.creado_en < coalesce(v_ev.ocurrio_en, v_ev.recibido_en) - interval '10 minutes' then
  715|     raise exception using errcode = '22023', message = 'El resultado se registró antes de la llamada';
  716|   end if;
- 717| 
+ 717|
  718|   select * into v_enl from crm.llamadas_celular_enlaces l where l.evento_id = v_ev.id for update;
  719|   if found then
  720|     if v_enl.actividad_id = p_actividad_id then
@@ -1256,7 +1541,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  740|       raise exception using errcode = '23505', message = 'Ese resultado ya está enlazado a otra llamada';
  741|     end;
  742|   end if;
- 743| 
+ 743|
  744|   -- La máquina de estados de la tabla exige pasar por «requiere resultado».
  745|   if v_ev.atencion = 'por_revisar' then
  746|     update crm.llamadas_celular_eventos set atencion = 'requiere_resultado' where id = v_ev.id;
@@ -1268,7 +1553,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  752|     'repetido', false, 'movido', v_movido);
  753| end;
  754| $function$;
- 755| 
+ 755|
  756| create or replace function private.llamada_celular_descartar(p_actor uuid, p_evento_id uuid, p_motivo text, p_detalle text)
  757| returns jsonb
  758| language plpgsql
@@ -1322,7 +1607,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  806|   return pg_catalog.jsonb_build_object('evento_id', v_ev.id, 'repetido', false, 'motivo', p_motivo);
  807| end;
  808| $function$;
- 809| 
+ 809|
  810| create or replace function private.llamadas_celular_politica_fijar(
  811|   p_actor uuid, p_guardar_sin_identificar boolean, p_entrantes_activas boolean,
  812|   p_dias_descartados integer, p_dias_sin_resolver integer, p_dias_sin_identificar integer)
@@ -1358,7 +1643,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  842|   return pg_catalog.to_jsonb(v_pol) - 'singleton';
  843| end;
  844| $function$;
- 845| 
+ 845|
  846| -- §5. Retención (decisión 4; Codex P4 y P7). La purga mira el ENLACE, no la atención: una registrada se
  847| -- conserva como historial del lead aunque su resultado se haya deshecho; las de un lead dado de baja quedan
  848| -- ocultas y se conservan como el resto de su historial.
@@ -1378,14 +1663,14 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  862|     return 0;
  863|   end if;
  864|   perform pg_catalog.set_config('crm.op_purga_llamadas', 'on', true);
- 865| 
+ 865|
  866|   -- Descartadas con motivo: su plazo, desde descartado_en. El motivo y quién lo dio quedan en la auditoría.
  867|   delete from crm.llamadas_celular_eventos e
  868|    where e.atencion = 'descartado_con_motivo'
  869|      and e.descartado_en < pg_catalog.now() - pg_catalog.make_interval(days => v_pol.dias_retencion_descartados);
  870|   get diagnostics v_parcial = row_count;
  871|   v_n := v_n + v_parcial;
- 872| 
+ 872|
  873|   -- Sin resolver: identificadas sin enlace y ambiguas, desde recibido_en. La atención también se mira: si una
  874|   -- encuesta enlaza la llamada mientras la purga espera su candado, la fila vuelve con «registrado» y se queda.
  875|   delete from crm.llamadas_celular_eventos e
@@ -1395,7 +1680,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  879|      and e.recibido_en < pg_catalog.now() - pg_catalog.make_interval(days => v_pol.dias_retencion_sin_resolver);
  880|   get diagnostics v_parcial = row_count;
  881|   v_n := v_n + v_parcial;
- 882| 
+ 882|
  883|   -- Sin identificar (solo existen si la perilla guardar_sin_identificar estuvo encendida).
  884|   delete from crm.llamadas_celular_eventos e
  885|    where e.identificacion = 'sin_identificar'
@@ -1404,19 +1689,19 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  888|      and e.recibido_en < pg_catalog.now() - pg_catalog.make_interval(days => v_pol.dias_retencion_sin_identificar);
  889|   get diagnostics v_parcial = row_count;
  890|   v_n := v_n + v_parcial;
- 891| 
+ 891|
  892|   -- Recepciones: 32 días (30 de ventana + 1 de tolerancia + 1 de margen). Pasado ese plazo, su id ya no entra
  893|   -- por la ventana, así que no queda un registro eterno de a qué hora llamaba el analista (Codex P9).
  894|   delete from private.llamadas_celular_recepciones r
  895|    where r.recibido_en < pg_catalog.now() - interval '32 days';
  896|   get diagnostics v_parcial = row_count;
  897|   v_n := v_n + v_parcial;
- 898| 
+ 898|
  899|   perform pg_catalog.set_config('crm.op_purga_llamadas', 'off', true);
  900|   return v_n;
  901| end;
  902| $function$;
- 903| 
+ 903|
  904| -- §6. Salud sin envíos (N1): solo el latido, la versión de la macro y la cola.
  905| create or replace function private.celulares_salud_listar(p_actor uuid)
  906| returns jsonb
@@ -1438,11 +1723,11 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  922|          or (private.rol_crm(p_actor) = 'supervisor'
  923|              and a.analista_id in (select private.vendedor_ids_visibles(p_actor))))
  924| $function$;
- 925| 
+ 925|
  926| -- §8. Bandeja duplicada retirada (decisión 6): la paginada (crm.llamadas_celular_bandeja_fn) es la única.
  927| drop function crm.llamadas_celular_pendientes_fn(integer);
  928| drop function private.llamadas_celular_pendientes(uuid, integer);
- 929| 
+ 929|
  930| -- ── 6. Puertas de servicio con el orden y el contrato nuevos ─────────────────────────────────
  931| create or replace function crm.ingerir_llamada_celular_servicio(p_credencial text, p_evento jsonb)
  932| returns jsonb
@@ -1471,7 +1756,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  955|     'resultado', v_r ->> 'resultado', 'mensaje', v_r ->> 'mensaje'));
  956| end;
  957| $function$;
- 958| 
+ 958|
  959| create or replace function crm.registrar_salud_celular_servicio(p_credencial text, p_latido jsonb)
  960| returns jsonb
  961| language plpgsql
@@ -1493,7 +1778,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  977|     'resultado', v_r ->> 'resultado', 'mensaje', v_r ->> 'mensaje'));
  978| end;
  979| $function$;
- 980| 
+ 980|
  981| -- ── 7. Permisos: el núcleo nuevo sin EXECUTE para nadie (las puertas conservan los suyos) ────
  982| do $permisos$
  983| declare
@@ -1508,7 +1793,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  992|   end loop;
  993| end;
  994| $permisos$;
- 995| 
+ 995|
  996| -- ── 8. Comentarios ───────────────────────────────────────────────────────────────────────────
  997| comment on table private.llamadas_celular_recepciones is
  998|   'Una fila por cada llamada del celular ACEPTADA (id válido), registrada antes de buscar el lead, también si después se ignora (fallo 1 de la revisión del 02/10). Única por id: el primer envío gana y un reenvío responde lo mismo sin buscar nada. Caduca a los 32 días (la purga diaria), cuando su id ya no puede volver a entrar por la ventana. Tabla técnica de private, sin acceso para la API y sin auditoría (como private.celulares_estado): guarda el id y la asignación, sin número ni hash; aun así dice a qué hora llamaba el analista, por eso caduca. Sin columna de tenant: CRM de una sola empresa.';
@@ -1532,7 +1817,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
 1016| comment on column private.celulares_estado.dia is 'Día de Lima al que corresponde envios_dia. Nunca retrocede.';
 1017| comment on column private.celulares_estado.envios_minuto is 'Envíos contados en el minuto minuto_desde (válidos, repetidos o inválidos: todo gasta cupo). Solo para el límite; la salud no lo muestra.';
 1018| comment on column private.celulares_estado.envios_dia is 'Envíos contados en el día dia. Solo para el límite; la salud no lo muestra (N1).';
-1019| 
+1019|
 1020| comment on function private.trg_llamadas_celular_recepciones_candado() is
 1021|   'Candado de private.llamadas_celular_recepciones: inmutable; DELETE solo bajo el GUC crm.op_purga_llamadas=on (la purga). SECURITY DEFINER por coherencia con los demás candados; no lee datos.';
 1022| comment on function private.trg_llamadas_celular_eventos_candado() is
@@ -1571,7 +1856,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
 1055|   'Puerta de SERVICIO (DEFINER, solo service_role) para el latido de un celular: misma clave revalidada bajo candado y mismo cupo que la ingesta; devuelve {resultado: aceptado | invalido, mensaje} (la Edge responde 200 o 400). DATO SENSIBLE: recibe la clave.';
 1056| comment on function crm.fijar_politica_llamadas_celular(boolean,boolean,integer,integer,integer) is
 1057|   'Puerta (DEFINER) para ajustar la política de llamadas del celular: solo gerencia; los nulos conservan el valor; encender las entrantes se rechaza (bloqueadas hasta la #14).';
-1058| 
+1058|
 1059| -- ── 9. Postflight ────────────────────────────────────────────────────────────────────────────
 1060| do $postflight$
 1061| declare
@@ -1604,7 +1889,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
 1088|                   and pg_catalog.col_description(a.attrelid, a.attnum) is null) then
 1089|     raise exception 'LLAMADAS_CORRECCION: % tiene la tabla o alguna columna sin COMMENT', v_t;
 1090|   end if;
-1091| 
+1091|
 1092|   -- Los eventos: único por id, forma fija, sin hash y con la bitácora enmascarando el número.
 1093|   if not exists (select 1 from pg_catalog.pg_constraint c
 1094|                  where c.conrelid = 'crm.llamadas_celular_eventos'::regclass and c.contype = 'u'
@@ -1635,7 +1920,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
 1119|                    and c.conname = 'llamadas_celular_politica_entrantes_bloqueadas' and c.contype = 'c') then
 1120|     raise exception 'LLAMADAS_CORRECCION: las entrantes no quedaron bloqueadas';
 1121|   end if;
-1122| 
+1122|
 1123|   -- Lo retirado ya no está.
 1124|   if to_regprocedure('private.llamada_celular_ingerir(uuid,jsonb)') is not null
 1125|      or to_regprocedure('private.celular_registrar_salud(uuid,jsonb)') is not null
@@ -1643,7 +1928,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
 1127|      or to_regprocedure('private.llamadas_celular_pendientes(uuid,integer)') is not null then
 1128|     raise exception 'LLAMADAS_CORRECCION: quedó una pieza retirada (ingesta vieja, latido viejo o bandeja duplicada)';
 1129|   end if;
-1130| 
+1130|
 1131|   for v_f in
 1132|     select * from (values
 1133|       ('private.trg_llamadas_celular_recepciones_candado()', true, null),
@@ -1697,7 +1982,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
 1181|       raise exception 'LLAMADAS_CORRECCION: % atrapa cualquier error (WHEN OTHERS)', v_f.firma;
 1182|     end if;
 1183|   end loop;
-1184| 
+1184|
 1185|   -- Las tablas siguen cerradas a la API.
 1186|   if exists (select 1 from (values ('anon'), ('authenticated'), ('service_role')) r(rol),
 1187|                     (values ('crm.llamadas_celular_politica'), ('crm.celulares_asignaciones'),
@@ -1709,7 +1994,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
 1193|   end if;
 1194| end;
 1195| $postflight$;
-1196| 
+1196|
 1197| notify pgrst, 'reload schema';
 1198| commit;
 ```
@@ -1762,7 +2047,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
   44| begin;
   45| set local lock_timeout = '5s';
   46| set local statement_timeout = '60s';
-  47| 
+  47|
   48| do $precondicion$
   49| begin
   50|   if to_regclass('private.llamadas_celular_intenciones') is not null
@@ -1783,9 +2068,9 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
   65|   end if;
   66| end;
   67| $precondicion$;
-  68| 
+  68|
   69| lock table crm.llamadas_celular_eventos, crm.llamadas_celular_enlaces in access exclusive mode;
-  70| 
+  70|
   71| -- ── 1. Intenciones de enlace (private, sin auditoría, 32 días) ───────────────────────────────
   72| create table private.llamadas_celular_intenciones (
   73|   id               uuid primary key default gen_random_uuid(),
@@ -1807,7 +2092,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
   89| create index llamadas_celular_intenciones_analista_idx on private.llamadas_celular_intenciones (analista_id);
   90| create index llamadas_celular_intenciones_lead_idx on private.llamadas_celular_intenciones (lead_id);
   91| create index llamadas_celular_intenciones_creado_idx on private.llamadas_celular_intenciones (creado_en);
-  92| 
+  92|
   93| create function private.trg_llamadas_celular_intenciones_candado()
   94| returns trigger
   95| language plpgsql
@@ -1848,12 +2133,12 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  130| create trigger trg_llamadas_celular_intenciones_00_sin_vaciar
  131|   before truncate on private.llamadas_celular_intenciones
  132|   for each statement execute function private.trg_llamadas_celular_sin_vaciar();
- 133| 
+ 133|
  134| -- ── 2. Vía del enlace (inmutable) ────────────────────────────────────────────────────────────
  135| alter table crm.llamadas_celular_enlaces
  136|   add column via text not null default 'manual'
  137|     constraint llamadas_celular_enlaces_via_valida check (via in ('al_colgar', 'pestana', 'manual'));
- 138| 
+ 138|
  139| -- Candado de los enlaces: el cuerpo de 20261001145242 con un cambio (la vía no cambia).
  140| create or replace function private.trg_llamadas_celular_enlaces_candado()
  141| returns trigger
@@ -1872,7 +2157,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  154|     end if;
  155|     raise exception using errcode = '42501', message = 'El enlace de una llamada no se borra';
  156|   end if;
- 157| 
+ 157|
  158|   if tg_op = 'UPDATE' then
  159|     -- La actividad se eliminó (cascada del lead → ON DELETE SET NULL): única escritura anidada
  160|     -- aceptada, y solo si no cambia nada más.
@@ -1902,7 +2187,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  184|   elsif new.actividad_id is null then
  185|     raise exception using errcode = '22023', message = 'Un enlace nace con la actividad registrada';
  186|   end if;
- 187| 
+ 187|
  188|   if new.actividad_id is not null and (tg_op = 'INSERT' or new.actividad_id is distinct from old.actividad_id) then
  189|     select * into v_act from crm.actividades a where a.id = new.actividad_id;
  190|     if not found then
@@ -1917,7 +2202,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  199|         message = 'Solo se enlaza un resultado de llamada registrado por la encuesta';
  200|     end if;
  201|   end if;
- 202| 
+ 202|
  203|   select * into v_ev from crm.llamadas_celular_eventos e where e.id = new.evento_id;
  204|   if not found then
  205|     raise exception using errcode = '22023', message = 'La llamada enlazada no existe';
@@ -1925,16 +2210,16 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  207|   if v_ev.lead_id is distinct from new.lead_id then
  208|     raise exception using errcode = '22023', message = 'El enlace debe apuntar al lead de la llamada';
  209|   end if;
- 210| 
+ 210|
  211|   if tg_op = 'UPDATE' then
  212|     new.actualizado_en := pg_catalog.now();
  213|   end if;
  214|   return new;
  215| end;
  216| $function$;
- 217| 
+ 217|
  218| -- ── 3. Núcleo del enlace exacto (INVOKER, sin EXECUTE para nadie) ────────────────────────────
- 219| 
+ 219|
  220| -- Une un resultado que la v5 acaba de registrar (o reconfirmar) con la llamada de ese id. Nunca lanza por un enlace
  221| -- imposible: devuelve {estado: enlazado | movido | repetido | pendiente | no_enlazado, motivo}.
  222| create function private.llamada_celular_enlazar_exacto(
@@ -1967,7 +2252,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  249|                    and (a.vigente_hasta is null or a.vigente_hasta >= v_hora)) then
  250|     return pg_catalog.jsonb_build_object('estado', 'no_enlazado', 'motivo', 'celular_ajeno');
  251|   end if;
- 252| 
+ 252|
  253|   -- 2. El resultado: lo creó o reconfirmó la v4 en esta transacción, con el lead ya bloqueado.
  254|   select * into v_act from crm.actividades a where a.id = p_actividad_id;
  255|   if not found or v_act.lead_id <> p_lead_id or v_act.tipo not in ('llamada_realizada', 'llamada_no_contestada')
@@ -1977,7 +2262,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  259|   if v_act.metadata ? 'deshecho_en' then
  260|     return pg_catalog.jsonb_build_object('estado', 'no_enlazado', 'motivo', 'resultado_deshecho');
  261|   end if;
- 262| 
+ 262|
  263|   -- 3. ¿La llamada ya llegó? Candado: lead (v4) → llamada → enlace.
  264|   select * into v_ev from crm.llamadas_celular_eventos e where e.evento_origen_id = p_origen for update;
  265|   if found then
@@ -2024,7 +2309,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  306|     end if;
  307|     return pg_catalog.jsonb_build_object('estado', v_estado);
  308|   end if;
- 309| 
+ 309|
  310|   -- 4. Todavía no llegó. Si el aviso llegó y se ignoró, no se guarda nada: nunca se cumpliría.
  311|   if exists (select 1 from private.llamadas_celular_recepciones r where r.evento_origen_id = p_origen) then
  312|     return pg_catalog.jsonb_build_object('estado', 'no_enlazado', 'motivo', 'sin_llamada');
@@ -2063,7 +2348,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  345|   return pg_catalog.jsonb_build_object('estado', 'pendiente');
  346| end;
  347| $function$;
- 348| 
+ 348|
  349| -- La ingesta, guardada la llamada, cumple la intención de su id. La intención se retira se cumpla o no: si no
  350| -- coincide (otro analista, otro lead, resultado deshecho o ya unido a otra llamada), la llamada queda pendiente.
  351| create function private.llamada_celular_cumplir_intencion(p_evento_id uuid)
@@ -2109,7 +2394,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  391|   update crm.llamadas_celular_eventos set atencion = 'registrado' where id = v_ev.id;
  392| end;
  393| $function$;
- 394| 
+ 394|
  395| -- La ingesta: el cuerpo de 20261005143843 con dos cambios (candado del lead antes de guardar; cumplir la intención).
  396| create or replace function private.llamada_celular_ingerir(p_asignacion_id uuid, p_evento jsonb, p_ahora timestamptz)
  397| returns jsonb
@@ -2147,7 +2432,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  429|      or coalesce(private.rol_crm(v_asig.analista_id), '') not in ('vendedor', 'supervisor') then
  430|     raise exception using errcode = '42501', message = 'Celular sin asignación vigente o analista inactivo';
  431|   end if;
- 432| 
+ 432|
  433|   -- Validación: todo inválido responde «invalido» y el cupo ya gastado queda (menor 11, Codex P3). El bloque
  434|   -- atrapa SOLO 22023: un error inesperado sigue siendo un error (503, que revierte todo, el cupo incluido).
  435|   begin
@@ -2197,7 +2482,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  479|   exception when sqlstate '22023' then
  480|     return pg_catalog.jsonb_build_object('resultado', 'invalido', 'mensaje', sqlerrm);
  481|   end;
- 482| 
+ 482|
  483|   -- Recepción ANTES de mirar leads, también si después se ignora (fallo 1). El primer envío gana: un reenvío
  484|   -- del mismo id responde lo mismo sin buscar nada. Si guardar la llamada fallara, la recepción se revierte con
  485|   -- ella: nada lo atrapa (Codex P1).
@@ -2208,12 +2493,12 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  490|   if v_recepcion is null then
  491|     return v_aceptado;
  492|   end if;
- 493| 
+ 493|
  494|   -- Solo salientes (decisión 2): la entrante y la dirección desconocida se ignoran (Codex P6).
  495|   if v_dir <> 'saliente' then
  496|     return v_aceptado;
  497|   end if;
- 498| 
+ 498|
  499|   select * into v_pol from crm.llamadas_celular_politica where singleton;
  500|   if v_ocurrio is not null and v_ocurrio > p_ahora + interval '5 minutes' then
  501|     v_calidad := v_calidad || '{"reloj": "adelantado"}'::jsonb;
@@ -2226,7 +2511,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  508|     v_calidad := v_calidad || '{"numero": "oculto"}'::jsonb;
  509|   end if;
  510|   v_cand := private.llamada_celular_candidatos_dueno(v_asig.analista_id, v_formas, p_ahora);
- 511| 
+ 511|
  512|   if pg_catalog.cardinality(v_cand) = 1 then
  513|     v_lead := v_cand[1];
  514|     v_ident := 'identificado';
@@ -2245,7 +2530,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  527|     -- Decisión 3: sin candidato, la llamada no pertenece al CRM, aunque el número sea de un lead de otro analista.
  528|     return v_aceptado;
  529|   end if;
- 530| 
+ 530|
  531|   -- F4-a: el lead se bloquea ANTES de guardar la llamada, el orden de la v5 (lead → llamada → enlace): un aviso que
  532|   -- llega mientras se guarda la encuesta de esa llamada espera y encuentra su intención.
  533|   if v_lead is not null then
@@ -2265,7 +2550,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  547|   return v_aceptado;
  548| end;
  549| $function$;
- 550| 
+ 550|
  551| -- La purga: el cuerpo de 20261005143843 con un cambio (intenciones de más de 32 días).
  552| create or replace function private.caducar_llamadas_celular()
  553| returns integer
@@ -2283,14 +2568,14 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  565|     return 0;
  566|   end if;
  567|   perform pg_catalog.set_config('crm.op_purga_llamadas', 'on', true);
- 568| 
+ 568|
  569|   -- Descartadas con motivo: su plazo, desde descartado_en. El motivo y quién lo dio quedan en la auditoría.
  570|   delete from crm.llamadas_celular_eventos e
  571|    where e.atencion = 'descartado_con_motivo'
  572|      and e.descartado_en < pg_catalog.now() - pg_catalog.make_interval(days => v_pol.dias_retencion_descartados);
  573|   get diagnostics v_parcial = row_count;
  574|   v_n := v_n + v_parcial;
- 575| 
+ 575|
  576|   -- Sin resolver: identificadas sin enlace y ambiguas, desde recibido_en. La atención también se mira: si una
  577|   -- encuesta enlaza la llamada mientras la purga espera su candado, la fila vuelve con «registrado» y se queda.
  578|   delete from crm.llamadas_celular_eventos e
@@ -2300,7 +2585,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  582|      and e.recibido_en < pg_catalog.now() - pg_catalog.make_interval(days => v_pol.dias_retencion_sin_resolver);
  583|   get diagnostics v_parcial = row_count;
  584|   v_n := v_n + v_parcial;
- 585| 
+ 585|
  586|   -- Sin identificar (solo existen si la perilla guardar_sin_identificar estuvo encendida).
  587|   delete from crm.llamadas_celular_eventos e
  588|    where e.identificacion = 'sin_identificar'
@@ -2309,25 +2594,25 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  591|      and e.recibido_en < pg_catalog.now() - pg_catalog.make_interval(days => v_pol.dias_retencion_sin_identificar);
  592|   get diagnostics v_parcial = row_count;
  593|   v_n := v_n + v_parcial;
- 594| 
+ 594|
  595|   -- Recepciones: 32 días (30 de ventana + 1 de tolerancia + 1 de margen). Pasado ese plazo, su id ya no entra
  596|   -- por la ventana, así que no queda un registro eterno de a qué hora llamaba el analista (Codex P9).
  597|   delete from private.llamadas_celular_recepciones r
  598|    where r.recibido_en < pg_catalog.now() - interval '32 days';
  599|   get diagnostics v_parcial = row_count;
  600|   v_n := v_n + v_parcial;
- 601| 
+ 601|
  602|   -- F4-a: intenciones de enlace cuyo aviso nunca llegó (32 días, como las recepciones).
  603|   delete from private.llamadas_celular_intenciones i
  604|    where i.creado_en < pg_catalog.now() - interval '32 days';
  605|   get diagnostics v_parcial = row_count;
  606|   v_n := v_n + v_parcial;
- 607| 
+ 607|
  608|   perform pg_catalog.set_config('crm.op_purga_llamadas', 'off', true);
  609|   return v_n;
  610| end;
  611| $function$;
- 612| 
+ 612|
  613| -- ── 4. Puerta v5 (DEFINER, EXECUTE solo authenticated) ───────────────────────────────────────
  614| create function crm.registrar_llamada_v5(
  615|   p_operacion_id uuid, p_lead_id uuid, p_resultado text, p_submotivo text default null, p_detalle text default null,
@@ -2365,7 +2650,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  647|     v_uid, p_lead_id, (v_resp ->> 'actividad_id')::uuid, p_evento_origen_id, p_via, pg_catalog.clock_timestamp()));
  648| end;
  649| $function$;
- 650| 
+ 650|
  651| -- ── 5. Permisos ──────────────────────────────────────────────────────────────────────────────
  652| do $permisos$
  653| declare
@@ -2383,7 +2668,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  665|     to authenticated;
  666| end;
  667| $permisos$;
- 668| 
+ 668|
  669| -- ── 6. Comentarios ───────────────────────────────────────────────────────────────────────────
  670| comment on table private.llamadas_celular_intenciones is
  671|   'Intención de enlace (F4-a): la encuesta se guardó con el id de su llamada ANTES de que llegara el aviso del celular. La ingesta la cumple al llegar el aviso (crea el enlace con su vía) y la retira, se cumpla o no. Única por id y por resultado; caduca a los 32 días (la purga diaria) si el aviso nunca llega. Tabla técnica de private, sin acceso para la API y sin auditoría: transitoria, sin número ni datos personales. Sin columna de tenant: CRM de una sola empresa.';
@@ -2410,7 +2695,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  692|   'Retención de llamadas del celular (decisión 4 de Miguel, 03/10): descartadas por su plazo desde descartado_en; identificadas sin enlace y ambiguas a dias_retencion_sin_resolver desde recibido_en; sin identificar a dias_retencion_sin_identificar; las registradas (con enlace, aunque su resultado se haya deshecho) se conservan; recepciones a los 32 días. Devuelve cuántas filas retiró (llamadas y recepciones). Fija el GUC crm.op_purga_llamadas para pasar los candados. La invoca pg_cron (crm-llamadas-celular-caducidad). SECURITY DEFINER: borra sin privilegios de la API. Desde 20261005155914 retira también las intenciones de enlace de más de 32 días.';
  693| comment on function crm.registrar_llamada_v5(uuid,uuid,text,text,text,jsonb,uuid,boolean,boolean,text,text) is
  694|   'PUERTA v5 (F4-a): la operación de la v4 (su núcleo sellado private.llamada_registrar_v4: rol, ámbito, candado del lead, resultado, agenda y recibo) y, en la misma transacción, el enlace exacto con la llamada de p_evento_origen_id (vía al_colgar o pestana). Sin id, igual que la v4 con enlace null. Un enlace imposible no impide guardar el resultado: devuelve enlace.estado = no_enlazado con su motivo. DEFINER para componer el núcleo privado, no para ampliar el ámbito.';
- 695| 
+ 695|
  696| -- ── 7. Postflight ────────────────────────────────────────────────────────────────────────────
  697| do $postflight$
  698| declare
@@ -2457,7 +2742,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  739|      or exists (select 1 from private.tablas_sin_rastro() s where s.tabla = 'crm.llamadas_celular_enlaces') then
  740|     raise exception 'LLAMADAS_ENLACE_EXACTO: los enlaces perdieron un trigger o su rastro de auditoría';
  741|   end if;
- 742| 
+ 742|
  743|   for v_f in
  744|     select * from (values
  745|       ('private.trg_llamadas_celular_intenciones_candado()', true, null),
@@ -2507,12 +2792,284 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  789|   end if;
  790| end;
  791| $postflight$;
- 792| 
+ 792|
  793| notify pgrst, 'reload schema';
  794| commit;
 ```
 
-## Archivo: supabase/functions/crm-llamadas-ingesta/handler.ts (132 líneas) — la Edge (lo que se revisa)
+## Archivo: supabase/migrations/20261005182227_crm_llamadas_celular_enlace_sin_ciclo.sql (268 líneas) — la séptima: enlace sin ciclo con Deshacer (lo que se revisa)
+```
+   1| -- Llamadas desde el celular · séptima migración: el enlace exacto SIN CICLO de candados con «Deshacer». Corrige el [P2]
+   2| -- de la revisión del agente de Miguel en el PR #190 (05/10/2026, 18:13 UTC; reproducido con dos sesiones sobre las seis
+   3| -- migraciones): al unir un resultado con su llamada, la llave foránea del enlace (y la de la intención) toma el resultado
+   4| -- FOR KEY SHARE aunque nadie lo pida; Deshacer (20260920005000:649 y 682) bloquea resultado → lead FOR UPDATE; la
+   5| -- ingesta y la v5 llegan con el lead ya tomado y esperaban el resultado: lead → resultado contra resultado → lead =
+   6| -- interbloqueo (40P01). Se publica JUNTO con las seis (va antes de dar de alta celulares, como ellas).
+   7| --
+   8| -- Qué hace (sin editar F4-a, 20261005155914; mismas firmas, mismos permisos, sin tablas ni datos):
+   9| --   1. private.llamada_celular_cumplir_intencion (la ingesta): toma el resultado FOR KEY SHARE NOWAIT antes de crear el
+  10| --      enlace. Si Deshacer lo tiene (55P03 lock_not_available, lo único que se atrapa), la intención ya se retiró y no se
+  11| --      une: la llamada queda en la pestaña para unirla a mano. Decisión de Jhosep (05/10): no esperar.
+  12| --   2. private.llamada_celular_enlazar_exacto (la v5): igual, antes de crear o mover el enlace o la intención. Si lo tiene
+  13| --      otro → {estado: no_enlazado, motivo: resultado_en_uso}; el resultado ya quedó guardado. Solo pasa en el reintento
+  14| --      de una operación cuyo resultado se está deshaciendo: en el camino normal el resultado es de esta transacción.
+  15| --   Solo Deshacer bloquea un resultado FOR UPDATE (comprobado en todas las migraciones el 05/10). La actualización que
+  16| --   hace la v4 (FOR NO KEY UPDATE) no choca con FOR KEY SHARE: el «no esperar» no falla por otros escritores.
+  17| --
+  18| -- Capas (estándar de 4 capas): solo núcleo de private (INVOKER, sin EXECUTE para nadie); las puertas (v5 e ingesta de
+  19| -- servicio) no cambian de firma. La v5 suma un valor de motivo (resultado_en_uso); ninguna pantalla la usa todavía (F4-b).
+  20| -- Excepción single-tenant (F2.3.3): el CRM es de una sola empresa; no hay columna de tenant.
+  21| -- Reversión: ../scripts/llamadas-celular/reversa-enlace-sin-ciclo.sql (solo cuerpos y COMMENT, sin datos: vuelve a la
+  22| -- huella exacta de las seis). Verificación: npm run test:llamadas:local (pasadas 13 y 14: huella, oráculos de F4-a y de la
+  23| -- quinta, carreras con Deshacer pausado entre sus dos candados, en los dos órdenes y revertido, y mutantes).
+  24| begin;
+  25| set local lock_timeout = '5s';
+  26| set local statement_timeout = '60s';
+  27|
+  28| do $precondicion$
+  29| begin
+  30|   if to_regclass('private.llamadas_celular_intenciones') is null
+  31|      or to_regprocedure('private.llamada_celular_cumplir_intencion(uuid)') is null
+  32|      or to_regprocedure('private.llamada_celular_enlazar_exacto(uuid,uuid,uuid,text,text,timestamptz)') is null then
+  33|     raise exception 'LLAMADAS_ENLACE_SIN_CICLO: falta F4-a (20261005155914)';
+  34|   end if;
+  35|   if pg_catalog.strpos(pg_catalog.pg_get_functiondef('private.llamada_celular_cumplir_intencion(uuid)'::regprocedure),
+  36|                        'for key share nowait') > 0 then
+  37|     raise exception 'LLAMADAS_ENLACE_SIN_CICLO: ya está aplicada; no se sobrescribe';
+  38|   end if;
+  39| end;
+  40| $precondicion$;
+  41|
+  42| -- ── 1. El enlace de la v5: el resultado, sin esperar ─────────────────────────────────────────
+  43| create or replace function private.llamada_celular_enlazar_exacto(
+  44|   p_actor uuid, p_lead_id uuid, p_actividad_id uuid, p_origen text, p_via text, p_ahora timestamptz)
+  45| returns jsonb
+  46| language plpgsql
+  47| volatile
+  48| set search_path = ''
+  49| as $function$
+  50| declare
+  51|   v_act crm.actividades%rowtype;
+  52|   v_ev crm.llamadas_celular_eventos%rowtype;
+  53|   v_enl crm.llamadas_celular_enlaces%rowtype;
+  54|   v_int private.llamadas_celular_intenciones%rowtype;
+  55|   v_hora timestamptz;
+  56|   v_deshecha boolean;
+  57|   v_restriccion text;
+  58|   v_estado text;
+  59| begin
+  60|   -- 1. El id: forma fija, dentro de la ventana de la ingesta y de un celular del analista que registra.
+  61|   if p_origen is null or p_origen !~ '^C[1-9][0-9]{0,2}-[0-9]{10}$' then
+  62|     return pg_catalog.jsonb_build_object('estado', 'no_enlazado', 'motivo', 'id_invalido');
+  63|   end if;
+  64|   v_hora := pg_catalog.to_timestamp(pg_catalog.split_part(p_origen, '-', 2)::bigint);
+  65|   if v_hora < p_ahora - interval '30 days' or v_hora > p_ahora + interval '1 day' then
+  66|     return pg_catalog.jsonb_build_object('estado', 'no_enlazado', 'motivo', 'id_invalido');
+  67|   end if;
+  68|   if not exists (select 1 from crm.celulares_asignaciones a
+  69|                  where a.etiqueta = pg_catalog.split_part(p_origen, '-', 1) and a.analista_id = p_actor
+  70|                    and (a.vigente_hasta is null or a.vigente_hasta >= v_hora)) then
+  71|     return pg_catalog.jsonb_build_object('estado', 'no_enlazado', 'motivo', 'celular_ajeno');
+  72|   end if;
+  73|
+  74|   -- 2. El resultado: lo creó o reconfirmó la v4 en esta transacción, con el lead ya bloqueado. Se toma FOR KEY SHARE SIN
+  75|   --    ESPERAR (20261005182227): el enlace y la intención lo piden igual por su llave foránea, y Deshacer lo bloquea
+  76|   --    ANTES que el lead (ciclo reproducido en el #190). Solo choca en el reintento de una operación cuyo resultado se
+  77|   --    está deshaciendo: en el camino normal el resultado es de esta misma transacción.
+  78|   begin
+  79|     select * into v_act from crm.actividades a where a.id = p_actividad_id for key share nowait;
+  80|   exception when lock_not_available then
+  81|     return pg_catalog.jsonb_build_object('estado', 'no_enlazado', 'motivo', 'resultado_en_uso');
+  82|   end;
+  83|   if v_act.id is null or v_act.lead_id <> p_lead_id or v_act.tipo not in ('llamada_realizada', 'llamada_no_contestada')
+  84|      or coalesce(v_act.metadata ->> 'evento', '') <> 'resultado_llamada' then
+  85|     raise exception using errcode = '23514', message = 'El servidor no confirmó el resultado de la llamada';
+  86|   end if;
+  87|   if v_act.metadata ? 'deshecho_en' then
+  88|     return pg_catalog.jsonb_build_object('estado', 'no_enlazado', 'motivo', 'resultado_deshecho');
+  89|   end if;
+  90|
+  91|   -- 3. ¿La llamada ya llegó? Candado: lead (v4) → llamada → enlace.
+  92|   select * into v_ev from crm.llamadas_celular_eventos e where e.evento_origen_id = p_origen for update;
+  93|   if found then
+  94|     if v_ev.analista_id <> p_actor then
+  95|       return pg_catalog.jsonb_build_object('estado', 'no_enlazado', 'motivo', 'celular_ajeno');
+  96|     end if;
+  97|     if v_ev.atencion = 'descartado_con_motivo' then
+  98|       return pg_catalog.jsonb_build_object('estado', 'no_enlazado', 'motivo', 'descartada');
+  99|     end if;
+ 100|     if v_ev.identificacion <> 'identificado' or v_ev.lead_id is distinct from p_lead_id then
+ 101|       return pg_catalog.jsonb_build_object('estado', 'no_enlazado', 'motivo', 'otro_lead');
+ 102|     end if;
+ 103|     select * into v_enl from crm.llamadas_celular_enlaces l where l.evento_id = v_ev.id for update;
+ 104|     if found then
+ 105|       if v_enl.actividad_id = p_actividad_id then
+ 106|         return pg_catalog.jsonb_build_object('estado', 'repetido');
+ 107|       end if;
+ 108|       select (a.metadata ? 'deshecho_en') into v_deshecha from crm.actividades a where a.id = v_enl.actividad_id;
+ 109|       if v_enl.actividad_id is not null and not coalesce(v_deshecha, false) then
+ 110|         return pg_catalog.jsonb_build_object('estado', 'no_enlazado', 'motivo', 'ya_tiene_resultado');
+ 111|       end if;
+ 112|       begin
+ 113|         update crm.llamadas_celular_enlaces set actividad_id = p_actividad_id, enlazado_por = p_actor
+ 114|          where id = v_enl.id;
+ 115|       exception when unique_violation then
+ 116|         return pg_catalog.jsonb_build_object('estado', 'no_enlazado', 'motivo', 'resultado_ya_enlazado');
+ 117|       end;
+ 118|       v_estado := 'movido';
+ 119|     else
+ 120|       begin
+ 121|         insert into crm.llamadas_celular_enlaces (evento_id, actividad_id, lead_id, enlazado_por, via)
+ 122|         values (v_ev.id, p_actividad_id, v_ev.lead_id, p_actor, p_via);
+ 123|       exception when unique_violation then
+ 124|         return pg_catalog.jsonb_build_object('estado', 'no_enlazado', 'motivo', 'resultado_ya_enlazado');
+ 125|       end;
+ 126|       v_estado := 'enlazado';
+ 127|     end if;
+ 128|     -- La máquina de estados de la tabla exige pasar por «requiere resultado».
+ 129|     if v_ev.atencion = 'por_revisar' then
+ 130|       update crm.llamadas_celular_eventos set atencion = 'requiere_resultado' where id = v_ev.id;
+ 131|     end if;
+ 132|     if v_ev.atencion <> 'registrado' then
+ 133|       update crm.llamadas_celular_eventos set atencion = 'registrado' where id = v_ev.id;
+ 134|     end if;
+ 135|     return pg_catalog.jsonb_build_object('estado', v_estado);
+ 136|   end if;
+ 137|
+ 138|   -- 4. Todavía no llegó. Si el aviso llegó y se ignoró, no se guarda nada: nunca se cumpliría.
+ 139|   if exists (select 1 from private.llamadas_celular_recepciones r where r.evento_origen_id = p_origen) then
+ 140|     return pg_catalog.jsonb_build_object('estado', 'no_enlazado', 'motivo', 'sin_llamada');
+ 141|   end if;
+ 142|   if exists (select 1 from crm.llamadas_celular_enlaces l where l.actividad_id = p_actividad_id) then
+ 143|     return pg_catalog.jsonb_build_object('estado', 'no_enlazado', 'motivo', 'resultado_ya_enlazado');
+ 144|   end if;
+ 145|   select * into v_int from private.llamadas_celular_intenciones i where i.evento_origen_id = p_origen for update;
+ 146|   if found then
+ 147|     if v_int.actividad_id = p_actividad_id then
+ 148|       return pg_catalog.jsonb_build_object('estado', 'pendiente');
+ 149|     end if;
+ 150|     if v_int.analista_id <> p_actor or v_int.lead_id <> p_lead_id then
+ 151|       return pg_catalog.jsonb_build_object('estado', 'no_enlazado', 'motivo', 'otro_lead');
+ 152|     end if;
+ 153|     select (a.metadata ? 'deshecho_en') into v_deshecha from crm.actividades a where a.id = v_int.actividad_id;
+ 154|     if not coalesce(v_deshecha, false) then
+ 155|       return pg_catalog.jsonb_build_object('estado', 'no_enlazado', 'motivo', 'ya_tiene_resultado');
+ 156|     end if;
+ 157|     begin
+ 158|       update private.llamadas_celular_intenciones set actividad_id = p_actividad_id where id = v_int.id;
+ 159|     exception when unique_violation then
+ 160|       return pg_catalog.jsonb_build_object('estado', 'no_enlazado', 'motivo', 'resultado_ya_enlazado');
+ 161|     end;
+ 162|     return pg_catalog.jsonb_build_object('estado', 'pendiente');
+ 163|   end if;
+ 164|   begin
+ 165|     insert into private.llamadas_celular_intenciones (evento_origen_id, analista_id, lead_id, actividad_id, via)
+ 166|     values (p_origen, p_actor, p_lead_id, p_actividad_id, p_via);
+ 167|   exception when unique_violation then
+ 168|     get stacked diagnostics v_restriccion = constraint_name;
+ 169|     return pg_catalog.jsonb_build_object('estado', 'no_enlazado', 'motivo',
+ 170|       case when v_restriccion = 'llamadas_celular_intenciones_origen_uq' then 'ya_tiene_resultado'
+ 171|            else 'resultado_ya_enlazado' end);
+ 172|   end;
+ 173|   return pg_catalog.jsonb_build_object('estado', 'pendiente');
+ 174| end;
+ 175| $function$;
+ 176|
+ 177| -- ── 2. La intención que cumple la ingesta: el resultado, sin esperar ─────────────────────────
+ 178| create or replace function private.llamada_celular_cumplir_intencion(p_evento_id uuid)
+ 179| returns void
+ 180| language plpgsql
+ 181| volatile
+ 182| set search_path = ''
+ 183| as $function$
+ 184| declare
+ 185|   v_ev crm.llamadas_celular_eventos%rowtype;
+ 186|   v_int private.llamadas_celular_intenciones%rowtype;
+ 187|   v_act crm.actividades%rowtype;
+ 188| begin
+ 189|   select * into v_ev from crm.llamadas_celular_eventos e where e.id = p_evento_id for update;
+ 190|   if not found then
+ 191|     return;
+ 192|   end if;
+ 193|   select * into v_int from private.llamadas_celular_intenciones i where i.evento_origen_id = v_ev.evento_origen_id for update;
+ 194|   if not found then
+ 195|     return;
+ 196|   end if;
+ 197|   perform pg_catalog.set_config('crm.op_enlace_llamadas', 'on', true);
+ 198|   delete from private.llamadas_celular_intenciones where id = v_int.id;
+ 199|   perform pg_catalog.set_config('crm.op_enlace_llamadas', 'off', true);
+ 200|   if v_int.analista_id <> v_ev.analista_id or v_ev.identificacion <> 'identificado'
+ 201|      or v_ev.lead_id is distinct from v_int.lead_id then
+ 202|     return;
+ 203|   end if;
+ 204|   -- El resultado se toma FOR KEY SHARE SIN ESPERAR (20261005182227): Deshacer lo bloquea ANTES que el lead, que aquí ya
+ 205|   -- está tomado, y la llave foránea del enlace lo pedía igual (ciclo reproducido en el #190). Si lo tiene otro, la
+ 206|   -- intención ya se retiró y la llamada queda para unirla a mano (decisión de Jhosep, 05/10: no esperar).
+ 207|   begin
+ 208|     select * into v_act from crm.actividades a where a.id = v_int.actividad_id for key share nowait;
+ 209|   exception when lock_not_available then
+ 210|     return;
+ 211|   end;
+ 212|   if v_act.id is null or v_act.metadata ? 'deshecho_en' then
+ 213|     return;
+ 214|   end if;
+ 215|   begin
+ 216|     insert into crm.llamadas_celular_enlaces (evento_id, actividad_id, lead_id, enlazado_por, via)
+ 217|     values (v_ev.id, v_int.actividad_id, v_ev.lead_id, v_int.analista_id, v_int.via);
+ 218|   exception when unique_violation then
+ 219|     return;  -- ese resultado ya quedó unido a otra llamada
+ 220|   end;
+ 221|   if v_ev.atencion = 'por_revisar' then
+ 222|     update crm.llamadas_celular_eventos set atencion = 'requiere_resultado' where id = v_ev.id;
+ 223|   end if;
+ 224|   update crm.llamadas_celular_eventos set atencion = 'registrado' where id = v_ev.id;
+ 225| end;
+ 226| $function$;
+ 227|
+ 228| -- ── 3. Comentarios ───────────────────────────────────────────────────────────────────────────
+ 229| comment on function private.llamada_celular_enlazar_exacto(uuid,uuid,uuid,text,text,timestamptz) is
+ 230|   'Enlace EXACTO (F4-a) de un resultado recién registrado por la v5 con la llamada de su id: id con forma y ventana de un celular del analista; llamada ya llegada, del mismo analista, identificada con ese lead → enlace (o lo mueve si el anterior se deshizo); no llegada → intención de enlace (o la mueve); sin la regla de los 10 minutos. Nunca lanza por un enlace imposible: {estado: enlazado | movido | repetido | pendiente | no_enlazado, motivo}. Candados: lead (ya bloqueado por la v4) → resultado FOR KEY SHARE sin esperar → llamada → enlace o intención. Desde 20261005182227 el resultado se toma sin esperar (Deshacer bloquea resultado → lead; esperarlo con el lead tomado cerraba un ciclo): si lo tiene otro → no_enlazado, motivo resultado_en_uso.';
+ 231| comment on function private.llamada_celular_cumplir_intencion(uuid) is
+ 232|   'La ingesta, guardada una llamada, cumple la intención de su id: la retira y, si coincide (mismo analista, llamada identificada con ese lead, resultado vigente y sin otra llamada), crea el enlace con su vía y deja la llamada en «registrado». Desde 20261005182227 toma el resultado FOR KEY SHARE sin esperar: Deshacer lo bloquea antes que el lead, que aquí ya está tomado, y la llave foránea del enlace lo pedía igual (ciclo reproducido en la revisión de Miguel del #190). Si lo tiene otro, la intención se retira sin enlace y la llamada queda para unirla a mano (decisión de Jhosep, 05/10).';
+ 233|
+ 234| -- ── 4. Postflight ────────────────────────────────────────────────────────────────────────────
+ 235| do $postflight$
+ 236| declare
+ 237|   v_f text;
+ 238| begin
+ 239|   foreach v_f in array array[
+ 240|     'private.llamada_celular_enlazar_exacto(uuid,uuid,uuid,text,text,timestamptz)',
+ 241|     'private.llamada_celular_cumplir_intencion(uuid)'] loop
+ 242|     if (select p.prosecdef from pg_catalog.pg_proc p where p.oid = v_f::regprocedure) then
+ 243|       raise exception 'LLAMADAS_ENLACE_SIN_CICLO: % debería ser SECURITY INVOKER', v_f;
+ 244|     end if;
+ 245|     if exists (select 1 from pg_catalog.pg_proc p, pg_catalog.aclexplode(p.proacl) a
+ 246|                where p.oid = v_f::regprocedure and a.privilege_type = 'EXECUTE' and a.grantee <> p.proowner)
+ 247|        or (select p.proacl is null from pg_catalog.pg_proc p where p.oid = v_f::regprocedure) then
+ 248|       raise exception 'LLAMADAS_ENLACE_SIN_CICLO: EXECUTE inesperado en %', v_f;
+ 249|     end if;
+ 250|     if not exists (select 1 from pg_catalog.pg_proc p
+ 251|                    where p.oid = v_f::regprocedure and p.proconfig @> array['search_path=""']) then
+ 252|       raise exception 'LLAMADAS_ENLACE_SIN_CICLO: search_path inesperado en %', v_f;
+ 253|     end if;
+ 254|     if pg_catalog.obj_description(v_f::regprocedure, 'pg_proc') is null then
+ 255|       raise exception 'LLAMADAS_ENLACE_SIN_CICLO: % sin COMMENT', v_f;
+ 256|     end if;
+ 257|     if pg_catalog.strpos(pg_catalog.lower(pg_catalog.pg_get_functiondef(v_f::regprocedure)), 'when others') > 0 then
+ 258|       raise exception 'LLAMADAS_ENLACE_SIN_CICLO: % atrapa cualquier error (WHEN OTHERS)', v_f;
+ 259|     end if;
+ 260|   end loop;
+ 261|   if pg_catalog.strpos(pg_catalog.pg_get_functiondef('private.llamada_celular_ingerir(uuid,jsonb,timestamptz)'::regprocedure),
+ 262|                        'private.llamada_celular_cumplir_intencion(') = 0 then
+ 263|     raise exception 'LLAMADAS_ENLACE_SIN_CICLO: la ingesta no cumple las intenciones de enlace';
+ 264|   end if;
+ 265| end;
+ 266| $postflight$;
+ 267|
+ 268| commit;
+```
+
+## Archivo: supabase/functions/crm-llamadas-ingesta/handler.ts (140 líneas) — la Edge (lo que se revisa)
 ```
    1| // crm-llamadas-ingesta — recibe del celular corporativo el aviso de cada llamada y su latido de salud.
    2| //
@@ -2536,7 +3093,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
   20| //
   21| // Núcleo verificable sin red ni credenciales: las RPC llegan inyectadas desde index.ts.
   22| // Nunca registra cabeceras, cuerpo ni la clave.
-  23| 
+  23|
   24| type Json = Record<string, unknown>;
   25| export type ErrorRpc = { code?: unknown; message?: unknown; details?: unknown };
   26| export type Dependencias = {
@@ -2545,12 +3102,12 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
   29|   ingerir: (credencial: string, evento: unknown) => Promise<unknown>;
   30|   registrarSalud: (credencial: string, latido: unknown) => Promise<unknown>;
   31| };
-  32| 
+  32|
   33| const TOPE_BYTES = 4096;
   34| const CREDENCIAL = /^[0-9a-f]{64}$/;
-  35| 
+  35|
   36| const esObjeto = (x: unknown): x is Json => typeof x === 'object' && x !== null && !Array.isArray(x);
-  37| 
+  37|
   38| /** La URL que abre el celular tras enviar: la encuesta de F1 por número (decisión 4); sin número, Mi día. */
   39| export function urlAbrir(base: string, numero: unknown): string {
   40|   const raiz = `${base.replace(/\/+$/, '')}/#/gestion-diaria`;
@@ -2558,14 +3115,14 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
   42|     ? `${raiz}/llamada/${encodeURIComponent(numero.trim())}`
   43|     : raiz;
   44| }
-  45| 
+  45|
   46| /** Los segundos que la base pide esperar (DETAIL «reintentar_en_seg=N»); 60 si no los dice. */
   47| export function segundosDeEspera(detalle: unknown): number {
   48|   const m = typeof detalle === 'string' ? /^reintentar_en_seg=(\d{1,6})$/.exec(detalle) : null;
   49|   const n = m ? Number(m[1]) : Number.NaN;
   50|   return Number.isInteger(n) && n >= 1 ? n : 60;
   51| }
-  52| 
+  52|
   53| /** Lo que devolvió la RPC: aceptado, inválido con su mensaje (recortado) o null si no tiene la forma pactada. */
   54| export function leerResultado(dato: unknown): { aceptado: true } | { aceptado: false; mensaje: string } | null {
   55|   if (!esObjeto(dato)) return null;
@@ -2575,84 +3132,92 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
   59|   }
   60|   return null;
   61| }
-  62| 
-  63| // Marcas que ningún JSON puede producir: cuerpo demasiado grande y cuerpo que no es JSON.
+  62|
+  63| // Marcas que ningún JSON puede producir: cuerpo demasiado grande, cuerpo que no se pudo leer y cuerpo que no es JSON.
   64| const GRANDE = Symbol('grande');
-  65| const MAL_FORMADO = Symbol('mal formado');
-  66| async function leerJson(req: Request): Promise<unknown> {
-  67|   const lector = req.body?.getReader();
+  65| const ILEGIBLE = Symbol('ilegible');
+  66| const MAL_FORMADO = Symbol('mal formado');
+  67| async function leerJson(req: Request): Promise<unknown> {
   68|   const partes: Uint8Array<ArrayBuffer>[] = [];
   69|   let longitud = 0;
-  70|   if (lector) for (;;) {
-  71|     const { done, value } = await lector.read();
-  72|     if (done) break;
-  73|     longitud += value.byteLength;
-  74|     if (longitud > TOPE_BYTES) { await lector.cancel(); return GRANDE; }
-  75|     partes.push(new Uint8Array(value));
-  76|   }
-  77|   try {
-  78|     return JSON.parse(await new Blob(partes).text());
+  70|   try {
+  71|     const lector = req.body?.getReader();
+  72|     if (lector) for (;;) {
+  73|       const { done, value } = await lector.read();
+  74|       if (done) break;
+  75|       longitud += value.byteLength;
+  76|       if (longitud > TOPE_BYTES) { await lector.cancel(); return GRANDE; }
+  77|       partes.push(new Uint8Array(value));
+  78|     }
   79|   } catch {
-  80|     return MAL_FORMADO;
-  81|   }
-  82| }
-  83| 
-  84| export function crearHandler(d: Dependencias) {
-  85|   return async (req: Request): Promise<Response> => {
-  86|     const respuesta = (estado: number, cuerpo: Json, extra: Record<string, string> = {}) =>
-  87|       new Response(JSON.stringify(cuerpo), {
-  88|         status: estado,
-  89|         headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...extra },
-  90|       });
-  91|     // Una sola respuesta para todo problema de clave: no se distingue ausente, mal formada,
-  92|     // desconocida, revocada o de un analista de baja.
-  93|     const noAutorizado = () => respuesta(401, { error: 'No autorizado' });
-  94| 
-  95|     // Sin CORS: no la llama un navegador, la llama la macro del celular.
-  96|     if (req.method !== 'POST') return respuesta(405, { error: 'Método no admitido' }, { Allow: 'POST' });
-  97|     const tipo = (req.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase();
-  98|     if (tipo !== 'application/json') return respuesta(415, { error: 'El cuerpo debe ser JSON' });
-  99|     // La clave se mira antes que el cuerpo: sin una clave con forma válida no se revela nada más.
- 100|     const credencial = req.headers.get('x-celular-credencial') ?? '';
- 101|     if (!CREDENCIAL.test(credencial)) return noAutorizado();
- 102| 
- 103|     const cuerpo = await leerJson(req);
- 104|     if (cuerpo === GRANDE) return respuesta(413, { error: 'Petición demasiado grande' });
- 105| 
- 106|     // La puerta se elige por `accion`; un sobre que no es exactamente {accion, evento|latido} llega con la
- 107|     // carga en null y la base lo responde «invalido» (después de autenticar y gastar cupo).
- 108|     const esLatido = esObjeto(cuerpo) && cuerpo.accion === 'latido';
- 109|     const sobre = esObjeto(cuerpo) && Object.keys(cuerpo).length === 2 ? cuerpo : null;
- 110|     const carga = esLatido
- 111|       ? (sobre && 'latido' in sobre ? sobre.latido : null)
- 112|       : (sobre && sobre.accion === 'llamada' && 'evento' in sobre ? sobre.evento : null);
- 113| 
- 114|     try {
- 115|       const resultado = leerResultado(esLatido ? await d.registrarSalud(credencial, carga) : await d.ingerir(credencial, carga));
- 116|       if (resultado === null) return respuesta(503, { error: 'No se pudo guardar; vuelve a intentarlo' });
- 117|       if (!resultado.aceptado) return respuesta(400, { error: resultado.mensaje });
- 118|       if (esLatido) return respuesta(200, { registrado: true });
- 119|       // Guardada, repetida o ignorada: la misma respuesta (propuesta #12).
- 120|       return respuesta(202, { recibido: true, abrir: urlAbrir(d.urlCrm, esObjeto(carga) ? carga.numero : null) });
- 121|     } catch (error) {
- 122|       const e: ErrorRpc = esObjeto(error) ? error : {};
- 123|       if (e.code === '42501') return noAutorizado();
- 124|       if (e.code === 'P0429') {
- 125|         const espera = segundosDeEspera(e.details);
- 126|         return respuesta(429, { error: 'Demasiados envíos de este celular', reintentar_en_seg: espera },
- 127|           { 'Retry-After': String(espera) });
- 128|       }
- 129|       return respuesta(503, { error: 'No se pudo guardar; vuelve a intentarlo' });
- 130|     }
- 131|   };
- 132| }
+  80|     // La conexión se cortó a mitad del cuerpo: es transporte, no contenido (revisión de Miguel, #190).
+  81|     return ILEGIBLE;
+  82|   }
+  83|   try {
+  84|     return JSON.parse(await new Blob(partes).text());
+  85|   } catch {
+  86|     return MAL_FORMADO;
+  87|   }
+  88| }
+  89|
+  90| export function crearHandler(d: Dependencias) {
+  91|   return async (req: Request): Promise<Response> => {
+  92|     const respuesta = (estado: number, cuerpo: Json, extra: Record<string, string> = {}) =>
+  93|       new Response(JSON.stringify(cuerpo), {
+  94|         status: estado,
+  95|         headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...extra },
+  96|       });
+  97|     // Una sola respuesta para todo problema de clave: no se distingue ausente, mal formada,
+  98|     // desconocida, revocada o de un analista de baja.
+  99|     const noAutorizado = () => respuesta(401, { error: 'No autorizado' });
+ 100|
+ 101|     // Sin CORS: no la llama un navegador, la llama la macro del celular.
+ 102|     if (req.method !== 'POST') return respuesta(405, { error: 'Método no admitido' }, { Allow: 'POST' });
+ 103|     const tipo = (req.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase();
+ 104|     if (tipo !== 'application/json') return respuesta(415, { error: 'El cuerpo debe ser JSON' });
+ 105|     // La clave se mira antes que el cuerpo: sin una clave con forma válida no se revela nada más.
+ 106|     const credencial = req.headers.get('x-celular-credencial') ?? '';
+ 107|     if (!CREDENCIAL.test(credencial)) return noAutorizado();
+ 108|
+ 109|     const cuerpo = await leerJson(req);
+ 110|     if (cuerpo === GRANDE) return respuesta(413, { error: 'Petición demasiado grande' });
+ 111|     // Un corte al leer es pasajero: 503 deja el aviso en la cola del celular para reintentar (un 400 lo apartaría).
+ 112|     if (cuerpo === ILEGIBLE) return respuesta(503, { error: 'No se pudo leer la petición; vuelve a intentarlo' });
+ 113|
+ 114|     // La puerta se elige por `accion`; un sobre que no es exactamente {accion, evento|latido} llega con la
+ 115|     // carga en null y la base lo responde «invalido» (después de autenticar y gastar cupo).
+ 116|     const esLatido = esObjeto(cuerpo) && cuerpo.accion === 'latido';
+ 117|     const sobre = esObjeto(cuerpo) && Object.keys(cuerpo).length === 2 ? cuerpo : null;
+ 118|     const carga = esLatido
+ 119|       ? (sobre && 'latido' in sobre ? sobre.latido : null)
+ 120|       : (sobre && sobre.accion === 'llamada' && 'evento' in sobre ? sobre.evento : null);
+ 121|
+ 122|     try {
+ 123|       const resultado = leerResultado(esLatido ? await d.registrarSalud(credencial, carga) : await d.ingerir(credencial, carga));
+ 124|       if (resultado === null) return respuesta(503, { error: 'No se pudo guardar; vuelve a intentarlo' });
+ 125|       if (!resultado.aceptado) return respuesta(400, { error: resultado.mensaje });
+ 126|       if (esLatido) return respuesta(200, { registrado: true });
+ 127|       // Guardada, repetida o ignorada: la misma respuesta (propuesta #12).
+ 128|       return respuesta(202, { recibido: true, abrir: urlAbrir(d.urlCrm, esObjeto(carga) ? carga.numero : null) });
+ 129|     } catch (error) {
+ 130|       const e: ErrorRpc = esObjeto(error) ? error : {};
+ 131|       if (e.code === '42501') return noAutorizado();
+ 132|       if (e.code === 'P0429') {
+ 133|         const espera = segundosDeEspera(e.details);
+ 134|         return respuesta(429, { error: 'Demasiados envíos de este celular', reintentar_en_seg: espera },
+ 135|           { 'Retry-After': String(espera) });
+ 136|       }
+ 137|       return respuesta(503, { error: 'No se pudo guardar; vuelve a intentarlo' });
+ 138|     }
+ 139|   };
+ 140| }
 ```
 
 ## Archivo: supabase/functions/crm-llamadas-ingesta/index.ts (24 líneas)
 ```
    1| import { createClient } from 'npm:@supabase/supabase-js@2.110.2';
    2| import { crearHandler } from './handler.ts';
-   3| 
+   3|
    4| // La clave de servicio vive en los secretos de Supabase y no sale de esta función: solo la usan las
    5| // dos RPC de servicio (F3-a 20261001212258, con el contrato de 20261005143843), que validan la clave del
    6| // celular y el contenido en la base y devuelven {resultado, mensaje}.
@@ -2668,7 +3233,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
   16|   if (error) throw error;
   17|   return data;
   18| }
-  19| 
+  19|
   20| Deno.serve(crearHandler({
   21|   urlCrm: 'https://crm.miavance.com',
   22|   ingerir: (credencial, evento) => rpc('ingerir_llamada_celular_servicio', { p_credencial: credencial, p_evento: evento }),
@@ -2697,7 +3262,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
   17| begin;
   18| set local lock_timeout = '5s';
   19| set local statement_timeout = '60s';
-  20| 
+  20|
   21| do $precondicion$
   22| begin
   23|   if to_regclass('private.llamadas_celular_recepciones') is null
@@ -2709,10 +3274,10 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
   29|   end if;
   30| end;
   31| $precondicion$;
-  32| 
+  32|
   33| lock table crm.llamadas_celular_politica, crm.celulares_asignaciones, crm.llamadas_celular_eventos,
   34|            private.celulares_estado, private.llamadas_celular_recepciones in access exclusive mode;
-  35| 
+  35|
   36| do $sin_avisos$
   37| begin
   38|   -- Las asignaciones no se borran (ni cerradas ni rotadas) y el estado nace con el primer envío: si existe alguna, un
@@ -2723,14 +3288,14 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
   43|   end if;
   44| end;
   45| $sin_avisos$;
-  46| 
+  46|
   47| -- ── 1. Puertas de servicio con los cuerpos de las cuatro; el núcleo nuevo, fuera ─────────────
   48| create or replace function crm.ingerir_llamada_celular_servicio(p_credencial text, p_evento jsonb)
   49| returns jsonb
   50| language plpgsql
 ```
 
-## Tramo: supabase/scripts/llamadas-celular/reversa-enlace-exacto.sql:1–45 — cabecera y guarda de la reversa de F4-a
+## Tramo: supabase/scripts/llamadas-celular/reversa-enlace-exacto.sql:1–70 — cabecera y guardas de la reversa de F4-a
 ```
    1| -- Reversa de 20261005155914_crm_llamadas_celular_enlace_exacto.sql (F4-a). SOLO ANTES DE DAR DE ALTA CELULARES: sin
    2| -- asignaciones (ni cerradas), sin estado técnico, recepciones, llamadas, enlaces ni intenciones, comprobado bajo candado.
@@ -2740,43 +3305,97 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
    6| -- el blob de git (nada a mano), y el banco reducido compara la huella del catálogo antes de F4-a y después de esta
    7| -- reversa. Después del primer aviso no se revierte: se apaga y se corrige hacia adelante.
    8| --
-   9| -- Orden de las reversas: esta → corrección (reversa-correccion.sql) → elegibilidad → ingesta → núcleo → datos.
-  10| --
-  11| --   psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/scripts/llamadas-celular/reversa-enlace-exacto.sql
-  12| begin;
-  13| set local lock_timeout = '5s';
-  14| set local statement_timeout = '60s';
-  15| 
-  16| do $precondicion$
-  17| begin
-  18|   if to_regclass('private.llamadas_celular_intenciones') is null
-  19|      or to_regprocedure('crm.registrar_llamada_v5(uuid,uuid,text,text,text,jsonb,uuid,boolean,boolean,text,text)') is null then
-  20|     raise exception 'REVERSA_ENLACE_EXACTO: la migración 20261005155914 no está aplicada';
+   9| -- Orden de las reversas: séptima (reversa-enlace-sin-ciclo.sql) → esta → corrección (reversa-correccion.sql) →
+  10| -- elegibilidad → ingesta → núcleo → datos.
+  11| --
+  12| --   psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/scripts/llamadas-celular/reversa-enlace-exacto.sql
+  13| begin;
+  14| set local lock_timeout = '5s';
+  15| set local statement_timeout = '60s';
+  16|
+  17| do $precondicion$
+  18| begin
+  19|   if to_regclass('private.llamadas_celular_intenciones') is null
+  20|      or to_regprocedure('crm.registrar_llamada_v5(uuid,uuid,text,text,text,jsonb,uuid,boolean,boolean,text,text)') is null then
+  21|     raise exception 'REVERSA_ENLACE_EXACTO: la migración 20261005155914 no está aplicada';
+  22|   end if;
+  23|   if pg_catalog.strpos(pg_catalog.pg_get_functiondef('private.llamada_celular_cumplir_intencion(uuid)'::regprocedure),
+  24|                        'for key share nowait') > 0 then
+  25|     raise exception 'REVERSA_ENLACE_EXACTO: la séptima (20261005182227) sigue instalada; revierte primero reversa-enlace-sin-ciclo.sql';
+  26|   end if;
+  27| end;
+  28| $precondicion$;
+  29|
+  30| lock table crm.celulares_asignaciones, crm.llamadas_celular_eventos, crm.llamadas_celular_enlaces, private.celulares_estado,
+  31|   private.llamadas_celular_recepciones, private.llamadas_celular_intenciones in access exclusive mode;
+  32|
+  33| do $sin_avisos$
+  34| begin
+  35|   if exists (select 1 from crm.celulares_asignaciones) or exists (select 1 from private.celulares_estado)
+  36|      or exists (select 1 from private.llamadas_celular_recepciones) or exists (select 1 from crm.llamadas_celular_eventos)
+  37|      or exists (select 1 from private.llamadas_celular_intenciones) or exists (select 1 from crm.llamadas_celular_enlaces) then
+  38|     raise exception 'REVERSA_ENLACE_EXACTO: ya se dio de alta algún celular (asignaciones, estado, recepciones, llamadas, enlaces o intenciones): F4-a no se revierte; se apaga y se corrige hacia adelante';
+  39|   end if;
+  40| end;
+  41| $sin_avisos$;
+  42|
+  43| -- ── 1. La puerta v5 y el núcleo del enlace exacto, fuera ─────────────────────────────────────
+  44| drop function crm.registrar_llamada_v5(uuid,uuid,text,text,text,jsonb,uuid,boolean,boolean,text,text);
+  45|
+  46| -- ── 2. La ingesta y la purga de la quinta; el candado de enlaces de F2-b ─────────────────────
+  47| create or replace function private.llamada_celular_ingerir(p_asignacion_id uuid, p_evento jsonb, p_ahora timestamptz)
+  48| returns jsonb
+  49| language plpgsql
+  50| volatile
+  51| set search_path = ''
+  52| as $function$
+  53| declare
+  54|   v_claves constant text[] := array['v', 'evento_origen_id', 'numero', 'direccion', 'estado_tecnico',
+  55|                                     'duracion_seg', 'ocurrio_en'];
+  56|   v_asig crm.celulares_asignaciones%rowtype;
+  57|   v_pol crm.llamadas_celular_politica%rowtype;
+  58|   v_origen text;
+  59|   v_numero text;
+  60|   v_dir text;
+  61|   v_estado text;
+  62|   v_dur integer;
+  63|   v_ocurrio timestamptz;
+  64|   v_hora_id timestamptz;
+  65|   v_recepcion uuid;
+  66|   v_formas text[];
+  67|   v_e164 text;
+  68|   v_cand uuid[];
+  69|   v_lead uuid;
+  70|   v_ident text;
+```
+
+## Tramo: supabase/scripts/llamadas-celular/reversa-enlace-sin-ciclo.sql:1–25 — cabecera y precondición de la reversa de la séptima (el resto: los dos cuerpos y COMMENT de F4-a, copiados con un guion)
+```
+   1| -- Reversa de 20261005182227_crm_llamadas_celular_enlace_sin_ciclo.sql (séptima). Solo cambia cuerpos y COMMENT de dos
+   2| -- funciones del núcleo, sin tablas ni datos: se puede correr también después de dar de alta celulares, pero devuelve el
+   3| -- interbloqueo con Deshacer que la séptima corrige (revisión de Miguel en el #190). Vuelve EXACTAMENTE al estado de las
+   4| -- seis: los cuerpos y los COMMENT de private.llamada_celular_enlazar_exacto y private.llamada_celular_cumplir_intencion
+   5| -- (de 20261005155914) se copiaron con un guion desde el blob de git (nada a mano), y el banco reducido compara la huella
+   6| -- del catálogo antes de la séptima y después de esta reversa.
+   7| --
+   8| -- Orden de las reversas: esta → F4-a (reversa-enlace-exacto.sql) → corrección → elegibilidad → ingesta → núcleo → datos.
+   9| --
+  10| --   psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/scripts/llamadas-celular/reversa-enlace-sin-ciclo.sql
+  11| begin;
+  12| set local lock_timeout = '5s';
+  13| set local statement_timeout = '60s';
+  14|
+  15| do $precondicion$
+  16| begin
+  17|   if to_regprocedure('private.llamada_celular_cumplir_intencion(uuid)') is null
+  18|      or pg_catalog.strpos(pg_catalog.pg_get_functiondef('private.llamada_celular_cumplir_intencion(uuid)'::regprocedure),
+  19|                           'for key share nowait') = 0 then
+  20|     raise exception 'REVERSA_ENLACE_SIN_CICLO: la migración 20261005182227 no está aplicada';
   21|   end if;
   22| end;
   23| $precondicion$;
-  24| 
-  25| lock table crm.celulares_asignaciones, crm.llamadas_celular_eventos, crm.llamadas_celular_enlaces, private.celulares_estado,
-  26|   private.llamadas_celular_recepciones, private.llamadas_celular_intenciones in access exclusive mode;
-  27| 
-  28| do $sin_avisos$
-  29| begin
-  30|   if exists (select 1 from crm.celulares_asignaciones) or exists (select 1 from private.celulares_estado)
-  31|      or exists (select 1 from private.llamadas_celular_recepciones) or exists (select 1 from crm.llamadas_celular_eventos)
-  32|      or exists (select 1 from private.llamadas_celular_intenciones) or exists (select 1 from crm.llamadas_celular_enlaces) then
-  33|     raise exception 'REVERSA_ENLACE_EXACTO: ya se dio de alta algún celular (asignaciones, estado, recepciones, llamadas, enlaces o intenciones): F4-a no se revierte; se apaga y se corrige hacia adelante';
-  34|   end if;
-  35| end;
-  36| $sin_avisos$;
-  37| 
-  38| -- ── 1. La puerta v5 y el núcleo del enlace exacto, fuera ─────────────────────────────────────
-  39| drop function crm.registrar_llamada_v5(uuid,uuid,text,text,text,jsonb,uuid,boolean,boolean,text,text);
-  40| 
-  41| -- ── 2. La ingesta y la purga de la quinta; el candado de enlaces de F2-b ─────────────────────
-  42| create or replace function private.llamada_celular_ingerir(p_asignacion_id uuid, p_evento jsonb, p_ahora timestamptz)
-  43| returns jsonb
-  44| language plpgsql
-  45| volatile
+  24|
+  25| create or replace function private.llamada_celular_enlazar_exacto(
 ```
 
 ## Archivo: supabase/migrations/20261001145242_crm_llamadas_celular_datos.sql (748 líneas) — tablas, candados y purga original de F2-b (la quinta los enmienda)
@@ -2836,7 +3455,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
   53| begin;
   54| set local lock_timeout = '5s';
   55| set local statement_timeout = '60s';
-  56| 
+  56|
   57| do $precondicion$
   58| begin
   59|   if to_regclass('crm.equipo') is null or to_regclass('crm.leads') is null
@@ -2867,7 +3486,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
   84|   end if;
   85| end;
   86| $precondicion$;
-  87| 
+  87|
   88| -- ── 0. Candado común contra TRUNCATE (por sentencia) ────────────────────────────────────────
   89| create function private.trg_llamadas_celular_sin_vaciar()
   90| returns trigger
@@ -2881,7 +3500,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
   98| end;
   99| $function$;
  100| revoke all on function private.trg_llamadas_celular_sin_vaciar() from public, anon, authenticated, service_role;
- 101| 
+ 101|
  102| -- ── 1. Política (fila única) ─────────────────────────────────────────────────────────────────
  103| create table crm.llamadas_celular_politica (
  104|   singleton                      boolean primary key default true
@@ -2904,7 +3523,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  121| alter table crm.llamadas_celular_politica enable row level security;
  122| revoke all on crm.llamadas_celular_politica from public, anon, authenticated, service_role;
  123| create index llamadas_celular_politica_actualizado_por_idx on crm.llamadas_celular_politica (actualizado_por);
- 124| 
+ 124|
  125| create function private.trg_llamadas_celular_politica_candado()
  126| returns trigger
  127| language plpgsql
@@ -2931,9 +3550,9 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  148| create trigger trg_audit_llamadas_celular_politica
  149|   after insert or update or delete on crm.llamadas_celular_politica
  150|   for each row execute function private.log_audit_crm();
- 151| 
+ 151|
  152| insert into crm.llamadas_celular_politica (singleton) values (true);
- 153| 
+ 153|
  154| -- ── 2. Asignaciones de celulares ─────────────────────────────────────────────────────────────
  155| create table crm.celulares_asignaciones (
  156|   id               uuid primary key default gen_random_uuid(),
@@ -2972,7 +3591,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  189|   on crm.celulares_asignaciones (analista_id, vigente_desde desc);
  190| create index celulares_asignaciones_creado_por_idx
  191|   on crm.celulares_asignaciones (creado_por);
- 192| 
+ 192|
  193| create function private.trg_celulares_asignaciones_candado()
  194| returns trigger
  195| language plpgsql
@@ -3011,7 +3630,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  228| create trigger trg_audit_celulares_asignaciones
  229|   after insert or update or delete on crm.celulares_asignaciones
  230|   for each row execute function private.log_audit_sin_secretos('credencial_hash');
- 231| 
+ 231|
  232| -- ── 3. Eventos de llamada ────────────────────────────────────────────────────────────────────
  233| create table crm.llamadas_celular_eventos (
  234|   id                      uuid primary key default gen_random_uuid(),
@@ -3100,7 +3719,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  317|   on crm.llamadas_celular_eventos (asociado_por);
  318| create index llamadas_celular_eventos_descartado_por_idx
  319|   on crm.llamadas_celular_eventos (descartado_por);
- 320| 
+ 320|
  321| create function private.trg_llamadas_celular_eventos_candado()
  322| returns trigger
  323| language plpgsql
@@ -3118,7 +3737,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  335|     raise exception using errcode = '42501',
  336|       message = 'Una llamada del celular no se borra a mano: la retira la retención programada';
  337|   end if;
- 338| 
+ 338|
  339|   -- El payload es la evidencia: inmutable aunque lo escriba el núcleo.
  340|   if new.id <> old.id or new.asignacion_id <> old.asignacion_id or new.analista_id <> old.analista_id
  341|      or new.evento_origen_id <> old.evento_origen_id or new.hash_payload <> old.hash_payload
@@ -3130,7 +3749,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  347|     raise exception using errcode = '42501',
  348|       message = 'El contenido de una llamada del celular es inmutable; solo cambian su identificación y su atención';
  349|   end if;
- 350| 
+ 350|
  351|   -- Identificación: solo avanza (sin_identificar → ambiguo → identificado). El lead se fija una
  352|   -- vez; se corrige únicamente mientras la llamada esté por atender (antes de registrar o descartar).
  353|   if (case new.identificacion when 'sin_identificar' then 0 when 'ambiguo' then 1 else 2 end)
@@ -3144,7 +3763,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  361|     raise exception using errcode = '42501',
  362|       message = 'Una llamada registrada o descartada no cambia de lead';
  363|   end if;
- 364| 
+ 364|
  365|   -- Atención: transiciones permitidas. registrado y descartado_con_motivo son finales.
  366|   if new.atencion <> old.atencion then
  367|     if (old.atencion = 'por_revisar'
@@ -3164,7 +3783,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  381|           or new.descartado_en is distinct from old.descartado_en) then
  382|     raise exception using errcode = '42501', message = 'El motivo de un descarte no se reescribe';
  383|   end if;
- 384| 
+ 384|
  385|   new.actualizado_en := pg_catalog.now();
  386|   return new;
  387| end;
@@ -3181,7 +3800,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  398| create trigger trg_audit_llamadas_celular_eventos
  399|   after insert or update or delete on crm.llamadas_celular_eventos
  400|   for each row execute function private.log_audit_sin_secretos('numero_canonico', 'hash_payload');
- 401| 
+ 401|
  402| -- ── 4. Enlace evento ↔ actividad registrada (uno a uno) ─────────────────────────────────────
  403| create table crm.llamadas_celular_enlaces (
  404|   id             uuid primary key default gen_random_uuid(),
@@ -3200,7 +3819,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  417|   on crm.llamadas_celular_enlaces (lead_id);
  418| create index llamadas_celular_enlaces_enlazado_por_idx
  419|   on crm.llamadas_celular_enlaces (enlazado_por);
- 420| 
+ 420|
  421| create function private.trg_llamadas_celular_enlaces_candado()
  422| returns trigger
  423| language plpgsql
@@ -3218,7 +3837,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  435|     end if;
  436|     raise exception using errcode = '42501', message = 'El enlace de una llamada no se borra';
  437|   end if;
- 438| 
+ 438|
  439|   if tg_op = 'UPDATE' then
  440|     -- La actividad se eliminó (cascada del lead → ON DELETE SET NULL): única escritura anidada
  441|     -- aceptada, y solo si no cambia nada más.
@@ -3248,7 +3867,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  465|   elsif new.actividad_id is null then
  466|     raise exception using errcode = '22023', message = 'Un enlace nace con la actividad registrada';
  467|   end if;
- 468| 
+ 468|
  469|   if new.actividad_id is not null and (tg_op = 'INSERT' or new.actividad_id is distinct from old.actividad_id) then
  470|     select * into v_act from crm.actividades a where a.id = new.actividad_id;
  471|     if not found then
@@ -3263,7 +3882,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  480|         message = 'Solo se enlaza un resultado de llamada registrado por la encuesta';
  481|     end if;
  482|   end if;
- 483| 
+ 483|
  484|   select * into v_ev from crm.llamadas_celular_eventos e where e.id = new.evento_id;
  485|   if not found then
  486|     raise exception using errcode = '22023', message = 'La llamada enlazada no existe';
@@ -3271,7 +3890,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  488|   if v_ev.lead_id is distinct from new.lead_id then
  489|     raise exception using errcode = '22023', message = 'El enlace debe apuntar al lead de la llamada';
  490|   end if;
- 491| 
+ 491|
  492|   if tg_op = 'UPDATE' then
  493|     new.actualizado_en := pg_catalog.now();
  494|   end if;
@@ -3288,7 +3907,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  505| create trigger trg_audit_llamadas_celular_enlaces
  506|   after insert or update or delete on crm.llamadas_celular_enlaces
  507|   for each row execute function private.log_audit_crm();
- 508| 
+ 508|
  509| -- ── 5. Retención programada ──────────────────────────────────────────────────────────────────
  510| create function private.caducar_llamadas_celular()
  511| returns integer
@@ -3306,34 +3925,34 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  523|     return 0;
  524|   end if;
  525|   perform pg_catalog.set_config('crm.op_purga_llamadas', 'on', true);
- 526| 
+ 526|
  527|   -- Descartadas con motivo: el motivo y quién lo dio quedan en la auditoría (sin el número).
  528|   delete from crm.llamadas_celular_eventos e
  529|    where e.atencion = 'descartado_con_motivo'
  530|      and e.descartado_en < pg_catalog.now() - pg_catalog.make_interval(days => v_pol.dias_retencion_descartados);
  531|   get diagnostics v_parcial = row_count;
  532|   v_n := v_n + v_parcial;
- 533| 
+ 533|
  534|   -- Ambiguas (varios leads con el mismo número) que nadie resolvió.
  535|   delete from crm.llamadas_celular_eventos e
  536|    where e.identificacion = 'ambiguo' and e.atencion = 'por_revisar'
  537|      and e.recibido_en < pg_catalog.now() - pg_catalog.make_interval(days => v_pol.dias_retencion_sin_resolver);
  538|   get diagnostics v_parcial = row_count;
  539|   v_n := v_n + v_parcial;
- 540| 
+ 540|
  541|   -- Sin identificar (solo existen si la perilla guardar_sin_identificar estuvo encendida).
  542|   delete from crm.llamadas_celular_eventos e
  543|    where e.identificacion = 'sin_identificar' and e.atencion = 'por_revisar'
  544|      and e.recibido_en < pg_catalog.now() - pg_catalog.make_interval(days => v_pol.dias_retencion_sin_identificar);
  545|   get diagnostics v_parcial = row_count;
  546|   v_n := v_n + v_parcial;
- 547| 
+ 547|
  548|   perform pg_catalog.set_config('crm.op_purga_llamadas', 'off', true);
  549|   return v_n;
  550| end;
  551| $function$;
  552| revoke all on function private.caducar_llamadas_celular() from public, anon, authenticated, service_role;
- 553| 
+ 553|
  554| do $reloj$
  555| begin
  556|   if to_regprocedure('cron.schedule(text,text,text)') is null then
@@ -3349,7 +3968,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  566|   );
  567| end;
  568| $reloj$;
- 569| 
+ 569|
  570| -- ── 6. Comentarios ───────────────────────────────────────────────────────────────────────────
  571| comment on table crm.llamadas_celular_politica is
  572|   'Perillas del contrato de llamadas desde el celular (F2, decisiones provisionales de Jhosep 30/09/2026, pendientes de Miguel). Fila única. Solo gerencia la ajusta, por puerta (F2-c). Sin columna de tenant: CRM de una sola empresa (excepción documentada).';
@@ -3362,7 +3981,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  579| comment on column crm.llamadas_celular_politica.actualizado_por is 'Quién ajustó la política por última vez (perfil de gerencia). FK con RESTRICT: la baja de usuarios (private.usuario_tiene_historial) detecta el historial y conserva la identidad; nunca SET NULL.';
  580| comment on column crm.llamadas_celular_politica.creado_en is 'Sembrada por la migración.';
  581| comment on column crm.llamadas_celular_politica.actualizado_en is 'Último ajuste (lo sella el trigger).';
- 582| 
+ 582|
  583| comment on table crm.celulares_asignaciones is
  584|   'Qué analista tenía cada celular corporativo (C1, C2…) y en qué periodo. Actor histórico de las llamadas: no se sobrescribe; rotar = cerrar la vigencia y abrir otra fila. Una sola vigencia por etiqueta (índice parcial + exclusión por rango). DATO SENSIBLE: credencial_hash (hash de la credencial de ingesta; la clave en claro nunca se guarda). Sin columna de tenant: CRM de una sola empresa.';
  585| comment on column crm.celulares_asignaciones.id is 'Identificador de la asignación.';
@@ -3375,7 +3994,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  592| comment on column crm.celulares_asignaciones.creado_por is 'Quién asignó el celular (gerencia). FK con RESTRICT: la baja de usuarios detecta el historial y conserva la identidad.';
  593| comment on column crm.celulares_asignaciones.creado_en is 'Alta de la fila.';
  594| comment on column crm.celulares_asignaciones.actualizado_en is 'Último cambio (solo el cierre).';
- 595| 
+ 595|
  596| comment on table crm.llamadas_celular_eventos is
  597|   'Evidencia de cada llamada hecha desde un celular corporativo (F2). Payload inmutable (celular, número E.164, cuándo según el celular y el servidor, dirección, estado técnico, duración, hash) e identidad estable (asignación + id de origen) para la idempotencia. Aparte, lo que cambia con transiciones vigiladas: identificación, atención, lead, método de asociación y descarte motivado. Visibilidad y gestión siguen al lead (quien hoy lo tiene); analista_id conserva quién marcó. DATO PERSONAL: numero_canonico (enmascarado en la auditoría junto con hash_payload, que lo revelaría por fuerza bruta; retención por crm.llamadas_celular_politica). Sin columna de tenant: CRM de una sola empresa.';
  598| comment on column crm.llamadas_celular_eventos.id is 'Identificador del evento.';
@@ -3402,7 +4021,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  619| comment on column crm.llamadas_celular_eventos.descartado_en is 'Cuándo se descartó; a partir de aquí corre dias_retencion_descartados.';
  620| comment on column crm.llamadas_celular_eventos.creado_en is 'Alta de la fila (igual a recibido_en salvo cargas históricas).';
  621| comment on column crm.llamadas_celular_eventos.actualizado_en is 'Último cambio de identificación o atención (lo sella el trigger).';
- 622| 
+ 622|
  623| comment on table crm.llamadas_celular_enlaces is
  624|   'Enlace uno a uno entre una llamada del celular y la actividad de llamada que la encuesta registró (tipo llamada_*, metadata.evento = resultado_llamada, mismo lead). Si ese resultado se deshace (metadata.deshecho_en) el enlace puede moverse al resultado corregido; nunca se desenlaza ni se borra a mano. Sin columna de tenant: CRM de una sola empresa.';
  625| comment on column crm.llamadas_celular_enlaces.id is 'Identificador del enlace.';
@@ -3412,7 +4031,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  629| comment on column crm.llamadas_celular_enlaces.enlazado_por is 'Quién registró el resultado que creó o movió el enlace (con ámbito sobre el lead en ese momento). FK con RESTRICT: la baja de usuarios detecta el historial y conserva la identidad.';
  630| comment on column crm.llamadas_celular_enlaces.creado_en is 'Cuándo se enlazó por primera vez.';
  631| comment on column crm.llamadas_celular_enlaces.actualizado_en is 'Último movimiento del enlace (lo sella el trigger).';
- 632| 
+ 632|
  633| comment on function private.trg_llamadas_celular_sin_vaciar() is
  634|   'Candado contra TRUNCATE de las tablas de llamadas del celular. SECURITY DEFINER por coherencia con los demás candados; no lee datos.';
  635| comment on function private.trg_llamadas_celular_politica_candado() is
@@ -3425,7 +4044,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  642|   'Candado de crm.llamadas_celular_enlaces: nace con actividad; la actividad es de llamada, con metadata.evento = resultado_llamada y del mismo lead que la llamada; el enlace cambia de actividad solo si la anterior fue deshecha (metadata.deshecho_en); sin DELETE salvo cascada. SECURITY DEFINER porque lee crm.actividades y crm.llamadas_celular_eventos sin privilegios para la API.';
  643| comment on function private.caducar_llamadas_celular() is
  644|   'Retención de llamadas del celular según crm.llamadas_celular_politica: borra descartadas con motivo, ambiguas sin resolver y sin identificar vencidas; fija el GUC crm.op_purga_llamadas para pasar el candado. La invoca pg_cron (crm-llamadas-celular-caducidad) con auth.uid() nulo; la auditoría conserva la fila con el número enmascarado. SECURITY DEFINER: borra sin privilegios de la API.';
- 645| 
+ 645|
  646| -- ── 7. Postflight ────────────────────────────────────────────────────────────────────────────
  647| do $postflight$
  648| declare
@@ -3459,7 +4078,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  676|       raise exception 'LLAMADAS_CELULAR: % tiene la tabla o alguna columna sin COMMENT', v_t;
  677|     end if;
  678|   end loop;
- 679| 
+ 679|
  680|   for v_f in
  681|     select * from (values
  682|       ('private.trg_llamadas_celular_sin_vaciar()'),
@@ -3484,7 +4103,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  701|       raise exception 'LLAMADAS_CELULAR: % sin COMMENT', v_f.firma;
  702|     end if;
  703|   end loop;
- 704| 
+ 704|
  705|   -- Ninguna FK hacia personas desatribuye: siempre RESTRICT (la baja de usuarios detecta el
  706|   -- historial por estas FK y conserva la identidad; nunca SET NULL ni CASCADE).
  707|   if exists (select 1 from pg_catalog.pg_constraint c
@@ -3507,7 +4126,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  724|                        = c.conkey)) then
  725|     raise exception 'LLAMADAS_CELULAR: hay una FK sin índice que la cubra';
  726|   end if;
- 727| 
+ 727|
  728|   if not exists (select 1 from pg_catalog.pg_constraint c
  729|                  where c.conrelid = 'crm.celulares_asignaciones'::regclass
  730|                    and c.conname = 'celulares_asignaciones_sin_solape' and c.contype = 'x') then
@@ -3526,7 +4145,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  743|   end if;
  744| end;
  745| $postflight$;
- 746| 
+ 746|
  747| notify pgrst, 'reload schema';
  748| commit;
 ```
@@ -3997,7 +4616,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
   60|   end if;
   61|   v_tipo := case when p_resultado in ('no_contesto', 'numero_errado', 'no_es_la_persona')
   62|                  then 'llamada_no_contestada' else 'llamada_realizada' end;
-  63| 
+  63|
   64|   -- Submotivo: obligatorio en estos resultados, haya seguimiento o descarte;
   65|   -- prohibido en el resto. Elige el motivo REAL del catálogo existente.
   66|   if p_resultado = 'no_interesado' then
@@ -4018,7 +4637,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
   81|   elsif p_submotivo is not null then
   82|     raise exception 'El submotivo solo acompana a "no le interesa" o "pide otro producto"' using errcode = '22023';
   83|   end if;
-  84| 
+  84|
   85|   -- Descarte por decisión del analista (decisión #6 de Miguel) o «no responde».
   86|   if v_descartar and p_resultado in ('volver_a_llamar', 'agendo_reunion') then
   87|     raise exception 'Este resultado no descarta al lead' using errcode = '22023';
@@ -4028,7 +4647,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
   91|   if v_no_insista and p_resultado not in ('no_interesado', 'pide_otro_producto') then
   92|     raise exception '"No insistir" solo acompana a "no le interesa" o "pide otro producto"' using errcode = '22023';
   93|   end if;
-  94| 
+  94|
   95|   -- Tarea siguiente: obligatoria en volver_a_llamar (llamada) y agendo_reunion
   96|   -- (reunion); opcional en no_contesto (llamada/whatsapp) y en numero errado /
   97|   -- no es la persona (llamada al 2.º número o reintento); prohibida al descartar.
@@ -4064,7 +4683,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  127|       raise exception 'Fecha de la tarea siguiente invalida' using errcode = '22023';
  128|     end if;
  129|   end if;
- 130| 
+ 130|
  131|   -- ── 2. Ámbito y candados ANTES de delegar ──────────────────────────────────
  132|   -- Mismo predicado y mismo texto que el writer (no se revela existencia). El
  133|   -- orden es el de la casa: PERSONA (si habrá «No insistir», como hace
@@ -4089,12 +4708,12 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  152|      and not private.lead_dentro_de_bloqueo(p_lead_id, v_bloqueo) then
  153|     raise exception 'La persona del lead cambio mientras se registraba; vuelve a intentarlo' using errcode = '40001';
  154|   end if;
- 155| 
+ 155|
  156|   -- ── 3. ¿Replay? (recibo ya confirmado para este actor y operación) ─────────
  157|   select r.respuesta into v_previa
  158|   from crm.sla_operacion_recibos r
  159|   where r.actor_id = p_actor and r.operacion_id = p_operacion_id;
- 160| 
+ 160|
  161|   if v_previa is null then
  162|     if p_siguiente is not null and v_vendedor is distinct from p_actor then
  163|       raise exception 'Solo el analista dueno del lead puede agendar su proxima accion' using errcode = '42501';
@@ -4102,7 +4721,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  165|     if p_siguiente is not null and exists (select 1 from crm.leads l where l.id = p_lead_id and l.no_contactar) then
  166|       raise exception 'No volver a contactar impide agendar una proxima accion' using errcode = '22023';
  167|     end if;
- 168| 
+ 168|
  169|     -- Lo TEMPORAL se exige solo a una operación nueva: un reintento tardío de
  170|     -- una operación ya confirmada (respuesta perdida) debe recuperar su recibo,
  171|     -- no morir con 22023 por una fecha que ya pasó (Codex, 19/09).
@@ -4145,7 +4764,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  208|       end if;
  209|     end if;
  210|   end if;
- 211| 
+ 211|
  212|   -- ── 4. Delegar SIEMPRE en el writer sellado (identidad del recibo, ámbito,
  213|   --      actividad, tarea siguiente, episodio SLA) ─────────────────────────────
  214|   if p_tarea_id is null then
@@ -4163,7 +4782,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  226|     raise exception 'El servidor no confirmo la gestion' using errcode = '23514';
  227|   end if;
  228|   v_siguiente := nullif(v_resp->>'siguiente_id', '')::uuid;
- 229| 
+ 229|
  230|   -- ── 5. Replay: sin escribir nada, el sobre se reconstruye desde la actividad ─
  231|   if v_previa is not null then
  232|     select a.metadata into v_meta from crm.actividades a where a.id = v_actividad;
@@ -4188,7 +4807,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  251|       'etapa', (select l.etapa from crm.leads l where l.id = p_lead_id),
  252|       'replay', true);
  253|   end if;
- 254| 
+ 254|
  255|   -- ── 6. Primera vez: el resultado en la actividad ───────────────────────────
  256|   -- intento_n = llamadas del lead en el ciclo actual, esta incluida (cardinality(array_agg), nunca la funcion de conteo: censo analitico).
  257|   select coalesce(pg_catalog.cardinality(pg_catalog.array_agg(a.id)), 0) into v_n
@@ -4196,7 +4815,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  259|   where a.lead_id = p_lead_id
  260|     and a.tipo in ('llamada_realizada', 'llamada_no_contestada')
  261|     and a.creado_en >= coalesce(private.inicio_ciclo_lead(p_lead_id), '-infinity'::timestamptz);
- 262| 
+ 262|
  263|   perform pg_catalog.set_config('crm.op_resultado_llamada', 'on', true);
  264|   update crm.actividades a
  265|      set metadata = a.metadata || pg_catalog.jsonb_strip_nulls(pg_catalog.jsonb_build_object(
@@ -4214,7 +4833,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  277|     raise exception 'La actividad de la llamada no existe' using errcode = '23514';
  278|   end if;
  279|   perform pg_catalog.set_config('crm.op_resultado_llamada', v_guc_previo, true);
- 280| 
+ 280|
  281|   -- ── 7. Descarte en la misma operación (hacia el Centro de rescate) ─────────
  282|   if v_descartar then
  283|     if p_resultado = 'no_contesto' then
@@ -4257,12 +4876,12 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  320|      where a.id = v_actividad;
  321|     perform pg_catalog.set_config('crm.op_resultado_llamada', v_guc_previo, true);
  322|   end if;
- 323| 
+ 323|
  324|   -- ── 8. «Pidió que no lo vuelvan a llamar» (Ley 29571): puerta existente ─────
  325|   if v_no_insista then
  326|     perform crm.marcar_no_contactar(p_lead_id, 'Pidio que no lo vuelvan a llamar (resultado de llamada)');
  327|   end if;
- 328| 
+ 328|
  329|   return v_resp || pg_catalog.jsonb_build_object(
  330|     'comando', 'registrar_llamada',
  331|     'actividad_id', v_actividad,
@@ -4386,7 +5005,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  692|   if v_act.creado_en < v_ahora - interval '24 hours' then
  693|     raise exception 'Solo se puede deshacer dentro de las 24 horas' using errcode = '22023';
  694|   end if;
- 695| 
+ 695|
  696|   -- (a) La tarea que ESTE resultado creó, si sigue pendiente: se cancela por la
  697|   --     puerta de cierre (una cita cancelada retrocede la etapa sola).
  698|   if nullif(v_act.metadata->>'siguiente_id', '') is not null then
@@ -4400,7 +5019,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  706|       v_tarea_cancelada := true;
  707|     end if;
  708|   end if;
- 709| 
+ 709|
  710|   -- (b) El descarte, solo si el vigente es ESTE (mismo sello descartado_en).
  711|   if coalesce((v_act.metadata->>'descartado')::boolean, false)
  712|      and v_lead.etapa = 'descartado'
@@ -4429,7 +5048,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  735|     end if;
  736|     v_descarte_revertido := true;
  737|   end if;
- 738| 
+ 738|
  739|   -- (c) Marca en la actividad original + nota en el historial (el log no se borra).
  740|   perform pg_catalog.set_config('crm.op_resultado_llamada', 'on', true);
  741|   update crm.actividades a
@@ -4449,7 +5068,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  755|     v_uid)
  756|   returning id into v_nota;
  757|   perform pg_catalog.set_config('crm.op_resultado_llamada', v_guc_previo, true);
- 758| 
+ 758|
  759|   return pg_catalog.jsonb_build_object(
  760|     'ok', true,
  761|     'actividad_id', p_actividad_id,
@@ -4468,7 +5087,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
 ```
 3620|     end if;
 3621|   end if;
-3622| 
+3622|
 3623|   select
 3624|     l.id,
 3625|     l.tenencia_desde,
@@ -4484,7 +5103,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
 3635|     and l.etapa not in ('convertido', 'descartado')
 3636|     and (l.telefono = v_tel or (p_dni is not null and l.dni = p_dni))
 3637|   limit 1;
-3638| 
+3638|
 3639|   if found then
 3640|     if v_lead.vendedor_id is null and v_lead.asignado_supervisor_id is null then
 3641|       return pg_catalog.jsonb_build_object('estado', 'en_bolsa');
@@ -4506,7 +5125,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
 3657|       )
 3658|     );
 3659|   end if;
-3660| 
+3660|
 3661|   select
 3662|     l.id,
 3663|     l.activo,
@@ -4522,17 +5141,17 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
 3673|     and (l.telefono = v_tel or (p_dni is not null and l.dni = p_dni))
 3674|   order by l.descartado_en desc
 3675|   limit 1;
-3676| 
+3676|
 3677|   if found then
 3678|     select ep.dias
 3679|     into v_dias
 3680|     from crm.enfriamiento_politica ep
 3681|     where ep.motivo = v_lead.motivo_descarte;
-3682| 
+3682|
 3683|     v_dias := coalesce(v_dias, 0);
 3684|     v_disponible_desde := v_lead.descartado_en
 3685|       + pg_catalog.make_interval(days => v_dias);
-3686| 
+3686|
 3687|     if v_dias > 0 and v_disponible_desde > pg_catalog.now() then
 3688|       return pg_catalog.jsonb_build_object(
 3689|         'estado', 'enfriamiento',
@@ -4541,7 +5160,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
 3692|         'descartado_por', v_lead.descartado_por_nombre
 3693|       );
 3694|     end if;
-3695| 
+3695|
 3696|     -- ── F2: el descarte VENCIDO se parte (spec §5.6) ─────────────────────────
 3697|     -- Un enfriamiento vencido ya NO cae al 'libre' genérico: el contacto es
 3698|     -- REUTILIZABLE y su puerta es crm.tomar_lead_libre (el alta lo bloquea
@@ -4576,7 +5195,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
 3727|       );
 3728|     end if;
 3729|   end if;
-3730| 
+3730|
 3731|   return pg_catalog.jsonb_build_object('estado', 'libre');
 ```
 
@@ -4584,11 +5203,11 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
 ```
    1| import * as v from 'valibot'
    2| import { ETAPAS, MOTIVOS_DESCARTE_LECTURA, type MotivoDescarteLectura } from './tipos'
-   3| 
+   3|
    4| // Catálogo de LECTURA: un contacto de base cargada (descartado con motivo `base_cargada`, E7) puede volver como
    5| // «enfriamiento» o «reutilizable». Con el catálogo cerrado, el veredicto entero fallaba y el alta quedaba sin respuesta.
    6| const MOTIVOS_DISPONIBILIDAD = MOTIVOS_DESCARTE_LECTURA.map((motivo) => motivo.k)
-   7| 
+   7|
    8| /** Contrato estricto de P-047. Vive junto a su presentación para que consulta
    9|  * y creación atómica compartan una sola frontera runtime, sin ciclos con API. */
   10| export const DisponibilidadLeadSchema = v.variant('estado', [
@@ -4645,11 +5264,11 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
   61|   v.strictObject({ estado: v.literal('no_contactar') }),
   62|   v.strictObject({ estado: v.literal('error'), detalle: v.literal('telefono_invalido') }),
   63| ])
-  64| 
+  64|
   65| // Del CONTRATO, no de los tipos generados: el generador typea el retorno de
   66| // una RPC jsonb como `Json` y el variant de arriba es la verdad de runtime.
   67| export type DisponibilidadLead = v.InferOutput<typeof DisponibilidadLeadSchema>
-  68| 
+  68|
   69| /** Respuesta de la mutación: o confirma la identidad creada, o devuelve el
   70|  * mismo veredicto bloqueante de P-047. Nunca existe «libre sin insertar». */
   71| export const ResultadoCreacionLeadAtomicaSchema = v.union([
@@ -4666,18 +5285,18 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
   82|   }),
   83|   DisponibilidadLeadSchema,
   84| ])
-  85| 
+  85|
   86| export type ResultadoCreacionLeadAtomica =
   87|   v.InferOutput<typeof ResultadoCreacionLeadAtomicaSchema>
-  88| 
+  88|
   89| // ── La toma directa (F2 «Tomar», spec §5.6/§5.7) ─────────────────────────────
-  90| 
+  90|
   91| const ETAPAS_ACTIVAS = ETAPAS.map((etapa) => etapa.k)
-  92| 
+  92|
   93| /** Los dos únicos veredictos con puerta de toma. El nombre del modo es el del
   94|  *  servidor ('bolsa' para en_bolsa): así la traza y el front hablan igual. */
   95| export type ModoToma = 'bolsa' | 'reutilizable'
-  96| 
+  96|
   97| /** ¿El veredicto habilita el botón «Tomar lead e iniciar seguimiento»?
   98|  *  SOLO en_bolsa y reutilizable (espejo exacto de los dos CAS de
   99|  *  crm.tomar_lead_libre) — jamás sobre tomado/enfriamiento/cliente, y sobre
@@ -4689,7 +5308,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  105|     default: return null
  106|   }
  107| }
- 108| 
+ 108|
  109| /** Respuesta autoritativa de crm.tomar_lead_libre: o la toma confirmada, o el
  110|  *  veredicto FRESCO de disponibilidad (el perdedor de la carrera jamás roba —
  111|  *  recibe la verdad del momento). Forma fijada contra el emisor vivo
@@ -4704,14 +5323,14 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  120|   ciclo_actual: v.pipe(v.number(), v.integer()),
  121|   tenencia_desde: v.pipe(v.string(), v.isoTimestamp()),
  122| })
- 123| 
+ 123|
  124| export const ResultadoTomaLeadSchema = v.union([
  125|   TomaLeadOkSchema,
  126|   DisponibilidadLeadSchema,
  127| ])
- 128| 
+ 128|
  129| export type ResultadoTomaLead = v.InferOutput<typeof ResultadoTomaLeadSchema>
- 130| 
+ 130|
  131| /**
  132|  * Único estado que la UI necesita conservar después del precheck P-047.
  133|  *
@@ -4722,16 +5341,16 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  138|   mensaje: string | null
  139|   bloquea: boolean
  140| }>
- 141| 
+ 141|
  142| const PRESENTACION_LIBRE: PresentacionDisponibilidadLead = Object.freeze({
  143|   mensaje: null,
  144|   bloquea: false,
  145| })
- 146| 
+ 146|
  147| const ETIQUETA_MOTIVO = Object.fromEntries(
  148|   MOTIVOS_DESCARTE_LECTURA.map(({ k, label }) => [k, label]),
  149| ) as Readonly<Record<MotivoDescarteLectura, string>>
- 150| 
+ 150|
  151| /** Texto de BD listo para una oración: acotado y sin caracteres de control. */
  152| function textoPresentable(valor: string | null): string | null {
  153|   const limpio = (valor ?? '')
@@ -4742,7 +5361,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  158|     .slice(0, 100)
  159|   return limpio || null
  160| }
- 161| 
+ 161|
  162| /** Fecha del servidor expresada siempre en la zona de negocio, no la del equipo. */
  163| function fechaEnLima(iso: string): string | null {
  164|   const instante = Date.parse(iso)
@@ -4754,17 +5373,17 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  170|     year: 'numeric',
  171|   }).format(instante)
  172| }
- 173| 
+ 173|
  174| function bloquear(mensaje: string): PresentacionDisponibilidadLead {
  175|   return { mensaje, bloquea: true }
  176| }
- 177| 
+ 177|
  178| function estadoNoSoportado(_resultado: never): never {
  179|   // Mensaje deliberadamente estático: si el borde tipado se rompe, no volcamos
  180|   // el JSON recibido en consola, telemetría ni una excepción mostrable.
  181|   throw new TypeError('Estado de disponibilidad no soportado')
  182| }
- 183| 
+ 183|
  184| /**
  185|  * Consume la respuesta ya validada de P-047 y la reduce al estado mínimo que
  186|  * puede renderizar el formulario. P-047 es consultivo: los errores de red no
@@ -4777,10 +5396,10 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  193|   switch (resultado.estado) {
  194|     case 'libre':
  195|       return PRESENTACION_LIBRE
- 196| 
+ 196|
  197|     case 'en_bolsa':
  198|       return bloquear('Este contacto ya se encuentra en la bolsa de leads.')
- 199| 
+ 199|
  200|     case 'tomado': {
  201|       const vendedor = textoPresentable(resultado.vendedor)
  202|       return bloquear(
@@ -4789,7 +5408,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  205|           : 'Este contacto ya está asignado a otro miembro del equipo.',
  206|       )
  207|     }
- 208| 
+ 208|
  209|     case 'enfriamiento': {
  210|       const fecha = fechaEnLima(resultado.disponible_desde)
  211|       const motivo = ETIQUETA_MOTIVO[resultado.motivo_descarte]
@@ -4799,7 +5418,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  215|           : `Este contacto todavía está en periodo de enfriamiento por «${motivo}».`,
  216|       )
  217|     }
- 218| 
+ 218|
  219|     case 'ya_es_cliente': {
  220|       const asesorPresentable = textoPresentable(resultado.asesor)
  221|       // P-047 usa el campo legacy `asesor` y este sentinel histórico cuando el
@@ -4814,24 +5433,24 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  230|           : 'Esta persona ya es cliente de Avance Corp.',
  231|       )
  232|     }
- 233| 
+ 233|
  234|     case 'no_contactar':
  235|       return bloquear('Este contacto está marcado como «No contactar» y no se puede registrar nuevamente.')
- 236| 
+ 236|
  237|     case 'reutilizable':
  238|       // El alta sigue bloqueada (crear duplicaría, §5.6) — el camino es el
  239|       // botón «Tomar lead e iniciar seguimiento», que el formulario ofrece al
  240|       // analista junto a este aviso (contactoTomable decide cuándo).
  241|       return bloquear('Este contacto tiene un seguimiento anterior que puede retomarse en lugar de crear un duplicado.')
- 242| 
+ 242|
  243|     case 'error':
  244|       return bloquear('Ingresa un teléfono válido para verificar su disponibilidad.')
- 245| 
+ 245|
  246|     default:
  247|       return estadoNoSoportado(resultado)
  248|   }
  249| }
- 250| 
+ 250|
  251| /**
  252|  * Presenta el veredicto fresco que devuelve una toma SIN éxito (§5.7): el
  253|  * estado cambió entre el precheck y la escritura — otro se adelantó, un
@@ -4846,9 +5465,9 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  262|   if (!base.bloquea || base.mensaje == null) return base
  263|   return { mensaje: `La disponibilidad acaba de cambiar. ${base.mensaje}`, bloquea: true }
  264| }
- 265| 
+ 265|
  266| // ── Tarjeta de la spec §5.2 ──────────────────────────────────────────────────
- 267| 
+ 267|
  268| /**
  269|  * Tarjeta informativa de SOLO LECTURA para el analista que verifica: los datos
  270|  * mínimos del seguimiento, nada más (spec §8: sin notas, sin montos, sin
@@ -4864,7 +5483,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  280|   titulo: string
  281|   lineas: ReadonlyArray<Readonly<{ etiqueta: string; valor: string }>>
  282| }>
- 283| 
+ 283|
  284| export function tarjetaDisponibilidadLead(
  285|   resultado: DisponibilidadLead,
  286| ): TarjetaDisponibilidadLead | null {
@@ -4932,7 +5551,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
   11| begin;
   12| set local lock_timeout = '5s';
   13| set local statement_timeout = '120s';
-  14| 
+  14|
   15| -- ── Ayudantes (temporales: se van con el ROLLBACK) ──────────────────────────────────────────
   16| create function pg_temp.ev(p_id text, p_numero text, p_extra jsonb default '{}'::jsonb)
   17| returns jsonb language sql immutable as $$
@@ -4989,7 +5608,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
   68| returns crm.llamadas_celular_eventos language sql as $$
   69|   select * from crm.llamadas_celular_eventos e where e.evento_origen_id = p_id
   70| $$;
-  71| 
+  71|
   72| do $oraculo$
   73| declare
   74|   a1 constant uuid := '00000000-0000-0000-0000-0000000000a1';
@@ -5040,7 +5659,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  119|     (cv1, 'Ajeno Uno', '+51900000015', 'nuevo', a3, null, null, null),
  120|     (cv2, 'Ajeno Dos', '+51900000017', 'nuevo', a2, null, null, null);
  121|   update crm.leads set telefono_alternativo = '+51900000015' where id = cv2;
- 122| 
+ 122|
  123|   -- ═════ A. Sin pistas: sin lead, ajeno con dueño, ajeno en enfriamiento, en carencia y varios ajenos ═════
  124|   perform pg_temp.como(g1); v_salud := crm.celulares_salud_fn(); perform pg_temp.yo();
  125|   v_id_ignorado := 'C1-' || (t0 + 1);
@@ -5077,7 +5696,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  156|     raise exception 'ORACULO A7: el lead propio no respondió igual o no quedó identificado pidiendo resultado (%, %)', v_r2, row_to_json(v_ev);
  157|   end if;
  158|   v_e1 := v_ev.id;
- 159| 
+ 159|
  160|   -- ═════ B. Bolsa: por revisar, quien llamó no la ve, le aparece a quien lo toma ═════
  161|   t0 := t0 + 1;
  162|   perform pg_temp.enviar(k1, pg_temp.ev('C1-' || t0, '900000010'));
@@ -5107,7 +5726,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  186|   if (select atencion from crm.llamadas_celular_eventos where id = v_e2) is distinct from 'registrado' then
  187|     raise exception 'ORACULO B6: quien tomó el lead no pudo enlazar su llamada (%)', v_r;
  188|   end if;
- 189| 
+ 189|
  190|   -- ═════ C. Reutilizables: igual que la bolsa; en enfriamiento o en carencia, como sin lead (ya en A) ═════
  191|   t0 := t0 + 1;
  192|   perform pg_temp.enviar(k1, pg_temp.ev('C1-' || t0, '900000011'));
@@ -5122,7 +5741,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  201|   if v_ev.lead_id is distinct from cr2 or v_ev.atencion is distinct from 'por_revisar' then
  202|     raise exception 'ORACULO C3: el descartado reutilizable (30 días cumplidos) no quedó por revisar (%)', row_to_json(v_ev);
  203|   end if;
- 204| 
+ 204|
  205|   -- ═════ D. Propios terminales o en «no contactar»: identificadas, por revisar; número compartido ═════
  206|   t0 := t0 + 1;
  207|   perform pg_temp.enviar(k1, pg_temp.ev('C1-' || t0, '900000005'));
@@ -5157,7 +5776,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  236|   if v_r ->> 'atencion' is distinct from 'requiere_resultado' or (select lead_id from crm.llamadas_celular_eventos where id = v_e3) is distinct from c7 then
  237|     raise exception 'ORACULO D5: asociar la ambigua a un lead del equipo no funcionó (%)', v_r;
  238|   end if;
- 239| 
+ 239|
  240|   -- ═════ E. El id ═════
  241|   select envios_dia, dia into v_n, v_dia from private.celulares_estado where asignacion_id = v_c1;
  242|   foreach v_msg in array array['X1-1790980958', 'C1-123', 'C1-' || (t0 + 1) || 'x', 'C2-' || (t0 + 1),
@@ -5225,7 +5844,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  304|   if v_ev.analista_id is distinct from a2 or v_ev.lead_id is distinct from c3 or v_ev.atencion is distinct from 'requiere_resultado' then
  305|     raise exception 'ORACULO E10: con la etiqueta reutilizada el id nuevo no entró a nombre del analista nuevo (%)', row_to_json(v_ev);
  306|   end if;
- 307| 
+ 307|
  308|   -- ═════ F. Latido y fecha estricta ═════
  309|   v_t := clock_timestamp();
  310|   v_r := pg_temp.latir(k4, '{"v": 1, "version_macro": "llamadas-v2", "en_cola": 0, "ocurrio_en": "2026-10-05 09:30:00-05:00"}');
@@ -5259,7 +5878,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  338|     raise exception 'ORACULO F5: fecha con T y Z o duración como texto mal juzgadas (%, %)', v_r, v_r2;
  339|   end if;
  340|   t0 := t0 + 2;
- 341| 
+ 341|
  342|   -- ═════ G. Cupo: la ventana no retrocede; Retry-After ≥ 1; sin política, error claro ═════
  343|   update crm.llamadas_celular_politica set limite_envios_minuto = 30, limite_envios_dia = 600;
  344|   update private.celulares_estado
@@ -5320,7 +5939,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  399|   end;
  400|   if (select count(*) from crm.llamadas_celular_politica) <> 1 then raise exception 'ORACULO G6: la política no se repuso'; end if;
  401|   update crm.llamadas_celular_politica set limite_envios_minuto = 600, limite_envios_dia = 20000;
- 402| 
+ 402|
  403|   -- ═════ H. Identidad: vuelve a la anterior en éxito y en error, también dentro de un bloque que atrapa 22023 ═════
  404|   if coalesce(current_setting('request.jwt.claim.sub', true), '') <> '' then
  405|     raise exception 'ORACULO H1: la ingesta dejó puesta una identidad';
@@ -5347,7 +5966,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  426|                and (l.data_despues ? 'hash_payload' or l.data_despues ->> 'numero_canonico' <> '***')) then
  427|     raise exception 'ORACULO H5: la bitácora muestra el número o un hash';
  428|   end if;
- 429| 
+ 429|
  430|   -- ═════ I. Lead borrado: nadie la ve ni la toca, gerencia incluida ═════
  431|   t0 := t0 + 1;
  432|   perform pg_temp.enviar(k4, pg_temp.ev('C4-' || t0, '900000002'));
@@ -5368,7 +5987,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  447|     raise exception 'ORACULO I4: gerencia descarta la llamada de un lead dado de baja';
  448|   exception when insufficient_privilege then v_ok := v_ok + 1; end;
  449|   update crm.leads set activo = true where id = c2;
- 450| 
+ 450|
  451|   -- ═════ J. Entrantes y desconocidas se ignoran; la perilla está bloqueada ═════
  452|   t0 := t0 + 1;
  453|   v_r := pg_temp.enviar(k4, pg_temp.ev('C4-' || t0, '900000001', '{"direccion": "entrante", "estado_tecnico": "no_atendida"}'));
@@ -5387,7 +6006,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  466|     update crm.llamadas_celular_politica set entrantes_activas = true;
  467|     raise exception 'ORACULO J3: la tabla aceptó las entrantes encendidas';
  468|   exception when check_violation then v_ok := v_ok + 1; end;
- 469| 
+ 469|
  470|   -- ═════ K. Salud sin envíos; la bandeja vieja ya no existe; la puerta solo devuelve resultado y mensaje ═════
  471|   perform pg_temp.como(g1); v_salud := crm.celulares_salud_fn(); perform pg_temp.yo();
  472|   if exists (select 1 from jsonb_array_elements(v_salud) x where x ? 'envios_hoy' or x ? 'ultimo_envio_en')
@@ -5397,7 +6016,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  476|   if to_regprocedure('crm.llamadas_celular_pendientes_fn(integer)') is not null then
  477|     raise exception 'ORACULO K2: la bandeja duplicada sigue';
  478|   end if;
- 479| 
+ 479|
  480|   -- ═════ L. Candados en un solo hilo: descartar revalida; enlazar rechaza un resultado deshecho ═════
  481|   v_ev := pg_temp.evento((select evento_origen_id from crm.llamadas_celular_eventos where id = v_e1));
  482|   insert into crm.actividades (lead_id, tipo, metadata, creado_por)
@@ -5430,7 +6049,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  509|   if (select atencion from crm.llamadas_celular_eventos where id = v_e1) is distinct from 'descartado_con_motivo' then
  510|     raise exception 'ORACULO L2: descartar no funcionó (%)', v_r;
  511|   end if;
- 512| 
+ 512|
  513|   -- ═════ M. Purga: 30 días sin enlace, registradas se quedan, descartadas por su plazo, recepciones a 32 ═════
  514|   delete from public.audit_log;  -- solo para contar lo que la purga deja en la bitácora
  515|   insert into crm.actividades (lead_id, tipo, metadata, creado_por, creado_en) values
@@ -5486,12 +6105,12 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  565|     update private.llamadas_celular_recepciones set recibido_en = now() where evento_origen_id = 'C4-1000000012';
  566|     raise exception 'ORACULO M7: una recepción se editó';
  567|   exception when insufficient_privilege then v_ok := v_ok + 1; end;
- 568| 
+ 568|
  569|   if v_ok <> 13 then raise exception 'ORACULO: % de 13 rechazos esperados', v_ok; end if;
  570|   raise notice 'ORACULO CORRECCION OK: sin pistas, bolsa, reutilizables, propios terminales, id (forma, etiqueta, ventana, reenvío, rotación, etiqueta reutilizada), latido y fecha estricta, cupo (ventanas que no retroceden, sin política), identidad, lead borrado, entrantes bloqueadas, salud sin envíos, candados en un hilo y purga comprobados';
  571| end;
  572| $oraculo$;
- 573| 
+ 573|
  574| rollback;
 ```
 
@@ -5509,7 +6128,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
   10| begin;
   11| set local lock_timeout = '5s';
   12| set local statement_timeout = '120s';
-  13| 
+  13|
   14| create function pg_temp.ev(p_id text, p_numero text, p_extra jsonb default '{}'::jsonb)
   15| returns jsonb language sql immutable as $$
   16|   select jsonb_build_object('v', 1, 'evento_origen_id', p_id, 'numero', p_numero, 'direccion', 'saliente') || p_extra
@@ -5548,7 +6167,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
   49|   select l.* from crm.llamadas_celular_enlaces l join crm.llamadas_celular_eventos e on e.id = l.evento_id
   50|   where e.evento_origen_id = p_id
   51| $$;
-  52| 
+  52|
   53| do $oraculo$
   54| declare
   55|   a1 constant uuid := '00000000-0000-0000-0000-0000000000a1';
@@ -5578,14 +6197,14 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
   79|   k2 := crm.asignar_celular('C2', a3) ->> 'credencial';
   80|   k4 := crm.asignar_celular('C4', b1) ->> 'credencial';
   81|   execute 'set local role none'; perform set_config('request.jwt.claim.sub', '', true);
-  82| 
+  82|
   83|   -- ═════ A. Sin id: igual que la v4, con enlace null ═════
   84|   v_r := pg_temp.v5(a1, op[1], c1, 'volver_a_llamar', null, null);
   85|   if not (v_r ? 'enlace') or jsonb_typeof(v_r -> 'enlace') <> 'null' or (v_r ->> 'actividad_id')::uuid <> op[1]
   86|      or not exists (select 1 from crm.actividades where id = op[1]) then
   87|     raise exception 'ORACULO A1: sin id, la v5 no se comportó como la v4 (%)', v_r;
   88|   end if;
-  89| 
+  89|
   90|   -- ═════ B. El aviso llegó antes: la encuesta lo une al colgar; el replay no duplica ═════
   91|   v_id := id_de || (t0 + 1);
   92|   perform pg_temp.enviar(k1, pg_temp.ev(v_id, '900000001'));
@@ -5600,7 +6219,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  101|      or (select count(*) from crm.llamadas_celular_enlaces) <> 1 then
  102|     raise exception 'ORACULO B2: el reintento de la encuesta no respondió «repetido» o duplicó (%)', v_r;
  103|   end if;
- 104| 
+ 104|
  105|   -- ═════ C. Reloj del celular adelantado: el camino exacto une; el manual conserva la regla de 10 minutos ═════
  106|   v_id := id_de || floor(extract(epoch from now() + interval '20 minutes'))::bigint;
  107|   perform pg_temp.enviar(k1, pg_temp.ev(v_id, '900000002',
@@ -5623,7 +6242,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  124|     if sqlerrm not like '%antes de la llamada%' then raise exception 'ORACULO C2: rechazo con otro motivo (%)', sqlerrm; end if;
  125|     v_ok := v_ok + 1;
  126|   end;
- 127| 
+ 127|
  128|   -- ═════ D. Aviso tardío: la encuesta deja una intención y la ingesta la cumple sola ═════
  129|   v_id := id_de || (t0 + 4);
  130|   v_r := pg_temp.v5(a1, op[4], c1, 'no_contesto', v_id, 'pestana');
@@ -5643,7 +6262,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  144|      or exists (select 1 from private.llamadas_celular_intenciones where evento_origen_id = v_id) then
  145|     raise exception 'ORACULO D3: al llegar el aviso, la intención no se cumplió (%)', row_to_json(v_enl);
  146|   end if;
- 147| 
+ 147|
  148|   -- ═════ E. Enlaces imposibles: el resultado se guarda IGUAL y la respuesta dice por qué ═════
  149|   v_r := pg_temp.v5(a1, op[5], c1, 'volver_a_llamar', 'X1-123', 'al_colgar');
  150|   if v_r -> 'enlace' ->> 'estado' is distinct from 'no_enlazado' or v_r -> 'enlace' ->> 'motivo' is distinct from 'id_invalido'
@@ -5691,7 +6310,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  192|   if v_r -> 'enlace' ->> 'motivo' is distinct from 'resultado_ya_enlazado' then
  193|     raise exception 'ORACULO E9: un resultado ya unido se dejó como intención de otra llamada (%)', v_r;
  194|   end if;
- 195| 
+ 195|
  196|   -- Una segunda encuesta con el mismo id y la primera pendiente (no deshecha): no la reemplaza.
  197|   v_id := id_de || (t0 + 22);
  198|   perform pg_temp.v5(a1, op[21], c1, 'volver_a_llamar', v_id, 'al_colgar');
@@ -5700,7 +6319,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  201|      or (select actividad_id from private.llamadas_celular_intenciones where evento_origen_id = v_id) <> op[21] then
  202|     raise exception 'ORACULO E10: una segunda encuesta reemplazó la intención vigente (%)', v_r;
  203|   end if;
- 204| 
+ 204|
  205|   -- ═════ F. Deshacer → corregido: el enlace y la intención pasan al resultado corregido ═════
  206|   perform pg_temp.deshacer(op[2]);
  207|   v_r := pg_temp.v5(a1, op[13], c1, 'volver_a_llamar', id_de || (t0 + 1), 'al_colgar');
@@ -5724,7 +6343,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  225|   if v_r -> 'enlace' ->> 'motivo' is distinct from 'resultado_deshecho' then
  226|     raise exception 'ORACULO F4: el reintento de un resultado deshecho se unió (%)', v_r;
  227|   end if;
- 228| 
+ 228|
  229|   -- ═════ G. La intención que no coincide se retira sin unir ═════
  230|   v_id := id_de || (t0 + 16);
  231|   perform pg_temp.v5(a1, op[16], c1, 'volver_a_llamar', v_id, 'al_colgar');
@@ -5742,7 +6361,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  243|      or exists (select 1 from private.llamadas_celular_intenciones where evento_origen_id = v_id) then
  244|     raise exception 'ORACULO G2: la intención con el resultado deshecho se cumplió o no se retiró';
  245|   end if;
- 246| 
+ 246|
  247|   -- ═════ H. La vía: manual en el enlace a mano; inmutable ═════
  248|   v_id := id_de || (t0 + 18);
  249|   perform pg_temp.enviar(k1, pg_temp.ev(v_id, '900000001'));
@@ -5757,7 +6376,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  258|     update crm.llamadas_celular_enlaces set via = 'al_colgar' where id = (pg_temp.enlace_de(v_id)).id;
  259|     raise exception 'ORACULO H2: la vía de un enlace cambió';
  260|   exception when insufficient_privilege then v_ok := v_ok + 1; end;
- 261| 
+ 261|
  262|   -- ═════ I. Validaciones de la v5 (fallan sin guardar nada) y autorización ═════
  263|   begin
  264|     perform pg_temp.v5(a1, op[19], c1, 'volver_a_llamar', id_de || (t0 + 19), null);
@@ -5774,7 +6393,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  275|   if exists (select 1 from crm.actividades where id = op[19]) then
  276|     raise exception 'ORACULO I4: una v5 rechazada dejó un resultado';
  277|   end if;
- 278| 
+ 278|
  279|   -- ═════ J. Candados de la intención ═════
  280|   v_id := id_de || (t0 + 20);
  281|   perform pg_temp.v5(a1, op[20], c1, 'volver_a_llamar', v_id, 'al_colgar');
@@ -5796,7 +6415,7 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  297|     if sqlerrm not like '%si el anterior se deshizo%' then raise exception 'ORACULO J3: frenado por otra regla (%)', sqlerrm; end if;
  298|     v_ok := v_ok + 1;
  299|   end;
- 300| 
+ 300|
  301|   -- ═════ K. Purga: intenciones a los 32 días ═════
  302|   insert into crm.actividades (lead_id, tipo, metadata, creado_por) values
  303|     (c1, 'llamada_realizada', '{"evento": "resultado_llamada", "resultado": "volver_a_llamar"}', a1) returning id into v_act;
@@ -5812,18 +6431,18 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
  313|      or (select count(*) from private.llamadas_celular_intenciones) <> v_n - 1 then
  314|     raise exception 'ORACULO K1: la purga no retiró solo la intención de más de 32 días';
  315|   end if;
- 316| 
+ 316|
  317|   if v_ok <> 8 then raise exception 'ORACULO: % de 8 rechazos esperados', v_ok; end if;
  318|   raise notice 'ORACULO ENLACE EXACTO OK: sin id = v4, aviso antes, aviso tardío (intención cumplida), reloj adelantado (manual con 10 min), enlaces imposibles que guardan igual (id, ventana, celular ajeno, otro lead, descartada, ya con resultado, ambigua, aviso ignorado, resultado ya unido), Deshacer → corregido, intención que no coincide, vía, validaciones, candados y purga comprobados';
  319| end;
  320| $oraculo$;
- 321| 
+ 321|
  322| rollback;
 ```
 
-## Tramo: supabase/scripts/test-rls.mjs:17488–17891 — bloque testLlamadasCelular del gate (SIN CORRER)
+## Tramo: supabase/scripts/test-rls.mjs:17488–17893 — bloque testLlamadasCelular del gate (SIN CORRER)
 ```
-17488| // Llamadas desde el celular: F2 + F3 + elegibilidad + QUINTA (20261005143843) + F4-a (20261005155914).
+17488| // Llamadas desde el celular: F2 + F3 + elegibilidad + QUINTA (20261005143843) + F4-a (20261005155914) + SÉPTIMA (20261005182227).
 17489| // Especificación: F2-PLAN-CORTO.md («Verificación (F2.4)») y CORRECCION-PLAN-CORTO.md («Pruebas»). Purga, cupo con la
 17490| // hora movida, carreras e identidad temporal van en los oráculos del banco reducido (supabase/tests/llamadas-celular/);
 17491| // aquí: permisos, contrato y enlace con sesiones reales, la v4 REAL y el esquema de producción. Ya no exige P0409
@@ -5831,402 +6450,404 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
 17493| // ventana de la quinta: no chocan con otra corrida. Las tablas son de solo inserción: los eventos de la corrida quedan
 17494| // descartados o registrados, las asignaciones cerradas y los leads dados de baja; el branch se descarta.
 17495| async function testLlamadasCelular(sessions, seed) {
-17496|   console.log('\n— Llamadas desde el celular (F2 + F3 + quinta + F4-a): puertas, ámbito, ingesta y enlace —');
+17496|   console.log('\n— Llamadas desde el celular (F2 + F3 + quinta + F4-a + séptima): puertas, ámbito, ingesta y enlace —');
 17497|   const id = (key) => seed.profileIdByKey[key];
 17498|   const rpc = (quien, fn, args = {}) => sessions[quien].client.schema('crm').rpc(fn, args);
 17499|   const servicio = (fn, args) => admin.schema('crm').rpc(fn, args);
 17500|   const instalada = contarFueraDeBanda('Llamadas del celular: presencia de la migración',
 17501|     "select case when to_regclass('crm.llamadas_celular_eventos') is not null then 1 else 0 end") === 1;
-17502|   const corregida = instalada && contarFueraDeBanda('Llamadas del celular: quinta y F4-a',
-17503|     "select case when to_regclass('private.llamadas_celular_recepciones') is not null and "
-17504|     + "to_regclass('private.llamadas_celular_intenciones') is not null then 1 else 0 end") === 1;
-17505|   const sonda = await rpc('gerencia', 'llamadas_celular_politica_fn');
-17506|   const sondaServicio = await servicio('ingerir_llamada_celular_servicio', { p_credencial: '0'.repeat(64), p_evento: {} });
-17507|   const sondaV5 = await rpc('gerencia', 'registrar_llamada_v5', { p_operacion_id: randomUUID(),
-17508|     p_lead_id: '00000000-0000-4000-8000-000000000000', p_resultado: 'no_contesto' });
-17509|   if (!instalada || !corregida || [sonda, sondaServicio, sondaV5].some((r) => r.error?.code === 'PGRST202')) {
-17510|     const msg = instalada
-17511|       ? '✗ Llamadas del celular: F2 + F3 sin la quinta o sin F4-a (o falta una puerta): la barrera no deja usarlas así'
-17512|       : '⚠ Llamadas del celular no instaladas: SALTADAS (no probado)';
-17513|     if (instalada || process.env.CRM_RLS_EXIGE_LLAMADAS === '1') fail(msg);
-17514|     else console.log(`  ${msg}`);
-17515|     return;
-17516|   }
-17517|   check(!sonda.error && sonda.data?.guardar_sin_identificar === false && sonda.data?.entrantes_activas === false,
-17518|     'gerencia lee la política: números sin lead no se guardan y entrantes apagadas (decisiones 2 y 3)',
-17519|     errorText(sonda.error));
-17520|   check(sondaV5.error?.code === '42501', 'v5 sobre un lead inexistente → 42501, sin escribir', errorText(sondaV5.error));
-17521| 
-17522|   const ajeno = LEADS.find((l) => l.sellerKey === 'vend3');
-17523|   const asignaciones = [];
-17524|   const eventos = [];
-17525|   const leads = [];
-17526|   let claveNueva = null;
-17527|   let rot = null;
-17528|   let seq = 0;
-17529|   const base = Math.floor(Date.now() / 1000) - randomInt(600, 7 * 86400);
-17530|   const idDe = (etiqueta) => `${etiqueta}-${base + (seq += 1)}`;
-17531|   const nuevoNumero = () => `9${randomInt(10000000, 99999999)}`;
-17532|   // Lead transitorio de vend1 con un teléfono aleatorio: único en la base, así la coincidencia es exacta.
-17533|   const numero = nuevoNumero();
-17534|   const evento = (origen, extra = {}) => ({
-17535|     v: 1, evento_origen_id: origen, numero, direccion: 'saliente', estado_tecnico: 'conectada',
-17536|     duracion_seg: 42, ocurrio_en: new Date(Date.now() - 60_000).toISOString(), ...extra,
-17537|   });
-17538|   const ingerir = (credencial, ev) => servicio('ingerir_llamada_celular_servicio', { p_credencial: credencial, p_evento: ev });
-17539|   const aceptado = (r) => !r.error && JSON.stringify(r.data) === '{"resultado":"aceptado"}';
-17540|   const invalido = (r) => !r.error && r.data?.resultado === 'invalido' && Boolean(r.data?.mensaje)
-17541|     && Object.keys(r.data).sort().join() === 'mensaje,resultado';
-17542|   const q = (origen) => {
-17543|     if (!/^[A-Za-z0-9-]+$/.test(origen)) throw new Error(`llamadas: id raro para la vía fuera de banda: ${origen}`);
-17544|     return `'${origen}'`;
-17545|   };
-17546|   const cuenta = (que, sql) => contarFueraDeBanda(`llamadas: ${que}`, sql);
-17547|   const recepciones = (o) => cuenta('recepciones', `select count(*) from private.llamadas_celular_recepciones where evento_origen_id = ${q(o)}`);
-17548|   const eventosDe = (o) => cuenta('eventos', `select count(*) from crm.llamadas_celular_eventos where evento_origen_id = ${q(o)}`);
-17549|   const intenciones = (o) => cuenta('intenciones', `select count(*) from private.llamadas_celular_intenciones where evento_origen_id = ${q(o)}`);
-17550|   const eventoDe = (o) => {
-17551|     const t = textoFueraDeBanda('llamadas: evento', `select concat_ws('|', e.id, e.atencion, coalesce(e.lead_id::text, ''),
-17552|       e.asignacion_id) from crm.llamadas_celular_eventos e where e.evento_origen_id = ${q(o)}`);
-17553|     if (!t) return null;
-17554|     const [eid, atencion, leadId, asignacionId] = t.split('|');
-17555|     return { id: eid, atencion, leadId, asignacionId };
-17556|   };
-17557|   const enlaceDe = (o) => textoFueraDeBanda('llamadas: enlace', `select concat_ws('|', l.actividad_id, l.via)
-17558|     from crm.llamadas_celular_enlaces l join crm.llamadas_celular_eventos e on e.id = l.evento_id where e.evento_origen_id = ${q(o)}`);
-17559|   const cupo = (asig) => (textoFueraDeBanda('llamadas: cupo', `select concat_ws('|', coalesce(dia::text, ''), envios_dia)
-17560|     from private.celulares_estado where asignacion_id = '${asig}'`) ?? '|0').split('|');
-17561|   async function asignar(quien) {
-17562|     for (let intento = 0; intento < 3; intento += 1) {
-17563|       const etiqueta = `C${randomInt(100, 1000)}`;
-17564|       const r = await rpc('gerencia', 'asignar_celular', { p_etiqueta: etiqueta, p_analista_id: id(quien) });
-17565|       if (r.error?.code === '23505') continue; // etiqueta vigente de otra corrida: otra al azar
-17566|       if (r.error) throw new Error(`asignar celular a ${quien}: ${errorText(r.error)}`);
-17567|       asignaciones.push(r.data.asignacion_id);
-17568|       return { ...r.data, etiqueta };
-17569|     }
-17570|     throw new Error(`asignar celular a ${quien}: tres etiquetas ocupadas seguidas`);
-17571|   }
-17572|   const contiene = (data, eventoId) => (Array.isArray(data) ? data : data?.filas ?? []).some((f) => f.evento_id === eventoId);
-17573|   const ve = async (quien, eventoId) => {
-17574|     const b = await rpc(quien, 'llamadas_celular_bandeja_fn', { p_limite: 200 });
-17575|     return b.error ? null : contiene(b.data, eventoId);
-17576|   };
-17577|   async function crearLead(nombre, telefono, vendedorKey) {
-17578|     const leadId = randomUUID();
-17579|     await requireAdmin(`crear ${nombre}`, admin.schema('crm').from('leads').insert({
-17580|       id: leadId, nombre_completo: nombre, telefono, origen: 'oficina', etapa: 'nuevo', moneda: 'PEN', monto_estimado: 1000,
-17581|       ...(vendedorKey ? { creado_por: id(vendedorKey), vendedor_id: id(vendedorKey), asignado_supervisor_id: null } : {}),
-17582|     }));
-17583|     leads.push(leadId);
-17584|     return leadId;
-17585|   }
-17586| 
-17587|   try {
-17588|     const leadId = await crearLead('LLAMADAS CELULAR TRANSIENT', numero, 'vend1');
-17589| 
-17590|     // ── Tablas: sin acceso directo para nadie (todo pasa por las puertas); las de private, fuera de la API ──
-17591|     const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-llamadas'));
-17592|     for (const tabla of ['celulares_asignaciones', 'llamadas_celular_eventos', 'llamadas_celular_enlaces', 'llamadas_celular_politica']) {
-17593|       for (const quien of ['vend1', 'sup1', 'gerencia', 'coordinador', 'directorio']) {
-17594|         await expectExplicitAuthorizationDenied(`${quien}: no lee crm.${tabla} directo`,
-17595|           sessions[quien].client.schema('crm').from(tabla).select('*').limit(1));
-17596|       }
-17597|       await expectExplicitAuthorizationDenied(`anon: no lee crm.${tabla}`, anon.schema('crm').from(tabla).select('*').limit(1));
-17598|     }
-17599|     for (const tabla of ['llamadas_celular_recepciones', 'llamadas_celular_intenciones', 'celulares_estado']) {
-17600|       const { data, error } = await sessions.gerencia.client.schema('private').from(tabla).select('*').limit(1);
-17601|       check(error?.code === 'PGRST106' && data == null,
-17602|         `gerencia NO alcanza private.${tabla} por la API: esquema no expuesto, PGRST106 (recibido ${error?.code ?? 'sin error'})`);
-17603|     }
-17604|     for (const quien of ['vend1', 'gerencia']) {
-17605|       await expectBlockedMutation(`${quien}: no actualiza eventos directo`,
-17606|         sessions[quien].client.schema('crm').from('llamadas_celular_eventos').update({ atencion: 'registrado' })
-17607|           .eq('lead_id', leadId).select('id'));
-17608|       await expectBlockedMutation(`${quien}: no borra eventos directo`,
-17609|         sessions[quien].client.schema('crm').from('llamadas_celular_eventos').delete().eq('lead_id', leadId).select('id'));
-17610|     }
-17611| 
-17612|     // ── Puertas: quién ejecuta qué. Con argumentos de la forma exacta: sin ellos PostgREST responde
-17613|     // PGRST202 (función no encontrada) y la prueba fallaría por la razón equivocada. La bandeja vieja
-17614|     // (llamadas_celular_pendientes_fn) ya no existe: la quinta la retiró. ──
-17615|     const argumentos = {
-17616|       llamadas_celular_bandeja_fn: {},
-17617|       llamada_celular_detalle_fn: { p_evento_id: randomUUID() },
-17618|       asociar_llamada_celular: { p_evento_id: randomUUID(), p_lead_id: leadId },
-17619|       enlazar_llamada_celular: { p_evento_id: randomUUID(), p_actividad_id: randomUUID() },
-17620|       descartar_llamada_celular: { p_evento_id: randomUUID(), p_motivo: 'personal' },
-17621|       registrar_llamada_v5: { p_operacion_id: randomUUID(), p_lead_id: leadId, p_resultado: 'no_contesto' },
-17622|       celulares_asignaciones_fn: {},
-17623|       celulares_salud_fn: {},
-17624|       asignar_celular: { p_etiqueta: 'C999', p_analista_id: id('vend1') },
-17625|       rotar_credencial_celular: { p_etiqueta: 'C999' },
-17626|       cerrar_asignacion_celular: { p_asignacion_id: randomUUID(), p_motivo: 'otro' },
-17627|       llamadas_celular_politica_fn: {},
-17628|       fijar_politica_llamadas_celular: {},
-17629|       ingerir_llamada_celular_servicio: { p_credencial: '0'.repeat(64), p_evento: evento('C1-0000000000') },
-17630|       registrar_salud_celular_servicio: { p_credencial: '0'.repeat(64), p_latido: { v: 1, version_macro: 'gate', en_cola: 0 } },
-17631|     };
-17632|     const soloGerencia = ['asignar_celular', 'rotar_credencial_celular', 'cerrar_asignacion_celular',
-17633|       'llamadas_celular_politica_fn', 'fijar_politica_llamadas_celular'];
-17634|     for (const fn of soloGerencia) {
-17635|       for (const quien of ['sup1', 'vend1', 'coordinador', 'directorio', 'vendInactive']) {
-17636|         await expectExplicitAuthorizationDenied(`${quien}: ${fn} es solo de gerencia`, rpc(quien, fn, argumentos[fn]));
-17637|       }
-17638|     }
-17639|     for (const fn of ['celulares_asignaciones_fn', 'celulares_salud_fn']) {
-17640|       for (const quien of ['vend1', 'coordinador', 'directorio', 'vendInactive']) {
-17641|         await expectExplicitAuthorizationDenied(`${quien}: ${fn} es de supervisión y gerencia`, rpc(quien, fn, argumentos[fn]));
-17642|       }
-17643|     }
-17644|     for (const fn of ['llamadas_celular_bandeja_fn', 'llamada_celular_detalle_fn', 'asociar_llamada_celular',
-17645|       'enlazar_llamada_celular', 'descartar_llamada_celular', 'registrar_llamada_v5']) {
-17646|       for (const quien of ['coordinador', 'directorio', 'vendInactive']) {
-17647|         await expectExplicitAuthorizationDenied(`${quien}: sin ${fn}`, rpc(quien, fn, argumentos[fn]));
-17648|       }
-17649|     }
-17650|     for (const [fn, args] of Object.entries(argumentos)) {
-17651|       await expectExplicitAuthorizationDenied(`anon: no ejecuta ${fn}`, anon.schema('crm').rpc(fn, args));
-17652|     }
-17653|     for (const fn of ['ingerir_llamada_celular_servicio', 'registrar_salud_celular_servicio']) {
-17654|       for (const quien of ['vend1', 'sup1', 'gerencia']) {
-17655|         await expectExplicitAuthorizationDenied(`${quien}: la puerta de servicio ${fn} es solo de service_role`,
-17656|           rpc(quien, fn, argumentos[fn]));
-17657|       }
-17658|     }
-17659| 
-17660|     // ── Asignar celulares: solo gerencia; la clave sale una vez y no se vuelve a leer ──
-17661|     const cel = await asignar('vend1');
-17662|     check(/^[0-9a-f]{64}$/.test(cel.credencial ?? ''), 'gerencia asigna un celular a vend1: la clave sale una vez (64 hex)');
-17663|     await expectExpectedFailure('gerencia: no asigna un celular a un analista dado de baja',
-17664|       rpc('gerencia', 'asignar_celular', { p_etiqueta: `C${randomInt(100, 1000)}`, p_analista_id: id('vendInactive') }),
-17665|       ['22023'], /activo/i);
-17666|     await expectExpectedFailure('gerencia: etiqueta inválida rechazada',
-17667|       rpc('gerencia', 'asignar_celular', { p_etiqueta: 'celular', p_analista_id: id('vend1') }), ['22023'], /etiqueta/i);
-17668|     const lecturaG = await rpc('gerencia', 'celulares_asignaciones_fn');
-17669|     check(!lecturaG.error && (lecturaG.data ?? []).some((a) => a.asignacion_id === cel.asignacion_id)
-17670|       && !/[0-9a-f]{64}/.test(JSON.stringify(lecturaG.data)),
-17671|     'gerencia ve la asignación y la lectura no expone ningún hash de clave', errorText(lecturaG.error));
-17672|     const lecturaS1 = await rpc('sup1', 'celulares_asignaciones_fn');
-17673|     const lecturaS2 = await rpc('sup2', 'celulares_asignaciones_fn');
-17674|     check(!lecturaS1.error && (lecturaS1.data ?? []).some((a) => a.asignacion_id === cel.asignacion_id)
-17675|       && !lecturaS2.error && !(lecturaS2.data ?? []).some((a) => a.asignacion_id === cel.asignacion_id),
-17676|     'supervisión ve los celulares de su equipo (sup1 sí, sup2 no)');
-17677|     // Segundo celular de vend1 (bolsa, reutilizable, baja y enlace): el cupo es de 30 por minuto y por celular.
-17678|     const celB = await asignar('vend1');
-17679|     const celSup = await asignar('sup1');
-17680| 
-17681|     // ── Ingesta: contrato {resultado, mensaje}, recepción, reenvío, sin pistas, inválidos con cupo ──
-17682|     await expectExpectedFailure('servicio: clave desconocida → el mismo 42501',
-17683|       ingerir('f'.repeat(64), evento(idDe(cel.etiqueta))), ['42501'], /no autorizado/i);
-17684|     const id1 = idDe(cel.etiqueta);
-17685|     const r1 = await ingerir(cel.credencial, evento(id1));
-17686|     const ev1 = eventoDe(id1);
-17687|     check(aceptado(r1) && ev1?.leadId === leadId && ev1?.atencion === 'requiere_resultado' && recepciones(id1) === 1,
-17688|       'servicio: responde solo {resultado: aceptado}; recepción y llamada guardadas, pide resultado',
-17689|       errorText(r1.error) || JSON.stringify(r1.data));
-17690|     const eventoId = ev1?.id ?? randomUUID();
-17691|     if (ev1) eventos.push(ev1.id);
-17692|     const r1b = await ingerir(cel.credencial, evento(id1, { duracion_seg: 43, numero: nuevoNumero() }));
-17693|     const det1 = await rpc('vend1', 'llamada_celular_detalle_fn', { p_evento_id: eventoId });
-17694|     check(aceptado(r1b) && eventosDe(id1) === 1 && recepciones(id1) === 1 && det1.data?.duracion_seg === 42,
-17695|       'servicio: el mismo id con otro contenido → aceptado y sin cambios (el primero gana; sin P0409)', errorText(r1b.error));
-17696|     const idDoble = idDe(cel.etiqueta);
-17697|     const [d1, d2] = await Promise.all([ingerir(cel.credencial, evento(idDoble)), ingerir(cel.credencial, evento(idDoble))]);
-17698|     check(aceptado(d1) && aceptado(d2) && eventosDe(idDoble) === 1 && recepciones(idDoble) === 1,
-17699|       'servicio: dos envíos a la vez del mismo id → una recepción y una llamada', `${errorText(d1.error)} / ${errorText(d2.error)}`);
-17700|     const evDoble = eventoDe(idDoble);
-17701|     if (evDoble) eventos.push(evDoble.id);
-17702|     const idSinLead = idDe(cel.etiqueta);
-17703|     const idAjeno = idDe(cel.etiqueta);
-17704|     const sinLead = await ingerir(cel.credencial, evento(idSinLead, { numero: nuevoNumero() }));
-17705|     const conAjeno = await ingerir(cel.credencial, evento(idAjeno, { numero: ajeno.phone }));
-17706|     check(aceptado(sinLead) && aceptado(conAjeno) && eventosDe(idSinLead) + eventosDe(idAjeno) === 0
-17707|       && recepciones(idSinLead) + recepciones(idAjeno) === 2,
-17708|     'servicio: sin lead y lead de otro equipo responden igual que el propio y no se guardan (decisión 3)');
-17709|     const ahora = Math.floor(Date.now() / 1000);
-17710|     const [diaA, nA] = cupo(cel.asignacion_id);
-17711|     const malos = ['X1-1790980958', `${cel.etiqueta}-123`, idDe(celB.etiqueta),
-17712|       `${cel.etiqueta}-${ahora - 31 * 86400}`, `${cel.etiqueta}-${ahora + 2 * 86400}`];
-17713|     for (const malo of malos) {
-17714|       const r = await ingerir(cel.credencial, evento(malo));
-17715|       check(invalido(r) && recepciones(malo) === 0, `servicio: id ${malo} → {resultado: invalido, mensaje}, sin recepción`,
-17716|         errorText(r.error) || JSON.stringify(r.data));
-17717|     }
-17718|     const [diaD, nD] = cupo(cel.asignacion_id);
-17719|     check(diaA !== diaD || Number(nD) - Number(nA) === malos.length, 'servicio: cada inválido gasta cupo', `${nA} → ${nD}`);
-17720|     const idEnt = idDe(cel.etiqueta);
-17721|     const idDes = idDe(cel.etiqueta);
-17722|     const rEnt = await ingerir(cel.credencial, evento(idEnt, { direccion: 'entrante', estado_tecnico: 'no_atendida' }));
-17723|     const sinDir = evento(idDes);
-17724|     delete sinDir.direccion;
-17725|     const rDes = await ingerir(cel.credencial, sinDir);
-17726|     check(aceptado(rEnt) && aceptado(rDes) && eventosDe(idEnt) + eventosDe(idDes) === 0 && recepciones(idEnt) + recepciones(idDes) === 2,
-17727|       'servicio: entrante y dirección desconocida al número de un lead → aceptadas e ignoradas (decisión 2)');
-17728|     await expectExpectedFailure('gerencia: no enciende las entrantes (bloqueadas hasta la #14)',
-17729|       rpc('gerencia', 'fijar_politica_llamadas_celular', { p_entrantes_activas: true }), ['22023'], /entrantes siguen bloqueadas/i);
-17730|     check(cuenta('CHECK entrantes', "select count(*) from pg_constraint where conrelid = 'crm.llamadas_celular_politica'::regclass"
-17731|       + " and conname = 'llamadas_celular_politica_entrantes_bloqueadas' and contype = 'c'") === 1,
-17732|     'la tabla fija entrantes en falso (CHECK)');
-17733|     const latido = await servicio('registrar_salud_celular_servicio',
-17734|       { p_credencial: cel.credencial, p_latido: { v: 1, version_macro: 'gate rls', en_cola: 0 } });
-17735|     const latidoMalo = await servicio('registrar_salud_celular_servicio', { p_credencial: cel.credencial, p_latido: { v: 1 } });
-17736|     check(aceptado(latido) && invalido(latidoMalo), 'servicio: latido → {resultado: aceptado}; inválido → {resultado: invalido, mensaje}',
-17737|       `${errorText(latido.error)} / ${JSON.stringify(latidoMalo.data)}`);
-17738|     const saludG = await rpc('gerencia', 'celulares_salud_fn');
-17739|     const saludS2 = await rpc('sup2', 'celulares_salud_fn');
-17740|     const fila = (saludG.data ?? []).find((a) => a.asignacion_id === cel.asignacion_id);
-17741|     check(!saludG.error && Boolean(fila?.ultimo_latido_en) && !('envios_hoy' in (fila ?? {})) && !('ultimo_envio_en' in (fila ?? {}))
-17742|       && !saludS2.error && !JSON.stringify(saludS2.data ?? '').includes(cel.asignacion_id),
-17743|     'salud: gerencia ve el latido sin envíos ni último envío (N1); sup2 (otro equipo) no ve el celular');
-17744| 
-17745|     // ── Ámbito de lectura (la bandeja paginada es la única): dueño, su supervisión y gerencia sí; otro equipo no ──
-17746|     for (const [quien, debe] of [['vend1', true], ['sup1', true], ['gerencia', true], ['vend3', false], ['sup2', false]]) {
-17747|       check(await ve(quien, eventoId) === debe, `${quien}: ${debe ? 've' : 'no ve'} la llamada en la bandeja`);
-17748|     }
-17749|     check(!det1.error && det1.data?.atencion === 'requiere_resultado' && det1.data?.lead_id === leadId,
-17750|       'vend1: su llamada pide resultado y está asociada a su lead', errorText(det1.error));
-17751|     for (const quien of ['vend3', 'sup2']) {
-17752|       await expectExplicitAuthorizationDenied(`${quien}: no abre el detalle de una llamada ajena`,
-17753|         rpc(quien, 'llamada_celular_detalle_fn', { p_evento_id: eventoId }));
-17754|       await expectExplicitAuthorizationDenied(`${quien}: no descarta una llamada ajena`,
-17755|         rpc(quien, 'descartar_llamada_celular', { p_evento_id: eventoId, p_motivo: 'personal' }));
-17756|     }
-17757|     await expectExplicitAuthorizationDenied('vend1: no asocia su llamada a un lead de otro equipo',
-17758|       rpc('vend1', 'asociar_llamada_celular', { p_evento_id: eventoId, p_lead_id: ajeno.id }));
-17759|     await expectExpectedFailure('vend1: no enlaza la llamada a un resultado que no es de ese lead',
-17760|       rpc('vend1', 'enlazar_llamada_celular', { p_evento_id: eventoId, p_actividad_id: randomUUID() }), ['22023'], /no es del lead/i);
-17761|     await expectExpectedFailure('vend1: descartar con «otro» exige el motivo escrito',
-17762|       rpc('vend1', 'descartar_llamada_celular', { p_evento_id: eventoId, p_motivo: 'otro' }), ['22023'], /otro/i);
-17763| 
-17764|     // ── El celular de un SUPERVISOR evalúa la regla como su dueño (depende de que auth.uid() lea request.jwt.claim.sub) ──
-17765|     const idSup = idDe(celSup.etiqueta);
-17766|     const rs = await ingerir(celSup.credencial, evento(idSup));
-17767|     const evSup = eventoDe(idSup);
-17768|     if (evSup) eventos.push(evSup.id);
-17769|     const detSup = evSup ? await rpc('sup1', 'llamada_celular_detalle_fn', { p_evento_id: evSup.id }) : null;
-17770|     check(aceptado(rs) && detSup && !detSup.error && detSup.data?.atencion === 'requiere_resultado',
-17771|       'sup1: su llamada a un lead de su equipo pide resultado (la ingesta evalúa como el dueño del celular)',
-17772|       `${errorText(rs.error)} / ${errorText(detSup?.error)}`);
-17773| 
-17774|     // ── Bolsa y reutilizable (decisión 7): por revisar; quien llamó no la ve; le aparece al tomar el lead ──
-17775|     const numBolsa = nuevoNumero();
-17776|     const leadBolsa = await crearLead('LLAMADAS CELULAR BOLSA TRANSIENT', numBolsa, null);
-17777|     const numReu = nuevoNumero();
-17778|     const leadReu = await crearLead('LLAMADAS CELULAR REUTILIZABLE TRANSIENT', numReu, null);
-17779|     // Un descarte VENCIDO no se fabrica por la API (nacer terminal está vetado y el sello fecha `descartado_en` con
-17780|     // now()): se fecha fuera de banda con la espera real del motivo, que gerencia puede haber cambiado.
-17781|     const diasAtras = Math.max(cuenta('espera de pide_credito', "select coalesce((select dias from crm.enfriamiento_politica"
-17782|       + " where motivo = 'pide_credito'), 0)"), 1) + 1;
-17783|     ejecutarFueraDeBanda('llamadas: descarte vencido del reutilizable', `set local session_replication_role = replica;
-17784|       update crm.leads set etapa = 'descartado', motivo_descarte = 'pide_credito',
-17785|         descartado_en = now() - interval '${diasAtras} days' where id = '${leadReu}';`);
-17786|     for (const [modo, leadX, numX] of [['bolsa', leadBolsa, numBolsa], ['reutilizable', leadReu, numReu]]) {
-17787|       const idX = idDe(celB.etiqueta);
-17788|       const rX = await ingerir(celB.credencial, evento(idX, { numero: numX }));
-17789|       const evX = eventoDe(idX);
-17790|       check(aceptado(rX) && evX?.leadId === leadX && evX?.atencion === 'por_revisar', `${modo}: responde igual; identificada, por revisar`);
-17791|       if (!evX) continue;
-17792|       eventos.push(evX.id);
-17793|       check(await ve('vend1', evX.id) === false && await ve('sup1', evX.id) === false && await ve('gerencia', evX.id) === true,
-17794|         `${modo}: quien llamó (y su supervisor) no la ve; gerencia sí`);
-17795|       await expectExplicitAuthorizationDenied(`${modo}: vend1 no abre el detalle antes de tomar el lead`,
-17796|         rpc('vend1', 'llamada_celular_detalle_fn', { p_evento_id: evX.id }));
-17797|       const toma = await positive(`vend1 toma el lead (${modo})`, rpc('vend1', 'tomar_lead_libre', { p_telefono: numX, p_dni: null }));
-17798|       check(toma?.data?.estado === 'tomado_ok' && toma.data.lead_id === leadX,
-17799|         `${modo}: tomar_lead_libre → tomado_ok con ese lead`, JSON.stringify(toma?.data));
-17800|       check(await ve('vend1', evX.id) === true, `${modo}: al tomar el lead, vend1 ve su llamada`);
-17801|     }
-17802| 
-17803|     // ── Lead dado de baja: nadie ve ni toca sus llamadas, gerencia incluida (fallo 2) ──
-17804|     const numBaja = nuevoNumero();
-17805|     const leadBaja = await crearLead('LLAMADAS CELULAR BAJA TRANSIENT', numBaja, 'vend1');
-17806|     const idBaja = idDe(celB.etiqueta);
-17807|     await ingerir(celB.credencial, evento(idBaja, { numero: numBaja }));
-17808|     const evBaja = eventoDe(idBaja);
-17809|     check(evBaja?.atencion === 'requiere_resultado' && await ve('vend1', evBaja?.id) === true, 'baja: antes, vend1 ve su llamada');
-17810|     await requireAdmin('dar de baja el lead', admin.schema('crm').from('leads').update({ activo: false }).eq('id', leadBaja));
-17811|     if (evBaja) {
-17812|       for (const quien of ['vend1', 'sup1', 'gerencia']) check(await ve(quien, evBaja.id) === false, `baja: ${quien} ya no la ve`);
-17813|       for (const quien of ['vend1', 'gerencia']) {
-17814|         await expectExplicitAuthorizationDenied(`baja: ${quien} no abre el detalle`,
-17815|           rpc(quien, 'llamada_celular_detalle_fn', { p_evento_id: evBaja.id }));
-17816|       }
-17817|       await expectExplicitAuthorizationDenied('baja: gerencia no la descarta',
-17818|         rpc('gerencia', 'descartar_llamada_celular', { p_evento_id: evBaja.id, p_motivo: 'personal' }));
-17819|     }
-17820| 
-17821|     // ── Enlace exacto con la v4 REAL (F4-a). «no_contesto»: sin p_siguiente obligatorio ──
-17822|     const v5 = (op, origen, via) => rpc('vend1', 'registrar_llamada_v5', { p_operacion_id: op, p_lead_id: leadId,
-17823|       p_resultado: 'no_contesto', p_evento_origen_id: origen, p_via: via });
-17824|     const idAntes = idDe(celB.etiqueta);
-17825|     const rAntes = await ingerir(celB.credencial, evento(idAntes));
-17826|     const opA = randomUUID();
-17827|     const vA = await v5(opA, idAntes, 'al_colgar');
-17828|     const evA = eventoDe(idAntes);
-17829|     const detA = evA ? await rpc('vend1', 'llamada_celular_detalle_fn', { p_evento_id: evA.id }) : null;
-17830|     check(aceptado(rAntes) && !vA.error && vA.data?.ok === true && vA.data?.actividad_id === opA && vA.data?.enlace?.estado === 'enlazado'
-17831|       && enlaceDe(idAntes) === `${opA}|al_colgar` && detA?.data?.atencion === 'registrado' && detA?.data?.actividad_id === opA,
-17832|     'v5: aviso antes → la encuesta queda unida a su llamada, vía al_colgar', errorText(vA.error) || JSON.stringify(vA.data?.enlace));
-17833|     const vA2 = await v5(opA, idAntes, 'al_colgar');
-17834|     check(!vA2.error && vA2.data?.replay === true && vA2.data?.enlace?.estado === 'repetido',
-17835|       'v5: el reintento de la misma operación → repetido', errorText(vA2.error) || JSON.stringify(vA2.data?.enlace));
-17836|     const idDespues = idDe(celB.etiqueta);
-17837|     const opD = randomUUID();
-17838|     const vD = await v5(opD, idDespues, 'pestana');
-17839|     check(!vD.error && vD.data?.enlace?.estado === 'pendiente' && intenciones(idDespues) === 1,
-17840|       'v5: aviso después → intención de enlace', errorText(vD.error) || JSON.stringify(vD.data?.enlace));
-17841|     const rDespues = await ingerir(celB.credencial, evento(idDespues));
-17842|     check(aceptado(rDespues) && eventoDe(idDespues)?.atencion === 'registrado' && enlaceDe(idDespues) === `${opD}|pestana`
-17843|       && intenciones(idDespues) === 0, 'ingesta: al llegar el aviso cumple la intención (vía pestana) y la retira');
-17844|     for (const [motivo, origen] of [['id_invalido', 'X1-123'], ['celular_ajeno', idDe(celSup.etiqueta)], ['ya_tiene_resultado', idAntes]]) {
-17845|       const op = randomUUID();
-17846|       const r = await v5(op, origen, 'al_colgar');
-17847|       check(!r.error && r.data?.ok === true && r.data?.actividad_id === op && r.data?.enlace?.estado === 'no_enlazado'
-17848|         && r.data?.enlace?.motivo === motivo, `v5: ${motivo} → guarda el resultado igual y dice no_enlazado`,
-17849|       errorText(r.error) || JSON.stringify(r.data?.enlace));
-17850|     }
-17851|     await expectExpectedFailure('v5: con id y sin vía → 22023', rpc('vend1', 'registrar_llamada_v5', { p_operacion_id: randomUUID(),
-17852|       p_lead_id: leadId, p_resultado: 'no_contesto', p_evento_origen_id: idDe(celB.etiqueta) }), ['22023'], /al_colgar o pestana/i);
-17853|     await expectExplicitAuthorizationDenied('v5: vend3 no registra por el lead de vend1', rpc('vend3', 'registrar_llamada_v5', {
-17854|       p_operacion_id: randomUUID(), p_lead_id: leadId, p_resultado: 'no_contesto', p_evento_origen_id: idAntes, p_via: 'al_colgar' }));
-17855| 
-17856|     // ── Rotar: la clave vieja no entra; el mismo id no duplica; un id nuevo entra con la asignación nueva ──
-17857|     rot = await rpc('gerencia', 'rotar_credencial_celular', { p_etiqueta: cel.etiqueta });
-17858|     check(!rot.error && /^[0-9a-f]{64}$/.test(rot.data?.credencial ?? '') && rot.data?.credencial !== cel.credencial,
-17859|       'gerencia rota la clave del celular', errorText(rot.error));
-17860|     if (rot.data?.asignacion_id) {
-17861|       // La rotación ya cerró la anterior: solo queda por cerrar la nueva.
-17862|       asignaciones.splice(asignaciones.indexOf(cel.asignacion_id), 1, rot.data.asignacion_id);
-17863|       claveNueva = rot.data.credencial;
-17864|     }
-17865|     await expectExpectedFailure('servicio: la clave rotada ya no entra', ingerir(cel.credencial, evento(idDe(cel.etiqueta))), ['42501'], /no autorizado/i);
-17866|     const reenvio = await ingerir(claveNueva ?? '', evento(id1));
-17867|     const idRot = idDe(cel.etiqueta);
-17868|     const conNueva = await ingerir(claveNueva ?? '', evento(idRot));
-17869|     const evRot = eventoDe(idRot);
-17870|     if (evRot) eventos.push(evRot.id);
-17871|     check(aceptado(reenvio) && eventosDe(id1) === 1 && recepciones(id1) === 1 && aceptado(conNueva)
-17872|       && evRot?.asignacionId === rot.data?.asignacion_id, 'servicio: tras rotar no se duplica; el id nuevo entra con la asignación nueva');
-17873|   } finally {
-17874|     // Deja las llamadas de la corrida sin pendientes para nadie (las descarta gerencia: también ve las de bolsa),
-17875|     // cierra los celulares y da de baja los leads. 22023 = ya tenía resultado; 23505 = ya descartada con otro motivo.
-17876|     // Las del lead dado de baja no se tocan: nadie las alcanza (es lo que se prueba).
-17877|     for (const eventoId of eventos) {
-17878|       const r = await rpc('gerencia', 'descartar_llamada_celular', { p_evento_id: eventoId, p_motivo: 'numero_de_prueba' });
-17879|       if (r.error && !['22023', '23505'].includes(r.error.code)) fail(`llamadas: no se pudo descartar el evento de prueba — ${errorText(r.error)}`);
-17880|     }
-17881|     for (const asignacionId of asignaciones) {
-17882|       const r = await rpc('gerencia', 'cerrar_asignacion_celular', { p_asignacion_id: asignacionId, p_motivo: 'reemplazo' });
-17883|       if (r.error) fail(`llamadas: no se pudo cerrar un celular de prueba — ${errorText(r.error)}`);
-17884|     }
-17885|     for (const lead of leads) await admin.schema('crm').from('leads').update({ activo: false }).eq('id', lead);
-17886|   }
-17887|   if (claveNueva) {
-17888|     await expectExpectedFailure('servicio: con el celular cerrado, su clave ya no entra',
-17889|       ingerir(claveNueva, evento(idDe('C1'))), ['42501'], /no autorizado/i);
-17890|   }
-17891| }
+17502|   // to_regprocedure (no ::regprocedure): sin F4-a da null y la condición es 0, sin error.
+17503|   const corregida = instalada && contarFueraDeBanda('Llamadas del celular: quinta, F4-a y séptima',
+17504|     "select case when to_regclass('private.llamadas_celular_recepciones') is not null and "
+17505|     + "to_regclass('private.llamadas_celular_intenciones') is not null and strpos(pg_get_functiondef("
+17506|     + "to_regprocedure('private.llamada_celular_cumplir_intencion(uuid)')), 'for key share nowait') > 0 then 1 else 0 end") === 1;
+17507|   const sonda = await rpc('gerencia', 'llamadas_celular_politica_fn');
+17508|   const sondaServicio = await servicio('ingerir_llamada_celular_servicio', { p_credencial: '0'.repeat(64), p_evento: {} });
+17509|   const sondaV5 = await rpc('gerencia', 'registrar_llamada_v5', { p_operacion_id: randomUUID(),
+17510|     p_lead_id: '00000000-0000-4000-8000-000000000000', p_resultado: 'no_contesto' });
+17511|   if (!instalada || !corregida || [sonda, sondaServicio, sondaV5].some((r) => r.error?.code === 'PGRST202')) {
+17512|     const msg = instalada
+17513|       ? '✗ Llamadas del celular: F2 + F3 sin la quinta, F4-a o la séptima (o falta una puerta): la barrera no deja usarlas así'
+17514|       : '⚠ Llamadas del celular no instaladas: SALTADAS (no probado)';
+17515|     if (instalada || process.env.CRM_RLS_EXIGE_LLAMADAS === '1') fail(msg);
+17516|     else console.log(`  ${msg}`);
+17517|     return;
+17518|   }
+17519|   check(!sonda.error && sonda.data?.guardar_sin_identificar === false && sonda.data?.entrantes_activas === false,
+17520|     'gerencia lee la política: números sin lead no se guardan y entrantes apagadas (decisiones 2 y 3)',
+17521|     errorText(sonda.error));
+17522|   check(sondaV5.error?.code === '42501', 'v5 sobre un lead inexistente → 42501, sin escribir', errorText(sondaV5.error));
+17523|
+17524|   const ajeno = LEADS.find((l) => l.sellerKey === 'vend3');
+17525|   const asignaciones = [];
+17526|   const eventos = [];
+17527|   const leads = [];
+17528|   let claveNueva = null;
+17529|   let rot = null;
+17530|   let seq = 0;
+17531|   const base = Math.floor(Date.now() / 1000) - randomInt(600, 7 * 86400);
+17532|   const idDe = (etiqueta) => `${etiqueta}-${base + (seq += 1)}`;
+17533|   const nuevoNumero = () => `9${randomInt(10000000, 99999999)}`;
+17534|   // Lead transitorio de vend1 con un teléfono aleatorio: único en la base, así la coincidencia es exacta.
+17535|   const numero = nuevoNumero();
+17536|   const evento = (origen, extra = {}) => ({
+17537|     v: 1, evento_origen_id: origen, numero, direccion: 'saliente', estado_tecnico: 'conectada',
+17538|     duracion_seg: 42, ocurrio_en: new Date(Date.now() - 60_000).toISOString(), ...extra,
+17539|   });
+17540|   const ingerir = (credencial, ev) => servicio('ingerir_llamada_celular_servicio', { p_credencial: credencial, p_evento: ev });
+17541|   const aceptado = (r) => !r.error && JSON.stringify(r.data) === '{"resultado":"aceptado"}';
+17542|   const invalido = (r) => !r.error && r.data?.resultado === 'invalido' && Boolean(r.data?.mensaje)
+17543|     && Object.keys(r.data).sort().join() === 'mensaje,resultado';
+17544|   const q = (origen) => {
+17545|     if (!/^[A-Za-z0-9-]+$/.test(origen)) throw new Error(`llamadas: id raro para la vía fuera de banda: ${origen}`);
+17546|     return `'${origen}'`;
+17547|   };
+17548|   const cuenta = (que, sql) => contarFueraDeBanda(`llamadas: ${que}`, sql);
+17549|   const recepciones = (o) => cuenta('recepciones', `select count(*) from private.llamadas_celular_recepciones where evento_origen_id = ${q(o)}`);
+17550|   const eventosDe = (o) => cuenta('eventos', `select count(*) from crm.llamadas_celular_eventos where evento_origen_id = ${q(o)}`);
+17551|   const intenciones = (o) => cuenta('intenciones', `select count(*) from private.llamadas_celular_intenciones where evento_origen_id = ${q(o)}`);
+17552|   const eventoDe = (o) => {
+17553|     const t = textoFueraDeBanda('llamadas: evento', `select concat_ws('|', e.id, e.atencion, coalesce(e.lead_id::text, ''),
+17554|       e.asignacion_id) from crm.llamadas_celular_eventos e where e.evento_origen_id = ${q(o)}`);
+17555|     if (!t) return null;
+17556|     const [eid, atencion, leadId, asignacionId] = t.split('|');
+17557|     return { id: eid, atencion, leadId, asignacionId };
+17558|   };
+17559|   const enlaceDe = (o) => textoFueraDeBanda('llamadas: enlace', `select concat_ws('|', l.actividad_id, l.via)
+17560|     from crm.llamadas_celular_enlaces l join crm.llamadas_celular_eventos e on e.id = l.evento_id where e.evento_origen_id = ${q(o)}`);
+17561|   const cupo = (asig) => (textoFueraDeBanda('llamadas: cupo', `select concat_ws('|', coalesce(dia::text, ''), envios_dia)
+17562|     from private.celulares_estado where asignacion_id = '${asig}'`) ?? '|0').split('|');
+17563|   async function asignar(quien) {
+17564|     for (let intento = 0; intento < 3; intento += 1) {
+17565|       const etiqueta = `C${randomInt(100, 1000)}`;
+17566|       const r = await rpc('gerencia', 'asignar_celular', { p_etiqueta: etiqueta, p_analista_id: id(quien) });
+17567|       if (r.error?.code === '23505') continue; // etiqueta vigente de otra corrida: otra al azar
+17568|       if (r.error) throw new Error(`asignar celular a ${quien}: ${errorText(r.error)}`);
+17569|       asignaciones.push(r.data.asignacion_id);
+17570|       return { ...r.data, etiqueta };
+17571|     }
+17572|     throw new Error(`asignar celular a ${quien}: tres etiquetas ocupadas seguidas`);
+17573|   }
+17574|   const contiene = (data, eventoId) => (Array.isArray(data) ? data : data?.filas ?? []).some((f) => f.evento_id === eventoId);
+17575|   const ve = async (quien, eventoId) => {
+17576|     const b = await rpc(quien, 'llamadas_celular_bandeja_fn', { p_limite: 200 });
+17577|     return b.error ? null : contiene(b.data, eventoId);
+17578|   };
+17579|   async function crearLead(nombre, telefono, vendedorKey) {
+17580|     const leadId = randomUUID();
+17581|     await requireAdmin(`crear ${nombre}`, admin.schema('crm').from('leads').insert({
+17582|       id: leadId, nombre_completo: nombre, telefono, origen: 'oficina', etapa: 'nuevo', moneda: 'PEN', monto_estimado: 1000,
+17583|       ...(vendedorKey ? { creado_por: id(vendedorKey), vendedor_id: id(vendedorKey), asignado_supervisor_id: null } : {}),
+17584|     }));
+17585|     leads.push(leadId);
+17586|     return leadId;
+17587|   }
+17588|
+17589|   try {
+17590|     const leadId = await crearLead('LLAMADAS CELULAR TRANSIENT', numero, 'vend1');
+17591|
+17592|     // ── Tablas: sin acceso directo para nadie (todo pasa por las puertas); las de private, fuera de la API ──
+17593|     const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-llamadas'));
+17594|     for (const tabla of ['celulares_asignaciones', 'llamadas_celular_eventos', 'llamadas_celular_enlaces', 'llamadas_celular_politica']) {
+17595|       for (const quien of ['vend1', 'sup1', 'gerencia', 'coordinador', 'directorio']) {
+17596|         await expectExplicitAuthorizationDenied(`${quien}: no lee crm.${tabla} directo`,
+17597|           sessions[quien].client.schema('crm').from(tabla).select('*').limit(1));
+17598|       }
+17599|       await expectExplicitAuthorizationDenied(`anon: no lee crm.${tabla}`, anon.schema('crm').from(tabla).select('*').limit(1));
+17600|     }
+17601|     for (const tabla of ['llamadas_celular_recepciones', 'llamadas_celular_intenciones', 'celulares_estado']) {
+17602|       const { data, error } = await sessions.gerencia.client.schema('private').from(tabla).select('*').limit(1);
+17603|       check(error?.code === 'PGRST106' && data == null,
+17604|         `gerencia NO alcanza private.${tabla} por la API: esquema no expuesto, PGRST106 (recibido ${error?.code ?? 'sin error'})`);
+17605|     }
+17606|     for (const quien of ['vend1', 'gerencia']) {
+17607|       await expectBlockedMutation(`${quien}: no actualiza eventos directo`,
+17608|         sessions[quien].client.schema('crm').from('llamadas_celular_eventos').update({ atencion: 'registrado' })
+17609|           .eq('lead_id', leadId).select('id'));
+17610|       await expectBlockedMutation(`${quien}: no borra eventos directo`,
+17611|         sessions[quien].client.schema('crm').from('llamadas_celular_eventos').delete().eq('lead_id', leadId).select('id'));
+17612|     }
+17613|
+17614|     // ── Puertas: quién ejecuta qué. Con argumentos de la forma exacta: sin ellos PostgREST responde
+17615|     // PGRST202 (función no encontrada) y la prueba fallaría por la razón equivocada. La bandeja vieja
+17616|     // (llamadas_celular_pendientes_fn) ya no existe: la quinta la retiró. ──
+17617|     const argumentos = {
+17618|       llamadas_celular_bandeja_fn: {},
+17619|       llamada_celular_detalle_fn: { p_evento_id: randomUUID() },
+17620|       asociar_llamada_celular: { p_evento_id: randomUUID(), p_lead_id: leadId },
+17621|       enlazar_llamada_celular: { p_evento_id: randomUUID(), p_actividad_id: randomUUID() },
+17622|       descartar_llamada_celular: { p_evento_id: randomUUID(), p_motivo: 'personal' },
+17623|       registrar_llamada_v5: { p_operacion_id: randomUUID(), p_lead_id: leadId, p_resultado: 'no_contesto' },
+17624|       celulares_asignaciones_fn: {},
+17625|       celulares_salud_fn: {},
+17626|       asignar_celular: { p_etiqueta: 'C999', p_analista_id: id('vend1') },
+17627|       rotar_credencial_celular: { p_etiqueta: 'C999' },
+17628|       cerrar_asignacion_celular: { p_asignacion_id: randomUUID(), p_motivo: 'otro' },
+17629|       llamadas_celular_politica_fn: {},
+17630|       fijar_politica_llamadas_celular: {},
+17631|       ingerir_llamada_celular_servicio: { p_credencial: '0'.repeat(64), p_evento: evento('C1-0000000000') },
+17632|       registrar_salud_celular_servicio: { p_credencial: '0'.repeat(64), p_latido: { v: 1, version_macro: 'gate', en_cola: 0 } },
+17633|     };
+17634|     const soloGerencia = ['asignar_celular', 'rotar_credencial_celular', 'cerrar_asignacion_celular',
+17635|       'llamadas_celular_politica_fn', 'fijar_politica_llamadas_celular'];
+17636|     for (const fn of soloGerencia) {
+17637|       for (const quien of ['sup1', 'vend1', 'coordinador', 'directorio', 'vendInactive']) {
+17638|         await expectExplicitAuthorizationDenied(`${quien}: ${fn} es solo de gerencia`, rpc(quien, fn, argumentos[fn]));
+17639|       }
+17640|     }
+17641|     for (const fn of ['celulares_asignaciones_fn', 'celulares_salud_fn']) {
+17642|       for (const quien of ['vend1', 'coordinador', 'directorio', 'vendInactive']) {
+17643|         await expectExplicitAuthorizationDenied(`${quien}: ${fn} es de supervisión y gerencia`, rpc(quien, fn, argumentos[fn]));
+17644|       }
+17645|     }
+17646|     for (const fn of ['llamadas_celular_bandeja_fn', 'llamada_celular_detalle_fn', 'asociar_llamada_celular',
+17647|       'enlazar_llamada_celular', 'descartar_llamada_celular', 'registrar_llamada_v5']) {
+17648|       for (const quien of ['coordinador', 'directorio', 'vendInactive']) {
+17649|         await expectExplicitAuthorizationDenied(`${quien}: sin ${fn}`, rpc(quien, fn, argumentos[fn]));
+17650|       }
+17651|     }
+17652|     for (const [fn, args] of Object.entries(argumentos)) {
+17653|       await expectExplicitAuthorizationDenied(`anon: no ejecuta ${fn}`, anon.schema('crm').rpc(fn, args));
+17654|     }
+17655|     for (const fn of ['ingerir_llamada_celular_servicio', 'registrar_salud_celular_servicio']) {
+17656|       for (const quien of ['vend1', 'sup1', 'gerencia']) {
+17657|         await expectExplicitAuthorizationDenied(`${quien}: la puerta de servicio ${fn} es solo de service_role`,
+17658|           rpc(quien, fn, argumentos[fn]));
+17659|       }
+17660|     }
+17661|
+17662|     // ── Asignar celulares: solo gerencia; la clave sale una vez y no se vuelve a leer ──
+17663|     const cel = await asignar('vend1');
+17664|     check(/^[0-9a-f]{64}$/.test(cel.credencial ?? ''), 'gerencia asigna un celular a vend1: la clave sale una vez (64 hex)');
+17665|     await expectExpectedFailure('gerencia: no asigna un celular a un analista dado de baja',
+17666|       rpc('gerencia', 'asignar_celular', { p_etiqueta: `C${randomInt(100, 1000)}`, p_analista_id: id('vendInactive') }),
+17667|       ['22023'], /activo/i);
+17668|     await expectExpectedFailure('gerencia: etiqueta inválida rechazada',
+17669|       rpc('gerencia', 'asignar_celular', { p_etiqueta: 'celular', p_analista_id: id('vend1') }), ['22023'], /etiqueta/i);
+17670|     const lecturaG = await rpc('gerencia', 'celulares_asignaciones_fn');
+17671|     check(!lecturaG.error && (lecturaG.data ?? []).some((a) => a.asignacion_id === cel.asignacion_id)
+17672|       && !/[0-9a-f]{64}/.test(JSON.stringify(lecturaG.data)),
+17673|     'gerencia ve la asignación y la lectura no expone ningún hash de clave', errorText(lecturaG.error));
+17674|     const lecturaS1 = await rpc('sup1', 'celulares_asignaciones_fn');
+17675|     const lecturaS2 = await rpc('sup2', 'celulares_asignaciones_fn');
+17676|     check(!lecturaS1.error && (lecturaS1.data ?? []).some((a) => a.asignacion_id === cel.asignacion_id)
+17677|       && !lecturaS2.error && !(lecturaS2.data ?? []).some((a) => a.asignacion_id === cel.asignacion_id),
+17678|     'supervisión ve los celulares de su equipo (sup1 sí, sup2 no)');
+17679|     // Segundo celular de vend1 (bolsa, reutilizable, baja y enlace): el cupo es de 30 por minuto y por celular.
+17680|     const celB = await asignar('vend1');
+17681|     const celSup = await asignar('sup1');
+17682|
+17683|     // ── Ingesta: contrato {resultado, mensaje}, recepción, reenvío, sin pistas, inválidos con cupo ──
+17684|     await expectExpectedFailure('servicio: clave desconocida → el mismo 42501',
+17685|       ingerir('f'.repeat(64), evento(idDe(cel.etiqueta))), ['42501'], /no autorizado/i);
+17686|     const id1 = idDe(cel.etiqueta);
+17687|     const r1 = await ingerir(cel.credencial, evento(id1));
+17688|     const ev1 = eventoDe(id1);
+17689|     check(aceptado(r1) && ev1?.leadId === leadId && ev1?.atencion === 'requiere_resultado' && recepciones(id1) === 1,
+17690|       'servicio: responde solo {resultado: aceptado}; recepción y llamada guardadas, pide resultado',
+17691|       errorText(r1.error) || JSON.stringify(r1.data));
+17692|     const eventoId = ev1?.id ?? randomUUID();
+17693|     if (ev1) eventos.push(ev1.id);
+17694|     const r1b = await ingerir(cel.credencial, evento(id1, { duracion_seg: 43, numero: nuevoNumero() }));
+17695|     const det1 = await rpc('vend1', 'llamada_celular_detalle_fn', { p_evento_id: eventoId });
+17696|     check(aceptado(r1b) && eventosDe(id1) === 1 && recepciones(id1) === 1 && det1.data?.duracion_seg === 42,
+17697|       'servicio: el mismo id con otro contenido → aceptado y sin cambios (el primero gana; sin P0409)', errorText(r1b.error));
+17698|     const idDoble = idDe(cel.etiqueta);
+17699|     const [d1, d2] = await Promise.all([ingerir(cel.credencial, evento(idDoble)), ingerir(cel.credencial, evento(idDoble))]);
+17700|     check(aceptado(d1) && aceptado(d2) && eventosDe(idDoble) === 1 && recepciones(idDoble) === 1,
+17701|       'servicio: dos envíos a la vez del mismo id → una recepción y una llamada', `${errorText(d1.error)} / ${errorText(d2.error)}`);
+17702|     const evDoble = eventoDe(idDoble);
+17703|     if (evDoble) eventos.push(evDoble.id);
+17704|     const idSinLead = idDe(cel.etiqueta);
+17705|     const idAjeno = idDe(cel.etiqueta);
+17706|     const sinLead = await ingerir(cel.credencial, evento(idSinLead, { numero: nuevoNumero() }));
+17707|     const conAjeno = await ingerir(cel.credencial, evento(idAjeno, { numero: ajeno.phone }));
+17708|     check(aceptado(sinLead) && aceptado(conAjeno) && eventosDe(idSinLead) + eventosDe(idAjeno) === 0
+17709|       && recepciones(idSinLead) + recepciones(idAjeno) === 2,
+17710|     'servicio: sin lead y lead de otro equipo responden igual que el propio y no se guardan (decisión 3)');
+17711|     const ahora = Math.floor(Date.now() / 1000);
+17712|     const [diaA, nA] = cupo(cel.asignacion_id);
+17713|     const malos = ['X1-1790980958', `${cel.etiqueta}-123`, idDe(celB.etiqueta),
+17714|       `${cel.etiqueta}-${ahora - 31 * 86400}`, `${cel.etiqueta}-${ahora + 2 * 86400}`];
+17715|     for (const malo of malos) {
+17716|       const r = await ingerir(cel.credencial, evento(malo));
+17717|       check(invalido(r) && recepciones(malo) === 0, `servicio: id ${malo} → {resultado: invalido, mensaje}, sin recepción`,
+17718|         errorText(r.error) || JSON.stringify(r.data));
+17719|     }
+17720|     const [diaD, nD] = cupo(cel.asignacion_id);
+17721|     check(diaA !== diaD || Number(nD) - Number(nA) === malos.length, 'servicio: cada inválido gasta cupo', `${nA} → ${nD}`);
+17722|     const idEnt = idDe(cel.etiqueta);
+17723|     const idDes = idDe(cel.etiqueta);
+17724|     const rEnt = await ingerir(cel.credencial, evento(idEnt, { direccion: 'entrante', estado_tecnico: 'no_atendida' }));
+17725|     const sinDir = evento(idDes);
+17726|     delete sinDir.direccion;
+17727|     const rDes = await ingerir(cel.credencial, sinDir);
+17728|     check(aceptado(rEnt) && aceptado(rDes) && eventosDe(idEnt) + eventosDe(idDes) === 0 && recepciones(idEnt) + recepciones(idDes) === 2,
+17729|       'servicio: entrante y dirección desconocida al número de un lead → aceptadas e ignoradas (decisión 2)');
+17730|     await expectExpectedFailure('gerencia: no enciende las entrantes (bloqueadas hasta la #14)',
+17731|       rpc('gerencia', 'fijar_politica_llamadas_celular', { p_entrantes_activas: true }), ['22023'], /entrantes siguen bloqueadas/i);
+17732|     check(cuenta('CHECK entrantes', "select count(*) from pg_constraint where conrelid = 'crm.llamadas_celular_politica'::regclass"
+17733|       + " and conname = 'llamadas_celular_politica_entrantes_bloqueadas' and contype = 'c'") === 1,
+17734|     'la tabla fija entrantes en falso (CHECK)');
+17735|     const latido = await servicio('registrar_salud_celular_servicio',
+17736|       { p_credencial: cel.credencial, p_latido: { v: 1, version_macro: 'gate rls', en_cola: 0 } });
+17737|     const latidoMalo = await servicio('registrar_salud_celular_servicio', { p_credencial: cel.credencial, p_latido: { v: 1 } });
+17738|     check(aceptado(latido) && invalido(latidoMalo), 'servicio: latido → {resultado: aceptado}; inválido → {resultado: invalido, mensaje}',
+17739|       `${errorText(latido.error)} / ${JSON.stringify(latidoMalo.data)}`);
+17740|     const saludG = await rpc('gerencia', 'celulares_salud_fn');
+17741|     const saludS2 = await rpc('sup2', 'celulares_salud_fn');
+17742|     const fila = (saludG.data ?? []).find((a) => a.asignacion_id === cel.asignacion_id);
+17743|     check(!saludG.error && Boolean(fila?.ultimo_latido_en) && !('envios_hoy' in (fila ?? {})) && !('ultimo_envio_en' in (fila ?? {}))
+17744|       && !saludS2.error && !JSON.stringify(saludS2.data ?? '').includes(cel.asignacion_id),
+17745|     'salud: gerencia ve el latido sin envíos ni último envío (N1); sup2 (otro equipo) no ve el celular');
+17746|
+17747|     // ── Ámbito de lectura (la bandeja paginada es la única): dueño, su supervisión y gerencia sí; otro equipo no ──
+17748|     for (const [quien, debe] of [['vend1', true], ['sup1', true], ['gerencia', true], ['vend3', false], ['sup2', false]]) {
+17749|       check(await ve(quien, eventoId) === debe, `${quien}: ${debe ? 've' : 'no ve'} la llamada en la bandeja`);
+17750|     }
+17751|     check(!det1.error && det1.data?.atencion === 'requiere_resultado' && det1.data?.lead_id === leadId,
+17752|       'vend1: su llamada pide resultado y está asociada a su lead', errorText(det1.error));
+17753|     for (const quien of ['vend3', 'sup2']) {
+17754|       await expectExplicitAuthorizationDenied(`${quien}: no abre el detalle de una llamada ajena`,
+17755|         rpc(quien, 'llamada_celular_detalle_fn', { p_evento_id: eventoId }));
+17756|       await expectExplicitAuthorizationDenied(`${quien}: no descarta una llamada ajena`,
+17757|         rpc(quien, 'descartar_llamada_celular', { p_evento_id: eventoId, p_motivo: 'personal' }));
+17758|     }
+17759|     await expectExplicitAuthorizationDenied('vend1: no asocia su llamada a un lead de otro equipo',
+17760|       rpc('vend1', 'asociar_llamada_celular', { p_evento_id: eventoId, p_lead_id: ajeno.id }));
+17761|     await expectExpectedFailure('vend1: no enlaza la llamada a un resultado que no es de ese lead',
+17762|       rpc('vend1', 'enlazar_llamada_celular', { p_evento_id: eventoId, p_actividad_id: randomUUID() }), ['22023'], /no es del lead/i);
+17763|     await expectExpectedFailure('vend1: descartar con «otro» exige el motivo escrito',
+17764|       rpc('vend1', 'descartar_llamada_celular', { p_evento_id: eventoId, p_motivo: 'otro' }), ['22023'], /otro/i);
+17765|
+17766|     // ── El celular de un SUPERVISOR evalúa la regla como su dueño (depende de que auth.uid() lea request.jwt.claim.sub) ──
+17767|     const idSup = idDe(celSup.etiqueta);
+17768|     const rs = await ingerir(celSup.credencial, evento(idSup));
+17769|     const evSup = eventoDe(idSup);
+17770|     if (evSup) eventos.push(evSup.id);
+17771|     const detSup = evSup ? await rpc('sup1', 'llamada_celular_detalle_fn', { p_evento_id: evSup.id }) : null;
+17772|     check(aceptado(rs) && detSup && !detSup.error && detSup.data?.atencion === 'requiere_resultado',
+17773|       'sup1: su llamada a un lead de su equipo pide resultado (la ingesta evalúa como el dueño del celular)',
+17774|       `${errorText(rs.error)} / ${errorText(detSup?.error)}`);
+17775|
+17776|     // ── Bolsa y reutilizable (decisión 7): por revisar; quien llamó no la ve; le aparece al tomar el lead ──
+17777|     const numBolsa = nuevoNumero();
+17778|     const leadBolsa = await crearLead('LLAMADAS CELULAR BOLSA TRANSIENT', numBolsa, null);
+17779|     const numReu = nuevoNumero();
+17780|     const leadReu = await crearLead('LLAMADAS CELULAR REUTILIZABLE TRANSIENT', numReu, null);
+17781|     // Un descarte VENCIDO no se fabrica por la API (nacer terminal está vetado y el sello fecha `descartado_en` con
+17782|     // now()): se fecha fuera de banda con la espera real del motivo, que gerencia puede haber cambiado.
+17783|     const diasAtras = Math.max(cuenta('espera de pide_credito', "select coalesce((select dias from crm.enfriamiento_politica"
+17784|       + " where motivo = 'pide_credito'), 0)"), 1) + 1;
+17785|     ejecutarFueraDeBanda('llamadas: descarte vencido del reutilizable', `set local session_replication_role = replica;
+17786|       update crm.leads set etapa = 'descartado', motivo_descarte = 'pide_credito',
+17787|         descartado_en = now() - interval '${diasAtras} days' where id = '${leadReu}';`);
+17788|     for (const [modo, leadX, numX] of [['bolsa', leadBolsa, numBolsa], ['reutilizable', leadReu, numReu]]) {
+17789|       const idX = idDe(celB.etiqueta);
+17790|       const rX = await ingerir(celB.credencial, evento(idX, { numero: numX }));
+17791|       const evX = eventoDe(idX);
+17792|       check(aceptado(rX) && evX?.leadId === leadX && evX?.atencion === 'por_revisar', `${modo}: responde igual; identificada, por revisar`);
+17793|       if (!evX) continue;
+17794|       eventos.push(evX.id);
+17795|       check(await ve('vend1', evX.id) === false && await ve('sup1', evX.id) === false && await ve('gerencia', evX.id) === true,
+17796|         `${modo}: quien llamó (y su supervisor) no la ve; gerencia sí`);
+17797|       await expectExplicitAuthorizationDenied(`${modo}: vend1 no abre el detalle antes de tomar el lead`,
+17798|         rpc('vend1', 'llamada_celular_detalle_fn', { p_evento_id: evX.id }));
+17799|       const toma = await positive(`vend1 toma el lead (${modo})`, rpc('vend1', 'tomar_lead_libre', { p_telefono: numX, p_dni: null }));
+17800|       check(toma?.data?.estado === 'tomado_ok' && toma.data.lead_id === leadX,
+17801|         `${modo}: tomar_lead_libre → tomado_ok con ese lead`, JSON.stringify(toma?.data));
+17802|       check(await ve('vend1', evX.id) === true, `${modo}: al tomar el lead, vend1 ve su llamada`);
+17803|     }
+17804|
+17805|     // ── Lead dado de baja: nadie ve ni toca sus llamadas, gerencia incluida (fallo 2) ──
+17806|     const numBaja = nuevoNumero();
+17807|     const leadBaja = await crearLead('LLAMADAS CELULAR BAJA TRANSIENT', numBaja, 'vend1');
+17808|     const idBaja = idDe(celB.etiqueta);
+17809|     await ingerir(celB.credencial, evento(idBaja, { numero: numBaja }));
+17810|     const evBaja = eventoDe(idBaja);
+17811|     check(evBaja?.atencion === 'requiere_resultado' && await ve('vend1', evBaja?.id) === true, 'baja: antes, vend1 ve su llamada');
+17812|     await requireAdmin('dar de baja el lead', admin.schema('crm').from('leads').update({ activo: false }).eq('id', leadBaja));
+17813|     if (evBaja) {
+17814|       for (const quien of ['vend1', 'sup1', 'gerencia']) check(await ve(quien, evBaja.id) === false, `baja: ${quien} ya no la ve`);
+17815|       for (const quien of ['vend1', 'gerencia']) {
+17816|         await expectExplicitAuthorizationDenied(`baja: ${quien} no abre el detalle`,
+17817|           rpc(quien, 'llamada_celular_detalle_fn', { p_evento_id: evBaja.id }));
+17818|       }
+17819|       await expectExplicitAuthorizationDenied('baja: gerencia no la descarta',
+17820|         rpc('gerencia', 'descartar_llamada_celular', { p_evento_id: evBaja.id, p_motivo: 'personal' }));
+17821|     }
+17822|
+17823|     // ── Enlace exacto con la v4 REAL (F4-a). «no_contesto»: sin p_siguiente obligatorio ──
+17824|     const v5 = (op, origen, via) => rpc('vend1', 'registrar_llamada_v5', { p_operacion_id: op, p_lead_id: leadId,
+17825|       p_resultado: 'no_contesto', p_evento_origen_id: origen, p_via: via });
+17826|     const idAntes = idDe(celB.etiqueta);
+17827|     const rAntes = await ingerir(celB.credencial, evento(idAntes));
+17828|     const opA = randomUUID();
+17829|     const vA = await v5(opA, idAntes, 'al_colgar');
+17830|     const evA = eventoDe(idAntes);
+17831|     const detA = evA ? await rpc('vend1', 'llamada_celular_detalle_fn', { p_evento_id: evA.id }) : null;
+17832|     check(aceptado(rAntes) && !vA.error && vA.data?.ok === true && vA.data?.actividad_id === opA && vA.data?.enlace?.estado === 'enlazado'
+17833|       && enlaceDe(idAntes) === `${opA}|al_colgar` && detA?.data?.atencion === 'registrado' && detA?.data?.actividad_id === opA,
+17834|     'v5: aviso antes → la encuesta queda unida a su llamada, vía al_colgar', errorText(vA.error) || JSON.stringify(vA.data?.enlace));
+17835|     const vA2 = await v5(opA, idAntes, 'al_colgar');
+17836|     check(!vA2.error && vA2.data?.replay === true && vA2.data?.enlace?.estado === 'repetido',
+17837|       'v5: el reintento de la misma operación → repetido', errorText(vA2.error) || JSON.stringify(vA2.data?.enlace));
+17838|     const idDespues = idDe(celB.etiqueta);
+17839|     const opD = randomUUID();
+17840|     const vD = await v5(opD, idDespues, 'pestana');
+17841|     check(!vD.error && vD.data?.enlace?.estado === 'pendiente' && intenciones(idDespues) === 1,
+17842|       'v5: aviso después → intención de enlace', errorText(vD.error) || JSON.stringify(vD.data?.enlace));
+17843|     const rDespues = await ingerir(celB.credencial, evento(idDespues));
+17844|     check(aceptado(rDespues) && eventoDe(idDespues)?.atencion === 'registrado' && enlaceDe(idDespues) === `${opD}|pestana`
+17845|       && intenciones(idDespues) === 0, 'ingesta: al llegar el aviso cumple la intención (vía pestana) y la retira');
+17846|     for (const [motivo, origen] of [['id_invalido', 'X1-123'], ['celular_ajeno', idDe(celSup.etiqueta)], ['ya_tiene_resultado', idAntes]]) {
+17847|       const op = randomUUID();
+17848|       const r = await v5(op, origen, 'al_colgar');
+17849|       check(!r.error && r.data?.ok === true && r.data?.actividad_id === op && r.data?.enlace?.estado === 'no_enlazado'
+17850|         && r.data?.enlace?.motivo === motivo, `v5: ${motivo} → guarda el resultado igual y dice no_enlazado`,
+17851|       errorText(r.error) || JSON.stringify(r.data?.enlace));
+17852|     }
+17853|     await expectExpectedFailure('v5: con id y sin vía → 22023', rpc('vend1', 'registrar_llamada_v5', { p_operacion_id: randomUUID(),
+17854|       p_lead_id: leadId, p_resultado: 'no_contesto', p_evento_origen_id: idDe(celB.etiqueta) }), ['22023'], /al_colgar o pestana/i);
+17855|     await expectExplicitAuthorizationDenied('v5: vend3 no registra por el lead de vend1', rpc('vend3', 'registrar_llamada_v5', {
+17856|       p_operacion_id: randomUUID(), p_lead_id: leadId, p_resultado: 'no_contesto', p_evento_origen_id: idAntes, p_via: 'al_colgar' }));
+17857|
+17858|     // ── Rotar: la clave vieja no entra; el mismo id no duplica; un id nuevo entra con la asignación nueva ──
+17859|     rot = await rpc('gerencia', 'rotar_credencial_celular', { p_etiqueta: cel.etiqueta });
+17860|     check(!rot.error && /^[0-9a-f]{64}$/.test(rot.data?.credencial ?? '') && rot.data?.credencial !== cel.credencial,
+17861|       'gerencia rota la clave del celular', errorText(rot.error));
+17862|     if (rot.data?.asignacion_id) {
+17863|       // La rotación ya cerró la anterior: solo queda por cerrar la nueva.
+17864|       asignaciones.splice(asignaciones.indexOf(cel.asignacion_id), 1, rot.data.asignacion_id);
+17865|       claveNueva = rot.data.credencial;
+17866|     }
+17867|     await expectExpectedFailure('servicio: la clave rotada ya no entra', ingerir(cel.credencial, evento(idDe(cel.etiqueta))), ['42501'], /no autorizado/i);
+17868|     const reenvio = await ingerir(claveNueva ?? '', evento(id1));
+17869|     const idRot = idDe(cel.etiqueta);
+17870|     const conNueva = await ingerir(claveNueva ?? '', evento(idRot));
+17871|     const evRot = eventoDe(idRot);
+17872|     if (evRot) eventos.push(evRot.id);
+17873|     check(aceptado(reenvio) && eventosDe(id1) === 1 && recepciones(id1) === 1 && aceptado(conNueva)
+17874|       && evRot?.asignacionId === rot.data?.asignacion_id, 'servicio: tras rotar no se duplica; el id nuevo entra con la asignación nueva');
+17875|   } finally {
+17876|     // Deja las llamadas de la corrida sin pendientes para nadie (las descarta gerencia: también ve las de bolsa),
+17877|     // cierra los celulares y da de baja los leads. 22023 = ya tenía resultado; 23505 = ya descartada con otro motivo.
+17878|     // Las del lead dado de baja no se tocan: nadie las alcanza (es lo que se prueba).
+17879|     for (const eventoId of eventos) {
+17880|       const r = await rpc('gerencia', 'descartar_llamada_celular', { p_evento_id: eventoId, p_motivo: 'numero_de_prueba' });
+17881|       if (r.error && !['22023', '23505'].includes(r.error.code)) fail(`llamadas: no se pudo descartar el evento de prueba — ${errorText(r.error)}`);
+17882|     }
+17883|     for (const asignacionId of asignaciones) {
+17884|       const r = await rpc('gerencia', 'cerrar_asignacion_celular', { p_asignacion_id: asignacionId, p_motivo: 'reemplazo' });
+17885|       if (r.error) fail(`llamadas: no se pudo cerrar un celular de prueba — ${errorText(r.error)}`);
+17886|     }
+17887|     for (const lead of leads) await admin.schema('crm').from('leads').update({ activo: false }).eq('id', lead);
+17888|   }
+17889|   if (claveNueva) {
+17890|     await expectExpectedFailure('servicio: con el celular cerrado, su clave ya no entra',
+17891|       ingerir(claveNueva, evento(idDe('C1'))), ['42501'], /no autorizado/i);
+17892|   }
+17893| }
 ```
 
 ## Archivo: supabase/scripts/banco/limpiar-entre-corridas.sql (26 líneas) — limpieza del banco entre corridas del gate
@@ -6254,57 +6875,57 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
   21| delete from crm.equipo;
   22| set local session_replication_role = default;
   23| commit;
-  24| 
+  24|
   25| -- Punto 4 de la adenda: la sonda de domicilio exige arrancar con la columna vacia.
   26| update public.perfiles set domicilio = null where rol = 'cliente';
 ```
 
-## Archivo: docs/plans/llamadas-celular/PUBLICAR-F2-F3.md (221 líneas) — guía de publicación
+## Archivo: docs/plans/llamadas-celular/PUBLICAR-F2-F3.md (228 líneas) — guía de publicación
 ```
    1| # Publicar F2 + F3 + F4-a de «Llamadas desde el celular» — guía técnica (05/10/2026)
-   2| 
-   3| Seis migraciones, **ninguna aplicada ni desplegada**. Las cuatro primeras están en `main` (PR #169); la quinta
-   4| (corrección) y la sexta (F4-a, enlace exacto) están en el PR #190. Se publican **juntas** y con la Edge del contrato
+   2|
+   3| Siete migraciones, **ninguna aplicada ni desplegada**. Las cuatro primeras están en `main` (PR #169); la quinta
+   4| (corrección), la sexta (F4-a, enlace exacto) y la séptima (enlace sin ciclo con Deshacer) están en el PR #190. Se publican **juntas** y con la Edge del contrato
    5| nuevo (decisión 1 de Miguel). F1 (la encuesta al colgar) ya está en producción y no cambia.
-   6| 
+   6|
    7| Regla del proyecto (`CRM-Avance-Corp/CLAUDE.md`): rama de Supabase → aplicar → gate `test-rls.mjs` → advisors →
    8| merge. **Nunca `apply_migration` directo a producción.**
-   9| 
-  10| > **Barrera.** No se despliega la Edge ni se da de alta ningún celular hasta aplicar y verificar la quinta **y** F4-a
-  11| > (paso 3.4). Sin Edge y sin claves, las puertas de las cuatro no exponen nada: las tablas están vacías. La Edge nueva,
+   9|
+  10| > **Barrera.** No se despliega la Edge ni se da de alta ningún celular hasta aplicar y verificar la quinta, F4-a **y** la
+  11| > séptima (paso 3.4). Sin Edge y sin claves, las puertas de las cuatro no exponen nada: las tablas están vacías. La Edge nueva,
   12| > además, solo entiende la respuesta de la quinta: contra las cuatro contestaría 503 a todo. **Al revés tampoco:** un
   13| > alta antes de la quinta la deja sin poder aplicarse (exige tablas vacías y una asignación no se borra nunca).
-  14| 
+  14|
   15| ## 0. Antes de que Miguel empiece
-  16| 
+  16|
   17| | # | Qué | Estado al 05/10 |
   18| | --- | --- | --- |
-  19| | 0.1 | Seis migraciones, cada una con su registrador (`supabase/scripts/llamadas-celular/registrar-{datos,nucleo,ingesta,elegibilidad,correccion,enlace-exacto}.sql`); los dos últimos terminan con una fila de veredicto | Hecho. `npm run test:llamadas:local`: 281/281 |
-  20| | 0.2 | Reversas de las seis (`reversa-*.sql`) | Hecho; las de la quinta y F4-a, solo antes de dar de alta celulares («Reversa») |
-  21| | 0.3 | Edge con el contrato nuevo | Hecho: 15/15 y mutantes 15/15; sin desplegar |
+  19| | 0.1 | Siete migraciones, cada una con su registrador (`supabase/scripts/llamadas-celular/registrar-{datos,nucleo,ingesta,elegibilidad,correccion,enlace-exacto,enlace-sin-ciclo}.sql`); los tres últimos terminan con una fila de veredicto | Hecho. `npm run test:llamadas:local`: 308/308 |
+  20| | 0.2 | Reversas de las siete (`reversa-*.sql`) | Hecho; las de la quinta y F4-a, solo antes de dar de alta celulares; la de la séptima solo cambia cuerpos («Reversa») |
+  21| | 0.3 | Edge con el contrato nuevo | Hecho: 16/16 y mutantes 17/17 (05/10: un corte al leer el cuerpo responde 503); sin desplegar |
   22| | 0.4 | Bloque `testLlamadasCelular` del gate al día con la quinta y F4-a (paso 4 del plan v2), y `banco/limpiar-entre-corridas.sql` vaciando las asignaciones | Hecho (05/10): cotejado con las migraciones; `node --check` y oxlint limpios; **sin correr** (necesita el esquema de producción) |
   23| | 0.5 | `alta-celular.sql`, `rotar-celular.sql` y `cerrar-celular.sql` | Hechos (05/10): una sola sentencia cada uno, porque `db query` solo devuelve el último resultado; probados en un Postgres local |
-  24| | 0.6 | Codex r2 y `auditor-rls` sobre la quinta + F4-a + la Edge | **Pendiente; los corre Miguel** |
+  24| | 0.6 | Codex r2 y `auditor-rls` sobre la quinta + F4-a + la séptima + la Edge | 05/10: su agente revisó (CHANGES_REQUESTED, un [P2] → la séptima). **Pendiente su nueva revisión** |
   25| | 0.7 | PR #190 → `main` (`main` tiene que contener lo que se aplica) | Pendiente |
-  26| 
+  26|
   27| ## 1. Decisiones
-  28| 
+  28|
   29| - Tomadas: las siete de la corrección y sus confirmaciones (`CORRECCION-PLAN-CORTO.md`, «Decisiones»), la N1 según la
-  30|   recomendación (`MIGRACIONES.md`, `20261005143843`) y las de Jhosep para F4-a (`MIGRACIONES.md`, `20261005155914`).
+  30|   recomendación (`MIGRACIONES.md`, `20261005143843`) y las de Jhosep para F4-a (`MIGRACIONES.md`, `20261005155914`) y la séptima (`20261005182227`: no esperar).
   31|   MacroDroid Pro: todavía no.
   32| - Para que Miguel las vea: los «criterios de Claude» de esas dos entradas de `MIGRACIONES.md`.
   33| - Las migraciones no modifican nada de `public`: solo lo referencian (autoría con `ON DELETE RESTRICT`, lecturas).
-  34| 
+  34|
   35| ## 2. Ensayo en una copia con el esquema de producción
-  36| 
+  36|
   37| En una copia Docker todo va con `psql "$DB_URL" -v ON_ERROR_STOP=1 -f <archivo>`: `db query --local --file` falla con
   38| varias sentencias. Con `psql` sí se ven los `raise notice`.
-  39| 
+  39|
   40| 1. `auth.uid()` lee `request.jwt.claim.sub` (la ingesta evalúa como el dueño del celular):
   41|    `select pg_get_functiondef('auth.uid()'::regprocedure);` → tiene que consultar
   42|    `current_setting('request.jwt.claim.sub', true)`.
   43| 2. Cada migración, seguida **justo después** de su registrador:
-  44| 
+  44|
   45|    | # | Migración (`supabase/migrations/`) | Registrador | Qué se ve si salió bien |
   46|    | --- | --- | --- | --- |
   47|    | 1 | `20261001145242_crm_llamadas_celular_datos.sql` | `registrar-datos.sql` | notice `REGISTRO: 20261001145242 / …` (con `psql`) |
@@ -6313,173 +6934,180 @@ rotadas y cerradas → la reversa se niega) y un mutante por reversa.
   50|    | 4 | `20261001222431_crm_llamadas_celular_elegibilidad_dueno.sql` | `registrar-elegibilidad.sql` | ídem |
   51|    | 5 | `20261005143843_crm_llamadas_celular_correccion.sql` | `registrar-correccion.sql` | fila `veredicto_registro_20261005143843 = t` |
   52|    | 6 | `20261005155914_crm_llamadas_celular_enlace_exacto.sql` | `registrar-enlace-exacto.sql` | fila `veredicto_registro_20261005155914 = t` |
-  53| 
-  54|    - No van todos al final: `registrar-nucleo` exige `crm.llamadas_celular_pendientes_fn` y `registrar-elegibilidad`,
-  55|      la ingesta de dos argumentos, y la quinta retira las dos.
-  56|    - Los registradores comparan el md5 del archivo: se corren desde un checkout con finales de línea LF.
-  57|    - Solo entre la 1 y la 2: `verificar-datos.sql` (oráculo de la migración 1; termina en ROLLBACK; esperado
-  58|      `ORACULO F2-b OK`). **Después de la quinta ya no corre:** inserta `hash_payload` e ids que la quinta retira.
-  59|      Tampoco corren con la quinta `banco/verificar-hallazgos.sql` ni `banco/medir-bandeja.sql`: son de las cuatro.
-  60| 3. Verificar con V1–V5 del paso 3.4.
-  61| 4. Ensayar la reversa **antes de crear ninguna asignación** (el gate y el alta las crean, y desde ahí las reversas se
-  62|    niegan): `reversa-enlace-exacto.sql` → `reversa-correccion.sql` → `reversa-elegibilidad.sql` →
-  63|    `reversa-ingesta.sql` → `reversa-nucleo.sql` → `reversa-datos-total.sql` (con `reversa-datos.sql` las tablas se
-  64|    quedan y no se puede volver a aplicar). Fuera de orden, cada una se niega. Después, volver a aplicar las seis con sus
-  65|    registradores (son idempotentes: la fila del historial se quedó).
-  66| 5. Gate: `node supabase/scripts/test-rls.mjs` con `CRM_RLS_EXIGE_LLAMADAS=1` y `CRM_BANCO_PSQL_URL`. Tiene que probar:
-  67|    nadie toca las tablas directo; cada puerta, solo su rol; clave desconocida → 42501; el mismo id con otro contenido →
-  68|    aceptado sin cambios y sin `P0409`; inválidos con el cupo gastado; dos envíos a la vez → uno; número sin lead y lead
-  69|    de otro analista → no se guardan; entrantes bloqueadas; lead dado de baja (nadie lo ve); bolsa y reutilizable; un
-  70|    enlace real con su encuesta (v5); rotación. **El gate crea asignaciones: desde aquí, en esta copia, las reversas se
-  71|    niegan.** Entre corridas, `banco/limpiar-entre-corridas.sql` vacía también las tablas de llamadas.
-  72| 6. Ensayar el alta por la misma vía que en producción: `alta-celular.sql` con `db query --linked --file` contra una
-  73|    rama de Supabase (en Docker esa vía falla). Esperado: una sola fila con la clave; con un usuario que no es gerencia,
-  74|    42501. Igual con `rotar-celular.sql` y `cerrar-celular.sql`.
-  75| 7. Barrera, en una copia aparte que después se descarta: las cuatro con sus registradores, un alta y la quinta → se
-  76|    niega con «LLAMADAS_CORRECCION: hay filas en las tablas de llamadas…».
-  77| 8. Advisors de seguridad y rendimiento: ninguna alerta nueva.
-  78| 
-  79| ## 3. Producción (con el `!` de Miguel)
-  80| 
-  81| 1. Antes, que no exista nada: `select to_regclass('crm.llamadas_celular_eventos') is null as limpio;` → `t`. Y el 2.1.
-  82| 2. Las seis, en el orden del 2.2, **una por mensaje** y cada una seguida de su registrador, desde `CRM-Avance-Corp/` en
-  83|    un checkout LF (la Mac de Miguel):
-  84|    `npx supabase db query --linked --file supabase/migrations/<migración>.sql`, y después
-  85|    `npx supabase db query --linked --file supabase/scripts/llamadas-celular/<registrador>.sql`.
-  86|    - Por esta vía no se ven los `raise notice` y solo vuelve el último resultado. Una migración o uno de los cuatro
-  87|      registradores viejos que sale bien **no muestra nada** (su última sentencia es `commit`). Uno que falla muestra el
-  88|      error y no deja nada (cada archivo es una transacción). Los dos registradores nuevos muestran su fila de veredicto.
-  89|    - Después de cada registrador viejo, V1: la fila de esa versión tiene que salir con `ok = t`.
-  90|    - Si algo falla, parar ahí: la siguiente migración se niega sin la anterior.
-  91| 3. Marcar las seis «EN PROD» en `MIGRACIONES.md`.
-  92| 4. **Verificar (levanta la barrera).** Cada consulta es un solo `select`, para que se vea por `db query --linked`:
-  93|    ```sql
-  94|    -- V1 · historial: 6 filas, todas ok = t
-  95|    select e.version, (m.name = e.nombre and cardinality(m.statements) = 1 and md5(m.statements[1]) = e.md5) is true as ok
-  96|    from (values ('20261001145242','crm_llamadas_celular_datos','a431978920a73d38f5c8cf121ad94327'),
-  97|                 ('20261001160219','crm_llamadas_celular_nucleo','4d78907164c4a77b12ea35f354aebc3e'),
-  98|                 ('20261001212258','crm_llamadas_celular_ingesta','90d544e9e96c637bcab2869225333ceb'),
-  99|                 ('20261001222431','crm_llamadas_celular_elegibilidad_dueno','0a4e5b9c148208cc660616bf84d585a9'),
- 100|                 ('20261005143843','crm_llamadas_celular_correccion','306d706b4b8020b0a7e585300f233d14'),
- 101|                 ('20261005155914','crm_llamadas_celular_enlace_exacto','69d2137ecf345dda3e8be66b3d6b44fb')) e(version, nombre, md5)
- 102|    left join supabase_migrations.schema_migrations m on m.version = e.version order by e.version;
- 103|    -- V2 · forma de la quinta y de F4-a: todo t
- 104|    select to_regclass('private.llamadas_celular_recepciones') is not null as recepciones,
- 105|           to_regclass('private.llamadas_celular_intenciones') is not null as intenciones,
- 106|           to_regprocedure('private.llamada_celular_ingerir(uuid,jsonb,timestamptz)') is not null as ingesta_nueva,
- 107|           to_regprocedure('private.llamada_celular_ingerir(uuid,jsonb)') is null as sin_ingesta_vieja,
- 108|           to_regprocedure('crm.llamadas_celular_pendientes_fn(integer)') is null as sin_bandeja_vieja,
- 109|           to_regprocedure('crm.registrar_llamada_v5(uuid,uuid,text,text,text,jsonb,uuid,boolean,boolean,text,text)') is not null as v5,
- 110|           exists (select 1 from pg_constraint where conrelid = 'crm.llamadas_celular_politica'::regclass
- 111|                   and conname = 'llamadas_celular_politica_entrantes_bloqueadas') as entrantes_bloqueadas,
- 112|           not exists (select 1 from pg_attribute where attrelid = 'crm.llamadas_celular_eventos'::regclass
- 113|                       and attname = 'hash_payload' and not attisdropped) as sin_hash_payload,
- 114|           exists (select 1 from pg_attribute where attrelid = 'crm.llamadas_celular_enlaces'::regclass
- 115|                   and attname = 'via' and not attisdropped) as enlace_con_via;
- 116|    -- V3 · vacías: todo 0
- 117|    select (select count(*) from crm.celulares_asignaciones) as asignaciones, (select count(*) from private.celulares_estado) as estado,
- 118|           (select count(*) from private.llamadas_celular_recepciones) as recepciones, (select count(*) from crm.llamadas_celular_eventos) as llamadas,
- 119|           (select count(*) from crm.llamadas_celular_enlaces) as enlaces, (select count(*) from private.llamadas_celular_intenciones) as intenciones;
- 120|    -- V4 · permisos: f, f, t, t, f
- 121|    select has_function_privilege('anon', 'crm.ingerir_llamada_celular_servicio(text,jsonb)', 'EXECUTE'),
- 122|           has_function_privilege('authenticated', 'crm.ingerir_llamada_celular_servicio(text,jsonb)', 'EXECUTE'),
- 123|           has_function_privilege('service_role', 'crm.ingerir_llamada_celular_servicio(text,jsonb)', 'EXECUTE'),
- 124|           has_function_privilege('authenticated', 'crm.registrar_llamada_v5(uuid,uuid,text,text,text,jsonb,uuid,boolean,boolean,text,text)', 'EXECUTE'),
- 125|           has_function_privilege('anon', 'crm.registrar_llamada_v5(uuid,uuid,text,text,text,jsonb,uuid,boolean,boolean,text,text)', 'EXECUTE');
- 126|    -- V5 · retención y política: 23 6 * * *, t, f, f, 30, 600
- 127|    select j.schedule, j.active, p.entrantes_activas, p.guardar_sin_identificar, p.limite_envios_minuto, p.limite_envios_dia
- 128|    from cron.job j, crm.llamadas_celular_politica p where j.jobname = 'crm-llamadas-celular-caducidad' and p.singleton;
- 129|    ```
- 130| 5. Tipos: `npm run gen:types` en `app/` y commit. La pantalla todavía no usa las puertas nuevas (F4-b).
- 131| 6. **Recién ahora, la Edge**, desde `CRM-Avance-Corp/` y con el commit del PR #190 o uno posterior:
- 132|    ```bash
- 133|    npx supabase@2.114.0 functions deploy crm-llamadas-ingesta --project-ref dctqcbznekcyxhjujuci --use-api
+  53|    | 7 | `20261005182227_crm_llamadas_celular_enlace_sin_ciclo.sql` | `registrar-enlace-sin-ciclo.sql` | fila `veredicto_registro_20261005182227 = t` |
+  54|
+  55|    - No van todos al final: `registrar-nucleo` exige `crm.llamadas_celular_pendientes_fn` y `registrar-elegibilidad`,
+  56|      la ingesta de dos argumentos, y la quinta retira las dos.
+  57|    - Los registradores comparan el md5 del archivo: se corren desde un checkout con finales de línea LF.
+  58|    - Solo entre la 1 y la 2: `verificar-datos.sql` (oráculo de la migración 1; termina en ROLLBACK; esperado
+  59|      `ORACULO F2-b OK`). **Después de la quinta ya no corre:** inserta `hash_payload` e ids que la quinta retira.
+  60|      Tampoco corren con la quinta `banco/verificar-hallazgos.sql` ni `banco/medir-bandeja.sql`: son de las cuatro.
+  61| 3. Verificar con V1–V5 del paso 3.4.
+  62| 4. Ensayar la reversa **antes de crear ninguna asignación** (el gate y el alta las crean, y desde ahí las reversas se
+  63|    niegan): `reversa-enlace-sin-ciclo.sql` → `reversa-enlace-exacto.sql` → `reversa-correccion.sql` →
+  64|    `reversa-elegibilidad.sql` → `reversa-ingesta.sql` → `reversa-nucleo.sql` → `reversa-datos-total.sql` (con
+  65|    `reversa-datos.sql` las tablas se quedan y no se puede volver a aplicar). Fuera de orden, cada una se niega.
+  66|    Después, volver a aplicar las siete con sus
+  67|    registradores (son idempotentes: la fila del historial se quedó).
+  68| 5. Gate: `node supabase/scripts/test-rls.mjs` con `CRM_RLS_EXIGE_LLAMADAS=1` y `CRM_BANCO_PSQL_URL`. Tiene que probar:
+  69|    nadie toca las tablas directo; cada puerta, solo su rol; clave desconocida → 42501; el mismo id con otro contenido →
+  70|    aceptado sin cambios y sin `P0409`; inválidos con el cupo gastado; dos envíos a la vez → uno; número sin lead y lead
+  71|    de otro analista → no se guardan; entrantes bloqueadas; lead dado de baja (nadie lo ve); bolsa y reutilizable; un
+  72|    enlace real con su encuesta (v5); rotación. **El gate crea asignaciones: desde aquí, en esta copia, las reversas se
+  73|    niegan.** Entre corridas, `banco/limpiar-entre-corridas.sql` vacía también las tablas de llamadas.
+  74| 6. Ensayar el alta por la misma vía que en producción: `alta-celular.sql` con `db query --linked --file` contra una
+  75|    rama de Supabase (en Docker esa vía falla). Esperado: una sola fila con la clave; con un usuario que no es gerencia,
+  76|    42501. Igual con `rotar-celular.sql` y `cerrar-celular.sql`.
+  77| 7. Barrera, en una copia aparte que después se descarta: las cuatro con sus registradores, un alta y la quinta → se
+  78|    niega con «LLAMADAS_CORRECCION: hay filas en las tablas de llamadas…».
+  79| 8. Advisors de seguridad y rendimiento: ninguna alerta nueva.
+  80|
+  81| ## 3. Producción (con el `!` de Miguel)
+  82|
+  83| 1. Antes, que no exista nada: `select to_regclass('crm.llamadas_celular_eventos') is null as limpio;` → `t`. Y el 2.1.
+  84| 2. Las siete, en el orden del 2.2, **una por mensaje** y cada una seguida de su registrador, desde `CRM-Avance-Corp/` en
+  85|    un checkout LF (la Mac de Miguel):
+  86|    `npx supabase db query --linked --file supabase/migrations/<migración>.sql`, y después
+  87|    `npx supabase db query --linked --file supabase/scripts/llamadas-celular/<registrador>.sql`.
+  88|    - Por esta vía no se ven los `raise notice` y solo vuelve el último resultado. Una migración o uno de los cuatro
+  89|      registradores viejos que sale bien **no muestra nada** (su última sentencia es `commit`). Uno que falla muestra el
+  90|      error y no deja nada (cada archivo es una transacción). Los tres registradores nuevos muestran su fila de veredicto.
+  91|    - Después de cada registrador viejo, V1: la fila de esa versión tiene que salir con `ok = t`.
+  92|    - Si algo falla, parar ahí: la siguiente migración se niega sin la anterior.
+  93| 3. Marcar las siete «EN PROD» en `MIGRACIONES.md`.
+  94| 4. **Verificar (levanta la barrera).** Cada consulta es un solo `select`, para que se vea por `db query --linked`:
+  95|    ```sql
+  96|    -- V1 · historial: 7 filas, todas ok = t
+  97|    select e.version, (m.name = e.nombre and cardinality(m.statements) = 1 and md5(m.statements[1]) = e.md5) is true as ok
+  98|    from (values ('20261001145242','crm_llamadas_celular_datos','a431978920a73d38f5c8cf121ad94327'),
+  99|                 ('20261001160219','crm_llamadas_celular_nucleo','4d78907164c4a77b12ea35f354aebc3e'),
+ 100|                 ('20261001212258','crm_llamadas_celular_ingesta','90d544e9e96c637bcab2869225333ceb'),
+ 101|                 ('20261001222431','crm_llamadas_celular_elegibilidad_dueno','0a4e5b9c148208cc660616bf84d585a9'),
+ 102|                 ('20261005143843','crm_llamadas_celular_correccion','306d706b4b8020b0a7e585300f233d14'),
+ 103|                 ('20261005155914','crm_llamadas_celular_enlace_exacto','69d2137ecf345dda3e8be66b3d6b44fb'),
+ 104|                 ('20261005182227','crm_llamadas_celular_enlace_sin_ciclo','6dea6bd39fa2435ae883396e2c957783')) e(version, nombre, md5)
+ 105|    left join supabase_migrations.schema_migrations m on m.version = e.version order by e.version;
+ 106|    -- V2 · forma de la quinta, de F4-a y de la séptima: todo t
+ 107|    select to_regclass('private.llamadas_celular_recepciones') is not null as recepciones,
+ 108|           to_regclass('private.llamadas_celular_intenciones') is not null as intenciones,
+ 109|           to_regprocedure('private.llamada_celular_ingerir(uuid,jsonb,timestamptz)') is not null as ingesta_nueva,
+ 110|           to_regprocedure('private.llamada_celular_ingerir(uuid,jsonb)') is null as sin_ingesta_vieja,
+ 111|           to_regprocedure('crm.llamadas_celular_pendientes_fn(integer)') is null as sin_bandeja_vieja,
+ 112|           to_regprocedure('crm.registrar_llamada_v5(uuid,uuid,text,text,text,jsonb,uuid,boolean,boolean,text,text)') is not null as v5,
+ 113|           exists (select 1 from pg_constraint where conrelid = 'crm.llamadas_celular_politica'::regclass
+ 114|                   and conname = 'llamadas_celular_politica_entrantes_bloqueadas') as entrantes_bloqueadas,
+ 115|           not exists (select 1 from pg_attribute where attrelid = 'crm.llamadas_celular_eventos'::regclass
+ 116|                       and attname = 'hash_payload' and not attisdropped) as sin_hash_payload,
+ 117|           exists (select 1 from pg_attribute where attrelid = 'crm.llamadas_celular_enlaces'::regclass
+ 118|                   and attname = 'via' and not attisdropped) as enlace_con_via,
+ 119|           strpos(pg_get_functiondef('private.llamada_celular_cumplir_intencion(uuid)'::regprocedure),
+ 120|                  'for key share nowait') > 0 as sin_ciclo;
+ 121|    -- V3 · vacías: todo 0
+ 122|    select (select count(*) from crm.celulares_asignaciones) as asignaciones, (select count(*) from private.celulares_estado) as estado,
+ 123|           (select count(*) from private.llamadas_celular_recepciones) as recepciones, (select count(*) from crm.llamadas_celular_eventos) as llamadas,
+ 124|           (select count(*) from crm.llamadas_celular_enlaces) as enlaces, (select count(*) from private.llamadas_celular_intenciones) as intenciones;
+ 125|    -- V4 · permisos: f, f, t, t, f
+ 126|    select has_function_privilege('anon', 'crm.ingerir_llamada_celular_servicio(text,jsonb)', 'EXECUTE'),
+ 127|           has_function_privilege('authenticated', 'crm.ingerir_llamada_celular_servicio(text,jsonb)', 'EXECUTE'),
+ 128|           has_function_privilege('service_role', 'crm.ingerir_llamada_celular_servicio(text,jsonb)', 'EXECUTE'),
+ 129|           has_function_privilege('authenticated', 'crm.registrar_llamada_v5(uuid,uuid,text,text,text,jsonb,uuid,boolean,boolean,text,text)', 'EXECUTE'),
+ 130|           has_function_privilege('anon', 'crm.registrar_llamada_v5(uuid,uuid,text,text,text,jsonb,uuid,boolean,boolean,text,text)', 'EXECUTE');
+ 131|    -- V5 · retención y política: 23 6 * * *, t, f, f, 30, 600
+ 132|    select j.schedule, j.active, p.entrantes_activas, p.guardar_sin_identificar, p.limite_envios_minuto, p.limite_envios_dia
+ 133|    from cron.job j, crm.llamadas_celular_politica p where j.jobname = 'crm-llamadas-celular-caducidad' and p.singleton;
  134|    ```
- 135|    Toma `verify_jwt = false` de `supabase/config.toml`. No pide secretos nuevos (`SUPABASE_URL` y
- 136|    `SUPABASE_SERVICE_ROLE_KEY`). Contrato: 202 llamada aceptada (guardada, repetida o ignorada responden igual), 200
- 137|    latido, 400 inválido con el mensaje de la base, 401 clave, 429 con `Retry-After`, 503 inesperado; 405, 415 y 413 sin
- 138|    tocar la base. Ya no hay 409.
- 139| 7. Comprobar el despliegue:
- 140|    ```bash
- 141|    curl -s -X POST https://dctqcbznekcyxhjujuci.supabase.co/functions/v1/crm-llamadas-ingesta \
- 142|      -H 'content-type: application/json' -d '{}'
- 143|    curl -s -X POST https://dctqcbznekcyxhjujuci.supabase.co/functions/v1/crm-llamadas-ingesta \
- 144|      -H 'content-type: application/json' -H "x-celular-credencial: $(printf '0%.0s' {1..64})" -d '{}'
- 145|    ```
- 146|    Esperado, las dos veces: `{"error":"No autorizado"}`. La segunda llega a la base y no reconoce la clave. Un 503 en la
- 147|    segunda: la Edge no llega a la puerta. «Invalid JWT»: `verify_jwt` quedó encendido.
- 148| 
- 149| ## 4. Dar de alta un celular (C1 primero)
- 150| 
- 151| - Solo gerencia: `crm.asignar_celular('<etiqueta>', '<uuid del analista>')`. Etiqueta de `C1` a `C999`. El dueño,
- 152|   analista (`vendedor`) o supervisor activo. La `credencial` se devuelve **una sola vez**: en la base queda su sha256.
- 153| - Con `supabase/scripts/llamadas-celular/alta-celular.sql` (cambiar sus tres valores) y
- 154|   `npx supabase db query --linked --file supabase/scripts/llamadas-celular/alta-celular.sql`. Es una sola sentencia:
- 155|   la única fila que vuelve trae la clave.
- 156| - **⚠️ La salida trae la clave en claro.** Miguel lo corre en su propia terminal, nunca en una sesión de Claude ni
- 157|   pegando la salida en un chat. La clave se copia directo al celular (o va a Jhosep por un canal privado) y se limpia la
- 158|   terminal. Nunca va al repo ni a un chat. El archivo no se commitea con valores reales.
- 159| - **La etiqueta es el prefijo del id en la macro de ESE celular** (`C2-…` en C2). Con otra, la base rechaza cada aviso
- 160|   (400 «etiqueta de otro celular») y la macro los aparta en `errores_llamadas`.
- 161| - Comprobar sin ver la clave:
- 162|   ```sql
- 163|   select a.etiqueta, a.vigente_desde, s.ultimo_latido_en, s.version_macro, s.eventos_en_cola
- 164|   from crm.celulares_asignaciones a left join private.celulares_estado s on s.asignacion_id = a.id
- 165|   where a.vigente_hasta is null order by a.etiqueta;
- 166|   ```
- 167| - Rotar la clave (`rotar-celular.sql`, misma vía y misma advertencia) reinicia el límite de envíos (el estado va por
- 168|   asignación). Solo gerencia rota.
- 169| 
- 170| ## 5. Cambiar la macro del celular (Jhosep, con Claude): `macrodroid.md` §3c
- 171| 
- 172| 1. Vaciar `cola_llamadas` **y** `errores_llamadas` (MacroDroid → Variables globales). La cola de C1 tiene avisos de
- 173|    prueba con números reales y con ids que todavía caben en la ventana de 30 días: entrarían como llamadas de verdad.
- 174| 2. «Fecha y hora automáticas» y zona horaria de Lima. La base rechaza un id con la hora fuera de [hace 30 días, mañana].
- 175| 3. En «Llamadas-Al colgar», el prefijo del id = la etiqueta del alta.
- 176| 4. En «Llamadas-Enviar cola» → «Solicitud HTTP» (las dos, aviso y latido): la URL
- 177|    `https://dctqcbznekcyxhjujuci.supabase.co/functions/v1/crm-llamadas-ingesta` y la clave en `x-celular-credencial`.
- 178| 5. Pruebas con datos móviles: A1, A3, las 1 y 6 de F3.3, y L1–L4 de §3c. La encuesta tiene que abrirse en todas las
- 179|    llamadas de prueba antes de entregar el celular.
- 180| 6. Comprobar en la base, sin ver números:
- 181|    ```sql
- 182|    select (select count(*) from private.llamadas_celular_recepciones r where r.asignacion_id = a.id) as recibidas,
- 183|           (select count(*) from crm.llamadas_celular_eventos e where e.asignacion_id = a.id) as guardadas
- 184|    from crm.celulares_asignaciones a where a.etiqueta = 'C1' and a.vigente_hasta is null;
- 185|    ```
- 186|    `recibidas` cuenta todas las salientes de prueba. `guardadas`, solo las de leads del ámbito del analista, sin dueño o
- 187|    reutilizables. Un número sin lead o de un lead de otro analista se recibe y no se guarda (decisión 3). En la consulta
- 188|    del paso 4: latido reciente y `eventos_en_cola = 0`.
- 189| 
- 190| ## 6. Pasar un celular a otro analista
- 191| 
- 192| La llamada se atribuye a la clave con la que llega. Una cola vieja enviada con la clave nueva quedaría a nombre del
- 193| analista nuevo.
- 194| 1. El analista deja de llamar desde ese celular.
- 195| 2. Cola en 0: `cola_llamadas` vacía en el celular y, en la consulta del paso 4, `eventos_en_cola = 0` con
- 196|    `ultimo_latido_en` posterior a su última llamada (la macro manda el latido cuando la cola se vacía).
- 197| 3. Vaciar `errores_llamadas` (avisos del analista anterior, con sus números).
- 198| 4. Gerencia cierra la asignación con `cerrar-celular.sql` (motivo `reemplazo`; los otros: `rotacion`,
- 199|    `baja_analista`, `extravio`, `otro`).
- 200| 5. Alta con la misma etiqueta y el analista nuevo (paso 4), y la clave nueva en la macro.
- 201| 
- 202| ## Reversa
- 203| 
- 204| **Solo antes de dar de alta ningún celular**: sin asignaciones (ni cerradas), estado, recepciones, llamadas, enlaces ni
- 205| intenciones. Cada reversa lo comprueba bajo candado y, si no se cumple, se niega.
- 206| - Base, una por mensaje: `reversa-enlace-exacto.sql` → `reversa-correccion.sql` → `reversa-elegibilidad.sql` →
- 207|   `reversa-ingesta.sql` → `reversa-nucleo.sql` → `reversa-datos.sql` (conserva las tablas) o `reversa-datos-total.sql`
- 208|   (las borra). Fuera de orden, cada una se niega.
- 209| - La fila de `supabase_migrations.schema_migrations` se queda (regla de la casa, `scripts/potencial-lead/reversa.sql`):
- 210|   anotar la reversa en `MIGRACIONES.md`.
- 211| - Es más estricto que «antes del primer aviso» a propósito (revisión de Miguel en el #190): recepciones e intenciones
- 212|   caducan a los 32 días y una asignación no se borra nunca. Las cabeceras de las dos migraciones nuevas todavía dicen
- 213|   «antes del primer aviso» (están selladas por md5); valen los scripts y `MIGRACIONES.md`.
- 214| - Edge: si ya se desplegó, borrarla. No hay una versión anterior desplegada.
- 215| 
- 216| **Después del alta no se revierte** (reinstalaría las fugas): se apaga y se corrige hacia adelante.
- 217| - Borrar la Edge.
- 218| - Cerrar cada asignación (`cerrar-celular.sql`).
- 219| - En el celular, volver la URL de la «Solicitud HTTP» al receptor de pruebas y quitar la acción «Iniciar macro» de
- 220|   «Llamadas-Al colgar»: con «Siempre iniciar», apagar «Enviar cola» no basta.
- 221| - El arreglo va en una migración nueva.
+ 135| 5. Tipos: `npm run gen:types` en `app/` y commit. La pantalla todavía no usa las puertas nuevas (F4-b).
+ 136| 6. **Recién ahora, la Edge**, desde `CRM-Avance-Corp/` y con el commit del PR #190 o uno posterior:
+ 137|    ```bash
+ 138|    npx supabase@2.114.0 functions deploy crm-llamadas-ingesta --project-ref dctqcbznekcyxhjujuci --use-api
+ 139|    ```
+ 140|    Toma `verify_jwt = false` de `supabase/config.toml`. No pide secretos nuevos (`SUPABASE_URL` y
+ 141|    `SUPABASE_SERVICE_ROLE_KEY`). Contrato: 202 llamada aceptada (guardada, repetida o ignorada responden igual), 200
+ 142|    latido, 400 inválido con el mensaje de la base, 401 clave, 429 con `Retry-After`, 503 inesperado; 405, 415 y 413 sin
+ 143|    tocar la base. Ya no hay 409.
+ 144| 7. Comprobar el despliegue:
+ 145|    ```bash
+ 146|    curl -s -X POST https://dctqcbznekcyxhjujuci.supabase.co/functions/v1/crm-llamadas-ingesta \
+ 147|      -H 'content-type: application/json' -d '{}'
+ 148|    curl -s -X POST https://dctqcbznekcyxhjujuci.supabase.co/functions/v1/crm-llamadas-ingesta \
+ 149|      -H 'content-type: application/json' -H "x-celular-credencial: $(printf '0%.0s' {1..64})" -d '{}'
+ 150|    ```
+ 151|    Esperado, las dos veces: `{"error":"No autorizado"}`. La segunda llega a la base y no reconoce la clave. Un 503 en la
+ 152|    segunda: la Edge no llega a la puerta. «Invalid JWT»: `verify_jwt` quedó encendido.
+ 153|
+ 154| ## 4. Dar de alta un celular (C1 primero)
+ 155|
+ 156| - Solo gerencia: `crm.asignar_celular('<etiqueta>', '<uuid del analista>')`. Etiqueta de `C1` a `C999`. El dueño,
+ 157|   analista (`vendedor`) o supervisor activo. La `credencial` se devuelve **una sola vez**: en la base queda su sha256.
+ 158| - Con `supabase/scripts/llamadas-celular/alta-celular.sql` (cambiar sus tres valores) y
+ 159|   `npx supabase db query --linked --file supabase/scripts/llamadas-celular/alta-celular.sql`. Es una sola sentencia:
+ 160|   la única fila que vuelve trae la clave.
+ 161| - **⚠️ La salida trae la clave en claro.** Miguel lo corre en su propia terminal, nunca en una sesión de Claude ni
+ 162|   pegando la salida en un chat. La clave se copia directo al celular (o va a Jhosep por un canal privado) y se limpia la
+ 163|   terminal. Nunca va al repo ni a un chat. El archivo no se commitea con valores reales.
+ 164| - **La etiqueta es el prefijo del id en la macro de ESE celular** (`C2-…` en C2). Con otra, la base rechaza cada aviso
+ 165|   (400 «etiqueta de otro celular») y la macro los aparta en `errores_llamadas`.
+ 166| - Comprobar sin ver la clave:
+ 167|   ```sql
+ 168|   select a.etiqueta, a.vigente_desde, s.ultimo_latido_en, s.version_macro, s.eventos_en_cola
+ 169|   from crm.celulares_asignaciones a left join private.celulares_estado s on s.asignacion_id = a.id
+ 170|   where a.vigente_hasta is null order by a.etiqueta;
+ 171|   ```
+ 172| - Rotar la clave (`rotar-celular.sql`, misma vía y misma advertencia) reinicia el límite de envíos (el estado va por
+ 173|   asignación). Solo gerencia rota.
+ 174|
+ 175| ## 5. Cambiar la macro del celular (Jhosep, con Claude): `macrodroid.md` §3c
+ 176|
+ 177| 1. Vaciar `cola_llamadas` **y** `errores_llamadas` (MacroDroid → Variables globales). La cola de C1 tiene avisos de
+ 178|    prueba con números reales y con ids que todavía caben en la ventana de 30 días: entrarían como llamadas de verdad.
+ 179| 2. «Fecha y hora automáticas» y zona horaria de Lima. La base rechaza un id con la hora fuera de [hace 30 días, mañana].
+ 180| 3. En «Llamadas-Al colgar», el prefijo del id = la etiqueta del alta.
+ 181| 4. En «Llamadas-Enviar cola» → «Solicitud HTTP» (las dos, aviso y latido): la URL
+ 182|    `https://dctqcbznekcyxhjujuci.supabase.co/functions/v1/crm-llamadas-ingesta` y la clave en `x-celular-credencial`.
+ 183| 5. Pruebas con datos móviles: A1, A3, las 1 y 6 de F3.3, y L1–L4 de §3c. La encuesta tiene que abrirse en todas las
+ 184|    llamadas de prueba antes de entregar el celular.
+ 185| 6. Comprobar en la base, sin ver números:
+ 186|    ```sql
+ 187|    select (select count(*) from private.llamadas_celular_recepciones r where r.asignacion_id = a.id) as recibidas,
+ 188|           (select count(*) from crm.llamadas_celular_eventos e where e.asignacion_id = a.id) as guardadas
+ 189|    from crm.celulares_asignaciones a where a.etiqueta = 'C1' and a.vigente_hasta is null;
+ 190|    ```
+ 191|    `recibidas` cuenta todas las salientes de prueba. `guardadas`, solo las de leads del ámbito del analista, sin dueño o
+ 192|    reutilizables. Un número sin lead o de un lead de otro analista se recibe y no se guarda (decisión 3). En la consulta
+ 193|    del paso 4: latido reciente y `eventos_en_cola = 0`.
+ 194|
+ 195| ## 6. Pasar un celular a otro analista
+ 196|
+ 197| La llamada se atribuye a la clave con la que llega. Una cola vieja enviada con la clave nueva quedaría a nombre del
+ 198| analista nuevo.
+ 199| 1. El analista deja de llamar desde ese celular.
+ 200| 2. Cola en 0: `cola_llamadas` vacía en el celular y, en la consulta del paso 4, `eventos_en_cola = 0` con
+ 201|    `ultimo_latido_en` posterior a su última llamada (la macro manda el latido cuando la cola se vacía).
+ 202| 3. Vaciar `errores_llamadas` (avisos del analista anterior, con sus números).
+ 203| 4. Gerencia cierra la asignación con `cerrar-celular.sql` (motivo `reemplazo`; los otros: `rotacion`,
+ 204|    `baja_analista`, `extravio`, `otro`).
+ 205| 5. Alta con la misma etiqueta y el analista nuevo (paso 4), y la clave nueva en la macro.
+ 206|
+ 207| ## Reversa
+ 208|
+ 209| **Solo antes de dar de alta ningún celular**: sin asignaciones (ni cerradas), estado, recepciones, llamadas, enlaces ni
+ 210| intenciones. Cada reversa lo comprueba bajo candado y, si no se cumple, se niega.
+ 211| - Base, una por mensaje: `reversa-enlace-sin-ciclo.sql` → `reversa-enlace-exacto.sql` → `reversa-correccion.sql` →
+ 212|   `reversa-elegibilidad.sql` → `reversa-ingesta.sql` → `reversa-nucleo.sql` → `reversa-datos.sql` (conserva las tablas)
+ 213|   o `reversa-datos-total.sql` (las borra). Fuera de orden, cada una se niega.
+ 214| - La de la séptima solo devuelve dos cuerpos y sus COMMENT (sin tablas ni datos): corre también después del alta, pero
+ 215|   devuelve el interbloqueo con Deshacer que la séptima corrige.
+ 216| - La fila de `supabase_migrations.schema_migrations` se queda (regla de la casa, `scripts/potencial-lead/reversa.sql`):
+ 217|   anotar la reversa en `MIGRACIONES.md`.
+ 218| - Es más estricto que «antes del primer aviso» a propósito (revisión de Miguel en el #190): recepciones e intenciones
+ 219|   caducan a los 32 días y una asignación no se borra nunca. Las cabeceras de las dos migraciones nuevas todavía dicen
+ 220|   «antes del primer aviso» (están selladas por md5); valen los scripts y `MIGRACIONES.md`.
+ 221| - Edge: si ya se desplegó, borrarla. No hay una versión anterior desplegada.
+ 222|
+ 223| **Después del alta no se revierte** (reinstalaría las fugas): se apaga y se corrige hacia adelante.
+ 224| - Borrar la Edge.
+ 225| - Cerrar cada asignación (`cerrar-celular.sql`).
+ 226| - En el celular, volver la URL de la «Solicitud HTTP» al receptor de pruebas y quitar la acción «Iniciar macro» de
+ 227|   «Llamadas-Al colgar»: con «Siempre iniciar», apagar «Enviar cola» no basta.
+ 228| - El arreglo va en una migración nueva.
 ```
