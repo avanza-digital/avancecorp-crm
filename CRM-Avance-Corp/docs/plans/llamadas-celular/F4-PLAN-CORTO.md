@@ -162,7 +162,8 @@ los clientes de la cartera del dueño con la misma regla.
    el 05/10 (paso 4, sin correr); el comando con recibo va con F4-b.** «Qué pasó hoy» pasó a F4-b.
 2. **F4-b · Pantalla del analista:** módulo de datos (`data/llamadas-celular-api.ts`, un solo cliente para las puertas),
    la pestaña nueva, la encuesta con contexto, la marca «Celular» (hallazgo 3) y F1 con id de origen. Pruebas unitarias
-   y E2E en Docker.
+   y E2E en Docker. **05/10: parte A hecha** (F1 lleva el id hasta la encuesta; PR #193, borrador). El resto, con sus
+   dos lecturas nuevas y la dependencia de los tipos, en `F4B-PLAN-CORTO.md`, esperando OK.
 3. **F4-c · Celulares en Configuración** (gerencia).
 4. **F4-d · Macro y validación (F4.4):** URL con el id de origen (el latido ya está en la guía «sin Pro» desde el 05/10); casos de F4.4 en E2E y en C1, entre ellos
    evento antes/después, dos llamadas en diez minutos, dos pestañas, guardado con enlace fallido, deshacer y lead
