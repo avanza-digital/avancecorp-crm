@@ -3,7 +3,8 @@ export interface PersonaCitas { id: string; nombre: string; supervisor: string; 
 export interface CitaEjemplo {
   id: string; leadId: string; nombre: string; telefono: string; analista: string; analistaNombre: string;
   supervisor: string; supervisorId: string; fecha: string; hora: string; estado: EstadoCita;
-  modalidad: string; origen: string; moneda: 'PEN' | 'USD'; monto: number; resultado: string;
+  /** null: lead sin capital (base cargada, F5a); un filtro de monto lo excluye y el CSV lo deja vacío. */
+  modalidad: string; origen: string; moneda: 'PEN' | 'USD'; monto: number | null; resultado: string;
   cerrado: boolean; seguimiento: boolean; nuevaFecha: string | null; nota: string;
   citaAnteriorId?: string; reprogramadaEn?: string; asistioEn?: string;
   manualPropio?: boolean;
@@ -64,8 +65,8 @@ export function filtrar<T extends CitaEjemplo>(f: FiltrosCitas, citas: T[]) {
       && (!f.registro || c.registroManual === (f.registro === 'manual'))
       && (!f.seguimiento || (f.seguimiento === 'pendiente' ? c.seguimiento : f.seguimiento === 'cerrado' ? c.cerrado : !c.cerrado))
       && (!f.moneda || c.moneda === f.moneda)
-      && (!f.moneda || f.min === '' || c.monto >= Number(f.min))
-      && (!f.moneda || f.max === '' || c.monto <= Number(f.max))
+      && (!f.moneda || f.min === '' || (c.monto != null && c.monto >= Number(f.min)))
+      && (!f.moneda || f.max === '' || (c.monto != null && c.monto <= Number(f.max)))
   })
 }
 export function ordenar<T extends CitaEjemplo>(citas: T[], orden: string) {
@@ -88,7 +89,7 @@ export function agruparAnalistas(citas: CitaEjemplo[]) {
 export function csv(citas: CitaEjemplo[]) {
   const celda = (v: unknown) => `"${String(v).replace(/^[\s=+@-]/, (m) => `'${m}`).replaceAll('"', '""')}"`
   const cabecera = ['Código de cita','Prospecto','Fecha prevista Lima','Hora Lima','Analista','Supervisor','Estado','Modalidad','Origen','Resultado registrado','Monto estimado','Moneda']
-  const filas = citas.map(c => [c.id,c.nombre,c.fecha,c.hora,c.analistaNombre,c.supervisor,ESTADOS[c.estado].label,c.modalidad,c.origen,c.resultado,c.monto,c.moneda])
+  const filas = citas.map(c => [c.id,c.nombre,c.fecha,c.hora,c.analistaNombre,c.supervisor,ESTADOS[c.estado].label,c.modalidad,c.origen,c.resultado,c.monto ?? '',c.moneda])
   return '\uFEFF' + [cabecera,...filas].map(f => f.map(celda).join(',')).join('\r\n')
 }
 

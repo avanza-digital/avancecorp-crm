@@ -151,7 +151,9 @@ describe('listarLeads (msw)', () => {
     expect(pagina.items[0]?.convertido_en).toBeNull()
   })
 
-  it.each([null, 0, '0'])('descarta una fila sin capital positivo: %s', async (monto) => {
+  // `null` ya NO se descarta (F5a, Bases cargadas): es el capital vacío que el servidor permite al contacto de base
+  // (E8). Lo que sigue fuera de contrato es un capital presente que no es positivo. Ver crm-api-base-cargada-msw.
+  it.each([0, '0', -5])('descarta una fila con capital presente no positivo: %s', async (monto) => {
     server.use(
       http.get(RUTA_LEADS, () =>
         HttpResponse.json([fila({ monto_estimado: monto })], {
@@ -296,7 +298,8 @@ describe('obtenerLeadDelAmbitoPorId (msw)', () => {
     server.use(http.get(RUTA_LEADS, () => HttpResponse.json([])))
     await expect(obtenerLeadDelAmbitoPorId('fuera-de-ambito')).resolves.toBeNull()
   })
-  it.each([{ monto_estimado: null }, { id: 'otra-fila' }, { activo: false }])('rechaza datos incompletos o de otra identidad: %j', async (cambio) => {
+  // `monto_estimado: null` dejó de ser «incompleto» (F5a: base cargada sin capital, E8); un capital 0 sigue fuera.
+  it.each([{ monto_estimado: 0 }, { id: 'otra-fila' }, { activo: false }])('rechaza datos fuera de contrato o de otra identidad: %j', async (cambio) => {
     server.use(http.get(RUTA_LEADS, () => HttpResponse.json([fila(cambio)])))
     await expect(obtenerLeadDelAmbitoPorId('l-api-1')).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
   })

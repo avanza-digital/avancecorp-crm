@@ -50,7 +50,8 @@ export function resumenRepartoDesdeCola(
   const porOrigen = new Map<string, number>()
 
   for (const l of cola) {
-    const monto = Number.isFinite(l.monto_estimado) ? l.monto_estimado : 0
+    // Sin capital (null, base cargada) no suma: ni NaN ni un 0 inventado en el total.
+    const monto = l.monto_estimado != null && Number.isFinite(l.monto_estimado) ? l.monto_estimado : 0
     // USD estricto — espejo de `filter (where moneda is distinct from 'USD')`.
     if (l.moneda === 'USD') usd += monto
     else pen += monto

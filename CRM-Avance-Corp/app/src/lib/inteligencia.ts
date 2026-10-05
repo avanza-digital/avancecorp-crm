@@ -21,6 +21,7 @@ export const esAbierto = (l: Lead): boolean => l.activo && !TERMINALES_K.has(l.e
  * Capital estimado por moneda de los leads RECIBIDOS (el caller decide el
  * subconjunto — típicamente abiertos). Regla central del negocio: PEN y USD
  * JAMÁS se suman entre sí. Fuente única (antes reimplementado en 8 sitios).
+ * Un lead sin capital (null, base cargada) no suma: ni NaN ni un 0 inventado.
  */
 export function capitalPorMoneda(leads: Lead[]): { pen: number; usd: number } {
   let pen = 0
@@ -622,17 +623,30 @@ export function colaDe(
 }
 
 /**
+ * Comparador «más capital primero» que deja AL FINAL a los leads sin capital
+ * (`monto_estimado` null: contacto de base cargada sin capital en el Excel, E8).
+ * Nunca resta un null (daría NaN y un orden arbitrario) ni lo trata como 0.
+ */
+export function compararCapitalDesc(a: Pick<Lead, 'monto_estimado'>, b: Pick<Lead, 'monto_estimado'>): number {
+  if (a.monto_estimado == null || b.monto_estimado == null) {
+    return (a.monto_estimado == null ? 1 : 0) - (b.monto_estimado == null ? 1 : 0)
+  }
+  return b.monto_estimado - a.monto_estimado
+}
+
+/**
  * Leads abiertos CON analista y SIN tarea pendiente — el bucket AMARILLO del
  * semáforo (plan v2): el mecanismo real de la industria no es el candado, es
  * esta lista inocultable. Orden: capital PEN desc (lo que más plata arriesga
  * primero); USD después, también desc — JAMÁS mezclados en un mismo número.
+ * Sin capital, al final de su moneda.
  */
 export function sinProximaAccion(leads: Lead[], conTareaPendiente: ReadonlySet<string>): Lead[] {
   return leads
     .filter((l) => esAbierto(l) && l.vendedor_id != null && !conTareaPendiente.has(l.id))
     .sort((a, b) => {
       if (a.moneda !== b.moneda) return a.moneda === 'PEN' ? -1 : 1
-      return b.monto_estimado - a.monto_estimado
+      return compararCapitalDesc(a, b)
     })
 }
 

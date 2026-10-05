@@ -89,6 +89,7 @@ import {
   esTipoTarea,
   MOTIVOS_NO_REALIZADA,
   MOTIVOS_DESCARTE,
+  motivoDescarteLabel,
   origenLabel,
   textoCargadoPor,
   TIPOS_ACTIVIDAD,
@@ -430,7 +431,8 @@ function BannerTerminal({ l, escribe, onClienteDelLead }: {
   const demo = Boolean(yo?.demo)
   const convertido = l.etapa === 'convertido'
   const info = ETAPA_INFO[l.etapa]
-  const motivo = MOTIVOS_DESCARTE.find((m) => m.k === l.motivo_descarte)?.label
+  // Catálogo de LECTURA: «Base cargada» se rotula aunque nadie pueda elegirlo al descartar (el select de abajo).
+  const motivo = l.motivo_descarte ? motivoDescarteLabel(l.motivo_descarte) : undefined
   const [anulando, setAnulando] = useState(false)
   /** El botón que abrió el diálogo, para devolverle el foco al cerrarlo. */
   const refAnular = useRef<HTMLButtonElement>(null)

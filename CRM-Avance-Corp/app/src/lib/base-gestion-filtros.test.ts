@@ -2,7 +2,9 @@
 // qué ORDEN; aquí solo se separa y se recorta, sin reordenar, y cada opción de un filtro cuenta exactamente lo que el
 // analista verá al elegirla.
 import { describe, expect, it } from 'vitest'
+import * as v from 'valibot'
 import {
+  FilaBaseGestionSchema,
   FILTRO_TODOS,
   SIN_DATO,
   SIN_FILTROS,
@@ -137,5 +139,24 @@ describe('depurarFiltros (al refrescar la base)', () => {
 
   it('sin ninguna rellamada agendada en la base, «agendadas» se apaga', () => {
     expect(depurarFiltros(BASE.slice(0, 4), con({ agendadas: true }))).toEqual(SIN_FILTROS)
+  })
+})
+
+// F5a «Bases cargadas»: el contacto de base llega con origen y motivo `base_cargada` y, a veces, sin capital (E8).
+describe('F5a · contacto de base cargada en la hoja de la base', () => {
+  const DE_BASE = fila(6, { origen: 'base_cargada', motivo_descarte: 'base_cargada', monto_estimado: null, moneda: 'PEN' })
+
+  it('la fila parsea con el contrato de la RPC (origen, motivo y capital vacío)', () => {
+    expect(v.safeParse(FilaBaseGestionSchema, DE_BASE).success).toBe(true)
+  })
+
+  it('el filtro de motivo lo rotula «Base cargada», después de los elegibles y antes de «sin dato»', () => {
+    const motivo = opcionesFiltro([...BASE, DE_BASE]).motivo
+    expect(textos(motivo)).toEqual(['Sin fondos (3)', 'No responde (1)', 'Base cargada (1)', 'Sin motivo (1)'])
+    expect(ids(filtrarBase([...BASE, DE_BASE], con({ motivo: 'base_cargada' })))).toEqual(['lead-6'])
+  })
+
+  it('ESTADO DE PRODUCCIÓN: sin contactos de base, las opciones del motivo son las de siempre', () => {
+    expect(textos(opcionesFiltro(BASE).motivo)).toEqual(['Sin fondos (3)', 'No responde (1)', 'Sin motivo (1)'])
   })
 })

@@ -31,7 +31,7 @@ import { DesgloseMonedas } from '@/components/common/desglose-monedas'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { useAhora } from '@/lib/ahora'
-import { moneyK, numero } from '@/lib/format'
+import { capitalLead, moneyK, numero } from '@/lib/format'
 import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
 import { conversionMensualDemo } from '@/lib/demo-conversion-mensual'
 import { identidadesEquipoConversion } from '@/lib/conversion-equipo'
@@ -404,7 +404,7 @@ function Bandeja({
               <p className="truncate text-[11px] text-muted-foreground">
                 {origenLabel(l.origen)}
                 {' · '}
-                {l.monto_estimado != null ? moneyK(l.monto_estimado, l.moneda) : 'Sin monto'}
+                {capitalLead(l.monto_estimado, l.moneda, true)}
                 {' · entró '}
                 <span style={d >= 1 ? { color: SEMAFORO.critico, fontWeight: 700 } : undefined}>{haceDiasTxt(d)}</span>
                 {mostrarBandeja && <> · Bandeja: {bandejaDe(l)}</>}

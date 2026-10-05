@@ -269,7 +269,8 @@ export interface ConfirmacionLlamada {
   descartado: boolean
 }
 
-/** Cambios editables de la ficha (espejo del contrato F1b). */
+/** Cambios editables de la ficha (espejo del contrato F1b). Es un tipo de ESCRITURA: el origen y el capital
+ *  conservan su forma estrecha aunque `Lead` (lectura) admita `base_cargada` y capital vacío (F5a). */
 export type CambiosLead = Partial<
   Pick<
     Lead,
@@ -277,10 +278,8 @@ export type CambiosLead = Partial<
     | 'telefono'
     | 'telefono_alternativo'
     | 'correo'
-    | 'monto_estimado'
     | 'moneda'
     | 'categoria_interes'
-    | 'origen'
     | 'nota'
     | 'dni'
     | 'distrito'
@@ -288,7 +287,7 @@ export type CambiosLead = Partial<
     | 'fecha_nacimiento'
     | 'documento'
   >
-> & { correccion_documento?: CorreccionDocumentoLead }
+> & { origen?: Origen; monto_estimado?: number; correccion_documento?: CorreccionDocumentoLead }
 
 /**
  * Ámbito por rol (espejo de la RLS jerárquica de F0 — contrato F1c).
@@ -2538,7 +2537,8 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
               distrito: lead.distrito ?? null,
               origen: lead.origen,
               etapa,
-              monto_estimado: lead.monto_estimado,
+              // El valor VALIDADO del alta (siempre número): el `Lead` de lectura admite null, el alta no.
+              monto_estimado: v.valores.monto_estimado ?? input.monto_estimado,
               moneda: lead.moneda,
               categoria_interes: lead.categoria_interes ?? null,
               vendedor_id,

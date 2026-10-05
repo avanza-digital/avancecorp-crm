@@ -9,6 +9,7 @@ import {
   etiquetaIntentos,
   etiquetaMomento,
   etiquetaMotivoDescarte,
+  etiquetaOrigen as etiquetaOrigenBase,
   etiquetaRellamada,
   etiquetaUltimoResultado,
   filasDemoBaseGestion,
@@ -125,5 +126,20 @@ describe('espejo demo', () => {
     }
     expect(filas[0]?.rellamada_hoy).toBe(true)
     expect(filas.at(-1)?.lead_id).toBe('mio') // sin historial y sin rellamada: al final
+  })
+})
+
+// F5a «Bases cargadas»: la hoja, la ficha y la lista de vetados rotulan el motivo y el origen nuevos sin siglas.
+describe('F5a · rótulos de base cargada', () => {
+  it('motivo y origen «base_cargada» se leen «Base cargada»', () => {
+    expect(etiquetaMotivoDescarte('base_cargada')).toBe('Base cargada')
+    expect(etiquetaOrigenBase('base_cargada')).toBe('Base cargada')
+  })
+
+  it('ESTADO DE PRODUCCIÓN: los rótulos de siempre no cambian', () => {
+    expect(etiquetaMotivoDescarte('sin_fondos')).toBe('Sin fondos')
+    expect(etiquetaMotivoDescarte(null)).toBe('Sin motivo')
+    expect(etiquetaOrigenBase('oficina')).toBe('Walking')
+    expect(etiquetaOrigenBase(null)).toBe('Sin origen')
   })
 })

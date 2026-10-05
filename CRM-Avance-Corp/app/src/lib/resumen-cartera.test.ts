@@ -184,3 +184,18 @@ describe('resumenCarteraDesdeAmbito — sin tocar', () => {
     expect(resumen.embudo[0]).toEqual({ etapa: 'nuevo', n: 1 })
   })
 })
+
+// F5a «Bases cargadas»: el espejo demo suma como `sum()` del servidor, que ignora los nulos.
+describe('F5a · capital vacío en el espejo del resumen', () => {
+  it('un contacto de base sin capital no rompe las sumas (ni NaN ni 0 inventado) y su motivo cuenta', () => {
+    const r = resumenCarteraDesdeAmbito([
+      lead({ etapa: 'contactado', monto_estimado: 10_000 }),
+      lead({ etapa: 'contactado', monto_estimado: null }),
+      lead({ etapa: 'descartado', motivo_descarte: 'base_cargada', origen: 'base_cargada', monto_estimado: null, vendedor_id: null, asignado_supervisor_id: 's-1' }),
+    ], [], AHORA)
+    expect(v.safeParse(ResumenCarteraSchema, r).success).toBe(true)
+    expect(r.capital.asignado).toEqual({ pen: 10_000, usd: 0 })
+    expect(Number.isFinite(r.totales.asignados_pen)).toBe(true)
+    expect(r.descartes.por_motivo).toEqual([{ motivo: 'base_cargada', n: 1 }])
+  })
+})

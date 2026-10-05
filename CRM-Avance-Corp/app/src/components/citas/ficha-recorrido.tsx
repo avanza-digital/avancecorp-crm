@@ -2,7 +2,7 @@ import { useDatosCitas, horaLima } from './contexto'
 import { ExternalLink, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetBody, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { fmtFecha, money } from '@/lib/format'
+import { capitalLead, fmtFecha, money } from '@/lib/format'
 import type { CitaConLead, Recuperacion } from './datos'
 import { asistioTrasInasistencia, type DepositoEjemplo } from './depositos'
 
@@ -54,7 +54,7 @@ export function FichaRecorrido({ fila, depositos, citas, onCerrar, onCita }: {
         <dl className="space-y-3 py-3 text-sm">
           <div><dt>Teléfono</dt><dd>{fila.original.telefono}</dd></div>
           <div><dt>Origen</dt><dd>{fila.original.origen}</dd></div>
-          <div><dt>Monto estimado</dt><dd>{money(fila.original.monto, fila.original.moneda)}</dd></div>
+          <div><dt>Monto estimado</dt><dd>{capitalLead(fila.original.monto, fila.original.moneda)}</dd></div>
           <div><dt>Contexto de la cita original</dt><dd>{fila.original.nota}</dd></div>
         </dl>
       </details>

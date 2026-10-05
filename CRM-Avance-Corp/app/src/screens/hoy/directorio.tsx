@@ -33,7 +33,7 @@ import { money, moneyK, fmtFecha, numero } from '@/lib/format'
 import {
   ETAPAS,
   ETAPA_INFO,
-  MOTIVOS_DESCARTE,
+  motivoDescarteLabel,
   TIPOS_ACTIVIDAD,
 } from '@/lib/tipos'
 import { useMetricasVendedoresOperativas } from '@/data/use-metricas-vendedores-operativas'
@@ -132,7 +132,7 @@ export function HoyDirectorio(): JSX.Element {
     // fuera de catálogo se muestra con su clave cruda (no se pierde en silencio).
     const porMotivo = resumen.descartes.por_motivo.map((m) => ({
       k: m.motivo,
-      label: MOTIVOS_DESCARTE.find((c) => c.k === m.motivo)?.label ?? m.motivo,
+      label: motivoDescarteLabel(m.motivo),
       n: m.n,
     }))
     return { etapas, porMotivo }

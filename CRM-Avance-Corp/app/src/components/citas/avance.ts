@@ -36,8 +36,8 @@ function coincidePersona(p: Persona, f: FiltrosCitas, todas: CitaEjemplo[]) {
     && (!f.origen || normalizar(p.origen.replaceAll('_', ' ')) === normalizar(f.origen))
     && (!f.registro || p.registro_manual === (f.registro === 'manual'))
     && (!f.moneda || f.moneda === p.moneda)
-    && (!f.moneda || f.min === '' || p.monto_estimado >= Number(f.min))
-    && (!f.moneda || f.max === '' || p.monto_estimado <= Number(f.max))
+    && (!f.moneda || f.min === '' || (p.monto_estimado != null && p.monto_estimado >= Number(f.min)))
+    && (!f.moneda || f.max === '' || (p.monto_estimado != null && p.monto_estimado <= Number(f.max)))
 }
 
 /** Métricas sobre hechos del servidor. No introduce personas ni importes demo. */

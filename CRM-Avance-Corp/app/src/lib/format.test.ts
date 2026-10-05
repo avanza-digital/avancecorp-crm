@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  digitosDeMonto, etiquetaBloqueSemanal, fechaHora, fmtFecha, iniciales, money, moneyK, montoDesdeTexto,
+  capitalLead, digitosDeMonto, etiquetaBloqueSemanal, fechaHora, fmtFecha, iniciales, money, moneyK, montoDesdeTexto,
   montoEditable, numero, porcentajeConversionCanonica, porcentajeDesdeTexto,
   porcentajeEditable, primerNombre,
 } from './format'
@@ -176,5 +176,17 @@ describe('etiquetaBloqueSemanal', () => {
     expect(etiquetaBloqueSemanal('2026-09-22', '2026-09-24')).toMatch(/^22 set\.? – 24 set\.? \(3 días\)$/)
     expect(etiquetaBloqueSemanal('2026-09-29', '2026-10-02')).toMatch(/\(4 días\)$/)
     expect(etiquetaBloqueSemanal('2026-09-24', '2026-09-24')).toMatch(/\(1 día\)$/)
+  })
+})
+
+// F5a «Bases cargadas»: el capital vacío de un lead se dice «Sin capital», nunca «S/ 0».
+describe('capitalLead', () => {
+  it('null y undefined son «Sin capital»', () => {
+    expect(capitalLead(null)).toBe('Sin capital')
+    expect(capitalLead(undefined, 'USD', true)).toBe('Sin capital')
+  })
+  it('con número formatea igual que money / moneyK', () => {
+    expect(capitalLead(30_000, 'PEN')).toBe(money(30_000, 'PEN'))
+    expect(capitalLead(30_000, 'USD', true)).toBe(moneyK(30_000, 'USD'))
   })
 })

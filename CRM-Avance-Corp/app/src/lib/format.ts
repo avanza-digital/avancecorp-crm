@@ -96,6 +96,18 @@ export function porcentajeDesdeTexto(texto: string): number {
   return Number(limpio) || 0
 }
 
+/** Lo que se dice de un lead SIN capital estimado (contacto de base cargada sin capital en el Excel, E8 de Miguel). */
+export const TEXTO_SIN_CAPITAL = 'Sin capital'
+
+/**
+ * Capital estimado de un LEAD para mostrar. `money`/`moneyK` pintan un null como «S/ 0» —un capital inventado—; aquí
+ * el null del servidor (base cargada, F5a) se dice «Sin capital». `compacto` usa el formato «S/ 30k» de las listas.
+ */
+export function capitalLead(n: number | null | undefined, moneda: Moneda = 'PEN', compacto = false): string {
+  if (n == null) return TEXTO_SIN_CAPITAL
+  return compacto ? moneyK(n, moneda) : money(n, moneda)
+}
+
 export function money(n: number | null | undefined, moneda: Moneda = 'PEN'): string {
   if (n == null || !Number.isFinite(n)) return `${SIMBOLO[moneda]} 0`
   return `${SIMBOLO[moneda]} ${n.toLocaleString('es-PE', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`

@@ -3,9 +3,10 @@ import * as v from 'valibot'
 const mocks = vi.hoisted(() => ({ rpc:vi.fn(), schema:vi.fn(), abortSignal:vi.fn() }))
 vi.mock('@/lib/supabase',() => ({sb:{schema:mocks.schema}}))
 import { adaptarCitas, adaptarDepositos, adaptarGestion, cargarCitasGerencia, ConsultaCitasSchema, type ConsultaCitasRpc } from './citas-gerencia'
-import { defaults, filtrar } from '@/components/citas/modelo'
+import { csv, defaults, filtrar } from '@/components/citas/modelo'
 import { depositosDeInasistencias } from '@/components/citas/depositos'
-import { metaCitas } from '@/components/citas/metas'
+import { baseCitasFiltrada, metaCitas } from '@/components/citas/metas'
+import { GestionMensualCitasSchema } from '@/lib/gestion-citas'
 import { controlCitasInicial } from '@/lib/control-citas'
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12,'0')}`
@@ -191,5 +192,56 @@ describe('frontera de la consulta detallada de Citas',() => {
     datos.conversiones[0]!.convertido_en='2026-09-04T15:00:00Z'
     const sinAsistencia=citas.map(c=>{ const {asistioEn:_asistencia,...resto}=c; return resto })
     expect(depositosDeInasistencias(sinAsistencia,adaptarDepositos(datos),datos.generado_en,sinAsistencia).convertidos).toBe(0)
+  })
+})
+
+// F5a «Bases cargadas»: el contrato de Citas se valida ENTERO (hasta 10 000 filas). Un lead de base sin capital
+// (null, E8) en una cita, una asignación o la población del mes no puede apagar el módulo: se lee, se muestra
+// «Sin capital», un filtro de monto lo excluye y el CSV deja la celda vacía.
+describe('F5a · capital vacío del lead en Citas', () => {
+  it('cita y asignación con capital null pasan la frontera y llegan como null, no como 0', async () => {
+    const datos = respuestaConversion()
+    datos.citas = datos.citas.map(c => ({ ...c, manual_propio: false, origen: 'base_cargada', monto_estimado: null }))
+    datos.gestion = { version: 1, citas_por_lead: 1.25, entrevistas_porcentaje: 70, depositos_porcentaje: 70,
+      asignaciones: [{ lead_id: id(10), analista_id: id(20), analista_nombre: 'Analista de prueba', supervisor_id: id(30),
+        supervisor_nombre: 'Supervisor de prueba', asignado_en: '2026-09-01T05:00:00Z', manual_propio: false,
+        nombre: 'Persona de prueba', telefono: '900000001', origen: 'base_cargada', moneda: 'PEN', monto_estimado: null }] }
+    mocks.rpc.mockResolvedValue({ data: datos, error: null })
+    const lectura = await cargarCitasGerencia('2026-09')
+    const citas = adaptarCitas(lectura)
+    expect(citas.every(c => c.monto === null && c.origen === 'Base cargada')).toBe(true)
+    expect(adaptarGestion(lectura)?.asignaciones[0]).toMatchObject({ monto: null, origen: 'Base cargada' })
+  })
+
+  it('la población del avance mensual acepta el capital null', () => {
+    const r = v.safeParse(GestionMensualCitasSchema, {
+      control: { version: 0, mes_inicio: null, configuracion: controlCitasInicial() },
+      poblacion: [{ lead_id: id(10), nombre: 'Persona', telefono: '900000001', origen: 'base_cargada', moneda: 'PEN', monto_estimado: null,
+        registro_manual: false, creado_por: null, analista_origen_id: id(20), analista_origen_nombre: 'Analista',
+        supervisor_origen_id: id(30), supervisor_origen_nombre: 'Supervisor', primera_asignacion_en: '2026-09-01T05:00:00Z' }],
+      conversiones: [], capital: [],
+    })
+    expect(r.success).toBe(true)
+  })
+
+  it('un filtro de monto excluye al lead sin capital y el CSV deja vacía su celda', () => {
+    const conCapital = adaptarCitas({ ...respuesta(), citas: [fila({ moneda: 'PEN', monto_estimado: 5000 })] })[0]!
+    const sinCapital = { ...conCapital, id: 'sin', monto: null }
+    const f = { ...defaults('2026-09'), moneda: 'PEN', min: '0' }
+    expect(filtrar(f, [conCapital, sinCapital]).map(c => c.id)).toEqual([conCapital.id])
+    expect(filtrar({ ...defaults('2026-09'), moneda: 'PEN' }, [conCapital, sinCapital])).toHaveLength(2)
+    const base = adaptarGestion({ ...respuesta(), gestion: { version: 1, citas_por_lead: 1, entrevistas_porcentaje: 70, depositos_porcentaje: 70,
+      asignaciones: [{ lead_id: id(10), analista_id: id(20), analista_nombre: 'A', supervisor_id: null, supervisor_nombre: 'S',
+        asignado_en: '2026-09-01T05:00:00Z', manual_propio: false, nombre: 'P', telefono: '900000001', origen: 'landing', moneda: 'PEN', monto_estimado: null }] } })!
+    expect(baseCitasFiltrada(base.asignaciones, f)).toEqual([])
+    const ultimaFila = csv([sinCapital]).split('\r\n').at(-1)!
+    expect(ultimaFila.endsWith('"","PEN"')).toBe(true)
+  })
+
+  it('ESTADO DE PRODUCCIÓN: con capital numérico todo sigue igual (filtro y CSV)', () => {
+    const cita = adaptarCitas({ ...respuesta(), citas: [fila({ moneda: 'PEN', monto_estimado: 5000 })] })[0]!
+    expect(cita.monto).toBe(5000)
+    expect(filtrar({ ...defaults('2026-09'), moneda: 'PEN', min: '1000', max: '6000' }, [cita])).toHaveLength(1)
+    expect(csv([cita]).split('\r\n').at(-1)!.endsWith('"5000","PEN"')).toBe(true)
   })
 })

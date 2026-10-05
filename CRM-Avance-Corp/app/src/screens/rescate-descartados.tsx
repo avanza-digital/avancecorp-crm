@@ -13,13 +13,15 @@ import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import {
   MOTIVOS_DESCARTE,
+  MOTIVOS_DESCARTE_LECTURA,
+  motivoDescarteLabel,
   origenLabel,
   type EpisodioRescateDescarte,
   type MesRescateDescartes,
   type Miembro,
-  type MotivoDescarte,
+  type MotivoDescarteLectura,
 } from '@/lib/tipos'
-import { fechaHora, moneyK } from '@/lib/format'
+import { capitalLead, fechaHora } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -36,7 +38,7 @@ const POR_PAGINA_CARPETA = 25
 const PARAM_CARPETA = 'rescate_carpeta'
 const PARAM_MES = 'rescate_mes'
 
-const TONO_MOTIVO: Record<MotivoDescarte, string> = {
+const TONO_MOTIVO: Record<MotivoDescarteLectura, string> = {
   no_responde: '#2563eb',
   sin_interes: '#7c3aed',
   sin_fondos: '#c77b14',
@@ -44,19 +46,21 @@ const TONO_MOTIVO: Record<MotivoDescarte, string> = {
   datos_invalidos: '#c1445f',
   pide_credito: '#b45309',
   otro: '#64748b',
+  // Solo lectura (Bases cargadas, F5a): gris pizarra, distinto del gris de «Otro».
+  base_cargada: '#475569',
 }
 
-type Filtro = 'todos' | 'recuperables' | MotivoDescarte
+type Filtro = 'todos' | 'recuperables' | MotivoDescarteLectura
 type FiltroCarpeta = 'todos' | 'recuperables' | 'rescatados' | 'historico'
 type OrdenCarpeta = 'recientes' | 'antiguos' | 'asesor' | 'origen'
 type ModoReparto = 'uno' | 'equilibrado'
 
-function parametrosCarpetaDesdeUrl(): { carpeta: MotivoDescarte | null; mes: string | null } {
+function parametrosCarpetaDesdeUrl(): { carpeta: MotivoDescarteLectura | null; mes: string | null } {
   const parametros = new URLSearchParams(window.location.search)
   const carpetaCruda = parametros.get(PARAM_CARPETA)
   const mesCrudo = parametros.get(PARAM_MES)
-  const carpeta = MOTIVOS_DESCARTE.some((motivo) => motivo.k === carpetaCruda)
-    ? carpetaCruda as MotivoDescarte
+  const carpeta = MOTIVOS_DESCARTE_LECTURA.some((motivo) => motivo.k === carpetaCruda)
+    ? carpetaCruda as MotivoDescarteLectura
     : null
   const mes = /^\d{4}-\d{2}-01$/.test(mesCrudo ?? '') ? mesCrudo : null
   return { carpeta, mes }
@@ -83,8 +87,8 @@ function etiquetaMes(mes: string): string {
   return fecha.toLocaleDateString('es-PE', { month: 'long', year: 'numeric', timeZone: 'UTC' })
 }
 
-function etiquetaMotivo(motivo: MotivoDescarte): string {
-  return MOTIVOS_DESCARTE.find((item) => item.k === motivo)?.label ?? motivo
+function etiquetaMotivo(motivo: MotivoDescarteLectura): string {
+  return motivoDescarteLabel(motivo)
 }
 
 function construirMeses(meses: MesRescateDescartes[]): MesRescateDescartes[] {
@@ -142,7 +146,7 @@ function FilaEpisodio({
       </td>
       <td className="whitespace-nowrap px-3 py-3 text-[12px] text-muted-foreground">{episodio.asesor_nombre}</td>
       <td className="whitespace-nowrap px-3 py-3 text-[12px] text-muted-foreground">{origenLabel(episodio.origen)}</td>
-      <td className="whitespace-nowrap px-3 py-3 text-right text-[12px] font-semibold text-foreground">{moneyK(episodio.monto_estimado, episodio.moneda)}</td>
+      <td className="whitespace-nowrap px-3 py-3 text-right text-[12px] font-semibold text-foreground">{capitalLead(episodio.monto_estimado, episodio.moneda, true)}</td>
       <td className="whitespace-nowrap px-3 py-3 text-[11px] text-muted-foreground">{fechaHora(episodio.descartado_en)}</td>
       <td className="whitespace-nowrap px-3 py-3"><EstadoEpisodio episodio={episodio} /></td>
       <td className="px-4 py-3 text-right">
@@ -275,7 +279,7 @@ export function RescateDescartados({ modoCarpeta = false }: { modoCarpeta?: bool
   const [errorMeses, setErrorMeses] = useState<string | null>(null)
   const [errorEpisodios, setErrorEpisodios] = useState<string | null>(null)
   const [filtro, setFiltro] = useState<Filtro>('todos')
-  const [carpetaActiva, setCarpetaActiva] = useState<MotivoDescarte | null>(parametrosRuta.current.carpeta)
+  const [carpetaActiva, setCarpetaActiva] = useState<MotivoDescarteLectura | null>(parametrosRuta.current.carpeta)
   const [filtroCarpeta, setFiltroCarpeta] = useState<FiltroCarpeta>('todos')
   const [busquedaCarpeta, setBusquedaCarpeta] = useState('')
   const [ordenCarpeta, setOrdenCarpeta] = useState<OrdenCarpeta>('recientes')
@@ -354,7 +358,9 @@ export function RescateDescartados({ modoCarpeta = false }: { modoCarpeta?: bool
     if (filtro === 'recuperables') return episodio.puede_rescatar || enGestion(episodio)
     return episodio.motivo_descarte === filtro
   }), [episodios, filtro])
-  const grupos = useMemo(() => MOTIVOS_DESCARTE
+  // Carpetas del catálogo de LECTURA: un episodio con motivo de solo lectura («Base cargada») tiene su carpeta y no
+  // desaparece del mosaico. Las carpetas vacías no se pintan, así que sin esos episodios el mosaico es el de siempre.
+  const grupos = useMemo(() => MOTIVOS_DESCARTE_LECTURA
     .map((motivo) => ({
       motivo: motivo.k,
       total: filtrados.filter((episodio) => episodio.motivo_descarte === motivo.k),
@@ -402,7 +408,11 @@ export function RescateDescartados({ modoCarpeta = false }: { modoCarpeta?: bool
     setCarpetaActiva(null)
     setPaginaCarpeta(0)
   }
-  const abrirCarpeta = (motivo: MotivoDescarte) => {
+  // Chips de filtro: los motivos elegibles siempre; uno de solo lectura, solo si este mes tiene episodios con él.
+  const motivosFiltro = useMemo(() => MOTIVOS_DESCARTE_LECTURA.filter((motivo) =>
+    MOTIVOS_DESCARTE.some((elegible) => elegible.k === motivo.k)
+    || episodios.some((episodio) => episodio.motivo_descarte === motivo.k)), [episodios])
+  const abrirCarpeta = (motivo: MotivoDescarteLectura) => {
     if (!mesActivo) return
     const url = new URL(window.location.href)
     url.searchParams.set(PARAM_CARPETA, motivo)
@@ -781,7 +791,7 @@ export function RescateDescartados({ modoCarpeta = false }: { modoCarpeta?: bool
               <div className="flex flex-wrap gap-1.5">
                 <button type="button" onClick={() => cambiarFiltro('todos')} className={cn('rounded-full border px-2.5 py-1 text-[11px] font-bold', filtro === 'todos' ? 'border-accent/30 bg-accent/10 text-accent' : 'border-border text-muted-foreground hover:text-foreground')}>Todos</button>
                 <button type="button" onClick={() => cambiarFiltro('recuperables')} className={cn('rounded-full border px-2.5 py-1 text-[11px] font-bold', filtro === 'recuperables' ? 'border-accent/30 bg-accent/10 text-accent' : 'border-border text-muted-foreground hover:text-foreground')}>Recuperables</button>
-                {MOTIVOS_DESCARTE.map((motivo) => (
+                {motivosFiltro.map((motivo) => (
                   <button key={motivo.k} type="button" onClick={() => cambiarFiltro(motivo.k)} className={cn('rounded-full border px-2.5 py-1 text-[11px] font-bold', filtro === motivo.k ? 'border-accent/30 bg-accent/10 text-accent' : 'border-border text-muted-foreground hover:text-foreground')}>
                     {motivo.label}
                   </button>
