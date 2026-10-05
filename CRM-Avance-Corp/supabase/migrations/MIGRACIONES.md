@@ -15913,5 +15913,756 @@ ningún `private.assert_*`. **Sin migración de RLS:** la RLS vigente ya cumple 
 **Reversa:** `supabase/scripts/base-gestion/reversa-no-contactar-supervisor.sql` (texto vivo byte a byte).
 **Hallazgo para B3 (D7-bis, decisión pendiente de Miguel):** `trg_tareas_before_insert` prohíbe tareas nuevas en
 leads cerrados → la rellamada de la base no puede ser una tarea; se propone columna sellada
-`crm.leads.proxima_llamada_en` (B1b). **Pendiente:** auditor-rls B2 y Codex B1+B2
-(`docs/encargos/2026-10-02-codex-base-gestion-b1-b2.md`), rama → `test-rls.mjs` → advisors → merge.
+`crm.leads.proxima_llamada_en` (B1b).
+**Revisiones (02/10): auditor-rls B2 CHANGES_REQUESTED y Codex B1+B2 BLOCK → todo aceptado y corregido, reensayado.**
+Codex P1 (real): la revalidación bajo candado usaba `not (vendedor_id in (…) or (vendedor_id is null and
+asignado_supervisor_id in (…)))`, que da NULL para un lead parqueado en la bandeja de otro supervisor y un `not NULL`
+lo dejaba pasar → ahora `(…) is not true` en las dos comprobaciones (md5 prosrc nuevo 05df49be…, calculado en local
+y confirmado en el banco). auditor P3: el espejo de `leads_select` incluye ya `activo`; reversa con guarda de prosrc
+(solo revierte el texto de B2) y verificación de contrato/ACL. auditor P2 + Codex P2: fixtures con PERSONA REAL
+(`fixtures-b2-persona.sql`: inversionista + identificador DNI verificado + enlace canónico; P con leads en dos equipos
+y parqueado en S2, Q solo equipo 1 con parqueado en S1, R parqueado en S2 = caso NULL puro) y `b2-rls.sql` estricto
+(42501 + «pídelo a Gerencia», veto intacto tras el rechazo, S1 levanta Q ok leads=2 con historial, G levanta P ok
+leads=3, P sin veto) que ahora FALLA el proceso si hay algún FAIL: **25/25 PASS**. `test-rls.mjs`: negativos de
+directorio, clientBank y vendInactive sobre `levantar`. El caso de dos equipos no es reproducible por la API
+(un lead nuevo con el documento de una persona reconocida se rechaza por las puertas: b1/D-13): vive en el banco
+con `crm.op_privilegiada`. `reversa-y-reaplicar-b2` PASS tras los cambios.
+**Rama de Supabase:** `base-gestion-20261002` creada por CLI (ref `dmhewdxipdspvojaudvu`, micro, us-east-2, sin
+datos): el replay automático del historial quedó en `MIGRATIONS_FAILED` (igual que `banco-f7` el 01/09); ver
+«Rama» en la nota del vault para el estado. **Pendiente:** aplicar B1+B2 en la rama → `test-rls.mjs` → advisors →
+merge de Miguel.
+
+## 20261002224851 — Base para gestión del analista · B1b: la rellamada vive en el lead (agenda propia de la base)
+
+**⏳ PENDIENTE DE RAMA (02/10/2026).** Decisiones de Miguel (02/10, noche): **D7-bis** agenda propia de la base
+(«Sí, así»: columna sellada + bloque «Llamar hoy» + contador en el menú + línea en «Hoy»); **D11** la rellamada se
+agenda como máximo 10 días adelante; **D12** gana la rellamada: el lead descansa solo cuando el 3.º intento termina
+sin cita y sin rellamada. Motivo: `trg_tareas_before_insert` rechaza tareas nuevas en leads cerrados y
+`trg_leads_zz_sync_tareas` cancela las pendientes al descartar: D7 (rellamada en `crm.tareas`) no es posible sin
+tocar el núcleo SLA. **Qué.** `crm.leads.proxima_llamada_en timestamptz` (NULL; GRANT SELECT por columna); el sello
+`trg_leads_zz_sello_base_gestion` cubre las tres columnas (función + trigger `update of` las tres); el CHECK
+`actividades_intento_base_forma` exige `proxima_llamada_en` ISO-8601 con zona en `volver_a_llamar` (antes `tarea_id`);
+`private.base_gestion_constantes()` → (3, 30, 10) con drop+create (nada dependía de ella); índice parcial
+`idx_leads_base_rellamada (vendedor_id, proxima_llamada_en) where etapa='descartado' and proxima_llamada_en is not
+null` para «Llamar hoy» y el contador del menú (EXPLAIN con datos en la rama). Ensayada en el banco
+`base_gestion_20261002`: aplicar + postflight (negativos: sin fecha, fecha no ISO, sello sin GUC; positivos deshechos
+con SQLSTATE propio) PASS, `test` PASS (6 ACL por columna, sello de 3 columnas, constantes 3/30/10, índice válido),
+`reversa-y-reaplicar-b1b` PASS, `test-b2` 25/25 sigue en verde. Tipos: `proxima_llamada_en` a mano en
+`database.types.ts`, typecheck PASS. **Reversa:** `supabase/scripts/base-gestion/reversa-proxima-llamada.sql`
+(aplicar antes que la de B1; solo se pierden rellamadas). **auditor-rls B1b (02/10): CHANGES_REQUESTED → aplicado:**
+matriz `test-rls.mjs` con los casos de `proxima_llamada_en` (sello por API, SELECT, ACL 6, `tgattr` 3, constantes 3/30/10,
+índice); la reversa de B1 se niega si B1b sigue aplicada (verificado en banco); postflight reverifica contratos y prueba
+las dos formas ISO (`±hh:mm` con microsegundos y `.000Z`); la reversa de B1b restaura comentarios y verifica `tgattr` = 2 y
+`tarea_id` en el CHECK. Informe en `BASE PARA GESTION/revisiones/2026-10-02-auditor-rls-b1b.md`. **Pendiente:** rama con datos
+(`base-gestion-datos-20261002`, ref `dpjojnpfcwkeikyagtxj`, `--with-data`) → aplicar B1, B1b, B2 → `test-rls.mjs` →
+advisors → merge de Miguel.
+
+## 20261002231436 — Base para gestión del analista · B3 puertas y núcleos
+
+**⏳ PENDIENTE DE RAMA (02/10/2026).** Plan B3 confirmado por Miguel el 02/10 («siii»). Ensayada en el banco
+`base_gestion_20261002`: aplicar + postflight (contratos de 4 puertas, 2 núcleos y 3 ayudantes; negativos sin escribir:
+resultado inválido, rellamada a 11 días, fecha en otro resultado, lead inexistente, analista no ve ajenos, analista sin
+resumen, coordinación 42501, sin sesión 42501) PASS; `b3-puertas.sql` **40/40** (impersonación: analista propio/ajeno,
+veto P0429, 10 días, idempotencia y doble clic, replay con otro contenido 23505, rellamada consumida, orden rellamada hoy
+→ etapa máxima → días, reactivación a contactado con ciclo 2 y SLA reiniciado, agendó cita reactiva, reactivado y
+descartado otra vez con contador en 0, Supervisión por equipo y filtro por analista, Gerencia todo, resumen por analista);
+`reversa-y-reaplicar-b3` PASS.
+**Qué.** `crm.obtener_base_gestion(p_vendedor_id)` (lectura por rol; excluye no_contactar y descanso; intentos del
+ciclo desde `descartado_en`, último resultado, próxima rellamada, etapa máxima alcanzada desde la última reapertura del
+historial, días desde el descarte, quién gestiona; orden rellamada vencida/hoy → etapa máxima → menos días; sin fecha o
+sin etapa al final), `crm.registrar_intento_base(op, lead, resultado, nota, proxima)` → `private.base_gestion_intento_core`
+(7 resultados; volver_a_llamar exige fecha futura ≤ `dias_max_rellamada`; descanso vigente y veto rechazan; actividad
+`intento_base` con `id = op` bajo los dos GUC; fija/limpia `proxima_llamada_en`; agendó cita reactiva; idempotente por
+`metadata.respuesta`), `crm.reactivar_lead_base(op, lead, nota)` → `private.base_gestion_reactivar_core` (llama a
+`crm.reabrir_lead_fn` sellada, avanza a `contactado` en la misma transacción, sella `reactivado_en`, limpia rellamada y
+descanso, actividad `reactivacion_base`), `crm.base_gestion_resumen()` (Supervisión/Gerencia: en base, rellamadas hoy,
+intentos hoy, reactivaciones del mes). Ayudantes `private.base_gestion_rol`, `base_gestion_lead_visible` (espejo de
+`leads_select` con `is true`), `base_gestion_etapa_rango`. DEFINER con ámbito explícito; EXECUTE solo authenticated en las
+puertas; núcleos y ayudantes cerrados. No reemplaza ninguna función sellada. El enfriamiento (D4/D12) lo pone el trigger
+de B4. **Reversa:** `supabase/scripts/base-gestion/reversa-puertas.sql` (no toca datos).
+**auditor-rls B3 (02/10): CHANGES_REQUESTED → aplicado y reensayado (43/43).** P1: sello nuevo
+`trg_00_actividades_base_gestion_solo_nucleo` (reserva `intento_base`/`reactivacion_base`/`respuesta`/`via` bajo
+`crm.op_base_gestion`); P2: candados persona → lead antes del `for update` cuando habrá reactivación; P2: replay leído
+tras el candado y solo del mismo actor; P3: resumen atribuido al DUEÑO del lead (+ `p.activo`), ayudantes INVOKER,
+UPDATE condicional. `test-rls.mjs`: bloque `testBaseGestionB3` por la API (service_role/anon/roles 42501, `p_vendedor_id`
+por rol, forja 42501, sup1/sup2, replay y 23505, rellamada primera, reactivar, agendó cita, ACL fuera de banda).
+Informe en `BASE PARA GESTION/revisiones/2026-10-02-auditor-rls-b3.md`. **Pendiente:** Codex B3+B4, rama con datos →
+`test-rls.mjs` → advisors → merge de Miguel.
+
+## 20261002233851 — Base para gestión del analista · B4 trigger de enfriamiento
+
+**⏳ PENDIENTE DE RAMA (02/10/2026).** Plan B4 confirmado por Miguel el 02/10 («vamos si»). Trigger AFTER INSERT
+`trg_zz_actividades_enfriamiento_base` en `crm.actividades` (WHEN `evento = intento_base`) → `private.trg_actividades_enfriamiento_base()`
+(DEFINER, escribe bajo el sello `crm.op_base_gestion` restaurando el valor previo): si el intento trae rellamada o es
+`agendo_reunion`, nada (D12/D3); si el lead sigue descartado y vivo y los intentos del ciclo (desde `descartado_en`, incluido
+este) llegan a `max_intentos` (3), `enfriado_hasta = hoy Lima + dias_enfriamiento` (30). En descanso el lead no aparece en la
+base y la puerta rechaza intentos (22023); vencido el plazo reaparece; reactivar lo limpia (B3). El SLA al reactivar no
+necesita trigger (reinicio por cambio de ciclo verificado en B3 y aquí). Ensayada en el banco: aplicar + postflight (ensayo
+real por la puerta, deshecho con `ZZ0B4`) PASS; `b4-enfriamiento.sql` **15/15** con fechas simuladas (3 intentos → descansa; en
+descanso fuera de la base y 22023; vencido reaparece con su historial; 4.º con rellamada no enfría, 5.º sí; D12 con el 3.º =
+rellamada; agendó cita nunca enfría; reactivar limpia el descanso y reinicia el SLA); `b3-puertas.sql` ajustado a B4 (44/44);
+`reversa-y-reaplicar-b4` PASS. `test-rls.mjs`: casos B4 dentro del bloque B3 (3.º intento → `enfriado_hasta`, fuera de la base,
+22023), condicionados a que el trigger exista. **Reversa:** `supabase/scripts/base-gestion/reversa-enfriamiento.sql` (no toca
+datos; avisa cuántos descansos vigentes quedan). **auditor-rls B4 (02/10): CHANGES_REQUESTED → aplicado (16/16):** gate por
+`crm.op_base_gestion` (un backfill sin usuario no enfría; caso en banco y en el postflight), DEFINER redactado, ensayo sobre
+el descartado más antiguo, aviso en la reversa; `test-rls.mjs` con D12 por la API y contrato del trigger. Semántica
+post-descanso (un intento más vuelve a enfriar) pendiente de confirmar con Miguel. Informe en
+`BASE PARA GESTION/revisiones/2026-10-02-auditor-rls-b4.md`. **Pendiente:** Codex B3+B4, rama con datos → `test-rls.mjs` →
+advisors → merge de Miguel.
+
+## 20261002235342 — Base para gestión del analista · B4b: la ventana de intentos se reinicia tras cada descanso (D13)
+
+**⏳ PENDIENTE DE RAMA (02/10/2026).** Decisión de Miguel (02/10, noche): «Tres intentos nuevos tras cada descanso».
+Ayudante inmutable `private.base_gestion_intentos_desde(descartado_en, creado_en, enfriado_hasta, hoy)` (el descarte o el
+inicio Lima del día en que venció el último descanso, el posterior) y `create or replace` del texto de B3/B4 con una
+sustitución exacta cada uno: `crm.obtener_base_gestion` (intentos/último resultado de la ventana), `private.base_gestion_intento_core`
+(`intento_n`) y `private.trg_actividades_enfriamiento_base` (cupo). Firmas, contratos, triggers y sellos iguales. Banco:
+aplicar + postflight (ventana calculada en tres casos) PASS, `b4-enfriamiento.sql` **17/17** (vencido el descanso el contador
+vuelve a 0 con el historial íntegro; 1.º con rellamada no enfría; 2.º sin rellamada tampoco; 3.º sí), `b3-puertas.sql` 44/44,
+`reversa-y-reaplicar-b4b` PASS. **Reversa:** `supabase/scripts/base-gestion/reversa-ventana-descanso.sql` (reinstala los cuerpos
+de B3/B4). **Pendiente:** Codex B3+B4 (en curso), rama con datos → `test-rls.mjs` → advisors → merge de Miguel.
+
+## 20261003001014 — Base para gestión del analista · B3b: enmiendas de Codex (idempotencia, hija con uuid nuevo, orden)
+
+**⏳ PENDIENTE DE RAMA (03/10/2026).** Codex (LEVEL 3, encargo `docs/encargos/2026-10-02-codex-base-gestion-b3-b4.md`)
+devolvió BLOCK con seis P2; cinco aceptados y uno parcial, todos en esta migración de enmienda (B3 y B4 están commiteadas
+y no se editan). `create or replace` del texto de B4b con sustituciones exactas: `private.base_gestion_intento_core`
+(replay antes de las validaciones temporales; identidad de la operación con fecha de rellamada y nota → otra fecha/nota
+23505; reactivación hija de «agendó cita» con `gen_random_uuid()` y verificación de que quedó en contactado) y
+`crm.obtener_base_gestion` (orden del contrato rellamada hoy → etapa máxima → días, hora solo desempata; último resultado
+desempata por `intento_n`; el descarte del ciclo anterior que comparta instante con la reapertura queda fuera de la etapa
+máxima). Banco: aplicar + postflight PASS, `b3-puertas.sql` **48/48** (4 regresiones nuevas), `b4-enfriamiento.sql` 17/17,
+`reversa-y-reaplicar-b3b` PASS. `test-rls.mjs`: la expectativa de «rellamada de hoy» se calcula fuera de banda (medianoche
+Lima). **Riesgo operativo anotado:** el postflight de B4 ensaya por la puerta sobre un lead real (candado breve): aplicar B4
+en producción fuera de horario de gestión. **Reversa:** `supabase/scripts/base-gestion/reversa-idempotencia-y-orden.sql`.
+**Codex r2 (03/10, encargo `docs/encargos/2026-10-03-codex-base-gestion-b3b.md`): BLOCK con 2 P2, resueltos sin código:**
+(a) «los replays anteriores a B3b no llevan `solicitud_proxima`/`nota_md5` y darían 23505» → NO APLICA: B3/B4b nunca se
+aplicaron fuera del banco local (ninguna rama ni producción tiene operaciones de la base; `rama.mjs estado` lo acredita con
+el conteo «intentos previos» antes de aplicar) y en el banco las suites recrean sus operaciones. (b) #6 «empates de instante»
+→ aceptado como limitación: solo ocurren en transacciones multi-sentencia sintéticas; por las puertas cada RPC es su propia
+transacción. Informe en `BASE PARA GESTION/revisiones/2026-10-03-codex-b3b.md`. **Pendiente:** rama con datos → `test-rls.mjs`
+→ advisors → merge de Miguel (B4 fuera de horario de gestión).
+
+**✅ RAMA + GATE (02/10/2026, noche) — las 7 listas para el merge de Miguel.** Rama `base-gestion-datos-20261002`
+por la Management API, sin contraseña (`supabase db query --linked --project-ref dpjojnpfcwkeikyagtxj --workdir <carpeta
+aparte>`). Estado antes: B1–B4b en false e **intentos previos 0** (acredita el punto (a) de Codex r2). Aplicadas en orden
+B1, B1b, B2, B3, B4, B4b, B3b, un mensaje cada una: 7/7. Después: las 7 en true y 0 intentos, reactivados, enfriados y
+rellamadas. EXPLAIN con datos reales: la base por analista usa índices (1,7 ms) y «llamar hoy» usa
+`idx_leads_base_rellamada` (0,05 ms), así que **la B5 de índice no hace falta**. Puertas: analista 73 ms, gerencia 78 ms
+(1069 filas), supervisores hasta 137 ms. Advisors (todos los niveles): 0 ERROR; solo 4 WARN nuevas
+`authenticated_security_definer_function_executable`, que son las 4 puertas (patrón por diseño). Gate de RLS completo en
+banco Docker propio a paridad total: huellas iguales a la rama y, tras las 7 reversas, iguales a PRODUCCIÓN. A/B: de 77 a
+68 rojos y ninguno nuevo. Los 68 son de fondo y salen idénticos en las dos corridas; los 9 que desaparecen son `#5 B2`.
+**Base para gestión 74/74.** El gate cazó 2 expectativas viejas del bloque B1 (con B3, el sello «solo núcleo» corta
+antes): corregidas en `72189f04`. **Registradores:** `supabase/scripts/base-gestion/registrar/<version>.sql`, generados
+con `potencial-lead/banco/generar-registrador.py`; `statements` es el archivo entero y se probaron dos veces en el banco.
+**Merge:** lo lanza Miguel con `!`, fuera de horario: por cada versión, `db query --linked --file` de la migración y
+después el de su registrador. Producción leída el 02/10 a las 20:10: ninguna aplicada ni registrada. Evidencia:
+`BASE PARA GESTION/revisiones/2026-10-02-rama-y-gate.md`. 🔴 La reversa de B1b no corre si ya hay intentos con fecha
+escritos: el CHECK de B1 los rechaza.
+**✅ APLICADA Y REGISTRADA EN PRODUCCIÓN el 02/10/2026 (20:15 Lima) — las 7.** Miguel con `!`: por cada versión,
+`db query --linked --file` de la migración y luego el de su registrador, en orden: 7/7 OK. Comprobado después, en solo
+lectura: las 7 en true; 7 registradas con `statements` = el archivo (md5) y 1 elemento cada una; 0 intentos, reactivados,
+enfriados o rellamadas (los postflights deshicieron sus ensayos); **las huellas de producción son las de la rama**
+(cuerpos, ACL, políticas, relaciones, triggers, `auth.uid`). Advisors de producción iguales a la rama, sin contar
+`unused_index`; respecto al antes, nuevas solo las 4 WARN de las puertas. Tipos regenerados en `9c1d7296` (typecheck PASS).
+Rama `base-gestion-datos-20261002` borrada.
+
+## 20261003162300 — Base para gestión del analista · B3c: las cuatro funciones del módulo salen del censo analítico
+
+**✅ APLICADA Y REGISTRADA EN PRODUCCIÓN el 03/10/2026 (~14:30 Lima)** — Miguel con `!`, en orden y con su registrador; comprobada en solo lectura (huellas del gate, ACL, registro con el md5 del archivo). Antes: banco · auditor-rls · Codex r2 PASS · rama con datos · gate 68 = 68. Desde el 02/10 (20:15)
+`private.assert_analitica_leads_citas()` cae y el vigía abre una alerta diaria (fase `f6a_analitica_leads_citas`):
+`crm.obtener_base_gestion`, `crm.base_gestion_resumen`, `private.base_gestion_intento_core` y
+`private.trg_actividades_enfriamiento_base` nombran `crm.leads`/«reunion» y usan `count(` sin declarar (leído en producción
+el 03/10; hallazgo P1 del auditor-rls). Tres cuentan intentos, no leads. Declarar no cabe (techo solo baja): se sacan del
+alcance. Nuevas `private.base_gestion_intentos_ciclo(uuid[],timestamptz[])` (UNA definición de «intentos del ciclo», antes
+tres copias) y `private.base_gestion_leads_de(uuid)` (solo predicado); el resumen cuenta la lista de
+`crm.obtener_base_gestion` (antes copiaba su predicado). `create or replace` del texto vivo (md5 en el preflight), mismos
+permisos. Postflight: el censo pierde EXACTAMENTE las cuatro y no gana nada; sello del trinquete intacto. Banco: B2 25/25,
+B3 48/48, B4 17/17; mutante (la ayudante cuenta de más) → B3 y B4 FALLAN. La alerta de `private.gestion_diaria_cola_hechos`
+(otra sesión) sigue. **Reversa:** `supabase/scripts/base-gestion/reversa-conteos-fuera-del-censo.sql`. Plan aprobado por
+Miguel el 03/10.
+
+## 20261003162400 — Base para gestión del analista · B5: el MES del lead (`recibido_en`)
+
+**✅ APLICADA Y REGISTRADA EN PRODUCCIÓN el 03/10/2026 (~14:30 Lima)** — Miguel con `!`, en orden y con su registrador; comprobada en solo lectura (huellas del gate, ACL, registro con el md5 del archivo). Antes: banco · auditor-rls · Codex r2 PASS · rama con datos · gate 68 = 68. Miguel (02/10): «saber qué mes estoy
+gestionando». `crm.obtener_base_gestion` devuelve al final `recibido_en = coalesce(tenencia_desde, creado_en)`. Drop +
+create (cambia el `returns table`) sobre el cuerpo de B3c (md5 en el preflight), mismo dueño, ámbito y EXECUTE solo
+authenticated; su único envoltorio (`base_gestion_resumen`, B3c) lee columnas que siguen. Postflight: md5 del cuerpo, ACL
+exacta, fuera del censo. La pantalla (rama `crm/base-gestion-front`, `c9e772fd`) ya la lee como opcional. **Reversa:**
+`supabase/scripts/base-gestion/reversa-mes-del-lead.sql`.
+
+## 20261003162500 — Base para gestión del analista · B6: candado de seguimiento activo en el lead
+
+**✅ APLICADA Y REGISTRADA EN PRODUCCIÓN el 03/10/2026 (~14:30 Lima)** — Miguel con `!`, en orden y con su registrador; comprobada en solo lectura (huellas del gate, ACL, registro con el md5 del archivo). Antes: banco · auditor-rls · Codex r2 PASS · rama con datos · gate 68 = 68. Regla de Miguel (02/10) y respuestas
+(03/10): seguimiento activo = último intento de la base del ciclo + 7 días, o rellamada agendada en ese ciclo; el
+supervisor lo ve **en gris** «En gestión por X hasta el día Y»; y el candado va **en el lead, para toda vía** (el
+auditor-rls y el banco probaron que la ficha —PATCH de `vendedor_id`— y «tomar lead libre» también movían el lead). Nueva
+`private.base_gestion_en_gestion_hasta(uuid)` (regla única; una baja —dueño inactivo— libera; una rellamada de un ciclo
+anterior no bloquea). Trigger `trg_leads_00_seguimiento_activo` (BEFORE UPDATE, WHEN descartado y cambia `vendedor_id`) con
+`private.trg_leads_guard_seguimiento_activo()` (DEFINER, sin EXECUTE para la API): P0409, detail `estado=en_gestion`, sin
+nombres en el mensaje. `crm.rescate_descartes_mes`: drop + create con `en_gestion_por`/`en_gestion_hasta`; `estado` no
+cambia (bundle viejo). **`crm.rescatar_descartes` NO se toca** (está declarada con su huella en el censo: cambiarla la
+caducaría). Límite aceptado y probado: devolverlo a su MISMO analista no es reasignar (el dueño no cambia). Cuerpo vivo de
+`rescate_descartes_mes` (md5 `7c6363fb…`): no lo produce ninguna migración del repo; consta en
+`SERVIDOR-CRM/evidencia-funciones-conexiones.json` (anotado por el auditor). Banco: `b6-seguimiento.sql` **29/29** (rescate,
+lote atómico, ficha, tomar lead libre, baja, día 7/8, rellamada vigente/vencida/de otro ciclo, gerencia, permisos, B5,
+censo); mutantes (sin regla, sin candado) → FALLAN. ⚠️ En el Docker local no se llama a la ayudante sin permiso (tumba
+Postgres). **Reversa:** `supabase/scripts/base-gestion/reversa-seguimiento-activo.sql`.
+
+**Paquete B3c → B5 → B6 (03/10):** cadena de reversas B6 → B5 → B3c deja las seis funciones con las huellas de PRODUCCIÓN y
+sin restos; reaplicación + suites en verde. Registradores `supabase/scripts/base-gestion/registrar/2026100316{23,24,25}00.sql`
+(md5 = archivo; segunda pasada no duplica). Se aplican en ese orden, cada una seguida de su registrador.
+**Rama con datos + gate (03/10):** rama `base-gestion-b3c-b6-20261003` (borrada): 3/3 aplicadas, censo 42 → 38 (salen las 4
+del módulo; queda solo `gestion_diaria_cola_hechos`, de otra sesión), advisors 626 = 626, equivalencia con datos reales
+(obtener y resumen nuevos = copias de los vivos, gerencia/supervisores/analistas) 0 diferencias; el resumen pasa de 36 a 85 ms
+en gerencia (cuenta la lista real; hoy sin pantalla). Gate de RLS en Docker a paridad: 68 = 68 rojos de fondo, bloque
+B3c/B5/B6 17/17, trinquetes completos. Evidencia: `BASE PARA GESTION/revisiones/2026-10-03-rama-b3c-b5-b6.md`.
+
+## 20261004045038 — Base para gestión del analista · B6b: «Ver no contactar» (Supervisión y Gerencia) y detalle de las cifras
+
+**✅ APLICADA EN PRODUCCIÓN 04/10/2026** (Miguel con `!`: `supabase db query --linked --file` + registrador `supabase/scripts/base-gestion/registrar/20261004045038.sql`; versión registrada con md5 de statements `510d3bba…` = archivo). Verificado después en solo lectura: `md5(prosrc)` de `crm.obtener_base_gestion(uuid,boolean)` `36af7e9c…`, de `crm.base_gestion_resumen_detalle(uuid,text)` `06837224…` y del resumen intacto `b773a7c4…`; ACL `{postgres=X/postgres,authenticated=X/postgres}`, `search_path=""`, una sola sobrecarga cada una. Antes: banco Docker (suite 92/92, mutantes 20/20, gate 0 rojos nuevos), auditor-rls PASS (3.ª pasada), Codex r1/r2 BLOCK resueltos, rama con datos (`BASE PARA GESTION/revisiones/2026-10-04-rama-b6b.md`: equivalencia 0/0 en 9 actores, advisors +1 WARN, reversa OK).
+
+_Historial: construida y probada en banco Docker local (04/10/2026) antes de aplicar._
+Revisiones incorporadas: r1 (Codex P2 consistencia; auditor-rls P2a/P3) y r2 (Codex r2 P2-1/P2-2; auditor-rls r2 P3).
+Decisiones de Miguel del 03/10 (`BASE PARA GESTION/F4-SUPERVISOR.md`): los leads «No contactar» se ven en la base con el
+interruptor «Ver no contactar», solo Supervisión y Gerencia (opción a), completos (marca, cuándo, motivo, quién), también en
+descanso; «Intentos de hoy» y «Reactivaciones del mes» del panel por analista se abren.
+(1) `crm.obtener_base_gestion(uuid)` → `(uuid, boolean)`: drop + create sobre el texto vivo de B5 (md5 `b2629fba…` en el
+preflight) con `p_incluir_vetados boolean default false` (null = false; otro rol con true → 42501), el veto
+`(not l.no_contactar or v_vetados)`, el descanso que deja pasar solo a los vetados cuando se piden, `rellamada_hoy` = false
+para un vetado, los vetados al final y cuatro columnas al final (`no_contactar`, `no_contactar_en`, `no_contactar_motivo`,
+`no_contactar_por`) = la nota del **evento vigente** del veto, solo si es un «marcar» (también el de postventa: motivo en el
+detalle «No contactar: …») y su lead es visible para quien llama (`private.base_gestion_lead_visible` + activo); si no, NULL.
+**Evento vigente (r2):** si la persona del lead está vetada, la ÚLTIMA nota del veto entre TODOS sus leads — el mismo conjunto
+que actualizan las puertas: `private.leads_de_persona_veto(persona) ∪ el propio lead` (`20260910150039:904`,
+`20261002061500:152`; postventa `20260910150039:477`) —, por `creado_en desc, id desc` (la última de cada lead por
+`idx_actividades_lead`, y la más reciente de esas); si no hay persona o no está vetada (veto solo del lead), la última del
+propio lead. Persona = EXACTAMENTE la de marcar/levantar: enlace `leads.inversionista_id`; si no, puente canónico; si no,
+`private.inversionista_por_documento('DNI', dni)` (`20260910150039:855-872`, `20261002061500:103-120`). Sin anclas por hora: el
+orden lo da el sello del servidor (`trg_01_gestion_lead_serializada` fija `creado_en := clock_timestamp()` en toda nota con
+usuario, postventa incluida). La regla r1 (nota ≥ `no_contactar_en` + 1 min de holgura para postventa) se **sustituyó**: no
+distinguía periodos de veto (Codex r2: postventa → levantar → re-vetar en < 60 s; marcar → levantar → marcar en UNA
+transacción). Residuo: empate exacto de `clock_timestamp` (desempate por id). Un lead vetado enlazado a una persona NO vetada
+muestra su propia nota (con r1 salía NULL).
+(2) NUEVA `crm.base_gestion_resumen_detalle(uuid, text)` (`intentos_hoy` | `reactivaciones_mes`; otro → 22023): mismo rol que
+el resumen (42501), ámbito = ser una fila de ESE resumen (P0002), los MISMOS predicados de las cifras (filas = cifra),
+`sigue_en_base` contra la lista del analista, más reciente primero; un lead retirado cuenta sin nombre ni nota. Las dos DEFINER
+de postgres, `search_path` vacío, EXECUTE solo authenticated, sin contadores (fuera del censo). `crm.base_gestion_resumen` NO
+cambia. ⚠️ Desde B6b la lista tiene DOS envoltorios DEFINER (resumen y detalle): el preflight «único envoltorio» de esta
+migración no vale para las siguientes; si cambian `leads_select` o el gate de actor, re-auditar las dos.
+**Consistencia (Codex r1 P2):** REPEATABLE READ como primera sentencia tras el `begin` (precedente en producción con
+`db query --linked --file`: 20260930172255). Banco, dos sesiones con una copia con `pg_sleep(8)` en el postflight: en READ
+COMMITTED un intento + una reactivación ajenos durante la pausa tumban la migración; en REPEATABLE READ pasa sin bloquear a la
+otra sesión. (`supabase db query --local` no acepta archivos de varias sentencias: no sirve de banco para esto.)
+La nota de veto que `actividades_insert` deja escribir desde la API (`evento=no_contactar`, `accion=marcar`) se cierra en
+**B6c** (decisión de Miguel 04/10); B6b no la toca.
+Postflight: md5 de los dos cuerpos, una sola sobrecarga, ACL exacta, resumen intacto, censo igual a la foto, con false la lista
+es la de B5 para Gerencia (misma instantánea), null = false, detalle = cifra, analista con true → 42501; guardas en negativo
+con datos 6/6. Banco (stack propio `avancecorp-b6b-20261003`): suite `supabase/scripts/base-gestion/b6b-vetados.sql`
+**92/92** (con ejecución REAL de `marcar_no_contactar`, `levantar_no_contactar` y `postventa_veto_fn` bajo sesión de usuario y
+la bandera encendida; andamio en la transacción: solo `private.cartera_f5_exigir`, porque el banco del gate tiene contratos sin
+identidad coherente), mutantes `b6b-mutantes.mjs` **20/20 caen** (entre ellos «vuelve la regla por hora», que tumba los dos
+contraejemplos de Codex); gate de RLS antes 2500/68 rojos → después 2534/68 (0 nuevos; bloque B6b 34/34); reversa → huellas
+= producción; reaplicación → huellas de la migración; trinquetes 29/7 antes y después; censo 38 = 38. EXPLAIN sintético de
+Gerencia con true (1100 descartados, 61 vetados, 40 con persona vetada y 3 leads de puente cada una): 17 ms (false 13 ms); la
+primera versión r2 recorría `actividades_recientes_idx` hacia atrás (69 ms) y se cambió a la última nota por lead.
+**Reversa:** `supabase/scripts/base-gestion/reversa-b6b.sql` (antes que la de B5). **Registrador:**
+`supabase/scripts/base-gestion/registrar/20261004045038.sql`. Falta: re-revisión (auditor-rls, Codex), rama con datos + gate +
+advisors + EXPLAIN real, OK de Miguel y `!` + registrador, regenerar tipos y B6c.
+
+## 20261004123611 — Base para gestión del analista · B6c: la nota del veto queda reservada a sus puertas e inmutable
+
+**✅ APLICADA EN PRODUCCIÓN 04/10/2026** (Miguel con `!`: `supabase db query --linked --file` + registrador; versión registrada con md5 de statements `abd20c56…` = archivo). Verificado después en solo lectura: `md5(prosrc)` del sello `private.trg_actividades_no_contactar_solo_puerta()` `af83cbd6…` (ACL solo postgres), trigger `trg_00_actividades_no_contactar_solo_puerta` tipo 31 habilitado, `crm.levantar_no_contactar` `663780d2…`, comentario de `obtener_base_gestion` `67f83881…`, cuerpo de B6b intacto `36af7e9c…`. Antes: banco (suite 76/76, mutantes 16/16, gate 0 rojos nuevos), auditor-rls PASS, Codex r1/r2 BLOCK resueltos (P2 de la r2 aceptado como riesgo documentado: una llamada a levantar en curso con el cuerpo viejo justo al commit falla con 42501 reintentable; aplicada un domingo temprano), rama con datos (`BASE PARA GESTION/revisiones/2026-10-04-rama-b6c.md`: OK 10/10, advisors 0 nuevos, reversa OK).
+
+_Historial: construida y probada en banco Docker local (04/10/2026), r1, antes de aplicar._
+
+Decisión de Miguel (04/10, P2b del auditor-rls de B6b, `BASE PARA GESTION/F4-SUPERVISOR.md`): reservar
+`metadata.evento='no_contactar'` en `crm.actividades` para las puertas oficiales. Hoy la policy `actividades_insert`
+(`20260807123000:85-115`) deja insertar esa nota desde la API en un lead propio o del ámbito y `trg_01_gestion_lead_serializada`
+no la frena (`20260904130000:1082-1088`, solo tipos de contacto): quien escribe en un lead podía firmar la «marca vigente» que B6b
+muestra a Supervisión y Gerencia (o un «levantar» que la ocultara). authenticated solo tiene INSERT/SELECT en la tabla.
+**Qué:** (1) sello NUEVO `trg_00_actividades_no_contactar_solo_puerta` (BEFORE INSERT OR UPDATE OR DELETE, por fila, toda
+columna) con `private.trg_actividades_no_contactar_solo_puerta()` (DEFINER, `search_path` vacío, dueño postgres, sin EXECUTE para
+la API). Con usuario y sin la válvula `crm.op_privilegiada = on` → 42501 «La nota de No contactar solo la escriben sus puertas
+(marcar, levantar o postventa); no se cambia ni se borra» para: INSERT de una nota del veto; UPDATE de cualquier columna de una
+fila que es o pasa a ser nota del veto; DELETE de una nota del veto (r1, auditor P3: inmutables). «Nota del veto» =
+`lower(btrim(metadata->>'evento'))` = `no_contactar` (r1, auditor P3: variantes como `No_Contactar` o ` no_contactar `). Exentos:
+la válvula y las sesiones sin usuario (migraciones, backfills, jobs y la clave de servicio SIN sub — exención ACEPTADA, como en
+los sellos vecinos `trg_actividades_resultado_solo_nucleo` y `trg_actividades_base_gestion_solo_nucleo`). Función PROPIA: cada
+sello con su válvula y el del resultado está sellado por huella en `private.assert_gestion_diaria_resultado`. Vale siempre (no mira
+`resolver_en_puertas`). **No acredita las notas del veto escritas antes de su instalación.** (2) `crm.levantar_no_contactar`: texto
+vivo de B2 (md5 `05df49be…`) con UN cambio: el `set_config('crm.op_privilegiada','off')` pasa de antes del insert de su nota
+(`20261002061500:233`) a justo después → md5 `663780d2…`. (3) Solo el COMENTARIO de `crm.obtener_base_gestion(uuid,boolean)`
+(cuerpo `36af7e9c…` intacto): nota reservada e inmutable, no acredita las anteriores, y residuo P3 del auditor de B6b (no lee la
+bandera `resolver_en_puertas`, encendida desde el 07/09).
+**Escritores de la nota:** solo `marcar_no_contactar` (`20260910150039:976/1016/1023`, válvula on → insert → off; sellada por
+huella, no se toca), `postventa_veto_fn` (`:488/511/516`, envuelta por `20260910190000`; no se toca) y `levantar_no_contactar`
+(el corregido); ningún backfill, fusión, importador, seed ni el front (notas sin metadata). **Quién cambia o borra actividades:**
+solo cuatro funciones hacen UPDATE y ninguna DELETE, y ninguna cae sobre una nota del veto: `base_gestion_intento_core` (su propia
+fila recién insertada, `20261003162300:199`), `llamada_registrar`/`_v4` (su propia actividad de llamada, `20260921153654:264/315`)
+y `deshacer_resultado_llamada` (exige `evento = resultado_llamada`, `20260920005000:654`). Acciones referenciales: un lead con
+dueño no se puede borrar (`lead_asignaciones_lead_id_fkey`, probado) y ninguna función borra `crm.leads`; `eliminar_usuario_fn`
+solo borra `auth.users` si `private.usuario_tiene_historial` es falso (cuenta toda FK, también `actividades.creado_por`) y
+`eliminar_cliente_fn` exige `auth.uid()` nulo: el SET NULL del autor no puede llegar a una nota del veto con usuario (si llegara,
+el sello lo rechaza). El preflight exige que sigan siendo solo esos tres escritores y esas cuatro funciones de UPDATE/DELETE, los md5
+de levantar/marcar/postventa y del comentario de B6b, y que ningún rol/base encienda la válvula por configuración.
+**Despliegue (r1, Codex P2):** la r0 insertaba notas de prueba en el postflight con el SHARE ROW EXCLUSIVE del `CREATE TRIGGER`
+puesto; con `marcar_no_contactar` concurrente sobre el mismo lead formaba un ciclo → **40P01 reproducido en el banco con dos
+sesiones** (copia con `pg_sleep` tras el trigger). La r1 **no hace DML**: postflight SOLO de catálogo (md5, contrato y ACL del sello y
+de levantar, `tgtype` 31, sin WHEN ni columnas, comentarios exactos, censo) y el trigger se crea al final; con la misma pausa, la
+sesión concurrente espera al commit (~4 s) y termina: **sin ciclo**. El aviso dice «CATALOGO OK … COMPORTAMIENTO NO PROBADO» (r1,
+Codex P3). El comportamiento va en `b6c-comprobar-tras-aplicar.sql` (tras el commit; ROLLBACK siempre; `lock_timeout` 2 s; lead con
+`FOR UPDATE SKIP LOCKED` antes de insertar; «NOT RUN» explícito si no hay lead libre, si B6c no está o si un candado está ocupado):
+la API no escribe la nota (marcar, levantar, sin acción, dos variantes), entran —con ROW_COUNT = 1 (Codex r2, P3: un sello que descartara en silencio con `return null` daba OK)— la nota normal, la de la válvula y la sin usuario,
+y service_role con usuario no cambia ni borra una nota del veto. READ COMMITTED explícito.
+**Banco** (stack propio `avancecorp-b6b-20261003`, B6b aplicada): suite `b6c-nota-veto.sql` **76/76** (catálogo; la API —analista,
+Supervisión, Gerencia, tipo de contacto, tres variantes, bandera apagada— no escribe la nota y la marca no cambia; notas normales y
+un evento parecido sí; marcar, levantar de Supervisión y de Gerencia, persona por enlace y puente, postventa vetar/levantar y marcar
+con la bandera apagada, REALES, escriben su nota y B6b muestra la marca correcta; la válvula nunca queda encendida; sin usuario y
+service_role sin sub pueden; service_role con sub no inserta, no cambia ninguna columna —metadata, detalle, creado_en, autor a NULL,
+variante— ni borra; con la válvula sí); mutantes `b6c-mutantes.mjs` **16/16 caen** (los 11 de r0 y: UPDATE solo de metadata, sin
+DELETE, comparación exacta, sin recorte, fila vieja sin normalizar); B6b **92/92** y sus 20 mutantes caen; guardas en negativo:
+preflight **15/15** (+ control como supabase_admin), postflight **11/11**; script post-aplicación: **OK 10/10**, con el lead más
+antiguo bloqueado por otra sesión OK 10/10 en 0,07 s, con todos bloqueados PARCIAL/NOT RUN, sin B6c NOT RUN, con un sello que no
+rechaza FALLA (salida ≠ 0), sin restos; gate de RLS antes 2534/68 → después **2542/68** (0 rojos nuevos; bloque B6c 8/8); reversa →
+huellas de B6b/B2 (= producción); reaplicación OK; trinquetes 29/7 y censo 38 iguales antes, tras aplicar, tras la reversa y tras
+el gate; registrador idempotente. Las suites `b6b-vetados.sql` y `b6c-nota-veto.sql` llevan la guarda «solo banco local» (P3 del
+auditor de B6b). **Reversa:** `supabase/scripts/base-gestion/reversa-b6c.sql` (antes que la de B6b; la de B2 se niega mientras
+levantar tenga el cuerpo de B6c).
+
+## 20261004160034 — Bases cargadas · B7: esquema (tablas de bases, recibos inmutables, origen/motivo `base_cargada`, capital vacío del contacto dormido)
+
+**✅ APLICADA EN PRODUCCIÓN 04/10/2026** (Miguel con `!` + registrador; versión registrada con md5 de statements `93e857c9…` = archivo). Verificado después en solo lectura: las 3 tablas con RLS y sin SELECT para anon/authenticated; `monto_estimado` nullable; CHECK de origen y de capital validados; `private.leads_before_insert` `de4823ae…`; trigger `trg_leads_000_base_cargada_solo_puerta` habilitado. Rama con datos (`BASE PARA GESTION/revisiones/2026-10-04-rama-b7.md`): bloqueo real de `crm.leads` ~0,35 s al aplicar y ~0,29 s al revertir; advisors 0 WARN/ERROR nuevos. Codex r2 (reversa sin attacl/permissive/FORCE RLS) resuelto en `5481d235`. Pendiente antes de B8: `descartado_en` NULL de un contacto que nace descartado.
+
+_Historial —_ PENDIENTE (04/10/2026), r1: construida y probada SOLO en banco Docker local (stack propio `avancecorp-b6b-20261003`, a
+paridad con producción con B6b y B6c; al terminar quedó revertida y el banco PARADO). r0 commiteada en `23bdde79`. Revisiones r0:
+**Codex r1 BLOCK (2 P2)** y **auditor-rls PASS con P3**, aplicadas en r1 (abajo). Falta: re-revisión, rama con datos + gate +
+advisors (medir candados con datos reales), OK de Miguel y `!` + registrador. md5 del archivo `93e857c9…`.
+Decisiones de Miguel E1–E14 (`BASE PARA GESTION/BASES-CARGADAS.md`). Solo esquema: las puertas (cargar, armar, repartir, recoger,
+seguimiento) son B8–B10.
+**Qué:** (1) `crm.bases_carga` (nombre 1–80 único por supervisor entre las vivas sin distinguir mayúsculas; origen
+`archivo`|`crm`; `supervisor_id` dueño; `creada_por`; `operacion_id` único; `archivo_nombre` solo con origen archivo; totales del
+informe ≥ 0 que no suman más que `filas_recibidas`; sin capital por defecto, E8), `crm.base_carga_leads` (base, lead,
+procedencia, `analista_id`/`asignado_en`/`asignado_por` los tres NULL o los tres con valor, `agregado_por`; único (base, lead) y
+un lead en UNA base viva: índice único parcial `lead_id where activo`) y `crm.base_carga_operaciones` (recibos INMUTABLES:
+UPDATE/DELETE/TRUNCATE → P0409; único (actor, operación); md5 del pedido; respuesta objeto ≤ 64 KB sin datos personales). Las
+tres: RLS ON, SIN grants para nadie (ni service_role), sin DELETE, `log_audit_crm`, `set_actualizado_en_crm` (las dos con
+fechas), comentarios en tabla y columnas, todas las FK con índice. Policy SELECT de segundo candado: Supervisión ve las bases
+cuyo dueño está en su subárbol, Gerencia todas, el analista y cualquier otro rol nada (su vista será la puerta DEFINER de B10);
+filas y recibos siguen a su base. (2) `crm.leads` sin columnas nuevas: `base_cargada` en `leads_origen_check`, en
+`leads_motivo_descarte_check` y en la lista de `private.leads_before_insert` (texto vivo de 20260928192822 + ese valor; misma
+identidad y ACL); `enfriamiento_politica_motivo_check` + fila `base_cargada` = 30 días. (3) Capital: `monto_estimado` sin NOT NULL y
+`leads_monto_estimado_valido` (mismo nombre: el front lo traduce) = `(monto is null and origen = 'base_cargada' and etapa =
+'descartado') or (monto is not null and > 0 and ≤ 9999999999.99 and 2 decimales)` — la etapa en el CHECK por ajuste del
+coordinador (regla «toda vía va en el lead»): reactivar, «Reabrir», tomar lead libre y el rescate fallan con 23514 en su propio
+UPDATE si falta el capital; el `monto is not null` de la segunda rama es obligatorio (sin él un NULL pasa en cualquier origen y
+etapa: mutante medido). (4) Sello `trg_leads_000_base_cargada_solo_puerta` (BEFORE INSERT OR UPDATE, INVOKER): origen o motivo
+`base_cargada` solo con la válvula `crm.op_bases_carga` (42501; sin exención para sesiones sin usuario: el importador corre sin
+usuario) y un capital que existe no se vacía (23514, también con la válvula).
+**Candados:** ACCESS EXCLUSIVE de `crm.leads` y `crm.enfriamiento_politica` y SHARE ROW EXCLUSIVE de `public.perfiles` tomados
+al principio en orden fijo (lock_timeout 5 s); postflight SOLO de catálogo; la única escritura es la fila de configuración.
+Aplicar en horario bajo. **Comportamiento tras aplicar:** `supabase/scripts/base-gestion/b7-comprobar-tras-aplicar.sql` (ROLLBACK
+siempre, veredicto en una fila: banco `B7_COMPORTAMIENTO_OK 11/11`; sin B7, `PARCIAL/NOT RUN`).
+**Banco:** suite `b7-esquema.sql` **172/172** (catálogo; la API —anon, analista, Supervisión, Gerencia, Coordinación,
+service_role— no lee ni escribe las tablas: 72 casos; policies con SELECT concedido en la transacción; recibos; capital; las
+cuatro puertas reales reactivar_lead_base / reabrir_lead_fn / tomar_lead_libre / rescatar_descartes → 23514 sin capital y pasan con
+él; motivo/origen; un lead en una base viva; reparto; restricciones; auditoría; regresión); mutantes `b7-mutantes.mjs` **44/44
+caen**; gate de RLS antes 2542/68 → después **2553/68** (0 rojos nuevos; bloque B7 11/11; la aserción P04 «siete motivos de
+enfriamiento» acepta ahora 7, u 8 exactamente con `base_cargada`); trinquetes 29/7 y censo 38 iguales antes, tras aplicar, tras
+el gate y tras la reversa; B6b 92/92, B6c 76/76 y QA final 77/77 (8/8 puntos) con B7 aplicada; reversa → huellas = producción
+(dos ciclos) y se niega con datos (3 casos); preflight se niega a la doble aplicación; registrador idempotente;
+`npm run check:scripts` PASS; `test:rls:preflight` PASS.
+**r1 (04/10, hallazgos de Codex r1 y del auditor-rls):** (1) **reversa con huellas** (Codex P2): antes de sobrescribir exige,
+bajo los candados, las huellas exactas que deja B7 (cuerpo + identidad + ACL + comentario de `leads_before_insert`, del sello y del
+inmutable; trigger del sello; los tres CHECK; la columna `monto_estimado`; CHECK y fila del enfriamiento; columnas, restricciones,
+índices, policies y disparadores de las tres tablas) y se niega nombrando la deriva; migración y reversa toman el candado de la casa
+`crm_migracion_funciones` (precedente `20260902200000:39`). Batería en `b7-mutantes.mjs`: control sin deriva revierte y **15/15
+derivas** se niegan (entre ellas «`leads_before_insert` cambiada tras B7», su ACL, el sello deshabilitado, una columna o policy
+nueva, la fila de enfriamiento en 45 días, una función de B8 que usa las tablas, una base o un dormido). (2) **Candados** (Codex
+P2): la cabecera ya no promete «milisegundos»; ACCESS EXCLUSIVE de `crm.leads` porque cambiar un CHECK y quitar un NOT NULL lo
+exigen (validar en otra transacción solo ahorraría ~2 ms: no se parte). **Medido** (3083 leads, 961 descartados, una sesión que lee
+y otra que escribe `crm.leads` cada 50 ms): aplicar retiene **115–250 ms** (5 corridas; la r0 retenía **369 ms** porque el censo
+—~0,1 s por llamada— corría 4 veces bajo el candado: ahora la foto va ANTES de los candados de tabla y el postflight lo llama una
+vez); la lectura concurrente esperó como máximo 228 ms y la escritura 121 ms (una sentencia de cada sonda, sin errores); los tres
+CHECK se validan en ~2 ms. La reversa retiene **90–144 ms** (esperas ≤ 94 ms lectura, ≤ 71 ms escritura). (3) **Triggers BEFORE de
+`crm.leads`** (Codex, riesgo): en orden efectivo (nombre, colación C) el sello `trg_leads_000_base_cargada_solo_puerta` va primero; los
+21 posteriores BEFORE INSERT/UPDATE por fila (`000_hereda_veto`, `000_no_contactar_puerta`, `00_devolucion_equipo_solo_rpc`,
+`00_disponibilidad_insert/update`, `00_guard_tenencia`, `00_seguimiento_activo`, `01_sla_global`, `before_insert`, `before_update`,
+`bloquear_reasignacion`, `cambio_etapa`, `conversion_con_inversion`, `normalizar_tel`, `protege_inversionista_id`, `reasignacion`,
+`zz_enlaza_identidad`, `zz_reapertura_solo_rpc`, `zz_sello_base_gestion`, `zz_sello_descarte`, `zzz_tenencia_desde`,
+`zzzz_usuario_retirado`) NO asignan `new.origen`, `new.motivo_descarte` ni `new.monto_estimado` (ni con `:=` ni con `=`), no
+reasignan `new` entero y no devuelven `old` ni `null` (comprobado en `pg_proc` del banco); los CHECK se evalúan después de todos.
+(4) El 23514 «El capital del lead no se puede vaciar» lleva `detail = 'leads_monto_estimado_valido'` (el front arma
+`message + details`, `app/src/data/crm-api.ts:2033`, y lo traduce a «El capital estimado es obligatorio…», `:2055-2059`); el gate lo
+exige. (5) Candados de tabla en orden fijo ANTES del preflight (que lee `crm.enfriamiento_politica`). (6) Un dormido no se
+«despierta» cambiándole el motivo: sin la válvula, cambiar el motivo `base_cargada` de un lead que sigue descartado → 42501
+(evita `datos_invalidos` → 0 días → «libre» 24 h → duplicado). (7) **`public.perfiles`** se toca solo por las FK de las tablas nuevas:
+SHARE ROW EXCLUSIVE breve al aplicar (frena escrituras del portal, no lecturas) y ACCESS EXCLUSIVE en la reversa (DROP de tablas con
+FK); no se crean ni cambian objetos de `public` (precedentes `20260930213647`, `20260922184459`).
+**Banco r1:** suite **177/177**, mutantes **47/47** (nuevos: sin el `detail`, despertar por el motivo, despertar solo sin capital) +
+reversa 15/15 con control OK; gate 2542/68 → **2553/68** (0 rojos nuevos, bloque B7 11/11); trinquetes 29/7 y censo 38 iguales antes,
+tras aplicar, tras el gate y tras la reversa; B6b 92/92, B6c 76/76, QA final 77/77 (8/8); script post-aplicación OK 11/11 (sin B7:
+NOT RUN); reversa → huellas = producción; doble aplicación rechazada por el preflight; registrador idempotente (md5 = archivo);
+`check:scripts` y `test:rls:preflight` PASS.
+**r2 de la reversa (04/10, Codex r2 P2; la migración NO cambia, md5 `93e857c9…`):** las huellas de cada tabla suman dueño, RLS
+FORCE, ACL por columna (`attacl`), policy PERMISSIVE/RESTRICTIVE con sus roles (de `pg_policy`), identidad/generada/colación de
+columna, validez y comentarios de restricciones e índices, comentarios de policies y disparadores, reglas, publicaciones (realtime),
+opciones, persistencia e identidad de réplica. Huellas re-medidas con B7 recién aplicada. Batería: control sin deriva revierte y
+**21/21** derivas se niegan en el bloque de huellas (línea 69, antes del primer DROP, línea 155), entre ellas las tres de Codex r2
+(grant por columna, policy recreada AS RESTRICTIVE, FORCE RLS) y otro dueño, publicación realtime y una regla; mutantes 47/47; suite
+177/177; reversa → reaplicación (OK 11/11 post-aplicación) → reversa con huellas = producción; trinquetes 29/7 y censo 38 iguales.
+**⚠️ Pendientes para B8/B10/B11 (no se resuelven en B7):** (a) un contacto sin capital solo puede NACER descartado (con
+`crm.op_bases_carga` + `crm.op_privilegiada`) y `trg_leads_zz_sello_descarte` (sellado) le deja `descartado_en` NULL: el alta de
+su teléfono ve «libre» (duplicaría, contra E2), `tomar_lead_libre` no lo ve, el enfriamiento no le aplica y la base no tiene «días
+desde el descarte» → B8 necesita el envoltorio de identidad y/o fecha de descarte (suite E17–E19); (b) un contacto dormido no tiene
+episodios en `lead_asignaciones` (0 al nacer y 0 al asignarlo descartado, medido): no sale en «Descartes del mes» ni en el rescate
+mientras duerma; sí, si se reactiva (con capital) y se vuelve a descartar; (c) `cartera_filtrada_fn`/`cartera_pagina_fn` con
+`p_sin_asignar` (20261001212341:392, 20260831055000:2460) incluyen descartados de la bandeja: descargarían miles de dormidos (con
+capital NULL); (d) el front publicado descarta filas fuera de contrato: F5a antes del primer contacto; (e) el oráculo histórico
+`supabase/scripts/test-monto-obligatorio.sql` (contrato 4B, fuera de todo gate) espera NOT NULL y queda desfasado.
+**Reversa:** `supabase/scripts/base-gestion/reversa-b7.sql` (se niega si hay bases, filas, recibos o leads con origen/motivo
+`base_cargada` o sin capital; candados en orden fijo `crm.leads` → `public.perfiles` → enfriamiento → tablas nuevas antes de
+comprobar el vacío). **Registrador:** `supabase/scripts/base-gestion/registrar/20261004160034.sql`.
+
+## 20261004184501 — Bases cargadas · B8: cargar un archivo y armar bases desde el CRM (`crear_base`, `cargar_base_lote`, `armar_base_crm`)
+
+**✅ APLICADA EN PRODUCCIÓN 04/10/2026** (Miguel con `!` + registrador; versión registrada con md5 de statements `ca81559b…` = archivo). Verificado después en solo lectura: `crm.crear_base`, `crm.cargar_base_lote`, `crm.armar_base_crm` DEFINER con ACL `{postgres=X,authenticated=X}`; trigger `trg_leads_zz_sello_descarte_base_cargada` habilitado; CHECK `enfriamiento_politica_base_cargada_dias_positivos` validado; sello `trg_leads_zz_sello_descarte` intacto (`150d7ae5…`); 0 bases y 0 contactos. Rama con datos de la versión final (`BASE PARA GESTION/revisiones/2026-10-04-rama-b8-r2.md`): lote de 100 en 1,62 s, 0 duplicados, reversa OK; bloqueo de escrituras ~0,36 s.
+
+_Historial —_ PENDIENTE (04/10/2026), r2. Construida y probada SOLO en banco Docker local (stack propio `avancecorp-b6b-20261003`, a paridad
+con producción con B6b, B6c y B7; al terminar quedó REVERTIDA —banco = producción: B7 sí, B8 no; su fila de registro del banco
+borrada— y el banco PARADO). r0 `ee93bbb8` (md5 `5c4b2b09…`), r1 `23a22b29` (md5 `d803ef92…`, APTA en la rama con datos salvo la
+reversa y el tiempo del lote). Revisiones: Codex r1 BLOCK (2 P1 + 1 P2 + riesgos) y auditor-rls PASS con P3 → r1; **Codex r2 BLOCK
+(2 P1 + P3, última ronda)** y la rama con datos (reversa y lote) → r2 (abajo). Falta: OK de Miguel y `!` + registrador. md5 del
+archivo r2 **`ca81559b…`** (registrador `e12473d9…`, reversa `f9d80014…`, post-aplicación `f1933f9d…`). Decisiones de Miguel E1–E14
+(`BASE PARA GESTION/BASES-CARGADAS.md`).
+**r2 (04/10), por hallazgo:** (P1 Codex r2) `armar_base_crm` bloquea `FOR UPDATE SKIP LOCKED`, en orden de id, los leads del
+ámbito del dueño, GUARDA el conjunto efectivamente bloqueado y evalúa e inserta SOLO ese: lo que otro proceso tiene tomado sale
+`ocupado` (motivo nuevo: reintenta) sin esperar; lo que no estaba en el ámbito al bloquear sale `no_encontrado` u `ocupado` según
+se vea ahora (nunca se evalúa sin candado: un lead que entra al ámbito después de bloquear y se reactiva antes del INSERT NO
+entra); sin esperas, sin interbloqueo con escritores masivos en otro orden. (P1 Codex r2) El replay vuelve a juzgar CADA lead que
+nombra el recibo con el actor de hoy: carga → cada `lead_id` por `private.bases_carga_lead_ref`; armado → los incluidos por
+`lead_ref` (reasignado fuera o retirado ⇒ rechazo) y los excluidos por su estado (todos menos `no_encontrado`/`repetido`) por
+`base_gestion_lead_visible` (sin exigir activo: «inactivo» es ese estado); si uno no está a su alcance → P0002 «La respuesta
+guardada nombra leads que ya no están a tu alcance…». (Riesgo Codex r2) El respaldo fila a fila NO atrapa lo transitorio
+(`private.bases_carga_error_transitorio`: 40P01, 55P03, 57014, 40001, 25P02 y las clases 53/54/57/58): aborta el lote entero, con
+el MISMO código y «La carga se interrumpió (código); reintenta», sin el detail (57014 no se puede atrapar: sale tal cual).
+(Riesgo Codex r2) El respaldo juzga un P0429 con la MISMA regla del ámbito que el veredicto
+(`private.bases_carga_fuera_de_ambito`, una sola definición): con algún lead fuera del ámbito, solo `ya_existia`. (P3 Codex r2) El
+comentario de `crm.armar_base_crm` dice el ámbito real (subárbol del supervisor dueño; Gerencia no arma fuera de él) y `ocupado`.
+`crm.enfriamiento_politica.dias` es NOT NULL (medido; el preflight lo exige): el CHECK no necesita tratar NULL. (Rama con datos, A)
+La reversa ya no compara huellas «globales» medidas en el banco (el md5 de los 31 triggers de `crm.leads` CON comentarios daba
+`85dcb456` en el banco y `48d0bd41` en producción): exige la huella exacta de lo de B8 (funciones, su trigger y su CHECK) y, para lo
+ajeno, que la reversa no lo cambie (foto bajo candados ANTES y comparación DESPUÉS de los triggers de `crm.leads` —nombre, función,
+habilitado; sin comentarios— y de las restricciones del enfriamiento). Revisadas las demás huellas de la migración y la reversa: las
+de objetos ajenos (`leads_before_insert`, disponibilidad, `sla_versionado`, ayudantes) ya las fija el preflight y la rama las
+validó en producción-copia. (Rama con datos, B) Lote máximo **100** (en la rama, micro con datos: 200 nuevas tardaron 3,27 s el
+mínimo y 5,46 s en frío frente a los 8 s); 5000 filas = 50 lotes.
+**Banco r2:** suite **124/124** (estable en 3 pasadas; nuevos: replay con lead retirado / reasignado fuera / incluido retirado /
+excluido por su estado fuera del ámbito → P0002 y excluido inactivo → pasa; lote lleno con la fila 100 rechazada → respaldo, 99 +
+1, 2 intentos, sin residuos, 411 ms; 40001 y 55P03 → aborta con 1 intento, sin detail ni residuos; P0429 en el respaldo con lead
+fuera del ámbito → `ya_existia`); mutantes **68/68** caen + **3/3** de concurrencia (`--concurrencia`: evaluar todos los ids como
+en r1 → cae el escenario 12; sin `FOR UPDATE SKIP LOCKED` → caen 7–10 y 13; sin `NOWAIT` → cae 1); reversa: **4 controles revierten**
+(sin deriva y con comentarios de triggers ajenos cambiados, quitados o añadidos, como difieren en producción) y **16/16 derivas**
+se niegan (entre ellas el comentario del trigger de B8); concurrencia **28/28 PASS** (13 escenarios: con el lead tomado, el armado
+no espera y da `ocupado`, y el reintento el motivo real; (12) el lead que entra al ámbito tras el bloqueo y se reactiva antes del
+INSERT NO entra —la reactivación no espera: 80 ms—; (13) lead tomado → `ocupado` en 65 ms; 0 interbloqueos ni duplicados); gate
+2553/68 → **2570/68** (mismos 68 rojos, bloque B8 17/17); trinquetes 29/7 y censo 38 (`fe51c7e2…`) iguales en cada paso; B6b 92/92,
+B6c 76/76, B7 177/177, QA 77/77; post-aplicación B8 **12/12** y B7 12/12 (bandera apagada y encendida). Candados: aplicar retiene
+SHARE ROW EXCLUSIVE de `crm.leads` (y ACCESS EXCLUSIVE del enfriamiento, mismo intervalo) ~92 ms (lecturas sin espera, escrituras
+≤ 88 ms); la reversa, ACCESS EXCLUSIVE ~84 ms (lecturas ≤ 77 ms, escrituras ≤ 79 ms). Doble aplicación rechazada; registrador
+idempotente (md5 = archivo); `check:scripts` PASS.
+_r1 (lo que la r2 cambia, arriba):_
+**r1 (04/10), por hallazgo:** (P1 Codex) `armar_base_crm` bloquea `FOR UPDATE`, en orden de id, los leads del ámbito ANTES de
+evaluar (reactivar, marcar No contactar, reasignar y el intento B6 toman la fila del lead: quedan en serie; un lead que en la espera
+sale del ámbito no se bloquea y sale `no_encontrado`; no se escribe el lead). (P1 Codex) Toda referencia (`lead_id`) pasa por
+`private.bases_carga_lead_ref` (el actor la ve Y el lead sigue activo —auditor P3—), también la de `repetida/en_base`, que además
+solo mira pertenencias VIVAS (`bl.activo`); la categoría `en_base` se conserva sin id. (Decisión del PRIMARY) Con ALGÚN lead del
+teléfono/DNI fuera del ámbito del actor (`bool_or` sobre todas las coincidencias del envoltorio, que ahora las devuelve todas con
+su orden), el veredicto es `ya_existia` SIN motivo ni id; dentro del ámbito, los motivos de siempre. (P2 Codex) `armar` rechaza
+(22023) un `uuid[]` que no sea unidimensional con `array_lower = 1` (antes del md5). (Riesgo Codex) El replay devuelve el recibo
+solo si el actor sigue viendo la base (`operacion_previa` recibe el rol; si no, P0002). (Riesgo Codex) Si la tanda del INSERT
+choca (carrera), se repite fila a fila en subtransacciones: P0481/P0409 → `ya_existia`, P0429 → `no_contactar`, sin el detail del
+disparador; cualquier otra excepción aborta con «No se pudo cargar la fila N (código)», sin detail. (Riesgo Codex) La fila de la
+base se toma `FOR UPDATE NOWAIT`: el segundo lote de la misma base falla AL INSTANTE (55P03, «Hay otra carga en curso de esta base;
+reintenta»; medido 38–56 ms) en vez de consumir sus 8 s; el front reintenta con el mismo id. Lote: se mantiene en 200. (Hueco
+Codex) Teléfonos/DNI sin normalizar: banco 0 de 90; el DNI no puede estar fuera de forma (`leads_dni_check` validado); el teléfono
+no tiene CHECK → `supabase/scripts/base-gestion/b8-telefonos-sin-normalizar.sql` (solo lectura, sin datos) para la rama. Si da > 0:
+comparar normalizando ambos lados (medido, ~3400 leads: igualdad exacta 0,07 ms por fila; normalizando sin índice 2,5 ms; con
+índice de expresión sobre `crm.leads` 0,7 ms); el verificador de la casa tiene el mismo hueco. (P3 auditor) CHECK
+`enfriamiento_politica_base_cargada_dias_positivos` (`motivo <> 'base_cargada' or dias > 0`): Gerencia puede editar los días por la
+API (policy `enfriamiento_update`) y con 0 el alta vería «libre» 24 h → duplicado; candado ACCESS EXCLUSIVE de esa tabla (8 filas)
+tras `crm.leads`, orden de B7. (P3 auditor) Armar por Gerencia usa el ámbito del SUPERVISOR dueño (`private.bases_carga_subarbol`,
+espejo de la rama supervisor de `vendedor_ids_visibles`, que solo enumera el del usuario de la sesión; y
+`private.bases_carga_en_subarbol`, una sola definición para el candado y la evaluación). **Para B10 (no se resuelve aquí):** los
+dormidos sin repartir aparecen en «Gestión de la base» (F4) de Supervisión y Gerencia por `obtener_base_gestion` (rama
+`vendedor_id null` de la bandeja): excluirlos o separarlos.
+**Banco r1:** suite **115/115**; mutantes **61/61** caen (14 nuevos: referencia sin visibilidad / de retirado, `en_base` sin control
+o con pertenencias retiradas, sin la regla del ámbito o mirando solo la coincidencia más relevante, INSERT sin respaldo o
+re-lanzando el detail, veto mal clasificado, replay sin ámbito, sin el CHECK, ámbito del actor en vez del dueño, subárbol sin
+hijos, sin la bandeja, arreglos con otro límite); reversa: control OK + **15/15** derivas; concurrencia **todo PASS** (nuevas:
+55P03 al instante y reintento; reactivar/vetar/sacar del ámbito/intento B6 mientras se arma → el armado espera ~1,5 s y excluye
+`no_descartado`/`no_contactar`/`no_encontrado`/`en_gestion`; armar primero → reactivar espera y pasa; armar y lote a la vez sin
+esperas; 0 interbloqueos) y, **sin** el `FOR UPDATE` ni el `NOWAIT` (mutante temporal), fallan justo 1 y 7–10; gate 2553/68 →
+**2570/68** (mismos rojos, bloque B8 17/17); trinquetes 29/7 y censo 38 (`fe51c7e2…`) iguales en cada paso; B6b 92/92, B6c 76/76,
+B7 177/177, QA 77/77; post-aplicación B8 **11/11** y B7 12/12 (bandera apagada y encendida). Candados: aplicar retiene SHARE ROW
+EXCLUSIVE de `crm.leads` (y ACCESS EXCLUSIVE del enfriamiento, en el mismo intervalo) ~96 ms (lecturas de leads sin espera,
+escrituras ≤ 94 ms); la reversa, ACCESS EXCLUSIVE ~72 ms (lecturas ≤ 58 ms, escrituras ≤ 59 ms). Doble aplicación rechazada;
+registrador idempotente (md5 = archivo); `check:scripts` PASS.
+_r0 (como se construyó; lo que la r1 cambia, arriba):_
+**Qué:** (1) Tres puertas DEFINER en `crm` (search_path vacío, EXECUTE solo `authenticated`; validan, resuelven rol y ámbito en el
+servidor y delegan en `private`): `crm.crear_base` (Supervisión: la base es suya, otro supervisor → 42501; Gerencia DEBE elegir un
+supervisor activo, E11 → 22023; analista/otros → 42501; nombre 1–80 único entre las vivas del supervisor → 23505; solo origen
+`archivo`), `crm.cargar_base_lote` (lote ≤ 200 filas, base ≤ 5000 filas E5; base visible para el actor o P0002; viva, de archivo
+y con su supervisor activo) y `crm.armar_base_crm` (≤ 2000 leads; solo descartados ELEGIBLES E12 del ámbito del actor; NO toca el
+lead E13). Idempotencia por (actor, id de operación) con recibo en `crm.base_carga_operaciones` (replay = la MISMA respuesta; el
+mismo id con otro pedido → 22023). (2) Veredicto por fila: `cargada` · `ya_existia` (cliente, con_dueno, en_bolsa, descartado,
+convertido, retirado; `lead_id` solo si el actor ve ese lead) · `no_contactar` · `invalida` (nombre_vacio/largo,
+telefono_invalido, dni_invalido, capital_invalido, moneda_invalida, distrito_largo, comentario_largo) · `repetida` (en_archivo,
+en_base). Identidad (E2): `private.verificar_disponibilidad_lead_impl` + envoltorio `private.bases_carga_contacto_existente`
+(«existe CUALQUIER lead con ese teléfono o DNI»). Teléfono con la regla del alta. Candados del lote en el orden de la casa, una
+vez: fila de la base → documentos → personas → contactos. (3) El contacto nace DORMIDO (E7): descartado, motivo y origen
+`base_cargada`, bandeja del supervisor de la base, sin analista, capital del archivo o NULL (E8), `alta_manual = false` (su
+comentario: true solo por `crear_lead_si_disponible`), `creado_por` = actor. Una sola definición de «nace dormido»:
+`private.bases_carga_nace_dormido` (válvula `crm.op_bases_carga`, que el núcleo enciende solo alrededor de su INSERT y apaga,
++ origen/etapa/motivo base_cargada + activo). Cambios mínimos (texto vivo + UNA condición) en `private.leads_before_insert`
+(dejaba nacer terminal solo con `crm.op_privilegiada`, que NO se enciende), `private.trg_leads_disponibilidad_atomica` (exigía
+nacer operativo a toda alta con usuario; el veredicto debe seguir «libre») y `private.trg_leads_sla_versionado` (abría SIEMPRE el
+ciclo 1: `crm.metricas_sla_fn` lo contaría «fuera de objetivo»; el dormido no abre ciclo, el suyo nace al reactivarlo — ciclo 2 —;
+`crm.tareas` no admite tareas sobre descartados, nadie exige su ciclo 1). (4) **Fecha del descarte** (pendiente de B7): disparador
+NUEVO `trg_leads_zz_sello_descarte_base_cargada` (BEFORE INSERT, WHEN origen base_cargada; corre después de
+`trg_leads_zz_sello_descarte` por nombre) → `descartado_en` = momento de la carga, `descartado_por` = actor. NO se modificó
+`trg_leads_zz_sello_descarte`: su `pg_get_functiondef` está SELLADO (md5 `150d7ae5…`) en `private.assert_gestion_diaria_resultado`
+(20260921153654:525); el postflight lo exige intacto. Con la fecha: el alta y «tomar lead libre» del mismo teléfono/DNI ven
+«enfriamiento» (base_cargada 30 días) y después «reutilizable» — nunca un duplicado —; la base para gestión cuenta sus días.
+**Efectos del INSERT (inventario de los 31 disparadores):** sello B7 (válvula) · hereda_veto y enlaza_identidad (persona vetada o
+con lead: el veredicto lo atrapa antes; persona sin lead → se ENLAZA, medido) · guard_tenencia (bandeja de supervisor activo) ·
+sla_global (sello del lead, inocuo) · sla_versionado (neutralizado) · asignaciones (sin episodio: no operativo) ·
+tenencia_desde (NULL) · usuario_retirado (no aplica) · auditoría (una fila por contacto, DNI enmascarado) · puente de identidad
+(si se enlazó). Llegadas: `conversion_episodios` solo cuenta landing/formulario/referido (E10). «Descartes del mes» (rescate) sale
+del ledger: el dormido NO aparece. La cola del coordinador exige lead sin bandeja: tampoco. Realtime: ninguna tabla crm en
+publicaciones. **Observado para B10:** los dormidos SÍ salen en `obtener_base_gestion()` del supervisor dueño (bandeja), con 0
+días desde el descarte.
+**LOTE (medido, banco, identidad encendida, ~3400 leads):** el costo es el verificador de la casa: recorre los clientes del portal
+con `normalizar_telefono` (sin índice): ~0,5 ms + ~2,8 ms por cada 1000 clientes, dos veces por contacto nuevo (núcleo y
+disparador). Con ~700 clientes (producción ~420–514): 200 nuevas (todas con DNI) 1,1 s · 200 ya existentes 0,6 s · 500 nuevas
+2,8 s; con ~1600: 200 nuevas 2,3 s · 500 nuevas 5,5 s. Candados: ~2–3 por fila (≤ 601 en un lote de 200). Respuesta de 200 filas
+ya existentes: 23,5 KB (recibo ≤ 64 KB). Armar 2000: 90 ms (recibo compacto por posiciones; la respuesta lo expande). Tope = 200:
+dos lotes de la misma base (van de a uno) caben en 8 s con margen frente a la rama micro (~1,5–3× el banco en B7). Un índice por
+teléfono normalizado en `public.perfiles` lo abarataría (toca el portal: decide Miguel).
+**Banco:** suite `b8-cargar.sql` **101/101** (identidad encendida + sección con ella apagada); mutantes **47/47** caen; reversa:
+control OK + **12/12** derivas negadas; concurrencia `b8-concurrencia.sh` todo PASS (dos lotes de la misma base: el segundo espera
+~1,5 s y ve `repetida/en_base`; bases distintas en orden cruzado; lote vs alta manual en los dos órdenes: «enfriamiento» /
+`ya_existia`; dos armados cruzados: `en_otra_base`; 5 rondas simultáneas con DNI: 0 interbloqueos, 0 duplicados); gate
+2553/68 → **2570/68** (mismos 68 rojos, bloque B8 17/17); trinquetes 29/7 y censo 38 (`fe51c7e2…`) iguales antes, tras aplicar,
+tras el gate, tras la reversa y tras reaplicar; B6b 92/92, B6c 76/76, B7 177/177 (E17–E19 ahora condicionales: con B8 la fecha y
+«enfriamiento»), QA final 77/77; post-aplicación B8 OK 10/10 y B7 OK 12/12 (K3 condicional), con la bandera apagada y encendida;
+sin B8: NOT RUN. Candados: aplicar retiene SHARE ROW EXCLUSIVE de `crm.leads` ~101 ms (lecturas sin espera, escrituras ≤ 99 ms);
+la reversa, ACCESS EXCLUSIVE ~73 ms (lecturas ≤ 62 ms, escrituras ≤ 65 ms). Doble aplicación rechazada por el preflight;
+registrador idempotente (md5 = archivo). `check:scripts` PASS; `test:rls:preflight` NOT RUN (pide la contraseña de la siembra; el
+gate completo sí corrió).
+**Reversa:** `supabase/scripts/base-gestion/reversa-b8.sql` (antes que la de B7; se niega si hay bases, filas, recibos o leads con
+origen/motivo `base_cargada`, o si B9+ usa B8; huellas de las 19 funciones y del disparador; candados `crm.leads` ACCESS EXCLUSIVE
+→ tablas de bases SHARE antes de comprobar). **Registrador:** `supabase/scripts/base-gestion/registrar/20261004184501.sql`.
+**Comprobación tras aplicar:** `supabase/scripts/base-gestion/b8-comprobar-tras-aplicar.sql` (ROLLBACK siempre, veredicto en una fila).
+
+## 20261004222602 — Bases cargadas · B9: repartir y recoger (`repartir_base`, `recoger_de_base`, `contactos_de_base`)
+
+**✅ APLICADA EN PRODUCCIÓN 04/10/2026** (Miguel con `!`: `supabase db query --linked --file` + registrador `supabase/scripts/base-gestion/registrar/20261004222602.sql`; versión registrada con md5 de statements `8a169944…` = archivo). Verificado después en solo lectura: `crm.repartir_base(uuid,uuid,jsonb)` `fd7531ba…` y `crm.recoger_de_base(uuid,uuid,uuid)` `4744f70e…` (DEFINER, `search_path=""`, `lock_timeout=5s`), `crm.contactos_de_base(uuid,text)` `d528bab6…` (DEFINER, `search_path=""`); ACL `{postgres=X/postgres,authenticated=X/postgres}` y `COMMENT ON` en las tres; núcleo `private.bases_carga_*` solo `postgres`; ayudante de B6 `private.base_gestion_en_gestion_hasta` con la regla de B9 (`md5(prosrc)` `72621c43…`, ACL solo postgres); 0 bases. Antes: banco (suite 155/155, mutantes 66/66 + 8/8 de concurrencia, gate 0 rojos nuevos con el bloque B9 35/35), auditor-rls PASS (r2, P3 cubiertos con pruebas en `cbfff809`; textos desfasados para la próxima migración que toque esas piezas), Codex r1/r2 BLOCK resueltos (máximo de rondas: decide el PRIMARY), rama con datos (`BASE PARA GESTION/revisiones/2026-10-04-rama-b9.md`: APTA; regla nueva del candado 0 leads cambian hoy; bloque de 500 en 1,82–2,01 s; sin candados al aplicar; reversa idéntica al ANTES; 0 `proxima_llamada_en` inválidas; ningún `pg_db_role_setting` de válvulas). Nota: un script que registre un intento y reparta en el MISMO mensaje recibe 55P03 (la guarda compara con `statement_timestamp()`); la pantalla usa mensajes separados.
+
+**PENDIENTE (04/10/2026), r2 (última ronda: decide el PRIMARY).** Construida y probada SOLO en banco Docker local (stack propio
+`avancecorp-b6b-20261003`, a paridad con producción: B7 y B8 aplicadas; al terminar quedó REVERTIDA —banco = producción: B8 sí, B9
+no, ayudante de B6 la de B6; su fila de registro del banco borrada— y el banco PARADO). r0 `e68361c5` (`3e5ef0f5…`), r1 `f3dd53e1`
+(`2528bba5…`): Codex r2 BLOCK (1 P2 + riesgos) y auditor 2.ª pasada PASS con P3 → r2. Falta: rama con datos
+(`supabase/scripts/base-gestion/b9-consultas-rama.sql`, solo lectura), OK de Miguel y `!` + registrador. md5 del archivo r2
+**`8a169944…`** (registrador `8aa3d5ce…`, reversa `09ea78f3…`, post-aplicación `8c01c849…`, suite `0fc6bbc3…`, mutantes
+`a86bfa6b…`, concurrencia `8e4ed63e…`, consultas para la rama `ffebc52a…`; `qa-final.sql` ajustada `cbb9d778…`).
+**r3 (04/10), SOLO pruebas (auditor-rls PASS con P3); la migración, la reversa y el registrador NO cambian (`8a169944…`).** El corte
+del candado B6 tampoco se FABRICA por la API: una «reasignación» falsa hacia el dueño (fechada en el futuro) → 42501 de la RLS
+(la policy de INSERT excluye el tipo) y un intento falso (nota con `evento = intento_base` y rellamada a 30 días) → 42501 del
+sello; el candado no cambia; control: si entraran, la primera liberaría el lead y la segunda lo alargaría (suite Q10–Q14, gate).
+Q8 fija el SQLSTATE (23505). Al gate por la API: sup2 recoge de la base de sup1 → P0002; sup1 recoge de vend3 → P0002; Gerencia
+reparte fuera del equipo y re-reparte lo que B9 dio fuera (F18); lo que otra vía sacó del equipo → 22023 `fuera_de_ambito` (F19).
+**Banco r3:** suite **155/155** (`5ceeed7f…`); mutantes **66/66** (nuevos: la policy de INSERT sin excluir tipos → cae Q11; el
+sello deshabilitado → cae Q12) + **8/8** de concurrencia, reversa 4 controles y **8/8**, preflight **5/5** (`f13a0667…`); gate
+2570/68 → **2605/68** (mismos 68 rojos; bloque B9 35/35); `check:scripts` PASS. Banco revertido a B8 y PARADO.
+**r2 (04/10), por hallazgo:** (Codex P2) PRESUPUESTO de candados acumulado en repartir (bloque) y recoger: cuenta TODAS las filas
+bloqueadas, aceptadas o rechazadas bajo candado, y como mucho greatest(n + 50, ceil(n × 1,1)) para n contactos necesarios
+(`private.bases_carga_reparto_constantes().holgura_candados` = 50; 500 → 550, 40 → 90); si se agota antes de completar → 55P03
+«Los contactos están cambiando; reintenta», nada se reparte ni se recoge (se descartó revertir cada candado en un savepoint: una
+subtransacción por candidato desborda la caché de subtransacciones con > 64). (Codex riesgo) La rellamada del candado B6 cuenta
+solo si la programó el último intento posterior al corte, leída de su actividad (`metadata.proxima_llamada_en`) y no de la columna
+del lead (que pudo dejar un dueño anterior). (auditor P3) Solo corta una «reasignación» que cambió de verdad el vendedor
+(`vendedor_anterior` distinto de `vendedor_nuevo`). (Codex riesgo) Acreditado que las actividades «reasignación» no se cambian ni
+se borran: `authenticated` y `anon` solo tienen INSERT/SELECT en `crm.actividades` (la policy de INSERT excluye el tipo); las
+ÚNICAS 4 funciones con UPDATE/DELETE en actividades (`base_gestion_intento_core`, `llamada_registrar`, `llamada_registrar_v4`,
+`deshacer_resultado_llamada`) fallan con el id de una reasignación (23505, 22023, PK) y no la tocan; `service_role` (clave del
+servidor, sin usuario) sí podría —como en toda tabla— y el sello de B6c también la exime: no se añade sello. Documentado: sin
+actividad de reasignación (nació suyo o histórico) cuenta desde el descarte — puede bloquear DE MÁS, nunca de menos —; A → B → A
+cuenta desde que volvió a A. **Ajuste de una suite vecina exigido por la regla:** `qa-final.sql`, su reloj simulado
+(`avanzar_reloj`) mueve también la rellamada guardada en el intento (fecha absoluta, como la columna); sin eso su caso 6 («día 8»)
+veía la rellamada aún vigente. Consulta para la rama (`b9-consultas-rama.sql`): en el banco M1 leads con vendedor y bandeja a la
+vez = 0; M2 reasignaciones sin cambio de vendedor = 6 (todas de bandeja a bandeja, sin vendedor: ninguna podría cortar); M3/M4
+impacto (en el banco, 7 en gestión con las dos reglas); M5 las 12 definiciones del preflight 12/12.
+**Banco r2:** suite **150/150** (nuevos: R8 rellamada del dueño anterior, R9 A → B → A paso a paso, R10 reasignación sin cambio;
+Q1–Q9 inmutabilidad de la reasignación; P1–P5 presupuesto: 60 rechazados y bloque de 1 → 55P03, 5 rechazados y bloque de 2 → pasa
+con «ocupado» 5, recoger instrumentado → 55P03, control); mutantes **64/64** + **8/8** de concurrencia; reversa 4 controles y **8/8**
+derivas; preflight control y **5/5**; concurrencia **62/62 PASS** (17 escenarios; nuevos (16) 5 intentos confirmados entre la foto
+y los candados → reparte 2 con «ocupado» 5 y otra sesión cuenta **7 filas retenidas** (5 rechazadas + 2 movidas) con un sondeo
+SKIP LOCKED —`pg_locks` no lista los candados de fila—; (17) 60 → presupuesto (51) agotado → 55P03 y 0 repartidos); gate 2570/68 →
+**2596/68** (mismos 68 rojos; bloque B9 26/26, nuevos: la reasignación no se cambia ni se borra por la API); trinquetes 29/7 y censo
+38 (`fe51c7e2…`) iguales en cada paso; B6b 92/92, B6c 76/76, B7 177/177, B8 124/124 (hora de Lima), QA 77/77 (con el ajuste);
+post-aplicación B9 10/10, B8 12/12, B7 12/12, B6c 10/10; reversa repone la ayudante exacta; doble aplicación rechazada; registrador
+idempotente; `check:scripts` PASS.
+_r1 (lo que la r2 cambia, arriba):_
+**r1 (04/10), por hallazgo:** (Decisión de Miguel, cambia B6) `private.base_gestion_en_gestion_hasta` —fuente única del seguimiento
+activo— cuenta solo los intentos hechos DESDE QUE EL DUEÑO ACTUAL RECIBIÓ EL LEAD: la última actividad «reasignación» hacia él (la
+escribe SOLO `private.trg_leads_reasignacion`, en toda vía; la API no puede: policy `actividades_insert`); sin ella, el lead nació
+suyo y cuenta desde el descarte, como antes. Texto vivo de `20261003162500:46-71` + ese cambio; misma firma, ACL y seguridad;
+comentario actualizado. Consumidores (pg_proc): el candado B6 (`trg_leads_guard_seguimiento_activo`, toda vía), el gris de
+`crm.rescate_descartes_mes`, `private.bases_carga_armar_core` (B8) y B9; ninguno cambia de texto; la reversa de B6
+(`reversa-seguimiento-activo.sql`) fija `af0701a9` y se niega mientras B9 esté aplicada (revertir B9 antes). Por qué la «reasignación»
+y no `asignado_en`: vale para toda vía, no la escribe la API y no reinicia la protección de un analista que ya tenía el lead (armado
+y «repartido» a su mismo analista). Un intento registrado DURANTE la operación de reparto no se hereda: bloque → «ocupado»,
+individual → 55P03. (Codex P2) Gerencia vuelve a repartir lo que B9 dio a un analista fuera del equipo del dueño (la pertenencia dice
+que ese analista lo tiene); lo movido por otra vía fuera del equipo sigue `fuera_de_ambito`. (Codex P2) Candado SOLO de lo
+necesario: bloque por tandas (foto sin candados → `SKIP LOCKED LIMIT` de los que faltan, en orden, y revisión bajo candado con la
+misma definición); recoger solo lo recogible (`private.bases_carga_reparto_recogible`, nueva, una definición) y hasta el tope;
+individual solo lo pedido. (Codex P2) El preflight fija la DEFINICIÓN (`pg_get_triggerdef`) de los 12 disparadores de los que
+depende y su habilitación (un homónimo con `WHEN (false)` no pasa) y la ayudante de B6 exacta. (auditor P3) Recoger de un analista
+de baja no exige «sin intento» (manda B6, que la baja libera); en individual, el ámbito (P0002) se comprueba antes de los candados
+(y otra vez bajo candado). `contactos_de_base` conserva `telefono` (la pantalla marca filas en el reparto individual), documentado.
+**Banco r1:** suite **133/133** (nuevos: R1–R7 regla de B6 —llamada del supervisor en bandeja → reparto → el analista no queda en
+gestión; intento del analista → 7 días; dueño anterior con intento y de baja → el nuevo no hereda; intento de Supervisión sobre un
+lead ya del analista cuenta; el candado del lead y el gris del rescate—, H9x/H9y intento durante la operación, F18/F19, G9/G9b);
+mutantes **57/57** + **7/7** de concurrencia; reversa: 4 controles revierten (también con datos) y **8/8** derivas (nueva: la
+ayudante de B6 cambiada); preflight: control pasa y **5/5** derivas negadas (WHEN (false), otro evento, otro WHEN de B6, guard
+deshabilitado, comentario de la ayudante); concurrencia **57/57 PASS** (15 escenarios; nuevos (13) mientras un bloque de 2 tiene
+sus candados, otro toma NOWAIT un contacto que no necesitaba: 45 ms; (14) recoger no bloquea lo tocado; (15) base armada casi toda
+en descanso: el intento del analista anterior en otro elegible entra en 52 ms); medida: base de 5000 con 4990 en descanso, bloque
+de 5 mientras el supervisor registra un intento en otro elegible → el intento en 65 ms; bloque de 3 en 89–117 ms; lista sin repartir
+0,35 s; recoger 16 ms; gate 2570/68 → **2592/68** (mismos 68 rojos, bloque B9 22/22 con la regla nueva por la API); trinquetes 29/7
+y censo 38 (`fe51c7e2…`) iguales en cada paso; B6b 92/92, B6c 76/76, B7 177/177, B8 124/124 (con la sesión en hora de Lima: pasadas
+las 19:00 de Lima `current_date` en UTC es mañana y E11 —`metricas_sla_fn(current_date)`— da «Periodo invalido»; ajeno a B9), QA
+77/77; post-aplicación B9 10/10, B8 12/12, B7 12/12, B6c 10/10; reversa repone la ayudante exacta (`af0701a9`, comentario
+`6b4c155f`); doble aplicación rechazada; registrador idempotente; `check:scripts` PASS.
+_r0 (lo que la r1 cambia, arriba):_
+**Qué:** tres puertas DEFINER en `crm` (search_path vacío, EXECUTE solo `authenticated`; Supervisión y Gerencia, otros → 42501;
+base visible o P0002) y su núcleo en `private` (9 funciones sin EXECUTE para la API):
+- `crm.repartir_base(op, base, reparto jsonb)` — **bloque** `{"modo":"bloque","asignaciones":[{analista_id, cantidad}]}`: los SIN
+  REPARTIR más antiguos en la base (agregado_en → creado_en → id), saltando retirado, fuera del ámbito del dueño, salido del
+  descarte, No contactar, descanso, seguimiento activo B6 u ocupado; si no alcanzan → 22023 con `detail` = disponibles (el número
+  en texto); omitidos por motivo con `lead_id` null y `cantidad`. **Individual** `{"modo":"individual","asignaciones":[{lead_id,
+  analista_id}]}`: todo o nada — de la base y visible (si no, P0002 sin decir cuál), tomado por otro → 55P03, no elegible → 22023
+  con `detail` `{"rechazados":[{lead_id, motivo}]}`; el que ya es de ese analista → omitido `ya_asignado`; B6 solo cuenta si CAMBIA
+  de analista. Analista: activo, rol vendedor, del subárbol del supervisor DUEÑO (Gerencia: cualquiera; fuera → P0002, inactivo o
+  no analista → 22023). Respuesta `{ok, operacion_id, base_id, modo, repartidos, por_analista, omitidos}`.
+- `crm.recoger_de_base(op, base, analista)` — vuelve a la bandeja del DUEÑO lo de ese analista sin intento desde `asignado_en`,
+  sin seguimiento activo B6, que sigue descartado y en sus manos (lo movido por otra vía no se deshace, E14); los tomados por otro
+  proceso quedan. Supervisión: analistas de su equipo (también dados de baja); Gerencia: cualquiera. Respuesta `{recogidos,
+  omitidos, pendientes}`.
+- `crm.contactos_de_base(base, estado default 'sin_repartir')` — `sin_repartir | repartidos | todos`; solo contactos que el actor
+  ve y siguen activos (`private.bases_carga_lead_ref`); `estado` del contrato con UNA definición (`private.bases_carga_reparto_estado`
+  + `private.bases_carga_reparto_hechos`, reutilizables por B10).
+- Idempotencia con recibo inmutable (tipo `repartir`/`recoger`, `private.bases_carga_operacion_previa` de B8); el replay vuelve a
+  juzgar cada `lead_id` del recibo (P0002 si ya no está a su alcance). Topes medidos (`private.bases_carga_reparto_constantes`):
+  500 contactos por operación y 100 analistas.
+**Ampliaciones del contrato (a confirmar con F5):** tope de 500 por operación (y 100 analistas), `pendientes` en la respuesta de
+recoger, `cantidad` en los omitidos del bloque, `detail` de los rechazados del individual.
+**Qué corre al repartir (medido con `pg_stat_xact_user_functions`):** el UPDATE de la casa (sin válvula nueva) con el actor de la
+sesión: 18 de los 31 disparadores de `crm.leads`, una vez por contacto (B7 solo_puerta, devolución, tenencia, B6, sla_global,
+before_update, bloquear_reasignacion, cambio_etapa, protege_inversionista_id, reasignación → actividad «A → B», sello del descarte,
+tenencia_desde, usuario_retirado; AFTER auditoría, sla_versionado, asignaciones, puente, sync_tareas) + auditoría/sello de las
+tablas de bases + los 4 de `crm.actividades` de la «reasignación». No corren (no están en el SET): disponibilidad, no_contactar,
+enlaza_identidad, reapertura, sello de la base para gestión, conversión. El lead SIGUE descartado: sin ciclo SLA, sin episodio,
+sin tenencia (medido).
+**«Mes» del analista:** `recibido_en` = coalesce(tenencia_desde, creado_en) (B5, 20261003162400:57) y `trg_leads_tenencia_desde`
+pone NULL a todo no operativo (20260725012707:122): B9 no toca `tenencia_desde` ni `creado_en`; el «Mes» del contacto de base es
+su `creado_en` (la carga o la entrada al CRM). Cuándo se le repartió: `base_carga_leads.asignado_en` (B10 y F6).
+**Hallazgo para Miguel (no se cambia B6):** el seguimiento activo B6 cuenta el último intento del ciclo de QUIEN SEA. Si el
+supervisor llama a un contacto de su bandeja y luego lo reparte, ese contacto queda «en gestión» 7 días para el analista nuevo:
+recoger no se lo quita (sale `sin_tocar` en la lista) y no se puede reasignar a otro en esa semana (suite H9–H10).
+**Banco:** suite `b9-repartir.sql` **119/119**; mutantes **52/52** caen + **6/6** de concurrencia; reversa: 4 controles revierten
+(sin deriva, comentarios ajenos cambiados, con un reparto confirmado: avisa y no toca filas) y **7/7** derivas se niegan;
+concurrencia `b9-concurrencia.sh` **48/48 PASS** (12 escenarios; la segunda operación de una base falla en 45–76 ms, los leads
+tomados se saltan o dan 55P03 sin esperar, intento/reactivación del analista anterior esperan ~1,55 s y mueren con P0002, el
+veto con el lead tomado da su 40001 al instante, doble clic = un recibo; 0 interbloqueos, 0 dobles asignaciones); gate
+2570/68 → **2590/68** (mismos 68 rojos, bloque B9 20/20); trinquetes 29/7 y censo 38 (`fe51c7e2…`) iguales antes, tras el gate,
+tras la reversa y tras reaplicar; B6b 92/92, B6c 76/76, B7 177/177, B8 124/124, QA 77/77 con B9; post-aplicación B9
+**10/10** (bandera de identidad apagada y encendida), B8 12/12, B7 12/12, B6c 10/10. Doble aplicación rechazada por el preflight;
+registrador idempotente (md5 = archivo). Medidas (banco, por la puerta): repartir 500 en 0,43 s, 2000 en 1,7 s, 5000 en 4,3 s;
+recoger igual; la lista de 5000 en 0,2 s; «40 · 30» en una base de 5000 sin repartir: 132 ms (bloquea y evalúa los 5000), la lista
+sin repartir 0,33 s, recoger 40 en 45 ms. Candados: solo el de migración (B9 no toca tablas ni disparadores).
+**Reversa:** `supabase/scripts/base-gestion/reversa-b9.sql` (antes que la de B8; solo funciones, NO toca filas; huellas de lo
+propio y foto antes/después de lo ajeno, sin huellas de entorno). **Registrador:** `supabase/scripts/base-gestion/registrar/20261004222602.sql`.
+**Comprobación tras aplicar:** `supabase/scripts/base-gestion/b9-comprobar-tras-aplicar.sql` (ROLLBACK siempre, veredicto en una fila).
+
+## 20261004223253 — Bases cargadas · B10: seguimiento de las bases, la base en la lista del analista y el capital al reactivar
+
+**✅ APLICADA EN PRODUCCIÓN 04/10/2026** (Miguel con `!`: `supabase db query --linked --file` + registrador `supabase/scripts/base-gestion/registrar/20261004223253.sql`; versión registrada con md5 de statements `92c5ee81…` = archivo). Verificado después en solo lectura: puertas nuevas `crm.seguimiento_bases()` `10ef60a1…`, `crm.seguimiento_base(uuid)` `79a76f53…`, `crm.seguimiento_base_detalle(uuid,uuid,text)` `8b1840fe…`, `crm.reactivar_lead_base_v2` `9037872b…`, `crm.registrar_intento_base_v2` `40d26d67…`; `crm.obtener_base_gestion(uuid,boolean)` `26d887dc…`; todas DEFINER, `search_path=""`, ACL `{postgres=X/postgres,authenticated=X/postgres}` y `COMMENT ON`; puertas de B9 intactas (`fd7531ba…`, `4744f70e…`, `d528bab6…`); `private.bases_carga_reparto_estado` borrada y `private.bases_carga_estado_contacto` como única definición; 0 funciones privadas del módulo con ACL distinta de solo `postgres`; 0 candados de aviso retenidos; 0 bases. Antes: banco (suite 200/200, mutantes 76/76, gate 0 rojos nuevos con B10 51/51), auditor-rls PASS (r3, P3 cerrados en r4), Codex r1/r2 BLOCK resueltos (máximo de rondas: decide el PRIMARY), rama con datos (`BASE PARA GESTION/revisiones/2026-10-05-rama-b10.md`: APTA; 168/168 listas idénticas en 32 actores reales; cifras = detalle; capital al reactivar; candado de sesión liberado al cerrar la conexión de la Management API; reversa idéntica al ANTES).
+
+**⏳ PENDIENTE (04/10/2026), r4.** Construida y probada SOLO en banco Docker local (stack propio `avancecorp-b10-20261004`, a
+paridad con producción: B7, B8 y **B9 r2** aplicadas —B9 ya está en producción—; al terminar quedó REVERTIDA a B9 r2 —banco =
+producción— y PARADO). Historia: r0 `9fb2f8ad` (md5 `f20c5c1a…`); r1 `ee4ad894` (`a58bd211…`: Codex r1 BLOCK 2 P2 y auditor-rls
+PASS con 4 P3, atendidos); r2 `da4858b7` (`241d2b9f…`: rebase sobre B9 `cbfff809` + `11d30c18` y la definición única del
+estado); r3 `17c75e8b` (`fd6306e0…`: manda E1, un armado que conserva su analista anterior vuelve a ser «sin repartir»);
+**r4** = Codex r2 (2 P2) y auditor-rls sobre r3 (PASS con 4 P3). md5 del archivo **`92c5ee81…`** (reversa `be9971ca…`,
+registrador `91f5f5e4…`, post-aplicación `e6cf3a11…`, suite `aaf69802…`, mutantes `e0e6f32e…`). Contrato fijo: `BASE PARA GESTION/BASES-CARGADAS-CONTRATO.md` §B10; E6, E8, E14.
+**Qué hace:** (1) `crm.seguimiento_bases()`, `crm.seguimiento_base(p_base_id)` y `crm.seguimiento_base_detalle(p_base_id,
+p_analista_id default null, p_cifra default null)` (DEFINER; Supervisión su subárbol, Gerencia todo, el resto 42501; base ajena,
+retirada o inexistente P0002; cifra inválida —también «avance»— 22023). UNA definición de cada cifra
+(`private.bases_carga_seguimiento_filas`: estado y arreglo `cifras` por contacto; conteo y detalle leen el mismo arreglo).
+(2) **r2: UNA definición del estado del contacto para B9 y B10**, `private.bases_carga_estado_contacto` (fila del lead, pertenencia,
+dueño y su subárbol), en orden: retirado · no_contactar · movido_otra_via (con reparto: ya no es de su analista; sin reparto: fuera
+del ámbito del dueño, u otra vía le cambió el responsable desde que entró —rastro `reasignacion`— salvo bandeja del dueño; y lo que
+salió del descarte sin cita/reactivación de la base) · cita / reactivado (hechos de `private.bases_carga_reparto_hechos` de B9
+desde asignado_en o, sin reparto, desde que entró) · en_descanso · trabajado / sin_tocar (con reparto; sin reparto, trabajado =
+su analista anterior lo trabaja: seguimiento activo B6, como en B9) · sin_repartir (DISPONIBLE; r3, E1: también el armado que
+conserva su analista anterior). La usan el seguimiento, `crm.obtener_base_gestion` (fuera SOLO los `sin_repartir` del archivo), y —B10 reemplaza con CREATE OR REPLACE, misma firma/dueño/ACL— tres piezas de B9: `private.bases_carga_contactos_core`
+(estado de `crm.contactos_de_base`; el filtro, el de B9), `private.bases_carga_repartir_core` (el bloque elige SOLO `sin_repartir` vía
+`private.bases_carga_reparto_motivo_bloque`, plpgsql; omitidos con el motivo de B9 o el estado; el individual rechaza además
+`movido_otra_via`) y `private.bases_carga_reparto_recogible` (recoger = `sin_tocar`; de un
+analista de baja, todo lo suyo descartado). Borra el clasificador de B9 (`private.bases_carga_reparto_estado`): no queda una
+segunda definición. Las tres puertas de B9 no cambian de cuerpo (sí su comentario). El preflight exige las huellas EXACTAS de B9 r2
+(cuerpo, identidad, ACL y comentario). (3) La lista: misma firma, drop + create sobre B6b con `base_id`/`base_nombre` (base viva;
+solo si se ve la base o se es el analista del lead) y sin los dormidos del ARCHIVO `sin_repartir` (r3: un armado nunca se oculta). (4) Capital al reactivar (E8): `crm.reactivar_lead_base_v2`
+y `crm.registrar_intento_base_v2` (capital en la identidad de la operación, respuesta con el capital efectivo); los núcleos de
+siempre conservan su firma como envoltorios. La metadata del intento por la `_v2` es la del núcleo de B3c (probado: su rellamada
+activa el candado de B9). (5) Candado de migraciones de SESIÓN antes de la instantánea REPEATABLE READ (Codex r1).
+**r4 (Codex r2 y auditor-rls):** (a) `crm.seguimiento_base` agrega a TODOS los analistas fuera del ámbito del actor en UNA sola
+fila anónima (analista_id y analista_nombre NULL, cifras sumadas, ultimo_intento_en el máximo; la última; Gerencia nunca la tiene):
+dos externos ya no salen como dos filas indistinguibles. (b) `crm.seguimiento_base_detalle` con un `p_analista_id` explícito mira
+PRIMERO que esté en el ámbito del actor (`private.vendedor_ids_visibles`; Gerencia: cualquiera) y después la pertenencia: los dos
+casos dan P0002 «Analista no encontrado en esta base» (un UUID externo no se atribuye ni se sondea). (c) Un estado NULL nunca se
+reparte: el bloque lo omite y el individual lo rechaza con el motivo `sin_estado` (hoy la definición no da NULL). (d) El postflight
+comprueba, además, la base más reciente como su supervisor DUEÑO (a lo sumo una fila anónima, suma = base, cada analista = su
+detalle, un externo explícito → P0002) y que TODO contacto que la lista oculta (foto de B6b menos la lista nueva) es un dormido
+del archivo sin analista ni vendedor en la bandeja del dueño; la comprobación tras aplicar lo repite con datos (C3, P19, P20).
+**RECOGER, CAMBIO INTENCIONAL (Codex r2, riesgo):** con B10, `crm.recoger_de_base` se lleva solo lo «sin tocar» de la definición
+única (sin intento desde el reparto, sin veto y sin descanso) de un analista ACTIVO; B9 r2 se llevaba también sus vetados y sus
+contactos en descanso sin intento. «Recoger» toma exactamente lo que el seguimiento muestra «sin tocar» (rojo a los 3 días, E6);
+un vetado o uno en descanso se queda con su analista y cuenta en no_contactar / en_descanso; de un analista DE BAJA se recoge todo
+lo suyo que siga descartado, como en B9. La reversa vuelve a la regla de B9.
+**r3 (E1 de Miguel):** sin el estado `con_analista_previo`, su columna de `seguimiento_bases` ni su cifra; en la suite de B9 quedan
+condicionales a B10 solo D10 (la lista ya no trae los dormidos del archivo sin repartir: contrato §B10) y Q2 (el núcleo de
+intentos es el de capital); la concurrencia de B9 vuelve a ser la suya.
+**Banco (r4):** suite `b10-seguimiento.sql` **200/200** (reparto y recogida REALES por `crm.repartir_base`/`crm.recoger_de_base`;
+estados contados a mano; el bloque elige el armado con su analista anterior; la fila anónima con dos externos; el UUID externo
+explícito → P0002 con el mismo mensaje; un estado NULL —doble en una subtransacción deshecha— no se reparte; coherencia B9 = B10);
+mutantes **76/76** caen (uno por arreglo de r4); reversa **16/16** derivas negadas y 2 controles; post-aplicación **23/23**;
+registrador OK (ROLLBACK); suite de B9 **155/155** con y sin B10 (solo D10 y Q2 condicionales); concurrencia de B9 **62/62** con y
+sin B10, sin cambios; gate **2605/68 → 2656/68** (los mismos 68 rojos de fondo; B9 35/35, B10 51/51: las _v2 fuera del ámbito →
+P0002 con el capital intacto, la fila anónima, el UUID externo → P0002, Gerencia con las tres filas, base retirada → P0002, mismo
+id con otro capital → 23505, sup2 sin el nombre de la base de sup1); B6b 92/92, B6c 76/76, B7 177/177, B8 124/124 y QA 77/77 con y
+sin B10; trinquetes 29/7 y censo 38 (`fe51c7e2…`) iguales en todo el ciclo; dos sesiones: la migración se niega si otra cambia un
+ayudante fijado mientras espera el candado; `reversa-b9.sql` se niega con B10 aplicada. Aplicar 0,51 s (con 3 dormidos vivos);
+reversa 0,41 s. Medida (5000 contactos repartidos por la puerta REAL de B9 en 10 bloques de 500 + 45 500 actividades + 5000 sin
+repartir + 1100 descartados): reparto 5,4 s (B9 sola 5,8–8,5 s); Gerencia `obtener_base_gestion` 98 ms (B6b 79),
+`seguimiento_bases` 134 ms, `seguimiento_base` 79 ms, detalle de 5000 filas 210–213 ms; sup1 lista 368 ms (B6b 347), detalle
+394–397 ms.
+**Reversa:** `supabase/scripts/base-gestion/reversa-b10.sql` (antes que la de B9). Repone B9 r2 byte a byte (su clasificador
+recreado, las tres piezas del núcleo y los comentarios de sus tres puertas), la lista de B6b (comentario de B6c) y los núcleos de B3c;
+borra las puertas y ayudantes de B10, los núcleos con capital, la definición única y el motivo del bloque. Se niega si hay
+consumidores de B10, si derivó alguna de sus 22 huellas, si cambiaron las puertas publicadas o si el clasificador de B9 ya existe.
+**Registrador:** `supabase/scripts/base-gestion/registrar/20261004223253.sql`. **Comprobación tras aplicar:**
+`supabase/scripts/base-gestion/b10-comprobar-tras-aplicar.sql` (ROLLBACK siempre, veredicto en una fila).
