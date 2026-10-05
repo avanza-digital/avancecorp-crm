@@ -18,6 +18,11 @@ export function MesDelLead({ fila }: { fila: FilaBaseGestion }) {
   return mes ? <span>{etiquetaMesLead(mes)}</span> : <span className="text-[var(--muted-foreground-strong)]">Sin fecha</span>
 }
 
+/** F6: la base cargada de la que viene el lead («Feria 2025»); sin base, una raya tenue. */
+export function BaseDelLead({ fila }: { fila: FilaBaseGestion }) {
+  return fila.base_nombre ? <span>{fila.base_nombre}</span> : <span className="text-[var(--muted-foreground-strong)]">—</span>
+}
+
 export function EtapaMaximaChip({ etapa }: { etapa: EtapaMaxima }) {
   return (
     <span className="inline-flex items-center gap-2">

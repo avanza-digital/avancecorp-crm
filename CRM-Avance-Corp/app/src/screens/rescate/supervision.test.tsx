@@ -28,13 +28,23 @@ vi.mock('@/screens/rescate/gestion-supervisor', () => ({
   },
 }))
 
+let avisarBase: ((b: string | null) => void) | null = null
+const montajesBases = vi.fn()
+vi.mock('@/screens/rescate/bases', () => ({
+  BasesSupervision: ({ base, onBase }: { base: string | null; onBase: (b: string | null) => void }) => {
+    montajesBases(base)
+    avisarBase = onBase
+    return <p>Bases cargadas · {base ?? 'hoja'}</p>
+  },
+}))
+
 const { BaseGestionSupervision } = await import('./supervision')
 
 const ANA = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const irA = (ruta: string) => window.history.replaceState(null, '', ruta)
 const parametros = () => new URLSearchParams(window.location.search)
 
-beforeEach(() => { irA('/#/rescate'); avisarAnalista = null })
+beforeEach(() => { irA('/#/rescate'); avisarAnalista = null; avisarBase = null })
 afterEach(() => { vi.clearAllMocks(); irA('/') })
 
 describe('pestañas de la base para gestión', () => {
@@ -112,5 +122,37 @@ describe('pestañas de la base para gestión', () => {
     unmount()
     expect(window.location.search).toBe('')
     expect(window.location.hash).toBe('#/hoy')
+  })
+
+  it('F5: la tercera pestaña «Bases» no toca las otras dos; la URL lleva la pestaña y la base abierta', async () => {
+    const BASE = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
+    render(<BaseGestionSupervision />)
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Descartes del mes', 'Gestión de la base', 'Bases'])
+    expect(montajesBases).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('tab', { name: 'Bases' }))
+    // Se descarga al visitarla (lazy): llega en el siguiente tick.
+    expect(await screen.findByText('Bases cargadas · hoja')).toBeVisible()
+    expect(parametros().get('rescate_vista')).toBe('bases')
+    const { act } = await import('@testing-library/react')
+    act(() => avisarBase?.(BASE))
+    expect(parametros().get('rescate_base')).toBe(BASE)
+    expect(screen.getByText(`Bases cargadas · ${BASE}`)).toBeVisible()
+    // «Gestión» no lleva la base en la URL (la pestaña oculta la conserva).
+    await userEvent.click(screen.getByRole('tab', { name: 'Gestión de la base' }))
+    expect(parametros().has('rescate_base')).toBe(false)
+    await userEvent.click(screen.getByRole('tab', { name: 'Bases' }))
+    expect(parametros().get('rescate_base')).toBe(BASE)
+    act(() => avisarBase?.(null))
+    expect(parametros().has('rescate_base')).toBe(false)
+  })
+
+  it('F5: una URL con ?rescate_vista=bases&rescate_base=… abre «Bases» con esa base (recargar no la pierde)', async () => {
+    const BASE = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
+    irA(`/?rescate_vista=bases&rescate_base=${BASE}#/rescate`)
+    render(<BaseGestionSupervision />)
+    expect(screen.getByRole('tab', { name: 'Bases' })).toHaveAttribute('aria-selected', 'true')
+    expect(await screen.findByText(`Bases cargadas · ${BASE}`)).toBeVisible()
+    expect(montajesBases).toHaveBeenCalledWith(BASE)
+    expect(montajesDescartes).not.toHaveBeenCalled()
   })
 })

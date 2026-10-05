@@ -8,6 +8,7 @@ import {
   FILTRO_TODOS,
   SIN_DATO,
   SIN_FILTROS,
+  conBaseCargada,
   depurarFiltros,
   filtrarBase,
   hayFiltros,
@@ -158,5 +159,29 @@ describe('F5a · contacto de base cargada en la hoja de la base', () => {
 
   it('ESTADO DE PRODUCCIÓN: sin contactos de base, las opciones del motivo son las de siempre', () => {
     expect(textos(opcionesFiltro(BASE).motivo)).toEqual(['Sin fondos (3)', 'No responde (1)', 'Sin motivo (1)'])
+  })
+})
+
+// F6 «Bases cargadas»: tras la B10, `obtener_base_gestion` añade `base_id` y `base_nombre`; el analista filtra por base.
+describe('F6 · el selector «Base» junto al del Mes', () => {
+  const FERIA = { base_id: 'b-feria', base_nombre: 'Feria 2025' }
+  const CON_BASE = [...BASE.slice(0, 3), fila(6, FERIA), fila(7, FERIA), fila(8, { base_id: 'b-julio', base_nombre: 'Julio' })]
+
+  it('ESTADO DE PRODUCCIÓN (antes de la B10): sin los campos la fila parsea y no hay selector', () => {
+    expect(v.safeParse(FilaBaseGestionSchema, fila(1)).success).toBe(true)
+    expect(conBaseCargada(BASE)).toBe(false)
+    expect(textos(opcionesFiltro(BASE).base)).toEqual(['Sin base (5)'])
+  })
+
+  it('con contactos de base: «Feria 2025 (2)», «Julio (1)» y «Sin base»; filtra sin reordenar y se depura', () => {
+    expect(v.safeParse(FilaBaseGestionSchema, fila(6, FERIA)).success).toBe(true)
+    expect(conBaseCargada(CON_BASE)).toBe(true)
+    expect(textos(opcionesFiltro(CON_BASE).base)).toEqual(['Feria 2025 (2)', 'Julio (1)', 'Sin base (3)'])
+    expect(ids(filtrarBase(CON_BASE, con({ base: 'b-feria' })))).toEqual(['lead-6', 'lead-7'])
+    expect(ids(filtrarBase(CON_BASE, con({ base: SIN_DATO })))).toEqual(['lead-1', 'lead-2', 'lead-3'])
+    // Cada filtro cuenta sobre lo que dejan pasar los demás.
+    expect(opcionesFiltro(CON_BASE, con({ base: 'b-feria' })).mes.total).toBe(2)
+    expect(depurarFiltros(BASE, con({ base: 'b-feria' }))).toEqual(SIN_FILTROS)
+    expect(hayFiltros(con({ base: 'b-julio' }))).toBe(true)
   })
 })

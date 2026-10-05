@@ -163,7 +163,7 @@ import {
   type ResultadoConsultaAyudaVendedor,
 } from '@/lib/ayuda-vendedor'
 import type { Vista } from '@/lib/router'
-import { EnteroNoNegativoRpcSchema, FechaSchema } from '@/lib/esquemas-rpc'
+import { EnteroNoNegativoRpcSchema, FechaSchema, NumeroRpcSchema } from '@/lib/esquemas-rpc'
 import { presentarCitas } from '@/lib/terminologia'
 import { conGestionVigente } from './gestion-vigente'
 
@@ -1800,6 +1800,16 @@ export async function baseGestionResumenDetalle(vendedorId: string, cifra: Cifra
 // ── Base para gestión · escrituras de la ficha (F2). Las puertas son idempotentes por `p_operacion_id` (B3/B3b):
 //    el MISMO id con el mismo contenido devuelve la respuesta original (`replay`); con otro contenido, 23505. La
 //    pantalla fija un id por envío y solo lo renueva cuando cambia lo que se manda.
+/** Las puertas `_v2` (B10) devuelven además el capital EFECTIVO del lead tras la operación (`monto_estimado`, `moneda`) y lo
+ *  pedido (`solicitud_monto`, `solicitud_moneda`). Opcionales: las puertas de siempre no los traen. La pantalla muestra el
+ *  efectivo (con capital ya puesto, lo pedido se ignora). */
+const CapitalEfectivoSchema = {
+  monto_estimado: v.optional(v.nullable(NumeroRpcSchema), null),
+  moneda: v.optional(v.nullable(v.string()), null),
+  solicitud_monto: v.optional(v.nullable(NumeroRpcSchema), null),
+  solicitud_moneda: v.optional(v.nullable(v.string()), null),
+}
+
 const RespuestaIntentoBaseSchema = v.looseObject({
   ok: v.literal(true),
   replay: v.boolean(),
@@ -1808,6 +1818,7 @@ const RespuestaIntentoBaseSchema = v.looseObject({
   reactivado: v.boolean(),
   enfriado_hasta: v.nullable(v.string()),
   proxima_llamada_en: v.nullable(v.string()),
+  ...CapitalEfectivoSchema,
 })
 export type RespuestaIntentoBase = v.InferOutput<typeof RespuestaIntentoBaseSchema>
 
@@ -1815,6 +1826,7 @@ const RespuestaReactivarBaseSchema = v.looseObject({
   replay: v.boolean(),
   etapa: v.string(),
   ciclo_n: v.nullable(EnteroNoNegativoRpcSchema),
+  ...CapitalEfectivoSchema,
 })
 export type RespuestaReactivarBase = v.InferOutput<typeof RespuestaReactivarBaseSchema>
 
@@ -1825,18 +1837,51 @@ export interface IntentoBaseEntrada {
   nota?: string | null
   /** ISO con zona; solo con «volver a llamar» (máximo 10 días: lo decide la puerta). */
   proximaLlamada?: string | null
+  /** Bases cargadas (E8, B10): el capital que pide el formulario cuando «agendó cita» reactiva un lead SIN capital. Solo
+   *  entonces viaja, por la puerta nueva `registrar_intento_base_v2`; el resto de intentos usa la de siempre. */
+  montoEstimado?: number | null
+  moneda?: Moneda | null
+}
+
+type RespuestaSinTipos = { data: unknown; error: { code?: string | null; message?: string | null; details?: string | null } | null }
+
+/**
+ * Una puerta de la B10 que aún no sale de `gen:types` (las `_v2` con capital): misma llamada, respuesta validada con su
+ * esquema. Se retira cuando los tipos generados la conozcan.
+ */
+function rpcFueraDeTipos(nombre: string, args: Record<string, unknown>): PromiseLike<RespuestaSinTipos> {
+  const crm = cliente().schema('crm') as unknown as { rpc: (fn: string, a: Record<string, unknown>) => PromiseLike<RespuestaSinTipos> }
+  return crm.rpc(nombre, args)
+}
+
+/** Mensaje cuando el servidor todavía no tiene las puertas con capital (antes de la B10: PGRST202). */
+export const MENSAJE_REACTIVAR_CAPITAL_PRONTO =
+  'Reactivar un contacto sin capital llega con la próxima actualización del servidor: disponible pronto.'
+export const MENSAJE_CITA_CAPITAL_PRONTO =
+  'Agendar la cita de un contacto sin capital llega con la próxima actualización del servidor: disponible pronto.'
+
+/** PGRST202 de una puerta `_v2` con capital: «disponible pronto» (no se reactivó ni se registró nada). */
+function capitalNoDisponible(mensaje: string, evento: string): CrmApiError {
+  const fallo = new CrmApiError(mensaje, 'NO_DISPONIBLE')
+  registrarError(evento, fallo)
+  return fallo
 }
 
 /** Registra un intento sobre un lead de la base. «Agendó cita» reactiva en la misma operación (D3). */
 export async function registrarIntentoBase(entrada: IntentoBaseEntrada): Promise<RespuestaIntentoBase> {
   const nota = entrada.nota?.trim()
-  const { data, error } = await cliente().schema('crm').rpc('registrar_intento_base', sinIndefinidos({
+  const args = sinIndefinidos({
     p_operacion_id: entrada.operacionId,
     p_lead_id: entrada.leadId,
     p_resultado: entrada.resultado,
     p_nota: nota ? nota : undefined,
     p_proxima_llamada: entrada.proximaLlamada ?? undefined,
-  }))
+  })
+  const conCapital = entrada.montoEstimado != null
+  const { data, error } = conCapital
+    ? await rpcFueraDeTipos('registrar_intento_base_v2', { ...args, p_monto_estimado: entrada.montoEstimado, p_moneda: entrada.moneda ?? undefined })
+    : await cliente().schema('crm').rpc('registrar_intento_base', args)
+  if (conCapital && error?.code === 'PGRST202') throw capitalNoDisponible(MENSAJE_CITA_CAPITAL_PRONTO, 'crm.base_gestion.intento_capital_no_disponible')
   if (error) throw aErrorApi(error, 'crm.base_gestion.intento_fallido')
   const r = v.safeParse(RespuestaIntentoBaseSchema, data)
   if (!r.success) {
@@ -1847,14 +1892,33 @@ export async function registrarIntentoBase(entrada: IntentoBaseEntrada): Promise
   return r.output
 }
 
-/** Reactiva un lead de la base: vuelve a la cartera del MISMO analista en «Contactado» (D1, D2), con ciclo nuevo. */
-export async function reactivarLeadBase(entrada: { operacionId: string; leadId: string; nota?: string | null }): Promise<RespuestaReactivarBase> {
+export interface ReactivarBaseEntrada {
+  operacionId: string
+  leadId: string
+  nota?: string | null
+  /** Bases cargadas (E8, B10): el capital que pide el diálogo cuando el lead NO lo tiene (contacto de un archivo sin
+   *  capital). Solo entonces viaja (con su moneda), por la puerta nueva `reactivar_lead_base_v2`. */
+  montoEstimado?: number | null
+  moneda?: Moneda | null
+}
+
+/**
+ * Reactiva un lead de la base: vuelve a la cartera del MISMO analista en «Contactado» (D1, D2), con ciclo nuevo. Con
+ * `montoEstimado` usa la puerta versionada de la B10 `crm.reactivar_lead_base_v2` (la publicada no cambia); si el
+ * servidor aún no la tiene (PGRST202) se dice «disponible pronto» y no se reactiva nada.
+ */
+export async function reactivarLeadBase(entrada: ReactivarBaseEntrada): Promise<RespuestaReactivarBase> {
   const nota = entrada.nota?.trim()
-  const { data, error } = await cliente().schema('crm').rpc('reactivar_lead_base', sinIndefinidos({
+  const args = sinIndefinidos({
     p_operacion_id: entrada.operacionId,
     p_lead_id: entrada.leadId,
     p_nota: nota ? nota : undefined,
-  }))
+  })
+  const conCapital = entrada.montoEstimado != null
+  const { data, error } = conCapital
+    ? await rpcFueraDeTipos('reactivar_lead_base_v2', { ...args, p_monto_estimado: entrada.montoEstimado, p_moneda: entrada.moneda ?? undefined })
+    : await cliente().schema('crm').rpc('reactivar_lead_base', args)
+  if (conCapital && error?.code === 'PGRST202') throw capitalNoDisponible(MENSAJE_REACTIVAR_CAPITAL_PRONTO, 'crm.base_gestion.reactivar_capital_no_disponible')
   if (error) throw aErrorApi(error, 'crm.base_gestion.reactivar_fallido')
   const r = v.safeParse(RespuestaReactivarBaseSchema, data)
   if (!r.success) {
@@ -2384,6 +2448,11 @@ function aErrorApi(
     // La marca se levanta para todos los leads de la persona: si otra sesión tiene uno, el servidor no espera.
     code = 'REINTENTAR'
     mensaje = 'Otra sesión está trabajando uno de los leads de la persona. Vuelve a intentarlo en unos segundos.'
+  } else if (codigoPg === '23505' && texto.includes('otro contenido')) {
+    // Idempotencia de las puertas de la base (B3/B10): el MISMO p_operacion_id con OTRO contenido (otra nota, otro capital
+    // u otra moneda). Rechazo DEFINITIVO: nada se hizo con este envío; la pantalla lo vuelve a mandar como uno nuevo.
+    code = 'OTRO_CONTENIDO'
+    mensaje = 'Este envío ya se había hecho con otros datos (nota, capital o moneda) y no se repitió. Revisa lo que escribiste y vuelve a pulsar: irá como un envío nuevo.'
   } else if (codigoPg === '23505') {
     // Índices únicos parciales del dedup GLOBAL (uq_leads_*_vivo): el espejo
     // local solo ve el ámbito; el servidor cubre choques con leads ajenos.

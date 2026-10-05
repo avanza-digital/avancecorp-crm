@@ -357,6 +357,130 @@ describe('pie: No contactar · Reactivar', () => {
   })
 })
 
+describe('F6 · Reactivar un contacto de base SIN capital (E8)', () => {
+  it('pide el capital (obligatorio) y la moneda; sin él no envía; con él viaja con la reactivación', async () => {
+    const usuario = userEvent.setup()
+    abrir({ monto_estimado: null, moneda: 'PEN', origen: 'base_cargada', motivo_descarte: 'base_cargada' })
+    await usuario.click(screen.getByRole('button', { name: 'Reactivar' }))
+    const dialogo = screen.getByRole('dialog', { name: '¿Reactivar a ROSA QUISPE?' })
+    const capital = within(dialogo).getByLabelText('Capital estimado')
+    expect(capital).toHaveAccessibleDescription(/llegó sin capital/)
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Reactivar' }))
+    expect(within(dialogo).getByRole('alert')).toHaveTextContent('Indica el capital estimado')
+    expect(capital).toHaveAttribute('aria-invalid', 'true')
+    expect(capital).toHaveFocus()
+    expect(reactivar.mutateAsync).not.toHaveBeenCalled()
+    await usuario.type(capital, '25000')
+    await usuario.selectOptions(within(dialogo).getByLabelText('Moneda'), 'USD')
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Reactivar' }))
+    expect(reactivar.mutateAsync).toHaveBeenCalledWith({ operacionId: expect.any(String), leadId: 'lead-1', nota: '', montoEstimado: 25000, moneda: 'USD' })
+  })
+
+  it('dice el capital EFECTIVO que devolvió el servidor (no lo tecleado); «otro contenido» (23505) hace que el próximo envío sea nuevo', async () => {
+    const usuario = userEvent.setup()
+    reactivar.mutateAsync
+      .mockRejectedValueOnce(new CrmApiError('Este envío ya se había hecho con otros datos (nota, capital o moneda) y no se repitió.', 'OTRO_CONTENIDO'))
+      .mockResolvedValueOnce({ replay: false, etapa: 'contactado', ciclo_n: 2, monto_estimado: 30000, moneda: 'USD' })
+    abrir({ monto_estimado: null })
+    await usuario.click(screen.getByRole('button', { name: 'Reactivar' }))
+    const dialogo = screen.getByRole('dialog', { name: '¿Reactivar a ROSA QUISPE?' })
+    await usuario.type(within(dialogo).getByLabelText('Capital estimado'), '25000')
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Reactivar' }))
+    expect(await within(dialogo).findByRole('alert')).toHaveTextContent('ya se había hecho con otros datos')
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Reactivar' }))
+    const [a, b] = reactivar.mutateAsync.mock.calls.map(([e]) => (e as { operacionId: string }).operacionId)
+    expect(b).not.toBe(a)
+    await vi.waitFor(() => expect(toastSuccess).toHaveBeenCalledWith(expect.stringContaining('con US$ 30,000 de capital'), expect.anything()))
+  })
+
+  it('con capital ya puesto no lo pide (la llamada de siempre)', async () => {
+    const usuario = userEvent.setup()
+    abrir()
+    await usuario.click(screen.getByRole('button', { name: 'Reactivar' }))
+    expect(within(screen.getByRole('dialog', { name: '¿Reactivar a ROSA QUISPE?' })).queryByLabelText('Capital estimado')).toBeNull()
+  })
+
+  it('el servidor aún sin la firma nueva: dice «disponible pronto» y el MISMO pedido reusa su id al reintentar', async () => {
+    const usuario = userEvent.setup()
+    reactivar.mutateAsync.mockRejectedValue(new CrmApiError('Reactivar un contacto sin capital llega con la próxima actualización del servidor: disponible pronto.', 'NO_DISPONIBLE'))
+    abrir({ monto_estimado: null })
+    await usuario.click(screen.getByRole('button', { name: 'Reactivar' }))
+    const dialogo = screen.getByRole('dialog', { name: '¿Reactivar a ROSA QUISPE?' })
+    await usuario.type(within(dialogo).getByLabelText('Capital estimado'), '5000')
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Reactivar' }))
+    expect(await within(dialogo).findByRole('alert')).toHaveTextContent('disponible pronto')
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Reactivar' }))
+    const [a, b] = reactivar.mutateAsync.mock.calls.map(([e]) => (e as { operacionId: string }).operacionId)
+    expect(a).toBe(b)
+    expect(onCerrar).not.toHaveBeenCalled()
+  })
+})
+
+describe('F6 · «Contestó · agendó cita» de un contacto SIN capital (B10: registrar_intento_base_v2)', () => {
+  const guardar = () => within(formulario()).getByRole('button', { name: 'Guardar intento' })
+
+  it('pide capital y moneda antes de guardar; sin capital no envía y el foco va al campo; con él viaja con el intento', async () => {
+    const usuario = userEvent.setup()
+    intento.mutateAsync.mockResolvedValue({ ...RESPUESTA, reactivado: true, etapa: 'contactado' })
+    abrir({ monto_estimado: null, origen: 'base_cargada', motivo_descarte: 'base_cargada' })
+    expect(within(formulario()).queryByLabelText('Capital estimado')).toBeNull()
+    await usuario.click(radio(/agendó cita/))
+    const capital = within(formulario()).getByLabelText('Capital estimado')
+    expect(capital).toHaveAccessibleDescription(/llegó sin capital/)
+    await usuario.click(guardar())
+    expect(within(formulario()).getByRole('alert')).toHaveTextContent('Indica el capital estimado')
+    expect(capital).toHaveAttribute('aria-invalid', 'true')
+    expect(capital).toHaveFocus()
+    expect(intento.mutateAsync).not.toHaveBeenCalled()
+    await usuario.type(capital, '15000')
+    await usuario.selectOptions(within(formulario()).getByLabelText('Moneda'), 'USD')
+    await usuario.click(guardar())
+    expect(intento.mutateAsync).toHaveBeenCalledWith({
+      operacionId: expect.any(String), leadId: 'lead-1', resultado: 'agendo_reunion', nota: '', proximaLlamada: null, montoEstimado: 15000, moneda: 'USD',
+    })
+  })
+
+  it('con capital ya puesto, o con otro resultado, no lo pide (la puerta de siempre)', async () => {
+    const usuario = userEvent.setup()
+    abrir()
+    await usuario.click(radio(/agendó cita/))
+    expect(within(formulario()).queryByLabelText('Capital estimado')).toBeNull()
+    await usuario.click(guardar())
+    expect(intento.mutateAsync).toHaveBeenCalledWith(expect.not.objectContaining({ montoEstimado: expect.anything() }))
+  })
+
+  it('agendó cita con capital: el aviso dice el capital EFECTIVO de la respuesta', async () => {
+    const usuario = userEvent.setup()
+    intento.mutateAsync.mockResolvedValue({ ...RESPUESTA, reactivado: true, etapa: 'contactado', monto_estimado: 15000, moneda: 'PEN' })
+    abrir({ monto_estimado: null })
+    await usuario.click(radio(/agendó cita/))
+    await usuario.type(within(formulario()).getByLabelText('Capital estimado'), '15000')
+    await usuario.click(within(formulario()).getByRole('button', { name: 'Guardar intento' }))
+    await vi.waitFor(() => expect(toastSuccess).toHaveBeenCalledWith(expect.stringContaining('con S/ 15,000 de capital'), expect.anything()))
+  })
+
+  it('sin capital pero «No contestó»: no lo pide (no reactiva)', async () => {
+    const usuario = userEvent.setup()
+    abrir({ monto_estimado: null })
+    await usuario.click(radio(/No contestó/))
+    expect(within(formulario()).queryByLabelText('Capital estimado')).toBeNull()
+  })
+
+  it('el servidor aún sin la _v2 (PGRST202): «disponible pronto», nada se cierra y el MISMO pedido reusa su id', async () => {
+    const usuario = userEvent.setup()
+    intento.mutateAsync.mockRejectedValue(new CrmApiError('Agendar la cita de un contacto sin capital llega con la próxima actualización del servidor: disponible pronto.', 'NO_DISPONIBLE'))
+    abrir({ monto_estimado: null })
+    await usuario.click(radio(/agendó cita/))
+    await usuario.type(within(formulario()).getByLabelText('Capital estimado'), '5000')
+    await usuario.click(guardar())
+    expect(await within(formulario()).findByRole('alert')).toHaveTextContent('disponible pronto')
+    await usuario.click(guardar())
+    const [a, b] = intento.mutateAsync.mock.calls.map(([e]) => (e as { operacionId: string }).operacionId)
+    expect(a).toBe(b)
+    expect(onCerrar).not.toHaveBeenCalled()
+  })
+})
+
 describe('actividad', () => {
   it('se recorre hasta el final sin que nadie pulse «cargar más»', () => {
     HIST = { ...HIST, items: [act('a1')], hayMas: true }

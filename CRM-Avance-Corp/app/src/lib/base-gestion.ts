@@ -58,6 +58,10 @@ export const FilaBaseGestionSchema = v.object({
   no_contactar_en: v.optional(TextoONulo),
   no_contactar_motivo: v.optional(TextoONulo),
   no_contactar_por: v.optional(TextoONulo),
+  /** Bases cargadas (B10, F6): la base VIVA de la que viene el lead («Feria 2025») o NULL. Opcionales sin valor por
+   *  defecto: antes de la B10 el servidor no los manda y la hoja no pinta ni la columna ni el selector «Base». */
+  base_id: v.optional(TextoONulo),
+  base_nombre: v.optional(TextoONulo),
 })
 export type FilaBaseGestion = v.InferOutput<typeof FilaBaseGestionSchema>
 
@@ -222,14 +226,19 @@ function ordenDelServidor(a: FilaBaseGestion, b: FilaBaseGestion): number {
 const MUESTRA_DEMO_BASE: ReadonlyArray<{
   id: string; nombre: string; telefono: string; distrito: string; origen: string; motivo: string; dias: number
   etapa: EtapaMaxima; intentos: number; resultado: string | null; haceIntento: number
-  rellamada: { dia: number; hora: string } | null; recibidoHace: number; monto: number
+  rellamada: { dia: number; hora: string } | null; recibidoHace: number; monto: number | null
+  /** F6: viene de una base cargada (la de la demo de «Bases»). */
+  base?: { id: string; nombre: string }
 }> = [
   { id: 'demo-base-1', nombre: 'ROBERTO MEZA LIZARRAGA', telefono: '+51981112233', distrito: 'Santiago de Surco', origen: 'landing', motivo: 'sin_fondos', dias: 20, etapa: 'reunion_agendada', intentos: 2, resultado: 'volver_a_llamar', haceIntento: 2, rellamada: { dia: 0, hora: '10:00' }, recibidoHace: 62, monto: 30000 },
   { id: 'demo-base-2', nombre: 'LUCÍA PAREDES OCHOA', telefono: '+51982223344', distrito: 'Lince', origen: 'whatsapp', motivo: 'no_responde', dias: 12, etapa: 'contactado', intentos: 1, resultado: 'volver_a_llamar', haceIntento: 4, rellamada: { dia: -1, hora: '16:30' }, recibidoHace: 35, monto: 15000 },
   { id: 'demo-base-3', nombre: 'VÍCTOR HUAMÁN SALAS', telefono: '+51983334455', distrito: 'Los Olivos', origen: 'formulario', motivo: 'competencia', dias: 30, etapa: 'propuesta_enviada', intentos: 1, resultado: 'no_contesto', haceIntento: 6, rellamada: null, recibidoHace: 64, monto: 50000 },
   { id: 'demo-base-4', nombre: 'SOFÍA RAMÍREZ CÓRDOVA', telefono: '+51984445566', distrito: 'Barranco', origen: 'referido', motivo: 'sin_interes', dias: 9, etapa: 'contactado', intentos: 3, resultado: 'volver_a_llamar', haceIntento: 1, rellamada: { dia: 2, hora: '11:00' }, recibidoHace: 34, monto: 20000 },
-  { id: 'demo-base-5', nombre: 'ANDRÉS QUISPE MORALES', telefono: '+51985556677', distrito: 'Comas', origen: 'campania', motivo: 'no_responde', dias: 45, etapa: 'nuevo', intentos: 0, resultado: null, haceIntento: 0, rellamada: null, recibidoHace: 70, monto: 8000 },
+  { id: 'demo-base-5', nombre: 'ANDRÉS QUISPE MORALES', telefono: '+51985556677', distrito: 'Comas', origen: 'campania', motivo: 'no_responde', dias: 45, etapa: 'nuevo', intentos: 0, resultado: null, haceIntento: 0, rellamada: null, recibidoHace: 70, monto: 8000, base: { id: 'descartes-julio', nombre: 'Descartes de julio' } },
   { id: 'demo-base-6', nombre: 'KAREN TORRES VILCHEZ', telefono: '+51986667788', distrito: 'San Miguel', origen: 'landing', motivo: 'sin_fondos', dias: 5, etapa: 'contactado', intentos: 1, resultado: 'no_interesado', haceIntento: 3, rellamada: null, recibidoHace: 12, monto: 12000 },
+  // Contactos de un archivo (F6): nacen dormidos, sin historial y —si el Excel no lo traía— sin capital (E7, E8).
+  { id: 'demo-base-7', nombre: 'MARTÍN SALAZAR ROJAS', telefono: '+51987778899', distrito: 'Surco', origen: 'base_cargada', motivo: 'base_cargada', dias: 1, etapa: 'sin_datos', intentos: 0, resultado: null, haceIntento: 0, rellamada: null, recibidoHace: 1, monto: null, base: { id: 'feria-2025', nombre: 'Feria 2025' } },
+  { id: 'demo-base-8', nombre: 'NORMA ESPINOZA DÍAZ', telefono: '+51988889900', distrito: 'Lince', origen: 'base_cargada', motivo: 'base_cargada', dias: 1, etapa: 'sin_datos', intentos: 1, resultado: 'no_contesto', haceIntento: 0, rellamada: null, recibidoHace: 1, monto: 20000, base: { id: 'feria-2025', nombre: 'Feria 2025' } },
 ]
 
 function filasMuestraDemo(analistaId: string, gestiona: string | null, ahora: number): FilaBaseGestion[] {
@@ -247,6 +256,7 @@ function filasMuestraDemo(analistaId: string, gestiona: string | null, ahora: nu
       proxima_llamada_en: proxima, rellamada_hoy: proxima !== null && fechaLima(Date.parse(proxima)) <= hoy,
       enfriado_hasta: null, ciclo_n: 1, vendedor_id: analistaId, gestiona,
       recibido_en: new Date(ahora - m.recibidoHace * DIA_MS).toISOString(),
+      base_id: m.base?.id ?? null, base_nombre: m.base?.nombre ?? null,
     }
   })
 }
@@ -424,9 +434,10 @@ export const FILTRO_TODOS = MES_TODOS
 /** Clave de la opción «sin dato» (lead sin motivo de descarte o sin intentos): no choca con ninguna clave del catálogo. */
 export const SIN_DATO = '(sin dato)'
 
-/** `analista` (F4) solo lo ofrece la vista del supervisor: la base del analista es toda suya y no lo muestra. */
-export type DimensionFiltro = 'mes' | 'motivo' | 'etapa' | 'resultado' | 'analista'
-const DIMENSIONES: readonly DimensionFiltro[] = ['mes', 'motivo', 'etapa', 'resultado', 'analista']
+/** `analista` (F4) solo lo ofrece la vista del supervisor: la base del analista es toda suya y no lo muestra. `base` (F6)
+ *  aparece cuando alguna fila viene de una base cargada. */
+export type DimensionFiltro = 'mes' | 'motivo' | 'etapa' | 'resultado' | 'analista' | 'base'
+const DIMENSIONES: readonly DimensionFiltro[] = ['mes', 'motivo', 'etapa', 'resultado', 'analista', 'base']
 
 export interface FiltrosBase {
   mes: string
@@ -435,11 +446,13 @@ export interface FiltrosBase {
   resultado: string
   /** Quién lo gestiona (`vendedor_id`); {@link SIN_DATO} = la bandeja, sin analista. */
   analista: string
+  /** De qué base cargada viene (`base_id`); {@link SIN_DATO} = de ninguna (F6). */
+  base: string
   /** Solo los que tienen una rellamada agendada para otro día (la pastilla «Rellamadas agendadas» se abre así). */
   agendadas: boolean
 }
 
-export const SIN_FILTROS: FiltrosBase = { mes: FILTRO_TODOS, motivo: FILTRO_TODOS, etapa: FILTRO_TODOS, resultado: FILTRO_TODOS, analista: FILTRO_TODOS, agendadas: false }
+export const SIN_FILTROS: FiltrosBase = { mes: FILTRO_TODOS, motivo: FILTRO_TODOS, etapa: FILTRO_TODOS, resultado: FILTRO_TODOS, analista: FILTRO_TODOS, base: FILTRO_TODOS, agendadas: false }
 
 /** Quién gestiona el lead, como lo lee el supervisor: su analista o «Sin analista» (la bandeja del equipo). */
 export function etiquetaAnalista(fila: Pick<FilaBaseGestion, 'vendedor_id' | 'gestiona'>): string {
@@ -460,6 +473,7 @@ function claveDe(fila: FilaBaseGestion, dimension: DimensionFiltro): string | nu
     case 'etapa': return fila.etapa_maxima
     case 'resultado': return fila.ultimo_resultado ?? SIN_DATO
     case 'analista': return fila.vendedor_id ?? SIN_DATO
+    case 'base': return fila.base_id ?? SIN_DATO
   }
 }
 
@@ -512,6 +526,8 @@ export function etiquetaOpcion(dimension: DimensionFiltro, clave: string): strin
     case 'resultado': return etiquetaUltimoResultado(clave === SIN_DATO ? null : clave)
     // El nombre lo sabe la fila (`gestiona`): `opcionesFiltro` lo pone. Sin filas, solo se reconoce la bandeja.
     case 'analista': return clave === SIN_DATO ? 'Sin analista' : clave
+    // Igual que el analista: el nombre de la base lo trae la fila (`base_nombre`).
+    case 'base': return clave === SIN_DATO ? 'Sin base' : clave
   }
 }
 
@@ -539,11 +555,15 @@ function ordenarOpciones(dimension: DimensionFiltro, opciones: OpcionFiltro[]): 
  * la elegida se lista siempre (aunque los otros filtros la dejen en 0), para que el selector no muestre un valor ausente.
  */
 export function opcionesFiltro(filas: readonly FilaBaseGestion[], filtros: FiltrosBase = SIN_FILTROS): OpcionesFiltro {
-  // El nombre de cada analista, de sus filas (el de la primera que lo trae).
+  // El nombre de cada analista y de cada base, de sus filas (el de la primera que lo trae).
   const nombres = new Map<string, string>()
-  for (const f of filas) if (f.vendedor_id && !nombres.has(f.vendedor_id)) nombres.set(f.vendedor_id, etiquetaAnalista(f))
+  const nombresBase = new Map<string, string>()
+  for (const f of filas) {
+    if (f.vendedor_id && !nombres.has(f.vendedor_id)) nombres.set(f.vendedor_id, etiquetaAnalista(f))
+    if (f.base_id && !nombresBase.has(f.base_id)) nombresBase.set(f.base_id, f.base_nombre ?? 'Base sin nombre')
+  }
   const etiqueta = (dimension: DimensionFiltro, clave: string) =>
-    (dimension === 'analista' ? nombres.get(clave) : undefined) ?? etiquetaOpcion(dimension, clave)
+    (dimension === 'analista' ? nombres.get(clave) : dimension === 'base' ? nombresBase.get(clave) : undefined) ?? etiquetaOpcion(dimension, clave)
   const faceta = (dimension: DimensionFiltro): FacetaFiltro => {
     const conteo = new Map<string, number>()
     let total = 0
@@ -558,7 +578,12 @@ export function opcionesFiltro(filas: readonly FilaBaseGestion[], filtros: Filtr
     const opciones = [...conteo.entries()].map(([clave, leads]) => ({ clave, etiqueta: etiqueta(dimension, clave), leads }))
     return { total, opciones: ordenarOpciones(dimension, opciones) }
   }
-  return { mes: faceta('mes'), motivo: faceta('motivo'), etapa: faceta('etapa'), resultado: faceta('resultado'), analista: faceta('analista') }
+  return { mes: faceta('mes'), motivo: faceta('motivo'), etapa: faceta('etapa'), resultado: faceta('resultado'), analista: faceta('analista'), base: faceta('base') }
+}
+
+/** ¿Alguna fila viene de una base cargada? (F6: sin eso no hay columna ni selector «Base»). */
+export function conBaseCargada(filas: readonly FilaBaseGestion[]): boolean {
+  return filas.some((f) => f.base_id != null)
 }
 
 /**
