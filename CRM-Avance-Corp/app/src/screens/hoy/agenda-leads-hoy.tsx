@@ -6,20 +6,24 @@ import { ListaLeadsRecibidosHoy } from './leads-recibidos-hoy'
 import { useLeadsRecibidosHoy } from './use-leads-recibidos-hoy'
 import './agenda-leads-hoy.css'
 
-/** Recibidos en la jornada, no «sin leer»: abrir la pestaña o una ficha no
- * elimina el aviso. El día de Lima y la consulta del servidor fijan el total. */
+/** Pendientes de gestión de los recibidos hoy. Abrir una pestaña/ficha no
+ * gestiona el lead: el aviso baja al registrar la gestión, hasta quedar en cero. */
 export function AgendaLeadsHoy({ ahora, agenda }: { ahora: number; agenda: ReactNode }) {
   const [panel, setPanel] = useState<'agenda' | 'leads'>('agenda')
   const datos = useLeadsRecibidosHoy(ahora)
-  const { total, dia } = datos
+  const { pendientes, dia } = datos
   return (
     <Card className="flex min-h-0 min-w-0 flex-1 flex-col">
       <Tabs etiqueta="Agenda y leads de hoy" valor={panel} onCambio={setPanel}
         pestanas={[
           { valor: 'agenda', etiqueta: 'Tu agenda de hoy' },
-          { valor: 'leads', etiqueta: <span className="hoy-leads-etiqueta" data-aviso={total != null && total > 0}>
+          { valor: 'leads', etiqueta: <span className="hoy-leads-etiqueta" data-aviso={pendientes != null && pendientes > 0}>
             <span>Leads de hoy</span>{' '}
-            {total != null && <span key={`${dia}:${total}:${panel}`} className="hoy-leads-contador">{numero(total)}</span>}
+            {pendientes != null && <>
+              <span key={`${dia}:${pendientes}:${panel}`} className="hoy-leads-contador"
+                title={`${numero(pendientes)} ${pendientes === 1 ? 'lead sin gestionar' : 'leads sin gestionar'}`}>{numero(pendientes)}</span>{' '}
+              <span className="sr-only">sin gestionar</span>
+            </>}
           </span> },
         ]}
         variante="subrayado" className="hoy-agenda-leads flex min-h-0 flex-1 flex-col space-y-0"

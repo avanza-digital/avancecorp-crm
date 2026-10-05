@@ -11,11 +11,17 @@ async function montarHoy(page: Page, cantidad: number, caido = false) {
   const recibidos = Array.from({ length: cantidad }, (_, i) => leadReal({
     id: `cccccccc-0000-4000-8000-${String(i).padStart(12, '0')}`,
     nombre_completo: `RECIBIDO HOY ${String(i + 1).padStart(2, '0')}`,
-    vendedor_id: UID, etapa: 'contactado',
+    vendedor_id: UID, etapa: i === 0 ? 'propuesta_enviada' : i === 1 ? 'contactado' : 'nuevo',
+    tenencia_desde: '2026-10-05T14:00:00Z',
     creado_en: '2026-09-01T15:00:00Z',
     actualizado_en: new Date(Date.parse(AHORA) - i * 60000).toISOString(),
   }))
-  await montarBackendReal(page, { rolCrm: 'vendedor', leads: recibidos,
+  const estado = await montarBackendReal(page, { rolCrm: 'vendedor', leads: recibidos,
+    actividades: recibidos.slice(0, 2).map((l, i) => ({
+      id: `eeeeeeee-0000-4000-8000-${String(i).padStart(12, '0')}`, lead_id: l.id,
+      tipo: 'llamada_realizada', detalle: null, autor_id: UID,
+      creado_en: '2026-10-05T15:00:00Z', metadata: {},
+    })),
     tareas: recibidos[0] ? [{
       id: 'dddddddd-0000-4000-8000-000000000001', lead_id: recibidos[0].id, perfil_id: null,
       vendedor_id: UID, asignado_supervisor_id: null, tipo: 'reunion', titulo: 'Cita de hoy', nota: null,
@@ -39,25 +45,34 @@ async function montarHoy(page: Page, cantidad: number, caido = false) {
     expect(pedido.p_hasta).toBe(HOY)
     expect(pedido.p_vendedor_id).toBe(UID)
     expect(pedido.p_etapa).toBeUndefined()
-    expect(pedido.p_gestion).toBeUndefined()
+    expect([undefined, 'sin_gestion']).toContain(pedido.p_gestion)
     if (fallar) return route.fulfill({ status: 500, json: { message: 'sin conexión', code: 'PGRST000' } })
-    const inicio = pedido.p_antes_id ? recibidos.findIndex(l => l.id === pedido.p_antes_id) + 1 : 0
+    const filas = pedido.p_gestion === 'sin_gestion'
+      ? estado.leads.filter(l => !estado.actividades.some(a => a.lead_id === l.id
+        && ['llamada_realizada', 'llamada_no_contestada', 'whatsapp_enviado', 'whatsapp_recibido', 'reunion_realizada'].includes(String(a.tipo))
+        && !Object.hasOwn((a.metadata ?? {}) as object, 'deshecho_en')
+        && String(a.creado_en) >= String(l.tenencia_desde)))
+      : estado.leads
+    const total = filas.length
+    const inicio = pedido.p_antes_id ? filas.findIndex(l => l.id === pedido.p_antes_id) + 1 : 0
     await route.fulfill({ json: {
       version: 1, generado_en: AHORA, desde: HOY, hasta: HOY,
-      items: recibidos.slice(inicio, inicio + Number(pedido.p_limite)).map(l => ({
+      items: filas.slice(inicio, inicio + Number(pedido.p_limite)).map(l => ({
         ...l, ultimo_contacto_en: null, recibido_en: '2026-10-05T14:30:00Z', recepcion_aproximada: false,
       })),
       resumen: {
-        totales: { vivos: cantidad, abiertos: cantidad, asignados: cantidad, parkeados: 0, convertidos: 0,
-          descartados: 0, asignados_pen: cantidad, asignados_usd: 0 },
-        capital: { asignado: { pen: cantidad * 1000, usd: 0 }, parkeado: { pen: 0, usd: 0 }, ganado: { pen: 0, usd: 0 } },
-        embudo: [{ etapa: 'contactado', n: cantidad }],
+        totales: { vivos: total, abiertos: total, asignados: total, parkeados: 0, convertidos: 0,
+          descartados: 0, asignados_pen: total, asignados_usd: 0 },
+        capital: { asignado: { pen: total * 1000, usd: 0 }, parkeado: { pen: 0, usd: 0 }, ganado: { pen: 0, usd: 0 } },
+        embudo: ['nuevo', 'contactado', 'reunion_agendada', 'propuesta_enviada'].map(etapa => ({
+          etapa, n: filas.filter(l => l.etapa === etapa).length,
+        })),
       },
     } })
   })
   await loginReal(page)
   await page.getByRole('button', { name: 'Hoy', exact: true }).click()
-  return { consultas, recuperar: () => { fallar = false } }
+  return { consultas, estado, recuperar: () => { fallar = false } }
 }
 
 test('Hoy lista los recibidos en Lima, pagina y abre la ficha; cabe en escritorio y móvil', async ({ page }) => {
@@ -73,7 +88,7 @@ test('Hoy lista los recibidos en Lima, pagina y abre la ficha; cabe en escritori
   const agendaTab = page.getByRole('tab', { name: 'Tu agenda de hoy', exact: true })
   const leadsTab = page.getByRole('tab', { name: /^Leads de hoy/ })
   await expect(agendaTab).toHaveAttribute('aria-selected', 'true')
-  await expect(leadsTab).toHaveText('Leads de hoy 55')
+  await expect(leadsTab).toHaveText('Leads de hoy 53 sin gestionar')
   const contador = leadsTab.locator('.hoy-leads-contador')
   const citasAntes = page.getByRole('heading', { name: 'Tus citas', exact: true }).locator('..').locator('..')
   await expect(citasAntes.getByRole('button', { name: 'Cerrar tarea — Cita de hoy', exact: true })).toBeVisible()
@@ -86,7 +101,7 @@ test('Hoy lista los recibidos en Lima, pagina y abre la ficha; cabe en escritori
   await expect(contador).toHaveCSS('animation-duration', '30s')
   await leadsTab.click()
   await expect(leadsTab).toHaveAttribute('aria-selected', 'true')
-  await expect(contador).toHaveText('55')
+  await expect(contador).toHaveText('53')
   await expect(contador).toHaveCSS('animation-name', 'hoy-leads-latido')
   await expect(contador).toHaveCSS('background-color', 'rgb(185, 78, 6)')
   await page.emulateMedia({ reducedMotion: 'reduce' })
@@ -96,6 +111,8 @@ test('Hoy lista los recibidos en Lima, pagina y abre la ficha; cabe en escritori
   expect(await citasAntes.boundingBox()).toEqual(cajaCitas)
   await page.screenshot({ path: test.info().outputPath('vista-leads.png'), fullPage: true })
   await expect(panel.getByRole('listitem')).toHaveCount(50)
+  await expect(panel.getByRole('button', { name: 'Abrir lead RECIBIDO HOY 01' })).toContainText('Entrevista realizada')
+  await expect(panel.getByRole('button', { name: 'Abrir lead RECIBIDO HOY 02' })).toContainText('Contactado')
   await expect(agendaTab).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Tus citas', exact: true })).toBeVisible()
   const citas = page.getByRole('heading', { name: 'Tus citas', exact: true }).locator('..').locator('..')
@@ -113,7 +130,7 @@ test('Hoy lista los recibidos en Lima, pagina y abre la ficha; cabe en escritori
   await panel.getByRole('button', { name: 'Cargar más leads de hoy' }).click()
   await expect(panel.getByRole('listitem')).toHaveCount(55)
   await expect(panel.getByRole('button', { name: 'Abrir lead RECIBIDO HOY 51' })).toBeFocused()
-  expect(consultas.at(-1)?.p_antes_id).toBe('cccccccc-0000-4000-8000-000000000049')
+  expect(consultas.filter(c => !c.p_gestion).at(-1)?.p_antes_id).toBe('cccccccc-0000-4000-8000-000000000049')
   await panel.getByRole('button', { name: 'Abrir lead RECIBIDO HOY 55' }).click()
   await expect(page.getByRole('dialog', { name: 'RECIBIDO HOY 55', exact: true })).toBeVisible()
   await page.keyboard.press('Escape')
@@ -130,6 +147,40 @@ test('Hoy lista los recibidos en Lima, pagina y abre la ficha; cabe en escritori
   await page.screenshot({ path: test.info().outputPath('hoy-recibidos-mobile.png'), fullPage: true })
   const ancho = await page.evaluate(() => ({ total: document.documentElement.scrollWidth, visible: innerWidth }))
   expect(ancho.total).toBeLessThanOrEqual(ancho.visible)
+  const filaEtapaLarga = panel.getByRole('button', { name: 'Abrir lead RECIBIDO HOY 01' })
+  const etiqueta = filaEtapaLarga.getByText('Entrevista realizada', { exact: false })
+  await filaEtapaLarga.scrollIntoViewIfNeeded()
+  await expect(etiqueta).toBeVisible()
+  const cajaEtapa = await etiqueta.boundingBox()
+  const cajaFila = await filaEtapaLarga.boundingBox()
+  expect(cajaEtapa!.width).toBeGreaterThan(0)
+  expect(cajaEtapa!.x + cajaEtapa!.width).toBeLessThanOrEqual(cajaFila!.x + cajaFila!.width)
+  await page.screenshot({ path: test.info().outputPath('hoy-etapa-mobile.png'), fullPage: true })
+})
+
+test('registrar una gestión desde la ficha baja el contador y conserva el lead con su estado', async ({ page }) => {
+  const { estado } = await montarHoy(page, 3)
+  const pestana = page.getByRole('tab', { name: /^Leads de hoy/ })
+  await expect(pestana).toHaveText('Leads de hoy 1 sin gestionar')
+  await pestana.click()
+  const panel = page.getByRole('region', { name: 'Leads recibidos hoy' })
+  const fila = panel.getByRole('button', { name: 'Abrir lead RECIBIDO HOY 03' })
+  await expect(fila).toContainText('Nuevo')
+  await fila.click()
+  const ficha = page.getByRole('dialog', { name: 'RECIBIDO HOY 03', exact: true })
+  await ficha.getByRole('button', { name: /Copiar el número .* y registrar la llamada/ }).click()
+  const llamada = page.getByRole('dialog', { name: /Cómo salió la llamada/ })
+  await llamada.getByRole('radio', { name: /^No contestó/ }).check()
+  await llamada.getByRole('button', { name: 'Guardar', exact: true }).click()
+  await expect(llamada).toHaveCount(0)
+  await page.keyboard.press('Escape')
+  await expect(pestana).toHaveText('Leads de hoy 0 sin gestionar')
+  await expect(pestana.locator('.hoy-leads-contador')).toHaveCSS('animation-name', 'none')
+  await expect(panel.getByText('3 leads recibidos hoy')).toBeVisible()
+  await expect(panel.getByRole('listitem')).toHaveCount(3)
+  await expect(fila).toContainText('Gestionado')
+  expect(estado.llamadas.rpcSlaComandos).toEqual(['registrar_llamada'])
+  await page.screenshot({ path: test.info().outputPath('hoy-gestionado-sin-pendientes.png'), fullPage: true })
 })
 
 test('un fallo no se presenta como cero recibidos; se puede reintentar hasta el vacío real', async ({ page }) => {
@@ -142,7 +193,7 @@ test('un fallo no se presenta como cero recibidos; se puede reintentar hasta el 
   await panel.getByRole('button', { name: 'Reintentar' }).click()
   await expect(panel.getByText('Todavía no has recibido leads hoy.')).toBeVisible()
   await expect(panel.getByText('0 leads recibidos hoy')).toBeVisible()
-  const contador = page.getByRole('tab', { name: 'Leads de hoy 0' }).locator('.hoy-leads-contador')
+  const contador = page.getByRole('tab', { name: 'Leads de hoy 0 sin gestionar' }).locator('.hoy-leads-contador')
   await expect(contador).toHaveText('0')
   await expect(contador).toHaveCSS('animation-name', 'none')
   const citas = page.getByRole('heading', { name: 'Tus citas', exact: true }).locator('..').locator('..')

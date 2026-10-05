@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { numero } from '@/lib/format'
 import { usePanelesActions } from '@/lib/store-context'
+import { useEtapaVisible } from '@/lib/use-etapa-visible'
 import { cn } from '@/lib/utils'
 import { useLeadsRecibidosHoy, type DatosLeadsRecibidosHoy } from './use-leads-recibidos-hoy'
 
@@ -15,13 +16,14 @@ export function LeadsRecibidosHoy({ ahora, className, integrado = false }: { aho
   return <ListaLeadsRecibidosHoy datos={datos} className={className} integrado={integrado} />
 }
 
-/** El panel y su pestaña consumen la misma foto, sin consultas ni sondeos dobles. */
+/** Lista de todos los recibidos; la pestaña distingue los pendientes de gestión. */
 export function ListaLeadsRecibidosHoy({ datos, className, integrado = false }: {
   datos: DatosLeadsRecibidosHoy; className?: string | undefined; integrado?: boolean
 }): JSX.Element {
   const tituloId = useId()
-  const { cartera, total, demo } = datos
+  const { cartera, total, demo, errorPendientes, cargandoPendientes } = datos
   const { abrirLead } = usePanelesActions()
+  const etapaDe = useEtapaVisible()
   const listaRef = useRef<HTMLUListElement>(null)
   const reintentarRef = useRef<HTMLButtonElement>(null)
   const enfocarDesde = useRef<number | null>(null)
@@ -46,16 +48,18 @@ export function ListaLeadsRecibidosHoy({ datos, className, integrado = false }: 
           <span className="sr-only">{numero(total)} {total === 1 ? 'lead recibido hoy' : 'leads recibidos hoy'}</span>
         </>}
         {!demo && <Button className="ml-auto shrink-0" variant="ghost" size="icon"
-          aria-label="Actualizar leads recibidos hoy" disabled={cartera.cargando || cartera.cargandoMas}
+          aria-label="Actualizar leads recibidos hoy" disabled={cartera.cargando || cartera.cargandoMas || cargandoPendientes}
           onClick={() => void cartera.recargar()}>
           <RefreshCw className="size-3.5" aria-hidden />
         </Button>}
       </div>
       <p className="shrink-0 px-5 pb-2 text-xs text-muted-foreground">Asignados a ti · hora de Lima</p>
       <CardContent className={cn('ac-scroll min-h-0 overflow-y-auto pt-0', integrado ? 'max-h-80 lg:max-h-none lg:flex-1' : 'max-h-48')} aria-busy={cartera.cargando || cartera.cargandoMas}>
-        {Boolean(cartera.error) && (
+        {Boolean(cartera.error || errorPendientes) && (
           <div role="alert" className="flex flex-wrap items-center gap-2 py-2">
-            <p className="text-sm">No se pudieron cargar los leads recibidos hoy.{cartera.leads.length > 0 ? ' Se conserva la última lista cargada.' : ''}</p>
+            <p className="text-sm">{cartera.error
+              ? `No se pudieron cargar los leads recibidos hoy.${cartera.leads.length > 0 ? ' Se conserva la última lista cargada.' : ''}`
+              : 'No se pudo actualizar el número de leads sin gestionar.'}</p>
             <Button ref={reintentarRef} variant="outline" size="sm" onClick={() => void cartera.recargar()}>Reintentar</Button>
           </div>
         )}
@@ -67,6 +71,7 @@ export function ListaLeadsRecibidosHoy({ datos, className, integrado = false }: 
           <>
             <ul ref={listaRef} aria-label="Leads recibidos hoy" className="divide-y divide-border">
               {cartera.leads.map((lead) => {
+                const etapa = etapaDe(lead)
                 // La demo no tiene ledger; usa el mismo sello de su filtro.
                 const recibido = demo ? (lead.tenencia_desde ?? lead.creado_en) : lead.recibido_en
                 const instante = recibido ? Date.parse(recibido) : Number.NaN
@@ -77,12 +82,17 @@ export function ListaLeadsRecibidosHoy({ datos, className, integrado = false }: 
                 return (
                   <li key={lead.id}>
                     <button type="button" aria-label={`Abrir lead ${lead.nombre_completo}`}
-                      aria-describedby={`${detalleId}-telefono${hora ? ` ${detalleId}-hora` : ''}`}
+                      aria-describedby={`${detalleId}-telefono ${detalleId}-etapa${hora ? ` ${detalleId}-hora` : ''}`}
                       onClick={() => abrirLead(lead.id)}
                       className="flex min-h-12 w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-left hover:bg-muted/60 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring">
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-semibold">{lead.nombre_completo}</span>
-                        <span id={`${detalleId}-telefono`} className="block text-xs text-muted-foreground">{lead.telefono}</span>
+                        <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span id={`${detalleId}-telefono`} className="text-xs text-muted-foreground">{lead.telefono}</span>
+                          <Badge id={`${detalleId}-etapa`} color={etapa.color}>
+                            <span className="sr-only">Etapa actual:</span>{' '}{etapa.label}
+                          </Badge>
+                        </span>
                       </span>
                       {hora && <>
                         <span id={`${detalleId}-hora`} className="sr-only">{`Recibido a las ${hora}${lead.recepcion_aproximada ? ' aprox.' : ''}`}</span>
