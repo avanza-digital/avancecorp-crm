@@ -1,0 +1,51 @@
+VERDICT: PASS
+
+SUMMARY:
+The attached sources meet the approved behaviour. One hook instance stays mounted in AgendaLeadsHoy, the list consumes the same snapshot, the badge is null on loading or error and neutral at zero, and the interval is cleaned up correctly. I found no mandatory correctness or security defect in scope. There are three low-severity advisories below. Two items cannot be verified from the evidence, and I list them as limitations, not findings.
+
+FINDINGS:
+
+[P3] Polling can cancel an in-flight "Cargar más" and drop focus restoration
+File: src/screens/hoy/use-leads-recibidos-hoy.ts
+Lines: 21-27 (with use-cartera-paginada.ts:136,139 and leads-recibidos-hoy.tsx:28-36)
+Problem: The 60 s interval calls cartera.recargar(), which is consulta.refetch(). It is not gated on cartera.cargandoMas.
+Evidence: The manual refresh button is disabled while cargando or cargandoMas (leads-recibidos-hoy.tsx:49), but the interval is not. TanStack's refetch() defaults to cancelRefetch:true, which cancels a running fetchNextPage. The focus effect then sees cargandoMas=false and no new rows and no error, so it clears enfocarDesde without moving focus.
+Impact: This is rare, only when a poll lands during a page load. The user has to click "Cargar más" again, and keyboard focus is not moved to the first new row. The count itself stays correct.
+Recommendation: In the interval, skip the tick when a fetch is already running (expose cargandoMas or isFetching through a ref, like recargarRef). Alternatively, call refetch({ cancelRefetch: false }).
+
+[P3] Each poll refetches every loaded page
+File: src/screens/hoy/use-leads-recibidos-hoy.ts:24 -> use-cartera-paginada.ts:139
+Problem: Infinite-query refetch() re-requests every page already loaded, in sequence.
+Impact: An analyst who loaded N pages sends N RPC calls per minute while HOY is visible. The badge only needs page 0's resumen. This is negligible for typical daily volumes.
+Recommendation: Accept it and document it, or limit the poll to the first page (for example with refetchPage or maxPages semantics) if daily volumes grow.
+
+[P3] The empty citas card now stretches to full height
+File: src/screens/hoy/vendedor.tsx (integration diff, CitasAnalista className)
+Problem: The conditional `citas.length > 0 && 'lg:flex-1'` was removed. CitasAnalista is now a direct child of a grid with lg:items-stretch and grid-rows-[minmax(0,1fr)], so it always fills the row height.
+Impact: This is intentional for "appointments remain full right column", and the browser test checks the rectangle. It is a visual change for the zero-citas case, which the test may not cover.
+Recommendation: Confirm the browser test includes the zero-citas fixture. Otherwise, take a screenshot of that case once.
+
+TEST GAPS:
+- No test for a poll tick that fires while cargandoMas is true (P3 #1).
+- Zero-citas layout in the new grid placement (P3 #3).
+- A transient poll error after a successful load hides the badge, then remounts it with a restarted pulse. This matches the spec ("error omits badge"), but one assertion locking that sequence would prevent future "show stale count" drift.
+
+ARCHITECTURE RISKS:
+- `key={dia:total:panel}` restarts the CSS animation through remounting. This is acceptable and documented in the CSS comment. A future refactor that drops `panel` from the key would silently stop the restart on tab switch, so it is worth one comment next to the key.
+- The `LeadsRecibidosHoy` import remains in vendedor.tsx. Lint passed, so it is presumably still used by the other SLA-boundary branch. I cannot confirm this, because the full file was not attached.
+
+SECURITY RISKS:
+- None in scope. There are no backend, RPC, RLS or auth changes. Analyst scoping relies on the existing server filter `vendedorId: yo.id`, which is unchanged. The fallback 'sin_asignar' for a missing `yo` cannot leak other analysts' leads, assuming the server treats it as the unassigned bucket and the hook is only reached when authenticated.
+
+REGRESSION RISKS:
+- Count semantics: total = resumen.totales.vivos. The requirement says "ALL received today, all stages". Whether `vivos` excludes closed or lost leads server-side cannot be verified from the evidence. The demo mirror filters `lead.activo` when recepcion is set (use-cartera-paginada.ts:112). The earlier 9/9 authenticated validation reportedly covers this. I treat it as a limitation, not a finding.
+- Lima midnight: `dia` comes from `ahora`, while rangoValido uses Date.now() (use-cartera-paginada.ts:87). If `ahora` lags behind real time across midnight, the range is "yesterday ≤ today", which is still valid, so there is no blank state. The existing test covers the day switch.
+- `panelEnfocable={false}`: in the empty states ("Todavía no has recibido leads hoy.", error without data except Reintentar), the tabpanel has no focusable content. This is a minor deviation from the ARIA APG pattern, and the test suite covers focus.
+
+RECOMMENDED NEXT ACTIONS:
+1. Optionally gate the interval tick on an in-flight fetch, or use refetch({ cancelRefetch: false }).
+2. Confirm that the zero-citas layout is covered by the browser test or a screenshot.
+3. Run the hosted reality gate when SUPABASE_URL is available. It was reported NOT RUN, so treat release confidence as local only.
+
+CONFIDENCE:
+MEDIUM. The attached sources are fully consistent with the claims. The remaining limitations are the meaning of server-side `vivos`, the complete vendedor.tsx, the Tabs component contract, and the unrun hosted gate.
