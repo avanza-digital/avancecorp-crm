@@ -1,10 +1,10 @@
 # Avance — Llamadas desde el celular al CRM
 
-Actualizado: 05/10/2026, 11:46 a. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
+Actualizado: 05/10/2026, 12:01 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
 
 Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact/Q3GmV9m6Cy2GPQGKAbNy8M · Plan completo: `PLAN.md` en esta carpeta.
 
-**Lo último:** 05/10 16:46 UTC: Edge con el contrato nuevo (paso 3 del plan v2) en el PR #190: solo revisa el transporte (405, 415, 401, 413) y todo lo demás llega a la base, que dice aceptado o inválido; sin 409. Pruebas 15/15 y mutantes 15/15; receptor de pruebas del PC al día (10/10). Dos agentes analizan en paralelo el gate (paso 4) y las guías (paso 5). SIN APLICAR NI DESPLEGAR.
+**Lo último:** 05/10 17:01 UTC: guías al día (paso 5) en el PR #190: publicación con las seis migraciones y sus registradores intercalados, la barrera en los dos sentidos y el orden reversas → gate → alta; macro «sin Pro» con el latido dentro de «Enviar cola». Arreglado un fallo real del alta: la clave no se habría visto por db query --linked (ahora una sola sentencia; más rotar y cerrar). Sigue: el bloque del gate (paso 4).
 
 **Total:** 25 de 102 tareas · 1 de 8 fases hechas.
 
@@ -118,6 +118,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 
 ## Últimos cambios
 
+- 05/10/2026, 12:01 p. m. · Paso 5 (con el análisis de un agente, revisado y aplicado por la sesión): PUBLICAR-F2-F3.md reescrita (seis migraciones, cada una con su registrador justo después; veredicto; psql -f en Docker; barrera en los dos sentidos; reversas → gate → alta; V1–V5; Edge después de verificar; pasar un celular a otro analista con cola en 0). macrodroid.md sin Pro: latido dentro de «Enviar cola», guarda de t_saliente, prefijo por celular, hora automática; URL con id pendiente de F4-b. REGISTRO.md §5f y §6. Fallo real: alta-celular.sql terminaba en commit y db query solo devuelve el último resultado (la clave no se habría visto); ahora es una sola sentencia, y se suman rotar-celular.sql y cerrar-celular.sql, probados en un Postgres local. Vault al día (nota del 05/10 y aviso PARA MIGUEL).
 - 05/10/2026, 11:46 a. m. · Edge con el contrato nuevo (paso 3 del plan v2), en el PR #190: la base es la única que valida; la Edge solo revisa el transporte y traduce {resultado, mensaje} (aceptado → 202/200, inválido → 400); el JSON mal formado llega a la base y gasta cupo; sin 409 ni 22023. handler.test.ts 15/15 y mutantes 15/15; el receptor de pruebas del PC imita el contrato nuevo (10/10). Jhosep pidió adelantar con agentes: dos analizan el gate (paso 4) y las guías (paso 5), sin tocar archivos.
 - 05/10/2026, 11:32 a. m. · Revisión de Miguel (su agente) en el #190: CHANGES_REQUESTED por un [P2] reproducido. La reversa de la quinta solo miraba recepciones y llamadas; la purga retira las recepciones a los 32 días y la reversa volvía a correr tras un aviso ignorado. Arreglo (su opción conservadora, sin migración): las reversas de la quinta y de F4-a solo corren antes de dar de alta celulares (sin asignaciones, ni cerradas, ni estado). Regresión con la purga real y claves rotadas y cerradas, más un mutante por reversa. Banco 281/281.
 - 05/10/2026, 11:14 a. m. · F4-a (20261005155914_crm_llamadas_celular_enlace_exacto.sql), paso 2 del plan v2, en el PR #190: puerta v5 con el enlace exacto encuesta ↔ llamada en una transacción, intención de enlace cumplida por la ingesta, vía del enlace y purga a 32 días. Con su reversa (huella exacta de las cinco), su registrador y su oráculo; la reversa de la quinta ahora se niega con F4-a puesta. Banco reducido 276/276: 26 mutantes de F4-a y 4 carreras con dos sesiones. Se endurecieron los dos oráculos (comparaciones que un nulo silenciaba).
@@ -132,4 +133,3 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 - 03/10/2026, 02:08 p. m. · Guía de publicación con los puntos 17–20 de la revisión (PR #173, 61100e39): registradores de las 4 migraciones (contenido y md5 comprobados), alta-celular.sql para el ensayo y producción, espejo legado de la Edge retirado (deja sin efecto el paso 0.4 del 14:23) y MIGRACIONES.md al día.
 - 03/10/2026, 01:57 p. m. · PR #171 fusionado por Miguel (b6c4e3b4, 18:40 UTC) sin revisión formal ni respuesta a las seis decisiones: nada se programa hasta su OK. Seguimiento en el PR #172 (corrección del vault sobre el cierre de tareas de clientes).
 - 03/10/2026, 12:11 p. m. · F4-PLAN-CORTO.md al día: se adapta la Gestión Diaria que ya existe, sin rediseñar (pestaña «Llamadas del celular», encuesta en «Ahora», marca «Celular», pestaña de gerencia). Prototipo del analista rehecho sobre la pantalla real. Requisito de Jhosep: la encuesta se abre siempre al colgar.
-- 03/10/2026, 11:46 a. m. · Revisión de Miguel (PR #170, fusionado): F2 y F3 FRENADAS por 5 fallos (auditor-rls pidió cambios; Codex LEVEL 3 r1: BLOCK). Plan corto de la corrección (CORRECCION-PLAN-CORTO.md) con seis decisiones para Miguel, en el PR #171. Miguel aprobó #13–#15.

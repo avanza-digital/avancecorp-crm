@@ -123,7 +123,7 @@ Tarjeta «Celulares» en Configuración:
   a ver.
 - **Rotar:** clave nueva, y la vieja deja de valer.
 - **Cerrar:** baja, extravío o reemplazo.
-- **Salud por celular:** último envío, último latido, versión de la macro y avisos en cola.
+- **Salud por celular:** último latido, versión de la macro y avisos en cola (sin envíos ni último envío: N1, quinta migración).
 
 ### 6. Deshacer (F4.3.3)
 
@@ -137,7 +137,7 @@ marca `efectos_anulados`. La pantalla solo lo muestra; nunca fabrica otra gesti�
    resultado y salud. Es la métrica de F6 del plan aprobado, adelantada.
 3. **La marca «Celular» en «¿Qué hice hoy?»** exige que la consulta del registro sepa qué gestión está enlazada a una
    llamada del celular.
-4. **El latido todavía no está en la macro**: sin él, «Sin latido» no se puede calcular.
+4. **El latido todavía no está en la macro**: sin él, «Sin latido» no se puede calcular. *(05/10: ya está en la guía «sin Pro», `macrodroid.md` §3c, sin probar en C1.)*
 
 ## Decisiones que necesita Miguel
 
@@ -164,7 +164,7 @@ los clientes de la cartera del dueño con la misma regla.
    la pestaña nueva, la encuesta con contexto, la marca «Celular» (hallazgo 3) y F1 con id de origen. Pruebas unitarias
    y E2E en Docker.
 3. **F4-c · Celulares en Configuración** (gerencia).
-4. **F4-d · Macro y validación (F4.4):** URL con el id de origen y el latido; casos de F4.4 en E2E y en C1, entre ellos
+4. **F4-d · Macro y validación (F4.4):** URL con el id de origen (el latido ya está en la guía «sin Pro» desde el 05/10); casos de F4.4 en E2E y en C1, entre ellos
    evento antes/después, dos llamadas en diez minutos, dos pestañas, guardado con enlace fallido, deshacer y lead
    reasignado.
 5. **F4-e · Supervisor y gerencia** (si Miguel lo elige en la decisión 4): puerta agregada (hallazgo 2), pestaña de

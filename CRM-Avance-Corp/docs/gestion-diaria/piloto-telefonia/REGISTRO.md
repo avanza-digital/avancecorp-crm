@@ -105,11 +105,21 @@ Macros armadas el 02/10 en C1 (MacroDroid gratuito, 5 macros como máximo): «Ll
 
 **Resumen F3-c (02/10):** la macro definitiva de salientes pasó las 7 pruebas de aceptación (A1–A7) contra el receptor del PC. Pendiente: repetir A1 y A3 con datos móviles contra la Edge desplegada (Miguel), latido de salud (decisión 3 de F3), entrantes (#14) y la compra de MacroDroid Pro si hacen falta más de 5 macros.
 
+## 5f. Macro sin Pro: latido, prefijo y hora — contra el receptor y después contra la Edge
+
+| Fecha | Prueba | Resultado | Evidencia |
+| --- | --- | --- | --- |
+|  | Antes: `cola_llamadas` y `errores_llamadas` vacías; «Fecha y hora automáticas» ✓ y zona de Lima | NOT RUN |  |
+|  | L1 — latido en la primera vuelta | NOT RUN |  |
+|  | L2 — latido al vaciar la cola | NOT RUN |  |
+|  | L3 — latido a las 6 h | NOT RUN |  |
+|  | L4 — otra etiqueta → 400 (solo contra la Edge) | NOT RUN |  |
+
 ## 6. Incidencias
 
 | Fecha | Celular | Qué pasó | Impacto (perdida / duplicada / no abrió / otro) | Cómo se resolvió | Abierta o cerrada |
 | --- | --- | --- | --- | --- | --- |
-| 02/10/2026 ~16:40 (Lima) | C1 | MacroDroid no dejó crear la sexta macro: la versión gratuita admite **5 macros** por celular | Otro: límite de la herramienta | Se borraron las macros de prueba «Prueba F3» y «Reintento F3» (su configuración está en §5d) y la variable `pendiente`. La macro definitiva de salientes usa 3 (Saliente, Al colgar, Enviar cola); con las entrantes (propuesta #14) harían falta más | **Cerrada el 03/10:** Miguel aprobó las entrantes (#14) el 02/10 y Jhosep decidió comprar MacroDroid Pro (S/19 por celular, pago único por cuenta de Google) para usar las macros necesarias. Diseño: `macrodroid.md` §3d (sin probar) |
+| 02/10/2026 ~16:40 (Lima) | C1 | MacroDroid no dejó crear la sexta macro: la versión gratuita admite **5 macros** por celular | Otro: límite de la herramienta | Se borraron las macros de prueba «Prueba F3» y «Reintento F3» (su configuración está en §5d) y la variable `pendiente`. La macro definitiva de salientes usa 3 (Saliente, Al colgar, Enviar cola); con las entrantes (propuesta #14) harían falta más | **Cerrada el 03/10; revisada el 05/10:** Miguel aprobó las entrantes (#14) el 02/10, pero (03/10) **MacroDroid Pro no se compra todavía**. Se queda en 3 macros + «Piloto F0» apagada (4 de 5). El latido va dentro de «Llamadas-Enviar cola» y no suma macros (`macrodroid.md` §3c). Las entrantes esperan a la #14 y a la decisión de Pro (`macrodroid.md` §3d, diseño sin probar) |
 
 ## 7. Decisión de cierre (F0.4.3)
 
