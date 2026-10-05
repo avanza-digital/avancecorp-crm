@@ -37,11 +37,14 @@ const respuesta = (filas: { fila: number }[]) => ({
 
 function montar() {
   const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const invalidar = vi.spyOn(cliente, 'invalidateQueries')
   render(
     <QueryClientProvider client={cliente}>
-      <CargaArchivo puertas={{ fuente, modo: 'real', activa: true }} esGerencia={false} supervisores={[]} onVerBase={vi.fn()} onEnCurso={vi.fn()} />
+      {/* La espera entre reintentos automáticos (55P03), instantánea en la prueba. */}
+      <CargaArchivo puertas={{ fuente, modo: 'real', activa: true }} esGerencia={false} supervisores={[]} onVerBase={vi.fn()} onEnCurso={vi.fn()} esperar={async () => undefined} />
     </QueryClientProvider>,
   )
+  return { invalidar }
 }
 async function elegir(nombre: string) {
   await userEvent.upload(screen.getByLabelText(/(Elegir|Cambiar) archivo/), new File(['x'], nombre))
@@ -83,11 +86,15 @@ describe('elegir otro archivo mientras se lee el primero', () => {
 })
 
 async function prepararYCargar(filas: [string, string][]) {
-  montar()
+  const montado = montar()
   await elegir('feria.csv')
   lecturas.get('feria.csv')?.resolver(tabla(filas))
   await userEvent.click(await screen.findByRole('button', { name: /^Cargar \d+ contacto/ }))
+  return montado
 }
+/** 101 contactos = dos lotes (100 + 1). */
+const DOS_LOTES: [string, string][] = Array.from({ length: 101 }, (_, i) => [`CONTACTO ${i}`, `9${String(10_000_000 + i).padStart(8, '0')}`])
+const idsDe = () => fuente.cargarBaseLote.mock.calls.map(([e]) => (e as { operacionId: string }).operacionId)
 
 describe('«Terminar aquí» con un lote de resultado incierto', () => {
   it('la respuesta se perdió TRAS guardarse: antes de cerrar se repite con el MISMO id y sus filas salen con su veredicto real', async () => {
@@ -125,6 +132,75 @@ describe('«Terminar aquí» con un lote de resultado incierto', () => {
     await screen.findByRole('heading', { name: 'Carga detenida: «feria»' })
     expect(fuente.cargarBaseLote).toHaveBeenCalledTimes(1)
     expect(within(screen.getByRole('group', { name: 'Resultado por tipo' })).getByRole('button', { name: /Sin enviar:\s?1/ })).toBeInTheDocument()
+  })
+})
+
+describe('Codex r2: «Terminar aquí» y «Reintentar» nunca corren a la vez; 55P03 no resuelve lo incierto', () => {
+  it('mientras «Terminar aquí» confirma el lote incierto, «Reintentar» no arranca (aria-disabled); el informe sale del lote confirmado y se refresca la hoja', async () => {
+    let soltarConfirmacion: () => void = () => undefined
+    let llamada = 0
+    fuente.cargarBaseLote.mockImplementation(async ({ filas }: { filas: { fila: number }[] }) => {
+      llamada += 1
+      if (llamada === 1) throw new ErrorBases('Se cortó la conexión', 'RED')
+      // La confirmación (mismo id de L1) tarda: la original sí se guardó y devuelve su recibo.
+      if (llamada === 2) await new Promise<void>((r) => { soltarConfirmacion = r })
+      return respuesta(filas)
+    })
+    const { invalidar } = await prepararYCargar(DOS_LOTES)
+    await userEvent.click(await screen.findByRole('button', { name: 'Terminar aquí y ver el informe' }))
+    expect(await screen.findByRole('button', { name: 'Confirmando el último lote…' })).toHaveAttribute('aria-disabled', 'true')
+    const reintentar = screen.getByRole('button', { name: 'Reintentar' })
+    expect(reintentar).toHaveAttribute('aria-disabled', 'true')
+    await userEvent.click(reintentar)
+    // «Reintentar» no envió nada: solo el corte y la confirmación (los dos con el id de L1).
+    expect(fuente.cargarBaseLote).toHaveBeenCalledTimes(2)
+    invalidar.mockClear()
+    soltarConfirmacion()
+    await screen.findByRole('heading', { name: 'Carga detenida: «feria»' })
+    expect(fuente.cargarBaseLote).toHaveBeenCalledTimes(2)
+    expect(new Set(idsDe()).size).toBe(1)
+    const tipos = screen.getByRole('group', { name: 'Resultado por tipo' })
+    expect(within(tipos).getByRole('button', { name: /Cargadas:\s?100/ })).toBeInTheDocument()
+    expect(within(tipos).getByRole('button', { name: /Sin enviar:\s?1/ })).toBeInTheDocument()
+    expect(within(tipos).queryByRole('button', { name: /Sin confirmar/ })).toBeNull()
+    expect(invalidar).toHaveBeenCalled()
+  })
+
+  it('RED → «Reintentar» choca con 55P03 (la original sigue) → la original terminó: «Terminar aquí» trae su recibo y las cifras quedan bien', async () => {
+    let fase: 'red' | 'ocupado' | 'recibo' = 'red'
+    fuente.cargarBaseLote.mockImplementation(async ({ filas }: { filas: { fila: number }[] }) => {
+      if (fase === 'red') { fase = 'ocupado'; throw new ErrorBases('Se cortó la conexión', 'RED') }
+      if (fase === 'ocupado') throw new ErrorBases('Hay otra carga en curso de esta base; reintenta', 'OCUPADO')
+      return respuesta(filas)
+    })
+    await prepararYCargar([['UNO', '987000001'], ['DOS', '987000002']])
+    await userEvent.click(await screen.findByRole('button', { name: 'Reintentar' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Hay otra carga en curso de esta base')
+    fase = 'recibo'
+    await userEvent.click(screen.getByRole('button', { name: 'Terminar aquí y ver el informe' }))
+    await screen.findByRole('heading', { name: 'Carga detenida: «feria»' })
+    const tipos = screen.getByRole('group', { name: 'Resultado por tipo' })
+    expect(within(tipos).getByRole('button', { name: /Cargadas:\s?2/ })).toBeInTheDocument()
+    expect(within(tipos).queryByRole('button', { name: /Sin enviar|Sin confirmar/ })).toBeNull()
+    expect(screen.getByText('Lote 1 de 1 · 2 de 2 filas')).toBeInTheDocument()
+    // Todos los envíos fueron el MISMO id: nunca se mandó L1 como una operación nueva.
+    expect(new Set(idsDe()).size).toBe(1)
+  })
+
+  it('RED → 55P03 y la original NO responde aún al terminar: ese lote sale «Sin confirmar», nunca «Sin enviar»', async () => {
+    let primera = true
+    fuente.cargarBaseLote.mockImplementation(async () => {
+      if (primera) { primera = false; throw new ErrorBases('Se cortó la conexión', 'RED') }
+      throw new ErrorBases('Hay otra carga en curso de esta base; reintenta', 'OCUPADO')
+    })
+    await prepararYCargar([['UNO', '987000001'], ['DOS', '987000002']])
+    await userEvent.click(await screen.findByRole('button', { name: 'Reintentar' }))
+    await screen.findByRole('alert')
+    await userEvent.click(screen.getByRole('button', { name: 'Terminar aquí y ver el informe' }))
+    await screen.findByRole('heading', { name: 'Carga detenida: «feria»' })
+    const tipos = screen.getByRole('group', { name: 'Resultado por tipo' })
+    expect(within(tipos).getByRole('button', { name: /Sin confirmar:\s?2/ })).toBeInTheDocument()
+    expect(within(tipos).queryByRole('button', { name: /Sin enviar/ })).toBeNull()
   })
 })
 

@@ -92,7 +92,7 @@ describe('ejecutarCarga', () => {
   })
 
   it('confirmarLoteIncierto: repite el lote del corte con su MISMO id; si responde, sus filas cuentan; si no, queda sin confirmar', async () => {
-    const desde = { baseId: 'base-1', lotesHechos: 1, filasHechas: 2, resultados: [], reintento: 0 }
+    const desde = { baseId: 'base-1', lotesHechos: 1, filasHechas: 2, resultados: [], reintento: 0, incierto: true }
     const p = puertas()
     const r = await confirmarLoteIncierto(PLAN, desde, p)
     expect(p.cargarBaseLote).toHaveBeenCalledWith({ operacionId: 'op-2', baseId: 'base-1', filas: PLAN.lotes[1]?.filas })
@@ -111,5 +111,39 @@ describe('ejecutarCarga', () => {
     expect(esFalloIncierto(new ErrorBases('x', 'REGLA_SERVIDOR'))).toBe(false)
     expect(esRechazoDefinitivo(new ErrorBases('x', 'NOMBRE_REPETIDO'))).toBe(true)
     expect(esRechazoDefinitivo(new ErrorBases('x', 'RED'))).toBe(false)
+  })
+
+  it('Codex r2: RED y después «otra operación en curso» (55P03) NO resuelven el lote: sigue incierto hasta el recibo de ESE id', async () => {
+    let fase: 'red' | 'ocupado' | 'recibo' = 'red'
+    const p = puertas({
+      cargarBaseLote: vi.fn(async (e: { operacionId: string; filas: { fila: number }[] }) => {
+        if (fase === 'red') { fase = 'ocupado'; throw new ErrorBases('red', 'RED') }
+        if (fase === 'ocupado') throw new ErrorBases('Hay otra carga en curso de esta base; reintenta', 'OCUPADO')
+        return respuestaLote(e.filas)
+      }) as never,
+    })
+    const solo = { ...PLAN, lotes: PLAN.lotes.slice(0, 1) }
+    const corte = await ejecutarCarga(solo, AVANCE_INICIAL, p)
+    expect(corte).toMatchObject({ tipo: 'pausada', error: { code: 'RED' }, avance: { lotesHechos: 0, incierto: true } })
+    // «Reintentar»: el mismo id choca con la original, que sigue corriendo → 55P03 hasta el tope. Sigue incierto.
+    const ocupado = await ejecutarCarga(solo, corte.avance, p)
+    expect(ocupado).toMatchObject({ tipo: 'pausada', error: { code: 'OCUPADO' }, avance: { lotesHechos: 0, incierto: true } })
+    // «Terminar aquí» mientras sigue ocupada: no se puede confirmar → «sin confirmar» (nunca «sin enviar»).
+    expect(await confirmarLoteIncierto(solo, ocupado.avance, p)).toMatchObject({ confirmado: false, avance: { incierto: true, lotesHechos: 0 } })
+    // La original terminó: el mismo id devuelve su recibo y el lote cuenta con sus filas.
+    fase = 'recibo'
+    const r = await confirmarLoteIncierto(solo, ocupado.avance, p)
+    expect(r).toMatchObject({ confirmado: true, avance: { incierto: false, lotesHechos: 1, filasHechas: 2 } })
+    expect(r.avance.resultados.map((x) => x.veredicto)).toEqual(['cargada', 'cargada'])
+    expect(new Set(p.cargarBaseLote.mock.calls.map(([e]) => (e as { operacionId: string }).operacionId))).toEqual(new Set(['op-1']))
+  })
+
+  it('un rechazo definitivo del mismo id SÍ resuelve (no se guardó): queda «sin enviar»; sin incertidumbre no se repite nada', async () => {
+    const desde = { baseId: 'base-1', lotesHechos: 0, filasHechas: 0, resultados: [], reintento: 0, incierto: true }
+    const rechazo = puertas({ cargarBaseLote: vi.fn(async () => { throw new ErrorBases('Una base recibe hasta 5000 filas', 'REGLA_SERVIDOR') }) as never })
+    expect(await confirmarLoteIncierto(PLAN, desde, rechazo)).toMatchObject({ confirmado: true, avance: { incierto: false, lotesHechos: 0 } })
+    const nada = puertas()
+    expect(await confirmarLoteIncierto(PLAN, { ...desde, incierto: false }, nada)).toMatchObject({ confirmado: true })
+    expect(nada.cargarBaseLote).not.toHaveBeenCalled()
   })
 })

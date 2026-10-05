@@ -274,6 +274,57 @@ describe('dentro de una base: repartir', () => {
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Confirmar el reparto anterior' })).toBeNull())
   })
 
+  it('Codex r2: RED → «Confirmar» choca con 55P03 (la original sigue): el reparto SIGUE pendiente con su MISMO id; luego llega su recibo', async () => {
+    let fase: 'red' | 'ocupado' | 'recibo' = 'red'
+    fuente.repartirBase.mockImplementation(async () => {
+      if (fase === 'red') { fase = 'ocupado'; throw new ErrorBases('Se cortó la conexión', 'RED') }
+      if (fase === 'ocupado') throw new ErrorBases('Hay otra operación en curso de esta base; reintenta', 'OCUPADO')
+      return { repartidos: 10, por_analista: [{ analista_id: ANA, cantidad: 10 }], omitidos: [] }
+    })
+    montar(BASE)
+    await userEvent.type(await screen.findByLabelText('ANA PÉREZ'), '10')
+    await userEvent.click(screen.getByRole('button', { name: /^Repartir 10/ }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Confirmar el reparto anterior' }))
+    // 55P03 no prueba que la original no exista: sigue pendiente y no deja repartir OTRA cosa.
+    expect(await screen.findByText('Hay otra operación en curso de esta base; reintenta')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Confirmar el reparto anterior' })).toBeInTheDocument()
+    await userEvent.clear(screen.getByLabelText('ANA PÉREZ'))
+    await userEvent.type(screen.getByLabelText('ANA PÉREZ'), '20')
+    await userEvent.click(screen.getByRole('button', { name: /^Repartir 20/ }))
+    expect(fuente.repartirBase).toHaveBeenCalledTimes(2)
+    // La original terminó: el MISMO id devuelve su recibo y se resuelve con sus cifras.
+    fase = 'recibo'
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar el reparto anterior' }))
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Confirmar el reparto anterior' })).toBeNull())
+    expect(toastSuccess).toHaveBeenCalledWith('Repartidos 10: ANA PÉREZ 10.')
+    const llamadas = fuente.repartirBase.mock.calls.map(([e]) => e as { operacionId: string; reparto: unknown })
+    expect(llamadas).toHaveLength(3)
+    expect(new Set(llamadas.map((x) => x.operacionId)).size).toBe(1)
+    expect(llamadas.every((x) => JSON.stringify(x.reparto) === JSON.stringify({ modo: 'bloque', asignaciones: [{ analista_id: ANA, cantidad: 10 }] }))).toBe(true)
+  })
+
+  it('Codex r2: un rechazo definitivo del MISMO id (22023) sí resuelve lo pendiente: ya se puede repartir otra cosa', async () => {
+    let n = 0
+    fuente.repartirBase.mockImplementation(async () => {
+      n += 1
+      if (n === 1) throw new ErrorBases('Se cortó la conexión', 'RED')
+      if (n === 2) throw new ErrorBases('No alcanzan: hay 5 contactos disponibles', 'SIN_DISPONIBLES', 5)
+      return { repartidos: 5, por_analista: [{ analista_id: ANA, cantidad: 5 }], omitidos: [] }
+    })
+    montar(BASE)
+    await userEvent.type(await screen.findByLabelText('ANA PÉREZ'), '10')
+    await userEvent.click(screen.getByRole('button', { name: /^Repartir 10/ }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Confirmar el reparto anterior' }))
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Confirmar el reparto anterior' })).toBeNull())
+    await userEvent.clear(screen.getByLabelText('ANA PÉREZ'))
+    await userEvent.type(screen.getByLabelText('ANA PÉREZ'), '5')
+    await userEvent.click(screen.getByRole('button', { name: /^Repartir 5/ }))
+    await waitFor(() => expect(fuente.repartirBase).toHaveBeenCalledTimes(3))
+    const ids = fuente.repartirBase.mock.calls.map(([e]) => (e as { operacionId: string }).operacionId)
+    expect(ids[0]).toBe(ids[1])
+    expect(ids[2]).not.toBe(ids[0])
+  })
+
   it('mientras se envía un reparto no se cambia de forma (se avisa)', async () => {
     fuente.repartirBase.mockImplementation(() => new Promise(() => undefined))
     montar(BASE)

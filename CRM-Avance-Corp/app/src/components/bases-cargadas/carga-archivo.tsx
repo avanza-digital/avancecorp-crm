@@ -42,7 +42,7 @@ import {
   type TablaArchivo,
 } from '@/lib/bases-cargadas'
 import { ErrorArchivoBase, leerArchivoBase } from '@/lib/bases-cargadas-archivo'
-import { CODIGO_NO_DISPONIBLE, esFalloIncierto, esRechazoDefinitivo } from '@/data/bases-cargadas-api'
+import { CODIGO_NO_DISPONIBLE, esRechazoDefinitivo } from '@/data/bases-cargadas-api'
 import { AVANCE_INICIAL, confirmarLoteIncierto, ejecutarCarga, type AvanceCarga, type PlanCarga, type PuertasCarga } from '@/data/bases-cargadas-carga'
 import { useInvalidarBases, type PuertasBases } from '@/data/bases-cargadas-queries'
 import type { CrmApiError } from '@/data/crm-api'
@@ -57,7 +57,7 @@ const FILTRO_VISTA_TEXTO: Readonly<Record<FiltroVista, string>> = {
   todas: '', validas: ', solo las que se enviarán', invalidas: ', solo las inválidas', repetidas: ', solo las repetidas en el archivo',
 }
 
-const esperar = (ms: number) => new Promise<void>((resolver) => { setTimeout(resolver, ms) })
+const esperarReal = (ms: number) => new Promise<void>((resolver) => { setTimeout(resolver, ms) })
 
 /** «A», «B»… «AA»: la letra de la columna, como en Excel. */
 function letraColumna(i: number): string {
@@ -83,7 +83,7 @@ function pendientesDelInforme(plan: PlanPantalla, avance: AvanceCarga, sinConfir
   })))
 }
 
-export function CargaArchivo({ puertas, esGerencia, supervisores, onVerBase, onEnCurso }: {
+export function CargaArchivo({ puertas, esGerencia, supervisores, onVerBase, onEnCurso, esperar = esperarReal }: {
   puertas: PuertasBases
   esGerencia: boolean
   /** Los supervisores activos que Gerencia puede elegir como dueño (E11). */
@@ -91,6 +91,8 @@ export function CargaArchivo({ puertas, esGerencia, supervisores, onVerBase, onE
   onVerBase: (baseId: string) => void
   /** Avisa si hay una carga corriendo (la hoja lateral no se cierra a medias). */
   onEnCurso: (enCurso: boolean) => void
+  /** La espera entre reintentos automáticos (las pruebas la hacen instantánea). */
+  esperar?: (ms: number) => Promise<void>
 }) {
   const id = useId()
   const invalidar = useInvalidarBases()
@@ -163,6 +165,8 @@ export function CargaArchivo({ puertas, esGerencia, supervisores, onVerBase, onE
 
   const puertasCarga: PuertasCarga = { crearBase: puertas.fuente.crearBase, cargarBaseLote: puertas.fuente.cargarBaseLote, esperar, alAvanzar: setAvance }
 
+  // UN solo candado síncrono para todo lo que envía (Codex F5 r2): «Reintentar» (correr) y «Terminar aquí» (confirmar el
+  // lote incierto) lo toman durante TODA su operación; mientras uno corre, el otro no arranca y sus botones se apagan.
   async function correr(p: PlanPantalla, desde: AvanceCarga) {
     if (corriendo.current) return
     corriendo.current = true
@@ -191,25 +195,30 @@ export function CargaArchivo({ puertas, esGerencia, supervisores, onVerBase, onE
   }
 
   /**
-   * «Terminar aquí»: si el lote del corte se ENVIÓ y no hubo respuesta (fallo incierto), pudo quedar guardado. Antes de
-   * cerrar se repite UNA vez con su MISMO id (si ya estaba, vuelve la misma respuesta y sus filas salen con su veredicto
-   * real). Si tampoco responde, ese lote sale «Sin confirmar» —no «Sin enviar»—; los siguientes, «Sin enviar».
+   * «Terminar aquí»: si el lote del corte quedó INCIERTO (se envió alguna vez sin respuesta; un «otra operación en curso»
+   * posterior no lo resuelve), pudo quedar guardado. Antes de cerrar se repite con su MISMO id: si ya estaba, vuelve su
+   * recibo y sus filas salen con su veredicto real. Si sigue sin saberse, ese lote sale «Sin confirmar» —no «Sin enviar»—;
+   * los siguientes, «Sin enviar». Toma el mismo candado que «Reintentar»: nunca corren a la vez.
    */
   async function terminarAqui(p: PlanPantalla) {
-    if (confirmando || corriendo.current) return
+    if (corriendo.current) return
+    corriendo.current = true
     let final = avance
     let sinConfirmar = false
-    if (errorCarga && esFalloIncierto(errorCarga)) {
-      setConfirmando(true)
-      try {
+    try {
+      if (avance.incierto) {
+        setConfirmando(true)
         const r = await confirmarLoteIncierto(p, avance, puertasCarga)
         final = r.avance
         sinConfirmar = !r.confirmado
-      } finally {
-        setConfirmando(false)
       }
+      // La hoja de bases y su seguimiento se ponen al día (como al terminar «Reintentar»).
+      if (final.baseId) void invalidar()
+      setAvance(final); setAMedias({ sinConfirmar }); setFase('terminada'); setFocoPendiente('progreso')
+    } finally {
+      setConfirmando(false)
+      corriendo.current = false
     }
-    setAvance(final); setAMedias({ sinConfirmar }); setFase('terminada'); setFocoPendiente('progreso')
   }
 
   function cargar() {
@@ -276,7 +285,7 @@ export function CargaArchivo({ puertas, esGerencia, supervisores, onVerBase, onE
           {fase === 'pausada' && errorCarga && (
             <div className="flex flex-wrap items-center gap-3 rounded-lg border border-destructive/40 bg-destructive/[0.04] px-3 py-2.5">
               <p role="alert" className="text-sm font-medium text-[var(--destructive-text)]">{errorCarga.message}</p>
-              <Button type="button" size="sm" className="pointer-coarse:h-11" onClick={() => void correr(plan, avance)}>
+              <Button type="button" size="sm" className="pointer-coarse:h-11" aria-disabled={confirmando || undefined} onClick={() => void correr(plan, avance)}>
                 <RotateCcw aria-hidden /> Reintentar
               </Button>
               {avance.baseId && (

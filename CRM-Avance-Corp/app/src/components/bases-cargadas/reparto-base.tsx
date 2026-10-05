@@ -25,7 +25,7 @@ import { cn } from '@/lib/utils'
 import { paginar, POR_PAGINA } from '@/lib/paginacion'
 import { fmtFecha } from '@/lib/format'
 import { telefonoLegible } from '@/lib/recordatorios-disponibilidad'
-import { CODIGO_NO_DISPONIBLE, ErrorBases, esFalloIncierto } from '@/data/bases-cargadas-api'
+import { CODIGO_NO_DISPONIBLE, ErrorBases, esFalloIncierto, esRechazoDefinitivo } from '@/data/bases-cargadas-api'
 import { CrmApiError } from '@/data/crm-api'
 import { useContactosDeBase, useRepartirBase, type PuertasBases } from '@/data/bases-cargadas-queries'
 import {
@@ -95,8 +95,10 @@ function useEnvioReparto(puertas: PuertasBases, baseId: string): EnvioReparto {
       if (esFalloIncierto(causa)) {
         operacion.current = { ...actual, incierto: true }
         setIncierto(operacion.current)
-      } else if (actual.incierto) {
-        // El replay terminó en un rechazo concreto: el envío original NO se hizo; ya se puede repartir otra cosa.
+      } else if (actual.incierto && esRechazoDefinitivo(causa)) {
+        // El servidor juzgó ESE id y lo rechazó (22023/42501/P0002/23505): el envío original no se hizo; ya se puede
+        // repartir otra cosa. Un «otra operación en curso» (55P03) u otro transitorio NO lo prueban (la original puede seguir
+        // corriendo): la operación sigue pendiente con su MISMO id (Codex F5 r2).
         operacion.current = { ...actual, incierto: false }
         setIncierto(null)
       }

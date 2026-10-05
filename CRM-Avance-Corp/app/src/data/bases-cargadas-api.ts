@@ -65,10 +65,16 @@ export function esFalloIncierto(causa: unknown): boolean {
   return causa.code === CODIGO_RED || causa.code === CODIGO_CONTRATO || causa.code === 'POSTGREST_ERROR' || causa.code === 'DESCONOCIDO'
 }
 
-/** Rechazos de negocio DEFINITIVOS (nada se hizo y repetir no cambia nada): se corrige el pedido. */
+/**
+ * Rechazos DEFINITIVOS: el servidor juzgó el pedido y dijo que no (22023 de una regla —también «no alcanzan», «rechazados»,
+ * «ninguno elegible»—, 42501 sin permiso, P0002 fuera de ámbito, 23505 nombre repetido, o la puerta no existe). Nada se
+ * hizo con ESE id: se corrige el pedido. Son lo ÚNICO que resuelve una operación incierta además del éxito (o el replay de su
+ * recibo): «otra operación en curso» (55P03) o cualquier transitorio NO prueban que la original no exista (Codex F5 r2: la
+ * original puede seguir corriendo y tener el candado de la base).
+ */
 export function esRechazoDefinitivo(causa: unknown): boolean {
   return causa instanceof CrmApiError
-    && ['NOMBRE_REPETIDO', 'SIN_PERMISO', 'REGLA_SERVIDOR', CODIGO_NO_DISPONIBLE, 'FUERA_DE_AMBITO'].includes(causa.code)
+    && ['NOMBRE_REPETIDO', 'SIN_PERMISO', 'REGLA_SERVIDOR', CODIGO_NO_DISPONIBLE, 'FUERA_DE_AMBITO', 'SIN_DISPONIBLES', 'RECHAZADOS', 'SIN_ELEGIBLES'].includes(causa.code)
 }
 
 type ErrorPostgrest = { code?: string | null; message?: string | null; details?: string | null }
