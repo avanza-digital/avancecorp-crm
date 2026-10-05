@@ -4,7 +4,7 @@ Actualizado: 05/10/2026, 10:10 a. m. (hora de Lima). Generado por `actualizar-av
 
 Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact/Q3GmV9m6Cy2GPQGKAbNy8M · Plan completo: `PLAN.md` en esta carpeta.
 
-**Lo último:** 05/10 15:10 UTC: quinta migración escrita (20261005143843, paso 1 del plan v2) con su reversa, su registrador y su oráculo: banco reducido 232/232 en verde (41 mutantes y 9 carreras con dos sesiones). SIN APLICAR: se publica junto con F4-a y la Edge. Jhosep contó la fusión del #179 como el OK de Miguel (N1 según la recomendación). Sigue: F4-a.
+**Lo último:** 05/10 15:10 UTC: quinta migración escrita (20261005143843, paso 1 del plan v2; PR #190, borrador) con su reversa, su registrador y su oráculo: banco reducido 232/232 en verde (41 mutantes y 9 carreras con dos sesiones). SIN APLICAR: se publica junto con F4-a y la Edge. Jhosep contó la fusión del #179 como el OK de Miguel (N1 según la recomendación). Sigue: F4-a.
 
 **Total:** 25 de 102 tareas · 1 de 8 fases hechas.
 

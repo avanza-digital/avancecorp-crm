@@ -1,7 +1,7 @@
 {
   "actualizado": "2026-10-05T15:10:03Z",
   "meta": {
-    "novedad": "05/10 15:10 UTC: quinta migración escrita (20261005143843, paso 1 del plan v2) con su reversa, su registrador y su oráculo: banco reducido 232/232 en verde (41 mutantes y 9 carreras con dos sesiones). SIN APLICAR: se publica junto con F4-a y la Edge. Jhosep contó la fusión del #179 como el OK de Miguel (N1 según la recomendación). Sigue: F4-a.",
+    "novedad": "05/10 15:10 UTC: quinta migración escrita (20261005143843, paso 1 del plan v2; PR #190, borrador) con su reversa, su registrador y su oráculo: banco reducido 232/232 en verde (41 mutantes y 9 carreras con dos sesiones). SIN APLICAR: se publica junto con F4-a y la Edge. Jhosep contó la fusión del #179 como el OK de Miguel (N1 según la recomendación). Sigue: F4-a.",
     "actualizado": "2026-10-05T15:10:03Z"
   },
   "fases": {
