@@ -32,7 +32,7 @@ export function useLlamadasCelular(): FuenteLlamadasCelular | null {
     setEstado((e) => ({
       pendientes: e.pendientes.filter((f) => f.evento_id !== fila.evento_id),
       resueltas: [{
-        evento_id: fila.evento_id, recibido_en: fila.recibido_en, ocurrio_en: fila.ocurrio_en, numero: fila.numero,
+        evento_id: fila.evento_id, resuelto_en: new Date().toISOString(), recibido_en: fila.recibido_en, ocurrio_en: fila.ocurrio_en, numero: fila.numero,
         atencion: 'descartado_con_motivo', lead_id: fila.lead_id, lead_nombre: fila.lead_nombre, analista_id: fila.analista_id,
         es_propia: fila.es_propia, etiqueta: 'C1', actividad_id: null, resultado: null, deshecho: false, via: null,
         motivo_descarte: motivo, motivo_descarte_detalle: detalle,

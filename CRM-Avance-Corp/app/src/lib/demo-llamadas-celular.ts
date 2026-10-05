@@ -26,6 +26,7 @@ export function demoPendientesCelular(ahora: number): FilaBandeja[] {
 export function demoResueltasHoyCelular(ahora: number): ResueltaHoy[] {
   const resuelta = (id: string, haceMin: number, extra: Partial<ResueltaHoy>): ResueltaHoy => ({
     evento_id: `demo-llamada-${id}`, recibido_en: iso(ahora - haceMin * MIN + 11_000), ocurrio_en: iso(ahora - haceMin * MIN),
+    resuelto_en: iso(ahora - (haceMin - 4) * MIN),
     numero: null, atencion: 'registrado', lead_id: null, lead_nombre: null, analista_id: 'd-v1', es_propia: true,
     etiqueta: 'C1', actividad_id: null, resultado: null, deshecho: false, via: null, motivo_descarte: null,
     motivo_descarte_detalle: null, ...extra,
