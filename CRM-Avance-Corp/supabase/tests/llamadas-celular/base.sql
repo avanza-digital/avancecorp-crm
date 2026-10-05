@@ -10,7 +10,8 @@
 --   (20260907025220) · private.rol_crm y private.es_lector_global (20260828210351) ·
 --   private.vendedor_ids_visibles (20260803164348, con su defensa: solo para quien llama) ·
 --   private.idem_hash (20260903205000) · CHECK actividades_resultado_llamada_forma (20260920005000).
--- DOBLES DECLARADOS: auth.uid (lee request.jwt.claim.sub) y public.log_audit_change.
+-- DOBLES DECLARADOS: auth.uid (lee request.jwt.claim.sub), public.log_audit_change y private.llamada_registrar_v4
+-- (el núcleo sellado de la encuesta v4, que la v5 de F4-a compone; ver su comentario abajo).
 -- COLUMNAS REDUCIDAS: public.perfiles, public.audit_log, crm.equipo, crm.leads, crm.actividades.
 --
 -- No sustituye el gate test-rls.mjs contra un banco con el esquema de producción.
@@ -479,6 +480,48 @@ language sql stable security invoker set search_path='' as $function$
               (select private.vendedor_ids_visibles(p_actor))))))
   );
 $function$;
+
+-- ── encuesta v4 (DOBLE) ─────────────────────────────────────────────────────────────────────
+-- private.llamada_registrar_v4 real (20260921153654) compone el motor SLA entero (registrar_actividad_v2, recibos,
+-- tareas, descarte), que este banco no tiene. El doble conserva solo lo que la v5 de F4-a necesita: el ámbito
+-- (42501), el lead cerrado (22023), el candado del lead FOR UPDATE, la actividad con id = operación y su metadata
+-- de resultado, el replay por operación (23505 si cambia el resultado) y la forma de la respuesta. La composición
+-- real la prueba el gate test-rls.mjs con el esquema de producción.
+create function private.llamada_registrar_v4(p_actor uuid, p_operacion_id uuid, p_lead_id uuid, p_resultado text,
+  p_submotivo text, p_detalle text, p_siguiente jsonb, p_tarea_id uuid, p_descartar boolean, p_no_insista boolean)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_meta jsonb;
+begin
+  if private.sla_gestion_permitida(p_actor, p_lead_id) is distinct from true then
+    raise exception 'Gestion no disponible en tu ambito' using errcode = '42501';
+  end if;
+  perform 1 from crm.leads l where l.id = p_lead_id for update;
+  select a.metadata into v_meta from crm.actividades a where a.id = p_operacion_id;
+  if found then
+    if v_meta ->> 'resultado' is distinct from p_resultado then
+      raise exception 'Esta operacion ya corresponde a otro contenido' using errcode = '23505';
+    end if;
+    return pg_catalog.jsonb_build_object('ok', true, 'lead_id', p_lead_id, 'comando', 'registrar_llamada',
+      'actividad_id', p_operacion_id, 'resultado', p_resultado, 'replay', true);
+  end if;
+  if (select l.etapa from crm.leads l where l.id = p_lead_id) in ('convertido', 'descartado') then
+    raise exception 'El lead esta cerrado' using errcode = '22023';
+  end if;
+  insert into crm.actividades (id, lead_id, tipo, detalle, metadata, creado_por)
+  values (p_operacion_id, p_lead_id,
+          case when p_resultado = 'no_contesto' then 'llamada_no_contestada' else 'llamada_realizada' end, p_detalle,
+          pg_catalog.jsonb_build_object('evento', 'resultado_llamada', 'resultado', p_resultado), p_actor);
+  return pg_catalog.jsonb_build_object('ok', true, 'lead_id', p_lead_id, 'comando', 'registrar_llamada',
+    'actividad_id', p_operacion_id, 'resultado', p_resultado, 'replay', false);
+end;
+$$;
+revoke all on function private.llamada_registrar_v4(uuid,uuid,uuid,text,text,text,jsonb,uuid,boolean,boolean)
+  from public, anon, authenticated, service_role;
 
 -- ── siembra sintética (sin datos reales) ───────────────────────────────────────────────────
 -- Equipo: sup1 (b1) con a1 y a2; sup2 (b2) con a3; a9 dado de baja; g1 gerencia.

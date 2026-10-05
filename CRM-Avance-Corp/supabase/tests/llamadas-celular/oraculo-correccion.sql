@@ -152,7 +152,7 @@ begin
   v_r2 := pg_temp.enviar(k1, pg_temp.ev('C1-' || t0, '900000001'));
   v_ev := pg_temp.evento('C1-' || t0);
   if v_r2::text is distinct from v_r::text or v_ev.lead_id is distinct from c1
-     or v_ev.atencion <> 'requiere_resultado' or v_ev.metodo_asociacion <> 'exacto' then
+     or v_ev.atencion is distinct from 'requiere_resultado' or v_ev.metodo_asociacion is distinct from 'exacto' then
     raise exception 'ORACULO A7: el lead propio no respondió igual o no quedó identificado pidiendo resultado (%, %)', v_r2, row_to_json(v_ev);
   end if;
   v_e1 := v_ev.id;
@@ -161,7 +161,7 @@ begin
   t0 := t0 + 1;
   perform pg_temp.enviar(k1, pg_temp.ev('C1-' || t0, '900000010'));
   v_ev := pg_temp.evento('C1-' || t0);
-  if v_ev.lead_id is distinct from cb or v_ev.atencion <> 'por_revisar' or v_ev.analista_id <> a1 then
+  if v_ev.lead_id is distinct from cb or v_ev.atencion is distinct from 'por_revisar' or v_ev.analista_id is distinct from a1 then
     raise exception 'ORACULO B1: la llamada a un lead en bolsa no quedó identificada por revisar (%)', row_to_json(v_ev);
   end if;
   v_e2 := v_ev.id;
@@ -183,7 +183,7 @@ begin
   perform pg_temp.como(a2);
   v_r := crm.enlazar_llamada_celular(v_e2, v_act);
   perform pg_temp.yo();
-  if (select atencion from crm.llamadas_celular_eventos where id = v_e2) <> 'registrado' then
+  if (select atencion from crm.llamadas_celular_eventos where id = v_e2) is distinct from 'registrado' then
     raise exception 'ORACULO B6: quien tomó el lead no pudo enlazar su llamada (%)', v_r;
   end if;
 
@@ -191,14 +191,14 @@ begin
   t0 := t0 + 1;
   perform pg_temp.enviar(k1, pg_temp.ev('C1-' || t0, '900000011'));
   v_ev := pg_temp.evento('C1-' || t0);
-  if v_ev.lead_id is distinct from cr or v_ev.atencion <> 'por_revisar' then
+  if v_ev.lead_id is distinct from cr or v_ev.atencion is distinct from 'por_revisar' then
     raise exception 'ORACULO C1: el descartado reutilizable (0 días, pasadas 24 h) no quedó por revisar (%)', row_to_json(v_ev);
   end if;
   if pg_temp.ve(a1, v_ev.id) then raise exception 'ORACULO C2: quien llamó ve la llamada a un reutilizable'; end if;
   t0 := t0 + 1;
   perform pg_temp.enviar(k1, pg_temp.ev('C1-' || t0, '900000013'));
   v_ev := pg_temp.evento('C1-' || t0);
-  if v_ev.lead_id is distinct from cr2 or v_ev.atencion <> 'por_revisar' then
+  if v_ev.lead_id is distinct from cr2 or v_ev.atencion is distinct from 'por_revisar' then
     raise exception 'ORACULO C3: el descartado reutilizable (30 días cumplidos) no quedó por revisar (%)', row_to_json(v_ev);
   end if;
 
@@ -206,26 +206,26 @@ begin
   t0 := t0 + 1;
   perform pg_temp.enviar(k1, pg_temp.ev('C1-' || t0, '900000005'));
   v_ev := pg_temp.evento('C1-' || t0);
-  if v_ev.lead_id is distinct from c5 or v_ev.atencion <> 'por_revisar' then
+  if v_ev.lead_id is distinct from c5 or v_ev.atencion is distinct from 'por_revisar' then
     raise exception 'ORACULO D1: el propio convertido no quedó identificado por revisar (%)', row_to_json(v_ev);
   end if;
   t0 := t0 + 1;
   perform pg_temp.enviar(k1, pg_temp.ev('C1-' || t0, '900000004'));
   v_ev := pg_temp.evento('C1-' || t0);
-  if v_ev.lead_id is distinct from c4 or v_ev.atencion <> 'por_revisar' then
+  if v_ev.lead_id is distinct from c4 or v_ev.atencion is distinct from 'por_revisar' then
     raise exception 'ORACULO D2: el propio en «no contactar» no quedó identificado por revisar (%)', row_to_json(v_ev);
   end if;
   -- 900000006 es de c6 (a1) y c7 (a2): para a1, coincidencia única en su cartera; para b1, ambigua.
   t0 := t0 + 1;
   perform pg_temp.enviar(k1, pg_temp.ev('C1-' || t0, '900000006'));
   v_ev := pg_temp.evento('C1-' || t0);
-  if v_ev.lead_id is distinct from c6 or v_ev.atencion <> 'requiere_resultado' then
+  if v_ev.lead_id is distinct from c6 or v_ev.atencion is distinct from 'requiere_resultado' then
     raise exception 'ORACULO D3: el número compartido no quedó con el lead propio (%)', row_to_json(v_ev);
   end if;
   t0 := t0 + 1;
   perform pg_temp.enviar(k4, pg_temp.ev('C4-' || t0, '900000006'));
   v_ev := pg_temp.evento('C4-' || t0);
-  if v_ev.identificacion <> 'ambiguo' or v_ev.lead_id is not null or v_ev.calidad ? 'candidatos' then
+  if v_ev.identificacion is distinct from 'ambiguo' or v_ev.lead_id is not null or v_ev.calidad ? 'candidatos' then
     raise exception 'ORACULO D4: la llamada del supervisor no quedó ambigua sin conteo (%)', row_to_json(v_ev);
   end if;
   v_e3 := v_ev.id;
@@ -233,7 +233,7 @@ begin
   perform pg_temp.como(b1);
   v_r := crm.asociar_llamada_celular(v_e3, c7);
   perform pg_temp.yo();
-  if v_r ->> 'atencion' <> 'requiere_resultado' or (select lead_id from crm.llamadas_celular_eventos where id = v_e3) <> c7 then
+  if v_r ->> 'atencion' is distinct from 'requiere_resultado' or (select lead_id from crm.llamadas_celular_eventos where id = v_e3) is distinct from c7 then
     raise exception 'ORACULO D5: asociar la ambigua a un lead del equipo no funcionó (%)', v_r;
   end if;
 
@@ -243,7 +243,7 @@ begin
                                 'C1-' || (floor(extract(epoch from now() - interval '31 days'))::bigint),
                                 'C1-' || (floor(extract(epoch from now() + interval '2 days'))::bigint)] loop
     v_r := pg_temp.enviar(k1, pg_temp.ev(v_msg, '900000001'));
-    if v_r ->> 'resultado' <> 'invalido' or coalesce(v_r ->> 'mensaje', '') = '' or (v_r - 'resultado' - 'mensaje') <> '{}'::jsonb then
+    if v_r ->> 'resultado' is distinct from 'invalido' or coalesce(v_r ->> 'mensaje', '') = '' or (v_r - 'resultado' - 'mensaje') <> '{}'::jsonb then
       raise exception 'ORACULO E1: el id % no se rechazó como inválido con su mensaje (%)', v_msg, v_r;
     end if;
     if exists (select 1 from private.llamadas_celular_recepciones where evento_origen_id = v_msg) then
@@ -301,15 +301,15 @@ begin
   t0 := t0 + 1;
   perform pg_temp.enviar(k1c, pg_temp.ev('C1-' || t0, '900000003'));
   v_ev := pg_temp.evento('C1-' || t0);
-  if v_ev.analista_id is distinct from a2 or v_ev.lead_id is distinct from c3 or v_ev.atencion <> 'requiere_resultado' then
+  if v_ev.analista_id is distinct from a2 or v_ev.lead_id is distinct from c3 or v_ev.atencion is distinct from 'requiere_resultado' then
     raise exception 'ORACULO E10: con la etiqueta reutilizada el id nuevo no entró a nombre del analista nuevo (%)', row_to_json(v_ev);
   end if;
 
   -- ═════ F. Latido y fecha estricta ═════
   v_t := clock_timestamp();
   v_r := pg_temp.latir(k4, '{"v": 1, "version_macro": "llamadas-v2", "en_cola": 0, "ocurrio_en": "2026-10-05 09:30:00-05:00"}');
-  if v_r <> aceptado or (select ultimo_latido_en < v_t or version_macro <> 'llamadas-v2'
-                         from private.celulares_estado where asignacion_id = v_c4) then
+  if v_r <> aceptado or coalesce((select ultimo_latido_en < v_t or version_macro <> 'llamadas-v2'
+                         from private.celulares_estado where asignacion_id = v_c4), true) then
     raise exception 'ORACULO F1: el latido válido no quedó con la hora de la puerta (%)', v_r;
   end if;
   select envios_dia, dia into v_n, v_dia from private.celulares_estado where asignacion_id = v_c4;
@@ -319,22 +319,22 @@ begin
       '{"v": 1, "version_macro": "x", "en_cola": 0, "ocurrio_en": "2026-02-30 09:30:00-05:00"}',
       '{"v": 2, "version_macro": "x", "en_cola": 0}', 'null', '[1]'] loop
     v_r := pg_temp.latir(k4, v_msg::jsonb);
-    if v_r ->> 'resultado' <> 'invalido' then
+    if v_r ->> 'resultado' is distinct from 'invalido' then
       raise exception 'ORACULO F2: el latido inválido % no respondió «invalido» (%)', v_msg, v_r;
     end if;
   end loop;
   select envios_dia, dia into v_n2, v_dia2 from private.celulares_estado where asignacion_id = v_c4;
   if (v_dia2 = v_dia and v_n2 <> v_n + 7)
-     or (select version_macro from private.celulares_estado where asignacion_id = v_c4) <> 'llamadas-v2' then
+     or (select version_macro from private.celulares_estado where asignacion_id = v_c4) is distinct from 'llamadas-v2' then
     raise exception 'ORACULO F3: el latido inválido no gastó cupo o tocó el estado (% → %)', v_n, v_n2;
   end if;
   t0 := t0 + 1;
   v_r := pg_temp.enviar(k4, pg_temp.ev('C4-' || t0, '900000099', '{"ocurrio_en": "2026-10-05 09:30:00"}'));
-  if v_r ->> 'resultado' <> 'invalido' then raise exception 'ORACULO F4: una fecha sin zona se aceptó (%)', v_r; end if;
+  if v_r ->> 'resultado' is distinct from 'invalido' then raise exception 'ORACULO F4: una fecha sin zona se aceptó (%)', v_r; end if;
   t0 := t0 + 1;
   v_r := pg_temp.enviar(k4, pg_temp.ev('C4-' || t0, '900000099', '{"ocurrio_en": "2026-10-05T14:30:00.5Z", "duracion_seg": 30}'));
   v_r2 := pg_temp.enviar(k4, pg_temp.ev('C4-' || (t0 + 1), '900000099', '{"duracion_seg": "30"}'));
-  if v_r <> aceptado or v_r2 ->> 'resultado' <> 'invalido' then
+  if v_r <> aceptado or v_r2 ->> 'resultado' is distinct from 'invalido' then
     raise exception 'ORACULO F5: fecha con T y Z o duración como texto mal juzgadas (%, %)', v_r, v_r2;
   end if;
   t0 := t0 + 2;
@@ -506,7 +506,7 @@ begin
   perform pg_temp.como(a1);
   v_r := crm.descartar_llamada_celular(v_e1, 'personal');
   perform pg_temp.yo();
-  if (select atencion from crm.llamadas_celular_eventos where id = v_e1) <> 'descartado_con_motivo' then
+  if (select atencion from crm.llamadas_celular_eventos where id = v_e1) is distinct from 'descartado_con_motivo' then
     raise exception 'ORACULO L2: descartar no funcionó (%)', v_r;
   end if;
 

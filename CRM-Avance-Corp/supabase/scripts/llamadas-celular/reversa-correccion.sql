@@ -6,7 +6,8 @@
 -- Después del primer aviso la quinta NO se revierte (reinstalaría las fugas de la revisión del 02/10): se apaga
 -- (retirar la Edge, cerrar las asignaciones) y se corrige hacia adelante, conservando los hechos.
 --
--- Orden de las reversas: esta → elegibilidad → ingesta → núcleo → datos (las de elegibilidad e ingesta se niegan
+-- Orden de las reversas: enlace exacto (F4-a) → esta → elegibilidad → ingesta → núcleo → datos (esta se niega con F4-a;
+-- las de elegibilidad e ingesta se niegan
 -- mientras la quinta siga instalada).
 --
 --   psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/scripts/llamadas-celular/reversa-correccion.sql
@@ -19,6 +20,9 @@ begin
   if to_regclass('private.llamadas_celular_recepciones') is null
      or to_regprocedure('private.llamada_celular_ingerir(uuid,jsonb,timestamptz)') is null then
     raise exception 'REVERSA_CORRECCION: la migración 20261005143843 no está aplicada';
+  end if;
+  if to_regclass('private.llamadas_celular_intenciones') is not null then
+    raise exception 'REVERSA_CORRECCION: F4-a (20261005155914) sigue instalada; primero reversa-enlace-exacto.sql';
   end if;
 end;
 $precondicion$;

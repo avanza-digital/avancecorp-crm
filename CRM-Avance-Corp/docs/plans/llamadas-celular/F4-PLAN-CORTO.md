@@ -65,7 +65,19 @@ con dos llamadas seguidas al mismo lead se equivocaría.
      aviso llega y enlaza sola.
 
    Correlación exacta, sin mirar la hora y sin un toque extra del analista. Es la propuesta #4 (puerta v5) más la #12.
-   Con la corrección (PR #171), la llamada se busca por el hash del id de origen.
+   Con la corrección (plan v2, PR #179), la llamada se busca por el **id completo** (`C<n>-<segundos>`), sin hash.
+
+**Hecho el 05/10 (F4-a, migración `20261005155914`, PR #190, sin aplicar), con §7 del plan v2:**
+- Sin la regla de los 10 minutos en este camino: un reloj adelantado no rechaza nada. La regla sigue en el enlace manual.
+- Se guarda **por qué vía** se hizo el enlace (`al_colgar`, `pestana`, `manual`): es la cifra «encuesta abierta al
+  colgar» por celular.
+- Al registrar el resultado corregido tras Deshacer, el enlace (o la intención) pasa al corregido.
+- La intención de enlace vive en `private.llamadas_celular_intenciones` y caduca a los 32 días.
+- **Decisiones de Jhosep (05/10):** si el enlace no se puede hacer, el resultado se guarda igual y la respuesta dice
+  «no enlazado» y por qué (la llamada sigue en la pestaña); una llamada **ambigua** no se une por este camino, va a la
+  pestaña.
+- «Qué pasó hoy» (hallazgo 1) pasa a F4-b, con la pantalla.
+- Para cerrar el fallo 5 de verdad falta F4-b: F1 lleva el id hasta la encuesta y la encuesta llama a la v5.
 
 ### 2. Pestaña «Llamadas del celular» del analista (F4.1)
 
@@ -145,8 +157,9 @@ los clientes de la cartera del dueño con la misma regla.
 
 0. **Antes:** la corrección de F2 + F3 (PR #171). Si Miguel elige ahí la opción A, F4-a se publica junto con F2 + F3.
 1. **F4-a · Servidor:** migración de `crm.registrar_llamada_v5` + intención de enlace por id de origen + la ingesta la
-   consume, y la lectura de «Qué pasó hoy» (hallazgo 1). Oráculo en el banco reducido (`npm run test:llamadas:local`),
-   bloque nuevo en el gate y comando con recibo nuevo. **Necesita el OK de Miguel al SQL.**
+   consume. Oráculo en el banco reducido (`npm run test:llamadas:local`), bloque nuevo en el gate y comando con recibo
+   nuevo. **Hecho el 05/10 (`20261005155914`, en el PR #190 con la quinta, sin aplicar); el bloque del gate y el
+   comando con recibo van con los pasos 4 y F4-b.** «Qué pasó hoy» pasó a F4-b.
 2. **F4-b · Pantalla del analista:** módulo de datos (`data/llamadas-celular-api.ts`, un solo cliente para las puertas),
    la pestaña nueva, la encuesta con contexto, la marca «Celular» (hallazgo 3) y F1 con id de origen. Pruebas unitarias
    y E2E en Docker.

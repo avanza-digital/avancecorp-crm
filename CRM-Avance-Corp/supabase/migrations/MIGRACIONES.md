@@ -1,3 +1,40 @@
+## 20261005155914 — Llamadas desde el celular · F4-a: enlace exacto encuesta ↔ llamada (`crm.registrar_llamada_v5`, `private.llamadas_celular_intenciones`, `crm.llamadas_celular_enlaces.via`)
+
+**⏸️ ESCRITA, SIN APLICAR (05/10/2026). Paso 2 del plan v2 (§7), en el PR #190 junto con la quinta.** Se aplica después
+de `20261005143843` y su registrador; registrador propio: `scripts/llamadas-celular/registrar-enlace-exacto.sql` (con
+fila de veredicto). Cierra el fallo 5 del lado de la base; para cerrarlo del todo falta F4-b (F1 lleva el id hasta la
+encuesta y la encuesta llama a la v5). Codex r2 y auditor-rls: al final, sobre la quinta + F4-a + la Edge (decisión
+de Jhosep, 05/10).
+
+Qué hace (no toca la v4 sellada; si su gate existe, lo corre antes y después):
+- `crm.registrar_llamada_v5`: la operación de la v4 (llama a `private.llamada_registrar_v4`, que bloquea el lead y
+  crea el resultado) y, en la misma transacción, el enlace exacto por el id de la llamada (`C<n>-<segundos>`): si la
+  llamada ya llegó (del celular del mismo analista, identificada con ese lead) la une; si no, guarda una intención.
+  Sin la regla de los 10 minutos (sigue en el enlace manual). Tras Deshacer, el corregido se lleva el enlace o la
+  intención.
+- **Decisiones de Jhosep (05/10):** un enlace imposible no impide guardar el resultado (responde `no_enlazado` con su
+  motivo y la llamada queda en la pestaña); una llamada ambigua no se une por este camino.
+- `private.llamadas_celular_intenciones`: única por id y por resultado, 32 días, sin auditoría.
+- `crm.llamadas_celular_enlaces.via` (`al_colgar`, `pestana`, `manual`; inmutable): mide «encuesta abierta al colgar».
+- La ingesta (cuerpo de la quinta con dos cambios: candado del lead antes de guardar y cumplir la intención) y la
+  purga (cuerpo de la quinta con un cambio: intenciones a 32 días), generadas con un guion y comparadas con `diff`.
+
+**Decisiones de criterio de Claude, para Miguel:** la intención en `private`; `via` con valor por defecto `manual`
+(el enlace manual no cambia); la v5 exige que la etiqueta del id sea de un celular del analista que registra; con el
+aviso ya ignorado no se guarda intención; «Qué pasó hoy» pasa a F4-b. El candado explícito del lead en la ingesta
+coincide con el que ya toma la llave foránea al guardar la llamada: está por claridad y no tiene mutante.
+
+Verificación (banco reducido, con la v4 como **doble declarado** en `tests/llamadas-celular/base.sql`): oráculo
+`tests/llamadas-celular/oraculo-enlace-exacto.sql` (sin id = v4, aviso antes, aviso tardío, reloj adelantado, enlaces
+imposibles que guardan igual, Deshacer → corregido, intención que no coincide, vía, validaciones, candados, purga);
+reversa con la huella exacta de las cinco; la reversa de la quinta se niega con F4-a puesta; 26 mutantes y 4 carreras
+con dos sesiones (el aviso durante la encuesta y al revés, dos encuestas con el mismo id, Deshacer mientras se cumple
+la intención): **276/276 en verde el 05/10**. La v4 real y el gate completo: NOT RUN (esquema de producción, los
+corre Miguel).
+
+Reversa: `scripts/llamadas-celular/reversa-enlace-exacto.sql` (solo sin enlaces ni intenciones; generada desde el blob
+de git). Orden de las reversas: esta → la de la quinta → las de las cuatro.
+
 ## 20261005143843 — Llamadas desde el celular · QUINTA: corrección de F2 + F3 (`private.llamadas_celular_recepciones`, `private.llamada_celular_ingerir(uuid,jsonb,timestamptz)`, `private.llamada_celular_candidatos_dueno`, candados, entrantes, retención, salud)
 
 **⏸️ ESCRITA, SIN APLICAR (05/10/2026). Paso 1 del orden de trabajo del plan v2** (`docs/plans/llamadas-celular/CORRECCION-PLAN-CORTO.md`,
