@@ -1,5 +1,7 @@
--- Reversa de 20261005155914_crm_llamadas_celular_enlace_exacto.sql (F4-a). SOLO antes del primer aviso: sin enlaces
--- ni intenciones (se comprueba bajo candado). Vuelve EXACTAMENTE al estado de las cinco: los cuerpos y los COMMENT de
+-- Reversa de 20261005155914_crm_llamadas_celular_enlace_exacto.sql (F4-a). SOLO ANTES DE DAR DE ALTA CELULARES: sin
+-- asignaciones (ni cerradas), sin estado técnico, recepciones, llamadas, enlaces ni intenciones, comprobado bajo candado.
+-- Más estricto que «antes del primer aviso» a propósito (revisión de Miguel en el #190, 05/10): las intenciones y las
+-- recepciones caducan a los 32 días, así que «ahora está vacío» no prueba «nunca se usó». Vuelve EXACTAMENTE al estado de las cinco: los cuerpos y los COMMENT de
 -- la ingesta y la purga (de 20261005143843) y del candado de enlaces (de 20261001145242) se copiaron con un guion desde
 -- el blob de git (nada a mano), y el banco reducido compara la huella del catálogo antes de F4-a y después de esta
 -- reversa. Después del primer aviso no se revierte: se apaga y se corrige hacia adelante.
@@ -20,13 +22,15 @@ begin
 end;
 $precondicion$;
 
-lock table crm.llamadas_celular_eventos, crm.llamadas_celular_enlaces, private.llamadas_celular_intenciones
-  in access exclusive mode;
+lock table crm.celulares_asignaciones, crm.llamadas_celular_eventos, crm.llamadas_celular_enlaces, private.celulares_estado,
+  private.llamadas_celular_recepciones, private.llamadas_celular_intenciones in access exclusive mode;
 
 do $sin_avisos$
 begin
-  if exists (select 1 from private.llamadas_celular_intenciones) or exists (select 1 from crm.llamadas_celular_enlaces) then
-    raise exception 'REVERSA_ENLACE_EXACTO: ya hay enlaces o intenciones: F4-a no se revierte; se apaga y se corrige hacia adelante';
+  if exists (select 1 from crm.celulares_asignaciones) or exists (select 1 from private.celulares_estado)
+     or exists (select 1 from private.llamadas_celular_recepciones) or exists (select 1 from crm.llamadas_celular_eventos)
+     or exists (select 1 from private.llamadas_celular_intenciones) or exists (select 1 from crm.llamadas_celular_enlaces) then
+    raise exception 'REVERSA_ENLACE_EXACTO: ya se dio de alta algún celular (asignaciones, estado, recepciones, llamadas, enlaces o intenciones): F4-a no se revierte; se apaga y se corrige hacia adelante';
   end if;
 end;
 $sin_avisos$;

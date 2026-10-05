@@ -1,8 +1,8 @@
 {
-  "actualizado": "2026-10-05T16:14:04Z",
+  "actualizado": "2026-10-05T16:32:51Z",
   "meta": {
-    "novedad": "05/10 16:14 UTC: F4-a escrita (20261005155914, paso 2 del plan v2) en el PR #190 junto con la quinta: la encuesta v5 se une a su llamada por el id exacto (o deja una intención que la ingesta cumple al llegar el aviso). Banco reducido 276/276. SIN APLICAR. Codex r2 y auditor-rls, al final sobre todo junto. Sigue: la Edge con el contrato nuevo (paso 3).",
-    "actualizado": "2026-10-05T16:14:04Z"
+    "novedad": "05/10 16:32 UTC: corregido el [P2] de la revisión de Miguel en el #190 (CHANGES_REQUESTED): la reversa de la quinta volvía a correr cuando la purga retiraba las recepciones. Ahora las reversas de la quinta y de F4-a solo corren antes de dar de alta celulares, con regresión y mutante. Banco reducido 281/281. SIN APLICAR. Sigue: la Edge (paso 3).",
+    "actualizado": "2026-10-05T16:32:51Z"
   },
   "fases": {
     "F0": { "estado": "curso", "actualizado": "2026-09-29T22:42:31Z" },
@@ -157,6 +157,7 @@
     { "at": "2026-10-05T14:30:00Z", "texto": "PR #178 y #179 fusionados por Miguel el 04/10 (02:08 y 02:50 UTC), con la revisión de seguridad de Codex en GitHub sin hallazgos. No dejó comentario de aprobación ni respondió la N1. La quinta migración espera esa confirmación; mientras, la guía de la macro «sin Pro»." },
     { "at": "2026-10-05T15:10:03Z", "texto": "Quinta migración (20261005143843_crm_llamadas_celular_correccion.sql), paso 1 del plan v2: corrige los fallos 1–4 y los menores de la revisión del 02/10 sin editar las cuatro. Con su reversa (vuelve a la huella exacta del catálogo de las cuatro; se niega tras el primer aviso), su registrador con fila de veredicto y su oráculo. Banco reducido 232/232: oráculo nuevo, 41 mutantes, 9 carreras con dos sesiones y 4 mutantes de candados. Sin aplicar; sigue F4-a." },
     { "at": "2026-10-05T15:30:00Z", "texto": "Decisión de Jhosep: Codex r2 y auditor-rls al final, sobre la quinta + F4-a + la Edge juntas (se publican juntas; r2 es la última ronda). F4-a sigue en la rama del PR #190. A Miguel se le pidió en el #190 solo una revisión corta: la N1, los criterios de Claude y el efecto de visibilidad del descartado reutilizable." },
-    { "at": "2026-10-05T16:14:04Z", "texto": "F4-a (20261005155914_crm_llamadas_celular_enlace_exacto.sql), paso 2 del plan v2, en el PR #190: puerta v5 con el enlace exacto encuesta ↔ llamada en una transacción, intención de enlace cumplida por la ingesta, vía del enlace y purga a 32 días. Con su reversa (huella exacta de las cinco), su registrador y su oráculo; la reversa de la quinta ahora se niega con F4-a puesta. Banco reducido 276/276: 26 mutantes de F4-a y 4 carreras con dos sesiones. Se endurecieron los dos oráculos (comparaciones que un nulo silenciaba)." }
+    { "at": "2026-10-05T16:14:04Z", "texto": "F4-a (20261005155914_crm_llamadas_celular_enlace_exacto.sql), paso 2 del plan v2, en el PR #190: puerta v5 con el enlace exacto encuesta ↔ llamada en una transacción, intención de enlace cumplida por la ingesta, vía del enlace y purga a 32 días. Con su reversa (huella exacta de las cinco), su registrador y su oráculo; la reversa de la quinta ahora se niega con F4-a puesta. Banco reducido 276/276: 26 mutantes de F4-a y 4 carreras con dos sesiones. Se endurecieron los dos oráculos (comparaciones que un nulo silenciaba)." },
+    { "at": "2026-10-05T16:32:51Z", "texto": "Revisión de Miguel (su agente) en el #190: CHANGES_REQUESTED por un [P2] reproducido. La reversa de la quinta solo miraba recepciones y llamadas; la purga retira las recepciones a los 32 días y la reversa volvía a correr tras un aviso ignorado. Arreglo (su opción conservadora, sin migración): las reversas de la quinta y de F4-a solo corren antes de dar de alta celulares (sin asignaciones, ni cerradas, ni estado). Regresión con la purga real y claves rotadas y cerradas, más un mutante por reversa. Banco 281/281." }
   ]
 }

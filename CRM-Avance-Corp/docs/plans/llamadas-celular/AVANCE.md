@@ -1,10 +1,10 @@
 # Avance — Llamadas desde el celular al CRM
 
-Actualizado: 05/10/2026, 11:14 a. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
+Actualizado: 05/10/2026, 11:32 a. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
 
 Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact/Q3GmV9m6Cy2GPQGKAbNy8M · Plan completo: `PLAN.md` en esta carpeta.
 
-**Lo último:** 05/10 16:14 UTC: F4-a escrita (20261005155914, paso 2 del plan v2) en el PR #190 junto con la quinta: la encuesta v5 se une a su llamada por el id exacto (o deja una intención que la ingesta cumple al llegar el aviso). Banco reducido 276/276. SIN APLICAR. Codex r2 y auditor-rls, al final sobre todo junto. Sigue: la Edge con el contrato nuevo (paso 3).
+**Lo último:** 05/10 16:32 UTC: corregido el [P2] de la revisión de Miguel en el #190 (CHANGES_REQUESTED): la reversa de la quinta volvía a correr cuando la purga retiraba las recepciones. Ahora las reversas de la quinta y de F4-a solo corren antes de dar de alta celulares, con regresión y mutante. Banco reducido 281/281. SIN APLICAR. Sigue: la Edge (paso 3).
 
 **Total:** 25 de 102 tareas · 1 de 8 fases hechas.
 
@@ -118,6 +118,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 
 ## Últimos cambios
 
+- 05/10/2026, 11:32 a. m. · Revisión de Miguel (su agente) en el #190: CHANGES_REQUESTED por un [P2] reproducido. La reversa de la quinta solo miraba recepciones y llamadas; la purga retira las recepciones a los 32 días y la reversa volvía a correr tras un aviso ignorado. Arreglo (su opción conservadora, sin migración): las reversas de la quinta y de F4-a solo corren antes de dar de alta celulares (sin asignaciones, ni cerradas, ni estado). Regresión con la purga real y claves rotadas y cerradas, más un mutante por reversa. Banco 281/281.
 - 05/10/2026, 11:14 a. m. · F4-a (20261005155914_crm_llamadas_celular_enlace_exacto.sql), paso 2 del plan v2, en el PR #190: puerta v5 con el enlace exacto encuesta ↔ llamada en una transacción, intención de enlace cumplida por la ingesta, vía del enlace y purga a 32 días. Con su reversa (huella exacta de las cinco), su registrador y su oráculo; la reversa de la quinta ahora se niega con F4-a puesta. Banco reducido 276/276: 26 mutantes de F4-a y 4 carreras con dos sesiones. Se endurecieron los dos oráculos (comparaciones que un nulo silenciaba).
 - 05/10/2026, 10:30 a. m. · Decisión de Jhosep: Codex r2 y auditor-rls al final, sobre la quinta + F4-a + la Edge juntas (se publican juntas; r2 es la última ronda). F4-a sigue en la rama del PR #190. A Miguel se le pidió en el #190 solo una revisión corta: la N1, los criterios de Claude y el efecto de visibilidad del descartado reutilizable.
 - 05/10/2026, 10:10 a. m. · Quinta migración (20261005143843_crm_llamadas_celular_correccion.sql), paso 1 del plan v2: corrige los fallos 1–4 y los menores de la revisión del 02/10 sin editar las cuatro. Con su reversa (vuelve a la huella exacta del catálogo de las cuatro; se niega tras el primer aviso), su registrador con fila de veredicto y su oráculo. Banco reducido 232/232: oráculo nuevo, 41 mutantes, 9 carreras con dos sesiones y 4 mutantes de candados. Sin aplicar; sigue F4-a.
@@ -132,4 +133,3 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 - 03/10/2026, 12:11 p. m. · F4-PLAN-CORTO.md al día: se adapta la Gestión Diaria que ya existe, sin rediseñar (pestaña «Llamadas del celular», encuesta en «Ahora», marca «Celular», pestaña de gerencia). Prototipo del analista rehecho sobre la pantalla real. Requisito de Jhosep: la encuesta se abre siempre al colgar.
 - 03/10/2026, 11:46 a. m. · Revisión de Miguel (PR #170, fusionado): F2 y F3 FRENADAS por 5 fallos (auditor-rls pidió cambios; Codex LEVEL 3 r1: BLOCK). Plan corto de la corrección (CORRECCION-PLAN-CORTO.md) con seis decisiones para Miguel, en el PR #171. Miguel aprobó #13–#15.
 - 03/10/2026, 09:34 a. m. · F4 en curso como análisis: F4-PLAN-CORTO.md. Hallazgo que guía el diseño: la encuesta se guarda ANTES de que llegue el aviso del celular (~11 s, o horas sin señal), así que resultado y llamada se emparejan por el id de origen que crea la macro (propuesta #12) en una puerta v5 con intención de enlace (propuesta #4), nunca por la hora. Reutiliza las puertas de F2-c/F3-a, la misma encuesta, los comandos con recibo y el deshacer del servidor. Cinco decisiones para Miguel; orden F4-a servidor → F4-b bandeja → F4-c celulares → F4-d macro y validación.
-- 03/10/2026, 09:29 a. m. · Tablero al día con la evidencia de C1 del 02/10 (REGISTRO.md §5d y §5e): F3.3.1 HECHA; F3.3.2 en curso (falta un 429 explícito); F3.3.3 en curso (depende de la propuesta #12); F3.3.4 en curso (faltan llamada en espera, doble SIM y entrantes); F3.4.1–F3.4.3 en curso con la recuperación parcial (A3, A4, A6) y la guía de la macro; F3.2.3 suma la prueba 6.

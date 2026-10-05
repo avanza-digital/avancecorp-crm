@@ -988,8 +988,45 @@ try {
   r = psqlSql(`insert into crm.celulares_asignaciones (etiqueta, analista_id, credencial_hash) values ('C9', '${ACT.a1}', repeat('e', 64)) returning id`, 'quinta_aviso');
   psqlSql(`insert into private.llamadas_celular_recepciones (evento_origen_id, asignacion_id, recibido_en) values ('C9-1790000000', '${r.salida.trim()}', now())`, 'quinta_aviso');
   r = psqlArchivo(REVERSA_CORRECCION, 'quinta_aviso');
-  paso('la reversa de la quinta se niega tras el primer aviso', !r.ok && r.salida.includes('ya hubo avisos'), r.ok ? 'revirtió con avisos' : '');
+  paso('la reversa de la quinta se niega tras el primer aviso', !r.ok && r.salida.includes('ya se dio de alta algún celular'), r.ok ? 'revirtió con avisos' : '');
   psqlSql('drop database quinta_aviso', 'postgres');
+  // Regresión de la revisión de Miguel (#190, 05/10): «ahora está vacío» no prueba «nunca se usó». Un aviso ignorado
+  // deja solo su recepción; la purga real la retira a los 32 días; la reversa tiene que seguir negándose, también
+  // después de rotar y cerrar todas las claves.
+  psqlSql(`create database quinta_alta template ${dq}`, 'postgres');
+  psqlSql(`insert into crm.celulares_asignaciones (etiqueta, analista_id, credencial_hash) values ('C9', '${ACT.a1}', repeat('e', 64))`, 'quinta_alta');
+  r = psqlArchivo(REVERSA_CORRECCION, 'quinta_alta');
+  paso('la reversa de la quinta se niega con un celular dado de alta, aunque no haya avisado', !r.ok && r.salida.includes('ya se dio de alta algún celular'), r.ok ? 'revirtió con un alta' : '');
+  psqlSql('drop database quinta_alta', 'postgres');
+  psqlSql(`create database quinta_caduca template ${dq}`, 'postgres');
+  const ctxCaduca = sembrarCorreccion('quinta_caduca');
+  r = psqlSql(enTx(SERVICIO + ingerirSql(ctxCaduca.k.C1, ctxCaduca.nuevoId('C1'), '900000099')), 'quinta_caduca');
+  const aceptadoIgnorado = r.ok && r.salida.includes('"resultado": "aceptado"');
+  psqlSql(`alter table private.llamadas_celular_recepciones disable trigger trg_llamadas_celular_recepciones_00_candado;
+    update private.llamadas_celular_recepciones set recibido_en = now() - interval '33 days';
+    alter table private.llamadas_celular_recepciones enable trigger trg_llamadas_celular_recepciones_00_candado;`, 'quinta_caduca');
+  // La purga y los conteos en sentencias distintas: una sola sentencia vería la tabla como estaba al empezar.
+  const purgadas = cuenta('quinta_caduca', 'select private.caducar_llamadas_celular()');
+  const tras = `${purgadas}/${cuenta('quinta_caduca', 'select count(*) from private.llamadas_celular_recepciones')}/${cuenta('quinta_caduca', 'select count(*) from crm.llamadas_celular_eventos')}`;
+  psqlSql(enTx(`${comoSql(ACT.g1)}select crm.rotar_credencial_celular('C1') is not null;`), 'quinta_caduca');
+  const abiertas = cuenta('quinta_caduca', 'select id from crm.celulares_asignaciones where vigente_hasta is null').split(/\r?\n/).filter(Boolean);
+  psqlSql(enTx(comoSql(ACT.g1) + abiertas.map((id) => `select crm.cerrar_asignacion_celular('${id}', 'otro') is not null;`).join('\n')), 'quinta_caduca');
+  const vigentes = cuenta('quinta_caduca', 'select count(*) from crm.celulares_asignaciones where vigente_hasta is null');
+  r = psqlArchivo(REVERSA_CORRECCION, 'quinta_caduca');
+  paso('aviso ignorado → la purga real retira su recepción → claves rotadas y cerradas → la reversa sigue negándose',
+    aceptadoIgnorado && tras === '1/0/0' && vigentes === '0' && !r.ok && r.salida.includes('ya se dio de alta algún celular'),
+    `purga/recepciones/llamadas: ${tras} · vigentes: ${vigentes} · ${r.ok ? 'REVIRTIÓ' : lineaError(r.salida)}`);
+  // Mutante: sin la guarda nueva (asignaciones y estado), esa misma reversa revierte; la regresión tiene que notarlo.
+  const reversaSinGuarda = aplicarCambio(readFileSync(REVERSA_CORRECCION, 'utf8').replace(/\r\n/g, '\n'), {
+    buscar: '  if exists (select 1 from crm.celulares_asignaciones) or exists (select 1 from private.celulares_estado)\n     or exists',
+    poner: '  if exists' });
+  if (reversaSinGuarda.error) paso('mut_reversa 01: sin la guarda de asignaciones y estado', false, `mutante obsoleto: ${reversaSinGuarda.error}`);
+  else {
+    writeFileSync(join(temporal, 'mut-reversa-1.sql'), reversaSinGuarda.texto);
+    r = psqlArchivo(join(temporal, 'mut-reversa-1.sql'), 'quinta_caduca');
+    paso('mut_reversa 01: sin la guarda de asignaciones y estado', r.ok, r.ok ? 'cazado por la regresión: la reversa mutada revierte tras la purga' : `SOBREVIVE: ${lineaError(r.salida)}`);
+  }
+  psqlSql('drop database quinta_caduca', 'postgres');
 
   pasadaMutantes('Pasada 8: mutantes de la quinta', MIG_CORRECCION, MUTANTES_CORRECCION, 'plantilla_cuatro', ORACULO_CORRECCION, 'mut_quinta');
   await pasadaConcurrenciaCorreccion();
@@ -1027,8 +1064,33 @@ try {
   llamada(ctxAviso, 'C1', '900000001');
   psqlSql(enTx(comoSql(ACT.a1) + v5Sql(uuid(), ACT.c1, ctxAviso.nuevoId('C1'), 'al_colgar')), 'enlace_aviso');
   r = psqlArchivo(REVERSA_ENLACE, 'enlace_aviso');
-  paso('la reversa de F4-a se niega con intenciones o enlaces', !r.ok && r.salida.includes('ya hay enlaces o intenciones'), r.ok ? 'revirtió con datos' : '');
+  paso('la reversa de F4-a se niega con intenciones o enlaces', !r.ok && r.salida.includes('ya se dio de alta algún celular'), r.ok ? 'revirtió con datos' : '');
   psqlSql('drop database enlace_aviso', 'postgres');
+  // Regresión (revisión de Miguel, #190): una intención que caduca sin aviso no vuelve a habilitar la reversa.
+  psqlSql(`create database enlace_caduca template ${de}`, 'postgres');
+  const ctxCad = sembrarCorreccion('enlace_caduca');
+  r = psqlSql(enTx(comoSql(ACT.a1) + v5Sql(uuid(), ACT.c1, ctxCad.nuevoId('C1'), 'al_colgar')), 'enlace_caduca');
+  const pendiente = r.ok && r.salida.includes('"estado": "pendiente"');
+  psqlSql(`alter table private.llamadas_celular_intenciones disable trigger trg_llamadas_celular_intenciones_00_candado;
+    update private.llamadas_celular_intenciones set creado_en = now() - interval '33 days';
+    alter table private.llamadas_celular_intenciones enable trigger trg_llamadas_celular_intenciones_00_candado;
+    select private.caducar_llamadas_celular();`, 'enlace_caduca');
+  const restos = cuenta('enlace_caduca', `select (select count(*) from private.llamadas_celular_intenciones) || '/' || (select count(*) from crm.llamadas_celular_enlaces)
+    || '/' || (select count(*) from private.llamadas_celular_recepciones) || '/' || (select count(*) from crm.llamadas_celular_eventos)`);
+  r = psqlArchivo(REVERSA_ENLACE, 'enlace_caduca');
+  paso('intención sin aviso → la purga real la retira → la reversa de F4-a sigue negándose',
+    pendiente && restos === '0/0/0/0' && !r.ok && r.salida.includes('ya se dio de alta algún celular'),
+    `intenciones/enlaces/recepciones/llamadas: ${restos} · ${r.ok ? 'REVIRTIÓ' : lineaError(r.salida)}`);
+  const reversaEnlaceSinGuarda = aplicarCambio(readFileSync(REVERSA_ENLACE, 'utf8').replace(/\r\n/g, '\n'), {
+    buscar: '  if exists (select 1 from crm.celulares_asignaciones) or exists (select 1 from private.celulares_estado)\n     or exists (select 1 from private.llamadas_celular_recepciones) or exists (select 1 from crm.llamadas_celular_eventos)\n     or exists',
+    poner: '  if exists' });
+  if (reversaEnlaceSinGuarda.error) paso('mut_reversa 02: F4-a sin la guarda de alta', false, `mutante obsoleto: ${reversaEnlaceSinGuarda.error}`);
+  else {
+    writeFileSync(join(temporal, 'mut-reversa-2.sql'), reversaEnlaceSinGuarda.texto);
+    r = psqlArchivo(join(temporal, 'mut-reversa-2.sql'), 'enlace_caduca');
+    paso('mut_reversa 02: F4-a sin la guarda de alta', r.ok, r.ok ? 'cazado por la regresión: la reversa mutada revierte tras la purga' : `SOBREVIVE: ${lineaError(r.salida)}`);
+  }
+  psqlSql('drop database enlace_caduca', 'postgres');
 
   pasadaMutantes('Pasada 11: mutantes de F4-a', MIG_ENLACE, MUTANTES_ENLACE, 'plantilla_cinco', ORACULO_ENLACE, 'mut_enlace');
 

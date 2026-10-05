@@ -1,5 +1,8 @@
--- Reversa de 20261005143843_crm_llamadas_celular_correccion.sql (la QUINTA). SOLO antes del primer aviso: sin
--- recepciones ni llamadas (se comprueba bajo candado). Vuelve EXACTAMENTE al estado de las cuatro migraciones: los
+-- Reversa de 20261005143843_crm_llamadas_celular_correccion.sql (la QUINTA). SOLO ANTES DE DAR DE ALTA CELULARES: sin
+-- asignaciones (ni cerradas), sin estado técnico, sin recepciones ni llamadas, comprobado bajo candado. Es más estricto
+-- que «antes del primer aviso» a propósito (revisión de Miguel en el #190, 05/10): la purga borra las recepciones a los
+-- 32 días, así que «ahora está vacío» no prueba «nunca se usó»; una asignación, en cambio, no se borra nunca (ni al
+-- cerrarla ni al rotarla). Vuelve EXACTAMENTE al estado de las cuatro migraciones: los
 -- cuerpos y los COMMENT se copiaron con un guion desde el blob de git de cada migración (nada a mano), y el banco
 -- reducido compara la huella del catálogo (tests/llamadas-celular/huella-catalogo.sql) antes de la quinta y después
 -- de esta reversa.
@@ -27,13 +30,16 @@ begin
 end;
 $precondicion$;
 
-lock table crm.llamadas_celular_politica, crm.llamadas_celular_eventos, private.celulares_estado,
-           private.llamadas_celular_recepciones in access exclusive mode;
+lock table crm.llamadas_celular_politica, crm.celulares_asignaciones, crm.llamadas_celular_eventos,
+           private.celulares_estado, private.llamadas_celular_recepciones in access exclusive mode;
 
 do $sin_avisos$
 begin
-  if exists (select 1 from private.llamadas_celular_recepciones) or exists (select 1 from crm.llamadas_celular_eventos) then
-    raise exception 'REVERSA_CORRECCION: ya hubo avisos (recepciones o llamadas): la quinta no se revierte; se apaga y se corrige hacia adelante';
+  -- Las asignaciones no se borran (ni cerradas ni rotadas) y el estado nace con el primer envío: si existe alguna, un
+  -- celular pudo avisar aunque la purga ya haya retirado sus recepciones.
+  if exists (select 1 from crm.celulares_asignaciones) or exists (select 1 from private.celulares_estado)
+     or exists (select 1 from private.llamadas_celular_recepciones) or exists (select 1 from crm.llamadas_celular_eventos) then
+    raise exception 'REVERSA_CORRECCION: ya se dio de alta algún celular (asignaciones, estado, recepciones o llamadas): la quinta no se revierte; se apaga y se corrige hacia adelante';
   end if;
 end;
 $sin_avisos$;

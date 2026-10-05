@@ -32,8 +32,10 @@ con dos sesiones (el aviso durante la encuesta y al revés, dos encuestas con el
 la intención): **276/276 en verde el 05/10**. La v4 real y el gate completo: NOT RUN (esquema de producción, los
 corre Miguel).
 
-Reversa: `scripts/llamadas-celular/reversa-enlace-exacto.sql` (solo sin enlaces ni intenciones; generada desde el blob
-de git). Orden de las reversas: esta → la de la quinta → las de las cuatro.
+Reversa: `scripts/llamadas-celular/reversa-enlace-exacto.sql` (generada desde el blob de git). **Solo antes de dar de
+alta celulares** (sin asignaciones, ni cerradas, ni estado, recepciones, llamadas, enlaces o intenciones): más estricto
+que «antes del primer aviso», porque intenciones y recepciones caducan a los 32 días (revisión de Miguel en el #190,
+05/10). Orden de las reversas: esta → la de la quinta → las de las cuatro.
 
 ## 20261005143843 — Llamadas desde el celular · QUINTA: corrección de F2 + F3 (`private.llamadas_celular_recepciones`, `private.llamada_celular_ingerir(uuid,jsonb,timestamptz)`, `private.llamada_celular_candidatos_dueno`, candados, entrantes, retención, salud)
 
@@ -75,8 +77,12 @@ niega con filas; 41 mutantes de la quinta y 9 carreras con dos sesiones (más 4 
 verde el 05/10** (160 de las cuatro + 72 de la quinta). Gate completo,
 advisors y `banco/verificar-hallazgos.sql` con el esquema de producción: NOT RUN (los corre Miguel).
 
-Reversa: `scripts/llamadas-celular/reversa-correccion.sql` (solo antes del primer aviso; generada copiando los cuerpos
-de las cuatro desde el blob de git). Después del primer aviso no se revierte: se apaga y se corrige hacia adelante.
+Reversa: `scripts/llamadas-celular/reversa-correccion.sql` (generada copiando los cuerpos de las cuatro desde el blob de
+git). **Solo antes de dar de alta celulares** (sin asignaciones, ni cerradas, ni estado técnico, recepciones o
+llamadas): más estricto que «antes del primer aviso» a propósito. La revisión de Miguel en el #190 (05/10, [P2],
+reproducida) mostró que la purga retira las recepciones a los 32 días y la reversa volvía a correr tras un aviso
+ignorado; una asignación no se borra nunca, ni al cerrarla ni al rotarla. Regresión y mutante en el banco reducido.
+Después del alta no se revierte: se apaga y se corrige hacia adelante.
 
 ## 20261003225551 — Lectura de Gestionado para ficha y listados
 
