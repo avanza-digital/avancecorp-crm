@@ -1,6 +1,7 @@
 // Seguimiento de una base POR ANALISTA (F5, `crm.seguimiento_base`, B10): asignados · sin tocar · sin tocar 3 días (en
-// ROJO: E6, nada se mueve solo) · trabajados · en descanso · citas · reactivados · movidos por otra vía (E14) · último
-// intento. Todo número se abre en su lista. «Recoger» (B9) devuelve a «sin repartir» lo que ese analista no tocó (sin
+// ROJO: E6, nada se mueve solo) · trabajados · en descanso · citas · reactivados · último intento, y en «Salieron» las
+// pastillas de los movidos por otra vía (E14), retirados y «No contactar» (solo las que tienen algo). Todo número se abre en
+// su lista, salvo los de un analista de OTRO equipo (el servidor no lo identifica: sin filtro posible, se leen y no se abren). «Recoger» (B9) devuelve a «sin repartir» lo que ese analista no tocó (sin
 // intento desde que se lo asignaron y sin seguimiento activo), tras confirmar. Al cerrar el diálogo el foco vuelve al botón
 // que lo abrió; si se recogió (el botón puede volverse «Nada por recoger»), a la hoja del seguimiento: nunca a <body>.
 import { useEffect, useId, useRef, useState, type MouseEvent, type RefObject } from 'react'
@@ -14,10 +15,25 @@ import { cn } from '@/lib/utils'
 import { etiquetaMomento } from '@/lib/base-gestion'
 import { CrmApiError } from '@/data/crm-api'
 import { useRecogerDeBase, useSeguimientoBase, type PuertasBases } from '@/data/bases-cargadas-queries'
-import { CIFRAS_ANALISTA, DIAS_SIN_TOCAR, ROTULO_CIFRA, esUrgenteSinTocar, type CifraAnalista, type FilaSeguimientoBase, type FilaSeguimientoBases, type RespuestaRecoger } from '@/lib/bases-cargadas'
-import { AvisoReintentar, CELDA_COMPACTA, DisponiblePronto, ENCABEZADO_COMPACTO, NumeroAbrible } from './piezas-bases'
+import {
+  CIFRAS_ANALISTA,
+  CIFRAS_SALIDA,
+  DIAS_SIN_TOCAR,
+  ROTULO_CIFRA,
+  TEXTO_ANALISTA_OTRO_EQUIPO,
+  esCifraSalida,
+  esUrgenteSinTocar,
+  type CifraAnalista,
+  type FilaSeguimientoBase,
+  type FilaSeguimientoBases,
+  type RespuestaRecoger,
+} from '@/lib/bases-cargadas'
+import { AvisoReintentar, CELDA_COMPACTA, DisponiblePronto, ENCABEZADO_COMPACTO, NumeroAbrible, PastillasSalida } from './piezas-bases'
 
-const nombreDe = (f: FilaSeguimientoBase) => f.analista_nombre ?? 'Analista sin nombre'
+const nombreDe = (f: FilaSeguimientoBase) => (f.analista_id === null ? TEXTO_ANALISTA_OTRO_EQUIPO : f.analista_nombre ?? 'Analista sin nombre')
+/** Las cifras en columna; las de los que salieron van como pastillas en «Salieron». */
+const CIFRAS_COLUMNA = CIFRAS_ANALISTA.filter((c) => !esCifraSalida(c))
+const SIN_ABRIR_OTRO_EQUIPO = 'No se abre: el analista es de otro equipo y no puedes ver sus contactos'
 
 export function SeguimientoAnalistas({ puertas, base, esMovil, ahora, onAbrirCifra, tituloRef }: {
   puertas: PuertasBases
@@ -56,9 +72,31 @@ export function SeguimientoAnalistas({ puertas, base, esMovil, ahora, onAbrirCif
   }
   const filas = seguimiento.data ?? []
   const cifra = (f: FilaSeguimientoBase, c: CifraAnalista) => (
-    <NumeroAbrible valor={f[c]} contexto={`${nombreDe(f)}, ${ROTULO_CIFRA[c].toLowerCase()}`} urgente={c === 'sin_tocar_3_dias'} onAbrir={() => onAbrirCifra(f, c)} />
+    <NumeroAbrible
+      valor={f[c]}
+      contexto={`${nombreDe(f)}, ${ROTULO_CIFRA[c].toLowerCase()}`}
+      urgente={c === 'sin_tocar_3_dias'}
+      onAbrir={f.analista_id === null ? undefined : () => onAbrirCifra(f, c)}
+      motivoSinAbrir={SIN_ABRIR_OTRO_EQUIPO}
+    />
   )
-  const botonRecoger = (f: FilaSeguimientoBase) => f.sin_tocar > 0 ? (
+  const salieron = (f: FilaSeguimientoBase) => (
+    <PastillasSalida
+      cifras={CIFRAS_SALIDA.map((c) => ({ clave: c, rotulo: ROTULO_CIFRA[c], valor: f[c] }))}
+      contexto={nombreDe(f)}
+      onAbrir={f.analista_id === null ? undefined : (c) => onAbrirCifra(f, c as CifraAnalista)}
+      motivoSinAbrir={SIN_ABRIR_OTRO_EQUIPO}
+    />
+  )
+  // Un analista de otro equipo no se puede recoger (no es tuyo): se dice, sin botón.
+  // El porqué se dice UNA vez por fila con texto (el `title` de las cifras es solo apoyo para el ratón).
+  const botonRecoger = (f: FilaSeguimientoBase) => f.analista_id === null
+    ? (
+      <span className="text-[13px] text-[var(--muted-foreground-strong)]">
+        De otro equipo<span className="sr-only">: sus cifras no se abren porque no puedes ver sus contactos</span>
+      </span>
+    )
+    : f.sin_tocar > 0 ? (
     <Button type="button" variant="outline" size="sm" className="pointer-coarse:h-11" aria-label={`Recoger lo que ${nombreDe(f)} no tocó`} onClick={(e) => abrirRecoger(f, e)}>
       <Undo2 aria-hidden /> Recoger
     </Button>
@@ -74,19 +112,24 @@ export function SeguimientoAnalistas({ puertas, base, esMovil, ahora, onAbrirCif
         </div>
       ) : esMovil ? (
         <div ref={hoja} tabIndex={-1} role="list" aria-label={`Seguimiento de ${base.nombre} por analista`} className={cn('space-y-2 rounded-lg', FOCO)}>
-          {filas.map((f) => (
-            <div role="listitem" key={f.analista_id} className={cn('rounded-xl border bg-card p-3', esUrgenteSinTocar(f) ? 'border-destructive/40 shadow-[inset_4px_0_0_var(--destructive)]' : 'border-border')}>
-              <p className="text-[15px] font-bold text-primary">{nombreDe(f)}</p>
+          {filas.map((f, i) => (
+            <div role="listitem" key={f.analista_id ?? `otro-equipo-${i}`} className={cn('rounded-xl border bg-card p-3', esUrgenteSinTocar(f) ? 'border-destructive/40 shadow-[inset_4px_0_0_var(--destructive)]' : 'border-border')}>
+              <p className={cn('text-[15px] font-bold', f.analista_id === null ? 'italic text-[var(--muted-foreground-strong)]' : 'text-primary')}>{nombreDe(f)}</p>
               <dl className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1">
-                {CIFRAS_ANALISTA.map((c) => (
+                {CIFRAS_COLUMNA.map((c) => (
                   <div key={c} className="flex min-w-0 flex-row-reverse items-center justify-end gap-1">
                     <dt className="min-w-0 text-[13px] leading-tight text-[var(--muted-foreground-strong)]">{ROTULO_CIFRA[c]}</dt>
                     <dd className="min-w-10 shrink-0 text-center text-base">{cifra(f, c)}</dd>
                   </div>
                 ))}
               </dl>
+              <p className="mt-2 text-[13px]"><span className="text-[var(--muted-foreground-strong)]">Salieron: </span>{salieron(f)}</p>
+
               <p className="mt-2 text-[13px] text-[var(--muted-foreground-strong)]">Último intento: {f.ultimo_intento_en ? etiquetaMomento(f.ultimo_intento_en, ahora) : 'ninguno'}</p>
-              <div className="mt-2">{botonRecoger(f)}</div>
+              {/* En táctil no hay `title`: el porqué de la fila de otro equipo va visible. */}
+              {f.analista_id === null
+                ? <p className="mt-2 text-[13px] text-[var(--muted-foreground-strong)]">De otro equipo · sus cifras no se abren<span className="sr-only"> porque no puedes ver sus contactos</span></p>
+                : <div className="mt-2">{botonRecoger(f)}</div>}
             </div>
           ))}
         </div>
@@ -95,21 +138,23 @@ export function SeguimientoAnalistas({ puertas, base, esMovil, ahora, onAbrirCif
         <div ref={hoja} tabIndex={0} role="region" aria-label={`Seguimiento de ${base.nombre} por analista`} className={cn('ac-scroll max-h-[24rem] scroll-pt-10 overflow-auto rounded-lg border border-[var(--border-strong)] bg-card', FOCO)}>
           <table className="min-w-full border-separate border-spacing-0">
             <caption className="sr-only">
-              Cómo trabaja cada analista los contactos de {base.nombre}. En rojo, los que llevan {DIAS_SIN_TOCAR} días o más sin tocar. Cada número abre su lista.
+              Cómo trabaja cada analista los contactos de {base.nombre}. En rojo, los que llevan {DIAS_SIN_TOCAR} días o más sin tocar. Cada número abre su lista, salvo los de un analista de otro equipo.
             </caption>
             <thead>
               <tr>
                 <th scope="col" className={cn(ENCABEZADO_COMPACTO, 'text-left')}>Analista</th>
-                {CIFRAS_ANALISTA.map((c) => <th key={c} scope="col" className={cn(ENCABEZADO_COMPACTO, 'min-w-16 whitespace-normal text-right leading-tight', c === 'sin_tocar_3_dias' && 'text-[var(--destructive-text)]')}>{ROTULO_CIFRA[c]}</th>)}
+                {CIFRAS_COLUMNA.map((c) => <th key={c} scope="col" className={cn(ENCABEZADO_COMPACTO, 'min-w-16 whitespace-normal text-right leading-tight', c === 'sin_tocar_3_dias' && 'text-[var(--destructive-text)]')}>{ROTULO_CIFRA[c]}</th>)}
+                <th scope="col" className={cn(ENCABEZADO_COMPACTO, 'text-left')}>Salieron</th>
                 <th scope="col" className={cn(ENCABEZADO_COMPACTO, 'whitespace-normal text-left leading-tight')}>Último intento</th>
                 <th scope="col" className={cn(ENCABEZADO_COMPACTO, 'text-left')}><span className="sr-only">Acción</span></th>
               </tr>
             </thead>
             <tbody>
-              {filas.map((f) => (
-                <tr key={f.analista_id} className={esUrgenteSinTocar(f) ? 'bg-destructive/[0.04]' : 'hover:bg-accent/5'}>
-                  <th scope="row" className={cn(CELDA_COMPACTA, 'text-left font-semibold text-primary', esUrgenteSinTocar(f) && 'shadow-[inset_3px_0_0_var(--destructive)]')}>{nombreDe(f)}</th>
-                  {CIFRAS_ANALISTA.map((c) => <td key={c} className={cn(CELDA_COMPACTA, 'text-right')}>{cifra(f, c)}</td>)}
+              {filas.map((f, i) => (
+                <tr key={f.analista_id ?? `otro-equipo-${i}`} className={esUrgenteSinTocar(f) ? 'bg-destructive/[0.04]' : 'hover:bg-accent/5'}>
+                  <th scope="row" className={cn(CELDA_COMPACTA, 'text-left font-semibold', f.analista_id === null ? 'italic text-[var(--muted-foreground-strong)]' : 'text-primary', esUrgenteSinTocar(f) && 'shadow-[inset_3px_0_0_var(--destructive)]')}>{nombreDe(f)}</th>
+                  {CIFRAS_COLUMNA.map((c) => <td key={c} className={cn(CELDA_COMPACTA, 'text-right')}>{cifra(f, c)}</td>)}
+                  <td className={CELDA_COMPACTA}>{salieron(f)}</td>
                   <td className={cn(CELDA_COMPACTA, 'tabular-nums')}>{f.ultimo_intento_en ? etiquetaMomento(f.ultimo_intento_en, ahora) : <span className="text-[var(--muted-foreground-strong)]">Ninguno</span>}</td>
                   <td className={CELDA_COMPACTA}>{botonRecoger(f)}</td>
                 </tr>
@@ -153,11 +198,14 @@ function RecogerDialogo({ puertas, base, fila, focoAlCerrar, onRecogido, onCerra
   const operacion = useRef<{ analista: string; id: string } | null>(null)
   const cerrar = () => { if (mutacion.isPending) return; setError(null); operacion.current = null; onCerrar() }
   const confirmar = async () => {
-    if (!fila || mutacion.isPending) return
-    if (operacion.current?.analista !== fila.analista_id) operacion.current = { analista: fila.analista_id, id: crypto.randomUUID() }
+    // Solo se recoge de un analista identificado (uno de otro equipo no tiene botón).
+    const analista = fila?.analista_id
+    if (!fila || !analista || mutacion.isPending) return
+    if (operacion.current?.analista !== analista) operacion.current = { analista, id: crypto.randomUUID() }
+    const id = operacion.current.id
     setError(null)
     try {
-      const r = await mutacion.mutateAsync({ operacionId: operacion.current.id, baseId: base.base_id, analistaId: fila.analista_id })
+      const r = await mutacion.mutateAsync({ operacionId: id, baseId: base.base_id, analistaId: analista })
       toast.success(avisoRecogido(r, nombreDe(fila)))
       operacion.current = null
       onRecogido()

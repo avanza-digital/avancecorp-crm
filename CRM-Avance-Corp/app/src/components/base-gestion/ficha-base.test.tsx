@@ -376,6 +376,23 @@ describe('F6 · Reactivar un contacto de base SIN capital (E8)', () => {
     expect(reactivar.mutateAsync).toHaveBeenCalledWith({ operacionId: expect.any(String), leadId: 'lead-1', nota: '', montoEstimado: 25000, moneda: 'USD' })
   })
 
+  it('dice el capital EFECTIVO que devolvió el servidor (no lo tecleado); «otro contenido» (23505) hace que el próximo envío sea nuevo', async () => {
+    const usuario = userEvent.setup()
+    reactivar.mutateAsync
+      .mockRejectedValueOnce(new CrmApiError('Este envío ya se había hecho con otros datos (nota, capital o moneda) y no se repitió.', 'OTRO_CONTENIDO'))
+      .mockResolvedValueOnce({ replay: false, etapa: 'contactado', ciclo_n: 2, monto_estimado: 30000, moneda: 'USD' })
+    abrir({ monto_estimado: null })
+    await usuario.click(screen.getByRole('button', { name: 'Reactivar' }))
+    const dialogo = screen.getByRole('dialog', { name: '¿Reactivar a ROSA QUISPE?' })
+    await usuario.type(within(dialogo).getByLabelText('Capital estimado'), '25000')
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Reactivar' }))
+    expect(await within(dialogo).findByRole('alert')).toHaveTextContent('ya se había hecho con otros datos')
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Reactivar' }))
+    const [a, b] = reactivar.mutateAsync.mock.calls.map(([e]) => (e as { operacionId: string }).operacionId)
+    expect(b).not.toBe(a)
+    await vi.waitFor(() => expect(toastSuccess).toHaveBeenCalledWith(expect.stringContaining('con US$ 30,000 de capital'), expect.anything()))
+  })
+
   it('con capital ya puesto no lo pide (la llamada de siempre)', async () => {
     const usuario = userEvent.setup()
     abrir()
@@ -430,6 +447,16 @@ describe('F6 · «Contestó · agendó cita» de un contacto SIN capital (B10: r
     expect(within(formulario()).queryByLabelText('Capital estimado')).toBeNull()
     await usuario.click(guardar())
     expect(intento.mutateAsync).toHaveBeenCalledWith(expect.not.objectContaining({ montoEstimado: expect.anything() }))
+  })
+
+  it('agendó cita con capital: el aviso dice el capital EFECTIVO de la respuesta', async () => {
+    const usuario = userEvent.setup()
+    intento.mutateAsync.mockResolvedValue({ ...RESPUESTA, reactivado: true, etapa: 'contactado', monto_estimado: 15000, moneda: 'PEN' })
+    abrir({ monto_estimado: null })
+    await usuario.click(radio(/agendó cita/))
+    await usuario.type(within(formulario()).getByLabelText('Capital estimado'), '15000')
+    await usuario.click(within(formulario()).getByRole('button', { name: 'Guardar intento' }))
+    await vi.waitFor(() => expect(toastSuccess).toHaveBeenCalledWith(expect.stringContaining('con S/ 15,000 de capital'), expect.anything()))
   })
 
   it('sin capital pero «No contestó»: no lo pide (no reactiva)', async () => {

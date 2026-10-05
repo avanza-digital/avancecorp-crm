@@ -148,6 +148,21 @@ describe('B10 · seguimiento: con el servidor de hoy (PGRST202) es «disponible 
     expect(await seguimientoBase(BASE)).toBeNull()
     expect(await seguimientoBaseDetalle(BASE, null, 'sin_repartir')).toBeNull()
   })
+  it('contrato final de B10: columnas nuevas AL FINAL (opcionales: con B9 sola no llegan y valen 0)', async () => {
+    capturar('seguimiento_bases', (_c, n) => HttpResponse.json([n === 1 ? BASE_FILA : { ...BASE_FILA, movidos_otra_via: '2', retirados: 1, no_contactar: 3 }]))
+    expect((await seguimientoBases())?.[0]).toMatchObject({ movidos_otra_via: 0, retirados: 0, no_contactar: 0 })
+    expect((await seguimientoBases())?.[0]).toMatchObject({ movidos_otra_via: 2, retirados: 1, no_contactar: 3 })
+  })
+
+  it('seguimiento_base: un analista FUERA del ámbito llega sin id ni nombre (NULL) con sus cifras; la lista entera se lee', async () => {
+    const fila = { analista_id: ANA, analista_nombre: 'ANA', asignados: 4, sin_tocar: 1, sin_tocar_3_dias: 0, trabajados: 3, en_descanso: 0, citas: 1, reactivados: 0, ultimo_intento_en: null, movidos_otra_via: 0 }
+    capturar('seguimiento_base', () => HttpResponse.json([fila, { ...fila, analista_id: null, analista_nombre: null, asignados: 9, retirados: 2, no_contactar: 1 }]))
+    expect(await seguimientoBase(BASE)).toEqual([
+      expect.objectContaining({ analista_id: ANA, retirados: 0, no_contactar: 0 }),
+      expect.objectContaining({ analista_id: null, analista_nombre: null, asignados: 9, retirados: 2, no_contactar: 1 }),
+    ])
+  })
+
   it('detalle: un contacto fuera del ámbito llega sin id ni nombre (NULL) y se lee igual', async () => {
     capturar('seguimiento_base_detalle', () => HttpResponse.json([{ lead_id: null, nombre_completo: null, estado: 'movido_otra_via', asignado_en: null, ultimo_intento_en: null, ultimo_resultado: null }]))
     expect(await seguimientoBaseDetalle(BASE, null, 'repartidos')).toEqual([expect.objectContaining({ lead_id: null, nombre_completo: null })])
@@ -247,6 +262,18 @@ describe('reactivarLeadBase con capital (F6: la puerta versionada reactivar_lead
     const cuerpos = capturar('reactivar_lead_base', () => HttpResponse.json({ replay: false, etapa: 'contactado', ciclo_n: 2 }))
     await reactivarLeadBase({ operacionId: OP, leadId: LEAD })
     expect(cuerpos).toEqual([{ p_operacion_id: OP, p_lead_id: LEAD }])
+  })
+  it('la _v2 devuelve el capital EFECTIVO y lo pedido: se leen', async () => {
+    capturar('reactivar_lead_base_v2', () => HttpResponse.json({ replay: false, etapa: 'contactado', ciclo_n: 2, monto_estimado: '20000.00', moneda: 'USD', solicitud_monto: 20000, solicitud_moneda: 'USD' }))
+    expect(await reactivarLeadBase({ operacionId: OP, leadId: LEAD, montoEstimado: 20000, moneda: 'USD' }))
+      .toMatchObject({ monto_estimado: 20000, moneda: 'USD', solicitud_monto: 20000, solicitud_moneda: 'USD' })
+  })
+  it('mismo id con OTRO capital (23505 «otro contenido»): rechazo definitivo con un mensaje claro', async () => {
+    capturar('reactivar_lead_base_v2', () => error('23505', 'Esta operacion ya corresponde a otro contenido'))
+    await expect(reactivarLeadBase({ operacionId: OP, leadId: LEAD, montoEstimado: 1 }))
+      .rejects.toMatchObject({ code: 'OTRO_CONTENIDO', message: expect.stringContaining('ya se había hecho con otros datos') })
+    capturar('registrar_intento_base_v2', () => error('23505', 'Esta operacion ya corresponde a otro contenido'))
+    await expect(registrarIntentoBase({ operacionId: OP, leadId: LEAD, resultado: 'agendo_reunion', montoEstimado: 1 })).rejects.toMatchObject({ code: 'OTRO_CONTENIDO' })
   })
   it('el servidor exige el capital (22023): su texto llega tal cual', async () => {
     capturar('reactivar_lead_base_v2', () => error('22023', 'Indica el capital estimado para reactivar'))

@@ -15,7 +15,7 @@ import { CrmApiError } from '@/data/crm-api'
 import { useMarcarNoContactarBase, useReactivarLeadBase } from '@/data/crm-queries'
 import type { FilaBaseGestion } from '@/lib/base-gestion'
 import { normalizarCapital } from '@/lib/bases-cargadas'
-import type { Moneda } from '@/lib/format'
+import { money, type Moneda } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { FOCO } from '@/components/gestion-diaria/estilos-gestion'
 
@@ -25,7 +25,8 @@ const MOTIVO_MINIMO = 5
 export function AccionesBase({ fila, demo, onReactivado, onNoContactar }: {
   fila: FilaBaseGestion
   demo: boolean
-  onReactivado: () => void
+  /** `capital`: el capital EFECTIVO con que volvió (lo que devuelve el servidor), si se pidió en el diálogo. */
+  onReactivado: (capital?: string) => void
   onNoContactar: () => void
 }): JSX.Element {
   const [dialogo, setDialogo] = useState<'reactivar' | 'no_contactar' | null>(null)
@@ -53,7 +54,7 @@ export function AccionesBase({ fila, demo, onReactivado, onNoContactar }: {
   )
 }
 
-function ReactivarDialogo({ fila, demo, abierto, onCerrar, onHecho }: { fila: FilaBaseGestion; demo: boolean; abierto: boolean; onCerrar: () => void; onHecho: () => void }) {
+function ReactivarDialogo({ fila, demo, abierto, onCerrar, onHecho }: { fila: FilaBaseGestion; demo: boolean; abierto: boolean; onCerrar: () => void; onHecho: (capital?: string) => void }) {
   const id = useId()
   const mutacion = useReactivarLeadBase()
   const [nota, setNota] = useState('')
@@ -80,14 +81,17 @@ function ReactivarDialogo({ fila, demo, abierto, onCerrar, onHecho }: { fila: Fi
     const firma = JSON.stringify([nota.trim(), monto, pideCapital ? moneda : null])
     if (envio.current?.firma !== firma) envio.current = { id: crypto.randomUUID(), firma }
     try {
-      await mutacion.mutateAsync({
+      const r = await mutacion.mutateAsync({
         operacionId: envio.current.id, leadId: fila.lead_id, nota,
         ...(monto !== null ? { montoEstimado: Number(monto), moneda } : {}),
       })
       setNota(''); setCapital(''); envio.current = null
       onCerrar()
-      onHecho()
+      // El capital que se dice es el EFECTIVO que devuelve el servidor (no lo pedido): si ya tenía, manda el suyo.
+      onHecho(monto !== null && r.monto_estimado != null ? money(r.monto_estimado, r.moneda === 'USD' ? 'USD' : 'PEN') : undefined)
     } catch (causa: unknown) {
+      // «Otro contenido» (mismo id con otros datos) es un rechazo definitivo: el próximo envío lleva un id nuevo.
+      if (causa instanceof CrmApiError && causa.code === 'OTRO_CONTENIDO') envio.current = null
       setError({ tipo: 'envio', texto: causa instanceof CrmApiError ? causa.message : 'No se pudo reactivar. Inténtalo de nuevo.' })
     }
   }

@@ -7,6 +7,7 @@ import {
   MAX_REPARTO_CONTACTOS,
   analistasDelReparto,
   errorTopeBloque,
+  etiquetaEstadoContacto,
   etiquetaMotivoReparto,
   resumenOmitidos,
   cantidadDesdeTexto,
@@ -277,6 +278,12 @@ describe('repartir por cantidades', () => {
     expect(etiquetaMotivoReparto('en_gestion')).toBe('En gestión: tiene seguimiento activo')
     expect(etiquetaMotivoReparto('ya_asignado')).toBe('Ya era de ese analista')
     expect(etiquetaMotivoReparto('motivo_nuevo')).toBe('motivo_nuevo')
+    // Contrato final de B9: todos los motivos del bloque y del individual tienen su texto en español.
+    for (const m of ['inactivo', 'fuera_de_ambito', 'no_descartado', 'no_contactar', 'en_descanso', 'en_gestion', 'ocupado', 'movido_otra_via', 'ya_asignado']) {
+      expect(etiquetaMotivoReparto(m), m).not.toBe(m)
+    }
+    expect(etiquetaMotivoReparto('movido_otra_via')).toBe('Lo movieron por otra vía')
+    expect(etiquetaEstadoContacto('retirado')).toBe('Retirado')
     expect(resumenOmitidos([{ motivo: 'ocupado', cantidad: 1 }, { motivo: 'en_gestion', cantidad: 3 }, { motivo: 'ocupado', cantidad: 1 }]))
       .toEqual({ total: 5, detalle: '3 · en gestión: tiene seguimiento activo; 2 · otra operación lo tenía tomado: reintenta en un momento' })
     expect(resumenOmitidos([])).toEqual({ total: 0, detalle: '' })

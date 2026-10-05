@@ -45,11 +45,12 @@ const miembro = (perfil_id: string, nombre_completo: string, rol_crm: Miembro['r
 
 const filaBase = (sobre: Partial<FilaSeguimientoBases> = {}): FilaSeguimientoBases => ({
   base_id: BASE, nombre: 'Feria 2025', origen: 'archivo', supervisor_id: SUP, supervisor_nombre: 'SUPERVISOR UNO', creado_en: '2026-10-01T15:00:00Z',
-  total: 155, sin_repartir: 85, repartidos: 70, sin_tocar: 22, trabajados: 40, en_descanso: 3, citas: 4, reactivados: 1, avance: 0.57, ...sobre,
+  total: 155, sin_repartir: 85, repartidos: 70, sin_tocar: 22, trabajados: 40, en_descanso: 3, citas: 4, reactivados: 1, avance: 0.57,
+  movidos_otra_via: 0, retirados: 0, no_contactar: 0, ...sobre,
 })
 const filaAnalista = (sobre: Partial<FilaSeguimientoBase> = {}): FilaSeguimientoBase => ({
   analista_id: ANA, analista_nombre: 'ANA PÉREZ', asignados: 40, sin_tocar: 12, sin_tocar_3_dias: 5, trabajados: 28, en_descanso: 2, citas: 3,
-  reactivados: 1, ultimo_intento_en: '2026-10-03T15:00:00Z', movidos_otra_via: 1, ...sobre,
+  reactivados: 1, ultimo_intento_en: '2026-10-03T15:00:00Z', movidos_otra_via: 1, retirados: 0, no_contactar: 0, ...sobre,
 })
 
 const onBase = vi.fn()
@@ -411,6 +412,42 @@ describe('dentro de una base: seguimiento por analista', () => {
     expect(toastSuccess).toHaveBeenCalledWith(expect.stringMatching(/Recogidos 12.*28 se quedan con ANA PÉREZ.*Quedan 3 por recoger/))
     // Tras recoger, el botón puede volverse «Nada por recoger»: el foco va a la hoja del seguimiento, nunca a <body>.
     await waitFor(() => expect(region).toHaveFocus())
+  })
+
+  it('contrato final B10: un analista de OTRO equipo (sin id ni nombre) se lee, sus cifras NO se abren (con su porqué) y no se recoge', async () => {
+    fuente.seguimientoBase.mockResolvedValue([
+      filaAnalista({ retirados: 2, no_contactar: 0, movidos_otra_via: 0 }),
+      filaAnalista({ analista_id: null, analista_nombre: null, asignados: 9, sin_tocar: 4, sin_tocar_3_dias: 2, movidos_otra_via: 1, retirados: 0, no_contactar: 3 }),
+    ])
+    montar(BASE)
+    const region = await screen.findByRole('region', { name: 'Seguimiento de Feria 2025 por analista' })
+    const otro = within(region).getByRole('rowheader', { name: 'Analista de otro equipo' }).closest('tr') as HTMLElement
+    expect(within(otro).queryAllByRole('button')).toHaveLength(0)
+    expect(within(otro).getByText('9')).toHaveAttribute('title', expect.stringContaining('de otro equipo'))
+    expect(within(otro).getByText('No contactar').closest('span')).toHaveAttribute('title', expect.stringContaining('de otro equipo'))
+    // El porqué llega con texto (no solo en el `title`): una vez por fila.
+    expect(within(otro).getByText('De otro equipo').closest('span')).toHaveTextContent('De otro equipo: sus cifras no se abren porque no puedes ver sus contactos')
+    // El de tu equipo: «Salieron» con «Retirados 2» que se abre por su cifra; lo que vale 0 no se pinta.
+    const ana = within(region).getByRole('rowheader', { name: 'ANA PÉREZ' }).closest('tr') as HTMLElement
+    expect(within(ana).queryByText('No contactar')).toBeNull()
+    expect(within(ana).queryByText('Movidos por otra vía')).toBeNull()
+    await userEvent.click(within(ana).getByRole('button', { name: /^Retirados:\s?2, ANA PÉREZ/ }))
+    await screen.findByRole('dialog', { name: /Retirados · 2/ })
+    expect(fuente.seguimientoBaseDetalle).toHaveBeenCalledWith(BASE, ANA, 'retirados', expect.anything())
+  })
+
+  it('contrato final B10: en la base, «Movidos por otra vía», «Retirados» y «No contactar» salen como pastillas solo si hay, y se abren', async () => {
+    fuente.seguimientoBases.mockResolvedValue([filaBase({ movidos_otra_via: 0, retirados: 4, no_contactar: 1 })])
+    fuente.seguimientoBaseDetalle.mockResolvedValue([{ lead_id: null, nombre_completo: null, estado: 'retirado', asignado_en: null, ultimo_intento_en: null, ultimo_resultado: null }])
+    montar(BASE)
+    const cifras = await screen.findByRole('region', { name: 'Cifras de Feria 2025' })
+    expect(within(cifras).queryByText('Movidos por otra vía')).toBeNull()
+    expect(within(cifras).getByRole('button', { name: /No contactar:\s?1/ })).toBeInTheDocument()
+    await userEvent.click(within(cifras).getByRole('button', { name: /Retirados:\s?4/ }))
+    const detalle = await screen.findByRole('dialog', { name: /Retirados · 4/ })
+    expect(fuente.seguimientoBaseDetalle).toHaveBeenCalledWith(BASE, null, 'retirados', expect.anything())
+    expect(await within(detalle).findByText('Retirado')).toBeInTheDocument()
+    expect(within(detalle).getByText('Contacto fuera de tu equipo')).toBeInTheDocument()
   })
 
   it('aún sin repartir: lo dice (no una tabla vacía)', async () => {

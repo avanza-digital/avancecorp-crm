@@ -30,7 +30,7 @@ import {
 } from '@/lib/base-gestion'
 import type { ResultadoLlamada } from '@/lib/resultado-llamada'
 import { normalizarCapital } from '@/lib/bases-cargadas'
-import type { Moneda } from '@/lib/format'
+import { money, type Moneda } from '@/lib/format'
 
 const DIA_MS = 86_400_000
 /** Qué campo provocó el error: así se asocia (aria-describedby / aria-invalid) al control correcto. */
@@ -92,9 +92,11 @@ export function RegistrarIntentoBase({ fila, demo, onDejaLaBase, formRef }: {
     setError(null)
   }
 
-  function anunciar(r: RespuestaIntentoBase) {
+  function anunciar(r: RespuestaIntentoBase, conCapital: boolean) {
     if (r.reactivado) {
-      onDejaLaBase({ tipo: 'reactivado', mensaje: 'Agendó cita: el lead volvió a tu cartera como Contactado' })
+      // Con el capital pedido aquí, se dice el EFECTIVO que devolvió el servidor (B10 `_v2`), no lo tecleado.
+      const capital = conCapital && r.monto_estimado != null ? `, con ${money(r.monto_estimado, r.moneda === 'USD' ? 'USD' : 'PEN')} de capital` : ''
+      onDejaLaBase({ tipo: 'reactivado', mensaje: `Agendó cita: el lead volvió a tu cartera como Contactado${capital}` })
       return
     }
     if (r.enfriado_hasta) {
@@ -146,8 +148,10 @@ export function RegistrarIntentoBase({ fila, demo, onDejaLaBase, formRef }: {
         ...(monto !== null ? { montoEstimado: Number(monto), moneda } : {}),
       })
       envio.current = null
-      anunciar(r)
+      anunciar(r, monto !== null)
     } catch (causa: unknown) {
+      // «Otro contenido» (mismo id con otros datos) es un rechazo definitivo: el próximo envío lleva un id nuevo.
+      if (causa instanceof CrmApiError && causa.code === 'OTRO_CONTENIDO') envio.current = null
       setError({ campo: 'envio', texto: causa instanceof CrmApiError ? causa.message : 'No se pudo guardar el intento. Inténtalo de nuevo.' })
     }
   }

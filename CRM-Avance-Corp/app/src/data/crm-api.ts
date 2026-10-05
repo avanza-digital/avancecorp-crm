@@ -163,7 +163,7 @@ import {
   type ResultadoConsultaAyudaVendedor,
 } from '@/lib/ayuda-vendedor'
 import type { Vista } from '@/lib/router'
-import { EnteroNoNegativoRpcSchema, FechaSchema } from '@/lib/esquemas-rpc'
+import { EnteroNoNegativoRpcSchema, FechaSchema, NumeroRpcSchema } from '@/lib/esquemas-rpc'
 import { presentarCitas } from '@/lib/terminologia'
 import { conGestionVigente } from './gestion-vigente'
 
@@ -1800,6 +1800,16 @@ export async function baseGestionResumenDetalle(vendedorId: string, cifra: Cifra
 // ── Base para gestión · escrituras de la ficha (F2). Las puertas son idempotentes por `p_operacion_id` (B3/B3b):
 //    el MISMO id con el mismo contenido devuelve la respuesta original (`replay`); con otro contenido, 23505. La
 //    pantalla fija un id por envío y solo lo renueva cuando cambia lo que se manda.
+/** Las puertas `_v2` (B10) devuelven además el capital EFECTIVO del lead tras la operación (`monto_estimado`, `moneda`) y lo
+ *  pedido (`solicitud_monto`, `solicitud_moneda`). Opcionales: las puertas de siempre no los traen. La pantalla muestra el
+ *  efectivo (con capital ya puesto, lo pedido se ignora). */
+const CapitalEfectivoSchema = {
+  monto_estimado: v.optional(v.nullable(NumeroRpcSchema), null),
+  moneda: v.optional(v.nullable(v.string()), null),
+  solicitud_monto: v.optional(v.nullable(NumeroRpcSchema), null),
+  solicitud_moneda: v.optional(v.nullable(v.string()), null),
+}
+
 const RespuestaIntentoBaseSchema = v.looseObject({
   ok: v.literal(true),
   replay: v.boolean(),
@@ -1808,6 +1818,7 @@ const RespuestaIntentoBaseSchema = v.looseObject({
   reactivado: v.boolean(),
   enfriado_hasta: v.nullable(v.string()),
   proxima_llamada_en: v.nullable(v.string()),
+  ...CapitalEfectivoSchema,
 })
 export type RespuestaIntentoBase = v.InferOutput<typeof RespuestaIntentoBaseSchema>
 
@@ -1815,6 +1826,7 @@ const RespuestaReactivarBaseSchema = v.looseObject({
   replay: v.boolean(),
   etapa: v.string(),
   ciclo_n: v.nullable(EnteroNoNegativoRpcSchema),
+  ...CapitalEfectivoSchema,
 })
 export type RespuestaReactivarBase = v.InferOutput<typeof RespuestaReactivarBaseSchema>
 
@@ -2436,6 +2448,11 @@ function aErrorApi(
     // La marca se levanta para todos los leads de la persona: si otra sesión tiene uno, el servidor no espera.
     code = 'REINTENTAR'
     mensaje = 'Otra sesión está trabajando uno de los leads de la persona. Vuelve a intentarlo en unos segundos.'
+  } else if (codigoPg === '23505' && texto.includes('otro contenido')) {
+    // Idempotencia de las puertas de la base (B3/B10): el MISMO p_operacion_id con OTRO contenido (otra nota, otro capital
+    // u otra moneda). Rechazo DEFINITIVO: nada se hizo con este envío; la pantalla lo vuelve a mandar como uno nuevo.
+    code = 'OTRO_CONTENIDO'
+    mensaje = 'Este envío ya se había hecho con otros datos (nota, capital o moneda) y no se repitió. Revisa lo que escribiste y vuelve a pulsar: irá como un envío nuevo.'
   } else if (codigoPg === '23505') {
     // Índices únicos parciales del dedup GLOBAL (uq_leads_*_vivo): el espejo
     // local solo ve el ámbito; el servidor cubre choques con leads ajenos.

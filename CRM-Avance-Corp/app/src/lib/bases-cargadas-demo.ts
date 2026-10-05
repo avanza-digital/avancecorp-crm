@@ -118,6 +118,8 @@ const cuenta = (contactos: readonly ContactoDemo[], cifra: CifraSeguimiento, aho
     case 'citas': return c.estado === 'cita'
     case 'reactivados': return c.estado === 'reactivado'
     case 'movidos_otra_via': return c.estado === 'movido_otra_via'
+    case 'retirados': return c.estado === 'retirado'
+    case 'no_contactar': return c.estado === 'no_contactar'
   }
 })
 
@@ -129,6 +131,7 @@ function filaBases(b: BaseDemo, ahora: number): FilaSeguimientoBases {
     creado_en: b.creado_en, total: n('total'), sin_repartir: n('sin_repartir'), repartidos, sin_tocar: n('sin_tocar'),
     trabajados: n('trabajados'), en_descanso: n('en_descanso'), citas: n('citas'), reactivados: n('reactivados'),
     avance: repartidos > 0 ? n('trabajados') / repartidos : null,
+    movidos_otra_via: n('movidos_otra_via'), retirados: n('retirados'), no_contactar: n('no_contactar'),
   }
 }
 
@@ -184,6 +187,7 @@ export function crearFuenteDemoBases(contexto: { leads: readonly Lead[]; equipo:
           analista_id: cs[0]?.analista_id ?? '', analista_nombre: cs[0]?.analista_nombre ?? null, asignados: n('asignados'),
           sin_tocar: n('sin_tocar'), sin_tocar_3_dias: n('sin_tocar_3_dias'), trabajados: n('trabajados'), en_descanso: n('en_descanso'),
           citas: n('citas'), reactivados: n('reactivados'), ultimo_intento_en: ultimo, movidos_otra_via: n('movidos_otra_via'),
+          retirados: n('retirados'), no_contactar: n('no_contactar'),
         }
       }).sort((x, y) => (x.analista_nombre ?? '').localeCompare(y.analista_nombre ?? '', 'es'))
     },

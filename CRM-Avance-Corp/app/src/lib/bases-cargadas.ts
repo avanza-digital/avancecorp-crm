@@ -542,11 +542,19 @@ export const FilaSeguimientoBasesSchema = v.object({
   citas: Entero,
   reactivados: Entero,
   avance: v.nullable(NumeroRpcSchema),
+  /** Contrato final (B10): AL FINAL y opcionales (con B9 sola no llegan): los que salieron de la base por otra vía, los
+   *  retirados y los «No contactar». */
+  movidos_otra_via: v.optional(Entero, 0),
+  retirados: v.optional(Entero, 0),
+  no_contactar: v.optional(Entero, 0),
 })
 export type FilaSeguimientoBases = v.InferOutput<typeof FilaSeguimientoBasesSchema>
 
+/** Una fila por analista (B10). `analista_id` y `analista_nombre` llegan NULL si el analista está FUERA del ámbito de quien
+ *  consulta (p. ej. Gerencia repartió a otro equipo y consulta el supervisor): las cifras vienen, pero no se pueden abrir
+ *  (no hay analista por el que filtrar el detalle). */
 export const FilaSeguimientoBaseSchema = v.object({
-  analista_id: v.string(),
+  analista_id: TextoONulo,
   analista_nombre: TextoONulo,
   asignados: Entero,
   sin_tocar: Entero,
@@ -556,9 +564,14 @@ export const FilaSeguimientoBaseSchema = v.object({
   citas: Entero,
   reactivados: Entero,
   ultimo_intento_en: TextoONulo,
-  movidos_otra_via: Entero,
+  movidos_otra_via: v.optional(Entero, 0),
+  retirados: v.optional(Entero, 0),
+  no_contactar: v.optional(Entero, 0),
 })
 export type FilaSeguimientoBase = v.InferOutput<typeof FilaSeguimientoBaseSchema>
+
+/** El rótulo de un analista del seguimiento (de otro equipo: sin nombre, con su rótulo). */
+export const TEXTO_ANALISTA_OTRO_EQUIPO = 'Analista de otro equipo'
 
 /** Una fila del detalle (B10). Un contacto que salió del ámbito del actor llega SIN id ni nombre (NULL): la pantalla dice
  *  «Contacto fuera de tu equipo» y no inventa nada. */
@@ -575,25 +588,32 @@ export type FilaDetalleSeguimiento = v.InferOutput<typeof FilaDetalleSeguimiento
 export const TEXTO_FUERA_DE_EQUIPO = 'Contacto fuera de tu equipo'
 
 /** Las cifras de la hoja de bases que se abren (`p_cifra` de `seguimiento_base_detalle`). */
-export const CIFRAS_BASE = ['total', 'sin_repartir', 'repartidos', 'sin_tocar', 'trabajados', 'en_descanso', 'citas', 'reactivados'] as const
+export const CIFRAS_BASE = ['total', 'sin_repartir', 'repartidos', 'sin_tocar', 'trabajados', 'en_descanso', 'citas', 'reactivados', 'movidos_otra_via', 'retirados', 'no_contactar'] as const
 export type CifraBase = (typeof CIFRAS_BASE)[number]
 /** Las cifras de una fila por analista que se abren. */
-export const CIFRAS_ANALISTA = ['asignados', 'sin_tocar', 'sin_tocar_3_dias', 'trabajados', 'en_descanso', 'citas', 'reactivados', 'movidos_otra_via'] as const
+export const CIFRAS_ANALISTA = ['asignados', 'sin_tocar', 'sin_tocar_3_dias', 'trabajados', 'en_descanso', 'citas', 'reactivados', 'movidos_otra_via', 'retirados', 'no_contactar'] as const
 export type CifraAnalista = (typeof CIFRAS_ANALISTA)[number]
 export type CifraSeguimiento = CifraBase | CifraAnalista
+/** Los que SALIERON de la base (contrato final de B10): se muestran como pastillas pequeñas que se abren, solo si hay. */
+export const CIFRAS_SALIDA = ['movidos_otra_via', 'retirados', 'no_contactar'] as const satisfies readonly (CifraBase & CifraAnalista)[]
+export type CifraSalida = (typeof CIFRAS_SALIDA)[number]
+export function esCifraSalida(cifra: CifraSeguimiento): cifra is CifraSalida {
+  return (CIFRAS_SALIDA as readonly string[]).includes(cifra)
+}
 
 export const ROTULO_CIFRA: Readonly<Record<CifraSeguimiento, string>> = {
   total: 'Total', sin_repartir: 'Sin repartir', repartidos: 'Repartidos', sin_tocar: 'Sin tocar', trabajados: 'Trabajados',
   en_descanso: 'En descanso', citas: 'Citas', reactivados: 'Reactivados', asignados: 'Asignados',
-  sin_tocar_3_dias: `Sin tocar ${DIAS_SIN_TOCAR} días`, movidos_otra_via: 'Movidos por otra vía',
+  sin_tocar_3_dias: `Sin tocar ${DIAS_SIN_TOCAR} días`, movidos_otra_via: 'Movidos por otra vía', retirados: 'Retirados', no_contactar: 'No contactar',
 }
 
 // ── B9 · repartir y recoger ────────────────────────────────────────────────────────────────────────────────────
-export const ESTADOS_CONTACTO = ['sin_repartir', 'sin_tocar', 'trabajado', 'en_descanso', 'cita', 'reactivado', 'movido_otra_via', 'no_contactar'] as const
+/** Estados de un contacto de la base. `retirado` solo sale en el detalle del seguimiento (B10). */
+export const ESTADOS_CONTACTO = ['sin_repartir', 'sin_tocar', 'trabajado', 'en_descanso', 'cita', 'reactivado', 'movido_otra_via', 'no_contactar', 'retirado'] as const
 
 const ROTULO_ESTADO: Readonly<Record<string, string>> = {
   sin_repartir: 'Sin repartir', sin_tocar: 'Sin tocar', trabajado: 'Trabajado', en_descanso: 'En descanso', cita: 'Cita',
-  reactivado: 'Reactivado', movido_otra_via: 'Movido por otra vía', no_contactar: 'No contactar',
+  reactivado: 'Reactivado', movido_otra_via: 'Movido por otra vía', no_contactar: 'No contactar', retirado: 'Retirado',
 }
 
 export function etiquetaEstadoContacto(estado: string): string {
@@ -637,15 +657,17 @@ export type RespuestaRecoger = v.InferOutput<typeof RespuestaRecogerSchema>
 export const RechazadoRepartoSchema = v.object({ lead_id: v.string(), motivo: v.string() })
 export type RechazadoReparto = v.InferOutput<typeof RechazadoRepartoSchema>
 
+/** Los motivos del reparto (B9, contrato final): bloque (`omitidos`) e individual (`rechazados`, además `ya_asignado`). */
 const MOTIVO_REPARTO: Readonly<Record<string, string>> = {
-  inactivo: 'Está inactivo (retirado)',
-  retirado: 'Está retirado',
-  fuera_de_ambito: 'Salió del equipo del supervisor dueño (lo movió otra vía)',
-  no_descartado: 'Ya no está descartado (se reactivó o lo movió otra vía)',
+  inactivo: 'Está retirado del CRM',
+  retirado: 'Está retirado del CRM',
+  fuera_de_ambito: 'Ya no es del equipo del supervisor dueño',
+  no_descartado: 'Ya no está descartado: lo reactivaron',
   no_contactar: 'Marcado «No contactar»',
   en_descanso: 'Está en descanso',
   en_gestion: 'En gestión: tiene seguimiento activo',
   ocupado: 'Otra operación lo tenía tomado: reintenta en un momento',
+  movido_otra_via: 'Lo movieron por otra vía',
   ya_asignado: 'Ya era de ese analista',
 }
 

@@ -9,7 +9,7 @@ import { FOCO } from '@/components/gestion-diaria/estilos-gestion'
 import { cn } from '@/lib/utils'
 import { fmtFecha } from '@/lib/format'
 import type { PuertasBases } from '@/data/bases-cargadas-queries'
-import { CIFRAS_BASE, ROTULO_CIFRA, etiquetaOrigenBase, type CifraAnalista, type CifraBase, type FilaSeguimientoBase, type FilaSeguimientoBases } from '@/lib/bases-cargadas'
+import { CIFRAS_BASE, ROTULO_CIFRA, esCifraSalida, etiquetaOrigenBase, type CifraAnalista, type CifraBase, type FilaSeguimientoBase, type FilaSeguimientoBases } from '@/lib/bases-cargadas'
 import type { Miembro } from '@/lib/tipos'
 import { Avance } from './hoja-bases'
 import { RepartoBase } from './reparto-base'
@@ -46,7 +46,8 @@ export function DetalleBase({ puertas, base, analistas, esMovil, ahora, onVolver
           </p>
         </div>
         <section aria-label={`Cifras de ${base.nombre}`} className="flex flex-wrap items-center gap-2">
-          {CIFRAS_BASE.map((c) => (
+          {/* Las de los que SALIERON de la base (otra vía, retirados, «No contactar») solo si tienen algo. */}
+          {CIFRAS_BASE.filter((c) => !esCifraSalida(c) || base[c] > 0).map((c) => (
             <Pastilla key={c} etiqueta={ROTULO_CIFRA[c]} valor={base[c]} pista="ver la lista" onAbrir={base[c] > 0 ? () => onAbrirCifra(c) : undefined} />
           ))}
           <p className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-1.5 text-sm text-[var(--muted-foreground-strong)]">
