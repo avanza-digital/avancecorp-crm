@@ -23,6 +23,7 @@ Consecuencia para el piloto: la gestión que se mide es la que el vendedor **hac
 | `PROPUESTAS-DE-AJUSTE.md` | Ajustes que Claude propone al plan, con evidencia. **No cambian el plan** hasta que Miguel los apruebe | Claude |
 | `F2-PLAN-CORTO.md` | Borrador del contrato y del diseño de F2 (tablas, núcleo, RLS, verificación, orden de PRs) apoyado en el catálogo real. Sin SQL hasta el OK de Miguel; incluye las 7 decisiones que él debe fijar | Claude |
 | `F3-PLAN-CORTO.md` | Plan corto de F3 (Edge Function de ingesta, puerta de servicio, límite, salud, macro durable): las 5 decisiones (1–4 tomadas por Jhosep como provisionales el 01/10), las 6 pruebas que Jhosep debe hacer en C1 antes de escribir la macro y el estado de F3-a (la base, construida en banco local) | Claude |
+| `F5-F7-ANALISIS.md` | Análisis adelantado de F5, F6 y F7 (03/10): qué cambió desde que se aprobó el plan, qué se reutiliza, el diseño descrito sin código y las decisiones que necesitaría Miguel. Borrador: no pide revisión hasta que toque F5 | Claude |
 | `HANDOFF-<fecha>.md` | Cierre de cada sesión: qué se hizo, cómo probarlo, qué falta y el prompt para retomar | Claude |
 
 ## Dónde verlo en vivo

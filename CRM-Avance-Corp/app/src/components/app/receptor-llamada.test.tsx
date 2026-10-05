@@ -134,7 +134,8 @@ describe('ReceptorLlamada', () => {
     dobles.cargando = false
     rerender(<ReceptorLlamada />)
     await waitFor(() => expect(dobles.resolver).toHaveBeenCalledTimes(1))
-    expect(screen.getByRole('status')).toHaveTextContent('Ningún lead de tu cartera tiene el número 999 888 777.')
+    // La respuesta del resolver llega en otra vuelta: se espera el texto, no se lee en el mismo tick (en CI perdía la carrera).
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Ningún lead de tu cartera tiene el número 999 888 777.'))
   })
 
   it('ambiguo: lista los candidatos y elegir uno arma la intención y abre su ficha', async () => {
