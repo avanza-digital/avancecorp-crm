@@ -100,4 +100,27 @@ psql … -f supabase/scripts/base-gestion/registrar/20261004222602.sql          
 
 El gate (`test-rls.mjs`, bloque «Bases cargadas B9») deja otra base de sup1 con sus recibos (sin DELETE): la misma limpieza.
 
-Reversas, en este orden: B9 (`reversa-b9.sql`, antes que todas; no toca filas) · B8 (`reversa-b8.sql`, antes que la de B7) · B7 (`reversa-b7.sql`, antes que la de B6c) · B6c (`reversa-b6c.sql`, antes que todas; la de B2 se niega mientras levantar tenga el cuerpo de B6c) · B6b (`reversa-b6b.sql`) · B3b (`reversa-idempotencia-y-orden.sql`) · B4b (`reversa-ventana-descanso.sql`) · B4 (`reversa-enfriamiento.sql`) · B3 (`reversa-puertas.sql`, se niega si queda el trigger de B4) · B2 (`reversa-no-contactar-supervisor.sql`, independiente) · B1b (`reversa-proxima-llamada.sql`, se niega si quedan núcleos de B3) · B1 (`reversa-esquema.sql`, se niega si B1b sigue aplicada). Rama de Supabase con datos: `rama.mjs estado | aplicar | explain | gate` (la URL del pooler la aporta Miguel por archivo; ver `BASE PARA GESTION/ESTADO.md`).
+**B10 · Bases cargadas: seguimiento, la base en la lista y el capital al reactivar (20261004223253), r4.** Mismo banco (actores
+de `seed:demo`, B7, B8 y **B9 r2** aplicadas, SIN bases: limpiar antes). r2: UNA definición del estado del contacto
+(`private.bases_carga_estado_contacto`) para las puertas de B9 y de B10: B10 reemplaza tres piezas del núcleo de B9 y borra su
+clasificador (la reversa los repone byte a byte). r3 (E1): un armado desde el CRM que conserva su analista anterior es «sin
+repartir» y el bloque lo elige; la lista de la base para gestión oculta solo a los dormidos del archivo. Aplicar en UN mensaje (`psql -c "$(cat <archivo>)"`; la migración toma el
+candado de migraciones a nivel de SESIÓN antes de fijar la instantánea y lo suelta al final; si falla, se suelta al cerrar la
+sesión) y luego:
+
+```sh
+psql -h 127.0.0.1 -p <puerto> -U postgres -f supabase/scripts/base-gestion/b10-seguimiento.sql            # 200 casos (reparto y recogida REALES de B9, estado único B9 = B10, fila anónima, cifras, roles, capital), ROLLBACK
+node supabase/scripts/base-gestion/b10-mutantes.mjs --puerto <puerto>                                    # 76 mutantes deben CAER + la reversa revierte en 2 controles y niega 16 derivas
+psql … -f supabase/scripts/base-gestion/b9-repartir.sql                                                   # la suite de B9 (155) con B10: solo D10 y Q2 condicionales
+bash supabase/scripts/base-gestion/b9-concurrencia.sh --puerto <puerto>                                  # la concurrencia de B9 (62) con B10, sin cambios
+psql … -f supabase/scripts/base-gestion/b10-comprobar-tras-aplicar.sql                                    # TRAS el commit (banco, rama, producción): veredicto en una fila (23 casos)
+psql … -f supabase/scripts/base-gestion/reversa-b10.sql                                                   # vuelve a B9 r2 exacto (antes que la de B9)
+psql … -f supabase/scripts/base-gestion/registrar/20261004223253.sql                                      # tras aplicar; idempotente
+```
+
+Las suites de B6c, B7, B8 y B9 tienen casos condicionales a B10 (cuerpo de la lista, 22023 al reactivar sin capital, los
+dormidos del archivo sin repartir fuera de la lista —D10 de B9—, el núcleo de intentos con capital —Q2 de B9—): pasan con y
+sin B10. La concurrencia de B9 no cambia. Con B10 aplicada, `b9-mutantes.mjs` no aplica (cambia piezas de B9 que B10 reemplaza): se corre con B10
+revertida; y `reversa-b9.sql` se niega mientras B10 esté aplicada.
+
+Reversas, en este orden: B10 (`reversa-b10.sql`, antes que todas) · B9 (`reversa-b9.sql`, antes que la de B8; no toca filas) · B8 (`reversa-b8.sql`, antes que la de B7) · B7 (`reversa-b7.sql`, antes que la de B6c) · B6c (`reversa-b6c.sql`, antes que todas; la de B2 se niega mientras levantar tenga el cuerpo de B6c) · B6b (`reversa-b6b.sql`) · B3b (`reversa-idempotencia-y-orden.sql`) · B4b (`reversa-ventana-descanso.sql`) · B4 (`reversa-enfriamiento.sql`) · B3 (`reversa-puertas.sql`, se niega si queda el trigger de B4) · B2 (`reversa-no-contactar-supervisor.sql`, independiente) · B1b (`reversa-proxima-llamada.sql`, se niega si quedan núcleos de B3) · B1 (`reversa-esquema.sql`, se niega si B1b sigue aplicada). Rama de Supabase con datos: `rama.mjs estado | aplicar | explain | gate` (la URL del pooler la aporta Miguel por archivo; ver `BASE PARA GESTION/ESTADO.md`).

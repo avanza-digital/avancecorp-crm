@@ -144,8 +144,11 @@ select pg_temp.caso('C4 levantar: md5 B6c (nota antes de apagar la válvula), DE
 select pg_temp.caso('C5 marcar y postventa intactos', '6cd5678eed537dc880c5ce4447165d30|c67d516bcd37562a93af6a1a8b4629f7',
   (select md5(prosrc) from pg_proc where oid = 'crm.marcar_no_contactar(uuid,text)'::regprocedure) || '|' ||
   (select md5(prosrc) from pg_proc where oid = 'crm.postventa_veto_fn(uuid,uuid,boolean,text,uuid)'::regprocedure));
-select pg_temp.caso('C6 obtener_base_gestion: cuerpo de B6b; comentario B6c con el residuo de la bandera y sin acreditar notas anteriores', '36af7e9cc4d6ec319b3d8004f3903473|67f83881ece789fee1a37e0799123c18|t|t|t',
-  (select format('%s|%s|%s|%s|%s', md5(p.prosrc), md5(obj_description(p.oid, 'pg_proc')), obj_description(p.oid, 'pg_proc') like '%no lee la bandera resolver_en_puertas%',
+-- B10 (20261004223253) reemplaza el cuerpo (base_id, base_nombre y sin los dormidos sin repartir) y AÑADE una frase al final del
+-- comentario: con B10 aplicada se exige su cuerpo y que el comentario, sin la frase de B10, siga siendo el de B6c.
+select pg_temp.caso('C6 obtener_base_gestion: cuerpo de B6b (o el de B10 si está aplicada); comentario B6c con el residuo de la bandera y sin acreditar notas anteriores',
+  case when to_regprocedure('crm.seguimiento_bases()') is null then '36af7e9cc4d6ec319b3d8004f3903473' else '26d887dc635824f383b0eb236c8226fb' end || '|67f83881ece789fee1a37e0799123c18|t|t|t',
+  (select format('%s|%s|%s|%s|%s', md5(p.prosrc), md5(split_part(obj_description(p.oid, 'pg_proc'), ' B10 (04/10/2026', 1)), obj_description(p.oid, 'pg_proc') like '%no lee la bandera resolver_en_puertas%',
                  obj_description(p.oid, 'pg_proc') not like '%se cierra en B6c%', obj_description(p.oid, 'pg_proc') like '%No acredita las notas anteriores a B6c%')
      from pg_proc p where p.oid = 'crm.obtener_base_gestion(uuid,boolean)'::regprocedure));
 select pg_temp.caso('C7 fuera del censo analítico (sello y levantar)', '0',
@@ -153,7 +156,12 @@ select pg_temp.caso('C7 fuera del censo analítico (sello y levantar)', '0',
 select pg_temp.caso('C9 comentario del sello: exención aceptada de service_role sin sub, no acredita lo anterior, inmutable', 'f1fd306fb7afc8d405a778e14779a90a|t|t|t',
   (select format('%s|%s|%s|%s', md5(d), d like '%clave de servicio SIN sub: exención aceptada%', d like '%No acredita las notas escritas antes de su instalación%', d like '%DELETE de una nota del veto%')
      from obj_description('private.trg_actividades_no_contactar_solo_puerta()'::regprocedure, 'pg_proc') d));
-select pg_temp.caso('C10 solo cuatro funciones cambian actividades (ninguna borra) y ninguna toca notas del veto', 'crm.deshacer_resultado_llamada(uuid),private.base_gestion_intento_core(uuid,uuid,uuid,text,text,timestamp with time zone),private.llamada_registrar(uuid,uuid,uuid,text,text,text,jsonb,uuid,boolean,boolean),private.llamada_registrar_v4(uuid,uuid,uuid,text,text,text,jsonb,uuid,boolean,boolean)',
+-- B10 (20261004223253): el UPDATE de actividades del núcleo de intentos vive en private.base_gestion_intento_capital_core (el de
+-- siempre queda de envoltorio): con B10 aplicada, ese es el nombre de la lista.
+select pg_temp.caso('C10 solo cuatro funciones cambian actividades (ninguna borra) y ninguna toca notas del veto',
+  replace('crm.deshacer_resultado_llamada(uuid),private.base_gestion_intento_core(uuid,uuid,uuid,text,text,timestamp with time zone),private.llamada_registrar(uuid,uuid,uuid,text,text,text,jsonb,uuid,boolean,boolean),private.llamada_registrar_v4(uuid,uuid,uuid,text,text,text,jsonb,uuid,boolean,boolean)', 'private.base_gestion_intento_core(uuid,uuid,uuid,text,text,timestamp with time zone)',
+          case when to_regprocedure('crm.seguimiento_bases()') is null then 'private.base_gestion_intento_core(uuid,uuid,uuid,text,text,timestamp with time zone)'
+               else 'private.base_gestion_intento_capital_core(uuid,uuid,uuid,text,text,timestamp with time zone,numeric,text)' end),
   (select string_agg(p.oid::regprocedure::text, ',' order by p.oid::regprocedure::text collate "C") from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname not in ('pg_catalog', 'information_schema') and p.prosrc ~* 'update\s+crm\.actividades|delete\s+from\s+crm\.actividades'));
 select pg_temp.caso('C8 solo tres cuerpos construyen la nota del veto', 'crm.levantar_no_contactar(uuid,text),crm.marcar_no_contactar(uuid,text),crm.postventa_veto_fn(uuid,uuid,boolean,text,uuid)',

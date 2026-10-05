@@ -348,7 +348,10 @@ select pg_temp.caso('E21 … y «tomar lead libre» del analista no lo toma (enf
 create function pg_temp.como(p_uid uuid) returns text language sql as $$
   select format('select pg_temp.sesion(%L); set local role authenticated; ', p_uid) $$;
 grant execute on all functions in schema pg_temp to anon, authenticated, service_role;
-select pg_temp.prueba('V1 reactivar_lead_base (Supervisión, su bandeja) de un lead de base sin capital → 23514', (select m_check_monto from f),
+-- B10 (20261004223253): la puerta pide el capital antes de reabrir → 22023 en vez del 23514 del CHECK (que sigue de candado).
+select pg_temp.prueba('V1 reactivar_lead_base (Supervisión, su bandeja) de un lead de base sin capital → 23514 (con B10: 22023, pide el capital)',
+  case when to_regprocedure('crm.reactivar_lead_base_v2(uuid,uuid,text,numeric,text)') is null then (select m_check_monto from f)
+       else '22023 Indica el capital estimado para reactivar' end,
   pg_temp.como((select s1 from f)) || format('select crm.reactivar_lead_base(gen_random_uuid(), %L, ''B7 V1'')', (select lb from f)));
 select pg_temp.prueba('V2 … con el capital puesto antes, reactivar_lead_base pasa', 'paso',
   format('update crm.leads set monto_estimado = 2000 where id = %L; ', (select lb from f)) || pg_temp.como((select s1 from f))

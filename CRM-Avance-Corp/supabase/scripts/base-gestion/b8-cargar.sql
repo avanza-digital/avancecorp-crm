@@ -180,13 +180,13 @@ create function pg_temp.metricas_con_carga(p_g uuid, p_s1 uuid, p_base uuid) ret
 declare m1 jsonb; m2 jsonb; v jsonb;
 begin
   perform pg_temp.sesion(p_g); execute 'set local role authenticated';
-  m1 := crm.metricas_sla_fn(current_date, current_date);
+  m1 := crm.metricas_sla_fn((now() at time zone 'America/Lima')::date, (now() at time zone 'America/Lima')::date);  -- día de Lima: con current_date (UTC) falla de 19:00 a 24:00 Lima
   execute 'reset role';
   perform pg_temp.sesion(p_s1); execute 'set local role authenticated';
   v := crm.cargar_base_lote(gen_random_uuid(), p_base, '[{"fila":1,"nombre":"M uno","telefono":"966780501"},{"fila":2,"nombre":"M dos","telefono":"966780502"}]'::jsonb);
   execute 'reset role';
   perform pg_temp.sesion(p_g); execute 'set local role authenticated';
-  m2 := crm.metricas_sla_fn(current_date, current_date);
+  m2 := crm.metricas_sla_fn((now() at time zone 'America/Lima')::date, (now() at time zone 'America/Lima')::date);  -- día de Lima: con current_date (UTC) falla de 19:00 a 24:00 Lima
   execute 'reset role';
   return (v->'lote'->>'cargadas') || '|' || (m1 = m2)::text;
 end $$;
@@ -606,13 +606,20 @@ select pg_temp.caso('E13 el estado SLA (estado_sla_leads_v2_fn) se lee igual par
      from (select 1 as o, pg_temp.valor(format('select jsonb_array_length(crm.estado_sla_leads_v2_fn(array[%L]::uuid[])->''filas'')', (select l_enf from f)), 'authenticated', (select s1 from f)) v
            union all
            select 2, pg_temp.valor(format('select jsonb_array_length(crm.estado_sla_leads_v2_fn(array[%L]::uuid[])->''filas'')', (select id from cargados where telefono = '+51966780102')), 'authenticated', (select s1 from f))) x));
-select pg_temp.caso('E14 (DOCUMENTA, lo decide B10) los dormidos salen en la Gestión de la base de su supervisor (obtener_base_gestion)', '3',
+-- B10 (20261004223253) lo decidió: los dormidos SIN REPARTIR ya no salen en la Gestión de la base (viven en la pestaña «Bases»).
+select pg_temp.caso('E14 los dormidos salen en la Gestión de la base de su supervisor (obtener_base_gestion); con B10, ya no',
+  case when to_regprocedure('crm.seguimiento_bases()') is null then '3' else '0' end,
   pg_temp.valor(format('select count(*) from crm.obtener_base_gestion() b where b.lead_id in (%s)', (select string_agg(quote_literal(id), ',') from cargados)), 'authenticated', (select s1 from f)));
 select pg_temp.caso('E15 … con 0 días desde el descarte y sin «en gestión» (B6)', '0|true',
+  case when to_regprocedure('crm.seguimiento_bases()') is null then
   (select format('%s|%s', min(x.dias), bool_and(private.base_gestion_en_gestion_hasta(x.lead_id) is null)::text)
      from (select (b->>'dias_desde_descarte')::int as dias, (b->>'lead_id')::uuid as lead_id
              from jsonb_array_elements(pg_temp.lista(pg_temp.a_jsonb(pg_temp.valor(format('select jsonb_agg(to_jsonb(b)) from crm.obtener_base_gestion() b where b.lead_id in (%s)',
-                                                            (select string_agg(quote_literal(id), ',') from cargados)), 'authenticated', (select s1 from f))))) b) x));
+                                                            (select string_agg(quote_literal(id), ',') from cargados)), 'authenticated', (select s1 from f))))) b) x)
+  -- Con B10 no están en la lista: los mismos días (como los calcula la lista) desde el lead.
+  else (select format('%s|%s', min(((now() at time zone 'America/Lima')::date - (l.descartado_en at time zone 'America/Lima')::date)::integer),
+                      bool_and(private.base_gestion_en_gestion_hasta(l.id) is null)::text)
+          from crm.leads l where l.id in (select id from cargados)) end);
 
 select pg_temp.prueba('E16 Gerencia (API) pone el enfriamiento base_cargada en 0 días → 23514 (el alta vería «libre» 24 h)',
   '23514 new row for relation "enfriamiento_politica" violates check constraint "enfriamiento_politica_base_cargada_dias_positivos"',
@@ -822,7 +829,10 @@ select pg_temp.caso('L6 con la válvula, un base_cargada que nace NUEVO (con cap
   pg_temp.valor(format('select pg_temp.nace_nuevo_con_valvula(%L)', (select s1 from f))));
 alter table f add column nueva uuid, add column ana uuid;
 update f set nueva = (select id from cargados where nombre_completo = 'Nueva'), ana = (select id from cargados where telefono = '+51966780101');
-select pg_temp.caso('L7 reactivar un dormido SIN capital (S1) → 23514 del CHECK', 'ERROR 23514 new row for relation "leads" violates check constraint "leads_monto_estimado_valido"',
+-- B10 (20261004223253): la puerta pide el capital antes de reabrir → 22023 (el CHECK sigue de candado debajo).
+select pg_temp.caso('L7 reactivar un dormido SIN capital (S1) → 23514 del CHECK (con B10: 22023, pide el capital)',
+  case when to_regprocedure('crm.reactivar_lead_base_v2(uuid,uuid,text,numeric,text)') is null then 'ERROR 23514 new row for relation "leads" violates check constraint "leads_monto_estimado_valido"'
+       else 'ERROR 22023 Indica el capital estimado para reactivar' end,
   pg_temp.valor(format('select pg_temp.reactivar(%L, %L)', (select nueva from f), (select s1 from f))));
 select pg_temp.caso('L8 reactivar un dormido CON capital (S1) → contactado, ciclo 2 con su fila SLA (y sin la del ciclo 1)', 'contactado|2|2',
   pg_temp.valor(format('select pg_temp.reactivar(%L, %L)', (select ana from f), (select s1 from f))));

@@ -16334,6 +16334,231 @@ async function testBasesCargadasB9(sessions, seed) {
   }
 }
 
+// ── Bases cargadas B10 (20261004223253): seguimiento, la base en la lista del analista y el capital al reactivar ──
+// Bloque corto por la API real (PostgREST, statement_timeout de authenticated): contrato de las cuatro puertas nuevas, roles
+// (analista y coordinación 42501, otro supervisor P0002), los dormidos SIN REPARTIR fuera de «Gestión de la base», el reparto
+// REAL de B9 (crm.repartir_base en bloque, por la API; r2), el estado de crm.contactos_de_base = el del seguimiento, el analista ve
+// sus contactos con base_nombre, el seguimiento por base y por analista con cada cifra = su detalle, y reactivar: la puerta
+// publicada con un lead sin capital → 22023, la _v2 exige y guarda el capital, lo ignora si ya hay, y la puerta publicada
+// sigue funcionando con la llamada de siempre. La matriz completa (cada cifra, rojo a los 3 días, equivalencia con B6b,
+// mutantes) la cubre supabase/scripts/base-gestion/b10-seguimiento.sql en el banco. Deja una base de sup1 (sin DELETE por
+// diseño): limpiar-entre-corridas.sql la vacía entre corridas del banco.
+async function testBasesCargadasB10(sessions, seed) {
+  console.log('\n— Bases cargadas B10: seguimiento de las bases, la base en la lista y el capital al reactivar —');
+  const saltar = (msg) => {
+    if (process.env.CRM_RLS_EXIGE_BASE_GESTION === '1') fail(msg);
+    else console.log(`  ${msg}`);
+  };
+  let aplicada;
+  try {
+    aplicada = contarFueraDeBanda('bases cargadas B10: aplicada',
+      `select (to_regprocedure('crm.seguimiento_bases()') is not null and to_regprocedure('crm.reactivar_lead_base_v2(uuid,uuid,text,numeric,text)') is not null
+               and to_regprocedure('crm.repartir_base(uuid,uuid,jsonb)') is not null)::int`);
+  } catch (error) {
+    saltar(`⚠ Bases cargadas B10 SALTADO: sin vía fuera de banda (${error?.message ?? String(error)})`);
+    return;
+  }
+  if (aplicada !== 1) {
+    saltar('⚠ 20261004223253 (bases cargadas B10) NO desplegada en esta base: bloque SALTADO (no probado)');
+    return;
+  }
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`bases cargadas B10: ${etiqueta}`, sql);
+  const texto = (etiqueta, sql) => textoFueraDeBanda(`bases cargadas B10: ${etiqueta}`, sql);
+  const vend1Id = seed.profileIdByKey.vend1;
+  const vend3Id = seed.profileIdByKey.vend3;
+  const vend4Id = seed.profileIdByKey.vend4;
+  const sup1Id = seed.profileIdByKey.sup1;
+  const vend1 = sessions.vend1.client.schema('crm');
+  const sup1 = sessions.sup1.client.schema('crm');
+  const sup2 = sessions.sup2.client.schema('crm');
+  const ger = sessions.gerencia.client.schema('crm');
+  const coord = sessions.coordinador.client.schema('crm');
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-bases-cargadas-b10'));
+  const PUERTAS = ['crm.seguimiento_bases()', 'crm.seguimiento_base(uuid)', 'crm.seguimiento_base_detalle(uuid,uuid,text)',
+    'crm.reactivar_lead_base_v2(uuid,uuid,text,numeric,text)', 'crm.registrar_intento_base_v2(uuid,uuid,text,text,timestamptz,numeric,text)',
+    'crm.obtener_base_gestion(uuid,boolean)', 'crm.reactivar_lead_base(uuid,uuid,text)', 'crm.registrar_intento_base(uuid,uuid,text,text,timestamptz)'];
+  check(cuenta('puertas', `select count(*) from pg_proc p where p.oid in (${PUERTAS.map((f) => `'${f}'::regprocedure`).join(', ')}) and p.prosecdef and p.proowner = 'postgres'::regrole and p.proconfig = array['search_path=""']::text[] and has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('anon', p.oid, 'EXECUTE') and not has_function_privilege('service_role', p.oid, 'EXECUTE') and not exists (select 1 from aclexplode(p.proacl) a where a.grantee = 0)`) === PUERTAS.length,
+    'B10 las 5 puertas nuevas, la lista y las puertas publicadas de reactivar y de intentos: DEFINER de postgres, search_path vacío, EXECUTE solo authenticated');
+  check(cuenta('nucleo', `select count(*) from pg_proc p cross join unnest(array['anon','authenticated','service_role']) r(rol) where p.pronamespace = 'private'::regnamespace and (p.proname like 'bases\\_carga\\_seguimiento\\_%' or p.proname in ('bases_carga_estado_contacto', 'bases_carga_reparto_motivo_bloque', 'bases_carga_contactos_core', 'bases_carga_reparto_recogible', 'bases_carga_repartir_core', 'base_gestion_reactivar_core', 'base_gestion_reactivar_capital_core', 'base_gestion_intento_core', 'base_gestion_intento_capital_core')) and has_function_privilege(r.rol, p.oid, 'EXECUTE')`) === 0,
+    'B10 el núcleo privado (seguimiento, la definición única del estado, las piezas de B9 que la usan, reactivar) sin EXECUTE para la API');
+  check(cuenta('sobrecargas', `select count(*) from pg_proc p where p.pronamespace = 'crm'::regnamespace and p.proname in ('reactivar_lead_base', 'reactivar_lead_base_v2', 'registrar_intento_base', 'registrar_intento_base_v2', 'obtener_base_gestion')`) === 5,
+    'B10 una sola sobrecarga de las puertas publicadas (reactivar, intentos), de sus _v2 y de obtener_base_gestion');
+  const ROL = /Solo Supervisión y Gerencia ven el seguimiento de las bases/;
+  const DENEGADO = /permission denied/i;
+  const AMBITO = /fuera de tu ámbito/;
+  const CAPITAL = /Indica el capital estimado para reactivar/;
+  const ids = (resp) => (Array.isArray(resp?.data) ? resp.data.map((r) => r.lead_id) : []);
+  await expectExpectedFailure('B10 anon → seguimiento_bases 42501 (sin EXECUTE)', anon.schema('crm').rpc('seguimiento_bases'), ['42501'], DENEGADO);
+  await expectExpectedFailure('B10 service_role → seguimiento_bases 42501 (sin EXECUTE)', admin.schema('crm').rpc('seguimiento_bases'), ['42501'], DENEGADO);
+  await expectExpectedFailure('B10 service_role → reactivar_lead_base_v2 42501 (sin EXECUTE)', admin.schema('crm').rpc('reactivar_lead_base_v2', { p_operacion_id: randomUUID(), p_lead_id: randomUUID() }), ['42501'], DENEGADO);
+  await expectExpectedFailure('B10 vend1 → seguimiento_bases 42501', vend1.rpc('seguimiento_bases'), ['42501'], ROL);
+  await expectExpectedFailure('B10 coordinador → seguimiento_bases 42501', coord.rpc('seguimiento_bases'), ['42501'], ROL);
+  await expectExpectedFailure('B10 vend1 → seguimiento_base_detalle 42501', vend1.rpc('seguimiento_base_detalle', { p_base_id: randomUUID(), p_cifra: 'total' }), ['42501'], ROL);
+  await expectExpectedFailure('B10 sup1 detalle con la cifra «avance» → 22023', sup1.rpc('seguimiento_base_detalle', { p_base_id: randomUUID(), p_cifra: 'avance' }), ['22023'], /Cifra inválida/);
+  await expectExpectedFailure('B10 sup1 seguimiento de una base inexistente → P0002', sup1.rpc('seguimiento_base', { p_base_id: randomUUID() }), ['P0002'], AMBITO);
+  const L = randomUUID();
+  // r2: 77–80 (el bloque B9 del gate usa 73–76 en la misma corrida).
+  const TEL_A = TEL_IDENTIDAD(77);
+  const TEL_B = TEL_IDENTIDAD(78);
+  const TEL_C = TEL_IDENTIDAD(79);
+  let a = null;
+  let b = null;
+  let cc = null;
+  const anonIds = [];
+  try {
+    await requireAdmin('B10: sembrar un lead nuevo de vend1', admin.schema('crm').from('leads').insert({
+      activo: true, asignado_supervisor_id: null, etapa: 'nuevo', moneda: 'PEN', no_contactar: false, origen: 'oficina', monto_estimado: 5000,
+      id: L, nombre_completo: 'B10 CON CAPITAL TRANSIENT', telefono: TEL_IDENTIDAD(80), creado_por: vend1Id, vendedor_id: vend1Id,
+    }));
+    await requireAdmin('B10: vend1 descarta el suyo', vend1.from('leads').update({ etapa: 'descartado', motivo_descarte: 'no_responde' }).eq('id', L));
+    const NOMBRE = `B10 gate ${RUN_IDENTIDAD}`;
+    const base = await positive('B10 sup1 crea su base', sup1.rpc('crear_base', { p_operacion_id: randomUUID(), p_nombre: NOMBRE, p_origen: 'archivo', p_archivo_nombre: 'b10.csv' }));
+    const baseId = base?.data?.base_id;
+    await positive('B10 sup1 carga 3 contactos (A y C sin capital, B con 3000)', sup1.rpc('cargar_base_lote', { p_operacion_id: randomUUID(), p_base_id: baseId,
+      p_filas: [{ fila: 1, nombre: 'B10 GATE SIN CAPITAL', telefono: TEL_A }, { fila: 2, nombre: 'B10 GATE CON CAPITAL', telefono: TEL_B, capital: '3000' },
+        { fila: 3, nombre: 'B10 GATE CITA', telefono: TEL_C }] }));
+    a = texto('dormido A', `select id from crm.leads where telefono = '+51${TEL_A}'`);
+    b = texto('dormido B', `select id from crm.leads where telefono = '+51${TEL_B}'`);
+    cc = texto('dormido C', `select id from crm.leads where telefono = '+51${TEL_C}'`);
+    // r4 (auditor-rls P3-3): las _v2 sobre un lead fuera del ámbito → P0002, y el capital queda intacto (A sigue sin capital).
+    const FUERA = /fuera de tu [aá]mbito/;
+    await expectExpectedFailure('B10 vend1 reactiva A (bandeja de sup1, no es suyo) por la _v2 → P0002', vend1.rpc('reactivar_lead_base_v2', { p_operacion_id: randomUUID(), p_lead_id: a, p_monto_estimado: 999 }), ['P0002'], FUERA);
+    await expectExpectedFailure('B10 sup2 reactiva A (de otro equipo) por la _v2 → P0002', sup2.rpc('reactivar_lead_base_v2', { p_operacion_id: randomUUID(), p_lead_id: a, p_monto_estimado: 999 }), ['P0002'], FUERA);
+    await expectExpectedFailure('B10 vend1 «agendó cita» sobre A por registrar_intento_base_v2 → P0002', vend1.rpc('registrar_intento_base_v2', { p_operacion_id: randomUUID(), p_lead_id: a, p_resultado: 'agendo_reunion', p_monto_estimado: 999 }), ['P0002'], FUERA);
+    await expectExpectedFailure('B10 sup2 «agendó cita» sobre A por registrar_intento_base_v2 → P0002', sup2.rpc('registrar_intento_base_v2', { p_operacion_id: randomUUID(), p_lead_id: a, p_resultado: 'agendo_reunion', p_monto_estimado: 999 }), ['P0002'], FUERA);
+    check(cuenta('A intacto', `select count(*) from crm.leads where id = '${a}' and monto_estimado is null and etapa = 'descartado' and vendedor_id is null`) === 1
+      && cuenta('A sin intentos', `select count(*) from crm.actividades where lead_id = '${a}' and metadata->>'evento' in ('intento_base', 'reactivacion_base')`) === 0,
+      'B10 tras los rechazos, A sigue sin capital, descartado, en la bandeja y sin intentos ni reactivaciones');
+    // Sin repartir: fuera de «Gestión de la base» de Supervisión y de Gerencia (viven en la pestaña «Bases»).
+    const s1 = await positive('B10 sup1 obtiene la base para gestión', sup1.rpc('obtener_base_gestion'));
+    const g1 = await positive('B10 gerencia obtiene la base para gestión (con vetados)', ger.rpc('obtener_base_gestion', { p_incluir_vetados: true }));
+    check(Boolean(a && b) && !ids(s1).includes(a) && !ids(s1).includes(b) && !ids(g1).includes(a) && !ids(g1).includes(b),
+      'B10 los dormidos SIN REPARTIR no salen en la base para gestión de Supervisión ni de Gerencia');
+    const lista1 = await positive('B10 sup1 seguimiento_bases', sup1.rpc('seguimiento_bases'));
+    const fila1 = (lista1?.data ?? []).find((r) => r.base_id === baseId);
+    check(fila1 && fila1.total === 3 && fila1.sin_repartir === 3 && fila1.repartidos === 0 && Number(fila1.avance) === 0 && fila1.nombre === NOMBRE && fila1.supervisor_id === sup1Id,
+      'B10 sup1 ve su base: total 3, sin repartir 3, avance 0', JSON.stringify(fila1));
+    const lista2 = await positive('B10 sup2 seguimiento_bases', sup2.rpc('seguimiento_bases'));
+    check(Array.isArray(lista2?.data) && !lista2.data.some((r) => r.base_id === baseId), 'B10 sup2 (otro equipo) no ve la base de sup1');
+    await expectExpectedFailure('B10 sup2 seguimiento_base de la base de sup1 → P0002', sup2.rpc('seguimiento_base', { p_base_id: baseId }), ['P0002'], AMBITO);
+    await expectExpectedFailure('B10 sup2 detalle de la base de sup1 → P0002', sup2.rpc('seguimiento_base_detalle', { p_base_id: baseId, p_cifra: 'total' }), ['P0002'], AMBITO);
+    const sinRep = await positive('B10 sup1 abre «sin repartir»', sup1.rpc('seguimiento_base_detalle', { p_base_id: baseId, p_cifra: 'sin_repartir' }));
+    check(ids(sinRep).sort().join() === [a, b, cc].sort().join() && (sinRep?.data ?? []).every((r) => r.estado === 'sin_repartir'),
+      'B10 «sin repartir» se abre en sus 3 contactos (con lead_id: sup1 los ve)', JSON.stringify(sinRep?.data));
+    // r2: la lista de B9 (contactos_de_base) da el MISMO estado que el seguimiento de B10 y su filtro «sin_repartir» = la cifra.
+    const cb = await positive('B10 sup1 contactos_de_base (sin_repartir) de su base', sup1.rpc('contactos_de_base', { p_base_id: baseId }));
+    check(ids(cb).sort().join() === [a, b, cc].sort().join() && (cb?.data ?? []).every((r) => r.estado === 'sin_repartir') && (cb?.data ?? []).length === fila1?.sin_repartir,
+      'B10 r2: contactos_de_base («sin_repartir») = la cifra sin_repartir del seguimiento, con el mismo estado', JSON.stringify(cb?.data));
+    // Reparto REAL de B9 en bloque por la API (sup1 → vend1, 3); andamio fuera de banda: el reparto se fecha hace 4 días.
+    const rep = await positive('B10 sup1 reparte los 3 en bloque a vend1 (crm.repartir_base, B9)', sup1.rpc('repartir_base', { p_operacion_id: randomUUID(), p_base_id: baseId,
+      p_reparto: { modo: 'bloque', asignaciones: [{ analista_id: vend1Id, cantidad: 3 }] } }));
+    check(rep?.data?.repartidos === 3, 'B10 el reparto real de B9 reparte los 3', JSON.stringify(rep?.data));
+    ejecutarFueraDeBanda('B10: fechar el reparto hace 4 días (andamio)',
+      `update crm.base_carga_leads set asignado_en = now() - interval '4 days' where lead_id in ('${a}', '${b}', '${cc}') and activo;`);
+    const v1 = await positive('B10 vend1 obtiene su base para gestión', vend1.rpc('obtener_base_gestion'));
+    const filasV1 = (v1?.data ?? []).filter((r) => r.lead_id === a || r.lead_id === b || r.lead_id === cc);
+    check(filasV1.length === 3 && filasV1.every((r) => r.base_id === baseId && r.base_nombre === NOMBRE && r.vendedor_id === vend1Id),
+      'B10 vend1 ve sus 3 contactos repartidos con base_id y base_nombre', JSON.stringify(filasV1));
+    check((v1?.data ?? []).filter((r) => r.lead_id === L).every((r) => r.base_id === null && r.base_nombre === null) && ids(v1).includes(L),
+      'B10 un lead suyo que no está en ninguna base sale con base_id y base_nombre NULL');
+    const sb1 = await positive('B10 sup1 seguimiento_base', sup1.rpc('seguimiento_base', { p_base_id: baseId }));
+    const r1 = (sb1?.data ?? []).find((r) => r.analista_id === vend1Id);
+    check(r1 && r1.asignados === 3 && r1.sin_tocar === 3 && r1.sin_tocar_3_dias === 3 && r1.trabajados === 0 && r1.analista_nombre === USER_BY_KEY.vend1.name,
+      'B10 vend1 en su base: 3 asignados, 3 sin tocar, 3 en rojo (hace 4 días), 0 trabajados', JSON.stringify(r1));
+    await positive('B10 vend1 registra un intento sobre B', vend1.rpc('registrar_intento_base', { p_operacion_id: randomUUID(), p_lead_id: b, p_resultado: 'no_contesto' }));
+    // Reactivar: la puerta publicada con un lead sin capital → 22023; la _v2 lo exige, valida y lo guarda; con capital, lo ignora.
+    await expectExpectedFailure('B10 vend1 reactiva A (sin capital) por la puerta publicada → 22023', vend1.rpc('reactivar_lead_base', { p_operacion_id: randomUUID(), p_lead_id: a }), ['22023'], CAPITAL);
+    await expectExpectedFailure('B10 vend1 reactiva A por la _v2 sin capital → 22023', vend1.rpc('reactivar_lead_base_v2', { p_operacion_id: randomUUID(), p_lead_id: a }), ['22023'], CAPITAL);
+    await expectExpectedFailure('B10 vend1 reactiva A por la _v2 con capital 0 → 22023', vend1.rpc('reactivar_lead_base_v2', { p_operacion_id: randomUUID(), p_lead_id: a, p_monto_estimado: 0 }), ['22023'], /mayor que 0/);
+    const opA = randomUUID();
+    const ra = await positive('B10 vend1 reactiva A por la _v2 con 4500.50 USD', vend1.rpc('reactivar_lead_base_v2', { p_operacion_id: opA, p_lead_id: a, p_monto_estimado: 4500.5, p_moneda: 'USD' }));
+    await expectExpectedFailure('B10 el mismo p_operacion_id con OTRO capital → 23505', vend1.rpc('reactivar_lead_base_v2', { p_operacion_id: opA, p_lead_id: a, p_monto_estimado: 4600, p_moneda: 'USD' }), ['23505'], /otro contenido/);
+    check(ra?.data?.etapa === 'contactado' && cuenta('capital A', `select count(*) from crm.leads where id = '${a}' and monto_estimado = 4500.50 and moneda = 'USD' and etapa = 'contactado' and vendedor_id = '${vend1Id}'`) === 1
+      && cuenta('episodio A', `select count(*) from crm.lead_asignaciones where lead_id = '${a}' and finalizado_en is null and monto_estimado = 4500.50 and moneda = 'USD'`) === 1,
+      'B10 la _v2 guarda el capital antes de reabrir: A en contactado con 4500.50 USD, y su episodio nace con ese capital', JSON.stringify(ra?.data));
+    const rb = await positive('B10 vend1 reactiva B (ya con capital) por la _v2 con otro monto', vend1.rpc('reactivar_lead_base_v2', { p_operacion_id: randomUUID(), p_lead_id: b, p_monto_estimado: 1, p_moneda: 'USD' }));
+    check(rb?.data?.etapa === 'contactado' && cuenta('capital B', `select count(*) from crm.leads where id = '${b}' and monto_estimado = 3000 and moneda = 'PEN'`) === 1,
+      'B10 con capital ya puesto, la _v2 ignora p_monto_estimado y p_moneda (B sigue en 3000 PEN)');
+    // «Agendó cita» reactiva (D3): la misma regla del capital, por la puerta publicada de intentos y por su _v2.
+    await expectExpectedFailure('B10 vend1 «agendó cita» sobre C (sin capital) por la puerta publicada de intentos → 22023', vend1.rpc('registrar_intento_base', { p_operacion_id: randomUUID(), p_lead_id: cc, p_resultado: 'agendo_reunion' }), ['22023'], CAPITAL);
+    await expectExpectedFailure('B10 vend1 «agendó cita» sobre C por registrar_intento_base_v2 sin capital → 22023', vend1.rpc('registrar_intento_base_v2', { p_operacion_id: randomUUID(), p_lead_id: cc, p_resultado: 'agendo_reunion' }), ['22023'], CAPITAL);
+    const ic1 = await positive('B10 vend1 intento normal sobre C (sin capital) por la _v2, con un capital que se ignora', vend1.rpc('registrar_intento_base_v2', { p_operacion_id: randomUUID(), p_lead_id: cc, p_resultado: 'no_contesto', p_monto_estimado: 999 }));
+    check(ic1?.data?.intento_n === 1 && ic1?.data?.reactivado === false && cuenta('C sin capital', `select count(*) from crm.leads where id = '${cc}' and monto_estimado is null and etapa = 'descartado'`) === 1,
+      'B10 un intento normal sobre un lead sin capital, igual que hoy (la _v2 ignora el capital)', JSON.stringify(ic1?.data));
+    const ic2 = await positive('B10 vend1 «agendó cita» sobre C por la _v2 con 2000', vend1.rpc('registrar_intento_base_v2', { p_operacion_id: randomUUID(), p_lead_id: cc, p_resultado: 'agendo_reunion', p_monto_estimado: 2000 }));
+    check(ic2?.data?.reactivado === true && ic2?.data?.etapa === 'contactado' && cuenta('capital C', `select count(*) from crm.leads where id = '${cc}' and monto_estimado = 2000 and etapa = 'contactado'`) === 1,
+      'B10 «agendó cita» por la _v2 con capital reactiva C con ese capital', JSON.stringify(ic2?.data));
+    const rl = await positive('B10 vend1 reactiva L (con capital) por la puerta publicada, con la llamada de siempre', vend1.rpc('reactivar_lead_base', { p_operacion_id: randomUUID(), p_lead_id: L }));
+    check(rl?.data?.etapa === 'contactado' && rl?.data?.replay === false, 'B10 la puerta publicada sigue reactivando un lead con capital', JSON.stringify(rl?.data));
+    // Seguimiento tras el trabajo: cada cifra = su detalle (base y analista).
+    const sb2 = await positive('B10 sup1 seguimiento_base tras el trabajo', sup1.rpc('seguimiento_base', { p_base_id: baseId }));
+    const r2 = (sb2?.data ?? []).find((r) => r.analista_id === vend1Id);
+    check(r2 && r2.asignados === 3 && r2.trabajados === 2 && r2.reactivados === 3 && r2.sin_tocar === 0 && r2.movidos_otra_via === 0 && r2.citas === 1 && Boolean(r2.ultimo_intento_en),
+      'B10 vend1: 3 asignados, 2 trabajados, 3 reactivados, 1 cita, 0 sin tocar, 0 movidos, con último intento', JSON.stringify(r2));
+    const lista3 = await positive('B10 gerencia seguimiento_bases', ger.rpc('seguimiento_bases'));
+    const fila3 = (lista3?.data ?? []).find((r) => r.base_id === baseId);
+    check(fila3 && fila3.repartidos === 3 && fila3.trabajados === 2 && fila3.reactivados === 3 && fila3.citas === 1 && Number(fila3.avance) === 0.6667,
+      'B10 Gerencia ve la base de sup1 con avance 0.6667 (2 trabajados de 3 repartidos)', JSON.stringify(fila3));
+    let cuadran = true;
+    const descuadres = [];
+    for (const [cifra, valor] of Object.entries({ total: fila3?.total, sin_repartir: fila3?.sin_repartir, repartidos: fila3?.repartidos, sin_tocar: fila3?.sin_tocar,
+      trabajados: fila3?.trabajados, en_descanso: fila3?.en_descanso, citas: fila3?.citas, reactivados: fila3?.reactivados })) {
+      const d = await positive(`B10 gerencia abre ${cifra}`, ger.rpc('seguimiento_base_detalle', { p_base_id: baseId, p_cifra: cifra }));
+      if (!Array.isArray(d?.data) || d.data.length !== valor) { cuadran = false; descuadres.push(`${cifra} ${valor}≠${d?.data?.length}`); }
+    }
+    for (const [cifra, valor] of Object.entries({ asignados: r2?.asignados, sin_tocar: r2?.sin_tocar, sin_tocar_3_dias: r2?.sin_tocar_3_dias, trabajados: r2?.trabajados,
+      en_descanso: r2?.en_descanso, citas: r2?.citas, reactivados: r2?.reactivados, movidos_otra_via: r2?.movidos_otra_via })) {
+      const d = await positive(`B10 sup1 abre ${cifra} de vend1`, sup1.rpc('seguimiento_base_detalle', { p_base_id: baseId, p_analista_id: vend1Id, p_cifra: cifra }));
+      if (!Array.isArray(d?.data) || d.data.length !== valor) { cuadran = false; descuadres.push(`${cifra}/vend1 ${valor}≠${d?.data?.length}`); }
+    }
+    check(cuadran, 'B10 todo número se abre: cada cifra de la base y de vend1 = filas de su detalle', descuadres.join(', '));
+    // r4 (Codex r2, 2 P2): una base de sup1 con UN analista suyo y DOS de otro equipo (Gerencia reparte a cualquiera, E11).
+    const NOMBRE_ANON = `B10 gate anon ${RUN_IDENTIDAD}`;
+    const bAnon = await positive('B10 sup1 crea la base «anon»', sup1.rpc('crear_base', { p_operacion_id: randomUUID(), p_nombre: NOMBRE_ANON, p_origen: 'archivo', p_archivo_nombre: 'anon.csv' }));
+    const anonId = bAnon?.data?.base_id;
+    await positive('B10 sup1 carga 3 contactos en «anon»', sup1.rpc('cargar_base_lote', { p_operacion_id: randomUUID(), p_base_id: anonId,
+      p_filas: [81, 82, 83].map((n, k) => ({ fila: k + 1, nombre: `B10 GATE ANON ${k + 1}`, telefono: TEL_IDENTIDAD(n) })) }));
+    for (const n of [81, 82, 83]) anonIds.push(texto(`anon ${n}`, `select id from crm.leads where telefono = '+51${TEL_IDENTIDAD(n)}'`));
+    const repAnon = await positive('B10 Gerencia reparte «anon»: uno a vend1 y dos a vend3 y vend4 (otro equipo)', ger.rpc('repartir_base', { p_operacion_id: randomUUID(), p_base_id: anonId,
+      p_reparto: { modo: 'individual', asignaciones: [{ lead_id: anonIds[0], analista_id: vend1Id }, { lead_id: anonIds[1], analista_id: vend3Id }, { lead_id: anonIds[2], analista_id: vend4Id }] } }));
+    check(repAnon?.data?.repartidos === 3, 'B10 los 3 de «anon» quedan repartidos', JSON.stringify(repAnon?.data));
+    const sbS1 = await positive('B10 sup1 seguimiento_base de «anon»', sup1.rpc('seguimiento_base', { p_base_id: anonId }));
+    const filasS1 = sbS1?.data ?? [];
+    const anonimas = filasS1.filter((r) => r.analista_id === null);
+    const deV1 = filasS1.find((r) => r.analista_id === vend1Id);
+    check(filasS1.length === 2 && anonimas.length === 1 && anonimas[0].analista_nombre === null && anonimas[0].asignados === 2 && anonimas[0].sin_tocar === 2
+      && deV1?.asignados === 1 && deV1?.analista_nombre === USER_BY_KEY.vend1.name,
+      'B10 r4: sup1 ve vend1 con nombre y UNA sola fila anónima con la suma de los dos analistas de otro equipo', JSON.stringify(filasS1));
+    const sbsS1 = await positive('B10 sup1 seguimiento_bases (para «anon»)', sup1.rpc('seguimiento_bases'));
+    const filaAnon = (sbsS1?.data ?? []).find((r) => r.base_id === anonId);
+    const detAnon = await positive('B10 sup1 abre «asignados» de toda la base «anon»', sup1.rpc('seguimiento_base_detalle', { p_base_id: anonId, p_cifra: 'asignados' }));
+    check(filaAnon?.repartidos === 3 && filasS1.reduce((t, r) => t + r.asignados, 0) === 3 && (detAnon?.data ?? []).length === 3
+      && (detAnon?.data ?? []).filter((r) => r.lead_id === null).length === 2,
+      'B10 r4: la base «anon» = la suma de sus filas = su detalle (3), con los 2 contactos de otro equipo sin identificar', JSON.stringify(detAnon?.data));
+    const NO_ANALISTA = /Analista no encontrado en esta base/;
+    await expectExpectedFailure('B10 r4: sup1 abre «anon» por el UUID de vend3 (otro equipo, con contactos) → P0002', sup1.rpc('seguimiento_base_detalle', { p_base_id: anonId, p_analista_id: vend3Id, p_cifra: 'asignados' }), ['P0002'], NO_ANALISTA);
+    await expectExpectedFailure('B10 r4: … el mismo mensaje que un analista suyo sin contactos (vend2) → P0002', sup1.rpc('seguimiento_base_detalle', { p_base_id: anonId, p_analista_id: seed.profileIdByKey.vend2, p_cifra: 'asignados' }), ['P0002'], NO_ANALISTA);
+    const sbG = await positive('B10 Gerencia seguimiento_base de «anon»', ger.rpc('seguimiento_base', { p_base_id: anonId }));
+    check((sbG?.data ?? []).length === 3 && (sbG?.data ?? []).every((r) => r.analista_id !== null && r.analista_nombre)
+      && [vend1Id, vend3Id, vend4Id].every((id) => (sbG?.data ?? []).some((r) => r.analista_id === id)),
+      'B10 r4: Gerencia ve las tres filas con nombre (nunca una anónima)', JSON.stringify(sbG?.data));
+    const dG = await positive('B10 Gerencia abre «anon» por vend3', ger.rpc('seguimiento_base_detalle', { p_base_id: anonId, p_analista_id: vend3Id, p_cifra: 'asignados' }));
+    check(ids(dG).join() === anonIds[1], 'B10 Gerencia abre la fila de vend3 en su contacto');
+    // r4 (auditor P3-3): sup2 ve el contacto de vend3 (su equipo) SIN el nombre de la base de sup1.
+    const s2 = await positive('B10 sup2 obtiene la base para gestión', sup2.rpc('obtener_base_gestion'));
+    const deVend3 = (s2?.data ?? []).find((r) => r.lead_id === anonIds[1]);
+    check(deVend3 && deVend3.base_id === null && deVend3.base_nombre === null, 'B10 sup2 ve el contacto de vend3 sin base_id ni base_nombre (la base es de sup1)', JSON.stringify(deVend3));
+    // Base retirada (andamio: no hay puerta de retirar) → P0002 para sup1 y para Gerencia.
+    ejecutarFueraDeBanda('B10: retirar la base «anon» (andamio)', `update crm.bases_carga set activo = false where id = '${anonId}';`);
+    await expectExpectedFailure('B10 base retirada: seguimiento_base → P0002', sup1.rpc('seguimiento_base', { p_base_id: anonId }), ['P0002'], AMBITO);
+    await expectExpectedFailure('B10 base retirada: el detalle (Gerencia) → P0002', ger.rpc('seguimiento_base_detalle', { p_base_id: anonId, p_cifra: 'total' }), ['P0002'], AMBITO);
+  } finally {
+    for (const id of [L, a, b, cc, ...anonIds].filter(Boolean)) {
+      await requireAdmin('B10: retirar el lead transitorio (soft-delete)', admin.schema('crm').from('leads').update({ activo: false }).eq('id', id));
+    }
+  }
+}
+
 // ── Venta cruzada (20260924005126 … 20260924045245): puertas del cliente existente ──
 // Solo catálogo y rechazos: ninguna llamada de esta matriz llega a escribir. Una puerta que
 // rechaza aborta su transacción entera, así que ni la bitácora (inmutable) guarda rastro; los
@@ -16620,6 +16845,7 @@ async function main() {
       await testBasesCargadasB7(sessions, verifiedSeed);
       await testBasesCargadasB8(sessions, verifiedSeed);
       await testBasesCargadasB9(sessions, verifiedSeed);
+      await testBasesCargadasB10(sessions, verifiedSeed);
     }
   } catch (error) {
     primaryError = error;

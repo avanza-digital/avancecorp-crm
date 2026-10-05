@@ -52,6 +52,10 @@ create temp table c (k text primary key, id uuid not null unique);   -- contacto
 create temp table act (k text primary key, id uuid not null);         -- actores por clave
 create temp table bases (k text primary key, id uuid);
 create temp table resp (k text primary key, v jsonb);
+-- B10 (20261004223253) aplicada cambia DOS casos de B9 por contrato (los demás pasan igual con y sin B10): D10 — B10 saca de la
+-- lista de Supervisión y Gerencia los dormidos del ARCHIVO sin repartir (viven en la pestaña «Bases»; contrato §B10) — y Q2 —
+-- con B10, el núcleo de intentos es private.base_gestion_intento_capital_core (el de 6 argumentos lo envuelve sin capital)—.
+create temp table b10 as select (to_regprocedure('crm.seguimiento_bases()') is not null) as aplicada;
 create function pg_temp.sesion(p uuid, p_rol text default 'authenticated') returns void language sql as $$
   select set_config('request.jwt.claim.sub', coalesce(p::text, ''), true),
          set_config('request.jwt.claims', case when p is null and p_rol = 'authenticated' then ''
@@ -473,7 +477,7 @@ select pg_temp.caso('D8 la Base para gestión de V1 trae SUS 5 contactos de la b
 select pg_temp.caso('D9 «Mes» del analista: recibido_en = creado_en del contacto (la carga), en todos los suyos', 'true',
   pg_temp.valor('select bool_and(o.recibido_en = l.creado_en)::text from crm.obtener_base_gestion() o join pg_temp.c c on c.id = o.lead_id join crm.leads l on l.id = o.lead_id where c.k like ''k%''',
                 'authenticated', pg_temp.a('v1')));
-select pg_temp.caso('D10 en la vista de S1 los repartidos ya no son de su bandeja (tienen analista); los 3 sin repartir, sí', '9|3',
+select pg_temp.caso('D10 en la vista de S1 los repartidos ya no son de su bandeja (tienen analista); los 3 sin repartir, sí (B10: no, viven en «Bases»)', case when (select aplicada from pg_temp.b10) then '9|0' else '9|3' end,
   pg_temp.valor('select count(*) filter (where o.vendedor_id is not null)::text || ''|'' || count(*) filter (where o.vendedor_id is null)::text from crm.obtener_base_gestion() o join pg_temp.c c on c.id = o.lead_id where c.k like ''k%''',
                 'authenticated', pg_temp.a('s1')));
 insert into resp select 'A1r', pg_temp.ejecutar(pg_temp.rep(pg_temp.b('A'), pg_temp.bq(array[pg_temp.a('v1'), pg_temp.a('v2')], array[5, 4]), (select (v #>> '{}')::uuid from resp where k = 'opA')), pg_temp.a('s1'));
@@ -770,7 +774,9 @@ select pg_temp.caso('Q1 authenticated y anon sin UPDATE, DELETE ni TRUNCATE en c
   concat_ws('|', has_table_privilege('authenticated', 'crm.actividades', 'UPDATE')::text, has_table_privilege('authenticated', 'crm.actividades', 'DELETE')::text,
             has_table_privilege('authenticated', 'crm.actividades', 'TRUNCATE')::text, has_table_privilege('anon', 'crm.actividades', 'UPDATE')::text,
             has_table_privilege('anon', 'crm.actividades', 'DELETE')::text, has_table_privilege('anon', 'crm.actividades', 'TRUNCATE')::text));
-select pg_temp.caso('Q2 las ÚNICAS funciones que hacen UPDATE o DELETE en crm.actividades son las 4 conocidas', 'crm.deshacer_resultado_llamada(uuid),private.base_gestion_intento_core(uuid,uuid,uuid,text,text,timestamp with time zone),private.llamada_registrar_v4(uuid,uuid,uuid,text,text,text,jsonb,uuid,boolean,boolean),private.llamada_registrar(uuid,uuid,uuid,text,text,text,jsonb,uuid,boolean,boolean)',
+select pg_temp.caso('Q2 las ÚNICAS funciones que hacen UPDATE o DELETE en crm.actividades son las 4 conocidas (B10: el núcleo de intentos es el de capital; el de siempre lo envuelve)',
+  case when (select aplicada from pg_temp.b10) then 'crm.deshacer_resultado_llamada(uuid),private.base_gestion_intento_capital_core(uuid,uuid,uuid,text,text,timestamp with time zone,numeric,text),private.llamada_registrar_v4(uuid,uuid,uuid,text,text,text,jsonb,uuid,boolean,boolean),private.llamada_registrar(uuid,uuid,uuid,text,text,text,jsonb,uuid,boolean,boolean)'
+       else 'crm.deshacer_resultado_llamada(uuid),private.base_gestion_intento_core(uuid,uuid,uuid,text,text,timestamp with time zone),private.llamada_registrar_v4(uuid,uuid,uuid,text,text,text,jsonb,uuid,boolean,boolean),private.llamada_registrar(uuid,uuid,uuid,text,text,text,jsonb,uuid,boolean,boolean)' end,
   (select string_agg(p.oid::regprocedure::text, ',' order by p.oid::regprocedure::text) from pg_proc p where p.prosrc ~* '(update|delete\s+from)\s+crm\.actividades'));
 select pg_temp.prueba('Q3 S1 cambia la metadata de una «reasignación» por la tabla → 42501', '42501 permission denied for table actividades',
   format('update crm.actividades set metadata = metadata || ''{"vendedor_nuevo": null}'' where id = %L', (select reasig from q)), 'authenticated', pg_temp.a('s1'));

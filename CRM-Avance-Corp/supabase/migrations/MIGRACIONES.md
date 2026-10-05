@@ -15666,3 +15666,73 @@ sin repartir 0,33 s, recoger 40 en 45 ms. Candados: solo el de migración (B9 no
 **Reversa:** `supabase/scripts/base-gestion/reversa-b9.sql` (antes que la de B8; solo funciones, NO toca filas; huellas de lo
 propio y foto antes/después de lo ajeno, sin huellas de entorno). **Registrador:** `supabase/scripts/base-gestion/registrar/20261004222602.sql`.
 **Comprobación tras aplicar:** `supabase/scripts/base-gestion/b9-comprobar-tras-aplicar.sql` (ROLLBACK siempre, veredicto en una fila).
+
+## 20261004223253 — Bases cargadas · B10: seguimiento de las bases, la base en la lista del analista y el capital al reactivar
+
+**✅ APLICADA EN PRODUCCIÓN 04/10/2026** (Miguel con `!`: `supabase db query --linked --file` + registrador `supabase/scripts/base-gestion/registrar/20261004223253.sql`; versión registrada con md5 de statements `92c5ee81…` = archivo). Verificado después en solo lectura: puertas nuevas `crm.seguimiento_bases()` `10ef60a1…`, `crm.seguimiento_base(uuid)` `79a76f53…`, `crm.seguimiento_base_detalle(uuid,uuid,text)` `8b1840fe…`, `crm.reactivar_lead_base_v2` `9037872b…`, `crm.registrar_intento_base_v2` `40d26d67…`; `crm.obtener_base_gestion(uuid,boolean)` `26d887dc…`; todas DEFINER, `search_path=""`, ACL `{postgres=X/postgres,authenticated=X/postgres}` y `COMMENT ON`; puertas de B9 intactas (`fd7531ba…`, `4744f70e…`, `d528bab6…`); `private.bases_carga_reparto_estado` borrada y `private.bases_carga_estado_contacto` como única definición; 0 funciones privadas del módulo con ACL distinta de solo `postgres`; 0 candados de aviso retenidos; 0 bases. Antes: banco (suite 200/200, mutantes 76/76, gate 0 rojos nuevos con B10 51/51), auditor-rls PASS (r3, P3 cerrados en r4), Codex r1/r2 BLOCK resueltos (máximo de rondas: decide el PRIMARY), rama con datos (`BASE PARA GESTION/revisiones/2026-10-05-rama-b10.md`: APTA; 168/168 listas idénticas en 32 actores reales; cifras = detalle; capital al reactivar; candado de sesión liberado al cerrar la conexión de la Management API; reversa idéntica al ANTES).
+
+**⏳ PENDIENTE (04/10/2026), r4.** Construida y probada SOLO en banco Docker local (stack propio `avancecorp-b10-20261004`, a
+paridad con producción: B7, B8 y **B9 r2** aplicadas —B9 ya está en producción—; al terminar quedó REVERTIDA a B9 r2 —banco =
+producción— y PARADO). Historia: r0 `9fb2f8ad` (md5 `f20c5c1a…`); r1 `ee4ad894` (`a58bd211…`: Codex r1 BLOCK 2 P2 y auditor-rls
+PASS con 4 P3, atendidos); r2 `da4858b7` (`241d2b9f…`: rebase sobre B9 `cbfff809` + `11d30c18` y la definición única del
+estado); r3 `17c75e8b` (`fd6306e0…`: manda E1, un armado que conserva su analista anterior vuelve a ser «sin repartir»);
+**r4** = Codex r2 (2 P2) y auditor-rls sobre r3 (PASS con 4 P3). md5 del archivo **`92c5ee81…`** (reversa `be9971ca…`,
+registrador `91f5f5e4…`, post-aplicación `e6cf3a11…`, suite `aaf69802…`, mutantes `e0e6f32e…`). Contrato fijo: `BASE PARA GESTION/BASES-CARGADAS-CONTRATO.md` §B10; E6, E8, E14.
+**Qué hace:** (1) `crm.seguimiento_bases()`, `crm.seguimiento_base(p_base_id)` y `crm.seguimiento_base_detalle(p_base_id,
+p_analista_id default null, p_cifra default null)` (DEFINER; Supervisión su subárbol, Gerencia todo, el resto 42501; base ajena,
+retirada o inexistente P0002; cifra inválida —también «avance»— 22023). UNA definición de cada cifra
+(`private.bases_carga_seguimiento_filas`: estado y arreglo `cifras` por contacto; conteo y detalle leen el mismo arreglo).
+(2) **r2: UNA definición del estado del contacto para B9 y B10**, `private.bases_carga_estado_contacto` (fila del lead, pertenencia,
+dueño y su subárbol), en orden: retirado · no_contactar · movido_otra_via (con reparto: ya no es de su analista; sin reparto: fuera
+del ámbito del dueño, u otra vía le cambió el responsable desde que entró —rastro `reasignacion`— salvo bandeja del dueño; y lo que
+salió del descarte sin cita/reactivación de la base) · cita / reactivado (hechos de `private.bases_carga_reparto_hechos` de B9
+desde asignado_en o, sin reparto, desde que entró) · en_descanso · trabajado / sin_tocar (con reparto; sin reparto, trabajado =
+su analista anterior lo trabaja: seguimiento activo B6, como en B9) · sin_repartir (DISPONIBLE; r3, E1: también el armado que
+conserva su analista anterior). La usan el seguimiento, `crm.obtener_base_gestion` (fuera SOLO los `sin_repartir` del archivo), y —B10 reemplaza con CREATE OR REPLACE, misma firma/dueño/ACL— tres piezas de B9: `private.bases_carga_contactos_core`
+(estado de `crm.contactos_de_base`; el filtro, el de B9), `private.bases_carga_repartir_core` (el bloque elige SOLO `sin_repartir` vía
+`private.bases_carga_reparto_motivo_bloque`, plpgsql; omitidos con el motivo de B9 o el estado; el individual rechaza además
+`movido_otra_via`) y `private.bases_carga_reparto_recogible` (recoger = `sin_tocar`; de un
+analista de baja, todo lo suyo descartado). Borra el clasificador de B9 (`private.bases_carga_reparto_estado`): no queda una
+segunda definición. Las tres puertas de B9 no cambian de cuerpo (sí su comentario). El preflight exige las huellas EXACTAS de B9 r2
+(cuerpo, identidad, ACL y comentario). (3) La lista: misma firma, drop + create sobre B6b con `base_id`/`base_nombre` (base viva;
+solo si se ve la base o se es el analista del lead) y sin los dormidos del ARCHIVO `sin_repartir` (r3: un armado nunca se oculta). (4) Capital al reactivar (E8): `crm.reactivar_lead_base_v2`
+y `crm.registrar_intento_base_v2` (capital en la identidad de la operación, respuesta con el capital efectivo); los núcleos de
+siempre conservan su firma como envoltorios. La metadata del intento por la `_v2` es la del núcleo de B3c (probado: su rellamada
+activa el candado de B9). (5) Candado de migraciones de SESIÓN antes de la instantánea REPEATABLE READ (Codex r1).
+**r4 (Codex r2 y auditor-rls):** (a) `crm.seguimiento_base` agrega a TODOS los analistas fuera del ámbito del actor en UNA sola
+fila anónima (analista_id y analista_nombre NULL, cifras sumadas, ultimo_intento_en el máximo; la última; Gerencia nunca la tiene):
+dos externos ya no salen como dos filas indistinguibles. (b) `crm.seguimiento_base_detalle` con un `p_analista_id` explícito mira
+PRIMERO que esté en el ámbito del actor (`private.vendedor_ids_visibles`; Gerencia: cualquiera) y después la pertenencia: los dos
+casos dan P0002 «Analista no encontrado en esta base» (un UUID externo no se atribuye ni se sondea). (c) Un estado NULL nunca se
+reparte: el bloque lo omite y el individual lo rechaza con el motivo `sin_estado` (hoy la definición no da NULL). (d) El postflight
+comprueba, además, la base más reciente como su supervisor DUEÑO (a lo sumo una fila anónima, suma = base, cada analista = su
+detalle, un externo explícito → P0002) y que TODO contacto que la lista oculta (foto de B6b menos la lista nueva) es un dormido
+del archivo sin analista ni vendedor en la bandeja del dueño; la comprobación tras aplicar lo repite con datos (C3, P19, P20).
+**RECOGER, CAMBIO INTENCIONAL (Codex r2, riesgo):** con B10, `crm.recoger_de_base` se lleva solo lo «sin tocar» de la definición
+única (sin intento desde el reparto, sin veto y sin descanso) de un analista ACTIVO; B9 r2 se llevaba también sus vetados y sus
+contactos en descanso sin intento. «Recoger» toma exactamente lo que el seguimiento muestra «sin tocar» (rojo a los 3 días, E6);
+un vetado o uno en descanso se queda con su analista y cuenta en no_contactar / en_descanso; de un analista DE BAJA se recoge todo
+lo suyo que siga descartado, como en B9. La reversa vuelve a la regla de B9.
+**r3 (E1 de Miguel):** sin el estado `con_analista_previo`, su columna de `seguimiento_bases` ni su cifra; en la suite de B9 quedan
+condicionales a B10 solo D10 (la lista ya no trae los dormidos del archivo sin repartir: contrato §B10) y Q2 (el núcleo de
+intentos es el de capital); la concurrencia de B9 vuelve a ser la suya.
+**Banco (r4):** suite `b10-seguimiento.sql` **200/200** (reparto y recogida REALES por `crm.repartir_base`/`crm.recoger_de_base`;
+estados contados a mano; el bloque elige el armado con su analista anterior; la fila anónima con dos externos; el UUID externo
+explícito → P0002 con el mismo mensaje; un estado NULL —doble en una subtransacción deshecha— no se reparte; coherencia B9 = B10);
+mutantes **76/76** caen (uno por arreglo de r4); reversa **16/16** derivas negadas y 2 controles; post-aplicación **23/23**;
+registrador OK (ROLLBACK); suite de B9 **155/155** con y sin B10 (solo D10 y Q2 condicionales); concurrencia de B9 **62/62** con y
+sin B10, sin cambios; gate **2605/68 → 2656/68** (los mismos 68 rojos de fondo; B9 35/35, B10 51/51: las _v2 fuera del ámbito →
+P0002 con el capital intacto, la fila anónima, el UUID externo → P0002, Gerencia con las tres filas, base retirada → P0002, mismo
+id con otro capital → 23505, sup2 sin el nombre de la base de sup1); B6b 92/92, B6c 76/76, B7 177/177, B8 124/124 y QA 77/77 con y
+sin B10; trinquetes 29/7 y censo 38 (`fe51c7e2…`) iguales en todo el ciclo; dos sesiones: la migración se niega si otra cambia un
+ayudante fijado mientras espera el candado; `reversa-b9.sql` se niega con B10 aplicada. Aplicar 0,51 s (con 3 dormidos vivos);
+reversa 0,41 s. Medida (5000 contactos repartidos por la puerta REAL de B9 en 10 bloques de 500 + 45 500 actividades + 5000 sin
+repartir + 1100 descartados): reparto 5,4 s (B9 sola 5,8–8,5 s); Gerencia `obtener_base_gestion` 98 ms (B6b 79),
+`seguimiento_bases` 134 ms, `seguimiento_base` 79 ms, detalle de 5000 filas 210–213 ms; sup1 lista 368 ms (B6b 347), detalle
+394–397 ms.
+**Reversa:** `supabase/scripts/base-gestion/reversa-b10.sql` (antes que la de B9). Repone B9 r2 byte a byte (su clasificador
+recreado, las tres piezas del núcleo y los comentarios de sus tres puertas), la lista de B6b (comentario de B6c) y los núcleos de B3c;
+borra las puertas y ayudantes de B10, los núcleos con capital, la definición única y el motivo del bloque. Se niega si hay
+consumidores de B10, si derivó alguna de sus 22 huellas, si cambiaron las puertas publicadas o si el clasificador de B9 ya existe.
+**Registrador:** `supabase/scripts/base-gestion/registrar/20261004223253.sql`. **Comprobación tras aplicar:**
+`supabase/scripts/base-gestion/b10-comprobar-tras-aplicar.sql` (ROLLBACK siempre, veredicto en una fila).
