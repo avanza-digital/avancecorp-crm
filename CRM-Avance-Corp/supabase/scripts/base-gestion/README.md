@@ -84,4 +84,20 @@ psql … -f supabase/scripts/base-gestion/registrar/20261004184501.sql          
 El gate (`test-rls.mjs`, bloque «Bases cargadas B8») deja una base y una armada de sup1 (sin DELETE por diseño):
 `supabase/scripts/banco/limpiar-entre-corridas.sql` vacía las tablas de bases entre corridas del banco.
 
-Reversas, en este orden: B8 (`reversa-b8.sql`, antes que todas) · B7 (`reversa-b7.sql`, antes que la de B6c) · B6c (`reversa-b6c.sql`, antes que todas; la de B2 se niega mientras levantar tenga el cuerpo de B6c) · B6b (`reversa-b6b.sql`) · B3b (`reversa-idempotencia-y-orden.sql`) · B4b (`reversa-ventana-descanso.sql`) · B4 (`reversa-enfriamiento.sql`) · B3 (`reversa-puertas.sql`, se niega si queda el trigger de B4) · B2 (`reversa-no-contactar-supervisor.sql`, independiente) · B1b (`reversa-proxima-llamada.sql`, se niega si quedan núcleos de B3) · B1 (`reversa-esquema.sql`, se niega si B1b sigue aplicada). Rama de Supabase con datos: `rama.mjs estado | aplicar | explain | gate` (la URL del pooler la aporta Miguel por archivo; ver `BASE PARA GESTION/ESTADO.md`).
+**B9 · Bases cargadas, repartir y recoger (20261004222602), r1.** Mismo banco (actores de `seed:demo`, B7 y B8 aplicadas). Cambia además la regla de B6
+(`private.base_gestion_en_gestion_hasta`: el seguimiento activo cuenta desde que el dueño actual recibió el lead; Miguel, 04/10). Aplicar en UN mensaje y luego:
+
+```sh
+psql -h 127.0.0.1 -p <puerto> -U postgres -f supabase/scripts/base-gestion/b9-repartir.sql               # 155 casos, ROLLBACK al final (no exige un banco sin bases)
+node supabase/scripts/base-gestion/b9-mutantes.mjs --puerto <puerto>                                     # 66 mutantes deben CAER + la reversa revierte en 4 controles (también con datos) y niega 8 derivas + el preflight niega 5 derivas de disparadores/B6
+node supabase/scripts/base-gestion/b9-mutantes.mjs --puerto <puerto> --concurrencia                      # 8 mutantes que solo ve la concurrencia (confirma datos: luego limpiar)
+bash supabase/scripts/base-gestion/b9-concurrencia.sh --puerto <puerto>                                  # dos sesiones reales (17 escenarios: NOWAIT de la base, SKIP LOCKED y candado SOLO de lo necesario, presupuesto de candados con la carrera foto/candado instrumentada, intento/reactivar/vetar/recoger cruzados, doble clic, REPEATABLE READ); CONFIRMA datos
+psql … -f supabase/scripts/base-gestion/b9-consultas-rama.sql                                            # SOLO LECTURA, antes de aplicar (rama/producción): leads con vendedor y bandeja, reasignaciones sin cambio, impacto de la regla de B6, huellas del preflight
+psql … -f supabase/scripts/base-gestion/b9-comprobar-tras-aplicar.sql                                     # TRAS el commit (banco, rama, producción): veredicto en una fila
+psql … -f supabase/scripts/base-gestion/reversa-b9.sql                                                    # vuelve a B8 exacto y repone la ayudante de B6 (antes que la de B8 y la de B6); NO toca filas: se puede correr con datos
+psql … -f supabase/scripts/base-gestion/registrar/20261004222602.sql                                      # tras aplicar; idempotente
+```
+
+El gate (`test-rls.mjs`, bloque «Bases cargadas B9») deja otra base de sup1 con sus recibos (sin DELETE): la misma limpieza.
+
+Reversas, en este orden: B9 (`reversa-b9.sql`, antes que todas; no toca filas) · B8 (`reversa-b8.sql`, antes que la de B7) · B7 (`reversa-b7.sql`, antes que la de B6c) · B6c (`reversa-b6c.sql`, antes que todas; la de B2 se niega mientras levantar tenga el cuerpo de B6c) · B6b (`reversa-b6b.sql`) · B3b (`reversa-idempotencia-y-orden.sql`) · B4b (`reversa-ventana-descanso.sql`) · B4 (`reversa-enfriamiento.sql`) · B3 (`reversa-puertas.sql`, se niega si queda el trigger de B4) · B2 (`reversa-no-contactar-supervisor.sql`, independiente) · B1b (`reversa-proxima-llamada.sql`, se niega si quedan núcleos de B3) · B1 (`reversa-esquema.sql`, se niega si B1b sigue aplicada). Rama de Supabase con datos: `rama.mjs estado | aplicar | explain | gate` (la URL del pooler la aporta Miguel por archivo; ver `BASE PARA GESTION/ESTADO.md`).

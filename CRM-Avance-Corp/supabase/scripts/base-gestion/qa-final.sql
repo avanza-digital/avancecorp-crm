@@ -78,6 +78,11 @@ begin
   update crm.leads set enfriado_hasta = enfriado_hasta - p_dias,
                        proxima_llamada_en = proxima_llamada_en - make_interval(days => p_dias) where id = p_lead;
   update crm.actividades set creado_en = creado_en - make_interval(days => p_dias) where lead_id = p_lead;
+  -- B9 r2: el candado de seguimiento activo lee la rellamada del último intento (su metadata), no de la columna del lead: el
+  -- reloj simulado también la mueve (la de la actividad es una fecha absoluta, como la de la columna).
+  update crm.actividades
+     set metadata = metadata || jsonb_build_object('proxima_llamada_en', (metadata->>'proxima_llamada_en')::timestamptz - make_interval(days => p_dias))
+   where lead_id = p_lead and metadata->>'evento' = 'intento_base' and metadata ? 'proxima_llamada_en';
 end $$;
 grant execute on function pg_temp.sesion(uuid), pg_temp.caso(int,text,text,text), pg_temp.err(int,text,text,text), pg_temp.cod(int,text,text,text),
   pg_temp.filas(text), pg_temp.captura(text,uuid,boolean), pg_temp.intento(uuid,text,text,timestamptz) to authenticated;  -- avanzar_reloj NO

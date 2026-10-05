@@ -16192,6 +16192,148 @@ async function testBasesCargadasB8(sessions, seed) {
   }
 }
 
+// ── Bases cargadas B9 (20261004222602): repartir y recoger ──
+// Bloque corto por la API real (PostgREST, con el statement_timeout de authenticated): contrato de las tres puertas, roles,
+// ámbito, un reparto en bloque «vend1 2 · vend2 1» (el lead SIGUE descartado, sin ciclo SLA, en la Base para gestión del
+// analista), faltantes con detail = disponibles, replay, individual que reasigna, recoger solo lo sin tocar y la lista de la base.
+// La matriz completa (casos, mutantes y la concurrencia con dos sesiones; r1: la regla nueva de B6) la cubren b9-repartir.sql, b9-mutantes.mjs y
+// b9-concurrencia.sh en el banco. Deja una base de sup1 (sin DELETE por diseño): limpiar-entre-corridas.sql la vacía.
+async function testBasesCargadasB9(sessions, seed) {
+  console.log('\n— Bases cargadas B9: repartir_base, recoger_de_base y contactos_de_base por la API —');
+  const saltar = (msg) => {
+    if (process.env.CRM_RLS_EXIGE_BASE_GESTION === '1') fail(msg);
+    else console.log(`  ${msg}`);
+  };
+  let aplicada;
+  try {
+    aplicada = contarFueraDeBanda('bases cargadas B9: aplicada',
+      `select (to_regprocedure('crm.repartir_base(uuid,uuid,jsonb)') is not null and to_regprocedure('private.bases_carga_repartir_core(uuid,uuid,uuid,jsonb)') is not null)::int`);
+  } catch (error) {
+    saltar(`⚠ Bases cargadas B9 SALTADO: sin vía fuera de banda (${error?.message ?? String(error)})`);
+    return;
+  }
+  if (aplicada !== 1) {
+    saltar('⚠ 20261004222602 (bases cargadas B9) NO desplegada en esta base: bloque SALTADO (no probado)');
+    return;
+  }
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`bases cargadas B9: ${etiqueta}`, sql);
+  const vend1Id = seed.profileIdByKey.vend1;
+  const vend2Id = seed.profileIdByKey.vend2;
+  const vend3Id = seed.profileIdByKey.vend3;
+  const sup1Id = seed.profileIdByKey.sup1;
+  const vend1 = sessions.vend1.client.schema('crm');
+  const sup1 = sessions.sup1.client.schema('crm');
+  const sup2 = sessions.sup2.client.schema('crm');
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-bases-cargadas-b9'));
+  const PUERTAS = ['crm.repartir_base(uuid,uuid,jsonb)', 'crm.recoger_de_base(uuid,uuid,uuid)', 'crm.contactos_de_base(uuid,text)'];
+  check(cuenta('puertas', `select count(*) from pg_proc p where p.oid in (${PUERTAS.map((f) => `'${f}'::regprocedure`).join(', ')}) and p.prosecdef and p.proowner = 'postgres'::regrole and p.proconfig @> array['search_path=""'] and has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('anon', p.oid, 'EXECUTE') and not has_function_privilege('service_role', p.oid, 'EXECUTE') and not exists (select 1 from aclexplode(p.proacl) a where a.grantee = 0)`) === 3,
+    'B9 las 3 puertas DEFINER de postgres con search_path vacío y EXECUTE solo para authenticated');
+  check(cuenta('nucleo', `select count(*) from pg_proc p cross join unnest(array['anon','authenticated','service_role']) r(rol) where p.pronamespace = 'private'::regnamespace and (p.proname like 'bases\\_carga\\_reparto\\_%' or p.proname in ('bases_carga_repartir_core', 'bases_carga_recoger_core', 'bases_carga_contactos_core')) and has_function_privilege(r.rol, p.oid, 'EXECUTE')`) === 0,
+    'B9 el núcleo privado sin EXECUTE para la API');
+  const ROL = /Solo Supervisión y Gerencia reparten y ven las bases/;
+  const DENEGADO = /permission denied/i;
+  const bloque = (pares) => ({ modo: 'bloque', asignaciones: pares.map(([analista_id, cantidad]) => ({ analista_id, cantidad })) });
+  const individual = (pares) => ({ modo: 'individual', asignaciones: pares.map(([lead_id, analista_id]) => ({ lead_id, analista_id })) });
+  await expectExpectedFailure('B9 anon → repartir_base 42501 (sin EXECUTE)', anon.schema('crm').rpc('repartir_base', { p_operacion_id: randomUUID(), p_base_id: randomUUID(), p_reparto: bloque([[vend1Id, 1]]) }), ['42501'], DENEGADO);
+  await expectExpectedFailure('B9 service_role → recoger_de_base 42501 (sin EXECUTE)', admin.schema('crm').rpc('recoger_de_base', { p_operacion_id: randomUUID(), p_base_id: randomUUID(), p_analista_id: vend1Id }), ['42501'], DENEGADO);
+  await expectExpectedFailure('B9 vend1 → repartir_base 42501', vend1.rpc('repartir_base', { p_operacion_id: randomUUID(), p_base_id: randomUUID(), p_reparto: bloque([[vend1Id, 1]]) }), ['42501'], ROL);
+  await expectExpectedFailure('B9 vend1 → contactos_de_base 42501', vend1.rpc('contactos_de_base', { p_base_id: randomUUID() }), ['42501'], ROL);
+  const tels = [73, 74, 75, 76].map((n) => TEL_IDENTIDAD(n));
+  const contactos = [];
+  try {
+    const base = await positive('B9 sup1 crea su base', sup1.rpc('crear_base', { p_operacion_id: randomUUID(), p_nombre: `B9 gate ${RUN_IDENTIDAD}`, p_origen: 'archivo', p_archivo_nombre: 'gate.csv' }));
+    const baseId = base?.data?.base_id;
+    const lote = await positive('B9 sup1 carga 4 contactos', sup1.rpc('cargar_base_lote', { p_operacion_id: randomUUID(), p_base_id: baseId,
+      p_filas: tels.map((telefono, i) => ({ fila: i + 1, nombre: `B9 GATE ${i + 1}`, telefono, capital: '5000' })) }));
+    check((lote?.data?.lote?.cargadas ?? 0) === 4, 'B9 los 4 contactos nacen dormidos en la base', JSON.stringify(lote?.data?.lote));
+    for (const t of tels) contactos.push(textoFueraDeBanda('bases cargadas B9: contacto', `select id from crm.leads where telefono = '+51${t}'`));
+    // Orden de llegada determinista (andamio del banco): contacto 1 el más antiguo.
+    ejecutarFueraDeBanda('bases cargadas B9: orden de llegada', contactos.map((id, i) => `update crm.base_carga_leads set creado_en = now() - interval '${10 - i} minutes' where lead_id = '${id}';`).join(' '));
+    await expectExpectedFailure('B9 sup2 reparte la base de sup1 → P0002', sup2.rpc('repartir_base', { p_operacion_id: randomUUID(), p_base_id: baseId, p_reparto: bloque([[vend3Id, 1]]) }), ['P0002'], /fuera de tu ámbito/);
+    await expectExpectedFailure('B9 sup1 reparte a vend3 (otro equipo) → P0002', sup1.rpc('repartir_base', { p_operacion_id: randomUUID(), p_base_id: baseId, p_reparto: bloque([[vend3Id, 1]]) }), ['P0002'], /fuera del equipo de la base/);
+    const op = randomUUID();
+    const rep = await positive('B9 sup1 reparte en bloque vend1 2 · vend2 1', sup1.rpc('repartir_base', { p_operacion_id: op, p_base_id: baseId, p_reparto: bloque([[vend1Id, 2], [vend2Id, 1]]) }));
+    check(rep?.data?.repartidos === 3 && JSON.stringify(rep?.data?.por_analista) === JSON.stringify([{ cantidad: 2, analista_id: vend1Id }, { cantidad: 1, analista_id: vend2Id }])
+      && JSON.stringify(rep?.data?.omitidos) === '[]', 'B9 repartidos 3, por analista en el orden pedido, sin omitidos', JSON.stringify(rep?.data));
+    const dueno = (id) => textoFueraDeBanda('bases cargadas B9: dueño', `select coalesce(vendedor_id::text, 'b:' || asignado_supervisor_id::text) from crm.leads where id = '${id}'`);
+    check([dueno(contactos[0]), dueno(contactos[1]), dueno(contactos[2]), dueno(contactos[3])].join(',') === [vend1Id, vend1Id, vend2Id, `b:${sup1Id}`].join(','),
+      'B9 los más antiguos en la base, en el orden de las asignaciones; el cuarto sigue en la bandeja de sup1');
+    check(cuenta('dormidos', `select count(*) from crm.leads l where l.id in (${contactos.slice(0, 3).map((id) => `'${id}'`).join(', ')}) and l.etapa = 'descartado' and l.motivo_descarte = 'base_cargada' and l.asignado_supervisor_id is null and l.tenencia_desde is null and not exists (select 1 from crm.lead_sla_ciclos s where s.lead_id = l.id) and not exists (select 1 from crm.lead_asignaciones a where a.lead_id = l.id) and exists (select 1 from crm.base_carga_leads bl where bl.lead_id = l.id and bl.analista_id = l.vendedor_id and bl.asignado_por = '${sup1Id}')`) === 3,
+      'B9 los repartidos SIGUEN descartados, sin ciclo SLA ni episodio, con su pertenencia (analista y quién)');
+    const base1 = await positive('B9 vend1 lee su Base para gestión', vend1.rpc('obtener_base_gestion', {}));
+    const suyos = (Array.isArray(base1?.data) ? base1.data : []).filter((r) => contactos.includes(r.lead_id)).map((r) => r.lead_id).sort();
+    check(JSON.stringify(suyos) === JSON.stringify([contactos[0], contactos[1]].sort()), 'B9 vend1 ve en su Base para gestión SUS 2 contactos de la base', JSON.stringify(suyos));
+    const replay = await positive('B9 replay del reparto', sup1.rpc('repartir_base', { p_operacion_id: op, p_base_id: baseId, p_reparto: bloque([[vend1Id, 2], [vend2Id, 1]]) }));
+    check(JSON.stringify(replay?.data) === JSON.stringify(rep?.data), 'B9 el replay devuelve la MISMA respuesta');
+    const faltan = await sup1.rpc('repartir_base', { p_operacion_id: randomUUID(), p_base_id: baseId, p_reparto: bloque([[vend1Id, 5]]) });
+    check(faltan.error?.code === '22023' && faltan.error?.details === '1', 'B9 si no alcanzan → 22023 con detail = disponibles (1)', errorText(faltan.error));
+    const lista = await positive('B9 sup1 lista la base', sup1.rpc('contactos_de_base', { p_base_id: baseId, p_estado: 'todos' }));
+    check(JSON.stringify((lista?.data ?? []).map((r) => r.estado)) === JSON.stringify(['sin_tocar', 'sin_tocar', 'sin_tocar', 'sin_repartir'])
+      && (lista?.data ?? [])[0]?.telefono === `+51${tels[0]}`, 'B9 la lista: 3 sin tocar y 1 sin repartir, en orden de llegada', JSON.stringify((lista?.data ?? []).map((r) => r.estado)));
+    await expectExpectedFailure('B9 sup2 lista la base de sup1 → P0002', sup2.rpc('contactos_de_base', { p_base_id: baseId }), ['P0002'], /fuera de tu ámbito/);
+    const ind = await positive('B9 sup1 reasigna el de vend2 a vend1 (individual)', sup1.rpc('repartir_base', { p_operacion_id: randomUUID(), p_base_id: baseId, p_reparto: individual([[contactos[2], vend1Id]]) }));
+    check(ind?.data?.repartidos === 1 && dueno(contactos[2]) === vend1Id, 'B9 individual: reasignado a vend1', JSON.stringify(ind?.data));
+    await positive('B9 vend1 registra un intento en el primero', vend1.rpc('registrar_intento_base', { p_operacion_id: randomUUID(), p_lead_id: contactos[0], p_resultado: 'no_contesto' }));
+    const rec = await positive('B9 sup1 recoge lo de vend1', sup1.rpc('recoger_de_base', { p_operacion_id: randomUUID(), p_base_id: baseId, p_analista_id: vend1Id }));
+    check(rec?.data?.recogidos === 2 && rec?.data?.omitidos === 1 && rec?.data?.pendientes === 0
+      && [dueno(contactos[0]), dueno(contactos[1]), dueno(contactos[2])].join(',') === [vend1Id, `b:${sup1Id}`, `b:${sup1Id}`].join(','),
+      'B9 recoger: vuelven a la bandeja los 2 sin tocar; el tocado queda con vend1', JSON.stringify(rec?.data));
+    await expectExpectedFailure('B9 vend1 → recoger_de_base 42501', vend1.rpc('recoger_de_base', { p_operacion_id: randomUUID(), p_base_id: baseId, p_analista_id: vend1Id }), ['42501'], ROL);
+    // r1 · regla nueva de B6 (Miguel, 04/10): la llamada del supervisor sobre su bandeja ANTES de repartir no deja al analista en
+    // gestión: se le puede volver a reasignar a otro sin que el candado B6 lo impida.
+    await positive('B9 sup1 registra un intento sobre un contacto de su bandeja', sup1.rpc('registrar_intento_base', { p_operacion_id: randomUUID(), p_lead_id: contactos[3], p_resultado: 'no_contesto' }));
+    await positive('B9 sup1 lo reparte a vend2 (individual)', sup1.rpc('repartir_base', { p_operacion_id: randomUUID(), p_base_id: baseId, p_reparto: individual([[contactos[3], vend2Id]]) }));
+    check(cuenta('b6 nueva', `select (private.base_gestion_en_gestion_hasta('${contactos[3]}') is null)::int`) === 1,
+      'B9 (regla nueva de B6) la llamada de sup1 antes del reparto NO deja a vend2 en gestión');
+    const re = await positive('B9 sup1 se lo reasigna a vend1 (el candado B6 no lo impide)', sup1.rpc('repartir_base', { p_operacion_id: randomUUID(), p_base_id: baseId, p_reparto: individual([[contactos[3], vend1Id]]) }));
+    check(re?.data?.repartidos === 1 && dueno(contactos[3]) === vend1Id, 'B9 reasignado a vend1 sin heredar el candado', JSON.stringify(re?.data));
+    // r2 · el corte de B6 (la actividad «reasignación») no se cambia ni se borra por la API (authenticated sin UPDATE/DELETE).
+    const reasig = textoFueraDeBanda('bases cargadas B9: reasignación', `select id from crm.actividades where lead_id = '${contactos[3]}' and tipo = 'reasignacion' order by creado_en desc limit 1`);
+    await expectExpectedFailure('B9 sup1 cambia una «reasignación» por la API → 42501', sup1.from('actividades').update({ creado_en: new Date(0).toISOString(), detalle: 'x' }).eq('id', reasig), ['42501'], DENEGADO);
+    await expectExpectedFailure('B9 sup1 borra una «reasignación» por la API → 42501', sup1.from('actividades').delete().eq('id', reasig), ['42501'], DENEGADO);
+    await expectExpectedFailure('B9 gerencia cambia el tipo de una «reasignación» por la API → 42501', sessions.gerencia.client.schema('crm').from('actividades').update({ tipo: 'nota' }).eq('id', reasig), ['42501'], DENEGADO);
+    check(cuenta('reasignación intacta', `select count(*) from crm.actividades where id = '${reasig}' and tipo = 'reasignacion' and metadata->>'vendedor_nuevo' = '${vend1Id}'`) === 1,
+      'B9 la «reasignación» sigue intacta (tipo y vendedor_nuevo)');
+    // r3 · el corte de B6 tampoco se FABRICA por la API: una «reasignación» falsa hacia vend1 (fechada en el futuro) liberaría el
+    // contacto que vend1 está gestionando, y un intento falso lo alargaría. Ninguna de las dos entra y el candado no cambia.
+    const hasta = () => textoFueraDeBanda('bases cargadas B9: candado B6', `select coalesce(private.base_gestion_en_gestion_hasta('${contactos[0]}')::text, 'null')`);
+    const hastaAntes = hasta();
+    check(hastaAntes !== null && hastaAntes !== 'null', 'B9 el primero está en gestión de vend1 (su intento)', String(hastaAntes));
+    const actividadesAntes = cuenta('actividades del primero', `select count(*) from crm.actividades where lead_id = '${contactos[0]}'`);
+    await expectExpectedFailure('B9 sup1 inserta una «reasignación» falsa hacia vend1 por la API → 42501 (RLS)',
+      sup1.from('actividades').insert({ lead_id: contactos[0], tipo: 'reasignacion', detalle: 'falsa', creado_por: sup1Id,
+        creado_en: new Date(Date.now() + 3600 * 1000).toISOString(), metadata: { movimiento: 'transferido', vendedor_anterior: vend2Id, vendedor_nuevo: vend1Id } }),
+      ['42501'], /row-level security/i);
+    await expectExpectedFailure('B9 sup1 inserta un intento falso (rellamada a 30 días) por la API → 42501 (sello de la base)',
+      sup1.from('actividades').insert({ lead_id: contactos[0], tipo: 'nota', detalle: 'falso', creado_por: sup1Id,
+        metadata: { evento: 'intento_base', resultado: 'volver_a_llamar', intento_n: 1, ciclo_n: 1, proxima_llamada_en: new Date(Date.now() + 30 * 86400 * 1000).toISOString() } }),
+      ['42501'], /solo las escribe su nucleo/i);
+    check(hasta() === hastaAntes && cuenta('actividades del primero', `select count(*) from crm.actividades where lead_id = '${contactos[0]}'`) === actividadesAntes,
+      'B9 el candado del primero no cambió y no entró ninguna actividad', `${hastaAntes} → ${hasta()}`);
+    // r3 · recoger: ámbito de la base y equipo del analista, por la API.
+    await expectExpectedFailure('B9 sup2 recoge de la base de sup1 → P0002', sup2.rpc('recoger_de_base', { p_operacion_id: randomUUID(), p_base_id: baseId, p_analista_id: vend1Id }), ['P0002'], /fuera de tu ámbito/);
+    await expectExpectedFailure('B9 sup1 recoge de vend3 (otro equipo) → P0002', sup1.rpc('recoger_de_base', { p_operacion_id: randomUUID(), p_base_id: baseId, p_analista_id: vend3Id }), ['P0002'], /fuera del equipo de la base/);
+    // r3 · Gerencia reparte fuera del equipo y vuelve a repartir lo que B9 dio fuera (F18); si OTRA vía sacó un repartido del
+    // equipo, no lo reparte (F19).
+    const ger = sessions.gerencia.client.schema('crm');
+    const fuera = await positive('B9 Gerencia reparte el segundo a vend3 (otro equipo)', ger.rpc('repartir_base', { p_operacion_id: randomUUID(), p_base_id: baseId, p_reparto: individual([[contactos[1], vend3Id]]) }));
+    check(fuera?.data?.repartidos === 1 && dueno(contactos[1]) === vend3Id, 'B9 Gerencia: el segundo pasa a vend3', JSON.stringify(fuera?.data));
+    const vuelve = await positive('B9 Gerencia vuelve a repartir el segundo (B9 se lo dio a vend3) a vend2', ger.rpc('repartir_base', { p_operacion_id: randomUUID(), p_base_id: baseId, p_reparto: individual([[contactos[1], vend2Id]]) }));
+    check(vuelve?.data?.repartidos === 1 && dueno(contactos[1]) === vend2Id, 'B9 Gerencia re-reparte lo que B9 dio fuera del equipo (F18)', JSON.stringify(vuelve?.data));
+    ejecutarFueraDeBanda('bases cargadas B9: otra vía saca un repartido del equipo', `update crm.leads set vendedor_id = '${vend3Id}' where id = '${contactos[3]}';`);
+    const otraVia = await ger.rpc('repartir_base', { p_operacion_id: randomUUID(), p_base_id: baseId, p_reparto: individual([[contactos[3], vend1Id]]) });
+    let rechazados = null;
+    try { rechazados = JSON.parse(otraVia.error?.details ?? 'null')?.rechazados ?? null; } catch { rechazados = null; }
+    check(otraVia.error?.code === '22023' && Array.isArray(rechazados) && rechazados.length === 1
+      && rechazados[0]?.lead_id === contactos[3] && rechazados[0]?.motivo === 'fuera_de_ambito'
+      && dueno(contactos[3]) === vend3Id, 'B9 Gerencia no reparte lo que otra vía sacó del equipo → 22023 fuera_de_ambito (F19)', errorText(otraVia.error));
+  } finally {
+    for (const id of contactos.filter(Boolean)) {
+      await requireAdmin('B9: retirar un contacto transitorio (soft-delete)', admin.schema('crm').from('leads').update({ activo: false }).eq('id', id));
+    }
+  }
+}
+
 // ── Venta cruzada (20260924005126 … 20260924045245): puertas del cliente existente ──
 // Solo catálogo y rechazos: ninguna llamada de esta matriz llega a escribir. Una puerta que
 // rechaza aborta su transacción entera, así que ni la bitácora (inmutable) guarda rastro; los
@@ -16477,6 +16619,7 @@ async function main() {
       await testBaseGestionB6c(sessions, verifiedSeed);
       await testBasesCargadasB7(sessions, verifiedSeed);
       await testBasesCargadasB8(sessions, verifiedSeed);
+      await testBasesCargadasB9(sessions, verifiedSeed);
     }
   } catch (error) {
     primaryError = error;
