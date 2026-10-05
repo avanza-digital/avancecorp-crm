@@ -1,6 +1,6 @@
 # HOY del analista: leads recibidos hoy
 
-Estado: publicación autorizada por Miguel el 05/10/2026; candidato en verificación final.
+Estado: publicación autorizada por Miguel el 05/10/2026; candidato verificado, pendiente de despliegue y comprobación HTTPS.
 
 ## Alcance confirmado por Miguel
 
@@ -90,3 +90,20 @@ se colocó después de las prioridades, sin cambiar la ubicación activa.
 
 **PASS** check integral sobre la versión actual: 6.091 tests / 378 archivos,
 lint (los cuatro avisos previos), tipos, cobertura, build, bundle y duplicación.
+
+**PASS** repetición E2E final en Docker: 26/26 (`hoy-leads-recibidos`,
+`demo-roles`, `sla-operacion`), sin fallos ni reintentos. Capturas en escritorio,
+portátil y móvil; primera acción demo y espacio de citas verificados.
+
+El preflight rechazó el primer artefacto `acf8e4c3b668`: el historial remoto no
+contenía al vivo `27e6f24849aa`, aunque su runtime era idéntico. Según CLAUDE.md,
+se creó `rescue/hoy-leads-recibidos-20261005` desde el vivo, en copia separada.
+Se integró `avancecorp/main` preservando byte a byte su árbol (`fac4f404`) y se
+aplicó el parche verificado (`798a746b`). Los tres conflictos eran actas y el
+banco RLS: se conservaron las versiones remotas actualizadas. No se aplicó SQL.
+`git diff acf8e4c3b668 798a746b` vacío; los checks corresponden al mismo código.
+El vivo es ahora ancestro real del candidato. Se reconstruye desde fuente limpia,
+se repite el preflight y se integra a Main mediante la PR de esta misma rama.
+
+Recuperación conservada: `crm-20261005T023047Z-27e6f24849aa.zip`, SHA-256
+`31d974446fc2c61bcb9a21c0764e460a6448531f0e69f140235d7b4cf1c704f9`.
