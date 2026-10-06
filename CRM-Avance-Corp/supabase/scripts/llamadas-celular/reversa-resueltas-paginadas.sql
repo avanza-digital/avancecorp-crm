@@ -3,8 +3,8 @@
 -- COMMENT copiados de 20261005201010 por el generador, para que la huella del catálogo vuelva a la de la octava. Sin
 -- tablas ni datos: corre en cualquier momento (la pestaña vuelve a recibir un arreglo sin cursor).
 --
--- Orden de las reversas: esta → octava (reversa-lecturas-analista.sql) → séptima → F4-a → corrección → elegibilidad →
--- ingesta → núcleo → datos.
+-- Orden de las reversas: undécima → décima (reversa-bandeja-con-origen.sql) → esta → octava (reversa-lecturas-analista.sql)
+-- → séptima → F4-a → corrección → elegibilidad → ingesta → núcleo → datos.
 --
 --   psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/scripts/llamadas-celular/reversa-resueltas-paginadas.sql
 begin;
@@ -13,6 +13,10 @@ set local statement_timeout = '60s';
 
 do $precondicion$
 begin
+  if pg_catalog.strpos(pg_catalog.pg_get_functiondef('private.llamadas_celular_bandeja(uuid,integer,timestamptz,uuid)'::regprocedure),
+                       'evento_origen_id') > 0 then
+    raise exception 'REVERSA_RESUELTAS_PAGINADAS: la décima (20261006150154) sigue instalada; corre antes reversa-bandeja-con-origen.sql';
+  end if;
   if to_regprocedure('crm.llamadas_celular_resueltas_hoy_fn(integer,timestamptz,uuid)') is null
      or to_regprocedure('private.llamadas_celular_resueltas_hoy(uuid,integer,timestamptz,timestamptz,uuid)') is null then
     raise exception 'REVERSA_RESUELTAS_PAGINADAS: la migración 20261005224330 no está aplicada';

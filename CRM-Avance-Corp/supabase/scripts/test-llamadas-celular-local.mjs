@@ -9,7 +9,7 @@
 // canonización, idempotencia y forma del resultado reales; auth.uid como doble declarado).
 // Molde: supabase/scripts/test-sla-nucleo-local.py. No sustituye el gate test-rls.mjs.
 //
-// Dieciséis pasadas:
+// Dieciocho pasadas:
 //   1. Las migraciones tal cual: se aplican, se niegan a sobrescribirse, pasan sus oráculos, sus
 //      reversas funcionan en orden (y se niegan fuera de orden o con filas) y se vuelven a aplicar.
 //   2–5. Mutantes de F2-b, F2-c, F3-a y la corrección de elegibilidad: por cada defensa, una copia de
@@ -45,6 +45,8 @@
 //  16. La NOVENA (20261005224330, «Qué pasó hoy» paginada y por la hora de resolución) sobre las ocho: se niega sin la
 //      octava, se aplica, se niega a repetirse, pasan su oráculo y los de F4-a y la quinta, la reversa de la octava se
 //      niega con ella puesta, la suya vuelve a la huella exacta de las ocho; y sus mutantes.
+//  17. La DÉCIMA (20261006150154, id de origen en la bandeja y el detalle) sobre las nueve, con el mismo recorrido.
+//  18. La UNDÉCIMA (20261006150254, salud de los celulares sin la hora exacta del latido) sobre las diez, igual.
 //
 // Uso:  node supabase/scripts/test-llamadas-celular-local.mjs     (npm run test:llamadas:local)
 // Binarios: LLAMADAS_PG_BIN, o ~/.local/pg/pgsql/bin (zip oficial de EDB en Windows), o Homebrew.
@@ -85,6 +87,12 @@ const REVERSA_LECTURAS = join(RAIZ, 'supabase/scripts/llamadas-celular/reversa-l
 const MIG_PAGINADAS = join(RAIZ, 'supabase/migrations/20261005224330_crm_llamadas_celular_resueltas_paginadas.sql');
 const ORACULO_PAGINADAS = join(RAIZ, 'supabase/tests/llamadas-celular/oraculo-resueltas-paginadas.sql');
 const REVERSA_PAGINADAS = join(RAIZ, 'supabase/scripts/llamadas-celular/reversa-resueltas-paginadas.sql');
+const MIG_ORIGEN = join(RAIZ, 'supabase/migrations/20261006150154_crm_llamadas_celular_bandeja_con_origen.sql');
+const ORACULO_ORIGEN = join(RAIZ, 'supabase/tests/llamadas-celular/oraculo-bandeja-con-origen.sql');
+const REVERSA_ORIGEN = join(RAIZ, 'supabase/scripts/llamadas-celular/reversa-bandeja-con-origen.sql');
+const MIG_SALUD = join(RAIZ, 'supabase/migrations/20261006150254_crm_llamadas_celular_salud_sin_hora.sql');
+const ORACULO_SALUD = join(RAIZ, 'supabase/tests/llamadas-celular/oraculo-salud-sin-hora.sql');
+const REVERSA_SALUD = join(RAIZ, 'supabase/scripts/llamadas-celular/reversa-salud-sin-hora.sql');
 const PUERTO = '55485';
 const USUARIO = 'llamadas_test_owner';
 const EXE = process.platform === 'win32' ? '.exe' : '';
@@ -449,6 +457,38 @@ const MUTANTES_PAGINADAS = [
     poner: 'grant execute on function private.llamadas_celular_resueltas_hoy(uuid,integer,timestamptz,timestamptz,uuid)\n  to authenticated;' },
   { nombre: 'la puerta INVOKER', por: 'postflight', espera: 'debería ser SECURITY DEFINER',
     buscar: 'stable\nsecurity definer', poner: 'stable\nsecurity invoker' },
+];
+
+// Mutantes de la décima (20261006150154, id de origen en la bandeja y el detalle): los caza su oráculo o el postflight.
+const MUTANTES_ORIGEN = [
+  { nombre: 'la bandeja pone otro id en lugar del de origen', buscar: "'evento_origen_id', p.evento_origen_id,", poner: "'evento_origen_id', p.id::text," },
+  { nombre: 'el detalle sin el id de origen', por: 'postflight', espera: 'siguen sin evento_origen_id',
+    buscar: "'evento_origen_id', v_ev.evento_origen_id, ", poner: '' },
+  { nombre: 'la bandeja sin ámbito', buscar: '      and private.llamada_celular_visible(p_actor, e.lead_id, e.analista_id)\n', poner: '' },
+  { nombre: 'el detalle sin ámbito',
+    buscar: 'if not found or not private.llamada_celular_visible(p_actor, v_ev.lead_id, v_ev.analista_id) then', poner: 'if not found then' },
+  { nombre: 'la bandeja DEFINER', por: 'postflight', espera: 'debería ser SECURITY INVOKER',
+    buscar: "language sql\nstable\nset search_path = ''", poner: "language sql\nstable\nsecurity definer\nset search_path = ''" },
+  { nombre: 'el detalle VOLATILE', por: 'postflight', espera: 'debería ser STABLE',
+    buscar: 'language plpgsql\nstable', poner: 'language plpgsql\nvolatile' },
+];
+
+// Mutantes de la undécima (20261006150254, salud sin la hora exacta del latido): los caza su oráculo o el postflight.
+const MUTANTES_SALUD = [
+  { nombre: 'vuelve la hora exacta del latido', por: 'postflight', espera: 'sigue devolviendo la hora exacta',
+    buscar: "           'version_macro', s.version_macro,", poner: "           'ultimo_latido_en', s.ultimo_latido_en, 'version_macro', s.version_macro," },
+  { nombre: 'el umbral de «sin latido» en 9 h', buscar: "interval '7 hours'", poner: "interval '9 hours'" },
+  { nombre: 'las horas sin redondear', buscar: "pg_catalog.floor(extract(epoch from pg_catalog.now() - s.ultimo_latido_en) / 3600)::integer",
+    poner: 'extract(epoch from pg_catalog.now() - s.ultimo_latido_en)' },
+  { nombre: 'las horas sin piso de 0', buscar: 'greatest(0, pg_catalog.floor(extract(epoch from pg_catalog.now() - s.ultimo_latido_en) / 3600)::integer)',
+    poner: 'pg_catalog.floor(extract(epoch from pg_catalog.now() - s.ultimo_latido_en) / 3600)::integer' },
+  { nombre: '«nunca» da 0 horas en vez de nulo', buscar: "'horas_sin_latido', case when s.ultimo_latido_en is null then null\n", poner: "'horas_sin_latido', case when false then null\n" },
+  { nombre: 'el reloj nunca se marca desfasado', buscar: '> 300, false)', poner: '> 300000, false)' },
+  { nombre: '«nunca» se confunde con «sin latido»', buscar: "when s.ultimo_latido_en is null then 'nunca'", poner: "when s.ultimo_latido_en is null then 'sin_latido'" },
+  { nombre: 'la supervisión ve celulares de otro equipo',
+    buscar: 'and a.analista_id in (select private.vendedor_ids_visibles(p_actor))', poner: 'and true' },
+  { nombre: 'la salud DEFINER', por: 'postflight', espera: 'debería ser SECURITY INVOKER',
+    buscar: "language sql\nstable\nset search_path = ''", poner: "language sql\nstable\nsecurity definer\nset search_path = ''" },
 ];
 
 function carpetaBinarios() {
@@ -999,6 +1039,13 @@ try {
   psqlSql('create database plantilla_ocho template plantilla_siete', 'postgres');
   r = psqlArchivo(MIG_LECTURAS, 'plantilla_ocho');
   if (!r.ok) throw new Error(`la plantilla con las ocho no se pudo preparar:\n${cola(r.salida)}`);
+  // Y con la novena: el punto de partida de la décima (pasada 17); con la décima, el de la undécima (pasada 18).
+  psqlSql('create database plantilla_nueve template plantilla_ocho', 'postgres');
+  r = psqlArchivo(MIG_PAGINADAS, 'plantilla_nueve');
+  if (!r.ok) throw new Error(`la plantilla con las nueve no se pudo preparar:\n${cola(r.salida)}`);
+  psqlSql('create database plantilla_diez template plantilla_nueve', 'postgres');
+  r = psqlArchivo(MIG_ORIGEN, 'plantilla_diez');
+  if (!r.ok) throw new Error(`la plantilla con las diez no se pudo preparar:\n${cola(r.salida)}`);
   psqlSql('create database principal template plantilla', 'postgres');
 
   console.log('\n— Pasada 1: las migraciones tal cual —');
@@ -1419,6 +1466,56 @@ try {
   oraculoEn('oráculo de la novena tras reaplicar', ORACULO_PAGINADAS, 'ORACULO RESUELTAS PAGINADAS OK', dp);
   psqlSql(`drop database ${dp}`, 'postgres');
   pasadaMutantes('Pasada 16b: mutantes de la novena', MIG_PAGINADAS, MUTANTES_PAGINADAS, 'plantilla_ocho', ORACULO_PAGINADAS, 'mut_paginadas');
+
+  // ── Pasadas 17 y 18: la décima (id de origen en la bandeja) y la undécima (salud sin hora exacta) ──
+  // Mismo recorrido para las dos: se niega sin la anterior, huella, se aplica, se niega a repetirse, su oráculo y los
+  // de F4-a y la quinta, la reversa de la anterior se niega con ella puesta, su reversa vuelve a la huella exacta y se
+  // vuelve a aplicar; después, sus mutantes.
+  const pasadaEnmienda = (p) => {
+    console.log(`\n— ${p.titulo} —`);
+    psqlSql(`create database ${p.db}_sin_anterior template ${p.plantillaAnterior}`, 'postgres');
+    r = psqlArchivo(p.mig, `${p.db}_sin_anterior`);
+    paso(`${p.nombre} se niega sin ${p.anterior}`, !r.ok && r.salida.includes(p.faltaAnterior), r.ok ? 'se aplicó sin la anterior' : '');
+    psqlSql(`drop database ${p.db}_sin_anterior`, 'postgres');
+    psqlSql(`create database ${p.db} template ${p.plantilla}`, 'postgres');
+    const h0 = huella(p.db);
+    const lineas0 = h0.salida.trim().split(/\r?\n/);
+    paso(`huella del catálogo de ${p.base}`, h0.ok && lineas0.length > 100, h0.ok ? `${lineas0.length} líneas` : cola(h0.salida));
+    r = psqlArchivo(p.mig, p.db);
+    paso(`${p.nombre} aplicada (${p.que}, postflight)`, r.ok, r.ok ? '' : cola(r.salida));
+    r = psqlArchivo(p.mig, p.db);
+    paso(`${p.nombre} se niega a sobrescribirse`, !r.ok && r.salida.includes('ya está aplicada'), r.ok ? 'se aplicó dos veces' : '');
+    oraculoEn(`oráculo de ${p.nombre}`, p.oraculo, p.marca, p.db);
+    oraculoEn(`oráculo de F4-a con ${p.nombre} puesta`, ORACULO_ENLACE, 'ORACULO ENLACE EXACTO OK', p.db);
+    oraculoEn(`oráculo de la quinta con ${p.nombre} puesta`, ORACULO_CORRECCION, 'ORACULO CORRECCION OK', p.db);
+    r = psqlArchivo(p.reversaAnterior, p.db);
+    paso(`la reversa de ${p.anterior} se niega con ${p.nombre} puesta`, !r.ok && r.salida.includes(p.niegaAnterior), r.ok ? 'se aplicó fuera de orden' : '');
+    r = psqlArchivo(p.reversa, p.db);
+    paso(`reversa de ${p.nombre}`, r.ok, r.ok ? '' : cola(r.salida));
+    const h1 = huella(p.db);
+    const distintas = h1.salida.trim().split(/\r?\n/).filter((l, i) => l !== lineas0[i]);
+    paso(`la reversa de ${p.nombre} vuelve EXACTAMENTE a la huella de ${p.base}`, h1.ok && h1.salida === h0.salida,
+      h1.ok ? distintas.slice(0, 4).join('\n') : cola(h1.salida));
+    r = psqlArchivo(p.mig, p.db);
+    paso(`${p.nombre} se vuelve a aplicar tras su reversa`, r.ok, r.ok ? '' : cola(r.salida));
+    oraculoEn(`oráculo de ${p.nombre} tras reaplicar`, p.oraculo, p.marca, p.db);
+    psqlSql(`drop database ${p.db}`, 'postgres');
+    pasadaMutantes(`${p.titulo.split(':')[0]}b: mutantes de ${p.nombre}`, p.mig, p.mutantes, p.plantilla, p.oraculo, `mut_${p.db}`);
+  };
+  pasadaEnmienda({
+    titulo: 'Pasada 17: la décima (id de origen en la bandeja y el detalle)', nombre: 'la décima', db: 'origen',
+    mig: MIG_ORIGEN, oraculo: ORACULO_ORIGEN, marca: 'ORACULO BANDEJA CON ORIGEN OK', reversa: REVERSA_ORIGEN,
+    mutantes: MUTANTES_ORIGEN, plantilla: 'plantilla_nueve', base: 'las nueve', que: 'bandeja y detalle con evento_origen_id',
+    anterior: 'la novena', plantillaAnterior: 'plantilla_ocho', faltaAnterior: 'falta la novena',
+    reversaAnterior: REVERSA_PAGINADAS, niegaAnterior: 'la décima (20261006150154) sigue instalada',
+  });
+  pasadaEnmienda({
+    titulo: 'Pasada 18: la undécima (salud de los celulares sin la hora exacta del latido)', nombre: 'la undécima', db: 'salud',
+    mig: MIG_SALUD, oraculo: ORACULO_SALUD, marca: 'ORACULO SALUD SIN HORA OK', reversa: REVERSA_SALUD,
+    mutantes: MUTANTES_SALUD, plantilla: 'plantilla_diez', base: 'las diez', que: 'estado del latido sin horas exactas',
+    anterior: 'la décima', plantillaAnterior: 'plantilla_nueve', faltaAnterior: 'falta la décima',
+    reversaAnterior: REVERSA_ORIGEN, niegaAnterior: 'la undécima (20261006150254) sigue instalada',
+  });
 } catch (error) {
   paso('arranque del banco', false, error.message);
 } finally {

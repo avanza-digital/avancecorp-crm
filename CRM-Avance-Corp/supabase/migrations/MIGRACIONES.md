@@ -1,3 +1,49 @@
+## 20261006150254 — Llamadas desde el celular · UNDÉCIMA: salud de los celulares sin la hora exacta del latido (`private.celulares_salud_listar`)
+
+**⏸️ ESCRITA, SIN APLICAR (06/10/2026). Va en el #198, después de la décima.** Registrador:
+`scripts/llamadas-celular/registrar-salud-sin-hora.sql` (con fila de veredicto).
+
+Hallazgo del análisis de F4-e (verificado): la macro mandaba el latido también al vaciarse su cola, y la cola recibe
+toda saliente, personales incluidas. La hora del latido era casi la de la última llamada, y
+`crm.celulares_salud_fn` se la mostraba a supervisión y gerencia: la misma fuga que la N1 cerró con `ultimo_envio_en`.
+**Decisión de Jhosep (06/10): arreglarlo en la macro (latido solo cada 6 h, `macrodroid.md` §3c) Y en el servidor.**
+
+Qué hace: `create or replace` del núcleo con la misma firma (la puerta no cambia). En lugar de `ultimo_latido_en` y
+`latido_celular_en` devuelve `estado_latido` (`al_dia` | `sin_latido` pasadas 7 h | `nunca`), `horas_sin_latido`
+(enteras, nunca negativas; nulas si nunca habló) y `reloj_desfasado` (más de 5 min entre el reloj del celular y el del servidor). Las horas se siguen
+guardando en `private.celulares_estado`; solo dejan de salir. Sin consumidores (la tarjeta de F4-c aún no existe).
+
+Verificación: pasada 18 de `npm run test:llamadas:local` (se niega sin la décima; oráculo
+`tests/llamadas-celular/oraculo-salud-sin-hora.sql`: estado, horas enteras, reloj, sin horas exactas, ámbito por
+equipo y roles; la reversa de la décima se niega con ella puesta; reversa con la huella exacta de las diez; mutantes).
+Gate: el tramo de salud de `testLlamadasCelular` acepta las dos formas y exige la nueva cuando está instalada. NOT RUN:
+el gate con el esquema de producción.
+
+Reversa: `scripts/llamadas-celular/reversa-salud-sin-hora.sql` (repone el cuerpo y el COMMENT de la quinta tal cual;
+OJO: vuelve a mostrar la hora exacta). Orden: esta → la de la décima → la de la novena → …
+
+## 20261006150154 — Llamadas desde el celular · DÉCIMA: el id de origen en la bandeja y el detalle (`private.llamadas_celular_bandeja`, `private.llamada_celular_detalle`)
+
+**⏸️ ESCRITA, SIN APLICAR (06/10/2026). Va en el #198, después de la novena.** Registrador:
+`scripts/llamadas-celular/registrar-bandeja-con-origen.sql` (con fila de veredicto).
+
+Hallazgo del análisis de F4-c/F4-d (verificado): la bandeja y el detalle no devolvían `evento_origen_id`, así que
+«Registrar resultado» desde la pestaña «Celular» caía a la v4 sin id y la llamada quedaba pendiente (solo se unía a
+mano). **Decisión de Jhosep (06/10): una migración pequeña en el #198.**
+
+Qué hace: `create or replace` de los dos núcleos con la misma firma; solo agrega `'evento_origen_id'` a cada fila (el
+resto del cuerpo es el vigente, copiado del blob de git por el generador). Las puertas `crm.llamadas_celular_bandeja_fn`
+y `crm.llamada_celular_detalle_fn` no cambian (firma, roles ni permisos). El id no es dato personal.
+
+Verificación: pasada 17 de `npm run test:llamadas:local` (se niega sin la novena; oráculo
+`tests/llamadas-celular/oraculo-bandeja-con-origen.sql`: el id en cada fila, también por páginas, y en el detalle; el
+ámbito no cambia; con el id de la fila, la v5 desde la pestaña une la llamada con vía `pestana`; la reversa de la novena
+se niega con ella puesta; reversa con la huella exacta de las nueve; mutantes). Gate: el tramo de F4-b comprueba el id
+en la bandeja y el detalle. NOT RUN: el gate con el esquema de producción.
+
+Reversa: `scripts/llamadas-celular/reversa-bandeja-con-origen.sql` (repone los dos cuerpos y sus COMMENT tal cual).
+Orden: undécima → esta → novena → …
+
 ## 20261005224330 — Llamadas desde el celular · NOVENA: «Qué pasó hoy» paginada y por la hora de resolución (`crm.llamadas_celular_resueltas_hoy_fn`)
 
 **⏸️ ESCRITA, SIN APLICAR (05/10/2026). Enmienda de la octava** pedida por la revisión de Miguel en el #195 (05/10,
