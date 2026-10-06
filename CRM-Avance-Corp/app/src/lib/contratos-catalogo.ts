@@ -28,6 +28,8 @@ export const CATEGORIA_LABEL = Object.fromEntries(
 export const ETIQUETA_UPGRADE = 'Registrar upgrade'
 export const AYUDA_UPGRADE =
   'El upgrade abre un contrato NUEVO que hereda la tasa del contrato que amplía. El contrato actual no cambia.'
+export const MOTIVO_NUEVA_INVERSION_BLOQUEADA =
+  'Este cliente ya tiene una inversión registrada. Si corresponde, usa un upgrade, renovación o reinversión.'
 
 export const MODALIDADES_UI: { k: ModalidadContrato; label: string }[] = [
   { k: 'mensual', label: 'Mensual' },

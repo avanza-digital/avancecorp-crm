@@ -312,13 +312,14 @@ describe('ClienteFicha — frescura y presentación', () => {
 
     await user.click(screen.getByRole('button', { name: 'Agendar seguimiento' }))
     await user.click(screen.getByRole('button', { name: 'Registrar upgrade' }))
+    expect(screen.getByRole('button', { name: 'Registrar nueva inversión' })).toBeDisabled()
     await user.click(screen.getByRole('button', { name: 'Registrar nueva inversión' }))
     await user.click(screen.getByRole('button', { name: 'Ver contrato 2026-01-000321' }))
     await user.click(screen.getByRole('button', { name: 'Renovar inversión del contrato 2026-01-000321' }))
 
     expect(onGestionar).toHaveBeenCalledTimes(1)
     expect(onUpgrade).toHaveBeenCalledTimes(1)
-    expect(onNuevoContrato).toHaveBeenCalledTimes(1)
+    expect(onNuevoContrato).not.toHaveBeenCalled()
     expect(onDetalleContrato).toHaveBeenCalledWith(contrato)
     expect(onRenovarContrato).toHaveBeenCalledWith(contrato)
   })
