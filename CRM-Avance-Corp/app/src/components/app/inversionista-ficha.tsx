@@ -21,6 +21,7 @@ import { fechaHora, fmtFecha, money } from '@/lib/format'
 import { fechaLima } from '@/lib/agenda-derivada'
 import { AYUDA_UPGRADE, CATEGORIA_LABEL, ESTADO_COLOR, ESTADO_CONTRATO_LABEL, ETIQUETA_UPGRADE } from '@/lib/contratos-catalogo'
 import { ContratoEliminar } from './contrato-eliminar'
+import { InversionEliminar } from './inversion-eliminar'
 import { GestionInversionistaDialogo } from './gestion-inversionista-dialogo'
 
 export function ResumenEmpresas({totales, compacto = false, registrado = false}: {totales: ResumenEmpresa[]; compacto?: boolean; registrado?: boolean}) {
@@ -53,7 +54,7 @@ function CuentasAvance({actor, identidad, perfil, onRevocado}: {
   </div>
 }
 
-function InversionDetalle({inversion, posicion, onDocumento, onOperacion, onRecuperarPdf, postventa, onRetiro, onEliminar, onDetalle}: {
+function InversionDetalle({inversion, posicion, onDocumento, onOperacion, onRecuperarPdf, postventa, onRetiro, onEliminar, onEliminarInversion, onDetalle}: {
   posicion: number
   postventa?: boolean | undefined
   onRetiro?: ((inversion: InversionFuente) => void) | undefined
@@ -62,6 +63,8 @@ function InversionDetalle({inversion, posicion, onDocumento, onOperacion, onRecu
   onDocumento?: ((inversion: InversionFuente, documentoId: string) => void) | undefined
   onRecuperarPdf?: ((inversion: InversionFuente) => void) | undefined
   onEliminar?: ((inversion: InversionFuente) => void) | undefined
+  /** «Eliminar inversión» (las tres empresas). Activa, reemplaza a «Eliminar contrato»: un solo botón rojo. */
+  onEliminarInversion?: ((inversion: InversionFuente) => void) | undefined
   onDetalle?: ((inversion: InversionFuente) => void) | undefined
 }) {
   const i = inversion
@@ -125,7 +128,9 @@ function InversionDetalle({inversion, posicion, onDocumento, onOperacion, onRecu
         <ChevronDown aria-hidden className={abierta ? 'rotate-180' : undefined} /> {abierta ? 'Ocultar detalle' : 'Ver inversión'}
       </Button>
       {i.pdf?.reintentable && onRecuperarPdf && <Button variant="outline" size="xs" className="min-h-10" onClick={() => onRecuperarPdf(i)}>Recuperar PDF pendiente</Button>}
-      {onEliminar && i.empresa === 'avance' && i.contrato && <Button variant="destructive" size="xs" className="min-h-10"
+      {onEliminarInversion ? <Button variant="destructive" size="xs" className="min-h-10"
+        aria-label={`Eliminar inversión ${referenciaAccesible}`} onClick={() => onEliminarInversion(i)}>Eliminar inversión</Button>
+        : onEliminar && i.empresa === 'avance' && i.contrato && <Button variant="destructive" size="xs" className="min-h-10"
         aria-label={`Eliminar contrato ${referenciaAccesible}`} onClick={() => onEliminar(i)}>Eliminar contrato</Button>}
     {onOperacion && i.empresa === 'avance' && i.contrato && i.perfil_id && <>
       {i.estado === 'activo' && <Button variant="outline" size="xs" className="min-h-10" title={AYUDA_UPGRADE} aria-label={`${ETIQUETA_UPGRADE} sobre ${referenciaAccesible}`}
@@ -141,7 +146,7 @@ function InversionDetalle({inversion, posicion, onDocumento, onOperacion, onRecu
   />
 }
 
-export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado, onNuevaInversion, onDocumento, onOperacion, onRecuperarPdf, onEliminar, enfocarInversiones = false}: {
+export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado, onNuevaInversion, onDocumento, onOperacion, onRecuperarPdf, onEliminar, onEliminarInversion, puedeEliminarInversion, enfocarInversiones = false}: {
   actor: string; inversionistaId: string; onCerrar: () => void; onRevocado: () => void
   enfocarInversiones?: boolean
   onOperacion?: ((operacion: OperacionInversion) => void) | undefined
@@ -149,8 +154,12 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
   onDocumento?: ((inversion: InversionFuente, documentoId: string) => void) | undefined
   onRecuperarPdf?: ((inversion: InversionFuente) => void) | undefined
   onEliminar?: ((inversion: InversionFuente) => Promise<void>) | undefined
+  onEliminarInversion?: ((inversion: InversionFuente, motivo: string) => Promise<void>) | undefined
+  /** Filtro de UX por inversión (el servidor decide igual); sin él, se ofrece en todas. */
+  puedeEliminarInversion?: ((inversion: InversionFuente) => boolean) | undefined
 }) {
   const [contratoEliminar, setContratoEliminar] = useState<InversionFuente | null>(null)
+  const [inversionEliminar, setInversionEliminar] = useState<InversionFuente | null>(null)
   const [gestion, setGestion] = useState<{fuente:string|null}|null>(null)
   const [retiroElegido, setRetiroElegido] = useState<InversionFuente | null>(null)
   const [eligiendoUpgrade, setEligiendoUpgrade] = useState(false)
@@ -177,7 +186,8 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
   const desactualizada = Boolean(ficha && q.isError)
   useEffect(() => {
     if (!onEliminar || desactualizada || accesoRevocado) setContratoEliminar(null)
-  }, [onEliminar, desactualizada, accesoRevocado])
+    if (!onEliminarInversion || desactualizada || accesoRevocado) setInversionEliminar(null)
+  }, [onEliminar, onEliminarInversion, desactualizada, accesoRevocado])
   useEffect(() => {
     if (!enfocarInversiones || focoAplicado.current || !ficha) return
     let segundo = 0
@@ -286,6 +296,7 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
             onRetiro={setRetiroElegido} onDocumento={ficha.capacidades.documentos && !desactualizada ? onDocumento : undefined}
             onRecuperarPdf={!desactualizada ? onRecuperarPdf : undefined}
             onEliminar={!desactualizada && onEliminar ? setContratoEliminar : undefined}
+            onEliminarInversion={!desactualizada && onEliminarInversion && (puedeEliminarInversion?.(i) ?? true) ? setInversionEliminar : undefined}
             onOperacion={ficha.capacidades.nueva_inversion && !desactualizada ? onOperacion : undefined} /></li>)}
           </ul>
         </div>)}
@@ -325,6 +336,9 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
     {contratoEliminar && onEliminar && !desactualizada && <ContratoEliminar
       key={contratoEliminar.fuente_id} inversion={contratoEliminar} onConfirmar={onEliminar}
       onCerrar={() => setContratoEliminar(null)} />}
+    {inversionEliminar && onEliminarInversion && !desactualizada && <InversionEliminar
+      key={inversionEliminar.fuente_id} inversion={inversionEliminar} onConfirmar={onEliminarInversion}
+      onCerrar={() => setInversionEliminar(null)} />}
     {eligiendoUpgrade && ampliables.length > 0 && <Dialog open onClose={() => setEligiendoUpgrade(false)}
       ariaLabel="Elegir el contrato que amplía el upgrade" className="w-[520px]">
       <DialogHeader><DialogTitle>¿Qué contrato amplía este upgrade?</DialogTitle></DialogHeader>

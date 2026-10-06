@@ -1,6 +1,7 @@
 // Fuente única de capacidades por rol (patrón VITANOVA, 4 niveles).
 // NO es seguridad (eso vive en la RLS del esquema crm) — es la UX.
 // Regla de oro: lo que can() oculta, la RLS también lo niega.
+import type { InversionFuente } from './inversionistas'
 
 /** Catálogo runtime de roles CRM — fuente única: el tipo `Rol` se deriva de aquí.
  * `coordinador` (C1, 2026-07-22) es OFF-ROSTER como `directorio`: existe como
@@ -191,6 +192,26 @@ export function puedeAdministrarRolesCrm(
 /** El hard-delete contractual pertenece solo a Admin/Superadmin del Portal. */
 export function puedeEliminarContratos(identidad: IdentidadAdministrativa | null | undefined): boolean {
   return identidad?.rol_portal === 'admin' || identidad?.rol_portal === 'superadmin'
+}
+
+/**
+ * «Eliminar inversión» (05/10/2026): Admin/Superadmin del Portal o Gerencia del CRM.
+ * Espejo del gate de `crm.eliminar_inversion_fn`; el servidor vuelve a decidir siempre.
+ */
+export function puedeEliminarInversiones(identidad: IdentidadAdministrativa | null | undefined): boolean {
+  return puedeEliminarContratos(identidad) || identidad?.rol === 'gerencia'
+}
+
+/**
+ * Por inversión: la de Avance la borra el contrato auditado, que solo admite
+ * Admin/Superadmin del Portal; las de cooperativa, quien elimina inversiones.
+ * La conversión de un lead (solo Gerencia) no se adivina aquí: la decide el servidor.
+ */
+export function puedeEliminarInversion(
+  identidad: IdentidadAdministrativa | null | undefined,
+  inversion: Pick<InversionFuente, 'empresa'>,
+): boolean {
+  return inversion.empresa === 'avance' ? puedeEliminarContratos(identidad) : puedeEliminarInversiones(identidad)
 }
 
 /** La correccion auditada del documento pertenece a Admin/Superadmin del Portal. */

@@ -17333,6 +17333,52 @@ async function testBasesCargadasB10(sessions, seed) {
   }
 }
 
+// ── Eliminar inversión (20261005200945): admin/superadmin del portal o gerencia; copia inmutable; núcleo cerrado ──
+// El comportamiento con escrituras (cooperativa, conversión que no resucita, Avance, válvula, historia propia) se prueba
+// en el banco con supabase/scripts/eliminar-inversion/test-eliminar-inversion.sql + mutantes.sh; aquí, catálogo y roles.
+async function testEliminarInversion(sessions, seed) {
+  console.log('\n— Eliminar inversión: puerta, núcleo y copia inmutable —');
+  const saltar = (msg) => {
+    if (process.env.CRM_RLS_EXIGE_ELIMINAR_INVERSION === '1') fail(msg);
+    else console.log(`  ${msg}`);
+  };
+  let aplicada;
+  try {
+    aplicada = contarFueraDeBanda('eliminar inversión: aplicada',
+      "select (to_regprocedure('crm.eliminar_inversion_fn(uuid,text)') is not null and to_regclass('crm.inversiones_eliminadas') is not null)::int");
+  } catch (error) {
+    saltar(`⚠ Eliminar inversión SALTADO: sin vía fuera de banda (${error?.message ?? String(error)})`);
+    return;
+  }
+  if (aplicada !== 1) {
+    saltar('⚠ 20261005200945 (eliminar inversión) NO desplegada en esta base: bloque SALTADO (no probado)');
+    return;
+  }
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`eliminar inversión: ${etiqueta}`, sql);
+  check(cuenta('puerta', "select count(*) from pg_proc p where p.oid = 'crm.eliminar_inversion_fn(uuid,text)'::regprocedure and p.prosecdef and p.proowner = 'postgres'::regrole and 'search_path=\"\"' = any(p.proconfig) and has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('anon', p.oid, 'EXECUTE') and not has_function_privilege('service_role', p.oid, 'EXECUTE') and not exists (select 1 from aclexplode(p.proacl) a where a.grantee = 0)") === 1,
+    'eliminar inversión: la puerta es DEFINER de postgres, search_path vacío, EXECUTE solo authenticated');
+  check(cuenta('nucleo', "select count(*) from pg_proc p cross join unnest(array['anon','authenticated','service_role']) r(rol) where p.oid in ('private.inversion_eliminacion_autoriza(text,uuid,jsonb)'::regprocedure, 'private.eliminar_inversion_cooperativa(jsonb,uuid,text,text,jsonb)'::regprocedure, 'private.registrar_inversion_eliminada_avance(jsonb,uuid,uuid,text,text,jsonb)'::regprocedure, 'private.eliminar_inversion_contexto(uuid)'::regprocedure, 'private.eliminar_inversion_roles(uuid)'::regprocedure, 'private.inversion_motivo_no_eliminable(text,uuid,uuid)'::regprocedure, 'private.conversion_coordinar_retiro_fuente(text,uuid)'::regprocedure, 'private.inversion_eliminacion_dependencias_conocidas()'::regprocedure, 'private.proteger_inversion_eliminada()'::regprocedure, 'private.motivo_normalizado(text)'::regprocedure) and has_function_privilege(r.rol, p.oid, 'EXECUTE')") === 0,
+    'eliminar inversión: el núcleo privado (válvula, borrado, contexto, roles, historia) sin EXECUTE para la API');
+  check(cuenta('copia', "select count(*) from pg_class c where c.oid = 'crm.inversiones_eliminadas'::regclass and c.relrowsecurity and not exists (select 1 from pg_policy p where p.polrelid = c.oid) and not has_table_privilege('authenticated', c.oid, 'SELECT') and not has_table_privilege('anon', c.oid, 'SELECT') and not has_table_privilege('service_role', c.oid, 'SELECT') and not has_table_privilege('authenticated', c.oid, 'INSERT')") === 1,
+    'eliminar inversión: la copia tiene RLS sin políticas y ningún rol de la API la lee ni la escribe');
+  check(cuenta('candados', "select count(*) from pg_trigger t where t.tgenabled = 'O' and ((t.tgrelid = 'crm.cierres_externos'::regclass and t.tgname = 'trg_cierres_externos_00_inmutables') or (t.tgrelid = 'crm.depositos_reclamados'::regclass and t.tgname = 'trg_depositos_reclamados_00_append_only') or (t.tgrelid = 'crm.inversion_eventos'::regclass and t.tgname = 'trg_inversion_eventos_inmutables') or (t.tgrelid = 'crm.inversiones_eliminadas'::regclass and t.tgname in ('trg_inversiones_eliminadas_inmutables', 'trg_inversiones_eliminadas_no_truncate', 'trg_audit_inversiones_eliminadas')))") === 6,
+    'eliminar inversión: los tres candados de DELETE siguen activos y la copia tiene su auditoría y su inmutabilidad');
+  const DENEGADO = /permission denied/i;
+  const ROL = /Solo admin o gerencia pueden eliminar inversiones/;
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-eliminar-inversion'));
+  const args = { p_fuente_id: randomUUID(), p_motivo: 'Prueba del gate de RLS' };
+  await expectExpectedFailure('eliminar inversión: anon → 42501 (sin EXECUTE)', anon.schema('crm').rpc('eliminar_inversion_fn', args), ['42501'], DENEGADO);
+  await expectExpectedFailure('eliminar inversión: service_role → 42501 (sin EXECUTE)', admin.schema('crm').rpc('eliminar_inversion_fn', args), ['42501'], DENEGADO);
+  for (const clave of ['vend1', 'sup1', 'coordinador', 'directorio']) {
+    await expectExpectedFailure(`eliminar inversión: ${clave} → 42501`, sessions[clave].client.schema('crm').rpc('eliminar_inversion_fn', args), ['42501'], ROL);
+  }
+  const ger = sessions.gerencia.client.schema('crm');
+  await expectExpectedFailure('eliminar inversión: gerencia con motivo corto → 22023', ger.rpc('eliminar_inversion_fn', { p_fuente_id: randomUUID(), p_motivo: 'abc' }), ['22023'], /motivo/);
+  await expectExpectedFailure('eliminar inversión: gerencia sobre una fuente inexistente → P0002', ger.rpc('eliminar_inversion_fn', args), ['P0002'], /no existe o ya fue eliminada/);
+  const lectura = await sessions.gerencia.client.schema('crm').from('inversiones_eliminadas').select('id').limit(1);
+  check(Boolean(lectura.error), 'eliminar inversión: gerencia no lee la copia directamente (solo funciones del servidor)');
+}
+
 // ── Venta cruzada (20260924005126 … 20260924045245): puertas del cliente existente ──
 // Solo catálogo y rechazos: ninguna llamada de esta matriz llega a escribir. Una puerta que
 // rechaza aborta su transacción entera, así que ni la bitácora (inmutable) guarda rastro; los
@@ -17861,6 +17907,7 @@ async function main() {
       await testBasesCargadasB8(sessions, verifiedSeed);
       await testBasesCargadasB9(sessions, verifiedSeed);
       await testBasesCargadasB10(sessions, verifiedSeed);
+      await testEliminarInversion(sessions, verifiedSeed);
     }
   } catch (error) {
     primaryError = error;

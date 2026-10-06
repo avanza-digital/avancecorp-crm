@@ -16666,3 +16666,55 @@ borra las puertas y ayudantes de B10, los núcleos con capital, la definición �
 consumidores de B10, si derivó alguna de sus 22 huellas, si cambiaron las puertas publicadas o si el clasificador de B9 ya existe.
 **Registrador:** `supabase/scripts/base-gestion/registrar/20261004223253.sql`. **Comprobación tras aplicar:**
 `supabase/scripts/base-gestion/b10-comprobar-tras-aplicar.sql` (ROLLBACK siempre, veredicto en una fila).
+
+## 20261005200945 — Eliminar inversión (admin y gerencia, Avance · Prodelco · Qorilazo) con copia inmutable
+
+**✅ APLICADA EN PRODUCCIÓN 05/10/2026 ~22:50 Lima** (Miguel con `!`: `supabase db query --linked --file` + registrador
+`supabase/scripts/eliminar-inversion/registrar.sql`; versión registrada con md5 de statements `ae8d8e21…` = archivo). Verificado
+después en solo lectura: huellas de producción crm 306 `7e9c71b7…` y private 627 `615d17a8…` = las del banco donde se probó;
+`comprobar-tras-aplicar.sql` APTA (el único pendiente del vigía es ajeno: `private.gestion_diaria_cola_hechos`). Advisors: sobre
+lo nuevo solo INFO `rls_enabled_no_policy` (copia cerrada a propósito), WARN de DEFINER ejecutable por authenticated en la puerta
+(por diseño, como las demás puertas) y, en rendimiento, INFO de la FK `contrato_auditoria_id` sin índice y del índice nuevo sin
+uso (tabla vacía). La pantalla sale con la PR #200 (`/release-crm`). Pedido de
+Miguel del 05/10/2026: «mi usuario admin y gerencia deben poder eliminar cualquier inversión en las tres empresas». Decisiones del
+mismo día: D1 eliminar con copia (sale del capital, la cartera y la conversión; queda copia inmutable con motivo y autor), D2 si es
+la conversión de un lead sin anular, solo gerencia, y se anula por la puerta de siempre antes de eliminar, D3 con historia propia
+(renovación, upgrade, reinversión, retiro, ajuste de mes cerrado, cotitulares históricos, cambios de analista, solicitudes
+posteriores) no se elimina; corrección y anulación son administrativas del mismo registro (se permiten y quedan en la copia).
+
+**Qué hace:** puerta `crm.eliminar_inversion_fn(p_fuente_id, p_motivo)` (DEFINER, EXECUTE solo authenticated; actor y rol desde
+`auth.uid()`, con el perfil y su membresía de gerencia bloqueados). Avance delega en `crm.contrato_eliminar_auditado` SIN tocarla
+(está declarada en el vigía analítico): exige admin/superadmin del portal y enciende `crm.op_privilegiada` solo si algún lead apunta
+al contrato (sin eso `private.leads_before_update` revierte el `ON DELETE SET NULL` y la FK rechaza el borrado: así falla hoy
+«Eliminar contrato» con los contratos que son conversión). El contexto bloquea la fuente ANTES de clasificarla (mismo candado
+consultivo y orden que la eliminación de contratos) y la conversión la deciden el cierre inicial, el lead enlazado o la
+ACREDITACIÓN de la fuente (62 acreditaciones de producción apuntan a contratos que su lead no enlaza); si discrepan → P0409.
+Cooperativas: núcleo `private.eliminar_inversion_cooperativa`. Tabla `crm.inversiones_eliminadas` (RLS sin políticas, sin grants,
+auditoría que enmascara la copia, inmutable). Válvula ÚNICA `private.inversion_eliminacion_autoriza` en los candados de DELETE de
+cierres externos, depósitos reclamados y eventos (llave de su copia, misma transacción, mismo actor, fila idéntica).
+`private.cierre_anulado` recuerda la conversión anulada y eliminada (sin eso la rama anterior a septiembre la volvería a contar) y
+`private.leads_before_update` acepta esa copia como ancla P4 del lead convertido sin perfil (sin eso el lead quedaría imposible de
+editar). La solicitud de alta se reconoce por la clave real de su fuente (`fuente.id` en Avance, `fuente.cierre_id` en
+cooperativas: 16/16 en producción) y la misma persona y empresa. `private.conversion_coordinar_retiro_fuente`: una sola definición
+de la coordinación con el sellado. El depósito reclamado se libera con la eliminación (queda en la copia). Ninguna función nueva
+entra al censo analítico.
+
+**Revisiones:** Codex r1 (CHANGES_REQUESTED: carrera de Avance y eventos de cooperativa), auditor-rls (CHANGES_REQUESTED, sin P0:
+clave de la solicitud de cooperativa, ancla P4, acreditación) y Codex r2 (CHANGES_REQUESTED: 1 P2, motivo de solo blancos; riesgos:
+acreditación concurrente, dos convertidos por contrato, mes cerrado sin ensayar) → corregidos en r2, r3 y r4 (motivo con todos los
+blancos en puerta y CHECK; candado del MES de la fuente con las llaves de crm.cerrar_periodo y del único escritor de
+acreditaciones; dos convertidos → P0409; mes cerrado ensayado).
+
+**Verificación en banco limpio (05/10, r4):** paridad del banco con producción (crm 305 `5f73eff8…`, private 617 `980d5263…`);
+aplicar en un mensaje con candado de migraciones → crm 306 `7e9c71b7…`, private 627 `615d17a8…`;
+`supabase/scripts/eliminar-inversion/test-eliminar-inversion.sql` 24/24 bloques (roles y actores inactivos, motivo y blancos, cooperativa sin
+conversión, historia propia, válvula y cada una de sus cláusulas con control positivo, conversión de agosto que NO resucita,
+conversión de septiembre por acreditaciones, conversión ya anulada, Avance, Avance conversión, Avance por acreditación y en
+discrepancia, cierre sin inversión, corrección previa, depósito liberado, lead editable tras eliminar su conversión (P4), censo de
+dependencias, inmutabilidad, dos convertidos por contrato, MES CERRADO con su ajuste exactamente una vez); `mutantes.sh` 16/16
+muertos; `carrera-avance.sh` (dos conexiones: enlace de un lead y acreditación concurrente) PASS y cada mutante reproduce su
+carrera; `comprobar-tras-aplicar.sql` APTA; reversa → huellas idénticas a producción; reaplicar → mismas huellas y 24/24;
+`registrar.sql` idempotente (md5 `ae8d8e21…` = archivo). Gate `test-rls.mjs`:
+`testEliminarInversion` (catálogo + roles); `test:rls:preflight` NOT RUN aquí (pide credenciales).
+**Reversa:** `supabase/scripts/eliminar-inversion/reversa.sql` (se niega si ya hay copias). **Registrador:**
+`supabase/scripts/eliminar-inversion/registrar.sql` (generado). **Comprobación tras aplicar:** `comprobar-tras-aplicar.sql`.

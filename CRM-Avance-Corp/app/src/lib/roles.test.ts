@@ -8,6 +8,8 @@ import {
   puedeAdministrarUsuariosCrm,
   puedeCorregirDocumentoCliente,
   puedeEliminarContratos,
+  puedeEliminarInversion,
+  puedeEliminarInversiones,
   puedeEscribir,
   puedeOrganizarJerarquiaCrm,
   puedeVerDirectorioUsuariosCrm,
@@ -177,6 +179,25 @@ describe('capacidades administrativas Portal ↔ CRM', () => {
     expect(puedeEliminarContratos({ rol: 'directorio', rol_portal: 'admin' })).toBe(true)
     expect(puedeEliminarContratos({ rol: 'vendedor', rol_portal: 'superadmin' })).toBe(true)
     expect(puedeEliminarContratos(null)).toBe(false)
+  })
+
+  // «Eliminar inversión» (05/10/2026): espejo del gate de crm.eliminar_inversion_fn.
+  // Avance la borra el contrato auditado (solo Admin/Superadmin del Portal); las
+  // cooperativas, también Gerencia del CRM.
+  it.each([
+    ['admin del portal', { rol: 'directorio' as const, rol_portal: 'admin' }, true, true, true],
+    ['superadmin del portal', { rol: 'vendedor' as const, rol_portal: 'superadmin' }, true, true, true],
+    ['gerencia sin admin del portal', { rol: 'gerencia' as const, rol_portal: 'directorio' }, true, false, true],
+    ['gerencia y admin del portal', { rol: 'gerencia' as const, rol_portal: 'admin' }, true, true, true],
+    ['analista', { rol: 'vendedor' as const, rol_portal: 'analista' }, false, false, false],
+    ['supervisor', { rol: 'supervisor' as const, rol_portal: 'comercial' }, false, false, false],
+    ['directorio', { rol: 'directorio' as const, rol_portal: 'directorio' }, false, false, false],
+    ['sin identidad', null, false, false, false],
+  ])('eliminar inversiones · %s: general %s, Avance %s, cooperativa %s', (_, identidad, general, avance, cooperativa) => {
+    expect(puedeEliminarInversiones(identidad)).toBe(general)
+    expect(puedeEliminarInversion(identidad, { empresa: 'avance' })).toBe(avance)
+    expect(puedeEliminarInversion(identidad, { empresa: 'qorilazo' })).toBe(cooperativa)
+    expect(puedeEliminarInversion(identidad, { empresa: 'prodelco' })).toBe(cooperativa)
   })
 
   it('Gerencia administra personas y jerarquía, pero no roles', () => {
