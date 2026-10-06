@@ -12,6 +12,7 @@ test('Resumen móvil: total por equipo coincide con Citas y conserva día/equipo
   await loginReal(page, { esperarWorkspace: false })
   const resumen = page.getByTestId('resumen-gerencia-movil')
   await expect(resumen).toBeVisible()
+  await expect(resumen.getByRole('heading', { name: 'Bienvenido, Gerente' })).toBeVisible()
   await expect(resumen.getByRole('button', { name: /Capital confirmado/ })).toContainText('S/ 65,295')
   let fallaCapital = true
   await page.route('**/rest/v1/rpc/cumplimiento_metas_fn', route => fallaCapital
@@ -71,7 +72,7 @@ test('Resumen compacto solo en móvil: acceso al completo, escritorio', async ({
   await expect(page.getByRole('button', { name: 'Volver al resumen compacto' })).toBeFocused()
   await page.getByRole('button', { name: 'Volver al resumen compacto' }).click()
   await expect(resumen).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Lo importante, primero.' })).toBeFocused()
+  await expect(page.getByRole('heading', { name: 'Bienvenido, Gerencia' })).toBeFocused()
   await page.setViewportSize({ width: 430, height: 932 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.setViewportSize({ width: 1440, height: 1000 })

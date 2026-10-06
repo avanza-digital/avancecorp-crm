@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { useSolicitudesTasa } from '@/data/crm-queries'
 import { rotuloTipoCambio, type CapitalUnificado } from '@/lib/capital-unificado'
 import { escribirHash, hashDe, leerHash } from '@/lib/router'
-import { money } from '@/lib/format'
+import { money, primerNombre } from '@/lib/format'
 import { useDatosCitasGerencia } from './use-datos-citas-gerencia'
 import { resumirCitasDia } from './resumen-gerencia-movil-modelo'
 import { SolicitudesTasaGerenciaPanel } from './solicitudes-tasa-gerencia'
@@ -34,6 +34,7 @@ function EstadoConsulta({ cargando, error, onReintentar }: { cargando: boolean; 
 
 export function ResumenGerenciaMovil({ dia, mes, capital, meta, fuenteTc, cargando, error, onReintentar, onActualizar, onMetas, onCompleto, aviso }: Props) {
   const { yo, datos, citas, consulta, equipo } = useDatosCitasGerencia(dia.slice(0, 7))
+  const nombre = primerNombre(yo?.nombre_completo)
   const real = Boolean(yo && !yo.demo)
   const solicitudes = useSolicitudesTasa(['pendiente'], real, 45_000)
   const [bandeja, setBandeja] = useState(() => Boolean(leerHash().solicitudTasaId))
@@ -91,7 +92,7 @@ export function ResumenGerenciaMovil({ dia, mes, capital, meta, fuenteTc, cargan
     {!enLinea && <p role="status" className="grm-preview-note">Sin conexión · los datos pueden estar desactualizados.</p>}
     <header className="grm-intro">
       <p>{new Intl.DateTimeFormat('es-PE', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/Lima' }).format(new Date(`${dia}T12:00:00Z`)).toLocaleUpperCase('es-PE')}</p>
-      <h2 id="grm-titulo" tabIndex={-1}>Lo importante, primero.</h2><span>Tu equipo, de un vistazo.</span>
+      <h2 id="grm-titulo" tabIndex={-1}>Bienvenido{nombre ? `, ${nombre}` : ''}</h2><span>Tu equipo, de un vistazo.</span>
     </header>
     {aviso}
     <section aria-label="Indicadores principales" className="grm-indicadores">
