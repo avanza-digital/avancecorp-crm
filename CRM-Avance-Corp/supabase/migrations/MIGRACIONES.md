@@ -16756,7 +16756,10 @@ escritores concurrentes → el candado de arriba + ensayo de dos sesiones; [P2] 
 suma las partes sin la base y rechaza el desglose cuando aparezca el primer cierre de base → no se arregla en el servidor:
 pantalla primero, el CRM avisa «hay versión nueva» cada 60 s (`app/src/lib/version-publicada.ts`) y la migración se aplica
 después de dar tiempo a recargar; riesgo residual declarado a Miguel (un error en esa tarjeta hasta recargar, ningún dato).
-Riesgo que Codex señala y queda declarado: sellar un mes con cierres de base por `crm.cerrar_periodo` no se ensayó (el ciclo
+**Codex r2 (última ronda): APPROVE_WITH_NITS**, sin P0/P1: da por cerrado el P1 (el candado precede a la instantánea y los
+ensayos B–E lo respaldan) y deja el P2 como residual reconocido. Avisa de que durante la aplicación (menos de un segundo) las
+escrituras en esas dos tablas esperan, y de que el candado consultivo de SESIÓN se libera al cerrar la conexión (la vía de
+siempre, `db query --linked`, la cierra). Riesgo que Codex señala y queda declarado: sellar un mes con cierres de base por `crm.cerrar_periodo` no se ensayó (el ciclo
 de cierre está en pausa y no hay meses sellados); la foto no guarda la base y el Divisor de coordinación de ese mes mostrará
 «—» en Base.
 
