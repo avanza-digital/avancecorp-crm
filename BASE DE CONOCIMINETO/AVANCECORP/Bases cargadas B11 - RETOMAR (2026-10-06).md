@@ -34,12 +34,27 @@ de Miguel: (1) los armados desde el CRM conservan su origen y su regla; (2) «Re
 | `npm run check` | ✅ 6134 tests |
 | e2e Docker `repartir.spec.ts` | ✅ 26 pasan + 5 flaky ajenos (pasan al reintentar) |
 | revisor-a11y | ✅ PASS (3 P3, abajo) |
-| auditor-rls | ⏳ lanzado al pausar; si no hay informe, **re-lanzarlo** |
+| auditor-rls | ⚠️ CHANGES_REQUESTED (sin P0/P1): migración OK en ACL, DEFINER, gates, ayudante y censo; arreglos abajo |
 | Codex r1 | ⏳ encargo listo, **NO enviado**: `docs/encargos/2026-10-06-b11-conversion-base-encargo-r1.md` |
 
 ## Pendientes, en orden
 
-1. **auditor-rls** sobre la migración y la reversa (re-lanzar si no quedó su informe).
+1. **Arreglos del auditor-rls (06/10):**
+   - P2-1: fila de B11 en `MIGRACIONES.md` (ya era el paso 4).
+   - P2-2: la reversa borra el ayudante sin mirar si otra función lo llama (pg_depend no lo ve) → en su preflight,
+     P0409 si algún `prosrc` fuera de los 10 conocidos menciona `conversion_origen_con_cierre`; en su postflight, cero
+     menciones.
+   - P2-3: la reversa resella el censo sin comprobar que el sello estaba al día → copiar las líneas 95-103 del preflight
+     de la migración (4 declaraciones vigentes + sello al día).
+   - P3-1: la reversa no comprueba el candado de migraciones ni `prosecdef` en su postflight → copiar de la migración.
+   - P3-2: `test-rls.mjs:9973` suma las partes sin `cierres.base_cargada` (añadir `?? 0`); barrido de EXECUTE denegado
+     para anon/authenticated/service_role en el ayudante y las dos privadas del divisor (patrón de 16916/17005); caso
+     positivo de `empresa.cierres.base_cargada` numérico en mes abierto.
+   - P3-3: guarda en el preflight contra llamadores nuevos de las dos privadas que se recrean.
+   - Medir en el banco el tiempo de `metricas_conversiones_implementacion` con 366 días antes/después (el ayudante no se
+     inlinea).
+   Tras los arreglos: regenerar (`b11/generar.py`, `b11/generar_reversa.py`), repetir suite, mutantes, paridad y reversa, y
+   regenerar el encargo de Codex con `b11/encargo.py`.
 2. **Codex r1**: `scripts/codex-review-mcp < CRM-Avance-Corp/docs/encargos/2026-10-06-b11-conversion-base-encargo-r1.md`
    (desde la raíz del worktree). Si cambia la migración: regenerar con `b11/generar.py` (2 pasadas: medir huellas en el
    banco), `b11/generar_reversa.py` y `b11/encargo.py`, y repetir suite + mutantes + paridad.
