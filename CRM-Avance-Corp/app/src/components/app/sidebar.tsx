@@ -18,6 +18,7 @@ import {
   type VistaConfiguracion,
 } from '@/lib/router'
 import { vistaPermitida } from '@/lib/vistas'
+import { NavegacionGerenciaMovil } from './navegacion-gerencia-movil'
 
 type SeccionNav = 'principal' | 'administracion'
 /** Gerencia conserva los accesos principales y despliega los secundarios. */
@@ -275,7 +276,7 @@ function GrupoDesplegable({
 // El menú se puede FIJAR colapsado (botón) a un riel de íconos; estando
 // colapsado, al pasar el mouse ASOMA el menú completo (overlay animado) y se
 // repliega solo al salir. El <main> ocupa el ancho del riel en TODO el CRM.
-export function Sidebar({ vista, onNavegar }: { vista: Vista; onNavegar: (destino: Vista) => void }) {
+export function Sidebar({ vista, onNavegar, movil = false }: { vista: Vista; onNavegar: (destino: Vista) => void; movil?: boolean }) {
   const { yo, salir } = useAuth()
   const rol = yo?.rol
   const [colapsado, setColapsado] = useState(() => esPantallaMovil() || leerColapsado())
@@ -365,6 +366,19 @@ export function Sidebar({ vista, onNavegar }: { vista: Vista; onNavegar: (destin
     items: g.items.map((n) => ({ ...n, indice: cascada++ })),
   }))
   const indiceUsuario = cascada
+
+  if (movil && rol === 'gerencia') {
+    return <NavegacionGerenciaMovil
+      key={yo?.id}
+      vista={vista}
+      grupos={grupos}
+      nombre={yo?.nombre_completo ?? 'Gerencia'}
+      demo={yo?.demo === true}
+      onNavegar={onNavegar}
+      onSalir={() => void salir()}
+      esActiva={(id) => esEntradaActiva(id, vista)}
+    />
+  }
 
   return (
     <aside

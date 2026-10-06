@@ -15,7 +15,10 @@ for (const rol of ['vendedor', 'gerencia'] as const) {
       await irAMiCartera(page)
       await verTodaLaCartera(page)
       await page.setViewportSize({width: ancho, height: ancho === 390 ? 844 : 1000})
-      if (ancho === 390) await page.getByRole('button', {name: 'Ocultar menú'}).click()
+      if (ancho === 390) {
+        if (rol === 'gerencia') await expect(page.getByRole('navigation', {name: 'Navegación principal de Gerencia'})).toBeVisible()
+        else await page.getByRole('button', {name: 'Ocultar menú'}).click()
+      }
       await page.getByRole('button', {name: 'Ver detalle', exact: true}).click()
       const anterior = page.getByRole('dialog', {name: persona.nombre_completo})
       await expect(anterior.getByRole('button', {name: 'Ver contrato 2026-01-000123'})).toBeVisible()

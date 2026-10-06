@@ -49,9 +49,7 @@ test('avance mensual: fuentes, filtros, recorrido, monedas y detalle', async ({ 
     await page.setViewportSize({ width, height: 1000 })
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
     if (width < 768) {
-      await page.getByRole('button', { name: 'Ocultar menú', exact: true }).click()
-      await page.mouse.move(width - 5, 200)
-      await expect(page.getByRole('button', { name: 'Fijar menú abierto', exact: true })).toBeVisible()
+      await expect(page.getByRole('navigation', { name: 'Navegación principal de Gerencia' })).toBeVisible()
       await page.getByLabel('Capital del mes por moneda').scrollIntoViewIfNeeded()
     }
     await page.screenshot({ path: info.outputPath(`citas-avance-crm-${width}.png`), fullPage: true })
