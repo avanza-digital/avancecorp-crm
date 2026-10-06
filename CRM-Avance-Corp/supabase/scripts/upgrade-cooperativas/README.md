@@ -81,10 +81,12 @@ historial de ficha real; origen vencido/anulado; cancelación; ACL; reversa/repl
 PASS con dos sesiones: tipos distintos con la misma clave; doble confirmación;
 anulación contra confirmación; negativa de reversa con upgrades registrados.
 
-Frontend: `npm run check` PASS (386 archivos, 6.217 pruebas); después se agregó
-la prueba de render del historial y el subconjunto final pasó 91/91, con lint
-final PASS. Docker local: `f5-cartera` + `f6-postventa`, 19/19. Tipos generados
-desde la base local; se incorporaron solo los dos objetos cambiados.
+Se integró `avancecorp/main` (`a0c334ba`) conservando los cambios de llamadas
+y cierre de gestiones. Frontend final: `npm run check` PASS (392 archivos,
+6.275 pruebas; lint/typecheck/build/bundle). Docker local: `f5-cartera` +
+`f6-postventa` + `ficha-cliente-cierre`, 26/26. El SQL final y su reversa
+volvieron a pasar el replay. Tipos generados desde la base local; se
+incorporaron solo los dos objetos cambiados.
 Preflights scripts/seed/RLS/Edge PASS; seed/RLS usan las variables ficticias
 offline del workflow. No sustituyen la matriz SQL real descrita arriba.
 

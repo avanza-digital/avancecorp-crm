@@ -177,5 +177,11 @@ revoke all on function private.continuidad_coopac_fuente(uuid,uuid,text,text),
   private.preparar_continuidad_coopac(uuid,uuid,jsonb,text) from public,anon,authenticated,service_role;
 revoke all on function crm.preparar_upgrade_fn(uuid,uuid,jsonb) from public,anon,service_role;
 grant execute on function crm.preparar_upgrade_fn(uuid,uuid,jsonb) to authenticated;
+comment on function private.continuidad_coopac_fuente(uuid,uuid,text,text) is
+  'Valida titular, empresa y candado de la fuente; upgrade exige inversión real vigente. Solo para núcleos y puertas autorizados.';
+comment on function private.preparar_continuidad_coopac(uuid,uuid,jsonb,text) is
+  'Núcleo INVOKER privado de continuidad cooperativa. Lo ejecutan las puertas DEFINER autenticadas de upgrade y reinversión; conserva origen y tipo en reintentos.';
+comment on function crm.preparar_upgrade_fn(uuid,uuid,jsonb) is
+  'Puerta autenticada para preparar un aporte adicional vinculado a una inversión cooperativa vigente; delega permisos e idempotencia al núcleo privado.';
 notify pgrst,'reload schema';
 commit;
