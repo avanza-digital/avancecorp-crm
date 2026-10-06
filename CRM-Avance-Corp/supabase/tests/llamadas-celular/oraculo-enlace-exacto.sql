@@ -111,10 +111,10 @@ begin
     raise exception 'ORACULO C1: con el reloj adelantado el enlace exacto se rechazó (%)', v_r;
   end if;
   v_id := id_de || (floor(extract(epoch from now() + interval '20 minutes'))::bigint + 1);
-  perform pg_temp.enviar(k1, pg_temp.ev(v_id, '900000006',
+  perform pg_temp.enviar(k1, pg_temp.ev(v_id, '900000001',
     jsonb_build_object('ocurrio_en', to_char(now() + interval '20 minutes', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'))));
   insert into crm.actividades (lead_id, tipo, metadata, creado_por)
-  values (c6, 'llamada_realizada', '{"evento": "resultado_llamada", "resultado": "volver_a_llamar"}', a1) returning id into v_act;
+  values (c1, 'llamada_realizada', '{"evento": "resultado_llamada", "resultado": "volver_a_llamar"}', a1) returning id into v_act;
   v_ev := pg_temp.evento(v_id);
   begin
     perform set_config('request.jwt.claim.sub', a1::text, true); execute 'set local role authenticated';

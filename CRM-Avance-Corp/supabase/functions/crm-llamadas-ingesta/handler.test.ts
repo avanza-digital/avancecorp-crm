@@ -242,3 +242,36 @@ Deno.test('nunca escribe en el registro: ni la clave, ni el número, ni el cuerp
   }
   assert.equal(escritos.length, 0);
 });
+
+Deno.test('JSON imposible para jsonb conserva autenticación y cupo: llega null a la puerta correcta', async () => {
+  for (const accion of ['llamada', 'latido']) {
+    for (const valor of ['\u0000', '\ud800', '\udfff', { '\u0000': 'valor' }, [1, '\ud800']]) {
+      const b = banco({
+        ingerir: async (clave, carga) => {
+          assert.equal(accion, 'llamada'); assert.equal(clave, CLAVE); assert.equal(carga, null);
+          return invalido('Petición inválida');
+        },
+        registrarSalud: async (clave, carga) => {
+          assert.equal(accion, 'latido'); assert.equal(clave, CLAVE); assert.equal(carga, null);
+          return invalido('Petición inválida');
+        },
+      });
+      const r = await b.llamar({ accion, [accion === 'latido' ? 'latido' : 'evento']: { v: 1, valor } });
+      assert.equal(r.status, 400);
+    }
+  }
+  // No rechazar Unicode válido ni texto que describe un escape literal.
+  for (const valor of ['😀', '\\u0000', 'José']) {
+    const b = banco();
+    assert.equal((await b.llamar({ accion: 'llamada', evento: { ...EVENTO, valor } })).status, 202);
+    assert.equal((b.llamadas[0][2] as Record<string, unknown>).valor, valor);
+  }
+  const sinPermiso = banco({ ingerir: async (_clave, carga) => {
+    assert.equal(carga, null); throw { code: '42501' };
+  } });
+  assert.equal((await sinPermiso.llamar({ accion: 'llamada', evento: { valor: '\u0000' } })).status, 401);
+  const agotado = banco({ ingerir: async (_clave, carga) => {
+    assert.equal(carga, null); throw { code: 'P0429', details: '9' };
+  } });
+  assert.equal((await agotado.llamar({ accion: 'llamada', evento: { valor: '\ud800' } })).status, 429);
+});

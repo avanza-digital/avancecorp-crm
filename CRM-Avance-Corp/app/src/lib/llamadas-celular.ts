@@ -82,6 +82,7 @@ export type DetalleLlamada = v.InferOutput<typeof DetalleLlamadaSchema>
 
 export const ResueltaHoySchema = v.object({
   evento_id: v.string(),
+  evento_origen_id: v.optional(v.string()),
   /** Cuándo se resolvió (el enlace al resultado o el descarte): «hoy» es lo resuelto hoy en Lima, aunque la llamada sea de ayer. */
   resuelto_en: v.string(),
   recibido_en: v.string(),
@@ -111,17 +112,16 @@ export type ResueltasHoy = v.InferOutput<typeof ResueltasHoySchema>
 export const MarcaCelularSchema = v.array(v.object({
   actividad_id: v.string(),
   evento_id: v.string(),
+  evento_origen_id: v.optional(v.string()),
   etiqueta: v.nullable(v.string()),
   via: v.picklist(VIAS),
 }))
 export type MarcaCelular = v.InferOutput<typeof MarcaCelularSchema>[number]
 
-const MOTIVOS_NO_ENLAZADO = ['id_invalido', 'celular_ajeno', 'otro_lead', 'descartada', 'ya_tiene_resultado',
-  'resultado_ya_enlazado', 'sin_llamada', 'resultado_deshecho', 'resultado_en_uso'] as const
 /** `enlace` de la v5: null sin id; si no se pudo unir, el resultado se guardó IGUAL (decisión de Jhosep, 05/10). */
 export const EnlaceV5Schema = v.nullable(v.union([
   v.object({ estado: v.picklist(['enlazado', 'movido', 'repetido', 'pendiente']) }),
-  v.object({ estado: v.literal('no_enlazado'), motivo: v.picklist(MOTIVOS_NO_ENLAZADO) }),
+  v.object({ estado: v.literal('no_enlazado'), motivo: v.string() }),
 ]))
 export type EnlaceV5 = v.InferOutput<typeof EnlaceV5Schema>
 
@@ -218,7 +218,7 @@ export function comoSeResolvio(r: ResueltaHoy): string {
   }
 }
 
-const TEXTO_NO_ENLAZADO: Record<(typeof MOTIVOS_NO_ENLAZADO)[number], string> = {
+const TEXTO_NO_ENLAZADO: Record<string, string> = {
   id_invalido: 'el enlace del celular no traía un id válido',
   celular_ajeno: 'la llamada es de otro celular',
   otro_lead: 'la llamada es de otro lead',
@@ -243,7 +243,7 @@ export function textoEnlace(enlace: EnlaceV5, cuando: string): string | null {
     case 'pendiente':
       return `Quedará unido a tu llamada del celular ${cuando} en cuanto llegue su aviso.`
     case 'no_enlazado':
-      return `Resultado guardado, pero no se unió a la llamada del celular: ${TEXTO_NO_ENLAZADO[enlace.motivo]}.`
+      return `Resultado guardado, pero no se unió a la llamada del celular: ${TEXTO_NO_ENLAZADO[enlace.motivo] ?? 'no se pudo confirmar el enlace; revisa las llamadas pendientes'}.`
         + (SIGUE_EN_LA_PESTANA.has(enlace.motivo) ? ' La llamada sigue en «Llamadas del celular».' : '')
   }
 }

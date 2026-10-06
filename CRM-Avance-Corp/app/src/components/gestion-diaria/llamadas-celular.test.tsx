@@ -121,3 +121,24 @@ describe('LlamadasCelular', () => {
     expect(within(fila3).getByText(/El aviso llegó a las 07:00: el celular estuvo sin señal/)).toBeInTheDocument()
   })
 })
+
+it('la carga y el error no anuncian que todo esté resuelto; permite reintentar y paginar', async () => {
+  const user = userEvent.setup()
+  const reintentar = vi.fn(), cargarMas = vi.fn()
+  const estado = { cargando: false, error: true, hayMas: true, cargandoMas: false, reintentar, cargarMas }
+  montar({ pendientes: [], estadoPendientes: estado })
+  expect(screen.queryByText('Nada pendiente')).not.toBeInTheDocument()
+  expect(screen.getByRole('alert')).toHaveTextContent('No se pudieron actualizar')
+  await user.click(screen.getByRole('button', { name: 'Reintentar' }))
+  await user.click(screen.getByRole('button', { name: 'Cargar más llamadas' }))
+  expect(reintentar).toHaveBeenCalledOnce()
+  expect(cargarMas).toHaveBeenCalledOnce()
+})
+
+it('tras confirmar el descarte el foco queda en el encabezado estable de la lista', async () => {
+  const user = userEvent.setup()
+  montar({ pendientes: [fila('e1')] })
+  await user.click(screen.getByRole('button', { name: 'Descartar' }))
+  await user.click(screen.getByRole('button', { name: 'Llamada personal' }))
+  await waitFor(() => expect(screen.getByRole('heading', { name: 'Llamadas del celular' })).toHaveFocus())
+})

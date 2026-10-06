@@ -503,3 +503,17 @@ describe('RegistrarResultado — la llamada del celular (F4-b)', () => {
     expect(screen.queryByText(/Llamada del celular/)).not.toBeInTheDocument()
   })
 })
+
+
+it('la encuesta envía el origen exacto y la vía conservada para registrar con v5', async () => {
+  vi.spyOn(Date, 'now').mockReturnValue(AHORA)
+  const i = armarIntencion({ actor: 'v1', leadId: LEAD.id, canal: 'tel', origen: 'enlace', origenLlamada: 'C1-1790980958', viaLlamada: 'pestana' }, AHORA)
+  reclamarIntencion(i.id, AHORA)
+  const user = userEvent.setup()
+  const { registrarLlamada } = montar({ confirmacion: { actividad_id: 'act', siguiente_id: null, descartado: false, enlace: { estado: 'enlazado' } } })
+  await user.click(screen.getByRole('radio', { name: /no contestó/i }))
+  await user.click(screen.getByRole('button', { name: 'Guardar' }))
+  await waitFor(() => expect(registrarLlamada).toHaveBeenCalled())
+  expect(peticion(registrarLlamada)).toMatchObject({ evento_origen_id: 'C1-1790980958', via_llamada: 'pestana' })
+  expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('Quedó unido'), expect.anything())
+})

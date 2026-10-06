@@ -1,3 +1,6 @@
+import * as vLlamadas from 'valibot'
+import { EnlaceV5Schema, type EnlaceV5, type ViaEnlace } from '@/lib/llamadas-celular'
+import { llamadasCelularKeys } from '@/data/llamadas-celular-api'
 import { TIPOS_DOCUMENTO_K, validarDocumento, type DocumentoIdentidad, type CorreccionDocumentoLead } from './documento'
 import { conservarLeadEmbebido } from '@/lib/agenda-vistas'
 import { ejecutarEnvioPostventa } from '@/data/postventa-envios'
@@ -250,6 +253,8 @@ export interface CompletarTareaInput {
 /** Entrada del resultado tipificado de una llamada (Gestión Diaria F2). El
  *  servidor (`crm.registrar_llamada_v4`) es quien decide; esto es su espejo. */
 export interface RegistrarLlamadaInput {
+  evento_origen_id?: string
+  via_llamada?: ViaEnlace
   resultado: ResultadoLlamada
   submotivo?: SubmotivoLlamada | null
   detalle?: string | null
@@ -264,6 +269,7 @@ export interface RegistrarLlamadaInput {
 
 /** Lo que el servidor confirmó (o el espejo demo): alimenta el «Deshacer». */
 export interface ConfirmacionLlamada {
+  enlace?: EnlaceV5
   actividad_id: string
   siguiente_id: string | null
   descartado: boolean
@@ -3237,9 +3243,10 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             p_descartar: descartar,
             p_no_insista: input.no_insista === true,
           }
-          respuesta = tarea
-            ? await ejecutarComandoSla(miId, 'registrar_llamada_v4', id, argumentos, tarea)
-            : await ejecutarComandoSla(miId, 'registrar_llamada_v4', id, argumentos)
+          respuesta = input.evento_origen_id
+            ? await ejecutarComandoSla(miId, 'registrar_llamada_v5', id, { ...argumentos, p_evento_origen_id: input.evento_origen_id, p_via: input.via_llamada ?? 'al_colgar' }, ...(tarea ? [tarea] as const : [] as const))
+            : await ejecutarComandoSla(miId, 'registrar_llamada_v4', id, argumentos, ...(tarea ? [tarea] as const : [] as const))
+          void queryClient.invalidateQueries({ queryKey: llamadasCelularKeys.raiz })
           void queryClient.invalidateQueries({ queryKey: gestionDiariaKeys.raiz() })
           void queryClient.invalidateQueries({ queryKey: crmQueryKeys.historialLead(id) })
         }, { invalidarConversionRango: descartar, invalidarAgenda: Boolean(siguientePayload) || tarea != null, invalidarReuniones: siguientePayload?.tipo === 'reunion' })
@@ -3248,6 +3255,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           if (!realActivo) return { actividad_id: act.id, siguiente_id: siguientePayload?.id ?? null, descartado: descartar }
           if (!respuesta || typeof respuesta.actividad_id !== 'string') return null
           return {
+            ...(input.evento_origen_id ? { enlace: vLlamadas.parse(EnlaceV5Schema, respuesta.enlace) } : {}),
             actividad_id: respuesta.actividad_id,
             siguiente_id: typeof respuesta.siguiente_id === 'string' ? respuesta.siguiente_id : null,
             descartado: respuesta.descartado === true,
@@ -3264,6 +3272,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           // el servidor decide (24 h, autor, ámbito vigente). El resync pinta.
           const persistido = persistir(async () => {
             const r = await deshacerResultadoLlamadaFn(actividadId)
+            void queryClient.invalidateQueries({ queryKey: llamadasCelularKeys.raiz })
             void queryClient.invalidateQueries({ queryKey: gestionDiariaKeys.raiz() })
             void queryClient.invalidateQueries({ queryKey: crmQueryKeys.historialLead(r.lead_id) })
           }, { invalidarConversionRango: true, invalidarAgenda: true, invalidarReuniones: true })

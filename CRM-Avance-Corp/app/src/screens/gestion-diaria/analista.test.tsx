@@ -8,8 +8,20 @@
 // PRODUCCIÓN (un día sin llamadas ni cola). Fail-closed: si el servidor cae,
 // se dice, no se pinta.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render as renderBase, screen, waitFor, within } from '@testing-library/react'
 import type { DiaAnalista } from '@/lib/gestion-diaria-analista'
+
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type { ReactElement } from 'react'
+function render(ui: ReactElement) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return renderBase(ui, { wrapper: ({ children }) => <QueryClientProvider client={client}>{children}</QueryClientProvider> })
+}
+vi.mock('@/data/llamadas-celular-api', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/data/llamadas-celular-api')>(),
+  listarLlamadasCelular: vi.fn(async () => ({ filas: [], siguiente: null })),
+  listarResueltasCelular: vi.fn(async () => ({ filas: [], siguiente: null })),
+}))
 
 const dobles = vi.hoisted(() => ({
   yo: { id: 'a1', rol: 'vendedor', demo: false, nombre_completo: 'ANALISTA UNO' },
@@ -1268,12 +1280,11 @@ describe('GestionDiariaAnalista · tareas de CLIENTES (cola v3)', () => {
   })
 })
 
-// F4-b: la pestaña «Llamadas del celular». Mientras las puertas no tengan sus tipos generados, solo la DEMO la muestra;
-// en la sesión real no aparece (nunca una pestaña sin datos detrás).
+// F4-b: la pestaña utiliza su fuente real tipada y conserva la demostración.
 describe('GestionDiariaAnalista · «Llamadas del celular» (F4-b)', () => {
-  it('en la sesión real no aparece: sus puertas todavía no tienen tipos', () => {
+  it('en la sesión real aparece con la fuente de las puertas tipadas', () => {
     render(<GestionDiariaAnalista />)
-    expect(screen.queryByRole('tab', { name: /^Celular/ })).toBeNull()
+    expect(screen.getByRole('tab', { name: /^Celular/ })).toBeInTheDocument()
   })
 
   it('en DEMO aparece con sus pendientes; «Registrar resultado» arma la intención con el id y la vía «pestana»', async () => {

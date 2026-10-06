@@ -1,0 +1,32 @@
+alarma 2026-08-01 | f915b654d42e8dcd8dbe9f201c7fb450 | 
+alarma 2026-09-01 | 09b4155a2b22f67184e7655a13649ca7 | 
+alarma 2026-10-01 | bef0051e8b7db962cfafa35da85dd994 | 
+cierres 2026-08-01 | d41d8cd98f00b204e9800998ecf8427e | 
+cierres 2026-09-01 | d41d8cd98f00b204e9800998ecf8427e | 
+cierres 2026-10-01 | 3d9398636054ee5def7ae3b648aa1911 | 
+conversion_mensual 2026-08-01 | 8cf14263fea6929c0e4be723f33f2bed | 
+conversion_mensual 2026-09-01 | b3ff450cfc487cd9a6040265e7305561 | 
+conversion_mensual 2026-10-01 | a0e63519f9255bffdcea47daf7c84d2e | 
+coordinacion 2026-08-01 | 59ce9118d8cd081a31b4713798af7829 | base_cargada: 0 (1 claves, 0 null)
+coordinacion 2026-09-01 | adea7daebd48d2e851aca61bdc56e927 | base_cargada: 0 (1 claves, 0 null)
+coordinacion 2026-10-01 | a80194e3979f6a6abad91e9c263eaeef | base_cargada: 0 (4 claves, 0 null)
+coordinacion rango | 801b67a68f8d9647b014e010d036d8e1 | base_cargada: 0 (4 claves, 0 null)
+distribucion_v3 2026-08-01 | 65bc6aa7214c42f465840bbea14e2db6 | 
+distribucion_v3 2026-09-01 | a8140221bb1d1a3e84638e234ae4a513 | 
+distribucion_v3 2026-10-01 | e3b47719283827bb512fe7a426498359 | 
+divisor_empresa 2026-08-01 | d41d8cd98f00b204e9800998ecf8427e | 
+divisor_empresa 2026-09-01 | d41d8cd98f00b204e9800998ecf8427e | 
+divisor_empresa 2026-10-01 | c6e6a77d67035097c2f2323dffa7c4ae | 
+equipo 2026-08-01 | b8ba1b14175d4762505b79a09320f5b2 | 
+equipo 2026-09-01 | 8f542db7c75369ef5392d22b8065847c | 
+equipo 2026-10-01 | 341804c5ea57f231f1c2cd9e01ab0ac4 | 
+equipo rango | 94305020c212d3a9cc7f44a47ef21a0f | 
+implementacion 2026-08-01 | e134e04e9a9ebbf04722a89055e70117 | 
+implementacion 2026-09-01 | a0787c18e5ba19ba3da4f9b3fd85557f | 
+implementacion 2026-10-01 | 413750dd2e9f82254aab21f09978b421 | 
+mensual_por_vendedor 2026-08-01 | d41d8cd98f00b204e9800998ecf8427e | 
+mensual_por_vendedor 2026-09-01 | d41d8cd98f00b204e9800998ecf8427e | 
+mensual_por_vendedor 2026-10-01 | d7bf50c2d29ac132640b8e20adbdfc2d | 
+mensual_sin_cartera 2026-08-01 | 25c661a9da9206f57d14ac98a851ed3b | 
+mensual_sin_cartera 2026-09-01 | 22db519868b3819267a0e96b6454a493 | 
+mensual_sin_cartera 2026-10-01 | 10334b089b5f85b95dd3753c6fd83598 | 

@@ -728,10 +728,11 @@ describe('pantalla Repartir leads', () => {
     const celdas = within(astrid).getAllByRole('cell').map((celda) => celda.textContent ?? '')
     expect(celdas[0]).toBe('ASTRID CENTENARO')
     expect(celdas.slice(2, 5)).toEqual(['65', '50', '115'])            // llegadas: formulario, landing, total
-    expect(celdas[7]).toContain('1 · 0.15')                              // referidos: cantidad · aporte
-    expect(celdas[9]).toBe('4')                                          // upgrade
-    expect(celdas[11]).toBe('11.15')                                     // cierres ponderados
-    expect(celdas[12]).toBe('9.70%')
+    expect(celdas[7]).toBe('0')                                          // base cargada (B11)
+    expect(celdas[8]).toContain('1 · 0.15')                              // referidos: cantidad · aporte
+    expect(celdas[10]).toBe('4')                                         // upgrade
+    expect(celdas[12]).toBe('11.15')                                     // cierres ponderados
+    expect(celdas[13]).toBe('9.70%')
     expect(screen.getByText(/Este conteo es distinto del reporte de entregas/)).toBeInTheDocument()
   })
 })

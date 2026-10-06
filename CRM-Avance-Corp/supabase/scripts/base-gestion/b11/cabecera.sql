@@ -1,0 +1,47 @@
+-- 20261006042144_crm_bases_cargadas_conversion.sql
+--
+-- Bases cargadas · B11: el cierre de un contacto de base cargada por archivo cuenta ENTERO (peso 1) para el analista que lo
+-- consigue y NO entra al divisor. Decisión E10 de Miguel (`BASE PARA GESTION/BASES-CARGADAS.md`), como la regla cerrada del
+-- registro manual. Plan aprobado el 05/10/2026, con dos respuestas: (1) los armados desde el CRM conservan su origen y su
+-- regla de siempre (B11 es solo el origen `base_cargada`); (2) «Resultados por origen» NO lleva fila de base cargada.
+--
+-- MEDIDO EN PRODUCCIÓN (05/10, solo lectura)
+--   · Divisor: private.conversion_episodios cuenta llegadas landing/formulario sin alta manual ⇒ base_cargada YA está fuera, y
+--     el origen no cambia tras el alta (private.leads_before_update, P0409). El divisor NO se toca.
+--   · Numerador: private.conversion_cierres da 1 solo a landing/formulario ⇒ un cierre de base suma 0. Ese es el hueco.
+--   · 0 contactos de base, 0 cierres de base, crm.periodos_cerrados vacía: ningún número existente cambia.
+--   · La lista ('landing','formulario','referido') estaba COPIADA en 8 piezas: cambiar solo el peso desalinearía los conteos
+--     de cierres de su numerador (Rendimiento, Equipo, Distribución, conversión mensual).
+--
+-- QUÉ HACE
+--   1. NUEVA private.conversion_origen_con_cierre(text): UNA definición de qué orígenes cuentan un cierre (landing,
+--      formulario, referido, base_cargada). INVOKER, IMMUTABLE, sin ejecutores de la API.
+--   2. Mismo texto VIVO, con la lista cambiada por el ayudante (CREATE OR REPLACE: firma, dueño, seguridad y ACL intactos):
+--      private.conversion_cierres (sus dos ramas: la 3.ª rama del peso, ya sin el referido, da 1), private.registrar_ajuste_si_
+--      mes_cerrado (el ajuste de un mes sellado pesa lo mismo), private.conversion_mensual_por_vendedor (cierres y procedencia),
+--      crm.metricas_conversiones_equipo_fn (3), private.metricas_conversiones_implementacion (9),
+--      private.metricas_distribucion_leads_v3_core (2) y la sonda de crm.conversion_mensual_sin_cartera_fn.
+--   3. Divisor de coordinación: su pantalla exige que las partes sumen el numerador bruto (app/src/lib/conversion-
+--      coordinacion.ts, sumaDePartes). private.conversion_divisor_empresa y private.conversion_divisor_empresa_totales ganan
+--      `cierres_base_cargada` AL FINAL de su RETURNS TABLE (drop + create con la misma ACL; sus únicos llamadores son
+--      private.conversion_divisor_empresa_totales y crm.conversion_divisor_coordinacion_fn, plpgsql, por nombre de columna);
+--      `cierres_otros` ya no los incluye; en un mes SELLADO la foto no los guarda ⇒ NULL (no se inventa un 0).
+--      crm.conversion_divisor_coordinacion_fn añade la clave `base_cargada` en los dos objetos `cierres`. La pantalla que la
+--      entiende se publica ANTES que esta migración (dirección: pantalla primero); la publicada hoy ignora la clave nueva.
+--   4. Censo analítico: las cuatro declaraciones de las piezas tocadas se quedan en su fila (clase, tipo, razón y fecha) con la
+--      huella del cuerpo nuevo, y se resella (patrón de 20261001212341). El techo no cambia.
+-- QUÉ NO CAMBIA: el divisor (private.conversion_episodios), «Resultados por origen» (private.ranking_conversion_origen_mes y
+--   la foto del cierre), tablas, policies, grants, triggers, firmas de las puertas de la API y sus ACL.
+-- FRENO: el preflight se niega si ya existe algún cierre de un contacto de base (ledger o acreditación): entonces B11 movería
+--   un número que ya existe y se revisa con Miguel.
+--   Para que ese freno valga hasta el commit, la transacción bloquea antes de su primera lectura las dos tablas donde nace
+--   un cierre (crm.lead_asignaciones y crm.conversion_acreditaciones, SHARE ROW EXCLUSIVE NOWAIT): durante la aplicación
+--   (menos de un segundo) nadie confirma un cierre nuevo; si alguien escribe en ese instante, se niega y se repite.
+--   También se niega si aparece un llamador nuevo de las dos privadas que se recrean (se busca en el texto de las funciones:
+--   pg_depend no ve una llamada hecha desde plpgsql) o si cambió alguno de los diez cuerpos, su dueño o su ACL.
+-- POSTFLIGHT: huellas medidas en el banco, ninguna copia de la lista, el ayudante dice lo ensayado, las columnas nuevas al
+--   final, el censo con los MISMOS rojos que antes (hoy uno ajeno: private.gestion_diaria_cola_hechos sin declarar) y el
+--   desglose del Divisor de coordinación del mes en curso sumando su numerador bruto en cada fila.
+-- REVERSA: supabase/scripts/base-gestion/reversa-b11.sql (repone los diez cuerpos vivos, las firmas viejas del divisor, sus
+--   comentarios y las cuatro huellas; borra el ayudante; se niega si hay cierres de base, porque cambiaría sus números, si
+--   otra función ya usa el ayudante o si el censo analítico no está vigente y sellado antes de empezar).

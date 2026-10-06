@@ -1,3 +1,4 @@
+import { textoEnlace } from '@/lib/llamadas-celular'
 // Panel «Registrar resultado de la llamada» (Gestión Diaria F2, mockup 5).
 // Es la ÚNICA definición del resultado de una llamada en el CRM: lo montan las
 // acciones de contacto (colas, Hoy, ficha), el cierre de una tarea de llamada
@@ -198,6 +199,10 @@ function useRegistroResultado(
   const armar = (): RegistrarLlamadaInput | string => {
     if (!def) return 'Elige el resultado de la llamada'
     const entrada: RegistrarLlamadaInput = { resultado: def.clave, detalle: nota.trim() || null, tarea_id: tarea && cierraTarea ? tarea.id : null }
+    if (intencion?.abierta && intencion.origenLlamada) {
+      entrada.evento_origen_id = intencion.origenLlamada
+      entrada.via_llamada = intencion.viaLlamada ?? 'al_colgar'
+    }
     if (def.paso === 'submotivo') {
       if (!submotivo) return def.clave === 'no_interesado' ? 'Indica por qué no le interesa' : 'Indica qué producto pide'
       entrada.submotivo = submotivo
@@ -248,7 +253,8 @@ function useRegistroResultado(
       if (entrada.siguiente) partes.push(`siguiente ${tareaAEvento({ ...PLANTILLA, tipo: entrada.siguiente.tipo as Tarea['tipo'], titulo: entrada.siguiente.titulo, vence_en: entrada.siguiente.vence_en }, ahora).cuando}`)
       if (res.descartado) partes.push('lead descartado (Centro de rescate)')
       if (entrada.no_insista) partes.push('No insistir marcado')
-      const texto = `${partes.join(' · ')}${yo?.demo ? ' (demo)' : ''}`
+      const enlace = confirmacion?.enlace ? textoEnlace(confirmacion.enlace, llamadaCelular ?? '') : null
+      const texto = `${partes.join(' · ')}${yo?.demo ? ' (demo)' : ''}${enlace ? `. ${enlace}` : ''}`
       if (confirmacion && !entrada.no_insista) {
         toast.success(texto, {
           duration: 15_000,

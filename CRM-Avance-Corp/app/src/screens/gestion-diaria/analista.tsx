@@ -159,7 +159,7 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
   const [filtroPedido, setFiltroPedido] = useState<FiltroCola | null>(contextoInicial.filtro)
   const [pagina, setPagina] = useState(contextoInicial.pagina)
   const [vistaDerecha, setVistaDerecha] = useState<VistaDerecha>('cola')
-  // F4-b: «Llamadas del celular». null = sin fuente (la sesión real, hasta tener los tipos de sus puertas): sin pestaña.
+  // Fuente por actor: demo en memoria o puertas reales con paginación y validación del contrato.
   const celular = useLlamadasCelular()
   const vistaVisible: VistaDerecha = vistaDerecha === 'celular' && !celular ? 'cola' : vistaDerecha
   // «Registrar resultado» desde la pestaña: la MISMA intención que arma el enlace del celular, con la vía «pestana».
@@ -657,7 +657,7 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
                 clasePanel={vistaVisible === 'cola' ? 'flex min-h-0 flex-1 flex-col' : 'ac-scroll min-h-0 flex-1 overflow-y-auto focus-visible:!-outline-offset-2'}
               >
                 {vistaVisible === 'celular' && celular ? (
-                  <LlamadasCelular pendientes={celular.pendientes} resueltas={celular.resueltas} ahora={ahora} ocupado={celular.ocupado}
+                  <LlamadasCelular estadoPendientes={celular.estadoPendientes} estadoResueltas={celular.estadoResueltas} pendientes={celular.pendientes} resueltas={celular.resueltas} ahora={ahora} ocupado={celular.ocupado}
                     busqueda={{ demo: yo?.demo === true, leadsLocales: ambito.leads }}
                     onRegistrar={registrarDesdePestana} onElegirLead={celular.elegirLead} onDescartar={celular.descartar}
                     onAbrirFicha={(leadId) => { void abrirLead(leadId) }} />

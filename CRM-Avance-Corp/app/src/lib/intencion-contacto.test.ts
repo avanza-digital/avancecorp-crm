@@ -218,3 +218,16 @@ describe('coordinador de la intención de contacto', () => {
     expect(result.current).toBeNull()
   })
 })
+
+
+it('el enlace al colgar completa la encuesta abierta por el tap y conserva su identidad al recargar', async () => {
+  const m = await cargarPagina()
+  const tap = m.armarIntencion({ actor: 'v1', leadId: 'l1', canal: 'tel', origen: 'pantalla' }, T0)
+  m.reclamarIntencion(tap.id, T0)
+  const completa = m.armarIntencion({ actor: 'v1', leadId: 'l1', canal: 'tel', origen: 'enlace', origenLlamada: 'C1-1790980958' }, T0 + 1000)
+  expect(completa).toMatchObject({ id: tap.id, abierta: true, origenLlamada: 'C1-1790980958', viaLlamada: 'al_colgar' })
+  const otra = m.armarIntencion({ actor: 'v1', leadId: 'l1', canal: 'tel', origen: 'enlace', origenLlamada: 'C1-1790980999' }, T0 + 2000)
+  expect(otra.origenLlamada).toBe('C1-1790980958')
+  const recarga = await cargarPagina()
+  expect(recarga.intencionDe('v1', 'l1', T0 + 3000)).toMatchObject({ id: tap.id, origenLlamada: 'C1-1790980958' })
+})

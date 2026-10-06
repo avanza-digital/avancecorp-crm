@@ -1464,6 +1464,7 @@ try {
   r = psqlArchivo(MIG_PAGINADAS, dp);
   paso('la novena se vuelve a aplicar tras su reversa', r.ok, r.ok ? '' : cola(r.salida));
   oraculoEn('oráculo de la novena tras reaplicar', ORACULO_PAGINADAS, 'ORACULO RESUELTAS PAGINADAS OK', dp);
+
   psqlSql(`drop database ${dp}`, 'postgres');
   pasadaMutantes('Pasada 16b: mutantes de la novena', MIG_PAGINADAS, MUTANTES_PAGINADAS, 'plantilla_ocho', ORACULO_PAGINADAS, 'mut_paginadas');
 
@@ -1516,6 +1517,48 @@ try {
     anterior: 'la décima', plantillaAnterior: 'plantilla_nueve', faltaAnterior: 'falta la décima',
     reversaAnterior: REVERSA_ORIGEN, niegaAnterior: 'la undécima (20261006150254) sigue instalada',
   });
+  // Duodécima: regresiones del informe #190, reversa exacta y carrera de reasignación.
+  const cierre = join(RAIZ, 'supabase/migrations/20261006162813_crm_llamadas_celular_cierre_revision.sql');
+  const ocierre = join(RAIZ, 'supabase/tests/llamadas-celular/oraculo-cierre-revision.sql');
+  const rcierre = join(RAIZ, 'supabase/scripts/llamadas-celular/reversa-cierre-revision.sql');
+  psqlSql('create database plantilla_once template plantilla_diez', 'postgres');
+  r = psqlArchivo(MIG_SALUD, 'plantilla_once');
+  paso('plantilla de las once para el cierre', r.ok, r.ok ? '' : cola(r.salida));
+  const dc = 'cierre';
+  psqlSql(`create database ${dc} template plantilla_once`, 'postgres');
+  const h11 = huella(dc);
+  r = psqlArchivo(cierre, dc);
+  paso('duodécima aplicada', r.ok, r.ok ? '' : cola(r.salida));
+  oraculoEn('regresiones de candidatos, visibilidad, reserva e ids', ocierre, 'ORACULO CIERRE REVISION OK', dc);
+  oraculoEn('enlace exacto y cumplimiento diferido con la duodécima', ORACULO_ENLACE, 'ORACULO ENLACE EXACTO OK', dc);
+  oraculoEn('quinta con la duodécima', ORACULO_CORRECCION, 'ORACULO CORRECCION OK', dc);
+  oraculoEn('resueltas paginadas con la duodécima', ORACULO_PAGINADAS, 'ORACULO RESUELTAS PAGINADAS OK', dc);
+  r = psqlArchivo(REVERSA_SALUD, dc);
+  paso('undécima no revierte con la duodécima', !r.ok && r.salida.includes('primero la duodécima'));
+  r = psqlArchivo(rcierre, dc);
+  paso('reversa de la duodécima restaura la huella de las once', r.ok && huella(dc).salida === h11.salida, r.ok ? '' : cola(r.salida));
+  r = psqlArchivo(cierre, dc);
+  paso('reaplicar duodécima tras reversa', r.ok, r.ok ? '' : cola(r.salida));
+  const cc = sembrarCorreccion(dc);
+  const origenCarrera = cc.nuevoId('C1');
+  const [reasignada, recibida] = await Promise.all([
+    psqlParalelo(retenerTx(reasignarSql(ACT.c1, ACT.a3)), dc),
+    pausa(400).then(() => psqlParalelo(enTx(SERVICIO + ingerirSql(cc.k.C1, origenCarrera, '900000001')), dc)),
+  ]);
+  const guardadas = psqlSql(`select count(*) from crm.llamadas_celular_eventos where evento_origen_id='${origenCarrera}'`, dc);
+  paso('reasignación en vuelo: espera y no guarda con candidatura obsoleta',
+    reasignada.ok && recibida.ok && esperoYo(recibida) && guardadas.salida.trim() === '0',
+    `${recibida.ms} ms; guardadas=${guardadas.salida.trim()}`);
+  r = psqlArchivo(rcierre, dc);
+  paso('reversa de la duodécima se niega tras altas/uso', !r.ok && r.salida.includes('ya hubo altas o uso'));
+  psqlSql(`drop database ${dc}`, 'postgres');
+  pasadaMutantes('Duodécima: defensas de la revisión', cierre, [
+    { nombre: 'candidatos omite veto', buscar: 'if not private.llamada_celular_contacto_admitido(p_dueno, p_formas) then', poner: 'if false then' },
+    { nombre: 'antiguo dueño vuelve a ver llamada ajena', buscar: "and (l.etapa <> 'descartado' or l.vendedor_id = p_analista or p_actor = p_analista)", poner: 'and true' },
+    { nombre: 'enlazar no limpia la intención anterior', buscar: '  delete from private.llamadas_celular_intenciones where actividad_id = new.actividad_id;', poner: '' },
+    { nombre: 'veto cae en sin identificar', buscar: 'if v_admitido is distinct from true then return v_aceptado; end if;', poner: '' },
+    { nombre: 'supervisor pierde llamada propia descartada', buscar: ' or p_actor = p_analista)', poner: ')' },
+  ], 'plantilla_once', ocierre, 'mut_cierre');
 } catch (error) {
   paso('arranque del banco', false, error.message);
 } finally {

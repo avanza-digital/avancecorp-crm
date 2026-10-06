@@ -50,12 +50,13 @@ describe('contrato de las puertas de llamadas del celular', () => {
     expect(v.safeParse(DetalleLlamadaSchema, { evento_id: 'e1', evento_origen_id: 17, ...sinId }).success).toBe(false)
   })
 
-  it('el enlace de la v5: null sin id; los cinco estados; un motivo desconocido se rechaza', () => {
+  it('el enlace de la v5: null sin id; los cinco estados; un motivo desconocido tiene texto seguro', () => {
     for (const enlace of [null, { estado: 'enlazado' }, { estado: 'movido' }, { estado: 'repetido' }, { estado: 'pendiente' },
       { estado: 'no_enlazado', motivo: 'resultado_en_uso' }]) {
       expect(v.safeParse(EnlaceV5Schema, enlace).success, JSON.stringify(enlace)).toBe(true)
     }
-    expect(v.safeParse(EnlaceV5Schema, { estado: 'no_enlazado', motivo: 'inventado' }).success).toBe(false)
+    expect(v.safeParse(EnlaceV5Schema, { estado: 'no_enlazado', motivo: 'inventado' }).success).toBe(true)
+    expect(textoEnlace({ estado: 'no_enlazado', motivo: 'inventado' }, 'hoy')).toContain('no se pudo confirmar el enlace')
     expect(v.safeParse(EnlaceV5Schema, { estado: 'otro' }).success).toBe(false)
   })
 })

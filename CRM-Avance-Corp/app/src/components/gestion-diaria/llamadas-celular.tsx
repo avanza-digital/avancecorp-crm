@@ -10,6 +10,7 @@ import { BusquedaManual } from '@/components/app/receptor-llamada'
 import { PanelVacio } from '@/components/common/estado-panel'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import type { EstadoListaCelular } from '@/data/use-llamadas-celular'
 import type { OpcionesResolucion } from '@/data/coincidencia-llamada'
 import { digitosParaBuscar } from '@/lib/coincidencia-telefono'
 import {
@@ -21,6 +22,8 @@ import type { Lead } from '@/lib/tipos'
 import { cn } from '@/lib/utils'
 
 export interface LlamadasCelularProps {
+  estadoPendientes?: EstadoListaCelular
+  estadoResueltas?: EstadoListaCelular
   pendientes: readonly FilaBandeja[]
   resueltas: readonly ResueltaHoy[]
   ahora: number
@@ -45,30 +48,41 @@ export function LlamadasCelular(props: LlamadasCelularProps): JSX.Element {
   const { pendientes, resueltas } = props
   const [vista, setVista] = useState<Vista>('pendientes')
   const [panel, setPanel] = useState<Panel>(null)
+  const titulo = useRef<HTMLHeadingElement>(null)
+  const estado = vista === 'pendientes' ? props.estadoPendientes : props.estadoResueltas
+  const devolverFoco = () => { requestAnimationFrame(() => titulo.current?.focus()) }
+  const acciones = { ...props,
+    onDescartar: (...args: Parameters<LlamadasCelularProps['onDescartar']>) => { props.onDescartar(...args); devolverFoco() },
+    onElegirLead: (...args: Parameters<LlamadasCelularProps['onElegirLead']>) => { props.onElegirLead(...args); devolverFoco() },
+  }
   const vistas: [Vista, string][] = [['pendientes', `Pendientes · ${pendientes.length}`], ['hoy', `Qué pasó hoy · ${resueltas.length}`]]
   return (
     <div className="px-[18px] py-4">
-      <h3 className="text-[15px] font-extrabold text-primary">Llamadas del celular</h3>
+      <h3 ref={titulo} tabIndex={-1} className="text-[15px] font-extrabold text-primary">Llamadas del celular</h3>
       <div role="group" aria-label="Qué llamadas ver" className="mt-2 flex flex-wrap gap-2">
         {vistas.map(([valor, texto]) => (
           <button key={valor} type="button" aria-pressed={vista === valor} onClick={() => { setVista(valor); setPanel(null) }}
-            className={cn(BOTON_VISTA, vista === valor ? 'border-accent bg-accent text-white' : 'border-border bg-card text-foreground hover:bg-muted')}>
+            className={cn(BOTON_VISTA, vista === valor ? 'border-primary bg-primary text-white' : 'border-border bg-card text-foreground hover:bg-muted')}>
             {texto}
           </button>
         ))}
       </div>
-      {vista === 'pendientes' ? (
+      {estado?.error && <div role="alert" className="mt-3 text-sm">
+        No se pudieron actualizar las llamadas. Comprueba la conexión y vuelve a intentarlo.
+        <Button variant="outline" className="ml-2" onClick={estado.reintentar}>Reintentar</Button>
+      </div>}
+      {estado?.cargando && !estado.error ? <p role="status" className="mt-3 text-sm">Cargando llamadas…</p> : vista === 'pendientes' ? (
         <>
           <p className={cn(APOYO, 'mt-2')}>
             Llamadas que hiciste desde tu celular y todavía no tienen resultado. Cerrar la encuesta sin registrar no las quita de aquí.
           </p>
-          {pendientes.length === 0 ? (
+          {pendientes.length === 0 && !estado?.error ? (
             <PanelVacio icono={PhoneCall} titulo="Nada pendiente" detalle="Todo lo que llamaste desde el celular tiene resultado." />
           ) : (
             // oxlint-disable-next-line jsx-a11y/no-redundant-roles -- Safari quita el rol de lista a un <ol> sin viñetas.
             <ol role="list" aria-label="Llamadas pendientes" className="mt-2">
               {pendientes.map((fila) => (
-                <FilaPendiente key={fila.evento_id} fila={fila} {...props}
+                <FilaPendiente key={fila.evento_id} fila={fila} {...acciones}
                   panel={panel?.evento === fila.evento_id ? panel.modo : null}
                   onPanel={(modo) => setPanel(modo ? { evento: fila.evento_id, modo } : null)} />
               ))}
@@ -78,7 +92,7 @@ export function LlamadasCelular(props: LlamadasCelularProps): JSX.Element {
       ) : (
         <>
           <p className={cn(APOYO, 'mt-2')}>Las llamadas de hoy desde tu celular que ya resolviste, y cómo.</p>
-          {resueltas.length === 0 ? (
+          {resueltas.length === 0 && !estado?.error ? (
             <PanelVacio icono={PhoneCall} titulo="Todavía nada resuelto hoy" detalle="Lo que registres o descartes aparecerá aquí." />
           ) : (
             // oxlint-disable-next-line jsx-a11y/no-redundant-roles -- Safari quita el rol de lista a un <ol> sin viñetas.
@@ -88,6 +102,9 @@ export function LlamadasCelular(props: LlamadasCelularProps): JSX.Element {
           )}
         </>
       )}
+      {estado?.hayMas && <Button variant="outline" className="mt-3" disabled={estado.cargandoMas} onClick={estado.cargarMas}>
+        {estado.cargandoMas ? 'Cargando más…' : 'Cargar más llamadas'}
+      </Button>}
     </div>
   )
 }
@@ -103,7 +120,7 @@ function FilaPendiente({ fila, ahora, ocupado, busqueda, panel, onPanel, onRegis
   LlamadasCelularProps & { fila: FilaBandeja; panel: 'descartar' | 'elegir' | null; onPanel: (modo: 'descartar' | 'elegir' | null) => void }): JSX.Element {
   const retraso = retrasoPendiente(fila, ahora)
   const principal = accionPrincipal(fila)
-  const enEspera = ocupado === fila.evento_id
+  const enEspera = ocupado != null
   const volverA = useRef<HTMLButtonElement>(null)
   const cerrarPanel = () => { onPanel(null); requestAnimationFrame(() => volverA.current?.focus()) }
   return (
@@ -112,8 +129,8 @@ function FilaPendiente({ fila, ahora, ocupado, busqueda, panel, onPanel, onRegis
         <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <Titulo leadId={fila.lead_id} nombre={fila.lead_nombre} numero={fila.numero} onAbrirFicha={onAbrirFicha} />
-            <Badge color={fila.atencion === 'requiere_resultado' ? 'var(--accent)' : 'var(--warning)'}>{estadoPendiente(fila.atencion)}</Badge>
-            {retraso && <Badge color="var(--destructive)">{retraso}</Badge>}
+            <Badge color={fila.atencion === 'requiere_resultado' ? 'var(--primary)' : 'var(--warning-text)'}>{estadoPendiente(fila.atencion)}</Badge>
+            {retraso && <Badge color="var(--destructive-text)">{retraso}</Badge>}
           </div>
           <p className={APOYO}>{lineaPendiente(fila, ahora)}</p>
           {llegoTarde(fila) && (
@@ -200,7 +217,7 @@ function FilaResuelta({ r, ahora, onAbrirFicha }: { r: ResueltaHoy; ahora: numbe
         <Titulo leadId={r.lead_id} nombre={r.lead_nombre} numero={r.numero} onAbrirFicha={onAbrirFicha} />
         <p className={APOYO}>{comoSeResolvio(r)} · llamada {cuandoFue(momentoDeLlamada(r), ahora)}</p>
       </div>
-      <Badge color={registrada && !r.deshecho ? 'var(--accent)' : 'var(--muted-foreground-strong)'}>{estadoResuelta(r)}</Badge>
+      <Badge color={registrada && !r.deshecho ? 'var(--primary)' : 'var(--muted-foreground-strong)'}>{estadoResuelta(r)}</Badge>
     </li>
   )
 }

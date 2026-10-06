@@ -212,14 +212,18 @@ begin
   t0 := t0 + 1;
   perform pg_temp.enviar(k1, pg_temp.ev('C1-' || t0, '900000004'));
   v_ev := pg_temp.evento('C1-' || t0);
-  if v_ev.lead_id is distinct from c4 or v_ev.atencion is distinct from 'por_revisar' then
+  if to_regprocedure('private.llamada_celular_contacto_admitido(uuid,text[])') is not null then
+    if v_ev.id is not null then raise exception 'ORACULO D2: décima guardó un no_contactar'; end if;
+  elsif v_ev.lead_id is distinct from c4 or v_ev.atencion is distinct from 'por_revisar' then
     raise exception 'ORACULO D2: el propio en «no contactar» no quedó identificado por revisar (%)', row_to_json(v_ev);
   end if;
   -- 900000006 es de c6 (a1) y c7 (a2): para a1, coincidencia única en su cartera; para b1, ambigua.
   t0 := t0 + 1;
   perform pg_temp.enviar(k1, pg_temp.ev('C1-' || t0, '900000006'));
   v_ev := pg_temp.evento('C1-' || t0);
-  if v_ev.lead_id is distinct from c6 or v_ev.atencion is distinct from 'requiere_resultado' then
+  if to_regprocedure('private.llamada_celular_contacto_admitido(uuid,text[])') is not null then
+    if v_ev.id is not null then raise exception 'ORACULO D3: décima guardó número con lead abierto ajeno'; end if;
+  elsif v_ev.lead_id is distinct from c6 or v_ev.atencion is distinct from 'requiere_resultado' then
     raise exception 'ORACULO D3: el número compartido no quedó con el lead propio (%)', row_to_json(v_ev);
   end if;
   t0 := t0 + 1;

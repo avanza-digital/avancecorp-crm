@@ -297,6 +297,9 @@ export function BusquedaManual({ inicial, manual, onElegir }: { inicial: string;
         </Button>
       </div>
       {error && <p role="alert" className="text-xs text-destructive-text">{error}</p>}
+      <p aria-live="polite" className="sr-only">
+        {buscando ? 'Buscando leads' : resultados ? `${resultados.length} resultados en tus leads` : ''}
+      </p>
       {resultados && (resultados.length === 0
         ? <p>Sin resultados en tus leads para «{texto.trim()}».</p>
         : <ListaLeads etiqueta="Resultados de la búsqueda" leads={resultados} onElegir={onElegir} />)}

@@ -11,6 +11,9 @@ set local statement_timeout = '60s';
 
 do $precondicion$
 begin
+  if to_regprocedure('private.llamada_celular_contacto_admitido(uuid,text[])') is not null then
+    raise exception 'REVERSA_SALUD_SIN_HORA: revertir primero la duodécima';
+  end if;
   if pg_catalog.strpos(pg_catalog.pg_get_functiondef('private.celulares_salud_listar(uuid)'::regprocedure), 'estado_latido') = 0 then
     raise exception 'REVERSA_SALUD_SIN_HORA: la migración 20261006150254 no está aplicada';
   end if;

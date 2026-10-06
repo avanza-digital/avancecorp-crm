@@ -36,6 +36,7 @@ $$;
 create table public.perfiles (
   id uuid primary key,
   nombre_completo text,
+  telefono text,
   rol text not null default 'vendedor',
   activo boolean not null default true
 );
@@ -66,6 +67,7 @@ create table crm.leads (
     check (etapa in ('nuevo', 'contactado', 'reunion_agendada', 'propuesta_enviada', 'convertido', 'descartado')),
   activo boolean not null default true,
   no_contactar boolean not null default false,
+  vetada_en_banco boolean not null default false,
   vendedor_id uuid references crm.equipo(perfil_id) on delete set null,
   asignado_supervisor_id uuid references crm.equipo(perfil_id) on delete set null,
   -- Descarte (20260723120000 y 20260724203052): lo leen los candidatos «reutilizables» de la quinta.
@@ -77,6 +79,11 @@ create table crm.leads (
 );
 -- Copia real reducida de crm.enfriamiento_politica (20260801212050, con 'base_cargada' de 20261004160034): la espera
 -- de un descartado antes de ser reutilizable. Sin auditoría en el banco (declarada exenta abajo).
+-- Doble DECLARADO del veto por persona (la matriz completa usa la función real de identidad F2.b).
+create function private.persona_vetada(p_lead uuid) returns boolean language sql stable set search_path = '' as $$
+  select coalesce((select vetada_en_banco from crm.leads where id = p_lead), false)
+$$;
+revoke all on function private.persona_vetada(uuid) from public, anon, authenticated, service_role;
 create table crm.enfriamiento_politica (
   motivo text primary key,
   dias integer not null check (dias >= 0)

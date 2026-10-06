@@ -19,9 +19,10 @@ const original = readFileSync(join(ORIGEN, 'handler.ts'), 'utf8').replace(/\r\n/
 
 // Contrato de 20261005143843 (plan v2 §1): la Edge solo revisa el transporte y traduce el resultado de la base.
 const MUTANTES = [
+  ['JSON imposible para jsonb pasa a PostgREST', ' && admiteJsonb(cuerpo) ? cuerpo : null;', ' ? cuerpo : null;'],
   ['clave sin comprobar su forma', 'const CREDENCIAL = /^[0-9a-f]{64}$/;', 'const CREDENCIAL = /./;'],
   ['sin tope de 4 KB', 'const TOPE_BYTES = 4096;', 'const TOPE_BYTES = 1_000_000;'],
-  ['un sobre con claves de más pasa su carga', ' && Object.keys(cuerpo).length === 2 ? cuerpo : null;', ' ? cuerpo : null;'],
+  ['un sobre con claves de más pasa su carga', ' && Object.keys(cuerpo).length === 2 && admiteJsonb(cuerpo) ? cuerpo : null;', ' && admiteJsonb(cuerpo) ? cuerpo : null;'],
   ['el JSON mal formado no llega a la base (no gasta cupo)', "    if (cuerpo === GRANDE) return respuesta(413, { error: 'Petición demasiado grande' });\n",
     "    if (cuerpo === GRANDE) return respuesta(413, { error: 'Petición demasiado grande' });\n    if (cuerpo === MAL_FORMADO) return respuesta(400, { error: 'Petición inválida' });\n"],
   ['el latido va a la puerta de llamadas', 'esLatido ? await d.registrarSalud(credencial, carga) : await d.ingerir(credencial, carga)', 'await d.ingerir(credencial, carga)'],

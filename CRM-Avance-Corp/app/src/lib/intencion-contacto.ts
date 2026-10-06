@@ -153,7 +153,17 @@ export function armarIntencion(
 ): IntencionContacto {
   const actual = vigentes(ahora)
   const yaAbierta = actual.find((i) => i.abierta && i.actor === datos.actor && i.leadId === datos.leadId && i.canal === datos.canal)
-  if (yaAbierta) return yaAbierta
+  if (yaAbierta) {
+    // El tap en «Llamar» puede abrir primero la encuesta; la macro completa esa misma llamada al colgar.
+    // Nunca sustituir el id de otra llamada que ya esté asociada al formulario abierto.
+    if (!yaAbierta.origenLlamada && datos.origen === 'enlace' && datos.origenLlamada
+      && origenLlamadaValido(datos.origenLlamada)) {
+      const completada = { ...yaAbierta, origenLlamada: datos.origenLlamada, viaLlamada: datos.viaLlamada ?? 'al_colgar' }
+      escribir(actual.map((i) => i.id === yaAbierta.id ? completada : i))
+      return completada
+    }
+    return yaAbierta
+  }
   secuencia += 1
   const nueva: IntencionContacto = {
     id: `${ahora.toString(36)}-${PAGINA}-${secuencia}`,

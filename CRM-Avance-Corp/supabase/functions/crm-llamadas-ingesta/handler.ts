@@ -35,6 +35,28 @@ const CREDENCIAL = /^[0-9a-f]{64}$/;
 
 const esObjeto = (x: unknown): x is Json => typeof x === 'object' && x !== null && !Array.isArray(x);
 
+/** JSON de JavaScript que Postgres puede convertir a jsonb. La carga imposible viaja como null:
+ * la base sigue autenticando y gastando cupo antes de responder inválido. Incluye claves y texto anidado. */
+export function admiteJsonb(valor: unknown): boolean {
+  const pendientes = [valor];
+  while (pendientes.length) {
+    const dato = pendientes.pop();
+    if (typeof dato === 'string') {
+      for (let i = 0; i < dato.length; i++) {
+        const c = dato.charCodeAt(i);
+        if (c === 0) return false;
+        if (c >= 0xd800 && c <= 0xdbff) {
+          const siguiente = dato.charCodeAt(++i);
+          if (!(siguiente >= 0xdc00 && siguiente <= 0xdfff)) return false;
+        } else if (c >= 0xdc00 && c <= 0xdfff) return false;
+      }
+    } else if (typeof dato === 'number' && !Number.isFinite(dato)) return false;
+    else if (Array.isArray(dato)) pendientes.push(...dato);
+    else if (esObjeto(dato)) for (const [clave, contenido] of Object.entries(dato)) pendientes.push(clave, contenido);
+  }
+  return true;
+}
+
 /** La URL que abre el celular tras enviar: la encuesta de F1 por número (decisión 4); sin número, Mi día. */
 export function urlAbrir(base: string, numero: unknown): string {
   const raiz = `${base.replace(/\/+$/, '')}/#/gestion-diaria`;
@@ -114,7 +136,7 @@ export function crearHandler(d: Dependencias) {
     // La puerta se elige por `accion`; un sobre que no es exactamente {accion, evento|latido} llega con la
     // carga en null y la base lo responde «invalido» (después de autenticar y gastar cupo).
     const esLatido = esObjeto(cuerpo) && cuerpo.accion === 'latido';
-    const sobre = esObjeto(cuerpo) && Object.keys(cuerpo).length === 2 ? cuerpo : null;
+    const sobre = esObjeto(cuerpo) && Object.keys(cuerpo).length === 2 && admiteJsonb(cuerpo) ? cuerpo : null;
     const carga = esLatido
       ? (sobre && 'latido' in sobre ? sobre.latido : null)
       : (sobre && sobre.accion === 'llamada' && 'evento' in sobre ? sobre.evento : null);
