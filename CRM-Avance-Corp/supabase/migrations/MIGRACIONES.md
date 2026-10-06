@@ -16966,7 +16966,17 @@ carrera; `comprobar-tras-aplicar.sql` APTA; reversa → huellas idénticas a pro
 
 ## 20261006042144 — Bases cargadas · B11: el cierre de un contacto de base pesa 1 y queda fuera del divisor
 
-**⏳ PENDIENTE (06/10/2026), r2. SIN APLICAR EN PRODUCCIÓN.** Construida y probada SOLO en banco Docker local (stack propio
+**✅ APLICADA EN PRODUCCIÓN 06/10/2026 ~12:00 Lima** (Miguel con `!`: `supabase db query --linked --file` + registrador
+`supabase/scripts/base-gestion/registrar/20261006042144.sql`). Antes, lectura de producción: crm+private `933 | 2c2f2612…`
+(idéntica al banco), 0 contactos y 0 cierres de base. La pantalla se publicó primero (`/release-crm`, PR #204 `afae7b59`,
+`build-20261006T165239841Z`: preflight ok contra el vivo `33694da6`, smoke byte a byte). Verificado después en solo lectura:
+crm+private `934 | 2f359f3e…` (= banco con B11), las 11 huellas de `b11/huellas-nuevas.json` (11/11), el ayudante y las dos
+privadas del divisor solo de `postgres` (3/3), la puerta `crm.conversion_divisor_coordinacion_fn` con su ACL
+`{postgres=X/postgres,authenticated=X/postgres}`, censo analítico sellado, versión registrada con md5 de statements
+`33ec12dc…` = archivo, 0 candados consultivos retenidos y 0 cierres de base (ningún número cambió). Pendiente declarado: ensayar
+el sellado de un mes con cierres de base antes de reactivar el cierre mensual.
+
+**⏳ PENDIENTE (06/10/2026), r2 — estado antes de aplicar.** Construida y probada SOLO en banco Docker local (stack propio
 `avancecorp-b10-20261004`, a paridad con producción con «eliminar inversión»: crm+private `933 | 2c2f2612…`; con B11
 `934 | 2f359f3e…`). md5 del archivo **`33ec12dc…`** (reversa `2dbf3436…`, registrador `58761b03…`). Decisión E10 de Miguel
 (`BASE PARA GESTION/BASES-CARGADAS.md`); plan aprobado el 05/10 con dos respuestas: los armados desde el CRM conservan su
