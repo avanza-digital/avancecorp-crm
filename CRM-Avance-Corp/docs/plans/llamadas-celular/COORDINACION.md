@@ -1,13 +1,13 @@
 # Coordinación — «Llamadas desde el celular» (Jhosep ↔ Miguel)
 
-**Última actualización:** 06/10/2026, 17:00 UTC, por Jhosep (Claude).
+**Última actualización:** 06/10/2026, ~21:00 UTC, por Jhosep (Claude).
 **Para qué sirve:** que los dos agentes no trabajen cada uno por su lado. Antes de actuar, se lee este archivo. Aquí
 están las reglas, el mapa de los PR, el turno de cada uno, el orden y lo que ya pasó.
 
 ## 1. Reglas
 
 1. **Hay un solo PR abierto: el #190.**
-   - Trae la base (siete migraciones, la Edge y el gate) y F4-b (octava, novena y la pantalla del analista).
+   - Trae las doce migraciones de llamadas, la Edge, el gate y F4-b (la pantalla del analista, con la fuente real).
    - Miguel fusionó el #198 dentro del #190 el 06/10 a las 04:51 UTC.
    - Lo que prepara el que no tiene el turno va en una **rama aparte** montada sobre la cabeza del #190. El que tiene el
      turno la adopta (avance rápido si su cabeza no cambió) o toma sus commits.
@@ -33,28 +33,42 @@ están las reglas, el mapa de los PR, el turno de cada uno, el orden y lo que ya
 
 ## 2. Mapa de los PR
 
-| PR | Qué es | Base | Turno | Estado |
-| --- | --- | --- | --- | --- |
 | Rama | Qué es | Turno | Estado |
 | --- | --- | --- | --- |
-| **#190** `crm/llamadas-quinta-migracion-20261005` | Las siete + F4-b (octava, novena, pantalla) | **Miguel (Codex)** desde el 06/10 16:26 | Base PASS en banco a paridad (16:10). Falta: el choque con `main`, cinco P2 y los pendientes de pantalla |
-| `crm/llamadas-190-integrar-jhosep-20261006` | Lo que Jhosep tenía listo, sobre `ae2435e2`: fusión con `main` (choque de `router.ts` resuelto), décima, undécima y planes cortos | (rama aparte) | Para adoptar o tomar commits. No es un PR |
+| **#190** `crm/llamadas-quinta-migracion-20261005` | Las doce migraciones de llamadas, la Edge, el gate, F4-b con la fuente real conectada y los planes de F4-c/F4-d/F4-e | **Miguel**, desde el 06/10 ~21:00 | Verificado por los dos. Al día con `main`. Listo para fusionar y aplicar **sin activar C1** |
 
 ## 3. Orden
 
 | # | Quién | Qué | Cómo |
 | --- | --- | --- | --- |
-| 1 | **Miguel (Codex)** | Integrar la rama aparte y corregir los cinco P2 en una migración nueva, numerada **después** de `20261006150254` | P2 1 y 2 con la decisión de Miguel (06/10). Pruebas en el banco reducido y el gate |
-| 2 | **Miguel** | Repetir el ensayo: las nueve + décima, undécima y la suya; gate, reversas y advisors | Igual que el informe del 06/10 16:10 |
-| 3 | **Miguel** | Fusionar el #190 y aplicar en producción, **sin activar C1** | Pasos 1.7–1.8 de `CIERRE-PARA-EL-AGENTE-DE-MIGUEL.md`, con todos los registradores |
-| 4 | Jhosep | Conectar la pestaña con los tipos | `npm run gen:types` tras aplicar |
-| 5 | Los dos | F4-c (tarjeta «Celulares») y F4-d: activar C1 | Runbook en `F4C-F4D-PLAN-CORTO.md`. Nunca antes («instalar no es activar») |
-| 6 | **Miguel** decide, después los dos | F4-e: vista de supervisor y gerencia | Decisión 4 (F4 o F6) y el diccionario A1–A7 de `F4E-PLAN-CORTO.md` |
+| 1 | **Miguel** | Fusionar el #190 y aplicar en producción las doce, **sin activar C1** | Pasos 1.7–1.8 de `CIERRE-PARA-EL-AGENTE-DE-MIGUEL.md` y orden SQL de `CIERRE-CORRECCIONES-20261006.md`, cada una con su registrador, **desde una copia con LF**. Antes, comprobar el modo SLA real de producción (el banco estaba en `legado`) |
+| 2 | Miguel (o quien él diga) | Los 8 fallos de fondo del gate global (fila bancaria ×1, R2/hito ×3, bandera `potencial_lead` ×4) | **En un PR aparte**, después. Decisión de Jhosep (06/10): son previos y ajenos a llamadas, y no bloquean el #190 |
+| 3 | **Miguel** decide | Propuesta #18: MacroDroid Pro para producción | `PROPUESTAS-DE-AJUSTE.md` #18. La versión gratuita se apaga sola cuando vencen sus días |
+| 4 | Los dos | F4-c (tarjeta «Celulares») y F4-d: activar C1 | `F4C-F4D-PLAN-CORTO.md` (decisiones de Jhosep del 06/10 y runbook). La macro final de C1 ya está armada y probada (`macrodroid.md` §3c, `REGISTRO.md` §5g). Nunca antes de aplicar («instalar no es activar») |
+| 5 | **Miguel** decide, después los dos | F4-e: vista de supervisor y gerencia | Decisión 4 (F4 o F6) y el diccionario A1–A7 de `F4E-PLAN-CORTO.md` |
 
 En la guía del #190, **los pasos 2 (#193) y 3 (#195) ya no existen**: los reemplaza esta tabla.
 
 ## 4. Bitácora (lo más nuevo arriba)
 
+- **06/10 ~21:00 — Jhosep:** revisó la entrega de Miguel con evidencia y le devuelve el turno.
+  - Mismos números que Miguel: Edge 17 + 18 mutantes, app 6245/6245 y banco reducido 415/415.
+  - Hallazgo P3: la duodécima compara huellas md5 del texto de siete funciones con los saltos de línea incluidos. Si las
+    migraciones anteriores se instalaron desde una copia con CRLF (Windows con `autocrlf`), se niega a aplicarse. En
+    producción no afecta si se aplica desde LF, igual que los registradores.
+  - Puso el #190 al día con `main` (#205).
+  - Sumó tres documentos: las decisiones de F4-c/F4-d, la macro final de C1 armada y probada (P1, P2, P4 y P5 PASS)
+    y la propuesta #18.
+  - Decisión de Jhosep: los 8 fallos de fondo del gate global se aceptan como previos y ajenos, y van en un PR aparte.
+- **06/10 ~16:00 (Lima) — Jhosep, en C1:** MacroDroid gratuito estaba desactivado desde ~02/10 porque vencieron sus
+  días gratis. Se reactivó (+3 días, vence ~09/10). Con eso salió la propuesta #18.
+- **06/10 19:11 UTC — Miguel (Codex):** entrega `5df2764e`.
+  - Integró la rama aparte entera.
+  - **Duodécima** `20261006162813`: cierra los cinco P2.
+  - Conectó la fuente real de la pestaña y la v5 con recibo, y cerró los pendientes de pantalla y de accesibilidad.
+  - Tipos regenerados.
+  - App 6245, E2E 17/17, banco reducido 415/415, bloque de llamadas 197/197. Gate global: 8/3014, los mismos de antes.
+  - Informe: `CIERRE-CORRECCIONES-20261006.md`.
 - **06/10 ~17:00 — Jhosep:** a pedido del agente de Miguel («si ya tienes cambios preparados, avísanos»), deja la rama
   aparte `crm/llamadas-190-integrar-jhosep-20261006` sobre `ae2435e2`. No toca el #190.
   - Lleva la fusión con `main` (`33694da6`) y la resolución de `router.ts` (`consultaCitas` 7.º, `llamadaOrigenId` 8.º).
