@@ -22,6 +22,7 @@ export function Filtros({ filtros: f, onCambiar, onRestablecer }: PropsFiltros) 
   const { citas: CITAS, equipo: EQUIPO, mesInicial, meses, gestion } = useDatosCitas()
   const compacta = Boolean(gestion?.avance)
   const SUPERVISORES = [...new Map(EQUIPO.map(p => [p.supervisorId, p.supervisor])).entries()]
+  if (f.equipo && !SUPERVISORES.some(([id]) => id === f.equipo)) SUPERVISORES.push([f.equipo, f.equipo === 'sin_supervisor' ? 'Sin supervisor' : 'Equipo seleccionado'])
   const ORIGENES = [...new Set([...CITAS, ...(gestion?.asignaciones ?? [])].map(c => c.origen))]
   const RESULTADOS = [...new Set(CITAS.map(c => c.resultado))]
   const [avanzados, setAvanzados] = useState(false)
@@ -29,6 +30,7 @@ export function Filtros({ filtros: f, onCambiar, onRestablecer }: PropsFiltros) 
   const errorMonto = error
   const [desde, hasta] = rango(f)
   const etiquetas: { id: string; texto: string; quitar: Partial<FiltrosCitas> }[] = []
+  if (f.dia) etiquetas.push({ id: 'dia', texto: `Día: ${fmtFecha(f.dia)}`, quitar: { dia: '' } })
   if (f.leadId) etiquetas.push({ id: 'leadId', texto: `Lead: ${CITAS.find(cita => cita.leadId === f.leadId)?.nombre ?? f.leadId}`, quitar: { leadId: '' } })
   if (f.q) etiquetas.push({ id: 'q', texto: `Búsqueda: ${f.q}`, quitar: { q: '' } })
   if (f.equipo) etiquetas.push({ id: 'equipo', texto: `Supervisor: ${SUPERVISORES.find(([id]) => id === f.equipo)?.[1] ?? f.equipo}`, quitar: { equipo: '' } })

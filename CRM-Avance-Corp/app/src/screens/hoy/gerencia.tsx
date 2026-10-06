@@ -66,6 +66,9 @@ import { DesglosePorEmpresa } from '@/components/app/cierres-externos-seccion'
 import { CompromisosSupervisoresPanel } from './compromisos-supervisores'
 import { ObservacionRentabilidadPanel } from './observacion-rentabilidad'
 import { SolicitudesTasaGerenciaPanel } from './solicitudes-tasa-gerencia'
+import { ResumenGerenciaMovil } from './resumen-gerencia-movil'
+import { useEsMovil } from '@/lib/media'
+import { escribirHash } from '@/lib/router'
 
 interface ConsultaCargable {
   isPending: boolean
@@ -219,6 +222,21 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
     recargar,
   } = useCRMData()
   const { yo } = useAuth()
+  const esMovil = useEsMovil()
+  const [resumenCompleto, setResumenCompleto] = useState(false)
+  const resumenMovil = seccion === 'resumen' && esMovil && !resumenCompleto
+  const focoResumenPendiente = useRef(false)
+  const volverCompactoRef = useRef<HTMLButtonElement>(null)
+  const cambiarResumen = (completo: boolean) => {
+    focoResumenPendiente.current = true
+    setResumenCompleto(completo)
+  }
+  useEffect(() => {
+    if (!focoResumenPendiente.current) return
+    focoResumenPendiente.current = false
+    const destino = resumenCompleto ? volverCompactoRef.current : document.getElementById('grm-titulo')
+    destino?.focus()
+  }, [resumenCompleto])
   const { periodo, setPeriodo, diaLima, origenFiltrado, setOrigenFiltrado } = usePeriodoGerencia()
   const [borrador, setBorrador] = useState<PeriodoGerencia>(periodo)
   const periodoAnterior = useRef(periodo)
@@ -257,10 +275,10 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   // este corte único gobierna conversión, capital y cosecha. Para el mes vivo
   // termina hoy; para uno cerrado usa su último día calendario.
   const periodoRanking = useMemo(
-    () => modoDemo
+    () => modoDemo || resumenMovil
       ? periodoInicialGerencia(ahoraPeriodo)
       : periodoMesCalendario(periodoMetricas.hasta.slice(0, 7), ahoraPeriodo),
-    [ahoraPeriodo, modoDemo, periodoMetricas.hasta],
+    [ahoraPeriodo, modoDemo, periodoMetricas.hasta, resumenMovil],
   )
   const rankingHistorico = periodoRanking.desde !== periodoInicialGerencia(ahoraPeriodo).desde
   const vistaMensual = seccion === 'ranking-vendedores' || seccion === 'metas' || seccion === 'rendimiento'
@@ -292,9 +310,9 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   // Resumen y Conversiones siempre necesitan el rango. Ranking, Metas y
   // Rendimiento lo consultan únicamente al aislar una fuente, porque ese
   // payload trae los aportes ya ponderados por origen y por analista.
-  const necesitaConversiones = vistaConRangoYOrigen || (vistaMensual && fuenteActiva != null)
+  const necesitaConversiones = !resumenMovil && (vistaConRangoYOrigen || (vistaMensual && fuenteActiva != null))
   const necesitaConversionMensual = ['completo', 'resumen', 'conversiones', 'ranking-vendedores', 'metas', 'rendimiento'].includes(seccion)
-  const necesitaReuniones = ['completo', 'resumen', 'reuniones'].includes(seccion)
+  const necesitaReuniones = !resumenMovil && ['completo', 'resumen', 'reuniones'].includes(seccion)
   const necesitaDistribucion = seccion === 'rendimiento'
   // La RPC acepta los orígenes de prospecto. Upgrade y Renovación viajan sin
   // `p_origen` y se recortan sobre `conversion_operaciones`, cuyos aportes ya
@@ -605,8 +623,21 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   const periodoPie = vistaMensual ? periodoRanking : periodo
   const claveMotion = `${seccion}|${periodo.desde}|${periodo.hasta}|${fuenteActiva ?? 'todas'}|${conversionesDeEjemplo}|${reunionesDeEjemplo}`
 
+  if (resumenMovil) return <ResumenGerenciaMovil
+    dia={diaLima} mes={metaMensualRanking.etiqueta} capital={capitalTotal} meta={metaTotalCapital}
+    fuenteTc={tipoCambio.tc?.fuente ?? ''}
+    cargando={conversionMensualCargando || cumplimientoRankingCargando || tcEnVuelo}
+    error={errorConversionMensual || errorFotoMensualRanking || metaMensualRanking.errorCarga ? 'No se pudieron actualizar el capital y la meta del mes.' : null}
+    onReintentar={() => { reintentarConversionMensual(); if (sesionReal) void qCumplimientoRanking.refetch(); tipoCambio.recargar() }}
+    onActualizar={() => { reintentarConversionMensual(); if (sesionReal) void qCumplimientoRanking.refetch() }}
+    onMetas={() => { setPeriodo(periodoRanking); setOrigenFiltrado(null); escribirHash('metas') }}
+    onCompleto={() => cambiarResumen(true)}
+    aviso={sesionReal ? <AvisoCierreMesPanel /> : null}
+  />
+
   return (
     <GerenciaMotion clave={claveMotion} className="mx-auto max-w-[1640px] space-y-4">
+      {seccion === 'resumen' && esMovil && resumenCompleto && <Button ref={volverCompactoRef} variant="outline" onClick={() => cambiarResumen(false)}>Volver al resumen compacto</Button>}
       <CabeceraGerencia
         periodo={periodo}
         borrador={borrador}

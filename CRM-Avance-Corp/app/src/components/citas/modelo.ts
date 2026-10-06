@@ -1,3 +1,5 @@
+import { diaCitasValido } from '@/lib/enlace-citas'
+
 export type EstadoCita = 'vencida' | 'programada' | 'realizada' | 'no_show' | 'reprogramada' | 'cancelada' | 'sistema'
 export interface PersonaCitas { id: string; nombre: string; supervisor: string; supervisorId: string }
 export interface CitaEjemplo {
@@ -15,10 +17,12 @@ export interface FiltrosCitas {
   estados: EstadoCita[]; modalidad: string; origen: string; resultado: string; seguimiento: string;
   moneda: string; min: string; max: string; sort: string;
   registro?: '' | 'manual' | 'recibido';
+  dia?: string;
 }
 export function mesLima(ahora = new Date()) { return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima', year: 'numeric', month: '2-digit' }).format(ahora).slice(0, 7) }
 export function defaults(mes = mesLima()): FiltrosCitas { return { q: '', equipo: '', analista: '', mes, semana: '', estados: [], modalidad: '', origen: '', resultado: '', seguimiento: '', moneda: '', min: '', max: '', sort: 'prioridad' } }
 export function rango(f: FiltrosCitas): [string, string] {
+  if (f.dia) return diaCitasValido(f.dia) && f.dia.startsWith(`${f.mes}-`) ? [f.dia, f.dia] : ['', '']
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(f.mes) || !['', '1', '2', '3', '4'].includes(f.semana)) return ['', '']
   const [anio, mes] = f.mes.split('-').map(Number)
   const ultimo = new Date(Date.UTC(anio!, mes!, 0)).getUTCDate()

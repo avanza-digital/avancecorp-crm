@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ContextoCitas, type DatosCitas } from './contexto'
@@ -7,10 +7,62 @@ import { CITAS_CRM } from '@/prototypes/citas-crm/datos'
 import type { GestionCitas, LeadBaseCitas } from './metas'
 
 afterEach(cleanup)
+beforeEach(() => window.history.replaceState(null, '', '#/reuniones'))
 const fuente: DatosCitas = {citas:CITAS_CRM,corte:'2026-09-08T18:00:00Z',depositos:[],depositosDisponibles:false,mesInicial:'2026-09',modoDemo:false,meses:[]}
 const montar = (cambios: Partial<DatosCitas> = {}) => render(<ContextoCitas value={{...fuente,...cambios}}><TableroCitas /></ContextoCitas>)
 
 describe('Citas conectadas al CRM',() => {
+  it('conserva en recargas el día al cambiar equipo y el equipo al quitar el día', () => {
+    const citas = [
+      { ...CITAS_CRM[0]!, id: 'a', analista: 'a', fecha: '2026-09-04', supervisorId: 'd-sup1' },
+      { ...CITAS_CRM[0]!, id: 'b', analista: 'b', fecha: '2026-09-04', supervisorId: 'd-sup2' },
+      { ...CITAS_CRM[0]!, id: 'c', analista: 'b', fecha: '2026-09-05', supervisorId: 'd-sup2' },
+    ]
+    window.history.replaceState(null, '', '#/reuniones/dia/2026-09-04/equipo/d-sup1')
+    let vista = montar({ citas })
+    fireEvent.change(screen.getByLabelText('Supervisor'), { target: { value: 'd-sup2' } })
+    expect(window.location.hash).toBe('#/reuniones/dia/2026-09-04/equipo/d-sup2')
+    vista.unmount()
+    vista = montar({ citas })
+    expect(screen.getByLabelText('Supervisor')).toHaveValue('d-sup2')
+    expect(screen.getByTestId('conteo-citas')).toHaveTextContent('1 citas de tu consulta')
+    fireEvent.click(screen.getByRole('button', { name: /Quitar Día:/ }))
+    expect(window.location.hash).toBe('#/reuniones/mes/2026-09/equipo/d-sup2')
+    vista.unmount()
+    montar({ citas })
+    expect(screen.getByLabelText('Supervisor')).toHaveValue('d-sup2')
+    expect(screen.getByTestId('conteo-citas')).toHaveTextContent('2 citas de tu consulta')
+  })
+  it('el enlace del Resumen abre el día y equipo exactos y permite volver al mes completo', () => {
+    window.history.replaceState(null, '', '#/reuniones/dia/2026-09-04/equipo/d-sup1')
+    const onMes = vi.fn()
+    montar({ onMes, citas: [
+      { ...CITAS_CRM[0]!, id: 'a', fecha: '2026-09-04', supervisorId: 'd-sup1' },
+      { ...CITAS_CRM[0]!, id: 'b', fecha: '2026-09-05', supervisorId: 'd-sup1' },
+      { ...CITAS_CRM[0]!, id: 'c', fecha: '2026-09-04', supervisorId: 'd-sup2' },
+    ] })
+    expect(screen.getByRole('tab', { name: 'Agenda' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByTestId('conteo-citas')).toHaveTextContent('1 citas de tu consulta')
+    expect(screen.getByLabelText('Supervisor')).toHaveValue('d-sup1')
+    expect(screen.getByRole('button', { name: /Quitar Día:/ })).toBeVisible()
+    expect(onMes).toHaveBeenLastCalledWith('2026-09')
+    fireEvent.change(screen.getByLabelText('Semana'), { target: { value: '1' } })
+    expect(screen.queryByRole('button', { name: /Quitar Día:/ })).not.toBeInTheDocument()
+    expect(screen.getByTestId('conteo-citas')).toHaveTextContent('2 citas de tu consulta')
+    expect(window.location.hash).toBe('#/reuniones/mes/2026-09/semana/1/equipo/d-sup1')
+    fireEvent.click(screen.getByRole('button', { name: 'Restablecer consulta' }))
+    expect(screen.getByTestId('conteo-citas')).toHaveTextContent('3 citas de tu consulta')
+  })
+
+  it('un nuevo enlace en la misma vista cambia día/equipo sin conservar filtros anteriores', () => {
+    montar()
+    fireEvent.change(screen.getByLabelText('Semana'), { target: { value: '4' } })
+    window.history.replaceState(null, '', '#/reuniones/dia/2026-08-31/equipo/sin_supervisor')
+    fireEvent(window, new HashChangeEvent('hashchange'))
+    expect(screen.getByLabelText('Mes')).toHaveValue('2026-08')
+    expect(screen.getByLabelText('Semana')).toHaveValue('')
+    expect(screen.getByLabelText('Supervisor')).toHaveValue('sin_supervisor')
+  })
   it('compara contra los asignados e incluye al analista con cero citas sin mostrar la meta interna',async () => {
     const usuario=userEvent.setup()
     const base = (n: number, analista='ana'): LeadBaseCitas => ({
