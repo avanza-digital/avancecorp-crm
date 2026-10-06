@@ -12,6 +12,8 @@
 //  · sin coincidencia / inválido / error → aviso con búsqueda manual AQUÍ (la
 //    barra global no existe en el celular) o reintento.
 // Nada se autoselecciona salvo `unico`: el analista elige siempre el resultado.
+// F4-b: si el enlace trae el id de la llamada («…/llamada/<numero>/<id>»), viaja
+// con la intención —también si el lead se elige a mano— hasta la encuesta.
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, type FormEvent, type JSX } from 'react'
 import { toast } from 'sonner'
 import { PhoneCall, Search, X } from 'lucide-react'
@@ -62,11 +64,11 @@ export function ReceptorLlamada(): JSX.Element | null {
   const { abrirLead } = usePanelesActions()
   const { cargando } = useStoreEstado()
   useSyncExternalStore(suscribirHash, fotoHash, () => '')
-  const numeroEnHash = leerHash().llamadaNumero
+  const { llamadaNumero: numeroEnHash, llamadaOrigenId: origenEnHash } = leerHash()
   const actor = yo?.id ?? null
   const rol = yo?.rol
   const demo = yo?.demo === true
-  const [captura, setCaptura] = useState<{ numero: string; intento: number } | null>(null)
+  const [captura, setCaptura] = useState<{ numero: string; origen?: string | undefined; intento: number } | null>(null)
   const [aviso, setAviso] = useState<Aviso | null>(null)
   // El ámbito local solo importa en la demo; por ref para no relanzar la búsqueda
   // cada vez que el store cambia.
@@ -94,16 +96,16 @@ export function ReceptorLlamada(): JSX.Element | null {
       toast.info('Tu cuenta no registra llamadas.')
       return
     }
-    setCaptura((previa) => ({ numero: numeroEnHash, intento: (previa?.intento ?? 0) + 1 }))
-  }, [numeroEnHash, actor, rol])
+    setCaptura((previa) => ({ numero: numeroEnHash, origen: origenEnHash, intento: (previa?.intento ?? 0) + 1 }))
+  }, [numeroEnHash, origenEnHash, actor, rol])
 
-  const elegirLead = useCallback((lead: Lead, numero: string) => {
+  const elegirLead = useCallback((lead: Lead, numero: string, origenLlamada: string | undefined) => {
     if (!actor) return
     conocerLeads([lead])
     // Solo se arma. Si pasa a ser la cabeza de la cola, el efecto de abajo le da
     // tiempo a las AccionesContacto del lead a tomarla y, si nadie lo hace, abre
     // su ficha. Si otra encuesta está abierta, espera detrás (F1.1.3).
-    armarIntencion({ actor, leadId: lead.id, canal: 'tel', origen: 'enlace', numero })
+    armarIntencion({ actor, leadId: lead.id, canal: 'tel', origen: 'enlace', numero, ...(origenLlamada ? { origenLlamada } : {}) })
     setAviso(null)
   }, [actor, conocerLeads])
   const elegirRef = useRef(elegirLead)
@@ -143,7 +145,7 @@ export function ReceptorLlamada(): JSX.Element | null {
       }
       // Número reciclado o ya cliente: se dice, pero el candidato es el lead vivo.
       if (resultado.terminales.length > 0) toast.info(`Ojo: este número también figura en ${listaNombres(resultado.terminales)}.`)
-      elegirRef.current(resultado.lead, resultado.numero)
+      elegirRef.current(resultado.lead, resultado.numero, captura.origen)
     }).catch(() => {
       if (vigente) setAviso({ fase: 'aviso', resultado: { estado: 'error', numero: canon, mensaje: MENSAJE_ERROR } })
     })
@@ -166,7 +168,7 @@ export function ReceptorLlamada(): JSX.Element | null {
             {aviso.fase === 'buscando'
               ? <p aria-busy className="font-semibold text-foreground">Buscando a quién pertenece {telefonoLegible(aviso.numero)}…</p>
               : <Resultado resultado={aviso.resultado} manual={manual} onReintentar={reintentar}
-                  onElegir={(lead) => elegirLead(lead, aviso.resultado.numero)} />}
+                  onElegir={(lead) => elegirLead(lead, aviso.resultado.numero, captura?.origen)} />}
           </div>
           <Button type="button" variant="ghost" size="icon" className="-mr-1 -mt-1 size-8 shrink-0 pointer-coarse:size-11" aria-label="Cerrar el aviso de la llamada" onClick={() => setAviso(null)}>
             <X />
@@ -248,8 +250,11 @@ function ListaLeads({ etiqueta, leads, onElegir }: { etiqueta: string; leads: re
   )
 }
 
-/** La misma búsqueda de la barra (nombre, teléfono o DNI), aquí porque en el celular no hay barra. */
-function BusquedaManual({ inicial, manual, onElegir }: { inicial: string; manual: OpcionesResolucion; onElegir: (lead: Lead) => void }): JSX.Element {
+/**
+ * La misma búsqueda de la barra (nombre, teléfono o DNI), aquí porque en el celular no hay barra. La reutiliza
+ * «Elegir el lead» de la pestaña «Llamadas del celular» (F4-b).
+ */
+export function BusquedaManual({ inicial, manual, onElegir }: { inicial: string; manual: OpcionesResolucion; onElegir: (lead: Lead) => void }): JSX.Element {
   const id = useId()
   const [texto, setTexto] = useState(inicial)
   const [resultados, setResultados] = useState<Lead[] | null>(null)

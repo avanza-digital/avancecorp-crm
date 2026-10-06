@@ -24,7 +24,7 @@ encuesta que se abre al colgar queda unida a su llamada exacta.
 | Paso | Qué | Depende de |
 | --- | --- | --- |
 | B1 | **Tipos** de las puertas de llamadas en `database.types.ts` | Miguel: generarlos desde su banco con las siete aplicadas (pedido en el #190). Nunca a mano (estándar de 4 capas) |
-| B2 | **Octava migración: dos lecturas** (abajo) | Tu OK y el de Miguel a este plan |
+| B2 | **Octava migración: dos lecturas** (abajo) y **novena** (enmienda) | Octava hecha el 05/10 (`20261005201010`). Miguel la revisó en el #195 (22:00 UTC): pedir páginas y definir «hoy». **Novena** `20261005224330` (decisiones abajo, #4–#6), sin aplicar. Falta: fusionar el #190, rehacer el #195 sobre `main` y la revisión de Miguel |
 | B3 | **Módulo de datos** `data/llamadas-celular-api.ts`: bandeja, detalle, asociar, enlazar, descartar y las dos lecturas nuevas, con su rama de demo | B1 (y B2 para las lecturas nuevas) |
 | B4 | **La encuesta llama a la v5** cuando la intención trae id: `p_evento_origen_id` + vía (`al_colgar` desde el enlace, `pestana` desde la pestaña). Sin id, sigue la v4 tal cual. Comando con recibo nuevo (`registrar_llamada_v5` en `data/sla-operacion-comandos.ts`, para que un reintento no duplique). El aviso dice lo que pasó: unida, o «no se pudo unir» y por qué | B1 |
 | B5 | **Pestaña «Llamadas del celular · N»** en «Tu cola y tu actividad» (`screens/gestion-diaria/analista.tsx`): «Pendientes» (registrar, elegir el lead de su cartera, descartar con motivo), «Qué pasó hoy» y el detalle (ya registrada, descartada, «no está disponible», reintento) | B3, B4 |
@@ -49,13 +49,16 @@ delegan en un núcleo INVOKER de `private`. El ámbito lo decide el servidor con
 Cada una con su oráculo en el banco reducido (ámbito por rol, lead dado de baja, otro equipo), su reversa y su
 registrador, como las siete.
 
-## Decisiones (recomendación de Claude)
+## Decisiones (tomadas por Jhosep el 05/10, con la recomendación)
 
 | # | Decisión | Recomendación | Alternativa |
 | --- | --- | --- | --- |
 | 1 | ¿La v5 reemplaza a la v4 en todas las encuestas? | **Solo cuando la intención trae id**; sin id, la v4 de siempre | Siempre la v5: un solo camino, pero toca todas las encuestas a la vez |
 | 2 | Marca «Celular» | **Puerta aparte (lectura 2)** | Añadir el campo a `registro_actividad_fn`: un viaje menos, pero cambia una puerta usada por otras pantallas |
 | 3 | «Qué pasó hoy» | **Solo el día de hoy (Lima)** | Un rango de días: más útil para revisar, más carga |
+| 4 | (novena) ¿Qué es «hoy»? | **Lo resuelto hoy en Lima** (hora del enlace o del descarte), aunque la llamada sea de ayer | Lo recibido hoy (la octava): una llamada de ayer resuelta hoy no saldría en ninguna lista |
+| 5 | (novena) Más de una página | **Paginar como la bandeja** (`{filas, siguiente}`, 50 por defecto) y dos índices | Un tope fijo de 200: se pierden filas en días largos |
+| 6 | (novena) Registrada ayer, deshecha hoy y corregida hoy | **Cuenta hoy** (hora en que el enlace pasó al corregido). Si se deshace y no se corrige, no sale: **límite anotado** (la marca y el historial sí la muestran) | Mostrarla igual: ordenar por un dato de la actividad que no admite índice |
 
 ## Verificación prevista
 
