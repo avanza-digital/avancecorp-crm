@@ -1,3 +1,4 @@
+import { responderRegistroV2 } from './_gestiones-v2'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { loginReal, montarBackendReal, leadReal, UID } from './_helpers'
 import fixture from '../src/lib/gestion-diaria-f5.test.fixture.json' with { type: 'json' }
@@ -49,9 +50,9 @@ async function montar(page: Page) {
     expect(pedido.p_supervisor_id).toBeUndefined()
     return route.fulfill({ json: moverFechas(fixture.equipo, pedido.p_dia) })
   })
-  await page.route('**/rest/v1/rpc/registro_actividad_fn', async (route) => {
+  await page.route('**/rest/v1/rpc/registro_actividad_v2_fn', async (route) => {
     const pedido = route.request().postDataJSON(); estado.registros.push(pedido)
-    if (estado.registroRevocado) return route.fulfill({ status: 403, json: { code: '42501', message: 'Registro revocado' } })
+    if (estado.registroRevocado) return responderRegistroV2(route, { status: 403, json: { code: '42501', message: 'Registro revocado' } })
     const items = pedido.p_analista_ids && !pedido.p_analista_ids.includes(analista.analista_id) ? [] : [{
       id: '11111111-2222-4333-8444-555555555555', lead_id: cliente.id, lead_nombre: cliente.nombre_completo,
       lead_etapa: 'nuevo', etapa_en_ese_momento: 'nuevo', tipo: 'llamada_realizada', detalle: `Llamada ficticia F5 del ${pedido.p_desde}`,
@@ -62,7 +63,7 @@ async function montar(page: Page) {
       id: `11111111-2222-4333-8444-${String(i + 1).padStart(12, '0')}`,
       detalle: `${items[0]!.detalle} · gestión ${i + 1}`, creado_en: `${pedido.p_desde}T15:${String(25 - i).padStart(2, '0')}:00.000Z`,
     })) : items
-    return route.fulfill({ json: { version: 1, zona: 'America/Lima', desde: pedido.p_desde, hasta: pedido.p_hasta,
+    return responderRegistroV2(route, { json: { version: 1, zona: 'America/Lima', desde: pedido.p_desde, hasta: pedido.p_hasta,
       generado_en: fixture.pulso.generado_en, limite: pedido.p_limite, items: pedido.p_antes_de ? paginas.slice(25) : paginas } })
   })
   await loginReal(page)

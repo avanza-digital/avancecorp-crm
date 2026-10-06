@@ -1,3 +1,4 @@
+vi.mock('@/components/gestion-diaria/resumen-gestiones', () => ({ AccesoGestionesClientes: () => null, ResumenGestionesHoy: () => null }))
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, within, waitFor } from '@testing-library/react'
 import { useState } from 'react'

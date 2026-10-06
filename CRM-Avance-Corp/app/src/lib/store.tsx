@@ -1176,6 +1176,10 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       })
     }
     if (invalidarAgenda) {
+      // Los cierres de perfiles y leads también alimentan el registro y
+      // el resumen de clientes. Retirar cualquier lectura anterior al cierre.
+      void queryClient.cancelQueries({ queryKey: gestionDiariaKeys.raiz() })
+        .then(() => queryClient.invalidateQueries({ queryKey: gestionDiariaKeys.raiz() }))
       void queryClient.invalidateQueries({
         queryKey: crmQueryKeys.metricasAgendaPrefijo(),
       })

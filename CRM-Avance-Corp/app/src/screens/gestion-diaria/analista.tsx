@@ -1,3 +1,4 @@
+import { AccesoGestionesClientes } from '@/components/gestion-diaria/resumen-gestiones'
 // Gestión diaria del analista. `gestion_diaria_cola_trabajo_fn` decide el
 // orden y el avance de la cola completa ANTES de paginar. La actividad vigente
 // del día de Lima es la fuente del progreso; el navegador guarda navegación.
@@ -576,6 +577,7 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
           <div className="flex min-w-0 flex-wrap items-center gap-3">
             <span className="text-[13px] text-foreground/80 first-letter:uppercase">{fecha}</span>
             {accesoSeguimiento}
+            <AccesoGestionesClientes dia={hoy} autores={yo ? [yo.id] : null} />
             <button type="button" aria-label="Actualizar" title="Actualizar" aria-disabled={dia.enVuelo} aria-busy={dia.enVuelo}
               className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-[10px] border border-border bg-card text-foreground transition-colors hover:border-border-strong hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               onClick={() => { if (dia.enVuelo) return; void dia.recargar(); if (!yo?.demo) void cola.refetch() }}>
@@ -602,7 +604,7 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
             )}
 
 
-            <FranjaCifras etiqueta="Tu día en cifras" cifras={cifrasDelDia(dia.dia)} />
+            <FranjaCifras etiqueta="Captación de leads" cifras={cifrasDelDia(dia.dia)} />
           </>
         )}
       </div>

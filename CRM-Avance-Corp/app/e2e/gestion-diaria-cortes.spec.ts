@@ -1,3 +1,4 @@
+import { responderRegistroV2 } from './_gestiones-v2'
 import { expect, test, type Page } from '@playwright/test'
 import { writeFile } from 'node:fs/promises'
 import { leadReal, loginReal, montarBackendReal, UID } from './_helpers'
@@ -36,9 +37,9 @@ async function preparar(page: Page, popup = false) {
     else aviso.reconocido_en = estado.avisos.generado_en
     return r.fulfill({ json: estado.avisos })
   })
-  await page.route('**/rest/v1/rpc/registro_actividad_fn', (r) => {
+  await page.route('**/rest/v1/rpc/registro_actividad_v2_fn', (r) => {
     estado.registros.push(r.request().postDataJSON())
-    return r.fulfill({ json: { version: 1, zona: 'America/Lima', desde: dia, hasta: dia, limite: 26,
+    return responderRegistroV2(r, { json: { version: 1, zona: 'America/Lima', desde: dia, hasta: dia, limite: 26,
       generado_en: f.equipo.generado_en, items: [{ id: idH4(50), lead_id: lead.id, lead_nombre: lead.nombre_completo,
         lead_etapa: 'nuevo', etapa_en_ese_momento: 'nuevo', tipo: 'llamada_realizada', detalle: 'Llamada desde corte H4', metadata: {},
         creado_por: idH4(2), autor_nombre: 'ANA H4', creado_en: `${dia}T11:00:00-05:00` }] } })

@@ -11,14 +11,14 @@
 // analista es un desplegable (≤ 20 nombres); el CSV exporta las filas CARGADAS,
 // no el día entero (el aviso lo dice con el número exacto).
 import { useEffect, useEffectEvent, useId, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react'
-import { ArrowUpRight, ClipboardList, Download, RefreshCw } from 'lucide-react'
+import { ClipboardList, Download, RefreshCw } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { useAhora } from '@/lib/ahora'
 import { fechaLima } from '@/lib/agenda-derivada'
-import { useCRMData, usePanelesActions } from '@/lib/store-context'
+import { useCRMData } from '@/lib/store-context'
 import { ETAPA_INFO, ETAPAS, TERMINALES, type Etapa } from '@/lib/tipos'
 import {
-  ETIQUETA_CORTA, PESTANAS_REGISTRO, analistasDelEquipo, cursorSiguiente, filasCsvRegistro, horaDeItem, paginaVisible, tonoDeTipo,
+  etiquetaGestion, resultadoGestionVisible, PESTANAS_REGISTRO, analistasDelEquipo, cursorSiguiente, filasCsvRegistro, horaDeItem, paginaVisible, tonoDeTipo,
   type CursorRegistro, type FiltrosRegistro, type PestanaRegistro, type RegistroItem,
 } from '@/lib/gestion-diaria'
 import { useRegistroActividadOperativo } from '@/data/gestion-diaria-queries'
@@ -29,6 +29,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
 import { PanelCargando, PanelVacio } from '@/components/common/estado-panel'
+import { EnlaceSujetoGestion } from './enlace-sujeto'
 import { BOTON_CABECERA } from './estilos-gestion'
 
 const LIMITE_PAGINA = 25
@@ -55,6 +56,7 @@ interface Props {
   permitirExportar: boolean
   /** F4: el registro general abre Todo; el desglose horario abre Llamadas. */
   pestanaInicial?: PestanaRegistro
+  carteraInicial?: 'leads' | 'clientes' | null | undefined
   /** Refresco externo: conserva filtros y vuelve a la primera página. */
   actualizacion?: number | undefined
   onSinPermiso?: (() => void) | undefined
@@ -79,17 +81,17 @@ interface Props {
 export function RegistroActividad(props: Props) {
   const { yo } = useAuth()
   // La memoria paginada y los selectores no cruzan identidades, días ni ámbitos.
-  const identidad = JSON.stringify([yo?.id, yo?.rol, yo?.demo, props.dia, props.analistaIds, props.pestanaInicial])
+  const identidad = JSON.stringify([yo?.id, yo?.rol, yo?.demo, props.dia, props.analistaIds, props.pestanaInicial, props.carteraInicial])
   return <RegistroDelAmbito key={identidad} {...props} />
 }
 
-function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo = false, permitirExportar, pestanaInicial = 'llamadas', actualizacion = 0, onSinPermiso, compartirPrimeraPagina = false, compacto = false, encabezadoExterno }: Props) {
+function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo = false, permitirExportar, pestanaInicial = 'llamadas', carteraInicial = null, actualizacion = 0, onSinPermiso, compartirPrimeraPagina = false, compacto = false, encabezadoExterno }: Props) {
   const { yo } = useAuth()
   const ahora = useAhora()
   const { equipo, ambito } = useCRMData()
-  const { abrirLead } = usePanelesActions()
   const id = useId()
   const [pestana, setPestana] = useState<PestanaRegistro>(pestanaInicial)
+  const [cartera, setCartera] = useState<'leads' | 'clientes' | null>(carteraInicial)
   const [etapa, setEtapa] = useState<Etapa | null>(null)
   const [equipoSel, setEquipoSel] = useState<string | null>(null)
   const [analista, setAnalista] = useState<string | null>(null)
@@ -108,7 +110,8 @@ function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo =
     analistaIds: analista ? [analista] : idsEquipo ?? analistaIds,
     pestana,
     etapa,
-  }), [analista, analistaIds, dia, etapa, idsEquipo, pestana])
+    ...(cartera ? { cartera } : {}),
+  }), [analista, analistaIds, dia, etapa, idsEquipo, pestana, cartera])
   // Cualquier cambio de filtro o de día vuelve a la primera página EN EL MISMO
   // render (estado derivado): así la primera consulta con filtros nuevos ya sale
   // sin cursor viejo, y el aviso de exportación no sobrevive a otra vista.
@@ -165,6 +168,19 @@ function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo =
     if (compartirPrimeraPagina || cursorVigente === null) setReinicio(n => n + 1)
     encabezado.current?.focus()
   }
+  // La identidad del cliente depende de su cartera actual. Las páginas
+  // acumuladas se vuelven a autorizar al regresar o al siguiente minuto.
+  const clientesAcumulados = previasVigentes.some(i => i.origen === 'postventa' || i.origen === 'perfil')
+  const revalidarClientes = useEffectEvent(() => {
+    setPrevias([]); setCursor(null); setAviso(null); setReinicio(n => n + 1)
+  })
+  useEffect(() => {
+    if (!clientesAcumulados) return
+    const renovar = () => revalidarClientes()
+    window.addEventListener('focus', renovar)
+    const timer = window.setTimeout(renovar, 60_000)
+    return () => { window.removeEventListener('focus', renovar); window.clearTimeout(timer) }
+  }, [clientesAcumulados])
   function exportar() {
     const { cabecera, filas } = filasCsvRegistro(visibles)
     const ok = descargarCsv(`registro-actividad-${dia}${analista ? '-analista' : equipoSel ? '-equipo' : ''}.csv`, csvDe(cabecera, filas))
@@ -187,21 +203,18 @@ function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo =
         {visibles.map((item) => {
           const tono = tonoDeTipo(item.tipo)
           const etapaEntonces = item.etapa_en_ese_momento ? ETAPA_INFO[item.etapa_en_ese_momento as Etapa]?.label ?? item.etapa_en_ese_momento : null
-          const etapaActual = ETAPA_INFO[item.lead_etapa as Etapa]?.label ?? item.lead_etapa
-          const resultado = typeof item.metadata['resultado'] === 'string' ? (item.metadata['resultado'] as string) : null
+          const etapaActual = item.sujeto_tipo && item.sujeto_tipo !== 'lead' ? 'Cliente' : `${ETAPA_INFO[item.lead_etapa as Etapa]?.label ?? item.lead_etapa} ahora`
+          const resultado = resultadoGestionVisible(item)
           return (
-            <li key={item.id} className="grid gap-x-4 gap-y-1 px-4 py-3 sm:grid-cols-[4.5rem_1fr]">
+            <li key={`${item.origen ?? 'lead'}:${item.id}`} className="grid gap-x-4 gap-y-1 px-4 py-3 sm:grid-cols-[4.5rem_1fr]">
               <time dateTime={item.creado_en} className="text-base font-bold tabular-nums text-primary">{horaDeItem(item)}</time>
               <div className="min-w-0 space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge className="text-base leading-normal" color={TONO[tono]} dot>{ETIQUETA_CORTA[item.tipo]}</Badge>
+                  <Badge className="text-base leading-normal" color={TONO[tono]} dot>{etiquetaGestion(item)}</Badge>
                   {resultado && <Badge className="text-base leading-normal" color="var(--primary)" variant="outline">{resultado.replaceAll('_', ' ')}</Badge>}
-                  <button type="button" onClick={() => void abrirLead(item.lead_id)}
-                    className="inline-flex min-h-11 items-center gap-1 rounded-md text-base font-semibold text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent/40">
-                    {item.lead_nombre} <ArrowUpRight aria-hidden className="size-3.5" />
-                  </button>
+                  <EnlaceSujetoGestion sujeto={item} />
                   <span className="text-base text-[var(--muted-foreground-strong)]">
-                    {etapaEntonces ? `${etapaEntonces} entonces · ` : ''}{etapaActual} ahora
+                    {etapaEntonces ? `${etapaEntonces} entonces · ` : ''}{etapaActual}
                   </span>
                   {mostrarAnalista && <span className="text-base font-semibold text-[var(--muted-foreground-strong)]">· {item.autor_nombre}</span>}
                 </div>
@@ -240,23 +253,20 @@ function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo =
         {visibles.map((item) => {
           const tono = tonoDeTipo(item.tipo)
           const etapaEntonces = item.etapa_en_ese_momento ? ETAPA_INFO[item.etapa_en_ese_momento as Etapa]?.label ?? item.etapa_en_ese_momento : null
-          const etapaActual = ETAPA_INFO[item.lead_etapa as Etapa]?.label ?? item.lead_etapa
-          const resultado = typeof item.metadata['resultado'] === 'string' ? (item.metadata['resultado'] as string) : null
+          const etapaActual = item.sujeto_tipo && item.sujeto_tipo !== 'lead' ? 'Cliente' : `${ETAPA_INFO[item.lead_etapa as Etapa]?.label ?? item.lead_etapa} ahora`
+          const resultado = resultadoGestionVisible(item)
           return (
-            <li key={item.id} className="flex gap-3 border-b border-muted py-2.5">
+            <li key={`${item.origen ?? 'lead'}:${item.id}`} className="flex gap-3 border-b border-muted py-2.5">
               <time dateTime={item.creado_en} className="w-10 shrink-0 pt-0.5 text-[13px] font-bold tabular-nums text-foreground/80">{horaDeItem(item)}</time>
               <div className="min-w-0 flex-1 space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge className="min-h-[22px] py-0 text-[11.5px]" color={TONO[tono]}>{ETIQUETA_CORTA[item.tipo]}</Badge>
+                  <Badge className="min-h-[22px] py-0 text-[11.5px]" color={TONO[tono]}>{etiquetaGestion(item)}</Badge>
                   {resultado && <Badge className="min-h-[22px] py-0 text-[11.5px]" color="var(--primary)" variant="outline">{resultado.replaceAll('_', ' ')}</Badge>}
-                  <button type="button" onClick={() => void abrirLead(item.lead_id)}
-                    className="rounded-md text-left text-sm font-bold text-primary underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
-                    {item.lead_nombre}
-                  </button>
+                  <EnlaceSujetoGestion sujeto={item} />
                   {mostrarAnalista && <span className="text-[12.5px] font-semibold text-[var(--muted-foreground-strong)]">· {item.autor_nombre}</span>}
                 </div>
                 {item.detalle && <p className="whitespace-pre-wrap break-words text-[13px] leading-snug text-foreground/80">{item.detalle}</p>}
-                <p className="text-[11.5px] text-[var(--muted-foreground-strong)]">{etapaEntonces ? `${etapaEntonces} entonces · ` : ''}{etapaActual} ahora</p>
+                <p className="text-[11.5px] text-[var(--muted-foreground-strong)]">{etapaEntonces ? `${etapaEntonces} entonces · ` : ''}{etapaActual}</p>
               </div>
             </li>
           )
@@ -295,11 +305,21 @@ function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo =
       detalle={pestana === 'todo' && etapa === null ? 'Ninguna gestión registrada en el ámbito consultado.' : 'Prueba con la pestaña «Todo» u otra etapa. Esto no significa que no haya otras gestiones.'} />
   ) : compacto ? listaCompacta : lista
 
+  const selectorCartera = (
+    <label htmlFor={`${id}-cartera`} className="mb-2 flex flex-wrap items-center gap-2 text-sm font-semibold">Cartera
+      <Select id={`${id}-cartera`} value={cartera ?? ''} onChange={e => { setCartera(e.target.value as 'leads' | 'clientes' || null); setEtapa(null) }} className="w-auto min-w-40">
+        <option value="">Leads y clientes</option><option value="leads">Leads</option><option value="clientes">Clientes</option>
+      </Select>
+    </label>
+  )
   const pastillas = (
+    <>
+    {selectorCartera}
     <Tabs variante="pastilla" etiqueta="Tipo de actividad" pestanas={PESTANAS_REGISTRO} valor={pestana} onCambio={setPestana}
       className="space-y-2 [&>[role=tablist]]:gap-1.5 [&>[role=tablist]>[role=tab]]:min-h-9 [&>[role=tablist]>[role=tab]]:px-3 [&>[role=tablist]>[role=tab]]:py-0 [&>[role=tablist]>[role=tab]]:text-[12.5px] [&>[role=tablist]>[role=tab]]:font-bold">
       {panel}
     </Tabs>
+    </>
   )
   if (compacto && encabezadoExterno) {
     const rotulo = 'flex flex-wrap items-center gap-2 text-[13px] font-semibold text-[var(--muted-foreground-strong)]'
@@ -370,8 +390,9 @@ function RegistroDelAmbito({ dia, analistaIds, mostrarAnalista, permitirEquipo =
       </div>
 
       <div className="flex flex-wrap items-end gap-3">
+        {selectorCartera}
         <label htmlFor={`${id}-etapa`} className="text-base font-semibold text-[var(--muted-foreground-strong)]">Etapa actual del lead
-          <Select id={`${id}-etapa`} value={etapa ?? ''} onChange={(e) => setEtapa((e.target.value || null) as Etapa | null)} className="mt-1 min-h-11 min-w-48 text-base">
+          <Select id={`${id}-etapa`} disabled={cartera === 'clientes'} value={etapa ?? ''} onChange={(e) => setEtapa((e.target.value || null) as Etapa | null)} className="mt-1 min-h-11 min-w-48 text-base">
             <option value="">Todas las etapas</option>
             {TODAS_LAS_ETAPAS.map((e) => <option key={e.k} value={e.k}>{e.label}</option>)}
           </Select>

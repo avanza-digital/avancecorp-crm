@@ -260,8 +260,8 @@ function RegistroOperacion({ vista, pulso, equipo, esHoy, actualizacion, revocar
         {esHoy ? 'Actividad de hoy' : `Actividad del ${FECHA_TITULO.format(new Date(`${pulso.dia}T12:00:00-05:00`))}`}
       </h4>
       {vista.alcance === 'general'
-        ? <RegistroActividad compacto encabezadoExterno={tituloRegistro} dia={pulso.dia} analistaIds={null} mostrarAnalista permitirEquipo permitirExportar pestanaInicial={vista.pestana} actualizacion={actualizacion} onSinPermiso={revocar} />
-        : ids && ids.length > 0 ? <RegistroActividad compacto encabezadoExterno={tituloRegistro} dia={pulso.dia} analistaIds={ids} mostrarAnalista permitirExportar pestanaInicial={vista.pestana} actualizacion={actualizacion} onSinPermiso={revocar} />
+        ? <RegistroActividad compacto encabezadoExterno={tituloRegistro} dia={pulso.dia} analistaIds={null} mostrarAnalista permitirEquipo permitirExportar pestanaInicial={vista.pestana} carteraInicial={vista.pestana === 'llamadas' ? 'leads' : null} actualizacion={actualizacion} onSinPermiso={revocar} />
+        : ids && ids.length > 0 ? <RegistroActividad compacto encabezadoExterno={tituloRegistro} dia={pulso.dia} analistaIds={ids} mostrarAnalista permitirExportar pestanaInicial={vista.pestana} carteraInicial={vista.pestana === 'llamadas' ? 'leads' : null} actualizacion={actualizacion} onSinPermiso={revocar} />
           : <p className="text-[13px]">Este equipo no tiene autores con registro propio.</p>}
       {sinAutor && <p className="text-xs text-[var(--muted-foreground-strong)]">{llamadasSinAutor > 0 ? `${plural(llamadasSinAutor, 'llamada sin autor no aparece', 'llamadas sin autor no aparecen')} aquí: ` : 'Los registros sin autor se consultan en el '}
         <button type="button" className={cn('cursor-pointer rounded-md font-semibold text-[var(--accent-press)] underline-offset-2 hover:underline', FOCO)} onClick={abrirGeneral}>{llamadasSinAutor > 0 ? 'verlas en el registro general' : 'registro general del día'}</button>.</p>}

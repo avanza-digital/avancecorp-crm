@@ -13,7 +13,7 @@ test('Analista: «Mi día» abre con la franja, «Ahora» y su cola con «Todo»
   await expect(page).toHaveURL(/#\/gestion-diaria$/)
 
   await expect(page.getByRole('heading', { level: 2, name: '¿A quién llamo ahora?' })).toBeVisible()
-  await expect(page.getByRole('group', { name: 'Tu día en cifras' }).getByRole('term')).toHaveText(['Llamadas', 'Contestaron', 'Contacto', 'Citas agendadas'])
+  await expect(page.getByRole('group', { name: 'Captación de leads' }).getByRole('term')).toHaveText(['Llamadas', 'Contestaron', 'Contacto', 'Citas agendadas'])
   // El registro crudo vive en «Mi actividad», sin filtro de analista.
   await expect(page.getByRole('tablist', { name: 'Qué ver' }).getByRole('tab')).toHaveText([/^Cola de hoy/, 'Mi actividad', /^Mi seguimiento/])
   await expect(page.getByRole('combobox', { name: 'Analista' })).toHaveCount(0)
@@ -166,7 +166,7 @@ test('Analista: dos columnas sin bajar a 1440×900 y móvil sin desbordamiento',
   const a = (await ahora.boundingBox())!
   const c = (await tarjeta.boundingBox())!
   const titulo = (await page.getByRole('heading', { name: '¿A quién llamo ahora?' }).boundingBox())!
-  const franja = (await page.getByRole('group', { name: 'Tu día en cifras' }).boundingBox())!
+  const franja = (await page.getByRole('group', { name: 'Captación de leads' }).boundingBox())!
   // El teléfono ocupa TODO el alto a la izquierda (Miguel, 27/09): arranca a la
   // altura del título y acaba donde acaba la cola; título, cifras y cola a la derecha.
   for (const derecha of [c, titulo, franja]) expect(derecha.x).toBeGreaterThanOrEqual(a.x + a.width)
