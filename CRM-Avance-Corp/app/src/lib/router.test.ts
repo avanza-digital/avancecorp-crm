@@ -22,6 +22,30 @@ describe('router por hash', () => {
     expect(hashDe('cartera', 'lead/á 1')).toBe('#/cartera/lead/lead%2F%C3%A1%201')
   })
 
+  it('conserva día y equipo de Citas al abrir/cerrar la ficha y rechaza contextos inválidos', () => {
+    const consulta = { dia: '2026-10-05', equipo: '10000000-0000-4000-8000-000000000001' }
+    escribirHash('reuniones', 'lead/1', true, undefined, undefined, undefined, undefined, consulta)
+    expect(leerHash()).toEqual({ vista: 'reuniones', leadId: 'lead/1', consultaCitas: consulta })
+    escribirHash('reuniones', null, true, undefined, undefined, undefined, undefined, leerHash().consultaCitas)
+    expect(leerHash().consultaCitas).toEqual(consulta)
+    for (const hash of ['#/reuniones/dia/2026-02-30', '#/reuniones/dia/2026-13-01', '#/reuniones/dia/2026-10-05/equipo/../../../x', '#/hoy/dia/2026-10-05']) {
+      window.history.replaceState(null, '', hash)
+      expect(leerHash().consultaCitas).toBeUndefined()
+    }
+    expect(hashDe('hoy', null, undefined, undefined, undefined, undefined, consulta)).toBe('#/hoy')
+  })
+
+  it('conserva mes, semana y equipo al salir del filtro diario y abrir una ficha', () => {
+    const consulta = { mes: '2026-10', semana: '2', equipo: 'd-sup1' }
+    escribirHash('reuniones', 'lead/1', true, undefined, undefined, undefined, undefined, consulta)
+    expect(window.location.hash).toBe('#/reuniones/mes/2026-10/semana/2/equipo/d-sup1/lead/lead%2F1')
+    expect(leerHash()).toEqual({ vista: 'reuniones', leadId: 'lead/1', consultaCitas: consulta })
+    for (const hash of ['#/reuniones/mes/2026-13', '#/reuniones/mes/2026-10/semana/5', '#/reuniones/dia/2026-10-05/equipo']) {
+      window.history.replaceState(null, '', hash)
+      expect(leerHash().consultaCitas).toBeUndefined()
+    }
+  })
+
   it('conserva equipo/analista al abrir y cerrar la ficha desde Gestión Diaria', () => {
     const id = '10000000-0000-4000-8000-000000000001'
     for (const tipo of ['equipo', 'analista'] as const) {

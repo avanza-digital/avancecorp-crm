@@ -1,3 +1,4 @@
+import { irAModulo } from './_navegacion'
 import { expect, test, type Page } from '@playwright/test'
 import { abrirLead, irAPipeline, leadReal, loginReal, montarBackendReal, UID } from './_helpers'
 import { aColaV3, montarColaEquipo, type PedidoCola } from './_sla-cola'
@@ -5,7 +6,7 @@ import type { EstadoSlaV2 } from '../src/lib/sla-operacion'
 import muestraSql from '../src/data/sla-operacion-sql.test.fixture.json' with { type: 'json' }
 
 async function irASeguimiento(page: Page) {
-  await page.getByRole('button', { name: 'Seguimiento', exact: true }).click()
+  await irAModulo(page, 'Seguimiento')
   await expect(page).toHaveURL(/#\/seguimiento$/)
   await expect(page.getByRole('heading', { name: 'Seguimiento comercial', exact: true })).toBeVisible()
 }
@@ -170,8 +171,8 @@ for (const rol of ['gerencia', 'supervisor'] as const) {
     if (rol === 'gerencia') expect(pedidos).toHaveLength(0)
     else expect(pedidos.every((pedido) => pedido.p_limite === 7 && pedido.p_cursor === null)).toBe(true)
     const antesDelModulo = pedidos.length
-    await expect(page.getByRole('button', { name: 'Seguimiento', exact: true })).toBeVisible()
     if (rol === 'supervisor') {
+      await expect(page.getByRole('button', { name: 'Seguimiento', exact: true })).toBeVisible()
       await page.getByRole('link', { name: /en Seguimiento$/ }).click()
       await expect(page).toHaveURL(/#\/seguimiento$/)
     } else await irASeguimiento(page)
@@ -214,7 +215,8 @@ for (const rol of ['gerencia', 'supervisor'] as const) {
     await page.getByRole('combobox', { name: 'Por página', exact: true }).selectOption('10')
     await expect(lista.locator(':scope > li')).toHaveCount(10)
     await page.setViewportSize({ width: 390, height: 844 })
-    await page.getByRole('button', { name: 'Ocultar menú', exact: true }).click()
+    if (rol === 'gerencia') await expect(page.getByRole('navigation', { name: 'Navegación principal de Gerencia' })).toBeVisible()
+    else await page.getByRole('button', { name: 'Ocultar menú', exact: true }).click()
     await page.getByRole('heading', { name: 'Seguimiento comercial', exact: true }).scrollIntoViewIfNeeded()
     const mostrar = page.getByRole('combobox', { name: 'Mostrar', exact: true })
     await expect(mostrar).toBeVisible()

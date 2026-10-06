@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import {
   LayoutDashboard, KanbanSquare, Users, CalendarDays, UsersRound, Settings, LogOut, Eye,
   PanelLeftClose, PanelLeftOpen, Wallet, Split, BarChart3, Handshake, Target,
-  Gauge, Trophy, ArchiveRestore, SendHorizontal, ListChecks, ReceiptText, CalendarCheck2,
+  Gauge, Trophy, ArchiveRestore, SendHorizontal, ListChecks, ReceiptText, CalendarCheck2, ChevronDown,
 } from 'lucide-react'
 import { administraSoloRolesCrm, can, puedeAdministrarRolesCrm, ROL_LABEL } from '@/lib/roles'
 import { funcionesLeadsVisibles } from '@/lib/config'
@@ -18,14 +18,15 @@ import {
   type VistaConfiguracion,
 } from '@/lib/router'
 import { vistaPermitida } from '@/lib/vistas'
+import { NavegacionGerenciaMovil } from './navegacion-gerencia-movil'
 
 type SeccionNav = 'principal' | 'administracion'
-/** Grupos del menú. Los dos primeros son los históricos; Gerencia usa los tres últimos. */
-type GrupoNav = SeccionNav | 'direccion' | 'operacion'
+/** Gerencia conserva los accesos principales y despliega los secundarios. */
+type GrupoNav = SeccionNav | 'analisis' | 'operacion'
 const GRUPO_LABEL: Record<GrupoNav, string> = {
   principal: 'Principal',
   administracion: 'Administración',
-  direccion: 'Dirección',
+  analisis: 'Análisis',
   operacion: 'Operación',
 }
 
@@ -71,36 +72,33 @@ const VISTAS_SIDEBAR = VISTAS.filter(
 const NAV = VISTAS_SIDEBAR.map((id) => ({ id, ...NAV_META[id] }))
 
 /**
- * Plan UX Gerencia (06/09/2026, §5.10): de una lista plana a tres grupos con
- * una pregunta cada uno. DIRECCIÓN responde «cómo va el negocio», OPERACIÓN es
- * el trabajo sobre leads y cartera, ADMINISTRACIÓN gobierna. Metas baja junto
- * a Configuración (el plan la integra ahí). Exhaustivo a propósito: una vista
- * nueva obliga a decidir su grupo. El ORDEN de las claves es el orden del menú.
- * Solo agrupa lo que `vistaPermitida` ya dejó pasar; no concede nada.
+ * Menú aprobado por Gerencia (05/10/2026): siete accesos directos y tres
+ * grupos desplegables. El orden de las claves fija el orden visual.
+ * Solo organiza lo que `vistaPermitida` ya dejó pasar; no concede permisos.
  */
 const GRUPO_GERENCIA = {
-  hoy: 'direccion',
-  'ranking-vendedores': 'direccion',
-  rendimiento: 'direccion',
-  conversiones: 'direccion',
-  reuniones: 'direccion',
-  facturacion: 'direccion',
-  'informes-empresas': 'direccion',
-  seguimiento: 'operacion',
-  'gestion-diaria': 'operacion',
-  pipeline: 'operacion',
+  hoy: 'principal',
+  facturacion: 'principal',
+  'ranking-vendedores': 'principal',
+  reuniones: 'principal',
+  'gestion-diaria': 'principal',
+  metas: 'principal',
+  'mi-cartera': 'principal',
+  rendimiento: 'analisis',
+  conversiones: 'analisis',
+  'informes-empresas': 'analisis',
   cartera: 'operacion',
+  pipeline: 'operacion',
   agenda: 'operacion',
-  'mi-cartera': 'operacion',
   repartir: 'operacion',
   rescate: 'operacion',
+  seguimiento: 'operacion',
   derivaciones: 'operacion',
-  equipo: 'operacion',
-  metas: 'administracion',
+  equipo: 'administracion',
   config: 'administracion',
 } as const satisfies Record<VistaSidebar, GrupoNav>
 const ORDEN_GERENCIA = Object.keys(GRUPO_GERENCIA) as VistaSidebar[]
-const GRUPOS_GERENCIA: readonly GrupoNav[] = ['direccion', 'operacion', 'administracion']
+const GRUPOS_GERENCIA: readonly GrupoNav[] = ['principal', 'analisis', 'operacion', 'administracion']
 const GRUPOS_HISTORICOS: readonly GrupoNav[] = ['principal', 'administracion']
 
 interface ItemNav {
@@ -193,6 +191,7 @@ function NavButton({
   return (
     <button
       onClick={onClick}
+      aria-current={active ? 'page' : undefined}
       title={expandido ? undefined : item.label}
       aria-label={expandido ? undefined : item.label}
       className={cn(
@@ -216,11 +215,68 @@ function NavButton({
   )
 }
 
+/** Las subrutas mantienen seleccionado su acceso del menú. */
+function esEntradaActiva(id: Vista, vista: Vista): boolean {
+  return id === vista || (id === 'config' && esVistaConfiguracion(vista)) ||
+    (id === 'rescate' && vista === 'rescate-carpeta')
+}
+
+function GrupoDesplegable({
+  grupo, vista, activo, expandido, abrirMenu, children,
+}: {
+  grupo: Exclude<GrupoNav, 'principal'>
+  vista: Vista
+  activo: boolean
+  expandido: boolean
+  abrirMenu: () => void
+  children: ReactNode
+}) {
+  const [estado, setEstado] = useState({ vista, abierto: activo })
+  // Un enlace directo o Atrás debe revelar el destino, incluso si la persona
+  // había cerrado su grupo. Conserva los otros grupos abiertos manualmente.
+  if (estado.vista !== vista) {
+    setEstado({ vista, abierto: activo || estado.abierto })
+  }
+  const abierto = expandido && estado.abierto
+  const Icono = grupo === 'analisis' ? BarChart3 : grupo === 'operacion' ? ListChecks : Settings
+  const label = GRUPO_LABEL[grupo]
+
+  return (
+    <div role="group" aria-label={label} className={cn(grupo === 'analisis' && 'mt-4 border-t border-sidebar-border pt-3')}>
+      <button
+        type="button"
+        aria-label={label}
+        aria-expanded={abierto}
+        aria-controls={`nav-${grupo}`}
+        title={expandido ? undefined : label}
+        onClick={() => {
+          abrirMenu()
+          setEstado({ vista, abierto: !abierto })
+        }}
+        className={cn(
+          'ac-nav-item group relative flex w-full items-center rounded-lg py-2 text-sm font-medium cursor-pointer text-sidebar-foreground hover:bg-white/[0.06] hover:text-white',
+          expandido ? 'gap-3 px-3' : 'justify-center px-2',
+          activo && 'bg-white/[0.06]',
+        )}
+      >
+        <Icono className="size-[18px] shrink-0 text-sidebar-foreground/80" aria-hidden />
+        {expandido && <>
+          <span className="min-w-0 flex-1 text-left">{label}</span>
+          <ChevronDown className={cn('size-3.5 shrink-0', !abierto && '-rotate-90')} aria-hidden />
+        </>}
+      </button>
+      <div id={`nav-${grupo}`} hidden={!abierto} className="mt-1 mb-2 ml-[19px] border-l border-sidebar-border pl-[7px]">
+        {children}
+      </div>
+    </div>
+  )
+}
+
 // App.tsx recibe la intención de navegación y sincroniza estado + hash.
 // El menú se puede FIJAR colapsado (botón) a un riel de íconos; estando
 // colapsado, al pasar el mouse ASOMA el menú completo (overlay animado) y se
 // repliega solo al salir. El <main> ocupa el ancho del riel en TODO el CRM.
-export function Sidebar({ vista, onNavegar }: { vista: Vista; onNavegar: (destino: Vista) => void }) {
+export function Sidebar({ vista, onNavegar, movil = false }: { vista: Vista; onNavegar: (destino: Vista) => void; movil?: boolean }) {
   const { yo, salir } = useAuth()
   const rol = yo?.rol
   const [colapsado, setColapsado] = useState(() => esPantallaMovil() || leerColapsado())
@@ -254,6 +310,13 @@ export function Sidebar({ vista, onNavegar }: { vista: Vista; onNavegar: (destin
     cerrarRef.current = undefined
   }, [])
 
+  const abrirMenu = () => {
+    cancelarTemporizadores()
+    setColapsado(false)
+    setAsomando(false)
+    // Abrir un grupo es temporal: solo el botón de fijar cambia la preferencia.
+  }
+
   const navegar = (destino: Vista) => {
     onNavegar(destino)
     if (esPantallaMovil()) {
@@ -286,6 +349,7 @@ export function Sidebar({ vista, onNavegar }: { vista: Vista; onNavegar: (destin
     // La misma ruta base se presenta como resumen ejecutivo solo a Gerencia.
     .map((n) => {
       if (n.id === 'hoy' && rol === 'gerencia') return { ...n, label: 'Resumen' }
+      if (n.id === 'metas' && rol === 'gerencia') return { ...n, label: 'Metas y cumplimiento' }
       if (n.id === 'rendimiento' && rol === 'gerencia') return { ...n, label: 'Rendimiento' }
       return n.id === 'mi-cartera' && can(rol, 'verEquipo')
         ? { ...n, label: 'Cartera' }
@@ -302,6 +366,19 @@ export function Sidebar({ vista, onNavegar }: { vista: Vista; onNavegar: (destin
     items: g.items.map((n) => ({ ...n, indice: cascada++ })),
   }))
   const indiceUsuario = cascada
+
+  if (movil && rol === 'gerencia') {
+    return <NavegacionGerenciaMovil
+      key={yo?.id}
+      vista={vista}
+      grupos={grupos}
+      nombre={yo?.nombre_completo ?? 'Gerencia'}
+      demo={yo?.demo === true}
+      onNavegar={onNavegar}
+      onSalir={() => void salir()}
+      esActiva={(id) => esEntradaActiva(id, vista)}
+    />
+  }
 
   return (
     <aside
@@ -358,33 +435,51 @@ export function Sidebar({ vista, onNavegar }: { vista: Vista; onNavegar: (destin
 
         {/* Nav por capacidad (lo que can() oculta, la RLS también lo niega) */}
         <nav className={cn('ac-scroll flex-1 space-y-1 overflow-y-auto pt-4', expandido ? 'px-3' : 'px-2')}>
-          {gruposConIndice.map((g, gi) => (
-            <div key={g.grupo} role="group" aria-label={g.label} className="space-y-1">
-              {expandido && (
-                <p
-                  className={cn(
-                    'px-2 pb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-sidebar-foreground/45',
-                    gi > 0 && 'pt-5',
-                  )}
-                  data-peek-anim={animar ? '' : undefined}
-                  style={animar ? estiloCascada(g.indiceCabecera) : undefined}
-                >
-                  {g.label}
-                </p>
-              )}
-              {g.items.map((n) => (
-                <NavButton
-                  key={n.id}
-                  item={n}
-                  active={vista === n.id}
-                  onClick={() => navegar(n.id)}
+          {gruposConIndice.map((g, gi) => {
+            const desplegable = rol === 'gerencia' && g.grupo !== 'principal'
+            const entradas = g.items.map((n) => (
+              <NavButton
+                key={n.id}
+                item={n}
+                active={esEntradaActiva(n.id, vista)}
+                onClick={() => navegar(n.id)}
+                expandido={expandido}
+                animar={animar && !desplegable}
+                indice={n.indice}
+              />
+            ))
+            if (desplegable && g.grupo !== 'principal') {
+              return (
+                <GrupoDesplegable
+                  key={g.grupo}
+                  grupo={g.grupo}
+                  vista={vista}
+                  activo={g.items.some((n) => esEntradaActiva(n.id, vista))}
                   expandido={expandido}
-                  animar={animar}
-                  indice={n.indice}
-                />
-              ))}
-            </div>
-          ))}
+                  abrirMenu={abrirMenu}
+                >
+                  {entradas}
+                </GrupoDesplegable>
+              )
+            }
+            return (
+              <div key={g.grupo} role="group" aria-label={g.label} className="space-y-1">
+                {expandido && (
+                  <p
+                    className={cn(
+                      'px-2 pb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-sidebar-foreground/45',
+                      gi > 0 && 'pt-5',
+                    )}
+                    data-peek-anim={animar ? '' : undefined}
+                    style={animar ? estiloCascada(g.indiceCabecera) : undefined}
+                  >
+                    {g.label}
+                  </p>
+                )}
+                {entradas}
+              </div>
+            )
+          })}
         </nav>
 
         {/* Autoridad visible sin confundir gobierno de roles con auditoría CRM. */}
