@@ -11,6 +11,7 @@ import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { COLOR_NIVEL, ETIQUETA_NIVEL, type UmbralesSchema } from '@/lib/gestion-diaria-analista'
 import type * as v from 'valibot'
+import { Select } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { cifraPulso } from '@/lib/gestion-diaria-pulso'
 import { delEquipo, enEquipo, nivelEquipo, nombreEquipo, type EstadoOperacion, type FilaEquipoOperacion, type FiltrosOperacion, type OrdenOperacion } from '@/lib/gestion-diaria-operacion'
@@ -80,6 +81,10 @@ export function TablaEquiposGerencia({ filas, total, conteos, sinDetalle = 'carg
         <Input type="search" value={filtros.busqueda} onChange={(e) => setFiltros((f) => ({ ...f, busqueda: e.target.value }))} placeholder="Buscar equipo…"
           className={cn(CONTROL, 'min-h-0 pl-9 placeholder:text-[var(--muted-foreground-strong)]')} />
       </label>
+    </div>
+    <div className="gm-orden-equipos">
+      <label>Ordenar equipos<Select aria-label="Ordenar equipos" value={filtros.orden} onChange={e => ordenar(e.target.value as OrdenOperacion)}>{COLUMNAS.map(c => <option key={c.orden} value={c.orden}>{c.titulo}</option>)}</Select></label>
+      <button type="button" className={cn(CONTROL, FOCO)} onClick={() => ordenar(filtros.orden)} aria-label={filtros.ascendente ? 'Ascendente. Cambiar a orden descendente' : 'Descendente. Cambiar a orden ascendente'}>{filtros.ascendente ? <ArrowUp aria-hidden /> : <ArrowDown aria-hidden />}{filtros.ascendente ? 'Ascendente' : 'Descendente'}</button>
     </div>
     {/* Las dos últimas columnas desplazan dentro de la tabla, no la página. */}
     {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- La región permite desplazar con el teclado las columnas que no caben. */}

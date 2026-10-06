@@ -10,6 +10,9 @@ import {
 } from 'react'
 import { DatabaseZap, Hourglass, LogOut, RotateCcw, WifiOff, type LucideIcon } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
+import { useViewportMovil } from '@/lib/use-viewport-movil'
+import { AvisoConexionGerencia } from '@/components/app/aviso-conexion-gerencia'
+import '@/components/app/pwa-gerencia.css'
 import { useEsMovil } from '@/lib/media'
 import { vincularCuentaPushTasa } from '@/lib/notificaciones-tasa'
 import { usePanelesActions, usePanelesState, useStoreEstado } from '@/lib/store-context'
@@ -332,6 +335,7 @@ function Workspace() {
   const { yo } = useAuth()
   const esMovil = useEsMovil()
   const navegacionInferior = esMovil && yo?.rol === 'gerencia'
+  const tecladoAbierto = useViewportMovil(navegacionInferior)
   useEffect(() => {
     vincularCuentaPushTasa(yo?.rol === 'gerencia' && !yo.demo ? yo.id : null)
   }, [yo?.id, yo?.rol, yo?.demo])
@@ -463,7 +467,7 @@ function Workspace() {
   return (
     <GestionDiariaAvisosProvider key={`${yo?.id}:${yo?.rol}`}><AlertasCRMProvider>
       <RespuestasTasaProvider>
-      <div className={`relative z-10 flex h-svh overflow-hidden${navegacionInferior ? ' flex-col' : ''}`}>
+      <div data-gerencia-movil={navegacionInferior} data-teclado-abierto={tecladoAbierto} className={`relative z-10 flex h-svh overflow-hidden${navegacionInferior ? ' flex-col' : ''}`}>
         <Sidebar vista={vista} onNavegar={navegarDesdeUI} movil={navegacionInferior} />
         <main className={`ac-scroll flex min-w-0 flex-1 flex-col${navegacionInferior ? ' min-h-0' : ''}`} tabIndex={-1}>
           <PeriodoGerenciaProvider>
@@ -476,6 +480,7 @@ function Workspace() {
                 atiende UNA vez, aquí, sea cual sea la pantalla; se pinta solo
                 cuando hay algo que decir. */}
             <ReceptorLlamada />
+            {navegacionInferior && <AvisoConexionGerencia />}
             <AreaConsultaGerencia vista={vista} habilitada={yo?.rol === 'gerencia'} key={vista}>
               {/* Boundary POR pantalla (key la remonta al cambiar de vista) */}
               <ErrorBoundary>

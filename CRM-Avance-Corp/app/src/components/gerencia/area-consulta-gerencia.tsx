@@ -1,6 +1,8 @@
 import { useLayoutEffect, useRef, type ReactNode } from 'react'
 import { useConsultaGerencia } from './use-consulta-gerencia'
 
+const CONTROLES_MOVILES = new Set(['hoy', 'reuniones', 'gestion-diaria', 'ranking-vendedores', 'metas', 'facturacion', 'mi-cartera', 'alertas'])
+
 /** Conserva el lugar de lectura al desmontarse una vista. Espera al contenido
  * diferido; cualquier interacción del usuario cancela la restauración. */
 export function AreaConsultaGerencia({ vista, children, habilitada = true }: { vista: string; children: ReactNode; habilitada?: boolean }) {
@@ -41,7 +43,7 @@ export function AreaConsultaGerencia({ vista, children, habilitada = true }: { v
       const scrollDisponible = area.scrollHeight - area.clientHeight >= guardada.scrollTop
       const consultaLista = area.querySelector('[data-consulta-lista="true"]') !== null
       if (consultaLista && !puedeEnfocar && guardada.focoId) {
-        area.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.focus({ preventScroll: true })
+        area.querySelector<HTMLElement>('[role="tab"][aria-selected="true"], #alertas-encabezado')?.focus({ preventScroll: true })
       }
       if (consultaLista || (scrollDisponible && (!guardada.focoId || puedeEnfocar))) dejarRestauracion()
     }
@@ -56,7 +58,7 @@ export function AreaConsultaGerencia({ vista, children, habilitada = true }: { v
 
     if (guardada) {
       observador = new MutationObserver(restaurar)
-      observador.observe(area, { childList: true, subtree: true, characterData: true })
+      observador.observe(area, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['data-consulta-lista'] })
       cuadro = requestAnimationFrame(restaurar)
     }
     area.addEventListener('scroll', guardar, { passive: true })
@@ -75,5 +77,5 @@ export function AreaConsultaGerencia({ vista, children, habilitada = true }: { v
     }
   }, [habilitada, posiciones, vista])
 
-  return <div ref={elemento} data-vista-scroll={vista} className="ac-scroll flex-1 overflow-auto p-3 sm:p-6">{children}</div>
+  return <div ref={elemento} data-vista-scroll={vista} data-controles-moviles={CONTROLES_MOVILES.has(vista) || undefined} className="ac-scroll flex-1 overflow-auto p-3 sm:p-6">{children}</div>
 }

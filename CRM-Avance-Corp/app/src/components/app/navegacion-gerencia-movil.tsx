@@ -7,7 +7,7 @@ import './navegacion-gerencia-movil.css'
 
 interface Entrada { id: Vista; label: string; icon: LucideIcon }
 interface Grupo { grupo: string; label: string; items: readonly Entrada[] }
-const PRINCIPALES: readonly Vista[] = ['hoy', 'reuniones', 'metas']
+const PRINCIPALES: readonly Vista[] = ['hoy', 'reuniones', 'gestion-diaria']
 
 /** Recibe exactamente las entradas que el menú lateral ya autorizó. */
 export function NavegacionGerenciaMovil({ vista, grupos, nombre, demo, onNavegar, onSalir, esActiva }: {
@@ -48,7 +48,7 @@ export function NavegacionGerenciaMovil({ vista, grupos, nombre, demo, onNavegar
       {accesos.map(n => <button key={n.id} type="button" className="gm-destino"
         aria-current={esActiva(n.id) ? 'page' : undefined} onClick={() => onNavegar(n.id)}>
         <span className="gm-icono"><n.icon size={22} aria-hidden /></span>
-        <span>{n.id === 'metas' ? 'Metas' : n.label}</span>
+        <span>{n.label}</span>
       </button>)}
       <Dialog.Trigger asChild>
         <button ref={disparador} type="button" className="gm-destino"

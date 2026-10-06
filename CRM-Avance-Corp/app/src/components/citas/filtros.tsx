@@ -26,7 +26,9 @@ export function Filtros({ filtros: f, onCambiar, onRestablecer }: PropsFiltros) 
   const ORIGENES = [...new Set([...CITAS, ...(gestion?.asignaciones ?? [])].map(c => c.origen))]
   const RESULTADOS = [...new Set(CITAS.map(c => c.resultado))]
   const [avanzados, setAvanzados] = useState(false)
+  const [consultaAbierta, setConsultaAbierta] = useState(() => Boolean(errorFiltros(f)))
   const error = errorFiltros(f)
+  const mostrarConsulta = consultaAbierta || Boolean(error)
   const errorMonto = error
   const [desde, hasta] = rango(f)
   const etiquetas: { id: string; texto: string; quitar: Partial<FiltrosCitas> }[] = []
@@ -47,15 +49,16 @@ export function Filtros({ filtros: f, onCambiar, onRestablecer }: PropsFiltros) 
   const buscar = <label className="space-y-1 text-xs font-semibold">Buscar una cita<div className="relative"><Search aria-hidden className="pointer-events-none absolute top-2.5 left-3 size-4 text-muted-foreground" /><Input type="search" className="pl-9" placeholder="Prospecto, teléfono o código" value={f.q} onChange={e => onCambiar({ q: e.target.value })} /></div></label>
   return <section className={`citas-filtros${compacta ? ' cm-filtros' : ''}`} aria-label="Consulta de citas">
     <h2 className="sr-only">Tu consulta</h2>
-    <form noValidate onSubmit={evento => evento.preventDefault()}>
+    <div className="citas-consulta-movil"><div><strong>{f.dia ? fmtFecha(f.dia) : `${fmtFecha(desde)} – ${fmtFecha(hasta)}`}</strong><span>{f.equipo ? SUPERVISORES.find(([id]) => id === f.equipo)?.[1] : 'Todos los equipos'}</span></div><Button type="button" variant="outline" aria-expanded={mostrarConsulta} aria-controls="citas-consulta-campos" onClick={() => setConsultaAbierta(!consultaAbierta)}><SlidersHorizontal aria-hidden />Filtrar{etiquetas.length > 0 ? ` (${etiquetas.length})` : ''}</Button></div>
+    <form id="citas-consulta-campos" data-abierta={mostrarConsulta} noValidate onSubmit={evento => evento.preventDefault()}>
       <div className="citas-filtros-fila">
         {!compacta && buscar}
         <label className="space-y-1 text-xs font-semibold">Supervisor<Select aria-label="Supervisor" value={f.equipo} onChange={e => onCambiar({ equipo: e.target.value })}><option value="">Todos</option>{SUPERVISORES.map(([id, nombre]) => <option key={id} value={id}>{nombre}</option>)}</Select></label>
         <label className="space-y-1 text-xs font-semibold">Analista<Select aria-label="Analista" value={f.analista} onChange={e => onCambiar({ analista: e.target.value })}><option value="">Todos</option>{EQUIPO.map(persona => <option key={persona.id} value={persona.id} disabled={Boolean(f.equipo && persona.supervisorId !== f.equipo)}>{persona.nombre}</option>)}</Select></label>
         <label className="space-y-1 text-xs font-semibold">Mes{meses.length ? <Select aria-label="Mes" value={f.mes} onChange={e => onCambiar({ mes: e.target.value })}>{meses.map(mes => <option key={mes} value={mes}>{mes}</option>)}</Select> : <Input type="month" aria-label="Mes" min="2000-01" value={f.mes} onChange={e => onCambiar({ mes: e.target.value })} />}</label>
         <label className="space-y-1 text-xs font-semibold">Semana<Select aria-label="Semana" value={f.semana || ''} onChange={e => onCambiar({ semana: e.target.value })}><option value="">Todo el mes</option><option value="1">Semana 1 · 1–7</option><option value="2">Semana 2 · 8–14</option><option value="3">Semana 3 · 15–21</option><option value="4">Semana 4 · 22–fin</option></Select></label>
-        <Button variant="outline" aria-expanded={avanzados} aria-controls="citas-filtros-adicionales" onClick={() => setAvanzados(!avanzados)}><SlidersHorizontal aria-hidden />Más filtros{cantidadAvanzados > 0 && <span>{cantidadAvanzados}</span>}</Button>
-        <Button variant="ghost" size="icon" aria-label="Restablecer consulta" title="Restablecer consulta" onClick={onRestablecer}><RotateCcw aria-hidden /></Button>
+        <Button type="button" variant="outline" aria-expanded={avanzados} aria-controls="citas-filtros-adicionales" onClick={() => setAvanzados(!avanzados)}><SlidersHorizontal aria-hidden />Más filtros{cantidadAvanzados > 0 && <span>{cantidadAvanzados}</span>}</Button>
+        <Button type="button" variant="ghost" size="icon" aria-label="Restablecer consulta" title="Restablecer consulta" onClick={onRestablecer}><RotateCcw aria-hidden /></Button>
       </div>
       <div id="citas-filtros-adicionales" hidden={!avanzados}>
         <div className="space-y-5 border-t border-border bg-muted/20 p-4 sm:p-5">

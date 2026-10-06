@@ -1,8 +1,13 @@
 import { createContext, type Dispatch, type RefObject, type SetStateAction } from 'react'
 
+import type { ConsultaCitas } from '@/components/citas/datos'
+import type { ConsultaAlertas } from './use-consulta-alertas'
+
 export type TipoRankingGerencia = 'conversion' | 'capital-total' | 'cosecha'
 
 export interface ConsultaGerencia {
+  alertas?: ConsultaAlertas
+  citas?: { filtros: ConsultaCitas; vista: 'bandeja' | 'agenda' | 'resultados'; pagina: number }
   gestionAnalista: { id: string; nombre: string } | null
   administrarMetasPeriodo: string | null
   rendimientoEquipo: string | null
