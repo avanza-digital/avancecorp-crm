@@ -400,7 +400,7 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 
 **Estado:** pendiente · **Avance:** 0/4 · **Responsable:** por asignar.
 
-- [ ] **F4.2.1** Propagar contexto del evento y confirmación real de actividad_id mediante formulario/store.
+- [ ] **F4.2.1** Propagar contexto del evento y confirmación real de actividad_id mediante formulario/store. — EN CURSO: 05/10: el contexto de la llamada ya viaja hasta la encuesta (id del celular en la URL → receptor → intención → encuesta, que muestra su hora). Falta la confirmación real con la v5 (espera los tipos generados desde el banco de Miguel).
 - [ ] **F4.2.2** Componer v4 + enlace en transacción sin alterar núcleo sellado; revisar recibos, replays y locks.
 - [ ] **F4.2.3** Si la composición no es viable, implementar intención de enlace persistente y conciliación durable con reintentos.
 - [ ] **F4.2.4** Proponer y confirmar enlace para registros previos o desde PC; nunca decidir solo por ±10 minutos.

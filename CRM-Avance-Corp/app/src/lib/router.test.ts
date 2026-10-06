@@ -118,6 +118,29 @@ describe('router por hash', () => {
     expect(leerHash()).toEqual({ vista: 'hoy', leadId: null, llamadaNumero: '999888777' })
   })
 
+  // F4-b: detrás del número puede venir el id de la llamada (`C1-<segundos>`), con la forma que exige la base.
+  it('lee el id de la llamada detrás del número; sin la forma de la base se ignora y el enlace sigue como F1', () => {
+    window.location.hash = '#/gestion-diaria/llamada/%2B51999888777/C1-1790980958'
+    expect(leerHash()).toEqual({ vista: 'gestion-diaria', leadId: null, llamadaNumero: '+51999888777', llamadaOrigenId: 'C1-1790980958' })
+    window.location.hash = '#/hoy/llamada/999888777/C12-1790980958'
+    expect(leerHash().llamadaOrigenId).toBe('C12-1790980958')
+    for (const raro of ['c1-1790980958', 'C0-1790980958', 'C1-179098095', 'C1-1790980958x', 'C1%2D1790980958', 'lead', '%E0%A4%A']) {
+      window.location.hash = `#/gestion-diaria/llamada/999888777/${raro}`
+      expect(leerHash(), raro).toEqual({ vista: 'gestion-diaria', leadId: null, llamadaNumero: '999888777' })
+    }
+    // Sin número válido, el id no viaja solo.
+    window.location.hash = '#/hoy/llamada/abc/C1-1790980958'
+    expect(leerHash()).toEqual({ vista: 'hoy', leadId: null })
+  })
+
+  it('hashDe lleva el id solo detrás de un número válido y solo con la forma de la base', () => {
+    expect(hashDe('gestion-diaria', null, undefined, undefined, undefined, '+51999888777', undefined, 'C1-1790980958'))
+      .toBe('#/gestion-diaria/llamada/%2B51999888777/C1-1790980958')
+    expect(hashDe('gestion-diaria', null, undefined, undefined, undefined, '+51999888777', undefined, 'C1-17909809')).toBe('#/gestion-diaria/llamada/%2B51999888777')
+    expect(hashDe('gestion-diaria', null, undefined, undefined, undefined, 'abc', undefined, 'C1-1790980958')).toBe('#/gestion-diaria')
+    expect(hashDe('gestion-diaria', 'l1', undefined, undefined, undefined, '+51999888777', undefined, 'C1-1790980958')).toBe('#/gestion-diaria/lead/l1')
+  })
+
   it('escribirHash conserva el número sin ficha y lo suelta al abrir una', () => {
     escribirHash('gestion-diaria', null, true, undefined, undefined, undefined, '+51999888777')
     expect(window.location.hash).toBe('#/gestion-diaria/llamada/%2B51999888777')

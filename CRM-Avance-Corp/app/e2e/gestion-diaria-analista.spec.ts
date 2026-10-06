@@ -15,7 +15,7 @@ test('Analista: «Mi día» abre con la franja, «Ahora» y su cola con «Todo»
   await expect(page.getByRole('heading', { level: 2, name: '¿A quién llamo ahora?' })).toBeVisible()
   await expect(page.getByRole('group', { name: 'Captación de leads' }).getByRole('term')).toHaveText(['Llamadas', 'Contestaron', 'Contacto', 'Citas agendadas'])
   // El registro crudo vive en «Mi actividad», sin filtro de analista.
-  await expect(page.getByRole('tablist', { name: 'Qué ver' }).getByRole('tab')).toHaveText([/^Cola de hoy/, 'Mi actividad', /^Mi seguimiento/])
+  await expect(page.getByRole('tablist', { name: 'Qué ver' }).getByRole('tab')).toHaveText([/^Cola de hoy/, 'Mi actividad', /^Mi seguimiento/, /^Celular/])
   await expect(page.getByRole('combobox', { name: 'Analista' })).toHaveCount(0)
 
   // «Ahora» responde la pregunta: una persona y su única acción primaria.

@@ -14,6 +14,9 @@ begin
   if to_regprocedure('private.llamada_celular_elegible_dueno(uuid,uuid)') is null then
     raise exception 'REVERSA_ELEGIBILIDAD: la migración 20261001222431 no está aplicada';
   end if;
+  if to_regclass('private.llamadas_celular_recepciones') is not null then
+    raise exception 'REVERSA_ELEGIBILIDAD: la corrección 20261005143843 sigue instalada; primero reversa-correccion.sql';
+  end if;
 end;
 $precondicion$;
 

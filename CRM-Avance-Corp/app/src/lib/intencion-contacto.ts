@@ -23,9 +23,12 @@
 //  · La cola es del actor: al salir de la cuenta se vacía (auth.tsx).
 import { useSyncExternalStore } from 'react'
 import type { Canal } from './contacto-tarea'
+import { origenLlamadaValido } from './router'
 
 /** De dónde nació: un tap en «Llamar» o el enlace que arma el celular al colgar. */
 export type OrigenIntencion = 'pantalla' | 'enlace'
+/** Las dos vías de la v5 (`p_via`): la encuesta que abrió el celular al colgar o la pestaña «Llamadas del celular». */
+export type ViaLlamada = 'al_colgar' | 'pestana'
 
 export interface IntencionContacto {
   id: string
@@ -34,6 +37,13 @@ export interface IntencionContacto {
   canal: Canal
   /** El número que trajo el enlace, ya canonizado por el receptor; `null` si nació de un tap. */
   numero: string | null
+  /**
+   * El id de la llamada que mandó el celular (`C1-1790980958`, F4-b), si el enlace lo trajo. Con él la encuesta
+   * dice de qué llamada es y la base la une exacta. Solo con `origen: 'enlace'`.
+   */
+  origenLlamada?: string | undefined
+  /** Por dónde se abrió la encuesta de esa llamada: el enlace al colgar o la pestaña «Llamadas del celular» (la v5 la guarda). */
+  viaLlamada?: ViaLlamada | undefined
   origen: OrigenIntencion
   /** Cuándo se armó (ms). Con `origen: 'pantalla'` es el momento del tap en «Llamar». */
   ts: number
@@ -77,6 +87,8 @@ function valida(v: unknown): v is IntencionContacto {
     && esCanal(i.canal) && (i.numero === null || typeof i.numero === 'string') && esOrigen(i.origen)
     && typeof i.ts === 'number' && typeof i.caduca === 'number' && typeof i.abierta === 'boolean'
     && esTextoOpcional(i.abiertaEn) && esTextoOpcional(i.instancia)
+    && (i.origenLlamada === undefined || (typeof i.origenLlamada === 'string' && origenLlamadaValido(i.origenLlamada)))
+    && (i.viaLlamada === undefined || i.viaLlamada === 'al_colgar' || i.viaLlamada === 'pestana')
 }
 
 function cargar(): IntencionContacto[] {
@@ -131,15 +143,27 @@ export function estaLista(intencion: IntencionContacto, ahora: number = Date.now
  * actor, lead y canal se reemplaza —un segundo tap en «Llamar» es la misma
  * llamada, no dos—. Si la de ese lead ya está ABIERTA (su formulario está en
  * pantalla), no se encola otra: se devuelve la abierta y no se avisa; encolarla
- * volvería a preguntar por la misma persona al cerrar (visto el 30/09).
+ * volvería a preguntar por la misma persona al cerrar (visto el 30/09). Esa
+ * segunda llamada no se une sola: queda en la pestaña «Llamadas del celular».
+ * El id de la llamada solo viaja con el enlace y con la forma de la base.
  */
 export function armarIntencion(
-  datos: { actor: string; leadId: string; canal: Canal; origen: OrigenIntencion; numero?: string | null; instancia?: string },
+  datos: { actor: string; leadId: string; canal: Canal; origen: OrigenIntencion; numero?: string | null; instancia?: string; origenLlamada?: string; viaLlamada?: ViaLlamada },
   ahora: number = Date.now(),
 ): IntencionContacto {
   const actual = vigentes(ahora)
   const yaAbierta = actual.find((i) => i.abierta && i.actor === datos.actor && i.leadId === datos.leadId && i.canal === datos.canal)
-  if (yaAbierta) return yaAbierta
+  if (yaAbierta) {
+    // El tap en «Llamar» puede abrir primero la encuesta; la macro completa esa misma llamada al colgar.
+    // Nunca sustituir el id de otra llamada que ya esté asociada al formulario abierto.
+    if (!yaAbierta.origenLlamada && datos.origen === 'enlace' && datos.origenLlamada
+      && origenLlamadaValido(datos.origenLlamada)) {
+      const completada = { ...yaAbierta, origenLlamada: datos.origenLlamada, viaLlamada: datos.viaLlamada ?? 'al_colgar' }
+      escribir(actual.map((i) => i.id === yaAbierta.id ? completada : i))
+      return completada
+    }
+    return yaAbierta
+  }
   secuencia += 1
   const nueva: IntencionContacto = {
     id: `${ahora.toString(36)}-${PAGINA}-${secuencia}`,
@@ -152,6 +176,9 @@ export function armarIntencion(
     caduca: ahora + CADUCIDAD_MS,
     abierta: false,
     ...(datos.instancia ? { instancia: datos.instancia } : {}),
+    // El id y su vía viajan juntos: sin id no hay nada que unir, y la vía por defecto es la del enlace al colgar.
+    ...(datos.origen === 'enlace' && datos.origenLlamada && origenLlamadaValido(datos.origenLlamada)
+      ? { origenLlamada: datos.origenLlamada, viaLlamada: datos.viaLlamada ?? 'al_colgar' } : {}),
   }
   const indice = actual.findIndex((i) =>
     !i.abierta && i.actor === datos.actor && i.leadId === datos.leadId && i.canal === datos.canal)

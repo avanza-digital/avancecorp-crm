@@ -10,7 +10,8 @@
 --   (20260907025220) · private.rol_crm y private.es_lector_global (20260828210351) ·
 --   private.vendedor_ids_visibles (20260803164348, con su defensa: solo para quien llama) ·
 --   private.idem_hash (20260903205000) · CHECK actividades_resultado_llamada_forma (20260920005000).
--- DOBLES DECLARADOS: auth.uid (lee request.jwt.claim.sub) y public.log_audit_change.
+-- DOBLES DECLARADOS: auth.uid (lee request.jwt.claim.sub), public.log_audit_change y private.llamada_registrar_v4
+-- (el núcleo sellado de la encuesta v4, que la v5 de F4-a compone; ver su comentario abajo).
 -- COLUMNAS REDUCIDAS: public.perfiles, public.audit_log, crm.equipo, crm.leads, crm.actividades.
 --
 -- No sustituye el gate test-rls.mjs contra un banco con el esquema de producción.
@@ -35,6 +36,7 @@ $$;
 create table public.perfiles (
   id uuid primary key,
   nombre_completo text,
+  telefono text,
   rol text not null default 'vendedor',
   activo boolean not null default true
 );
@@ -65,11 +67,30 @@ create table crm.leads (
     check (etapa in ('nuevo', 'contactado', 'reunion_agendada', 'propuesta_enviada', 'convertido', 'descartado')),
   activo boolean not null default true,
   no_contactar boolean not null default false,
+  vetada_en_banco boolean not null default false,
   vendedor_id uuid references crm.equipo(perfil_id) on delete set null,
   asignado_supervisor_id uuid references crm.equipo(perfil_id) on delete set null,
+  -- Descarte (20260723120000 y 20260724203052): lo leen los candidatos «reutilizables» de la quinta.
+  motivo_descarte text,
+  descartado_en timestamptz,
+  descartado_por uuid references public.perfiles(id) on delete set null,
   creado_en timestamptz not null default now(),
   actualizado_en timestamptz not null default now()
 );
+-- Copia real reducida de crm.enfriamiento_politica (20260801212050, con 'base_cargada' de 20261004160034): la espera
+-- de un descartado antes de ser reutilizable. Sin auditoría en el banco (declarada exenta abajo).
+-- Doble DECLARADO del veto por persona (la matriz completa usa la función real de identidad F2.b).
+create function private.persona_vetada(p_lead uuid) returns boolean language sql stable set search_path = '' as $$
+  select coalesce((select vetada_en_banco from crm.leads where id = p_lead), false)
+$$;
+revoke all on function private.persona_vetada(uuid) from public, anon, authenticated, service_role;
+create table crm.enfriamiento_politica (
+  motivo text primary key,
+  dias integer not null check (dias >= 0)
+);
+insert into crm.enfriamiento_politica (motivo, dias) values
+  ('sin_interes', 30), ('sin_fondos', 90), ('competencia', 180), ('no_responde', 15), ('otro', 20),
+  ('pide_credito', 0), ('datos_invalidos', 0), ('base_cargada', 30);
 create table crm.actividades (
   id uuid primary key default gen_random_uuid(),
   lead_id uuid not null references crm.leads(id) on delete cascade,
@@ -106,6 +127,8 @@ create table private.auditoria_condicionada (
   razon        text        not null,
   declarada_en timestamptz not null default pg_catalog.now()
 );
+insert into private.auditoria_exenciones (tabla, razon) values
+  ('crm.enfriamiento_politica', 'Banco reducido: copia sin su auditoría real; solo la leen los candidatos de la quinta.');
 
 create function private.enmascarar_claves(p_fila jsonb, p_claves text[])
 returns jsonb
@@ -464,6 +487,48 @@ language sql stable security invoker set search_path='' as $function$
               (select private.vendedor_ids_visibles(p_actor))))))
   );
 $function$;
+
+-- ── encuesta v4 (DOBLE) ─────────────────────────────────────────────────────────────────────
+-- private.llamada_registrar_v4 real (20260921153654) compone el motor SLA entero (registrar_actividad_v2, recibos,
+-- tareas, descarte), que este banco no tiene. El doble conserva solo lo que la v5 de F4-a necesita: el ámbito
+-- (42501), el lead cerrado (22023), el candado del lead FOR UPDATE, la actividad con id = operación y su metadata
+-- de resultado, el replay por operación (23505 si cambia el resultado) y la forma de la respuesta. La composición
+-- real la prueba el gate test-rls.mjs con el esquema de producción.
+create function private.llamada_registrar_v4(p_actor uuid, p_operacion_id uuid, p_lead_id uuid, p_resultado text,
+  p_submotivo text, p_detalle text, p_siguiente jsonb, p_tarea_id uuid, p_descartar boolean, p_no_insista boolean)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_meta jsonb;
+begin
+  if private.sla_gestion_permitida(p_actor, p_lead_id) is distinct from true then
+    raise exception 'Gestion no disponible en tu ambito' using errcode = '42501';
+  end if;
+  perform 1 from crm.leads l where l.id = p_lead_id for update;
+  select a.metadata into v_meta from crm.actividades a where a.id = p_operacion_id;
+  if found then
+    if v_meta ->> 'resultado' is distinct from p_resultado then
+      raise exception 'Esta operacion ya corresponde a otro contenido' using errcode = '23505';
+    end if;
+    return pg_catalog.jsonb_build_object('ok', true, 'lead_id', p_lead_id, 'comando', 'registrar_llamada',
+      'actividad_id', p_operacion_id, 'resultado', p_resultado, 'replay', true);
+  end if;
+  if (select l.etapa from crm.leads l where l.id = p_lead_id) in ('convertido', 'descartado') then
+    raise exception 'El lead esta cerrado' using errcode = '22023';
+  end if;
+  insert into crm.actividades (id, lead_id, tipo, detalle, metadata, creado_por)
+  values (p_operacion_id, p_lead_id,
+          case when p_resultado = 'no_contesto' then 'llamada_no_contestada' else 'llamada_realizada' end, p_detalle,
+          pg_catalog.jsonb_build_object('evento', 'resultado_llamada', 'resultado', p_resultado), p_actor);
+  return pg_catalog.jsonb_build_object('ok', true, 'lead_id', p_lead_id, 'comando', 'registrar_llamada',
+    'actividad_id', p_operacion_id, 'resultado', p_resultado, 'replay', false);
+end;
+$$;
+revoke all on function private.llamada_registrar_v4(uuid,uuid,uuid,text,text,text,jsonb,uuid,boolean,boolean)
+  from public, anon, authenticated, service_role;
 
 -- ── siembra sintética (sin datos reales) ───────────────────────────────────────────────────
 -- Equipo: sup1 (b1) con a1 y a2; sup2 (b2) con a3; a9 dado de baja; g1 gerencia.
