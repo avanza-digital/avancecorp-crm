@@ -27,11 +27,11 @@ import { fmtFecha, money } from '@/lib/format'
 import { EMPRESA_NOMBRE, FILTROS_INVERSIONISTAS_INICIALES, type CarteraInversionistas as DatosCartera, type FiltrosInversionistas, type InversionFuente } from '@/lib/inversionistas'
 import { limpiarIntentosInversion, leerIntentoInversion } from '@/lib/inversion-solicitud'
 import { inversionistasKeys, useInversionistas } from '@/data/inversionistas-queries'
-import { CrmApiError, mensajeDeError } from '@/data/crm-api'
+import { CrmApiError, eliminarInversion as eliminarInversionServidor, mensajeDeError } from '@/data/crm-api'
 import { descargarDocumentoInversionista } from '@/data/inversionistas-api'
 import { archivarContratoPdfConfirmado, ContratoEliminacionError, eliminarContratoConPdf } from '@/lib/contrato-pdf-archivo'
 import { useAuth } from '@/lib/auth-context'
-import { can, puedeEliminarContratos } from '@/lib/roles'
+import { can, puedeEliminarContratos, puedeEliminarInversion, puedeEliminarInversiones } from '@/lib/roles'
 import { crmQueryKeys } from '@/data/crm-queries'
 
 export function CarteraInversionistas({actor, permiteInversion}: {
@@ -39,6 +39,7 @@ export function CarteraInversionistas({actor, permiteInversion}: {
 }) {
   const {yo} = useAuth()
   const permiteEliminar = yo?.id === actor && !yo.demo && puedeEliminarContratos(yo)
+  const permiteEliminarInversion = yo?.id === actor && !yo.demo && puedeEliminarInversiones(yo)
   const qc = useQueryClient()
   const [alta, setAlta] = useState(false)
   const altaEnCurso = useRef(false)
@@ -135,17 +136,29 @@ export function CarteraInversionistas({actor, permiteInversion}: {
       else toast.error(mensajeDeError(e, 'No se pudo descargar el documento.'))
     } finally {if (documento.current === abort) setDescargando(false)}
   }
+  // Lo que cambia al eliminar un contrato o una inversión: la ficha y la lista, los
+  // contratos, las métricas (también las del ámbito: capital y conversión anulada), los
+  // leads (conversión) y postventa. Una sola lista para los dos.
+  const refrescarTrasEliminar = () => Promise.all([
+    qc.invalidateQueries({queryKey: inversionistasKeys.actor(actor)}),
+    qc.invalidateQueries({queryKey: crmQueryKeys.contratos()}),
+    qc.invalidateQueries({queryKey: crmQueryKeys.metricas()}),
+    qc.invalidateQueries({queryKey: crmQueryKeys.metricasAmbito()}),
+    qc.invalidateQueries({queryKey: crmQueryKeys.leads()}),
+    qc.invalidateQueries({queryKey: postventaKeys.actor(actor)}),
+  ])
   async function eliminarContrato(i: InversionFuente) {
     if (!permiteEliminar || i.empresa !== 'avance' || !i.contrato) throw new ContratoEliminacionError('No tienes permiso para eliminar este contrato.')
     const {auditoriaId} = await eliminarContratoConPdf(i.fuente_id)
-    await Promise.all([
-      qc.invalidateQueries({queryKey: inversionistasKeys.actor(actor)}),
-      qc.invalidateQueries({queryKey: crmQueryKeys.contratos()}),
-      qc.invalidateQueries({queryKey: crmQueryKeys.metricas()}),
-      qc.invalidateQueries({queryKey: crmQueryKeys.leads()}),
-      qc.invalidateQueries({queryKey: postventaKeys.actor(actor)}),
-    ])
+    await refrescarTrasEliminar()
     toast.success(`Contrato ${i.numero || ''} eliminado. Copia de auditoría: ${auditoriaId}.`)
+  }
+  async function eliminarInversion(i: InversionFuente, motivo: string) {
+    if (!permiteEliminarInversion || !puedeEliminarInversion(yo, i)) throw new CrmApiError('No tienes permiso para eliminar esta inversión.', 'SIN_PERMISO')
+    const {auditoriaId, conversionAnulada, mesCerrado} = await eliminarInversionServidor(i.fuente_id, motivo)
+    await refrescarTrasEliminar()
+    toast.success(`Inversión eliminada. Copia de auditoría: ${auditoriaId}.${conversionAnulada
+      ? ` La conversión del lead quedó anulada.${mesCerrado ? ' El mes ya estaba cerrado: el ajuste pasa al mes vivo.' : ''}` : ''}`)
   }
   return <div className="@container/cartera mx-auto max-w-[1440px] space-y-3">
     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -223,6 +236,8 @@ export function CarteraInversionistas({actor, permiteInversion}: {
         onNuevaInversion={permiteInversion ? f => setNueva({persona: f.persona.inversionista_id}) : undefined}
         onOperacion={permiteInversion ? op => setNueva({persona: seleccion, operacion: op}) : undefined}
         onEliminar={permiteEliminar ? eliminarContrato : undefined}
+        onEliminarInversion={permiteEliminarInversion ? eliminarInversion : undefined}
+        puedeEliminarInversion={i => puedeEliminarInversion(yo, i)}
         onDocumento={(i, id) => void abrirDocumento(i, id)} onRecuperarPdf={i => void abrirDocumento(i, i.fuente_id, true)} />
     </Sheet>}
     {ventaCruzada && <VentaCruzada actor={actor} inicial={ventaCruzada.inicial} puedeRegistrar={registraVentaCruzada}
