@@ -137,6 +137,40 @@ describe('conversionCoordinacionConsistente', () => {
     expect(conversionCoordinacionConsistente(datos, '2026-09-01', '2026-09-30')).toBe(true)
   })
 
+  it('B11: los cierres de base cargada pesan 1 y entran en la suma de partes (Merlys 6 + 1 + 2 de base + 2 = 11)', () => {
+    const datos = payloadValido()
+    datos.analistas[1] = {
+      ...datos.analistas[1]!,
+      cierres: { ...datos.analistas[1]!.cierres!, base_cargada: 2 },
+      numerador_bruto: 11, numerador: 11, conversion_pct: 12.5,
+    }
+    datos.empresa = {
+      ...datos.empresa,
+      cierres: { ...datos.empresa.cierres!, base_cargada: 2 },
+      numerador_bruto: 22.15, numerador: 22.15, conversion_pct: 10.8,
+    }
+    expect(sumaDePartes(datos.analistas[1].cierres!, datos.analistas[1].cartera!)).toBe(11)
+    expect(conversionCoordinacionConsistente(datos, '2026-09-01', '2026-09-30')).toBe(true)
+
+    // Un numerador que ya cuenta la base pero un desglose que no la trae no cuadra: la pantalla se niega.
+    const sinBase = payloadValido()
+    sinBase.analistas[1] = { ...sinBase.analistas[1]!, numerador_bruto: 11, numerador: 11 }
+    expect(conversionCoordinacionConsistente(sinBase, '2026-09-01', '2026-09-30')).toBe(false)
+  })
+
+  it('B11: base cargada null solo vale en un mes sellado (la foto no la guarda); ausente = 0 (servidor anterior)', () => {
+    const abierto = payloadValido()
+    abierto.analistas[0] = { ...abierto.analistas[0]!, cierres: { ...abierto.analistas[0]!.cierres!, base_cargada: null } }
+    expect(conversionCoordinacionConsistente(abierto, '2026-09-01', '2026-09-30')).toBe(false)
+
+    const sellado = payloadSellado(true)
+    sellado.analistas = sellado.analistas.map((a) => ({ ...a, cierres: { ...a.cierres!, base_cargada: null } }))
+    sellado.empresa = { ...sellado.empresa, cierres: { ...sellado.empresa.cierres!, base_cargada: null } }
+    expect(conversionCoordinacionConsistente(sellado, '2026-09-01', '2026-09-30')).toBe(true)
+
+    expect(conversionCoordinacionConsistente(payloadValido(), '2026-09-01', '2026-09-30')).toBe(true)
+  })
+
   it('rechaza una empresa que no suma analistas + sin analista', () => {
     const datos = payloadValido()
     datos.empresa = { ...datos.empresa, divisor: 204, divisor_formulario: 125 }
@@ -204,6 +238,20 @@ describe('ConversionCoordinacionSchema', () => {
     expect(v.safeParse(ConversionCoordinacionSchema, { ...crudo, alcance: 'equipo' }).success).toBe(false)
     const { peso_renovacion: _sinPeso, ...sinPeso } = crudo
     expect(v.safeParse(ConversionCoordinacionSchema, sinPeso).success).toBe(false)
+  })
+
+  it('B11: base_cargada es opcional (servidor anterior), admite null (foto sellada) y rechaza negativos o decimales', () => {
+    const conBase = (valor: unknown) => {
+      const crudo = JSON.parse(JSON.stringify(payloadValido())) as Record<string, unknown>
+      ;((crudo.analistas as Record<string, unknown>[])[0]!.cierres as Record<string, unknown>).base_cargada = valor
+      return v.safeParse(ConversionCoordinacionSchema, crudo)
+    }
+    expect(v.safeParse(ConversionCoordinacionSchema, JSON.parse(JSON.stringify(payloadValido()))).success).toBe(true)
+    expect(conBase(3).success).toBe(true)
+    expect(conBase('3').success).toBe(true)
+    expect(conBase(null).success).toBe(true)
+    expect(conBase(-1).success).toBe(false)
+    expect(conBase(1.5).success).toBe(false)
   })
 })
 

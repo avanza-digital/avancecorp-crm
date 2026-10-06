@@ -58,6 +58,7 @@ function SinDato({ motivo }: { motivo: string }) {
 const MOTIVO_SELLADO = 'sin desglose: mes cerrado'
 const MOTIVO_SIN_LLEGADAS = 'sin llegadas'
 const MOTIVO_NO_APLICA = 'no aplica'
+const MOTIVO_BASE_SELLADA = 'la foto del mes cerrado no guarda los cierres de base'
 
 /** «setiembre de 2026» a partir de 'YYYY-MM', sin depender de la zona del navegador. */
 function nombreDelMes(mes: string): string {
@@ -100,9 +101,9 @@ const REFERIDO = { uno: 'referido', varios: 'referidos' }
 const RENOVACION = { uno: 'renovación', varios: 'renovaciones' }
 
 /**
- * Las siete celdas de «Cierres» de una fila, en el MISMO orden que la cabecera:
- * formulario, landing, referido, sin peso (oficina y otros), upgrade, renovación
- * y el total ponderado. La fila «sin analista» pasa por aquí con todo a null para
+ * Las ocho celdas de «Cierres» de una fila, en el MISMO orden que la cabecera:
+ * formulario, landing, base cargada, referido, sin peso (oficina y otros), upgrade,
+ * renovación y el total ponderado. La fila «sin analista» pasa por aquí con todo a null para
  * que sus celdas nunca se desalineen de la cabecera.
  */
 function CeldasCierres({
@@ -125,6 +126,9 @@ function CeldasCierres({
     <>
       <Td className="text-right tabular-nums">{cierres ? numero(cierres.formulario) : <SinDato motivo={motivo} />}</Td>
       <Td className="text-right tabular-nums">{cierres ? numero(cierres.landing) : <SinDato motivo={motivo} />}</Td>
+      <Td className="text-right tabular-nums">
+        {cierres ? <Cifra valor={cierres.base_cargada === undefined ? 0 : cierres.base_cargada} motivo={MOTIVO_BASE_SELLADA} /> : <SinDato motivo={motivo} />}
+      </Td>
       <Td className="text-right tabular-nums">
         {cierres ? <CantidadYAporte cantidad={cierres.referido} aporte={cierres.referido_aporte} nombre={REFERIDO} /> : <SinDato motivo={motivo} />}
       </Td>
@@ -189,6 +193,7 @@ function formulaDelNumerador(datos: DatosConversion): string | null {
   const renovacion = `${numero(cartera.renovacion_aporte)} de renovación (${numero(cartera.renovacion)}${enRango ? '' : ` × ${numero(datos.peso_renovacion)}`})`
   const partes = [
     `${numero(cierres.formulario + cierres.landing)} directos (formulario y landing)`,
+    cierres.base_cargada === null ? 'base cargada: la foto no la guarda' : `${numero(cierres.base_cargada ?? 0)} de base cargada`,
     referidos,
     `${numero(cartera.upgrade)} de upgrade`,
     renovacion,
@@ -339,6 +344,7 @@ export function ConversionCoordinacion() {
     { etiqueta: 'Landing', valor: datos.sellado ? <SinDato motivo={MOTIVO_SELLADO} /> : <Cifra valor={datos.empresa.divisor_landing} motivo={MOTIVO_SIN_LLEGADAS} /> },
     { etiqueta: 'Conversión', valor: <Porcentaje valor={datos.empresa.conversion_pct} /> },
     { etiqueta: 'Cierres directos', valor: datos.empresa.cierres ? numero(datos.empresa.cierres.formulario + datos.empresa.cierres.landing) : <SinDato motivo={MOTIVO_SELLADO} /> },
+    { etiqueta: 'Base cargada', valor: datos.empresa.cierres ? <Cifra valor={datos.empresa.cierres.base_cargada === undefined ? 0 : datos.empresa.cierres.base_cargada} motivo={MOTIVO_BASE_SELLADA} /> : <SinDato motivo={MOTIVO_SELLADO} /> },
     { etiqueta: 'Referidos', valor: datos.empresa.cierres ? <CantidadYAporte cantidad={datos.empresa.cierres.referido} aporte={datos.empresa.cierres.referido_aporte} nombre={REFERIDO} /> : <SinDato motivo={MOTIVO_SELLADO} /> },
     { etiqueta: 'Upgrade', valor: datos.empresa.cartera ? numero(datos.empresa.cartera.upgrade) : <SinDato motivo={MOTIVO_SELLADO} /> },
     { etiqueta: 'Renovación', valor: datos.empresa.cartera ? <CantidadYAporte cantidad={datos.empresa.cartera.renovacion} aporte={datos.empresa.cartera.renovacion_aporte} nombre={RENOVACION} /> : <SinDato motivo={MOTIVO_SELLADO} /> },
@@ -513,6 +519,7 @@ export function ConversionCoordinacion() {
                       <Th scope="col" className="text-right">Total</Th>
                       <Th scope="col" className="text-right">Form.</Th>
                       <Th scope="col" className="text-right">Land.</Th>
+                      <Th scope="col" className="text-right">Base</Th>
                       <Th scope="col" className="text-right">Referido</Th>
                       <Th scope="col" className="text-right">Sin peso</Th>
                       <Th scope="col" className="text-right">Upgrade</Th>
@@ -524,7 +531,7 @@ export function ConversionCoordinacion() {
                   <Th scope="col" rowSpan={2} className="align-bottom">Analista</Th>
                   <Th scope="col" rowSpan={2} className="hidden align-bottom lg:table-cell">Supervisor</Th>
                   <Th scope="colgroup" colSpan={3} className="text-center">Llegadas</Th>
-                  <Th scope="colgroup" colSpan={7} className="text-center">Cierres</Th>
+                  <Th scope="colgroup" colSpan={8} className="text-center">Cierres</Th>
                   <Th scope="col" rowSpan={2} className="text-right align-bottom">Conversión</Th>
                 </TheadCrm>
                 <tbody>
@@ -557,7 +564,8 @@ export function ConversionCoordinacion() {
           )}
 
           <p className="border-t border-border px-5 py-2 text-sm text-muted-foreground">
-            Referido y Renov. (renovación) van como «cantidad · aporte al numerador». «Sin peso» son los
+            Referido y Renov. (renovación) van como «cantidad · aporte al numerador». «Base» son los
+            cierres de contactos de una base cargada: suman 1 cada uno y no entran a las llegadas. «Sin peso» son los
             cierres de oficina y de otros orígenes, que no suman. Este conteo es distinto del reporte de
             entregas: aquel cuenta lo entregado por fecha de entrega y deja de sumar la entrega que volvió
             a la bandeja antes de gestionarse.

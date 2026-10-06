@@ -1,0 +1,304 @@
+### private.conversion_cierres — diff texto vivo (prod) → migración
+```diff
+--- vivo
++++ b11
+@@ -15,7 +15,8 @@
+       case when p_periodo is not null then p_factor else
+         private.peso_referido_conversion(date_trunc('month',
+           coalesce(la.resultado_en, la.finalizado_en) at time zone 'America/Lima')::date) end
+-    when l.origen in ('landing', 'formulario') then 1
++    -- B11: landing, formulario y base_cargada pesan 1 (el referido ya salió por su rama).
++    when private.conversion_origen_con_cierre(l.origen) then 1
+     else 0 end
+ from crm.lead_asignaciones la
+ join crm.leads l on l.id = la.lead_id
+@@ -38,7 +39,7 @@
+     when ca.origen = 'referido' then
+       case when p_periodo is not null then p_factor
+         else private.peso_referido_conversion(ca.periodo_comercial) end
+-    when ca.origen in ('landing', 'formulario') then 1
++    when private.conversion_origen_con_cierre(ca.origen) then 1
+     else 0 end
+ from crm.conversion_acreditaciones ca
+ join crm.leads l on l.id=ca.lead_id
+
+```
+### private.registrar_ajuste_si_mes_cerrado — diff texto vivo (prod) → migración
+```diff
+--- vivo
++++ b11
+@@ -52,7 +52,7 @@
+     v_acreditado:=v_acreditacion.analista_id;
+     v_numerador:=case when v_acreditacion.origen='referido' then
+       private.peso_referido_conversion(v_periodo)
+-      when v_acreditacion.origen in ('landing','formulario') then 1 else 0 end;
++      when private.conversion_origen_con_cierre(v_acreditacion.origen) then 1 else 0 end;
+     if v_acreditado is null or v_numerador<=0 then return null; end if;
+     -- Para referidos prevalece el peso de la foto que efectivamente se pagó.
+     if exists(select 1 from crm.conversion_acreditaciones ca
+
+```
+### private.conversion_mensual_por_vendedor — diff texto vivo (prod) → migración
+```diff
+--- vivo
++++ b11
+@@ -22,7 +22,7 @@
+   select e.analista_id, e.lead_id, e.fue_referido, e.mes_origen,
+     date_trunc('month', p_ini at time zone 'America/Lima')::date as mes_periodo
+   from ep e where e.tipo = 'cierre' and not e.anulado
+-    and e.origen in ('landing', 'formulario', 'referido')
++    and private.conversion_origen_con_cierre(e.origen)
+ ), motivos as (
+   select r.analista_id, r.motivo, count(*)::int as n
+   from recibidos r where r.aporte_divisor > 0
+
+```
+### crm.metricas_conversiones_equipo_fn — diff texto vivo (prod) → migración
+```diff
+--- vivo
++++ b11
+@@ -149,7 +149,7 @@
+     from private.conversion_episodios(
+       v_ini, v_cosecha_fin, null::date, true, '{}'::uuid[], v_factor
+     ) e
+-    where e.tipo = 'cierre' and not e.anulado and e.origen in ('landing', 'formulario', 'referido') and e.lead_id is not null
++    where e.tipo = 'cierre' and not e.anulado and private.conversion_origen_con_cierre(e.origen) and e.lead_id is not null
+   ),
+   cohorte as materialized (
+     select e.lead_id, e.analista_id as vendedor_id,
+@@ -169,8 +169,8 @@
+     select e.analista_id,
+       coalesce(sum(e.aporte_divisor), 0)::int as divisor,
+       count(*) filter (where e.tipo = 'recibido' and e.fue_referido)::int as referidos_recibidos,
+-      count(distinct e.lead_id) filter (where e.tipo = 'cierre' and not e.anulado and e.origen in ('landing', 'formulario', 'referido') and not e.fue_referido)::int as cierres_no_referidos,
+-      count(distinct e.lead_id) filter (where e.tipo = 'cierre' and not e.anulado and e.origen in ('landing', 'formulario', 'referido') and e.fue_referido)::int as cierres_referidos,
++      count(distinct e.lead_id) filter (where e.tipo = 'cierre' and not e.anulado and private.conversion_origen_con_cierre(e.origen) and not e.fue_referido)::int as cierres_no_referidos,
++      count(distinct e.lead_id) filter (where e.tipo = 'cierre' and not e.anulado and private.conversion_origen_con_cierre(e.origen) and e.fue_referido)::int as cierres_referidos,
+       count(*) filter (where e.tipo = 'operacion')::int as operaciones,
+       coalesce(sum(e.aporte_numerador), 0)::numeric as numerador
+     from ep_flujo e
+
+```
+### private.metricas_conversiones_implementacion — diff texto vivo (prod) → migración
+```diff
+--- vivo
++++ b11
+@@ -74,7 +74,7 @@
+     from private.conversion_episodios(
+       v_ini, v_cosecha_fin, null, true, null, v_factor
+     ) e
+-    where e.tipo = 'cierre' and not e.anulado and e.origen in ('landing', 'formulario', 'referido') and e.lead_id is not null
++    where e.tipo = 'cierre' and not e.anulado and private.conversion_origen_con_cierre(e.origen) and e.lead_id is not null
+   ),
+   cohorte_base as materialized (
+     -- F1.3b: el capital del lead se mide por los caminos VIVOS y HASTA HOY
+@@ -204,8 +204,8 @@
+     select e.analista_id,
+       coalesce(sum(e.aporte_divisor), 0)::int as divisor,
+       count(*) filter (where e.tipo = 'recibido' and e.fue_referido)::int as referidos_recibidos,
+-      count(distinct e.lead_id) filter (where e.tipo = 'cierre' and not e.anulado and e.origen in ('landing', 'formulario', 'referido') and not e.fue_referido)::int as cierres_no_referidos,
+-      count(distinct e.lead_id) filter (where e.tipo = 'cierre' and not e.anulado and e.origen in ('landing', 'formulario', 'referido') and e.fue_referido)::int as cierres_referidos,
++      count(distinct e.lead_id) filter (where e.tipo = 'cierre' and not e.anulado and private.conversion_origen_con_cierre(e.origen) and not e.fue_referido)::int as cierres_no_referidos,
++      count(distinct e.lead_id) filter (where e.tipo = 'cierre' and not e.anulado and private.conversion_origen_con_cierre(e.origen) and e.fue_referido)::int as cierres_referidos,
+       count(*) filter (where e.tipo = 'operacion')::int as operaciones,
+       coalesce(sum(e.aporte_numerador), 0)::numeric as numerador
+     from ep_flujo e
+@@ -475,14 +475,14 @@
+         select count(distinct e.lead_id)::int
+         from ep_flujo e
+         where e.tipo = 'cierre' and not e.anulado
+-          and e.origen in ('landing', 'formulario', 'referido')
++          and private.conversion_origen_con_cierre(e.origen)
+           and (p_origen is null or e.origen = p_origen)
+       ),
+       'aporte_cierres', (
+         select coalesce(sum(e.aporte_numerador), 0)
+         from ep_flujo e
+         where e.tipo = 'cierre' and not e.anulado
+-          and e.origen in ('landing', 'formulario', 'referido')
++          and private.conversion_origen_con_cierre(e.origen)
+           and (p_origen is null or e.origen = p_origen)
+       ),
+       -- El total global conserva cierres de bajas, supervisores o autor nulo,
+@@ -492,7 +492,7 @@
+         select count(distinct e.lead_id)::int
+         from ep_flujo e
+         where e.tipo = 'cierre' and not e.anulado
+-          and e.origen in ('landing', 'formulario', 'referido')
++          and private.conversion_origen_con_cierre(e.origen)
+           and (p_origen is null or e.origen = p_origen)
+           and (e.analista_id is null or not exists (
+             select 1 from vendedores_base vb
+@@ -503,7 +503,7 @@
+         select coalesce(sum(e.aporte_numerador), 0)
+         from ep_flujo e
+         where e.tipo = 'cierre' and not e.anulado
+-          and e.origen in ('landing', 'formulario', 'referido')
++          and private.conversion_origen_con_cierre(e.origen)
+           and (p_origen is null or e.origen = p_origen)
+           and (e.analista_id is null or not exists (
+             select 1 from vendedores_base vb
+@@ -543,7 +543,7 @@
+           ) as gs(semana_indice)
+           left join ep_flujo e
+             on e.tipo = 'cierre' and not e.anulado
+-           and e.origen in ('landing', 'formulario', 'referido')
++           and private.conversion_origen_con_cierre(e.origen)
+            and (p_origen is null or e.origen = p_origen)
+            and (e.fecha_numerador at time zone 'America/Lima')::date
+                between p_desde + (gs.semana_indice * 7)
+@@ -733,7 +733,7 @@
+             ) as gs(semana_indice)
+             left join ep_flujo e
+               on e.tipo = 'cierre' and not e.anulado
+-             and e.origen in ('landing', 'formulario', 'referido')
++             and private.conversion_origen_con_cierre(e.origen)
+              and e.analista_id = rr.vendedor_id
+              and (p_origen is null or e.origen = p_origen)
+              and (e.fecha_numerador at time zone 'America/Lima')::date
+
+```
+### private.metricas_distribucion_leads_v3_core — diff texto vivo (prod) → migración
+```diff
+--- vivo
++++ b11
+@@ -72,9 +72,9 @@
+       coalesce(sum(e.aporte_divisor), 0)::int as divisor,
+       count(*) filter (where e.tipo = 'recibido' and e.fue_referido)::int as referidos_recibidos,
+       count(distinct e.lead_id) filter (
+-        where e.tipo = 'cierre' and not e.anulado and e.origen in ('landing', 'formulario', 'referido') and not e.fue_referido)::int as cierres_no_referidos,
++        where e.tipo = 'cierre' and not e.anulado and private.conversion_origen_con_cierre(e.origen) and not e.fue_referido)::int as cierres_no_referidos,
+       count(distinct e.lead_id) filter (
+-        where e.tipo = 'cierre' and not e.anulado and e.origen in ('landing', 'formulario', 'referido') and e.fue_referido)::int as cierres_referidos,
++        where e.tipo = 'cierre' and not e.anulado and private.conversion_origen_con_cierre(e.origen) and e.fue_referido)::int as cierres_referidos,
+       count(*) filter (where e.tipo = 'operacion')::int as operaciones,
+       coalesce(sum(e.aporte_numerador), 0)::numeric as numerador
+     from ep e
+
+```
+### crm.conversion_mensual_sin_cartera_fn — diff texto vivo (prod) → migración
+```diff
+--- vivo
++++ b11
+@@ -366,7 +366,7 @@
+     select count(*)::int as cierres_sin_episodio
+     from crm.leads l
+     where l.etapa = 'convertido'
+-      and l.origen in ('landing', 'formulario', 'referido')
++      and private.conversion_origen_con_cierre(l.origen)
+       and l.convertido_en >= v_ini
+       and l.convertido_en < v_fin
+       and (v_global
+
+```
+### private.conversion_divisor_empresa — diff texto vivo (prod) → migración
+```diff
+--- vivo
++++ b11
+@@ -1,5 +1,5 @@
+ CREATE OR REPLACE FUNCTION private.conversion_divisor_empresa(p_desde date, p_hasta date)
+- RETURNS TABLE(analista_id uuid, nombre text, supervisor_id uuid, supervisor_nombre text, en_nucleo boolean, divisor integer, divisor_formulario integer, divisor_landing integer, numerador numeric, conversion_pct numeric, numerador_bruto numeric, ajuste_pendiente numeric, cierres_formulario integer, cierres_landing integer, cierres_referido integer, cierres_referido_aporte numeric, cierres_oficina integer, cierres_otros integer, upgrade integer, renovacion integer, renovacion_aporte numeric, desglose_disponible boolean)
++ RETURNS TABLE(analista_id uuid, nombre text, supervisor_id uuid, supervisor_nombre text, en_nucleo boolean, divisor integer, divisor_formulario integer, divisor_landing integer, numerador numeric, conversion_pct numeric, numerador_bruto numeric, ajuste_pendiente numeric, cierres_formulario integer, cierres_landing integer, cierres_referido integer, cierres_referido_aporte numeric, cierres_oficina integer, cierres_otros integer, upgrade integer, renovacion integer, renovacion_aporte numeric, desglose_disponible boolean, cierres_base_cargada integer)
+  LANGUAGE plpgsql
+  STABLE SECURITY DEFINER
+  SET search_path TO ''
+@@ -81,7 +81,9 @@
+            case when f.con_desglose then coalesce((f.cartera ->> 'conversiones_upgrade')::integer, 0) end,
+            case when f.con_desglose then coalesce((f.cartera ->> 'conversiones_renovacion')::integer, 0) end,
+            case when f.con_desglose then coalesce((f.cartera ->> 'conversiones_renovacion')::integer, 0) * v_peso_renovacion end,
+-           f.con_desglose
++           f.con_desglose,
++           -- B11: la foto del cierre no guarda los cierres de base cargada: NULL (no se inventa un 0).
++           null::integer
+     from foto f
+     left join por_origen o on o.vendedor_id = f.vendedor_id
+     order by f.nombre_completo;
+@@ -117,7 +119,7 @@
+   ),
+   cierres as materialized (
+     -- De dónde salen los cierres: los MISMOS episodios que suman el numerador,
+-    -- agrupados. Formulario y landing aportan 1 por cierre; referido, su peso;
++    -- agrupados. Formulario, landing y base cargada (B11) aportan 1 por cierre; referido, su peso;
+     -- oficina no pesa; upgrade aporta 1 y renovación su propio peso.
+     select e.analista_id,
+            (count(*) filter (where e.tipo = 'cierre' and e.origen = 'formulario'))::integer as cierres_formulario,
+@@ -126,7 +128,9 @@
+            coalesce(sum(e.aporte_numerador) filter (where e.tipo = 'cierre' and e.origen = 'referido'), 0::numeric) as cierres_referido_aporte,
+            (count(*) filter (where e.tipo = 'cierre' and e.origen = 'oficina'))::integer as cierres_oficina,
+            -- Otros orígenes admitidos (otro, web, campaña, whatsapp…) tampoco pesan; se cuentan para no esconderlos.
+-           (count(*) filter (where e.tipo = 'cierre' and coalesce(e.origen, '') not in ('formulario', 'landing', 'referido', 'oficina')))::integer as cierres_otros,
++           (count(*) filter (where e.tipo = 'cierre' and coalesce(e.origen, '') not in ('formulario', 'landing', 'referido', 'oficina', 'base_cargada')))::integer as cierres_otros,
++           -- B11: contactos de una base cargada por archivo. Pesan 1 y no están en el divisor.
++           (count(*) filter (where e.tipo = 'cierre' and e.origen = 'base_cargada'))::integer as cierres_base_cargada,
+            (count(*) filter (where e.tipo = 'operacion' and e.categoria = 'upgrade'))::integer as upgrade,
+            (count(*) filter (where e.tipo = 'operacion' and e.categoria = 'renovacion'))::integer as renovacion,
+            coalesce(sum(e.aporte_numerador) filter (where e.tipo = 'operacion' and e.categoria = 'renovacion'), 0::numeric) as renovacion_aporte
+@@ -162,7 +166,8 @@
+          coalesce(c.upgrade, 0),
+          coalesce(c.renovacion, 0),
+          coalesce(c.renovacion_aporte, 0::numeric),
+-         true
++         true,
++         coalesce(c.cierres_base_cargada, 0)
+   from base b
+   left join por_origen o on o.analista_id is not distinct from b.analista_id
+   left join cierres c on c.analista_id is not distinct from b.analista_id
+
+```
+### private.conversion_divisor_empresa_totales — diff texto vivo (prod) → migración
+```diff
+--- vivo
++++ b11
+@@ -1,5 +1,5 @@
+ CREATE OR REPLACE FUNCTION private.conversion_divisor_empresa_totales(p_desde date, p_hasta date)
+- RETURNS TABLE(sellado boolean, peso_referido numeric, peso_renovacion numeric, divisor integer, numerador numeric, conversion_pct numeric, divisor_formulario integer, divisor_landing integer, numerador_bruto numeric, ajuste_pendiente numeric, cierres_formulario integer, cierres_landing integer, cierres_referido integer, cierres_referido_aporte numeric, cierres_oficina integer, cierres_otros integer, upgrade integer, renovacion integer, renovacion_aporte numeric, desglose_disponible boolean, cruza_sellados boolean, sin_analista_presente boolean, sin_analista_divisor integer, sin_analista_numerador numeric)
++ RETURNS TABLE(sellado boolean, peso_referido numeric, peso_renovacion numeric, divisor integer, numerador numeric, conversion_pct numeric, divisor_formulario integer, divisor_landing integer, numerador_bruto numeric, ajuste_pendiente numeric, cierres_formulario integer, cierres_landing integer, cierres_referido integer, cierres_referido_aporte numeric, cierres_oficina integer, cierres_otros integer, upgrade integer, renovacion integer, renovacion_aporte numeric, desglose_disponible boolean, cruza_sellados boolean, sin_analista_presente boolean, sin_analista_divisor integer, sin_analista_numerador numeric, cierres_base_cargada integer)
+  LANGUAGE plpgsql
+  STABLE SECURITY DEFINER
+  SET search_path TO ''
+@@ -62,6 +62,8 @@
+       coalesce(sum(f.cierres_referido_aporte), 0::numeric) as cierres_referido_aporte,
+       coalesce(sum(f.cierres_oficina), 0)::integer as cierres_oficina,
+       coalesce(sum(f.cierres_otros), 0)::integer as cierres_otros,
++      -- B11: un mes sellado no la tiene en la foto (NULL); abierto o rango, la suma de las filas.
++      case when v_cierre.periodo is null then coalesce(sum(f.cierres_base_cargada), 0)::integer end as cierres_base_cargada,
+       coalesce(sum(f.upgrade), 0)::integer as upgrade,
+       coalesce(sum(f.renovacion), 0)::integer as renovacion,
+       coalesce(sum(f.renovacion_aporte), 0::numeric) as renovacion_aporte
+@@ -110,7 +112,8 @@
+     ),
+     coalesce((select sa.presente from sin_analista sa limit 1), false),
+     (select sa.divisor from sin_analista sa limit 1),
+-    (select sa.numerador from sin_analista sa limit 1)
++    (select sa.numerador from sin_analista sa limit 1),
++    case when s.desglose_disponible then s.cierres_base_cargada end
+   from suma s;
+ end;
+ $function$;
+```
+### crm.conversion_divisor_coordinacion_fn — diff texto vivo (prod) → migración
+```diff
+--- vivo
++++ b11
+@@ -104,7 +104,8 @@
+         'referido', v_totales.cierres_referido,
+         'referido_aporte', v_totales.cierres_referido_aporte,
+         'oficina', v_totales.cierres_oficina,
+-        'otros', v_totales.cierres_otros
++        'otros', v_totales.cierres_otros,
++        'base_cargada', v_totales.cierres_base_cargada
+       ) end,
+       'cartera', case when v_totales.desglose_disponible then pg_catalog.jsonb_build_object(
+         'upgrade', v_totales.upgrade,
+@@ -138,7 +139,8 @@
+             'referido', f.cierres_referido,
+             'referido_aporte', f.cierres_referido_aporte,
+             'oficina', f.cierres_oficina,
+-            'otros', f.cierres_otros
++            'otros', f.cierres_otros,
++            'base_cargada', f.cierres_base_cargada
+           ) end,
+           'cartera', case when f.desglose_disponible then pg_catalog.jsonb_build_object(
+             'upgrade', f.upgrade,
+
+```

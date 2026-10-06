@@ -27,6 +27,12 @@ const CierresSchema = v.object({
   oficina: EnteroNoNegativoRpcSchema,
   /** Otros orígenes admitidos (web, campaña, whatsapp…): tampoco pesan; se cuentan para no esconderlos. */
   otros: EnteroNoNegativoRpcSchema,
+  /**
+   * Contactos de una base cargada por archivo (B11): cada cierre pesa 1 y no entra al divisor. Un servidor
+   * anterior a B11 no la manda (y entonces esos cierres pesan 0 y van en «otros»): ausente = 0. Null solo en un
+   * mes sellado, porque la foto del cierre no la guarda.
+   */
+  base_cargada: v.optional(v.nullable(EnteroNoNegativoRpcSchema)),
 })
 
 const CarteraSchema = v.object({
@@ -200,9 +206,10 @@ export function fechasDeConsulta(consulta: ConsultaConversion): { desde: string;
 /** Tolerancia para sumas de pesos con decimales (0,15 × n) en coma flotante. */
 const EPSILON = 1e-6
 
-/** Cuánto suman las partes del numerador: cierres directos, referidos con peso, upgrade y renovación con peso. */
+/** Cuánto suman las partes del numerador: cierres directos y de base, referidos con peso, upgrade y renovación con peso. */
 export function sumaDePartes(cierres: CierresConversion, cartera: CarteraConversion): number {
-  return cierres.formulario + cierres.landing + cierres.referido_aporte + cartera.upgrade + cartera.renovacion_aporte
+  return cierres.formulario + cierres.landing + (cierres.base_cargada ?? 0) + cierres.referido_aporte
+    + cartera.upgrade + cartera.renovacion_aporte
 }
 
 function desgloseConsistente(fila: {
@@ -221,6 +228,8 @@ function desgloseConsistente(fila: {
   }
   if (fila.cierres === null || fila.cartera === null) return false
   if (fila.sellado) return fila.numerador_bruto === null && fila.ajuste_pendiente === null
+  // Mes abierto o rango: el servidor siempre sabe cuántos cierres de base hubo.
+  if (fila.cierres.base_cargada === null) return false
   if (fila.numerador_bruto === null || fila.ajuste_pendiente === null || fila.numerador === null) return false
   if (Math.abs(sumaDePartes(fila.cierres, fila.cartera) - fila.numerador_bruto) > EPSILON) return false
   // Por persona: neto = bruto menos lo que arrastra de meses ya pagados, con suelo en cero.
