@@ -115,11 +115,33 @@ Macros armadas el 02/10 en C1 (MacroDroid gratuito, 5 macros como máximo): «Ll
 |  | L3 — latido a las 6 h | NOT RUN |  |
 |  | L4 — otra etiqueta → 400 (solo contra la Edge) | NOT RUN |  |
 
+L1 y L2 quedaron cubiertas por P1 y P2 de §5g (06/10). L2 cambió: desde el 06/10 el latido ya no sale al vaciarse la
+cola, solo cada 6 h.
+
+## 5g. Macro FINAL (06/10/2026) — armada en C1 y probada contra el receptor de pruebas del PC
+
+Versión de `macrodroid.md` §3c del 06/10. Tiene la clave y la URL en variables, el latido solo cada 6 h con
+`llamadas-v3`, el aviso ante 401 (D7) y la guarda de las 2 h, y abre la URL del CRM con el id de la llamada. El receptor
+es el del PC (`192.168.30.222:8787`), con una clave de prueba nueva.
+
+| Fecha | Prueba | Resultado | Evidencia |
+| --- | --- | --- | --- |
+| 06/10/2026 15:34 (Lima) | P1 — primera vuelta de «Enviar cola», disparada a mano | PASS: latido 200 con la clave en la variable | Receptor: `POST → 200 (latido registrado) · clave correcta · macro=llamadas-v3 en_cola=0`. Registro del sistema de MacroDroid: cada acción y `ultimo_latido` actualizado |
+| 06/10/2026 15:55 (Lima) | P2 — saliente con Wi-Fi | PASS: se abrió la encuesta y el aviso llegó a los 10 s. El número era de un lead convertido, así que F1 dijo «ningún lead de tu cartera»: es lo esperado, los clientes van con la #13 | Receptor: `15:55:48 POST → 202 (guardada) · id=C1-1791320138 · ocurrio_en=…15:55:38-05:00`; `latidos` siguió en 1 |
+| 06/10/2026 15:59–16:00 (Lima) | P4 — el receptor responde 401 durante el envío | PASS: notificación «La clave de este celular ya no vale…»; el aviso quedó en `cola_llamadas` (1 entrada). Con el receptor de nuevo en normal, se reenvió solo en la vuelta de las 16:00, con el mismo id y la hora original | Receptor: `15:59:07 POST → 401 (falla simulada)` y `16:00:10 POST → 202 (guardada) · id=C1-1791320337 · ocurrio_en=…15:58:57-05:00` |
+| 06/10/2026 ~16:05 (Lima) | P5 — entrante | PASS: ni encuesta ni aviso | Observado por Jhosep; el receptor no registró nada nuevo |
+|  | P3 — saliente sin red | NOT RUN: el camino «guardar y reenviar» ya quedó probado en P4 y en A3 (02/10) |  |
+
+**Hallazgo (incidencia del 06/10, abajo):** MacroDroid gratuito estaba **desactivado desde ~02/10**, porque se acabaron
+sus «días gratis». Ninguna macro corría. Se reactivó mirando un anuncio (+3 días).
+
 ## 6. Incidencias
 
 | Fecha | Celular | Qué pasó | Impacto (perdida / duplicada / no abrió / otro) | Cómo se resolvió | Abierta o cerrada |
 | --- | --- | --- | --- | --- | --- |
 | 02/10/2026 ~16:40 (Lima) | C1 | MacroDroid no dejó crear la sexta macro: la versión gratuita admite **5 macros** por celular | Otro: límite de la herramienta | Se borraron las macros de prueba «Prueba F3» y «Reintento F3» (su configuración está en §5d) y la variable `pendiente`. La macro definitiva de salientes usa 3 (Saliente, Al colgar, Enviar cola); con las entrantes (propuesta #14) harían falta más | **Cerrada el 03/10; revisada el 05/10:** Miguel aprobó las entrantes (#14) el 02/10, pero (03/10) **MacroDroid Pro no se compra todavía**. Se queda en 3 macros + «Piloto F0» apagada (4 de 5). El latido va dentro de «Llamadas-Enviar cola» y no suma macros (`macrodroid.md` §3c). Las entrantes esperan a la #14 y a la decisión de Pro (`macrodroid.md` §3d, diseño sin probar) |
+
+| 06/10/2026 ~15:50 (Lima) | C1 | MacroDroid gratuito **se desactivó solo** porque se acabaron sus «días gratuitos de uso». Inicio decía «MacroDroid está actualmente desactivado»; las macros, encendidas, figuraban con «última activación hace 4 días» | **Perdida:** desde ~02/10 no se capturó ninguna llamada en C1, sin aviso en el celular | Inicio → «Añadir Días Gratuitos» (un anuncio = 3 días) → interruptor general encendido. En producción no es viable: propuesta #18 (MacroDroid Pro). El latido lo habría marcado «sin latido» en la tarjeta de salud | **Abierta** hasta que Miguel decida la #18. En C1 los días vencen ~09/10 15:50 |
 
 ## 7. Decisión de cierre (F0.4.3)
 

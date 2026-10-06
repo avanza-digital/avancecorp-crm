@@ -67,15 +67,24 @@ con **«Parámetros de codificación de URL» desmarcado** (el `#` tiene que lle
 **Decisiones (de Claude, para Jhosep y Miguel):**
 - **Por ahora solo salientes** entran en la cola y abren la encuesta. Las entrantes de leads y clientes vuelven con la propuesta #14 (pendiente de Miguel), con los disparadores «Llamada entrante» y «Llamada perdida».
 - Al colgar, la encuesta se abre **enseguida** con la URL de F1, sin esperar al servidor.
-- La **clave** y la **URL del servidor** viven en un solo sitio: la «Solicitud HTTP» de «Llamadas-Enviar cola».
+- La **clave** y la **URL del servidor** viven en dos **variables globales** (`clave_celular` y `url_llamadas`, 06/10), que usan las dos «Solicitud HTTP» (aviso y latido). Activar C1 o rotar su clave es cambiar esas variables; las macros no se tocan.
 - Solo el **400** se trata como rechazo definitivo: se aparta en `errores_llamadas` con aviso y la cola sigue. 413 y 415 no pueden salir de esta macro (el aviso tiene tamaño y formato fijos) y el 409 ya no existe (contrato de la quinta, 05/10). Cualquier otro fallo (sin red, 401, 429, 503) deja el aviso en la cola para la próxima vuelta.
 - **El id es la etiqueta de ESTE celular más los segundos de su reloj**: `C1-…` en C1, `C2-…` en C2 (la del alta). La base responde 400 si la etiqueta es de otro celular o si la hora cae fuera de [hace 30 días, mañana].
 - **Hora automática:** Ajustes → Fecha y hora → «Fecha y hora automáticas» ✓ y zona horaria de Lima (nombres de Samsung; confirmar en pantalla). El `-05:00` del aviso supone Lima.
 - No se sale del bucle al fallar un envío: sin red, cada intento falla y el aviso se queda igual; salir antes solo ahorraba segundos.
 
-**Límite de MacroDroid gratuito: 5 macros por celular.** Estas tres + «Piloto F0» (apagada, de reserva) = 4. **MacroDroid Pro no se compra todavía** (Miguel, 03/10): el latido va dentro de «Llamadas-Enviar cola» y no suma macros. Las entrantes (#14) esperan a esa decisión (§3d).
+**Límite de MacroDroid gratuito: 5 macros por celular.** Estas tres + «Piloto F0» (apagada, de reserva) = 4. **MacroDroid Pro no se compra todavía** (Miguel, 03/10), aunque el 06/10 se vio que la versión gratuita se apaga sola cuando vencen sus días: propuesta #18 para revisarlo. El latido va dentro de «Llamadas-Enviar cola» y no suma macros. Las entrantes (#14) esperan a esa decisión (§3d).
 
-**05/10, sin probar en C1:** el latido (Paso 3) y la guarda de `t_saliente` (Pasos 2 y 4, menor 16) se suman a lo probado el 02/10. Los pasos marcados «confirmar en pantalla» no se vieron todavía en MacroDroid.
+**⚠️ MacroDroid gratuito se APAGA SOLO (hallazgo del 06/10):** la versión gratis funciona por «días de uso» que se
+renuevan mirando anuncios (en C1, 3 días por anuncio). Cuando se acaban, la pantalla de inicio dice «MacroDroid está
+actualmente desactivado» y **ninguna macro corre**: ni las llamadas ni el intervalo, aunque estén encendidas. En C1 pasó
+del 02/10 al 06/10 sin que nadie lo notara. Para reactivar: Inicio → «Añadir Días Gratuitos» → interruptor de arriba a la
+derecha. En producción esto no es viable (cada analista tendría que mirar un anuncio cada pocos días): propuesta #18
+(MacroDroid Pro). El latido lo detecta («sin latido» en la tarjeta de salud), pero las llamadas de esos días se pierden.
+
+**06/10 — versión FINAL armada en C1 y probada contra el receptor de pruebas** (P1, P2, P4 y P5 PASS, `REGISTRO.md` §5g):
+clave y URL en variables, latido solo cada 6 h con `llamadas-v3`, aviso ante 401 (como mucho uno por hora), guarda de las
+2 h y la URL del CRM con el id de la llamada. Es la que se activa en F4-d cambiando solo `url_llamadas` y `clave_celular`.
 
 ### Paso 1 — Variables globales
 
@@ -88,12 +97,15 @@ Pantalla principal de MacroDroid → recuadro **«Variables globales»** → bot
 | `en_saliente` | Booleana, valor Falso | «Llamadas-Salientes» la pone en Verdadero al marcar; «Al colgar» la lee y la vuelve a Falso |
 | `ultimo_latido` | Entera, valor 0 | `{system_time}` del último latido aceptado (200) |
 | `t_saliente` | Entera, valor 0 | Cuándo empezó la saliente: con más de 2 h, «Al colgar» la ignora (menor 16) |
+| `ultimo_aviso_401` | Entera, valor 0 | Cuándo se avisó por última vez que la clave no vale (para avisar como mucho una vez por hora) |
+| `url_llamadas` | Cadena | La dirección del servidor: hoy el receptor del PC; al activar, la de la Edge |
+| `clave_celular` | Cadena | La clave de ESTE celular: hoy la de prueba; al activar, la que da la tarjeta «Celulares» (se ve una sola vez) |
 
 ### Paso 2 — Macro «Llamadas-Salientes»
 
 - **Disparador:** «Llamada saliente» → «Cualquier Número».
 - **Acción:** Variables → «Fijar Variable» → `en_saliente` → **Verdadero** (no tocar «PROBAR»).
-- **Acción:** «Fijar Variable» → `t_saliente` → `{system_time}`. **Va junto con la guarda del Paso 4**: sin ella no sirve, y la guarda sin esta acción vería `t_saliente` = 0 e ignoraría todas las salientes.
+- **Acción:** «Fijar Variable» → `t_saliente` → **«Expresión»** `{system_time}` («Valor» solo acepta números fijos). **Va junto con la guarda del Paso 4**: sin ella no sirve, y la guarda sin esta acción vería `t_saliente` = 0 e ignoraría todas las salientes.
 
 ### Paso 3 — Macro «Llamadas-Enviar cola»
 
@@ -105,9 +117,11 @@ Pantalla principal de MacroDroid → recuadro **«Variables globales»** → bot
 - **Acciones**, en este orden (lo sangrado va **dentro** del bloque de arriba; en pantalla se ve corrido a la derecha):
   ```
   Espera antes de la siguiente acción: 10 s («Usar alarma» ✓)       (categoría Macros)
+  Fijar Variable: hubo_401 (local, Booleana) = Falso
   Iterar Diccionario/Arreglo: cola_llamadas → «Este Diccionario»     (Condiciones/Bucles)
-      Fijar Variable: codigo (local, entera) = 0
-      Solicitud HTTP (POST)
+      Fijar Variable: codigo (local, Entera) = 0
+      Solicitud HTTP (POST): URL {v=url_llamadas}; cabecera x-celular-credencial = {v=clave_celular};
+          cuerpo {iterator_value}; código → codigo
       Si codigo = 202                                                (condición «Variable MacroDroid», en MacroDroid Propio)
           Borrar Entrada de Arreglo/Diccionario: cola_llamadas[{iterator_dictionary_key}] → «Eliminar clave»
       Fin de Si
@@ -116,27 +130,40 @@ Pantalla principal de MacroDroid → recuadro **«Variables globales»** → bot
           Borrar Entrada de Arreglo/Diccionario: cola_llamadas[{iterator_dictionary_key}] → «Eliminar clave»
           Mostrar notificación: «Llamadas» / «Un aviso de llamada fue rechazado»          (sin el número)
       Fin de Si
+      Si codigo = 401                                                (06/10: la clave no vale; el aviso se queda)
+          Fijar Variable: hubo_401 = Verdadero
+      Fin de Si
   Fin de Bucle
-  Fijar Variable: quedan (local, Entera) = 0                         (05/10: el latido, al final)
+  Fijar Variable: quedan (local, Entera) = 0                         (el latido, al final)
   Iterar Diccionario/Arreglo: cola_llamadas → «Este Diccionario»
-      Fijar Variable: quedan = {lv=quedan} + 1
+      Fijar Variable: quedan = Expresión {lv=quedan}+1
   Fin de Bucle
-  Fijar Variable: desde_latido (local, Entera) = {system_time} - {v=ultimo_latido}
-  Si desde_latido >= 21600                                            (6 h: el latido sale SOLO por tiempo, ver abajo)
+  Fijar Variable: desde_latido (local, Entera) = Expresión {system_time}-{v=ultimo_latido}
+  Si desde_latido > 21599                                             (6 h; MacroDroid no tiene «≥». SOLO por tiempo, ver abajo)
       Fijar Variable: codigo_latido (local, Entera) = 0
-      Solicitud HTTP (POST): la misma URL y la misma clave; cuerpo = el latido (abajo); código → codigo_latido
+      Solicitud HTTP (POST): la misma URL y la misma clave (variables); cuerpo = el latido (abajo); código → codigo_latido
       Si codigo_latido = 200
-          Fijar Variable: ultimo_latido = {system_time}
+          Fijar Variable: ultimo_latido = Expresión {system_time}
       Fin de Si
       Si codigo_latido = 400
-          Fijar Variable: ultimo_latido = {system_time}                (no reintentar cada 5 min un latido mal armado)
           Mostrar notificación: «Llamadas» / «El latido fue rechazado: revisar la macro»
+          Fijar Variable: ultimo_latido = Expresión {system_time}     (no reintentar cada 5 min un latido mal armado)
+      Fin de Si
+      Si codigo_latido = 401
+          Fijar Variable: hubo_401 = Verdadero
+      Fin de Si
+  Fin de Si
+  Fijar Variable: desde_aviso (local, Entera) = Expresión {system_time}-{v=ultimo_aviso_401}
+  Si hubo_401 = Verdadero                                             (06/10: aviso de clave inválida, decisión D7)
+      Si desde_aviso > 3599                                           (como mucho una vez por hora)
+          Mostrar notificación: «Llamadas» / «La clave de este celular ya no vale: pide una nueva a gerencia»
+          Fijar Variable: ultimo_aviso_401 = Expresión {system_time}
       Fin de Si
   Fin de Si
   ```
 - **El latido** (pegarlo; `en_cola` va sin comillas, como número):
   ```
-  {"accion":"latido","latido":{"v":1,"version_macro":"llamadas-v2","en_cola":{lv=quedan},"ocurrio_en":"{datetime}-05:00"}}
+  {"accion":"latido","latido":{"v":1,"version_macro":"llamadas-v3","en_cola":{lv=quedan},"ocurrio_en":"{datetime}-05:00"}}
   ```
   **06/10 — el latido sale solo cada 6 h, nunca al vaciarse la cola** (decisión de Jhosep tras el análisis de F4-e).
   Antes también salía cuando la cola se acababa de vaciar; como la cola recibe toda llamada saliente, personales
@@ -147,12 +174,22 @@ Pantalla principal de MacroDroid → recuadro **«Variables globales»** → bot
   condición «Si habia > 0 y quedan = 0»; la variable `toca` ya no hace falta.
 
   La base exige esas cuatro claves. `version_macro` admite de 1 a 40 letras, dígitos, espacios y `. _ -`; `en_cola`, de 0 a 100000. Responde **200**, no 202. El latido gasta del mismo cupo que las llamadas (30 por minuto, 600 por día). Con `ultimo_latido` en 0, la primera vuelta ya manda un latido. **Decisión de Claude (05/10), para Jhosep y Miguel:** con un 400 también se anota la hora del latido, para no reintentar cada 5 minutos un latido mal armado y gastar el cupo compartido; la notificación avisa que hay que revisar la macro.
-- **«Solicitud HTTP»:** método **POST**; la URL del servidor; «Bloquear las siguientes acciones hasta completar» ✓; «Guardar el código de retorno HTTP en una variable entera» → `codigo`; pestaña **«Cuerpo del Contenido»**: tipo `application/json`, Texto `{iterator_value}`; pestaña **«Parámetros de Encabezado»**: solo `x-celular-credencial` = la clave (**no** añadir `Content-Type` a mano: lo pone el tipo de contenido y duplicado daría 415).
+- **«Solicitud HTTP»** (la del aviso; la del latido igual, con su cuerpo y `codigo_latido`): método **POST**; URL `{v=url_llamadas}`; «Bloquear las siguientes acciones hasta completar» ✓; «Guardar el código de retorno HTTP en una variable entera» → `codigo`; «Guardar respuesta» → **«No guardar la respuesta HTTP»**; pestaña **«Cuerpo del Contenido»**: tipo `application/json`, Texto `{iterator_value}`; pestaña **«Parámetros de Encabezado»**: solo `x-celular-credencial` = `{v=clave_celular}` (**no** añadir `Content-Type` a mano: lo pone el tipo de contenido y duplicado daría 415). Comprobado el 06/10: MacroDroid reemplaza la variable en la cabecera (P1).
 - **Trampas vistas al armarla:**
   - La clave de un diccionario va **entre corchetes** en «Define manualmente»: `[{iterator_dictionary_key}]` (sin corchetes sale una X roja y «ACEPTAR» queda gris).
   - Borrar una entrada: **«Eliminar clave»**, no «Borrar valor» (este deja el compartimento vacío y la siguiente vuelta mandaría un aviso vacío).
   - Para un segundo caso usar **otro «Si» con su propio «Fin de Si»**; un «Si» sin cerrar da «Macro inválido: Estructura de control no válido en: Fin de Bucle».
   - La lista de acciones solo muestra la URL de la «Solicitud HTTP», no su cuerpo: para revisarlo hay que abrirla.
+  - (06/10) La condición «Variable MacroDroid» solo ofrece `=`, `<`, `>` y `!=`: para «al menos 2 h» se usa `> 7199`.
+  - (06/10) Una «Entera» con `{system_time}` o una resta se fija con **«Expresión»**; «Valor» solo acepta números.
+  - (06/10) Las acciones nuevas siempre se agregan **al final**: se acomodan con la flecha ⇅ (arrastrar desde las ═).
+  - (06/10) La **X** de un diccionario en «Variables globales» vacía los **valores** pero deja las **claves** («vacío»):
+    para vaciar la cola hay que abrir cada entrada («Editar Entrada») y borrarla con su tacho. El tacho de la lista
+    **elimina la variable entera**: no usarlo.
+  - (06/10) Si la «Solicitud HTTP» guarda la respuesta en una variable que ya no existe, la macro muestra un aviso morado
+    «La variable no existe»: elegir «No guardar la respuesta HTTP».
+  - El panel «Variables locales» muestra el valor inicial, no el de la última vuelta: para depurar, **Inicio → Registro del
+    sistema** muestra cada acción y cada valor.
 - Si dos disparos coinciden y un aviso sale dos veces, no pasa nada: el servidor responde el mismo 202 (el primer envío gana y el segundo no cambia nada).
 
 ### Paso 4 — Macro «Llamadas-Al colgar» (sustituye a «Piloto F0»)
@@ -162,14 +199,15 @@ Se arma clonando «Piloto F0» (mantener pulsada → Clonar) para conservar la a
 - **Disparador:** «Llamada terminada» → «Cualquier Número» (no ofrece elegir saliente o entrante: por eso existe `en_saliente`).
 - **Acciones:**
   ```
-  Fijar Variable: desde_saliente (local, Entera) = {system_time} - {v=t_saliente}   (05/10, va al principio)
-  Si desde_saliente >= 7200                                       (2 h: marca vieja, menor 16)
+  Fijar Variable: desde_saliente (local, Entera) = Expresión {system_time}-{v=t_saliente}   (va al principio)
+  Si desde_saliente > 7199                                        (2 h: marca vieja, menor 16)
       Fijar Variable: en_saliente = Falso
   Fin de Si
   Si en_saliente = Verdadero
       Fijar Variable: id_llamada (local, Cadena) = C1-{system_time}      ← C1 = la etiqueta de ESTE celular
       Fijar Variable: cola_llamadas[{lv=id_llamada}] (Cadena) = el aviso (abajo)
-      Abrir Sitio web: https://crm.miavance.com/#/gestion-diaria/llamada/{call_number}   («codificación de URL» desmarcada)
+      Abrir Sitio web: https://crm.miavance.com/#/gestion-diaria/llamada/{call_number}/{lv=id_llamada}
+          («codificación de URL» desmarcada; con el id desde el 06/10)
       Iniciar macro: Llamadas-Enviar cola   («Omitir restricciones» ✓, «Siempre iniciar» ✓, «Bloquear…» sin marcar)
   Fin de Si
   Fijar Variable: en_saliente = Falso
@@ -181,8 +219,11 @@ Se arma clonando «Piloto F0» (mantener pulsada → Clonar) para conservar la a
   `{datetime}` es texto mágico de MacroDroid (`aaaa-MM-dd HH:mm:ss` en la hora del celular); el `-05:00` (Lima, sin horario de verano) es obligatorio: sin él, el servidor, que trabaja en UTC, la leería 5 horas corrida. Así un aviso reenviado horas después conserva la hora real de la llamada (comprobado en A3, A4 y A6). `{system_time}` está en segundos: basta, un celular no termina dos llamadas en el mismo segundo. Son los segundos del reloj del celular: si está corrido más de un día hacia adelante o 30 días hacia atrás, la base rechaza el aviso (400 «fuera de la ventana… ¿hora automática?»).
 - **Sin notificación ni «Registrar evento» con el número** (prueba 6).
 
-### Pendiente: la URL con el id de la llamada (F4-d) — NO cambiar todavía
-Cuando F4-b esté publicado (F1 lleva el id hasta la encuesta y la encuesta llama a `crm.registrar_llamada_v5`), «Abrir sitio web» pasará a `https://crm.miavance.com/#/gestion-diaria/llamada/{call_number}/{lv=id_llamada}` (`F4-PLAN-CORTO.md` §1). Se cambia **al activar C1, en F4-d** (decisión de Jhosep, 05/10: instalar no es activar). La parte A de F4-b (PR #193, 05/10) ya lee ese id y lo muestra en la encuesta; el router publicado hoy ignora el segmento extra y el enlace funciona como F1, así que adelantar la URL no rompe nada, pero tampoco une.
+### La URL con el id de la llamada — ya puesta en C1 (06/10)
+«Abrir sitio web» ya abre `…/llamada/{call_number}/{lv=id_llamada}` (decisión de Jhosep, 06/10: armar la macro final una
+sola vez). El router publicado hoy ignora el segmento extra y el enlace funciona como F1 (comprobado en P2: abrió la
+encuesta); cuando se publique F4-b (parte A, en el #190), la encuesta llamará a `crm.registrar_llamada_v5` con ese id y la
+llamada quedará unida. Adelantarla no rompe nada.
 
 ### Antes de usarla
 
@@ -193,7 +234,17 @@ Cuando F4-b esté publicado (F1 lleva el id hasta la encuesta y la encuesta llam
 | Llamadas-Al colgar | Encendida |
 | Llamadas-Enviar cola | Encendida (la copia sale desactivada) |
 
-**URL del servidor:** mientras Miguel no despliegue la Edge, la del receptor de pruebas (`http://<IP del PC>:8787/functions/v1/crm-llamadas-ingesta`, solo dentro de la oficina y con el receptor encendido). Al desplegar cambian solo el servidor (misma ruta), en las dos «Solicitud HTTP» (aviso y latido), y la clave de prueba por la del alta (`alta-celular.sql`, se muestra una vez). **Antes, vaciar `cola_llamadas` y `errores_llamadas`.** El receptor comprueba la forma del id, pero no su etiqueta ni su ventana: esas dos cosas solo se prueban contra la Edge.
+**MacroDroid activado:** en Inicio no debe verse «MacroDroid está actualmente desactivado». Con la versión gratuita hay
+que renovar los días antes de que venzan (ver el aviso de arriba).
+
+**URL del servidor y clave (variables):** mientras Miguel no despliegue la Edge, `url_llamadas` apunta al receptor de
+pruebas (`http://<IP del PC>:8787/functions/v1/crm-llamadas-ingesta`, solo dentro de la oficina y con el receptor
+encendido) y `clave_celular` tiene la clave de prueba. **El día de activar C1 (F4-d)**, sin tocar ninguna macro:
+1. Vaciar `cola_llamadas` y `errores_llamadas` (abrir cada entrada y borrarla con su tacho, ver las trampas).
+2. `url_llamadas` = la URL de la Edge (misma ruta, otro servidor).
+3. `clave_celular` = la clave que da la tarjeta «Celulares» al asignar C1 (se ve una sola vez; nunca pasa por un chat).
+4. `ultimo_latido` = 0, para que la primera vuelta mande un latido y la tarjeta muestre «al día».
+El receptor comprueba la forma del id, pero no su etiqueta ni su ventana: esas dos cosas solo se prueban contra la Edge.
 
 ### Pruebas de aceptación (todas PASS el 02/10, detalle en `REGISTRO.md` §5e)
 
@@ -207,7 +258,17 @@ Cuando F4-b esté publicado (F1 lleva el id hasta la encuesta y la encuesta llam
 | A6 | Reinicio con un aviso pendiente | Sobrevive y sale solo con su hora original; el intervalo se reactiva solo |
 | A7 | Permiso de ubicación | Ningún disparador definitivo lo pidió |
 
-**Pruebas del latido (05/10, sin correr; anotar en `REGISTRO.md` §5f):**
+**Pruebas de la versión final (06/10, contra el receptor de pruebas; detalle en `REGISTRO.md` §5g):**
+
+| # | Caso | Resultado |
+| --- | --- | --- |
+| P1 | Primera vuelta de «Enviar cola» (`ultimo_latido` en 0) | ✅ Latido 200, `llamadas-v3`, cola 0: la clave y la URL en variables funcionan |
+| P2 | Saliente con Wi-Fi | ✅ Se abrió la encuesta; aviso 202 a los 10 s con su id y hora real; ningún latido extra |
+| P4 | El receptor responde 401 | ✅ Notificación «La clave de este celular ya no vale…»; el aviso se queda en la cola y se reenvía solo (16:00) con su id y hora original cuando el receptor vuelve a normal |
+| P5 | Entrante | ✅ Ni encuesta ni aviso |
+| P3 | Sin red | No se corrió: el camino «guardar y reenviar» quedó probado en P4 y en A3 (02/10) |
+
+**Pruebas del latido (05/10; L1 y L2 quedan cubiertas por P1 y P2 del 06/10):**
 
 | # | Caso | Esperado |
 | --- | --- | --- |
