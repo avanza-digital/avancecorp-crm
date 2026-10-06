@@ -123,4 +123,33 @@ dormidos del archivo sin repartir fuera de la lista —D10 de B9—, el núcleo 
 sin B10. La concurrencia de B9 no cambia. Con B10 aplicada, `b9-mutantes.mjs` no aplica (cambia piezas de B9 que B10 reemplaza): se corre con B10
 revertida; y `reversa-b9.sql` se niega mientras B10 esté aplicada.
 
-Reversas, en este orden: B10 (`reversa-b10.sql`, antes que todas) · B9 (`reversa-b9.sql`, antes que la de B8; no toca filas) · B8 (`reversa-b8.sql`, antes que la de B7) · B7 (`reversa-b7.sql`, antes que la de B6c) · B6c (`reversa-b6c.sql`, antes que todas; la de B2 se niega mientras levantar tenga el cuerpo de B6c) · B6b (`reversa-b6b.sql`) · B3b (`reversa-idempotencia-y-orden.sql`) · B4b (`reversa-ventana-descanso.sql`) · B4 (`reversa-enfriamiento.sql`) · B3 (`reversa-puertas.sql`, se niega si queda el trigger de B4) · B2 (`reversa-no-contactar-supervisor.sql`, independiente) · B1b (`reversa-proxima-llamada.sql`, se niega si quedan núcleos de B3) · B1 (`reversa-esquema.sql`, se niega si B1b sigue aplicada). Rama de Supabase con datos: `rama.mjs estado | aplicar | explain | gate` (la URL del pooler la aporta Miguel por archivo; ver `BASE PARA GESTION/ESTADO.md`).
+**B11 · Bases cargadas: la conversión de un contacto de base (20261006042144).** El cierre de un contacto de origen
+`base_cargada` pesa 1 para el analista que lo consigue y no entra al divisor (E10). No toca tablas, policies ni grants: un
+ayudante único (`private.conversion_origen_con_cierre`) reemplaza la lista copiada en siete funciones de conversión, y el
+Divisor de coordinación gana la columna de base cargada (drop + create de sus dos privadas, misma ACL; clave `base_cargada` en
+la puerta). La migración y la reversa se GENERAN desde los textos vivos de producción (`b11/vivo/`): no se editan a mano.
+Banco: Docker a paridad con producción (con B7 y con datos de `seed:demo`: la suite clona un cierre real del mes). Migración y
+reversa van como `postgres` (el postflight rechaza otro dueño); suite y mutantes, como el superusuario del stack local.
+
+```sh
+python3 supabase/scripts/base-gestion/b11/generar.py supabase/migrations/20261006042144_crm_bases_cargadas_conversion.sql   # 2 pasadas si cambia un cuerpo: medir huellas en el banco → b11/huellas-nuevas.json
+python3 supabase/scripts/base-gestion/b11/generar_reversa.py supabase/scripts/base-gestion/reversa-b11.sql
+python3 supabase/scripts/base-gestion/b11/generar_registrador.py                                                           # tras fijar el archivo final (lleva su md5)
+psql … -X -At -F' | ' -f supabase/scripts/base-gestion/b11-paridad.sql > antes.txt                                          # solo lectura; ANTES de aplicar
+psql … -U postgres -X -v ON_ERROR_STOP=1 -c "$(cat supabase/migrations/20261006042144_crm_bases_cargadas_conversion.sql)"  # UN mensaje
+psql … -X -At -F' | ' -f supabase/scripts/base-gestion/b11-paridad.sql > despues.txt                                        # las huellas deben ser idénticas; solo aparece base_cargada = 0
+psql … -U supabase_admin -X -f supabase/scripts/base-gestion/b11-conversion.sql                                             # 23 casos (base +1 al numerador y +0 al divisor, «otro» +0, mes sellado con NULL, ajuste), ROLLBACK
+node supabase/scripts/base-gestion/b11-mutantes.mjs --puerto <puerto>                                                       # 16 mutantes deben CAER
+bash supabase/scripts/base-gestion/b11-carrera.sh --puerto <puerto>                                                         # dos sesiones: sin el candado la carrera existe; con él, el freno vale hasta el commit
+psql … -U postgres -X -v ON_ERROR_STOP=1 -c "$(cat supabase/scripts/base-gestion/reversa-b11.sql)"                          # vuelve al estado de antes, byte a byte
+psql … -U postgres -X -v ON_ERROR_STOP=1 -c "$(cat supabase/scripts/base-gestion/registrar/20261006042144.sql)"             # tras aplicar; idempotente
+```
+
+Migración y reversa bloquean antes de su primera lectura las dos tablas donde nace un cierre (`crm.lead_asignaciones` y
+`crm.conversion_acreditaciones`, SHARE ROW EXCLUSIVE NOWAIT): si alguien escribe en ese instante se niegan con «could not
+obtain lock» y se repiten. Frenos (todos P0409, sin dejar nada ni retener el candado): la migración se niega si ya hay un cierre de un contacto de base,
+si cambió alguno de los diez cuerpos, su dueño o su ACL, si aparece un llamador nuevo del divisor de empresa o si el censo
+analítico no está vigente y sellado; la reversa, además, si otra función ya usa el ayudante. El gate (`test-rls.mjs`, bloque
+«Bases cargadas B11») es de solo lectura: catálogo del núcleo y la clave nueva en un mes abierto.
+
+Reversas, en este orden: B11 (`reversa-b11.sql`: solo funciones de conversión, no depende de las demás) · B10 (`reversa-b10.sql`, antes que todas las de bases) · B9 (`reversa-b9.sql`, antes que la de B8; no toca filas) · B8 (`reversa-b8.sql`, antes que la de B7) · B7 (`reversa-b7.sql`, antes que la de B6c) · B6c (`reversa-b6c.sql`, antes que todas; la de B2 se niega mientras levantar tenga el cuerpo de B6c) · B6b (`reversa-b6b.sql`) · B3b (`reversa-idempotencia-y-orden.sql`) · B4b (`reversa-ventana-descanso.sql`) · B4 (`reversa-enfriamiento.sql`) · B3 (`reversa-puertas.sql`, se niega si queda el trigger de B4) · B2 (`reversa-no-contactar-supervisor.sql`, independiente) · B1b (`reversa-proxima-llamada.sql`, se niega si quedan núcleos de B3) · B1 (`reversa-esquema.sql`, se niega si B1b sigue aplicada). Rama de Supabase con datos: `rama.mjs estado | aplicar | explain | gate` (la URL del pooler la aporta Miguel por archivo; ver `BASE PARA GESTION/ESTADO.md`).

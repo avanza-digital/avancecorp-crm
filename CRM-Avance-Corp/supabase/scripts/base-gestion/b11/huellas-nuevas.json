@@ -1,0 +1,13 @@
+{
+ "private.conversion_cierres(timestamptz,timestamptz,date,boolean,uuid[],numeric,uuid[])": "155ce2b12754718388c8ca1644c84c90",
+ "crm.conversion_divisor_coordinacion_fn(date,date,date)": "b7dd99499a7668938a1417b259bc0626",
+ "private.conversion_divisor_empresa(date,date)": "bf90ba99a8404c0889606354ef289335",
+ "private.conversion_divisor_empresa_totales(date,date)": "cf38266452df03960ca07d856d59b346",
+ "private.conversion_mensual_por_vendedor(timestamptz,timestamptz,boolean,uuid[],numeric)": "2f0f891b41b25c902d6cfd4ab369af5d",
+ "crm.conversion_mensual_sin_cartera_fn(date)": "417defaf8d982bfc628b3469984fa802",
+ "private.conversion_origen_con_cierre(text)": "3c7ded558914426ea4f6a08830db1b43",
+ "crm.metricas_conversiones_equipo_fn(date,date)": "09e538d7be92bf8755411bec0737b34d",
+ "private.metricas_conversiones_implementacion(date,date,text)": "309c951204d9cd81a38ed049d1319d06",
+ "private.metricas_distribucion_leads_v3_core(date,date,timestamptz)": "41df911eccb0e66021760335145bb0e1",
+ "private.registrar_ajuste_si_mes_cerrado(uuid,text,uuid)": "fec614f0df11c6d411bf132c776cce6e"
+}

@@ -9970,9 +9970,9 @@ async function testReparto(sessions, seed) {
         'PARIDAD: formulario + landing = divisor en cada analista (mes abierto)');
       // v2: el numerador bruto es la suma de sus partes y el neto lleva el ajuste (mes abierto).
       check((convCoord.data?.analistas ?? []).every((f) => f.desglose_disponible && f.cierres && f.cartera
-        && Math.abs((f.cierres.formulario + f.cierres.landing + f.cierres.referido_aporte + f.cartera.upgrade + f.cartera.renovacion_aporte) - f.numerador_bruto) < 1e-6
+        && Math.abs((f.cierres.formulario + f.cierres.landing + (f.cierres.base_cargada ?? 0) + f.cierres.referido_aporte + f.cartera.upgrade + f.cartera.renovacion_aporte) - f.numerador_bruto) < 1e-6
         && Math.abs(Math.max(f.numerador_bruto - f.ajuste_pendiente, 0) - f.numerador) < 1e-6),
-        'PARIDAD v2: cierres + referidos×peso + upgrade + renovación×peso = numerador bruto; neto = bruto − ajuste');
+        'PARIDAD v2: cierres (con base cargada desde B11) + referidos×peso + upgrade + renovación×peso = numerador bruto; neto = bruto − ajuste');
       check(typeof convCoord.data?.peso_renovacion === 'number' && typeof convCoord.data?.peso_referido === 'number',
         'la puerta declara los dos pesos vigentes (referido y renovación)');
       const sumaAnalistas = (convCoord.data?.analistas ?? []).reduce((acc, f) => acc + f.divisor, 0)
@@ -17333,6 +17333,57 @@ async function testBasesCargadasB10(sessions, seed) {
   }
 }
 
+// ── Bases cargadas B11 (20261006042144): el cierre de un contacto de base pesa 1 y queda fuera del divisor ──
+// Aquí, catálogo y contrato: el ayudante y las dos privadas del divisor sin EXECUTE para la API, y la clave nueva
+// `cierres.base_cargada` del Divisor de coordinación como entero en un mes abierto. El comportamiento (numerador +1,
+// divisor +0, mes sellado con NULL, ajuste) se prueba en el banco con supabase/scripts/base-gestion/b11-conversion.sql
+// y b11-mutantes.mjs. Solo lectura: no deja nada.
+async function testBasesCargadasB11(sessions) {
+  console.log('\n— Bases cargadas B11: la conversión de un contacto de base (ayudante, divisor de empresa y clave nueva) —');
+  const saltar = (msg) => {
+    if (process.env.CRM_RLS_EXIGE_BASE_GESTION === '1') fail(msg);
+    else console.log(`  ${msg}`);
+  };
+  let aplicada;
+  try {
+    aplicada = contarFueraDeBanda('bases cargadas B11: aplicada',
+      `select (to_regprocedure('private.conversion_origen_con_cierre(text)') is not null)::int`);
+  } catch (error) {
+    saltar(`⚠ Bases cargadas B11 SALTADO: sin vía fuera de banda (${error?.message ?? String(error)})`);
+    return;
+  }
+  if (aplicada !== 1) {
+    saltar('⚠ 20261006042144 (bases cargadas B11) NO desplegada en esta base: bloque SALTADO (no probado)');
+    return;
+  }
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`bases cargadas B11: ${etiqueta}`, sql);
+  const NUCLEO = ['private.conversion_origen_con_cierre(text)', 'private.conversion_divisor_empresa(date,date)', 'private.conversion_divisor_empresa_totales(date,date)'];
+  const oids = NUCLEO.map((f) => `to_regprocedure('${f}')`).join(', ');
+  check(cuenta('nucleo presente', `select count(*) from pg_proc p where p.oid in (${oids}) and p.proowner = 'postgres'::regrole and p.proconfig @> array['search_path=""'] and not exists (select 1 from aclexplode(p.proacl) a where a.grantee = 0)`) === 3,
+    'B11 el ayudante y las dos privadas del divisor existen, de postgres, con search_path vacío y sin PUBLIC');
+  check(cuenta('nucleo sin API', `select count(*) from pg_proc p cross join unnest(array['anon','authenticated','service_role']) r(rol) where p.oid in (${oids}) and has_function_privilege(r.rol, p.oid, 'EXECUTE')`) === 0,
+    'B11 el núcleo privado sin EXECUTE para anon, authenticated ni service_role');
+  check(cuenta('ayudante', `select count(*) from pg_proc p where p.oid = to_regprocedure('private.conversion_origen_con_cierre(text)') and not p.prosecdef and p.provolatile = 'i'`) === 1,
+    'B11 el ayudante es INVOKER e IMMUTABLE');
+  check(cuenta('ayudante dice', `select (private.conversion_origen_con_cierre('base_cargada') and private.conversion_origen_con_cierre('landing') and private.conversion_origen_con_cierre('formulario') and private.conversion_origen_con_cierre('referido') and not private.conversion_origen_con_cierre('oficina') and not private.conversion_origen_con_cierre('otro'))::int`) === 1,
+    'B11 cuentan un cierre: landing, formulario, referido y base_cargada; oficina y otro, no');
+  check(cuenta('puerta', `select count(*) from pg_proc p where p.oid = to_regprocedure('crm.conversion_divisor_coordinacion_fn(date,date,date)') and p.prosecdef and p.proowner = 'postgres'::regrole and has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('anon', p.oid, 'EXECUTE') and not has_function_privilege('service_role', p.oid, 'EXECUTE')`) === 1,
+    'B11 la puerta de Coordinación conserva su ACL (solo authenticated)');
+  const mes = `${new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima', year: 'numeric', month: '2-digit' }).format(new Date()).slice(0, 7)}-01`;
+  const coord = await positive('B11 gerencia lee el Divisor de coordinación del mes en curso',
+    sessions.gerencia.client.schema('crm').rpc('conversion_divisor_coordinacion_fn', { p_periodo: mes }));
+  if (coord) {
+    const entero = (v) => Number.isInteger(v) && v >= 0;
+    check(entero(coord.data?.empresa?.cierres?.base_cargada),
+      'B11 empresa.cierres.base_cargada es un entero en un mes abierto', JSON.stringify(coord.data?.empresa?.cierres));
+    check((coord.data?.analistas ?? []).every((f) => entero(f.cierres?.base_cargada)),
+      'B11 cada analista trae cierres.base_cargada como entero en un mes abierto');
+    const filas = [...(coord.data?.analistas ?? [])];
+    check(filas.every((f) => Math.abs((f.cierres.formulario + f.cierres.landing + f.cierres.base_cargada + f.cierres.referido_aporte + f.cartera.upgrade + f.cartera.renovacion_aporte) - f.numerador_bruto) < 1e-6),
+      'B11 PARIDAD: con la base cargada, las partes siguen sumando el numerador bruto en cada analista');
+  }
+}
+
 // ── Eliminar inversión (20261005200945): admin/superadmin del portal o gerencia; copia inmutable; núcleo cerrado ──
 // El comportamiento con escrituras (cooperativa, conversión que no resucita, Avance, válvula, historia propia) se prueba
 // en el banco con supabase/scripts/eliminar-inversion/test-eliminar-inversion.sql + mutantes.sh; aquí, catálogo y roles.
@@ -17907,6 +17958,7 @@ async function main() {
       await testBasesCargadasB8(sessions, verifiedSeed);
       await testBasesCargadasB9(sessions, verifiedSeed);
       await testBasesCargadasB10(sessions, verifiedSeed);
+      await testBasesCargadasB11(sessions);
       await testEliminarInversion(sessions, verifiedSeed);
     }
   } catch (error) {
