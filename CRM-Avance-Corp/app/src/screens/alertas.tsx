@@ -11,11 +11,17 @@ import {
   Search,
   SearchX,
   Split,
+  SlidersHorizontal,
   Trash2,
   TrendingDown,
   UserRoundX,
   type LucideIcon,
 } from 'lucide-react'
+import { useEsMovil } from '@/lib/media'
+import { useEstaEnLinea } from '@/lib/conexion'
+import { useConsultaAlertas } from '@/components/gerencia/use-consulta-alertas'
+import { alertasActivas, textoActualizacion } from '@/lib/alertas-presentacion'
+import './alertas-movil.css'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { CrmApiError, eliminarRecordatorioDisponibilidad } from '@/data/crm-api'
@@ -111,17 +117,6 @@ function normalizar(texto: string): string {
     .toLocaleLowerCase('es-PE')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-}
-
-function textoActualizacion(generadoEn: string | null): string {
-  if (!generadoEn || !Number.isFinite(Date.parse(generadoEn))) return 'Actualización no disponible'
-  return `Actualizado ${new Intl.DateTimeFormat('es-PE', {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'America/Lima',
-  }).format(Date.parse(generadoEn))}`
 }
 
 function colorSeveridad(severidad: AlertaCRM['severidad']): string {
@@ -271,7 +266,7 @@ function FilaAlerta({ alerta, alcance }: { alerta: AlertaCRM; alcance: string })
   const atendida = reconocimiento != null || (alerta.corte != null && alerta.corte.estado !== 'pendiente')
   const color = atendida ? SEMAFORO.neutro : colorSeveridad(alerta.severidad)
   return (
-    <li className="group relative grid gap-3 px-4 py-4 pl-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-5 sm:pl-6">
+    <li className="alerta-fila group relative grid gap-3 px-4 py-4 pl-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-5 sm:pl-6">
       <span
         className="absolute inset-y-3 left-0 w-1 rounded-r-full"
         style={{ backgroundColor: color }}
@@ -323,6 +318,7 @@ function FilaAlerta({ alerta, alcance }: { alerta: AlertaCRM; alcance: string })
       ) : (
         <div className="ml-12 flex flex-col items-start gap-2 sm:ml-0 sm:items-end">
           <a
+            id={`aviso-${alerta.id}`}
             href={hashDe(alerta.destino.vista, alerta.destino.leadId)}
             onClick={() => {
               if (!alerta.destino.periodo) return
@@ -347,17 +343,22 @@ function FilaAlerta({ alerta, alcance }: { alerta: AlertaCRM; alcance: string })
 export function Alertas(): JSX.Element {
   const { alertas, pospuestas, rol, cargando, errores, generadoEn, reintentar } = useAlertasCRM()
   const copy = copyRol(rol)
-  const [prioridad, setPrioridad] = useState<FiltroPrioridad>('todas')
-  const [tipo, setTipo] = useState<FiltroTipo>('todos')
-  const [busqueda, setBusqueda] = useState('')
+  const esMovil = useEsMovil()
+  const movilGerencia = rol === 'gerencia' && esMovil
+  const enLinea = useEstaEnLinea()
+  const { prioridad, tipo, busqueda, filtrosAbiertos, cambiar } = useConsultaAlertas(rol === 'gerencia')
+  const setPrioridad = (valor: FiltroPrioridad) => cambiar('prioridad', valor)
+  const setTipo = (valor: FiltroTipo) => cambiar('tipo', valor)
+  const setBusqueda = (valor: string) => cambiar('busqueda', valor)
 
   // F4 (Codex #8): activas y reconocidas por SEPARADO. Los chips, los filtros
   // y el buscador operan solo sobre las activas — «Críticas 1» con «0
   // pendientes activos» era la pantalla contradiciéndose; las reconocidas
   // viven en su propia sección, siempre al final y sin filtrar.
   const activas = useMemo(
-    () => alertas.filter((alerta) => alerta.reconocimiento == null && alerta.corte?.estado !== 'reconocido'),
-    [alertas],
+    // Los cortes pospuestos del supervisor siguen visibles según su contrato.
+    () => movilGerencia ? alertasActivas(alertas) : alertas.filter(a => a.reconocimiento == null && a.corte?.estado !== 'reconocido'),
+    [alertas, movilGerencia],
   )
   const reconocidas = useMemo(
     () => alertas.filter((alerta) => alerta.reconocimiento != null || alerta.corte?.estado === 'reconocido'),
@@ -396,7 +397,7 @@ export function Alertas(): JSX.Element {
   }
 
   return (
-    <section className="mx-auto max-w-5xl space-y-4" aria-label="Pendientes actuales">
+    <section className={`mx-auto max-w-5xl space-y-4${movilGerencia ? ' alertas-gerencia-movil' : ''}`} aria-label="Pendientes actuales" data-consulta-lista={!cargando}>
       <header className="overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
         <div className="h-1 bg-gradient-to-r from-primary via-accent to-primary" aria-hidden />
         <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-6">
@@ -426,6 +427,7 @@ export function Alertas(): JSX.Element {
         </div>
       </header>
 
+      {movilGerencia && !enLinea && <p className="rounded-xl border border-warning/35 bg-warning/5 p-3 text-sm" role="status">Sin conexión. Los avisos pueden estar desactualizados.</p>}
       {cargando && alertas.length === 0 && pospuestas === 0 ? (
         <CargaAlertas />
       ) : errores.length > 0 && alertas.length === 0 && pospuestas === 0 ? (
@@ -454,7 +456,8 @@ export function Alertas(): JSX.Element {
           {activas.length > 0 && (
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <FiltrosPrioridad valor={prioridad} onCambiar={setPrioridad} total={activas.length} criticas={criticas} />
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              {movilGerencia && <div className="flex items-center justify-between gap-2"><Button type="button" variant="outline" aria-expanded={filtrosAbiertos} aria-controls="alertas-filtros" onClick={() => cambiar('filtrosAbiertos', !filtrosAbiertos)}><SlidersHorizontal aria-hidden />Filtrar{hayFiltros ? ' · activos' : ''}</Button>{hayFiltros && <Button type="button" variant="ghost" onClick={limpiar}>Limpiar filtros</Button>}</div>}
+              <div id="alertas-filtros" hidden={movilGerencia && !filtrosAbiertos} className={movilGerencia && !filtrosAbiertos ? 'hidden' : 'flex flex-col gap-2 sm:flex-row sm:items-center'}>
                 <Select
                   aria-label="Filtrar por tipo"
                   value={tipo}

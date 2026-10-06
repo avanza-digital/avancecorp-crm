@@ -62,3 +62,16 @@ describe('VersionPublicadaAviso', () => {
     expect(actualizar).not.toHaveBeenCalled()
   })
 })
+
+it('permite aplazar y volver a abrir el aviso sin recargar ni perder la versión detectada', async () => {
+  const actualizar = vi.fn()
+  render(<VersionPublicadaAviso activo buildActual="anterior" fetchVersion={fetchConVersion('nueva')} onActualizar={actualizar} />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Más tarde' }))
+  expect(screen.getByRole('button', { name: 'Ver actualización disponible' })).toHaveFocus()
+  expect(screen.queryByRole('button', { name: 'Ya guardé, actualizar' })).not.toBeInTheDocument()
+  expect(actualizar).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: 'Ver actualización disponible' }))
+  expect(screen.getByRole('button', { name: 'Más tarde' })).toHaveFocus()
+  fireEvent.click(screen.getByRole('button', { name: 'Ya guardé, actualizar' }))
+  expect(actualizar).toHaveBeenCalledWith('nueva')
+})

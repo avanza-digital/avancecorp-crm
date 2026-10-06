@@ -1,0 +1,65 @@
+/* Presentación exclusiva de Gerencia en teléfono. Las capas conservan su orden. */
+[data-gerencia-movil='true'] { height: 100dvh; }
+[data-gerencia-movil='true'][data-teclado-abierto='true'] { height: var(--crm-viewport-alto, 100dvh); }
+[data-gerencia-movil='true'][data-teclado-abierto='true'] .gm-barra { display: none; }
+.crm-conexion { display: flex; align-items: flex-start; gap: 8px; padding: 9px 14px; flex-shrink: 0; background: #fff4dc; color: #805718; font-size: 12px; line-height: 1.5; }
+.crm-conexion svg { flex-shrink: 0; margin-top: 2px; }
+@media (max-width: 767px) {
+  [data-gerencia-movil='true'] [data-vista-scroll] { overscroll-behavior-y: contain; scroll-padding-block: 12px; padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+  [data-gerencia-movil='true'] [data-controles-moviles='true'] :is(button, a[role='button'], summary, [role='tab']):not([role='checkbox']):not([role='switch']) { min-height: 44px; }
+  body:has([data-gerencia-movil='true']) :is([data-controles-moviles='true'], [role='dialog']) :is(input:not([type='checkbox']):not([type='radio']), select, textarea) { font-size: 16px; min-height: 44px; max-width: 100%; }
+  body:has([data-gerencia-movil='true']) [role='dialog'] { max-height: calc(var(--crm-viewport-alto, 100dvh) - 24px); }
+  body:has([data-gerencia-movil='true']) [data-sonner-toaster] { top: max(12px, env(safe-area-inset-top)); }
+  [data-gerencia-movil='true'] [data-vista-scroll] > * { min-width: 0; max-width: 100%; }
+  [data-gerencia-movil='true'] [data-vista-scroll] :is(h1,h2,h3,h4) { overflow-wrap: anywhere; }
+}
+
+.gm-orden-equipos, .citas-consulta-movil { display: none; }
+@media (max-width: 767px) {
+  [data-gerencia-movil='true'] .citas-consulta-movil { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; }
+  [data-gerencia-movil='true'] .citas-consulta-movil > div { min-width: 0; font-size: 12px; }
+  [data-gerencia-movil='true'] .citas-consulta-movil strong, [data-gerencia-movil='true'] .citas-consulta-movil span { display: block; overflow-wrap: anywhere; }
+  [data-gerencia-movil='true'] .citas-consulta-movil span { margin-top: 4px; color: var(--muted-foreground-strong); }
+  [data-gerencia-movil='true'] #citas-consulta-campos[data-abierta='false'] { display: none; }
+  [data-gerencia-movil='true'] .citas-filtros-fila { grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
+  [data-gerencia-movil='true'] [data-vista-scroll='facturacion'] .facturacion-malla-titulo { flex-wrap: wrap; }
+  [data-gerencia-movil='true'] [data-vista-scroll='facturacion'] .facturacion-malla-titulo h3 { flex: 1; min-width: 180px; }
+  [data-gerencia-movil='true'] [data-vista-scroll='facturacion'] [aria-label^='Facturación diaria'] { max-height: 65dvh; scroll-padding-inline-start: 144px; }
+  [data-gerencia-movil='true'] [data-vista-scroll='facturacion'] [aria-label^='Facturación diaria'] tr > :first-child { width: 144px; min-width: 144px; max-width: 144px; padding-inline: 8px; }
+  [data-gerencia-movil='true'] [data-vista-scroll='facturacion'] [aria-label^='Facturación diaria'] tbody tr > :first-child > div { padding-left: 0; gap: 6px; }
+  [data-gerencia-movil='true'] [data-vista-scroll='facturacion'] [aria-label^='Facturación diaria'] tbody tr > :first-child button { padding-inline: 4px; gap: 6px; }
+  [data-gerencia-movil='true'] [data-vista-scroll='facturacion'] .facturacion-analista-avatar { display: none; }
+  [data-gerencia-movil='true'] [data-vista-scroll='facturacion'] [aria-label^='Facturación diaria'] tr > :last-child { position: static; min-width: 100px; }
+  [data-gerencia-movil='true'] [data-vista-scroll='facturacion'] [aria-label^='Facturación diaria'] .truncate { white-space: normal; overflow-wrap: anywhere; }
+  [data-gerencia-movil='true'] [data-vista-scroll='ranking-vendedores'] [role='tablist'] { flex-wrap: wrap; gap: 4px; }
+  [data-gerencia-movil='true'] [data-vista-scroll='ranking-vendedores'] [role='tab'] { white-space: normal; flex: 1 1 auto; }
+  [data-gerencia-movil='true'] [data-vista-scroll='ranking-vendedores'] ol .truncate { white-space: normal; overflow-wrap: anywhere; }
+  [data-gerencia-movil='true'] [data-vista-scroll='metas'] :is(.gi-toolbar, .gi-period) { flex-wrap: wrap; }
+  [data-gerencia-movil='true'] [data-vista-scroll='mi-cartera'] :is(input,select) { min-width: 0; }
+  body:has([data-gerencia-movil='true']) [data-slot='sheet'] { height: var(--crm-viewport-alto, 100dvh); max-height: var(--crm-viewport-alto, 100dvh); padding-bottom: env(safe-area-inset-bottom); }
+}
+
+@container (max-width: 640px) {
+  [data-gerencia-movil='true'] [aria-label='Desplazar tabla de equipos'] table { min-width: 0; }
+  [data-gerencia-movil='true'] [aria-label='Desplazar tabla de equipos'] tr[data-equipo] { margin: 8px; border: 1px solid var(--border); border-radius: 12px; }
+  [data-gerencia-movil='true'] .gm-orden-equipos { display: flex; align-items: flex-end; gap: 8px; padding: 12px; border-bottom: 1px solid var(--border); }
+  [data-gerencia-movil='true'] .gm-orden-equipos label { flex: 1; min-width: 0; font-size: 12px; font-weight: 600; }
+  [data-gerencia-movil='true'] .gm-orden-equipos select { margin-top: 5px; }
+  [data-gerencia-movil='true'] .gm-orden-equipos + .gd-tabla-scroll { overflow: visible !important; }
+  [data-gerencia-movil='true'] .gm-orden-equipos + .gd-tabla-scroll thead { display: none; }
+}
+
+.gm-controles, .gm-controles-campos { display: contents; }
+.gm-controles-resumen { display: none; }
+@media (max-width: 767px) {
+  [data-gerencia-movil='true'] .gm-controles { display: block; width: 100%; }
+  [data-gerencia-movil='true'] .gm-controles-resumen { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 8px 0; }
+  [data-gerencia-movil='true'] .gm-controles-resumen p { font-size: 12px; color: var(--muted-foreground-strong); }
+  [data-gerencia-movil='true'] .gm-controles-campos { display: block; }
+  [data-gerencia-movil='true'] .gm-controles-campos[data-abiertos='false'] { display: none; }
+  [data-gerencia-movil='true'] [data-vista-scroll='mi-cartera'] .gm-controles { padding: 0 16px 12px; }
+  [data-gerencia-movil='true'] .gm-cartera-filtros { display: grid; grid-template-columns: minmax(0,1fr); padding: 8px 0; }
+  [data-gerencia-movil='true'] .gm-cartera-filtros > div { width: 100%; max-width: none; }
+  [data-gerencia-movil='true'] [data-vista-scroll='metas'] .gi-kpi-card > div:first-of-type { flex-wrap: wrap; }
+  [data-gerencia-movil='true'] [data-vista-scroll='mi-cartera'] .truncate { white-space: normal; overflow-wrap: anywhere; }
+}

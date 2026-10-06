@@ -1,8 +1,9 @@
+import { useConsultaGerencia } from '@/components/gerencia/use-consulta-gerencia'
 import { useMemo, useState } from 'react'
 import { usePanelesActions } from '@/lib/store-context'
 import { adaptarDepositos, adaptarGestion } from '@/data/citas-gerencia'
 import { leerHash } from '@/lib/router'
-import { mesConsultaCitas } from '@/lib/enlace-citas'
+import { consultaCitasValida, mesConsultaCitas } from '@/lib/enlace-citas'
 import { useDatosCitasGerencia } from './use-datos-citas-gerencia'
 import { ContextoCitas } from '@/components/citas/contexto'
 import { TableroCitas } from '@/components/citas/propuesta'
@@ -10,9 +11,12 @@ import { mesLima } from '@/components/citas/modelo'
 import '@/components/citas/presentacion.css'
 
 export function CitasGerencia() {
+  const consultaSesion = useConsultaGerencia()
   const [mes, setMes] = useState(() => {
     const consulta = leerHash().consultaCitas
-    return consulta ? mesConsultaCitas(consulta) : mesLima()
+    if (consulta) return mesConsultaCitas(consulta)
+    const guardado = consultaSesion?.consulta.citas?.filtros.mes
+    return guardado && consultaCitasValida({ mes: guardado }) ? guardado : mesLima()
   })
   const { yo, ahora, datos, citas, consulta } = useDatosCitasGerencia(mes)
   const { abrirLead } = usePanelesActions()
@@ -29,6 +33,6 @@ export function CitasGerencia() {
     onAbrirLead:(id) => { void abrirLead(id) },
   }}>
     {datos && datos.citas_clientes>0 && <p className="mb-3 text-sm">{datos.citas_clientes} citas de clientes se consultan en Agenda. Las metas de este módulo corresponden a leads.</p>}
-    <TableroCitas />
+    <TableroCitas conservarConsulta={yo?.rol === 'gerencia'} />
   </ContextoCitas>
 }

@@ -58,3 +58,19 @@
 .grm-full { width: 100%; }
 .grm-equipo > span { overflow-wrap: anywhere; }
 @media (prefers-reduced-motion: no-preference) { .grm-resumen button { transition: box-shadow 150ms ease; } .grm-resumen button:hover { box-shadow: 0 3px 12px #16334d16; } }
+
+.grm-gestion { margin-top: 24px; }
+.grm-gestion .grm-section-heading { flex-wrap: wrap; margin-bottom: 0; }
+.grm-ver-todos { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; font-size: 12px; font-weight: 600; color: var(--gi-blue); }
+.grm-gestion-lista { margin-top: 12px; border: 1px solid var(--gi-line); border-radius: 12px; overflow: hidden; background: #fff; }
+.grm-gestion-lista > li + li { border-top: 1px solid var(--gi-line); }
+.grm-gestion-aviso { display: block; padding: 15px; color: var(--gi-navy); text-decoration: none; overflow-wrap: anywhere; }
+.grm-prioridad { display: inline-block; padding: 3px 7px; border-radius: 5px; font-size: 11px; font-weight: 600; }
+.grm-prioridad-critica { background: #fff0ef; color: #a32e35; }
+.grm-prioridad-atencion { background: #fff4dc; color: #805718; }
+.grm-gestion-aviso > strong { display: block; margin: 8px 0 5px; font-size: 14px; font-weight: 600; }
+.grm-gestion-aviso > p { color: #536477; font-size: 12px; line-height: 1.55; }
+.grm-gestion-aviso > small { display: block; margin-top: 7px; font-size: 11px; color: #536477; }
+.grm-abrir-aviso { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 12px; color: var(--gi-blue); font-size: 12px; font-weight: 600; }
+.grm-gestion-vacio { margin-top: 12px; padding: 14px; border: 1px solid var(--gi-line); border-radius: 10px; background: #fff; color: #536477; font-size: 12px; line-height: 1.6; }
+.grm-gestion .grm-error { margin-top: 10px; }

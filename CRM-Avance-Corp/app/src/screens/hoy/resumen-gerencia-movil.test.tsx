@@ -1,3 +1,4 @@
+import { PeriodoGerenciaProvider } from '@/components/gerencia/periodo-context'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { CITAS_CRM } from '@/prototypes/citas-crm/datos'
@@ -53,7 +54,7 @@ describe('Resumen móvil de Gerencia', () => {
 
   it('muestra el capital convertido, la meta y solo las solicitudes que el actor puede resolver', () => {
     const p = props()
-    render(<ResumenGerenciaMovil {...p} />)
+    render(<PeriodoGerenciaProvider><ResumenGerenciaMovil {...p} /></PeriodoGerenciaProvider>)
     expect(screen.getByRole('button', { name: /Capital confirmado/ })).toHaveTextContent('S/ 135')
     expect(screen.getByRole('button', { name: /Meta de capital/ })).toHaveTextContent('50%')
     expect(screen.getByRole('button', { name: /Solicitudes/ })).toHaveTextContent('1')
@@ -65,18 +66,18 @@ describe('Resumen móvil de Gerencia', () => {
 
   it('sin TC deja el USD separado y no calcula un porcentaje; sin meta no inventa cumplimiento', () => {
     const p = props()
-    const vista = render(<ResumenGerenciaMovil {...p} capital={totalEnSoles(100, 10, null)} meta={totalEnSoles(200, 20, null)} />)
+    const vista = render(<PeriodoGerenciaProvider><ResumenGerenciaMovil {...p} capital={totalEnSoles(100, 10, null)} meta={totalEnSoles(200, 20, null)} /></PeriodoGerenciaProvider>)
     expect(screen.getByRole('button', { name: /Capital confirmado/ })).toHaveTextContent('S/ 100')
     expect(screen.getByText(/US\$ 10 sin convertir/)).toBeVisible()
     expect(screen.getByRole('button', { name: /Meta de capital/ })).not.toHaveTextContent('%')
-    vista.rerender(<ResumenGerenciaMovil {...p} meta={totalEnSoles(0, 0, 3.5)} />)
+    vista.rerender(<PeriodoGerenciaProvider><ResumenGerenciaMovil {...p} meta={totalEnSoles(0, 0, 3.5)} /></PeriodoGerenciaProvider>)
     expect(screen.getByText('Sin meta de capital configurada')).toBeVisible()
   })
 
   it('oculta cifras anteriores al fallar la actualización y permite reintentar', () => {
     consultas.citas.isError = consultas.solicitudes.isError = true
     const p = props()
-    render(<ResumenGerenciaMovil {...p} error="No se pudo actualizar el capital." />)
+    render(<PeriodoGerenciaProvider><ResumenGerenciaMovil {...p} error="No se pudo actualizar el capital." /></PeriodoGerenciaProvider>)
     expect(screen.getByRole('button', { name: /Capital confirmado/ })).not.toHaveTextContent('S/ 135')
     expect(screen.getByRole('link', { name: /Citas de hoy/ })).toHaveTextContent('—')
     expect(screen.queryByRole('link', { name: /Equipo de Ana/ })).not.toBeInTheDocument()
@@ -88,7 +89,7 @@ describe('Resumen móvil de Gerencia', () => {
   it('abre el enlace de una solicitud y revalida al recuperar el foco', () => {
     window.history.replaceState(null, '', '#/hoy/solicitud-tasa/10000000-0000-4000-8000-000000000001')
     const p = props()
-    render(<ResumenGerenciaMovil {...p} />)
+    render(<PeriodoGerenciaProvider><ResumenGerenciaMovil {...p} /></PeriodoGerenciaProvider>)
     expect(screen.getByRole('dialog', { name: 'Solicitudes de tasa' })).toBeVisible()
     act(() => window.dispatchEvent(new Event('focus')))
     expect(p.onActualizar).toHaveBeenCalledOnce()

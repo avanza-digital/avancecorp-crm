@@ -21,7 +21,8 @@ Decisiones E1–E14 y avance: `BASE PARA GESTION/BASES-CARGADAS.md`; contrato se
 ## Pendientes, en orden
 
 1. ✅ **#187 fusionada** (05/10 14:51 UTC, `447208e1` en `avancecorp/main`).
-2. **B11 · conversión de contactos de base — EN PAUSA (05/10), plan APROBADO, sin código escrito.** Ver «B11» abajo.
+2. **B11 · conversión de contactos de base — construida y probada en banco (06/10), sin aplicar.** Sigue en
+   [[Bases cargadas B11 - RETOMAR (2026-10-06)]] (serial `AVC-BASES-CARGADAS-20261006-R1`).
 
 ## B11 — dónde quedó (05/10)
 

@@ -1,0 +1,10 @@
+@media (max-width: 767px) {
+  body:has([data-gerencia-movil='true']) .crm-version {
+    bottom: calc(82px + env(safe-area-inset-bottom)); z-index: 40; padding: 12px; gap: 8px;
+    max-height: min(45dvh, 280px); overflow: auto;
+  }
+  body:has([data-gerencia-movil='true']) .crm-version > span { display: none; }
+  body:has([data-gerencia-movil='true']) .crm-version-acciones button { min-height: 44px; flex: 1; white-space: normal; }
+  body:has([data-gerencia-movil='true']):has([role='dialog']) .crm-version,
+  body:has([data-gerencia-movil='true'][data-teclado-abierto='true']) .crm-version { display: none; }
+}

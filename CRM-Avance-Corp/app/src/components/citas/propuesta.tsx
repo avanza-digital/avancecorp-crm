@@ -1,3 +1,4 @@
+import { useConsultaGerencia } from '@/components/gerencia/use-consulta-gerencia'
 import { useDatosCitas, corteLima } from './contexto'
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { CalendarDays, ChartNoAxesCombined, ChevronLeft, ChevronRight, CircleHelp, Download, List, SearchX, X } from 'lucide-react'
@@ -62,17 +63,23 @@ function Ficha({ cita, onCerrar, onAnalista, onAgenda }: { cita: CitaEjemplo | n
   </Sheet>
 }
 
-export function TableroCitas() {
+export function TableroCitas({ conservarConsulta = false }: { conservarConsulta?: boolean } = {}) {
+  const consultaSesion = useConsultaGerencia()
+  const guardarConsulta = conservarConsulta ? consultaSesion?.setConsulta : undefined
+  const guardada = conservarConsulta ? consultaSesion?.consulta.citas : undefined
   const { citas: CITAS, equipo: EQUIPO, gestion, corte, modoDemo, mesInicial, cargando, error: errorCarga, onReintentar, onMes } = useDatosCitas()
   const inicial = () => defaults(mesInicial)
   const desdeEnlace = () => {
     const consulta = leerHash().consultaCitas
-    return consulta ? filtrosDelEnlace(consulta) : inicial()
+    return consulta ? filtrosDelEnlace(consulta) : guardada?.filtros ?? inicial()
   }
   const [filtros, setFiltros] = useState<FiltrosCitas>(desdeEnlace)
-  const [vista, setVista] = useState<VistaCitas>(() => leerHash().consultaCitas ? 'agenda' : 'resultados')
+  const [vista, setVista] = useState<VistaCitas>(() => leerHash().consultaCitas ? 'agenda' : guardada?.vista ?? 'resultados')
   const enlaceAnterior = useRef(JSON.stringify(leerHash().consultaCitas ?? null))
-  const [pagina, setPagina] = useState(1)
+  const [pagina, setPagina] = useState(() => leerHash().consultaCitas ? 1 : guardada?.pagina ?? 1)
+  useEffect(() => {
+    guardarConsulta?.(anterior => ({ ...anterior, citas: { filtros, vista, pagina } }))
+  }, [filtros, vista, pagina, guardarConsulta])
   const [detalle, setDetalle] = useState<CitaEjemplo | null>(null)
   const [desglose, setDesglose] = useState<string | null>(null)
   const [leadAbierto, setLeadAbierto] = useState<string | null>(null)

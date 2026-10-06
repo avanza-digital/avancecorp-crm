@@ -1,0 +1,13 @@
+# Gerencia y cierre de la adaptación PWA
+
+Miguel pidió el plan completo de lo que falta para la PWA de Gerencia y cambió la prioridad del menú: **Gestión Diaria sustituye a Metas en la barra inferior**. Distribución solicitada: **Resumen, Citas, Gestión Diaria, Más**. Metas y cumplimiento queda visible dentro de Más y conserva su enlace desde el indicador de meta.
+
+Plan: `CRM-Avance-Corp/docs/encargos/2026-10-05-pwa-gerencia-plan-restante.md`. Contempla el ajuste del menú, Pendientes de gestión en Resumen con hasta tres avisos, bandeja móvil con filtros desplegables, adaptación de pantallas prioritarias empezando por Gestión Diaria, convivencia de avisos y navegación, conexión y actualización, pruebas, integración y validación de la PWA instalada en teléfonos físicos.
+
+La nueva posición del menú está implementada y verificada en local: `npm run check` PASS (379 archivos y 6.120 pruebas), 9 E2E de navegación en Docker PASS y comprobación visual a 360 × 800 PASS. Código del cambio, spec y comparador local sincronizados al workspace sin sobrescribir trabajo ajeno. Evidencia: `CRM-Avance-Corp/output/gestion-diaria-acceso-local/verificacion.json`. La suite Docker completa y el smoke físico quedan para el gate de publicación. Ese fue el estado al redactar el plan; las cuatro entregas se implementaron después en local: [[Gerencia - Cuatro mejoras PWA implementadas en local (2026-10-06)]]. La versión publicada por PR 201 sigue documentada en su acta, con Metas como tercer acceso; este cambio posterior aún no se ha publicado ni tiene nuevo PR.
+
+Decisiones para Pendientes: reutilizar `useAlertasCRM` y los destinos existentes; campana y bloque de gestión con el mismo total de avisos activos; solicitudes de tasa con su contador y bandeja propios. El modelo común no proporciona antigüedad de todos los avisos: indicar última actualización y usar una fecha por aviso solo cuando la fuente la suministre. El vacío de Gerencia no debe afirmar que todo cumple metas. No se añaden permisos de resolver o posponer ni una nueva fuente de notificaciones.
+
+La barra publicada adapta los accesos a 18 módulos; las tablas y formularios de cada módulo se revisarán por pantalla. El plan prioriza Gestión Diaria, Citas, Ranking y Metas, Facturación y Cartera. La validación física de iPhone y Android queda dentro del cierre del conjunto.
+
+Relacionadas: [[Gerencia - Navegacion inferior movil en vista previa (2026-10-05)]], [[Gerencia - Resumen compacto movil y citas por equipo (2026-10-05)]], [[Gerencia - analisis del menu y limites de medicion (2026-10-05)]], [[Notificaciones de tasa - publicadas 2026-09-11]].

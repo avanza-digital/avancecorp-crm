@@ -1,3 +1,4 @@
+import { ControlesMoviles } from '@/components/gerencia/controles-moviles'
 // screens/mi-cartera.tsx — la pantalla ÚNICA que fusiona Clientes + Contratos
 // del analista (decisión de Miguel 2026-07-20). Cada CLIENTE es un grupo que se
 // expande y sus CONTRATOS cuelgan como sub-filas; la columna protagonista es el
@@ -1557,7 +1558,7 @@ function VistaMiCartera({
           </PanelVacio>
         ) : (
           <>
-            <div className="flex flex-wrap items-center gap-2 px-5 pb-3">
+            <ControlesMoviles titulo={`Filtrar cartera${hayFiltro ? ' · activos' : ''}`} resumen={`${etiquetaDeMes(fMes)} · ${fAsesor === 'todos' ? 'Todos los analistas' : 'Analista seleccionado'} · ${visiblesDelFiltro.length} de ${bases.length} clientes`}><div className="gm-cartera-filtros flex flex-wrap items-center gap-2 px-5 pb-3">
               <div className="relative w-full max-w-sm">
                 <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -1647,7 +1648,7 @@ function VistaMiCartera({
                   {visiblesDelFiltro.length} de {bases.length}
                 </span>
               )}
-            </div>
+            </div></ControlesMoviles>
 
             {/* Lo que se cerró en el mes elegido. Es el resumen que pidió Miguel,
                 y vive pegado a la lista que resume para que no puedan contar

@@ -2,37 +2,12 @@
 // mejor patrón existente (clientes.tsx). Los TEXTOS llegan SIEMPRE por props:
 // los copys por rol son negocio ('Aún no registraste contratos.' es texto
 // exacto del portal) y estos componentes JAMÁS los inventan.
-import { useEffect, useState, type ReactNode } from 'react'
+import { type ReactNode } from 'react'
 import { CloudOff, RotateCcw, WifiOff, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useEstaEnLinea } from '@/lib/conexion'
 import { cn } from '@/lib/utils'
-
-/**
- * ¿El navegador cree que hay red? Se re-renderiza al perderla y al recuperarla.
- * Es una SEÑAL, no una verdad (hay redes que reportan online sin salida): sirve
- * para dejar de mentir con un skeleton, nunca para bloquear una petición.
- *
- * Sin exportar a propósito: este archivo solo publica COMPONENTES (regla de
- * fast-refresh). Quien necesite el estado de red usa `PanelCargando`, que ya lo
- * consulta, o `PanelSinConexion` directamente.
- */
-function useEstaEnLinea(): boolean {
-  const [enLinea, setEnLinea] = useState(
-    () => typeof navigator === 'undefined' || navigator.onLine !== false,
-  )
-  useEffect(() => {
-    const alCambiar = () => setEnLinea(navigator.onLine !== false)
-    alCambiar() // por si cambió entre el primer render y el efecto
-    window.addEventListener('online', alCambiar)
-    window.addEventListener('offline', alCambiar)
-    return () => {
-      window.removeEventListener('online', alCambiar)
-      window.removeEventListener('offline', alCambiar)
-    }
-  }, [])
-  return enLinea
-}
 
 /**
  * Sin conexión: estado HONESTO en vez del skeleton perpetuo. Se recupera solo

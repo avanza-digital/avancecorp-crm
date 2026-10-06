@@ -1,3 +1,4 @@
+import { ControlesMoviles } from '@/components/gerencia/controles-moviles'
 import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import { AlertTriangle, CalendarRange, RefreshCw, Target } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -138,7 +139,10 @@ function CabeceraGerencia({ periodo, borrador, onCambiarBorrador, onAplicar, fue
   const fuentesElegidas = fuente == null ? FUENTES_CONVERSION.map((opcion) => opcion.id)
     : typeof fuente === 'string' ? [fuente] : fuente
   const selectorFuente = filtroVisible ? (
-    <fieldset className="flex min-w-0 flex-wrap items-center gap-2" aria-label="Fuentes de conversión">
+    <ControlesMoviles titulo="Fuentes" resumen={fuente == null ? 'Conversión de todas las fuentes' : `Conversión de ${fuentesElegidas.length} ${fuentesElegidas.length === 1 ? 'fuente' : 'fuentes'}`} aviso={<>
+      {filtroSellado && <p role="status" className="w-full text-xs text-[var(--gi-muted)]">Mes cerrado: el desglose por fuente no está disponible. Todas las fuentes muestra el índice sellado.</p>}
+      {fuentesElegidas.length === 0 && <p role="status" className="w-full text-xs text-[var(--gi-muted)]">Selecciona al menos una fuente.</p>}
+    </>}><fieldset className="flex min-w-0 flex-wrap items-center gap-2" aria-label="Fuentes de conversión">
       <legend className="gi-label mb-2">Conversión de</legend>
       <button type="button" className="gi-date text-xs" aria-pressed={fuente == null}
         disabled={filtroDeshabilitado} onClick={() => onCambiarFuente(null)}>Todas las fuentes</button>
@@ -156,9 +160,7 @@ function CabeceraGerencia({ periodo, borrador, onCambiarBorrador, onAplicar, fue
           {opcion.etiqueta}
         </label>
       ))}
-      {filtroSellado && <p role="status" className="w-full text-xs text-[var(--gi-muted)]">Mes cerrado: el desglose por fuente no está disponible. Todas las fuentes muestra el índice sellado.</p>}
-      {fuentesElegidas.length === 0 && <p role="status" className="w-full text-xs text-[var(--gi-muted)]">Selecciona al menos una fuente.</p>}
-    </fieldset>
+    </fieldset></ControlesMoviles>
   ) : null
   if (modo === 'mes') {
     return (
