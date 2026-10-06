@@ -22,7 +22,7 @@ describe('Lista útil de pendientes', () => {
       tareaPendiente(12, { referencia_tipo: 'perfil', lead_id: null, lead_nombre: null }), tareaPendiente(13, { referencia_tipo: 'postventa', lead_id: null, lead_nombre: null })]
     render(<PendientesSupervisor {...props} />)
     expect(screen.getByText('Sin título')).toBeVisible()
-    for (const texto of ['Referencia no disponible','Tarea de perfil','Tarea de postventa']) expect(screen.getByText(texto)).toBeVisible()
+    expect(screen.getAllByText('Persona no visible')).toHaveLength(3)
     expect(within(screen.getByRole('list', { name: 'Lista de tareas pendientes' })).getAllByRole('button')).toHaveLength(1)
     fireEvent.click(screen.getByRole('button', { name: 'Lead visible' })); expect(dobles.abrir).toHaveBeenCalledWith(tareaPendiente().lead_id)
   })

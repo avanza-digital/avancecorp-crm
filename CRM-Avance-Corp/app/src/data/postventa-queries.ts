@@ -1,3 +1,5 @@
+import { gestionDiariaKeys } from './gestion-diaria-queries'
+import { crmQueryKeys } from './crm-queries'
 import { useQuery } from '@tanstack/react-query'
 import { estadoPostventa, fichaPostventa, vencimientosPostventa } from './postventa-api'
 import { inversionistasKeys } from './inversionistas-queries'
@@ -26,8 +28,7 @@ export function useVencimientosPostventa(actor: string, empresa: EmpresaInversio
     enabled: Boolean(actor) && habilitada, queryFn: ({signal}) => vencimientosPostventa(empresa, pagina, signal)})
 }
 export async function refrescarPostventa(actor: string) {
-  await Promise.all([
-    queryClient.invalidateQueries({queryKey: postventaKeys.actor(actor)}),
-    queryClient.invalidateQueries({queryKey: inversionistasKeys.actor(actor)}),
-  ])
+  const claves = [postventaKeys.actor(actor), inversionistasKeys.actor(actor), gestionDiariaKeys.raiz(), crmQueryKeys.metricas()]
+  await Promise.all(claves.map(queryKey => queryClient.cancelQueries({ queryKey })))
+  await Promise.all(claves.map(queryKey => queryClient.invalidateQueries({ queryKey })))
 }

@@ -1,3 +1,4 @@
+import { ResumenGestionesHoy } from '@/components/gestion-diaria/resumen-gestiones'
 import { ControlesMoviles } from '@/components/gerencia/controles-moviles'
 import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import { AlertTriangle, CalendarRange, RefreshCw, Target } from 'lucide-react'
@@ -665,6 +666,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
           Solo en sesión real — el estado habla de la maquinaria de verdad. */}
       {sesionReal && <AvisoCierreMesPanel />}
 
+      {esResumen && <ResumenGestionesHoy />}
       {esResumen && <ResumenGerenciaPanel conversiones={datosConversion} conversionMensual={cumplimientoRankingCargando ? undefined : conversionMensualPaneles} origenFiltrado={origenActivo} fuenteConversion={fuenteActiva} lecturaFuente={lecturaFuentePaneles} reuniones={datosReuniones} equipo={datosEquipoConversionRango} equipoMensual={datosEquipoConversion} meta={meta} cumplimiento={cumplimiento} metaMensual={metaMensualRanking} tc={tipoCambio.tc} cargando={estaCargando(sesionReal, conversiones) || conversionMensualCargando || cumplimientoRankingCargando || estaCargando(sesionReal, reuniones)} rangoCargando={!conversionesDeEjemplo && fuenteCargando} mensualCargando={!conversionesDeEjemplo && (conversionMensualCargando || cumplimientoRankingCargando)} error={errorResumen} modoDemo={modoDemo} onReintentar={() => { reintentarConversiones(); reintentarConversionMensual(); void qCumplimientoRanking.refetch(); reintentarReuniones(); tipoCambio.recargar() }} />}
 
       {/* Por empresa: de dónde vino cada sol (Avance vs. COOPAC), por analista.

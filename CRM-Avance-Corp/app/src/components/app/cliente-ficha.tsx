@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   CalendarClock,
+  CircleCheck,
   FileText,
   History,
   Landmark,
@@ -48,6 +49,8 @@ import { useAhora } from '@/lib/ahora'
 import { construirVistaCliente360, type VistaCliente360 } from '@/lib/cliente-ficha-modelo'
 import { useCRMData } from '@/lib/store-context'
 import { useVentana } from '@/lib/ventana'
+import { CerrarTareaDialog } from './cerrar-tarea'
+import type { Tarea } from '@/lib/tipos'
 import type { GrupoCartera } from '@/lib/cartera-vista'
 import type {
   ClienteDetalle as ClienteDetalleDatos,
@@ -107,7 +110,7 @@ const ACTIVIDAD_LABEL = {
   llamada_no_contestada: 'Llamada no contestada',
   whatsapp_enviado: 'WhatsApp enviado',
   whatsapp_recibido: 'WhatsApp respondido',
-  reunion_realizada: 'Reunión realizada',
+  reunion_realizada: 'Entrevista realizada',
   nota: 'Nota comercial',
   reasignacion: 'Asignación actualizada',
 } as const
@@ -228,6 +231,7 @@ export function ClienteFicha({
     datos: ClienteFichaComercial
   } | null>(null)
   const [cuentasAbiertas, setCuentasAbiertas] = useState(false)
+  const [tareaACerrar, setTareaACerrar] = useState<Tarea | null>(null)
   const { tareasDeCliente } = useCRMData()
   const vista = construirVistaCliente360(grupo, tareasDeCliente?.(clienteId) ?? [], ahora)
   const tareasPendientes = vista.tareasPendientes
@@ -359,6 +363,11 @@ export function ClienteFicha({
     !precargado && qDetalle.isError ? mensajeDeError(qDetalle.error, 'No se pudo cargar el detalle del cliente.') : null
   const errorApertura = detalleRemoto == null ? errorDetalle : null
   const errorActualizacion = detalleRemoto != null && !accesoRevocado ? errorDetalle : null
+  const cierreHabilitado = Boolean(onGestionar && operable && accesoConfirmado && !demo
+    && !accesoRevocado && !errorActualizacion && !datosCarteraDesactualizados)
+  useEffect(() => {
+    if (!cierreHabilitado) setTareaACerrar(null)
+  }, [cierreHabilitado])
 
   const reintentar = () => {
     focoTrasDetalle.current = true
@@ -648,6 +657,11 @@ export function ClienteFicha({
                       <p className="line-clamp-2 text-xs font-bold text-foreground">{tarea.titulo}</p>
                       <p className="mt-0.5 text-[11px] font-semibold text-muted-foreground">{evento.cuando}</p>
                     </div>
+                    {onGestionar && !demo && <Button type="button" size="xs" variant="outline" className="min-h-10 shrink-0"
+                      disabled={!cierreHabilitado} aria-label={`Cerrar tarea — ${tarea.titulo}`}
+                      onClick={() => setTareaACerrar(tarea)}>
+                      <CircleCheck aria-hidden />Cerrar tarea
+                    </Button>}
                   </li>
                 )
               })}
@@ -972,6 +986,8 @@ export function ClienteFicha({
           </Button>
         )}
       </SheetFooter>
+      <CerrarTareaDialog tarea={cierreHabilitado && tareaACerrar?.perfil_id === clienteId ? tareaACerrar : null}
+        onCerrar={() => setTareaACerrar(null)} />
     </>
   )
 }

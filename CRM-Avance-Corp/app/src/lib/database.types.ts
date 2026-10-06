@@ -6348,6 +6348,32 @@ export type Database = {
         Returns: Json
       }
       gestion_diaria_avisos_fn: { Args: never; Returns: Json }
+      gestion_diaria_citas_v2_fn: {
+        Args: {
+          p_ambito: string
+          p_despues_de?: string
+          p_despues_id?: string
+          p_dia: string
+          p_id?: string
+          p_limite?: number
+        }
+        Returns: Json
+      }
+      gestiones_resumen_fn: {
+        Args: { p_analista_ids?: string[]; p_desde: string; p_hasta: string }
+        Returns: Json
+      }
+      citas_clientes_fn: {
+        Args: {
+          p_analista_ids?: string[]
+          p_desde: string
+          p_despues_de?: string
+          p_despues_id?: string
+          p_hasta: string
+          p_limite?: number
+        }
+        Returns: Json
+      }
       gestion_diaria_citas_fn: {
         Args: {
           p_ambito: string
@@ -6374,6 +6400,16 @@ export type Database = {
       }
       gestion_diaria_habitos_fn: {
         Args: { p_dias?: number; p_hasta?: string }
+        Returns: Json
+      }
+      gestion_diaria_pendientes_v2_fn: {
+        Args: {
+          p_analista_id: string
+          p_despues_de?: string
+          p_despues_id?: string
+          p_limite?: number
+          p_solo_vencidas?: boolean
+        }
         Returns: Json
       }
       gestion_diaria_pendientes_fn: {
@@ -7095,6 +7131,21 @@ export type Database = {
           p_telefono: string
           p_tipo_documento: string
           p_whatsapp: string
+        }
+        Returns: Json
+      }
+      registro_actividad_v2_fn: {
+        Args: {
+          p_analista_ids?: string[]
+          p_antes_de?: string
+          p_antes_id?: string
+          p_antes_origen?: string
+          p_cartera?: string
+          p_desde: string
+          p_etapa?: string
+          p_hasta: string
+          p_limite?: number
+          p_tipos?: string[]
         }
         Returns: Json
       }

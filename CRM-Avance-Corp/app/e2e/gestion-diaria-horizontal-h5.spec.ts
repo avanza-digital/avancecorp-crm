@@ -1,3 +1,4 @@
+import { responderRegistroV2 } from './_gestiones-v2'
 import { expect, test } from '@playwright/test'
 import { writeFile } from 'node:fs/promises'
 import { loginReal, montarBackendReal, UID } from './_helpers'
@@ -48,13 +49,13 @@ test('H5: consultas iguales con 1 y 32 analistas, bajo demanda y panel estable',
         ? route.fulfill({ status: 500, json: { code: 'XX000', message: 'Interrupción temporal de prueba' } })
         : route.fulfill({ json: equipo })
     })
-    await page.route('**/rest/v1/rpc/registro_actividad_fn', route => {
+    await page.route('**/rest/v1/rpc/registro_actividad_v2_fn', route => {
       lecturas.registro++
       pedidosRegistro.push(route.request().postDataJSON())
-      return route.fulfill({ json: { version: 1, zona: 'America/Lima', desde: dia, hasta: dia,
+      return responderRegistroV2(route, { json: { version: 1, zona: 'America/Lima', desde: dia, hasta: dia,
         generado_en: instante, limite: 26, items: [] } })
     })
-    await page.route('**/rest/v1/rpc/gestion_diaria_pendientes_fn', route => {
+    await page.route('**/rest/v1/rpc/gestion_diaria_pendientes_v2_fn', route => {
       lecturas.pendientes++
       return route.fulfill({ status: 500, json: { code: 'XX000', message: 'No se debe consultar una pestaña no visitada' } })
     })
@@ -130,11 +131,11 @@ test('H5: Actualizar conserva el filtro del registro del equipo y consulta una s
     detalle: `Conversación ${i}`, metadata: {}, creado_por: UID, autor_nombre: 'ANALISTA H5',
     creado_en: `${dia}T14:${String(25 - i).padStart(2, '0')}:00.000Z`,
   }))
-  await page.route('**/rest/v1/rpc/registro_actividad_fn', async route => {
+  await page.route('**/rest/v1/rpc/registro_actividad_v2_fn', async route => {
     const pedido = route.request().postDataJSON(); pedidos.push(pedido)
     // Mantiene en vuelo la petición para detectar si el efecto la cancela y duplica.
     await new Promise(resolve => setTimeout(resolve, 100))
-    return route.fulfill({ json: { version: 1, zona: 'America/Lima', desde: dia, hasta: dia,
+    return responderRegistroV2(route, { json: { version: 1, zona: 'America/Lima', desde: dia, hasta: dia,
       generado_en: instante, limite: 26, items: pedido.p_antes_de ? items.slice(25) : items } })
   })
   await loginReal(page)
