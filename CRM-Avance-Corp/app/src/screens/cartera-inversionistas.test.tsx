@@ -239,6 +239,8 @@ describe('F5: cartera y ficha con acceso vigente', () => {
     expect(await screen.findByRole('dialog',{name:titulo})).toBeVisible()
   })
   it('un fallo transitorio conserva la ficha y el foco, deshabilita sus acciones y permite recuperar', async () => {
+    const sinInversiones={...structuredClone(fichaF5),inversiones:[],inversiones_total:0,totales:[]}
+    api.ficha.mockResolvedValue(sinInversiones)
     const {user,qc}=montar()
     await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
     const informacion=await screen.findByRole('region',{name:'Información del cliente'})
@@ -249,11 +251,11 @@ describe('F5: cartera y ficha con acceso vigente', () => {
     expect(screen.getByRole('region',{name:'Información del cliente'})).toBe(informacion)
     expect(contacto).toHaveFocus()
     expect(contacto).toHaveAttribute('aria-disabled','true')
-    expect(screen.getByRole('button',{name:'Registrar nueva inversión'})).toBeDisabled()
+    expect(screen.getByRole('button',{name:'Registrar primera inversión'})).toBeDisabled()
     expect(screen.getByText('Abrir WhatsApp').closest('a')).not.toHaveAttribute('href')
-    api.ficha.mockResolvedValue(structuredClone(fichaF5))
+    api.ficha.mockResolvedValue(sinInversiones)
     await user.click(screen.getByRole('button',{name:'Reintentar actualización'}))
-    await waitFor(()=>expect(screen.getByRole('button',{name:'Registrar nueva inversión'})).toBeEnabled())
+    await waitFor(()=>expect(screen.getByRole('button',{name:'Registrar primera inversión'})).toBeEnabled())
     expect(screen.getByRole('region',{name:'Información del cliente'})).toBe(informacion)
   })
   it('la lista confirmada mantiene sus filas durante un corte y una revocación sí las retira', async () => {
@@ -395,6 +397,7 @@ describe('F5: cartera y ficha con acceso vigente', () => {
   })
   it('cancelar una descarga al abrir una inversión no bloquea la siguiente descarga',async()=>{
     const d=structuredClone(fichaF5);d.inversiones[0]!.documentos=[{id:FUENTE_F5,nombre:'Documento del ensayo',tipo:'comprobante'}]
+    d.capacidades.postventa=true
     api.ficha.mockResolvedValue(d)
     api.documento.mockImplementationOnce((_p,_f,_d,signal:AbortSignal)=>new Promise((_r,reject)=>{
       signal.addEventListener('abort',()=>reject(new DOMException('Cancelada','AbortError')),{once:true})
@@ -402,7 +405,7 @@ describe('F5: cartera y ficha con acceso vigente', () => {
     const {user}=montar();await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
     await user.click(await screen.findByRole('button',{name:'Ver inversión QORILAZO SINTÉTICO'}))
     await user.click(await screen.findByRole('button',{name:'Documento del ensayo'}))
-    await user.click(screen.getByRole('button',{name:'Registrar nueva inversión'}))
+    await user.click(screen.getByRole('button',{name:'Reinvertir desde esta inversión'}))
     await user.click(await screen.findByRole('button',{name:'Cerrar y continuar después'}))
     await waitFor(()=>expect(screen.getByRole('region',{name:'Inversiones y contratos'})).toHaveFocus())
     await user.click(await screen.findByRole('button',{name:'Ver inversión QORILAZO SINTÉTICO'}))
@@ -733,7 +736,7 @@ describe('Ficha montada sin «Eliminar inversión»', () => {
   })
 })
 
-describe('Upgrade: el contrato aparte se ofrece junto a la nueva inversión', () => {
+describe('Upgrade: continuidad del cliente que ya tiene una inversión', () => {
   // El analista leía «Registrar nueva inversión» como el único camino y creía
   // que el upgrade MODIFICABA el contrato vivo. El upgrade abre un contrato
   // NUEVO que solo hereda la tasa del que amplía, así que la operación vive
@@ -755,7 +758,7 @@ describe('Upgrade: el contrato aparte se ofrece junto a la nueva inversión', ()
     await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
     const seccion = (await screen.findByRole('heading',{name:'Inversiones y contratos'})).closest('section')!
     const upgrade = within(seccion).getByRole('button',{name:'Registrar upgrade'})
-    expect(within(seccion).getByRole('button',{name:'Registrar nueva inversión'})).toBeInTheDocument()
+    expect(within(seccion).getByRole('button',{name:'Registrar nueva inversión'})).toBeDisabled()
     expect(within(seccion).getByText(/hereda la tasa del contrato que amplía/)).toBeVisible()
     await user.click(upgrade)
     expect(screen.queryByRole('dialog',{name:/amplía este upgrade/})).not.toBeInTheDocument()
@@ -779,6 +782,38 @@ describe('Upgrade: el contrato aparte se ofrece junto a la nueva inversión', ()
     await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
     await screen.findByRole('button',{name:'Ver inversión QORILAZO SINTÉTICO'})
     expect(screen.queryByRole('button',{name:/Registrar upgrade/})).not.toBeInTheDocument()
+  })
+})
+
+describe('Nueva inversión reservada a la primera inversión del grupo', () => {
+  it.each(['avance','qorilazo','prodelco'] as const)('una inversión en %s bloquea iniciar otra como nueva', async empresa => {
+    const ficha={...structuredClone(fichaF5),inversiones:[{...inversionF5,empresa}]}
+    api.ficha.mockResolvedValue(ficha)
+    const {user}=montar()
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    const nueva=await screen.findByRole('button',{name:'Registrar nueva inversión'})
+    expect(nueva).toBeDisabled()
+    expect(nueva).toHaveAccessibleDescription(/ya tiene una inversión registrada/)
+    await user.click(nueva)
+    expect(screen.queryByRole('dialog',{name:'Nueva inversión'})).not.toBeInTheDocument()
+  })
+
+  it('conserva el bloqueo aunque la página de inversiones esté vacía', async () => {
+    api.ficha.mockResolvedValue({...structuredClone(fichaF5),inversiones:[],inversiones_total:26})
+    const {user}=montar()
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    expect(await screen.findByRole('button',{name:'Registrar nueva inversión'})).toBeDisabled()
+  })
+
+  it('un cliente sin inversiones puede registrar su primera inversión', async () => {
+    api.ficha.mockResolvedValue({...structuredClone(fichaF5),inversiones:[],inversiones_total:0,totales:[]})
+    const {user}=montar()
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    const primera=await screen.findByRole('button',{name:'Registrar primera inversión'})
+    expect(primera).toBeEnabled()
+    await user.click(primera)
+    expect(await screen.findByRole('dialog',{name:'Nueva inversión'})).toBeInTheDocument()
+    expect(screen.getByRole('button',{name:'Avance'})).toBeEnabled()
   })
 })
 

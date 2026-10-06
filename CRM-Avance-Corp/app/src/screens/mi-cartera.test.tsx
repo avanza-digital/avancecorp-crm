@@ -40,6 +40,17 @@ let RESUMEN: ResumenCarteraClientes | undefined
 let ERROR_RESUMEN: Error | null = null
 let REFETCH_RESUMEN = vi.fn()
 const lecturaResumen = vi.hoisted(() => vi.fn())
+const escenarioDemo = vi.hoisted(() => ({ primeraInversion: false }))
+vi.mock('@/lib/demo-clientes', async (original) => {
+  const datos = await original<typeof import('@/lib/demo-clientes')>()
+  return {...datos, get CONTRATOS_DEMO() {
+    // Rosa aún no invirtió; los contratos anteriores pertenecen a Javier.
+    // Se conservan sus números para comprobar duplicados entre clientes.
+    return escenarioDemo.primeraInversion
+      ? datos.CONTRATOS_DEMO.map(c => c.cliente_id === 'dc-cli-1' ? {...c, cliente_id: 'dc-cli-2'} : c)
+      : datos.CONTRATOS_DEMO
+  }}
+})
 let EQUIPO: Array<{
   perfil_id: string
   nombre_completo: string
@@ -442,6 +453,7 @@ function detalle(over: Partial<ClienteDetalle> = {}): ClienteDetalle {
 function montar(
   over: {
     yo?: typeof YO
+    demoPrimeraInversion?: boolean
     clientes?: ClienteBasico[] | null
     contratos?: ContratoRow[] | null
     operaciones?: OperacionCartera[]
@@ -460,6 +472,7 @@ function montar(
     errorResumen?: Error | null
   } = {},
 ) {
+  escenarioDemo.primeraInversion = over.demoPrimeraInversion ?? false
   YO = over.yo ?? {
     id: 'yo',
     rol: 'vendedor',
@@ -535,15 +548,13 @@ function diferida<T>() {
 }
 
 async function abrirAltaContratoDemo(user: ReturnType<typeof userEvent.setup>) {
-  // La pantalla arranca en el MES EN CURSO y los bloques van por fecha de
-  // CIERRE: el contrato de ROSA se cerró hace meses (aunque se registrara hace
-  // dos horas), así que hay que abrir la cartera entera para verla. Es
-  // exactamente lo que haría el analista, y por eso el paso vive aquí.
+  // Estos escenarios dejan a Rosa sin inversiones. La cartera completa
+  // permite comprobar también números que ya existen en otros clientes.
   await user.selectOptions(await screen.findByLabelText('Filtrar por mes de cierre'), MES_TODOS)
   const nombre = await screen.findByText('ROSA MERCEDES AGUILAR VENTURA')
   const filaCliente = nombre.closest('tr')
   if (!filaCliente) throw new Error('fila del cliente demo no encontrada')
-  await user.click(within(filaCliente).getByRole('button', { name: 'Registrar nueva inversión' }))
+  await user.click(within(filaCliente).getByRole('button', { name: 'Registrar primera inversión' }))
   expect(screen.getByRole('dialog', { name: /Crear contrato de ROSA MERCEDES/ })).toBeInTheDocument()
 }
 
@@ -593,9 +604,11 @@ describe('MiCartera (pantalla)', () => {
     expect(screen.queryByText('Capital invertido · Soles')).not.toBeInTheDocument()
   })
 
-  it('gating: la fila propia ofrece "Registrar nueva inversión"', () => {
+  it('gating: la fila propia con inversión bloquea nueva inversión y conserva upgrade', () => {
     montar()
-    expect(screen.getByRole('button', { name: 'Registrar nueva inversión' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Registrar nueva inversión' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Registrar nueva inversión' })).toHaveAccessibleDescription(/ya tiene una inversión registrada/)
+    expect(screen.getByRole('button', { name: 'Registrar upgrade' })).toBeEnabled()
   })
 
   it('permite iniciar una gestión comercial directamente sobre el cliente', async () => {
@@ -1458,18 +1471,18 @@ describe('MiCartera (demo aislada)', () => {
       storagePath: `${contratoId}/contrato.pdf`,
     }))
     montar({
+      demoPrimeraInversion: true,
       yo: { id: 'd-v1', rol: 'vendedor', puede_contratar: true, demo: true },
       clientes: [],
       contratos: [],
     })
 
-    // Bloques por fecha de CIERRE: el contrato de ROSA se cerró hace meses,
-    // así que la cartera entera es donde se la ve (ver abrirAltaContratoDemo).
+    // Rosa aún no tiene inversiones en este escenario de primera inversión.
     await user.selectOptions(await screen.findByLabelText('Filtrar por mes de cierre'), MES_TODOS)
     const nombre = await screen.findByText('ROSA MERCEDES AGUILAR VENTURA')
     const filaCliente = nombre.closest('tr')
     if (!filaCliente) throw new Error('fila del cliente demo no encontrada')
-    await user.click(within(filaCliente).getByRole('button', { name: 'Registrar nueva inversión' }))
+    await user.click(within(filaCliente).getByRole('button', { name: 'Registrar primera inversión' }))
 
     expect(screen.getByRole('dialog', { name: /Crear contrato de ROSA MERCEDES/ })).toBeInTheDocument()
     await user.selectOptions(screen.getByLabelText('Categoría'), 'nuevo')
@@ -1527,6 +1540,7 @@ describe('MiCartera (demo aislada)', () => {
     vi.stubEnv('VITE_ENABLE_DEMO', 'true')
     archivoPdf.archivarDemo.mockReset()
     montar({
+      demoPrimeraInversion: true,
       yo: { id: 'd-v1', rol: 'vendedor', puede_contratar: true, demo: true },
       clientes: [],
       contratos: [],
@@ -1543,7 +1557,7 @@ describe('MiCartera (demo aislada)', () => {
 
     await user.click(
       screen.getByRole('button', {
-        name: /Expandir los contratos de\s*ROSA MERCEDES AGUILAR VENTURA/,
+        name: /Expandir los contratos de\s*JAVIER ERNESTO/,
       }),
     )
     expect(screen.getAllByLabelText('Abrir detalle del contrato 2026-01-000901')).toHaveLength(1)
@@ -1563,6 +1577,7 @@ describe('MiCartera (demo aislada)', () => {
     }>()
     archivoPdf.archivarDemo.mockReturnValueOnce(pendiente.promesa)
     montar({
+      demoPrimeraInversion: true,
       yo: { id: 'd-v1', rol: 'vendedor', puede_contratar: true, demo: true },
       clientes: [],
       contratos: [],
@@ -1615,6 +1630,7 @@ describe('MiCartera (demo aislada)', () => {
       blob: new Blob(['%PDF-1.7\narchivo demo'], { type: 'application/pdf' }),
     }))
     montar({
+      demoPrimeraInversion: true,
       yo: { id: 'd-v1', rol: 'vendedor', puede_contratar: true, demo: true },
       clientes: [],
       contratos: [],
@@ -2154,6 +2170,9 @@ describe('MiCartera (móvil, card-stack)', () => {
     expect(screen.getByRole('list', { name: 'Mi cartera' })).toBeInTheDocument()
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
     expect(screen.getByText('CLIENTE UNO')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Registrar nueva inversión' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Registrar nueva inversión' })).toHaveAccessibleDescription(/ya tiene una inversión registrada/)
+    expect(screen.getByRole('button', { name: 'Registrar upgrade' })).toBeEnabled()
   })
 
   it('arranca colapsada; el mismo botón expande la sub-tarjeta del contrato', async () => {

@@ -2,9 +2,9 @@ import {expect, test, type Page} from '@playwright/test'
 import {loginReal, montarBackendReal, irAMiCartera} from './_helpers'
 import {carteraF5, fichaF5, FUENTE_F5, PERSONA_F5, inversionF5} from '../src/test/fixtures/f5'
 
-async function montarF5(page:Page, rol:'vendedor'|'supervisor'|'gerencia'|'directorio'='vendedor') {
+async function montarF5(page:Page, rol:'vendedor'|'supervisor'|'gerencia'|'directorio'='vendedor', sinInversiones=false) {
   const backend=await montarBackendReal(page,{rolCrm:rol,rolPortal:rol==='directorio'?'directorio':'analista',clientes:[],contratos:[]})
-  const estado={revocado:false,preparaciones:0,confirmaciones:0,solicitud:null as Record<string,unknown>|null,bancos:0}
+  const estado={revocado:false,preparaciones:0,confirmaciones:0,solicitud:null as Record<string,unknown>|null,bancos:0,sinInversiones}
   await page.route('**/rest/v1/rpc/*',async route=>{
     const nombre=new URL(route.request().url()).pathname.split('/').at(-1)
     const body=route.request().postDataJSON() ?? {}
@@ -18,6 +18,7 @@ async function montarF5(page:Page, rol:'vendedor'|'supervisor'|'gerencia'|'direc
     if(nombre==='inversionista_ficha_fn') {
       if(estado.revocado) return json(null)
       const f=structuredClone(fichaF5)
+      if(estado.sinInversiones) {f.inversiones=[];f.inversiones_total=0;f.totales=[]}
       if(rol==='directorio') {f.capacidades.nueva_inversion=false;f.capacidades.contactar=false;f.capacidades.documentos=false;f.inversiones=[];f.inversiones_total=0;f.totales=[]}
       return json(f)
     }
@@ -33,6 +34,7 @@ async function montarF5(page:Page, rol:'vendedor'|'supervisor'|'gerencia'|'direc
     if(nombre==='solicitud_inversion_fn') return json(estado.solicitud)
     if(nombre==='confirmar_inversion_revisada_fn') {
       estado.confirmaciones++
+      estado.sinInversiones=false
       return json({ok:true,solicitud_id:body.p_solicitud,inversion_id:FUENTE_F5,inversionista_id:PERSONA_F5,
         empresa:'qorilazo',fuente:{cierre_id:FUENTE_F5},revision_datos:body.p_revision_datos_esperada})
     }
@@ -55,7 +57,10 @@ for(const rol of ['vendedor','supervisor','gerencia','directorio'] as const) {
     if(rol==='directorio') {
       await expect(dialog.getByRole('button',{name:'Registrar nueva inversión'})).toHaveCount(0)
       await expect(dialog.getByRole('link',{name:'Llamar'})).toHaveCount(0)
-    } else await expect(dialog.getByRole('button',{name:'Registrar nueva inversión'})).toBeEnabled()
+    } else {
+      await expect(dialog.getByRole('button',{name:'Registrar nueva inversión'})).toBeDisabled()
+      await expect(dialog.getByText(/ya tiene una inversión registrada/)).toBeVisible()
+    }
     expect(estado.bancos).toBe(0)
     await page.screenshot({path:testInfo.outputPath(`f5-${rol}-ficha.png`),fullPage:true})
     await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0)
@@ -63,12 +68,12 @@ for(const rol of ['vendedor','supervisor','gerencia','directorio'] as const) {
   })
 }
 test('móvil: búsqueda conservada, formulario nativo, revisión y confirmación única',async({page},testInfo)=>{
-  const {estado}=await montarF5(page)
+  const {estado}=await montarF5(page,'vendedor',true)
   await page.setViewportSize({width:390,height:844})
   await page.getByRole('button',{name:'Ocultar menú'}).click()
   await page.getByLabel('Buscar persona').fill('9333')
   await page.getByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}).click()
-  await page.getByRole('button',{name:'Registrar nueva inversión',exact:true}).click()
+  await page.getByRole('button',{name:'Registrar primera inversión',exact:true}).click()
   await page.getByRole('button',{name:'Qorilazo',exact:true}).click()
   await page.getByLabel('Capital en soles (PEN)').fill('2500')
   await page.getByLabel('Número de operación del depósito').fill('F5-UI-SINTETICO')
@@ -98,6 +103,7 @@ test('móvil: búsqueda conservada, formulario nativo, revisión y confirmación
   expect(estado.preparaciones).toBe(1);expect(estado.confirmaciones).toBe(1)
   await page.getByRole('button',{name:'Volver a la ficha'}).click()
   await expect(page.getByRole('region',{name:'Inversiones y contratos'})).toBeFocused()
+  await expect(page.getByRole('button',{name:'Registrar nueva inversión',exact:true})).toBeDisabled()
   await page.keyboard.press('Escape')
   await expect(page.getByLabel('Buscar persona')).toHaveValue('9333')
   await page.screenshot({path:testInfo.outputPath('f5-movil-cartera.png'),fullPage:true})

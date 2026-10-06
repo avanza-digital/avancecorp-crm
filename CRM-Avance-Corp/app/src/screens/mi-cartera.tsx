@@ -15,7 +15,7 @@ import { ControlesMoviles } from '@/components/gerencia/controles-moviles'
 // de 5 h (la RLS del servidor es la autoridad; aquí el reloj es cortesía) y ver
 // el detalle con cronograma. El equipo comercial conserva el gate por fila y la
 // ventana de 5 h; Gerencia opera el ámbito completo, como revalida el servidor.
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
@@ -79,7 +79,7 @@ import {
 } from '@/lib/cartera-meses'
 import { carteraDelAmbito, duenoDeCartera, esMiCliente, normalizar, type FiltroAsesor } from '@/lib/clientes-vista'
 import { type FiltroEstado } from '@/lib/contratos-vista'
-import { AYUDA_UPGRADE, CATEGORIA_LABEL, ESTADO_COLOR, ETIQUETA_UPGRADE } from '@/lib/contratos-catalogo'
+import { AYUDA_UPGRADE, CATEGORIA_LABEL, ESTADO_COLOR, ETIQUETA_UPGRADE, MOTIVO_NUEVA_INVERSION_BLOQUEADA } from '@/lib/contratos-catalogo'
 import { paginar } from '@/lib/paginacion'
 import type { ContratoPdfDatos } from '@/lib/contrato-pdf'
 import { eliminarContratoConPdf } from '@/lib/contrato-pdf-archivo'
@@ -487,6 +487,7 @@ function FilaGrupoCliente({
 }: PropsFilaGrupo) {
   const { cliente } = grupo
   const sinContratos = grupo.contratos.length === 0
+  const motivoNuevaInversionId = useId()
   // Solo el dueño conserva su ventana; Gerencia puede corregir cualquier cliente.
   const ventanaCliente = useVentana(corregibleCliente && !edicionGlobal ? cliente.creado_en : null)
   const ident = <IdentidadCliente cliente={cliente} />
@@ -622,6 +623,9 @@ function FilaGrupoCliente({
                     <Button
                       type="button"
                       size="xs"
+                      disabled={!sinContratos}
+                      title={!sinContratos ? MOTIVO_NUEVA_INVERSION_BLOQUEADA : undefined}
+                      aria-describedby={!sinContratos ? motivoNuevaInversionId : undefined}
                       onClick={(e) => {
                         e.stopPropagation()
                         onNuevoContrato()
@@ -629,6 +633,7 @@ function FilaGrupoCliente({
                     >
                       {sinContratos ? 'Registrar primera inversión' : 'Registrar nueva inversión'}
                     </Button>
+                    {!sinContratos && <span id={motivoNuevaInversionId} className="sr-only">{MOTIVO_NUEVA_INVERSION_BLOQUEADA}</span>}
                   </>
                 )}
               </div>
@@ -796,6 +801,7 @@ function TarjetaGrupoCliente({
 }: PropsFilaGrupo) {
   const { cliente } = grupo
   const sinContratos = grupo.contratos.length === 0
+  const motivoNuevaInversionId = useId()
   const ventanaCliente = useVentana(corregibleCliente && !edicionGlobal ? cliente.creado_en : null)
   return (
     <div className="overflow-hidden rounded-xl border border-border/60 bg-card">
@@ -877,9 +883,12 @@ function TarjetaGrupoCliente({
                   <TrendingUp aria-hidden /> {ETIQUETA_UPGRADE}
                 </Button>
               )}
-              <Button type="button" size="xs" onClick={onNuevoContrato}>
+              <Button type="button" size="xs" onClick={onNuevoContrato} disabled={!sinContratos}
+                title={!sinContratos ? MOTIVO_NUEVA_INVERSION_BLOQUEADA : undefined}
+                aria-describedby={!sinContratos ? motivoNuevaInversionId : undefined}>
                 {sinContratos ? 'Registrar primera inversión' : 'Registrar nueva inversión'}
               </Button>
+              {!sinContratos && <p id={motivoNuevaInversionId} className="w-full text-xs text-muted-foreground">{MOTIVO_NUEVA_INVERSION_BLOQUEADA}</p>}
             </>
           )}
         </div>
