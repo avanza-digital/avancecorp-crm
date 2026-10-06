@@ -59,6 +59,8 @@ registrador, como las siete.
 | 4 | (novena) ¿Qué es «hoy»? | **Lo resuelto hoy en Lima** (hora del enlace o del descarte), aunque la llamada sea de ayer | Lo recibido hoy (la octava): una llamada de ayer resuelta hoy no saldría en ninguna lista |
 | 5 | (novena) Más de una página | **Paginar como la bandeja** (`{filas, siguiente}`, 50 por defecto) y dos índices | Un tope fijo de 200: se pierden filas en días largos |
 | 6 | (novena) Registrada ayer, deshecha hoy y corregida hoy | **Cuenta hoy** (hora en que el enlace pasó al corregido). Si se deshace y no se corrige, no sale: **límite anotado** (la marca y el historial sí la muestran) | Mostrarla igual: ordenar por un dato de la actividad que no admite índice |
+| 7 | (06/10, décima) Registrar desde la pestaña no unía la llamada: la bandeja y el detalle no traían `evento_origen_id` | **Migración pequeña `20261006150154`** en el #198: las dos lecturas traen el id, sin cambiar firmas ni permisos | Unir a mano con «¿Es este su resultado?»: un toque más por llamada |
+| 8 | (06/10, undécima) El latido delataba la hora de la última llamada (también personales) | **Macro y servidor:** latido solo cada 6 h (`macrodroid.md` §3c) y la salud sin horas exactas (`20261006150254`: estado, horas enteras, reloj desfasado) | Solo uno de los dos: si alguien cambia la macro, la fuga vuelve |
 
 ## Verificación prevista
 
