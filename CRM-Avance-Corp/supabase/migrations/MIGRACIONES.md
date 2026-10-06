@@ -16669,7 +16669,13 @@ consumidores de B10, si derivó alguna de sus 22 huellas, si cambiaron las puert
 
 ## 20261005200945 — Eliminar inversión (admin y gerencia, Avance · Prodelco · Qorilazo) con copia inmutable
 
-**⏳ PENDIENTE DE APLICAR** (r4; banco Docker propio a paridad al byte con producción: aplicada, probada y revertida). Pedido de
+**✅ APLICADA EN PRODUCCIÓN 05/10/2026 ~22:50 Lima** (Miguel con `!`: `supabase db query --linked --file` + registrador
+`supabase/scripts/eliminar-inversion/registrar.sql`; versión registrada con md5 de statements `ae8d8e21…` = archivo). Verificado
+después en solo lectura: huellas de producción crm 306 `7e9c71b7…` y private 627 `615d17a8…` = las del banco donde se probó;
+`comprobar-tras-aplicar.sql` APTA (el único pendiente del vigía es ajeno: `private.gestion_diaria_cola_hechos`). Advisors: sobre
+lo nuevo solo INFO `rls_enabled_no_policy` (copia cerrada a propósito), WARN de DEFINER ejecutable por authenticated en la puerta
+(por diseño, como las demás puertas) y, en rendimiento, INFO de la FK `contrato_auditoria_id` sin índice y del índice nuevo sin
+uso (tabla vacía). La pantalla sale con la PR #200 (`/release-crm`). Pedido de
 Miguel del 05/10/2026: «mi usuario admin y gerencia deben poder eliminar cualquier inversión en las tres empresas». Decisiones del
 mismo día: D1 eliminar con copia (sale del capital, la cartera y la conversión; queda copia inmutable con motivo y autor), D2 si es
 la conversión de un lead sin anular, solo gerencia, y se anula por la puerta de siempre antes de eliminar, D3 con historia propia
