@@ -52,19 +52,19 @@ código de F4-c todavía: Jhosep decidió esperar a que Miguel cierre el #190** 
   - `router.ts`, `vistas.ts`, `config.tsx`, `App.tsx`, `observabilidad.ts`, `e2e/_helpers.ts`;
   - `database.types.ts`, **solo regenerado**.
 
-## Decisiones abiertas (Miguel o Jhosep)
+## Decisiones de F4-c y F4-d (Jhosep, 06/10/2026)
 
-| # | Decisión | Recomendación | Alternativa y su costo |
+| # | Decisión | Quedó en | Alternativa descartada |
 | --- | --- | --- | --- |
-| D1 | ¿En qué PR va F4-c? | **En el #198** cuando se rehaga sobre `main`: no tiene SQL y Miguel revisa una sola vez | PR propio: rompe «dos PR» y suma una ronda |
-| D2 | Demo de «Celulares» | **Interactiva en memoria**, con una clave ficticia que diga «demo» | Solo lectura: el diálogo «se ve una vez» no se prueba hasta tener tipos |
-| D3 | Sesión real antes de los tipos | **Ocultar la tarjeta**, como la pestaña de F4-b | Llamar sin tipos: contradice la norma de 4 capas |
-| D4 | Cerrar el diálogo de la clave | **Pedir «Ya la copié al celular»**; Esc no la descarta | Cierre libre: riesgo de perderla (se recupera rotando) |
-| D5 | `version_macro` en F4-d | **Pasar a `llamadas-v3`** con la URL con id, para distinguir macros viejas | Seguir en v2: no se sabe qué celular ya une |
-| D6 | Cómo se da de alta C1 | **Desde la tarjeta de F4-c**: la clave no pasa por una terminal ni por Claude | `alta-celular.sql`: no espera a F4-c, pero la clave sale en claro en la terminal |
-| D7 | Aviso en el celular ante un 401 (pregunta abierta) | **Sí**, una notificación sin número en «Enviar cola», sin sumar macros | No: tras una rotación olvidada, los avisos se acumulan en silencio |
-| D8 | Dónde vive la clave en la macro | **Una variable global** usada por las dos «Solicitud HTTP» (confirmar en pantalla) | Pegarla dos veces: el latido y el aviso pueden quedar con claves distintas |
-| D9 | E2E de F4.4 | **Ruta real con dobles** (`montarBackendReal`) + banco reducido + gate | Supabase local en Docker: hoy solo corre en Mac |
+| D1 | ¿En qué PR va F4-c? | **Pendiente:** se decide cuando Miguel suba los cambios del #190 | — |
+| D2 | Demo de «Celulares» | **Interactiva en memoria**, con una clave ficticia que diga «demo»: los botones funcionan y no se guarda nada | Solo lectura: el diálogo «se ve una vez» no se probaría hasta tener tipos |
+| D3 | Sesión real antes de los tipos | **Ocultar la tarjeta**, como la pestaña de F4-b. No se preguntó: lo manda la norma de 4 capas | Llamar sin tipos |
+| D4 | Cerrar el diálogo de la clave | **Pedir «Ya la copié al celular»**; Esc o un clic fuera no lo cierran | Cierre libre: riesgo de perderla (se recupera rotando) |
+| D5 | `version_macro` en F4-d | **Pasar a `llamadas-v3`**: solo cambia el texto del latido en «Llamadas-Enviar cola», **sin macros nuevas** (siguen 4 de 5) | Seguir en v2: no se sabe qué celular ya une |
+| D6 | Cómo se da de alta C1 | **Desde la tarjeta de F4-c**: la clave no pasa por una terminal ni por Claude | `alta-celular.sql`: la clave sale en claro en la terminal |
+| D7 | Aviso en el celular ante un 401 | **Sí**: una notificación sin número dentro de «Enviar cola», sin sumar macros | No avisar: tras una rotación olvidada, los avisos se acumulan en silencio |
+| D8 | Dónde vive la clave en la macro | **En una variable global** usada por las dos «Solicitud HTTP». Confirmar en el celular que MacroDroid la acepta en la cabecera; si no, se pega en las dos | Pegarla dos veces: pueden quedar distintas tras rotar |
+| D9 | E2E de F4.4 | **Ruta real con dobles** (`montarBackendReal`) en Docker en esta PC, más el banco reducido y el gate. Decidido por Claude: lo manda el proyecto | Supabase local en Docker: hoy solo corre en la Mac de Miguel |
 
 Pendiente de antes: el OK de Miguel a las decisiones 1–5 de `F4-PLAN-CORTO.md`. La 5 (tarjeta solo de gerencia)
 habilita F4-c.
