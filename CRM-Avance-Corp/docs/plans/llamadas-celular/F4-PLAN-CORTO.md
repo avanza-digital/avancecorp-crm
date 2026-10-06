@@ -65,7 +65,19 @@ con dos llamadas seguidas al mismo lead se equivocaría.
      aviso llega y enlaza sola.
 
    Correlación exacta, sin mirar la hora y sin un toque extra del analista. Es la propuesta #4 (puerta v5) más la #12.
-   Con la corrección (PR #171), la llamada se busca por el hash del id de origen.
+   Con la corrección (plan v2, PR #179), la llamada se busca por el **id completo** (`C<n>-<segundos>`), sin hash.
+
+**Hecho el 05/10 (F4-a, migración `20261005155914`, PR #190, sin aplicar), con §7 del plan v2:**
+- Sin la regla de los 10 minutos en este camino: un reloj adelantado no rechaza nada. La regla sigue en el enlace manual.
+- Se guarda **por qué vía** se hizo el enlace (`al_colgar`, `pestana`, `manual`): es la cifra «encuesta abierta al
+  colgar» por celular.
+- Al registrar el resultado corregido tras Deshacer, el enlace (o la intención) pasa al corregido.
+- La intención de enlace vive en `private.llamadas_celular_intenciones` y caduca a los 32 días.
+- **Decisiones de Jhosep (05/10):** si el enlace no se puede hacer, el resultado se guarda igual y la respuesta dice
+  «no enlazado» y por qué (la llamada sigue en la pestaña); una llamada **ambigua** no se une por este camino, va a la
+  pestaña.
+- «Qué pasó hoy» (hallazgo 1) pasa a F4-b, con la pantalla.
+- Para cerrar el fallo 5 de verdad falta F4-b: F1 lleva el id hasta la encuesta y la encuesta llama a la v5.
 
 ### 2. Pestaña «Llamadas del celular» del analista (F4.1)
 
@@ -111,7 +123,7 @@ Tarjeta «Celulares» en Configuración:
   a ver.
 - **Rotar:** clave nueva, y la vieja deja de valer.
 - **Cerrar:** baja, extravío o reemplazo.
-- **Salud por celular:** último envío, último latido, versión de la macro y avisos en cola.
+- **Salud por celular:** último latido, versión de la macro y avisos en cola (sin envíos ni último envío: N1, quinta migración).
 
 ### 6. Deshacer (F4.3.3)
 
@@ -125,7 +137,7 @@ marca `efectos_anulados`. La pantalla solo lo muestra; nunca fabrica otra gesti�
    resultado y salud. Es la métrica de F6 del plan aprobado, adelantada.
 3. **La marca «Celular» en «¿Qué hice hoy?»** exige que la consulta del registro sepa qué gestión está enlazada a una
    llamada del celular.
-4. **El latido todavía no está en la macro**: sin él, «Sin latido» no se puede calcular.
+4. **El latido todavía no está en la macro**: sin él, «Sin latido» no se puede calcular. *(05/10: ya está en la guía «sin Pro», `macrodroid.md` §3c, sin probar en C1.)*
 
 ## Decisiones que necesita Miguel
 
@@ -145,15 +157,19 @@ los clientes de la cartera del dueño con la misma regla.
 
 0. **Antes:** la corrección de F2 + F3 (PR #171). Si Miguel elige ahí la opción A, F4-a se publica junto con F2 + F3.
 1. **F4-a · Servidor:** migración de `crm.registrar_llamada_v5` + intención de enlace por id de origen + la ingesta la
-   consume, y la lectura de «Qué pasó hoy» (hallazgo 1). Oráculo en el banco reducido (`npm run test:llamadas:local`),
-   bloque nuevo en el gate y comando con recibo nuevo. **Necesita el OK de Miguel al SQL.**
+   consume. Oráculo en el banco reducido (`npm run test:llamadas:local`), bloque nuevo en el gate y comando con recibo
+   nuevo. **Hecho el 05/10 (`20261005155914`, en el PR #190 con la quinta, sin aplicar); el bloque del gate, también
+   el 05/10 (paso 4, sin correr); el comando con recibo va con F4-b.** «Qué pasó hoy» pasó a F4-b.
 2. **F4-b · Pantalla del analista:** módulo de datos (`data/llamadas-celular-api.ts`, un solo cliente para las puertas),
    la pestaña nueva, la encuesta con contexto, la marca «Celular» (hallazgo 3) y F1 con id de origen. Pruebas unitarias
-   y E2E en Docker.
+   y E2E en Docker. **05/10: parte A hecha** (F1 lleva el id hasta la encuesta; PR #193, borrador). El resto, con sus
+   dos lecturas nuevas y la dependencia de los tipos, en `F4B-PLAN-CORTO.md`, esperando OK.
 3. **F4-c · Celulares en Configuración** (gerencia).
-4. **F4-d · Macro y validación (F4.4):** URL con el id de origen y el latido; casos de F4.4 en E2E y en C1, entre ellos
+4. **F4-d · Macro y validación (F4.4):** URL con el id de origen (el latido ya está en la guía «sin Pro» desde el 05/10); casos de F4.4 en E2E y en C1, entre ellos
    evento antes/después, dos llamadas en diez minutos, dos pestañas, guardado con enlace fallido, deshacer y lead
-   reasignado.
+   reasignado. **Aquí se activa C1** (alta de la clave y macro productiva, `PUBLICAR-F2-F3.md` §4–§5): no antes,
+   porque sin la pestaña de F4-b las llamadas pendientes no tendrían dónde resolverse (decisión de Jhosep, 05/10, tras
+   la segunda revisión de Miguel en el #190).
 5. **F4-e · Supervisor y gerencia** (si Miguel lo elige en la decisión 4): puerta agregada (hallazgo 2), pestaña de
    gerencia y bloque del supervisor.
 

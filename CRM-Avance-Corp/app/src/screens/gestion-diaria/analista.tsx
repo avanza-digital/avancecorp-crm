@@ -45,7 +45,9 @@ import { enlaceTel } from '@/lib/telefono'
 import { ETAPA_INFO, TIPOS_ACTIVIDAD, TIPOS_TAREA, type Etapa, type Lead, type Tarea, type TipoActividad } from '@/lib/tipos'
 import { etiquetaResultado } from '@/lib/resultado-llamada'
 import { tareaQueCierra } from '@/lib/contacto-tarea'
-import { cerrarIntencionesDe } from '@/lib/intencion-contacto'
+import { armarIntencion, cerrarIntencionesDe } from '@/lib/intencion-contacto'
+import { useLlamadasCelular } from '@/data/use-llamadas-celular'
+import { LlamadasCelular } from '@/components/gestion-diaria/llamadas-celular'
 import { presentarCitas } from '@/lib/terminologia'
 import {
   COLOR_NIVEL, ETIQUETA_NIVEL, cuandoLimaDe, detalleDeFila,
@@ -75,7 +77,7 @@ import { primerNombre } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { ColaDeHoy, FILAS_POR_PAGINA } from '@/components/gestion-diaria/cola-de-hoy'
 
-type VistaDerecha = 'cola' | 'actividad' | 'seguimiento'
+type VistaDerecha = 'cola' | 'actividad' | 'seguimiento' | 'celular'
 
 /** Un cierre de cliente que acaba de avisar, con lo necesario para decidir qué pasó. */
 interface CierreAvisado {
@@ -157,6 +159,18 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
   const [filtroPedido, setFiltroPedido] = useState<FiltroCola | null>(contextoInicial.filtro)
   const [pagina, setPagina] = useState(contextoInicial.pagina)
   const [vistaDerecha, setVistaDerecha] = useState<VistaDerecha>('cola')
+  // Fuente por actor: demo en memoria o puertas reales con paginación y validación del contrato.
+  const celular = useLlamadasCelular()
+  const vistaVisible: VistaDerecha = vistaDerecha === 'celular' && !celular ? 'cola' : vistaDerecha
+  // «Registrar resultado» desde la pestaña: la MISMA intención que arma el enlace del celular, con la vía «pestana».
+  // El receptor de F1 abre la encuesta de siempre (la de «Ahora» si es su lead; si no, la de la ficha).
+  const registrarDesdePestana = (fila: { lead_id: string | null; numero: string | null; evento_origen_id?: string | undefined }) => {
+    if (!yo?.id || !fila.lead_id) return
+    armarIntencion({
+      actor: yo.id, leadId: fila.lead_id, canal: 'tel', origen: 'enlace', numero: fila.numero,
+      ...(fila.evento_origen_id ? { origenLlamada: fila.evento_origen_id, viaLlamada: 'pestana' as const } : {}),
+    })
+  }
   // Solo cierres de tareas de CLIENTE, hasta que la lectura confirme su salida.
   // Los leads gestionados siguen visibles al final según la respuesta del servidor.
   const [cerrados, setCerrados] = useState<readonly string[]>([])
@@ -626,18 +640,28 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
                 // «Cola de hoy» arranca con controles: su panel no es parada del
                 // tabulador. En «Mi actividad» y «Mi seguimiento» el panel ES el
                 // contenedor con scroll, alcanzable con el teclado (revisión a11y).
-                panelEnfocable={vistaDerecha !== 'cola'}
-                valor={vistaDerecha}
+                panelEnfocable={vistaVisible !== 'cola'}
+                valor={vistaVisible}
                 onCambio={setVistaDerecha}
                 pestanas={[
                   { valor: 'cola', etiqueta: 'Cola de hoy', extra: `· ${conteoCola}` },
                   { valor: 'actividad', etiqueta: 'Mi actividad' },
                   { valor: 'seguimiento', etiqueta: 'Mi seguimiento', ...(dia.dia.compromisos_total > 0 ? { extra: `· ${dia.dia.compromisos_total}` } : {}) },
+                  // «Celular» y no «Llamadas del celular»: con cuatro pestañas la barra ya no entra en la tarjeta (medido el
+                  // 05/10: 586 px pedidos en 407). El panel conserva el título largo.
+                  ...(celular ? [{ valor: 'celular' as const, etiqueta: 'Celular', ...(celular.pendientes.length > 0 ? { extra: `· ${celular.pendientes.length}` } : {}) }] : []),
                 ]}
-                className="flex min-h-0 flex-1 flex-col space-y-0 [&>[role=tablist]]:gap-[22px] [&>[role=tablist]]:px-[18px] [&>[role=tablist]]:pt-1.5 [&>[role=tablist]>[role=tab]]:min-h-[42px] [&>[role=tablist]>[role=tab]]:text-sm [&>[role=tablist]>[role=tab]>span]:text-sm"
-                clasePanel={vistaDerecha === 'cola' ? 'flex min-h-0 flex-1 flex-col' : 'ac-scroll min-h-0 flex-1 overflow-y-auto focus-visible:!-outline-offset-2'}
+                // Si aun así no entra, la barra se desplaza sin la barra nativa (las flechas del teclado ya cambian de pestaña).
+                className={cn('flex min-h-0 flex-1 flex-col space-y-0 [&>[role=tablist]]:px-[18px] [&>[role=tablist]]:pt-1.5 [&>[role=tablist]]:[scrollbar-width:none] [&>[role=tablist]>[role=tab]]:min-h-[42px] [&>[role=tablist]>[role=tab]]:text-sm [&>[role=tablist]>[role=tab]>span]:text-sm',
+                  celular ? '[&>[role=tablist]]:gap-4' : '[&>[role=tablist]]:gap-[22px]')}
+                clasePanel={vistaVisible === 'cola' ? 'flex min-h-0 flex-1 flex-col' : 'ac-scroll min-h-0 flex-1 overflow-y-auto focus-visible:!-outline-offset-2'}
               >
-                {vistaDerecha === 'cola' ? (
+                {vistaVisible === 'celular' && celular ? (
+                  <LlamadasCelular estadoPendientes={celular.estadoPendientes} estadoResueltas={celular.estadoResueltas} pendientes={celular.pendientes} resueltas={celular.resueltas} ahora={ahora} ocupado={celular.ocupado}
+                    busqueda={{ demo: yo?.demo === true, leadsLocales: ambito.leads }}
+                    onRegistrar={registrarDesdePestana} onElegirLead={celular.elegirLead} onDescartar={celular.descartar}
+                    onAbrirFicha={(leadId) => { void abrirLead(leadId) }} />
+                ) : vistaVisible === 'cola' ? (
                   <ColaDeHoy
                     idBase={id} pestanas={pestanas} trabajo={paginaCola && { ...paginaCola, items: paginaCola.items.filter((f) => !cerrados.includes(f.clave)) }} filtro={filtro} onFiltro={cambiarFiltro}
                     pagina={vista.pagina} onPagina={irAPagina}
@@ -645,7 +669,7 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
                     ahora={ahora} cargando={colaCargando} colaCaida={colaCaida}
                     sinConversacionDias={dia.dia.sin_conversacion_dias}
                   />
-                ) : vistaDerecha === 'actividad' ? (
+                ) : vistaVisible === 'actividad' ? (
                   <MiActividad dia={dia.dia} analistaId={yo?.id ?? null} hoy={fechaLima(ahora)}
                     deshaciendo={deshaciendo} onDeshacer={(d) => { void deshacer(d) }} tituloDescartesRef={tituloDescartes}
                     onAbrirFicha={(leadId) => { void abrirLead(leadId) }} />

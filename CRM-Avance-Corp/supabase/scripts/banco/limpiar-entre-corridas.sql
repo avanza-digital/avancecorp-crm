@@ -10,6 +10,14 @@ do $bases$ begin
     truncate crm.base_carga_operaciones, crm.base_carga_leads, crm.bases_carga;
   end if;
 end $bases$;
+-- Llamadas del celular: el gate deja asignaciones cerradas que apuntan a crm.equipo. En replica la FK no se
+-- comprueba: sin esto quedarían huérfanas (las llamadas y las intenciones ya cayeron con crm.leads). CASCADE
+-- arrastra recepciones y estado de private.
+do $llamadas$ begin
+  if to_regclass('crm.celulares_asignaciones') is not null then
+    truncate crm.celulares_asignaciones cascade;
+  end if;
+end $llamadas$;
 delete from crm.equipo;
 set local session_replication_role = default;
 commit;

@@ -417,7 +417,8 @@ function Workspace() {
         // login: este efecto corre cuando el workspace por fin monta). Lo
         // consume el receptor; el router ya lo suelta al abrir una ficha.
         destino === leido.vista ? leido.llamadaNumero : undefined,
-        destino === 'reuniones' ? leido.consultaCitas : undefined)
+        destino === 'reuniones' ? leido.consultaCitas : undefined,
+        destino === leido.vista ? leido.llamadaOrigenId : undefined)
       const cambiaVista = destino !== ctx.vista
       const cambiaLead = leadDestino !== ctx.leadAbiertoId
       if (!cambiaVista && !cambiaLead) {
@@ -451,7 +452,8 @@ function Workspace() {
       ruta.vista === vista && (rol === 'gerencia' || recibeRespuestasTasa(rol)) ? ruta.solicitudTasaId : undefined,
       ruta.vista === vista && (rol === 'gerencia' || ruta.detalleGestion?.tipo === 'cola') ? ruta.detalleGestion : undefined,
       ruta.vista === vista ? ruta.llamadaNumero : undefined,
-      ruta.vista === vista ? ruta.consultaCitas : undefined) // compara antes de escribir → sin bucles
+      ruta.vista === vista ? ruta.consultaCitas : undefined,
+      ruta.vista === vista ? ruta.llamadaOrigenId : undefined) // compara antes de escribir → sin bucles
   }, [vista, leadAbiertoId, rol])
 
   // Guard por capacidad + gate de leads: el nav ya oculta, esto expulsa (doble
