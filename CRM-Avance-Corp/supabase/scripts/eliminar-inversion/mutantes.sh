@@ -60,7 +60,7 @@ DDL+=("$(printf '%s' "$PUERTA" | reemplazar 'if not v_gerencia then' 'if false t
 NOMBRES+=("Avance sin exigir admin del portal")
 DDL+=("$(printf '%s' "$PUERTA" | reemplazar "if v_ctx ->> 'tipo' = 'contrato' and v_portal is null then" "if false then")")
 NOMBRES+=("sin motivo mínimo")
-DDL+=("$(printf '%s' "$PUERTA" | reemplazar 'if v_motivo is null or length(v_motivo) < 5 then' 'if v_motivo is null then')")
+DDL+=("$(printf '%s' "$PUERTA" | reemplazar 'if length(v_motivo) < 5 then' 'if v_motivo is null then')")
 NOMBRES+=("la solicitud de alta de una cooperativa se busca en fuente.id (forma que producción no escribe)")
 DDL+=("$(mutar 'create function private.inversion_motivo_no_eliminable' '$$;' "array['fuente', 'cierre_id']" "array['fuente', 'id']")")
 NOMBRES+=("P4 sin el ancla copiada (leads_before_update de producción)")
@@ -74,6 +74,11 @@ DDL+=("$(mutar 'create function private.inversion_eliminacion_autoriza' '$$;' ' 
 NOMBRES+=("el censo de dependencias siempre da conocidas")
 DDL+=("create or replace function private.inversion_eliminacion_dependencias_conocidas() returns boolean language sql stable
   set search_path = '' as \$m\$ select true \$m\$;")
+NOMBRES+=("el motivo se recorta con btrim (deja pasar tabuladores y saltos de línea)")
+DDL+=("create or replace function private.motivo_normalizado(p_motivo text) returns text language sql immutable
+  set search_path = '' as \$m\$ select btrim(coalesce(p_motivo, '')) \$m\$;")
+NOMBRES+=("con dos convertidos sobre el contrato se elige uno a ciegas")
+DDL+=("$(mutar 'create function private.eliminar_inversion_contexto' 'end $$;' "      raise exception 'Varios leads convertidos apuntan a este contrato; requiere revisión' using errcode = 'P0409';" "      null;")")
 NOMBRES+=("la conversión no mira la acreditación")
 DDL+=("$(mutar 'create function private.eliminar_inversion_contexto' 'end $$;' "  select ca.lead_id into v_lead_acreditado from crm.conversion_acreditaciones ca
     where ca.fuente_tipo = v_tipo and ca.fuente_id = p_fuente and ca.estado in ('acreditada', 'mes_sellado', 'fecha_futura')
@@ -86,7 +91,7 @@ for i in "${!NOMBRES[@]}"; do
     psql -U supabase_admin -h 127.0.0.1 -d postgres -v ON_ERROR_STOP=1 -qAt -f - 2>&1 || true)"
   if ! printf '%s' "$salida" | grep -q 'MUTANTE_INSTALADO'; then
     echo "NO SE PUDO INSTALAR  ${NOMBRES[$i]}: $(printf '%s' "$salida" | grep -m1 ERROR | cut -c1-160)"; vivos=$((vivos + 1))
-  elif printf '%s' "$salida" | grep -q 'PASS eliminar_inversion (22 bloques)'; then
+  elif printf '%s' "$salida" | grep -q 'PASS eliminar_inversion (24 bloques)'; then
     echo "SOBREVIVE  ${NOMBRES[$i]}"; vivos=$((vivos + 1))
   else
     echo "MUERTO     ${NOMBRES[$i]}: $(printf '%s' "$salida" | grep -m1 -o 'FALLA.*\|ERROR:.*' | cut -c1-140)"

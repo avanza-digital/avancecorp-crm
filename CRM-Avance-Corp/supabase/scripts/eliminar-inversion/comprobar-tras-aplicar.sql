@@ -10,6 +10,7 @@ huellas as (
     and md5(pg_catalog.pg_get_functiondef('private.f4_fuente_inmutable()'::regprocedure)) = '808b1ac3481ee180f5060bd4e0bc6fa1'
     and md5(pg_catalog.pg_get_functiondef('private.cierre_anulado(uuid)'::regprocedure)) = 'df71c2b1e3cd44b97c3ad84e00637266'
     and md5(pg_catalog.pg_get_functiondef('private.conversion_bloquear_retiro_trg()'::regprocedure)) = '823bf82cc20e4e4ca95381e4ce683ea1'
+    and md5(pg_catalog.pg_get_functiondef('private.leads_before_update()'::regprocedure)) = '4ae909f2d56ca650b5595b505e6aa51d'
     and md5(pg_catalog.pg_get_functiondef('crm.contrato_eliminar_auditado(uuid,uuid)'::regprocedure)) = 'c954f109757ccfa18692d0bff54f903c' as ok
 ),
 puerta as (
@@ -24,7 +25,7 @@ nucleo as (
   where p.pronamespace = 'private'::regnamespace
     and p.proname in ('inversion_eliminacion_autoriza', 'eliminar_inversion_cooperativa', 'registrar_inversion_eliminada_avance',
       'eliminar_inversion_contexto', 'eliminar_inversion_roles', 'inversion_motivo_no_eliminable', 'conversion_coordinar_retiro_fuente',
-      'inversion_eliminacion_dependencias_conocidas', 'proteger_inversion_eliminada')
+      'inversion_eliminacion_dependencias_conocidas', 'proteger_inversion_eliminada', 'motivo_normalizado')
     and pg_catalog.has_function_privilege(r.rol, p.oid, 'EXECUTE')
 ),
 copia as (

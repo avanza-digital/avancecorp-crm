@@ -16669,7 +16669,7 @@ consumidores de B10, si derivó alguna de sus 22 huellas, si cambiaron las puert
 
 ## 20261005200945 — Eliminar inversión (admin y gerencia, Avance · Prodelco · Qorilazo) con copia inmutable
 
-**⏳ PENDIENTE DE APLICAR** (r3; banco Docker propio a paridad al byte con producción: aplicada, probada y revertida). Pedido de
+**⏳ PENDIENTE DE APLICAR** (r4; banco Docker propio a paridad al byte con producción: aplicada, probada y revertida). Pedido de
 Miguel del 05/10/2026: «mi usuario admin y gerencia deben poder eliminar cualquier inversión en las tres empresas». Decisiones del
 mismo día: D1 eliminar con copia (sale del capital, la cartera y la conversión; queda copia inmutable con motivo y autor), D2 si es
 la conversión de un lead sin anular, solo gerencia, y se anula por la puerta de siempre antes de eliminar, D3 con historia propia
@@ -16693,18 +16693,22 @@ cooperativas: 16/16 en producción) y la misma persona y empresa. `private.conve
 de la coordinación con el sellado. El depósito reclamado se libera con la eliminación (queda en la copia). Ninguna función nueva
 entra al censo analítico.
 
-**Revisiones:** Codex r1 (CHANGES_REQUESTED: carrera de Avance y eventos de cooperativa) y auditor-rls (CHANGES_REQUESTED, sin P0:
-clave de la solicitud de cooperativa, ancla P4, acreditación) → corregidos en r2/r3.
+**Revisiones:** Codex r1 (CHANGES_REQUESTED: carrera de Avance y eventos de cooperativa), auditor-rls (CHANGES_REQUESTED, sin P0:
+clave de la solicitud de cooperativa, ancla P4, acreditación) y Codex r2 (CHANGES_REQUESTED: 1 P2, motivo de solo blancos; riesgos:
+acreditación concurrente, dos convertidos por contrato, mes cerrado sin ensayar) → corregidos en r2, r3 y r4 (motivo con todos los
+blancos en puerta y CHECK; candado del MES de la fuente con las llaves de crm.cerrar_periodo y del único escritor de
+acreditaciones; dos convertidos → P0409; mes cerrado ensayado).
 
-**Verificación en banco limpio (05/10, r3):** paridad del banco con producción (crm 305 `5f73eff8…`, private 617 `980d5263…`);
-aplicar en un mensaje con candado de migraciones → crm 306 `98fefc91…`, private 626 `3f559879…`;
-`supabase/scripts/eliminar-inversion/test-eliminar-inversion.sql` 22/22 bloques (roles y actores inactivos, motivo, cooperativa sin
+**Verificación en banco limpio (05/10, r4):** paridad del banco con producción (crm 305 `5f73eff8…`, private 617 `980d5263…`);
+aplicar en un mensaje con candado de migraciones → crm 306 `7e9c71b7…`, private 627 `615d17a8…`;
+`supabase/scripts/eliminar-inversion/test-eliminar-inversion.sql` 24/24 bloques (roles y actores inactivos, motivo y blancos, cooperativa sin
 conversión, historia propia, válvula y cada una de sus cláusulas con control positivo, conversión de agosto que NO resucita,
 conversión de septiembre por acreditaciones, conversión ya anulada, Avance, Avance conversión, Avance por acreditación y en
 discrepancia, cierre sin inversión, corrección previa, depósito liberado, lead editable tras eliminar su conversión (P4), censo de
-dependencias, inmutabilidad); `mutantes.sh` 14/14 muertos; `carrera-avance.sh` (dos conexiones) PASS y su mutante reproduce la
-carrera; `comprobar-tras-aplicar.sql` APTA; reversa → huellas idénticas a producción; reaplicar → mismas huellas y 22/22.
-Mes cerrado: la ruta es la anulación de gerencia de siempre (sin cambios); NO ensayado en el banco. Gate `test-rls.mjs`:
+dependencias, inmutabilidad, dos convertidos por contrato, MES CERRADO con su ajuste exactamente una vez); `mutantes.sh` 16/16
+muertos; `carrera-avance.sh` (dos conexiones: enlace de un lead y acreditación concurrente) PASS y cada mutante reproduce su
+carrera; `comprobar-tras-aplicar.sql` APTA; reversa → huellas idénticas a producción; reaplicar → mismas huellas y 24/24;
+`registrar.sql` idempotente (md5 `ae8d8e21…` = archivo). Gate `test-rls.mjs`:
 `testEliminarInversion` (catálogo + roles); `test:rls:preflight` NOT RUN aquí (pide credenciales).
 **Reversa:** `supabase/scripts/eliminar-inversion/reversa.sql` (se niega si ya hay copias). **Registrador:**
 `supabase/scripts/eliminar-inversion/registrar.sql` (generado). **Comprobación tras aplicar:** `comprobar-tras-aplicar.sql`.

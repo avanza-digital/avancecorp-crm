@@ -266,6 +266,7 @@ drop function private.eliminar_inversion_roles(uuid);
 drop function private.conversion_coordinar_retiro_fuente(text, uuid);
 drop function private.inversion_eliminacion_autoriza(text, uuid, jsonb);
 drop table crm.inversiones_eliminadas;
+drop function private.motivo_normalizado(text);
 drop function private.proteger_inversion_eliminada();
 
 do $postflight$

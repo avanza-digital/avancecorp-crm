@@ -236,6 +236,36 @@ insert into crm.conversion_acreditaciones (lead_id, episodio_id, inversionista_i
     'contrato', 'd0000000-0000-4000-8000-0000000000d4', '2026-09-25', '2026-09-25 16:00-05', '2026-09-25 16:00-05', '2026-09-25 16:00-05',
     '2026-09-01', private.conversion_plazo_hasta('2026-09-01'), 'acreditada', 'Acreditación de prueba');
 
+
+-- r4 (Codex r2): dos leads convertidos sobre un mismo contrato, y una conversión de cooperativa de JULIO con el mes CERRADO.
+insert into public.contratos (id, numero_contrato, cliente_id, capital, moneda, modalidad, fecha_inicio, fecha_vencimiento,
+    producto_condicion_id, fecha_cierre_comercial, estado, categoria) values
+  ('d0000000-0000-4000-8000-0000000000d5', 'PRUEBA-0005', 'a0000000-0000-4000-8000-0000000000a5', 9900, 'PEN', 'mensual', '2026-09-26', '2027-09-26',
+    gen_random_uuid(), '2026-09-26', 'activo', 'nuevo');
+insert into crm.leads (id, nombre_completo, telefono, origen, etapa, convertido_en, vendedor_id, contrato_id, activo, monto_estimado, perfil_id) values
+  ('c0000000-0000-4000-8000-0000000000c8', 'LEAD DOS A', '999000008', 'landing', 'convertido', '2026-09-26 15:00-05', 'a0000000-0000-4000-8000-0000000000a4', 'd0000000-0000-4000-8000-0000000000d5', true, 1000, 'a0000000-0000-4000-8000-0000000000a5'),
+  ('c0000000-0000-4000-8000-0000000000c9', 'LEAD DOS B', '999000009', 'landing', 'convertido', '2026-09-26 16:00-05', 'a0000000-0000-4000-8000-0000000000a4', 'd0000000-0000-4000-8000-0000000000d5', true, 1000, 'a0000000-0000-4000-8000-0000000000a5'),
+  ('c0000000-0000-4000-8000-0000000000ca', 'LEAD COOP JULIO', '999000010', 'landing', 'convertido', '2026-07-10 15:00-05', 'a0000000-0000-4000-8000-0000000000a4', null, true, 1000, null);
+insert into crm.lead_asignaciones (lead_id, ciclo_n, episodio_n, analista_id, motivo_apertura, asignado_en, moneda, origen,
+    sla_global_iniciado_en, sla_politica_asignacion_id, primera_gestion_limite_en, primer_contacto_limite_en, resultado, resultado_en,
+    finalizado_en, finalizado_por, motivo_cierre)
+  values ('c0000000-0000-4000-8000-0000000000ca', 1, 1, 'a0000000-0000-4000-8000-0000000000a4', 'asignado', '2026-07-05 15:00-05', 'PEN', 'landing',
+    '2026-07-05 15:00-05', gen_random_uuid(), '2026-07-10 15:00-05', '2026-07-10 15:00-05', 'convertido', '2026-07-10 15:00-05',
+    '2026-07-10 15:00-05', 'a0000000-0000-4000-8000-0000000000a4', 'convertido');
+insert into crm.inversionistas (id, estado) values ('b0000000-0000-4000-8000-0000000000bd', 'activo');
+insert into crm.cierres_externos (id, cooperativa, monto, moneda, documento_tipo, documento, nombre_completo, numero_transaccion,
+    vendedor_id, creado_por, es_cierre_inicial, lead_id, inversionista_id, fecha_comercial, fecha_imputacion, comprobante_objeto_id, referencia_externa) values
+  ('e0000000-0000-4000-8000-0000000000e9', 'qorilazo', 3500, 'PEN', 'DNI', '40000009', 'PERSONA JULIO', 'TX-JU', 'a0000000-0000-4000-8000-0000000000a4',
+    'a0000000-0000-4000-8000-0000000000a4', true, 'c0000000-0000-4000-8000-0000000000ca', 'b0000000-0000-4000-8000-0000000000bd', '2026-07-10', '2026-07-10', gen_random_uuid(), 'REF JU');
+insert into crm.inversiones (id, inversionista_id, empresa_id, cierre_externo_id, estado, fecha_comercial, es_primera_conversion) values
+  ('f0000000-0000-4000-8000-0000000000f9', 'b0000000-0000-4000-8000-0000000000bd', '10000000-0000-4000-8000-000000000003', 'e0000000-0000-4000-8000-0000000000e9', 'vigente', '2026-07-10', true);
+insert into crm.inversion_titulares (inversion_id, inversionista_id) values ('f0000000-0000-4000-8000-0000000000f9', 'b0000000-0000-4000-8000-0000000000bd');
+insert into crm.inversion_eventos (inversion_id, tipo) values ('f0000000-0000-4000-8000-0000000000f9', 'registro');
+insert into crm.depositos_reclamados (numero_norm, cierre_id, reclamado_por) values ('DEP-e9', 'e0000000-0000-4000-8000-0000000000e9', 'a0000000-0000-4000-8000-0000000000a4');
+insert into crm.periodos_cerrados (periodo, ponderacion_referido, meta_revision, cobertura) values ('2026-07-01', 0.5, 1, '{}'::jsonb);
+-- Semilla de CONFIGURACIÓN que el banco sin datos no trae (el ajuste de mes cerrado pide el peso del referido).
+insert into crm.conversion_pesos (vigente_desde, peso_referido) values ('2026-01-01', 0.5) on conflict (vigente_desde) do nothing;
+
 -- Un lead convertido de Avance está enlazado a su perfil de cliente (como en producción).
 update crm.leads set perfil_id = 'a0000000-0000-4000-8000-0000000000a5' where id = 'c0000000-0000-4000-8000-0000000000c3';
 
@@ -281,6 +311,11 @@ begin
   perform pg_temp.rechaza(format('select pg_temp.eliminar(%L, %L, %L)', ADM, CE_NC, '   '), '22023', 'motivo');
   perform pg_temp.rechaza(format('select pg_temp.eliminar(%L, %L, %L)', ADM, CE_NC, 'abcd'), '22023', 'motivo');
   perform pg_temp.rechaza(format('select pg_temp.eliminar(%L, %L, %L)', ADM, CE_NC, repeat('x', 301)), '22023', '300');
+  -- r4 (Codex r2): tabuladores, saltos de línea y espacios Unicode también son «sin motivo», y no tocan nada.
+  perform pg_temp.rechaza(format('select pg_temp.eliminar(%L, %L, %L)', ADM, CE_NC, repeat(chr(9), 5)), '22023', 'motivo');
+  perform pg_temp.rechaza(format('select pg_temp.eliminar(%L, %L, %L)', ADM, CE_NC, chr(10) || chr(13) || '   ' || chr(10) || chr(9)), '22023', 'motivo');
+  perform pg_temp.rechaza(format('select pg_temp.eliminar(%L, %L, %L)', ADM, CE_NC, repeat(chr(160), 6) || repeat(chr(12288), 2)), '22023', 'motivo');
+  perform pg_temp.exigir(exists (select 1 from crm.cierres_externos where id = CE_NC), 'motivo en blanco: se tocó el cierre');
   -- 3. Fuente inexistente.
   perform pg_temp.rechaza(format('select pg_temp.eliminar(%L, %L, %L)', ADM, gen_random_uuid(), 'Registro equivocado'), 'P0002');
 
@@ -398,8 +433,9 @@ begin
     'SE: la copia no guarda la acreditación');
 
   -- 14. (r2) Cierre SIN fila en crm.inversiones: también se elimina con su copia.
-  r := pg_temp.eliminar(ADM, CE_SI, 'Cierre suelto registrado por error');
+  r := pg_temp.eliminar(ADM, CE_SI, chr(9) || ' Cierre suelto registrado por error' || chr(10) || chr(160));
   select * into a from crm.inversiones_eliminadas where fuente_id = CE_SI;
+  perform pg_temp.exigir(a.motivo = 'Cierre suelto registrado por error', 'SI: el motivo no se guardó recortado: «' || a.motivo || '»');
   perform pg_temp.exigir(a.inversion_id is null and a.empresa = 'prodelco' and a.snapshot -> 'inversion' = 'null'::jsonb
     and jsonb_array_length(a.snapshot -> 'depositos') = 1 and not exists (select 1 from crm.cierres_externos where id = CE_SI), 'SI: copia o borrado incorrectos');
 
@@ -480,9 +516,27 @@ begin
   -- 22. (r3, P2) Acreditación de un lead y enlace de OTRO sobre el mismo contrato: no se decide aquí (P0409) y nada cambia.
   perform pg_temp.rechaza(format('select pg_temp.eliminar(%L, %L, %L)', GER, C_MM, 'Registro equivocado'), 'P0409', 'no coincide');
   perform pg_temp.exigir(exists (select 1 from public.contratos where id = C_MM), 'MM: se tocó el contrato en discrepancia');
-  raise notice 'PASS eliminar_inversion: 22 bloques (roles, motivo, NC, historia, válvula y sus cláusulas, conversión coop que no resucita, ya anulada, Avance, Avance conversión y por acreditación, discrepancia, inmutabilidad, septiembre, sin inversión, corrección, depósito liberado, P4, censo de dependencias, actores)';
+
+  -- 23. (r4, Codex r2) Dos leads convertidos sobre el mismo contrato: no se elige uno a ciegas (P0409) y nada cambia.
+  perform pg_temp.rechaza(format('select pg_temp.eliminar(%L, %L, %L)', GER, 'd0000000-0000-4000-8000-0000000000d5', 'Registro equivocado'),
+    'P0409', 'Varios leads convertidos');
+  perform pg_temp.exigir(exists (select 1 from public.contratos where id = 'd0000000-0000-4000-8000-0000000000d5'), 'DOS: se tocó el contrato');
+
+  -- 24. (r4, Codex r2) Mes CERRADO: gerencia anula y elimina una conversión de julio con julio sellado → la respuesta lo dice,
+  --     nace exactamente UN ajuste para su analista (lo que valía en la conversión) y el lead sigue editable.
+  r := pg_temp.eliminar(GER, 'e0000000-0000-4000-8000-0000000000e9', 'Conversión de julio registrada por error');
+  perform pg_temp.exigir((r ->> 'conversion_anulada')::boolean and (r ->> 'mes_cerrado')::boolean, 'JULIO: la respuesta no informa el mes cerrado: ' || r::text);
+  perform pg_temp.exigir((select count(*) = 1 and min(numerador) = 1 and min(vendedor_id::text) = VEN::text and min(periodo_origen) = date '2026-07-01'
+    from crm.ajustes_mes_cerrado where lead_id = 'c0000000-0000-4000-8000-0000000000ca'), 'JULIO: el ajuste del mes cerrado no quedó exactamente una vez');
+  perform pg_temp.exigir(private.cierre_anulado('c0000000-0000-4000-8000-0000000000ca') and not exists (select 1 from crm.cierres_externos
+    where id = 'e0000000-0000-4000-8000-0000000000e9'), 'JULIO: no se anuló o no se eliminó');
+  update crm.leads set monto_estimado = monto_estimado + 1 where id = 'c0000000-0000-4000-8000-0000000000ca';
+  get diagnostics v_n = row_count;
+  perform pg_temp.exigir(v_n = 1, 'JULIO: el lead quedó sin poder editarse');
+  perform pg_temp.exigir((select count(*) = 1 from crm.periodos_cerrados where periodo = date '2026-07-01'), 'JULIO: se tocó el periodo cerrado');
+  raise notice 'PASS eliminar_inversion: 24 bloques (roles, motivo, NC, historia, válvula y sus cláusulas, conversión coop que no resucita, ya anulada, Avance, Avance conversión y por acreditación, discrepancia, inmutabilidad, septiembre, sin inversión, corrección, depósito liberado, P4, censo de dependencias, actores)';
 end
 $pruebas$;
 
-select 'PASS eliminar_inversion (22 bloques); se revierte';
+select 'PASS eliminar_inversion (24 bloques); se revierte';
 rollback;

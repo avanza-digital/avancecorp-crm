@@ -61,6 +61,9 @@
 --   del enlazado → P0409. P3: op_privilegiada solo si hay leads enlazados; rol_actor = el que habilitó; un CHECK fallido de la
 --   copia se relanza sin la fila; postflight con dueños. Mes cerrado: la ruta es la anulación de gerencia de siempre, sin
 --   cambios; no se ensaya en el banco (exige toda la maquinaria del sellado).
+-- r4 (Codex r2, CHANGES_REQUESTED: 1 P2, sin P0/P1): el motivo se normaliza con TODOS los blancos (private.motivo_normalizado,
+--   también en el CHECK); el contexto toma el candado del MES de la fuente (llaves de crm.cerrar_periodo y del único escritor de
+--   acreditaciones) antes de mirar las acreditaciones; dos convertidos sobre un contrato → P0409. Mes cerrado ensayado en el banco.
 -- CANDADOS (convención de la casa, B10): la exclusión de migraciones (candado consultivo crm_migracion_funciones) se toma
 --   ANTES de la instantánea, a nivel de SESIÓN y en una transacción previa del mismo mensaje; el preflight exige que ESTA
 --   sesión lo tenga y se suelta al final. La transacción principal va en REPEATABLE READ (preflight y postflight ven la
@@ -123,6 +126,18 @@ end
 $preflight$;
 
 -- ── 1 · Tabla: la copia inmutable ──────────────────────────────────────────────────────────────────────────────────────
+-- r4 (Codex r2, P2): btrim() solo quita espacios; un motivo de tabuladores o saltos de línea pasaba. Una sola definición del
+-- recorte (todos los blancos, también los de Unicode que quita trim() del navegador), para la puerta y para el CHECK.
+create function private.motivo_normalizado(p_motivo text)
+returns text language sql immutable set search_path = '' as $$
+  select pg_catalog.regexp_replace(coalesce(p_motivo, ''),
+    '^[[:space:]' || pg_catalog.chr(160) || pg_catalog.chr(5760) || pg_catalog.chr(8192) || '-' || pg_catalog.chr(8202)
+      || pg_catalog.chr(8232) || pg_catalog.chr(8233) || pg_catalog.chr(8239) || pg_catalog.chr(8287) || pg_catalog.chr(12288)
+      || pg_catalog.chr(65279) || ']+|[[:space:]' || pg_catalog.chr(160) || pg_catalog.chr(5760) || pg_catalog.chr(8192) || '-'
+      || pg_catalog.chr(8202) || pg_catalog.chr(8232) || pg_catalog.chr(8233) || pg_catalog.chr(8239) || pg_catalog.chr(8287)
+      || pg_catalog.chr(12288) || pg_catalog.chr(65279) || ']+$', '', 'g')
+$$;
+
 create table crm.inversiones_eliminadas (
   id uuid primary key default gen_random_uuid(),
   fuente_tipo text not null check (fuente_tipo in ('contrato', 'cierre_externo')),
@@ -134,7 +149,7 @@ create table crm.inversiones_eliminadas (
   es_conversion boolean not null,
   conversion_anulada boolean not null,
   anulacion jsonb check (anulacion is null or jsonb_typeof(anulacion) = 'object'),
-  motivo text not null check (length(btrim(motivo)) between 5 and 300),
+  motivo text not null check (motivo = private.motivo_normalizado(motivo) and length(motivo) between 5 and 300),
   eliminado_por uuid not null,
   rol_actor text not null check (rol_actor in ('admin', 'superadmin', 'gerencia')),
   eliminado_en timestamptz not null default statement_timestamp(),
@@ -468,12 +483,14 @@ declare
   v_anulada boolean := false;
   v_lead_acreditado uuid;
   v_enlazados boolean := false;
+  v_fecha date;
 begin
   if p_fuente is null then return null; end if;
   select * into v_ce from crm.cierres_externos where id = p_fuente for update;
   if found then
     v_tipo := 'cierre_externo';
     v_empresa := v_ce.cooperativa;
+    v_fecha := coalesce(v_ce.fecha_comercial, (v_ce.creado_en at time zone 'America/Lima')::date);
     select * into v_inv from crm.inversiones where cierre_externo_id = p_fuente for update;
     v_es_conversion := v_ce.es_cierre_inicial or coalesce(v_inv.es_primera_conversion, false);
     if v_es_conversion then v_lead := v_ce.lead_id; end if;
@@ -483,7 +500,7 @@ begin
     -- (sus FKs piden FOR KEY SHARE) mientras se decide si es una conversión; y los leads que ya lo apuntan se bloquean
     -- TODOS antes de mirar su etapa, para que ninguno se convierta a mitad.
     perform pg_advisory_xact_lock(hashtextextended('contrato_eliminar_auditado:' || p_fuente::text, 0));
-    perform 1 from public.contratos c where c.id = p_fuente for update;
+    select c.fecha_cierre_comercial into v_fecha from public.contratos c where c.id = p_fuente for update;
     if not found then return null; end if;
     v_tipo := 'contrato';
     v_empresa := 'avance';
@@ -492,9 +509,19 @@ begin
     select l.id into v_lead from crm.leads l
       where l.contrato_id = p_fuente and l.etapa = 'convertido'
       order by l.id limit 1;
+    -- (Codex r2) leads.contrato_id no es único: si dos convertidos apuntan al contrato, no se elige uno a ciegas.
+    if exists (select 1 from crm.leads l where l.contrato_id = p_fuente and l.etapa = 'convertido' and l.id <> v_lead) then
+      raise exception 'Varios leads convertidos apuntan a este contrato; requiere revisión' using errcode = 'P0409';
+    end if;
     v_es_conversion := v_lead is not null or coalesce(v_inv.es_primera_conversion, false);
     v_enlazados := exists (select 1 from crm.leads l where l.contrato_id = p_fuente);
   end if;
+  -- (Codex r2) Candado del MES de la fuente, con las mismas llaves que crm.cerrar_periodo y que el único escritor de
+  -- acreditaciones (private.conversion_acreditar_fuente, que toma este candado y LUEGO comprueba que la fuente siga existiendo):
+  -- o el escritor espera y después ve la fuente eliminada, o esta puerta espera y ve su acreditación. Tampoco se cierra el mes
+  -- mientras se decide.
+  perform pg_advisory_xact_lock(hashtext('crm.periodos_cerrados'),
+    (date_trunc('month', v_fecha::timestamp)::date - date '2000-01-01')::integer);
   -- Desde septiembre la conversión la decide el hecho de acreditación (único por fuente), que puede apuntar a un contrato
   -- distinto del leads.contrato_id del lead (auditor-rls r2, P2: 62 casos en producción). Si la fuente está acreditada
   -- (cuenta, está en un mes sellado o contará), es conversión y su lead manda; si discrepa del lead enlazado, no se decide aquí.
@@ -725,7 +752,7 @@ declare
   v_portal text;
   v_gerencia boolean;
   v_rol text;
-  v_motivo text := btrim(p_motivo);
+  v_motivo text := private.motivo_normalizado(p_motivo);
   v_ctx jsonb;
   v_no text;
   v_anulacion jsonb;
@@ -743,7 +770,7 @@ begin
   if v_rol is null then
     raise exception 'Solo admin o gerencia pueden eliminar inversiones' using errcode = '42501';
   end if;
-  if v_motivo is null or length(v_motivo) < 5 then
+  if length(v_motivo) < 5 then
     raise exception 'Escribe el motivo de la eliminación (al menos 5 caracteres)' using errcode = '22023';
   end if;
   if length(v_motivo) > 300 then
@@ -813,6 +840,7 @@ end $$;
 -- ── 9 · Permisos ───────────────────────────────────────────────────────────────────────────────────────────────────────
 revoke all on table crm.inversiones_eliminadas from public, anon, authenticated, service_role;
 revoke all on function private.proteger_inversion_eliminada() from public, anon, authenticated, service_role;
+revoke all on function private.motivo_normalizado(text) from public, anon, authenticated, service_role;
 revoke all on function private.inversion_eliminacion_autoriza(text, uuid, jsonb) from public, anon, authenticated, service_role;
 revoke all on function private.conversion_coordinar_retiro_fuente(text, uuid) from public, anon, authenticated, service_role;
 revoke all on function private.eliminar_inversion_roles(uuid) from public, anon, authenticated, service_role;
@@ -854,6 +882,9 @@ comment on column crm.inversiones_eliminadas.valvula is
   'Llave de un solo uso con la que los candados dejaron borrar las filas de ESTA copia; tras el commit no abre nada '
   '(exige además la misma transacción y filas idénticas a la copia).';
 comment on column crm.inversiones_eliminadas.transaccion is 'Transacción que creó la copia; la válvula solo vale dentro de ella.';
+comment on function private.motivo_normalizado(text) is
+  'Recorta todos los blancos de los extremos (también tabuladores, saltos de línea y los espacios Unicode que quita trim() del navegador). '
+  'Una sola definición para la puerta y el CHECK de la copia.';
 comment on function private.proteger_inversion_eliminada() is 'Candado: la copia de una inversión eliminada no se edita, borra ni vacía.';
 comment on function private.inversion_eliminacion_autoriza(text, uuid, jsonb) is
   'Válvula ÚNICA de los candados de cierres externos, depósitos reclamados y eventos de inversión para la eliminación '
@@ -915,7 +946,8 @@ begin
                   'private.inversion_motivo_no_eliminable(text,uuid,uuid)'::regprocedure, 'private.inversion_eliminacion_dependencias_conocidas()'::regprocedure,
                   'private.eliminar_inversion_cooperativa(jsonb,uuid,text,text,jsonb)'::regprocedure,
                   'private.registrar_inversion_eliminada_avance(jsonb,uuid,uuid,text,text,jsonb)'::regprocedure,
-                  'private.leads_before_update()'::regprocedure, 'private.cierre_anulado(uuid)'::regprocedure)
+                  'private.leads_before_update()'::regprocedure, 'private.cierre_anulado(uuid)'::regprocedure,
+                  'private.motivo_normalizado(text)'::regprocedure)
                   and p.proowner <> 'postgres'::regrole) then
     raise exception 'POSTFLIGHT: la copia o alguna función no es de postgres';
   end if;
