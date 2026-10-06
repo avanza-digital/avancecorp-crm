@@ -20,12 +20,48 @@ Decisiones E1–E14 y avance: `BASE PARA GESTION/BASES-CARGADAS.md`; contrato se
 
 ## Pendientes, en orden
 
-1. **Fusionar la #187.** Si GitHub pide «Update branch», el `preflight` ya arranca solo desde la #189.
-2. **B11 · conversión de contactos de base:** el cierre cuenta ENTERO pero queda FUERA del divisor (decisión de Miguel,
-   como la regla cerrada del registro manual). Toca el núcleo de conversión ⇒ plan corto y OK de Miguel
-   ANTES de escribir (CLAUDE.md, «Autonomía»). Ciclo: banco Docker → auditor-rls → Codex (máx. 2) → rama con datos (borrarla)
-   → `!` + registrador de Miguel → verificar `md5(prosrc)` → ledger → `main`. Ojo con el censo analítico (`count(` junto a
-   `crm.leads`) y con «la anulación es la única puerta» de la conversión.
+1. ✅ **#187 fusionada** (05/10 14:51 UTC, `447208e1` en `avancecorp/main`).
+2. **B11 · conversión de contactos de base — EN PAUSA (05/10), plan APROBADO, sin código escrito.** Ver «B11» abajo.
+
+## B11 — dónde quedó (05/10)
+
+**Medido en prod (solo lectura, 05/10):** el divisor (`private.conversion_episodios`) solo cuenta llegadas
+`landing`/`formulario` sin alta manual ⇒ `base_cargada` YA está fuera, y el origen no se cambia tras el alta
+(`leads_before_update`, P0409). El hueco es el numerador: `private.conversion_cierres` da 1 solo a landing/formulario ⇒ un
+cierre de base suma **0**. 0 contactos de base, 0 cierres de base, `crm.periodos_cerrados` vacía, `conversion_politica`
+activa ⇒ B11 no mueve ningún mes.
+
+**Plan aprobado por Miguel (05/10):** ayudante único `private.conversion_origen_con_cierre(origen)` (landing, formulario,
+referido, base_cargada) que reemplaza la lista copiada en: `conversion_cierres` (peso: 3.ª rama del `case` → 1; sus dos
+ramas), `registrar_ajuste_si_mes_cerrado`, `conversion_mensual_por_vendedor`, `metricas_conversiones_equipo_fn`,
+`metricas_conversiones_implementacion`, `metricas_distribucion_leads_v3_core` y la sonda de `conversion_mensual_sin_cartera_fn`.
+El divisor (`conversion_episodios`) NO se toca. Tres de ellas están en el censo analítico (`conversion_mensual_sin_cartera_fn`,
+`metricas_conversiones_implementacion`, `registrar_ajuste_si_mes_cerrado`): mover su huella en la misma fila + resellar
+(patrón de `20261001212341`). Freno: abortar si ya existe algún cierre de base.
+- Respuestas de Miguel: (1) los **armados desde el CRM** conservan su origen y su regla de siempre: B11 es solo para los
+  cargados por archivo; (2) **«Resultados por origen» SIN fila «Base cargada»** (su contrato de origen es cerrado).
+
+**🔴 Hallazgo que cambia el plan (pendiente del OK de Miguel):** «Divisor de coordinación» tiene un candado de paridad en el
+front (`app/src/lib/conversion-coordinacion.ts:204`, `sumaDePartes` = formulario + landing + referido_aporte + upgrade +
+renovacion_aporte = numerador bruto). `private.conversion_divisor_empresa` mete los cierres de base en `cierres_otros`
+(«no pesan»): con B11 la suma no cuadra y la pantalla se niega a pintar. Propuesta: columna `cierres_base_cargada` en
+`conversion_divisor_empresa` (drop + create: cambia RETURNS TABLE) y clave `base_cargada` en `cierres` de
+`crm.conversion_divisor_coordinacion_fn`; front: clave opcional (0), sumada en `sumaDePartes` y pintada. **Pantalla
+PRIMERO, servidor después.** Los demás candados del front (conversión mensual, Rendimiento, Inteligencia comercial) siguen
+cuadrando con el ayudante único.
+
+**Entorno (aislado):**
+- Worktree `AVANCECORP-desktop-worktrees/bases-cargadas-b11-20261005`, rama `crm/bases-cargadas-b11` sobre `avancecorp/main`
+  `b286b2bf` (limpio, sin cambios).
+- Banco: stack Docker `avancecorp-b10-20261004` (volúmenes conservados, PARADO), puertos API 58221 / DB 58222. Se le
+  aplicaron B10, `20260925170437` y `20261003225551` ⇒ **922/922 funciones `crm`+`private` idénticas a prod** (huella
+  `md5(prosrc‖proconfig‖prosecdef)`, 05/10). Para levantarlo: un `config.toml` con `project_id = "avancecorp-b10-20261004"`,
+  `[api] port = 58221`, `[db] port = 58222`, `shadow_port = 58220`, `[db.migrations] enabled = false`, realtime/studio/smtp/
+  analytics apagados, y `supabase start --ignore-health-check`. Antes de usarlo, volver a comparar huellas con prod.
+
+**Siguiente paso:** OK de Miguel al hallazgo → migración + suite SQL + mutantes en el banco → cambio de pantalla → auditor-rls
+→ Codex (`scripts/codex-review-mcp`) → rama con datos (paridad antes/después de Rendimiento, Equipo, Distribución, Metas y
+Divisor de coordinación de ago/sep/oct) → publicar pantalla → `!` de Miguel → md5 → ledger → `main`.
 3. **Limpieza (con OK de Miguel):** bancos Docker parados con volúmenes `supabase_*_avancecorp-b6b-20261003` y
    `supabase_*_avancecorp-b10-20261004`; worktrees `AVANCECORP-desktop-worktrees/base-gestion-b6b-20261003` (rama
    `crm/bases-cargadas-b9`), `bases-cargadas-b10-20261004` (`crm/bases-cargadas-b10`) y `base-gestion-front-20261002`
