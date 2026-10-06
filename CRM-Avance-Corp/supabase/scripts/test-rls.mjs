@@ -17786,9 +17786,17 @@ async function testLlamadasCelular(sessions, seed) {
     const saludG = await rpc('gerencia', 'celulares_salud_fn');
     const saludS2 = await rpc('sup2', 'celulares_salud_fn');
     const fila = (saludG.data ?? []).find((a) => a.asignacion_id === cel.asignacion_id);
-    check(!saludG.error && Boolean(fila?.ultimo_latido_en) && !('envios_hoy' in (fila ?? {})) && !('ultimo_envio_en' in (fila ?? {}))
+    // Con la undécima (20261006150254, en el #198) la salud ya no trae horas exactas: el latido delataba la hora de la
+    // última llamada. Antes de ella, el latido sale con su hora.
+    const saludSinHora = cuenta('salud sin hora (undécima)', "select case when strpos(pg_get_functiondef("
+      + "'private.celulares_salud_listar(uuid)'::regprocedure), 'estado_latido') > 0 then 1 else 0 end") === 1;
+    check(!saludG.error && (saludSinHora
+      ? fila?.estado_latido === 'al_dia' && Number.isInteger(fila?.horas_sin_latido)
+        && !('ultimo_latido_en' in (fila ?? {})) && !('latido_celular_en' in (fila ?? {}))
+      : Boolean(fila?.ultimo_latido_en))
+      && !('envios_hoy' in (fila ?? {})) && !('ultimo_envio_en' in (fila ?? {}))
       && !saludS2.error && !JSON.stringify(saludS2.data ?? '').includes(cel.asignacion_id),
-    'salud: gerencia ve el latido sin envíos ni último envío (N1); sup2 (otro equipo) no ve el celular');
+    `salud: gerencia ve ${saludSinHora ? 'el estado del latido sin horas exactas (undécima)' : 'el latido'} sin envíos ni último envío (N1); sup2 (otro equipo) no ve el celular`);
 
     // ── Ámbito de lectura (la bandeja paginada es la única): dueño, su supervisión y gerencia sí; otro equipo no ──
     for (const [quien, debe] of [['vend1', true], ['sup1', true], ['gerencia', true], ['vend3', false], ['sup2', false]]) {
@@ -17901,17 +17909,31 @@ async function testLlamadasCelular(sessions, seed) {
     await expectExplicitAuthorizationDenied('v5: vend3 no registra por el lead de vend1', rpc('vend3', 'registrar_llamada_v5', {
       p_operacion_id: randomUUID(), p_lead_id: leadId, p_resultado: 'no_contesto', p_evento_origen_id: idAntes, p_via: 'al_colgar' }));
 
-    // ── Lecturas de F4-b (octava 20261005201010 + novena 20261005224330): «Qué pasó hoy» (paginada, por la hora en que
-    // se resolvió) y la marca «Celular». Se publican con F4-b, no con las siete: sin las dos, el tramo se salta (o
-    // falla con CRM_RLS_EXIGE_LLAMADAS_F4B=1). ──
+    // ── Lecturas de F4-b (#198: octava 20261005201010, novena 20261005224330, décima 20261006150154 y undécima
+    // 20261006150254): «Qué pasó hoy» (paginada, por la hora en que se resolvió), la marca «Celular» y el id de origen
+    // en la bandeja y el detalle. Se publican con F4-b, no con las siete: sin las cuatro, el tramo se salta (o falla con
+    // CRM_RLS_EXIGE_LLAMADAS_F4B=1). ──
     const conLecturas = contarFueraDeBanda('Llamadas del celular: lecturas de F4-b',
       "select case when to_regprocedure('crm.actividades_con_llamada_celular_fn(uuid[])') is not null"
-      + " and to_regprocedure('crm.llamadas_celular_resueltas_hoy_fn(integer,timestamptz,uuid)') is not null then 1 else 0 end") === 1;
+      + " and to_regprocedure('crm.llamadas_celular_resueltas_hoy_fn(integer,timestamptz,uuid)') is not null"
+      + " and strpos(pg_get_functiondef('private.llamadas_celular_bandeja(uuid,integer,timestamptz,uuid)'::regprocedure), 'evento_origen_id') > 0"
+      + " and strpos(pg_get_functiondef('private.celulares_salud_listar(uuid)'::regprocedure), 'estado_latido') > 0 then 1 else 0 end") === 1;
     if (!conLecturas) {
-      const msg = '⚠ Lecturas de F4-b (octava + novena) no instaladas: SALTADAS (no probado)';
+      const msg = '⚠ Lecturas de F4-b (octava a undécima) no instaladas: SALTADAS (no probado)';
       if (process.env.CRM_RLS_EXIGE_LLAMADAS_F4B === '1') fail(msg);
       else console.log(`  ${msg}`);
     } else {
+      // Décima: la bandeja y el detalle traen el id de origen, que la pestaña usa para registrar por la v5.
+      const idOrigen = idDe(cel.etiqueta);
+      const rOrigen = await ingerir(cel.credencial, evento(idOrigen));
+      const evOrigen = eventoDe(idOrigen);
+      if (evOrigen) eventos.push(evOrigen.id);
+      const bOrigen = await rpc('vend1', 'llamadas_celular_bandeja_fn', { p_limite: 200 });
+      const filaOrigen = (bOrigen.data?.filas ?? []).find((f) => f.evento_id === evOrigen?.id);
+      const detOrigen = evOrigen ? await rpc('vend1', 'llamada_celular_detalle_fn', { p_evento_id: evOrigen.id }) : null;
+      check(aceptado(rOrigen) && filaOrigen?.evento_origen_id === idOrigen && detOrigen?.data?.evento_origen_id === idOrigen,
+        'bandeja y detalle: traen el id de origen del celular (décima)',
+        `${errorText(bOrigen.error)} / ${errorText(detOrigen?.error)} / ${JSON.stringify(filaOrigen ?? null)}`);
       // Todas las páginas de «Qué pasó hoy», con el cursor tal cual lo devuelve cada una.
       const resueltasHoy = async (quien) => {
         const filas = [];

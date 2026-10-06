@@ -470,7 +470,9 @@ begin
   -- ═════ K. Salud sin envíos; la bandeja vieja ya no existe; la puerta solo devuelve resultado y mensaje ═════
   perform pg_temp.como(g1); v_salud := crm.celulares_salud_fn(); perform pg_temp.yo();
   if exists (select 1 from jsonb_array_elements(v_salud) x where x ? 'envios_hoy' or x ? 'ultimo_envio_en')
-     or not exists (select 1 from jsonb_array_elements(v_salud) x where x ->> 'etiqueta' = 'C4' and x ? 'ultimo_latido_en') then
+     -- Con la undécima (20261006150254) la salud da el estado del latido en vez de su hora exacta; sin ella, la hora.
+     or not exists (select 1 from jsonb_array_elements(v_salud) x where x ->> 'etiqueta' = 'C4'
+                    and (x ? 'ultimo_latido_en' or x ->> 'estado_latido' = 'al_dia')) then
     raise exception 'ORACULO K1: la salud muestra envíos o perdió el latido (%)', v_salud;
   end if;
   if to_regprocedure('crm.llamadas_celular_pendientes_fn(integer)') is not null then

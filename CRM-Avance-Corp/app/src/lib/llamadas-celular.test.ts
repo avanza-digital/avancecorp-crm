@@ -22,7 +22,7 @@ const resuelta = (extra: Partial<ResueltaHoy> = {}): ResueltaHoy => ({
 })
 
 describe('contrato de las puertas de llamadas del celular', () => {
-  it('la bandeja valida sus filas; el id de la llamada es opcional (la de F3-a todavía no lo trae)', () => {
+  it('la bandeja valida sus filas; el id de la llamada es opcional (llega con la décima)', () => {
     const ok = v.safeParse(BandejaSchema, { filas: [fila(), { ...fila(), evento_id: 'e9', evento_origen_id: 'C1-1791226934' }], siguiente: null })
     expect(ok.success).toBe(true)
     expect(v.safeParse(BandejaSchema, { filas: [{ ...fila(), atencion: 'otra' }], siguiente: null }).success).toBe(false)
@@ -45,6 +45,9 @@ describe('contrato de las puertas de llamadas del celular', () => {
     expect(v.safeParse(MarcaCelularSchema, [{ actividad_id: 'a', evento_id: 'e', etiqueta: 'C1', via: 'adivinada' }]).success).toBe(false)
     const { evento_id: _e, ...sinId } = { ...fila(), calidad: {}, metodo_asociacion: 'exacto', motivo_descarte: null, motivo_descarte_detalle: null, actividad_id: null, efectos_anulados: false }
     expect(v.safeParse(DetalleLlamadaSchema, { evento_id: 'e1', ...sinId }).success).toBe(true)
+    // Con la décima el detalle trae el id de origen; sin ella, no (los dos valen).
+    expect(v.safeParse(DetalleLlamadaSchema, { evento_id: 'e1', evento_origen_id: 'C1-1791226934', ...sinId }).success).toBe(true)
+    expect(v.safeParse(DetalleLlamadaSchema, { evento_id: 'e1', evento_origen_id: 17, ...sinId }).success).toBe(false)
   })
 
   it('el enlace de la v5: null sin id; los cinco estados; un motivo desconocido se rechaza', () => {

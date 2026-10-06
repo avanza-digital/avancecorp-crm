@@ -27,9 +27,9 @@ export type MotivoDescarte = (typeof MOTIVOS_DESCARTE)[number]['clave']
 export const FilaBandejaSchema = v.object({
   evento_id: v.string(),
   /**
-   * El id que puso el celular (`C1-1790980958`). La bandeja de F3-a todavía NO lo devuelve: sin él, registrar desde la
-   * pestaña no se une exacto (la llamada sigue pendiente y se une con «¿Es este su resultado?»). Opcional para que la
-   * pantalla funcione antes y después de que la base lo agregue (F4B-PLAN-CORTO.md).
+   * El id que puso el celular (`C1-1790980958`). Lo agrega la décima (20261006150154): con él, registrar desde la
+   * pestaña llama a la v5 y la llamada queda unida. Sin la décima no llega y la llamada sigue pendiente (se une con
+   * «¿Es este su resultado?»). Opcional para que la pantalla funcione antes y después de aplicarla.
    */
   evento_origen_id: v.optional(v.string()),
   recibido_en: v.string(),
@@ -58,6 +58,8 @@ export type Bandeja = v.InferOutput<typeof BandejaSchema>
 
 export const DetalleLlamadaSchema = v.object({
   evento_id: v.string(),
+  /** El id que puso el celular; lo agrega la décima (20261006150154), como en la bandeja. */
+  evento_origen_id: v.optional(v.string()),
   recibido_en: v.string(),
   ocurrio_en: v.nullable(v.string()),
   numero: v.nullable(v.string()),

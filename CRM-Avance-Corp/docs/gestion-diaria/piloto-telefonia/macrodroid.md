@@ -105,10 +105,6 @@ Pantalla principal de MacroDroid → recuadro **«Variables globales»** → bot
 - **Acciones**, en este orden (lo sangrado va **dentro** del bloque de arriba; en pantalla se ve corrido a la derecha):
   ```
   Espera antes de la siguiente acción: 10 s («Usar alarma» ✓)       (categoría Macros)
-  Fijar Variable: habia (local, Entera) = 0                          (05/10, para el latido)
-  Iterar Diccionario/Arreglo: cola_llamadas → «Este Diccionario»
-      Fijar Variable: habia = {lv=habia} + 1                         (valor como expresión; confirmar en pantalla)
-  Fin de Bucle
   Iterar Diccionario/Arreglo: cola_llamadas → «Este Diccionario»     (Condiciones/Bucles)
       Fijar Variable: codigo (local, entera) = 0
       Solicitud HTTP (POST)
@@ -126,14 +122,7 @@ Pantalla principal de MacroDroid → recuadro **«Variables globales»** → bot
       Fijar Variable: quedan = {lv=quedan} + 1
   Fin de Bucle
   Fijar Variable: desde_latido (local, Entera) = {system_time} - {v=ultimo_latido}
-  Fijar Variable: toca (local, Booleana) = Falso
-  Si desde_latido >= 21600                                            (6 h)
-      Fijar Variable: toca = Verdadero
-  Fin de Si
-  Si habia > 0 y quedan = 0                                           (la cola se acaba de vaciar; dos condiciones «Y»)
-      Fijar Variable: toca = Verdadero
-  Fin de Si
-  Si toca = Verdadero
+  Si desde_latido >= 21600                                            (6 h: el latido sale SOLO por tiempo, ver abajo)
       Fijar Variable: codigo_latido (local, Entera) = 0
       Solicitud HTTP (POST): la misma URL y la misma clave; cuerpo = el latido (abajo); código → codigo_latido
       Si codigo_latido = 200
@@ -149,6 +138,14 @@ Pantalla principal de MacroDroid → recuadro **«Variables globales»** → bot
   ```
   {"accion":"latido","latido":{"v":1,"version_macro":"llamadas-v2","en_cola":{lv=quedan},"ocurrio_en":"{datetime}-05:00"}}
   ```
+  **06/10 — el latido sale solo cada 6 h, nunca al vaciarse la cola** (decisión de Jhosep tras el análisis de F4-e).
+  Antes también salía cuando la cola se acababa de vaciar; como la cola recibe toda llamada saliente, personales
+  incluidas, la hora del latido era casi la de la última llamada y la tarjeta de salud la mostraba (la misma fuga que la
+  N1). Ahora el latido no sigue a las llamadas, y además el servidor ya no muestra horas exactas (undécima,
+  `20261006150254`). Si «Enviar cola» se dispara por una llamada justo cuando vencen las 6 h, el latido puede salir
+  pegado a esa llamada: por eso el servidor solo da horas enteras. Al armarla: borrar `habia` y su «Iterar», y la
+  condición «Si habia > 0 y quedan = 0»; la variable `toca` ya no hace falta.
+
   La base exige esas cuatro claves. `version_macro` admite de 1 a 40 letras, dígitos, espacios y `. _ -`; `en_cola`, de 0 a 100000. Responde **200**, no 202. El latido gasta del mismo cupo que las llamadas (30 por minuto, 600 por día). Con `ultimo_latido` en 0, la primera vuelta ya manda un latido. **Decisión de Claude (05/10), para Jhosep y Miguel:** con un 400 también se anota la hora del latido, para no reintentar cada 5 minutos un latido mal armado y gastar el cupo compartido; la notificación avisa que hay que revisar la macro.
 - **«Solicitud HTTP»:** método **POST**; la URL del servidor; «Bloquear las siguientes acciones hasta completar» ✓; «Guardar el código de retorno HTTP en una variable entera» → `codigo`; pestaña **«Cuerpo del Contenido»**: tipo `application/json`, Texto `{iterator_value}`; pestaña **«Parámetros de Encabezado»**: solo `x-celular-credencial` = la clave (**no** añadir `Content-Type` a mano: lo pone el tipo de contenido y duplicado daría 415).
 - **Trampas vistas al armarla:**
@@ -215,7 +212,7 @@ Cuando F4-b esté publicado (F1 lleva el id hasta la encuesta y la encuesta llam
 | # | Caso | Esperado |
 | --- | --- | --- |
 | L1 | Primera vuelta de «Enviar cola» tras armar el latido | Un latido (200) con `en_cola` 0; en el receptor, `/_estado` suma uno en `latidos` |
-| L2 | Una saliente sin red y vuelta de la red | El aviso (202) y después un latido con `en_cola` 0 |
+| L2 | Una saliente sin red y vuelta de la red | El aviso (202) y **ningún** latido extra: el latido ya no sigue a la cola (06/10) |
 | L3 | Seis horas sin llamadas | Anotar la hora del siguiente latido |
 | L4 | Entrada a mano con otra etiqueta (`C9-` + segundos actuales), como A5. **Solo contra la Edge** | 400 → `errores_llamadas`, notificación sin número; la cola sigue |
 
@@ -314,7 +311,8 @@ no atendida:  {"accion":"llamada","evento":{"v":1,"evento_origen_id":"{v=id_entr
 `{v=…}` es el texto mágico de una variable **global**; el `{lv=…}` de §3c es el de una local. La hora es la del timbre: así el aviso de «Perdida» y el de «Al colgar» son idénticos.
 
 ### Paso 7 — «Llamadas-Enviar cola» (ya existe): el latido (ya en §3c desde el 05/10)
-Queda aquí como referencia del diseño del 03/10; la versión vigente, con el manejo del 400, es la de §3c. Después de `Fin de Bucle`:
+Queda aquí como referencia del diseño del 03/10; la versión vigente, con el manejo del 400 y **sin el disparo al
+vaciarse la cola** (06/10: delataba la hora de la última llamada), es la de §3c. Después de `Fin de Bucle`:
 ```
 Fijar Variable: quedan (local, Entera) = 0
 Iterar Diccionario/Arreglo: cola_llamadas
