@@ -22,7 +22,7 @@ for (const ancho of [1440,390]) test(`Admin elimina inversión vinculada con con
   })
   await loginReal(page);await irAMiCartera(page)
   await page.setViewportSize({width:ancho,height:ancho===390?844:1000})
-  if(ancho===390) await page.getByRole('button',{name:'Ocultar menú'}).click()
+  if(ancho===390) await expect(page.getByRole('navigation',{name:'Navegación principal de Gerencia'})).toBeVisible()
   await page.getByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}).click()
   const eliminar=page.getByRole('button',{name:'Eliminar contrato 2026-01-999999'})
   await eliminar.click()

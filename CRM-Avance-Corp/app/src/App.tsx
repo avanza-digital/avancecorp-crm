@@ -10,6 +10,7 @@ import {
 } from 'react'
 import { DatabaseZap, Hourglass, LogOut, RotateCcw, WifiOff, type LucideIcon } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
+import { useEsMovil } from '@/lib/media'
 import { vincularCuentaPushTasa } from '@/lib/notificaciones-tasa'
 import { usePanelesActions, usePanelesState, useStoreEstado } from '@/lib/store-context'
 import { funcionesLeadsVisibles } from '@/lib/config'
@@ -329,6 +330,8 @@ function ErrorCargaReal({ onReintentar }: { onReintentar: () => void }) {
 
 function Workspace() {
   const { yo } = useAuth()
+  const esMovil = useEsMovil()
+  const navegacionInferior = esMovil && yo?.rol === 'gerencia'
   useEffect(() => {
     vincularCuentaPushTasa(yo?.rol === 'gerencia' && !yo.demo ? yo.id : null)
   }, [yo?.id, yo?.rol, yo?.demo])
@@ -460,9 +463,9 @@ function Workspace() {
   return (
     <GestionDiariaAvisosProvider key={`${yo?.id}:${yo?.rol}`}><AlertasCRMProvider>
       <RespuestasTasaProvider>
-      <div className="relative z-10 flex h-svh overflow-hidden">
-        <Sidebar vista={vista} onNavegar={navegarDesdeUI} />
-        <main className="ac-scroll flex min-w-0 flex-1 flex-col" tabIndex={-1}>
+      <div className={`relative z-10 flex h-svh overflow-hidden${navegacionInferior ? ' flex-col' : ''}`}>
+        <Sidebar vista={vista} onNavegar={navegarDesdeUI} movil={navegacionInferior} />
+        <main className={`ac-scroll flex min-w-0 flex-1 flex-col${navegacionInferior ? ' min-h-0' : ''}`} tabIndex={-1}>
           <PeriodoGerenciaProvider>
             <Topbar
               vista={vista}

@@ -24,7 +24,7 @@ test('F7: a 320 px las tablas desplazan dentro del panel', async ({ page }) => {
   await entrarDemo(page, 'Gerencia')
   await irAModulo(page, 'Empresas')
   await page.setViewportSize({ width: 320, height: 780 })
-  await page.getByRole('button', { name: 'Ocultar menú', exact: true }).click()
+  await expect(page.getByRole('navigation', { name: 'Navegación principal de Gerencia' })).toBeVisible()
   await page.getByLabel('Mes de producción', { exact: true }).click()
   await expect(page.getByRole('table', { name: 'Capital por empresa y moneda' })).toBeVisible()
   const exceso = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
