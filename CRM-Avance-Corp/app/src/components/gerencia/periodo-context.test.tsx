@@ -139,6 +139,19 @@ describe('periodo mensual de rankings', () => {
 })
 
 describe('PeriodoGerenciaProvider', () => {
+  it('sincroniza el mes al volver a una PWA suspendida, conservando un período histórico manual', () => {
+    vi.setSystemTime(ANTES_DE_MEDIANOCHE_LIMA)
+    montarProveedor()
+    vi.setSystemTime(new Date('2026-08-02T15:00:00Z'))
+    fireEvent(window, new Event('focus'))
+    expect(screen.getByLabelText('Desde aplicado')).toHaveTextContent('2026-08-01')
+    expect(screen.getByLabelText('Día de Lima')).toHaveTextContent('2026-08-02')
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar rango personalizado' }))
+    vi.setSystemTime(new Date('2026-09-01T15:00:00Z'))
+    fireEvent(document, new Event('visibilitychange'))
+    expect(screen.getByLabelText('Desde aplicado')).toHaveTextContent('2026-06-01')
+    expect(screen.getByLabelText('Día de Lima')).toHaveTextContent('2026-09-01')
+  })
   it('actualiza automáticamente el período por defecto al cruzar medianoche de Lima', () => {
     vi.setSystemTime(ANTES_DE_MEDIANOCHE_LIMA)
     montarProveedor()

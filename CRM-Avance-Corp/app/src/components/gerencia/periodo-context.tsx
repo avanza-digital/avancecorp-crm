@@ -54,16 +54,35 @@ export function PeriodoGerenciaProvider({ children }: { children: ReactNode }): 
   useEffect(() => {
     let temporizador: ReturnType<typeof setTimeout>
 
+    const sincronizar = (): void => {
+      setDiaLima(fechaLima(Date.now()))
+      if (automaticoRef.current) setPeriodoInterno(anterior => {
+        const actual = periodoInicialGerencia()
+        return mismoPeriodo(anterior, actual) ? anterior : actual
+      })
+    }
+
     const programarSiguienteDia = (): void => {
       temporizador = setTimeout(() => {
-        setDiaLima(fechaLima(Date.now()))
-        if (automaticoRef.current) setPeriodoInterno(periodoInicialGerencia())
+        sincronizar()
         programarSiguienteDia()
       }, milisegundosHastaMedianocheLima(Date.now()))
     }
 
     programarSiguienteDia()
-    return () => clearTimeout(temporizador)
+    const alVolver = (): void => {
+      if (document.visibilityState !== 'visible') return
+      sincronizar()
+      clearTimeout(temporizador)
+      programarSiguienteDia()
+    }
+    window.addEventListener('focus', alVolver)
+    document.addEventListener('visibilitychange', alVolver)
+    return () => {
+      clearTimeout(temporizador)
+      window.removeEventListener('focus', alVolver)
+      document.removeEventListener('visibilitychange', alVolver)
+    }
   }, [])
 
   const value = useMemo(

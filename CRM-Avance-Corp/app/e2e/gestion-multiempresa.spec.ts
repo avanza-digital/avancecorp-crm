@@ -38,7 +38,7 @@ for(const ancho of [1440,390]){
   test(`contacto neutral ${ancho}px: guarda, conserva filtro y vuelve al foco de la ficha`,async({page},info)=>{
     const estado=await montar(page)
     await page.setViewportSize({width:ancho,height:ancho===390?844:1000})
-    if(ancho===390)await page.getByRole('button',{name:'Ocultar menú'}).click()
+    if(ancho===390)await expect(page.getByRole('navigation',{name:'Navegación principal de Gerencia'})).toBeVisible()
     await page.getByLabel('Buscar persona').fill('9333')
     await page.getByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}).click()
     await page.getByRole('button',{name:'Datos y correcciones'}).click()
@@ -64,7 +64,7 @@ for(const ancho of [1440,390]){
   test(`detalle Avance ${ancho}px: cronograma y corrección puntual sin recargar la cartera`,async({page},info)=>{
     const estado=await montar(page,true)
     await page.setViewportSize({width:ancho,height:ancho===390?844:1000})
-    if(ancho===390)await page.getByRole('button',{name:'Ocultar menú'}).click()
+    if(ancho===390)await expect(page.getByRole('navigation',{name:'Navegación principal de Gerencia'})).toBeVisible()
     await page.getByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}).click()
     await page.getByRole('button',{name:'Ver inversión 2026-01-000123'}).click()
     const antes=estado.listasContrato

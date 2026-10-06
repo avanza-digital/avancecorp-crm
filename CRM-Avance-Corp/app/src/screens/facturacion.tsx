@@ -358,7 +358,7 @@ function FilaAnalista({
             aria-label={`Ver el mes completo de ${fila.nombre}`}
             className="flex min-h-9 min-w-0 flex-1 items-center gap-2.5 py-1 pr-3 text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
           >
-            <Avatar nombre={fila.nombre} className="size-7 shrink-0" />
+            <Avatar nombre={fila.nombre} className="facturacion-analista-avatar size-7 shrink-0" />
             <span className="min-w-0">
               <span className="block truncate text-[13px] font-semibold">{fila.nombre}</span>
               {subtitulo != null && (
@@ -1237,6 +1237,7 @@ export function Facturacion({
       <Card className="overflow-hidden p-0">
         <SectionHead
           icon={Receipt}
+          className="facturacion-malla-titulo"
           title={
             comparando
               ? `Comparando ${numero(filtro.analistas.length)} analista${filtro.analistas.length === 1 ? '' : 's'}, día a día`
@@ -1639,8 +1640,8 @@ export function Facturacion({
                 </>
               ) : (
                 <>
-                  ↔ Desplaza la malla para ver el mes entero. Los nombres, la cabecera de días y el
-                  total quedan fijos. Marca la casilla de un analista para verlo solo, o la de
+                  ↔ Desplaza la malla para ver el mes entero. Los nombres y la cabecera de días
+                  quedan fijos; el total está al final de cada fila. Marca la casilla de un analista para verlo solo, o la de
                   varios para compararlos uno debajo de otro.
                 </>
               )}

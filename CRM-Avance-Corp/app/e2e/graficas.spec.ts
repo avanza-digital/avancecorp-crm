@@ -69,7 +69,7 @@ test.describe('resumen de Gerencia en sesión real', () => {
     await expect(page.getByText('Datos de ejemplo')).toHaveCount(0)
     await page.screenshot({ path: testInfo.outputPath('resumen-desktop.png'), fullPage: true, animations: 'disabled' })
     await page.setViewportSize({ width: 390, height: 844 })
-    await page.getByRole('button', { name: 'Ocultar menú', exact: true }).click()
+    await expect(page.getByRole('navigation', { name: 'Navegación principal de Gerencia' })).toBeVisible()
     await page.mouse.move(380, 70)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)
     await page.screenshot({ path: testInfo.outputPath('resumen-mobile.png'), fullPage: true, animations: 'disabled' })

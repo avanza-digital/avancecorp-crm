@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
+import './version-publicada.css'
 import { Button } from '@/components/ui/button'
 import {
   consultarVersionPublicada,
@@ -38,6 +39,18 @@ export function VersionPublicadaAviso({
 }: VersionPublicadaAvisoProps = {}) {
   const [buildPublicado, setBuildPublicado] = useState<string | null>(null)
   const [archivoObsoleto, setArchivoObsoleto] = useState(false)
+  const [minimizado, setMinimizado] = useState(false)
+  const accionVisible = useRef<HTMLButtonElement>(null)
+  const devolverFoco = useRef(false)
+  function presentarMinimizado(valor: boolean) {
+    devolverFoco.current = true
+    setMinimizado(valor)
+  }
+  useEffect(() => {
+    if (!devolverFoco.current) return
+    accionVisible.current?.focus()
+    devolverFoco.current = false
+  }, [minimizado])
 
   useEffect(() => {
     if (!activo) return
@@ -103,11 +116,12 @@ export function VersionPublicadaAviso({
 
   return (
     <aside
-      className="fixed inset-x-3 bottom-3 z-[100] mx-auto flex max-w-2xl flex-col gap-3 rounded-2xl border border-primary/20 bg-card p-4 shadow-[0_18px_50px_rgba(15,30,61,0.24)] sm:flex-row sm:items-center"
+      className="crm-version fixed inset-x-3 bottom-3 z-[100] mx-auto flex max-w-2xl flex-col gap-3 rounded-2xl border border-primary/20 bg-card p-4 shadow-[0_18px_50px_rgba(15,30,61,0.24)] sm:flex-row sm:items-center"
       role="status"
       aria-live="polite"
       aria-label="Nueva versión del CRM disponible"
     >
+      {minimizado ? <Button ref={accionVisible} type="button" variant="outline" onClick={() => presentarMinimizado(false)}><RefreshCw aria-hidden />Ver actualización disponible</Button> : <>
       <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
         <RefreshCw className="size-5" aria-hidden />
       </span>
@@ -117,9 +131,12 @@ export function VersionPublicadaAviso({
           Guarda lo que estés editando y actualiza para ver los últimos cambios. Esta pantalla no se recargará sola.
         </p>
       </div>
+      <div className="crm-version-acciones flex flex-wrap gap-2">
+      <Button ref={accionVisible} type="button" variant="ghost" onClick={() => presentarMinimizado(true)}>Más tarde</Button>
       <Button type="button" className="shrink-0" onClick={actualizar}>
         Ya guardé, actualizar
       </Button>
+      </div></>}
     </aside>
   )
 }

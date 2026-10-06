@@ -70,6 +70,22 @@ export const FichaInversionistaSchema = v.object({
   tareas: v.array(v.object({id: Uuid, tipo: v.string(), titulo: v.string(), vence_en: v.string(), estado: v.string()})),
   tareas_total: Entero,
 })
+/** Acuse de crm.eliminar_inversion_fn. Estricto: una clave de más o un tipo distinto es otra respuesta. */
+export const InversionEliminadaSchema = v.strictObject({
+  ok: v.literal(true), fuente_id: Uuid, empresa: Empresa, auditoria_id: Uuid,
+  conversion_anulada: v.boolean(), mes_cerrado: v.boolean(),
+})
+/** Espejo del CHECK de crm.inversiones_eliminadas: length(btrim(motivo)) between 5 and 300. */
+export const MOTIVO_ELIMINACION_MIN = 5
+export const MOTIVO_ELIMINACION_MAX = 300
+/** Caracteres como los cuenta Postgres (`length`): un emoji es uno, no dos unidades UTF-16. */
+export function largoMotivoEliminacion(motivo: string): number {
+  return Array.from(motivo.trim()).length
+}
+export function motivoEliminacionValido(motivo: string): boolean {
+  const largo = largoMotivoEliminacion(motivo)
+  return largo >= MOTIVO_ELIMINACION_MIN && largo <= MOTIVO_ELIMINACION_MAX
+}
 export type EstadoCarteraInversionistas = v.InferOutput<typeof EstadoCarteraInversionistasSchema>
 export type FilaInversionista = v.InferOutput<typeof FilaInversionistaSchema>
 export type CarteraInversionistas = v.InferOutput<typeof CarteraInversionistasSchema>

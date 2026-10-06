@@ -165,6 +165,13 @@ import {
 import type { Vista } from '@/lib/router'
 import { EnteroNoNegativoRpcSchema, FechaSchema, NumeroRpcSchema } from '@/lib/esquemas-rpc'
 import { presentarCitas } from '@/lib/terminologia'
+import {
+  InversionEliminadaSchema,
+  MOTIVO_ELIMINACION_MAX,
+  MOTIVO_ELIMINACION_MIN,
+  motivoEliminacionValido,
+  type EmpresaInversion,
+} from '@/lib/inversionistas'
 import { conGestionVigente } from './gestion-vigente'
 
 export type { DisponibilidadLead, ResultadoCreacionLeadAtomica, ResultadoTomaLead } from '@/lib/disponibilidad-lead'
@@ -6769,6 +6776,97 @@ export async function anularCierreAvance(datos: AnularCierreAvanceDatos): Promis
     leadId: respuesta.output.lead_id,
     contratosAfectados: respuesta.output.contratos_afectados,
     afectaCuota: respuesta.output.afecta_cuota,
+  }
+}
+
+// ─── Eliminar inversión (admin o gerencia, 05/10/2026) ───────────────────────
+// crm.eliminar_inversion_fn borra una inversión EQUIVOCADA de cualquiera de las
+// tres empresas y deja una copia inmutable con el motivo y su autor. Quién puede
+// lo decide el servidor: admin/superadmin del portal o gerencia; en Avance solo
+// el admin del portal; la conversión de un lead solo gerencia (la anula y la
+// elimina en un paso). Con historia propia (renovación, upgrade, retiro…) no se
+// elimina: eso no es un registro equivocado.
+
+export interface InversionEliminadaResultado {
+  auditoriaId: string
+  empresa: EmpresaInversion
+  /** Era la conversión de un lead y esta misma operación la anuló. */
+  conversionAnulada: boolean
+  /** La conversión anulada pertenecía a un mes cerrado: el ajuste va al mes vivo. */
+  mesCerrado: boolean
+}
+
+/**
+ * Los RAISE de la puerta (42501, 22023, P0002, P0409, PT409, 55000) ya llegan en
+ * español de negocio y sin datos personales: se muestran tal cual. Solo se
+ * reescribe lo que Postgres redacta en inglés (permiso del catálogo, bloqueos) y
+ * el corte de red, que no prueba que la eliminación fallara.
+ */
+function aErrorEliminarInversion(error: { code?: string | null; message?: string | null }): CrmApiError {
+  const pg = error.code ?? ''
+  const texto = error.message?.trim() ?? ''
+  let code = 'POSTGREST_ERROR'
+  let mensaje = 'No se pudo eliminar la inversión.'
+  if (pg === '') {
+    code = 'RESPUESTA_NO_RECIBIDA'
+    mensaje = 'No llegó la respuesta del servidor y la inversión pudo eliminarse. Comprueba tu conexión y vuelve a abrir la ficha antes de reintentar.'
+  } else if (pg === '42501' || pg === 'PGRST301') {
+    code = 'SIN_PERMISO'
+    // «permission denied for function …» es del catálogo (falta un GRANT), no un mensaje de la puerta.
+    mensaje = pg === '42501' && texto && !texto.startsWith('permission denied')
+      ? texto : 'No tienes permiso para eliminar esta inversión.'
+  } else if (pg === 'P0002') {
+    code = 'NO_ENCONTRADA'
+    mensaje = texto || 'La inversión no existe o ya fue eliminada.'
+  } else if (pg === 'P0409' || pg === '55000') {
+    code = 'CONFLICTO'
+    if (texto) mensaje = texto
+  } else if (pg === '22023' || pg === 'P0001') {
+    code = 'REGLA_SERVIDOR'
+    if (texto) mensaje = texto
+  } else if (pg === 'PT409' || pg === '55P03' || pg === '40001' || pg === '40P01') {
+    code = 'REINTENTAR'
+    mensaje = pg === 'PT409' && texto ? texto : 'Otra operación está usando esta inversión. Vuelve a intentarlo en unos segundos.'
+  }
+  const fallo = new CrmApiError(mensaje, code)
+  registrarError('crm.inversiones.eliminar_fallido', fallo, { pg })
+  return fallo
+}
+
+/** Elimina la inversión de la fuente (contrato de Avance o cierre de cooperativa) con su motivo. */
+export async function eliminarInversion(fuenteId: string, motivo: string): Promise<InversionEliminadaResultado> {
+  if (!v.safeParse(UuidSchema, fuenteId).success) {
+    throw new CrmApiError('El identificador de la inversión no es válido.', 'INVERSION_FUENTE_INVALIDA')
+  }
+  const limpio = motivo.trim()
+  if (!motivoEliminacionValido(limpio)) {
+    throw new CrmApiError(
+      `Escribe el motivo de la eliminación (de ${MOTIVO_ELIMINACION_MIN} a ${MOTIVO_ELIMINACION_MAX} caracteres).`,
+      'INVERSION_MOTIVO_INVALIDO',
+    )
+  }
+
+  const { data, error } = await cliente().schema('crm').rpc('eliminar_inversion_fn', {
+    p_fuente_id: fuenteId,
+    p_motivo: limpio,
+  })
+  if (error) throw aErrorEliminarInversion(error)
+
+  const respuesta = v.safeParse(InversionEliminadaSchema, data)
+  if (!respuesta.success || respuesta.output.fuente_id.toLowerCase() !== fuenteId.toLowerCase()) {
+    // El servidor respondió 2xx: la eliminación pudo completarse aunque el acuse no sea el pactado.
+    const fallo = new CrmApiError(
+      'El servidor no confirmó la eliminación con el formato esperado; pudo completarse. Vuelve a abrir la ficha antes de reintentar.',
+      'INVERSION_ELIMINADA_CONTRACT',
+    )
+    registrarError('crm.inversiones.eliminar_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return {
+    auditoriaId: respuesta.output.auditoria_id,
+    empresa: respuesta.output.empresa,
+    conversionAnulada: respuesta.output.conversion_anulada,
+    mesCerrado: respuesta.output.mes_cerrado,
   }
 }
 

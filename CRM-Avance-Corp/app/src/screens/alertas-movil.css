@@ -1,0 +1,12 @@
+.alertas-gerencia-movil { overflow-wrap: anywhere; }
+.alertas-gerencia-movil > header > div:last-child { padding: 16px; gap: 12px; }
+.alertas-gerencia-movil > header > div:last-child > button { min-height: 44px; }
+.alertas-gerencia-movil [aria-label='Filtrar por prioridad'] { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); }
+.alertas-gerencia-movil [aria-label='Filtrar por prioridad'] button { min-height: 44px; padding-inline: 8px; }
+.alertas-gerencia-movil #alertas-filtros { padding: 12px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; }
+.alertas-gerencia-movil #alertas-filtros input, .alertas-gerencia-movil #alertas-filtros select { min-height: 44px; font-size: 16px; }
+.alertas-gerencia-movil .alerta-fila { padding: 16px; }
+.alertas-gerencia-movil .alerta-fila h2 { font-size: 15px; line-height: 1.45; }
+.alertas-gerencia-movil .alerta-fila p { font-size: 13px; line-height: 1.55; }
+.alertas-gerencia-movil .alerta-fila > div:last-child { margin-left: 0; }
+.alertas-gerencia-movil .alerta-fila a { width: 100%; min-height: 44px; }

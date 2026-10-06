@@ -2180,6 +2180,80 @@ export type Database = {
           },
         ]
       }
+      inversiones_eliminadas: {
+        Row: {
+          anulacion: Json | null
+          archivos: Json
+          contrato_auditoria_id: string | null
+          conversion_anulada: boolean
+          eliminado_en: string
+          eliminado_por: string
+          empresa: string
+          es_conversion: boolean
+          fuente_id: string
+          fuente_tipo: string
+          id: string
+          inversion_id: string | null
+          inversionista_id: string | null
+          lead_id: string | null
+          motivo: string
+          rol_actor: string
+          snapshot: Json
+          transaccion: unknown
+          valvula: string
+        }
+        Insert: {
+          anulacion?: Json | null
+          archivos?: Json
+          contrato_auditoria_id?: string | null
+          conversion_anulada: boolean
+          eliminado_en?: string
+          eliminado_por: string
+          empresa: string
+          es_conversion: boolean
+          fuente_id: string
+          fuente_tipo: string
+          id?: string
+          inversion_id?: string | null
+          inversionista_id?: string | null
+          lead_id?: string | null
+          motivo: string
+          rol_actor: string
+          snapshot: Json
+          transaccion?: unknown
+          valvula?: string
+        }
+        Update: {
+          anulacion?: Json | null
+          archivos?: Json
+          contrato_auditoria_id?: string | null
+          conversion_anulada?: boolean
+          eliminado_en?: string
+          eliminado_por?: string
+          empresa?: string
+          es_conversion?: boolean
+          fuente_id?: string
+          fuente_tipo?: string
+          id?: string
+          inversion_id?: string | null
+          inversionista_id?: string | null
+          lead_id?: string | null
+          motivo?: string
+          rol_actor?: string
+          snapshot?: Json
+          transaccion?: unknown
+          valvula?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inversiones_eliminadas_contrato_auditoria_id_fkey"
+            columns: ["contrato_auditoria_id"]
+            isOneToOne: false
+            referencedRelation: "contratos_eliminados_auditoria"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inversionista_datos_contacto: {
         Row: {
           actualizado_en: string
@@ -5873,6 +5947,10 @@ export type Database = {
         Returns: Json
       }
       eliminar_cliente_fn: { Args: { p_perfil_id: string }; Returns: Json }
+      eliminar_inversion_fn: {
+        Args: { p_fuente_id: string; p_motivo: string }
+        Returns: Json
+      }
       eliminar_usuario_fn: {
         Args: {
           p_nombre_confirmacion: string

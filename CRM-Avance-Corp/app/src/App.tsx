@@ -10,6 +10,10 @@ import {
 } from 'react'
 import { DatabaseZap, Hourglass, LogOut, RotateCcw, WifiOff, type LucideIcon } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
+import { useViewportMovil } from '@/lib/use-viewport-movil'
+import { AvisoConexionGerencia } from '@/components/app/aviso-conexion-gerencia'
+import '@/components/app/pwa-gerencia.css'
+import { useEsMovil } from '@/lib/media'
 import { vincularCuentaPushTasa } from '@/lib/notificaciones-tasa'
 import { usePanelesActions, usePanelesState, useStoreEstado } from '@/lib/store-context'
 import { funcionesLeadsVisibles } from '@/lib/config'
@@ -329,6 +333,9 @@ function ErrorCargaReal({ onReintentar }: { onReintentar: () => void }) {
 
 function Workspace() {
   const { yo } = useAuth()
+  const esMovil = useEsMovil()
+  const navegacionInferior = esMovil && yo?.rol === 'gerencia'
+  const tecladoAbierto = useViewportMovil(navegacionInferior)
   useEffect(() => {
     vincularCuentaPushTasa(yo?.rol === 'gerencia' && !yo.demo ? yo.id : null)
   }, [yo?.id, yo?.rol, yo?.demo])
@@ -409,7 +416,8 @@ function Workspace() {
         // F1.2.2: el número del enlace del celular sobrevive al saneado (y al
         // login: este efecto corre cuando el workspace por fin monta). Lo
         // consume el receptor; el router ya lo suelta al abrir una ficha.
-        destino === leido.vista ? leido.llamadaNumero : undefined)
+        destino === leido.vista ? leido.llamadaNumero : undefined,
+        destino === 'reuniones' ? leido.consultaCitas : undefined)
       const cambiaVista = destino !== ctx.vista
       const cambiaLead = leadDestino !== ctx.leadAbiertoId
       if (!cambiaVista && !cambiaLead) {
@@ -442,7 +450,8 @@ function Workspace() {
     escribirHash(vista, leadAbiertoId, false, ruta.vista === vista ? ruta.inversionistaId : undefined,
       ruta.vista === vista && (rol === 'gerencia' || recibeRespuestasTasa(rol)) ? ruta.solicitudTasaId : undefined,
       ruta.vista === vista && (rol === 'gerencia' || ruta.detalleGestion?.tipo === 'cola') ? ruta.detalleGestion : undefined,
-      ruta.vista === vista ? ruta.llamadaNumero : undefined) // compara antes de escribir → sin bucles
+      ruta.vista === vista ? ruta.llamadaNumero : undefined,
+      ruta.vista === vista ? ruta.consultaCitas : undefined) // compara antes de escribir → sin bucles
   }, [vista, leadAbiertoId, rol])
 
   // Guard por capacidad + gate de leads: el nav ya oculta, esto expulsa (doble
@@ -458,9 +467,9 @@ function Workspace() {
   return (
     <GestionDiariaAvisosProvider key={`${yo?.id}:${yo?.rol}`}><AlertasCRMProvider>
       <RespuestasTasaProvider>
-      <div className="relative z-10 flex h-svh overflow-hidden">
-        <Sidebar vista={vista} onNavegar={navegarDesdeUI} />
-        <main className="ac-scroll flex min-w-0 flex-1 flex-col" tabIndex={-1}>
+      <div data-gerencia-movil={navegacionInferior} data-teclado-abierto={tecladoAbierto} className={`relative z-10 flex h-svh overflow-hidden${navegacionInferior ? ' flex-col' : ''}`}>
+        <Sidebar vista={vista} onNavegar={navegarDesdeUI} movil={navegacionInferior} />
+        <main className={`ac-scroll flex min-w-0 flex-1 flex-col${navegacionInferior ? ' min-h-0' : ''}`} tabIndex={-1}>
           <PeriodoGerenciaProvider>
             <Topbar
               vista={vista}
@@ -471,6 +480,7 @@ function Workspace() {
                 atiende UNA vez, aquí, sea cual sea la pantalla; se pinta solo
                 cuando hay algo que decir. */}
             <ReceptorLlamada />
+            {navegacionInferior && <AvisoConexionGerencia />}
             <AreaConsultaGerencia vista={vista} habilitada={yo?.rol === 'gerencia'} key={vista}>
               {/* Boundary POR pantalla (key la remonta al cambiar de vista) */}
               <ErrorBoundary>

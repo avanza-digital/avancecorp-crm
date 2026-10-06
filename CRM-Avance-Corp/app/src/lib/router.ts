@@ -8,6 +8,8 @@
 
 // 'repartir' (C1, 2026-07-22) NO entra en VISTAS_LEADS a propósito: el gate de
 // leads está cerrado para el coordinador y ocultaría la única pantalla que debe ver.
+import { consultaCitasValida, type ConsultaCitasEnlace } from './enlace-citas'
+
 export const VISTAS = [
   'hoy',
   'alertas',
@@ -103,6 +105,7 @@ export interface RutaHash {
   detalleGestion?: DetalleGestion
   /** El número que trae el enlace del celular al colgar (F1.2.1), tal cual llegó. */
   llamadaNumero?: string
+  consultaCitas?: ConsultaCitasEnlace
   /** El id de esa llamada (`C1-1790980958`, F4-b), si la macro lo mandó y tiene la forma de la base. */
   llamadaOrigenId?: string
 }
@@ -185,7 +188,11 @@ function detalleGestionValido(detalle: DetalleGestion | undefined): detalle is D
     && (UUID_PERSONA.test(detalle.id) || ID_PERSONA_DEMO.test(detalle.id) || (detalle.tipo === 'equipo' && detalle.id === 'fuera'))))
 }
 
-export function hashDe(vista: Vista, leadId?: string | null, inversionistaId?: string, solicitudTasaId?: string, detalleGestion?: DetalleGestion, llamadaNumero?: string, llamadaOrigenId?: string): string {
+export function hashDe(vista: Vista, leadId?: string | null, inversionistaId?: string, solicitudTasaId?: string, detalleGestion?: DetalleGestion, llamadaNumero?: string, consultaCitas?: ConsultaCitasEnlace, llamadaOrigenId?: string): string {
+  if (vista === 'reuniones' && consultaCitasValida(consultaCitas)) {
+    const periodo = consultaCitas.dia ? `dia/${consultaCitas.dia}` : `mes/${consultaCitas.mes}${consultaCitas.semana ? `/semana/${consultaCitas.semana}` : ''}`
+    return `#/reuniones/${periodo}${consultaCitas.equipo ? `/equipo/${consultaCitas.equipo}` : ''}${leadId ? `/lead/${encodeURIComponent(leadId)}` : ''}`
+  }
   if (vista === 'gestion-diaria' && detalleGestionValido(detalleGestion)) {
     const seccion = detalleGestion.tipo === 'cola' ? 'cola' : `${detalleGestion.tipo}/${detalleGestion.id}`
     return `#/gestion-diaria/${seccion}${leadId ? `/lead/${encodeURIComponent(leadId)}` : ''}`
@@ -207,10 +214,17 @@ export function leerHash(): RutaHash {
   const crudo = window.location.hash.replace(/^#\/?/, '')
   const partes = crudo.split('/').filter(Boolean)
   const vista = resolverVista(partes[0])
+  const indiceEquipo = partes[1] === 'mes' && partes[3] === 'semana' ? 5 : 3
+  const equipoCitas = partes[indiceEquipo] === 'equipo' ? { equipo: partes[indiceEquipo + 1] ?? '' } : {}
+  const candidataCitas = vista === 'reuniones' && partes[2]
+    ? partes[1] === 'dia' ? { dia: partes[2], ...equipoCitas }
+      : partes[1] === 'mes' ? { mes: partes[2], ...(partes[3] === 'semana' ? { semana: partes[4] ?? '' } : {}), ...equipoCitas } : undefined
+    : undefined
+  const consultaCitas = consultaCitasValida(candidataCitas) ? candidataCitas : undefined
   let leadId: string | null = null
   const candidato = (partes[1] === 'cola' ? { tipo: 'cola' } : { tipo: partes[1], id: partes[2] }) as DetalleGestion
   const detalleGestion = vista === 'gestion-diaria' && detalleGestionValido(candidato) ? candidato : undefined
-  const indiceLead = detalleGestion?.tipo === 'cola' ? 2 : detalleGestion ? 3 : 1
+  const indiceLead = consultaCitas ? indiceEquipo + (consultaCitas.equipo ? 2 : 0) : detalleGestion?.tipo === 'cola' ? 2 : detalleGestion ? 3 : 1
   if (vista && partes[indiceLead] === 'lead' && partes[indiceLead + 1]) {
     try {
       leadId = decodeURIComponent(partes[indiceLead + 1]!)
@@ -234,7 +248,7 @@ export function leerHash(): RutaHash {
     // enlace funciona como F1.
     if (llamadaNumero && partes[3] && origenLlamadaValido(partes[3])) llamadaOrigenId = partes[3]
   }
-  return { vista, leadId, ...(inversionistaId ? {inversionistaId} : {}), ...(solicitudTasaId ? {solicitudTasaId} : {}), ...(detalleGestion ? { detalleGestion } : {}), ...(llamadaNumero ? { llamadaNumero } : {}), ...(llamadaOrigenId ? { llamadaOrigenId } : {}) }
+  return { vista, leadId, ...(inversionistaId ? {inversionistaId} : {}), ...(solicitudTasaId ? {solicitudTasaId} : {}), ...(detalleGestion ? { detalleGestion } : {}), ...(llamadaNumero ? { llamadaNumero } : {}), ...(llamadaOrigenId ? { llamadaOrigenId } : {}), ...(consultaCitas ? { consultaCitas } : {}) }
 }
 
 /**
@@ -244,8 +258,8 @@ export function leerHash(): RutaHash {
  * historial (rutas desconocidas, leads fuera de ámbito). OJO: replaceState
  * NO dispara `hashchange` — el caller ya debe tener el estado correcto.
  */
-export function escribirHash(vista: Vista, leadId?: string | null, reemplazar = false, inversionistaId?: string, solicitudTasaId?: string, detalleGestion?: DetalleGestion, llamadaNumero?: string, llamadaOrigenId?: string): void {
-  const destino = hashDe(vista, leadId, inversionistaId, solicitudTasaId, detalleGestion, llamadaNumero, llamadaOrigenId)
+export function escribirHash(vista: Vista, leadId?: string | null, reemplazar = false, inversionistaId?: string, solicitudTasaId?: string, detalleGestion?: DetalleGestion, llamadaNumero?: string, consultaCitas?: ConsultaCitasEnlace, llamadaOrigenId?: string): void {
+  const destino = hashDe(vista, leadId, inversionistaId, solicitudTasaId, detalleGestion, llamadaNumero, consultaCitas, llamadaOrigenId)
   if (window.location.hash === destino) return
   if (reemplazar) {
     history.replaceState(null, '', destino)

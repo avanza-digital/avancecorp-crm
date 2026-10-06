@@ -10,7 +10,7 @@ import type { ClienteBasico, ContratoRow } from '../src/lib/clientes-tipos'
 export const ROLES_DEMO = ['Analista', 'Supervisor', 'Gerencia', 'Directorio'] as const
 export type RolDemo = (typeof ROLES_DEMO)[number]
 
-/** Entra a la demo con el rol dado y espera el workspace (nav lateral visible). */
+/** Entra a la demo con el rol dado y espera su navegación visible. */
 export async function entrarDemo(page: Page, rol: RolDemo): Promise<void> {
   // Los contadores (AnimatedValue) y las intros GSAP respetan reduced-motion;
   // con los workers en paralelo la CPU los deja a media animación y los
@@ -22,7 +22,7 @@ export async function entrarDemo(page: Page, rol: RolDemo): Promise<void> {
   await page.goto('/')
   await page.getByRole('button', { name: /explorar en modo demo/i }).click()
   await page.getByRole('button', { name: new RegExp(`^${rol}`) }).click()
-  await expect(page.locator('aside').getByRole('navigation').getByRole('button', { name: rol === 'Gerencia' ? 'Resumen' : 'Hoy', exact: true })).toBeVisible({ timeout: 10_000 })
+  await expect(page.getByRole('navigation').getByRole('button', { name: rol === 'Gerencia' ? 'Resumen' : 'Hoy', exact: true })).toBeVisible({ timeout: 10_000 })
 }
 
 /** Navega al Pipeline (donde viven las cards de lead operables). */
@@ -39,6 +39,11 @@ export async function irAPipeline(page: Page): Promise<void> {
 export async function irAMiCartera(page: Page): Promise<void> {
   const titulo = page.getByRole('heading', { level: 1, name: /^(Mi cartera|Cartera)$/ })
   if (await titulo.count() > 0) return
+  if (await page.getByRole('navigation', { name: 'Navegación principal de Gerencia' }).isVisible()) {
+    await irAModulo(page, 'Cartera')
+    await expect(titulo).toBeVisible()
+    return
+  }
   const propio = page.getByRole('button', { name: 'Mi cartera', exact: true })
   const boton = await propio.count() > 0
     ? propio
