@@ -13,6 +13,12 @@ import { Agenda, Bandeja, Estado } from './vistas'
 import { Resultados, DetalleLeads } from './resultados'
 import { siguientePaso, contextoCita } from './presentacion'
 import { baseCitasFiltrada } from './metas'
+import { escribirHash, leerHash } from '@/lib/router'
+import { consultaCitasValida, mesConsultaCitas, type ConsultaCitasEnlace } from '@/lib/enlace-citas'
+
+function filtrosDelEnlace(consulta: ConsultaCitasEnlace): FiltrosCitas {
+  return { ...defaults(mesConsultaCitas(consulta)), ...(consulta.dia ? { dia: consulta.dia } : {}), semana: consulta.semana ?? '', equipo: consulta.equipo ?? '' }
+}
 
 type VistaCitas = 'bandeja' | 'agenda' | 'resultados'
 const VISTAS = [
@@ -59,8 +65,13 @@ function Ficha({ cita, onCerrar, onAnalista, onAgenda }: { cita: CitaEjemplo | n
 export function TableroCitas() {
   const { citas: CITAS, equipo: EQUIPO, gestion, corte, modoDemo, mesInicial, cargando, error: errorCarga, onReintentar, onMes } = useDatosCitas()
   const inicial = () => defaults(mesInicial)
-  const [filtros, setFiltros] = useState<FiltrosCitas>(inicial)
-  const [vista, setVista] = useState<VistaCitas>('resultados')
+  const desdeEnlace = () => {
+    const consulta = leerHash().consultaCitas
+    return consulta ? filtrosDelEnlace(consulta) : inicial()
+  }
+  const [filtros, setFiltros] = useState<FiltrosCitas>(desdeEnlace)
+  const [vista, setVista] = useState<VistaCitas>(() => leerHash().consultaCitas ? 'agenda' : 'resultados')
+  const enlaceAnterior = useRef(JSON.stringify(leerHash().consultaCitas ?? null))
   const [pagina, setPagina] = useState(1)
   const [detalle, setDetalle] = useState<CitaEjemplo | null>(null)
   const [desglose, setDesglose] = useState<string | null>(null)
@@ -82,30 +93,70 @@ export function TableroCitas() {
   useEffect(() => { if (rangoConsulta(filtros)[0]) onMes?.(filtros.mes) }, [filtros, onMes])
 
   useEffect(() => {
+    const recibir = () => {
+      const ruta = leerHash()
+      if (ruta.vista !== 'reuniones') return
+      const firma = JSON.stringify(ruta.consultaCitas ?? null)
+      if (firma === enlaceAnterior.current) return
+      enlaceAnterior.current = firma
+      const consulta = ruta.consultaCitas
+      setFiltros(consulta ? filtrosDelEnlace(consulta) : defaults(mesInicial))
+      setVista(consulta ? 'agenda' : 'resultados')
+      setPagina(1)
+      setDetalle(null)
+      setLeadAbierto(null)
+    }
+    window.addEventListener('hashchange', recibir)
+    return () => window.removeEventListener('hashchange', recibir)
+  }, [mesInicial])
+
+  function quitarEnlace() {
+    const ruta = leerHash()
+    if (!ruta.consultaCitas) return
+    enlaceAnterior.current = 'null'
+    escribirHash('reuniones', ruta.leadId, true)
+    // replaceState no emite el evento que sincroniza App con la nueva ruta.
+    window.dispatchEvent(new HashChangeEvent('hashchange'))
+  }
+
+  function sincronizarEnlace(siguientes: FiltrosCitas) {
+    const ruta = leerHash()
+    if (!ruta.consultaCitas) return
+    const consulta = {
+      ...(siguientes.dia ? { dia: siguientes.dia } : { mes: siguientes.mes, ...(siguientes.semana ? { semana: siguientes.semana } : {}) }),
+      ...(siguientes.equipo ? { equipo: siguientes.equipo } : {}),
+    }
+    if (!consultaCitasValida(consulta)) { quitarEnlace(); return }
+    enlaceAnterior.current = JSON.stringify(consulta)
+    escribirHash('reuniones', ruta.leadId, true, undefined, undefined, undefined, undefined, consulta)
+    window.dispatchEvent(new HashChangeEvent('hashchange'))
+  }
+
+  useEffect(() => {
     const temporizador = window.setTimeout(() => setAnuncio(textoConteo), 250)
     return () => window.clearTimeout(temporizador)
   }, [textoConteo])
 
   function cambiar(cambios: Partial<FiltrosCitas>) {
-    setFiltros(previos => {
-      const siguientes = { ...previos, ...cambios }
-      if (Object.hasOwn(cambios, 'equipo') && siguientes.equipo && EQUIPO.find(p => p.id === siguientes.analista)?.supervisorId !== siguientes.equipo) siguientes.analista = ''
-      if (Object.hasOwn(cambios, 'moneda') && cambios.moneda !== previos.moneda) siguientes.min = siguientes.max = ''
-      return siguientes
-    })
+    const siguientes = { ...filtros, ...cambios }
+    if (Object.hasOwn(cambios, 'mes') || Object.hasOwn(cambios, 'semana')) delete siguientes.dia
+    if (Object.hasOwn(cambios, 'equipo') && siguientes.equipo && EQUIPO.find(p => p.id === siguientes.analista)?.supervisorId !== siguientes.equipo) siguientes.analista = ''
+    if (Object.hasOwn(cambios, 'moneda') && cambios.moneda !== filtros.moneda) siguientes.min = siguientes.max = ''
+    if (['dia', 'mes', 'semana', 'equipo'].some(clave => Object.hasOwn(cambios, clave))) sincronizarEnlace(siguientes)
+    setFiltros(siguientes)
     setPagina(1)
     setExportacion('')
     setLeadAbierto(null)
   }
-  function restablecer() { setFiltros(inicial()); setPagina(1); setExportacion(''); setLeadAbierto(null) }
+  function restablecer() { quitarEnlace(); setFiltros(inicial()); setPagina(1); setExportacion(''); setLeadAbierto(null) }
   function cambiarVista(destino: VistaCitas) { setVista(destino); setLeadAbierto(null) }
   function enfocarVista(destino: VistaCitas) {
     requestAnimationFrame(() => requestAnimationFrame(() => pestañas.current[destino]?.focus()))
   }
   function verAnalista(id: string) { cambiar({ analista: id }); setDetalle(null); cambiarVista('bandeja'); enfocarVista('bandeja') }
-  function verAnalistaDeFicha(cita: CitaEjemplo) { setFiltros({ ...inicial(), mes: cita.fecha.slice(0, 7), analista: cita.analista }); setPagina(1); setExportacion(''); setDetalle(null); cambiarVista('bandeja'); enfocarVista('bandeja') }
+  function verAnalistaDeFicha(cita: CitaEjemplo) { quitarEnlace(); setFiltros({ ...inicial(), mes: cita.fecha.slice(0, 7), analista: cita.analista }); setPagina(1); setExportacion(''); setDetalle(null); cambiarVista('bandeja'); enfocarVista('bandeja') }
   function verLead(leadId: string, analista: string) { cambiar({ leadId, analista }); setDesglose(null); cambiarVista('bandeja'); enfocarVista('bandeja') }
-  function verAgenda(cita: CitaEjemplo) { setFiltros({ ...inicial(), mes: cita.fecha.slice(0, 7), q: cita.id }); setPagina(1); setExportacion(''); setDetalle(null); cambiarVista('agenda'); enfocarVista('agenda') }
+  function verAgenda(cita: CitaEjemplo) { quitarEnlace(); setFiltros({ ...inicial(), mes: cita.fecha.slice(0, 7), q: cita.id }); setPagina(1); setExportacion(''); setDetalle(null); cambiarVista('agenda'); enfocarVista('agenda') }
   function abrirCitaDelRecorrido(cita: CitaEjemplo) {
     setLeadAbierto(null)
     // Termina el retorno de foco del inspector antes de abrir la ficha de cita.
