@@ -1,7 +1,7 @@
 -- REGISTRO en supabase_migrations.schema_migrations de 20261006042144_crm_bases_cargadas_conversion.
 -- GENERADO por b11/generar_registrador.py: no editar a mano. `db query --linked --file` NO registra: correr DESPUÉS de
 -- aplicar la migración. Idempotente; se niega si los objetos no están, o si la versión ya está registrada con otro nombre u
--- otro contenido. Mismo formato que los registradores de B7–B10. statements = el archivo entero (md5 2f5f2ea9d8499d76325e14e00b6bff00).
+-- otro contenido. Mismo formato que los registradores de B7–B10. statements = el archivo entero (md5 33ec12dc7eb4378b0632368d81b0c366).
 begin;
 set local lock_timeout = '5s';
 select pg_advisory_xact_lock(hashtext('crm_bases_cargadas_conversion_registro'));
@@ -53,6 +53,9 @@ begin
 --   la foto del cierre), tablas, policies, grants, triggers, firmas de las puertas de la API y sus ACL.
 -- FRENO: el preflight se niega si ya existe algún cierre de un contacto de base (ledger o acreditación): entonces B11 movería
 --   un número que ya existe y se revisa con Miguel.
+--   Para que ese freno valga hasta el commit, la transacción bloquea antes de su primera lectura las dos tablas donde nace
+--   un cierre (crm.lead_asignaciones y crm.conversion_acreditaciones, SHARE ROW EXCLUSIVE NOWAIT): durante la aplicación
+--   (menos de un segundo) nadie confirma un cierre nuevo; si alguien escribe en ese instante, se niega y se repite.
 --   También se niega si aparece un llamador nuevo de las dos privadas que se recrean (se busca en el texto de las funciones:
 --   pg_depend no ve una llamada hecha desde plpgsql) o si cambió alguno de los diez cuerpos, su dueño o su ACL.
 -- POSTFLIGHT: huellas medidas en el banco, ninguna copia de la lista, el ayudante dice lo ensayado, las columnas nuevas al
@@ -74,6 +77,13 @@ set local lock_timeout = '5s';
 set local statement_timeout = '120s';
 set local search_path = '';
 set local quote_all_identifiers = off;
+
+-- Nadie registra un cierre mientras esto corre: el candado se toma ANTES de la primera lectura (la instantánea de
+-- REPEATABLE READ nace en la primera consulta, es decir, después), así que el freno «no hay cierres de base» vale hasta
+-- el commit. NOWAIT: si alguien está escribiendo en ese instante, se niega sin esperar (no puede interbloquearse con
+-- nadie ni dejar colgado a un usuario) y se repite. Las lecturas no se bloquean. Va suelto, no en un DO: un DO ya
+-- tomaría la instantánea antes de bloquear.
+lock table crm.lead_asignaciones, crm.conversion_acreditaciones in share row exclusive mode nowait;
 
 -- ── 0 · Preflight ──────────────────────────────────────────────────────────────────────────────────────────────────────
 do $preflight$
@@ -3229,6 +3239,9 @@ values ('20261006042144', 'crm_bases_cargadas_conversion', array[$mig$-- 2026100
 --   la foto del cierre), tablas, policies, grants, triggers, firmas de las puertas de la API y sus ACL.
 -- FRENO: el preflight se niega si ya existe algún cierre de un contacto de base (ledger o acreditación): entonces B11 movería
 --   un número que ya existe y se revisa con Miguel.
+--   Para que ese freno valga hasta el commit, la transacción bloquea antes de su primera lectura las dos tablas donde nace
+--   un cierre (crm.lead_asignaciones y crm.conversion_acreditaciones, SHARE ROW EXCLUSIVE NOWAIT): durante la aplicación
+--   (menos de un segundo) nadie confirma un cierre nuevo; si alguien escribe en ese instante, se niega y se repite.
 --   También se niega si aparece un llamador nuevo de las dos privadas que se recrean (se busca en el texto de las funciones:
 --   pg_depend no ve una llamada hecha desde plpgsql) o si cambió alguno de los diez cuerpos, su dueño o su ACL.
 -- POSTFLIGHT: huellas medidas en el banco, ninguna copia de la lista, el ayudante dice lo ensayado, las columnas nuevas al
@@ -3250,6 +3263,13 @@ set local lock_timeout = '5s';
 set local statement_timeout = '120s';
 set local search_path = '';
 set local quote_all_identifiers = off;
+
+-- Nadie registra un cierre mientras esto corre: el candado se toma ANTES de la primera lectura (la instantánea de
+-- REPEATABLE READ nace en la primera consulta, es decir, después), así que el freno «no hay cierres de base» vale hasta
+-- el commit. NOWAIT: si alguien está escribiendo en ese instante, se niega sin esperar (no puede interbloquearse con
+-- nadie ni dejar colgado a un usuario) y se repite. Las lecturas no se bloquean. Va suelto, no en un DO: un DO ya
+-- tomaría la instantánea antes de bloquear.
+lock table crm.lead_asignaciones, crm.conversion_acreditaciones in share row exclusive mode nowait;
 
 -- ── 0 · Preflight ──────────────────────────────────────────────────────────────────────────────────────────────────────
 do $preflight$
@@ -6370,7 +6390,7 @@ do $post$
 begin
   if not exists (select 1 from supabase_migrations.schema_migrations
                  where version = '20261006042144' and name = 'crm_bases_cargadas_conversion' and cardinality(statements) = 1
-                   and md5(statements[1]) = '2f5f2ea9d8499d76325e14e00b6bff00') then
+                   and md5(statements[1]) = '33ec12dc7eb4378b0632368d81b0c366') then
     raise exception 'REGISTRO: la fila 20261006042144 / crm_bases_cargadas_conversion no quedó como se esperaba';
   end if;
   raise notice 'REGISTRO: 20261006042144 / crm_bases_cargadas_conversion (1 sentencia: el archivo entero)';

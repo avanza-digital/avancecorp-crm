@@ -34,6 +34,9 @@
 --   la foto del cierre), tablas, policies, grants, triggers, firmas de las puertas de la API y sus ACL.
 -- FRENO: el preflight se niega si ya existe algún cierre de un contacto de base (ledger o acreditación): entonces B11 movería
 --   un número que ya existe y se revisa con Miguel.
+--   Para que ese freno valga hasta el commit, la transacción bloquea antes de su primera lectura las dos tablas donde nace
+--   un cierre (crm.lead_asignaciones y crm.conversion_acreditaciones, SHARE ROW EXCLUSIVE NOWAIT): durante la aplicación
+--   (menos de un segundo) nadie confirma un cierre nuevo; si alguien escribe en ese instante, se niega y se repite.
 --   También se niega si aparece un llamador nuevo de las dos privadas que se recrean (se busca en el texto de las funciones:
 --   pg_depend no ve una llamada hecha desde plpgsql) o si cambió alguno de los diez cuerpos, su dueño o su ACL.
 -- POSTFLIGHT: huellas medidas en el banco, ninguna copia de la lista, el ayudante dice lo ensayado, las columnas nuevas al
@@ -55,6 +58,13 @@ set local lock_timeout = '5s';
 set local statement_timeout = '120s';
 set local search_path = '';
 set local quote_all_identifiers = off;
+
+-- Nadie registra un cierre mientras esto corre: el candado se toma ANTES de la primera lectura (la instantánea de
+-- REPEATABLE READ nace en la primera consulta, es decir, después), así que el freno «no hay cierres de base» vale hasta
+-- el commit. NOWAIT: si alguien está escribiendo en ese instante, se niega sin esperar (no puede interbloquearse con
+-- nadie ni dejar colgado a un usuario) y se repite. Las lecturas no se bloquean. Va suelto, no en un DO: un DO ya
+-- tomaría la instantánea antes de bloquear.
+lock table crm.lead_asignaciones, crm.conversion_acreditaciones in share row exclusive mode nowait;
 
 -- ── 0 · Preflight ──────────────────────────────────────────────────────────────────────────────────────────────────────
 do $preflight$

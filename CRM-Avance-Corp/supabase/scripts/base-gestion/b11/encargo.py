@@ -16,7 +16,7 @@ t = f"""ROLE: SECONDARY_REVIEWER.
 Do not modify files. Do not implement the task. Do not invoke Claude.
 Do not delegate to another coding agent. Do not create another review chain.
 
-# Encargo: refutar B11 de «Bases cargadas» (CRM Avance Corp) — LEVEL 3 (datos/conversión)
+# Encargo r2 (ÚLTIMA ronda): refutar B11 de «Bases cargadas» (CRM Avance Corp) — LEVEL 3 (datos/conversión)
 
 Tu tarea es intentar REFUTAR que este cambio es correcto y seguro. No tienes base de datos ni red: todo lo que necesitas
 está transcrito abajo (diffs exactos contra los cuerpos vivos de producción y resultados medidos). Responde en español.
@@ -77,7 +77,7 @@ ayudante; y actualiza las cuatro huellas del censo y el sello con las mismas dos
 
 ## Resultados medidos (06/10/2026; banco Docker con las 933 funciones crm+private de producción: las 922 del 05/10 más la
 ## migración 20261005200945 «eliminar inversión», ya en producción; huella agregada antes de B11 `933 | 2c2f2612…`)
-- Migración aplicada en UN mensaje, como `postgres`: preflight y postflight en verde (0,37 s). Huella después `934 | 2f359f3e…`.
+- Migración aplicada en UN mensaje, como `postgres`: preflight y postflight en verde (0,4 s). Huella después `934 | 2f359f3e…`.
 - Paridad A/B (b11-paridad.sql, como Gerencia, ago/sep/oct + rango): 41 salidas (coordinación, conversión mensual sin
   cartera, Equipo, Inteligencia comercial, Distribución v3, conversión mensual por vendedor, divisor de empresa proyectado,
   cierres, crm.conversion_mensual_fn, alarma) con huella IDÉNTICA antes y después; la única diferencia es la clave nueva
@@ -90,14 +90,24 @@ ayudante; y actualiza las cuatro huellas del censo y el sello con las mismas dos
   y total; el ajuste de un cierre de base anulado pesa 1; el de «otro», ninguno.
 - Mutantes: 16/16 caen (cada copia vieja de cada función, ayudante sin base, base contada como 0, «otros» con base, mes
   sellado con 0 inventado, coordinación sin la clave).
+- **Ensayo de DOS SESIONES del freno (nuevo en r2, por tu P1):**
+  A · control SIN el candado, con la ventana abierta 2 s tras el preflight: otra sesión confirma un cierre de base y la
+      migración se confirma igual → tu carrera existe.
+  B · mismo candado en modo espera: un escritor tiene un cierre de base sin confirmar; la migración espera, el escritor
+      confirma, y el preflight VE ese cierre y se niega (la instantánea nace después del candado); no se aplica nada.
+  C · migración final (NOWAIT) con un escritor a medias: `could not obtain lock on relation`, al instante; huella
+      intacta y 0 candados consultivos retenidos.
+  D · migración final con la ventana abierta 2 s: el escritor que llega en medio queda en espera 1,6 s, hasta el commit
+      de la migración; su cierre nace ya con la regla nueva.
+  E · reversa final: con un cierre de base confirmado se niega (freno); con un escritor a medias se niega al instante.
 - Frenos en negativo (10/10): con un cierre de base presente, la migración y la reversa se niegan (P0409) y sueltan el
   candado; la reversa se niega si otra función nombra al ayudante, si hay un llamador nuevo del divisor de empresa, si el
   sello del censo no está al día o si una de las cuatro declaraciones caducó; la migración se niega con un llamador nuevo
   del divisor de empresa; ningún rechazo deja nada (huella igual) ni retiene candados.
 - Reversa (como `postgres`): deja el banco con las 933 funciones y el censo IDÉNTICOS a antes de B11. Corrida como otro rol
   (supabase_admin) su postflight la rechaza y hace rollback (el dueño de las dos privadas recreadas no sería postgres).
-- Gate de RLS completo (test-rls.mjs, siembra + 2781 aserciones) ANTES y DESPUÉS de B11: los mismos 71 rojos de fondo
-  (ajenos y previos), ninguno nuevo; el bloque nuevo de B11 8/8 (núcleo sin EXECUTE para anon/authenticated/service_role,
+- Gate de RLS completo (test-rls.mjs, siembra + 2817 aserciones) ANTES y DESPUÉS de B11: los mismos 8 rojos de fondo
+  (ajenos y previos: R2/hito de activación, una fila bancaria y la bandera potencial_lead), ninguno nuevo; el bloque nuevo de B11 8/8 (núcleo sin EXECUTE para anon/authenticated/service_role,
   ayudante INVOKER e IMMUTABLE, ACL de la puerta intacta, empresa.cierres.base_cargada y la de cada analista enteras en un
   mes abierto, partes = numerador bruto con la base).
 - Tiempo de private.metricas_conversiones_implementacion con 366 días (5 corridas, ms): sin B11 {{90.2,86.6,87.6,96.9,89.9}},
@@ -105,7 +115,10 @@ ayudante; y actualiza las cuatro huellas del censo y el sello con las mismas dos
 - Registrador: se niega sin la migración; con ella registra 1 sentencia cuyo md5 = el del archivo; idempotente.
 - Front: npm run check (oxlint + typecheck + 6201 tests) PASS.
 {anexo}
-## Lo que quiero que intentes refutar (además de lo que encuentres)
+## Lo que quiero que intentes refutar en esta ronda (además de lo que encuentres)
+0. ¿El candado nuevo cierra de verdad tu P1? ¿Introduce un problema (bloqueo de usuarios, interbloqueo, una tabla que
+   falte, un camino por el que el cierre de un contacto de base nazca sin escribir en esas dos tablas)?
+
 1. ¿Algún consumidor (servidor o pantalla) suma partes del numerador o cuenta cierres por origen con otra copia de la lista
    que NO esté en el diff, y quedaría descuadrado con un cierre de base? (p. ej. alarma, metas, ranking, fotos del cierre
    de mes, crm.cerrar_periodo / cierre_mes_vendedor). Si lo afirmas sin texto transcrito que lo pruebe, márcalo HIPÓTESIS.

@@ -162,6 +162,13 @@ set local statement_timeout = '120s';
 set local search_path = '';
 set local quote_all_identifiers = off;
 
+-- Nadie registra un cierre mientras esto corre: el candado se toma ANTES de la primera lectura (la instantánea de
+-- REPEATABLE READ nace en la primera consulta, es decir, después), así que el freno «no hay cierres de base» vale hasta
+-- el commit. NOWAIT: si alguien está escribiendo en ese instante, se niega sin esperar (no puede interbloquearse con
+-- nadie ni dejar colgado a un usuario) y se repite. Las lecturas no se bloquean. Va suelto, no en un DO: un DO ya
+-- tomaría la instantánea antes de bloquear.
+lock table crm.lead_asignaciones, crm.conversion_acreditaciones in share row exclusive mode nowait;
+
 -- ── 0 · Preflight ──────────────────────────────────────────────────────────────────────────────────────────────────────
 do $preflight$
 declare

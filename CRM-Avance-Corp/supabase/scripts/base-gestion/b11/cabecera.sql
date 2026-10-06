@@ -34,6 +34,9 @@
 --   la foto del cierre), tablas, policies, grants, triggers, firmas de las puertas de la API y sus ACL.
 -- FRENO: el preflight se niega si ya existe algún cierre de un contacto de base (ledger o acreditación): entonces B11 movería
 --   un número que ya existe y se revisa con Miguel.
+--   Para que ese freno valga hasta el commit, la transacción bloquea antes de su primera lectura las dos tablas donde nace
+--   un cierre (crm.lead_asignaciones y crm.conversion_acreditaciones, SHARE ROW EXCLUSIVE NOWAIT): durante la aplicación
+--   (menos de un segundo) nadie confirma un cierre nuevo; si alguien escribe en ese instante, se niega y se repite.
 --   También se niega si aparece un llamador nuevo de las dos privadas que se recrean (se busca en el texto de las funciones:
 --   pg_depend no ve una llamada hecha desde plpgsql) o si cambió alguno de los diez cuerpos, su dueño o su ACL.
 -- POSTFLIGHT: huellas medidas en el banco, ninguna copia de la lista, el ayudante dice lo ensayado, las columnas nuevas al

@@ -16718,3 +16718,59 @@ carrera; `comprobar-tras-aplicar.sql` APTA; reversa → huellas idénticas a pro
 `testEliminarInversion` (catálogo + roles); `test:rls:preflight` NOT RUN aquí (pide credenciales).
 **Reversa:** `supabase/scripts/eliminar-inversion/reversa.sql` (se niega si ya hay copias). **Registrador:**
 `supabase/scripts/eliminar-inversion/registrar.sql` (generado). **Comprobación tras aplicar:** `comprobar-tras-aplicar.sql`.
+
+## 20261006042144 — Bases cargadas · B11: el cierre de un contacto de base pesa 1 y queda fuera del divisor
+
+**⏳ PENDIENTE (06/10/2026), r2. SIN APLICAR EN PRODUCCIÓN.** Construida y probada SOLO en banco Docker local (stack propio
+`avancecorp-b10-20261004`, a paridad con producción con «eliminar inversión»: crm+private `933 | 2c2f2612…`; con B11
+`934 | 2f359f3e…`). md5 del archivo **`33ec12dc…`** (reversa `2dbf3436…`, registrador `58761b03…`). Decisión E10 de Miguel
+(`BASE PARA GESTION/BASES-CARGADAS.md`); plan aprobado el 05/10 con dos respuestas: los armados desde el CRM conservan su
+origen y su regla, y «Resultados por origen» no lleva fila de base. **Orden de publicación: la pantalla primero** (columna
+«Base» del Divisor de coordinación; tolera la clave ausente) **y la migración después**.
+
+**Qué hace:** (1) `private.conversion_origen_con_cierre(text)` — INVOKER, IMMUTABLE, sin ejecutores de la API: UNA definición
+de qué orígenes cuentan un cierre (landing, formulario, referido, base_cargada). (2) El mismo texto vivo de producción con la
+lista copiada cambiada por el ayudante (CREATE OR REPLACE: firma, dueño, seguridad y ACL intactos) en
+`private.conversion_cierres`, `private.registrar_ajuste_si_mes_cerrado`, `private.conversion_mensual_por_vendedor`,
+`crm.metricas_conversiones_equipo_fn`, `private.metricas_conversiones_implementacion`,
+`private.metricas_distribucion_leads_v3_core` y la sonda de `crm.conversion_mensual_sin_cartera_fn`. (3) Divisor de
+coordinación: `private.conversion_divisor_empresa` y `private.conversion_divisor_empresa_totales` ganan
+`cierres_base_cargada` al final (drop + create, misma ACL; `cierres_otros` ya no los incluye; **NULL en un mes sellado**: la
+foto no los guarda) y `crm.conversion_divisor_coordinacion_fn` añade la clave `base_cargada`. (4) Censo analítico: las cuatro
+declaraciones tocadas conservan su fila con la huella del cuerpo nuevo y se resella. **No cambia:** el divisor
+(`private.conversion_episodios`), «Resultados por origen», tablas, policies, grants, triggers, ni las firmas y ACL de las puertas.
+La migración y la reversa se GENERAN (`supabase/scripts/base-gestion/b11/generar*.py`) desde los textos vivos de `b11/vivo/`.
+
+**Frenos (P0409, sin dejar nada ni retener candados):** se niega si ya existe un cierre de un contacto de base (movería un
+número que ya existe), si cambió alguno de los diez cuerpos, su dueño o su ACL, si aparece un llamador nuevo del divisor de
+empresa (se busca en el texto: pg_depend no ve una llamada desde plpgsql) o si el censo analítico no está vigente y sellado.
+**r2 (Codex r1, P1):** para que el freno valga hasta el commit, la transacción toma `lock table crm.lead_asignaciones,
+crm.conversion_acreditaciones in share row exclusive mode nowait` ANTES de su primera lectura (la instantánea REPEATABLE READ
+nace después): nadie confirma un cierre nuevo mientras se aplica; si alguien escribe en ese instante se niega sin esperar y se
+repite. La reversa lleva el mismo candado.
+
+**Revisiones:** auditor-rls r1 CHANGES_REQUESTED (sin P0/P1; 2 P2 de la reversa y 4 P3, todos atendidos) → **r2 PASS** (P3:
+esta fila, la línea de `schema_migrations` en la reversa y el `assert` del registrador: hechos; `proconfig` en los postflights
+y regex con comillas: no se tocan, el gate y las cabeceras ya lo cubren). **Codex r1 BLOCK:** [P1] el freno no excluía
+escritores concurrentes → el candado de arriba + ensayo de dos sesiones; [P2] una pestaña abierta con el bundle anterior
+suma las partes sin la base y rechaza el desglose cuando aparezca el primer cierre de base → no se arregla en el servidor:
+pantalla primero, el CRM avisa «hay versión nueva» cada 60 s (`app/src/lib/version-publicada.ts`) y la migración se aplica
+después de dar tiempo a recargar; riesgo residual declarado a Miguel (un error en esa tarjeta hasta recargar, ningún dato).
+Riesgo que Codex señala y queda declarado: sellar un mes con cierres de base por `crm.cerrar_periodo` no se ensayó (el ciclo
+de cierre está en pausa y no hay meses sellados); la foto no guarda la base y el Divisor de coordinación de ese mes mostrará
+«—» en Base.
+
+**Banco (06/10, r2):** migración en un mensaje como `postgres` (0,4 s), preflight y postflight verdes; como otro rol el
+postflight la rechaza (dueño). Paridad A/B `b11-paridad.sql` (41 salidas, ago/sep/oct + rango): idénticas, solo aparece
+`base_cargada = 0`; censo analítico (38 filas) idéntico; las 11 huellas = `b11/huellas-nuevas.json`. Suite
+`b11-conversion.sql` **23/23**; mutantes **16/16**; frenos en negativo **10/10**; **ensayo de dos sesiones** (control sin
+candado: la migración se confirma con un cierre de base dentro — la carrera existe; con el candado en espera el freno VE el
+cierre y se niega; NOWAIT con un escritor a medias: se niega al instante; el escritor que llega durante la aplicación espera
+al commit y su cierre nace ya con la regla nueva; lo mismo en la reversa). Registrador: se niega sin la migración, registra
+1 sentencia con el md5 del archivo, idempotente. Tiempo de `private.metricas_conversiones_implementacion` con 366 días: ≈ 90 ms
+antes y después. Gate `test-rls.mjs` antes/después (con las dos filas de control del banco cargadas): **8 de 2817 → 8 de
+2825**, los mismos 8 rojos de fondo; bloque «Bases cargadas B11» 8/8. Front: `npm run check` 6201; e2e Docker
+`repartir.spec.ts` 31/31; revisor-a11y PASS. `test:rls:preflight`, advisors y rama con datos: NOT RUN todavía.
+**Reversa:** `supabase/scripts/base-gestion/reversa-b11.sql` (vuelve byte a byte al estado de antes; se niega si hay cierres
+de base, si otra función usa el ayudante, o si el censo no está vigente y sellado; conserva la fila del historial).
+**Registrador:** `supabase/scripts/base-gestion/registrar/20261006042144.sql` (generado).

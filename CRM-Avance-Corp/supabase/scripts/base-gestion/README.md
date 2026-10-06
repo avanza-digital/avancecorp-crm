@@ -140,11 +140,14 @@ psql … -U postgres -X -v ON_ERROR_STOP=1 -c "$(cat supabase/migrations/2026100
 psql … -X -At -F' | ' -f supabase/scripts/base-gestion/b11-paridad.sql > despues.txt                                        # las huellas deben ser idénticas; solo aparece base_cargada = 0
 psql … -U supabase_admin -X -f supabase/scripts/base-gestion/b11-conversion.sql                                             # 23 casos (base +1 al numerador y +0 al divisor, «otro» +0, mes sellado con NULL, ajuste), ROLLBACK
 node supabase/scripts/base-gestion/b11-mutantes.mjs --puerto <puerto>                                                       # 16 mutantes deben CAER
+bash supabase/scripts/base-gestion/b11-carrera.sh --puerto <puerto>                                                         # dos sesiones: sin el candado la carrera existe; con él, el freno vale hasta el commit
 psql … -U postgres -X -v ON_ERROR_STOP=1 -c "$(cat supabase/scripts/base-gestion/reversa-b11.sql)"                          # vuelve al estado de antes, byte a byte
 psql … -U postgres -X -v ON_ERROR_STOP=1 -c "$(cat supabase/scripts/base-gestion/registrar/20261006042144.sql)"             # tras aplicar; idempotente
 ```
 
-Frenos (todos P0409, sin dejar nada ni retener el candado): la migración se niega si ya hay un cierre de un contacto de base,
+Migración y reversa bloquean antes de su primera lectura las dos tablas donde nace un cierre (`crm.lead_asignaciones` y
+`crm.conversion_acreditaciones`, SHARE ROW EXCLUSIVE NOWAIT): si alguien escribe en ese instante se niegan con «could not
+obtain lock» y se repiten. Frenos (todos P0409, sin dejar nada ni retener el candado): la migración se niega si ya hay un cierre de un contacto de base,
 si cambió alguno de los diez cuerpos, su dueño o su ACL, si aparece un llamador nuevo del divisor de empresa o si el censo
 analítico no está vigente y sellado; la reversa, además, si otra función ya usa el ayudante. El gate (`test-rls.mjs`, bloque
 «Bases cargadas B11») es de solo lectura: catálogo del núcleo y la clave nueva en un mes abierto.

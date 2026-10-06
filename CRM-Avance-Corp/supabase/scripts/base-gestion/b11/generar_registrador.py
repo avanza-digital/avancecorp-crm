@@ -10,6 +10,7 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 VERSION, NOMBRE = '20261006042144', 'crm_bases_cargadas_conversion'
 mig = open(os.path.join(AQUI, '..', '..', '..', 'migrations', f'{VERSION}_{NOMBRE}.sql'), encoding='utf-8').read()
 assert '$mig$' not in mig, 'la migración contiene $mig$: cambiar la etiqueta del dólar-quote'
+assert '$chk$' not in mig, 'la migración contiene $chk$: la primera copia va dentro de do $chk$'
 md5 = hashlib.md5(mig.encode('utf-8')).hexdigest()
 sql = f"""-- REGISTRO en supabase_migrations.schema_migrations de {VERSION}_{NOMBRE}.
 -- GENERADO por b11/generar_registrador.py: no editar a mano. `db query --linked --file` NO registra: correr DESPUÉS de

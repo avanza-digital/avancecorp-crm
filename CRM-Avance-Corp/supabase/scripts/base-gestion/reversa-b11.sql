@@ -6,6 +6,7 @@
 -- Se NIEGA también si otra función (fuera de las diez de B11) ya llama al ayudante: borrarlo la dejaría rota y pg_depend
 -- no ve esa llamada; y si el censo analítico no está vigente y sellado antes de empezar (no se resella sobre un sello roto).
 -- Antes de revertir en producción: publicar la pantalla anterior NO hace falta (la pantalla nueva tolera la clave ausente).
+-- Conserva la fila de supabase_migrations.schema_migrations (regla de la casa): anotar la reversa en MIGRACIONES.md.
 -- Uso: psql … -X -v ON_ERROR_STOP=1 -c "$(cat supabase/scripts/base-gestion/reversa-b11.sql)"   (un mensaje, como la migración)
 
 begin;
@@ -19,6 +20,13 @@ set local lock_timeout = '5s';
 set local statement_timeout = '120s';
 set local search_path = '';
 set local quote_all_identifiers = off;
+
+-- Nadie registra un cierre mientras esto corre: el candado se toma ANTES de la primera lectura (la instantánea de
+-- REPEATABLE READ nace en la primera consulta, es decir, después), así que el freno «no hay cierres de base» vale hasta
+-- el commit. NOWAIT: si alguien está escribiendo en ese instante, se niega sin esperar (no puede interbloquearse con
+-- nadie ni dejar colgado a un usuario) y se repite. Las lecturas no se bloquean. Va suelto, no en un DO: un DO ya
+-- tomaría la instantánea antes de bloquear.
+lock table crm.lead_asignaciones, crm.conversion_acreditaciones in share row exclusive mode nowait;
 
 do $preflight$
 declare r record;
