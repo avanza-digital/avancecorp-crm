@@ -42,7 +42,7 @@ import { useActividadesCliente, useClienteFichaComercial, useCuentasBancariasCli
 import { tasaTxt } from '@/lib/rentabilidad'
 import { TIPOS_DOCUMENTO } from '@/lib/documento'
 import { fechaHora, money } from '@/lib/format'
-import { AYUDA_UPGRADE, CATEGORIA_LABEL, ESTADO_COLOR, ESTADO_CONTRATO_LABEL, ETIQUETA_UPGRADE } from '@/lib/contratos-catalogo'
+import { AYUDA_UPGRADE, CATEGORIA_LABEL, ESTADO_COLOR, ESTADO_CONTRATO_LABEL, ETIQUETA_UPGRADE, MOTIVO_NUEVA_INVERSION_BLOQUEADA } from '@/lib/contratos-catalogo'
 import { tareaAEvento } from '@/lib/agenda-derivada'
 import { useAhora } from '@/lib/ahora'
 import { construirVistaCliente360, type VistaCliente360 } from '@/lib/cliente-ficha-modelo'
@@ -688,8 +688,8 @@ export function ClienteFicha({
                     size="xs"
                     className="min-h-10"
                     onClick={onNuevoContrato}
-                    disabled={!operable}
-                    aria-describedby={!operable ? motivoNoOperableId : undefined}
+                    disabled={!operable || grupo.contratos.length > 0}
+                    aria-describedby={[!operable ? motivoNoOperableId : '', grupo.contratos.length > 0 ? `${clienteId}-continuidad-inversion` : ''].filter(Boolean).join(' ') || undefined}
                   >
                     {grupo.contratos.length === 0 ? 'Registrar primera inversión' : 'Registrar nueva inversión'}
                   </Button>
@@ -704,6 +704,7 @@ export function ClienteFicha({
             </p>
           ) : (
             <>
+            {onNuevoContrato && <p id={`${clienteId}-continuidad-inversion`} className="pb-2 text-xs text-muted-foreground">{MOTIVO_NUEVA_INVERSION_BLOQUEADA}</p>}
             {onUpgrade && (
               <p className="pb-2 text-[11px] leading-relaxed text-muted-foreground">{AYUDA_UPGRADE}</p>
             )}
