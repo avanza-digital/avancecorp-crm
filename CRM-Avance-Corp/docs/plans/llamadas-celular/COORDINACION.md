@@ -1,6 +1,8 @@
 # Coordinación — «Llamadas desde el celular» (Jhosep ↔ Miguel)
 
-**Última actualización:** 06/10/2026, ~21:00 UTC, por Jhosep (Claude).
+**Última actualización:** 06/10/2026, ~23:55 UTC, por Jhosep (Claude). **El #190 ya está fusionado en `main`**
+(`d1f16fea`); falta aplicarlo en producción, desplegar y activar C1 (pasos de Miguel). Para retomar:
+`HANDOFF-2026-10-07.md`.
 **Para qué sirve:** que los dos agentes no trabajen cada uno por su lado. Antes de actuar, se lee este archivo. Aquí
 están las reglas, el mapa de los PR, el turno de cada uno, el orden y lo que ya pasó.
 
@@ -51,6 +53,15 @@ En la guía del #190, **los pasos 2 (#193) y 3 (#195) ya no existen**: los reemp
 
 ## 4. Bitácora (lo más nuevo arriba)
 
+- **06/10 23:28 UTC — Miguel:** aprobó y **fusionó el #190 en `main`** (`d1f16fea`, squash). Su visto bueno: «la
+  aplicación de las doce migraciones, el despliegue y la activación de C1 siguen siendo pasos separados». Los 8 fallos
+  del gate quedan aparte.
+- **06/10 ~22:00 — Jhosep:** analizó los 8 fallos de fondo del gate solo leyendo y los informó en el #190 (comentario
+  6026187290): potencial ×4 confirmado (bandera encendida, una guarda escrita dos veces), R2 ×3 y bancaria ×1 por
+  confirmar con sus líneas ✗. Decisión de Jhosep: solo informar; PR aparte, de Miguel.
+- **06/10 ~23:50 — Jhosep:** prototipos de F4-c (tarjeta «Celulares») y F4-e (vista del día de supervisor y gerencia)
+  hechos sobre las pantallas reales y **aprobados**. Enlaces en `HANDOFF-2026-10-07.md`. F4-c arranca en la rama
+  `crm/llamadas-f4c-celulares-20261006` desde `main` (D1 resuelta: PR nuevo desde `main`).
 - **06/10 ~21:00 — Jhosep:** revisó la entrega de Miguel con evidencia y le devuelve el turno.
   - Mismos números que Miguel: Edge 17 + 18 mutantes, app 6245/6245 y banco reducido 415/415.
   - Hallazgo P3: la duodécima compara huellas md5 del texto de siete funciones con los saltos de línea incluidos. Si las
