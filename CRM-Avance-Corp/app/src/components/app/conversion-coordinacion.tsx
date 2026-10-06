@@ -471,12 +471,12 @@ export function ConversionCoordinacion() {
           <div
             role="group"
             aria-label={`Resumen de conversión ${periodoVisible}`}
-            className="grid grid-cols-2 border-b border-border/70 bg-primary/[0.025] sm:grid-cols-4"
+            className="grid grid-cols-2 border-b border-border/70 bg-primary/[0.025] sm:grid-cols-3"
           >
             {chips.map(({ etiqueta, valor }, indice) => (
               <div
                 key={etiqueta}
-                className={`px-5 py-3 ${indice % 2 === 1 ? 'border-l border-border/70' : ''} ${indice % 4 !== 0 ? 'sm:border-l sm:border-border/70' : ''} ${indice >= 2 ? 'border-t border-border/70' : ''} ${indice >= 2 && indice < 4 ? 'sm:border-t-0' : ''}`}
+                className={`px-5 py-3 ${indice % 2 === 1 ? 'border-l border-border/70' : ''} ${indice % 3 !== 0 ? 'sm:border-l sm:border-border/70' : 'sm:border-l-0'} ${indice >= 2 ? 'border-t border-border/70' : ''} ${indice === 2 ? 'sm:border-t-0' : ''}`}
               >
                 <p className="text-[11px] font-semibold text-muted-foreground">{etiqueta}</p>
                 <p className="mt-0.5 text-xl font-extrabold tabular-nums text-primary">{valor}</p>
@@ -519,7 +519,7 @@ export function ConversionCoordinacion() {
                       <Th scope="col" className="text-right">Total</Th>
                       <Th scope="col" className="text-right">Form.</Th>
                       <Th scope="col" className="text-right">Land.</Th>
-                      <Th scope="col" className="text-right">Base</Th>
+                      <Th scope="col" className="text-right">Base <span className="sr-only">cargada</span></Th>
                       <Th scope="col" className="text-right">Referido</Th>
                       <Th scope="col" className="text-right">Sin peso</Th>
                       <Th scope="col" className="text-right">Upgrade</Th>

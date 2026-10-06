@@ -204,11 +204,14 @@ Regla de Miguel: la anulación de gerencia es la única puerta que puede mover u
 --   la foto del cierre), tablas, policies, grants, triggers, firmas de las puertas de la API y sus ACL.
 -- FRENO: el preflight se niega si ya existe algún cierre de un contacto de base (ledger o acreditación): entonces B11 movería
 --   un número que ya existe y se revisa con Miguel.
+--   También se niega si aparece un llamador nuevo de las dos privadas que se recrean (se busca en el texto de las funciones:
+--   pg_depend no ve una llamada hecha desde plpgsql) o si cambió alguno de los diez cuerpos, su dueño o su ACL.
 -- POSTFLIGHT: huellas medidas en el banco, ninguna copia de la lista, el ayudante dice lo ensayado, las columnas nuevas al
 --   final, el censo con los MISMOS rojos que antes (hoy uno ajeno: private.gestion_diaria_cola_hechos sin declarar) y el
 --   desglose del Divisor de coordinación del mes en curso sumando su numerador bruto en cada fila.
 -- REVERSA: supabase/scripts/base-gestion/reversa-b11.sql (repone los diez cuerpos vivos, las firmas viejas del divisor, sus
---   comentarios y las cuatro huellas; borra el ayudante; se niega si hay cierres de base, porque cambiaría sus números).
+--   comentarios y las cuatro huellas; borra el ayudante; se niega si hay cierres de base, porque cambiaría sus números, si
+--   otra función ya usa el ayudante o si el censo analítico no está vigente y sellado antes de empezar).
 
 ```
 
@@ -265,6 +268,14 @@ begin
       raise exception 'B11: % cambió desde el ensayo; revisar antes de aplicar', r.firma using errcode = 'P0409';
     end if;
   end loop;
+  -- Las dos privadas que se recrean (drop + create) solo tienen los dos llamadores ensayados. pg_depend no ve una
+  -- llamada hecha desde plpgsql, así que se mira el texto: un llamador nuevo quedaría roto por el cambio de columnas.
+  if exists (select 1 from pg_proc p
+              where p.prosrc ~ 'conversion_divisor_empresa(_totales)?\s*\('
+                and p.oid not in (to_regprocedure('private.conversion_divisor_empresa_totales(date,date)'),
+                                  to_regprocedure('crm.conversion_divisor_coordinacion_fn(date,date,date)'))) then
+    raise exception 'B11: hay un llamador nuevo del divisor de empresa; revisar antes de aplicar' using errcode = 'P0409';
+  end if;
   -- Las cuatro declaraciones del censo analítico existen y están vigentes (su huella = su cuerpo de hoy).
   if (select count(*) from private.analitica_leads_citas_exenciones e
         join pg_proc p on p.oid = to_regprocedure(e.objeto)
@@ -708,10 +719,139 @@ commit;
 select pg_advisory_unlock(hashtext('crm_migracion_funciones'));
 ```
 
+## Reversa (reversa-b11.sql): cabecera y sus dos bloques de comprobación (texto exacto)
+Entre los dos bloques repone, con CREATE OR REPLACE, el texto vivo de producción de las ocho piezas que no cambian de
+firma; hace drop + create de las dos privadas del divisor con su firma vieja, su revoke y su comentario; borra el
+ayudante; y actualiza las cuatro huellas del censo y el sello con las mismas dos sentencias de la migración.
+```sql
+-- reversa-b11.sql — deshace 20261006042144_crm_bases_cargadas_conversion.sql y deja el estado vivo de ANTES, byte a byte:
+-- los diez cuerpos (md5 de prosrc de producción, 05/10/2026), las firmas viejas de private.conversion_divisor_empresa y de
+-- private.conversion_divisor_empresa_totales (sin cierres_base_cargada) con su ACL y su comentario, el comentario de la puerta
+-- de coordinación, las cuatro huellas del censo analítico (resellado) y SIN el ayudante.
+-- Se NIEGA si ya hay cierres de contactos de base: revertir les quitaría su peso (un número que la gente ya vio).
+-- Se NIEGA también si otra función (fuera de las diez de B11) ya llama al ayudante: borrarlo la dejaría rota y pg_depend
+-- no ve esa llamada; y si el censo analítico no está vigente y sellado antes de empezar (no se resella sobre un sello roto).
+-- Antes de revertir en producción: publicar la pantalla anterior NO hace falta (la pantalla nueva tolera la clave ausente).
+-- Uso: psql … -X -v ON_ERROR_STOP=1 -c "$(cat supabase/scripts/base-gestion/reversa-b11.sql)"   (un mensaje, como la migración)
+
+do $preflight$
+declare r record;
+begin
+  if not exists (select 1 from pg_locks l
+                  where l.locktype = 'advisory' and l.pid = pg_backend_pid() and l.granted and l.mode = 'ExclusiveLock'
+                    and l.objsubid = 1
+                    and ((l.classid::bigint << 32) | l.objid::bigint) = hashtext('crm_migracion_funciones')::bigint) then
+    raise exception 'reversa B11: falta el candado de migraciones' using errcode = 'P0409';
+  end if;
+  for r in select * from (values
+    ('private.conversion_cierres(timestamptz,timestamptz,date,boolean,uuid[],numeric,uuid[])', '155ce2b12754718388c8ca1644c84c90', '{postgres=X/postgres}'),
+    ('private.registrar_ajuste_si_mes_cerrado(uuid,text,uuid)', 'fec614f0df11c6d411bf132c776cce6e', '{postgres=X/postgres}'),
+    ('private.conversion_mensual_por_vendedor(timestamptz,timestamptz,boolean,uuid[],numeric)', '2f0f891b41b25c902d6cfd4ab369af5d', '{postgres=X/postgres}'),
+    ('crm.metricas_conversiones_equipo_fn(date,date)', '09e538d7be92bf8755411bec0737b34d', '{postgres=X/postgres,authenticated=X/postgres}'),
+    ('private.metricas_conversiones_implementacion(date,date,text)', '309c951204d9cd81a38ed049d1319d06', '{postgres=X/postgres}'),
+    ('private.metricas_distribucion_leads_v3_core(date,date,timestamptz)', '41df911eccb0e66021760335145bb0e1', '{postgres=X/postgres}'),
+    ('crm.conversion_mensual_sin_cartera_fn(date)', '417defaf8d982bfc628b3469984fa802', '{postgres=X/postgres}'),
+    ('private.conversion_divisor_empresa(date,date)', 'bf90ba99a8404c0889606354ef289335', '{postgres=X/postgres}'),
+    ('private.conversion_divisor_empresa_totales(date,date)', 'cf38266452df03960ca07d856d59b346', '{postgres=X/postgres}'),
+    ('crm.conversion_divisor_coordinacion_fn(date,date,date)', 'b7dd99499a7668938a1417b259bc0626', '{postgres=X/postgres,authenticated=X/postgres}'),
+    ('private.conversion_origen_con_cierre(text)', '3c7ded558914426ea4f6a08830db1b43', '{postgres=X/postgres}')
+  ) as v(firma, huella, acl) loop
+    if not exists (select 1 from pg_proc p where p.oid = to_regprocedure(r.firma) and md5(p.prosrc) = r.huella
+                    and p.proowner = 'postgres'::regrole and p.proacl::text = r.acl) then
+      raise exception 'reversa B11: % no es el de B11; revisar antes de revertir', r.firma using errcode = 'P0409';
+    end if;
+  end loop;
+  -- Nadie fuera de las piezas de B11 llama al ayudante que se va a borrar (pg_depend no ve las llamadas en el texto).
+  if exists (select 1 from pg_proc p
+              where p.prosrc like '%conversion_origen_con_cierre%'
+                and p.oid not in (to_regprocedure('private.conversion_cierres(timestamptz,timestamptz,date,boolean,uuid[],numeric,uuid[])'), to_regprocedure('private.registrar_ajuste_si_mes_cerrado(uuid,text,uuid)'), to_regprocedure('private.conversion_mensual_por_vendedor(timestamptz,timestamptz,boolean,uuid[],numeric)'), to_regprocedure('crm.metricas_conversiones_equipo_fn(date,date)'), to_regprocedure('private.metricas_conversiones_implementacion(date,date,text)'), to_regprocedure('private.metricas_distribucion_leads_v3_core(date,date,timestamptz)'), to_regprocedure('crm.conversion_mensual_sin_cartera_fn(date)'), to_regprocedure('private.conversion_divisor_empresa(date,date)'), to_regprocedure('private.conversion_divisor_empresa_totales(date,date)'), to_regprocedure('crm.conversion_divisor_coordinacion_fn(date,date,date)'),
+                                  to_regprocedure('private.conversion_origen_con_cierre(text)'))) then
+    raise exception 'reversa B11: otra función ya usa private.conversion_origen_con_cierre; no se puede borrar' using errcode = 'P0409';
+  end if;
+  -- Las dos privadas del divisor (drop + create) siguen con sus dos únicos llamadores.
+  if exists (select 1 from pg_proc p
+              where p.prosrc ~ 'conversion_divisor_empresa(_totales)?\s*\('
+                and p.oid not in (to_regprocedure('private.conversion_divisor_empresa_totales(date,date)'),
+                                  to_regprocedure('crm.conversion_divisor_coordinacion_fn(date,date,date)'))) then
+    raise exception 'reversa B11: hay un llamador nuevo del divisor de empresa; revisar antes de revertir' using errcode = 'P0409';
+  end if;
+  -- El censo analítico se resella al final: antes debe estar vigente (las cuatro declaraciones) y con el sello al día.
+  if (select count(*) from private.analitica_leads_citas_exenciones e
+        join pg_proc p on p.oid = to_regprocedure(e.objeto)
+       where to_regprocedure(e.objeto) in (to_regprocedure('private.registrar_ajuste_si_mes_cerrado(uuid,text,uuid)'), to_regprocedure('crm.metricas_conversiones_equipo_fn(date,date)'), to_regprocedure('private.metricas_conversiones_implementacion(date,date,text)'), to_regprocedure('crm.conversion_mensual_sin_cartera_fn(date)'))
+         and e.huella = md5(regexp_replace(regexp_replace(lower(p.prosrc), '--[^\n]*', ' ', 'g'), '/\*.*?\*/', ' ', 'g'))) <> 4 then
+    raise exception 'reversa B11: una declaracion analitica de las funciones tocadas no esta vigente' using errcode = 'P0409';
+  end if;
+  if (select s.sello from private.analitica_lc_sello s where s.id) is distinct from private.huella_exenciones_analitica_lc() then
+    raise exception 'reversa B11: el sello del censo analitico no esta al dia' using errcode = 'P0409';
+  end if;
+  if exists (select 1 from crm.lead_asignaciones la join crm.leads l on l.id = la.lead_id
+              where la.resultado = 'convertido' and l.origen = 'base_cargada')
+     or exists (select 1 from crm.conversion_acreditaciones ca where ca.origen = 'base_cargada') then
+    raise exception 'reversa B11: ya hay cierres de contactos de base; revertir les quitaría su peso' using errcode = 'P0409';
+  end if;
+end;
+$preflight$;
+
+-- … cuerpos vivos de producción, drop del ayudante y resello del censo …
+
+do $postflight$
+declare r record;
+begin
+  for r in select * from (values
+    ('private.conversion_cierres(timestamptz,timestamptz,date,boolean,uuid[],numeric,uuid[])', 'b1d6c336d198036db4ddad83a075ebdb', '{postgres=X/postgres}'),
+    ('private.registrar_ajuste_si_mes_cerrado(uuid,text,uuid)', '00b17e7774f821eb04f0802f18039569', '{postgres=X/postgres}'),
+    ('private.conversion_mensual_por_vendedor(timestamptz,timestamptz,boolean,uuid[],numeric)', '6e62d66e1c9536a50657245d6e633f56', '{postgres=X/postgres}'),
+    ('crm.metricas_conversiones_equipo_fn(date,date)', 'cbae26a3031e01580068c9336baf798b', '{postgres=X/postgres,authenticated=X/postgres}'),
+    ('private.metricas_conversiones_implementacion(date,date,text)', '1a0e7f7fd01977e556a13fea14ddc5aa', '{postgres=X/postgres}'),
+    ('private.metricas_distribucion_leads_v3_core(date,date,timestamptz)', 'd73e12275649b756b71de50fd176d697', '{postgres=X/postgres}'),
+    ('crm.conversion_mensual_sin_cartera_fn(date)', 'f613d94208b035f241c4e13b351c55be', '{postgres=X/postgres}'),
+    ('private.conversion_divisor_empresa(date,date)', '5700d2770d1796440aa0184b035d623a', '{postgres=X/postgres}'),
+    ('private.conversion_divisor_empresa_totales(date,date)', 'e97995f5ffd9109fce87f2e5dafb11a6', '{postgres=X/postgres}'),
+    ('crm.conversion_divisor_coordinacion_fn(date,date,date)', 'b881b83ca8d4dd2f0f081d736828c8c5', '{postgres=X/postgres,authenticated=X/postgres}')
+  ) as v(firma, huella, acl) loop
+    if not exists (select 1 from pg_proc p where p.oid = to_regprocedure(r.firma) and md5(p.prosrc) = r.huella
+                    and p.proowner = 'postgres'::regrole and p.proacl::text = r.acl
+                    and p.prosecdef = (r.firma <> 'private.metricas_distribucion_leads_v3_core(date,date,timestamptz)')) then
+      raise exception 'reversa B11 postflight: % no volvió al texto vivo', r.firma;
+    end if;
+  end loop;
+  if to_regprocedure('private.conversion_origen_con_cierre(text)') is not null then
+    raise exception 'reversa B11 postflight: el ayudante sigue vivo';
+  end if;
+  if exists (select 1 from pg_proc p where p.prosrc like '%conversion_origen_con_cierre%') then
+    raise exception 'reversa B11 postflight: queda una función que nombra al ayudante borrado';
+  end if;
+  if md5(coalesce(obj_description(to_regprocedure('private.conversion_divisor_empresa(date,date)'), 'pg_proc'), '')) <> md5('Núcleo (30/09/2026, v2 con desglose y rango): conversión por analista con ámbito de toda la empresa, para la puerta de Coordinación, entre dos fechas inclusivas (Lima). Un mes calendario exacto usa la pieza mensual neta (Metas) y, si está sellado, la foto (crm.cierre_mes_vendedor: origenes_ranking y cartera) sin recalcular; cualquier otro rango se calcula en vivo (bruto = neto). Agrupa los episodios de private.conversion_episodios: llegadas por origen (divisor), cierres por origen (formulario, landing, referido con su aporte, oficina sin peso) y cartera (upgrade, renovación con su aporte). numerador_bruto = partes. La fila con analista_id nulo es la producción sin analista atribuible. Sin autorización dentro y sin ejecutores de la API.') then
+    raise exception 'reversa B11 postflight: comentario de % sin reponer', 'private.conversion_divisor_empresa(date,date)';
+  end if;
+  if md5(coalesce(obj_description(to_regprocedure('private.conversion_divisor_empresa_totales(date,date)'), 'pg_proc'), '')) <> md5('Núcleo (30/09/2026, v2 con desglose y rango): total de la empresa y producción sin analista para la puerta de Coordinación, entre dos fechas inclusivas (Lima). Mes abierto o rango: suma de private.conversion_divisor_empresa. Mes sellado: foto por persona + cobertura.fuera_ranking + conversion_sin_analista de crm.periodos_cerrados (solo objetos), la misma suma que la puerta mensual oficial; el desglose solo se sirve si todas las filas de la foto lo traen. Nunca recalcula un mes sellado. Sin autorización dentro y sin ejecutores de la API.') then
+    raise exception 'reversa B11 postflight: comentario de % sin reponer', 'private.conversion_divisor_empresa_totales(date,date)';
+  end if;
+  if md5(coalesce(obj_description(to_regprocedure('crm.conversion_divisor_coordinacion_fn(date,date,date)'), 'pg_proc'), '')) <> md5('Puerta (30/09/2026, v2 con desglose de cierres y rango de fechas): conversión por analista de TODA la empresa para Coordinación (OK de Miguel: divisor, desglose por origen, numerador neto y porcentaje; después pidió de dónde salen los cierres —formulario, landing, referido con su peso, oficina sin peso, upgrade y renovación con su peso— y consultar por rango de fechas). Sin argumentos: mes vigente. p_periodo: ese mes (sellado → foto). p_desde + p_hasta: rango inclusivo en Lima, hasta 366 días, sin futuro; un mes calendario exacto se trata como ese mes; otro rango se calcula en vivo (sin ajustes de meses pagados; si toca meses sellados lo declara en periodo.cruza_meses_sellados y fuente.modo = rango_vivo). Los cierres de orígenes que no pesan (oficina y otros) se cuentan aparte. Autoriza con private.puede_operar_reparto_crm() (coordinador o gerencia activas; el resto 42501) y delega en los núcleos: nada se recalcula aquí. Sin PII de leads.') then
+    raise exception 'reversa B11 postflight: comentario de % sin reponer', 'crm.conversion_divisor_coordinacion_fn(date,date,date)';
+  end if;
+  if (select s.sello from private.analitica_lc_sello s where s.id) is distinct from private.huella_exenciones_analitica_lc() then
+    raise exception 'reversa B11 postflight: el sello del censo no quedo al dia';
+  end if;
+  if exists ((select tipo, objeto, declarada, huella_ok from pg_temp.b11_censo_antes
+              except select c.tipo, c.objeto, c.declarada, c.huella_ok from private.contadores_crudos_leads_citas() c)
+             union all
+             (select c.tipo, c.objeto, c.declarada, c.huella_ok from private.contadores_crudos_leads_citas() c
+              except select tipo, objeto, declarada, huella_ok from pg_temp.b11_censo_antes)) then
+    raise exception 'reversa B11 postflight: el censo analitico cambio';
+  end if;
+end;
+$postflight$;
+
+commit;
+select pg_advisory_unlock(hashtext('crm_migracion_funciones'));
+```
+
 ## Pantalla (diff exacto, sin los tests)
 ```diff
 diff --git a/CRM-Avance-Corp/app/src/components/app/conversion-coordinacion.tsx b/CRM-Avance-Corp/app/src/components/app/conversion-coordinacion.tsx
-index eea756e9..c94103f4 100644
+index eea756e9..1cf912c1 100644
 --- a/CRM-Avance-Corp/app/src/components/app/conversion-coordinacion.tsx
 +++ b/CRM-Avance-Corp/app/src/components/app/conversion-coordinacion.tsx
 @@ -58,6 +58,7 @@ function SinDato({ motivo }: { motivo: string }) {
@@ -761,11 +901,26 @@ index eea756e9..c94103f4 100644
      { etiqueta: 'Referidos', valor: datos.empresa.cierres ? <CantidadYAporte cantidad={datos.empresa.cierres.referido} aporte={datos.empresa.cierres.referido_aporte} nombre={REFERIDO} /> : <SinDato motivo={MOTIVO_SELLADO} /> },
      { etiqueta: 'Upgrade', valor: datos.empresa.cartera ? numero(datos.empresa.cartera.upgrade) : <SinDato motivo={MOTIVO_SELLADO} /> },
      { etiqueta: 'Renovación', valor: datos.empresa.cartera ? <CantidadYAporte cantidad={datos.empresa.cartera.renovacion} aporte={datos.empresa.cartera.renovacion_aporte} nombre={RENOVACION} /> : <SinDato motivo={MOTIVO_SELLADO} /> },
+@@ -465,12 +471,12 @@ export function ConversionCoordinacion() {
+           <div
+             role="group"
+             aria-label={`Resumen de conversión ${periodoVisible}`}
+-            className="grid grid-cols-2 border-b border-border/70 bg-primary/[0.025] sm:grid-cols-4"
++            className="grid grid-cols-2 border-b border-border/70 bg-primary/[0.025] sm:grid-cols-3"
+           >
+             {chips.map(({ etiqueta, valor }, indice) => (
+               <div
+                 key={etiqueta}
+-                className={`px-5 py-3 ${indice % 2 === 1 ? 'border-l border-border/70' : ''} ${indice % 4 !== 0 ? 'sm:border-l sm:border-border/70' : ''} ${indice >= 2 ? 'border-t border-border/70' : ''} ${indice >= 2 && indice < 4 ? 'sm:border-t-0' : ''}`}
++                className={`px-5 py-3 ${indice % 2 === 1 ? 'border-l border-border/70' : ''} ${indice % 3 !== 0 ? 'sm:border-l sm:border-border/70' : 'sm:border-l-0'} ${indice >= 2 ? 'border-t border-border/70' : ''} ${indice === 2 ? 'sm:border-t-0' : ''}`}
+               >
+                 <p className="text-[11px] font-semibold text-muted-foreground">{etiqueta}</p>
+                 <p className="mt-0.5 text-xl font-extrabold tabular-nums text-primary">{valor}</p>
 @@ -513,6 +519,7 @@ export function ConversionCoordinacion() {
                        <Th scope="col" className="text-right">Total</Th>
                        <Th scope="col" className="text-right">Form.</Th>
                        <Th scope="col" className="text-right">Land.</Th>
-+                      <Th scope="col" className="text-right">Base</Th>
++                      <Th scope="col" className="text-right">Base <span className="sr-only">cargada</span></Th>
                        <Th scope="col" className="text-right">Referido</Th>
                        <Th scope="col" className="text-right">Sin peso</Th>
                        <Th scope="col" className="text-right">Upgrade</Th>
@@ -829,12 +984,14 @@ index cc7d3b54..223af806 100644
    // Por persona: neto = bruto menos lo que arrastra de meses ya pagados, con suelo en cero.
 ```
 
-## Resultados medidos (banco Docker a paridad 922/922 funciones crm+private con producción; huella agregada idéntica)
-- Migración aplicada en UN mensaje: preflight y postflight en verde (0,35 s).
-- Paridad A/B (b11-paridad.sql, como Gerencia, ago/sep/oct + rango): 32 salidas (coordinación, conversión mensual sin
+## Resultados medidos (06/10/2026; banco Docker con las 933 funciones crm+private de producción: las 922 del 05/10 más la
+## migración 20261005200945 «eliminar inversión», ya en producción; huella agregada antes de B11 `933 | 2c2f2612…`)
+- Migración aplicada en UN mensaje, como `postgres`: preflight y postflight en verde (0,37 s). Huella después `934 | 2f359f3e…`.
+- Paridad A/B (b11-paridad.sql, como Gerencia, ago/sep/oct + rango): 41 salidas (coordinación, conversión mensual sin
   cartera, Equipo, Inteligencia comercial, Distribución v3, conversión mensual por vendedor, divisor de empresa proyectado,
-  cierres, crm.conversion_mensual_fn, alarma) IDÉNTICAS antes y después; la única diferencia es la clave nueva
-  base_cargada = 0. Foto de trinquetes idéntica.
+  cierres, crm.conversion_mensual_fn, alarma) con huella IDÉNTICA antes y después; la única diferencia es la clave nueva
+  base_cargada = 0. Censo analítico (38 filas) idéntico antes y después.
+- Las 11 huellas (md5 de prosrc) tras aplicar = las del postflight.
 - Suite de comportamiento (clona un cierre real de octubre como contacto de base y como «otro»): 23/23. Base: numerador
   +1, divisor +0, cierres +1 en mensual/Equipo/Distribución/Inteligencia comercial, coordinación con base +1 y partes =
   bruto en cada fila, sondas de paridad de Equipo y Distribución en verde, la sonda «cierre sin episodio» ve un contacto
@@ -842,9 +999,29 @@ index cc7d3b54..223af806 100644
   y total; el ajuste de un cierre de base anulado pesa 1; el de «otro», ninguno.
 - Mutantes: 16/16 caen (cada copia vieja de cada función, ayudante sin base, base contada como 0, «otros» con base, mes
   sellado con 0 inventado, coordinación sin la clave).
-- Frenos probados: con un cierre de base presente, la migración y la reversa se niegan (P0409) y sueltan el candado.
-- Reversa: deja el banco con las 922 funciones y el censo IDÉNTICOS a producción.
-- Front: npm run check (oxlint + typecheck + 6134 tests) PASS.
+- Frenos en negativo (10/10): con un cierre de base presente, la migración y la reversa se niegan (P0409) y sueltan el
+  candado; la reversa se niega si otra función nombra al ayudante, si hay un llamador nuevo del divisor de empresa, si el
+  sello del censo no está al día o si una de las cuatro declaraciones caducó; la migración se niega con un llamador nuevo
+  del divisor de empresa; ningún rechazo deja nada (huella igual) ni retiene candados.
+- Reversa (como `postgres`): deja el banco con las 933 funciones y el censo IDÉNTICOS a antes de B11. Corrida como otro rol
+  (supabase_admin) su postflight la rechaza y hace rollback (el dueño de las dos privadas recreadas no sería postgres).
+- Gate de RLS completo (test-rls.mjs, siembra + 2781 aserciones) ANTES y DESPUÉS de B11: los mismos 71 rojos de fondo
+  (ajenos y previos), ninguno nuevo; el bloque nuevo de B11 8/8 (núcleo sin EXECUTE para anon/authenticated/service_role,
+  ayudante INVOKER e IMMUTABLE, ACL de la puerta intacta, empresa.cierres.base_cargada y la de cada analista enteras en un
+  mes abierto, partes = numerador bruto con la base).
+- Tiempo de private.metricas_conversiones_implementacion con 366 días (5 corridas, ms): sin B11 {90.2,86.6,87.6,96.9,89.9},
+  con B11 {98.7,89.6,88.9,87.7,91.9}; misma salida (md5 igual).
+- Registrador: se niega sin la migración; con ella registra 1 sentencia cuyo md5 = el del archivo; idempotente.
+- Front: npm run check (oxlint + typecheck + 6201 tests) PASS.
+
+## Revisión previa (auditor-rls interno, 06/10): CHANGES_REQUESTED sin P0/P1 — ya atendida en lo transcrito arriba
+- P2 la reversa borraba el ayudante sin mirar si otra función lo llama (pg_depend no ve una llamada dentro de un cuerpo
+  plpgsql/sql con texto) → preflight con P0409 si algún prosrc fuera de las diez piezas lo nombra; postflight: cero menciones.
+- P2 la reversa resellaba el censo sin comprobar que el sello estaba al día → mismo par de comprobaciones que la migración.
+- P3 la reversa no comprobaba el candado de migraciones ni prosecdef → añadidos.
+- P3 guarda contra llamadores nuevos de las dos privadas que se recrean (migración y reversa).
+- P3 gate de RLS: la paridad del desglose suma `cierres.base_cargada ?? 0` y hay un bloque propio de B11 (catálogo + contrato).
+- Pantalla: la cabecera «Base» se oye «Base cargada»; el resumen (9 cifras) pasa a rejilla de 3 columnas.
 
 ## Lo que quiero que intentes refutar (además de lo que encuentres)
 1. ¿Algún consumidor (servidor o pantalla) suma partes del numerador o cuenta cierres por origen con otra copia de la lista

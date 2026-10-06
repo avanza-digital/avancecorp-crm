@@ -193,6 +193,14 @@ w("""  ) as v(firma, huella, acl) loop
       raise exception 'B11: % cambió desde el ensayo; revisar antes de aplicar', r.firma using errcode = 'P0409';
     end if;
   end loop;
+  -- Las dos privadas que se recrean (drop + create) solo tienen los dos llamadores ensayados. pg_depend no ve una
+  -- llamada hecha desde plpgsql, así que se mira el texto: un llamador nuevo quedaría roto por el cambio de columnas.
+  if exists (select 1 from pg_proc p
+              where p.prosrc ~ 'conversion_divisor_empresa(_totales)?\\s*\\('
+                and p.oid not in (to_regprocedure('private.conversion_divisor_empresa_totales(date,date)'),
+                                  to_regprocedure('crm.conversion_divisor_coordinacion_fn(date,date,date)'))) then
+    raise exception 'B11: hay un llamador nuevo del divisor de empresa; revisar antes de aplicar' using errcode = 'P0409';
+  end if;
   -- Las cuatro declaraciones del censo analítico existen y están vigentes (su huella = su cuerpo de hoy).
   if (select count(*) from private.analitica_leads_citas_exenciones e
         join pg_proc p on p.oid = to_regprocedure(e.objeto)

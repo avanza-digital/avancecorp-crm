@@ -6,6 +6,9 @@ i = mig.index('-- Exclusión de migraciones ANTES'); j = mig.index('-- ── 2 
 pre = mig[i:j]
 k = mig.index('-- ── 4 · Censo analítico'); post = mig[k:]
 cab = mig[:i]
+rev = open(os.path.join(S, '..', 'reversa-b11.sql')).read()
+rev_pre = rev[rev.index('do $preflight$'):rev.index('$preflight$;') + len('$preflight$;')]
+rev_post = rev[rev.index('do $postflight$'):]
 proto = open(os.path.expanduser('~/.config/ai-collaboration/REVIEW_PROTOCOL.md')).read()
 anexo = open(os.path.join(S, 'anexo.md')).read() if os.path.exists(os.path.join(S, 'anexo.md')) else ''
 F = '```'
@@ -57,16 +60,29 @@ Regla de Miguel: la anulación de gerencia es la única puerta que puede mover u
 {F}sql
 {post}{F}
 
+## Reversa (reversa-b11.sql): cabecera y sus dos bloques de comprobación (texto exacto)
+Entre los dos bloques repone, con CREATE OR REPLACE, el texto vivo de producción de las ocho piezas que no cambian de
+firma; hace drop + create de las dos privadas del divisor con su firma vieja, su revoke y su comentario; borra el
+ayudante; y actualiza las cuatro huellas del censo y el sello con las mismas dos sentencias de la migración.
+{F}sql
+{rev[:rev.index('begin;')]}{rev_pre}
+
+-- … cuerpos vivos de producción, drop del ayudante y resello del censo …
+
+{rev_post}{F}
+
 ## Pantalla (diff exacto, sin los tests)
 {F}diff
 {open(os.path.join(S, 'front-prod.diff')).read()}{F}
 
-## Resultados medidos (banco Docker a paridad 922/922 funciones crm+private con producción; huella agregada idéntica)
-- Migración aplicada en UN mensaje: preflight y postflight en verde (0,35 s).
-- Paridad A/B (b11-paridad.sql, como Gerencia, ago/sep/oct + rango): 32 salidas (coordinación, conversión mensual sin
+## Resultados medidos (06/10/2026; banco Docker con las 933 funciones crm+private de producción: las 922 del 05/10 más la
+## migración 20261005200945 «eliminar inversión», ya en producción; huella agregada antes de B11 `933 | 2c2f2612…`)
+- Migración aplicada en UN mensaje, como `postgres`: preflight y postflight en verde (0,37 s). Huella después `934 | 2f359f3e…`.
+- Paridad A/B (b11-paridad.sql, como Gerencia, ago/sep/oct + rango): 41 salidas (coordinación, conversión mensual sin
   cartera, Equipo, Inteligencia comercial, Distribución v3, conversión mensual por vendedor, divisor de empresa proyectado,
-  cierres, crm.conversion_mensual_fn, alarma) IDÉNTICAS antes y después; la única diferencia es la clave nueva
-  base_cargada = 0. Foto de trinquetes idéntica.
+  cierres, crm.conversion_mensual_fn, alarma) con huella IDÉNTICA antes y después; la única diferencia es la clave nueva
+  base_cargada = 0. Censo analítico (38 filas) idéntico antes y después.
+- Las 11 huellas (md5 de prosrc) tras aplicar = las del postflight.
 - Suite de comportamiento (clona un cierre real de octubre como contacto de base y como «otro»): 23/23. Base: numerador
   +1, divisor +0, cierres +1 en mensual/Equipo/Distribución/Inteligencia comercial, coordinación con base +1 y partes =
   bruto en cada fila, sondas de paridad de Equipo y Distribución en verde, la sonda «cierre sin episodio» ve un contacto
@@ -74,9 +90,20 @@ Regla de Miguel: la anulación de gerencia es la única puerta que puede mover u
   y total; el ajuste de un cierre de base anulado pesa 1; el de «otro», ninguno.
 - Mutantes: 16/16 caen (cada copia vieja de cada función, ayudante sin base, base contada como 0, «otros» con base, mes
   sellado con 0 inventado, coordinación sin la clave).
-- Frenos probados: con un cierre de base presente, la migración y la reversa se niegan (P0409) y sueltan el candado.
-- Reversa: deja el banco con las 922 funciones y el censo IDÉNTICOS a producción.
-- Front: npm run check (oxlint + typecheck + 6134 tests) PASS.
+- Frenos en negativo (10/10): con un cierre de base presente, la migración y la reversa se niegan (P0409) y sueltan el
+  candado; la reversa se niega si otra función nombra al ayudante, si hay un llamador nuevo del divisor de empresa, si el
+  sello del censo no está al día o si una de las cuatro declaraciones caducó; la migración se niega con un llamador nuevo
+  del divisor de empresa; ningún rechazo deja nada (huella igual) ni retiene candados.
+- Reversa (como `postgres`): deja el banco con las 933 funciones y el censo IDÉNTICOS a antes de B11. Corrida como otro rol
+  (supabase_admin) su postflight la rechaza y hace rollback (el dueño de las dos privadas recreadas no sería postgres).
+- Gate de RLS completo (test-rls.mjs, siembra + 2781 aserciones) ANTES y DESPUÉS de B11: los mismos 71 rojos de fondo
+  (ajenos y previos), ninguno nuevo; el bloque nuevo de B11 8/8 (núcleo sin EXECUTE para anon/authenticated/service_role,
+  ayudante INVOKER e IMMUTABLE, ACL de la puerta intacta, empresa.cierres.base_cargada y la de cada analista enteras en un
+  mes abierto, partes = numerador bruto con la base).
+- Tiempo de private.metricas_conversiones_implementacion con 366 días (5 corridas, ms): sin B11 {{90.2,86.6,87.6,96.9,89.9}},
+  con B11 {{98.7,89.6,88.9,87.7,91.9}}; misma salida (md5 igual).
+- Registrador: se niega sin la migración; con ella registra 1 sentencia cuyo md5 = el del archivo; idempotente.
+- Front: npm run check (oxlint + typecheck + 6201 tests) PASS.
 {anexo}
 ## Lo que quiero que intentes refutar (además de lo que encuentres)
 1. ¿Algún consumidor (servidor o pantalla) suma partes del numerador o cuenta cierres por origen con otra copia de la lista

@@ -34,8 +34,11 @@
 --   la foto del cierre), tablas, policies, grants, triggers, firmas de las puertas de la API y sus ACL.
 -- FRENO: el preflight se niega si ya existe algún cierre de un contacto de base (ledger o acreditación): entonces B11 movería
 --   un número que ya existe y se revisa con Miguel.
+--   También se niega si aparece un llamador nuevo de las dos privadas que se recrean (se busca en el texto de las funciones:
+--   pg_depend no ve una llamada hecha desde plpgsql) o si cambió alguno de los diez cuerpos, su dueño o su ACL.
 -- POSTFLIGHT: huellas medidas en el banco, ninguna copia de la lista, el ayudante dice lo ensayado, las columnas nuevas al
 --   final, el censo con los MISMOS rojos que antes (hoy uno ajeno: private.gestion_diaria_cola_hechos sin declarar) y el
 --   desglose del Divisor de coordinación del mes en curso sumando su numerador bruto en cada fila.
 -- REVERSA: supabase/scripts/base-gestion/reversa-b11.sql (repone los diez cuerpos vivos, las firmas viejas del divisor, sus
---   comentarios y las cuatro huellas; borra el ayudante; se niega si hay cierres de base, porque cambiaría sus números).
+--   comentarios y las cuatro huellas; borra el ayudante; se niega si hay cierres de base, porque cambiaría sus números, si
+--   otra función ya usa el ayudante o si el censo analítico no está vigente y sellado antes de empezar).

@@ -3,6 +3,8 @@
 -- private.conversion_divisor_empresa_totales (sin cierres_base_cargada) con su ACL y su comentario, el comentario de la puerta
 -- de coordinación, las cuatro huellas del censo analítico (resellado) y SIN el ayudante.
 -- Se NIEGA si ya hay cierres de contactos de base: revertir les quitaría su peso (un número que la gente ya vio).
+-- Se NIEGA también si otra función (fuera de las diez de B11) ya llama al ayudante: borrarlo la dejaría rota y pg_depend
+-- no ve esa llamada; y si el censo analítico no está vigente y sellado antes de empezar (no se resella sobre un sello roto).
 -- Antes de revertir en producción: publicar la pantalla anterior NO hace falta (la pantalla nueva tolera la clave ausente).
 -- Uso: psql … -X -v ON_ERROR_STOP=1 -c "$(cat supabase/scripts/base-gestion/reversa-b11.sql)"   (un mensaje, como la migración)
 
@@ -21,6 +23,12 @@ set local quote_all_identifiers = off;
 do $preflight$
 declare r record;
 begin
+  if not exists (select 1 from pg_locks l
+                  where l.locktype = 'advisory' and l.pid = pg_backend_pid() and l.granted and l.mode = 'ExclusiveLock'
+                    and l.objsubid = 1
+                    and ((l.classid::bigint << 32) | l.objid::bigint) = hashtext('crm_migracion_funciones')::bigint) then
+    raise exception 'reversa B11: falta el candado de migraciones' using errcode = 'P0409';
+  end if;
   for r in select * from (values
     ('private.conversion_cierres(timestamptz,timestamptz,date,boolean,uuid[],numeric,uuid[])', '155ce2b12754718388c8ca1644c84c90', '{postgres=X/postgres}'),
     ('private.registrar_ajuste_si_mes_cerrado(uuid,text,uuid)', 'fec614f0df11c6d411bf132c776cce6e', '{postgres=X/postgres}'),
@@ -39,6 +47,30 @@ begin
       raise exception 'reversa B11: % no es el de B11; revisar antes de revertir', r.firma using errcode = 'P0409';
     end if;
   end loop;
+  -- Nadie fuera de las piezas de B11 llama al ayudante que se va a borrar (pg_depend no ve las llamadas en el texto).
+  if exists (select 1 from pg_proc p
+              where p.prosrc like '%conversion_origen_con_cierre%'
+                and p.oid not in (to_regprocedure('private.conversion_cierres(timestamptz,timestamptz,date,boolean,uuid[],numeric,uuid[])'), to_regprocedure('private.registrar_ajuste_si_mes_cerrado(uuid,text,uuid)'), to_regprocedure('private.conversion_mensual_por_vendedor(timestamptz,timestamptz,boolean,uuid[],numeric)'), to_regprocedure('crm.metricas_conversiones_equipo_fn(date,date)'), to_regprocedure('private.metricas_conversiones_implementacion(date,date,text)'), to_regprocedure('private.metricas_distribucion_leads_v3_core(date,date,timestamptz)'), to_regprocedure('crm.conversion_mensual_sin_cartera_fn(date)'), to_regprocedure('private.conversion_divisor_empresa(date,date)'), to_regprocedure('private.conversion_divisor_empresa_totales(date,date)'), to_regprocedure('crm.conversion_divisor_coordinacion_fn(date,date,date)'),
+                                  to_regprocedure('private.conversion_origen_con_cierre(text)'))) then
+    raise exception 'reversa B11: otra función ya usa private.conversion_origen_con_cierre; no se puede borrar' using errcode = 'P0409';
+  end if;
+  -- Las dos privadas del divisor (drop + create) siguen con sus dos únicos llamadores.
+  if exists (select 1 from pg_proc p
+              where p.prosrc ~ 'conversion_divisor_empresa(_totales)?\s*\('
+                and p.oid not in (to_regprocedure('private.conversion_divisor_empresa_totales(date,date)'),
+                                  to_regprocedure('crm.conversion_divisor_coordinacion_fn(date,date,date)'))) then
+    raise exception 'reversa B11: hay un llamador nuevo del divisor de empresa; revisar antes de revertir' using errcode = 'P0409';
+  end if;
+  -- El censo analítico se resella al final: antes debe estar vigente (las cuatro declaraciones) y con el sello al día.
+  if (select count(*) from private.analitica_leads_citas_exenciones e
+        join pg_proc p on p.oid = to_regprocedure(e.objeto)
+       where to_regprocedure(e.objeto) in (to_regprocedure('private.registrar_ajuste_si_mes_cerrado(uuid,text,uuid)'), to_regprocedure('crm.metricas_conversiones_equipo_fn(date,date)'), to_regprocedure('private.metricas_conversiones_implementacion(date,date,text)'), to_regprocedure('crm.conversion_mensual_sin_cartera_fn(date)'))
+         and e.huella = md5(regexp_replace(regexp_replace(lower(p.prosrc), '--[^\n]*', ' ', 'g'), '/\*.*?\*/', ' ', 'g'))) <> 4 then
+    raise exception 'reversa B11: una declaracion analitica de las funciones tocadas no esta vigente' using errcode = 'P0409';
+  end if;
+  if (select s.sello from private.analitica_lc_sello s where s.id) is distinct from private.huella_exenciones_analitica_lc() then
+    raise exception 'reversa B11: el sello del censo analitico no esta al dia' using errcode = 'P0409';
+  end if;
   if exists (select 1 from crm.lead_asignaciones la join crm.leads l on l.id = la.lead_id
               where la.resultado = 'convertido' and l.origen = 'base_cargada')
      or exists (select 1 from crm.conversion_acreditaciones ca where ca.origen = 'base_cargada') then
@@ -3000,12 +3032,16 @@ begin
     ('crm.conversion_divisor_coordinacion_fn(date,date,date)', 'b881b83ca8d4dd2f0f081d736828c8c5', '{postgres=X/postgres,authenticated=X/postgres}')
   ) as v(firma, huella, acl) loop
     if not exists (select 1 from pg_proc p where p.oid = to_regprocedure(r.firma) and md5(p.prosrc) = r.huella
-                    and p.proowner = 'postgres'::regrole and p.proacl::text = r.acl) then
+                    and p.proowner = 'postgres'::regrole and p.proacl::text = r.acl
+                    and p.prosecdef = (r.firma <> 'private.metricas_distribucion_leads_v3_core(date,date,timestamptz)')) then
       raise exception 'reversa B11 postflight: % no volvió al texto vivo', r.firma;
     end if;
   end loop;
   if to_regprocedure('private.conversion_origen_con_cierre(text)') is not null then
     raise exception 'reversa B11 postflight: el ayudante sigue vivo';
+  end if;
+  if exists (select 1 from pg_proc p where p.prosrc like '%conversion_origen_con_cierre%') then
+    raise exception 'reversa B11 postflight: queda una función que nombra al ayudante borrado';
   end if;
   if md5(coalesce(obj_description(to_regprocedure('private.conversion_divisor_empresa(date,date)'), 'pg_proc'), '')) <> md5('Núcleo (30/09/2026, v2 con desglose y rango): conversión por analista con ámbito de toda la empresa, para la puerta de Coordinación, entre dos fechas inclusivas (Lima). Un mes calendario exacto usa la pieza mensual neta (Metas) y, si está sellado, la foto (crm.cierre_mes_vendedor: origenes_ranking y cartera) sin recalcular; cualquier otro rango se calcula en vivo (bruto = neto). Agrupa los episodios de private.conversion_episodios: llegadas por origen (divisor), cierres por origen (formulario, landing, referido con su aporte, oficina sin peso) y cartera (upgrade, renovación con su aporte). numerador_bruto = partes. La fila con analista_id nulo es la producción sin analista atribuible. Sin autorización dentro y sin ejecutores de la API.') then
     raise exception 'reversa B11 postflight: comentario de % sin reponer', 'private.conversion_divisor_empresa(date,date)';

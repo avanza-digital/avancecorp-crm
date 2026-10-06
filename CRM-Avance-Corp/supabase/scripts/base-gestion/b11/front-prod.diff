@@ -1,5 +1,5 @@
 diff --git a/CRM-Avance-Corp/app/src/components/app/conversion-coordinacion.tsx b/CRM-Avance-Corp/app/src/components/app/conversion-coordinacion.tsx
-index eea756e9..c94103f4 100644
+index eea756e9..1cf912c1 100644
 --- a/CRM-Avance-Corp/app/src/components/app/conversion-coordinacion.tsx
 +++ b/CRM-Avance-Corp/app/src/components/app/conversion-coordinacion.tsx
 @@ -58,6 +58,7 @@ function SinDato({ motivo }: { motivo: string }) {
@@ -49,11 +49,26 @@ index eea756e9..c94103f4 100644
      { etiqueta: 'Referidos', valor: datos.empresa.cierres ? <CantidadYAporte cantidad={datos.empresa.cierres.referido} aporte={datos.empresa.cierres.referido_aporte} nombre={REFERIDO} /> : <SinDato motivo={MOTIVO_SELLADO} /> },
      { etiqueta: 'Upgrade', valor: datos.empresa.cartera ? numero(datos.empresa.cartera.upgrade) : <SinDato motivo={MOTIVO_SELLADO} /> },
      { etiqueta: 'Renovación', valor: datos.empresa.cartera ? <CantidadYAporte cantidad={datos.empresa.cartera.renovacion} aporte={datos.empresa.cartera.renovacion_aporte} nombre={RENOVACION} /> : <SinDato motivo={MOTIVO_SELLADO} /> },
+@@ -465,12 +471,12 @@ export function ConversionCoordinacion() {
+           <div
+             role="group"
+             aria-label={`Resumen de conversión ${periodoVisible}`}
+-            className="grid grid-cols-2 border-b border-border/70 bg-primary/[0.025] sm:grid-cols-4"
++            className="grid grid-cols-2 border-b border-border/70 bg-primary/[0.025] sm:grid-cols-3"
+           >
+             {chips.map(({ etiqueta, valor }, indice) => (
+               <div
+                 key={etiqueta}
+-                className={`px-5 py-3 ${indice % 2 === 1 ? 'border-l border-border/70' : ''} ${indice % 4 !== 0 ? 'sm:border-l sm:border-border/70' : ''} ${indice >= 2 ? 'border-t border-border/70' : ''} ${indice >= 2 && indice < 4 ? 'sm:border-t-0' : ''}`}
++                className={`px-5 py-3 ${indice % 2 === 1 ? 'border-l border-border/70' : ''} ${indice % 3 !== 0 ? 'sm:border-l sm:border-border/70' : 'sm:border-l-0'} ${indice >= 2 ? 'border-t border-border/70' : ''} ${indice === 2 ? 'sm:border-t-0' : ''}`}
+               >
+                 <p className="text-[11px] font-semibold text-muted-foreground">{etiqueta}</p>
+                 <p className="mt-0.5 text-xl font-extrabold tabular-nums text-primary">{valor}</p>
 @@ -513,6 +519,7 @@ export function ConversionCoordinacion() {
                        <Th scope="col" className="text-right">Total</Th>
                        <Th scope="col" className="text-right">Form.</Th>
                        <Th scope="col" className="text-right">Land.</Th>
-+                      <Th scope="col" className="text-right">Base</Th>
++                      <Th scope="col" className="text-right">Base <span className="sr-only">cargada</span></Th>
                        <Th scope="col" className="text-right">Referido</Th>
                        <Th scope="col" className="text-right">Sin peso</Th>
                        <Th scope="col" className="text-right">Upgrade</Th>

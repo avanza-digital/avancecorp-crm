@@ -265,7 +265,7 @@ describe('ConversionCoordinacion', () => {
     render(<ConversionCoordinacion />)
 
     const tabla = await screen.findByRole('table', { name: 'Conversión por analista' })
-    expect(within(tabla).getByRole('columnheader', { name: 'Base' })).toBeInTheDocument()
+    expect(within(tabla).getByRole('columnheader', { name: 'Base cargada' })).toBeInTheDocument()
     const merlys = within(tabla).getByRole('row', { name: /MERLYS GARCIA/ })
     expect(within(merlys).getAllByRole('cell').map(textoHablado))
       .toEqual(['MERLYS GARCIA', 'SUPERVISORA', '60', '28', '88', '6', '1', '2', '0 referidos, aportan 0', '0', '2', '0 renovaciones, aportan 0', '11', '12.50%'])
@@ -288,6 +288,9 @@ describe('ConversionCoordinacion', () => {
     const tabla = await screen.findByRole('table', { name: 'Conversión por analista' })
     const astrid = within(tabla).getByRole('row', { name: /ASTRID CENTENARO/ })
     expect(textoHablado(within(astrid).getAllByRole('cell')[7]!)).toBe('la foto del mes cerrado no guarda los cierres de base')
+    // El resumen de arriba dice lo mismo que la celda: sin un 0 inventado.
+    const resumen = screen.getByRole('group', { name: 'Resumen de conversión del mes' })
+    expect(textoHablado(within(resumen).getByText('Base cargada').nextElementSibling as HTMLElement)).toBe('la foto del mes cerrado no guarda los cierres de base')
     expect(screen.getByTestId('formula-numerador')).toHaveTextContent('base cargada: la foto no la guarda')
   })
 
