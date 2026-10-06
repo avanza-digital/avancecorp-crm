@@ -8,7 +8,8 @@ import { sb } from '@/lib/supabase'
 import { soloPresentes } from './argumentos-rpc'
 import { CrmApiError } from './crm-api'
 import {
-  RegistroPaginaSchema,
+  RegistroPaginaV2Schema,
+  registroCoherente,
   limiteConSonda,
   tiposDePestana,
   type CursorRegistro,
@@ -52,7 +53,7 @@ export async function listarRegistroActividad(
   const tipos = tiposDePestana(filtros.pestana)
   // Los opcionales se OMITEN en vez de mandarse en null: en el servidor todos
   // valen NULL por defecto (mismo resultado) y el tipo generado los declara `x?: T`.
-  let consulta = sb.schema('crm').rpc('registro_actividad_fn', {
+  let consulta = sb.schema('crm').rpc('registro_actividad_v2_fn', {
     p_desde: filtros.dia,
     p_hasta: filtros.dia,
     p_limite: limiteConSonda(limite),
@@ -60,20 +61,20 @@ export async function listarRegistroActividad(
       p_analista_ids: filtros.analistaIds === null ? null : [...filtros.analistaIds],
       p_tipos: tipos === null ? null : [...tipos],
       p_etapa: filtros.etapa,
+      p_cartera: filtros.cartera,
       p_antes_de: cursor?.antes_de,
       p_antes_id: cursor?.antes_id,
+      p_antes_origen: cursor ? cursor.antes_origen ?? 'lead' : undefined,
     }),
   })
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
   if (error) throw new CrmApiError(error.message, error.code)
-  const parsed = v.safeParse(RegistroPaginaSchema, data)
-  if (!parsed.success) throw new CrmApiError('No se pudo confirmar el registro de actividad.', 'GESTION_DIARIA_CONTRACT')
-  const pagina = parsed.output
-  if (pagina.desde !== filtros.dia || pagina.hasta !== filtros.dia || pagina.limite !== limiteConSonda(limite)
-    || pagina.items.length > limiteConSonda(limite)) {
-    throw new CrmApiError('La página recibida no corresponde a lo pedido.', 'GESTION_DIARIA_CONTRACT')
+  const parsed = v.safeParse(RegistroPaginaV2Schema, data)
+  if (!parsed.success || !registroCoherente(parsed.output, filtros, cursor, limiteConSonda(limite))) {
+    throw new CrmApiError('No se pudo confirmar el registro de actividad.', 'GESTION_DIARIA_CONTRACT')
   }
+  const pagina = parsed.output
   return pagina
 }
 

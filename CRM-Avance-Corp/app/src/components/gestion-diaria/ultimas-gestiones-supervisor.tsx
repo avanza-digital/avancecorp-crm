@@ -1,8 +1,8 @@
 import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef } from 'react'
 import { useRegistroActividadOperativo } from '@/data/gestion-diaria-queries'
 import { CrmApiError } from '@/data/crm-api'
-import { usePanelesActions } from '@/lib/store-context'
-import { ETIQUETA_CORTA, horaDeItem, type FiltrosRegistro } from '@/lib/gestion-diaria'
+import { EnlaceSujetoGestion } from './enlace-sujeto'
+import { etiquetaGestion, horaDeItem, type FiltrosRegistro } from '@/lib/gestion-diaria'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 
@@ -19,7 +19,6 @@ export function UltimasGestionesSupervisor({ analista, dia, visible, actualizaci
   const filtros = useMemo<FiltrosRegistro>(() => ({ dia, analistaIds: [analista], pestana: 'todo', etapa: null }), [dia, analista])
   // Misma clave y tamaño que Registro → Todo, primera página sin filtro.
   const consulta = useRegistroActividadOperativo(filtros, null, 25, visible, true)
-  const { abrirLead } = usePanelesActions()
   const revision = useRef(actualizacion)
   const refrescar = useEffectEvent(() => { void consulta.recargar() })
   const revocar = useEffectEvent(revalidar)
@@ -48,13 +47,10 @@ export function UltimasGestionesSupervisor({ analista, dia, visible, actualizaci
         onClick={() => { if (!consulta.enVuelo) void consulta.recargar() }}>Reintentar últimas gestiones</Button>}</div>
       : consulta.pagina && consulta.pagina.items.length === 0 ? <p className="text-[13px] text-[var(--muted-foreground-strong)]">No hay gestiones visibles de este analista en el día.</p>
         // oxlint-disable-next-line jsx-a11y/no-redundant-roles
-        : <ol role="list" className="divide-y divide-border">{consulta.pagina?.items.slice(0, 3).map(item => <li key={item.id} className="flex min-w-0 items-center gap-3 py-2">
+        : <ol role="list" className="divide-y divide-border">{consulta.pagina?.items.slice(0, 3).map(item => <li key={`${item.origen ?? 'lead'}:${item.id}`} className="flex min-w-0 items-center gap-3 py-2">
           <time dateTime={new Date(item.creado_en).toISOString()} className="w-11 shrink-0 text-[13px] tabular-nums text-[var(--muted-foreground-strong)]">{horaDeItem(item)}</time>
-          <Badge className="min-h-[22px] shrink-0 py-0 text-[11.5px]" color="var(--primary)" variant="outline">{ETIQUETA_CORTA[item.tipo]}</Badge>
-          {item.lead_nombre
-            ? <button type="button" onClick={() => abrirLead(item.lead_id)}
-              className="min-w-0 cursor-pointer truncate rounded-md text-left text-[13.5px] font-bold text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:min-h-11">{item.lead_nombre}</button>
-            : <span className="min-w-0 truncate text-[13px] text-[var(--muted-foreground-strong)]">Lead no visible</span>}
+          <Badge className="min-h-[22px] shrink-0 py-0 text-[11.5px]" color="var(--primary)" variant="outline">{etiquetaGestion(item)}</Badge>
+          <EnlaceSujetoGestion sujeto={item} />
         </li>)}</ol>}
   </section>
 }

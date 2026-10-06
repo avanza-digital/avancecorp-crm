@@ -2213,6 +2213,18 @@ export async function montarBackendReal(
     const method = req.method()
     const url = new URL(req.url())
     const p = url.pathname
+    if (p === '/rest/v1/rpc/gestiones_resumen_fn') {
+      const b = route.request().postDataJSON()
+      const cero = { gestiones: 0, llamadas: 0, contestadas: 0, entrevistas: 0, ultima_llamada_en: null }
+      return json(route, { version: 1, desde: b.p_desde, hasta: b.p_hasta, zona: 'America/Lima', generado_en: new Date().toISOString(),
+        totales: { leads: cero, clientes: cero, total: cero }, analistas: [] })
+    }
+    if (p === '/rest/v1/rpc/citas_clientes_fn') {
+      const b = route.request().postDataJSON()
+      return json(route, { version: 1, desde: b.p_desde, hasta: b.p_hasta, generado_en: new Date().toISOString(), limite: b.p_limite,
+        resumen: { total: 0, pendientes: 0, entrevistas: 0, no_asistio: 0, reprogramadas: 0, canceladas: 0 }, items: [], hay_mas: false, siguiente_cursor: null })
+    }
+
 
     if (method === 'OPTIONS') return route.fulfill({ status: 204, headers: cors })
 

@@ -30,6 +30,28 @@ describe('recibos de gestiones SLA', () => {
     siguiente_id: cuerpo.p_siguiente ? 'siguiente' : null,
   })
 
+  it('v5 conserva origen y vía en respuesta perdida; confirma un motivo nuevo sin fabricar otro resultado', async () => {
+    const cuerpos: Record<string, unknown>[] = []
+    servidor.use(http.post(ruta, async ({ request, params }) => {
+      expect(params.comando).toBe('registrar_llamada_v5')
+      const cuerpo = await request.json() as Record<string, unknown>; cuerpos.push(cuerpo)
+      return cuerpos.length === 1 ? HttpResponse.error() : HttpResponse.json({ ...sobreLlamada(cuerpo), enlace: { estado: 'no_enlazado', motivo: 'motivo_futuro' } })
+    }))
+    const args = { ...entradaLlamada, p_evento_origen_id: 'C1-1790980958', p_via: 'pestana' }
+    await expect(ejecutarComandoSla('actor', 'registrar_llamada_v5', 'lead', args)).rejects.toMatchObject({ code: 'SLA_CONFIRMACION_PENDIENTE' })
+    await confirmarPendienteSla('actor', listarPendientesSla('actor')[0]!.operacion)
+    expect(cuerpos[1]).toEqual(cuerpos[0])
+    expect(cuerpos[1]).toMatchObject(args)
+    expect(listarPendientesSla('actor')).toEqual([])
+  })
+
+  it.each([undefined, null, { estado: 'inventado' }])('v5 no confirma un enlace incompleto: %j', async (enlace) => {
+    servidor.use(http.post(ruta, async ({ request }) => HttpResponse.json({ ...sobreLlamada(await request.json() as Record<string, unknown>), enlace })))
+    await expect(ejecutarComandoSla('actor', 'registrar_llamada_v5', 'lead', { ...entradaLlamada, p_evento_origen_id: 'C1-1790980958' }))
+      .rejects.toMatchObject({ code: 'SLA_CONFIRMACION_PENDIENTE' })
+    expect(listarPendientesSla('actor')).toHaveLength(1)
+  })
+
   it('v4 recupera la respuesta perdida sin reinterpretar resultado ni descarte', async () => {
     const cuerpos: Record<string, unknown>[] = []
     servidor.use(http.post(ruta, async ({ request, params }) => {

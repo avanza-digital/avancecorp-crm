@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.18"
-  }
   crm: {
     Tables: {
       actividades: {
@@ -557,6 +552,53 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "inversionistas"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      celulares_asignaciones: {
+        Row: {
+          actualizado_en: string
+          analista_id: string
+          creado_en: string
+          creado_por: string | null
+          credencial_hash: string
+          etiqueta: string
+          id: string
+          motivo_cierre: string | null
+          vigente_desde: string
+          vigente_hasta: string | null
+        }
+        Insert: {
+          actualizado_en?: string
+          analista_id: string
+          creado_en?: string
+          creado_por?: string | null
+          credencial_hash: string
+          etiqueta: string
+          id?: string
+          motivo_cierre?: string | null
+          vigente_desde?: string
+          vigente_hasta?: string | null
+        }
+        Update: {
+          actualizado_en?: string
+          analista_id?: string
+          creado_en?: string
+          creado_por?: string | null
+          credencial_hash?: string
+          etiqueta?: string
+          id?: string
+          motivo_cierre?: string | null
+          vigente_desde?: string
+          vigente_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "celulares_asignaciones_analista_id_fkey"
+            columns: ["analista_id"]
+            isOneToOne: false
+            referencedRelation: "equipo"
+            referencedColumns: ["perfil_id"]
           },
         ]
       }
@@ -3311,6 +3353,203 @@ export type Database = {
           },
         ]
       }
+      llamadas_celular_enlaces: {
+        Row: {
+          actividad_id: string | null
+          actualizado_en: string
+          creado_en: string
+          enlazado_por: string | null
+          evento_id: string
+          id: string
+          lead_id: string
+          via: string
+        }
+        Insert: {
+          actividad_id?: string | null
+          actualizado_en?: string
+          creado_en?: string
+          enlazado_por?: string | null
+          evento_id: string
+          id?: string
+          lead_id: string
+          via?: string
+        }
+        Update: {
+          actividad_id?: string | null
+          actualizado_en?: string
+          creado_en?: string
+          enlazado_por?: string | null
+          evento_id?: string
+          id?: string
+          lead_id?: string
+          via?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "llamadas_celular_enlaces_actividad_id_fkey"
+            columns: ["actividad_id"]
+            isOneToOne: true
+            referencedRelation: "actividades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "llamadas_celular_enlaces_evento_id_fkey"
+            columns: ["evento_id"]
+            isOneToOne: true
+            referencedRelation: "llamadas_celular_eventos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "llamadas_celular_enlaces_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      llamadas_celular_eventos: {
+        Row: {
+          actualizado_en: string
+          analista_id: string
+          asignacion_id: string
+          asociado_en: string | null
+          asociado_por: string | null
+          atencion: string
+          calidad: Json
+          creado_en: string
+          descartado_en: string | null
+          descartado_por: string | null
+          direccion: string
+          duracion_seg: number | null
+          estado_tecnico: string
+          evento_origen_id: string
+          id: string
+          identificacion: string
+          lead_id: string | null
+          metodo_asociacion: string | null
+          motivo_descarte: string | null
+          motivo_descarte_detalle: string | null
+          numero_canonico: string | null
+          ocurrio_en: string | null
+          recibido_en: string
+        }
+        Insert: {
+          actualizado_en?: string
+          analista_id: string
+          asignacion_id: string
+          asociado_en?: string | null
+          asociado_por?: string | null
+          atencion: string
+          calidad?: Json
+          creado_en?: string
+          descartado_en?: string | null
+          descartado_por?: string | null
+          direccion?: string
+          duracion_seg?: number | null
+          estado_tecnico?: string
+          evento_origen_id: string
+          id?: string
+          identificacion: string
+          lead_id?: string | null
+          metodo_asociacion?: string | null
+          motivo_descarte?: string | null
+          motivo_descarte_detalle?: string | null
+          numero_canonico?: string | null
+          ocurrio_en?: string | null
+          recibido_en?: string
+        }
+        Update: {
+          actualizado_en?: string
+          analista_id?: string
+          asignacion_id?: string
+          asociado_en?: string | null
+          asociado_por?: string | null
+          atencion?: string
+          calidad?: Json
+          creado_en?: string
+          descartado_en?: string | null
+          descartado_por?: string | null
+          direccion?: string
+          duracion_seg?: number | null
+          estado_tecnico?: string
+          evento_origen_id?: string
+          id?: string
+          identificacion?: string
+          lead_id?: string | null
+          metodo_asociacion?: string | null
+          motivo_descarte?: string | null
+          motivo_descarte_detalle?: string | null
+          numero_canonico?: string | null
+          ocurrio_en?: string | null
+          recibido_en?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "llamadas_celular_eventos_analista_id_fkey"
+            columns: ["analista_id"]
+            isOneToOne: false
+            referencedRelation: "equipo"
+            referencedColumns: ["perfil_id"]
+          },
+          {
+            foreignKeyName: "llamadas_celular_eventos_asignacion_id_fkey"
+            columns: ["asignacion_id"]
+            isOneToOne: false
+            referencedRelation: "celulares_asignaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "llamadas_celular_eventos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      llamadas_celular_politica: {
+        Row: {
+          actualizado_en: string
+          actualizado_por: string | null
+          creado_en: string
+          dias_retencion_descartados: number
+          dias_retencion_sin_identificar: number
+          dias_retencion_sin_resolver: number
+          entrantes_activas: boolean
+          guardar_sin_identificar: boolean
+          limite_envios_dia: number
+          limite_envios_minuto: number
+          singleton: boolean
+        }
+        Insert: {
+          actualizado_en?: string
+          actualizado_por?: string | null
+          creado_en?: string
+          dias_retencion_descartados?: number
+          dias_retencion_sin_identificar?: number
+          dias_retencion_sin_resolver?: number
+          entrantes_activas?: boolean
+          guardar_sin_identificar?: boolean
+          limite_envios_dia?: number
+          limite_envios_minuto?: number
+          singleton?: boolean
+        }
+        Update: {
+          actualizado_en?: string
+          actualizado_por?: string | null
+          creado_en?: string
+          dias_retencion_descartados?: number
+          dias_retencion_sin_identificar?: number
+          dias_retencion_sin_resolver?: number
+          entrantes_activas?: boolean
+          guardar_sin_identificar?: boolean
+          limite_envios_dia?: number
+          limite_envios_minuto?: number
+          singleton?: boolean
+        }
+        Relationships: []
+      }
       meta_periodos: {
         Row: {
           id: string
@@ -4960,6 +5199,10 @@ export type Database = {
         Args: { p_paso: string; p_payload?: Json; p_solicitud: string }
         Returns: Json
       }
+      actividades_con_llamada_celular_fn: {
+        Args: { p_actividad_ids: string[] }
+        Returns: Json
+      }
       actividades_de_lead_fn: {
         Args: {
           p_antes_de?: string
@@ -5095,6 +5338,10 @@ export type Database = {
         }
         Returns: Json
       }
+      asignar_celular: {
+        Args: { p_analista_id: string; p_etiqueta: string }
+        Returns: Json
+      }
       asignar_cuenta_pago_contrato: {
         Args: {
           p_contrato_id: string
@@ -5111,6 +5358,10 @@ export type Database = {
           p_rol_crm: string
           p_version_equipo: string
         }
+        Returns: Json
+      }
+      asociar_llamada_celular: {
+        Args: { p_evento_id: string; p_lead_id: string }
         Returns: Json
       }
       atribucion_contrato_fn: { Args: { p_contrato_id: string }; Returns: Json }
@@ -5295,8 +5546,14 @@ export type Database = {
           vendedor_id: string
         }[]
       }
+      celulares_asignaciones_fn: { Args: never; Returns: Json }
+      celulares_salud_fn: { Args: never; Returns: Json }
       cerrar_altas_legacy_productos: {
         Args: { p_expected_revision: number }
+        Returns: Json
+      }
+      cerrar_asignacion_celular: {
+        Args: { p_asignacion_id: string; p_motivo: string }
         Returns: Json
       }
       cerrar_periodo: { Args: { p_periodo: string }; Returns: Json }
@@ -5497,6 +5754,19 @@ export type Database = {
       consultar_ayuda_vendedor: {
         Args: { p_consulta: string; p_vista: string }
         Returns: Json
+      }
+      contactos_de_base: {
+        Args: { p_base_id: string; p_estado?: string }
+        Returns: {
+          agregado_en: string
+          analista_id: string
+          analista_nombre: string
+          distrito: string
+          estado: string
+          lead_id: string
+          nombre_completo: string
+          telefono: string
+        }[]
       }
       contexto_cliente_existente_fn: {
         Args: { p_busqueda?: string; p_solicitud?: string }
@@ -5921,6 +6191,10 @@ export type Database = {
         Args: { p_lead: string; p_motivo: string; p_nota?: string }
         Returns: Json
       }
+      descartar_llamada_celular: {
+        Args: { p_detalle?: string; p_evento_id: string; p_motivo: string }
+        Returns: Json
+      }
       deshacer_descarte: { Args: { p_lead: string }; Returns: Json }
       deshacer_resultado_llamada: {
         Args: { p_actividad_id: string }
@@ -5965,6 +6239,10 @@ export type Database = {
       }
       enlazar_lead_inversionista_fn: {
         Args: { p_inversionista: string; p_lead_id: string; p_motivo: string }
+        Returns: Json
+      }
+      enlazar_llamada_celular: {
+        Args: { p_actividad_id: string; p_evento_id: string }
         Returns: Json
       }
       equipo_visible_fn: {
@@ -6045,6 +6323,16 @@ export type Database = {
         }
         Returns: Json
       }
+      fijar_politica_llamadas_celular: {
+        Args: {
+          p_dias_retencion_descartados?: number
+          p_dias_retencion_sin_identificar?: number
+          p_dias_retencion_sin_resolver?: number
+          p_entrantes_activas?: boolean
+          p_guardar_sin_identificar?: boolean
+        }
+        Returns: Json
+      }
       fusion_previsualizar_fn: {
         Args: { p_canonica: string; p_perdedora: string }
         Returns: Json
@@ -6063,6 +6351,32 @@ export type Database = {
         Returns: Json
       }
       gestion_diaria_avisos_fn: { Args: never; Returns: Json }
+      gestion_diaria_citas_v2_fn: {
+        Args: {
+          p_ambito: string
+          p_despues_de?: string
+          p_despues_id?: string
+          p_dia: string
+          p_id?: string
+          p_limite?: number
+        }
+        Returns: Json
+      }
+      gestiones_resumen_fn: {
+        Args: { p_analista_ids?: string[]; p_desde: string; p_hasta: string }
+        Returns: Json
+      }
+      citas_clientes_fn: {
+        Args: {
+          p_analista_ids?: string[]
+          p_desde: string
+          p_despues_de?: string
+          p_despues_id?: string
+          p_hasta: string
+          p_limite?: number
+        }
+        Returns: Json
+      }
       gestion_diaria_citas_fn: {
         Args: {
           p_ambito: string
@@ -6089,6 +6403,16 @@ export type Database = {
       }
       gestion_diaria_habitos_fn: {
         Args: { p_dias?: number; p_hasta?: string }
+        Returns: Json
+      }
+      gestion_diaria_pendientes_v2_fn: {
+        Args: {
+          p_analista_id: string
+          p_despues_de?: string
+          p_despues_id?: string
+          p_limite?: number
+          p_solo_vencidas?: boolean
+        }
         Returns: Json
       }
       gestion_diaria_pendientes_fn: {
@@ -6187,6 +6511,10 @@ export type Database = {
         Returns: Json
       }
       importar_lead_fn: { Args: { p_fila: Json }; Returns: Json }
+      ingerir_llamada_celular_servicio: {
+        Args: { p_credencial: string; p_evento: Json }
+        Returns: Json
+      }
       ingresos_reparto_mes_fn: { Args: { p_mes: string }; Returns: Json }
       inversion_cotitulares_fn: { Args: { p_inversion: string }; Returns: Json }
       inversionista_corregir_contacto_fn: {
@@ -6270,6 +6598,27 @@ export type Database = {
       }
       levantar_no_contactar: {
         Args: { p_lead_id: string; p_motivo: string }
+        Returns: Json
+      }
+      llamada_celular_detalle_fn: {
+        Args: { p_evento_id: string }
+        Returns: Json
+      }
+      llamadas_celular_bandeja_fn: {
+        Args: {
+          p_antes_id?: string
+          p_antes_recibido_en?: string
+          p_limite?: number
+        }
+        Returns: Json
+      }
+      llamadas_celular_politica_fn: { Args: never; Returns: Json }
+      llamadas_celular_resueltas_hoy_fn: {
+        Args: {
+          p_antes_id?: string
+          p_antes_resuelto_en?: string
+          p_limite?: number
+        }
         Returns: Json
       }
       marcar_efectos_conversion:
@@ -6372,6 +6721,8 @@ export type Database = {
       obtener_base_gestion: {
         Args: { p_incluir_vetados?: boolean; p_vendedor_id?: string }
         Returns: {
+          base_id: string
+          base_nombre: string
           categoria_interes: string
           ciclo_n: number
           descartado_en: string
@@ -6630,6 +6981,16 @@ export type Database = {
         Args: { p_lead_id: string; p_nota?: string; p_operacion_id: string }
         Returns: Json
       }
+      reactivar_lead_base_v2: {
+        Args: {
+          p_lead_id: string
+          p_moneda?: string
+          p_monto_estimado?: number
+          p_nota?: string
+          p_operacion_id: string
+        }
+        Returns: Json
+      }
       reasignar_responsable_relacion_fn: {
         Args: {
           p_inversionista: string
@@ -6640,6 +7001,14 @@ export type Database = {
       }
       reclamar_aviso_cambio_cuenta: {
         Args: { p_actor: string; p_dry_run?: boolean; p_solicitud_id: string }
+        Returns: Json
+      }
+      recoger_de_base: {
+        Args: {
+          p_analista_id: string
+          p_base_id: string
+          p_operacion_id: string
+        }
         Returns: Json
       }
       registrar_actividad_v2: {
@@ -6680,6 +7049,18 @@ export type Database = {
         }
         Returns: Json
       }
+      registrar_intento_base_v2: {
+        Args: {
+          p_lead_id: string
+          p_moneda?: string
+          p_monto_estimado?: number
+          p_nota?: string
+          p_operacion_id: string
+          p_proxima_llamada?: string
+          p_resultado: string
+        }
+        Returns: Json
+      }
       registrar_llamada_v3: {
         Args: {
           p_descartar?: boolean
@@ -6708,6 +7089,22 @@ export type Database = {
         }
         Returns: Json
       }
+      registrar_llamada_v5: {
+        Args: {
+          p_descartar?: boolean
+          p_detalle?: string
+          p_evento_origen_id?: string
+          p_lead_id: string
+          p_no_insista?: boolean
+          p_operacion_id: string
+          p_resultado: string
+          p_siguiente?: Json
+          p_submotivo?: string
+          p_tarea_id?: string
+          p_via?: string
+        }
+        Returns: Json
+      }
       registrar_pago_con_cuenta: {
         Args: {
           p_cci: string
@@ -6725,6 +7122,10 @@ export type Database = {
         Args: { p_datos?: Json; p_lead_id: string; p_origen: string }
         Returns: Json
       }
+      registrar_salud_celular_servicio: {
+        Args: { p_credencial: string; p_latido: Json }
+        Returns: Json
+      }
       registrar_vendedor_usuario_fn: {
         Args: {
           p_cargo: string
@@ -6740,6 +7141,21 @@ export type Database = {
         }
         Returns: Json
       }
+      registro_actividad_v2_fn: {
+        Args: {
+          p_analista_ids?: string[]
+          p_antes_de?: string
+          p_antes_id?: string
+          p_antes_origen?: string
+          p_cartera?: string
+          p_desde: string
+          p_etapa?: string
+          p_hasta: string
+          p_limite?: number
+          p_tipos?: string[]
+        }
+        Returns: Json
+      }
       registro_actividad_fn: {
         Args: {
           p_analista_ids?: string[]
@@ -6751,6 +7167,10 @@ export type Database = {
           p_limite?: number
           p_tipos?: string[]
         }
+        Returns: Json
+      }
+      repartir_base: {
+        Args: { p_base_id: string; p_operacion_id: string; p_reparto: Json }
         Returns: Json
       }
       repartir_lead: {
@@ -6904,9 +7324,62 @@ export type Database = {
         }
         Returns: Json
       }
+      rotar_credencial_celular: { Args: { p_etiqueta: string }; Returns: Json }
       saga_conversion_fn: {
         Args: { p_paso: string; p_payload: Json }
         Returns: Json
+      }
+      seguimiento_base: {
+        Args: { p_base_id: string }
+        Returns: {
+          analista_id: string
+          analista_nombre: string
+          asignados: number
+          citas: number
+          en_descanso: number
+          movidos_otra_via: number
+          no_contactar: number
+          reactivados: number
+          retirados: number
+          sin_tocar: number
+          sin_tocar_3_dias: number
+          trabajados: number
+          ultimo_intento_en: string
+        }[]
+      }
+      seguimiento_base_detalle: {
+        Args: { p_analista_id?: string; p_base_id: string; p_cifra?: string }
+        Returns: {
+          asignado_en: string
+          estado: string
+          lead_id: string
+          nombre_completo: string
+          ultimo_intento_en: string
+          ultimo_resultado: string
+        }[]
+      }
+      seguimiento_bases: {
+        Args: never
+        Returns: {
+          avance: number
+          base_id: string
+          citas: number
+          creado_en: string
+          en_descanso: number
+          movidos_otra_via: number
+          no_contactar: number
+          nombre: string
+          origen: string
+          reactivados: number
+          repartidos: number
+          retirados: number
+          sin_repartir: number
+          sin_tocar: number
+          supervisor_id: string
+          supervisor_nombre: string
+          total: number
+          trabajados: number
+        }[]
       }
       series_comerciales_fn: { Args: { p_meses?: number }; Returns: Json }
       solicitar_tasa_fn: { Args: { p_solicitud: Json }; Returns: Json }

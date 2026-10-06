@@ -387,6 +387,18 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
   })
   afterEach(() => vi.clearAllMocks())
 
+  it('el origen exacto selecciona v5 y devuelve el enlace confirmado sin escrituras sueltas', async () => {
+    const { api, mutar } = montar('vendedor')
+    const lead = leadBase()
+    await waitFor(() => expect(api().lead(lead.id)).toBeDefined())
+    comandoSla.mockResolvedValueOnce({ actividad_id: 'act', siguiente_id: null, descartado: false, enlace: { estado: 'pendiente' } })
+    const r = mutar((a) => a.registrarLlamada(lead.id, { resultado: 'no_contesto', evento_origen_id: 'C1-1790980958', via_llamada: 'pestana' }))
+    await act(async () => { expect(await r.persistido).toBe(true) })
+    expect(comandoSla).toHaveBeenCalledWith('u-v1', 'registrar_llamada_v5', lead.id, expect.objectContaining({ p_evento_origen_id: 'C1-1790980958', p_via: 'pestana' }))
+    expect(await r.confirmacion).toMatchObject({ actividad_id: 'act', enlace: { estado: 'pendiente' } })
+    expect(insertarActividad).not.toHaveBeenCalled()
+  })
+
   it('resultado sin interés y seguimiento se envían a v4 sin descarte ni escrituras sueltas', async () => {
     const { api, mutar } = montar('vendedor')
     const lead = leadBase()

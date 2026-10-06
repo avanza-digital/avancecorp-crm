@@ -1,5 +1,5 @@
 // @vitest-environment node
-// Contrato HTTP de `crm.registro_actividad_fn`: los ocho argumentos viajan con
+// Contrato HTTP de `crm.registro_actividad_v2_fn`: los ocho argumentos viajan con
 // sus nombres y nulabilidad, la sonda pide limite+1, y una página que no
 // corresponde a lo pedido (eco de desde/hasta/limite, o más filas que la sonda)
 // NUNCA se pinta: se rechaza con GESTION_DIARIA_CONTRACT.
@@ -15,7 +15,7 @@ vi.mock('@/lib/supabase', async () => {
 import { CrmApiError } from './crm-api'
 import { listarRegistroActividad } from './gestion-diaria-api'
 
-const RPC = 'http://supabase.test/rest/v1/rpc/registro_actividad_fn'
+const RPC = 'http://supabase.test/rest/v1/rpc/registro_actividad_v2_fn'
 const server = setupServer()
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
 afterEach(() => server.resetHandlers())
@@ -23,23 +23,24 @@ afterAll(() => server.close())
 
 const FILTROS = { dia: '2026-09-19', analistaIds: ['u1'] as const, pestana: 'llamadas' as const, etapa: null }
 const ITEM = {
+  origen: 'lead', sujeto_tipo: 'lead', sujeto_id: 'l1', sujeto_nombre: 'LEAD UNO', identidad_visible: true, inversionista_id: null, perfil_id: null,
   id: 'a1', lead_id: 'l1', lead_nombre: 'LEAD UNO', lead_etapa: 'contactado', etapa_en_ese_momento: 'nuevo',
   tipo: 'llamada_realizada', detalle: 'Contestó', metadata: { resultado: 'volver_a_llamar' }, creado_por: 'u1',
   autor_nombre: 'ANALISTA UNO', creado_en: '2026-09-19T15:01:00+00:00',
 }
 const pagina = (extra: Record<string, unknown> = {}) => ({
-  version: 1, generado_en: '2026-09-19T18:00:00+00:00', desde: '2026-09-19', hasta: '2026-09-19', zona: 'America/Lima', limite: 26, items: [ITEM], ...extra,
+  version: 2, generado_en: '2026-09-19T18:00:00+00:00', desde: '2026-09-19', hasta: '2026-09-19', zona: 'America/Lima', limite: 26, items: [ITEM], ...extra,
 })
 
-describe('registro_actividad_fn (msw)', () => {
+describe('registro_actividad_v2_fn (msw)', () => {
   it('manda los argumentos presentes con la sonda limite+1 y devuelve la página validada', async () => {
     let cuerpo: Record<string, unknown> | null = null
     server.use(http.post(RPC, async ({ request }) => { cuerpo = (await request.json()) as Record<string, unknown>; return HttpResponse.json(pagina()) }))
-    const r = await listarRegistroActividad(FILTROS, { antes_de: '2026-09-19T15:00:00Z', antes_id: 'a9' }, 25)
+    const r = await listarRegistroActividad(FILTROS, { antes_de: '2026-09-19T15:02:00Z', antes_id: 'a9' }, 25)
     // Sin etapa, `p_etapa` NO viaja: en el servidor vale NULL por defecto.
     expect(cuerpo).toEqual({
       p_desde: '2026-09-19', p_hasta: '2026-09-19', p_analista_ids: ['u1'], p_tipos: ['llamada_realizada', 'llamada_no_contestada'],
-      p_limite: 26, p_antes_de: '2026-09-19T15:00:00Z', p_antes_id: 'a9',
+      p_limite: 26, p_antes_de: '2026-09-19T15:02:00Z', p_antes_id: 'a9', p_antes_origen: 'lead',
     })
     expect(r.items).toHaveLength(1)
     expect(r.items[0]?.metadata).toEqual({ resultado: 'volver_a_llamar' })

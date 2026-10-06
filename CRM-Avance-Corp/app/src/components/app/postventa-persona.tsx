@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { CalendarPlus, ClipboardList } from 'lucide-react'
+import { CalendarPlus, CircleCheck, ClipboardList } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogBody, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { PanelError } from '@/components/common/estado-panel'
 import { FichaComercialSeccion } from './ficha-comercial'
 import { ClienteGestion } from './cliente-gestion'
+import { CerrarTareaDialog } from './cerrar-tarea'
 import { RecuperacionPostventa } from './postventa-envio'
 import { useEnvioPostventa } from '@/data/use-envio-postventa'
 import { useAuth } from '@/lib/auth-context'
@@ -19,6 +20,7 @@ import { refrescarPostventa, useFichaPostventa } from '@/data/postventa-queries'
 import { EMPRESA_NOMBRE, type FichaInversionista, type InversionFuente } from '@/lib/inversionistas'
 import { RETIRO_ETIQUETA, type EstadoRetiro, type RetiroPostventa } from '@/lib/postventa'
 import { fechaHora, money } from '@/lib/format'
+import type { Tarea } from '@/lib/tipos'
 
 type AccionPersona = {tipo: 'agendar'} | {tipo: 'asignar'} | {tipo: 'veto'} | {tipo: 'solicitar_retiro'; fuente: InversionFuente} | {tipo: 'revisar_retiro'; retiro: RetiroPostventa}
 export interface ControlesPostventa {
@@ -26,8 +28,9 @@ export interface ControlesPostventa {
   agendar: ReactNode
   retiros: ReactNode
   aviso: ReactNode
+  accionTarea: (tarea: FichaInversionista['tareas'][number]) => ReactNode
 }
-const SIN_CONTROLES: ControlesPostventa = {acciones: null, agendar: null, retiros: null, aviso: null}
+const SIN_CONTROLES: ControlesPostventa = {acciones: null, agendar: null, retiros: null, aviso: null, accionTarea: () => null}
 
 export function PostventaPersona({actor, ficha, retiroElegido, onRetiroCerrado, deshabilitado = false, children}: {
   actor: string; ficha: FichaInversionista; retiroElegido: InversionFuente | null;
@@ -36,15 +39,20 @@ export function PostventaPersona({actor, ficha, retiroElegido, onRetiroCerrado, 
   children: (controles: ControlesPostventa) => ReactNode
 }) {
   const {yo} = useAuth()
+  const {tareas} = useCRMData()
   const activa = ficha.capacidades.postventa === true && !yo?.demo
   const q = useFichaPostventa(actor, ficha.persona.inversionista_id, activa)
   const [accion, setAccion] = useState<AccionPersona | null>(null)
   const [ocupado, setOcupado] = useState(false)
+  const [tareaACerrar, setTareaACerrar] = useState<Tarea | null>(null)
   // La cola de supervisor es visible en F5 sin habilitar F6. Un rechazo de
   // esta sección no borra borradores F4; la propia ficha F5 revalida su ámbito.
   const habilitada = activa && q.isFetchedAfterMount && q.isSuccess && q.data.habilitada
   const actual: AccionPersona | null = retiroElegido ? {tipo: 'solicitar_retiro', fuente: retiroElegido} : accion
   const cerrar = () => {setAccion(null); onRetiroCerrado()}
+  useEffect(() => {
+    if (!habilitada || deshabilitado) setTareaACerrar(null)
+  }, [habilitada, deshabilitado])
   useEffect(() => {
     if (!habilitada && (accion !== null || retiroElegido !== null)) {
       // Recuperar F6 no debe reabrir una gestión elegida antes del corte.
@@ -54,6 +62,15 @@ export function PostventaPersona({actor, ficha, retiroElegido, onRetiroCerrado, 
     }
   }, [habilitada, accion, retiroElegido, onRetiroCerrado])
   const controles: ControlesPostventa = {
+    accionTarea: resumen => {
+      const tarea = tareas.find(t => t.id === resumen.id && t.activo && t.estado === 'pendiente')
+      return <Button size="xs" variant="outline" className="min-h-10 shrink-0" disabled={deshabilitado || !tarea}
+        aria-label={`Cerrar tarea — ${resumen.titulo}`}
+        title={!tarea ? 'Actualizando la tarea para registrar su resultado' : undefined}
+        onClick={() => {if (tarea) setTareaACerrar(tarea)}}>
+        <CircleCheck aria-hidden />Cerrar tarea
+      </Button>
+    },
     aviso: !ficha.persona.responsable_id && <p className="text-xs text-muted-foreground">Gerencia debe asignar un responsable antes de programar el contacto.</p>,
     agendar: <Button className="min-h-11" disabled={deshabilitado || ficha.persona.no_contactar || !ficha.persona.responsable_id}
       onClick={() => setAccion({tipo: 'agendar'})}><CalendarPlus aria-hidden />Agendar gestión</Button>,
@@ -81,6 +98,7 @@ export function PostventaPersona({actor, ficha, retiroElegido, onRetiroCerrado, 
           : actual && <TramitePostventa key={actual.tipo === 'revisar_retiro' ? actual.retiro.id : actual.tipo === 'solicitar_retiro' ? actual.fuente.fuente_id : actual.tipo}
             actor={actor} ficha={ficha} accion={actual} gerencia={yo?.rol === 'gerencia'} onCerrar={cerrar} onOcupado={setOcupado} />}
     </Dialog>
+    <CerrarTareaDialog tarea={habilitada && !deshabilitado ? tareaACerrar : null} onCerrar={() => setTareaACerrar(null)} />
   </>
 }
 function AsignarResponsable({ficha, actor, onCerrar, onOcupado}: {ficha: FichaInversionista; actor: string; onCerrar: () => void; onOcupado: (b: boolean) => void}) {

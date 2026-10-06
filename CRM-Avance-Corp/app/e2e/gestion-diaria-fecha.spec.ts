@@ -1,3 +1,4 @@
+import { responderRegistroV2 } from './_gestiones-v2'
 import { expect, test } from '@playwright/test'
 import { loginReal, montarBackendReal, UID } from './_helpers'
 import { diaEquipoPrueba, filaEquipoPrueba } from '../src/lib/gestion-diaria-equipo.fixture'
@@ -22,10 +23,10 @@ for (const ancho of [1512, 390]) {
       })
       return route.fulfill({ json: { ...diaEquipoPrueba([fila]), dia: p_dia, supervisor_id: UID, generado_en: instante } })
     })
-    await page.route('**/rest/v1/rpc/registro_actividad_fn', route => {
+    await page.route('**/rest/v1/rpc/registro_actividad_v2_fn', route => {
       const pedido = route.request().postDataJSON()
       registros.push(pedido)
-      return route.fulfill({ json: {
+      return responderRegistroV2(route, { json: {
         version: 1, zona: 'America/Lima', desde: pedido.p_desde, hasta: pedido.p_hasta, generado_en: instante, limite: 26,
         items: [{ id: `00000000-0000-4000-8000-0000000000${pedido.p_desde === hoy ? '24' : '10'}`,
           lead_id: '00000000-0000-4000-8000-000000000099', lead_nombre: 'LEAD DE PRUEBA', lead_etapa: 'nuevo',

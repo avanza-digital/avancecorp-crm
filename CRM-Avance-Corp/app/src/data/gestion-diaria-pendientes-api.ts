@@ -5,7 +5,7 @@ import { soloPresentes } from './argumentos-rpc'
 
 export async function listarPendientesSupervisor(pedido: PedidoPendientes, signal?: AbortSignal): Promise<PaginaPendientes> {
   if (!sb) throw new CrmApiError('No hay conexión con el CRM.', 'SIN_CLIENTE')
-  let consulta = sb.schema('crm').rpc('gestion_diaria_pendientes_fn', {
+  let consulta = sb.schema('crm').rpc('gestion_diaria_pendientes_v2_fn', {
     p_analista_id: pedido.analista, p_solo_vencidas: pedido.soloVencidas, p_limite: pedido.limite,
     ...soloPresentes({ p_despues_de: pedido.cursor?.despues_de, p_despues_id: pedido.cursor?.despues_id }),
   })

@@ -12,7 +12,7 @@ describe('Contrato estricto de pendientes del supervisor', () => {
     expect(validarPaginaPendientes(paginaPendientes(items), pedidoPendientes)?.items).toHaveLength(3)
   })
   it.each([
-    { version: 2 }, { zona: 'UTC' }, { supervisor_id: idPendiente(9) }, { analista_id: idPendiente(9) },
+    { version: 99 }, { zona: 'UTC' }, { supervisor_id: idPendiente(9) }, { analista_id: idPendiente(9) },
     { solo_vencidas: true }, { limite: 101 }, { generado_en: 'infinity' }, { pendientes_al: '2026-02-30T12:00:00Z' },
     { resumen: { tareas_pendientes: 1, tareas_vencidas: 2 } }, { resumen: { tareas_pendientes: 1.5, tareas_vencidas: 1 } },
     { hay_mas: true }, { items: [] }, { telefono: 'dato no permitido' },

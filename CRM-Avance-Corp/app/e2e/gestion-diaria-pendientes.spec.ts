@@ -1,3 +1,4 @@
+import { responderRegistroV2 } from './_gestiones-v2'
 import { expect, test, type Page } from '@playwright/test'
 import { leadReal, loginReal, montarBackendReal, UID } from './_helpers'
 import { diaEquipoPrueba, filaEquipoPrueba } from '../src/lib/gestion-diaria-equipo.fixture'
@@ -14,14 +15,14 @@ async function preparar(page: Page) {
   await page.route('**/rest/v1/rpc/gestion_diaria_equipo_fn',route=>{
     estado.equipo++;return route.fulfill({json:{...diaEquipoPrueba([fila]),dia,supervisor_id:UID}})
   })
-  await page.route('**/rest/v1/rpc/registro_actividad_fn',route=>{
+  await page.route('**/rest/v1/rpc/registro_actividad_v2_fn',route=>{
     estado.registro++
     const items=Array.from({length:5},(_,i)=>({id:`actividad-${i}`,lead_id:lead.id,lead_nombre:lead.nombre_completo,
       lead_etapa:'nuevo',etapa_en_ese_momento:'nuevo',tipo:'llamada_realizada',detalle:`Gestión íntegra ${i}`,metadata:{},
       creado_por:analista,autor_nombre:'ANA H3',creado_en:`${dia}T15:0${5-i}:00Z`}))
-    return route.fulfill({json:{version:1,zona:'America/Lima',desde:dia,hasta:dia,limite:26,generado_en:new Date().toISOString(),items}})
+    return responderRegistroV2(route, {json:{version:1,zona:'America/Lima',desde:dia,hasta:dia,limite:26,generado_en:new Date().toISOString(),items}})
   })
-  await page.route('**/rest/v1/rpc/gestion_diaria_pendientes_fn',route=>{
+  await page.route('**/rest/v1/rpc/gestion_diaria_pendientes_v2_fn',route=>{
     estado.consultas++
     if(estado.error) return route.fulfill({status:estado.error==='42501'?403:400,json:{code:estado.error,message:'Error de prueba'}})
     const pedido=route.request().postDataJSON();expect(pedido.p_analista_id).toBe(analista)
@@ -64,8 +65,7 @@ test('H3: últimas tres comparten Registro; pendientes conservan páginas, ficha
   const lista=panel.getByRole('list',{name:'Lista de tareas pendientes'})
   await expect(panel.getByRole('heading',{name:'Pendientes de ANA H3'})).toBeFocused()
   await expect(lista.getByRole('listitem')).toHaveCount(25)
-  await expect(lista.getByText('Tarea de perfil')).toBeVisible()
-  await expect(lista.getByText('Tarea de postventa')).toBeVisible()
+  await expect(lista.getByText('Persona no visible',{exact:true})).toHaveCount(2)
   await page.screenshot({path:info.outputPath('h3-pendientes-escritorio.png')})
   await panel.getByRole('button',{name:'Ver más',exact:true}).click()
   await expect(lista.getByRole('listitem')).toHaveCount(50)

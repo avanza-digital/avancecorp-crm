@@ -31,6 +31,12 @@ vi.mock('@/lib/store-context', () => ({
   useCRMData: () => store,
 }))
 
+vi.mock('./cerrar-tarea', () => ({
+  CerrarTareaDialog: ({ tarea, onCerrar }: { tarea: Tarea | null; onCerrar: () => void }) => tarea
+    ? <div role="dialog" aria-label="Cierre desde ficha">{tarea.id}<button onClick={onCerrar}>Volver a ficha</button></div>
+    : null,
+}))
+
 vi.mock('@/data/crm-api', async (importActual) => {
   const actual = await importActual<typeof import('@/data/crm-api')>()
   return {
@@ -250,6 +256,31 @@ beforeEach(() => {
 })
 
 describe('ClienteFicha — frescura y presentación', () => {
+  it('abre el cierre compartido para la tarea del cliente y permite regresar a su ficha', async () => {
+    const user = userEvent.setup()
+    const tarea = tareaClienteBase()
+    store.tareasDeCliente.mockReturnValue([tarea])
+    montar({ datos: detalleBase(), props: { onGestionar: vi.fn() } })
+    await user.click(screen.getByRole('button', { name: `Cerrar tarea — ${tarea.titulo}` }))
+    expect(screen.getByRole('dialog', { name: 'Cierre desde ficha' })).toHaveTextContent(tarea.id)
+    await user.click(screen.getByRole('button', { name: 'Volver a ficha' }))
+    expect(screen.queryByRole('dialog', { name: 'Cierre desde ficha' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: `Cerrar tarea — ${tarea.titulo}` })).toBeEnabled()
+  })
+
+  it('no permite cerrar tareas con datos de cartera desactualizados', () => {
+    const tarea = tareaClienteBase()
+    store.tareasDeCliente.mockReturnValue([tarea])
+    montar({ datos: detalleBase(), props: { onGestionar: vi.fn(), datosCarteraDesactualizados: { reintentar: vi.fn() } } })
+    expect(screen.getByRole('button', { name: `Cerrar tarea — ${tarea.titulo}` })).toBeDisabled()
+  })
+
+  it('la ficha de consulta no ofrece cerrar tareas', () => {
+    store.tareasDeCliente.mockReturnValue([tareaClienteBase()])
+    montar({ datos: detalleBase() })
+    expect(screen.queryByRole('button', { name: /^Cerrar tarea/ })).not.toBeInTheDocument()
+  })
+
   it('resume la continuidad comercial y permite pasar del contexto a las acciones existentes', async () => {
     const user = userEvent.setup()
     const onGestionar = vi.fn()

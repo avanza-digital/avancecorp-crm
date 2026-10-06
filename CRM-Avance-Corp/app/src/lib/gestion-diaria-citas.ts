@@ -1,3 +1,4 @@
+import { identidadClienteValida } from './sujeto-gestion'
 // G4b (27/09/2026): la lista EXACTA de «Citas agendadas» de Gestión Diaria —tareas
 // `reunion` CREADAS en el día Lima—, la misma definición que la cifra. La frontera es
 // estricta: forma cerrada y coherencia de cada página (día, ámbito, orden, cursor,
@@ -22,11 +23,14 @@ export type CursorCitas = v.InferOutput<typeof CursorCitasSchema>
 export const CitaAgendadaSchema = v.strictObject({
   id: Uuid, vendedor_id: v.nullable(Uuid), vendedor_nombre: Nombre,
   lead_id: v.nullable(Uuid), lead_nombre: Nombre,
+  sujeto_tipo: v.optional(v.picklist(['perfil', 'inversionista'])),
+  sujeto_id: v.optional(v.nullable(Uuid)), sujeto_nombre: v.optional(v.string()),
+  inversionista_id: v.optional(v.nullable(Uuid)), perfil_id: v.optional(v.nullable(Uuid)), identidad_visible: v.optional(v.boolean()),
   vence_en: Instante, estado: v.picklist(ESTADOS_CITA), creado_en: Instante,
 })
 export type CitaAgendada = v.InferOutput<typeof CitaAgendadaSchema>
 export const PaginaCitasSchema = v.strictObject({
-  version: v.literal(1), zona: v.literal('America/Lima'), dia: Dia,
+  version: v.union([v.literal(1), v.literal(2)]), zona: v.literal('America/Lima'), dia: Dia,
   ambito: v.picklist(['analista', 'equipo', 'fuera', 'operacion']), id: v.nullable(Uuid),
   generado_en: Instante, limite: v.pipe(Natural, v.minValue(1), v.maxValue(100)),
   resumen: v.strictObject({ total: Natural }),
@@ -69,6 +73,7 @@ export function validarPaginaCitas(valor: unknown, pedido: PedidoCitas): PaginaC
   const ids = new Set<string>()
   let anterior = pedido.cursor ? { creado_en: pedido.cursor.despues_de, id: pedido.cursor.despues_id } : null
   for (const item of p.items) {
+    if (item.sujeto_tipo !== undefined && !identidadClienteValida(item)) return null
     const creada = instantePendiente(item.creado_en)!
     if (ids.has(item.id.toLowerCase()) || creada < ventana[0] || creada >= ventana[1]
       || (anterior && compararCitas(item, anterior) <= 0)

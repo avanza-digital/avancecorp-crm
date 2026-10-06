@@ -1,3 +1,4 @@
+vi.mock('@/components/gestion-diaria/resumen-gestiones', () => ({ ResumenGestionesClientes: () => null, ResumenGestionesHoy: () => null }))
 // Resumen no debe consultar ni montar la operación SLA, incluso cuando está activa.
 const LEER_MODO_SLA = vi.hoisted(() => vi.fn(() => ({ legado: false, activo: true, error: null })))
 vi.mock('@/data/sla-operacion-queries', () => ({ useModoSla: LEER_MODO_SLA }))

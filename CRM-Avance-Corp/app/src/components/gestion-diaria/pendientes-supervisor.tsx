@@ -7,7 +7,7 @@ import { useEffect, useEffectEvent, useId, useLayoutEffect, useRef, useState } f
 import { Check } from 'lucide-react'
 import { usePendientesSupervisor } from '@/data/gestion-diaria-pendientes-queries'
 import { CrmApiError } from '@/data/crm-api'
-import { usePanelesActions } from '@/lib/store-context'
+import { EnlaceSujetoGestion } from './enlace-sujeto'
 import type { FilaEquipoPresentada } from '@/lib/gestion-diaria-equipo'
 import { instantePendiente } from '@/lib/gestion-diaria-pendientes'
 import { Badge } from '@/components/ui/badge'
@@ -43,7 +43,6 @@ export function PendientesSupervisor({ analista, nombre, dia, fila, visible, sol
 }) {
   const [soloVencidas, setSoloVencidas] = useState(soloVencidasInicial)
   const lista = usePendientesSupervisor(dia, analista, soloVencidas, visible, apertura)
-  const { abrirLead } = usePanelesActions()
   const titulo = useRef<HTMLHeadingElement>(null)
   const tituloId = useId()
   const revision = useRef(actualizacion)
@@ -145,10 +144,7 @@ export function PendientesSupervisor({ analista, nombre, dia, fila, visible, sol
               <div className="flex flex-wrap items-center gap-2">
                 <Badge className="min-h-[22px] py-0 text-[11.5px]" color="var(--accent-press)">{tipo}</Badge>
                 {vencida && <Badge className="min-h-[22px] py-0 text-[11.5px]" color="var(--destructive-text)">Vencida</Badge>}
-                {tarea.lead_id && tarea.lead_nombre
-                  ? <button type="button" onClick={() => abrirLead(tarea.lead_id!)}
-                    className={cn('rounded-md text-left text-sm font-bold text-primary underline-offset-2 hover:underline pointer-coarse:min-h-11', FOCO)}>{tarea.lead_nombre}</button>
-                  : <span className="text-[13px] text-[var(--muted-foreground-strong)]">{tarea.referencia_tipo === 'perfil' ? 'Tarea de perfil' : tarea.referencia_tipo === 'postventa' ? 'Tarea de postventa' : 'Referencia no disponible'}</span>}
+                <EnlaceSujetoGestion sujeto={tarea} />
               </div>
               {/* El título solo si dice algo más que el tipo («WhatsApp» / «WhatsApp»). */}
               {normalizar(tituloTarea) !== normalizar(tipo) && <p className="text-[13px] leading-snug text-foreground/80">{tituloTarea}</p>}

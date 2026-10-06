@@ -1,3 +1,4 @@
+import { AccesoGestionesClientes } from '@/components/gestion-diaria/resumen-gestiones'
 // «Toda la operación» de gerencia con el diseño de Gestión Diaria y las mejoras
 // del supervisor (Miguel, 27/09/2026): cifras finas que abren su lista, tabla de
 // equipos protagonista, ficha del equipo al lado y, dentro de cada equipo, la
@@ -336,6 +337,7 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
         claseLista="gap-[22px] [&>[role=tab]]:min-h-[42px] [&>[role=tab]]:text-sm pointer-coarse:[&>[role=tab]]:min-h-11"
         acciones={<div role="group" aria-label="Acciones de la operación" className="flex min-w-0 flex-wrap items-center gap-2">
           {accesoSeguimiento}
+          <AccesoGestionesClientes dia={dia} autores={ruta?.tipo === 'analista' ? [ruta.id] : grupo ? grupo.personas.flatMap(p => p.analista_id ? [p.analista_id] : []) : null} />
           <button type="button" className={BOTON_CABECERA} aria-disabled={!registroDisponible}
             onClick={(e) => { if (registroDisponible) { if (ruta) window.location.hash = hashDe('gestion-diaria'); setPestana('pulso'); abrirRegistroGeneral(e.currentTarget) } }}>
             <ClipboardList aria-hidden className="size-4" />Registro general

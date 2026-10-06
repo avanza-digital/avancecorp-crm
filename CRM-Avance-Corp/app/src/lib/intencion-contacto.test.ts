@@ -145,6 +145,36 @@ describe('coordinador de la intención de contacto', () => {
     expect(despues.intencionDe('v1', 'l1', T0 + 1_000)).toMatchObject({ abierta: true })
   })
 
+  // F4-b: el id de la llamada que mandó el celular viaja con la intención del enlace hasta la encuesta.
+  it('guarda el id de la llamada del enlace, sobrevive a la recarga y no lo acepta de un tap ni sin la forma de la base', async () => {
+    const antes = await cargarPagina()
+    const i = antes.armarIntencion({ actor: 'v1', leadId: 'l1', canal: 'tel', origen: 'enlace', numero: '+51999888777', origenLlamada: 'C1-1790980958' }, T0)
+    expect(i.origenLlamada).toBe('C1-1790980958')
+    const despues = await cargarPagina()
+    expect(despues.intencionDe('v1', 'l1', T0 + 1_000)).toMatchObject({ id: i.id, origenLlamada: 'C1-1790980958' })
+    const tap = despues.armarIntencion({ actor: 'v1', leadId: 'l2', canal: 'tel', origen: 'pantalla', origenLlamada: 'C1-1790980958' }, T0)
+    expect(tap.origenLlamada).toBeUndefined()
+    const raro = despues.armarIntencion({ actor: 'v1', leadId: 'l3', canal: 'tel', origen: 'enlace', origenLlamada: 'C1-123' }, T0)
+    expect(raro.origenLlamada).toBeUndefined()
+    // Un id que no tiene la forma de la base en el almacenamiento invalida esa entrada (dato ajeno).
+    sessionStorage.setItem(LLAVE, JSON.stringify([{ ...i, origenLlamada: '<script>' }]))
+    const otra = await cargarPagina()
+    expect(otra.listarIntenciones('v1', T0)).toEqual([])
+  })
+
+  it('la vía de la llamada viaja con su id: al colgar por defecto, «pestana» desde la pestaña; sin id no hay vía', async () => {
+    const m = await cargarPagina()
+    const colgar = m.armarIntencion({ actor: 'v1', leadId: 'l1', canal: 'tel', origen: 'enlace', origenLlamada: 'C1-1790980958' }, T0)
+    expect(colgar).toMatchObject({ origenLlamada: 'C1-1790980958', viaLlamada: 'al_colgar' })
+    const pestana = m.armarIntencion({ actor: 'v1', leadId: 'l2', canal: 'tel', origen: 'enlace', origenLlamada: 'C1-1790980959', viaLlamada: 'pestana' }, T0)
+    expect(pestana.viaLlamada).toBe('pestana')
+    const sinId = m.armarIntencion({ actor: 'v1', leadId: 'l3', canal: 'tel', origen: 'enlace', viaLlamada: 'pestana' }, T0)
+    expect(sinId.viaLlamada).toBeUndefined()
+    sessionStorage.setItem(LLAVE, JSON.stringify([{ ...colgar, viaLlamada: 'adivinada' }]))
+    const otra = await cargarPagina()
+    expect(otra.listarIntenciones('v1', T0)).toEqual([])
+  })
+
   it('un dato corrupto o ajeno en el almacenamiento no rompe nada: se empieza limpio', async () => {
     sessionStorage.setItem(LLAVE, '{no es json')
     const m1 = await cargarPagina()
@@ -187,4 +217,17 @@ describe('coordinador de la intención de contacto', () => {
     act(() => { m.cerrarIntencion(id) })
     expect(result.current).toBeNull()
   })
+})
+
+
+it('el enlace al colgar completa la encuesta abierta por el tap y conserva su identidad al recargar', async () => {
+  const m = await cargarPagina()
+  const tap = m.armarIntencion({ actor: 'v1', leadId: 'l1', canal: 'tel', origen: 'pantalla' }, T0)
+  m.reclamarIntencion(tap.id, T0)
+  const completa = m.armarIntencion({ actor: 'v1', leadId: 'l1', canal: 'tel', origen: 'enlace', origenLlamada: 'C1-1790980958' }, T0 + 1000)
+  expect(completa).toMatchObject({ id: tap.id, abierta: true, origenLlamada: 'C1-1790980958', viaLlamada: 'al_colgar' })
+  const otra = m.armarIntencion({ actor: 'v1', leadId: 'l1', canal: 'tel', origen: 'enlace', origenLlamada: 'C1-1790980999' }, T0 + 2000)
+  expect(otra.origenLlamada).toBe('C1-1790980958')
+  const recarga = await cargarPagina()
+  expect(recarga.intencionDe('v1', 'l1', T0 + 3000)).toMatchObject({ id: tap.id, origenLlamada: 'C1-1790980958' })
 })

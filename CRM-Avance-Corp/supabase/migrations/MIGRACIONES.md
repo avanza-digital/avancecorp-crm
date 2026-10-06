@@ -2,6 +2,251 @@
 
 **PREPARADA, NO APLICADA EN PRODUCCIÓN.** Decisión de Miguel: upgrade y reinversión separados en Qorilazo y Prodelco. Añade tipo inmutable al vínculo solicitud/origen, RPC autenticada de upgrade, validación de origen vigente e historial propio. Conserva la inversión anterior y el escritor financiero; conflictos de continuidad devuelven PT409. Preflight de cuerpos y catálogo de historial; reversa rechaza eliminar el tipo con upgrades existentes. Banco SQL con permisos, recuperación, historial y carreras PASS; frontend y E2E locales PASS. Guía, límites y publicación pendiente: `../scripts/upgrade-cooperativas/README.md`.
 
+## 20261006162813 — Llamadas desde el celular · DUODÉCIMA: cierre de revisión del PR #190
+
+**Estado:** aplicada y verificada únicamente en el banco local autorizado. Sin aplicar en producción ni activar C1.
+**Depende de:** las once anteriores; se conservan sin editar. Preflight exige la undécima y las huellas de los seis
+cuerpos que reemplaza. Añade un núcleo privado sin EXECUTE para roles API y un índice para la FK de asignación.
+
+Corrige el veto completo por número, el acceso del antiguo dueño a llamadas ajenas, la candidatura tras esperar una
+reasignación y las intenciones residuales al enlazar un resultado. Completa el origen en resueltas y marcas; los de
+bandeja/detalle los aporta la décima. Conserva firmas, ACL, el núcleo v4 y objetos de `public`.
+
+**Verificación:** reducido 415/415; Edge 17/17 y 18 mutantes; app 6245 tests y 17 E2E Docker. Banco completo:
+197 comprobaciones de llamadas PASS; matriz global 8/3014 FAIL conocidos e idénticos al fondo. Reversa12 restaura
+exactamente el catálogo de las once; reaplicación y registradores10/11/12 PASS. Advisors sin ERROR ni WARN de llamadas.
+**Detalle y límites:** [informe de cierre](../../docs/plans/llamadas-celular/CIERRE-CORRECCIONES-20261006.md).
+**Registro:** `supabase/scripts/llamadas-celular/registrar-cierre-revision.sql` (fuente exacta, cotejo de siete cuerpos,
+idempotencia y veredicto). **Reversa:** `supabase/scripts/llamadas-celular/reversa-cierre-revision.sql`, solo antes de
+altas/uso. La reversa de la undécima exige retirar primero esta correctiva.
+
+## 20261006150254 — Llamadas desde el celular · UNDÉCIMA: salud de los celulares sin la hora exacta del latido (`private.celulares_salud_listar`)
+
+**⏸️ ESCRITA, SIN APLICAR (06/10/2026). Va en el #198, después de la décima.** Registrador:
+`scripts/llamadas-celular/registrar-salud-sin-hora.sql` (con fila de veredicto).
+
+Hallazgo del análisis de F4-e (verificado): la macro mandaba el latido también al vaciarse su cola, y la cola recibe
+toda saliente, personales incluidas. La hora del latido era casi la de la última llamada, y
+`crm.celulares_salud_fn` se la mostraba a supervisión y gerencia: la misma fuga que la N1 cerró con `ultimo_envio_en`.
+**Decisión de Jhosep (06/10): arreglarlo en la macro (latido solo cada 6 h, `macrodroid.md` §3c) Y en el servidor.**
+
+Qué hace: `create or replace` del núcleo con la misma firma (la puerta no cambia). En lugar de `ultimo_latido_en` y
+`latido_celular_en` devuelve `estado_latido` (`al_dia` | `sin_latido` pasadas 7 h | `nunca`), `horas_sin_latido`
+(enteras, nunca negativas; nulas si nunca habló) y `reloj_desfasado` (más de 5 min entre el reloj del celular y el del servidor). Las horas se siguen
+guardando en `private.celulares_estado`; solo dejan de salir. Sin consumidores (la tarjeta de F4-c aún no existe).
+
+Verificación: pasada 18 de `npm run test:llamadas:local` (se niega sin la décima; oráculo
+`tests/llamadas-celular/oraculo-salud-sin-hora.sql`: estado, horas enteras, reloj, sin horas exactas, ámbito por
+equipo y roles; la reversa de la décima se niega con ella puesta; reversa con la huella exacta de las diez; mutantes).
+Gate: el tramo de salud de `testLlamadasCelular` acepta las dos formas y exige la nueva cuando está instalada. NOT RUN:
+el gate con el esquema de producción.
+
+Reversa: `scripts/llamadas-celular/reversa-salud-sin-hora.sql` (repone el cuerpo y el COMMENT de la quinta tal cual;
+OJO: vuelve a mostrar la hora exacta). Orden: esta → la de la décima → la de la novena → …
+
+## 20261006150154 — Llamadas desde el celular · DÉCIMA: el id de origen en la bandeja y el detalle (`private.llamadas_celular_bandeja`, `private.llamada_celular_detalle`)
+
+**⏸️ ESCRITA, SIN APLICAR (06/10/2026). Va en el #198, después de la novena.** Registrador:
+`scripts/llamadas-celular/registrar-bandeja-con-origen.sql` (con fila de veredicto).
+
+Hallazgo del análisis de F4-c/F4-d (verificado): la bandeja y el detalle no devolvían `evento_origen_id`, así que
+«Registrar resultado» desde la pestaña «Celular» caía a la v4 sin id y la llamada quedaba pendiente (solo se unía a
+mano). **Decisión de Jhosep (06/10): una migración pequeña en el #198.**
+
+Qué hace: `create or replace` de los dos núcleos con la misma firma; solo agrega `'evento_origen_id'` a cada fila (el
+resto del cuerpo es el vigente, copiado del blob de git por el generador). Las puertas `crm.llamadas_celular_bandeja_fn`
+y `crm.llamada_celular_detalle_fn` no cambian (firma, roles ni permisos). El id no es dato personal.
+
+Verificación: pasada 17 de `npm run test:llamadas:local` (se niega sin la novena; oráculo
+`tests/llamadas-celular/oraculo-bandeja-con-origen.sql`: el id en cada fila, también por páginas, y en el detalle; el
+ámbito no cambia; con el id de la fila, la v5 desde la pestaña une la llamada con vía `pestana`; la reversa de la novena
+se niega con ella puesta; reversa con la huella exacta de las nueve; mutantes). Gate: el tramo de F4-b comprueba el id
+en la bandeja y el detalle. NOT RUN: el gate con el esquema de producción.
+
+Reversa: `scripts/llamadas-celular/reversa-bandeja-con-origen.sql` (repone los dos cuerpos y sus COMMENT tal cual).
+Orden: undécima → esta → novena → …
+
+## 20261005224330 — Llamadas desde el celular · NOVENA: «Qué pasó hoy» paginada y por la hora de resolución (`crm.llamadas_celular_resueltas_hoy_fn`)
+
+**⏸️ ESCRITA, SIN APLICAR (05/10/2026). Enmienda de la octava** pedida por la revisión de Miguel en el #195 (05/10,
+22:00 UTC); la octava no se edita. Se publica con F4-b, junto con la octava y después de ella. Registrador:
+`scripts/llamadas-celular/registrar-resueltas-paginadas.sql` (con fila de veredicto).
+
+Decisiones de Jhosep (05/10):
+- **Paginar como la bandeja**: `{filas, siguiente}` con cursor (`resuelto_en`, `evento_id`); límite 1–200, 50 por defecto.
+- **«Hoy» = lo RESUELTO hoy en Lima**, aunque la llamada sea de ayer. Registrada: `crm.llamadas_celular_enlaces.actualizado_en`
+  (nace con el enlace y el trigger del candado lo vuelve a sellar al pasar al resultado corregido tras un Deshacer).
+  Descartada: `crm.llamadas_celular_eventos.descartado_en`.
+- **Dos índices** (tocan tablas, con OK): `llamadas_celular_enlaces_actualizado_idx (actualizado_en, evento_id)` y
+  `llamadas_celular_eventos_descartado_en_idx (descartado_en, id) where atencion = 'descartado_con_motivo'` (este último
+  le sirve también a la purga de descartados).
+- **Límite conocido, anotado**: una llamada registrada ayer cuyo resultado se deshace hoy y no se vuelve a registrar no
+  sale en «Qué pasó hoy» (Deshacer no toca el enlace). La marca «Celular» y el historial sí la muestran.
+
+Qué hace: retira `crm.llamadas_celular_resueltas_hoy_fn(integer)` y su núcleo (con las dos firmas, PostgREST no sabría
+cuál llamar con solo `p_limite`; sin consumidores: la octava no está publicada) y la crea de nuevo como
+`crm.llamadas_celular_resueltas_hoy_fn(p_limite, p_antes_resuelto_en, p_antes_id)`. Mismas capas que la octava. La marca
+«Celular» no cambia.
+
+Verificación: pasada 16 de `npm run test:llamadas:local` (se niega sin la octava; oráculo
+`tests/llamadas-celular/oraculo-resueltas-paginadas.sql`: recibida ayer y resuelta hoy, corregida hoy, lo de ayer fuera,
+orden por hora de resolución, páginas con cursor y empate entre registrada y descartada, cursor y límite validados, borde
+del día de Lima, ámbito, lead dado de baja, marca sin cambios; los oráculos de F4-a y la quinta siguen; la reversa de la
+octava se niega con ella puesta; reversa con la huella exacta de las ocho; mutantes). Gate `test-rls.mjs`: el tramo de
+F4-b recorre las páginas y exige la novena con `CRM_RLS_EXIGE_LLAMADAS_F4B=1`. NOT RUN: el gate con el esquema de
+producción.
+
+Reversa: `scripts/llamadas-celular/reversa-resueltas-paginadas.sql` (quita la lectura paginada y los dos índices y repone
+la de la octava tal cual; sin datos). Orden: esta → la de la octava → la de la séptima → …
+
+## 20261005201010 — Llamadas desde el celular · OCTAVA: lecturas de F4-b (`crm.llamadas_celular_resueltas_hoy_fn`, `crm.actividades_con_llamada_celular_fn`)
+
+**⏸️ ESCRITA, SIN APLICAR (05/10/2026). F4-b, paso B2 de `docs/plans/llamadas-celular/F4B-PLAN-CORTO.md`, aprobado por
+Jhosep el 05/10.** Se publica con F4-b (la pestaña), después de las siete; no entra en la guía de las siete. Registrador:
+`scripts/llamadas-celular/registrar-lecturas-analista.sql` (con fila de veredicto).
+
+Qué hace (solo lectura; sin tablas ni datos; no toca puertas existentes):
+- `crm.llamadas_celular_resueltas_hoy_fn(p_limite)`: «Qué pasó hoy» (hallazgo 1 de F4). Las llamadas recibidas hoy en
+  Lima ya resueltas (registradas o descartadas), con su resultado (y si se deshizo), la vía del enlace o el motivo.
+  **Decisión de Jhosep: solo el día de hoy.**
+- `crm.actividades_con_llamada_celular_fn(p_actividad_ids)`: la marca «Celular C1» en «¿Qué hice hoy?» (hallazgo 3). De
+  hasta 500 gestiones, cuáles están unidas a una llamada del celular, con etiqueta y vía. **No cambia
+  `crm.registro_actividad_fn`** (sería un cambio de contrato de una puerta que usan otras pantallas).
+- Ámbito: el de la bandeja (`private.llamada_celular_visible`). Roles: analista, supervisión y gerencia (42501 los
+  demás). Puertas DEFINER con EXECUTE solo `authenticated`; núcleo INVOKER en `private` sin EXECUTE para nadie; todo
+  STABLE.
+
+Verificación: pasada 15 de `npm run test:llamadas:local` (oráculo `tests/llamadas-celular/oraculo-lecturas-analista.sql`:
+ámbito por rol y equipo, solo hoy, pendientes fuera, resultado, deshecho, vía, motivo, lead dado de baja, límites y
+roles; los oráculos de F4-a y la quinta siguen; reversa con la huella exacta de las siete; las reversas de la séptima y
+F4-a se niegan con ella puesta; mutantes). Gate `test-rls.mjs`: tramo nuevo en `testLlamadasCelular` (se salta si no está
+instalada; `CRM_RLS_EXIGE_LLAMADAS_F4B=1` lo exige). NOT RUN: el gate con el esquema de producción.
+
+Reversa: `scripts/llamadas-celular/reversa-lecturas-analista.sql` (quita las cuatro funciones; sin datos, corre en
+cualquier momento). Orden: esta → la de la séptima → la de F4-a → …
+
+## 20261005182227 — Llamadas desde el celular · SÉPTIMA: enlace exacto sin ciclo con Deshacer (`private.llamada_celular_cumplir_intencion`, `private.llamada_celular_enlazar_exacto`)
+
+**⏸️ ESCRITA, SIN APLICAR (05/10/2026). Corrige el [P2] de la segunda revisión del agente de Miguel en el PR #190**
+(18:13 UTC, sobre `53a72f17`, reproducido con dos sesiones). Se aplica después de `20261005155914` y su registrador;
+registrador propio: `scripts/llamadas-celular/registrar-enlace-sin-ciclo.sql` (con fila de veredicto; md5 LF
+`6dea6bd39fa2435ae883396e2c957783`). Se publica junto con las seis.
+
+El fallo: al unir un resultado con su llamada, la llave foránea del enlace (y la de la intención) toma el resultado
+`FOR KEY SHARE` aunque nadie lo pida. Deshacer (`20260920005000:649` y `682`) bloquea resultado → lead `FOR UPDATE`; la
+ingesta y la v5 llegan con el lead ya tomado y esperaban el resultado: interbloqueo (40P01). El comentario de F4-a «sin
+candado sobre el resultado» no lo evitaba: el candado lo pedía la llave foránea.
+
+Qué hace (sin editar F4-a; mismas firmas y permisos; sin tablas ni datos):
+- Al cumplir la intención (ingesta) y en el enlace de la v5, el resultado se toma `FOR KEY SHARE NOWAIT`. Se atrapa
+  solo `lock_not_available` (55P03).
+- **Decisión de Jhosep (05/10): no esperar.** Si Deshacer tiene el resultado, la intención se retira sin enlace y la
+  llamada queda en la pestaña para unirla a mano; la v5 responde `no_enlazado` con motivo `resultado_en_uso` (el
+  resultado ya quedó guardado). La alternativa descartada: tomar el resultado antes que el lead en la ingesta.
+- Solo Deshacer bloquea un resultado `FOR UPDATE` (buscado en todas las migraciones el 05/10); la actualización de la
+  v4 (`FOR NO KEY UPDATE`) no choca con `FOR KEY SHARE`. Por eso el «no esperar» no falla por otros escritores.
+- Cuerpos generados con un guion desde el blob de F4-a, con exactamente dos cambios.
+- Capas: solo núcleo de `private` (INVOKER, sin EXECUTE); las puertas no cambian de firma. La v5 suma el valor de
+  motivo `resultado_en_uso`; ninguna pantalla la usa todavía (F4-b).
+
+Verificación (banco reducido, v4 como doble declarado): pasadas 13 y 14 de `npm run test:llamadas:local` — huella,
+oráculos de F4-a y de la quinta con la séptima puesta, reversa con la huella exacta de las seis (también con datos), la
+reversa de F4-a se niega con la séptima puesta; carreras con Deshacer **pausado entre sus dos candados** (el aviso en
+medio, el reintento de la v5 en medio, los dos órdenes y Deshacer revertido) y las cuatro de F4-a otra vez; un control
+sin la séptima reproduce el `deadlock detected` de la revisión; 4 mutantes cazados por la carrera y 1 por el postflight:
+**308/308 en verde el 05/10**. La v4 real, Deshacer real y el gate completo: NOT RUN (esquema de producción, Miguel).
+
+Reversa: `scripts/llamadas-celular/reversa-enlace-sin-ciclo.sql` (generada desde el blob de git). Solo devuelve los dos
+cuerpos y sus COMMENT de F4-a: corre también después del alta, pero devuelve el interbloqueo. Orden de las reversas:
+esta → la de F4-a (que ahora se niega con la séptima puesta) → la de la quinta → las de las cuatro.
+
+## 20261005155914 — Llamadas desde el celular · F4-a: enlace exacto encuesta ↔ llamada (`crm.registrar_llamada_v5`, `private.llamadas_celular_intenciones`, `crm.llamadas_celular_enlaces.via`)
+
+**⏸️ ESCRITA, SIN APLICAR (05/10/2026). Paso 2 del plan v2 (§7), en el PR #190 junto con la quinta.** Se aplica después
+de `20261005143843` y su registrador; registrador propio: `scripts/llamadas-celular/registrar-enlace-exacto.sql` (con
+fila de veredicto). Cierra el fallo 5 del lado de la base; para cerrarlo del todo falta F4-b (F1 lleva el id hasta la
+encuesta y la encuesta llama a la v5). Codex r2 y auditor-rls: al final, sobre la quinta + F4-a + la Edge (decisión
+de Jhosep, 05/10).
+
+Qué hace (no toca la v4 sellada; si su gate existe, lo corre antes y después):
+- `crm.registrar_llamada_v5`: la operación de la v4 (llama a `private.llamada_registrar_v4`, que bloquea el lead y
+  crea el resultado) y, en la misma transacción, el enlace exacto por el id de la llamada (`C<n>-<segundos>`): si la
+  llamada ya llegó (del celular del mismo analista, identificada con ese lead) la une; si no, guarda una intención.
+  Sin la regla de los 10 minutos (sigue en el enlace manual). Tras Deshacer, el corregido se lleva el enlace o la
+  intención.
+- **Decisiones de Jhosep (05/10):** un enlace imposible no impide guardar el resultado (responde `no_enlazado` con su
+  motivo y la llamada queda en la pestaña); una llamada ambigua no se une por este camino.
+- `private.llamadas_celular_intenciones`: única por id y por resultado, 32 días, sin auditoría.
+- `crm.llamadas_celular_enlaces.via` (`al_colgar`, `pestana`, `manual`; inmutable): mide «encuesta abierta al colgar».
+- La ingesta (cuerpo de la quinta con dos cambios: candado del lead antes de guardar y cumplir la intención) y la
+  purga (cuerpo de la quinta con un cambio: intenciones a 32 días), generadas con un guion y comparadas con `diff`.
+
+**Decisiones de criterio de Claude, para Miguel:** la intención en `private`; `via` con valor por defecto `manual`
+(el enlace manual no cambia); la v5 exige que la etiqueta del id sea de un celular del analista que registra; con el
+aviso ya ignorado no se guarda intención; «Qué pasó hoy» pasa a F4-b. El candado explícito del lead en la ingesta
+coincide con el que ya toma la llave foránea al guardar la llamada: está por claridad y no tiene mutante.
+
+Verificación (banco reducido, con la v4 como **doble declarado** en `tests/llamadas-celular/base.sql`): oráculo
+`tests/llamadas-celular/oraculo-enlace-exacto.sql` (sin id = v4, aviso antes, aviso tardío, reloj adelantado, enlaces
+imposibles que guardan igual, Deshacer → corregido, intención que no coincide, vía, validaciones, candados, purga);
+reversa con la huella exacta de las cinco; la reversa de la quinta se niega con F4-a puesta; 26 mutantes y 4 carreras
+con dos sesiones (el aviso durante la encuesta y al revés, dos encuestas con el mismo id, Deshacer mientras se cumple
+la intención): **276/276 en verde el 05/10**. La v4 real y el gate completo: NOT RUN (esquema de producción, los
+corre Miguel).
+
+Reversa: `scripts/llamadas-celular/reversa-enlace-exacto.sql` (generada desde el blob de git). **Solo antes de dar de
+alta celulares** (sin asignaciones, ni cerradas, ni estado, recepciones, llamadas, enlaces o intenciones): más estricto
+que «antes del primer aviso», porque intenciones y recepciones caducan a los 32 días (revisión de Miguel en el #190,
+05/10). Orden de las reversas: esta → la de la quinta → las de las cuatro.
+
+## 20261005143843 — Llamadas desde el celular · QUINTA: corrección de F2 + F3 (`private.llamadas_celular_recepciones`, `private.llamada_celular_ingerir(uuid,jsonb,timestamptz)`, `private.llamada_celular_candidatos_dueno`, candados, entrantes, retención, salud)
+
+**⏸️ ESCRITA, SIN APLICAR (05/10/2026). Paso 1 del orden de trabajo del plan v2** (`docs/plans/llamadas-celular/CORRECCION-PLAN-CORTO.md`,
+PR #179, fusionado por Miguel el 04/10; Jhosep confirmó el 05/10 que esa fusión es el OK, con la N1 según la
+recomendación). Se publica JUNTO con F4-a y la Edge nueva (decisión 1), después de Codex r2 y auditor-rls (los corre
+Miguel). Orden: datos → registrador → núcleo → registrador → ingesta → registrador → elegibilidad → registrador →
+**esta** → `scripts/llamadas-celular/registrar-correccion.sql` (con fila de veredicto). Barrera: no se despliega la Edge
+ni se da de alta un celular hasta verificarla. El bloque `testLlamadasCelular` del gate ya está al día (paso 4 del plan,
+05/10): sin `P0409`, con la recepción, el contrato `{resultado, mensaje}` y la v5 de F4-a; exige las dos migraciones
+juntas. Sin correr aquí (necesita el esquema de producción).
+
+Qué hace (sin editar las cuatro):
+- **§1** Id con forma fija `C<n>-<10 dígitos>` (etiqueta de la asignación + segundos del celular, entre hace 30 días y
+  dentro de 1 día). `private.llamadas_celular_recepciones`: una fila por aviso aceptado ANTES de buscar el lead, única
+  por id, 32 días; el primer envío gana. Llamadas únicas por id y sin `hash_payload`. Puerta: clave (asignación
+  `FOR SHARE` revalidada) → estado `FOR UPDATE` y la hora una sola vez → cupo (sin política, 55000) → validación en un
+  bloque que atrapa solo 22023 (`invalido` con el cupo gastado) → recepción → lead. Contrato: `{resultado, mensaje}`.
+  Sin `P0409`.
+- **§2** Candidatos del dueño evaluados como él: (a) su ámbito, (b) sin dueño en etapa abierta, (c) descartados
+  reutilizables (regla de «Nuevo lead»). Uno → identificada; varios → ambigua sin conteo; ninguno → no se guarda.
+  Visibles solo con el lead activo, también para gerencia.
+- **§3** Candados resultado → lead(s) → llamada → enlace; 40001 si el lead de la llamada cambió; enlazar rechaza un
+  resultado deshecho.
+- **§4** Entrantes bloqueadas (CHECK + puerta); entrantes y desconocidas se ignoran.
+- **§5** Purga: sin resolver (identificadas sin enlace y ambiguas) a 30 días desde `recibido_en`; registradas se
+  conservan; recepciones a 32.
+- **§6** Salud sin `envios_hoy` ni `ultimo_envio_en` (la columna se retira). **§8** Fuera la bandeja duplicada.
+
+**Decisiones de criterio de Claude, para Miguel:** retirar `ultimo_envio_en` (no solo ocultarlo);
+`dias_retencion_sin_resolver` cubre ambiguas e identificadas sin enlace (sin cambiar la firma de la puerta); los 32
+días son constante; la recepción guarda id y asignación, sin número ni hash; los leads se bloquean `FOR SHARE`; el
+postflight prohíbe `WHEN OTHERS` en las piezas de llamadas (Codex P3).
+
+Verificación (banco reducido, `npm run test:llamadas:local`, PostgreSQL 17): oráculo nuevo
+`tests/llamadas-celular/oraculo-correccion.sql` (sin pistas, bolsa, reutilizables, propios terminales, id, latido y
+fecha estricta, cupo, identidad, lead borrado, entrantes, salud, purga); reversa que vuelve a la **huella exacta del
+catálogo** de las cuatro (`tests/llamadas-celular/huella-catalogo.sql`) y se niega tras el primer aviso; la quinta se
+niega con filas; 41 mutantes de la quinta y 9 carreras con dos sesiones (más 4 mutantes de candados): **232/232 en
+verde el 05/10** (160 de las cuatro + 72 de la quinta). Gate completo,
+advisors y `banco/verificar-hallazgos.sql` con el esquema de producción: NOT RUN (los corre Miguel).
+
+Reversa: `scripts/llamadas-celular/reversa-correccion.sql` (generada copiando los cuerpos de las cuatro desde el blob de
+git). **Solo antes de dar de alta celulares** (sin asignaciones, ni cerradas, ni estado técnico, recepciones o
+llamadas): más estricto que «antes del primer aviso» a propósito. La revisión de Miguel en el #190 (05/10, [P2],
+reproducida) mostró que la purga retira las recepciones a los 32 días y la reversa volvía a correr tras un aviso
+ignorado; una asignación no se borra nunca, ni al cerrarla ni al rotarla. Regresión y mutante en el banco reducido.
+Después del alta no se revierte: se apaga y se corrige hacia adelante.
+
 ## 20261003225551 — Lectura de Gestionado para ficha y listados
 
 **APLICADA EN PRODUCCIÓN (03/10/2026):** autorizada por Miguel («Sí, probar y publicar todo») y publicada mediante `merge_branch` después de 2.823 aserciones RLS PASS, SQL de seis roles y 22 escenarios HTTP. Nueva puerta `crm.gestion_vigente_fn(uuid[])` → `private.gestion_vigente_lectura(uuid[])`, ambas INVOKER/STABLE, RLS vigente, actor CRM admitido, lote máximo 100. Solo estado e identidad de tenencia de nuevos activos; sin cambios de datos, tablas, policies o etapas. Postflight: cuerpos/ACL idénticos, catálogo anterior intacto, tres roles productivos y cero diferencias de clasificación. Frontend `build-20261004T025651347Z`, 98 archivos HTTPS verificados. Banco propio retirado. Acta: `docs/publicaciones/gestionado-ficha-2026-10-03.md`. Reversa: frontend anterior y retirada de funciones en otra migración, sin revertir datos.
@@ -16722,6 +16967,16 @@ carrera; `comprobar-tras-aplicar.sql` APTA; reversa → huellas idénticas a pro
 `testEliminarInversion` (catálogo + roles); `test:rls:preflight` NOT RUN aquí (pide credenciales).
 **Reversa:** `supabase/scripts/eliminar-inversion/reversa.sql` (se niega si ya hay copias). **Registrador:**
 `supabase/scripts/eliminar-inversion/registrar.sql` (generado). **Comprobación tras aplicar:** `comprobar-tras-aplicar.sql`.
+
+## 20261005224214 — Resultado de gestiones de clientes en postventa
+
+**PREPARADA; VERIFICADA EN BANCO LOCAL, SIN APLICAR EN PRODUCCIÓN.** Ajusta solo `crm.postventa_tarea_fn` con una guarda sobre la huella viva de F6. El cierre de llamadas guarda uno de los siete resultados comerciales, WhatsApp distingue enviado/respondido y la cita realizada guarda su resultado comercial en `crm.tareas.resultado_reunion`; el recibo atómico y `crm.inversionista_gestiones.metadata` conservan la clasificación. El historial existente recibe una descripción legible («Entrevista realizada · resultado · detalle»). El payload v2 exige resultado y el siguiente compromiso cuando corresponde; los bundles anteriores siguen admitidos y conservan clasificación desconocida cuando no mandan resultado. Guarda responsable de tarea separado del autor. No crea tablas, columnas ni grants; no altera leads, métricas o `public`. Ensayo SQL y dos conexiones concurrentes PASS. La base debe actualizarse y verificarse antes de publicar el frontend. Pendiente: aprobación de Miguel al SQL, ensayo RLS en rama de Supabase, advisors y publicación autorizada. Evidencia: `docs/encargos/2026-10-06-cierre-gestiones-clientes.md`.
+
+## 20261006012208 — Gestiones de clientes visibles para supervisión
+
+**PREPARADA; VERIFICADA EN BANCO LOCAL, SIN APLICAR EN PRODUCCIÓN.** Depende de `20261005224214`. Añade Registro v2, resumen operativo de leads/clientes/total, citas de clientes y versiones v2 de listas G4b/pendientes que identifican al cliente sin alterar sus conteos/cursor. Lectores privados DEFINER acotados por sesión, rol, banderas y árbol; la rama de leads conserva INVOKER/RLS. No concede SELECT sobre el historial F6. Autoría histórica independiente de acceso actual al cliente; redacta identidad y detalle tras perder acceso. Excluye espejos y usa cursor compuesto entre fuentes. Índices por autor/fecha para las dos fuentes de clientes. Conserva núcleos de captación, metas, alertas y registro v1. SQL transaccional de roles, flags, reasignación, paginación, ventana Lima y fuentes PASS. Pendiente la misma aprobación y flujo de publicación de la migración anterior.
+
+**Revisión local del 06/10:** se limita cada fuente antes de resolver identidad y detalle; el resumen cuenta sin consultar F5 ni presentar PII por evento. La lista vacía de identidades evita F5, los nombres vacíos tienen respaldo y un índice parcial por tarea acelera la exclusión de espejos F6. SQL contra los catálogos reales de la interfaz y carga sintética de 90.000 eventos PASS, sin truncar conteos. Recomendaciones de Claude evaluadas y decisiones documentadas en `docs/encargos/2026-10-06-cierre-gestiones-clientes-REVISION.md`; estado vigente y límites de verificación en `docs/encargos/2026-10-06-cierre-gestiones-clientes.md`. Continúa pendiente la validación del entorno destino y la autorización de instalación/publicación. Preparación de entrega del 06/10: vista aprobada por Miguel; gate integral en copia limpia de Main PASS (6.219 pruebas, duplicación 0,43 %); preflight de 17 dependencias contra producción PASS en solo lectura; ensayo de instalación exacta, catálogo/permisos y cuatro suites SQL con ROLLBACK PASS. Pendientes: rama Supabase, RLS HTTP/advisors posteriores y autorización productiva. Orden y recuperación: `docs/encargos/2026-10-06-cierre-gestiones-clientes-DESPLIEGUE.md`.
 
 ## 20261006042144 — Bases cargadas · B11: el cierre de un contacto de base pesa 1 y queda fuera del divisor
 

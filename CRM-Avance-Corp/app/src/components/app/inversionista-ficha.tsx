@@ -237,7 +237,7 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
   const pendiente = Boolean(vencimiento && vencimiento <= fechaLima(Date.now()))
   const variasEmpresas = ficha.totales.some(t => t.empresa !== 'avance')
   const soloActivo = ficha.totales.length > 0 && ficha.totales.every(t => t.capital_activo !== null)
-  const contenido = ({acciones, agendar, retiros, aviso}: ControlesPostventa) => <>
+  const contenido = ({acciones, agendar, retiros, aviso, accionTarea}: ControlesPostventa) => <>
     <FichaComercialCabecera avatar={<Avatar nombre={p.nombre} className="size-10 max-[359px]:hidden" />} titulo={p.nombre} onCerrar={onCerrar}
       badges={<><Badge color={p.estado === 'activo' ? 'var(--accent)' : 'var(--muted-foreground)'} dot>{p.estado === 'activo' ? 'Cliente activo' : p.estado === 'inactivo' ? 'Cliente inactivo' : p.estado}</Badge>
         <Badge color="var(--primary)">{p.responsable_nombre ? `Analista · ${p.responsable_nombre}` : 'Sin analista asignado'}</Badge>
@@ -274,9 +274,12 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
       {ficha.identidad_fusionada && <p role="status" className="text-xs text-muted-foreground">Esta ficha reúne los antecedentes de la identidad unificada.</p>}
       <FichaComercialSeccion icono={CalendarClock} titulo="Seguimiento" descripcion="Acciones pendientes para mantener activa la relación.">
         {aviso}
-        {ficha.tareas.length ? <ol className="space-y-2">{ficha.tareas.slice(0, 3).map(t => <li key={t.id} className="flex items-start gap-3 rounded-xl border border-border bg-muted/20 px-3 py-2.5">
-          <span className="mt-0.5 size-2 shrink-0 rounded-full bg-accent" aria-hidden />
-          <div className="min-w-0 flex-1"><p className="line-clamp-2 text-xs font-bold text-foreground">{t.titulo}</p><p className="mt-0.5 text-[11px] font-semibold text-muted-foreground">{fechaHora(t.vence_en)}</p></div>
+        {ficha.tareas.length ? <ol className="space-y-2">{ficha.tareas.slice(0, 3).map(t => <li key={t.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-border bg-muted/20 px-3 py-2.5">
+          <div className="flex min-w-0 flex-1 basis-44 items-start gap-3">
+            <span className="mt-1 size-2 shrink-0 rounded-full bg-accent" aria-hidden />
+            <div className="min-w-0 flex-1"><p className="line-clamp-2 text-xs font-bold text-foreground">{t.titulo}</p><p className="mt-0.5 text-[11px] font-semibold text-muted-foreground">{fechaHora(t.vence_en)}</p></div>
+          </div>
+          {accionTarea(t)}
         </li>)}</ol> : <p className="rounded-xl border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">Sin acciones pendientes.</p>}
         {ficha.tareas_total > Math.min(3, ficha.tareas.length) && <p className="text-center text-[11px] font-semibold text-muted-foreground">Y {ficha.tareas_total - Math.min(3, ficha.tareas.length)} seguimientos más en Agenda.</p>}
         {retiros}
@@ -331,7 +334,10 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
       </FichaComercialSeccion>
       <FichaComercialSeccion icono={History} titulo="Historial de gestiones" descripcion="Contactos, cambios de analista y movimientos de inversión para retomar la relación con contexto.">
         {ficha.historial.length > 0 && <FichaComercialHistorial eventos={ficha.historial.map(h => ({
-          id: `${h.origen}:${h.id}`, titulo: h.tipo.charAt(0).toUpperCase() + h.tipo.slice(1).replaceAll('_', ' '),
+          id: `${h.origen}:${h.id}`,
+          titulo: h.tipo === 'reunion_realizada' || (h.origen === 'postventa' && h.tipo === 'cierre' && h.detalle?.startsWith('Entrevista realizada'))
+            ? 'Entrevista realizada'
+            : h.tipo.charAt(0).toUpperCase() + h.tipo.slice(1).replaceAll('_', ' '),
           detalle: h.detalle, creadoEn: h.creado_en,
           contexto: `${h.origen === 'lead' ? 'Captación' : h.origen === 'postventa' ? 'Postventa' : 'Cliente Avance'}${h.empresa ? ` · ${EMPRESA_NOMBRE[h.empresa]}` : ''}`,
         }))} />}
