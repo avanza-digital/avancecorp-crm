@@ -126,6 +126,9 @@ describe('asignar', () => {
     expect(asignar).toHaveBeenCalledWith('C7', 'u1')
     const clave = await screen.findByRole('dialog', { name: /Clave de C7/ })
     expect(within(clave).getByLabelText('Clave del celular C7')).toHaveValue(HEX)
+    // Alta: las colas del celular se vacían (serían avisos de otra asignación). Nunca el texto de la rotación.
+    expect(within(clave).getByText(/y vacía/)).toBeInTheDocument()
+    expect(within(clave).queryByText(/No los vacíes/)).not.toBeInTheDocument()
     await user.click(within(clave).getByRole('button', { name: 'Copiar la clave' }))
     // user-event instala su propio portapapeles: lo que copió el botón se lee de ahí.
     expect(await navigator.clipboard.readText()).toBe(HEX)
@@ -157,16 +160,23 @@ describe('asignar', () => {
 })
 
 describe('rotar y cerrar', () => {
-  it('rotar entrega la clave nueva', async () => {
+  it('rotar con avisos en cola entrega la clave nueva y dice que la cola se conserva, nunca que se vacíe', async () => {
     const user = userEvent.setup()
-    const rotar = vi.fn().mockResolvedValue({ asignacion_id: 'a9', etiqueta: 'C1', analista_id: 'u1', credencial: HEX, anterior_id: 'a1' })
+    const rotar = vi.fn().mockResolvedValue({ asignacion_id: 'a9', etiqueta: 'C2', analista_id: 'u2', credencial: HEX, anterior_id: 'a2' })
     dobles.fuente = fuenteCon({ rotar })
     render(<ConfigCelulares />)
-    await user.click(screen.getByRole('button', { name: 'Rotar la clave de C1' }))
-    const dialogo = screen.getByRole('dialog', { name: 'Rotar la clave de C1' })
+    await user.click(screen.getByRole('button', { name: 'Rotar la clave de C2' }))
+    const dialogo = screen.getByRole('dialog', { name: 'Rotar la clave de C2' })
+    expect(within(dialogo).getByText(/En cola ahora: 3 avisos/)).toBeInTheDocument()
     await user.click(within(dialogo).getByRole('button', { name: 'Rotar y ver la nueva clave' }))
-    expect(rotar).toHaveBeenCalledWith('C1')
-    expect(await screen.findByRole('dialog', { name: /Clave de C1/ })).toBeInTheDocument()
+    expect(rotar).toHaveBeenCalledWith('C2')
+    const clave = await screen.findByRole('dialog', { name: /Clave de C2/ })
+    // Regresión (revisión de Miguel, #215): mismo analista → los avisos en cola son llamadas que aún no llegaron.
+    expect(within(clave).getByText(/No los vacíes/)).toBeInTheDocument()
+    expect(within(clave).queryByText(/y vacía/)).not.toBeInTheDocument()
+    expect(within(clave).getByText(/La clave anterior ya no vale/)).toBeInTheDocument()
+    await user.click(within(clave).getByRole('button', { name: 'Ya la copié al celular' }))
+    expect(dobles.toastSuccess).toHaveBeenCalledWith(expect.stringContaining('con la clave nueva'))
   })
   it('cerrar exige el motivo, avisa de la cola atascada y confirma con un toast sin clave', async () => {
     const user = userEvent.setup()

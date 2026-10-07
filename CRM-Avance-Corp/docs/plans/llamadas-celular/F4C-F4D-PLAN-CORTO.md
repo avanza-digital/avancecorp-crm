@@ -81,6 +81,11 @@ habilita F4-c.
 | P3 | «Analista de baja» se decide con el catálogo de usuarios (`activo_crm` y rol vendedor/supervisor). Sin catálogo, Rotar sigue habilitado y el servidor niega con su texto (22023) | La salud no dice si la persona sigue activa; el catálogo ya existe y el servidor es la verdad |
 | P4 | La clave vive solo en el estado del diálogo y se suelta al cerrarlo; no pasa por toast, URL, almacenamiento, caché ni registros (`credencial` quedó en `CLAVES_SENSIBLES`). Las acciones no usan `useMutation`, para que la respuesta no quede en la caché | Requisito del plan: «la clave no queda en el DOM, el almacenamiento ni la caché» |
 | P5 | Los textos de 22023 y 23505 se muestran tal cual (son mensajes de negocio del servidor); 42501 se dice como «No tienes permiso» | Decidido en el mapa de reuso: sin «la configuración cambió en otra sesión» |
+| P6 | La ventana de la clave sabe de dónde viene. **Alta:** vaciar `cola_llamadas` y `errores_llamadas` (serían avisos de otra asignación). **Rotación:** conservarlas; la macro reenvía con la clave nueva (o «Enviar cola»). Regresión en unitarias y E2E | Revisión de Miguel en el #215 (07/10, P2): el texto compartido mandaba borrar llamadas que aún no habían llegado |
+
+**Producción, comprobada por Miguel el 07/10:** 0/12 aplicadas, sin la Edge `crm-llamadas-ingesta`, y modo SLA
+**activo** (no `legado`, que es lo que tenía su banco): el ensayo previo a aplicar tiene que repetirse con esa
+configuración.
 
 Verificado el 07/10: `lib/celulares.test.ts` + `data/celulares-api-msw.test.ts` 24/24, `screens/config-celulares.test.tsx`
 9/9, E2E en Docker `e2e/config-celulares.spec.ts` + `config-demo.spec.ts` 4/4 (la primera corrida dio 2 «flaky» por el

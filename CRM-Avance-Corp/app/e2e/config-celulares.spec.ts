@@ -28,6 +28,9 @@ test('demo gerencia: la tarjeta «Celulares» asigna, muestra la clave una vez, 
   const clave = page.getByRole('dialog', { name: /Clave de C7/ })
   await expect(clave).toBeVisible()
   await expect(clave.getByLabel('Clave del celular C7')).toHaveValue(/^demo[0-9a-f]{60}$/)
+  // Alta: las colas se vacían (serían avisos de otra asignación).
+  await expect(clave.getByRole('listitem').filter({ hasText: 'y vacía' })).toHaveCount(1)
+  await expect(clave.getByRole('listitem').filter({ hasText: 'No los vacíes' })).toHaveCount(0)
   await page.keyboard.press('Escape')
   await expect(clave).toBeVisible()
   await clave.getByRole('button', { name: 'Ya la copié al celular' }).click()
@@ -44,6 +47,9 @@ test('demo gerencia: la tarjeta «Celulares» asigna, muestra la clave una vez, 
   await page.getByRole('dialog', { name: 'Rotar la clave de C1' }).getByRole('button', { name: 'Rotar y ver la nueva clave' }).click()
   const claveNueva = page.getByRole('dialog', { name: /Clave de C1/ })
   await expect(claveNueva).toBeVisible()
+  // Rotación (revisión de Miguel, #215): mismo analista → la cola se conserva; nunca se pide vaciarla.
+  await expect(claveNueva.getByRole('listitem').filter({ hasText: 'No los vacíes' })).toHaveCount(1)
+  await expect(claveNueva.getByRole('listitem').filter({ hasText: 'y vacía' })).toHaveCount(0)
   await claveNueva.getByRole('button', { name: 'Ya la copié al celular' }).click()
   await expect(claveNueva).toBeHidden()
 

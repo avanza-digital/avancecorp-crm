@@ -55,6 +55,11 @@ En la guía del #190, **los pasos 2 (#193) y 3 (#195) ya no existen**: los reemp
 
 ## 4. Bitácora (lo más nuevo arriba)
 
+- **07/10 15:33 UTC — Miguel (Codex):** revisión del #215, **CHANGES_REQUESTED, P2:** al rotar, la ventana de la clave
+  repetía los pasos del alta y mandaba vaciar las colas del celular (avisos que aún no llegaron). Pide distinguir alta
+  de rotación, conservar las colas al rotar y una regresión. Su verificación: `npm run check` 6338 PASS, E2E 4/4.
+  **Producción:** 0/12 aplicadas, sin Edge, SLA **activo** (su banco estaba en `legado`): ensayar así antes de aplicar.
+  Orden acordado: primero esta corrección; después las doce. Turno: Jhosep.
 - **07/10 ~15:00 UTC — Jhosep:** **F4-c programada** en `crm/llamadas-f4c-celulares-20261006` (desde `main`, con
   `main` integrado): tarjeta «Celulares» en Configuración, solo gerencia, detrás del mismo interruptor que F4-b
   (`LLAMADAS_CELULAR_APROBADAS`, hoy `false`: en producción no se ve hasta que Miguel aplique la base y lo abra).

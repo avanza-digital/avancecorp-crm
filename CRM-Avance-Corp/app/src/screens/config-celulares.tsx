@@ -37,9 +37,15 @@ const ERROR = 'rounded-lg bg-destructive/[0.08] px-3 py-2 text-xs font-semibold 
 const TH = 'px-3 py-2.5 text-left text-[10px] font-extrabold uppercase tracking-[0.1em] text-muted-foreground'
 const TD = 'px-3 py-3 align-top text-[13px]'
 
+/**
+ * De dónde sale la clave. Importa para las instrucciones: en el alta se vacían las colas del celular (serían avisos
+ * de otra asignación); al rotar, el analista es el mismo y los avisos en cola son llamadas que aún no llegaron: se
+ * conservan y la macro los reenvía con la clave nueva (revisión de Miguel en el #215, 07/10/2026).
+ */
+type OrigenClave = 'asignar' | 'rotar'
 type Dialogo =
   | { tipo: 'asignar' }
-  | { tipo: 'clave'; etiqueta: string; credencial: string }
+  | { tipo: 'clave'; origen: OrigenClave; etiqueta: string; credencial: string }
   | { tipo: 'rotar'; celular: CelularSalud }
   | { tipo: 'cerrar'; celular: CelularSalud }
   | null
@@ -86,7 +92,7 @@ export function ConfigCelulares() {
   }
   const resumen = resumenVigentes(vigentes, activo)
   const hayAviso = vigentes.some((c) => activo(c.analista_id) === false || c.estado_latido !== 'al_dia')
-  const abrirClave = (etiqueta: string, credencial: string) => setDialogo({ tipo: 'clave', etiqueta, credencial })
+  const abrirClave = (origen: OrigenClave) => (etiqueta: string, credencial: string) => setDialogo({ tipo: 'clave', origen, etiqueta, credencial })
 
   return (
     <ConfiguracionShell
@@ -212,15 +218,20 @@ export function ConfigCelulares() {
 
       {dialogo?.tipo === 'asignar' && (
         <DialogoAsignar fuente={fuente} candidatos={candidatos} catalogoListo={!catalogo.isPending} vigentes={vigentes}
-          cerrar={() => setDialogo(null)} alAsignar={abrirClave}
+          cerrar={() => setDialogo(null)} alAsignar={abrirClave('asignar')}
           rotarEnVez={(etiqueta) => { const c = vigentes.find((x) => x.etiqueta === etiqueta); if (c) setDialogo({ tipo: 'rotar', celular: c }) }} />
       )}
       {dialogo?.tipo === 'clave' && (
-        <DialogoClave etiqueta={dialogo.etiqueta} credencial={dialogo.credencial}
-          cerrar={() => { setDialogo(null); toast.success(`Listo. Cuando ${dialogo.etiqueta} mande su primer latido, aquí dirá «Al día».`) }} />
+        <DialogoClave origen={dialogo.origen} etiqueta={dialogo.etiqueta} credencial={dialogo.credencial}
+          cerrar={() => {
+            setDialogo(null)
+            toast.success(dialogo.origen === 'rotar'
+              ? `Listo. Cuando ${dialogo.etiqueta} mande su latido con la clave nueva, aquí dirá «Al día».`
+              : `Listo. Cuando ${dialogo.etiqueta} mande su primer latido, aquí dirá «Al día».`)
+          }} />
       )}
       {dialogo?.tipo === 'rotar' && (
-        <DialogoRotar fuente={fuente} celular={dialogo.celular} cerrar={() => setDialogo(null)} alRotar={abrirClave} />
+        <DialogoRotar fuente={fuente} celular={dialogo.celular} cerrar={() => setDialogo(null)} alRotar={abrirClave('rotar')} />
       )}
       {dialogo?.tipo === 'cerrar' && (
         <DialogoCerrar fuente={fuente} celular={dialogo.celular} cerrar={() => setDialogo(null)} />
@@ -302,7 +313,8 @@ function DialogoAsignar({ fuente, candidatos, catalogoListo, vigentes, cerrar, a
 }
 
 /** La clave, una sola vez. Esc y el clic fuera no cierran: solo «Ya la copié al celular» (decisión D4). */
-function DialogoClave({ etiqueta, credencial, cerrar }: { etiqueta: string; credencial: string; cerrar: () => void }) {
+function DialogoClave({ origen, etiqueta, credencial, cerrar }: { origen: OrigenClave; etiqueta: string; credencial: string; cerrar: () => void }) {
+  const rotacion = origen === 'rotar'
   const [copiado, setCopiado] = useState<'no' | 'si' | 'fallo'>('no')
   const botonCerrar = useRef<HTMLButtonElement>(null)
   const copiar = async () => {
@@ -318,7 +330,11 @@ function DialogoClave({ etiqueta, credencial, cerrar }: { etiqueta: string; cred
     <Dialog open onClose={() => {}} ariaLabel={`Clave de ${etiqueta}, se ve una sola vez`} focoInicial={botonCerrar}>
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2"><KeyRound className="size-4 text-accent" aria-hidden /> Clave de {etiqueta} · se ve una sola vez</DialogTitle>
-        <DialogDescription>Pégala en el celular ahora. Al cerrar esta ventana no se puede volver a ver: si se pierde, se rota y sale una nueva.</DialogDescription>
+        <DialogDescription>
+          {rotacion
+            ? 'La clave anterior ya no vale. Pega esta en el celular ahora: al cerrar esta ventana no se puede volver a ver; si se pierde, se rota otra vez.'
+            : 'Pégala en el celular ahora. Al cerrar esta ventana no se puede volver a ver: si se pierde, se rota y sale una nueva.'}
+        </DialogDescription>
       </DialogHeader>
       <DialogBody className="space-y-4">
         <div className="flex items-center gap-2">
@@ -332,7 +348,12 @@ function DialogoClave({ etiqueta, credencial, cerrar }: { etiqueta: string; cred
         {copiado === 'fallo' && <p role="alert" className={ERROR}>No se pudo copiar sola. Selecciona el texto del campo y cópialo a mano.</p>}
         <ol className="list-decimal space-y-1 pl-5 text-xs leading-relaxed text-[var(--muted-foreground-strong)]">
           <li>En el celular, abre MacroDroid → <b>Variables</b> → <span className="font-mono">clave_celular</span> y pega la clave.</li>
-          <li>Revisa que <span className="font-mono">url_llamadas</span> sea la de producción y vacía <span className="font-mono">cola_llamadas</span> y <span className="font-mono">errores_llamadas</span>.</li>
+          {rotacion
+            // Mismo analista: lo que hay en cola son llamadas que aún no llegaron. La macro conserva los avisos ante 401 y
+            // los reenvía con la clave nueva (macrodroid.md §3c, P4 del 06/10).
+            ? <li>Revisa que <span className="font-mono">url_llamadas</span> sea la de producción y deja <span className="font-mono">cola_llamadas</span> y <span className="font-mono">errores_llamadas</span> como están. No los vacíes: son llamadas que todavía no llegaron; con la clave nueva la macro los reenvía sola (o toca «Enviar cola»).</li>
+            // Alta: lo que quedara en cola sería de otra asignación y se le atribuiría a esta persona.
+            : <li>Revisa que <span className="font-mono">url_llamadas</span> sea la de producción y vacía <span className="font-mono">cola_llamadas</span> y <span className="font-mono">errores_llamadas</span>: si quedara algo, sería de otra asignación y se le atribuiría a esta persona.</li>}
           <li>Pon <span className="font-mono">ultimo_latido</span> en 0. En menos de 5 minutos esta tarjeta dirá «Al día» con <span className="font-mono">{VERSION_MACRO_VIGENTE}</span>.</li>
         </ol>
         <p className={AVISO}>Esta ventana solo se cierra con el botón de abajo. Esc o un clic fuera no la cierran, para que la clave no se pierda a medio camino.</p>
