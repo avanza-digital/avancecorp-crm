@@ -699,6 +699,8 @@ export interface DiaAgendaReparto {
 export interface AgendaRepartoDiaria {
   version: 1
   fecha_desde: string
+  /** Permiso efectivo del actor, calculado por el servidor. Ausente = turno obligatorio. */
+  reparto_libre?: boolean
   destinos: DestinoAgendaReparto[]
   dias: DiaAgendaReparto[]
 }

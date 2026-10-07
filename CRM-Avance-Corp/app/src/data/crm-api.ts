@@ -1296,6 +1296,7 @@ const DiaAgendaRepartoSchema = v.object({
 const AgendaRepartoDiariaSchema = v.object({
   version: v.literal(1),
   fecha_desde: v.string(),
+  reparto_libre: v.optional(v.boolean(), false),
   destinos: v.array(DestinoAgendaRepartoSchema),
   dias: v.array(DiaAgendaRepartoSchema),
 })

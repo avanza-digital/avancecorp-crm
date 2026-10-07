@@ -74,6 +74,7 @@ test.describe('resumen de Gerencia en sesión real', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)
     await page.screenshot({ path: testInfo.outputPath('resumen-mobile.png'), fullPage: true, animations: 'disabled' })
     await page.setViewportSize({ width: 1280, height: 900 })
+    await expect(page.getByRole('navigation', { name: 'Navegación principal de Gerencia' })).toBeHidden()
 
     await irAModulo(page, 'Conversiones')
     await expect(page.getByRole('heading', { name: 'Conversión del equipo' })).toBeVisible()
@@ -105,6 +106,7 @@ test.describe('resumen de Gerencia en sesión real', () => {
     await page.getByRole('heading', { name: 'Avance comercial inferido' }).scrollIntoViewIfNeeded()
     await page.screenshot({ path: testInfo.outputPath('conversiones-mobile-avance.png'), fullPage: true, animations: 'disabled' })
     await page.setViewportSize({ width: 1280, height: 900 })
+    await expect(page.getByRole('navigation', { name: 'Navegación principal de Gerencia' })).toBeHidden()
 
     await montarConsultaCitas(page)
     await page.getByRole('button', { name: 'Citas', exact: true }).click()

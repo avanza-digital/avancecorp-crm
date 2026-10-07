@@ -234,7 +234,10 @@ beforeEach(() => {
   toastError.mockClear()
 })
 
-afterEach(() => vi.clearAllMocks())
+afterEach(() => {
+  vi.useRealTimers()
+  vi.clearAllMocks()
+})
 
 /** El mini-KPI (Card `.ac-lift` del StatStrip) que lleva esa etiqueta. */
 function tile(etiqueta: string): HTMLElement {
@@ -588,7 +591,7 @@ describe('pantalla Repartir leads', () => {
     const selector = await screen.findByLabelText('Asignar ROSA QUISPE a un supervisor')
     expect(selector).toBeEnabled()
     expect(selector).toHaveValue('sup-1')
-    expect(screen.getByText(/Como administrador puedes elegir otro destino por excepción/)).toBeInTheDocument()
+    expect(screen.getByText(/Puedes elegir cualquier supervisor activo/)).toBeInTheDocument()
 
     await usuario.selectOptions(selector, 'sup-2')
     await usuario.click(screen.getByRole('button', { name: 'Repartir a ROSA QUISPE' }))
@@ -596,6 +599,122 @@ describe('pantalla Repartir leads', () => {
     await waitFor(() => expect(repartirMock).toHaveBeenCalledWith('lead-1', 'sup-2'))
     expect(toastSuccess).toHaveBeenCalledWith(expect.stringContaining('SUPERVISOR DOS'))
     expect(screen.getByText('1 entregado hoy por Coordinación')).toBeInTheDocument()
+  })
+
+  it.each(['landing', 'formulario'] as const)('Coordinación con permiso elige otro supervisor para %s', async (origen) => {
+    COLA = [lead({ origen })]
+    AGENDA.reparto_libre = true
+    const usuario = userEvent.setup()
+    render(<Repartir />)
+    await abrirCola(usuario)
+    const selector = await screen.findByLabelText('Asignar ROSA QUISPE a un supervisor')
+    expect(selector).toBeEnabled()
+    const otro = origen === 'landing' ? 'sup-2' : 'sup-1'
+    await usuario.selectOptions(selector, otro)
+    await usuario.click(screen.getByRole('button', { name: 'Repartir a ROSA QUISPE' }))
+    await waitFor(() => expect(repartirMock).toHaveBeenCalledWith('lead-1', otro))
+  })
+
+  it('Coordinación con permiso puede repartir sin agenda guardada', async () => {
+    COLA = [lead()]
+    AGENDA = { ...AGENDA, reparto_libre: true, dias: [] }
+    const usuario = userEvent.setup()
+    render(<Repartir />)
+    await abrirCola(usuario)
+    const selector = await screen.findByLabelText('Asignar ROSA QUISPE a un supervisor')
+    expect(selector).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Repartir a ROSA QUISPE' })).toBeDisabled()
+    await usuario.selectOptions(selector, 'sup-2')
+    await usuario.click(screen.getByRole('button', { name: 'Repartir a ROSA QUISPE' }))
+    await waitFor(() => expect(repartirMock).toHaveBeenCalledWith('lead-1', 'sup-2'))
+  })
+
+  it('recupera el turno si Gerencia apaga el permiso con la pantalla abierta', async () => {
+    COLA = [lead()]
+    AGENDA.reparto_libre = true
+    const usuario = userEvent.setup()
+    render(<Repartir />)
+    await abrirCola(usuario)
+    const selector = await screen.findByLabelText('Asignar ROSA QUISPE a un supervisor')
+    await usuario.selectOptions(selector, 'sup-2')
+    AGENDA = { ...AGENDA, reparto_libre: false }
+    repartirMock.mockRejectedValue(new CrmApiError('Según el turno de hoy, Landing corresponde a Supervisora uno.', 'REGLA_SERVIDOR'))
+    await usuario.click(screen.getByRole('button', { name: 'Repartir a ROSA QUISPE' }))
+    await waitFor(() => expect(colaMock).toHaveBeenCalledTimes(2))
+    const actualizado = await screen.findByLabelText('Asignar ROSA QUISPE a un supervisor')
+    expect(actualizado).toBeDisabled()
+    expect(actualizado).toHaveValue('sup-1')
+    expect(screen.getByText('ROSA QUISPE')).toBeInTheDocument()
+    expect(toastSuccess).not.toHaveBeenCalled()
+  })
+
+  it('al volver actualiza el permiso sin recargar filas ni perder el destino elegido', async () => {
+    COLA = [lead()]
+    AGENDA.reparto_libre = false
+    const usuario = userEvent.setup()
+    render(<Repartir />)
+    await abrirCola(usuario)
+    const selector = await screen.findByLabelText('Asignar ROSA QUISPE a un supervisor')
+    const lecturas = agendaMock.mock.calls.length
+    expect(selector).toBeDisabled()
+    vi.useFakeTimers()
+    AGENDA = { ...AGENDA, reparto_libre: true }
+    fireEvent.focus(window)
+    await act(async () => { await vi.advanceTimersByTimeAsync(300) })
+    expect(selector).toBeEnabled()
+    fireEvent.change(selector, { target: { value: 'sup-2' } })
+    fireEvent.focus(window)
+    fireEvent.focus(window)
+    fireEvent.focus(window)
+    await act(async () => { await vi.advanceTimersByTimeAsync(300) })
+    expect(agendaMock).toHaveBeenCalledTimes(lecturas + 2)
+    expect(colaMock).toHaveBeenCalledTimes(1)
+    expect(supervisoresMock).toHaveBeenCalledTimes(1)
+    expect(screen.getByLabelText('Asignar ROSA QUISPE a un supervisor')).toBe(selector)
+    expect(selector).toHaveValue('sup-2')
+    AGENDA = { ...AGENDA, reparto_libre: false }
+    fireEvent.focus(window)
+    await act(async () => { await vi.advanceTimersByTimeAsync(300) })
+    expect(selector).toBeDisabled()
+    expect(selector).toHaveValue('sup-1')
+  })
+
+  it('no refresca el permiso durante un envío ni pisa los contadores confirmados', async () => {
+    COLA = [lead(), lead({ id: 'lead-2', nombre_completo: 'OTRO LEAD' })]
+    AGENDA.reparto_libre = true
+    let resolver!: () => void
+    repartirMock.mockImplementation(() => new Promise<void>((resolve) => { resolver = resolve }))
+    render(<Repartir />)
+    await abrirCola()
+    const boton = await screen.findByRole('button', { name: 'Repartir a ROSA QUISPE' })
+    const lecturas = agendaMock.mock.calls.length
+    vi.useFakeTimers()
+    fireEvent.click(boton)
+    fireEvent.focus(window)
+    await act(async () => { await vi.advanceTimersByTimeAsync(300) })
+    expect(agendaMock).toHaveBeenCalledTimes(lecturas)
+    expect(boton).toHaveTextContent('Enviando…')
+    await act(async () => resolver())
+    fireEvent.focus(window)
+    await act(async () => { await vi.advanceTimersByTimeAsync(300) })
+    expect(agendaMock).toHaveBeenCalledTimes(lecturas + 1)
+    expect(screen.getByText('1 entregado hoy por Coordinación')).toBeInTheDocument()
+    expect(screen.queryByText('ROSA QUISPE')).not.toBeInTheDocument()
+    expect(colaMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('cancela la recarga pendiente y retira el listener al salir de la pantalla', async () => {
+    COLA = [lead()]
+    const vista = render(<Repartir />)
+    await abrirCola()
+    await screen.findByText('ROSA QUISPE')
+    const lecturas = agendaMock.mock.calls.length
+    vi.useFakeTimers()
+    fireEvent.focus(window)
+    vista.unmount()
+    fireEvent.focus(window)
+    await act(async () => { await vi.advanceTimersByTimeAsync(300) })
+    expect(agendaMock).toHaveBeenCalledTimes(lecturas)
   })
 
   it('mantiene cada fila bloqueada hasta que termine su propia petición', async () => {
