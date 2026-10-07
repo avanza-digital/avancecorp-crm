@@ -1,13 +1,12 @@
 ## 20261007143121 — Reparto libre de Coordinación controlado por Gerencia
 
-**PREPARADA Y PROBADA EN BANCO LOCAL; NO APLICADA EN PRODUCCIÓN.** Pedido de Miguel: todo el rol Coordinadora puede derivar libremente y Gerencia dispone de un botón para activarlo/desactivarlo.
+**APLICADA Y VERIFICADA EN PRODUCCIÓN 07/10/2026 mediante `merge_branch`; frontend PUBLICADO, permiso ACTIVADO.** Autorizaciones de Miguel: `$release-crm` y aprobación separada de migración/rama con costo. Todo el rol Coordinadora puede derivar libremente; Gerencia activa/desactiva en Configuración.
 
-Añade `crm.configuracion_reparto` (fila única, RLS FORCE, sin acceso directo, auditoría), núcleos privados y dos RPC exclusivas de Gerencia activa. El permiso efectivo viaja en la agenda y se verifica en cada reparto. El control arranca encendido conforme al pedido; apagarlo restaura el turno de Landing/Formulario. Superadmin conserva su excepción. Las revisiones rechazan cambios obsoletos con `PT409`.
+Añade `crm.configuracion_reparto` (fila única, FORCE RLS, sin acceso API directo, auditoría), núcleos privados y dos RPC exclusivas de Gerencia activa. El permiso efectivo viaja en la agenda y se comprueba en cada reparto. Apagarlo restaura el turno de Landing/Formulario; Superadmin conserva su excepción. Revisiones obsoletas reciben PT409. Se conservan No Insista, destino activo e identidad real del actor.
 
-Pruebas SQL de roles y estados ON/OFF PASS; tipos regenerados desde el banco e integrados sin sobrescribir contratos ajenos. Frontend: 6.311 pruebas PASS, build/typecheck/lint PASS y 34 E2E Docker PASS. El gate global de duplicación falla también sin este cambio (57 clones preexistentes); ver evidencia y pendientes en `../scripts/reparto-libre/README.md`. Instalación remota, matriz HTTP completa, advisors y publicación pendientes.
+SQL local/remoto, concurrencia y negativas HTTP PASS. Matriz general: 2.845 comprobaciones correctas y cinco fallos iniciales de fixture/catálogo cerrados mediante reconstrucción del seed y repetición completa de los cuatro bloques afectados (279 aserciones PASS). Check limpio: 6.333 tests, duplicación 0,44 %; 49 E2E Docker PASS. Postflight: siete funciones y ACL/RLS exactas, ON/revisión 1, Rosa con permiso efectivo y 22 Edge Functions intactas. Advisors nuevos intencionales evaluados. Rama temporal eliminada.
 
-Revisión independiente CHANGES_REQUESTED evaluada: corregida la recarga por foco, con 55 pruebas de pantalla, build/lint y los 34 E2E posteriores PASS. El signal 11 del banco fue reproducido con funciones triviales en un contenedor aislado de Supabase Postgres 17.6.1.105, coincidente con supautils #214; no se reprodujo en producción. Producción informa PG 17.6 y los mismos roles de hint, sin conocer revisión de imagen. Verificación remota del motor y HTTP obligatoria antes de aplicar; detalle en `../scripts/reparto-libre/REVISION.md`. El alta inicial del control queda auditada con actor NULL de instalación; los cambios por Gerencia registran al actor real.
-
+PR #216; commit publicado `e511d30504f24045aa28230a2d2eb03891bdf967`; build `build-20261007T152927260Z`. Pantalla real de Gerencia, portada y 116 JS/CSS verificados. Acta, huella, recuperación y límites: `../scripts/reparto-libre/PUBLICACION.md`. El alta inicial conserva actor NULL de instalación; cambios posteriores registran al actor real.
 
 ## 20261006221545 — Upgrade cooperativo separado de reinversión
 

@@ -2,7 +2,7 @@
 
 Pedido de Miguel, 07/10/2026: todo el rol Coordinadora puede derivar libremente a supervisores y Gerencia debe tener un botón para activar/desactivar el permiso.
 
-**Estado: implementación local y pruebas terminadas; revisión independiente evaluada y corrección de recarga verificada. No aplicado ni publicado en producción.**
+**Estado: APLICADO Y PUBLICADO el 07/10/2026, permiso ACTIVADO para todo el rol Coordinadora.** Gerencia puede desactivarlo desde Configuración. [Acta de publicación, verificaciones y artefacto](PUBLICACION.md).
 
 ## Comportamiento
 
@@ -15,7 +15,9 @@ Pedido de Miguel, 07/10/2026: todo el rol Coordinadora puede derivar libremente 
 - La migración arranca el control **encendido**, de acuerdo con el pedido original. La columna tiene default false; una configuración ausente no concede el permiso.
 - Solo las RPC de Gerencia modifican el estado. Una revisión obsoleta devuelve `PT409`; el botón relee antes de permitir otro intento. La UI no anuncia éxito antes de recibir confirmación.
 
-## Banco y pruebas
+## Banco y pruebas de preparación (histórico)
+
+Los resultados de esta sección corresponden a la preparación local previa. El cierre remoto, el check limpio y las 49 pruebas E2E vigentes constan en [PUBLICACION.md](PUBLICACION.md); sus gates pendientes ya se atendieron.
 
 Banco fijo `reparto_libre_20261007` dentro del contenedor local `supabase_db_crm-avance-corp-local`, clonado de la plantilla sintética `base_gestion_20261002`. El comentario obligatorio es `BANCO SINTETICO reparto libre Rosa 20261007 / sin produccion` (el nombre histórico del banco se conserva tras ampliar el pedido a todo el rol). No recibe credenciales ni URL de producción.
 

@@ -47,3 +47,7 @@ Control en otra conexión: rol nuevo fuera de `hint_roles`, sin EXECUTE y con US
 La preparación local está verificada; **no se declara listo el despliegue productivo**. Antes de aplicar: rama Supabase, preflight de huellas, SQL exacto, matriz HTTP/RLS y advisors. Confirmar que las denegaciones HTTP retornan errores de autorización sin reiniciar el motor; si el entorno hospedado reproduce el fallo, detener la instalación productiva y resolver con el proveedor. No llamar la sonda en producción, no retirar REVOKE ni alterar extensiones de producción como atajo.
 
 El preflight productivo de solo lectura del 07/10/2026 dio cinco true: escritor y agenda conservan las huellas esperadas; tabla y RPC nuevas aún no existen. El gate global de duplicación falla con los mismos 57 clones/1.451 líneas con y sin esta tarea. Publicación únicamente tras la invocación humana del flujo `$release-crm` y los gates del repositorio.
+
+## Cierre posterior de publicación · 07/10/2026
+
+Los gates previos se completaron con la autorización humana: rama hospedada, SQL exacto, HTTP de los permisos, advisors y postflight productivo. Se confirmó PostgreSQL 17.6.1.105 y las negativas HTTP respondieron 42501 sin caída. Check limpio PASS (6.333 tests, duplicación 0,44 %) y 49 E2E Docker PASS. Backend aplicado, frontend publicado y rama eliminada. Los incidentes de fixture y sus repeticiones se documentan sin ocultar el primer resultado en [PUBLICACION.md](PUBLICACION.md).
