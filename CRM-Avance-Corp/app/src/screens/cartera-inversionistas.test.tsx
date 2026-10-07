@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event'
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query'
 import {toast} from 'sonner'
 import {CarteraInversionistas} from './cartera-inversionistas'
-import {InversionNueva} from '@/components/app/inversion-nueva'
+import {InversionNueva, type OperacionInversion} from '@/components/app/inversion-nueva'
 import {InversionistaFicha} from '@/components/app/inversionista-ficha'
 import {Sheet} from '@/components/ui/sheet'
 import {CrmApiError} from '@/data/crm-api'
@@ -34,10 +34,10 @@ vi.mock('@/data/inversion-solicitud-api', () => ({consultarSolicitudInversion:ap
   completarAccesoInversion:api.acceso, subirComprobanteInversion:api.subir}))
 vi.mock('@/lib/store-context', () => ({useCRMData:()=>({equipo:[]})}))
 const revocado = vi.fn(), confirmada = vi.fn(), cerrar = vi.fn()
-function montar(nueva=false) {
+function montar(nueva=false, operacion?: OperacionInversion) {
   const qc=new QueryClient({defaultOptions:{queries:{retry:false}}})
   const vista=render(<QueryClientProvider client={qc}>{nueva
-    ? <InversionNueva actor={ACTOR_F5} persona={PERSONA_F5} onCerrar={cerrar} onRevocado={revocado} onConfirmada={confirmada} />
+    ? <InversionNueva actor={ACTOR_F5} persona={PERSONA_F5} operacion={operacion} onCerrar={cerrar} onRevocado={revocado} onConfirmada={confirmada} />
     : <CarteraInversionistas actor={ACTOR_F5} permiteInversion />}</QueryClientProvider>)
   return {...vista,qc,user:userEvent.setup()}
 }
@@ -776,12 +776,92 @@ describe('Upgrade: continuidad del cliente que ya tiene una inversión', () => {
     await user.click(within(dialogo).getByRole('button',{name:/2026-01-000222/}))
     await waitFor(() => expect(screen.queryByRole('dialog',{name:/amplía este upgrade/})).not.toBeInTheDocument())
   })
-  it('sin contratos Avance activos no ofrece el upgrade', async () => {
+  it('sin contratos Avance activos y sin permiso de postventa no ofrece el upgrade', async () => {
     fichaCon({...structuredClone(inversionF5)})
     const {user} = montar()
     await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
     await screen.findByRole('button',{name:'Ver inversión QORILAZO SINTÉTICO'})
     expect(screen.queryByRole('button',{name:/Registrar upgrade/})).not.toBeInTheDocument()
+  })
+})
+
+describe('Upgrade cooperativo separado de reinversión', () => {
+  it('la ficha muestra el evento upgrade confirmado sin perder la inversión original',async()=>{
+    const ficha={...structuredClone(fichaF5),inversiones_total:2,
+      inversiones:[inversionF5,{...inversionF5,fuente_id:PERFIL_F5,capital:250,numero:'APORTE ADICIONAL'}],
+      historial_total:1,historial:[{id:FUENTE_F5,origen:'postventa' as const,tipo:'upgrade',empresa:'qorilazo' as const,
+        detalle:'Upgrade confirmado · aporte adicional',creado_en:'2026-10-06T12:00:00Z'}]}
+    // La RPC real y su historial se ejercitan también en el banco SQL.
+    const {parse}=await import('valibot')
+    const {FichaInversionistaSchema}=await import('@/lib/inversionistas')
+    api.ficha.mockResolvedValue(parse(FichaInversionistaSchema,ficha))
+    const {user}=montar()
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    expect(await screen.findByText('Upgrade confirmado · aporte adicional')).toBeVisible()
+    expect(screen.getByRole('button',{name:'Ver inversión APORTE ADICIONAL'})).toBeVisible()
+    expect(screen.getByRole('button',{name:'Ver inversión QORILAZO SINTÉTICO'})).toBeVisible()
+  })
+
+  it.each(['qorilazo','prodelco'] as const)('%s ofrece ambos botones y abre el aporte adicional', async empresa => {
+    api.ficha.mockResolvedValue({...structuredClone(fichaF5),capacidades:{...fichaF5.capacidades,postventa:true},
+      inversiones:[{...inversionF5,empresa}]})
+    const {user}=montar()
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    const region=await screen.findByRole('region',{name:'Inversiones y contratos'})
+    expect(within(region).getByRole('button',{name:'Registrar nueva inversión'})).toBeDisabled()
+    expect(within(region).getByRole('button',{name:'Reinvertir desde esta inversión'})).toBeEnabled()
+    await user.click(within(region).getByRole('button',{name:'Registrar upgrade'}))
+    expect(await screen.findByRole('heading',{name:/^Upgrade ·/})).toBeVisible()
+    expect(screen.getByLabelText('Aporte adicional en soles (PEN)')).toHaveValue('')
+    expect(screen.getByText(/únicamente el dinero adicional/)).toBeVisible()
+    expect(api.preparar).not.toHaveBeenCalled()
+  })
+
+  it.each(['vencido','anulado_comercialmente','demo','sin_permiso'] as const)('no ofrece upgrade para %s',async caso=>{
+    api.ficha.mockResolvedValue({...structuredClone(fichaF5),
+      capacidades:{...fichaF5.capacidades,postventa:caso!=='sin_permiso'},
+      inversiones:[{...inversionF5,estado:caso==='demo'||caso==='sin_permiso'?'vigente':caso,es_demo:caso==='demo'}]})
+    const {user}=montar()
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    await screen.findByRole('region',{name:'Inversiones y contratos'})
+    expect(screen.queryByRole('button',{name:/Registrar upgrade/})).not.toBeInTheDocument()
+    if(caso==='vencido')expect(screen.getByRole('button',{name:'Reinvertir desde esta inversión'})).toBeEnabled()
+  })
+
+  it('guarda el upgrade y al reabrir desde reinversión recupera su tipo y origen reales',async()=>{
+    let vigente=solicitud()
+    api.preparar.mockImplementation(async i=>{vigente={...solicitud(i.clave),datos:i.datos,upgrade_origen_id:i.upgrade_origen_id,upgrade_origen_referencia:'ORIGEN CONSERVADO'};return vigente})
+    api.consultar.mockImplementation(async()=>vigente)
+    const vista=montar(true,{tipo:'upgrade',fuente:inversionF5})
+    await vista.user.type(await screen.findByLabelText('Aporte adicional en soles (PEN)'),'250')
+    await vista.user.type(screen.getByLabelText('Número de operación del depósito'),'UPGRADE-NUEVO-DEPOSITO')
+    await vista.user.type(screen.getByLabelText('Plazo (meses)'),'12')
+    await vista.user.type(screen.getByLabelText('Rentabilidad anual (%)'),'12')
+    await vista.user.type(screen.getByLabelText('Referencia de la inversión'),'UPGRADE SINTÉTICO')
+    await vista.user.upload(screen.getByLabelText(/Comprobante PDF/),new File(['pdf sintético'],'aporte.pdf',{type:'application/pdf'}))
+    fireEvent.submit(screen.getByRole('button',{name:'Revisar upgrade'}).closest('form')!)
+    await screen.findByRole('button',{name:'Confirmar upgrade'})
+    expect(api.preparar).toHaveBeenCalledWith(expect.objectContaining({upgrade_origen_id:FUENTE_F5,
+      datos:expect.objectContaining({monto:250,empresa:'qorilazo'})}))
+    expect(leerIntentoInversion(ACTOR_F5,PERSONA_F5)?.reinversion_origen_id).toBeUndefined()
+    vista.unmount()
+    montar(true,{tipo:'reinversion',fuente:{...inversionF5,fuente_id:PERFIL_F5}})
+    expect(await screen.findByRole('button',{name:'Confirmar upgrade'})).toBeEnabled()
+    expect(screen.getByRole('heading',{name:'Revisar upgrade'})).toBeVisible()
+    expect(screen.getByText(/ORIGEN CONSERVADO/)).toBeVisible()
+    expect(screen.queryByText(/Reinversión vinculada/)).not.toBeInTheDocument()
+    expect(api.preparar).toHaveBeenCalledTimes(1)
+  })
+
+  it('un intento de reinversión pendiente se conserva al abrir el botón upgrade',async()=>{
+    const datos={inversionista_id:PERSONA_F5,empresa:'qorilazo' as const,monto:250,moneda:'PEN' as const}
+    guardarIntentoInversion(nuevoIntentoInversion(ACTOR_F5,PERSONA_F5,FUENTE_F5,datos,FUENTE_F5))
+    api.consultar.mockResolvedValue({...solicitud(),datos,reinversion_origen_id:FUENTE_F5})
+    montar(true,{tipo:'upgrade',fuente:inversionF5})
+    expect(await screen.findByRole('button',{name:'Confirmar reinversión'})).toBeEnabled()
+    expect(screen.getByRole('heading',{name:'Revisar reinversión'})).toBeVisible()
+    expect(screen.queryByText(/Upgrade · aporte adicional/)).not.toBeInTheDocument()
+    expect(api.preparar).not.toHaveBeenCalled()
   })
 })
 

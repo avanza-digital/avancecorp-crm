@@ -1931,18 +1931,21 @@ export type Database = {
           creado_por: string
           fuente_id: string
           solicitud_id: string
+          tipo: string
         }
         Insert: {
           creado_en?: string
           creado_por: string
           fuente_id: string
           solicitud_id: string
+          tipo?: string
         }
         Update: {
           creado_en?: string
           creado_por?: string
           fuente_id?: string
           solicitud_id?: string
+          tipo?: string
         }
         Relationships: [
           {
@@ -6858,6 +6861,10 @@ export type Database = {
         Returns: Json
       }
       preparar_reinversion_fn: {
+        Args: { p_clave: string; p_datos: Json; p_fuente: string }
+        Returns: Json
+      }
+      preparar_upgrade_fn: {
         Args: { p_clave: string; p_datos: Json; p_fuente: string }
         Returns: Json
       }
