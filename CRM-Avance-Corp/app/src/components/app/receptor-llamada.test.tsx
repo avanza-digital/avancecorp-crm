@@ -163,6 +163,7 @@ describe('ReceptorLlamada', () => {
   })
 
   it('sin activar la integración conserva F1 y abre el resultado manual aunque el enlace traiga un id', async () => {
+    vi.spyOn(config, 'llamadasCelularHabilitadas').mockReturnValue(false)
     window.location.hash = '#/gestion-diaria/llamada/%2B51999888777/C1-1790980958'
     dobles.resolver.mockResolvedValue({ estado: 'unico', numero: '+51999888777', lead: L1, terminales: [] })
     render(<ReceptorLlamada />)
