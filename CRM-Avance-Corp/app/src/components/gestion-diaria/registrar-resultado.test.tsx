@@ -8,6 +8,7 @@ import userEvent from '@testing-library/user-event'
 import { toast } from 'sonner'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthContext, type AuthContextValue } from '@/lib/auth-context'
+import * as config from '@/lib/config'
 import { StoreDataContext } from '@/lib/store-context'
 import type { ConfirmacionLlamada, RegistrarLlamadaInput, StoreDataApi } from '@/lib/store'
 import type { Actividad, Lead, Tarea } from '@/lib/tipos'
@@ -478,6 +479,7 @@ describe('RegistrarResultado — la llamada del celular (F4-b)', () => {
   afterEach(() => { limpiarIntencionesContacto() })
 
   it('con la integración cerrada registra el resultado manual sin enviar un origen guardado en la pestaña', async () => {
+    vi.spyOn(config, 'llamadasCelularHabilitadas').mockReturnValue(false)
     vi.spyOn(Date, 'now').mockReturnValue(AHORA)
     const i = armarIntencion({ actor: 'v1', leadId: LEAD.id, canal: 'tel', origen: 'enlace', origenLlamada: ID }, AHORA)
     reclamarIntencion(i.id, AHORA)

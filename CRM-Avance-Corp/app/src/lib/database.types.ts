@@ -7,35 +7,13 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
   crm: {
     Tables: {
-      configuracion_reparto: {
-        Row: {
-          actualizado_en: string
-          actualizado_por: string | null
-          coordinacion_libre: boolean
-          id: string
-          revision: number
-          singleton: boolean
-        }
-        Insert: {
-          actualizado_en?: string
-          actualizado_por?: string | null
-          coordinacion_libre?: boolean
-          id?: string
-          revision?: number
-          singleton?: boolean
-        }
-        Update: {
-          actualizado_en?: string
-          actualizado_por?: string | null
-          coordinacion_libre?: boolean
-          id?: string
-          revision?: number
-          singleton?: boolean
-        }
-        Relationships: []
-      }
       actividades: {
         Row: {
           creado_en: string
@@ -864,6 +842,33 @@ export type Database = {
             referencedColumns: ["perfil_id"]
           },
         ]
+      }
+      configuracion_reparto: {
+        Row: {
+          actualizado_en: string
+          actualizado_por: string | null
+          coordinacion_libre: boolean
+          id: string
+          revision: number
+          singleton: boolean
+        }
+        Insert: {
+          actualizado_en?: string
+          actualizado_por?: string | null
+          coordinacion_libre?: boolean
+          id?: string
+          revision?: number
+          singleton?: boolean
+        }
+        Update: {
+          actualizado_en?: string
+          actualizado_por?: string | null
+          coordinacion_libre?: boolean
+          id?: string
+          revision?: number
+          singleton?: boolean
+        }
+        Relationships: []
       }
       contrato_cuenta_pago_asignaciones: {
         Row: {
@@ -5218,11 +5223,6 @@ export type Database = {
       }
     }
     Functions: {
-      guardar_configuracion_reparto_fn: {
-        Args: { p_libre: boolean; p_revision: number }
-        Returns: Json
-      }
-      configuracion_reparto_fn: { Args: never; Returns: Json }
       abandonar_conversion_gerencia_fn: {
         Args: { p_lead_id: string; p_motivo: string }
         Returns: Json
@@ -5655,6 +5655,17 @@ export type Database = {
       cierre_mes_estado_fn: { Args: never; Returns: Json }
       cierres_estado_fn: { Args: { p_lead_ids: string[] }; Returns: Json }
       cierres_externos_fn: { Args: { p_periodo: string }; Returns: Json }
+      citas_clientes_fn: {
+        Args: {
+          p_analista_ids?: string[]
+          p_desde: string
+          p_despues_de?: string
+          p_despues_id?: string
+          p_hasta: string
+          p_limite?: number
+        }
+        Returns: Json
+      }
       citas_gerencia_consulta_fn: {
         Args: { p_desde: string; p_hasta: string }
         Returns: Json
@@ -5757,6 +5768,7 @@ export type Database = {
       }
       configuracion_gestion_diaria_fn: { Args: never; Returns: Json }
       configuracion_metas_fn: { Args: { p_periodo: string }; Returns: Json }
+      configuracion_reparto_fn: { Args: never; Returns: Json }
       configuracion_sla_fn: { Args: never; Returns: Json }
       configuracion_sla_v2_fn: { Args: never; Returns: Json }
       confirmar_aviso_cambio_cuenta: {
@@ -6059,6 +6071,16 @@ export type Database = {
           p_motivo: string
           p_revision_datos_esperada: number
           p_solicitud: string
+        }
+        Returns: Json
+      }
+      corregir_tasa_contrato_admin_pdf_v1: {
+        Args: {
+          p_contrato: Json
+          p_cronograma: Json
+          p_id: string
+          p_motivo: string
+          p_tasa_esperada: number
         }
         Returns: Json
       }
@@ -6383,7 +6405,7 @@ export type Database = {
         Returns: Json
       }
       gestion_diaria_avisos_fn: { Args: never; Returns: Json }
-      gestion_diaria_citas_v2_fn: {
+      gestion_diaria_citas_fn: {
         Args: {
           p_ambito: string
           p_despues_de?: string
@@ -6394,22 +6416,7 @@ export type Database = {
         }
         Returns: Json
       }
-      gestiones_resumen_fn: {
-        Args: { p_analista_ids?: string[]; p_desde: string; p_hasta: string }
-        Returns: Json
-      }
-      citas_clientes_fn: {
-        Args: {
-          p_analista_ids?: string[]
-          p_desde: string
-          p_despues_de?: string
-          p_despues_id?: string
-          p_hasta: string
-          p_limite?: number
-        }
-        Returns: Json
-      }
-      gestion_diaria_citas_fn: {
+      gestion_diaria_citas_v2_fn: {
         Args: {
           p_ambito: string
           p_despues_de?: string
@@ -6437,7 +6444,7 @@ export type Database = {
         Args: { p_dias?: number; p_hasta?: string }
         Returns: Json
       }
-      gestion_diaria_pendientes_v2_fn: {
+      gestion_diaria_pendientes_fn: {
         Args: {
           p_analista_id: string
           p_despues_de?: string
@@ -6447,7 +6454,7 @@ export type Database = {
         }
         Returns: Json
       }
-      gestion_diaria_pendientes_fn: {
+      gestion_diaria_pendientes_v2_fn: {
         Args: {
           p_analista_id: string
           p_despues_de?: string
@@ -6467,8 +6474,16 @@ export type Database = {
         Returns: Json
       }
       gestion_vigente_fn: { Args: { p_lead_ids: string[] }; Returns: Json }
+      gestiones_resumen_fn: {
+        Args: { p_analista_ids?: string[]; p_desde: string; p_hasta: string }
+        Returns: Json
+      }
       guardar_agenda_reparto_diaria: {
         Args: { p_fecha: string; p_formulario: string; p_landing: string }
+        Returns: Json
+      }
+      guardar_configuracion_reparto_fn: {
+        Args: { p_libre: boolean; p_revision: number }
         Returns: Json
       }
       guardar_control_citas_fn: {
@@ -7173,13 +7188,11 @@ export type Database = {
         }
         Returns: Json
       }
-      registro_actividad_v2_fn: {
+      registro_actividad_fn: {
         Args: {
           p_analista_ids?: string[]
           p_antes_de?: string
           p_antes_id?: string
-          p_antes_origen?: string
-          p_cartera?: string
           p_desde: string
           p_etapa?: string
           p_hasta: string
@@ -7188,11 +7201,13 @@ export type Database = {
         }
         Returns: Json
       }
-      registro_actividad_fn: {
+      registro_actividad_v2_fn: {
         Args: {
           p_analista_ids?: string[]
           p_antes_de?: string
           p_antes_id?: string
+          p_antes_origen?: string
+          p_cartera?: string
           p_desde: string
           p_etapa?: string
           p_hasta: string

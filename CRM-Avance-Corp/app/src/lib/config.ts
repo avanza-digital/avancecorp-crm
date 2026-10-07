@@ -91,11 +91,10 @@ export const HAY_SUPABASE = Boolean(
 // El demo requiere opt-in literal y jamás entra en un build de producción.
 export const DEMO_HABILITADO = import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO === 'true'
 
-// La integración de eventos del celular (#190) espera su SQL y Edge. Mantenerla
-// cerrada permite publicar el cierre de tareas de clientes (#207) por separado.
-// Abrir únicamente después de verificar aquel backend y su ensayo en SLA activo.
+// La integración de eventos del celular requiere las doce migraciones de #190
+// y la Edge crm-llamadas-ingesta. Su publicación exige el ensayo con SLA activo.
 // F1 (enlace con teléfono) y el registro manual por v4 siguen disponibles.
-export const LLAMADAS_CELULAR_APROBADAS: boolean = false
+export const LLAMADAS_CELULAR_APROBADAS: boolean = true
 export function llamadasCelularHabilitadas(esDemo: boolean): boolean {
   return esDemo || LLAMADAS_CELULAR_APROBADAS
 }

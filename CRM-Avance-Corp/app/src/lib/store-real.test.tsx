@@ -402,6 +402,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
   })
 
   it('con la integración cerrada rechaza un origen externo antes de escribir o cambiar el lead', async () => {
+    vi.spyOn(config, 'llamadasCelularHabilitadas').mockReturnValue(false)
     const { api, mutar } = montar('vendedor')
     const lead = leadBase()
     await waitFor(() => expect(api().lead(lead.id)).toBeDefined())
