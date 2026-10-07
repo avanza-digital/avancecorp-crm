@@ -1,6 +1,6 @@
 ---
 tags: [crm, inversiones, continuidad, upgrade]
-estado: preparado-no-publicado
+estado: publicado
 ---
 
 # Upgrade cooperativo separado de reinversión
@@ -17,9 +17,13 @@ reglas de tasa heredada de Avance a las cooperativas.
 
 Se preparó `20261006221545_crm_upgrade_cooperativas.sql` con el nuevo tipo, RPC,
 historial y respuesta de conflicto concurrente. Banco SQL, carreras reales,
-frontend y navegador Docker probados. **Todavía no aplicado/publicado.**
+frontend y navegador Docker probados. SQL aplicado y frontend publicado el
+07/10/2026, build `build-20261007T045430720Z`, fuente `3bdfded2c813`.
 Guía y evidencia: `CRM-Avance-Corp/supabase/scripts/upgrade-cooperativas/README.md`.
 
-Relacionadas: [[Nueva inversion - bloqueo global y continuidad del cliente (2026-10-06)]] ·
+El bloqueo global de nueva inversión se corrige según la decisión posterior de
+[[Nueva inversion por empresa y upgrade vigente (2026-10-07)]].
+
+Relacionadas: [[Nueva inversion por empresa y upgrade vigente (2026-10-07)]] ·
 [[Upgrade es un contrato aparte, no una modificacion (2026-09-21)]] ·
 [[F6 - implementación de postventa (2026-09-10)]].

@@ -49,6 +49,7 @@ async function montarF5(page:Page, rol:'vendedor'|'supervisor'|'gerencia'|'direc
       const f=structuredClone(fichaF5)
       f.capacidades.postventa=rol!=='directorio'
       f.inversiones=f.inversiones.map(i=>({...i,empresa,numero:`${empresa.toUpperCase()} SINTÉTICO`}))
+      f.totales=f.totales.map(t=>({...t,empresa}))
       if(estado.sinInversiones) {f.inversiones=[];f.inversiones_total=0;f.totales=[]}
       if(rol==='directorio') {f.capacidades.nueva_inversion=false;f.capacidades.contactar=false;f.capacidades.documentos=false;f.inversiones=[];f.inversiones_total=0;f.totales=[]}
       return json(f)
@@ -88,7 +89,7 @@ for(const empresa of ['qorilazo','prodelco'] as const) {
     await page.getByRole('button',{name:'Ocultar menú'}).click()
     await page.getByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}).click()
     const inversiones=page.getByRole('region',{name:'Inversiones y contratos'})
-    await expect(inversiones.getByRole('button',{name:'Registrar nueva inversión'})).toBeDisabled()
+    await expect(inversiones.getByRole('button',{name:'Registrar nueva inversión'})).toBeEnabled()
     await expect(inversiones.getByRole('button',{name:'Reinvertir desde esta inversión'})).toBeVisible()
     await inversiones.getByRole('button',{name:'Registrar upgrade',exact:true}).scrollIntoViewIfNeeded()
     await page.screenshot({path:testInfo.outputPath(`${empresa}-upgrade-y-reinversion.png`),fullPage:true})
@@ -131,8 +132,8 @@ for(const rol of ['vendedor','supervisor','gerencia','directorio'] as const) {
       await expect(dialog.getByRole('button',{name:'Registrar nueva inversión'})).toHaveCount(0)
       await expect(dialog.getByRole('link',{name:'Llamar'})).toHaveCount(0)
     } else {
-      await expect(dialog.getByRole('button',{name:'Registrar nueva inversión'})).toBeDisabled()
-      await expect(dialog.getByText(/ya tiene una inversión registrada/)).toBeVisible()
+      await expect(dialog.getByRole('button',{name:'Registrar nueva inversión'})).toBeEnabled()
+      await expect(dialog.getByText('Puedes registrar su primera inversión en: Avance o Prodelco.')).toBeVisible()
     }
     expect(estado.bancos).toBe(0)
     await page.screenshot({path:testInfo.outputPath(`f5-${rol}-ficha.png`),fullPage:true})
@@ -176,7 +177,11 @@ test('móvil: búsqueda conservada, formulario nativo, revisión y confirmación
   expect(estado.preparaciones).toBe(1);expect(estado.confirmaciones).toBe(1)
   await page.getByRole('button',{name:'Volver a la ficha'}).click()
   await expect(page.getByRole('region',{name:'Inversiones y contratos'})).toBeFocused()
-  await expect(page.getByRole('button',{name:'Registrar nueva inversión',exact:true})).toBeDisabled()
+  await page.getByRole('button',{name:'Registrar nueva inversión',exact:true}).click()
+  await expect(page.getByRole('button',{name:'Qorilazo',exact:true})).toHaveCount(0)
+  await expect(page.getByRole('button',{name:'Avance',exact:true})).toBeEnabled()
+  await expect(page.getByRole('button',{name:'Prodelco',exact:true})).toBeEnabled()
+  await page.getByRole('button',{name:'Cerrar y continuar después'}).click()
   await page.keyboard.press('Escape')
   await expect(page.getByLabel('Buscar persona')).toHaveValue('9333')
   await page.screenshot({path:testInfo.outputPath('f5-movil-cartera.png'),fullPage:true})
@@ -208,7 +213,33 @@ test('tres empresas y dos monedas: la ficha mantiene cada capital separado',asyn
     await expect(dialog.getByRole('heading',{name:nombre,exact:true})).toHaveCount(1)
   }
   await expect(dialog.getByText('4 inversiones en esta ficha')).toBeVisible()
+  const nueva=dialog.getByRole('button',{name:'Registrar nueva inversión'})
+  await expect(nueva).toBeDisabled()
+  await expect(nueva).toHaveAccessibleDescription(/inversiones registradas en las tres empresas/)
   await page.screenshot({path:testInfo.outputPath('f5-tres-empresas.png'),fullPage:true})
+})
+
+for(const movil of [false,true]) test(`primera inversión por empresa: Qorilazo vigente ofrece Avance y Prodelco, ${movil?'móvil':'escritorio'}`,async({page},testInfo)=>{
+  const {estado}=await montarF5(page)
+  await page.setViewportSize({width:movil?390:1440,height:movil?844:1000})
+  if(movil) await page.getByRole('button',{name:'Ocultar menú'}).click()
+  await page.getByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}).click()
+  const inversiones=page.getByRole('region',{name:'Inversiones y contratos'})
+  await expect(inversiones.getByRole('button',{name:'Registrar upgrade',exact:true})).toBeEnabled()
+  await expect(inversiones.getByRole('button',{name:'Reinvertir desde esta inversión'})).toBeEnabled()
+  await inversiones.getByRole('button',{name:'Registrar nueva inversión'}).scrollIntoViewIfNeeded()
+  await page.screenshot({path:testInfo.outputPath(`inversion-por-empresa-ficha-${movil?'movil':'escritorio'}.png`),fullPage:true})
+  await inversiones.getByRole('button',{name:'Registrar nueva inversión'}).click()
+  const dialogo=page.getByRole('dialog',{name:'Nueva inversión'})
+  await expect(dialogo.getByRole('button',{name:'Avance',exact:true})).toBeEnabled()
+  await expect(dialogo.getByRole('button',{name:'Prodelco',exact:true})).toBeEnabled()
+  await expect(dialogo.getByRole('button',{name:'Qorilazo',exact:true})).toHaveCount(0)
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+  await page.screenshot({path:testInfo.outputPath(`inversion-por-empresa-opciones-${movil?'movil':'escritorio'}.png`),fullPage:true})
+  await dialogo.getByRole('button',{name:'Prodelco',exact:true}).click()
+  await expect(page.getByRole('heading',{name:'Nueva inversión · Prodelco'})).toBeVisible()
+  expect(estado.preparaciones).toBe(0)
+  expect(estado.confirmaciones).toBe(0)
 })
 
 for(const movil of [false,true]) test(`filtros comerciales: ${movil?'móvil':'escritorio'}, selección completa y ficha conservada`,async({page},testInfo)=>{
