@@ -1,3 +1,4 @@
+import { AccesoGestionesClientes } from '@/components/gestion-diaria/resumen-gestiones'
 import { useEffect, useId, useLayoutEffect, useRef, useState, type JSX, type ReactNode } from 'react'
 import { ClipboardList, Info, RefreshCw, Users, X } from 'lucide-react'
 import { useAlertasCRM } from '@/lib/alertas-context'
@@ -263,7 +264,7 @@ function VistaSupervisor({ hoy, actor, demo, accesoSeguimiento }: { hoy: string;
       <header className="flex shrink-0 flex-wrap items-start justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
           <h2 ref={tituloEquipo} tabIndex={-1} className="rounded-md text-[26px] font-extrabold leading-tight tracking-[-0.02em] text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">{esHoy ? 'Mi equipo hoy' : 'Mi equipo'}</h2>
-          <p className="mt-1 text-[13px] text-[var(--muted-foreground-strong)]">Actividad, pendientes y atención de tu equipo.</p>
+          <p className="mt-1 text-[13px] text-[var(--muted-foreground-strong)]">Captación de leads, citas y pendientes de tu equipo.</p>
         </div>
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           {/* El selector ya dice la fecha: al lado solo va la hora de la foto. */}
@@ -277,14 +278,14 @@ function VistaSupervisor({ hoy, actor, demo, accesoSeguimiento }: { hoy: string;
           </label>
           <button type="button" className={BOTON_CABECERA} aria-disabled={esHoy} onClick={() => { if (!esHoy) cambiarFecha(hoy) }}>Hoy</button>
           {accesoSeguimiento}
+          <AccesoGestionesClientes dia={fecha} />
           {/* Con cualquier foto válida, aunque no haya analistas. Sin foto se
               deshabilita en vez de desmontarse: no suelta el foco (Codex, 27/09). */}
           <button type="button" className={BOTON_CABECERA} aria-disabled={!registroEquipoDisponible}
             onClick={() => { if (registroEquipoDisponible) abrirRegistroEquipo() }}>
             <ClipboardList aria-hidden className="size-4" />Registro del equipo
           </button>
-          {hora && <p className="whitespace-nowrap pl-1 text-xs tabular-nums text-[var(--muted-foreground-strong)]">Actualizado {hora}</p>}
-          <button type="button" className={BOTON_CABECERA} aria-disabled={actualizando} aria-busy={actualizando} onClick={actualizar}>
+          <button type="button" className={BOTON_CABECERA} title={hora ? `Actualizado ${hora}` : undefined} aria-disabled={actualizando} aria-busy={actualizando} onClick={actualizar}>
             <RefreshCw className={cn('size-4', actualizando && 'motion-safe:animate-spin')} aria-hidden />{actualizando ? 'Actualizando…' : 'Actualizar'}
           </button>
           <button type="button" className={cn(BOTON_CABECERA, 'w-9 justify-center px-0 pointer-coarse:w-11')} aria-label="Información de esta vista" onClick={() => { setDevolverFocoAuxiliar(true); setAuxiliar('info') }}>

@@ -41,7 +41,7 @@ describe('CitasAgendadas', () => {
     fireEvent.click(within(filas[0]!).getByRole('button', { name: 'LEAD 1' }))
     expect(dobles.abrirLead).toHaveBeenCalledWith(id(201))
     expect(filas[1]).toHaveTextContent('No asistió')
-    expect(filas[1]).toHaveTextContent('Lead no visible')
+    expect(filas[1]).toHaveTextContent('Persona no visible')
     expect(filas[1]).toHaveTextContent('Sin analista')
   })
   it('en la ficha de un analista no repite su nombre en cada fila', () => {

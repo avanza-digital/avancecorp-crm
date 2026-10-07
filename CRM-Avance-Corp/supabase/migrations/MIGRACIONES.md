@@ -1,3 +1,7 @@
+## 20261006221545 — Upgrade cooperativo separado de reinversión
+
+**PREPARADA, NO APLICADA EN PRODUCCIÓN.** Decisión de Miguel: upgrade y reinversión separados en Qorilazo y Prodelco. Añade tipo inmutable al vínculo solicitud/origen, RPC autenticada de upgrade, validación de origen vigente e historial propio. Conserva la inversión anterior y el escritor financiero; conflictos de continuidad devuelven PT409. Preflight de cuerpos y catálogo de historial; reversa rechaza eliminar el tipo con upgrades existentes. Banco SQL con permisos, recuperación, historial y carreras PASS; frontend y E2E locales PASS. Guía, límites y publicación pendiente: `../scripts/upgrade-cooperativas/README.md`.
+
 ## 20261006162813 — Llamadas desde el celular · DUODÉCIMA: cierre de revisión del PR #190
 
 **Estado:** aplicada y verificada únicamente en el banco local autorizado. Sin aplicar en producción ni activar C1.
@@ -16963,6 +16967,16 @@ carrera; `comprobar-tras-aplicar.sql` APTA; reversa → huellas idénticas a pro
 `testEliminarInversion` (catálogo + roles); `test:rls:preflight` NOT RUN aquí (pide credenciales).
 **Reversa:** `supabase/scripts/eliminar-inversion/reversa.sql` (se niega si ya hay copias). **Registrador:**
 `supabase/scripts/eliminar-inversion/registrar.sql` (generado). **Comprobación tras aplicar:** `comprobar-tras-aplicar.sql`.
+
+## 20261005224214 — Resultado de gestiones de clientes en postventa
+
+**PREPARADA; VERIFICADA EN BANCO LOCAL, SIN APLICAR EN PRODUCCIÓN.** Ajusta solo `crm.postventa_tarea_fn` con una guarda sobre la huella viva de F6. El cierre de llamadas guarda uno de los siete resultados comerciales, WhatsApp distingue enviado/respondido y la cita realizada guarda su resultado comercial en `crm.tareas.resultado_reunion`; el recibo atómico y `crm.inversionista_gestiones.metadata` conservan la clasificación. El historial existente recibe una descripción legible («Entrevista realizada · resultado · detalle»). El payload v2 exige resultado y el siguiente compromiso cuando corresponde; los bundles anteriores siguen admitidos y conservan clasificación desconocida cuando no mandan resultado. Guarda responsable de tarea separado del autor. No crea tablas, columnas ni grants; no altera leads, métricas o `public`. Ensayo SQL y dos conexiones concurrentes PASS. La base debe actualizarse y verificarse antes de publicar el frontend. Pendiente: aprobación de Miguel al SQL, ensayo RLS en rama de Supabase, advisors y publicación autorizada. Evidencia: `docs/encargos/2026-10-06-cierre-gestiones-clientes.md`.
+
+## 20261006012208 — Gestiones de clientes visibles para supervisión
+
+**PREPARADA; VERIFICADA EN BANCO LOCAL, SIN APLICAR EN PRODUCCIÓN.** Depende de `20261005224214`. Añade Registro v2, resumen operativo de leads/clientes/total, citas de clientes y versiones v2 de listas G4b/pendientes que identifican al cliente sin alterar sus conteos/cursor. Lectores privados DEFINER acotados por sesión, rol, banderas y árbol; la rama de leads conserva INVOKER/RLS. No concede SELECT sobre el historial F6. Autoría histórica independiente de acceso actual al cliente; redacta identidad y detalle tras perder acceso. Excluye espejos y usa cursor compuesto entre fuentes. Índices por autor/fecha para las dos fuentes de clientes. Conserva núcleos de captación, metas, alertas y registro v1. SQL transaccional de roles, flags, reasignación, paginación, ventana Lima y fuentes PASS. Pendiente la misma aprobación y flujo de publicación de la migración anterior.
+
+**Revisión local del 06/10:** se limita cada fuente antes de resolver identidad y detalle; el resumen cuenta sin consultar F5 ni presentar PII por evento. La lista vacía de identidades evita F5, los nombres vacíos tienen respaldo y un índice parcial por tarea acelera la exclusión de espejos F6. SQL contra los catálogos reales de la interfaz y carga sintética de 90.000 eventos PASS, sin truncar conteos. Recomendaciones de Claude evaluadas y decisiones documentadas en `docs/encargos/2026-10-06-cierre-gestiones-clientes-REVISION.md`; estado vigente y límites de verificación en `docs/encargos/2026-10-06-cierre-gestiones-clientes.md`. Continúa pendiente la validación del entorno destino y la autorización de instalación/publicación. Preparación de entrega del 06/10: vista aprobada por Miguel; gate integral en copia limpia de Main PASS (6.219 pruebas, duplicación 0,43 %); preflight de 17 dependencias contra producción PASS en solo lectura; ensayo de instalación exacta, catálogo/permisos y cuatro suites SQL con ROLLBACK PASS. Pendientes: rama Supabase, RLS HTTP/advisors posteriores y autorización productiva. Orden y recuperación: `docs/encargos/2026-10-06-cierre-gestiones-clientes-DESPLIEGUE.md`.
 
 ## 20261006042144 — Bases cargadas · B11: el cierre de un contacto de base pesa 1 y queda fuera del divisor
 

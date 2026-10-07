@@ -74,6 +74,11 @@ export function CarteraInversionistas({actor, permiteInversion}: {
   // a la persona importa más que el mes en que cerró (el filtro de mes arranca en el actual).
   const busquedaExacta = esBusquedaExacta(filtros.texto)
   const filtrosConsulta = busquedaExacta && filtros.mes ? {...filtros, mes: ''} : filtros
+  // Sin mes, la cartera muestra el saldo activo; un mes o un estado histórico
+  // permite consultar lo registrado. La búsqueda exacta también quita el mes.
+  const mostrarRegistrado = Boolean(filtrosConsulta.mes)
+    || ['vencido', 'renovado', 'retirado', 'anulado_comercialmente'].includes(filtrosConsulta.estado)
+  const etiquetaCapital = mostrarRegistrado ? 'Capital registrado' : 'Capital'
   const q = useInversionistas(actor, filtrosConsulta)
   const claveLista = JSON.stringify([actor, filtrosConsulta])
   const [listaConfirmada, setListaConfirmada] = useState<{actor: string; clave: string; datos: DatosCartera} | null>(null)
@@ -186,7 +191,7 @@ export function CarteraInversionistas({actor, permiteInversion}: {
               aria-expanded={resumenAbierto} aria-controls="f5-resumen" onClick={() => setResumenAbierto(v => !v)}>
               Capital por empresa y moneda <ChevronDown aria-hidden className={resumenAbierto ? 'rotate-180' : ''} /></Button>
             <div id="f5-resumen" className={resumenAbierto ? 'pb-2' : 'hidden @lg/cartera:block'}>
-              <ResumenEmpresas totales={datos.totales} compacto registrado /></div></div>}
+              <ResumenEmpresas totales={datos.totales} compacto registrado={mostrarRegistrado} /></div></div>}
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-2">
             <p role="status" className="text-xs text-muted-foreground">{datos.total} {datos.total === 1 ? 'persona' : 'personas'} · página {datos.pagina}
               {datos.sin_inversiones_total > 0 && ` · ${datos.sin_inversiones_total} sin inversiones${datos.solo_avance ? ' Avance' : ''}`}</p>
@@ -202,7 +207,7 @@ export function CarteraInversionistas({actor, permiteInversion}: {
                 <Search aria-hidden />Buscar en otras carteras</Button>}
           </PanelVacio> : <>
             <div aria-hidden className="hidden grid-cols-[2fr_1.5fr_1fr_1fr] gap-4 border-t border-border bg-muted/40 px-4 py-2 text-xs font-medium text-muted-foreground-strong @4xl/cartera:grid">
-              <span>Cliente · todas sus empresas</span><span>Capital registrado · filtros</span><span>Último cierre · filtros</span><span>Responsable actual</span>
+              <span>Cliente · todas sus empresas</span><span>{etiquetaCapital} · filtros</span><span>Último cierre · filtros</span><span>Responsable actual</span>
             </div>
             <ul className="divide-y divide-border border-y border-border">{datos.filas.map(p => <li key={p.inversionista_id}>
               <button type="button" className="grid min-h-16 w-full gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring @lg/cartera:grid-cols-2 @4xl/cartera:grid-cols-[2fr_1.5fr_1fr_1fr] @4xl/cartera:gap-4"
@@ -212,11 +217,11 @@ export function CarteraInversionistas({actor, permiteInversion}: {
                   <span id={`documento-${p.inversionista_id}`} className="block text-xs text-muted-foreground">{p.documento_tipo} {p.documento || 'Documento pendiente'}</span>
                   <span className="mt-1 flex flex-wrap gap-1">{p.empresas.map(e => <Badge key={e}>{EMPRESA_NOMBRE[e]}</Badge>)}</span></span>
                 <span id={`capital-${p.inversionista_id}`} className="min-w-0 space-y-1 text-xs">
-                  <span className="sr-only">Capital registrado según los filtros:</span>{' '}
+                  <span className="sr-only">{etiquetaCapital} según los filtros:</span>{' '}
                   {p.resumen.length === 0 ? <span className="text-muted-foreground">Sin inversiones{datos.solo_avance ? ' Avance' : ''}</span> : p.resumen.map(t =>
                     <span key={`${t.empresa}:${t.moneda}`} className="flex flex-wrap items-baseline justify-between gap-x-2">
-                      <span className="text-muted-foreground">{EMPRESA_NOMBRE[t.empresa]} · {t.moneda}</span>{' '}
-                      <span className="font-semibold tabular-nums">{money(t.capital_registrado,t.moneda)}</span>
+                      <span className="text-muted-foreground">{EMPRESA_NOMBRE[t.empresa]} · {t.moneda} · {mostrarRegistrado || t.capital_activo === null ? 'Registrado' : 'Activo'}</span>{' '}
+                      <span className="font-semibold tabular-nums">{money(mostrarRegistrado ? t.capital_registrado : t.capital_activo ?? t.capital_registrado,t.moneda)}</span>
                     </span>)}
                 </span>
                 <span id={`fecha-${p.inversionista_id}`} className="text-xs text-muted-foreground"><span className="@4xl/cartera:sr-only">Último cierre:</span>{' '}{p.ultima_fecha_comercial ? fmtFecha(p.ultima_fecha_comercial) : 'Sin cierre'}</span>

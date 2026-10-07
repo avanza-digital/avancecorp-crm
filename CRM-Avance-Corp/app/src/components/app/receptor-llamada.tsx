@@ -16,6 +16,7 @@
 // con la intención —también si el lead se elige a mano— hasta la encuesta.
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, type FormEvent, type JSX } from 'react'
 import { toast } from 'sonner'
+import { llamadasCelularHabilitadas } from '@/lib/config'
 import { PhoneCall, Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { buscarLeadsManual, resolverNumeroLlamada, type OpcionesResolucion } from '@/data/coincidencia-llamada'
@@ -68,6 +69,9 @@ export function ReceptorLlamada(): JSX.Element | null {
   const actor = yo?.id ?? null
   const rol = yo?.rol
   const demo = yo?.demo === true
+  // Mientras la integración está cerrada, conservar el enlace F1 con teléfono
+  // sin convertirlo en un guardado v5 que depende del backend aún pendiente.
+  const origenLlamada = llamadasCelularHabilitadas(demo) ? origenEnHash : undefined
   const [captura, setCaptura] = useState<{ numero: string; origen?: string | undefined; intento: number } | null>(null)
   const [aviso, setAviso] = useState<Aviso | null>(null)
   // El ámbito local solo importa en la demo; por ref para no relanzar la búsqueda
@@ -96,8 +100,8 @@ export function ReceptorLlamada(): JSX.Element | null {
       toast.info('Tu cuenta no registra llamadas.')
       return
     }
-    setCaptura((previa) => ({ numero: numeroEnHash, origen: origenEnHash, intento: (previa?.intento ?? 0) + 1 }))
-  }, [numeroEnHash, origenEnHash, actor, rol])
+    setCaptura((previa) => ({ numero: numeroEnHash, origen: origenLlamada, intento: (previa?.intento ?? 0) + 1 }))
+  }, [numeroEnHash, origenLlamada, actor, rol])
 
   const elegirLead = useCallback((lead: Lead, numero: string, origenLlamada: string | undefined) => {
     if (!actor) return

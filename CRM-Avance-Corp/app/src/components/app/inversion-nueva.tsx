@@ -19,9 +19,10 @@ import { completarAccesoInversion, confirmarSolicitudInversion, consultarSolicit
   prepararSolicitudInversion, revisarResponsableInversion, subirComprobanteInversion, obtenerContextoConversionInversion, enviarBienvenidaInversion, cancelarSolicitudInversion } from '@/data/inversion-solicitud-api'
 import { contratoDeSolicitud, datosAvanceRevisados, guardarBorradorAcceso, guardarBorradorCondiciones, guardarIntentoInversion,
   leerBorradorAcceso, leerBorradorCondiciones, leerIntentoInversion, limpiarBorradorAcceso, limpiarBorradorCondiciones,
-  limpiarIntentosInversion, nuevoIntentoInversion, mismoContenidoInversion, solicitudCorresponde,
+  limpiarIntentosInversion, nuevoIntentoInversion, mismoContenidoInversion, solicitudCorresponde, origenContinuidad,
   type ConfirmacionInversion, type DatosBorradorAcceso, type DatosInversion, type IntentoInversion, type OrigenIntento, type SolicitudInversion } from '@/lib/inversion-solicitud'
 import { EMPRESAS_INVERSION, EMPRESA_NOMBRE, type EmpresaInversion, type InversionFuente } from '@/lib/inversionistas'
+import { AYUDA_HISTORIAL_INCOMPLETO, AYUDA_TODAS_LAS_EMPRESAS, empresasSinHistorial } from '@/lib/inversion-por-empresa'
 import { obtenerContextoClienteExistente, type LlaveVentaCruzada } from '@/data/cliente-existente-api'
 import { useContratosUpgradeVentaCruzada } from '@/data/cliente-existente-queries'
 import { validarDomicilioLegal } from '@/lib/cliente-form-logica'
@@ -145,7 +146,7 @@ export function InversionNueva({actor, persona, operacion, origenLead, origenCli
       throw new Error('La solicitud no corresponde a este origen. Vuelve a abrir la ficha.')
     }
     if (conocido?.clave === s.solicitud_id) guardar({...conocido, datos: s.datos})
-    else if (conocido === null || !intento) guardar(nuevoIntentoInversion(actor, persona, s.solicitud_id, s.datos, s.reinversion_origen_id))
+    else if (conocido === null || !intento) guardar(nuevoIntentoInversion(actor, persona, s.solicitud_id, s.datos, origenContinuidad(s)))
     setGuardado(previo => ({...previo, error: null}))
     setError(null)
     setEmpresa(s.datos.empresa)
@@ -192,7 +193,19 @@ export function InversionNueva({actor, persona, operacion, origenLead, origenCli
     } finally {enCurso.current = false; if (!cerro.current) setOcupado(false)}
   }
   async function preparar(datos: DatosInversion, claveSolicitud: string = crypto.randomUUID()) {
-    const i = nuevoIntentoInversion(actor, persona, claveSolicitud, datos, operacion?.tipo === 'reinversion' ? operacion.fuente.fuente_id : undefined,
+    // Solo una nueva solicitud desde la ficha completa. Las recuperaciones
+    // conservan su UUID y tipo; confirmar pudo haber terminado antes de un corte.
+    if (restringirEmpresaNueva) {
+      const actual = await carteraQ.refetch()
+      if (actual.error) throw actual.error
+      if (!actual.data) throw new CrmApiError(AYUDA_HISTORIAL_INCOMPLETO, 'PT409')
+      if (!actual.data.capacidades.nueva_inversion) throw new CrmApiError(actual.data.capacidades.motivo_no_operable ?? 'Ya no puedes registrar esta inversión.', 'PT409')
+      const disponibles = empresasSinHistorial(actual.data)
+      if (!disponibles) throw new CrmApiError(AYUDA_HISTORIAL_INCOMPLETO, 'PT409')
+      if (!disponibles.includes(datos.empresa)) throw new CrmApiError('Esta empresa ya tiene una inversión registrada. Elige otra empresa o vuelve a la ficha para usar continuidad.', 'PT409')
+    }
+    const i = nuevoIntentoInversion(actor, persona, claveSolicitud, datos, operacion?.tipo === 'reinversion' ? operacion.fuente.fuente_id
+      : operacion?.tipo === 'upgrade' && operacion.fuente.empresa !== 'avance' ? {tipo: 'upgrade', fuenteId: operacion.fuente.fuente_id} : undefined,
       origenClienteExistente ? {busqueda_id: origenClienteExistente.busquedaId, motivo: motivoVenta.trim()} : undefined)
     await enviarPreparacion(i)
   }
@@ -273,6 +286,12 @@ export function InversionNueva({actor, persona, operacion, origenLead, origenCli
       moneda: INFO_COOPERATIVA[empresa].monedas.includes(origenLead.moneda) ? origenLead.moneda : monedaPorDefecto(empresa),
     } : {})}
   const puedeOperar = ficha?.capacidades.nueva_inversion === true
+  // Los contextos de lead y venta cruzada no incluyen historial multiempresa.
+  // Esta regla se aplica a la cartera propia, sin inferir ausencia desde esos contextos.
+  const restringirEmpresaNueva = !origenLead && !origenClienteExistente && !operacion && !intento && !solicitud && !confirmacion
+  const empresasNuevas = restringirEmpresaNueva
+    ? carteraQ.data ? empresasSinHistorial(carteraQ.data) : null : [...EMPRESAS_INVERSION]
+  const empresaYaInvertida = restringirEmpresaNueva && empresa !== null && !empresasNuevas?.includes(empresa)
   const borradorCondiciones = useMemo(() => {
     if (!intento || !solicitud || !datos?.alta_portal) return null
     try {return leerBorradorCondiciones(actor, persona, origenIntento, intento.clave, solicitud.revision_datos)}
@@ -288,18 +307,27 @@ export function InversionNueva({actor, persona, operacion, origenLead, origenCli
     setBorradorSinGuardar(sinGuardar)
     setConfirmarCierreSinGuardar(false)
   }
-  const origenReinversion = solicitud?.reinversion_origen_id ?? intento?.reinversion_origen_id ?? (operacion?.tipo === 'reinversion' ? operacion.fuente.fuente_id : null)
+  // Al recuperar, la solicitud manda: nunca se reclasifica por el botón que la reabrió.
+  const origenReinversion = solicitud ? solicitud.reinversion_origen_id : intento ? intento.reinversion_origen_id
+    : operacion?.tipo === 'reinversion' ? operacion.fuente.fuente_id : null
+  const origenUpgrade = solicitud ? solicitud.upgrade_origen_id : intento ? intento.upgrade_origen_id
+    : operacion?.tipo === 'upgrade' && operacion.fuente.empresa !== 'avance' ? operacion.fuente.fuente_id : null
+  const nombreOperacion = origenUpgrade ? 'Upgrade' : origenReinversion ? 'Reinversión' : 'Nueva inversión'
+  const numeroOrigen = solicitud?.upgrade_origen_referencia
+    ?? carteraQ.data?.inversiones.find(i => i.fuente_id === (origenUpgrade || origenReinversion))?.numero
+    ?? (operacion?.fuente.fuente_id === (origenUpgrade || origenReinversion) ? operacion?.fuente.numero : null)
   const cabecera = (titulo: string) => <DialogHeader><DialogTitle>{titulo}</DialogTitle>
     {ficha && <p className="text-sm text-muted-foreground [overflow-wrap:anywhere]">{ficha.persona.nombre}</p>}
-    {origenReinversion && <p className="text-sm text-muted-foreground">Reinversión vinculada a una inversión anterior{operacion?.fuente.numero ? ` · ${operacion.fuente.numero}` : ''}. Su registro original se conserva.</p>}</DialogHeader>
+    {origenReinversion && <p className="text-sm text-muted-foreground">Reinversión vinculada a una inversión anterior{numeroOrigen ? ` · ${numeroOrigen}` : ''}. Su registro original se conserva.</p>}
+    {origenUpgrade && <p className="text-sm text-muted-foreground">Upgrade · aporte adicional a una inversión vigente{numeroOrigen ? ` · ${numeroOrigen}` : ''}. Registra únicamente el dinero adicional; la inversión original conserva su capital y sus condiciones.</p>}</DialogHeader>
   const alerta = error && <p role="alert" className="rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive-text [overflow-wrap:anywhere]">{error}</p>
   const mostrarPasos = empresa === 'avance' && !confirmacion && (!perfil || Boolean(datos?.alta_portal))
   let cuerpo
-  if (!ficha || recuperando) cuerpo = <>{cabecera('Nueva inversión')}<DialogBody>
+  if (!ficha || recuperando) cuerpo = <>{cabecera(nombreOperacion)}<DialogBody>
     {fichaQ.isError ? <PanelError mensaje={mensajeDeError(fichaQ.error, 'No se pudo verificar el acceso.')}
       onReintentar={() => void fichaQ.refetch()} reintentando={fichaQ.isFetching} /> : <PanelCargando />}
   </DialogBody></>
-  else if (confirmacion) cuerpo = <>{cabecera('Inversión confirmada')}<DialogBody className="space-y-4">
+  else if (confirmacion) cuerpo = <>{cabecera(origenUpgrade ? 'Upgrade confirmado' : 'Inversión confirmada')}<DialogBody className="space-y-4">
     <p role="status" className="flex items-center gap-2 font-medium"><CheckCircle2 aria-hidden />La inversión quedó registrada en {EMPRESA_NOMBRE[confirmacion.empresa]}.</p>
     {confirmacion.fuente.numero_contrato && <p>Contrato {confirmacion.fuente.numero_contrato}</p>}
     <p className="text-sm text-muted-foreground">{origenClienteExistente
@@ -330,7 +358,7 @@ export function InversionNueva({actor, persona, operacion, origenLead, origenCli
       setGuardado({intento: null, error: null}); setError(null); setArchivo(null); setEditar(false); setMotivo(''); setRecuperarId(null)
     }}>Iniciar otra inversión</Button></DialogBody></>
   else if (!puedeOperar) cuerpo = <>{cabecera('Nueva inversión')}<DialogBody><p role="status">{ficha.capacidades.motivo_no_operable ?? 'La persona ya no permite nuevas inversiones.'}</p></DialogBody></>
-  else if (guardado.error || !empresa) cuerpo = <>{cabecera(guardado.error ? 'Recuperar solicitud' : 'Nueva inversión')}<DialogBody className="space-y-5">
+  else if (guardado.error || !empresa || empresaYaInvertida) cuerpo = <>{cabecera(guardado.error ? 'Recuperar solicitud' : 'Nueva inversión')}<DialogBody className="space-y-5">
     {guardado.error ? <div className="space-y-3">
       <p className="text-sm">El borrador local no se puede leer. Puedes consultar la solicitud por su referencia.</p>
       <Button variant="outline" className="h-auto min-h-10 max-w-full whitespace-normal" onClick={() => {
@@ -345,16 +373,20 @@ export function InversionNueva({actor, persona, operacion, origenLead, origenCli
         <p id="f5-motivo-venta-ayuda" className="text-sm text-muted-foreground">Entre {MOTIVO_VENTA_MINIMO} y 500 caracteres
           {faltaMotivo ? ` (faltan ${MOTIVO_VENTA_MINIMO - motivoVenta.trim().length})` : ''}. Por ejemplo: «El cliente me pidió invertir en la feria».</p>
       </div>}
-      <p id="f5-empresa-ayuda" className="text-sm">{faltaMotivo ? 'Escribe primero el motivo de la venta para elegir la empresa.' : 'Elige la empresa en la que invertirá.'}</p>
-      <div className="grid gap-3 sm:grid-cols-3">{EMPRESAS_INVERSION.map(e => <Button key={e} variant="outline" className="h-20 flex-col aria-disabled:opacity-50"
+      {empresaYaInvertida && <p role="status" className="text-sm">La información de esta empresa cambió. Revisa las opciones antes de iniciar una nueva inversión.</p>}
+      <p id="f5-empresa-ayuda" className="text-sm">{empresasNuevas === null ? AYUDA_HISTORIAL_INCOMPLETO
+        : empresasNuevas.length === 0 ? AYUDA_TODAS_LAS_EMPRESAS
+        : faltaMotivo ? 'Escribe primero el motivo de la venta para elegir la empresa.'
+        : restringirEmpresaNueva ? 'Elige una empresa donde este cliente aún no tenga inversiones registradas.' : 'Elige la empresa en la que invertirá.'}</p>
+      <div className="grid gap-3 sm:grid-cols-3">{empresasNuevas?.map(e => <Button key={e} variant="outline" className="h-20 flex-col aria-disabled:opacity-50"
         aria-disabled={faltaMotivo || undefined} aria-describedby={origenClienteExistente ? 'f5-empresa-ayuda' : undefined}
-        onClick={() => {if (faltaMotivo) document.getElementById('f5-motivo-venta')?.focus(); else setEmpresa(e)}}>
+        onClick={() => {if (faltaMotivo) document.getElementById('f5-motivo-venta')?.focus(); else {setEmpresa(e); setError(null)}}}>
         <Landmark aria-hidden />{EMPRESA_NOMBRE[e]}</Button>)}</div></>}
     <form onSubmit={e => {e.preventDefault(); void ejecutar(async () => {
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(referencia)) throw new Error('Introduce la referencia completa de la solicitud.')
       const s = await consultarSolicitudInversion(referencia)
       if (!solicitudCorresponde(s, ficha.persona.inversionista_id, origenIntento) || !s.datos) throw new Error('La solicitud no corresponde a esta ficha.')
-      const i = nuevoIntentoInversion(actor, persona, s.solicitud_id, s.datos, s.reinversion_origen_id)
+      const i = nuevoIntentoInversion(actor, persona, s.solicitud_id, s.datos, origenContinuidad(s))
       guardar(i); setGuardado({intento: null, error: null}); setEmpresa(s.datos.empresa); recibir(s)
     })}} className="space-y-2 border-t border-border pt-4">
       <Label htmlFor="f5-referencia">Retomar una solicitud por su referencia</Label>
@@ -490,15 +522,15 @@ export function InversionNueva({actor, persona, operacion, origenLead, origenCli
           await ejecutar(async () => {await revisarDatos(datosAvanceRevisados(base, prepararPayloadContrato(input), cuotas, input.cuenta_pago))})
         }} />
     </>
-  } else if (empresa !== 'avance' && (!intento || editar)) cuerpo = <>{cabecera(`${operacion?.tipo === 'reinversion' || intento?.reinversion_origen_id ? 'Reinversión' : 'Nueva inversión'} · ${EMPRESA_NOMBRE[empresa]}`)}<DialogBody className="space-y-4">
-    <InversionCooperativa datos={base} ocupado={ocupado} correccion={Boolean(solicitud)} motivo={motivo} onMotivo={setMotivo}
+  } else if (empresa !== 'avance' && (!intento || editar)) cuerpo = <>{cabecera(`${nombreOperacion} · ${EMPRESA_NOMBRE[empresa]}`)}<DialogBody className="space-y-4">
+    <InversionCooperativa datos={base} upgrade={Boolean(origenUpgrade)} ocupado={ocupado} correccion={Boolean(solicitud)} motivo={motivo} onMotivo={setMotivo}
       onGuardar={(d, f, id) => ejecutar(async () => {
         setArchivo(f)
         if (intento) await revisarDatos(d)
         else await preparar(d, id)
       })} />{alerta}
   </DialogBody></>
-  else cuerpo = <>{cabecera('Revisar inversión')}{mostrarPasos && <PasosAcceso actual={3} />}<DialogBody className="space-y-4">
+  else cuerpo = <>{cabecera(origenUpgrade ? 'Revisar upgrade' : origenReinversion ? 'Revisar reinversión' : 'Revisar inversión')}{mostrarPasos && <PasosAcceso actual={3} />}<DialogBody className="space-y-4">
     <ResumenRevision datos={base} />
     {solicitud?.identidad_fusionada && <p className="text-sm">La identidad fue unificada. Los antecedentes originales se conservan.</p>}
     <p className="text-sm">Responsable actual: {ficha.persona.responsable_nombre}</p>
@@ -516,13 +548,13 @@ export function InversionNueva({actor, persona, operacion, origenLead, origenCli
         if (archivo && solicitud.comprobante_ruta) await subirComprobanteInversion(solicitud.comprobante_ruta, archivo)
         const resultado = await confirmarSolicitudInversion(solicitud.solicitud_id, solicitud.revision_datos)
         if (!cerro.current) {setConfirmacion(resultado); notificar(resultado)}
-      })}>{ocupado ? 'Confirmando…' : 'Confirmar inversión'}</Button>
+      })}>{ocupado ? 'Confirmando…' : origenUpgrade ? 'Confirmar upgrade' : origenReinversion ? 'Confirmar reinversión' : 'Confirmar inversión'}</Button>
     </div>
     <Button variant="ghost" disabled={ocupado} onClick={() => void ejecutar(async () => {if (intento) recibir(await consultarSolicitudInversion(intento.clave))})}>Actualizar revisión</Button>
     {alerta}
     <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">Referencia: {intento?.clave}. Revisión {solicitud?.revision_datos}.</p>
   </DialogBody></>
-  return <Dialog open onClose={cerrar} ariaLabel="Nueva inversión" className={empresa === 'avance' && !perfil ? 'w-[620px]' : 'w-[760px]'}>
+  return <Dialog open onClose={cerrar} ariaLabel={nombreOperacion} className={empresa === 'avance' && !perfil ? 'w-[620px]' : 'w-[760px]'}>
     {verificacionPendiente && <div className="space-y-2 border-b border-border px-5 py-3">
       <p role="alert" className="text-sm">No pudimos actualizar los permisos. Conservamos tus datos; vuelve a verificarlos para continuar.</p>
       <Button variant="outline" disabled={fichaQ.isFetching} onClick={() => void fichaQ.refetch()}>Verificar y continuar</Button>
@@ -657,8 +689,8 @@ function AltaAvance({actor, persona, origen, solicitud, inicial, correo, telefon
     <Button type="submit" className="w-full" disabled={ocupado}>Revisar acceso Avance</Button>
   </form>
 }
-export function InversionCooperativa({datos, ocupado, correccion, motivo, onMotivo, onGuardar}: {
-  datos: DatosInversion; ocupado: boolean; correccion: boolean; motivo: string; onMotivo: (v: string) => void
+export function InversionCooperativa({datos, upgrade = false, ocupado, correccion, motivo, onMotivo, onGuardar}: {
+  datos: DatosInversion; upgrade?: boolean; ocupado: boolean; correccion: boolean; motivo: string; onMotivo: (v: string) => void
   onGuardar: (datos: DatosInversion, archivo: File | null, clave: string) => Promise<void>
 }) {
   // La cooperativa de esta solicitud. `datos.empresa` ya no puede ser 'avance'
@@ -697,7 +729,7 @@ export function InversionCooperativa({datos, ocupado, correccion, motivo, onMoti
   }
   return <form onSubmit={enviar} className="space-y-3">
     <div className="grid gap-3 sm:grid-cols-2">
-      <div className="min-w-0 space-y-1"><Label htmlFor="f5-monto">Capital en {moneda === 'USD' ? 'dólares' : 'soles'} ({moneda})</Label><Input id="f5-monto" inputMode="decimal" required value={monto} onChange={e => setMonto(e.target.value)} disabled={ocupado} /></div>
+      <div className="min-w-0 space-y-1"><Label htmlFor="f5-monto">{upgrade ? 'Aporte adicional' : 'Capital'} en {moneda === 'USD' ? 'dólares' : 'soles'} ({moneda})</Label><Input id="f5-monto" inputMode="decimal" required value={monto} onChange={e => setMonto(e.target.value)} disabled={ocupado} /></div>
       {/* La moneda solo se ofrece si ESTA cooperativa admite más de una: el
           espejo vive en INFO_COOPERATIVA y la regla la manda el catálogo del
           servidor (`crm.empresas.monedas`). */}
@@ -717,7 +749,7 @@ export function InversionCooperativa({datos, ocupado, correccion, motivo, onMoti
       required={!datos.evidencia} onChange={e => setArchivo(e.target.files?.[0] ?? null)} disabled={ocupado} /></div>
     {correccion && <div className="space-y-1"><Label htmlFor="f5-motivo">Motivo de la corrección, sin datos personales</Label><Input id="f5-motivo" required minLength={10} maxLength={500} value={motivo} onChange={e => onMotivo(e.target.value)} /></div>}
     {error && <p id="f5-condiciones-error" role="alert" className="text-sm text-destructive-text">{error}</p>}
-    <Button type="submit" disabled={ocupado}>Revisar inversión</Button>
+    <Button type="submit" disabled={ocupado}>{upgrade ? 'Revisar upgrade' : 'Revisar inversión'}</Button>
   </form>
 }
 export function ResumenRevision({datos}: {datos: DatosInversion}) {

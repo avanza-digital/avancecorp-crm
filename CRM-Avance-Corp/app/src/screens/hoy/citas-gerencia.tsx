@@ -1,3 +1,4 @@
+import { CitasClientes } from '@/components/citas/citas-clientes'
 import { useConsultaGerencia } from '@/components/gerencia/use-consulta-gerencia'
 import { useMemo, useState } from 'react'
 import { usePanelesActions } from '@/lib/store-context'
@@ -32,7 +33,7 @@ export function CitasGerencia() {
     onMes:setMes,onReintentar:() => { if (!yo?.demo) void consulta.refetch() },
     onAbrirLead:(id) => { void abrirLead(id) },
   }}>
-    {datos && datos.citas_clientes>0 && <p className="mb-3 text-sm">{datos.citas_clientes} citas de clientes se consultan en Agenda. Las metas de este módulo corresponden a leads.</p>}
     <TableroCitas conservarConsulta={yo?.rol === 'gerencia'} />
+    <CitasClientes mes={mes} />
   </ContextoCitas>
 }

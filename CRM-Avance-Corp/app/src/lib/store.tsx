@@ -56,7 +56,7 @@ import { agendaDeTareas, type EventoAgenda } from './agenda-derivada'
 import { validarReunionOperativa, type ReunionOperativaInvalida } from './reunion-operativa'
 import { normalizarCitasInternas } from './terminologia'
 import type { Moneda } from './format'
-import { DEMO_HABILITADO } from './config'
+import { DEMO_HABILITADO, llamadasCelularHabilitadas } from './config'
 import { validarCamposLead, type CampoLead, type CodigoValidacion } from './validacion'
 import { registrarError } from './observabilidad'
 import { PanelActionsContext, PanelStateContext, StoreDataContext, StoreEstadoContext } from './store-context'
@@ -1182,6 +1182,10 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       })
     }
     if (invalidarAgenda) {
+      // Los cierres de perfiles y leads también alimentan el registro y
+      // el resumen de clientes. Retirar cualquier lectura anterior al cierre.
+      void queryClient.cancelQueries({ queryKey: gestionDiariaKeys.raiz() })
+        .then(() => queryClient.invalidateQueries({ queryKey: gestionDiariaKeys.raiz() }))
       void queryClient.invalidateQueries({
         queryKey: crmQueryKeys.metricasAgendaPrefijo(),
       })
@@ -3108,6 +3112,9 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       registrarLlamada: (id, input) => {
         const bloqueo = bloqueoEscritura()
         if (bloqueo) return bloqueo
+        if (input.evento_origen_id && !llamadasCelularHabilitadas(yo?.demo === true)) {
+          return { ok: false, error: 'Las llamadas del celular todavía no están habilitadas.' }
+        }
         const actual = buscar(id)
         if (!actual) return noEncontrado()
         // REINTENTO de una operación cuya respuesta se perdió: el servidor la

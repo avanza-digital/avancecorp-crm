@@ -1,3 +1,4 @@
+import { EnlaceSujetoGestion } from './enlace-sujeto'
 // G4b (27/09/2026): la lista EXACTA de «Citas agendadas» —las citas CREADAS ese día—,
 // la misma definición que la cifra. Filas limpias como el registro compacto: a qué hora
 // se agendó, el estado, el lead (abre su ficha), el analista cuando el ámbito tiene
@@ -6,7 +7,6 @@ import { useEffect, useEffectEvent, type JSX, type RefObject } from 'react'
 import { useCitasGestion } from '@/data/gestion-diaria-citas-queries'
 import type { AmbitoCitas, EstadoCita } from '@/lib/gestion-diaria-citas'
 import { horaLimaDe } from '@/lib/gestion-diaria-analista'
-import { usePanelesActions } from '@/lib/store-context'
 import { Badge } from '@/components/ui/badge'
 import { PanelCargando } from '@/components/common/estado-panel'
 import { cn } from '@/lib/utils'
@@ -38,7 +38,6 @@ export function CitasAgendadas({ dia, esHoy, ambito, id, mostrarAnalista, visibl
   encabezado: RefObject<HTMLHeadingElement | null>
 }): JSX.Element {
   const lista = useCitasGestion(dia, ambito, id, visible, actualizacion)
-  const { abrirLead } = usePanelesActions()
   const revocar = useEffectEvent(revalidar)
   useEffect(() => { if (lista.sinPermiso) revocar() }, [lista.sinPermiso])
   const cuando = esHoy ? 'hoy' : 'ese día'
@@ -80,10 +79,7 @@ export function CitasAgendadas({ dia, esHoy, ambito, id, mostrarAnalista, visibl
               <div className="min-w-0 flex-1 space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge className="min-h-[22px] py-0 text-[11.5px]" color={ESTADO[c.estado].color}>{ESTADO[c.estado].texto}</Badge>
-                  {c.lead_id && c.lead_nombre
-                    ? <button type="button" onClick={() => void abrirLead(c.lead_id!)}
-                      className={cn('cursor-pointer rounded-md text-left text-sm font-bold text-primary underline-offset-2 hover:underline', FOCO)}>{c.lead_nombre}</button>
-                    : <span className="text-sm font-semibold text-[var(--muted-foreground-strong)]">Lead no visible</span>}
+                  <EnlaceSujetoGestion sujeto={c} />
                   {mostrarAnalista && <span className="text-[12.5px] font-semibold text-[var(--muted-foreground-strong)]">· {c.vendedor_nombre ?? 'Sin analista'}</span>}
                 </div>
                 <p className="text-[12.5px] text-foreground/80">Cita: <time dateTime={c.vence_en}>{CUANDO.format(new Date(c.vence_en))}</time></p>

@@ -1,3 +1,4 @@
+import { identidadClienteValida } from './sujeto-gestion'
 import * as v from 'valibot'
 import type { Lead, Tarea } from './tipos'
 
@@ -23,10 +24,13 @@ export const PendienteSupervisorSchema = v.strictObject({
   id: Uuid, vendedor_id: Uuid, tipo: v.string(), titulo: v.string(), vence_en: Fecha,
   estado: v.literal('pendiente'), referencia_tipo: v.picklist(['lead', 'perfil', 'postventa']),
   lead_id: v.nullable(Uuid), lead_nombre: v.nullable(v.string()),
+  sujeto_tipo: v.optional(v.picklist(['perfil', 'inversionista'])),
+  sujeto_id: v.optional(v.nullable(Uuid)), sujeto_nombre: v.optional(v.string()),
+  inversionista_id: v.optional(v.nullable(Uuid)), perfil_id: v.optional(v.nullable(Uuid)), identidad_visible: v.optional(v.boolean()),
 })
 export type PendienteSupervisor = v.InferOutput<typeof PendienteSupervisorSchema>
 export const PaginaPendientesSchema = v.strictObject({
-  version: v.literal(1), zona: v.literal('America/Lima'), supervisor_id: Uuid, analista_id: Uuid,
+  version: v.union([v.literal(1), v.literal(2)]), zona: v.literal('America/Lima'), supervisor_id: Uuid, analista_id: Uuid,
   generado_en: Fecha, pendientes_al: Fecha, solo_vencidas: v.boolean(),
   limite: v.pipe(Natural, v.minValue(1), v.maxValue(100)),
   resumen: v.strictObject({ tareas_pendientes: Natural, tareas_vencidas: Natural }),
@@ -61,6 +65,7 @@ export function validarPaginaPendientes(valor: unknown, pedido: PedidoPendientes
   const ids = new Set<string>()
   let anterior = pedido.cursor ? { vence_en: pedido.cursor.despues_de, id: pedido.cursor.despues_id } : null
   for (const item of p.items) {
+    if (item.sujeto_tipo !== undefined && !identidadClienteValida(item)) return null
     if (ids.has(item.id.toLowerCase()) || item.vendedor_id !== pedido.analista
       || (anterior && compararPendientes(item, anterior) <= 0)
       || (p.solo_vencidas && instantePendiente(item.vence_en)! >= instantePendiente(p.pendientes_al)!)

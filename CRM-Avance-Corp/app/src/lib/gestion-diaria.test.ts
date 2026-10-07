@@ -38,7 +38,7 @@ describe('contrato de la página', () => {
   })
   it.each([
     ['sin zona Lima', { ...pagina, zona: 'UTC' }],
-    ['versión desconocida', { ...pagina, version: 2 }],
+    ['versión desconocida', { ...pagina, version: 99 }],
     ['tipo fuera del catálogo', { ...pagina, items: [item(1, { tipo: 'fax' as never })] }],
     ['sin autor', { ...pagina, items: [{ ...item(1), autor_nombre: undefined }] }],
   ])('rechaza %s', (_n, payload) => {
@@ -102,8 +102,8 @@ describe('CSV', () => {
   it('lleva el texto íntegro y el resultado tipificado cuando existe', () => {
     const { cabecera, filas } = filasCsvRegistro([item(1, { metadata: { resultado: 'volver_a_llamar' } }), item(2, { detalle: null })])
     expect(cabecera).toContain('Detalle')
-    expect(filas[0]).toEqual(['2026-09-19', '10:01', 'ANALISTA UNO', 'LEAD UNO', 'Nuevo', 'Contactado', 'Contestó', 'Contestó, volver a llamar', 'volver_a_llamar'])
-    expect(filas[1]?.[7]).toBeNull()
+    expect(filas[0]).toEqual(['2026-09-19', '10:01', 'ANALISTA UNO', 'LEAD UNO', 'Leads', 'Nuevo', 'Contactado', 'Contestó', 'Contestó, volver a llamar', 'volver_a_llamar'])
+    expect(filas[1]?.[9]).toBeNull()
     expect(filas[1]?.[8]).toBeNull()
   })
 })
