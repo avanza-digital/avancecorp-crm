@@ -132,6 +132,27 @@ describe('filtro por fuente del índice comercial', () => {
     })
   })
 
+  it('octubre con tope: el aporte de los referidos lo trae recortado el servidor (5 cerrados, 3 cuentan) y el tope viaja para rotular', () => {
+    const datos = metricasConNucleo()
+    datos.origen_filtrado = 'referido'
+    Object.assign(datos.cierres_por_semana!, { origen_filtrado: 'referido', cierres: 5, aporte_cierres: 3 })
+    datos.nucleo = { ...datos.nucleo!, peso_referido: 1, tope_referidos_pct: 15 }
+    const lectura = adaptarAporteConversionRango(datos, 'referido')
+    // El adaptador NO recalcula `peso × cierres` (daría 5): usa el aporte servido (3).
+    expect(lectura).toMatchObject({ numerador: 3, cierres: 5, resultados: 5, porcentaje: 3, peso: 1, topeReferidosPct: 15 })
+    // El resto de fuentes y el total conservan el tope como dato del mes, sin tocar sus cifras.
+    const total = metricasConNucleo()
+    total.nucleo = { ...total.nucleo!, peso_referido: 1, tope_referidos_pct: 15 }
+    expect(adaptarAporteConversionRango(total, null)).toMatchObject({ numerador: 4.3, topeReferidosPct: 15 })
+  })
+
+  it('setiembre sin tope: topeReferidosPct es null (ausente o null en el servidor)', () => {
+    const datos = metricasConNucleo()
+    expect(adaptarAporteConversionRango(datos, null)?.topeReferidosPct).toBeNull()
+    datos.nucleo = { ...datos.nucleo!, tope_referidos_pct: null }
+    expect(adaptarAporteConversionRango(datos, null)?.topeReferidosPct).toBeNull()
+  })
+
   it('rotula el desglose con el peso VIVO aunque la foto se sellara con otro', () => {
     const datos = metricasConNucleo()
     // Mes sellado: la foto se cerró con 0,73 y el total de arriba es suyo. La

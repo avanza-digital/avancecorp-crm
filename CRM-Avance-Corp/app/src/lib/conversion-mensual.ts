@@ -246,6 +246,53 @@ const TotalConversionSchema = v.object({
   cartera: CarteraTotalSchema,
 })
 
+/** Hay tope de referidos en este mes (octubre 2026 en adelante). */
+export function hayTopeReferidos(
+  ponderacion: { tope_referidos_pct?: number | null | undefined },
+): boolean {
+  return ponderacion.tope_referidos_pct != null
+}
+
+/**
+ * Cómo se nombran los referidos en una fórmula. Sin tope (agosto, septiembre)
+ * el texto de siempre, «referidos ×0.15». Con tope (octubre 2026 en adelante)
+ * el peso 1 ya no dice cuánto aportan: los referidos de un analista cuentan
+ * como máximo ese porcentaje de sus cierres de leads asignados.
+ */
+export function textoReferidosFormula(
+  ponderacion: { referido: number, tope_referidos_pct?: number | null | undefined },
+): string {
+  return hayTopeReferidos(ponderacion)
+    ? `referidos (cuentan hasta el ${numero(ponderacion.tope_referidos_pct, 2)} % de los cierres de leads asignados)`
+    : `referidos ×${numero(ponderacion.referido, 2)}`
+}
+
+/**
+ * ¿El aporte de los referidos (`aporta_pct`) es coherente con la ponderación?
+ *
+ * Sin tope (agosto, septiembre) el aporte es EXACTAMENTE
+ * `100 × peso × cierres_referidos ÷ divisor`. Con tope el servidor recorta los
+ * referidos sobrantes (valen 0), así que el aporte real puede ser MENOR: solo
+ * se exige `0 ≤ aporte ≤ 100 × peso × cierres ÷ divisor`. Con divisor 0 no hay
+ * aporte (null) en ambos casos.
+ */
+function aporteReferidoValido(
+  aporta: number | null,
+  ponderacion: { referido: number, tope_referidos_pct?: number | null | undefined },
+  cierresReferidos: number,
+  divisor: number,
+): boolean {
+  if (divisor === 0) return aporta == null
+  if (aporta == null) return false
+  const calculado = 100 * ponderacion.referido * cierresReferidos / divisor
+  const tolerancia = 0.005000001
+    + Number.EPSILON * Math.max(1, Math.abs(calculado)) * 8
+  if (hayTopeReferidos(ponderacion)) {
+    return aporta >= -tolerancia && aporta <= calculado + tolerancia
+  }
+  return Math.abs(aporta - calculado) <= tolerancia
+}
+
 export const ConversionMensualSchema = v.pipe(
   v.object({
     version: v.literal(1),
@@ -268,6 +315,13 @@ export const ConversionMensualSchema = v.pipe(
     ponderacion: v.object({
       referido: v.pipe(NumeroRpcSchema, v.minValue(0), v.maxValue(1)),
       renovacion: v.optional(v.pipe(NumeroRpcSchema, v.minValue(0), v.maxValue(1))),
+      /** Desde octubre 2026 el referido vale 1, pero todos los referidos de un
+       * analista cuentan como MÁXIMO este porcentaje (0–100) de sus cierres de
+       * leads asignados del mes. null o ausente = mes SIN tope (agosto, septiembre). El servidor ya
+       * lo aplicó: el front solo lo muestra y valida. */
+      tope_referidos_pct: v.optional(v.nullable(
+        v.pipe(NumeroRpcSchema, v.minValue(0), v.maxValue(100)),
+      )),
       fuente: v.literal('crm.conversion_pesos'),
     }),
     // Tokens de versión del contrato, no la fórmula (la migración documenta por
@@ -322,24 +376,18 @@ export const ConversionMensualSchema = v.pipe(
       + Number.EPSILON * Math.max(1, Math.abs(calculado)) * 8
     return Math.abs(payload.total.conversion_pct - calculado) <= tolerancia
   }, 'La conversión total no corresponde a su numerador y divisor'),
-  v.check((payload) => {
-    if (payload.total.divisor === 0) return payload.total.referidos_aporta_pct == null
-    if (payload.total.referidos_aporta_pct == null) return false
-    const calculado = 100 * payload.ponderacion.referido
-      * payload.total.cierres_referidos / payload.total.divisor
-    const tolerancia = 0.005000001
-      + Number.EPSILON * Math.max(1, Math.abs(calculado)) * 8
-    return Math.abs(payload.total.referidos_aporta_pct - calculado) <= tolerancia
-  }, 'El aporte referido total no corresponde a la ponderación declarada'),
-  v.check((payload) => payload.responsables.every((fila) => {
-    if (fila.divisor === 0) return fila.referidos.aporta_pct == null
-    if (fila.referidos.aporta_pct == null) return false
-    const calculado = 100 * payload.ponderacion.referido
-      * fila.cierres_referidos / fila.divisor
-    const tolerancia = 0.005000001
-      + Number.EPSILON * Math.max(1, Math.abs(calculado)) * 8
-    return Math.abs(fila.referidos.aporta_pct - calculado) <= tolerancia
-  }), 'El aporte referido de un responsable no corresponde a la ponderación declarada'),
+  v.check((payload) => aporteReferidoValido(
+    payload.total.referidos_aporta_pct,
+    payload.ponderacion,
+    payload.total.cierres_referidos,
+    payload.total.divisor,
+  ), 'El aporte referido total no corresponde a la ponderación declarada'),
+  v.check((payload) => payload.responsables.every((fila) => aporteReferidoValido(
+    fila.referidos.aporta_pct,
+    payload.ponderacion,
+    fila.cierres_referidos,
+    fila.divisor,
+  )), 'El aporte referido de un responsable no corresponde a la ponderación declarada'),
   v.check((payload) => {
     const ids = new Set(payload.responsables.map((fila) => fila.vendedor_id))
     if (ids.size !== payload.responsables.length) return false
@@ -434,6 +482,15 @@ export function lineaReferidos(
     maximumFractionDigits: 1,
   })
   return `${base} · aporta ${aporta} %`
+}
+
+/** «Hasta el 15 % de los cierres de leads asignados» (null si el mes no tiene tope). */
+export function textoTopeReferidos(
+  ponderacion: { tope_referidos_pct?: number | null | undefined },
+): string | null {
+  return hayTopeReferidos(ponderacion)
+    ? `Los referidos cuentan hasta el ${numero(ponderacion.tope_referidos_pct, 2)} % de los cierres de leads asignados; los que sobran no suman.`
+    : null
 }
 
 /** Qué hacer con la cifra del mes cuando el servidor dice que no es medible. */

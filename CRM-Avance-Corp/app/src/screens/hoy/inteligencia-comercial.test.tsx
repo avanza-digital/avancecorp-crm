@@ -1166,6 +1166,26 @@ describe('filtro por fuente en Conversiones', () => {
     expect(screen.getByRole('heading', { name: 'Avance comercial inferido' })).toBeInTheDocument()
   })
 
+  it('octubre con tope: el peso del héroe de Referido dice el tope además de ×1', () => {
+    const datos = metricasConversionesDemo('2026-10-01', '2026-10-27')
+    datos.origen_filtrado = 'referido'
+    datos.origenes = datos.origenes.filter((fila) => fila.origen === 'Referido')
+    renderAmpliaciones(datos, {
+      origenFiltrado: 'referido',
+      fuenteConversion: 'referido',
+      lecturaFuente: {
+        fuente: 'referido', periodo: { desde: '2026-10-01', hasta: '2026-10-27' }, cierres: 5, operaciones: 0,
+        etiqueta: 'Referido', familia: 'prospectos', divisor: 100,
+        numerador: 3, porcentaje: 3, resultados: 5, peso: 1, topeReferidosPct: 15,
+        porVendedor: new Map([['demo-v1', { divisor: 10, numerador: 3, porcentaje: 30, resultados: 5, cierres: 5, operaciones: 0 }]]),
+      },
+    })
+
+    const heroe = within(screen.getByRole('region', { name: 'Aporte de Referido al índice' }))
+    expect(heroe.getByText('Peso por resultado').closest('.gi-hero-metric')).toHaveTextContent('×1 · hasta 15 % de los cierres asignados')
+    expect(heroe.getByText('5 cierres + 0 operaciones · aporte 3 ÷ base 100')).toBeInTheDocument()
+  })
+
   it('muestra Upgrade como operación y retira análisis exclusivos de prospectos', () => {
     renderAmpliaciones(metricasConversionesDemo('2026-08-01', '2026-08-27'), {
       fuenteConversion: 'upgrade',

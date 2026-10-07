@@ -314,6 +314,52 @@ describe('ranking general de analistas', () => {
     expect(screen.queryByRole('complementary', { name: 'Producción fuera del ranking' })).not.toBeInTheDocument()
   })
 
+  it('octubre con tope: la fuente Referido se rotula con el tope, no con «×1 por resultado»', () => {
+    render(<RankingVendedoresPanel
+      conversionMensual={conversionMensualInteligenciaDemo(Date.now())}
+      fuenteConversion="referido"
+      lecturaFuente={{
+        periodo: { desde: '2026-10-01', hasta: '2026-10-31' }, cierres: 5, operaciones: 0,
+        fuente: 'referido', etiqueta: 'Referido', familia: 'prospectos', divisor: 298,
+        numerador: 3, porcentaje: 1.01, resultados: 5, peso: 1, topeReferidosPct: 15,
+        porVendedor: new Map([['demo-v1', { divisor: 10, numerador: 3, porcentaje: 30, resultados: 5, cierres: 5, operaciones: 0 }]]),
+      }}
+      equipo={conversionEquipoDemo()}
+      metasVendedores={metasConversionEquipoDemo()}
+      cumplimientoVendedores={cumplimientoMetasConversionEquipoDemo().porVendedor}
+      metaMensual={{ etiqueta: 'octubre 2026', comparable: true }}
+      tc={{ promedio: 3.5, fuente: 'SBS · prom. 7d' }}
+      {...fuentesRankingSinError()}
+    />)
+
+    expect(screen.getByText(/Referido aporta 1 por resultado, con tope: los referidos cuentan hasta el 15 % de los cierres de leads asignados de cada analista, y se divide/)).toBeInTheDocument()
+    expect(screen.queryByText(/×1 por resultado/)).not.toBeInTheDocument()
+  })
+
+  it('la fórmula del mes dice el tope con palabras; sin tope conserva «referidos ×0.15»', () => {
+    const conTope = conversionMensualInteligenciaDemo(Date.now())
+    conTope.fuentes.divisor = 'crm.leads.creado_en'
+    conTope.fuentes.referido = 'crm.leads.origen'
+    conTope.ponderacion = { referido: 1, renovacion: 1, tope_referidos_pct: 15, fuente: 'crm.conversion_pesos' }
+    const montar = (mensual: typeof conTope) => render(<RankingVendedoresPanel
+      conversionMensual={mensual}
+      equipo={conversionEquipoDemo()}
+      metasVendedores={metasConversionEquipoDemo()}
+      cumplimientoVendedores={cumplimientoMetasConversionEquipoDemo().porVendedor}
+      metaMensual={{ etiqueta: 'octubre 2026', comparable: true }}
+      tc={{ promedio: 3.5, fuente: 'SBS · prom. 7d' }}
+      {...fuentesRankingSinError()}
+    />)
+    const { unmount } = montar(conTope)
+    expect(screen.getByText(/Cierres Landing\/Formulario \+ referidos \(cuentan hasta el 15 % de los cierres de leads asignados\) \+ renovaciones ×1/)).toBeInTheDocument()
+    unmount()
+
+    const sinTope = structuredClone(conTope)
+    sinTope.ponderacion = { referido: 0.15, renovacion: 0.15, fuente: 'crm.conversion_pesos' }
+    montar(sinTope)
+    expect(screen.getByText(/Cierres Landing\/Formulario \+ referidos ×0\.15 \+ renovaciones ×0\.15/)).toBeInTheDocument()
+  })
+
   it('rotula la base legacy como histórica sin cambiar la foto ni los números del ranking', () => {
     const mensual = conversionMensualInteligenciaDemo(Date.now())
     mensual.fuentes.divisor = 'crm.lead_asignaciones.asignado_en'

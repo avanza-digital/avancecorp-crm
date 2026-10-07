@@ -154,6 +154,8 @@ export interface AporteConversionRango {
   cierres: number
   operaciones: number
   peso: number | null
+  /** Tope de referidos del mes (0–100) o null/ausente si no hay: solo rotula, el aporte ya viene recortado. */
+  topeReferidosPct?: number | null
   porVendedor: ReadonlyMap<string, AporteConversionVendedor>
 }
 
@@ -225,7 +227,7 @@ export function adaptarAporteConversionRango(
         : elegidas.every((opcion) => opcion.familia === 'prospectos') ? 'prospectos' : 'todos',
       divisor: vivo.divisor, numerador, cierres, operaciones, resultados: cierres + operaciones,
       porcentaje: vivo.divisor > 0 ? Math.round((100 * numerador / vivo.divisor + Number.EPSILON) * 100) / 100 : null,
-      peso: null, porVendedor,
+      peso: null, topeReferidosPct: nucleo.tope_referidos_pct ?? null, porVendedor,
     }
   }
   const definicion = fuente == null
@@ -346,6 +348,7 @@ export function adaptarAporteConversionRango(
     cierres: esOperacionCartera ? 0 : fuente == null ? resultados - nucleo.operaciones_cartera : resultados,
     operaciones: esOrigenProspecto ? 0 : fuente == null ? nucleo.operaciones_cartera : resultados,
     peso,
+    topeReferidosPct: nucleo.tope_referidos_pct ?? null,
     porVendedor,
   }
 }

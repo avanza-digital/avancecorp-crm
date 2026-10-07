@@ -32,6 +32,7 @@ import {
   lecturaCobertura,
   lineaProcedencia,
   lineaReferidos,
+  textoReferidosFormula,
   type ConversionMensual,
 } from '@/lib/conversion-mensual'
 import { ChipArrastre } from '@/components/common/chip-arrastre'
@@ -455,7 +456,7 @@ function DetalleVendedor({
                   {mensual == null
                     ? 'Fórmula servida por el núcleo comercial.'
                     : mensual.fuentes.divisor === 'crm.leads.creado_en'
-                      ? `Fórmula: (cierres Landing/Formulario + referidos ×${numero(mensual.ponderacion.referido, 2)} + renovaciones ×${numero(mensual.ponderacion.renovacion ?? mensual.ponderacion.referido, 2)} + upgrades) ÷ prospectos automáticos de Landing/Formulario. El prospecto se atribuye al primer analista; las altas manuales no agregan base.`
+                      ? `Fórmula: (cierres Landing/Formulario + ${textoReferidosFormula(mensual.ponderacion)} + renovaciones ×${numero(mensual.ponderacion.renovacion ?? mensual.ponderacion.referido, 2)} + upgrades) ÷ prospectos automáticos de Landing/Formulario. El prospecto se atribuye al primer analista; las altas manuales no agregan base.`
                       : 'Base histórica: conserva la definición con la que se calculó este mes; no equivale a prospectos recibidos.'}
                 </p>
               </section>
@@ -758,7 +759,11 @@ export function InteligenciaComercialPanel({
         : '—'
   const baseHero = aporteRango == null ? '—' : numero(aporteRango.divisor)
   const resultadosHero = aporteRango == null ? '—' : numero(aporteRango.resultados)
-  const pesoHero = aporteRango?.peso == null ? null : `×${numero(aporteRango.peso, 2)}`
+  const pesoHero = aporteRango?.peso == null
+    ? null
+    : aporteRango.topeReferidosPct != null && aporteRango.fuente === 'referido'
+      ? `×${numero(aporteRango.peso, 2)} · hasta ${numero(aporteRango.topeReferidosPct, 2)} % de los cierres asignados`
+      : `×${numero(aporteRango.peso, 2)}`
 
   return (
     <Card className="gi-card overflow-hidden border-0 shadow-none">
@@ -897,7 +902,7 @@ export function InteligenciaComercialPanel({
             </section>
             <section data-gi-panel className="gi-card p-5"><h3 className="gi-title">Resultados por origen</h3><p className="gi-caption mt-1">De los prospectos del período en cada origen, qué porcentaje cerró. No es la conversión ponderada.</p>{nucleoVerificado ? <GerenciaEChart tipo="barras" option={opcionOrigen} ariaLabel="Resultados de los prospectos del período por origen" className="mt-3 w-full" style={{ height: Math.max(280, origenes.length * 48) }} /> : <p role="status" className="mt-4 rounded-xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-900">Cifras en revisión: los resultados por origen permanecen ocultos.</p>}{nucleoVerificado && origenes.some((fila) => fila.fuera_del_divisor_del_nucleo === true) && (
               // D6: los referidos quedan FUERA de la base general del rango y sus
-              // cierres ponderan 0,15 — su barra mide otra cosa y se rotula.
+              // cierres ponderan con el peso (y el tope) del mes — su barra mide otra cosa y se rotula.
               <p className="mt-2 text-[11px] leading-relaxed text-[var(--gi-muted)]">
                 {origenes.filter((fila) => fila.fuera_del_divisor_del_nucleo === true).map((fila) => nombreOrigen(fila.origen)).join(', ')}: estos prospectos no aumentan la base automática. Su barra muestra sus resultados, no el aporte ponderado a la conversión.
               </p>

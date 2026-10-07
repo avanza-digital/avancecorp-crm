@@ -192,3 +192,35 @@ describe('contratos de inteligencia comercial', () => {
     expect(v.safeParse(MetricasReunionesSchema, payload).success).toBe(false)
   })
 })
+
+describe('tope de referidos en el núcleo de conversiones (octubre 2026)', () => {
+  const nucleo = {
+    base: 'llegada_unica', divisor: 100, numerador: 18, conversion_pct: 18,
+    cierres_no_referidos: 15, cierres_referidos: 5, referidos_recibidos: 8, referidos_cierran_pct: 62.5,
+    operaciones_cartera: 0, peso_referido: 1, mes_peso: '2026-10-01', incluye_cartera: true,
+  }
+  const con = (extra: Record<string, unknown>) => v.safeParse(MetricasConversionesSchema, {
+    ...metricasConversionesDemo('2026-10-01', '2026-10-04'),
+    nucleo: { ...nucleo, ...extra },
+  })
+
+  it('CONSERVA tope_referidos_pct (el esquema laxo borraría la clave y la pantalla no vería el tope)', () => {
+    const r = con({ tope_referidos_pct: 15 })
+    expect(r.success).toBe(true)
+    if (r.success) expect(r.output.nucleo?.tope_referidos_pct).toBe(15)
+  })
+
+  it('el mes sin tope llega como null o ausente y sigue siendo válido', () => {
+    const nulo = con({ tope_referidos_pct: null })
+    expect(nulo.success).toBe(true)
+    if (nulo.success) expect(nulo.output.nucleo?.tope_referidos_pct).toBeNull()
+    const ausente = con({})
+    expect(ausente.success).toBe(true)
+    if (ausente.success) expect(ausente.output.nucleo?.tope_referidos_pct).toBeUndefined()
+  })
+
+  it('un tope fuera de 0–100 se rechaza', () => {
+    expect(con({ tope_referidos_pct: 150 }).success).toBe(false)
+    expect(con({ tope_referidos_pct: -5 }).success).toBe(false)
+  })
+})
