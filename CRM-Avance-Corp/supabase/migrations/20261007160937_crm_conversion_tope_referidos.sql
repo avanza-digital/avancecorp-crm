@@ -7,7 +7,9 @@
 -- Respuestas: (1) peso 1 por referido que cuenta; (2) base = SOLO los cierres de leads landing/formulario del analista en el mes:
 -- los referidos, las renovaciones, los upgrades y la base cargada NO entran en la base (los confirmó Miguel el 07/10/2026);
 -- (3) redondeo hacia arriba; (4) quedan sin efecto los más recientes por fecha de cierre; (5) rige desde octubre, el pasado no
--- se toca; (6) sin cierres asignados la base es 0 y el tope es 0: todos los referidos de ese analista y mes valen 0.
+-- se toca; (6) sin cierres asignados la base es 0 y el tope es 0: todos los referidos de ese analista y mes valen 0;
+-- (7) un lead de alta manual (registro manual: regla cerrada, «fuera del divisor») tampoco entra en la base, aunque su
+-- cierre sigue sumando entero al numerador.
 -- Ejemplo aprobado: 10 asignados + 4 referidos + 3 renovaciones + 2 upgrades + 1 de base cargada ⇒ tope ceil(1,5) = 2.
 --
 -- QUÉ HACE
@@ -20,7 +22,8 @@
 --   4. private.conversion_episodios (UNA sola pieza donde nace el numerador de todas las puertas): calcula el tope por analista y
 --      mes de cierre sobre el MES COMPLETO de ese analista (el ámbito se aplica antes: la base de uno no depende de los demás) y
 --      después recorta al rango pedido. Así un rango parcial o la vista de un supervisor dan el mismo número que la empresa entera.
---      La base son solo los cierres no anulados de leads de origen de base; las operaciones de cartera salen como siempre.
+--      La base son solo los cierres no anulados de leads de origen de base que no son registro manual (alta_manual, regla cerrada:
+--      el registro manual queda fuera de la base, no de la suma); las operaciones de cartera salen como siempre.
 --      Firma, dueño, ACL y columnas intactas.
 --   5. crm.periodos_cerrados gana `tope_referidos_pct`: la foto guarda con qué tope se calculó el mes (como guarda los pesos).
 --      crm.cerrar_periodo lo escribe. Mismo texto vivo, con ese único cambio.
@@ -165,7 +168,7 @@ as $$
 $$;
 revoke all on function private.conversion_origen_base_tope(text) from public, anon, authenticated, service_role;
 comment on function private.conversion_origen_base_tope(text) is
-  'Tope de referidos (Miguel, 07/10/2026): UNA definición de qué orígenes de lead forman la BASE del tope, es decir, los leads que el sistema asigna al analista: landing y formulario. Quedan fuera referido, base_cargada (la carga el supervisor) y los orígenes que no cierran en conversión (oficina, otro, web, campania, whatsapp). NULL con origen NULL. Usada por private.conversion_episodios.';
+  'Tope de referidos (Miguel, 07/10/2026): UNA definición de qué orígenes de lead forman la BASE del tope, es decir, los leads que el sistema asigna al analista: landing y formulario. Quedan fuera referido, base_cargada (la carga el supervisor) y los orígenes que no cierran en conversión (oficina, otro, web, campania, whatsapp). NULL con origen NULL. Esta función mira solo el ORIGEN: el registro manual (alta_manual) lo excluye private.conversion_episodios al armar la base. Usada por private.conversion_episodios.';
 
 -- ── 3 · El núcleo del numerador: el tope se aplica donde nace el aporte ───────────────────────────────────────────────
 -- private.conversion_episodios(timestamptz,timestamptz,date,boolean,uuid[],numeric)
@@ -193,15 +196,19 @@ with marcados as (
     -- El mes de CIERRE: el de la fecha comercial del cierre del lead.
     date_trunc('month', c.fecha_numerador at time zone 'America/Lima')::date as mes_cierre,
     -- Un cierre cuenta para la base del tope solo si NO está anulado y es el cierre de un lead que el sistema asigna
-    -- (private.conversion_origen_base_tope: landing y formulario). Los referidos y la base cargada no entran en la base.
-    (not c.anulado and private.conversion_origen_base_tope(c.origen)) as en_base,
+    -- (private.conversion_origen_base_tope: landing y formulario) y que no es un registro manual (alta_manual: regla
+    -- cerrada, el registro manual queda fuera de la base, como queda fuera del divisor). Los referidos y la base cargada
+    -- no entran en la base. Solo la BASE excluye el alta manual: su aporte al numerador sigue entero.
+    (not c.anulado and private.conversion_origen_base_tope(c.origen) and not coalesce(lm.alta_manual, false)) as en_base,
     (c.fue_referido and not c.anulado) as es_referido,
     -- Desempate de dos cierres de la MISMA fecha comercial (es un día, sin hora): el que se acreditó antes cuenta antes.
     (select ca.acreditado_en from crm.conversion_acreditaciones ca where ca.lead_id = c.lead_id) as registrado_en
   from private.conversion_cierres(
     v_ini_mes, v_fin_mes, p_periodo, p_global, p_visibles, p_factor, null::uuid[]) c
+  left join crm.leads lm on lm.id = c.lead_id
 ), con_tope as (
   select m.*,
+    -- Un cierre sin analista (analista_id NULL) comparte UNA sola partición con los demás sin analista: un solo tope para todos.
     count(*) filter (where m.en_base) over (partition by m.analista_id, m.mes_cierre) as base_cierres,
     -- Los referidos de cada analista y mes, del más antiguo al más reciente: cuentan los primeros.
     row_number() over (partition by m.analista_id, m.mes_cierre, m.es_referido
@@ -235,8 +242,8 @@ where l.creado_en >= p_ini and l.creado_en < p_fin
 union all
 
 -- TOPE DE REFERIDOS (Miguel, 07/10/2026, desde octubre): por analista y mes de cierre, los referidos cuentan hasta el
--- tope % de sus cierres de leads asignados por el sistema (en_base; sin referidos, base cargada ni operaciones; redondeado
--- hacia arriba); los más recientes pasan a valer 0. Sin cierres asignados la base es 0 y todos sus referidos valen 0.
+-- tope % de sus cierres de leads asignados por el sistema (en_base; sin referidos, base cargada, registros manuales ni
+-- operaciones; redondeado hacia arriba); los más recientes pasan a valer 0. Sin cierres asignados la base es 0 y todos sus referidos valen 0.
 -- Sin tope vigente para el mes (agosto, septiembre) el aporte queda como siempre.
 select t.tipo, t.analista_id, t.lead_id, t.operacion_id, t.fue_referido, t.aproximado, t.motivo, t.anulado, t.origen,
   t.categoria, t.mes_origen, t.monto, t.moneda, t.fecha_divisor, t.fecha_numerador, t.aporte_divisor,
@@ -836,14 +843,18 @@ declare
   r record;
 begin
   for r in select * from (values
-    ('private.conversion_episodios(timestamptz,timestamptz,date,boolean,uuid[],numeric)', 'f80cd3802628cb3d9c9199b09afc0aee', '{postgres=X/postgres}'),
-    ('crm.cerrar_periodo(date)', '05691c6715cf56fe7b44ea5e7cf27fb5', '{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}'),
-    ('private.conversion_fijar_sello_trg()', 'c0ba50fae8b98f47114f7fefa183ba7e', '{postgres=X/postgres}'),
-    ('private.tope_referidos_conversion(date)', 'b5f63af791860ba8f284a7302da15e9a', '{postgres=X/postgres}'),
-    ('private.conversion_origen_base_tope(text)', 'e3a9b21edb15fbc819cd791fbbf35297', '{postgres=X/postgres}')
-  ) as v(firma, huella, acl) loop
+    ('private.conversion_episodios(timestamptz,timestamptz,date,boolean,uuid[],numeric)', 'e3d278a1f93ff0eb3afed423f0ea575e', '{postgres=X/postgres}', 's'),
+    ('crm.cerrar_periodo(date)', '05691c6715cf56fe7b44ea5e7cf27fb5', '{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}', 'v'),
+    ('private.conversion_fijar_sello_trg()', 'c0ba50fae8b98f47114f7fefa183ba7e', '{postgres=X/postgres}', 'v'),
+    ('private.tope_referidos_conversion(date)', 'b5f63af791860ba8f284a7302da15e9a', '{postgres=X/postgres}', 's'),
+    ('private.conversion_origen_base_tope(text)', 'e3a9b21edb15fbc819cd791fbbf35297', '{postgres=X/postgres}', 'i')
+  ) as v(firma, huella, acl, volatilidad) loop
+    -- Además del cuerpo, dueño y ACL: la volatilidad, el search_path vacío fijado en la función y SECURITY DEFINER
+    -- (todas lo son salvo la de orígenes, que es invoker).
     if not exists (select 1 from pg_proc p where p.oid = to_regprocedure(r.firma) and md5(p.prosrc) = r.huella
-                    and p.proowner = 'postgres'::regrole and p.proacl::text = r.acl and p.prosecdef = (r.firma <> 'private.conversion_origen_base_tope(text)')) then
+                    and p.proowner = 'postgres'::regrole and p.proacl::text = r.acl
+                    and p.provolatile = r.volatilidad and p.proconfig = array['search_path=""']
+                    and p.prosecdef = (r.firma <> 'private.conversion_origen_base_tope(text)')) then
       raise exception 'TOPE-REFERIDOS postflight: % no quedó como se ensayó', r.firma;
     end if;
   end loop;

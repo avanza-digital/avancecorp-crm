@@ -17061,12 +17061,14 @@ de base, si otra función usa el ayudante, o si el censo no está vigente y sell
 
 **Estado:** ensayada en banco Docker propio (07/10/2026), **SIN APLICAR en producción**; rama: worktree `tope-referidos-20261007`.
 Decisión de Miguel (07/10/2026), confirmada por él: un referido que cierra vale 1, pero entre todos los referidos de un analista solo
-cuentan, como máximo, el 15 % de sus cierres de LEADS QUE EL SISTEMA LE ASIGNA (origen landing o formulario; la base no incluye
+cuentan, como máximo, el 15 % de sus cierres de LEADS QUE EL SISTEMA LE ASIGNA (origen landing o formulario y que no sea registro manual, `alta_manual`; la base no incluye
 referidos, renovaciones, upgrades ni base cargada), redondeado hacia arriba; los que pasan del tope —los más recientes por fecha de
 cierre— valen 0 (siguen en el historial). Sin cierres asignados la base es 0 y todos sus referidos valen 0. Rige desde octubre;
 agosto y septiembre no se tocan. Ejemplo aprobado: 10 asignados + 4 referidos + 3 renovaciones + 2 upgrades + 1 de base cargada ⇒
 tope ceil(1,5) = 2 ⇒ cuentan los 2 referidos más antiguos. Los orígenes de la base salen de UNA función,
-`private.conversion_origen_base_tope(text)`: cambiar la lista es cambiarla a ella.
+`private.conversion_origen_base_tope(text)`: cambiar la lista es cambiarla a ella. Registro manual (regla cerrada «fuera del divisor», decisión
+de Miguel 07/10/2026): un lead de alta manual no entra en la base del tope, pero su cierre sigue sumando entero al numerador; `conversion_episodios`
+lo lee del lead de cada cierre (join por `lead_id`, sin costo medible).
 *Corregida antes de publicar (07/10/2026): una primera versión de esta misma migración fijaba otra base; nunca se aplicó en producción.*
 **Qué hace:** `crm.conversion_pesos.tope_referidos_pct` + versión 2026-10-01 (referido 1,000, tope 15,00) · `private.tope_referidos_conversion(date)`
 (NULL = sin tope; sin respaldo a la versión más antigua) · `private.conversion_origen_base_tope(text)` (orígenes de la base: landing y formulario) ·
@@ -17083,15 +17085,15 @@ el instante en que se acreditó cada cierre.
 peso de la foto sin tope) y los textos de pantalla que dicen «0,15» siguen mostrando el referido SIN tope desde octubre.
 **Efecto conocido:** octubre se recalcula en vivo con la regla nueva (es lo pedido); el tope de un mes ya sellado no se recalcula y
 anular un cierre ajeno al referido no vuelve a mover el tope de un mes sellado (la deuda es solo la del cierre anulado).
-**Preflight:** seis cuerpos+dueño+ACL, las dos funciones nuevas no existen, `conversion_pesos` = la fila conocida, ningún mes sellado desde octubre, censo vigente y sellado.
+**Preflight:** seis cuerpos+dueño+ACL, las dos funciones nuevas no existen (el postflight comprueba además volatilidad, `search_path` vacío fijado y SECURITY DEFINER de las funciones tocadas), `conversion_pesos` = la fila conocida, ningún mes sellado desde octubre, censo vigente y sellado.
 **Banco:** esquema de producción (crm 314 / private 640 funciones, huellas idénticas a producción) + configuración de producción
 (censo 43 filas, pesos, política). Aplicar ⇒ revertir ⇒ reaplicar (dos veces, A y B): las 9 huellas de la reversa = producción al byte; segunda
-aplicación seguida: se niega. Pruebas: `prueba-tope.sql` PASS (12 casos: 15 asignados + 5 referidos ⇒ 3; el ejemplo aprobado de Miguel ⇒ tope 2;
-renovaciones, upgrades, base cargada y referidos que NO suben el tope; base 0 ⇒ tope 0; redondeos y bordes; rangos parciales y de dos meses con
+aplicación seguida: se niega. Pruebas: `prueba-tope.sql` PASS (15 casos: 15 asignados + 5 referidos ⇒ 3; el ejemplo aprobado de Miguel ⇒ tope 2;
+renovaciones, upgrades, base cargada, alta manual (que sigue sumando 1) y referidos que NO suben el tope; base 0 ⇒ tope 0; ámbito {A,B} = {A}; cierres sin analista con un solo tope compartido; redondeos y bordes; rangos parciales y de dos meses con
 periodo NULL; ámbito; anulaciones; empate de fecha; CHECK; septiembre idéntico a la función anterior; divisor intacto); `prueba-sello-deuda.sql` PASS (9 aserciones);
-**mutantes 0 inesperados de 23** (`mutantes.py`; M8a/M8b sobreviven a propósito: el ámbito está defendido dos veces; el doble cae; T3/T4 los rechaza la
+**mutantes 0 inesperados de 25** (`mutantes.py`; M8a/M8b sobreviven a propósito: el ámbito está defendido dos veces; el doble cae; T3/T4 los rechaza la
 base con una restricción); negativas del preflight 4/4 (cuerpo cambiado, mes sellado desde octubre, función de orígenes ya existente, segunda aplicación).
-Costo con 6.000 cierres: mes global 403→421 ms; un analista 9→9 ms; historia completa (1900–2100, lo que usa la deuda) 400→425 ms.
+Costo con 6.000 cierres (con el join al lead): mes global 380→405–422 ms; un analista 9→9 ms; historia completa (1900–2100, lo que usa la deuda) 385→412–423 ms.
 **Revisiones (hechas sobre la versión anterior de esta migración; la regla de la base cambió después y NO se han repetido: pendiente un nuevo auditor-rls/Codex sobre el cambio):** auditor-rls r1 APPROVE_WITH_CHANGES (sin P0; un P1 de `test-rls.mjs`, 3 P2 y 4 P3) → atendidos: el oráculo de
 `test-rls.mjs` sigue el mes (octubre: factor 1 y cotas) y suma sondas de denegación de las columnas y de la lectora, CHECK peso↔tope,
 desempate, guardias y candado en la reversa, costos medidos, `ON_ERROR_STOP` en el LEEME; pendientes: tipos (`npm run gen:types`
@@ -17143,7 +17145,7 @@ nuevas), octubre cambia solo donde el tope recorta (referido 100 → 60 %, «apo
 huellas = producción (cerrar_periodo = la de la Fase A); reaplicar OK; segunda aplicación seguida y tres negativas del preflight (cuerpo
 cambiado, mes sellado ≥ octubre, otra función que llama a la recreada): se niegan. Pruebas: `prueba-origen.sql` PASS (origen, foto en vivo, cifra oficial abierta y
 SELLADA con `crm.cerrar_periodo` REAL —septiembre con un tope solo de prueba—, igualdad mes abierto = mes sellado, supervisor, producción fuera
-del roster, quien solo recibe referidos con divisor 0, sellado sin tope); pruebas de la Fase A en PASS (12 casos + 9 aserciones; mutantes de la A 0 de 23);
+del roster, quien solo recibe referidos con divisor 0, sellado sin tope); pruebas de la Fase A en PASS (15 casos + 9 aserciones; mutantes de la A 0 de 25); el postflight de esta migración y de su reversa comprueba además volatilidad, `search_path` fijado y SECURITY DEFINER de las funciones;
 **mutantes de la B 0 sobreviven de 17** (`mutantes-fase-b.py`). Costo del ranking por origen con 6.000 cierres: ≈430 ms antes y después (es una prueba de esfuerzo:
 el volumen real es decenas de veces menor).
 **Front:** `npm run check` PASS (395 archivos, 6372 tests) en el worktree.

@@ -1,7 +1,7 @@
 -- Prueba del tope de referidos (sintética, todo se deshace). Se corre contra un banco con la migración
 -- 20261007160937 aplicada, como postgres:  psql -v ON_ERROR_STOP=1 -f prueba-tope.sql
--- Regla: la base del tope son SOLO los cierres no anulados de leads que el sistema asigna (origen landing o formulario);
--- los referidos, las renovaciones, los upgrades y la base cargada no entran en la base.
+-- Regla: la base del tope son SOLO los cierres no anulados de leads que el sistema asigna (origen landing o formulario) y
+-- que no son registro manual (alta_manual); los referidos, las renovaciones, los upgrades y la base cargada no entran en la base.
 -- Mundo: tres analistas A, B y C, cierres de octubre (con tope) y de septiembre (sin tope). Los cierres nacen como
 -- acreditaciones (la política está activa); la fuente y la anulación se simulan con funciones temporales que solo viven
 -- dentro de esta transacción.
@@ -191,6 +191,46 @@ select pg_temp.exigir(pg_temp.referidos_que_cuentan((select z from dic)) = 0 and
   'C7e: base 0 ⇒ tope 0 ⇒ ningún referido cuenta (ni con un upgrade ni con base cargada)');
 select pg_temp.exigir(pg_temp.aporte((select z from dic), '2026-12-01', '2027-01-01') = 1 + 1 and pg_temp.aporte((select y from dic), '2026-12-01', '2027-01-01') = 0,
   'C7e2: Z suma solo su upgrade (1) y su base cargada (1); Y, con solo referidos, suma 0');
+
+-- ── Caso 13 · un lead de alta manual (registro manual: regla cerrada) NO sube el tope, pero su cierre sigue sumando entero ───────────
+-- H: 6 asignados + 1 landing de ALTA MANUAL + 2 referidos. Base 6 ⇒ tope ceil(0,9) = 1 ⇒ cuenta 1 referido. (Si el alta manual
+-- entrara en la base serían 7 ⇒ tope ceil(1,05) = 2 ⇒ contarían los 2.) Su aporte al numerador sigue siendo 1.
+create temp table hh as select gen_random_uuid() h;
+do $$ declare h uuid := (select h from hh); i int; l uuid; begin
+  for i in 1..6 loop perform pg_temp.cierre(h, 'formulario', '2026-12-01', i); end loop;
+  l := pg_temp.cierre(h, 'landing', '2026-12-01', 7);
+  update crm.leads set alta_manual = true where id = l;
+  create temp table hh_manual as select l lead_id;
+  for i in 1..2 loop perform pg_temp.cierre(h, 'referido', '2026-12-01', 10 + i); end loop;
+end $$;
+select pg_temp.exigir(pg_temp.referidos_que_cuentan((select h from hh)) = 1, 'C13a: un lead de alta manual NO sube el tope (6 asignados ⇒ cuenta 1 de 2 referidos)');
+select pg_temp.exigir((select e.aporte_numerador from private.conversion_episodios('2026-12-01'::timestamptz, '2027-01-01'::timestamptz, '2026-12-01', true, '{}', 1) e
+                        where e.lead_id = (select lead_id from hh_manual) and e.tipo = 'cierre') = 1,
+  'C13b: el cierre del alta manual sigue sumando 1 al numerador');
+select pg_temp.exigir(pg_temp.aporte((select h from hh), '2026-12-01', '2027-01-01') = 6 + 1 + 1, 'C13c: 6 asignados + 1 alta manual + 1 referido = 8; salió ' || pg_temp.aporte((select h from hh), '2026-12-01', '2027-01-01'));
+
+-- ── Caso 14 · el ámbito {E, F} da a E el mismo aporte que el ámbito {E} (la base de uno no depende de los demás) ─────────────────
+select pg_temp.exigir(
+  (select coalesce(sum(e.aporte_numerador), 0) from private.conversion_episodios('2026-12-01'::timestamptz, '2027-01-01'::timestamptz, '2026-12-01', false, array[(select e from dic), (select f from dic)], 1) e
+    where e.analista_id = (select e from dic) and e.tipo <> 'recibido')
+  = (select coalesce(sum(e.aporte_numerador), 0) from private.conversion_episodios('2026-12-01'::timestamptz, '2027-01-01'::timestamptz, '2026-12-01', false, array[(select e from dic)], 1) e
+      where e.analista_id = (select e from dic) and e.tipo <> 'recibido')
+  and pg_temp.aporte((select e from dic), '2026-12-01', '2027-01-01', false) = 6 + 1 + 2 + 2 * 0.15,
+  'C14: el ámbito {E, F} da a E lo mismo que {E} y que la vista global (9,30)');
+
+-- ── Caso 15 · los cierres SIN analista (analista_id NULL) comparten UN solo tope ─────────────────────────────────────────────────
+-- 3 + 3 asignados sin analista y 2 referidos sin analista: una sola partición ⇒ base 6 ⇒ tope 1 ⇒ cuenta UN referido en total.
+-- Solo los ve el ámbito global (un actor de equipo o propio no los ve). En producción hay 0 (07/10/2026).
+do $$ declare i int; begin
+  for i in 1..3 loop perform pg_temp.cierre(null, 'landing', '2026-12-01', i); end loop;
+  for i in 1..3 loop perform pg_temp.cierre(null, 'formulario', '2026-12-01', 3 + i); end loop;
+  for i in 1..2 loop perform pg_temp.cierre(null, 'referido', '2026-12-01', 10 + i); end loop;
+end $$;
+select pg_temp.exigir((select count(*) from private.conversion_episodios('2026-12-01'::timestamptz, '2027-01-01'::timestamptz, '2026-12-01', true, '{}', 1) e
+                        where e.analista_id is null and e.tipo = 'cierre' and e.fue_referido and e.aporte_numerador = 1) = 1,
+  'C15a: los cierres sin analista comparten un solo tope (base 6 ⇒ cuenta 1 de 2 referidos)');
+select pg_temp.exigir(not exists (select 1 from private.conversion_episodios('2026-12-01'::timestamptz, '2027-01-01'::timestamptz, '2026-12-01', false, array[(select e from dic)], 1) e where e.analista_id is null),
+  'C15b: un ámbito de analista no ve los cierres sin analista');
 
 -- ── Caso 8 · el divisor no cambia ───────────────────────────────────────────────────────────────────────────────────────────────────
 select pg_temp.exigir((select coalesce(sum(e.aporte_divisor), 0) from private.conversion_episodios('2026-10-01'::timestamptz, '2026-11-01'::timestamptz, '2026-10-01', true, '{}', 1) e)

@@ -2,7 +2,7 @@
 --
 -- Conversión · tope de referidos, FASE B: que ninguna pantalla muestre al referido SIN tope desde octubre de 2026.
 -- Sigue a 20261007160937_crm_conversion_tope_referidos (Fase A: núcleo, foto, sello, deuda). Regla de Miguel (07/10/2026): el
--- referido vale 1 pero entre todos cuentan como máximo el 15 % de sus cierres de leads asignados por el sistema (landing y formulario) en el mes, redondeado hacia arriba.
+-- referido vale 1 pero entre todos cuentan como máximo el 15 % de sus cierres de leads asignados por el sistema (landing y formulario, sin registro manual) en el mes, redondeado hacia arriba.
 --
 -- QUÉ HACE (todo lo que calculaba el aporte del referido por su cuenta, sin pasar por el núcleo):
 --   1. private.ranking_conversion_origen_mes («Resultados por origen» del Ranking): los cierres salen de private.conversion_episodios
@@ -2543,17 +2543,18 @@ declare
   r record;
 begin
   for r in select * from (values
-    ('private.ranking_conversion_origen_mes(timestamptz,timestamptz,date,numeric)', '29b65aece1e40e14aa57f63bc79ca9c7', '{postgres=X/postgres}'),
-    ('private.ranking_origen_live(date,uuid,jsonb)', '6e90d751ecaa5f386aa78290b5aa180e', '{postgres=X/postgres}'),
-    ('private.conversion_divisor_empresa(date,date)', '79cbc573bb293e3d2a3a7af6b07789a1', '{postgres=X/postgres}'),
-    ('private.metricas_conversiones_implementacion(date,date,text)', '14f45688ee958edbc2e5f238648e7fad', '{postgres=X/postgres}'),
-    ('crm.conversion_mensual_sin_cartera_fn(date)', '9c69b7044f499e0130b7d678f4c5d029', '{postgres=X/postgres}'),
-    ('crm.cerrar_periodo(date)', '79840e5af7ef355126fcc11dfd461ff1', '{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}'),
-    ('private.referidos_aporte_por_analista(timestamptz,timestamptz,date,boolean,uuid[],numeric)', '6bc945e8be33d1ebd99f4438626f05be', '{postgres=X/postgres}'),
-    ('crm.conversion_divisor_coordinacion_fn(date,date,date)', '9ec6d92d3c6a732cf91e045a35cdb12a', '{postgres=X/postgres,authenticated=X/postgres}')
-  ) as v(firma, huella, acl) loop
+    ('private.ranking_conversion_origen_mes(timestamptz,timestamptz,date,numeric)', '29b65aece1e40e14aa57f63bc79ca9c7', '{postgres=X/postgres}', 's'),
+    ('private.ranking_origen_live(date,uuid,jsonb)', '6e90d751ecaa5f386aa78290b5aa180e', '{postgres=X/postgres}', 's'),
+    ('private.conversion_divisor_empresa(date,date)', '79cbc573bb293e3d2a3a7af6b07789a1', '{postgres=X/postgres}', 's'),
+    ('private.metricas_conversiones_implementacion(date,date,text)', '14f45688ee958edbc2e5f238648e7fad', '{postgres=X/postgres}', 's'),
+    ('crm.conversion_mensual_sin_cartera_fn(date)', '9c69b7044f499e0130b7d678f4c5d029', '{postgres=X/postgres}', 's'),
+    ('crm.cerrar_periodo(date)', '79840e5af7ef355126fcc11dfd461ff1', '{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}', 'v'),
+    ('private.referidos_aporte_por_analista(timestamptz,timestamptz,date,boolean,uuid[],numeric)', '6bc945e8be33d1ebd99f4438626f05be', '{postgres=X/postgres}', 's'),
+    ('crm.conversion_divisor_coordinacion_fn(date,date,date)', '9ec6d92d3c6a732cf91e045a35cdb12a', '{postgres=X/postgres,authenticated=X/postgres}', 's')
+  ) as v(firma, huella, acl, volatilidad) loop
     if not exists (select 1 from pg_proc p where p.oid = to_regprocedure(r.firma) and md5(p.prosrc) = r.huella
-                    and p.proowner = 'postgres'::regrole and p.proacl::text = r.acl) then
+                    and p.proowner = 'postgres'::regrole and p.proacl::text = r.acl
+                    and p.provolatile = r.volatilidad and p.proconfig = array['search_path=""'] and p.prosecdef) then
       raise exception 'TOPE-REFERIDOS-B postflight: % no quedó como se ensayó', r.firma;
     end if;
   end loop;

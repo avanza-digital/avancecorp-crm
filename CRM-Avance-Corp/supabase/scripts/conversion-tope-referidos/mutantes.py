@@ -29,7 +29,7 @@ MUTANTES = [
   ("episodios", "M2 cuentan los referidos MÁS RECIENTES", [("order by m.fecha_numerador, m.registrado_en, m.lead_id) as orden_referido", "order by m.fecha_numerador desc, m.registrado_en, m.lead_id) as orden_referido")], "prueba-tope.sql"),
   ("episodios", "M4 el tope se calcula solo sobre el rango pedido", [("v_ini_mes timestamptz := date_trunc('month', p_ini at time zone 'America/Lima') at time zone 'America/Lima';", "v_ini_mes timestamptz := p_ini;"), ("v_fin_mes timestamptz := (v_mes_ult::timestamp + interval '1 month') at time zone 'America/Lima';", "v_fin_mes timestamptz := p_fin;")], "prueba-tope.sql"),
   ("episodios", "M5 la base mezcla a todos los analistas", [("over (partition by m.analista_id, m.mes_cierre) as base_cierres", "over (partition by m.mes_cierre) as base_cierres")], "prueba-tope.sql"),
-  ("episodios", "M6 la base cuenta los cierres anulados", [("(not c.anulado and private.conversion_origen_base_tope(c.origen)) as en_base", "(private.conversion_origen_base_tope(c.origen)) as en_base")], "prueba-tope.sql"),
+  ("episodios", "M6 la base cuenta los cierres anulados", [("(not c.anulado and private.conversion_origen_base_tope(c.origen) and", "(private.conversion_origen_base_tope(c.origen) and")], "prueba-tope.sql"),
   ("episodios", "M7 el tope rige en todos los meses (ignora la versión)", [("t.tope_pct is not null", "true"), ("ceil(t.base_cierres * t.tope_pct / 100.0)", "ceil(t.base_cierres * 15 / 100.0)")], "prueba-tope.sql"),
   # El ámbito está defendido DOS veces (antes del tope, dentro de los cierres y las operaciones, y al final): quitar solo una
   # mitad no cambia el resultado y por eso M8a y M8b SOBREVIVEN a propósito. El mutante DOBLE sí debe caer.
@@ -41,6 +41,8 @@ MUTANTES = [
   ("episodios", "M10 el tope no se aplica (aporte sin recortar)", [("then 0::numeric else t.aporte_numerador end", "then t.aporte_numerador else t.aporte_numerador end")], "prueba-tope.sql"),
   ("episodios", "M11 el peso del referido que cuenta se pierde (vale 0 siempre)", [("then 0::numeric else t.aporte_numerador end", "then 0::numeric else (case when t.es_referido then 0 else t.aporte_numerador end) end")], "prueba-tope.sql"),
   ("episodios", "M13 con base 0 el tope no es 0 (mínimo 1)", [("ceil(t.base_cierres * t.tope_pct / 100.0)", "ceil(greatest(t.base_cierres, 1) * t.tope_pct / 100.0)")], "prueba-tope.sql"),
+  ("episodios", "N6 el registro manual (alta_manual) cuenta en la base", [(" and not coalesce(lm.alta_manual, false)) as en_base", ") as en_base")], "prueba-tope.sql"),
+  ("episodios", "M14 los cierres sin analista no comparten un solo tope", [("over (partition by m.analista_id, m.mes_cierre) as base_cierres", "over (partition by coalesce(m.analista_id::text, m.lead_id::text), m.mes_cierre) as base_cierres"), ("over (partition by m.analista_id, m.mes_cierre, m.es_referido", "over (partition by coalesce(m.analista_id::text, m.lead_id::text), m.mes_cierre, m.es_referido")], "prueba-tope.sql"),
   ("origen", "N1 todo origen forma la base", [("select p_origen in ('landing', 'formulario')", "select true")], "prueba-tope.sql"),
   ("origen", "N2 los referidos entran en su propia base", [("('landing', 'formulario')", "('landing', 'formulario', 'referido')")], "prueba-tope.sql"),
   ("origen", "N3 la base cargada entra en la base", [("('landing', 'formulario')", "('landing', 'formulario', 'base_cargada')")], "prueba-tope.sql"),

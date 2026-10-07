@@ -23,7 +23,7 @@ do $preflight$
 declare r record;
 begin
   for r in select * from (values
-    ('private.conversion_episodios(timestamptz,timestamptz,date,boolean,uuid[],numeric)', 'f80cd3802628cb3d9c9199b09afc0aee'),
+    ('private.conversion_episodios(timestamptz,timestamptz,date,boolean,uuid[],numeric)', 'e3d278a1f93ff0eb3afed423f0ea575e'),
     ('crm.cerrar_periodo(date)', '05691c6715cf56fe7b44ea5e7cf27fb5'),
     ('private.conversion_fijar_sello_trg()', 'c0ba50fae8b98f47114f7fefa183ba7e'),
     ('private.tope_referidos_conversion(date)', 'b5f63af791860ba8f284a7302da15e9a'),
@@ -688,12 +688,13 @@ do $postflight$
 declare r record;
 begin
   for r in select * from (values
-    ('private.conversion_episodios(timestamptz,timestamptz,date,boolean,uuid[],numeric)', '9c606dd40fb9e4b0ea816731b04b1cb1', '{postgres=X/postgres}'),
-    ('crm.cerrar_periodo(date)', 'ce1ca52d4310345f9fc512413c13f3e8', '{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}'),
-    ('private.conversion_fijar_sello_trg()', 'e2cb8d42e8d81889aa265396499aa1e6', '{postgres=X/postgres}')
-  ) as v(firma, huella, acl) loop
+    ('private.conversion_episodios(timestamptz,timestamptz,date,boolean,uuid[],numeric)', '9c606dd40fb9e4b0ea816731b04b1cb1', '{postgres=X/postgres}', 's'),
+    ('crm.cerrar_periodo(date)', 'ce1ca52d4310345f9fc512413c13f3e8', '{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}', 'v'),
+    ('private.conversion_fijar_sello_trg()', 'e2cb8d42e8d81889aa265396499aa1e6', '{postgres=X/postgres}', 'v')
+  ) as v(firma, huella, acl, volatilidad) loop
     if not exists (select 1 from pg_proc p where p.oid = to_regprocedure(r.firma) and md5(p.prosrc) = r.huella
-                    and p.proowner = 'postgres'::regrole and p.proacl::text = r.acl) then
+                    and p.proowner = 'postgres'::regrole and p.proacl::text = r.acl
+                    and p.provolatile = r.volatilidad and p.proconfig = array['search_path=""'] and p.prosecdef) then
       raise exception 'REVERSA tope-referidos postflight: % no volvió al cuerpo de antes', r.firma;
     end if;
   end loop;

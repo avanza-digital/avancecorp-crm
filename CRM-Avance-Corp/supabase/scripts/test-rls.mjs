@@ -12912,8 +12912,8 @@ async function testConversionMensual(sessions, seed) {
   // Tope de referidos (migracion 20261007160937): desde 2026-10 el referido que cierra vale 1 y entre todos los
   // referidos de un analista solo cuentan hasta el 15 % de sus cierres de leads asignados (landing y formulario). El
   // oraculo de este bloque SIGUE el mes: antes de octubre, factor 0,15 y suma exacta; desde octubre, factor 1 y la suma
-  // exacta pasa a ser una COTA (el tope depende de los cierres de landing y formulario, que el payload no separa de los
-  // de base cargada).
+  // exacta pasa a ser una COTA (el tope depende de los cierres de landing y formulario sin alta manual, que el payload no
+  // separa de los de base cargada ni de los de alta manual).
   const TOPE_ACTIVO = MES >= '2026-10';
   const FACTOR_ESPERADO = TOPE_ACTIVO ? 1 : 0.15;
   const ids = seed.profileIdByKey;
@@ -13327,7 +13327,10 @@ async function testConversionMensual(sessions, seed) {
       'T2/T3 · los dos cierres del mes se atribuyen a vend1, cada uno en su cubo',
       JSON.stringify({ cnr: deltaVend1((f) => f.cierres_no_referidos), cr: deltaVend1((f) => f.cierres_referidos) }));
     // Antes del tope: 1 + 0,15 × 1 exactos. Con tope (octubre en adelante) el referido vale 1 si cabe en el tope
-    // (siempre cabe el primero del mes) y 0 si otro referido anterior de vend1 ya ocupa el lugar: el delta cae en [1, 1 + factor].
+    // (siempre cabe el primero del mes: el cierre landing de este mismo bloque es base) y 0 si otro referido anterior de vend1
+    // ya ocupa el lugar: el delta cae en [1, 1 + factor]. NO es un oraculo exacto a proposito: la base del tope (landing y
+    // formulario sin alta manual) no se separa en este payload de los cierres de base cargada y de alta manual, ni de los
+    // referidos del fixture, asi que el caso exacto lo prueba conversion-tope-referidos/prueba-tope.sql en el banco.
     check(TOPE_ACTIVO
         ? (deltaVend1((f) => f.numerador) >= 1 - 1e-9 && deltaVend1((f) => f.numerador) <= 1 + FACTOR_ESPERADO + 1e-9)
         : cerca(deltaVend1((f) => f.numerador), 1.15),

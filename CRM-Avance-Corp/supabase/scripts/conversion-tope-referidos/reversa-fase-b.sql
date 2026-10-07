@@ -2403,16 +2403,17 @@ do $post$
 declare r record;
 begin
   for r in select * from (values
-    ('private.ranking_conversion_origen_mes(timestamptz,timestamptz,date,numeric)', 'eee291c69494ccde6a5cad969bc8424b', '{postgres=X/postgres}'),
-    ('private.ranking_origen_live(date,uuid,jsonb)', 'af2a82dd264782e257fbaa40e10b9eb1', '{postgres=X/postgres}'),
-    ('private.conversion_divisor_empresa(date,date)', 'bf90ba99a8404c0889606354ef289335', '{postgres=X/postgres}'),
-    ('private.metricas_conversiones_implementacion(date,date,text)', '309c951204d9cd81a38ed049d1319d06', '{postgres=X/postgres}'),
-    ('crm.conversion_mensual_sin_cartera_fn(date)', '417defaf8d982bfc628b3469984fa802', '{postgres=X/postgres}'),
-    ('crm.cerrar_periodo(date)', '05691c6715cf56fe7b44ea5e7cf27fb5', '{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}'),
-    ('crm.conversion_divisor_coordinacion_fn(date,date,date)', 'b7dd99499a7668938a1417b259bc0626', '{postgres=X/postgres,authenticated=X/postgres}')
-  ) as v(firma, huella, acl) loop
+    ('private.ranking_conversion_origen_mes(timestamptz,timestamptz,date,numeric)', 'eee291c69494ccde6a5cad969bc8424b', '{postgres=X/postgres}', 's'),
+    ('private.ranking_origen_live(date,uuid,jsonb)', 'af2a82dd264782e257fbaa40e10b9eb1', '{postgres=X/postgres}', 's'),
+    ('private.conversion_divisor_empresa(date,date)', 'bf90ba99a8404c0889606354ef289335', '{postgres=X/postgres}', 's'),
+    ('private.metricas_conversiones_implementacion(date,date,text)', '309c951204d9cd81a38ed049d1319d06', '{postgres=X/postgres}', 's'),
+    ('crm.conversion_mensual_sin_cartera_fn(date)', '417defaf8d982bfc628b3469984fa802', '{postgres=X/postgres}', 's'),
+    ('crm.cerrar_periodo(date)', '05691c6715cf56fe7b44ea5e7cf27fb5', '{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}', 'v'),
+    ('crm.conversion_divisor_coordinacion_fn(date,date,date)', 'b7dd99499a7668938a1417b259bc0626', '{postgres=X/postgres,authenticated=X/postgres}', 's')
+  ) as v(firma, huella, acl, volatilidad) loop
     if not exists (select 1 from pg_proc p where p.oid = to_regprocedure(r.firma) and md5(p.prosrc) = r.huella
-                    and p.proowner = 'postgres'::regrole and p.proacl::text = r.acl) then
+                    and p.proowner = 'postgres'::regrole and p.proacl::text = r.acl
+                    and p.provolatile = r.volatilidad and p.proconfig = array['search_path=""'] and p.prosecdef) then
       raise exception 'REVERSA-B postflight: % no quedó como en producción', r.firma;
     end if;
   end loop;
