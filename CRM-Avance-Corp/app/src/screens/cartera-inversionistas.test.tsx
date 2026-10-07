@@ -12,7 +12,7 @@ import {CrmApiError} from '@/data/crm-api'
 import {crmQueryKeys} from '@/data/crm-queries'
 import {postventaKeys} from '@/data/postventa-queries'
 import {ACTOR_F5, carteraF5, fichaF5, FUENTE_F5, inversionF5, PERSONA_F5, PERFIL_F5} from '@/test/fixtures/f5'
-import type {InversionFuente, ResumenEmpresa} from '@/lib/inversionistas'
+import {EMPRESA_NOMBRE, type InversionFuente, type ResumenEmpresa} from '@/lib/inversionistas'
 import {inversionistasKeys} from '@/data/inversionistas-queries'
 import {leerIntentoInversion, guardarIntentoInversion, nuevoIntentoInversion, type SolicitudInversion} from '@/lib/inversion-solicitud'
 
@@ -513,6 +513,7 @@ describe('F5: revisión y recuperación económica', () => {
     expect(api.preparar).not.toHaveBeenCalled();expect(api.confirmar).not.toHaveBeenCalled()
   })
   it('QORILAZO no pregunta la moneda: solo admite soles',async () => {
+    api.ficha.mockResolvedValue({...structuredClone(fichaF5),inversiones:[],inversiones_total:0,totales:[]})
     const {user}=montar(true)
     await user.click(await screen.findByRole('button',{name:'Qorilazo'}))
     expect(screen.queryByLabelText('Moneda')).not.toBeInTheDocument()
@@ -545,10 +546,15 @@ describe('F5: revisión y recuperación económica', () => {
     }))
   })
   it('prepara sin éxito anticipado, confirma con revisión devuelta y recupera un corte sin otra alta',async () => {
+    api.ficha.mockResolvedValue({...structuredClone(fichaF5),inversiones:[],inversiones_total:0,totales:[]})
     let vigente=solicitud()
     api.preparar.mockImplementation(async intento=> {vigente={...solicitud(intento.clave),revision_datos:3,datos:intento.datos}; return vigente})
     api.consultar.mockImplementation(async()=>vigente)
-    api.confirmar.mockImplementation(async()=> {vigente={...vigente,estado:'confirmada',resultado:{...resultado,solicitud_id:vigente.solicitud_id}}; throw new CrmApiError('Respuesta perdida','RED')})
+    api.confirmar.mockImplementation(async()=> {
+      vigente={...vigente,estado:'confirmada',resultado:{...resultado,solicitud_id:vigente.solicitud_id}}
+      api.ficha.mockResolvedValue(structuredClone(fichaF5))
+      throw new CrmApiError('Respuesta perdida','RED')
+    })
     const {user}=montar(true)
     await user.click(await screen.findByRole('button',{name:'Qorilazo'}))
     await user.type(screen.getByLabelText('Capital en soles (PEN)'),'2500')
@@ -799,7 +805,13 @@ describe('Upgrade: continuidad del cliente que ya tiene una inversión', () => {
         tipo_interes: 'simple' as const, categoria: 'nuevo'}}
   }
   function fichaCon(...inversiones: InversionFuente[]) {
-    const ficha = {...structuredClone(fichaF5), inversiones, inversiones_total: inversiones.length}
+    const totales=inversiones.reduce<ResumenEmpresa[]>((filas,i)=>{
+      const fila=filas.find(f=>f.empresa===i.empresa&&f.moneda===i.moneda)
+      if(fila) {fila.cantidad++;fila.capital_registrado+=i.capital}
+      else filas.push({empresa:i.empresa,moneda:i.moneda,cantidad:1,capital_registrado:i.capital,capital_activo:null})
+      return filas
+    },[])
+    const ficha = {...structuredClone(fichaF5), inversiones, inversiones_total: inversiones.length,totales}
     api.ficha.mockResolvedValue(ficha)
     return ficha
   }
@@ -809,7 +821,7 @@ describe('Upgrade: continuidad del cliente que ya tiene una inversión', () => {
     await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
     const seccion = (await screen.findByRole('heading',{name:'Inversiones y contratos'})).closest('section')!
     const upgrade = within(seccion).getByRole('button',{name:'Registrar upgrade'})
-    expect(within(seccion).getByRole('button',{name:'Registrar nueva inversión'})).toBeDisabled()
+    expect(within(seccion).getByRole('button',{name:'Registrar nueva inversión'})).toBeEnabled()
     expect(within(seccion).getByText(/hereda la tasa del contrato que amplía/)).toBeVisible()
     await user.click(upgrade)
     expect(screen.queryByRole('dialog',{name:/amplía este upgrade/})).not.toBeInTheDocument()
@@ -855,11 +867,11 @@ describe('Upgrade cooperativo separado de reinversión', () => {
 
   it.each(['qorilazo','prodelco'] as const)('%s ofrece ambos botones y abre el aporte adicional', async empresa => {
     api.ficha.mockResolvedValue({...structuredClone(fichaF5),capacidades:{...fichaF5.capacidades,postventa:true},
-      inversiones:[{...inversionF5,empresa}]})
+      inversiones:[{...inversionF5,empresa}],totales:fichaF5.totales.map(t=>({...t,empresa}))})
     const {user}=montar()
     await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
     const region=await screen.findByRole('region',{name:'Inversiones y contratos'})
-    expect(within(region).getByRole('button',{name:'Registrar nueva inversión'})).toBeDisabled()
+    expect(within(region).getByRole('button',{name:'Registrar nueva inversión'})).toBeEnabled()
     expect(within(region).getByRole('button',{name:'Reinvertir desde esta inversión'})).toBeEnabled()
     await user.click(within(region).getByRole('button',{name:'Registrar upgrade'}))
     expect(await screen.findByRole('heading',{name:/^Upgrade ·/})).toBeVisible()
@@ -916,24 +928,118 @@ describe('Upgrade cooperativo separado de reinversión', () => {
   })
 })
 
-describe('Nueva inversión reservada a la primera inversión del grupo', () => {
-  it.each(['avance','qorilazo','prodelco'] as const)('una inversión en %s bloquea iniciar otra como nueva', async empresa => {
-    const ficha={...structuredClone(fichaF5),inversiones:[{...inversionF5,empresa}]}
+describe('Nueva inversión reservada a la primera inversión en cada empresa', () => {
+  it('Qorilazo vigente permite nueva inversión únicamente en Avance y Prodelco', async () => {
+    api.ficha.mockResolvedValue({...structuredClone(fichaF5),capacidades:{...fichaF5.capacidades,postventa:true}})
+    const {user}=montar()
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    const region=await screen.findByRole('region',{name:'Inversiones y contratos'})
+    expect(within(region).getByRole('button',{name:'Registrar upgrade'})).toBeEnabled()
+    expect(within(region).getByRole('button',{name:'Reinvertir desde esta inversión'})).toBeEnabled()
+    const nueva=within(region).getByRole('button',{name:'Registrar nueva inversión'})
+    expect(nueva).toBeEnabled()
+    await user.click(nueva)
+    const dialogo=await screen.findByRole('dialog',{name:'Nueva inversión'})
+    expect(within(dialogo).getByRole('button',{name:'Avance'})).toBeEnabled()
+    expect(within(dialogo).getByRole('button',{name:'Prodelco'})).toBeEnabled()
+    expect(within(dialogo).queryByRole('button',{name:'Qorilazo'})).not.toBeInTheDocument()
+  })
+
+  it.each(['avance','qorilazo','prodelco'] as const)('una inversión en %s permite solamente las otras empresas', async empresa => {
+    const ficha={...structuredClone(fichaF5),inversiones:[{...inversionF5,empresa}],totales:fichaF5.totales.map(t=>({...t,empresa}))}
     api.ficha.mockResolvedValue(ficha)
     const {user}=montar()
     await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
     const nueva=await screen.findByRole('button',{name:'Registrar nueva inversión'})
-    expect(nueva).toBeDisabled()
-    expect(nueva).toHaveAccessibleDescription(/ya tiene una inversión registrada/)
+    expect(nueva).toBeEnabled()
+    expect(nueva).toHaveAccessibleDescription(/primera inversión en/)
     await user.click(nueva)
-    expect(screen.queryByRole('dialog',{name:'Nueva inversión'})).not.toBeInTheDocument()
+    const dialogo=await screen.findByRole('dialog',{name:'Nueva inversión'})
+    for(const [id,nombre] of Object.entries(EMPRESA_NOMBRE)) {
+      if(id===empresa) expect(within(dialogo).queryByRole('button',{name:nombre})).not.toBeInTheDocument()
+      else expect(within(dialogo).getByRole('button',{name:nombre})).toBeEnabled()
+    }
   })
 
-  it('conserva el bloqueo aunque la página de inversiones esté vacía', async () => {
+  it('bloquea con explicación si el total de inversiones no coincide con los totales por empresa', async () => {
     api.ficha.mockResolvedValue({...structuredClone(fichaF5),inversiones:[],inversiones_total:26})
     const {user}=montar()
     await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
     expect(await screen.findByRole('button',{name:'Registrar nueva inversión'})).toBeDisabled()
+    expect(screen.getByRole('button',{name:'Registrar nueva inversión'})).toHaveAccessibleDescription(/Falta verificar/)
+  })
+
+  it('cuenta empresas de otras páginas aunque el capital activo sea cero', async () => {
+    api.ficha.mockResolvedValue({...structuredClone(fichaF5),inversiones_total:40,
+      totales:[{empresa:'avance',moneda:'USD',cantidad:12,capital_registrado:22000,capital_activo:0},
+        {...fichaF5.totales[0],cantidad:28}]})
+    const {user}=montar()
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    await user.click(await screen.findByRole('button',{name:'Registrar nueva inversión'}))
+    const dialogo=await screen.findByRole('dialog',{name:'Nueva inversión'})
+    expect(within(dialogo).getByRole('button',{name:'Prodelco'})).toBeEnabled()
+    expect(within(dialogo).queryByRole('button',{name:'Avance'})).not.toBeInTheDocument()
+    expect(within(dialogo).queryByRole('button',{name:'Qorilazo'})).not.toBeInTheDocument()
+  })
+
+  it('con historial en las tres empresas bloquea con explicación y conserva la recuperación', async () => {
+    api.ficha.mockResolvedValue({...structuredClone(fichaF5),inversiones_total:3,
+      totales:Object.keys(EMPRESA_NOMBRE).map(empresa=>({...fichaF5.totales[0],empresa,cantidad:1}))})
+    const vista=montar()
+    await vista.user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    const nueva=await screen.findByRole('button',{name:'Registrar nueva inversión'})
+    expect(nueva).toBeDisabled()
+    expect(nueva).toHaveAccessibleDescription(/inversiones registradas en las tres empresas/)
+    vista.unmount()
+    montar(true)
+    expect(await screen.findByLabelText('Retomar una solicitud por su referencia')).toBeEnabled()
+    for(const nombre of Object.values(EMPRESA_NOMBRE)) expect(screen.queryByRole('button',{name:nombre})).not.toBeInTheDocument()
+  })
+
+  it.each(['otra_inversion','error_lectura','permiso_revocado'] as const)('antes de preparar verifica el historial y se detiene ante %s', async caso => {
+    const {user}=montar(true)
+    await user.click(await screen.findByRole('button',{name:'Prodelco'}))
+    await user.type(screen.getByLabelText('Capital en soles (PEN)'),'2500')
+    await user.type(screen.getByLabelText('Número de operación del depósito'),'VERIFICAR-EMPRESA')
+    await user.type(screen.getByLabelText('Plazo (meses)'),'12')
+    await user.type(screen.getByLabelText('Rentabilidad anual (%)'),'12')
+    await user.type(screen.getByLabelText('Referencia de la inversión'),'PRIMERA PRODELCO')
+    await user.upload(screen.getByLabelText(/Comprobante PDF/),new File(['pdf sintético'],'prueba.pdf',{type:'application/pdf'}))
+    if(caso==='error_lectura') api.ficha.mockRejectedValue(new CrmApiError('Sin respuesta al verificar','RED'))
+    else if(caso==='permiso_revocado') api.ficha.mockResolvedValue({...structuredClone(fichaF5),
+      capacidades:{...fichaF5.capacidades,nueva_inversion:false,motivo_no_operable:'Solo lectura'}})
+    else api.ficha.mockResolvedValue({...structuredClone(fichaF5),inversiones_total:2,
+      totales:[...fichaF5.totales,{...fichaF5.totales[0],empresa:'prodelco',cantidad:1}]})
+    fireEvent.submit(screen.getByRole('button',{name:'Revisar inversión'}).closest('form')!)
+    if(caso==='error_lectura') expect(await screen.findByText('Sin respuesta al verificar')).toBeVisible()
+    else if(caso==='permiso_revocado') expect(await screen.findByText('Solo lectura')).toBeVisible()
+    else {
+      expect(await screen.findByRole('button',{name:'Avance'})).toBeEnabled()
+      expect(screen.queryByRole('button',{name:'Prodelco'})).not.toBeInTheDocument()
+      expect(screen.getByRole('alert')).toHaveTextContent('Esta empresa ya tiene una inversión registrada')
+      await user.click(screen.getByRole('button',{name:'Avance'}))
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    }
+    expect(api.preparar).not.toHaveBeenCalled()
+    expect(api.confirmar).not.toHaveBeenCalled()
+    expect(leerIntentoInversion(ACTOR_F5,PERSONA_F5)).toBeNull()
+  })
+
+  it('Avance también relee el historial antes de preparar el acceso', async () => {
+    const {user}=montar(true)
+    await user.click(await screen.findByRole('button',{name:'Avance'}))
+    await user.type(screen.getByLabelText('Apellidos'),'PRUEBA')
+    await user.type(screen.getByLabelText('Nombres'),'ANA')
+    await user.type(screen.getByLabelText('Domicilio legal'),'Av. Prueba 123, Miraflores, Lima')
+    api.ficha.mockResolvedValue({...structuredClone(fichaF5),inversiones_total:2,
+      totales:[...fichaF5.totales,{empresa:'avance',moneda:'PEN',cantidad:1,capital_registrado:1000,capital_activo:1000}]})
+    await user.click(screen.getByRole('button',{name:'Revisar acceso Avance'}))
+    expect(await screen.findByRole('button',{name:'Prodelco'})).toBeEnabled()
+    expect(screen.queryByRole('button',{name:'Avance'})).not.toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('Esta empresa ya tiene una inversión registrada')
+    expect(api.preparar).not.toHaveBeenCalled()
+    expect(api.acceso).not.toHaveBeenCalled()
+    expect(leerIntentoInversion(ACTOR_F5,PERSONA_F5)).toBeNull()
   })
 
   it('un cliente sin inversiones puede registrar su primera inversión', async () => {
