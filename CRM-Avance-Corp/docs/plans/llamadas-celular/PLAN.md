@@ -131,7 +131,7 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 | F0 · Piloto y línea base | 4 | 1/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-2) |
 | F1 · Formulario único y match exacto | 4 | 12/12 | Hecha | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-8) |
 | F2 · Núcleo confiable | 4 | 12/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-14) |
-| F3 · Captura y sincronización | 4 | 5/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-20) |
+| F3 · Captura y sincronización | 4 | 6/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-20) |
 | F4 · Pendientes y conciliación | 4 | 0/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-66) |
 | F5 · Jev para identificación asistida | 5 | 0/15 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-72) |
 | F6 · Gerencia y calidad | 4 | 0/12 | Bloqueada | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-78) |
@@ -170,8 +170,8 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 **Estado:** en curso · **Avance:** 0/3 · **Responsable:** Jhosep.
 
 - [ ] **F0.3.1** Probar al menos diez salientes y diez entrantes por equipo, además de atendidas, perdidas, rechazadas y canceladas. — EN CURSO: C1: salientes con número (29/09) y muchas más en las pruebas de C1 (02/10 y 06/10). Las entrantes están bloqueadas por la decisión 2 de Miguel; las diez de esta tarea dependen de la #16. Faltan diez salientes con sus casos (atendida, no atendida, rechazada, cancelada) por equipo.
-- [ ] **F0.3.2** Validar oculto, fijo, internacional, doble SIM si aplica, enlace con +, login y retorno a PWA. — EN CURSO: C1: notificación con número y nombre PASS. Apertura de la PWA por URL: PASS el 30/09 con el ajuste de Android «CRM Avance Corp → Abrir vínculos admitidos + dominio crm.miavance.com» («Open Website» abre la app sin barra de direcciones); sin el ajuste abre Chrome (29/09). «Lanzar app» abre la app pero no lleva número; «Send Intent» no hizo falta. Faltan oculto, fijo, internacional, doble SIM y login.
-- [ ] **F0.3.3** Probar pantalla bloqueada, batería, tres noches y ensayo sintético de cola, reinicio y respuesta HTTP. — EN CURSO: C1: noche 1 de 3. En C1 contra el receptor: cola sin red (A3), reinicio con aviso pendiente (A6), 503 (A4), 400 (A5) y 401 que conserva la cola (P4). Faltan dos noches, pantalla bloqueada y batería baja.
+- [ ] **F0.3.2** Validar oculto, fijo, internacional, doble SIM si aplica, enlace con +, login y retorno a PWA. — EN CURSO: C1: notificación con número y nombre PASS; la URL abre la PWA con «Abrir vínculos admitidos» (30/09); el número sobrevive al login (F1.2.2). 07/10 contra el receptor: saliente a un FIJO capturada y mostrada con +51 («ningún lead», correcto: no es lead); saliente a un lead propio con celular → se abrió su encuesta (REGISTRO.md §5h). Faltan oculto, internacional y doble SIM; «lead con fijo» en vivo es opcional (lo cubren las pruebas de F1).
+- [ ] **F0.3.3** Probar pantalla bloqueada, batería, tres noches y ensayo sintético de cola, reinicio y respuesta HTTP. — EN CURSO: C1: noche 1 de 3. En C1 contra el receptor: cola sin red (A3), reinicio con aviso pendiente (A6), 503 (A4), 400 (A5), 401 que conserva la cola (P4), 429 (07/10) y PANTALLA BLOQUEADA (07/10: el aviso llegó a los 9 s con la pantalla apagada y al desbloquear la encuesta ya estaba abierta). Faltan dos noches y batería baja.
 
 **Evidencia / fecha de validación:** pendiente.
 
@@ -333,7 +333,7 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 | Listar/alta/baja/rotar celular | Capacidad de administración resuelta en servidor |
 | Registrar salud | Credencial de equipo, datos mínimos; heartbeat no demuestra captura sana |
 
-**Seguimiento de F3:** 5/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
+**Seguimiento de F3:** 6/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
 
 ### F3.1 · Publicar el contrato de puertas
 
@@ -357,10 +357,10 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 
 ### F3.3 · Persistir y enviar
 
-**Estado:** en curso · **Avance:** 1/4 · **Responsable:** Jhosep (pruebas en C1) · Claude (receptor de pruebas).
+**Estado:** en curso · **Avance:** 2/4 · **Responsable:** Jhosep (pruebas en C1) · Claude (receptor de pruebas).
 
 - [x] **F3.3.1** Crear ID, hora y payload una vez; guardar en cola local antes del POST.
-- [ ] **F3.3.2** Reintentar red caída, 429 y reinicio; retirar solo tras confirmación y visibilizar errores permanentes. — EN CURSO: Hecho en C1 (02/10): sin red (A3), servidor caído con 503 (A4) y reinicio (A6) dejan el aviso en la cola, y el intervalo de 5 min lo reenvía con el mismo id; solo un 202 lo retira; un 400 se aparta a errores_llamadas con una notificación sin el número (A5). Falta ensayar un 429 explícito (el receptor lo fuerza con /_control?modo=429): necesita C1.
+- [x] **F3.3.2** Reintentar red caída, 429 y reinicio; retirar solo tras confirmación y visibilizar errores permanentes.
 - [ ] **F3.3.3** Parsear respuesta y abrir UUID confirmado; mantener fallback manual si falta UUID. — EN CURSO: Resuelta por la vía de la #12: la macro no espera un UUID del servidor; abre la encuesta enseguida con el número y el id de origen (/{lv=id_llamada}, P2 del 06/10 contra el receptor). Respaldo manual: la pestaña «Llamadas del celular». Falta la aceptación contra la Edge (P1–P3 de F4-d).
 - [ ] **F3.3.4** Correlacionar doble trigger y validar dirección/duración por evento sin confundir desconocido con cero. — EN CURSO: En C1 (02/10): una sola notificación y un solo aviso por llamada en más de 8 llamadas, incluidas colgar antes de que contesten y sin respuesta (prueba 5). La dirección la marca «Llamadas-Salientes» y las entrantes no generan aviso (A2). La duración no se envía (MacroDroid no la da) y llega null, no 0. Falta: llamada en espera, doble SIM y entrantes si se aprueba la #14.
 
@@ -370,7 +370,7 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 
 **Estado:** en curso · **Avance:** 0/3 · **Responsable:** Jhosep (pruebas en C1) · Claude (receptor de pruebas y guía).
 
-- [ ] **F3.4.1** Ensayar respuesta perdida tras commit, ráfagas, bloqueo, batería, desfase y permisos revocados. — EN CURSO: Parcial en C1 contra el receptor de pruebas (02/10): sin red (A3), servidor caído (A4) y reinicio (A6). Falta: respuesta perdida tras guardar, ráfagas, pantalla bloqueada, batería baja, desfase de hora y permisos revocados.
+- [ ] **F3.4.1** Ensayar respuesta perdida tras commit, ráfagas, bloqueo, batería, desfase y permisos revocados. — EN CURSO: En C1 contra el receptor: sin red (A3), servidor caído (A4), reinicio (A6) y, el 07/10, RÁFAGA de 3 salientes en 48 s: 3 avisos distintos, cada uno con su id, sin repetidos ni rechazos (REGISTRO.md §5h); reloj desfasado visible en la salud (undécima). Faltan respuesta perdida tras guardar, batería baja, desfase de hora en el celular y permisos revocados; repetir contra la Edge.
 - [ ] **F3.4.2** Verificar dos llamadas al mismo número, baja/rotación de token y actor inactivo, por equipo piloto. — EN CURSO: Dos llamadas al mismo número → dos eventos, cada uno con su id (prueba 2 en C1). Rotación, cierre de la clave y analista de baja: probados en el banco reducido y escritos en el bloque testLlamadasCelular del gate (sin correr aquí). Falta repetirlo con la Edge desplegada y por equipo piloto.
 - [ ] **F3.4.3** Entregar guía de soporte y salud de cola; decidir otro adaptador si MacroDroid no acredita durabilidad. — EN CURSO: Guía de la macro en macrodroid.md §3c; latido cada 6 h probado (P1, 06/10). MacroDroid acredita durabilidad (decisión 5 de F3), pero la versión gratuita se apaga sola al vencer sus días: #18. Falta la guía de soporte.
 
