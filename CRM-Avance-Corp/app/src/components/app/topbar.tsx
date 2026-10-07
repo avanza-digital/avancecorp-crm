@@ -78,6 +78,7 @@ const TITULOS: Record<Vista, { t: string; s: string }> = {
   'config-gestion-diaria': { t: 'Gestión Diaria', s: 'Cortes, contacto y vigencias futuras' },
   'config-rentabilidad': { t: 'Política de rentabilidad', s: 'Tasa base, herencia y excepciones de Gerencia' },
   'config-citas': { t: 'Control de Citas', s: 'Metas y reglas de gestión' },
+  'config-celulares': { t: 'Celulares', s: 'Asignación, clave y salud de los celulares que capturan llamadas' },
 }
 
 /**

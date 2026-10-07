@@ -77,6 +77,7 @@ const ConfigSla = lazy(() => import('@/screens/config-sla').then((m) => ({ defau
 const ConfigGestionDiaria = lazy(() => import('@/screens/config-gestion-diaria').then((m) => ({ default: m.ConfigGestionDiaria })))
 const ConfigRentabilidad = lazy(() => import('@/screens/config-rentabilidad').then((m) => ({ default: m.ConfigRentabilidad })))
 const ConfigCitas = lazy(() => import('@/screens/config-citas').then((m) => ({ default: m.ConfigCitas })))
+const ConfigCelulares = lazy(() => import('@/screens/config-celulares').then((m) => ({ default: m.ConfigCelulares })))
 
 /** Registro exhaustivo: una Vista nueva exige declarar también su pantalla. */
 const PANTALLA_POR_VISTA = {
@@ -108,6 +109,7 @@ const PANTALLA_POR_VISTA = {
   'config-gestion-diaria': ConfigGestionDiaria,
   'config-rentabilidad': ConfigRentabilidad,
   'config-citas': ConfigCitas,
+  'config-celulares': ConfigCelulares,
 } satisfies Record<Vista, unknown>
 
 /**
