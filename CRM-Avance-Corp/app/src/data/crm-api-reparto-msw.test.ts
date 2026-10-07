@@ -360,6 +360,16 @@ describe('listarReporteDerivacionesCoordinacion (msw)', () => {
 })
 
 describe('agendaRepartoDiaria (msw)', () => {
+  it.each([true, false, undefined])('lee el permiso del servidor con compatibilidad segura: %s', async (permiso) => {
+    server.use(http.post(RPC('agenda_reparto_diaria'), () => HttpResponse.json({ ...AGENDA_REPARTO, reparto_libre: permiso })))
+    await expect(agendaRepartoDiaria()).resolves.toMatchObject({ reparto_libre: permiso === true })
+  })
+
+  it('rechaza un permiso mal formado', async () => {
+    server.use(http.post(RPC('agenda_reparto_diaria'), () => HttpResponse.json({ ...AGENDA_REPARTO, reparto_libre: 'true' })))
+    await expect(agendaRepartoDiaria()).rejects.toMatchObject({ code: 'AGENDA_REPARTO_CONTRACT' })
+  })
+
   it('carga solo los turnos Landing/Formulario, sus destinos y conteos', async () => {
     let cuerpo: unknown = null
     server.use(

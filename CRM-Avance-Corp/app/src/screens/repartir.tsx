@@ -122,6 +122,7 @@ interface EstadoReparto {
   cola: ColaLead[]
   supervisores: SupervisorReparto[]
   agendaHoy: DiaAgendaReparto | null
+  repartoLibre: boolean
   cargando: boolean
   error: string | null
 }
@@ -152,14 +153,16 @@ function sumarEntregaLocal(
 
 function useReparto() {
   const [estado, setEstado] = useState<EstadoReparto>({
-    cola: [], supervisores: [], agendaHoy: null, cargando: true, error: null,
+    cola: [], supervisores: [], agendaHoy: null, repartoLibre: false, cargando: true, error: null,
   })
   const [enviandoIds, setEnviandoIds] = useState<ReadonlySet<string>>(() => new Set())
   const enviandoRef = useRef<Set<string>>(new Set())
   const abortRef = useRef<AbortController | null>(null)
+  const permisoAbortRef = useRef<AbortController | null>(null)
 
   const iniciarEnvio = useCallback((leadId: string): boolean => {
     if (enviandoRef.current.has(leadId)) return false
+    permisoAbortRef.current?.abort()
     enviandoRef.current = new Set(enviandoRef.current).add(leadId)
     setEnviandoIds(enviandoRef.current)
     return true
@@ -174,6 +177,7 @@ function useReparto() {
 
   const cargar = useCallback(async () => {
     abortRef.current?.abort()
+    permisoAbortRef.current?.abort()
     const ctrl = new AbortController()
     abortRef.current = ctrl
     setEstado((e) => ({ ...e, cargando: true, error: null }))
@@ -189,6 +193,7 @@ function useReparto() {
         cola,
         supervisores,
         agendaHoy: agenda.dias.find((dia) => dia.fecha === hoy) ?? null,
+        repartoLibre: agenda.reparto_libre === true,
         cargando: false,
         error: null,
       })
@@ -199,13 +204,45 @@ function useReparto() {
         cargando: false,
         error: error instanceof Error ? error.message : 'No se pudo cargar la cola de leads.',
       }))
+    } finally {
+      if (abortRef.current === ctrl) abortRef.current = null
+    }
+  }, [])
+
+  // Volver a la ventana solo refresca el permiso, sin desmontar filas ni
+  // sobrescribir selecciones, entregas locales o escrituras en curso.
+  const actualizarPermiso = useCallback(async () => {
+    if (enviandoRef.current.size || abortRef.current || permisoAbortRef.current) return
+    const ctrl = new AbortController()
+    permisoAbortRef.current = ctrl
+    try {
+      const agenda = await agendaRepartoDiaria({ desde: hoyLimaIso(), dias: 1 }, ctrl.signal)
+      if (!ctrl.signal.aborted) {
+        setEstado((e) => ({ ...e, repartoLibre: agenda.reparto_libre === true }))
+      }
+    } catch {
+      // Conserva la pantalla ante un fallo transitorio. Cada reparto vuelve
+      // a comprobar el permiso en el servidor y relee si la regla cambió.
+    } finally {
+      if (permisoAbortRef.current === ctrl) permisoAbortRef.current = null
     }
   }, [])
 
   useEffect(() => {
     void cargar()
-    return () => abortRef.current?.abort()
-  }, [cargar])
+    let pendiente: ReturnType<typeof setTimeout> | undefined
+    const alVolver = () => {
+      clearTimeout(pendiente)
+      pendiente = setTimeout(() => { void actualizarPermiso() }, 250)
+    }
+    window.addEventListener('focus', alVolver)
+    return () => {
+      window.removeEventListener('focus', alVolver)
+      clearTimeout(pendiente)
+      abortRef.current?.abort()
+      permisoAbortRef.current?.abort()
+    }
+  }, [cargar, actualizarPermiso])
 
   /** Reparte un lead. El servidor manda: si rechaza, la fila NO se mueve. */
   const repartir = useCallback(async (lead: ColaLead, supervisorId: string) => {
@@ -293,9 +330,10 @@ function useReparto() {
 
 /** Pestaña "Cola": repartir o descartar los leads nuevos sin dueño. */
 function PanelCola() {
-  const { cola, supervisores, agendaHoy, cargando, error, enviandoIds, recargar, repartir, descartar } = useReparto()
+  const { cola, supervisores, agendaHoy, repartoLibre, cargando, error, enviandoIds, recargar, repartir, descartar } = useReparto()
   const { yo } = useAuth()
   const esAdministrador = yo?.rol_portal === 'superadmin'
+  const puedeElegirDestino = esAdministrador || repartoLibre
   // Los TILES los cuenta el servidor sobre la cola GLOBAL (F1b tanda 3); las
   // FILAS cargadas siguen gobernando lo que es de la lista: el panel vacío, el
   // «N en espera», el «X de Y», el «Mostrando…», el selector de orígenes y el
@@ -396,7 +434,7 @@ function PanelCola() {
             title="Turno de hoy"
             right={(
               <span className="text-[11px] font-semibold text-muted-foreground">
-                {esAdministrador ? 'Turno sugerido · admite excepción de administrador' : 'Destino fijado por la agenda'}
+                {puedeElegirDestino ? 'Turno sugerido · reparto libre habilitado' : 'Destino fijado por la agenda'}
               </span>
             )}
           />
@@ -539,7 +577,7 @@ function PanelCola() {
                 {colaVisible.map((lead) => {
                   const dias = diasEnCola(lead.creado_en, ahora)
                   const usaTurno = origenUsaTurno(lead.origen)
-                  const turnoObligatorio = usaTurno && !esAdministrador
+                  const turnoObligatorio = usaTurno && !puedeElegirDestino
                   const asignacionTurno = usaTurno
                     ? agendaHoy?.asignaciones.find((fila) => fila.origen === lead.origen)
                     : undefined
@@ -708,11 +746,11 @@ function PanelCola() {
                                 ? `Destino bloqueado por el turno de hoy: ${asignacionTurno?.supervisor_alias ?? asignacionTurno?.supervisor_nombre}.`
                                 : 'Guarda primero el turno en Coordinación → supervisores.'}
                             </p>
-                          ) : esAdministrador && usaTurno ? (
+                          ) : puedeElegirDestino && usaTurno ? (
                             <p className="mt-1.5 text-[11px] font-medium text-muted-foreground">
                               {asignacionTurno?.supervisor_id
-                                ? `Turno sugerido: ${asignacionTurno.supervisor_alias ?? asignacionTurno.supervisor_nombre}. Como administrador puedes elegir otro destino por excepción.`
-                                : 'No hay turno guardado. Como administrador puedes elegir el destino por excepción.'}
+                                ? `Turno sugerido: ${asignacionTurno.supervisor_alias ?? asignacionTurno.supervisor_nombre}. Puedes elegir cualquier supervisor activo.`
+                                : 'No hay turno guardado. Puedes elegir cualquier supervisor activo.'}
                             </p>
                           ) : null}
                         </div>

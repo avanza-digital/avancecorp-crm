@@ -9,6 +9,7 @@ import { SectionHead } from '@/components/common/section-head'
 import { CalendarioGoogle } from '@/components/app/calendario-google'
 import { NotificacionesTasa } from '@/components/app/notificaciones-tasa'
 import { ConfiguracionRespuestasTasa } from '@/components/app/respuestas-tasa'
+import { RepartoLibre } from '@/components/config/reparto-libre'
 import {
   useCatalogoUsuariosAdministrables,
   useConfiguracionMetas,
@@ -258,6 +259,7 @@ export function Config() {
       <NotificacionesTasa />
       <ConfiguracionRespuestasTasa />
       <RielEstadoConfiguracion pasos={pasos} />
+      {edita && <RepartoLibre />}
 
       {/* Áreas de gobierno disponibles para la identidad actual. */}
       {secciones.length > 0 && <div className="grid gap-4 sm:grid-cols-2">

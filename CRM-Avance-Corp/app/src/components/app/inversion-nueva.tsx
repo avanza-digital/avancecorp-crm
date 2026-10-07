@@ -22,6 +22,7 @@ import { contratoDeSolicitud, datosAvanceRevisados, guardarBorradorAcceso, guard
   limpiarIntentosInversion, nuevoIntentoInversion, mismoContenidoInversion, solicitudCorresponde, origenContinuidad,
   type ConfirmacionInversion, type DatosBorradorAcceso, type DatosInversion, type IntentoInversion, type OrigenIntento, type SolicitudInversion } from '@/lib/inversion-solicitud'
 import { EMPRESAS_INVERSION, EMPRESA_NOMBRE, type EmpresaInversion, type InversionFuente } from '@/lib/inversionistas'
+import { AYUDA_HISTORIAL_INCOMPLETO, AYUDA_TODAS_LAS_EMPRESAS, empresasSinHistorial } from '@/lib/inversion-por-empresa'
 import { obtenerContextoClienteExistente, type LlaveVentaCruzada } from '@/data/cliente-existente-api'
 import { useContratosUpgradeVentaCruzada } from '@/data/cliente-existente-queries'
 import { validarDomicilioLegal } from '@/lib/cliente-form-logica'
@@ -192,6 +193,17 @@ export function InversionNueva({actor, persona, operacion, origenLead, origenCli
     } finally {enCurso.current = false; if (!cerro.current) setOcupado(false)}
   }
   async function preparar(datos: DatosInversion, claveSolicitud: string = crypto.randomUUID()) {
+    // Solo una nueva solicitud desde la ficha completa. Las recuperaciones
+    // conservan su UUID y tipo; confirmar pudo haber terminado antes de un corte.
+    if (restringirEmpresaNueva) {
+      const actual = await carteraQ.refetch()
+      if (actual.error) throw actual.error
+      if (!actual.data) throw new CrmApiError(AYUDA_HISTORIAL_INCOMPLETO, 'PT409')
+      if (!actual.data.capacidades.nueva_inversion) throw new CrmApiError(actual.data.capacidades.motivo_no_operable ?? 'Ya no puedes registrar esta inversión.', 'PT409')
+      const disponibles = empresasSinHistorial(actual.data)
+      if (!disponibles) throw new CrmApiError(AYUDA_HISTORIAL_INCOMPLETO, 'PT409')
+      if (!disponibles.includes(datos.empresa)) throw new CrmApiError('Esta empresa ya tiene una inversión registrada. Elige otra empresa o vuelve a la ficha para usar continuidad.', 'PT409')
+    }
     const i = nuevoIntentoInversion(actor, persona, claveSolicitud, datos, operacion?.tipo === 'reinversion' ? operacion.fuente.fuente_id
       : operacion?.tipo === 'upgrade' && operacion.fuente.empresa !== 'avance' ? {tipo: 'upgrade', fuenteId: operacion.fuente.fuente_id} : undefined,
       origenClienteExistente ? {busqueda_id: origenClienteExistente.busquedaId, motivo: motivoVenta.trim()} : undefined)
@@ -274,6 +286,12 @@ export function InversionNueva({actor, persona, operacion, origenLead, origenCli
       moneda: INFO_COOPERATIVA[empresa].monedas.includes(origenLead.moneda) ? origenLead.moneda : monedaPorDefecto(empresa),
     } : {})}
   const puedeOperar = ficha?.capacidades.nueva_inversion === true
+  // Los contextos de lead y venta cruzada no incluyen historial multiempresa.
+  // Esta regla se aplica a la cartera propia, sin inferir ausencia desde esos contextos.
+  const restringirEmpresaNueva = !origenLead && !origenClienteExistente && !operacion && !intento && !solicitud && !confirmacion
+  const empresasNuevas = restringirEmpresaNueva
+    ? carteraQ.data ? empresasSinHistorial(carteraQ.data) : null : [...EMPRESAS_INVERSION]
+  const empresaYaInvertida = restringirEmpresaNueva && empresa !== null && !empresasNuevas?.includes(empresa)
   const borradorCondiciones = useMemo(() => {
     if (!intento || !solicitud || !datos?.alta_portal) return null
     try {return leerBorradorCondiciones(actor, persona, origenIntento, intento.clave, solicitud.revision_datos)}
@@ -340,7 +358,7 @@ export function InversionNueva({actor, persona, operacion, origenLead, origenCli
       setGuardado({intento: null, error: null}); setError(null); setArchivo(null); setEditar(false); setMotivo(''); setRecuperarId(null)
     }}>Iniciar otra inversión</Button></DialogBody></>
   else if (!puedeOperar) cuerpo = <>{cabecera('Nueva inversión')}<DialogBody><p role="status">{ficha.capacidades.motivo_no_operable ?? 'La persona ya no permite nuevas inversiones.'}</p></DialogBody></>
-  else if (guardado.error || !empresa) cuerpo = <>{cabecera(guardado.error ? 'Recuperar solicitud' : 'Nueva inversión')}<DialogBody className="space-y-5">
+  else if (guardado.error || !empresa || empresaYaInvertida) cuerpo = <>{cabecera(guardado.error ? 'Recuperar solicitud' : 'Nueva inversión')}<DialogBody className="space-y-5">
     {guardado.error ? <div className="space-y-3">
       <p className="text-sm">El borrador local no se puede leer. Puedes consultar la solicitud por su referencia.</p>
       <Button variant="outline" className="h-auto min-h-10 max-w-full whitespace-normal" onClick={() => {
@@ -355,10 +373,14 @@ export function InversionNueva({actor, persona, operacion, origenLead, origenCli
         <p id="f5-motivo-venta-ayuda" className="text-sm text-muted-foreground">Entre {MOTIVO_VENTA_MINIMO} y 500 caracteres
           {faltaMotivo ? ` (faltan ${MOTIVO_VENTA_MINIMO - motivoVenta.trim().length})` : ''}. Por ejemplo: «El cliente me pidió invertir en la feria».</p>
       </div>}
-      <p id="f5-empresa-ayuda" className="text-sm">{faltaMotivo ? 'Escribe primero el motivo de la venta para elegir la empresa.' : 'Elige la empresa en la que invertirá.'}</p>
-      <div className="grid gap-3 sm:grid-cols-3">{EMPRESAS_INVERSION.map(e => <Button key={e} variant="outline" className="h-20 flex-col aria-disabled:opacity-50"
+      {empresaYaInvertida && <p role="status" className="text-sm">La información de esta empresa cambió. Revisa las opciones antes de iniciar una nueva inversión.</p>}
+      <p id="f5-empresa-ayuda" className="text-sm">{empresasNuevas === null ? AYUDA_HISTORIAL_INCOMPLETO
+        : empresasNuevas.length === 0 ? AYUDA_TODAS_LAS_EMPRESAS
+        : faltaMotivo ? 'Escribe primero el motivo de la venta para elegir la empresa.'
+        : restringirEmpresaNueva ? 'Elige una empresa donde este cliente aún no tenga inversiones registradas.' : 'Elige la empresa en la que invertirá.'}</p>
+      <div className="grid gap-3 sm:grid-cols-3">{empresasNuevas?.map(e => <Button key={e} variant="outline" className="h-20 flex-col aria-disabled:opacity-50"
         aria-disabled={faltaMotivo || undefined} aria-describedby={origenClienteExistente ? 'f5-empresa-ayuda' : undefined}
-        onClick={() => {if (faltaMotivo) document.getElementById('f5-motivo-venta')?.focus(); else setEmpresa(e)}}>
+        onClick={() => {if (faltaMotivo) document.getElementById('f5-motivo-venta')?.focus(); else {setEmpresa(e); setError(null)}}}>
         <Landmark aria-hidden />{EMPRESA_NOMBRE[e]}</Button>)}</div></>}
     <form onSubmit={e => {e.preventDefault(); void ejecutar(async () => {
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(referencia)) throw new Error('Introduce la referencia completa de la solicitud.')

@@ -1,3 +1,13 @@
+## 20261007143121 — Reparto libre de Coordinación controlado por Gerencia
+
+**APLICADA Y VERIFICADA EN PRODUCCIÓN 07/10/2026 mediante `merge_branch`; frontend PUBLICADO, permiso ACTIVADO.** Autorizaciones de Miguel: `$release-crm` y aprobación separada de migración/rama con costo. Todo el rol Coordinadora puede derivar libremente; Gerencia activa/desactiva en Configuración.
+
+Añade `crm.configuracion_reparto` (fila única, FORCE RLS, sin acceso API directo, auditoría), núcleos privados y dos RPC exclusivas de Gerencia activa. El permiso efectivo viaja en la agenda y se comprueba en cada reparto. Apagarlo restaura el turno de Landing/Formulario; Superadmin conserva su excepción. Revisiones obsoletas reciben PT409. Se conservan No Insista, destino activo e identidad real del actor.
+
+SQL local/remoto, concurrencia y negativas HTTP PASS. Matriz general: 2.845 comprobaciones correctas y cinco fallos iniciales de fixture/catálogo cerrados mediante reconstrucción del seed y repetición completa de los cuatro bloques afectados (279 aserciones PASS). Check limpio: 6.333 tests, duplicación 0,44 %; 49 E2E Docker PASS. Postflight: siete funciones y ACL/RLS exactas, ON/revisión 1, Rosa con permiso efectivo y 22 Edge Functions intactas. Advisors nuevos intencionales evaluados. Rama temporal eliminada.
+
+PR #216; commit publicado `e511d30504f24045aa28230a2d2eb03891bdf967`; build `build-20261007T152927260Z`. Pantalla real de Gerencia, portada y 116 JS/CSS verificados. Acta, huella, recuperación y límites: `../scripts/reparto-libre/PUBLICACION.md`. El alta inicial conserva actor NULL de instalación; cambios posteriores registran al actor real.
+
 ## 20261006221545 — Upgrade cooperativo separado de reinversión
 
 **PREPARADA, NO APLICADA EN PRODUCCIÓN.** Decisión de Miguel: upgrade y reinversión separados en Qorilazo y Prodelco. Añade tipo inmutable al vínculo solicitud/origen, RPC autenticada de upgrade, validación de origen vigente e historial propio. Conserva la inversión anterior y el escritor financiero; conflictos de continuidad devuelven PT409. Preflight de cuerpos y catálogo de historial; reversa rechaza eliminar el tipo con upgrades existentes. Banco SQL con permisos, recuperación, historial y carreras PASS; frontend y E2E locales PASS. Guía, límites y publicación pendiente: `../scripts/upgrade-cooperativas/README.md`.

@@ -9865,7 +9865,52 @@ async function testReporteDerivacionesEquipo(sessions, seed) {
 // abren al dejar de ser rol_crm NULL; (B) control de acceso de las 3 RPC;
 // (C) reglas de negocio de repartir_lead con oraculos de ESTADO leidos con
 // service_role (una mutacion que "no revienta" no prueba que no haya mutado).
+async function testConfiguracionReparto(sessions) {
+  // Modifica un control global: validateEnvironment rechaza producción; solo
+  // branch/staging sintético. El finally conserva el estado anterior del banco.
+  console.log('\n— Reparto libre de Coordinación: control exclusivo de Gerencia —');
+  const gerencia = sessions.gerencia.client.schema('crm');
+  const inicial = await positive('gerencia lee el control de reparto', gerencia.rpc('configuracion_reparto_fn'));
+  if (!inicial) return;
+  const original = inicial.data.coordinacion_libre;
+  let revision = inicial.data.revision;
+  try {
+    for (const rol of ['coordinador', 'sup1', 'vend1', 'directorio', 'vendInactive']) {
+      const cliente = sessions[rol].client.schema('crm');
+      await expectBlockedMutation(`${rol} no consulta el control de Gerencia`, cliente.rpc('configuracion_reparto_fn'), ['42501']);
+      await expectBlockedMutation(`${rol} no cambia el reparto libre`, cliente.rpc('guardar_configuracion_reparto_fn', { p_libre: !original, p_revision: revision }), ['42501']);
+      await expectHidden(`${rol} no lee la tabla del control`, cliente.from('configuracion_reparto').select('*'));
+    }
+    const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-reparto'));
+    for (const [rol, cliente] of [['anon', anon], ['service_role', admin]]) {
+      await expectExplicitAuthorizationDenied(`${rol} no consulta el control de Gerencia`, cliente.schema('crm').rpc('configuracion_reparto_fn'));
+      await expectExplicitAuthorizationDenied(`${rol} no cambia el reparto libre`, cliente.schema('crm').rpc('guardar_configuracion_reparto_fn', { p_libre: !original, p_revision: revision }));
+      await expectExplicitAuthorizationDenied(`${rol} no lee la tabla del control`, cliente.schema('crm').from('configuracion_reparto').select('*'));
+    }
+    for (const libre of [false, true]) {
+      const cambio = await positive(`Gerencia guarda reparto libre ${libre}`, gerencia.rpc('guardar_configuracion_reparto_fn', { p_libre: libre, p_revision: revision }));
+      if (!cambio) continue;
+      revision = cambio.data.revision;
+      check(cambio.data.coordinacion_libre === libre, 'el control confirma el estado guardado');
+      const agenda = await positive('Coordinación relee su permiso efectivo', sessions.coordinador.client.schema('crm').rpc('agenda_reparto_diaria', { p_dias: 1 }));
+      if (agenda) check(agenda.data.reparto_libre === libre, 'el permiso visible sigue el control de Gerencia');
+    }
+    if (revision > 1) {
+      const obsoleto = await gerencia.rpc('guardar_configuracion_reparto_fn', { p_libre: false, p_revision: revision - 1 });
+      check(obsoleto.error?.code === 'PT409', 'una revisión antigua no sobrescribe el control');
+    }
+  } finally {
+    // Recupera la revisión real incluso si se perdió una respuesta de escritura.
+    const vigente = await gerencia.rpc('configuracion_reparto_fn');
+    if (vigente.error) throw vigente.error;
+    const restaurado = await gerencia.rpc('guardar_configuracion_reparto_fn', { p_libre: original, p_revision: vigente.data.revision });
+    if (restaurado.error) throw restaurado.error;
+    check(restaurado.data.coordinacion_libre === original, 'el gate restaura el estado previo del control');
+  }
+}
+
 async function testReparto(sessions, seed) {
+  await testConfiguracionReparto(sessions);
   console.log('\n— Reparto de la cola global (C1: rol coordinador) —');
   const coordinador = sessions.coordinador.client;
   const gerencia = sessions.gerencia.client;

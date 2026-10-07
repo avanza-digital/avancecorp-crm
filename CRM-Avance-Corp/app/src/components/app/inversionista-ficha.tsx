@@ -19,7 +19,8 @@ import { EMPRESA_NOMBRE, type FichaInversionista, type InversionFuente, type Res
 import type { OperacionInversion } from './inversion-nueva'
 import { fechaHora, fmtFecha, money } from '@/lib/format'
 import { fechaLima } from '@/lib/agenda-derivada'
-import { AYUDA_UPGRADE, CATEGORIA_LABEL, ESTADO_COLOR, ESTADO_CONTRATO_LABEL, ETIQUETA_UPGRADE, MOTIVO_NUEVA_INVERSION_BLOQUEADA } from '@/lib/contratos-catalogo'
+import { AYUDA_UPGRADE, CATEGORIA_LABEL, ESTADO_COLOR, ESTADO_CONTRATO_LABEL, ETIQUETA_UPGRADE } from '@/lib/contratos-catalogo'
+import { AYUDA_HISTORIAL_INCOMPLETO, AYUDA_TODAS_LAS_EMPRESAS, empresasSinHistorial } from '@/lib/inversion-por-empresa'
 import { ContratoEliminar } from './contrato-eliminar'
 import { InversionEliminar } from './inversion-eliminar'
 import { GestionInversionistaDialogo } from './gestion-inversionista-dialogo'
@@ -216,8 +217,13 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
       : <PanelCargando filas={5} />}</SheetBody>
   </>
   const p = ficha.persona
-  // El total abarca todas las empresas y páginas de la ficha.
   const tieneInversion = ficha.inversiones_total > 0
+  const empresasNuevas = empresasSinHistorial(ficha)
+  const sinEmpresaNueva = !empresasNuevas?.length
+  const ayudaNueva = empresasNuevas === null ? AYUDA_HISTORIAL_INCOMPLETO
+    : sinEmpresaNueva ? AYUDA_TODAS_LAS_EMPRESAS
+    : tieneInversion && ficha.capacidades.nueva_inversion
+      ? `Puedes registrar su primera inversión en: ${empresasNuevas.map(e => EMPRESA_NOMBRE[e]).join(' o ')}.` : null
   const grupos = new Map<string, InversionFuente[]>()
   for (const i of ficha.inversiones) {
     const k = `${i.empresa}:${i.moneda}`
@@ -297,13 +303,13 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
             <TrendingUp aria-hidden /> <span className="whitespace-nowrap">{ETIQUETA_UPGRADE}</span>
           </Button>}
           {onNuevaInversion && <Button size="xs" className="min-h-10" onClick={() => onNuevaInversion(ficha)}
-            disabled={tieneInversion || desactualizada || !ficha.capacidades.nueva_inversion}
-            aria-describedby={[tieneInversion ? motivoNuevaInversionId : '', !ficha.capacidades.nueva_inversion ? motivoNoOperableId : ''].filter(Boolean).join(' ') || undefined}>
+            disabled={sinEmpresaNueva || desactualizada || !ficha.capacidades.nueva_inversion}
+            aria-describedby={[ayudaNueva ? motivoNuevaInversionId : '', !ficha.capacidades.nueva_inversion ? motivoNoOperableId : ''].filter(Boolean).join(' ') || undefined}>
             {tieneInversion ? 'Registrar nueva inversión' : 'Registrar primera inversión'}
           </Button>}
         </div>}>
         {onNuevaInversion && !ficha.capacidades.nueva_inversion && <p id={motivoNoOperableId} className="text-xs text-muted-foreground">{ficha.capacidades.motivo_no_operable}</p>}
-        {onNuevaInversion && tieneInversion && <p id={motivoNuevaInversionId} className="text-xs text-muted-foreground">{MOTIVO_NUEVA_INVERSION_BLOQUEADA}</p>}
+        {onNuevaInversion && ayudaNueva && <p id={motivoNuevaInversionId} className="text-xs text-muted-foreground">{ayudaNueva}</p>}
         {ampliables.length > 0 && <p className="text-[11px] leading-relaxed text-muted-foreground">{ayudaUpgrade}</p>}
         <p className="sr-only">{ficha.inversiones_total} {ficha.inversiones_total === 1 ? 'inversión' : 'inversiones'} en esta ficha</p>
         {Array.from(grupos, ([k, inversiones]) => <div key={k} className="space-y-2">
