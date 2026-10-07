@@ -12909,6 +12909,13 @@ async function testConversionMensual(sessions, seed) {
   }).format(fecha);
   const MES = enLima(new Date()).slice(0, 7);
   const PERIODO = `${MES}-01`;
+  // Tope de referidos (migracion 20261007160937): desde 2026-10 el referido que cierra vale 1 y entre todos los
+  // referidos de un analista solo cuentan hasta el 15 % de sus cierres de leads asignados (landing y formulario). El
+  // oraculo de este bloque SIGUE el mes: antes de octubre, factor 0,15 y suma exacta; desde octubre, factor 1 y la suma
+  // exacta pasa a ser una COTA (el tope depende de los cierres de landing y formulario sin alta manual, que el payload no
+  // separa de los de base cargada ni de los de alta manual).
+  const TOPE_ACTIVO = MES >= '2026-10';
+  const FACTOR_ESPERADO = TOPE_ACTIVO ? 1 : 0.15;
   const ids = seed.profileIdByKey;
   const bankProfileId = ids[BANK_CLIENT.key];
 
@@ -13141,9 +13148,21 @@ async function testConversionMensual(sessions, seed) {
       'el periodo viaja etiquetado y en hora de Lima',
       JSON.stringify(payload?.periodo));
     const factor = Number(payload?.ponderacion?.referido ?? 0);
-    check(factor === 0.15 && payload?.ponderacion?.fuente === 'crm.conversion_pesos',
-      'la ponderacion vigente es 0,15 y declara su fuente versionada',
+    check(factor === FACTOR_ESPERADO && payload?.ponderacion?.fuente === 'crm.conversion_pesos',
+      `la ponderacion vigente del mes es ${FACTOR_ESPERADO} y declara su fuente versionada`,
       JSON.stringify(payload?.ponderacion));
+    // Fase B del tope de referidos: desde octubre la puerta declara el tope (15) y antes no lo trae o es null; el total de
+    // «aporta» nunca supera peso × cierres_referidos / divisor (la cota que valida el front).
+    const topeDeclarado = payload?.ponderacion?.tope_referidos_pct ?? null;
+    check(TOPE_ACTIVO ? Number(topeDeclarado) === 15 : topeDeclarado === null,
+      TOPE_ACTIVO ? 'el mes declara el tope de referidos (15)' : 'un mes sin tope no declara tope de referidos',
+      JSON.stringify(payload?.ponderacion));
+    if (TOPE_ACTIVO && Number(payload?.total?.divisor) > 0) {
+      const cotaTotal = 100 * factor * Number(payload.total.cierres_referidos) / Number(payload.total.divisor);
+      check(Number(payload.total.referidos_aporta_pct) >= -0.01 && Number(payload.total.referidos_aporta_pct) <= cotaTotal + 0.01,
+        'total.referidos_aporta_pct con tope no supera peso × referidos / divisor',
+        JSON.stringify([payload.total.referidos_aporta_pct, cotaTotal]));
+    }
     // Eco del contrato para el `v.literal` del front: si un servidor viejo
     // colara otra definicion del divisor, el cliente lo rechaza en vez de pintar
     // un numero de otra formula. OJO con lo que esto NO es: son literales de
@@ -13307,8 +13326,17 @@ async function testConversionMensual(sessions, seed) {
       && deltaVend1((f) => f.cierres_referidos) === 1,
       'T2/T3 · los dos cierres del mes se atribuyen a vend1, cada uno en su cubo',
       JSON.stringify({ cnr: deltaVend1((f) => f.cierres_no_referidos), cr: deltaVend1((f) => f.cierres_referidos) }));
-    check(cerca(deltaVend1((f) => f.numerador), 1.15),
-      'T6 · el numerador sube 1,15 exactos: 1 + 0,15 × 1, fraccionario y sin redondear',
+    // Antes del tope: 1 + 0,15 × 1 exactos. Con tope (octubre en adelante) el referido vale 1 si cabe en el tope
+    // (siempre cabe el primero del mes: el cierre landing de este mismo bloque es base) y 0 si otro referido anterior de vend1
+    // ya ocupa el lugar: el delta cae en [1, 1 + factor]. NO es un oraculo exacto a proposito: la base del tope (landing y
+    // formulario sin alta manual) no se separa en este payload de los cierres de base cargada y de alta manual, ni de los
+    // referidos del fixture, asi que el caso exacto lo prueba conversion-tope-referidos/prueba-tope.sql en el banco.
+    check(TOPE_ACTIVO
+        ? (deltaVend1((f) => f.numerador) >= 1 - 1e-9 && deltaVend1((f) => f.numerador) <= 1 + FACTOR_ESPERADO + 1e-9)
+        : cerca(deltaVend1((f) => f.numerador), 1.15),
+      TOPE_ACTIVO
+        ? 'T6 · con el tope de referidos el numerador de vend1 sube entre 1 y 1 + factor (el referido cuenta o queda fuera del tope)'
+        : 'T6 · el numerador sube 1,15 exactos: 1 + 0,15 × 1, fraccionario y sin redondear',
       String(deltaVend1((f) => f.numerador)));
     check(deltaVend1((f) => f.referidos.cerrados) === 1
       && deltaVend1((f) => f.referidos.dados_de_alta) === 1,
@@ -13349,7 +13377,7 @@ async function testConversionMensual(sessions, seed) {
       && deltaTotal('cierres_no_referidos') === 1
       && deltaTotal('cierres_referidos') === 1
       && deltaTotal('referidos_recibidos') === 2
-      && cerca(deltaTotal('numerador'), 1.15)
+      && cerca(deltaTotal('numerador'), TOPE_ACTIVO ? 1 + FACTOR_ESPERADO : 1.15)
       && deltaTotal('analistas') === 0,
       `D8 · el TOTAL global se mueve lo sembrado INCLUYENDO al productor fuera de roster (+2 divisor; el listado de analistas conserva su tamaño)`,
       JSON.stringify({ antes: totalAntes, despues: totalDespues, sup1YaContaba: deltaAnalistaFueraRoster === 0 }));
@@ -13390,7 +13418,10 @@ async function testConversionMensual(sessions, seed) {
       const cnr = Number(fila.cierres_no_referidos);
       const cr = Number(fila.cierres_referidos);
       const div = Number(fila.divisor);
-      if (!cerca(fila.numerador, cnr + factor * cr)) desviadas.push(fila.vendedor_id);
+      // Con tope, la suma exacta es la COTA SUPERIOR; el piso es no contar ningun referido.
+      if (TOPE_ACTIVO
+        ? (num(fila.numerador) > cnr + factor * cr + 1e-9 || num(fila.numerador) < cnr - 1e-9)
+        : !cerca(fila.numerador, cnr + factor * cr)) desviadas.push(fila.vendedor_id);
       const cierresProcedencia = (fila.procedencia ?? [])
         .reduce((suma, tramo) => suma + Number(tramo.cierres), 0);
       const referidosProcedencia = (fila.procedencia ?? [])
@@ -13411,7 +13442,9 @@ async function testConversionMensual(sessions, seed) {
       const aporteEsperado = div > 0 ? (100 * factor * cr) / div : null;
       if (aporteEsperado === null
         ? fila.referidos?.aporta_pct !== null
-        : Math.abs(Number(fila.referidos?.aporta_pct) - aporteEsperado) > 0.01) {
+        : (TOPE_ACTIVO
+          ? Number(fila.referidos?.aporta_pct) > aporteEsperado + 0.01 || Number(fila.referidos?.aporta_pct) < -0.01
+          : Math.abs(Number(fila.referidos?.aporta_pct) - aporteEsperado) > 0.01)) {
         aporteDescuadrado.push(fila.vendedor_id);
       }
       // ⚠️ Lo que este case NO prueba es el ORDEN de sus dos ramas centrales,
@@ -13459,6 +13492,8 @@ async function testConversionMensual(sessions, seed) {
     check(filas.some((fila) => Number(fila.divisor) > 0),
       'al menos una fila tiene divisor > 0: el mes tiene muestra de verdad');
     for (const fila of conCierreReferido) {
+      // Con el factor en 1 (octubre en adelante) el numerador es entero por construccion: no hay fraccion que proteger.
+      if (TOPE_ACTIVO) continue;
       const esperado = Number(fila.cierres_no_referidos) + factor * Number(fila.cierres_referidos);
       if (esperado % 1 === 0) continue;
       check(Number(fila.numerador) % 1 !== 0,
@@ -13549,8 +13584,9 @@ async function testConversionMensual(sessions, seed) {
       'el payload trae SOLO las 12 claves del contrato', clavesDe(payload).join(','));
     check(mismasClaves(payload?.periodo, CLAVES_PERIODO_CONVERSION),
       'periodo trae SOLO sus 6 claves', clavesDe(payload?.periodo).join(','));
-    check(mismasClaves(payload?.ponderacion, CLAVES_PONDERACION_CONVERSION),
-      'ponderacion trae SOLO sus 3 claves', clavesDe(payload?.ponderacion).join(','));
+    // Un mes con tope declara además `tope_referidos_pct`; un mes sin tope conserva las 3 claves de siempre.
+    check(mismasClaves(payload?.ponderacion, TOPE_ACTIVO ? [...CLAVES_PONDERACION_CONVERSION, 'tope_referidos_pct'] : CLAVES_PONDERACION_CONVERSION),
+      TOPE_ACTIVO ? 'ponderacion trae SOLO sus 4 claves (las 3 y el tope de referidos)' : 'ponderacion trae SOLO sus 3 claves', clavesDe(payload?.ponderacion).join(','));
     check(mismasClaves(payload?.cobertura, CLAVES_COBERTURA_CONVERSION),
       'cobertura trae SOLO las 7 claves del contrato', clavesDe(payload?.cobertura).join(','));
     check(mismasClaves(payload?.total, CLAVES_TOTAL_CONVERSION),
@@ -13715,6 +13751,27 @@ async function testConversionMensual(sessions, seed) {
         sessions[clave].client.schema('crm').from('conversion_pesos')
           .select('vigente_desde, peso_referido').limit(1),
         ['42501', 'PGRST205'],
+      );
+    }
+    // Tope de referidos (migracion 20261007160937): las dos columnas nuevas nacen en tablas SIN grants, asi que la
+    // Data API sigue sin poder leerlas, y la lectora del tope no es alcanzable por RPC (solo postgres la ejecuta).
+    for (const clave of ['gerencia', 'directorio', 'sup1', 'vend1']) {
+      await expectExplicitAuthorizationDenied(
+        `${clave} no lee crm.conversion_pesos.tope_referidos_pct por la Data API`,
+        sessions[clave].client.schema('crm').from('conversion_pesos')
+          .select('tope_referidos_pct').limit(1),
+        ['42501', 'PGRST205'],
+      );
+      await expectExplicitAuthorizationDenied(
+        `${clave} no lee crm.periodos_cerrados.tope_referidos_pct por la Data API`,
+        sessions[clave].client.schema('crm').from('periodos_cerrados')
+          .select('tope_referidos_pct').limit(1),
+        ['42501', 'PGRST205'],
+      );
+      await expectExplicitAuthorizationDenied(
+        `${clave} no ejecuta private.tope_referidos_conversion por RPC`,
+        sessions[clave].client.schema('private').rpc('tope_referidos_conversion', { p_mes: PERIODO }),
+        ['42501', 'PGRST202', 'PGRST106'],
       );
     }
     // El ledger es la fuente de TODA la metrica y sigue cerrado a la Data API: sin

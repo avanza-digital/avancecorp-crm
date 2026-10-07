@@ -13,7 +13,7 @@ import {
 import { money, numero, porcentajeConversionCanonica } from '@/lib/format'
 import { totalEnSoles } from '@/lib/capital-unificado'
 import type { ConversionEquipoVendedor } from '@/lib/conversion-equipo'
-import { descuentoArrastre, type ConversionMensual } from '@/lib/conversion-mensual'
+import { descuentoArrastre, textoReferidosFormula, type ConversionMensual } from '@/lib/conversion-mensual'
 import { ChipArrastre } from '@/components/common/chip-arrastre'
 import {
   adaptarConversionMensualPorFuente,
@@ -423,7 +423,7 @@ function RankingConversion({ ranking, etiquetaBase, etiquetaResultados = 'Cierre
               <li key={fila.vendedorId} className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-[var(--gi-line)] bg-white px-3 py-2.5">
                 <span className="min-w-0"><strong className="block truncate text-xs text-[var(--gi-navy)]">{fila.nombre}</strong><span className="block truncate text-[10px] text-[var(--gi-muted)]">{fila.supervisorNombre}</span></span>
                 {/* «Solo recibió referidos» ≠ «Sin muestra»: el primero TRABAJÓ
-                    (los referidos no ocupan divisor y suman 15 % al cerrarse);
+                    (los referidos no ocupan divisor y suman al cerrarse, con el peso y el tope del mes);
                     leerlo como inactividad es la confusión que el estado evita. */}
                 <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">
                   {fila.estadoConversion === 'solo_referidos' ? 'Solo recibió referidos' : 'Sin muestra'}
@@ -801,11 +801,13 @@ export function RankingVendedoresPanel({
     ? null
     : etiquetaFuentesConversion(fuenteConversion)
   const formulaConversion = fuenteConversion != null
-    ? `${etiquetaFuente} aporta ${lecturaFuente?.peso == null ? 'según el peso comercial vigente' : `×${numero(lecturaFuente.peso, 2)} por resultado`} y se divide entre la misma base automática del índice.`
+    ? `${etiquetaFuente} aporta ${lecturaFuente?.topeReferidosPct != null && lecturaFuente.fuente === 'referido'
+      ? `1 por resultado, con tope: los referidos cuentan hasta el ${numero(lecturaFuente.topeReferidosPct, 2)} % de los cierres de leads asignados de cada analista,`
+      : lecturaFuente?.peso == null ? 'según el peso comercial vigente' : `×${numero(lecturaFuente.peso, 2)} por resultado`} y se divide entre la misma base automática del índice.`
     : conversionMensual == null
     ? 'Conversión ponderada del núcleo comercial'
     : conversionMensual.fuentes.divisor === 'crm.leads.creado_en'
-      ? `(Cierres Landing/Formulario + referidos ×${numero(conversionMensual.ponderacion.referido, 2)} + renovaciones ×${numero(conversionMensual.ponderacion.renovacion ?? conversionMensual.ponderacion.referido, 2)} + upgrades) ÷ prospectos automáticos de Landing/Formulario. El prospecto se atribuye al primer analista; el cierre, a quien lo consigue. Altas manuales, referidos y cartera no agregan base.`
+      ? `(Cierres Landing/Formulario + ${textoReferidosFormula(conversionMensual.ponderacion)} + renovaciones ×${numero(conversionMensual.ponderacion.renovacion ?? conversionMensual.ponderacion.referido, 2)} + upgrades) ÷ prospectos automáticos de Landing/Formulario. El prospecto se atribuye al primer analista; el cierre, a quien lo consigue. Altas manuales, referidos y cartera no agregan base.`
       : 'Base histórica del mes: conserva la definición anterior con la que se calculó; no equivale a prospectos recibidos.'
 
   return (
