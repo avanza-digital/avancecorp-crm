@@ -17056,3 +17056,48 @@ antes y después. Gate `test-rls.mjs` antes/después (con las dos filas de contr
 **Reversa:** `supabase/scripts/base-gestion/reversa-b11.sql` (vuelve byte a byte al estado de antes; se niega si hay cierres
 de base, si otra función usa el ayudante, o si el censo no está vigente y sellado; conserva la fila del historial).
 **Registrador:** `supabase/scripts/base-gestion/registrar/20261006042144.sql` (generado).
+
+## 20261007160937 — Conversión · tope de referidos (desde octubre 2026): cuentan hasta el 15 % de los cierres del mes
+
+**Estado:** ensayada en banco Docker propio (07/10/2026), **SIN APLICAR en producción**; rama: worktree `tope-referidos-20261007`.
+Decisión de Miguel (07/10/2026): un referido que cierra vale 1, pero entre todos los referidos de un analista solo cuentan, como
+máximo, el 15 % de TODOS sus cierres del mes (referidos, upgrades, renovaciones y base cargada incluidos), redondeado hacia arriba;
+los que pasan del tope —los más recientes por fecha de cierre— valen 0 (siguen en el historial). Rige desde octubre; agosto y
+septiembre no se tocan.
+**Qué hace:** `crm.conversion_pesos.tope_referidos_pct` + versión 2026-10-01 (referido 1,000, tope 15,00) · `private.tope_referidos_conversion(date)`
+(NULL = sin tope; sin respaldo a la versión más antigua) · `private.conversion_episodios` aplica el tope por analista y mes de
+cierre sobre el mes completo (el ámbito antes del tope; el rango después) · `crm.periodos_cerrados.tope_referidos_pct` guarda el
+tope de la foto y `crm.cerrar_periodo` lo escribe (mismo texto vivo, un solo cambio) · `private.conversion_fijar_sello_trg`: un
+referido fuera del tope NO queda `incluida_en_sello` ⇒ anularlo no genera deuda, y uno dentro del tope cobra 1 de la foto ·
+censo analítico: la declaración de `crm.cerrar_periodo` con su huella nueva y el sello al día · CHECK `conversion_pesos_referido_con_tope`
+(un peso de referido > 0,150 exige tope: no se apaga el tope por olvido) · desempate de referidos con la misma fecha comercial por
+el instante en que se acreditó cada cierre.
+**Qué NO cambia:** el divisor, los pesos de renovación y upgrade, las firmas y ACL de las puertas, el pasado, `registrar_ajuste_si_mes_cerrado`.
+**FASE B pendiente (no incluida):** «Resultados por origen» (`private.ranking_conversion_origen_mes`, la cohorte ponderada de
+`metricas_conversiones_implementacion`), el desglose de Coordinación (`conversion_divisor_empresa*`, multiplica los referidos por el
+peso de la foto sin tope) y los textos de pantalla que dicen «0,15» siguen mostrando el referido SIN tope desde octubre.
+**Efecto conocido:** octubre se recalcula en vivo con la regla nueva (es lo pedido); el tope de un mes ya sellado no se recalcula y
+anular un cierre ajeno al referido no vuelve a mover el tope de un mes sellado (la deuda es solo la del cierre anulado).
+**Preflight:** seis cuerpos+dueño+ACL, `conversion_pesos` = la fila conocida, ningún mes sellado desde octubre, censo vigente y sellado.
+**Banco:** esquema de producción (crm 314 / private 640 funciones, huellas idénticas a producción) + configuración de producción
+(censo 43 filas, pesos, política). Aplicar ⇒ revertir ⇒ reaplicar (dos veces): huellas de la reversa = producción al byte; segunda
+aplicación seguida: se niega. Pruebas: `prueba-tope.sql` 22 grupos PASS (el ejemplo de Miguel, redondeos, rangos parciales y de dos
+meses con periodo NULL, ámbito, anulaciones, operaciones en la base, empate de fecha, CHECK, septiembre idéntico a la función
+anterior, divisor intacto); `prueba-sello-deuda.sql` 9 PASS; **mutantes 0 inesperados de 18** (`mutantes.py`; M8a/M8b sobreviven a
+propósito: el ámbito está defendido dos veces; el doble cae); negativas del preflight 3/3. Costo con 6.000 cierres: mes global
+366→387 ms; un analista 9→9 ms; historia completa (1900–2100, lo que usa la deuda) 372→400 ms.
+**Revisiones:** auditor-rls r1 APPROVE_WITH_CHANGES (sin P0; un P1 de `test-rls.mjs`, 3 P2 y 4 P3) → atendidos: el oráculo de
+`test-rls.mjs` sigue el mes (octubre: factor 1 y cotas) y suma sondas de denegación de las columnas y de la lectora, CHECK peso↔tope,
+desempate, guardias y candado en la reversa, costos medidos, `ON_ERROR_STOP` en el LEEME; pendientes: tipos (`npm run gen:types`
+tras aplicar), fase B y la decisión de publicar sin ella. Codex r1 BLOCK por evidencia insuficiente: su único contraejemplo (una
+operación con `periodo` distinto del mes de `fecha_operacion`) es IMPOSIBLE: `operaciones_cartera_periodo_fecha` lo prohíbe y la
+tabla es append-only. **Codex r2 (última): APPROVE_WITH_NITS**, sin P0/P1; dos invariantes por comprobar, ambas cerradas con evidencia:
+(1) el mes del cierre de un lead = su `periodo_comercial`: `conversion_acreditaciones_check1` obliga `periodo_comercial = date_trunc('month', fecha_comercial)`;
+(2) cierres sin analista: producción tiene 0 acreditaciones con `analista_id` NULL (07/10/2026); si aparecieran, comparten una partición
+global del tope y quedan fuera de todo ámbito de analista (es la cobertura `conversion_sin_analista`).
+**NOT RUN:** `test-rls.mjs` (editado, solo `node --check`), gates de conversión (`gate:conversion`, alarma de 5 caminos) sobre un
+banco con datos, advisors, `npm run check`.
+**Reversa:** `supabase/scripts/conversion-tope-referidos/reversa.sql` (repone los tres cuerpos vivos y los comentarios, retira
+versión, columnas y función; se niega si algún mes sellado guarda un tope).
+**Ciclo de aplicación:** rama de Supabase → aplicar → gate → advisors → merge (nunca `apply_migration` directo). Antes de publicar:
+fase B o decisión de Miguel de publicar sin ella (octubre mostraría el referido sin tope en las tablas por origen y en Coordinación).
