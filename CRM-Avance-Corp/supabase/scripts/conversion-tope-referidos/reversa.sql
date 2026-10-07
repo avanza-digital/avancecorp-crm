@@ -2,7 +2,7 @@
 --
 -- Repone los tres cuerpos VIVOS de antes (conversion_episodios, cerrar_periodo y conversion_fijar_sello_trg), el comentario de
 -- conversion_episodios y el de conversion_pesos.peso_referido, retira la versión 2026-10-01 del peso, las dos columnas
--- `tope_referidos_pct` y la función lectora, y vuelve a poner en el censo analítico la huella de crm.cerrar_periodo.
+-- `tope_referidos_pct` y las dos funciones nuevas (el lector del tope y la definición de los orígenes de la base), y vuelve a poner en el censo analítico la huella de crm.cerrar_periodo.
 -- SE NIEGA si algún mes sellado guarda un tope (borrar la columna perdería con qué regla se pagó) o si el estado actual no es
 -- el que dejó la migración (huellas, versión del peso, censo vigente).
 -- Después de revertir, octubre vuelve a calcularse con el referido a 0,15 y sin tope.
@@ -23,10 +23,11 @@ do $preflight$
 declare r record;
 begin
   for r in select * from (values
-    ('private.conversion_episodios(timestamptz,timestamptz,date,boolean,uuid[],numeric)', '33318a5d54fbcba8d4b6545a3ef9c9b1'),
+    ('private.conversion_episodios(timestamptz,timestamptz,date,boolean,uuid[],numeric)', 'f80cd3802628cb3d9c9199b09afc0aee'),
     ('crm.cerrar_periodo(date)', '05691c6715cf56fe7b44ea5e7cf27fb5'),
     ('private.conversion_fijar_sello_trg()', 'c0ba50fae8b98f47114f7fefa183ba7e'),
-    ('private.tope_referidos_conversion(date)', 'b5f63af791860ba8f284a7302da15e9a')
+    ('private.tope_referidos_conversion(date)', 'b5f63af791860ba8f284a7302da15e9a'),
+    ('private.conversion_origen_base_tope(text)', 'e3a9b21edb15fbc819cd791fbbf35297')
   ) as v(firma, huella) loop
     if not exists (select 1 from pg_proc p where p.oid = to_regprocedure(r.firma) and md5(p.prosrc) = r.huella) then
       raise exception 'REVERSA tope-referidos: % no es el que dejó la migración' , r.firma using errcode = 'P0409';
@@ -40,6 +41,12 @@ begin
                                   to_regprocedure('private.conversion_fijar_sello_trg()'),
                                   to_regprocedure('private.tope_referidos_conversion(date)'))) then
     raise exception 'REVERSA tope-referidos: hay otra función que usa el tope; revertir la dejaría rota' using errcode = 'P0409';
+  end if;
+  -- Lo mismo con la definición de los orígenes de la base: solo el núcleo la llama.
+  if exists (select 1 from pg_proc p
+              where p.prosrc ~* 'conversion_origen_base_tope'
+                and p.oid not in (to_regprocedure('private.conversion_episodios(timestamptz,timestamptz,date,boolean,uuid[],numeric)'))) then
+    raise exception 'REVERSA tope-referidos: hay otra función que usa private.conversion_origen_base_tope; revertir la dejaría rota' using errcode = 'P0409';
   end if;
   if exists (select 1 from crm.periodos_cerrados where tope_referidos_pct is not null) then
     raise exception 'REVERSA tope-referidos: hay un mes sellado con tope; revertir perdería la regla con la que se pagó' using errcode = 'P0409';
@@ -667,6 +674,7 @@ comment on column crm.conversion_pesos.peso_referido is
 alter table crm.conversion_pesos drop column tope_referidos_pct;
 alter table crm.periodos_cerrados drop column tope_referidos_pct;
 drop function private.tope_referidos_conversion(date);
+drop function private.conversion_origen_base_tope(text);
 
 -- Censo: la declaración de cerrar_periodo con la huella del cuerpo de antes y su razón sin el sufijo.
 update private.analitica_leads_citas_exenciones e set
@@ -690,6 +698,7 @@ begin
     end if;
   end loop;
   if to_regprocedure('private.tope_referidos_conversion(date)') is not null
+     or to_regprocedure('private.conversion_origen_base_tope(text)') is not null
      or exists (select 1 from information_schema.columns where table_schema = 'crm' and table_name in ('conversion_pesos', 'periodos_cerrados') and column_name = 'tope_referidos_pct')
      or (select count(*) from crm.conversion_pesos) <> 1 then
     raise exception 'REVERSA tope-referidos postflight: quedaron restos (función, columnas o versión del peso)';

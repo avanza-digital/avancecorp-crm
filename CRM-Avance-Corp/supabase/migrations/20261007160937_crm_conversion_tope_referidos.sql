@@ -1,36 +1,42 @@
 -- 20261007160937_crm_conversion_tope_referidos.sql
 --
 -- Conversión · tope de referidos: desde OCTUBRE 2026 un referido que cierra vale 1 entero, pero entre todos los referidos de un
--- analista solo cuentan, como máximo, el 15 % de TODOS sus cierres del mes (referidos incluidos, redondeado hacia arriba). Los
--- referidos que pasan del tope valen 0: siguen en el historial, solo dejan de pesar en la conversión. Decisión de Miguel
--- (07/10/2026): «20 cierres, máximo 3 referidos; si tenía 5, esos 2 quedan sin efecto». Respuestas: (1) peso 1 por referido que
--- cuenta; (2) base = todos los cierres del mes (también upgrades, renovaciones y base cargada); (3) redondeo hacia arriba;
--- (4) quedan sin efecto los más recientes por fecha de cierre; (5) rige desde octubre, el pasado no se toca.
+-- analista solo cuentan, como máximo, el 15 % de los cierres de LEADS QUE EL SISTEMA LE ASIGNA (origen landing o formulario),
+-- redondeado hacia arriba. Los referidos que pasan del tope valen 0: siguen en el historial, solo dejan de pesar en la
+-- conversión. Decisión de Miguel (07/10/2026): «máximo 15 % de los cierres de leads asignados; el exceso queda sin efecto».
+-- Respuestas: (1) peso 1 por referido que cuenta; (2) base = SOLO los cierres de leads landing/formulario del analista en el mes:
+-- los referidos, las renovaciones, los upgrades y la base cargada NO entran en la base (los confirmó Miguel el 07/10/2026);
+-- (3) redondeo hacia arriba; (4) quedan sin efecto los más recientes por fecha de cierre; (5) rige desde octubre, el pasado no
+-- se toca; (6) sin cierres asignados la base es 0 y el tope es 0: todos los referidos de ese analista y mes valen 0.
+-- Ejemplo aprobado: 10 asignados + 4 referidos + 3 renovaciones + 2 upgrades + 1 de base cargada ⇒ tope ceil(1,5) = 2.
 --
 -- QUÉ HACE
 --   1. crm.conversion_pesos gana `tope_referidos_pct` (NULL = sin tope) y una versión nueva desde 2026-10-01: peso_referido 1,000
 --      y tope 15,00. Agosto y septiembre conservan 0,15 y sin tope (la versión vigente de un mes es la de su vigente_desde).
 --   2. NUEVA private.tope_referidos_conversion(date): el tope vigente de un mes, o NULL. Sin respaldo a la versión más antigua:
 --      un mes sin versión de tope NO lleva tope.
---   3. private.conversion_episodios (UNA sola pieza donde nace el numerador de todas las puertas): calcula el tope por analista y
+--   3. NUEVA private.conversion_origen_base_tope(text): UNA definición de qué orígenes de lead forman la base del tope (landing y
+--      formulario: los que asigna el sistema). Cambiar la lista es cambiar esa función.
+--   4. private.conversion_episodios (UNA sola pieza donde nace el numerador de todas las puertas): calcula el tope por analista y
 --      mes de cierre sobre el MES COMPLETO de ese analista (el ámbito se aplica antes: la base de uno no depende de los demás) y
---      después recorta al rango pedido. Así un rango parcial o la vista de un supervisor dan el mismo número que la empresa entera. La base incluye operaciones de
---      cartera (upgrade y renovación). Firma, dueño, ACL y columnas intactas.
---   4. crm.periodos_cerrados gana `tope_referidos_pct`: la foto guarda con qué tope se calculó el mes (como guarda los pesos).
+--      después recorta al rango pedido. Así un rango parcial o la vista de un supervisor dan el mismo número que la empresa entera.
+--      La base son solo los cierres no anulados de leads de origen de base; las operaciones de cartera salen como siempre.
+--      Firma, dueño, ACL y columnas intactas.
+--   5. crm.periodos_cerrados gana `tope_referidos_pct`: la foto guarda con qué tope se calculó el mes (como guarda los pesos).
 --      crm.cerrar_periodo lo escribe. Mismo texto vivo, con ese único cambio.
---   5. private.conversion_fijar_sello_trg: al sellar, `incluida_en_sello` de un referido es verdadera solo si ese referido CUENTA
+--   6. private.conversion_fijar_sello_trg: al sellar, `incluida_en_sello` de un referido es verdadera solo si ese referido CUENTA
 --      (está dentro del tope). Así la deuda por anular un referido que ya no pesaba es CERO y la de uno que sí pesaba es 1
 --      (registrar_ajuste_si_mes_cerrado ya exige incluida_en_sello y toma el peso de la foto: no se toca).
---   6. Censo analítico: la declaración de crm.cerrar_periodo conserva su fila y su clase con la huella del cuerpo nuevo; se resella.
---   7. CHECK `conversion_pesos_referido_con_tope`: una versión con peso de referido mayor que 0,150 exige tope (no se puede apagar el tope por olvido).
---   8. Desempate: dos referidos con la misma fecha comercial (es un día) se ordenan por el instante en que se acreditó cada cierre.
+--   7. Censo analítico: la declaración de crm.cerrar_periodo conserva su fila y su clase con la huella del cuerpo nuevo; se resella.
+--   8. CHECK `conversion_pesos_referido_con_tope`: una versión con peso de referido mayor que 0,150 exige tope (no se puede apagar el tope por olvido).
+--   9. Desempate: dos referidos con la misma fecha comercial (es un día) se ordenan por el instante en que se acreditó cada cierre.
 -- QUÉ NO CAMBIA: el divisor, los pesos de renovación y upgrade, las firmas de las puertas de la API y sus ACL, los meses
 --   anteriores a octubre, el origen del lead, las anulaciones (siguen siendo la única puerta), las tablas por origen y el
 --   desglose de Coordinación (FASE B: hasta entonces muestran el referido sin tope; ver la nota de la fase).
 -- EFECTO CONOCIDO: octubre se recalcula en vivo con la regla nueva (es lo pedido). El tope de un mes ya sellado NO se recalcula:
 --   la foto manda; anular un cierre ajeno al referido NO vuelve a mover el tope de un mes sellado (la deuda es solo la del cierre
 --   anulado).
--- PREFLIGHT: se niega si cambió alguno de los seis cuerpos, su dueño o su ACL, si crm.conversion_pesos no es exactamente la fila
+-- PREFLIGHT: se niega si cambió alguno de los seis cuerpos, su dueño o su ACL, si ya existe alguna de las dos funciones nuevas, si crm.conversion_pesos no es exactamente la fila
 --   conocida, si ya existe un mes sellado desde octubre (el tope no puede llegar tarde a una foto) o si el censo no está vigente.
 -- POSTFLIGHT: huellas medidas en el banco, tope por mes (septiembre sin tope, octubre 15 %), pesos, columnas y el censo con
 --   los MISMOS rojos que antes.
@@ -67,6 +73,9 @@ begin
       raise exception 'TOPE-REFERIDOS: % cambió desde el ensayo; revisar antes de aplicar', r.firma using errcode = 'P0409';
     end if;
   end loop;
+  if to_regprocedure('private.conversion_origen_base_tope(text)') is not null then
+    raise exception 'TOPE-REFERIDOS: private.conversion_origen_base_tope ya existe' using errcode = 'P0409';
+  end if;
   if to_regprocedure('private.tope_referidos_conversion(date)') is not null then
     raise exception 'TOPE-REFERIDOS: private.tope_referidos_conversion ya existe' using errcode = 'P0409';
   end if;
@@ -104,7 +113,7 @@ alter table crm.conversion_pesos
   add column tope_referidos_pct numeric(5,2)
   check (tope_referidos_pct is null or (tope_referidos_pct >= 0 and tope_referidos_pct <= 100));
 comment on column crm.conversion_pesos.tope_referidos_pct is
-  'Tope de referidos: porcentaje de los cierres del mes de un analista (referidos incluidos, redondeado hacia arriba) que los referidos pueden contar. Los referidos que pasan del tope, del más reciente al más antiguo, valen 0. NULL = sin tope (agosto y septiembre de 2026). Rige desde la versión que lo trae (2026-10-01, 15,00). Cambiarlo es una decisión comercial: se inserta una versión nueva, el pasado no se mueve.';
+  'Tope de referidos: porcentaje de los cierres del mes de un analista de leads asignados por el sistema (origen landing o formulario; sin referidos, renovaciones, upgrades ni base cargada; redondeado hacia arriba) que los referidos pueden contar. Los referidos que pasan del tope, del más reciente al más antiguo, valen 0. NULL = sin tope (agosto y septiembre de 2026). Rige desde la versión que lo trae (2026-10-01, 15,00). Cambiarlo es una decisión comercial: se inserta una versión nueva, el pasado no se mueve.';
 comment on column crm.conversion_pesos.peso_referido is
   'Fracción con la que un cierre de referido suma al numerador. 0,150 hasta septiembre de 2026; desde 2026-10-01 vale 1,000 y está acotado por tope_referidos_pct (cuentan hasta el tope; el resto vale 0). El referido NO entra en el divisor.';
 
@@ -123,7 +132,7 @@ comment on column crm.periodos_cerrados.tope_referidos_pct is
 
 insert into crm.conversion_pesos (vigente_desde, peso_referido, peso_renovacion, tope_referidos_pct, nota)
 values (date '2026-10-01', 1.000, 0.15, 15.00,
-  'Miguel 2026-10-07: desde octubre el referido que cierra vale 1, con tope del 15 % de los cierres del mes del analista (referidos incluidos, redondeo hacia arriba); los referidos que pasan del tope, los más recientes, valen 0. Renovación sigue en 0,15. El pasado no se toca.');
+  'Miguel 2026-10-07: desde octubre el referido que cierra vale 1, con tope del 15 % de los cierres del mes del analista de leads asignados por el sistema (landing y formulario; sin referidos, renovaciones, upgrades ni base cargada; redondeo hacia arriba; sin esos cierres el tope es 0); los referidos que pasan del tope, los más recientes, valen 0. Renovación sigue en 0,15. El pasado no se toca.');
 
 -- ── 2 · El lector del tope ─────────────────────────────────────────────────────────────────────────────────────────────
 create function private.tope_referidos_conversion(p_mes date)
@@ -143,6 +152,21 @@ revoke all on function private.tope_referidos_conversion(date) from public, anon
 comment on function private.tope_referidos_conversion(date) is
   'Tope de referidos vigente para un mes (mayor vigente_desde <= mes), o NULL si esa versión no lo trae o no hay versión. A diferencia de private.peso_referido_conversion NO cae a la versión más antigua: un mes sin versión de tope no lleva tope. SECURITY DEFINER porque crm.conversion_pesos no tiene grants (RLS sin policies). Usada por private.conversion_episodios y crm.cerrar_periodo.';
 
+-- ── 2b · Qué orígenes forman la base del tope ──────────────────────────────────────────────────────────────────────────
+create function private.conversion_origen_base_tope(p_origen text)
+returns boolean
+language sql
+immutable
+parallel safe
+security invoker
+set search_path = ''
+as $$
+  select p_origen in ('landing', 'formulario')
+$$;
+revoke all on function private.conversion_origen_base_tope(text) from public, anon, authenticated, service_role;
+comment on function private.conversion_origen_base_tope(text) is
+  'Tope de referidos (Miguel, 07/10/2026): UNA definición de qué orígenes de lead forman la BASE del tope, es decir, los leads que el sistema asigna al analista: landing y formulario. Quedan fuera referido, base_cargada (la carga el supervisor) y los orígenes que no cierran en conversión (oficina, otro, web, campania, whatsapp). NULL con origen NULL. Usada por private.conversion_episodios.';
+
 -- ── 3 · El núcleo del numerador: el tope se aplica donde nace el aporte ───────────────────────────────────────────────
 -- private.conversion_episodios(timestamptz,timestamptz,date,boolean,uuid[],numeric)
 CREATE OR REPLACE FUNCTION private.conversion_episodios(p_ini timestamp with time zone, p_fin timestamp with time zone, p_periodo date, p_global boolean, p_visibles uuid[], p_factor numeric)
@@ -154,69 +178,35 @@ AS $function$
 #variable_conflict use_column
 declare
   -- Los meses COMPLETOS que toca la ventana: el tope de referidos es por analista y por mes de cierre, y su base son
-  -- todos los cierres de ESE analista en ese mes, no solo los de un rango parcial. Como cada analista tiene su propia base,
-  -- el ámbito (p_global/p_visibles) se aplica antes de calcular el tope sin cambiar su resultado.
+  -- todos los cierres de leads asignados de ESE analista en ese mes, no solo los de un rango parcial. Como cada analista
+  -- tiene su propia base, el ámbito (p_global/p_visibles) se aplica antes de calcular el tope sin cambiar su resultado.
   v_ini_mes timestamptz := date_trunc('month', p_ini at time zone 'America/Lima') at time zone 'America/Lima';
   v_mes_ult date := date_trunc('month', (p_fin - interval '1 microsecond') at time zone 'America/Lima')::date;
   v_fin_mes timestamptz := (v_mes_ult::timestamp + interval '1 month') at time zone 'America/Lima';
 begin
 return query
-with cierres_mes as (
+with marcados as (
   -- El índice único del ledger garantiza un cierre por lead. El cierre queda
   -- en quien lo consiguió, no en quien recibió la llegada. Los otros canales
   -- siguen disponibles para consumidores operativos/capital, con aporte CERO.
-  select * from private.conversion_cierres(
-    v_ini_mes, v_fin_mes, p_periodo, p_global, p_visibles, p_factor, null::uuid[])
-
-  union all
-
-  -- La primera operación ELEGIBLE por cliente/mes, antes de filtrar el rango
-  -- o el ámbito. Renovación usa su propio peso; Upgrade conserva 1.
-  select 'operacion'::text,
-    coalesce(private.analista_atribuido_cadena(o.contrato_nuevo_id), o.vendedor_id),
-    null::uuid, o.id, false, null::boolean, null::text, false,
-    null::text, o.tipo, o.periodo, null::numeric, o.moneda,
-    null::timestamptz, o.fecha_operacion::timestamp at time zone 'America/Lima', 0,
-    case when o.tipo = 'renovacion' then
-      case when p_periodo is not null then private.peso_renovacion_conversion(p_periodo)
-        else private.peso_renovacion_conversion(o.periodo) end
-      when o.tipo = 'upgrade' then 1 else 0 end
-  from (
-    select o0.*, row_number() over (
-      partition by o0.cliente_id, o0.periodo
-      order by o0.fecha_operacion, o0.creado_en, o0.id
-    ) as orden_conversion
-    from crm.operaciones_cartera o0
-    where o0.elegible_conversion
-      and o0.periodo >= (v_ini_mes at time zone 'America/Lima')::date
-      and o0.periodo <= v_mes_ult
-  ) o
-  where o.orden_conversion = 1
-    and o.fecha_operacion::timestamp at time zone 'America/Lima' >= v_ini_mes
-    and o.fecha_operacion::timestamp at time zone 'America/Lima' < v_fin_mes
-    and (p_global or coalesce(private.analista_atribuido_cadena(o.contrato_nuevo_id),
-                             o.vendedor_id) = any(p_visibles))
-), marcados as (
   select c.*,
-    -- El mes de CIERRE: el comercial de la operación, o el de la fecha comercial del cierre del lead.
-    case when c.tipo = 'operacion' then c.mes_origen
-      else date_trunc('month', c.fecha_numerador at time zone 'America/Lima')::date end as mes_cierre,
-    -- Un cierre cuenta para la base si no está anulado y es de un origen que cierra, o es upgrade/renovación.
-    (not c.anulado and ((c.tipo = 'cierre' and private.conversion_origen_con_cierre(c.origen))
-                        or (c.tipo = 'operacion' and c.categoria in ('renovacion', 'upgrade')))) as en_base,
-    (c.tipo = 'cierre' and c.fue_referido and not c.anulado) as es_referido,
+    -- El mes de CIERRE: el de la fecha comercial del cierre del lead.
+    date_trunc('month', c.fecha_numerador at time zone 'America/Lima')::date as mes_cierre,
+    -- Un cierre cuenta para la base del tope solo si NO está anulado y es el cierre de un lead que el sistema asigna
+    -- (private.conversion_origen_base_tope: landing y formulario). Los referidos y la base cargada no entran en la base.
+    (not c.anulado and private.conversion_origen_base_tope(c.origen)) as en_base,
+    (c.fue_referido and not c.anulado) as es_referido,
     -- Desempate de dos cierres de la MISMA fecha comercial (es un día, sin hora): el que se acreditó antes cuenta antes.
     (select ca.acreditado_en from crm.conversion_acreditaciones ca where ca.lead_id = c.lead_id) as registrado_en
-  from cierres_mes c
+  from private.conversion_cierres(
+    v_ini_mes, v_fin_mes, p_periodo, p_global, p_visibles, p_factor, null::uuid[]) c
 ), con_tope as (
   select m.*,
     count(*) filter (where m.en_base) over (partition by m.analista_id, m.mes_cierre) as base_cierres,
     -- Los referidos de cada analista y mes, del más antiguo al más reciente: cuentan los primeros.
     row_number() over (partition by m.analista_id, m.mes_cierre, m.es_referido
                        order by m.fecha_numerador, m.registrado_en, m.lead_id) as orden_referido,
-    private.tope_referidos_conversion(
-      case when m.tipo = 'operacion' then m.mes_origen
-        else date_trunc('month', m.fecha_numerador at time zone 'America/Lima')::date end) as tope_pct
+    private.tope_referidos_conversion(m.mes_cierre) as tope_pct
   from marcados m
 )
 -- Una llegada por id, por su alta ORIGINAL en Lima. No depende del estado
@@ -245,7 +235,8 @@ where l.creado_en >= p_ini and l.creado_en < p_fin
 union all
 
 -- TOPE DE REFERIDOS (Miguel, 07/10/2026, desde octubre): por analista y mes de cierre, los referidos cuentan hasta el
--- tope % de TODOS sus cierres del mes (referidos incluidos, redondeado hacia arriba); los más recientes pasan a valer 0.
+-- tope % de sus cierres de leads asignados por el sistema (en_base; sin referidos, base cargada ni operaciones; redondeado
+-- hacia arriba); los más recientes pasan a valer 0. Sin cierres asignados la base es 0 y todos sus referidos valen 0.
 -- Sin tope vigente para el mes (agosto, septiembre) el aporte queda como siempre.
 select t.tipo, t.analista_id, t.lead_id, t.operacion_id, t.fue_referido, t.aproximado, t.motivo, t.anulado, t.origen,
   t.categoria, t.mes_origen, t.monto, t.moneda, t.fecha_divisor, t.fecha_numerador, t.aporte_divisor,
@@ -254,15 +245,43 @@ select t.tipo, t.analista_id, t.lead_id, t.operacion_id, t.fue_referido, t.aprox
        then 0::numeric else t.aporte_numerador end
 from con_tope t
 where t.fecha_numerador >= p_ini and t.fecha_numerador < p_fin
-  and (t.tipo <> 'operacion'
-       or (t.mes_origen >= date_trunc('month', p_ini at time zone 'America/Lima')::date
-           and t.mes_origen <= date_trunc('month', p_fin at time zone 'America/Lima')::date))
-  and (p_global or t.analista_id = any(p_visibles));
+  and (p_global or t.analista_id = any(p_visibles))
+
+union all
+
+-- La primera operación ELEGIBLE por cliente/mes, antes de filtrar el rango
+-- o el ámbito. Renovación usa su propio peso; Upgrade conserva 1.
+-- Un rango parcial incluye solo las operaciones efectivamente ocurridas allí.
+-- Las operaciones no entran en la base del tope: salen como siempre.
+select 'operacion'::text,
+  coalesce(private.analista_atribuido_cadena(o.contrato_nuevo_id), o.vendedor_id),
+  null::uuid, o.id, false, null::boolean, null::text, false,
+  null::text, o.tipo, o.periodo, null::numeric, o.moneda,
+  null::timestamptz, o.fecha_operacion::timestamp at time zone 'America/Lima', 0,
+  case when o.tipo = 'renovacion' then
+    case when p_periodo is not null then private.peso_renovacion_conversion(p_periodo)
+      else private.peso_renovacion_conversion(o.periodo) end
+    when o.tipo = 'upgrade' then 1 else 0 end
+from (
+  select o0.*, row_number() over (
+    partition by o0.cliente_id, o0.periodo
+    order by o0.fecha_operacion, o0.creado_en, o0.id
+  ) as orden_conversion
+  from crm.operaciones_cartera o0
+  where o0.elegible_conversion
+    and o0.periodo >= date_trunc('month', p_ini at time zone 'America/Lima')::date
+    and o0.periodo <= date_trunc('month', p_fin at time zone 'America/Lima')::date
+) o
+where o.orden_conversion = 1
+  and o.fecha_operacion::timestamp at time zone 'America/Lima' >= p_ini
+  and o.fecha_operacion::timestamp at time zone 'America/Lima' < p_fin
+  and (p_global or coalesce(private.analista_atribuido_cadena(o.contrato_nuevo_id),
+                           o.vendedor_id) = any(p_visibles));
 end;
 $function$;
 
 comment on function private.conversion_episodios(timestamptz, timestamptz, date, boolean, uuid[], numeric) is
-  'Núcleo único de la conversión: llegadas (divisor), cierres de leads y operaciones de cartera (numerador). Desde 2026-10 aplica el TOPE DE REFERIDOS (private.tope_referidos_conversion) por analista y mes de cierre, calculado sobre el mes completo de cada analista y recortado después al rango pedido.';
+  'Núcleo único de la conversión: llegadas (divisor), cierres de leads y operaciones de cartera (numerador). Desde 2026-10 aplica el TOPE DE REFERIDOS (private.tope_referidos_conversion) por analista y mes de cierre; su base son los cierres de leads asignados por el sistema (private.conversion_origen_base_tope), calculada sobre el mes completo de cada analista y recortada después al rango pedido.';
 
 -- ── 4 · La foto guarda el tope ─────────────────────────────────────────────────────────────────────────────────────────
 -- crm.cerrar_periodo(date): mismo texto vivo; el único cambio es que el INSERT de periodos_cerrados guarda tope_referidos_pct.
@@ -817,13 +836,14 @@ declare
   r record;
 begin
   for r in select * from (values
-    ('private.conversion_episodios(timestamptz,timestamptz,date,boolean,uuid[],numeric)', '33318a5d54fbcba8d4b6545a3ef9c9b1', '{postgres=X/postgres}'),
+    ('private.conversion_episodios(timestamptz,timestamptz,date,boolean,uuid[],numeric)', 'f80cd3802628cb3d9c9199b09afc0aee', '{postgres=X/postgres}'),
     ('crm.cerrar_periodo(date)', '05691c6715cf56fe7b44ea5e7cf27fb5', '{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}'),
     ('private.conversion_fijar_sello_trg()', 'c0ba50fae8b98f47114f7fefa183ba7e', '{postgres=X/postgres}'),
-    ('private.tope_referidos_conversion(date)', 'b5f63af791860ba8f284a7302da15e9a', '{postgres=X/postgres}')
+    ('private.tope_referidos_conversion(date)', 'b5f63af791860ba8f284a7302da15e9a', '{postgres=X/postgres}'),
+    ('private.conversion_origen_base_tope(text)', 'e3a9b21edb15fbc819cd791fbbf35297', '{postgres=X/postgres}')
   ) as v(firma, huella, acl) loop
     if not exists (select 1 from pg_proc p where p.oid = to_regprocedure(r.firma) and md5(p.prosrc) = r.huella
-                    and p.proowner = 'postgres'::regrole and p.proacl::text = r.acl and p.prosecdef) then
+                    and p.proowner = 'postgres'::regrole and p.proacl::text = r.acl and p.prosecdef = (r.firma <> 'private.conversion_origen_base_tope(text)')) then
       raise exception 'TOPE-REFERIDOS postflight: % no quedó como se ensayó', r.firma;
     end if;
   end loop;

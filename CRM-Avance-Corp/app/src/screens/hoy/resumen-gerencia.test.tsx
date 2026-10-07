@@ -764,7 +764,7 @@ describe('gráfica por origen — publicación fail-closed', () => {
 
     const panel = panelOrigenes()
     expect(within(panel).getByText('4.2%')).toBeInTheDocument()
-    expect(within(panel).getByText(/^Referido: sus cierres cuentan hasta el 15 % de los cierres del mes de cada analista \(los que sobran no suman\), como en la conversión general/)).toBeInTheDocument()
+    expect(within(panel).getByText(/^Referido: sus cierres cuentan hasta el 15 % de los cierres de leads asignados de cada analista \(los que sobran no suman\), como en la conversión general/)).toBeInTheDocument()
     expect(within(panel).queryByText(/cada cierre cuenta ×1/)).not.toBeInTheDocument()
   })
 

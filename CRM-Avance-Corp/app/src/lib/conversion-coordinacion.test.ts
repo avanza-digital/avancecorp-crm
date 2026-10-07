@@ -365,9 +365,9 @@ describe('modo rango (v2)', () => {
 })
 
 /**
- * Octubre 2026: el referido vale 1, con tope del 15 % de los cierres del mes. Astrid cerró
- * 5 formulario + 2 landing + 5 referidos + 4 upgrade = 16 cierres de prospecto + upgrade; solo 3
- * referidos cuentan: 5 + 2 + 3 + 4 = 14. `referido × peso_referido` serían 5, NO el aporte (3).
+ * Octubre 2026: el referido vale 1, con tope del 15 % de los cierres de leads asignados. Astrid cerró
+ * 12 formulario + 3 landing (15 asignados) + 5 referidos + 4 upgrade; su base es 15, el tope ceil(2,25) = 3 y
+ * solo 3 referidos cuentan: 12 + 3 + 3 + 4 = 22. `referido × peso_referido` serían 5, NO el aporte (3).
  */
 export function payloadOctubreConTope(): ConversionCoordinacion {
   const datos = payloadValido()
@@ -376,13 +376,13 @@ export function payloadOctubreConTope(): ConversionCoordinacion {
   datos.tope_referidos_pct = 15
   datos.analistas[0] = {
     ...datos.analistas[0]!,
-    cierres: { formulario: 5, landing: 2, referido: 5, referido_aporte: 3, oficina: 1, otros: 0 },
-    numerador_bruto: 14, numerador: 14, conversion_pct: 12.17,
+    cierres: { formulario: 12, landing: 3, referido: 5, referido_aporte: 3, oficina: 1, otros: 0 },
+    numerador_bruto: 22, numerador: 22, conversion_pct: 19.13,
   }
   datos.empresa = {
     ...datos.empresa,
-    cierres: { formulario: 11, landing: 3, referido: 5, referido_aporte: 3, oficina: 1, otros: 0 },
-    numerador_bruto: 23, numerador: 23, conversion_pct: 11.22,
+    cierres: { formulario: 18, landing: 4, referido: 5, referido_aporte: 3, oficina: 1, otros: 0 },
+    numerador_bruto: 31, numerador: 31, conversion_pct: 15.12,
   }
   return datos
 }
@@ -391,7 +391,7 @@ describe('tope de referidos (octubre 2026)', () => {
   it('un mes con tope cuadra con el aporte recortado (3), no con cantidad × peso (5)', () => {
     const datos = payloadOctubreConTope()
     expect(datos.analistas[0]!.cierres!.referido * datos.peso_referido).toBe(5)
-    expect(sumaDePartes(datos.analistas[0]!.cierres!, datos.analistas[0]!.cartera!)).toBe(14)
+    expect(sumaDePartes(datos.analistas[0]!.cierres!, datos.analistas[0]!.cartera!)).toBe(22)
     expect(conversionCoordinacionConsistente(datos, '2026-09-01', '2026-09-30')).toBe(true)
   })
 

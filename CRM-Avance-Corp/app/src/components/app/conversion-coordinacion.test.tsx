@@ -407,9 +407,9 @@ describe('ConversionCoordinacion — tope de referidos (octubre 2026)', () => {
     const resumen = await screen.findByRole('group', { name: 'Resumen de conversión del mes' })
     expect(textoHablado(within(resumen).getByText('Referidos').nextElementSibling as HTMLElement)).toBe('5 referidos, aportan 3')
     const formula = screen.getByTestId('formula-numerador')
-    expect(formula).toHaveTextContent('3 de referidos (cerraron 5; cuentan hasta el 15 % de los cierres del mes de cada analista)')
+    expect(formula).toHaveTextContent('3 de referidos (cerraron 5; cuentan hasta el 15 % de los cierres de leads asignados de cada analista)')
     expect(formula).not.toHaveTextContent('5 × 1')
-    expect(screen.getByText(/Los referidos cuentan hasta el 15 % de los cierres del mes de cada analista: los que sobran no suman/)).toBeInTheDocument()
+    expect(screen.getByText(/Los referidos cuentan hasta el 15 % de los cierres de leads asignados de cada analista: los que sobran no suman/)).toBeInTheDocument()
   })
 
   it('setiembre, sin tope: el texto de siempre, sin la explicación del tope', async () => {

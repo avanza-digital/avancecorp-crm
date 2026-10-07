@@ -1,8 +1,8 @@
 -- Mundo sintético DETERMINISTA de la Fase B del tope de referidos. Lo incluye (\i) quien ya abrió la transacción; nada se
 -- guarda: el que lo incluye termina en rollback. Mismos ids en cada corrida para poder comparar ANTES y DESPUÉS de la migración.
---   Octubre (con tope 15 %): A 20 cierres (10 landing + 5 formulario + 5 referidos) y 65 llegadas más sin cerrar ⇒ tope 3.
---                            B 6 cierres (4 landing + 2 referidos) ⇒ tope ceil(0,9) = 1.
---   Septiembre (sin tope):   A 13 cierres (10 formulario + 3 referidos); B 6 cierres (5 landing + 1 referido).
+--   Octubre (con tope 15 %): A 15 cierres asignados (10 landing + 5 formulario) + 5 referidos y 65 llegadas más sin cerrar ⇒ base 15, tope 3.
+--                            B 4 cierres asignados (landing) + 2 referidos ⇒ base 4, tope ceil(0,6) = 1.
+--   Septiembre (sin tope):   A 10 cierres asignados (formulario) + 3 referidos; B 5 asignados (landing) + 1 referido.
 -- Actores: gerencia G, supervisor S, vendedores A y B (con su fila en public.perfiles, que el roster exige).
 set local session_replication_role = replica;
 set local search_path = '';

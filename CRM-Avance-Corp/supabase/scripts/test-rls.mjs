@@ -12910,9 +12910,10 @@ async function testConversionMensual(sessions, seed) {
   const MES = enLima(new Date()).slice(0, 7);
   const PERIODO = `${MES}-01`;
   // Tope de referidos (migracion 20261007160937): desde 2026-10 el referido que cierra vale 1 y entre todos los
-  // referidos de un analista solo cuentan hasta el 15 % de sus cierres del mes. El oraculo de este bloque SIGUE el
-  // mes: antes de octubre, factor 0,15 y suma exacta; desde octubre, factor 1 y la suma exacta pasa a ser una COTA
-  // (el tope depende de la base del mes, que incluye operaciones de cartera que el payload no desglosa).
+  // referidos de un analista solo cuentan hasta el 15 % de sus cierres de leads asignados (landing y formulario). El
+  // oraculo de este bloque SIGUE el mes: antes de octubre, factor 0,15 y suma exacta; desde octubre, factor 1 y la suma
+  // exacta pasa a ser una COTA (el tope depende de los cierres de landing y formulario, que el payload no separa de los
+  // de base cargada).
   const TOPE_ACTIVO = MES >= '2026-10';
   const FACTOR_ESPERADO = TOPE_ACTIVO ? 1 : 0.15;
   const ids = seed.profileIdByKey;

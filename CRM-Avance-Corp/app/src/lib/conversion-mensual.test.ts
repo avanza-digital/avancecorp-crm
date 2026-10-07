@@ -675,8 +675,8 @@ describe('el ajuste por meses cerrados y su chip (descuentoArrastre)', () => {
 
 /**
  * ESTADO DE OCTUBRE 2026: el referido vale 1 pero todos los referidos de un
- * analista cuentan como máximo el 15 % de sus cierres del mes. 20 cierres
- * (15 no referidos + 5 referidos) → tope ceil(0,15 × 20) = 3: dos referidos no
+ * analista cuentan como máximo el 15 % de sus cierres de leads asignados. 15 cierres
+ * asignados + 5 referidos → tope ceil(0,15 × 15) = 3: dos referidos no
  * suman. Numerador 15 + 3 = 18 sobre 90 → 20 %; aporte de referidos
  * 100 × 3 ÷ 90 = 3,33 (SIN tope serían 100 × 1 × 5 ÷ 90 = 5,56).
  */
@@ -802,16 +802,16 @@ describe('ConversionMensualSchema — tope de referidos (octubre 2026)', () => {
 })
 
 describe('textos del tope de referidos', () => {
-  it('sin tope conserva EXACTO «referidos ×0.15»; con tope explica el 15 % de los cierres', () => {
+  it('sin tope conserva EXACTO «referidos ×0.15»; con tope explica el 15 % de los cierres de leads asignados', () => {
     expect(hayTopeReferidos({ tope_referidos_pct: null })).toBe(false)
     expect(hayTopeReferidos({})).toBe(false)
     expect(hayTopeReferidos({ tope_referidos_pct: 15 })).toBe(true)
     expect(textoReferidosFormula({ referido: 0.15 })).toBe('referidos ×0.15')
     expect(textoReferidosFormula({ referido: 0.15, tope_referidos_pct: null })).toBe('referidos ×0.15')
     expect(textoReferidosFormula({ referido: 1, tope_referidos_pct: 15 }))
-      .toBe('referidos (cuentan hasta el 15 % de los cierres del mes)')
+      .toBe('referidos (cuentan hasta el 15 % de los cierres de leads asignados)')
     expect(textoTopeReferidos({})).toBeNull()
     expect(textoTopeReferidos({ tope_referidos_pct: 15 }))
-      .toBe('Los referidos cuentan hasta el 15 % de los cierres del mes; los que sobran no suman.')
+      .toBe('Los referidos cuentan hasta el 15 % de los cierres de leads asignados; los que sobran no suman.')
   })
 })

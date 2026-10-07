@@ -257,13 +257,13 @@ export function hayTopeReferidos(
  * Cómo se nombran los referidos en una fórmula. Sin tope (agosto, septiembre)
  * el texto de siempre, «referidos ×0.15». Con tope (octubre 2026 en adelante)
  * el peso 1 ya no dice cuánto aportan: los referidos de un analista cuentan
- * como máximo ese porcentaje de sus cierres del mes.
+ * como máximo ese porcentaje de sus cierres de leads asignados.
  */
 export function textoReferidosFormula(
   ponderacion: { referido: number, tope_referidos_pct?: number | null | undefined },
 ): string {
   return hayTopeReferidos(ponderacion)
-    ? `referidos (cuentan hasta el ${numero(ponderacion.tope_referidos_pct, 2)} % de los cierres del mes)`
+    ? `referidos (cuentan hasta el ${numero(ponderacion.tope_referidos_pct, 2)} % de los cierres de leads asignados)`
     : `referidos ×${numero(ponderacion.referido, 2)}`
 }
 
@@ -316,8 +316,8 @@ export const ConversionMensualSchema = v.pipe(
       referido: v.pipe(NumeroRpcSchema, v.minValue(0), v.maxValue(1)),
       renovacion: v.optional(v.pipe(NumeroRpcSchema, v.minValue(0), v.maxValue(1))),
       /** Desde octubre 2026 el referido vale 1, pero todos los referidos de un
-       * analista cuentan como MÁXIMO este porcentaje (0–100) de sus cierres del
-       * mes. null o ausente = mes SIN tope (agosto, septiembre). El servidor ya
+       * analista cuentan como MÁXIMO este porcentaje (0–100) de sus cierres de
+       * leads asignados del mes. null o ausente = mes SIN tope (agosto, septiembre). El servidor ya
        * lo aplicó: el front solo lo muestra y valida. */
       tope_referidos_pct: v.optional(v.nullable(
         v.pipe(NumeroRpcSchema, v.minValue(0), v.maxValue(100)),
@@ -484,12 +484,12 @@ export function lineaReferidos(
   return `${base} · aporta ${aporta} %`
 }
 
-/** «Hasta el 15 % de los cierres del mes» (null si el mes no tiene tope). */
+/** «Hasta el 15 % de los cierres de leads asignados» (null si el mes no tiene tope). */
 export function textoTopeReferidos(
   ponderacion: { tope_referidos_pct?: number | null | undefined },
 ): string | null {
   return hayTopeReferidos(ponderacion)
-    ? `Los referidos cuentan hasta el ${numero(ponderacion.tope_referidos_pct, 2)} % de los cierres del mes; los que sobran no suman.`
+    ? `Los referidos cuentan hasta el ${numero(ponderacion.tope_referidos_pct, 2)} % de los cierres de leads asignados; los que sobran no suman.`
     : null
 }
 

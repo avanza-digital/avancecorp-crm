@@ -1182,7 +1182,7 @@ describe('filtro por fuente en Conversiones', () => {
     })
 
     const heroe = within(screen.getByRole('region', { name: 'Aporte de Referido al índice' }))
-    expect(heroe.getByText('Peso por resultado').closest('.gi-hero-metric')).toHaveTextContent('×1 · hasta 15 % de los cierres')
+    expect(heroe.getByText('Peso por resultado').closest('.gi-hero-metric')).toHaveTextContent('×1 · hasta 15 % de los cierres asignados')
     expect(heroe.getByText('5 cierres + 0 operaciones · aporte 3 ÷ base 100')).toBeInTheDocument()
   })
 

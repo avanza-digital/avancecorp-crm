@@ -802,7 +802,7 @@ export function RankingVendedoresPanel({
     : etiquetaFuentesConversion(fuenteConversion)
   const formulaConversion = fuenteConversion != null
     ? `${etiquetaFuente} aporta ${lecturaFuente?.topeReferidosPct != null && lecturaFuente.fuente === 'referido'
-      ? `1 por resultado, con tope: los referidos cuentan hasta el ${numero(lecturaFuente.topeReferidosPct, 2)} % de los cierres del mes de cada analista,`
+      ? `1 por resultado, con tope: los referidos cuentan hasta el ${numero(lecturaFuente.topeReferidosPct, 2)} % de los cierres de leads asignados de cada analista,`
       : lecturaFuente?.peso == null ? 'según el peso comercial vigente' : `×${numero(lecturaFuente.peso, 2)} por resultado`} y se divide entre la misma base automática del índice.`
     : conversionMensual == null
     ? 'Conversión ponderada del núcleo comercial'

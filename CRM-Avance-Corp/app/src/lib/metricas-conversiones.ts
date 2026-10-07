@@ -287,7 +287,7 @@ const NucleoConversionesSchema = v.object({
   operaciones_cartera: v.number(),
   peso_referido: v.number(),
   /** Desde octubre 2026 los referidos de un analista cuentan como máximo este
-   * porcentaje (0–100) de sus cierres del mes. null o ausente = mes sin tope.
+   * porcentaje (0–100) de sus cierres de leads asignados. null o ausente = mes sin tope.
    * Con tope, `peso_referido × cierres` ya NO es el aporte: el servidor lo
    * entrega calculado. */
   tope_referidos_pct: v.optional(v.nullable(v.pipe(v.number(), v.minValue(0), v.maxValue(100)))),

@@ -97,7 +97,7 @@ export const ConversionCoordinacionSchema = v.object({
   }),
   sellado: v.boolean(),
   peso_referido: NumeroRpcSchema,
-  /** Tope de referidos (octubre 2026 en adelante): máximo 0–100 % de los cierres del mes del analista.
+  /** Tope de referidos (octubre 2026 en adelante): máximo 0–100 % de los cierres de leads asignados del analista en el mes.
    * null o ausente = sin tope. Con tope, `referido_aporte` puede ser MENOR que `referido × peso_referido`. */
   tope_referidos_pct: v.optional(v.nullable(v.pipe(NumeroRpcSchema, v.minValue(0), v.maxValue(100)))),
   peso_renovacion: NumeroRpcSchema,

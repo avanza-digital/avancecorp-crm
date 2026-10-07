@@ -332,7 +332,7 @@ describe('ranking general de analistas', () => {
       {...fuentesRankingSinError()}
     />)
 
-    expect(screen.getByText(/Referido aporta 1 por resultado, con tope: los referidos cuentan hasta el 15 % de los cierres del mes de cada analista, y se divide/)).toBeInTheDocument()
+    expect(screen.getByText(/Referido aporta 1 por resultado, con tope: los referidos cuentan hasta el 15 % de los cierres de leads asignados de cada analista, y se divide/)).toBeInTheDocument()
     expect(screen.queryByText(/×1 por resultado/)).not.toBeInTheDocument()
   })
 
@@ -351,7 +351,7 @@ describe('ranking general de analistas', () => {
       {...fuentesRankingSinError()}
     />)
     const { unmount } = montar(conTope)
-    expect(screen.getByText(/Cierres Landing\/Formulario \+ referidos \(cuentan hasta el 15 % de los cierres del mes\) \+ renovaciones ×1/)).toBeInTheDocument()
+    expect(screen.getByText(/Cierres Landing\/Formulario \+ referidos \(cuentan hasta el 15 % de los cierres de leads asignados\) \+ renovaciones ×1/)).toBeInTheDocument()
     unmount()
 
     const sinTope = structuredClone(conTope)

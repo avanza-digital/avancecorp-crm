@@ -1,7 +1,7 @@
 -- Prueba de la FASE B del tope de referidos (migración 20261007203000). Banco con la Fase A y la B aplicadas, como postgres:
 --   psql -v ON_ERROR_STOP=1 -qAt -f prueba-origen.sql        (sintética: todo se deshace)
--- Mundo: mundo-fase-b.sql. Octubre lleva tope 15 %: A 20 cierres con 5 referidos ⇒ cuentan 3; B 6 cierres con 2 referidos ⇒ cuenta 1.
--- Septiembre NO lleva tope (A: 3 referidos de 13 cierres; B: 1 de 6).
+-- Mundo: mundo-fase-b.sql. Octubre lleva tope 15 % de los cierres de leads asignados: A 15 asignados y 5 referidos ⇒ cuentan 3;
+-- B 4 asignados y 2 referidos ⇒ cuenta 1. Septiembre NO lleva tope (A: 10 asignados y 3 referidos; B: 5 asignados y 1 referido).
 begin;
 \i mundo-fase-b.sql
 \i anterior-origen.sql
@@ -89,12 +89,12 @@ rollback;
 begin;
 \i mundo-fase-b.sql
 select set_config('request.jwt.claim.sub', (select g::text from ana), true);
--- C (sin fila en crm.equipo): 4 landing + 2 referidos en octubre ⇒ 6 cierres, tope ceil(0,9) = 1 ⇒ cuenta 1 referido.
+-- C (sin fila en crm.equipo): 4 landing + 2 referidos en octubre ⇒ base 4, tope ceil(0,6) = 1 ⇒ cuenta 1 referido.
 do $$ declare c uuid := 'c0000000-0000-4000-8000-00000000000c'; i int; begin
   for i in 1..4 loop perform pg_temp.cierre(c, 'landing', '2026-10-01', i); end loop;
   for i in 1..2 loop perform pg_temp.cierre(c, 'referido', '2026-10-01', 1 + i); end loop;
 end $$;
--- D (SÍ en el roster, con supervisor): solo referidos ⇒ divisor 0 y porcentaje NULL, pero su referido que cuenta (tope ceil(0,3) = 1) SÍ aporta.
+-- D (SÍ en el roster, con supervisor): solo referidos ⇒ divisor 0 y porcentaje NULL; sin cierres asignados su base es 0 y su tope es 0, así que ningún referido suyo aporta.
 do $$ declare d uuid := 'f0000000-0000-4000-8000-00000000000f'; i int; begin
   insert into public.perfiles (id, nombre_completo) values (d, 'Analista D');
   insert into crm.equipo (perfil_id, rol_crm, supervisor_id) select d, 'vendedor', s from ana;
@@ -103,8 +103,8 @@ end $$;
 create temp table pc as select crm.conversion_mensual_sin_cartera_fn('2026-10-01') j;
 select pg_temp.exigir((select (j #>> '{cobertura,fuera_de_roster,divisor}')::int = 4 and (j #>> '{total,divisor}')::int = 114 and (j #>> '{total,cierres_referidos}')::int = 11 from pc),
   'O7a: C queda fuera del roster (divisor 4), D no suma divisor, y el total lo suma todo (114 de divisor, 11 referidos cerrados)');
-select pg_temp.exigir((select (j #>> '{total,referidos_aporta_pct}')::numeric = round(100.0 * 6 / 114, 2) from pc),
-  'O7b: «aporta» del total incluye al fuera de roster (C) y a quien solo recibe referidos (D, divisor 0): 100 × (3 + 1 + 1 + 1) / 114 = 5,26; salió ' || (select j #>> '{total,referidos_aporta_pct}' from pc));
+select pg_temp.exigir((select (j #>> '{total,referidos_aporta_pct}')::numeric = round(100.0 * 5 / 114, 2) from pc),
+  'O7b: «aporta» del total incluye al fuera de roster (C) y no suma a quien solo tiene referidos (D, base 0, tope 0): 100 × (3 + 1 + 1 + 0) / 114 = 4,39; salió ' || (select j #>> '{total,referidos_aporta_pct}' from pc));
 select pg_temp.exigir((select r #>> '{referidos,aporta_pct}' is null and (r ->> 'divisor')::int = 0 and (r ->> 'cierres_referidos')::int = 2
     from pc, jsonb_array_elements(j -> 'responsables') r where (r ->> 'vendedor_id')::uuid = 'f0000000-0000-4000-8000-00000000000f'),
   'O7c: D (solo referidos) sigue con porcentaje NULL por fila: el total NO depende de él');
@@ -116,7 +116,7 @@ begin;
 select set_config('request.jwt.claim.sub', (select g::text from ana), true);
 insert into crm.conversion_pesos (vigente_desde, peso_referido, peso_renovacion, tope_referidos_pct, nota) values ('2026-09-01', 1.000, 0.15, 15.00, 'sintetico: septiembre con tope solo en la prueba');
 create or replace function private.cierre_mes_ventana_desde(p_periodo date) returns timestamptz language sql stable set search_path = '' as $$ select '2026-01-01'::timestamptz $$;
--- C (fuera de roster: 4 landing + 2 referidos) y D (en el roster, solo 2 referidos ⇒ divisor 0) también producen en septiembre.
+-- C (fuera de roster: 4 landing + 2 referidos) y D (en el roster, solo 2 referidos ⇒ divisor 0, base 0 y tope 0) también producen en septiembre.
 do $$ declare c uuid := 'c0000000-0000-4000-8000-00000000000c'; d uuid := 'f0000000-0000-4000-8000-00000000000f'; i int; begin
   insert into public.perfiles (id, nombre_completo) values (d, 'Analista D');
   insert into crm.equipo (perfil_id, rol_crm, supervisor_id) select d, 'vendedor', s from ana;
@@ -131,7 +131,7 @@ create temp table sello_res as select crm.cerrar_periodo('2026-09-01') j;
 set local session_replication_role = replica;
 select pg_temp.exigir((select (j ->> 'ok')::boolean from sello_res), 'M0: el sello real de septiembre (con tope de prueba) terminó bien');
 select pg_temp.exigir((select pc.tope_referidos_pct = 15 and pc.ponderacion_referido = 1 from crm.periodos_cerrados pc where pc.periodo = '2026-09-01'), 'M1: la foto guarda peso 1 y tope 15');
--- Septiembre en vivo (antes del sello) habría dado: A 3 referidos de 13 cierres ⇒ tope ceil(1,95) = 2; B 1 de 6 ⇒ 1.
+-- Septiembre en vivo (antes del sello) habría dado: A 3 referidos con base 10 ⇒ tope ceil(1,5) = 2; B 1 con base 5 ⇒ tope ceil(0,75) = 1.
 select pg_temp.exigir((select (x ->> 'aporte')::numeric = 2 and (x ->> 'cierres')::int = 3
     from crm.cierre_mes_vendedor f, jsonb_array_elements(f.origenes_ranking -> 'filas') x
     where f.periodo = '2026-09-01' and f.vendedor_id = (select a from ana) and x ->> 'origen' = 'referido'),
@@ -144,13 +144,13 @@ select pg_temp.exigir((select (x ->> 'aporte')::numeric = 1 and (x ->> 'cierres'
 create temp table gp as select crm.conversion_mensual_sin_cartera_fn('2026-09-01') j;
 select pg_temp.exigir((select (j #>> '{ponderacion,tope_referidos_pct}')::numeric = 15
        and (j #>> '{total,divisor}')::int = 79
-       and (j #>> '{total,referidos_aporta_pct}')::numeric = round(100.0 * 5 / 79, 2) from gp),
-  'M4: mes sellado: tope de la foto y «aporta» = 100 × (A 2 + B 1 + C fuera de roster 1 + D solo referidos 1) / 79 = 6,33; salió ' || (select j #>> '{total,referidos_aporta_pct}' from gp));
+       and (j #>> '{total,referidos_aporta_pct}')::numeric = round(100.0 * 4 / 79, 2) from gp),
+  'M4: mes sellado: tope de la foto y «aporta» = 100 × (A 2 + B 1 + C fuera de roster 1 + D solo referidos 0) / 79 = 5,06; salió ' || (select j #>> '{total,referidos_aporta_pct}' from gp));
 select pg_temp.exigir((select (a.j #>> '{total,referidos_aporta_pct}') = (g.j #>> '{total,referidos_aporta_pct}') and (a.j #>> '{total,divisor}') = (g.j #>> '{total,divisor}') from abierto a, gp g),
   'M4b: el mes abierto y su foto sellada dicen lo MISMO en «aporta» y divisor');
--- Un supervisor ve solo a su equipo (A, B y D): el total sellado suma solo a los visibles (2 + 1 + 1 = 4 sobre el divisor del equipo).
+-- Un supervisor ve solo a su equipo (A, B y D): el total sellado suma solo a los visibles (2 + 1 + 0 = 3 sobre el divisor del equipo).
 select set_config('request.jwt.claim.sub', (select s::text from ana), true);
-select pg_temp.exigir((select (j #>> '{total,referidos_aporta_pct}')::numeric = round(100.0 * 4 / (j #>> '{total,divisor}')::numeric, 2)
+select pg_temp.exigir((select (j #>> '{total,referidos_aporta_pct}')::numeric = round(100.0 * 3 / (j #>> '{total,divisor}')::numeric, 2)
     from (select crm.conversion_mensual_sin_cartera_fn('2026-09-01') j) q),
   'M4c: el supervisor ve «aporta» de su equipo con el aporte exacto de sus visibles (A, B y D), sin C');
 select set_config('request.jwt.claim.sub', (select g::text from ana), true);
@@ -162,8 +162,8 @@ select pg_temp.exigir((select f.cierres_referido = 3 and f.cierres_referido_apor
   'M6a: Coordinación (sellado): A cierres_referido 3, aporte 2 (no 3 × 1)');
 select pg_temp.exigir((select f.cierres_referido = 1 and f.cierres_referido_aporte = 1 from private.conversion_divisor_empresa('2026-09-01', '2026-09-30') f where f.analista_id = (select b from ana)),
   'M6b: Coordinación (sellado): B cierres_referido 1, aporte 1');
-select pg_temp.exigir((select f.cierres_referido = 2 and f.cierres_referido_aporte = 1 from private.conversion_divisor_empresa('2026-09-01', '2026-09-30') f where f.analista_id = 'f0000000-0000-4000-8000-00000000000f'),
-  'M6c: Coordinación (sellado): D (solo referidos) 2 cerrados, aporte 1');
+select pg_temp.exigir((select f.cierres_referido = 2 and f.cierres_referido_aporte = 0 from private.conversion_divisor_empresa('2026-09-01', '2026-09-30') f where f.analista_id = 'f0000000-0000-4000-8000-00000000000f'),
+  'M6c: Coordinación (sellado): D (solo referidos, base 0) 2 cerrados, aporte 0');
 -- Con producción fuera del roster congelada en la foto (C) el desglose de la empresa NO se publica (no suma sus partes): es la regla de siempre.
 select pg_temp.exigir((select t.desglose_disponible is false and t.cierres_referido_aporte is null from private.conversion_divisor_empresa_totales('2026-09-01', '2026-09-30') t),
   'M6c2: con producción fuera del ranking en la foto, el total sellado no publica desglose');

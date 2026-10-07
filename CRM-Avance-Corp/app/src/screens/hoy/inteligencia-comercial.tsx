@@ -762,7 +762,7 @@ export function InteligenciaComercialPanel({
   const pesoHero = aporteRango?.peso == null
     ? null
     : aporteRango.topeReferidosPct != null && aporteRango.fuente === 'referido'
-      ? `×${numero(aporteRango.peso, 2)} · hasta ${numero(aporteRango.topeReferidosPct, 2)} % de los cierres`
+      ? `×${numero(aporteRango.peso, 2)} · hasta ${numero(aporteRango.topeReferidosPct, 2)} % de los cierres asignados`
       : `×${numero(aporteRango.peso, 2)}`
 
   return (

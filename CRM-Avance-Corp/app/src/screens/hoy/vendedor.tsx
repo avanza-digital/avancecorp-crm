@@ -1320,7 +1320,7 @@ export function HoyVendedor(): JSX.Element {
                   ? (lecturaConversion.aviso ?? 'Sin datos de asignación para este mes')
                   : miConversion?.estado === 'solo_referidos'
                     ? conversionMensual != null && hayTopeReferidos(conversionMensual.ponderacion)
-                      ? `Solo recibió referidos este mes — al cerrarse cuentan hasta el ${numero(conversionMensual.ponderacion.tope_referidos_pct, 2)} % de tus cierres`
+                      ? `Solo recibió referidos este mes — al cerrarse cuentan hasta el ${numero(conversionMensual.ponderacion.tope_referidos_pct, 2)} % de tus cierres de leads asignados`
                       : 'Solo recibió referidos este mes — al cerrarse suman al 15 %'
                     : miConversion?.estado === 'solo_arrastre'
                       ? `${numero(miConversion.cierres_no_referidos + miConversion.cierres_referidos)} cierres arrastrados · sin leads recibidos`

@@ -643,7 +643,7 @@ export function ResumenGerenciaPanel({
             <p className="mt-3 text-[11px] leading-relaxed text-[var(--gi-muted)]">
               {origenes.filter((fila) => fila.fuera_del_divisor_del_nucleo === true).map((fila) => etiquetaOrigenConversion(fila.origen)).join(', ')}
               {origenPonderado && pesoFueraDeBase !== undefined && topeReferidos != null
-                ? `: sus cierres cuentan hasta el ${numero(topeReferidos, 2)} % de los cierres del mes de cada analista (los que sobran no suman), como en la conversión general, y sus recibidos quedan fuera de la base general.`
+                ? `: sus cierres cuentan hasta el ${numero(topeReferidos, 2)} % de los cierres de leads asignados de cada analista (los que sobran no suman), como en la conversión general, y sus recibidos quedan fuera de la base general.`
                 : origenPonderado && pesoFueraDeBase !== undefined
                 ? `: cada cierre cuenta ×${numero(pesoFueraDeBase, 2)}, como en la conversión general, y sus recibidos quedan fuera de la base general.`
                 : ': de los recibidos por ese origen, cuánto cerró — queda fuera de la base general de la conversión.'}

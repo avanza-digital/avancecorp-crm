@@ -72,6 +72,8 @@ for cual, nombre, cambios in MUTANTES:
     r = subprocess.run(["docker", "exec", "-i", "-e", "PGPASSWORD=postgres", contenedor, "psql", "-U", "postgres", "-h", "127.0.0.1", "-d", "postgres", "-qAt", "-v", "ON_ERROR_STOP=1"],
                        input=cuerpo, capture_output=True, text=True)
     salida = r.stdout + r.stderr
+    if "syntax error" in salida:
+        sys.exit(f"{nombre}: el mutante es SQL inválido:\n{salida[:600]}")   # un error de sintaxis no prueba nada
     cayo = ("FALLA" in salida) or (r.returncode != 0 and "PRUEBA-ORIGEN: OK" not in salida)
     print(("CAYÓ      " if cayo else "SOBREVIVIÓ ") + nombre + ("" if cayo else "   <<<<<<"))
     if not cayo:

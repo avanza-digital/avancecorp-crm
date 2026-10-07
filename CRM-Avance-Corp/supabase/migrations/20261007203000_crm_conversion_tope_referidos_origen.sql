@@ -2,7 +2,7 @@
 --
 -- Conversión · tope de referidos, FASE B: que ninguna pantalla muestre al referido SIN tope desde octubre de 2026.
 -- Sigue a 20261007160937_crm_conversion_tope_referidos (Fase A: núcleo, foto, sello, deuda). Regla de Miguel (07/10/2026): el
--- referido vale 1 pero entre todos cuentan como máximo el 15 % de los cierres del analista en el mes, redondeado hacia arriba.
+-- referido vale 1 pero entre todos cuentan como máximo el 15 % de sus cierres de leads asignados por el sistema (landing y formulario) en el mes, redondeado hacia arriba.
 --
 -- QUÉ HACE (todo lo que calculaba el aporte del referido por su cuenta, sin pasar por el núcleo):
 --   1. private.ranking_conversion_origen_mes («Resultados por origen» del Ranking): los cierres salen de private.conversion_episodios

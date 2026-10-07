@@ -1,6 +1,6 @@
 -- Prueba del SELLO y la DEUDA con el tope de referidos (sintética, todo se deshace). Banco con la migración 20261007160937.
 --   psql -v ON_ERROR_STOP=1 -f prueba-sello-deuda.sql
--- Mundo: un analista con 12 cierres en octubre (8 no referidos + 4 referidos ⇒ tope ceil(1,8) = 2) y otro con 3 referidos en
+-- Mundo: un analista con 6 cierres asignados y 4 referidos en octubre (base 6 ⇒ tope ceil(0,9) = 1) y otro con 3 referidos en
 -- septiembre-2026 sin tope. Se sella con INSERT directo en crm.periodos_cerrados (el trigger del sello es lo que se prueba).
 begin;
 set local session_replication_role = replica;
@@ -32,7 +32,7 @@ end $$;
 
 create temp table mundo (lead_id uuid, analista uuid, origen text, mes date, dia int);
 do $$ declare a uuid := 'a0000000-0000-4000-8000-00000000000a'; i int; l uuid; begin
-  for i in 1..8 loop l := pg_temp.cierre(a, 'formulario', '2026-10-01', i); insert into mundo values (l, a, 'formulario', '2026-10-01', i); end loop;
+  for i in 1..6 loop l := pg_temp.cierre(a, 'formulario', '2026-10-01', i); insert into mundo values (l, a, 'formulario', '2026-10-01', i); end loop;
   for i in 1..4 loop l := pg_temp.cierre(a, 'referido', '2026-10-01', 10 + i); insert into mundo values (l, a, 'referido', '2026-10-01', 10 + i); end loop;
   a := 'b0000000-0000-4000-8000-00000000000b';
   for i in 1..3 loop l := pg_temp.cierre(a, 'referido', '2026-09-01', 5 + i); insert into mundo values (l, a, 'referido', '2026-09-01', 5 + i); end loop;
@@ -43,12 +43,12 @@ set local session_replication_role = origin;
 insert into crm.periodos_cerrados (periodo, ponderacion_referido, ponderacion_renovacion, tope_referidos_pct, meta_revision, cobertura, automatico)
   values ('2026-10-01', 1.000, 0.15, 15.00, 1, '{}'::jsonb, true);
 select pg_temp.exigir((select tope_referidos_pct from crm.periodos_cerrados where periodo = '2026-10-01') = 15, 'S1: la foto guarda el tope');
-select pg_temp.exigir((select count(*) from crm.conversion_acreditaciones ca join mundo m using (lead_id) where m.mes = '2026-10-01' and m.origen = 'formulario' and ca.incluida_en_sello) = 8,
-  'S2: los 8 no referidos quedan incluidos en el sello');
-select pg_temp.exigir((select array_agg(m.dia order by m.dia) from crm.conversion_acreditaciones ca join mundo m using (lead_id) where m.mes = '2026-10-01' and m.origen = 'referido' and ca.incluida_en_sello) = array[11, 12],
-  'S3: solo los 2 referidos más antiguos (tope 2) quedan incluidos en el sello');
-select pg_temp.exigir((select count(*) from crm.conversion_acreditaciones ca join mundo m using (lead_id) where m.mes = '2026-10-01' and m.origen = 'referido' and ca.incluida_en_sello is false) = 2,
-  'S4: los 2 referidos que pasaron del tope quedan FUERA del sello');
+select pg_temp.exigir((select count(*) from crm.conversion_acreditaciones ca join mundo m using (lead_id) where m.mes = '2026-10-01' and m.origen = 'formulario' and ca.incluida_en_sello) = 6,
+  'S2: los 6 asignados quedan incluidos en el sello');
+select pg_temp.exigir((select array_agg(m.dia order by m.dia) from crm.conversion_acreditaciones ca join mundo m using (lead_id) where m.mes = '2026-10-01' and m.origen = 'referido' and ca.incluida_en_sello) = array[11],
+  'S3: solo el referido más antiguo (tope 1) queda incluido en el sello');
+select pg_temp.exigir((select count(*) from crm.conversion_acreditaciones ca join mundo m using (lead_id) where m.mes = '2026-10-01' and m.origen = 'referido' and ca.incluida_en_sello is false) = 3,
+  'S4: los 3 referidos que pasaron del tope quedan FUERA del sello');
 
 -- Para la deuda se desactivan los triggers de FK (el analista sintético no es un perfil real), pero se deja ACTIVO lo demás.
 set local session_replication_role = replica;
@@ -81,5 +81,5 @@ select pg_temp.exigir((select id from ajuste_res where caso = 'D4') is not null
   and (select numerador from crm.ajustes_mes_cerrado where lead_id = (select lead_id from mundo where mes = '2026-09-01' and dia = 7)) = 0.150,
   'D4: un mes sin tope cobra el peso de siempre (0,15)');
 
-select 'PRUEBA SELLO Y DEUDA: 9 aserciones PASS' as resultado;
+select 'PRUEBA SELLO Y DEUDA: PASS' as resultado;
 rollback;

@@ -975,7 +975,7 @@ describe('Hoy · analista — meta del mes', () => {
     conTope.ponderacion = { referido: 1, renovacion: 1, tope_referidos_pct: 15, fuente: 'crm.conversion_pesos' }
     CONVERSION_MENSUAL = conTope
     montar(opciones)
-    expect(screen.getByText('Solo recibió referidos este mes — al cerrarse cuentan hasta el 15 % de tus cierres')).toBeInTheDocument()
+    expect(screen.getByText('Solo recibió referidos este mes — al cerrarse cuentan hasta el 15 % de tus cierres de leads asignados')).toBeInTheDocument()
     cleanup()
 
     CONVERSION_MENSUAL = soloReferidos()

@@ -16,8 +16,7 @@ insert into crm.conversion_acreditaciones (lead_id, episodio_id, analista_id, or
          '2026-10-03'::timestamptz, '2026-10-03'::timestamptz, '2026-10-03'::timestamptz, '2026-10-01', private.conversion_plazo_hasta('2026-10-01'), 'acreditada', '2026-09-01', 'costo'
     from (select l.id, l.origen, row_number() over () g from crm.leads l where l.nombre_completo like 'Costo %') l;
 analyze crm.conversion_acreditaciones; analyze crm.leads;
-do $$ declare t0 timestamptz; n int; a uuid := 'a0000000-0000-4000-8000-000000000007'; i int; res text := '';
-  procedure_dummy int; begin
+do $$ declare t0 timestamptz; n int; a uuid := 'a0000000-0000-4000-8000-000000000007'; i int; res text := ''; begin
   for i in 1..3 loop
     t0 := clock_timestamp(); select count(*) into n from pg_temp.conversion_episodios_anterior('2026-10-01'::timestamptz, '2026-11-01'::timestamptz, '2026-10-01', true, '{}', 1);
     res := res || format('anterior mes global %s ms (%s filas) | ', round(extract(milliseconds from clock_timestamp() - t0)::numeric), n);
@@ -28,10 +27,9 @@ do $$ declare t0 timestamptz; n int; a uuid := 'a0000000-0000-4000-8000-00000000
     t0 := clock_timestamp(); select count(*) into n from private.conversion_episodios('2026-10-01'::timestamptz, '2026-11-01'::timestamptz, '2026-10-01', false, array[a], 1);
     res := res || format('nueva un analista %s ms', round(extract(milliseconds from clock_timestamp() - t0)::numeric));
     t0 := clock_timestamp(); select count(*) into n from pg_temp.conversion_episodios_anterior('1900-01-01'::timestamptz, '2100-01-01'::timestamptz, null::date, true, '{}', 1);
-    res := format('historia completa anterior %s ms', round(extract(milliseconds from clock_timestamp() - t0)::numeric));
+    res := res || format(' | historia completa anterior %s ms', round(extract(milliseconds from clock_timestamp() - t0)::numeric));
     t0 := clock_timestamp(); select count(*) into n from private.conversion_episodios('1900-01-01'::timestamptz, '2100-01-01'::timestamptz, null::date, true, '{}', 1);
     res := res || format(' | historia completa nueva %s ms', round(extract(milliseconds from clock_timestamp() - t0)::numeric));
-    raise notice 'historia: %', res; res := '';
     raise notice 'vuelta %: %', i, res; res := '';
   end loop;
 end $$;
