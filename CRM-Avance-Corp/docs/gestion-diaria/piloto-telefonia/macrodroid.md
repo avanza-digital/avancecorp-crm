@@ -222,8 +222,9 @@ Se arma clonando «Piloto F0» (mantener pulsada → Clonar) para conservar la a
 ### La URL con el id de la llamada — ya puesta en C1 (06/10)
 «Abrir sitio web» ya abre `…/llamada/{call_number}/{lv=id_llamada}` (decisión de Jhosep, 06/10: armar la macro final una
 sola vez). El router publicado hoy ignora el segmento extra y el enlace funciona como F1 (comprobado en P2: abrió la
-encuesta); cuando se publique F4-b (parte A, en el #190), la encuesta llamará a `crm.registrar_llamada_v5` con ese id y la
-llamada quedará unida. Adelantarla no rompe nada.
+encuesta). F4-b ya está en `main` (#190), detrás del interruptor `LLAMADAS_CELULAR_APROBADAS`: cuando Miguel aplique la
+base y lo abra, la encuesta llamará a `crm.registrar_llamada_v5` con ese id y la llamada quedará unida. Adelantarla no
+rompe nada. Guía del día de activación: `ACTIVAR-C1.md`.
 
 ### Antes de usarla
 

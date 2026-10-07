@@ -19,8 +19,8 @@ https://claude.ai/artifact/8ueovxHiTE5vqUyWXiAHcA (privado).
 
 | # | Decisión | Por qué |
 | --- | --- | --- |
-| 1 | **F4-c espera al #190** (no se programa todavía) | Ordenarnos con Miguel: no crecer el #198 mientras él prueba la base |
-| 2 | **Hueco «registrar desde la pestaña no une»** → décima migración (`20261006150154`) en el #198: la bandeja y el detalle traen `evento_origen_id` | Sin ella la pestaña cae a la v4 y la llamada queda pendiente |
+| 1 | **F4-c espera al #190** (no se programa todavía). **Cumplida:** el #190 se fusionó el 06/10 y F4-c está en el #215 | Ordenarnos con Miguel: no crecer el PR mientras él prueba la base |
+| 2 | **Hueco «registrar desde la pestaña no une»** → décima migración (`20261006150154`): la bandeja y el detalle traen `evento_origen_id`. Hoy en `main` (#190) | Sin ella la pestaña cae a la v4 y la llamada queda pendiente |
 | 3 | **Fuga del latido** → la macro manda el latido solo cada 6 h (`macrodroid.md` §3c) **y** el servidor deja de mostrar horas exactas (undécima, `20261006150254`) | La hora del latido era casi la de la última llamada, personales incluidas (como la N1) |
 | 4 | **C1 trabaja con una cuenta de analista o supervisor** | La v5 solo une si el celular es del analista que registra (`enlace_exacto.sql:35-36`) [V] |
 
@@ -61,7 +61,7 @@ https://claude.ai/artifact/8ueovxHiTE5vqUyWXiAHcA (privado).
 | --- | --- | --- | --- |
 | D1 | ¿En qué PR va F4-c? | **Resuelta el 07/10: PR nuevo desde `main`** (rama `crm/llamadas-f4c-celulares-20261006`), después de la fusión del #190 | Dentro del #190: ya estaba fusionado |
 | D2 | Demo de «Celulares» | **Interactiva en memoria**, con una clave ficticia que diga «demo»: los botones funcionan y no se guarda nada | Solo lectura: el diálogo «se ve una vez» no se probaría hasta tener tipos |
-| D3 | Sesión real antes de los tipos | **Ocultar la tarjeta**, como la pestaña de F4-b. No se preguntó: lo manda la norma de 4 capas | Llamar sin tipos |
+| D3 | Sesión real antes de los tipos | **Ocultar la tarjeta**, como la pestaña de F4-b. No se preguntó: lo manda la norma de 4 capas. **07/10:** los tipos ya existen; lo que la oculta ahora es el interruptor `LLAMADAS_CELULAR_APROBADAS` hasta que la base esté aplicada (P1) | Llamar sin tipos |
 | D4 | Cerrar el diálogo de la clave | **Pedir «Ya la copié al celular»**; Esc o un clic fuera no lo cierran | Cierre libre: riesgo de perderla (se recupera rotando) |
 | D5 | `version_macro` en F4-d | **Pasar a `llamadas-v3`**: solo cambia el texto del latido en «Llamadas-Enviar cola», **sin macros nuevas** (siguen 4 de 5) | Seguir en v2: no se sabe qué celular ya une |
 | D6 | Cómo se da de alta C1 | **Desde la tarjeta de F4-c**: la clave no pasa por una terminal ni por Claude | `alta-celular.sql`: la clave sale en claro en la terminal |
@@ -116,9 +116,9 @@ Cada aviso va con `QUÉ HICE · RESULTADO · TURNO PARA`. **La clave nunca va al
 
 | # | Quién | Paso | Qué se verifica |
 | --- | --- | --- | --- |
-| 0.1 | Miguel | El #190 aplicado | V1–V5 de `PUBLICAR-F2-F3.md`; Edge desplegada; los `curl` dan `{"error":"No autorizado"}` |
-| 0.2 | Miguel | El #198 aplicado (F4-b, F4-c, décima y undécima) | Registradores con veredicto `t`; gate con `CRM_RLS_EXIGE_LLAMADAS=1` y `CRM_RLS_EXIGE_LLAMADAS_F4B=1`; advisors |
-| 0.3 | Persona (`/release-crm`) | Release con F4-b y F4-c | La tarjeta y la pestaña están en el bundle publicado |
+| 0.1 | Miguel | Las doce aplicadas en producción (ya están en `main` desde el #190), después del ensayo con **SLA activo** y desde LF | Registradores con veredicto `t`; V1–V5; gate con `CRM_RLS_EXIGE_LLAMADAS=1` y `CRM_RLS_EXIGE_LLAMADAS_F4B=1`; advisors. Orden y registradores: checklist del #215 |
+| 0.2 | Miguel | Edge `crm-llamadas-ingesta` desplegada | Los `curl` sin clave dan `{"error":"No autorizado"}`; `verify_jwt` apagado solo en ella |
+| 0.3 | Persona (`/release-crm`) | Release con F4-b y F4-c y `LLAMADAS_CELULAR_APROBADAS = true` | La tarjeta y la pestaña están en el bundle publicado y visibles |
 | 0.4 | Claude | `npm run check` y E2E en Docker | PASS, FAIL o NOT RUN con cifras |
 | 0.5 | Jhosep | Preparar C1 | Cuenta de analista; dos leads «PRUEBA C1» con teléfonos del equipo (con su consentimiento) |
 | 1.1 | Jhosep (C1) | Vaciar `cola_llamadas` y `errores_llamadas`; hora automática | Captura sin números |
@@ -149,7 +149,7 @@ Cada aviso va con `QUÉ HICE · RESULTADO · TURNO PARA`. **La clave nunca va al
   - `credencial` redactada en los registros.
 - **E2E en Docker:**
   - F4-c en la demo (con Supabase bloqueado; directorio no ve la tarjeta);
-  - F4-c real con dobles, cuando haya tipos;
+  - F4-c real con dobles: **pendiente** (los tipos ya existen; el E2E entregado en el #215 es el de la demo);
   - F4.4 en `llamadas-celular-circuito.spec.ts`: el aviso después o antes, dos llamadas en 10 min, dos pestañas,
     enlace fallido, respuesta perdida (repetido), Deshacer → corregido, lead reasignado, número sin lead, otra
     cuenta, URL vieja sin id.
@@ -180,6 +180,7 @@ Cada aviso va con `QUÉ HICE · RESULTADO · TURNO PARA`. **La clave nunca va al
 ## En llano
 
 La tarjeta «Celulares» deja a gerencia dar de alta un celular, cambiarle la clave, darlo de baja y ver si está vivo,
-sin tocar la base: las puertas ya existen. Se programa cuando Miguel termine la base. Activar C1 es una lista de pasos
-con quién hace cada uno y cómo se apaga si algo falla. De este análisis salieron dos arreglos que ya están en el #198:
+sin tocar la base: las puertas ya existen. Ya está programada (#215, en revisión). Activar C1 es una lista de pasos
+con quién hace cada uno y cómo se apaga si algo falla (guía del día: `ACTIVAR-C1.md`). De este análisis salieron dos
+arreglos que ya están en `main`:
 registrar desde la pestaña ahora une la llamada, y la salud del celular ya no delata la hora de la última llamada.
