@@ -46,6 +46,7 @@ const ETIQUETA_VISTA: Record<Vista, string> = {
   'config-gestion-diaria': 'Política de Gestión Diaria',
   'config-rentabilidad': 'Política de rentabilidad',
   'config-citas': 'Control de Citas',
+  'config-celulares': 'Celulares',
 }
 
 interface AyudaVendedorPanelProps {

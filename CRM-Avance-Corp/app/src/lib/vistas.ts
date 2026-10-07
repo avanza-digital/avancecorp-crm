@@ -49,6 +49,7 @@ const CAPACIDAD_POR_VISTA = {
   'config-gestion-diaria': null,
   'config-rentabilidad': null,
   'config-citas': null,
+  'config-celulares': null,
 } as const satisfies Record<Vista, Accion | null>
 
 /** Dónde aterriza un rol cuando la ruta pedida no existe o no está permitida. */
@@ -90,6 +91,9 @@ export function vistaPermitida(
   }
   if (esVistaConfiguracion(vista)) {
     if (vista === 'config-usuarios' && rolPortal === 'superadmin') return true
+    // Celulares (F4-c): solo gerencia opera los celulares; sus puertas devuelven 42501 a
+    // directorio, así que la tarjeta ni se le ofrece (decisión 5 del plan de F4).
+    if (vista === 'config-celulares') return rol === 'gerencia'
     return rol === 'gerencia' || rol === 'directorio'
   }
   // Citas comparte el patrón de Facturación: Supervisión tiene una lectura de

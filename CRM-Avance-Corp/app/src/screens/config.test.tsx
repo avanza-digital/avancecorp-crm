@@ -102,7 +102,8 @@ describe('Configuración y riel operativo', () => {
     expect(within(riel).getByText('2 productos · revisión 6')).toBeInTheDocument()
     expect(within(riel).getByText('4 analistas · revisión 5')).toBeInTheDocument()
     expect(within(riel).getByText('v3 · gestión 2 horas')).toBeInTheDocument()
-    expect(screen.getAllByText('Solo lectura')).toHaveLength(6)
+    // Siete tarjetas para Gerencia: las seis de siempre y «Celulares» (F4-c, 07/10/2026).
+    expect(screen.getAllByText('Solo lectura')).toHaveLength(7)
 
     expect(dobles.habilitaciones).toEqual({
       usuarios: [true],
