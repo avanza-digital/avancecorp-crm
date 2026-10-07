@@ -1,3 +1,24 @@
+## 20261007182719 — Corrección directa de tasa por Administración del Portal
+
+**PUBLICADA Y VERIFICADA EN PRODUCCIÓN 07/10/2026.** Pedido de Miguel: `admin`/`superadmin` pueden corregir la tasa sin autorización de Gerencia. La nueva RPC `crm.corregir_tasa_contrato_admin_pdf_v1` exige rol vigente, motivo de 5–500 caracteres y coincidencia de la tasa previamente vista, usa la corrección transaccional existente (contrato, cronograma, revisión PDF) y marca únicamente ese contrato para que el observador diferido admita la corrección aun con la política en `enforcement`. La excepción se niega si la misma operación cambia capital, moneda, plazo, modalidad, tipo de interés o categoría. El motivo queda en `crm.ledger_rentabilidad.detalle`; las demás escrituras conservan el candado. Siguen vigentes los límites numéricos, el producto contratado, las restricciones de contratos cerrados y la conservación de cuotas pagadas. No cambia el acceso a DNI ni correo.
+
+Ensayo local `supabase/scripts/admin-tasa/test-local.sql`: grants, sesión anónima, rol, motivo, vista obsoleta, cambio mixto, cronograma y ledger con `enforcement`; PASS también con la migración de upgrade previa. Portal: 209 pruebas y sintaxis PASS. Revisión secundaria `CHANGES_REQUESTED`: se atendió la concurrencia y se comprobó el alcance del candado; la prueba de cambio mixto cubre el límite adicional. La primera rama falló en replay histórico y se eliminó. La rama autorizada `admin-tasa-directa-banco-20261007` (`mqnjyjklyuhmjvmhnmmo`) se reconstruyó desde el esquema productivo, sin datos de clientes; luego se alineó con el upgrade publicado: 437 migraciones productivas idénticas más esta candidata. Por HTTP se rechazaron analista, motivo corto, tasa obsoleta y cambio mixto; Administración corrigió 10→11→12→13 % con `enforcement`, 13 cuotas, ledger y revisión PDF del régimen vigente. Matriz RLS: primera pasada 2818/2824; seis fallos por fixture técnico incompleto, subsanados solo en rama y cubiertos por 279 aserciones dirigidas PASS y lectura adicional de Gerencia PASS. Advisors: sin nueva alerta de seguridad salvo la ejecución `SECURITY DEFINER` esperada para la RPC autenticada. PR [#219](https://github.com/avanza-digital/avancecorp-crm/pull/219) fusionada en `ae96fdbd`; `merge_branch` aplicó la migración 438/438 a producción y las huellas de las cuatro funciones de tasas coinciden con la rama. Hostinger: Portal commit local `49b8eac`, tres archivos subidos con purga y verificados byte a byte; la rama Supabase se eliminó. El remoto Git configurado del Portal devuelve `Repository not found`, por lo que ese commit permanece local.
+
+## 20261007180108 — Tasa flexible al registrar el upgrade Avance
+
+**PREPARADA Y VERIFICADA SOLO EN LOCAL, 07/10/2026. Sin aplicar en producción.**
+El nuevo aporte puede tener tasa menor/igual a la referencia; con solicitudes
+activadas una superior requiere Gerencia. Con solicitudes desactivadas se
+registra libre dentro de límites, sin solicitudes ni bloqueos por pendientes.
+No altera el contrato anterior ni permite rebajar tasas por corrección.
+
+Tres cuerpos privados con preflight de huellas, mismas firmas/ACL/propietarios.
+Capacidad de mínimo específica de upgrade conserva compatibilidad con el CRM
+anterior. SQL autenticado, reversa exacta y carrera de reversa PASS. Frontend:
+6.362 tests y 23 E2E Docker PASS; gate integral termina FAIL solo por copias
+duplicadas locales preexistentes (filtrado 0.44 % PASS). Matriz remota/advisors
+NOT RUN. Evidencia, límites y recuperación: [README](../scripts/upgrade-tasa/README.md).
+
 ## 20261007143121 — Reparto libre de Coordinación controlado por Gerencia
 
 **APLICADA Y VERIFICADA EN PRODUCCIÓN 07/10/2026 mediante `merge_branch`; frontend PUBLICADO, permiso ACTIVADO.** Autorizaciones de Miguel: `$release-crm` y aprobación separada de migración/rama con costo. Todo el rol Coordinadora puede derivar libremente; Gerencia activa/desactiva en Configuración.
@@ -13,6 +34,10 @@ PR #216; commit publicado `e511d30504f24045aa28230a2d2eb03891bdf967`; build `bui
 **PREPARADA, NO APLICADA EN PRODUCCIÓN.** Decisión de Miguel: upgrade y reinversión separados en Qorilazo y Prodelco. Añade tipo inmutable al vínculo solicitud/origen, RPC autenticada de upgrade, validación de origen vigente e historial propio. Conserva la inversión anterior y el escritor financiero; conflictos de continuidad devuelven PT409. Preflight de cuerpos y catálogo de historial; reversa rechaza eliminar el tipo con upgrades existentes. Banco SQL con permisos, recuperación, historial y carreras PASS; frontend y E2E locales PASS. Guía, límites y publicación pendiente: `../scripts/upgrade-cooperativas/README.md`.
 
 ## 20261006162813 — Llamadas desde el celular · DUODÉCIMA: cierre de revisión del PR #190
+
+**Estado vigente (07/10/2026): APLICADA Y VERIFICADA EN PRODUCCIÓN mediante `merge_branch`, junto con las doce de llamadas.** Gate completo local con SLA activo 3292/3292; matriz dirigida remota 328/328; Edge desplegada y verificada. [Acta de instalación y habilitación](../../docs/plans/llamadas-celular/INSTALACION-20261007.md). C1 todavía requiere activación física.
+
+**Historial de preparación (los pendientes y NOT RUN siguientes describen el estado anterior a esta instalación):**
 
 **Estado:** aplicada y verificada únicamente en el banco local autorizado. Sin aplicar en producción ni activar C1.
 **Depende de:** las once anteriores; se conservan sin editar. Preflight exige la undécima y las huellas de los seis
@@ -31,6 +56,10 @@ idempotencia y veredicto). **Reversa:** `supabase/scripts/llamadas-celular/rever
 altas/uso. La reversa de la undécima exige retirar primero esta correctiva.
 
 ## 20261006150254 — Llamadas desde el celular · UNDÉCIMA: salud de los celulares sin la hora exacta del latido (`private.celulares_salud_listar`)
+
+**Estado vigente (07/10/2026): APLICADA Y VERIFICADA EN PRODUCCIÓN mediante `merge_branch`, junto con las doce de llamadas.** Gate completo local con SLA activo 3292/3292; matriz dirigida remota 328/328; Edge desplegada y verificada. [Acta de instalación y habilitación](../../docs/plans/llamadas-celular/INSTALACION-20261007.md). C1 todavía requiere activación física.
+
+**Historial de preparación (los pendientes y NOT RUN siguientes describen el estado anterior a esta instalación):**
 
 **⏸️ ESCRITA, SIN APLICAR (06/10/2026). Va en el #198, después de la décima.** Registrador:
 `scripts/llamadas-celular/registrar-salud-sin-hora.sql` (con fila de veredicto).
@@ -56,6 +85,10 @@ OJO: vuelve a mostrar la hora exacta). Orden: esta → la de la décima → la d
 
 ## 20261006150154 — Llamadas desde el celular · DÉCIMA: el id de origen en la bandeja y el detalle (`private.llamadas_celular_bandeja`, `private.llamada_celular_detalle`)
 
+**Estado vigente (07/10/2026): APLICADA Y VERIFICADA EN PRODUCCIÓN mediante `merge_branch`, junto con las doce de llamadas.** Gate completo local con SLA activo 3292/3292; matriz dirigida remota 328/328; Edge desplegada y verificada. [Acta de instalación y habilitación](../../docs/plans/llamadas-celular/INSTALACION-20261007.md). C1 todavía requiere activación física.
+
+**Historial de preparación (los pendientes y NOT RUN siguientes describen el estado anterior a esta instalación):**
+
 **⏸️ ESCRITA, SIN APLICAR (06/10/2026). Va en el #198, después de la novena.** Registrador:
 `scripts/llamadas-celular/registrar-bandeja-con-origen.sql` (con fila de veredicto).
 
@@ -77,6 +110,10 @@ Reversa: `scripts/llamadas-celular/reversa-bandeja-con-origen.sql` (repone los d
 Orden: undécima → esta → novena → …
 
 ## 20261005224330 — Llamadas desde el celular · NOVENA: «Qué pasó hoy» paginada y por la hora de resolución (`crm.llamadas_celular_resueltas_hoy_fn`)
+
+**Estado vigente (07/10/2026): APLICADA Y VERIFICADA EN PRODUCCIÓN mediante `merge_branch`, junto con las doce de llamadas.** Gate completo local con SLA activo 3292/3292; matriz dirigida remota 328/328; Edge desplegada y verificada. [Acta de instalación y habilitación](../../docs/plans/llamadas-celular/INSTALACION-20261007.md). C1 todavía requiere activación física.
+
+**Historial de preparación (los pendientes y NOT RUN siguientes describen el estado anterior a esta instalación):**
 
 **⏸️ ESCRITA, SIN APLICAR (05/10/2026). Enmienda de la octava** pedida por la revisión de Miguel en el #195 (05/10,
 22:00 UTC); la octava no se edita. Se publica con F4-b, junto con la octava y después de ella. Registrador:
@@ -111,6 +148,10 @@ la de la octava tal cual; sin datos). Orden: esta → la de la octava → la de 
 
 ## 20261005201010 — Llamadas desde el celular · OCTAVA: lecturas de F4-b (`crm.llamadas_celular_resueltas_hoy_fn`, `crm.actividades_con_llamada_celular_fn`)
 
+**Estado vigente (07/10/2026): APLICADA Y VERIFICADA EN PRODUCCIÓN mediante `merge_branch`, junto con las doce de llamadas.** Gate completo local con SLA activo 3292/3292; matriz dirigida remota 328/328; Edge desplegada y verificada. [Acta de instalación y habilitación](../../docs/plans/llamadas-celular/INSTALACION-20261007.md). C1 todavía requiere activación física.
+
+**Historial de preparación (los pendientes y NOT RUN siguientes describen el estado anterior a esta instalación):**
+
 **⏸️ ESCRITA, SIN APLICAR (05/10/2026). F4-b, paso B2 de `docs/plans/llamadas-celular/F4B-PLAN-CORTO.md`, aprobado por
 Jhosep el 05/10.** Se publica con F4-b (la pestaña), después de las siete; no entra en la guía de las siete. Registrador:
 `scripts/llamadas-celular/registrar-lecturas-analista.sql` (con fila de veredicto).
@@ -136,6 +177,10 @@ Reversa: `scripts/llamadas-celular/reversa-lecturas-analista.sql` (quita las cua
 cualquier momento). Orden: esta → la de la séptima → la de F4-a → …
 
 ## 20261005182227 — Llamadas desde el celular · SÉPTIMA: enlace exacto sin ciclo con Deshacer (`private.llamada_celular_cumplir_intencion`, `private.llamada_celular_enlazar_exacto`)
+
+**Estado vigente (07/10/2026): APLICADA Y VERIFICADA EN PRODUCCIÓN mediante `merge_branch`, junto con las doce de llamadas.** Gate completo local con SLA activo 3292/3292; matriz dirigida remota 328/328; Edge desplegada y verificada. [Acta de instalación y habilitación](../../docs/plans/llamadas-celular/INSTALACION-20261007.md). C1 todavía requiere activación física.
+
+**Historial de preparación (los pendientes y NOT RUN siguientes describen el estado anterior a esta instalación):**
 
 **⏸️ ESCRITA, SIN APLICAR (05/10/2026). Corrige el [P2] de la segunda revisión del agente de Miguel en el PR #190**
 (18:13 UTC, sobre `53a72f17`, reproducido con dos sesiones). Se aplica después de `20261005155914` y su registrador;
@@ -171,6 +216,10 @@ cuerpos y sus COMMENT de F4-a: corre también después del alta, pero devuelve e
 esta → la de F4-a (que ahora se niega con la séptima puesta) → la de la quinta → las de las cuatro.
 
 ## 20261005155914 — Llamadas desde el celular · F4-a: enlace exacto encuesta ↔ llamada (`crm.registrar_llamada_v5`, `private.llamadas_celular_intenciones`, `crm.llamadas_celular_enlaces.via`)
+
+**Estado vigente (07/10/2026): APLICADA Y VERIFICADA EN PRODUCCIÓN mediante `merge_branch`, junto con las doce de llamadas.** Gate completo local con SLA activo 3292/3292; matriz dirigida remota 328/328; Edge desplegada y verificada. [Acta de instalación y habilitación](../../docs/plans/llamadas-celular/INSTALACION-20261007.md). C1 todavía requiere activación física.
+
+**Historial de preparación (los pendientes y NOT RUN siguientes describen el estado anterior a esta instalación):**
 
 **⏸️ ESCRITA, SIN APLICAR (05/10/2026). Paso 2 del plan v2 (§7), en el PR #190 junto con la quinta.** Se aplica después
 de `20261005143843` y su registrador; registrador propio: `scripts/llamadas-celular/registrar-enlace-exacto.sql` (con
@@ -210,6 +259,10 @@ que «antes del primer aviso», porque intenciones y recepciones caducan a los 3
 05/10). Orden de las reversas: esta → la de la quinta → las de las cuatro.
 
 ## 20261005143843 — Llamadas desde el celular · QUINTA: corrección de F2 + F3 (`private.llamadas_celular_recepciones`, `private.llamada_celular_ingerir(uuid,jsonb,timestamptz)`, `private.llamada_celular_candidatos_dueno`, candados, entrantes, retención, salud)
+
+**Estado vigente (07/10/2026): APLICADA Y VERIFICADA EN PRODUCCIÓN mediante `merge_branch`, junto con las doce de llamadas.** Gate completo local con SLA activo 3292/3292; matriz dirigida remota 328/328; Edge desplegada y verificada. [Acta de instalación y habilitación](../../docs/plans/llamadas-celular/INSTALACION-20261007.md). C1 todavía requiere activación física.
+
+**Historial de preparación (los pendientes y NOT RUN siguientes describen el estado anterior a esta instalación):**
 
 **⏸️ ESCRITA, SIN APLICAR (05/10/2026). Paso 1 del orden de trabajo del plan v2** (`docs/plans/llamadas-celular/CORRECCION-PLAN-CORTO.md`,
 PR #179, fusionado por Miguel el 04/10; Jhosep confirmó el 05/10 que esa fusión es el OK, con la N1 según la
@@ -503,6 +556,10 @@ ficticia de 15 contratos por caso; nada en producción):
 
 ## 20261001222431 — Llamadas desde el celular · corrección de F2-c: la elegibilidad de la ingesta se evalúa como el dueño del celular (`private.llamada_celular_elegible_dueno`, `private.llamada_celular_ingerir`)
 
+**Estado vigente (07/10/2026): APLICADA Y VERIFICADA EN PRODUCCIÓN mediante `merge_branch`, junto con las doce de llamadas.** Gate completo local con SLA activo 3292/3292; matriz dirigida remota 328/328; Edge desplegada y verificada. [Acta de instalación y habilitación](../../docs/plans/llamadas-celular/INSTALACION-20261007.md). C1 todavía requiere activación física.
+
+**Historial de preparación (los pendientes y NOT RUN siguientes describen el estado anterior a esta instalación):**
+
 **⏸️ EN `main` desde el PR #169 (03/10), SIN APLICAR. ⛔ BLOQUEADA por la revisión de Miguel (PR #170,
 `docs/plans/llamadas-celular/REVISION-2026-10-02.md`): no se aplica sin la quinta migración de la corrección
 (`CORRECCION-PLAN-CORTO.md`). Registrador: `supabase/scripts/llamadas-celular/registrar-*.sql`.** Depende de `20261001160219` (F2-c).
@@ -649,6 +706,10 @@ la caché) → advisors → publicar la pantalla.
 
 ## 20261001212258 — Llamadas desde el celular · F3-a: puertas de servicio, límite, salud y bandeja paginada (`crm.ingerir_llamada_celular_servicio`, `crm.registrar_salud_celular_servicio`, `crm.llamadas_celular_bandeja_fn`, `crm.celulares_salud_fn`, `private.celulares_estado`)
 
+**Estado vigente (07/10/2026): APLICADA Y VERIFICADA EN PRODUCCIÓN mediante `merge_branch`, junto con las doce de llamadas.** Gate completo local con SLA activo 3292/3292; matriz dirigida remota 328/328; Edge desplegada y verificada. [Acta de instalación y habilitación](../../docs/plans/llamadas-celular/INSTALACION-20261007.md). C1 todavía requiere activación física.
+
+**Historial de preparación (los pendientes y NOT RUN siguientes describen el estado anterior a esta instalación):**
+
 **⏸️ EN `main` desde el PR #169 (03/10), SIN APLICAR. ⛔ BLOQUEADA por la revisión de Miguel (PR #170,
 `docs/plans/llamadas-celular/REVISION-2026-10-02.md`): no se aplica sin la quinta migración de la corrección
 (`CORRECCION-PLAN-CORTO.md`). Registrador: `supabase/scripts/llamadas-celular/registrar-*.sql`.** Depende de `20261001160219` (F2-c).
@@ -692,6 +753,10 @@ ejecutables por `authenticated`. **NOT RUN:** banco con el esquema de producció
 agente `auditor-rls`, Codex LEVEL 3 y `gen:types`.
 
 ## 20261001160219 — Llamadas desde el celular · F2-c: núcleo y puertas (`private.llamada_celular_*`, `crm.*_llamada_celular`, `crm.*celular*`)
+
+**Estado vigente (07/10/2026): APLICADA Y VERIFICADA EN PRODUCCIÓN mediante `merge_branch`, junto con las doce de llamadas.** Gate completo local con SLA activo 3292/3292; matriz dirigida remota 328/328; Edge desplegada y verificada. [Acta de instalación y habilitación](../../docs/plans/llamadas-celular/INSTALACION-20261007.md). C1 todavía requiere activación física.
+
+**Historial de preparación (los pendientes y NOT RUN siguientes describen el estado anterior a esta instalación):**
 
 **⏸️ EN `main` desde el PR #169 (03/10), SIN APLICAR. ⛔ BLOQUEADA por la revisión de Miguel (PR #170,
 `docs/plans/llamadas-celular/REVISION-2026-10-02.md`): no se aplica sin la quinta migración de la corrección
@@ -928,6 +993,10 @@ marcas de 400 días ≈ 40 ms (con la máquina cargada, hasta cuatro veces más)
 sección «Fase 3, entrega A»).
 
 ## 20261001145242 — Llamadas desde el celular · F2-b: datos (`crm.celulares_asignaciones`, `crm.llamadas_celular_eventos`, `crm.llamadas_celular_enlaces`, `crm.llamadas_celular_politica`, `private.caducar_llamadas_celular`)
+
+**Estado vigente (07/10/2026): APLICADA Y VERIFICADA EN PRODUCCIÓN mediante `merge_branch`, junto con las doce de llamadas.** Gate completo local con SLA activo 3292/3292; matriz dirigida remota 328/328; Edge desplegada y verificada. [Acta de instalación y habilitación](../../docs/plans/llamadas-celular/INSTALACION-20261007.md). C1 todavía requiere activación física.
+
+**Historial de preparación (los pendientes y NOT RUN siguientes describen el estado anterior a esta instalación):**
 
 **⏸️ EN `main` desde el PR #169 (03/10), SIN APLICAR en ningún entorno compartido (ni branch de Supabase ni
 producción). ⛔ BLOQUEADA por la revisión de Miguel (PR #170, `docs/plans/llamadas-celular/REVISION-2026-10-02.md`):

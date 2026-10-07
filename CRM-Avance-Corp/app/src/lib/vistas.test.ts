@@ -12,7 +12,7 @@ const VISTAS_POR_GATE = {
     // Base para gestión (02/10/2026): el analista entra a SU base, no a la carpeta de reparto.
     vendedor: ['hoy', 'alertas', 'seguimiento', 'gestion-diaria', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'rescate', 'config'],
     supervisor: ['hoy', 'alertas', 'seguimiento', 'gestion-diaria', 'reuniones', 'facturacion', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'rescate', 'rescate-carpeta', 'derivaciones', 'equipo'],
-    gerencia: ['hoy', 'alertas', 'seguimiento', 'gestion-diaria', 'conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento', 'facturacion', 'informes-empresas', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'repartir', 'rescate', 'rescate-carpeta', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla', 'config-gestion-diaria', 'config-rentabilidad'],
+    gerencia: ['hoy', 'alertas', 'seguimiento', 'gestion-diaria', 'conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento', 'facturacion', 'informes-empresas', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'repartir', 'rescate', 'rescate-carpeta', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla', 'config-gestion-diaria', 'config-rentabilidad', 'config-celulares'],
     directorio: ['hoy', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla', 'config-gestion-diaria', 'config-rentabilidad'],
     // El coordinador NO entra al mundo leads ni con la llave abierta (2026-08-18):
     // «hoy» es la única vista de leads sin capacidad exigida y se la habría
@@ -23,7 +23,7 @@ const VISTAS_POR_GATE = {
     vendedor: ['mi-cartera', 'config'],
     // Facturación no es del mundo leads: sobrevive a la llave cerrada (16/09/2026).
     supervisor: ['reuniones', 'facturacion', 'mi-cartera', 'derivaciones', 'equipo'],
-    gerencia: ['hoy', 'alertas', 'conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento', 'facturacion', 'informes-empresas', 'mi-cartera', 'repartir', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla', 'config-gestion-diaria', 'config-rentabilidad'],
+    gerencia: ['hoy', 'alertas', 'conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento', 'facturacion', 'informes-empresas', 'mi-cartera', 'repartir', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla', 'config-gestion-diaria', 'config-rentabilidad', 'config-celulares'],
     directorio: ['mi-cartera', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla', 'config-gestion-diaria', 'config-rentabilidad'],
     coordinador: ['repartir'],
   },
@@ -184,6 +184,15 @@ describe('sanearVista — expulsión por URL', () => {
     for (const rol of ['vendedor', 'supervisor', 'coordinador', 'gerencia', 'directorio'] as const) {
       expect(vistaPermitida('config-citas', rol, true)).toBe(false)
       expect(vistaPermitida('config-citas', rol, false, 'admin')).toBe(false)
+    }
+
+    // Celulares (F4-c, 07/10/2026): solo Gerencia opera los celulares. Directorio audita el
+    // resto de la configuración, pero sus puertas le devuelven 42501: la tarjeta no se le ofrece.
+    expect(vistaPermitida('config-celulares', 'gerencia', true)).toBe(true)
+    expect(vistaPermitida('config-celulares', 'gerencia', false)).toBe(true)
+    for (const rol of ['vendedor', 'supervisor', 'coordinador', 'directorio'] as const) {
+      expect(vistaPermitida('config-celulares', rol, true)).toBe(false)
+      expect(vistaPermitida('config-celulares', rol, false, 'superadmin')).toBe(false)
     }
   })
 })

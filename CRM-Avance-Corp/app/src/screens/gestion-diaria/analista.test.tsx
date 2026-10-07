@@ -1286,6 +1286,7 @@ describe('GestionDiariaAnalista · tareas de CLIENTES (cola v3)', () => {
 // F4-b: la pestaña utiliza su fuente real tipada y conserva la demostración.
 describe('GestionDiariaAnalista · «Llamadas del celular» (F4-b)', () => {
   it('con la integración cerrada no presenta la pestaña ni consulta su backend en una sesión real', async () => {
+    vi.spyOn(config, 'llamadasCelularHabilitadas').mockReturnValue(false)
     render(<GestionDiariaAnalista />)
     await act(async () => { await Promise.resolve() })
     expect(screen.queryByRole('tab', { name: /^Celular/ })).not.toBeInTheDocument()
