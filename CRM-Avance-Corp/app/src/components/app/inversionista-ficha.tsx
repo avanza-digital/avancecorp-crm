@@ -24,6 +24,9 @@ import { ContratoEliminar } from './contrato-eliminar'
 import { InversionEliminar } from './inversion-eliminar'
 import { GestionInversionistaDialogo } from './gestion-inversionista-dialogo'
 
+const AYUDA_UPGRADE_COOPERATIVA = 'Registra un aporte adicional vinculado a una inversión vigente. La inversión original se conserva; la reinversión se registra por separado.'
+const coopAmpliable = (i: InversionFuente) => i.empresa !== 'avance' && !i.es_demo && ['vigente', 'activo'].includes(i.estado)
+
 export function ResumenEmpresas({totales, compacto = false, registrado = false}: {totales: ResumenEmpresa[]; compacto?: boolean; registrado?: boolean}) {
   return <div className="@container/resumen"><dl className={compacto ? 'grid grid-cols-2 gap-x-5 gap-y-3 @lg/resumen:grid-cols-[repeat(auto-fit,minmax(10rem,1fr))]' : 'grid gap-3 @md/resumen:grid-cols-2 @3xl/resumen:grid-cols-3'}>
     {totales.map(t => <div key={`${t.empresa}:${t.moneda}`} className="min-w-0 border-l-2 border-accent/30 pl-3">
@@ -137,6 +140,9 @@ function InversionDetalle({inversion, posicion, onDocumento, onOperacion, onRecu
         onClick={() => onOperacion({tipo: 'upgrade', fuente: i})}>{ETIQUETA_UPGRADE}</Button>}
       {['activo', 'vencido'].includes(i.estado) && i.vence_en && i.vence_en <= fechaLima(Date.now()) && <Button variant="outline" size="xs" className="min-h-10" onClick={() => onOperacion({tipo: 'renovacion', fuente: i})}>Renovar contrato</Button>}
     </>}
+    {postventa && onOperacion && coopAmpliable(i) && <Button variant="outline" size="xs" className="min-h-10"
+      title={AYUDA_UPGRADE_COOPERATIVA} aria-label={`${ETIQUETA_UPGRADE} sobre ${referenciaAccesible}`}
+      onClick={() => onOperacion({tipo: 'upgrade', fuente: i})}>{ETIQUETA_UPGRADE}</Button>}
     {postventa && i.empresa !== 'avance' && !i.es_demo && ['vigente', 'activo', 'vencido'].includes(i.estado) && <>
       {onOperacion && <Button variant="outline" size="xs" className="min-h-10" onClick={() => onOperacion({tipo: 'reinversion', fuente: i})}>Reinvertir desde esta inversión</Button>}
       {onRetiro && <Button variant="outline" size="xs" className="min-h-10" onClick={() => onRetiro(i)}>Registrar solicitud de retiro</Button>}
@@ -217,12 +223,15 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
     const k = `${i.empresa}:${i.moneda}`
     grupos.set(k, [...(grupos.get(k) ?? []), i])
   }
-  // Upgrade: el mismo permiso que abre el botón de cada tarjeta, elevado a la
-  // cabecera de la sección. Solo Avance, solo contratos ACTIVOS: el upgrade
-  // declara el contrato que amplía para heredarle la tasa.
+  // La cabecera y cada tarjeta comparten permisos y elegibilidad.
+  // Avance hereda la tasa contractual; las cooperativas registran un aporte vinculado.
   const ampliables = onOperacion && ficha.capacidades.nueva_inversion && !desactualizada
-    ? ficha.inversiones.filter(i => i.empresa === 'avance' && i.contrato && i.perfil_id && i.estado === 'activo')
+    ? ficha.inversiones.filter(i => (i.empresa === 'avance' && i.contrato && i.perfil_id && i.estado === 'activo')
+      || (ficha.capacidades.postventa && coopAmpliable(i)))
     : []
+  const hayUpgradeCooperativo = ampliables.some(i => i.empresa !== 'avance')
+  const ayudaUpgrade = hayUpgradeCooperativo ? AYUDA_UPGRADE_COOPERATIVA : AYUDA_UPGRADE
+  const objetoUpgrade = hayUpgradeCooperativo ? 'inversión' : 'contrato'
   const siguiente = ficha.tareas[0]
   const vencimiento = ficha.continuidad?.proximo_vencimiento
   const pendiente = Boolean(vencimiento && vencimiento <= fechaLima(Date.now()))
@@ -279,7 +288,7 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
         sectionRef={inversionesRef}
         descripcion="Capital, vencimientos y oportunidades para renovar o registrar un upgrade."
         accion={(onNuevaInversion || ampliables.length > 0) && <div className="flex flex-wrap justify-end gap-1.5 sm:flex-nowrap sm:shrink-0">
-          {ampliables.length > 0 && <Button variant="outline" size="xs" className="min-h-10" title={AYUDA_UPGRADE}
+          {ampliables.length > 0 && <Button variant="outline" size="xs" className="min-h-10" title={ayudaUpgrade}
             onClick={() => {
               const unica = ampliables.length === 1 ? ampliables[0] : null
               if (unica) onOperacion?.({tipo: 'upgrade', fuente: unica})
@@ -295,7 +304,7 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
         </div>}>
         {onNuevaInversion && !ficha.capacidades.nueva_inversion && <p id={motivoNoOperableId} className="text-xs text-muted-foreground">{ficha.capacidades.motivo_no_operable}</p>}
         {onNuevaInversion && tieneInversion && <p id={motivoNuevaInversionId} className="text-xs text-muted-foreground">{MOTIVO_NUEVA_INVERSION_BLOQUEADA}</p>}
-        {ampliables.length > 0 && <p className="text-[11px] leading-relaxed text-muted-foreground">{AYUDA_UPGRADE}</p>}
+        {ampliables.length > 0 && <p className="text-[11px] leading-relaxed text-muted-foreground">{ayudaUpgrade}</p>}
         <p className="sr-only">{ficha.inversiones_total} {ficha.inversiones_total === 1 ? 'inversión' : 'inversiones'} en esta ficha</p>
         {Array.from(grupos, ([k, inversiones]) => <div key={k} className="space-y-2">
           <h4 className="text-[11px] font-bold text-muted-foreground">{EMPRESA_NOMBRE[inversiones[0]!.empresa]} · {inversiones[0]!.moneda}</h4>
@@ -352,15 +361,15 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
       key={inversionEliminar.fuente_id} inversion={inversionEliminar} onConfirmar={onEliminarInversion}
       onCerrar={() => setInversionEliminar(null)} />}
     {eligiendoUpgrade && ampliables.length > 0 && <Dialog open onClose={() => setEligiendoUpgrade(false)}
-      ariaLabel="Elegir el contrato que amplía el upgrade" className="w-[520px]">
-      <DialogHeader><DialogTitle>¿Qué contrato amplía este upgrade?</DialogTitle></DialogHeader>
+      ariaLabel={`Elegir la inversión que amplía este upgrade`} className="w-[520px]">
+      <DialogHeader><DialogTitle>¿Qué {objetoUpgrade} amplía este upgrade?</DialogTitle></DialogHeader>
       <DialogBody className="space-y-3">
-        <p className="text-xs text-muted-foreground">{AYUDA_UPGRADE}</p>
-        <ul className="space-y-2" aria-label="Contratos activos que puede ampliar el upgrade">
+        <p className="text-xs text-muted-foreground">{ayudaUpgrade}</p>
+        <ul className="space-y-2" aria-label="Inversiones vigentes que puede ampliar el upgrade">
           {ampliables.map(i => <li key={i.fuente_id}>
             <Button variant="outline" className="min-h-11 w-full justify-between gap-3"
               onClick={() => {setEligiendoUpgrade(false); onOperacion?.({tipo: 'upgrade', fuente: i})}}>
-              <span className="truncate">Contrato {i.numero || 'sin número'}{i.vence_en ? ` · vence ${fmtFecha(i.vence_en)}` : ''}</span>
+              <span className="truncate">{i.empresa === 'avance' ? 'Contrato' : EMPRESA_NOMBRE[i.empresa]} {i.numero || 'sin número'}{i.vence_en ? ` · vence ${fmtFecha(i.vence_en)}` : ''}</span>
               <span className="tabular-nums font-semibold">{money(i.capital, i.moneda)}</span>
             </Button>
           </li>)}

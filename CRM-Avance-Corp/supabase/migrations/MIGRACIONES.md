@@ -1,3 +1,7 @@
+## 20261006221545 — Upgrade cooperativo separado de reinversión
+
+**PREPARADA, NO APLICADA EN PRODUCCIÓN.** Decisión de Miguel: upgrade y reinversión separados en Qorilazo y Prodelco. Añade tipo inmutable al vínculo solicitud/origen, RPC autenticada de upgrade, validación de origen vigente e historial propio. Conserva la inversión anterior y el escritor financiero; conflictos de continuidad devuelven PT409. Preflight de cuerpos y catálogo de historial; reversa rechaza eliminar el tipo con upgrades existentes. Banco SQL con permisos, recuperación, historial y carreras PASS; frontend y E2E locales PASS. Guía, límites y publicación pendiente: `../scripts/upgrade-cooperativas/README.md`.
+
 ## 20261006162813 — Llamadas desde el celular · DUODÉCIMA: cierre de revisión del PR #190
 
 **Estado:** aplicada y verificada únicamente en el banco local autorizado. Sin aplicar en producción ni activar C1.

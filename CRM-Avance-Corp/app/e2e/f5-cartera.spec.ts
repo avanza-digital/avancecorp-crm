@@ -2,9 +2,9 @@ import {expect, test, type Page} from '@playwright/test'
 import {loginReal, montarBackendReal, irAMiCartera} from './_helpers'
 import {carteraF5, fichaF5, FUENTE_F5, PERSONA_F5, inversionF5} from '../src/test/fixtures/f5'
 
-async function montarF5(page:Page, rol:'vendedor'|'supervisor'|'gerencia'|'directorio'='vendedor', sinInversiones=false) {
+async function montarF5(page:Page, rol:'vendedor'|'supervisor'|'gerencia'|'directorio'='vendedor', sinInversiones=false, empresa:'qorilazo'|'prodelco'='qorilazo') {
   const backend=await montarBackendReal(page,{rolCrm:rol,rolPortal:rol==='directorio'?'directorio':'analista',clientes:[],contratos:[]})
-  const estado={revocado:false,preparaciones:0,confirmaciones:0,solicitud:null as Record<string,unknown>|null,bancos:0,sinInversiones}
+  const estado={revocado:false,preparaciones:0,confirmaciones:0,solicitud:null as Record<string,unknown>|null,bancos:0,sinInversiones,puerta:''}
   await page.route('**/rest/v1/rpc/*',async route=>{
     const nombre=new URL(route.request().url()).pathname.split('/').at(-1)
     const body=route.request().postDataJSON() ?? {}
@@ -18,17 +18,24 @@ async function montarF5(page:Page, rol:'vendedor'|'supervisor'|'gerencia'|'direc
     if(nombre==='inversionista_ficha_fn') {
       if(estado.revocado) return json(null)
       const f=structuredClone(fichaF5)
+      f.capacidades.postventa=rol!=='directorio'
+      f.inversiones=f.inversiones.map(i=>({...i,empresa,numero:`${empresa.toUpperCase()} SINTÉTICO`}))
       if(estado.sinInversiones) {f.inversiones=[];f.inversiones_total=0;f.totales=[]}
       if(rol==='directorio') {f.capacidades.nueva_inversion=false;f.capacidades.contactar=false;f.capacidades.documentos=false;f.inversiones=[];f.inversiones_total=0;f.totales=[]}
       return json(f)
     }
     if(nombre==='inversionista_cuentas_fn') {estado.bancos++;return json([])}
-    if(nombre==='preparar_inversion_fn') {
+    if(nombre==='postventa_estado_fn') return json({version:1,habilitada:rol!=='directorio'})
+    if(nombre==='postventa_ficha_fn') return json({version:1,habilitada:rol!=='directorio',retiros:[]})
+    if(nombre==='postventa_agenda_fn') return json([])
+    if(nombre==='preparar_inversion_fn'||nombre==='preparar_upgrade_fn'||nombre==='preparar_reinversion_fn') {
       estado.preparaciones++
+      estado.puerta=nombre
       estado.solicitud={solicitud_id:body.p_clave,estado:'preparada',inversion_id:null,inversionista_id:PERSONA_F5,inversionista_origen_id:PERSONA_F5,
         identidad_fusionada:false,responsable_esperado_id:fichaF5.persona.responsable_id,responsable_actual_id:fichaF5.persona.responsable_id,
         requiere_revision_responsable:false,revision_datos:0,revision_responsable:0,hash_datos:'huella-sintetica',resultado:null,
-        necesita_portal:false,comprobante_bucket:'f4-comprobantes',comprobante_ruta:body.p_datos.evidencia.ruta,datos:body.p_datos}
+        necesita_portal:false,comprobante_bucket:'f4-comprobantes',comprobante_ruta:body.p_datos.evidencia.ruta,datos:body.p_datos,
+        ...(nombre==='preparar_upgrade_fn'?{upgrade_origen_id:body.p_fuente}:nombre==='preparar_reinversion_fn'?{reinversion_origen_id:body.p_fuente}:{})}
       return json(estado.solicitud)
     }
     if(nombre==='solicitud_inversion_fn') return json(estado.solicitud)
@@ -36,13 +43,50 @@ async function montarF5(page:Page, rol:'vendedor'|'supervisor'|'gerencia'|'direc
       estado.confirmaciones++
       estado.sinInversiones=false
       return json({ok:true,solicitud_id:body.p_solicitud,inversion_id:FUENTE_F5,inversionista_id:PERSONA_F5,
-        empresa:'qorilazo',fuente:{cierre_id:FUENTE_F5},revision_datos:body.p_revision_datos_esperada})
+        empresa,fuente:{cierre_id:FUENTE_F5},revision_datos:body.p_revision_datos_esperada})
     }
     return route.fallback()
   })
   await page.route('**/storage/v1/object/f4-comprobantes/**',route=>route.fulfill({json:{Key:'comprobante-f5'}}))
   await loginReal(page);await irAMiCartera(page)
   return {estado,backend}
+}
+
+for(const empresa of ['qorilazo','prodelco'] as const) {
+  test(`${empresa}: upgrade y reinversión separados, aporte adicional y recuperación móvil`,async({page},testInfo)=>{
+    const {estado}=await montarF5(page,'vendedor',false,empresa)
+    await page.setViewportSize({width:390,height:844})
+    await page.getByRole('button',{name:'Ocultar menú'}).click()
+    await page.getByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}).click()
+    const inversiones=page.getByRole('region',{name:'Inversiones y contratos'})
+    await expect(inversiones.getByRole('button',{name:'Registrar nueva inversión'})).toBeDisabled()
+    await expect(inversiones.getByRole('button',{name:'Reinvertir desde esta inversión'})).toBeVisible()
+    await inversiones.getByRole('button',{name:'Registrar upgrade',exact:true}).scrollIntoViewIfNeeded()
+    await page.screenshot({path:testInfo.outputPath(`${empresa}-upgrade-y-reinversion.png`),fullPage:true})
+    await inversiones.getByRole('button',{name:'Registrar upgrade',exact:true}).click()
+    await expect(page.getByRole('heading',{name:/^Upgrade ·/})).toBeVisible()
+    await page.getByLabel('Aporte adicional en soles (PEN)').fill('250')
+    await page.getByLabel('Número de operación del depósito').fill('UPGRADE-E2E')
+    await page.getByLabel('Plazo (meses)').fill('12')
+    await page.getByLabel('Rentabilidad anual (%)').fill('12')
+    await page.getByLabel('Referencia de la inversión').fill('APORTE SINTÉTICO')
+    await page.getByLabel(/Comprobante PDF/).setInputFiles({name:'aporte.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4\n% comprobante sintético')})
+    await page.getByRole('button',{name:'Revisar upgrade',exact:true}).click()
+    await expect(page.getByRole('heading',{name:'Revisar upgrade'})).toBeVisible()
+    expect(estado.puerta).toBe('preparar_upgrade_fn')
+    expect(estado.solicitud).toMatchObject({upgrade_origen_id:FUENTE_F5,datos:{monto:250,empresa}})
+    expect(estado.solicitud?.reinversion_origen_id).toBeUndefined()
+    await page.getByRole('button',{name:'Cerrar y continuar después'}).click()
+    await page.getByRole('button',{name:'Reinvertir desde esta inversión'}).click()
+    await expect(page.getByRole('heading',{name:'Revisar upgrade'})).toBeVisible()
+    await expect(page.getByRole('button',{name:'Confirmar upgrade'})).toBeEnabled()
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+    await page.screenshot({path:testInfo.outputPath(`${empresa}-upgrade-revision.png`),fullPage:true})
+    await page.getByRole('button',{name:'Confirmar upgrade'}).click()
+    await expect(page.getByRole('heading',{name:'Upgrade confirmado'})).toBeVisible()
+    expect(estado.preparaciones).toBe(1)
+    expect(estado.confirmaciones).toBe(1)
+  })
 }
 
 for(const rol of ['vendedor','supervisor','gerencia','directorio'] as const) {
