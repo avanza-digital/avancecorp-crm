@@ -1,3 +1,18 @@
+## 20261007180108 — Tasa flexible al registrar el upgrade Avance
+
+**PREPARADA Y VERIFICADA SOLO EN LOCAL, 07/10/2026. Sin aplicar en producción.**
+El nuevo aporte puede tener tasa menor/igual a la referencia; con solicitudes
+activadas una superior requiere Gerencia. Con solicitudes desactivadas se
+registra libre dentro de límites, sin solicitudes ni bloqueos por pendientes.
+No altera el contrato anterior ni permite rebajar tasas por corrección.
+
+Tres cuerpos privados con preflight de huellas, mismas firmas/ACL/propietarios.
+Capacidad de mínimo específica de upgrade conserva compatibilidad con el CRM
+anterior. SQL autenticado, reversa exacta y carrera de reversa PASS. Frontend:
+6.362 tests y 23 E2E Docker PASS; gate integral termina FAIL solo por copias
+duplicadas locales preexistentes (filtrado 0.44 % PASS). Matriz remota/advisors
+NOT RUN. Evidencia, límites y recuperación: [README](../scripts/upgrade-tasa/README.md).
+
 ## 20261007143121 — Reparto libre de Coordinación controlado por Gerencia
 
 **APLICADA Y VERIFICADA EN PRODUCCIÓN 07/10/2026 mediante `merge_branch`; frontend PUBLICADO, permiso ACTIVADO.** Autorizaciones de Miguel: `$release-crm` y aprobación separada de migración/rama con costo. Todo el rol Coordinadora puede derivar libremente; Gerencia activa/desactiva en Configuración.
