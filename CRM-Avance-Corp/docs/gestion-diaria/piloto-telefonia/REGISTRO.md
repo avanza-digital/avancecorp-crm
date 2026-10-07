@@ -135,6 +135,22 @@ es el del PC (`192.168.30.222:8787`), con una clave de prueba nueva.
 **Hallazgo (incidencia del 06/10, abajo):** MacroDroid gratuito estaba **desactivado desde ~02/10**, porque se acabaron
 sus «días gratis». Ninguna macro corría. Se reactivó mirando un anuncio (+3 días).
 
+## 5h. Pruebas físicas pendientes de F0 y F3 (07/10/2026) — contra el receptor de pruebas del PC
+
+Misma macro final y misma clave de prueba del 06/10 (el receptor se arrancó con `--clave`, sin reconfigurar C1).
+Receptor en `192.168.30.222:8787`. Lo que necesita la Edge real se repite en F4-d (`ACTIVAR-C1.md`, P15).
+
+| Fecha | Prueba | Resultado | Evidencia |
+| --- | --- | --- | --- |
+| 07/10/2026 14:10–14:11 (Lima) | 429 forzado (`/_control?modo=429&veces=1`): lo recibió el **latido**, que C1 mandó apenas pudo porque el último era del 06/10 | PASS: el latido rechazado se reintentó solo y entró en la vuelta siguiente | Receptor: `14:10:09 POST → 429 (falla simulada) · latido` y `14:11:21 POST → 200 (latido registrado)`. En medio entraron dos llamadas normales (`14:11:17` y `14:11:40`, 202) |
+| 07/10/2026 14:17–14:20 (Lima) | **429 explícito en un aviso de llamada** (F3.3.2): 429 armado de nuevo y una saliente corta | **PASS**: el aviso quedó en `cola_llamadas` (1 entrada, visto por Jhosep) y la vuelta del intervalo lo reenvió solo, con el **mismo id** y la **hora original** | Receptor: `14:17:34 POST → 429 (falla simulada) · id=C1-1791400645 · ocurrio_en=…14:17:25-05:00` y `14:20:09 POST → 202 (guardada) · id=C1-1791400645 · ocurrio_en=…14:17:25-05:00` |
+| 07/10/2026 14:27 y 14:28 (Lima) | **Saliente a un fijo** que no es lead (F0.3.2) | **PASS** (captura y formato): el aviso llegó a los 10 s; el CRM mostró el número completo con **+51** y «Ningún lead de tu cartera tiene el número…», que es lo correcto porque no es lead | Receptor: `14:27:35 POST → 202 · id=C1-1791401245 · …632` y `14:28:31 POST → 202 · id=C1-1791401301 · …632` |
+| 07/10/2026 14:34 (Lima) | **Pantalla bloqueada** al terminar la llamada (F0.3.3): la otra persona cortó a los 45 s con la pantalla apagada | **PASS**: el aviso llegó a los 9 s con la pantalla bloqueada; al desbloquear, el CRM ya tenía la encuesta abierta | Receptor: `14:34:24 POST → 202 · id=C1-1791401655 · ocurrio_en=…14:34:15-05:00` |
+| 07/10/2026 15:24 (Lima) | **Saliente a un lead propio** (regresión de F1 en producción): Jhosep creó el lead «prueba leeds» en su cartera con el **celular** de un compañero | **PASS**: al colgar se abrió **la encuesta de ese lead**. Los números de clientes dicen «ya es cliente» y no abren encuesta: es lo esperado hasta la #13. El caso «lead con **fijo**» queda cubierto solo por las pruebas automáticas de F1 | Receptor: `15:24:18 POST → 202 · id=C1-1791404649 · …741`. El lead «prueba leeds» se conserva para F4-d |
+| 07/10/2026 15:43–15:44 (Lima) | **Ráfaga**: 3 salientes cortas seguidas en 48 s (F3.4.1) | **PASS**: 3 avisos distintos, cada uno con su id, ~9 s después de colgar; sin repetidos, sin rechazos | Receptor: `15:43:32`, `15:44:02` y `15:44:20 POST → 202`, ids `C1-1791405803`, `C1-1791405833`, `C1-1791405851` |
+
+Precio de MacroDroid Pro visto en C1 el 07/10: **S/ 19, pago único** (para la #18).
+
 ## 6. Incidencias
 
 | Fecha | Celular | Qué pasó | Impacto (perdida / duplicada / no abrió / otro) | Cómo se resolvió | Abierta o cerrada |

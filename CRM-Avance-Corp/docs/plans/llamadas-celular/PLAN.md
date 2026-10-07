@@ -130,8 +130,8 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 | --- | --- | --- | --- | --- |
 | F0 · Piloto y línea base | 4 | 1/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-2) |
 | F1 · Formulario único y match exacto | 4 | 12/12 | Hecha | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-8) |
-| F2 · Núcleo confiable | 4 | 8/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-14) |
-| F3 · Captura y sincronización | 4 | 4/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-20) |
+| F2 · Núcleo confiable | 4 | 12/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-14) |
+| F3 · Captura y sincronización | 4 | 6/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-20) |
 | F4 · Pendientes y conciliación | 4 | 0/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-66) |
 | F5 · Jev para identificación asistida | 5 | 0/15 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-72) |
 | F6 · Gerencia y calidad | 4 | 0/12 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-78) |
@@ -149,7 +149,7 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 
 **Estado:** en curso · **Avance:** 0/3 · **Responsable:** Jhosep.
 
-- [ ] **F0.1.1** Seleccionar 2–3 celulares y registrar marca, Android, navegador, automatizador y restricciones de batería. — EN CURSO: C1 registrado: Samsung Galaxy A16 (SM-A165M), Android 16, Chrome predeterminado, MacroDroid 5.67 (Play Store, sep. 2026), batería «No restringido», «Aparecer encima» activado. Faltan 1–2 celulares más.
+- [ ] **F0.1.1** Seleccionar 2–3 celulares y registrar marca, Android, navegador, automatizador y restricciones de batería. — EN CURSO: C1 registrado: Samsung Galaxy A16 (SM-A165M), Android 16, Chrome predeterminado, MacroDroid 5.67 (Play Store, sep. 2026), batería «No restringido», «Aparecer encima» activado. Faltan 1–2 celulares más. 07/10: #18 aprobada por Miguel; Jhosep compra MacroDroid Pro en C1 (cuenta corporativa, S/ 19, pago único) antes del 09/10 ~15:50 Lima y registra equipo, licencia y fecha.
 - [ ] **F0.1.2** Asignar analistas, soporte y responsable del registro de incidencias. — EN CURSO: Jhosep asume analista piloto (C1), soporte y registro de incidencias mientras haya un solo celular.
 - [ ] **F0.1.3** Comunicar finalidad y tratamiento de datos; instalar la PWA y configurar permisos del piloto. — EN CURSO: C1 completo: PWA instalada, permisos Teléfono y Registro de llamadas confirmados por evidencia, «Aparecer encima», batería sin restricciones y, desde el 30/09, «Abrir vínculos admitidos» + dominio crm.miavance.com en la app (necesario para que la URL la abra). Aviso: no aplica al propio responsable. Pendiente para los próximos celulares.
 
@@ -169,9 +169,9 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 
 **Estado:** en curso · **Avance:** 0/3 · **Responsable:** Jhosep.
 
-- [ ] **F0.3.1** Probar al menos diez salientes y diez entrantes por equipo, además de atendidas, perdidas, rechazadas y canceladas. — EN CURSO: C1: 4 salientes con número (29/09). Foco del negocio (Jhosep, 30/09): las llamadas que el vendedor HACE; las entrantes se observan si ocurren, sin exigirlas (posible ampliación futura; recorte propuesto a Miguel, #8). Faltan 6 salientes y los casos atendida/no atendida/cancelada.
-- [ ] **F0.3.2** Validar oculto, fijo, internacional, doble SIM si aplica, enlace con +, login y retorno a PWA. — EN CURSO: C1: notificación con número y nombre PASS. Apertura de la PWA por URL: PASS el 30/09 con el ajuste de Android «CRM Avance Corp → Abrir vínculos admitidos + dominio crm.miavance.com» («Open Website» abre la app sin barra de direcciones); sin el ajuste abre Chrome (29/09). «Lanzar app» abre la app pero no lleva número; «Send Intent» no hizo falta. Faltan oculto, fijo, internacional, doble SIM y login.
-- [ ] **F0.3.3** Probar pantalla bloqueada, batería, tres noches y ensayo sintético de cola, reinicio y respuesta HTTP. — EN CURSO: C1, noche 1 de 3 (29→30/09): MacroDroid activo por la mañana y la macro encendida; no hubo llamadas nocturnas que verificar. Faltan 2 noches, pantalla bloqueada, batería baja, reinicio y sin red.
+- [ ] **F0.3.1** Probar al menos diez salientes y diez entrantes por equipo, además de atendidas, perdidas, rechazadas y canceladas. — EN CURSO: C1: salientes con número (29/09) y muchas más en las pruebas de C1 (02/10 y 06/10). Las entrantes están bloqueadas por la decisión 2 de Miguel; #16 aprobada (07/10): F0 se acepta con diez salientes por equipo y los casos especiales; las diez entrantes pasan a la aceptación de la #14. Faltan diez salientes con sus casos (atendida, no atendida, rechazada, cancelada) por equipo.
+- [ ] **F0.3.2** Validar oculto, fijo, internacional, doble SIM si aplica, enlace con +, login y retorno a PWA. — EN CURSO: C1: notificación con número y nombre PASS; la URL abre la PWA con «Abrir vínculos admitidos» (30/09); el número sobrevive al login (F1.2.2). 07/10 contra el receptor: saliente a un FIJO capturada y mostrada con +51 («ningún lead», correcto: no es lead); saliente a un lead propio con celular → se abrió su encuesta (REGISTRO.md §5h). Faltan oculto, internacional y doble SIM; «lead con fijo» en vivo es opcional (lo cubren las pruebas de F1).
+- [ ] **F0.3.3** Probar pantalla bloqueada, batería, tres noches y ensayo sintético de cola, reinicio y respuesta HTTP. — EN CURSO: C1: noche 1 de 3. En C1 contra el receptor: cola sin red (A3), reinicio con aviso pendiente (A6), 503 (A4), 400 (A5), 401 que conserva la cola (P4), 429 (07/10) y PANTALLA BLOQUEADA (07/10: el aviso llegó a los 9 s con la pantalla apagada y al desbloquear la encuesta ya estaba abierta). Faltan dos noches y batería baja.
 
 **Evidencia / fecha de validación:** pendiente.
 
@@ -273,17 +273,17 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 | No comercial/fuera de alcance | Descarte permitido, motivado y auditado; no salida libre para ocultar llamadas identificadas |
 | Actividad con efectos deshechos | Evidencia y enlace permanecen; anotar efectos anulados sin exigir automáticamente otro registro |
 
-**Seguimiento de F2:** 8/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
+**Seguimiento de F2:** 12/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
 
 ### F2.1 · Cerrar el contrato
 
-**Estado:** en curso · **Avance:** 0/3 · **Responsable:** Jhosep (decisiones provisionales) · Miguel (ratifica).
+**Estado:** hecha · **Avance:** 3/3 · **Responsable:** Jhosep (propuso) · Miguel (ratificó).
 
-- [ ] **F2.1.1** Definir elegibilidad comercial, identificación, atención, dirección y estado técnico por separado. — EN CURSO: Decisión provisional de Jhosep (30/09): elegible = lead activo, etapa abierta, sin «no contactar» y dentro del ámbito → pide resultado; si no, «por revisar» sin encuesta, y se re-evalúa al leer. Entrantes definidas pero apagadas (solo salientes); dirección y estado técnico van separados en el esquema. Pendiente de la ratificación de Miguel.
-- [ ] **F2.1.2** Acordar descarte motivado, entrante perdida como devolución y semántica de Deshacer. — EN CURSO: Decisión provisional de Jhosep (30/09): los números sin lead NO se guardan (perilla apagada; propuesta #10 porque choca con F5); descarte con motivo obligatorio de lista cerrada + «otro» con texto; entrante perdida definida y apagada; Deshacer no borra ni desenlaza y el enlace pasa al resultado corregido. Pendiente de la ratificación de Miguel.
-- [ ] **F2.1.3** Fijar hora de ocurrencia/recepción, retención por estado y atribución tras reasignaciones. — EN CURSO: Decisión provisional de Jhosep (30/09): hora del celular si llega, si no la del servidor; analista = quien tenía el celular, fijo; retención 30 días para descartados y ambiguos sin resolver, sin número crudo; tras una reasignación (que viene de un descarte o lead libre) la llamada la ve y trabaja el nuevo analista y quién marcó se conserva para métricas. Pendiente de la ratificación de Miguel.
+- [x] **F2.1.1** Definir elegibilidad comercial, identificación, atención, dirección y estado técnico por separado.
+- [x] **F2.1.2** Acordar descarte motivado, entrante perdida como devolución y semántica de Deshacer.
+- [x] **F2.1.3** Fijar hora de ocurrencia/recepción, retención por estado y atribución tras reasignaciones.
 
-**Evidencia / fecha de validación:** pendiente.
+**Evidencia / fecha de validación:** Decisiones ratificadas por Miguel el 03/10 (#175, decisiones 1–7) y vigentes en el código de main (#190, 06/10)..
 
 ### F2.2 · Diseñar datos e identidad
 
@@ -308,11 +308,11 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 
 ### F2.4 · Verificar el núcleo
 
-**Estado:** en curso · **Avance:** 1/3 · **Responsable:** Claude (banco local) · Miguel (banco de producción, revisión y OK).
+**Estado:** en curso · **Avance:** 2/3 · **Responsable:** Claude (banco local) · Miguel (banco de producción, revisión y OK).
 
 - [x] **F2.4.1** Probar IDs repetidos, payload incompatible, dos consumidores, llamadas cercanas y bajas de actor/equipo.
-- [ ] **F2.4.2** Ejecutar SQL y gate RLS ampliado en entorno aislado; revisión LEVEL 3 y advisors aplicables. — EN CURSO: SQL ejecutado en entorno aislado (banco reducido desechable, 160/160). 03/10: bloque testLlamadasCelular escrito en test-rls.mjs (permisos por rol y tabla, puertas de servicio, idempotencia, dos envíos a la vez, ámbito por equipo, corrección del supervisor, rotación y cierre; deja la corrida limpia), con node --check y oxlint limpios, SIN CORRER: aquí no hay banco con el esquema de producción. Falta (Miguel): correrlo en su ensayo con CRM_RLS_EXIGE_LLAMADAS=1, advisors, auditor-rls y Codex LEVEL 3.
-- [ ] **F2.4.3** Completar comentarios, ledger de migraciones y evidencia de aceptación antes de habilitar consumidores. — EN CURSO: COMMENT completos (el postflight los exige) y ledger con estado honesto (MIGRACIONES.md). Falta la evidencia de aceptación en el banco con el esquema de producción antes de habilitar consumidores (F3/F4).
+- [x] **F2.4.2** Ejecutar SQL y gate RLS ampliado en entorno aislado; revisión LEVEL 3 y advisors aplicables.
+- [ ] **F2.4.3** Completar comentarios, ledger de migraciones y evidencia de aceptación antes de habilitar consumidores. — EN CURSO: COMMENT completos (los exige el postflight) y ledger con las doce, todas sin aplicar. Los consumidores siguen cerrados (LLAMADAS_CELULAR_APROBADAS = false). Falta: aplicar, marcar «EN PROD», verificar V1–V5 y recién entonces abrir el interruptor (Miguel).
 
 **Evidencia / fecha de validación:** pendiente.
 
@@ -333,35 +333,35 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 | Listar/alta/baja/rotar celular | Capacidad de administración resuelta en servidor |
 | Registrar salud | Credencial de equipo, datos mínimos; heartbeat no demuestra captura sana |
 
-**Seguimiento de F3:** 4/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
+**Seguimiento de F3:** 6/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
 
 ### F3.1 · Publicar el contrato de puertas
 
-**Estado:** en curso · **Avance:** 2/3 · **Responsable:** Jhosep (decisiones provisionales) · Miguel (ratifica) · Claude (construye).
+**Estado:** hecha · **Avance:** 3/3 · **Responsable:** Jhosep (decisiones provisionales) · Miguel (ratifica) · Claude (construye).
 
 - [x] **F3.1.1** Implementar ingesta, listado paginado, detalle por UUID, asociación, enlace, descarte y salud.
 - [x] **F3.1.2** Restringir administración de equipos por capacidad y resolver actor/ámbito en servidor.
-- [ ] **F3.1.3** Definir respuesta estable y errores distinguibles; generar tipos del contrato para sus consumidores. — EN CURSO: Respuesta estable definida y probada: base (42501 uniforme, 22023, P0409, P0429 con la espera) y Edge (202 recibido con la URL de F1, 200 latido, 400, 401, 409, 413, 415, 429 con Retry-After, 503). Falta generar los tipos (npm run gen:types) tras aplicar en un banco con el esquema de producción.
+- [x] **F3.1.3** Definir respuesta estable y errores distinguibles; generar tipos del contrato para sus consumidores.
 
-**Evidencia / fecha de validación:** pendiente.
+**Evidencia / fecha de validación:** 01/10–06/10: ingesta, puertas y salud probadas en banco reducido y en el banco de Miguel; tipos generados en main (5df2764e)..
 
 ### F3.2 · Proteger la ingesta
 
 **Estado:** en curso · **Avance:** 1/3 · **Responsable:** Claude (construye) · Miguel (aprueba y aplica).
 
-- [ ] **F3.2.1** Configurar Edge con esquema estricto, tamaño limitado, token propio y autenticación de plataforma verificada. — EN CURSO: Edge crm-llamadas-ingesta construida (ad4cf226): esquema estricto v1, cuerpo ≤ 4 KB, clave propia en la cabecera x-celular-credencial y verify_jwt=false documentado en config.toml. deno check y 16 pruebas en verde; 14 mutantes cazados. Falta desplegarla y comprobar en la plataforma que verify_jwt quedó apagado y que nada más entra (Miguel).
+- [ ] **F3.2.1** Configurar Edge con esquema estricto, tamaño limitado, token propio y autenticación de plataforma verificada. — EN CURSO: Edge crm-llamadas-ingesta en main: esquema estricto, cuerpo ≤ 4 KB, clave en la cabecera, verify_jwt = false documentado; 17 pruebas y 18 mutantes. Falta desplegarla y comprobar en la plataforma que verify_jwt quedó apagado solo ahí (Miguel).
 - [x] **F3.2.2** Aplicar rate limit compartido, baja/inactividad y rotación/revocación con auditoría.
-- [ ] **F3.2.3** Mostrar token una vez; guardar hash y eliminar secretos de URL, logs y soporte. — EN CURSO: La clave se muestra una vez y solo se guarda su sha256 (F2-c); viaja en una cabecera, nunca en la URL; la Edge no escribe nada en el registro (prueba que intercepta console). Falta la guía de soporte sin secretos (F3.4.3) y comprobarlo en el despliegue. 02/10: en C1, el registro del sistema de MacroDroid no muestra la cabecera ni la clave (prueba 6); la clave sí es visible dentro de la acción, y el control es rotarla.
+- [ ] **F3.2.3** Mostrar token una vez; guardar hash y eliminar secretos de URL, logs y soporte. — EN CURSO: Solo el sha256 en la base; la clave viaja en una cabecera, nunca en la URL; la Edge no escribe registros; la tarjeta de F4-c (#215) la muestra una vez y la saca de los registros (credencial en CLAVES_SENSIBLES); el registro de MacroDroid no la muestra (prueba 6, 02/10). Falta la guía de soporte sin secretos y comprobarlo en el despliegue.
 
 **Evidencia / fecha de validación:** pendiente.
 
 ### F3.3 · Persistir y enviar
 
-**Estado:** en curso · **Avance:** 1/4 · **Responsable:** Jhosep (pruebas en C1) · Claude (receptor de pruebas).
+**Estado:** en curso · **Avance:** 2/4 · **Responsable:** Jhosep (pruebas en C1) · Claude (receptor de pruebas).
 
 - [x] **F3.3.1** Crear ID, hora y payload una vez; guardar en cola local antes del POST.
-- [ ] **F3.3.2** Reintentar red caída, 429 y reinicio; retirar solo tras confirmación y visibilizar errores permanentes. — EN CURSO: Hecho en C1 (02/10): sin red (A3), servidor caído con 503 (A4) y reinicio (A6) dejan el aviso en la cola, y el intervalo de 5 min lo reenvía con el mismo id; solo un 202 lo retira; un 400 se aparta a errores_llamadas con una notificación sin el número (A5). Falta ensayar un 429 explícito (el receptor lo fuerza con /_control?modo=429): necesita C1.
-- [ ] **F3.3.3** Parsear respuesta y abrir UUID confirmado; mantener fallback manual si falta UUID. — EN CURSO: Cambia con la propuesta #12 (pendiente de Miguel): la respuesta no trae el UUID y el celular abre la encuesta de F1 por número, enseguida y sin esperar al servidor (decisión 4 de F3; probado en C1, A1). El respaldo manual es el aviso con buscador de F1. Se cierra cuando Miguel decida la #12.
+- [x] **F3.3.2** Reintentar red caída, 429 y reinicio; retirar solo tras confirmación y visibilizar errores permanentes.
+- [ ] **F3.3.3** Parsear respuesta y abrir UUID confirmado; mantener fallback manual si falta UUID. — EN CURSO: Resuelta por la vía de la #12: la macro no espera un UUID del servidor; abre la encuesta enseguida con el número y el id de origen (/{lv=id_llamada}, P2 del 06/10 contra el receptor). Respaldo manual: la pestaña «Llamadas del celular». Falta la aceptación contra la Edge (P1–P3 de F4-d).
 - [ ] **F3.3.4** Correlacionar doble trigger y validar dirección/duración por evento sin confundir desconocido con cero. — EN CURSO: En C1 (02/10): una sola notificación y un solo aviso por llamada en más de 8 llamadas, incluidas colgar antes de que contesten y sin respuesta (prueba 5). La dirección la marca «Llamadas-Salientes» y las entrantes no generan aviso (A2). La duración no se envía (MacroDroid no la da) y llega null, no 0. Falta: llamada en espera, doble SIM y entrantes si se aprueba la #14.
 
 **Evidencia / fecha de validación:** pendiente.
@@ -370,9 +370,9 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 
 **Estado:** en curso · **Avance:** 0/3 · **Responsable:** Jhosep (pruebas en C1) · Claude (receptor de pruebas y guía).
 
-- [ ] **F3.4.1** Ensayar respuesta perdida tras commit, ráfagas, bloqueo, batería, desfase y permisos revocados. — EN CURSO: Parcial en C1 contra el receptor de pruebas (02/10): sin red (A3), servidor caído (A4) y reinicio (A6). Falta: respuesta perdida tras guardar, ráfagas, pantalla bloqueada, batería baja, desfase de hora y permisos revocados.
+- [ ] **F3.4.1** Ensayar respuesta perdida tras commit, ráfagas, bloqueo, batería, desfase y permisos revocados. — EN CURSO: En C1 contra el receptor: sin red (A3), servidor caído (A4), reinicio (A6) y, el 07/10, RÁFAGA de 3 salientes en 48 s: 3 avisos distintos, cada uno con su id, sin repetidos ni rechazos (REGISTRO.md §5h); reloj desfasado visible en la salud (undécima). Faltan respuesta perdida tras guardar, batería baja, desfase de hora en el celular y permisos revocados; repetir contra la Edge.
 - [ ] **F3.4.2** Verificar dos llamadas al mismo número, baja/rotación de token y actor inactivo, por equipo piloto. — EN CURSO: Dos llamadas al mismo número → dos eventos, cada uno con su id (prueba 2 en C1). Rotación, cierre de la clave y analista de baja: probados en el banco reducido y escritos en el bloque testLlamadasCelular del gate (sin correr aquí). Falta repetirlo con la Edge desplegada y por equipo piloto.
-- [ ] **F3.4.3** Entregar guía de soporte y salud de cola; decidir otro adaptador si MacroDroid no acredita durabilidad. — EN CURSO: Guía de la macro definitiva en macrodroid.md §3c (pasos, trampas y pruebas). MacroDroid acredita durabilidad en C1 (A3, A4, A6): no hace falta otro adaptador (decisión 5 de F3, la ratifica Miguel). Falta la guía de soporte y la salud de la cola (el latido).
+- [ ] **F3.4.3** Entregar guía de soporte y salud de cola; decidir otro adaptador si MacroDroid no acredita durabilidad. — EN CURSO: Guía de la macro en macrodroid.md §3c; latido cada 6 h probado (P1, 06/10). MacroDroid acredita durabilidad (decisión 5 de F3), pero la versión gratuita se apaga sola al vencer sus días: #18. Falta la guía de soporte.
 
 **Evidencia / fecha de validación:** pendiente.
 
@@ -388,42 +388,42 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 
 ### F4.1 · Construir la bandeja
 
-**Estado:** pendiente · **Avance:** 0/3 · **Responsable:** por asignar.
+**Estado:** en curso · **Avance:** 0/3 · **Responsable:** Claude (código) · Miguel (instala) · Jhosep (C1).
 
-- [ ] **F4.1.1** Mostrar pendientes por registrar, identificar y devolver en Hoy/Alertas, con hora y retraso.
-- [ ] **F4.1.2** Obtener detalle por UUID; explicar ya registrado, inaccesible, depurado o error sin filtrar datos.
-- [ ] **F4.1.3** Ofrecer el mismo circuito en celular y PC; cerrar el diálogo conserva el pendiente.
+- [ ] **F4.1.1** Mostrar pendientes por registrar, identificar y devolver en Hoy/Alertas, con hora y retraso. — EN CURSO: Probada (sin instalar): pestaña «Llamadas del celular» en Gestión Diaria (F4-b, decisión 3 de F4), suite de la app y E2E 17/17 (06/10). Detrás del interruptor. Falta la aceptación en C1 (F4-d); «devolver» llega con la #14.
+- [ ] **F4.1.2** Obtener detalle por UUID; explicar ya registrado, inaccesible, depurado o error sin filtrar datos. — EN CURSO: Probada (sin instalar): detalle y motivos de «no se unió» sin datos de terceros (F4-b). Falta la aceptación en C1 y comprobar el caso «depurado».
+- [ ] **F4.1.3** Ofrecer el mismo circuito en celular y PC; cerrar el diálogo conserva el pendiente. — EN CURSO: Probada (sin instalar): el mismo circuito en celular y PC (F4-b); la décima une lo registrado desde la pestaña. Falta P6 y P7 de F4-d.
 
 **Evidencia / fecha de validación:** pendiente.
 
 ### F4.2 · Registrar y enlazar
 
-**Estado:** pendiente · **Avance:** 0/4 · **Responsable:** por asignar.
+**Estado:** en curso · **Avance:** 0/4 · **Responsable:** Claude (código) · Miguel (instala) · Jhosep (C1).
 
-- [ ] **F4.2.1** Propagar contexto del evento y confirmación real de actividad_id mediante formulario/store. — EN CURSO: 05/10: el contexto de la llamada ya viaja hasta la encuesta (id del celular en la URL → receptor → intención → encuesta, que muestra su hora). Falta la confirmación real con la v5 (espera los tipos generados desde el banco de Miguel).
-- [ ] **F4.2.2** Componer v4 + enlace en transacción sin alterar núcleo sellado; revisar recibos, replays y locks.
-- [ ] **F4.2.3** Si la composición no es viable, implementar intención de enlace persistente y conciliación durable con reintentos.
-- [ ] **F4.2.4** Proponer y confirmar enlace para registros previos o desde PC; nunca decidir solo por ±10 minutos.
+- [ ] **F4.2.1** Propagar contexto del evento y confirmación real de actividad_id mediante formulario/store. — EN CURSO: Probada (sin instalar): el id viaja de la URL a la encuesta y la v5 devuelve el recibo real (5df2764e). Falta P1–P3 de F4-d.
+- [ ] **F4.2.2** Componer v4 + enlace en transacción sin alterar núcleo sellado; revisar recibos, replays y locks. — EN CURSO: Probada (sin instalar): crm.registrar_llamada_v5 (F4-a) en una transacción con la v4 sellada; séptima sin ciclo con Deshacer; duodécima con revalidación. Banco reducido 415/415, banco de Miguel 197/197. Falta instalar y confirmar el sello de la v4 (F4.4.3).
+- [ ] **F4.2.3** Si la composición no es viable, implementar intención de enlace persistente y conciliación durable con reintentos. — EN CURSO: Probada (sin instalar): la composición resultó viable y además existe la intención durable: si el aviso llega tarde, la ingesta la cumple. Falta instalar y P1 de F4-d.
+- [ ] **F4.2.4** Proponer y confirmar enlace para registros previos o desde PC; nunca decidir solo por ±10 minutos. — EN CURSO: Probada (sin instalar): asociación manual a un resultado ya guardado (vía manual); el camino exacto no usa la regla de ±10 minutos. Falta la aceptación en C1.
 
 **Evidencia / fecha de validación:** pendiente.
 
 ### F4.3 · Resolver casos operativos
 
-**Estado:** pendiente · **Avance:** 0/3 · **Responsable:** por asignar.
+**Estado:** en curso · **Avance:** 0/3 · **Responsable:** Claude (código) · Miguel (revisa e instala) · Jhosep (C1).
 
-- [ ] **F4.3.1** Asociar únicamente a lead visible; crear por flujo existente y reintentar asociación tras alta confirmada.
-- [ ] **F4.3.2** Administrar celulares: alta, baja, rotación, salud y atribución histórica, con token mostrado una vez.
-- [ ] **F4.3.3** Conservar evidencia y vínculo al deshacer; mostrar efectos anulados y no fabricar otra gestión.
+- [ ] **F4.3.1** Asociar únicamente a lead visible; crear por flujo existente y reintentar asociación tras alta confirmada. — EN CURSO: Probada en parte (sin instalar): asociar a un lead visible (las ambiguas). Crear el lead y reintentar no aplica mientras los números sin lead no se guarden (decisión 3a; #10). Falta la aceptación en C1.
+- [ ] **F4.3.2** Administrar celulares: alta, baja, rotación, salud y atribución histórica, con token mostrado una vez. — EN CURSO: Probada y en main: tarjeta «Celulares» (F4-c, #215, aprobado por Miguel y fusionado el 07/10, 5f42e908): unitarias, MSW y pantalla; E2E Docker 4/4; P2 de la revisión corregido (d7d498d2); validación de cierre de Miguel PASS (6366/6366, E2E 4/4). Falta instalar; después, paso 2 de ACTIVAR-C1.md.
+- [ ] **F4.3.3** Conservar evidencia y vínculo al deshacer; mostrar efectos anulados y no fabricar otra gestión. — EN CURSO: Probada (sin instalar): Deshacer mueve el enlace al corregido; efectos_anulados en el detalle; «deshecho» en «Qué pasó hoy». Falta P9 de F4-d.
 
 **Evidencia / fecha de validación:** pendiente.
 
 ### F4.4 · Validar el circuito
 
-**Estado:** pendiente · **Avance:** 0/3 · **Responsable:** por asignar.
+**Estado:** en curso · **Avance:** 0/3 · **Responsable:** Jhosep (C1) · Claude (guía y registro) · Miguel (consulta sin números).
 
 - [ ] **F4.4.1** Probar evento antes/después, dos llamadas cercanas, guardado confirmado con enlace fallido y dos pestañas.
 - [ ] **F4.4.2** Probar edición mientras llega otra llamada, alta/asociación fallida, deshacer y lead reasignado.
-- [ ] **F4.4.3** Ejecutar checks, E2E local y prueba física; confirmar sello v4 y ausencia de actividades duplicadas.
+- [ ] **F4.4.3** Ejecutar checks, E2E local y prueba física; confirmar sello v4 y ausencia de actividades duplicadas. — EN CURSO: Checks y E2E locales en verde (app 6338; E2E 17/17 y 4/4). Falta la prueba física (F4-d) y la consulta de Miguel sin números: recibidas, guardadas, sin duplicados y sello de la v4 intacto.
 
 **Evidencia / fecha de validación:** pendiente.
 
@@ -485,7 +485,7 @@ Mostrar hechos disponibles, no explicaciones inventadas: «Figura como alternati
 
 **Estado:** pendiente · **Avance:** 0/3 · **Responsable:** por asignar.
 
-- [ ] **F5.3.1** Resolver credenciales, tratamiento y retención antes de utilizar datos reales autorizados.
+- [ ] **F5.3.1** Resolver credenciales, tratamiento y retención antes de utilizar datos reales autorizados. — BLOQUEADA: Antes de usar datos reales: rotar la clave de TypeSafe (Jev) pegada en un chat el 20/09 (scripts/jev/README.md:45) y fijar tratamiento y retención (Miguel).
 - [ ] **F5.3.2** Calcular propuestas sin modificar asociaciones, tareas ni resultados.
 - [ ] **F5.3.3** Registrar discrepancias, errores, cobertura, incertidumbre, coste y latencia con datos mínimos.
 
@@ -527,7 +527,7 @@ Mostrar hechos disponibles, no explicaciones inventadas: «Figura como alternati
 
 ### F6.1 · Definir métricas
 
-**Estado:** pendiente · **Avance:** 0/3 · **Responsable:** por asignar.
+**Estado:** pendiente · **Avance:** 0/3 · **Responsable:** Claude (contrato) · Miguel (aprueba).
 
 - [ ] **F6.1.1** Separar detectadas, elegibles, enlazadas y pendientes de resultado, identificación o devolución.
 - [ ] **F6.1.2** Acordar denominadores y exclusiones para perdidas, no comerciales, desconocidos y efectos deshechos.
@@ -537,17 +537,17 @@ Mostrar hechos disponibles, no explicaciones inventadas: «Figura como alternati
 
 ### F6.2 · Medir salud y tiempo
 
-**Estado:** pendiente · **Avance:** 0/3 · **Responsable:** por asignar.
+**Estado:** en curso · **Avance:** 0/3 · **Responsable:** por asignar.
 
 - [ ] **F6.2.1** Agrupar ocurrencia en America/Lima con intervalos [inicio, fin) y actor/asignación históricos.
-- [ ] **F6.2.2** Mostrar retraso de entrega/registro, sincronización confirmada, cola y antigüedad de la señal.
+- [ ] **F6.2.2** Mostrar retraso de entrega/registro, sincronización confirmada, cola y antigüedad de la señal. — EN CURSO: La tarjeta de F4-c ya muestra la cola y las horas sin latido (sin hora exacta). Falta el retraso de entrega y de registro.
 - [ ] **F6.2.3** Distinguir cobertura insuficiente de cero llamadas; heartbeat solo no acredita captura sana.
 
 **Evidencia / fecha de validación:** pendiente.
 
 ### F6.3 · Construir reporte e histórico
 
-**Estado:** pendiente · **Avance:** 0/3 · **Responsable:** por asignar.
+**Estado:** pendiente · **Avance:** 0/3 · **Responsable:** Claude (construye) · Miguel (aprueba).
 
 - [ ] **F6.3.1** Implementar lecturas y pantalla de gerencia bajo ámbito autorizado con diccionario de métricas.
 - [ ] **F6.3.2** Elegir ventana histórica limitada o agregados minimizados con retención propia antes de depurar.
@@ -583,9 +583,9 @@ Mostrar hechos disponibles, no explicaciones inventadas: «Figura como alternati
 
 ### F7.2 · Preparar soporte y reversa
 
-**Estado:** pendiente · **Avance:** 0/3 · **Responsable:** por asignar.
+**Estado:** en curso · **Avance:** 0/3 · **Responsable:** Claude.
 
-- [ ] **F7.2.1** Entregar guía de permisos, cola, token perdido, cambio de equipo y baja de analista.
+- [ ] **F7.2.1** Entregar guía de permisos, cola, token perdido, cambio de equipo y baja de analista. — EN CURSO: Borradores: flujos de celular nuevo, pérdida y baja (F4C-F4D-PLAN-CORTO.md), ACTIVAR-C1.md y macrodroid.md §3c. Falta una sola guía de soporte.
 - [ ] **F7.2.2** Documentar reasignación, números compartidos y corrección/revocación de asociaciones.
 - [ ] **F7.2.3** Probar apagado independiente de captura, apertura y Jev; conservar evidencia y registro manual.
 
