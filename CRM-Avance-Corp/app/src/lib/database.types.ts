@@ -9,6 +9,33 @@ export type Json =
 export type Database = {
   crm: {
     Tables: {
+      configuracion_reparto: {
+        Row: {
+          actualizado_en: string
+          actualizado_por: string | null
+          coordinacion_libre: boolean
+          id: string
+          revision: number
+          singleton: boolean
+        }
+        Insert: {
+          actualizado_en?: string
+          actualizado_por?: string | null
+          coordinacion_libre?: boolean
+          id?: string
+          revision?: number
+          singleton?: boolean
+        }
+        Update: {
+          actualizado_en?: string
+          actualizado_por?: string | null
+          coordinacion_libre?: boolean
+          id?: string
+          revision?: number
+          singleton?: boolean
+        }
+        Relationships: []
+      }
       actividades: {
         Row: {
           creado_en: string
@@ -5191,6 +5218,11 @@ export type Database = {
       }
     }
     Functions: {
+      guardar_configuracion_reparto_fn: {
+        Args: { p_libre: boolean; p_revision: number }
+        Returns: Json
+      }
+      configuracion_reparto_fn: { Args: never; Returns: Json }
       abandonar_conversion_gerencia_fn: {
         Args: { p_lead_id: string; p_motivo: string }
         Returns: Json
