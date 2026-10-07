@@ -6,6 +6,10 @@ depende. Contrastado con `PLAN.md`, `estado.json` (espejo del tablero), los plan
 `MIGRACIONES.md` y los PR #148 a #217. Los IDs y el alcance son los aprobados: lo que cambia el alcance va como
 propuesta (`PROPUESTAS-DE-AJUSTE.md`), nunca aquí.
 
+**Actualizado el 07/10, 21:45 UTC:** Miguel aprobó las decisiones #16, #17 (con la decisión 4) y #18 (texto tal cual en
+`DECISIONES-PENDIENTES.md`) y fusionó el #215 (21:28 UTC, `5f42e908`). Cambian F0.1.1, F0.2.1, F0.3.1, F4.3.2, F6, H1 y
+H3; las cifras del resumen no cambian.
+
 ## Cómo se lee
 
 **Estados**, de menos a más:
@@ -39,7 +43,7 @@ tablero).
 | F3 · Captura y sincronización | 13 | 6 | 2 | 5 | — | En curso: falta la Edge real |
 | F4 · Bandeja y registro conciliado | 13 | 0 | 10 | 1 | 2 | En curso: falta instalar y F4-d |
 | F5 · Jev | 15 | 0 | — | — | 15 | Pendiente |
-| F6 · Gerencia y métricas | 12 | 0 | — | 1 | 11 (6 con propuesta escrita) | Bloqueada por decisiones (#17) |
+| F6 · Gerencia y métricas | 12 | 0 | — | 1 | 11 | Pendiente: diccionario aprobado (#17); primero F4-e, tras la aceptación de F4-d en C1 |
 | F7 · Despliegue y operación | 12 | 0 | — | 1 | 11 | Pendiente |
 | **Total** | **102** | **31** | **12** | **16** | **43** | |
 
@@ -52,9 +56,9 @@ explícito probado en C1 (31).
 | Hito | Qué | Responsable | Estado al 07/10 |
 | --- | --- | --- | --- |
 | H0 | Las doce migraciones en `main` | Miguel | **Hecho** (#190, `d1f16fea`, 06/10 23:28 UTC) |
-| H1 | Ensayo con **SLA activo** y aplicar las doce en producción desde LF, con sus registradores (`t`) y el ledger «EN PROD» | Miguel | Pendiente. Producción: **0/12**, SLA activo (comprobado por Miguel el 07/10). Checklist en el #215 |
+| H1 | Ensayo con **SLA activo** y aplicar las doce en producción desde LF, con sus registradores (`t`) y el ledger «EN PROD» | Miguel | **En curso** desde el 07/10 21:20 UTC: el agente de Miguel ensaya con SLA activo en una rama temporal de Supabase (autorizada por Miguel) y después aplica. Producción a las 21:10 UTC: **0/12**, SLA activo. Checklist en el #215 |
 | H2 | Edge `crm-llamadas-ingesta` desplegada y comprobada (`verify_jwt` apagado solo en ella; los `curl` dan «No autorizado») | Miguel | Pendiente |
-| H3 | Release con `LLAMADAS_CELULAR_APROBADAS = true`: abre la pestaña de F4-b y la tarjeta de F4-c | Miguel | Pendiente. Requiere el #215 fusionado |
+| H3 | Release con `LLAMADAS_CELULAR_APROBADAS = true`: abre la pestaña de F4-b y la tarjeta de F4-c | Miguel | Pendiente. El #215 ya está fusionado (07/10, `5f42e908`) |
 | H4 | Activar C1 (F4-d) con `ACTIVAR-C1.md` y correr P1–P15 | Jhosep + gerencia + Claude | Pendiente. La guía está escrita |
 | H5 | Los otros equipos del piloto (C2, C3) | Jhosep + Miguel | Pendiente |
 
@@ -62,13 +66,13 @@ explícito probado en C1 (31).
 
 | ID | Tarea | Estado | Evidencia | Siguiente paso | Responsable | Depende de |
 | --- | --- | --- | --- | --- | --- | --- |
-| F0.1.1 | Elegir 2–3 celulares y registrar marca, Android, navegador, automatizador y batería | En curso (1 de 2–3) | C1: Samsung Galaxy A16, Android 16, Chrome, MacroDroid 5.67, batería sin restricción (`REGISTRO.md`, `compatibilidad.md`) | Elegir y registrar C2 (y C3) | Jhosep · Miguel elige equipos | Equipos corporativos; #18 (licencia por equipo) |
+| F0.1.1 | Elegir 2–3 celulares y registrar marca, Android, navegador, automatizador y batería | En curso (1 de 2–3) | C1: Samsung Galaxy A16, Android 16, Chrome, MacroDroid 5.67, batería sin restricción (`REGISTRO.md`, `compatibilidad.md`) | **Comprar Pro en C1 antes del 09/10 ~15:50 Lima** (#18 aprobada) y registrar equipo, licencia y fecha; elegir y registrar C2 (y C3) | Jhosep · Miguel elige equipos | Equipos corporativos |
 | F0.1.2 | Asignar analistas, soporte y responsable de incidencias | En curso | Jhosep cubre analista, soporte y registro mientras hay un solo celular | Nombrar los analistas de C2/C3 y el responsable de soporte | Miguel decide · Jhosep | F0.1.1 |
 | F0.1.3 | Comunicar finalidad y tratamiento; instalar la PWA; permisos | En curso | C1 completo: PWA, permisos, «Abrir vínculos admitidos» + dominio (30/09) | Comunicar la finalidad a los analistas del piloto; repetir en C2/C3 | Miguel (comunicación) · Jhosep | F0.1.2 |
-| F0.2.1 | Medir cinco días: llamadas desde el CRM, fuera del CRM, entrantes y WhatsApp | Pendiente | — | Planilla y cinco días de medición por equipo | Jhosep · analistas del piloto | F0.1.2; #16 para las entrantes |
+| F0.2.1 | Medir cinco días: llamadas desde el CRM, fuera del CRM, entrantes y WhatsApp | Pendiente | — | Planilla y cinco días de medición por equipo (no se dan por hechos: Miguel, 07/10) | Jhosep · analistas del piloto | F0.1.2 |
 | F0.2.2 | Anotar si el resultado se registra desde PC o celular y cuánto tarda | Pendiente | — | Dentro de la misma medición | Jhosep | F0.2.1 |
 | F0.2.3 | Comparar capturas con el registro del teléfono: faltantes y duplicados | Pendiente | Se contó llamada por llamada en A1–A7 y P1–P5, sin conciliación formal | Conciliar teléfono → evento → actividad, mejor con la Edge real | Jhosep · Claude | F0.2.1; H4 |
-| F0.3.1 | Diez salientes y diez entrantes por equipo; atendidas, perdidas, rechazadas y canceladas | En curso | C1: salientes con número (29/09) y en las pruebas de C1; entrantes bloqueadas (decisión 2 de Miguel) | Completar diez salientes con sus casos; entrantes según #16 | Jhosep | #16 |
+| F0.3.1 | Diez salientes y diez entrantes por equipo; atendidas, perdidas, rechazadas y canceladas | En curso | C1: salientes con número (29/09) y en las pruebas de C1; entrantes bloqueadas (decisión 2 de Miguel) | Completar diez salientes por equipo con sus casos. **#16 aprobada (07/10):** F0 se acepta con las salientes y los casos especiales; las diez entrantes pasan a la aceptación de la #14 | Jhosep | — |
 | F0.3.2 | Oculto, fijo, internacional, doble SIM, enlace con +, login y vuelta a la PWA | En curso | Notificación con número; la URL abre la PWA (30/09); el número sobrevive al login (F1.2.2). **07/10:** fijo capturado y mostrado con +51; un lead propio con celular abre su encuesta (`REGISTRO.md` §5h) | Oculto, internacional y doble SIM; «lead con fijo» en vivo, opcional | Jhosep | — |
 | F0.3.3 | Pantalla bloqueada, batería, tres noches, cola sintética, reinicio y respuesta HTTP | En curso | Noche 1/3; cola sin red (A3), reinicio (A6), 503 (A4), 400 (A5), 401 (P4) y 429 en C1 contra el receptor. **07/10: pantalla bloqueada PASS** (aviso a los 9 s; encuesta abierta al desbloquear) | Dos noches y batería baja | Jhosep | — |
 | F0.4.1 | `REGISTRO.md`, guía MacroDroid y matriz con evidencia por equipo | En curso | Los tres documentos con la evidencia de C1 (`REGISTRO.md` §5a–§5g) | Evidencia de C2/C3 y cerrar la matriz | Jhosep · Claude | F0.1.1 |
@@ -123,8 +127,8 @@ producción el 02/10 (`REGISTRO.md` §5c). Evidencia de cada una en `AVANCE.md` 
 
 ## F4 · Bandeja y registro conciliado en celular y PC
 
-Todo lo de F4 está en `main` (F4-a y F4-b en el #190) o en revisión (F4-c en el #215), **detrás del interruptor y sin
-instalar**. Ninguna casilla se marca hasta la aceptación en C1.
+Todo lo de F4 está en `main` (F4-a y F4-b en el #190; F4-c en el #215, fusionado el 07/10), **detrás del interruptor y
+sin instalar**. Ninguna casilla se marca hasta la aceptación en C1.
 
 | ID | Tarea | Estado | Evidencia | Siguiente paso | Responsable | Depende de |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -136,7 +140,7 @@ instalar**. Ninguna casilla se marca hasta la aceptación en C1.
 | F4.2.3 | Intención de enlace persistente y conciliación durable | Probada | La composición resultó viable **y además** existe la intención durable: si el aviso llega tarde, la ingesta la cumple | Instalar; P1 de F4-d | Miguel · Jhosep | H1, H4 |
 | F4.2.4 | Proponer y confirmar enlace para registros previos o desde PC; nunca solo por ±10 minutos | Probada | Asociación manual a un resultado ya guardado (vía `manual`); el camino exacto no usa la regla de 10 minutos | Aceptación en C1 | Jhosep | H4 |
 | F4.3.1 | Asociar solo a un lead visible; crear por el flujo existente y reintentar tras el alta | Probada (en parte) | Asociar a un lead visible (las ambiguas). Crear y reintentar **no aplica** mientras los números sin lead no se guarden (decisión 3a, #10) | Aceptación en C1 | Jhosep | H4; #10 |
-| F4.3.2 | Administrar celulares: alta, baja, rotación, salud y atribución, con la clave visible una vez | Probada (en revisión) | Tarjeta «Celulares» (F4-c, #215): unitarias, MSW y pantalla; E2E Docker 4/4; `npm run check` 6338/6338; corregido el P2 de la revisión (`d7d498d2`) | Validación de cierre de Miguel y fusión; después, paso 2 de `ACTIVAR-C1.md` | Miguel · Jhosep | #215; H1, H3 |
+| F4.3.2 | Administrar celulares: alta, baja, rotación, salud y atribución, con la clave visible una vez | Probada | Tarjeta «Celulares» (F4-c, #215, **fusionado en `main` el 07/10**, `5f42e908`): unitarias, MSW y pantalla; E2E Docker 4/4; P2 corregido (`d7d498d2`); validación de cierre de Miguel PASS (6366/6366, E2E 4/4) | Instalar; después, paso 2 de `ACTIVAR-C1.md` | Miguel · Jhosep | H1, H3 |
 | F4.3.3 | Conservar evidencia y vínculo al deshacer; mostrar efectos anulados sin fabricar otra gestión | Probada | Deshacer mueve el enlace al corregido; `efectos_anulados` en el detalle; «deshecho» en «Qué pasó hoy» | P9 de F4-d | Jhosep | H4 |
 | F4.4.1 | Evento antes/después, dos llamadas cercanas, enlace fallido y dos pestañas | Pendiente (preparada) | Casos P1–P8 en `ACTIVAR-C1.md` | Correrlos el día de la activación | Jhosep · Claude | H1–H4 |
 | F4.4.2 | Edición mientras llega otra llamada, alta o asociación fallida, deshacer y lead reasignado | Pendiente (preparada) | Casos P5, P9 y P10 en `ACTIVAR-C1.md` | Ídem | Jhosep · Claude | H1–H4 |
@@ -167,19 +171,21 @@ Análisis adelantado en `F5-F7-ANALISIS.md` (03/10).
 
 ## F6 · Gerencia y calidad de evidencia (incluye F4-e)
 
-F4-e (la vista del día para supervisor y gerencia) adelanta parte de F6.3. **Dónde va (F4 o F6) y su diccionario
-(A1–A7) los decide Miguel** (propuesta #17, `F4E-PLAN-CORTO.md`). Hay prototipo aprobado por Jhosep (06/10); el
-prototipo **no sustituye** el contrato aprobado. Si F4-e se adelanta, F6 amplía su puerta, no crea otra.
+F4-e (la vista del día para supervisor y gerencia) adelanta parte de F6.3. **Miguel aprobó el 07/10 la #17 y la
+decisión 4:** F4-e va en F4 como paso propio, después de la aceptación de F4-d en C1, y F6 amplía la misma puerta y
+vista. El diccionario A1–A7 es el de `F4E-PLAN-CORTO.md`, con cuatro condiciones suyas: cada rótulo dice qué fecha usa,
+los porcentajes comparan la misma cohorte, «sin dato» no es cero y las llamadas personales no cuentan como trabajo. El
+prototipo aprobado por Jhosep (06/10) **no sustituye** el contrato: primero el contrato y los oráculos de F4-e.
 
 | ID | Tarea | Estado | Evidencia | Siguiente paso | Responsable | Depende de |
 | --- | --- | --- | --- | --- | --- | --- |
-| F6.1.1 | Separar detectadas, elegibles, enlazadas y pendientes | Bloqueada (propuesta escrita) | Diccionario en `F4E-PLAN-CORTO.md` | Decisión de Miguel | Miguel | #17 |
-| F6.1.2 | Denominadores y exclusiones | Bloqueada (propuesta escrita) | Ídem (A2–A5) | Ídem | Miguel | #17 |
-| F6.1.3 | Conservar métricas vigentes; no sumar eventos y gestiones | Bloqueada (propuesta escrita) | Regla escrita en el diccionario | Ídem | Miguel | #17 |
-| F6.2.1 | Día de Lima `[inicio, fin)` y actor/asignación históricos | Bloqueada (propuesta escrita) | A1 y A3 | Ídem | Miguel | #17 |
-| F6.2.2 | Retraso de entrega/registro, sincronización, cola y antigüedad de la señal | En curso | La tarjeta de F4-c ya muestra la cola y las horas sin latido (sin hora exacta) | Retraso de entrega y de registro | Claude | #17 |
-| F6.2.3 | Cobertura insuficiente ≠ cero llamadas; el latido solo no acredita captura | Bloqueada (propuesta escrita) | «—» frente a 0 en el prototipo; «La salud es lo que declara el celular» en la tarjeta | Ídem | Miguel | #17 |
-| F6.3.1 | Lecturas y pantalla de gerencia con ámbito y diccionario visible | Bloqueada (propuesta escrita) | Prototipo F4-e aprobado por Jhosep; plan corto con la puerta propuesta | Decisión 4 y A1–A7; después plan corto, migración y pantalla | Miguel decide · Claude | #17, decisión 4 |
+| F6.1.1 | Separar detectadas, elegibles, enlazadas y pendientes | Pendiente | Diccionario aprobado por Miguel (#17, 07/10) en `F4E-PLAN-CORTO.md` | Contrato y oráculos de F4-e con el diccionario | Claude | F4-e |
+| F6.1.2 | Denominadores y exclusiones | Pendiente | A2–A5 aprobados (#17, 07/10); porcentajes con numerador y denominador de la misma cohorte | Ídem | Claude | F4-e |
+| F6.1.3 | Conservar métricas vigentes; no sumar eventos y gestiones | Pendiente | Regla del diccionario aprobada (#17, 07/10); las llamadas personales no cuentan como trabajo | Ídem | Claude | F4-e |
+| F6.2.1 | Día de Lima `[inicio, fin)` y actor/asignación históricos | Pendiente | A1 y A3 aprobados (#17, 07/10); cada rótulo dice qué fecha usa | Ídem | Claude | F4-e |
+| F6.2.2 | Retraso de entrega/registro, sincronización, cola y antigüedad de la señal | En curso | La tarjeta de F4-c ya muestra la cola y las horas sin latido (sin hora exacta) | Retraso de entrega y de registro | Claude | F4-e |
+| F6.2.3 | Cobertura insuficiente ≠ cero llamadas; el latido solo no acredita captura | Pendiente | «Sin dato» separado de cero, aprobado (#17, 07/10); «La salud es lo que declara el celular» en la tarjeta | Ídem | Claude | F4-e |
+| F6.3.1 | Lecturas y pantalla de gerencia con ámbito y diccionario visible | Pendiente | Prototipo F4-e aprobado por Jhosep; decisión 4 y A1–A7 aprobadas por Miguel (07/10): F4-e va en F4 | Contrato y oráculos de F4-e; después plan corto con OK de Miguel, migración y pantalla | Claude · Miguel aprueba | Activación: aceptación de F4-d en C1 |
 | F6.3.2 | Ventana histórica limitada o agregados con retención propia | Pendiente | — | Decidir antes de mostrar históricos (sesgo por la purga de 30 días) | Miguel | F6.3.1 |
 | F6.3.3 | Eventos tardíos sin duplicar; límites de cobertura y retención visibles | Pendiente | — | — | Claude | F6.3.1 |
 | F6.4.1 | Contrastar la muestra con teléfono, eventos, enlaces y actividades | Pendiente | — | — | Jhosep · Claude | H4 |
@@ -208,18 +214,18 @@ prototipo **no sustituye** el contrato aprobado. Si F4-e se adelanta, F6 amplía
 | # | Qué | Estado | Depende de |
 | --- | --- | --- | --- |
 | #13 | Clientes: identificar al cliente, abrir postventa y enlazar la llamada con su gestión | Aprobada (02/10); sin empezar | Primero, la gestión de clientes en Gestión Diaria (Miguel). Nunca registrar sobre un lead convertido con la encuesta de leads |
-| #14 | Entrantes: atendida → encuesta; perdida → tarea «devolver la llamada»; número ajeno → silencio | Aprobada (02/10); diseño de la macro en `macrodroid.md` §3d, sin armar ni probar | Después de salientes; #18 (MacroDroid Pro); para clientes, #13. No se enciende por estar aprobada: se prueba entera antes |
+| #14 | Entrantes: atendida → encuesta; perdida → tarea «devolver la llamada»; número ajeno → silencio | Aprobada (02/10); diseño de la macro en `macrodroid.md` §3d, sin armar ni probar | Después de salientes; #18 (MacroDroid Pro, aprobada el 07/10); para clientes, #13. No se enciende por estar aprobada: se prueba entera antes |
 | #15 | Métricas de entrantes, separadas de las salientes | Aprobada como objetivo; sin diseño | #14, #17. Nunca inflar «llamadas hechas» |
 
-## Decisiones pendientes
+## Decisiones
 
-| # | Decisión | Quién | Qué cambia según la respuesta |
+| # | Decisión | Estado | Qué cambia |
 | --- | --- | --- | --- |
-| #16 | F0 solo con salientes (quitar las diez entrantes de F0.3.1) | Miguel | F0.3.1 se puede cerrar sin entrantes o espera a la #14 |
-| #17 | Diccionario de métricas A1–A7 y dónde va F4-e (F4 o F6) | Miguel | Desbloquea F6.1–F6.3 (y F4-e) |
-| #18 | MacroDroid Pro en producción | Miguel | La versión gratuita se apaga sola al vencer sus días (C1 vence ~**09/10 15:50 Lima**); también la necesita la #14. Claude prepara precio, licencia y cuenta por equipo |
-| — | Rotación de la clave de TypeSafe (Jev) | Miguel | Desbloquea F5.3.1 |
-| — | Los 8 fallos de fondo del gate global | Miguel | Trabajo aparte; no bloquean llamadas |
+| #16 | F0 solo con salientes (quitar las diez entrantes de F0.3.1) | **Aprobada** (Miguel, 07/10) | F0 se acepta con diez salientes por equipo y los casos especiales; las diez entrantes pasan a la aceptación de la #14. Nada sin probar se marca |
+| #17 | Diccionario de métricas A1–A7 y dónde va F4-e (F4 o F6) | **Aprobada** (Miguel, 07/10) | F4-e va en F4, después de la aceptación de F4-d en C1; F6 amplía la misma puerta. Desbloquea F6.1–F6.3 |
+| #18 | MacroDroid Pro en producción | **Aprobada para el piloto** (Miguel, 07/10) | Jhosep compra Pro en C1 antes del 09/10 ~15:50 Lima (S/ 19 por cuenta, pago único; hasta S/ 57 con tres compras) y registra equipo, licencia y fecha |
+| — | Rotación de la clave de TypeSafe (Jev) | Pendiente (Miguel) | Desbloquea F5.3.1. Jev sigue apagado |
+| — | Los 8 fallos de fondo del gate global | Pendiente (Miguel) | Trabajo aparte; no bloquean llamadas |
 
 ## Lo que se corrigió en los documentos con este repaso
 

@@ -282,7 +282,7 @@ Con la Edge desplegada se repiten A1 y A3 **con datos móviles** (cualquier red)
 
 ## 3d. Entrantes con MacroDroid Pro — para la propuesta #14 (diseño del 03/10/2026, SIN ARMAR NI PROBAR)
 
-**Estado:** diseño guardado para la #14. **Miguel (03/10): Pro todavía no.** El latido y la guarda de `t_saliente` (menor 16) no dependen de Pro y ya están en §3c (05/10); aquí quedan solo las entrantes. La base las ignora hoy (perilla bloqueada con un CHECK, `20261005143843`): encenderlas pide una migración de la #14. Se descartó hacer las entrantes con 5 macros: para distinguir una entrante contestada de una perdida había que esperar unos segundos al colgar, y una perdida podía quedar registrada como contestada.
+**Estado:** diseño guardado para la #14. **Miguel (03/10): Pro todavía no. 07/10: Miguel aprobó Pro para el piloto (#18)**; la compra de C1 va antes del 09/10. El latido y la guarda de `t_saliente` (menor 16) no dependen de Pro y ya están en §3c (05/10); aquí quedan solo las entrantes. La base las ignora hoy (perilla bloqueada con un CHECK, `20261005143843`): encenderlas pide una migración de la #14. Se descartó hacer las entrantes con 5 macros: para distinguir una entrante contestada de una perdida había que esperar unos segundos al colgar, y una perdida podía quedar registrada como contestada.
 
 **Qué cambia frente a §3c:**
 - **Entrantes de leads (#14, aprobada el 02/10)**: la contestada manda un aviso «conectada» y la no contestada uno «no_atendida». Con este último, el CRM creará «devolver la llamada» cuando exista el servidor de la #14. Hasta entonces el servidor las recibe y no las guarda (perilla de entrantes apagada; la corrección de F2 + F3 la bloquea).

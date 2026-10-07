@@ -1,8 +1,11 @@
 # F4-e — Supervisor y gerencia: plan corto (06/10/2026, solo análisis, para decidir con Miguel)
 
 Salió de un análisis de solo lectura del 06/10. Las citas marcadas **[V]** las verificó ese análisis en el archivo y la
-línea; Claude volvió a comprobar la fuga del latido, que ya se corrigió en la undécima. **No hay código. Antes hacen
-falta dos cosas de Miguel: la decisión 4 de `F4-PLAN-CORTO.md` (F4 o F6) y el diccionario de abajo (propuesta #17).**
+línea; Claude volvió a comprobar la fuga del latido, que ya se corrigió en la undécima. **No hay código.** Las dos cosas
+que faltaban de Miguel, la decisión 4 de `F4-PLAN-CORTO.md` (F4 o F6) y el diccionario de abajo (propuesta #17),
+**las aprobó el 07/10** (#215, 21:20 UTC; texto tal cual en `DECISIONES-PENDIENTES.md`): F4-e va en F4, como paso
+propio, después de la aceptación de F4-d en C1, y F6 amplía la misma puerta y vista. Lo siguiente es preparar el
+contrato y los oráculos con este diccionario; su activación sigue dependiendo de C1.
 
 ## En una línea
 
@@ -19,7 +22,7 @@ Una vista **de solo lectura del día (hora de Lima)** que cuenta, por analista y
 corrección de Miguel en el #190, `20261006162813`) y **ningún índice nuevo**, porque los de la
 novena y los de datos ya cubren cada cifra. Falta confirmarlo con EXPLAIN.
 
-## F4 o F6 (decisión 4, de Miguel)
+## F4 o F6 (decisión 4: aprobada por Miguel el 07/10, en F4)
 
 | | En F4 (F4-e) | En F6 |
 | --- | --- | --- |
@@ -31,7 +34,7 @@ novena y los de datos ya cubren cada cifra. Falta confirmarlo con EXPLAIN.
 **Recomendación: en F4**, como paso propio, pero **después de F4-d** (el latido probado en C1) y con el diccionario
 aprobado antes.
 
-## Diccionario de métricas (borrador para el OK de Miguel, #17)
+## Diccionario de métricas (#17: aprobado por Miguel el 07/10)
 
 **Base común:**
 - Solo `direccion = 'saliente'`.
@@ -64,6 +67,11 @@ gerencia verían cifras distintas del mismo analista.
 | A5 | ¿Lead cerrado después de la llamada? | **Deja de ser «sin resultado»** |
 | A6 | Umbral de «sin latido» | **7 h**, el mismo de la undécima, para que la tarjeta de F4-c y esta vista digan lo mismo |
 | A7 | El celular del supervisor | Una línea aparte en «Su celular»: «Mi equipo hoy» solo lista vendedores |
+
+**Miguel aprobó A1–A7 tal como están (07/10) y añadió estas condiciones, tal cual:** «Los rótulos deben hacer
+explícito qué fecha usa cada cifra. Los porcentajes deben usar numerador y denominador de la misma cohorte; no dividir
+resultados de hoy entre llamadas ocurridas hoy si mezclan llamadas de días distintos. «Sin dato» se mantiene separado de
+cero y no se cuentan llamadas personales como trabajo.»
 
 ## Puerta propuesta (descripción, sin SQL)
 
@@ -140,7 +148,7 @@ gerencia verían cifras distintas del mismo analista.
 ## Orden y dependencias
 
 1. Aplicar las doce en producción (ya están en `main`: el #190 se fusionó el 06/10 y el #198 había entrado en él).
-2. Decisión 4 y el diccionario (A1–A7), de Miguel.
+2. ~~Decisión 4 y el diccionario (A1–A7), de Miguel~~: aprobados el 07/10.
 3. F4-c y F4-d: el latido probado en C1. Antes de eso, «sin latido» no significa nada.
 4. Plan corto con OK → migración, oráculo y mutantes → gate → `auditor-rls` → banco de Miguel → tipos → pantalla →
    checks y E2E → release.

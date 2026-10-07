@@ -47,15 +47,18 @@ La guía del día para activar C1 vive con los materiales del piloto: `docs/gest
 
 ## Estado hoy
 
-**Al 07/10/2026.** Detalle tarea por tarea en `SEGUIMIENTO.md` (30 de 102 cerradas con evidencia).
+**Al 07/10/2026, 21:45 UTC.** Detalle tarea por tarea en `SEGUIMIENTO.md` (31 de 102 cerradas con evidencia).
 
 - **F1 (la encuesta al colgar) está en producción** desde la noche del 01/10 (PR #165) y se comprobó con C1 el 02/10.
 - **Las doce migraciones de llamadas, la Edge y F4-b están en `main`** (PR #190, fusionado el 06/10) y probadas, pero
   **sin instalar**: producción tiene 0 de 12, sin Edge y con el modo SLA activo (comprobado por Miguel el 07/10). La
   pantalla va detrás del interruptor `LLAMADAS_CELULAR_APROBADAS` (apagado).
-- **F4-c (la tarjeta «Celulares»)** está en el PR #215, en revisión de Miguel.
-- **Lo siguiente es de Miguel:** ensayar con SLA activo, aplicar las doce desde LF con sus registradores, desplegar la Edge
-  y abrir el interruptor en un release. Después se activa C1 con `ACTIVAR-C1.md` («instalar no es activar»).
+- **F4-c (la tarjeta «Celulares») está en `main`:** Miguel la aprobó y fusionó el #215 el 07/10 (`5f42e908`).
+- **Las decisiones #16, #17 y #18 están aprobadas** (07/10, `DECISIONES-PENDIENTES.md`): Pro para el piloto, F0 con
+  salientes y F4-e en F4 con el diccionario A1–A7.
+- **Lo siguiente es de Miguel, y su agente ya lo está haciendo:** ensayar con SLA activo, aplicar las doce desde LF con
+  sus registradores, desplegar la Edge y abrir el interruptor en un release. Después se activa C1 con `ACTIVAR-C1.md`
+  («instalar no es activar»).
 - F0 (piloto, sin código) sigue en curso con un solo celular, C1 (Samsung A16).
 
 Para retomar: el `HANDOFF-*.md` más reciente.

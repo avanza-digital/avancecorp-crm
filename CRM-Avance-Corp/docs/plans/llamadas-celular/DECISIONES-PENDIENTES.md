@@ -1,12 +1,33 @@
-# Decisiones pendientes para Miguel — «Llamadas desde el celular» (07/10/2026)
+# Decisiones #16, #17 y #18 — «Llamadas desde el celular» (07/10/2026, aprobadas)
 
 Pedidas por Miguel en el #215 (18:24 UTC): cada decisión abierta con una propuesta concreta y sus consecuencias.
-**Son propuestas:** el plan aprobado (`PLAN.md`) no cambia hasta que Miguel decida. Contexto completo en
+Eran propuestas; **Miguel aprobó las tres el mismo día** (sección siguiente, copiada tal cual). Contexto completo en
 `PROPUESTAS-DE-AJUSTE.md` (#16, #17, #18) y en `SEGUIMIENTO.md`.
 
 Orden por urgencia: **#18** (vence el 09/10), **#16**, **#17**.
 
-## #18 · MacroDroid Pro en los celulares de producción — urgente
+## Resultado: aprobadas por Miguel (07/10, 21:20 UTC)
+
+Comentario de Miguel en el #215, tal cual:
+
+> 1. **#18: MacroDroid Pro aprobado para el piloto de 2–3 celulares**, según la oferta verificada de S/19 por cuenta,
+>    pago único (hasta S/57 si hacen falta tres compras). Compra/configura C1 con cuenta corporativa antes del
+>    vencimiento registrado del 09/10 ~15:50 Lima. Verifica precio y condiciones en cada compra; si cambian o requiere
+>    una suscripción, informa antes de aceptar ese cambio. No compartas credenciales ni datos de pago. Registra
+>    equipo/licencia/fecha de forma saneada y confirma que desapareció el límite por días. La compra y su verificación
+>    física las haces tú en los equipos.
+> 2. **#16: aprobada.** F0 se acepta con diez salientes por equipo y los casos especiales del plan. Las diez entrantes
+>    pasan a la aceptación de #14. No se elimina esa ampliación ni se marca como PASS lo no probado.
+> 3. **#17 y decisión 4: aprobadas.** F4-e va en F4 como paso propio, después de la aceptación de F4-d en C1; F6
+>    amplía la misma puerta/vista. A1 quien marcó; A2 fecha del resultado; A3 día de la llamada; A4 excluir leads de
+>    baja; A5 un lead cerrado deja de pedir resultado; A6 siete horas para «sin latido»; A7 celular del supervisor en
+>    línea aparte. Los rótulos deben hacer explícito qué fecha usa cada cifra. Los porcentajes deben usar numerador y
+>    denominador de la misma cohorte; no dividir resultados de hoy entre llamadas ocurridas hoy si mezclan llamadas de
+>    días distintos. «Sin dato» se mantiene separado de cero y no se cuentan llamadas personales como trabajo.
+
+Lo que sigue en este archivo es el registro de lo que se propuso.
+
+## #18 · MacroDroid Pro en los celulares de producción — aprobada para el piloto
 
 **La pregunta:** ¿se compra MacroDroid Pro para los celulares que capturan llamadas?
 
@@ -38,7 +59,7 @@ nadie lo notara (`REGISTRO.md`, incidencia del 06/10). **Hoy C1 vence el 09/10 a
 **Revisa:** la decisión «Pro todavía no» (Miguel, 03/10), tomada cuando la versión gratuita todavía no se apagaba.
 **No recomiendo** cambiar de app: habría que rehacer y volver a probar todas las macros (pruebas 1–6, A1–A7, P1–P5).
 
-## #16 · Cerrar el piloto (F0) con salientes
+## #16 · Cerrar el piloto (F0) con salientes — aprobada
 
 **La pregunta:** ¿F0 se acepta con las llamadas salientes, dejando las «diez entrantes por equipo» para la #14?
 
@@ -55,7 +76,7 @@ batería, noches). **Las diez entrantes pasan a la aceptación de la #14.** Lo n
 | F0 se puede cerrar con lo que el sistema hace hoy (salientes) | F0 queda abierta hasta construir y probar la #14, que espera a la #18 |
 | Las entrantes se prueban donde se construyen (#14) | Se mezcla la aceptación del piloto con una ampliación todavía sin hacer |
 
-## #17 · Diccionario de métricas (A1–A7) y dónde va la vista de supervisor y gerencia (decisión 4)
+## #17 · Diccionario de métricas (A1–A7) y dónde va la vista de supervisor y gerencia (decisión 4) — aprobadas
 
 **La pregunta:** ¿cómo se cuenta cada cifra, y la vista del día va en F4 (como F4-e) o espera a F6?
 

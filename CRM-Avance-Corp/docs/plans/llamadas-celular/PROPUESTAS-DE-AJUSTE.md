@@ -1,5 +1,7 @@
 # Propuestas de ajuste al plan — pendientes de aprobación de Miguel
 
+> **07/10/2026 — Miguel APRUEBA #16, #17 (con la decisión 4 de F4) y #18** (comentario del #215, 21:20 UTC; su texto tal cual en `DECISIONES-PENDIENTES.md`). #18: Pro para el piloto de 2–3 celulares (S/ 19 por cuenta, pago único); Jhosep compra C1 antes del 09/10. #16: F0 se acepta con diez salientes por equipo y los casos especiales; las diez entrantes pasan a la aceptación de la #14. #17: F4-e va en F4, después de la aceptación de F4-d en C1, y F6 amplía la misma puerta; A1–A7 aprobados, con cuatro condiciones (rótulos con la fecha de cada cifra, porcentajes de la misma cohorte, «sin dato» separado de cero, sin llamadas personales).
+
 > **02/10/2026 — Miguel APRUEBA #13, #14 y #15** (en la sesión de revisión con Claude). La #14 implica comprar MacroDroid Pro. Ratifica además las 7 decisiones provisionales de F2 y las 5 de F3; falta confirmarle la regla extra de la decisión 4, los criterios de Claude de `MIGRACIONES.md` y la #12 (ver `REVISION-2026-10-02.md`).
 
 Claude, 29/09/2026, tras verificar la Versión 3 contra el repositorio (taller Windows, `main` = `a243c12c`). Ninguna de estas propuestas modifica `PLAN.md` ni el tablero: se aplican solo si Miguel las acepta, y entonces se editan el md aprobado y el FigJam con los mismos IDs.

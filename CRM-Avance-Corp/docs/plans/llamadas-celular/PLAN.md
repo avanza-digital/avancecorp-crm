@@ -134,7 +134,7 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 | F3 · Captura y sincronización | 4 | 6/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-20) |
 | F4 · Pendientes y conciliación | 4 | 0/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-66) |
 | F5 · Jev para identificación asistida | 5 | 0/15 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-72) |
-| F6 · Gerencia y calidad | 4 | 0/12 | Bloqueada | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-78) |
+| F6 · Gerencia y calidad | 4 | 0/12 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-78) |
 | F7 · Despliegue y operación | 4 | 0/12 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-84) |
 
 **Total inicial: 0/102 tareas, agrupadas en 33 subfases.** Los ocho checks comunes de la sección 14 son criterios que se aplican al cerrar cada fase; no se suman como otra fase de trabajo.
@@ -149,7 +149,7 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 
 **Estado:** en curso · **Avance:** 0/3 · **Responsable:** Jhosep.
 
-- [ ] **F0.1.1** Seleccionar 2–3 celulares y registrar marca, Android, navegador, automatizador y restricciones de batería. — EN CURSO: C1 registrado: Samsung Galaxy A16 (SM-A165M), Android 16, Chrome predeterminado, MacroDroid 5.67 (Play Store, sep. 2026), batería «No restringido», «Aparecer encima» activado. Faltan 1–2 celulares más.
+- [ ] **F0.1.1** Seleccionar 2–3 celulares y registrar marca, Android, navegador, automatizador y restricciones de batería. — EN CURSO: C1 registrado: Samsung Galaxy A16 (SM-A165M), Android 16, Chrome predeterminado, MacroDroid 5.67 (Play Store, sep. 2026), batería «No restringido», «Aparecer encima» activado. Faltan 1–2 celulares más. 07/10: #18 aprobada por Miguel; Jhosep compra MacroDroid Pro en C1 (cuenta corporativa, S/ 19, pago único) antes del 09/10 ~15:50 Lima y registra equipo, licencia y fecha.
 - [ ] **F0.1.2** Asignar analistas, soporte y responsable del registro de incidencias. — EN CURSO: Jhosep asume analista piloto (C1), soporte y registro de incidencias mientras haya un solo celular.
 - [ ] **F0.1.3** Comunicar finalidad y tratamiento de datos; instalar la PWA y configurar permisos del piloto. — EN CURSO: C1 completo: PWA instalada, permisos Teléfono y Registro de llamadas confirmados por evidencia, «Aparecer encima», batería sin restricciones y, desde el 30/09, «Abrir vínculos admitidos» + dominio crm.miavance.com en la app (necesario para que la URL la abra). Aviso: no aplica al propio responsable. Pendiente para los próximos celulares.
 
@@ -169,7 +169,7 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 
 **Estado:** en curso · **Avance:** 0/3 · **Responsable:** Jhosep.
 
-- [ ] **F0.3.1** Probar al menos diez salientes y diez entrantes por equipo, además de atendidas, perdidas, rechazadas y canceladas. — EN CURSO: C1: salientes con número (29/09) y muchas más en las pruebas de C1 (02/10 y 06/10). Las entrantes están bloqueadas por la decisión 2 de Miguel; las diez de esta tarea dependen de la #16. Faltan diez salientes con sus casos (atendida, no atendida, rechazada, cancelada) por equipo.
+- [ ] **F0.3.1** Probar al menos diez salientes y diez entrantes por equipo, además de atendidas, perdidas, rechazadas y canceladas. — EN CURSO: C1: salientes con número (29/09) y muchas más en las pruebas de C1 (02/10 y 06/10). Las entrantes están bloqueadas por la decisión 2 de Miguel; #16 aprobada (07/10): F0 se acepta con diez salientes por equipo y los casos especiales; las diez entrantes pasan a la aceptación de la #14. Faltan diez salientes con sus casos (atendida, no atendida, rechazada, cancelada) por equipo.
 - [ ] **F0.3.2** Validar oculto, fijo, internacional, doble SIM si aplica, enlace con +, login y retorno a PWA. — EN CURSO: C1: notificación con número y nombre PASS; la URL abre la PWA con «Abrir vínculos admitidos» (30/09); el número sobrevive al login (F1.2.2). 07/10 contra el receptor: saliente a un FIJO capturada y mostrada con +51 («ningún lead», correcto: no es lead); saliente a un lead propio con celular → se abrió su encuesta (REGISTRO.md §5h). Faltan oculto, internacional y doble SIM; «lead con fijo» en vivo es opcional (lo cubren las pruebas de F1).
 - [ ] **F0.3.3** Probar pantalla bloqueada, batería, tres noches y ensayo sintético de cola, reinicio y respuesta HTTP. — EN CURSO: C1: noche 1 de 3. En C1 contra el receptor: cola sin red (A3), reinicio con aviso pendiente (A6), 503 (A4), 400 (A5), 401 que conserva la cola (P4), 429 (07/10) y PANTALLA BLOQUEADA (07/10: el aviso llegó a los 9 s con la pantalla apagada y al desbloquear la encuesta ya estaba abierta). Faltan dos noches y batería baja.
 
@@ -412,7 +412,7 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 **Estado:** en curso · **Avance:** 0/3 · **Responsable:** Claude (código) · Miguel (revisa e instala) · Jhosep (C1).
 
 - [ ] **F4.3.1** Asociar únicamente a lead visible; crear por flujo existente y reintentar asociación tras alta confirmada. — EN CURSO: Probada en parte (sin instalar): asociar a un lead visible (las ambiguas). Crear el lead y reintentar no aplica mientras los números sin lead no se guarden (decisión 3a; #10). Falta la aceptación en C1.
-- [ ] **F4.3.2** Administrar celulares: alta, baja, rotación, salud y atribución histórica, con token mostrado una vez. — EN CURSO: Probada, en revisión: tarjeta «Celulares» (F4-c, #215): unitarias, MSW y pantalla; E2E Docker 4/4; npm run check 6338/6338; P2 de la revisión corregido (d7d498d2). Falta la validación de cierre de Miguel, fusionar e instalar; después, paso 2 de ACTIVAR-C1.md.
+- [ ] **F4.3.2** Administrar celulares: alta, baja, rotación, salud y atribución histórica, con token mostrado una vez. — EN CURSO: Probada y en main: tarjeta «Celulares» (F4-c, #215, aprobado por Miguel y fusionado el 07/10, 5f42e908): unitarias, MSW y pantalla; E2E Docker 4/4; P2 de la revisión corregido (d7d498d2); validación de cierre de Miguel PASS (6366/6366, E2E 4/4). Falta instalar; después, paso 2 de ACTIVAR-C1.md.
 - [ ] **F4.3.3** Conservar evidencia y vínculo al deshacer; mostrar efectos anulados y no fabricar otra gestión. — EN CURSO: Probada (sin instalar): Deshacer mueve el enlace al corregido; efectos_anulados en el detalle; «deshecho» en «Qué pasó hoy». Falta P9 de F4-d.
 
 **Evidencia / fecha de validación:** pendiente.
@@ -523,15 +523,15 @@ Mostrar hechos disponibles, no explicaciones inventadas: «Figura como alternati
 
 **Objetivo:** cifras interpretables sin alterar las métricas comerciales existentes.
 
-**Seguimiento de F6:** 0/12 tareas completadas · Estado: bloqueada · Responsable nominal: por asignar.
+**Seguimiento de F6:** 0/12 tareas completadas · Estado: pendiente · Responsable nominal: por asignar.
 
 ### F6.1 · Definir métricas
 
-**Estado:** bloqueada · **Avance:** 0/3 · **Responsable:** Miguel (decide).
+**Estado:** pendiente · **Avance:** 0/3 · **Responsable:** Claude (contrato) · Miguel (aprueba).
 
-- [ ] **F6.1.1** Separar detectadas, elegibles, enlazadas y pendientes de resultado, identificación o devolución. — BLOQUEADA: Propuesta escrita (diccionario de F4E-PLAN-CORTO.md). Decide Miguel (#17).
-- [ ] **F6.1.2** Acordar denominadores y exclusiones para perdidas, no comerciales, desconocidos y efectos deshechos. — BLOQUEADA: Propuesta escrita (A2–A5 del diccionario). Decide Miguel (#17).
-- [ ] **F6.1.3** Conservar métricas vigentes de actividades; no sumar eventos y gestiones como si fueran distintos resultados. — BLOQUEADA: Propuesta escrita: nunca se suman eventos y gestiones. Decide Miguel (#17).
+- [ ] **F6.1.1** Separar detectadas, elegibles, enlazadas y pendientes de resultado, identificación o devolución.
+- [ ] **F6.1.2** Acordar denominadores y exclusiones para perdidas, no comerciales, desconocidos y efectos deshechos.
+- [ ] **F6.1.3** Conservar métricas vigentes de actividades; no sumar eventos y gestiones como si fueran distintos resultados.
 
 **Evidencia / fecha de validación:** pendiente.
 
@@ -539,17 +539,17 @@ Mostrar hechos disponibles, no explicaciones inventadas: «Figura como alternati
 
 **Estado:** en curso · **Avance:** 0/3 · **Responsable:** por asignar.
 
-- [ ] **F6.2.1** Agrupar ocurrencia en America/Lima con intervalos [inicio, fin) y actor/asignación históricos. — BLOQUEADA: Propuesta escrita (A1 y A3: día de Lima, analista histórico). Decide Miguel (#17).
+- [ ] **F6.2.1** Agrupar ocurrencia en America/Lima con intervalos [inicio, fin) y actor/asignación históricos.
 - [ ] **F6.2.2** Mostrar retraso de entrega/registro, sincronización confirmada, cola y antigüedad de la señal. — EN CURSO: La tarjeta de F4-c ya muestra la cola y las horas sin latido (sin hora exacta). Falta el retraso de entrega y de registro.
-- [ ] **F6.2.3** Distinguir cobertura insuficiente de cero llamadas; heartbeat solo no acredita captura sana. — BLOQUEADA: Propuesta escrita: «—» frente a 0 (prototipo F4-e) y «la salud es lo que declara el celular» (tarjeta F4-c). Decide Miguel (#17).
+- [ ] **F6.2.3** Distinguir cobertura insuficiente de cero llamadas; heartbeat solo no acredita captura sana.
 
 **Evidencia / fecha de validación:** pendiente.
 
 ### F6.3 · Construir reporte e histórico
 
-**Estado:** bloqueada · **Avance:** 0/3 · **Responsable:** Miguel (decide) · Claude (construye).
+**Estado:** pendiente · **Avance:** 0/3 · **Responsable:** Claude (construye) · Miguel (aprueba).
 
-- [ ] **F6.3.1** Implementar lecturas y pantalla de gerencia bajo ámbito autorizado con diccionario de métricas. — BLOQUEADA: Prototipo de F4-e aprobado por Jhosep (06/10) y plan corto con la puerta propuesta. Bloqueada por la decisión 4 (F4 o F6) y A1–A7 de Miguel. El prototipo no sustituye el contrato aprobado.
+- [ ] **F6.3.1** Implementar lecturas y pantalla de gerencia bajo ámbito autorizado con diccionario de métricas.
 - [ ] **F6.3.2** Elegir ventana histórica limitada o agregados minimizados con retención propia antes de depurar.
 - [ ] **F6.3.3** Actualizar eventos tardíos sin duplicar y mostrar límites de cobertura y retención.
 

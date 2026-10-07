@@ -1,19 +1,21 @@
 # Coordinación — «Llamadas desde el celular» (Jhosep ↔ Miguel)
 
-**Última actualización:** 07/10/2026, ~21:20 UTC, por Jhosep (Claude). **El #190 ya está fusionado en `main`**
-(`d1f16fea`); falta aplicarlo en producción, desplegar y activar C1 (pasos de Miguel). **F4-c está en el PR #215,
-aprobado por Miguel el 07/10 a las 21:10 UTC**; falta que lo fusione. Seguimiento tarea por tarea: `SEGUIMIENTO.md`. Decisiones con propuesta para Miguel:
-`DECISIONES-PENDIENTES.md`. Para retomar: `HANDOFF-2026-10-07.md`.
+**Última actualización:** 07/10/2026, ~21:45 UTC, por Jhosep (Claude). **El #190 y el #215 están fusionados en
+`main`** (`d1f16fea` y `5f42e908`). Falta aplicar las doce en producción, desplegar y activar C1: el agente de Miguel lo
+está haciendo (H1–H3). **Las decisiones #16, #17 y #18 están aprobadas** (`DECISIONES-PENDIENTES.md`). Seguimiento
+tarea por tarea: `SEGUIMIENTO.md`. Para retomar: `HANDOFF-2026-10-07.md`.
 **Para qué sirve:** que los dos agentes no trabajen cada uno por su lado. Antes de actuar, se lee este archivo. Aquí
 están las reglas, el mapa de los PR, el turno de cada uno, el orden y lo que ya pasó.
 
 ## 1. Reglas
 
-1. **Un solo PR abierto a la vez.** Hoy es el **#215** (F4-c, la tarjeta «Celulares»).
+1. **Un solo PR abierto a la vez.** Hoy es el **PR de documentos** de `crm/llamadas-f4d-documentos-20261007` (la
+   guía `ACTIVAR-C1.md`, el seguimiento y las decisiones; solo documentos).
    - El #190 (las doce migraciones, la Edge, el gate y F4-b) se fusionó en `main` el 06/10; el #198 había entrado en él.
+   - El #215 (F4-c) se fusionó el 07/10 con squash (`5f42e908`).
    - Lo que prepara el que no tiene el turno va en una **rama aparte**, sin PR, montada sobre la cabeza del PR abierto.
-     Hoy: `crm/llamadas-f4d-activacion-20261007` (la guía `ACTIVAR-C1.md` y `SEGUIMIENTO.md`), que se abre como PR
-     cuando cierre el #215.
+   - La rama vieja `crm/llamadas-f4d-activacion-20261007` quedó obsoleta: estaba montada sobre el #215 y, tras el
+     squash, su PR habría vuelto a mostrar F4-c. La nueva sale de `main` con solo los commits de documentos.
 2. **Cada PR tiene un solo escritor, el que tiene el turno.**
    - Solo quien tiene el turno sube commits a esa rama.
    - El otro comenta y espera.
@@ -39,24 +41,37 @@ están las reglas, el mapa de los PR, el turno de cada uno, el orden y lo que ya
 | Rama | Qué es | Turno | Estado |
 | --- | --- | --- | --- |
 | **#190** `crm/llamadas-quinta-migracion-20261005` | Las doce migraciones de llamadas, la Edge, el gate, F4-b con la fuente real conectada y los planes de F4-c/F4-d/F4-e | — | **Fusionado en `main`** el 06/10 23:28 UTC (`d1f16fea`). **Sin aplicar en producción**; la lista para aplicar está en el #215 |
-| **#215** `crm/llamadas-f4c-celulares-20261006` | F4-c: la tarjeta «Celulares» de Configuración (solo gerencia), detrás del interruptor `LLAMADAS_CELULAR_APROBADAS`; sin migración | **Miguel** (fusionar) | **Aprobado** el 07/10 21:10 UTC (validación de cierre PASS, sin P0–P2) sobre `d7dfd5b4`; sigue en borrador hasta que Miguel lo fusione. Su verificación: 6366/6366, E2E Docker 4/4. Trae el checklist de las doce |
-| (sin PR) `crm/llamadas-f4d-activacion-20261007` | `ACTIVAR-C1.md` (guía del día de F4-d), `SEGUIMIENTO.md`, `DECISIONES-PENDIENTES.md` y los documentos al día; montada sobre el #215 | Jhosep | Solo documentos. Se abre como PR cuando cierre el #215 |
+| **#215** `crm/llamadas-f4c-celulares-20261006` | F4-c: la tarjeta «Celulares» de Configuración (solo gerencia), detrás del interruptor `LLAMADAS_CELULAR_APROBADAS`; sin migración | — | Aprobado por Miguel el 07/10 21:10 UTC (validación de cierre PASS, sin P0–P2; 6366/6366, E2E Docker 4/4) y **fusionado en `main`** a las 21:28 UTC con squash (`5f42e908`). Trae el checklist de las doce |
+| **PR de documentos** `crm/llamadas-f4d-documentos-20261007` | `ACTIVAR-C1.md` (guía del día de F4-d), `SEGUIMIENTO.md`, `DECISIONES-PENDIENTES.md` y los documentos al día. Rehecha desde `main` con solo los commits de documentos de la rama vieja `crm/llamadas-f4d-activacion-20261007` (obsoleta) | Jhosep | Abierto el 07/10. Solo documentos: nada que aplicar ni publicar |
 
 ## 3. Orden
 
 | # | Quién | Qué | Cómo |
 | --- | --- | --- | --- |
-| 1 | **Miguel** | ~~Fusionar el #190~~ (hecho) y **aplicar en producción las doce, sin activar C1**; después `LLAMADAS_CELULAR_APROBADAS = true` y release (abre F4-b y la tarjeta de F4-c) | Checklist con las doce, sus registradores y el orden en el **#215**; **desde una copia con LF**. Antes, comprobar el modo SLA real de producción (el banco estaba en `legado`) |
-| 1b | **Miguel** | ~~Revisar el #215 (F4-c)~~ (aprobado el 07/10 21:10 UTC) y **fusionarlo** | Solo pantalla sobre puertas existentes; se puede fusionar antes de aplicar la base porque va detrás del interruptor |
+| 1 | **Miguel** (su agente, en curso desde el 07/10 21:20 UTC) | ~~Fusionar el #190~~ (hecho) y **aplicar en producción las doce, sin activar C1**; después `LLAMADAS_CELULAR_APROBADAS = true` y release (abre F4-b y la tarjeta de F4-c) | Ensayo con SLA activo en una rama temporal de Supabase (autorizada por Miguel); checklist con las doce, sus registradores y el orden en el **#215**; **desde una copia con LF**. Avisa en el hilo del #215 al terminar |
+| 1b | **Miguel** | ~~Revisar y fusionar el #215 (F4-c)~~ | Hecho: aprobado a las 21:10 UTC y fusionado a las 21:28 UTC del 07/10 (`5f42e908`) |
 | 2 | Miguel (o quien él diga) | Los 8 fallos de fondo del gate global (fila bancaria ×1, R2/hito ×3, bandera `potencial_lead` ×4) | **En un PR aparte**, después. Decisión de Jhosep (06/10): son previos y ajenos a llamadas, y no bloquean el #190 |
-| 3 | **Miguel** decide | #18 MacroDroid Pro (**antes del 09/10**) y #16 cerrar F0 con salientes | `DECISIONES-PENDIENTES.md`, mandadas el 07/10. #18: S/ 19 pago único, visto en C1; propuesta: comprarla para C1 antes del 09/10. Si no decide a tiempo, Jhosep renueva los días gratis de C1 con un anuncio esa mañana |
+| 3 | **Jhosep** | **Comprar MacroDroid Pro en C1 antes del 09/10 ~15:50 Lima** (#18, aprobada por Miguel el 07/10) | Con la cuenta corporativa. Comprobar que sigue en S/ 19 pago único; si cambia o pide suscripción, avisar antes de aceptar. Sin compartir credenciales ni datos de pago. Registrar equipo, licencia y fecha (saneado), confirmar que desapareció el límite por días y devolverle la evidencia a Miguel. La #16 también está aprobada: F0 con diez salientes por equipo |
 | 4 | Los dos | F4-c (tarjeta «Celulares») y F4-d: activar C1 | `F4C-F4D-PLAN-CORTO.md` (decisiones de Jhosep del 06/10 y runbook). La macro final de C1 ya está armada y probada (`macrodroid.md` §3c, `REGISTRO.md` §5g). Nunca antes de aplicar («instalar no es activar») |
-| 5 | **Miguel** decide, después los dos | F4-e: vista de supervisor y gerencia | #17 de `DECISIONES-PENDIENTES.md`: propuesta F4-e en F4, después de F4-d, y el diccionario A1–A7 de `F4E-PLAN-CORTO.md` |
+| 5 | Claude prepara; Miguel aprueba el plan corto | F4-e: vista de supervisor y gerencia | **#17 y decisión 4 aprobadas (07/10):** F4-e va en F4, después de la aceptación de F4-d en C1. Contrato y oráculos con el diccionario A1–A7 y las condiciones de Miguel (`F4E-PLAN-CORTO.md`); su activación depende de C1 |
 
 En la guía del #190, **los pasos 2 (#193) y 3 (#195) ya no existen**: los reemplaza esta tabla.
 
 ## 4. Bitácora (lo más nuevo arriba)
 
+- **07/10 ~21:45 UTC — Jhosep:** pasa las tres decisiones aprobadas y la fusión del #215 a `DECISIONES-PENDIENTES.md`
+  (texto de Miguel tal cual), `PROPUESTAS-DE-AJUSTE.md`, `SEGUIMIENTO.md`, `F4E-PLAN-CORTO.md`, `macrodroid.md`,
+  `README.md`, `estado.json` y el tablero. Abre el PR de documentos desde `crm/llamadas-f4d-documentos-20261007`, rehecha
+  desde `main` con solo los commits de documentos.
+- **07/10 21:28 UTC — Miguel:** **fusiona el #215** en `main` con squash (`5f42e908`), después de actualizarlo con
+  `main` (`e34a9172`: #218–#220, tasas, ajenos).
+- **07/10 21:20 UTC — Miguel (Codex):** encarga a su agente «haz todo»: integrar el #215, ensayar con SLA activo en una
+  rama temporal de Supabase (autorizada por Miguel), aplicar las doce, desplegar y publicar (H1–H3). **Aprueba las tres
+  decisiones** (texto tal cual en `DECISIONES-PENDIENTES.md`): #18 Pro para el piloto (Jhosep compra C1 antes del
+  09/10), #16 (F0 con diez salientes; las entrantes a la #14) y #17 con la decisión 4 (F4-e en F4 tras la aceptación de
+  F4-d en C1; A1–A7 con cuatro condiciones). El piloto conserva sus cinco días y las noches que faltan; Jev sigue
+  apagado. Turno: **Miguel** fusión y H1–H3; **Jhosep** compra de Pro, pendientes físicos y preparación de F4-d/F4-e en
+  su rama. Avisará en el hilo del #215 al terminar la instalación para activar C1.
 - **07/10 21:10 UTC — Miguel (Codex):** **aprueba el #215** (validación de cierre sobre `d7dfd5b4`): el P2 queda
   resuelto y no hay hallazgos P0–P2 nuevos. Sus pruebas: `npm run check` 6366/6366, E2E Docker 4/4
   (`config-celulares` + `config-demo`), `git diff --check` y `git merge-tree` con `main` (`ba702c61`) sin conflictos.
