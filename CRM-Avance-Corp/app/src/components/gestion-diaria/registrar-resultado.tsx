@@ -40,6 +40,7 @@ import { useActividadesDeLead } from '@/data/use-actividades-de-lead'
 import { fechaLima, horaLima, proximoSlotSugerido, tareaAEvento } from '@/lib/agenda-derivada'
 import { useAhora } from '@/lib/ahora'
 import { useAuth } from '@/lib/auth-context'
+import { llamadasCelularHabilitadas } from '@/lib/config'
 import { camposDeSugerencia, isoDeCampos, tituloProximaAccion, type CamposSiguiente } from '@/lib/campos-siguiente'
 import { useIntencionContacto } from '@/lib/intencion-contacto'
 import { cuandoFueLaLlamada } from '@/lib/origen-llamada'
@@ -100,7 +101,8 @@ function useRegistroResultado(
   // F4-b: si esta encuesta la abrió el enlace del celular con el id de la llamada, se dice de cuál es. La intención
   // abierta de este lead es la fuente común del diálogo y de la tarjeta «Ahora».
   const intencion = useIntencionContacto(yo?.id ?? null, lead.id)
-  const llamadaCelular = intencion?.abierta && intencion.origenLlamada ? cuandoFueLaLlamada(intencion.origenLlamada, ahora) : null
+  const origenLlamada = intencion?.abierta && llamadasCelularHabilitadas(yo?.demo === true) ? intencion.origenLlamada : undefined
+  const llamadaCelular = origenLlamada ? cuandoFueLaLlamada(origenLlamada, ahora) : null
   const historial = useActividadesDeLead(lead.id)
   const nombre = primerNombre(lead.nombre_completo)
   const soyDueno = lead.vendedor_id != null && lead.vendedor_id === yo?.id
@@ -199,8 +201,8 @@ function useRegistroResultado(
   const armar = (): RegistrarLlamadaInput | string => {
     if (!def) return 'Elige el resultado de la llamada'
     const entrada: RegistrarLlamadaInput = { resultado: def.clave, detalle: nota.trim() || null, tarea_id: tarea && cierraTarea ? tarea.id : null }
-    if (intencion?.abierta && intencion.origenLlamada) {
-      entrada.evento_origen_id = intencion.origenLlamada
+    if (origenLlamada && intencion) {
+      entrada.evento_origen_id = origenLlamada
       entrada.via_llamada = intencion.viaLlamada ?? 'al_colgar'
     }
     if (def.paso === 'submotivo') {

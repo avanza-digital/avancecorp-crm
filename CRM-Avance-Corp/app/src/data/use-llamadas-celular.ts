@@ -4,6 +4,7 @@ import { cambiarLlamadaCelular, listarLlamadasCelular, listarResueltasCelular, l
 import type { Bandeja, ResueltasHoy } from '@/lib/llamadas-celular'
 import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth-context'
+import { llamadasCelularHabilitadas } from '@/lib/config'
 import { demoPendientesCelular, demoResueltasHoyCelular } from '@/lib/demo-llamadas-celular'
 import { etiquetaMotivoDescarte, numeroLegible, type FilaBandeja, type MotivoDescarte, type ResueltaHoy } from '@/lib/llamadas-celular'
 import type { Lead } from '@/lib/tipos'
@@ -33,17 +34,18 @@ const quien = (fila: FilaBandeja) => fila.lead_nombre ?? numeroLegible(fila.nume
 export function useLlamadasCelular(): FuenteLlamadasCelular | null {
   const { yo } = useAuth()
   const demo = yo?.demo === true
+  const habilitado = llamadasCelularHabilitadas(demo)
   const cache = useQueryClient()
   const actor = yo?.id ?? ''
   const pendientes = useInfiniteQuery({
-    queryKey: llamadasCelularKeys.pendientes(actor), enabled: !!actor && !demo,
+    queryKey: llamadasCelularKeys.pendientes(actor), enabled: !!actor && !demo && habilitado,
     initialPageParam: null as Bandeja['siguiente'],
     queryFn: ({ pageParam, signal }) => listarLlamadasCelular(pageParam, signal),
     getNextPageParam: (pagina) => pagina.siguiente,
     refetchInterval: 30_000,
   })
   const resueltas = useInfiniteQuery({
-    queryKey: llamadasCelularKeys.hoy(actor), enabled: !!actor && !demo,
+    queryKey: llamadasCelularKeys.hoy(actor), enabled: !!actor && !demo && habilitado,
     initialPageParam: null as ResueltasHoy['siguiente'],
     queryFn: ({ pageParam, signal }) => listarResueltasCelular(pageParam, signal),
     getNextPageParam: (pagina) => pagina.siguiente,
@@ -94,7 +96,7 @@ export function useLlamadasCelular(): FuenteLlamadasCelular | null {
     toast.success(`La llamada quedó asociada a ${lead.nombre_completo}. Ahora pide su resultado.`)
   }, [])
 
-  if (!yo) return null
+  if (!yo || !habilitado) return null
   if (demo) return { ...estado, ocupado: null, descartar: descartarDemo, elegirLead: elegirLeadDemo,
     estadoPendientes: LISTA_DEMO, estadoResueltas: LISTA_DEMO }
   return {
