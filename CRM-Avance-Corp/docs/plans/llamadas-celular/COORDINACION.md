@@ -53,6 +53,12 @@ En la guía del #190, **los pasos 2 (#193) y 3 (#195) ya no existen**: los reemp
 
 ## 4. Bitácora (lo más nuevo arriba)
 
+- **07/10 ~15:00 UTC — Jhosep:** **F4-c programada** en `crm/llamadas-f4c-celulares-20261006` (desde `main`, con
+  `main` integrado): tarjeta «Celulares» en Configuración, solo gerencia, detrás del mismo interruptor que F4-b
+  (`LLAMADAS_CELULAR_APROBADAS`, hoy `false`: en producción no se ve hasta que Miguel aplique la base y lo abra).
+  Pruebas unitarias, API con MSW, E2E en Docker (4/4) y prueba manual en la demo. Va como PR borrador aparte; detalle en
+  `F4C-F4D-PLAN-CORTO.md` («Decisiones al programar»). Comentario a Miguel en el #190 (6039930109) con el orden para
+  aplicar las doce y el aviso del LF.
 - **06/10 23:28 UTC — Miguel:** aprobó y **fusionó el #190 en `main`** (`d1f16fea`, squash). Su visto bueno: «la
   aplicación de las doce migraciones, el despliegue y la activación de C1 siguen siendo pasos separados». Los 8 fallos
   del gate quedan aparte.
