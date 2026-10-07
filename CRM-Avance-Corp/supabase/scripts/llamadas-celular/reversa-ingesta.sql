@@ -16,6 +16,9 @@ begin
   if to_regprocedure('crm.ingerir_llamada_celular_servicio(text,jsonb)') is null then
     raise exception 'REVERSA_INGESTA: la migración 20261001212258 no está aplicada';
   end if;
+  if to_regclass('private.llamadas_celular_recepciones') is not null then
+    raise exception 'REVERSA_INGESTA: la corrección 20261005143843 sigue instalada; primero reversa-correccion.sql';
+  end if;
 end;
 $precondicion$;
 

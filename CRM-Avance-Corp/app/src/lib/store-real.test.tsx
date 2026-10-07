@@ -16,6 +16,7 @@ import type { Yo } from './tipos'
 import type { ConfiguracionMetas, DetalleMeta } from './metas-versionadas'
 import type { CumplimientoMetasRpc } from './objetivos'
 import * as crmApi from '@/data/crm-api'
+import * as config from './config'
 import { ejecutarComandoSla, hayIntencionPendienteSla, hayLlamadaV3Pendiente, tareaConConfirmacionPendiente } from '@/data/sla-operacion-comandos'
 
 vi.mock('@/data/sla-operacion-comandos', () => ({
@@ -386,6 +387,31 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     insertarActividad.mockResolvedValue(undefined)
   })
   afterEach(() => vi.clearAllMocks())
+
+  it('el origen exacto selecciona v5 y devuelve el enlace confirmado sin escrituras sueltas', async () => {
+    vi.spyOn(config, 'llamadasCelularHabilitadas').mockReturnValue(true)
+    const { api, mutar } = montar('vendedor')
+    const lead = leadBase()
+    await waitFor(() => expect(api().lead(lead.id)).toBeDefined())
+    comandoSla.mockResolvedValueOnce({ actividad_id: 'act', siguiente_id: null, descartado: false, enlace: { estado: 'pendiente' } })
+    const r = mutar((a) => a.registrarLlamada(lead.id, { resultado: 'no_contesto', evento_origen_id: 'C1-1790980958', via_llamada: 'pestana' }))
+    await act(async () => { expect(await r.persistido).toBe(true) })
+    expect(comandoSla).toHaveBeenCalledWith('u-v1', 'registrar_llamada_v5', lead.id, expect.objectContaining({ p_evento_origen_id: 'C1-1790980958', p_via: 'pestana' }))
+    expect(await r.confirmacion).toMatchObject({ actividad_id: 'act', enlace: { estado: 'pendiente' } })
+    expect(insertarActividad).not.toHaveBeenCalled()
+  })
+
+  it('con la integración cerrada rechaza un origen externo antes de escribir o cambiar el lead', async () => {
+    const { api, mutar } = montar('vendedor')
+    const lead = leadBase()
+    await waitFor(() => expect(api().lead(lead.id)).toBeDefined())
+    const antes = api().lead(lead.id)
+    const r = mutar((a) => a.registrarLlamada(lead.id, { resultado: 'no_contesto', evento_origen_id: 'C1-1790980958' }))
+    expect(r).toEqual({ ok: false, error: 'Las llamadas del celular todavía no están habilitadas.' })
+    expect(comandoSla).not.toHaveBeenCalled()
+    expect(insertarActividad).not.toHaveBeenCalled()
+    expect(api().lead(lead.id)).toEqual(antes)
+  })
 
   it('resultado sin interés y seguimiento se envían a v4 sin descarte ni escrituras sueltas', async () => {
     const { api, mutar } = montar('vendedor')

@@ -1,0 +1,5 @@
+crm.citas_clientes_fn(date,date,uuid[],integer,timestamp with time zone,uuid)|jsonb
+crm.gestion_diaria_citas_v2_fn(date,text,uuid,integer,timestamp with time zone,uuid)|jsonb
+crm.gestion_diaria_pendientes_v2_fn(uuid,boolean,integer,timestamp with time zone,uuid)|jsonb
+crm.gestiones_resumen_fn(date,date,uuid[])|jsonb
+crm.registro_actividad_v2_fn(date,date,uuid[],text[],text,integer,timestamp with time zone,uuid,text,text)|jsonb

@@ -6,7 +6,7 @@ const CLAVE = 'b'.repeat(64);
 const LOCAL = { hostname: '127.0.0.1' };
 const CELULAR = { hostname: '192.168.0.50' };
 const EVENTO = {
-  v: 1, evento_origen_id: 'C1-1759400000000', numero: '+51900000123', direccion: 'saliente',
+  v: 1, evento_origen_id: 'C1-1790980958', numero: '+51900000123', direccion: 'saliente',
   estado_tecnico: 'conectada', duracion_seg: 30, ocurrio_en: '2026-10-02T15:00:00Z',
 };
 
@@ -40,28 +40,32 @@ Deno.test('guarda, abre la encuesta de F1 y no registra la clave ni el número c
   assert.equal(r.status, 202);
   assert.deepEqual(await r.json(), { recibido: true, abrir: 'https://crm.ejemplo.invalid/#/gestion-diaria/llamada/%2B51900000123' });
   const linea = b.lineas.at(-1)!;
-  assert.match(linea, /202 \(guardada\) · clave correcta · llamada id=C1-1759400000000 …123 saliente/);
+  assert.match(linea, /202 \(guardada\) · clave correcta · llamada id=C1-1790980958 …123 saliente/);
   assert.ok(!linea.includes(CLAVE) && !linea.includes('900000123'));
 });
 
-Deno.test('mismo id: mismo contenido = repetida con la misma respuesta; otro contenido = 409', async () => {
+Deno.test('mismo id: el primer envío gana; con cualquier contenido responde lo mismo (sin 409)', async () => {
   const b = banco();
   assert.equal((await b.enviar(llamada())).status, 202);
-  // El mismo instante escrito en otra zona horaria es el mismo contenido.
-  assert.equal((await b.enviar(llamada({ ...EVENTO, ocurrio_en: '2026-10-02T10:00:00-05:00' }))).status, 202);
+  assert.equal((await b.enviar(llamada({ ...EVENTO, duracion_seg: 31 }))).status, 202);
   assert.match(b.lineas.at(-1)!, /202 \(repetida \(ya estaba\)\)/);
-  assert.equal((await b.enviar(llamada({ ...EVENTO, duracion_seg: 31 }))).status, 409);
   const estado = await (await b.pedir('/_estado')).json();
-  assert.equal(estado.guardadas, 1);
-  assert.equal(estado.repetidas, 1);
-  assert.equal(estado.en_minuto, 2, 'el 409 no cuenta para el límite');
+  assert.deepEqual([estado.guardadas, estado.repetidas, estado.en_minuto], [1, 1, 2]);
 });
 
-Deno.test('entrante: misma respuesta, no se guarda', async () => {
+Deno.test('inválido: 400 con el mensaje de la base y el cupo gastado igual', async () => {
   const b = banco();
-  const entrante = llamada({ ...EVENTO, direccion: 'entrante' });
-  assert.equal((await b.enviar(entrante)).status, 202);
-  assert.equal((await b.enviar(entrante)).status, 202);
+  for (const cuerpo of [llamada({ ...EVENTO, evento_origen_id: 'C1-1759400000000' }), { accion: 'llamada', evento: 5 }, { accion: 'otra' }]) {
+    assert.equal((await b.enviar(cuerpo)).status, 400, JSON.stringify(cuerpo));
+  }
+  const estado = await (await b.pedir('/_estado')).json();
+  assert.deepEqual([estado.invalidos, estado.en_minuto], [3, 3]);
+});
+
+Deno.test('entrante o sin dirección: misma respuesta, no se guarda', async () => {
+  const b = banco();
+  assert.equal((await b.enviar(llamada({ ...EVENTO, direccion: 'entrante' }))).status, 202);
+  assert.equal((await b.enviar(llamada({ ...EVENTO, evento_origen_id: 'C1-1790980959', direccion: undefined }))).status, 202);
   const estado = await (await b.pedir('/_estado')).json();
   assert.deepEqual([estado.guardadas, estado.ignoradas, estado.repetidas], [0, 2, 0]);
 });
@@ -71,13 +75,13 @@ Deno.test('límite de 30 por minuto de reloj, compartido con los latidos, con Re
   const latido = { accion: 'latido', latido: { v: 1, version_macro: 'prueba 1', en_cola: 0 } };
   assert.equal((await b.enviar(latido)).status, 200);
   for (let i = 1; i < 30; i++) {
-    assert.equal((await b.enviar(llamada({ ...EVENTO, evento_origen_id: `C1-${i}0000` }))).status, 202);
+    assert.equal((await b.enviar(llamada({ ...EVENTO, evento_origen_id: `C1-${1790980000 + i}` }))).status, 202);
   }
-  const r = await b.enviar(llamada({ ...EVENTO, evento_origen_id: 'C1-310000' }));
+  const r = await b.enviar(llamada({ ...EVENTO, evento_origen_id: 'C1-1790980031' }));
   assert.equal(r.status, 429);
   assert.equal(r.headers.get('retry-after'), '50');
   b.avanzar(50_000);
-  assert.equal((await b.enviar(llamada({ ...EVENTO, evento_origen_id: 'C1-310000' }))).status, 202);
+  assert.equal((await b.enviar(llamada({ ...EVENTO, evento_origen_id: 'C1-1790980031' }))).status, 202);
 });
 
 Deno.test('ocurrio_en fuera de rango: el 400 con el mensaje de la base', async () => {

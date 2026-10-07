@@ -1,3 +1,4 @@
+import { textoEnlace } from '@/lib/llamadas-celular'
 // Panel «Registrar resultado de la llamada» (Gestión Diaria F2, mockup 5).
 // Es la ÚNICA definición del resultado de una llamada en el CRM: lo montan las
 // acciones de contacto (colas, Hoy, ficha), el cierre de una tarea de llamada
@@ -39,7 +40,10 @@ import { useActividadesDeLead } from '@/data/use-actividades-de-lead'
 import { fechaLima, horaLima, proximoSlotSugerido, tareaAEvento } from '@/lib/agenda-derivada'
 import { useAhora } from '@/lib/ahora'
 import { useAuth } from '@/lib/auth-context'
+import { llamadasCelularHabilitadas } from '@/lib/config'
 import { camposDeSugerencia, isoDeCampos, tituloProximaAccion, type CamposSiguiente } from '@/lib/campos-siguiente'
+import { useIntencionContacto } from '@/lib/intencion-contacto'
+import { cuandoFueLaLlamada } from '@/lib/origen-llamada'
 import { evidenciaNoResponde } from '@/lib/descarte-evidencia'
 import { esPlanVivo } from '@/lib/plan-lead'
 import { primerNombre } from '@/lib/format'
@@ -94,6 +98,11 @@ function useRegistroResultado(
   const { registrarLlamada, deshacerResultadoLlamada, tareasDe } = useCRMData()
   const { yo } = useAuth()
   const ahora = useAhora()
+  // F4-b: si esta encuesta la abrió el enlace del celular con el id de la llamada, se dice de cuál es. La intención
+  // abierta de este lead es la fuente común del diálogo y de la tarjeta «Ahora».
+  const intencion = useIntencionContacto(yo?.id ?? null, lead.id)
+  const origenLlamada = intencion?.abierta && llamadasCelularHabilitadas(yo?.demo === true) ? intencion.origenLlamada : undefined
+  const llamadaCelular = origenLlamada ? cuandoFueLaLlamada(origenLlamada, ahora) : null
   const historial = useActividadesDeLead(lead.id)
   const nombre = primerNombre(lead.nombre_completo)
   const soyDueno = lead.vendedor_id != null && lead.vendedor_id === yo?.id
@@ -192,6 +201,10 @@ function useRegistroResultado(
   const armar = (): RegistrarLlamadaInput | string => {
     if (!def) return 'Elige el resultado de la llamada'
     const entrada: RegistrarLlamadaInput = { resultado: def.clave, detalle: nota.trim() || null, tarea_id: tarea && cierraTarea ? tarea.id : null }
+    if (origenLlamada && intencion) {
+      entrada.evento_origen_id = origenLlamada
+      entrada.via_llamada = intencion.viaLlamada ?? 'al_colgar'
+    }
     if (def.paso === 'submotivo') {
       if (!submotivo) return def.clave === 'no_interesado' ? 'Indica por qué no le interesa' : 'Indica qué producto pide'
       entrada.submotivo = submotivo
@@ -242,7 +255,8 @@ function useRegistroResultado(
       if (entrada.siguiente) partes.push(`siguiente ${tareaAEvento({ ...PLANTILLA, tipo: entrada.siguiente.tipo as Tarea['tipo'], titulo: entrada.siguiente.titulo, vence_en: entrada.siguiente.vence_en }, ahora).cuando}`)
       if (res.descartado) partes.push('lead descartado (Centro de rescate)')
       if (entrada.no_insista) partes.push('No insistir marcado')
-      const texto = `${partes.join(' · ')}${yo?.demo ? ' (demo)' : ''}`
+      const enlace = confirmacion?.enlace ? textoEnlace(confirmacion.enlace, llamadaCelular ?? '') : null
+      const texto = `${partes.join(' · ')}${yo?.demo ? ' (demo)' : ''}${enlace ? `. ${enlace}` : ''}`
       if (confirmacion && !entrada.no_insista) {
         toast.success(texto, {
           duration: 15_000,
@@ -297,7 +311,7 @@ function useRegistroResultado(
   const estaEnviando = () => enviando.current
 
   return {
-    lead, tarea, nombre, soyDueno, ahora, estaEnviando, dentro,
+    lead, tarea, nombre, soyDueno, ahora, estaEnviando, dentro, llamadaCelular,
     resultado, def, mostrarOpciones, alternarOpciones, elegir,
     submotivo, setSubmotivo, decision, setDecision, agendar, setAgendar, perdido, setPerdido,
     descartarInteres, setDescartarInteres, noInsista, setNoInsista, cierraTarea, setCierraTarea,
@@ -463,6 +477,7 @@ export function RegistrarResultado(props: RegistrarResultadoProps): JSX.Element 
           <DialogDescription className="text-base">
             Registra el resultado y elige la próxima acción. Se guardan juntos en el historial y la agenda.
           </DialogDescription>
+          {c.llamadaCelular && <p className="text-base font-semibold text-muted-foreground">Llamada del celular {c.llamadaCelular}.</p>}
         </DialogHeader>
         <DialogBody className="space-y-3">
           <CamposResultado c={c} grande idBase={idBase} />
@@ -505,6 +520,7 @@ export function RegistroResultadoTarjeta(props: RegistrarResultadoProps): JSX.El
     <section ref={raiz} role="group" aria-labelledby={`${idBase}-titulo`} onKeyDown={alTecla} className="flex min-h-0 flex-1 flex-col">
       <div className="ac-scroll min-h-0 flex-1 space-y-3 overflow-y-auto px-[18px] pb-3 [&_:is(input,select,textarea,button)]:scroll-mb-20">
         <h4 id={`${idBase}-titulo`} className="text-sm font-extrabold text-primary">¿Qué pasó con la llamada?</h4>
+        {c.llamadaCelular && <p className="text-[13px] font-semibold text-muted-foreground">Llamada del celular {c.llamadaCelular}.</p>}
         <CamposResultado c={c} grande={false} idBase={idBase} />
         {c.sinConfirmar && <p role="alert" className="text-[13px] font-semibold text-[var(--destructive-text)]">El guardado todavía no está confirmado. Reintenta la misma operación para comprobar su resultado.</p>}
       </div>

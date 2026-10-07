@@ -6,7 +6,7 @@ import { soloPresentes } from './argumentos-rpc'
 /** G4b: una página de la lista exacta de citas agendadas; el servidor decide el ámbito. */
 export async function listarCitasGestion(pedido: PedidoCitas, signal?: AbortSignal): Promise<PaginaCitas> {
   if (!sb) throw new CrmApiError('No hay conexión con el CRM.', 'SIN_CLIENTE')
-  let consulta = sb.schema('crm').rpc('gestion_diaria_citas_fn', {
+  let consulta = sb.schema('crm').rpc('gestion_diaria_citas_v2_fn', {
     p_dia: pedido.dia, p_ambito: pedido.ambito, p_limite: pedido.limite,
     ...soloPresentes({ p_id: pedido.id ?? undefined, p_despues_de: pedido.cursor?.despues_de, p_despues_id: pedido.cursor?.despues_id }),
   })

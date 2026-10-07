@@ -15,9 +15,12 @@ Fuentes versionadas actualmente:
   desplegar**). `verify_jwt=false` porque la macro no tiene JWT: el control es la clave
   del celular en la cabecera `x-celular-credencial` (nunca en la URL), validada contra su
   sha256 por dos RPC solo de `service_role` (`crm.ingerir_llamada_celular_servicio` y
-  `crm.registrar_salud_celular_servicio`). 401 uniforme ante cualquier problema de clave,
-  cuerpo ≤ 4 KB con esquema estricto, 429 con `Retry-After` desde el límite de la base y la
-  misma respuesta para una llamada guardada, repetida o ignorada. Sin espejo legado. Pruebas:
+  `crm.registrar_salud_celular_servicio`). Contrato de `20261005143843`: la Edge solo revisa
+  el transporte (405, 415, 401 por clave sin forma, 413 por más de 4 KB) y todo lo demás llega
+  a la base, también el JSON mal formado (gasta cupo); la base devuelve `{resultado, mensaje}`
+  y la Edge responde 202/200 (aceptado), 400 (inválido, con el mensaje), 401 uniforme, 429 con
+  `Retry-After` o 503. Sin 409. La misma respuesta para una llamada guardada, repetida o
+  ignorada. Sin espejo legado. Pruebas:
   `npm run test:llamadas-ingesta` y `npm run test:llamadas-ingesta:mutantes` (Deno 2.x).
 - `crm-tipo-cambio` — consulta del tipo de cambio usado por el CRM.
 - `crm-usuarios` — alta de candidatos CRM y envío de recuperación. Se despliega

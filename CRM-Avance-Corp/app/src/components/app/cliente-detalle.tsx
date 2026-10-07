@@ -42,7 +42,7 @@ const ACTIVIDAD_LABEL = {
   llamada_no_contestada: 'Llamada no contestada',
   whatsapp_enviado: 'WhatsApp enviado',
   whatsapp_recibido: 'WhatsApp respondido',
-  reunion_realizada: 'Cita realizada',
+  reunion_realizada: 'Entrevista realizada',
   nota: 'Nota comercial',
   reasignacion: 'Asignación actualizada',
 } as const

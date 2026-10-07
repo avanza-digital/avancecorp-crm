@@ -1,3 +1,4 @@
+vi.mock('@/components/gestion-diaria/resumen-gestiones', () => ({ AccesoGestionesClientes: () => null, ResumenGestionesHoy: () => null }))
 // «Mi día» del analista con el diseño del 27/09/2026: franja de 4 cifras,
 // «Ahora» con la persona que toca y su única acción primaria, y una tarjeta con
 // pestañas —«Cola de hoy» (filtros en pastilla con «Todo» primero), «Mi
@@ -8,8 +9,22 @@
 // PRODUCCIÓN (un día sin llamadas ni cola). Fail-closed: si el servidor cae,
 // se dice, no se pinta.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render as renderBase, screen, waitFor, within } from '@testing-library/react'
 import type { DiaAnalista } from '@/lib/gestion-diaria-analista'
+import * as config from '@/lib/config'
+import { listarLlamadasCelular, listarResueltasCelular } from '@/data/llamadas-celular-api'
+
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type { ReactElement } from 'react'
+function render(ui: ReactElement) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return renderBase(ui, { wrapper: ({ children }) => <QueryClientProvider client={client}>{children}</QueryClientProvider> })
+}
+vi.mock('@/data/llamadas-celular-api', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/data/llamadas-celular-api')>(),
+  listarLlamadasCelular: vi.fn(async () => ({ filas: [], siguiente: null })),
+  listarResueltasCelular: vi.fn(async () => ({ filas: [], siguiente: null })),
+}))
 
 const dobles = vi.hoisted(() => ({
   yo: { id: 'a1', rol: 'vendedor', demo: false, nombre_completo: 'ANALISTA UNO' },
@@ -297,7 +312,7 @@ describe('GestionDiariaAnalista · a quién llamo ahora', () => {
 describe('GestionDiariaAnalista · la franja y «Mi actividad»', () => {
   it('la franja resume el día en 4 cifras, con el % pegado a sus útiles y su nivel', () => {
     render(<GestionDiariaAnalista />)
-    const franja = screen.getByRole('group', { name: 'Tu día en cifras' })
+    const franja = screen.getByRole('group', { name: 'Captación de leads' })
     expect(within(franja).getAllByRole('term').map((x) => x.textContent)).toEqual(['Llamadas', 'Contestaron', 'Contacto', 'Citas agendadas'])
     const valores = within(franja).getAllByRole('definition').map((x) => x.textContent)
     expect(valores).toEqual(['9hoy', '5de 9', '63 %Bien · de 8 útiles', '1hoy'])
@@ -316,7 +331,7 @@ describe('GestionDiariaAnalista · la franja y «Mi actividad»', () => {
   it('sin llamadas útiles no hay chip ni porcentaje inventado', () => {
     dobles.dia = { ...DIA_LLENO, marcador: { ...DIA_LLENO.marcador, utiles: 0, tasa_contacto_pct: null, nivel: null } } as DiaAnalista
     render(<GestionDiariaAnalista />)
-    const franja = screen.getByRole('group', { name: 'Tu día en cifras' })
+    const franja = screen.getByRole('group', { name: 'Captación de leads' })
     expect(within(franja).getByText('—')).toHaveAttribute('aria-hidden', 'true')
     expect(within(franja).getByText('sin dato')).toBeInTheDocument()
     expect(within(franja).getByText(/se juzga desde 5 llamadas útiles/)).toBeInTheDocument()
@@ -579,7 +594,7 @@ describe('GestionDiariaAnalista · estados que hoy se ven en producción', () =>
     render(<GestionDiariaAnalista />)
     expect(screen.getByText('No tienes nada pendiente ahora')).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Ahora' })).toHaveTextContent(/Nada pendiente ahora/)
-    expect(within(screen.getByRole('group', { name: 'Tu día en cifras' })).getByText('sin dato')).toBeInTheDocument()
+    expect(within(screen.getByRole('group', { name: 'Captación de leads' })).getByText('sin dato')).toBeInTheDocument()
     verPestana(/^Mi actividad/)
     expect(await screen.findByText('Todavía no hay llamadas hoy.')).toBeInTheDocument()
   })
@@ -867,7 +882,7 @@ describe('GestionDiariaAnalista · el resultado DENTRO de «Ahora» (etapa 3)', 
     expect(screen.getByRole('region', { name: 'Resultado en la tarjeta (mock)' })).toBeInTheDocument()
     expect(within(screen.getByRole('region', { name: 'Ahora' })).getByText('NUEVO SIN INTENTO')).toBeInTheDocument()
     // Fail-closed: con el día caído no se pintan cifras ni cola sin confirmar.
-    expect(screen.queryByRole('group', { name: 'Tu día en cifras' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Captación de leads' })).not.toBeInTheDocument()
     expect(screen.queryByRole('tablist', { name: 'Grupos de la cola' })).not.toBeInTheDocument()
   })
 
@@ -1265,5 +1280,36 @@ describe('GestionDiariaAnalista · tareas de CLIENTES (cola v3)', () => {
     expect(within(screen.getByRole('region', { name: 'Ahora' })).getByText(/Nada pendiente ahora/)).toBeInTheDocument()
     await waitFor(() => expect(screen.getByRole('heading', { level: 2, name: '¿A quién llamo ahora?' })).toHaveFocus())
     expect(dobles.cola.refetch).not.toHaveBeenCalled()
+  })
+})
+
+// F4-b: la pestaña utiliza su fuente real tipada y conserva la demostración.
+describe('GestionDiariaAnalista · «Llamadas del celular» (F4-b)', () => {
+  it('con la integración cerrada no presenta la pestaña ni consulta su backend en una sesión real', async () => {
+    render(<GestionDiariaAnalista />)
+    await act(async () => { await Promise.resolve() })
+    expect(screen.queryByRole('tab', { name: /^Celular/ })).not.toBeInTheDocument()
+    expect(listarLlamadasCelular).not.toHaveBeenCalled()
+    expect(listarResueltasCelular).not.toHaveBeenCalled()
+    expect(screen.getByRole('tab', { name: /^Cola de hoy/ })).toBeInTheDocument()
+  })
+
+  it('en la sesión real aparece con la fuente de las puertas tipadas', () => {
+    vi.spyOn(config, 'llamadasCelularHabilitadas').mockReturnValue(true)
+    render(<GestionDiariaAnalista />)
+    expect(screen.getByRole('tab', { name: /^Celular/ })).toBeInTheDocument()
+  })
+
+  it('en DEMO aparece con sus pendientes; «Registrar resultado» arma la intención con el id y la vía «pestana»', async () => {
+    dobles.yo = { id: 'a1', rol: 'vendedor', demo: true, nombre_completo: 'ANALISTA UNO' }
+    render(<GestionDiariaAnalista />)
+    // El nombre accesible pega la cifra a la etiqueta («Cola de hoy· 2»): el espacio es opcional.
+    const pestana = screen.getByRole('tab', { name: /^Celular\s*· 4/ })
+    fireEvent.click(pestana)
+    const lista = await screen.findByRole('list', { name: 'Llamadas pendientes' })
+    const maria = within(lista).getAllByRole('listitem').find((li) => /MARÍA LÓPEZ CASTRO/.test(li.textContent ?? ''))!
+    fireEvent.click(within(maria).getByRole('button', { name: 'Registrar resultado' }))
+    expect(intencionDe('a1', 'l2')).toMatchObject({ origen: 'enlace', numero: '+51987654322', viaLlamada: 'pestana' })
+    expect(intencionDe('a1', 'l2')?.origenLlamada).toMatch(/^C1-\d{10}$/)
   })
 })

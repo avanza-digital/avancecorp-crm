@@ -1,3 +1,4 @@
+import { responderRegistroV2 } from './_gestiones-v2'
 import { irAModulo } from './_navegacion'
 import { expect, test } from '@playwright/test'
 import { writeFile } from 'node:fs/promises'
@@ -105,13 +106,13 @@ test('F4.2: detalle → llamadas → ficha fuera del boot → regreso; paginaci�
     tipo: 'llamada_realizada', detalle: `Conversación completa ${i}: solicita revisar el seguimiento.`, metadata: { resultado: 'volver_a_llamar' },
     creado_por: 'vend-1', autor_nombre: 'Analista Real Uno', creado_en: `${hoy}T15:${String(25 - i).padStart(2, '0')}:00.000Z`,
   }))
-  await page.route('**/rest/v1/rpc/registro_actividad_fn', async (route) => {
+  await page.route('**/rest/v1/rpc/registro_actividad_v2_fn', async (route) => {
     const pedido = route.request().postDataJSON()
     expect(pedido).toMatchObject({ p_desde: hoy, p_hasta: hoy, p_analista_ids: ['vend-1'], p_limite: 26 })
     // Main (#80) omite p_tipos en «Todo»; cuando se filtra, exige ambos tipos.
     if (pedido.p_tipos !== undefined) expect(pedido.p_tipos).toEqual(['llamada_realizada', 'llamada_no_contestada'])
-    if (revocado) return route.fulfill({ status: 403, json: { code: '42501', message: 'Acceso revocado' } })
-    return route.fulfill({ json: { version: 1, generado_en: `${hoy}T18:00:00Z`, desde: hoy, hasta: hoy, zona: 'America/Lima', limite: 26,
+    if (revocado) return responderRegistroV2(route, { status: 403, json: { code: '42501', message: 'Acceso revocado' } })
+    return responderRegistroV2(route, { json: { version: 1, generado_en: `${hoy}T18:00:00Z`, desde: hoy, hasta: hoy, zona: 'America/Lima', limite: 26,
       items: pedido.p_antes_de ? [items[25]] : items } })
   })
   await loginReal(page)

@@ -2,8 +2,8 @@
 // paso 2 que cada resultado exige, el espejo de las reglas del servidor
 // (dueño vs supervisor, ventana legal, descarte con submotivo) y el toast con
 // «Deshacer». El store se simula: aquí se prueba QUÉ petición se arma.
-import { describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { toast } from 'sonner'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -11,6 +11,7 @@ import { AuthContext, type AuthContextValue } from '@/lib/auth-context'
 import { StoreDataContext } from '@/lib/store-context'
 import type { ConfirmacionLlamada, RegistrarLlamadaInput, StoreDataApi } from '@/lib/store'
 import type { Actividad, Lead, Tarea } from '@/lib/tipos'
+import { armarIntencion, limpiarIntencionesContacto, reclamarIntencion } from '@/lib/intencion-contacto'
 import { RegistrarResultado, RegistroResultadoTarjeta } from './registrar-resultado'
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() } }))
@@ -18,9 +19,9 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.f
 const AHORA = Date.parse('2026-09-21T15:00:00.000Z')
 vi.mock('@/lib/ahora', () => ({ useAhora: () => AHORA }))
 
-const sesion = (id: string, rol: 'vendedor' | 'supervisor' = 'vendedor'): AuthContextValue => ({
+const sesion = (id: string, rol: 'vendedor' | 'supervisor' = 'vendedor', demo = true): AuthContextValue => ({
   fase: 'listo',
-  yo: { id, nombre_completo: 'QUIEN LLAMA', rol, demo: true, puede_contratar: true },
+  yo: { id, nombre_completo: 'QUIEN LLAMA', rol, demo, puede_contratar: true },
   error: null, entrar: async () => ({ ok: true }), entrarDemo: () => undefined, reintentar: () => undefined, salir: async () => undefined,
 })
 
@@ -42,6 +43,7 @@ function intentos(n: number): Actividad[] {
 }
 
 interface Montaje {
+  demo?: boolean
   lead?: Lead
   tarea?: Tarea | null
   yo?: string
@@ -52,7 +54,7 @@ interface Montaje {
   persistido?: Promise<boolean>
 }
 
-function montar({ lead = LEAD, tarea = null, yo = 'v1', rol = 'vendedor', actividades = [], pendientes = [], confirmacion = { actividad_id: 'act-1', siguiente_id: null, descartado: false }, persistido = Promise.resolve(true) }: Montaje = {}) {
+function montar({ lead = LEAD, tarea = null, yo = 'v1', rol = 'vendedor', demo = true, actividades = [], pendientes = [], confirmacion = { actividad_id: 'act-1', siguiente_id: null, descartado: false }, persistido = Promise.resolve(true) }: Montaje = {}) {
   vi.useRealTimers()
   vi.spyOn(Date, 'now').mockReturnValue(AHORA)
   const registrarLlamada = vi.fn<StoreDataApi['registrarLlamada']>(() => ({ ok: true, persistido, confirmacion: Promise.resolve(confirmacion) }))
@@ -67,7 +69,7 @@ function montar({ lead = LEAD, tarea = null, yo = 'v1', rol = 'vendedor', activi
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={queryClient}>
-      <AuthContext.Provider value={sesion(yo, rol)}>
+      <AuthContext.Provider value={sesion(yo, rol, demo)}>
         <StoreDataContext.Provider value={api}>
           <RegistrarResultado lead={lead} tarea={tarea} onClose={onClose} />
         </StoreDataContext.Provider>
@@ -466,4 +468,68 @@ describe('RegistroResultadoTarjeta — convivencia y foco (revisión a11y, 27/09
     expect(guardar).toHaveFocus()
     expect(guardar).not.toBeDisabled()
   })
+})
+
+// F4-b: la encuesta que abrió el enlace del celular con el id de la llamada dice de cuál es. Todavía no promete
+// unirla: eso llega cuando la encuesta llame a la v5.
+describe('RegistrarResultado — la llamada del celular (F4-b)', () => {
+  // 09:42 del 21/09 en Lima, el mismo día que AHORA.
+  const ID = `C1-${Date.parse('2026-09-21T14:42:00.000Z') / 1000}`
+  afterEach(() => { limpiarIntencionesContacto() })
+
+  it('con la integración cerrada registra el resultado manual sin enviar un origen guardado en la pestaña', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(AHORA)
+    const i = armarIntencion({ actor: 'v1', leadId: LEAD.id, canal: 'tel', origen: 'enlace', origenLlamada: ID }, AHORA)
+    reclamarIntencion(i.id, AHORA)
+    const user = userEvent.setup()
+    const { registrarLlamada } = montar({ demo: false })
+    expect(screen.queryByText(/Llamada del celular/)).not.toBeInTheDocument()
+    await user.click(screen.getByRole('radio', { name: /no contestó/i }))
+    await user.click(screen.getByRole('button', { name: 'Guardar' }))
+    await waitFor(() => expect(registrarLlamada).toHaveBeenCalled())
+    expect(peticion(registrarLlamada)).toMatchObject({ resultado: 'no_contesto' })
+    expect(peticion(registrarLlamada)).not.toHaveProperty('evento_origen_id')
+    expect(peticion(registrarLlamada)).not.toHaveProperty('via_llamada')
+  })
+
+  it('con la intención abierta del enlace y su id: «Llamada del celular de las 09:42», en el diálogo y en la tarjeta', () => {
+    const i = armarIntencion({ actor: 'v1', leadId: 'l1', canal: 'tel', origen: 'enlace', numero: '+51999888777', origenLlamada: ID }, AHORA)
+    reclamarIntencion(i.id, AHORA)
+    montar()
+    expect(screen.getByText('Llamada del celular de las 09:42.')).toBeInTheDocument()
+    cleanup()
+    montarTarjeta()
+    expect(screen.getByText('Llamada del celular de las 09:42.')).toBeInTheDocument()
+  })
+
+  it('sin id, sin abrir o de otro lead: no dice nada', () => {
+    armarIntencion({ actor: 'v1', leadId: 'l1', canal: 'tel', origen: 'enlace', numero: '+51999888777' }, AHORA)
+    montar()
+    expect(screen.queryByText(/Llamada del celular/)).not.toBeInTheDocument()
+    cleanup()
+    limpiarIntencionesContacto()
+    armarIntencion({ actor: 'v1', leadId: 'l1', canal: 'tel', origen: 'enlace', origenLlamada: ID }, AHORA) // armada, no abierta
+    montar()
+    expect(screen.queryByText(/Llamada del celular/)).not.toBeInTheDocument()
+    cleanup()
+    limpiarIntencionesContacto()
+    const otra = armarIntencion({ actor: 'v1', leadId: 'l2', canal: 'tel', origen: 'enlace', origenLlamada: ID }, AHORA)
+    reclamarIntencion(otra.id, AHORA)
+    montar()
+    expect(screen.queryByText(/Llamada del celular/)).not.toBeInTheDocument()
+  })
+})
+
+
+it('la encuesta envía el origen exacto y la vía conservada para registrar con v5', async () => {
+  vi.spyOn(Date, 'now').mockReturnValue(AHORA)
+  const i = armarIntencion({ actor: 'v1', leadId: LEAD.id, canal: 'tel', origen: 'enlace', origenLlamada: 'C1-1790980958', viaLlamada: 'pestana' }, AHORA)
+  reclamarIntencion(i.id, AHORA)
+  const user = userEvent.setup()
+  const { registrarLlamada } = montar({ confirmacion: { actividad_id: 'act', siguiente_id: null, descartado: false, enlace: { estado: 'enlazado' } } })
+  await user.click(screen.getByRole('radio', { name: /no contestó/i }))
+  await user.click(screen.getByRole('button', { name: 'Guardar' }))
+  await waitFor(() => expect(registrarLlamada).toHaveBeenCalled())
+  expect(peticion(registrarLlamada)).toMatchObject({ evento_origen_id: 'C1-1790980958', via_llamada: 'pestana' })
+  expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('Quedó unido'), expect.anything())
 })

@@ -32,6 +32,8 @@ export const ConfirmacionInversionSchema = v.object({
 export const SolicitudInversionSchema = v.object({
   lead_id: v.optional(v.nullable(Uuid)),
   reinversion_origen_id: v.optional(v.nullable(Uuid)),
+  upgrade_origen_id: v.optional(v.nullable(Uuid)),
+  upgrade_origen_referencia: v.optional(v.nullable(v.string())),
   solicitud_id: Uuid, estado: v.picklist(['preparada', 'confirmada', 'cancelada']),
   inversion_id: v.nullable(Uuid), inversionista_id: Uuid, inversionista_origen_id: Uuid,
   identidad_fusionada: v.boolean(), responsable_esperado_id: v.nullable(Uuid),
@@ -59,6 +61,7 @@ export function solicitudCorresponde(s: SolicitudInversion, persona: string, ori
 
 const IntentoSchema = v.object({
   reinversion_origen_id: v.optional(v.nullable(Uuid)),
+  upgrade_origen_id: v.optional(v.nullable(Uuid)),
   // Venta cruzada: la búsqueda que abrió la puerta y el motivo, que viajan en cada
   // reintento de la preparación (el servidor los compara).
   venta_cruzada: v.optional(v.object({busqueda_id: Uuid, motivo: v.pipe(v.string(), v.maxLength(500))})),
@@ -234,13 +237,15 @@ export function limpiarIntentosInversion(actor?: string, persona?: string, orige
   // lo cierra quien lo abrió: aquí «Iniciar otra inversión» sigue con él abierto.
   if (!actor) limpiarConversionAbierta()
 }
-export function nuevoIntentoInversion(actor: string, persona: string, id: string, datos: DatosInversion, origen?: string | null,
+export function nuevoIntentoInversion(actor: string, persona: string, id: string, datos: DatosInversion, origen?: string | null | {tipo: 'upgrade'; fuenteId: string},
   ventaCruzada?: {busqueda_id: string; motivo: string}): IntentoInversion {
   const bytes = crypto.getRandomValues(new Uint8Array(24))
-  return {version: 1, actor, persona, clave: id, datos, ...(origen ? {reinversion_origen_id: origen} : {}),
+  return {version: 1, actor, persona, clave: id, datos, ...(typeof origen === 'object' && origen ? {upgrade_origen_id: origen.fuenteId} : origen ? {reinversion_origen_id: origen} : {}),
     ...(ventaCruzada ? {venta_cruzada: ventaCruzada} : {}),
     token: Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('')}
 }
+export const origenContinuidad = (s: Pick<SolicitudInversion, 'reinversion_origen_id' | 'upgrade_origen_id'>) =>
+  s.upgrade_origen_id ? {tipo: 'upgrade' as const, fuenteId: s.upgrade_origen_id} : s.reinversion_origen_id
 export const jsonInversion = (datos: unknown): Json => datos as Json
 
 /** JSONB no conserva el orden de claves; el orden de arrays sí es contractual. */

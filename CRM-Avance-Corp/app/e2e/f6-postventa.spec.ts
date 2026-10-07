@@ -1,3 +1,4 @@
+import type { RegistroItem } from '../src/lib/gestion-diaria'
 import {expect,test,type Page} from '@playwright/test'
 import {randomUUID} from 'node:crypto'
 import {loginReal,montarBackendReal,irAMiCartera,UID} from './_helpers'
@@ -7,7 +8,7 @@ import type {RetiroPostventa} from '../src/lib/postventa'
 
 async function montarF6(page:Page,rol:'vendedor'|'gerencia'|'directorio'='vendedor') {
   await montarBackendReal(page,{rolCrm:rol,rolPortal:rol==='directorio'?'directorio':'analista',clientes:[],contratos:[]})
-  const estado={on:true,vetada:false,cortar:false,rechazarConfirmacion:false,negarFicha:false,fichaSinConexion:false,altas:0,financieras:0,claves:[] as string[],tareas:[] as Tarea[],retiros:[] as RetiroPostventa[],recibos:new Set<string>()}
+  const estado={on:true,vetada:false,cortar:false,rechazarConfirmacion:false,negarFicha:false,fichaSinConexion:false,altas:0,financieras:0,claves:[] as string[],tareas:[] as Tarea[],eventos:[] as RegistroItem[],cierres:[] as Record<string,unknown>[],retiros:[] as RetiroPostventa[],recibos:new Set<string>()}
   const habilitada=()=>estado.on&&rol!=='directorio'
   function tarea(id:string,datos:Record<string,unknown>):Tarea {
     return {id,inversionista_id:PERSONA_F5,inversionista_canonico_id:PERSONA_F5,postventa_revision:1,
@@ -29,6 +30,25 @@ async function montarF6(page:Page,rol:'vendedor'|'gerencia'|'directorio'='vended
       f.capacidades.nueva_inversion=habilitada()&&!estado.vetada;f.tareas=estado.tareas.filter(t=>t.estado==='pendiente');f.tareas_total=f.tareas.length
       return json(f)
     }
+    if(nombre==='registro_actividad_v2_fn')return json({version:2,zona:'America/Lima',desde:b.p_desde,hasta:b.p_hasta,generado_en:new Date().toISOString(),limite:b.p_limite,
+      items:estado.eventos.filter(e=>(!b.p_analista_ids||b.p_analista_ids.includes(e.creado_por))&&(!b.p_tipos||b.p_tipos.includes(e.tipo))&&b.p_cartera!=='leads').toReversed().slice(0,b.p_limite)})
+    if(nombre==='gestiones_resumen_fn'){
+      const e=estado.eventos.filter(e=>e.metadata['estado']==='completada'),ll=e.filter(e=>e.tipo==='llamada_realizada'||e.tipo==='llamada_no_contestada')
+      const cero={gestiones:0,llamadas:0,contestadas:0,entrevistas:0,ultima_llamada_en:null}
+      const clientes={gestiones:e.length,llamadas:ll.length,contestadas:ll.filter(e=>e.tipo==='llamada_realizada').length,
+        entrevistas:e.filter(e=>e.tipo==='reunion_realizada').length,ultima_llamada_en:ll.at(-1)?.creado_en??null}
+      const metricas={leads:cero,clientes,total:clientes}
+      return json({version:1,desde:b.p_desde,hasta:b.p_hasta,zona:'America/Lima',generado_en:new Date().toISOString(),totales:metricas,
+        analistas:e.length?[{id:UID,nombre:'Analista de prueba',metricas}]:[]})
+    }
+    if(nombre==='citas_clientes_fn'){
+      const citas=estado.tareas.filter(t=>t.tipo==='reunion')
+      return json({version:1,desde:b.p_desde,hasta:b.p_hasta,generado_en:new Date().toISOString(),limite:b.p_limite,
+        resumen:{total:citas.length,pendientes:citas.filter(t=>t.estado==='pendiente').length,entrevistas:citas.filter(t=>t.estado==='completada').length,
+          no_asistio:citas.filter(t=>t.estado==='no_show').length,reprogramadas:citas.filter(t=>t.estado==='reprogramada').length,canceladas:citas.filter(t=>t.estado==='cancelada').length},
+        items:citas.map(t=>({id:t.id,vence_en:t.vence_en,estado:t.estado,confirmada_en:t.confirmada_en,resultado_reunion:t.resultado_reunion,vendedor_id:UID,vendedor_nombre:'Analista de prueba',
+          sujeto_tipo:'inversionista',sujeto_id:PERSONA_F5,sujeto_nombre:'ANA SINTÉTICA F5',inversionista_id:PERSONA_F5,perfil_id:null,identidad_visible:true})),hay_mas:false,siguiente_cursor:null})
+    }
     if(nombre==='postventa_estado_fn')return json({version:1,habilitada:habilitada()})
     if(nombre==='postventa_agenda_fn')return json(habilitada()?estado.tareas.filter(t=>t.estado==='pendiente'):[])
     if(nombre==='postventa_ficha_fn')return estado.negarFicha
@@ -49,7 +69,15 @@ async function montarF6(page:Page,rol:'vendedor'|'gerencia'|'directorio'='vended
       if(t.postventa_revision!==b.p_revision)return json({code:'P0409',message:'Tarea cambió'},409)
       t.postventa_revision++;let siguiente:Tarea|null=null
       if(b.p_accion==='cerrar'){
+        estado.cierres.push(b.p_datos)
+        estado.eventos.push({id:randomUUID(),origen:'postventa',sujeto_tipo:'inversionista',sujeto_id:PERSONA_F5,sujeto_nombre:'ANA SINTÉTICA F5',identidad_visible:true,
+          inversionista_id:PERSONA_F5,perfil_id:null,lead_id:null,lead_nombre:null,lead_etapa:null,etapa_en_ese_momento:null,
+          tipo:t.tipo==='reunion'&&b.p_datos.estado==='completada'?'reunion_realizada':t.tipo==='llamada'?(b.p_datos.resultado==='no_contesto'?'llamada_no_contestada':'llamada_realizada'):'nota',
+          detalle:b.p_datos.detalle,metadata:{estado:b.p_datos.estado,resultado:b.p_datos.resultado,resultado_reunion:b.p_datos.resultado_reunion},
+          creado_por:UID,autor_nombre:'Analista de prueba',creado_en:new Date().toISOString()})
+
         t.estado=b.p_datos.estado
+        if(t.tipo==='reunion'&&t.estado==='completada')t.resultado_reunion=b.p_datos.resultado_reunion
         if(b.p_datos.siguiente){siguiente=tarea(randomUUID(),b.p_datos.siguiente);estado.tareas.push(siguiente)}
       }else if(b.p_accion==='reprogramar')t.vence_en=b.p_datos.vence_en
       else t.confirmada_en=new Date().toISOString()
@@ -101,12 +129,15 @@ test('agenda compartida, cierre con siguiente y enlace persistente a la ficha',a
   await page.keyboard.press('Escape');await page.getByRole('button',{name:'Agenda',exact:true}).click()
   await page.getByRole('button',{name:/^Todo ·/}).click()
   await page.getByRole('button',{name:'Cerrar tarea — Seguimiento F6'}).click()
+  await expect(page.getByRole('button',{name:'Guardar gestión',exact:true})).toBeDisabled()
+  await page.getByLabel('¿Qué pasó en la llamada?').selectOption('no_contesto')
   await page.getByLabel('Detalle de la gestión').fill('Cliente solicita revisar condiciones al vencimiento')
   await page.getByRole('checkbox',{name:'Programar el siguiente contacto'}).check()
   await page.getByLabel('Próxima gestión').fill('Segunda gestión F6')
   await page.getByRole('button',{name:'Guardar gestión',exact:true}).click()
   await expect(page.getByRole('button',{name:'Cerrar tarea — Segunda gestión F6'})).toBeVisible()
   expect(s.tareas[0]?.estado).toBe('completada');expect(s.tareas).toHaveLength(2);expect(s.financieras).toBe(0)
+  expect(s.cierres[0]?.resultado).toBe('no_contesto')
   await page.getByRole('button',{name:'Abrir ficha — Segunda gestión F6',exact:true}).click()
   await expect(page).toHaveURL(new RegExp(`#/mi-cartera/inversionista/${PERSONA_F5}$`))
   await expect(page.getByText('Información del cliente')).toBeVisible();await page.reload()
@@ -114,6 +145,67 @@ test('agenda compartida, cierre con siguiente y enlace persistente a la ficha',a
   await expect(page.getByText(/Preparando tu espacio de trabajo/)).toBeHidden()
   await page.screenshot({path:info.outputPath('f6-ficha-desktop.png'),fullPage:true})
 })
+test('la cita de cliente realizada exige resultado y queda registrada como entrevista',async({page})=>{
+  const s=await montarF6(page);await abrir(page);await agendar(page)
+  await expect(page.getByText('Gestión agendada · la verás en Hoy y en Agenda',{exact:true})).toBeVisible()
+  Object.assign(s.tareas[0]!,{tipo:'reunion',modalidad_reunion:'virtual'})
+  await page.keyboard.press('Escape');await page.getByRole('button',{name:'Agenda',exact:true}).click();await page.reload()
+  await page.getByRole('button',{name:/^Todo ·/}).click()
+  await page.getByRole('button',{name:'Cerrar tarea — Seguimiento F6'}).click()
+  await page.getByLabel('Resultado o siguiente acción').selectOption('confirmar')
+  await expect(page.getByText('Esto confirma la cita prevista. Después deberás indicar si se realizó para registrar la entrevista.')).toBeVisible()
+  await page.getByLabel('Resultado o siguiente acción').selectOption('completada')
+  await expect(page.getByText('Al marcarla como realizada, la cita quedará registrada como entrevista.')).toBeVisible()
+  await page.getByLabel('Resultado comercial de la entrevista').selectOption('seguimiento')
+  await page.getByLabel('Detalle de la gestión').fill('Conversamos sobre la renovación')
+  await page.getByRole('button',{name:'Guardar gestión',exact:true}).click()
+  await expect(page.getByText('Entrevista registrada. La agenda está actualizada.')).toBeVisible()
+  expect(s.cierres[0]?.resultado_reunion).toBe('seguimiento')
+  expect(s.tareas[0]?.resultado_reunion).toBe('seguimiento')
+})
+test('una llamada que agenda cita conserva ambos resultados en el cierre',async({page})=>{
+  const s=await montarF6(page);await abrir(page);await agendar(page)
+  await expect(page.getByText('Gestión agendada · la verás en Hoy y en Agenda',{exact:true})).toBeVisible()
+  await page.keyboard.press('Escape');await page.getByRole('button',{name:'Agenda',exact:true}).click()
+  await page.getByRole('button',{name:/^Todo ·/}).click()
+  await page.getByRole('button',{name:'Cerrar tarea — Seguimiento F6'}).click()
+  await page.getByLabel('¿Qué pasó en la llamada?').selectOption('agendo_reunion')
+  await expect(page.getByRole('checkbox',{name:'Agenda la cita o llamada acordada'})).toBeChecked()
+  await expect(page.getByLabel('Tipo de contacto')).toHaveValue('reunion')
+  await page.getByLabel('Modalidad de la cita').selectOption('virtual')
+  await page.getByLabel('Detalle de la gestión').fill('Acordamos revisar la renovación en persona')
+  await page.getByRole('button',{name:'Guardar gestión',exact:true}).click()
+  await expect(page.getByText('Gestión registrada. La agenda está actualizada.')).toBeVisible()
+  expect(s.cierres[0]?.resultado).toBe('agendo_reunion')
+  expect((s.cierres[0]?.siguiente as {tipo:string})?.tipo).toBe('reunion')
+  expect(s.tareas[1]?.tipo).toBe('reunion')
+})
+for (const vista of [{nombre:'escritorio',width:1280,height:900},{nombre:'móvil',width:390,height:844}]) {
+  test(`${vista.nombre}: cerrar la entrevista desde Seguimiento conserva abierta la ficha`,async({page},info)=>{
+    const s=await montarF6(page)
+    await page.setViewportSize({width:vista.width,height:vista.height})
+    if(vista.nombre==='móvil')await page.getByRole('button',{name:'Ocultar menú'}).click()
+    await abrir(page);await agendar(page,'Cita de renovación')
+    await expect(page.getByText('Gestión agendada · la verás en Hoy y en Agenda',{exact:true})).toBeVisible()
+    Object.assign(s.tareas[0]!,{tipo:'reunion',modalidad_reunion:'virtual'})
+    await page.reload()
+    const cerrar=page.getByRole('button',{name:'Cerrar tarea — Cita de renovación',exact:true})
+    await expect(cerrar).toBeEnabled()
+    await expect(page.getByText(/Preparando tu espacio de trabajo/)).toBeHidden()
+    await cerrar.scrollIntoViewIfNeeded()
+    await page.screenshot({path:info.outputPath(`seguimiento-cierre-${vista.nombre}.png`),fullPage:true})
+    await cerrar.click()
+    await page.getByLabel('Resultado comercial de la entrevista').selectOption('seguimiento')
+    await page.getByLabel('Detalle de la gestión').fill('Asistió y pidió revisar una propuesta de renovación')
+    await page.getByRole('button',{name:'Guardar gestión',exact:true}).click()
+    await expect(page.getByText('Entrevista registrada. La agenda está actualizada.')).toBeVisible()
+    await expect(page.getByText('Sin acciones pendientes.',{exact:true})).toBeVisible()
+    await expect(page.getByRole('button',{name:'Agendar gestión',exact:true})).toBeVisible()
+    await expect(cerrar).toHaveCount(0)
+    expect(s.cierres[0]?.resultado_reunion).toBe('seguimiento')
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+  })
+}
 test('móvil: recupera un alta confirmada cuya respuesta se cortó sin duplicarla',async({page},info)=>{
   const s=await montarF6(page);await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'Ocultar menú'}).click()
   await abrir(page);s.cortar=true;await agendar(page,'Gestión con respuesta interrumpida')
@@ -205,4 +297,32 @@ test('un rechazo de postventa no cierra una ficha F5 que sigue autorizada',async
   await expect(page.getByText('Información del cliente')).toBeVisible()
   await expect(page.getByRole('button',{name:'Registrar nueva inversión',exact:true})).toBeVisible()
   await expect(page.getByRole('button',{name:'Cerrar ficha',exact:true}).last()).toBeVisible()
+})
+
+test('el cierre de la ficha aparece con resultado en Resumen, Registro y Citas de gerencia',async({page},info)=>{
+  const s=await montarF6(page,'gerencia');await abrir(page);await agendar(page,'Entrevista para renovar')
+  Object.assign(s.tareas[0]!,{tipo:'reunion',modalidad_reunion:'virtual'})
+  await page.reload()
+  await page.getByRole('button',{name:'Cerrar tarea — Entrevista para renovar',exact:true}).click()
+  await page.getByLabel('Resultado comercial de la entrevista').selectOption('propuesta')
+  await page.getByLabel('Detalle de la gestión').fill('Entrevista realizada; propuesta de renovación enviada')
+  await page.getByRole('button',{name:'Guardar gestión',exact:true}).click()
+  await expect(page.getByText('Entrevista registrada. La agenda está actualizada.')).toBeVisible()
+  await page.evaluate(()=>{window.location.hash='#/hoy'})
+  const resumen=page.getByRole('region',{name:'Gestión de leads y clientes',exact:true})
+  await expect(resumen.getByRole('row',{name:'Clientes 0 0 1 1',exact:true})).toBeVisible()
+  await resumen.getByRole('button',{name:'Ver gestiones',exact:true}).click()
+  const registro=page.getByRole('dialog',{name:'Registro del día',exact:true})
+  await expect(registro.getByText('Entrevista realizada; propuesta de renovación enviada',{exact:true})).toBeVisible()
+  await expect(registro.getByRole('list').getByText('Entrevista realizada',{exact:true})).toBeVisible()
+  await expect(registro.getByText('Propuesta presentada',{exact:true})).toBeVisible()
+  await registro.getByRole('button',{name:'ANA SINTÉTICA F5',exact:true}).click()
+  await expect(page.getByText('Información del cliente',{exact:true})).toBeVisible()
+  await page.getByRole('button',{name:'Cerrar ficha',exact:true}).last().click()
+  await page.getByRole('navigation').getByRole('button',{name:'Citas',exact:true}).click()
+  const citas=page.getByRole('region',{name:'Citas de clientes',exact:true})
+  await expect(citas.getByText('Entrevista realizada',{exact:true})).toBeVisible()
+  await expect(citas.getByText('Propuesta presentada',{exact:true})).toBeVisible()
+  await citas.screenshot({path:info.outputPath('citas-clientes-supervision.png')})
+  expect(s.cierres).toHaveLength(1)
 })
