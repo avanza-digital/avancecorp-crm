@@ -1,0 +1,97 @@
+VERDICT: CHANGES_REQUESTED
+
+SUMMARY:
+El diseño es sólido en lo esencial. La tabla tiene RLS con FORCE, sin grants ni políticas y con singleton. Los núcleos `private.*` repiten la autorización con `search_path=''`. Las funciones nuevas tienen `REVOKE` explícito a `public`, `anon`, `authenticated` y `service_role`. El permiso se calcula en el servidor en cada llamada. Ante una fila ausente o un rol nulo, `coalesce(...,false)` falla cerrado. La revisión optimista y la prueba con dos conexiones reales cubren la concurrencia del propio botón. No veo P0 ni P1. Quedan dos P2 (recarga por `focus` y gate de release por el signal 11) y varios P3. Todos se pueden cerrar sin rediseñar.
+
+FINDINGS:
+
+[P2] Recarga completa en cada evento `focus`
+File: `app/src/screens/repartir.tsx`
+Lines: hunk de `useReparto`, `useEffect` con `window.addEventListener('focus', alVolver)`
+Problem: cada vez que la ventana recupera el foco se llama a `cargar()`. Eso son cola, supervisores y agenda, es decir 3 consultas por coordinadora.
+Evidence: el diff añade el listener sin debounce y sin distinguir una recarga silenciosa de una inicial. El estado inicial usa `cargando: true`. No se ve si `cargar` vuelve a poner `cargando`, pero si lo hace, la lista y el estado local de las filas se desmontan.
+Impact:
+- Pueden perderse la selección de supervisor a medio elegir, el scroll o los enviando en curso.
+- Hay carga extra sobre la agenda, que ahora además llama a `reparto_libre_habilitado()`.
+- Un `cargar()` por focus aborta con `abortRef` una carga previa, y puede pisar una actualización local reciente de `sumarEntregaLocal`.
+Recommendation:
+- Usar `visibilitychange` o `focus` con debounce y mínimo de, por ejemplo, 30 s.
+- Hacer la recarga silenciosa: sin `cargando:true` y conservando la selección local.
+- No recargar si hay `enviandoIds` activos.
+- Añadir un test que verifique que el listener se limpia al desmontar y que la recarga no resetea una selección pendiente. Esto es hipótesis: no vi el cuerpo de `cargar`.
+
+[P2] Crash local (signal 11) sin causa raíz, como condición de release
+File: n/a (motor Supabase Postgres 17.6.1.105)
+Problem: una llamada directa a un helper `private` sin EXECUTE, dentro de una aserción dinámica, tumbó el backend.
+Evidence: lo reporta el PRIMARY y se sustituyó por `has_function_privilege=false`. No se conoce la causa y no se repitió.
+Impact:
+- La exposición vía API es improbable, porque `private` no está expuesto y las llamadas por ruta API pasan.
+- Un crash de backend en una ruta de error de permisos es una clase de fallo que no conviene desplegar sin entenderla, en especial en funciones que ahora están en la ruta caliente de todas las coordinadoras.
+- No afirmo vínculo causal. Es una hipótesis de riesgo, no un hallazgo reproducido.
+Recommendation:
+- Guardar el reproductor mínimo y el log del servidor.
+- Intentar reproducirlo en staging o branch de Supabase con la misma versión, nunca en producción.
+- Dejar en el ledger la versión del motor de producción y si coincide con la local.
+- Si se reproduce, reportarlo al proveedor antes de desplegar.
+
+[P3] `actualizado_por ... on delete restrict`
+File: migración, `create table crm.configuracion_reparto`
+Problem: la FK a `perfiles(id)` impide borrar un perfil de Gerencia que haya tocado el control.
+Evidence: `references public.perfiles(id) on delete restrict`.
+Impact: bloquea el offboarding o la depuración de usuarios por un campo puramente informativo.
+Recommendation: `on delete set null`, dado que el histórico queda en el audit trigger. Revisar la convención del repo para otras columnas `*_por`.
+
+[P3] Referencias residuales a `v_es_administrador`
+File: `private.repartir_lead_implementacion`
+Evidence: el diff elimina la variable y cambia tres usos. plpgsql resuelve identificadores de forma perezosa, así que un uso olvidado en un tramo no mostrado solo fallaría al ejecutar esa sentencia.
+Recommendation: `grep` de `v_es_administrador` en la definición instalada. Si hay cero ocurrencias, queda cerrado. La matriz probablemente ya cubre las ramas, pero es una comprobación de un minuto.
+
+[P3] Ventana de consistencia al apagar el control
+File: `private.reparto_libre_habilitado` y `repartir_lead_implementacion`
+Evidence: `v_reparto_libre` se evalúa en el `declare`, antes del advisory lock y sin bloquear la fila de configuración.
+Impact: un reparto en vuelo puede completarse con el permiso anterior unos milisegundos después de que Gerencia apague el control. Es aceptable y no escala privilegios, porque las coordinadoras ya estaban autorizadas un instante antes.
+Recommendation: documentar «efectivo para repartos iniciados después del commit», sin cambio de código. Opcionalmente, un `for share` sobre la fila daría orden estricto a costa de contención.
+
+[P3] `excepcion_turno` ahora cubre a Coordinación
+File: `repartir_lead_implementacion` (JSON de retorno) y consumidores en el cliente
+Problem: el flag y los textos antes implicaban «excepción de administrador». Hay que revisar los consumidores (reportes `fuera_turno`, toasts, textos de auditoría) para que no etiqueten a una coordinadora como administradora. El diff solo muestra cambios de copy en `repartir.tsx`; el resto es hipótesis.
+Recommendation: `grep` de `excepcion_turno` y `fuera_turno` en `app/src` y en los reportes.
+
+[P3] `test-rls.mjs` altera un control global
+File: `supabase/scripts/test-rls.mjs`, `testConfiguracionReparto`
+Evidence: el test fuerza `false` y luego `true` sobre el control compartido.
+Impact: contra un entorno con usuarios reales, el turno obligatorio se restablece de forma transitoria. El `finally` restaura, pero la ventana existe.
+Recommendation: documentar en el script que solo corre contra un entorno de pruebas. Una guarda por URL o variable de entorno sería aún mejor.
+
+TEST GAPS:
+- La matriz de `test-rls.mjs` no incluye `anon` ni `service_role` sobre las dos RPC y la tabla. Añadir un negativo explícito, aunque el SQL local ya lo cubra con privilegios directos.
+- Verificar con un caso explícito que el Superadmin sigue recibiendo `reparto_libre=true` con el control en OFF. El PRIMARY dice que se mantiene, pero la prueba descrita en `test-rls` solo mira la sesión `coordinador`.
+- Falta un test de la capa de datos o de pantalla para `reparto_libre` ausente (default `false`) y para `puedeElegirDestino`. Puede existir entre los 6311 tests, pero no se ve en lo adjunto.
+- La asignación de `p_supervisor` fuera de turno por una coordinadora debe seguir validando que el supervisor esté activo, con equipo activo y con el rol correcto. Por el diff, esa validación no depende del flag, pero conviene un caso negativo explícito con un supervisor inactivo.
+- Falta un test de auditoría del toggle en `test-rls` (existe en la matriz SQL local, no en el script).
+- Confirmar que `edita` en `config.tsx` ya incluye `!demo`. El diff solo muestra `{edita && <RepartoLibre />}`. El PRIMARY afirma que lo incluye, pero el diff por sí solo no lo prueba.
+
+ARCHITECTURE RISKS:
+- Que `crm.agenda_reparto_diaria` devuelva `reparto_libre` mezcla lectura de agenda con el permiso del actor. Está bien como contrato calculado por el servidor, pero conviene mantener el default fail-closed en el cliente, que ya lo hace.
+- Dos fuentes de verdad para el hint de UI (`rol_portal==='superadmin'` y `reparto_libre`). El servidor ya devuelve `true` para el Superadmin, así que la primera es redundante. Se puede simplificar más adelante.
+- `private.configuracion_reparto()` está declarada `STABLE` y se invoca desde una función volátil tras el `UPDATE`. Funciona, según las pruebas, y devuelve el estado nuevo, pero depende de un matiz de snapshots. Un `return` construido directamente desde `v_config` actualizado con `returning ... into` sería más explícito y menos frágil.
+
+SECURITY RISKS:
+- Sin hallazgos de escalada. Se descarta: acceso directo a la tabla, llamada de usuarios sin rol a las RPC y llamada a los helpers privados. Todo lo anterior está revocado y validado internamente, y la matriz lo confirma.
+- Riesgo operativo y de negocio, ya decidido por el usuario: el control arranca encendido, así que al desplegar se desactiva de inmediato el turno obligatorio vigente desde 2026-09-10 para todo el rol. Comunicarlo en el ledger y en las notas de release, y registrar que el insert inicial no tiene `actualizado_por`.
+- El residual del signal 11 (arriba) es el único riesgo sin explicar.
+
+REGRESSION RISKS:
+- Los repartos de Coordinación pasan a contarse como fuera de turno cuando el destino difiere de la agenda. Métricas y reportes pueden cambiar de valor. Verificar los reportes de derivaciones.
+- Pestañas antiguas con la UI bloqueada tras activar el control: se corrige con la recarga por foco, pero ver el P2.
+- La cobertura de los `CREATE OR REPLACE` conserva firmas y grants. Verificar en la instalación real que el `ACL` previo se mantuvo y no se usó `drop`+`create`. El preflight por hash cubre bien la deriva de definiciones.
+- `npm run check` falla solo por el umbral de duplicación (1.06% vs 0.8%), idéntico al baseline sin el cambio. Acepto que no es regresión, pero conviene dejar constancia en el ledger de que es deuda previa.
+
+RECOMMENDED NEXT ACTIONS:
+1. Revisar y acotar el listener `focus` (debounce, recarga silenciosa, sin pisar `enviandoIds` ni la selección local) y añadir su test.
+2. Intentar reproducir el signal 11 en un entorno no productivo de la misma versión, guardar el reproductor y condicionar el despliegue a ese resultado o a una decisión explícita documentada.
+3. Cambiar la FK a `on delete set null`, hacer el `grep` de `v_es_administrador`, `excepcion_turno` y `fuera_turno`, y añadir los negativos de `anon` y `service_role` y el caso Superadmin con el control en OFF.
+4. Ejecutar la matriz RLS hospedada y los advisors antes del despliegue, y ejecutar el despliegue solo mediante la skill de release del usuario.
+
+CONFIDENCE: MEDIUM
+(Alta en la parte SQL y de autorización, que se ve completa. Media en la UI y los consumidores, de los que solo llegó el diff.)

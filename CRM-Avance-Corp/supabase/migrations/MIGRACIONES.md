@@ -1,3 +1,14 @@
+## 20261007143121 — Reparto libre de Coordinación controlado por Gerencia
+
+**PREPARADA Y PROBADA EN BANCO LOCAL; NO APLICADA EN PRODUCCIÓN.** Pedido de Miguel: todo el rol Coordinadora puede derivar libremente y Gerencia dispone de un botón para activarlo/desactivarlo.
+
+Añade `crm.configuracion_reparto` (fila única, RLS FORCE, sin acceso directo, auditoría), núcleos privados y dos RPC exclusivas de Gerencia activa. El permiso efectivo viaja en la agenda y se verifica en cada reparto. El control arranca encendido conforme al pedido; apagarlo restaura el turno de Landing/Formulario. Superadmin conserva su excepción. Las revisiones rechazan cambios obsoletos con `PT409`.
+
+Pruebas SQL de roles y estados ON/OFF PASS; tipos regenerados desde el banco e integrados sin sobrescribir contratos ajenos. Frontend: 6.311 pruebas PASS, build/typecheck/lint PASS y 34 E2E Docker PASS. El gate global de duplicación falla también sin este cambio (57 clones preexistentes); ver evidencia y pendientes en `../scripts/reparto-libre/README.md`. Instalación remota, matriz HTTP completa, advisors y publicación pendientes.
+
+Revisión independiente CHANGES_REQUESTED evaluada: corregida la recarga por foco, con 55 pruebas de pantalla, build/lint y los 34 E2E posteriores PASS. El signal 11 del banco fue reproducido con funciones triviales en un contenedor aislado de Supabase Postgres 17.6.1.105, coincidente con supautils #214; no se reprodujo en producción. Producción informa PG 17.6 y los mismos roles de hint, sin conocer revisión de imagen. Verificación remota del motor y HTTP obligatoria antes de aplicar; detalle en `../scripts/reparto-libre/REVISION.md`. El alta inicial del control queda auditada con actor NULL de instalación; los cambios por Gerencia registran al actor real.
+
+
 ## 20261006221545 — Upgrade cooperativo separado de reinversión
 
 **PREPARADA, NO APLICADA EN PRODUCCIÓN.** Decisión de Miguel: upgrade y reinversión separados en Qorilazo y Prodelco. Añade tipo inmutable al vínculo solicitud/origen, RPC autenticada de upgrade, validación de origen vigente e historial propio. Conserva la inversión anterior y el escritor financiero; conflictos de continuidad devuelven PT409. Preflight de cuerpos y catálogo de historial; reversa rechaza eliminar el tipo con upgrades existentes. Banco SQL con permisos, recuperación, historial y carreras PASS; frontend y E2E locales PASS. Guía, límites y publicación pendiente: `../scripts/upgrade-cooperativas/README.md`.

@@ -28,6 +28,10 @@ vi.mock('@/components/app/calendario-google', () => ({
   CalendarioGoogle: () => <div>Calendario personal</div>,
 }))
 
+vi.mock('@/components/config/reparto-libre', () => ({
+  RepartoLibre: () => <div>Control de reparto libre</div>,
+}))
+
 function consulta<T>(data: T) {
   return {
     data,
@@ -78,6 +82,16 @@ beforeEach(() => {
 })
 
 describe('Configuración y riel operativo', () => {
+  it.each(['gerencia', 'supervisor', 'vendedor', 'directorio', 'coordinador'] as const)('solo Gerencia real ve el control de reparto: %s', (rol) => {
+    dobles.yo = identidad({ rol, demo: false })
+    render(<Config />)
+    expect(screen.queryByText('Control de reparto libre') !== null).toBe(rol === 'gerencia')
+  })
+
+  it('Gerencia demo no muestra un control real de reparto', () => {
+    render(<Config />)
+    expect(screen.queryByText('Control de reparto libre')).not.toBeInTheDocument()
+  })
   it('muestra a Gerencia demo los cuatro estados coherentes, todos en solo lectura', () => {
     render(<Config />)
 
