@@ -2,6 +2,35 @@ import {expect, test, type Page} from '@playwright/test'
 import {loginReal, montarBackendReal, irAMiCartera} from './_helpers'
 import {carteraF5, fichaF5, FUENTE_F5, PERSONA_F5, inversionF5} from '../src/test/fixtures/f5'
 
+for (const movil of [false, true]) test(`renovación: capital activo al buscar documento, ${movil ? 'móvil' : 'escritorio'}`, async ({page}, testInfo) => {
+  await montarF5(page)
+  await page.setViewportSize({width:movil ? 390 : 1440,height:movil ? 844 : 1000})
+  if (movil) await page.getByRole('button',{name:'Ocultar menú'}).click()
+  const resumen=[{empresa:'avance',moneda:'USD',cantidad:2,capital_registrado:17000,capital_activo:12000}]
+  await page.route('**/rest/v1/rpc/cartera_inversionistas_filtrada_fn',route => route.fulfill({json:{
+    ...carteraF5,totales:resumen,filas:[{...carteraF5.filas[0],empresas:['avance'],resumen}],
+  }}))
+  await page.getByRole('button',{name:'Actualizar cartera'}).click()
+  const fila=page.getByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'})
+  await expect(fila).toContainText('US$ 17,000')
+  await page.getByLabel('Buscar persona').fill('93334444')
+  await expect(fila).toContainText('US$ 12,000')
+  await expect(fila).not.toContainText('US$ 17,000')
+  await expect(fila).toContainText('Avance · USD · Activo')
+  if (movil) await page.getByRole('button',{name:'Capital por empresa y moneda'}).click()
+  const total=page.getByLabel('Capital de las inversiones filtradas')
+  await expect(total).toContainText('US$ 12,000')
+  await expect(total).toContainText('Capital activo')
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+  await page.screenshot({path:testInfo.outputPath(`renovacion-capital-${movil ? 'movil' : 'escritorio'}.png`),fullPage:true})
+  await page.getByLabel('Buscar persona').clear()
+  await expect(fila).toContainText('US$ 17,000')
+  await expect(total).toContainText('Capital registrado')
+  await page.getByLabel('Mes de cierre comercial').selectOption('')
+  await expect(fila).toContainText('US$ 12,000')
+  await expect(total).toContainText('Capital activo')
+})
+
 async function montarF5(page:Page, rol:'vendedor'|'supervisor'|'gerencia'|'directorio'='vendedor', sinInversiones=false) {
   const backend=await montarBackendReal(page,{rolCrm:rol,rolPortal:rol==='directorio'?'directorio':'analista',clientes:[],contratos:[]})
   const estado={revocado:false,preparaciones:0,confirmaciones:0,solicitud:null as Record<string,unknown>|null,bancos:0,sinInversiones}
