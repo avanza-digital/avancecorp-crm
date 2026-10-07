@@ -17073,7 +17073,7 @@ censo analítico: la declaración de `crm.cerrar_periodo` con su huella nueva y 
 (un peso de referido > 0,150 exige tope: no se apaga el tope por olvido) · desempate de referidos con la misma fecha comercial por
 el instante en que se acreditó cada cierre.
 **Qué NO cambia:** el divisor, los pesos de renovación y upgrade, las firmas y ACL de las puertas, el pasado, `registrar_ajuste_si_mes_cerrado`.
-**FASE B pendiente (no incluida):** «Resultados por origen» (`private.ranking_conversion_origen_mes`, la cohorte ponderada de
+**FASE B → migración `20261007203000_crm_conversion_tope_referidos_origen` (sigue a esta; las dos se aplican en ese orden).** Lo que esta NO incluye: «Resultados por origen» (`private.ranking_conversion_origen_mes`, la cohorte ponderada de
 `metricas_conversiones_implementacion`), el desglose de Coordinación (`conversion_divisor_empresa*`, multiplica los referidos por el
 peso de la foto sin tope) y los textos de pantalla que dicen «0,15» siguen mostrando el referido SIN tope desde octubre.
 **Efecto conocido:** octubre se recalcula en vivo con la regla nueva (es lo pedido); el tope de un mes ya sellado no se recalcula y
@@ -17099,5 +17099,58 @@ global del tope y quedan fuera de todo ámbito de analista (es la cobertura `con
 banco con datos, advisors, `npm run check`.
 **Reversa:** `supabase/scripts/conversion-tope-referidos/reversa.sql` (repone los tres cuerpos vivos y los comentarios, retira
 versión, columnas y función; se niega si algún mes sellado guarda un tope).
-**Ciclo de aplicación:** rama de Supabase → aplicar → gate → advisors → merge (nunca `apply_migration` directo). Antes de publicar:
-fase B o decisión de Miguel de publicar sin ella (octubre mostraría el referido sin tope en las tablas por origen y en Coordinación).
+**Ciclo de aplicación:** rama de Supabase → aplicar → gate → advisors → merge (nunca `apply_migration` directo). Antes de publicar: aplicar también la Fase B (sin ella octubre mostraría el referido sin tope en las tablas por origen, la cohorte y Coordinación, y el front rechazaría el paquete mensual de un analista con referidos recortados).
+
+## 20261007203000 — Conversión · tope de referidos, FASE B: origen, cohorte, Coordinación y cifra oficial
+
+**Estado:** ensayada en banco Docker propio (07/10/2026), **SIN APLICAR en producción**; sigue a `20261007160937` (Fase A) y se aplica DESPUÉS.
+**Por qué:** la Fase A puso el tope en el núcleo (`conversion_episodios`), pero seis lectores calculaban el aporte del referido por su
+cuenta (`peso × cierres`) y desde octubre lo mostrarían sin tope; además el front validaba `referidos_aporta_pct = 100 × peso × cierres / divisor`
+y habría rechazado entero el paquete mensual de un analista con referidos recortados.
+**Qué hace:** (1) `private.ranking_conversion_origen_mes` (Resultados por origen) toma los cierres del núcleo y gana la columna
+`aporte` (se recrea: DROP + CREATE, misma firma de entrada, dueño y ACL; ahora con `COMMENT ON`) · (2) `private.ranking_origen_live` congela el `aporte` de
+cada fila en la foto · (3) `private.conversion_divisor_empresa` (Coordinación, mes sellado con tope) lee el aporte de la foto en vez de
+peso × cierres · (4) `private.metricas_conversiones_implementacion`: la «conversión ponderada» del referido usa el aporte del núcleo
+cuando el mes lleva tope y el paquete declara `nucleo.tope_referidos_pct` · (5) **NUEVA `private.referidos_aporte_por_analista`** (lee el núcleo;
+sin ACL) y `crm.conversion_mensual_sin_cartera_fn`: `total.referidos_aporta_pct` sale del aporte REAL —en un mes abierto, de esa función con el
+ámbito del actor; en uno sellado, de `cobertura.referidos_aporte`, el aporte exacto por analista que `crm.cerrar_periodo` guarda al sellar
+(incluidos el fuera de ranking y el sin analista; un actor de equipo suma solo sus visibles)— y `ponderacion.tope_referidos_pct` declara el
+tope (el de la foto en un mes sellado); sin tope, la fórmula de siempre · (6) `crm.cerrar_periodo` (el cuerpo que deja la Fase A + ese único bloque) ·
+(7) `crm.conversion_divisor_coordinacion_fn` declara `tope_referidos_pct` · (8) censo analítico: cuatro declaraciones con huella nueva
+(`ranking_conversion_origen_mes`, `metricas_conversiones_implementacion`, `conversion_mensual_sin_cartera_fn`, `cerrar_periodo`) y sello al día.
+**Corrección de diseño tras la revisión (Codex r1 REQUEST_CHANGES y auditor-rls r1, mismo hallazgo):** la primera versión reconstruía el aporte
+total desde el porcentaje de cada fila (redondeado a 2 decimales y NULL cuando el divisor es 0): perdía el aporte de quien solo recibe
+referidos y el del fuera de ranking de un mes sellado, y fallaba con divisores ≥ 10 000. Ya no se reconstruye nada: se suma el aporte real.
+**Sin tope todo queda como estaba:** agosto y septiembre dan las mismas filas y cifras (instantánea antes/después idéntica salvo las claves nuevas).
+**Front (mismo cambio):** `conversion-mensual.ts` acepta `ponderacion.tope_referidos_pct` y, con tope, valida el aporte contra una COTA superior
+(sin tope, la igualdad de siempre); `ranking-origen.ts` (estricto por fila) declara `aporte` opcional; Coordinación, Resumen, Ranking,
+Inteligencia comercial y la pantalla del analista explican el tope («cuentan hasta el 15 % de los cierres del mes») y muestran el aporte real;
+claves nuevas opcionales, así que un bundle nuevo con un servidor viejo vale.
+**Orden de despliegue (por dirección: PANTALLA PRIMERO):** pantalla → migración A → migración B. El esquema de `lib/ranking-origen.ts` es
+`strictObject`: sin declarar `aporte`, la fila nueva de la Fase B haría rechazar el desglose «Resultados por origen» entero (ya declarada,
+con su prueba). Pestañas abiertas con el bundle anterior fallarán en ese desglose hasta recargar.
+**Preflight:** siete cuerpos+dueño+ACL (las seis más `cerrar_periodo` tal como la deja la Fase A); Fase A presente; ningún mes sellado desde octubre; la función
+nueva no existe; nadie llama a `ranking_conversion_origen_mes` por su NOMBRE salvo `ranking_origen_live` (un cuerpo no deja dependencia en `pg_depend`); nada depende de la
+recreada; censo vigente y sellado.
+**Banco:** Fase A + B sobre el esquema de producción. Instantánea ANTES/DESPUÉS sobre un mundo determinista: septiembre idéntico (sin las claves
+nuevas), octubre cambia solo donde el tope recorta (referido 100 → 60 %, «aporta» total 6,36 → 3,64, ponderada 70 → 40). Reversa ⇒ las ocho
+huellas = producción (cerrar_periodo = la de la Fase A); reaplicar OK; segunda aplicación seguida y tres negativas del preflight (cuerpo
+cambiado, mes sellado ≥ octubre, otra función que llama a la recreada): se niegan. Pruebas: `prueba-origen.sql` PASS (origen, foto en vivo, cifra oficial abierta y
+SELLADA con `crm.cerrar_periodo` REAL —septiembre con un tope solo de prueba—, igualdad mes abierto = mes sellado, supervisor, producción fuera
+del roster, quien solo recibe referidos con divisor 0, sellado sin tope); pruebas de la Fase A en PASS (22 + 9; mutantes de la A 0 de 18);
+**mutantes de la B 0 sobreviven de 17** (`mutantes-fase-b.py`). Costo del ranking por origen con 6.000 cierres: ≈430 ms antes y después (es una prueba de esfuerzo:
+el volumen real es decenas de veces menor).
+**Front:** `npm run check` PASS (395 archivos, 6372 tests) en el worktree.
+**NOT RUN:** `test-rls.mjs` (editado, solo `node --check`; necesita credenciales), `gate:conversion`, alarma de 5 caminos con datos reales, advisors,
+e2e; `scripts/ranking-cartera/prueba-local.sql` (script manual que hace `to_jsonb` de la función recreada: su salida gana la clave `aporte`). `npm run gen:types` solo hace
+falta tras aplicar la Fase A (las columnas nuevas son suyas).
+**Límites conocidos:** en un rango que cruza septiembre y octubre `nucleo.tope_referidos_pct` es el del mes final: el texto del front describe ese mes.
+Con producción fuera del ranking congelada en la foto, el desglose de la empresa de un mes sellado no se publica (regla de siempre, no cambia).
+**Reversa:** `supabase/scripts/conversion-tope-referidos/reversa-fase-b.sql` (se niega si algún mes sellado guarda un tope o `cobertura.referidos_aporte`; una foto sin tope
+puede traer `aporte` en sus filas de origen y no impide revertir: nadie lo lee sin tope).
+**Revisiones:** auditor-rls r1 APPROVE_WITH_CHANGES (sin P0/P1; seguridad, ACL, no-oráculo y meses sin tope sin hallazgos; sus dos P2 de exactitud de «aporta» y los P3
+—reversa, preflight por cuerpo, `COMMENT ON`, `prueba-local.sql`— atendidos o documentados arriba). Codex r1 REQUEST_CHANGES (mismo hallazgo de exactitud + dos hipótesis:
+dos cierres de un lead —imposible: índice único `conversion_acreditaciones_lead_id_key`—, y `v_desde` = periodo de la foto —sí: `sellado` solo existe para un mes
+calendario exacto buscado por `p_desde`—). **Codex r2 (última): sin P0/P1**; su P2 condicionado (un analista visible solo en `fuera_foto` contaría en el abierto y no en el
+sellado) queda refutado por el código: `fuera_foto` solo existe con `v_global` (`where v_global and …`), así que un actor de equipo o propio no suma el fuera de ranking ni en el
+numerador ni en el aporte, y la prueba M4c (supervisor, con C fuera de su equipo) lo cubre; su P3 (mapa malformado) exige otra ruta de escritura que no existe (solo `cerrar_periodo`, y la foto es append-only).

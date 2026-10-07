@@ -5,7 +5,10 @@ import {
   descuentoArrastre,
   lecturaCobertura,
   lineaProcedencia,
+  hayTopeReferidos,
   lineaReferidos,
+  textoReferidosFormula,
+  textoTopeReferidos,
   totalConversionPublicable,
 } from './conversion-mensual'
 
@@ -667,5 +670,148 @@ describe('el ajuste por meses cerrados y su chip (descuentoArrastre)', () => {
       .toBe('arrastra 1 conversión de anulaciones')
     expect(descuentoArrastre({ pendiente: 1 })?.detalle)
       .toBe('Anulaciones de meses ya cerrados pendientes de saldar.')
+  })
+})
+
+/**
+ * ESTADO DE OCTUBRE 2026: el referido vale 1 pero todos los referidos de un
+ * analista cuentan como máximo el 15 % de sus cierres del mes. 20 cierres
+ * (15 no referidos + 5 referidos) → tope ceil(0,15 × 20) = 3: dos referidos no
+ * suman. Numerador 15 + 3 = 18 sobre 90 → 20 %; aporte de referidos
+ * 100 × 3 ÷ 90 = 3,33 (SIN tope serían 100 × 1 × 5 ÷ 90 = 5,56).
+ */
+function payloadOctubreConTope() {
+  const p = payloadCanonico()
+  p.periodo = {
+    mes: '2026-10',
+    mes_nombre: 'octubre',
+    anio: 2026,
+    zona: 'America/Lima',
+    desde: '2026-10-01T05:00:00+00:00',
+    hasta: '2026-11-01T05:00:00+00:00',
+  }
+  p.ponderacion = {
+    referido: 1,
+    renovacion: 1,
+    tope_referidos_pct: 15,
+    fuente: 'crm.conversion_pesos',
+  } as typeof p.ponderacion
+  p.total = {
+    ...p.total,
+    cierres_no_referidos: 15,
+    cierres_referidos: 5,
+    cierres_de_arrastre: 0,
+    numerador: 18,
+    conversion_pct: 20,
+    referidos_aporta_pct: 3.33,
+  }
+  p.responsables[0] = {
+    ...p.responsables[0]!,
+    cierres_no_referidos: 15,
+    cierres_referidos: 5,
+    cierres_de_arrastre: 0,
+    numerador: 18,
+    conversion_pct: 20,
+    procedencia: [
+      { mes: '2026-10', mes_nombre: 'octubre', anio: 2026, cierres: 20, cierres_referidos: 5 },
+    ],
+    referidos: { recibidos: 8, cerrados: 5, dados_de_alta: 8, aporta_pct: 3.33 },
+  }
+  return p
+}
+
+describe('ConversionMensualSchema — tope de referidos (octubre 2026)', () => {
+  it('octubre con tope: 5 referidos cerrados que aportan 3 PARSEA (antes la igualdad lo rechazaba)', () => {
+    const r = v.safeParse(ConversionMensualSchema, payloadOctubreConTope())
+    expect(r.success).toBe(true)
+    if (!r.success) return
+    expect(r.output.ponderacion.tope_referidos_pct).toBe(15)
+    expect(r.output.total.referidos_aporta_pct).toBe(3.33)
+    expect(r.output.responsables[0]?.referidos.aporta_pct).toBe(3.33)
+  })
+
+  it('con tope, un aporte que SUPERA lo que darían todos los referidos sin recortar se rechaza (total y responsable)', () => {
+    const total = payloadOctubreConTope()
+    total.total.referidos_aporta_pct = 5.6 // máximo 100 × 1 × 5 ÷ 90 = 5,56
+    expect(v.safeParse(ConversionMensualSchema, total).success).toBe(false)
+
+    const fila = payloadOctubreConTope()
+    fila.responsables[0]!.referidos.aporta_pct = 5.6
+    expect(v.safeParse(ConversionMensualSchema, fila).success).toBe(false)
+  })
+
+  it('con tope, el aporte exactamente igual al máximo (nadie recortado) también PARSEA', () => {
+    const p = payloadOctubreConTope()
+    p.total.referidos_aporta_pct = 5.56
+    p.responsables[0]!.referidos.aporta_pct = 5.56
+    expect(v.safeParse(ConversionMensualSchema, p).success).toBe(true)
+  })
+
+  it('con tope y divisor 0 el aporte sigue siendo null: un número se rechaza', () => {
+    const p = payloadOctubreConTope()
+    const fila = p.responsables[0]!
+    fila.divisor = 0
+    fila.estado = 'solo_referidos'
+    fila.conversion_pct = null as unknown as number
+    fila.referidos.aporta_pct = null as unknown as number
+    p.total.divisor = 0
+    p.total.conversion_pct = null as unknown as number
+    p.total.referidos_aporta_pct = null as unknown as number
+    p.cobertura.divisor_por_motivo = { ingreso: 0, reasignado: 0 }
+    expect(v.safeParse(ConversionMensualSchema, p).success).toBe(true)
+
+    p.responsables[0]!.referidos.aporta_pct = 3 as unknown as number
+    expect(v.safeParse(ConversionMensualSchema, p).success).toBe(false)
+  })
+
+  it('sin tope (null o ausente) la igualdad exacta sigue: el MISMO aporte recortado se rechaza', () => {
+    const conNull = payloadOctubreConTope()
+    ;(conNull.ponderacion as { tope_referidos_pct?: number | null }).tope_referidos_pct = null
+    expect(v.safeParse(ConversionMensualSchema, conNull).success).toBe(false)
+
+    const ausente = payloadOctubreConTope()
+    delete (ausente.ponderacion as { tope_referidos_pct?: number | null }).tope_referidos_pct
+    expect(v.safeParse(ConversionMensualSchema, ausente).success).toBe(false)
+  })
+
+  it('un tope fuera de 0–100 se rechaza', () => {
+    const alto = payloadOctubreConTope()
+    ;(alto.ponderacion as { tope_referidos_pct?: number | null }).tope_referidos_pct = 150
+    expect(v.safeParse(ConversionMensualSchema, alto).success).toBe(false)
+
+    const negativo = payloadOctubreConTope()
+    ;(negativo.ponderacion as { tope_referidos_pct?: number | null }).tope_referidos_pct = -1
+    expect(v.safeParse(ConversionMensualSchema, negativo).success).toBe(false)
+  })
+
+  it('septiembre (peso 0,15, sin tope) valida EXACTAMENTE igual que antes', () => {
+    const sin = payloadCanonico() // referido 0.15, tope ausente, aporta 2
+    expect(v.safeParse(ConversionMensualSchema, sin).success).toBe(true)
+
+    const conNull = payloadCanonico()
+    ;(conNull.ponderacion as { tope_referidos_pct?: number | null }).tope_referidos_pct = null
+    expect(v.safeParse(ConversionMensualSchema, conNull).success).toBe(true)
+
+    const distinto = payloadCanonico()
+    distinto.total.referidos_aporta_pct = 1.5 // igualdad estricta: ni menos
+    expect(v.safeParse(ConversionMensualSchema, distinto).success).toBe(false)
+    const distintoFila = payloadCanonico()
+    distintoFila.responsables[0]!.referidos.aporta_pct = 1.5
+    expect(v.safeParse(ConversionMensualSchema, distintoFila).success).toBe(false)
+  })
+})
+
+describe('textos del tope de referidos', () => {
+  it('sin tope conserva EXACTO «referidos ×0.15»; con tope explica el 15 % de los cierres', () => {
+    expect(hayTopeReferidos({ tope_referidos_pct: null })).toBe(false)
+    expect(hayTopeReferidos({})).toBe(false)
+    expect(hayTopeReferidos({ tope_referidos_pct: 15 })).toBe(true)
+    expect(textoReferidosFormula({ referido: 0.15 })).toBe('referidos ×0.15')
+    expect(textoReferidosFormula({ referido: 0.15, tope_referidos_pct: null })).toBe('referidos ×0.15')
+    expect(textoReferidosFormula({ referido: 1, tope_referidos_pct: 15 }))
+      .toBe('referidos (cuentan hasta el 15 % de los cierres del mes)')
+    expect(textoTopeReferidos({})).toBeNull()
+    expect(textoTopeReferidos({ tope_referidos_pct: 15 }))
+      .toBe('Los referidos cuentan hasta el 15 % de los cierres del mes; los que sobran no suman.')
   })
 })

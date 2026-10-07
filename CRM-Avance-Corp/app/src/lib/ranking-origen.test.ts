@@ -20,6 +20,17 @@ describe('contrato RPC del desglose de Ranking', () => {
     expect(dato.filas[0]).toMatchObject({ capital_pen: 12000.5, conversion_pct: 3.75 })
   })
 
+  it('acepta el `aporte` del tope de referidos (octubre) y la fila sin él (septiembre)', () => {
+    const conAporte = { ...base, filas: [{ ...base.filas[0], aporte: '1' }] }
+    expect(v.parse(RankingOrigenVendedorSchema, conAporte).filas[0]?.aporte).toBe(1)
+    expect(v.parse(RankingOrigenVendedorSchema, base).filas[0]?.aporte).toBeUndefined()
+  })
+
+  it('sigue siendo estricto: una clave desconocida o un aporte negativo se rechazan', () => {
+    expect(v.safeParse(RankingOrigenVendedorSchema, { ...base, filas: [{ ...base.filas[0], aporte: -1 }] }).success).toBe(false)
+    expect(v.safeParse(RankingOrigenVendedorSchema, { ...base, filas: [{ ...base.filas[0], otra: 1 }] }).success).toBe(false)
+  })
+
   it('rechaza importes parciales cuando el servidor marca el desglose no disponible', () => {
     expect(v.safeParse(RankingOrigenVendedorSchema, { ...base, disponible: false }).success).toBe(false)
   })

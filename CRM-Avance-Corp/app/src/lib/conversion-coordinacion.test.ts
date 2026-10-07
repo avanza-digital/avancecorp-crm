@@ -363,3 +363,64 @@ describe('modo rango (v2)', () => {
     expect(conversionCoordinacionConsistente(fotoAbierta, '2026-09-01', '2026-09-30')).toBe(false)
   })
 })
+
+/**
+ * Octubre 2026: el referido vale 1, con tope del 15 % de los cierres del mes. Astrid cerró
+ * 5 formulario + 2 landing + 5 referidos + 4 upgrade = 16 cierres de prospecto + upgrade; solo 3
+ * referidos cuentan: 5 + 2 + 3 + 4 = 14. `referido × peso_referido` serían 5, NO el aporte (3).
+ */
+export function payloadOctubreConTope(): ConversionCoordinacion {
+  const datos = payloadValido()
+  datos.peso_referido = 1
+  datos.peso_renovacion = 1
+  datos.tope_referidos_pct = 15
+  datos.analistas[0] = {
+    ...datos.analistas[0]!,
+    cierres: { formulario: 5, landing: 2, referido: 5, referido_aporte: 3, oficina: 1, otros: 0 },
+    numerador_bruto: 14, numerador: 14, conversion_pct: 12.17,
+  }
+  datos.empresa = {
+    ...datos.empresa,
+    cierres: { formulario: 11, landing: 3, referido: 5, referido_aporte: 3, oficina: 1, otros: 0 },
+    numerador_bruto: 23, numerador: 23, conversion_pct: 11.22,
+  }
+  return datos
+}
+
+describe('tope de referidos (octubre 2026)', () => {
+  it('un mes con tope cuadra con el aporte recortado (3), no con cantidad × peso (5)', () => {
+    const datos = payloadOctubreConTope()
+    expect(datos.analistas[0]!.cierres!.referido * datos.peso_referido).toBe(5)
+    expect(sumaDePartes(datos.analistas[0]!.cierres!, datos.analistas[0]!.cartera!)).toBe(14)
+    expect(conversionCoordinacionConsistente(datos, '2026-09-01', '2026-09-30')).toBe(true)
+  })
+
+  it('el aporte sin recortar (5) NO cuadra con el bruto que publicó el servidor: el candado sigue vivo', () => {
+    const datos = payloadOctubreConTope()
+    datos.analistas[0]!.cierres = { ...datos.analistas[0]!.cierres!, referido_aporte: 5 }
+    expect(conversionCoordinacionConsistente(datos, '2026-09-01', '2026-09-30')).toBe(false)
+  })
+
+  it('el esquema CONSERVA tope_referidos_pct (v.object borra las claves no declaradas), admite null y ausente, y rechaza fuera de 0–100', () => {
+    const crudo = () => JSON.parse(JSON.stringify(payloadOctubreConTope())) as Record<string, unknown>
+    const ok = v.safeParse(ConversionCoordinacionSchema, crudo())
+    expect(ok.success).toBe(true)
+    if (ok.success) expect(ok.output.tope_referidos_pct).toBe(15)
+
+    expect(v.safeParse(ConversionCoordinacionSchema, { ...crudo(), tope_referidos_pct: null }).success).toBe(true)
+    expect(v.safeParse(ConversionCoordinacionSchema, { ...crudo(), tope_referidos_pct: '15' }).success).toBe(true)
+    const { tope_referidos_pct: _fuera, ...sinTope } = crudo()
+    expect(v.safeParse(ConversionCoordinacionSchema, sinTope).success).toBe(true)
+    expect(v.safeParse(ConversionCoordinacionSchema, { ...crudo(), tope_referidos_pct: 150 }).success).toBe(false)
+    expect(v.safeParse(ConversionCoordinacionSchema, { ...crudo(), tope_referidos_pct: -1 }).success).toBe(false)
+  })
+
+  it('setiembre (peso 0,15, sin tope) sigue validando igual y su tope es indefinido', () => {
+    const datos = payloadValido()
+    expect(datos.tope_referidos_pct).toBeUndefined()
+    expect(conversionCoordinacionConsistente(datos, '2026-09-01', '2026-09-30')).toBe(true)
+    const r = v.safeParse(ConversionCoordinacionSchema, JSON.parse(JSON.stringify(datos)))
+    expect(r.success).toBe(true)
+    if (r.success) expect(r.output.tope_referidos_pct).toBeUndefined()
+  })
+})

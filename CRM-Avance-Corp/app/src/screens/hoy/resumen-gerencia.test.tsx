@@ -749,6 +749,36 @@ describe('gráfica por origen — publicación fail-closed', () => {
     expect(within(panel).queryByText(/No es la conversión ponderada/)).not.toBeInTheDocument()
   })
 
+  // OCTUBRE 2026: el referido vale 1 pero con tope. `peso × cierres` ya no es el
+  // aporte (8 cerrados al peso 1 no valen 8): el rótulo lo dice con palabras.
+  it('octubre con tope: el rótulo explica el tope en vez de «cada cierre cuenta ×1»', () => {
+    const datos = conOrigenesVerificados(metricasConversionesDemo('2026-10-01', '2026-10-23'))
+    montar({
+      ...datos,
+      nucleo: { ...datos.nucleo!, peso_referido: 1, tope_referidos_pct: 15 },
+      origenes: [
+        filaOrigen('formulario', 717, 22, 3.1, 1, 3.1),
+        filaOrigen('referido', 11, 8, 72.7, 1, 4.2),
+      ],
+    })
+
+    const panel = panelOrigenes()
+    expect(within(panel).getByText('4.2%')).toBeInTheDocument()
+    expect(within(panel).getByText(/^Referido: sus cierres cuentan hasta el 15 % de los cierres del mes de cada analista \(los que sobran no suman\), como en la conversión general/)).toBeInTheDocument()
+    expect(within(panel).queryByText(/cada cierre cuenta ×1/)).not.toBeInTheDocument()
+  })
+
+  it('setiembre sin tope (null): el texto de siempre, exacto', () => {
+    const datos = conOrigenesVerificados(metricasConversionesDemo('2026-09-01', '2026-09-23'))
+    montar({
+      ...datos,
+      nucleo: { ...datos.nucleo!, tope_referidos_pct: null },
+      origenes: [filaOrigen('referido', 11, 8, 72.7, 0.15, 10.9)],
+    })
+    expect(within(panelOrigenes()).getByText(/^Referido: cada cierre cuenta ×0\.15, como en la conversión general/)).toBeInTheDocument()
+    expect(within(panelOrigenes()).queryByText(/cuentan hasta el/)).not.toBeInTheDocument()
+  })
+
   it('con un servidor que aún no publica la ponderada, muestra la de siempre y lo dice', () => {
     const datos = conOrigenesVerificados(metricasConversionesDemo('2026-09-01', '2026-09-23'))
     montar({ ...datos, origenes: [

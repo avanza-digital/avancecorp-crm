@@ -67,7 +67,7 @@ import { agendaDeTareas, esDeHoy, fechaLima, tareaAEvento, type EventoAgenda } f
 import { capitalObjetivo, metaVigente, capitalReal, metaConversionAplicable, objetivosCero, periodoLima } from '@/lib/objetivos'
 import { useConversionMensual, useLeadsPropios } from '@/data/crm-queries'
 import { conversionMensualDemo } from '@/lib/demo-conversion-mensual'
-import { descuentoArrastre, lecturaCobertura, lineaProcedencia } from '@/lib/conversion-mensual'
+import { descuentoArrastre, hayTopeReferidos, lecturaCobertura, lineaProcedencia } from '@/lib/conversion-mensual'
 import { ChipArrastre } from '@/components/common/chip-arrastre'
 import { SEMAFORO, SEV_COLOR } from '@/lib/semaforo'
 import { TIPO_EVENTO, type Lead, type Tarea } from '@/lib/tipos'
@@ -1319,7 +1319,9 @@ export function HoyVendedor(): JSX.Element {
                   : !lecturaConversion.mostrar
                   ? (lecturaConversion.aviso ?? 'Sin datos de asignación para este mes')
                   : miConversion?.estado === 'solo_referidos'
-                    ? 'Solo recibió referidos este mes — al cerrarse suman al 15 %'
+                    ? conversionMensual != null && hayTopeReferidos(conversionMensual.ponderacion)
+                      ? `Solo recibió referidos este mes — al cerrarse cuentan hasta el ${numero(conversionMensual.ponderacion.tope_referidos_pct, 2)} % de tus cierres`
+                      : 'Solo recibió referidos este mes — al cerrarse suman al 15 %'
                     : miConversion?.estado === 'solo_arrastre'
                       ? `${numero(miConversion.cierres_no_referidos + miConversion.cierres_referidos)} cierres arrastrados · sin leads recibidos`
                       : miConversion?.estado === 'sin_actividad' || conversion == null

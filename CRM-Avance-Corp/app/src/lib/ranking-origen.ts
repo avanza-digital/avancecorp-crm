@@ -11,6 +11,10 @@ const FilaOrigenRankingSchema = v.strictObject({
   leads: EnteroNoNegativoRpcSchema,
   cierres: EnteroNoNegativoRpcSchema,
   conversion_pct: v.nullable(v.pipe(NumeroRpcSchema, v.minValue(0))),
+  // Tope de referidos (desde oct-2026): lo que esos cierres SUMAN al numerador (el referido recortado por el tope aporta
+  // menos que sus `cierres`). Opcional: las fotos y los servidores anteriores no lo traen. El esquema es ESTRICTO: sin
+  // declararlo, la clave nueva haría rechazar el desglose entero.
+  aporte: v.optional(v.pipe(NumeroRpcSchema, v.minValue(0))),
 })
 
 export const RankingOrigenVendedorSchema = v.pipe(

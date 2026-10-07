@@ -8,7 +8,7 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ConsultaConversion, ConversionCoordinacion as Datos } from '@/lib/conversion-coordinacion'
 import { fechasDeConsulta } from '@/lib/conversion-coordinacion'
-import { payloadSellado, payloadValido } from '@/lib/conversion-coordinacion.test'
+import { payloadOctubreConTope, payloadSellado, payloadValido } from '@/lib/conversion-coordinacion.test'
 
 const conversionMock = vi.fn<(consulta: ConsultaConversion) => Promise<Datos>>()
 vi.mock('@/data/crm-api', async (importActual) => {
@@ -396,5 +396,26 @@ describe('ConversionCoordinacion', () => {
     expect(screen.queryByRole('button', { name: /Reintentar/ })).not.toBeInTheDocument()
     // Hubo llamadas mientras se tecleaban fechas válidas intermedias; ninguna con el rango cruzado.
     expect(conversionMock.mock.calls.slice(llamadas).every(([c]) => c.modo !== 'rango' || c.desde <= c.hasta)).toBe(true)
+  })
+})
+
+describe('ConversionCoordinacion — tope de referidos (octubre 2026)', () => {
+  it('explica el tope y enseña el aporte que sí cuenta, sin prometer «n × peso»', async () => {
+    conversionMock.mockImplementation(async (consulta) => conPeriodo(payloadOctubreConTope(), consulta))
+    render(<ConversionCoordinacion />)
+
+    const resumen = await screen.findByRole('group', { name: 'Resumen de conversión del mes' })
+    expect(textoHablado(within(resumen).getByText('Referidos').nextElementSibling as HTMLElement)).toBe('5 referidos, aportan 3')
+    const formula = screen.getByTestId('formula-numerador')
+    expect(formula).toHaveTextContent('3 de referidos (cerraron 5; cuentan hasta el 15 % de los cierres del mes de cada analista)')
+    expect(formula).not.toHaveTextContent('5 × 1')
+    expect(screen.getByText(/Los referidos cuentan hasta el 15 % de los cierres del mes de cada analista: los que sobran no suman/)).toBeInTheDocument()
+  })
+
+  it('setiembre, sin tope: el texto de siempre, sin la explicación del tope', async () => {
+    render(<ConversionCoordinacion />)
+    await screen.findByRole('group', { name: 'Resumen de conversión del mes' })
+    expect(screen.getByTestId('formula-numerador')).toHaveTextContent('0.15 de referidos (1 × 0.15)')
+    expect(screen.queryByText(/cuentan hasta el/)).not.toBeInTheDocument()
   })
 })

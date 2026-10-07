@@ -13150,6 +13150,18 @@ async function testConversionMensual(sessions, seed) {
     check(factor === FACTOR_ESPERADO && payload?.ponderacion?.fuente === 'crm.conversion_pesos',
       `la ponderacion vigente del mes es ${FACTOR_ESPERADO} y declara su fuente versionada`,
       JSON.stringify(payload?.ponderacion));
+    // Fase B del tope de referidos: desde octubre la puerta declara el tope (15) y antes no lo trae o es null; el total de
+    // «aporta» nunca supera peso × cierres_referidos / divisor (la cota que valida el front).
+    const topeDeclarado = payload?.ponderacion?.tope_referidos_pct ?? null;
+    check(TOPE_ACTIVO ? Number(topeDeclarado) === 15 : topeDeclarado === null,
+      TOPE_ACTIVO ? 'el mes declara el tope de referidos (15)' : 'un mes sin tope no declara tope de referidos',
+      JSON.stringify(payload?.ponderacion));
+    if (TOPE_ACTIVO && Number(payload?.total?.divisor) > 0) {
+      const cotaTotal = 100 * factor * Number(payload.total.cierres_referidos) / Number(payload.total.divisor);
+      check(Number(payload.total.referidos_aporta_pct) >= -0.01 && Number(payload.total.referidos_aporta_pct) <= cotaTotal + 0.01,
+        'total.referidos_aporta_pct con tope no supera peso × referidos / divisor',
+        JSON.stringify([payload.total.referidos_aporta_pct, cotaTotal]));
+    }
     // Eco del contrato para el `v.literal` del front: si un servidor viejo
     // colara otra definicion del divisor, el cliente lo rechaza en vez de pintar
     // un numero de otra formula. OJO con lo que esto NO es: son literales de

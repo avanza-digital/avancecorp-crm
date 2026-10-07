@@ -10,6 +10,11 @@ Banco propio y todo lo que acredita la migración. Nunca contra producción.
 | `anterior-episodios.sql` | La función ANTERIOR (texto vivo del 07/10/2026) como `pg_temp`: la vara de la igualdad. |
 | `medir-costo.sql` | Costo con 6.000 cierres, función anterior contra la nueva. |
 | `reversa.sql` | Revierte la migración (se niega si un mes sellado guarda un tope). |
+| `mundo-fase-b.sql` · `snapshot-fase-b.sql` | FASE B (migración 20261007203000): un mundo sintético determinista y la instantánea de lo que publican las seis funciones; se corre antes y después y se comparan (septiembre idéntico). |
+| `prueba-origen.sql` · `anterior-origen.sql` | FASE B: origen, foto en vivo, cifra oficial abierta y sellada (con `crm.cerrar_periodo` real), fuera de roster. |
+| `mutantes-fase-b.py <contenedor>` | 17 mutantes de las funciones de la Fase B; todos deben caer. |
+| `medir-costo-origen.sql` | Costo del ranking por origen, antes y después. |
+| `reversa-fase-b.sql` | Revierte SOLO la Fase B (se niega si una foto sellada ya guarda `aporte` o un tope). |
 
 ```bash
 # 1 · volcado de solo esquema de producción (sin datos), desde CRM-Avance-Corp/

@@ -31,7 +31,7 @@ vi.mock('@/data/sla-operacion-queries', () => ({ useModoSla: () => MODO_SLA }))
 // de higiene, mes vigente) se deriva del instante, y sin fijarlo estos tests
 // pasarían o fallarían según la hora en que se ejecuten.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { CUMPLIMIENTO_METAS_DEMO, METAS_DEMO } from '@/lib/demo'
 import { objetivosCero, type CumplimientoMetasJerarquico, type ObjetivosPorRol } from '@/lib/objetivos'
@@ -957,6 +957,30 @@ describe('Hoy · analista — meta del mes', () => {
     expect(screen.getByText('—')).toBeInTheDocument()
     expect(screen.queryByText('0%')).not.toBeInTheDocument()
     expect(screen.queryByText('meta 40%')).not.toBeInTheDocument()
+  })
+
+  it('«solo recibió referidos» dice el tope de octubre; sin tope, el texto de siempre', () => {
+    const soloReferidos = () => conversionMensualPropia(null, 0, {
+      estado: 'solo_referidos',
+      cierres_no_referidos: 0,
+      numerador: 0,
+      referidos: { recibidos: 3, cerrados: 0, dados_de_alta: 3, aporta_pct: null },
+    })
+    const opciones = {
+      leads: [lead({ id: 'l-1', etapa: 'contactado' })],
+      objetivos: { conversionObjetivo: 40 },
+      cumplimiento: cumplimientoVendedor(null, 0),
+    }
+    const conTope = soloReferidos()
+    conTope.ponderacion = { referido: 1, renovacion: 1, tope_referidos_pct: 15, fuente: 'crm.conversion_pesos' }
+    CONVERSION_MENSUAL = conTope
+    montar(opciones)
+    expect(screen.getByText('Solo recibió referidos este mes — al cerrarse cuentan hasta el 15 % de tus cierres')).toBeInTheDocument()
+    cleanup()
+
+    CONVERSION_MENSUAL = soloReferidos()
+    montar(opciones)
+    expect(screen.getByText('Solo recibió referidos este mes — al cerrarse suman al 15 %')).toBeInTheDocument()
   })
 
   it('no inventa una meta inicial de 15 % cuando no existe una revisión publicada', () => {

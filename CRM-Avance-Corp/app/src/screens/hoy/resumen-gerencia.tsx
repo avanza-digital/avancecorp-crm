@@ -386,6 +386,9 @@ export function ResumenGerenciaPanel({
   const maxOrigen = Math.max(1, ...origenes.map((fila) => cifraOrigen(fila) ?? 0))
   const origenFueraDeBase = origenes.find((fila) => fila.fuera_del_divisor_del_nucleo === true)
   const pesoFueraDeBase = origenFueraDeBase?.peso_en_nucleo
+  // Octubre 2026 en adelante: el peso 1 va con tope. `peso × cierres` ya no es el aporte, así que el
+  // rótulo lo dice con palabras; la cifra ponderada la calcula el servidor.
+  const topeReferidos = conversiones?.nucleo?.tope_referidos_pct ?? null
   const hayActividadConversiones = [
     conversiones?.cohorte.leads,
     conversiones?.cohorte.asignados,
@@ -639,7 +642,9 @@ export function ResumenGerenciaPanel({
             // conversión — su barra mide cierres sobre SUS recibidos.
             <p className="mt-3 text-[11px] leading-relaxed text-[var(--gi-muted)]">
               {origenes.filter((fila) => fila.fuera_del_divisor_del_nucleo === true).map((fila) => etiquetaOrigenConversion(fila.origen)).join(', ')}
-              {origenPonderado && pesoFueraDeBase !== undefined
+              {origenPonderado && pesoFueraDeBase !== undefined && topeReferidos != null
+                ? `: sus cierres cuentan hasta el ${numero(topeReferidos, 2)} % de los cierres del mes de cada analista (los que sobran no suman), como en la conversión general, y sus recibidos quedan fuera de la base general.`
+                : origenPonderado && pesoFueraDeBase !== undefined
                 ? `: cada cierre cuenta ×${numero(pesoFueraDeBase, 2)}, como en la conversión general, y sus recibidos quedan fuera de la base general.`
                 : ': de los recibidos por ese origen, cuánto cerró — queda fuera de la base general de la conversión.'}
             </p>
