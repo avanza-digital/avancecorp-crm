@@ -4,7 +4,7 @@
 
 type Nivel = 'info' | 'warn' | 'error'
 
-const CLAVES_SENSIBLES = /(?:authorization|cookie|token|secret|password|clave|correo|email|telefono|phone|dni|documento|nombre|apellido|direccion|cuenta|cci|beneficiario|session|user_?id|perfil_?id)/i
+const CLAVES_SENSIBLES = /(?:authorization|cookie|token|secret|password|clave|credencial|correo|email|telefono|phone|dni|documento|nombre|apellido|direccion|cuenta|cci|beneficiario|session|user_?id|perfil_?id)/i
 const CORREO = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi
 const JWT = /eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]*)?/g
 const BEARER = /Bearer\s+[A-Za-z0-9._~+/-]+=*/gi

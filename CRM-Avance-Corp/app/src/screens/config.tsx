@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react'
 import {
   Package, Target, Users, Clock, Settings, ChevronRight, Eye, RefreshCw, type LucideIcon,
-  Percent,
+  Percent, Smartphone,
 } from 'lucide-react'
 import { Card, CardContent, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -25,6 +25,7 @@ import {
   puedeEscribir,
 } from '@/lib/roles'
 import { useAuth } from '@/lib/auth-context'
+import { llamadasCelularHabilitadas } from '@/lib/config'
 import { periodoLima } from '@/lib/objetivos'
 import { hashDe, type VistaConfiguracion } from '@/lib/router'
 import { minutosLegibles } from '@/lib/sla-versionado'
@@ -45,6 +46,7 @@ const SECCIONES: Seccion[] = [
   { icon: Clock, t: 'Gestión Diaria', d: 'Cortes de llamadas, contacto y cambios desde una jornada futura', vista: 'config-gestion-diaria', color: 'var(--chart-2)' },
   { icon: Percent, t: 'Política de rentabilidad', d: 'Tasa base, herencia en renovación y upgrade, excepciones de Gerencia', vista: 'config-rentabilidad', color: 'var(--chart-5)' },
   { icon: Target, t: 'Control de Citas', d: 'Metas, leads que cuentan y reglas de avance', vista: 'config-citas', color: 'var(--accent)' },
+  { icon: Smartphone, t: 'Celulares', d: 'Asignar, rotar y cerrar los celulares que capturan llamadas, y ver si están vivos', vista: 'config-celulares', color: 'var(--chart-4)' },
 ]
 
 interface PasoEstado {
@@ -144,8 +146,12 @@ export function Config() {
   const edita = Boolean(yo && !yo.demo && can(yo.rol, 'editarConfiguracion'))
   const soloRoles = administraSoloRolesCrm(yo)
   const rolPortalAutorizado = puedeAdministrarRolesCrm(yo) ? 'superadmin' : null
+  // «Celulares» (F4-c) comparte el interruptor de la integración del celular: hasta que la base
+  // esté aplicada en producción sus puertas no existen y la tarjeta no se ofrece (en la demo sí).
+  const celularesAbiertos = llamadasCelularHabilitadas(yo?.demo === true)
   const secciones = SECCIONES.filter((seccion) =>
-    vistaPermitida(seccion.vista, yo?.rol, true, rolPortalAutorizado),
+    vistaPermitida(seccion.vista, yo?.rol, true, rolPortalAutorizado)
+    && (seccion.vista !== 'config-celulares' || celularesAbiertos),
   )
   const autorizada = (vista: VistaConfiguracion) =>
     secciones.some((seccion) => seccion.vista === vista)
