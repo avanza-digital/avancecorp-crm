@@ -6,6 +6,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { Lead } from '@/lib/tipos'
+import * as config from '@/lib/config'
 import { armarIntencion, cerrarIntencion, intencionDe, limpiarIntencionesContacto, reclamarIntencion, suscribirIntenciones } from '@/lib/intencion-contacto'
 
 const dobles = vi.hoisted(() => ({
@@ -153,11 +154,21 @@ describe('ReceptorLlamada', () => {
 
   // F4-b: el id de la llamada viaja con la intención; el hash se limpia entero.
   it('con el id de la llamada en el enlace: lo quita del hash con el número y lo lleva en la intención', async () => {
+    vi.spyOn(config, 'llamadasCelularHabilitadas').mockReturnValue(true)
     window.location.hash = '#/gestion-diaria/llamada/%2B51999888777/C1-1790980958'
     dobles.resolver.mockResolvedValue({ estado: 'unico', numero: '+51999888777', lead: L1, terminales: [] })
     render(<ReceptorLlamada />)
     expect(window.location.hash).toBe('#/gestion-diaria')
     await waitFor(() => expect(intencionDe('v1', 'lead-1')).toMatchObject({ origen: 'enlace', origenLlamada: 'C1-1790980958' }))
+  })
+
+  it('sin activar la integración conserva F1 y abre el resultado manual aunque el enlace traiga un id', async () => {
+    window.location.hash = '#/gestion-diaria/llamada/%2B51999888777/C1-1790980958'
+    dobles.resolver.mockResolvedValue({ estado: 'unico', numero: '+51999888777', lead: L1, terminales: [] })
+    render(<ReceptorLlamada />)
+    await waitFor(() => expect(intencionDe('v1', 'lead-1')).toMatchObject({ origen: 'enlace', numero: '+51999888777' }))
+    expect(intencionDe('v1', 'lead-1')?.origenLlamada).toBeUndefined()
+    expect(window.location.hash).toBe('#/gestion-diaria')
   })
 
   it('sin id en el enlace (la macro de hoy) la intención no inventa uno', async () => {
@@ -169,6 +180,7 @@ describe('ReceptorLlamada', () => {
   })
 
   it('ambiguo con id: el lead elegido a mano también lleva el id de la llamada', async () => {
+    vi.spyOn(config, 'llamadasCelularHabilitadas').mockReturnValue(true)
     window.location.hash = '#/hoy/llamada/999888777/C3-1790980958'
     dobles.resolver.mockResolvedValue({ estado: 'ambiguo', numero: '+51999888777', leads: [L1, L2] })
     render(<ReceptorLlamada />)
