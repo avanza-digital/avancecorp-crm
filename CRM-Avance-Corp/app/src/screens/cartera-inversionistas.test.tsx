@@ -12,7 +12,7 @@ import {CrmApiError} from '@/data/crm-api'
 import {crmQueryKeys} from '@/data/crm-queries'
 import {postventaKeys} from '@/data/postventa-queries'
 import {ACTOR_F5, carteraF5, fichaF5, FUENTE_F5, inversionF5, PERSONA_F5, PERFIL_F5} from '@/test/fixtures/f5'
-import type {InversionFuente} from '@/lib/inversionistas'
+import type {InversionFuente, ResumenEmpresa} from '@/lib/inversionistas'
 import {inversionistasKeys} from '@/data/inversionistas-queries'
 import {leerIntentoInversion, guardarIntentoInversion, nuevoIntentoInversion, type SolicitudInversion} from '@/lib/inversion-solicitud'
 
@@ -122,7 +122,7 @@ describe('F5: cartera y ficha con acceso vigente', () => {
     expect(r).not.toHaveTextContent('Capital vigente')
     expect(r).toHaveTextContent('S/ 4,000')
   })
-  it('el resumen comercial usa capital registrado del núcleo aunque el capital activo sea distinto', async () => {
+  it('con un mes elegido usa capital registrado del núcleo aunque el capital activo sea distinto', async () => {
     api.lista.mockResolvedValue({...structuredClone(carteraF5),totales:[
       {empresa:'avance',moneda:'PEN',cantidad:2,capital_activo:null,capital_registrado:4000},
       {empresa:'qorilazo',moneda:'USD',cantidad:3,capital_activo:0,capital_registrado:1200},
@@ -134,6 +134,57 @@ describe('F5: cartera y ficha con acceso vigente', () => {
     const coopac=screen.getByText('Qorilazo · USD').parentElement!
     expect(coopac).toHaveTextContent('US$ 1,200')
     expect(coopac).toHaveTextContent('Capital registrado · 3 inversiones')
+  })
+  it.each([12000, 0])('buscar por documento muestra el capital activo %s sin sumar contratos anteriores', async capitalActivo => {
+    sesion.rol='vendedor'; sesion.rolPortal='comercial'
+    const resumen: ResumenEmpresa[] = [{empresa:'avance',moneda:'USD',cantidad:2,capital_activo:capitalActivo,capital_registrado:17000}]
+    api.lista.mockResolvedValue({...carteraF5,totales:resumen,filas:[{...carteraF5.filas[0],empresas:['avance'],resumen}]})
+    const {user}=montar()
+    expect(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'})).toHaveTextContent('US$ 17,000')
+    await user.type(screen.getByLabelText('Buscar persona'),'93334444')
+    await waitFor(()=>expect(api.lista.mock.calls.at(-1)?.[0]).toMatchObject({texto:'93334444',mes:''}))
+    const fila=await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'})
+    const importe=capitalActivo === 0 ? 'US$ 0' : 'US$ 12,000'
+    expect(fila).toHaveTextContent(importe)
+    expect(fila).not.toHaveTextContent('US$ 17,000')
+    expect(fila).toHaveAccessibleDescription(/Capital.*Avance.*USD.*Activo/)
+    const total=screen.getByLabelText('Capital de las inversiones filtradas')
+    expect(total).toHaveTextContent(importe)
+    expect(total).toHaveTextContent('Capital activo')
+    expect(total).not.toHaveTextContent('US$ 17,000')
+  })
+  it('todos los meses usa capital activo y conserva el registrado cuando no hay saldo activo informado', async () => {
+    const resumen: ResumenEmpresa[] = [
+      {empresa:'avance',moneda:'USD',cantidad:2,capital_activo:12000,capital_registrado:17000},
+      {empresa:'avance',moneda:'PEN',cantidad:1,capital_activo:null,capital_registrado:4000},
+      {empresa:'qorilazo',moneda:'PEN',cantidad:1,capital_activo:null,capital_registrado:2500},
+    ]
+    api.lista.mockResolvedValue({...carteraF5,totales:resumen,filas:[{...carteraF5.filas[0],empresas:['avance','qorilazo'],resumen}]})
+    const {user}=montar()
+    await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'})
+    await user.selectOptions(screen.getByLabelText('Mes de cierre comercial'),'')
+    const fila=await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'})
+    expect(fila).toHaveTextContent('US$ 12,000')
+    expect(fila).not.toHaveTextContent('US$ 17,000')
+    expect(fila).toHaveTextContent('S/ 4,000')
+    expect(fila).toHaveTextContent('S/ 2,500')
+    expect(fila).toHaveAccessibleDescription(/Avance.*USD.*Activo.*Avance.*PEN.*Registrado.*Qorilazo.*PEN.*Registrado/)
+    const total=screen.getByLabelText('Capital de las inversiones filtradas')
+    expect(total).toHaveTextContent('US$ 12,000')
+    expect(total).toHaveTextContent('S/ 4,000')
+    expect(total).toHaveTextContent('S/ 2,500')
+  })
+  it.each(['renovado','retirado','vencido','anulado_comercialmente'])('consultar el estado histórico %s conserva su importe registrado', async estado => {
+    const resumen: ResumenEmpresa[] = [{empresa:'avance',moneda:'USD',cantidad:1,capital_activo:0,capital_registrado:5000}]
+    api.lista.mockResolvedValue({...carteraF5,totales:resumen,filas:[{...carteraF5.filas[0],empresas:['avance'],resumen}]})
+    const {user}=montar()
+    await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'})
+    await user.selectOptions(screen.getByLabelText('Mes de cierre comercial'),'')
+    await user.click(screen.getByRole('button',{name:'Más filtros'}))
+    await user.selectOptions(screen.getByLabelText('Estado de inversión'),estado)
+    const fila=await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'})
+    expect(fila).toHaveTextContent('US$ 5,000')
+    expect(screen.getByLabelText('Capital de las inversiones filtradas')).toHaveTextContent('Capital registrado')
   })
   it('distingue inversiones sin número por posición dentro de su empresa y moneda', async () => {
     const d=structuredClone(fichaF5)
