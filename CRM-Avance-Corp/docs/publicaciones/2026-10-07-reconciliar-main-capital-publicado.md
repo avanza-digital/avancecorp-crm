@@ -57,3 +57,15 @@ confirmar el servidor y los hashes HTTP.
 
 Recuperación vigente conservada: `crm-20261007T034649Z-dfb8874d534b.zip`, SHA-256
 `47070ef4c08e5f1e3c1d5cc371abfcbc208d07fcbce9f5ba5ec6571b73565ca2`.
+
+## Corrección del método de integración de #212
+
+Miguel indicó «La integro con merge commit» y pidió no pisar lo publicado.
+GitHub registró #212 como squash en `89138f73685e71e772af7cc9196659a214f5c4e3`,
+con un único padre `e255e96d`; el commit vivo sigue sin ser su ancestro.
+La comprobación posterior lo detectó antes de publicar. Se fusionó ese Main
+de vuelta en la rama de reconciliación: árbol completo idéntico antes de esta
+anotación y código de aplicación sin cambios. La corrección pendiente es un
+merge que preserve ambos padres; repetir squash/rebase no la resuelve.
+No se ha publicado ni retirado nada por este encargo. No se modifican reglas
+globales de protección del repositorio.
