@@ -13377,7 +13377,7 @@ async function testConversionMensual(sessions, seed) {
       && deltaTotal('cierres_no_referidos') === 1
       && deltaTotal('cierres_referidos') === 1
       && deltaTotal('referidos_recibidos') === 2
-      && cerca(deltaTotal('numerador'), 1.15)
+      && cerca(deltaTotal('numerador'), TOPE_ACTIVO ? 1 + FACTOR_ESPERADO : 1.15)
       && deltaTotal('analistas') === 0,
       `D8 · el TOTAL global se mueve lo sembrado INCLUYENDO al productor fuera de roster (+2 divisor; el listado de analistas conserva su tamaño)`,
       JSON.stringify({ antes: totalAntes, despues: totalDespues, sup1YaContaba: deltaAnalistaFueraRoster === 0 }));
@@ -13584,8 +13584,9 @@ async function testConversionMensual(sessions, seed) {
       'el payload trae SOLO las 12 claves del contrato', clavesDe(payload).join(','));
     check(mismasClaves(payload?.periodo, CLAVES_PERIODO_CONVERSION),
       'periodo trae SOLO sus 6 claves', clavesDe(payload?.periodo).join(','));
-    check(mismasClaves(payload?.ponderacion, CLAVES_PONDERACION_CONVERSION),
-      'ponderacion trae SOLO sus 3 claves', clavesDe(payload?.ponderacion).join(','));
+    // Un mes con tope declara además `tope_referidos_pct`; un mes sin tope conserva las 3 claves de siempre.
+    check(mismasClaves(payload?.ponderacion, TOPE_ACTIVO ? [...CLAVES_PONDERACION_CONVERSION, 'tope_referidos_pct'] : CLAVES_PONDERACION_CONVERSION),
+      TOPE_ACTIVO ? 'ponderacion trae SOLO sus 4 claves (las 3 y el tope de referidos)' : 'ponderacion trae SOLO sus 3 claves', clavesDe(payload?.ponderacion).join(','));
     check(mismasClaves(payload?.cobertura, CLAVES_COBERTURA_CONVERSION),
       'cobertura trae SOLO las 7 claves del contrato', clavesDe(payload?.cobertura).join(','));
     check(mismasClaves(payload?.total, CLAVES_TOTAL_CONVERSION),

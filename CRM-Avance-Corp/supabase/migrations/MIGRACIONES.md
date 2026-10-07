@@ -17149,7 +17149,8 @@ del roster, quien solo recibe referidos con divisor 0, sellado sin tope); prueba
 **mutantes de la B 0 sobreviven de 17** (`mutantes-fase-b.py`). Costo del ranking por origen con 6.000 cierres: ≈430 ms antes y después (es una prueba de esfuerzo:
 el volumen real es decenas de veces menor).
 **Front:** `npm run check` PASS (395 archivos, 6372 tests) en el worktree.
-**NOT RUN:** `test-rls.mjs` (editado, solo `node --check`; necesita credenciales), `gate:conversion`, alarma de 5 caminos con datos reales, advisors,
+**Gate RLS (07/10/2026, pila Supabase local propia con el esquema del banco + configuración mínima):** `test-rls.mjs` entero ANTES (sin A ni B) y DESPUÉS (con A y B), comparado aserción por aserción: **0 rojos nuevos** con la migración (3116 aserciones; 14 rojos comunes a las dos corridas = huecos de fixtures del banco, p. ej. R2, F7.1, domicilio; 10 rojos que solo salen SIN la migración son las comprobaciones nuevas del tope). Dos aserciones de la suite estaban atadas a septiembre (D8 esperaba 1,15 y `ponderacion` exactamente 3 claves): corregidas para octubre.
+**NOT RUN:** `gate:conversion`, alarma de 5 caminos con datos reales, advisors,
 e2e; `scripts/ranking-cartera/prueba-local.sql` (script manual que hace `to_jsonb` de la función recreada: su salida gana la clave `aporte`). `npm run gen:types` solo hace
 falta tras aplicar la Fase A (las columnas nuevas son suyas).
 **Límites conocidos:** en un rango que cruza septiembre y octubre `nucleo.tope_referidos_pct` es el del mes final: el texto del front describe ese mes.
