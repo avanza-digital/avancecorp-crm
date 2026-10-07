@@ -36,15 +36,16 @@ tablero).
 | F0 · Piloto y línea base | 12 | 1 | — | 7 | 4 | En curso: solo C1 |
 | F1 · Formulario único | 12 | 12 | — | — | — | **Aceptada** (en producción desde el 01/10; C1 el 02/10) |
 | F2 · Núcleo | 13 | 12 | — | 1 | — | En curso: falta instalar |
-| F3 · Captura y sincronización | 13 | 5 | 2 | 6 | — | En curso: falta la Edge real |
+| F3 · Captura y sincronización | 13 | 6 | 2 | 5 | — | En curso: falta la Edge real |
 | F4 · Bandeja y registro conciliado | 13 | 0 | 10 | 1 | 2 | En curso: falta instalar y F4-d |
 | F5 · Jev | 15 | 0 | — | — | 15 | Pendiente |
 | F6 · Gerencia y métricas | 12 | 0 | — | 1 | 11 (6 con propuesta escrita) | Bloqueada por decisiones (#17) |
 | F7 · Despliegue y operación | 12 | 0 | — | 1 | 11 | Pendiente |
-| **Total** | **102** | **30** | **12** | **17** | **43** | |
+| **Total** | **102** | **31** | **12** | **16** | **43** | |
 
 Antes de este repaso había 25 marcadas; suben 5 con evidencia ya existente (F2.1.1–F2.1.3 ratificadas, F2.4.2 por el
-ensayo de Miguel en su banco y F3.1.3 porque los tipos ya están generados).
+ensayo de Miguel en su banco y F3.1.3 porque los tipos ya están generados). **07/10 tarde:** sube F3.3.2 con el 429
+explícito probado en C1 (31).
 
 ## Hitos comunes (de qué dependen casi todas las filas de abajo)
 
@@ -68,8 +69,8 @@ ensayo de Miguel en su banco y F3.1.3 porque los tipos ya están generados).
 | F0.2.2 | Anotar si el resultado se registra desde PC o celular y cuánto tarda | Pendiente | — | Dentro de la misma medición | Jhosep | F0.2.1 |
 | F0.2.3 | Comparar capturas con el registro del teléfono: faltantes y duplicados | Pendiente | Se contó llamada por llamada en A1–A7 y P1–P5, sin conciliación formal | Conciliar teléfono → evento → actividad, mejor con la Edge real | Jhosep · Claude | F0.2.1; H4 |
 | F0.3.1 | Diez salientes y diez entrantes por equipo; atendidas, perdidas, rechazadas y canceladas | En curso | C1: salientes con número (29/09) y en las pruebas de C1; entrantes bloqueadas (decisión 2 de Miguel) | Completar diez salientes con sus casos; entrantes según #16 | Jhosep | #16 |
-| F0.3.2 | Oculto, fijo, internacional, doble SIM, enlace con +, login y vuelta a la PWA | En curso | Notificación con número; la URL abre la PWA (30/09); el número sobrevive al login (F1.2.2) | Probar oculto, fijo, internacional y doble SIM | Jhosep | — |
-| F0.3.3 | Pantalla bloqueada, batería, tres noches, cola sintética, reinicio y respuesta HTTP | En curso | Noche 1/3; cola sin red (A3), reinicio (A6), 503 (A4), 400 (A5) y 401 (P4) en C1 contra el receptor | Dos noches, pantalla bloqueada y batería baja | Jhosep | — |
+| F0.3.2 | Oculto, fijo, internacional, doble SIM, enlace con +, login y vuelta a la PWA | En curso | Notificación con número; la URL abre la PWA (30/09); el número sobrevive al login (F1.2.2). **07/10:** fijo capturado y mostrado con +51; un lead propio con celular abre su encuesta (`REGISTRO.md` §5h) | Oculto, internacional y doble SIM; «lead con fijo» en vivo, opcional | Jhosep | — |
+| F0.3.3 | Pantalla bloqueada, batería, tres noches, cola sintética, reinicio y respuesta HTTP | En curso | Noche 1/3; cola sin red (A3), reinicio (A6), 503 (A4), 400 (A5), 401 (P4) y 429 en C1 contra el receptor. **07/10: pantalla bloqueada PASS** (aviso a los 9 s; encuesta abierta al desbloquear) | Dos noches y batería baja | Jhosep | — |
 | F0.4.1 | `REGISTRO.md`, guía MacroDroid y matriz con evidencia por equipo | En curso | Los tres documentos con la evidencia de C1 (`REGISTRO.md` §5a–§5g) | Evidencia de C2/C3 y cerrar la matriz | Jhosep · Claude | F0.1.1 |
 | F0.4.2 | Ejemplos sintéticos de teléfonos | **Hecha** | 23 casos en `ejemplos-sinteticos.md` (29/09), contrastados con la canonización de la base | Reutilizarlos en F5.1.1 | Claude | — |
 | F0.4.3 | Decidir continuar o ajustar; responsables y calendario | Pendiente | — | Informe de cierre de F0 con la evidencia por equipo, para que Miguel decida | Claude prepara · Miguel decide | F0.1–F0.3 |
@@ -113,10 +114,10 @@ producción el 02/10 (`REGISTRO.md` §5c). Evidencia de cada una en `AVANCE.md` 
 | F3.2.2 | Límite compartido, baja/inactividad y rotación/revocación con auditoría | Probada · marcada | 30 por minuto y 600 al día; «No autorizado» uniforme, también en carrera | Instalar | Miguel | H1 |
 | F3.2.3 | Clave visible una vez; solo su huella; nada secreto en URL, registros ni soporte | En curso | Hash sha256 en la base; cabecera, nunca URL; la Edge no escribe registros; la tarjeta de F4-c la muestra una vez (#215); el registro de MacroDroid no muestra la clave (prueba 6, 02/10) | Guía de soporte sin secretos; comprobarlo en el despliegue | Claude (guía) · Miguel (despliegue) | H2; F7.2.1 |
 | F3.3.1 | Id, hora y aviso creados una vez y guardados en la cola antes del envío | Probada en C1 (receptor) · marcada | Macro final (02/10 y 06/10): A1, A3, A4, A6 | Repetir contra la Edge (P15) | Jhosep | H4 |
-| F3.3.2 | Reintentar red caída, 429 y reinicio; retirar solo con confirmación; errores visibles | En curso | Sin red (A3), 503 (A4), reinicio (A6), 400 → `errores_llamadas` (A5), 401 conserva la cola (P4) | Ensayar un **429 explícito** (el receptor lo fuerza con `/_control?modo=429`); repetir contra la Edge | Jhosep · Claude | — ; H4 |
+| F3.3.2 | Reintentar red caída, 429 y reinicio; retirar solo con confirmación; errores visibles | Probada en C1 (receptor) · **marcada el 07/10** | Sin red (A3), 503 (A4), reinicio (A6), 400 → `errores_llamadas` (A5), 401 conserva la cola (P4) y **429 explícito** (07/10: queda en la cola y se reenvía solo con el mismo id y la hora original; `REGISTRO.md` §5h) | Repetir contra la Edge (P15 de F4-d) | Jhosep | H4 |
 | F3.3.3 | Abrir lo confirmado y mantener el respaldo manual | Probada en C1 (receptor) | Por la vía decidida en la #12: la macro **no espera un UUID del servidor**; abre la encuesta enseguida con el número y el id de origen (P2, 06/10); el respaldo es la pestaña «Llamadas del celular» | Aceptación contra la Edge (P1–P3 de F4-d) | Jhosep | H4 |
 | F3.3.4 | Doble disparo; dirección y duración por evento sin confundir desconocido con cero | En curso | Un solo aviso por llamada (prueba 5); entrantes sin aviso (A2); duración desconocida llega `null`, no 0 | Llamada en espera y doble SIM | Jhosep | — |
-| F3.4.1 | Respuesta perdida tras guardar, ráfagas, bloqueo, batería, desfase y permisos revocados | En curso | Sin red, servidor caído y reinicio en C1 (receptor); reloj desfasado visible en la salud (undécima) | Los demás casos, contra la Edge | Jhosep | H4 |
+| F3.4.1 | Respuesta perdida tras guardar, ráfagas, bloqueo, batería, desfase y permisos revocados | En curso | Sin red, servidor caído y reinicio en C1 (receptor); reloj desfasado visible en la salud (undécima). **07/10: ráfaga de 3 en 48 s y pantalla bloqueada PASS** | Respuesta perdida, batería, desfase y permisos; repetir contra la Edge | Jhosep | H4 |
 | F3.4.2 | Dos llamadas al mismo número, baja/rotación de la clave y actor inactivo, por equipo | En curso | Dos eventos con su id (prueba 2); rotación, cierre y baja en banco y en el gate | Repetirlo contra la Edge y en cada equipo (P11 de F4-d) | Jhosep | H4, H5 |
 | F3.4.3 | Guía de soporte y salud de la cola; otro adaptador si MacroDroid no acredita durabilidad | En curso | Guía de la macro (`macrodroid.md` §3c); latido cada 6 h probado (P1, 06/10); MacroDroid acredita durabilidad (decisión 5 de F3) | Guía de soporte; resolver que la versión gratuita **se apaga sola** | Claude (guía) · Miguel (#18) | #18 |
 
