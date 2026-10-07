@@ -3,7 +3,7 @@
 // el guard era `cronograma.length === 0`, pero generarCronograma SIEMPRE empuja
 // la fila del RETORNO del capital → la longitud nunca es 0 y el guard no podía
 // dispararse jamás. Se mockea @/data/crm-api (sin red) conservando CrmApiError.
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { toast } from 'sonner'
@@ -142,7 +142,7 @@ const completarDomicilio = vi.mocked(crmApi.completarDomicilioCliente)
 
 function montar(
   pdfDatosDemo = undefined as (typeof DATOS_PDF_DEMO)[string] | undefined,
-  opciones: Pick<ContratoNuevoProps, 'validarNumero' | 'borrador' | 'onRevisar' | 'ventaCruzada'> = {},
+  opciones: Pick<ContratoNuevoProps, 'validarNumero' | 'borrador' | 'onRevisar' | 'ventaCruzada' | 'categoriaFija' | 'contratosActivos'> = {},
 ) {
   const onCreado = vi.fn()
   const onOmitir = vi.fn()
@@ -1071,5 +1071,57 @@ describe('ContratoNuevo — venta cruzada (cliente de otra cartera)', () => {
     expect(boton()).toBeDisabled()
     await user.click(boton())
     expect(crearContrato).not.toHaveBeenCalled()
+  })
+})
+
+
+describe('ContratoNuevo — referencia y borrador del upgrade', () => {
+  const resolverOriginal = vi.mocked(crmQueries.useResolucionTasa).getMockImplementation()!
+  const contratos = [18, 21].map((tasa_anual, n) => ({id: `origen-${n}`, numero_contrato: `2026-01-00012${n}`,
+    tasa_anual, capital: 10000, moneda: 'PEN' as const, fecha_vencimiento: '2027-10-07'}))
+  beforeEach(() => {
+    legalesEstado.error = false; legalesEstado.faltaDomicilio = false
+    legalesEstado.faltanCliente = []; legalesEstado.faltanAnalista = []
+    cuentasEstado.error = false; cuentasEstado.pending = false; cuentasEstado.fetching = false; cuentasEstado.ocultarPen = false
+    vi.mocked(crmQueries.useResolucionTasa).mockImplementation((_cliente, _categoria, origen) => {
+      const contrato = contratos.find(c => c.id === origen) ?? contratos[0]!
+      return {data: {tasa_base: contrato.tasa_anual, tasa_minima_sin_autorizacion: 0.01,
+        regla: 'heredada_upgrade', contrato_origen: {...contrato, estado: 'activo'}, contratos_previos: 2,
+        politica: {modo: 'enforcement', version: 18, tasa_base_nueva: 15, tope_tecnico: 25, vigencia_solicitud_dias: 7}},
+        isPending: false, isError: false} as never
+    })
+  })
+  afterEach(() => vi.mocked(crmQueries.useResolucionTasa).mockImplementation(resolverOriginal))
+
+  it('inicia con la referencia elegida y la actualiza al cambiar de contrato origen', async () => {
+    const user = userEvent.setup()
+    montar(undefined, {categoriaFija: 'upgrade', contratosActivos: contratos})
+    await user.selectOptions(screen.getByLabelText('Contrato que se amplía'), 'origen-0')
+    expect(screen.getByLabelText('Tasa anual (%)')).toHaveValue('18')
+    await user.clear(screen.getByLabelText('Tasa anual (%)'))
+    await user.type(screen.getByLabelText('Tasa anual (%)'), '16')
+    await user.selectOptions(screen.getByLabelText('Contrato que se amplía'), 'origen-1')
+    expect(screen.getByLabelText('Tasa anual (%)')).toHaveValue('21')
+  })
+
+  it('reabrir un borrador conserva la tasa pactada inferior y su origen', async () => {
+    const user = userEvent.setup()
+    const onRevisar = vi.fn()
+    const opciones = {categoriaFija: 'upgrade' as const, contratosActivos: [contratos[0]!], onRevisar}
+    const vista = montar(undefined, opciones)
+    expect(screen.getByLabelText('Tasa anual (%)')).toHaveValue('18')
+    await user.type(screen.getByLabelText('Capital'), '10000')
+    await user.type(screen.getByLabelText('N° de contrato'), '000777')
+    await user.click(screen.getByRole('radio', {name: /BCP/}))
+    await user.clear(screen.getByLabelText('Tasa anual (%)'))
+    await user.type(screen.getByLabelText('Tasa anual (%)'), '16')
+    await user.click(screen.getByRole('button', {name: 'Revisar inversión'}))
+    await waitFor(() => expect(onRevisar).toHaveBeenCalledTimes(1))
+    const borrador = onRevisar.mock.calls[0]![0]
+    expect(borrador).toMatchObject({tasa_anual: 16, categoria: 'upgrade', contrato_origen_id: 'origen-0'})
+    vista.unmount()
+    montar(undefined, {...opciones, borrador})
+    expect(screen.getByLabelText('Tasa anual (%)')).toHaveValue('16')
+    expect(screen.getByLabelText('Contrato que se amplía')).toHaveValue('origen-0')
   })
 })

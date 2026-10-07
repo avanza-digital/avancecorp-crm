@@ -170,7 +170,7 @@ export interface ContratoNuevoProps {
   }
   /**
    * Rentabilidad R3 (D2): en un UPGRADE el analista SELECCIONA el contrato activo que
-   * amplía; su tasa es la base que hereda. Son los contratos activos del cliente.
+   * amplía; su tasa es la referencia del nuevo aporte. Son los contratos activos del cliente.
    */
   contratosActivos?: { id: string; numero_contrato: string; tasa_anual: number; capital: number; moneda: Moneda; fecha_vencimiento: string }[]
   /** Solo para el recorrido local sin backend: identidad legal ficticia ya conocida. */
@@ -256,8 +256,9 @@ export function ContratoNuevo({
   const qAtrOrigen = useAtribucionContrato(renovacionOrigen?.id ?? '', Boolean(renovacionOrigen))
   const cadenaOrigen = qAtrOrigen.data?.atribucion_efectiva ?? null
   const [moneda, setMoneda] = useState<Moneda>(borradorLocal?.moneda ?? borrador?.moneda ?? condicionesIniciales?.moneda ?? renovacionOrigen?.moneda ?? monedaSugerida ?? 'PEN')
-  // Rentabilidad R3: la tasa la fija la POLÍTICA (bloque TasaPolitica); arranca en 15 solo hasta que el núcleo responde.
-  const [tasa, setTasa] = useState(borradorLocal?.tasa ?? (borrador ? String(borrador.tasa_anual) : condicionesIniciales ? String(condicionesIniciales.tasa_anual) : '15'))
+  // En un upgrade sin borrador, el núcleo precarga la referencia del origen.
+  // Una tasa ya pactada o escrita se conserva al recuperar el formulario.
+  const [tasa, setTasa] = useState(borradorLocal?.tasa ?? (borrador ? String(borrador.tasa_anual) : condicionesIniciales ? String(condicionesIniciales.tasa_anual) : categoriaInicial === 'upgrade' ? '' : '15'))
   const [rangoTasa, setRangoTasa] = useState<RangoTasaPolitica | null>(null)
   const [origenUpgrade, setOrigenUpgrade] = useState<string>(
     borradorLocal?.origenUpgrade ?? borrador?.contrato_origen_id ?? condicionesIniciales?.contrato_origen_id ?? (contratosActivos && contratosActivos.length === 1 && categoriaFija === 'upgrade' ? contratosActivos[0]?.id ?? '' : ''),
@@ -702,7 +703,7 @@ export function ContratoNuevo({
             capital_adicional: adicionalNum,
           }
         : {}),
-      // D2: el upgrade declara el contrato que amplía. Hoy la puerta lo ignora; R4 lo usa para heredar la tasa.
+      // El upgrade declara el contrato cuya tasa sirve de referencia al nuevo aporte.
       ...(esUpgrade && contratoOrigenId ? { contrato_origen_id: contratoOrigenId } : {}),
       // Viajan DENTRO de p_contrato: crear_contrato ya los persiste (mancomunadas).
       titulares: tit.titulares,
@@ -1099,7 +1100,11 @@ export function ContratoNuevo({
               <Select
                 id="ct-categoria"
                 value={categoria}
-                onChange={(e) => setCategoria(e.target.value as CategoriaContrato | '')}
+                onChange={(e) => {
+                  const siguiente = e.target.value as CategoriaContrato | ''
+                  setCategoria(siguiente)
+                  if (siguiente === 'upgrade' || categoria === 'upgrade') setTasa('')
+                }}
                 disabled={enviando}
               >
                 <option value="" disabled>
@@ -1134,7 +1139,7 @@ export function ContratoNuevo({
             <Select
               id="ct-origen-upgrade"
               value={origenUpgrade}
-              onChange={(e) => setOrigenUpgrade(e.target.value)}
+              onChange={(e) => { setOrigenUpgrade(e.target.value); setTasa('') }}
               disabled={enviando || !contratosActivos?.length}
               aria-describedby="ct-origen-upgrade-ayuda ct-origen-upgrade-estado"
             >
@@ -1156,7 +1161,7 @@ export function ContratoNuevo({
               {contratosActivos === undefined && 'Los upgrades se registran desde la ficha del cliente, eligiendo el contrato que se amplía.'}
             </p>
             <p id="ct-origen-upgrade-ayuda" className="text-xs text-muted-foreground">
-              {AYUDA_UPGRADE} Solo le hereda la tasa (política de rentabilidad).
+              {AYUDA_UPGRADE}
             </p>
           </div>
         )}

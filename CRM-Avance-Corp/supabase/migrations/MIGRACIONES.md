@@ -1,3 +1,24 @@
+## 20261007182719 — Corrección directa de tasa por Administración del Portal
+
+**PUBLICADA Y VERIFICADA EN PRODUCCIÓN 07/10/2026.** Pedido de Miguel: `admin`/`superadmin` pueden corregir la tasa sin autorización de Gerencia. La nueva RPC `crm.corregir_tasa_contrato_admin_pdf_v1` exige rol vigente, motivo de 5–500 caracteres y coincidencia de la tasa previamente vista, usa la corrección transaccional existente (contrato, cronograma, revisión PDF) y marca únicamente ese contrato para que el observador diferido admita la corrección aun con la política en `enforcement`. La excepción se niega si la misma operación cambia capital, moneda, plazo, modalidad, tipo de interés o categoría. El motivo queda en `crm.ledger_rentabilidad.detalle`; las demás escrituras conservan el candado. Siguen vigentes los límites numéricos, el producto contratado, las restricciones de contratos cerrados y la conservación de cuotas pagadas. No cambia el acceso a DNI ni correo.
+
+Ensayo local `supabase/scripts/admin-tasa/test-local.sql`: grants, sesión anónima, rol, motivo, vista obsoleta, cambio mixto, cronograma y ledger con `enforcement`; PASS también con la migración de upgrade previa. Portal: 209 pruebas y sintaxis PASS. Revisión secundaria `CHANGES_REQUESTED`: se atendió la concurrencia y se comprobó el alcance del candado; la prueba de cambio mixto cubre el límite adicional. La primera rama falló en replay histórico y se eliminó. La rama autorizada `admin-tasa-directa-banco-20261007` (`mqnjyjklyuhmjvmhnmmo`) se reconstruyó desde el esquema productivo, sin datos de clientes; luego se alineó con el upgrade publicado: 437 migraciones productivas idénticas más esta candidata. Por HTTP se rechazaron analista, motivo corto, tasa obsoleta y cambio mixto; Administración corrigió 10→11→12→13 % con `enforcement`, 13 cuotas, ledger y revisión PDF del régimen vigente. Matriz RLS: primera pasada 2818/2824; seis fallos por fixture técnico incompleto, subsanados solo en rama y cubiertos por 279 aserciones dirigidas PASS y lectura adicional de Gerencia PASS. Advisors: sin nueva alerta de seguridad salvo la ejecución `SECURITY DEFINER` esperada para la RPC autenticada. PR [#219](https://github.com/avanza-digital/avancecorp-crm/pull/219) fusionada en `ae96fdbd`; `merge_branch` aplicó la migración 438/438 a producción y las huellas de las cuatro funciones de tasas coinciden con la rama. Hostinger: Portal commit local `49b8eac`, tres archivos subidos con purga y verificados byte a byte; la rama Supabase se eliminó. El remoto Git configurado del Portal devuelve `Repository not found`, por lo que ese commit permanece local.
+
+## 20261007180108 — Tasa flexible al registrar el upgrade Avance
+
+**PREPARADA Y VERIFICADA SOLO EN LOCAL, 07/10/2026. Sin aplicar en producción.**
+El nuevo aporte puede tener tasa menor/igual a la referencia; con solicitudes
+activadas una superior requiere Gerencia. Con solicitudes desactivadas se
+registra libre dentro de límites, sin solicitudes ni bloqueos por pendientes.
+No altera el contrato anterior ni permite rebajar tasas por corrección.
+
+Tres cuerpos privados con preflight de huellas, mismas firmas/ACL/propietarios.
+Capacidad de mínimo específica de upgrade conserva compatibilidad con el CRM
+anterior. SQL autenticado, reversa exacta y carrera de reversa PASS. Frontend:
+6.362 tests y 23 E2E Docker PASS; gate integral termina FAIL solo por copias
+duplicadas locales preexistentes (filtrado 0.44 % PASS). Matriz remota/advisors
+NOT RUN. Evidencia, límites y recuperación: [README](../scripts/upgrade-tasa/README.md).
+
 ## 20261007143121 — Reparto libre de Coordinación controlado por Gerencia
 
 **APLICADA Y VERIFICADA EN PRODUCCIÓN 07/10/2026 mediante `merge_branch`; frontend PUBLICADO, permiso ACTIVADO.** Autorizaciones de Miguel: `$release-crm` y aprobación separada de migración/rama con costo. Todo el rol Coordinadora puede derivar libremente; Gerencia activa/desactiva en Configuración.

@@ -4932,6 +4932,7 @@ const ResolucionTasaSchema = v.object({
   observacion_sin_aprobacion: v.optional(v.boolean(), false),
   tasa_base: NumericoRpc,
   tasa_minima_sin_autorizacion: v.optional(NumericoRpc),
+  tasa_minima_upgrade_sin_autorizacion: v.optional(v.nullable(NumericoRpc)),
   regla: ReglaTasaSchema,
   categoria: v.string(),
   cliente_id: v.nullable(v.string()),
@@ -5023,9 +5024,19 @@ export async function resolverTasa(
   }
   const o = r.output
   const base = numEstricto(o.tasa_base, 'tasa_base')
-  const minimo = o.tasa_minima_sin_autorizacion === undefined ? base : numEstricto(o.tasa_minima_sin_autorizacion, 'tasa_minima_sin_autorizacion')
+  const capacidadUpgrade = o.tasa_minima_upgrade_sin_autorizacion
+  const upgradeCoherente = categoria === 'upgrade' && o.categoria === categoria && o.regla === 'heredada_upgrade'
+    && contratoOrigenId != null && o.contrato_origen?.id === contratoOrigenId
+    && numEstricto(o.contrato_origen.tasa_anual, 'tasa_origen') === base
+  if (capacidadUpgrade != null && !upgradeCoherente) {
+    throw new CrmApiError('La referencia del upgrade no tiene el formato esperado.', 'RESOLVER_TASA_CONTRACT')
+  }
+  // Capacidad separada: el servidor conserva el mínimo heredado para bundles anteriores.
+  const minimo = capacidadUpgrade != null ? numEstricto(capacidadUpgrade, 'tasa_minima_upgrade_sin_autorizacion')
+    : o.tasa_minima_sin_autorizacion === undefined ? base : numEstricto(o.tasa_minima_sin_autorizacion, 'tasa_minima_sin_autorizacion')
   if (minimo <= 0 || minimo > base || Math.abs(minimo * 100 - Math.round(minimo * 100)) > 1e-8
-      || (minimo < base && (o.categoria !== 'nuevo' || o.regla !== 'primera_inversion' || o.contrato_origen !== null))) {
+      || (minimo < base && !(capacidadUpgrade != null && upgradeCoherente)
+        && (o.categoria !== 'nuevo' || o.regla !== 'primera_inversion' || o.contrato_origen !== null))) {
     throw new CrmApiError('El rango de tasa no tiene el formato esperado.', 'RESOLVER_TASA_CONTRACT')
   }
   return {

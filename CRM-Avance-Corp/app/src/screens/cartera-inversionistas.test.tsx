@@ -822,7 +822,7 @@ describe('Upgrade: continuidad del cliente que ya tiene una inversión', () => {
     const seccion = (await screen.findByRole('heading',{name:'Inversiones y contratos'})).closest('section')!
     const upgrade = within(seccion).getByRole('button',{name:'Registrar upgrade'})
     expect(within(seccion).getByRole('button',{name:'Registrar nueva inversión'})).toBeEnabled()
-    expect(within(seccion).getByText(/hereda la tasa del contrato que amplía/)).toBeVisible()
+    expect(within(seccion).getByText(/toma como referencia la tasa del contrato que amplía/)).toBeVisible()
     await user.click(upgrade)
     expect(screen.queryByRole('dialog',{name:/amplía este upgrade/})).not.toBeInTheDocument()
     await waitFor(() => expect(screen.queryByRole('dialog',{name:'Ficha del inversionista'})).not.toBeInTheDocument())
