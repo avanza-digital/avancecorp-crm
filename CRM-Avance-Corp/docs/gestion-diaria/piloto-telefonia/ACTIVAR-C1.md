@@ -143,6 +143,9 @@ En la base no hay marcha atrás: se **apaga**. Del más suave al más fuerte:
 3. **Último recurso (Miguel).** Borrar la Edge (solo C1 está activo) o volver a la release anterior con el interruptor
    apagado.
 
+Regla de Miguel (07/10): con altas o uso, **nunca** se ejecutan las reversas SQL. Se cierra la asignación o la clave, o
+se apaga la pantalla con un release aprobado; el historial se conserva y se corrige hacia adelante.
+
 ## 7. Qué reportar y a quién
 
 - **A Miguel**, en el PR de F4-d, un solo comentario: `QUÉ HICE · RESULTADO (P1–P15) · TURNO PARA`.
