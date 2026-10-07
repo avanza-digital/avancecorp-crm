@@ -24,7 +24,12 @@ Consecuencia para el piloto: la gestión que se mide es la que el vendedor **hac
 | `F2-PLAN-CORTO.md` | Borrador del contrato y del diseño de F2 (tablas, núcleo, RLS, verificación, orden de PRs) apoyado en el catálogo real. Sin SQL hasta el OK de Miguel; incluye las 7 decisiones que él debe fijar | Claude |
 | `F3-PLAN-CORTO.md` | Plan corto de F3 (Edge Function de ingesta, puerta de servicio, límite, salud, macro durable): las 5 decisiones (1–4 tomadas por Jhosep como provisionales el 01/10), las 6 pruebas que Jhosep debe hacer en C1 antes de escribir la macro y el estado de F3-a (la base, construida en banco local) | Claude |
 | `F5-F7-ANALISIS.md` | Análisis adelantado de F5, F6 y F7 (03/10): qué cambió desde que se aprobó el plan, qué se reutiliza, el diseño descrito sin código y las decisiones que necesitaría Miguel. Borrador: no pide revisión hasta que toque F5 | Claude |
+| `SEGUIMIENTO.md` | **Seguimiento conciliado** de las 102 tareas (07/10, pedido por Miguel): estado, evidencia, siguiente paso, responsable y dependencia de cada una; hitos de instalación; ampliaciones y decisiones pendientes | Claude |
+| `COORDINACION.md` | Reglas de trabajo con Miguel, mapa de los PR, turno, orden y bitácora | Claude (Jhosep) |
+| `F4B-PLAN-CORTO.md`, `F4C-F4D-PLAN-CORTO.md`, `F4E-PLAN-CORTO.md` | Planes cortos de la pestaña del analista, la tarjeta «Celulares» con la activación de C1, y la vista de supervisor y gerencia | Claude |
 | `HANDOFF-<fecha>.md` | Cierre de cada sesión: qué se hizo, cómo probarlo, qué falta y el prompt para retomar | Claude |
+
+La guía del día para activar C1 vive con los materiales del piloto: `docs/gestion-diaria/piloto-telefonia/ACTIVAR-C1.md`.
 
 ## Dónde verlo en vivo
 
@@ -42,4 +47,15 @@ Consecuencia para el piloto: la gestión que se mide es la que el vendedor **hac
 
 ## Estado hoy
 
-**Al 05/10/2026.** **F1 (la encuesta al colgar) está en producción** desde la noche del 01/10: la publicó Miguel con el PR #165 (release `crm-20261002T005155Z-4498582850b1`), y el 02/10 se comprobó en el bundle vivo y con C1 (`AVANCE.md`, F1). F2 + F3 (cuatro migraciones, en `main`), su corrección (la quinta), F4-a (enlace exacto) y la séptima (enlace sin ciclo con Deshacer) están **escritas y sin aplicar** en el PR #190, con la Edge nueva sin desplegar. Se instalan juntas según `PUBLICAR-F2-F3.md`, después del gate completo de Miguel. **La activación de C1 (alta de la clave y macro productiva) espera a F4-b y a su prueba en C1 (F4-d)**: sin la pestaña, las llamadas pendientes no tendrían dónde resolverse (decisión de Jhosep, 05/10). F0 (piloto, sin código) sigue en curso con C1 (Samsung A16). Para retomar: el `HANDOFF-*.md` más reciente.
+**Al 07/10/2026.** Detalle tarea por tarea en `SEGUIMIENTO.md` (30 de 102 cerradas con evidencia).
+
+- **F1 (la encuesta al colgar) está en producción** desde la noche del 01/10 (PR #165) y se comprobó con C1 el 02/10.
+- **Las doce migraciones de llamadas, la Edge y F4-b están en `main`** (PR #190, fusionado el 06/10) y probadas, pero
+  **sin instalar**: producción tiene 0 de 12, sin Edge y con el modo SLA activo (comprobado por Miguel el 07/10). La
+  pantalla va detrás del interruptor `LLAMADAS_CELULAR_APROBADAS` (apagado).
+- **F4-c (la tarjeta «Celulares»)** está en el PR #215, en revisión de Miguel.
+- **Lo siguiente es de Miguel:** ensayar con SLA activo, aplicar las doce desde LF con sus registradores, desplegar la Edge
+  y abrir el interruptor en un release. Después se activa C1 con `ACTIVAR-C1.md` («instalar no es activar»).
+- F0 (piloto, sin código) sigue en curso con un solo celular, C1 (Samsung A16).
+
+Para retomar: el `HANDOFF-*.md` más reciente.

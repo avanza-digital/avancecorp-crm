@@ -15,7 +15,8 @@ Una vista **de solo lectura del día (hora de Lima)** que cuenta, por analista y
 - **Gerencia:** tercera pestaña de «Toda la operación hoy», con una tabla por equipo y el panel «Necesitan atención».
 - **Supervisor:** su equipo en «Mi equipo hoy», con un botón y el bloque «Su celular» en el panel del analista.
 
-**Qué necesita:** una **puerta agregada nueva** (la duodécima migración) y **ningún índice nuevo**, porque los de la
+**Qué necesita:** una **puerta agregada nueva** (una migración nueva; ya no puede ser «la duodécima»: esa es la
+corrección de Miguel en el #190, `20261006162813`) y **ningún índice nuevo**, porque los de la
 novena y los de datos ya cubren cada cifra. Falta confirmarlo con EXPLAIN.
 
 ## F4 o F6 (decisión 4, de Miguel)
@@ -138,7 +139,7 @@ gerencia verían cifras distintas del mismo analista.
 
 ## Orden y dependencias
 
-1. Fusionar y aplicar el #190; después el #198 (octava a undécima).
+1. Aplicar las doce en producción (ya están en `main`: el #190 se fusionó el 06/10 y el #198 había entrado en él).
 2. Decisión 4 y el diccionario (A1–A7), de Miguel.
 3. F4-c y F4-d: el latido probado en C1. Antes de eso, «sin latido» no significa nada.
 4. Plan corto con OK → migración, oráculo y mutantes → gate → `auditor-rls` → banco de Miguel → tipos → pantalla →

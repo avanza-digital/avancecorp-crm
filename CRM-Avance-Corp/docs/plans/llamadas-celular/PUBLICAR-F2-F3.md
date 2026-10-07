@@ -1,5 +1,12 @@
 # Publicar F2 + F3 + F4-a de «Llamadas desde el celular» — guía técnica (05/10/2026)
 
+> **Aviso (07/10/2026):** esta guía se escribió cuando eran **siete** migraciones en el #190 abierto. Hoy son **doce**,
+> todas en `main` (el #190 se fusionó el 06/10) y ninguna aplicada. **El orden vigente** de las doce, con su registrador
+> cada una, está en el checklist del #215 y en `CIERRE-CORRECCIONES-20261006.md` («Orden SQL»). Lo demás de esta guía
+> sigue valiendo: desde LF, una por mensaje, el registrador justo después, V1–V5 (con las doce filas), el gate, los
+> advisors e «instalar no es activar». Antes de aplicar, ensayar con el modo SLA **activo**, que es el de producción.
+> Seguimiento completo: `SEGUIMIENTO.md`.
+
 Siete migraciones, **ninguna aplicada ni desplegada**. Las cuatro primeras están en `main` (PR #169); la quinta
 (corrección), la sexta (F4-a, enlace exacto) y la séptima (enlace sin ciclo con Deshacer) están en el PR #190. Se publican **juntas** y con la Edge del contrato
 nuevo (decisión 1 de Miguel). F1 (la encuesta al colgar) ya está en producción y no cambia.
