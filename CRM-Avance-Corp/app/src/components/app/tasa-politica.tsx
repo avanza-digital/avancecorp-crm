@@ -199,7 +199,8 @@ export function TasaPolitica({
               ? 'autorizada'
               : 'base'
   const minimoServidor = resolucion.data?.tasa_minima_sin_autorizacion ?? base
-  const permiteInferior = !demo && !correccion && categoria === 'nuevo' && base != null
+  const altaUpgrade = !correccion && categoria === 'upgrade'
+  const permiteInferior = !demo && !correccion && (categoria === 'nuevo' || altaUpgrade) && base != null
     && minimoServidor != null && minimoServidor > 0 && minimoServidor < base
   const minimo = observacion ? 0.01 : permiteInferior ? minimoServidor : base
   // Conservar una tasa histórica en corrección no equivale a negociar otra.
@@ -373,7 +374,7 @@ export function TasaPolitica({
     <div ref={raizRef} tabIndex={-1} className="min-w-0 space-y-1.5 outline-none" data-testid="tasa-politica">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Label htmlFor={idInput}>Tasa anual (%)</Label>
-        {modo === 'observacion' && <span className="text-[11px] font-bold text-primary">Observación · sin aprobación</span>}
+        {modo === 'observacion' && <span className="text-[11px] font-bold text-primary">{altaUpgrade ? 'Solicitudes desactivadas · tasa libre' : 'Observación · sin aprobación'}</span>}
         {modo === 'autorizada' && maximo != null && (
           <span className="inline-flex items-center gap-1 text-[11px] font-bold text-primary">
             <Unlock className="size-3" aria-hidden /> Autorizada hasta {tasaTxt(maximo)}
@@ -385,6 +386,12 @@ export function TasaPolitica({
           </span>
         )}
       </div>
+      {altaUpgrade && base != null && !demo && (
+        <p className="text-xs text-muted-foreground">
+          Tasa de referencia: <strong>{tasaTxt(base)}</strong>{resolucion.data?.contrato_origen ? ` · contrato ${resolucion.data.contrato_origen.numero_contrato}` : ''}.
+          {' '}La tasa que registres corresponde al nuevo aporte.
+        </p>
+      )}
       <Input
         id={idInput}
         inputMode="decimal"
@@ -494,7 +501,11 @@ export function TasaPolitica({
       )}
 
       {puedePedir && !pidiendo && (
-        <Button ref={abrirRef} type="button" size="sm" variant="outline" className="min-h-10" onClick={() => setPidiendo(true)}>
+        <Button ref={abrirRef} type="button" size="sm" variant="outline" className="min-h-10" onClick={() => {
+          const escrita = parseMonto(tasa)
+          if (escrita != null && base != null && escrita > base && escrita <= tope) setTasaPedida(tasa)
+          setPidiendo(true)
+        }}>
           Solicitar tasa superior
         </Button>
       )}

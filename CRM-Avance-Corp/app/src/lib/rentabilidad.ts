@@ -44,7 +44,7 @@ export function etiquetaReglaTasa(regla: ReglaTasaLib): string {
   switch (regla) {
     case 'primera_inversion': return 'Primera inversión: tasa base de la política'
     case 'heredada_renovacion': return 'Renovación: hereda la tasa del contrato que renueva'
-    case 'heredada_upgrade': return 'Upgrade: hereda la tasa del contrato que amplía'
+    case 'heredada_upgrade': return 'Upgrade: tasa de referencia del contrato que amplía'
     case 'historica_legacy': return 'Contrato anterior a la política'
     default: return 'La política no define este caso'
   }
