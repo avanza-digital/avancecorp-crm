@@ -11,6 +11,8 @@ vi.mock('@/components/gestion-diaria/resumen-gestiones', () => ({ AccesoGestione
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render as renderBase, screen, waitFor, within } from '@testing-library/react'
 import type { DiaAnalista } from '@/lib/gestion-diaria-analista'
+import * as config from '@/lib/config'
+import { listarLlamadasCelular, listarResueltasCelular } from '@/data/llamadas-celular-api'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactElement } from 'react'
@@ -1283,7 +1285,17 @@ describe('GestionDiariaAnalista · tareas de CLIENTES (cola v3)', () => {
 
 // F4-b: la pestaña utiliza su fuente real tipada y conserva la demostración.
 describe('GestionDiariaAnalista · «Llamadas del celular» (F4-b)', () => {
+  it('con la integración cerrada no presenta la pestaña ni consulta su backend en una sesión real', async () => {
+    render(<GestionDiariaAnalista />)
+    await act(async () => { await Promise.resolve() })
+    expect(screen.queryByRole('tab', { name: /^Celular/ })).not.toBeInTheDocument()
+    expect(listarLlamadasCelular).not.toHaveBeenCalled()
+    expect(listarResueltasCelular).not.toHaveBeenCalled()
+    expect(screen.getByRole('tab', { name: /^Cola de hoy/ })).toBeInTheDocument()
+  })
+
   it('en la sesión real aparece con la fuente de las puertas tipadas', () => {
+    vi.spyOn(config, 'llamadasCelularHabilitadas').mockReturnValue(true)
     render(<GestionDiariaAnalista />)
     expect(screen.getByRole('tab', { name: /^Celular/ })).toBeInTheDocument()
   })
