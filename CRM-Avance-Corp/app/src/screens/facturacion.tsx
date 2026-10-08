@@ -495,7 +495,11 @@ export function Facturacion({
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false)
   const [busqueda, setBusqueda] = useState('')
   const [cerrados, setCerrados] = useState<readonly string[]>([])
-  const [seleccion, setSeleccion] = useState<{ analistaId: string; dia: string | null } | null>(null)
+  const [seleccion, setSeleccion] = useState<{
+    analistaId: string
+    supervisorId: string
+    dia: string | null
+  } | null>(null)
 
   // Corte del mes en curso: los días que aún no han pasado salen vacíos.
   const corte = mes === mesDeHoy ? hoy : formatDateLocal(new Date(9999, 0, 1))
@@ -512,10 +516,12 @@ export function Facturacion({
     [diasVisibles, diasPrevios],
   )
   const consultas = useFacturacionDeMeses(fuente == null && !esDemo, mesesNecesarios)
+  const claveMeses = mesesNecesarios.join('|')
+  const versionesConsulta = consultas.map((c) => c.dataUpdatedAt).join('|')
   const filasDeMeses = useMemo(
     () => consultas.flatMap((c) => (c.data ?? []) as FilaFacturacionDia[]),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `consultas` es un array nuevo en cada render; su contenido cambia con los datos
-    [consultas.map((c) => c.dataUpdatedAt).join('|')],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `consultas` es un array nuevo en cada render; claveMeses identifica los meses y dataUpdatedAt sus respuestas
+    [claveMeses, versionesConsulta],
   )
   const consulta = {
     isPending: consultas.some((c) => c.isPending),
@@ -685,16 +691,19 @@ export function Facturacion({
       (esDemo
         ? filasFacturacionDemo(primerDiaDelMes(anclaPrevia), recorte[recorte.length - 1] ?? anclaPrevia)
         : filasDeMeses)
-    return construirMallaDeDias(
-      filtrarFilas(base, filtro),
-      recorte,
-      primerDiaDelMes(anclaPrevia),
-      moneda,
-      tipo,
-    )
+    const filasPrevias = filtrarFilas(base, filtro)
+    const mesPrevio = primerDiaDelMes(anclaPrevia)
+    const pen = construirMallaDeDias(filasPrevias, recorte, mesPrevio, 'PEN', tipo)
+    if (vistaEfectiva === 'PEN') return pen
+    const usd = construirMallaDeDias(filasPrevias, recorte, mesPrevio, 'USD', tipo)
+    if (vistaEfectiva === 'USD') return usd
+    // Ambos tramos se valoran con la misma tasa real: el porcentaje mide el
+    // cambio del capital vendido, sin sumar divisas crudas ni introducir una
+    // diferencia de tipo de cambio entre periodos.
+    return combinarEnSoles(pen, usd, tc?.promedio) ?? pen
   }, [
     fuente, esDemo, filasDeMeses, anclaPrevia, diasPrevios,
-    diasVisibles, hoy, moneda, tipo, filtro,
+    diasVisibles, hoy, vistaEfectiva, tipo, filtro, tc?.promedio,
   ])
 
   const totalActual = valorCelda(malla.total, 'capital')
@@ -799,8 +808,10 @@ export function Facturacion({
             seleccion.dia,
             tipo,
             vistaEfectiva === 'TOTAL' ? undefined : moneda,
+            seleccion.supervisorId,
+            seleccion.dia == null && hayMarcados ? marcadosEnTramo : undefined,
           ),
-    [seleccion, filtradas, tipo, vistaEfectiva, moneda],
+    [seleccion, filtradas, tipo, vistaEfectiva, moneda, hayMarcados, marcadosEnTramo],
   )
 
   const operacionesDelDetalle = detalle.reduce((n, f) => n + f.operaciones, 0)
@@ -870,7 +881,11 @@ export function Facturacion({
 
   const q = normalizar(busqueda.trim())
   const rosterVisible = q === '' ? roster : roster.filter((p) => normalizar(p.nombre).includes(q))
-  const elegibles = roster.filter((p) => filtro.equipo === '' || p.supervisorId === filtro.equipo)
+  const elegibles = [...new Map(
+    roster
+      .filter((p) => filtro.equipo === '' || p.supervisorId === filtro.equipo)
+      .map((p) => [p.id, p] as const),
+  ).values()]
 
   return (
     <div className="space-y-4">
@@ -1409,7 +1424,7 @@ export function Facturacion({
                   {comparando
                     ? planas.map((fila) => (
                         <FilaAnalista
-                          key={fila.id}
+                          key={`${fila.supervisorId}:${fila.id}`}
                           fila={fila}
                           subtitulo={`Equipo de ${fila.supervisorNombre}`}
                           dias={malla.dias}
@@ -1419,11 +1434,11 @@ export function Facturacion({
                           moneda={moneda}
                           marcado={filtro.analistas.includes(fila.id)}
                           tactil={esTactil}
-                          diaAbierto={seleccion?.analistaId === fila.id ? seleccion.dia : null}
+                          diaAbierto={seleccion?.analistaId === fila.id && seleccion.supervisorId === fila.supervisorId ? seleccion.dia : null}
                           sangria={false}
                           onMarcar={() => alternarAnalista(fila.id)}
-                          onAbrirMes={() => setSeleccion({ analistaId: fila.id, dia: null })}
-                          onAbrirCelda={(dia) => setSeleccion({ analistaId: fila.id, dia })}
+                          onAbrirMes={() => setSeleccion({ analistaId: fila.id, supervisorId: fila.supervisorId, dia: null })}
+                          onAbrirCelda={(dia) => setSeleccion({ analistaId: fila.id, supervisorId: fila.supervisorId, dia })}
                         />
                       ))
                     : malla.grupos.map((grupo) => {
@@ -1486,11 +1501,11 @@ export function Facturacion({
                                   moneda={moneda}
                                   marcado={filtro.analistas.includes(a.id)}
                                   tactil={esTactil}
-                                  diaAbierto={seleccion?.analistaId === a.id ? seleccion.dia : null}
+                                  diaAbierto={seleccion?.analistaId === a.id && seleccion.supervisorId === grupo.id ? seleccion.dia : null}
                                   sangria
                                   onMarcar={() => alternarAnalista(a.id)}
-                                  onAbrirMes={() => setSeleccion({ analistaId: a.id, dia: null })}
-                                  onAbrirCelda={(dia) => setSeleccion({ analistaId: a.id, dia })}
+                                  onAbrirMes={() => setSeleccion({ analistaId: a.id, supervisorId: grupo.id, dia: null })}
+                                  onAbrirCelda={(dia) => setSeleccion({ analistaId: a.id, supervisorId: grupo.id, dia })}
                                 />
                               ))
                             : []),
