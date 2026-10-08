@@ -1,8 +1,8 @@
 {
-  "actualizado": "2026-10-08T15:30:00Z",
+  "actualizado": "2026-10-08T16:20:00Z",
   "meta": {
-    "novedad": "08/10 15:30 UTC: Miguel ya está avisado de que C1 está activo (comentario 6063211358 en el #222, con el OK de Jhosep): responde sus seis puntos de turno, lleva la tabla P1–P15 (P1, P2, P3, P6, P7, P15-A1 PASS; P9 parcial), el hallazgo de P9 para su decisión y la incidencia de la clave (se cierra en P11). Pro sigue sin comprar: MacroDroid gratis vence el 09/10 ~15:50 Lima. Siguen P13, P12 y P11. 33/102.",
-    "actualizado": "2026-10-08T15:30:00Z"
+    "novedad": "08/10 16:20 UTC: Miguel avisado en el #222 (comentarios 6063211358 y 6063656338): C1 activo desde el 07/10, tabla P1–P15 (6 PASS, P9 parcial), reparto de turnos (suyo solo decidir P9, con pasos para su agente y opciones A pantalla / B base) y decisión de Jhosep: Pro no se compra aún, MacroDroid gratis se renueva con anuncios de 3 en 3 días desde el 09/10 mientras duren las pruebas. PR #227 borrador recoge la evidencia. Siguen P13, P12 y P11 en C1. 33/102.",
+    "actualizado": "2026-10-08T16:20:00Z"
   },
   "fases": {
     "F0": { "estado": "curso", "actualizado": "2026-10-07T19:10:00Z", "evidencia": "En curso con C1 (Samsung A16): registro, permisos, macro final y pruebas contra el receptor. Faltan C2/C3, la línea base de cinco días y la decisión de cierre (F0.4.3)." },
@@ -217,6 +217,7 @@
     { "at": "2026-10-07T22:26:19Z", "texto": "H1–H3 hechos y publicados por Miguel (#222, d4c9a689; acta INSTALACION-20261007.md): las doce migraciones en producción por merge_branch tras ensayar con SLA activo (banco 3292/3292, rama 328/328), Edge crm-llamadas-ingesta activa (401 sin clave; seis casos PASS) e interruptor encendido en build-20261007T222046462Z (121/121 archivos idénticos). Smoke con Analista: pestaña «Celular» visible. C1 sin activar: turno de Jhosep (H4). Antes, a las 21:54, fusionó el #221 (documentos)." },
     { "at": "2026-10-07T23:30:00Z", "texto": "Seguimiento al día con la instalación acreditada por el acta de Miguel: F2.4.3 y F3.2.1 marcadas (33/102); F2, F3 y F4 instaladas; F7.3.1 y F7.3.2 en curso con el primer release. Ninguna tarea física se cierra por la instalación." },
     { "at": "2026-10-08T01:30:00Z", "texto": "C1 activado en producción (H4, 07/10 ~19:15 Lima): alta desde la tarjeta «Celulares» con gerencia y «Al día» con llamadas-v3. Contra la Edge real: P1 (también «Quedará unido…» con el aviso retenido), P2, P3, P6, P7 y P15-A1 PASS; P9 PARCIAL: tras Deshacer la llamada no vuelve a Pendientes y no hay cómo unir el corregido desde la pantalla (hallazgo). Incidencia: una captura mostró 16 de 64 caracteres de la clave; se rota en P11. Evidencia en REGISTRO.md §5i." },
-    { "at": "2026-10-08T15:30:00Z", "texto": "Aviso a Miguel enviado en el #222 (comentario 6063211358, OK de Jhosep): C1 activo desde el 07/10, tabla P1–P15 (6 PASS, P9 parcial), hallazgo de P9 para que él decida, incidencia de la clave (cierra en P11), Pro sin comprar por decisión de Jhosep. Turno: Miguel solo para P9; nosotros seguimos con P13, P12 y P11. Rama rehecha desde main: crm/llamadas-f4d-c1-activo-20261008." }
+    { "at": "2026-10-08T15:30:00Z", "texto": "Aviso a Miguel enviado en el #222 (comentario 6063211358, OK de Jhosep): C1 activo desde el 07/10, tabla P1–P15 (6 PASS, P9 parcial), hallazgo de P9 para que él decida, incidencia de la clave (cierra en P11), Pro sin comprar por decisión de Jhosep. Turno: Miguel solo para P9; nosotros seguimos con P13, P12 y P11. Rama rehecha desde main: crm/llamadas-f4d-c1-activo-20261008." },
+    { "at": "2026-10-08T16:20:00Z", "texto": "Segundo comentario a Miguel en el #222 (6063656338): Pro pospuesto por decisión de Jhosep (renovar días gratis con anuncios, 3 días desde el 09/10, mientras duren las pruebas); reparto de F4-d (Miguel solo decide P9; el resto nuestro, un comentario al cierre); pasos para su agente: reproducir en banco, elegir A (solo pantalla: botón en la fila deshecha, la v5 mueve el enlace) o B (lectura devuelve la deshecha como pendiente; migración), avisar con QUÉ HICE · RESULTADO · TURNO PARA." }
   ]
 }
