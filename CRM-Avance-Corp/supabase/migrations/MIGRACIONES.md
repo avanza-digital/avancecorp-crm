@@ -17128,7 +17128,7 @@ de base, si otra función usa el ayudante, o si el censo no está vigente y sell
 
 ## 20261007160937 — Conversión · tope de referidos (desde octubre 2026): cuentan hasta el 15 % de los cierres de leads asignados
 
-**Estado:** ensayada en banco Docker propio (07/10/2026), **SIN APLICAR en producción**; rama: worktree `tope-referidos-20261007`.
+**Estado:** ✅ **APLICADA EN PRODUCCIÓN 07/10/2026 (tarde, Lima)** por Miguel con `!` (`supabase db query --linked --file`) y registrada con `supabase/scripts/conversion-tope-referidos/registrar/20261007160937.sql`. Verificado en producción tras aplicar: 2 funciones nuevas, columna `tope_referidos_pct` en `conversion_pesos` y `periodos_cerrados`, pesos 0,15 (desde julio, sin tope) y 1 con tope 15 (desde 2026-10-01), huella de `conversion_episodios` `e3d278a1…` = la ensayada, septiembre idéntico al origen (142 cierres, aporte 104,9), 0 meses sellados con tope. Ensayada antes en banco Docker propio; PR #223.
 Decisión de Miguel (07/10/2026), confirmada por él: un referido que cierra vale 1, pero entre todos los referidos de un analista solo
 cuentan, como máximo, el 15 % de sus cierres de LEADS QUE EL SISTEMA LE ASIGNA (origen landing o formulario y que no sea registro manual, `alta_manual`; la base no incluye
 referidos, renovaciones, upgrades ni base cargada), redondeado hacia arriba; los que pasan del tope —los más recientes por fecha de
@@ -17180,7 +17180,7 @@ versión, columnas y función; se niega si algún mes sellado guarda un tope).
 
 ## 20261007203000 — Conversión · tope de referidos, FASE B: origen, cohorte, Coordinación y cifra oficial
 
-**Estado:** ensayada en banco Docker propio (07/10/2026), **SIN APLICAR en producción**; sigue a `20261007160937` (Fase A) y se aplica DESPUÉS.
+**Estado:** ✅ **APLICADA EN PRODUCCIÓN 07/10/2026 (tarde, Lima)** por Miguel con `!`, después de la Fase A y de publicar la pantalla (build `build-20261008T001411530Z`, con el tope en 4 archivos del sitio), y registrada con `supabase/scripts/conversion-tope-referidos/registrar/20261007203000.sql`. Verificado en producción: las 8 funciones con el md5, dueño y ACL ensayados en el banco, y `ranking_conversion_origen_mes` devolviendo la columna `aporte`. Advisors de seguridad: sin alertas nuevas sobre estos objetos (las que nombran las puertas `cerrar_periodo` y `conversion_divisor_coordinacion_fn` y las tablas `conversion_pesos`/`periodos_cerrados` ya existían). `gen:types` regenerado (solo añade `tope_referidos_pct`).
 **Por qué:** la Fase A puso el tope en el núcleo (`conversion_episodios`), pero seis lectores calculaban el aporte del referido por su
 cuenta (`peso × cierres`) y desde octubre lo mostrarían sin tope; además el front validaba `referidos_aporta_pct = 100 × peso × cierres / divisor`
 y habría rechazado entero el paquete mensual de un analista con referidos recortados.
