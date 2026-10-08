@@ -171,12 +171,14 @@ comprar: Jhosep decidió renovar los días gratis con anuncios si hace falta.
 | 07/10 19:59–20:00 | P6 · cerrar la encuesta sin guardar y registrar desde «Celular» en el celular | **PASS** | La llamada apareció en «Pendientes» con «Pide resultado»; registrada desde ahí: «Registrada desde «Llamadas del celular» · llamada a las 19:59» |
 | 07/10 20:14 | P7 · lo mismo, registrando desde la PC | **PASS** | «Pendientes · 1» en la PC → «Registrar resultado»: «Quedó unido a tu llamada del celular de las 20:14»; «Registrada desde «Llamadas del celular»» |
 | 07/10 20:19–20:20 | P9 · guardar, Deshacer y corregir | **PARCIAL** | «Deshecho: Prueba vuelve a su etapa y la tarea creada se cancela»; la fila quedó «No contestó · deshecho» sin borrarse. **Hallazgo:** la llamada no vuelve a «Pendientes» y la fila deshecha no tiene acción, así que la pantalla no ofrece cómo registrar el resultado corregido unido a la misma llamada. La regla del servidor que mueve el enlace al corregido existe, pero ningún botón llega a ella |
+| 08/10 ~11:25 | P13 · llamar a un número que no es lead | **PASS** | Al colgar se abrió la encuesta con el aviso ámbar «ningún lead de tu cartera…»; «Pendientes · 0» y «Qué pasó hoy · 0» (nada guardado). Tarjeta «Al día», llamadas-v3, en cola 0 comprobada antes de la prueba (08/10 ~11:20) |
+| 08/10 ~11:35 | P12 · recibir una llamada en C1 desde otro celular | **PASS** | Llamada entrante normal: no se abrió el CRM ni la encuesta ni ningún aviso. `cola_llamadas` con 0 entradas después de colgar. Contadores de la pestaña no consultados (nada que guardar: las entrantes no se capturan) |
 
 Al cerrar: «Qué pasó hoy · 8», «Pendientes · 0». Las 8 llamadas y sus resultados cuentan en las cifras de la cuenta del
 analista, como prevé la guía; en su agenda quedaron de prueba una cita (08/10 19:20) y dos tareas. La batería de C1 bajó
 a 7 % durante las pruebas y se conectó al cargador hacia las 19:40, sin efecto en los resultados.
 
-**Falta de F4-d:** P4 y P5 (necesitan un segundo lead de prueba con otro número del equipo), P8, P10, P11, P12, P13, P14
+**Falta de F4-d (al 08/10 ~11:40):** P4 y P5 (necesitan un segundo lead de prueba con otro número del equipo), P8, P10, P11, P14
 y el resto de P15 (A3, A6 y prueba 6). Después, el cierre de §5 de `ACTIVAR-C1.md`: llamadas del teléfono = recibidas
 por el CRM, 0 resultados unidos dos veces, «Encuesta abierta al colgar: N de N» y la consulta de Miguel sin números.
 
