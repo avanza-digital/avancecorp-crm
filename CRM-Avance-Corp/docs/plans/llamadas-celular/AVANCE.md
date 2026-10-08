@@ -1,10 +1,10 @@
 # Avance — Llamadas desde el celular al CRM
 
-Actualizado: 08/10/2026, 05:00 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
+Actualizado: 08/10/2026, 05:10 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
 
 Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact/Q3GmV9m6Cy2GPQGKAbNy8M · Plan completo: `PLAN.md` en esta carpeta.
 
-**Lo último:** 08/10 22:00 UTC: prueba física de F4-d terminada en C1. Teléfono = CRM: 19 salientes desde la activación y 19 avisos aceptados; encuesta abierta al colgar 18 de 18. Hallazgos para Miguel: P9 (lo arreglamos nosotros), H-P5, H-P10; H-P11 ya corregido. Falta el latido L3 (~18:40) y la consulta de Miguel. Comentario de cierre preparado para el OK de Jhosep. 33/102.
+**Lo último:** 08/10 22:10 UTC: prueba física de F4-d terminada y cierre enviado a Miguel en el #227 (desde ahora todo lo de F4-d va ahí; el #222 apunta al #227). Teléfono = CRM (19 = 19), encuesta 18 de 18. Turno de Miguel: consulta sin números, desactivar los dos leads de prueba, decidir H-P5 y H-P10. Nuestro: anotar L3 (~18:40) y, después, el arreglo de P9 en un PR aparte. 33/102.
 
 **Total:** 33 de 102 tareas · 1 de 8 fases hechas.
 
@@ -136,6 +136,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 
 ## Últimos cambios
 
+- 08/10/2026, 05:10 p. m. · Cierre de F4-d enviado a Miguel en el #227 (comentario 6069878405, OK de Jhosep: «juntamos en un PR todo»): tabla P1–P15, cierre de §5 (19 = 19, 18 de 18), hallazgos H-P5, H-P10, H-P11 (corregido) y la observación del número en el registro, la idea de Jhosep como propuesta, y el encargo: consulta sin números, desactivar «prueba leeds» y «PRUEBA C1 B» tras la consulta, decidir H-P5 y H-P10. El #222 apunta al #227 (6069879252). Corrección: el #227 ya estaba «listo» (Miguel, 08/10 16:18 UTC), no en borrador.
 - 08/10/2026, 05:00 p. m. · Cierre de §5 de ACTIVAR-C1.md, parte nuestra (08/10 ~16:55): 19 salientes en el registro del teléfono desde la activación (8 el 07/10 con las mismas horas de P1–P9, 11 el 08/10) = 19 avisos 202 en el registro de MacroDroid; encuesta abierta al colgar 18 de 18 llamadas a leads. Falta L3 y la consulta de Miguel.
 - 08/10/2026, 04:45 p. m. · P4 PASS (16:30–16:31: dos leads seguidos, cada llamada en su lead) y P5 PASS en los datos (16:32–16:40: la encuesta de B saltó encima y la abierta de «prueba leeds» se borró; sin cruce, esa llamada quedó en Pendientes y se unió desde ahí; Qué pasó hoy 10). Hallazgo H-P5: una sola ventana, la app se recarga con el segundo enlace. Hechas con los chips cambiados: «PRUEBA C1 B» tiene el número del chip de C1 (neutralizar con «No contactar» y devolver los chips). Guías corregidas por H-P11.
 - 08/10/2026, 03:50 p. m. · P14 en C1 (08/10): L1 PASS (latido 200 a las 12:40, tarjeta Al día); L2 PASS (el aviso de A6 falló sin red a las 14:31, salió 202 a las 14:34 al volver la red, ningún latido extra desde las 12:40); L4 PASS (~15:40: entrada a mano C9-1791491289 → notificación «Un aviso de llamada fue rechazado» sin número, cola 0, errores_llamadas 1, borrada después). L3 pendiente (~18:40). P8: motivo leído al repetir, «la llamada es de otro celular».
@@ -150,4 +151,3 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 - 08/10/2026, 11:45 a. m. · Decisión de Jhosep sobre P9: lo arreglamos nosotros con la opción A (botón «Registrar el corregido» en la fila deshecha; la v5 mueve el enlace), en rama aparte con PR borrador, DESPUÉS de terminar las pruebas de F4-d. Avisado a Miguel en el #222; su turno solo si prefiere B.
 - 08/10/2026, 11:40 a. m. · Pruebas en C1 del 08/10 (Jhosep): P13 PASS (número que no es lead: encuesta con aviso ámbar «ningún lead de tu cartera», nada guardado, Pendientes 0) y P12 PASS (llamada entrante: no se abre nada, cola_llamadas 0). REGISTRO.md §5i.
 - 08/10/2026, 11:20 a. m. · Segundo comentario a Miguel en el #222 (6063656338): Pro pospuesto por decisión de Jhosep (renovar días gratis con anuncios, 3 días desde el 09/10, mientras duren las pruebas); reparto de F4-d (Miguel solo decide P9; el resto nuestro, un comentario al cierre); pasos para su agente: reproducir en banco, elegir A (solo pantalla: botón en la fila deshecha, la v5 mueve el enlace) o B (lectura devuelve la deshecha como pendiente; migración), avisar con QUÉ HICE · RESULTADO · TURNO PARA.
-- 08/10/2026, 10:30 a. m. · Aviso a Miguel enviado en el #222 (comentario 6063211358, OK de Jhosep): C1 activo desde el 07/10, tabla P1–P15 (6 PASS, P9 parcial), hallazgo de P9 para que él decida, incidencia de la clave (cierra en P11), Pro sin comprar por decisión de Jhosep. Turno: Miguel solo para P9; nosotros seguimos con P13, P12 y P11. Rama rehecha desde main: crm/llamadas-f4d-c1-activo-20261008.
