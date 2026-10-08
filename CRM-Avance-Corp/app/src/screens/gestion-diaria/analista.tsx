@@ -661,7 +661,7 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
                 {vistaVisible === 'celular' && celular ? (
                   <LlamadasCelular estadoPendientes={celular.estadoPendientes} estadoResueltas={celular.estadoResueltas} pendientes={celular.pendientes} resueltas={celular.resueltas} ahora={ahora} ocupado={celular.ocupado}
                     busqueda={{ demo: yo?.demo === true, leadsLocales: ambito.leads }}
-                    onRegistrar={registrarDesdePestana} onElegirLead={celular.elegirLead} onDescartar={celular.descartar}
+                    onRegistrar={registrarDesdePestana} onCorregir={registrarDesdePestana} onElegirLead={celular.elegirLead} onDescartar={celular.descartar}
                     onAbrirFicha={(leadId) => { void abrirLead(leadId) }} />
                 ) : vistaVisible === 'cola' ? (
                   <ColaDeHoy

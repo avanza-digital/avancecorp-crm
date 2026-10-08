@@ -32,6 +32,10 @@ export function demoResueltasHoyCelular(ahora: number): ResueltaHoy[] {
     motivo_descarte_detalle: null, ...extra,
   })
   return [
+    // Hallazgo de P9 (F4-d): guardó un resultado y lo deshizo; la fila ofrece «Registrar el corregido».
+    resuelta('juan-deshecho', 60, { evento_origen_id: `C1-${Math.floor((ahora - 60 * MIN) / 1000)}`, numero: '+51987654321',
+      lead_id: 'l1', lead_nombre: 'JUAN PÉREZ ROJAS', actividad_id: 'demo-act-juan-deshecho', resultado: 'no_contesto',
+      deshecho: true, via: 'al_colgar' }),
     resuelta('teresa', 90, { numero: '+51911223344', lead_id: 'l15', lead_nombre: 'TERESA GONZALES PAZ',
       actividad_id: 'demo-act-teresa', resultado: 'agendo_reunion', via: 'al_colgar' }),
     resuelta('juan', 110, { numero: '+51987654321', lead_id: 'l1', lead_nombre: 'JUAN PÉREZ ROJAS',
