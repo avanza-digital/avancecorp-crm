@@ -1,8 +1,9 @@
 // screens/facturacion.tsx — Facturación: el mes entero, día a día, por
-// supervisor y por analista. Pantalla de Gerencia y, desde el 16/09/2026, de
+// supervisor y por analista. Pantalla de Gerencia; desde el 16/09/2026 también de
 // Supervisión: el supervisor ve el avance de SU equipo (el servidor recorta el
 // ámbito a las filas cuyo supervisor de entonces es él, más sus ventas propias;
-// aquí no se filtra nada por rol).
+// aquí no se filtra nada por rol). Desde el 08/10/2026 también de Directorio,
+// en lectura: como lector global, el servidor ya le daba la empresa entera.
 //
 // La malla es el diseño: 30 columnas de día × filas de equipo con sus analistas
 // anidados. La columna de nombres y la de total quedan congeladas; la cabecera

@@ -140,10 +140,12 @@ describe('capacidades por rol', () => {
     expect(ROLES.filter((rol) => CAPS[rol].tomarLeadDirecto)).toEqual(['vendedor'])
   })
 
-  it('Facturación es de Gerencia y de Supervisión (su equipo); nadie más', () => {
-    expect(ROLES.filter((rol) => CAPS[rol].verFacturacion)).toEqual(['supervisor', 'gerencia'])
+  it('Facturación es de Gerencia, Supervisión (su equipo) y Directorio (lectura); nadie más', () => {
+    // Directorio desde el 08/10/2026 (Miguel: «sí, que la vea»): el servidor ya
+    // le abría la empresa entera por ser lector global.
+    expect(ROLES.filter((rol) => CAPS[rol].verFacturacion)).toEqual(['supervisor', 'gerencia', 'directorio'])
     expect(can('vendedor', 'verFacturacion')).toBe(false)
-    expect(can('directorio', 'verFacturacion')).toBe(false)
+    expect(can('directorio', 'verFacturacion')).toBe(true)
     expect(can('coordinador', 'verFacturacion')).toBe(false)
     expect(can(null, 'verFacturacion')).toBe(false)
   })
