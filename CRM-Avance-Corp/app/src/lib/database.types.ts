@@ -1169,6 +1169,7 @@ export type Database = {
           nota: string | null
           peso_referido: number
           peso_renovacion: number
+          tope_referidos_pct: number | null
           vigente_desde: string
         }
         Insert: {
@@ -1176,6 +1177,7 @@ export type Database = {
           nota?: string | null
           peso_referido: number
           peso_renovacion?: number
+          tope_referidos_pct?: number | null
           vigente_desde: string
         }
         Update: {
@@ -1183,6 +1185,7 @@ export type Database = {
           nota?: string | null
           peso_referido?: number
           peso_renovacion?: number
+          tope_referidos_pct?: number | null
           vigente_desde?: string
         }
         Relationships: []
@@ -3951,6 +3954,7 @@ export type Database = {
           periodo: string
           ponderacion_referido: number
           ponderacion_renovacion: number | null
+          tope_referidos_pct: number | null
         }
         Insert: {
           automatico?: boolean
@@ -3961,6 +3965,7 @@ export type Database = {
           periodo: string
           ponderacion_referido: number
           ponderacion_renovacion?: number | null
+          tope_referidos_pct?: number | null
         }
         Update: {
           automatico?: boolean
@@ -3971,6 +3976,7 @@ export type Database = {
           periodo?: string
           ponderacion_referido?: number
           ponderacion_renovacion?: number | null
+          tope_referidos_pct?: number | null
         }
         Relationships: []
       }
