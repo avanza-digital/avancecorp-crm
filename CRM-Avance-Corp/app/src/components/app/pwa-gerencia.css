@@ -22,15 +22,6 @@
   [data-gerencia-movil='true'] .citas-consulta-movil span { margin-top: 4px; color: var(--muted-foreground-strong); }
   [data-gerencia-movil='true'] #citas-consulta-campos[data-abierta='false'] { display: none; }
   [data-gerencia-movil='true'] .citas-filtros-fila { grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
-  [data-gerencia-movil='true'] [data-vista-scroll='facturacion'] .facturacion-malla-titulo { flex-wrap: wrap; }
-  [data-gerencia-movil='true'] [data-vista-scroll='facturacion'] .facturacion-malla-titulo h3 { flex: 1; min-width: 180px; }
-  [data-gerencia-movil='true'] [data-vista-scroll='facturacion'] [aria-label^='Facturación diaria'] { max-height: 65dvh; scroll-padding-inline-start: 144px; }
-  [data-gerencia-movil='true'] [data-vista-scroll='facturacion'] [aria-label^='Facturación diaria'] tr > :first-child { width: 144px; min-width: 144px; max-width: 144px; padding-inline: 8px; }
-  [data-gerencia-movil='true'] [data-vista-scroll='facturacion'] [aria-label^='Facturación diaria'] tbody tr > :first-child > div { padding-left: 0; gap: 6px; }
-  [data-gerencia-movil='true'] [data-vista-scroll='facturacion'] [aria-label^='Facturación diaria'] tbody tr > :first-child button { padding-inline: 4px; gap: 6px; }
-  [data-gerencia-movil='true'] [data-vista-scroll='facturacion'] .facturacion-analista-avatar { display: none; }
-  [data-gerencia-movil='true'] [data-vista-scroll='facturacion'] [aria-label^='Facturación diaria'] tr > :last-child { position: static; min-width: 100px; }
-  [data-gerencia-movil='true'] [data-vista-scroll='facturacion'] [aria-label^='Facturación diaria'] .truncate { white-space: normal; overflow-wrap: anywhere; }
   [data-gerencia-movil='true'] [data-vista-scroll='ranking-vendedores'] [role='tablist'] { flex-wrap: wrap; gap: 4px; }
   [data-gerencia-movil='true'] [data-vista-scroll='ranking-vendedores'] [role='tab'] { white-space: normal; flex: 1 1 auto; }
   [data-gerencia-movil='true'] [data-vista-scroll='ranking-vendedores'] ol .truncate { white-space: normal; overflow-wrap: anywhere; }

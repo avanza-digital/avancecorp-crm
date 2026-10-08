@@ -1,0 +1,24 @@
+/* Facturación en teléfono, para TODO rol que la abre (Gerencia y Supervisión).
+   Hasta el 08/10/2026 estas reglas vivían en pwa-gerencia.css colgadas de
+   [data-gerencia-movil]: el supervisor en el celular veía las dos columnas fijas
+   (208 + 128 px) llenar la región y ningún día. (Auditoría de Facturación.)
+   La región se marca con .facturacion-malla; el título, con .facturacion-malla-titulo. */
+@media (max-width: 767px) {
+  .facturacion-malla-titulo { flex-wrap: wrap; }
+  .facturacion-malla-titulo h3 { flex: 1; min-width: 180px; }
+  /* Altura propia para que la cabecera de días quede fija al desplazar. */
+  .facturacion-malla { max-height: 65dvh; scroll-padding-inline-start: 144px; }
+  .facturacion-malla tr > :first-child { width: 144px; min-width: 144px; max-width: 144px; padding-inline: 8px; }
+  .facturacion-malla tbody tr > :first-child > div { padding-left: 0; gap: 6px; }
+  .facturacion-malla tbody tr > :first-child button { padding-inline: 4px; gap: 6px; }
+  .facturacion-malla .facturacion-analista-avatar { display: none; }
+  /* El total deja de ir fijo de lado: con nombres y total pegados no quedaba sitio
+     para un solo día. Su CABECERA sigue fija arriba, o al bajar la columna se
+     quedaría sin rótulo. */
+  .facturacion-malla tr > :last-child { position: static; min-width: 100px; }
+  .facturacion-malla thead tr > :last-child { position: sticky; right: auto; }
+  .facturacion-malla .truncate { white-space: normal; overflow-wrap: anywhere; }
+  /* Aquí la reserva lateral la pone el contenedor (144 px); la de escritorio
+     (208 + 128 px) se sumaría y sacaría la celda de la pantalla. */
+  .facturacion-malla :is(td, button, input) { scroll-margin-inline: 0; }
+}
