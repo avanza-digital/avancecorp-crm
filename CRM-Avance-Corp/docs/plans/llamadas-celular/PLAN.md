@@ -130,12 +130,12 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 | --- | --- | --- | --- | --- |
 | F0 · Piloto y línea base | 4 | 1/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-2) |
 | F1 · Formulario único y match exacto | 4 | 12/12 | Hecha | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-8) |
-| F2 · Núcleo confiable | 4 | 12/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-14) |
-| F3 · Captura y sincronización | 4 | 6/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-20) |
+| F2 · Núcleo confiable | 4 | 13/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-14) |
+| F3 · Captura y sincronización | 4 | 7/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-20) |
 | F4 · Pendientes y conciliación | 4 | 0/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-66) |
 | F5 · Jev para identificación asistida | 5 | 0/15 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-72) |
 | F6 · Gerencia y calidad | 4 | 0/12 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-78) |
-| F7 · Despliegue y operación | 4 | 0/12 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-84) |
+| F7 · Despliegue y operación | 4 | 0/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-84) |
 
 **Total inicial: 0/102 tareas, agrupadas en 33 subfases.** Los ocho checks comunes de la sección 14 son criterios que se aplican al cerrar cada fase; no se suman como otra fase de trabajo.
 
@@ -273,7 +273,7 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 | No comercial/fuera de alcance | Descarte permitido, motivado y auditado; no salida libre para ocultar llamadas identificadas |
 | Actividad con efectos deshechos | Evidencia y enlace permanecen; anotar efectos anulados sin exigir automáticamente otro registro |
 
-**Seguimiento de F2:** 12/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
+**Seguimiento de F2:** 13/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
 
 ### F2.1 · Cerrar el contrato
 
@@ -294,7 +294,7 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 - [x] **F2.2.3** Aplicar unicidad de evento e idempotencia: mismo contenido devuelve mismo ID; distinto contenido genera conflicto.
 - [x] **F2.2.4** Restringir enlace evento–actividad a uno a uno, con autor, lead y tipo compatibles.
 
-**Evidencia / fecha de validación:** 01/10/2026: migración de datos 20261001145242 (eb73df1b) y núcleo 20261001160219 (fda9310e) en feat/llamadas-f2; npm run test:llamadas:local 82/82 en banco reducido (57 mutantes cazados). Sin aplicar en ningún entorno compartido..
+**Evidencia / fecha de validación:** 01/10/2026: migración de datos 20261001145242 (eb73df1b) y núcleo 20261001160219 (fda9310e) en feat/llamadas-f2; npm run test:llamadas:local 82/82 en banco reducido (57 mutantes cazados). Sin aplicar en ningún entorno compartido entonces; aplicada en producción el 07/10 (H1, acta INSTALACION-20261007.md)..
 
 ### F2.3 · Aplicar ámbito y permisos
 
@@ -304,15 +304,15 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 - [x] **F2.3.2** Resolver actor activo desde asignación; revalidar ámbito, actividad ajena y lead reasignado.
 - [x] **F2.3.3** Cerrar RLS y EXECUTE; documentar excepción single-tenant y contratos de puertas DEFINER.
 
-**Evidencia / fecha de validación:** 01/10/2026: núcleo y 11 puertas (fda9310e); oráculo con actores simulados (43 defensas), 25 mutantes del núcleo cazados, reversa del núcleo en orden y fuera de orden. Sin aplicar en ningún entorno compartido..
+**Evidencia / fecha de validación:** 01/10/2026: núcleo y 11 puertas (fda9310e); oráculo con actores simulados (43 defensas), 25 mutantes del núcleo cazados, reversa del núcleo en orden y fuera de orden. Sin aplicar en ningún entorno compartido entonces; aplicada en producción el 07/10 (H1, acta INSTALACION-20261007.md)..
 
 ### F2.4 · Verificar el núcleo
 
-**Estado:** en curso · **Avance:** 2/3 · **Responsable:** Claude (banco local) · Miguel (banco de producción, revisión y OK).
+**Estado:** hecha · **Avance:** 3/3 · **Responsable:** Claude (banco local) · Miguel (banco de producción, revisión y OK).
 
 - [x] **F2.4.1** Probar IDs repetidos, payload incompatible, dos consumidores, llamadas cercanas y bajas de actor/equipo.
 - [x] **F2.4.2** Ejecutar SQL y gate RLS ampliado en entorno aislado; revisión LEVEL 3 y advisors aplicables.
-- [ ] **F2.4.3** Completar comentarios, ledger de migraciones y evidencia de aceptación antes de habilitar consumidores. — EN CURSO: COMMENT completos (los exige el postflight) y ledger con las doce, todas sin aplicar. Los consumidores siguen cerrados (LLAMADAS_CELULAR_APROBADAS = false). Falta: aplicar, marcar «EN PROD», verificar V1–V5 y recién entonces abrir el interruptor (Miguel).
+- [x] **F2.4.3** Completar comentarios, ledger de migraciones y evidencia de aceptación antes de habilitar consumidores.
 
 **Evidencia / fecha de validación:** pendiente.
 
@@ -333,7 +333,7 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 | Listar/alta/baja/rotar celular | Capacidad de administración resuelta en servidor |
 | Registrar salud | Credencial de equipo, datos mínimos; heartbeat no demuestra captura sana |
 
-**Seguimiento de F3:** 6/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
+**Seguimiento de F3:** 7/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
 
 ### F3.1 · Publicar el contrato de puertas
 
@@ -347,11 +347,11 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 
 ### F3.2 · Proteger la ingesta
 
-**Estado:** en curso · **Avance:** 1/3 · **Responsable:** Claude (construye) · Miguel (aprueba y aplica).
+**Estado:** en curso · **Avance:** 2/3 · **Responsable:** Claude (construye) · Miguel (aprueba y aplica).
 
-- [ ] **F3.2.1** Configurar Edge con esquema estricto, tamaño limitado, token propio y autenticación de plataforma verificada. — EN CURSO: Edge crm-llamadas-ingesta en main: esquema estricto, cuerpo ≤ 4 KB, clave en la cabecera, verify_jwt = false documentado; 17 pruebas y 18 mutantes. Falta desplegarla y comprobar en la plataforma que verify_jwt quedó apagado solo ahí (Miguel).
+- [x] **F3.2.1** Configurar Edge con esquema estricto, tamaño limitado, token propio y autenticación de plataforma verificada.
 - [x] **F3.2.2** Aplicar rate limit compartido, baja/inactividad y rotación/revocación con auditoría.
-- [ ] **F3.2.3** Mostrar token una vez; guardar hash y eliminar secretos de URL, logs y soporte. — EN CURSO: Solo el sha256 en la base; la clave viaja en una cabecera, nunca en la URL; la Edge no escribe registros; la tarjeta de F4-c (#215) la muestra una vez y la saca de los registros (credencial en CLAVES_SENSIBLES); el registro de MacroDroid no la muestra (prueba 6, 02/10). Falta la guía de soporte sin secretos y comprobarlo en el despliegue.
+- [ ] **F3.2.3** Mostrar token una vez; guardar hash y eliminar secretos de URL, logs y soporte. — EN CURSO: Solo el sha256 en la base; la clave viaja en una cabecera, nunca en la URL; la Edge no escribe registros; la tarjeta de F4-c (#215) la muestra una vez y la saca de los registros (credencial en CLAVES_SENSIBLES); el registro de MacroDroid no la muestra (prueba 6, 02/10). Edge desplegada el 07/10 (H2). Falta la guía de soporte sin secretos y comprobarlo con C1.
 
 **Evidencia / fecha de validación:** pendiente.
 
@@ -390,9 +390,9 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 
 **Estado:** en curso · **Avance:** 0/3 · **Responsable:** Claude (código) · Miguel (instala) · Jhosep (C1).
 
-- [ ] **F4.1.1** Mostrar pendientes por registrar, identificar y devolver en Hoy/Alertas, con hora y retraso. — EN CURSO: Probada (sin instalar): pestaña «Llamadas del celular» en Gestión Diaria (F4-b, decisión 3 de F4), suite de la app y E2E 17/17 (06/10). Detrás del interruptor. Falta la aceptación en C1 (F4-d); «devolver» llega con la #14.
-- [ ] **F4.1.2** Obtener detalle por UUID; explicar ya registrado, inaccesible, depurado o error sin filtrar datos. — EN CURSO: Probada (sin instalar): detalle y motivos de «no se unió» sin datos de terceros (F4-b). Falta la aceptación en C1 y comprobar el caso «depurado».
-- [ ] **F4.1.3** Ofrecer el mismo circuito en celular y PC; cerrar el diálogo conserva el pendiente. — EN CURSO: Probada (sin instalar): el mismo circuito en celular y PC (F4-b); la décima une lo registrado desde la pestaña. Falta P6 y P7 de F4-d.
+- [ ] **F4.1.1** Mostrar pendientes por registrar, identificar y devolver en Hoy/Alertas, con hora y retraso. — EN CURSO: Probada e instalada (07/10, H1–H3): pestaña «Llamadas del celular» en Gestión Diaria (F4-b, decisión 3 de F4), suite de la app y E2E 17/17 (06/10). Interruptor encendido el 07/10 (build-20261007T222046462Z); smoke de Miguel con Analista: pestaña «Celular» visible, bandeja con cero pendientes y sin errores JS. Falta la aceptación en C1 (F4-d); «devolver» llega con la #14.
+- [ ] **F4.1.2** Obtener detalle por UUID; explicar ya registrado, inaccesible, depurado o error sin filtrar datos. — EN CURSO: Probada e instalada (07/10, H1–H3): detalle y motivos de «no se unió» sin datos de terceros (F4-b). Falta la aceptación en C1 y comprobar el caso «depurado».
+- [ ] **F4.1.3** Ofrecer el mismo circuito en celular y PC; cerrar el diálogo conserva el pendiente. — EN CURSO: Probada e instalada (07/10, H1–H3): el mismo circuito en celular y PC (F4-b); la décima une lo registrado desde la pestaña. Falta P6 y P7 de F4-d.
 
 **Evidencia / fecha de validación:** pendiente.
 
@@ -400,10 +400,10 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 
 **Estado:** en curso · **Avance:** 0/4 · **Responsable:** Claude (código) · Miguel (instala) · Jhosep (C1).
 
-- [ ] **F4.2.1** Propagar contexto del evento y confirmación real de actividad_id mediante formulario/store. — EN CURSO: Probada (sin instalar): el id viaja de la URL a la encuesta y la v5 devuelve el recibo real (5df2764e). Falta P1–P3 de F4-d.
-- [ ] **F4.2.2** Componer v4 + enlace en transacción sin alterar núcleo sellado; revisar recibos, replays y locks. — EN CURSO: Probada (sin instalar): crm.registrar_llamada_v5 (F4-a) en una transacción con la v4 sellada; séptima sin ciclo con Deshacer; duodécima con revalidación. Banco reducido 415/415, banco de Miguel 197/197. Falta instalar y confirmar el sello de la v4 (F4.4.3).
-- [ ] **F4.2.3** Si la composición no es viable, implementar intención de enlace persistente y conciliación durable con reintentos. — EN CURSO: Probada (sin instalar): la composición resultó viable y además existe la intención durable: si el aviso llega tarde, la ingesta la cumple. Falta instalar y P1 de F4-d.
-- [ ] **F4.2.4** Proponer y confirmar enlace para registros previos o desde PC; nunca decidir solo por ±10 minutos. — EN CURSO: Probada (sin instalar): asociación manual a un resultado ya guardado (vía manual); el camino exacto no usa la regla de ±10 minutos. Falta la aceptación en C1.
+- [ ] **F4.2.1** Propagar contexto del evento y confirmación real de actividad_id mediante formulario/store. — EN CURSO: Probada e instalada (07/10, H1–H3): el id viaja de la URL a la encuesta y la v5 devuelve el recibo real (5df2764e). Falta P1–P3 de F4-d.
+- [ ] **F4.2.2** Componer v4 + enlace en transacción sin alterar núcleo sellado; revisar recibos, replays y locks. — EN CURSO: Probada e instalada (07/10, H1–H3): crm.registrar_llamada_v5 (F4-a) en una transacción con la v4 sellada; séptima sin ciclo con Deshacer; duodécima con revalidación. Banco reducido 415/415, banco de Miguel 197/197. Falta confirmar el sello de la v4 (F4.4.3).
+- [ ] **F4.2.3** Si la composición no es viable, implementar intención de enlace persistente y conciliación durable con reintentos. — EN CURSO: Probada e instalada (07/10, H1–H3): la composición resultó viable y además existe la intención durable: si el aviso llega tarde, la ingesta la cumple. Falta P1 de F4-d.
+- [ ] **F4.2.4** Proponer y confirmar enlace para registros previos o desde PC; nunca decidir solo por ±10 minutos. — EN CURSO: Probada e instalada (07/10, H1–H3): asociación manual a un resultado ya guardado (vía manual); el camino exacto no usa la regla de ±10 minutos. Falta la aceptación en C1.
 
 **Evidencia / fecha de validación:** pendiente.
 
@@ -411,9 +411,9 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 
 **Estado:** en curso · **Avance:** 0/3 · **Responsable:** Claude (código) · Miguel (revisa e instala) · Jhosep (C1).
 
-- [ ] **F4.3.1** Asociar únicamente a lead visible; crear por flujo existente y reintentar asociación tras alta confirmada. — EN CURSO: Probada en parte (sin instalar): asociar a un lead visible (las ambiguas). Crear el lead y reintentar no aplica mientras los números sin lead no se guarden (decisión 3a; #10). Falta la aceptación en C1.
-- [ ] **F4.3.2** Administrar celulares: alta, baja, rotación, salud y atribución histórica, con token mostrado una vez. — EN CURSO: Probada y en main: tarjeta «Celulares» (F4-c, #215, aprobado por Miguel y fusionado el 07/10, 5f42e908): unitarias, MSW y pantalla; E2E Docker 4/4; P2 de la revisión corregido (d7d498d2); validación de cierre de Miguel PASS (6366/6366, E2E 4/4). Falta instalar; después, paso 2 de ACTIVAR-C1.md.
-- [ ] **F4.3.3** Conservar evidencia y vínculo al deshacer; mostrar efectos anulados y no fabricar otra gestión. — EN CURSO: Probada (sin instalar): Deshacer mueve el enlace al corregido; efectos_anulados en el detalle; «deshecho» en «Qué pasó hoy». Falta P9 de F4-d.
+- [ ] **F4.3.1** Asociar únicamente a lead visible; crear por flujo existente y reintentar asociación tras alta confirmada. — EN CURSO: Probada en parte e instalada (07/10, H1–H3): asociar a un lead visible (las ambiguas). Crear el lead y reintentar no aplica mientras los números sin lead no se guarden (decisión 3a; #10). Falta la aceptación en C1.
+- [ ] **F4.3.2** Administrar celulares: alta, baja, rotación, salud y atribución histórica, con token mostrado una vez. — EN CURSO: Probada e instalada (07/10, H1–H3): tarjeta «Celulares» (F4-c, #215, aprobado por Miguel y fusionado el 07/10, 5f42e908): unitarias, MSW y pantalla; E2E Docker 4/4; P2 de la revisión corregido (d7d498d2); validación de cierre de Miguel PASS (6366/6366, E2E 4/4). Gerencia no se probó a mano tras el release. Siguiente: paso 2 de ACTIVAR-C1.md (alta de C1).
+- [ ] **F4.3.3** Conservar evidencia y vínculo al deshacer; mostrar efectos anulados y no fabricar otra gestión. — EN CURSO: Probada e instalada (07/10, H1–H3): Deshacer mueve el enlace al corregido; efectos_anulados en el detalle; «deshecho» en «Qué pasó hoy». Falta P9 de F4-d.
 
 **Evidencia / fecha de validación:** pendiente.
 
@@ -423,7 +423,7 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 
 - [ ] **F4.4.1** Probar evento antes/después, dos llamadas cercanas, guardado confirmado con enlace fallido y dos pestañas.
 - [ ] **F4.4.2** Probar edición mientras llega otra llamada, alta/asociación fallida, deshacer y lead reasignado.
-- [ ] **F4.4.3** Ejecutar checks, E2E local y prueba física; confirmar sello v4 y ausencia de actividades duplicadas. — EN CURSO: Checks y E2E locales en verde (app 6338; E2E 17/17 y 4/4). Falta la prueba física (F4-d) y la consulta de Miguel sin números: recibidas, guardadas, sin duplicados y sello de la v4 intacto.
+- [ ] **F4.4.3** Ejecutar checks, E2E local y prueba física; confirmar sello v4 y ausencia de actividades duplicadas. — EN CURSO: Checks y E2E locales en verde (app 6397 y Docker 7 + 1 intermitente en el #222, 07/10; antes E2E 17/17 y 4/4). Falta la prueba física (F4-d) y la consulta de Miguel sin números: recibidas, guardadas, sin duplicados y sello de la v4 intacto.
 
 **Evidencia / fecha de validación:** pendiente.
 
@@ -569,7 +569,7 @@ Mostrar hechos disponibles, no explicaciones inventadas: «Figura como alternati
 
 ## 13. F7 · Despliegue gradual y operación
 
-**Seguimiento de F7:** 0/12 tareas completadas · Estado: pendiente · Responsable nominal: por asignar.
+**Seguimiento de F7:** 0/12 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
 
 ### F7.1 · Aceptar el piloto
 
@@ -593,10 +593,10 @@ Mostrar hechos disponibles, no explicaciones inventadas: «Figura como alternati
 
 ### F7.3 · Publicar por cohortes
 
-**Estado:** pendiente · **Avance:** 0/3 · **Responsable:** por asignar.
+**Estado:** en curso · **Avance:** 0/3 · **Responsable:** Miguel (release) · Jhosep (cohortes).
 
-- [ ] **F7.3.1** Ejecutar gates y procedimiento humano de release; verificar commit local y avancecorp/main.
-- [ ] **F7.3.2** Construir/publicar solo el artefacto del commit verificado conforme a las reglas vigentes.
+- [ ] **F7.3.1** Ejecutar gates y procedimiento humano de release; verificar commit local y avancecorp/main. — EN CURSO: 07/10: primer release del despliegue (H3) con gates y release desde main limpio idéntico a avancecorp/main (d4c9a689). Se marca al cerrar el despliegue por cohortes (F7.3.3).
+- [ ] **F7.3.2** Construir/publicar solo el artefacto del commit verificado conforme a las reglas vigentes. — EN CURSO: 07/10: publicado solo el artefacto del commit verificado: crm-20261007T222047Z-d4c9a6897bb3.zip (SHA-256 04d8c94e…), build-20261007T222046462Z, preflight PASS y postflight 121/121 archivos idénticos. Se marca al cerrar el despliegue (F7.3.3).
 - [ ] **F7.3.3** Habilitar cohortes pequeñas, observar salud/incidencias y detener o ampliar según los criterios.
 
 **Evidencia / fecha de validación:** pendiente.

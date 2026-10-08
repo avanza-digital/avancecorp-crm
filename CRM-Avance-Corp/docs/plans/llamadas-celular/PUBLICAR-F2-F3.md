@@ -1,5 +1,9 @@
 # Publicar F2 + F3 + F4-a de «Llamadas desde el celular» — guía técnica (05/10/2026)
 
+> **Aviso (07/10/2026, noche): ya está instalado.** Miguel aplicó las doce (H1), desplegó la Edge (H2) y publicó la app
+> con el interruptor encendido (H3). Acta: `INSTALACION-20261007.md`. Esta guía queda como registro. **No** se vuelven a
+> correr los registradores antiguos sobre producción (ver el acta).
+>
 > **Aviso (07/10/2026):** esta guía se escribió cuando eran **siete** migraciones en el #190 abierto. Hoy son **doce**,
 > todas en `main` (el #190 se fusionó el 06/10) y ninguna aplicada. **El orden vigente** de las doce, con su registrador
 > cada una, está en el checklist del #215 y en `CIERRE-CORRECCIONES-20261006.md` («Orden SQL»). Lo demás de esta guía

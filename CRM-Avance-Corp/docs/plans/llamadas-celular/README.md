@@ -26,6 +26,8 @@ Consecuencia para el piloto: la gestión que se mide es la que el vendedor **hac
 | `F5-F7-ANALISIS.md` | Análisis adelantado de F5, F6 y F7 (03/10): qué cambió desde que se aprobó el plan, qué se reutiliza, el diseño descrito sin código y las decisiones que necesitaría Miguel. Borrador: no pide revisión hasta que toque F5 | Claude |
 | `SEGUIMIENTO.md` | **Seguimiento conciliado** de las 102 tareas (07/10, pedido por Miguel): estado, evidencia, siguiente paso, responsable y dependencia de cada una; hitos de instalación; ampliaciones y decisiones pendientes | Claude |
 | `COORDINACION.md` | Reglas de trabajo con Miguel, mapa de los PR, turno, orden y bitácora | Claude (Jhosep) |
+| `DECISIONES-PENDIENTES.md` | Las decisiones #16, #17 y #18, con su propuesta y la aprobación de Miguel (07/10) copiada tal cual | Claude |
+| `INSTALACION-20261007.md` | Acta de la instalación del 07/10 (H1–H3): migraciones aplicadas, Edge, verificaciones, límites y cómo recuperarse tras un alta | Miguel (Codex) |
 | `F4B-PLAN-CORTO.md`, `F4C-F4D-PLAN-CORTO.md`, `F4E-PLAN-CORTO.md` | Planes cortos de la pestaña del analista, la tarjeta «Celulares» con la activación de C1, y la vista de supervisor y gerencia | Claude |
 | `HANDOFF-<fecha>.md` | Cierre de cada sesión: qué se hizo, cómo probarlo, qué falta y el prompt para retomar | Claude |
 
@@ -47,18 +49,17 @@ La guía del día para activar C1 vive con los materiales del piloto: `docs/gest
 
 ## Estado hoy
 
-**Al 07/10/2026, 21:45 UTC.** Detalle tarea por tarea en `SEGUIMIENTO.md` (31 de 102 cerradas con evidencia).
+**Al 07/10/2026, 23:30 UTC.** Detalle tarea por tarea en `SEGUIMIENTO.md` (33 de 102 cerradas con evidencia).
 
 - **F1 (la encuesta al colgar) está en producción** desde la noche del 01/10 (PR #165) y se comprobó con C1 el 02/10.
-- **Las doce migraciones de llamadas, la Edge y F4-b están en `main`** (PR #190, fusionado el 06/10) y probadas, pero
-  **sin instalar**: producción tiene 0 de 12, sin Edge y con el modo SLA activo (comprobado por Miguel el 07/10). La
-  pantalla va detrás del interruptor `LLAMADAS_CELULAR_APROBADAS` (apagado).
-- **F4-c (la tarjeta «Celulares») está en `main`:** Miguel la aprobó y fusionó el #215 el 07/10 (`5f42e908`).
+- **Todo lo demás ya está instalado** (07/10, H1–H3; acta `INSTALACION-20261007.md`): las doce migraciones y la Edge
+  en producción, y la app publicada con el interruptor encendido (#222, `build-20261007T222046462Z`). Los analistas ven
+  la pestaña «Celular» y gerencia, la tarjeta «Celulares».
+- **Ningún celular está conectado todavía.** Lo siguiente es de Jhosep: comprar Pro en C1 y activarlo con
+  `ACTIVAR-C1.md` (P1–P15 contra la Edge real). «Instalar no es activar».
 - **Las decisiones #16, #17 y #18 están aprobadas** (07/10, `DECISIONES-PENDIENTES.md`): Pro para el piloto, F0 con
   salientes y F4-e en F4 con el diccionario A1–A7.
-- **Lo siguiente es de Miguel, y su agente ya lo está haciendo:** ensayar con SLA activo, aplicar las doce desde LF con
-  sus registradores, desplegar la Edge y abrir el interruptor en un release. Después se activa C1 con `ACTIVAR-C1.md`
-  («instalar no es activar»).
-- F0 (piloto, sin código) sigue en curso con un solo celular, C1 (Samsung A16).
+- F0 (el piloto) sigue en curso con un solo celular, C1 (Samsung A16): faltan las diez salientes, las noches y los
+  cinco días.
 
 Para retomar: el `HANDOFF-*.md` más reciente.
