@@ -51,6 +51,9 @@ Todo es en **MacroDroid → Variables**.
 2. **`errores_llamadas`**: lo mismo.
    - Por qué se vacían **ahora**: es el alta. Lo que quedara ahí sería de las pruebas con el receptor del PC.
    - Ojo: **al rotar la clave no se vacían.** Eso es otro caso (prueba P11).
+   - **Al rotar la clave (hallazgo H-P11, 08/10):** se pega la nueva en `clave_celular` **y se pone `ultimo_latido` en 0**,
+     igual que en el alta. Rotar abre una asignación nueva que todavía no tiene latido: sin este paso, la tarjeta dice
+     «Nunca habló» hasta el siguiente latido, que puede tardar hasta 6 horas, aunque las llamadas ya lleguen bien.
 3. **`url_llamadas`**: borra lo que tiene y pon exactamente:
    `https://dctqcbznekcyxhjujuci.supabase.co/functions/v1/crm-llamadas-ingesta`
 4. **`clave_celular`**: borra lo que tiene y pega la clave que te llegó.
@@ -80,7 +83,7 @@ Si a los 10 minutos sigue «Nunca habló»:
 - ¿C1 tiene internet?
 - ¿La URL quedó exacta, sin espacios? (paso 3.3).
 - Si en C1 salió la notificación **«La clave de este celular ya no vale…»**, la clave se pegó mal: vuelve a pegarla. Si
-  ya no la tienes, gerencia la **rota** desde la tarjeta y sale otra.
+  ya no la tienes, gerencia la **rota** desde la tarjeta y sale otra. Al pegar la nueva, pon también `ultimo_latido` en 0 (paso 3.5).
 
 ## 5. Las pruebas (P1–P15)
 
@@ -106,7 +109,7 @@ y sigue con la próxima solo si no depende de ella.
 | # | Qué haces | Qué tiene que pasar |
 | --- | --- | --- |
 | P10 | Llamas a PRUEBA B y, **antes de registrar**, gerencia reasigna ese lead a otra persona | La llamada sigue al **dueño actual** del lead (decisión 7). Anota qué ves en tu pestaña y en la de la otra persona |
-| P11 | Gerencia **rota** la clave de C1. Haces una llamada con la clave vieja. Después pegas la clave nueva **sin vaciar las colas** | Con la vieja, C1 avisa «La clave de este celular ya no vale…» y la llamada **espera en la cola**. Con la nueva, la cola se vacía sola y la tarjeta vuelve a «Al día» |
+| P11 | Gerencia **rota** la clave de C1. Haces una llamada con la clave vieja. Después pegas la clave nueva **sin vaciar las colas** y pones `ultimo_latido` en 0 | Con la vieja, C1 avisa «La clave de este celular ya no vale…» y la llamada **espera en la cola**. Con la nueva, la cola se vacía sola y, con el latido de la vuelta siguiente, la tarjeta vuelve a «Al día» (sin poner `ultimo_latido` en 0 tarda hasta 6 h: hallazgo H-P11, 08/10) |
 
 **Lo que no debe guardarse**
 
