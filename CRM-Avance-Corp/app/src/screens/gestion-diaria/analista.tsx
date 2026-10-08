@@ -46,7 +46,8 @@ import { enlaceTel } from '@/lib/telefono'
 import { ETAPA_INFO, TIPOS_ACTIVIDAD, TIPOS_TAREA, type Etapa, type Lead, type Tarea, type TipoActividad } from '@/lib/tipos'
 import { etiquetaResultado } from '@/lib/resultado-llamada'
 import { tareaQueCierra } from '@/lib/contacto-tarea'
-import { armarIntencion, cerrarIntencionesDe } from '@/lib/intencion-contacto'
+import { armarIntencion, cerrarIntencionesDe, intencionDe } from '@/lib/intencion-contacto'
+import type { ResueltaHoy } from '@/lib/llamadas-celular'
 import { useLlamadasCelular } from '@/data/use-llamadas-celular'
 import { LlamadasCelular } from '@/components/gestion-diaria/llamadas-celular'
 import { presentarCitas } from '@/lib/terminologia'
@@ -171,6 +172,21 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
       actor: yo.id, leadId: fila.lead_id, canal: 'tel', origen: 'enlace', numero: fila.numero,
       ...(fila.evento_origen_id ? { origenLlamada: fila.evento_origen_id, viaLlamada: 'pestana' as const } : {}),
     })
+  }
+  // «Registrar el corregido» (hallazgo de P9) con otra encuesta abierta: el coordinador le pegaría el id de la llamada
+  // deshecha a esa encuesta si es del mismo lead y no tiene id, y al guardarla se movería el enlace equivocado (revisión
+  // de Miguel en el #227, 08/10). Como al elegir otra fila, se pide guardar o cerrar la abierta antes de corregir.
+  const corregirDesdePestana = (fila: ResueltaHoy) => {
+    const actual = sesionRef.current
+    if (actual?.abierta) {
+      toast.info(`Primero guarda o cierra el resultado de ${primerNombre(actual.lead.nombre_completo)}.`)
+      return
+    }
+    if (intencionDe(yo?.id)?.abierta) {
+      toast.info('Primero guarda o cierra la encuesta que tienes abierta.')
+      return
+    }
+    registrarDesdePestana(fila)
   }
   // Solo cierres de tareas de CLIENTE, hasta que la lectura confirme su salida.
   // Los leads gestionados siguen visibles al final según la respuesta del servidor.
@@ -661,7 +677,7 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
                 {vistaVisible === 'celular' && celular ? (
                   <LlamadasCelular estadoPendientes={celular.estadoPendientes} estadoResueltas={celular.estadoResueltas} pendientes={celular.pendientes} resueltas={celular.resueltas} ahora={ahora} ocupado={celular.ocupado}
                     busqueda={{ demo: yo?.demo === true, leadsLocales: ambito.leads }}
-                    onRegistrar={registrarDesdePestana} onCorregir={registrarDesdePestana} onElegirLead={celular.elegirLead} onDescartar={celular.descartar}
+                    onRegistrar={registrarDesdePestana} onCorregir={corregirDesdePestana} onElegirLead={celular.elegirLead} onDescartar={celular.descartar}
                     onAbrirFicha={(leadId) => { void abrirLead(leadId) }} />
                 ) : vistaVisible === 'cola' ? (
                   <ColaDeHoy

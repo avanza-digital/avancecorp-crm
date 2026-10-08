@@ -48,6 +48,11 @@ const dobles = vi.hoisted(() => ({
   // lead para armar el panel, y sin él la pantalla manda a abrir la ficha.
   leads: [] as Array<Record<string, unknown>>,
   asegurarLead: vi.fn(async () => true),
+  // Para llevar «Registrar el corregido» (P9) hasta el guardado con la encuesta real.
+  registrarLlamada: vi.fn((_id: string, _input: Record<string, unknown>) => ({
+    ok: true, persistido: Promise.resolve(true),
+    confirmacion: Promise.resolve({ actividad_id: 'act-corregida', siguiente_id: null, descartado: false }),
+  })),
   historial: { items: [] as Array<Record<string, unknown>>, cargando: false, error: null as unknown, reintentar: vi.fn(), pedidos: [] as Array<string | null> },
 }))
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: dobles.yo }) }))
@@ -59,6 +64,8 @@ vi.mock('@/lib/store-context', () => ({
     tareasDe: () => dobles.tareas,
     asegurarLead: dobles.asegurarLead,
     obtenerTareaParaRevision: dobles.obtenerTarea,
+    registrarLlamada: dobles.registrarLlamada,
+    deshacerResultadoLlamada: vi.fn(() => ({ ok: true, persistido: Promise.resolve(true) })),
   }),
   usePanelesActions: () => ({ abrirLead: dobles.abrirLead }),
 }))
@@ -1312,5 +1319,55 @@ describe('GestionDiariaAnalista · «Llamadas del celular» (F4-b)', () => {
     fireEvent.click(within(maria).getByRole('button', { name: 'Registrar resultado' }))
     expect(intencionDe('a1', 'l2')).toMatchObject({ origen: 'enlace', numero: '+51987654322', viaLlamada: 'pestana' })
     expect(intencionDe('a1', 'l2')?.origenLlamada).toMatch(/^C1-\d{10}$/)
+  })
+
+  // Hallazgo de P9 y revisión de Miguel en el #227 (08/10): «Registrar el corregido» no puede pegarle su llamada a una
+  // encuesta que ya está abierta. La demo trae una resuelta deshecha de JUAN PÉREZ ROJAS (l1).
+  async function corregirJuanEnDemo() {
+    dobles.yo = { id: 'a1', rol: 'vendedor', demo: true, nombre_completo: 'ANALISTA UNO' }
+    render(<GestionDiariaAnalista />)
+    fireEvent.click(screen.getByRole('tab', { name: /^Celular/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /^Qué pasó hoy/ }))
+    const lista = await screen.findByRole('list', { name: 'Llamadas resueltas hoy' })
+    const juan = within(lista).getAllByRole('listitem').find((li) => /JUAN PÉREZ ROJAS.*deshecho/.test(li.textContent ?? ''))!
+    fireEvent.click(within(juan).getByRole('button', { name: 'Registrar el corregido' }))
+  }
+
+  it('con otra encuesta del mismo lead abierta, «Registrar el corregido» pide cerrarla y no le pega su llamada', async () => {
+    limpiarIntencionesContacto()
+    const abierta = armarIntencion({ actor: 'a1', leadId: 'l1', canal: 'tel', origen: 'enlace', numero: '+51987654321' })
+    reclamarIntencion(abierta.id)
+    const { toast } = await import('sonner')
+    const aviso = vi.spyOn(toast, 'info')
+    await corregirJuanEnDemo()
+    expect(aviso).toHaveBeenCalledWith('Primero guarda o cierra la encuesta que tienes abierta.')
+    // La encuesta abierta sigue sin id: al guardarla no moverá el enlace de la llamada deshecha.
+    expect(intencionDe('a1', 'l1')).toMatchObject({ id: abierta.id, abierta: true })
+    expect(intencionDe('a1', 'l1')?.origenLlamada).toBeUndefined()
+    limpiarIntencionesContacto()
+  })
+
+  it('sin otra encuesta abierta, «Registrar el corregido» arma su llamada y la encuesta la guarda unida a ella', async () => {
+    limpiarIntencionesContacto()
+    await corregirJuanEnDemo()
+    const armada = intencionDe('a1', 'l1')
+    expect(armada).toMatchObject({ origen: 'enlace', viaLlamada: 'pestana', abierta: false })
+    expect(armada?.origenLlamada).toMatch(/^C1-\d{10}$/)
+    // El receptor de F1 la reclama al abrir la encuesta; la encuesta real la guarda con ese id y la vía «pestana».
+    reclamarIntencion(armada!.id)
+    // Este archivo sustituye la encuesta por un doble; aquí hace falta la real (con el store y la sesión dobles).
+    const { RegistrarResultado } = await vi.importActual<typeof import('@/components/gestion-diaria/registrar-resultado')>('@/components/gestion-diaria/registrar-resultado')
+    const juan = { id: 'l1', nombre_completo: 'JUAN PÉREZ ROJAS', telefono: '+51987654321', etapa: 'nuevo', vendedor_id: 'a1', activo: true } as unknown as import('@/lib/tipos').Lead
+    render(<RegistrarResultado lead={juan} tarea={null} onClose={vi.fn()} />)
+    // (El reloj de este archivo está fijo en septiembre y el id de la demo es de hoy: la línea «Llamada del celular de las…»
+    // no se pinta, pero el id viaja igual. Lo que cuenta es lo que se envía al guardar.)
+    const encuesta = await screen.findByRole('dialog', { name: /Cómo salió la llamada con Juan/ })
+    fireEvent.click(within(encuesta).getByRole('radio', { name: /no contestó/i }))
+    fireEvent.click(within(encuesta).getByRole('button', { name: 'Guardar' }))
+    await waitFor(() => expect(dobles.registrarLlamada).toHaveBeenCalled())
+    expect(dobles.registrarLlamada.mock.calls[0]?.[1]).toMatchObject({
+      resultado: 'no_contesto', evento_origen_id: armada?.origenLlamada, via_llamada: 'pestana',
+    })
+    limpiarIntencionesContacto()
   })
 })
