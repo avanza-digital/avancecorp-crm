@@ -202,6 +202,19 @@ describe('filtrar por equipo', () => {
     fireEvent.change(screen.getByLabelText('Equipo'), { target: { value: 'sup-sara' } })
     expect(screen.getByText('Total de lo que estás viendo')).toBeVisible()
   })
+
+  it('mantiene al analista que vendió bajo dos supervisores al elegir el segundo equipo', () => {
+    pintar([
+      fila({ dia: '2026-09-02', supervisorId: 'sup-rosa', supervisorNombre: 'Rosa Uno', capital: 100_000 }),
+      fila({ dia: '2026-09-03', supervisorId: 'sup-sara', supervisorNombre: 'Sara Dos', capital: 50_000 }),
+    ])
+    fireEvent.click(screen.getByRole('button', { name: 'Analistas' }))
+    expect(screen.getAllByRole('checkbox', { name: 'Comparar a Ana Analista' })).toHaveLength(4)
+    fireEvent.click(screen.getAllByRole('checkbox', { name: 'Comparar a Ana Analista' })[0]!)
+    fireEvent.change(screen.getByLabelText('Equipo'), { target: { value: 'sup-sara' } })
+    expect(screen.getByRole('button', { name: 'Quitar Ana Analista' })).toBeVisible()
+    expect(within(malla()).getAllByText('S/ 50,000').length).toBeGreaterThan(0)
+  })
 })
 
 describe('comparar analistas', () => {
@@ -714,6 +727,16 @@ describe('hallazgos de la auditoría del 11/09/2026', () => {
     expect(screen.queryByText(/−90\.0 %/)).toBeNull()
   })
 
+  it('Todo S/ compara ambas monedas convertidas en los dos tramos', () => {
+    dobles.tc = { promedio: 4, fuente: 'SUNAT · prom. 7d' }
+    pintar([
+      fila({ dia: '2026-09-02', moneda: 'PEN', capital: 100_000 }),
+      fila({ dia: '2026-08-02', moneda: 'PEN', capital: 100_000 }),
+      fila({ dia: '2026-08-03', moneda: 'USD', capital: 25_000 }),
+    ])
+    expect(screen.getByText(/−50\.0 % vs\. el mismo tramo de/)).toBeVisible()
+  })
+
   it('un mes CERRADO sí compara contra el mes anterior completo', () => {
     // Al retroceder a agosto, el corte deja de aplicar: agosto entero contra
     // julio entero. Recortar aquí sería el error simétrico.
@@ -737,6 +760,18 @@ describe('hallazgos de la auditoría del 11/09/2026', () => {
     const panel = screen.getByRole('dialog')
     expect(within(panel).getByText(/US\$ 7,000/)).toBeVisible()
     expect(within(panel).queryByText(/S\/ 40,000/)).toBeNull()
+  })
+
+  it('el detalle de una fila respeta el supervisor histórico de esa fila', () => {
+    pintar([
+      fila({ dia: '2026-09-02', supervisorId: 'sup-rosa', supervisorNombre: 'Rosa Uno', capital: 100_000 }),
+      fila({ dia: '2026-09-03', supervisorId: 'sup-sara', supervisorNombre: 'Sara Dos', capital: 50_000 }),
+    ])
+    const botones = within(malla()).getAllByRole('button', { name: 'Ver el mes completo de Ana Analista' })
+    fireEvent.click(botones[1]!)
+    const panel = screen.getByRole('dialog')
+    expect(within(panel).getByText('S/ 50,000')).toBeVisible()
+    expect(within(panel).queryByText('S/ 100,000')).toBeNull()
   })
 })
 
@@ -966,6 +1001,17 @@ describe('marcar días sueltos (Miguel, 11/09/2026)', () => {
     // 10 000 + 40 000; el día 3 queda fuera aunque esté en medio.
     expect(screen.getAllByText('S/ 50,000').length).toBeGreaterThan(0)
     expect(screen.queryByText('S/ 70,000')).toBeNull()
+  })
+
+  it('el detalle del total de una fila incluye solo los días marcados', () => {
+    pintar(TRES_DIAS)
+    marcar(/Marcar el .*, 2 de setiembre/i)
+    marcar(/Marcar el .*, 4 de setiembre/i)
+    fireEvent.click(within(malla()).getByRole('button', { name: 'Ver el mes completo de Ana Analista' }))
+    const panel = screen.getByRole('dialog')
+    expect(within(panel).getByText('S/ 10,000')).toBeVisible()
+    expect(within(panel).getByText('S/ 40,000')).toBeVisible()
+    expect(within(panel).queryByText('S/ 20,000')).toBeNull()
   })
 
   it('el punto late al entrar y se queda quieto al elegir', () => {

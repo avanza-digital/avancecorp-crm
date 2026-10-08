@@ -345,13 +345,16 @@ export function construirMallaDeDias(
     acc.dias.set(indice, sumar(acc.dias.get(indice) ?? CELDA_VACIA, f))
   }
 
-  // El roster siembra DESPUÉS y SOLO a quien no vendió nada: así el analista con
-  // el mes en cero tiene su fila, y a quien sí vendió no se le añade una fila
-  // fantasma bajo su equipo de hoy.
+  // El roster siembra después los ceros: equipos históricos donde esta moneda
+  // o tipo no tuvo ventas y personas sin ventas del equipo actual. No se añade
+  // un equipo actual extra a quien ya vendió bajo otro supervisor.
   const conVentas = new Set([...porFila.values()].map((a) => a.analistaId))
   for (const p of roster) {
-    if (conVentas.has(p.id)) continue
-    porFila.set(clave(p.id, p.supervisorId), {
+    const k = clave(p.id, p.supervisorId)
+    // Un equipo histórico conserva su fila en cero al cambiar de tipo o moneda.
+    // El equipo actual no añade una fila fantasma si la persona ya vendió.
+    if (porFila.has(k) || (conVentas.has(p.id) && !p.historico)) continue
+    porFila.set(k, {
       analistaId: p.id,
       nombre: p.nombre,
       supervisorId: p.supervisorId,
@@ -455,6 +458,8 @@ export interface PersonaFacturacion {
   readonly nombre: string
   readonly supervisorId: string
   readonly supervisorNombre: string
+  /** La pareja analista + supervisor existió en una venta del tramo. */
+  readonly historico?: boolean
 }
 
 /**
@@ -481,10 +486,8 @@ export interface MiembroEquipo {
 }
 
 /**
- * El roster que sale SOLO de lo vendido. Se conserva porque es la base de
- * `rosterDeEquipoYFilas` y porque el supervisor que trae es el HISTÓRICO —el de
- * entonces, reconstruido por el servidor—, que es el dato bueno para quien sí
- * vendió. Por sí sola deja fuera al analista sin ventas: para eso está la otra.
+ * Un roster simple derivado de ventas, con una entrada por analista. El roster
+ * completo conserva además cada pareja histórica de analista y supervisor.
  */
 export function rosterDeFilas(
   filas: readonly FilaFacturacionDia[],
@@ -497,6 +500,7 @@ export function rosterDeFilas(
         nombre: f.analistaNombre,
         supervisorId: f.supervisorId,
         supervisorNombre: f.supervisorNombre,
+        historico: true,
       })
     }
   }
@@ -527,23 +531,38 @@ export function rosterDeEquipoYFilas(
   equipo: readonly MiembroEquipo[],
   filas: readonly FilaFacturacionDia[],
 ): PersonaFacturacion[] {
-  const porId = new Map<string, PersonaFacturacion>()
-  for (const p of rosterDeFilas(filas)) porId.set(p.id, p)
+  // Una persona puede haber vendido bajo dos supervisores durante el tramo.
+  // El selector necesita ambas parejas, aunque la selección siga siendo por id.
+  const porPareja = new Map<string, PersonaFacturacion>()
+  const conVentas = new Set<string>()
+  for (const f of filas) {
+    conVentas.add(f.analistaId)
+    const clave = `${f.analistaId}\u0000${f.supervisorId}`
+    if (!porPareja.has(clave)) {
+      porPareja.set(clave, {
+        id: f.analistaId,
+        nombre: f.analistaNombre,
+        supervisorId: f.supervisorId,
+        supervisorNombre: f.supervisorNombre,
+        historico: true,
+      })
+    }
+  }
 
   const nombrePorId = new Map<string, string>()
   for (const m of equipo) nombrePorId.set(m.id, m.nombre)
 
   for (const m of equipo) {
-    if (m.rol !== 'vendedor' || !m.activo || porId.has(m.id)) continue
+    if (m.rol !== 'vendedor' || !m.activo || conVentas.has(m.id)) continue
     const supervisorId = m.supervisorId ?? SIN_SUPERVISOR_ID
-    porId.set(m.id, {
+    porPareja.set(`${m.id}\u0000${supervisorId}`, {
       id: m.id,
       nombre: m.nombre,
       supervisorId,
       supervisorNombre: nombrePorId.get(supervisorId) ?? SIN_SUPERVISOR_NOMBRE,
     })
   }
-  return [...porId.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es-PE'))
+  return [...porPareja.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es-PE'))
 }
 
 /** Los equipos presentes en un roster, sin repetir y por nombre. */
@@ -598,7 +617,7 @@ export function conciliarFiltro(
 ): FiltroFacturacion {
   if (filtro.equipo === '' || filtro.analistas.length === 0) return filtro
   const permitidos = filtro.analistas.filter(
-    (id) => roster.find((p) => p.id === id)?.supervisorId === filtro.equipo,
+    (id) => roster.some((p) => p.id === id && p.supervisorId === filtro.equipo),
   )
   return permitidos.length === filtro.analistas.length ? filtro : { ...filtro, analistas: permitidos }
 }
@@ -746,8 +765,8 @@ export function combinarEnSoles(
   let maxAnalista = VACIA
   let maxGrupo = VACIA
   for (const g of grupos) {
-    for (const c of g.dias) maxGrupo = c.capital > maxGrupo.capital ? c : maxGrupo
-    for (const a of g.analistas) for (const c of a.dias) maxAnalista = c.capital > maxAnalista.capital ? c : maxAnalista
+    for (const c of g.dias) maxGrupo = maximo(maxGrupo, c)
+    for (const a of g.analistas) for (const c of a.dias) maxAnalista = maximo(maxAnalista, c)
   }
   return {
     mes: mallaPen.mes,
@@ -757,7 +776,7 @@ export function combinarEnSoles(
     total: aSoles(mallaPen.total, mallaUsd.total),
     maxAnalista,
     maxGrupo,
-    maxDia: totalPorDia.reduce((a, b) => (b.capital > a.capital ? b : a), VACIA),
+    maxDia: totalPorDia.reduce(maximo, VACIA),
   }
 }
 
@@ -808,9 +827,9 @@ export function totalesSoloDeDias(
 /** Las filas de analista de la malla, en plano y con su equipo — la vista de comparación. */
 export function filasComparadas(
   malla: MallaFacturacion,
-): Array<FilaFacturacion & { supervisorNombre: string }> {
+): Array<FilaFacturacion & { supervisorId: string; supervisorNombre: string }> {
   return malla.grupos
-    .flatMap((g) => g.analistas.map((a) => ({ ...a, supervisorNombre: g.nombre })))
+    .flatMap((g) => g.analistas.map((a) => ({ ...a, supervisorId: g.id, supervisorNombre: g.nombre })))
     .sort((a, b) => b.total.capital - a.total.capital || a.nombre.localeCompare(b.nombre, 'es-PE'))
 }
 
@@ -909,12 +928,16 @@ export function desgloseDeCelda(
   dia: string | null,
   tipo: TipoFacturacion = TIPO_TODOS,
   moneda?: Moneda,
+  supervisorId?: string,
+  diasElegidos?: readonly string[],
 ): FilaFacturacionDia[] {
   return filas
     .filter(
       (f) =>
         f.analistaId === analistaId &&
+        (supervisorId === undefined || f.supervisorId === supervisorId) &&
         (dia == null || f.dia === dia) &&
+        (dia != null || diasElegidos === undefined || diasElegidos.includes(f.dia)) &&
         // El detalle habla de LO QUE SE ESTÁ VIENDO: abrir una celda de
         // renovaciones y que el panel liste también los contratos nuevos
         // contradiría la cifra sobre la que se acaba de pinchar.

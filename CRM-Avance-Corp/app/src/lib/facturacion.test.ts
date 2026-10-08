@@ -4,6 +4,7 @@
 // solo miente — así que cada regla tiene su caso.
 import { describe, expect, it } from 'vitest'
 import {
+  combinarEnSoles,
   conciliarFiltro,
   ESCALA_FACTURACION,
   construirMalla,
@@ -595,6 +596,48 @@ describe('un analista que vendió bajo dos supervisores el mismo mes', () => {
     const m = construirMalla(filtrarFilas(CAMBIO, soloElla), MES, 'PEN')
     expect(m.grupos.map((g) => g.nombre).sort()).toEqual(['Sara Primera', 'Sonia Segunda'])
   })
+
+  it('ofrece ambos equipos en el selector y conserva al analista al elegir el segundo', () => {
+    const roster = rosterDeEquipoYFilas([], CAMBIO)
+    expect(roster.map((p) => p.supervisorId)).toEqual(['s1', 's2'])
+    expect(equiposDeRoster(roster).map((e) => e.id)).toEqual(['s1', 's2'])
+    expect(conciliarFiltro({ equipo: 's2', analistas: ['a1'] }, roster).analistas).toEqual(['a1'])
+    expect(filtrarRoster(roster, { equipo: 's2', analistas: ['a1'] }).map((p) => p.supervisorId)).toEqual(['s2'])
+  })
+
+  it('mantiene los dos equipos al cambiar de moneda aunque uno quede en cero', () => {
+    const filas = [CAMBIO[0]!, { ...CAMBIO[1]!, moneda: 'USD' as const }]
+    const roster = rosterDeEquipoYFilas([], filas)
+    const pen = construirMalla(filas, MES, 'PEN', TIPO_CAPITAL_NUEVO, roster)
+    const usd = construirMalla(filas, MES, 'USD', TIPO_CAPITAL_NUEVO, roster)
+    expect(pen.grupos.map((g) => g.id).sort()).toEqual(['s1', 's2'])
+    expect(usd.grupos.map((g) => g.id).sort()).toEqual(['s1', 's2'])
+    expect(pen.grupos.find((g) => g.id === 's2')?.total.capital).toBe(0)
+    expect(usd.grupos.find((g) => g.id === 's1')?.total.capital).toBe(0)
+  })
+
+  it('acota el detalle al equipo y a los días elegidos', () => {
+    expect(desgloseDeCelda(CAMBIO, 'a1', null, TIPO_TODOS, undefined, 's2', ['2026-09-20'])
+      .map((f) => f.capital)).toEqual([60_000])
+    expect(desgloseDeCelda(CAMBIO, 'a1', null, TIPO_TODOS, undefined, 's2', ['2026-09-02']))
+      .toHaveLength(0)
+  })
+})
+
+it('la escala de contratos en Todo S/ usa el máximo de contratos, no el de capital', () => {
+  const filas = [
+    fila({ dia: '2026-09-02', moneda: 'PEN', capital: 100_000, operaciones: 1 }),
+    fila({ dia: '2026-09-03', moneda: 'USD', capital: 100, operaciones: 8 }),
+  ]
+  const combinada = combinarEnSoles(
+    construirMalla(filas, MES, 'PEN'),
+    construirMalla(filas, MES, 'USD'),
+    3.75,
+  )
+  expect(combinada?.maxAnalista.contratos).toBe(8)
+  expect(combinada?.maxGrupo.contratos).toBe(8)
+  expect(combinada?.maxDia.contratos).toBe(8)
+  expect(combinada?.maxDia.capital).toBe(100_000)
 })
 
 /* ───── Periodo: mes, semana o día (Miguel, 11/09/2026) ───── */
