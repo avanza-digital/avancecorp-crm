@@ -8,7 +8,7 @@ propuesta (`PROPUESTAS-DE-AJUSTE.md`), nunca aquí.
 
 **Actualizado el 07/10, 23:30 UTC:** Miguel instaló y publicó H1–H3 (#222; acta `INSTALACION-20261007.md`). Con esa
 evidencia se marcan F2.4.3 y F3.2.1 (33/102); F2, F3 y F4 pasan a «Instalada»; F7.3.1 y F7.3.2 quedan en curso con el
-primer release. Ninguna tarea física se cierra por la instalación. Antes, a las 21:45 UTC: Miguel aprobó las decisiones
+primer release. Ninguna tarea física se cierra por la instalación. **08/10 ~01:30 UTC:** C1 activado (H4 en curso), evidencia en `REGISTRO.md` §5i; las casillas de F4.4 se marcan al cerrar P1–P15. Antes, a las 21:45 UTC: Miguel aprobó las decisiones
 #16, #17 (con la decisión 4) y #18 (`DECISIONES-PENDIENTES.md`) y fusionó el #215.
 
 ## Cómo se lee
@@ -60,7 +60,7 @@ explícito probado en C1 (31). **07/10 noche:** suben F2.4.3 y F3.2.1 con el act
 | H1 | Ensayo con **SLA activo** y aplicar las doce en producción desde LF, con sus registradores (`t`) y el ledger «EN PROD» | Miguel | **Hecho** (07/10 ~21:53 UTC): ensayo con SLA activo en la rama `llamadas-cierre-20261007` y publicación con `merge_branch`; 450 migraciones (438 intactas + 12); SLA activo sin cambios; ledger «EN PROD» (#222). Acta: `INSTALACION-20261007.md` |
 | H2 | Edge `crm-llamadas-ingesta` desplegada y comprobada (`verify_jwt` apagado solo en ella; los `curl` dan «No autorizado») | Miguel | **Hecho** (07/10): `crm-llamadas-ingesta` v1 activa, `verify_jwt` apagado solo en ella, 401 sin clave o con clave desconocida; seis casos reales en la rama |
 | H3 | Release con `LLAMADAS_CELULAR_APROBADAS = true`: abre la pestaña de F4-b y la tarjeta de F4-c | Miguel | **Hecho** (07/10 22:26 UTC): #222 (`d4c9a689`) publicado como `build-20261007T222046462Z`; preflight PASS y 121/121 archivos idénticos; smoke con Analista |
-| H4 | Activar C1 (F4-d) con `ACTIVAR-C1.md` y correr P1–P15 | Jhosep + gerencia + Claude | **Siguiente** (08/10): compra de Pro y activación con la guía |
+| H4 | Activar C1 (F4-d) con `ACTIVAR-C1.md` y correr P1–P15 | Jhosep + gerencia + Claude | **En curso** desde el 07/10 ~19:15 Lima: C1 activo («Al día»); P1, P2, P3, P6, P7 y P15-A1 PASS; P9 parcial (hallazgo); faltan P4, P5, P8, P10–P14 y el resto de P15 (`REGISTRO.md` §5i) |
 | H5 | Los otros equipos del piloto (C2, C3) | Jhosep + Miguel | Pendiente |
 
 ## F0 · Piloto y línea base

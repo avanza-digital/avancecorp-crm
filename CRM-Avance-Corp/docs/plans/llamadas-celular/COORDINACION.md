@@ -1,8 +1,8 @@
 # Coordinación — «Llamadas desde el celular» (Jhosep ↔ Miguel)
 
-**Última actualización:** 07/10/2026, ~23:30 UTC, por Jhosep (Claude). **H1–H3 hechos:** las doce migraciones y la
+**Última actualización:** 08/10/2026, ~01:30 UTC (07/10 20:30 Lima), por Jhosep (Claude). **H1–H3 hechos:** las doce migraciones y la
 Edge están en producción y la app se publicó con el interruptor encendido (#222, `build-20261007T222046462Z`; acta
-`INSTALACION-20261007.md`). **Falta activar C1 (H4), que es de Jhosep.** Las decisiones #16, #17 y #18 están aprobadas
+`INSTALACION-20261007.md`). **C1 está activo desde el 07/10 ~19:15 Lima (H4 en curso)**: P1–P3, P6, P7 y P15-A1 PASS; P9 parcial, con un hallazgo para Miguel (`REGISTRO.md` §5i). Las decisiones #16, #17 y #18 están aprobadas
 (`DECISIONES-PENDIENTES.md`). Seguimiento tarea por tarea: `SEGUIMIENTO.md`. Para retomar: `HANDOFF-2026-10-08.md`.
 **Para qué sirve:** que los dos agentes no trabajen cada uno por su lado. Antes de actuar, se lee este archivo. Aquí
 están las reglas, el mapa de los PR, el turno de cada uno, el orden y lo que ya pasó.
@@ -55,7 +55,7 @@ están las reglas, el mapa de los PR, el turno de cada uno, el orden y lo que ya
 | 1b | **Miguel** | ~~Revisar y fusionar el #215 (F4-c)~~ | Hecho: aprobado a las 21:10 UTC y fusionado a las 21:28 UTC del 07/10 (`5f42e908`) |
 | 2 | Miguel | ~~Los 8 fallos de fondo del gate global (fila bancaria ×1, R2/hito ×3, bandera `potencial_lead` ×4)~~ | **Resueltos el 07/10** completando fixtures, sin debilitar aserciones: banco local 3292/3292 (acta) |
 | 3 | **Jhosep** | **Comprar MacroDroid Pro en C1 antes del 09/10 ~15:50 Lima** (#18, aprobada por Miguel el 07/10) | Con la cuenta corporativa. Comprobar que sigue en S/ 19 pago único; si cambia o pide suscripción, avisar antes de aceptar. Sin compartir credenciales ni datos de pago. Registrar equipo, licencia y fecha (saneado), confirmar que desapareció el límite por días y devolverle la evidencia a Miguel. La #16 también está aprobada: F0 con diez salientes por equipo |
-| 4 | **Jhosep**, con gerencia; Claude guía | **F4-d: activar C1 (H4) y correr P1–P15** contra la Edge real (08/10) | `ACTIVAR-C1.md`. La clave solo por el canal privado del celular, nunca en GitHub ni chats; al dar de alta, vaciar la cola de pruebas; al rotar, conservarla. Evidencia sin datos personales. Lo probado contra el receptor no acorta el piloto |
+| 4 | **Jhosep**, con gerencia; Claude guía | **F4-d: activar C1 (H4) y correr P1–P15** contra la Edge real. **En curso:** C1 activo desde el 07/10; faltan P4, P5, P8, P10–P14 y el resto de P15 | `ACTIVAR-C1.md`. La clave solo por el canal privado del celular, nunca en GitHub ni chats; al dar de alta, vaciar la cola de pruebas; al rotar, conservarla. Evidencia sin datos personales. Lo probado contra el receptor no acorta el piloto |
 | 5 | Claude prepara; Miguel aprueba el plan corto | F4-e: vista de supervisor y gerencia | **#17 y decisión 4 aprobadas (07/10):** F4-e va en F4, después de la aceptación de F4-d en C1. Contrato y oráculos con el diccionario A1–A7 y las condiciones de Miguel (`F4E-PLAN-CORTO.md`); su activación depende de C1 |
 
 En la guía del #190, **los pasos 2 (#193) y 3 (#195) ya no existen**: los reemplaza esta tabla.
@@ -66,6 +66,12 @@ las reversas SQL con el sistema en uso.
 
 ## 4. Bitácora (lo más nuevo arriba)
 
+- **07/10 19:10–20:20 Lima (08/10 00:10–01:20 UTC) — Jhosep:** **activa C1 en producción (H4).** Alta desde la tarjeta
+  «Celulares» con gerencia (primer uso real tras el release), clave por WhatsApp, colas vacías y la Edge real en
+  MacroDroid; a los ~5 min, «Al día» con `llamadas-v3`. Pruebas (`REGISTRO.md` §5i): P1, P2, P3, P6, P7 y P15-A1 PASS;
+  **P9 PARCIAL**: tras «Deshacer» la llamada no vuelve a «Pendientes» y la pantalla no ofrece cómo unir el resultado
+  corregido (hallazgo para Miguel). Incidencia: una captura mostró 16 de 64 caracteres de la clave; se rota en P11.
+  Pro sin comprar (Jhosep: renovar con anuncios si hace falta). Sigue el 08/10 con P13, P12 y P11 (`HANDOFF-2026-10-08.md`).
 - **07/10 ~23:30 UTC — Jhosep:** pasa la instalación acreditada al seguimiento y al tablero, sin cerrar tareas
   físicas: F2.4.3 y F3.2.1 marcadas (33/102); F2, F3 y F4 «Instalada»; F7.3.1 y F7.3.2 en curso con el primer release.
   Abre el PR de `crm/llamadas-seguimiento-instalacion-20261007` y deja `HANDOFF-2026-10-08.md`. Mañana: Pro y C1.

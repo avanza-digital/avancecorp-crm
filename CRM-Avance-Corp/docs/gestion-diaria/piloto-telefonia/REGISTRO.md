@@ -151,6 +151,35 @@ Receptor en `192.168.30.222:8787`. Lo que necesita la Edge real se repite en F4-
 
 Precio de MacroDroid Pro visto en C1 el 07/10: **S/ 19, pago único** (para la #18).
 
+## 5i. C1 activado contra producción (F4-d, 07/10/2026) — Edge real
+
+Alta desde la tarjeta «Celulares» con una sesión de gerencia en la PC: etiqueta C1, el analista de la cuenta abierta en
+C1. La clave pasó a C1 por WhatsApp y nunca a Claude. En MacroDroid: `cola_llamadas` y `errores_llamadas` en 0 entradas,
+`url_llamadas` apuntando a la Edge real, `clave_celular` con la clave nueva y `ultimo_latido` en 0. Versión publicada:
+`build-20261007T222046462Z`. Lead de prueba: «prueba leeds» (propio, con el celular de un compañero y su permiso).
+Resultado guardado: «No contestó», salvo donde se indica. Sin números ni claves en este registro. Pro sigue sin
+comprar: Jhosep decidió renovar los días gratis con anuncios si hace falta.
+
+| Fecha (Lima) | Prueba | Resultado | Evidencia |
+| --- | --- | --- | --- |
+| 07/10 ~19:15 | Alta y primer latido (§2–§4 de `ACTIVAR-C1.md`) | **PASS** | Tarjeta «Celulares» (gerencia, PC): C1 «Al día», macro `llamadas-v3`, en cola 0. Primer uso real de la tarjeta con gerencia después del release |
+| 07/10 19:19 | P1 · guardar enseguida | **PASS** (unión) | «Qué pasó hoy»: «Registrada al colgar: el celular abrió la encuesta · llamada a las 19:19», resultado «Agendó cita». El mensaje al guardar no se vio; se completó a las 19:41 (abajo) |
+| 07/10 19:25 | P2 · esperar ~30 s antes de guardar | **PASS** | «Llamada registrada · No contestó. Quedó unido a tu llamada del celular de las 19:25» |
+| 07/10 19:29 | P15-A1 · una llamada por datos móviles (Wi-Fi apagado, 4G) | **PASS** | «Quedó unido a tu llamada del celular de las 19:29» (resultado «Volver a llamar»). Contra el receptor del PC no se podía probar |
+| 07/10 19:34 | P3 · sin red (Wi-Fi y datos apagados) | **PASS** | El CRM mostró «No tienes conexión»; al volver el Wi-Fi, «Quedó unido a tu llamada del celular de las 19:34» |
+| 07/10 19:41–~19:45 | P1, el mensaje que faltaba: aviso retenido (sin red y con «Llamadas-Enviar cola» apagada al guardar) | **PASS** | «Quedará unido a tu llamada del celular de las 19:41 en cuanto llegue su aviso». Al volver a encender la macro, la llamada se unió sola en la vuelta de las 19:45 («Qué pasó hoy · 5», «Pendientes · 0») |
+| 07/10 19:59–20:00 | P6 · cerrar la encuesta sin guardar y registrar desde «Celular» en el celular | **PASS** | La llamada apareció en «Pendientes» con «Pide resultado»; registrada desde ahí: «Registrada desde «Llamadas del celular» · llamada a las 19:59» |
+| 07/10 20:14 | P7 · lo mismo, registrando desde la PC | **PASS** | «Pendientes · 1» en la PC → «Registrar resultado»: «Quedó unido a tu llamada del celular de las 20:14»; «Registrada desde «Llamadas del celular»» |
+| 07/10 20:19–20:20 | P9 · guardar, Deshacer y corregir | **PARCIAL** | «Deshecho: Prueba vuelve a su etapa y la tarea creada se cancela»; la fila quedó «No contestó · deshecho» sin borrarse. **Hallazgo:** la llamada no vuelve a «Pendientes» y la fila deshecha no tiene acción, así que la pantalla no ofrece cómo registrar el resultado corregido unido a la misma llamada. La regla del servidor que mueve el enlace al corregido existe, pero ningún botón llega a ella |
+
+Al cerrar: «Qué pasó hoy · 8», «Pendientes · 0». Las 8 llamadas y sus resultados cuentan en las cifras de la cuenta del
+analista, como prevé la guía; en su agenda quedaron de prueba una cita (08/10 19:20) y dos tareas. La batería de C1 bajó
+a 7 % durante las pruebas y se conectó al cargador hacia las 19:40, sin efecto en los resultados.
+
+**Falta de F4-d:** P4 y P5 (necesitan un segundo lead de prueba con otro número del equipo), P8, P10, P11, P12, P13, P14
+y el resto de P15 (A3, A6 y prueba 6). Después, el cierre de §5 de `ACTIVAR-C1.md`: llamadas del teléfono = recibidas
+por el CRM, 0 resultados unidos dos veces, «Encuesta abierta al colgar: N de N» y la consulta de Miguel sin números.
+
 ## 6. Incidencias
 
 | Fecha | Celular | Qué pasó | Impacto (perdida / duplicada / no abrió / otro) | Cómo se resolvió | Abierta o cerrada |
@@ -158,6 +187,8 @@ Precio de MacroDroid Pro visto en C1 el 07/10: **S/ 19, pago único** (para la #
 | 02/10/2026 ~16:40 (Lima) | C1 | MacroDroid no dejó crear la sexta macro: la versión gratuita admite **5 macros** por celular | Otro: límite de la herramienta | Se borraron las macros de prueba «Prueba F3» y «Reintento F3» (su configuración está en §5d) y la variable `pendiente`. La macro definitiva de salientes usa 3 (Saliente, Al colgar, Enviar cola); con las entrantes (propuesta #14) harían falta más | **Cerrada el 03/10; revisada el 05/10:** Miguel aprobó las entrantes (#14) el 02/10, pero (03/10) **MacroDroid Pro no se compra todavía**. Se queda en 3 macros + «Piloto F0» apagada (4 de 5). El latido va dentro de «Llamadas-Enviar cola» y no suma macros (`macrodroid.md` §3c). Las entrantes esperan a la #14 y a la decisión de Pro (`macrodroid.md` §3d, diseño sin probar) |
 
 | 06/10/2026 ~15:50 (Lima) | C1 | MacroDroid gratuito **se desactivó solo** porque se acabaron sus «días gratuitos de uso». Inicio decía «MacroDroid está actualmente desactivado»; las macros, encendidas, figuraban con «última activación hace 4 días» | **Perdida:** desde ~02/10 no se capturó ninguna llamada en C1, sin aviso en el celular | Inicio → «Añadir Días Gratuitos» (un anuncio = 3 días) → interruptor general encendido. En producción no es viable: propuesta #18 (MacroDroid Pro). El latido lo habría marcado «sin latido» en la tarjeta de salud | **Abierta** hasta que Miguel decida la #18. En C1 los días vencen ~09/10 15:50 |
+
+| 07/10/2026 ~19:11 (Lima) | C1 | Una captura de «Variables globales» enviada a Claude mostró los **primeros 16 de 64** caracteres de la clave nueva | Otro: exposición parcial de la credencial en un chat. Sin riesgo práctico: faltan 48 caracteres y la Edge limita 30 intentos por minuto | La clave se reemplaza en P11 (rotación). Desde ahora, capturas de Variables sin la fila `clave_celular`. El valor no se copió a ningún documento | Abierta hasta P11 |
 
 ## 7. Decisión de cierre (F0.4.3)
 
