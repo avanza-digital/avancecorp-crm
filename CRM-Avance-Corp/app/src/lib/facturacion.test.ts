@@ -95,7 +95,9 @@ describe('días del mes — el footgun de las fechas', () => {
   })
 
   it('lee el día de la semana en local: el 1 de setiembre de 2026 es martes', () => {
-    expect(letraDia('2026-09-01')).toBe('M')
+    expect(letraDia('2026-09-01')).toBe('Ma')
+    // Martes y miércoles ya no comparten letra: con «M» y «M» había que contar.
+    expect(letraDia('2026-09-02')).toBe('Mi')
     expect(numeroDia('2026-09-01')).toBe(1)
     expect(esFinDeSemana('2026-09-06')).toBe(true) // domingo
     expect(esFinDeSemana('2026-09-05')).toBe(true) // sábado

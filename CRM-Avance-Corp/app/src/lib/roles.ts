@@ -29,9 +29,10 @@ export const ACCIONES = [
   'verAgenda',
   'verGestionEquipo',
   'verDerivacionesEquipo', // módulo de reparto propio del supervisor
-  'verFacturacion',     // tablero Facturación: Gerencia ve la empresa, Supervisión
-                        // SU equipo (Miguel, 16/09/2026); espejo de la verja de
-                        // crm.facturacion_diaria_fn, que a los demás les da vacío
+  'verFacturacion',     // tablero Facturación: Gerencia y Directorio (lector global,
+                        // solo lectura; Miguel, 08/10/2026) ven la empresa,
+                        // Supervisión SU equipo (16/09/2026). Espejo de la verja
+                        // de crm.facturacion_diaria_fn: a los demás les da vacío
   'verCitasEquipo',     // Citas: Gerencia ve la empresa; Supervisión, su subárbol.
   'verAlertas',         // bandeja por destinatario (propia, equipo o ejecutiva)
   'tomarLeadDirecto',   // F2 lead libre: tomar para SÍ un contacto en bolsa o
@@ -109,7 +110,9 @@ export const CAPS: Record<Rol, Caps> = {
     reasignar: false, repartirLeads: false, repartirCola: false, verCartera: true,
     verPipeline: true, verLeads: true, verAgenda: true, verGestionEquipo: true,
     verDerivacionesEquipo: false,
-    verFacturacion: false,
+    // Miguel, 08/10/2026: «sí, que la vea». El servidor ya le daba la empresa
+    // entera (es lector global); solo el menú se la escondía.
+    verFacturacion: true,
     verCitasEquipo: false,
     verAlertas: false, tomarLeadDirecto: false,
     verConfiguracion: true, editarConfiguracion: false,

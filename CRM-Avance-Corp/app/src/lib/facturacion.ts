@@ -153,9 +153,11 @@ export function esFinDeSemana(dia: string): boolean {
   return n === 0 || n === 6
 }
 
-const LETRAS_DIA = ['D', 'L', 'M', 'M', 'J', 'V', 'S'] as const
+// Dos letras, no una: con «M» para martes y para miércoles la cabecera obligaba
+// a contar desde el lunes. (Auditoría de Facturación, 08/10/2026.)
+const LETRAS_DIA = ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá'] as const
 
-/** Inicial del día de la semana para la cabecera estrecha de la malla. */
+/** Abreviatura del día de la semana para la cabecera estrecha de la malla. */
 export function letraDia(dia: string): string {
   return LETRAS_DIA[diaSemana(dia)] ?? '·'
 }

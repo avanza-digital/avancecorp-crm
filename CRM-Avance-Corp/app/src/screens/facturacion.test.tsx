@@ -31,6 +31,8 @@ const dobles = vi.hoisted(() => ({
   /** Argumentos con los que la pantalla pidió el TC, para poder comprobarlos. */
   tcArgs: [] as Array<{ habilitado: boolean; fechaCorte: string | undefined }>,
   recargarTc: 0,
+  /** Lo que «pasa» al recargar la tasa (p. ej. volver a «consultando»). */
+  alRecargar: undefined as undefined | (() => void),
   cargando: false,
   error: false,
   datos: undefined as undefined | (unknown[] & { descartadas?: number }),
@@ -49,6 +51,7 @@ vi.mock('@/lib/tipo-cambio', () => ({
       tc: dobles.tc,
       recargar: () => {
         dobles.recargarTc += 1
+        dobles.alRecargar?.()
       },
     }
   },
@@ -512,7 +515,12 @@ describe('total del día con las dos monedas — petición de Miguel del 11/09/2
     const pie = within(malla()).getByRole('row', { name: /Total del día en soles/ })
     // El mes del fixture: S/ 520,000 en soles y US$ 7,000 en dólares.
     expect(within(pie).getByText('S/ 546,250')).toBeVisible()
-    expect(within(malla()).getByText(/TC S\/ 3\.75/)).toBeVisible()
+    // La tasa se dice sin siglas (regla de Miguel; auditoría 08/10/2026): nada de
+    // «TC» ni «prom. 7d» en pantalla.
+    expect(
+      within(malla()).getByText('tipo de cambio S/ 3.75 (SUNAT, promedio de 7 días hábiles)'),
+    ).toBeVisible()
+    expect(within(malla()).queryByText(/\bTC\b|prom\./)).toBeNull()
     // Y los días sí llevan cifra: el 3 de setiembre es 40 000 + 7 000 × 3,75.
     expect(within(pie).queryAllByText(/\d/).length).toBeGreaterThan(0)
   })
@@ -1219,5 +1227,228 @@ describe('restablecer', () => {
     fireEvent.click(boton)
     expect(screen.getByRole('button', { name: 'Restablecer filtros' })).toBeDisabled()
     expect(screen.getByRole('button', { name: /Rosa Uno/ })).toBeVisible()
+  })
+})
+
+// Auditoría de Facturación del 08/10/2026 (fase 1, solo pantalla). Cada caso
+// nombra el hallazgo que cierra; los marcados «mutante» cubren reglas que ya
+// funcionaban pero que ninguna prueba defendía (el mutante sobrevivía 159/159).
+describe('auditoría del 08/10/2026 — fase 1', () => {
+  afterEach(() => {
+    dobles.tc = null
+    dobles.recargarTc = 0
+    dobles.alRecargar = undefined
+  })
+
+  function elegir(nombre: string): void {
+    fireEvent.click(screen.getByRole('button', { name: nombre }))
+  }
+
+  /** La tarjeta de un indicador, a partir de su rótulo. */
+  function indicador(rotulo: string): HTMLElement {
+    const tarjeta = screen.getByText(rotulo).closest('.ac-pop')
+    if (!(tarjeta instanceof HTMLElement)) throw new Error(`sin tarjeta para «${rotulo}»`)
+    return tarjeta
+  }
+
+  it('el % del titular es de SU cifra en las tres vistas, no de la moneda del botón', () => {
+    // Setiembre: S/ 100,000 + US$ 10,000 (× 4 = S/ 140,000). El mismo tramo de
+    // agosto: S/ 100,000. El titular siempre es el total unificado, así que el %
+    // tiene que ser +40 % en las tres vistas. Antes: +40 % en Todo S/, +0 % en
+    // Soles y «sin cifra» en Dólares, con la misma cifra arriba.
+    dobles.tc = { promedio: 4, fuente: 'SUNAT · prom. 7d' }
+    pintar([
+      fila({ id: 's-pen', dia: '2026-09-02', moneda: 'PEN', capital: 100_000 }),
+      fila({ id: 's-usd', dia: '2026-09-03', moneda: 'USD', capital: 10_000 }),
+      fila({ id: 'a-pen', dia: '2026-08-05', moneda: 'PEN', capital: 100_000 }),
+    ])
+    for (const vista of ['Todo S/', 'Soles', 'Dólares']) {
+      elegir(vista)
+      expect(screen.getByText('Total facturado · setiembre de 2026')).toBeVisible()
+      expect(screen.getByText(/\+40\.0 % vs\. el mismo tramo del mes anterior/)).toBeVisible()
+    }
+  })
+
+  it('mutante: con un equipo elegido, el % compara a ESE equipo en los dos tramos', () => {
+    // Rosa: 100k en setiembre contra 50k en agosto = +100 %. La empresa entera
+    // daría −55,6 %; comparar el equipo contra la empresa del mes anterior, −77,8 %.
+    pintar([
+      fila({ id: 'r9', dia: '2026-09-02', capital: 100_000 }),
+      fila({ id: 's9', dia: '2026-09-03', capital: 100_000, analistaId: 'carla', analistaNombre: 'Carla Analista', supervisorId: 'sup-sara', supervisorNombre: 'Sara Dos' }),
+      fila({ id: 'r8', dia: '2026-08-04', capital: 50_000 }),
+      fila({ id: 's8', dia: '2026-08-05', capital: 400_000, analistaId: 'carla', analistaNombre: 'Carla Analista', supervisorId: 'sup-sara', supervisorNombre: 'Sara Dos' }),
+    ])
+    fireEvent.change(screen.getByLabelText('Equipo'), { target: { value: 'sup-rosa' } })
+    expect(screen.getByText(/\+100\.0 % vs\. el mismo tramo del mes anterior/)).toBeVisible()
+  })
+
+  it('sin tipo de cambio y con dólares, el titular NO se rotula «Total» y avisa con reintento', () => {
+    // El pie ya decía «total no disponible»; el titular decía «Total facturado»
+    // sobre los soles. Ahora los dos dicen lo mismo: no hay total sin tasa.
+    dobles.tc = null
+    pintar()
+    expect(screen.getByText('Facturado en soles · setiembre de 2026')).toBeVisible()
+    expect(screen.queryByText(/Total facturado/)).toBeNull()
+    expect(screen.getByText(/solo soles — falta el tipo de cambio para sumar soles y dólares/)).toBeVisible()
+    // La perilla se replegó sola de Todo S/ a Soles: el aviso dice por qué.
+    expect(screen.getByText(/No llegó el tipo de cambio/)).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar el tipo de cambio' }))
+    expect(dobles.recargarTc).toBe(1)
+  })
+
+  it('reintentar la tasa no tira el foco a <body> (WCAG 2.4.3)', () => {
+    // `recargar()` vuelve a «consultando» en el mismo render del clic. Antes el
+    // aviso se desmontaba con el foco dentro; ahora sigue montado mientras
+    // consulta, conserva el foco si la tasa vuelve a fallar, y si llega, el foco
+    // va al botón de la moneda que se está viendo.
+    dobles.tc = null
+    dobles.alRecargar = () => {
+      dobles.tc = undefined
+    }
+    const vista = pintar()
+    const boton = (): HTMLElement => screen.getByRole('button', { name: 'Reintentar el tipo de cambio' })
+
+    boton().focus()
+    fireEvent.click(boton())
+    expect(screen.getByText('Consultando el tipo de cambio…')).toBeVisible()
+    expect(boton()).toHaveAttribute('aria-disabled', 'true')
+    expect(document.activeElement).toBe(boton())
+
+    // Vuelve a fallar: el aviso dice por qué y el foco sigue en su botón.
+    dobles.tc = null
+    vista.rerender(<Facturacion filas={FILAS} />)
+    expect(screen.getByText(/No llegó el tipo de cambio/)).toBeVisible()
+    expect(document.activeElement).toBe(boton())
+
+    // Segundo intento, y esta vez llega: el aviso sobra y el foco no se pierde.
+    fireEvent.click(boton())
+    dobles.tc = { promedio: 3.75, fuente: 'SUNAT · prom. 7d' }
+    vista.rerender(<Facturacion filas={FILAS} />)
+    expect(screen.queryByText(/No llegó el tipo de cambio|Consultando el tipo de cambio…/)).toBeNull()
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Todo S/' }))
+  })
+
+  it('el botón del pie no duplica al del aviso, y se llama igual que él', () => {
+    dobles.tc = null
+    pintar()
+    // Con el aviso de arriba visible, un solo botón de reintento.
+    expect(screen.getAllByRole('button', { name: 'Reintentar el tipo de cambio' })).toHaveLength(1)
+    // En Soles elegido a mano no hay aviso: el reintento vive en el pie.
+    elegir('Soles')
+    const pie = within(malla()).getByRole('row', { name: /Total del día en soles/ })
+    expect(within(pie).getByRole('button', { name: 'Reintentar el tipo de cambio' })).toBeVisible()
+  })
+
+  it('con tipo de cambio no hay aviso de repliegue', () => {
+    dobles.tc = { promedio: 3.75, fuente: 'SUNAT · prom. 7d' }
+    pintar()
+    expect(screen.queryByText(/No llegó el tipo de cambio/)).toBeNull()
+  })
+
+  it('el titular dice la tasa sin siglas', () => {
+    dobles.tc = { promedio: 3.75, fuente: 'SUNAT · prom. 7d' }
+    pintar()
+    expect(
+      screen.getByText(/al tipo de cambio S\/ 3\.75 \(SUNAT, promedio de 7 días hábiles\)/),
+    ).toBeVisible()
+    expect(screen.queryByText(/\bTC\b/)).toBeNull()
+  })
+
+  it('mutante: en Todo S/ el panel de una celda trae las DOS monedas y hace la suma', () => {
+    // Carla vendió S/ 40,000 y US$ 7,000: su celda dice S/ 66,250. El panel
+    // listaba cada moneda por su lado sin sumar, y si se filtrara a soles nadie
+    // lo notaba.
+    dobles.tc = { promedio: 3.75, fuente: 'SUNAT · prom. 7d' }
+    pintar()
+    fireEvent.click(within(malla()).getByRole('button', { name: 'Ver el mes completo de Carla Analista' }))
+    const panel = screen.getByRole('dialog')
+    expect(within(panel).getByText('S/ 40,000')).toBeVisible()
+    expect(within(panel).getByText('US$ 7,000')).toBeVisible()
+    expect(within(panel).getByText(/= S\/ 66,250 en soles/)).toBeVisible()
+  })
+
+  it('en Soles el panel no hace suma: no hay nada que convertir', () => {
+    dobles.tc = { promedio: 3.75, fuente: 'SUNAT · prom. 7d' }
+    pintar()
+    elegir('Soles')
+    fireEvent.click(within(malla()).getByRole('button', { name: 'Ver el mes completo de Carla Analista' }))
+    expect(within(screen.getByRole('dialog')).queryByText(/en soles$/)).toBeNull()
+  })
+
+  it('mutante: el promedio del mes en curso divide entre los días hábiles HASTA HOY', () => {
+    // HOY es el jueves 10/09: del 1 al 10 hay 9 días hábiles (el domingo 6 no
+    // cuenta). El mes entero tendría 26 y hundiría el promedio casi tres veces.
+    pintar()
+    expect(screen.getByText(/^9 días hábiles corridos/)).toBeVisible()
+  })
+
+  it('la semana que cruza de mes no cuenta como hábiles los días que aún no pasan', () => {
+    // HOY es jueves 01/10/2026. La semana del lunes 28/09 al domingo 04/10 lleva
+    // 4 días hábiles (28, 29, 30 y 1). Llegando desde «Día anterior» el ancla
+    // quedaba en setiembre y contaba también el 2 y el 3: 6 días, promedio −33 %.
+    vi.setSystemTime(new Date(2026, 9, 1, 12, 0, 0))
+    const filas = [
+      fila({ id: 'l', dia: '2026-09-28', capital: 60_000 }),
+      fila({ id: 'x', dia: '2026-09-30', capital: 60_000 }),
+    ]
+    const vista = pintar(filas)
+    elegir('Día')
+    elegir('Día anterior')
+    elegir('Semana')
+    expect(screen.getByText(/^4 días hábiles corridos/)).toBeVisible()
+    vista.unmount()
+
+    // Y la misma semana, entrando directo desde el mes, dice lo mismo.
+    pintar(filas)
+    elegir('Semana')
+    expect(screen.getByText(/^4 días hábiles corridos/)).toBeVisible()
+  })
+
+  it('un día FUTURO marcado a mano no divide el promedio (Codex, 08/10/2026)', () => {
+    // HOY es el jueves 10/09. Se marcan el 9 (pasado) y el 11 (aún no llega): el
+    // divisor es 1, no 2 — el 11 no ha tenido ocasión de vender.
+    pintar([fila({ id: 'm9', dia: '2026-09-09', capital: 30_000 })])
+    fireEvent.click(within(malla()).getByRole('button', { name: /Marcar el .*, 9 de setiembre/i }))
+    fireEvent.click(within(malla()).getByRole('button', { name: /Marcar el .*, 11 de setiembre/i }))
+    expect(screen.getByText(/^1 día hábil corrido/)).toBeVisible()
+  })
+
+  it('mes actual solo en soles y anterior con dólares: cada vista compara SU dinero', () => {
+    // Setiembre: S/ 100,000 (sin dólares). Agosto: S/ 100,000 + US$ 25,000 × 4.
+    // «Todo S/» compara todo el dinero (−50 %); «Soles», solo los soles (+0 %).
+    // La cifra de arriba coincide porque este mes no hubo dólares; lo que se
+    // compara es lo que dice el botón. (Borde pedido por Codex, 08/10/2026.)
+    dobles.tc = { promedio: 4, fuente: 'SUNAT · prom. 7d' }
+    pintar([
+      fila({ id: 'p9', dia: '2026-09-02', moneda: 'PEN', capital: 100_000 }),
+      fila({ id: 'p8', dia: '2026-08-02', moneda: 'PEN', capital: 100_000 }),
+      fila({ id: 'u8', dia: '2026-08-03', moneda: 'USD', capital: 25_000 }),
+    ])
+    expect(screen.getByText(/−50\.0 % vs\. el mismo tramo del mes anterior/)).toBeVisible()
+    elegir('Soles')
+    expect(screen.getByText(/\+0\.0 % vs\. el mismo tramo del mes anterior/)).toBeVisible()
+  })
+
+  it('la tasa de un solo día se dice en singular', () => {
+    dobles.tc = { promedio: 3.75, fuente: 'SBS · prom. 1d' }
+    pintar()
+    expect(screen.getByText(/tipo de cambio S\/ 3\.75 \(SBS, promedio de 1 día hábil\)/)).toBeVisible()
+  })
+
+  it('un tramo de solo domingo no tiene promedio: «—», no S/ 0', () => {
+    // El domingo 06/09 hubo una venta. En la vista Día ese tramo tiene 0 días
+    // hábiles: antes salía «S/ 0» al lado de S/ 50,000 vendidos.
+    pintar([fila({ id: 'dom', dia: '2026-09-06', capital: 50_000 })])
+    elegir('Día')
+    for (let i = 0; i < 4; i += 1) elegir('Día anterior')
+    expect(screen.getByText('Sin días hábiles en este tramo: el domingo no cuenta')).toBeVisible()
+    expect(within(indicador('Promedio por día hábil')).getByText('—')).toBeVisible()
+  })
+
+  it('el aviso de vacío habla del tramo que se mira, no siempre del mes', () => {
+    pintar([])
+    expect(screen.getByText('Todavía no hay cierres en este mes.')).toBeVisible()
+    elegir('Semana')
+    expect(screen.getByText('Todavía no hay cierres en esta semana.')).toBeVisible()
   })
 })
