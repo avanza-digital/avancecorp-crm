@@ -1,0 +1,52 @@
+/* Medidas de la maqueta aprobada: # 48, nombre 272, día 64 y total 150 px. */
+.facturacion-hoja .facturacion-numero { width: 48px; min-width: 48px; max-width: 48px; }
+.facturacion-hoja .facturacion-nombre { width: 272px; min-width: 272px; max-width: 272px; }
+.facturacion-hoja .facturacion-total { width: 150px; min-width: 150px; }
+.facturacion-hoja .facturacion-por-venir {
+  min-width: 112px;
+  background-image: repeating-linear-gradient(135deg, rgb(100 116 139 / 0.08) 0 6px, transparent 6px 12px);
+}
+.facturacion-hoja .facturacion-tipo { min-width: 150px; }
+.facturacion-hoja tbody tr { height: 44px; }
+.facturacion-hoja tbody tr:hover > td { background-color: #edf2fd; }
+.facturacion-hoja .facturacion-banda > * { background-color: var(--muted); }
+.facturacion-hoja .facturacion-nombre button { min-height: 44px; }
+.facturacion-malla {
+  margin: 4px;
+  scroll-padding: var(--reserva-cabecera, 0px) var(--reserva-derecha, 0px) 0 var(--reserva-izquierda, 0px);
+}
+.facturacion-resumen { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.facturacion-resumen > * { min-height: 34px; padding: 6px 11px; border-radius: 8px; font-size: 14px; line-height: 20px; }
+.facturacion-resumen button:hover { border-color: var(--border-strong); }
+/* Dos trazos opacos: navy/blanco ≈16:1; uno contrasta incluso junto a la escala azul. */
+:is(.facturacion-pantalla, .facturacion-detalle) :focus-visible {
+  outline: 2px solid #111e3d;
+  box-shadow: 0 0 0 2px #fff;
+  outline-offset: 2px;
+}
+.facturacion-malla:focus-visible { outline-offset: 0; }
+@media (pointer: coarse) {
+  :is(.facturacion-pantalla, .facturacion-detalle) :is(button, select, input:not([type='checkbox']), label) { min-height: 44px; }
+  :is(.facturacion-pantalla, .facturacion-detalle) button { min-width: 44px; }
+  .facturacion-comparar { min-width: 44px; }
+}
+@media (max-width: 767px) {
+  .facturacion-resumen { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .facturacion-resumen > * { min-height: 58px; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 12px; }
+  .facturacion-pantalla [role='group'] { flex-wrap: wrap; }
+  .facturacion-pantalla button { overflow-wrap: anywhere; }
+}
+@media (forced-colors: active) {
+  :is(.facturacion-pantalla, .facturacion-detalle) :focus-visible { outline: 3px solid CanvasText; }
+}
+/* Los botones pequeños de la casa usan 12 px: aquí toda la ayuda empieza en 14. */
+:is(.facturacion-pantalla, .facturacion-detalle) [data-slot='button'] { font-size: 14px; }
+@media (min-width: 1280px) {
+  .facturacion-resumen { flex-wrap: wrap; }
+  .facturacion-resumen > * { gap: 6px; white-space: nowrap; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .facturacion-pantalla button { transition: none; }
+  .facturacion-pantalla button:hover { transform: none; scale: none; }
+}

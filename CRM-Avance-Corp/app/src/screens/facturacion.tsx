@@ -5,8 +5,8 @@
 // aquí no se filtra nada por rol). Desde el 08/10/2026 también de Directorio,
 // en lectura: como lector global, el servidor ya le daba la empresa entera.
 //
-// La malla es el diseño: 30 columnas de día × filas de equipo con sus analistas
-// anidados. La columna de nombres y la de total quedan congeladas; la cabecera
+// La malla es el diseño: días transcurridos y futuro plegado; Día desglosa por
+// tipo. El teléfono monta tarjetas por analista, sin una tabla escondida. La columna de nombres y la de total quedan congeladas; la cabecera
 // de días también, porque a la fila quince nadie recuerda qué día está mirando.
 //
 // FILTROS: misma gramática que la consulta de Citas — un objeto plano donde
@@ -24,9 +24,8 @@
 // día, ya resolvió el ámbito y ya puso el supervisor de ENTONCES; aquí no se
 // recalcula nada, solo se dibuja. En modo demo se sirve un fixture con la MISMA
 // forma, rotulado como ejemplo: el demo nunca puede prometer más que producción.
-import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type JSX } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type JSX } from 'react'
 import {
-  CalendarRange,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -35,20 +34,21 @@ import {
   RotateCcw,
   SlidersHorizontal,
   TriangleAlert,
-  TrendingUp,
   Users,
   X,
 } from 'lucide-react'
-import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Sheet, SheetBody, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { KpiCard } from '@/components/common/kpi-card'
+import { Pastilla } from '@/components/ui/pastilla'
+import { CELDA, ENCABEZADO } from '@/components/ui/estilos-hoja'
+import { columnasDeDias, columnasDeTipos, crearFormatoCifras, nombreColumna, proyectarMalla, type ColumnaHoja } from './facturacion/presentacion'
+import { TarjetasFacturacion } from './facturacion/tarjetas'
+import { useDisposicionFacturacion } from './facturacion/disposicion'
 import { PanelCargando, PanelError } from '@/components/common/estado-panel'
-import { SectionHead } from '@/components/common/section-head'
 import { useFacturacionDeMeses } from '@/data/crm-queries'
 import { useAhora } from '@/lib/ahora'
 import { useAuth } from '@/lib/auth-context'
@@ -106,7 +106,7 @@ import {
 } from '@/lib/facturacion'
 import { money, numero, type Moneda } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import './facturacion-movil.css'
+import './facturacion.css'
 
 /** Referencia estable: un `[]` nuevo en cada render invalidaría los useMemo. */
 const SIN_FILAS: readonly FilaFacturacionDia[] = []
@@ -123,6 +123,9 @@ function rotuloTasa(tcAplicado: number, fuente: string): string {
     .replace(/\bprom\.\s*(\d+)\s*d\b/i, (_, dias: string) =>
       `promedio de ${dias} ${dias === '1' ? 'día hábil' : 'días hábiles'}`)
     .replace(/\s*·\s*/g, ', ')
+    .replace(/\bSBS\b/g, 'Superintendencia de Banca, Seguros y Pensiones')
+    .replace(/\bSUNAT\b/g, 'Superintendencia Nacional de Administración Tributaria')
+    .replace(/\bBCRP\b/g, 'Banco Central de Reserva del Perú')
   return `tipo de cambio S/ ${numero(tcAplicado, 4)}${legible === '' ? '' : ` (${legible})`}`
 }
 
@@ -151,9 +154,9 @@ const ROTULO_DEL_TRAMO: Record<Granularidad, string> = {
 
 /** Contra qué se compara, dicho en la unidad que se está mirando. */
 const ROTULO_TRAMO_ANTERIOR: Record<Granularidad, string> = {
-  mes: 'el mismo tramo del mes anterior',
-  semana: 'los mismos días de la semana anterior',
-  dia: 'el día anterior',
+  mes: 'del mismo tramo del mes anterior',
+  semana: 'de los mismos días de la semana anterior',
+  dia: 'del día anterior',
 }
 const ROTULO_SIGUIENTE: Record<Granularidad, string> = {
   mes: 'Mes siguiente',
@@ -193,21 +196,6 @@ const ROTULO_METRICA: Record<MetricaFacturacion, string> = {
   contratos: 'N.º de contratos',
 }
 
-/** Cifra que cabe en una celda de 56 px. La exacta vive en el título y en el detalle. */
-function compacta(valor: number, metrica: MetricaFacturacion): string {
-  // El punto significa VACÍO. Solo lo merece el cero exacto: un negativo es una
-  // cifra y tiene que verse, con su signo.
-  if (valor === 0) return '·'
-  if (metrica === 'contratos') return String(valor)
-  const abs = Math.abs(valor)
-  if (abs >= 1_000_000) return `${(valor / 1_000_000).toFixed(1)}M`
-  // Por debajo de mil NO se redondea a «0k»: una venta de S/ 400 se leía como
-  // cero. Se enseña la cifra entera, que además cabe. (Codex, 11/09/2026.)
-  if (abs < 1_000) return String(Math.round(valor))
-  return `${Math.round(valor / 1000)}k`
-}
-
-
 /** Interruptor de dos o más opciones — patrón vivo del CRM (aria-pressed en un group). */
 function Interruptor<T extends string>({
   etiqueta,
@@ -231,8 +219,8 @@ function Interruptor<T extends string>({
           aria-pressed={valor === o}
           onClick={() => onCambio(o)}
           className={cn(
-            'min-h-11 rounded-full border px-3 py-0.5 text-[11px] font-bold transition-colors',
-            'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40',
+            'min-h-11 rounded-full border px-3 py-0.5 text-sm font-bold transition-colors',
+            'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent',
             valor === o
               ? 'border-transparent bg-primary text-primary-foreground'
               : 'border-border text-muted-foreground-strong hover:bg-muted/60',
@@ -245,24 +233,18 @@ function Interruptor<T extends string>({
   )
 }
 
-/**
- * Una celda de la malla.
- *
- * El objetivo táctil mide 52×32 px. No es una excepción: el mínimo AA de la
- * WCAG 2.2 (SC 2.5.8) son 24×24 px — los 44 px son el nivel AAA, y el botón por
- * defecto de la casa ya mide 36. Aun así, NADA se alcanza solo por aquí: el
- * nombre del analista es un botón de tamaño completo que abre su mes entero,
- * contrato por contrato.
- */
+/** Celda de la hoja: formato memoizado y blanco táctil de 44 px mediante el CSS de Facturación. */
 function Celda({
   valor,
   maximo,
   metrica,
-  moneda,
   titulo,
   finde,
   hoy,
   destacada,
+  formato,
+  exacta = false,
+  futura = false,
   onAbrir,
 }: {
   valor: number
@@ -273,25 +255,27 @@ function Celda({
   finde: boolean
   hoy: boolean
   destacada: boolean
+  formato: ReturnType<typeof crearFormatoCifras>
+  exacta?: boolean
+  futura?: boolean | undefined
   onAbrir?: (() => void) | undefined
 }): JSX.Element {
   const paso = pasoDeEscala(valor, maximo)
-  const cifra = metrica === 'capital' ? money(valor, moneda) : `${numero(valor)} contratos`
+  const cifra = `${formato(valor)}${metrica === 'contratos' ? ' contratos' : ''}`
   const texto = `${titulo}: ${cifra}`
   const contenido = (
     <span
-      className="flex h-8 items-center justify-center rounded-md text-[11px] font-semibold tabular-nums"
-      style={{ background: paso.bg, color: paso.fg } as CSSProperties}
+      className="flex h-9 items-center justify-center rounded-md text-sm font-semibold tabular-nums"
+      style={{ background: paso.bg, color: paso.fg }}
     >
-      {compacta(valor, metrica)}
+      {formato(valor, !exacta)}
     </span>
   )
   return (
     <td
       className={cn(
-        'border-b border-r border-border/60 p-0.5 text-center',
-        // El foco no debe quedar bajo las capas pegadas (SC 2.4.11).
-        'scroll-ml-52 scroll-mr-32 scroll-mt-12',
+        CELDA, 'facturacion-celda p-0.5 text-center',
+        futura && 'facturacion-por-venir',
         finde && 'bg-muted/45',
         hoy && 'bg-accent/5',
         destacada && 'ring-2 ring-inset ring-primary',
@@ -303,9 +287,7 @@ function Celda({
           onClick={onAbrir}
           title={texto}
           aria-label={texto}
-          // La reserva va en lo que RECIBE el foco: en el <td> no cuenta, y el
-          // foco quedaba entero bajo la cabecera fija (SC 2.4.11). (a11y 08/10/2026.)
-          className="block w-full cursor-pointer scroll-mt-14 scroll-ml-52 scroll-mr-32 rounded-md transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+          className="block w-full cursor-pointer rounded-md transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent"
         >
           {contenido}
         </button>
@@ -326,7 +308,9 @@ function Celda({
 function FilaAnalista({
   fila,
   subtitulo,
-  dias,
+  columnas,
+  numeroFila,
+  formato,
   hoy,
   maximo,
   metrica,
@@ -341,7 +325,9 @@ function FilaAnalista({
 }: {
   fila: FilaFacturacion
   subtitulo?: string | undefined
-  dias: readonly string[]
+  columnas: readonly ColumnaHoja[]
+  numeroFila: number
+  formato: ReturnType<typeof crearFormatoCifras>
   hoy: string
   maximo: number
   metrica: MetricaFacturacion
@@ -353,35 +339,37 @@ function FilaAnalista({
   tactil: boolean
   onMarcar: () => void
   onAbrirMes: () => void
-  onAbrirCelda: (dia: string) => void
+  onAbrirCelda: (columna: ColumnaHoja) => void
 }): JSX.Element {
-  const fondo = marcado ? 'bg-accent/5' : 'bg-card group-hover:bg-muted'
+  const fondo = marcado ? 'bg-[#edf2fd]' : 'bg-card group-hover:bg-muted'
   return (
     <tr className={cn('group', marcado ? 'bg-accent/5' : 'hover:bg-muted/20')}>
+      <td className={cn(CELDA, 'facturacion-numero sticky left-0 z-10 bg-muted text-center')} data-numero-fila={numeroFila}>{numeroFila}</td>
       <th
         scope="row"
-        className={cn('sticky left-0 z-10 border-b border-r border-border p-0 text-left', fondo)}
+        className={cn('facturacion-nombre sticky left-12 z-10 border-b border-r border-border p-0 text-left', fondo)}
       >
         <div className={cn('flex items-center gap-2', sangria ? 'pl-4' : 'pl-3')}>
+          <label className="facturacion-comparar inline-flex shrink-0 items-center justify-center">
           <input
             type="checkbox"
             checked={marcado}
             onChange={onMarcar}
             aria-label={`Comparar a ${fila.nombre}`}
-            className={cn('shrink-0 scroll-mt-14 accent-[var(--accent)]', tactil ? 'size-6' : 'size-4')}
+            className={cn('shrink-0 accent-[var(--accent)]', tactil ? 'size-6' : 'size-4')}
           />
+          </label>
           <button
             type="button"
             onClick={onAbrirMes}
             title={`Ver el mes completo de ${fila.nombre}`}
             aria-label={`Ver el mes completo de ${fila.nombre}`}
-            className="flex min-h-9 min-w-0 flex-1 scroll-mt-14 items-center gap-2.5 py-1 pr-3 text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+            className="flex min-h-9 min-w-0 flex-1 items-center gap-2.5 py-1 pr-3 text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent"
           >
-            <Avatar nombre={fila.nombre} className="facturacion-analista-avatar size-7 shrink-0" />
             <span className="min-w-0">
-              <span className="block truncate text-[13px] font-semibold">{fila.nombre}</span>
+              <span className="block truncate text-base font-semibold">{fila.nombre}</span>
               {subtitulo != null && (
-                <span className="block truncate text-[10px] font-medium text-muted-foreground">
+                <span className="block truncate text-sm font-medium text-muted-foreground-strong">
                   {subtitulo}
                 </span>
               )}
@@ -389,27 +377,28 @@ function FilaAnalista({
           </button>
         </div>
       </th>
-      {dias.map((dia, i) => (
+      {columnas.map((columna, i) => (
         <Celda
-          key={dia}
+          key={columna.clave}
           valor={valorCelda(fila.dias[i], metrica)}
           maximo={maximo}
           metrica={metrica}
           moneda={moneda}
-          titulo={`${fila.nombre}, ${etiquetaDiaLargo(dia)}`}
-          finde={esFinDeSemana(dia)}
-          hoy={dia === hoy}
-          destacada={diaAbierto === dia}
-          onAbrir={() => onAbrirCelda(dia)}
+          titulo={`${fila.nombre}, ${columna.titulo}`}
+          finde={columna.tipo == null && !columna.futura && esFinDeSemana(columna.clave)}
+          hoy={columna.clave === hoy}
+          destacada={diaAbierto === columna.clave}
+          formato={formato} exacta={columna.tipo != null} futura={columna.futura}
+          onAbrir={() => onAbrirCelda(columna)}
         />
       ))}
       <td
         className={cn(
-          'sticky right-0 z-10 border-b border-l border-border px-3 py-1.5 text-right text-[12px] font-bold tabular-nums',
+          'facturacion-total sticky right-0 z-10 border-b border-l border-border px-3 py-1.5 text-right text-sm font-bold tabular-nums',
           fondo,
         )}
       >
-        {metrica === 'capital' ? money(fila.total.capital, moneda) : numero(fila.total.contratos)}
+        <button type="button" onClick={onAbrirMes} className="min-h-11 w-full text-right" aria-label={`Ver el mes completo de ${fila.nombre}: total ${formato(valorCelda(fila.total, metrica))}`}>{formato(valorCelda(fila.total, metrica))}</button>
       </td>
     </tr>
   )
@@ -448,6 +437,7 @@ export function Facturacion({
   // pantalla era estrecha, porque en iPad vertical el mes no cabía (4 días de
   // 30); Miguel prefiere el mes entero y desplazarse de lado. La semana y el
   // día siguen a un toque.
+  const { contenedorRef, mallaRef, usarTarjetas } = useDisposicionFacturacion()
   const esEstrecha = useEsEstrecha()
   const esTactil = useEsTactil()
   const [granularidad, setGranularidad] = useState<Granularidad>('mes')
@@ -518,6 +508,8 @@ export function Facturacion({
     analistaId: string
     supervisorId: string
     dia: string | null
+    tipo?: string | undefined
+    dias?: readonly string[] | undefined
   } | null>(null)
 
   // Corte del mes en curso: los días que aún no han pasado salen vacíos.
@@ -548,9 +540,14 @@ export function Facturacion({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `consultas` es un array nuevo en cada render; claveMeses identifica los meses y dataUpdatedAt sus respuestas
     [claveMeses, versionesConsulta],
   )
+  const mesesVisibles = mesesQueTocan(diasVisibles)
+  const consultasVisibles = consultas.filter((_, i) => mesesVisibles.includes(mesesNecesarios[i] ?? ''))
+  const consultasPrevias = consultas.filter((_, i) => !mesesVisibles.includes(mesesNecesarios[i] ?? ''))
+  const comparacionPendiente = consultasPrevias.some((c) => c.isPending)
+  const comparacionFallida = consultasPrevias.some((c) => c.isError)
   const consulta = {
-    isPending: consultas.some((c) => c.isPending),
-    isError: consultas.some((c) => c.isError),
+    isPending: consultasVisibles.some((c) => c.isPending),
+    isError: consultasVisibles.some((c) => c.isError),
     isFetching: consultas.some((c) => c.isFetching),
     refetch: () => consultas.forEach((c) => void c.refetch()),
     data: filasDeMeses.length > 0 || consultas.length > 0 ? filasDeMeses : undefined,
@@ -702,7 +699,19 @@ export function Facturacion({
         : mallaUsd
   // Los días marcados no esconden columnas —si no, no habría forma de marcar un
   // cuarto día—: la tabla se queda entera y lo que se recorta son los TOTALES.
-  const malla = hayMarcados ? totalesSoloDeDias(mallaBruta, marcadosEnTramo) : mallaBruta
+  const malla = useMemo(() => hayMarcados ? totalesSoloDeDias(mallaBruta, marcadosEnTramo) : mallaBruta,
+    [hayMarcados, mallaBruta, marcadosEnTramo])
+  const columnas = useMemo(() => granularidad === 'dia'
+    ? columnasDeTipos(filasDelTramo, diasVisibles, mes, tipo, rosterFiltrado, vistaEfectiva, tc?.promedio)
+    : columnasDeDias(diasVisibles, hoy),
+    [granularidad, filasDelTramo, diasVisibles, mes, tipo, rosterFiltrado, vistaEfectiva, tc?.promedio, hoy])
+  const mallaHoja = useMemo(() => proyectarMalla(malla, columnas), [malla, columnas])
+  const formato = useMemo(() => crearFormatoCifras(moneda, metrica), [moneda, metrica])
+  const formatoSoles = useMemo(() => crearFormatoCifras('PEN', metrica), [metrica])
+  const totalesHoja = useMemo(() => totalesUnificados(
+    proyectarMalla(mallaPen, columnas.map((c) => ({ ...c, malla: c.pen }))),
+    proyectarMalla(mallaUsd, columnas.map((c) => ({ ...c, malla: c.usd }))), tc?.promedio),
+    [mallaPen, mallaUsd, columnas, tc?.promedio])
 
   // Con días marcados, el titular tiene que hablar de ESOS días: si siguiera
   // diciendo el mes entero habría dos cifras distintas en la misma pantalla.
@@ -812,11 +821,11 @@ export function Facturacion({
         ? `solo ${nombreMonedaTitular} — consultando el tipo de cambio…`
         : `solo ${nombreMonedaTitular} — falta el tipo de cambio para sumar soles y dólares`
   const comparacionTotal =
-    delta == null
+    comparacionPendiente ? 'Cargando la comparación…' : comparacionFallida ? 'Comparación no disponible' : delta == null
       ? hayMarcados
         ? 'Días elegidos a mano: sin comparación'
         : 'Sin cifra anterior con la que comparar'
-      : `${delta >= 0 ? '+' : '−'}${Math.abs(delta).toFixed(1)} % vs. ${ROTULO_TRAMO_ANTERIOR[granularidad]}`
+      : `${delta >= 0 ? '+' : '−'}${Math.abs(delta).toFixed(1)} % respecto ${ROTULO_TRAMO_ANTERIOR[granularidad]}`
 
 
   // Un día que no elegiste no puede ganar el «mejor día», ni contar como día
@@ -875,7 +884,7 @@ export function Facturacion({
   }
 
   const comparando = filtro.analistas.length > 0
-  const planas = useMemo(() => filasComparadas(malla), [malla])
+  const planas = useMemo(() => filasComparadas(mallaHoja), [mallaHoja])
   // PERSONAS distintas, no filas: desde que un analista puede salir en dos
   // equipos el mismo mes (cambió de equipo), contar filas diría «14 analistas»
   // donde hay 13.
@@ -883,6 +892,29 @@ export function Facturacion({
     malla.grupos.flatMap((g) => g.analistas.map((a) => a.id)),
   ).size
   const vacia = malla.grupos.length === 0
+
+  const contextoTotal = cifrasFiables
+    ? [hayMarcados ? `${numero(marcadosEnTramo.length)} días elegidos` : etiquetaPeriodo(granularidad, ancla), composicionTotal, comparacionTotal].filter(Boolean).join(' · ')
+    : motivoSinCifras
+  const contextoContratos = `En ${ROTULO_VISTA[vistaEfectiva]}, de ${numero(cuantosAnalistas)} ${cuantosAnalistas === 1 ? 'analista' : 'analistas'} en ${numero(malla.grupos.length)} ${malla.grupos.length === 1 ? 'equipo' : 'equipos'}`
+  const contextoMejor = !cifrasFiables ? motivoSinCifras : mejor == null
+    ? 'Todavía sin cierres' : `Mejor día: ${etiquetaDiaLargo(mejor.dia)}${sufijoTodoSoles}`
+  const contextoPromedio = !cifrasFiables ? motivoSinCifras : habiles === 0
+    ? 'Sin días hábiles en este tramo: el domingo no cuenta'
+    : `${numero(habiles)} ${habiles === 1 ? 'día hábil corrido' : 'días hábiles corridos'} — el domingo no cuenta${sufijoTodoSoles}`
+  // La línea VISIBLE bajo las pastillas lleva el contexto que las pastillas no
+  // dicen (revisión a11y 09/10: no puede vivir solo en el `title`), sin repetir
+  // nada: fuera «En Todo S/, de N analistas…» (la vista está en su botón y los
+  // analistas en la hoja) y fuera el «soles y dólares convertidos» que salía dos
+  // veces. El tramo, la composición con su tasa y la comparación SÍ se quedan:
+  // las pruebas fijan que el texto siga al tramo y que la tasa se diga sin siglas.
+  const mejorCorto = mejor == null ? 'Todavía sin cierres' : `Mejor día: ${etiquetaDiaLargo(mejor.dia)}`
+  const promedioCorto = habiles === 0
+    ? 'Sin días hábiles en este tramo: el domingo no cuenta'
+    : `${numero(habiles)} ${habiles === 1 ? 'día hábil corrido' : 'días hábiles corridos'} — el domingo no cuenta`
+  const contextoResumen = cifrasFiables
+    ? [contextoTotal, mejorCorto, promedioCorto].join(' · ')
+    : motivoSinCifras
 
   const detalle = useMemo(
     () =>
@@ -895,8 +927,8 @@ export function Facturacion({
             tipo,
             vistaEfectiva === 'TOTAL' ? undefined : moneda,
             seleccion.supervisorId,
-            seleccion.dia == null && hayMarcados ? marcadosEnTramo : undefined,
-          ),
+            seleccion.dias ?? (seleccion.dia == null && hayMarcados ? marcadosEnTramo : undefined),
+          ).filter((f) => seleccion.tipo == null || f.tipo === seleccion.tipo),
     [seleccion, filtradas, tipo, vistaEfectiva, moneda, hayMarcados, marcadosEnTramo],
   )
 
@@ -977,6 +1009,14 @@ export function Facturacion({
     250,
   )
 
+  const abrirResumen = (dia: string | null): void => {
+    const unica = planas[0]
+    if (unica) setSeleccion({ analistaId: unica.id, supervisorId: unica.supervisorId, dia })
+  }
+  const abrirColumna = (analistaId: string, supervisorId: string, columna: ColumnaHoja): void => {
+    setSeleccion({ analistaId, supervisorId, dia: columna.dias.length === 1 ? (columna.dias[0] ?? null) : null,
+      tipo: columna.tipo, dias: columna.dias })
+  }
   const q = normalizar(busqueda.trim())
   const rosterVisible = q === '' ? roster : roster.filter((p) => normalizar(p.nombre).includes(q))
   const elegibles = [...new Map(
@@ -986,7 +1026,7 @@ export function Facturacion({
   ).values()]
 
   return (
-    <div className="space-y-4">
+    <div className="facturacion-pantalla space-y-3.5">
       <p role="status" aria-live="polite" className="sr-only">
         {anuncio}
       </p>
@@ -995,10 +1035,10 @@ export function Facturacion({
         // Solo en demo. Con datos reales este cartel sería una mentira al revés:
         // diría «ejemplo» de cifras que sí lo son.
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-warning/35 bg-warning/10 px-4 py-2.5">
-          <Badge color="var(--warning)" dot>
+          <Badge color="var(--warning)" dot className="text-sm">
             Datos de ejemplo
           </Badge>
-          <p className="text-xs font-medium text-warning-text">
+          <p className="text-sm font-medium text-warning-text">
             Estás en el modo de demostración: estas cifras están inventadas y no corresponden a
             ninguna venta real.
           </p>
@@ -1116,7 +1156,7 @@ export function Facturacion({
             <Users aria-hidden />
             Analistas
             {filtro.analistas.length > 0 && (
-              <span className="rounded-full bg-accent px-1.5 text-[11px] font-bold tabular-nums text-accent-foreground">
+              <span className="rounded-full bg-accent px-1.5 text-sm font-bold tabular-nums text-accent-foreground">
                 {filtro.analistas.length}
               </span>
             )}
@@ -1195,7 +1235,7 @@ export function Facturacion({
             >
               Ninguno
             </Button>
-            <span className="ml-auto text-[11px] font-medium text-muted-foreground-strong">
+            <span className="ml-auto text-sm font-medium text-muted-foreground-strong">
               Marca a varios para compararlos uno debajo de otro.
             </span>
           </div>
@@ -1205,7 +1245,7 @@ export function Facturacion({
               Analistas — puedes elegir varios para compararlos
             </legend>
             {rosterVisible.length === 0 ? (
-              <p className="py-2 text-xs text-muted-foreground">
+              <p className="py-2 text-sm text-muted-foreground">
                 Ningún analista coincide con «{busqueda.trim()}».
               </p>
             ) : (
@@ -1222,7 +1262,7 @@ export function Facturacion({
                         bloqueado && 'opacity-40',
                       )}
                     >
-                      <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                      <span className="shrink-0 text-sm font-bold uppercase tracking-wide text-muted-foreground">
                         {eq.nombre}
                       </span>
                       {gente.map((p) => {
@@ -1231,7 +1271,7 @@ export function Facturacion({
                           <label
                             key={p.id}
                             className={cn(
-                              'inline-flex min-h-8 items-center gap-1.5 rounded-full border px-2 text-[11.5px] font-semibold',
+                              'inline-flex min-h-8 items-center gap-1.5 rounded-full border px-2 text-sm font-semibold',
                               bloqueado ? 'cursor-not-allowed' : 'cursor-pointer',
                               activo && !bloqueado
                                 ? 'border-accent/40 bg-accent/10'
@@ -1262,82 +1302,25 @@ export function Facturacion({
         </div>
       </Card>
 
-      {/* Los cuatro números de arriba — siempre sobre lo que se está mirando */}
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard
-          label={
-            hayMarcados
-              ? `${rotuloFacturado} · ${marcadosEnTramo.length === 1 ? '1 día elegido' : `${numero(marcadosEnTramo.length)} días elegidos`}`
-              : filtroVacio(filtro)
-                ? `${rotuloFacturado} · ${etiquetaPeriodo(granularidad, ancla)}`
-                : `${rotuloFacturado} por lo filtrado`
-          }
-          value={siFiable(totalFacturado)}
-          icon={Receipt}
-          color="var(--chart-1)"
-          sub={
-            cifrasFiables
-              ? [composicionTotal, comparacionTotal].filter((x) => x !== '').join(' · ')
-              : motivoSinCifras
-          }
-        />
-        <KpiCard
-          label={tipo === TIPO_TODOS ? 'Contratos cerrados' : `Contratos · ${ROTULO_TIPO[tipo]}`}
-          value={siFiable(numero(valorCelda(malla.total, 'contratos')))}
-          icon={Users}
-          color="var(--chart-4)"
-          sub={`En ${ROTULO_VISTA[vistaEfectiva]}, de ${numero(cuantosAnalistas)} analista${cuantosAnalistas === 1 ? '' : 's'} en ${numero(malla.grupos.length)} equipo${malla.grupos.length === 1 ? '' : 's'}`}
-          delay={60}
-        />
-        <KpiCard
-          label={
-            hayMarcados
-              ? 'Mejor día de los elegidos'
-              : granularidad === 'dia'
-                ? 'Ese día'
-                : `Mejor día ${ROTULO_DEL_TRAMO[granularidad]}`
-          }
-          value={
-            !cifrasFiables || mejor == null
-              ? '—'
-              : metrica === 'capital'
-                ? money(mejor.valor, moneda)
-                : `${numero(mejor.valor)} contratos`
-          }
-          icon={TrendingUp}
-          color="var(--chart-2)"
-          sub={
-            !cifrasFiables
-              ? motivoSinCifras
-              : mejor == null
-                ? 'Todavía sin cierres'
-                : `${etiquetaDiaLargo(mejor.dia)}${sufijoTodoSoles}`
-          }
-          delay={120}
-        />
-        <KpiCard
-          label="Promedio por día hábil"
-          value={
-            promedio == null
-              ? '—'
-              : siFiable(
-                  metrica === 'capital'
-                    ? money(Math.round(promedio), moneda)
-                    : `${promedio.toFixed(1)} contratos`,
-                )
-          }
-          icon={CalendarRange}
-          color="var(--chart-3)"
-          sub={
-            !cifrasFiables
-              ? motivoSinCifras
-              : habiles === 0
-              ? 'Sin días hábiles en este tramo: el domingo no cuenta'
-              : `${numero(habiles)} ${habiles === 1 ? 'día hábil corrido' : 'días hábiles corridos'} — el domingo no cuenta${sufijoTodoSoles}`
-          }
-          delay={180}
-        />
-      </div>
+      <section className="space-y-2" aria-label="Resumen de lo que estás viendo">
+        <div className="facturacion-resumen">
+        <Pastilla etiqueta={rotuloFacturado} valor={siFiable(totalFacturado)}
+          title={contextoTotal} pista="ver el desglose"
+          onAbrir={cifrasFiables && planas.length === 1 && (!puedeUnificar || vistaEfectiva === 'TOTAL') ? () => abrirResumen(null) : undefined} />
+        <Pastilla etiqueta={tipo === TIPO_TODOS ? 'Contratos cerrados' : `Contratos · ${ROTULO_TIPO[tipo]}`}
+          valor={siFiable(numero(valorCelda(malla.total, 'contratos')))}
+          title={cifrasFiables ? contextoContratos : motivoSinCifras} pista="ver el desglose"
+          onAbrir={cifrasFiables && planas.length === 1 ? () => abrirResumen(null) : undefined} />
+        <Pastilla etiqueta={hayMarcados ? 'Mejor día de los elegidos' : granularidad === 'dia' ? 'Ese día' : `Mejor día ${ROTULO_DEL_TRAMO[granularidad]}`}
+          valor={!cifrasFiables || mejor == null ? '—' : formato(mejor.valor)}
+          title={contextoMejor} pista="ver el desglose"
+          onAbrir={cifrasFiables && mejor != null && planas.length === 1 ? () => abrirResumen(mejor.dia) : undefined} />
+        <Pastilla etiqueta="Promedio por día hábil"
+          valor={promedio == null ? '—' : siFiable(metrica === 'capital' ? money(Math.round(promedio), moneda) : `${promedio.toFixed(1)} contratos`)}
+          title={contextoPromedio} />
+        </div>
+        <p className="facturacion-contexto text-sm text-muted-foreground-strong">{contextoResumen}</p>
+      </section>
 
       {/* La pantalla abre en «Todo S/». Si el tipo de cambio no llega, la perilla
           se repliega sola a Soles: el aviso dice por qué y ofrece reintentar.
@@ -1346,7 +1329,7 @@ export function Facturacion({
           (Auditoría 08/10/2026.) */}
       {sinTasaParaTotal && (
         // Sin role="status": el porqué se anuncia en la región viva de arriba.
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--chart-5)]/40 bg-[var(--chart-5)]/10 px-4 py-2.5 text-[13px] font-medium">
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--chart-5)]/40 bg-[var(--chart-5)]/10 px-4 py-2.5 text-sm font-medium">
           <TriangleAlert aria-hidden className="size-4 shrink-0 text-[var(--chart-5)]" />
           <span>
             {reintentando
@@ -1368,7 +1351,7 @@ export function Facturacion({
       {avisoIncompleto !== '' && (
         <div
           role="status"
-          className="flex items-start gap-2 rounded-lg border border-[var(--chart-5)]/40 bg-[var(--chart-5)]/10 px-4 py-2.5 text-[13px] font-medium"
+          className="flex items-start gap-2 rounded-lg border border-[var(--chart-5)]/40 bg-[var(--chart-5)]/10 px-4 py-2.5 text-sm font-medium"
         >
           <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-[var(--chart-5)]" />
           <span>
@@ -1387,22 +1370,20 @@ export function Facturacion({
 
       {/* La malla */}
       <Card className="overflow-hidden p-0">
-        <SectionHead
-          icon={Receipt}
-          className="facturacion-malla-titulo"
-          title={
+        <div className="facturacion-malla-titulo flex flex-wrap items-center gap-2 px-5 pb-3 pt-4">
+          <Receipt aria-hidden className="size-4 text-accent" />
+          <h2 className="text-base font-bold">{
             comparando
               ? `Comparando ${numero(filtro.analistas.length)} analista${filtro.analistas.length === 1 ? '' : 's'}, día a día`
               : `${
                   granularidad === 'dia'
-                    ? 'Ese día, por equipo y por analista'
+                    ? 'Ese día, por tipo: por equipo y por analista'
                     : granularidad === 'semana'
                       ? 'Esa semana, día a día, por equipo y por analista'
                       : 'Cada día del mes, por equipo y por analista'
                 }${sufijoTodoSoles}`
-          }
-          right={
-            <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground-strong">
+          }</h2>
+            <div className="ml-auto flex items-center gap-2 text-sm font-semibold text-muted-foreground-strong">
               <span>menos</span>
               <span className="flex gap-0.5" aria-hidden>
                 {ESCALA_FACTURACION.map((paso) => (
@@ -1415,19 +1396,25 @@ export function Facturacion({
               </span>
               <span>más</span>
             </div>
-          }
-        />
+        </div>
+
+        {vistaEfectiva === 'TOTAL' && tc != null && (
+          <p className="px-5 pb-2 text-sm text-muted-foreground-strong">
+            Los dólares se suman convertidos al {rotuloTasa(tc.promedio, tc.fuente)}.
+          </p>
+        )}
 
         {/* VISIBLE. El aviso vivía en el <caption>, que es solo para lectores de
             pantalla: Miguel no encontraba dónde elegir los días porque nada se
             lo decía. Un botón que no se anuncia no existe. */}
-        <p className="border-t border-border bg-muted/30 px-4 py-2 text-[12px] font-medium text-muted-foreground-strong">
+        <p className="border-t border-border bg-muted/30 px-4 py-2 text-sm font-medium text-muted-foreground-strong">
           <MousePointerClick aria-hidden className="mr-1.5 inline size-3.5 align-[-2px]" />
-          {hayMarcados
+          {usarTarjetas ? 'Pulsa un nombre o una cifra para ver su desglose.' : granularidad === 'dia' ? 'Nuevo · Renovación · Upgrade · Cooperativa: pulsa una cifra para ver su desglose.' : hayMarcados
             ? `Estás viendo ${marcadosEnTramo.length === 1 ? '1 día elegido' : `${numero(marcadosEnTramo.length)} días elegidos`}. Pulsa otro número para añadirlo, o el mismo para quitarlo.`
             : 'Pulsa el número de un día —arriba de la tabla— para elegirlo. Puedes marcar varios, aunque no vayan seguidos.'}
         </p>
 
+        <div ref={contenedorRef} className="facturacion-contenedor min-w-0">
         {cargando ? (
           // Mientras el servidor responde no se pinta una malla vacía: parecería
           // un mes sin ventas, que es una respuesta distinta de «todavía no sé».
@@ -1449,7 +1436,7 @@ export function Facturacion({
           // Soles y el aviso de arriba ofrece reintentar.)
           <div className="flex flex-col items-center gap-3 border-t border-border px-6 py-14 text-center">
             <p className="text-sm font-semibold">No se puede mostrar el total combinado todavía.</p>
-            <p className="max-w-md text-[13px] text-muted-foreground-strong">
+            <p className="max-w-md text-sm text-muted-foreground-strong">
               Consultando el tipo de cambio del día…
             </p>
           </div>
@@ -1466,42 +1453,57 @@ export function Facturacion({
               </Button>
             )}
           </div>
+        ) : usarTarjetas ? (
+          <TarjetasFacturacion malla={malla} columnas={columnas} formato={formato} metrica={metrica}
+            seleccionados={filtro.analistas} onMarcar={alternarAnalista}
+            onAbrir={(analistaId, supervisorId) => setSeleccion({ analistaId, supervisorId, dia: null })}
+            onAbrirColumna={abrirColumna}
+            tituloTotal={filtroVacio(filtro) ? yo?.rol === 'supervisor' ? 'Total de tu equipo' : 'Total de la empresa' : 'Total de lo que estás viendo'} />
         ) : (
           <>
             {/* Altura máxima propia: sin ella quien se desplazaba era la página y
                 la cabecera de días se iba por arriba (el `sticky top-0` solo pega
                 dentro de un contenedor que se desplaza). (Auditoría 08/10/2026.) */}
             {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Malla de 30 columnas: el foco habilita recorrerla con las flechas. Con los grupos colapsados no queda NINGÚN hijo enfocable en el área que se desplaza (las celdas de fila de equipo nunca son botones), así que sin esto los días 15-30 son inalcanzables sin ratón. Mismo patrón que hoy/reuniones-gerencia.tsx. */}
-            <div className="facturacion-malla ac-scroll max-h-[calc(100dvh-8rem)] overflow-auto border-t border-border focus-visible:outline-2 focus-visible:outline-offset-2" role="region" tabIndex={0} aria-label={`Facturación diaria de ${etiquetaMes(mes)} en ${ROTULO_VISTA[vistaEfectiva]}, ${ROTULO_TIPO_CORTO[tipo]}`}>
-              <table className="border-separate border-spacing-0 bg-card text-sm">
+            <div ref={mallaRef} className="facturacion-malla ac-scroll max-h-[calc(100dvh-8rem)] overflow-auto border-t border-border" role="region" tabIndex={0} aria-label={`Facturación diaria de ${etiquetaMes(mes)} en ${ROTULO_VISTA[vistaEfectiva]}, ${ROTULO_TIPO_CORTO[tipo]}`}>
+              <table className="facturacion-hoja w-full border-separate border-spacing-0 bg-card text-sm">
                 <caption className="sr-only">
-                  {ROTULO_METRICA[metrica]} por día · {etiquetaPeriodo(granularidad, ancla)} ·{' '}
+                  {ROTULO_METRICA[metrica]} {granularidad === 'dia' ? 'por tipo' : 'por día'} · {etiquetaPeriodo(granularidad, ancla)} ·{' '}
                   {ROTULO_VISTA[vistaEfectiva]} ·{' '}
                   {ROTULO_TIPO[tipo]}.
-                  Pulsa el número de un día para elegirlo, y otro, y otro: los totales pasan a
-                  ser solo de esos días. Marca la casilla de dos o más analistas para verlos
-                  solos y compararlos; activa una celda para ver los contratos de ese día.
+                  {granularidad === 'dia'
+                    ? ' Activa una cifra para ver los contratos de ese tipo.'
+                    : ' Pulsa el número de un día para elegirlo, y otro, y otro: los totales pasan a ser solo de esos días. Activa una celda para ver los contratos de ese día.'}
+                  {columnas.some((columna) => columna.futura) && ' La columna «por venir» agrupa los días posteriores a hoy.'}
+                  {' Marca la casilla de dos o más analistas para verlos solos y compararlos.'}
                 </caption>
                 <thead>
                   <tr>
+                    <th scope="col" aria-label="Número de fila" className={cn(ENCABEZADO, 'facturacion-numero sticky left-0 z-40 text-center text-sm')}>#</th>
                     <th
                       scope="col"
-                      className="sticky left-0 top-0 z-40 w-52 min-w-52 border-b border-r border-border bg-muted px-4 py-2 text-left text-[11px] font-bold uppercase tracking-wide text-muted-foreground-strong"
+                      className="facturacion-nombre sticky left-12 top-0 z-40 border-b border-r border-border bg-muted px-4 py-2 text-left text-sm font-bold uppercase tracking-wide text-muted-foreground-strong"
                     >
                       {comparando ? 'Analistas comparados' : 'Supervisor / analista'}
                     </th>
-                    {malla.dias.map((dia) => {
+                    {columnas.map((columna) => {
+                      const dia = columna.clave
+                      if (columna.futura || columna.tipo != null) return (
+                        <th key={dia} scope="col" aria-label={nombreColumna(columna)} className={cn(ENCABEZADO, 'text-center text-sm', columna.futura ? 'facturacion-por-venir whitespace-normal' : 'facturacion-tipo')}>
+                          {columna.futura ? <><span className="block">{columna.titulo.split(' · ')[0]}</span><span className="block font-normal">por venir</span></> : columna.titulo}
+                        </th>
+                      )
                       const marcado = diasMarcados.includes(dia)
                       return (
                       <th
                         key={dia}
                         scope="col"
                         className={cn(
-                          'sticky top-0 z-30 w-13 min-w-13 border-b border-r border-border/60 bg-muted p-0 text-center align-bottom',
+                          'sticky top-0 z-30 w-16 min-w-16 border-b border-r border-border/60 bg-muted p-0 text-center align-bottom',
                           // Opaco: con la cabecera fija, un 15 % translúcido dejaba ver
                           // las celdas que pasaban por debajo. Mismo tono que antes.
                           // (Revisión a11y 08/10/2026.)
-                          esFinDeSemana(dia) && 'bg-[color-mix(in_oklab,var(--muted-foreground)_15%,var(--card))]',
+                          columna.tipo == null && !columna.futura && esFinDeSemana(dia) && 'bg-[color-mix(in_oklab,var(--muted-foreground)_15%,var(--card))]',
                           dia === hoy && 'shadow-[inset_0_3px_0_var(--accent)]',
                           marcado && 'bg-primary text-primary-foreground',
                         )}
@@ -1513,14 +1515,14 @@ export function Facturacion({
                           title={marcado ? 'Quitar este día' : 'Elegir este día'}
                           onClick={() => alternarDia(dia)}
                           className={cn(
-                            'ac-dia-btn w-full cursor-pointer scroll-ml-52 scroll-mr-32 px-0 py-1.5',
-                            'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40',
+                            'ac-dia-btn w-full cursor-pointer px-0 py-1.5',
+                            'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent',
                             !marcado && 'hover:bg-accent/20',
                           )}
                         >
                           <span
                             className={cn(
-                              'block text-[13px] font-bold leading-tight tabular-nums',
+                              'block text-base font-bold leading-tight tabular-nums',
                               dia === hoy && !marcado && 'text-accent',
                             )}
                           >
@@ -1528,7 +1530,7 @@ export function Facturacion({
                           </span>
                           <span
                             className={cn(
-                              'block text-[9px] font-semibold uppercase',
+                              'block text-sm font-semibold uppercase',
                               marcado ? 'text-primary-foreground/80' : 'text-muted-foreground-strong',
                             )}
                           >
@@ -1552,7 +1554,7 @@ export function Facturacion({
                     })}
                     <th
                       scope="col"
-                      className="sticky right-0 top-0 z-40 w-32 min-w-32 border-b border-l border-border bg-muted px-3 py-2 text-right text-[11px] font-bold uppercase tracking-wide text-muted-foreground-strong"
+                      className="facturacion-total sticky right-0 top-0 z-40 border-b border-l border-border bg-muted px-3 py-2 text-right text-sm font-bold uppercase tracking-wide text-muted-foreground-strong"
                     >
                       {hayMarcados ? 'Total elegido' : `Total ${ROTULO_DEL_TRAMO[granularidad]}`}
                     </th>
@@ -1561,38 +1563,40 @@ export function Facturacion({
 
                 <tbody>
                   {comparando
-                    ? planas.map((fila) => (
+                    ? planas.map((fila, indice) => (
                         <FilaAnalista
                           key={`${fila.supervisorId}:${fila.id}`}
                           fila={fila}
                           subtitulo={`Equipo de ${fila.supervisorNombre}`}
-                          dias={malla.dias}
+                          columnas={columnas} formato={formato} numeroFila={indice + 1}
                           hoy={hoy}
                           maximo={maximoAnalista}
                           metrica={metrica}
                           moneda={moneda}
                           marcado={filtro.analistas.includes(fila.id)}
                           tactil={esTactil}
-                          diaAbierto={seleccion?.analistaId === fila.id && seleccion.supervisorId === fila.supervisorId ? seleccion.dia : null}
+                          diaAbierto={seleccion?.analistaId === fila.id && seleccion.supervisorId === fila.supervisorId ? (seleccion.tipo ?? (seleccion.dias && seleccion.dias.length > 1 ? 'por-venir' : seleccion.dia)) : null}
                           sangria={false}
                           onMarcar={() => alternarAnalista(fila.id)}
                           onAbrirMes={() => setSeleccion({ analistaId: fila.id, supervisorId: fila.supervisorId, dia: null })}
-                          onAbrirCelda={(dia) => setSeleccion({ analistaId: fila.id, supervisorId: fila.supervisorId, dia })}
+                          onAbrirCelda={(columna) => abrirColumna(fila.id, fila.supervisorId, columna)}
                         />
                       ))
-                    : malla.grupos.map((grupo) => {
+                    : mallaHoja.grupos.map((grupo, indiceGrupo) => {
+                        const inicio = mallaHoja.grupos.slice(0, indiceGrupo).reduce((n, g) => n + g.analistas.length, 0)
                         const abierto = !cerrados.includes(grupo.id)
                         return [
-                          <tr key={grupo.id} className="bg-muted/55">
+                          <tr key={grupo.id} className="facturacion-banda bg-muted">
+                            <td className={cn(CELDA, 'facturacion-numero sticky left-0 z-20 bg-muted')}><span className="sr-only">Fila del equipo {grupo.nombre}</span></td>
                             <th
                               scope="row"
-                              className="sticky left-0 z-20 border-b border-r border-border bg-muted p-0 text-left"
+                              className="facturacion-nombre sticky left-12 z-20 border-b border-r border-border bg-muted p-0 text-left"
                             >
                               <button
                                 type="button"
                                 aria-expanded={abierto}
                                 onClick={() => alternarGrupo(grupo.id)}
-                                className="flex min-h-9 w-full cursor-pointer scroll-mt-14 items-center gap-2 px-4 py-1.5 text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+                                className="flex min-h-9 w-full cursor-pointer items-center gap-2 px-4 py-1.5 text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent"
                               >
                                 <ChevronRight
                                   aria-hidden
@@ -1601,50 +1605,49 @@ export function Facturacion({
                                     abierto && 'rotate-90',
                                   )}
                                 />
-                                <span className="truncate text-[13px] font-bold">
+                                <span className="truncate text-base font-bold">
                                   {grupo.nombre}
                                 </span>
-                                <span className="ml-auto shrink-0 text-[11px] font-semibold text-muted-foreground-strong">
+                                <span className="ml-auto shrink-0 text-sm font-semibold text-muted-foreground-strong">
                                   {grupo.analistas.length}
                                 </span>
                               </button>
                             </th>
-                            {malla.dias.map((dia, i) => (
+                            {columnas.map((columna, i) => (
                               <Celda
-                                key={dia}
+                                key={columna.clave}
                                 valor={valorCelda(grupo.dias[i], metrica)}
                                 maximo={maximoGrupo}
                                 metrica={metrica}
                                 moneda={moneda}
-                                titulo={`${grupo.nombre}, ${etiquetaDiaLargo(dia)}`}
-                                finde={esFinDeSemana(dia)}
-                                hoy={dia === hoy}
+                                titulo={`${grupo.nombre}, ${columna.titulo}`}
+                                finde={columna.tipo == null && !columna.futura && esFinDeSemana(columna.clave)}
+                                hoy={columna.clave === hoy}
                                 destacada={false}
+                                formato={formato} exacta={columna.tipo != null} futura={columna.futura}
                               />
                             ))}
-                            <td className="sticky right-0 z-20 border-b border-l border-border bg-muted px-3 py-2 text-right text-[13px] font-extrabold tabular-nums">
-                              {metrica === 'capital'
-                                ? money(grupo.total.capital, moneda)
-                                : numero(grupo.total.contratos)}
+                            <td className="facturacion-total sticky right-0 z-20 border-b border-l border-border bg-muted px-3 py-2 text-right text-sm font-extrabold tabular-nums">
+                              {formato(valorCelda(grupo.total, metrica))}
                             </td>
                           </tr>,
                           ...(abierto
-                            ? grupo.analistas.map((a) => (
+                            ? grupo.analistas.map((a, indice) => (
                                 <FilaAnalista
                                   key={a.id}
                                   fila={a}
-                                  dias={malla.dias}
+                                  columnas={columnas} formato={formato} numeroFila={inicio + indice + 1}
                                   hoy={hoy}
                                   maximo={maximoAnalista}
                                   metrica={metrica}
                                   moneda={moneda}
                                   marcado={filtro.analistas.includes(a.id)}
                                   tactil={esTactil}
-                                  diaAbierto={seleccion?.analistaId === a.id && seleccion.supervisorId === grupo.id ? seleccion.dia : null}
+                                  diaAbierto={seleccion?.analistaId === a.id && seleccion.supervisorId === grupo.id ? (seleccion.tipo ?? (seleccion.dias && seleccion.dias.length > 1 ? 'por-venir' : seleccion.dia)) : null}
                                   sangria
                                   onMarcar={() => alternarAnalista(a.id)}
                                   onAbrirMes={() => setSeleccion({ analistaId: a.id, supervisorId: grupo.id, dia: null })}
-                                  onAbrirCelda={(dia) => setSeleccion({ analistaId: a.id, supervisorId: grupo.id, dia })}
+                                  onAbrirCelda={(columna) => abrirColumna(a.id, grupo.id, columna)}
                                 />
                               ))
                             : []),
@@ -1654,14 +1657,16 @@ export function Facturacion({
 
                 <tfoot>
                   <tr>
+                    <td className={cn(CELDA, 'facturacion-numero sticky left-0 z-20 bg-card')}><span className="sr-only">Totales del tramo en {ROTULO_VISTA[vistaEfectiva]}</span></td>
                     <th
                       scope="row"
-                      className="sticky left-0 z-20 border-t-2 border-r border-border bg-card px-4 py-2 text-left text-[12px] font-extrabold"
+                      className="facturacion-nombre sticky left-12 z-20 border-t-2 border-r border-border bg-card px-4 py-2 text-left text-sm font-extrabold"
                     >
-                      {filtroVacio(filtro) ? 'Total de la empresa' : 'Total de lo que estás viendo'}
+                      {filtroVacio(filtro) ? yo?.rol === 'supervisor' ? 'Total de tu equipo' : 'Total de la empresa' : 'Total de lo que estás viendo'}
                     </th>
-                    {malla.dias.map((dia, i) => {
-                      const v = valorCelda(malla.totalPorDia[i], metrica)
+                    {columnas.map((columna, i) => {
+                      const dia = columna.clave
+                      const v = valorCelda(mallaHoja.totalPorDia[i], metrica)
                       const alto =
                         maximoDia > 0 && v > 0 ? Math.max(3, Math.round((v / maximoDia) * 26)) : 2
                       return (
@@ -1669,12 +1674,12 @@ export function Facturacion({
                           key={dia}
                           className={cn(
                             'border-t-2 border-r border-border/60 px-0.5 pb-1.5 pt-1 align-bottom',
-                            esFinDeSemana(dia) && 'bg-muted/45',
+                            columna.tipo == null && !columna.futura && esFinDeSemana(dia) && 'bg-muted/45',
                           )}
-                          title={`${etiquetaDiaLargo(dia)}: ${metrica === 'capital' ? money(v, moneda) : `${numero(v)} contratos`}`}
+                          title={`${columna.titulo}: ${formato(v)}${metrica === 'contratos' ? ' contratos' : ''}`}
                         >
-                          <span className="block pb-1 text-[9px] font-bold tabular-nums text-muted-foreground-strong">
-                            {compacta(v, metrica)}
+                          <span className="block pb-1 text-sm font-bold tabular-nums text-muted-foreground-strong">
+                            {formato(v, columna.tipo == null)}
                           </span>
                           <span
                             aria-hidden
@@ -1687,10 +1692,8 @@ export function Facturacion({
                         </td>
                       )
                     })}
-                    <td className="sticky right-0 z-20 border-t-2 border-l border-border bg-card px-3 py-2 text-right text-[13px] font-extrabold tabular-nums">
-                      {metrica === 'capital'
-                        ? money(malla.total.capital, moneda)
-                        : numero(malla.total.contratos)}
+                    <td className="facturacion-total sticky right-0 z-20 border-t-2 border-l border-border bg-card px-3 py-2 text-right text-sm font-extrabold tabular-nums">
+                      {formato(valorCelda(malla.total, metrica))}
                     </td>
                   </tr>
 
@@ -1699,14 +1702,15 @@ export function Facturacion({
                       es solo-PEN y se dice. Los contratos se suman tal cual. */}
                   {pieCombinado && (
                   <tr className="bg-muted/40">
+                    <td className={cn(CELDA, 'facturacion-numero sticky left-0 z-20 bg-muted')}><span className="sr-only">{metrica === 'capital' ? 'Suma diaria en soles' : 'Operaciones del día en ambas monedas'}</span></td>
                     <th
                       scope="row"
-                      className="sticky left-0 z-20 border-t border-r border-border bg-muted px-4 py-1.5 text-left"
+                      className="facturacion-nombre sticky left-12 z-20 border-t border-r border-border bg-muted px-4 py-1.5 text-left"
                     >
-                      <span className="block text-[12px] font-extrabold">
+                      <span className="block text-sm font-extrabold">
                         {metrica === 'capital' ? 'Total del día en soles' : 'Total del día'}
                       </span>
-                      <span className="block text-[10px] font-medium text-muted-foreground-strong">
+                      <span className="block text-sm font-medium text-muted-foreground-strong">
                         {metrica !== 'capital'
                           ? 'contratos de ambas monedas'
                           : totalMes.tc != null
@@ -1729,14 +1733,15 @@ export function Facturacion({
                           aria-label="Reintentar el tipo de cambio"
                           aria-disabled={reintentando}
                           onClick={reintentarTasa}
-                          className="mt-0.5 h-6 px-1.5 text-[10px] font-semibold"
+                          className="mt-0.5 h-6 px-1.5 text-sm font-semibold"
                         >
                           <RotateCcw aria-hidden className="size-3" /> Reintentar
                         </Button>
                       )}
                     </th>
-                    {malla.dias.map((dia, i) => {
-                      const unificado = totales.porDia[i]
+                    {columnas.map((columna, i) => {
+                      const dia = columna.clave
+                      const unificado = totalesHoja.porDia[i]
                       // Sin conversión real no se afirma un total: el solo-PEN
                       // bajo el rótulo «en soles» se leería como si el dólar
                       // estuviera dentro. Mejor un guion honesto.
@@ -1766,18 +1771,18 @@ export function Facturacion({
                           key={dia}
                           className={cn(
                             'border-t border-r border-border/60 px-0.5 py-1 text-center',
-                            esFinDeSemana(dia) && 'bg-muted/60',
+                            columna.tipo == null && !columna.futura && esFinDeSemana(dia) && 'bg-muted/60',
                           )}
-                          title={`${etiquetaDiaLargo(dia)}: ${exacto}${desglose}`}
+                          title={`${columna.titulo}: ${exacto}${desglose}`}
                         >
-                          <span className="block text-[9px] font-extrabold tabular-nums" aria-hidden>
-                            {v == null ? '—' : compacta(v, metrica)}
+                          <span className="block text-sm font-extrabold tabular-nums" aria-hidden>
+                            {v == null ? '—' : formatoSoles(v, columna.tipo == null)}
                           </span>
                           <span className="sr-only">{exacto}</span>
                         </td>
                       )
                     })}
-                    <td className="sticky right-0 z-20 border-t border-l border-border bg-muted px-3 py-1.5 text-right text-[13px] font-extrabold tabular-nums">
+                    <td className="facturacion-total sticky right-0 z-20 border-t border-l border-border bg-muted px-3 py-1.5 text-right text-sm font-extrabold tabular-nums">
                       {metrica !== 'capital'
                         ? numero(totales.mes.contratos)
                         : totalAfirmable(totalMes)
@@ -1789,7 +1794,7 @@ export function Facturacion({
                 </tfoot>
               </table>
             </div>
-            <p className="border-t border-border px-4 py-2 text-[11px] text-muted-foreground">
+            <p className="border-t border-border px-4 py-2 text-sm text-muted-foreground">
               {comparando ? (
                 // Al marcar al primero, el resto sale de la malla — es lo que hace
                 // un filtro. Aquí se dice dónde está la vuelta, que si no hay que
@@ -1808,15 +1813,16 @@ export function Facturacion({
             </p>
           </>
         )}
+        </div>
       </Card>
 
       {/* Detalle: inspector NO modal — la malla sigue consultable de fondo. */}
       {/* NO modal a propósito: la malla sigue consultable de fondo mientras se
           salta de celda en celda. Radix nombra el panel con su <SheetTitle>. */}
-      <Sheet open={seleccion != null} onClose={() => setSeleccion(null)} modal={false}>
+      <Sheet className="facturacion-detalle" open={seleccion != null} onClose={() => setSeleccion(null)} modal={false}>
         <SheetHeader>
           <div className="flex items-start justify-between gap-3">
-            <SheetTitle>{nombreSeleccionado}</SheetTitle>
+            <SheetTitle className="text-base">{nombreSeleccionado}</SheetTitle>
             <Button
               variant="ghost"
               size="icon"
@@ -1826,7 +1832,7 @@ export function Facturacion({
               <X aria-hidden />
             </Button>
           </div>
-          <SheetDescription>
+          <SheetDescription className="text-sm">
             {seleccion?.dia != null
               ? etiquetaDiaLargo(seleccion.dia)
               : `${etiquetaMes(mes)} · ${ROTULO_VISTA[vistaEfectiva]} · ${ROTULO_TIPO[tipo]}`}
@@ -1842,25 +1848,25 @@ export function Facturacion({
             </p>
           ) : (
             <>
-              <ul className="divide-y divide-border">
+              <ul role="list" className="divide-y divide-border">
                 {detalle.map((f) => (
-                  <li key={`${f.dia}|${f.tipo}|${f.moneda}`} className="flex items-start gap-3 py-3">
+                  <li key={`${f.dia}|${f.tipo}|${f.moneda === 'PEN' ? 'Soles' : 'Dólares'}`} className="flex items-start gap-3 py-3">
                     <div className="min-w-0 flex-1">
-                      <p className="text-[13px] font-bold first-letter:uppercase">{etiquetaDiaLargo(f.dia)}</p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
+                      <p className="text-sm font-bold first-letter:uppercase">{etiquetaDiaLargo(f.dia)}</p>
+                      <p className="mt-0.5 text-sm text-muted-foreground">
                         {ROTULO_TIPO[f.tipo] ?? f.tipo} · {numero(f.operaciones)}{' '}
                         {f.operaciones === 1 ? 'operación' : 'operaciones'}
                       </p>
                     </div>
                     <div className="shrink-0 text-right">
-                      <p className="text-[13px] font-extrabold tabular-nums">
+                      <p className="text-sm font-extrabold tabular-nums">
                         {money(f.capital, f.moneda)}
                       </p>
                       <Badge
                         color={f.moneda === 'USD' ? 'var(--chart-2)' : 'var(--accent)'}
-                        className="mt-1"
+                        className="mt-1 text-sm"
                       >
-                        {f.moneda}
+                        {f.moneda === 'PEN' ? 'Soles' : 'Dólares'}
                       </Badge>
                     </div>
                   </li>
@@ -1869,10 +1875,10 @@ export function Facturacion({
               {/* «Todo S/» solo se pinta con tasa (sin ella la perilla se repliega
                   a Soles), así que aquí la conversión siempre es real. */}
               {sumaDelDetalle != null && sumaDelDetalle.tc != null && totalAfirmable(sumaDelDetalle) && (
-                <p className="mt-1 border-t-2 border-border pt-3 text-right text-[13px] font-extrabold tabular-nums">
+                <p className="mt-1 border-t-2 border-border pt-3 text-right text-sm font-extrabold tabular-nums">
                   = {money(sumaDelDetalle.total ?? 0, 'PEN')} en soles
                   <span className="sr-only">. </span>
-                  <span className="block text-xs font-medium text-muted-foreground-strong">
+                  <span className="block text-sm font-medium text-muted-foreground-strong">
                     {money(solesDelDetalle, 'PEN')} + {money(dolaresDelDetalle, 'USD')} al{' '}
                     {rotuloTasa(sumaDelDetalle.tc, tc?.fuente ?? '')}
                   </span>
@@ -1881,7 +1887,7 @@ export function Facturacion({
               {/* Honestidad sobre el alcance: el servidor devuelve el mes ya
                   agrupado, así que aquí no hay —ni puede haber— la lista de
                   contratos uno a uno. Prometerla sería inventarla. */}
-              <p className="pt-4 text-[11px] leading-relaxed text-muted-foreground">
+              <p className="pt-4 text-sm leading-relaxed text-muted-foreground">
                 Este es el desglose de lo cerrado, no la lista de contratos: el servidor entrega
                 el mes ya agrupado por día, tipo y moneda.
               </p>

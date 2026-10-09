@@ -1,0 +1,2024 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Facturación como hoja</title>
+<!--
+  PIEZA VISUAL para que Miguel decida VIENDO (nada se publica): la pantalla Facturación del CRM de Avance Corp
+  rediseñada como hoja de Excel. Ilustra el plan «Facturación · fase 3: todo número se abre y hoja tipo Excel»
+  (§3 mapa número → lista, §4 pasos E1–E6 y L1).
+
+  Medidas, colores y textos copiados del código (worktree facturacion-fase1-20261008, commit c0bff295):
+    · screens/facturacion.tsx ........ textos, perillas, rótulo de la tasa sin siglas, malla y pie
+    · lib/facturacion.ts .............. ESCALA_FACTURACION (blanco → azul → navy) y letraDia (Do/Lu/Ma/Mi/Ju/Vi/Sá)
+    · lib/demo-facturacion.ts ......... los MISMOS nombres inventados y el MISMO generador de cifras del modo demo
+    · lib/tipo-cambio.ts .............. la tasa de ejemplo 3.751 (promedio de SERIE_DEMO)
+    · index.css ....................... tokens (navy #111e3d, azul #2563eb, grises), Plus Jakarta Sans, sin verde
+    · base-gestion/filtros-base.tsx ... la Pastilla · hoja-base.tsx: la hoja con # y bandas
+    · base-gestion/detalle-cifra.tsx .. la lista lateral de una cifra
+  Datos de ejemplo: nombres inventados, nunca reales. Añadido para la pieza: el tipo, el cliente y el N.º de cada
+  operación (con otro generador, para no mover las cifras) y un cambio de equipo (Jorge Palomino pasa del equipo
+  de Valeria Mendoza al de Gustavo Paredes el lunes 5 de octubre de 2026).
+
+  El lienzo es un <iframe> con este mismo archivo (?lienzo=1): así el corte de teléfono del CRM (≤767 px)
+  responde al ancho del lienzo (1440 o 390) igual que en un navegador de verdad. Sin frameworks.
+-->
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>
+  /* ── Tokens del CRM (app/src/index.css). Tema claro único, sin verde. ── */
+  :root {
+    --background: #f6f8fc;
+    --foreground: #16233f;
+    --card: #ffffff;
+    --primary: #111e3d;
+    --accent: #2563eb;
+    --accent-press: #1d4ed8;
+    --secondary: #eef2f9;
+    --muted: #eef2f8;
+    --muted-foreground: #64748b;
+    --muted-foreground-strong: #475569;
+    --destructive-text: #991b1b;
+    --warning: #d97706;
+    --warning-text: #92400e;
+    --border: #e4e9f2;
+    --border-strong: #d5ddec;
+    --input: #dbe2ef;
+    --ring: #2563eb;
+    --sidebar: #111e3d;
+    --sidebar-2: #0d1730;
+    --sidebar-foreground: #c3cde0;
+    --chart-2: #7c3aed;
+    --cian: #0e7490;
+    --ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
+    --shadow-card: 0 1px 2px -1px rgb(17 30 61 / 0.08), 0 8px 24px -12px rgb(17 30 61 / 0.14);
+    --shadow-pop: 0 12px 30px -12px rgb(17 30 61 / 0.22), 0 2px 8px -4px rgb(17 30 61 / 0.12);
+    --letra: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    /* Hoja: colores OPACOS (las celdas fijas tapan lo que pasa por debajo al desplazar). */
+    --cruz: #edf2fd;          /* fila y columna bajo el cursor */
+    --cruz-fuerte: #dde7fb;   /* cabecera, banda y # de la fila/columna bajo el cursor */
+    --finde: #f4f6f9;         /* celdas de sábado y domingo */
+    --finde-cab: #e6e9ef;     /* cabecera de sábado y domingo */
+    --hoy: #f5f8fe;           /* columna de hoy */
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--background); color: var(--foreground); font-family: var(--letra); font-size: 14px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
+  h1, h2, h3, p { margin: 0; }
+  button, select { font: inherit; color: inherit; }
+  button { margin: 0; padding: 0; border: 0; background: none; cursor: pointer; text-align: inherit; }
+  button:disabled { cursor: default; }
+  :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+  @media (forced-colors: active) { :focus-visible { outline: 3px solid CanvasText; } }
+  .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+  .tab { font-variant-numeric: tabular-nums; }
+  .i { width: 16px; height: 16px; flex: none; }
+  .ac-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+  .ac-scroll::-webkit-scrollbar-thumb { background: rgb(17 30 61 / 0.16); border: 3px solid transparent; border-radius: 999px; background-clip: padding-box; }
+  .ac-scroll::-webkit-scrollbar-thumb:hover { background: rgb(17 30 61 / 0.28); background-clip: padding-box; }
+
+  /* ═════════════════════ EL MARCO: cabecera, decisiones y lienzo ═════════════════════ */
+  .m-pagina { min-height: 100%; background: #e9eef6; }
+  .m-cab { display: grid; gap: 14px; padding: 18px 28px; border-bottom: 1px solid var(--border); background: var(--card); }
+  .m-ceja { font-size: 12px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted-foreground-strong); }
+  .m-cab h1 { margin-top: 4px; font-size: 22px; font-weight: 800; letter-spacing: -0.01em; color: var(--primary); text-wrap: balance; }
+  .m-entrada { margin-top: 6px; max-width: 128ch; font-size: 14px; color: var(--muted-foreground-strong); }
+  .m-entrada b { color: var(--foreground); }
+  .m-fila { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 28px; }
+  .m-grupo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .m-rotulo { margin-right: 4px; font-size: 12px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted-foreground-strong); }
+  .m-pildora { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--card); color: var(--muted-foreground-strong); font-size: 14px; font-weight: 600; white-space: nowrap; transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.15s var(--ease-out-expo); }
+  .m-pildora:hover { border-color: var(--muted-foreground); color: var(--primary); transform: translateY(-1px); }
+  .m-pildora[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: #fff; }
+  .m-enlace { display: inline-flex; align-items: center; gap: 8px; height: 36px; margin-left: auto; padding: 0 16px; border-radius: 999px; background: var(--primary); color: #fff; font-size: 14px; font-weight: 700; text-decoration: none; }
+  .m-enlace:hover { background: #0b1530; }
+  .m-decisiones { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  @media (max-width: 1100px) { .m-decisiones { grid-template-columns: 1fr; } }
+  .m-decision { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 12px 14px 14px; border: 1px solid var(--border); border-radius: 14px; background: #fbfcfe; }
+  .m-decision-cab { display: flex; align-items: center; gap: 10px; }
+  .m-decision-num { display: grid; flex: none; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--primary); color: #fff; font-size: 13px; font-weight: 800; }
+  .m-decision-preg { font-size: 15px; font-weight: 700; color: var(--primary); }
+  .m-opcion { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--card); color: var(--foreground); font-size: 14px; font-weight: 600; text-align: left; transition: border-color 0.15s ease, box-shadow 0.2s var(--ease-out-expo), transform 0.15s var(--ease-out-expo), background-color 0.15s ease; }
+  .m-opcion:hover { border-color: var(--muted-foreground); transform: translateY(-1px); box-shadow: 0 8px 18px -12px rgb(17 30 61 / 0.4); }
+  .m-opcion[aria-pressed="true"] { border-color: var(--accent); background: #f3f7ff; box-shadow: inset 0 0 0 1px var(--accent); }
+  .m-marca { display: grid; flex: none; place-items: center; width: 20px; height: 20px; border: 2px solid var(--border-strong); border-radius: 50%; color: transparent; }
+  .m-marca .i { width: 12px; height: 12px; }
+  .m-opcion[aria-pressed="true"] .m-marca { border-color: var(--accent); background: var(--accent); color: #fff; }
+  .m-sello { flex: none; margin-left: auto; padding: 2px 8px; border-radius: 999px; background: var(--primary); color: #fff; font-size: 12px; font-weight: 700; }
+  .m-pista { font-size: 13px; color: var(--muted-foreground-strong); }
+  .m-escenario { overflow-x: auto; padding: 22px 28px 28px; }
+  .m-lienzo-caja { width: max-content; margin: 0 auto; }
+  .m-medida { margin-bottom: 8px; font-size: 12px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted-foreground-strong); }
+  #lienzo { display: block; border: 1px solid var(--border-strong); border-radius: 14px; background: var(--background); box-shadow: var(--shadow-pop); transition: width 0.35s var(--ease-out-expo), height 0.35s var(--ease-out-expo); }
+  .m-reglas { max-width: 1498px; margin: 0 auto; padding: 0 28px 48px; }
+  .m-reglas h2 { font-size: 18px; font-weight: 800; color: var(--primary); }
+  .m-reglas > p { margin-top: 4px; color: var(--muted-foreground-strong); }
+  .m-lista-reglas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 14px 0 0; padding: 0; list-style: none; }
+  @media (max-width: 1000px) { .m-lista-reglas { grid-template-columns: 1fr; } }
+  .m-regla { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: start; gap: 4px 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
+  .m-regla-num { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--muted); color: var(--primary); font-weight: 800; }
+  .m-regla h3 { font-size: 15px; font-weight: 700; color: var(--primary); }
+  .m-regla p { margin-top: 2px; font-size: 14px; color: var(--muted-foreground-strong); }
+  .m-estado { padding: 3px 10px; border-radius: 999px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+  .m-estado.ok { background: var(--accent); color: #fff; }
+  .m-estado.mal { border: 1px solid rgb(220 38 38 / 0.4); background: rgb(220 38 38 / 0.1); color: var(--destructive-text); }
+  .m-estado.pendiente { background: var(--muted); color: var(--muted-foreground-strong); }
+  .m-nota { margin-top: 14px; font-size: 14px; color: var(--muted-foreground-strong); }
+
+  /* ═════════════════════ EL LIENZO: el CRM (menú, barra) ═════════════════════ */
+  .c-aurora { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+  .c-aurora::before, .c-aurora::after { content: ''; position: absolute; border-radius: 50%; filter: blur(90px); }
+  .c-aurora::before { left: -16vw; top: -22vw; width: 55vw; height: 55vw; background: radial-gradient(circle at 30% 30%, rgb(17 30 61 / 0.08), transparent 62%); }
+  .c-aurora::after { right: -16vw; bottom: -20vw; width: 48vw; height: 48vw; background: radial-gradient(circle at 60% 60%, rgb(37 99 235 / 0.07), transparent 62%); }
+  .c-app { position: relative; z-index: 1; display: flex; height: 100vh; height: 100dvh; overflow: hidden; }
+  .c-lateral { position: relative; z-index: 3; display: flex; flex: none; flex-direction: column; width: 240px; background: linear-gradient(to bottom, var(--sidebar), var(--sidebar-2)); color: var(--sidebar-foreground); }
+  .c-marca { display: flex; align-items: center; gap: 10px; height: 64px; padding: 0 16px; border-bottom: 1px solid rgb(255 255 255 / 0.08); }
+  .c-logo { display: grid; flex: none; place-items: center; width: 32px; height: 32px; border-radius: 8px; background: var(--accent); color: #fff; font-size: 13px; font-weight: 800; }
+  .c-marca-txt { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; color: #fff; }
+  .c-nav { display: flex; flex: 1; flex-direction: column; gap: 2px; padding: 16px 12px; overflow: hidden; }
+  .c-item { position: relative; display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: 500; white-space: nowrap; }
+  .c-item[aria-current="page"] { background: rgb(255 255 255 / 0.1); color: #fff; }
+  .c-item[aria-current="page"]::before { content: ''; position: absolute; top: 50%; left: -12px; width: 4px; height: 20px; border-radius: 0 999px 999px 0; background: rgb(255 255 255 / 0.9); transform: translateY(-50%); }
+  .c-grupo { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; padding: 8px 12px; color: #8f9ab0; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+  .c-usuario { display: flex; align-items: center; gap: 10px; padding: 12px; border-top: 1px solid rgb(255 255 255 / 0.08); }
+  .c-avatar { display: grid; flex: none; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: rgb(122 166 255 / 0.14); color: #7aa6ff; font-size: 11px; font-weight: 700; }
+  .c-usuario-nombre { font-size: 13px; font-weight: 600; color: #fff; }
+  .c-usuario-rol { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #8f9ab0; }
+  .c-principal { position: relative; z-index: 1; display: flex; flex: 1; flex-direction: column; min-width: 0; }
+  .c-barra { display: flex; flex: none; align-items: center; gap: 16px; height: 64px; padding: 0 24px; border-bottom: 1px solid var(--border); background: rgb(255 255 255 / 0.82); backdrop-filter: blur(12px); }
+  .c-barra-txt { flex: 1; min-width: 0; line-height: 1.2; }
+  .c-barra h1 { font-size: 18px; font-weight: 800; letter-spacing: -0.01em; color: var(--primary); }
+  .c-barra-sub { margin-top: 2px; font-size: 12px; color: var(--muted-foreground); }
+  .c-ejemplo { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: rgb(217 119 6 / 0.1); color: var(--warning-text); font-size: 12px; font-weight: 700; white-space: nowrap; }
+  .c-ejemplo::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--warning); }
+  .c-buscar { display: flex; align-items: center; gap: 8px; width: 288px; height: 32px; padding: 0 8px 0 10px; border: 1px solid var(--input); border-radius: 8px; background: var(--background); color: var(--muted-foreground); font-size: 12px; }
+  .c-buscar kbd { margin-left: auto; padding: 1px 6px; border: 1px solid var(--border); border-radius: 4px; background: var(--muted); font: 600 10px var(--letra); }
+  .c-campana { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; color: var(--muted-foreground-strong); }
+  .c-contenido { flex: 1; min-height: 0; overflow: auto; }
+  .c-abajo { display: none; }
+
+  /* ═════════════════════ LA PANTALLA FACTURACIÓN ═════════════════════ */
+  .f-pantalla { display: flex; flex-direction: column; gap: 14px; height: 100%; padding: 20px 24px; }
+  .f-pantalla > * { flex: none; }
+  .f-tarjeta { border: 1px solid var(--border); border-radius: 16px; background: var(--card); box-shadow: var(--shadow-card); }
+
+  /* Barra de herramientas: una sola fila (cuándo, moneda, tipo, equipo). */
+  .f-herr { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 10px 12px; }
+  .f-periodo { display: flex; align-items: center; gap: 6px; }
+  .f-icono { display: grid; flex: none; place-items: center; width: 36px; height: 36px; border: 1px solid var(--input); border-radius: 10px; background: var(--card); color: var(--foreground); transition: transform 0.15s var(--ease-out-expo), box-shadow 0.2s var(--ease-out-expo), background-color 0.15s ease; }
+  .f-icono:not(:disabled):hover { background: var(--muted); transform: translateY(-1px); box-shadow: 0 6px 16px -8px rgb(22 35 63 / 0.3); }
+  .f-icono:disabled { opacity: 0.45; }
+  .f-periodo-txt { min-width: 15ch; font-size: 15px; font-weight: 700; text-align: center; }
+  .f-interruptor { display: flex; gap: 4px; }
+  .f-interruptor button { height: 36px; padding: 0 14px; border: 1px solid var(--border); border-radius: 999px; background: var(--card); color: var(--muted-foreground-strong); font-size: 14px; font-weight: 700; text-align: center; white-space: nowrap; transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s var(--ease-out-expo); }
+  .f-interruptor button:hover:not([aria-pressed="true"]) { background: #f1f4f9; transform: translateY(-1px); }
+  .f-interruptor button[aria-pressed="true"] { border-color: var(--primary); background: var(--primary); color: #fff; }
+  .f-select { height: 36px; padding: 0 34px 0 12px; border: 1px solid var(--input); border-radius: 10px; background: var(--card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 10px center / 16px; color: var(--foreground); font-size: 14px; font-weight: 500; cursor: pointer; appearance: none; -webkit-appearance: none; }
+  .f-select.activo { border-color: var(--accent); background-color: #f3f7ff; font-weight: 700; }
+  .f-sep { width: 1px; height: 24px; background: var(--border); }
+  .f-quitar { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 8px; background: var(--secondary); color: var(--primary); font-size: 14px; font-weight: 600; transition: background-color 0.15s ease; }
+  .f-quitar:hover { background: var(--cruz-fuerte); }
+  .f-restablecer { margin-left: auto; border-color: transparent; }
+  .f-herr .f-filtros-movil { display: none; }
+
+  /* E1 · Las cifras de arriba, PEQUEÑAS: la Pastilla de base-gestion/filtros-base.tsx (14 px, número en negrita). */
+  .f-pastillas { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .f-pastilla { --mx: 50%; --my: 50%; position: relative; isolation: isolate; display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 6px 11px; border: 1px solid var(--border); border-radius: 8px; background-color: var(--card); color: var(--muted-foreground-strong); font-size: 14px; line-height: 20px; white-space: nowrap; transition: transform 0.2s var(--ease-out-expo), box-shadow 0.2s var(--ease-out-expo), border-color 0.2s ease; }
+  .f-pastilla strong { font-weight: 700; color: var(--foreground); font-variant-numeric: tabular-nums; }
+  button.f-pastilla::after { content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: radial-gradient(130px circle at var(--mx) var(--my), rgb(37 99 235 / 0.13), transparent 70%); opacity: 0; transition: opacity 0.2s ease; pointer-events: none; }
+  button.f-pastilla:hover::after { opacity: 1; }
+  button.f-pastilla:hover { border-color: var(--border-strong); transform: translateY(-2px); box-shadow: 0 10px 20px -12px rgb(17 30 61 / 0.42); }
+  button.f-pastilla:active { transform: translateY(0); box-shadow: none; }
+  .f-pastilla.abierta { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+  .f-doble { display: inline-flex; border-radius: 8px; transition: transform 0.2s var(--ease-out-expo), box-shadow 0.2s var(--ease-out-expo); }
+  .f-doble > .f-pastilla:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+  .f-doble > .f-pastilla:last-child { border-left-width: 0; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+  .f-doble > button.f-pastilla:hover { transform: none; box-shadow: none; }
+  .f-doble:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -12px rgb(17 30 61 / 0.42); }
+
+  /* La tarjeta de la malla ocupa el alto que queda: la hoja se desplaza DENTRO de su región. */
+  .f-malla { display: flex; flex: 0 1 auto; flex-direction: column; min-height: 300px; overflow: hidden; }
+  .f-malla-cab { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 14px 20px 4px; }
+  .f-malla-cab > .i { color: var(--accent); }
+  .f-malla-cab h2 { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+  .f-leyenda { display: flex; align-items: center; gap: 8px; margin-left: auto; color: var(--muted-foreground-strong); font-size: 14px; font-weight: 600; }
+  .f-leyenda .p { display: flex; gap: 2px; }
+  .f-leyenda i { display: block; width: 18px; height: 12px; border: 1px solid var(--border); border-radius: 3px; }
+  .f-malla-notas { display: flex; flex-direction: column; gap: 2px; padding: 0 20px 12px; color: var(--muted-foreground-strong); font-size: 14px; }
+  .f-malla-notas .i { display: inline; margin-right: 6px; color: var(--accent); vertical-align: -3px; }
+  .f-region { position: relative; flex: 0 1 auto; min-height: 0; overflow: auto; border-top: 1px solid var(--border-strong); overscroll-behavior: contain; }
+  .f-region:focus-visible { outline-offset: -2px; }
+
+  /* E2 · LA HOJA: cuadrícula, # de fila, cabecera gris fija, # y nombre fijos a la izquierda, total fijo a la derecha. */
+  .f-hoja { border-collapse: separate; border-spacing: 0; background: var(--card); font-size: 14px; }
+  .f-hoja th, .f-hoja td { padding: 0; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); background-color: var(--card); transition: background-color 0.15s ease, box-shadow 0.15s ease; }
+  .f-hoja thead th { position: sticky; top: 0; z-index: 3; border-bottom-color: var(--border-strong); background-color: var(--muted); color: var(--muted-foreground-strong); font-weight: 600; vertical-align: bottom; }
+  .f-cab-txt { display: block; padding: 10px 12px; text-align: left; white-space: nowrap; }
+  .f-hoja .c-num { position: sticky; left: 0; z-index: 2; width: 48px; min-width: 48px; max-width: 48px; background-color: var(--muted); color: var(--muted-foreground-strong); text-align: center; font-variant-numeric: tabular-nums; }
+  .f-hoja .c-nom { position: sticky; left: 48px; z-index: 2; width: 272px; min-width: 272px; max-width: 272px; border-right: 2px solid var(--border-strong); text-align: left; }
+  .f-hoja .c-tot { position: sticky; right: 0; z-index: 2; width: 150px; min-width: 150px; border-right: 0; border-left: 2px solid var(--border-strong); text-align: right; }
+  /* La hoja llena el ancho de la tarjeta: lo que sobra se lo queda la columna «por venir» (o, si los días por venir
+     se ocultan, la del total). Con un mes entero (30 columnas) no sobra nada y la hoja se desplaza de lado. */
+  .f-hoja.llena { width: 100%; }
+  .f-hoja.llena .c-pv { width: auto; }
+  .f-hoja.llena.sin-pv .c-tot { width: auto; }
+  .f-hoja thead .c-num, .f-hoja thead .c-nom, .f-hoja thead .c-tot { z-index: 6; }
+  .f-hoja .c-dia { width: 64px; min-width: 64px; max-width: 64px; text-align: center; }
+  .f-hoja .c-tipo { min-width: 150px; text-align: center; }
+  .f-hoja .c-pv { width: 112px; min-width: 112px; background-image: repeating-linear-gradient(135deg, rgb(100 116 139 / 0.08) 0 6px, transparent 6px 12px); }
+  .f-hoja td.finde { background-color: var(--finde); }
+  .f-hoja thead th.finde { background-color: var(--finde-cab); }
+  .f-hoja td.es-hoy { background-color: var(--hoy); }
+  .f-hoja thead th.es-hoy { box-shadow: inset 0 3px 0 var(--accent); }
+  .f-hoja thead th.marcado { background-color: var(--primary); }
+  .f-hoja tbody th, .f-hoja tbody td { height: 44px; }
+  .f-hoja tbody tr.banda > * { background-color: var(--muted); }
+  .f-hoja td.f-c { padding: 3px; }
+  .f-hoja-ancha { width: 100%; }
+
+  .f-dia-btn { display: flex; flex-direction: column; align-items: center; width: 100%; padding: 6px 0 5px; transition: transform 0.18s var(--ease-out-expo), background-color 0.18s ease; }
+  .f-dia-btn:hover { background-color: rgb(37 99 235 / 0.12); transform: translateY(-1px); }
+  .f-dia-btn:active { transform: scale(0.94); }
+  .f-dia-btn:focus-visible { outline-offset: -2px; }
+  .f-dia-num { color: var(--foreground); font-size: 16px; font-weight: 700; line-height: 1.15; font-variant-numeric: tabular-nums; }
+  .f-dia-letra { color: var(--muted-foreground-strong); font-size: 14px; font-weight: 600; line-height: 1.2; }
+  .f-dia-punto { width: 6px; height: 6px; margin-top: 3px; border-radius: 50%; background: var(--accent); opacity: 0.55; }
+  .f-pista .f-dia-punto { animation: pista 1.1s var(--ease-out-expo) 3; }
+  @keyframes pista { 0%, 100% { transform: scale(1); opacity: 0.55; } 45% { transform: scale(2.1); opacity: 1; } }
+  th.es-hoy .f-dia-num { color: var(--accent-press); }
+  th.marcado .f-dia-num, th.marcado .f-dia-letra { color: #fff; }
+  th.marcado .f-dia-punto { background: #fff; opacity: 1; }
+  .f-pv-cab { display: flex; flex-direction: column; align-items: center; padding: 6px 4px 8px; line-height: 1.25; }
+  .f-pv-cab b { color: var(--foreground); font-size: 14px; font-weight: 700; }
+  .f-pv-cab span { color: var(--muted-foreground-strong); font-size: 14px; }
+
+  .f-nom-btn, .f-nom-txt { display: flex; flex-direction: column; justify-content: center; width: 100%; min-height: 44px; padding: 5px 12px; text-align: left; }
+  .f-nom-btn:focus-visible { outline-offset: -2px; }
+  .f-nombre { display: block; overflow: hidden; color: var(--foreground); font-size: 16px; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; }
+  .f-nom-btn .f-nombre { text-decoration: underline dotted var(--border-strong); text-underline-offset: 4px; }
+  .f-nom-btn:hover .f-nombre { text-decoration-color: currentColor; text-decoration-style: solid; }
+  .f-sub { display: block; overflow: hidden; color: var(--muted-foreground-strong); font-size: 14px; white-space: nowrap; text-overflow: ellipsis; }
+  .f-banda-btn { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 6px 12px; }
+  .f-banda-btn:focus-visible { outline-offset: -2px; }
+  .f-banda-btn .i { color: var(--muted-foreground-strong); transition: transform 0.2s var(--ease-out-expo); }
+  .f-banda-btn[aria-expanded="true"] .i { transform: rotate(90deg); }
+  .f-banda-nombre { overflow: hidden; color: var(--primary); font-size: 16px; font-weight: 700; white-space: nowrap; text-overflow: ellipsis; }
+  .f-banda-n { flex: none; margin-left: auto; color: var(--muted-foreground-strong); font-size: 14px; font-weight: 600; }
+  .f-banda-txt { display: flex; align-items: center; gap: 8px; padding: 6px 12px; }
+
+  .f-cifra { display: flex; align-items: center; justify-content: center; width: 100%; height: 36px; padding: 0 6px; border-radius: 6px; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; transition: transform 0.16s var(--ease-out-expo), box-shadow 0.2s var(--ease-out-expo); }
+  button.f-cifra:hover { position: relative; z-index: 1; transform: scale(1.07); box-shadow: 0 8px 16px -10px rgb(17 30 61 / 0.55); }
+  button.f-cifra:focus-visible { outline-offset: 1px; }
+  .f-cero { color: var(--muted-foreground-strong); font-weight: 700; }
+  .f-tot { display: flex; align-items: center; justify-content: flex-end; width: 100%; min-height: 43px; padding: 0 14px; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; transition: background-color 0.15s ease, color 0.15s ease; }
+  button.f-tot:hover { background-color: rgb(37 99 235 / 0.1); color: var(--accent-press); }
+  button.f-tot:focus-visible { outline-offset: -2px; }
+  .f-cifra.abierta, .f-nom-btn.abierta, .f-tot.abierta, .f-pie-cifra.abierta { outline: 2px solid var(--primary); outline-offset: -2px; }
+
+  /* El pie: total de la empresa por día (cifra + barrita) y, sin «Todo S/», el total del día en soles. Fijo abajo. */
+  .f-hoja tfoot th, .f-hoja tfoot td { position: sticky; bottom: 0; z-index: 3; border-top: 2px solid var(--border-strong); border-bottom: 0; background-color: var(--card); }
+  .f-hoja tfoot tr.pie1 > * { bottom: var(--b1, 0px); height: 58px; }
+  .f-hoja tfoot tr.pie2 > * { height: 52px; border-top-width: 1px; background-color: var(--muted); }
+  .f-hoja tfoot .c-num, .f-hoja tfoot .c-nom, .f-hoja tfoot .c-tot { z-index: 6; }
+  .f-pie-nombre { display: block; padding: 6px 12px; font-size: 14px; font-weight: 800; text-align: left; }
+  .f-pie-sub { display: block; overflow: hidden; color: var(--muted-foreground-strong); font-size: 14px; font-weight: 500; white-space: nowrap; text-overflow: ellipsis; }
+  .f-pie-cifra { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; width: 100%; height: 52px; padding: 4px 2px 3px; border-radius: 6px; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; transition: background-color 0.15s ease, transform 0.16s var(--ease-out-expo); }
+  button.f-pie-cifra:hover { background-color: rgb(37 99 235 / 0.1); transform: translateY(-1px); }
+  button.f-pie-cifra:focus-visible { outline-offset: -2px; }
+  .f-pie-barra { display: block; width: 22px; border-radius: 3px 3px 0 0; background: var(--accent); }
+  .f-pie-barra.cero { background: var(--border-strong); }
+  .f-pie2-cifra { height: 46px; justify-content: center; }
+
+  /* El cursor ilumina su fila y su columna (la columna la pinta una regla que escribe el JS). */
+  .f-hoja tbody tr.cruz > th, .f-hoja tbody tr.cruz > td { background-color: var(--cruz); }
+  .f-hoja tbody tr.cruz > .c-num { background-color: var(--cruz-fuerte); color: var(--accent-press); font-weight: 700; }
+  .f-hoja tbody tr.cruz > .c-nom { box-shadow: inset 3px 0 0 var(--accent); }
+  .f-hoja tbody tr.banda.cruz > * { background-color: var(--cruz-fuerte); }
+
+  /* La vista Día como lista (decisión 2, opción B) */
+  .l-cli-in { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 0 12px; }
+  .l-cli-nom { overflow: hidden; font-size: 16px; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; }
+  .f-hoja .l-dato { padding: 0 12px; white-space: nowrap; }
+  .f-hoja .l-dato-nombre { padding: 0 12px; font-size: 16px; white-space: nowrap; }
+
+  /* Etiquetas de tipo: SÓLIDAS (se distinguen de lejos) y con texto blanco (≥ 5:1). Sin ámbar ni rojo: son de urgencia. */
+  .f-tipo { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 999px; color: #fff; font-size: 14px; font-weight: 600; white-space: nowrap; }
+  .f-tipo.nuevo { background: var(--primary); }
+  .f-tipo.renovacion { background: var(--accent); }
+  .f-tipo.upgrade { background: var(--chart-2); }
+  .f-tipo.cooperativa { background: var(--cian); }
+  .f-anulada { display: inline-flex; flex: none; align-items: center; height: 22px; padding: 0 8px; border: 1px solid rgb(220 38 38 / 0.4); border-radius: 999px; background: rgb(220 38 38 / 0.1); color: var(--destructive-text); font-size: 14px; font-weight: 700; white-space: nowrap; }
+  .f-ajeno { display: inline-flex; align-items: center; gap: 6px; color: var(--muted-foreground-strong); font-size: 14px; font-style: italic; font-weight: 600; white-space: nowrap; }
+
+  /* E6 · En el teléfono: tarjetas por analista, agrupadas por equipo. */
+  .f-tarjetas { display: flex; flex-direction: column; gap: 22px; padding-bottom: 8px; }
+  .f-eq { display: flex; flex-direction: column; gap: 10px; }
+  .f-eq-cab { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+  .f-eq-nombre { color: var(--primary); font-size: 16px; font-weight: 700; }
+  .f-eq-n { color: var(--muted-foreground-strong); font-size: 14px; }
+  .f-eq-cab .f-boton-cifra { margin-left: auto; }
+  .f-eq-lista { display: flex; flex-direction: column; gap: 10px; }
+  .f-ta { padding: 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); box-shadow: var(--shadow-card); }
+  .f-ta-cab { display: flex; align-items: baseline; gap: 10px; }
+  .f-ta-num { min-width: 22px; color: var(--muted-foreground-strong); font-size: 14px; font-variant-numeric: tabular-nums; }
+  .f-ta-nombre { font-size: 16px; font-weight: 600; }
+  .f-ta-sub { margin: 2px 0 0 32px; color: var(--muted-foreground-strong); font-size: 14px; }
+  .f-ta-cifras { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .f-boton-cifra { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--card); color: var(--foreground); font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; transition: transform 0.12s ease, background-color 0.15s ease; }
+  .f-boton-cifra:active { transform: scale(0.97); }
+  .f-boton-cifra.suave { color: var(--muted-foreground-strong); font-weight: 600; }
+  .f-boton-cifra.abierta, .f-chip-dia.abierta { outline: 2px solid var(--primary); outline-offset: 1px; }
+  .f-ta-rotulo { margin-top: 12px; color: var(--muted-foreground-strong); font-size: 14px; font-weight: 600; }
+  .f-ta-dias { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .f-chip-dia { display: inline-flex; align-items: center; min-height: 44px; padding: 0 10px; border: 1px solid rgb(17 30 61 / 0.08); border-radius: 8px; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; transition: transform 0.12s ease; }
+  .f-chip-dia:active { transform: scale(0.96); }
+  .f-ta-vacio { margin-top: 10px; color: var(--muted-foreground-strong); font-size: 14px; }
+  .f-ta-ops { display: flex; flex-direction: column; gap: 8px; }
+  .f-total-movil { padding: 14px; border: 1px solid var(--border-strong); border-radius: 14px; background: var(--muted); }
+  .f-total-movil h2 { font-size: 16px; font-weight: 700; color: var(--primary); }
+
+  /* L1 · LA LISTA de una cifra: hoja lateral NO modal (molde de base-gestion/detalle-cifra.tsx). */
+  .f-lista { position: fixed; top: 0; right: 0; bottom: 0; z-index: 50; display: flex; flex-direction: column; width: var(--ancho-lista, 700px); max-width: 94vw; border-left: 1px solid var(--border); background: var(--card); box-shadow: var(--shadow-pop), -30px 0 60px -40px rgb(17 30 61 / 0.45); animation: entra 0.35s var(--ease-out-expo) both; transition: width 0.3s var(--ease-out-expo); }
+  @keyframes entra { from { opacity: 0; transform: translateX(48px); } to { opacity: 1; transform: none; } }
+  .f-lista.cambia .f-lista-cab, .f-lista.cambia .f-lista-cuerpo { animation: fundido 0.28s ease both; }
+  @keyframes fundido { from { opacity: 0.25; } to { opacity: 1; } }
+  .f-lista-cab { display: flex; align-items: flex-start; gap: 12px; padding: 16px 20px 14px; border-bottom: 1px solid var(--border); }
+  .f-lista-txt { flex: 1; min-width: 0; border-radius: 8px; }
+  .f-lista-txt:focus-visible { outline-offset: 4px; }
+  .f-lista-ceja { color: var(--muted-foreground-strong); font-size: 14px; font-weight: 600; }
+  .f-lista-titulo { margin-top: 2px; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+  .f-lista-cifra { margin-top: 8px; color: var(--primary); font-size: 28px; font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .f-lista-suma { margin-top: 4px; color: var(--foreground); font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .f-cuadra { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; padding: 4px 12px 4px 8px; border-radius: 999px; background: var(--primary); color: #fff; font-size: 14px; font-weight: 600; }
+  .f-cuadra.mal { border: 1px solid rgb(220 38 38 / 0.4); background: rgb(220 38 38 / 0.1); color: var(--destructive-text); }
+  .f-lista-meta { margin-top: 8px; color: var(--muted-foreground-strong); font-size: 14px; }
+  .f-cerrar { display: grid; flex: none; place-items: center; width: 36px; height: 36px; border-radius: 10px; color: var(--muted-foreground-strong); transition: background-color 0.15s ease, color 0.15s ease; }
+  .f-cerrar:hover { background: var(--muted); color: var(--foreground); }
+  .f-aviso { display: flex; gap: 10px; margin: 12px 20px 0; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: 10px; background: #f8fafd; color: var(--foreground); font-size: 14px; }
+  .f-aviso .i { margin-top: 2px; color: var(--accent); }
+  .f-lista-cuerpo { flex: 1; min-height: 0; margin-top: 12px; overflow: auto; border-top: 1px solid var(--border-strong); }
+  .f-lista-cuerpo:focus-visible { outline-offset: -2px; }
+  .f-lt { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px; }
+  .f-lt th, .f-lt td { height: 40px; padding: 0 10px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); background-color: var(--card); text-align: left; white-space: nowrap; transition: background-color 0.12s ease; }
+  .f-lt th:last-child, .f-lt td:last-child { border-right: 0; }
+  .f-lt thead th { position: sticky; top: 0; z-index: 2; border-bottom-color: var(--border-strong); background-color: var(--muted); color: var(--muted-foreground-strong); font-weight: 600; }
+  .f-lt .l-n { position: sticky; left: 0; z-index: 1; width: 44px; min-width: 44px; background-color: var(--muted); color: var(--muted-foreground-strong); text-align: center; font-variant-numeric: tabular-nums; }
+  .f-lt thead .l-n { z-index: 3; }
+  .f-lt .l-fecha { width: 76px; min-width: 76px; }
+  .f-lt .l-num { width: 132px; min-width: 132px; }
+  .f-lt .l-tipo { width: 112px; min-width: 112px; }
+  .f-lt .l-ana { width: 160px; min-width: 160px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+  .f-lt .l-mon { width: 78px; min-width: 78px; }
+  .f-lt .l-monto { width: 112px; min-width: 112px; }
+  .f-lt .l-cli { width: 100%; max-width: 0; padding: 0; }
+  .f-lt .l-cli .l-cli-in { padding: 0 10px; }
+  .f-lt .l-monto { font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+  .f-lt .l-tab { font-variant-numeric: tabular-nums; }
+  .f-lt .l-ana { font-size: 16px; }
+  .f-lt tbody tr:hover > * { background-color: var(--cruz); }
+  .f-lt tbody tr:hover > .l-n { background-color: var(--cruz-fuerte); color: var(--accent-press); }
+  .f-lt tbody tr.l-banda > *, .f-lt tbody tr.l-banda:hover > * { height: 42px; border-bottom-color: var(--border-strong); background-color: var(--muted); }
+  .f-lt tr.l-banda th { padding: 0 12px; }
+  .l-banda-nom { margin-right: 10px; color: var(--primary); font-size: 16px; font-weight: 700; }
+  .l-banda-det { color: var(--muted-foreground-strong); font-size: 14px; font-weight: 600; }
+  .f-ops-banda { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; margin-top: 8px; padding: 0 2px; color: var(--muted-foreground-strong); font-size: 14px; }
+  .f-ops-banda b { color: var(--primary); font-size: 16px; }
+  .f-ops-banda b.tab { margin-left: auto; font-size: 14px; }
+  .f-lt tfoot th, .f-lt tfoot td { background-color: #f8fafd; font-weight: 600; }
+  .f-lt tfoot tr.total > * { border-top: 2px solid var(--border-strong); font-weight: 800; }
+  .f-lista-pie { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 20px; border-top: 1px solid var(--border); color: var(--muted-foreground-strong); font-size: 14px; }
+  .f-lista-pie .f-boton:first-of-type { margin-left: auto; }
+  .f-boton { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border: 1px solid var(--input); border-radius: 10px; background: var(--card); font-size: 14px; font-weight: 600; transition: background-color 0.15s ease; }
+  .f-boton:not(:disabled):hover { background: var(--muted); }
+  .f-boton:disabled { opacity: 0.45; }
+  .f-ops { display: flex; flex-direction: column; gap: 8px; padding: 12px 16px 16px; }
+  .f-op { padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
+  .f-op-cab { display: flex; align-items: baseline; gap: 10px; }
+  .f-op-n { min-width: 22px; color: var(--muted-foreground-strong); font-size: 14px; font-variant-numeric: tabular-nums; }
+  .f-op-cli { flex: 1; min-width: 0; font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
+  .f-op-monto { font-size: 16px; font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .f-op-det { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 6px 0 0 32px; color: var(--muted-foreground-strong); font-size: 14px; }
+  .f-subtotales { display: flex; flex-direction: column; gap: 4px; padding: 12px; border: 1px solid var(--border-strong); border-radius: 12px; background: #f8fafd; font-size: 14px; }
+  .f-subtotales p { display: flex; justify-content: space-between; gap: 10px; }
+  .f-subtotales p b { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .f-subtotales p.total { padding-top: 6px; border-top: 1px solid var(--border-strong); font-weight: 800; }
+
+  /* ── Teléfono (≤ 767 px): el CRM cambia el menú y la malla deja paso a las tarjetas ── */
+  @media (max-width: 767px) {
+    .c-app[data-rol="gerencia"] { flex-direction: column; }
+    .c-app[data-rol="gerencia"] .c-lateral { display: none; }
+    .c-app[data-rol="supervisor"] .c-lateral { width: 64px; }
+    .c-app[data-rol="supervisor"] .c-txt, .c-app[data-rol="supervisor"] .c-usuario-txt { display: none; }
+    .c-app[data-rol="supervisor"] .c-item { justify-content: center; padding: 10px 0; }
+    .c-app[data-rol="supervisor"] .c-item[aria-current="page"]::before { left: -12px; }
+    .c-app[data-rol="supervisor"] .c-marca { justify-content: center; padding: 0; }
+    .c-app[data-rol="supervisor"] .c-usuario { justify-content: center; padding: 12px 0; }
+    .c-principal { min-height: 0; }
+    .c-barra { gap: 10px; height: 56px; padding: 0 16px; }
+    .c-barra-sub, .c-buscar { display: none; }
+    .c-abajo { display: grid; flex: none; grid-auto-columns: 1fr; grid-auto-flow: column; z-index: 3; padding: 7px 12px 8px; border-top: 1px solid #dce3ed; background: #fff; color: #58677e; box-shadow: 0 -4px 16px rgb(17 30 61 / 0.03); }
+    .c-destino { display: flex; flex-direction: column; align-items: center; gap: 3px; min-height: 54px; font-size: 11px; font-weight: 600; }
+    .c-destino-ic { display: flex; align-items: center; justify-content: center; width: 56px; height: 31px; border-radius: 10px; }
+    .c-destino[aria-current="page"] { color: #2563eb; }
+    .c-destino[aria-current="page"] .c-destino-ic { background: #eaf0ff; }
+    .f-pantalla { height: auto; gap: 14px; padding: 16px; }
+    /* Barra en rejilla: cuándo, tramo y moneda a lo ancho; «Filtros» y restablecer en la misma fila. */
+    .f-herr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
+    .f-herr > .f-periodo, .f-herr > .f-interruptor, .f-herr > .f-filtro, .f-herr > .f-quitar { grid-column: 1 / -1; }
+    .f-periodo { justify-content: space-between; }
+    .f-icono { width: 44px; height: 44px; }
+    .f-interruptor button { flex: 1; height: 44px; padding: 0 6px; text-align: center; }
+    .f-select { width: 100%; height: 44px; }
+    .f-sep { display: none; }
+    .f-restablecer { margin-left: 0; }
+    .f-herr .f-filtros-movil { display: inline-flex; justify-content: center; height: 44px; }
+    .f-herr[data-plegado="true"] .f-filtro { display: none; }
+    /* Pastillas de dos en dos: la etiqueta arriba y el número debajo, todo a la vista sin desplazarse. */
+    .f-pastillas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .f-doble { display: grid; grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .f-pastillas > :not(.f-doble):last-child:nth-child(even) { grid-column: 1 / -1; }
+    .f-pastilla { flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; min-height: 58px; padding: 8px 12px; white-space: normal; text-align: left; }
+    .f-doble > .f-pastilla { min-width: 0; }
+    .f-lista { left: 0; width: 100%; max-width: 100%; border-left: 0; }
+    .f-lista-cab { padding: 14px 16px 12px; }
+    .f-lista-cifra { font-size: 26px; }
+    .f-cerrar { width: 44px; height: 44px; }
+    .f-aviso { margin: 12px 16px 0; }
+    .f-lista-pie { padding: 10px 16px; }
+    .f-lista-pie .f-boton { height: 44px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-property: background-color, border-color, color, opacity !important; }
+    button.f-pastilla:hover, .f-doble:hover, button.f-cifra:hover, .f-dia-btn:hover, .f-icono:hover, .m-pildora:hover, .m-opcion:hover, .f-interruptor button:hover, button.f-pie-cifra:hover { transform: none !important; }
+  }
+</style>
+</head>
+<body>
+<div id="raiz"></div>
+<script>
+'use strict'
+
+const raiz = document.getElementById('raiz')
+const params = new URLSearchParams(location.search)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Íconos lucide (los mismos que usa el CRM).
+// ─────────────────────────────────────────────────────────────────────────────
+const ICONOS = {
+  chevronLeft: '<path d="m15 18-6-6 6-6"/>',
+  chevronRight: '<path d="m9 18 6-6-6-6"/>',
+  chevronDown: '<path d="m6 9 6 6 6-6"/>',
+  x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  rotate: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+  receipt: '<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/>',
+  receiptText: '<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M14 8H8"/><path d="M16 12H8"/><path d="M13 16H8"/>',
+  pointer: '<path d="M14 4.1 12 6"/><path d="m5.1 8-2.9-.8"/><path d="m6 12-1.9 2"/><path d="M7.2 2.2 8 5.1"/><path d="M9.037 9.69a.498.498 0 0 1 .653-.653l11 4.5a.5.5 0 0 1-.074.949l-4.349 1.041a1 1 0 0 0-.74.739l-1.04 4.35a.5.5 0 0 1-.95.074z"/>',
+  sliders: '<line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  circleCheck: '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+  alert: '<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>',
+  info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  eyeOff: '<path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/>',
+  dashboard: '<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>',
+  trophy: '<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>',
+  handshake: '<path d="m11 17 2 2a1 1 0 1 0 3-3"/><path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4"/><path d="m21 3 1 11h-2"/><path d="M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3"/><path d="M3 4h8"/>',
+  calendarCheck: '<path d="M8 2v4"/><path d="M16 2v4"/><path d="M21 14V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8"/><path d="M3 10h18"/><path d="m16 20 2 2 4-4"/>',
+  target: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+  wallet: '<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>',
+  listChecks: '<path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/>',
+  kanban: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 7v7"/><path d="M12 7v4"/><path d="M16 7v9"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/>',
+  calendarDays: '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/>',
+  archiveRestore: '<rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h2"/><path d="M20 8v11a2 2 0 0 1-2 2h-2"/><path d="m9 15 3-3 3 3"/><path d="M12 12v9"/>',
+  ellipsis: '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
+  search: '<path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/>',
+  bell: '<path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/>',
+}
+const icono = (nombre, clase = 'i') =>
+  `<svg class="${clase}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${ICONOS[nombre]}</svg>`
+const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Formatos: lib/format.ts (es-PE → «S/ 1,234,567.5»; la tasa sale «3.751», como en el CRM).
+// ─────────────────────────────────────────────────────────────────────────────
+const SIMBOLO = { PEN: 'S/', USD: 'US$' }
+const nf = (n, max = 2) => n.toLocaleString('es-PE', { minimumFractionDigits: 0, maximumFractionDigits: max })
+const money = (n, moneda = 'PEN') => `${SIMBOLO[moneda]} ${nf(n)}`
+const HOY = '2026-10-08'                 // jueves 08/10/2026: reloj fijo de la pieza
+const TASA_MIL = 3751                    // 3.751 en milésimas (SERIE_DEMO de lib/tipo-cambio.ts): sumas exactas en enteros
+const TASA_TXT = nf(TASA_MIL / 1000, 4)  // «3.751»
+const ROTULO_TASA = `tipo de cambio S/ ${TASA_TXT} (SBS, promedio de 7 días hábiles)` // rotuloTasa() de facturacion.tsx
+const CAMBIO_EQUIPO = '2026-10-05'       // Jorge Palomino pasa del equipo de Valeria al de Gustavo
+const SUPERVISORA = 'f-sup1'             // «Ver como supervisora»: Valeria Mendoza
+const POR_PAGINA = 50
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fechas en Lima (el día comercial). Textos como los de lib/facturacion.ts en es-PE.
+// ─────────────────────────────────────────────────────────────────────────────
+const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'setiembre', 'octubre', 'noviembre', 'diciembre']
+const MESES_C = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'set', 'oct', 'nov', 'dic']
+const DIAS_L = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
+const DIAS_C = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb']
+const LETRAS = ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá'] // letraDia(): dos letras
+const pad2 = (n) => String(n).padStart(2, '0')
+const aFecha = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d) }
+const deFecha = (f) => `${f.getFullYear()}-${pad2(f.getMonth() + 1)}-${pad2(f.getDate())}`
+const masDias = (s, n) => { const f = aFecha(s); f.setDate(f.getDate() + n); return deFecha(f) }
+const diaSemana = (s) => aFecha(s).getDay()
+const numeroDia = (s) => Number(s.slice(8, 10))
+const indiceMes = (s) => Number(s.slice(5, 7)) - 1
+const primerDiaDelMes = (s) => `${s.slice(0, 8)}01`
+const mesDesplazado = (mes, d) => { const f = aFecha(mes); return deFecha(new Date(f.getFullYear(), f.getMonth() + d, 1)) }
+const esFinde = (s) => { const n = diaSemana(s); return n === 0 || n === 6 }
+const mayus = (t) => t.charAt(0).toUpperCase() + t.slice(1)
+const minusInicial = (t) => t.charAt(0).toLowerCase() + t.slice(1)
+function diasDelMes(mes) {
+  const f = aFecha(mes)
+  const n = new Date(f.getFullYear(), f.getMonth() + 1, 0).getDate()
+  return Array.from({ length: n }, (_, i) => deFecha(new Date(f.getFullYear(), f.getMonth(), i + 1)))
+}
+const lunesDe = (s) => masDias(s, -((diaSemana(s) + 6) % 7))
+function diasDelPeriodo(gran, ancla) {
+  if (gran === 'dia') return [ancla]
+  if (gran === 'mes') return diasDelMes(primerDiaDelMes(ancla))
+  const l = lunesDe(ancla)
+  return Array.from({ length: 7 }, (_, i) => masDias(l, i))
+}
+const periodoDesplazado = (gran, ancla, d) =>
+  gran === 'mes' ? mesDesplazado(primerDiaDelMes(ancla), d) : masDias(ancla, d * (gran === 'semana' ? 7 : 1))
+const etiquetaMes = (mes) => `${MESES[indiceMes(mes)]} de ${mes.slice(0, 4)}`
+const diaLargo = (s) => `${DIAS_L[diaSemana(s)]}, ${numeroDia(s)} de ${MESES[indiceMes(s)]}` // «jueves, 8 de octubre»
+const diaMedio = (s) => `${DIAS_L[diaSemana(s)]} ${numeroDia(s)}`                                  // «lunes 5»
+const diaCorto = (s) => `${DIAS_C[diaSemana(s)]} ${numeroDia(s)} ${MESES_C[indiceMes(s)]}`         // «lun 5 oct»
+const diaMedioCorto = (s) => `${DIAS_C[diaSemana(s)]} ${numeroDia(s)}`                              // «lun 5»
+function etiquetaPeriodo(gran, ancla) {
+  if (gran === 'mes') return etiquetaMes(primerDiaDelMes(ancla))
+  if (gran === 'dia') return diaLargo(ancla)
+  const d = diasDelPeriodo('semana', ancla)
+  return `${numeroDia(d[0])} ${MESES_C[indiceMes(d[0])]} al ${numeroDia(d[6])} ${MESES_C[indiceMes(d[6])]}`
+}
+function listaDeDias(dias) {
+  const mismoMes = dias.every((d) => d.slice(0, 7) === dias[0].slice(0, 7))
+  const t = dias.map((d) => (mismoMes ? `${numeroDia(d)}` : `${numeroDia(d)} ${MESES_C[indiceMes(d)]}`))
+  const unidos = t.length === 1 ? t[0] : `${t.slice(0, -1).join(', ')} y ${t[t.length - 1]}`
+  return mismoMes ? `${unidos} de ${MESES[indiceMes(dias[0])]}` : unidos
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LOS DATOS. lib/demo-facturacion.ts: mismos equipos, nombres inventados y el MISMO generador determinista
+// (mulberry32, semilla «facturacion:<mes>»): las cifras de octubre son las del modo demo del CRM a hoy.
+// Aquí se emite UNA FILA POR OPERACIÓN (lo que traerá la puerta nueva del plan) en vez del cubo por día.
+// ─────────────────────────────────────────────────────────────────────────────
+const EQUIPOS = [
+  { id: 'f-sup1', supervisor: 'Valeria Mendoza', analistas: [
+    { id: 'f-a01', nombre: 'Katherine Ríos', nivel: 1.3 },
+    { id: 'f-a02', nombre: 'Jorge Palomino', nivel: 0.95 },
+    { id: 'f-a03', nombre: 'Milagros Ávila', nivel: 1.05 },
+    { id: 'f-a04', nombre: 'Sergio Núñez', nivel: 0.62 },
+    { id: 'f-a05', nombre: 'Ana Lucía Quispe', nivel: 0.86 },
+  ] },
+  { id: 'f-sup2', supervisor: 'Gustavo Paredes', analistas: [
+    { id: 'f-a06', nombre: 'Renzo Carrasco', nivel: 1.18 },
+    { id: 'f-a07', nombre: 'Pamela Ortiz', nivel: 1.02 },
+    { id: 'f-a08', nombre: 'Iván Huamán', nivel: 0.55 },
+    { id: 'f-a09', nombre: 'Claudia Bermúdez', nivel: 0.92 },
+  ] },
+  { id: 'f-sup3', supervisor: 'Ximena Arce', analistas: [
+    { id: 'f-a10', nombre: 'Andrés Tapia', nivel: 0.8 },
+    { id: 'f-a11', nombre: 'Lucero Vega', nivel: 1.34 },
+    { id: 'f-a12', nombre: 'Marco Ruiz', nivel: 0.72 },
+    { id: 'f-a13', nombre: 'Fiorella Chávez', nivel: 1.0 },
+  ] },
+]
+const NOMBRE_SUP = Object.fromEntries(EQUIPOS.map((e) => [e.id, e.supervisor]))
+const NOMBRE_A = {}
+const ORDEN_A = {}
+const EQUIPO_HOY = {} // el equipo de HOY: quien no vendió entra con él (rosterDeEquipoYFilas)
+EQUIPOS.forEach((e) => e.analistas.forEach((a) => { NOMBRE_A[a.id] = a.nombre; ORDEN_A[a.id] = Object.keys(ORDEN_A).length; EQUIPO_HOY[a.id] = e.id }))
+EQUIPO_HOY['f-a02'] = 'f-sup2'
+const TIPOS = ['contrato_nuevo', 'contrato_renovacion', 'contrato_upgrade', 'cooperativa']
+const ROTULO_TIPO = { contrato_nuevo: 'Nuevo', contrato_renovacion: 'Renovación', contrato_upgrade: 'Upgrade', cooperativa: 'Cooperativa' }
+const ROTULO_TIPO_SELECT = { todo: 'Todos los tipos', contrato_nuevo: 'Capital nuevo', contrato_renovacion: 'Renovaciones', contrato_upgrade: 'Upgrades', cooperativa: 'Cooperativa' }
+const CLASE_TIPO = { contrato_nuevo: 'nuevo', contrato_renovacion: 'renovacion', contrato_upgrade: 'upgrade', cooperativa: 'cooperativa' }
+const ROTULO_VISTA = { TOTAL: 'Todo S/', PEN: 'Soles', USD: 'Dólares' }
+const NOMBRES = ['Rosa', 'Luis', 'Carmen', 'Elena', 'Víctor', 'Patricia', 'Raúl', 'Teresa', 'Óscar', 'Silvia', 'Manuel', 'Norma', 'César', 'Beatriz', 'Walter', 'Julia', 'Alberto', 'Mercedes', 'Hugo', 'Liliana', 'Fernando', 'Rocío', 'Eduardo', 'Inés', 'Ricardo', 'Susana', 'Martín', 'Pilar', 'Gonzalo', 'Esther']
+const APELLIDOS = ['Flores', 'Sánchez', 'Rojas', 'Díaz', 'Torres', 'Castillo', 'Vargas', 'Ramos', 'Salazar', 'Gutiérrez', 'Medina', 'Cárdenas', 'Espinoza', 'Herrera', 'Aguilar', 'Silva', 'Romero', 'Morales', 'Delgado', 'León', 'Campos', 'Vera', 'Soto', 'Arias', 'Cueva', 'Paz', 'Benítez', 'Lozano', 'Ponce', 'Salas']
+
+/** mulberry32, copiado de lib/demo-facturacion.ts (misma semilla ⇒ mismas cifras entre recargas). */
+function semilla(texto) {
+  let a = 0
+  for (let i = 0; i < texto.length; i += 1) a = (a * 31 + texto.charCodeAt(i)) | 0
+  return () => {
+    a = (a + 0x6d2b79f5) | 0
+    let t = Math.imul(a ^ (a >>> 15), 1 | a)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+const FACTOR_DIA = [0, 1.12, 1.02, 0.98, 1.06, 1.18, 0.34]
+const cacheMes = new Map()
+
+function operacionesDelMes(mes) {
+  if (cacheMes.has(mes)) return cacheMes.get(mes)
+  const mesHoy = primerDiaDelMes(HOY)
+  const ops = []
+  if (mes <= mesHoy) {
+    const hasta = mes === mesHoy ? HOY : '9999-12-31'
+    const azar = semilla(`facturacion:${mes}`)   // las CIFRAS: idénticas al modo demo
+    const extra = semilla(`operaciones:${mes}`)  // tipo, cliente y N.º: aparte, para no mover las cifras
+    for (const eq of EQUIPOS) {
+      for (const a of eq.analistas) {
+        for (const dia of diasDelMes(mes)) {
+          if (dia > hasta) continue
+          const lambda = a.nivel * (FACTOR_DIA[diaSemana(dia)] ?? 0) * 1.06
+          const tirada = azar()
+          let cuantos = 0
+          if (tirada < lambda * 0.62) cuantos = 1
+          if (tirada < lambda * 0.24) cuantos = 2
+          if (tirada < lambda * 0.06) cuantos = 3
+          for (let k = 0; k < cuantos; k += 1) {
+            const esUsd = azar() < 0.19
+            const base = azar()
+            const capital = esUsd
+              ? Math.round((5000 + base * base * 58000) / 500) * 500
+              : Math.round((18000 + base * base * 245000) / 500) * 500
+            const r = extra()
+            const tipo = r < 0.6 ? 'contrato_nuevo' : r < 0.8 ? 'contrato_renovacion' : r < 0.9 ? 'contrato_upgrade' : 'cooperativa'
+            const nombre = NOMBRES[Math.floor(extra() * NOMBRES.length)]
+            const i1 = Math.floor(extra() * APELLIDOS.length)
+            let i2 = Math.floor(extra() * APELLIDOS.length)
+            if (i2 === i1) i2 = (i2 + 7) % APELLIDOS.length
+            const certificado = 10000 + Math.floor(extra() * 89999)
+            // El equipo es el del supervisor DE ENTONCES (crm.usuario_eventos).
+            const supervisorId = a.id === 'f-a02' && dia >= CAMBIO_EQUIPO ? 'f-sup2' : eq.id
+            ops.push({
+              dia, analistaId: a.id, analistaNombre: a.nombre, supervisorId, supervisorNombre: NOMBRE_SUP[supervisorId],
+              moneda: esUsd ? 'USD' : 'PEN', capital, tipo,
+              cliente: `${nombre} ${APELLIDOS[i1]} ${APELLIDOS[i2]}`, certificado,
+              // Venta vieja de quien cambió de equipo: cuenta para su supervisor de entonces, pero el cliente ya es de otro.
+              otroEquipo: a.id === 'f-a02' && dia < CAMBIO_EQUIPO,
+              anulada: false,
+            })
+          }
+        }
+      }
+    }
+    // N.º correlativo del mes en orden de día (formato real AAAA-MM-NNNNNN); la cooperativa lleva su certificado.
+    const orden = [...ops].sort((x, y) => x.dia.localeCompare(y.dia) || ORDEN_A[x.analistaId] - ORDEN_A[y.analistaId] || y.capital - x.capital)
+    let correlativo = 0
+    orden.forEach((o, i) => {
+      o.id = `${mes}#${String(i + 1).padStart(4, '0')}`
+      o.numero = o.tipo === 'cooperativa' ? `CERT-${o.certificado}` : `${mes.slice(0, 7)}-${String(++correlativo).padStart(6, '0')}`
+    })
+    // Una anulada por mes: aparece y CUENTA (regla ATR-4, lib/facturacion.ts).
+    if (orden.length > 4) orden[Math.floor(orden.length * 0.37)].anulada = true
+  }
+  cacheMes.set(mes, ops)
+  return ops
+}
+function opsDeDias(dias) {
+  const set = new Set(dias)
+  return [...new Set(dias.map(primerDiaDelMes))].flatMap(operacionesDelMes).filter((o) => set.has(o.dia))
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Cifras. Todo dinero en MILÉSIMAS de sol, en enteros: «Todo S/» = soles×1000 + dólares×3751. Así la celda,
+// la banda, el pie y la lista suman exactamente lo mismo, sin redondeos intermedios (lib/tipo-cambio.ts:30).
+// ─────────────────────────────────────────────────────────────────────────────
+const vacio = () => ({ pen: 0, usd: 0, nPen: 0, nUsd: 0 })
+function sumar(a, o) { if (o.moneda === 'PEN') { a.pen += o.capital; a.nPen += 1 } else { a.usd += o.capital; a.nUsd += 1 } return a }
+function juntar(a, b) { a.pen += b.pen; a.usd += b.usd; a.nPen += b.nPen; a.nUsd += b.nUsd; return a }
+const vm = (a, vista = st.vista) => (vista === 'PEN' ? a.pen * 1000 : vista === 'USD' ? a.usd * 1000 : a.pen * 1000 + a.usd * TASA_MIL)
+const vn = (a, vista = st.vista) => (vista === 'PEN' ? a.nPen : vista === 'USD' ? a.nUsd : a.nPen + a.nUsd)
+const monedaDe = (vista = st.vista) => (vista === 'USD' ? 'USD' : 'PEN')
+const dinero = (mil, vista = st.vista) => money(mil / 1000, monedaDe(vista))
+const operaciones = (n) => `${nf(n, 0)} ${n === 1 ? 'operación' : 'operaciones'}`
+
+/** compacta() de facturacion.tsx: la cifra que cabe en la celda. La exacta va en el título y en la lista. */
+function compacta(mil) {
+  const v = mil / 1000
+  if (v === 0) return '·'
+  if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`
+  if (Math.abs(v) < 1000) return String(Math.round(v))
+  return `${Math.round(v / 1000)}k`
+}
+
+/** ESCALA_FACTURACION de lib/facturacion.ts: siete pasos del vacío al navy (blanco solo sobre azul puro o navy). */
+function mezclarHex(a, b, pct) {
+  const p = pct / 100
+  const canal = (h, i) => Number.parseInt(h.slice(i, i + 2), 16)
+  return `#${[1, 3, 5].map((i) => Math.round(canal(a, i) * p + canal(b, i) * (1 - p)).toString(16).padStart(2, '0')).join('')}`
+}
+const ESCALA = [
+  { bg: 'transparent', fg: '#475569' },
+  ...[12, 24, 42, 66].map((pct) => ({ bg: mezclarHex('#2563eb', '#ffffff', pct), fg: '#111e3d' })),
+  { bg: '#2563eb', fg: '#ffffff' },
+  { bg: '#111e3d', fg: '#ffffff' },
+]
+function nivel(valor, maximo) {
+  if (valor <= 0 || maximo <= 0) return 0
+  const p = valor / maximo
+  if (p <= 0.1) return 1
+  if (p <= 0.25) return 2
+  if (p <= 0.44) return 3
+  if (p <= 0.64) return 4
+  if (p <= 0.85) return 5
+  return 6
+}
+const paso = (valor, maximo) => ESCALA[nivel(valor, maximo)]
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EL LIENZO: estado, ámbito y agrupación (equipo = supervisor de entonces, como construirMallaDeDias).
+// ─────────────────────────────────────────────────────────────────────────────
+const st = {
+  rol: 'gerencia', diasPorVenir: 'plegados', vistaDia: 'tipos', clienteAjeno: 'oculto',
+  gran: 'mes', ancla: HOY, vista: 'TOTAL', tipo: 'todo', equipo: '',
+  marcados: [], cerrados: [], filtrosAbiertos: false,
+  lista: null, pagina: 1, origenLista: null,
+}
+const REG = new Map() // clave de cada cifra pulsable → qué lista abre (se rehace en cada pintado)
+const MQ = window.matchMedia('(max-width: 767px)') // CONSULTA_MOVIL de lib/media.ts
+
+const enAlcance = (o) => (st.rol !== 'supervisor' || o.supervisorId === SUPERVISORA) && (st.equipo === '' || o.supervisorId === st.equipo)
+const pasaTipo = (o) => st.tipo === 'todo' || o.tipo === st.tipo
+
+/** Quien vendió entra con su supervisor de ENTONCES; quien no vendió, con el de HOY (rosterDeEquipoYFilas). */
+function rosterDe(opsRoster) {
+  const parejas = new Map()
+  const conVentas = new Set()
+  for (const o of opsRoster) {
+    conVentas.add(o.analistaId)
+    const k = `${o.analistaId}|${o.supervisorId}`
+    if (!parejas.has(k)) parejas.set(k, { aid: o.analistaId, sid: o.supervisorId })
+  }
+  for (const [aid, sid] of Object.entries(EQUIPO_HOY)) {
+    if (conVentas.has(aid)) continue
+    if (st.rol === 'supervisor' && sid !== SUPERVISORA) continue
+    if (st.equipo !== '' && sid !== st.equipo) continue
+    parejas.set(`${aid}|${sid}`, { aid, sid })
+  }
+  return [...parejas.values()]
+}
+
+/** La malla genérica: filas por analista y equipo, columnas por `colDe` (el día o el tipo). */
+function agrupar(opsRoster, ops, colDe, cuentaEnTotal) {
+  const filas = new Map()
+  const k = (a, s) => `${a}|${s}`
+  for (const p of rosterDe(opsRoster)) filas.set(k(p.aid, p.sid), { aid: p.aid, sid: p.sid, nombre: NOMBRE_A[p.aid], cols: new Map(), total: vacio() })
+  for (const o of ops) {
+    const f = filas.get(k(o.analistaId, o.supervisorId))
+    if (!f) continue
+    const c = colDe(o)
+    if (!f.cols.has(c)) f.cols.set(c, vacio())
+    sumar(f.cols.get(c), o)
+    if (cuentaEnTotal(o)) sumar(f.total, o)
+  }
+  const grupos = new Map()
+  for (const f of filas.values()) {
+    let g = grupos.get(f.sid)
+    if (!g) { g = { sid: f.sid, nombre: NOMBRE_SUP[f.sid], filas: [], cols: new Map(), total: vacio() }; grupos.set(f.sid, g) }
+    g.filas.push(f)
+    for (const [c, a] of f.cols) { if (!g.cols.has(c)) g.cols.set(c, vacio()); juntar(g.cols.get(c), a) }
+    juntar(g.total, f.total)
+  }
+  const cols = new Map()
+  const total = vacio()
+  for (const g of grupos.values()) {
+    for (const [c, a] of g.cols) { if (!cols.has(c)) cols.set(c, vacio()); juntar(cols.get(c), a) }
+    juntar(total, g.total)
+  }
+  const orden = (x, y) => vm(y.total) - vm(x.total) || x.nombre.localeCompare(y.nombre, 'es')
+  const lista = [...grupos.values()].sort(orden)
+  lista.forEach((g) => g.filas.sort(orden))
+  let maxA = 0
+  let maxG = 0
+  let maxC = 0
+  for (const g of lista) {
+    for (const a of g.cols.values()) maxG = Math.max(maxG, vm(a))
+    for (const f of g.filas) for (const a of f.cols.values()) maxA = Math.max(maxA, vm(a))
+  }
+  for (const a of cols.values()) maxC = Math.max(maxC, vm(a))
+  return { grupos: lista, cols, total, maxA, maxG, maxC }
+}
+
+function contexto() {
+  const tramo = diasDelPeriodo(st.gran, st.ancla)
+  const pasados = tramo.filter((d) => d <= HOY)
+  const futuros = tramo.filter((d) => d > HOY)
+  const marcados = st.gran === 'dia' ? [] : st.marcados.filter((d) => pasados.includes(d))
+  const T = marcados.length ? marcados : pasados
+  const enT = new Set(T)
+  const opsRoster = opsDeDias(pasados).filter(enAlcance)
+  const ops = opsRoster.filter(pasaTipo)
+  const malla = agrupar(opsRoster, ops, (o) => o.dia, (o) => enT.has(o.dia))
+  return { tramo, pasados, futuros, marcados, T, opsRoster, ops, malla }
+}
+
+const alcanceTexto = () => {
+  const quien = st.rol === 'supervisor' ? 'Tu equipo (Valeria Mendoza)' : st.equipo ? `Equipo de ${NOMBRE_SUP[st.equipo]}` : 'Toda la empresa'
+  return st.tipo === 'todo' ? quien : `${quien} · ${ROTULO_TIPO_SELECT[st.tipo]}`
+}
+function tituloTramo(ctx) {
+  if (ctx.marcados.length === 1) return mayus(diaLargo(ctx.marcados[0]))
+  if (ctx.marcados.length > 1) return `${ctx.marcados.length} días elegidos: ${listaDeDias(ctx.marcados)}`
+  return mayus(etiquetaPeriodo(st.gran, st.ancla))
+}
+const cejaPersona = (f) => `${f.nombre} · equipo de ${NOMBRE_SUP[f.sid]}${f.aid === 'f-a02' && f.sid === 'f-sup1' ? ' (hasta el 4 de octubre)' : ''}`
+function subtituloDe(f, ctx) {
+  if (f.aid !== 'f-a02') return ''
+  if (st.rol === 'supervisor') return 'Ya no está en tu equipo'
+  const cruza = ctx.pasados.some((d) => d < CAMBIO_EQUIPO) && ctx.pasados.some((d) => d >= CAMBIO_EQUIPO)
+  if (!cruza) return ''
+  return f.sid === 'f-sup1' ? 'Hasta el 4 de oct.' : 'Desde el 5 de oct.'
+}
+function etiquetaPorVenir(futuros) {
+  const a = futuros[0]
+  const b = futuros[futuros.length - 1]
+  if (a === b) return `${numeroDia(a)} ${MESES_C[indiceMes(a)]}`
+  return indiceMes(a) === indiceMes(b)
+    ? `${numeroDia(a)}–${numeroDia(b)} ${MESES_C[indiceMes(a)]}`
+    : `${numeroDia(a)} ${MESES_C[indiceMes(a)]}–${numeroDia(b)} ${MESES_C[indiceMes(b)]}`
+}
+
+/** El tramo anterior, recortado a tantos días como lleva el actual (facturacion.tsx: «previo»). */
+function comparacion(ctx) {
+  if (ctx.marcados.length) return { nula: 'Días elegidos: sin comparar' }
+  const diasPrev = diasDelPeriodo(st.gran, periodoDesplazado(st.gran, st.ancla, -1))
+  const trans = ctx.pasados.length
+  const recorte = trans === 0 || trans >= ctx.tramo.length ? diasPrev : diasPrev.slice(0, trans)
+  const antes = vm(opsDeDias(recorte).filter((o) => enAlcance(o) && pasaTipo(o)).reduce(sumar, vacio()))
+  const ahora = vm(ctx.malla.total)
+  if (antes <= 0) return { nula: 'Sin cifra anterior para comparar' }
+  const delta = ((ahora - antes) / antes) * 100
+  // `rotulo`: corto, para la pastilla. `periodo`: dicho entero, para la cabecera de la lista.
+  let rotulo
+  let periodo
+  if (st.gran === 'dia') {
+    rotulo = `vs. ${diaMedio(recorte[0])}`
+    periodo = diaLargo(recorte[0])
+  } else if (st.gran === 'semana') {
+    const fin = DIAS_L[diaSemana(recorte[recorte.length - 1])]
+    rotulo = 'vs. semana pasada' // los mismos días: lo dicen el título de la pastilla y la cabecera de su lista
+    periodo = recorte.length === 7 ? `la semana del ${numeroDia(recorte[0])} ${MESES_C[indiceMes(recorte[0])]} al ${numeroDia(recorte[6])} ${MESES_C[indiceMes(recorte[6])]}` : `de lunes a ${fin} de la semana pasada`
+  } else {
+    const mesPrev = MESES[indiceMes(recorte[0])]
+    rotulo = recorte.length === diasPrev.length ? `vs. ${mesPrev}` : `vs. ${numeroDia(recorte[0])}–${numeroDia(recorte[recorte.length - 1])} de ${mesPrev}`
+    periodo = recorte.length === diasPrev.length ? `todo ${mesPrev}` : `del ${numeroDia(recorte[0])} al ${numeroDia(recorte[recorte.length - 1])} de ${mesPrev}`
+  }
+  return { recorte, antes, ahora, delta, rotulo, periodo, texto: `${delta >= 0 ? '+' : '−'}${Math.abs(delta).toFixed(1)} %` }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Piezas de la pantalla
+// ─────────────────────────────────────────────────────────────────────────────
+function registrar(clave, spec, valor) { REG.set(clave, { ...spec, clave, valor }); return clave }
+const verOps = (n) => (n === 1 ? 'ver su operación' : `ver sus ${nf(n, 0)} operaciones`)
+
+function interruptor(etiqueta, campo, opciones, valor) {
+  return `<div class="f-interruptor" role="group" aria-label="${esc(etiqueta)}">${opciones.map(([v, t]) =>
+    `<button type="button" data-campo="${campo}" data-valor="${v}" data-foco="${campo}-${v}" aria-pressed="${v === valor}">${t}</button>`).join('')}</div>`
+}
+
+function htmlHerramientas(ctx, movil) {
+  const ultimo = ctx.tramo[ctx.tramo.length - 1]
+  const sinSiguiente = ultimo >= HOY
+  const ANT = { mes: 'Mes anterior', semana: 'Semana anterior', dia: 'Día anterior' }
+  const SIG = { mes: 'Mes siguiente', semana: 'Semana siguiente', dia: 'Día siguiente' }
+  const filtrosVacios = st.equipo === '' && st.tipo === 'todo' && ctx.marcados.length === 0
+  const equipos = EQUIPOS.map((e) => ({ id: e.id, nombre: e.supervisor })).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+  return `
+  <div class="f-tarjeta f-herr" data-plegado="${movil && !st.filtrosAbiertos}">
+    <div class="f-periodo">
+      <button type="button" class="f-icono" data-accion="anterior" data-foco="anterior" aria-label="${ANT[st.gran]}">${icono('chevronLeft')}</button>
+      <span class="f-periodo-txt">${esc(mayus(etiquetaPeriodo(st.gran, st.ancla)))}</span>
+      <button type="button" class="f-icono" data-accion="siguiente" data-foco="siguiente" aria-label="${SIG[st.gran]}"${sinSiguiente ? ' disabled' : ''}>${icono('chevronRight')}</button>
+    </div>
+    ${interruptor('Tramo que se mira', 'gran', [['mes', 'Mes'], ['semana', 'Semana'], ['dia', 'Día']], st.gran)}
+    ${interruptor('Moneda — en Soles y Dólares nunca se suman; Todo S/ suma los dólares convertidos al tipo de cambio', 'vista', [['TOTAL', 'Todo S/'], ['PEN', 'Soles'], ['USD', 'Dólares']], st.vista)}
+    <button type="button" class="f-boton f-filtros-movil" data-accion="filtros" data-foco="filtros" aria-expanded="${st.filtrosAbiertos}">${icono('sliders')} Filtros</button>
+    <select class="f-select f-filtro${st.tipo !== 'todo' ? ' activo' : ''}" data-campo="tipo" data-foco="sel-tipo" aria-label="Tipo de capital">
+      ${Object.entries(ROTULO_TIPO_SELECT).map(([v, t]) => `<option value="${v}"${v === st.tipo ? ' selected' : ''}>${t}</option>`).join('')}
+    </select>
+    ${st.rol === 'gerencia' ? `<span class="f-sep f-filtro" aria-hidden="true"></span>
+    <select class="f-select f-filtro${st.equipo ? ' activo' : ''}" data-campo="equipo" data-foco="sel-equipo" aria-label="Equipo">
+      <option value="">Todos los equipos</option>
+      ${equipos.map((e) => `<option value="${e.id}"${e.id === st.equipo ? ' selected' : ''}>${e.nombre}</option>`).join('')}
+    </select>` : ''}
+    ${ctx.marcados.length ? `<button type="button" class="f-quitar" data-accion="quitarMarcados" data-foco="quitarMarcados" aria-label="Quitar los días marcados">${ctx.marcados.length === 1 ? '1 día marcado' : `${ctx.marcados.length} días marcados`} ${icono('x')}</button>` : ''}
+    <button type="button" class="f-icono f-restablecer" data-accion="restablecer" data-foco="restablecer" aria-label="Restablecer filtros" title="Restablecer filtros"${filtrosVacios ? ' disabled' : ''}>${icono('rotate')}</button>
+  </div>`
+}
+
+function pastilla(clave, spec, valor, etiqueta, texto, pista, titulo = '') {
+  if (valor === 0 || clave == null) return `<p class="f-pastilla"><span>${esc(etiqueta)}<span class="sr-only">:</span></span><strong>${esc(texto)}</strong></p>`
+  registrar(clave, spec, valor)
+  return `<button type="button" class="f-pastilla" data-cifra="${clave}" data-valor="${valor}" data-foco="${clave}"${titulo ? ` title="${esc(titulo)}"` : ''}><span>${esc(etiqueta)}<span class="sr-only">:</span></span><strong>${esc(texto)}</strong><span class="sr-only">, ${esc(pista)}</span></button>`
+}
+
+/** E1: las cuatro cifras de arriba como una fila de pastillas. Cada una abre su lista (§3 del plan). */
+function htmlPastillas(ctx) {
+  const m = ctx.malla
+  const total = vm(m.total)
+  const n = vn(m.total)
+  const hayUsd = m.total.nUsd > 0
+  const rotulo = st.vista === 'TOTAL' ? (hayUsd ? 'Total facturado' : 'Facturado') : st.vista === 'PEN' ? (hayUsd ? 'Facturado en soles' : 'Facturado') : 'Facturado en dólares'
+  const ceja = alcanceTexto()
+  const titulo = tituloTramo(ctx)
+  const pTotal = pastilla('p-total', { titulo, ceja, dias: ctx.T, modo: 'suma', queEs: rotulo }, total, rotulo, dinero(total), `ver sus ${n} operaciones`)
+  const comp = comparacion(ctx)
+  const pVs = comp.nula
+    ? `<p class="f-pastilla" title="${ctx.marcados.length ? 'Con días sueltos elegidos a mano no hay un tramo anterior que signifique lo mismo' : 'El tramo anterior no tiene ventas con las que comparar'}"><span>${esc(comp.nula)}</span></p>`
+    : pastilla('p-vs', { titulo: `La cifra de antes: ${comp.periodo}`, ceja, dias: comp.recorte, modo: 'comparacion', comp }, comp.antes, comp.rotulo, comp.texto, `comparado con ${comp.periodo}: ver esas operaciones`, `Comparado con ${comp.periodo}`)
+  const etiquetaN = st.tipo === 'todo' ? 'Contratos cerrados' : `Contratos · ${ROTULO_TIPO_SELECT[st.tipo]}`
+  const pN = pastilla('p-n', { titulo, ceja, dias: ctx.T, modo: 'conteo', queEs: etiquetaN }, n, etiquetaN, nf(n, 0), 'ver la lista')
+  let html = `<div class="f-doble">${pTotal}${pVs}</div>${pN}`
+  if (st.gran !== 'dia') {
+    let mejor = null
+    for (const d of ctx.T) { const a = m.cols.get(d); const v = a ? vm(a) : 0; if (v > 0 && (!mejor || v > mejor.v)) mejor = { d, v } }
+    html += mejor
+      ? pastilla('p-mejor', { titulo: mayus(diaLargo(mejor.d)), ceja, dias: [mejor.d], modo: 'suma', queEs: 'Mejor día' }, mejor.v, `Mejor día · ${diaMedioCorto(mejor.d)}`, dinero(mejor.v), `ver las operaciones del ${diaLargo(mejor.d)}`)
+      : '<p class="f-pastilla"><span>Mejor día</span><strong>—</strong></p>'
+    const habiles = ctx.T.filter((d) => d <= HOY && diaSemana(d) !== 0).length
+    const promedio = habiles ? Math.round(total / 1000 / habiles) * 1000 : 0
+    html += habiles
+      ? pastilla('p-prom', { titulo, ceja, dias: ctx.T, modo: 'promedio', habiles, queEs: 'Promedio por día hábil' }, promedio, 'Promedio por día hábil', dinero(promedio), `ver las operaciones de los ${habiles} días hábiles`)
+      : '<p class="f-pastilla"><span>Promedio por día hábil</span><strong>—</strong></p>'
+  }
+  return `<section class="f-pastillas" aria-label="Resumen de lo que estás viendo">${html}</section>`
+}
+
+/** Una cifra de la hoja: botón con la escala de color; un cero es un punto y no se abre. */
+function celda({ clave, spec, a, max, etiqueta, col, clases = '', exacta = false }) {
+  const mil = a ? vm(a) : 0
+  if (mil === 0) return `<td class="f-c ${clases}" data-c="${col}"><span class="f-cifra f-cero" aria-hidden="true">·</span><span class="sr-only">sin ventas</span></td>`
+  const p = paso(mil, max)
+  registrar(clave, spec, mil)
+  const texto = dinero(mil)
+  return `<td class="f-c ${clases}" data-c="${col}"><button type="button" class="f-cifra" data-cifra="${esc(clave)}" data-valor="${mil}" data-foco="${esc(clave)}" style="background:${p.bg};color:${p.fg}" title="${esc(etiqueta)}: ${texto}" aria-label="${esc(etiqueta)}: ${texto}, ${verOps(vn(a))}">${exacta ? texto : compacta(mil)}</button></td>`
+}
+function celdaTotal({ clave, spec, a, etiqueta, clases = '' }) {
+  const mil = vm(a)
+  if (mil === 0) return `<td class="c-tot ${clases}"><span class="f-tot f-cero">${dinero(0)}</span></td>`
+  registrar(clave, spec, mil)
+  const texto = dinero(mil)
+  return `<td class="c-tot ${clases}"><button type="button" class="f-tot" data-cifra="${esc(clave)}" data-valor="${mil}" data-foco="${esc(clave)}" aria-label="${esc(etiqueta)}: ${texto}, ${verOps(vn(a))}">${texto}</button></td>`
+}
+function celdaPie({ clave, spec, a, max, etiqueta, col, clases = '', unificada = false, exacta = false }) {
+  const mil = a ? (unificada ? vm(a, 'TOTAL') : vm(a)) : 0
+  const vista = unificada ? 'TOTAL' : st.vista
+  if (mil === 0) return `<td class="f-c ${clases}" data-c="${col}"><span class="f-pie-cifra${unificada ? ' f-pie2-cifra' : ''}"><span class="f-cero" aria-hidden="true">·</span>${unificada ? '' : '<span class="f-pie-barra cero" style="height:2px" aria-hidden="true"></span>'}<span class="sr-only">sin ventas</span></span></td>`
+  registrar(clave, spec, mil)
+  const texto = dinero(mil, vista)
+  const alto = max > 0 ? Math.max(3, Math.round((mil / max) * 22)) : 2
+  return `<td class="f-c ${clases}" data-c="${col}"><button type="button" class="f-pie-cifra${unificada ? ' f-pie2-cifra' : ''}" data-cifra="${esc(clave)}" data-valor="${mil}" data-foco="${esc(clave)}" title="${esc(etiqueta)}: ${texto}" aria-label="${esc(etiqueta)}: ${texto}, ${verOps(vn(a, vista))}"><span>${exacta ? texto : compacta(mil)}</span>${unificada ? '' : `<span class="f-pie-barra" style="height:${alto}px" aria-hidden="true"></span>`}</button></td>`
+}
+const clasesDia = (d) => [esFinde(d) ? 'finde' : '', d === HOY ? 'es-hoy' : ''].filter(Boolean).join(' ')
+
+function celdaNombre(f, ctx, specTotal, mil, nombreTramo) {
+  const sub = subtituloDe(f, ctx)
+  const subHtml = sub ? `<span class="f-sub">${esc(sub)}</span>` : ''
+  const titulo = `${f.nombre}${sub ? ` · ${sub}` : ''}`
+  if (mil === 0) return `<div class="f-nom-txt" title="${esc(titulo)}"><span class="f-nombre" data-nombre>${esc(f.nombre)}</span>${subHtml}</div>`
+  const clave = registrar(`aN|${f.aid}|${f.sid}`, specTotal, mil)
+  return `<button type="button" class="f-nom-btn" data-cifra="${clave}" data-valor="${mil}" data-foco="${clave}" title="${esc(titulo)}" aria-label="Ver ${esc(nombreTramo)} de ${esc(f.nombre)}${sub ? ` (${esc(sub)})` : ''}: ${dinero(mil)}"><span class="f-nombre" data-nombre>${esc(f.nombre)}</span>${subHtml}</button>`
+}
+
+/** E2–E4: la hoja de Mes y Semana. */
+function htmlHojaDias(ctx) {
+  const m = ctx.malla
+  const cols = ctx.pasados
+  const conPv = ctx.futuros.length > 0 && st.diasPorVenir === 'plegados'
+  const marc = new Set(ctx.marcados)
+  const nombreTramo = ctx.marcados.length ? 'lo de los días elegidos' : st.gran === 'mes' ? 'el mes' : 'la semana'
+  const etiquetaTotal = ctx.marcados.length ? 'Total elegido' : st.gran === 'mes' ? 'Total del mes' : 'Total de la semana'
+  const tTramo = tituloTramo(ctx)
+  const pista = ctx.marcados.length === 0 ? ' f-pista' : ''
+  const cab = `<tr>
+    <th scope="col" class="c-num"><span aria-hidden="true">#</span><span class="sr-only">Número de fila</span></th>
+    <th scope="col" class="c-nom"><span class="f-cab-txt">${st.rol === 'supervisor' ? 'Analista' : 'Equipo y analista'}</span></th>
+    ${cols.map((d, i) => {
+      const es = marc.has(d)
+      return `<th scope="col" class="c-dia ${clasesDia(d)}${es ? ' marcado' : ''}" data-c="${i}"><button type="button" class="f-dia-btn${pista}" data-dia="${d}" data-foco="dia-${d}" aria-pressed="${es}" aria-label="${es ? 'Quitar' : 'Elegir'} el ${diaLargo(d)}" title="${es ? 'Quitar este día' : 'Elegir este día'}"><span class="f-dia-num">${numeroDia(d)}</span><span class="f-dia-letra">${LETRAS[diaSemana(d)]}</span><span class="f-dia-punto" aria-hidden="true"></span></button></th>`
+    }).join('')}
+    ${conPv ? `<th scope="col" class="c-pv"><span class="f-pv-cab" title="Del ${numeroDia(ctx.futuros[0])} al ${numeroDia(ctx.futuros[ctx.futuros.length - 1])}: aún no pasan"><b>${etiquetaPorVenir(ctx.futuros)}</b><span>por venir</span></span></th>` : ''}
+    <th scope="col" class="c-tot"><span class="f-cab-txt" style="text-align:right">${etiquetaTotal}</span></th>
+  </tr>`
+  let num = 0
+  const cuerpo = m.grupos.map((g) => {
+    const abierto = !st.cerrados.includes(g.sid)
+    const cejaG = `Equipo de ${g.nombre}`
+    const banda = `<tr class="banda">
+      <td class="c-num"></td>
+      <th scope="row" class="c-nom"><button type="button" class="f-banda-btn" data-banda="${g.sid}" data-foco="banda-${g.sid}" aria-expanded="${abierto}" title="${abierto ? 'Plegar' : 'Desplegar'} el equipo">${icono('chevronRight')}<span class="f-banda-nombre" data-nombre>${esc(g.nombre)}</span><span class="f-banda-n">${g.filas.length} ${g.filas.length === 1 ? 'analista' : 'analistas'}</span></button></th>
+      ${cols.map((d, i) => celda({ clave: `g|${g.sid}|${d}`, spec: { titulo: mayus(diaLargo(d)), ceja: cejaG, dias: [d], sid: g.sid, modo: 'suma' }, a: g.cols.get(d), max: m.maxG, etiqueta: `${cejaG}, ${diaLargo(d)}`, col: i, clases: clasesDia(d) })).join('')}
+      ${conPv ? '<td class="c-pv"></td>' : ''}
+      ${celdaTotal({ clave: `gT|${g.sid}`, spec: { titulo: tTramo, ceja: cejaG, dias: ctx.T, sid: g.sid, modo: 'suma' }, a: g.total, etiqueta: `${etiquetaTotal} del ${minusInicial(cejaG)}` })}
+    </tr>`
+    const filas = g.filas.map((f) => {
+      num += 1
+      if (!abierto) return ''
+      const ceja = cejaPersona(f)
+      const specTotal = { titulo: tTramo, ceja, dias: ctx.T, aid: f.aid, sid: f.sid, modo: 'suma' }
+      const mil = vm(f.total)
+      return `<tr class="fila">
+        <td class="c-num">${num}</td>
+        <th scope="row" class="c-nom">${celdaNombre(f, ctx, specTotal, mil, nombreTramo)}</th>
+        ${cols.map((d, i) => celda({ clave: `a|${f.aid}|${f.sid}|${d}`, spec: { titulo: mayus(diaLargo(d)), ceja, dias: [d], aid: f.aid, sid: f.sid, modo: 'suma' }, a: f.cols.get(d), max: m.maxA, etiqueta: `${f.nombre}, ${diaLargo(d)}`, col: i, clases: clasesDia(d) })).join('')}
+        ${conPv ? '<td class="c-pv"></td>' : ''}
+        ${celdaTotal({ clave: `aT|${f.aid}|${f.sid}`, spec: specTotal, a: f.total, etiqueta: `${etiquetaTotal} de ${f.nombre}` })}
+      </tr>`
+    }).join('')
+    return banda + filas
+  }).join('')
+  const etiquetaPie = st.rol === 'supervisor' ? 'Total de tu equipo' : st.equipo || st.tipo !== 'todo' ? 'Total de lo que estás viendo' : 'Total de la empresa'
+  const ceja = alcanceTexto()
+  const conPie2 = st.vista !== 'TOTAL' && m.total.nUsd > 0
+  let maxC2 = 0
+  if (conPie2) for (const a of m.cols.values()) maxC2 = Math.max(maxC2, vm(a, 'TOTAL'))
+  const pie1 = `<tr class="pie1" style="--b1:${conPie2 ? '52px' : '0px'}">
+    <td class="c-num"></td>
+    <th scope="row" class="c-nom"><span class="f-pie-nombre">${etiquetaPie}</span></th>
+    ${cols.map((d, i) => celdaPie({ clave: `d|${d}`, spec: { titulo: mayus(diaLargo(d)), ceja, dias: [d], modo: 'suma' }, a: m.cols.get(d), max: m.maxC, etiqueta: `${etiquetaPie}, ${diaLargo(d)}`, col: i, clases: clasesDia(d) })).join('')}
+    ${conPv ? '<td class="c-pv"></td>' : ''}
+    ${celdaTotal({ clave: 'T', spec: { titulo: tTramo, ceja, dias: ctx.T, modo: 'suma' }, a: m.total, etiqueta: etiquetaPie })}
+  </tr>`
+  const pie2 = conPie2 ? `<tr class="pie2">
+    <td class="c-num"></td>
+    <th scope="row" class="c-nom"><span class="f-pie-nombre">Total del día en soles<span class="f-pie-sub">dólares a S/ ${TASA_TXT}</span></span></th>
+    ${cols.map((d, i) => celdaPie({ clave: `dC|${d}`, spec: { titulo: mayus(diaLargo(d)), ceja, dias: [d], modo: 'suma', ambas: true }, a: m.cols.get(d), max: maxC2, etiqueta: `Total del día en soles, ${diaLargo(d)}`, col: i, clases: clasesDia(d), unificada: true })).join('')}
+    ${conPv ? '<td class="c-pv"></td>' : ''}
+    ${(() => { const mil = vm(m.total, 'TOTAL'); registrar('TC', { titulo: tTramo, ceja, dias: ctx.T, modo: 'suma', ambas: true }, mil); return `<td class="c-tot"><button type="button" class="f-tot" data-cifra="TC" data-valor="${mil}" data-foco="TC" aria-label="Total en soles: ${dinero(mil, 'TOTAL')}, ${verOps(vn(m.total, 'TOTAL'))}">${dinero(mil, 'TOTAL')}</button></td>` })()}
+  </tr>` : ''
+  return `<table class="f-hoja llena${conPv ? '' : ' sin-pv'}">
+    <caption class="sr-only">Facturación por día ·${esc(etiquetaPeriodo(st.gran, st.ancla))} · ${ROTULO_VISTA[st.vista]} · ${ROTULO_TIPO_SELECT[st.tipo]}. Pulsa cualquier cifra para ver las operaciones que la forman; pulsa el número de un día para elegirlo.</caption>
+    <thead>${cab}</thead><tbody>${cuerpo}</tbody><tfoot>${pie1}${pie2}</tfoot>
+  </table>`
+}
+
+/** E5 · La vista Día por tipo (decisión 2, opción A). */
+function htmlHojaDiaTipos(ctx) {
+  const dia = ctx.pasados[0]
+  const cols = st.tipo === 'todo' ? TIPOS : [st.tipo]
+  const m = agrupar(ctx.opsRoster, ctx.ops, (o) => o.tipo, () => true)
+  const tDia = mayus(diaLargo(dia))
+  const cab = `<tr>
+    <th scope="col" class="c-num"><span aria-hidden="true">#</span><span class="sr-only">Número de fila</span></th>
+    <th scope="col" class="c-nom"><span class="f-cab-txt">${st.rol === 'supervisor' ? 'Analista' : 'Equipo y analista'}</span></th>
+    ${cols.map((t, i) => `<th scope="col" class="c-tipo" data-c="${i}"><span class="f-cab-txt" style="text-align:center">${ROTULO_TIPO[t]}</span></th>`).join('')}
+    <th scope="col" class="c-tot"><span class="f-cab-txt" style="text-align:right">Total del día</span></th>
+  </tr>`
+  let num = 0
+  const cuerpo = m.grupos.map((g) => {
+    const abierto = !st.cerrados.includes(g.sid)
+    const cejaG = `Equipo de ${g.nombre}`
+    const banda = `<tr class="banda">
+      <td class="c-num"></td>
+      <th scope="row" class="c-nom"><button type="button" class="f-banda-btn" data-banda="${g.sid}" data-foco="banda-${g.sid}" aria-expanded="${abierto}">${icono('chevronRight')}<span class="f-banda-nombre" data-nombre>${esc(g.nombre)}</span><span class="f-banda-n">${g.filas.length} ${g.filas.length === 1 ? 'analista' : 'analistas'}</span></button></th>
+      ${cols.map((t, i) => celda({ clave: `tg|${g.sid}|${t}`, spec: { titulo: `${tDia} · ${ROTULO_TIPO[t]}`, ceja: cejaG, dias: [dia], sid: g.sid, tipo: t, modo: 'suma' }, a: g.cols.get(t), max: m.maxG, etiqueta: `${cejaG}, ${ROTULO_TIPO[t]}`, col: i, exacta: true })).join('')}
+      ${celdaTotal({ clave: `gT|${g.sid}`, spec: { titulo: tDia, ceja: cejaG, dias: [dia], sid: g.sid, modo: 'suma' }, a: g.total, etiqueta: `Total del día del ${minusInicial(cejaG)}` })}
+    </tr>`
+    const filas = g.filas.map((f) => {
+      num += 1
+      if (!abierto) return ''
+      const ceja = cejaPersona(f)
+      const specTotal = { titulo: tDia, ceja, dias: [dia], aid: f.aid, sid: f.sid, modo: 'suma' }
+      const mil = vm(f.total)
+      return `<tr class="fila">
+        <td class="c-num">${num}</td>
+        <th scope="row" class="c-nom">${celdaNombre(f, ctx, specTotal, mil, 'el día')}</th>
+        ${cols.map((t, i) => celda({ clave: `t|${f.aid}|${f.sid}|${t}`, spec: { titulo: `${tDia} · ${ROTULO_TIPO[t]}`, ceja, dias: [dia], aid: f.aid, sid: f.sid, tipo: t, modo: 'suma' }, a: f.cols.get(t), max: m.maxA, etiqueta: `${f.nombre}, ${ROTULO_TIPO[t]}`, col: i, exacta: true })).join('')}
+        ${celdaTotal({ clave: `aT|${f.aid}|${f.sid}`, spec: specTotal, a: f.total, etiqueta: `Total del día de ${f.nombre}` })}
+      </tr>`
+    }).join('')
+    return banda + filas
+  }).join('')
+  const etiquetaPie = st.rol === 'supervisor' ? 'Total de tu equipo' : st.equipo || st.tipo !== 'todo' ? 'Total de lo que estás viendo' : 'Total de la empresa'
+  const ceja = alcanceTexto()
+  const pie = `<tr class="pie1">
+    <td class="c-num"></td>
+    <th scope="row" class="c-nom"><span class="f-pie-nombre">${etiquetaPie}</span></th>
+    ${cols.map((t, i) => celdaPie({ clave: `tp|${t}`, spec: { titulo: `${tDia} · ${ROTULO_TIPO[t]}`, ceja, dias: [dia], tipo: t, modo: 'suma' }, a: m.cols.get(t), max: m.maxC, etiqueta: `${etiquetaPie}, ${ROTULO_TIPO[t]}`, col: i, exacta: true })).join('')}
+    ${celdaTotal({ clave: 'T', spec: { titulo: tDia, ceja, dias: [dia], modo: 'suma' }, a: m.total, etiqueta: etiquetaPie })}
+  </tr>`
+  return `<table class="f-hoja f-hoja-ancha">
+    <caption class="sr-only">Facturación del ${diaLargo(dia)} por tipo · ${ROTULO_VISTA[st.vista]}. Pulsa cualquier cifra para ver sus operaciones.</caption>
+    <thead>${cab}</thead><tbody>${cuerpo}</tbody><tfoot>${pie}</tfoot>
+  </table>`
+}
+
+const ordenLista = (a, b) => a.dia.localeCompare(b.dia) || (a.moneda === b.moneda ? 0 : a.moneda === 'PEN' ? -1 : 1) || b.capital - a.capital || a.id.localeCompare(b.id)
+const clienteOculto = (o) => st.rol === 'supervisor' && st.clienteAjeno === 'oculto' && o.otroEquipo
+const htmlCliente = (o) => (clienteOculto(o)
+  ? `<span class="f-ajeno" title="El cliente ya es de otro equipo: se muestra el importe, no el nombre">${icono('eyeOff')}Cliente de otro equipo</span>`
+  : `<span class="l-cli-nom" data-nombre title="${esc(o.cliente)}">${esc(o.cliente)}</span>`)
+const htmlAnulada = (o) => (o.anulada ? '<span class="f-anulada" title="Anulada: aparece y cuenta igual (la anulación no descuenta el capital)">Anulada · cuenta igual</span>' : '')
+const htmlTipo = (o) => `<span class="f-tipo ${CLASE_TIPO[o.tipo]}"${o.tipo === 'contrato_nuevo' ? ' title="Capital nuevo"' : ''}>${ROTULO_TIPO[o.tipo]}</span>`
+
+/** La vista Día como lista de operaciones (decisión 2, opción B). */
+function htmlHojaDiaLista(ctx) {
+  const dia = ctx.pasados[0]
+  const ops = ctx.ops.filter((o) => st.vista === 'TOTAL' || o.moneda === st.vista)
+  const porEquipo = new Map()
+  for (const o of ops) { if (!porEquipo.has(o.supervisorId)) porEquipo.set(o.supervisorId, []); porEquipo.get(o.supervisorId).push(o) }
+  const grupos = [...porEquipo.entries()].map(([sid, l]) => ({ sid, ops: l.sort((a, b) => ORDEN_A[a.analistaId] - ORDEN_A[b.analistaId] || b.capital - a.capital), a: l.reduce(sumar, vacio()) }))
+    .sort((x, y) => vm(y.a) - vm(x.a))
+  const tDia = mayus(diaLargo(dia))
+  let num = 0
+  const cuerpo = grupos.map((g) => {
+    const cejaG = `Equipo de ${NOMBRE_SUP[g.sid]}`
+    return `<tbody>
+      <tr class="banda">
+        <td class="c-num"></td>
+        <th scope="rowgroup" class="c-nom"><span class="f-banda-txt"><span class="f-banda-nombre" data-nombre>${esc(NOMBRE_SUP[g.sid])}</span></span></th>
+        <td colspan="4" class="l-dato"><span class="f-banda-n">${operaciones(g.ops.length)}</span></td>
+        ${celdaTotal({ clave: `gT|${g.sid}`, spec: { titulo: tDia, ceja: cejaG, dias: [dia], sid: g.sid, modo: 'suma' }, a: g.a, etiqueta: `Total del día del ${minusInicial(cejaG)}` })}
+      </tr>
+      ${g.ops.map((o) => { num += 1; return `<tr class="fila">
+        <td class="c-num">${num}</td>
+        <th scope="row" class="c-nom"><span class="l-cli-in">${htmlCliente(o)}${htmlAnulada(o)}</span></th>
+        <td class="l-dato tab">${clienteOculto(o) ? '—' : o.numero}</td>
+        <td class="l-dato">${htmlTipo(o)}</td>
+        <td class="l-dato-nombre" data-nombre>${esc(o.analistaNombre)}</td>
+        <td class="l-dato">${o.moneda === 'PEN' ? 'Soles' : 'Dólares'}</td>
+        <td class="c-tot"><span class="f-tot">${money(o.capital, o.moneda)}</span></td>
+      </tr>` }).join('')}
+    </tbody>`
+  }).join('')
+  const a = ops.reduce(sumar, vacio())
+  const etiquetaPie = st.rol === 'supervisor' ? 'Total de tu equipo' : 'Total del día'
+  const vacia = ops.length === 0 ? '<tbody><tr><td class="c-num"></td><td colspan="6" class="l-dato" style="height:64px">Todavía no hay cierres este día.</td></tr></tbody>' : ''
+  return `<table class="f-hoja f-hoja-ancha">
+    <caption class="sr-only">Operaciones del ${diaLargo(dia)} · ${ROTULO_VISTA[st.vista]}.</caption>
+    <thead><tr>
+      <th scope="col" class="c-num"><span aria-hidden="true">#</span><span class="sr-only">Número de fila</span></th>
+      <th scope="col" class="c-nom"><span class="f-cab-txt">Cliente</span></th>
+      <th scope="col"><span class="f-cab-txt">N.º</span></th>
+      <th scope="col"><span class="f-cab-txt">Tipo</span></th>
+      <th scope="col"><span class="f-cab-txt">Analista</span></th>
+      <th scope="col"><span class="f-cab-txt">Moneda</span></th>
+      <th scope="col" class="c-tot"><span class="f-cab-txt" style="text-align:right">Monto</span></th>
+    </tr></thead>
+    ${cuerpo}${vacia}
+    <tfoot><tr class="pie1">
+      <td class="c-num"></td>
+      <th scope="row" class="c-nom"><span class="f-pie-nombre">${etiquetaPie}</span></th>
+      <td colspan="4" class="l-dato">${st.vista === 'TOTAL' && a.nUsd > 0 ? `${money(a.pen, 'PEN')} + ${money(a.usd, 'USD')} × ${TASA_TXT}` : operaciones(ops.length)}</td>
+      ${celdaTotal({ clave: 'T', spec: { titulo: tDia, ceja: alcanceTexto(), dias: [dia], modo: 'suma' }, a, etiqueta: etiquetaPie })}
+    </tr></tfoot>
+  </table>`
+}
+
+function htmlMalla(ctx) {
+  const m = ctx.malla
+  const personas = new Set(m.grupos.flatMap((g) => g.filas.map((f) => f.aid))).size
+  const equipos = m.grupos.length
+  let titulo
+  if (st.gran === 'dia') titulo = st.vistaDia === 'tipos' ? 'Ese día, por tipo: por equipo y por analista' : 'Ese día, operación por operación'
+  else titulo = st.gran === 'semana' ? 'Esa semana, día a día, por equipo y por analista' : 'Cada día del mes, por equipo y por analista'
+  if (st.vista === 'TOTAL' && !(st.gran === 'dia' && st.vistaDia === 'lista')) titulo += ' · soles y dólares convertidos'
+  const hayUsd = m.total.nUsd > 0
+  const moneda = st.vista === 'TOTAL'
+    ? `Los dólares se suman convertidos al ${ROTULO_TASA}.`
+    : st.vista === 'PEN'
+      ? `Solo soles: aquí los dólares nunca se suman.${hayUsd && st.gran !== 'dia' ? ` La fila de abajo, «Total del día en soles», los suma al ${ROTULO_TASA}.` : ''}`
+      : `Solo dólares.${hayUsd && st.gran !== 'dia' ? ` La fila de abajo, «Total del día en soles», los suma con los soles al ${ROTULO_TASA}.` : ''}`
+  const ocultos = st.gran !== 'dia' && ctx.futuros.length && st.diasPorVenir === 'ocultos'
+    ? ` Del ${numeroDia(ctx.futuros[0])} al ${numeroDia(ctx.futuros[ctx.futuros.length - 1])} de ${MESES[indiceMes(ctx.futuros[0])]} aún no pasan: no se muestran.` : ''
+  const como = st.gran === 'dia' && st.vistaDia === 'lista'
+    ? 'Cada fila es una operación. Pulsa el total de un equipo o el del día para abrir su lista aparte.'
+    : st.gran === 'dia'
+      ? 'Pulsa cualquier cifra para ver las operaciones que la forman.'
+      : 'Pulsa cualquier cifra para ver las operaciones que la forman. Pulsa un día —arriba— para elegirlo; puedes marcar varios.'
+  const tabla = st.gran === 'dia' ? (st.vistaDia === 'tipos' ? htmlHojaDiaTipos(ctx) : htmlHojaDiaLista(ctx)) : htmlHojaDias(ctx)
+  const leyenda = st.gran === 'dia' && st.vistaDia === 'lista' ? '' : `<span class="f-leyenda" aria-hidden="true">menos <span class="p">${ESCALA.map((p) => `<i style="background:${p.bg}"></i>`).join('')}</span> más</span>`
+  return `<section class="f-tarjeta f-malla" aria-labelledby="malla-titulo">
+    <div class="f-malla-cab">${icono('receipt')}<h2 id="malla-titulo">${titulo}</h2>${leyenda}</div>
+    <div class="f-malla-notas">
+      <p>${personas} ${personas === 1 ? 'analista' : 'analistas'} en ${equipos} ${equipos === 1 ? 'equipo' : 'equipos'} · ${moneda}${ocultos}</p>
+      <p>${icono('pointer')}${como}</p>
+    </div>
+    <div class="f-region ac-scroll" role="region" tabindex="0" aria-label="Facturación de ${esc(etiquetaPeriodo(st.gran, st.ancla))} en ${ROTULO_VISTA[st.vista]}, ${ROTULO_TIPO_SELECT[st.tipo]}">${tabla}</div>
+  </section>`
+}
+
+// ── E6 · Teléfono: tarjetas ──────────────────────────────────────────────────
+function botonCifra(clave, spec, mil, texto, aria, clase = '', vista = st.vista) {
+  if (mil === 0) return `<span class="f-boton-cifra suave">${esc(texto)}</span>`
+  registrar(clave, spec, mil)
+  return `<button type="button" class="f-boton-cifra ${clase}" data-cifra="${esc(clave)}" data-valor="${mil}" data-foco="${esc(clave)}" aria-label="${esc(aria)}">${esc(texto)}</button>`
+}
+function htmlTarjetas(ctx) {
+  if (st.gran === 'dia' && st.vistaDia === 'lista') return htmlTarjetasDiaLista(ctx)
+  const porTipo = st.gran === 'dia'
+  const m = porTipo ? agrupar(ctx.opsRoster, ctx.ops, (o) => o.tipo, () => true) : ctx.malla
+  const tTramo = tituloTramo(ctx)
+  const dia = ctx.pasados[0]
+  let num = 0
+  const equipos = m.grupos.map((g) => {
+    const cejaG = `Equipo de ${g.nombre}`
+    const totG = vm(g.total)
+    const tarjetas = g.filas.map((f) => {
+      num += 1
+      const ceja = cejaPersona(f)
+      const mil = vm(f.total)
+      const n = vn(f.total)
+      const sub = subtituloDe(f, ctx)
+      const specTotal = { titulo: tTramo, ceja, dias: ctx.T, aid: f.aid, sid: f.sid, modo: 'suma' }
+      let detalle
+      if (porTipo) {
+        const chips = TIPOS.filter((t) => f.cols.get(t) && vm(f.cols.get(t)) > 0).map((t) => {
+          const a = f.cols.get(t)
+          const v = vm(a)
+          const p = paso(v, m.maxA)
+          const clave = registrar(`t|${f.aid}|${f.sid}|${t}`, { titulo: `${mayus(diaLargo(dia))} · ${ROTULO_TIPO[t]}`, ceja, dias: [dia], aid: f.aid, sid: f.sid, tipo: t, modo: 'suma' }, v)
+          return `<button type="button" class="f-chip-dia" data-cifra="${clave}" data-valor="${v}" data-foco="${clave}" style="background:${p.bg};color:${p.fg}" aria-label="${esc(f.nombre)}, ${ROTULO_TIPO[t]}: ${dinero(v)}, ${verOps(vn(a))}">${ROTULO_TIPO[t]} · ${compacta(v)}</button>`
+        }).join('')
+        detalle = chips ? `<p class="f-ta-rotulo">Por tipo</p><div class="f-ta-dias">${chips}</div>` : '<p class="f-ta-vacio">Sin ventas este día.</p>'
+      } else {
+        const chips = ctx.pasados.filter((d) => f.cols.get(d) && vm(f.cols.get(d)) > 0).map((d) => {
+          const a = f.cols.get(d)
+          const v = vm(a)
+          const p = paso(v, m.maxA)
+          const clave = registrar(`a|${f.aid}|${f.sid}|${d}`, { titulo: mayus(diaLargo(d)), ceja, dias: [d], aid: f.aid, sid: f.sid, modo: 'suma' }, v)
+          return `<button type="button" class="f-chip-dia" data-cifra="${clave}" data-valor="${v}" data-foco="${clave}" style="background:${p.bg};color:${p.fg}" aria-label="${esc(f.nombre)}, ${diaLargo(d)}: ${dinero(v)}, ${verOps(vn(a))}">${LETRAS[diaSemana(d)]} ${numeroDia(d)} · ${compacta(v)}</button>`
+        }).join('')
+        detalle = chips ? `<p class="f-ta-rotulo">Días en que vendió</p><div class="f-ta-dias">${chips}</div>` : `<p class="f-ta-vacio">Sin ventas en ${st.gran === 'mes' ? 'este mes' : 'esta semana'} todavía.</p>`
+      }
+      return `<div role="listitem" class="f-ta">
+        <div class="f-ta-cab"><span class="f-ta-num">${num}</span><p class="f-ta-nombre" data-nombre>${esc(f.nombre)}</p></div>
+        ${sub ? `<p class="f-ta-sub">${esc(sub)}</p>` : ''}
+        <div class="f-ta-cifras">
+          ${botonCifra(`aT|${f.aid}|${f.sid}`, specTotal, mil, dinero(mil), `Total de ${f.nombre}: ${dinero(mil)}, ${verOps(n)}`)}
+          ${botonCifra(`aC|${f.aid}|${f.sid}`, { ...specTotal, modo: 'conteo' }, n, operaciones(n), `${operaciones(n)} de ${f.nombre}: ver la lista`, 'suave')}
+        </div>
+        ${detalle}
+      </div>`
+    }).join('')
+    return `<section class="f-eq" aria-labelledby="eq-${g.sid}">
+      <div class="f-eq-cab">
+        <h2 id="eq-${g.sid}" class="f-eq-nombre" data-nombre>${esc(g.nombre)}</h2>
+        <span class="f-eq-n">${g.filas.length} ${g.filas.length === 1 ? 'analista' : 'analistas'}</span>
+        ${botonCifra(`gT|${g.sid}`, { titulo: tTramo, ceja: cejaG, dias: ctx.T, sid: g.sid, modo: 'suma' }, totG, dinero(totG), `Total del ${minusInicial(cejaG)}: ${dinero(totG)}, ${verOps(vn(g.total))}`)}
+      </div>
+      <div role="list" class="f-eq-lista" aria-label="Analistas del ${esc(minusInicial(cejaG))}">${tarjetas}</div>
+    </section>`
+  }).join('')
+  const etiquetaPie = st.rol === 'supervisor' ? 'Total de tu equipo' : st.equipo || st.tipo !== 'todo' ? 'Total de lo que estás viendo' : 'Total de la empresa'
+  const tot = vm(m.total)
+  const ceja = alcanceTexto()
+  const porDia = porTipo ? '' : ctx.pasados.filter((d) => m.cols.get(d) && vm(m.cols.get(d)) > 0).map((d) => {
+    const a = m.cols.get(d)
+    const v = vm(a)
+    const p = paso(v, m.maxC)
+    const clave = registrar(`d|${d}`, { titulo: mayus(diaLargo(d)), ceja, dias: [d], modo: 'suma' }, v)
+    return `<button type="button" class="f-chip-dia" data-cifra="${clave}" data-valor="${v}" data-foco="${clave}" style="background:${p.bg};color:${p.fg}" aria-label="${etiquetaPie}, ${diaLargo(d)}: ${dinero(v)}, ${verOps(vn(a))}">${LETRAS[diaSemana(d)]} ${numeroDia(d)} · ${compacta(v)}</button>`
+  }).join('')
+  return `<div class="f-tarjetas">${equipos}
+    <section class="f-total-movil" aria-labelledby="total-movil">
+      <h2 id="total-movil">${etiquetaPie}</h2>
+      <div class="f-ta-cifras">${botonCifra('T', { titulo: tTramo, ceja, dias: ctx.T, modo: 'suma' }, tot, dinero(tot), `${etiquetaPie}: ${dinero(tot)}, ${verOps(vn(m.total))}`)}</div>
+      ${porDia ? `<p class="f-ta-rotulo">Por día</p><div class="f-ta-dias">${porDia}</div>` : ''}
+    </section>
+  </div>`
+}
+function htmlTarjetasDiaLista(ctx) {
+  const dia = ctx.pasados[0]
+  const ops = ctx.ops.filter((o) => st.vista === 'TOTAL' || o.moneda === st.vista)
+  const porEquipo = new Map()
+  for (const o of ops) { if (!porEquipo.has(o.supervisorId)) porEquipo.set(o.supervisorId, []); porEquipo.get(o.supervisorId).push(o) }
+  const tDia = mayus(diaLargo(dia))
+  let num = 0
+  const grupos = [...porEquipo.entries()].map(([sid, l]) => ({ sid, ops: l.sort((a, b) => ORDEN_A[a.analistaId] - ORDEN_A[b.analistaId] || b.capital - a.capital), a: l.reduce(sumar, vacio()) })).sort((x, y) => vm(y.a) - vm(x.a))
+  const html = grupos.map((g) => {
+    const cejaG = `Equipo de ${NOMBRE_SUP[g.sid]}`
+    const tot = vm(g.a)
+    return `<section class="f-eq" aria-labelledby="eqd-${g.sid}">
+      <div class="f-eq-cab"><h2 id="eqd-${g.sid}" class="f-eq-nombre" data-nombre>${esc(NOMBRE_SUP[g.sid])}</h2><span class="f-eq-n">${operaciones(g.ops.length)}</span>
+        ${botonCifra(`gT|${g.sid}`, { titulo: tDia, ceja: cejaG, dias: [dia], sid: g.sid, modo: 'suma' }, tot, dinero(tot), `Total del día del ${minusInicial(cejaG)}: ${dinero(tot)}, ${verOps(vn(g.a))}`)}</div>
+      <div role="list" class="f-ta-ops" aria-label="Operaciones del ${esc(minusInicial(cejaG))}">${g.ops.map((o) => { num += 1; return htmlOpTarjeta(o, num, true, false) }).join('')}</div>
+    </section>`
+  }).join('')
+  const a = ops.reduce(sumar, vacio())
+  const tot = vm(a)
+  return `<div class="f-tarjetas">${html || '<p class="f-ta-vacio">Todavía no hay cierres este día.</p>'}
+    <section class="f-total-movil" aria-labelledby="total-dia-movil"><h2 id="total-dia-movil">${st.rol === 'supervisor' ? 'Total de tu equipo' : 'Total del día'}</h2>
+      <div class="f-ta-cifras">${botonCifra('T', { titulo: tDia, ceja: alcanceTexto(), dias: [dia], modo: 'suma' }, tot, dinero(tot), `Total del día: ${dinero(tot)}, ${verOps(vn(a))}`)}</div></section>
+  </div>`
+}
+function htmlOpTarjeta(o, num, conAnalista, conFecha) {
+  return `<div role="listitem" class="f-op">
+    <div class="f-op-cab"><span class="f-op-n">${num}</span><p class="f-op-cli">${clienteOculto(o) ? htmlCliente(o) : `<span data-nombre>${esc(o.cliente)}</span>`}</p><p class="f-op-monto">${money(o.capital, o.moneda)}</p></div>
+    <p class="f-op-det">${conFecha ? `<span>${diaCorto(o.dia)}</span>` : ''}${htmlTipo(o)}<span class="tab">${clienteOculto(o) ? 'N.º oculto' : o.numero}</span><span>${o.moneda === 'PEN' ? 'Soles' : 'Dólares'}</span>${htmlAnulada(o)}</p>
+    ${conAnalista ? `<p class="f-op-det"><span data-nombre style="font-size:16px">${esc(o.analistaNombre)}</span></p>` : ''}
+  </div>`
+}
+
+function htmlPantalla(movil) {
+  const ctx = contexto()
+  return `${htmlHerramientas(ctx, movil)}${htmlPastillas(ctx)}${movil ? htmlTarjetas(ctx) : htmlMalla(ctx)}`
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// L1 · LA LISTA de una cifra. Sale de las MISMAS operaciones que la cifra; arriba, la cifra pulsada y la suma.
+// ─────────────────────────────────────────────────────────────────────────────
+function opsDeLista(spec) {
+  const ambas = spec.ambas || st.vista === 'TOTAL'
+  return opsDeDias(spec.dias)
+    .filter((o) => enAlcance(o)
+      && (spec.tipo ? o.tipo === spec.tipo : pasaTipo(o))
+      && (!spec.aid || o.analistaId === spec.aid)
+      && (!spec.sid || o.supervisorId === spec.sid)
+      && (ambas || o.moneda === st.vista))
+    .sort(ordenLista)
+}
+
+function htmlLista(spec, movil) {
+  const ambas = spec.ambas || st.vista === 'TOTAL'
+  const vistaL = ambas ? 'TOTAL' : st.vista
+  const ops = opsDeLista(spec)
+  const a = ops.reduce(sumar, vacio())
+  const suma = vm(a, vistaL)
+  const conFecha = spec.dias.length > 1
+  const mismoMes = spec.dias.every((d) => d.slice(0, 7) === spec.dias[0].slice(0, 7))
+  const nCoop = ops.filter((o) => o.tipo === 'cooperativa').length
+  const conversion = ambas && a.usd > 0
+  let grande
+  let linea
+  let cuadra
+  let cuadraTxt
+  if (spec.modo === 'conteo') {
+    grande = operaciones(spec.valor)
+    linea = `= ${nf(ops.length - nCoop, 0)} ${ops.length - nCoop === 1 ? 'contrato' : 'contratos'} + ${nf(nCoop, 0)} ${nCoop === 1 ? 'cooperativa' : 'cooperativas'} · suman ${dinero(suma, vistaL)}`
+    cuadra = ops.length === spec.valor
+    cuadraTxt = cuadra ? `La lista tiene ${operaciones(ops.length)}: las mismas que dice la cifra` : `Ojo: la lista tiene ${ops.length} y la cifra dice ${spec.valor}`
+  } else if (spec.modo === 'comparacion') {
+    const c = spec.comp
+    grande = c.texto
+    linea = `Antes (${c.periodo}): ${dinero(c.antes)} → ahora: ${dinero(c.ahora)}`
+    cuadra = suma === c.antes
+    cuadraTxt = cuadra ? `Esta es la lista de ANTES: suma ${dinero(suma, vistaL)}, la cifra con la que se compara` : `Ojo: la lista de antes suma ${dinero(suma, vistaL)}`
+  } else if (spec.modo === 'promedio') {
+    grande = dinero(spec.valor, vistaL)
+    linea = `= ${dinero(suma, vistaL)} ÷ ${spec.habiles} ${spec.habiles === 1 ? 'día hábil' : 'días hábiles'} (el domingo no cuenta)`
+    cuadra = Math.round(suma / 1000 / spec.habiles) * 1000 === spec.valor
+    cuadraTxt = 'El promedio no tiene lista propia: esta es la del tramo, de donde sale'
+  } else {
+    grande = dinero(spec.valor, vistaL)
+    linea = conversion
+      ? `= ${money(a.pen, 'PEN')} en soles + ${money(a.usd, 'USD')} × ${TASA_TXT}`
+      : ambas ? `= ${money(a.pen, 'PEN')}, todo en soles` : `= ${dinero(suma, vistaL)}, solo ${vistaL === 'USD' ? 'dólares' : 'soles'}`
+    cuadra = suma === spec.valor
+    cuadraTxt = cuadra ? `La lista suma ${dinero(suma, vistaL)}: igual que la cifra que pulsaste` : `Ojo: la lista suma ${dinero(suma, vistaL)} y la cifra dice ${dinero(spec.valor, vistaL)}`
+  }
+  const meta = [operaciones(ops.length), ROTULO_TIPO_SELECT[spec.tipo ?? st.tipo], ambas ? 'Todo S/' : ROTULO_VISTA[st.vista]]
+  if (conversion) meta.push(ROTULO_TASA)
+  // Ámbito del supervisor: la venta vieja de quien cambió de equipo cuenta, pero su cliente ya es de otro equipo.
+  const ajenas = st.rol === 'supervisor' ? ops.filter((o) => o.otroEquipo).length : 0
+  const aviso = ajenas
+    ? `<div class="f-aviso" role="note">${icono('info')}<p>${st.clienteAjeno === 'oculto'
+      ? `Jorge Palomino ya no está en tu equipo: sus ventas de antes siguen contando para ti, pero sus clientes ahora son de otro equipo. Por eso ves ${ajenas === 1 ? 'el importe' : 'los importes'} y no ${ajenas === 1 ? 'el nombre' : 'los nombres'}.`
+      : 'Jorge Palomino ya no está en tu equipo y sus clientes tampoco; con esta opción igual ves sus nombres.'}</p></div>` : ''
+  // Con varias personas, una BANDA por analista (como los equipos en la hoja): su subtotal es la fila de ese analista
+  // en la hoja. Dentro de la banda, el orden estable del plan: día, moneda, monto de mayor a menor.
+  const agrupa = !spec.aid
+  const bandas = new Map()
+  const claveBanda = (o) => `${o.analistaId}|${o.supervisorId}`
+  if (agrupa) {
+    for (const o of ops) {
+      const k = claveBanda(o)
+      if (!bandas.has(k)) bandas.set(k, { nombre: o.analistaNombre, sid: o.supervisorId, a: vacio() })
+      sumar(bandas.get(k).a, o)
+    }
+    const rango = new Map([...bandas.entries()].sort(([, x], [, y]) => vm(y.a, vistaL) - vm(x.a, vistaL) || x.nombre.localeCompare(y.nombre, 'es')).map(([k], i) => [k, i]))
+    ops.sort((x, y) => rango.get(claveBanda(x)) - rango.get(claveBanda(y)) || ordenLista(x, y))
+  }
+  const variosEquipos = new Set(ops.map((o) => o.supervisorId)).size > 1
+  const detalleBanda = (b, sigue) => `${variosEquipos ? `equipo de ${NOMBRE_SUP[b.sid]} · ` : ''}${operaciones(vn(b.a, vistaL))}${sigue ? ' · sigue de la página anterior' : ''}`
+  const paginas = Math.max(1, Math.ceil(ops.length / POR_PAGINA))
+  st.pagina = Math.min(st.pagina, paginas)
+  const desde = (st.pagina - 1) * POR_PAGINA
+  const visibles = ops.slice(desde, desde + POR_PAGINA)
+  const sigueDeAntes = (i) => i === 0 && desde > 0 && claveBanda(ops[desde - 1]) === claveBanda(visibles[0])
+  // Subtotales: cada moneda con su suma y, en «Todo S/», el total con la misma tasa que la malla.
+  const subt = []
+  if (a.nPen) subt.push([`Soles · ${operaciones(a.nPen)}`, money(a.pen, 'PEN')])
+  if (a.nUsd) subt.push(conversion ? [`Dólares · ${operaciones(a.nUsd)} · ${money(a.usd, 'USD')} × ${TASA_TXT}`, money(a.usd * TASA_MIL / 1000, 'PEN')] : [`Dólares · ${operaciones(a.nUsd)}`, money(a.usd, 'USD')])
+  const totalTxt = ambas ? `Total en soles${paginas > 1 ? ` · las ${ops.length} operaciones` : ''}` : `Total${paginas > 1 ? ` · las ${ops.length} operaciones` : ''}`
+  let cuerpo
+  if (ops.length === 0) {
+    cuerpo = '<p class="f-aviso" style="margin:16px 20px">Ya no hay operaciones detrás de esta cifra.</p>'
+  } else if (movil) {
+    let tarjetas = ''
+    let previa = null
+    visibles.forEach((o, i) => {
+      if (agrupa && claveBanda(o) !== previa) {
+        const b = bandas.get(claveBanda(o))
+        tarjetas += `<p class="f-ops-banda"><b data-nombre>${esc(b.nombre)}</b><span>${detalleBanda(b, sigueDeAntes(i))}</span><b class="tab">${dinero(vm(b.a, vistaL), vistaL)}</b></p>`
+        previa = claveBanda(o)
+      }
+      tarjetas += htmlOpTarjeta(o, desde + i + 1, false, conFecha)
+    })
+    cuerpo = `<div role="list" class="f-ops" aria-label="Operaciones">${tarjetas}
+      <div class="f-subtotales">${subt.map(([t, v]) => `<p><span>${t}</span><b>${v}</b></p>`).join('')}<p class="total"><span>${totalTxt}</span><b>${dinero(suma, vistaL)}</b></p></div></div>`
+  } else {
+    const nCols = 5 + (conFecha ? 1 : 0)
+    const fila = (o, n) => `<tr>
+        <td class="l-n">${n}</td>
+        ${conFecha ? `<td class="l-fecha">${mismoMes ? diaMedioCorto(o.dia) : diaCorto(o.dia)}</td>` : ''}
+        <th scope="row" class="l-cli"><span class="l-cli-in">${htmlCliente(o)}${htmlAnulada(o)}</span></th>
+        <td class="l-num l-tab">${clienteOculto(o) ? '—' : o.numero}</td>
+        <td class="l-tipo">${htmlTipo(o)}</td>
+        <td class="l-mon">${o.moneda === 'PEN' ? 'Soles' : 'Dólares'}</td>
+        <td class="l-monto" data-monto="${o.capital}" data-moneda="${o.moneda}">${money(o.capital, o.moneda)}</td>
+      </tr>`
+    let filas = ''
+    let previa = null
+    visibles.forEach((o, i) => {
+      if (agrupa && claveBanda(o) !== previa) {
+        if (previa !== null) filas += '</tbody>'
+        const b = bandas.get(claveBanda(o))
+        filas += `<tbody><tr class="l-banda"><th scope="rowgroup" colspan="${nCols}"><span class="l-banda-nom" data-nombre>${esc(b.nombre)}</span><span class="l-banda-det">${detalleBanda(b, sigueDeAntes(i))}</span></th><td class="l-monto">${dinero(vm(b.a, vistaL), vistaL)}</td></tr>`
+        previa = claveBanda(o)
+      }
+      filas += fila(o, desde + i + 1)
+    })
+    cuerpo = `<table class="f-lt">
+      <caption class="sr-only">${esc(spec.titulo)} · ${esc(spec.ceja)}: operaciones</caption>
+      <thead><tr>
+        <th scope="col" class="l-n"><span aria-hidden="true">#</span><span class="sr-only">Número de fila</span></th>
+        ${conFecha ? '<th scope="col" class="l-fecha">Fecha</th>' : ''}
+        <th scope="col" class="l-cli"><span class="l-cli-in">Cliente</span></th><th scope="col" class="l-num">N.º</th><th scope="col" class="l-tipo">Tipo</th>
+        <th scope="col" class="l-mon">Moneda</th><th scope="col" class="l-monto">Monto</th>
+      </tr></thead>
+      ${agrupa ? `${filas}</tbody>` : `<tbody>${filas}</tbody>`}
+      <tfoot>${subt.map(([t, v]) => `<tr><th scope="row" colspan="${nCols}">${t}</th><td class="l-monto">${v}</td></tr>`).join('')}
+        <tr class="total"><th scope="row" colspan="${nCols}">${totalTxt}</th><td class="l-monto">${dinero(suma, vistaL)}</td></tr></tfoot>
+    </table>`
+  }
+  const pie = paginas > 1 ? `<div class="f-lista-pie"><span>Filas ${desde + 1}–${desde + visibles.length} de ${ops.length} · de 50 en 50</span>
+    <button type="button" class="f-boton" data-accion="paginaAnterior" data-foco="pag-ant"${st.pagina === 1 ? ' disabled' : ''}>${icono('chevronLeft')} Anterior</button>
+    <button type="button" class="f-boton" data-accion="paginaSiguiente" data-foco="pag-sig"${st.pagina === paginas ? ' disabled' : ''}>Siguiente ${icono('chevronRight')}</button></div>` : ''
+  // Columnas fijas (# 44, N.º 132, Tipo 112, Moneda 78, Monto 112) + Cliente ~200 + borde y riel de desplazamiento.
+  const ancho = 690 + (conFecha ? 80 : 0)
+  const html = `
+    <div class="f-lista-cab">
+      <div class="f-lista-txt" id="lista-foco" tabindex="-1">
+        <p class="f-lista-ceja">${esc(spec.ceja)}</p>
+        <h2 class="f-lista-titulo" id="lista-titulo">${esc(spec.titulo)}${spec.queEs ? ` · ${esc(spec.queEs)}` : ''}</h2>
+        <p class="f-lista-cifra" id="lista-cifra">${esc(grande)}</p>
+        <p class="f-lista-suma" id="lista-suma">${esc(linea)}</p>
+        <p class="f-cuadra${cuadra ? '' : ' mal'}" id="lista-cuadra">${icono(cuadra ? 'circleCheck' : 'alert')}${esc(cuadraTxt)}</p>
+        <p class="f-lista-meta">${esc(meta.join(' · '))}</p>
+      </div>
+      <button type="button" class="f-cerrar" data-accion="cerrarLista" data-foco="cerrar-lista" aria-label="Cerrar la lista">${icono('x')}</button>
+    </div>
+    ${aviso}
+    <div class="f-lista-cuerpo ac-scroll" role="region" tabindex="0" aria-label="Operaciones de la cifra">${cuerpo}</div>
+    ${pie}`
+  return { html, ancho, info: { titulo: spec.titulo, cifra: grande, suma: dinero(suma, vistaL), cuadra, filas: ops.length, modo: spec.modo } }
+}
+
+function pintarLista(entrada) {
+  const caja = document.getElementById('lista')
+  if (!caja) return
+  const spec = st.lista ? REG.get(st.lista) : null
+  if (!spec) {
+    st.lista = null
+    caja.hidden = true
+    caja.innerHTML = ''
+    caja.className = ''
+    ;['role', 'aria-modal', 'aria-labelledby'].forEach((a) => caja.removeAttribute(a))
+    return null
+  }
+  const { html, ancho, info } = htmlLista(spec, MQ.matches)
+  caja.hidden = false
+  caja.className = 'f-lista'
+  caja.setAttribute('role', 'dialog')
+  caja.setAttribute('aria-modal', 'false')
+  caja.setAttribute('aria-labelledby', 'lista-titulo')
+  caja.style.setProperty('--ancho-lista', `${ancho}px`)
+  caja.innerHTML = html
+  if (!entrada) { void caja.offsetWidth; caja.classList.add('cambia') }
+  return info
+}
+
+function marcarAbierta() {
+  document.querySelectorAll('[data-cifra]').forEach((el) => el.classList.toggle('abierta', el.dataset.cifra === st.lista))
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Pintado, eventos y medidas
+// ─────────────────────────────────────────────────────────────────────────────
+const NAV_GER = [['dashboard', 'Hoy'], ['receiptText', 'Facturación', true], ['trophy', 'Ranking'], ['handshake', 'Citas'], ['calendarCheck', 'Gestión Diaria'], ['target', 'Metas'], ['wallet', 'Mi cartera']]
+const NAV_SUP = [['dashboard', 'Hoy'], ['listChecks', 'Seguimiento'], ['calendarCheck', 'Gestión Diaria'], ['handshake', 'Citas'], ['receiptText', 'Facturación', true], ['kanban', 'Pipeline'], ['users', 'Leads'], ['calendarDays', 'Agenda'], ['wallet', 'Mi cartera'], ['archiveRestore', 'Base para gestión']]
+
+function htmlChrome() {
+  const sup = st.rol === 'supervisor'
+  const items = (sup ? NAV_SUP : NAV_GER).map(([ic, txt, activo]) => `<span class="c-item"${activo ? ' aria-current="page"' : ''} title="${txt}">${icono(ic)}<span class="c-txt">${txt}</span></span>`).join('')
+  const grupos = sup ? '' : ['Análisis', 'Operación', 'Administración'].map((g) => `<span class="c-grupo"><span class="c-txt">${g}</span>${icono('chevronDown')}</span>`).join('')
+  return `
+  <div class="c-aurora" aria-hidden="true"></div>
+  <div class="c-app" data-rol="${st.rol}">
+    <aside class="c-lateral">
+      <div class="c-marca"><span class="c-logo" aria-hidden="true">A</span><span class="c-txt c-marca-txt">Avance Corp</span></div>
+      <nav class="c-nav" aria-label="Menú del CRM (maqueta: no navega)">${items}${grupos}</nav>
+      <div class="c-usuario"><span class="c-avatar" aria-hidden="true">${sup ? 'VM' : 'GE'}</span><span class="c-usuario-txt"><span class="c-usuario-nombre" style="display:block">${sup ? 'Valeria Mendoza' : 'Usuario de ejemplo'}</span><span class="c-usuario-rol">${sup ? 'Supervisión' : 'Gerencia'}</span></span></div>
+    </aside>
+    <div class="c-principal">
+      <header class="c-barra">
+        <div class="c-barra-txt"><h1>Facturación</h1><p class="c-barra-sub">Capital cerrado día a día, por equipo y por analista</p></div>
+        <span class="c-ejemplo">Datos de ejemplo</span>
+        <span class="c-buscar">${icono('search')}Buscar lead por nombre o teléfono<kbd>⌘K</kbd></span>
+        <span class="c-campana" title="Pendientes">${icono('bell')}</span>
+      </header>
+      <main class="c-contenido ac-scroll" id="contenido"><div id="pantalla" class="f-pantalla"></div></main>
+    </div>
+    ${sup ? '' : `<nav class="c-abajo" aria-label="Navegación principal de Gerencia (maqueta: no navega)">
+      ${[['dashboard', 'Hoy'], ['handshake', 'Citas'], ['calendarCheck', 'Gestión Diaria'], ['ellipsis', 'Más', true]].map(([ic, t, a]) => `<span class="c-destino"${a ? ' aria-current="page"' : ''}><span class="c-destino-ic">${icono(ic)}</span><span>${t}</span></span>`).join('')}
+    </nav>`}
+  </div>
+  <aside id="lista" hidden></aside>
+  <p id="anuncio" class="sr-only" role="status" aria-live="polite"></p>`
+}
+
+let chromeClave = ''
+function pintar() {
+  const movil = MQ.matches
+  const clave = `${st.rol}|${movil}`
+  if (clave !== chromeClave) { raiz.innerHTML = htmlChrome(); chromeClave = clave }
+  const pantalla = document.getElementById('pantalla')
+  const region = pantalla.querySelector('.f-region')
+  const sc = region ? [region.scrollLeft, region.scrollTop] : null
+  const contenido = document.getElementById('contenido')
+  const scC = contenido.scrollTop
+  const activo = document.activeElement
+  const foco = activo?.closest?.('[data-foco]')?.dataset.foco ?? null
+  const focoEnLista = !!activo?.closest?.('#lista')
+  REG.clear()
+  pantalla.innerHTML = htmlPantalla(movil)
+  const r2 = pantalla.querySelector('.f-region')
+  if (r2 && sc) { r2.scrollLeft = sc[0]; r2.scrollTop = sc[1] }
+  contenido.scrollTop = scC
+  pintarLista(false)
+  marcarAbierta()
+  if (foco) {
+    const el = document.querySelector(`[data-foco="${CSS.escape(foco)}"]`)
+    if (el) el.focus({ preventScroll: true })
+    else if (focoEnLista) document.getElementById('lista-foco')?.focus({ preventScroll: true })
+  }
+  medirLuego()
+}
+
+function anunciar(texto) {
+  const a = document.getElementById('anuncio')
+  if (!a) return
+  a.textContent = ''
+  setTimeout(() => { a.textContent = texto }, 60)
+}
+
+/** `moverFoco`: solo cuando se abrió con el teclado (Enter o espacio). Con el ratón el foco se queda en la cifra:
+ *  la lista no es modal y se puede seguir pulsando otras cifras. */
+function abrirLista(clave, origen, moverFoco = false) {
+  const yaAbierta = st.lista != null
+  st.lista = clave
+  st.pagina = 1
+  st.origenLista = origen?.dataset.foco ?? null
+  const info = pintarLista(!yaAbierta)
+  marcarAbierta()
+  if (!info) return
+  if (moverFoco) document.getElementById('lista-foco')?.focus({ preventScroll: true })
+  anunciar(`Lista abierta: ${info.titulo}, ${info.cifra}, ${operaciones(info.filas)}`)
+  avisarMarco({ tipo: 'lista', info })
+  medirLuego()
+}
+function cerrarLista(devolverFoco = true) {
+  if (st.lista == null) return
+  const origen = st.origenLista
+  st.lista = null
+  pintarLista(false)
+  marcarAbierta()
+  if (devolverFoco && origen) document.querySelector(`[data-foco="${CSS.escape(origen)}"]`)?.focus({ preventScroll: true })
+  medirLuego()
+}
+
+function cambiar(campo, valor) {
+  if (campo === 'vista') {
+    st.vista = valor
+    pintar()
+    anunciar(`${ROTULO_VISTA[valor]} · ${etiquetaPeriodo(st.gran, st.ancla)}`)
+    return
+  }
+  if (campo === 'gran') {
+    st.marcados = []
+    const ultimo = diasDelPeriodo(valor, st.ancla).slice(-1)[0]
+    if (ultimo > HOY && primerDiaDelMes(st.ancla) === primerDiaDelMes(HOY)) st.ancla = HOY
+    if (valor === 'dia' && st.ancla > HOY) st.ancla = HOY
+    st.gran = valor
+  }
+  if (campo === 'tipo') st.tipo = valor
+  if (campo === 'equipo') st.equipo = valor
+  cerrarLista(false)
+  pintar()
+  anunciar(`${mayus(etiquetaPeriodo(st.gran, st.ancla))} · ${ROTULO_VISTA[st.vista]} · ${ROTULO_TIPO_SELECT[st.tipo]}`)
+}
+
+function accion(nombre) {
+  if (nombre === 'anterior' || nombre === 'siguiente') {
+    st.ancla = periodoDesplazado(st.gran, st.ancla, nombre === 'anterior' ? -1 : 1)
+    if (st.gran === 'mes' && st.ancla > HOY) st.ancla = HOY
+    st.marcados = []
+    cerrarLista(false)
+    pintar()
+    anunciar(mayus(etiquetaPeriodo(st.gran, st.ancla)))
+  } else if (nombre === 'restablecer') {
+    st.equipo = ''; st.tipo = 'todo'; st.marcados = []
+    cerrarLista(false); pintar()
+  } else if (nombre === 'quitarMarcados') {
+    st.marcados = []; pintar()
+  } else if (nombre === 'filtros') {
+    st.filtrosAbiertos = !st.filtrosAbiertos; pintar()
+  } else if (nombre === 'cerrarLista') {
+    cerrarLista(true)
+  } else if (nombre === 'paginaAnterior' || nombre === 'paginaSiguiente') {
+    st.pagina += nombre === 'paginaSiguiente' ? 1 : -1
+    pintarLista(false)
+    const cuerpo = document.querySelector('.f-lista-cuerpo')
+    if (cuerpo) cuerpo.scrollTop = 0
+    document.querySelector(`[data-foco="${nombre === 'paginaSiguiente' ? 'pag-sig' : 'pag-ant'}"]`)?.focus({ preventScroll: true })
+    medirLuego()
+  }
+}
+
+function alPulsar(e) {
+  const t = e.target.closest('button')
+  if (!t || t.disabled) return
+  if (t.dataset.cifra) return abrirLista(t.dataset.cifra, t, e.detail === 0)
+  if (t.dataset.campo) return cambiar(t.dataset.campo, t.dataset.valor)
+  if (t.dataset.dia) {
+    const d = t.dataset.dia
+    st.marcados = st.marcados.includes(d) ? st.marcados.filter((x) => x !== d) : [...st.marcados, d].sort()
+    pintar()
+    anunciar(st.marcados.length ? `${st.marcados.length} ${st.marcados.length === 1 ? 'día elegido' : 'días elegidos'}` : 'Sin días elegidos')
+    return
+  }
+  if (t.dataset.banda) {
+    const s = t.dataset.banda
+    st.cerrados = st.cerrados.includes(s) ? st.cerrados.filter((x) => x !== s) : [...st.cerrados, s]
+    pintar()
+    return
+  }
+  if (t.dataset.accion) accion(t.dataset.accion)
+}
+
+// El cursor ilumina su fila y su columna en la hoja (y la pastilla sigue al cursor con un brillo).
+let cruzActual = { fila: null, col: null }
+function pintarCruz(fila, col) {
+  if (cruzActual.fila && cruzActual.fila !== fila) cruzActual.fila.classList.remove('cruz')
+  if (fila && fila !== cruzActual.fila) fila.classList.add('cruz')
+  if (col !== cruzActual.col) {
+    let estilo = document.getElementById('estilo-cruz')
+    if (!estilo) { estilo = document.createElement('style'); estilo.id = 'estilo-cruz'; document.head.appendChild(estilo) }
+    estilo.textContent = col == null ? '' : `
+      .f-hoja tbody [data-c="${col}"], .f-hoja tfoot [data-c="${col}"] { background-color: var(--cruz); }
+      .f-hoja thead [data-c="${col}"]:not(.marcado), .f-hoja tbody tr.banda > [data-c="${col}"] { background-color: var(--cruz-fuerte); }
+      .f-hoja thead [data-c="${col}"]:not(.marcado) .f-dia-num { color: var(--accent-press); }`
+  }
+  cruzActual = { fila, col }
+}
+function alMover(e) {
+  const p = e.target.closest?.('.f-pastilla')
+  if (p) {
+    const r = p.getBoundingClientRect()
+    p.style.setProperty('--mx', `${e.clientX - r.left}px`)
+    p.style.setProperty('--my', `${e.clientY - r.top}px`)
+  }
+  const celdaH = e.target.closest?.('.f-hoja th, .f-hoja td')
+  if (!celdaH) return pintarCruz(null, null)
+  const tr = celdaH.parentElement
+  const fila = tr.closest('tbody') ? tr : null
+  pintarCruz(fila, celdaH.dataset.c ?? null)
+}
+
+let temporizadorMedida = 0
+function medirLuego() {
+  clearTimeout(temporizadorMedida)
+  temporizadorMedida = setTimeout(() => {
+    Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 1500))]).then(() => requestAnimationFrame(() => avisarMarco({ tipo: 'medidas', medidas: medir() })))
+  }, 160)
+}
+function avisarMarco(mensaje) { if (window.parent !== window) window.parent.postMessage(mensaje, '*') }
+
+/** Medidas REALES del lienzo, para que el marco diga si cumple cada regla. */
+function medir() {
+  const rgb = (c) => { const m = c.match(/rgba?\(([^)]+)\)/); if (!m) return [255, 255, 255, 0]; const p = m[1].split(/[ ,/]+/).filter(Boolean).map(Number); return [p[0], p[1], p[2], p[3] ?? 1] }
+  const lum = ([r, g, b]) => { const c = [r, g, b].map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4 }); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2] }
+  const fondo = (el) => {
+    const capas = []
+    for (let n = el; n && n.nodeType === 1; n = n.parentElement) {
+      const c = rgb(getComputedStyle(n).backgroundColor)
+      if (c[3] > 0) capas.push(c)
+      if (c[3] >= 1) break
+    }
+    let base = [255, 255, 255]
+    for (let i = capas.length - 1; i >= 0; i -= 1) { const [r, g, b, al] = capas[i]; base = [r * al + base[0] * (1 - al), g * al + base[1] * (1 - al), b * al + base[2] * (1 - al)] }
+    return base
+  }
+  const contraste = (a, b) => { const x = lum(a); const y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05) }
+  const zonas = [document.getElementById('pantalla'), document.getElementById('lista')].filter((z) => z && !z.hidden)
+  let letraMin = Infinity
+  let letraMinTxt = ''
+  let contrasteMin = Infinity
+  let contrasteTxt = ''
+  for (const z of zonas) {
+    for (const el of z.querySelectorAll('*')) {
+      const propio = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())
+      if (!propio || el.closest('.sr-only')) continue
+      const r = el.getBoundingClientRect()
+      if (r.width === 0 || r.height === 0) continue
+      const cs = getComputedStyle(el)
+      if (cs.visibility === 'hidden') continue
+      const fs = parseFloat(cs.fontSize)
+      if (fs < letraMin) { letraMin = fs; letraMinTxt = el.textContent.trim().slice(0, 40) }
+      const c = contraste(rgb(cs.color), fondo(el))
+      if (c < contrasteMin) { contrasteMin = c; contrasteTxt = el.textContent.trim().slice(0, 40) }
+    }
+  }
+  const nombres = zonas.flatMap((z) => [...z.querySelectorAll('[data-nombre]')]).filter((el) => el.getBoundingClientRect().width > 0)
+  const region = document.querySelector('.f-region')
+  const tabla = region?.querySelector('table')
+  const pastillas = document.querySelector('.f-pastillas')
+  const sticky = (sel) => { const el = document.querySelector(sel); return el ? getComputedStyle(el).position === 'sticky' : false }
+  const cabPv = document.querySelector('.f-hoja thead .c-pv')
+  const thTodos = zonas.flatMap((z) => [...z.querySelectorAll('th')])
+  const contenido = document.getElementById('contenido')
+  return {
+    ancho: window.innerWidth,
+    movil: MQ.matches,
+    rol: st.rol,
+    gran: st.gran,
+    vista: st.vista,
+    vistaDia: st.vistaDia,
+    diasPorVenir: st.diasPorVenir,
+    mesEnCurso: st.gran === 'mes' && primerDiaDelMes(st.ancla) === primerDiaDelMes(HOY),
+    altoResumen: pastillas ? Math.round(pastillas.getBoundingClientRect().height) : null,
+    pastillas: pastillas ? pastillas.querySelectorAll('.f-pastilla').length : 0,
+    pastillasBotones: pastillas ? pastillas.querySelectorAll('button.f-pastilla').length : 0,
+    letraMin: Number.isFinite(letraMin) ? letraMin : null,
+    letraMinTxt,
+    nombresMin: nombres.length ? Math.min(...nombres.map((el) => parseFloat(getComputedStyle(el).fontSize))) : null,
+    anchoCelda: document.querySelector('.f-hoja thead .c-dia')?.getBoundingClientRect().width ?? null,
+    fijos: { cabecera: sticky('.f-hoja thead th'), numero: sticky('.f-hoja tbody .c-num'), nombre: sticky('.f-hoja tbody .c-nom'), total: sticky('.f-hoja tbody .c-tot') },
+    bandas: document.querySelectorAll('.f-hoja tr.banda').length,
+    filasNumeradas: [...document.querySelectorAll('.f-hoja tbody .c-num')].filter((c) => c.textContent.trim()).length,
+    diasColumnas: document.querySelectorAll('.f-hoja thead .c-dia').length,
+    porVenir: cabPv ? cabPv.innerText.trim().split(/\s*\n+\s*/).join(' · ') : null,
+    scrollLateral: region ? region.scrollWidth - region.clientWidth > 1 : false,
+    paginaScrollLateral: document.documentElement.scrollWidth > window.innerWidth + 1 || (contenido ? contenido.scrollWidth > contenido.clientWidth + 1 : false),
+    hueco: st.gran === 'dia' && region && tabla ? Math.max(0, (region.clientWidth - tabla.getBoundingClientRect().width) / region.clientWidth) : null,
+    tarjetas: document.querySelectorAll('.f-ta').length,
+    cifras: document.querySelectorAll('#pantalla [data-cifra]').length,
+    tasaVisible: document.body.textContent.includes(ROTULO_TASA) || document.body.textContent.includes(`S/ ${TASA_TXT}`),
+    contrasteMin: Number.isFinite(contrasteMin) ? Math.round(contrasteMin * 100) / 100 : null,
+    contrasteTxt,
+    botones: zonas.reduce((n, z) => n + z.querySelectorAll('button').length, 0),
+    thConScope: thTodos.filter((t) => t.hasAttribute('scope')).length,
+    thSinScope: thTodos.filter((t) => !t.hasAttribute('scope')).length,
+    listaAbierta: st.lista != null,
+  }
+}
+
+function aplicarEstado(e) {
+  if (!e) return
+  const antes = `${st.rol}|${st.diasPorVenir}|${st.vistaDia}|${st.clienteAjeno}`
+  if (e.rol && e.rol !== st.rol) { st.rol = e.rol; st.equipo = ''; st.cerrados = []; cerrarLista(false) }
+  if (e.diasPorVenir) st.diasPorVenir = e.diasPorVenir
+  if (e.vistaDia) st.vistaDia = e.vistaDia
+  if (e.clienteAjeno) st.clienteAjeno = e.clienteAjeno
+  if (antes !== `${st.rol}|${st.diasPorVenir}|${st.vistaDia}|${st.clienteAjeno}`) pintar()
+}
+function alMensaje(ev) {
+  if (ev.source !== window.parent) return
+  const m = ev.data
+  if (!m || typeof m !== 'object') return
+  if (m.tipo === 'estado') aplicarEstado(m.estado)
+  if (m.tipo === 'accion') {
+    if (m.accion === 'irMes') { st.gran = 'mes'; st.ancla = HOY; st.marcados = []; cerrarLista(false); pintar() }
+    if (m.accion === 'irDia') { st.gran = 'dia'; if (st.ancla > HOY || primerDiaDelMes(st.ancla) !== primerDiaDelMes(HOY)) st.ancla = HOY; st.marcados = []; cerrarLista(false); pintar() }
+    if (m.accion === 'casoCliente') {
+      // El caso de la decisión 3: la supervisora mira lo que vendió Jorge Palomino cuando era de su equipo.
+      st.gran = 'mes'; st.ancla = HOY; st.marcados = []; st.tipo = 'todo'; st.cerrados = []
+      pintar()
+      const el = document.querySelector('[data-cifra="aT|f-a02|f-sup1"]')
+      if (el) { el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); abrirLista('aT|f-a02|f-sup1', el) }
+    }
+  }
+}
+
+function arrancarLienzo() {
+  st.rol = params.get('rol') === 'supervisor' ? 'supervisor' : 'gerencia'
+  st.diasPorVenir = params.get('a') === 'ocultos' ? 'ocultos' : 'plegados'
+  st.vistaDia = params.get('b') === 'lista' ? 'lista' : 'tipos'
+  st.clienteAjeno = params.get('c') === 'nombre' ? 'nombre' : 'oculto'
+  if (['mes', 'semana', 'dia'].includes(params.get('gran'))) st.gran = params.get('gran')
+  if (['TOTAL', 'PEN', 'USD'].includes(params.get('vista'))) st.vista = params.get('vista')
+  document.title = 'Lienzo · Facturación'
+  pintar()
+  document.addEventListener('click', alPulsar)
+  document.addEventListener('change', (e) => { const s = e.target.closest('select[data-campo]'); if (s) cambiar(s.dataset.campo, s.value) })
+  document.addEventListener('pointermove', alMover)
+  document.addEventListener('pointerleave', () => pintarCruz(null, null))
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && st.lista != null) { e.preventDefault(); cerrarLista(true) } })
+  MQ.addEventListener('change', () => { cerrarLista(false); pintar() })
+  window.addEventListener('resize', medirLuego) // el marco anima el ancho: se mide cuando termina
+  window.addEventListener('message', alMensaje)
+  avisarMarco({ tipo: 'listo' })
+  // Para comprobarla desde fuera (pruebas de la pieza).
+  window.__pieza = { st, REG, opsDeDias, operacionesDelMes, abrirLista, medir, TASA_MIL }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// EL MARCO: qué es, las tres decisiones en vivo, el lienzo a escala real y lo que cumple, medido.
+// ═════════════════════════════════════════════════════════════════════════════
+function arrancarMarco() {
+  const pildora = (grupo, valor, texto, activa) =>
+    `<button type="button" class="m-pildora" data-grupo="${grupo}" data-valor="${valor}" aria-pressed="${activa}">${texto}</button>`
+  const opcion = (grupo, valor, texto, activa, recomendada) =>
+    `<button type="button" class="m-opcion" data-grupo="${grupo}" data-valor="${valor}" aria-pressed="${activa}"><span class="m-marca" aria-hidden="true">${icono('check')}</span><span>${texto}</span>${recomendada ? '<span class="m-sello">recomendado</span>' : ''}</button>`
+  const decision = (grupo, n, pregunta, opciones, pista) => `
+    <div class="m-decision" role="group" aria-labelledby="d-${grupo}">
+      <div class="m-decision-cab"><span class="m-decision-num" aria-hidden="true">${n}</span><p class="m-decision-preg" id="d-${grupo}">${pregunta}</p></div>
+      ${opciones.map(([v, t, rec], i) => opcion(grupo, v, t, i === 0, rec)).join('')}
+      <p class="m-pista">${pista}</p>
+    </div>`
+  raiz.innerHTML = `
+  <div class="m-pagina">
+    <header class="m-cab">
+      <div>
+        <p class="m-ceja">CRM Avance Corp · pieza para decidir viendo · datos de ejemplo</p>
+        <h1>Facturación como hoja de Excel — propuesta para aprobar, fase 3</h1>
+        <p class="m-entrada">Es la pantalla de Facturación a tamaño real con lo que propone el plan: cifras pequeñas arriba, la malla como una hoja y <b>todo número se abre</b> en una lista que suma exactamente esa cifra. Pásale el ratón por encima y pulsa cualquier número. Nombres y cifras inventados; hoy es jueves 08/10/2026.</p>
+      </div>
+      <div class="m-fila">
+        <div class="m-grupo" role="group" aria-labelledby="g-ancho"><span class="m-rotulo" id="g-ancho">Ver en</span>${pildora('ancho', 'escritorio', 'Escritorio 1440', true)}${pildora('ancho', 'telefono', 'Teléfono 390', false)}</div>
+        <div class="m-grupo" role="group" aria-labelledby="g-rol"><span class="m-rotulo" id="g-rol">Ver como</span>${pildora('rol', 'gerencia', 'Gerencia', true)}${pildora('rol', 'supervisor', 'Supervisora · Valeria Mendoza', false)}</div>
+        <a class="m-enlace" href="#reglas" id="m-cuenta">Lo que cumple, medido en vivo ↓</a>
+      </div>
+      <div class="m-decisiones">
+        ${decision('a', 1, 'Los días del mes que aún no pasan', [['plegados', 'En una sola columna «9–31 oct · por venir»', true], ['ocultos', 'Ocultos: solo los días que ya pasaron', false]], 'Al tocarla, el lienzo vuelve a la vista Mes de octubre.')}
+        ${decision('b', 2, 'La pestaña «Día»', [['tipos', 'Columnas por tipo: Nuevo · Renovación · Upgrade · Cooperativa · Total', true], ['lista', 'Directamente la lista de operaciones del día', false]], 'Al tocarla, el lienzo abre la pestaña Día (hoy, jueves 8).')}
+        ${decision('c', 3, 'El supervisor, si el cliente de una venta ya es de otro equipo, ve…', [['oculto', '«Cliente de otro equipo» y el importe', true], ['nombre', 'El nombre del cliente', false]], 'Al tocarla, te pone como Valeria Mendoza y abre lo que vendió Jorge Palomino antes de cambiarse de equipo.')}
+      </div>
+    </header>
+    <main class="m-escenario">
+      <div class="m-lienzo-caja">
+        <p class="m-medida" id="m-medida">Escritorio · 1440 × 900 px · escala 1:1</p>
+        <iframe id="lienzo" title="Lienzo: la pantalla Facturación del CRM a escala real" style="width:1442px;height:902px"></iframe>
+      </div>
+    </main>
+    <section class="m-reglas" id="reglas" aria-labelledby="reglas-titulo">
+      <h2 id="reglas-titulo">Lo que cumple, medido en vivo dentro del lienzo</h2>
+      <p>Cada línea se vuelve a medir cada vez que cambias algo arriba o dentro del lienzo. «Por medir» quiere decir que esa vista aún no se ha abierto.</p>
+      <ol class="m-lista-reglas" id="m-reglas"></ol>
+      <p class="m-nota">Siguen como hoy y no se muestran aquí, para no distraer: «Qué se mide» (capital o número de contratos), el filtro de analistas y comparar. El DNI no sale en ninguna lista.</p>
+    </section>
+  </div>`
+
+  const lienzo = document.getElementById('lienzo')
+  const est = { ancho: 'escritorio', rol: 'gerencia', a: 'plegados', b: 'tipos', c: 'oculto' }
+  const M = { lista: null }
+  const base = location.href.split(/[?#]/)[0]
+  const estado = () => ({ rol: est.rol, diasPorVenir: est.a, vistaDia: est.b, clienteAjeno: est.c })
+  const enviar = (m) => lienzo.contentWindow?.postMessage(m, '*')
+  lienzo.src = `${base}?lienzo=1&rol=${est.rol}&a=${est.a}&b=${est.b}&c=${est.c}`
+  const MEDIDAS = { escritorio: [1440, 900, 'Escritorio'], telefono: [390, 844, 'Teléfono'] }
+
+  function marcar(grupo, valor) {
+    est[grupo] = valor
+    document.querySelectorAll(`[data-grupo="${grupo}"]`).forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.valor === valor)))
+  }
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-grupo]')
+    if (!b) return
+    const { grupo, valor } = b.dataset
+    if (grupo === 'ancho') {
+      marcar('ancho', valor)
+      const [w, h, nombre] = MEDIDAS[valor]
+      lienzo.style.width = `${w + 2}px` // +2: el borde; el interior mide exacto 1440 o 390
+      lienzo.style.height = `${h + 2}px`
+      document.getElementById('m-medida').textContent = `${nombre} · ${w} × ${h} px · escala 1:1`
+      return
+    }
+    marcar(grupo, valor)
+    if (grupo === 'c') marcar('rol', 'supervisor')
+    enviar({ tipo: 'estado', estado: estado() })
+    if (grupo === 'a') enviar({ tipo: 'accion', accion: 'irMes' })
+    if (grupo === 'b') enviar({ tipo: 'accion', accion: 'irDia' })
+    if (grupo === 'c') enviar({ tipo: 'accion', accion: 'casoCliente' })
+  })
+
+  const REGLAS = [
+    ['Cifras de arriba pequeñas', () => {
+      const e = M.escritorio
+      if (!e) return ['pendiente', 'Se mide en «Escritorio 1440».']
+      return [e.altoResumen <= 56 && e.pastillasBotones === e.pastillas ? 'ok' : 'mal', `Una fila de ${e.pastillas} pastillas de 14 px, todas pulsables: el resumen mide ${e.altoResumen} px de alto (hoy, con tarjetas, mide 196).`]
+    }],
+    ['La malla es una hoja', () => {
+      const e = M.hoja
+      if (!e) return ['pendiente', 'Se mide en la vista Mes o Semana de escritorio.']
+      const f = e.fijos
+      const ok = f.cabecera && f.numero && f.nombre && f.total && e.bandas > 0 && e.filasNumeradas > 0
+      return [ok ? 'ok' : 'mal', `Cuadrícula con # de fila (1 a ${e.filasNumeradas}), cabecera gris fija, # y nombre fijos a la izquierda, total fijo a la derecha y ${e.bandas} equipos como bandas.`]
+    }],
+    ['Letra cómoda', () => {
+      if (M.letraMin == null) return ['pendiente', 'Midiendo…']
+      const ok = M.letraMin >= 14 && M.nombresMin >= 16
+      const celda = M.hoja?.anchoCelda ? ` Celdas de ${Math.round(M.hoja.anchoCelda)} px de ancho.` : ''
+      return [ok ? 'ok' : 'mal', `En todo lo que has visto: nombres a ${M.nombresMin} px como mínimo (piso 16) y nada por debajo de ${M.letraMin} px (piso 14; lo más pequeño: «${M.letraMinTxt}»).${celda}`]
+    }],
+    ['Días por venir', () => {
+      const e = M.mesActual
+      if (!e) return ['pendiente', 'Se mide en la vista Mes de octubre, en escritorio.']
+      if (e.diasPorVenir === 'plegados') return [e.porVenir && !e.scrollLateral ? 'ok' : 'mal', `${e.diasColumnas} días + 1 columna «${e.porVenir}»${e.scrollLateral ? '; ojo: hay que desplazarse de lado' : '; a 1440 px no hay que desplazarse de lado'}.`]
+      return [!e.porVenir && !e.scrollLateral ? 'ok' : 'mal', `Solo los ${e.diasColumnas} días que ya pasaron; del 9 al 31 no se muestran (lo dice la nota de la malla).`]
+    }],
+    ['Todo número se abre', () => {
+      const e = M.ultimo
+      if (!e) return ['pendiente', 'Midiendo…']
+      const l = M.lista
+      const ultima = l ? ` Última lista abierta: «${l.titulo}» ${l.cifra} → ${l.modo === 'comparacion' ? 'la lista de antes suma' : 'la lista suma'} ${l.suma} en ${l.filas} ${l.filas === 1 ? 'operación' : 'operaciones'} ${l.cuadra ? '✓' : '✗'}.` : ' Pulsa cualquier número del lienzo para comprobarlo aquí.'
+      return [e.cifras > 0 && (!l || l.cuadra) ? 'ok' : 'mal', `${e.cifras} cifras pulsables en la pantalla (celdas, totales, bandas, pie y pastillas); un cero no se abre.${ultima}`]
+    }],
+    ['Perilla de moneda', () => {
+      const e = M.ultimo
+      if (!e) return ['pendiente', 'Midiendo…']
+      const vista = { TOTAL: 'Todo S/', PEN: 'Soles', USD: 'Dólares' }[e.vista]
+      return [e.tasaVisible ? 'ok' : 'mal', `Todo S/ · Soles · Dólares (ahora: ${vista}). La tasa se dice sin siglas: «tipo de cambio S/ 3.751 (SBS, promedio de 7 días hábiles)».`]
+    }],
+    ['Vista Día por tipo', () => {
+      const e = M.diaTipos
+      if (!e) return ['pendiente', 'Se mide al abrir la pestaña Día con «Columnas por tipo», en escritorio.']
+      return [e.hueco < 0.15 ? 'ok' : 'mal', `Nuevo · Renovación · Upgrade · Cooperativa · Total ocupan el ancho: hueco a la derecha del ${Math.round(e.hueco * 100)} % (tope 15 %; hoy son unos 930 px vacíos).`]
+    }],
+    ['En el celular, tarjetas', () => {
+      const e = M.telefono
+      if (!e) return ['pendiente', 'Pulsa «Teléfono 390» arriba para medirlo.']
+      return [e.tarjetas > 0 && !e.paginaScrollLateral ? 'ok' : 'mal', `A ${e.ancho} px: ${e.tarjetas} tarjetas por analista agrupadas por equipo, sin desplazamiento lateral; cada cifra es un botón de 44 px.`]
+    }],
+    ['Suave y con movimiento', () => ['ok', 'La fila y la columna bajo el cursor se iluminan; las pastillas se elevan y un brillo sigue al cursor; la lista entra deslizándose. Con «reducir movimiento» queda solo el cambio de color.']],
+    ['Accesible', () => {
+      if (M.contrasteMin == null) return ['pendiente', 'Midiendo…']
+      const ok = M.contrasteMin >= 4.5 && M.thSinScope === 0
+      return [ok ? 'ok' : 'mal', `${M.botones} botones de verdad, ${M.thConScope} encabezados de tabla con «scope» (${M.thSinScope} sin él), foco visible y contraste mínimo medido de ${String(M.contrasteMin).replace('.', ',')} a 1 (piso 4,5).`]
+    }],
+  ]
+
+  function pintarReglas() {
+    const etiquetas = { ok: 'Cumple', mal: 'No cumple', pendiente: 'Por medir' }
+    let ok = 0
+    let pendientes = 0
+    document.getElementById('m-reglas').innerHTML = REGLAS.map(([titulo, f], i) => {
+      const [estadoRegla, texto] = f()
+      if (estadoRegla === 'ok') ok += 1
+      if (estadoRegla === 'pendiente') pendientes += 1
+      return `<li class="m-regla"><span class="m-regla-num">${i + 1}</span><div><h3>${titulo}</h3><p>${esc(texto)}</p></div><span class="m-estado ${estadoRegla}">${etiquetas[estadoRegla]}</span></li>`
+    }).join('')
+    document.getElementById('m-cuenta').textContent = `Cumple ${ok} de 10${pendientes ? ` (${pendientes} por medir)` : ''} · ver cómo ↓`
+  }
+
+  window.addEventListener('message', (ev) => {
+    if (ev.source !== lienzo.contentWindow) return
+    const m = ev.data
+    if (!m || typeof m !== 'object') return
+    if (m.tipo === 'listo') enviar({ tipo: 'estado', estado: estado() })
+    if (m.tipo === 'lista') M.lista = m.info
+    if (m.tipo === 'medidas') {
+      const e = m.medidas
+      M.ultimo = e
+      if (!e.movil) M.escritorio = e
+      if (!e.movil && e.gran !== 'dia') M.hoja = e
+      if (!e.movil && e.mesEnCurso) M.mesActual = e
+      if (!e.movil && e.gran === 'dia' && e.vistaDia === 'tipos') M.diaTipos = e
+      if (e.movil) M.telefono = e
+      M.letraMin = Math.min(M.letraMin ?? Infinity, e.letraMin ?? Infinity)
+      if (e.letraMin != null && e.letraMin <= M.letraMin) M.letraMinTxt = e.letraMinTxt
+      M.nombresMin = Math.min(M.nombresMin ?? Infinity, e.nombresMin ?? Infinity)
+      M.contrasteMin = Math.min(M.contrasteMin ?? Infinity, e.contrasteMin ?? Infinity)
+      M.botones = e.botones
+      M.thConScope = e.thConScope
+      M.thSinScope = Math.max(M.thSinScope ?? 0, e.thSinScope)
+    }
+    pintarReglas()
+  })
+  pintarReglas()
+}
+
+if (params.has('lienzo')) arrancarLienzo()
+else arrancarMarco()
+</script>
+</body>
+</html>

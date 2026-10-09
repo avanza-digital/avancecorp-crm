@@ -1,3 +1,4 @@
+import { CELDA, ENCABEZADO } from './estilos-hoja-base'
 // La HOJA de la base para gestión (extraída de la vista del analista en F4, 03/10/2026, para que la vista del
 // supervisor pinte la misma). Forma (Miguel, 02/10/2026): en escritorio una HOJA DE CÁLCULO —cuadrícula, un dato por
 // celda, número de fila, encabezado y primeras columnas fijos al desplazar, la fila «hoy» con formato condicional—;
@@ -36,8 +37,7 @@ const BOTON_LLAMAR = cn(
 const ANCHO_NUMERO = 'w-12 min-w-12'
 const ANCHO_LEAD = 'w-64 min-w-64'
 const ANCHO_GESTIONA = 'w-48 min-w-48'
-export const CELDA = 'whitespace-nowrap border-b border-r border-border px-3 py-2 text-left align-middle text-sm text-foreground'
-export const ENCABEZADO = 'sticky top-0 z-10 whitespace-nowrap border-b border-r border-[var(--border-strong)] bg-muted px-3 py-2 text-left text-[13px] font-semibold text-[var(--muted-foreground-strong)]'
+export { CELDA, ENCABEZADO } from './estilos-hoja-base'
 // Las primeras columnas quedan fijas al desplazar en horizontal (como «inmovilizar paneles»): necesitan fondo propio.
 const FIJA_NUMERO = 'sticky left-0'
 const FIJA_LEAD = 'sticky left-12'

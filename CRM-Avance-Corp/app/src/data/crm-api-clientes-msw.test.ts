@@ -1349,6 +1349,44 @@ describe('actualizarContrato (wrapper crm.actualizar_contrato_con_cuenta_pdf_v3)
       message: 'Solo puedes corregir un contrato dentro de las 5 horas de creado',
     })
   })
+
+  // La guarda de public.contratos (20261009120000 y 20261009180000): el 23514 llega con un mensaje que dice QUÉ hacer,
+  // no con el genérico «No se pudo guardar el cambio.».
+  it.each([
+    {
+      caso: 'sin ficha de cartera, solo «nuevo»',
+      servidor: 'Un contrato sin operación de cartera solo puede quedar como nuevo',
+      code: 'CATEGORIA_SIN_FICHA',
+      mensaje: 'Este contrato no tiene ficha de cartera: solo puede quedar como «nuevo». ' +
+        'Un upgrade o una renovación se registran desde la cartera del cliente.',
+    },
+    {
+      caso: 'con ficha de cartera, manda la ficha',
+      servidor: 'La categoría la decide la operación de cartera',
+      code: 'CATEGORIA_DE_LA_FICHA',
+      mensaje: 'El tipo de este contrato lo decide su ficha de cartera (upgrade o renovación): no se cambia aquí.',
+    },
+  ])('23514 de la guarda de categoría ($caso) se traduce a un mensaje que dice qué hacer', async ({ servidor, code, mensaje }) => {
+    server.use(
+      http.post(`${BASE}/rest/v1/rpc/actualizar_contrato_con_cuenta_pdf_v3`, () =>
+        HttpResponse.json({ code: '23514', message: servidor, details: null }, { status: 400 }),
+      ),
+    )
+
+    await expect(actualizarContrato('ct-1', contratoBase, [])).rejects.toMatchObject({ code, message: mensaje })
+  })
+
+  it('otro 23514 que no es de la guarda sigue en el genérico (no se inventa un motivo)', async () => {
+    server.use(
+      http.post(`${BASE}/rest/v1/rpc/actualizar_contrato_con_cuenta_pdf_v3`, () =>
+        HttpResponse.json({ code: '23514', message: 'new row violates check constraint "x"', details: null }, { status: 400 }),
+      ),
+    )
+
+    await expect(actualizarContrato('ct-1', contratoBase, [])).rejects.toMatchObject({
+      message: 'No se pudo guardar el cambio.',
+    })
+  })
 })
 
 describe('crearContrato — los rechazos de idempotencia del servidor llegan con su código propio', () => {
