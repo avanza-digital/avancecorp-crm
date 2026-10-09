@@ -41,8 +41,8 @@ tablero).
 | F0 · Piloto y línea base | 12 | 1 | — | 7 | 4 | En curso: solo C1 |
 | F1 · Formulario único | 12 | 12 | — | — | — | **Aceptada** (en producción desde el 01/10; C1 el 02/10) |
 | F2 · Núcleo | 13 | **13** | — | — | — | Instalada (07/10, H1); se acepta con C1 |
-| F3 · Captura y sincronización | 13 | 7 | 1 | 5 | — | En curso: Edge instalada (07/10, H2); faltan las pruebas contra ella en C1 |
-| F4 · Bandeja y registro conciliado | 13 | 0 | 10 | 1 | 2 | En curso: instalada y publicada (07/10, H3); falta F4-d |
+| F3 · Captura y sincronización | 13 | 7 | 1 | 5 | — | En curso: Edge instalada (07/10, H2) y probada contra ella en C1 (sin red, datos móviles, reinicio, rotación, 400 y clave fuera del registro); faltan respuesta perdida, batería, hora desfasada, permisos, llamada en espera, doble SIM, C2/C3 y la guía de soporte |
+| F4 · Bandeja y registro conciliado | 13 | 0 | 10 | 1 | 2 | En curso: instalada (07/10, H3) y F4-d física hecha en C1 (P1–P15; P9 parcial, arreglo en el #228); faltan P9 en C1, P14-L3 y la consulta de Miguel |
 | F5 · Jev | 15 | 0 | — | — | 15 | Pendiente |
 | F6 · Gerencia y métricas | 12 | 0 | — | 1 | 11 | Pendiente: diccionario aprobado (#17); primero F4-e, tras la aceptación de F4-d en C1 |
 | F7 · Despliegue y operación | 12 | 0 | — | 3 | 9 | En curso: primer release (07/10, H3) |
@@ -60,7 +60,7 @@ explícito probado en C1 (31). **07/10 noche:** suben F2.4.3 y F3.2.1 con el act
 | H1 | Ensayo con **SLA activo** y aplicar las doce en producción desde LF, con sus registradores (`t`) y el ledger «EN PROD» | Miguel | **Hecho** (07/10 ~21:53 UTC): ensayo con SLA activo en la rama `llamadas-cierre-20261007` y publicación con `merge_branch`; 450 migraciones (438 intactas + 12); SLA activo sin cambios; ledger «EN PROD» (#222). Acta: `INSTALACION-20261007.md` |
 | H2 | Edge `crm-llamadas-ingesta` desplegada y comprobada (`verify_jwt` apagado solo en ella; los `curl` dan «No autorizado») | Miguel | **Hecho** (07/10): `crm-llamadas-ingesta` v1 activa, `verify_jwt` apagado solo en ella, 401 sin clave o con clave desconocida; seis casos reales en la rama |
 | H3 | Release con `LLAMADAS_CELULAR_APROBADAS = true`: abre la pestaña de F4-b y la tarjeta de F4-c | Miguel | **Hecho** (07/10 22:26 UTC): #222 (`d4c9a689`) publicado como `build-20261007T222046462Z`; preflight PASS y 121/121 archivos idénticos; smoke con Analista |
-| H4 | Activar C1 (F4-d) con `ACTIVAR-C1.md` y correr P1–P15 | Jhosep + gerencia + Claude | **En curso** desde el 07/10 ~19:15 Lima: C1 activo («Al día»); P1, P2, P3, P6, P7 y P15-A1 PASS; P9 parcial (hallazgo); faltan P4, P5, P8, P10–P14 y el resto de P15 (`REGISTRO.md` §5i) |
+| H4 | Activar C1 (F4-d) con `ACTIVAR-C1.md` y correr P1–P15 | Jhosep + gerencia + Claude | **En curso** desde el 07/10 ~19:15 Lima: P1–P15 ejecutadas en C1 (07–08/10), todas PASS salvo P9 parcial (arreglo en el #228); teléfono = CRM 19 = 19 y encuesta abierta al colgar 18 de 18 (`REGISTRO.md` §5i). Pendientes: P9 en C1 tras publicar el #228, P14-L3 y la consulta sin números de Miguel |
 | H5 | Los otros equipos del piloto (C2, C3) | Jhosep + Miguel | Pendiente |
 
 ## F0 · Piloto y línea base
