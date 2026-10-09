@@ -1,8 +1,8 @@
 {
-  "actualizado": "2026-10-09T14:33:00Z",
+  "actualizado": "2026-10-09T14:56:00Z",
   "meta": {
-    "novedad": "09/10 14:33 UTC (09:33 Lima): MacroDroid de C1 renovado por Jhosep con un anuncio, antes de vencer a las ~15:50; el próximo vencimiento se espera hacia el 12/10. P14 completa (L3 PASS). #227 y #228 siguen en turno del agente de Miguel. Pendientes: P9 en C1 tras publicar el #228 y la consulta sin números de Miguel.",
-    "actualizado": "2026-10-09T14:33:00Z"
+    "novedad": "09/10 14:56 UTC (09:56 Lima): Miguel APROBÓ el #228 (arreglo de P9) a las 14:55 UTC, tras actualizarlo con main (90ef9d30, merge limpio: nuestros siete archivos quedan iguales). Falta que termine el check de la app, que lo fusione y que lo publique; entonces se repite P9 en C1. El #227 sigue sin comentario de su agente. MacroDroid de C1 renovado (próximo, hacia el 12/10).",
+    "actualizado": "2026-10-09T14:56:00Z"
   },
   "fases": {
     "F0": { "estado": "curso", "actualizado": "2026-10-07T19:10:00Z", "evidencia": "En curso con C1 (Samsung A16): registro, permisos, macro final y pruebas contra el receptor. Faltan C2/C3, la línea base de cinco días y la decisión de cierre (F0.4.3)." },
@@ -239,6 +239,7 @@
     { "at": "2026-10-08T23:20:00Z", "texto": "Revisión conjunta de Miguel (#227, 6070626325): CHANGES_REQUESTED con dos P2 acotados. #227: resúmenes de F3, F4, F4.4 y H4 (y F7, que seguía en «C1 sin activar») al día con P1–P15 ejecutadas; pendientes reales: P9 en C1 tras publicar el #228, P14-L3 y la consulta de Miguel. #228: manejador propio para «Registrar el corregido» que pide guardar o cerrar la encuesta abierta antes de corregir, con dos pruebas dirigidas." },
     { "at": "2026-10-09T14:21:00Z", "texto": "Arranque del 09/10: #227 y #228 sin novedades desde el aviso 6071561773 (00:11 UTC); turno del agente de Miguel. #230 de Miguel fusionado (ajeno a llamadas); el #228 queda atrás de main sin conflictos. Vigilante de #227 y #228 rearmado. Pendientes del día: MacroDroid en C1 antes de las 15:50 Lima y lectura de P14-L3." },
     { "at": "2026-10-09T14:28:00Z", "texto": "P14-L3 PASS en C1 (captura del registro de MacroDroid, 09/10 09:24 Lima): latidos «(25) Solicitud HTTP» con 200 a las 18:40:11 del 08/10 y a las 00:40:12 y 06:45:12 del 09/10, sin fallas entre ellos. El de las 18:40 es posterior a devolver los chips: C1 siguió bien. El de las 06:45 sale una vuelta tarde (la condición es más de 21599 s y el sello va un segundo después de la vuelta). P14 completa; F4.3.2, F4.4.2 y F4.4.3 siguen abiertas (baja, atribución, P9 y la consulta de Miguel)." },
-    { "at": "2026-10-09T14:33:00Z", "texto": "MacroDroid de C1 renovado (09/10 ~09:30 Lima, Jhosep): «Añadir Días Gratuitos» con un anuncio, antes de que vencieran a las ~15:50. Pro sigue sin comprar por decisión de Jhosep mientras duren las pruebas de F4-d. Próxima renovación esperada hacia el 12/10 (el contador no se leyó en pantalla). Incidencia de §6 de REGISTRO.md al día." }
+    { "at": "2026-10-09T14:33:00Z", "texto": "MacroDroid de C1 renovado (09/10 ~09:30 Lima, Jhosep): «Añadir Días Gratuitos» con un anuncio, antes de que vencieran a las ~15:50. Pro sigue sin comprar por decisión de Jhosep mientras duren las pruebas de F4-d. Próxima renovación esperada hacia el 12/10 (el contador no se leyó en pantalla). Incidencia de §6 de REGISTRO.md al día." },
+    { "at": "2026-10-09T14:56:00Z", "texto": "#228 aprobado por Miguel (revisión 5471718580, 14:55 UTC, sin comentarios), después de actualizarlo con main (90ef9d30, merge de a3b89cc4 sin tocar los siete archivos del arreglo). Bloqueado solo por el check app-check en curso; sin fusionar ni publicar todavía. #227 sin novedad." }
   ]
 }

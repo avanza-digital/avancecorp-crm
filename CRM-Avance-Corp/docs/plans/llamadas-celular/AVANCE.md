@@ -1,10 +1,10 @@
 # Avance — Llamadas desde el celular al CRM
 
-Actualizado: 09/10/2026, 09:33 a. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
+Actualizado: 09/10/2026, 09:56 a. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
 
 Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact/Q3GmV9m6Cy2GPQGKAbNy8M · Plan completo: `PLAN.md` en esta carpeta.
 
-**Lo último:** 09/10 14:33 UTC (09:33 Lima): MacroDroid de C1 renovado por Jhosep con un anuncio, antes de vencer a las ~15:50; el próximo vencimiento se espera hacia el 12/10. P14 completa (L3 PASS). #227 y #228 siguen en turno del agente de Miguel. Pendientes: P9 en C1 tras publicar el #228 y la consulta sin números de Miguel.
+**Lo último:** 09/10 14:56 UTC (09:56 Lima): Miguel APROBÓ el #228 (arreglo de P9) a las 14:55 UTC, tras actualizarlo con main (90ef9d30, merge limpio: nuestros siete archivos quedan iguales). Falta que termine el check de la app, que lo fusione y que lo publique; entonces se repite P9 en C1. El #227 sigue sin comentario de su agente. MacroDroid de C1 renovado (próximo, hacia el 12/10).
 
 **Total:** 33 de 102 tareas · 1 de 8 fases hechas.
 
@@ -136,6 +136,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 
 ## Últimos cambios
 
+- 09/10/2026, 09:56 a. m. · #228 aprobado por Miguel (revisión 5471718580, 14:55 UTC, sin comentarios), después de actualizarlo con main (90ef9d30, merge de a3b89cc4 sin tocar los siete archivos del arreglo). Bloqueado solo por el check app-check en curso; sin fusionar ni publicar todavía. #227 sin novedad.
 - 09/10/2026, 09:33 a. m. · MacroDroid de C1 renovado (09/10 ~09:30 Lima, Jhosep): «Añadir Días Gratuitos» con un anuncio, antes de que vencieran a las ~15:50. Pro sigue sin comprar por decisión de Jhosep mientras duren las pruebas de F4-d. Próxima renovación esperada hacia el 12/10 (el contador no se leyó en pantalla). Incidencia de §6 de REGISTRO.md al día.
 - 09/10/2026, 09:28 a. m. · P14-L3 PASS en C1 (captura del registro de MacroDroid, 09/10 09:24 Lima): latidos «(25) Solicitud HTTP» con 200 a las 18:40:11 del 08/10 y a las 00:40:12 y 06:45:12 del 09/10, sin fallas entre ellos. El de las 18:40 es posterior a devolver los chips: C1 siguió bien. El de las 06:45 sale una vuelta tarde (la condición es más de 21599 s y el sello va un segundo después de la vuelta). P14 completa; F4.3.2, F4.4.2 y F4.4.3 siguen abiertas (baja, atribución, P9 y la consulta de Miguel).
 - 09/10/2026, 09:21 a. m. · Arranque del 09/10: #227 y #228 sin novedades desde el aviso 6071561773 (00:11 UTC); turno del agente de Miguel. #230 de Miguel fusionado (ajeno a llamadas); el #228 queda atrás de main sin conflictos. Vigilante de #227 y #228 rearmado. Pendientes del día: MacroDroid en C1 antes de las 15:50 Lima y lectura de P14-L3.
@@ -150,4 +151,3 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 - 08/10/2026, 02:45 p. m. · P15-A6 PASS en C1 (08/10 ~14:35): sin red, llamada y encuesta cerrada sin guardar (cola 1); reinicio: MacroDroid activado y cola 1 intacta; con red, cola 0 sola, la llamada en Pendientes y registrada desde ahí quedó unida (Qué pasó hoy 4). Confirmación de Jhosep paso a paso. P15 completa.
 - 08/10/2026, 02:35 p. m. · P15-A3 PASS en C1 (08/10 14:23–14:25, Wi-Fi apagado, 4G): dos llamadas seguidas a «prueba leeds», «No contestó» en las dos, la primera con «Quedará unido…» y la segunda «Quedó unido…»; Qué pasó hoy 3, Pendientes 0, colas en 0.
 - 08/10/2026, 02:25 p. m. · P15-prueba 6 PASS en C1 (08/10 ~14:20): búsqueda «http» en el registro de MacroDroid, ninguna línea muestra la clave (solo paso, URL en los fallos y código). Confirma con horas: sin internet 10:25–10:35 y latido 200 a las 10:39; P13 202 a las 11:25; P12 sin envío; P11 401 ×3 (12:05–12:10) y 202 a las 12:15; latido forzado 200 a las 12:40. Observación: «Abrir sitio web» deja el número marcado en el registro del celular.
-- 08/10/2026, 01:30 p. m. · Idea de Jhosep, SOLO como propuesta para Miguel en el comentario de cierre de F4-d (no la construimos nosotros): en la encuesta, el analista elige a qué tarea de llamada pendiente pertenece la llamada (hoy solo se propone una que venza hoy o antes, y solo si es única; una llamada adelantada queda pendiente). Reglas: solo llamada y propias, una por llamada, preselección actual intacta, futuras sin marcar, opción «Ninguna». Antes: efecto en SLA, prototipo, Miguel. Hallazgo H-P11: el arreglo va en la guía (al rotar, ultimo_latido = 0).
