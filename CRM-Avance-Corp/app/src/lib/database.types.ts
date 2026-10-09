@@ -6034,6 +6034,10 @@ export type Database = {
         }
         Returns: Json
       }
+      corregir_categoria_contrato_fn: {
+        Args: { p_categoria: string; p_contrato_id: string; p_motivo: string }
+        Returns: Json
+      }
       corregir_cierre_externo: {
         Args: {
           p_cierre_id: string

@@ -13,7 +13,8 @@ const VISTAS_POR_GATE = {
     vendedor: ['hoy', 'alertas', 'seguimiento', 'gestion-diaria', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'rescate', 'config'],
     supervisor: ['hoy', 'alertas', 'seguimiento', 'gestion-diaria', 'reuniones', 'facturacion', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'rescate', 'rescate-carpeta', 'derivaciones', 'equipo'],
     gerencia: ['hoy', 'alertas', 'seguimiento', 'gestion-diaria', 'conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento', 'facturacion', 'informes-empresas', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'repartir', 'rescate', 'rescate-carpeta', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla', 'config-gestion-diaria', 'config-rentabilidad', 'config-celulares'],
-    directorio: ['hoy', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla', 'config-gestion-diaria', 'config-rentabilidad'],
+    // Directorio ve Facturación en lectura desde el 08/10/2026 (Miguel: «sí, que la vea»).
+    directorio: ['hoy', 'facturacion', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla', 'config-gestion-diaria', 'config-rentabilidad'],
     // El coordinador NO entra al mundo leads ni con la llave abierta (2026-08-18):
     // «hoy» es la única vista de leads sin capacidad exigida y se la habría
     // regalado. Su ámbito de leads es ∅ y su destino único es «Repartir».
@@ -24,7 +25,7 @@ const VISTAS_POR_GATE = {
     // Facturación no es del mundo leads: sobrevive a la llave cerrada (16/09/2026).
     supervisor: ['reuniones', 'facturacion', 'mi-cartera', 'derivaciones', 'equipo'],
     gerencia: ['hoy', 'alertas', 'conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento', 'facturacion', 'informes-empresas', 'mi-cartera', 'repartir', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla', 'config-gestion-diaria', 'config-rentabilidad', 'config-celulares'],
-    directorio: ['mi-cartera', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla', 'config-gestion-diaria', 'config-rentabilidad'],
+    directorio: ['facturacion', 'mi-cartera', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla', 'config-gestion-diaria', 'config-rentabilidad'],
     coordinador: ['repartir'],
   },
 } as const satisfies Record<'abierto' | 'cerrado', Record<Rol, readonly Vista[]>>

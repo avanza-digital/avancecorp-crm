@@ -17232,3 +17232,149 @@ dos cierres de un lead —imposible: índice único `conversion_acreditaciones_l
 calendario exacto buscado por `p_desde`—). **Codex r2 (última): sin P0/P1**; su P2 condicionado (un analista visible solo en `fuera_foto` contaría en el abierto y no en el
 sellado) queda refutado por el código: `fuera_foto` solo existe con `v_global` (`where v_global and …`), así que un actor de equipo o propio no suma el fuera de ranking ni en el
 numerador ni en el aporte, y la prueba M4c (supervisor, con C fuera de su equipo) lo cubre; su P3 (mapa malformado) exige otra ruta de escritura que no existe (solo `cerrar_periodo`, y la foto es append-only).
+
+## 20261009120000 — Categoría del contrato = la de su operación de cartera (puerta de Gerencia + prevención en toda vía)
+
+**Estado:** ✅ **APLICADA EN PRODUCCIÓN (08/10/2026)** — migración a las 22:55 Lima y registrada (md5 `f054d9fe…`); datos con
+`2-REAL.sql` («OK: 12 contratos de nuevo a upgrade») y `oraculo-despues.sql` **PASS** a las 23:49 Lima (detalle en «Producción», al final).
+Construida y ensayada antes en un banco Docker local (stack propio `avancecorp-categoria-20261008`, esquema de producción volcado por
+Miguel el 08/10 a las 19:14).
+Decisión de Miguel (08/10/2026, auditoría de Facturación): **«El tipo de un contrato lo decide la operación de cartera»** (opción B);
+OK para tocar `public.contratos` (puerta + trigger); la puerta es SOLO para Gerencia. Corregir antes de que `crm-cierre-mes-diario`
+selle septiembre (podrá desde el 11/10 00:00 Lima; corre 09:20 Lima).
+**Por qué (medido en producción, solo lectura, 08/10 19:11):** 12 contratos de septiembre (8 en soles, S/ 2.092.254; 4 en dólares,
+US$ 54.971) están en 'nuevo' con una operación 'upgrade' (fuente `flujo_cartera`) creada DESPUÉS del contrato; nacieron 'nuevo' y nadie
+les cambió la categoría; PDF congelado (9 sellados, 3 pendientes sin archivo), producto legacy, nadie cambia de dueño en conversión.
+11 de los 12 son el backfill B del 23/09 (`supabase/scripts/backfill-conversion-2026-09/backfill-B-setiembre-2026.sql`), que insertó la
+operación «sin tocar contratos». El único escritor de operaciones en el servidor es `public.crear_contrato` (vivo = `20260908211349`),
+que escribe la MISMA categoría en contrato y operación: el error entra por un INSERT directo de la operación. Por eso la regla vive en
+triggers (toda vía), no solo en una puerta.
+**Qué hace:** (1) núcleo `private.fijar_categoria_contrato` (INVOKER, solo postgres): solo en READ COMMITTED (25001); candados en el
+orden del sello —el del mes (día comercial leído sin bloquear), después la fila— y revalida el mes (40001, reintenta); sin cambio no
+escribe; en eliminación 55000; mes sellado P0409; respaldo: con operación la categoría es la suya y sin operación solo 'nuevo' (23514);
+durante el UPDATE, declaración de origen vacía y congelación del PDF abierta SOLO para ese contrato, y los dos GUC vuelven a su valor
+anterior después (también si falla); UPDATE solo de `categoria`; fila de motivo en `public.audit_log` (`tabla = 'contratos.categoria'`);
+sin revisión de PDF.
+(2) puerta `crm.corregir_categoria_contrato_fn(p_contrato_id, p_categoria, p_motivo)` (DEFINER; molde `crm.corregir_fecha_cierre_comercial`):
+solo Gerencia CRM vigente con la membresía sin revocar, motivo de 5 a 300; devuelve `{cambio:false}` si ya la tiene.
+(3) `trg_operaciones_cartera_10_fija_categoria` (AFTER INSERT OR UPDATE OF tipo, contrato_nuevo_id): la operación decide; una
+renovación o un upgrade solo se registran en READ COMMITTED (25001, antes de cualquier candado); SIEMPRE
+bloquea el contrato (mes y fila) antes de leer su categoría, también cuando ya coincide; si difiere, la categoría pasa a la suya en la misma
+transacción por el núcleo (mes sellado ⇒ P0409 y la operación no entra). En el alta normal ya coincide: no toca nada más (tampoco la
+declaración de origen del upgrade).
+(4) `trg_contratos_01_categoria_por_operacion` (AFTER UPDATE en `public.contratos`, por fila, WHEN la categoría cambió): una categoría
+solo cambia en READ COMMITTED (25001, antes de buscar la operación; vale también para contratos sin operación); mira la fila
+FINAL; con operación, la categoría tiene que ser la de la operación (23514 «La categoría la decide la operación de cartera»); sin
+operación no se restringe (los ~106 de marzo a julio).
+**Sincronizar y no rechazar (decisión con evidencia):** el alta (`crear_contrato`) ya escribe la misma categoría, así que la sincronización
+no cambia el flujo normal (probado: altas de upgrade y renovación pasan sin fila de motivo y con la declaración de origen intacta); el único
+camino del error es un INSERT directo como el del backfill B, que «no tocaba contratos» porque nada obligaba: con la sincronización ya no
+se puede olvidar; y es literalmente la regla de Miguel. Rechazar habría dejado la corrección como un paso aparte (el que se omitió).
+**Efecto conocido:** «Corregir» (CRM `contrato-corregir.tsx` y portal) que hoy cambia en silencio la categoría de un contrato con
+operación —p. ej. al elegir una condición de catálogo— recibirá el 23514 (la pantalla, después: categoría de solo lectura).
+**Preflight:** las 12 huellas R7 (md5 de `pg_get_functiondef` con `public` en el `search_path`, medidas en producción el 08/10 19:11),
+definición (md5 de `pg_get_functiondef`)+dueño+ACL de 9 piezas más (crear_contrato y su envoltorio, append-only, rol_crm, membresía,
+eliminación, congelado, snapshot legacy, auditoría), los 15 triggers de `public.contratos` (R7) y los 2 de la cartera exactos y
+habilitados, unicidad de `contrato_nuevo_id` y nombres libres; después toma `public.contratos` y `crm.operaciones_cartera` en el orden
+del alta (evita un interbloqueo con un alta de upgrade a medias). **Postflight:** dueño postgres, `search_path` vacío, SECURITY como se declara, ACL exacta (sin
+PUBLIC ni anon), triggers con su forma, piezas previas intactas, ningún dato escrito y dos pruebas en negativo que se deshacen.
+**Banco (08/10, primera versión):** re-volcado del banco = volcado de producción (solo orden de dos bloques y paréntesis de 3 CHECK); R7 12/12.
+Gate `test-rls.mjs` (rojos normalizados, comparados aserción por aserción): A (sin migración, 1.ª pasada) 43/3040 · B (con migración)
+44/3042 · C (sin migración, tras la reversa) 44/3042 · D (versión final, con el bloque nuevo «Categoría por operación»: 13/13 en verde)
+44/3056 · E (sin migración: el bloque se salta) 44/3043 · **B = C = D = E: 0 rojos nuevos** (los 44 son de fondo: la política de
+llamadas que falta en la configuración del 02/10, R2, la bandera potencial_lead, B7 por `relacl` nulo; el +1 frente a A es la fila
+bancaria del cliente demo en la segunda pasada). `prueba.sql` 76/76 · `mutantes.py` 13 de 13 mueren por aserción (2 controles de
+defensa duplicada sobreviven a propósito) · preflight en negativo (deriva de una pieza R7 y segunda aplicación ⇒ P0409, sin candados
+retenidos) · `1-ENSAYO.sql` «LISTO PARA 2-REAL» · `2-REAL.sql` OK (movido S/ 2.092.254 y US$ 54.971, total por moneda igual, conversión
+igual, sin P0410, libro firmado por Gerencia) · oráculo del banco PASS · ENSAYO/REAL se niegan con septiembre sellado · `reversa.sql` +
+`reversa-datos.sql` ⇒ huella del esquema = la de antes y los 12 de vuelta a 'nuevo'.
+**Lo que también se mueve (para Miguel, lo muestran el ENSAYO y el REAL):** la tarjeta de rentabilidad (últimos 30 días): cada
+corrección deja una fila más en el libro como upgrade «sin_regla» (base = su tasa), así que esos contratos dejan de contar como
+«ceden»; en el banco, con las tasas de los 12, el cedido en soles pasó de 217.361 a 6.190 y «sin_regla» de 2 a 14. Y el Ranking por
+origen: un contrato que no es 'nuevo' cuenta como «cartera» (en el banco no cambió porque su operación ya lo ponía en «cartera»; en
+producción depende de sus leads y lo dirá el ENSAYO).
+**Orden en producción (Miguel con `!`):** migración → registrador `supabase/scripts/categoria-por-operacion/registrar/20261009120000.sql`
+→ `npm run gen:types` en `app/` (la puerta es nueva en `crm`; los tipos se regeneran DESPUÉS de aplicar) → `1-ENSAYO.sql` → `2-REAL.sql`
+→ `oraculo-despues.sql` en PASS. No sellar septiembre sin PASS. Detalle en `supabase/scripts/categoria-por-operacion/LEEME.md`.
+**Codex r1: BLOCK — corregido y vuelto a probar entero.** (F1, P1) la sincronización bloquea SIEMPRE la fila antes de leer la categoría:
+probado con dos conexiones en los dos órdenes (T1 UPDATE sin confirmar + T2 INSERT de la operación ⇒ T2 espera y deja upgrade/upgrade;
+al revés ⇒ T1 recibe 23514). (F2, P1) el núcleo rechaza todo aislamiento distinto de READ COMMITTED (25001; bajo REPEATABLE READ la puerta
+y la sincronización se niegan; el alta normal ya lo exigía antes: 0A000 de la identidad unificada). (F3, P2) candados mes → fila con
+revalidación (40001) en el núcleo, la sincronización, los guiones y la reversa de datos; probado contra un «sello» que retiene el mes (sin
+interbloqueo) y con el día comercial cambiado mientras se espera (40001, no escribe). (F4) 1-ENSAYO, 2-REAL y reversa-datos funcionan como
+UN mensaje (lo que hace `db query -f`): nada antes del BEGIN, READ COMMITTED, candado del mes primero y `lock table … in share mode` sobre lo
+que se mide; probados enteros con `psql -c "$(cat …)"`, también fallando a mitad (el REAL con el contrato 11 en eliminación después de
+corregir 10: no escribe nada) y sin ningún candado de aviso tomado después; la migración, también en un mensaje y fallando (segunda
+aplicación). (F5) guarda AFTER … WHEN (antes BEFORE OF categoria). (F6) el núcleo repone la declaración de origen; ENSAYO y REAL exigen
+UNA fila del libro por contrato firmada por Gerencia, comparan la conversión por analista (numerador y divisor) y abortan si la medición
+de rentabilidad o de ranking falla; el postflight exige 23514 Y el texto (sobre un contrato legacy con operación); reversa-datos comprueba
+eliminación y firma el libro; LEEME explica que reversa.sql y reversa-datos.sql son dos transacciones y cómo salir si falla la segunda.
+**Banco rehecho desde cero** (volumen nuevo, `banco/montar.sh` del repo; huella del esquema = la del primer banco, R7 12/12):
+gate A2 (sin migración) 43/3040 · B2 (con la versión final; el bloque nuevo 13/13 en verde) 44/3055 · C2 (tras la reversa) 44/3042 ·
+**B2 = C2 aserción por aserción** · `prueba.sql` 81/81 + aislamiento · `concurrencia.py` 4/4 · `mutantes.py` **19 de 19 mueren** (uno por
+cada arreglo: sin FOR UPDATE en la sincronización, sin rechazo de aislamiento, orden de candados invertido, guarda BEFORE, sin reponer
+el GUC, sin revalidar el mes; 2 controles sobreviven a propósito) · ENSAYO «LISTO PARA 2-REAL», REAL OK y oráculo PASS, todo en un mensaje.
+**Codex r2: BLOCK (3 hallazgos) — corregido y vuelto a probar.** (N1, P1) con una foto REPEATABLE READ anterior a la operación, la
+guarda AFTER no la veía y dejaba pasar 'nuevo' con operación 'upgrade' (la operación llega por el camino que coincide y no reescribe
+la fila): la guarda responde 25001 fuera de READ COMMITTED ANTES de buscar la operación, y la sincronización igual al empezar (antes
+del candado); probado con dos conexiones con ese intercalado exacto (T1 RR abre la foto → T2 RC registra la operación → T1 pasa el
+contrato a 'nuevo' ⇒ 25001, queda upgrade/upgrade). Consecuencia: la migración abre su transacción en READ COMMITTED (no REPEATABLE
+READ como la convención de la casa), porque su postflight cambia una categoría; y cualquier SQL futuro que cambie una categoría o
+registre una renovación/upgrade, también una migración, tiene que ir en READ COMMITTED (la API ya lo hace). Código 25001 como pidió
+Codex (y como el núcleo desde r1); la casa usa 0A000 para «requiere READ COMMITTED» en ~40 funciones: la app no mapea ninguno de los
+dos para contratos. (N2, P1) 1-ENSAYO, 2-REAL y reversa-datos abren con `begin isolation level read committed;` (no heredan el
+aislamiento de la sesión) y lo comprueban (25001); probado con `default_transaction_isolation = 'repeatable read'` en la sesión y con
+un sello de septiembre simulado en curso y confirmado: reversa-datos no escribe sobre un mes sellado. (N3, P2) el orden «mes → lock
+table SHARE» podía cerrar un círculo con un alta a medias (el alta ya tiene `public.contratos` y el mes, que toma en
+`definir_periodo_comercial_contrato`): los tres guiones toman ahora, SIN ESPERAR y en este orden, `lock table … in share mode nowait`
+(22 tablas), `pg_try_advisory_xact_lock` del mes y las 12 filas `for update nowait`; si algo está tomado abortan al instante con «Hay
+actividad en curso: vuelve a correr el guion en unos minutos» y no escriben nada (bloque `$candados$` idéntico en los tres). El sello
+mensual (`crm.cerrar_periodo`) escribe `crm.conversion_acreditaciones` (trigger `trg_conversion_fijar_sello`), que es una de las 22, y
+toma `crm.equipo` en SHARE: con NOWAIT no hay círculo, el guion sale. La migración y `reversa.sql` conservan el candado de sesión
+`crm_migracion_funciones`; el LEEME da la consulta a `pg_locks` para comprobar que se soltó antes de reintentar si fallan a mitad.
+**auditor-rls r2** (sobre la versión final): sin P0/P1; P2 el registrador era el de r1 ⇒ regenerado (md5 f054d9fe…) y probado (se
+niega con otro contenido, registra, idempotente); P3 aplicados: la prueba en negativo 2 del postflight ya no elige un contrato en
+eliminación; el ledger recoge r2; y el interbloqueo que sospechó se COMPROBÓ en el banco: corregir la fecha
+(`crm.corregir_fecha_cierre_comercial`, pieza previa: fila → mes) y la categoría (mes → fila) del mismo contrato a la vez ⇒ Postgres
+aborta una con 40P01 (en el banco, la puerta) y la otra termina; lo que aborta no escribe nada (escenario N4 de concurrencia.py).
+**Banco r2** (mismo volumen; la versión de r1 se retiró con su reversa y se aplicó la final en UN mensaje desde una sesión REPEATABLE
+READ: postflight OK): `prueba.sql` 81/81 + 6/6 bajo REPEATABLE READ (puerta, sincronización por sus dos caminos y guarda con y sin
+operación ⇒ 25001; editar notas pasa) · `concurrencia.py` 9/9 (P0 bloque idéntico, C1–C4, N1, N2, N3, N4; 0 candados de aviso tras
+cada uno) · `mutantes.py` **23 de 23 mueren** (21 de funciones y triggers + 2 del bloque de candados; los nuevos: guarda sin rechazo de aislamiento ⇒ F2c, F2d y N1; sincronización sin rechazo ⇒ F2b y F2e; guiones sin NOWAIT ⇒ N2 y N3; guiones sin READ COMMITTED ⇒ N2; 2 controles sobreviven a propósito) · `transporte.py` 12/12 (todo en un mensaje como `postgres`: ENSAYO «LISTO» con sesión RC y RR;
+REAL frente a un sello y a un alta en curso ⇒ sale al instante sin escribir; REAL que falla en el contrato 11 ⇒ nada escrito; REAL con
+sesión RR ⇒ OK y oráculo del banco PASS; reversa.sql; reversa-datos frente a un sello en curso ⇒ sale, con septiembre sellado ⇒ se
+niega, y OK con sesión RR; la migración otra vez con sesión RR ⇒ OK; 0 candados tras cada paso) · gate (al final: su limpieza borra las personas del mundo) A3 sin la migración 44/3043 · B3 con la versión final 44/3056 (el bloque nuevo 13/13 en verde) · **A3 = B3 aserción por aserción** y los mismos 44 de fondo que B2/C2 de r1 · migración final md5 `f054d9fe112bfe215fd98b84055f7237`, registrador regenerado con ese md5.
+**Revisión anterior:** auditor-rls r1 APPROVE_WITH_CHANGES (sin P0/P1). Aplicado: medir Ranking por origen y tarjeta de rentabilidad en
+ENSAYO/REAL (P2); bloque nuevo en `test-rls.mjs` (P2); candado de septiembre ANTES de la foto en ENSAYO/REAL/reversa-datos
+(P3: con la foto tomada antes del candado, un sello en marcha no se veía; desde Codex r1/r2 los tres van en READ COMMITTED y sin esperar); libro y bitácora firmados por Gerencia (P3); orden de
+candados de la migración (P3); preflight por `pg_get_functiondef` (P3); caso P7 y mutante M13 de la salida temprana (P3); el oráculo
+admite que un PDF pendiente se selle después (P3); identidad de Gerencia única o aborta. **No aplicado (con razón):** «toda vía» en el
+sentido inverso —un contrato SIN operación puede seguir pasando a upgrade/renovación por «Corregir»— porque la instrucción fue «si no
+tiene operación, no se restringe (legacy)»: **queda como decisión de Miguel** (cerrarlo = el trigger solo admite 'nuevo' al cambiar la
+categoría de un contrato sin operación; hay que pasar el gate); idempotencia antes del respaldo (orden del molde y de la instrucción:
+pedir 'nuevo' sobre un incoherente responde `{cambio:false}`); la versión con fecha del 09/10 (pedida así).
+**NOT RUN:** advisors (son de la nube), e2e y `npm run check` (no toca `app/`), `test:rls:preflight` sin credenciales, producción.
+(Codex r1 y r2 los corrió el coordinador: ver arriba.)
+**Límites conocidos:** un contrato con condición de CATÁLOGO 'nuevo' no puede pasar a 'upgrade' (el trigger de producto lo rechaza con
+23514; los 12 son legacy); corregir a la vez la fecha y la categoría del mismo contrato puede abortar una de las dos con 40P01 (se
+reintenta; nada queda a medias): para quitarlo, `crm.corregir_fecha_cierre_comercial` tendría que tomar el mes antes que la fila
+(cambio aparte, sobre una pieza previa); ENSAYO y REAL bloquean unos segundos las escrituras en 22 tablas (también `crm.leads`):
+mejor de noche; la puerta deja volver a 'nuevo' un upgrade o renovación ANTIGUO sin operación en un mes abierto
+(de marzo a julio no hay meses sellados); con la política en enforcement, corregir a 'renovacion' un contrato cuya tasa no sea la heredada
+daría P0410, y `reversa-datos.sql` (vuelta a 'nuevo', base 15) abortaría: hoy la política está en observación (v18).
+**Reversa:** `supabase/scripts/categoria-por-operacion/reversa.sql` (esquema; no toca datos) y, si Miguel quiere deshacer los datos,
+`reversa-datos.sql` DESPUÉS (solo con septiembre abierto). La fila de `schema_migrations` se conserva (regla de la casa).
+**Producción (08/10, Miguel con `!`):** migración (última fila `pg_advisory_unlock = true`: preflight y postflight OK) → registrador
+(versión `20261009120000`, md5 del archivo `f054d9fe112bfe215fd98b84055f7237`) → el 1.er `1-ENSAYO.sql` **abortó sin escribir**: hay 3
+perfiles de Gerencia (ADMINISTRADOR AVANCE CORP, CARLOS VALLES, KIRK SANCHEZ) y la regla del banco («el que se llame como el perfil de
+pruebas») no casaba con ninguno → Miguel eligió **ADMINISTRADOR AVANCE CORP** y los tres guiones fijan su prefijo (`c_firma_prefijo =
+'bf1c562e'`; abortan si no es UN perfil con rol gerencia vigente) → 2.º ENSAYO «LISTO PARA 2-REAL» → `2-REAL.sql` OK → oráculo **PASS**
+(los 12 upgrade/upgrade con el PDF intacto, capital por moneda y por analista como lo esperado, conversión igual, deriva vacía,
+septiembre abierto). Movido de «nuevo» a «upgrade»: S/ 2.092.254 y US$ 54.971 (Marzano S/ 1.116.900 · García S/ 577.554 · Fuenmayor
+S/ 150.000 · Centenaro S/ 100.000 + US$ 1.400 · Núñez S/ 97.800 + US$ 53.571 · Condori S/ 50.000); total por moneda igual
+(S/ 7.803.152,21 · US$ 440.135,63); conversión 129,35/1.655 igual; Ranking por origen sin cambios; tarjeta de rentabilidad (30 días):
+cedido S/ 366.805 → 260.920 y US$ 8.335 → 8.057, ceden 156 → 147, sin_regla 4 → 16, contratos 261 → 263 (2 vuelven a la ventana por el
+movimiento de hoy). Tipos regenerados (solo la puerta nueva).
+**Banco y firma:** el banco tiene UNA Gerencia («MIGUEL BANCO», `ca7e0000-0000-4000-8000-000000000001`): para volver a correr
+`transporte.py`, `concurrencia.py` o `mutantes.py` hay que poner ese id en `c_firma_prefijo` de los tres guiones. No se re-corrieron
+tras fijar la firma (el bloque de candados no cambió y el ENSAYO de producción ejercitó la regla nueva).

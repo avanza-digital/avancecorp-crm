@@ -1,8 +1,9 @@
 // screens/facturacion.tsx — Facturación: el mes entero, día a día, por
-// supervisor y por analista. Pantalla de Gerencia y, desde el 16/09/2026, de
+// supervisor y por analista. Pantalla de Gerencia; desde el 16/09/2026 también de
 // Supervisión: el supervisor ve el avance de SU equipo (el servidor recorta el
 // ámbito a las filas cuyo supervisor de entonces es él, más sus ventas propias;
-// aquí no se filtra nada por rol).
+// aquí no se filtra nada por rol). Desde el 08/10/2026 también de Directorio,
+// en lectura: como lector global, el servidor ya le daba la empresa entera.
 //
 // La malla es el diseño: 30 columnas de día × filas de equipo con sus analistas
 // anidados. La columna de nombres y la de total quedan congeladas; la cabecera
@@ -54,7 +55,7 @@ import { useAuth } from '@/lib/auth-context'
 import { useCRMData } from '@/lib/store-context'
 import { useEsEstrecha, useEsTactil } from '@/lib/media'
 import { useTipoCambio } from '@/lib/tipo-cambio'
-import { rotuloTipoCambio } from '@/lib/capital-unificado'
+import { totalEnSoles } from '@/lib/capital-unificado'
 import { useValorDiferido } from '@/lib/use-valor-diferido'
 import { normalizar } from '@/lib/clientes-vista'
 import { formatDateLocal } from '@/lib/cronograma'
@@ -105,9 +106,25 @@ import {
 } from '@/lib/facturacion'
 import { money, numero, type Moneda } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import './facturacion-movil.css'
 
 /** Referencia estable: un `[]` nuevo en cada render invalidaría los useMemo. */
 const SIN_FILAS: readonly FilaFacturacionDia[] = []
+
+/**
+ * La tasa dicha en castellano, sin siglas: «tipo de cambio S/ 3.751 (SBS,
+ * promedio de 7 días hábiles)». La fuente llega de la edge como
+ * «SBS · prom. 7d» (y «… al 31/10/2026» en un mes cerrado); el rótulo
+ * compartido `rotuloTipoCambio` la pinta tal cual, con «TC» y «prom. 7d».
+ * Regla de Miguel: nada de siglas en pantalla. (Auditoría 08/10/2026.)
+ */
+function rotuloTasa(tcAplicado: number, fuente: string): string {
+  const legible = fuente
+    .replace(/\bprom\.\s*(\d+)\s*d\b/i, (_, dias: string) =>
+      `promedio de ${dias} ${dias === '1' ? 'día hábil' : 'días hábiles'}`)
+    .replace(/\s*·\s*/g, ', ')
+  return `tipo de cambio S/ ${numero(tcAplicado, 4)}${legible === '' ? '' : ` (${legible})`}`
+}
 
 /**
  * Lo que se pinta en la malla. Dos monedas puras y una tercera vista, TOTAL,
@@ -286,7 +303,9 @@ function Celda({
           onClick={onAbrir}
           title={texto}
           aria-label={texto}
-          className="block w-full cursor-pointer rounded-md transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+          // La reserva va en lo que RECIBE el foco: en el <td> no cuenta, y el
+          // foco quedaba entero bajo la cabecera fija (SC 2.4.11). (a11y 08/10/2026.)
+          className="block w-full cursor-pointer scroll-mt-14 scroll-ml-52 scroll-mr-32 rounded-md transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
         >
           {contenido}
         </button>
@@ -349,14 +368,14 @@ function FilaAnalista({
             checked={marcado}
             onChange={onMarcar}
             aria-label={`Comparar a ${fila.nombre}`}
-            className={cn('shrink-0 accent-[var(--accent)]', tactil ? 'size-6' : 'size-4')}
+            className={cn('shrink-0 scroll-mt-14 accent-[var(--accent)]', tactil ? 'size-6' : 'size-4')}
           />
           <button
             type="button"
             onClick={onAbrirMes}
             title={`Ver el mes completo de ${fila.nombre}`}
             aria-label={`Ver el mes completo de ${fila.nombre}`}
-            className="flex min-h-9 min-w-0 flex-1 items-center gap-2.5 py-1 pr-3 text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+            className="flex min-h-9 min-w-0 flex-1 scroll-mt-14 items-center gap-2.5 py-1 pr-3 text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
           >
             <Avatar nombre={fila.nombre} className="facturacion-analista-avatar size-7 shrink-0" />
             <span className="min-w-0">
@@ -503,6 +522,12 @@ export function Facturacion({
 
   // Corte del mes en curso: los días que aún no han pasado salen vacíos.
   const corte = mes === mesDeHoy ? hoy : formatDateLocal(new Date(9999, 0, 1))
+  // El divisor del promedio se corta en HOY solo si el tramo CONTIENE hoy. No
+  // depende del mes del ancla: la semana del 28/09 al 04/10 mirada el 01/10 tiene
+  // el ancla en setiembre y aun así sus días 02 a 04 no han pasado. Contarlos
+  // hundía el promedio un 33 %, y la misma semana daba cifras distintas según se
+  // llegara a ella. (Auditoría 08/10/2026.) `null` = tramo cerrado: cuenta entero.
+  const corteDelTramo = diasDelTramo.includes(hoy) ? hoy : null
 
   // El servidor solo se consulta cuando no hay fixture de prueba ni modo demo.
   // Las consultas cuelgan de `crmQueryKeys.raiz`: el cierre de sesión las borra.
@@ -633,10 +658,39 @@ export function Facturacion({
   // sola —para no rotular «Todo» sobre una tabla que solo trae soles— y un
   // aviso dice por qué y ofrece reintentar. Mientras la tasa se consulta NO se
   // repliega: sería un salto de cifras a los dos segundos.
-  const sinTasaParaTotal = vista === 'TOTAL' && tc === null
-  const consultandoTasa = vista === 'TOTAL' && tc === undefined
+  //
+  // REINTENTAR NO DESMONTA EL BOTÓN. `recargar()` pone la tasa en «consultando»
+  // en el mismo render del clic; sin este estado el aviso (y el botón del pie)
+  // desaparecían con el foco dentro y el foco caía en <body> (WCAG 2.4.3). Ahora,
+  // mientras se reintenta, todo sigue montado y dice «Consultando…». Se apaga
+  // solo en cuanto la tasa resuelve, llegue o no. (Revisión a11y 08/10/2026.)
+  const [reintentandoTasa, setReintentandoTasa] = useState(false)
+  if (reintentandoTasa && tc !== undefined) setReintentandoTasa(false)
+  const reintentando = reintentandoTasa && tc === undefined
+  const sinTasaParaTotal = vista === 'TOTAL' && (tc === null || reintentando)
+  const consultandoTasa = vista === 'TOTAL' && tc === undefined && !reintentando
   const vistaEfectiva: VistaMoneda = sinTasaParaTotal ? 'PEN' : vista
   const totalSinTasa = consultandoTasa
+  // Si la tasa llega mientras el foco estaba en un botón de reintento, ese botón
+  // se desmonta (ya no hace falta): el foco va a la moneda que se está viendo.
+  const grupoMonedaRef = useRef<HTMLDivElement>(null)
+  const focoEnReintento = useRef(false)
+  const reintentarTasa = (): void => {
+    if (reintentando) return
+    focoEnReintento.current =
+      document.activeElement instanceof HTMLElement &&
+      document.activeElement.dataset.reintentoTasa === 'true'
+    setReintentandoTasa(true)
+    recargarTipoCambio()
+  }
+  useEffect(() => {
+    if (tc === undefined || !focoEnReintento.current) return
+    focoEnReintento.current = false
+    const activo = document.activeElement
+    if (activo == null || activo === document.body) {
+      grupoMonedaRef.current?.querySelector<HTMLButtonElement>('button[aria-pressed="true"]')?.focus()
+    }
+  }, [tc])
   // La moneda con la que se FORMATEA. En la vista TOTAL son soles, porque el
   // dólar ya viene convertido dentro de cada celda.
   const moneda: Moneda = vistaEfectiva === 'USD' ? 'USD' : 'PEN'
@@ -693,26 +747,14 @@ export function Facturacion({
         : filasDeMeses)
     const filasPrevias = filtrarFilas(base, filtro)
     const mesPrevio = primerDiaDelMes(anclaPrevia)
-    const pen = construirMallaDeDias(filasPrevias, recorte, mesPrevio, 'PEN', tipo)
-    if (vistaEfectiva === 'PEN') return pen
-    const usd = construirMallaDeDias(filasPrevias, recorte, mesPrevio, 'USD', tipo)
-    if (vistaEfectiva === 'USD') return usd
-    // Ambos tramos se valoran con la misma tasa real: el porcentaje mide el
-    // cambio del capital vendido, sin sumar divisas crudas ni introducir una
-    // diferencia de tipo de cambio entre periodos.
-    return combinarEnSoles(pen, usd, tc?.promedio) ?? pen
+    return {
+      pen: construirMallaDeDias(filasPrevias, recorte, mesPrevio, 'PEN', tipo),
+      usd: construirMallaDeDias(filasPrevias, recorte, mesPrevio, 'USD', tipo),
+    }
   }, [
     fuente, esDemo, filasDeMeses, anclaPrevia, diasPrevios,
-    diasVisibles, hoy, vistaEfectiva, tipo, filtro, tc?.promedio,
+    diasVisibles, hoy, tipo, filtro,
   ])
-
-  const totalActual = valorCelda(malla.total, 'capital')
-  const totalPrevio = valorCelda(previo.total, 'capital')
-  // Con días sueltos elegidos a mano NO hay «tramo anterior» que signifique
-  // nada: ¿los tres días previos? ¿los mismos días del mes pasado? Antes que
-  // inventar una comparación, se dice que no la hay.
-  const delta =
-    hayMarcados || totalPrevio <= 0 ? null : ((totalActual - totalPrevio) / totalPrevio) * 100
 
   // EL TOTAL DE DINERO (Miguel, 11/09/2026: «necesito ver el total de dinero, con
   // el tipo de cambio»). Las dos monedas en una sola cifra, convirtiendo el USD
@@ -723,16 +765,52 @@ export function Facturacion({
   // se enseña la moneda que se está viendo y se dice que falta la tasa — la
   // misma regla fail-closed del pie.
   const puedeUnificar = hayDolares && totalAfirmable(totalMes)
+
+  // EL % HABLA DE LA CIFRA QUE ACOMPAÑA. Si el titular es el total unificado
+  // (soles + dólares convertidos), el tramo anterior se valora igual y con la
+  // misma tasa; si el titular es de una sola moneda, se compara esa moneda.
+  // Antes el titular era unificado y el % salía de la moneda de la vista: la
+  // misma cifra llevaba −11,9 %, −15,4 % o +10,5 % según el botón pulsado.
+  // (Auditoría 08/10/2026.) Ambos tramos con la misma tasa real: el % mide el
+  // cambio del capital vendido, no una diferencia de tipo de cambio.
+  const totalActual = puedeUnificar ? (totalMes.total ?? 0) : valorCelda(malla.total, 'capital')
+  const totalPrevio = ((): number | null => {
+    if (puedeUnificar) {
+      const anterior = totalesUnificados(previo.pen, previo.usd, tc?.promedio).mes.capital
+      return totalAfirmable(anterior) ? (anterior.total ?? 0) : null
+    }
+    if (vistaEfectiva === 'PEN') return previo.pen.total.capital
+    if (vistaEfectiva === 'USD') return previo.usd.total.capital
+    return (combinarEnSoles(previo.pen, previo.usd, tc?.promedio) ?? previo.pen).total.capital
+  })()
+  // Con días sueltos elegidos a mano NO hay «tramo anterior» que signifique
+  // nada: ¿los tres días previos? ¿los mismos días del mes pasado? Antes que
+  // inventar una comparación, se dice que no la hay.
+  const delta =
+    hayMarcados || totalPrevio == null || totalPrevio <= 0
+      ? null
+      : ((totalActual - totalPrevio) / totalPrevio) * 100
+
   const totalFacturado = puedeUnificar
     ? money(totalMes.total ?? 0, 'PEN')
     : money(valorCelda(malla.total, 'capital'), moneda)
+  // El rótulo dice QUÉ dinero es la cifra. «Total facturado» solo cuando de
+  // verdad lleva las dos monedas: sin tasa y con dólares, la cifra es de una
+  // moneda y así se dice. Antes rotulaba «Total facturado» sobre los soles
+  // mientras el pie de la tabla decía «total no disponible». (Auditoría 08/10/2026.)
+  const nombreMonedaTitular = moneda === 'USD' ? 'dólares' : 'soles'
+  const rotuloFacturado = puedeUnificar
+    ? 'Total facturado'
+    : hayDolares
+      ? `Facturado en ${nombreMonedaTitular}`
+      : 'Facturado'
   const composicionTotal = !hayDolares
     ? ''
     : puedeUnificar && totalMes.tc != null
-      ? `${money(totalMes.pen ?? 0, 'PEN')} + ${money(totalMes.usd ?? 0, 'USD')} al ${rotuloTipoCambio(totalMes.tc, tc?.fuente ?? '')}`
+      ? `${money(totalMes.pen ?? 0, 'PEN')} + ${money(totalMes.usd ?? 0, 'USD')} al ${rotuloTasa(totalMes.tc, tc?.fuente ?? '')}`
       : tc === undefined
-        ? `solo ${ROTULO_VISTA[vistaEfectiva]} — consultando el tipo de cambio…`
-        : `solo ${ROTULO_VISTA[vistaEfectiva]} — falta el tipo de cambio para sumar ${money(totalMes.usd ?? 0, 'USD')}`
+        ? `solo ${nombreMonedaTitular} — consultando el tipo de cambio…`
+        : `solo ${nombreMonedaTitular} — falta el tipo de cambio para sumar soles y dólares`
   const comparacionTotal =
     delta == null
       ? hayMarcados
@@ -747,10 +825,18 @@ export function Facturacion({
     ? { ...malla, dias: marcadosEnTramo, totalPorDia: marcadosEnTramo.map((d) => malla.totalPorDia[malla.dias.indexOf(d)] ?? { capital: 0, contratos: 0 }) }
     : malla
   const mejor = mejorDia(mallaDeCifras, metrica)
+  // También con días marcados a mano: un día que aún no pasa no divide (la
+  // cabecera deja marcarlo; sin esto el promedio se hundía). (Codex, 08/10/2026.)
   const habiles = hayMarcados
-    ? marcadosEnTramo.filter((d) => !esDomingo(d)).length
-    : diasHabilesHasta(malla, corte.startsWith('9999') ? (malla.dias.at(-1) ?? mes) : corte)
-  const promedio = habiles > 0 ? valorCelda(malla.total, metrica) / habiles : 0
+    ? marcadosEnTramo.filter((d) => !esDomingo(d) && (corteDelTramo == null || d <= corteDelTramo)).length
+    : diasHabilesHasta(malla, corteDelTramo ?? (malla.dias.at(-1) ?? mes))
+  // Un tramo sin un solo día hábil (un domingo suelto, o el 1 de un mes que cae
+  // en domingo) no tiene promedio: dividir entre cero no es «S/ 0», es «no
+  // aplica». Antes salía S/ 0 con ventas en pantalla. (Auditoría 08/10/2026.)
+  const promedio = habiles > 0 ? valorCelda(malla.total, metrica) / habiles : null
+  const sufijoTodoSoles = vistaEfectiva === 'TOTAL' && metrica === 'capital'
+    ? ' · soles y dólares convertidos'
+    : ''
 
   const maximoAnalista = valorCelda(malla.maxAnalista, metrica)
   const maximoGrupo = valorCelda(malla.maxGrupo, metrica)
@@ -815,6 +901,15 @@ export function Facturacion({
   )
 
   const operacionesDelDetalle = detalle.reduce((n, f) => n + f.operaciones, 0)
+  // En «Todo S/» la celda que se pulsó es soles + dólares convertidos, y el
+  // desglose lista cada moneda por su lado: sin una línea que haga la suma, el
+  // panel no cuadraba con la cifra pulsada. (Auditoría 08/10/2026.)
+  const solesDelDetalle = detalle.filter((f) => f.moneda === 'PEN').reduce((s, f) => s + f.capital, 0)
+  const dolaresDelDetalle = detalle.filter((f) => f.moneda === 'USD').reduce((s, f) => s + f.capital, 0)
+  const sumaDelDetalle =
+    vistaEfectiva === 'TOTAL' && dolaresDelDetalle > 0
+      ? totalEnSoles(solesDelDetalle, dolaresDelDetalle, tc?.promedio)
+      : null
 
   const nombreSeleccionado =
     roster.find((p) => p.id === seleccion?.analistaId)?.nombre ??
@@ -874,8 +969,11 @@ export function Facturacion({
   // Cinco controles rehacen la malla entera; sin esto, para un lector de
   // pantalla pulsarlos no produce ninguna señal. Diferido como en Citas, para
   // no atropellar al lector mientras se cambia de mes varias veces seguidas.
+  // Un solo canal vivo: el porqué del repliegue a Soles va AQUÍ, no en una
+  // segunda región que se inserta y que unos lectores anuncian y otros no.
+  // (Revisión a11y 08/10/2026.)
   const anuncio = useValorDiferido(
-    `${etiquetaMes(mes)} · ${ROTULO_VISTA[vistaEfectiva]} · ${ROTULO_TIPO[tipo]} · ${ROTULO_METRICA[metrica]} · ${numero(cuantosAnalistas)} analistas en ${numero(malla.grupos.length)} equipos`,
+    `${etiquetaMes(mes)} · ${ROTULO_VISTA[vistaEfectiva]}${sinTasaParaTotal ? (reintentando ? ', consultando el tipo de cambio' : ', no llegó el tipo de cambio') : ''} · ${ROTULO_TIPO[tipo]} · ${ROTULO_METRICA[metrica]} · ${numero(cuantosAnalistas)} analistas en ${numero(malla.grupos.length)} equipos`,
     250,
   )
 
@@ -940,13 +1038,15 @@ export function Facturacion({
             rotulo={ROTULO_GRANULARIDAD}
             onCambio={cambiarGranularidad}
           />
-          <Interruptor
-            etiqueta="Moneda — en Soles y Dólares nunca se suman; Total S/ convierte a la tasa del día"
-            opciones={VISTAS_MONEDA}
-            valor={vistaEfectiva}
-            rotulo={ROTULO_VISTA}
-            onCambio={setVista}
-          />
+          <div ref={grupoMonedaRef} className="contents">
+            <Interruptor
+              etiqueta="Moneda — en Soles y Dólares nunca se suman; Todo S/ suma los dólares convertidos al tipo de cambio"
+              opciones={VISTAS_MONEDA}
+              valor={vistaEfectiva}
+              rotulo={ROTULO_VISTA}
+              onCambio={setVista}
+            />
+          </div>
           {/* En tablet la barra se partía en SIETE filas y se comía 200 px de
               alto. Lo secundario —qué se mide, tipo, equipo, analistas— se
               pliega detrás de un botón; el tramo y la moneda, que son lo que se
@@ -1167,10 +1267,10 @@ export function Facturacion({
         <KpiCard
           label={
             hayMarcados
-              ? `${hayDolares ? 'Total facturado' : 'Facturado'} · ${marcadosEnTramo.length === 1 ? '1 día elegido' : `${numero(marcadosEnTramo.length)} días elegidos`}`
+              ? `${rotuloFacturado} · ${marcadosEnTramo.length === 1 ? '1 día elegido' : `${numero(marcadosEnTramo.length)} días elegidos`}`
               : filtroVacio(filtro)
-                ? `${hayDolares ? 'Total facturado' : 'Facturado'} · ${etiquetaPeriodo(granularidad, ancla)}`
-                : `${hayDolares ? 'Total facturado' : 'Facturado'} por lo filtrado`
+                ? `${rotuloFacturado} · ${etiquetaPeriodo(granularidad, ancla)}`
+                : `${rotuloFacturado} por lo filtrado`
           }
           value={siFiable(totalFacturado)}
           icon={Receipt}
@@ -1211,23 +1311,59 @@ export function Facturacion({
               ? motivoSinCifras
               : mejor == null
                 ? 'Todavía sin cierres'
-                : etiquetaDiaLargo(mejor.dia)
+                : `${etiquetaDiaLargo(mejor.dia)}${sufijoTodoSoles}`
           }
           delay={120}
         />
         <KpiCard
           label="Promedio por día hábil"
-          value={siFiable(
-            metrica === 'capital'
-              ? money(Math.round(promedio), moneda)
-              : `${promedio.toFixed(1)} contratos`,
-          )}
+          value={
+            promedio == null
+              ? '—'
+              : siFiable(
+                  metrica === 'capital'
+                    ? money(Math.round(promedio), moneda)
+                    : `${promedio.toFixed(1)} contratos`,
+                )
+          }
           icon={CalendarRange}
           color="var(--chart-3)"
-          sub={`${numero(habiles)} días hábiles corridos — el domingo no cuenta`}
+          sub={
+            !cifrasFiables
+              ? motivoSinCifras
+              : habiles === 0
+              ? 'Sin días hábiles en este tramo: el domingo no cuenta'
+              : `${numero(habiles)} ${habiles === 1 ? 'día hábil corrido' : 'días hábiles corridos'} — el domingo no cuenta${sufijoTodoSoles}`
+          }
           delay={180}
         />
       </div>
+
+      {/* La pantalla abre en «Todo S/». Si el tipo de cambio no llega, la perilla
+          se repliega sola a Soles: el aviso dice por qué y ofrece reintentar.
+          Antes ese aviso vivía en una rama que nunca se alcanzaba (solo se pintaba
+          MIENTRAS se consultaba la tasa) y el cambio de perilla pasaba en silencio.
+          (Auditoría 08/10/2026.) */}
+      {sinTasaParaTotal && (
+        // Sin role="status": el porqué se anuncia en la región viva de arriba.
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--chart-5)]/40 bg-[var(--chart-5)]/10 px-4 py-2.5 text-[13px] font-medium">
+          <TriangleAlert aria-hidden className="size-4 shrink-0 text-[var(--chart-5)]" />
+          <span>
+            {reintentando
+              ? 'Consultando el tipo de cambio…'
+              : 'No llegó el tipo de cambio, así que no se pueden sumar soles y dólares: estás viendo solo Soles.'}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            data-reintento-tasa="true"
+            aria-disabled={reintentando}
+            onClick={reintentarTasa}
+          >
+            <RotateCcw aria-hidden /> Reintentar el tipo de cambio
+          </Button>
+        </div>
+      )}
 
       {avisoIncompleto !== '' && (
         <div
@@ -1240,6 +1376,7 @@ export function Facturacion({
             <button
               type="button"
               onClick={reintentar}
+              aria-label="Reintentar la carga"
               className="cursor-pointer font-bold underline underline-offset-2"
             >
               Reintentar
@@ -1256,11 +1393,13 @@ export function Facturacion({
           title={
             comparando
               ? `Comparando ${numero(filtro.analistas.length)} analista${filtro.analistas.length === 1 ? '' : 's'}, día a día`
-              : granularidad === 'dia'
-                ? 'Ese día, por equipo y por analista'
-                : granularidad === 'semana'
-                  ? 'Esa semana, día a día, por equipo y por analista'
-                  : 'Cada día del mes, por equipo y por analista'
+              : `${
+                  granularidad === 'dia'
+                    ? 'Ese día, por equipo y por analista'
+                    : granularidad === 'semana'
+                      ? 'Esa semana, día a día, por equipo y por analista'
+                      : 'Cada día del mes, por equipo y por analista'
+                }${sufijoTodoSoles}`
           }
           right={
             <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground-strong">
@@ -1305,26 +1444,20 @@ export function Facturacion({
           </div>
         ) : totalSinTasa ? (
           // FAIL-CLOSED. La vista Total promete las dos monedas en cada celda;
-          // sin tipo de cambio no se pinta una malla de solo-soles bajo ese
-          // rótulo. Se dice qué falta y se ofrece volver a intentarlo.
+          // mientras la tasa se consulta no se pinta una malla de solo-soles
+          // bajo ese rótulo. (Si la tasa NO llega, la perilla se repliega a
+          // Soles y el aviso de arriba ofrece reintentar.)
           <div className="flex flex-col items-center gap-3 border-t border-border px-6 py-14 text-center">
-            <p className="text-sm font-semibold">No se puede mostrar el total combinado.</p>
-            <p className="max-w-md text-[13px] text-muted-foreground">
-              {tc === undefined
-                ? 'Consultando el tipo de cambio del día…'
-                : 'Falta el tipo de cambio para convertir los dólares. Mientras tanto puedes ver Soles y Dólares por separado, que no necesitan tasa.'}
+            <p className="text-sm font-semibold">No se puede mostrar el total combinado todavía.</p>
+            <p className="max-w-md text-[13px] text-muted-foreground-strong">
+              Consultando el tipo de cambio del día…
             </p>
-            {tc === null && (
-              <Button variant="outline" size="sm" onClick={recargarTipoCambio}>
-                <RotateCcw aria-hidden /> Reintentar el tipo de cambio
-              </Button>
-            )}
           </div>
         ) : vacia ? (
           <div className="flex flex-col items-center gap-3 border-t border-border px-6 py-14 text-center">
             <p className="text-sm font-semibold">
               {filtroVacio(filtro)
-                ? 'Todavía no hay cierres en este mes.'
+                ? `Todavía no hay cierres ${granularidad === 'mes' ? 'en este mes' : granularidad === 'semana' ? 'en esta semana' : 'este día'}.`
                 : 'Ningún cierre coincide con estos filtros.'}
             </p>
             {!filtroVacio(filtro) && (
@@ -1335,8 +1468,11 @@ export function Facturacion({
           </div>
         ) : (
           <>
+            {/* Altura máxima propia: sin ella quien se desplazaba era la página y
+                la cabecera de días se iba por arriba (el `sticky top-0` solo pega
+                dentro de un contenedor que se desplaza). (Auditoría 08/10/2026.) */}
             {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Malla de 30 columnas: el foco habilita recorrerla con las flechas. Con los grupos colapsados no queda NINGÚN hijo enfocable en el área que se desplaza (las celdas de fila de equipo nunca son botones), así que sin esto los días 15-30 son inalcanzables sin ratón. Mismo patrón que hoy/reuniones-gerencia.tsx. */}
-            <div className="ac-scroll overflow-auto border-t border-border focus-visible:outline-2 focus-visible:outline-offset-2" role="region" tabIndex={0} aria-label={`Facturación diaria de ${etiquetaMes(mes)} en ${ROTULO_VISTA[vistaEfectiva]}, ${ROTULO_TIPO[tipo]}`}>
+            <div className="facturacion-malla ac-scroll max-h-[calc(100dvh-8rem)] overflow-auto border-t border-border focus-visible:outline-2 focus-visible:outline-offset-2" role="region" tabIndex={0} aria-label={`Facturación diaria de ${etiquetaMes(mes)} en ${ROTULO_VISTA[vistaEfectiva]}, ${ROTULO_TIPO_CORTO[tipo]}`}>
               <table className="border-separate border-spacing-0 bg-card text-sm">
                 <caption className="sr-only">
                   {ROTULO_METRICA[metrica]} por día · {etiquetaPeriodo(granularidad, ancla)} ·{' '}
@@ -1350,7 +1486,7 @@ export function Facturacion({
                   <tr>
                     <th
                       scope="col"
-                      className="sticky left-0 top-0 z-40 w-52 min-w-52 border-b border-r border-border bg-muted px-4 py-2 text-left text-[11px] font-bold uppercase tracking-wide text-muted-foreground"
+                      className="sticky left-0 top-0 z-40 w-52 min-w-52 border-b border-r border-border bg-muted px-4 py-2 text-left text-[11px] font-bold uppercase tracking-wide text-muted-foreground-strong"
                     >
                       {comparando ? 'Analistas comparados' : 'Supervisor / analista'}
                     </th>
@@ -1362,7 +1498,10 @@ export function Facturacion({
                         scope="col"
                         className={cn(
                           'sticky top-0 z-30 w-13 min-w-13 border-b border-r border-border/60 bg-muted p-0 text-center align-bottom',
-                          esFinDeSemana(dia) && 'bg-muted-foreground/15',
+                          // Opaco: con la cabecera fija, un 15 % translúcido dejaba ver
+                          // las celdas que pasaban por debajo. Mismo tono que antes.
+                          // (Revisión a11y 08/10/2026.)
+                          esFinDeSemana(dia) && 'bg-[color-mix(in_oklab,var(--muted-foreground)_15%,var(--card))]',
                           dia === hoy && 'shadow-[inset_0_3px_0_var(--accent)]',
                           marcado && 'bg-primary text-primary-foreground',
                         )}
@@ -1374,7 +1513,7 @@ export function Facturacion({
                           title={marcado ? 'Quitar este día' : 'Elegir este día'}
                           onClick={() => alternarDia(dia)}
                           className={cn(
-                            'ac-dia-btn w-full cursor-pointer px-0 py-1.5',
+                            'ac-dia-btn w-full cursor-pointer scroll-ml-52 scroll-mr-32 px-0 py-1.5',
                             'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40',
                             !marcado && 'hover:bg-accent/20',
                           )}
@@ -1390,7 +1529,7 @@ export function Facturacion({
                           <span
                             className={cn(
                               'block text-[9px] font-semibold uppercase',
-                              marcado ? 'text-primary-foreground/80' : 'text-muted-foreground',
+                              marcado ? 'text-primary-foreground/80' : 'text-muted-foreground-strong',
                             )}
                           >
                             {letraDia(dia)}
@@ -1413,7 +1552,7 @@ export function Facturacion({
                     })}
                     <th
                       scope="col"
-                      className="sticky right-0 top-0 z-40 w-32 min-w-32 border-b border-l border-border bg-muted px-3 py-2 text-right text-[11px] font-bold uppercase tracking-wide text-muted-foreground"
+                      className="sticky right-0 top-0 z-40 w-32 min-w-32 border-b border-l border-border bg-muted px-3 py-2 text-right text-[11px] font-bold uppercase tracking-wide text-muted-foreground-strong"
                     >
                       {hayMarcados ? 'Total elegido' : `Total ${ROTULO_DEL_TRAMO[granularidad]}`}
                     </th>
@@ -1453,7 +1592,7 @@ export function Facturacion({
                                 type="button"
                                 aria-expanded={abierto}
                                 onClick={() => alternarGrupo(grupo.id)}
-                                className="flex min-h-9 w-full cursor-pointer items-center gap-2 px-4 py-1.5 text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+                                className="flex min-h-9 w-full cursor-pointer scroll-mt-14 items-center gap-2 px-4 py-1.5 text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
                               >
                                 <ChevronRight
                                   aria-hidden
@@ -1465,7 +1604,7 @@ export function Facturacion({
                                 <span className="truncate text-[13px] font-bold">
                                   {grupo.nombre}
                                 </span>
-                                <span className="ml-auto shrink-0 text-[11px] font-semibold text-muted-foreground">
+                                <span className="ml-auto shrink-0 text-[11px] font-semibold text-muted-foreground-strong">
                                   {grupo.analistas.length}
                                 </span>
                               </button>
@@ -1567,23 +1706,29 @@ export function Facturacion({
                       <span className="block text-[12px] font-extrabold">
                         {metrica === 'capital' ? 'Total del día en soles' : 'Total del día'}
                       </span>
-                      <span className="block text-[10px] font-medium text-muted-foreground">
+                      <span className="block text-[10px] font-medium text-muted-foreground-strong">
                         {metrica !== 'capital'
                           ? 'contratos de ambas monedas'
                           : totalMes.tc != null
-                            ? rotuloTipoCambio(totalMes.tc, tc?.fuente ?? '')
+                            ? rotuloTasa(totalMes.tc, tc?.fuente ?? '')
                             : tc === undefined
                               ? 'consultando el tipo de cambio…'
                               : 'total no disponible: falta el tipo de cambio'}
                       </span>
                       {/* Una caída del BCRP es transitoria y dejaba la fila en
                           guiones hasta remontar la pantalla: el reintento de
-                          arriba solo recarga la facturación. (Codex, 11/09.) */}
-                      {metrica === 'capital' && tc === null && (
+                          arriba solo recarga la facturación. (Codex, 11/09.)
+                          Mientras se reintenta sigue montado (el foco no cae en
+                          <body>), y no se duplica si ya está el aviso de arriba,
+                          que hace lo mismo. (Revisión a11y 08/10/2026.) */}
+                      {metrica === 'capital' && (tc === null || reintentando) && !sinTasaParaTotal && (
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={recargarTipoCambio}
+                          data-reintento-tasa="true"
+                          aria-label="Reintentar el tipo de cambio"
+                          aria-disabled={reintentando}
+                          onClick={reintentarTasa}
                           className="mt-0.5 h-6 px-1.5 text-[10px] font-semibold"
                         >
                           <RotateCcw aria-hidden className="size-3" /> Reintentar
@@ -1721,6 +1866,18 @@ export function Facturacion({
                   </li>
                 ))}
               </ul>
+              {/* «Todo S/» solo se pinta con tasa (sin ella la perilla se repliega
+                  a Soles), así que aquí la conversión siempre es real. */}
+              {sumaDelDetalle != null && sumaDelDetalle.tc != null && totalAfirmable(sumaDelDetalle) && (
+                <p className="mt-1 border-t-2 border-border pt-3 text-right text-[13px] font-extrabold tabular-nums">
+                  = {money(sumaDelDetalle.total ?? 0, 'PEN')} en soles
+                  <span className="sr-only">. </span>
+                  <span className="block text-xs font-medium text-muted-foreground-strong">
+                    {money(solesDelDetalle, 'PEN')} + {money(dolaresDelDetalle, 'USD')} al{' '}
+                    {rotuloTasa(sumaDelDetalle.tc, tc?.fuente ?? '')}
+                  </span>
+                </p>
+              )}
               {/* Honestidad sobre el alcance: el servidor devuelve el mes ya
                   agrupado, así que aquí no hay —ni puede haber— la lista de
                   contratos uno a uno. Prometerla sería inventarla. */}

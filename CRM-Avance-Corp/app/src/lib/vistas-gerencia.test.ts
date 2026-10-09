@@ -11,12 +11,13 @@ describe('navegación de Gerencia', () => {
   // Miguel, 16/09/2026: «que el módulo de facturación lo tengan los supervisores,
   // para ver el avance de sus equipos». Deja de ser exclusiva; el servidor
   // (crm.facturacion_diaria_fn) recorta al supervisor a su equipo.
-  it('Facturación la comparten Gerencia y Supervisión, con la llave abierta o cerrada', () => {
+  // Directorio la ve desde el 08/10/2026 (Miguel: «sí, que la vea»), en lectura.
+  it('Facturación la comparten Gerencia, Supervisión y Directorio, con la llave abierta o cerrada', () => {
     for (const llave of [true, false]) {
       expect(vistaPermitida('facturacion', 'gerencia', llave)).toBe(true)
       expect(vistaPermitida('facturacion', 'supervisor', llave)).toBe(true)
       expect(vistaPermitida('facturacion', 'vendedor', llave)).toBe(false)
-      expect(vistaPermitida('facturacion', 'directorio', llave)).toBe(false)
+      expect(vistaPermitida('facturacion', 'directorio', llave)).toBe(true)
       expect(vistaPermitida('facturacion', 'coordinador', llave)).toBe(false)
     }
   })

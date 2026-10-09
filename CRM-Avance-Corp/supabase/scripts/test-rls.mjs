@@ -15617,6 +15617,76 @@ async function testAtribucionVentas(sessions, seed) {
   );
 }
 
+// ── Categoría por operación (20261009120000) ────────────────────────────────────────────────────────────────────────
+// La puerta crm.corregir_categoria_contrato_fn (solo Gerencia vigente, motivo de 5 a 300, respaldo de la operación de
+// cartera) y los dos triggers. NO escribe en el mundo compartido: las negaciones no escriben y el único camino feliz pide
+// la categoría que el contrato YA tiene ({cambio:false}). La sincronización, el sellado, el PDF, el libro de rentabilidad
+// y la prevención sobre contratos con operación se prueban en el banco (supabase/scripts/categoria-por-operacion/prueba.sql),
+// porque la semilla no trae contratos con operación de cartera.
+async function testCategoriaPorOperacion(sessions, seed) {
+  void seed;
+  console.log('\n— Categoría por operación: puerta de Gerencia (autoridad, motivo, respaldo) —');
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-categoria'));
+  const gerencia = sessions.gerencia.client.schema('crm');
+  let contratoId;
+  try {
+    contratoId = textoFueraDeBanda('categoría: contrato nuevo sin operación en un mes abierto',
+      `select c.id from public.contratos c
+        where c.categoria = 'nuevo' and not c.es_demo
+          and not exists (select 1 from crm.operaciones_cartera o where o.contrato_nuevo_id = c.id)
+          and not exists (select 1 from crm.periodos_cerrados pc where pc.periodo = date_trunc('month', c.fecha_cierre_comercial)::date)
+        order by c.creado_en, c.id limit 1`);
+  } catch (error) {
+    console.log(`  ⚠ Categoría por operación SALTADO: sin vía fuera de banda (${error?.message ?? String(error)})`);
+    return;
+  }
+  if (!contratoId) {
+    fail('categoría: no hay un contrato nuevo sin operación en un mes abierto para sondear');
+    return;
+  }
+  const llamar = (cliente, categoria, motivo) => cliente.rpc('corregir_categoria_contrato_fn',
+    { p_contrato_id: contratoId, p_categoria: categoria, p_motivo: motivo });
+  const motivo = 'GATE: sonda de la categoría por operación';
+  const filasDeMotivo = () => contarFueraDeBanda('categoría: filas de motivo del contrato sonda',
+    `select count(*) from public.audit_log where tabla = 'contratos.categoria' and fila_id = '${contratoId}'`);
+  const sonda = await llamar(gerencia, 'nuevo', motivo);
+  if (sonda.error && String(sonda.error.code ?? '') === 'PGRST202') {
+    console.log('  ⚠ 20261009120000 (categoría por operación) NO desplegada en esta base: bloque SALTADO (no probado)');
+    return;
+  }
+  const filasAntes = filasDeMotivo();
+  check(!sonda.error && sonda.data?.cambio === false,
+    'categoría: Gerencia pidiendo la categoría que ya tiene → {cambio:false} y nada escrito', errorText(sonda.error));
+
+  // Autoridad: solo Gerencia.
+  await expectExplicitAuthorizationDenied('categoría: anon no corrige', llamar(anon.schema('crm'), 'upgrade', motivo), ['42501', 'PGRST202']);
+  for (const key of ['vend1', 'sup1', 'coordinador', 'directorio']) {
+    if (!sessions[key]) continue;
+    await expectExplicitAuthorizationDenied(`categoría: ${key} no corrige (solo Gerencia)`,
+      llamar(sessions[key].client.schema('crm'), 'upgrade', motivo), ['42501']);
+  }
+  // Datos.
+  await expectExpectedFailure('categoría: motivo en blanco → 22023', llamar(gerencia, 'upgrade', '    '), ['22023'], /motivo/i);
+  await expectExpectedFailure('categoría: motivo de 4 caracteres → 22023', llamar(gerencia, 'upgrade', 'abcd'), ['22023'], /motivo/i);
+  await expectExpectedFailure('categoría: categoría inválida → 22023', llamar(gerencia, 'otra', motivo), ['22023'], /categor/i);
+  // Respaldo: sin operación de cartera solo cabe 'nuevo'.
+  await expectExpectedFailure('categoría: un contrato sin operación de cartera no pasa a upgrade → 23514',
+    llamar(gerencia, 'upgrade', motivo), ['23514'], /sin operaci[oó]n de cartera solo puede quedar como nuevo/i);
+  check(filasDeMotivo() === filasAntes
+      && textoFueraDeBanda('categoría: categoría del contrato sonda', `select categoria from public.contratos where id = '${contratoId}'`) === 'nuevo',
+    'categoría: ninguna sonda escribió (sin filas de motivo nuevas y el contrato sigue en nuevo)');
+  // Catálogo: los dos triggers puestos y habilitados; ni anon ejecuta la puerta ni authenticated el núcleo.
+  check(contarFueraDeBanda('categoría: triggers',
+      `select count(*) from pg_trigger t where t.tgenabled = 'O'
+          and ((t.tgrelid = 'public.contratos'::regclass and t.tgname = 'trg_contratos_01_categoria_por_operacion')
+            or (t.tgrelid = 'crm.operaciones_cartera'::regclass and t.tgname = 'trg_operaciones_cartera_10_fija_categoria'))`) === 2,
+    'categoría: los dos triggers (prevención y sincronización) están puestos y habilitados');
+  check(contarFueraDeBanda('categoría: permisos',
+      `select (not has_function_privilege('anon', 'crm.corregir_categoria_contrato_fn(uuid,text,text)', 'execute')
+           and not has_function_privilege('authenticated', 'private.fijar_categoria_contrato(uuid,text,text,text,uuid)', 'execute'))::int`) === 1,
+    'categoría: anon no ejecuta la puerta y authenticated no ejecuta el núcleo');
+}
+
 async function testCierreDeMes(sessions, seed) {
   console.log('\n— Cierre de mes: tablas selladas, ciclo y aviso —');
   void seed;
@@ -18336,6 +18406,7 @@ async function main() {
       await testBasesCargadasB10(sessions, verifiedSeed);
       await testBasesCargadasB11(sessions);
       await testEliminarInversion(sessions, verifiedSeed);
+      await testCategoriaPorOperacion(sessions, verifiedSeed);
     }
   } catch (error) {
     primaryError = error;
