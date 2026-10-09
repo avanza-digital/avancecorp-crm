@@ -173,6 +173,18 @@ export function accionPrincipal(fila: Pick<FilaBandeja, 'identificacion' | 'lead
 }
 
 /**
+ * Hallazgo de P9 (F4-d, 07/10): tras «Deshacer», la llamada quedaba «· deshecho» sin ninguna acción y no había cómo unirla
+ * al resultado corregido. La v5 ya mueve el enlace cuando el anterior se deshizo (20261005182227: estado «movido»), pero
+ * solo si la llamada es del analista que registra (si no, «celular_ajeno»): por eso el botón sale solo en las propias
+ * registradas, deshechas, con lead y con el id que necesita la encuesta.
+ */
+export function puedeRegistrarCorregido(
+  r: Pick<ResueltaHoy, 'atencion' | 'deshecho' | 'es_propia' | 'lead_id' | 'evento_origen_id'>,
+): boolean {
+  return r.atencion === 'registrado' && r.deshecho && r.es_propia && r.lead_id !== null && !!r.evento_origen_id
+}
+
+/**
  * La línea de una pendiente: cuándo, hace cuánto y con quién. Una ambigua NO dice cuántos leads tienen el número: la
  * base no lo guarda (fallo 4 de la revisión del 02/10).
  */

@@ -3,7 +3,7 @@ import * as v from 'valibot'
 import {
   BandejaSchema, DetalleLlamadaSchema, EnlaceV5Schema, MarcaCelularSchema, ResueltasHoySchema,
   accionPrincipal, comoSeResolvio, cuandoFue, estadoPendiente, estadoResuelta, etiquetaMotivoDescarte, haceCuanto,
-  lineaPendiente, llegoTarde, numeroLegible, retrasoPendiente, textoEnlace,
+  lineaPendiente, llegoTarde, numeroLegible, puedeRegistrarCorregido, retrasoPendiente, textoEnlace,
   type FilaBandeja, type ResueltaHoy,
 } from './llamadas-celular'
 
@@ -92,6 +92,17 @@ describe('textos de la pestaña', () => {
     expect(accionPrincipal(fila())).toBe('registrar')
     expect(accionPrincipal(fila({ atencion: 'por_revisar' }))).toBe('registrar')
     expect(accionPrincipal(fila({ identificacion: 'ambiguo', lead_id: null }))).toBe('elegir')
+  })
+
+  it('«Registrar el corregido» (P9): solo la propia, registrada, deshecha, con lead y con el id de la llamada', () => {
+    const deshecha = resuelta({ deshecho: true, evento_origen_id: 'C1-1791226920' })
+    expect(puedeRegistrarCorregido(deshecha)).toBe(true)
+    expect(puedeRegistrarCorregido({ ...deshecha, deshecho: false })).toBe(false)
+    // De otro analista (lead reasignado): la v5 respondería «celular_ajeno».
+    expect(puedeRegistrarCorregido({ ...deshecha, es_propia: false })).toBe(false)
+    expect(puedeRegistrarCorregido({ ...deshecha, atencion: 'descartado_con_motivo' })).toBe(false)
+    expect(puedeRegistrarCorregido({ ...deshecha, lead_id: null })).toBe(false)
+    expect(puedeRegistrarCorregido(resuelta({ deshecho: true }))).toBe(false)
   })
 
   it('la que llegó tarde y la que lleva horas sin resultado', () => {

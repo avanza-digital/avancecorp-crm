@@ -106,6 +106,38 @@ describe('LlamadasCelular', () => {
     expect(within(teresa).getByText(/Registrada al colgar: el celular abrió la encuesta · llamada a las 09:00/)).toBeInTheDocument()
   })
 
+  it('una resuelta deshecha propia ofrece «Registrar el corregido» y avisa con su llamada (hallazgo de P9)', async () => {
+    const user = userEvent.setup()
+    const deshecha: ResueltaHoy = { ...resuelta, evento_id: 'r2', evento_origen_id: 'C1-1791226920', resultado: 'no_contesto', deshecho: true }
+    const ajena: ResueltaHoy = { ...deshecha, evento_id: 'r3', lead_id: 'l16', lead_nombre: 'FERNANDO QUIROZ', es_propia: false }
+    const onCorregir = vi.fn()
+    montar({ resueltas: [deshecha, ajena, resuelta], onCorregir })
+    await user.click(screen.getByRole('button', { name: 'Qué pasó hoy · 3' }))
+    expect(within(filaDe(/TERESA.*deshecho/)).getByText(/Deshiciste su resultado/)).toBeInTheDocument()
+    // Solo una: la ajena (lead reasignado) y la que no se deshizo no la ofrecen.
+    const botones = screen.getAllByRole('button', { name: 'Registrar el corregido' })
+    expect(botones).toHaveLength(1)
+    expect(within(filaDe(/FERNANDO/)).queryByRole('button', { name: 'Registrar el corregido' })).not.toBeInTheDocument()
+    await user.click(botones[0]!)
+    expect(onCorregir).toHaveBeenCalledWith(deshecha)
+  })
+
+  it('sin la acción de corregir el botón no aparece', async () => {
+    const user = userEvent.setup()
+    const deshecha: ResueltaHoy = { ...resuelta, evento_origen_id: 'C1-1791226920', deshecho: true }
+    montar({ resueltas: [deshecha] })
+    await user.click(screen.getByRole('button', { name: 'Qué pasó hoy · 1' }))
+    expect(screen.queryByRole('button', { name: 'Registrar el corregido' })).not.toBeInTheDocument()
+  })
+
+  it('con otra acción en curso «Registrar el corregido» espera', async () => {
+    const user = userEvent.setup()
+    const deshecha: ResueltaHoy = { ...resuelta, evento_origen_id: 'C1-1791226920', deshecho: true }
+    montar({ resueltas: [deshecha], onCorregir: vi.fn(), ocupado: 'e1' })
+    await user.click(screen.getByRole('button', { name: 'Qué pasó hoy · 1' }))
+    expect(screen.getByRole('button', { name: 'Registrar el corregido' })).toBeDisabled()
+  })
+
   it('vacías: lo dicen en vez de quedar en blanco', async () => {
     const user = userEvent.setup()
     montar({ pendientes: [], resueltas: [] })

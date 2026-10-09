@@ -15,7 +15,7 @@ import type { OpcionesResolucion } from '@/data/coincidencia-llamada'
 import { digitosParaBuscar } from '@/lib/coincidencia-telefono'
 import {
   MOTIVOS_DESCARTE, accionPrincipal, comoSeResolvio, cuandoFue, estadoPendiente, estadoResuelta, lineaPendiente,
-  llegoTarde, momentoDeLlamada, numeroLegible, retrasoPendiente,
+  llegoTarde, momentoDeLlamada, numeroLegible, puedeRegistrarCorregido, retrasoPendiente,
   type FilaBandeja, type MotivoDescarte, type ResueltaHoy,
 } from '@/lib/llamadas-celular'
 import type { Lead } from '@/lib/tipos'
@@ -32,6 +32,8 @@ export interface LlamadasCelularProps {
   /** Para «Elegir el lead»: la misma búsqueda del receptor de F1. */
   busqueda: OpcionesResolucion
   onRegistrar: (fila: FilaBandeja) => void
+  /** «Registrar el corregido» de una resuelta deshecha: la misma encuesta con el id de su llamada (hallazgo de P9). */
+  onCorregir?: ((fila: ResueltaHoy) => void) | undefined
   onElegirLead: (fila: FilaBandeja, lead: Lead) => void
   onDescartar: (fila: FilaBandeja, motivo: MotivoDescarte, detalle: string | null) => void
   onAbrirFicha: (leadId: string) => void
@@ -97,7 +99,9 @@ export function LlamadasCelular(props: LlamadasCelularProps): JSX.Element {
           ) : (
             // oxlint-disable-next-line jsx-a11y/no-redundant-roles -- Safari quita el rol de lista a un <ol> sin viñetas.
             <ol role="list" aria-label="Llamadas resueltas hoy" className="mt-2">
-              {resueltas.map((r) => <FilaResuelta key={r.evento_id} r={r} ahora={props.ahora} onAbrirFicha={props.onAbrirFicha} />)}
+              {resueltas.map((r) => (
+                <FilaResuelta key={r.evento_id} r={r} ahora={props.ahora} ocupado={props.ocupado} onAbrirFicha={props.onAbrirFicha} onCorregir={props.onCorregir} />
+              ))}
             </ol>
           )}
         </>
@@ -209,15 +213,27 @@ function PanelDescarte({ onConfirmar, onCancelar }: {
   )
 }
 
-function FilaResuelta({ r, ahora, onAbrirFicha }: { r: ResueltaHoy; ahora: number; onAbrirFicha: (leadId: string) => void }): JSX.Element {
+function FilaResuelta({ r, ahora, ocupado, onAbrirFicha, onCorregir }: {
+  r: ResueltaHoy; ahora: number; ocupado?: string | null | undefined
+  onAbrirFicha: (leadId: string) => void; onCorregir?: ((fila: ResueltaHoy) => void) | undefined
+}): JSX.Element {
   const registrada = r.atencion === 'registrado'
+  const corregible = onCorregir !== undefined && puedeRegistrarCorregido(r)
   return (
     <li className="flex flex-wrap items-center justify-between gap-2 border-b border-muted py-2.5">
       <div className="min-w-0 space-y-0.5">
         <Titulo leadId={r.lead_id} nombre={r.lead_nombre} numero={r.numero} onAbrirFicha={onAbrirFicha} />
         <p className={APOYO}>{comoSeResolvio(r)} · llamada {cuandoFue(momentoDeLlamada(r), ahora)}</p>
+        {corregible && <p className={APOYO}>Deshiciste su resultado: registra el correcto para que esta llamada quede con él.</p>}
       </div>
-      <Badge color={registrada && !r.deshecho ? 'var(--primary)' : 'var(--muted-foreground-strong)'}>{estadoResuelta(r)}</Badge>
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge color={registrada && !r.deshecho ? 'var(--primary)' : 'var(--muted-foreground-strong)'}>{estadoResuelta(r)}</Badge>
+        {corregible && (
+          <Button size="sm" variant="accent" className="pointer-coarse:h-11" disabled={ocupado != null} onClick={() => onCorregir(r)}>
+            Registrar el corregido
+          </Button>
+        )}
+      </div>
     </li>
   )
 }
