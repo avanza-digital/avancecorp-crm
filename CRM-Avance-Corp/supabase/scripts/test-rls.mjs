@@ -15622,7 +15622,8 @@ async function testAtribucionVentas(sessions, seed) {
 // cartera) y los dos triggers. NO escribe en el mundo compartido: las negaciones no escriben y el único camino feliz pide
 // la categoría que el contrato YA tiene ({cambio:false}). La sincronización, el sellado, el PDF, el libro de rentabilidad
 // y la prevención sobre contratos con operación se prueban en el banco (supabase/scripts/categoria-por-operacion/prueba.sql),
-// porque la semilla no trae contratos con operación de cartera.
+// porque la semilla no trae contratos con operación de cartera. 20261009180000 (sin operación, solo 'nuevo', toda vía): un
+// caso fuera de banda que se deshace; el resto, en el banco (supabase/scripts/categoria-sin-operacion/prueba.sql).
 async function testCategoriaPorOperacion(sessions, seed) {
   void seed;
   console.log('\n— Categoría por operación: puerta de Gerencia (autoridad, motivo, respaldo) —');
@@ -15675,6 +15676,48 @@ async function testCategoriaPorOperacion(sessions, seed) {
   check(filasDeMotivo() === filasAntes
       && textoFueraDeBanda('categoría: categoría del contrato sonda', `select categoria from public.contratos where id = '${contratoId}'`) === 'nuevo',
     'categoría: ninguna sonda escribió (sin filas de motivo nuevas y el contrato sigue en nuevo)');
+  // 20261009180000: la regla vale para TODA vía, no solo la puerta. Fuera de banda, un UPDATE directo de un contrato
+  // legacy sin operación a upgrade, dentro de una subtransacción que termina SIEMPRE en raise (no escribe nada). Se salta
+  // si la regla no está desplegada en esta base.
+  if (contarFueraDeBanda('categoría: guarda con la regla sin operación',
+    `select count(*) from pg_proc where oid = 'private.trg_contrato_categoria_por_operacion()'::regprocedure
+        and prosrc like '%solo puede quedar como nuevo%'`) !== 1) {
+    console.log('  ⚠ 20261009180000 (sin operación, solo nuevo) NO desplegada en esta base: caso SALTADO (no probado)');
+  } else {
+    const respuesta = textoFueraDeBanda('categoría: UPDATE directo de un contrato sin operación a upgrade',
+      `do $sonda$
+       declare
+         v_id uuid;
+         v_resultado text;
+       begin
+         select c.id into v_id from public.contratos c
+           join crm.producto_condiciones pc on pc.id = c.producto_condicion_id and pc.es_legacy
+          where c.categoria = 'nuevo' and not c.es_demo
+            and not exists (select 1 from crm.operaciones_cartera o where o.contrato_nuevo_id = c.id)
+            and not private.contrato_en_eliminacion(c.id)
+            and not exists (select 1 from crm.periodos_cerrados s
+                             where s.periodo = date_trunc('month', c.fecha_cierre_comercial)::date)
+            and c.capital between 100 and 100000000 and c.tasa_anual > 0 and c.tasa_anual <= 50
+            and c.fecha_vencimiento >= c.fecha_inicio
+            and exists (select 1 from crm.productos_inversion p where p.es_legacy and p.permite_altas_legacy)
+          order by c.creado_en, c.id limit 1;
+         if v_id is null then
+           v_resultado := 'sin contrato legacy nuevo sin operación (o el puente legacy está cerrado)';
+         else
+           begin
+             perform set_config('crm.contrato_pdf_revision_autorizada', v_id::text, true);
+             update public.contratos set categoria = 'upgrade' where id = v_id;
+             raise exception using errcode = 'P0001', message = 'la sonda pasó (se deshace)';
+           exception when others then
+             v_resultado := sqlstate || ' ' || sqlerrm;
+           end;
+         end if;
+         perform set_config('gate.categoria_sonda', v_resultado, true);
+       end $sonda$;
+       select current_setting('gate.categoria_sonda', true)`);
+    check(respuesta === '23514 Un contrato sin operación de cartera solo puede quedar como nuevo',
+      'categoría: un UPDATE directo (fuera de la puerta) de un contrato sin operación a upgrade → 23514 (toda vía)', respuesta);
+  }
   // Catálogo: los dos triggers puestos y habilitados; ni anon ejecuta la puerta ni authenticated el núcleo.
   check(contarFueraDeBanda('categoría: triggers',
       `select count(*) from pg_trigger t where t.tgenabled = 'O'
