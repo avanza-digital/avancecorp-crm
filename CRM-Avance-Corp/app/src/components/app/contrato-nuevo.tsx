@@ -1188,8 +1188,10 @@ export function ContratoNuevo({
             </p>
             {esRenovacion && cadenaOrigen?.cadena ? (
               <p className="text-xs font-medium text-primary">
-                Esta renovación cuenta al analista del upgrade: {cadenaOrigen.analista_nombre ?? 'sin nombre'}. Este
-                selector registra quién la procesa.
+                {cadenaOrigen.heredada
+                  ? `Esta renovación cuenta a ${cadenaOrigen.analista_nombre ?? 'sin nombre'}: quien hizo el upgrade ya no está en el equipo.`
+                  : `Esta renovación cuenta al analista del upgrade: ${cadenaOrigen.analista_nombre ?? 'sin nombre'}.`}{' '}
+                Este selector registra quién la procesa.
               </p>
             ) : null}
           </div>
