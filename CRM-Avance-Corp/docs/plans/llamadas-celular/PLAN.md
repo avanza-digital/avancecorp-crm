@@ -131,11 +131,11 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 | F0 · Piloto y línea base | 4 | 1/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-2) |
 | F1 · Formulario único y match exacto | 4 | 12/12 | Hecha | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-8) |
 | F2 · Núcleo confiable | 4 | 13/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-14) |
-| F3 · Captura y sincronización | 4 | 8/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-20) |
+| F3 · Captura y sincronización | 4 | 10/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-20) |
 | F4 · Pendientes y conciliación | 4 | 0/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-66) |
 | F5 · Jev para identificación asistida | 5 | 0/15 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-72) |
 | F6 · Gerencia y calidad | 4 | 0/12 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-78) |
-| F7 · Despliegue y operación | 4 | 0/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-84) |
+| F7 · Despliegue y operación | 4 | 1/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-84) |
 
 **Total inicial: 0/102 tareas, agrupadas en 33 subfases.** Los ocho checks comunes de la sección 14 son criterios que se aplican al cerrar cada fase; no se suman como otra fase de trabajo.
 
@@ -333,7 +333,7 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 | Listar/alta/baja/rotar celular | Capacidad de administración resuelta en servidor |
 | Registrar salud | Credencial de equipo, datos mínimos; heartbeat no demuestra captura sana |
 
-**Seguimiento de F3:** 8/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
+**Seguimiento de F3:** 10/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
 
 ### F3.1 · Publicar el contrato de puertas
 
@@ -347,11 +347,11 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 
 ### F3.2 · Proteger la ingesta
 
-**Estado:** en curso · **Avance:** 2/3 · **Responsable:** Claude (construye) · Miguel (aprueba y aplica).
+**Estado:** hecha · **Avance:** 3/3 · **Responsable:** Claude (construye) · Miguel (aprueba y aplica).
 
 - [x] **F3.2.1** Configurar Edge con esquema estricto, tamaño limitado, token propio y autenticación de plataforma verificada.
 - [x] **F3.2.2** Aplicar rate limit compartido, baja/inactividad y rotación/revocación con auditoría.
-- [ ] **F3.2.3** Mostrar token una vez; guardar hash y eliminar secretos de URL, logs y soporte. — EN CURSO: Solo el sha256 en la base; la clave viaja en una cabecera, nunca en la URL; la Edge no escribe registros; la tarjeta de F4-c (#215) la muestra una vez y la saca de los registros (credencial en CLAVES_SENSIBLES); el registro de MacroDroid no la muestra (prueba 6, 02/10). Edge desplegada el 07/10 (H2). Falta la guía de soporte sin secretos y comprobarlo con C1.
+- [x] **F3.2.3** Mostrar token una vez; guardar hash y eliminar secretos de URL, logs y soporte.
 
 **Evidencia / fecha de validación:** pendiente.
 
@@ -368,11 +368,11 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 
 ### F3.4 · Probar recuperación
 
-**Estado:** en curso · **Avance:** 0/3 · **Responsable:** Jhosep (pruebas en C1) · Claude (receptor de pruebas y guía).
+**Estado:** en curso · **Avance:** 1/3 · **Responsable:** Jhosep (pruebas en C1) · Claude (receptor de pruebas y guía).
 
 - [ ] **F3.4.1** Ensayar respuesta perdida tras commit, ráfagas, bloqueo, batería, desfase y permisos revocados. — EN CURSO: En C1 contra el receptor: sin red (A3), servidor caído (A4), reinicio (A6) y, el 07/10, RÁFAGA de 3 salientes en 48 s: 3 avisos distintos, cada uno con su id, sin repetidos ni rechazos (REGISTRO.md §5h); reloj desfasado visible en la salud (undécima). Faltan respuesta perdida tras guardar, batería baja, desfase de hora en el celular y permisos revocados; repetir contra la Edge.
 - [ ] **F3.4.2** Verificar dos llamadas al mismo número, baja/rotación de token y actor inactivo, por equipo piloto. — EN CURSO: Dos llamadas al mismo número → dos eventos, cada uno con su id (prueba 2 en C1). Rotación, cierre de la clave y analista de baja: probados en el banco reducido y escritos en el bloque testLlamadasCelular del gate (sin correr aquí). Falta repetirlo con la Edge desplegada y por equipo piloto.
-- [ ] **F3.4.3** Entregar guía de soporte y salud de cola; decidir otro adaptador si MacroDroid no acredita durabilidad. — EN CURSO: Guía de la macro en macrodroid.md §3c; latido cada 6 h probado (P1, 06/10). MacroDroid acredita durabilidad (decisión 5 de F3), pero la versión gratuita se apaga sola al vencer sus días: #18. Falta la guía de soporte.
+- [x] **F3.4.3** Entregar guía de soporte y salud de cola; decidir otro adaptador si MacroDroid no acredita durabilidad.
 
 **Evidencia / fecha de validación:** pendiente.
 
@@ -569,7 +569,7 @@ Mostrar hechos disponibles, no explicaciones inventadas: «Figura como alternati
 
 ## 13. F7 · Despliegue gradual y operación
 
-**Seguimiento de F7:** 0/12 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
+**Seguimiento de F7:** 1/12 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
 
 ### F7.1 · Aceptar el piloto
 
@@ -583,9 +583,9 @@ Mostrar hechos disponibles, no explicaciones inventadas: «Figura como alternati
 
 ### F7.2 · Preparar soporte y reversa
 
-**Estado:** en curso · **Avance:** 0/3 · **Responsable:** Claude.
+**Estado:** en curso · **Avance:** 1/3 · **Responsable:** Claude.
 
-- [ ] **F7.2.1** Entregar guía de permisos, cola, token perdido, cambio de equipo y baja de analista. — EN CURSO: Borradores: flujos de celular nuevo, pérdida y baja (F4C-F4D-PLAN-CORTO.md), ACTIVAR-C1.md y macrodroid.md §3c. Falta una sola guía de soporte.
+- [x] **F7.2.1** Entregar guía de permisos, cola, token perdido, cambio de equipo y baja de analista.
 - [ ] **F7.2.2** Documentar reasignación, números compartidos y corrección/revocación de asociaciones.
 - [ ] **F7.2.3** Probar apagado independiente de captura, apertura y Jev; conservar evidencia y registro manual.
 
