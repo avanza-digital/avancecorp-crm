@@ -290,3 +290,50 @@ describe('ContratoDetalle · co-titulares', () => {
     expect(document.querySelectorAll('[aria-busy]').length).toBeGreaterThan(0)
   })
 })
+
+// Baja de analista (20261009200000, EN PRODUCCIÓN desde el 09/10/2026): estos son los estados REALES de producción.
+// Pierina está de baja; sus contratos cuentan a Betzabeth, que recibió a sus clientes; el 2026-01-001570 lo registró
+// Betzabeth pero renueva un upgrade de Pierina.
+describe('ContratoDetalle · baja de analista (heredada)', () => {
+  function atribucion(efectiva: NonNullable<AtribucionContrato['atribucion_efectiva']>, registrado: string, registradoId: string): AtribucionContrato {
+    return {
+      contrato_id: 'k-1',
+      analista_id: registradoId,
+      analista_nombre: registrado,
+      es_demo: false,
+      registrado_por: registrado,
+      atribucion_efectiva: efectiva,
+      reasignaciones: [],
+    }
+  }
+
+  it('contrato registrado por quien está de baja: dice a quién cuenta y por qué', () => {
+    ATRIBUCION = atribucion(
+      { cadena: false, adoptada: false, heredada: true, analista_id: 'b-1', analista_nombre: 'BETZABETH' },
+      'PIERINA', 'p-1',
+    )
+    montar()
+    expect(screen.getByText('Cuenta a BETZABETH — PIERINA ya no está en el equipo')).toBeInTheDocument()
+    expect(screen.queryByText(/adoptada de la cadena del upgrade/)).not.toBeInTheDocument()
+  })
+
+  it('renovación de un upgrade de alguien de baja (caso 001570): lo explica por el upgrade', () => {
+    ATRIBUCION = atribucion(
+      { cadena: true, adoptada: false, heredada: true, analista_id: 'b-1', analista_nombre: 'BETZABETH' },
+      'BETZABETH', 'b-1',
+    )
+    montar()
+    expect(screen.getByText('Cuenta a BETZABETH — quien hizo el upgrade ya no está en el equipo')).toBeInTheDocument()
+    expect(screen.queryByText(/adoptada de la cadena del upgrade/)).not.toBeInTheDocument()
+  })
+
+  it('NEGATIVO: sin herencia (o con una respuesta sin la clave) no aparece el aviso', () => {
+    ATRIBUCION = atribucion(
+      { cadena: true, adoptada: true, analista_id: 'm-1', analista_nombre: 'MARIA UPGRADE' },
+      'ANA UNO', 'v-1',
+    )
+    montar()
+    expect(screen.getByText('Cuenta a MARIA UPGRADE — adoptada de la cadena del upgrade')).toBeInTheDocument()
+    expect(screen.queryByText(/ya no está en el equipo/)).not.toBeInTheDocument()
+  })
+})

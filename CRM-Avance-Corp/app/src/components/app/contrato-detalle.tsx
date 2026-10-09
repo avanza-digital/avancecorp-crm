@@ -564,6 +564,17 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
                         Cuenta a {atribucion.atribucion_efectiva.analista_nombre ?? 'sin nombre'} — adoptada de la cadena del upgrade
                       </p>
                     ) : null}
+                    {/* Baja de analista (09/10/2026): quien correspondía ya no está en el equipo y la venta cuenta
+                        a quien recibió al cliente. Si lo registró otra persona, se la nombra; si el registrado ya
+                        es el heredero (renovación de un upgrade de alguien de baja), se explica por el upgrade. */}
+                    {atribucion.atribucion_efectiva?.heredada ? (
+                      <p className="mt-0.5 text-xs font-medium text-primary">
+                        Cuenta a {atribucion.atribucion_efectiva.analista_nombre ?? 'sin nombre'} —{' '}
+                        {atribucion.analista_id && atribucion.analista_id !== atribucion.atribucion_efectiva.analista_id
+                          ? `${atribucion.analista_nombre ?? 'quien la registró'} ya no está en el equipo`
+                          : 'quien hizo el upgrade ya no está en el equipo'}
+                      </p>
+                    ) : null}
                     {atribucion.es_demo ? (
                       <Badge variant="soft" className="mt-1.5">
                         Contrato de prueba — no cuenta en métricas

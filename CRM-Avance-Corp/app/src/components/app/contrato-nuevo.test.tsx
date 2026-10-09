@@ -822,6 +822,56 @@ describe('ContratoNuevo — el aviso de la cadena de upgrade (ATR-3)', () => {
     vi.mocked(crmQueries.useAtribucionContrato).mockReturnValue({ data: null, isPending: false, isError: false } as never)
   })
 
+  it('baja de analista: si quien hizo el upgrade ya no está, avisa a quién cuenta y por qué', () => {
+    // Estado de PRODUCCIÓN desde el 09/10/2026 (20261009200000): el upgrade es de Pierina (de baja) y la línea
+    // cuenta a Betzabeth, que recibió al cliente.
+    vi.mocked(crmQueries.useAtribucionContrato).mockReturnValue({
+      data: {
+        contrato_id: 'origen-1',
+        analista_id: 'p-1',
+        analista_nombre: 'PIERINA',
+        es_demo: false,
+        registrado_por: null,
+        atribucion_efectiva: {
+          cadena: true,
+          adoptada: false,
+          heredada: true,
+          analista_id: 'b-1',
+          analista_nombre: 'BETZABETH',
+        },
+        reasignaciones: [],
+      },
+      isPending: false,
+      isError: false,
+    } as never)
+    render(
+      <Dialog open onClose={() => undefined}>
+        <ContratoNuevo
+          clienteId="cli-1"
+          clienteNombre="CLIENTE PORTAL UNO"
+          categoriaFija="renovacion"
+          renovacionOrigen={{
+            id: 'origen-1',
+            numeroContrato: '000373',
+            capital: 1000,
+            moneda: 'USD',
+            fechaVencimiento: '2026-12-01',
+          }}
+          analistas={[{ perfil_id: 'b-1', nombre_completo: 'BETZABETH' }]}
+          onConfirmado={vi.fn()}
+          onEnviandoCambio={vi.fn()}
+          onCreado={vi.fn()}
+          onOmitir={vi.fn()}
+        />
+      </Dialog>,
+    )
+    expect(
+      screen.getByText(/Esta renovación cuenta a BETZABETH: quien hizo el upgrade ya no está en el equipo\./),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/cuenta al analista del upgrade/)).not.toBeInTheDocument()
+    vi.mocked(crmQueries.useAtribucionContrato).mockReturnValue({ data: null, isPending: false, isError: false } as never)
+  })
+
   it('NEGATIVO: sin cadena en el origen, el aviso no existe', () => {
     render(
       <Dialog open onClose={() => undefined}>
