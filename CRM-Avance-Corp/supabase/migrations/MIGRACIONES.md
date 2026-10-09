@@ -17531,3 +17531,27 @@ exención y sello verificados en producción; advisors de seguridad sin alertas 
 credenciales). Revisión: auditor-rls CHANGES_REQUESTED → cerrados (cooperativas, `service_role`, rótulo, pruebas por rol).
 **Reversa:** `supabase/scripts/baja-analista-heredero/reversa.sql` (7 cuerpos y exención exactos, borra los 4 ayudantes,
 resella; idempotente).
+
+## 20261009223000 — Facturación fase 2: ningún cambio de supervisor se pierde (un trigger, toda vía)
+
+**Estado:** **en banco, sin aplicar** (09/10/2026). Plan de Facturación por fases, auditado por Codex; decisión de Miguel:
+los cambios que no hace una persona se anotan con el autor «sistema» (`private.actor_sistema_eventos()`, UUID fijo
+`f6d2941b-2e93-4c81-9a27-0c5e786b104d`; `actor_id` no tiene FK: no se crea ningún perfil ni se toca `public`).
+**Cambio:** `private.trg_equipo_evento_jerarquia()` (SECURITY DEFINER: `crm.usuario_eventos` no concede INSERT a nadie y
+debe escribirse sin sesión) es el ÚNICO escritor de `jerarquia_actualizada`, por dos triggers de `crm.equipo` (AFTER
+INSERT con supervisor; AFTER UPDATE —sin `OF supervisor_id`, para que un BEFORE futuro no lo esquive— cuando el
+supervisor cambia). Autor `coalesce(auth.uid(), sistema)`. `crm.actualizar_jerarquia_usuario_fn` y
+`crm.registrar_vendedor_usuario_fn` dejan de escribir el evento y pasan su idempotencia por dos GUC transaccionales que el
+trigger consume solo para su perfil objetivo. Cubre la baja con reemplazo, migraciones, `service_role` y la cascada
+`set null` de la purga. `crm.facturacion_diaria_fn` NO cambia. Garantía acotada: quien desactive triggers o use
+`session_replication_role` queda fuera.
+**Verificación (banco Docker a paridad, crm 333 / private 689):** aplicar → reaplicar → reversa → reversa → aplicar PASS;
+tras la reversa, huellas = producción y comentario original (NULL) restaurado; ensayo sintético 22/22 (RPC y repeticiones,
+alta, baja con reemplazo, sin sesión, sin cambio, sin supervisor, purga, dos cambios en una transacción, el fallo del
+evento revierte el cambio, GUC no reutilizable, y Facturación antes/después de una baja con reemplazo); mutante (trigger
+de UPDATE desactivado) → 10/22 FAIL; negativas: estado a medias y cuerpo alterado → la migración se niega; gate RLS
+completo (3076 aserciones) sin rojos nuevos (9 de fondo); `test-facturacion.sql` (PR #237, ya independiente del día) 12/12.
+**Revisión:** auditor-rls sin P0/P1; P2 (el oráculo de atribución dependía del día con el trigger) cerrado en la #237;
+P3 (comentario exacto en la reversa, documentación, `OF supervisor_id`) cerrados.
+**Aplicar:** primero `supabase/scripts/jerarquia-evento/ensayo-produccion.sql` (deshace todo); luego la migración y
+`registrar.sql` por `db query --linked --file`, en un momento sin actividad de Gerencia. **Reversa:** `reversa.sql`.
