@@ -1,10 +1,10 @@
 # Avance — Llamadas desde el celular al CRM
 
-Actualizado: 09/10/2026, 07:20 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
+Actualizado: 09/10/2026, 06:55 p. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
 
 Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact/Q3GmV9m6Cy2GPQGKAbNy8M · Plan completo: `PLAN.md` en esta carpeta.
 
-**Lo último:** 10/10 00:20 UTC (09/10 19:20 Lima): PR de documentos abierto con lo del 09/10 por la tarde — arreglo de H-ESPERA en la guía de la macro, pruebas S1–S3 en C1, H-PERMISO y pendientes de la auditoría. Turno de Miguel: revisar y fusionar, y decidir F4.2.4, H-PERMISO y los NO APLICA propuestos. 45/102, 2/8 fases.
+**Lo último:** 09/10 23:55 UTC (18:55 Lima): PR de documentos abierto con lo del 09/10 por la tarde — arreglo de H-ESPERA en la guía de la macro, pruebas S1–S3 en C1, H-PERMISO y pendientes de la auditoría. Turno de Miguel: revisar y fusionar, y decidir F4.2.4, H-PERMISO y los NO APLICA propuestos. 45/102, 2/8 fases.
 
 **Total:** 45 de 102 tareas · 2 de 8 fases hechas.
 
@@ -136,7 +136,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 
 ## Últimos cambios
 
-- 09/10/2026, 07:20 p. m. · PR de documentos del 09/10 (tarde) abierto, como listo, desde la rama crm/llamadas-pruebas-c1-hespera-20261009 sobre main: macrodroid.md §3c con el arreglo de H-ESPERA (numero_saliente), REGISTRO.md §5j con S1–S3 (y C1 al día en §1 y §3; aviso de tratamiento marcado como desactualizado), SOPORTE.md (H-PERMISO, H-ESPERA y «Reloj desfasado»), SEGUIMIENTO.md, estado.json/PLAN.md/AVANCE.md con los cambios 161–184 y la nota del vault con los pendientes de la auditoría. Sin casillas nuevas: 45/102, 2/8.
+- 09/10/2026, 06:55 p. m. · PR de documentos del 09/10 (tarde) abierto, como listo, desde la rama crm/llamadas-pruebas-c1-hespera-20261009 sobre main: macrodroid.md §3c con el arreglo de H-ESPERA (numero_saliente), REGISTRO.md §5j con S1–S3 (y C1 al día en §1 y §3; aviso de tratamiento marcado como desactualizado), SOPORTE.md (H-PERMISO, H-ESPERA y «Reloj desfasado»), SEGUIMIENTO.md, estado.json/PLAN.md/AVANCE.md con los cambios 161–184 y la nota del vault con los pendientes de la auditoría. Sin casillas nuevas: 45/102, 2/8.
 - 09/10/2026, 06:50 p. m. · Cierre de la prueba del permiso: permiso «Registro de llamadas» devuelto; llamada de control de las 18:44 guardada enseguida («Quedará unido…») y ya unida en «Qué pasó hoy». «Reloj desfasado» desapareció al repetir ultimo_latido = 0 con la hora ya correcta: si el latido sale antes de que se corrija la hora, la tarjeta sigue marcando el desfase hasta el próximo latido (6 h); va a SOPORTE.md. S3 hecha salvo «respuesta perdida tras guardar» (reinyección manual en la cola), que queda para otro día.
 - 09/10/2026, 06:42 p. m. · S3, permiso «Registro de llamadas» quitado a MacroDroid → hallazgo H-PERMISO confirmado (09/10 ~18:30 Lima): llamada a «prueba leeds» sin el permiso → no se abrió la encuesta, no apareció en «Pendientes» y la tarjeta de gerencia seguía «Al día»: la llamada se pierde sin que nada lo delate (el latido no depende de ese permiso). Pendiente: devolver el permiso y llamada de control. Aparte, la tarjeta sigue mostrando «Reloj desfasado» tras volver a la hora automática: probablemente el latido salió antes de que se corrigiera la hora y el siguiente toca en 6 h; se repite ultimo_latido = 0 con la hora ya correcta.
 - 09/10/2026, 06:35 p. m. · C1 devuelto a la normalidad tras la prueba de la hora: «Fecha y hora automáticas» encendida y ultimo_latido en 0; según Jhosep, ultimo_latido cambió solo enseguida (el latido entró con la hora correcta). La llamada de prueba de las ~18:15 quedó registrada con la hora del celular, 10 minutos adelantada (el resultado lleva la hora del servidor).
