@@ -17381,7 +17381,7 @@ tras fijar la firma (el bloque de candados no cambió y el ENSAYO de producción
 
 ## 20261009180000 — Sin operación de cartera, solo 'nuevo': la guarda cierra el hueco inverso (toda vía)
 
-**Estado:** ⏳ **PENDIENTE — construida y ensayada SOLO en el banco; NO aplicada en producción.** Banco Docker propio
+**Estado:** ✅ **APLICADA EN PRODUCCIÓN (09/10/2026 ~15:05 Lima) y registrada** (Miguel con `!`: «OK: 20261009180000 aplicada»; registrador: versión `20261009180000`, md5 del archivo `04d579540038e4da0d103cec5bf1d91b`). Verificado después (solo lectura): cuerpo de la guarda `b8f9c14e…`, ACL `{postgres=X/postgres}`, trigger habilitado, 0 candados `crm_migracion_funciones`, puente legacy abierto (las pruebas 3b corrieron con candidato o avisaron NO CORRIDA; la migración confirmó). Construida y ensayada antes en el banco Docker propio
 `avancecorp-categoria-20261008`, rehecho desde cero el 09/10 con el volcado de producción del 08/10 19:14 + `20261009120000`.
 Migración final md5 `04d579540038e4da0d103cec5bf1d91b` (tras Codex r1; la de la PR #236 en `3f110c5f` era `9ac4dc87…`);
 cuerpo de la guarda (md5 de prosrc) `b8f9c14e5da959c6237b2d00df8423ae`, sin cambios en Codex r1.
