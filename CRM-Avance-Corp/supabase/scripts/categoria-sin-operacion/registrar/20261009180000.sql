@@ -1,7 +1,7 @@
 -- REGISTRO en supabase_migrations.schema_migrations de 20261009180000_crm_categoria_sin_operacion_solo_nuevo.
 -- GENERADO por generar_registrador.py: no editar a mano. `db query --linked --file` NO registra: correr DESPUÉS de aplicar la
 -- migración. Idempotente; se niega si la guarda no tiene el cuerpo nuevo (md5 de prosrc b8f9c14e5da959c6237b2d00df8423ae), o si la versión ya
--- está registrada con otro nombre u otro contenido. statements = el archivo entero (md5 9ac4dc877efdb17ad17a72a6ec3d656e).
+-- está registrada con otro nombre u otro contenido. statements = el archivo entero (md5 04d579540038e4da0d103cec5bf1d91b).
 begin;
 set local lock_timeout = '5s';
 select pg_advisory_xact_lock(hashtext('crm_categoria_sin_operacion_solo_nuevo_registro'));
@@ -54,8 +54,12 @@ begin
 --   aparte). De los 106, uno puede volver a 'nuevo' o quedar vacío, pero no cambiar entre 'upgrade' y 'renovacion'; y los 19
 --   vacíos, si se corrigen eligiendo categoría, solo admiten 'nuevo'. Para un contrato que YA existe no hay pantalla que le
 --   cuelgue una operación: hoy solo SQL (insertar la operación, como el backfill B; la sincronización pone la categoría).
--- AISLAMIENTO: la transacción va en READ COMMITTED (no REPEATABLE READ como otras de la casa): la guarda solo deja cambiar
---   una categoría en READ COMMITTED y el postflight cambia tres dentro de subtransacciones que se deshacen.
+-- AISLAMIENTO Y CANDADO: la transacción va en READ COMMITTED (no REPEATABLE READ como otras de la casa): la guarda solo deja
+--   cambiar una categoría en READ COMMITTED y el postflight cambia tres dentro de subtransacciones que se deshacen. Por eso la
+--   exclusión de migraciones es un candado de TRANSACCIÓN (pg_advisory_xact_lock, la llave de siempre:
+--   crm_migracion_funciones) tomado al empezar: en READ COMMITTED todo lo que sigue se mira después de tenerlo, y se suelta
+--   con el COMMIT o con cualquier ROLLBACK (si falla a mitad no queda tomado, se cierre o no la conexión). Sin unlock final:
+--   la última fila es «OK: 20261009180000 aplicada».
 -- PREFLIGHT (con public en el search_path, como se midió): las huellas de la guarda y de las 7 piezas que la rodean (md5 de
 --   pg_get_functiondef medido en producción el 09/10 a las 12:15 Lima; la de public.actualizar_numero_contrato, el 08/10),
 --   dueño, permisos, SECURITY y search_path de la guarda, la huella de los 16 triggers de public.contratos (todos
@@ -65,8 +69,10 @@ begin
 --   negativo que se deshacen SIEMPRE (subtransacción que termina en raise), con la congelación del PDF abierta solo para ese
 --   contrato, sobre contratos de producto LEGACY (con el puente legacy abierto), no demo, no en eliminación y de un mes NO
 --   sellado: (a) sin operación 'nuevo' → 'upgrade' ⇒ 23514 con el texto exacto; (b) sin operación 'upgrade' (de los 106) →
---   'nuevo' ⇒ pasa; (c) con operación → otra categoría ⇒ 23514 «La categoría la decide la operación de cartera». Sin
---   candidato, aviso y sigue. Comprueba además que ninguna prueba dejó nada escrito (bitácora, foto de producto, categoría).
+--   'nuevo' ⇒ pasa; (c) con operación → otra categoría ⇒ 23514 «La categoría la decide la operación de cartera». Antes de
+--   cada una, la fila del candidato se bloquea (SKIP LOCKED) y su precondición se revalida con la foto de ahora; sin
+--   candidato, en uso o cambiado ⇒ «NO CORRIDA» (aviso, no fallo: lo estructural ya está comprobado). Comprueba además que
+--   ninguna prueba dejó nada escrito (bitácora, foto de producto, categoría).
 -- LÍMITES: la regla es inmediata (AFTER por fila, no diferida): un flujo futuro que registre una renovación o un upgrade sobre
 --   un contrato existente inserta PRIMERO la operación. Como todo trigger, no frena a un superusuario con
 --   session_replication_role = replica ni con el trigger deshabilitado.
@@ -75,17 +81,17 @@ begin
 -- REGISTRO: supabase/scripts/categoria-sin-operacion/registrar/20261009180000.sql (`db query --file` NO registra).
 -- TIPOS: no hacen falta (no cambia ninguna firma ni nada expuesto por la API).
 
--- Exclusión de migraciones ANTES de la instantánea: candado de SESIÓN en su propia transacción.
-begin;
-set local lock_timeout = '5s';
-select pg_advisory_lock(hashtext('crm_migracion_funciones'));
-commit;
-
 -- READ COMMITTED explícito (no se hereda el aislamiento por defecto de la sesión): el postflight cambia categorías.
 begin;
 set transaction isolation level read committed;
 set local lock_timeout = '5s';
 set local statement_timeout = '60s';
+-- Exclusión de migraciones con un candado de TRANSACCIÓN (no de sesión), tomado antes que nada más. En READ COMMITTED cada
+-- sentencia toma una foto nueva, así que todo lo que sigue (preflight incluido) se mira DESPUÉS de tener el candado; y un
+-- candado de transacción se suelta con el COMMIT o con CUALQUIER ROLLBACK: si algo falla a mitad (P0409 del preflight, un
+-- error del postflight), no queda tomado aunque la conexión siga abierta o vuelva a un pool. Es la misma llave que usan
+-- como candado de sesión las otras migraciones: los dos tipos se excluyen entre sí.
+select pg_advisory_xact_lock(hashtext('crm_migracion_funciones'));
 set local quote_all_identifiers = off;
 -- Las huellas se midieron con public en el search_path: el texto de pg_get_functiondef y de pg_get_triggerdef cambia con
 -- él. Solo para el preflight y las huellas del postflight; las pruebas, con search_path vacío.
@@ -262,7 +268,10 @@ $postflight$;
 -- 3b · Pruebas en negativo que se deshacen SIEMPRE. Contratos de producto LEGACY (con uno de catálogo, su trigger rechaza
 -- antes), con términos que el puente legacy puede fotografiar y con ese puente abierto (cerrado, un legacy ya no cambia de
 -- términos: no se prueba aquí), no demo, no en eliminación (otra regla rechazaría antes) y de un mes NO sellado; la
--- congelación del PDF, abierta solo para ese contrato y solo dentro del bloque.
+-- congelación del PDF, abierta solo para ese contrato y solo dentro del bloque. Antes de cada prueba, FUERA de su
+-- subtransacción, la fila del candidato se bloquea (hasta el COMMIT) y su precondición se revalida con la foto de AHORA:
+-- entre la elección y la prueba otra sesión pudo cambiarla. Si está ocupada (SKIP LOCKED: no se espera, así un candidato
+-- en uso no aborta la migración) o ya no cumple, la prueba no se corre aquí (aviso) y no cuenta como fallo.
 set local search_path = '';
 do $pruebas$
 declare
@@ -272,6 +281,7 @@ declare
   v_id uuid;
   v_caso text;
   v_destino text;
+  v_vale boolean;
   v_estado text;
   v_mensaje text;
   v_antes text;
@@ -321,6 +331,30 @@ begin
     ) as x
     where v_puente_legacy
   loop
+    -- La fila, bloqueada fuera de la subtransacción (el bloqueo dura hasta el COMMIT); ocupada ⇒ no se corre.
+    perform 1 from public.contratos c where c.id = v_id for update skip locked;
+    if not found then
+      raise notice 'CATEGORIA SIN OPERACION postflight (%): el contrato candidato está en uso por otra sesión; la prueba no se corre aquí', v_caso;
+      continue;
+    end if;
+    -- Precondición con la foto de AHORA (READ COMMITTED: esta sentencia mira después del bloqueo). En (c) el destino sale
+    -- otra vez de la operación vigente.
+    select case v_caso
+             when 'a' then c.categoria = 'nuevo' and o.id is null
+             when 'b' then c.categoria in ('upgrade', 'renovacion') and o.id is null
+             when 'c' then o.id is not null
+           end
+           and pc.es_legacy and not c.es_demo and not private.contrato_en_eliminacion(c.id),
+           case when v_caso = 'c' then case when o.tipo = 'upgrade' then 'renovacion' else 'upgrade' end else v_destino end
+      into v_vale, v_destino
+      from public.contratos c
+      left join crm.operaciones_cartera o on o.contrato_nuevo_id = c.id
+      left join crm.producto_condiciones pc on pc.id = c.producto_condicion_id
+     where c.id = v_id;
+    if v_vale is not true then
+      raise notice 'CATEGORIA SIN OPERACION postflight (%): el contrato candidato cambió antes de la prueba; no se corre aquí', v_caso;
+      continue;
+    end if;
     -- Lo de antes, para comprobar que la prueba no deja nada: categoría, bitácora del contrato y fotos de producto.
     select coalesce(c.categoria, 'vacía') || ' · ' ||
            (select count(*) from public.audit_log a where a.tabla = 'contratos' and a.fila_id = v_id::text) || ' · ' ||
@@ -359,24 +393,27 @@ begin
     v_corridos := v_corridos || v_caso;
     raise notice 'CATEGORIA SIN OPERACION postflight (%): OK (% → %)', v_caso, split_part(v_antes, ' · ', 1), v_destino;
   end loop;
-  -- Un aviso por cada caso sin candidato: esa prueba no se pudo correr aquí (la suite del banco la cubre).
+  -- Un aviso por cada prueba NO CORRIDA (sin candidato, candidato en uso o cambiado, o puente legacy cerrado). No es un
+  -- fallo: lo estructural (huellas, dueño, permisos, triggers, comentario) ya se comprobó en 3a; la suite del banco cubre
+  -- estas pruebas.
   if not v_puente_legacy then
-    raise notice 'CATEGORIA SIN OPERACION postflight: el puente legacy está cerrado (un contrato legacy ya no cambia de términos); las pruebas (a), (b) y (c) no se pudieron correr aquí';
+    raise notice 'CATEGORIA SIN OPERACION postflight: el puente legacy está cerrado (un contrato legacy ya no cambia de términos)';
   end if;
   if strpos(v_corridos, 'a') = 0 then
-    raise notice 'CATEGORIA SIN OPERACION postflight: no hay contrato candidato sin operación en nuevo; la prueba (a) no se pudo correr aquí';
+    raise notice 'CATEGORIA SIN OPERACION postflight (a) NO CORRIDA: sin candidato utilizable sin operación en nuevo';
   end if;
   if strpos(v_corridos, 'b') = 0 then
-    raise notice 'CATEGORIA SIN OPERACION postflight: no hay contrato candidato sin operación en upgrade o renovacion; la prueba (b) no se pudo correr aquí';
+    raise notice 'CATEGORIA SIN OPERACION postflight (b) NO CORRIDA: sin candidato utilizable sin operación en upgrade o renovacion';
   end if;
   if strpos(v_corridos, 'c') = 0 then
-    raise notice 'CATEGORIA SIN OPERACION postflight: no hay contrato candidato con operación de cartera; la prueba (c) no se pudo correr aquí';
+    raise notice 'CATEGORIA SIN OPERACION postflight (c) NO CORRIDA: sin candidato utilizable con operación de cartera';
   end if;
 end;
 $pruebas$;
 
 commit;
-select pg_advisory_unlock(hashtext('crm_migracion_funciones'));
+-- El candado de transacción ya se soltó con el COMMIT. Última fila para que `db query` muestre algo.
+select 'OK: 20261009180000 aplicada' as resultado;
 $mig$])) then
     raise exception 'REGISTRO: la versión 20261009180000 ya está registrada con otro nombre u otro contenido';
   end if;
@@ -419,8 +456,12 @@ values ('20261009180000', 'crm_categoria_sin_operacion_solo_nuevo', array[$mig$-
 --   aparte). De los 106, uno puede volver a 'nuevo' o quedar vacío, pero no cambiar entre 'upgrade' y 'renovacion'; y los 19
 --   vacíos, si se corrigen eligiendo categoría, solo admiten 'nuevo'. Para un contrato que YA existe no hay pantalla que le
 --   cuelgue una operación: hoy solo SQL (insertar la operación, como el backfill B; la sincronización pone la categoría).
--- AISLAMIENTO: la transacción va en READ COMMITTED (no REPEATABLE READ como otras de la casa): la guarda solo deja cambiar
---   una categoría en READ COMMITTED y el postflight cambia tres dentro de subtransacciones que se deshacen.
+-- AISLAMIENTO Y CANDADO: la transacción va en READ COMMITTED (no REPEATABLE READ como otras de la casa): la guarda solo deja
+--   cambiar una categoría en READ COMMITTED y el postflight cambia tres dentro de subtransacciones que se deshacen. Por eso la
+--   exclusión de migraciones es un candado de TRANSACCIÓN (pg_advisory_xact_lock, la llave de siempre:
+--   crm_migracion_funciones) tomado al empezar: en READ COMMITTED todo lo que sigue se mira después de tenerlo, y se suelta
+--   con el COMMIT o con cualquier ROLLBACK (si falla a mitad no queda tomado, se cierre o no la conexión). Sin unlock final:
+--   la última fila es «OK: 20261009180000 aplicada».
 -- PREFLIGHT (con public en el search_path, como se midió): las huellas de la guarda y de las 7 piezas que la rodean (md5 de
 --   pg_get_functiondef medido en producción el 09/10 a las 12:15 Lima; la de public.actualizar_numero_contrato, el 08/10),
 --   dueño, permisos, SECURITY y search_path de la guarda, la huella de los 16 triggers de public.contratos (todos
@@ -430,8 +471,10 @@ values ('20261009180000', 'crm_categoria_sin_operacion_solo_nuevo', array[$mig$-
 --   negativo que se deshacen SIEMPRE (subtransacción que termina en raise), con la congelación del PDF abierta solo para ese
 --   contrato, sobre contratos de producto LEGACY (con el puente legacy abierto), no demo, no en eliminación y de un mes NO
 --   sellado: (a) sin operación 'nuevo' → 'upgrade' ⇒ 23514 con el texto exacto; (b) sin operación 'upgrade' (de los 106) →
---   'nuevo' ⇒ pasa; (c) con operación → otra categoría ⇒ 23514 «La categoría la decide la operación de cartera». Sin
---   candidato, aviso y sigue. Comprueba además que ninguna prueba dejó nada escrito (bitácora, foto de producto, categoría).
+--   'nuevo' ⇒ pasa; (c) con operación → otra categoría ⇒ 23514 «La categoría la decide la operación de cartera». Antes de
+--   cada una, la fila del candidato se bloquea (SKIP LOCKED) y su precondición se revalida con la foto de ahora; sin
+--   candidato, en uso o cambiado ⇒ «NO CORRIDA» (aviso, no fallo: lo estructural ya está comprobado). Comprueba además que
+--   ninguna prueba dejó nada escrito (bitácora, foto de producto, categoría).
 -- LÍMITES: la regla es inmediata (AFTER por fila, no diferida): un flujo futuro que registre una renovación o un upgrade sobre
 --   un contrato existente inserta PRIMERO la operación. Como todo trigger, no frena a un superusuario con
 --   session_replication_role = replica ni con el trigger deshabilitado.
@@ -440,17 +483,17 @@ values ('20261009180000', 'crm_categoria_sin_operacion_solo_nuevo', array[$mig$-
 -- REGISTRO: supabase/scripts/categoria-sin-operacion/registrar/20261009180000.sql (`db query --file` NO registra).
 -- TIPOS: no hacen falta (no cambia ninguna firma ni nada expuesto por la API).
 
--- Exclusión de migraciones ANTES de la instantánea: candado de SESIÓN en su propia transacción.
-begin;
-set local lock_timeout = '5s';
-select pg_advisory_lock(hashtext('crm_migracion_funciones'));
-commit;
-
 -- READ COMMITTED explícito (no se hereda el aislamiento por defecto de la sesión): el postflight cambia categorías.
 begin;
 set transaction isolation level read committed;
 set local lock_timeout = '5s';
 set local statement_timeout = '60s';
+-- Exclusión de migraciones con un candado de TRANSACCIÓN (no de sesión), tomado antes que nada más. En READ COMMITTED cada
+-- sentencia toma una foto nueva, así que todo lo que sigue (preflight incluido) se mira DESPUÉS de tener el candado; y un
+-- candado de transacción se suelta con el COMMIT o con CUALQUIER ROLLBACK: si algo falla a mitad (P0409 del preflight, un
+-- error del postflight), no queda tomado aunque la conexión siga abierta o vuelva a un pool. Es la misma llave que usan
+-- como candado de sesión las otras migraciones: los dos tipos se excluyen entre sí.
+select pg_advisory_xact_lock(hashtext('crm_migracion_funciones'));
 set local quote_all_identifiers = off;
 -- Las huellas se midieron con public en el search_path: el texto de pg_get_functiondef y de pg_get_triggerdef cambia con
 -- él. Solo para el preflight y las huellas del postflight; las pruebas, con search_path vacío.
@@ -627,7 +670,10 @@ $postflight$;
 -- 3b · Pruebas en negativo que se deshacen SIEMPRE. Contratos de producto LEGACY (con uno de catálogo, su trigger rechaza
 -- antes), con términos que el puente legacy puede fotografiar y con ese puente abierto (cerrado, un legacy ya no cambia de
 -- términos: no se prueba aquí), no demo, no en eliminación (otra regla rechazaría antes) y de un mes NO sellado; la
--- congelación del PDF, abierta solo para ese contrato y solo dentro del bloque.
+-- congelación del PDF, abierta solo para ese contrato y solo dentro del bloque. Antes de cada prueba, FUERA de su
+-- subtransacción, la fila del candidato se bloquea (hasta el COMMIT) y su precondición se revalida con la foto de AHORA:
+-- entre la elección y la prueba otra sesión pudo cambiarla. Si está ocupada (SKIP LOCKED: no se espera, así un candidato
+-- en uso no aborta la migración) o ya no cumple, la prueba no se corre aquí (aviso) y no cuenta como fallo.
 set local search_path = '';
 do $pruebas$
 declare
@@ -637,6 +683,7 @@ declare
   v_id uuid;
   v_caso text;
   v_destino text;
+  v_vale boolean;
   v_estado text;
   v_mensaje text;
   v_antes text;
@@ -686,6 +733,30 @@ begin
     ) as x
     where v_puente_legacy
   loop
+    -- La fila, bloqueada fuera de la subtransacción (el bloqueo dura hasta el COMMIT); ocupada ⇒ no se corre.
+    perform 1 from public.contratos c where c.id = v_id for update skip locked;
+    if not found then
+      raise notice 'CATEGORIA SIN OPERACION postflight (%): el contrato candidato está en uso por otra sesión; la prueba no se corre aquí', v_caso;
+      continue;
+    end if;
+    -- Precondición con la foto de AHORA (READ COMMITTED: esta sentencia mira después del bloqueo). En (c) el destino sale
+    -- otra vez de la operación vigente.
+    select case v_caso
+             when 'a' then c.categoria = 'nuevo' and o.id is null
+             when 'b' then c.categoria in ('upgrade', 'renovacion') and o.id is null
+             when 'c' then o.id is not null
+           end
+           and pc.es_legacy and not c.es_demo and not private.contrato_en_eliminacion(c.id),
+           case when v_caso = 'c' then case when o.tipo = 'upgrade' then 'renovacion' else 'upgrade' end else v_destino end
+      into v_vale, v_destino
+      from public.contratos c
+      left join crm.operaciones_cartera o on o.contrato_nuevo_id = c.id
+      left join crm.producto_condiciones pc on pc.id = c.producto_condicion_id
+     where c.id = v_id;
+    if v_vale is not true then
+      raise notice 'CATEGORIA SIN OPERACION postflight (%): el contrato candidato cambió antes de la prueba; no se corre aquí', v_caso;
+      continue;
+    end if;
     -- Lo de antes, para comprobar que la prueba no deja nada: categoría, bitácora del contrato y fotos de producto.
     select coalesce(c.categoria, 'vacía') || ' · ' ||
            (select count(*) from public.audit_log a where a.tabla = 'contratos' and a.fila_id = v_id::text) || ' · ' ||
@@ -724,34 +795,37 @@ begin
     v_corridos := v_corridos || v_caso;
     raise notice 'CATEGORIA SIN OPERACION postflight (%): OK (% → %)', v_caso, split_part(v_antes, ' · ', 1), v_destino;
   end loop;
-  -- Un aviso por cada caso sin candidato: esa prueba no se pudo correr aquí (la suite del banco la cubre).
+  -- Un aviso por cada prueba NO CORRIDA (sin candidato, candidato en uso o cambiado, o puente legacy cerrado). No es un
+  -- fallo: lo estructural (huellas, dueño, permisos, triggers, comentario) ya se comprobó en 3a; la suite del banco cubre
+  -- estas pruebas.
   if not v_puente_legacy then
-    raise notice 'CATEGORIA SIN OPERACION postflight: el puente legacy está cerrado (un contrato legacy ya no cambia de términos); las pruebas (a), (b) y (c) no se pudieron correr aquí';
+    raise notice 'CATEGORIA SIN OPERACION postflight: el puente legacy está cerrado (un contrato legacy ya no cambia de términos)';
   end if;
   if strpos(v_corridos, 'a') = 0 then
-    raise notice 'CATEGORIA SIN OPERACION postflight: no hay contrato candidato sin operación en nuevo; la prueba (a) no se pudo correr aquí';
+    raise notice 'CATEGORIA SIN OPERACION postflight (a) NO CORRIDA: sin candidato utilizable sin operación en nuevo';
   end if;
   if strpos(v_corridos, 'b') = 0 then
-    raise notice 'CATEGORIA SIN OPERACION postflight: no hay contrato candidato sin operación en upgrade o renovacion; la prueba (b) no se pudo correr aquí';
+    raise notice 'CATEGORIA SIN OPERACION postflight (b) NO CORRIDA: sin candidato utilizable sin operación en upgrade o renovacion';
   end if;
   if strpos(v_corridos, 'c') = 0 then
-    raise notice 'CATEGORIA SIN OPERACION postflight: no hay contrato candidato con operación de cartera; la prueba (c) no se pudo correr aquí';
+    raise notice 'CATEGORIA SIN OPERACION postflight (c) NO CORRIDA: sin candidato utilizable con operación de cartera';
   end if;
 end;
 $pruebas$;
 
 commit;
-select pg_advisory_unlock(hashtext('crm_migracion_funciones'));
+-- El candado de transacción ya se soltó con el COMMIT. Última fila para que `db query` muestre algo.
+select 'OK: 20261009180000 aplicada' as resultado;
 $mig$])
 on conflict (version) do nothing;
 do $post$
 begin
   if not exists (select 1 from supabase_migrations.schema_migrations
                  where version = '20261009180000' and name = 'crm_categoria_sin_operacion_solo_nuevo' and cardinality(statements) = 1
-                   and md5(statements[1]) = '9ac4dc877efdb17ad17a72a6ec3d656e') then
+                   and md5(statements[1]) = '04d579540038e4da0d103cec5bf1d91b') then
     raise exception 'REGISTRO: la fila 20261009180000 / crm_categoria_sin_operacion_solo_nuevo no quedó como se esperaba';
   end if;
   raise notice 'REGISTRO: 20261009180000 / crm_categoria_sin_operacion_solo_nuevo (1 sentencia: el archivo entero)';
 end $post$;
-select '20261009180000' as version_registrada, '9ac4dc877efdb17ad17a72a6ec3d656e' as md5_del_archivo;
+select '20261009180000' as version_registrada, '04d579540038e4da0d103cec5bf1d91b' as md5_del_archivo;
 commit;

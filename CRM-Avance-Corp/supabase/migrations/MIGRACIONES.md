@@ -17383,7 +17383,8 @@ tras fijar la firma (el bloque de candados no cambió y el ENSAYO de producción
 
 **Estado:** ⏳ **PENDIENTE — construida y ensayada SOLO en el banco; NO aplicada en producción.** Banco Docker propio
 `avancecorp-categoria-20261008`, rehecho desde cero el 09/10 con el volcado de producción del 08/10 19:14 + `20261009120000`.
-Migración final md5 `9ac4dc877efdb17ad17a72a6ec3d656e`; cuerpo de la guarda (md5 de prosrc) `b8f9c14e5da959c6237b2d00df8423ae`.
+Migración final md5 `04d579540038e4da0d103cec5bf1d91b` (tras Codex r1; la de la PR #236 en `3f110c5f` era `9ac4dc87…`);
+cuerpo de la guarda (md5 de prosrc) `b8f9c14e5da959c6237b2d00df8423ae`, sin cambios en Codex r1.
 **Decisión y OK de Miguel (09/10/2026, transmitidos en el encargo):** cerrar el hueco inverso de «la operación decide»: un
 contrato SIN operación de cartera solo puede quedar como 'nuevo'; ninguna vía —«Corregir» del CRM, edición del portal,
 SQL— lo pasa a 'upgrade' o 'renovacion'; pasar a 'nuevo' o a vacía sí; los existentes no se tocan. Es lo que
@@ -17411,8 +17412,8 @@ pasar a X.», hint «Una renovación o un upgrade se registran desde la cartera 
 justificado: el admin del portal edita contratos por RLS y no ve `crm.operaciones_cartera`), `search_path` vacío y ACL
 `{postgres=X/postgres}` sin cambios (CREATE OR REPLACE los conserva; pre y postflight lo comprueban). No toca datos, ni la
 API, ni tipos.
-**Preflight** (READ COMMITTED explícito, `lock_timeout` 5 s, `statement_timeout` 60 s, candado de sesión
-`crm_migracion_funciones`; `search_path = public` como en la medición): md5 de `pg_get_functiondef` de la guarda
+**Preflight** (READ COMMITTED explícito, `lock_timeout` 5 s, `statement_timeout` 60 s, candado de TRANSACCIÓN
+`pg_advisory_xact_lock(hashtext('crm_migracion_funciones'))` tomado al empezar —Codex r1, abajo—; `search_path = public` como en la medición): md5 de `pg_get_functiondef` de la guarda
 (`8fdd5f1a…`) y de 7 piezas vecinas —6 medidas en producción el 09/10 12:15 (sincronización `ac816220…`, núcleo
 `718e7e0f…`, puerta `1d55b75d…`, `crear_contrato` `dce8f0dd…`, snapshot de producto `c4c22298…`, `actualizar_contrato`
 `6184aad4…`) y `actualizar_numero_contrato` `84ba035d9888…` (producción 08/10, R7 de 20261009120000; ninguna migración
@@ -17423,11 +17424,14 @@ triggers intactos, las 7 piezas con su huella, comentario (con `is not true`: un
 pruebas en negativo que se deshacen siempre (congelación del PDF abierta solo para ese contrato; contratos legacy, con el
 puente legacy abierto, no demo, no en eliminación, de mes no sellado y con términos fotografiables): (a) sin operación
 nuevo→upgrade ⇒ 23514 con el texto exacto; (b) sin operación upgrade→nuevo ⇒ pasa; (c) con operación → otra ⇒ 23514 «La
-categoría la decide…»; y que no dejaron nada (categoría, bitácora del contrato, fotos legacy). Sin candidato o con el
-puente legacy cerrado ⇒ aviso y sigue (antes habría abortado siempre).
+categoría la decide…»; y que no dejaron nada (categoría, bitácora del contrato, fotos legacy). Antes de cada prueba, fuera
+de su subtransacción, la fila del candidato se bloquea (`for update skip locked`, hasta el COMMIT) y su precondición se
+revalida con la foto de ahora (Codex r1). Sin candidato, candidato en uso o cambiado, o puente legacy cerrado ⇒ «NO
+CORRIDA» (aviso, no fallo; es «3b NOT RUN», distinto de lo estructural, que siempre corre). Última fila: «OK:
+20261009180000 aplicada».
 **Banco (09/10):** las 8 huellas, la ACL de la guarda y la de los 16 triggers del banco = las de producción (contrastadas una
 a una). Migración en UN mensaje como `postgres` desde una sesión REPEATABLE READ ⇒ postflight OK; sobre el mundo, (a), (b)
-y (c) OK; con el puente legacy cerrado (banco), se aplica con el aviso. `transporte.sh` **8/8** con el archivo final (aplicar ⇒ postflight OK; segunda aplicación ⇒ P0409 «ya se aplicó»; registrador ⇒ registra con el md5 del archivo y, otra vez, idempotente; reversa ⇒ huella `8fdd5f1a…`; reversa otra vez ⇒ P0409; registrador sin la migración ⇒ se niega; aplicar de nuevo ⇒ OK; 0 candados de aviso tras cada paso).
+y (c) OK; con el puente legacy cerrado (banco), se aplica con el aviso. `transporte.sh` **9/9** con el archivo final (aplicar ⇒ «OK: 20261009180000 aplicada»; segunda aplicación ⇒ P0409; registrador ⇒ registra con el md5 del archivo y, otra vez, idempotente; reversa ⇒ huella `8fdd5f1a…`; reversa otra vez ⇒ P0409; registrador sin la migración ⇒ se niega; una copia con el postflight forzado a fallar ⇒ error y nada aplicado; aplicar de nuevo ⇒ OK). Los tres fallos se prueban en la MISMA sesión: tras el ROLLBACK, 0 candados de aviso en esa sesión; y 0 en el banco tras cada paso.
 Gate `test-rls.mjs` (bloque «Categoría por operación» + un caso fuera de banda que se deshace): A sin la migración 43/3053 (1.ª pasada; el caso nuevo, saltado) · B con ella 44/3056 (bloque de categoría 14/14) · C tras la reversa 44/3055 · **B = C**; y con la versión final, al terminar (su limpieza borra las personas del mundo): B2 44/3057 (bloque 14/14, el caso nuevo en verde) · C2 tras la reversa 44/3056 (13 + 1 saltado) · **B2 = C2 aserción por aserción: 0 rojos nuevos**. Los 44 son los mismos de fondo de la ronda r2 de `20261009120000`; el +1 de A es la fila bancaria de la segunda pasada de la semilla (ya documentado ahí).
 `prueba.sql` nueva **64/64 + 3/3** REPEATABLE READ (sin operación por toda vía —SQL directo, «Corregir» del portal y de
 Gerencia, un BEFORE ajeno, la condición de catálogo de upgrade—, con operación igual que antes, RLS: el admin del portal no ve
@@ -17459,9 +17463,27 @@ confirmado en el código, documentado aquí y en el LEEME, PR de pantalla aparte
 la decide…»); P3 caso por la API en test-rls (`crm.actualizar_contrato_con_cuenta_pdf_v3`): no es trivial (cuenta de pago,
 PDF, cronograma) y ESCRIBIRÍA en el mundo compartido si la regla faltara; el caso fuera de banda ya prueba «toda vía» y la
 suite del banco cubre las RPC reales (N11, N11b, N12, R1–R3).
+**Codex r1: BLOCK, sin P0/P1 — corregido.** Q1 (otros escritores de la categoría) lo cerró el coordinador con los cuerpos:
+`trg_restaurar_operacion_antes_borrar_contrato` solo toca estado, `renovado_a_id` y `cerrado_*` del origen;
+`definir_periodo_comercial_contrato`, solo `fecha_cierre_comercial` y fuente; `proteger_campos_inmutables` no toca la categoría.
+(P2) El candado de SESIÓN (tomado en su propia transacción y soltado al final) quedaba tomado si la aplicación fallaba a
+mitad dentro del mensaje (P0409 del preflight, error del postflight) y la conexión no se cerraba o volvía a un pool:
+**reproducido en el banco con la versión `3f110c5f`** (misma sesión: P0409 → ROLLBACK → esa sesión seguía con 1 candado de
+aviso). Ahora la migración y la reversa toman `pg_advisory_xact_lock` (misma llave) dentro de su transacción en READ
+COMMITTED, justo tras los timeouts: en RC cada sentencia mira después del candado, y se suelta con el COMMIT o con cualquier
+ROLLBACK; sin unlock final y con una última fila de resultado. Probado: misma sesión ⇒ 0 candados tras la segunda aplicación,
+la reversa repetida y el postflight forzado a fallar (T2, T6, T8); con otra sesión teniendo esa llave como candado de SESIÓN
+(como las demás migraciones), la migración espera y sale a los 5 s por `lock_timeout` sin aplicar nada (se excluyen).
+(P3) La prueba (b) del postflight no era determinista (el candidato podía cambiar entre la elección y la prueba): ahora se
+bloquea la fila fuera de la subtransacción y se revalida la precondición de cada caso; probado con K6 bloqueado por otra
+sesión durante la aplicación ⇒ «(b) NO CORRIDA», (a) y (c) OK y la migración se aplica (sin esperar ni abortar).
+Tras Codex r1, banco rehecho desde cero con el mundo cargado (8 de 8 huellas y los 16 triggers = producción): transporte 9/9,
+postflight (a), (b) y (c) OK, `prueba.sql` 64/64 + 3/3 y la suite de `20261009120000` 83/83 + 6/6 (el cuerpo de la guarda no
+cambió). Gates y mutantes no se repitieron (ni el cuerpo ni el trigger cambiaron).
 **Orden en producción (Miguel con `!`):** migración → registrador `supabase/scripts/categoria-sin-operacion/registrar/20261009180000.sql`.
-No hay datos que tocar ni tipos que regenerar. Mejor antes del sello de septiembre (si no, la prueba (c) del postflight puede
-quedarse sin candidato: aviso, no error) y fuera de las 09:20 Lima. Detalle en `supabase/scripts/categoria-sin-operacion/LEEME.md`.
+La última fila de la migración es «OK: 20261009180000 aplicada». No hay datos que tocar ni tipos que regenerar. Mejor antes
+del sello de septiembre (si no, la prueba (c) del postflight puede quedar «NO CORRIDA»: aviso, no error) y fuera de las
+09:20 Lima. Detalle en `supabase/scripts/categoria-sin-operacion/LEEME.md`.
 **Efecto conocido:** «Corregir» que hoy deja pasar un contrato sin operación a 'upgrade'/'renovacion' (también al elegir una
 condición de catálogo de upgrade) recibirá el 23514: el portal muestra el texto; el CRM, el genérico (P2). De los 106, uno
 puede volver a 'nuevo' o quedar vacío, pero no cambiar entre 'upgrade' y 'renovacion'; los 19 vacíos, si se corrigen
@@ -17477,4 +17499,5 @@ guarda. La fila de `schema_migrations` se conserva (regla de la casa).
 **Cambios en la carpeta de 20261009120000:** `prueba.sql` (P3 según la guarda puesta; R6/R7: 83 + 6), `concurrencia.py`
 (fixture), `LEEME.md` (nota «Después: 20261009180000»).
 **NOT RUN:** producción; advisors (son de la nube); e2e y `npm run check` (no toca `app/`); `test:rls:preflight` (el hook
-bloquea las credenciales ficticias en línea; `node --check` de `test-rls.mjs` PASS); Codex (no pedido en este encargo).
+bloquea las credenciales ficticias en línea; `node --check` de `test-rls.mjs` PASS). Codex r1 lo corrió el coordinador (arriba);
+tras sus arreglos no se repitieron los gates ni los mutantes (ni el cuerpo de la guarda ni el trigger cambiaron).

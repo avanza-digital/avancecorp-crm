@@ -13,20 +13,17 @@
 -- Postflight: la guarda vuelve a tener la huella medida en producción el 09/10 antes de 20261009180000
 -- (md5 de pg_get_functiondef 8fdd5f1a3d74c073d5fe3327968132b9; prosrc e15e801dd952191be3bae764da3f209f), mismo dueño y
 -- permisos, y el comentario de 20261009120000.
--- Transporte: `db query --linked -f` la manda como UN solo mensaje; si algo falla a mitad, no se aplica nada, la conexión
--- se cierra y Postgres suelta la transacción y el candado de sesión de migraciones. Aun así, antes de reintentar, comprobar
--- que ese candado se soltó (consulta a pg_locks en categoria-por-operacion/LEEME.md, «Transporte»).
-
--- Exclusión de migraciones (el mismo candado que la migración).
-begin;
-set local lock_timeout = '5s';
-select pg_advisory_lock(hashtext('crm_migracion_funciones'));
-commit;
+-- Transporte: `db query --linked -f` la manda como UN solo mensaje; si algo falla a mitad, no se aplica nada.
+-- Exclusión de migraciones: como en la migración, un candado de TRANSACCIÓN (pg_advisory_xact_lock, llave
+-- crm_migracion_funciones) tomado al empezar, en READ COMMITTED: todo lo que sigue se mira después de tenerlo y se suelta con
+-- el COMMIT o con cualquier ROLLBACK (si falla a mitad no queda tomado, se cierre o no la conexión). Excluye también a las
+-- migraciones que toman esa llave como candado de sesión.
 
 begin;
 set transaction isolation level read committed;
 set local lock_timeout = '5s';
 set local statement_timeout = '60s';
+select pg_advisory_xact_lock(hashtext('crm_migracion_funciones'));
 set local quote_all_identifiers = off;
 set local search_path = public;   -- las huellas se midieron con public en el search_path
 
@@ -119,6 +116,6 @@ begin
 end;
 $postflight$;
 
-select 'REVERSA categoría sin operación: la guarda vuelve a la de 20261009120000' as resultado;
 commit;
-select pg_advisory_unlock(hashtext('crm_migracion_funciones'));
+-- El candado de transacción ya se soltó con el COMMIT. Última fila para que `db query` muestre algo.
+select 'REVERSA categoría sin operación: la guarda vuelve a la de 20261009120000' as resultado;
