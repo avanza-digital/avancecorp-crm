@@ -1,8 +1,8 @@
 {
-  "actualizado": "2026-10-09T15:30:00Z",
+  "actualizado": "2026-10-09T15:42:00Z",
   "meta": {
-    "novedad": "09/10 15:30 UTC (10:30 Lima): #227 y #228 fusionados por Miguel; el #228 sigue SIN publicar (build viva build-20261009T000618000Z, sin «Registrar el corregido», comprobado otra vez a las 15:28). Con OK de Jhosep se le pidió publicarlo en el #228 (6084006796). P9 en C1 espera esa publicación; un vigilante avisa cuando cambie la build. Pendiente de Miguel además: la consulta sin números.",
-    "actualizado": "2026-10-09T15:30:00Z"
+    "novedad": "09/10 15:42 UTC (10:42 Lima): #228 PUBLICADO por Miguel: build-20261009T153722848Z (15:37 UTC) trae «Registrar el corregido» (comprobado rastreando el bundle). P9 en C1 EN CURSO con Jhosep. Pendiente de Miguel: la consulta sin números.",
+    "actualizado": "2026-10-09T15:42:00Z"
   },
   "fases": {
     "F0": { "estado": "curso", "actualizado": "2026-10-07T19:10:00Z", "evidencia": "En curso con C1 (Samsung A16): registro, permisos, macro final y pruebas contra el receptor. Faltan C2/C3, la línea base de cinco días y la decisión de cierre (F0.4.3)." },
@@ -242,6 +242,7 @@
     { "at": "2026-10-09T14:33:00Z", "texto": "MacroDroid de C1 renovado (09/10 ~09:30 Lima, Jhosep): «Añadir Días Gratuitos» con un anuncio, antes de que vencieran a las ~15:50. Pro sigue sin comprar por decisión de Jhosep mientras duren las pruebas de F4-d. Próxima renovación esperada hacia el 12/10 (el contador no se leyó en pantalla). Incidencia de §6 de REGISTRO.md al día." },
     { "at": "2026-10-09T14:56:00Z", "texto": "#228 aprobado por Miguel (revisión 5471718580, 14:55 UTC, sin comentarios), después de actualizarlo con main (90ef9d30, merge de a3b89cc4 sin tocar los siete archivos del arreglo). Bloqueado solo por el check app-check en curso; sin fusionar ni publicar todavía. #227 sin novedad." },
     { "at": "2026-10-09T15:17:00Z", "texto": "#228 fusionado por Miguel (squash 30eb8109, 15:05 UTC) y #227 fusionado (squash 0f619b02, 15:15 UTC; aprobado tras actualizarlo con main), sin comentarios ni hallazgos de su agente. Producción sigue en build-20261009T000618000Z, sin el #228 (comprobado rastreando el bundle). Los commits de documentos del 09/10 se rehicieron sobre main en crm/llamadas-docs-20261009, con los mismos archivos que la rama del handoff." },
-    { "at": "2026-10-09T15:30:00Z", "texto": "Pedido de publicación del #228 a Miguel (comentario 6084006796, OK de Jhosep), con el formato QUÉ HICE · RESULTADO · TURNO PARA: la build viva todavía no trae «Registrar el corregido» (110 chunks rastreados). P9 en C1 no se repite antes: sin el botón daría el mismo PARCIAL del 07/10." }
+    { "at": "2026-10-09T15:30:00Z", "texto": "Pedido de publicación del #228 a Miguel (comentario 6084006796, OK de Jhosep), con el formato QUÉ HICE · RESULTADO · TURNO PARA: la build viva todavía no trae «Registrar el corregido» (110 chunks rastreados). P9 en C1 no se repite antes: sin el botón daría el mismo PARCIAL del 07/10." },
+    { "at": "2026-10-09T15:42:00Z", "texto": "#228 publicado por Miguel: version.json pasó de build-20261009T000618000Z a build-20261009T153722848Z (15:37 UTC), y el bundle nuevo trae «Registrar el corregido» (vigilante de publicación, 105 chunks rastreados). Sin comentario suyo en el #228. Arranca la repetición de P9 en C1 con Jhosep." }
   ]
 }
