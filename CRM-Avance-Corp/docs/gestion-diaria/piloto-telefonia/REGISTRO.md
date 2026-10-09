@@ -193,7 +193,7 @@ a 7 % durante las pruebas y se conectó al cargador hacia las 19:40, sin efecto 
 
 **F4-d cerrada en C1 (09/10):** P1–P15 PASS (P9 repetida el 09/10 con el #228 publicado; P14 completa con L3; P15: A1
 el 07/10; A3, A6 y la prueba 6 el 08/10), cierre de §5 hecho en sus dos partes (la nuestra arriba; la consulta de Miguel,
-fila anterior). Siguen abiertos, fuera de esta prueba: los hallazgos H-P5, H-P10 y H-WA, dos pestañas (F4.4.1), baja y
+fila anterior). Siguen abiertos, fuera de esta prueba: los hallazgos H-P5 y H-P10 (H-WA está arreglado en código en el PR de H-WA, rama `crm/llamadas-hwa-tarea-whatsapp-20261009`; falta publicarlo y probar el caso en C1), dos pestañas (F4.4.1), baja y
 atribución histórica (F4.3.2) y el resto del piloto (F0: otras noches, C2/C3, cinco días).
 
 ## 6. Incidencias
