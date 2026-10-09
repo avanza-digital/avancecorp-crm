@@ -6,7 +6,7 @@ Entregable de **F0.4.1**. Se llena a mano durante el piloto (F0.1–F0.4 del pla
 
 | Celular | Marca y modelo | Android | Navegador por defecto | MacroDroid (versión) | Restricciones de batería (qué se cambió) | Fecha de alta |
 | --- | --- | --- | --- | --- | --- | --- |
-| C1 | Samsung Galaxy A16 (SM-A165M) | 16 | Chrome (predeterminado) | Play Store, versión 5.67 (septiembre 2026) | «Aparecer encima» activado · Batería «No restringido» · autoarranque («apps que nunca duermen»): por confirmar | 29/09/2026 |
+| C1 | Samsung Galaxy A16 (SM-A165M) | 16 | Chrome (predeterminado) | Play Store, versión 5.67 (septiembre 2026) | «Aparecer encima» activado · Batería «No restringido» · «Suspender aplicaciones sin uso» apagado y MacroDroid fuera de las suspendidas (09/10, §5j) | 29/09/2026 |
 | C2 |  |  |  |  |  |  |
 | C3 |  |  |  |  |  |  |
 
@@ -24,11 +24,15 @@ Entregable de **F0.4.1**. Se llena a mano durante el piloto (F0.1–F0.4 del pla
 
 Texto base del aviso (ajustar con quien revise el tratamiento de datos; plan, sección 15):
 
+**09/10: este texto quedó desactualizado desde la activación del 07/10.** Hoy el número marcado sí sale del celular: llega
+al servidor, la llamada sin resultado se borra a los 30 días y la registrada se conserva como historial. Hay que
+ajustarlo con Miguel antes de entregar C2 y C3 (auditoría del 09/10).
+
 > Durante el piloto, una app instalada en tu celular corporativo detectará cuándo termina una llamada y mostrará el número marcado o recibido para comprobar que el CRM podría abrir la encuesta de resultado automáticamente. En esta etapa ningún dato sale del celular. El registro se borra al terminar el piloto. Puedes retirarte cuando quieras avisando a soporte.
 
 | Celular | Aviso entregado (fecha) | Firmado (fecha) | PWA instalada (fecha) | Permisos concedidos (Teléfono · Registro de llamadas · Mostrar sobre otras apps · Batería) |
 | --- | --- | --- | --- | --- |
-| C1 | No aplica: el celular lo usa el propio responsable del piloto | — | 29/09/2026 | «Aparecer encima» ✓ · Batería «No restringido» ✓ · Teléfono y Registro de llamadas: por confirmar · **CRM Avance Corp → «Abrir vínculos admitidos» ✓ y dominio crm.miavance.com ✓ (30/09, necesario para que la URL abra la app)** |
+| C1 | No aplica: el celular lo usa el propio responsable del piloto | — | 29/09/2026 | «Aparecer encima» ✓ · Batería «No restringido» ✓ · Teléfono y Registro de llamadas ✓ (09/10, §5j) · **CRM Avance Corp → «Abrir vínculos admitidos» ✓ y dominio crm.miavance.com ✓ (30/09, necesario para que la URL abra la app)** |
 | C2 |  |  |  |  |
 | C3 |  |  |  |  |
 
@@ -198,6 +202,31 @@ el 07/10; A3, A6 y la prueba 6 el 08/10), cierre de §5 hecho en sus dos partes 
 fila de la revisión del #231). Siguen abiertos, fuera de esta prueba: los hallazgos H-P5 y H-P10 (H-WA quedó cerrado el 09/10: arreglado en el #232, publicado y PASS en C1, penúltima fila de la tabla; dos pestañas,
 F4.4.1, PASS el mismo día, última fila), el enlace manual (F4.2.4, bloqueado: falta la pantalla), baja y
 atribución histórica (F4.3.2) y el resto del piloto (F0: otras noches, C2/C3, cinco días).
+
+## 5j. Sesiones cortas en C1 tras la auditoría de fases (09/10/2026) — Edge real
+
+Sesiones S1–S3 del guion de la auditoría (respaldo local de Jhosep), de a una, con Jhosep y un ayudante. Sin números de
+teléfono: las capturas que los muestran no se suben.
+
+| Fecha y hora (Lima) | Caso | Resultado | Evidencia |
+| --- | --- | --- | --- |
+| 09/10 ~16:25 | S1 · noche 07→08 (registro de MacroDroid, búsquedas «200» y «http») | **PARCIAL**: macro viva, sin internet | El latido que tocaba a las 01:15 falló cada 5 min con «DNS resolution failed… Unable to resolve host» al menos hasta las 04:30; con §5i (latido 200 a las 10:39), C1 estuvo sin internet ~01:15–10:35. MacroDroid siguió vivo toda la noche: cuenta para F0.3.3 (que Android no apague la macro). Si C1 estaba en Wi-Fi o datos esa noche: no se sabe |
+| 09/10 ~16:30–16:40 | S1 · configuración de C1 | Comprobada | «Llamada en espera» activada (se deja así: es lo normal en los celulares de los analistas). Una sola SIM; según Jhosep, los celulares corporativos usan siempre un chip. «Suspender aplicaciones sin uso» apagado y MacroDroid fuera de «Aplicaciones suspendidas» y de «en suspensión profunda» (no está en «Aplicaciones sin autosuspensión» y no hace falta; no se agrega para no cambiar la tercera noche). Permisos Teléfono y Registro de llamadas en «Permitir». Llamada de control: «Quedó unido» |
+| 09/10 ~16:50–17:05 | S2 · llamada en espera, primer intento | NO REPRODUCIDA | Saliente a «prueba leeds» (número inventado: la operadora responde «apagado»); la llamada del ayudante no llegó como espera (a él le contestó la operadora). Una sola encuesta, la de «prueba leeds», en cada uno de ~4 intentos. Hace falta una saliente contestada |
+| 09/10 ~17:10 | S2 · llamada en espera ignorada, con la macro sin arreglo | **FAIL → hallazgo H-ESPERA** | Saliente contestada al personal de Jhosep; el ayudante entró en espera y cortó; al colgar, el aviso ámbar «ningún lead…» nombró el número **del ayudante**, no el de la saliente. Un solo aviso, al final. Nada guardado (ningún número es lead) |
+| 09/10 ~17:05–17:25 | Arreglo de H-ESPERA en la macro de C1 | Aplicado | Variable global `numero_saliente`; «Llamadas-Salientes» la fija a `{call_number}`; «Al colgar» usa `{v=numero_saliente}` en «Abrir Sitio web» y en el aviso (`macrodroid.md` §3c, revisado en captura). Control: llamada normal a «prueba leeds» → su encuesta y «Quedó unido» |
+| 09/10 ~17:28–17:36 | S2 · llamada en espera con el arreglo: ignorar (×2), rechazar y contestar («Poner … en espera») | **PASS** | En las tres variantes salió un solo aviso ámbar con el número **de la saliente** (el personal de Jhosep, que figura en un cliente de prueba convertido) |
+| 09/10 ~17:40 | S2 · saliente rechazada por el otro teléfono | **PASS** | Un solo aviso con el número de la saliente. C1 cubre así atendida, no atendida, cancelada y rechazada (F0.3.1) |
+| 09/10 ~17:44 | S2 · marcar «+51» a mano desde el teclado | **PASS** | Se abrió la encuesta de «prueba leeds» (no el aviso ámbar) y «Quedó unido» |
+| 09/10 ~17:48 | S2 · llamada con la sesión del CRM cerrada | **PASS** | Al colgar, el CRM pidió entrar; tras iniciar sesión se abrió la encuesta y «Quedó unido» |
+| 09/10 | S2 · internacional y doble SIM | NO APLICA (propuesta) | Según Jhosep, Avance no llama al extranjero y los celulares corporativos usan un solo chip: se propone a Miguel marcarlos NO APLICA |
+| 09/10 ~18:00 | S3 · «Ahorro de energía» y pantalla bloqueada 1 minuto al colgar | **PASS** | Al desbloquear, la encuesta estaba abierta y «Quedó unido»; un instante de página «sin conexión» que se recuperó sola |
+| 09/10 ~18:05 | S3 · ráfaga de 3 salientes contra la Edge | **PASS** | Las 3 aparecieron en «Pendientes», cada una a su hora; registradas desde ahí, las 3 «Quedó unido» |
+| 09/10 ~18:15 | S3 · hora del celular adelantada 10 minutos | **PASS** | Tarjeta de C1 en «Celulares» (gerencia): «Reloj desfasado»; la llamada se unió igual (la hora de esa llamada quedó 10 min adelantada; la del resultado es del servidor). Al volver a la hora automática, la tarjeta solo se limpió con otro latido (`ultimo_latido` = 0 con la hora ya correcta) |
+| 09/10 ~18:30–18:45 | S3 · permiso «Registro de llamadas» quitado a MacroDroid | **FAIL → hallazgo H-PERMISO** | Sin el permiso: no se abrió la encuesta, no apareció en «Pendientes» y la tarjeta seguía «Al día» (el latido no depende de ese permiso). Permiso devuelto; control de las 18:44 guardado enseguida («Quedará unido…») y unido en «Qué pasó hoy» |
+
+Pendiente de S3: «respuesta perdida tras guardar» (reinyección manual en la cola). Siguen: S4 (apagados), la repetición
+focalizada de P5 (H-P5) y la noche 09→10.
 
 ## 6. Incidencias
 
