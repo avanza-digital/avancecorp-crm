@@ -11,7 +11,7 @@ Nada de esta carpeta corre contra producción por sí solo: lo corre Miguel con 
 |---|---|
 | `../../migrations/20261009120000_crm_categoria_contrato_por_operacion.sql` | Núcleo, puerta, los dos triggers, permisos y comentarios. Preflight por huellas (R7 de la medición del 08/10) y postflight con pruebas en negativo que se deshacen. No toca datos. |
 | `registrar/20261009120000.sql` · `generar_registrador.py` | Registro en `supabase_migrations.schema_migrations` (`db query --file` NO registra). Regenerarlo si cambia la migración (lleva su md5). |
-| `1-ENSAYO.sql` | Los 12 por la puerta con la identidad de Gerencia de Miguel, contrato por contrato; termina SIEMPRE en `raise exception` con el resultado. Veredicto esperado: «LISTO PARA 2-REAL». Muestra además, para que Miguel decida, lo que se mueve en el Ranking por origen y en la tarjeta de rentabilidad. |
+| `1-ENSAYO.sql` | Los 12 por la puerta con la cuenta de Gerencia elegida por Miguel (ADMINISTRADOR AVANCE CORP: prefijo `bf1c562e` en `c_firma_prefijo`, igual en `2-REAL.sql` y `reversa-datos.sql`), contrato por contrato; termina SIEMPRE en `raise exception` con el resultado. Veredicto esperado: «LISTO PARA 2-REAL». Muestra además, para que Miguel decida, lo que se mueve en el Ranking por origen y en la tarjeta de rentabilidad. |
 | `2-REAL.sql` | Lo mismo, todo o nada, con postflight en la misma transacción (los 12 en 'upgrade', capital de septiembre por moneda igual, lo movido = S/ 2.092.254 y US$ 54.971, nadie cambia de dueño, conversión igual, PDF igual, observador sin P0410, libro firmado por Gerencia). El resultado viaja como UNA fila (con el candado de septiembre soltado). |
 | `oraculo-despues.sql` · `generar_oraculo.py` | Solo lectura, DESPUÉS de 2-REAL: compara con lo medido el 08/10 (R1–R4) y lista la deriva de septiembre desde la medición. Veredicto PASS / REVISAR. |
 | `reversa.sql` | Retira la migración (esquema). No toca datos. |
@@ -39,6 +39,14 @@ Nada de esta carpeta corre contra producción por sí solo: lo corre Miguel con 
 
 Todo antes del sello de septiembre: el cron `crm-cierre-mes-diario` puede sellarlo desde el 11/10 a las 00:00 de Lima (corre
 a las 09:20 Lima). No sellar septiembre sin el oráculo en PASS.
+
+## Aplicado en producción (08/10/2026)
+
+Migración 22:55 Lima, registrada; `2-REAL.sql` «OK: 12 contratos de nuevo a upgrade» y oráculo **PASS** a las 23:49 Lima. El primer
+ENSAYO abortó sin escribir porque producción tiene 3 cuentas de Gerencia y la regla de entonces («la que se llame como el perfil de
+pruebas») solo valía en el banco: Miguel eligió ADMINISTRADOR AVANCE CORP y los guiones la fijan. Para el banco (una sola Gerencia,
+`ca7e0000-0000-4000-8000-000000000001`), cambiar `c_firma_prefijo` en los tres guiones antes de correr `transporte.py`,
+`concurrencia.py` o `mutantes.py`. Resultado completo en `MIGRACIONES.md` (entrada 20261009120000, «Producción»).
 
 ## Transporte: todo va en UN mensaje, y los guiones nunca esperan
 

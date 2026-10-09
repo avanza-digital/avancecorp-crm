@@ -17235,8 +17235,10 @@ numerador ni en el aporte, y la prueba M4c (supervisor, con C fuera de su equipo
 
 ## 20261009120000 — Categoría del contrato = la de su operación de cartera (puerta de Gerencia + prevención en toda vía)
 
-**Estado:** ⏳ **PENDIENTE (08/10/2026) — construida y ensayada SOLO en un banco Docker local** (stack propio
-`avancecorp-categoria-20261008`, esquema de producción volcado por Miguel el 08/10 a las 19:14). Nada aplicado en producción.
+**Estado:** ✅ **APLICADA EN PRODUCCIÓN (08/10/2026)** — migración a las 22:55 Lima y registrada (md5 `f054d9fe…`); datos con
+`2-REAL.sql` («OK: 12 contratos de nuevo a upgrade») y `oraculo-despues.sql` **PASS** a las 23:49 Lima (detalle en «Producción», al final).
+Construida y ensayada antes en un banco Docker local (stack propio `avancecorp-categoria-20261008`, esquema de producción volcado por
+Miguel el 08/10 a las 19:14).
 Decisión de Miguel (08/10/2026, auditoría de Facturación): **«El tipo de un contrato lo decide la operación de cartera»** (opción B);
 OK para tocar `public.contratos` (puerta + trigger); la puerta es SOLO para Gerencia. Corregir antes de que `crm-cierre-mes-diario`
 selle septiembre (podrá desde el 11/10 00:00 Lima; corre 09:20 Lima).
@@ -17362,3 +17364,17 @@ mejor de noche; la puerta deja volver a 'nuevo' un upgrade o renovación ANTIGUO
 daría P0410, y `reversa-datos.sql` (vuelta a 'nuevo', base 15) abortaría: hoy la política está en observación (v18).
 **Reversa:** `supabase/scripts/categoria-por-operacion/reversa.sql` (esquema; no toca datos) y, si Miguel quiere deshacer los datos,
 `reversa-datos.sql` DESPUÉS (solo con septiembre abierto). La fila de `schema_migrations` se conserva (regla de la casa).
+**Producción (08/10, Miguel con `!`):** migración (última fila `pg_advisory_unlock = true`: preflight y postflight OK) → registrador
+(versión `20261009120000`, md5 del archivo `f054d9fe112bfe215fd98b84055f7237`) → el 1.er `1-ENSAYO.sql` **abortó sin escribir**: hay 3
+perfiles de Gerencia (ADMINISTRADOR AVANCE CORP, CARLOS VALLES, KIRK SANCHEZ) y la regla del banco («el que se llame como el perfil de
+pruebas») no casaba con ninguno → Miguel eligió **ADMINISTRADOR AVANCE CORP** y los tres guiones fijan su prefijo (`c_firma_prefijo =
+'bf1c562e'`; abortan si no es UN perfil con rol gerencia vigente) → 2.º ENSAYO «LISTO PARA 2-REAL» → `2-REAL.sql` OK → oráculo **PASS**
+(los 12 upgrade/upgrade con el PDF intacto, capital por moneda y por analista como lo esperado, conversión igual, deriva vacía,
+septiembre abierto). Movido de «nuevo» a «upgrade»: S/ 2.092.254 y US$ 54.971 (Marzano S/ 1.116.900 · García S/ 577.554 · Fuenmayor
+S/ 150.000 · Centenaro S/ 100.000 + US$ 1.400 · Núñez S/ 97.800 + US$ 53.571 · Condori S/ 50.000); total por moneda igual
+(S/ 7.803.152,21 · US$ 440.135,63); conversión 129,35/1.655 igual; Ranking por origen sin cambios; tarjeta de rentabilidad (30 días):
+cedido S/ 366.805 → 260.920 y US$ 8.335 → 8.057, ceden 156 → 147, sin_regla 4 → 16, contratos 261 → 263 (2 vuelven a la ventana por el
+movimiento de hoy). Tipos regenerados (solo la puerta nueva).
+**Banco y firma:** el banco tiene UNA Gerencia («MIGUEL BANCO», `ca7e0000-0000-4000-8000-000000000001`): para volver a correr
+`transporte.py`, `concurrencia.py` o `mutantes.py` hay que poner ese id en `c_firma_prefijo` de los tres guiones. No se re-corrieron
+tras fijar la firma (el bloque de candados no cambió y el ENSAYO de producción ejercitó la regla nueva).
