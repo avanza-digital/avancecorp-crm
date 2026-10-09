@@ -17534,7 +17534,7 @@ resella; idempotente).
 
 ## 20261009223000 — Facturación fase 2: ningún cambio de supervisor se pierde (un trigger, toda vía)
 
-**Estado:** **en banco, sin aplicar** (09/10/2026). Plan de Facturación por fases, auditado por Codex; decisión de Miguel:
+**Estado:** **APLICADA en producción y registrada el 09/10/2026 (noche)** (md5 del texto `b41616ad2c6dd43cc137eb7a01178a42`; ensayo de producción OK antes de aplicar). Plan de Facturación por fases, auditado por Codex; decisión de Miguel:
 los cambios que no hace una persona se anotan con el autor «sistema» (`private.actor_sistema_eventos()`, UUID fijo
 `f6d2941b-2e93-4c81-9a27-0c5e786b104d`; `actor_id` no tiene FK: no se crea ningún perfil ni se toca `public`).
 **Cambio:** `private.trg_equipo_evento_jerarquia()` (SECURITY DEFINER: `crm.usuario_eventos` no concede INSERT a nadie y
@@ -17555,3 +17555,35 @@ completo (3076 aserciones) sin rojos nuevos (9 de fondo); `test-facturacion.sql`
 P3 (comentario exacto en la reversa, documentación, `OF supervisor_id`) cerrados.
 **Aplicar:** primero `supabase/scripts/jerarquia-evento/ensayo-produccion.sql` (deshace todo); luego la migración y
 `registrar.sql` por `db query --linked --file`, en un momento sin actividad de Gerencia. **Reversa:** `reversa.sql`.
+⚠️ Su `registrar.sql` y su `reversa.sql` fijan la huella VIEJA de `crm.facturacion_diaria_fn` (`4b11e1da…`): desde la 3A (20261009224000) se revierte PRIMERO la 3A.
+
+## 20261009224000 — Facturación fase 3A: una sola fuente para cifra y lista
+
+**Estado:** **en banco, sin aplicar** (09/10/2026). Plan de Facturación por fases (auditado por Codex); decisión de
+Miguel: un mes sellado se lee con la **cuenta viva**, como hoy. Sin cambios de pantalla ni puerta de la lista (3B).
+**Cambio:** `private.facturacion_operaciones` (SIN VERJA: toda la empresa, una fila por operación de stock de
+`capital_episodios`, día de Lima y supervisor de entonces con caída al de hoy) y `private.facturacion_operaciones_visibles`
+(la verja y el recorte de la puerta, movidos al byte; devuelve ids crudos: la 3B debe aplicar la capa de datos). Ambas SQL,
+STABLE, INVOKER, dueño postgres, `search_path` vacío y ACL solo de postgres. `crm.facturacion_diaria_fn` pasa a ser un
+`group by` sobre la segunda con la misma firma, columnas, ACL, comentario y `order by`. `capital_episodios` no cambia.
+Huellas: puerta `4b11e1da…` → `3753d03552e26eb7e61117a3baab6f78`; operaciones `5d63cb537b0b286ad47feb7f5b26d161`;
+visibles `17c2ca27996adad88f685896915953e3`.
+**Precondición:** la fase 2 (20261009223000) aplicada (huella de su trigger) y registrada (lo exige el ensayo de
+producción). **Oráculo en la misma transacción (REPEATABLE READ):** salida completa antes = después (EXCEPT ALL en los
+dos sentidos) en todos los meses con operaciones más el actual, para una Gerencia, Directorio, CADA supervisor, un
+vendedor y sin sesión; agregado directo del núcleo = Gerencia; `operacion_id` único. `statement_timeout` 120 s.
+**Verificación (banco Docker a paridad):** aplicar → reaplicar → reversa → reversa → aplicar PASS (oráculo 4 meses, 7
+identidades, 19 = 19 filas); `test-facturacion.sql` 12/12 sin cambios; gate RLS completo con los mismos 9 rojos de fondo
+(diff vacío) y el bloque L nuevo en verde: contrato y ACL exacta de las dos piezas y de la puerta, CENSO DE LLAMADORES (al
+núcleo solo `_visibles`; a `_visibles` solo la lista cerrada de puertas; probado con una puerta falsa) y la cadena
+existente. Ensayo sintético en banco vacío: 4 mutantes cazados por su SQLSTATE propio (sin cooperativas · sin caída al
+supervisor de hoy · día UTC · sin ventas propias), verja sin llamada, reversa exacta. Reversa con consumidor falso → se
+niega. Registrador: texto exacto (md5 `4665b950…`), idempotente y se niega ante otro texto registrado.
+**Revisión:** auditor-rls CHANGES_REQUESTED sin P0/P1 y Codex APPROVE_WITH_CHANGES sin P0/P1. Aceptado: precondición y
+orden con la fase 2, comentario del núcleo «sin verja» + censo de llamadores, ACL exacta, guarda de consumidores en la
+reversa, supervisores con filas en el ensayo, `statement_timeout`, rango real de meses en el aviso, cabecera y ledger.
+Rechazado con evidencia: el SQLSTATE de los mutantes ya es exclusivo (`P3A01` del comparador del ensayo); aflojar la huella
+de `capital_episodios` en la reversa (fallar cerrado obliga a revertir en orden inverso).
+**Aplicar (Miguel, con `!`):** `supabase/scripts/facturacion-una-fuente/ensayo-produccion.sql` y `medir.sql` (los dos
+terminan en un error «… PASS … SE DESHACE TODO»), luego la migración y `registrar.sql`. **Reversa:**
+`supabase/scripts/facturacion-una-fuente/reversa.sql`, antes que la de la fase 2. Detalle en el `LEEME.md` del kit.

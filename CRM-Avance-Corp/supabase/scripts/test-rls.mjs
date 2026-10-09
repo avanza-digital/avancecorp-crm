@@ -9427,6 +9427,54 @@ async function testFacturacionDiaria(sessions, seed) {
       .filter((linea) => /ORACULO|ERROR/.test(linea)).slice(-2).join(' · ') || 'sin detalle';
     fail(`${FN}: test-facturacion.sql FALLA — ${motivo}`);
   }
+
+  // L. Fase 3A: contrato del núcleo por catálogo, fuera de la API. Contar DOS
+  //    piezas válidas evita un falso verde si falta una o ambas funciones.
+  //    has_function_privilege mide permisos EFECTIVOS (también PUBLIC/herencia).
+  check(contarFueraDeBanda('Facturación 3A: contrato de las dos piezas privadas', `
+    select count(*) from (values
+      ('private.facturacion_operaciones(timestamptz,timestamptz)'),
+      ('private.facturacion_operaciones_visibles(timestamptz,timestamptz)')
+    ) esperadas(firma)
+    join pg_proc p on p.oid = to_regprocedure(esperadas.firma)
+    join pg_language l on l.oid = p.prolang
+    where (p.prosecdef = false and p.provolatile = 's' and l.lanname = 'sql'
+      and pg_get_userbyid(p.proowner) = 'postgres'
+      and p.proacl::text = '{postgres=X/postgres}'
+      and cardinality(p.proconfig) = 1 and p.proconfig[1] in ('search_path=', 'search_path=""')
+      and not has_function_privilege('anon', p.oid, 'EXECUTE')
+      and not has_function_privilege('authenticated', p.oid, 'EXECUTE')
+      and not has_function_privilege('service_role', p.oid, 'EXECUTE')) is true
+  `) === 2, `${FN}: las dos piezas privadas son INVOKER, STABLE, postgres, search_path vacío y ACL solo de postgres`);
+  //    La ACL EXACTA caza también una concesión directa a un rol que no es de la API. La puerta:
+  //    DEFINER de postgres y solo authenticated la ejecuta (el bloque G prueba anon por la API).
+  check(contarFueraDeBanda('Facturación 3A: contrato de la puerta', `
+    select count(*) from pg_proc p
+    where p.oid = to_regprocedure('crm.facturacion_diaria_fn(date)')
+      and (p.prosecdef and pg_get_userbyid(p.proowner) = 'postgres'
+        and p.proacl::text = '{postgres=X/postgres,authenticated=X/postgres}'
+        and not has_function_privilege('anon', p.oid, 'EXECUTE')
+        and not has_function_privilege('service_role', p.oid, 'EXECUTE')) is true
+  `) === 1, `${FN}: la puerta es DEFINER de postgres y solo authenticated la ejecuta`);
+  //    CENSO DE LLAMADORES (auditor-rls 09/10): el núcleo NO tiene verja y devuelve toda la empresa.
+  //    Su único llamador es _visibles, y a _visibles solo la llaman las puertas de esta lista
+  //    cerrada (la de la lista, 3B, se añade aquí a mano). Las funciones SQL no registran sus
+  //    dependencias, así que el censo lee los cuerpos.
+  check(contarFueraDeBanda('Facturación 3A: censo de llamadores', `
+    select count(*) from pg_proc p
+    where (p.prosrc ~* 'private\\.facturacion_operaciones\\s*\\('
+           and p.oid is distinct from to_regprocedure('private.facturacion_operaciones_visibles(timestamptz,timestamptz)'))
+       or (p.prosrc ~* 'private\\.facturacion_operaciones_visibles\\s*\\('
+           and p.oid is distinct from to_regprocedure('crm.facturacion_diaria_fn(date)'))
+  `) === 0, `${FN}: el núcleo sin verja solo lo llama _visibles, y a _visibles solo la lista cerrada de puertas`);
+  //    Y el censo no es vacuo: la cadena puerta → _visibles → núcleo existe en el catálogo.
+  check(contarFueraDeBanda('Facturación 3A: la cadena existe', `
+    select count(*) from pg_proc p
+    where (p.oid = to_regprocedure('private.facturacion_operaciones_visibles(timestamptz,timestamptz)')
+           and p.prosrc ~* 'private\\.facturacion_operaciones\\s*\\(')
+       or (p.oid = to_regprocedure('crm.facturacion_diaria_fn(date)')
+           and p.prosrc ~* 'private\\.facturacion_operaciones_visibles\\s*\\(')
+  `) === 2, `${FN}: la cadena puerta → _visibles → núcleo está en el catálogo (el censo no es vacuo)`);
 }
 
 // P-055 F7.1 — las puertas cerradas de la Ola 1 responden 42501 a TODOS,
