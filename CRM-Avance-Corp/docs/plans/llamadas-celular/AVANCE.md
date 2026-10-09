@@ -1,10 +1,10 @@
 # Avance — Llamadas desde el celular al CRM
 
-Actualizado: 09/10/2026, 10:17 a. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
+Actualizado: 09/10/2026, 10:30 a. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
 
 Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact/Q3GmV9m6Cy2GPQGKAbNy8M · Plan completo: `PLAN.md` en esta carpeta.
 
-**Lo último:** 09/10 15:17 UTC (10:17 Lima): Miguel FUSIONÓ el #228 (30eb8109, 15:05 UTC) y el #227 (0f619b02, 15:15 UTC), los dos aprobados sin hallazgos. El #228 aún NO está publicado: la build viva build-20261009T000618000Z no trae «Registrar el corregido» (110 chunks rastreados; control positivo con un texto de P13, encontrado). P9 en C1 espera esa publicación; un vigilante avisa cuando cambie la build. Los documentos del 09/10 pasan a la rama crm/llamadas-docs-20261009, desde main. Pendientes: P9 en C1 y la consulta sin números de Miguel.
+**Lo último:** 09/10 15:30 UTC (10:30 Lima): #227 y #228 fusionados por Miguel; el #228 sigue SIN publicar (build viva build-20261009T000618000Z, sin «Registrar el corregido», comprobado otra vez a las 15:28). Con OK de Jhosep se le pidió publicarlo en el #228 (6084006796). P9 en C1 espera esa publicación; un vigilante avisa cuando cambie la build. Pendiente de Miguel además: la consulta sin números.
 
 **Total:** 33 de 102 tareas · 1 de 8 fases hechas.
 
@@ -136,6 +136,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 
 ## Últimos cambios
 
+- 09/10/2026, 10:30 a. m. · Pedido de publicación del #228 a Miguel (comentario 6084006796, OK de Jhosep), con el formato QUÉ HICE · RESULTADO · TURNO PARA: la build viva todavía no trae «Registrar el corregido» (110 chunks rastreados). P9 en C1 no se repite antes: sin el botón daría el mismo PARCIAL del 07/10.
 - 09/10/2026, 10:17 a. m. · #228 fusionado por Miguel (squash 30eb8109, 15:05 UTC) y #227 fusionado (squash 0f619b02, 15:15 UTC; aprobado tras actualizarlo con main), sin comentarios ni hallazgos de su agente. Producción sigue en build-20261009T000618000Z, sin el #228 (comprobado rastreando el bundle). Los commits de documentos del 09/10 se rehicieron sobre main en crm/llamadas-docs-20261009, con los mismos archivos que la rama del handoff.
 - 09/10/2026, 09:56 a. m. · #228 aprobado por Miguel (revisión 5471718580, 14:55 UTC, sin comentarios), después de actualizarlo con main (90ef9d30, merge de a3b89cc4 sin tocar los siete archivos del arreglo). Bloqueado solo por el check app-check en curso; sin fusionar ni publicar todavía. #227 sin novedad.
 - 09/10/2026, 09:33 a. m. · MacroDroid de C1 renovado (09/10 ~09:30 Lima, Jhosep): «Añadir Días Gratuitos» con un anuncio, antes de que vencieran a las ~15:50. Pro sigue sin comprar por decisión de Jhosep mientras duren las pruebas de F4-d. Próxima renovación esperada hacia el 12/10 (el contador no se leyó en pantalla). Incidencia de §6 de REGISTRO.md al día.
@@ -150,4 +151,3 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 - 08/10/2026, 03:30 p. m. · P8 PASS en C1 (08/10 ~15:20): encuesta abierta a mano con el número de «prueba leeds» y el id C2-1791490562 (C2 no es del analista) → resultado «No contestó» guardado y no unido; Qué pasó hoy 5, Pendientes 0. Repetida (~15:35) para leer el motivo: «la llamada es de otro celular» (candado de celular ajeno).
 - 08/10/2026, 03:20 p. m. · P10 PASS en C1 (08/10 14:45–15:12): llamada pendiente; gerencia reasignó «prueba leeds» a otra analista (15:06) → la llamada pasó a sus Pendientes; devuelto el lead → volvió a C1, registrada desde Pendientes y unida (Qué pasó hoy 5). Tareas del lead intactas. Hallazgo H-P10: la nueva dueña vio en «Qué pasó hoy» las 4 llamadas resueltas por el analista de C1 bajo «desde tu celular que ya resolviste» (la regla muestra por dueño actual; la pantalla no usa es_propia). Paso 3 observado por Jhosep: mientras el lead era de la otra analista, el analista de C1 no veía nada de «prueba leeds» (ni la pendiente ni sus llamadas ya resueltas).
 - 08/10/2026, 02:45 p. m. · P15-A6 PASS en C1 (08/10 ~14:35): sin red, llamada y encuesta cerrada sin guardar (cola 1); reinicio: MacroDroid activado y cola 1 intacta; con red, cola 0 sola, la llamada en Pendientes y registrada desde ahí quedó unida (Qué pasó hoy 4). Confirmación de Jhosep paso a paso. P15 completa.
-- 08/10/2026, 02:35 p. m. · P15-A3 PASS en C1 (08/10 14:23–14:25, Wi-Fi apagado, 4G): dos llamadas seguidas a «prueba leeds», «No contestó» en las dos, la primera con «Quedará unido…» y la segunda «Quedó unido…»; Qué pasó hoy 3, Pendientes 0, colas en 0.
