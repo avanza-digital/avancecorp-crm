@@ -17559,7 +17559,7 @@ P3 (comentario exacto en la reversa, documentación, `OF supervisor_id`) cerrado
 
 ## 20261009224000 — Facturación fase 3A: una sola fuente para cifra y lista
 
-**Estado:** **en banco, sin aplicar** (09/10/2026). Plan de Facturación por fases (auditado por Codex); decisión de
+**Estado:** **APLICADA en producción y registrada el 09/10/2026 (noche)** (md5 del texto `4665b9505efa07c9d8bf9c5f0a4d5695`). Ensayo de producción: 13 meses (2025-09 a 2026-10), 7 identidades (4 supervisores, los 4 con filas; no hay Directorio activo en producción), 1454 = 1454 filas, 820 operaciones, 1886 ms. Medición: septiembre 22,59 → 20,66 ms y octubre 11,20 → 10,35 ms (límite +20 %). Plan de Facturación por fases (auditado por Codex); decisión de
 Miguel: un mes sellado se lee con la **cuenta viva**, como hoy. Sin cambios de pantalla ni puerta de la lista (3B).
 **Cambio:** `private.facturacion_operaciones` (SIN VERJA: toda la empresa, una fila por operación de stock de
 `capital_episodios`, día de Lima y supervisor de entonces con caída al de hoy) y `private.facturacion_operaciones_visibles`

@@ -1,6 +1,6 @@
 # Facturación 3A: una fuente para la cifra y la lista
 
-**Estado (09/10/2026): en banco, sin aplicar.**
+**Estado: APLICADA en producción y registrada el 09/10/2026 (noche)** (md5 del texto `4665b9505efa07c9d8bf9c5f0a4d5695`).
 - Huellas medidas en el banco Docker a paridad con producción. Ciclo, oráculos, gate y mutantes en verde.
 - Revisada por auditor-rls y Codex: ninguna encontró P0 ni P1 (ver «Verificación» y «Revisión»).
 - No cambia la pantalla. La puerta de la lista es la 3B.
@@ -130,7 +130,12 @@ El error final **«… PASS … SE DESHACE TODO»** es el resultado correcto; cu
   verde, incluido el bloque L: contrato y ACL exacta de las dos piezas y de la puerta, censo de llamadores y cadena
   existente.
 - **Medición en banco** (meses con datos en el banco): 2026-01 1,49 → 1,23 ms · 2026-10 2,11 → 1,62 ms. PASS.
-- **NOT RUN:** ensayo, medición y aplicación en producción (Miguel con `!`).
+- **Producción (Miguel con `!`, 09/10/2026 noche):**
+  - ensayo: «ENSAYO 3A PASS: 13 meses (2025-09 a 2026-10), 7 identidades (4 supervisores, los 4 con filas; 0
+    Directorio), 1454 filas antes = 1454 después, 820 operaciones únicas; huellas 3753d035… · 5d63cb53… · 17c2ca27…;
+    1886 ms». No hay un Directorio activo en producción; su camino es el de Gerencia, y en el banco dio lo mismo;
+  - medición: septiembre 22,59 → 20,66 ms y octubre 11,20 → 10,35 ms. PASS;
+  - migración aplicada sin errores y `registrar.sql` con md5 del texto `4665b9505efa07c9d8bf9c5f0a4d5695`.
 
 ## Revisión (09/10/2026)
 
