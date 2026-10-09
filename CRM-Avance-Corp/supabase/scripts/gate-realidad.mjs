@@ -206,6 +206,40 @@ const SUPUESTOS = [
     esperado: '≥ 2 entre vendedores y supervisores activos',
   },
   {
+    clave: 'facturacion_ventas_de_analistas_de_baja',
+    titulo: 'Hay ventas de analistas dados de baja (cuentan al heredero)',
+    asume: 'Los fixtures de Facturación (facturacion.test.tsx, e2e facturacion-realidad) solo traen ventas '
+      + 'de analistas activos: el analista de cada fila es siempre quien la registró.',
+    afecta: [
+      'Facturación → malla y totales por analista y por equipo',
+      'Metas, cumplimiento y el sello del mes (capital_real)',
+      'Cartera → ficha del inversionista («Analista de la operación»)',
+      'Altas de contratos nuevos por analista',
+    ],
+    consecuencia:
+      'Desde 20261009200000 (09/10/2026) la venta de un analista de baja se cuenta al responsable '
+      + 'actual ACTIVO de su cliente; si no hay ninguno, se queda con la persona de baja. Ese camino '
+      + 'vive solo en la base: ningún fixture de pantalla lo ejerce. Su oráculo es '
+      + 'supabase/scripts/baja-analista-heredero/ensayo-sintetico.sql (banco Docker).',
+    async medir() {
+      const { data: bajas, error: errorBajas } = await admin.from('equipo')
+        .select('perfil_id').eq('activo', false);
+      if (errorBajas) throw errorBajas;
+      const ids = (bajas ?? []).map((fila) => fila.perfil_id);
+      if (ids.length === 0) return 0;
+      const { count, error } = await admin.schema('public').from('contratos')
+        .select('id', { count: 'exact', head: true })
+        .eq('es_demo', false)
+        .in('analista_cierre_id', ids);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    // Diverge mientras exista UNA: entonces Facturación se está mostrando con una regla que
+    // los tests de pantalla no ven. No es un error que arreglar, es un mundo que vigilar.
+    divergeSi: (n) => n > 0,
+    esperado: '0 (con ventas de bajas, la cifra la decide la regla del heredero, no el fixture)',
+  },
+  {
     clave: 'clientes_con_domicilio_legal',
     titulo: 'Los clientes tienen domicilio legal',
     asume: 'Los fixtures dan por hecho que un cliente se puede contratar sin más.',

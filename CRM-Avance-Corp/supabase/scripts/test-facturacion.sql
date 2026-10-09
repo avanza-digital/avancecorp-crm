@@ -15,6 +15,11 @@
 -- sus ventas propias, y NADA más (casos 10 a 12). Y la verja del caso 8 deja de
 -- ser «ve o no ve» para el supervisor: es «ve exactamente lo suyo».
 --
+-- Desde el 09/10/2026 (20261009200000, baja de analista) el analista de una venta es el EFECTIVO: la cadena de
+-- upgrade y, si quien correspondía está dado de baja, el responsable actual activo del cliente. El oráculo elige y
+-- compara analistas con private.analista_efectivo_contrato — la MISMA pieza que capital_episodios — y no con la
+-- cadena a pelo (con ella, una venta heredada se buscaba bajo la persona de baja y el caso fallaba en falso).
+--
 -- ⚠ AVISO DE CANDADO: baja y sube el trigger de la fecha de cierre, y
 -- `ALTER TABLE ... DISABLE/ENABLE TRIGGER` toma un SHARE ROW EXCLUSIVE sobre
 -- `public.contratos` que NO se libera al volver a habilitarlo: dura hasta el
@@ -65,7 +70,7 @@ begin
   end if;
 
   -- Un analista con al menos dos ventas nuevas este mes.
-  select coalesce(private.analista_atribuido_cadena(c.id), c.analista_cierre_id) into v_analista
+  select private.analista_efectivo_contrato(c.id, c.analista_cierre_id) into v_analista
   from public.contratos c
   where c.categoria = 'nuevo' and not c.es_demo
     and c.fecha_cierre_comercial >= v_mes
@@ -84,13 +89,13 @@ begin
   -- fecha que había antes, dos contratos ya fechados el día 5 hacían que el
   -- segundo update no encontrara ninguno y el montaje mintiera. (Codex, 10/09.)
   select c2.id into v_c1 from public.contratos c2
-  where coalesce(private.analista_atribuido_cadena(c2.id), c2.analista_cierre_id) = v_analista
+  where private.analista_efectivo_contrato(c2.id, c2.analista_cierre_id) = v_analista
     and c2.categoria = 'nuevo' and not c2.es_demo
     and c2.fecha_cierre_comercial >= v_mes
     and c2.fecha_cierre_comercial < (v_mes + interval '1 month')
   order by c2.id limit 1;
   select c2.id into v_c2 from public.contratos c2
-  where coalesce(private.analista_atribuido_cadena(c2.id), c2.analista_cierre_id) = v_analista
+  where private.analista_efectivo_contrato(c2.id, c2.analista_cierre_id) = v_analista
     and c2.categoria = 'nuevo' and not c2.es_demo
     and c2.fecha_cierre_comercial >= v_mes
     and c2.fecha_cierre_comercial < (v_mes + interval '1 month')
@@ -143,7 +148,7 @@ begin
   -- 66 ventas, acusó una duplicación que no existía (rama banco-f7, 10/09).
   select count(*), coalesce(sum(c.capital), 0) into v_ops_real, v_cap_real
   from public.contratos c
-  where coalesce(private.analista_atribuido_cadena(c.id), c.analista_cierre_id) = v_analista
+  where private.analista_efectivo_contrato(c.id, c.analista_cierre_id) = v_analista
     and c.categoria = 'nuevo' and not c.es_demo
     and c.fecha_cierre_comercial = v_antes;
   if v_filas = 0 or v_malas > 0 then
