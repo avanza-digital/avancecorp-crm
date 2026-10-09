@@ -73,7 +73,8 @@ $candados$;
 
 do $reversa$
 declare
-  c_perfil_pruebas constant uuid := 'd731f284-eeaa-4c27-b71f-ac4f1d8e96c2';
+  -- Firma: la misma cuenta de Gerencia que el ensayo y el real (ADMINISTRADOR AVANCE CORP, elegida por Miguel el 08/10/2026).
+  c_firma_prefijo constant text := 'bf1c562e';
   c_numeros constant text[] := array[
     '2026-01-001362', '2026-01-001369', '2026-01-001401', '2026-01-001408',
     '2026-01-001400', '2026-01-001439', '2026-01-001440', '2026-01-001441',
@@ -125,17 +126,13 @@ begin
     v_ids := v_ids || v_id;
   end loop;
 
-  -- La misma Gerencia que eligen el ensayo y el real (una sola), para firmar la bitácora y el libro.
-  select p.id into v_actor
-    from public.perfiles p
-   where p.id <> c_perfil_pruebas and private.rol_crm(p.id) = 'gerencia'
-     and ((select count(*) from public.perfiles q where q.id <> c_perfil_pruebas and private.rol_crm(q.id) = 'gerencia') = 1
-          or p.nombre_completo = (select q.nombre_completo from public.perfiles q where q.id = c_perfil_pruebas));
+  -- La misma Gerencia que el ensayo y el real (c_firma_prefijo, una sola), para firmar la bitácora y el libro.
   select count(*) into v_n
     from public.perfiles p
-   where p.id <> c_perfil_pruebas and private.rol_crm(p.id) = 'gerencia'
-     and ((select count(*) from public.perfiles q where q.id <> c_perfil_pruebas and private.rol_crm(q.id) = 'gerencia') = 1
-          or p.nombre_completo = (select q.nombre_completo from public.perfiles q where q.id = c_perfil_pruebas));
+   where left(p.id::text, length(c_firma_prefijo)) = c_firma_prefijo and private.rol_crm(p.id) = 'gerencia';
+  select p.id into v_actor
+    from public.perfiles p
+   where left(p.id::text, length(c_firma_prefijo)) = c_firma_prefijo and private.rol_crm(p.id) = 'gerencia';
   if v_actor is null or v_n <> 1 then
     raise exception 'ABORTA: no se pudo elegir UNA identidad de gerencia para firmar la reversa';
   end if;

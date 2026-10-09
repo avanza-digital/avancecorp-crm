@@ -127,7 +127,10 @@ $foto$;
 
 do $ensayo$
 declare
-  c_perfil_pruebas constant uuid := 'd731f284-eeaa-4c27-b71f-ac4f1d8e96c2';
+  -- Firma: la cuenta de Gerencia que eligió Miguel (08/10/2026, tras el primer ensayo, que encontró 3 de Gerencia):
+  -- ADMINISTRADOR AVANCE CORP. Prefijo de su id; tiene que ser UN solo perfil con rol CRM gerencia vigente.
+  c_firma_prefijo constant text := 'bf1c562e';
+  v_n_firma int;
   c_numeros constant text[] := array[
     '2026-01-001362', '2026-01-001369', '2026-01-001401', '2026-01-001408',
     '2026-01-001400', '2026-01-001439', '2026-01-001440', '2026-01-001441',
@@ -169,26 +172,22 @@ begin
     v_ids := v_ids || v_id;
   end loop;
 
-  -- 2. La identidad: un perfil de GERENCIA vigente. Si hay varios, el de Miguel (mismo nombre que el de pruebas); tiene que
-  --    ser UNO solo.
+  -- 2. La identidad: la cuenta de Gerencia elegida por Miguel (c_firma_prefijo). Tiene que ser UN solo perfil con ese
+  --    prefijo y rol CRM gerencia vigente; si no, aborta y enseña los candidatos.
   select jsonb_agg(jsonb_build_object('id8', left(p.id::text, 8), 'nombre', p.nombre_completo) order by p.nombre_completo)
     into v_candidatos
     from public.perfiles p
-   where p.id <> c_perfil_pruebas and private.rol_crm(p.id) = 'gerencia';
+   where private.rol_crm(p.id) = 'gerencia';
+  select count(*) into v_n_firma
+    from public.perfiles p
+   where left(p.id::text, length(c_firma_prefijo)) = c_firma_prefijo and private.rol_crm(p.id) = 'gerencia';
+  if v_n_firma <> 1 then
+    raise exception 'ABORTA: la cuenta de Gerencia elegida (%) no es UN perfil con rol gerencia vigente (hay %). Candidatos: %',
+      c_firma_prefijo, v_n_firma, coalesce(v_candidatos, '[]');
+  end if;
   select p.id, p.nombre_completo into v_actor, v_actor_nombre
     from public.perfiles p
-   where p.id <> c_perfil_pruebas and private.rol_crm(p.id) = 'gerencia'
-     and (jsonb_array_length(coalesce(v_candidatos, '[]')) = 1
-          or p.nombre_completo = (select q.nombre_completo from public.perfiles q where q.id = c_perfil_pruebas));
-  if v_actor is null then
-    raise exception 'ABORTA: no se pudo elegir la identidad de gerencia. Candidatos: %', coalesce(v_candidatos, '[]');
-  end if;
-  if (select count(*) from public.perfiles p
-       where p.id <> c_perfil_pruebas and private.rol_crm(p.id) = 'gerencia'
-         and (jsonb_array_length(coalesce(v_candidatos, '[]')) = 1
-              or p.nombre_completo = (select q.nombre_completo from public.perfiles q where q.id = c_perfil_pruebas))) <> 1 then
-    raise exception 'ABORTA: la identidad de gerencia es ambigua (más de un perfil cumple la regla). Candidatos: %', v_candidatos;
-  end if;
+   where left(p.id::text, length(c_firma_prefijo)) = c_firma_prefijo and private.rol_crm(p.id) = 'gerencia';
 
   -- La sesión de Gerencia queda puesta hasta el final (la tarjeta de rentabilidad se lee como ella y el libro la firma).
   perform set_config('request.jwt.claims', json_build_object('sub', v_actor, 'role', 'authenticated')::text, true);
