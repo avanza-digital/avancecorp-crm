@@ -19,7 +19,7 @@ Sin casillas nuevas: 44/102. Quedan abiertos H-P5 y H-P10.
 
 **Actualizado el 09/10, 20:10 UTC:** F4.4.1 marcada (dos pestañas PASS en C1 + PC, 14:48 Lima): **45/102** y subfase F4.4
 hecha. F4.2.4 bloqueada: falta la pantalla «¿Es este su resultado?»; se le pregunta a Miguel si se programa ahora.
-H-P5 y H-P10 los analiza la sesión de Miguel (#232); H-P5 espera una repetición focalizada en C1.
+H-P5 y H-P10 los analiza la sesión de Miguel (#232); H-P5 espera una repetición focalizada en C1: la pérdida del borrador está confirmada, pero la causa del salto entre encuestas sigue sin demostrarse.
 
 ## Cómo se lee
 
