@@ -130,9 +130,9 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 | --- | --- | --- | --- | --- |
 | F0 · Piloto y línea base | 4 | 1/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-2) |
 | F1 · Formulario único y match exacto | 4 | 12/12 | Hecha | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-8) |
-| F2 · Núcleo confiable | 4 | 13/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-14) |
+| F2 · Núcleo confiable | 4 | 13/13 | Hecha | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-14) |
 | F3 · Captura y sincronización | 4 | 10/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-20) |
-| F4 · Pendientes y conciliación | 4 | 0/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-66) |
+| F4 · Pendientes y conciliación | 4 | 7/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-66) |
 | F5 · Jev para identificación asistida | 5 | 0/15 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-72) |
 | F6 · Gerencia y calidad | 4 | 0/12 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-78) |
 | F7 · Despliegue y operación | 4 | 1/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-84) |
@@ -273,7 +273,7 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 | No comercial/fuera de alcance | Descarte permitido, motivado y auditado; no salida libre para ocultar llamadas identificadas |
 | Actividad con efectos deshechos | Evidencia y enlace permanecen; anotar efectos anulados sin exigir automáticamente otro registro |
 
-**Seguimiento de F2:** 13/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
+**Seguimiento de F2:** 13/13 tareas completadas · Estado: hecha · Responsable nominal: por asignar.
 
 ### F2.1 · Cerrar el contrato
 
@@ -384,46 +384,46 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 
 **Objetivo:** cerrar el circuito recuperando fallos sin duplicar gestiones.
 
-**Seguimiento de F4:** 0/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
+**Seguimiento de F4:** 7/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
 
 ### F4.1 · Construir la bandeja
 
-**Estado:** en curso · **Avance:** 0/3 · **Responsable:** Claude (código) · Miguel (instala) · Jhosep (C1).
+**Estado:** en curso · **Avance:** 1/3 · **Responsable:** Claude (código) · Miguel (instala) · Jhosep (C1).
 
 - [ ] **F4.1.1** Mostrar pendientes por registrar, identificar y devolver en Hoy/Alertas, con hora y retraso. — EN CURSO: Probada e instalada (07/10, H1–H3): pestaña «Llamadas del celular» en Gestión Diaria (F4-b, decisión 3 de F4), suite de la app y E2E 17/17 (06/10). Interruptor encendido el 07/10 (build-20261007T222046462Z); smoke de Miguel con Analista: pestaña «Celular» visible, bandeja con cero pendientes y sin errores JS. Falta la aceptación en C1 (F4-d); «devolver» llega con la #14.
 - [ ] **F4.1.2** Obtener detalle por UUID; explicar ya registrado, inaccesible, depurado o error sin filtrar datos. — EN CURSO: Probada e instalada (07/10, H1–H3): detalle y motivos de «no se unió» sin datos de terceros (F4-b). Falta la aceptación en C1 y comprobar el caso «depurado».
-- [ ] **F4.1.3** Ofrecer el mismo circuito en celular y PC; cerrar el diálogo conserva el pendiente. — EN CURSO: Probada e instalada (07/10, H1–H3): el mismo circuito en celular y PC (F4-b); la décima une lo registrado desde la pestaña. Falta P6 y P7 de F4-d.
+- [x] **F4.1.3** Ofrecer el mismo circuito en celular y PC; cerrar el diálogo conserva el pendiente.
 
 **Evidencia / fecha de validación:** pendiente.
 
 ### F4.2 · Registrar y enlazar
 
-**Estado:** en curso · **Avance:** 0/4 · **Responsable:** Claude (código) · Miguel (instala) · Jhosep (C1).
+**Estado:** en curso · **Avance:** 3/4 · **Responsable:** Claude (código) · Miguel (instala) · Jhosep (C1).
 
-- [ ] **F4.2.1** Propagar contexto del evento y confirmación real de actividad_id mediante formulario/store. — EN CURSO: Probada e instalada (07/10, H1–H3): el id viaja de la URL a la encuesta y la v5 devuelve el recibo real (5df2764e). Falta P1–P3 de F4-d.
-- [ ] **F4.2.2** Componer v4 + enlace en transacción sin alterar núcleo sellado; revisar recibos, replays y locks. — EN CURSO: Probada e instalada (07/10, H1–H3): crm.registrar_llamada_v5 (F4-a) en una transacción con la v4 sellada; séptima sin ciclo con Deshacer; duodécima con revalidación. Banco reducido 415/415, banco de Miguel 197/197. Falta confirmar el sello de la v4 (F4.4.3).
-- [ ] **F4.2.3** Si la composición no es viable, implementar intención de enlace persistente y conciliación durable con reintentos. — EN CURSO: Probada e instalada (07/10, H1–H3): la composición resultó viable y además existe la intención durable: si el aviso llega tarde, la ingesta la cumple. Falta P1 de F4-d.
+- [x] **F4.2.1** Propagar contexto del evento y confirmación real de actividad_id mediante formulario/store.
+- [x] **F4.2.2** Componer v4 + enlace en transacción sin alterar núcleo sellado; revisar recibos, replays y locks.
+- [x] **F4.2.3** Si la composición no es viable, implementar intención de enlace persistente y conciliación durable con reintentos.
 - [ ] **F4.2.4** Proponer y confirmar enlace para registros previos o desde PC; nunca decidir solo por ±10 minutos. — EN CURSO: Probada e instalada (07/10, H1–H3): asociación manual a un resultado ya guardado (vía manual); el camino exacto no usa la regla de ±10 minutos. Falta la aceptación en C1.
 
 **Evidencia / fecha de validación:** pendiente.
 
 ### F4.3 · Resolver casos operativos
 
-**Estado:** en curso · **Avance:** 0/3 · **Responsable:** Claude (código) · Miguel (revisa e instala) · Jhosep (C1).
+**Estado:** en curso · **Avance:** 1/3 · **Responsable:** Claude (código) · Miguel (revisa e instala) · Jhosep (C1).
 
 - [ ] **F4.3.1** Asociar únicamente a lead visible; crear por flujo existente y reintentar asociación tras alta confirmada. — EN CURSO: Probada en parte e instalada (07/10, H1–H3): asociar a un lead visible (las ambiguas). Crear el lead y reintentar no aplica mientras los números sin lead no se guarden (decisión 3a; #10). Falta la aceptación en C1.
 - [ ] **F4.3.2** Administrar celulares: alta, baja, rotación, salud y atribución histórica, con token mostrado una vez. — EN CURSO: Probada e instalada (07/10, H1–H3): tarjeta «Celulares» (F4-c, #215, 5f42e908): unitarias, MSW, E2E Docker 4/4; validación de cierre de Miguel PASS. Alta REAL de C1 el 07/10 ~19:15 Lima desde la tarjeta con gerencia: «Al día», llamadas-v3, en cola 0. Rotación REAL el 08/10 (P11 PASS): la asignación de ayer cerró por «Rotación de clave» y la nueva quedó contigua; la cola retenida con la clave vieja se soltó sola con la nueva. Hallazgo H-P11: tras rotar, la tarjeta dice «Nunca habló» hasta el próximo latido (cada 6 h); se forzó con ultimo_latido = 0 (REGISTRO.md §5i). Salud con latidos probada en C1 (P14 completa: L1, la tarjeta vuelve a «Al día» con el latido; L3, latidos cada 6 h con 200 el 08–09/10). Faltan: baja y atribución histórica.
-- [ ] **F4.3.3** Conservar evidencia y vínculo al deshacer; mostrar efectos anulados y no fabricar otra gestión. — EN CURSO: Probada e instalada (07/10, H1–H3): la base mueve el enlace al corregido. P9 en C1 (07/10): PARCIAL, la pantalla no ofrecía cómo unir el corregido. Arreglo opción A en el PR #228 (08/10): «Registrar el corregido» en la fila deshecha propia de «Qué pasó hoy», reutiliza la acción de «Pendientes»; unitarias, suite 6448/6448, E2E 3/3 y demo. #228 aprobado, fusionado (30eb8109) y publicado (build-20261009T153722848Z) el 09/10. P9 repetida en C1 el 09/10 (11:14–11:21 Lima): PASS, el corregido «Volver a llamar» quedó unido a la misma llamada y la fila dejó de estar deshecha. Falta para la casilla: la consulta sin números de Miguel (0 resultados unidos dos veces).
+- [x] **F4.3.3** Conservar evidencia y vínculo al deshacer; mostrar efectos anulados y no fabricar otra gestión.
 
 **Evidencia / fecha de validación:** pendiente.
 
 ### F4.4 · Validar el circuito
 
-**Estado:** en curso · **Avance:** 0/3 · **Responsable:** Jhosep (C1) · Claude (guía y registro) · Miguel (consulta sin números).
+**Estado:** en curso · **Avance:** 2/3 · **Responsable:** Jhosep (C1) · Claude (guía y registro) · Miguel (consulta sin números).
 
-- [ ] **F4.4.1** Probar evento antes/después, dos llamadas cercanas, guardado confirmado con enlace fallido y dos pestañas. — EN CURSO: En C1 contra la Edge real: evento antes y después del guardado → P1 y P2 PASS (07/10); guardado con enlace pendiente → P1 PASS; sin red → P3 PASS; registrar desde la pestaña en celular y PC → P6 y P7 PASS; dos llamadas cercanas → P4 PASS (08/10 16:30–16:31, dos leads, cada una en el suyo) y A3 PASS; dos encuestas → P5 PASS en los datos (08/10 ~16:32–16:40: sin cruce y la llamada de la encuesta perdida quedó en Pendientes) con hallazgo H-P5: la segunda encuesta recarga la app y borra la abierta sin guardar.
-- [ ] **F4.4.2** Probar edición mientras llega otra llamada, alta/asociación fallida, deshacer y lead reasignado. — EN CURSO: En C1 contra la Edge real: deshacer → P9 PARCIAL el 07/10 y PASS el 09/10 con «Registrar el corregido» publicado (#228). Asociación fallida: P13 PASS y P8 PASS («la llamada es de otro celular»). Entrante: P12 PASS. Rotación: P11 PASS (hallazgo H-P11, ya corregido en las guías). P15 completa. Lead reasignado: P10 PASS (hallazgo H-P10). Edición mientras llega otra llamada: P5 PASS en los datos (hallazgo H-P5). Latidos: P14 PASS (L1–L4; L3 el 09/10: 18:40, 00:40 y 06:45 con 200).
-- [ ] **F4.4.3** Ejecutar checks, E2E local y prueba física; confirmar sello v4 y ausencia de actividades duplicadas. — EN CURSO: Checks y E2E locales en verde (app 6397 y Docker 7 + 1 intermitente en el #222, 07/10). Prueba física en C1 TERMINADA (07–08/10): P1–P15 PASS (P9 repetida el 09/10 tras publicar el #228; P14 completa con L3 el 09/10). Cierre de §5, parte nuestra: 19 salientes en el teléfono desde la activación = 19 avisos aceptados (202) en el registro de MacroDroid; encuesta abierta al colgar 18 de 18 llamadas a leads. Falta la consulta de Miguel sin números: recibidas, guardadas, 0 unidos dos veces y sello de la v4.
+- [ ] **F4.4.1** Probar evento antes/después, dos llamadas cercanas, guardado confirmado con enlace fallido y dos pestañas. — EN CURSO: En C1 contra la Edge real: evento antes y después del guardado → P1 y P2 PASS (07/10); guardado con enlace pendiente → P1 PASS; sin red → P3 PASS; registrar desde la pestaña en celular y PC → P6 y P7 PASS; dos llamadas cercanas → P4 PASS (08/10 16:30–16:31, dos leads, cada una en el suyo) y A3 PASS; dos encuestas → P5 PASS en los datos (08/10 ~16:32–16:40: sin cruce y la llamada de la encuesta perdida quedó en Pendientes) con hallazgo H-P5: la segunda encuesta recarga la app y borra la abierta sin guardar. Falta para la casilla: dos pestañas (no hay prueba del circuito de F4 con dos pestañas, ni en C1 ni en E2E).
+- [x] **F4.4.2** Probar edición mientras llega otra llamada, alta/asociación fallida, deshacer y lead reasignado.
+- [x] **F4.4.3** Ejecutar checks, E2E local y prueba física; confirmar sello v4 y ausencia de actividades duplicadas.
 
 **Evidencia / fecha de validación:** pendiente.
 
