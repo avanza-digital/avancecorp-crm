@@ -16,7 +16,7 @@ Nada de esta carpeta corre contra producción por sí solo: lo corre Miguel con 
 | `oraculo-despues.sql` · `generar_oraculo.py` | Solo lectura, DESPUÉS de 2-REAL: compara con lo medido el 08/10 (R1–R4) y lista la deriva de septiembre desde la medición. Veredicto PASS / REVISAR. |
 | `reversa.sql` | Retira la migración (esquema). No toca datos. |
 | `reversa-datos.sql` | Devuelve los 12 a 'nuevo' (solo con septiembre abierto, con la política de rentabilidad en observación y DESPUÉS de `reversa.sql`: mientras exista la prevención, nada puede dejarlos en 'nuevo'). Ver «Reversa» abajo. |
-| `prueba.sql` | Suite del banco (81 casos; termina en ROLLBACK): autoridad, motivo, sellado, respaldo, eliminación, «Corregir» en la ventana entre la migración y 2-REAL, alta normal, la puerta con éxito (auditoría, PDF, congelación, idempotencia, producto, libro en observación y en enforcement, declaración de origen pendiente repuesta y vacía durante el UPDATE), prevención (también si otro BEFORE cambia la categoría) y sincronización; y aparte, en una transacción REPEATABLE READ, 6 casos: la puerta, la sincronización (por sus dos caminos) y la guarda (con y sin operación) se niegan con 25001; editar otra cosa del contrato pasa. |
+| `prueba.sql` | Suite del banco (81 casos; 83 desde 20261009180000, con R6/R7; termina en ROLLBACK): autoridad, motivo, sellado, respaldo, eliminación, «Corregir» en la ventana entre la migración y 2-REAL, alta normal, la puerta con éxito (auditoría, PDF, congelación, idempotencia, producto, libro en observación y en enforcement, declaración de origen pendiente repuesta y vacía durante el UPDATE), prevención (también si otro BEFORE cambia la categoría) y sincronización; y aparte, en una transacción REPEATABLE READ, 6 casos: la puerta, la sincronización (por sus dos caminos) y la guarda (con y sin operación) se niegan con 25001; editar otra cosa del contrato pasa. |
 | `concurrencia.py` | Carreras con DOS conexiones (9): el bloque de candados idéntico en los tres guiones (P0); la sincronización bloquea la fila (C1, C2); orden mes → fila frente a un sello (C3); el día comercial que cambia (C4, 40001); una foto REPEATABLE READ anterior a la operación frente a la guarda (N1, 25001); los guiones bajo REPEATABLE READ por defecto y frente a un sello en curso (N2); frente a un alta real de septiembre detenida entre contrato y operación (N3); y corregir a la vez la fecha y la categoría del mismo contrato (N4: Postgres aborta una con 40P01 porque `crm.corregir_fecha_cierre_comercial` toma la fila antes que el mes; lo que aborta no escribe nada). Tras cada una, 0 candados de aviso. |
 | `transporte.py` | Los archivos que escriben, cada uno como UN mensaje (lo que hace `db query -f`) y como `postgres`: ENSAYO, REAL (frente a un sello y a un alta en curso, fallando en el contrato 11, y bien), oráculo, `reversa.sql`, `reversa-datos.sql` (frente a un sello en curso, con septiembre sellado, y bien) y la migración otra vez; varios con la sesión en REPEATABLE READ por defecto. Comprueba que lo que falla no escribe nada y que no queda ningún candado. Deja el banco como estaba. |
 | `mutantes.py` | 23 mutantes que deben MORIR por aserción (21 de funciones y triggers, 2 del bloque de candados de los guiones: sin NOWAIT y sin READ COMMITTED) y 2 controles de defensa duplicada (sobreviven a propósito). |
@@ -85,6 +85,19 @@ La migración abre su transacción en READ COMMITTED (no REPEATABLE READ como ot
 deja cambiar una categoría en READ COMMITTED y su postflight cambia una (prueba en negativo 2). Lo mismo vale para cualquier
 SQL que cambie una categoría o registre una renovación o un upgrade, también una migración futura (la API ya trabaja en READ
 COMMITTED).
+
+## Después: 20261009180000 (sin operación, solo 'nuevo')
+
+La migración `20261009180000` (carpeta `../categoria-sin-operacion/`, decisión de Miguel del 09/10) cerró el hueco inverso:
+la misma guarda rechaza ahora que un contrato SIN operación pase a 'upgrade' o 'renovacion'. Lo que cambia aquí:
+- `prueba.sql`, caso P3 (K6, antiguo sin operación, a 'renovacion'): espera 23514 si la guarda es la de `20261009180000`
+  y «pasa» si es la de esta migración (mira qué guarda hay puesta). Es el único caso que dependía del hueco.
+- `prueba.sql`, casos nuevos R6/R7 (ahora 83 + 6): con la guarda nueva, el mutante M2 (núcleo sin respaldo) sobrevivía,
+  porque la guarda rechaza lo mismo con el mismo texto. R6/R7 prueban que la puerta rechaza ANTES de intentar el UPDATE
+  (un BEFORE de prueba delata cualquier UPDATE): M2 vuelve a morir.
+- `concurrencia.py`: el fixture que crea un 'upgrade' antiguo sin operación apaga SOLO esa guarda durante su UPDATE.
+- Reversa: `reversa.sql` de esta carpeta se niega con la guarda de `20261009180000`; primero va
+  `../categoria-sin-operacion/reversa.sql`.
 
 ## Reversa: son DOS transacciones
 

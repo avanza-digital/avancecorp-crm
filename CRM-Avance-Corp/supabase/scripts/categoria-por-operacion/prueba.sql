@@ -10,6 +10,10 @@
 -- enforcement, declaración de origen pendiente repuesta y vacía durante el UPDATE) · P prevención (toda vía, también si
 -- otro BEFORE cambia la categoría) · y aparte, en su propia transacción REPEATABLE READ, F2 (aislamiento: la puerta, la
 -- sincronización por sus dos caminos y la guarda con y sin operación responden 25001; editar otra cosa pasa).
+-- P3 mira qué guarda hay puesta: desde 20261009180000 (categoria-sin-operacion) un contrato sin operación solo puede
+-- volver a 'nuevo', así que su cambio a 'renovacion' espera 23514; con la guarda de 20261009120000, «pasa».
+-- R6/R7 (desde 20261009180000 la guarda rechaza lo mismo que el respaldo del núcleo, con el mismo texto): la puerta
+-- rechaza ANTES de intentar el UPDATE (un BEFORE de prueba delata cualquier UPDATE); así el mutante M2 sigue muriendo.
 -- Las carreras entre dos conexiones (bloqueo de la fila en la sincronización, orden mes→fila, día comercial que cambia,
 -- foto REPEATABLE READ frente a la guarda, guiones bajo REPEATABLE READ y frente a un sello o un alta a medias) están en
 -- concurrencia.py.
@@ -191,6 +195,35 @@ begin
     (select categoria from public.contratos where id = 'ca7e0000-0000-4000-8000-000000002006') = 'nuevo'
     and (v ->> 'cambio')::boolean and (v ->> 'operacion_id') is null, coalesce(v::text, 'sin respuesta'));
 end $s$;
+
+-- ── R6/R7 · El respaldo del NÚCLEO rechaza ANTES de intentar el UPDATE ──────────────────────────────────────────────
+-- Desde 20261009180000 la guarda también rechaza, con el mismo texto, lo que el respaldo rechaza (toda vía): R1–R3 ya no
+-- distinguen quién lo hizo. Un BEFORE de prueba (solo en esta transacción) delata cualquier UPDATE que llegue: la puerta
+-- tiene que contestar con su 23514 sin escribir ni disparar nada (ni la foto de producto ni el PDF).
+do $r_primera$
+declare
+  g constant uuid := 'ca7e0000-0000-4000-8000-000000000001';
+begin
+  create function private.prueba_detectar_update() returns trigger language plpgsql as $f$
+  begin
+    if coalesce(current_setting('prueba.detectar_update', true), '') = 'on' then
+      raise exception 'prueba: la puerta llegó al UPDATE' using errcode = 'P0001';
+    end if;
+    return new;
+  end $f$;
+  create trigger trg_contratos_zz_prueba_detectar before update on public.contratos
+    for each row execute function private.prueba_detectar_update();
+  perform set_config('prueba.detectar_update', 'on', true);
+  perform pg_temp.pr_espera_deshacer('R6 K4 sin operación a upgrade: la puerta rechaza ANTES del UPDATE (respaldo del núcleo)', g, 'authenticated',
+    $q$select crm.corregir_categoria_contrato_fn('ca7e0000-0000-4000-8000-000000002004', 'upgrade', 'Sin respaldo de cartera')$q$,
+    '23514', 'Un contrato sin operación de cartera solo puede quedar como nuevo');
+  perform pg_temp.pr_espera_deshacer('R7 K1 con operación upgrade a renovacion: la puerta rechaza ANTES del UPDATE', g, 'authenticated',
+    $q$select crm.corregir_categoria_contrato_fn('ca7e0000-0000-4000-8000-000000002001', 'renovacion', 'La operación dice otra cosa')$q$,
+    '23514', 'La categoría la decide la operación de cartera');
+  perform set_config('prueba.detectar_update', '', true);
+  drop trigger trg_contratos_zz_prueba_detectar on public.contratos;
+  drop function private.prueba_detectar_update();
+end $r_primera$;
 
 -- ── P7 · La ventana entre la migración y 2-REAL: «Corregir» un contrato todavía incoherente (K1: nuevo + op upgrade)
 --    SIN cambiar su categoría tiene que pasar; la prevención solo mira cuando la categoría CAMBIA.
@@ -408,8 +441,16 @@ begin
   perform pg_temp.pr_espera_deshacer('P2b UPDATE directo de K1 de vuelta a nuevo → 23514', null, null,
     format($q$update public.contratos set categoria = 'nuevo' where id = %L$q$, k1), '23514', 'La categoría la decide la operación de cartera');
   perform set_config('crm.contrato_pdf_revision_autorizada', '', true);
-  perform pg_temp.pr_espera_deshacer('P3 contrato antiguo sin operación (K6): cambiar la categoría no se restringe', null, null,
-    format($q$update public.contratos set categoria = 'renovacion' where id = %L$q$, k6), '00000');
+  -- P3 depende de la guarda puesta: hasta 20261009180000 un contrato sin operación cambiaba de categoría sin restricción;
+  -- desde ella solo puede volver a 'nuevo' (o quedar vacío). Así la suite vale con las dos versiones de la guarda.
+  if exists (select 1 from pg_proc x where x.oid = 'private.trg_contrato_categoria_por_operacion()'::regprocedure
+              and x.prosrc like '%20261009180000%') then
+    perform pg_temp.pr_espera_deshacer('P3 contrato antiguo sin operación (K6): a renovacion → 23514 (20261009180000: sin operación, solo nuevo)', null, null,
+      format($q$update public.contratos set categoria = 'renovacion' where id = %L$q$, k6), '23514', 'Un contrato sin operación de cartera solo puede quedar como nuevo');
+  else
+    perform pg_temp.pr_espera_deshacer('P3 contrato antiguo sin operación (K6): cambiar la categoría no se restringe', null, null,
+      format($q$update public.contratos set categoria = 'renovacion' where id = %L$q$, k6), '00000');
+  end if;
   perform pg_temp.pr_espera_deshacer('P4 corregir otra cosa de K5 (notas) pasa', null, null,
     format($q$update public.contratos set notas_internas = 'nota de prueba' where id = %L$q$, k5), '00000');
   -- public.actualizar_numero_contrato (la que llama «Corregir»): su UPDATE pone categoria en el SET aunque no cambie.

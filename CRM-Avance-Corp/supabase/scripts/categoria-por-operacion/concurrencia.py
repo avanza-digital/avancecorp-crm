@@ -123,7 +123,15 @@ values ('{cid}', '{numero}', '{CLIENTE}', 30000, 'PEN', 15, 'mensual', 'simple',
         (date '{fecha}' + interval '12 months')::date, 'activo', 'nuevo', '{ADMIN}', '{ANALISTA}');
 """
     if categoria_final != "nuevo":
-        sql += f"update public.contratos set categoria = '{categoria_final}' where id = '{cid}';\n"
+        # Un 'upgrade' ANTIGUO sin operación (como los ~106 de marzo a julio): desde 20261009180000 la guarda ya no deja
+        # crearlo con un UPDATE (sin operación, solo 'nuevo'), así que el fixture la apaga SOLO durante este UPDATE (el
+        # resto de triggers corre, como cuando nacieron). Con la guarda de 20261009120000, el apagado no cambia nada. Los
+        # diferidos del UPDATE (observador de rentabilidad) se disparan antes de volver a encenderla: ALTER TABLE no
+        # admite eventos pendientes (es lo mismo que haría el commit).
+        sql += (f"begin;\nalter table public.contratos disable trigger trg_contratos_01_categoria_por_operacion;\n"
+                f"update public.contratos set categoria = '{categoria_final}' where id = '{cid}';\n"
+                f"set constraints all immediate;\n"
+                f"alter table public.contratos enable trigger trg_contratos_01_categoria_por_operacion;\ncommit;\n")
     if con_operacion:
         sql += f"""
 begin;
