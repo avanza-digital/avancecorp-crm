@@ -4500,10 +4500,12 @@ export interface AtribucionContrato {
   analista_nombre: string | null
   es_demo: boolean
   registrado_por: string | null
-  /** ATR-3: quién cobra de verdad; `cadena` = pertenece a una cadena de upgrade. */
+  /** ATR-3: quién cobra de verdad; `cadena` = pertenece a una cadena de upgrade. `heredada` (09/10/2026): el
+   *  analista que correspondía está dado de baja y cuenta a quien recibió al cliente; nunca a la vez que `adoptada`. */
   atribucion_efectiva?: {
     cadena: boolean
     adoptada: boolean
+    heredada?: boolean | undefined
     analista_id: string | null
     analista_nombre: string | null
   } | null | undefined
@@ -4526,6 +4528,8 @@ const AtribucionContratoSchema = v.object({
   atribucion_efectiva: v.optional(v.nullable(v.object({
     cadena: v.boolean(),
     adoptada: v.boolean(),
+    // Baja de analista (20261009200000): opcional para no romper con una respuesta anterior a la migración.
+    heredada: v.optional(v.boolean()),
     analista_id: v.nullable(v.string()),
     analista_nombre: v.nullable(v.string()),
   }))),

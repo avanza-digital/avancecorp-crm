@@ -17501,3 +17501,33 @@ guarda. La fila de `schema_migrations` se conserva (regla de la casa).
 **NOT RUN:** producción; advisors (son de la nube); e2e y `npm run check` (no toca `app/`); `test:rls:preflight` (el hook
 bloquea las credenciales ficticias en línea; `node --check` de `test-rls.mjs` PASS). Codex r1 lo corrió el coordinador (arriba);
 tras sus arreglos no se repitieron los gates ni los mutantes (ni el cuerpo de la guarda ni el trigger cambiaron).
+
+## 20261009200000 — Baja de analista: su capital pasa al responsable actual del cliente
+
+**Estado:** ✅ **APLICADA en producción el 09/10/2026** por Miguel (`db query --linked --file`) y registrada con
+`supabase/scripts/baja-analista-heredero/registrar.sql` (texto md5 `f05c02e05d90770660bdb63954c08be7`). Detalle completo:
+`supabase/scripts/baja-analista-heredero/LEEME.md`. Encargos: `docs/encargos/2026-10-09-baja-analista-heredero*.md`.
+**Decisión de Miguel (09/10):** «cuando el analista se desactiva ya no debe aparecer más; el que recibe su información es el
+que debe aparecer» — «Todo a Betzabeth»: TODOS los meses de las lecturas vivas. Si el analista calculado (cadena de upgrade
+incluida) tiene `crm.equipo.activo = false` y la persona tiene un responsable actual distinto y activo (contratos:
+`perfiles.asesor_perfil_id` del cliente; cooperativas: `inversionistas.responsable_relacion_id`), cuenta a ese responsable;
+si no, no cambia. Fotos de meses sellados y conversión de leads (ledger) intactas. Septiembre se sella con la regla.
+**Cambio:** 4 ayudantes en `private` (`analista_dado_de_baja` SQL; `heredero_de_baja`, `analista_efectivo_contrato`,
+`analista_efectivo_cierre` PL/pgSQL; INVOKER, STABLE, search_path vacío, solo `postgres` ejecuta) y 7 consumidores generados
+desde los cuerpos vivos (`generar-cuerpos.py`): `capital_episodios` (efectivo una vez por fila), `conversion_episodios`
+(pierna de operaciones), `metricas_cartera_por_vendedor`, `altas_nuevas_por_analista_fn`, `atribucion_contrato_fn`
+(`heredada` nuevo; `adoptada` = la cadena manda de verdad), `cartera_f5_fuentes` (mapa `bajas_map`) y `cierres_externos_fn`
+(ámbito, nombres y «Por empresa»; renueva su exención analítica y resella `analitica_lc_sello`, sin llamar a
+`assert_analitica_leads_citas`, que ya fallaba por tres funciones ajenas). `contratos_afectados_por_anulacion` y
+`analista_atribuido_cadena` intactas. Sin cambio de firmas ni de permisos de las puertas; sin regenerar tipos.
+**Efecto medido al aplicar:** Pierina → Betzabeth (36 filas de capital) y Vladimir (2); Noelia → Elizabeth Chiroque (11,
+con 4 cooperativas Qorilazo de setiembre, S/ 88.000); 2026-01-001570 → Betzabeth. Ivett (3) se queda: sin responsable activo.
+**Rendimiento (producción, mediana en caliente):** capital oct 7,2 → 6,6 ms, set 16,7 → 19,2 ms, cartera 13,8 → 18,2 ms. La
+primera versión con SQL anidado daba set 15 → 171 ms (Postgres 17 re-planifica la función interna por fila).
+**Verificación:** banco Docker a paridad (crm 333 / private 685): aplicar/reaplicar/reversa/reversa/aplicar PASS; ensayo
+sintético 104/104 (incluye roles vendedor/supervisor/gerencia y permisos); 3 mutantes cazados (45/45/18 FAIL); oráculo con
+1.000 filas sintéticas PASS; ensayo y medición en producción deshechos antes de aplicar; tras aplicar, 11 huellas, ACL,
+exención y sello verificados en producción; advisors de seguridad sin alertas nuevas. `test:rls:preflight`: NOT RUN (sin
+credenciales). Revisión: auditor-rls CHANGES_REQUESTED → cerrados (cooperativas, `service_role`, rótulo, pruebas por rol).
+**Reversa:** `supabase/scripts/baja-analista-heredero/reversa.sql` (7 cuerpos y exención exactos, borra los 4 ayudantes,
+resella; idempotente).
