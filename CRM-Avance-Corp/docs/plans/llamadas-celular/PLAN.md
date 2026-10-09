@@ -131,7 +131,7 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 | F0 · Piloto y línea base | 4 | 1/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-2) |
 | F1 · Formulario único y match exacto | 4 | 12/12 | Hecha | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-8) |
 | F2 · Núcleo confiable | 4 | 13/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-14) |
-| F3 · Captura y sincronización | 4 | 7/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-20) |
+| F3 · Captura y sincronización | 4 | 8/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-20) |
 | F4 · Pendientes y conciliación | 4 | 0/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-66) |
 | F5 · Jev para identificación asistida | 5 | 0/15 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-72) |
 | F6 · Gerencia y calidad | 4 | 0/12 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-78) |
@@ -333,7 +333,7 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 | Listar/alta/baja/rotar celular | Capacidad de administración resuelta en servidor |
 | Registrar salud | Credencial de equipo, datos mínimos; heartbeat no demuestra captura sana |
 
-**Seguimiento de F3:** 7/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
+**Seguimiento de F3:** 8/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
 
 ### F3.1 · Publicar el contrato de puertas
 
@@ -357,11 +357,11 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 
 ### F3.3 · Persistir y enviar
 
-**Estado:** en curso · **Avance:** 2/4 · **Responsable:** Jhosep (pruebas en C1) · Claude (receptor de pruebas).
+**Estado:** en curso · **Avance:** 3/4 · **Responsable:** Jhosep (pruebas en C1) · Claude (receptor de pruebas).
 
 - [x] **F3.3.1** Crear ID, hora y payload una vez; guardar en cola local antes del POST.
 - [x] **F3.3.2** Reintentar red caída, 429 y reinicio; retirar solo tras confirmación y visibilizar errores permanentes.
-- [ ] **F3.3.3** Parsear respuesta y abrir UUID confirmado; mantener fallback manual si falta UUID. — EN CURSO: Resuelta por la vía de la #12: la macro no espera un UUID del servidor; abre la encuesta enseguida con el número y el id de origen (/{lv=id_llamada}, P2 del 06/10 contra el receptor). Respaldo manual: la pestaña «Llamadas del celular». Falta la aceptación contra la Edge (P1–P3 de F4-d).
+- [x] **F3.3.3** Parsear respuesta y abrir UUID confirmado; mantener fallback manual si falta UUID.
 - [ ] **F3.3.4** Correlacionar doble trigger y validar dirección/duración por evento sin confundir desconocido con cero. — EN CURSO: En C1 (02/10): una sola notificación y un solo aviso por llamada en más de 8 llamadas, incluidas colgar antes de que contesten y sin respuesta (prueba 5). La dirección la marca «Llamadas-Salientes» y las entrantes no generan aviso (A2). La duración no se envía (MacroDroid no la da) y llega null, no 0. Falta: llamada en espera, doble SIM y entrantes si se aprueba la #14.
 
 **Evidencia / fecha de validación:** pendiente.
