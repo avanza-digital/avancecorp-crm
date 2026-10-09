@@ -13,6 +13,10 @@ primer release. Ninguna tarea física se cierra por la instalación. **08/10 ~01
 
 **Actualizado el 09/10, 16:54 UTC:** F4-d aceptada en C1 (P1–P15 PASS, P9 repetida con el #228 publicado, P14-L3) con la consulta de Miguel sin números (#231). Marcadas F3.2.3, F3.3.3, F3.4.3, F4.1.3, F4.2.1–F4.2.3, F4.3.3, F4.4.2, F4.4.3 y F7.2.1 (44/102); F2 aceptada. Guía de soporte nueva: `docs/gestion-diaria/piloto-telefonia/SOPORTE.md`.
 
+**Actualizado el 09/10, 18:35 UTC:** hallazgo H-WA cerrado. Miguel aprobó, fusionó y publicó el #232
+(`build-20261009T181538004Z`) y la prueba física del caso pasó en C1 (13:19 Lima; `REGISTRO.md` §5i; aviso en el #232).
+Sin casillas nuevas: 44/102. Quedan abiertos H-P5 y H-P10.
+
 ## Cómo se lee
 
 **Estados**, de menos a más:
@@ -62,7 +66,7 @@ explícito probado en C1 (31). **07/10 noche:** suben F2.4.3 y F3.2.1 con el act
 | H1 | Ensayo con **SLA activo** y aplicar las doce en producción desde LF, con sus registradores (`t`) y el ledger «EN PROD» | Miguel | **Hecho** (07/10 ~21:53 UTC): ensayo con SLA activo en la rama `llamadas-cierre-20261007` y publicación con `merge_branch`; 450 migraciones (438 intactas + 12); SLA activo sin cambios; ledger «EN PROD» (#222). Acta: `INSTALACION-20261007.md` |
 | H2 | Edge `crm-llamadas-ingesta` desplegada y comprobada (`verify_jwt` apagado solo en ella; los `curl` dan «No autorizado») | Miguel | **Hecho** (07/10): `crm-llamadas-ingesta` v1 activa, `verify_jwt` apagado solo en ella, 401 sin clave o con clave desconocida; seis casos reales en la rama |
 | H3 | Release con `LLAMADAS_CELULAR_APROBADAS = true`: abre la pestaña de F4-b y la tarjeta de F4-c | Miguel | **Hecho** (07/10 22:26 UTC): #222 (`d4c9a689`) publicado como `build-20261007T222046462Z`; preflight PASS y 121/121 archivos idénticos; smoke con Analista |
-| H4 | Activar C1 (F4-d) con `ACTIVAR-C1.md` y correr P1–P15 | Jhosep + gerencia + Claude | **Hecho** (07–09/10): P1–P15 PASS en C1 (P9 repetida el 09/10 con el #228 publicado; P14-L3 el 09/10); teléfono = CRM 19 = 19 y encuesta abierta al colgar 18 de 18; consulta de Miguel sin números (#231, 09/10): 19/18/18 (P13 sin identificar), P9 1/1/1, 0 enlaces dobles y sello v4 OK (`REGISTRO.md` §5i). Abiertos: hallazgos H-P5, H-P10 y H-WA |
+| H4 | Activar C1 (F4-d) con `ACTIVAR-C1.md` y correr P1–P15 | Jhosep + gerencia + Claude | **Hecho** (07–09/10): P1–P15 PASS en C1 (P9 repetida el 09/10 con el #228 publicado; P14-L3 el 09/10); teléfono = CRM 19 = 19 y encuesta abierta al colgar 18 de 18; consulta de Miguel sin números (#231, 09/10): 19/18/18 (P13 sin identificar), P9 1/1/1, 0 enlaces dobles y sello v4 OK (`REGISTRO.md` §5i). Abiertos: hallazgos H-P5 y H-P10 (H-WA cerrado el 09/10: #232 publicado y PASS en C1) |
 | H5 | Los otros equipos del piloto (C2, C3) | Jhosep + Miguel | Pendiente |
 
 ## F0 · Piloto y línea base
@@ -146,7 +150,7 @@ interruptor encendido. Ninguna casilla se marca hasta la aceptación en C1.
 | F4.3.2 | Administrar celulares: alta, baja, rotación, salud y atribución, con la clave visible una vez | Instalada | Tarjeta «Celulares» (F4-c, #215, **fusionado en `main` el 07/10**, `5f42e908`): unitarias, MSW y pantalla; E2E Docker 4/4; P2 corregido (`d7d498d2`); validación de cierre de Miguel PASS (6366/6366, E2E 4/4) | Baja de un celular y atribución histórica (alta y rotación ya hechas en C1, 07–08/10) | Jhosep | H4 |
 | F4.3.3 | Conservar evidencia y vínculo al deshacer; mostrar efectos anulados sin fabricar otra gestión | **Marcada el 09/10** | Deshacer mueve el enlace al corregido; `efectos_anulados` en el detalle; «deshecho» en «Qué pasó hoy» · 09/10: P9 PASS en C1 con el #228 publicado; un único enlace, al resultado corregido (consulta de Miguel) | — | Jhosep | H4 |
 | F4.4.1 | Evento antes/después, dos llamadas cercanas, enlace fallido y dos pestañas | Pendiente (preparada) | Casos P1–P8 en `ACTIVAR-C1.md` | Probar el circuito con dos pestañas abiertas (lo demás ya pasó en C1) | Jhosep · Claude | H4 |
-| F4.4.2 | Edición mientras llega otra llamada, alta o asociación fallida, deshacer y lead reasignado | **Marcada el 09/10** | Casos P5, P9 y P10 en `ACTIVAR-C1.md` · 09/10: P5, P8, P9, P10 y P13 en C1; 0 enlaces dobles. Hallazgos H-P5, H-P10 y H-WA abiertos | — | Jhosep · Claude | H4 |
+| F4.4.2 | Edición mientras llega otra llamada, alta o asociación fallida, deshacer y lead reasignado | **Marcada el 09/10** | Casos P5, P9 y P10 en `ACTIVAR-C1.md` · 09/10: P5, P8, P9, P10 y P13 en C1; 0 enlaces dobles. Hallazgos H-P5 y H-P10 abiertos; H-WA cerrado el 09/10 (#232 publicado y PASS en C1) | — | Jhosep · Claude | H4 |
 | F4.4.3 | Checks, E2E local y prueba física; sello v4 y sin actividades duplicadas | **Marcada el 09/10** | Checks y E2E locales en verde (app 6397 y Docker 7 + 1 intermitente en el #222; antes E2E 17/17 y 4/4) · 09/10: checks y E2E (07/10), prueba física P1–P15 y consulta de Miguel: 19/18/18 (P13 sin identificar), P9 1/1/1, 0 dobles, sello v4 OK | — | Jhosep · Miguel | H4 |
 
 ## F5 · Jev para identificación asistida
