@@ -861,13 +861,15 @@ export function useFacturacionDiaria(habilitada: boolean, mes: string) {
  * caché que la consulta mensual: un mes ya traído no se vuelve a pedir.
  */
 export function useFacturacionDeMeses(habilitada: boolean, meses: readonly string[]) {
+  const mesActual = useDiaLima().slice(0, 7)
   return useQueries({
     queries: meses.map((mes) => ({
       queryKey: crmQueryKeys.facturacionDiaria(mes),
       queryFn: ({ signal }: { signal: AbortSignal }) => listarFacturacionDiaria(mes, signal),
       enabled: habilitada && mes !== '',
-      refetchInterval: 5 * 60_000,
-      refetchOnWindowFocus: true,
+      // Cerrado no significa inmutable: puede recibir correcciones históricas.
+      refetchInterval: mes.slice(0, 7) < mesActual ? 30 * 60_000 : 5 * 60_000,
+      refetchOnWindowFocus: mes.slice(0, 7) < mesActual ? 'always' as const : true,
     })),
   })
 }

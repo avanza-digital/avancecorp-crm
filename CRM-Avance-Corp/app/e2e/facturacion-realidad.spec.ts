@@ -13,9 +13,7 @@
 //  3. Si la RPC cae, ningún indicador dice «S/ 0»: una avería no es un mes sin ventas.
 //  4. Un tramo de solo domingo no tiene promedio: «—», no «S/ 0».
 //  5. Escritorio: la cabecera de días queda fija al desplazar DENTRO de la región.
-//  6. Teléfono (≤767 px), para TODO rol: primera columna de 144 px, el total deja de ir
-//     fijo de lado (su cabecera sigue fija arriba) y se ven días. Antes el supervisor en
-//     390 px no veía ninguna columna de día.
+//  6. Teléfono (≤767 px), para TODO rol: tarjetas por analista, sin tabla ni scroll lateral.
 //
 // El mock de `crm.facturacion_diaria_fn` responde con datos FIJOS por mes: no hace eco
 // de los argumentos (trampa conocida del proyecto), así que un cambio en la forma del
@@ -125,8 +123,8 @@ const SETIEMBRE_SUPERVISOR: FilaRpc[] = [venta('2026-09-02', 'PEN', 5_000, UNO, 
 // Con la regla vieja, Soles decía +105.0 % (solo soles) y Dólares +143.3 % (solo dólares)
 // bajo la MISMA cifra de arriba.
 const TITULAR = 'S/ 46,269'
-const DELTA = '+124.7 % vs. el mismo tramo del mes anterior'
-const TASA = 'tipo de cambio S/ 3.53 (SBS, promedio de 7 días hábiles)'
+const DELTA = '+124.7 % respecto del mismo tramo del mes anterior'
+const TASA = 'tipo de cambio S/ 3.53 (Superintendencia de Banca, Seguros y Pensiones, promedio de 7 días hábiles)'
 const SIN_SIGLAS = /\bTC\b|prom\./
 
 /** Mock de la RPC de Facturación: filas fijas por mes, o una caída controlada. */
@@ -150,9 +148,9 @@ async function montarFacturacion(
 const areaFacturacion = (page: Page): Locator => page.locator('[data-vista-scroll="facturacion"]')
 const mallaDe = (page: Page): Locator => page.getByRole('region', { name: /^Facturación diaria/ })
 /** La tarjeta de un indicador, por el comienzo de su rótulo. */
-const indicador = (area: Locator, rotulo: RegExp): Locator => area.locator('.ac-pop').filter({ hasText: rotulo })
+const indicador = (area: Locator, rotulo: RegExp): Locator => area.locator('.facturacion-resumen > *').filter({ hasText: rotulo })
 /** La cifra grande de un indicador. */
-const cifra = (tarjeta: Locator): Locator => tarjeta.locator('.text-primary')
+const cifra = (tarjeta: Locator): Locator => tarjeta.locator('strong')
 const moneda = (area: Locator, nombre: 'Todo S/' | 'Soles' | 'Dólares'): Locator =>
   area.getByRole('group', { name: /^Moneda/ }).getByRole('button', { name: nombre, exact: true })
 const tramo = (area: Locator, nombre: 'Mes' | 'Semana' | 'Día'): Locator =>
@@ -214,13 +212,28 @@ test('1 · Gerencia, octubre con soles y dólares: el titular es el total unific
   const area = await entrarEnEscritorio(page)
   const malla = mallaDe(page)
 
-  const titular = indicador(area, /^Total facturado · octubre de 2026/)
+  const titular = indicador(area, /^Total facturado/)
   await expect(cifra(titular)).toHaveText(TITULAR)
-  await expect(titular).toContainText(`S/ 20,500 + US$ 7,300 al ${TASA}`)
-  await expect(titular).toContainText(DELTA)
+  const resumen = area.locator('.facturacion-resumen')
+  expect((await resumen.boundingBox())!.height).toBeLessThanOrEqual(56)
+  const medidasHoja = await malla.evaluate((nodo) => {
+    const fila = nodo.querySelector('tbody tr:has([data-numero-fila])')!
+    return [...fila.children].filter((_, i, hijos) => i < 2 || i === hijos.length - 1)
+      .map((el) => ({ posicion: getComputedStyle(el).position, fondo: getComputedStyle(el).backgroundColor }))
+  })
+  expect(medidasHoja.every((m) => m.posicion === 'sticky' && m.fondo !== 'rgba(0, 0, 0, 0)')).toBe(true)
+  const letras = await area.evaluate((nodo) => [...nodo.querySelectorAll('*')].filter((el) => {
+    const r = el.getBoundingClientRect()
+    return r.width > 0 && r.height > 0 && !el.closest('.sr-only') && [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent?.trim())
+  }).map((el) => parseFloat(getComputedStyle(el).fontSize)))
+  expect(Math.min(...letras)).toBeGreaterThanOrEqual(14)
+  await expect(cifra(titular)).toHaveText(TITULAR)
+  await expect(area.locator('.facturacion-contexto')).toBeVisible()
+  await expect(area.locator('.facturacion-contexto')).toContainText(`S/ 20,500 + US$ 7,300 al ${TASA}`)
+  await expect(area.locator('.facturacion-contexto')).toContainText(DELTA)
   await expect(malla).toHaveAccessibleName('Facturación diaria de octubre de 2026 en Todo S/, Todos los tipos')
   // En «Todo S/» el pie de la malla da la misma cifra que el titular.
-  await expect(malla.getByRole('row', { name: /^Total de la empresa/ }).getByRole('cell').last()).toHaveText(TITULAR)
+  await expect(malla.getByRole('row', { name: /Total de la empresa/ }).getByRole('cell').last()).toHaveText(TITULAR)
   // La tasa se dice sin siglas: ni «TC» ni «prom. 7d».
   await expect(area).not.toContainText(SIN_SIGLAS)
   await page.screenshot({ path: info.outputPath('caso1-escritorio-todo-soles.png') })
@@ -233,13 +246,13 @@ test('1 · Gerencia, octubre con soles y dólares: el titular es el total unific
   await expect(pie.getByRole('rowheader')).toContainText(TASA)
   await expect(pie.getByRole('cell').last()).toHaveText(TITULAR)
   // El 2 de octubre solo hubo dólares: US$ 5,000 × 3.53 = S/ 17,650, con la MISMA tasa.
-  await expect(pie.getByRole('cell').nth(1)).toContainText('S/ 17,650')
+  await expect(pie.getByRole('cell').nth(2)).toContainText('S/ 17,650')
   // La fila de soles puros sigue siendo solo soles.
-  await expect(malla.getByRole('row', { name: /^Total de la empresa/ }).getByRole('cell').last()).toHaveText('S/ 20,500')
+  await expect(malla.getByRole('row', { name: /Total de la empresa/ }).getByRole('cell').last()).toHaveText('S/ 20,500')
   // El titular no cambia ni de cifra ni de %.
-  await expect(indicador(area, /^Total facturado · octubre de 2026/)).toHaveCount(1)
+  await expect(indicador(area, /^Total facturado/)).toHaveCount(1)
   await expect(cifra(titular)).toHaveText(TITULAR)
-  await expect(titular).toContainText(DELTA)
+  await expect(area.locator('.facturacion-contexto')).toContainText(DELTA)
   await expect(area).not.toContainText(SIN_SIGLAS)
   await llevarALaVista(page, pie, 'abajo')
   await expectCarcasaQuieta(page)
@@ -249,7 +262,7 @@ test('1 · Gerencia, octubre con soles y dólares: el titular es el total unific
   await moneda(area, 'Dólares').click()
   await expect(moneda(area, 'Dólares')).toHaveAttribute('aria-pressed', 'true')
   await expect(cifra(titular)).toHaveText(TITULAR)
-  await expect(titular).toContainText(DELTA)
+  await expect(area.locator('.facturacion-contexto')).toContainText(DELTA)
   await expect(malla.getByRole('row', { name: /Total del día en soles/ }).getByRole('cell').last()).toHaveText(TITULAR)
 
   // Se pidió el mes y el anterior, con la forma exacta de la RPC.
@@ -291,9 +304,9 @@ test('2 · Sin tipo de cambio: «Facturado en soles», un solo reintento que no 
   await expect(reintento).toHaveCount(1)
   await expect(pie.getByRole('button')).toHaveCount(0)
   // El titular no se rotula «Total»…
-  const titular = indicador(area, /^Facturado en soles · octubre de 2026/)
+  const titular = indicador(area, /^Facturado en soles/)
   await expect(cifra(titular)).toHaveText('S/ 20,500')
-  await expect(titular).toContainText('solo soles — falta el tipo de cambio para sumar soles y dólares')
+  await expect(area.locator('.facturacion-contexto')).toContainText('solo soles — falta el tipo de cambio para sumar soles y dólares')
   await expect(area.getByText(/Total facturado/)).toHaveCount(0)
   // …y el pie no afirma un total sin tasa.
   await expect(pie.getByRole('rowheader')).toContainText('total no disponible: falta el tipo de cambio')
@@ -330,7 +343,7 @@ test('2 · Sin tipo de cambio: «Facturado en soles», un solo reintento que no 
   await expect(consultando).toHaveCount(0)
   await expect(moneda(area, 'Todo S/')).toHaveAttribute('aria-pressed', 'true')
   await expect(moneda(area, 'Todo S/')).toBeFocused()
-  await expect(cifra(indicador(area, /^Total facturado · octubre de 2026/))).toHaveText(TITULAR)
+  await expect(cifra(indicador(area, /^Total facturado/))).toHaveText(TITULAR)
   expect(pedidosTasa).toBeGreaterThanOrEqual(2)
 })
 
@@ -346,13 +359,14 @@ test('3 · La RPC cae: «No se pudo cargar…» y ningún indicador dice «S/ 0�
   // Una avería no es un mes sin ventas.
   await expect(area.getByText(/Todavía no hay cierres/)).toHaveCount(0)
   await expect(mallaDe(page)).toHaveCount(0)
-  const indicadores = area.locator('.ac-pop')
+  const indicadores = area.locator('.facturacion-resumen > *')
   await expect(indicadores).toHaveCount(4)
   for (let i = 0; i < 4; i += 1) {
     await expect(cifra(indicadores.nth(i))).toHaveText('—')
     await expect(indicadores.nth(i)).not.toContainText('S/ 0')
   }
-  await expect(indicador(area, /^Facturado · octubre de 2026/)).toContainText('No se pudo cargar: la cifra no está disponible')
+  await expect(area.locator('.facturacion-contexto')).toBeVisible()
+  await expect(area.locator('.facturacion-contexto')).toContainText('No se pudo cargar: la cifra no está disponible')
   expect(cuerpos.length).toBeGreaterThan(0)
 })
 
@@ -370,9 +384,10 @@ test('4 · Domingo 01/11 con una venta, vista «Día»: el promedio por día há
 
   await tramo(area, 'Día').click()
   await expect(tramo(area, 'Día')).toHaveAttribute('aria-pressed', 'true')
-  await expect(area.getByText('Ese día, por equipo y por analista')).toBeVisible()
+  await expect(area.getByText('Ese día, por tipo: por equipo y por analista')).toBeVisible()
   await expect(cifra(promedio)).toHaveText('—')
-  await expect(promedio).toContainText('Sin días hábiles en este tramo: el domingo no cuenta')
+  await expect(area.locator('.facturacion-contexto')).toBeVisible()
+  await expect(area.locator('.facturacion-contexto')).toContainText('Sin días hábiles en este tramo: el domingo no cuenta')
   await expect(promedio).not.toContainText('S/ 0')
   // Y el dinero de ese domingo sí está en pantalla.
   await expect(cifra(indicador(area, /^Ese día/))).toHaveText('S/ 15,000')
@@ -433,78 +448,30 @@ test('5 · Escritorio 1440×700: la cabecera de días queda fija al desplazar DE
 test.describe('6 · Teléfono 390×844, para todo rol', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true })
 
-  /**
-   * Primera columna de 144 px, región de 65dvh, el total ya no fijo de lado (su cabecera
-   * sí, arriba) y al menos un día a la vista. Deja la malla como estaba (sin desplazar).
-   */
-  async function comprobarMallaDeTelefono(page: Page, malla: Locator, quien: string): Promise<void> {
-    await llevarALaVista(page, malla)
+  /** Las tarjetas sustituyen la malla: sin scroll lateral y blancos táctiles de 44 px. */
+  async function comprobarTarjetasDeTelefono(page: Page, tarjetas: Locator): Promise<void> {
+    await expect(mallaDe(page)).toHaveCount(0)
+    await expect(tarjetas).toBeVisible()
+    expect(await tarjetas.locator('.facturacion-tarjeta').count()).toBeGreaterThan(0)
+    await llevarALaVista(page, tarjetas)
+    const medidas = await tarjetas.evaluate((nodo) => ({
+      nombres: [...nodo.querySelectorAll('button[aria-label^="Ver el mes"]')].map((el) => parseFloat(getComputedStyle(el).fontSize)),
+      botones: [...nodo.querySelectorAll('button')].map((el) => el.getBoundingClientRect().height),
+      ancho: nodo.scrollWidth, visible: nodo.clientWidth,
+    }))
+    expect(Math.min(...medidas.nombres)).toBeGreaterThanOrEqual(16)
+    expect(Math.min(...medidas.botones)).toBeGreaterThanOrEqual(44)
+    expect(medidas.ancho).toBeLessThanOrEqual(medidas.visible + 1)
+    const primera = tarjetas.locator('.facturacion-tarjeta').first()
+    await expect(primera.getByRole('button', { name: /^Ver el mes.*operaci/ })).toBeVisible()
+    await expect(primera.getByRole('button', { name: /^Ver el mes/ })).toHaveCount(1)
+    await primera.getByRole('button', { name: /^Ver el mes/ }).click()
+    await expect(page.getByRole('dialog')).toBeVisible()
+    await page.getByRole('button', { name: 'Cerrar detalle' }).click()
     await expectCarcasaQuieta(page)
-    const estilos = await malla.evaluate((nodo) => {
-      const cabeceras = nodo.querySelectorAll('thead th')
-      const primera = cabeceras[0]
-      const cabeceraTotal = cabeceras[cabeceras.length - 1]
-      const totalDeFila = nodo.querySelector('tbody tr > :last-child')
-      return {
-        maximo: parseFloat(getComputedStyle(nodo).maxHeight),
-        alto: innerHeight,
-        posicionPrimera: primera ? getComputedStyle(primera).position : null,
-        totalDeFila: totalDeFila ? getComputedStyle(totalDeFila).position : null,
-        cabeceraTotal: cabeceraTotal
-          ? { posicion: getComputedStyle(cabeceraTotal).position, top: getComputedStyle(cabeceraTotal).top, right: getComputedStyle(cabeceraTotal).right }
-          : null,
-      }
-    })
-    expect(Math.abs(estilos.maximo - estilos.alto * 0.65)).toBeLessThanOrEqual(1)
-    expect(estilos.posicionPrimera).toBe('sticky')
-    // El total deja de ir fijo de lado; su cabecera sigue fija ARRIBA (sin rótulo al bajar, no).
-    expect(estilos.totalDeFila).toBe('static')
-    expect(estilos.cabeceraTotal).toEqual({ posicion: 'sticky', top: '0px', right: 'auto' })
-
-    const region = (await malla.boundingBox())!
-    const primera = (await malla.locator('thead th').first().boundingBox())!
-    const primeraDelCuerpo = (await malla.locator('tbody th').first().boundingBox())!
-    expect(Math.abs(primera.width - 144)).toBeLessThanOrEqual(1)
-    expect(Math.abs(primeraDelCuerpo.width - 144)).toBeLessThanOrEqual(1)
-    // Sin desplazar, la cabecera del total está al final de la malla, no pegada al borde derecho.
-    const cabeceraTotal = malla.locator('thead th').last()
-    expect((await cabeceraTotal.boundingBox())!.x).toBeGreaterThanOrEqual(region.x + region.width - 1)
-
-    // Al menos un día entero entre la primera columna y el borde derecho de la región,
-    // dentro de la caja de la región, y sin nada encima (antes lo tapaba el total fijo).
-    const dias = cabecerasDeDia(page, malla)
-    const visibles: number[] = []
-    for (let i = 0; i < 6; i += 1) {
-      const caja = (await dias.nth(i).boundingBox())!
-      const intersecta = caja.x < region.x + region.width && caja.x + caja.width > region.x
-        && caja.y < region.y + region.height && caja.y + caja.height > region.y
-      const entero = caja.x >= primera.x + primera.width - 1 && caja.x + caja.width <= region.x + region.width + 1
-      if (intersecta && entero && await seVeSinTapar(dias.nth(i))) visibles.push(i + 1)
-    }
-    expect(visibles.length).toBeGreaterThanOrEqual(1)
-
-    // Si la malla no cabe en alto, al llegar al final de la fila y bajar, la cabecera del
-    // total sigue pegada arriba de la región y a la vista.
-    let totalArriba = 'la malla cabe en alto: sin desplazamiento vertical'
-    if (await malla.evaluate((nodo) => nodo.scrollHeight > nodo.clientHeight + 100)) {
-      await malla.evaluate((nodo) => { nodo.scrollLeft = nodo.scrollWidth; nodo.scrollTop = 200 })
-      await esperarCuadro(page)
-      const desplazada = (await malla.boundingBox())!
-      const caja = (await cabeceraTotal.boundingBox())!
-      expect(Math.abs(caja.y - desplazada.y)).toBeLessThanOrEqual(3)
-      expect(caja.x + caja.width).toBeLessThanOrEqual(desplazada.x + desplazada.width + 1)
-      expect(await seVeSinTapar(cabeceraTotal)).toBe(true)
-      totalArriba = `cabecera del total y=${caja.y.toFixed(1)} con la región en y=${desplazada.y.toFixed(1)} (scrollTop 200, al final de la fila)`
-      await malla.evaluate((nodo) => { nodo.scrollLeft = 0; nodo.scrollTop = 0 })
-      await esperarCuadro(page)
-    }
-    await expectCarcasaQuieta(page)
-    console.log(`[caso 6 · ${quien}] región x=${region.x.toFixed(1)} ancho=${region.width.toFixed(1)} · `
-      + `primera columna ${primera.width.toFixed(1)} px · días a la vista: ${visibles.join(', ') || 'ninguno'} · `
-      + `alto máximo ${estilos.maximo.toFixed(1)} px (65 % de ${estilos.alto}) · ${totalArriba}`)
   }
 
-  test('supervisor: la primera columna mide 144 px y quedan días a la vista', async ({ page }, info) => {
+  test('supervisor: tarjetas de su ámbito, con nombres y cifras legibles', async ({ page }, info) => {
     await page.clock.setFixedTime(HOY_OCTUBRE)
     await montarBackendReal(page, { rolCrm: 'supervisor' })
     await montarFacturacion(page, { '2026-10-01': OCTUBRE_SUPERVISOR, '2026-09-01': SETIEMBRE_SUPERVISOR })
@@ -513,10 +480,9 @@ test.describe('6 · Teléfono 390×844, para todo rol', () => {
     await loginReal(page, { esperarWorkspace: false })
     await expect(page).toHaveURL(/#\/[\w-]+/)
     await page.evaluate(() => { window.location.hash = '#/facturacion' })
-    const malla = mallaDe(page)
-    await expect(malla).toBeVisible()
-    await expect(malla.getByRole('rowheader', { name: /Analista Real Uno/ })).toBeVisible()
-    await comprobarMallaDeTelefono(page, malla, 'supervisor')
+    const tarjetas = page.getByRole('region', { name: 'Facturación por analista' })
+    await expect(tarjetas.getByRole('button', { name: /^Ver el mes completo de Analista Real Uno: total/ })).toBeVisible()
+    await comprobarTarjetasDeTelefono(page, tarjetas)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     await page.screenshot({ path: info.outputPath('caso6-telefono-supervisor.png') })
   })
@@ -528,10 +494,66 @@ test.describe('6 · Teléfono 390×844, para todo rol', () => {
     await loginReal(page, { esperarWorkspace: false })
     await irAModulo(page, 'Facturación')
     await expect(page).toHaveURL(/#\/facturacion$/)
-    const malla = mallaDe(page)
-    await expect(malla).toBeVisible()
-    await comprobarMallaDeTelefono(page, malla, 'gerencia')
+    const tarjetas = page.getByRole('region', { name: 'Facturación por analista' })
+    await comprobarTarjetasDeTelefono(page, tarjetas)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     await page.screenshot({ path: info.outputPath('caso6-telefono-gerencia.png') })
   })
+})
+
+test('7 · Shift+Tab descubre el total de una fila tapada por la cabecera fija', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 700 })
+  await page.clock.setFixedTime(HOY_OCTUBRE)
+  await montarBackendReal(page)
+  await montarFacturacion(page, { '2026-10-01': OCTUBRE_GRANDE, '2026-09-01': SETIEMBRE })
+  await entrarEnEscritorio(page)
+  const malla = mallaDe(page)
+  await expect(malla).toBeVisible()
+  await llevarALaVista(page, malla)
+  const filas = malla.locator('tbody tr:has([data-numero-fila])')
+  const total = filas.nth(3).locator('.facturacion-total button')
+  const siguiente = filas.nth(4).getByRole('checkbox')
+  await siguiente.focus()
+  // Sitúa el centro del total justo bajo la cabecera; el siguiente checkbox queda a la vista.
+  await total.evaluate((nodo) => {
+    const region = nodo.closest('.facturacion-malla')!
+    const cabecera = region.querySelector('thead')!.getBoundingClientRect()
+    const caja = nodo.getBoundingClientRect()
+    region.scrollTop += caja.top - (region.getBoundingClientRect().top + cabecera.height - caja.height / 2 - 4)
+  })
+  await esperarCuadro(page)
+  await expect(siguiente).toBeFocused()
+  expect(await seVeSinTapar(siguiente)).toBe(true)
+  expect(await seVeSinTapar(total)).toBe(false)
+  await page.keyboard.press('Shift+Tab')
+  await expect(total).toBeFocused()
+  await expect.poll(() => seVeSinTapar(total)).toBe(true)
+  const reservas = await malla.evaluate((nodo) => {
+    const estilo = getComputedStyle(nodo)
+    const ancho = (selector: string) => nodo.querySelector(selector)!.getBoundingClientRect().width
+    return {
+      arriba: parseFloat(estilo.scrollPaddingTop), alto: nodo.querySelector('thead')!.getBoundingClientRect().height,
+      izquierda: parseFloat(estilo.scrollPaddingLeft), fijas: ancho('thead .facturacion-numero') + ancho('thead .facturacion-nombre'),
+      derecha: parseFloat(estilo.scrollPaddingRight), total: ancho('thead .facturacion-total'),
+    }
+  })
+  expect(reservas.arriba).toBeCloseTo(reservas.alto + 4, 1)
+  expect(reservas.izquierda).toBeCloseTo(reservas.fijas, 1)
+  expect(reservas.derecha).toBeCloseTo(reservas.total, 1)
+})
+
+test('8 · A 800×900 las tarjetas conservan los días y el desglose en una región estrecha', async ({ page }) => {
+  await page.setViewportSize({ width: 800, height: 900 })
+  await page.clock.setFixedTime(HOY_OCTUBRE)
+  await montarBackendReal(page)
+  await montarFacturacion(page, { '2026-10-01': OCTUBRE, '2026-09-01': SETIEMBRE })
+  await loginReal(page, { esperarWorkspace: false })
+  await irAModulo(page, 'Facturación')
+  const tarjetas = page.getByRole('region', { name: 'Facturación por analista' })
+  await expect(tarjetas).toBeVisible()
+  await expect(mallaDe(page)).toHaveCount(0)
+  const ventaAna = tarjetas.getByRole('button', { name: /^ANA PRUEBA,.*1 de octubre: S\/ 12,000 en 1 operación — ver el desglose$/ })
+  await expect(ventaAna).toBeVisible()
+  await ventaAna.click()
+  await expect(page.getByRole('dialog')).toContainText('S/ 12,000')
 })

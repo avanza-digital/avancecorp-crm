@@ -710,3 +710,56 @@ describe('qué meses hay que pedirle al servidor', () => {
     expect(mesesQueTocan(diasDelPeriodo('mes', '2026-09-10'))).toEqual(['2026-09-01'])
   })
 })
+
+// Fase de pantalla del 09/10: el oráculo sigue siendo ESTE modelo, sin modificarlo.
+describe('cifras idénticas al proyectar la hoja aprobada', () => {
+  it('conserva por analista, día, equipo y titular los mismos importes y operaciones en las tres monedas', async () => {
+    const { columnasDeDias, proyectarMalla, columnasDeTipos } = await import('../screens/facturacion/presentacion')
+    const dias = diasDelMes(MES)
+    const filas = [...FILAS,
+      fila({ dia: '2026-09-10', tipo: 'cooperativa', capital: 4_850, analistaId: 'elizabeth', analistaNombre: 'ELIZABETH' }),
+      fila({ dia: '2026-09-10', tipo: 'contrato_upgrade', moneda: 'USD', capital: 1_201.53 }),
+      fila({ dia: '2026-09-10', tipo: 'contrato_renovacion', capital: 785.35 }),
+      // Incluso una fila futura no se pierde al plegar columnas.
+      fila({ dia: '2026-09-29', capital: 456.78 }),
+    ]
+    const roster = rosterDeEquipoYFilas([{ id: 'sin-ventas', nombre: 'Activa sin ventas', rol: 'vendedor', supervisorId: 's1', activo: true }], filas)
+    const pen = construirMallaDeDias(filas, dias, MES, 'PEN', TIPO_TODOS, roster)
+    const usd = construirMallaDeDias(filas, dias, MES, 'USD', TIPO_TODOS, roster)
+    const total = combinarEnSoles(pen, usd, 3.751)!
+    for (const original of [pen, usd, total]) {
+      const columnas = columnasDeDias(dias, '2026-09-10')
+      const hoja = proyectarMalla(original, columnas)
+      expect(hoja.total).toBe(original.total)
+      for (let i = 0; i < 10; i += 1) expect(hoja.totalPorDia[i]).toEqual(original.totalPorDia[i])
+      expect(hoja.totalPorDia.at(-1)).toEqual(original.totalPorDia.slice(10).reduce((s, c) => ({ capital: s.capital + c.capital, contratos: s.contratos + c.contratos }), { capital: 0, contratos: 0 }))
+      for (const grupo of original.grupos) {
+        const nuevo = hoja.grupos.find((g) => g.id === grupo.id)!
+        expect(nuevo.total).toBe(grupo.total)
+        for (const analista of grupo.analistas) {
+          const nueva = nuevo.analistas.find((a) => a.id === analista.id)!
+          expect(nueva.total).toBe(analista.total)
+          expect(nueva.dias.slice(0, 10)).toEqual(analista.dias.slice(0, 10))
+        }
+      }
+    }
+    // El titular usa exactamente las mismas dos mallas, sin redondeos de la presentación.
+    expect(totalesUnificados(proyectarMalla(pen, columnasDeDias(dias, '2026-09-10')), proyectarMalla(usd, columnasDeDias(dias, '2026-09-10')), 3.751).mes)
+      .toEqual(totalesUnificados(pen, usd, 3.751).mes)
+    for (const vista of ['PEN', 'USD', 'TOTAL'] as const) {
+      const d = ['2026-09-10']
+      const p = construirMallaDeDias(filas, d, MES, 'PEN', TIPO_TODOS, roster)
+      const u = construirMallaDeDias(filas, d, MES, 'USD', TIPO_TODOS, roster)
+      const original = vista === 'TOTAL' ? combinarEnSoles(p, u, 3.751)! : vista === 'PEN' ? p : u
+      const hoja = proyectarMalla(original, columnasDeTipos(filas, d, MES, TIPO_TODOS, roster, vista, 3.751))
+      expect(hoja.total).toEqual(original.total)
+      for (const g of hoja.grupos) {
+        expect(g.dias.reduce((n, c) => n + c.capital, 0)).toBeCloseTo(g.total.capital, 8)
+        for (const a of g.analistas) {
+          expect(a.dias.reduce((n, c) => n + c.capital, 0)).toBeCloseTo(a.total.capital, 8)
+          expect(a.dias.reduce((n, c) => n + c.contratos, 0)).toBe(a.total.contratos)
+        }
+      }
+    }
+  })
+})

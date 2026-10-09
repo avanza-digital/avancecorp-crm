@@ -33,6 +33,8 @@ const dobles = vi.hoisted(() => ({
   recargarTc: 0,
   /** Lo que «pasa» al recargar la tasa (p. ej. volver a «consultando»). */
   alRecargar: undefined as undefined | (() => void),
+  previoPendiente: false,
+  previoError: false,
   cargando: false,
   error: false,
   datos: undefined as undefined | (unknown[] & { descartadas?: number }),
@@ -64,8 +66,8 @@ vi.mock('@/data/crm-queries', () => ({
     meses.map((_m, i) => ({
       // Solo la primera trae datos: repetirlos en cada mes los duplicaría.
       data: i === 0 ? dobles.datos : undefined,
-      isPending: dobles.cargando,
-      isError: dobles.error,
+      isPending: dobles.cargando || (_m === '2026-08-01' && dobles.previoPendiente),
+      isError: dobles.error || (_m === '2026-08-01' && dobles.previoError),
       isFetching: false,
       dataUpdatedAt: dobles.datos == null ? 0 : 1,
       refetch: vi.fn(),
@@ -130,9 +132,19 @@ function malla(): HTMLElement {
   return screen.getByRole('region', { name: /Facturación diaria/ })
 }
 
+/** El contexto es texto visible fuera de la fila compacta de pastillas. */
+function contextoVisible(texto: Parameters<typeof screen.getByText>[0]): HTMLElement {
+  return screen.getByText(texto, { selector: '.facturacion-contexto', exact: false })
+}
+function buscarContextoVisible(texto: Parameters<typeof screen.queryByText>[0]): HTMLElement | null {
+  return screen.queryByText(texto, { selector: '.facturacion-contexto', exact: false })
+}
+
 beforeEach(() => {
   dobles.demo = false
   dobles.yo = { id: 'g1', rol: 'gerencia' }
+  dobles.previoPendiente = false
+  dobles.previoError = false
   dobles.cargando = false
   dobles.error = false
   dobles.datos = undefined
@@ -167,11 +179,11 @@ describe('lo que se ve al entrar', () => {
     expect(within(malla()).getByText('S/ 520,000')).toBeVisible()
   })
 
-  it('los 30 días de setiembre están en la cabecera, con hoy marcado', () => {
+  it('los días transcurridos están en la cabecera y el futuro queda plegado', () => {
     pintar()
     const cabeceras = within(malla()).getAllByRole('columnheader')
-    // 1 de nombres + 30 días + 1 de total.
-    expect(cabeceras).toHaveLength(32)
+    // # + nombre + 10 días transcurridos + por venir + total.
+    expect(cabeceras).toHaveLength(14)
   })
 
   it('la cifra de una celda llega a un lector de pantalla, no solo al ratón', () => {
@@ -518,7 +530,7 @@ describe('total del día con las dos monedas — petición de Miguel del 11/09/2
     // La tasa se dice sin siglas (regla de Miguel; auditoría 08/10/2026): nada de
     // «TC» ni «prom. 7d» en pantalla.
     expect(
-      within(malla()).getByText('tipo de cambio S/ 3.75 (SUNAT, promedio de 7 días hábiles)'),
+      within(malla()).getByText('tipo de cambio S/ 3.75 (Superintendencia Nacional de Administración Tributaria, promedio de 7 días hábiles)'),
     ).toBeVisible()
     expect(within(malla()).queryByText(/\bTC\b|prom\./)).toBeNull()
     // Y los días sí llevan cifra: el 3 de setiembre es 40 000 + 7 000 × 3,75.
@@ -689,7 +701,7 @@ describe('tipos de capital — el contrato que Miguel no encontraba (11/09/2026)
       fila({ id: 'n8', dia: '2026-08-05', tipo: 'contrato_nuevo', capital: 400_000 }),
     ])
     elegirTipo('contrato_renovacion')
-    expect(screen.getByText(/\+100\.0 % vs\. el mismo tramo de/)).toBeVisible()
+    expect(contextoVisible(/\+100\.0 % respecto del mismo tramo de/)).toBeVisible()
   })
 
   it('el rótulo del KPI de contratos deja de decir «nuevos» siempre', () => {
@@ -731,7 +743,7 @@ describe('hallazgos de la auditoría del 11/09/2026', () => {
       fila({ id: 'a8a', dia: '2026-08-05', capital: 100_000 }),
       fila({ id: 'a8b', dia: '2026-08-20', capital: 900_000 }),
     ])
-    expect(screen.getByText(/\+0\.0 % vs\. el mismo tramo de/)).toBeVisible()
+    expect(contextoVisible(/\+0\.0 % respecto del mismo tramo de/)).toBeVisible()
     expect(screen.queryByText(/−90\.0 %/)).toBeNull()
   })
 
@@ -742,7 +754,7 @@ describe('hallazgos de la auditoría del 11/09/2026', () => {
       fila({ dia: '2026-08-02', moneda: 'PEN', capital: 100_000 }),
       fila({ dia: '2026-08-03', moneda: 'USD', capital: 25_000 }),
     ])
-    expect(screen.getByText(/−50\.0 % vs\. el mismo tramo de/)).toBeVisible()
+    expect(contextoVisible(/−50\.0 % respecto del mismo tramo de/)).toBeVisible()
   })
 
   it('un mes CERRADO sí compara contra el mes anterior completo', () => {
@@ -754,7 +766,7 @@ describe('hallazgos de la auditoría del 11/09/2026', () => {
       fila({ id: 'j7b', dia: '2026-07-28', capital: 50_000 }),
     ])
     fireEvent.click(screen.getByRole('button', { name: 'Mes anterior' }))
-    expect(screen.getByText(/\+100\.0 % vs\. el mismo tramo de/)).toBeVisible()
+    expect(contextoVisible(/\+100\.0 % respecto del mismo tramo de/)).toBeVisible()
   })
 
   it('el detalle de una celda NO trae dinero de otra moneda ni de otro equipo', () => {
@@ -821,7 +833,7 @@ describe('vista «Todo S/» — el arranque por defecto (Miguel, 11/09/2026)', (
     pintar()
     expect(screen.getByRole('button', { name: 'Soles' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Todo S/' })).toHaveAttribute('aria-pressed', 'false')
-    expect(within(malla()).getByText(/Soles/)).toBeVisible()
+    expect(within(malla()).getByRole('table')).toHaveAccessibleName(/Soles/)
   })
 
   it('mientras consulta la tasa no se repliega ni afirma que falta', () => {
@@ -844,7 +856,7 @@ describe('honestidad de las cifras — auditoría del 11/09/2026', () => {
     expect(screen.queryByText('S/ 0')).toBeNull()
     expect(screen.getAllByText('—').length).toBeGreaterThan(0)
     // Sale en varios indicadores a la vez, que es lo correcto.
-    expect(screen.getAllByText(/Cargando la facturación del mes/).length).toBeGreaterThan(0)
+    expect(screen.getAllByTitle(/Cargando la facturación del mes/).length).toBeGreaterThan(0)
   })
 
   it('si la consulta FALLA tampoco dice cero: una avería no es un mes sin ventas', () => {
@@ -909,21 +921,21 @@ describe('tramo: mes, semana y día (Miguel, 11/09/2026)', () => {
     expect(screen.getByRole('button', { name: 'Mes anterior' })).toBeVisible()
   })
 
-  it('en Semana la tabla enseña 7 días y las flechas se mueven por semanas', () => {
+  it('en Semana se pliega el futuro y las flechas se mueven por semanas', () => {
     // HOY es jueves 10/09: la semana va del lunes 7 al domingo 13. El fixture
     // general vende el 2, 3 y 4, así que aquí hace falta algo DENTRO.
     pintar([fila({ id: 'sem', dia: '2026-09-10', capital: 50_000 })])
     elegirTramo('Semana')
     expect(screen.getByRole('button', { name: 'Semana anterior' })).toBeVisible()
     // HOY es jueves 10/09: la semana va del lunes 7 al domingo 13.
-    expect(within(malla()).getAllByRole('columnheader').length).toBe(9) // 7 días + nombre + total
+    expect(within(malla()).getAllByRole('columnheader').length).toBe(8) // # + nombre + 4 días + por venir + total
   })
 
-  it('en Día la tabla enseña un solo día', () => {
+  it('en Día la tabla desglosa un solo día por tipo', () => {
     pintar([fila({ id: 'hoy', dia: '2026-09-10', capital: 50_000 })])
     elegirTramo('Día')
     expect(screen.getByRole('button', { name: 'Día anterior' })).toBeVisible()
-    expect(within(malla()).getAllByRole('columnheader').length).toBe(3) // 1 día + nombre + total
+    expect(within(malla()).getAllByRole('columnheader').length).toBe(7) // # + nombre + 4 tipos + total
   })
 
   it('los totales se recalculan sobre el tramo, no sobre el mes', () => {
@@ -944,12 +956,12 @@ describe('tramo: mes, semana y día (Miguel, 11/09/2026)', () => {
   it('TODOS los rótulos siguen al tramo: nunca el titular diciendo «mes»', () => {
     dobles.tc = { promedio: 3.75, fuente: 'SUNAT · prom. 7d' }
     pintar()
-    expect(screen.getByText((s) => /Facturado/i.test(s) && /setiembre de 2026/i.test(s))).toBeVisible()
+    expect(contextoVisible(/^setiembre de 2026/)).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: 'Semana' }))
     // Un titular que dice «setiembre» sobre la cifra de una semana es la misma
     // clase de mentira que el % comparando contra el mes entero.
     expect(
-      screen.queryByText((s) => /Facturado/i.test(s) && /setiembre de 2026/i.test(s)),
+      buscarContextoVisible(/^setiembre de 2026/),
     ).toBeNull()
     // El rótulo del indicador nombra EL MISMO tramo que la barra de navegación,
     // sea cual sea el formato corto de fecha del sistema. (El prefijo cambia
@@ -958,14 +970,14 @@ describe('tramo: mes, semana y día (Miguel, 11/09/2026)', () => {
     const tramo = screen.getByRole('button', { name: 'Semana anterior' }).nextElementSibling
     expect(tramo?.textContent ?? '').not.toBe('')
     expect(
-      screen.getByText((s) => /Facturado/i.test(s) && s.includes(tramo?.textContent ?? 'x')),
+      contextoVisible((s) => s.includes(tramo?.textContent ?? 'x')),
     ).toBeVisible()
-    expect(screen.getByText(/semana anterior/)).toBeVisible()
-    expect(screen.queryByText(/vs\. el mismo tramo del mes anterior/)).toBeNull()
+    expect(contextoVisible(/semana anterior/)).toBeVisible()
+    expect(screen.queryByText(/respecto del mismo tramo del mes anterior/)).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Día' }))
     // Con el fixture no hay ventas el día anterior, así que no hay % — pero lo
     // que NUNCA puede quedar es la comparación hablando de meses.
-    expect(screen.queryByText(/mes anterior/)).toBeNull()
+    expect(buscarContextoVisible(/mes anterior/)).toBeNull()
     dobles.tc = null
   })
 
@@ -1062,9 +1074,10 @@ describe('marcar días sueltos (Miguel, 11/09/2026)', () => {
     // Titular, rótulo, mejor día y divisor del promedio: o todos hablan de los
     // días elegidos, o la pantalla dice dos cosas a la vez.
     // Sale en el rótulo del indicador Y en el aviso de arriba de la tabla.
-    expect(screen.getAllByText(/2 días elegidos/).length).toBeGreaterThanOrEqual(2)
+    expect(screen.getByText(/Estás viendo 2 días elegidos/)).toBeVisible()
+    expect(contextoVisible(/2 días elegidos/)).toBeVisible()
     expect(screen.getByText('Mejor día de los elegidos')).toBeVisible()
-    expect(screen.getByText(/2 días hábiles/)).toBeVisible()
+    expect(contextoVisible(/2 días hábiles/)).toBeVisible()
   })
 
   it('un día NO elegido no puede ganar el «mejor día»', () => {
@@ -1076,13 +1089,11 @@ describe('marcar días sueltos (Miguel, 11/09/2026)', () => {
     ])
     marcar(/Marcar el .*, 2 de setiembre/i)
     marcar(/Marcar el .*, 4 de setiembre/i)
-    // La tarjeta entera: rótulo, cifra y el día debajo.
-    const tarjeta = screen
-      .getByText('Mejor día de los elegidos')
-      .closest('div.p-4') as HTMLElement | null
-    expect(tarjeta).not.toBeNull()
-    expect(tarjeta?.textContent ?? '').toMatch(/4 de setiembre/)
-    expect(tarjeta?.textContent ?? '').not.toMatch(/3 de setiembre/)
+    expect(screen.getByText('Mejor día de los elegidos')).toBeVisible()
+    const contexto = contextoVisible(/Mejor día:/)
+    expect(contexto).toBeVisible()
+    expect(contexto).toHaveTextContent(/Mejor día: .*4 de setiembre/)
+    expect(contexto).not.toHaveTextContent(/Mejor día: .*3 de setiembre/)
   })
 
   it('volver a pulsar un día lo desmarca', () => {
@@ -1107,10 +1118,10 @@ describe('marcar días sueltos (Miguel, 11/09/2026)', () => {
     // ¿Contra qué se compara «el 2 y el 4»? No hay respuesta honesta. Y el
     // fixture SÍ trae agosto, así que sin la guarda saldría un porcentaje.
     pintar([...TRES_DIAS, fila({ id: 'ago', dia: '2026-08-05', capital: 5_000 })])
-    expect(screen.getByText(/% vs\./)).toBeVisible()
+    expect(contextoVisible(/% respecto de/)).toBeVisible()
     marcar(/Marcar el .*, 2 de setiembre/i)
-    expect(screen.getByText('Días elegidos a mano: sin comparación')).toBeVisible()
-    expect(screen.queryByText(/% vs\./)).toBeNull()
+    expect(contextoVisible(/Días elegidos a mano: sin comparación/)).toBeVisible()
+    expect(buscarContextoVisible(/% respecto de/)).toBeNull()
   })
 
   it('cambiar de tramo suelta los días: eran de otro sitio', () => {
@@ -1246,7 +1257,7 @@ describe('auditoría del 08/10/2026 — fase 1', () => {
 
   /** La tarjeta de un indicador, a partir de su rótulo. */
   function indicador(rotulo: string): HTMLElement {
-    const tarjeta = screen.getByText(rotulo).closest('.ac-pop')
+    const tarjeta = screen.getByText(rotulo).closest('.facturacion-resumen > *')
     if (!(tarjeta instanceof HTMLElement)) throw new Error(`sin tarjeta para «${rotulo}»`)
     return tarjeta
   }
@@ -1264,8 +1275,8 @@ describe('auditoría del 08/10/2026 — fase 1', () => {
     ])
     for (const vista of ['Todo S/', 'Soles', 'Dólares']) {
       elegir(vista)
-      expect(screen.getByText('Total facturado · setiembre de 2026')).toBeVisible()
-      expect(screen.getByText(/\+40\.0 % vs\. el mismo tramo del mes anterior/)).toBeVisible()
+      expect(screen.getByText('Total facturado')).toBeVisible()
+      expect(contextoVisible(/\+40\.0 % respecto del mismo tramo del mes anterior/)).toBeVisible()
     }
   })
 
@@ -1279,7 +1290,7 @@ describe('auditoría del 08/10/2026 — fase 1', () => {
       fila({ id: 's8', dia: '2026-08-05', capital: 400_000, analistaId: 'carla', analistaNombre: 'Carla Analista', supervisorId: 'sup-sara', supervisorNombre: 'Sara Dos' }),
     ])
     fireEvent.change(screen.getByLabelText('Equipo'), { target: { value: 'sup-rosa' } })
-    expect(screen.getByText(/\+100\.0 % vs\. el mismo tramo del mes anterior/)).toBeVisible()
+    expect(contextoVisible(/\+100\.0 % respecto del mismo tramo del mes anterior/)).toBeVisible()
   })
 
   it('sin tipo de cambio y con dólares, el titular NO se rotula «Total» y avisa con reintento', () => {
@@ -1287,9 +1298,9 @@ describe('auditoría del 08/10/2026 — fase 1', () => {
     // sobre los soles. Ahora los dos dicen lo mismo: no hay total sin tasa.
     dobles.tc = null
     pintar()
-    expect(screen.getByText('Facturado en soles · setiembre de 2026')).toBeVisible()
+    expect(screen.getByText('Facturado en soles')).toBeVisible()
     expect(screen.queryByText(/Total facturado/)).toBeNull()
-    expect(screen.getByText(/solo soles — falta el tipo de cambio para sumar soles y dólares/)).toBeVisible()
+    expect(contextoVisible(/solo soles — falta el tipo de cambio para sumar soles y dólares/)).toBeVisible()
     // La perilla se replegó sola de Todo S/ a Soles: el aviso dice por qué.
     expect(screen.getByText(/No llegó el tipo de cambio/)).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar el tipo de cambio' }))
@@ -1349,7 +1360,7 @@ describe('auditoría del 08/10/2026 — fase 1', () => {
     dobles.tc = { promedio: 3.75, fuente: 'SUNAT · prom. 7d' }
     pintar()
     expect(
-      screen.getByText(/al tipo de cambio S\/ 3\.75 \(SUNAT, promedio de 7 días hábiles\)/),
+      contextoVisible(/al tipo de cambio S\/ 3\.75 \(Superintendencia Nacional de Administración Tributaria, promedio de 7 días hábiles\)/),
     ).toBeVisible()
     expect(screen.queryByText(/\bTC\b/)).toBeNull()
   })
@@ -1379,7 +1390,7 @@ describe('auditoría del 08/10/2026 — fase 1', () => {
     // HOY es el jueves 10/09: del 1 al 10 hay 9 días hábiles (el domingo 6 no
     // cuenta). El mes entero tendría 26 y hundiría el promedio casi tres veces.
     pintar()
-    expect(screen.getByText(/^9 días hábiles corridos/)).toBeVisible()
+    expect(contextoVisible(/9 días hábiles corridos/)).toBeVisible()
   })
 
   it('la semana que cruza de mes no cuenta como hábiles los días que aún no pasan', () => {
@@ -1395,22 +1406,23 @@ describe('auditoría del 08/10/2026 — fase 1', () => {
     elegir('Día')
     elegir('Día anterior')
     elegir('Semana')
-    expect(screen.getByText(/^4 días hábiles corridos/)).toBeVisible()
+    expect(contextoVisible(/4 días hábiles corridos/)).toBeVisible()
     vista.unmount()
 
     // Y la misma semana, entrando directo desde el mes, dice lo mismo.
     pintar(filas)
     elegir('Semana')
-    expect(screen.getByText(/^4 días hábiles corridos/)).toBeVisible()
+    expect(contextoVisible(/4 días hábiles corridos/)).toBeVisible()
   })
 
-  it('un día FUTURO marcado a mano no divide el promedio (Codex, 08/10/2026)', () => {
+  it('el futuro plegado no puede marcarse ni dividir el promedio (Codex, 08/10/2026)', () => {
     // HOY es el jueves 10/09. Se marcan el 9 (pasado) y el 11 (aún no llega): el
     // divisor es 1, no 2 — el 11 no ha tenido ocasión de vender.
     pintar([fila({ id: 'm9', dia: '2026-09-09', capital: 30_000 })])
     fireEvent.click(within(malla()).getByRole('button', { name: /Marcar el .*, 9 de setiembre/i }))
-    fireEvent.click(within(malla()).getByRole('button', { name: /Marcar el .*, 11 de setiembre/i }))
-    expect(screen.getByText(/^1 día hábil corrido/)).toBeVisible()
+    expect(within(malla()).queryByRole('button', { name: /Marcar el .*, 11 de setiembre/i })).toBeNull()
+    expect(within(malla()).getByRole('columnheader', { name: 'del 11 al 30 de setiembre, por venir' })).toBeVisible()
+    expect(contextoVisible(/1 día hábil corrido/)).toBeVisible()
   })
 
   it('mes actual solo en soles y anterior con dólares: cada vista compara SU dinero', () => {
@@ -1424,15 +1436,15 @@ describe('auditoría del 08/10/2026 — fase 1', () => {
       fila({ id: 'p8', dia: '2026-08-02', moneda: 'PEN', capital: 100_000 }),
       fila({ id: 'u8', dia: '2026-08-03', moneda: 'USD', capital: 25_000 }),
     ])
-    expect(screen.getByText(/−50\.0 % vs\. el mismo tramo del mes anterior/)).toBeVisible()
+    expect(contextoVisible(/−50\.0 % respecto del mismo tramo del mes anterior/)).toBeVisible()
     elegir('Soles')
-    expect(screen.getByText(/\+0\.0 % vs\. el mismo tramo del mes anterior/)).toBeVisible()
+    expect(contextoVisible(/\+0\.0 % respecto del mismo tramo del mes anterior/)).toBeVisible()
   })
 
   it('la tasa de un solo día se dice en singular', () => {
     dobles.tc = { promedio: 3.75, fuente: 'SBS · prom. 1d' }
     pintar()
-    expect(screen.getByText(/tipo de cambio S\/ 3\.75 \(SBS, promedio de 1 día hábil\)/)).toBeVisible()
+    expect(contextoVisible(/tipo de cambio S\/ 3\.75 \(Superintendencia de Banca, Seguros y Pensiones, promedio de 1 día hábil\)/)).toBeVisible()
   })
 
   it('un tramo de solo domingo no tiene promedio: «—», no S/ 0', () => {
@@ -1441,7 +1453,7 @@ describe('auditoría del 08/10/2026 — fase 1', () => {
     pintar([fila({ id: 'dom', dia: '2026-09-06', capital: 50_000 })])
     elegir('Día')
     for (let i = 0; i < 4; i += 1) elegir('Día anterior')
-    expect(screen.getByText('Sin días hábiles en este tramo: el domingo no cuenta')).toBeVisible()
+    expect(contextoVisible('Sin días hábiles en este tramo: el domingo no cuenta')).toBeVisible()
     expect(within(indicador('Promedio por día hábil')).getByText('—')).toBeVisible()
   })
 
@@ -1451,4 +1463,225 @@ describe('auditoría del 08/10/2026 — fase 1', () => {
     elegir('Semana')
     expect(screen.getByText('Todavía no hay cierres en esta semana.')).toBeVisible()
   })
+})
+
+// Encargo del 09/10: misma fuente y mismos importes, una hoja y tarjetas de teléfono.
+describe('hoja de Excel — fases E1 a E6 y accesibilidad', () => {
+  afterEach(() => { dobles.equipo = []; vi.unstubAllGlobals() })
+
+  it('E1: las pastillas reutilizan el desglose de un único analista; el promedio queda como texto con ayuda', () => {
+    pintar([fila({ capital: 12_345 })])
+    const resumen = screen.getByRole('region', { name: 'Resumen de lo que estás viendo' })
+    expect(resumen.querySelector('.facturacion-resumen')?.children).toHaveLength(4)
+    fireEvent.click(within(resumen).getByRole('button', { name: /Facturado/ }))
+    expect(within(screen.getByRole('dialog')).getByText('S/ 12,345')).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar detalle' }))
+    fireEvent.click(within(resumen).getByRole('button', { name: /Contratos cerrados/ }))
+    expect(screen.getByRole('dialog')).toHaveTextContent('1 operación')
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar detalle' }))
+    fireEvent.click(within(resumen).getByRole('button', { name: /Mejor día/ }))
+    expect(within(screen.getByRole('dialog')).getByText('S/ 12,345')).toBeVisible()
+    expect(within(resumen).queryByRole('button', { name: /Promedio/ })).toBeNull()
+    expect(contextoVisible(/días hábiles corridos/)).toBeVisible()
+    for (const boton of within(resumen).getAllByRole('button')) expect(boton).toHaveAccessibleName(/ver el desglose$/)
+  })
+
+  it('E1: una cifra global sin desglose existente no promete una lista nueva', () => {
+    pintar()
+    const resumen = screen.getByRole('region', { name: 'Resumen de lo que estás viendo' })
+    expect(within(resumen).queryAllByRole('button')).toHaveLength(0)
+    expect(contextoVisible(/Mejor día:.*días hábiles corridos/)).toBeVisible()
+    expect(contextoVisible(/solo soles — falta el tipo de cambio/)).toBeVisible()
+    expect(contextoVisible(/% respecto/)).toBeVisible()
+  })
+
+  it('el contexto sin cierres se ve fuera de la fila compacta; una avería no afirma que no hubo cierres', () => {
+    const vista = pintar([])
+    const contexto = contextoVisible('Todavía sin cierres')
+    expect(contexto).toBeVisible()
+    expect(contexto).toHaveClass('text-sm', 'text-muted-foreground-strong')
+    expect(contexto.closest('.facturacion-resumen')).toBeNull()
+    dobles.error = true
+    vista.rerender(<Facturacion />)
+    expect(contextoVisible('No se pudo cargar: la cifra no está disponible')).toBeVisible()
+    expect(buscarContextoVisible('Todavía sin cierres')).toBeNull()
+  })
+
+  it('la caption describe Día por tipo sin ofrecer botones de día; Mes explica por venir', () => {
+    pintar([fila({ dia: '2026-09-10' })])
+    expect(screen.getByRole('table')).toHaveAccessibleName(/por día.*por venir/)
+    fireEvent.click(screen.getByRole('button', { name: 'Día' }))
+    expect(screen.getByRole('table')).toHaveAccessibleName(/por tipo.*contratos de ese tipo/)
+    expect(screen.getByRole('table')).not.toHaveAccessibleName(/Pulsa el número de un día|por venir/)
+    expect(malla().querySelector('td[aria-label="Banda"], td[aria-label="Total"]')).toBeNull()
+  })
+
+  it('el subtítulo de una fila marcada usa el contraste fuerte y el total anuncia su acción', () => {
+    pintar()
+    fireEvent.click(within(malla()).getByRole('checkbox', { name: 'Comparar a Ana Analista' }))
+    expect(within(malla()).getByText('Equipo de Rosa Uno')).toHaveClass('text-muted-foreground-strong')
+    fireEvent.click(within(malla()).getByRole('button', { name: 'Ver el mes completo de Ana Analista: total S/ 400,000' }))
+    expect(within(screen.getByRole('dialog')).getByText('S/ 300,000')).toBeVisible()
+    expect(within(screen.getByRole('dialog')).getByText('S/ 100,000')).toBeVisible()
+  })
+
+  it('tarjetas por ancho de región, con reservas medidas y limpieza de los observadores', () => {
+    let ancho = 1_100
+    let altoCabecera = 61
+    let anchoNombre = 272
+    const observados = new Map<Element, () => void>()
+    vi.stubGlobal('ResizeObserver', class {
+      private elementos = new Set<Element>()
+      private alMedir: () => void
+      constructor(alMedir: () => void) { this.alMedir = alMedir }
+      observe(elemento: Element) { this.elementos.add(elemento); observados.set(elemento, this.alMedir) }
+      disconnect() { for (const elemento of this.elementos) observados.delete(elemento) }
+    })
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.matches('.facturacion-contenedor') ? ancho : 0
+    })
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      return new DOMRect(0, 0, this.matches('.facturacion-numero') ? 48 : this.matches('.facturacion-nombre') ? anchoNombre : 150,
+        this.matches('thead') ? altoCabecera : 44)
+    })
+    const vista = pintar([fila({ capital: 4_850 })])
+    const region = malla()
+    expect(region.style.getPropertyValue('--reserva-cabecera')).toBe('65px')
+    expect(region.style.getPropertyValue('--reserva-izquierda')).toBe('320px')
+    expect(region.style.getPropertyValue('--reserva-derecha')).toBe('150px')
+    const contenedor = region.closest('.facturacion-contenedor')!
+    expect(observados.has(contenedor)).toBe(true)
+    altoCabecera = 84
+    anchoNombre = 300
+    act(() => { observados.get(region.querySelector('thead')!)!() })
+    expect(region.style.getPropertyValue('--reserva-cabecera')).toBe('88px')
+    expect(region.style.getPropertyValue('--reserva-izquierda')).toBe('348px')
+    // El viewport sigue siendo de escritorio; solo cambia el espacio de la región (margen: 8 px).
+    ancho = 737
+    act(() => { observados.get(contenedor)!() })
+    expect(screen.queryByRole('table')).toBeNull()
+    const tarjetas = screen.getByRole('region', { name: 'Facturación por analista' })
+    expect(within(tarjetas).getByRole('button', { name: /^Ver el mes completo de Ana Analista: total S\/ 4,850/ })).toBeVisible()
+    expect(observados.size).toBe(1)
+    ancho = 738
+    act(() => { observados.get(contenedor)!() })
+    expect(malla()).toBeVisible()
+    expect(within(malla()).getByRole('button', { name: 'Ver el mes completo de Ana Analista: total S/ 4,850' })).toBeVisible()
+    vista.unmount()
+    expect(observados.size).toBe(0)
+  })
+
+  it('las tarjetas nombran a la persona, el día y las operaciones, con una sola acción mensual', () => {
+    vi.stubGlobal('matchMedia', (consulta: string) => ({ matches: consulta.includes('max-width'),
+      media: consulta, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+    pintar([fila({ dia: '2026-09-10', capital: 4_850 })])
+    const tarjetas = screen.getByRole('region', { name: 'Facturación por analista' })
+    expect(within(tarjetas).queryByRole('region')).toBeNull()
+    expect(within(tarjetas).getByText('1 analista')).toBeVisible()
+    expect(within(tarjetas).getAllByRole('button', { name: /^Ver el mes completo/ })).toHaveLength(1)
+    expect(within(tarjetas).getAllByRole('button')).toHaveLength(2)
+    const venta = within(tarjetas).getByRole('button', { name: 'Ana Analista, jueves, 10 de setiembre: S/ 4,850 en 1 operación — ver el desglose' })
+    fireEvent.click(venta)
+    expect(within(screen.getByRole('dialog')).getByText('S/ 4,850')).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar detalle' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Día' }))
+    expect(within(tarjetas).getByRole('button', { name: 'Ana Analista, Nuevo: S/ 4,850 en 1 operación — ver el desglose' })).toBeVisible()
+  })
+
+  it('E2: el número continúa entre bandas; número, nombre y total quedan fijos', () => {
+    pintar()
+    const filas = [...malla().querySelectorAll('tbody tr')].filter((f) => f.querySelector('[data-numero-fila]'))
+    expect(filas.map((f) => f.firstElementChild?.textContent)).toEqual(['1', '2', '3'])
+    for (const f of filas) {
+      expect(f.children[0]).toHaveClass('sticky', 'left-0')
+      expect(f.children[1]).toHaveClass('sticky', 'left-12')
+      expect(f.lastElementChild).toHaveClass('sticky', 'right-0')
+    }
+    expect(malla().querySelectorAll('.facturacion-banda')).toHaveLength(2)
+  })
+
+  it('E3 y 7: nombres de 16 px, títulos sin salto, lista explícita y foco opaco', () => {
+    pintar()
+    const nombre = screen.getByRole('button', { name: 'Ver el mes completo de Ana Analista' })
+    expect(within(nombre).getByText('Ana Analista')).toHaveClass('text-base')
+    expect(screen.getByRole('heading', { level: 2, name: /Cada día del mes/ })).toBeVisible()
+    expect(screen.queryByRole('heading', { level: 3 })).toBeNull()
+    expect(nombre).toHaveClass('focus-visible:ring-accent')
+    fireEvent.click(nombre)
+    expect(screen.getByRole('dialog').querySelector('ul')).toHaveAttribute('role', 'list')
+    expect(screen.getByRole('dialog')).not.toHaveTextContent(/\b(PEN|USD|TC)\b/)
+  })
+
+  it('E4: por venir solo en el tramo que contiene hoy; en un mes cerrado aparecen todos los días', () => {
+    vi.setSystemTime(new Date('2026-10-09T15:00:00Z'))
+    pintar([fila({ dia: '2026-10-09' }), fila({ dia: '2026-09-01' })])
+    expect(within(malla()).getByRole('columnheader', { name: 'del 10 al 31 de octubre, por venir' })).toBeVisible()
+    expect(within(malla()).getAllByRole('button', { name: /^Marcar el/ })).toHaveLength(9)
+    fireEvent.click(screen.getByRole('button', { name: 'Mes anterior' }))
+    expect(within(malla()).queryByRole('columnheader', { name: /por venir/ })).toBeNull()
+    expect(within(malla()).getAllByRole('button', { name: /^Marcar el/ })).toHaveLength(30)
+  })
+
+  it('E5: Día por tipo conserva el total y cada celda abre solo su tipo, también con dólares', () => {
+    dobles.tc = { promedio: 4, fuente: 'SBS · prom. 7d' }
+    pintar([
+      fila({ dia: '2026-09-10', capital: 100, tipo: 'contrato_nuevo' }),
+      fila({ dia: '2026-09-10', capital: 50, tipo: 'contrato_renovacion' }),
+      fila({ dia: '2026-09-10', capital: 20, tipo: 'contrato_upgrade', moneda: 'USD' }),
+      fila({ dia: '2026-09-10', capital: 30, tipo: 'cooperativa' }),
+    ])
+    const totalMes = within(malla()).getByRole('button', { name: 'Ver el mes completo de Ana Analista: total S/ 260' }).textContent
+    fireEvent.click(screen.getByRole('button', { name: 'Día' }))
+    for (const nombre of ['Nuevo', 'Renovación', 'Upgrade', 'Cooperativa', 'Total del día']) {
+      expect(within(malla()).getByRole('columnheader', { name: nombre })).toBeVisible()
+    }
+    expect(within(malla()).getByRole('button', { name: 'Ver el mes completo de Ana Analista: total S/ 260' })).toHaveTextContent(totalMes ?? '')
+    fireEvent.click(within(malla()).getByRole('button', { name: 'Ana Analista, Upgrade: S/ 80' }))
+    expect(within(screen.getByRole('dialog')).getByText('US$ 20')).toBeVisible()
+    expect(within(screen.getByRole('dialog')).queryByText(/Capital nuevo/)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar detalle' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Dólares' }))
+    expect(within(malla()).getByRole('button', { name: 'Ver el mes completo de Ana Analista: total US$ 20' })).toBeVisible()
+    dobles.tc = null
+  })
+
+  it.each(['gerencia', 'supervisor'] as const)('E6 y realidad: %s ve tarjetas, ELIZABETH heredada y una activa sin ventas', (rol) => {
+    vi.stubGlobal('matchMedia', (consulta: string) => ({ matches: consulta.includes('max-width'),
+      media: consulta, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+    dobles.yo = { id: 'sup-rosa', rol }
+    dobles.equipo = [
+      { perfil_id: 'sup-rosa', nombre_completo: 'Rosa Uno', rol_crm: 'supervisor', supervisor_id: null, activo: true },
+      { perfil_id: 'activa', nombre_completo: 'Activa sin ventas', rol_crm: 'vendedor', supervisor_id: 'sup-rosa', activo: true },
+    ]
+    // Fila heredada de una baja, ya atribuida por el servidor. El front no la reasigna.
+    pintar([fila({ analistaId: 'elizabeth', analistaNombre: 'ELIZABETH', tipo: 'cooperativa', capital: 4_850, operaciones: 2 })])
+    expect(screen.queryByRole('table')).toBeNull()
+    const tarjetas = screen.getByRole('region', { name: 'Facturación por analista' })
+    expect(tarjetas.querySelectorAll('.facturacion-tarjeta')).toHaveLength(2)
+    expect(within(tarjetas).getByText('ELIZABETH')).toBeVisible()
+    expect(within(tarjetas).getByText('2 operaciones')).toBeVisible()
+    expect(within(tarjetas).getByText('Días en que vendió')).toBeVisible()
+    expect(within(tarjetas).getByText('Activa sin ventas')).toBeVisible()
+    expect(within(tarjetas).getByText('Sin ventas en este tramo.')).toBeVisible()
+    fireEvent.click(within(tarjetas).getByRole('button', { name: 'Ver el mes completo de ELIZABETH: total S/ 4,850 en 2 operaciones — ver el desglose' }))
+    expect(within(screen.getByRole('dialog')).getByText('S/ 4,850')).toBeVisible()
+  })
+
+  it('8: solo hay una banda Sin supervisor, también con varios analistas sin ventas', () => {
+    dobles.equipo = ['cero1', 'cero2'].map((id) => ({ perfil_id: id, nombre_completo: id,
+      rol_crm: 'vendedor', supervisor_id: null, activo: true }))
+    pintar([fila({ supervisorId: 'sin-supervisor', supervisorNombre: 'Sin supervisor' })])
+    expect(within(malla()).getAllByRole('button', { name: /Sin supervisor/ })).toHaveLength(1)
+    expect(malla().querySelectorAll('[data-numero-fila]')).toHaveLength(3)
+  })
+})
+
+it.each(['pendiente', 'error'])('8: la comparación %s no bloquea el tramo que ya llegó', (estado) => {
+  dobles.previoPendiente = estado === 'pendiente'
+  dobles.previoError = estado === 'error'
+  dobles.datos = [...FILAS]
+  render(<Facturacion />)
+  expect(malla()).toBeVisible()
+  expect(within(malla()).getByText('S/ 520,000')).toBeVisible()
+  expect(contextoVisible(estado === 'pendiente' ? /Cargando la comparación/ : /Comparación no disponible/)).toBeVisible()
 })
