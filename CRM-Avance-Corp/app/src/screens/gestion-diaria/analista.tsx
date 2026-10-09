@@ -354,6 +354,10 @@ export function GestionDiariaAnalista({ accesoSeguimiento }: { accesoSeguimiento
           setAbriendoPanel(false)
         }
       }
+      // H-WA (09/10): la fila puede ser una tarea de WhatsApp o una reunión, y el resultado de una llamada solo cierra
+      // una tarea de LLAMADA pendiente (el store y el servidor lo exigen). Se registra sin cerrar ninguna: esa tarea sigue
+      // abierta y no se cambia por otra del lead.
+      if (tarea !== null && (tarea.tipo !== 'llamada' || tarea.estado !== 'pendiente')) tarea = null
     } else {
       tarea = tareaQueCierra(pendientes, 'tel', yo?.id, ahora) ?? null
     }

@@ -216,8 +216,8 @@ beforeEach(() => {
     ...['l2', 'l3', 'l4', 'l5', 'l6'].map((x) => ({ id: x, nombre_completo: `LEAD ${x}`, telefono: '+51999000222', etapa: 'nuevo' })),
   ]
   dobles.tareas = [
-    { id: 't-de-la-fila', tipo: 'llamada', vendedor_id: 'a1', vence_en: '2026-09-20T20:00:00Z', titulo: 'La que dice la fila' },
-    { id: 't-otra', tipo: 'llamada', vendedor_id: 'a1', vence_en: '2026-09-20T21:00:00Z', titulo: 'La otra' },
+    { id: 't-de-la-fila', tipo: 'llamada', estado: 'pendiente', vendedor_id: 'a1', vence_en: '2026-09-20T20:00:00Z', titulo: 'La que dice la fila' },
+    { id: 't-otra', tipo: 'llamada', estado: 'pendiente', vendedor_id: 'a1', vence_en: '2026-09-20T21:00:00Z', titulo: 'La otra' },
   ]
   dobles.tareasAmbito = []
   dobles.contactoCliente = { data: undefined, error: null, isPending: false, pedidos: [] }
@@ -415,7 +415,7 @@ describe('GestionDiariaAnalista · el teléfono del lead elegido', () => {
 describe('GestionDiariaAnalista · lo que NO está cargado no es lo que NO existe', () => {
   it('la tarea que dice la fila se PIDE si no está en el store, no se adivina otra', async () => {
     dobles.tareas = [{ id: 't-otra', tipo: 'llamada', vendedor_id: 'a1', vence_en: '2026-09-20T21:00:00Z', titulo: 'La otra' }]
-    dobles.obtenerTarea = vi.fn(async () => ({ id: 't-de-la-fila', titulo: 'La que manda' }))
+    dobles.obtenerTarea = vi.fn(async () => ({ id: 't-de-la-fila', tipo: 'llamada', estado: 'pendiente', titulo: 'La que manda' }))
     dobles.cola = {
       data: { items: [{ ...itemCola('l1', 'primera_atencion', '2026-09-20T14:00:00Z'), tarea_id: 't-de-la-fila' }] },
       error: null, refetch: vi.fn(), isFetching: false,
@@ -431,6 +431,51 @@ describe('GestionDiariaAnalista · lo que NO está cargado no es lo que NO exist
     dobles.obtenerTarea = vi.fn(async () => null)
     dobles.cola = {
       data: { items: [{ ...itemCola('l1', 'primera_atencion', '2026-09-20T14:00:00Z'), tarea_id: 't-fantasma' }] },
+      error: null, refetch: vi.fn(), isFetching: false,
+    }
+    render(<GestionDiariaAnalista />)
+    abrirResultado()
+    await waitFor(() => expect(dobles.panel.props).not.toBeNull())
+    expect(dobles.panel.props?.tarea).toBeNull()
+  })
+
+  // H-WA (C1, 09/10): la encuesta proponía cerrar «WhatsApp a …» con el resultado de la llamada y el guardado lo
+  // rechazaba («Solo una tarea de llamada pendiente se cierra…»). Solo una tarea de LLAMADA pendiente se ofrece.
+  it.each(['whatsapp', 'reunion'])('si la fila es una tarea de %s cargada, se abre SIN tarea y no se cambia por otra', async (tipo) => {
+    dobles.tareas = [
+      { id: 't-no-llamada', tipo, estado: 'pendiente', vendedor_id: 'a1', vence_en: '2026-09-20T10:00:00Z', titulo: 'WhatsApp a Prueba' },
+      { id: 't-otra', tipo: 'llamada', estado: 'pendiente', vendedor_id: 'a1', vence_en: '2026-09-20T21:00:00Z', titulo: 'La otra' },
+    ]
+    dobles.cola = {
+      data: { items: [{ ...itemCola('l1', 'primera_atencion', '2026-09-20T14:00:00Z'), tarea_id: 't-no-llamada' }] },
+      error: null, refetch: vi.fn(), isFetching: false,
+    }
+    render(<GestionDiariaAnalista />)
+    abrirResultado()
+    await waitFor(() => expect(dobles.panel.props).not.toBeNull())
+    expect(dobles.panel.props?.tarea).toBeNull()
+    expect(dobles.obtenerTarea).not.toHaveBeenCalled()
+  })
+
+  it('si la tarea de WhatsApp llega del servidor por su id, también se abre SIN tarea', async () => {
+    dobles.tareas = [{ id: 't-otra', tipo: 'llamada', estado: 'pendiente', vendedor_id: 'a1', vence_en: '2026-09-20T21:00:00Z', titulo: 'La otra' }]
+    dobles.obtenerTarea = vi.fn(async () => ({ id: 't-wa', tipo: 'whatsapp', estado: 'pendiente', titulo: 'WhatsApp a Prueba' }))
+    dobles.cola = {
+      data: { items: [{ ...itemCola('l1', 'primera_atencion', '2026-09-20T14:00:00Z'), tarea_id: 't-wa' }] },
+      error: null, refetch: vi.fn(), isFetching: false,
+    }
+    render(<GestionDiariaAnalista />)
+    abrirResultado()
+    await waitFor(() => expect(dobles.obtenerTarea).toHaveBeenCalledWith('l1', 't-wa'))
+    await waitFor(() => expect(dobles.panel.props).not.toBeNull())
+    expect(dobles.panel.props?.tarea).toBeNull()
+  })
+
+  it('una tarea de llamada que el servidor ya no da por pendiente tampoco se ofrece para cerrar', async () => {
+    dobles.tareas = []
+    dobles.obtenerTarea = vi.fn(async () => ({ id: 't-hecha', tipo: 'llamada', estado: 'completada', titulo: 'Ya hecha' }))
+    dobles.cola = {
+      data: { items: [{ ...itemCola('l1', 'primera_atencion', '2026-09-20T14:00:00Z'), tarea_id: 't-hecha' }] },
       error: null, refetch: vi.fn(), isFetching: false,
     }
     render(<GestionDiariaAnalista />)
@@ -712,7 +757,7 @@ describe('GestionDiariaAnalista · llamada real y refetch', () => {
   it('Llamar usa la misma tarea autoritativa que el menú y avanza al guardar', async () => {
     dobles.contacto.real = true
     dobles.tareas = []
-    dobles.obtenerTarea = vi.fn(async () => ({ id: 't-remota', titulo: 'Tarea remota' }))
+    dobles.obtenerTarea = vi.fn(async () => ({ id: 't-remota', tipo: 'llamada', estado: 'pendiente', titulo: 'Tarea remota' }))
     dobles.cola = { data: { items: [
       { ...itemCola('l1', 'primera_atencion', '2026-09-20T14:00:00Z'), tarea_id: 't-remota' },
       itemCola('l2', 'tarea_vencida', '2026-09-19T15:00:00Z'),
