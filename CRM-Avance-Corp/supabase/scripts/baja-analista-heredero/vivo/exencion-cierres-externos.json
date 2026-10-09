@@ -1,0 +1,7 @@
+{
+ "clase": "analitica",
+ "huella": "06bafcce0f005d95914bd2339d064bed",
+ "md5_razon": "80e4fe2d06961a40ed32256a5799a1eb",
+ "objeto": "crm.cierres_externos_fn(date)",
+ "razon": "Lista las cooperativas del mes para gerencia: listado operativo con su conteo de apoyo, no una calculadora comercial. Tras ATR-4 sus totales excluyen SOLO la demo declarada (misma exclusion por id que el nucleo): los anulados reales SIGUEN siendo dinero (regla 31/08). F4 publicada: período por fecha de imputación, cierres independientes del lead y teléfono vivo restringido a la relación canónica actual. Cálculos y permisos conservados. F8 (20260914213928): el listado devuelve además plazo_meses y tasa_anual pactados por cierre; período, conteos, exclusión de demo y permisos conservados."
+}
