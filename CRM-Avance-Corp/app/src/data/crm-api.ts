@@ -2495,6 +2495,18 @@ function aErrorApi(
     mensaje =
       'Faltan datos legales para emitir el contrato: revisa el domicilio, ' +
       'el documento y el correo del cliente, y tu propio celular y correo.'
+  } else if (codigoPg === '23514' && texto.includes('Un contrato sin operación de cartera solo puede quedar como nuevo')) {
+    // La guarda de public.contratos (20261009180000, decisión de Miguel 09/10/2026): sin ficha de cartera, un contrato
+    // solo puede ser «nuevo», por cualquier vía. Caía en el genérico «No se pudo guardar el cambio.», que no dice qué
+    // hacer: un upgrade o una renovación se registran desde la cartera del cliente, no cambiando el tipo aquí.
+    code = 'CATEGORIA_SIN_FICHA'
+    mensaje =
+      'Este contrato no tiene ficha de cartera: solo puede quedar como «nuevo». ' +
+      'Un upgrade o una renovación se registran desde la cartera del cliente.'
+  } else if (codigoPg === '23514' && texto.includes('La categoría la decide la operación de cartera')) {
+    // La misma guarda (20261009120000): con ficha de cartera, el tipo del contrato es el de su ficha.
+    code = 'CATEGORIA_DE_LA_FICHA'
+    mensaje = 'El tipo de este contrato lo decide su ficha de cartera (upgrade o renovación): no se cambia aquí.'
   } else if (codigoPg === '42501' || codigoPg === 'PGRST301') {
     code = 'SIN_PERMISO'
     mensaje = 'No tienes permiso para esa acción'

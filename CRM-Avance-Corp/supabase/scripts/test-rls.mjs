@@ -6,6 +6,7 @@
 
 import { randomUUID, randomInt } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 if (process.argv.length === 3 && process.argv[2] === '--origen-concreto') {
   await import('./ranking-origen/test-rls-origen-concreto.mjs');
@@ -9405,12 +9406,27 @@ async function testFacturacionDiaria(sessions, seed) {
       `${FN} con NULL devuelve exactamente la facturación del mes actual de Lima`);
   }
 
-  // K. La ATRIBUCION del supervisor no se prueba aqui a proposito: el seed no
-  //    escribe en crm.usuario_eventos, y una atribucion equivocada conserva
-  //    exactamente el mismo total, asi que ni esta matriz ni el caso I la verian.
-  //    Su oraculo es supabase/scripts/test-facturacion.sql, que siembra un cambio
-  //    de equipo real (y su mutante) y termina en rollback. Aqui solo se recuerda.
-  console.log(`  ℹ ${FN}: la atribucion del supervisor la prueba supabase/scripts/test-facturacion.sql`);
+  // K. La ATRIBUCION del supervisor no la ve esta matriz: el seed no escribe en
+  //    crm.usuario_eventos, y una atribucion equivocada conserva exactamente el
+  //    mismo total. Su oraculo es supabase/scripts/test-facturacion.sql, que
+  //    siembra un cambio de equipo real (y su mutante) y termina en rollback.
+  //    Desde el 09/10/2026 (plan de Facturacion, fase 0C) el gate lo EJECUTA por la
+  //    via fuera de banda del banco, en vez de solo recordarlo: sus 12 oraculos
+  //    abortan con excepcion si uno falla, asi que la salida 0 de psql es el PASS.
+  if (!process.env.CRM_BANCO_PSQL_URL) {
+    fail(`${FN}: falta CRM_BANCO_PSQL_URL — el oraculo de atribucion (test-facturacion.sql) exige la via fuera de banda del banco`);
+    return;
+  }
+  const oraculo = fileURLToPath(new URL('./test-facturacion.sql', import.meta.url));
+  try {
+    psqlBancoSinSecretos(['-v', 'ON_ERROR_STOP=1', '-q', '-f', oraculo],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    pass(`${FN}: los 12 oraculos de atribucion de test-facturacion.sql pasan (supervisor de entonces, ambito, analista efectivo)`);
+  } catch (error) {
+    const motivo = String(error.stderr ?? error.message ?? '').trim().split('\n')
+      .filter((linea) => /ORACULO|ERROR/.test(linea)).slice(-2).join(' · ') || 'sin detalle';
+    fail(`${FN}: test-facturacion.sql FALLA — ${motivo}`);
+  }
 }
 
 // P-055 F7.1 — las puertas cerradas de la Ola 1 responden 42501 a TODOS,
