@@ -9406,9 +9406,9 @@ async function testFacturacionDiaria(sessions, seed) {
       `${FN} con NULL devuelve exactamente la facturación del mes actual de Lima`);
   }
 
-  // K. La ATRIBUCION del supervisor no la ve esta matriz: el seed no escribe en
-  //    crm.usuario_eventos, y una atribucion equivocada conserva exactamente el
-  //    mismo total. Su oraculo es supabase/scripts/test-facturacion.sql, que
+  // K. La ATRIBUCION del supervisor no la ve esta matriz: el seed no deja CAMBIOS
+  //    de equipo (como mucho, primeras asignaciones), y una atribucion equivocada
+  //    conserva exactamente el mismo total. Su oraculo es supabase/scripts/test-facturacion.sql, que
   //    siembra un cambio de equipo real (y su mutante) y termina en rollback.
   //    Desde el 09/10/2026 (plan de Facturacion, fase 0C) el gate lo EJECUTA por la
   //    via fuera de banda del banco, en vez de solo recordarlo: sus 12 oraculos

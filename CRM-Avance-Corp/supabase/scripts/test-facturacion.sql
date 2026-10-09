@@ -20,6 +20,10 @@
 -- compara analistas con private.analista_efectivo_contrato — la MISMA pieza que capital_episodios — y no con la
 -- cadena a pelo (con ella, una venta heredada se buscaba bajo la persona de baja y el caso fallaba en falso).
 --
+-- Desde la fase 2 de Facturación (20261009223000) un trigger anota cada cambio de supervisor con la fecha de hoy:
+-- el fixture borra esos eventos (los que llevan `via`) justo después de cada cambio, para que el resultado no
+-- dependa del día del mes en que se corre (hallazgo P2 del auditor-rls, 09/10/2026).
+--
 -- ⚠ AVISO DE CANDADO: baja y sube el trigger de la fecha de cierre, y
 -- `ALTER TABLE ... DISABLE/ENABLE TRIGGER` toma un SHARE ROW EXCLUSIVE sobre
 -- `public.contratos` que NO se libera al volver a habilitarlo: dura hasta el
@@ -191,6 +195,11 @@ begin
   --    «no encontró tramo y se cayó al equipo de hoy», y el caso pasaría con el
   --    rebobinado roto. Ahora las dos hipótesis dan respuestas distintas.
   update crm.equipo set supervisor_id = v_sup_viejo where perfil_id = v_analista;
+  -- Los cambios de equipo del fixture NO son historia: desde 20261009223000 un trigger los anota con la fecha
+  -- de HOY (clave `via`), y eso movería los tramos según el día en que corra el oráculo. Se borran al momento;
+  -- la historia la ponen solo los eventos fechados a mano. Sin el trigger, este borrado no toca nada.
+  delete from crm.usuario_eventos
+  where objetivo_id = v_analista and accion = 'jerarquia_actualizada' and detalle ? 'via';
   insert into crm.usuario_eventos (actor_id, objetivo_id, accion, detalle, idempotencia, creado_en)
   values (v_gerencia, v_analista, 'jerarquia_actualizada',
           jsonb_build_object('supervisor_anterior', null, 'supervisor_nuevo', v_sup_viejo),
@@ -231,6 +240,11 @@ begin
   --    primer evento» y cayera al equipo actual para todo lo demás pasaría.
   delete from crm.usuario_eventos where objetivo_id = v_analista and accion = 'jerarquia_actualizada';
   update crm.equipo set supervisor_id = v_sup_nuevo where perfil_id = v_analista;
+  -- Los cambios de equipo del fixture NO son historia: desde 20261009223000 un trigger los anota con la fecha
+  -- de HOY (clave `via`), y eso movería los tramos según el día en que corra el oráculo. Se borran al momento;
+  -- la historia la ponen solo los eventos fechados a mano. Sin el trigger, este borrado no toca nada.
+  delete from crm.usuario_eventos
+  where objetivo_id = v_analista and accion = 'jerarquia_actualizada' and detalle ? 'via';
   insert into crm.usuario_eventos (actor_id, objetivo_id, accion, detalle, idempotencia, creado_en)
   values (v_gerencia, v_analista, 'jerarquia_actualizada',
           jsonb_build_object('supervisor_anterior', v_sup_nuevo, 'supervisor_nuevo', v_sup_viejo),
@@ -312,6 +326,11 @@ begin
   --    dirección contraria también: mover al analista al equipo del VIEJO hoy
   --    no le regala al viejo la venta del día 20, que fue bajo el nuevo.
   update crm.equipo set supervisor_id = v_sup_viejo where perfil_id = v_analista;
+  -- Los cambios de equipo del fixture NO son historia: desde 20261009223000 un trigger los anota con la fecha
+  -- de HOY (clave `via`), y eso movería los tramos según el día en que corra el oráculo. Se borran al momento;
+  -- la historia la ponen solo los eventos fechados a mano. Sin el trigger, este borrado no toca nada.
+  delete from crm.usuario_eventos
+  where objetivo_id = v_analista and accion = 'jerarquia_actualizada' and detalle ? 'via';
   perform set_config('request.jwt.claims',
     json_build_object('sub', v_sup_viejo, 'role', 'authenticated')::text, true);
   select count(*) into v_malas
@@ -322,6 +341,11 @@ begin
       v_malas, v_despues;
   end if;
   update crm.equipo set supervisor_id = v_sup_nuevo where perfil_id = v_analista;
+  -- Los cambios de equipo del fixture NO son historia: desde 20261009223000 un trigger los anota con la fecha
+  -- de HOY (clave `via`), y eso movería los tramos según el día en que corra el oráculo. Se borran al momento;
+  -- la historia la ponen solo los eventos fechados a mano. Sin el trigger, este borrado no toca nada.
+  delete from crm.usuario_eventos
+  where objetivo_id = v_analista and accion = 'jerarquia_actualizada' and detalle ? 'via';
   raise notice 'ORACULO 12 OK: el organigrama de hoy no cambia lo que cada supervisor ve';
 
   -- ── CASO 5 — el gate: sin sesión, ni una fila ─────────────────────────────
