@@ -20,7 +20,7 @@ Escrita el 09/10/2026 con lo probado en C1 contra producción (`REGISTRO.md` §5
 
 ## 1. ¿Está bien el celular? Mirarlo en dos lugares
 
-### 1.1 En la PC: Configuración › Celulares (gerencia ve todos; supervisión, los de su equipo)
+### 1.1 En la PC: Configuración › Celulares (solo Gerencia; supervisión le pide esta comprobación a Gerencia)
 
 | Salud | Qué significa | Qué hacer |
 | --- | --- | --- |
@@ -62,7 +62,7 @@ Las tres notificaciones que puede mostrar la macro (ninguna lleva el número):
 | **Al colgar no se abre la encuesta** | MacroDroid desactivado (días gratis vencidos), una macro apagada o el ajuste «Abrir vínculos admitidos» perdido | Revisar §1.2. Si dice «desactivado»: Inicio → «Añadir Días Gratuitos» → encender. Revisar «Abrir vínculos admitidos» (`macrodroid.md` §2). La llamada no se pierde si el aviso llegó: registrarla desde «Celular» → «Pendientes» | No desinstalar MacroDroid: Android suele borrar sus datos, y con ellos las macros, la cola y la clave (no probado) |
 | **Se abren dos encuestas** | «Piloto F0» quedó encendida | Apagar «Piloto F0» | — |
 | **La llamada no aparece en «Pendientes» ni en «Qué pasó hoy»** | (a) el celular no tenía internet: el aviso espera en la cola y sale solo en ≤ 5 min al volver la red; (b) el número no es de un lead de su cartera (nada se guarda, por diseño); (c) era una **entrante** (no se capturan); (d) el CRM del celular está abierto con otra cuenta | (a) esperar 5 min con internet y mirar `cola_llamadas`; (b) y (c) es lo esperado; (d) la cuenta del CRM en el celular tiene que ser la del analista asignado | No reenviar a mano entradas de la cola |
-| **Clave que ya no vale** (notificación) | Se rotó la clave o se cerró el celular en la tarjeta | Gerencia rota (§3.2) y se pega la nueva en `clave_celular` con `ultimo_latido` en 0. Los avisos esperan en la cola y salen solos con la clave nueva | **No vaciar `cola_llamadas`**: ahí están las llamadas que faltan |
+| **Clave que ya no vale** (notificación) | Se rotó la clave o se cerró el celular en la tarjeta | Gerencia comprueba si la asignación sigue vigente y el analista sigue activo. Si solo se rotó la clave, pegar la nueva en `clave_celular`, conservar las colas y poner `ultimo_latido` en 0; si la nueva se perdió, Gerencia rota otra vez (§3.2). Si se cerró la asignación o el analista está de baja, seguir el procedimiento de extravío, reemplazo o baja (§3.3–§3.5) | No vaciar las colas durante una rotación del mismo analista. No intentar rotar una asignación cerrada ni reenviar su cola con la clave de otro analista |
 | **Aviso rechazado** (notificación) | Un aviso dañado (400). Se apartó solo y no bloquea a los demás | Anotar la hora y avisar a soporte. La llamada se puede registrar desde la ficha del lead | No volver a meterlo a la cola |
 | **Latido rechazado** (notificación) | El cuerpo del latido está mal armado en la macro | Revisar el latido contra `macrodroid.md` §3c (paso «Enviar cola») | — |
 | **Sin latido · N h** (tarjeta) | Celular apagado o sin internet, MacroDroid desactivado o la batería lo frena | Revisar §1.2 y que la batería de MacroDroid esté «Sin restricciones» (`macrodroid.md` §2) | — |
@@ -83,6 +83,8 @@ asignado; en MacroDroid se vacían `cola_llamadas` y `errores_llamadas` (solo en
 `clave_celular`, se revisa `url_llamadas` y se pone `ultimo_latido` en 0. En ≤ 5 min: «Al día», `llamadas-v3`, cola 0.
 
 ### 3.2 Rotar la clave (perdida, filtrada o con error al pegarla)
+
+Aplica a una asignación vigente con el mismo analista activo; para cierre o baja, ver §3.3–§3.5.
 
 1. Tarjeta → fila del celular → **Rotar** → **Copiar** la clave nueva → mandarla al celular.
 2. En MacroDroid: pegarla en `clave_celular` y poner `ultimo_latido` en 0. **Las colas no se tocan.**
