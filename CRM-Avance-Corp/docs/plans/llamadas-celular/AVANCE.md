@@ -1,10 +1,10 @@
 # Avance — Llamadas desde el celular al CRM
 
-Actualizado: 09/10/2026, 11:23 a. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
+Actualizado: 09/10/2026, 11:26 a. m. (hora de Lima). Generado por `actualizar-avance.mjs` desde `estado.json`; no se edita a mano.
 
 Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact/Q3GmV9m6Cy2GPQGKAbNy8M · Plan completo: `PLAN.md` en esta carpeta.
 
-**Lo último:** 09/10 16:23 UTC (11:23 Lima): P9 PASS en C1 con el #228 publicado: tras Deshacer, la fila «No contestó · deshecho» ofreció «Registrar el corregido» y el corregido («Volver a llamar») quedó unido a la misma llamada de las 11:14. Hallazgo nuevo H-WA (previo al #228): la encuesta de la llamada propone cerrar una tarea de WhatsApp y luego no deja guardar. La prueba física de F4-d queda completa por nuestra parte; falta la consulta sin números de Miguel para marcar las casillas.
+**Lo último:** 09/10 16:26 UTC (11:26 Lima): PR #231 (borrador, solo documentos) con lo del día: P14-L3 y P9 PASS en C1, MacroDroid renovado, handoff del 09/10, hallazgo H-WA y la observación de la etiqueta «al colgar». Turno de Miguel: la consulta sin números (para marcar las casillas de F4), desactivar los dos leads de prueba tras ella y decidir H-WA, H-P5 y H-P10.
 
 **Total:** 33 de 102 tareas · 1 de 8 fases hechas.
 
@@ -136,6 +136,7 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 
 ## Últimos cambios
 
+- 09/10/2026, 11:26 a. m. · PR #231 abierto en borrador (OK de Jhosep) desde crm/llamadas-docs-20261009, sobre main: handoff del 09/10, P14-L3 y P9 PASS, MacroDroid renovado, tablero y estado.json (cambios 125–133). En la descripción, con QUÉ HICE · RESULTADO · TURNO PARA: H-WA (causa en abrirRegistro y store.tsx), la observación de la vía conservada al mover la unión y los pendientes de Miguel.
 - 09/10/2026, 11:23 a. m. · P9 repetida en C1 (09/10 11:14–11:21 Lima, build-20261009T153722848Z): PASS. Paso 2: la fila deshecha mostró «Registrar el corregido» (prueba también de que C1 tenía la versión nueva); paso 3: el corregido «Volver a llamar» quedó unido a la llamada de las 11:14 («Qué pasó hoy · 1», sin «deshecho»). Observación: la etiqueta conserva la vía de la primera unión («al colgar»), porque al mover la unión la séptima no cambia `via`; así la cifra «al colgar» de F4-e no cuenta como falla del celular una corrección humana. Hallazgo H-WA (pantalla, previo al #228): si la fila de la cola es una tarea de WhatsApp, la encuesta de la llamada la propone para cerrar y el guardado la rechaza («Solo una tarea de llamada pendiente…»); se sale desmarcando. Paso 4 opcional sin hacer. REGISTRO.md §5i al día.
 - 09/10/2026, 10:42 a. m. · #228 publicado por Miguel: version.json pasó de build-20261009T000618000Z a build-20261009T153722848Z (15:37 UTC), y el bundle nuevo trae «Registrar el corregido» (vigilante de publicación, 105 chunks rastreados). Sin comentario suyo en el #228. Arranca la repetición de P9 en C1 con Jhosep.
 - 09/10/2026, 10:30 a. m. · Pedido de publicación del #228 a Miguel (comentario 6084006796, OK de Jhosep), con el formato QUÉ HICE · RESULTADO · TURNO PARA: la build viva todavía no trae «Registrar el corregido» (110 chunks rastreados). P9 en C1 no se repite antes: sin el botón daría el mismo PARCIAL del 07/10.
@@ -150,4 +151,3 @@ Tablero vivo (el que vale, se actualiza al instante): https://claude.ai/artifact
 - 08/10/2026, 05:00 p. m. · Cierre de §5 de ACTIVAR-C1.md, parte nuestra (08/10 ~16:55): 19 salientes en el registro del teléfono desde la activación (8 el 07/10 con las mismas horas de P1–P9, 11 el 08/10) = 19 avisos 202 en el registro de MacroDroid; encuesta abierta al colgar 18 de 18 llamadas a leads. Falta L3 y la consulta de Miguel.
 - 08/10/2026, 04:45 p. m. · P4 PASS (16:30–16:31: dos leads seguidos, cada llamada en su lead) y P5 PASS en los datos (16:32–16:40: la encuesta de B saltó encima y la abierta de «prueba leeds» se borró; sin cruce, esa llamada quedó en Pendientes y se unió desde ahí; Qué pasó hoy 10). Hallazgo H-P5: una sola ventana, la app se recarga con el segundo enlace. Hechas con los chips cambiados: «PRUEBA C1 B» tiene el número del chip de C1 (neutralizar con «No contactar» y devolver los chips). Guías corregidas por H-P11.
 - 08/10/2026, 03:50 p. m. · P14 en C1 (08/10): L1 PASS (latido 200 a las 12:40, tarjeta Al día); L2 PASS (el aviso de A6 falló sin red a las 14:31, salió 202 a las 14:34 al volver la red, ningún latido extra desde las 12:40); L4 PASS (~15:40: entrada a mano C9-1791491289 → notificación «Un aviso de llamada fue rechazado» sin número, cola 0, errores_llamadas 1, borrada después). L3 pendiente (~18:40). P8: motivo leído al repetir, «la llamada es de otro celular».
-- 08/10/2026, 03:30 p. m. · P8 PASS en C1 (08/10 ~15:20): encuesta abierta a mano con el número de «prueba leeds» y el id C2-1791490562 (C2 no es del analista) → resultado «No contestó» guardado y no unido; Qué pasó hoy 5, Pendientes 0. Repetida (~15:35) para leer el motivo: «la llamada es de otro celular» (candado de celular ajeno).
