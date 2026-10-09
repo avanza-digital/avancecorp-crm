@@ -68,11 +68,26 @@ Las tres notificaciones que puede mostrar la macro (ninguna lleva el número):
 | **Sin latido · N h** (tarjeta) | Celular apagado o sin internet, MacroDroid desactivado o la batería lo frena | Revisar §1.2 y que la batería de MacroDroid esté «Sin restricciones» (`macrodroid.md` §2) | — |
 | **Nunca habló** después de asignar o rotar | Falta poner `ultimo_latido` en 0: sin eso, el primer latido puede tardar hasta 6 h (hallazgo H-P11) | Poner `ultimo_latido` = 0; en ≤ 5 min pasa a «Al día» | — |
 | **Cola atascada** (tarjeta «En cola» > 0 que no baja) | Sin internet, clave que ya no vale o MacroDroid desactivado | Resolver la causa: la cola sale sola | No borrar entradas de la cola |
-| Al guardar sale **«Solo una tarea de llamada pendiente se cierra con el resultado de una llamada»** | La encuesta propone cerrar una tarea de **WhatsApp** (hallazgo H-WA: arreglado en código, pendiente de publicar; hasta entonces, desmarcar) | Desmarcar «Cerrar también «WhatsApp a …»» y guardar | — |
+| Al guardar sale **«Solo una tarea de llamada pendiente se cierra con el resultado de una llamada»** | Si todavía propone cerrar un **WhatsApp**, puede ser una versión anterior al #232 (H-WA, publicado y probado en C1 el 09/10). El mismo mensaje aparece si la tarea dejó de estar pendiente o disponible | Seguir §2.1: conservar la encuesta, revisar la tarea y confirmar el guardado antes de actualizar | No cerrar ni recargar con cambios sin guardar. No crear otro registro para un guardado por confirmar |
 | **Guardó el resultado equivocado** | — | Pulsar **Deshacer** en el aviso y, en «Celular» → «Qué pasó hoy», **«Registrar el corregido»** en la fila deshecha. Queda unido a la misma llamada. La fila sigue diciendo «Registrada al colgar»: es lo esperado | No registrar el corregido desde la ficha: no se une a la llamada |
-| **Entró otra llamada con la encuesta abierta y la encuesta desapareció** | La segunda llamada recarga la app (hallazgo H-P5) | La primera llamada no se pierde: está en «Pendientes» | — |
+| **Entró otra llamada con la encuesta abierta y la encuesta desapareció** | H-P5: pérdida del borrador confirmada; la causa del salto entre encuestas sigue pendiente de comprobar en C1 | La primera llamada quedó en «Pendientes» en la prueba; revisarla ahí. El texto sin guardar no se recupera. Anotar cómo se abrió el CRM (pestaña o app instalada) para la prueba focalizada | No dar por demostrada una recarga ni marcar H-P5 como corregido |
 | **Una llamada que no era de trabajo** | — | «Pendientes» → **Descartar** → motivo («Llamada personal», «No era comercial», «Número de prueba», «Error de captura» u «Otro motivo», que pide escribirlo) | — |
 | **Al analista le reasignaron un lead y «desaparecieron» sus llamadas** | Las llamadas siguen al dueño **actual** del lead (decisión 7) | Es lo esperado. Si vuelve a tener el lead, vuelven a verse. La nueva dueña las ve como suyas (hallazgo H-P10, lo decide Miguel) | — |
+
+### 2.1 Guardado rechazado por la tarea que intenta cerrar
+
+1. **Mantener abierta la encuesta.** Este rechazo no guardó el intento actual. Si hubo un envío anterior de la misma
+   llamada pendiente de confirmar, comprobarlo en «Guardados por confirmar» antes de crear otro registro.
+2. **Si ofrece cerrar una tarea WhatsApp**, desmarcar solo «Cerrar también «WhatsApp a …»» y guardar el resultado.
+   Esperar su confirmación. Ese es el caso H-WA corregido en el #232. Si no aparece esa casilla o el error persiste,
+   copiar manualmente la nota y apuntar las opciones elegidas sin cerrar la encuesta; pedir a soporte revisar el estado
+   de la tarea y el historial antes de reintentar. Hacer esa copia antes de esperar: otra llamada podría interrumpir el
+   formulario (H-P5). Una tarea completada, cancelada o que ya no está disponible puede dar el mismo mensaje, incluso
+   con la versión corregida: no demuestra que falte actualizar.
+3. **Actualizar después de confirmar el guardado.** Si aparece «Nueva versión disponible», usar «Ya guardé,
+   actualizar»; si hace falta cerrar y abrir el CRM, hacerlo recién entonces. Soporte comprueba que se use
+   `build-20261009T181538004Z` o una versión posterior. Si no se pudo guardar, conservar el contenido con soporte
+   antes de salir: una copia de la nota no equivale a un resultado registrado en el CRM.
 
 ## 3. Operaciones de gerencia (Configuración › Celulares)
 

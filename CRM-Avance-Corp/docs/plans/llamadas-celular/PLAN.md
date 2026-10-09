@@ -132,7 +132,7 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 | F1 · Formulario único y match exacto | 4 | 12/12 | Hecha | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-8) |
 | F2 · Núcleo confiable | 4 | 13/13 | Hecha | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-14) |
 | F3 · Captura y sincronización | 4 | 10/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-20) |
-| F4 · Pendientes y conciliación | 4 | 7/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-66) |
+| F4 · Pendientes y conciliación | 4 | 8/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-66) |
 | F5 · Jev para identificación asistida | 5 | 0/15 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-72) |
 | F6 · Gerencia y calidad | 4 | 0/12 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-78) |
 | F7 · Despliegue y operación | 4 | 1/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-84) |
@@ -384,7 +384,7 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 
 **Objetivo:** cerrar el circuito recuperando fallos sin duplicar gestiones.
 
-**Seguimiento de F4:** 7/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
+**Seguimiento de F4:** 8/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
 
 ### F4.1 · Construir la bandeja
 
@@ -403,7 +403,7 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 - [x] **F4.2.1** Propagar contexto del evento y confirmación real de actividad_id mediante formulario/store.
 - [x] **F4.2.2** Componer v4 + enlace en transacción sin alterar núcleo sellado; revisar recibos, replays y locks.
 - [x] **F4.2.3** Si la composición no es viable, implementar intención de enlace persistente y conciliación durable con reintentos.
-- [ ] **F4.2.4** Proponer y confirmar enlace para registros previos o desde PC; nunca decidir solo por ±10 minutos. — EN CURSO: Probada e instalada (07/10, H1–H3): asociación manual a un resultado ya guardado (vía manual); el camino exacto no usa la regla de ±10 minutos. Falta la aceptación en C1.
+- [ ] **F4.2.4** Proponer y confirmar enlace para registros previos o desde PC; nunca decidir solo por ±10 minutos. — BLOQUEADA: Probada e instalada (07/10, H1–H3) en la base: asociación manual a un resultado ya guardado (vía manual); el camino exacto no usa la regla de ±10 minutos. BLOQUEADA en C1/PC (09/10): la pantalla no tiene «¿Es este su resultado?» (B7 de F4B-PLAN-CORTO, sin programar): la app no llama a crm.enlazar_llamada_celular, así que no hay cómo unir a mano desde la pestaña. Decide Miguel si se programa ahora (solo pantalla, sobre la puerta instalada) o después.
 
 **Evidencia / fecha de validación:** pendiente.
 
@@ -419,9 +419,9 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 
 ### F4.4 · Validar el circuito
 
-**Estado:** en curso · **Avance:** 2/3 · **Responsable:** Jhosep (C1) · Claude (guía y registro) · Miguel (consulta sin números).
+**Estado:** hecha · **Avance:** 3/3 · **Responsable:** Jhosep (C1) · Claude (guía y registro) · Miguel (consulta sin números).
 
-- [ ] **F4.4.1** Probar evento antes/después, dos llamadas cercanas, guardado confirmado con enlace fallido y dos pestañas. — EN CURSO: En C1 contra la Edge real: evento antes y después del guardado → P1 y P2 PASS (07/10); guardado con enlace pendiente → P1 PASS; sin red → P3 PASS; registrar desde la pestaña en celular y PC → P6 y P7 PASS; dos llamadas cercanas → P4 PASS (08/10 16:30–16:31, dos leads, cada una en el suyo) y A3 PASS; dos encuestas → P5 PASS en los datos (08/10 ~16:32–16:40: sin cruce y la llamada de la encuesta perdida quedó en Pendientes) con hallazgo H-P5: la segunda encuesta recarga la app y borra la abierta sin guardar. Falta para la casilla: dos pestañas (no hay prueba del circuito de F4 con dos pestañas, ni en C1 ni en E2E).
+- [x] **F4.4.1** Probar evento antes/después, dos llamadas cercanas, guardado confirmado con enlace fallido y dos pestañas.
 - [x] **F4.4.2** Probar edición mientras llega otra llamada, alta/asociación fallida, deshacer y lead reasignado.
 - [x] **F4.4.3** Ejecutar checks, E2E local y prueba física; confirmar sello v4 y ausencia de actividades duplicadas.
 
