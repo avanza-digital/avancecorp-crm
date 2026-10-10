@@ -2549,16 +2549,26 @@ export async function montarBackendReal(
       estado.ultimaCuentaPagoContrato = cuentaElegida
         ? JSON.parse(JSON.stringify(cuentaElegida)) as Record<string, unknown>
         : null
-      // Espejo del servidor: sin numero_contrato inventa la numeración VIEJA
-      // 'AC-2026-XXXX' (por eso el campo del CRM debe ser obligatorio).
-      const numero = typeof pc.numero_contrato === 'string' && pc.numero_contrato
-        ? pc.numero_contrato
-        : `AC-2026-0${900 + estado.contratos.length}`
+      // Espejo del servidor (bloque 2.3, 20261009210100; D-11/Q3, D-12, D-17): el número, recortado de espacios como
+      // hace btrim, tiene que ser 2024-01-, 2025-01- o 2026-01- seguido de 6 dígitos ASCII; ausente, vacío o fuera de
+      // forma → 22023 con el mensaje fijado. Solo el par admin/superadmin del Portal + Gerencia del CRM conserva lo
+      // anterior: sin número inventa la numeración VIEJA 'AC-2026-XXXX'.
+      const numeroRecortado = typeof pc.numero_contrato === 'string' ? pc.numero_contrato.replace(/^ +| +$/g, '') : ''
+      const exentoD17 = (estado.rolPortal === 'admin' || estado.rolPortal === 'superadmin') && estado.rolCrm === 'gerencia'
+      const numero = numeroRecortado || `AC-2026-0${900 + estado.contratos.length}`
       const clienteId = String(pc.cliente_id ?? '')
       const duenio = estado.clientes.find((c) => c.id === clienteId)
       const moneda = pc.moneda === 'USD' ? 'USD' : 'PEN'
       if (!duenio || !cuentaElegida || !condicion) {
         return json(route, { code: 'P0001', message: 'Cliente, producto o cuenta de pago inválidos' }, 400)
+      }
+      if (!exentoD17 && !/^(2024|2025|2026)-01-[0-9]{6}$/.test(numeroRecortado)) {
+        return json(route, {
+          code: '22023',
+          message: 'Formato de número de contrato inválido: serie 2024-01-, 2025-01- o 2026-01- seguida de exactamente 6 dígitos',
+          details: null,
+          hint: null,
+        }, 400)
       }
 
       let cuentaId: string | null = null

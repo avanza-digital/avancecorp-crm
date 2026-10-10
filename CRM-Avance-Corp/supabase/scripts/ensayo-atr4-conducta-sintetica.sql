@@ -12,6 +12,9 @@ begin;
 --   - anular coop y avance con MES SELLADO -> la deuda nace SOLO de conversion
 --     (capital_pen=0, capital_usd=0, detalle=[]) y la foto sellada no se toca.
 -- ⚠️ Retiene el candado global de cierre mientras corre.
+-- ⚠️ HISTORICO (plan backend, F4.1-A ronda 6, 09/10/2026): desde
+-- `20261009210000` (2.6) sus actos B y D ya no se cumplen: la anulación en mes
+-- sellado no crea deuda; histórico, no se vuelve a correr.
 -- =====================================================================
 set local lock_timeout = '5s';
 set local statement_timeout = '600s';

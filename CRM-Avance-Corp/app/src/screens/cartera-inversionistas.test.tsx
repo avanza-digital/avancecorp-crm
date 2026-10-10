@@ -667,6 +667,24 @@ describe('Eliminación administrativa desde la ficha', () => {
     // Detrás del modal (inerte para la tecnología asistiva) la inversión sigue en la ficha.
     expect(screen.getByRole('button',{name:'Ver inversión 2026-01-999999',hidden:true})).toBeInTheDocument()
   })
+  it('2.6: en un mes sellado el servidor rechaza a la Gerencia que no es el par exento; la inversión sigue y se ve el motivo',async()=>{
+    // Bloque 2.6 (D-09, D-14, D-17): la conversión de una cooperativa de un mes sellado solo la anula el par admin del Portal
+    // + Gerencia del CRM. Una Gerencia comercial (no exenta) recibe el P0409 de la puerta de anulación y la eliminación entera
+    // se deshace: la pantalla no la da por eliminada, no refresca como éxito y muestra el motivo del servidor.
+    sesion.rol='gerencia';sesion.rolPortal='comercial'
+    const sellado='No se puede anular: el mes de esta venta (2026-07) ya está sellado'
+    api.eliminarInversion.mockRejectedValue(new CrmApiError(sellado,'CONFLICTO'))
+    const exito=vi.spyOn(toast,'success')
+    const {user}=montar()
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    await user.click(await screen.findByRole('button',{name:'Eliminar inversión QORILAZO SINTÉTICO'}))
+    const dialogo=screen.getByRole('dialog',{name:'Eliminar inversión QORILAZO SINTÉTICO'})
+    await confirmarEliminacion(user,dialogo)
+    expect(await within(dialogo).findByRole('alert')).toHaveTextContent(sellado)
+    expect(api.eliminarInversion).toHaveBeenCalledExactlyOnceWith(FUENTE_F5,'Registro duplicado')
+    expect(exito).not.toHaveBeenCalled()
+    expect(screen.getByRole('button',{name:'Ver inversión QORILAZO SINTÉTICO',hidden:true})).toBeInTheDocument()
+  })
   it('en cooperativas el administrador recibe «Eliminar inversión», nunca el borrado contractual de Avance',async()=>{
     sesion.rolPortal='admin'
     const {user}=montar()
@@ -726,7 +744,10 @@ describe('Eliminar inversión: gerencia y la conversión de un lead', () => {
   })
   it.each([
     [false,false,''],
+    // Con el bloque 2.6 (D-09, D-14, D-17) es la respuesta del par exento en un mes sellado: anula SIN ajuste.
     [true,false,' La conversión del lead quedó anulada.'],
+    // Solo un servidor SIN la regla del 2.6 (anterior a 20261009210000, o tras su reversa) responde mes_cerrado:true;
+    // la pantalla conserva su aviso para ese caso.
     [true,true,' La conversión del lead quedó anulada. El mes ya estaba cerrado: el ajuste pasa al mes vivo.'],
   ])('conversión anulada %s, mes cerrado %s: avisa y refresca lo mismo que el borrado contractual',async(conversionAnulada,mesCerrado,aviso)=>{
     const ficha=structuredClone(fichaF5)

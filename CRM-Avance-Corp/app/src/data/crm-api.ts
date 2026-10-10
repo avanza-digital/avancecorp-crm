@@ -6744,6 +6744,14 @@ export interface AnularCierreExternoDatos {
 }
 
 /**
+ * PT409 de las dos anulaciones (bloque 2.6, 20261009210000): la acreditación de la venta cambió mientras la puerta
+ * esperaba el cerrojo de su mes —o mientras lo esperaba el disparador de acreditación de la cooperativa—. El servidor
+ * no escribió nada y basta con reintentar: se dice así, en vez del «No se pudo anular» genérico. Su texto crudo
+ * («La acreditacion cambio…») no se muestra: habla del mecanismo, no de lo que la persona estaba haciendo.
+ */
+const ANULACION_VENTA_CAMBIO = 'La venta cambió mientras la anulabas. Vuelve a intentarlo.'
+
+/**
  * El freno de emergencia de gerencia contra un cierre falso o mal digitado: el
  * cierre deja de contar en la cuota Y en la conversión del analista.
  *
@@ -6769,6 +6777,8 @@ export async function anularCierreExterno(datos: AnularCierreExternoDatos): Prom
     } else if (error.code === '22023' || error.code === 'P0409') {
       // «Escribe el motivo», «Ese cierre ya estaba anulado»: mensajes de negocio.
       fallo = new CrmApiError(error.message, 'CIERRE_EXTERNO_INVALIDO')
+    } else if (error.code === 'PT409') {
+      fallo = new CrmApiError(ANULACION_VENTA_CAMBIO, 'PT409')
     } else {
       fallo = new CrmApiError('No se pudo anular el cierre externo.', error.code || 'POSTGREST_ERROR')
     }
@@ -6843,6 +6853,8 @@ export async function anularCierreAvance(datos: AnularCierreAvanceDatos): Promis
       // «Ese cierre ya estaba anulado», «Ese lead no tiene ningún cierre que
       // anular». Reescribirlos aquí los dejaría desincronizados del servidor.
       fallo = new CrmApiError(error.message, 'CIERRE_AVANCE_INVALIDO')
+    } else if (error.code === 'PT409') {
+      fallo = new CrmApiError(ANULACION_VENTA_CAMBIO, 'PT409')
     } else {
       fallo = new CrmApiError('No se pudo anular el cierre.', error.code || 'POSTGREST_ERROR')
     }
@@ -6891,10 +6903,20 @@ export interface InversionEliminadaResultado {
 }
 
 /**
+ * PT409 de la acreditación (bloque 2.6, 20261009210000): la venta cambió mientras la anulación de su conversión —dentro
+ * de la eliminación— esperaba el cerrojo de su mes, o mientras lo esperaba el disparador de acreditación de la
+ * cooperativa. Nada se eliminó y basta con reintentar. Su texto crudo («La acreditacion cambio…») habla del mecanismo;
+ * el otro PT409 de la puerta («El lead tiene otra operacion en curso…») ya es de negocio y se sigue mostrando tal cual.
+ */
+const PT409_ACREDITACION = 'La acreditacion cambio'
+const ELIMINACION_VENTA_CAMBIO = 'La venta cambió mientras eliminabas la inversión. Vuelve a intentarlo.'
+
+/**
  * Los RAISE de la puerta (42501, 22023, P0002, P0409, PT409, 55000) ya llegan en
  * español de negocio y sin datos personales: se muestran tal cual. Solo se
- * reescribe lo que Postgres redacta en inglés (permiso del catálogo, bloqueos) y
- * el corte de red, que no prueba que la eliminación fallara.
+ * reescribe lo que Postgres redacta en inglés (permiso del catálogo, bloqueos), el
+ * PT409 de la acreditación (arriba) y el corte de red, que no prueba que la
+ * eliminación fallara.
  */
 function aErrorEliminarInversion(error: { code?: string | null; message?: string | null }): CrmApiError {
   const pg = error.code ?? ''
@@ -6920,7 +6942,8 @@ function aErrorEliminarInversion(error: { code?: string | null; message?: string
     if (texto) mensaje = texto
   } else if (pg === 'PT409' || pg === '55P03' || pg === '40001' || pg === '40P01') {
     code = 'REINTENTAR'
-    mensaje = pg === 'PT409' && texto ? texto : 'Otra operación está usando esta inversión. Vuelve a intentarlo en unos segundos.'
+    mensaje = pg === 'PT409' && texto.startsWith(PT409_ACREDITACION) ? ELIMINACION_VENTA_CAMBIO
+      : pg === 'PT409' && texto ? texto : 'Otra operación está usando esta inversión. Vuelve a intentarlo en unos segundos.'
   }
   const fallo = new CrmApiError(mensaje, code)
   registrarError('crm.inversiones.eliminar_fallido', fallo, { pg })

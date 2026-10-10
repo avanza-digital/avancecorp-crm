@@ -146,6 +146,108 @@ export const USER_BY_KEY = Object.freeze(
   Object.fromEntries(USERS.map((user) => [user.key, user])),
 );
 
+// ── D-17: los pares de la EXCEPCIÓN de las reglas nuevas (fase 4, grupo A: bloques 2.3 y 2.6) ──────────────────────
+// Decisión de Miguel (06/10/2026): queda exento SOLO quien es A LA VEZ admin o superadmin del Portal Y Gerencia del CRM,
+// con los dos vigentes (`public.es_admin()` exige el perfil activo; `private.es_gerencia_crm_activa()` la membresía activa).
+// Ojo: la sesión `gerencia` de USERS es `comercial` + `gerencia` y NO es exenta. Estas seis identidades permiten probar
+// con sesiones reales las dos caras de la excepción (auditor de permisos F4.2, P3-4): los dos pares exentos y los cuatro
+// casi-pares que NO lo son.
+//
+// NO viven en USERS a propósito: USERS es el mundo de la matriz general y de otros gates que lo recorren entero y
+// esperan un rechazo de CADA usuario —`test-control-citas-remoto.mjs:21-26` exige 42501 a todo USERS (y un superadmin sí
+// lee esa configuración) y `test-citas-nucleos-remoto.mjs:44-46` exige 42501 a todo USERS salvo `gerencia` (y una
+// Gerencia exenta sí accede)—: meterlas ahí rompería esos gates y la matriz de visibilidad. Las prepara y las retira el
+// bloque de `test-rls.mjs` que las usa (con service_role, solo para identidades ficticias, como hace
+// `test-control-citas-remoto.mjs:30-56`), y al terminar quedan inactivas y sin acceso.
+//
+// `exento` es la respuesta ESPERADA de `public.es_admin() and private.es_gerencia_crm_activa()` para esa sesión;
+// validateFixtureModel() comprueba que coincide con la que dicta D-17 a partir de los dos roles y los dos flags.
+export const USUARIOS_EXCEPCION_D17 = Object.freeze([
+  {
+    key: 'exentoAdminGerencia',
+    email: 'exento-admin-gerencia.crm@demo.avancecorp.pe',
+    name: 'EXENTO ADMIN GERENCIA DEMO',
+    portalRole: 'admin',
+    crmRole: 'gerencia',
+    supervisorKey: null,
+    portalActive: true,
+    crmActive: true,
+    exento: true,
+  },
+  {
+    key: 'exentoSuperadminGerencia',
+    email: 'exento-superadmin-gerencia.crm@demo.avancecorp.pe',
+    name: 'EXENTO SUPERADMIN GERENCIA DEMO',
+    portalRole: 'superadmin',
+    crmRole: 'gerencia',
+    supervisorKey: null,
+    portalActive: true,
+    crmActive: true,
+    exento: true,
+  },
+  {
+    // Admin del Portal SIN ficha en el CRM (como GABRIEL y GLORIA, par `admin|` declarado): no es Gerencia.
+    key: 'adminSinCrm',
+    email: 'admin-sin-crm.crm@demo.avancecorp.pe',
+    name: 'ADMIN SIN CRM DEMO',
+    portalRole: 'admin',
+    crmRole: null,
+    supervisorKey: null,
+    portalActive: true,
+    crmActive: null,
+    exento: false,
+  },
+  {
+    // Superadmin del Portal SIN ficha en el CRM: gobierna roles, pero sin la membresía de Gerencia no es exento.
+    key: 'superadminSinCrm',
+    email: 'superadmin-sin-crm.crm@demo.avancecorp.pe',
+    name: 'SUPERADMIN SIN CRM DEMO',
+    portalRole: 'superadmin',
+    crmRole: null,
+    supervisorKey: null,
+    portalActive: true,
+    crmActive: null,
+    exento: false,
+  },
+  {
+    // «Gerencia con crmActive:false» sobre el mismo par admin|gerencia: la mitad CRM de la excepción, revocada. Es el
+    // casi-par más discriminante (es_admin() sigue dando true; solo cae es_gerencia_crm_activa()).
+    key: 'adminGerenciaCrmInactiva',
+    email: 'admin-gerencia-crm-inactiva.crm@demo.avancecorp.pe',
+    name: 'ADMIN GERENCIA CRM INACTIVA DEMO',
+    portalRole: 'admin',
+    crmRole: 'gerencia',
+    supervisorKey: null,
+    portalActive: true,
+    crmActive: false,
+    exento: false,
+  },
+  {
+    // admin|gerencia con el perfil del Portal suspendido (corte P04): cae es_admin() y, con él, el rol CRM efectivo.
+    key: 'adminGerenciaPortalInactivo',
+    email: 'admin-gerencia-portal-inactivo.crm@demo.avancecorp.pe',
+    name: 'ADMIN GERENCIA PORTAL INACTIVO DEMO',
+    portalRole: 'admin',
+    crmRole: 'gerencia',
+    supervisorKey: null,
+    portalActive: false,
+    crmActive: true,
+    exento: false,
+  },
+]);
+
+export const USUARIO_EXCEPCION_D17_BY_KEY = Object.freeze(
+  Object.fromEntries(USUARIOS_EXCEPCION_D17.map((user) => [user.key, user])),
+);
+
+/** La excepción de D-17 calculada a partir de los dos roles y los dos flags (no del campo `exento`). */
+export function esParExentoD17(user) {
+  return (user.portalRole === 'admin' || user.portalRole === 'superadmin')
+    && user.crmRole === 'gerencia'
+    && user.portalActive === true
+    && user.crmActive === true;
+}
+
 export const LEADS = Object.freeze([
   {
     key: 'juan',
@@ -384,7 +486,10 @@ export const BANK_LEGACY_CONTRACT = Object.freeze({
 
 export const TRANSIENT_IDS = Object.freeze({
   // Un ledger real no se perfora para limpiar tests. Cada corrida usa ids
-  // nuevos y al finalizar hace soft-delete; el branch se elimina tras el gate.
+  // nuevos y al finalizar hace soft-delete. La branch del grupo A NO se elimina
+  // tras el gate: se conserva para los grupos B y C (runbook F4.6); se borra si
+  // el gate se corta con identidades D-17 vivas o si la restauración de la
+  // escalada queda incompleta (F4.1-A ronda 5).
   directoryLead: randomUUID(),
   crossTeamLead: randomUUID(),
   directoryActivity: randomUUID(),
@@ -560,6 +665,46 @@ export function validateFixtureModel() {
     }
     if (tarea.estado !== 'pendiente') {
       throw new Error(`Fixtures invalidos: la tarea ${tarea.key} debe nacer pendiente.`);
+    }
+  }
+
+  // D-17: las identidades de la excepción no pueden pisar a las de USERS ni declarar otra cosa que lo que dicta la
+  // decisión; tampoco pares que el esquema prohíbe (Superadmin o Directorio con otra membresía activa) ni jerarquía.
+  unique(
+    [...USERS, ...USUARIOS_EXCEPCION_D17].map((user) => user.key),
+    'user.key (USERS + USUARIOS_EXCEPCION_D17)',
+  );
+  unique(
+    [...USERS, ...USUARIOS_EXCEPCION_D17].map((user) => user.email.toLowerCase()),
+    'user.email (USERS + USUARIOS_EXCEPCION_D17)',
+  );
+  const exentosD17 = USUARIOS_EXCEPCION_D17.filter((user) => esParExentoD17(user)).map((user) => user.key).sort();
+  if (JSON.stringify(exentosD17) !== JSON.stringify(['exentoAdminGerencia', 'exentoSuperadminGerencia'])) {
+    throw new Error(`Fixtures invalidos: los pares exentos D-17 deben ser exactamente admin|gerencia y superadmin|gerencia (hay ${exentosD17.join(', ')}).`);
+  }
+  for (const user of USUARIOS_EXCEPCION_D17) {
+    if (user.exento !== esParExentoD17(user)) {
+      throw new Error(`Fixtures invalidos: ${user.key} declara exento=${user.exento} y D-17 dice ${esParExentoD17(user)}.`);
+    }
+    if (user.supervisorKey !== null) {
+      throw new Error(`Fixtures invalidos: ${user.key} (D-17) no cuelga de ningun supervisor.`);
+    }
+    if (!['admin', 'superadmin', 'comercial'].includes(user.portalRole)) {
+      throw new Error(`Fixtures invalidos: rol de portal no previsto para ${user.key}.`);
+    }
+    if (user.crmRole !== null && user.crmRole !== 'gerencia') {
+      throw new Error(`Fixtures invalidos: ${user.key} (D-17) solo puede tener la membresia de Gerencia o ninguna.`);
+    }
+    if ((user.crmRole === null) !== (user.crmActive === null)) {
+      throw new Error(`Fixtures invalidos: crmActive de ${user.key} no casa con su membresia.`);
+    }
+    if (typeof user.portalActive !== 'boolean') {
+      throw new Error(`Fixtures invalidos: portalActive de ${user.key} debe ser booleano.`);
+    }
+    if (USUARIOS_EXCEPCION_D17.filter((otro) => otro.key !== user.key
+      && otro.portalRole === user.portalRole && otro.crmRole === user.crmRole
+      && otro.portalActive === user.portalActive && otro.crmActive === user.crmActive).length > 0) {
+      throw new Error(`Fixtures invalidos: ${user.key} (D-17) repite el estado de otra identidad.`);
     }
   }
 
