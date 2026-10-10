@@ -13,6 +13,7 @@ import {
   CONTRATO_PDF_TEMPLATE_VERSION,
 } from "./handler.ts";
 import { construirContratoPdf } from "./template-v2.ts";
+import { FIRMA_DATA_URL } from "./assets-v2.ts";
 import {
   clasificarCronograma,
   construirAnexoPdf,
@@ -172,7 +173,24 @@ Deno.test("assets legales v2 conservan los SHA versionados", async () => {
   const resultado = await verificarAssetsContratoPdfV2();
   igual(resultado.ok, true, "assets íntegros");
   igual(resultado.fondoBytes, 108685, "tamaño fondo");
-  igual(resultado.firmaBytes, 26588, "tamaño firma del ASOCIANTE");
+  igual(resultado.firmaBytes, 42323, "tamaño firma del ASOCIANTE");
+  const original = await Deno.readFile(
+    new URL("./recursos/firma-asociante-v10.png", import.meta.url),
+  );
+  const incrustada = Uint8Array.from(
+    atob(FIRMA_DATA_URL.split(",")[1]),
+    (c) => c.charCodeAt(0),
+  );
+  igual(
+    await sha256Bytes(incrustada),
+    await sha256Bytes(original),
+    "imagen original sin transformar",
+  );
+  igual(
+    await sha256Bytes(original),
+    "c3dcb1242301df96cb926930a82a019d4258d6a6e5d8ac3d01033b2e4cf90a6a",
+    "SHA del PNG original recibido en el Word del 09/10/2026",
+  );
 });
 
 Deno.test("template v7 reproduce la firma y numeración del modelo", () => {
@@ -198,6 +216,15 @@ Deno.test("template v7 reproduce la firma y numeración del modelo", () => {
     firmaAsociante: "data:image/png;base64,firma-kirk",
   });
   const contenido = JSON.stringify(definicion.content);
+  igual(
+    contenido.split("atencionalcliente@groupmascapital.com").length - 1,
+    2,
+    "correo corregido en 8.1 y 14.2",
+  );
+  assert(
+    !contenido.includes("atencionalcliente@mascapitalgroup.com"),
+    "ningún correo anterior",
+  );
 
   for (
     const fragmento of [
@@ -243,9 +270,9 @@ Deno.test("template v7 reproduce la firma y numeración del modelo", () => {
   );
   assert(
     contenido.includes(
-      '"cover":{"width":93,"height":65,"align":"center","valign":"center"}',
+      '"fit":[93,65]',
     ),
-    "recorta proporcionalmente la firma como el modelo Word",
+    "conserva la firma completa y su proporción",
   );
   for (
     const linea of [
@@ -386,7 +413,7 @@ Deno.test("PdfPrinter y VFS vendorizados conservan su fingerprint", async () => 
   igual(await sha256Bytes(vfs), VFS_VENDOR_SHA256, "vendor VFS");
 });
 
-Deno.test("PdfPrinter produce dos PDFs v9 byte-idénticos con fecha fija", async () => {
+Deno.test("PdfPrinter produce dos PDFs v10 byte-idénticos con fecha fija", async () => {
   igual(
     CONTRATO_PDF_RENDERER_VERSION,
     CONTRATO_PDF_TEMPLATE_VERSION,
@@ -402,10 +429,10 @@ Deno.test("PdfPrinter produce dos PDFs v9 byte-idénticos con fecha fija", async
   igual(primero.bytes, primero.blob.size, "tamaño medido");
   igual(
     primero.sha256,
-    "6ffb935d939e4ba7f4c5822835d81cf6bac0a8b04bb1b011a1b629a9b1ffe1d8",
-    "golden byte a byte del template v9 (sin co-titulares)",
+    "222be6b8d50b6442242116ba7e528cf38666d15ff034d274dadb6c58ac386a26",
+    "golden byte a byte del template v10 (sin co-titulares)",
   );
-  igual(primero.bytes, 218672, "tamaño golden del template v9");
+  igual(primero.bytes, 236810, "tamaño golden del template v10");
   igual(primero.sha256, segundo.sha256, "hash determinista");
   igual(
     primero.sha256,
@@ -434,14 +461,14 @@ Deno.test("cuenta de pago registrada desde el portal: se acepta y no cambia un b
     const validado = validarSnapshotContratoV2(snapshot);
     igual(validado.cuentaPago.origen, origen, `origen ${origen} aceptado`);
     const render = await renderizarContratoPdfV2(snapshot, fecha);
-    igual(render.bytes, 218672, `tamaño golden v9 con origen ${origen}`);
+    igual(render.bytes, 236810, `tamaño golden v10 con origen ${origen}`);
     hashes.add(render.sha256);
   }
   igual(hashes.size, 1, "el origen de la cuenta no altera el PDF");
   igual(
     [...hashes][0],
-    "6ffb935d939e4ba7f4c5822835d81cf6bac0a8b04bb1b011a1b629a9b1ffe1d8",
-    "golden v9 intacto",
+    "222be6b8d50b6442242116ba7e528cf38666d15ff034d274dadb6c58ac386a26",
+    "golden v10 intacto",
   );
 
   // Rechazos: un origen que la base no admite y, sobre todo, valores que NO
@@ -628,7 +655,7 @@ Deno.test("template v9 hace caber cinco co-titulares (tope del CRM) en la hoja d
   );
 });
 
-// ── Anexo de cronograma (documento aparte, anexo-cronograma-v1) ─────────────
+// ── Anexo de cronograma (documento aparte, anexo-cronograma-v2) ─────────────
 
 function cuota(
   numero: number,
@@ -685,7 +712,7 @@ function textos(nodo: unknown, acumulado: string[] = []): string[] {
   return acumulado;
 }
 
-Deno.test("anexo v1 produce dos PDFs byte-idénticos con la fecha fija del sellado", async () => {
+Deno.test("anexo v2 produce dos PDFs byte-idénticos con la fecha fija del sellado", async () => {
   igual(
     ANEXO_PDF_RENDERER_VERSION,
     ANEXO_PDF_TEMPLATE_VERSION,
@@ -699,10 +726,10 @@ Deno.test("anexo v1 produce dos PDFs byte-idénticos con la fecha fija del sella
   igual(primero.bytes, segundo.bytes, "tamaño determinista");
   igual(
     primero.sha256,
-    "9639f4a48294c631434db945e2ae60057a8fd753b69389b1392ece00b71bc3dc",
-    "golden byte a byte del anexo v1 (12 cuotas, sin co-titulares)",
+    "f7bedc439d943ec2b08c79651d21473d757af4101dbc5d4bccb1ed4f57c94e5f",
+    "golden byte a byte del anexo v2 (12 cuotas, sin co-titulares)",
   );
-  igual(primero.bytes, 165463, "tamaño golden del anexo v1");
+  igual(primero.bytes, 183705, "tamaño golden del anexo v2");
   igual(
     primero.nombreArchivo,
     "Anexo-2026-01-000777-CLIENTE-PRUEBA.pdf",
@@ -712,20 +739,60 @@ Deno.test("anexo v1 produce dos PDFs byte-idénticos con la fecha fija del sella
   igual(new TextDecoder().decode(a.slice(0, 5)), "%PDF-", "cabecera PDF");
 });
 
-Deno.test("anexo v1 no altera el contrato v9: mismo golden con o sin anexo cargado", async () => {
+for (
+  const cuenta of [undefined, null, { numeroCuenta: 19100000000000 }, {
+    numeroCuenta: "",
+  }]
+) {
+  Deno.test(`anexo rechaza cuenta ausente o no textual: ${JSON.stringify(cuenta)}`, async () => {
+    const snapshot = structuredClone(SNAPSHOT_ANEXO) as Record<string, unknown>;
+    snapshot.cuentaPago = cuenta == null
+      ? cuenta
+      : { ...SNAPSHOT_ANEXO.cuentaPago, ...cuenta };
+    let error: unknown;
+    try {
+      await renderizarAnexoPdfV1(snapshot, "2026-08-17T20:00:00Z");
+    } catch (e) {
+      error = e;
+    }
+    assert(
+      error instanceof TypeError &&
+        error.message.startsWith("Snapshot PDF v2 inválido:"),
+      "el validador existente rechaza antes de dibujar o convertir la cuenta a número",
+    );
+  });
+}
+
+Deno.test("anexo v2 no altera el contrato v10: mismo golden con o sin anexo cargado", async () => {
   const contrato = await renderizarContratoPdfV2(
     SNAPSHOT,
     "2026-08-17T20:00:00.000Z",
   );
   igual(
     contrato.sha256,
-    "6ffb935d939e4ba7f4c5822835d81cf6bac0a8b04bb1b011a1b629a9b1ffe1d8",
-    "el contrato sigue siendo byte a byte la v9",
+    "222be6b8d50b6442242116ba7e528cf38666d15ff034d274dadb6c58ac386a26",
+    "el contrato sigue siendo byte a byte la v10",
   );
-  igual(contrato.bytes, 218672, "tamaño golden v9 intacto");
+  igual(contrato.bytes, 236810, "tamaño golden v10 intacto");
+  const congelado = JSON.stringify(SNAPSHOT_ANEXO);
+  await renderizarAnexoPdfV1(SNAPSHOT_ANEXO, "2026-08-17T20:00:00.000Z");
+  igual(
+    JSON.stringify(SNAPSHOT_ANEXO),
+    congelado,
+    "el anexo no modifica el snapshot",
+  );
+  const despues = await renderizarContratoPdfV2(
+    SNAPSHOT,
+    "2026-08-17T20:00:00.000Z",
+  );
+  igual(
+    despues.sha256,
+    contrato.sha256,
+    "emitir el anexo no cambia el contrato",
+  );
 });
 
-Deno.test("anexo v1 imprime las parciales del cronograma sellado y el retorno como liquidación final", () => {
+Deno.test("anexo v2 imprime las parciales del cronograma sellado y el retorno como liquidación final", () => {
   const definicion = construirAnexoPdf(
     {
       contrato: {
@@ -739,6 +806,7 @@ Deno.test("anexo v1 imprime las parciales del cronograma sellado y el retorno co
       },
       titular: TITULAR_ANEXO,
       analista: { nombreCompleto: "ANALISTA PRUEBA" },
+      cuentaPago: { numeroCuenta: "0019100000000000" },
       cotitulares: [{
         nombreCompleto: "COTITULAR PRUEBA UNO",
         tipoDocumento: "DNI",
@@ -749,6 +817,10 @@ Deno.test("anexo v1 imprime las parciales del cronograma sellado y el retorno co
     ASSETS_ANEXO,
   );
   const plano = textos(definicion.content).join("\n");
+  assert(
+    plano.includes("Número de cuenta destino\n0019100000000000"),
+    "imprime la cuenta como texto con todos sus ceros iniciales",
+  );
   assert(plano.startsWith("ANEXO\n"), "título ANEXO");
   assert(
     plano.includes("CLIENTE PRUEBA\n y \nCOTITULAR PRUEBA UNO"),
@@ -793,7 +865,7 @@ Deno.test("anexo v1 imprime las parciales del cronograma sellado y el retorno co
   );
 });
 
-Deno.test("anexo v1: interés compuesto lista la única liquidación al vencimiento", () => {
+Deno.test("anexo v2: interés compuesto lista la única liquidación al vencimiento", () => {
   const definicion = construirAnexoPdf(
     {
       contrato: {
@@ -807,6 +879,7 @@ Deno.test("anexo v1: interés compuesto lista la única liquidación al vencimie
       },
       titular: TITULAR_ANEXO,
       analista: { nombreCompleto: "ANALISTA PRUEBA" },
+      cuentaPago: { numeroCuenta: "0019100000000000" },
       cotitulares: [],
       cronograma: [
         cuota(1, "2027-08-17", 2700, "devolucion"),
@@ -827,7 +900,7 @@ Deno.test("anexo v1: interés compuesto lista la única liquidación al vencimie
   assert(!plano.includes("No se programan"), "sí hay una liquidación listada");
 });
 
-Deno.test("anexo v1 rechaza cronogramas que contradicen el contrato sellado", () => {
+Deno.test("anexo v2 rechaza cronogramas que contradicen el contrato sellado", () => {
   const base = {
     contrato: {
       numero: "2026-01-000777",
@@ -840,6 +913,7 @@ Deno.test("anexo v1 rechaza cronogramas que contradicen el contrato sellado", ()
     },
     titular: TITULAR_ANEXO,
     analista: { nombreCompleto: "ANALISTA PRUEBA" },
+    cuentaPago: { numeroCuenta: "0019100000000000" },
     cotitulares: [],
   };
   const casos: Array<[string, typeof CRONOGRAMA_SIMPLE]> = [
@@ -929,7 +1003,7 @@ Deno.test("anexo v1 rechaza cronogramas que contradicen el contrato sellado", ()
   igual(retorno.fechaProgramada, "2027-08-24", "retorno identificado");
 });
 
-Deno.test("anexo v1 con 60 cuotas cabe en varias hojas sin romper filas", async () => {
+Deno.test("anexo v2 con 60 cuotas cabe en varias hojas sin romper filas", async () => {
   const cuotas = Array.from({ length: 60 }, (_, indice) => {
     const mes = indice + 1;
     const anio = 2026 + Math.floor((7 + mes) / 12);
