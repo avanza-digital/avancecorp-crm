@@ -1,8 +1,8 @@
 // Anexo de cronograma de liquidaciones parciales: documento APARTE del contrato.
 //
-// Decisión de Miguel (28/09/2026): «todo sigue igual, solo que el añadido es que
-// el analista ahora puede imprimir este anexo». El contrato PDF (template-v2,
-// contrato-aep-17-v9) no cambia ni un byte; este módulo dibuja, a demanda y
+// Decisión de Miguel (28/09/2026): el analista puede imprimir este anexo aparte.
+// v2 (10/10/2026): incorpora la cuenta destino sellada y la firma transparente.
+// La emisión del anexo nunca modifica el PDF contractual; dibuja a demanda y
 // desde el snapshot SELLADO del contrato, el anexo del modelo «Propuesta de
 // Anexo para contrato de AEP» (septiembre 2026): datos del contrato, tabla de
 // liquidaciones parciales, liquidación final, naturaleza, prevalencia y firmas.
@@ -28,7 +28,7 @@ import {
   tituloClausula,
 } from "./template-v2.ts";
 
-export const ANEXO_TEMPLATE_VERSION = "anexo-cronograma-v1";
+export const ANEXO_TEMPLATE_VERSION = "anexo-cronograma-v2";
 
 /**
  * El cronograma sellado no tiene la forma que el anexo sabe imprimir. Es un
@@ -61,6 +61,8 @@ export interface AnexoPdfDatos {
   titular: ContratoPdfDatos["titular"];
   analista: { nombreCompleto: string };
   cotitulares: Cotitular[];
+  /** Cuenta del snapshot sellado, nunca una consulta a la ficha vigente. */
+  cuentaPago: { numeroCuenta: string };
   /** Cronograma contractual congelado con el PDF sellado. */
   cronograma: Array<{
     numeroCuota: number;
@@ -258,6 +260,10 @@ export function construirAnexoPdf(
     }],
     [{ text: "Modalidad de liquidaciones parciales" }, {
       text: etiquetaModalidad(contrato),
+      bold: true,
+    }],
+    [{ text: "Número de cuenta destino" }, {
+      text: datos.cuentaPago.numeroCuenta,
       bold: true,
     }],
     [{ text: "Analista Comercial" }, {
