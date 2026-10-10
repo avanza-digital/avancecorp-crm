@@ -17631,3 +17631,27 @@ Gate Gerencia/sup1 contra SU cifra para dos días extremos, total/totales exacto
 ni otros agentes). El banco anterior queda como evidencia histórica. **Reversa:**
 `supabase/scripts/facturacion-lista/reversa.sql`, sin CASCADE y antes de 3A. Procedimiento y resultados offline en
 `supabase/scripts/facturacion-lista/LEEME.md`.
+
+## 20261010150451 — Facturación fase 5: relleno de jerarquía de Carmen Jaramillo y Jorge Marzano
+
+**Estado:** **PENDIENTE de aplicar** (banco 14/14, Codex r1 sin P0/P1 con sus dos P2 aplicados, y ensayo de producción
+PASS con el texto final el 10/10/2026).
+Aprobada por Miguel el 10/10 viendo el cambio mes a mes. Solo DATOS: sin esquema, funciones ni permisos.
+**Cambio:** dos eventos `jerarquia_actualizada` en `crm.usuario_eventos` (autor «sistema» `f6d2941b…`, `via: 'relleno'`,
+idempotencia fija) con la hora, el antes y el después de `public.audit_log` (filas `9808d0f3…` y `13d8b650…`:
+29/08/2026 12:56:38 Lima, CARLOS VALLES → ADMINISTRADOR AVANCE CORP, hecho por el bloque `$normalizar_directorio$` de
+20260828210351 sin evento). Efecto: Facturación deja de atribuir a Carlos las ventas de Jorge desde el 29/08 (9:
+septiembre 4 × S/ 1,271,900 + 1 × US$ 27,000; octubre 3 × S/ 213,600 + 1 × US$ 20,000); Carmen, nada. Solo
+`private.facturacion_operaciones` lee estos eventos; la foto del sello no.
+**Guardas:** huellas de `facturacion_operaciones` y `capital_episodios`; rastro de auditoría exacto; jerarquía de hoy
+igual a la medida; relleno a medias → se niega; base sin estas personas → no hace nada. Oráculo en la misma transacción
+(Facturación entera antes/después): solo cambian las ventas de los dos desde el día del cambio, de Carlos a
+Administrador, todas, y lo fechado antes del 10/10 es exactamente lo aprobado. Candados antes de la instantánea:
+`crm.equipo` (SHARE) y `crm.usuario_eventos` (SHARE ROW EXCLUSIVE); una venta simultánea sigue la misma regla.
+**Verificación:** medición de producción 10/10 09:51 (réplica 821/821); banco Docker `banco-prueba.py` 14/14 (bueno,
+repetición, ensayo, base vacía, seis negativas, reversa y dos negativas, concurrencia con candados y mutante sin ellos);
+ensayo de producción con el texto final «ENSAYO RELLENO PASS: 9 operaciones de 821 … 226 ms — SE DESHACE TODO».
+**Revisión:** Codex r1 CHANGES_REQUESTED sin P0/P1; aceptados P2-1 (la reversa validaba solo parte del evento) y P2-2
+(precondiciones frente a escritores simultáneos: candados antes de la instantánea; ventas, delimitado).
+**Aplicar:** `supabase/scripts/jerarquia-relleno/` → `ensayo-produccion.sql`, la migración y `registrar.sql` por
+`db query --linked --file`. **Reversa:** `reversa.sql` (borra los dos eventos por su idempotencia).
