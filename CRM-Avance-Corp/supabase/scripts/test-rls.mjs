@@ -22,12 +22,17 @@ if (process.argv.length === 3 && process.argv[2] === '--ranking-origen') {
 
 // La URL del banco contiene una contraseña. Usar variables PG evita que una
 // excepción de execFileSync la incluya en la línea del comando o en sus args.
+// El destino lo fija SOLO esa URL, la que validateEnvironment comprobó (F4.1-A r3, P1 del auditor): se quitan del entorno de
+// psql las variables de libpq que lo llevarían a otra base por detrás de PGHOST —PGHOSTADDR (la IP manda sobre el nombre) y
+// PGSERVICE/PGSERVICEFILE (los parámetros de un servicio mandan sobre las variables PG*)—.
 function psqlBancoSinSecretos(args, opciones = {}) {
   const destino = new URL(process.env.CRM_BANCO_PSQL_URL);
+  const entorno = { ...process.env };
+  for (const variable of ['PGHOSTADDR', 'PGSERVICE', 'PGSERVICEFILE']) delete entorno[variable];
   return execFileSync('psql', ['-X', ...args], {
     ...opciones,
     env: {
-      ...process.env,
+      ...entorno,
       PGHOST: destino.hostname,
       PGPORT: destino.port || '5432',
       PGDATABASE: destino.pathname.slice(1),
@@ -138,6 +143,8 @@ import {
   TRANSIENT_IDS,
   USERS,
   USER_BY_KEY,
+  USUARIOS_EXCEPCION_D17,
+  esParExentoD17,
   normalizePeruPhone,
   validateFixtureModel,
 } from './fixtures.mjs';
@@ -206,6 +213,38 @@ function validateNode() {
   }
 }
 
+// ¿Nombra este texto el proyecto de PRODUCCIÓN? El ref en cualquier parte y sin distinguir mayúsculas (un host no las
+// distingue: `DB.<REF>.SUPABASE.CO` también es producción).
+function mencionaProduccion(texto) {
+  return String(texto ?? '').toLowerCase().includes(PRODUCTION_PROJECT_REF.toLowerCase());
+}
+
+// CRM_BANCO_PSQL_URL (F4.1-A r3, P1 del auditor): devuelve por qué NO se puede usar, o null. Mira la URL entera tal cual y
+// decodificada, el host (ya normalizado por URL), el usuario y la base decodificados: cubre `db.<ref>.supabase.co`,
+// `postgres.<ref>@…pooler.supabase.com` y el ref percent-codificado. Nunca muestra la URL: lleva la contraseña.
+function problemaDestinoFueraDeBanda(texto) {
+  let destino;
+  try {
+    destino = new URL(texto);
+  } catch {
+    return 'CRM_BANCO_PSQL_URL no es una URL valida (no se muestra: lleva la contraseña).';
+  }
+  if (!['postgres:', 'postgresql:'].includes(destino.protocol)) {
+    return 'CRM_BANCO_PSQL_URL debe ser una URL postgres:// o postgresql://.';
+  }
+  let piezas;
+  try {
+    piezas = [texto, decodeURIComponent(texto), destino.hostname, decodeURIComponent(destino.username),
+      decodeURIComponent(destino.pathname)];
+  } catch {
+    return 'CRM_BANCO_PSQL_URL no es una URL valida: codificación % rota (no se muestra: lleva la contraseña).';
+  }
+  if (piezas.some(mencionaProduccion)) {
+    return 'Destino de PRODUCCION detectado en CRM_BANCO_PSQL_URL (la vía fuera de banda). El gate RLS solo corre en branch/staging.';
+  }
+  return null;
+}
+
 function validateEnvironment() {
   if (!SUPABASE_URL) fatal('Falta SUPABASE_URL.');
   if (!ANON_KEY) fatal('Falta SUPABASE_ANON_KEY.');
@@ -229,8 +268,21 @@ function validateEnvironment() {
   if (parsed.username || parsed.password) {
     fatal('SUPABASE_URL no debe incluir credenciales.');
   }
-  if (SUPABASE_URL.includes(PRODUCTION_PROJECT_REF)) {
+  let apiDecodificada;
+  try {
+    apiDecodificada = decodeURIComponent(SUPABASE_URL);
+  } catch {
+    fatal('SUPABASE_URL no es una URL valida.');
+  }
+  if ([SUPABASE_URL, apiDecodificada, parsed.hostname].some(mencionaProduccion)) {
     fatal('Destino de PRODUCCION detectado. El gate RLS solo corre en branch/staging.');
+  }
+  // La vía fuera de banda (psql) también escribe —banderas, siembras, sellos—: la misma guarda (F4.1-A r3, P1 del auditor).
+  // Que las dos vías vean la MISMA base se comprueba después, con el seed a la vista (verificarMismaBaseFueraDeBanda).
+  const psqlBanco = process.env.CRM_BANCO_PSQL_URL ?? '';
+  if (psqlBanco) {
+    const problema = problemaDestinoFueraDeBanda(psqlBanco);
+    if (problema) fatal(problema);
   }
 }
 
@@ -490,6 +542,38 @@ async function expectExpectedFailure(label, promise, allowedErrorCodes, messageP
 
 function assertSeed(condition, message) {
   if (!condition) throw new Error(`Seed incoherente: ${message}`);
+}
+
+// ── H-19 (bloque 2.3, fase 4): los números de contrato que el gate da de alta ───────────────────────────────────────
+// Desde 20261009210100 `public.crear_contrato` rechaza con 22023 a todo NO exento (D-17) un número que no sea 2024-01-,
+// 2025-01- o 2026-01- seguido de 6 dígitos ASCII, incluido el vacío. vend1, sup1 y la `gerencia` del fixture
+// (comercial + gerencia) NO son exentos: con los números libres de antes (`RLS-IDEM-…`) o sin número, ~15 aserciones
+// en cascada quedaban en rojo. Cada bloque que da de alta pide aquí un BLOQUE de números propio de la corrida:
+// `2026-01-` + 4 dígitos al azar entre 1000 y 8999 + 2 dígitos por alta.
+//   · Nunca 99xxxx: no choca con BANK_CONTRACT (2026-01-990001) ni con BANK_LEGACY_CONTRACT (2026-01-990002).
+//   · Antes de usarlo se comprueba con service_role que nadie lo usa (un banco que se reutiliza, otra corrida).
+//   · El mismo sufijo devuelve siempre el mismo número: el gate repite altas con el mismo número a propósito.
+//   · `prefijo` sirve para contar las altas del bloque con LIKE (es exclusivo de esta corrida).
+async function bloqueNumerosContrato(etiqueta) {
+  for (let intento = 1; intento <= 20; intento += 1) {
+    const prefijo = `2026-01-${randomInt(1000, 9000)}`;
+    const ocupados = await requireAdmin(
+      `${etiqueta}: comprobar que el bloque de números ${prefijo}xx está libre`,
+      admin.from('contratos').select('id', { count: 'exact', head: true }).like('numero_contrato', `${prefijo}%`),
+    );
+    if (ocupados.count !== 0) continue;
+    const asignados = new Map();
+    const numero = (sufijo) => {
+      const clave = String(sufijo);
+      if (!asignados.has(clave)) {
+        if (asignados.size >= 100) throw new Error(`${etiqueta}: el bloque ${prefijo}xx solo tiene 100 números`);
+        asignados.set(clave, `${prefijo}${String(asignados.size).padStart(2, '0')}`);
+      }
+      return asignados.get(clave);
+    };
+    return { prefijo, numero };
+  }
+  throw new Error(`${etiqueta}: 20 bloques de números de contrato al azar estaban ocupados; revisar el banco`);
 }
 
 async function cleanupTransientRows() {
@@ -770,6 +854,30 @@ async function verifySeed() {
     tareaById,
     tareas: tareasResponse.data,
   };
+}
+
+// P1 del auditor (F4.1-A r3): la API y la vía fuera de banda tienen que ver la MISMA base antes de que el gate escriba nada
+// por psql. Prueba: el id del perfil de la gerencia del seed —lo genera Auth al sembrar, distinto en cada banco o branch— leído
+// por psql es el que la API acaba de leer en verifySeed(). Si no coincide, si psql no lo encuentra o si no responde: FATAL,
+// los dos canales apuntan a bases distintas (p. ej. la API a la branch y psql a producción) y no corre nada más.
+function verificarMismaBaseFueraDeBanda(seed) {
+  if (!process.env.CRM_BANCO_PSQL_URL) {
+    console.log('  (sin CRM_BANCO_PSQL_URL: no hay vía fuera de banda; los bloques que la necesitan fallan o se saltan en voz alta)');
+    return;
+  }
+  const correo = USER_BY_KEY.gerencia.email;
+  const idApi = seed?.profileIdByKey?.gerencia ?? null;
+  let idPsql = null;
+  try {
+    idPsql = textoFueraDeBanda('misma base: perfil de la gerencia del seed',
+      `select string_agg(p.id::text, ',' order by p.id) from public.perfiles p where p.correo = '${correo}'`);
+  } catch (error) {
+    fatal(`la vía fuera de banda (CRM_BANCO_PSQL_URL) no respondió al comprobar que ve la misma base que la API; no se corre nada — ${error?.message ?? String(error)}`);
+  }
+  if (!idApi || idPsql !== idApi) {
+    fatal(`CRM_BANCO_PSQL_URL y SUPABASE_URL NO ven la misma base: el perfil ${correo} es ${idApi ?? 'ninguno'} por la API y ${idPsql ?? 'ninguno'} por psql. No se escribe nada por la vía fuera de banda.`);
+  }
+  console.log('✓ precondicion: la API y la vía fuera de banda ven la MISMA base (mismo id del perfil de la gerencia del seed)');
 }
 
 const LEAD_RESTORE_FIELDS = [
@@ -5116,11 +5224,15 @@ async function testContractBankAccounts(sessions, seed) {
       ['42501'],
       /cliente no encontrado o fuera de tu cartera/i,
     );
+    // H-19 (bloque 2.3): con 20261009210100 un alta SIN número muere en la guarda del número (22023) antes de los
+    // términos. Un número válido de la corrida deja que el caso siga llegando a 23514 (y nada se escribe).
+    const numeroTerminos = (await bloqueNumerosContrato('directorio-como-analista')).numero('terminos');
     await expectExpectedFailure(
       'analista vigente registra para cliente ajeno: la Opcion B ya NO cierra el alta por cartera',
       sessions.directorio.client.rpc('crear_contrato', {
         p_contrato: {
           cliente_id: bankProfileId,
+          numero_contrato: numeroTerminos,
           moneda: BANK_CONTRACT.currency,
           capital: 1000,
           tasa_anual: 10,
@@ -5505,6 +5617,10 @@ async function testContractBankAccounts(sessions, seed) {
     {
       const claveIdem = randomUUID();
       const idemToken = randomUUID().replaceAll('-', '').toUpperCase().slice(0, 10);
+      // H-19 (bloque 2.3): vend1 y gerencia no son exentos; los números libres `RLS-IDEM-…-N` de antes morirían
+      // con 22023. Cada alta del ensayo usa ahora un número VÁLIDO y propio de la corrida (bloqueNumerosContrato).
+      const numerosIdem = await bloqueNumerosContrato('idempotencia del alta');
+      const numIdem = numerosIdem.numero;
       const idemCci = randomUUID().replace(/\D/g, '').padEnd(20, '0').slice(0, 20);
       const payloadIdem = (numero, extra = {}) => ({
         p_contrato: {
@@ -5542,7 +5658,7 @@ async function testContractBankAccounts(sessions, seed) {
       const altaIdem = (numero, extra = {}) => altaIdemComo(sessions.vend1.client, numero, extra);
       const primera = await positive(
         'idempotencia: el primer alta con clave se crea (regimen anterior → sin_reserva)',
-        altaIdem(`RLS-IDEM-${idemToken}-1`, { clave_idempotencia: claveIdem }),
+        altaIdem(numIdem('1'), { clave_idempotencia: claveIdem }),
       );
       const idPrimera = typeof primera?.data?.id === 'string' ? primera.data.id : null;
       check(
@@ -5557,51 +5673,51 @@ async function testContractBankAccounts(sessions, seed) {
       // misma clave con otros datos no hace replay ni crea otro: P0409 con el numero.
       await expectExpectedFailure(
         'idempotencia: la MISMA clave con OTRO numero se rechaza nombrando el contrato ya creado (el incidente)',
-        altaIdem(`RLS-IDEM-${idemToken}-2`, { clave_idempotencia: claveIdem }),
+        altaIdem(numIdem('2'), { clave_idempotencia: claveIdem }),
         ['P0409'],
-        new RegExp(`ya creó el contrato RLS-IDEM-${idemToken}-1 con otros datos`),
+        new RegExp(`ya creó el contrato ${numIdem('1')} con otros datos`),
       );
       const repetida = await positive(
         'idempotencia: el reintento con la MISMA clave y los MISMOS datos devuelve el mismo contrato',
-        altaIdem(`RLS-IDEM-${idemToken}-1`, { clave_idempotencia: claveIdem }),
+        altaIdem(numIdem('1'), { clave_idempotencia: claveIdem }),
       );
       check(
         repetida?.data?.id === idPrimera
           && repetida?.data?.idempotente === true
-          && repetida?.data?.numero_contrato === `RLS-IDEM-${idemToken}-1`
+          && repetida?.data?.numero_contrato === numIdem('1')
           && repetida?.data?.pdf?.contrato_id === idPrimera,
         'idempotencia: el replay devuelve el MISMO contrato, idempotente=true y el pdf recalculado del mismo contrato',
         JSON.stringify(repetida?.data ?? null).slice(0, 240),
       );
       await expectExpectedFailure(
         'idempotencia: la MISMA clave con OTRO capital tampoco hace replay (P0409)',
-        altaIdem(`RLS-IDEM-${idemToken}-1`, { clave_idempotencia: claveIdem, capital: 25000 }),
+        altaIdem(numIdem('1'), { clave_idempotencia: claveIdem, capital: 25000 }),
         ['P0409'],
         /ya creó el contrato .* con otros datos/,
       );
       const contratosIdem = await requireAdmin(
         'contar contratos del ensayo de idempotencia',
         admin.from('contratos').select('id', { count: 'exact', head: true })
-          .like('numero_contrato', `RLS-IDEM-${idemToken}-%`),
+          .like('numero_contrato', `${numerosIdem.prefijo}%`),
       );
       check(contratosIdem.count === 1,
         'idempotencia: hay UN solo contrato tras las cuatro llamadas (el duplicado del 05/09 no nace)',
         `count=${contratosIdem.count}`);
       await expectExpectedFailure(
         'idempotencia: una clave que no es uuid se rechaza (22023) sin escribir',
-        altaIdem(`RLS-IDEM-${idemToken}-3`, { clave_idempotencia: 'no-es-un-uuid' }),
+        altaIdem(numIdem('3'), { clave_idempotencia: 'no-es-un-uuid' }),
         ['22023'],
         /clave de idempotencia/i,
       );
       const rechazada = await requireAdmin(
         'verificar que la clave invalida no escribio',
         admin.from('contratos').select('id', { count: 'exact', head: true })
-          .eq('numero_contrato', `RLS-IDEM-${idemToken}-3`),
+          .eq('numero_contrato', numIdem('3')),
       );
       check(rechazada.count === 0, 'idempotencia: la clave invalida no dejo contrato');
       const otraClave = await positive(
         'idempotencia: otra clave crea otro contrato',
-        altaIdem(`RLS-IDEM-${idemToken}-4`, { clave_idempotencia: randomUUID() }),
+        altaIdem(numIdem('4'), { clave_idempotencia: randomUUID() }),
       );
       check(typeof otraClave?.data?.id === 'string' && otraClave.data.id !== idPrimera,
         'idempotencia: la clave distinta produce un contrato distinto');
@@ -5611,14 +5727,14 @@ async function testContractBankAccounts(sessions, seed) {
       // encuentra fila, no hereda el contrato de vend1 y crea el SUYO bajo sus gates.
       const ajena = await positive(
         'idempotencia: OTRO actor (gerencia) con la MISMA clave no recibe el alta de vend1: crea la suya',
-        altaIdemComo(sessions.gerencia.client, `RLS-IDEM-${idemToken}-5`, { clave_idempotencia: claveIdem }),
+        altaIdemComo(sessions.gerencia.client, numIdem('5'), { clave_idempotencia: claveIdem }),
       );
       check(typeof ajena?.data?.id === 'string' && ajena.data.id !== idPrimera && ajena?.data?.idempotente === undefined,
         'idempotencia: gerencia no hereda ni el contrato de vend1 ni la marca idempotente',
         JSON.stringify(ajena?.data ?? null).slice(0, 200));
       const ajenaReplay = await positive(
         'idempotencia: gerencia repite SU clave y recupera SU contrato',
-        altaIdemComo(sessions.gerencia.client, `RLS-IDEM-${idemToken}-5`, { clave_idempotencia: claveIdem }),
+        altaIdemComo(sessions.gerencia.client, numIdem('5'), { clave_idempotencia: claveIdem }),
       );
       check(ajenaReplay?.data?.id === ajena?.data?.id && ajenaReplay?.data?.idempotente === true,
         'idempotencia: el replay de gerencia devuelve su contrato (no el de vend1) con idempotente=true');
@@ -5630,20 +5746,20 @@ async function testContractBankAccounts(sessions, seed) {
       await setVend1State({ portalActive: true, crmActive: false });
       await expectExplicitAuthorizationDenied(
         'idempotencia: vend1 REVOCADO no recupera el alta por replay',
-        altaIdem(`RLS-IDEM-${idemToken}-1`, { clave_idempotencia: claveIdem }),
+        altaIdem(numIdem('1'), { clave_idempotencia: claveIdem }),
         ['42501'],
       );
       await setVend1State({ portalActive: true, crmActive: true });
       const trasReactivar = await positive(
         'idempotencia: vend1 reactivado vuelve a recuperar el mismo contrato',
-        altaIdem(`RLS-IDEM-${idemToken}-1`, { clave_idempotencia: claveIdem }),
+        altaIdem(numIdem('1'), { clave_idempotencia: claveIdem }),
       );
       check(trasReactivar?.data?.id === idPrimera && trasReactivar?.data?.idempotente === true,
         'idempotencia: tras reactivar, el replay devuelve el contrato original con idempotente=true');
       const soloUno = await requireAdmin(
         'contar el contrato -1 tras el ciclo revocado/reactivado',
         admin.from('contratos').select('id', { count: 'exact', head: true })
-          .eq('numero_contrato', `RLS-IDEM-${idemToken}-1`),
+          .eq('numero_contrato', numIdem('1')),
       );
       check(soloUno.count === 1, 'idempotencia: el revocado no recreo el contrato', `count=${soloUno.count}`);
 
@@ -5663,8 +5779,8 @@ async function testContractBankAccounts(sessions, seed) {
       // crea, el otro espera y hace replay; UN solo contrato y el MISMO id para ambos.
       const claveCarrera = randomUUID();
       const [c1, c2] = await Promise.allSettled([
-        altaIdem(`RLS-IDEM-${idemToken}-6`, { clave_idempotencia: claveCarrera }),
-        altaIdem(`RLS-IDEM-${idemToken}-6`, { clave_idempotencia: claveCarrera }),
+        altaIdem(numIdem('6'), { clave_idempotencia: claveCarrera }),
+        altaIdem(numIdem('6'), { clave_idempotencia: claveCarrera }),
       ]);
       const carreraOk = [c1, c2]
         .filter((r) => r.status === 'fulfilled' && !r.value.error)
@@ -5679,7 +5795,7 @@ async function testContractBankAccounts(sessions, seed) {
       const carreraCount = await requireAdmin(
         'contar contratos de la carrera de idempotencia',
         admin.from('contratos').select('id', { count: 'exact', head: true })
-          .eq('numero_contrato', `RLS-IDEM-${idemToken}-6`),
+          .eq('numero_contrato', numIdem('6')),
       );
       check(carreraCount.count === 1, 'idempotencia: la carrera dejo UN solo contrato', `count=${carreraCount.count}`);
 
@@ -5694,7 +5810,7 @@ async function testContractBankAccounts(sessions, seed) {
         const actorId = seed.profileIdByKey.vend1;
         const paraBorrar = await positive(
           'eliminación auditada: alta de un contrato que se va a borrar por la puerta',
-          altaIdem(`RLS-IDEM-${idemToken}-DEL`, { clave_idempotencia: randomUUID() }),
+          altaIdem(numIdem('DEL'), { clave_idempotencia: randomUUID() }),
         );
         const delId = typeof paraBorrar?.data?.id === 'string' ? paraBorrar.data.id : null;
         check(delId !== null, 'eliminación auditada: el contrato a borrar existe');
@@ -5770,7 +5886,7 @@ async function testContractBankAccounts(sessions, seed) {
 
             'm3: alta con clave K de un contrato que Gerencia va a poner en eliminación',
 
-            altaIdem(`RLS-IDEM-${idemToken}-M3`, { clave_idempotencia: claveM3 }),
+            altaIdem(numIdem('M3'), { clave_idempotencia: claveM3 }),
 
           );
 
@@ -5790,7 +5906,7 @@ async function testContractBankAccounts(sessions, seed) {
 
             'm3: el replay con la MISMA clave responde 55000 «en proceso de eliminación», no «alta recuperada»',
 
-            altaIdem(`RLS-IDEM-${idemToken}-M3`, { clave_idempotencia: claveM3 }),
+            altaIdem(numIdem('M3'), { clave_idempotencia: claveM3 }),
 
             ['55000'],
 
@@ -5802,7 +5918,7 @@ async function testContractBankAccounts(sessions, seed) {
 
             'm3: misma clave con OTRO número tampoco crea nada mientras hay eliminación pendiente (55000 antes que la huella)',
 
-            altaIdem(`RLS-IDEM-${idemToken}-M3B`, { clave_idempotencia: claveM3 }),
+            altaIdem(numIdem('M3B'), { clave_idempotencia: claveM3 }),
 
             ['55000'],
 
@@ -5814,7 +5930,7 @@ async function testContractBankAccounts(sessions, seed) {
 
             'm3: releer el contrato en eliminación',
 
-            admin.from('contratos').select('id', { count: 'exact', head: true }).like('numero_contrato', `RLS-IDEM-${idemToken}-M3%`),
+            admin.from('contratos').select('id', { count: 'exact', head: true }).in('numero_contrato', [numIdem('M3'), numIdem('M3B')]),
 
           );
 
@@ -5834,7 +5950,7 @@ async function testContractBankAccounts(sessions, seed) {
 
             'm3: tras el borrado, el replay vuelve a ser lápida P0409 «fue eliminado después» (no recrea)',
 
-            altaIdem(`RLS-IDEM-${idemToken}-M3`, { clave_idempotencia: claveM3 }),
+            altaIdem(numIdem('M3'), { clave_idempotencia: claveM3 }),
 
             ['P0409'],
 
@@ -5846,7 +5962,7 @@ async function testContractBankAccounts(sessions, seed) {
 
             'm3: contar tras la lápida',
 
-            admin.from('contratos').select('id', { count: 'exact', head: true }).like('numero_contrato', `RLS-IDEM-${idemToken}-M3%`),
+            admin.from('contratos').select('id', { count: 'exact', head: true }).in('numero_contrato', [numIdem('M3'), numIdem('M3B')]),
 
           );
 
@@ -5857,7 +5973,7 @@ async function testContractBankAccounts(sessions, seed) {
           // token + solicitado_por = p_actor_id, y ni authenticated ni anon pueden ejecutarla.
           const segundo = await positive(
             'eliminación auditada (denegados): alta de un segundo contrato',
-            altaIdem(`RLS-IDEM-${idemToken}-DEL2`, { clave_idempotencia: randomUUID() }),
+            altaIdem(numIdem('DEL2'), { clave_idempotencia: randomUUID() }),
           );
           const del2 = typeof segundo?.data?.id === 'string' ? segundo.data.id : null;
           await expectExplicitAuthorizationDenied(
@@ -8042,7 +8158,11 @@ async function testCapacidadUnificada(sessions, seed) {
 
   // D4 · el candado de pares, desde el PANEL (auth.uid presente = sesion admin).
   //      Un par no declarado rebota; la tabla de pares NO se puede vaciar.
-  const superadmin = sessions.gerencia; // la sesion gerencia del fixture es admin/superadmin en el arbol de pruebas
+  // OJO (auditor de permisos F4.2, P3-4): la sesion `gerencia` del fixture es `comercial` + `gerencia` (fixtures.mjs),
+  // NO admin ni superadmin del Portal, y por eso NO es el par exento de D-17. Aqui antes habia un alias
+  // `const superadmin = sessions.gerencia` que ninguna linea usaba y que daba a entender lo contrario. El par exento
+  // (admin|gerencia, superadmin|gerencia) y sus casi-pares viven en USUARIOS_EXCEPCION_D17 y los prueba
+  // testGrupoAFase4. Esta sonda D4 la hace el coordinador, que tampoco puede asignar roles.
   await expectExpectedFailure(
     'D4 designar un par no declarado (comercial->gerencia) rebota',
     sessions.coordinador.client.schema('crm').rpc('asignar_rol_usuario_fn',
@@ -9942,8 +10062,9 @@ async function testVentasNucleoF5c(sessions, seed) {
       tasa_anual: 10,
       categoria: 'nuevo',
     },
-    // Cronograma vacio A PROPOSITO: pasar la autoridad y morir en la validacion
-    // de terminos PRUEBA el gate sin escribir una sola fila.
+    // Cronograma vacio y SIN numero A PROPOSITO: pasar la autoridad y morir aguas
+    // abajo -con el bloque 2.3 (20261009210100), en la guarda del numero (22023);
+    // sin el, en la validacion de terminos- PRUEBA el gate sin escribir una fila.
     p_cronograma: [],
   };
 
@@ -9953,10 +10074,10 @@ async function testVentasNucleoF5c(sessions, seed) {
     error?.code === '42501'
     && /cliente no encontrado o fuera de tu cartera/i.test(error?.message ?? '');
 
-  // POSITIVO (decision B): un analista VIGENTE con ficha CRM (vend3) registra
-  // para el cliente de OTRA analista (bankProfileId, asesor = vend1). La autoridad
-  // ya NO cierra por cartera -> pasa y muere aguas abajo en la validacion de
-  // terminos, sin escribir nada.
+  // POSITIVO (decision B): un analista VIGENTE con ficha CRM (vend3, no exento: D-17) registra para el cliente de OTRA
+  // analista (bankProfileId, asesor = vend1). La autoridad ya NO cierra por cartera -> pasa y el alta muere aguas abajo,
+  // sin escribir nada: con el bloque 2.3 (20261009210100), en la guarda del numero (22023; altaAjena no lleva numero);
+  // sin el 2.3, en la validacion de terminos. Lo que se exige es solo que NO sea el 42501 de cartera.
   {
     const { error } = await sessions.vend3.client.rpc('crear_contrato', altaAjena);
     check(!negadoPorAutoridad(error),
@@ -13540,6 +13661,9 @@ async function testConversionMensual(sessions, seed) {
         },
       ]),
     );
+    // H-19-bis (bloque 2.3): con 20261009210100 la conversión Avance de vend1 (no exento, D-17) necesita un número de
+    // contrato válido; `convertirAvanceVigente` lo recibe como `numero` y lo lleva a la corrección de la solicitud.
+    const numerosConversion = await bloqueNumerosContrato('conversión mensual');
     for (const [etiqueta, leadId] of [
       ['referido', IDS_CONVERSION.leadReferido],
       ['directo', IDS_CONVERSION.leadDirecto],
@@ -13548,7 +13672,7 @@ async function testConversionMensual(sessions, seed) {
         `vend1 cierra el lead ${etiqueta} por la inversión compartida real`,
         convertirAvanceVigente(sessions.vend1.client, {
           leadId,documento:String(randomInt(70000000,79999999)),vendedorId:ids.vend1,
-          apiUrl:SUPABASE_URL,anonKey:ANON_KEY,serviceKey:SERVICE_KEY,
+          apiUrl:SUPABASE_URL,anonKey:ANON_KEY,serviceKey:SERVICE_KEY,numero:numerosConversion.numero(etiqueta),
         }),
       );
     }
@@ -14551,9 +14675,12 @@ async function testIdentidadMultiempresa(sessions, seed) {
       '#2 el intento legacy no crea una inversión a medias');
     // La primera conversión ahora prepara identidad ANTES del alta Auth.
     // El handler oficial de acceso corre en proceso, con HTTP Auth/RPC real.
+    // H-19-bis (bloque 2.3): con 20261009210100 la conversión Avance de vend1 (no exento, D-17) necesita un número de
+    // contrato válido; `convertirAvanceVigente` lo recibe como `numero` (el reintento #4 repite el mismo).
+    const numerosIdentidad = await bloqueNumerosContrato('identidad multiempresa');
     const avance = () => convertirAvanceVigente(sessions.vend1.client,{
       leadId:IDS_IDENTIDAD.avanceUno,documento:DOCS_IDENTIDAD.clienteNuevo,vendedorId:vend1Id,
-      apiUrl:SUPABASE_URL,anonKey:ANON_KEY,serviceKey:SERVICE_KEY,
+      apiUrl:SUPABASE_URL,anonKey:ANON_KEY,serviceKey:SERVICE_KEY,numero:numerosIdentidad.numero('avanceUno'),
     });
     const av = await positive('#2 vend1 convierte por Avance (acceso Auth y contrato compartido)',avance());
     assertions += 1;
@@ -15785,7 +15912,7 @@ async function testAnon(seed) {
 // afirmacion sobre el catalogo y «nadie la puede leer» es una afirmacion sobre
 // una sesion real, y no son la misma cosa.
 //
-// ⚠️ AQUI NO SE CIERRA NINGUN MES. El camino positivo de `crm.cerrar_periodo`
+// ⚠️ ESTA MATRIZ NO CIERRA NINGUN MES. El camino positivo de `crm.cerrar_periodo`
 // —gerencia sellando de verdad— NO se ejerce en el gate a proposito: sellar es
 // IRREVERSIBLE por diseño (append-only, sin policy DELETE y con trigger que veta
 // UPDATE/DELETE), asi que dejaria la branch con un mes cerrado que ni este gate
@@ -15794,6 +15921,11 @@ async function testAnon(seed) {
 // 10bis), que corre sobre un banco desechable y lo deshace con un rollback.
 // Aqui se prueba lo que el oraculo NO puede: las denegaciones con SESIONES
 // REALES y la alcanzabilidad por la Data API.
+// Fase 4 (grupo A, bloque 2.6): lo de arriba vale para `crm.cerrar_periodo`, pero el gate
+// SI deja un mes sellado mientras corre su ultimo bloque: un sello de ENSAYO de 2001-07,
+// sembrado por la via fuera de banda con los disparadores apagados (no por la puerta),
+// marcado con el id de la corrida y retirado en su finally (testAnularVentaMesSellado).
+// Ningun mes real se sella, y ese bloque se niega a correr si la base tiene alguno.
 const TABLAS_CIERRE_MES = ['periodos_cerrados', 'cierre_mes_vendedor', 'ajustes_mes_cerrado'];
 // Los cuatro roles que tienen pantalla, mas los dos que no deben tener nada que
 // hacer aqui. `vendInactive` y `clientBank` son la frontera: uno salio del CRM,
@@ -18732,12 +18864,1162 @@ async function testLlamadasCelular(sessions, seed) {
   }
 }
 
+// ════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+// FASE 4 · GRUPO A — bloques 2.3 (el servidor exige el número de contrato) y 2.6 (no se anula la venta de un mes
+// sellado). Migraciones 20261009210100_crm_numero_contrato_servidor.sql y 20261009210000_crm_anular_venta_mes_sellado.sql;
+// decisiones D-09, D-11/Q3, D-12, D-14 y D-17 de Miguel. Casos que pidió el auditor de permisos: bloque 2.3 (P2, los
+// 8+1) y F4.2 (TEST GAPS, P3-1 y P3-4). Cada mitad se SALTA en voz alta si su migración no está en la base; con
+// CRM_RLS_EXIGE_GRUPO_A=1 el salto cuenta como fallo (para la branch del grupo A, F4.6); sin ella, el resumen final dice
+// «grupo A NO PROBADO» (auditor P3-2).
+// Va AL FINAL del gate a propósito: siembra un sello de mes propio (2001-07) y ventas de 2001, marcados con el id de la
+// corrida, que retira en su finally; da de alta contratos en el cliente bancario y deja seis identidades D-17 inactivas y
+// bloqueadas; nada de eso puede alterar a otro bloque. Exige ejecución EXCLUSIVA en su branch (runbook F4.6). Escrito en
+// F4.1-A (rondas 1 a 3, 09/10/2026; en la ronda 4, sobre `main` 482f3811, solo cambian las versiones de las dos migraciones; en la
+// ronda 5, sobre `main` 5f28b73c, la restauración de la escalada —Codex R2-1— y el re-bloqueo D-17 tras cada login —auditor r2
+// P3-3—) y NO ejecutado contra ninguna base al escribirlo.
+// ════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+const SIN_NUMERO = Symbol('alta sin la clave numero_contrato');
+// Las identidades D-17 viven BLOQUEADAS (sin login posible) salvo el instante entre su desbloqueo —justo antes de su login— y su
+// re-bloqueo —justo después— (ronda 5, auditor r2 P3-3). Bloquear la cuenta no revoca la sesión ya emitida: su JWT vale hasta su
+// `exp` (se mide en F4.6).
+const BLOQUEO_D17 = '876000h';
+// Lo que el grupo A dejó SIN probar en esta corrida por saltarse sin CRM_RLS_EXIGE_GRUPO_A=1: lo repite el resumen final.
+const grupoANoProbado = [];
+
+function saltarGrupoA(mensaje) {
+  if (process.env.CRM_RLS_EXIGE_GRUPO_A === '1') {
+    fail(mensaje);
+  } else {
+    grupoANoProbado.push(mensaje.replace(/^⚠ /, ''));
+    console.log(`  ${mensaje}`);
+  }
+}
+
+// Foto de la FILA COMPLETA de una bandera de crm.multiempresa_flags (su JSON) por la vía fuera de banda; null si no existe.
+function fotoBanderaFueraDeBanda(nombre) {
+  return textoFueraDeBanda(`foto de la bandera ${nombre}`,
+    `select row_to_json(f)::text from crm.multiempresa_flags f where f.nombre = '${nombre}'`);
+}
+
+// Devuelve la bandera EXACTAMENTE a su foto (activo, descripción, actualizado_en y actualizado_por) y dice si quedó idéntica.
+// `trg_multiempresa_flags_touch` reescribiría actualizado_en con now(): se apaga SOLO ese disparador y solo dentro de esta
+// transacción (como revocarEquipoFueraDeBanda con el guard de jerarquía); el que serializa las puertas (D-5) y la auditoría
+// siguen corriendo.
+function restaurarBanderaFueraDeBanda(nombre, foto) {
+  const literal = foto.replaceAll("'", "''");
+  ejecutarFueraDeBanda(`restaurar la bandera ${nombre}`, `
+    alter table crm.multiempresa_flags disable trigger trg_multiempresa_flags_touch;
+    update crm.multiempresa_flags f
+       set activo = r.activo, descripcion = r.descripcion, actualizado_en = r.actualizado_en, actualizado_por = r.actualizado_por
+      from json_populate_record(null::crm.multiempresa_flags, '${literal}'::json) r
+     where f.nombre = r.nombre and f.nombre = '${nombre}';
+    alter table crm.multiempresa_flags enable trigger trg_multiempresa_flags_touch;`);
+  return fotoBanderaFueraDeBanda(nombre) === foto;
+}
+
+// Lo que siembra el bloque 2.6 lleva el id de su CORRIDA (Codex R2): el sello de ensayo en `cobertura.ensayo_gate_rls` y cada
+// venta en `leads.nota`. Retirar una corrida es retirar SOLO eso: quitar su sello y dar de baja (soft-delete) sus ventas.
+const MES_SELLADO_ENSAYO = '2001-07-01';
+const ID_DE_CORRIDA = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function marcaDeCorrida(corrida) {
+  return `gate-rls-2.6:${corrida}`;
+}
+
+function sqlRetiroDeCorrida(corrida, idsLeads = []) {
+  if (!ID_DE_CORRIDA.test(corrida)) throw new Error(`2.6: ${JSON.stringify(corrida)} no es un id de corrida`);
+  const porId = idsLeads.length > 0 ? ` or id in (${idsLeads.map((id) => `'${id}'`).join(',')})` : '';
+  return `set local session_replication_role = replica;
+      update crm.leads set activo = false where activo and (nota = '${marcaDeCorrida(corrida)}'${porId});
+      delete from crm.periodos_cerrados where periodo = '${MES_SELLADO_ENSAYO}' and cobertura->>'ensayo_gate_rls' = '${corrida}';
+      set local session_replication_role = default;`;
+}
+
+async function buscarUsuarioAuthPorCorreo(correo) {
+  for (let pagina = 1; pagina <= 50; pagina += 1) {
+    const { data } = await requireAdmin(`D-17: listar usuarios Auth (página ${pagina})`,
+      admin.auth.admin.listUsers({ page: pagina, perPage: 1000 }));
+    const usuarios = data?.users ?? [];
+    const hallado = usuarios.find((usuario) => usuario.email?.toLowerCase() === correo.toLowerCase());
+    if (hallado) return hallado;
+    if (usuarios.length < 1000) return null;
+  }
+  return null;
+}
+
+// Prepara las seis identidades de fixtures.mjs → USUARIOS_EXCEPCION_D17 (ver allí por qué no viven en USERS). Ronda 3 (Codex R1,
+// auditor P3-1): (1) cada cuenta Auth se crea o se reutiliza BLOQUEADA; (2) perfil y membresía van DIRECTOS a su estado final
+// partiendo de un perfil INACTIVO, sin pasar nunca por un par exento que no lo sea —salvo el casi-par de perfil suspendido:
+// `private.validar_equipo_usuario_crm` solo admite su membresía viva con el perfil activo, así que pasa un instante por
+// admin|gerencia activo con la cuenta BLOQUEADA y antes de cualquier login—; una identidad sin CRM que aparezca con ficha en
+// crm.equipo (el estado ENCONTRADO, no el del fixture) se desactiva y NO se usa; (3) se relee el estado final y se mide la
+// excepción y, solo si los dos casan, se desbloquea la cuenta justo antes de su login y se vuelve a bloquear justo después (ronda
+// 5, auditor r2 P3-3: durante los bloques ninguna identidad D-17 admite un login nuevo). Los ids se apuntan en `d17.ids` a medida
+// que existen, para que el finally del llamador retire también una preparación a medias.
+async function prepararActoresD17(d17) {
+  console.log('\n— D-17: identidades de la excepción (admin|gerencia, superadmin|gerencia y sus casi-pares) —');
+  // (1) Las cuentas Auth, todas BLOQUEADAS.
+  for (const usuario of USUARIOS_EXCEPCION_D17) {
+    const creado = await admin.auth.admin.createUser({
+      email: usuario.email, email_confirm: true, password: PASSWORD, ban_duration: BLOQUEO_D17,
+    });
+    let authUser = creado.data?.user ?? null;
+    if (creado.error) {
+      if (!/already|exists|registered/i.test(creado.error.message ?? '')) {
+        throw new Error(`D-17: crear el usuario Auth de ${usuario.key}: ${errorText(creado.error)}`);
+      }
+      authUser = await buscarUsuarioAuthPorCorreo(usuario.email);
+    }
+    if (!authUser?.id) throw new Error(`D-17: no se pudo resolver el usuario Auth de ${usuario.key}`);
+    d17.ids[usuario.key] = authUser.id;
+    // Nueva o de una corrida anterior: queda (o sigue) BLOQUEADA, con la contraseña del banco para su login de después.
+    await requireAdmin(`D-17: bloquear y dar credenciales a ${usuario.key}`,
+      admin.auth.admin.updateUserById(authUser.id, { email_confirm: true, password: PASSWORD, ban_duration: BLOQUEO_D17 }));
+  }
+  // (2) Perfil y membresía, directos a su estado final.
+  const listos = new Set();
+  for (const usuario of USUARIOS_EXCEPCION_D17) {
+    const id = d17.ids[usuario.key];
+    if (!usuario.crmRole) {
+      const fichas = await requireAdmin(`D-17: fichas CRM de ${usuario.key}`,
+        admin.schema('crm').from('equipo').select('perfil_id, rol_crm, activo').eq('perfil_id', id));
+      if (fichas.data.length > 0) {
+        await requireAdmin(`D-17: desactivar la ficha inesperada de ${usuario.key}`,
+          admin.schema('crm').from('equipo').update({ activo: false }).eq('perfil_id', id).eq('activo', true));
+        await requireAdmin(`D-17: suspender el perfil de ${usuario.key}`,
+          admin.from('perfiles').update({ activo: false }).eq('id', id).eq('activo', true));
+        fail(`D-17: ${usuario.key} (sin CRM en el fixture) tiene ficha en crm.equipo ${JSON.stringify(fichas.data)}: se desactiva y NO se `
+          + 'usa en esta corrida (una ficha no se borra: para volver a usarla, una branch nueva)');
+        continue;
+      }
+    }
+    await requireAdmin(`D-17: perfil del Portal de ${usuario.key} (nace inactivo)`,
+      admin.from('perfiles').upsert({
+        id, correo: usuario.email, nombre_completo: usuario.name, rol: usuario.portalRole, activo: false,
+      }, { onConflict: 'id' }));
+    if (usuario.crmRole && usuario.crmActive) {
+      // Una membresía viva exige perfil activo (private.validar_equipo_usuario_crm): se activa justo antes.
+      await requireAdmin(`D-17: activar el perfil de ${usuario.key} para su membresía viva`,
+        admin.from('perfiles').update({ activo: true }).eq('id', id));
+    }
+    if (usuario.crmRole) {
+      await requireAdmin(`D-17: membresía CRM de ${usuario.key} (${usuario.crmActive ? 'viva' : 'nace revocada'})`,
+        admin.schema('crm').from('equipo').upsert({
+          perfil_id: id, rol_crm: usuario.crmRole, supervisor_id: null, activo: usuario.crmActive,
+        }, { onConflict: 'perfil_id' }));
+    }
+    await requireAdmin(`D-17: perfil de ${usuario.key} a su estado final (${usuario.portalActive ? 'activo' : 'suspendido'})`,
+      admin.from('perfiles').update({ activo: usuario.portalActive }).eq('id', id));
+    const [perfil, fichas] = await Promise.all([
+      requireAdmin(`D-17: releer el perfil de ${usuario.key}`, admin.from('perfiles').select('rol, activo').eq('id', id).maybeSingle()),
+      requireAdmin(`D-17: releer la membresía de ${usuario.key}`,
+        admin.schema('crm').from('equipo').select('rol_crm, supervisor_id, activo').eq('perfil_id', id)),
+    ]);
+    const fichaFinal = usuario.crmRole
+      ? fichas.data.length === 1 && fichas.data[0].rol_crm === usuario.crmRole && fichas.data[0].supervisor_id === null
+        && fichas.data[0].activo === usuario.crmActive
+      : fichas.data.length === 0;
+    if (check(perfil.data?.rol === usuario.portalRole && perfil.data?.activo === usuario.portalActive && fichaFinal,
+      `D-17: ${usuario.key} quedó en su estado final (perfil ${usuario.portalRole} ${usuario.portalActive ? 'activo' : 'suspendido'}, `
+        + `${usuario.crmRole ? `${usuario.crmRole} ${usuario.crmActive ? 'viva' : 'revocada'}` : 'sin ficha CRM'}) con la cuenta bloqueada`,
+      JSON.stringify({ perfil: perfil.data, fichas: fichas.data }))) {
+      listos.add(usuario.key);
+    }
+  }
+  // (3) La excepción MEDIDA con las funciones de la casa bajo los claims de esa identidad (como el oráculo del 2.6, 5-pares) y,
+  //     solo si casa con el fixture, el desbloqueo justo antes de su login.
+  for (const usuario of USUARIOS_EXCEPCION_D17) {
+    if (!listos.has(usuario.key)) continue;
+    const id = d17.ids[usuario.key];
+    const medida = contarFueraDeBanda(`D-17: excepción medida para ${usuario.key}`, `
+      create function pg_temp.excepcion_d17(p uuid) returns int language plpgsql as $f$
+      begin
+        perform set_config('request.jwt.claim.sub', p::text, true);
+        perform set_config('request.jwt.claims', json_build_object('sub', p, 'role', 'authenticated')::text, true);
+        return (public.es_admin() and private.es_gerencia_crm_activa())::int;
+      end $f$;
+      select pg_temp.excepcion_d17('${id}');`);
+    const esperado = esParExentoD17(usuario);
+    if (!check(medida === (esperado ? 1 : 0),
+      `D-17: ${usuario.key} (${usuario.portalRole}|${usuario.crmRole ?? 'sin CRM'}, portal ${usuario.portalActive ? 'activo' : 'suspendido'}, `
+        + `CRM ${usuario.crmActive === null ? '—' : usuario.crmActive ? 'activo' : 'revocado'}) ${esperado ? 'ES' : 'NO es'} exento`,
+      `es_admin() and es_gerencia_crm_activa() = ${medida}`)) {
+      continue;
+    }
+    await requireAdmin(`D-17: desbloquear a ${usuario.key} justo antes de su login`,
+      admin.auth.admin.updateUserById(id, { ban_duration: 'none' }));
+    const sesion = await login(usuario);
+    // Ronda 5 (auditor r2 P3-3): BLOQUEADA otra vez justo después del login, haya ido bien o no. Si no se puede, la preparación se
+    // corta (lanza) y el finally del llamador retira las seis. La sesión ya emitida sigue sirviendo a los bloques: su JWT vale hasta
+    // su `exp` (autoRefreshToken apagado; un refresco con la cuenta bloqueada fallaría). El Director lo mide en F4.6.
+    await requireAdmin(`D-17: volver a bloquear a ${usuario.key} justo después de su login`,
+      admin.auth.admin.updateUserById(id, { ban_duration: BLOQUEO_D17 }));
+    if (sesion) d17.sesiones[usuario.key] = sesion;
+  }
+}
+
+// Retirada (Codex R1, auditor P3-1). PRIMERO se bloquea el acceso de todas; después, por el estado ENCONTRADO y no por el del
+// fixture, el perfil queda inactivo y se desactiva cualquier ficha CRM activa (también la que una identidad sin CRM no debería
+// tener); cada paso se intenta aunque otro falle y los errores se acumulan; al final se comprueba el estado de cada una
+// (bloqueada, perfil inactivo, ninguna ficha activa). Como test-control-citas-remoto.mjs:51-55, nada se borra: la autoría
+// histórica (actividades, anulaciones y copias de eliminación, inmutables) apunta a ellas. Nunca lanza: no tapa el error de la
+// corrida; lo que no pudo hacer queda como fallo.
+async function retirarActoresD17(ids) {
+  const presentes = USUARIOS_EXCEPCION_D17.filter((usuario) => ids?.[usuario.key]);
+  if (presentes.length === 0) return;
+  const errores = [];
+  const intentar = async (etiqueta, accion) => {
+    try {
+      await accion();
+    } catch (error) {
+      errores.push(`${etiqueta}: ${error?.message ?? String(error)}`);
+    }
+  };
+  for (const usuario of presentes) {
+    await intentar(`bloquear el acceso de ${usuario.key}`, () => requireAdmin(`D-17: bloquear el acceso de ${usuario.key}`,
+      admin.auth.admin.updateUserById(ids[usuario.key], { ban_duration: BLOQUEO_D17 })));
+  }
+  for (const usuario of presentes) {
+    const id = ids[usuario.key];
+    await intentar(`retirar el perfil de ${usuario.key}`, () => requireAdmin(`D-17: retirar el perfil de ${usuario.key}`,
+      admin.from('perfiles').update({ activo: false }).eq('id', id).eq('activo', true)));
+    await intentar(`retirar las fichas CRM de ${usuario.key}`, () => requireAdmin(`D-17: retirar las fichas CRM de ${usuario.key}`,
+      admin.schema('crm').from('equipo').update({ activo: false }).eq('perfil_id', id).eq('activo', true)));
+  }
+  const UN_ANIO_MS = 365 * 24 * 60 * 60 * 1000;
+  for (const usuario of presentes) {
+    const id = ids[usuario.key];
+    await intentar(`estado final de ${usuario.key}`, async () => {
+      const [cuenta, perfil, fichas] = await Promise.all([
+        requireAdmin(`D-17: leer la cuenta de ${usuario.key}`, admin.auth.admin.getUserById(id)),
+        requireAdmin(`D-17: leer el perfil de ${usuario.key}`, admin.from('perfiles').select('activo').eq('id', id).maybeSingle()),
+        requireAdmin(`D-17: contar las fichas activas de ${usuario.key}`,
+          admin.schema('crm').from('equipo').select('perfil_id', { count: 'exact', head: true }).eq('perfil_id', id).eq('activo', true)),
+      ]);
+      const hasta = Date.parse(cuenta.data?.user?.banned_until ?? '');
+      const problemas = [];
+      if (!(hasta > Date.now() + UN_ANIO_MS)) {
+        problemas.push(`acceso SIN bloquear (banned_until=${cuenta.data?.user?.banned_until ?? 'ninguno'})`);
+      }
+      if (perfil.data !== null && perfil.data?.activo !== false) problemas.push('perfil activo');
+      if (fichas.count !== 0) problemas.push(`${fichas.count} ficha(s) CRM activa(s)`);
+      if (problemas.length > 0) throw new Error(problemas.join(', '));
+    });
+  }
+  check(errores.length === 0,
+    `D-17 retirada: ${presentes.length} identidad(es) con la cuenta bloqueada, el perfil inactivo y ninguna ficha CRM activa`,
+    errores.join(' | '));
+}
+
+// Foto y restauración EXACTA del rol y la vigencia (perfil del Portal y fichas CRM) de unas identidades, por service_role (Codex
+// R1: el ensayo de escalada no puede dejar contaminados a los actores del fixture). Ronda 5 (Codex R2-1): cada restauración —el
+// perfil y la ficha de cada actor— va en su PROPIO intento y un fallo no impide las demás; se distingue lo intentado de lo logrado
+// y al final se RELEEN los campos fotografiados: la recuperación solo está completa si coinciden con la foto. Nunca lanza. Una
+// ficha NUEVA no se puede borrar (trg_equipo_no_borrar): se desactiva, y sigue siendo una diferencia con la foto (la siguiente
+// corrida necesita una branch nueva).
+async function fotografiarIdentidades(etiqueta, ids) {
+  const [perfiles, fichas] = await Promise.all([
+    requireAdmin(`${etiqueta}: foto de los perfiles`, admin.from('perfiles').select('id, rol, activo').in('id', ids)),
+    requireAdmin(`${etiqueta}: foto de las fichas CRM`,
+      admin.schema('crm').from('equipo').select('perfil_id, rol_crm, supervisor_id, activo').in('perfil_id', ids)),
+  ]);
+  return { ids, perfiles: perfiles.data, fichas: fichas.data };
+}
+
+// Lo que difiere entre la foto y un estado leído en los campos fotografiados: rol y vigencia del perfil; rol, supervisor y vigencia
+// de la ficha CRM; y las fichas que la foto no tenía. Lista vacía = idénticos.
+function diferenciasConFoto(foto, estado) {
+  const diferencias = [];
+  for (const antes of foto.perfiles) {
+    const hoy = estado.perfiles.find((fila) => fila.id === antes.id);
+    if (!hoy) {
+      diferencias.push(`perfil ${antes.id}: no está`);
+    } else if (hoy.rol !== antes.rol || hoy.activo !== antes.activo) {
+      diferencias.push(`perfil ${antes.id}: ${hoy.rol}/${hoy.activo} (foto ${antes.rol}/${antes.activo})`);
+    }
+  }
+  for (const antes of foto.fichas) {
+    const hoy = estado.fichas.find((fila) => fila.perfil_id === antes.perfil_id);
+    if (!hoy) {
+      diferencias.push(`ficha de ${antes.perfil_id}: no está`);
+    } else if (hoy.rol_crm !== antes.rol_crm || hoy.supervisor_id !== antes.supervisor_id || hoy.activo !== antes.activo) {
+      diferencias.push(`ficha de ${antes.perfil_id}: ${hoy.rol_crm}/${hoy.supervisor_id ?? 'sin supervisor'}/${hoy.activo} `
+        + `(foto ${antes.rol_crm}/${antes.supervisor_id ?? 'sin supervisor'}/${antes.activo})`);
+    }
+  }
+  for (const hoy of estado.fichas) {
+    if (!foto.fichas.some((fila) => fila.perfil_id === hoy.perfil_id)) {
+      diferencias.push(`ficha NUEVA de ${hoy.perfil_id} (${hoy.rol_crm}, ${hoy.activo ? 'activa' : 'inactiva'}; no se puede borrar)`);
+    }
+  }
+  return diferencias;
+}
+
+// Devuelve { antes, errorAntes, intentos, despues, errorDespues }: las diferencias con la foto ANTES de restaurar (null si no se
+// pudieron leer: entonces no se intenta nada a ciegas), cada intento { que, logrado, error } y las diferencias de la RELECTURA final
+// (null si no se pudo releer). Primero los perfiles (una ficha viva exige su perfil activo: private.validar_equipo_usuario_crm),
+// después las fichas; cada uno en su propio try.
+async function restaurarIdentidades(etiqueta, foto) {
+  const intentos = [];
+  const intentar = async (que, accion) => {
+    const intento = { que, logrado: false, error: null };
+    intentos.push(intento);
+    try {
+      await accion();
+      intento.logrado = true;
+    } catch (error) {
+      intento.error = error?.message ?? String(error);
+    }
+  };
+  let ahora = null;
+  let errorAntes = null;
+  try {
+    ahora = await fotografiarIdentidades(`${etiqueta} (antes de restaurar)`, foto.ids);
+  } catch (error) {
+    errorAntes = `no se pudo leer su estado antes de restaurar (no se intentó nada): ${error?.message ?? String(error)}`;
+  }
+  if (ahora) {
+    for (const antes of foto.perfiles) {
+      const hoy = ahora.perfiles.find((fila) => fila.id === antes.id);
+      if (!hoy || (hoy.rol === antes.rol && hoy.activo === antes.activo)) continue;
+      await intentar(`perfil ${antes.id}: ${hoy.rol}/${hoy.activo} → ${antes.rol}/${antes.activo}`,
+        () => requireAdmin(`${etiqueta}: restaurar el perfil ${antes.id}`,
+          admin.from('perfiles').update({ rol: antes.rol, activo: antes.activo }).eq('id', antes.id)));
+    }
+    for (const hoy of ahora.fichas) {
+      const antes = foto.fichas.find((fila) => fila.perfil_id === hoy.perfil_id);
+      if (!antes) {
+        if (hoy.activo) {
+          await intentar(`ficha NUEVA de ${hoy.perfil_id} (${hoy.rol_crm}): activa → desactivada`,
+            () => requireAdmin(`${etiqueta}: desactivar la ficha nueva de ${hoy.perfil_id}`,
+              admin.schema('crm').from('equipo').update({ activo: false }).eq('perfil_id', hoy.perfil_id)));
+        }
+      } else if (hoy.rol_crm !== antes.rol_crm || hoy.supervisor_id !== antes.supervisor_id || hoy.activo !== antes.activo) {
+        await intentar(`ficha de ${hoy.perfil_id}: ${hoy.rol_crm}/${hoy.activo} → ${antes.rol_crm}/${antes.activo}`,
+          () => requireAdmin(`${etiqueta}: restaurar la ficha de ${hoy.perfil_id}`,
+            admin.schema('crm').from('equipo').update({
+              rol_crm: antes.rol_crm, supervisor_id: antes.supervisor_id, activo: antes.activo,
+            }).eq('perfil_id', hoy.perfil_id)));
+      }
+    }
+  }
+  let despues = null;
+  let errorDespues = null;
+  try {
+    despues = diferenciasConFoto(foto, await fotografiarIdentidades(`${etiqueta} (relectura)`, foto.ids));
+  } catch (error) {
+    errorDespues = `no se pudo releer: ${error?.message ?? String(error)}`;
+  }
+  return { antes: ahora ? diferenciasConFoto(foto, ahora) : null, errorAntes, intentos, despues, errorDespues };
+}
+
+// Lo que dice el gate de una restauración (Codex R2-1): (1) si los actores seguían como en la foto —nada que restaurar—; (2) si la
+// RELECTURA final coincide con la foto. «restaurado:» solo para lo logrado; lo que falló va como «NO restaurado:». Una recuperación
+// incompleta o no comprobada es un fallo y la branch se borra antes de otra corrida (runbook de F4.6).
+function informarRestauracion(etiqueta, quienes, r) {
+  check(r.antes !== null && r.antes.length === 0,
+    `${etiqueta}: ${quienes} siguen EXACTAMENTE como en la foto (nada que restaurar)`,
+    r.antes === null ? r.errorAntes : `distintos de la foto: ${r.antes.join(' | ')}`);
+  const logrados = r.intentos.filter((intento) => intento.logrado);
+  const fallidos = r.intentos.filter((intento) => !intento.logrado);
+  const completa = r.despues !== null && r.despues.length === 0;
+  check(completa && fallidos.length === 0,
+    `${etiqueta}: releídos al final, los campos fotografiados coinciden con la foto (${r.antes === null
+      ? 'no se pudo leer antes: no se intentó nada' : r.intentos.length === 0
+        ? 'no hubo que restaurar nada' : `${logrados.length} restauración(es) logradas`})`,
+    `${r.despues === null ? 'RECUPERACIÓN NO COMPROBADA: borrar la branch antes de otra corrida'
+      : completa ? 'una restauración falló aunque la relectura coincide: revisar'
+        : 'RECUPERACIÓN INCOMPLETA: borrar la branch antes de otra corrida'} — ${[
+      ...logrados.map((intento) => `restaurado: ${intento.que}`),
+      ...fallidos.map((intento) => `NO restaurado: ${intento.que} (${intento.error})`),
+      ...(r.despues ?? []).map((diferencia) => `sigue distinto: ${diferencia}`),
+      ...(r.errorDespues ? [r.errorDespues] : []),
+    ].join(' | ')}`);
+}
+
+// ── 2.3 · El servidor exige el número de contrato (20261009210100) ───────────────────────────────────────────────────
+// Los 8+1 casos del auditor de permisos (fase-2/bloque-2.3/revision/respuesta-auditor.md, P2) con sesiones reales y por
+// HTTP: (1) vend1 directa sin número y con «ABC»; (2) lo mismo por crm.crear_contrato_con_cuenta_pdf_v2 con cuenta
+// NUEVA, sin cuenta ni vínculo; (3) gerencia (comercial+gerencia) y sup1; (4) positivos de vend1; (5) 2027, 5 y 7
+// dígitos, dígitos no ASCII; (6) el par exento autogenera, acepta cualquier número no duplicado y no salta el duplicado;
+// (7) admin y superadmin SIN Gerencia no son exentos (y los casi-pares con un flag apagado ni llegan a la guarda);
+// (8) service_role directa → 42501 de DENTRO de la función (conserva EXECUTE: se comprueba en el catálogo); (9) anon → 42501
+// sin EXECUTE (catálogo; también en testVentasNucleoF5c). Ronda 3 (Codex R3 y R4, auditor P3-4): cada positivo exige id, fila
+// y número guardado; cada negado, su código y su mensaje exactos (un PGRST202 es un fallo de MONTAJE, nunca un PASS).
+async function testNumeroContratoServidor(sessions, seed, d17) {
+  console.log('\n— 2.3 · número de contrato: el servidor exige la serie 2024-01-/2025-01-/2026-01- + 6 dígitos —');
+  const MENSAJE = /^Formato de número de contrato inválido: serie 2024-01-, 2025-01- o 2026-01- seguida de exactamente 6 dígitos$/;
+  const bankProfileId = seed.profileIdByKey[BANK_CLIENT.key];
+  const vend1Id = seed.profileIdByKey.vend1;
+  const numeros = await bloqueNumerosContrato('2.3 número de contrato');
+  const token = randomUUID().replaceAll('-', '').toUpperCase().slice(0, 10);
+  const anioLima = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima', year: 'numeric' }).format(new Date());
+  const ex = d17?.sesiones ?? {};
+  // El mismo contenido económico que el ensayo de idempotencia (régimen documental anterior: sin reserva de PDF).
+  // `analista_cierre_id` explícito: quien no está en el equipo comercial (admin o superadmin sin CRM) moriría antes con
+  // el 22023 «Elige el analista de la venta» (F3.7), que NO es el rechazo que aquí se mide.
+  const contrato = (numero, extra = {}) => ({
+    cliente_id: bankProfileId,
+    capital: 20000,
+    moneda: 'PEN',
+    tasa_anual: 15,
+    modalidad: 'mensual',
+    tipo_interes: 'simple',
+    categoria: 'nuevo',
+    fecha_inicio: '2026-03-11',
+    fecha_vencimiento: '2027-03-11',
+    notas_internas: 'RLS 2.3 NUMERO DE CONTRATO',
+    titulares: [],
+    analista_cierre_id: vend1Id,
+    ...(numero === SIN_NUMERO ? {} : { numero_contrato: numero }),
+    ...extra,
+  });
+  const cronograma = [
+    { numero_cuota: 1, fecha_programada: '2026-04-11', monto_programado: 250, tipo: 'cuota' },
+    { numero_cuota: 2, fecha_programada: '2027-03-11', monto_programado: 20000, tipo: 'retorno' },
+  ];
+  let cuentas = 0;
+  const cuentaNueva = () => {
+    cuentas += 1;
+    return {
+      tipo: 'nueva',
+      banco: 'BANCO RLS 2.3',
+      tipo_cuenta: 'ahorros',
+      numero_cuenta: `N23-${token}-${cuentas}`,
+      cci: randomUUID().replace(/\D/g, '').padEnd(20, '0').slice(0, 20),
+      titular_distinto: false,
+      beneficiario_nombre: null,
+      beneficiario_dni: null,
+    };
+  };
+  const directa = (cliente, numero) => cliente.rpc('crear_contrato', { p_contrato: contrato(numero), p_cronograma: cronograma });
+  const puerta = (cliente, numero) => cliente.schema('crm').rpc('crear_contrato_con_cuenta_pdf_v2', {
+    p_contrato: { ...contrato(numero), clave_idempotencia: randomUUID() },
+    p_cronograma: cronograma,
+    p_cuenta: cuentaNueva(),
+  });
+  // Lo que un alta puede dejar: contratos del cliente, sus cuentas y los vínculos cuenta-contrato (service_role).
+  const foto = async () => {
+    const [contratos, cuentasCliente, enlaces] = await Promise.all([
+      requireAdmin('2.3: contratos del cliente bancario',
+        admin.from('contratos').select('id', { count: 'exact', head: true }).eq('cliente_id', bankProfileId)),
+      requireAdmin('2.3: cuentas del cliente bancario',
+        admin.schema('crm').from('cuentas_bancarias').select('id', { count: 'exact', head: true }).eq('cliente_id', bankProfileId)),
+      requireAdmin('2.3: vínculos cuenta-contrato',
+        admin.schema('crm').from('contrato_cuentas_pago').select('id', { count: 'exact', head: true })),
+    ]);
+    return `contratos=${contratos.count} cuentas=${cuentasCliente.count} vinculos=${enlaces.count}`;
+  };
+  // `pedir` es una función: la petición sale DESPUÉS de la foto de antes.
+  const rechazaFormato = async (etiqueta, pedir) => {
+    const antes = await foto();
+    await expectExpectedFailure(`2.3 ${etiqueta} → 22023 con el mensaje de la regla`, pedir(), ['22023'], MENSAJE);
+    const despues = await foto();
+    check(despues === antes, `2.3 ${etiqueta}: no quedó contrato, cuenta ni vínculo`, `${antes} → ${despues}`);
+  };
+  // El rechazo de AUTORIDAD tiene su código y su mensaje por actor (Codex R4, auditor P3-4): 42501 y el texto exacto. Un
+  // PGRST202 (la API no encontró la función) es un fallo de MONTAJE, nunca un PASS de permisos.
+  const CARTERA = /^Cliente no encontrado o fuera de tu cartera$/;
+  const SIN_EXECUTE_CREAR = /^permission denied for function crear_contrato$/;
+  const negadoSinFoto = async (etiqueta, pedir, mensaje) => {
+    const antes = await foto();
+    let respuesta;
+    try {
+      respuesta = await pedir();
+    } catch (error) {
+      fail(`2.3 ${etiqueta}: excepción de red/cliente — ${error?.message ?? String(error)}`);
+      return;
+    }
+    const error = respuesta?.error;
+    if (error?.code === 'PGRST202') {
+      fail(`2.3 ${etiqueta}: PGRST202, la API no encontró la función — fallo de MONTAJE, no un rechazo de permisos (${errorText(error)})`);
+    } else {
+      check(error?.code === '42501' && mensaje.test(error?.message ?? ''), `2.3 ${etiqueta}: 42501 con su mensaje exacto`,
+        error ? errorText(error) : `ACEPTADO: ${JSON.stringify(respuesta?.data ?? null).slice(0, 200)}`);
+    }
+    const despues = await foto();
+    check(despues === antes, `2.3 ${etiqueta}: no quedó contrato, cuenta ni vínculo`, `${antes} → ${despues}`);
+  };
+  // Un positivo acredita la PERSISTENCIA (Codex R3): la respuesta trae el id, la fila existe, es del cliente bancario y guarda el
+  // mismo número que se respondió.
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const acepta = async (etiqueta, pedir, esperado) => {
+    const respuesta = await positive(`2.3 ${etiqueta}`, pedir());
+    if (!respuesta) return null;
+    const numero = respuesta.data?.numero_contrato;
+    const id = respuesta.data?.id;
+    const casa = esperado instanceof RegExp ? esperado.test(String(numero ?? '')) : numero === esperado;
+    check(casa, `2.3 ${etiqueta}: nace con el número ${esperado}`, String(numero));
+    if (!check(typeof id === 'string' && UUID.test(id), `2.3 ${etiqueta}: la respuesta trae el id del contrato`,
+      JSON.stringify(respuesta.data ?? null).slice(0, 200))) {
+      return null;
+    }
+    const fila = await requireAdmin(`2.3 ${etiqueta}: releer el contrato`,
+      admin.from('contratos').select('id, cliente_id, numero_contrato').eq('id', id).maybeSingle());
+    check(fila.data !== null && fila.data.cliente_id === bankProfileId && typeof numero === 'string'
+      && fila.data.numero_contrato === numero,
+    `2.3 ${etiqueta}: el contrato existe, es del cliente bancario y quedó guardado con ese número`, JSON.stringify(fila.data ?? null));
+    return typeof numero === 'string' ? numero : null;
+  };
+  const vend1 = sessions.vend1.client;
+  // Como el ensayo bancario (testContractBankAccounts, «resolver_en_puertas»): con la bandera de identidad ENCENDIDA,
+  // private.asegurar_identidad_perfil rechaza al cliente bancario (P0409) y toda alta moriría antes de llegar a la guarda
+  // del número. Se apaga solo durante este bloque. Ronda 3 (nota de Codex): foto de la FILA COMPLETA antes de tocarla y
+  // restauración exacta en el finally, también si falla al apagarla.
+  const fotoResolver = fotoBanderaFueraDeBanda('resolver_en_puertas');
+  if (!fotoResolver) {
+    fail('2.3: la bandera resolver_en_puertas no existe en esta base: bloque 2.3 abortado');
+    return;
+  }
+  try {
+    ejecutarFueraDeBanda('2.3: apagar resolver_en_puertas',
+      "update crm.multiempresa_flags set activo = false where nombre = 'resolver_en_puertas';");
+    // (1) vend1 (comercial + vendedor, no exento) por la llamada directa a public.crear_contrato.
+    for (const [etiqueta, numero] of [['sin la clave', SIN_NUMERO], ['vacío', ''], ['un espacio', ' '], ['«ABC»', 'ABC']]) {
+      await rechazaFormato(`vend1 directa ${etiqueta}`, () => directa(vend1, numero));
+    }
+    // (2) Por la puerta del CRM con cuenta NUEVA: la cuenta se inserta antes de delegar en public.crear_contrato, así que
+    //     el rechazo tiene que llevarse también la cuenta y el vínculo (la foto los cuenta).
+    for (const [etiqueta, numero] of [['sin la clave', SIN_NUMERO], ['«ABC»', 'ABC']]) {
+      await rechazaFormato(`vend1 por pdf_v2 con cuenta nueva ${etiqueta}`, () => puerta(vend1, numero));
+    }
+    // (3) La `gerencia` del fixture (comercial + gerencia: NO exenta) y sup1.
+    for (const clave of ['gerencia', 'sup1']) {
+      await rechazaFormato(`${clave} directa sin la clave`, () => directa(sessions[clave].client, SIN_NUMERO));
+      await rechazaFormato(`${clave} directa «ABC»`, () => directa(sessions[clave].client, 'ABC'));
+    }
+    await rechazaFormato('gerencia por pdf_v2 con cuenta nueva «ABC»', () => puerta(sessions.gerencia.client, 'ABC'));
+    // (5) Formas casi válidas, por HTTP real (los dígitos no ASCII viajan en UTF-8).
+    for (const [etiqueta, numero] of [
+      ['serie 2027', '2027-01-000009'],
+      ['5 dígitos', '2026-01-12345'],
+      ['7 dígitos', '2026-01-1234567'],
+      ['6 dígitos arábigo-índicos', '2026-01-٠٠٠٠٠٩'],
+      ['el 01 no es el mes', '2026-02-000011'],
+      ['un salto de línea al final', `${numeros.numero('salto')}\n`],
+    ]) {
+      await rechazaFormato(`vend1 directa ${etiqueta}`, () => directa(vend1, numero));
+    }
+    // (4) Positivos de vend1: número libre y válido por las dos vías; el recortado se guarda recortado; el duplicado conserva
+    //     su error de siempre (P0001).
+    const numeroDirecta = numeros.numero('vend1-directa');
+    await acepta('vend1 directa con un número válido y libre → alta', () => directa(vend1, numeroDirecta), numeroDirecta);
+    await acepta('vend1 por pdf_v2 con un número válido y libre → alta',
+      () => puerta(vend1, numeros.numero('vend1-puerta')), numeros.numero('vend1-puerta'));
+    await acepta('vend1 directa con el número entre espacios → alta con el número recortado',
+      () => directa(vend1, `  ${numeros.numero('vend1-recortado')}  `), numeros.numero('vend1-recortado'));
+    await expectExpectedFailure('2.3 vend1 directa con un número válido que ya existe → P0001 (el duplicado conserva su error)',
+      directa(vend1, numeroDirecta), ['P0001'], /El N de contrato .* ya existe/);
+
+    // (6) El par exento (D-17) conserva lo de antes; (7) admin y superadmin SIN Gerencia no son exentos.
+    if (ex.exentoAdminGerencia && ex.exentoSuperadminGerencia) {
+      const AUTOGENERADO = new RegExp(`^AC-${anioLima}-[0-9]{4}$`);
+      await acepta('exento admin|gerencia directa sin la clave → autogenera AC-AAAA-NNNN',
+        () => directa(ex.exentoAdminGerencia.client, SIN_NUMERO), AUTOGENERADO);
+      await acepta('exento superadmin|gerencia por pdf_v2 sin la clave → autogenera AC-AAAA-NNNN',
+        () => puerta(ex.exentoSuperadminGerencia.client, SIN_NUMERO), AUTOGENERADO);
+      const libre = `ABC-${token}`;
+      await acepta('exento superadmin|gerencia directa con un número fuera de forma → lo acepta',
+        () => directa(ex.exentoSuperadminGerencia.client, libre), libre);
+      await expectExpectedFailure('2.3 exento admin|gerencia con ese número ya usado → P0001 (la excepción no salta el duplicado)',
+        directa(ex.exentoAdminGerencia.client, libre), ['P0001'], /El N de contrato .* ya existe/);
+      await rechazaFormato('vend1 directa con el número fuera de forma que el exento ya usó (inválido Y duplicado: manda el formato)',
+        () => directa(vend1, libre));
+    } else {
+      fail('2.3: faltan las sesiones del par exento (D-17); los casos del exento NO corrieron');
+    }
+    for (const clave of ['adminSinCrm', 'superadminSinCrm']) {
+      if (!ex[clave]) { fail(`2.3: falta la sesión ${clave} (D-17)`); continue; }
+      await rechazaFormato(`${clave} directa sin la clave (no es Gerencia: no es exento)`, () => directa(ex[clave].client, SIN_NUMERO));
+      await rechazaFormato(`${clave} directa «ABC»`, () => directa(ex[clave].client, 'ABC'));
+    }
+    // Los casi-pares con un flag apagado ni siquiera llegan a la guarda: sin autoridad de ventas (membresía revocada, o perfil
+    // suspendido: es_admin() exige perfil activo). Nunca son exentos.
+    for (const clave of ['adminGerenciaCrmInactiva', 'adminGerenciaPortalInactivo']) {
+      if (!ex[clave]) { fail(`2.3: falta la sesión ${clave} (D-17)`); continue; }
+      await negadoSinFoto(`${clave} directa «ABC» → 42501 «Cliente no encontrado o fuera de tu cartera» (sin autoridad de ventas; nunca exento)`,
+        () => directa(ex[clave].client, 'ABC'), CARTERA);
+      await negadoSinFoto(`${clave} directa sin la clave → 42501 «Cliente no encontrado o fuera de tu cartera»`,
+        () => directa(ex[clave].client, SIN_NUMERO), CARTERA);
+    }
+    // (8) service_role por la llamada directa: sin sesión de usuario no hay autoridad ni excepción. Su 42501 sale de DENTRO de la
+    //     función solo si conserva EXECUTE (catálogo): sin él, el 42501 sería el de la ACL y el caso no probaría la guarda.
+    if (check(contarFueraDeBanda('2.3: EXECUTE de service_role',
+      "select has_function_privilege('service_role', 'public.crear_contrato(jsonb,jsonb)'::regprocedure, 'EXECUTE')::int") === 1,
+    '2.3 catálogo: service_role conserva EXECUTE sobre public.crear_contrato (su rechazo sale de dentro de la función)')) {
+      await negadoSinFoto('service_role directa «ABC» → 42501 «Cliente no encontrado o fuera de tu cartera» (sin sesión de usuario no hay excepción)',
+        () => directa(admin, 'ABC'), CARTERA);
+    }
+    // (9) anon: sin EXECUTE (catálogo) → el 42501 de la ACL, «permission denied for function crear_contrato».
+    const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-numero-contrato'));
+    if (check(contarFueraDeBanda('2.3: EXECUTE de anon',
+      "select has_function_privilege('anon', 'public.crear_contrato(jsonb,jsonb)'::regprocedure, 'EXECUTE')::int") === 0,
+    '2.3 catálogo: anon NO tiene EXECUTE sobre public.crear_contrato')) {
+      await negadoSinFoto('anon directa «ABC» → 42501 sin EXECUTE (permission denied for function crear_contrato)',
+        () => directa(anon, 'ABC'), SIN_EXECUTE_CREAR);
+    }
+  } finally {
+    // Nunca tapa el error del bloque: si no puede restaurar, queda como fallo con la fila de antes para hacerlo a mano.
+    try {
+      check(restaurarBanderaFueraDeBanda('resolver_en_puertas', fotoResolver),
+        '2.3: resolver_en_puertas vuelve EXACTAMENTE a su fila de antes (activo, descripción, actualizado_en y actualizado_por)');
+    } catch (error) {
+      fail(`2.3: NO se pudo restaurar resolver_en_puertas — ${error?.message ?? String(error)}. Su fila de antes: ${fotoResolver}`);
+    }
+  }
+}
+
+// ── 2.6 · No se anula la venta de un mes sellado (20261009210000) ────────────────────────────────────────────────────
+// Los casos del auditor de permisos de F4.2 (TEST GAPS): catálogo; denegados ANTES del mes (42501) por rol, inactivos,
+// casi-pares D-17, anon y service_role; no exento: P0409 exacto (mensaje y pista) por las dos puertas, nada escrito, mes
+// desconocido; exentos por las dos puertas (ok, mes_cerrado:false, ajuste_id:null, excepcion_*); D-14 (no inicial, mes
+// abierto, ya anulado); referido y base cargada en mes sellado (P3-1); eliminar_inversion_fn en mes sellado; escalada;
+// inmutabilidad de la actividad del exento. Ronda 3: precedencia del detector (episodio del ledger frente a `convertido_en`),
+// estado persistido de cada anulación aceptada y escalada del admin del Portal (P2-2), con foto y restauración exacta.
+// EL MUNDO: el gate no sella meses reales (ver «Cierre de mes»: sellar es irreversible). Aquí se sella un mes PROPIO,
+// lejano y sin otro uso (2001-07; 2001-08 queda abierto) y se siembran ventas de 2001 por la vía fuera de banda con los
+// disparadores apagados solo para la siembra (como el oráculo `anular-venta-mes-sellado/pruebas.sql` y
+// `eliminar-inversion/test-eliminar-inversion.sql`). La política de conversión de septiembre está ENCENDIDA en producción
+// (activada el 27/09/2026) y lo estará en la branch, pero las ventas sembradas son de 2001: la vía (a) del detector —el periodo
+// de su acreditación— solo aplica a una venta con episodio de cierre desde el 01/09/2026 (fecha fija en el detector y en
+// `private.conversion_cierres`, cuya rama del ledger conserva con la política encendida los episodios anteriores), así que,
+// encendida o apagada, el detector resuelve el mes por el episodio del ledger o por `convertido_en`; y los disparadores de
+// acreditación no tocan estas ventas (`private.conversion_sincronizar_lead` no hace nada con episodios anteriores al
+// 01/09/2026). La vía (a) no se siembra aquí: solo la cubre el oráculo del laboratorio. Antes de sellar, el bloque
+// se NIEGA si la base tiene algún mes sellado desde 2002 (no es una branch de ensayo: P1 del auditor) o si 2001-07 ya está
+// sellado, sea de procedencia desconocida o de otra corrida (Codex R2). El sello y las ventas llevan el id de la corrida
+// (`cobertura.ensayo_gate_rls` y `leads.nota`) y el finally retira SOLO eso —quita el sello de esta corrida y da de baja
+// (soft-delete) sus ventas— sin tapar el error de la corrida si la limpieza falla. Las anulaciones, actividades y copias que
+// nacen son inmutables y se quedan.
+async function testAnularVentaMesSellado(sessions, seed, d17) {
+  console.log('\n— 2.6 · mes sellado: no se anula la venta de un mes sellado (salvo el par admin|gerencia) —');
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`2.6: ${etiqueta}`, sql);
+  const texto = (etiqueta, sql) => textoFueraDeBanda(`2.6: ${etiqueta}`, sql);
+  const ex = d17?.sesiones ?? {};
+  const exId = d17?.ids ?? {};
+  const ID = (clave) => seed.profileIdByKey[clave];
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-mes-sellado'));
+  const PISTA = 'Un mes sellado no se reescribe. La corrección se hace por otra vía, fuera del sistema.';
+  const MES = MES_SELLADO_ENSAYO;
+  const MES_ABIERTO = '2001-08-01';
+  const SELLADO = /^No se puede anular: el mes de esta venta \(2001-07\) ya está sellado$/;
+  const DESCONOCIDO = /^No se puede anular: no se puede determinar el mes de esta venta$/;
+  const YA_ANULADO = /^Ese cierre ya estaba anulado$/;
+  const SOLO_GERENCIA = /^Solo gerencia anula cierres( externos)?$/;
+  const SIN_EXECUTE = /permission denied/i;
+
+  // ── Catálogo ──
+  check(cuenta('ficha del detector', `select count(*) from pg_proc p
+      where p.oid = 'private.mes_sellado_de_venta(uuid)'::regprocedure and not p.prosecdef
+        and p.proowner = 'postgres'::regrole and p.proconfig = array['search_path=""']
+        and not exists (select 1 from unnest(array['anon','authenticated','service_role']) r(rol)
+                         where has_function_privilege(r.rol, p.oid, 'EXECUTE'))
+        and not exists (select 1 from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a where a.grantee = 0)`) === 1,
+    '2.6 catálogo: el detector es INVOKER de postgres, search_path vacío, sin EXECUTE para anon, authenticated, service_role ni PUBLIC');
+  check(cuenta('ficha de las puertas', `select count(*) from pg_proc p
+      where p.oid in ('crm.anular_cierre_avance(uuid,text)'::regprocedure, 'crm.anular_cierre_externo(uuid,text)'::regprocedure)
+        and p.prosecdef and p.proowner = 'postgres'::regrole and p.proconfig = array['search_path=""']
+        and has_function_privilege('authenticated', p.oid, 'EXECUTE')
+        and not has_function_privilege('anon', p.oid, 'EXECUTE') and not has_function_privilege('service_role', p.oid, 'EXECUTE')
+        and not exists (select 1 from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a where a.grantee = 0)`) === 2,
+    '2.6 catálogo: las dos puertas son DEFINER de postgres con search_path vacío y solo authenticated las ejecuta');
+  const sondasDetector = [['anon', anon], ['vend1', sessions.vend1.client], ['gerencia', sessions.gerencia.client], ['service_role', admin]];
+  if (ex.exentoAdminGerencia) sondasDetector.push(['exento admin|gerencia', ex.exentoAdminGerencia.client]);
+  // Un código CONCRETO (auditor P3-4; como el filtro de potencial, Codex f3b r2): `private` no está expuesto, PGRST106. Un error
+  // de red, de ejecución o un PGRST202 no acreditan que el detector esté fuera de la API.
+  for (const [quien, cliente] of sondasDetector) {
+    const { data, error } = await cliente.schema('private').rpc('mes_sellado_de_venta', { p_lead_id: randomUUID() });
+    check(error?.code === 'PGRST106' && data == null,
+      `2.6 ${quien} NO alcanza private.mes_sellado_de_venta por la API: esquema no expuesto, PGRST106 (recibido ${error?.code ?? 'sin error'})`);
+  }
+
+  if (cuenta('mes abierto de ensayo', `select count(*) from crm.periodos_cerrados where periodo = '${MES_ABIERTO}'`) !== 0) {
+    fail(`2.6: ${MES_ABIERTO} aparece SELLADO en esta base; el caso «mes abierto» no sería concluyente: bloque 2.6 abortado`);
+    return;
+  }
+  if (!ex.exentoAdminGerencia || !ex.exentoSuperadminGerencia || !ex.adminSinCrm) {
+    fail('2.6: faltan sesiones D-17 (par exento o admin sin CRM): bloque 2.6 abortado');
+    return;
+  }
+
+  // El estado de la política de conversión de septiembre, al registro (encendida en producción y en la branch). No cambia lo
+  // esperado: ver la cabecera del bloque.
+  console.log(`  política de conversión de septiembre en esta base: ${texto('política de conversión', `select coalesce(
+      (select 'ENCENDIDA (activada ' || cp.activada_en::text || ')' from crm.conversion_politica cp where cp.activada_en is not null
+        order by cp.activada_en limit 1), 'apagada')`)}; con ventas de 2001 el detector se ejerce por las vías (b) episodio del ledger, `
+    + '(c) convertido_en y (d) desconocido, no por la (a)');
+
+  // ── Antes de sellar, el bloque se NIEGA en una base que no parece de ensayo o si 2001-07 ya está sellado ──
+  const sellosReales = cuenta('meses sellados desde 2002', "select count(*) from crm.periodos_cerrados where periodo >= '2002-01-01'");
+  if (sellosReales !== 0) {
+    fail(`2.6: esta base tiene ${sellosReales} mes(es) SELLADO(S) desde 2002 y el gate no sella aquí su mes de ensayo (una branch de `
+      + 'ensayo no sella meses reales: ¿apunta la vía fuera de banda a otra base?). Bloque 2.6 abortado: usar una branch nueva (runbook F4.6)');
+    return;
+  }
+  const procedencia = texto('procedencia de un sello previo de 2001-07',
+    `select coalesce(pc.cobertura->>'ensayo_gate_rls', '(sin marca)') from crm.periodos_cerrados pc where pc.periodo = '${MES}'`);
+  if (procedencia === '(sin marca)') {
+    fail(`2.6: ${MES.slice(0, 7)} YA está sellado y no lo selló este gate (procedencia desconocida): no se reutiliza ni se toca. `
+      + 'Averiguar quién lo selló; si es una branch de ensayo, borrarla y crear otra (runbook F4.6). Bloque 2.6 abortado');
+    return;
+  }
+  if (procedencia) {
+    const aMano = ID_DE_CORRIDA.test(procedencia)
+      ? `begin; ${sqlRetiroDeCorrida(procedencia).replace(/\s+/g, ' ')} commit;`
+      : '(la marca no es un id de corrida: revisarla a mano)';
+    fail(`2.6: ${MES.slice(0, 7)} está sellado por OTRA corrida del gate (${procedencia}): o hay otra corrida en curso en esta base (el `
+      + 'grupo A exige ejecución exclusiva) o una anterior se cortó antes de su limpieza. No se reutiliza. Si no hay otra corrida en '
+      + `curso: borrar la branch (runbook F4.6) o retirar lo de esa corrida a mano por la vía fuera de banda con: ${aMano}. Bloque 2.6 abortado`);
+    return;
+  }
+
+  // ── La siembra (una transacción, disparadores apagados solo aquí), marcada con el id de esta corrida ──
+  const CORRIDA = randomUUID();
+  const MARCA = marcaDeCorrida(CORRIDA);
+  const RUN = String(randomInt(100000, 1000000));
+  const numerosAvance = await bloqueNumerosContrato('2.6 venta Avance a eliminar');
+  const vend1Id = ID('vend1');
+  const gerenciaId = ID('gerencia');
+  const clienteId = ID(BANK_CLIENT.key);
+  const leadsSembrados = [];
+  const sql = [];
+  let n = 0;
+  // `cuando` es la fecha de la venta (`convertido_en` y la fecha comercial del cierre); `episodioEn`, la de su episodio de cierre
+  // en el ledger (por defecto, la misma): la precedencia del detector se prueba separándolas.
+  const venta = ({ clave, tipo = 'avance', cuando = '2001-07-12 15:00-05', episodio = true, episodioEn = cuando, sinFecha = false,
+    origen = 'landing', anulada = false, inversion = false } = {}) => {
+    n += 1;
+    const v = {
+      clave, lead: randomUUID(), cierre: tipo === 'avance' ? null : randomUUID(), inversionista: randomUUID(),
+      inversion: randomUUID(), solicitud: randomUUID(), contrato: null,
+    };
+    leadsSembrados.push(v.lead);
+    const dia = cuando.slice(0, 10);
+    const sufijo = `${RUN}-${String(n).padStart(2, '0')}`;
+    const documento = `7${RUN.slice(0, 5)}${String(n).padStart(2, '0')}`;
+    const empresa = (clave_) => `(select e.id from crm.empresas e where e.clave = '${clave_}')`;
+    if (tipo === 'avance' && inversion) v.contrato = randomUUID();
+    sql.push(`insert into crm.leads (id, nombre_completo, telefono, origen, etapa, convertido_en, vendedor_id, contrato_id,
+        activo, monto_estimado, perfil_id, nota)
+      values ('${v.lead}', 'RLS 2.6 ${clave.toUpperCase()} ${RUN}', '97${RUN.slice(0, 4)}${String(n).padStart(3, '0')}', '${origen}',
+        'convertido', ${sinFecha ? 'null' : `'${cuando}'`}, '${vend1Id}', ${v.contrato ? `'${v.contrato}'` : 'null'}, true, 1000,
+        ${v.contrato ? `'${clienteId}'` : 'null'}, '${MARCA}');`);
+    if (episodio) {
+      sql.push(`insert into crm.lead_asignaciones (lead_id, ciclo_n, episodio_n, analista_id, motivo_apertura, asignado_en, moneda,
+          origen, sla_global_iniciado_en, sla_politica_asignacion_id, primera_gestion_limite_en, primer_contacto_limite_en,
+          resultado, resultado_en, finalizado_en, finalizado_por, motivo_cierre)
+        values ('${v.lead}', 1, 1, '${vend1Id}', 'asignado', '${episodioEn}'::timestamptz - interval '5 days', 'PEN', '${origen}',
+          '${episodioEn}'::timestamptz - interval '5 days', gen_random_uuid(), '${episodioEn}', '${episodioEn}', 'convertido',
+          '${episodioEn}', '${episodioEn}', '${vend1Id}', 'convertido');`);
+    }
+    if (tipo === 'externo' || tipo === 'no_inicial') {
+      const inicial = tipo === 'externo';
+      const conInversionista = !inicial || inversion;
+      if (conInversionista) sql.push(`insert into crm.inversionistas (id, estado) values ('${v.inversionista}', 'activo');`);
+      sql.push(`insert into crm.cierres_externos (id, cooperativa, monto, moneda, documento_tipo, documento, nombre_completo,
+          numero_transaccion, vendedor_id, creado_por, es_cierre_inicial, lead_id, inversionista_id, fecha_comercial,
+          fecha_imputacion, comprobante_objeto_id, referencia_externa, anulado_en, anulado_por, motivo_anulacion)
+        values ('${v.cierre}', '${inicial ? 'qorilazo' : 'prodelco'}', ${inicial ? 2000 : 500}, '${inicial ? 'PEN' : 'USD'}', 'DNI',
+          '${documento}', 'PERSONA RLS 2.6 ${sufijo}', 'RLS26-${sufijo}', '${vend1Id}', '${vend1Id}', ${inicial}, '${v.lead}',
+          ${conInversionista ? `'${v.inversionista}'` : 'null'}, ${sinFecha ? 'null' : `'${dia}'`}, ${sinFecha ? 'null' : `'${dia}'`},
+          ${conInversionista ? 'gen_random_uuid()' : 'null'}, ${conInversionista ? `'REF-RLS26-${sufijo}'` : 'null'},
+          ${anulada ? `'${dia} 18:00-05'` : 'null'}, ${anulada ? `'${gerenciaId}'` : 'null'},
+          ${anulada ? "'Anulada antes de la regla (gate RLS 2.6)'" : 'null'});`);
+    }
+    if (tipo === 'avance' && anulada) {
+      sql.push(`insert into crm.cierres_avance_anulados (lead_id, acreditado_a, motivo, anulado_por)
+        values ('${v.lead}', '${vend1Id}', 'Anulada antes de la regla (gate RLS 2.6)', '${gerenciaId}');`);
+    }
+    if (inversion) {
+      // El mundo de una inversión, con las mismas columnas que test-eliminar-inversion.sql (r1–r4).
+      if (tipo === 'avance') {
+        sql.push(`insert into public.contratos (id, numero_contrato, cliente_id, capital, moneda, modalidad, fecha_inicio,
+            fecha_vencimiento, producto_condicion_id, fecha_cierre_comercial, estado, categoria)
+          values ('${v.contrato}', '${numerosAvance.numero(clave)}', '${clienteId}', 6000, 'PEN', 'mensual', '${dia}',
+            '${Number(dia.slice(0, 4)) + 1}${dia.slice(4)}', gen_random_uuid(), '${dia}', 'activo', 'nuevo');`);
+        sql.push(`insert into crm.inversionistas (id, estado) values ('${v.inversionista}', 'activo');`);
+      }
+      const fuente = tipo === 'avance' ? `contrato_id` : `cierre_externo_id`;
+      const fuenteId = tipo === 'avance' ? v.contrato : v.cierre;
+      sql.push(`insert into crm.inversiones (id, inversionista_id, empresa_id, ${fuente}, estado, fecha_comercial, es_primera_conversion)
+        values ('${v.inversion}', '${v.inversionista}', ${empresa(tipo === 'avance' ? 'avance' : 'qorilazo')}, '${fuenteId}',
+          '${anulada ? 'anulada' : 'vigente'}', '${dia}', true);`);
+      sql.push(`insert into crm.inversion_titulares (inversion_id, inversionista_id) values ('${v.inversion}', '${v.inversionista}');`);
+      sql.push(`insert into crm.inversion_eventos (inversion_id, tipo) values ('${v.inversion}', 'registro');`);
+      if (tipo !== 'avance') {
+        sql.push(`insert into crm.depositos_reclamados (numero_norm, cierre_id, reclamado_por)
+          values ('DEP-RLS26-${sufijo}', '${v.cierre}', '${vend1Id}');`);
+      }
+      sql.push(`insert into crm.inversion_solicitudes (id, inversionista_id, empresa_id, responsable_esperado_id, hash_payload, datos,
+          creado_por, estado, inversion_id, resultado, confirmado_por)
+        values ('${v.solicitud}', '${v.inversionista}', ${empresa(tipo === 'avance' ? 'avance' : 'qorilazo')}, '${vend1Id}',
+          md5('${v.solicitud}') || md5('${v.solicitud}x'), '{}'::jsonb, '${vend1Id}', 'confirmada', '${v.inversion}',
+          jsonb_build_object('fuente', jsonb_build_object(${tipo === 'avance' ? `'id', '${v.contrato}'` : `'cierre_id', '${v.cierre}'`})),
+          '${vend1Id}');`);
+    }
+    return v;
+  };
+  const S = {
+    rolAvance: venta({ clave: 'rol-avance' }),
+    rolExterno: venta({ clave: 'rol-externo', tipo: 'externo' }),
+    exAdminAvance: venta({ clave: 'exento-admin-avance' }),
+    exSuperAvance: venta({ clave: 'exento-super-avance' }),
+    exAdminExterno: venta({ clave: 'exento-admin-externo', tipo: 'externo' }),
+    exSuperExterno: venta({ clave: 'exento-super-externo', tipo: 'externo' }),
+    desconocido: venta({ clave: 'desconocido', tipo: 'externo', episodio: false, sinFecha: true }),
+    desconocidoExento: venta({ clave: 'desconocido-exento', tipo: 'externo', episodio: false, sinFecha: true }),
+    abiertoAvance: venta({ clave: 'abierto-avance', cuando: '2001-08-14 15:00-05' }),
+    abiertoExterno: venta({ clave: 'abierto-externo', tipo: 'externo', cuando: '2001-08-14 15:00-05' }),
+    yaAnuladoAvance: venta({ clave: 'ya-anulado-avance', anulada: true }),
+    yaAnuladoExterno: venta({ clave: 'ya-anulado-externo', tipo: 'externo', anulada: true }),
+    noInicial: venta({ clave: 'no-inicial', tipo: 'no_inicial' }),
+    referido: venta({ clave: 'referido', origen: 'referido' }),
+    referidoExento: venta({ clave: 'referido-exento', origen: 'referido' }),
+    base: venta({ clave: 'base-cargada', origen: 'base_cargada' }),
+    baseExento: venta({ clave: 'base-cargada-exento', origen: 'base_cargada' }),
+    elimCoop: venta({ clave: 'eliminar-coop', tipo: 'externo', inversion: true }),
+    elimCoopAnulada: venta({ clave: 'eliminar-coop-anulada', tipo: 'externo', inversion: true, anulada: true }),
+    elimAvance: venta({ clave: 'eliminar-avance', inversion: true }),
+    // Precedencia del detector (Codex hueco 5, auditor P3-3), a caballo del 31/07 → 01/08 en hora de Lima: el episodio del ledger
+    // manda sobre `convertido_en`; sin episodio, manda `convertido_en`.
+    caballoSellado: venta({ clave: 'caballo-episodio-sellado', episodioEn: '2001-07-31 23:30-05', cuando: '2001-08-01 00:30-05' }),
+    caballoAbierto: venta({ clave: 'caballo-episodio-abierto', episodioEn: '2001-08-01 00:30-05', cuando: '2001-07-31 23:30-05' }),
+    sinEpisodioSellado: venta({ clave: 'sin-episodio-sellado', episodio: false, cuando: '2001-07-20 15:00-05' }),
+  };
+  const ajustesAntes = cuenta('ajustes totales antes', 'select count(*) from crm.ajustes_mes_cerrado');
+  const idsSembrados = leadsSembrados.map((x) => `'${x}'`).join(',');
+  try {
+    // Sin `on conflict`: si otra corrida sellara 2001-07 entre la comprobación de arriba y esta transacción, la siembra entera
+    // falla (23505) y no se toca lo ajeno.
+    ejecutarFueraDeBanda('2.6: sembrar el mes sellado y las ventas de 2001, marcados con esta corrida', `
+      set local session_replication_role = replica;
+      insert into crm.periodos_cerrados (periodo, ponderacion_referido, meta_revision, cobertura)
+        values ('${MES}', 0.5, 1, jsonb_build_object('ensayo_gate_rls', '${CORRIDA}'));
+      ${sql.join('\n')}
+      set local session_replication_role = default;`);
+    if (!check(cuenta('siembra', `select count(*) from crm.leads where id in (${idsSembrados}) and nota = '${MARCA}'`) === leadsSembrados.length
+      && cuenta('sello sembrado', `select count(*) from crm.periodos_cerrados where periodo = '${MES}'
+          and cobertura->>'ensayo_gate_rls' = '${CORRIDA}'`) === 1
+      && cuenta('mes abierto sigue abierto', `select count(*) from crm.periodos_cerrados where periodo = '${MES_ABIERTO}'`) === 0,
+    `2.6 montaje: ${leadsSembrados.length} ventas de 2001 y el sello de ${MES}, con la marca de esta corrida, y ${MES_ABIERTO} abierto`)) {
+      return;
+    }
+
+    const MOTIVO = 'Gate RLS 2.6: anulación de prueba';
+    const avance = (cliente, lead) => cliente.schema('crm').rpc('anular_cierre_avance', { p_lead_id: lead, p_motivo: MOTIVO });
+    const externo = (cliente, cierre) => cliente.schema('crm').rpc('anular_cierre_externo', { p_cierre_id: cierre, p_motivo: MOTIVO });
+    const eliminar = (cliente, fuente) => cliente.schema('crm').rpc('eliminar_inversion_fn', { p_fuente_id: fuente, p_motivo: 'Gate RLS 2.6: eliminación de prueba' });
+    // Foto POR CONTENIDO de todo lo que una anulación o una eliminación puede tocar alrededor de una venta.
+    const foto = (v) => texto(`foto de ${v.clave}`, `select md5(concat_ws('|',
+        coalesce((select l::text from crm.leads l where l.id = '${v.lead}'), '-'),
+        coalesce((select string_agg(a::text, ',' order by a.id) from crm.cierres_avance_anulados a where a.lead_id = '${v.lead}'), '-'),
+        coalesce((select string_agg(c::text, ',' order by c.id) from crm.cierres_externos c where c.lead_id = '${v.lead}'), '-'),
+        coalesce((select string_agg(a::text, ',' order by a.id) from crm.actividades a where a.lead_id = '${v.lead}'), '-'),
+        coalesce((select string_agg(j::text, ',' order by j.id) from crm.ajustes_mes_cerrado j where j.lead_id = '${v.lead}'), '-'),
+        coalesce((select string_agg(i::text, ',' order by i.id) from crm.inversiones_eliminadas i where i.lead_id = '${v.lead}'), '-'),
+        coalesce((select string_agg(i::text, ',' order by i.id) from crm.inversiones i where i.id = '${v.inversion}'), '-'),
+        coalesce((select c::text from public.contratos c where c.id = ${v.contrato ? `'${v.contrato}'` : 'null'}), '-')))`);
+    // Rechazo de la regla: código, mensaje y pista EXACTOS, y la venta intacta.
+    const rechazo = async (etiqueta, v, pedir, mensaje, { pista = PISTA } = {}) => {
+      const antes = foto(v);
+      let respuesta;
+      try {
+        respuesta = await pedir();
+      } catch (error) {
+        fail(`2.6 ${etiqueta}: excepción de red/cliente — ${error?.message ?? String(error)}`);
+        return;
+      }
+      const error = respuesta?.error;
+      check(error?.code === 'P0409' && mensaje.test(error?.message ?? '') && (error?.hint ?? null) === pista,
+        `2.6 ${etiqueta} → P0409 con su mensaje${pista ? ' y su pista' : ' (sin pista)'} exactos`,
+        error ? errorText(error) : `ACEPTADO: ${JSON.stringify(respuesta?.data ?? null).slice(0, 200)}`);
+      check(foto(v) === antes, `2.6 ${etiqueta}: nada escrito (venta, anulaciones, cierres, actividades, ajustes, inversión y copias)`);
+    };
+    const negados = async (etiqueta, v, llamadas, mensaje) => {
+      const antes = foto(v);
+      for (const [quien, pedir] of llamadas) {
+        await expectExpectedFailure(`2.6 ${etiqueta}: ${quien} → 42501 antes de mirar el mes`, pedir(), ['42501'], mensaje);
+      }
+      check(foto(v) === antes, `2.6 ${etiqueta}: ninguna de esas llamadas escribió nada`);
+    };
+    const actividadDe = async (v, accion, actorId) => {
+      const filas = await requireAdmin(`2.6: actividad de ${v.clave}`,
+        admin.schema('crm').from('actividades').select('id, metadata, creado_por').eq('lead_id', v.lead).eq('creado_por', actorId));
+      return (filas.data ?? []).find((fila) => fila.metadata?.accion === accion) ?? null;
+    };
+    const sinAjuste = (v) => cuenta(`ajustes de ${v.clave}`, `select count(*) from crm.ajustes_mes_cerrado where lead_id = '${v.lead}'`) === 0;
+    // El estado PERSISTIDO de una anulación aceptada (Codex R3): su fila, con su autor y su motivo.
+    const anuladaPor = (v, actorId) => (v.cierre
+      ? cuenta(`anulación guardada de ${v.clave}`, `select count(*) from crm.cierres_externos where id = '${v.cierre}'
+          and anulado_en is not null and anulado_por = '${actorId}' and motivo_anulacion = '${MOTIVO}'`)
+      : cuenta(`anulación guardada de ${v.clave}`, `select count(*) from crm.cierres_avance_anulados where lead_id = '${v.lead}'
+          and anulado_por = '${actorId}' and motivo = '${MOTIVO}'`)) === 1;
+    // El exento anula SIN ajuste y con rastro (D-17): la respuesta conserva su forma y la actividad lleva excepcion_*.
+    const exitoExento = async (etiqueta, v, pedir, actorId, accion, marca) => {
+      const respuesta = await positive(`2.6 ${etiqueta}`, pedir());
+      check(respuesta?.data?.ok === true && respuesta?.data?.mes_cerrado === false && respuesta?.data?.ajuste_id === null,
+        `2.6 ${etiqueta}: responde ok, mes_cerrado:false y ajuste_id:null`, JSON.stringify(respuesta?.data ?? null).slice(0, 240));
+      check(anuladaPor(v, actorId), `2.6 ${etiqueta}: la anulación quedó guardada (autor y motivo)`);
+      check(sinAjuste(v), `2.6 ${etiqueta}: no nace ningún ajuste de mes cerrado`);
+      const fila = await actividadDe(v, accion, actorId);
+      check(fila?.metadata?.excepcion_mes_sellado === marca && fila?.metadata?.excepcion_por === actorId
+        && typeof fila?.metadata?.excepcion_en === 'string' && fila?.metadata?.mes_cerrado === false,
+      `2.6 ${etiqueta}: la actividad deja el rastro de la excepción (excepcion_mes_sellado=${marca}, excepcion_por, excepcion_en)`,
+      JSON.stringify(fila?.metadata ?? null).slice(0, 300));
+      return fila?.id ?? null;
+    };
+    // Lo que sigue igual que hoy (D-14): entra, sin ajuste y SIN rastro de excepción (no hacía falta).
+    const exitoComoHoy = async (etiqueta, v, pedir, actorId, accion) => {
+      const respuesta = await positive(`2.6 ${etiqueta}`, pedir());
+      check(respuesta?.data?.ok === true && respuesta?.data?.mes_cerrado === false && respuesta?.data?.ajuste_id === null,
+        `2.6 ${etiqueta}: responde ok, mes_cerrado:false y ajuste_id:null`, JSON.stringify(respuesta?.data ?? null).slice(0, 240));
+      check(anuladaPor(v, actorId), `2.6 ${etiqueta}: la anulación quedó guardada (autor y motivo)`);
+      const fila = await actividadDe(v, accion, actorId);
+      check(fila !== null && !('excepcion_mes_sellado' in fila.metadata) && !('excepcion_por' in fila.metadata)
+        && !('excepcion_en' in fila.metadata),
+      `2.6 ${etiqueta}: anula como hoy, sin rastro de excepción`, JSON.stringify(fila?.metadata ?? null).slice(0, 300));
+    };
+
+    // ── Denegados ANTES del mes (42501), sobre ventas de un mes SELLADO: si la guarda del rol corriera después, aquí
+    //    saldría P0409 en vez de 42501 ──
+    const sinGerencia = [
+      ...['vend1', 'sup1', 'coordinador', 'directorio', 'clientBank', 'vendInactive']
+        .filter((clave) => sessions[clave]).map((clave) => [clave, sessions[clave].client]),
+      ...['adminSinCrm', 'superadminSinCrm', 'adminGerenciaCrmInactiva', 'adminGerenciaPortalInactivo']
+        .filter((clave) => ex[clave]).map((clave) => [clave, ex[clave].client]),
+    ];
+    await negados('puerta Avance, mes sellado', S.rolAvance,
+      sinGerencia.map(([quien, cliente]) => [quien, () => avance(cliente, S.rolAvance.lead)]), SOLO_GERENCIA);
+    await negados('puerta de cooperativas, mes sellado', S.rolExterno,
+      sinGerencia.map(([quien, cliente]) => [quien, () => externo(cliente, S.rolExterno.cierre)]), SOLO_GERENCIA);
+    await negados('puerta Avance, mes sellado, sin EXECUTE', S.rolAvance, [
+      ['anon', () => avance(anon, S.rolAvance.lead)],
+      ['service_role', () => avance(admin, S.rolAvance.lead)],
+    ], SIN_EXECUTE);
+    await negados('puerta de cooperativas, mes sellado, sin EXECUTE', S.rolExterno, [
+      ['anon', () => externo(anon, S.rolExterno.cierre)],
+      ['service_role', () => externo(admin, S.rolExterno.cierre)],
+    ], SIN_EXECUTE);
+
+    // ── No exento (la `gerencia` del fixture, comercial + gerencia) en mes sellado: P0409, nada escrito ──
+    await rechazo('gerencia no exenta anula por la puerta Avance una venta de un mes sellado', S.rolAvance,
+      () => avance(sessions.gerencia.client, S.rolAvance.lead), SELLADO);
+    await rechazo('gerencia no exenta anula por la puerta de cooperativas una venta de un mes sellado', S.rolExterno,
+      () => externo(sessions.gerencia.client, S.rolExterno.cierre), SELLADO);
+    await rechazo('gerencia no exenta anula una venta cuyo mes no se puede determinar (falla cerrado)', S.desconocido,
+      () => externo(sessions.gerencia.client, S.desconocido.cierre), DESCONOCIDO);
+    // P3-1 y bases cargadas: ventas que HOY no harían nacer ajuste (origen con peso o tope) se rechazan igual (D-14).
+    await rechazo('gerencia no exenta anula un REFERIDO de un mes sellado', S.referido,
+      () => avance(sessions.gerencia.client, S.referido.lead), SELLADO);
+    await rechazo('gerencia no exenta anula una venta de BASE CARGADA de un mes sellado', S.base,
+      () => avance(sessions.gerencia.client, S.base.lead), SELLADO);
+
+    // ── Exentos (D-17) por las dos puertas ──
+    const exA = exId.exentoAdminGerencia;
+    const exS = exId.exentoSuperadminGerencia;
+    const actividadExento = await exitoExento('exento admin|gerencia anula por la puerta Avance en mes sellado', S.exAdminAvance,
+      () => avance(ex.exentoAdminGerencia.client, S.exAdminAvance.lead), exA, 'anulacion_cierre_avance', '2001-07');
+    await exitoExento('exento superadmin|gerencia anula por la puerta Avance en mes sellado', S.exSuperAvance,
+      () => avance(ex.exentoSuperadminGerencia.client, S.exSuperAvance.lead), exS, 'anulacion_cierre_avance', '2001-07');
+    await exitoExento('exento admin|gerencia anula por la puerta de cooperativas en mes sellado', S.exAdminExterno,
+      () => externo(ex.exentoAdminGerencia.client, S.exAdminExterno.cierre), exA, 'anulacion_cierre_externo', '2001-07');
+    await exitoExento('exento superadmin|gerencia anula por la puerta de cooperativas en mes sellado', S.exSuperExterno,
+      () => externo(ex.exentoSuperadminGerencia.client, S.exSuperExterno.cierre), exS, 'anulacion_cierre_externo', '2001-07');
+    await exitoExento('exento admin|gerencia anula una venta cuyo mes no se puede determinar', S.desconocidoExento,
+      () => externo(ex.exentoAdminGerencia.client, S.desconocidoExento.cierre), exA, 'anulacion_cierre_externo', 'desconocido');
+    await exitoExento('exento superadmin|gerencia anula un REFERIDO de un mes sellado', S.referidoExento,
+      () => avance(ex.exentoSuperadminGerencia.client, S.referidoExento.lead), exS, 'anulacion_cierre_avance', '2001-07');
+    await exitoExento('exento admin|gerencia anula una venta de BASE CARGADA de un mes sellado', S.baseExento,
+      () => avance(ex.exentoAdminGerencia.client, S.baseExento.lead), exA, 'anulacion_cierre_avance', '2001-07');
+
+    // ── D-14: lo que no cambia ──
+    await exitoComoHoy('gerencia no exenta anula por la puerta Avance una venta de un mes ABIERTO', S.abiertoAvance,
+      () => avance(sessions.gerencia.client, S.abiertoAvance.lead), gerenciaId, 'anulacion_cierre_avance');
+    await exitoComoHoy('gerencia no exenta anula por la puerta de cooperativas una venta de un mes ABIERTO', S.abiertoExterno,
+      () => externo(sessions.gerencia.client, S.abiertoExterno.cierre), gerenciaId, 'anulacion_cierre_externo');
+    await exitoComoHoy('gerencia no exenta anula un cierre de cooperativa NO inicial de un mes sellado (renovación/upgrade: D-14)',
+      S.noInicial, () => externo(sessions.gerencia.client, S.noInicial.cierre), gerenciaId, 'anulacion_cierre_externo');
+    await rechazo('una conversión de Avance YA anulada de un mes sellado conserva su mensaje (no el del sello)', S.yaAnuladoAvance,
+      () => avance(sessions.gerencia.client, S.yaAnuladoAvance.lead), YA_ANULADO, { pista: null });
+    await rechazo('un cierre de cooperativa YA anulado de un mes sellado conserva su mensaje (no el del sello)', S.yaAnuladoExterno,
+      () => externo(sessions.gerencia.client, S.yaAnuladoExterno.cierre), YA_ANULADO, { pista: null });
+
+    // ── Precedencia del detector. Ventas de 2001: con la política de septiembre encendida (producción, branch) o apagada, el
+    //    detector no entra en la vía (a), que solo cubre el oráculo del laboratorio ──
+    await rechazo('gerencia no exenta anula una venta A CABALLO: episodio del ledger el 31/07 23:30 (mes sellado) y convertido_en el 01/08 00:30 (abierto), hora de Lima → manda el ledger',
+      S.caballoSellado, () => avance(sessions.gerencia.client, S.caballoSellado.lead), SELLADO);
+    await exitoComoHoy('gerencia no exenta anula la inversa: episodio el 01/08 00:30 (abierto) y convertido_en el 31/07 23:30 (sellado) → manda el ledger y anula como hoy',
+      S.caballoAbierto, () => avance(sessions.gerencia.client, S.caballoAbierto.lead), gerenciaId, 'anulacion_cierre_avance');
+    await rechazo('gerencia no exenta anula una venta de Avance SIN episodio en el ledger y con convertido_en en el mes sellado → manda convertido_en',
+      S.sinEpisodioSellado, () => avance(sessions.gerencia.client, S.sinEpisodioSellado.lead), SELLADO);
+
+    // ── eliminar_inversion_fn en mes sellado: hereda el rechazo y la excepción porque anula por estas puertas ──
+    await rechazo('eliminar_inversion_fn: gerencia no exenta sobre la conversión de una cooperativa de un mes sellado (P0409 heredado, sin rastro)',
+      S.elimCoop, () => eliminar(sessions.gerencia.client, S.elimCoop.cierre), SELLADO);
+    await negados('eliminar_inversion_fn sobre la conversión de una cooperativa de un mes sellado', S.elimCoop,
+      [['admin sin CRM (la conversión es de Gerencia)', () => eliminar(ex.adminSinCrm.client, S.elimCoop.cierre)]],
+      /solo gerencia puede anularla y eliminarla/);
+    const coop = await positive('2.6 eliminar_inversion_fn: el exento admin|gerencia elimina la conversión de una cooperativa de un mes sellado',
+      eliminar(ex.exentoAdminGerencia.client, S.elimCoop.cierre));
+    check(coop?.data?.ok === true && coop?.data?.conversion_anulada === true && coop?.data?.mes_cerrado === false,
+      '2.6 eliminar_inversion_fn (cooperativa, exento): conversion_anulada:true y mes_cerrado:false', JSON.stringify(coop?.data ?? null).slice(0, 240));
+    check(cuenta('copia de la cooperativa', `select count(*) from crm.inversiones_eliminadas where fuente_id = '${S.elimCoop.cierre}'`) === 1
+      && cuenta('cierre eliminado', `select count(*) from crm.cierres_externos where id = '${S.elimCoop.cierre}'`) === 0
+      && sinAjuste(S.elimCoop),
+    '2.6 eliminar_inversion_fn (cooperativa, exento): eliminada con su copia y sin ajuste');
+    const actCoop = await actividadDe(S.elimCoop, 'anulacion_cierre_externo', exA);
+    check(actCoop?.metadata?.excepcion_mes_sellado === '2001-07' && actCoop?.metadata?.excepcion_por === exA,
+      '2.6 eliminar_inversion_fn (cooperativa, exento): la anulación deja el rastro de la excepción', JSON.stringify(actCoop?.metadata ?? null).slice(0, 300));
+
+    await negados('eliminar_inversion_fn sobre la conversión de Avance de un mes sellado', S.elimAvance,
+      [['gerencia no exenta (Avance la elimina un admin del Portal)', () => eliminar(sessions.gerencia.client, S.elimAvance.contrato)]],
+      /Una inversión de Avance la elimina un admin del portal/);
+    check(cuenta('contrato Avance intacto', `select count(*) from public.contratos where id = '${S.elimAvance.contrato}'`) === 1,
+      '2.6 eliminar_inversion_fn (Avance): tras el rechazo el contrato sigue');
+    const av = await positive('2.6 eliminar_inversion_fn: el exento superadmin|gerencia elimina la conversión de Avance de un mes sellado',
+      eliminar(ex.exentoSuperadminGerencia.client, S.elimAvance.contrato));
+    check(av?.data?.ok === true && av?.data?.conversion_anulada === true && av?.data?.mes_cerrado === false,
+      '2.6 eliminar_inversion_fn (Avance, exento): conversion_anulada:true y mes_cerrado:false', JSON.stringify(av?.data ?? null).slice(0, 240));
+    check(cuenta('contrato Avance eliminado', `select count(*) from public.contratos where id = '${S.elimAvance.contrato}'`) === 0
+      && cuenta('copia Avance', `select count(*) from crm.inversiones_eliminadas where fuente_id = '${S.elimAvance.contrato}'`) === 1
+      && cuenta('anulación Avance', `select count(*) from crm.cierres_avance_anulados where lead_id = '${S.elimAvance.lead}'
+          and anulado_por = '${exS}'`) === 1
+      && sinAjuste(S.elimAvance),
+    '2.6 eliminar_inversion_fn (Avance, exento): contrato eliminado con su copia, conversión anulada a su nombre y sin ajuste');
+    const actAvance = await actividadDe(S.elimAvance, 'anulacion_cierre_avance', exS);
+    check(actAvance?.metadata?.excepcion_mes_sellado === '2001-07' && actAvance?.metadata?.excepcion_por === exS,
+      '2.6 eliminar_inversion_fn (Avance, exento): la anulación deja el rastro de la excepción', JSON.stringify(actAvance?.metadata ?? null).slice(0, 300));
+
+    const ya = await positive('2.6 eliminar_inversion_fn: el admin sin CRM elimina una conversión de cooperativa YA anulada de un mes sellado (no se vuelve a anular)',
+      eliminar(ex.adminSinCrm.client, S.elimCoopAnulada.cierre));
+    check(ya?.data?.ok === true && ya?.data?.conversion_anulada === false && ya?.data?.mes_cerrado === false,
+      '2.6 eliminar_inversion_fn (ya anulada): conversion_anulada:false y mes_cerrado:false', JSON.stringify(ya?.data ?? null).slice(0, 240));
+    check(cuenta('sigue anulada', `select private.cierre_anulado('${S.elimCoopAnulada.lead}')::int`) === 1
+      && cuenta('copia ya anulada', `select count(*) from crm.inversiones_eliminadas where fuente_id = '${S.elimCoopAnulada.cierre}'`) === 1
+      && sinAjuste(S.elimCoopAnulada),
+    '2.6 eliminar_inversion_fn (ya anulada): eliminada con su copia, la anulación previa se conserva y sin ajuste');
+
+    // ── Inmutabilidad de la actividad del exento: nadie reescribe ni borra el rastro de la excepción ──
+    if (actividadExento) {
+      const huella = () => texto('actividad del exento', `select md5(a::text) from crm.actividades a where a.id = '${actividadExento}'`);
+      const antes = huella();
+      for (const [quien, cliente] of [['gerencia', sessions.gerencia.client], ['exento admin|gerencia', ex.exentoAdminGerencia.client]]) {
+        await expectBlockedMutation(`2.6 inmutable: ${quien} no edita la actividad de la excepción`,
+          cliente.schema('crm').from('actividades').update({ detalle: 'reescrita por el gate' }).eq('id', actividadExento).select('id'),
+          ['P0001', 'P0409', '42501', '23514', '22023']);
+        await expectBlockedMutation(`2.6 inmutable: ${quien} no borra la actividad de la excepción`,
+          cliente.schema('crm').from('actividades').delete().eq('id', actividadExento).select('id'),
+          ['P0001', 'P0409', '42501', '23514', '22023']);
+      }
+      check(huella() === antes && antes !== '', '2.6 inmutable: la actividad de la excepción sigue byte a byte');
+    } else {
+      fail('2.6 inmutable: no hay actividad del exento que proteger (el caso del exento por la puerta Avance falló antes)');
+    }
+
+    // ── Escalada del par: nadie se fabrica su propia excepción (el par lo concede Superadmin, nunca la propia sesión). Ronda 3:
+    //    también el admin del Portal sin CRM (auditor P2-2), con el rol de los tres en la foto `pares()`, y foto + restauración
+    //    EXACTA de los actores (Codex R1) aunque algo falle ──
+    const pares = () => texto('perfiles y fichas tras la escalada', `select concat_ws('|',
+        (select string_agg(p.id::text || ':' || p.rol || ':' || p.activo::text, ',' order by p.id) from public.perfiles p
+          where p.id in ('${vend1Id}', '${gerenciaId}', '${exId.adminSinCrm}')),
+        (select count(*)::text from crm.equipo e where e.perfil_id = '${exId.adminSinCrm}'))`);
+    const fotoEscalada = await fotografiarIdentidades('2.6 escalada', [vend1Id, gerenciaId, exId.adminSinCrm]);
+    const paresAntes = pares();
+    const bloqueos = ['P0001', 'P0409', '42501', '23514', '22023', '23503'];
+    try {
+      await expectBlockedMutation('2.6 escalada: vend1 no se sube a admin del Portal',
+        sessions.vend1.client.from('perfiles').update({ rol: 'admin' }).eq('id', vend1Id).select('id'), bloqueos);
+      {
+        // La auto-edición del rol la neutraliza en silencio `public.proteger_campos_inmutables()` (NEW.rol := OLD.rol cuando quien edita su propio
+        // perfil no es admin; el par admin|gerencia está declarado, así que `private.trg_perfiles_par_autoridad` no lo rechaza): la API devuelve la
+        // fila con el rol de siempre. Lo que prueba que no se hace exenta es el rol PERSISTIDO (F4.6, run1 en la branch, 09/10).
+        const r = await sessions.gerencia.client.from('perfiles').update({ rol: 'admin' }).eq('id', gerenciaId).select('id, rol');
+        const rolPersistido = texto('rol persistido de la gerencia tras su intento', `select rol from public.perfiles where id = '${gerenciaId}'`);
+        const bloqueado = Boolean(r.error) && (isAuthorizationError(r.error) || bloqueos.includes(String(r.error.code ?? '')));
+        const neutralizado = !r.error && Array.isArray(r.data) && r.data.every((f) => f.rol !== 'admin');
+        check((bloqueado || neutralizado) && rolPersistido !== '' && rolPersistido !== 'admin' && rolPersistido !== 'superadmin',
+          '2.6 escalada: la gerencia del fixture no se sube a admin del Portal (no se hace exenta)',
+          `respuesta=${r.error ? errorText(r.error) : JSON.stringify(r.data)} · rol persistido=${rolPersistido}`);
+      }
+      await expectBlockedMutation('2.6 escalada: un admin sin CRM no se crea su ficha de Gerencia',
+        ex.adminSinCrm.client.schema('crm').from('equipo').insert({ perfil_id: exId.adminSinCrm, rol_crm: 'gerencia', activo: true }).select('perfil_id'),
+        bloqueos);
+      await expectBlockedMutation('2.6 escalada: el admin del Portal sin CRM no se sube a superadmin',
+        ex.adminSinCrm.client.from('perfiles').update({ rol: 'superadmin' }).eq('id', exId.adminSinCrm).select('id'), bloqueos);
+      await expectBlockedMutation('2.6 escalada: el admin del Portal sin CRM no sube a la gerencia del fixture a admin (no fabrica un exento)',
+        ex.adminSinCrm.client.from('perfiles').update({ rol: 'admin' }).eq('id', gerenciaId).select('id'), bloqueos);
+      for (const [quien, cliente, perfil] of [['admin sin CRM', ex.adminSinCrm.client, exId.adminSinCrm], ['la gerencia del fixture', sessions.gerencia.client, gerenciaId]]) {
+        // Código y mensaje exactos (punto 4): es la primera guarda de crm.asignar_rol_usuario_fn.
+        await expectExpectedFailure(`2.6 escalada: ${quien} no se asigna Gerencia por la puerta de roles (solo Superadmin)`,
+          cliente.schema('crm').rpc('asignar_rol_usuario_fn', { p_perfil_id: perfil, p_rol_crm: 'gerencia', p_version_equipo: null, p_idempotencia: randomUUID() }),
+          ['42501'], /^Solo Superadmin puede asignar roles CRM$/);
+      }
+      check(pares() === paresAntes,
+        '2.6 escalada: ningún perfil cambió de rol (vend1, la gerencia del fixture y el admin sin CRM) y el admin sin CRM sigue sin ficha',
+        `${paresAntes} → ${pares()}`);
+    } finally {
+      informarRestauracion('2.6 escalada', 'vend1, la gerencia del fixture y el admin sin CRM',
+        await restaurarIdentidades('2.6 escalada', fotoEscalada));
+    }
+
+    check(cuenta('ajustes totales después', 'select count(*) from crm.ajustes_mes_cerrado') === ajustesAntes,
+      '2.6: en todo el bloque no nació ningún ajuste de mes cerrado');
+  } finally {
+    // Retira SOLO lo de esta corrida (Codex R2) y nunca tapa el error de la corrida (auditor P3-5): si la limpieza falla, queda
+    // como fallo con el SQL para hacerlo a mano y el error original, si lo hubo, sigue su camino.
+    try {
+      ejecutarFueraDeBanda(`2.6: retirar el sello y las ventas de la corrida ${CORRIDA}`, sqlRetiroDeCorrida(CORRIDA, leadsSembrados));
+      check(cuenta('sello de esta corrida', `select count(*) from crm.periodos_cerrados where periodo = '${MES}'
+          and cobertura->>'ensayo_gate_rls' = '${CORRIDA}'`) === 0
+        && cuenta('ventas vivas de esta corrida', `select count(*) from crm.leads where activo and (nota = '${MARCA}' or id in (${idsSembrados}))`) === 0,
+      `2.6 limpieza: se retiró el sello de ensayo de esta corrida y sus ${leadsSembrados.length} ventas quedaron dadas de baja`);
+    } catch (error) {
+      fail(`2.6 limpieza: NO se pudo retirar lo sembrado por la corrida ${CORRIDA} — ${error?.message ?? String(error)}. A mano por la vía `
+        + `fuera de banda (o borrar la branch): begin; ${sqlRetiroDeCorrida(CORRIDA).replace(/\s+/g, ' ')} commit;`);
+    }
+  }
+}
+
+async function testGrupoAFase4(sessions, seed) {
+  console.log('\n— Fase 4 · grupo A: 2.3 (número de contrato) y 2.6 (mes sellado) —');
+  let hay23;
+  let hay26;
+  try {
+    hay23 = contarFueraDeBanda('grupo A: guarda del 2.3', `select count(*) from pg_proc p
+      where p.oid = to_regprocedure('public.crear_contrato(jsonb,jsonb)')
+        and position('Formato de número de contrato inválido' in p.prosrc) > 0`) === 1;
+    hay26 = contarFueraDeBanda('grupo A: detector del 2.6',
+      "select count(*) from pg_proc p where p.oid = to_regprocedure('private.mes_sellado_de_venta(uuid)')") === 1;
+  } catch (error) {
+    saltarGrupoA(`⚠ Grupo A SALTADO: sin vía fuera de banda (${error?.message ?? String(error)})`);
+    return;
+  }
+  if (!hay23) saltarGrupoA('⚠ 20261009210100 (número de contrato en el servidor) NO está en esta base: bloque 2.3 SALTADO (no probado)');
+  if (!hay26) saltarGrupoA('⚠ 20261009210000 (no se anula una venta de un mes sellado) NO está en esta base: bloque 2.6 SALTADO (no probado)');
+  if (!hay23 && !hay26) return;
+  const d17 = { ids: Object.create(null), sesiones: Object.create(null) };
+  try {
+    await prepararActoresD17(d17);
+    for (const [nombre, hay, prueba] of [['2.3', hay23, testNumeroContratoServidor], ['2.6', hay26, testAnularVentaMesSellado]]) {
+      if (!hay) continue;
+      try {
+        await prueba(sessions, seed, d17);
+      } catch (error) {
+        fail(`grupo A ${nombre}: el bloque se interrumpió — ${error?.message ?? String(error)}`);
+      }
+    }
+  } finally {
+    await retirarActoresD17(d17.ids);
+  }
+}
+
 async function main() {
   let primaryError = null;
   const recoveryErrors = [];
   try {
     await cleanupTransientRows();
     verifiedSeed = await verifySeed();
+    verificarMismaBaseFueraDeBanda(verifiedSeed);
     console.log('✓ precondicion: seed completo y coherente verificado con service_role');
 
     const sessions = Object.create(null);
@@ -18874,6 +20156,9 @@ async function main() {
       await testBasesCargadasB11(sessions);
       await testEliminarInversion(sessions, verifiedSeed);
       await testCategoriaPorOperacion(sessions, verifiedSeed);
+      // Fase 4 · grupo A (2.3 y 2.6), el ÚLTIMO a propósito: siembra y retira su propio mes sellado (2001-07) y deja
+      // inactivas las identidades D-17; nada de eso puede alterar a un bloque posterior.
+      await testGrupoAFase4(sessions, verifiedSeed);
     }
   } catch (error) {
     primaryError = error;
@@ -18902,12 +20187,19 @@ async function main() {
     throw primaryError;
   }
 
+  // Auditor P3-2: si el grupo A se saltó (sin CRM_RLS_EXIGE_GRUPO_A=1), el resumen no puede decir «gate aprobado» a secas.
+  const noProbado = grupoANoProbado.length > 0 ? `grupo A NO PROBADO (${grupoANoProbado.join(' · ')})` : '';
   if (failures === 0) {
     const alcance = args.has('--contratos') ? ' CONTRATOS' : args.has('--identidad-d5') ? ' IDENTIDAD D5' : '';
+    if (noProbado) {
+      console.log(`\n⚠️ RLS${alcance} OK — ${assertions} aserciones; ${noProbado}. Esto NO aprueba el grupo A: repetir en su branch `
+        + 'con CRM_RLS_EXIGE_GRUPO_A=1.');
+      return;
+    }
     console.log(`\n✅ RLS${alcance} OK — ${assertions} aserciones; gate aprobado`);
     return;
   }
-  console.error(`\n❌ ${failures} de ${assertions} aserciones fallaron — NO mergear`);
+  console.error(`\n❌ ${failures} de ${assertions} aserciones fallaron — NO mergear${noProbado ? `; además, ${noProbado}` : ''}`);
   process.exitCode = 1;
 }
 

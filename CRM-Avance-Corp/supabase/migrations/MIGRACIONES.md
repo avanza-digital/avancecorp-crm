@@ -17631,3 +17631,446 @@ Gate Gerencia/sup1 contra SU cifra para dos días extremos, total/totales exacto
 ni otros agentes). El banco anterior queda como evidencia histórica. **Reversa:**
 `supabase/scripts/facturacion-lista/reversa.sql`, sin CASCADE y antes de 3A. Procedimiento y resultados offline en
 `supabase/scripts/facturacion-lista/LEEME.md`.
+
+## 20261009210000 — No se puede anular una venta de un mes sellado (`private.mes_sellado_de_venta`, `crm.anular_cierre_avance`, `crm.anular_cierre_externo`)
+
+**Estado: PREPARADA — pendiente de branch (fase 4, grupo A).** Archivo `20261009210000_crm_anular_venta_mes_sellado.sql`, en la
+copia de integración (`~/dev/avancecorp-crm-fase4`, worktree sin rama sobre `main` `5f28b73c` desde la ronda 5), con fecha nueva
+**posterior a `20261009200000`** (cuya `private.conversion_episodios`, `125b4046…`, exige su preflight) y en el orden ensayado (2.6 →
+2.3); **orden indiferente frente a `20261009223000`** (`crm_jerarquia_evento_en_toda_via`, ya en producción): sin huellas compartidas
+—ninguna de las dos fija ni cambia una función que la otra fije o cambie, y el 2.6 no toca `crm.equipo`, la tabla de sus triggers
+(F4.1-A ronda 5: `fase-4/F4.1-A/salidas/ronda5/trabajo/p6-huellas-compartidas.salida.txt` del plan)—; re-fechar solo si una migración futura fija algo del grupo A. Es,
+**byte a byte**,
+`20261007051023_crm_anular_venta_mes_sellado.sql` de la copia aislada de la fase 2 tras el reselle F4.2-bis (SHA-256
+`d98a8ea9da8fdc994621c88797b97e46e4efd1499d3b3b2d18200ae2588fa031`): la migración no cita su propio nombre, así que no cambió ningún
+byte. Verificada **solo en el laboratorio local**: ronda 4 (07/10/2026), reselle F4.2 contra el código de producción (09/10/2026;
+Codex PASS y auditor de permisos PASS con 4 P3; los seis bloques sobre el laboratorio igual a producción, banco `f4-bloques-5131a695`:
+0 FAIL) y reselle F4.2-bis por la baja de analista de producción (09/10/2026, tarde; verificado por el Director, ROJO 28 / VERDE 63;
+revisado en la r2 del grupo A: Codex y auditor de permisos lo dan por correcto). **No aplicada en ninguna branch ni base real; sin
+commit.** Lo que abajo figura como «pendiente de la verificación del Director y de las revisiones» del reselle F4.2 quedó cerrado en
+`fase-4/F4.2-reselle/CIERRE.md` del plan, y el de F4.2-bis, con esa verificación y la r2 (`fase-4/F4.1-A/revision/CONCILIACION.md`). El
+texto que sigue es el de la copia aislada tras F4.2-bis, sin cambios salvo el título. Ensayo: `supabase/scripts/anular-venta-mes-sellado/`
+(el de la copia aislada; solo cambian las 4 referencias al nombre del archivo).
+*Historia del nombre (F4.1-A):* en las rondas 1 a 3 esta migración se llamó `20261009160000_crm_anular_venta_mes_sellado.sql`
+(posterior a `20261009120000`, la última de producción entonces); en la ronda 4 pasa a `20261009210000` porque producción registró
+después `20261009180000` y `20261009200000`. Con el nombre viejo, una base reconstruida por orden de versión aplicaría esta migración
+antes de `20261009200000`, y su preflight, que exige la `private.conversion_episodios` que deja esa migración (`125b4046…`), se negaría.
+**Publicación (F4.5; el Director la ensaya antes en la branch).** `supabase db query --linked --file` NO registra la versión: desde
+`CRM-Avance-Corp/`, (1) `supabase db query --linked --file supabase/migrations/20261009210000_crm_anular_venta_mes_sellado.sql` y
+(2) su registrador, `supabase db query --linked --file supabase/scripts/anular-venta-mes-sellado/registrar/20261009210000.sql`
+(generado por `scripts/anular-venta-mes-sellado/generar_registrador.py`; idempotente; desde la ronda 5 —Codex r2 R2-2, auditor r2
+P3-1— exige el ESTADO COMPLETO: se niega, sin escribir nada, si de las dos puertas y del detector no están el cuerpo, la definición
+entera, la ficha —dueño, DEFINER/INVOKER, `search_path`—, la ACL efectiva y el comentario que deja la migración, si el ledger no es el
+de F4.2-bis —`conversion_episodios` `125b4046…` y `conversion_cierres` `155ce2b1…`: con el 2.6 anterior, ledger `e3d278a1…`, se
+niega—, si el mismo nombre ya está registrado con otra versión —p. ej. `20261009160000`— o si la versión ya está con otro nombre u
+otro contenido; `statements` = el archivo entero, md5 `49271955876c0320b9fa4d202e547773`, incrustado una sola vez). Por `db query
+--linked` no llegan los NOTICE: sin error y con la última fila «versión | md5» = registrado. Después, el 2.3 (`20261009210100`) y su
+registrador.
+
+**PENDIENTE DE BRANCH. Verificada solo en el laboratorio local (07/10/2026, ronda 4; resellada el 09/10/2026 en el laboratorio
+igual a producción, F4.2 —verificada por el Director; Codex y auditor de permisos PASS—, y otra vez esa tarde, F4.2-bis, por la baja
+de analista de producción, pendiente de la verificación del Director y de las revisiones); no aplicada en ninguna base real.** Plan de
+mantenibilidad del backend, fase 2, bloque 2.6 (decisiones D-09, D-14 y D-17 de Miguel, 06/10/2026).
+
+**Reselle F4.2 (09/10/2026, fase 4; D-24, D-26, D-33):** en el laboratorio igual a producción la migración se negaba en el
+preflight («`private.conversion_episodios` no es la versión auditada»): `main` cambió cuatro funciones que fija —`conversion_episodios`
+(`9c606dd4…` → `e3d278a1…`, tope de referidos `20261007160937`), `conversion_cierres` (`b1d6c336…` → `155ce2b1…`) y
+`registrar_ajuste_si_mes_cerrado` (`00b17e77…`/`1f85397d…` → `fec614f0…`/`3af3eb46…`), las dos por bases cargadas `20261006042144`, y
+`cerrar_periodo` (`ce1ca52d…` → `79840e5a…`, `20261007160937` y `20261007203000`). **Re-auditadas** contra los cuerpos de la auditoría
+(reconstruidos byte a byte de sus migraciones, md5 comprobado): para la llamada del detector las filas de cierre y su `fecha_numerador`
+son las mismas (solo cambia el aporte: base cargada 1; referidos sobre el tope 0) y el cerrojo del mes de `cerrar_periodo` es el mismo;
+un ensayo de equivalencia (ledger auditado recreado en pg_temp frente al vigente, detector entero sobre cada uno, todos los leads del
+laboratorio más siembras de tope, base cargada, alta manual, anulado, desempate y frontera de mes, política de septiembre apagada y
+encendida) dio 0 filas, 0 meses y 0 respuestas del detector distintas, con 7 aportes distintos. **Cambian solo esas huellas**
+(preflight, postflight y la comprobación 9c del oráculo) y una línea del montaje del oráculo (la siembra de `crm.conversion_pesos`, que
+chocaba con el CHECK nuevo `conversion_pesos_referido_con_tope`); el detector, las puertas, la regla y la excepción, sin cambio.
+Cadena repetida en el laboratorio igual a producción: ROJO 26 (los mismos fallos que la ronda 4), VERDE 0 fallos/60, aislamiento,
+27 mutantes muertos + 2 equivalentes, 22 derivas + control + mutante del preflight, cinco reversas y los 36 `assert_*` y el censo
+idénticos. Evidencia: `fase-4/F4.2-reselle/salidas/` del plan.
+
+**Reselle F4.2-bis (09/10/2026, tarde):** producción aplicó ese día `20261009200000_crm_baja_analista_heredero` (lo que produjo un
+analista dado de baja pasa a su responsable actual activo), que reescribe `private.conversion_episodios` (`e3d278a1…` → `125b4046…`):
+la migración volvía a negarse en el preflight. **Re-auditada:** el cambio son dos líneas de la pierna de operaciones de cartera (su
+analista y su filtro de ámbito pasan por `private.analista_efectivo_contrato`); las piernas de llegadas y de cierres, el tope y
+`conversion_cierres`, iguales; el detector solo lee filas de cierre y no lee el analista: mismo mes para la misma venta, con la
+política de septiembre apagada o encendida (en producción, encendida desde el 27/09) y con un analista dado de baja y su heredero.
+Ensayo de equivalencia (ledger de F4.2 en pg_temp frente al vigente; 61 leads; política apagada/encendida × sin/con dos analistas de
+baja): 0 filas de cierre o llegada distintas, 0 respuestas del detector distintas (entre ledgers y entre «con baja» y «sin baja»), 0
+errores, 20 siembras con su resultado esperado; no vacío (2 operaciones heredadas). **Cambian solo esa huella** (preflight, postflight
+y 9c) **y un caso nuevo del oráculo, 3-B** (venta de junio de un vendedor dado de baja con heredero activo: rechazo igual por las dos
+puertas). Cadena: ROJO 28 (los 26 de siempre y los dos de 3-B), VERDE 0 fallos/63, aislamiento con y sin migración, 27 mutantes + 2
+equivalentes, 22 derivas + control + mutante del preflight, cinco reversas, y los 36 `assert_*` (30 sin `*_mutantes`) y el censo
+idénticos. Evidencia: `fase-4/F4.2b-reselle/salidas/` del plan.
+
+**Qué hace:** anular la CONVERSIÓN (el cierre inicial) cuyo mes de venta tiene fila en `crm.periodos_cerrados` se rechaza con
+SQLSTATE `P0409`, mensaje «No se puede anular: el mes de esta venta (AAAA-MM) ya está sellado» y pista «Un mes sellado no se
+reescribe. La corrección se hace por otra vía, fuera del sistema.», por las dos puertas: `crm.anular_cierre_avance` y
+`crm.anular_cierre_externo` (solo si `es_cierre_inicial`), antes de escribir nada y después de «ya estaba anulado». Si el mes de la
+venta **no se puede determinar** (sin acreditación, sin episodio de cierre y sin `convertido_en`) también se rechaza —falla
+cerrado— con `P0409` y el mensaje «No se puede anular: no se puede determinar el mes de esta venta» (misma pista).
+`crm.eliminar_inversion_fn` hereda el rechazo (llama a estas dos puertas; no se toca). Excepción (D-17): quien cumple
+`public.es_admin()` Y `private.es_gerencia_crm_activa()` anula SIN ajuste (las puertas ya no llaman a
+`private.registrar_ajuste_si_mes_cerrado`) y deja en los metadatos de la actividad `excepcion_mes_sellado` (AAAA-MM, o
+`'desconocido'`), `excepcion_por` y `excepcion_en`. **El rastro fiable del exento son esas claves `excepcion_*`:** las puertas
+siguen devolviendo `mes_cerrado:false` y `ajuste_id:null` por compatibilidad con la pantalla, y ese `mes_cerrado:false` queda
+grabado en una actividad inmutable, así que NO dice si el mes estaba sellado. Mes abierto, mes terminado sin sellar, cierres
+externos no iniciales y «ya estaba anulado»: idénticos a hoy. Sin sesión de usuario (`auth.uid()` nulo) la puerta rechaza con
+42501 «Solo gerencia…»; `service_role` ni llega al cuerpo (sin EXECUTE sobre las puertas: 42501 por ACL, «permission denied»).
+
+**Detector nuevo:** `private.mes_sellado_de_venta(uuid)` → OUT `(p_mes date, p_sellado boolean, p_desconocido boolean)`.
+**SECURITY INVOKER**, `search_path` vacío, sin EXECUTE para nadie salvo su dueño (patrón del núcleo del ledger, 20261001160219:
+solo lo invocan dos puertas DEFINER, corre como su dueño `postgres`). Solo READ COMMITTED: `0A000` en cualquier otro modo
+(patrón de 20261002163158). Resuelve el mes con una **política propia, más estricta que la de `registrar_ajuste_si_mes_cerrado`**
+(que volvía antes de consultar las fuentes: sin `convertido_en` devolvía nada, y en la rama de septiembre sin acreditación
+también): (a) con la política de septiembre activa y la venta convertida desde el 01/09, el `periodo_comercial` de su acreditación
+(cualquier estado; supone y el preflight exige `UNIQUE (lead_id)` en `crm.conversion_acreditaciones`); (b) si no, el episodio de
+cierre del ledger —más de uno ⇒ el mismo error de integridad que `registrar_ajuste…`, P0001 «Integridad: el lead … tiene N
+episodios de cierre en el ledger», y nada escrito—; (c) si no, el mes de `leads.convertido_en` en hora de Lima; (d) si tampoco (o
+el lead no existe) ⇒ desconocido, decidido DESPUÉS de intentar acreditación y episodio; (e) el mes resuelto, venga de donde venga,
+tiene que ser un **primer día de mes y nunca nulo**: si no, P0001 «Integridad: el mes de la venta … no es un primer día de mes» y
+nada escrito, **nunca «abierto»**. Lo que garantiza ese mes canónico por esquema, exactamente: en `crm.conversion_acreditaciones`,
+el NOT NULL de `fecha_comercial` + el NOT NULL de `periodo_comercial` + el CHECK `periodo_comercial = date_trunc('month',
+fecha_comercial)::date` (con `fecha_comercial` nula el CHECK daría UNKNOWN y pasaría: ese NOT NULL es parte de la garantía); en
+`crm.periodos_cerrados`, el NOT NULL y el CHECK de primer día de `periodo`. El preflight exige las cinco cosas y el detector lo
+vuelve a exigir en ejecución (defensa en profundidad). Toma el cerrojo del mes (`pg_advisory_xact_lock(hashtext('crm.periodos_cerrados'),
+mes - 2000-01-01)`, la segunda clave de `crm.cerrar_periodo`) ANTES de mirar `crm.periodos_cerrados`. Pregunta por el sello, no por el
+reloj. No usa `count(` ni `sum(1)` (censo analítico).
+
+**Cómo:** `create or replace` de las dos puertas por anclas únicas sobre `pg_get_functiondef` (cada ancla tiene que aparecer
+una sola vez o aborta); preflight fail-closed: `md5(prosrc)` `8556d0bd…` (avance) y `09a47896…` (externo),
+`md5(pg_get_functiondef)` `23e3be19…` y `f568b78f…`, ficha de las puertas (dueño, DEFINER, `search_path`, ACL **con opción de
+concesión**), comentarios; de los tres helpers de la excepción (`public.es_admin`, `private.es_gerencia_crm_activa`,
+`private.rol_crm`) la huella Y la ficha completa (dueño, `prosecdef`, `provolatile`, `proparallel`, `proconfig`, ACL con
+`is_grantable`; valores medidos en el laboratorio el 07/10/2026); `UNIQUE (lead_id)`; lo que hace canónico el mes, por su texto
+(`attnotnull` y `pg_get_constraintdef`): `crm.conversion_acreditaciones.fecha_comercial` NOT NULL, `periodo_comercial` NOT NULL con
+`CHECK ((periodo_comercial = (date_trunc('month'::text, (fecha_comercial)::timestamp without time zone))::date))` y
+`crm.periodos_cerrados.periodo` NOT NULL con `CHECK ((periodo = (date_trunc('month'::text, (periodo)::timestamp with time zone))::date))`;
+y la **versión del ledger en sus dos funciones**: `md5(prosrc)` de `private.conversion_episodios(timestamptz,timestamptz,date,boolean,uuid[],numeric)`
+= `125b4046f513657ac57ec676a0d52e87` y de `private.conversion_cierres(timestamptz,timestamptz,date,boolean,uuid[],numeric,uuid[])` =
+`155ce2b12754718388c8ca1644c84c90` (las de producción, re-auditadas en F4.2 y F4.2-bis; `conversion_episodios` delega en `conversion_cierres` los
+cierres; de ahí sale la `fecha_numerador` de la que el detector saca el mes). `conversion_cierres` llama a `private.cierre_externo_anulado`,
+`private.conversion_exclusion_fuente`, `private.peso_referido_conversion` y `private.conversion_origen_con_cierre`, y `conversion_episodios`
+a `private.conversion_origen_base_tope` y `private.tope_referidos_conversion` (y, desde `20261009200000`, en su pierna de operaciones, a
+`private.analista_efectivo_contrato`): **dependencias declaradas, no fijadas** (deciden qué cierres entran y con qué peso o tope, o a quién
+se atribuye una operación, no la fecha); el corte de la auditoría se cierra en las dos funciones del ledger y, si cambian, se re-auditan.
+Postflight: guarda en las dos, cuerpos nuevos `md5(prosrc)` `1bb2bfd1…` (avance) y `4b01f805…` (externo) —`md5(pg_get_functiondef)`
+`03b67308…` y `906372fe…`—, ficha idéntica, detector con su ficha (INVOKER, record, sin EXECUTE) y con sus huellas (`md5(prosrc)`
+`8e22b2d65bb35be0551c190cfcf28e75`, `md5(pg_get_functiondef)` `ba2cfaaa3337a05a6cd7c32cd6af8e8c`), y, intactos: `registrar_ajuste_si_mes_cerrado`,
+`saldar_ajustes` y `cerrar_periodo` (huella del cuerpo); `es_admin`, `es_gerencia_crm_activa` y `rol_crm` (huella del cuerpo y ficha completa:
+dueño, DEFINER, `search_path`, volatilidad, ACL con `is_grantable`); `conversion_episodios` y `conversion_cierres` (**solo** huella del cuerpo,
+`md5(prosrc)`; su ficha y las tres funciones que llama `conversion_cierres` no se fijan). No toca tablas, grants, policies ni `public`.
+
+**⚠️ Para quien integre:** (1) la huella `md5(pg_get_functiondef)` de las dos puertas CAMBIA; `20261005200945_crm_eliminar_inversion.sql:107-108`
+y `scripts/eliminar-inversion/registrar.sql:127-128, 1112-1113` fijan las ANTERIORES (`f568b78f…`/`23e3be19…`): esa migración y su
+registrador se niegan si se corren DESPUÉS de esta. Orden: primero `20261005200945`, luego esta, y el registrador debe actualizar
+esas dos huellas. (2) Con esta migración no se puede eliminar una inversión cuya conversión cae en un mes sellado, salvo para
+admin + Gerencia. (3) Pruebas que cambian de sentido y quedan POR AJUSTAR en la fase 4 (no se tocaron):
+`supabase/scripts/test-cierre-mes.sql` bloques 4–6bis (la deuda que ejercen 5, 6 y 6bis ya no nace: hay que sembrarla, y el bloque
+4 necesita una Gerencia SIN el par admin del Portal —`v_g` es admin+gerencia y sería exenta— más los calcos de `es_admin` y
+`es_gerencia_crm_activa` en su banco local), `supabase/scripts/eliminar-inversion/test-eliminar-inversion.sql:524-536` y
+`ensayo-atr4-conducta-sintetica.sql:1459-1501`. (4) `PT409` (la acreditación cambió durante la anulación) no tiene mapeo en la app:
+la pantalla mostrará el error genérico. (5) `test-rls.mjs` no tiene ningún caso de esta regla: la lista está en
+`fase-2/bloque-2.6/revision/CONCILIACION.md`. (6) **La versión del ledger está fijada en sus dos funciones** (`conversion_episodios`
+`125b4046…` y `conversion_cierres` `155ce2b1…`, las de producción el 09/10/2026 con `20261009200000`, re-auditadas en F4.2 y F4.2-bis) **y lo que hace canónico el mes está fijado por su texto**: si en la
+branch del día de integrar difiere la huella de cualquiera de las dos, el texto de alguno de los CHECK o falta un NOT NULL de los fijados,
+la migración SE NIEGA en el preflight. Entonces: **releer con la misma consulta** (`md5(prosrc)` por `regprocedure`; `pg_get_constraintdef`;
+`attnotnull`) **y re-auditar el detector** contra esa versión (fechas en la frontera del mes, episodios desde el 01/09, cierres externos
+anulados, casos 3-N) **antes de adaptar la migración**; nunca cambiar la huella o el texto sin más. Las funciones que llaman
+`conversion_cierres` y `conversion_episodios` (las seis declaradas arriba) no se fijan: si cambian, se re-auditan. Es un requisito de
+la fase 4, no un trámite (hecho en F4.2 y otra vez en F4.2-bis contra producción del 09/10/2026; vuelve a valer si `main` o producción
+cambian antes de la branch).
+
+**Verificación (laboratorio, `supabase/scripts/anular-venta-mes-sellado/`, ronda 4):** oráculo ROJO sin la migración (26 fallos,
+todos «el servidor acepta o crea ajuste en un mes sellado / cuyo mes no se puede determinar / con mes no canónico o nulo») y VERDE
+con ella (0 fallos, 60 comprobaciones), con fotos por contenido, deuda previa conservada y los casos de mes no canónico y nulo
+(`P0001`, nada escrito); ensayo de aislamiento (`repeatable read` ⇒ `0A000` por las dos puertas) VERDE con la migración y ROJO sin
+ella; 27 mutantes de verdad muertos, cada uno por su fallo (incluidos «desconocido tratado como abierto», «mes nulo o no canónico
+tratado como abierto», «mes más antiguo con varios episodios», «acreditación ignorada si falta la fecha», «detector DEFINER», «sin
+guarda de aislamiento»), y 2 equivalentes SECUENCIALES confirmados («solo admin», «sin sesión»: la puerta ya exige Gerencia con
+sesión antes; la conjunción se conserva como defensa bajo concurrencia); 22 derivas previas abortan en el preflight sin dejar
+rastro (entre ellas `GRANT … WITH GRANT OPTION`, `ALTER FUNCTION public.es_admin() IMMUTABLE`, otro `SET`, otro propietario y otro
+modo paralelo en un helper, CHECK o NOT NULL de `periodo_comercial` ausentes, **NOT NULL de `fecha_comercial` ausente**, CHECK de
+`periodos_cerrados.periodo` ausente, otra versión de `conversion_episodios` y **otra versión de `conversion_cierres` con
+`conversion_episodios` intacta**) y un mutante del preflight sin `is_grantable` deja colar la deriva; la reversa devuelve las huellas
+y la ficha originales; la reversa tras un `ALTER FUNCTION … SET lock_timeout`, tras un `GRANT EXECUTE … TO service_role` sobre una
+puerta, tras un `CREATE OR REPLACE` del detector con otro cuerpo y **tras un `COMMENT ON FUNCTION … IS 'otro'` sobre una puerta**
+ABORTA en su preflight sin dejar rastro (deriva conservada; antes de la ronda 4 la última secuencia revertía y sobrescribía el
+comentario, medido); los 36 `assert_*` y el censo analítico, idénticos antes y después. No ejecutado: la carrera con
+`crm.cerrar_periodo` (dos conexiones), `crm.eliminar_inversion_fn` (no existía en el laboratorio de la fase 2; existe en el igual a
+producción desde F4.2, pero ejercerla es la tarea F4.3), `test-rls.mjs`, la app;
+`npm run check:scripts` FAIL ajeno (`@supabase/supabase-js` ausente en la copia).
+**Revisiones:** Codex → CHANGES_REQUESTED sin P0/P1 (07/10/2026, ronda 1); auditor de permisos (`auditor-rls`) → CHANGES_REQUESTED
+sin P0/P1 (07/10/2026); Codex → CHANGES_REQUESTED sin P0/P1 sobre la ronda 2 (07/10/2026: tres P2 —reversa sin exigir ficha ni
+detector, mes nulo o no canónico, ledger sin fijar— y un P3 de textos); Codex → CHANGES_REQUESTED sin P0/P1 sobre la ronda 3
+(07/10/2026: un P2 —la huella del ledger no cubría `conversion_cierres`— y dos P3 —el NOT NULL de `fecha_comercial` como parte de la
+garantía; la reversa no comparaba los comentarios—). Conciliadas por el Director (`fase-2/bloque-2.6/revision/CONCILIACION.md`,
+`CONCILIACION-R2.md` y `CONCILIACION-R3.md`); la ronda 2 aplica #1, #3, #4, #5, #6, #7, #11, #12, #13 y #16; la ronda 3 aplica R2-1,
+R2-2, R2-3 y R2-4; la ronda 4 aplica R3-1, R3-2, R3-3 y la línea de integración. Por D-20, Codex valida el diff ronda 3 → ronda 4
+(revisión corta, solo sobre lo cambiado; el resultado lo anota el Director).
+**Reversa:** `supabase/scripts/anular-venta-mes-sellado/reversa.sql` — FALLA CERRADA. Contrato (y es TODO lo que exige): antes de
+tocar nada, (a) de las dos puertas `md5(prosrc)` y `md5(pg_get_functiondef)` exactamente los que dejó la migración Y su ficha auditada
+(dueño `postgres`, DEFINER, `search_path` vacío, ACL exacta con `is_grantable`); (b) del detector que exista, `md5(prosrc)` y
+`md5(pg_get_functiondef)` exactamente los que dejó la migración Y su ficha INVOKER (dueño, `search_path` vacío, sin EXECUTE a nadie);
+(c) los comentarios (`obj_description`) de las dos puertas y del detector, exactamente los que dejó la migración. Si algo de esa lista
+difiere, se niega sin dejar rastro; no promete detectar nada fuera de ella. No des-anula nada de lo que el exento anuló.
+La fila de `supabase_migrations.schema_migrations` **se conserva** (regla de la casa, como en `scripts/categoria-sin-operacion/LEEME.md`): la reversa no la toca y se anota en `MIGRACIONES.md` (F4.1-A ronda 5, auditor r2 P3-7).
+**SHA-256 del archivo de la migración (07/10/2026, ronda 4):** `95fb04c64a174fcbb95cc796d4ce4794696153bc60013b6aa3cfde3bdefe5ccb`.
+**SHA-256 del archivo de la migración (09/10/2026, reselle F4.2, verificado):** `df101234f51965e63c5f59166895649cccddd95acc5bba46a04c59a1efaa903c`.
+**SHA-256 del archivo de la migración (09/10/2026, reselle F4.2-bis, verificado por el Director):** `d98a8ea9da8fdc994621c88797b97e46e4efd1499d3b3b2d18200ae2588fa031`.
+
+**Requisitos para integrar (del cierre del bloque, fase 2; siguen en pie para la branch):**
+
+1. Aplicar `20261005200945_crm_eliminar_inversion.sql` **antes** de `20261009210000` (en la fase 2, `20261007051023`); actualizar las huellas de las puertas en `scripts/eliminar-inversion/registrar.sql`
+   (sin editar la migración commiteada).
+   *(F4.1-A, ronda 3 — Codex R5, aceptado por el Director: la segunda mitad de este punto queda **SUSTITUIDA**. El registrador
+   `scripts/eliminar-inversion/registrar.sql` es histórico y **no se toca**: la `20261005200945` ya está registrada en producción.
+   De este punto sigue en pie solo el orden de aplicación.)*
+2. Si en `main` difieren `conversion_episodios` (`9c606dd4…`), `conversion_cierres` (`b1d6c336…`), los helpers de la excepción o el texto de los CHECK/NOT NULL fijados,
+   la migración se niega: releer con la misma consulta y **re-auditar el detector** antes de adaptar. Las tres funciones que llama `conversion_cierres` están
+   declaradas, no fijadas. *(F4.2, 09/10/2026: ya diferían; se re-auditó y la migración fijó `e3d278a1…` y `155ce2b1…`. F4.2-bis, esa tarde:
+   `20261009200000` reescribió `conversion_episodios`; se re-auditó y la migración fija hoy `125b4046…` y `155ce2b1…`, las de producción.)*
+3. Ensayar `eliminar_inversion_fn` en el corte integrado (no exento ⇒ rechazo con rollback completo; exento ⇒ pasa sin ajuste, con rastro). Mapear `PT409` en la app.
+   *(F4.1-A, ronda 6 — `PT409` mapeado: las dos anulaciones (`app/src/data/crm-api.ts`, `anularCierreAvance` y `anularCierreExterno`) ya
+   no caen al «No se pudo anular…» genérico: muestran «La venta cambió mientras la anulabas. Vuelve a intentarlo.» (mismo código,
+   `PT409`), con sus pruebas primero en ROJO y luego en VERDE (`crm-api-anular-cierre-msw.test.ts` y las dos pantallas,
+   `anular-cierre-avance-pt409.test.tsx` y `cierres-externos-anular-pt409.test.tsx`). Y al eliminar una inversión (ronda 6b, decisión del
+   Director) el `PT409` de la acreditación ya no se muestra crudo («La acreditacion cambio…»): «La venta cambió mientras eliminabas la
+   inversión. Vuelve a intentarlo.» (código `REINTENTAR`, el de siempre; pruebas `crm-api-eliminar-inversion-msw.test.ts` e
+   `inversion-eliminar-pt409.test.tsx`); el otro `PT409` de la eliminación («El lead tiene otra operacion en curso…») conserva su texto.
+   Queda atendido el punto (4) de «Para quien integre». El ensayo de `eliminar_inversion_fn` en el corte integrado lo hizo el Director en
+   F4.6 —caso 24, PASS—.)*
+4. Prueba de dos conexiones: sellar vs anular en ambos órdenes, con `acreditar`, y revocación de Gerencia durante la espera.
+5. `test-rls.mjs`: casos de la regla con roles efectivos (lista en `revision/CONCILIACION.md`) y fixtures admin+gerencia / superadmin+gerencia.
+6. Adaptar y ejecutar `test-cierre-mes.sql` (bloques 4–6bis, actor `v_g_sola`, calcos de `es_admin`/`es_gerencia_crm_activa`, deuda sembrada),
+   `test-eliminar-inversion.sql` (caso 24) y `ensayo-atr4-conducta-sintetica.sql` (actos B y D); casos M2–M5b del banco (ronda del banco).
+   *(F4.1-A, ronda 6 — `test-cierre-mes.sql` **ADAPTADO** y ejecutado en el laboratorio igual a producción (solo ensayos que se deshacen):
+   bloque 4 al contrato del 2.6 —4: una Gerencia sin el par admin (`v_g_sola`, comercial|gerencia) recibe `P0409` con el mensaje fijado y
+   nada escrito; 4bis: el exento `v_g` (admin|gerencia) anula sin ajuste, con `mes_cerrado:false`, `ajuste_id:null` y el rastro
+   `excepcion_*`—; 5, 6 y 6bis siguen midiendo la deuda, que ahora se SIEMBRA por inserción explícita (una deuda vieja, con capital: desde
+   ATR-4 las deudas nuevas nacen sin capital —`registrar_ajuste_si_mes_cerrado` ya no lo carga— y 6bis es lo que protege `saldar_ajustes`
+   para las deudas históricas, que sí lo tienen). Los calcos de `es_admin`/`es_gerencia_crm_activa` ya no hacen falta: el oráculo deja el
+   banco de calcos y corre en una base igual a producción (identidad por los claims del JWT; perfiles sembrados en `replica`, como
+   `test-eliminar-inversion.sql`; siembra con la forma y los roles reales; las metas de meses pasados que traiga la base, apartadas dentro de
+   la transacción). **Además, un cambio de la PRUEBA ajeno al grupo A:** el oráculo se alinea con la regla del día 11, la de producción desde
+   `20260927073637` (27/09/2026); seguía esperando el día 10 y caía siempre en el bloque 9. Decisiones del Director en la ronda 6b.
+   Resultado: VERDE 22/22, también con la configuración de la branch
+   simulada; el bloque 4 viejo en ROJO por el 2.6; 17 mutantes muertos, 7 de ellos nuevos. `ensayo-atr4-conducta-sintetica.sql` queda
+   **HISTÓRICO** (nota en su cabecera): es el ensayo de la migración ATR-4 contra los datos de producción de agosto, con una línea base fija;
+   sus actos B y D esperan la deuda que el 2.6 ya no crea y no se vuelve a correr. El caso 24 de `test-eliminar-inversion.sql` lo ajustó y
+   corrió el Director en F4.6 (PASS). Detalle: `fase-4/F4.1-A/salidas/ronda6/INFORME-ESCRITOR-RONDA6.md` del plan.)*
+   **Pendiente (fuera de la fase 4):** el banco local de calcos (`supabase/scripts/banco-local-cierre-mes.sql`) ya no sirve para `test-cierre-mes.sql`; retirarlo o ponerlo al día.
+7. `EXPLAIN ANALYZE` de `conversion_episodios(1900…2100)` con volumen real; comprobar el aislamiento de los llamadores reales (PostgREST es `read committed`).
+8. Textos de la app que mencionan el ajuste (`cartera-inversionistas.tsx:158-161`) y la frase de éxito del exento: opcional, fuera de este bloque.
+
+**Pruebas de integración preparadas en F4.1-A (escritas, NO ejecutadas contra ninguna base):** `test-rls.mjs` (bloque «2.6 · mes sellado», con los pares D-17 de `fixtures.mjs` → `USUARIOS_EXCEPCION_D17`) y el caso 24 de `supabase/scripts/eliminar-inversion/test-eliminar-inversion.sql`. Detalle y huecos, en el plan: `fase-4/F4.1-A/salidas/INFORME-ESCRITOR.md` (ronda 1), `salidas/ronda2/INFORME-ESCRITOR-RONDA2.md` (ronda 2: el envoltorio Proxy de la ronda 1 ya no existe y la siembra del caso 24 pasó a 0.150) y `salidas/ronda3/INFORME-ESCRITOR-RONDA3.md` (ronda 3: guarda de la vía fuera de banda y misma base por los dos canales, identidades D-17 bloqueadas hasta el login, sello y ventas marcados por corrida, precedencia del detector, escalada del admin del Portal y el caso 24 ejecutable en una branch) y `salidas/ronda4/INFORME-ESCRITOR-RONDA4.md` (ronda 4: fecha nueva `20261009210000` sobre `main` `482f3811`, el 2.6 de F4.2-bis —`pruebas.sql` con 9c y 3-B, README—, el registrador y lo que trajo `main` frente al bloque) y `salidas/ronda5/INFORME-ESCRITOR-RONDA5.md` (ronda 5, sobre `main` `5f28b73c`: la restauración de la escalada por intentos y con relectura —Codex r2 R2-1—, las identidades D-17 re-bloqueadas justo después de cada login —auditor r2 P3-3— y el registrador que exige el estado completo —R2-2/P3-1—).
+
+## 20261009210100 — El servidor exige el número de contrato (`public.crear_contrato`)
+
+**Estado: PREPARADA — pendiente de branch (fase 4, grupo A).** Archivo `20261009210100_crm_numero_contrato_servidor.sql`,
+en la copia de integración (`~/dev/avancecorp-crm-fase4`, worktree sin rama sobre `main` `5f28b73c` desde la ronda 5) con fecha nueva,
+**después** de `20261009210000` (orden ensayado 2.6 → 2.3) y de `20261009120000` y `20261009180000` (fijan la huella anterior de
+`public.crear_contrato`: ver «Frente a lo que trajo `main`» abajo); **orden indiferente frente a `20261009223000`** (sin huellas
+compartidas: F4.1-A ronda 5; la sonda solo LEE `crm.equipo`, la tabla de sus triggers). Es, **byte a byte**, `20261007055412_crm_numero_contrato_servidor.sql` de la copia
+aislada (SHA-256 `a0388ffdd4e6e9e390d54bd9184d3006a5cbd8ff6c28daa5ecc465a1418b86fb`; no cita su propio nombre). Verificada **solo
+en el laboratorio local** (07/10/2026, ronda 3; Codex PASS a la ronda 3) y aplicada con los otros cinco bloques sobre el
+laboratorio igual a producción (09/10/2026, banco `f4-bloques-5131a695`: 0 FAIL). **Toca un objeto de `public`**
+(`public.crear_contrato(jsonb,jsonb)`, función del portal) con el OK expreso de Miguel en D-11/Q3. **No aplicada en ninguna
+branch ni base real; sin commit.** La «validación corta de Codex de la ronda 3» que abajo figura como pendiente se hizo (PASS,
+`fase-2/bloque-2.3/CIERRE.md` del plan). El texto que sigue es el de la copia aislada, sin cambios salvo el título. Ensayo:
+`supabase/scripts/numero-contrato-servidor/` (copiado; solo cambian las 2 referencias al nombre del archivo).
+Llamadores comprobados por lectura en F4.1-A (CRM y Portal): todos mandan un número de la serie 2024-01-/2025-01-/2026-01- con
+6 dígitos o se detienen antes de llamar (tabla en `fase-4/F4.1-A/salidas/INFORME-ESCRITOR.md` del plan).
+*Historia del nombre (F4.1-A):* en las rondas 1 a 3 esta migración se llamó `20261009160100_crm_numero_contrato_servidor.sql`; en la
+ronda 4 pasa a `20261009210100` (producción registró después `20261009180000` y `20261009200000`).
+**Publicación (F4.5; el Director la ensaya antes en la branch), tras el 2.6 y su registrador.** Desde `CRM-Avance-Corp/`: (1)
+`supabase db query --linked --file supabase/migrations/20261009210100_crm_numero_contrato_servidor.sql` (solo confirma si su sonda
+rechaza «ABC» con 22023 y el mensaje fijado; **por `db query --linked` el `NOTICE` no llega: sin error = la sonda rechazó** —si acepta,
+si ninguno de sus candidatos concluye o si no hay candidatos, aborta con un error que lo dice y no aplica nada—; qué candidato
+concluyó solo se ve en la branch, por psql. Antes de aplicar, `scripts/numero-contrato-servidor/candidatos-sonda.sql`, de solo
+lectura, lista los 5 pares que probaría y si concluirían; F4.1-A ronda 5, auditor r2 P3-2 y P3-6) y (2) su registrador, `supabase db
+query --linked --file supabase/scripts/numero-contrato-servidor/registrar/20261009210100.sql` (generado por
+`scripts/numero-contrato-servidor/generar_registrador.py`; idempotente; desde la ronda 5 —Codex r2 R2-2, auditor r2 P3-1— exige el
+ESTADO COMPLETO: se niega, sin escribir nada, si `public.crear_contrato` no tiene el cuerpo (`dee13ad8…`, el del postflight), la
+definición entera (`6e5a0154…`), la ficha —dueño `postgres`, DEFINER, `search_path` vacío—, la ACL efectiva, el EXECUTE efectivo
+—`anon` sin; `authenticated` y `service_role` con— y el comentario que deja la migración, si el mismo nombre ya está registrado con
+otra versión —p. ej. `20261009160100`— o si la versión ya está con otro nombre u otro contenido; `statements` = el archivo entero, md5
+`ddf1b5f1f0762d1400c2806b36db50a2`, incrustado una sola vez).
+**Frente a lo que trajo `main` `482f3811` (F4.1-A, ronda 4).** (a) `20261009120000_crm_categoria_contrato_por_operacion.sql:111` y
+`20261009180000_crm_categoria_sin_operacion_solo_nuevo.sql:91` fijan en su preflight `md5(pg_get_functiondef)` `dce8f0dd…` de
+`public.crear_contrato`, la huella que esta migración cambia: esta tiene que ir **después** de las dos. Con `20261009210100` se cumple
+también al reconstruir una base por orden de versión; con el nombre de las rondas 1 a 3 (`20261009160100`) esa reconstrucción la habría
+aplicado antes de `20261009180000`, cuyo preflight se habría negado. Las dos ya están aplicadas en producción: no se vuelven a correr.
+(b) La suite del banco de `20261009180000` (`scripts/categoria-sin-operacion/prueba.sql:171`, comprobación C4) fija `md5(prosrc)`
+`1adfbe1a…` de `public.crear_contrato`: tras esta migración, repetirla daría C4 en rojo (es su evidencia histórica; no se toca). Sus
+altas (Y1, Y2; y Y3, Y4, `concurrencia.py` y `transporte.py` de `categoria-por-operacion`) las da el par exento (perfil `admin` y
+Gerencia activa: `categoria-por-operacion/banco/mundo.sql:60,75`), así que no chocan con la regla.
+
+**PENDIENTE DE BRANCH. Verificada solo en el laboratorio local (07/10/2026); no aplicada en ninguna base real.** Plan de
+mantenibilidad del backend, fase 2, bloque 2.3 (decisiones D-11/Q3, D-12/Q3b, D-16 y D-17 de Miguel, 06-07/10/2026). **Toca un
+objeto de `public`** (`public.crear_contrato(jsonb,jsonb)`, función del portal) con el OK expreso de Miguel en D-11/Q3. **Ronda 2**
+(07/10/2026) tras las revisiones de Codex y del auditor de permisos (`fase-2/bloque-2.3/revision/CONCILIACION.md`): ficha completa de
+los helpers en el preflight, postflight fail-closed con la sonda como gate, conteo de 24 formas inválidas, cabecera, gate
+`test-rls.mjs` declarado roto y deuda de datos del exento. **Ronda 3** (07/10/2026) tras la segunda revisión de Codex (P2 R2-1,
+`revision/CONCILIACION-R2.md`): la sonda del postflight prueba hasta 5 candidatos y el runbook deja claro que el oráculo y la prueba
+HTTP son diagnósticos, no una salida a una migración abortada.
+
+**Qué hace:** `public.crear_contrato` rechaza cualquier número de contrato que, ya recortado (`nullif(btrim(…),'')`), sea nulo o no
+cumpla `^(2024|2025|2026)-01-[0-9]{6}$` (seis dígitos ASCII; el `01` es fijo, no es el mes; la lista de series es FIJA y no
+depende del año actual), con SQLSTATE `22023` y el mensaje exacto «Formato de número de contrato inválido: serie 2024-01-,
+2025-01- o 2026-01- seguida de exactamente 6 dígitos», en vez de inventar `AC-AAAA-NNNN` con `private.siguiente_numero_contrato`.
+La guarda vive dentro de la función común, así que cubre la llamada directa a la API (`authenticated` y `service_role`) y las
+puertas `crm.crear_contrato_con_cuenta` / `crm.crear_contrato_con_cuenta_pdf_v2` que la envuelven, y mira solo el ALTA (el
+contrato nuevo): renovaciones y upgrades sobre contratos históricos `AC-…` conservan su número. Se usa `[0-9]` y no `\d` porque en
+este Postgres `\d` casa dígitos no ASCII. **Excepción (D-17):** quien cumple `public.es_admin()` **y**
+`private.es_gerencia_crm_activa()` salta la guarda y conserva el comportamiento anterior (autogenera si va vacío; acepta cualquier
+número no duplicado); por eso `private.siguiente_numero_contrato` sigue en uso. Sin sesión de usuario (`auth.uid()` nulo, p. ej.
+`service_role`) no hay excepción (`es_admin()` da falso; además la función ya rechaza sin uid con `42501` en
+`private.puede_registrar_ventas()`). El duplicado conserva su error de siempre (`P0001` «El N de contrato % ya existe»); la guarda
+va ANTES, así que un número fuera de forma que además existe recibe el error de formato. La repetición de un alta con la misma
+clave de idempotencia devuelve lo guardado antes de llegar a esta función (no cambia). Comentario de la función ampliado.
+
+**Cómo:** parche por ancla única sobre el cuerpo vivo (`pg_get_functiondef` + `replace`, patrón de `20260914042114`; la rama
+`if v_numero is null then … siguiente_numero_contrato …` tiene que aparecer una sola vez o aborta); el resto del cuerpo, byte a
+byte el vigente; firma, dueño `postgres`, `security definer`, `search_path` vacío y ACL (`postgres`, `authenticated`,
+`service_role` con EXECUTE; `anon` sin EXECUTE) no cambian. **Preflight fail-closed:** (a) `md5(prosrc)` =
+`1adfbe1a72739a1863c7321c3fd20439` y `md5(pg_get_functiondef)` = `dce8f0dd6d6776b960096c56bdc29173` de `public.crear_contrato`
+(la huella de `bloque-2.6/fotografia/huellas-funciones-antes.txt`; si ya está la guarda también se niega), su ficha (dueño,
+DEFINER, `search_path=""`, ACL exacta **con `is_grantable`**) y su comentario previo; (b) los cinco helpers de los que dependen la
+excepción, quién llega a la guarda y el autogenerado del exento (`public.es_admin`, `private.es_gerencia_crm_activa`,
+`private.rol_crm`, `private.puede_registrar_ventas`, `private.siguiente_numero_contrato`) por `md5(prosrc)` **y por su ficha
+completa** (dueño, `prosecdef`, `provolatile`, `proparallel`, `proconfig` y ACL con `is_grantable`; valores medidos con `q.py` en el
+laboratorio el 07/10/2026: todos `postgres`, DEFINER, STABLE salvo `siguiente_numero_contrato` VOLATILE, UNSAFE, `search_path=""`
+salvo `es_admin` `public, pg_temp`, EXECUTE para el dueño y además `authenticated`+`service_role` en `es_admin` y `authenticated`
+en `rol_crm`, sin opción de concesión); (c) que **existan** `private.assert_analista_vigencia()` y
+`private.assert_f7_piezas_cerradas()` (sin ellos no se puede exigir que no cambien y la migración no se aplica).
+**Postflight fail-closed:** guarda presente (regex, mensaje, `22023`, conjunción `es_admin() and es_gerencia_crm_activa()`,
+autogenerado conservado), cuerpo nuevo exacto `md5(prosrc)` = `dee13ad8e1e16e066ba1ba623c0dda6b` (`md5(pg_get_functiondef)` =
+`6e5a01540300b385799743b4a5b47701`; no cambian desde la ronda 1: el bloque de la guarda y el comentario son byte a byte los mismos),
+ficha de la función idéntica a la previa y sin `anon`, huellas intactas de `siguiente_numero_contrato`,
+`public.actualizar_numero_contrato`, `crm.crear_contrato_con_cuenta[_pdf_v2]`, `es_admin`, `es_gerencia_crm_activa`, `rol_crm` y
+`puede_registrar_ventas`, **las mismas fichas de los cinco helpers**, los dos `assert_*` **existen** y dan EXACTAMENTE el mismo
+resultado que antes (en el laboratorio el primero ya cae por trabajos ajenos: se exige que no cambie), y una **sonda que es GATE y
+prueba hasta 5 candidatos**: pares «vendedor activo (rol `comercial`, ficha `vendedor` activa en `crm.equipo`) × cliente activo de su
+cartera», en orden determinista (`order by e.perfil_id, c.id`); cada candidato manda `ABC` por `public.crear_contrato` dentro de su
+propia subtransacción, que siempre se deshace, y la sonda se detiene en el primer resultado concluyente: «RECHAZADO con 22023 y el
+mensaje fijado» ⇒ pasa; «ACEPTÓ» ⇒ la migración aborta; «no concluyente: SQLSTATE|mensaje» (la llamada murió antes de llegar a la
+guarda, p. ej. cliente sin documento con la identidad unificada encendida) ⇒ siguiente candidato. Si **ningún** candidato es
+concluyente, o no hay candidatos, la migración **se niega**: el mensaje enumera cada candidato probado con su causa y dice
+exactamente qué preparar (un vendedor activo con un cliente activo **con documento** en su cartera; después, volver a aplicar). El
+`NOTICE` final dice qué candidato concluyó, cuántos se probaron y cuáles se descartaron. La sonda ejecuta código de negocio real
+sobre filas reales (hasta 5 pares), pero nada queda escrito. No toca tablas, grants, policies, `crm.*`,
+`private.siguiente_numero_contrato` ni `public.actualizar_numero_contrato` (D-16: paso aparte con plan propio).
+
+**⚠️ Para quien integre:** (1) la huella de `public.crear_contrato` CAMBIA; la registran y se negarían a correr DESPUÉS de esta
+migración: `supabase/scripts/tasa-baja/revertir-antes-del-primer-uso.sql:27` (`md5(prosrc)` `1adfbe1a…`, el revertidor
+histórico del parche de tasas) y, como `md5(pg_get_functiondef)` `dce8f0dd…`, los scripts y JSON de
+`supabase/scripts/multiempresa-f9/apertura-2026-09-15/` (y `revision-1/`) y las capturas de `multiempresa-f8/cierre-g7-2026-09-15/`
+(históricos ya ejecutados; **no se cambian aquí**). La huella de `crm.crear_contrato_con_cuenta` (F7: `22ec068f…`,
+`20260925210000`) NO cambia. (2) **Pruebas y oráculos que usan el autogenerado o números libres dejan de pasar para un actor NO
+exento** (inventario en `fase-2/bloque-2.3/salidas/INFORME-ESCRITOR.md` §5): `supabase/scripts/test-crear-contrato-cartera.sql`
+(GCAR-C18, C19, C20 y las etiquetas `GCAR-…`; su actor es `comercial+gerencia`, no exento), `tasa-baja/test-tasa-baja.sql`,
+`test-tasa-lead.sql`, `test-tasa-pendiente.sql`, `supervisor-propio/flujo-local.test.mjs`, `oraculo-rentabilidad-r1/r2/r4.sh`,
+`oraculo-alta-idempotente.sh`, `oraculo-eliminacion-atribuida.sh`, `oraculo-alta-replay-en-eliminacion.sh`. Se pueden conservar
+corriéndolas como exento (admin del Portal + Gerencia del CRM) o dándoles números válidos. (3) La app no se tocó: el espejo de E2E
+`app/e2e/_helpers.ts:2540-2545` (inventa `AC-2026-0…` sin número) y el comentario de `contrato-nuevo.tsx:578-579` («sin ellos el
+servidor inventaría la numeración vieja») quedan engañosos para un no exento. (4) Casos N1 y N1b-1…4 del banco
+(`laboratorio/paquete-paso08/42_fila2_inversion.py`, actor `vend1`, no exento) pasan de FAIL a PASS: quitar su marca
+`conflicto_para_padre` y actualizar `MATRIZ.md` (fase 4). (5) Repetir el conteo de solicitudes de inversión preparadas sin número
+justo antes de desplegar (fase 4): una preparada sin número fallaría al confirmarse. (6) **Serie 2027:** sin ella, enero de 2027
+bloquea las altas (tope anotado 15/12/2026 para CRM, Portal y servidor a la vez). (7) **El gate `supabase/scripts/test-rls.mjs`
+queda ROTO tras esta migración** (hallazgo A-1 del auditor, P1 de integración, no de seguridad; **no se toca aquí**: corre contra un
+branch con credenciales y su adaptación es tarea de la fase 4, antes del gate): `payloadIdem` (`:5507-5543`) arma `numero_contrato`
+libre `RLS-IDEM-${idemToken}-N` y lo usan altas positivas de `vend1` (`comercial+vendedor`, no exento; `fixtures.mjs:49-58`) en
+`:5543, 5564, 5602, 5612, 5619, 5637, 5664-5665, 5695`, con negativos que dependen de ellas en `:5558, 5576, 5590, 5631`
+(idempotencia, carrera, revocado/reactivado, eliminación auditada); y el caso `:5119-5137` (directorio-como-analista, sin
+`numero_contrato`) espera `23514` «términos inválidos» y recibirá `22023` antes del INSERT. `BANK_CONTRACT.number =
+'2026-01-990001'` (`fixtures.mjs:357`) SÍ es válido: el duplicado `:5455-5475` no se rompe. Impacto estimado: ~15 checks en
+cascada en rojo. **Adaptación (fase 4):** `payloadIdem` con `2026-01-` + 6 dígitos aleatorios sin colisionar con `990001`/`990002`,
+y el caso 5119 con un número válido para que siga midiendo `23514`. **Casos nuevos de la regla que pide el auditor (A-2; hoy el
+gate tiene 0 aserciones sobre `22023`/«Formato de número de contrato inválido» y `:8116-8118` dice que el arnés no tiene sesión
+admin ni superadmin del Portal):** (1) `vend1` directa `rpc('crear_contrato')` sin número y con `ABC` ⇒ `22023` + mensaje, sin filas;
+(2) lo mismo por `crm.crear_contrato_con_cuenta_pdf_v2` con `p_cuenta.tipo='nueva'` ⇒ `22023` y SIN cuenta nueva ni vínculo; (3)
+`gerencia` (`comercial+gerencia`, `fixtures.mjs:10-18`) y `sup1` ⇒ `22023`; (4) positivo `vend1` con `2026-01-NNNNNN` libre ⇒ alta;
+(5) `2027-01-000009`, 5 y 7 dígitos, dígito no ASCII por HTTP real ⇒ `22023`; (6) exento: promover temporalmente `gerencia` a
+`rol='admin'` (par admin+gerencia) ⇒ sin número autogenera `AC-…` y acepta `ABC-…`; duplicado ⇒ `P0001`; restaurar en `finally`; (7)
+`vend1` promovido a admin SIN Gerencia ⇒ `22023`; (8) `admin` (`service_role`) directa ⇒ `42501`; (9) `anon` ya está (`:9565`).
+Condicionar el bloque a la presencia de la guarda (`contarFueraDeBanda`, como `:17545-17546`). **Antes de adaptar nada, correr
+`npm run test:rls:preflight` tal como está para medir el ROJO real.** (8) **Deuda de DATOS de D-17 (A-6 del auditor; no de
+seguridad):** el exento sigue generando `AC-AAAA-NNNN` (y puede meter números libres), formato que la pantalla del CRM no admite
+(`app/src/lib/contratos-catalogo.ts:42-47`) hasta el paso aparte de `public.actualizar_numero_contrato` (D-16); el duplicado explícito
+lo detecta el `if exists` sin serializar y lo respalda el UNIQUE `contratos_numero_contrato_key` de
+`public.contratos.numero_contrato` (del portal; comprobado en el laboratorio: `UNIQUE (numero_contrato)`). (9) **Runbook del
+branch (ronda 3):** la migración solo confirma si la sonda dice «RECHAZADO con 22023 y el mensaje fijado» (por psql, su `NOTICE`
+añade qué candidato concluyó, cuántos se probaron y cuáles se descartaron; **por `supabase db query --linked` el `NOTICE` no llega:
+sin error = la sonda rechazó**, y ese detalle solo se ve en la branch —F4.1-A ronda 5, auditor r2 P3-2—). Si se niega, el mensaje
+enumera cada candidato probado con su causa:
+**la única salida es preparar en el branch un vendedor activo con un cliente activo con documento en su cartera y volver a aplicar la
+migración.** El oráculo `supabase/scripts/numero-contrato-servidor/` con `--sin-migracion` y la prueba HTTP N1/N1b del banco son
+**diagnósticos**: miden la función que haya en la base (tras un aborto, la **anterior**) y **no sustituyen una migración abortada ni
+desbloquean el gate**.
+
+**Verificación (laboratorio, `supabase/scripts/numero-contrato-servidor/`; ronda 3, 07/10/2026, sobre el archivo final):**
+oráculo ROJO sin la migración (95 fallos: 93 «el servidor ACEPTÓ el número (guardó o autogeneró …)» por la llamada directa y por
+`pdf_v2`, para el vendedor y la `gerencia` histórica `comercial+gerencia`; «inválido y además duplicado» con el error de duplicado;
+exento degradado no rechazado) y VERDE con ella (0 fallos, 129 comprobaciones; sonda «RECHAZADO con 22023 y el mensaje fijado (concluyó
+el candidato 1 de 1 probado(s) …)»): **24** formas malas por dos vías (las 11 del encargo más 13 variantes), positivos de las tres
+series, recortado, duplicado `P0001`, renovación y upgrade sobre `AC-…` históricos (rechazo del nuevo sin forma; el histórico conserva
+su número), exento `ger_admin` y `ger_super` (autogenera el `AC-AAAA-NNNN` exacto; acepta `ABC-…`; no salta el duplicado), negativos de
+la excepción (`gerencia` histórica, admin sin ficha, superadmin puro, vendedor, supervisor, sin sesión), idempotencia (incluido el
+exento que pierde la exención entre alta y repetición), catálogo y huellas. 22 mutantes de verdad muertos, cada uno por su fallo
+(autogenerado de vuelta, guarda quitada, regex sin `^`/sin `$`, `{6}`→`+`, +2027, −2024, `\d`, otro SQLSTATE, otro mensaje, **guarda
+solo en la puerta `crm`** —la directa vuelve a aceptar y la puerta sigue rechazando—, solo Gerencia, solo admin, exención que salta el
+duplicado, número crudo en vez de recortado, solo categoría `nuevo`, duplicado antes que forma, INVOKER, `search_path`, `anon`,
+`WITH GRANT OPTION`, `service_role` sin EXECUTE) y 1 **equivalente** confirmado («sin exigir sesión»: la función ya rechaza sin
+uid con `42501` antes de la guarda). **22 derivas previas:** 21 abortan sin dejar rastro —12 de la ronda 1 en el preflight (cuerpo,
+`SET`, INVOKER, `anon`, `WITH GRANT OPTION`, `service_role`, comentario, cuerpo de los cuatro helpers, migración ya aplicada), 6 de
+**ficha de un helper sin tocar su cuerpo** (`private.rol_crm` IMMUTABLE, `private.puede_registrar_ventas` con otro `search_path`,
+`WITH GRANT OPTION` sobre `private.rol_crm`, `private.siguiente_numero_contrato` con otro dueño, `public.es_admin()` INVOKER,
+`private.es_gerencia_crm_activa()` PARALLEL SAFE), `assert_f7_piezas_cerradas` ausente (preflight), y dos del postflight: base sin
+ningún candidato vendedor–cliente («no se pudo ejecutar») y **ningún candidato concluyente** (todos los clientes sin documento: los 5
+candidatos mueren antes de la guarda con `P0409` de la identidad unificada y el mensaje los enumera uno a uno con su causa y dice qué
+preparar)— y **1 que tiene que dejar ENTRAR a la migración** (solo el primer candidato de la ordenación pierde el documento: la sonda lo
+descarta, concluye con el segundo y el `NOTICE` dice «concluyó el candidato 2 de 2 probado(s)» y la causa del descartado). El cambio de
+dueño de `public.es_admin` NO es ensayable en el laboratorio (`postgres` no es dueño de `public`): se ensayó sobre un helper de
+`private` con la misma comparación. **Medido el ROJO de esas defensas:** contra la migración de la ronda 1, las derivas IMMUTABLE,
+`assert_*` ausente y sin actor se colaban (la migración entraba; la sonda quedaba «omitida»); contra la de la ronda 2, la deriva «primer
+candidato sin documento» hacía ABORTAR la migración aunque quedaran 15 pares aptos. El control entra, y **tres mutantes** mueren: dos
+del preflight (sin `is_grantable` se cuela `WITH GRANT OPTION`; sin la ficha de los helpers se cuela IMMUTABLE) y uno del postflight
+(una sonda que no itera, `limit 1`, aborta con la deriva «primer candidato no concluyente»; con la iteración entra). La reversa devuelve
+las huellas y la ficha originales; la reversa tras un `ALTER FUNCTION … SET lock_timeout` ABORTA sin dejar rastro; los 36 `assert_*` y
+el censo analítico, idénticos antes y después (`bloque-2.6/fotografia/trinquetes-antes.txt`). `npm run check:scripts`: FAIL ajeno (3
+tests de `reconciliar-claves-crm.test.mjs` por `@supabase/supabase-js` ausente). No ejecutado: lint/tipos/vitest/e2e (la app no se
+toca), `test-rls.mjs` (ROTO: punto 7), el banco por HTTP (N1/N1b), las pruebas del inventario. No ensayado: la rama «ACEPTÓ» de la
+sonda (con la guarda puesta no hay forma de que un no exento sea aceptado sin mutar la función; «la guarda no rechaza» lo cubren los
+mutantes del oráculo).
+**Revisiones (nivel 3):** Codex (07/10, CHANGES_REQUESTED sin P0/P1: C-1 ficha de los helpers, C-2 postflight fail-closed, C-3
+conteo 24 — aceptados y corregidos en la ronda 2), auditor de permisos (07/10, CHANGES_REQUESTED sin P0: A-1 gate `test-rls.mjs`
+ROTO declarado en el punto 7; A-2 casos nuevos a fase 4; A-3/A-4/A-5/A-6 corregidos o documentados aquí) y Codex sobre la ronda 2
+(07/10, CHANGES_REQUESTED sin P0/P1 nuevos: P2 R2-1 «la sonda elige un solo par y el runbook no ofrece salida» — aceptado y corregido
+en la ronda 3). Pendiente: validación corta de Codex de la ronda 3 (la lanza el Director).
+**Reversa:** `supabase/scripts/numero-contrato-servidor/reversa.sql` — FALLA CERRADA: se niega si la función no tiene exactamente la
+definición que dejó la migración (cuerpo y atributos); quita el bloque de la guarda y repone el comentario; `md5(prosrc)` vuelve a
+`1adfbe1a…` y `md5(pg_get_functiondef)` a `dce8f0dd…`. No deshace datos. Sin cambios en las rondas 2 y 3 (las huellas que exige no cambian).
+La fila de `supabase_migrations.schema_migrations` **se conserva** (regla de la casa, como en `scripts/categoria-sin-operacion/LEEME.md`): la reversa no la toca y se anota en `MIGRACIONES.md` (F4.1-A ronda 5, auditor r2 P3-7).
+**SHA-256 del archivo de la migración (07/10/2026, ronda 3):** `a0388ffdd4e6e9e390d54bd9184d3006a5cbd8ff6c28daa5ecc465a1418b86fb`.
+
+**Precisión del runbook (Codex, ronda 3, P3 aceptado por el Director):** la sonda del postflight prueba solo los **cinco primeros** pares vendedor–cliente en el orden `order by e.perfil_id, c.id`; si la migración se niega por falta de un par apto, hay que hacer apto **uno de los cinco pares que el mensaje enumera** (o comprobar que el par preparado entra en esos cinco) y volver a aplicar. Hipótesis para la fase 4: cada par aparece una sola vez (una fila por perfil en `crm.equipo`; la cartera une cliente→vendedor). Desde F4.1-A ronda 5 (auditor r2 P3-6), `scripts/numero-contrato-servidor/candidatos-sonda.sql` (una SELECT de solo lectura, con la misma selección y orden que la sonda) lista esos cinco pares y si concluirían; el Director la corre en la branch antes de aplicar y en F4.7 en producción.
+
+**Requisitos para integrar (del cierre del bloque, fase 2; siguen en pie para la branch):**
+
+1. Correr `npm run test:rls:preflight` tal como está para medir el ROJO real; adaptar `test-rls.mjs` (H-19) y añadir los 8(+1) casos (listados en
+   `revision/respuesta-auditor.md`, P2); fixtures admin+gerencia / superadmin+gerencia.
+2. Runbook del branch: la sonda tiene que dar «RECHAZADO con 22023…» (por psql se lee en su NOTICE; por `db query --linked` el NOTICE no llega: sin
+   error = la sonda rechazó —F4.1-A ronda 5, auditor r2 P3-2—); antes de aplicar, `candidatos-sonda.sql` (solo lectura) dice qué pares probaría y si
+   concluirían; si la migración se niega por falta de par vendedor–cliente apto, hacer apto **uno de los
+   cinco pares que el mensaje enumera** y volver a aplicar (el oráculo `--sin-migracion` y la prueba HTTP son diagnósticos, no sustituyen la migración).
+3. Repetir el conteo de solicitudes de inversión preparadas antes de desplegar.
+4. **Serie 2027:** la pide Miguel; **tope 15/12/2026**; cambiar a la vez servidor (nueva migración), CRM (`PREFIJOS_CONTRATO`) y Portal.
+5. Paso aparte con plan propio: `public.actualizar_numero_contrato` («número cambiado ⇒ formato válido; sin cambio ⇒ pasa»; D-16).
+6. H-21 y H-22; actualizar las marcas `conflicto_para_padre` de N1/N1b en el banco (ronda del banco).
+
+**Pruebas de integración preparadas en F4.1-A (escritas, NO ejecutadas contra ninguna base):** `test-rls.mjs` (adaptación H-19 de los números libres del gate y bloque «2.3 · número de contrato» con los 8+1 casos del auditor) y las pruebas de la app que dependían del número autogenerado. Detalle y huecos, en el plan: `fase-4/F4.1-A/salidas/INFORME-ESCRITOR.md` (ronda 1), `salidas/ronda2/INFORME-ESCRITOR-RONDA2.md` (ronda 2: H-19-bis, el número opcional de `contratoPrueba` y `convertirAvanceVigente` en lugar del envoltorio Proxy de la ronda 1) y `salidas/ronda3/INFORME-ESCRITOR-RONDA3.md` (ronda 3: positivos con id, fila y número guardado; negados con código y mensaje por actor; `resolver_en_puertas` restaurada fila a fila; guarda de la vía fuera de banda) y `salidas/ronda4/INFORME-ESCRITOR-RONDA4.md` (ronda 4: fecha nueva `20261009210100` sobre `main` `482f3811`, el registrador, la sonda HTTP de Gestión Diaria con número y el inventario de llamadas sin número) y `salidas/ronda5/INFORME-ESCRITOR-RONDA5.md` (ronda 5, sobre `main` `5f28b73c`: el registrador que exige el estado completo de `public.crear_contrato`, `candidatos-sonda.sql`, los textos del NOTICE y de la reversa, y en el gate la restauración de la escalada con relectura y el re-bloqueo D-17 tras cada login).
+
+**Evidencia histórica de multiempresa F8/G7 (decisión del Director, F4.1-A ronda 4b):** `supabase/scripts/multiempresa-f8/cierre-g7-2026-09-15/verificar-evidencia.mjs:122-130` exige el SHA-256 de `f4/operaciones-fixture.mjs` que guardó su evidencia (`874d0bb6…`); el número opcional de la ronda 2 cambió ese archivo y el verificador da rojo (ya lo daba en `main` por `crm-inversion-portal/handler.mjs`). Se acepta como evidencia histórica: el fixture no se revierte.
+
+**Suites históricas tras la 2.3 (decisión del Director, F4.1-A ronda 4b):** las suites históricas que llaman a `crear_contrato` de un no exento sin número válido —o que fijan su cuerpo anterior, como la C4 de `categoria-sin-operacion/prueba.sql:171` (`md5(prosrc)` `1adfbe1a…`; sus altas las da el par exento)— dan rojo tras la 2.3; no se tocan (inventario en `fase-4/F4.1-A/salidas/ronda4/trabajo/inventario-clasificado.tsv` del plan).

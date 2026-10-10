@@ -54,8 +54,11 @@ export async function convertirCoopVigente(client, args) {
 // El handler se ejecuta en proceso (NO acredita un despliegue Edge). Todas sus
 // llamadas a Auth y a las RPC usan HTTP real. La clave de servicio sólo se usa
 // dentro del handler oficial de acceso, nunca para escribir la inversión.
+// `numero` (OPCIONAL; fase 4 · bloque 2.3, 20261009210100): número de contrato con el que se corrige la solicitud
+// (llega a `p_datos.contrato.numero_contrato`). Con esa migración la confirmación de un NO exento (D-17) sin número
+// muere con 22023. Sin `numero`, el recorrido es idéntico al de antes (contratoPrueba no añade la clave).
 export async function convertirAvanceVigente(client, {
-  leadId, documento, vendedorId, apiUrl, anonKey, serviceKey, capital = 1000,
+  leadId, documento, vendedorId, apiUrl, anonKey, serviceKey, capital = 1000, numero,
 }) {
   const persona = await reconocer(client, leadId, 'DNI', documento, 'PERSONA SINTETICA RLS');
   if (persona.error) return persona;
@@ -80,7 +83,7 @@ export async function convertirAvanceVigente(client, {
   }));
   const acceso = await respuesta.json();
   if (!respuesta.ok) return {data:null,error:{code:String(respuesta.status),message:acceso.error},status:respuesta.status};
-  const propuesta = contratoPrueba(acceso.perfil_id, vendedorId, { capital, inicio: fecha.slice(0,8) + '01' });
+  const propuesta = contratoPrueba(acceso.perfil_id, vendedorId, { capital, inicio: fecha.slice(0,8) + '01', numero });
   delete propuesta.contrato.cliente_id;
   delete propuesta.contrato.analista_cierre_id;
   const corregida = await client.schema('crm').rpc('corregir_solicitud_inversion_fn',{
