@@ -39,7 +39,11 @@ por equipo, más la salud de los celulares, sin números, leads ni horas exactas
   (`20260924201358:112`), que da `42501` a todo lo que no sea gerencia (comprobado el 10/10; el plan corto lo daba por
   reutilizable tal cual). Para el supervisor, el núcleo usa `private.vendedor_ids_visibles(p_actor)`
   (`20260803164348`: su subárbol) cruzado con `crm.equipo` (`rol_crm = 'vendedor'`, activos) y los nombres de
-  `public.perfiles`; todos bajo un único equipo con su id. → decisión **D4**.
+  `public.perfiles`; todos bajo un único equipo con su id.
+- **Regla D4 (igualdad por analista):** las cifras de un analista dependen solo de él (`eventos.analista_id` y los
+  predicados de §5), nunca de quién pregunta. Gerencia y un supervisor que lo incluyan ven **los mismos números**
+  de ese analista; lo único que puede diferir es la composición del equipo (roster para gerencia, subárbol para el
+  supervisor) y, por tanto, los totales de equipo, que son siempre la suma de los miembros listados. Lo prueba O17.
 - **Atribución (A1):** cada evento cuenta para `eventos.analista_id` (quien marcó), aunque el lead cambie de dueño.
   **No** se usa `private.llamada_celular_visible` fila por fila: sigue al dueño actual del lead y cuesta una consulta
   por fila.
@@ -72,13 +76,17 @@ y momento dentro de hoy. Se reparte en **cubetas que suman el total**, para que 
 | --- | --- | --- |
 | `total` | el universo | «Llamadas de hoy (por la hora de la llamada)» |
 | `con_resultado` | tiene enlace cuya actividad **no** está deshecha (`not (a.metadata ? 'deshecho_en')`) | «ya con resultado» |
-| `sin_resultado` | `atencion = 'requiere_resultado'`, sin enlace vigente, y el lead sigue **abierto y contactable**: `l.activo`, `l.etapa not in ('convertido','descartado')`, `not l.no_contactar`, `not private.persona_vetada(l.id)` | «sin resultado» |
-| `cerradas_despues` | `requiere_resultado` sin enlace vigente, pero el lead ya no está abierto o contactable (A5) | «ya no piden resultado» |
+| `deshechas_sin_corregir` | tiene enlace, pero su actividad **está deshecha** (`a.metadata ? 'deshecho_en'`) y el lead sigue abierto y contactable. Deshacer conserva `atencion = 'registrado'` y el enlace (`20261005182227:108–135`): la llamada espera «Registrar el corregido», que mueve el enlace | «deshechas sin corregir» |
+| `sin_resultado` | `atencion = 'requiere_resultado'`, sin enlace, y el lead sigue **abierto y contactable**: `l.activo`, `l.etapa not in ('convertido','descartado')`, `not l.no_contactar`, `not private.persona_vetada(l.id)` | «sin resultado» |
+| `cerradas_despues` | `requiere_resultado` sin enlace, **o** deshecha sin corregir, pero el lead ya no está abierto o contactable (A5) | «ya no piden resultado» |
 | `descartadas` | `atencion = 'descartado_con_motivo'` | «descartadas» (nunca son gestión) |
 | `por_revisar` | `atencion = 'por_revisar'` (reutilizables identificadas) | «por revisar» |
 
-`total = con_resultado + sin_resultado + cerradas_despues + descartadas + por_revisar`. `requiere_devolucion` no
-puede aparecer (entrantes bloqueadas) y el oráculo lo comprueba.
+`total = con_resultado + deshechas_sin_corregir + sin_resultado + cerradas_despues + descartadas + por_revisar`.
+Las seis cubetas son disjuntas: el estado se deriva de (`atencion`, enlace, `deshecho_en` de la actividad, estado
+del lead), en ese orden. `requiere_devolucion` no puede aparecer (entrantes bloqueadas) y el oráculo lo comprueba.
+Una deshecha sin corregir **no caduca**: la purga solo retira eventos sin enlace (`20261005143843:846–886`), así que
+sigue contando hasta que se corrija o el lead se cierre.
 
 **Porcentaje permitido:** `con_resultado / total` (misma cohorte). **Prohibido:** dividir `resultados_hoy.total`
 entre `llamadas_hoy.total` (relojes distintos; condición de Miguel).
@@ -106,7 +114,13 @@ en que no coinciden —intención cumplida tras medianoche, enlace manual y enla
 | `pendientes.total` | eventos `requiere_resultado` sin enlace vigente, lead abierto y contactable (como 5.1), de cualquier fecha dentro de la retención (30 días: la purga los retira) |
 | `pendientes.de_hoy` / `pendientes.anteriores` | los de arriba, partidos por el momento de la llamada |
 | `pendientes.mas_antigua_dias` | `floor(extract(epoch from p_ahora - momento) / 86400)` de la más antigua; `null` si no hay |
+| `pendientes.deshechas_sin_corregir` | eventos con enlace a una actividad deshecha, lead abierto y contactable, de cualquier fecha (no caducan) |
 | `por_revisar.total` | eventos `por_revisar` (ambiguas, de la bolsa, reutilizables) |
+
+**Retención (D5):** lo que **no** tiene enlace (sin resultado, por revisar) lo retira la purga a los 30 días
+(`dias_retencion_sin_resolver`); las descartadas, a sus días propios; lo que **tiene** enlace (registradas, incluidas
+las deshechas) **se conserva sin límite**. Por eso `pendientes.total` abarca como mucho 30 días y
+`pendientes.deshechas_sin_corregir` no tiene tope: se muestran separados.
 
 «Sin resultado» usa la atención **cruda**, no `llamada_celular_atencion_efectiva` (depende de quién mira): así
 supervisor y gerencia ven la misma cifra del mismo analista.
@@ -153,12 +167,21 @@ con un recorrido del jsonb (O14).
 
 ## 7. Rendimiento y privacidad
 
-- Volumen: ≤ ~1.800 eventos/día con 2–3 celulares y purga a 30 días → la tabla no pasa de ~60.000 filas. Índices que
-  ya existen: `(analista_id, atencion, recibido_en)`, `(lead_id, recibido_en)`, `(recibido_en)` en eventos;
-  `evento_id` único y `(lead_id)` en enlaces. El momento con `ocurrio_en` no tiene índice: con ese volumen alcanza.
-  **Objetivo: < 100 ms en `EXPLAIN ANALYZE` con el banco de Miguel; sin índice nuevo salvo que el EXPLAIN lo pida.**
-- Una sola pasada por eventos del ámbito y de la ventana ampliada (hoy ∪ retención), agregando en SQL; sin
-  `llamada_celular_visible` por fila.
+- Volumen: la tabla **crece sin tope** con las registradas, porque la purga conserva todo lo enlazado
+  (`20261005143843:846–886`; el oráculo de la corrección conserva registradas de 100 días, deshechas incluidas). Solo
+  lo sin enlace se retira a los 30 días. Con C1 son ~20 registradas al día; con tres celulares, del orden de 60/día
+  → ~20.000 filas al año, más las pendientes de 30 días. No es un límite: es una estimación para el EXPLAIN.
+- Cómo acota la consulta: la cohorte de llamadas de hoy filtra primero por `recibido_en >= v_desde − 1 día` (una
+  llamada ocurrida hoy no pudo recibirse antes de ayer: la ingesta rechaza más de un día de adelanto del reloj) y por
+  `analista_id` del ámbito, con el índice `(analista_id, atencion, recibido_en)`; el momento con `ocurrio_en` se
+  evalúa después, sobre ese subconjunto. Los pendientes acotan por `atencion` y `recibido_en >= p_ahora − 30 días`.
+  Las deshechas sin corregir se buscan desde `llamadas_celular_enlaces` (`evento_id` único) hacia `crm.actividades`.
+  Índices que ya existen: `(analista_id, atencion, recibido_en)`, `(lead_id, recibido_en)`, `(recibido_en)` en
+  eventos; `evento_id` único y `(lead_id)` en enlaces.
+  **Objetivo: < 100 ms en `EXPLAIN ANALYZE` sobre el banco de Miguel con historial acumulado (los 100 días del oráculo
+  de la corrección como mínimo); sin índice nuevo salvo que ese EXPLAIN lo pida.**
+- Una sola pasada por eventos del ámbito y de la ventana acotada, agregando en SQL; sin `llamada_celular_visible`
+  por fila.
 - Bitácora: la puerta no escribe nada. La fuga del latido ya está cerrada (undécima y macro del 06/10).
 
 ## 8. Oráculos (banco reducido) y gate
@@ -178,19 +201,21 @@ y el patrón «foto antes → acción → foto después» de los demás oráculo
 | O6 | Borde del día (Lima) | evento con `ocurrio_en` = 23:59 Lima de ayer y `recibido_en` hoy → cuenta en **ayer**; uno de 00:00 hoy → hoy |
 | O7 | Llamada de ayer resuelta hoy | está en `resultados_hoy` y **no** en `llamadas_hoy`; `pendientes.anteriores −1` |
 | O8 | Los tres casos de A2 | intención cumplida tras medianoche, enlace manual, enlace movido: `resultados_hoy` sigue la **fecha de la actividad**, no la del enlace |
-| O9 | Deshecha sin corregir | sale de `con_resultado` y vuelve a `sin_resultado`; corregida (séptima) → vuelve a `con_resultado` sin duplicar |
+| O9 | Deshacer y corregir, con la distribución completa | Antes: `con_resultado = 1`, las demás 0, `total = 1`. Tras **Deshacer**: `deshechas_sin_corregir = 1`, las demás 0, `total = 1` (sigue `registrado` con su enlace) y `pendientes.deshechas_sin_corregir = 1`. Tras **«Registrar el corregido»** (séptima, el enlace se mueve): `con_resultado = 1`, `deshechas_sin_corregir = 0`, sin duplicar. Variante: deshecha y después el lead se convierte → `cerradas_despues = 1`, `total = 1`. Variante: deshecha de hace 40 días → sigue en `pendientes.deshechas_sin_corregir` (no la purga) |
 | O10 | Por revisar | una ambigua → `por_revisar +1` y **no** toca `sin_resultado` |
 | O11 | Lead de baja (A4) y lead convertido después (A5) | el primero desaparece de todas las cubetas; el segundo pasa de `sin_resultado` a `cerradas_despues` |
 | O12 | Entrante insertada a mano (como dueño) | no cuenta en nada; `requiere_devolucion` = 0 siempre |
-| O13 | Latidos | `al_dia` (latido hace 1 h), `sin_latido` (hace 8 h), `nunca`; `sin_dato` solo con 0 llamadas y sin latido al día; con latido al día y 0 llamadas → `sin_dato = false` |
+| O13 | Latidos, con los bordes del umbral | `al_dia` con latido hace 1 h, **6 h 30 min** y **7 h 00 min exactas** (`> 7 h` es estricto en `20261006150254:45`); `sin_latido` con **7 h 00 min 01 s** y 8 h; `nunca` sin latido. `sin_dato` solo con 0 llamadas y sin latido al día; con latido al día y 0 llamadas → `sin_dato = false`. Los casos de 6 h 30 y 7 h 00 son los que matan al mutante de 6 h |
 | O14 | Privacidad | recorrido recursivo del jsonb: ninguna clave `numero`, `lead_id`, `evento_id`, `ultimo_latido_en`, ningún valor que cumpla `^\+?[0-9]{7,}$` |
-| O15 | Cierre de cubetas | en cada analista, `total` = suma de las cinco cubetas; equipos y totales = sumas de sus analistas |
+| O15 | Cierre de cubetas | en cada analista, `total` = suma de las **seis** cubetas; equipos y totales = sumas de sus analistas |
 | O16 | Reloj corrido (D2) | `ocurrio_en` 20 min por delante de `recibido_en` → el momento es `recibido_en` |
+| O17 | Supervisores anidados (D4) | `S1` supervisa a `S2`, que supervisa al vendedor `V` (banco: alta de `S2` bajo `b1`). Gerencia (roster: `V` bajo `S2`), `S1` (subárbol: incluye a `V`) y `S2` reciben **las mismas cifras de `V`**, cubeta por cubeta; solo cambian los totales de equipo según quién lo compone. El mutante «contar según quién pregunta» (atención efectiva o `llamada_celular_visible`) lo mata |
 
 **Mutantes** (cada uno debe hacer fallar al menos un caso): quitar el filtro `direccion` (O12); quitar `l.activo`
-(O11); usar `enlaces.actualizado_en` en vez de `actividades.creado_en` (O8); contar deshechas (O9); usar
-`llamada_celular_visible` (O3 con un lead reasignado); omitir el `42501` del supervisor ajeno (O2); umbral de 6 h en
-vez de 7 (O13); ventana en UTC (O6); dividir cohortes distintas (O15 con un porcentaje de más).
+(O11); usar `enlaces.actualizado_en` en vez de `actividades.creado_en` (O8); contar deshechas como `con_resultado`
+o dejarlas fuera de toda cubeta (O9, O15); usar `llamada_celular_visible` o la atención efectiva (O3, O17); omitir el
+`42501` del supervisor ajeno (O2); umbral de 6 h en vez de 7 (O13); ventana en UTC (O6); dividir cohortes distintas
+(O15 con un porcentaje de más); acotar `recibido_en` desde hoy en vez de desde ayer (O6).
 
 **Gate (`test-rls.mjs`, bloque nuevo con bandera `CRM_RLS_EXIGE_LLAMADAS_F4E`, como `_F4B` en `:18224`):** roles;
 aislamiento (`sup2` no ve a `vend1`); cifras antes y después de ingerir, registrar y descartar; claves de equipo
@@ -220,12 +245,13 @@ iguales a las de `gestion_diaria_pulso_fn`; `EXPLAIN` registrado.
 | D1 | «Sin dato» = 0 llamadas **y** sin latido al día. ¿Un celular al día con 0 llamadas muestra «0»? | Sí: el latido prueba que vive |
 | D2 | Reloj corrido: si `ocurrio_en` va > 5 min por delante de `recibido_en`, ¿se cuenta por `recibido_en`? | Sí, con el mismo umbral de `reloj_desfasado` |
 | D3 | Dos cohortes (5.1 por llamada, 5.2 por resultado) para cumplir «numerador y denominador de la misma cohorte» | Sí; es la única forma de dar un % de «con resultado» honesto |
-| D4 | Equipo del supervisor = su subárbol de `vendedor_ids_visibles` (el roster es solo de gerencia). Con supervisores anidados, gerencia (roster: supervisor más cercano) y ese supervisor (subárbol entero) pueden ver cifras distintas del mismo analista | Aceptar la diferencia y rotularla; si Miguel prefiere que cuadren, hace falta un roster sin la guarda de gerencia (SQL nuevo) |
-| D5 | Retención de «pendientes anteriores»: hasta la purga (30 días) | Sí; F6 decidirá si se guardan agregados (F6.3.2) |
+| D4 | **Resuelta como regla del contrato (10/10, pedido de Miguel):** las cifras por analista son idénticas para todos los que lo incluyen (§3, O17); la composición del equipo (roster para gerencia, subárbol para el supervisor) es técnica y los totales de equipo son la suma de los miembros listados | — |
+| D5 | Retención: lo sin enlace caduca a los 30 días (pendientes y por revisar: ventana visible = 30 días); lo enlazado, registradas y deshechas, se conserva sin límite, y las «deshechas sin corregir» se muestran aparte sin tope (§5.3) | Sí; F6 decidirá si se guardan agregados (F6.3.2) |
 
 ## 11. Qué sigue
 
-1. OK de Miguel a D1–D5 y a la sección 9 → migración + oráculo + mutantes (Claude) → su banco y EXPLAIN (Miguel).
+1. Revisión del 10/10 (#249): D1, D2 y D3 aprobadas; D4 resuelta como regla; D5 precisada. Falta el OK a la sección 9
+   → migración + oráculo + mutantes (Claude) → su banco y EXPLAIN con historial acumulado (Miguel).
 2. Pantalla sobre la puerta (PR aparte) → publicación → aceptación en C1 con los dos roles.
 3. F6 amplía esta misma puerta (histórico, retrasos, cobertura, entrantes con la #14).
 
@@ -234,5 +260,6 @@ iguales a las de `gestion_diaria_pulso_fn`; `EXPLAIN` registrado.
 Este documento dice, número por número, qué va a contar la vista de supervisores y gerencia y con qué reloj: las
 llamadas de hoy se cuentan por la hora de la llamada, los resultados de hoy por la hora en que se registraron, y lo
 pendiente es una foto de ahora. También dice quién puede verla (gerencia todo, cada supervisor su equipo), qué nunca
-sale (números, leads, horas exactas) y qué pruebas demuestran cada cifra. Faltan cinco decisiones pequeñas de Miguel
-y su OK para escribir la consulta en la base.
+sale (números, leads, horas exactas) y qué pruebas demuestran cada cifra. Una llamada cuyo resultado se deshizo cuenta
+aparte, como «deshecha sin corregir», hasta que se registre el corregido. Miguel ya decidió las definiciones; falta su
+OK al plan de la consulta para escribirla en la base.

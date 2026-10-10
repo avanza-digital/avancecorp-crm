@@ -98,10 +98,16 @@ Lo que está **probado en C1** lleva su fecha; lo demás sale del código (`2026
 §ingesta y §enlaces) y no se ha probado con el teléfono.
 
 **a) Reasignaron el lead** (probado: P10, 08/10). Las llamadas del celular **siguen al dueño actual del lead**
-(decisión 7). El analista anterior deja de verlas en «Pendientes» y en «Qué pasó hoy»; el nuevo dueño las ve y, si
-estaban pendientes, las registra él desde «Pendientes». Las cifras del día de cada uno no se mezclan: la llamada cuenta
-para quien la hizo (hallazgo H-P10: hoy la pantalla dice «tu celular» aunque no sea suya; en arreglo). **No:** registrar
-la misma llamada dos veces ni pedir que «devuelvan» la llamada al anterior.
+(decisión 7): el analista anterior deja de verlas y el nuevo dueño las ve en «Pendientes» y en «Qué pasó hoy». Las
+cifras del día no se mezclan: la llamada cuenta para quien la hizo (hallazgo H-P10: hoy la pantalla dice «tu celular»
+aunque no sea suya; en arreglo). **Límite actual (por el código):** si quedó una llamada del anterior en «Pendientes»,
+el nuevo dueño **no puede unirla**: la llamada es del celular del otro analista y el servidor responde «no se unió a la
+llamada del celular: la llamada es de otro celular». Si la registra desde «Pendientes», el resultado se guarda en el
+lead pero la fila **sigue pendiente**, y registrarla otra vez duplicaría la gestión. **Qué hacer:** registrar la
+gestión real **una sola vez**, desde la ficha del lead; dejar la fila pendiente (caduca sola a los 30 días) o, si
+estorba, «Descartar» → «Otro motivo» escribiendo «lead reasignado» (un descarte no cuenta como gestión). El recorrido
+para que el nuevo dueño la una está por diseñar junto con F4.2.4, conservando permisos y a quién se atribuye.
+**No:** registrar la misma llamada dos veces ni pedir que «devuelvan» la llamada al anterior.
 
 **b) Dos personas con el mismo número.**
 - *Dos leads del mismo analista o equipo:* la llamada llega como **«por revisar»** y la fila ofrece **«Elegir el lead»**,
@@ -116,7 +122,10 @@ la misma llamada dos veces ni pedir que «devuelvan» la llamada al anterior.
   seguiría sin tomar la llamada).
 
 **c) Corregir una asociación** (la llamada quedó en el lead equivocado).
-- *Mientras está pendiente:* **«Elegir el lead»** otra vez; solo admite leads con ese número.
+- *Mientras está pendiente:* la pantalla **no ofrece volver a elegir el lead** una vez que la llamada ya tiene uno
+  («Elegir el lead» solo aparece cuando no lo tiene). El servidor sí lo admitiría, solo entre leads con ese número:
+  la acción puede entregarse en otro PR. Hoy: **«Descartar» → «Error de captura»**, registrar la gestión en el lead
+  correcto desde su ficha (quedará sin unión) y avisar a soporte.
 - *Ya registrada o descartada:* el lead **ya no se puede cambiar** («La llamada ya está registrada o descartada»).
   Deshacer + «Registrar el corregido» corrigen el **resultado**, no el lead (probado: P9, 09/10). Si el resultado se
   guardó en el lead equivocado: **Deshacer**, registrar la llamada en el lead correcto **desde su ficha** (quedará sin
