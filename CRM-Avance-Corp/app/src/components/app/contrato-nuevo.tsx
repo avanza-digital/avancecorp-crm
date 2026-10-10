@@ -576,8 +576,11 @@ export function ContratoNuevo({
       reportarError(bloqueoTasa)
       return
     }
-    // El N° debe ser EXACTAMENTE 6 dígitos (espejo de analista.js:800-805): sin
-    // ellos el servidor inventaría la numeración vieja 'AC-2026-XXXX'.
+    // El N° debe ser EXACTAMENTE 6 dígitos (espejo de `formarNumeroContrato` del Portal,
+    // js/admin/numero-contrato-core.js). El servidor exige lo mismo desde el bloque 2.3
+    // (20261009210100): rechaza con 22023 un número ausente o fuera de la serie 2024-01-,
+    // 2025-01- o 2026-01- + 6 dígitos; solo el par exento D-17 (admin o superadmin del
+    // Portal + Gerencia del CRM) conserva el autogenerado 'AC-AAAA-NNNN' si va vacío.
     if (!RE_SEIS_DIGITOS.test(numero)) {
       reportarError(`El N° de contrato debe tener exactamente 6 dígitos (después de ${prefijo}).`)
       return

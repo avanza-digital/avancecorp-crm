@@ -1,8 +1,21 @@
--- Pruebas de crm.eliminar_inversion_fn (20261005200945) en el BANCO Docker propio: esquema de producción, sin datos.
--- Se corre como supabase_admin (la siembra apaga los triggers con session_replication_role; las pruebas los encienden).
--- TODO termina en ROLLBACK: el banco queda como estaba y la batería se puede repetir.
---   docker exec -i -e PGPASSWORD=postgres <contenedor> psql -U supabase_admin -h 127.0.0.1 -d postgres \
---     -v ON_ERROR_STOP=1 -qAt -f - < supabase/scripts/eliminar-inversion/test-eliminar-inversion.sql
+-- Pruebas de crm.eliminar_inversion_fn (20261005200945) en el BANCO Docker propio (esquema de producción, sin datos) o en una
+-- BRANCH de Supabase. La siembra apaga los triggers con session_replication_role; las pruebas los encienden.
+-- TODO termina en ROLLBACK: la base queda como estaba y la batería se puede repetir.
+--   · Banco Docker, como supabase_admin:
+--       docker exec -i -e PGPASSWORD=postgres <contenedor> psql -U supabase_admin -h 127.0.0.1 -d postgres \
+--         -v ON_ERROR_STOP=1 -qAt -f - < supabase/scripts/eliminar-inversion/test-eliminar-inversion.sql
+--   · Branch, como `postgres` por el pooler en modo SESIÓN (puerto 5432; todo el archivo es una sola transacción) o por la
+--     conexión directa. Destino y contraseña en las variables PG* (la contraseña exportada aparte en PGPASSWORD, o en
+--     ~/.pgpass), nunca en la línea de comandos; y NUNCA el ref de producción (esto escribe, aunque lo revierta):
+--       PGHOST=<host de la branch> PGPORT=5432 PGUSER=postgres.<ref de la branch> PGDATABASE=postgres \
+--         psql -X -v ON_ERROR_STOP=1 -qAt -f supabase/scripts/eliminar-inversion/test-eliminar-inversion.sql
+--     `set local session_replication_role` lo usa también el gate por la vía fuera de banda (test-rls.mjs, siembras); si la
+--     branch se lo negara a `postgres`, el archivo falla al empezar la siembra y no deja nada (ROLLBACK).
+-- En una branch las tres empresas ya existen (las siembra 20260903160000, `empresas_clave_key`): la siembra de abajo no las
+-- duplica (`on conflict (clave) do nothing`) y todos sus ids se resuelven POR CLAVE (pg_temp.empresa). Lo que se mide no cambia:
+-- en el recorrido de estas pruebas, crm.empresas solo se lee para pasar de la clave al id (private.f4_sincronizar_cierre,
+-- private.inversion_historica_estado) y para la `fuente_capital` de cada clave (private.inversiones_empresa_coherente), que es
+-- la misma en las dos siembras (avance → contratos; qorilazo y prodelco → cierres_externos). F4.1-A, ronda 3 (auditor P2-1).
 begin;
 set local lock_timeout = '5s';
 
@@ -42,13 +55,29 @@ begin
   raise exception 'FALLA: debió rechazar con % en: %', p_estado, p_sql;
 end $$;
 
+-- El id de una empresa POR SU CLAVE (en una branch no son los de la siembra de abajo).
+create function pg_temp.empresa(p_clave text) returns uuid language sql stable as $$
+  select e.id from crm.empresas e where e.clave = p_clave $$;
+
 -- ── Siembra (triggers apagados SOLO aquí) ──────────────────────────────────────────────────────────────────────────────
 set local session_replication_role = replica;
+-- Comprobantes de ensayo (F4.6 en la branch, 09/10): `crm.cierres_externos.comprobante_objeto_id` tiene una llave hacia `storage.objects`; con la
+-- siembra en `replica` no se comprueba al insertar, pero la anulación (UPDATE en la misma transacción) sí la comprueba. Antes se ponía un id inventado y
+-- el caso fallaba en cualquier base con esa llave. Ahora cada cierre lleva un objeto de ensayo real del bucket `f4-comprobantes`, que se deshace con todo.
+create function pg_temp.objeto_comprobante_ensayo() returns uuid language sql as $f$
+  insert into storage.objects (bucket_id, name) values ('f4-comprobantes', 'ensayo-caso24/' || gen_random_uuid()::text) returning id
+$f$;
 
 insert into crm.empresas (id, clave, nombre_legal, nombre_visible, fuente_capital, activa) values
   ('10000000-0000-4000-8000-000000000001', 'avance', 'AVANCE PRUEBA SAC', 'Avance', 'contratos', true),
   ('10000000-0000-4000-8000-000000000002', 'prodelco', 'PRODELCO PRUEBA', 'Prodelco', 'cierres_externos', true),
-  ('10000000-0000-4000-8000-000000000003', 'qorilazo', 'QORILAZO PRUEBA', 'Qorilazo', 'cierres_externos', true);
+  ('10000000-0000-4000-8000-000000000003', 'qorilazo', 'QORILAZO PRUEBA', 'Qorilazo', 'cierres_externos', true)
+  on conflict (clave) do nothing;
+do $empresas$ begin
+  perform pg_temp.exigir((select count(*) = 3 from crm.empresas e where (e.clave, e.fuente_capital) in
+    (('avance', 'contratos'), ('prodelco', 'cierres_externos'), ('qorilazo', 'cierres_externos'))),
+    'las tres empresas, cada una con su fuente de capital');
+end $empresas$;
 
 -- ADM admin sin CRM · GER admin + gerencia · GSO gerencia sin admin del portal · VEN vendedor · CLI cliente (Avance)
 insert into public.perfiles (id, nombre_completo, rol, activo) values
@@ -85,19 +114,19 @@ insert into crm.cierres_externos (id, cooperativa, monto, moneda, documento_tipo
     vendedor_id, creado_por, es_cierre_inicial, lead_id, inversionista_id, fecha_comercial, fecha_imputacion, anulado_en, anulado_por, motivo_anulacion,
     comprobante_objeto_id, referencia_externa) values
   ('e0000000-0000-4000-8000-0000000000e1', 'prodelco', 1000, 'USD', 'DNI', '40000001', 'PERSONA NC', 'TX-NC',
-    'a0000000-0000-4000-8000-0000000000a4', 'a0000000-0000-4000-8000-0000000000a4', false, null, 'b0000000-0000-4000-8000-0000000000b1', '2026-09-15', '2026-09-15', null, null, null, gen_random_uuid(), 'REF NC'),
+    'a0000000-0000-4000-8000-0000000000a4', 'a0000000-0000-4000-8000-0000000000a4', false, null, 'b0000000-0000-4000-8000-0000000000b1', '2026-09-15', '2026-09-15', null, null, null, pg_temp.objeto_comprobante_ensayo(), 'REF NC'),
   ('e0000000-0000-4000-8000-0000000000e2', 'qorilazo', 2000, 'PEN', 'DNI', '40000002', 'PERSONA CV', 'TX-CV',
-    'a0000000-0000-4000-8000-0000000000a4', 'a0000000-0000-4000-8000-0000000000a4', true, 'c0000000-0000-4000-8000-0000000000c1', 'b0000000-0000-4000-8000-0000000000b2', '2026-08-20', '2026-08-20', null, null, null, gen_random_uuid(), 'REF CV'),
+    'a0000000-0000-4000-8000-0000000000a4', 'a0000000-0000-4000-8000-0000000000a4', true, 'c0000000-0000-4000-8000-0000000000c1', 'b0000000-0000-4000-8000-0000000000b2', '2026-08-20', '2026-08-20', null, null, null, pg_temp.objeto_comprobante_ensayo(), 'REF CV'),
   ('e0000000-0000-4000-8000-0000000000e3', 'qorilazo', 3000, 'PEN', 'DNI', '40000003', 'PERSONA CA', 'TX-CA',
     'a0000000-0000-4000-8000-0000000000a4', 'a0000000-0000-4000-8000-0000000000a4', true, 'c0000000-0000-4000-8000-0000000000c2', 'b0000000-0000-4000-8000-0000000000b3', '2026-08-21', '2026-08-21',
-    '2026-09-01 10:00-05', 'a0000000-0000-4000-8000-0000000000a2', 'Anulada antes por gerencia', gen_random_uuid(), 'REF CA'),
+    '2026-09-01 10:00-05', 'a0000000-0000-4000-8000-0000000000a2', 'Anulada antes por gerencia', pg_temp.objeto_comprobante_ensayo(), 'REF CA'),
   ('e0000000-0000-4000-8000-0000000000e4', 'prodelco', 4000, 'USD', 'DNI', '40000004', 'PERSONA H', 'TX-H',
-    'a0000000-0000-4000-8000-0000000000a4', 'a0000000-0000-4000-8000-0000000000a4', false, null, 'b0000000-0000-4000-8000-0000000000b6', '2026-09-16', '2026-09-16', null, null, null, gen_random_uuid(), 'REF H');
+    'a0000000-0000-4000-8000-0000000000a4', 'a0000000-0000-4000-8000-0000000000a4', false, null, 'b0000000-0000-4000-8000-0000000000b6', '2026-09-16', '2026-09-16', null, null, null, pg_temp.objeto_comprobante_ensayo(), 'REF H');
 insert into crm.inversiones (id, inversionista_id, empresa_id, cierre_externo_id, estado, fecha_comercial, es_primera_conversion) values
-  ('f0000000-0000-4000-8000-0000000000f1', 'b0000000-0000-4000-8000-0000000000b1', '10000000-0000-4000-8000-000000000002', 'e0000000-0000-4000-8000-0000000000e1', 'vigente', '2026-09-15', false),
-  ('f0000000-0000-4000-8000-0000000000f2', 'b0000000-0000-4000-8000-0000000000b2', '10000000-0000-4000-8000-000000000003', 'e0000000-0000-4000-8000-0000000000e2', 'vigente', '2026-08-20', true),
-  ('f0000000-0000-4000-8000-0000000000f3', 'b0000000-0000-4000-8000-0000000000b3', '10000000-0000-4000-8000-000000000003', 'e0000000-0000-4000-8000-0000000000e3', 'anulada', '2026-08-21', true),
-  ('f0000000-0000-4000-8000-0000000000f4', 'b0000000-0000-4000-8000-0000000000b6', '10000000-0000-4000-8000-000000000002', 'e0000000-0000-4000-8000-0000000000e4', 'vigente', '2026-09-16', false);
+  ('f0000000-0000-4000-8000-0000000000f1', 'b0000000-0000-4000-8000-0000000000b1', pg_temp.empresa('prodelco'), 'e0000000-0000-4000-8000-0000000000e1', 'vigente', '2026-09-15', false),
+  ('f0000000-0000-4000-8000-0000000000f2', 'b0000000-0000-4000-8000-0000000000b2', pg_temp.empresa('qorilazo'), 'e0000000-0000-4000-8000-0000000000e2', 'vigente', '2026-08-20', true),
+  ('f0000000-0000-4000-8000-0000000000f3', 'b0000000-0000-4000-8000-0000000000b3', pg_temp.empresa('qorilazo'), 'e0000000-0000-4000-8000-0000000000e3', 'anulada', '2026-08-21', true),
+  ('f0000000-0000-4000-8000-0000000000f4', 'b0000000-0000-4000-8000-0000000000b6', pg_temp.empresa('prodelco'), 'e0000000-0000-4000-8000-0000000000e4', 'vigente', '2026-09-16', false);
 insert into crm.inversion_titulares (inversion_id, inversionista_id)
   select i.id, i.inversionista_id from crm.inversiones i where i.id::text like 'f0000000%';
 insert into crm.inversion_eventos (inversion_id, tipo) select i.id, 'registro' from crm.inversiones i where i.id::text like 'f0000000%';
@@ -120,8 +149,8 @@ insert into public.contratos (id, numero_contrato, cliente_id, capital, moneda, 
   ('d0000000-0000-4000-8000-0000000000d2', 'PRUEBA-0002', 'a0000000-0000-4000-8000-0000000000a5', 6000, 'PEN', 'mensual', '2026-08-22', '2027-08-22',
     gen_random_uuid(), '2026-08-22', 'activo', 'nuevo');
 insert into crm.inversiones (id, inversionista_id, empresa_id, contrato_id, estado, fecha_comercial, es_primera_conversion) values
-  ('f0000000-0000-4000-8000-0000000000a1', 'b0000000-0000-4000-8000-0000000000b4', '10000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-0000000000d1', 'vigente', '2026-09-10', false),
-  ('f0000000-0000-4000-8000-0000000000a2', 'b0000000-0000-4000-8000-0000000000b5', '10000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-0000000000d2', 'vigente', '2026-08-22', true);
+  ('f0000000-0000-4000-8000-0000000000a1', 'b0000000-0000-4000-8000-0000000000b4', pg_temp.empresa('avance'), 'd0000000-0000-4000-8000-0000000000d1', 'vigente', '2026-09-10', false),
+  ('f0000000-0000-4000-8000-0000000000a2', 'b0000000-0000-4000-8000-0000000000b5', pg_temp.empresa('avance'), 'd0000000-0000-4000-8000-0000000000d2', 'vigente', '2026-08-22', true);
 insert into crm.inversion_titulares (inversion_id, inversionista_id)
   select i.id, i.inversionista_id from crm.inversiones i where i.contrato_id is not null and i.id::text like 'f0000000%';
 insert into crm.inversion_eventos (inversion_id, tipo) select i.id, 'registro' from crm.inversiones i where i.contrato_id is not null and i.id::text like 'f0000000%';
@@ -149,14 +178,14 @@ insert into crm.inversionistas (id, estado) values
 insert into crm.cierres_externos (id, cooperativa, monto, moneda, documento_tipo, documento, nombre_completo, numero_transaccion,
     vendedor_id, creado_por, es_cierre_inicial, lead_id, inversionista_id, fecha_comercial, fecha_imputacion, comprobante_objeto_id, referencia_externa) values
   ('e0000000-0000-4000-8000-0000000000e5', 'qorilazo', 5000, 'PEN', 'DNI', '40000005', 'PERSONA SE', 'TX-SE', 'a0000000-0000-4000-8000-0000000000a4',
-    'a0000000-0000-4000-8000-0000000000a4', true, 'c0000000-0000-4000-8000-0000000000c4', 'b0000000-0000-4000-8000-0000000000b7', '2026-09-20', '2026-09-20', gen_random_uuid(), 'REF SE'),
+    'a0000000-0000-4000-8000-0000000000a4', true, 'c0000000-0000-4000-8000-0000000000c4', 'b0000000-0000-4000-8000-0000000000b7', '2026-09-20', '2026-09-20', pg_temp.objeto_comprobante_ensayo(), 'REF SE'),
   ('e0000000-0000-4000-8000-0000000000e6', 'prodelco', 600, 'USD', 'DNI', '40000006', 'PERSONA SI', 'TX-SI', 'a0000000-0000-4000-8000-0000000000a4',
-    'a0000000-0000-4000-8000-0000000000a4', false, null, 'b0000000-0000-4000-8000-0000000000b8', '2026-09-21', '2026-09-21', gen_random_uuid(), 'REF SI'),
+    'a0000000-0000-4000-8000-0000000000a4', false, null, 'b0000000-0000-4000-8000-0000000000b8', '2026-09-21', '2026-09-21', pg_temp.objeto_comprobante_ensayo(), 'REF SI'),
   ('e0000000-0000-4000-8000-0000000000e7', 'prodelco', 700, 'USD', 'DNI', '40000007', 'PERSONA CO', 'TX-CO', 'a0000000-0000-4000-8000-0000000000a4',
-    'a0000000-0000-4000-8000-0000000000a4', false, null, 'b0000000-0000-4000-8000-0000000000b9', '2026-09-22', '2026-09-22', gen_random_uuid(), 'REF CO');
+    'a0000000-0000-4000-8000-0000000000a4', false, null, 'b0000000-0000-4000-8000-0000000000b9', '2026-09-22', '2026-09-22', pg_temp.objeto_comprobante_ensayo(), 'REF CO');
 insert into crm.inversiones (id, inversionista_id, empresa_id, cierre_externo_id, estado, fecha_comercial, es_primera_conversion) values
-  ('f0000000-0000-4000-8000-0000000000f5', 'b0000000-0000-4000-8000-0000000000b7', '10000000-0000-4000-8000-000000000003', 'e0000000-0000-4000-8000-0000000000e5', 'vigente', '2026-09-20', true),
-  ('f0000000-0000-4000-8000-0000000000f7', 'b0000000-0000-4000-8000-0000000000b9', '10000000-0000-4000-8000-000000000002', 'e0000000-0000-4000-8000-0000000000e7', 'vigente', '2026-09-22', false);
+  ('f0000000-0000-4000-8000-0000000000f5', 'b0000000-0000-4000-8000-0000000000b7', pg_temp.empresa('qorilazo'), 'e0000000-0000-4000-8000-0000000000e5', 'vigente', '2026-09-20', true),
+  ('f0000000-0000-4000-8000-0000000000f7', 'b0000000-0000-4000-8000-0000000000b9', pg_temp.empresa('prodelco'), 'e0000000-0000-4000-8000-0000000000e7', 'vigente', '2026-09-22', false);
 insert into crm.inversion_titulares (inversion_id, inversionista_id) values
   ('f0000000-0000-4000-8000-0000000000f5', 'b0000000-0000-4000-8000-0000000000b7'), ('f0000000-0000-4000-8000-0000000000f7', 'b0000000-0000-4000-8000-0000000000b9');
 insert into crm.inversion_eventos (inversion_id, tipo, motivo) values
@@ -168,7 +197,7 @@ insert into crm.depositos_reclamados (numero_norm, cierre_id, reclamado_por) val
   ('DEP-e7', 'e0000000-0000-4000-8000-0000000000e7', 'a0000000-0000-4000-8000-0000000000a4');
 insert into crm.inversion_solicitudes (id, inversionista_id, empresa_id, responsable_esperado_id, hash_payload, datos, creado_por, estado,
     inversion_id, resultado, confirmado_por, lead_origen_id) values
-  ('50000000-0000-4000-8000-0000000000f5', 'b0000000-0000-4000-8000-0000000000b7', '10000000-0000-4000-8000-000000000003', 'a0000000-0000-4000-8000-0000000000a4',
+  ('50000000-0000-4000-8000-0000000000f5', 'b0000000-0000-4000-8000-0000000000b7', pg_temp.empresa('qorilazo'), 'a0000000-0000-4000-8000-0000000000a4',
     md5('se') || md5('se2'), jsonb_build_object('lead_id', 'c0000000-0000-4000-8000-0000000000c4'), 'a0000000-0000-4000-8000-0000000000a4', 'confirmada',
     'f0000000-0000-4000-8000-0000000000f5', jsonb_build_object('fuente', jsonb_build_object('cierre_id', 'e0000000-0000-4000-8000-0000000000e5')),
     'a0000000-0000-4000-8000-0000000000a4', 'c0000000-0000-4000-8000-0000000000c4');
@@ -191,15 +220,15 @@ insert into crm.inversionistas (id, estado) values ('b0000000-0000-4000-8000-000
 insert into crm.cierres_externos (id, cooperativa, monto, moneda, documento_tipo, documento, nombre_completo, numero_transaccion,
     vendedor_id, creado_por, es_cierre_inicial, lead_id, inversionista_id, fecha_comercial, fecha_imputacion, comprobante_objeto_id, referencia_externa) values
   ('e0000000-0000-4000-8000-0000000000e8', 'prodelco', 800, 'USD', 'DNI', '40000008', 'PERSONA D', 'TX-D', 'a0000000-0000-4000-8000-0000000000a4',
-    'a0000000-0000-4000-8000-0000000000a4', false, null, 'b0000000-0000-4000-8000-0000000000ba', '2026-09-23', '2026-09-23', gen_random_uuid(), 'REF D');
+    'a0000000-0000-4000-8000-0000000000a4', false, null, 'b0000000-0000-4000-8000-0000000000ba', '2026-09-23', '2026-09-23', pg_temp.objeto_comprobante_ensayo(), 'REF D');
 insert into crm.inversiones (id, inversionista_id, empresa_id, cierre_externo_id, estado, fecha_comercial, es_primera_conversion) values
-  ('f0000000-0000-4000-8000-0000000000f8', 'b0000000-0000-4000-8000-0000000000ba', '10000000-0000-4000-8000-000000000002', 'e0000000-0000-4000-8000-0000000000e8', 'vigente', '2026-09-23', false);
+  ('f0000000-0000-4000-8000-0000000000f8', 'b0000000-0000-4000-8000-0000000000ba', pg_temp.empresa('prodelco'), 'e0000000-0000-4000-8000-0000000000e8', 'vigente', '2026-09-23', false);
 insert into crm.inversion_titulares (inversion_id, inversionista_id) values ('f0000000-0000-4000-8000-0000000000f8', 'b0000000-0000-4000-8000-0000000000ba');
 insert into crm.inversion_eventos (inversion_id, tipo) values ('f0000000-0000-4000-8000-0000000000f8', 'registro');
 insert into crm.depositos_reclamados (numero_norm, cierre_id, reclamado_por) values ('DEP-e8', 'e0000000-0000-4000-8000-0000000000e8', 'a0000000-0000-4000-8000-0000000000a4');
 insert into crm.inversion_solicitudes (id, inversionista_id, empresa_id, responsable_esperado_id, hash_payload, datos, creado_por, estado,
     inversion_id, resultado, confirmado_por) values
-  ('50000000-0000-4000-8000-0000000000f8', 'b0000000-0000-4000-8000-0000000000ba', '10000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-0000000000a4',
+  ('50000000-0000-4000-8000-0000000000f8', 'b0000000-0000-4000-8000-0000000000ba', pg_temp.empresa('prodelco'), 'a0000000-0000-4000-8000-0000000000a4',
     md5('d') || md5('d2'), '{}'::jsonb, 'a0000000-0000-4000-8000-0000000000a4', 'confirmada', 'f0000000-0000-4000-8000-0000000000f8',
     jsonb_build_object('fuente', jsonb_build_object('cierre_id', 'e0000000-0000-4000-8000-0000000000e8')), 'a0000000-0000-4000-8000-0000000000a4');
 insert into public.contratos (id, numero_contrato, cliente_id, capital, moneda, modalidad, fecha_inicio, fecha_vencimiento,
@@ -209,8 +238,8 @@ insert into public.contratos (id, numero_contrato, cliente_id, capital, moneda, 
   ('d0000000-0000-4000-8000-0000000000d4', 'PRUEBA-0004', 'a0000000-0000-4000-8000-0000000000a5', 9500, 'PEN', 'mensual', '2026-09-25', '2027-09-25',
     gen_random_uuid(), '2026-09-25', 'activo', 'nuevo');
 insert into crm.inversiones (id, inversionista_id, empresa_id, contrato_id, estado, fecha_comercial, es_primera_conversion) values
-  ('f0000000-0000-4000-8000-0000000000a3', 'b0000000-0000-4000-8000-0000000000bb', '10000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-0000000000d3', 'vigente', '2026-09-24', false),
-  ('f0000000-0000-4000-8000-0000000000a4', 'b0000000-0000-4000-8000-0000000000bc', '10000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-0000000000d4', 'vigente', '2026-09-25', false);
+  ('f0000000-0000-4000-8000-0000000000a3', 'b0000000-0000-4000-8000-0000000000bb', pg_temp.empresa('avance'), 'd0000000-0000-4000-8000-0000000000d3', 'vigente', '2026-09-24', false),
+  ('f0000000-0000-4000-8000-0000000000a4', 'b0000000-0000-4000-8000-0000000000bc', pg_temp.empresa('avance'), 'd0000000-0000-4000-8000-0000000000d4', 'vigente', '2026-09-25', false);
 insert into crm.inversion_titulares (inversion_id, inversionista_id) values
   ('f0000000-0000-4000-8000-0000000000a3', 'b0000000-0000-4000-8000-0000000000bb'), ('f0000000-0000-4000-8000-0000000000a4', 'b0000000-0000-4000-8000-0000000000bc');
 insert into crm.inversion_eventos (inversion_id, tipo) values ('f0000000-0000-4000-8000-0000000000a3', 'registro'), ('f0000000-0000-4000-8000-0000000000a4', 'registro');
@@ -256,15 +285,19 @@ insert into crm.inversionistas (id, estado) values ('b0000000-0000-4000-8000-000
 insert into crm.cierres_externos (id, cooperativa, monto, moneda, documento_tipo, documento, nombre_completo, numero_transaccion,
     vendedor_id, creado_por, es_cierre_inicial, lead_id, inversionista_id, fecha_comercial, fecha_imputacion, comprobante_objeto_id, referencia_externa) values
   ('e0000000-0000-4000-8000-0000000000e9', 'qorilazo', 3500, 'PEN', 'DNI', '40000009', 'PERSONA JULIO', 'TX-JU', 'a0000000-0000-4000-8000-0000000000a4',
-    'a0000000-0000-4000-8000-0000000000a4', true, 'c0000000-0000-4000-8000-0000000000ca', 'b0000000-0000-4000-8000-0000000000bd', '2026-07-10', '2026-07-10', gen_random_uuid(), 'REF JU');
+    'a0000000-0000-4000-8000-0000000000a4', true, 'c0000000-0000-4000-8000-0000000000ca', 'b0000000-0000-4000-8000-0000000000bd', '2026-07-10', '2026-07-10', pg_temp.objeto_comprobante_ensayo(), 'REF JU');
 insert into crm.inversiones (id, inversionista_id, empresa_id, cierre_externo_id, estado, fecha_comercial, es_primera_conversion) values
-  ('f0000000-0000-4000-8000-0000000000f9', 'b0000000-0000-4000-8000-0000000000bd', '10000000-0000-4000-8000-000000000003', 'e0000000-0000-4000-8000-0000000000e9', 'vigente', '2026-07-10', true);
+  ('f0000000-0000-4000-8000-0000000000f9', 'b0000000-0000-4000-8000-0000000000bd', pg_temp.empresa('qorilazo'), 'e0000000-0000-4000-8000-0000000000e9', 'vigente', '2026-07-10', true);
 insert into crm.inversion_titulares (inversion_id, inversionista_id) values ('f0000000-0000-4000-8000-0000000000f9', 'b0000000-0000-4000-8000-0000000000bd');
 insert into crm.inversion_eventos (inversion_id, tipo) values ('f0000000-0000-4000-8000-0000000000f9', 'registro');
 insert into crm.depositos_reclamados (numero_norm, cierre_id, reclamado_por) values ('DEP-e9', 'e0000000-0000-4000-8000-0000000000e9', 'a0000000-0000-4000-8000-0000000000a4');
 insert into crm.periodos_cerrados (periodo, ponderacion_referido, meta_revision, cobertura) values ('2026-07-01', 0.5, 1, '{}'::jsonb);
 -- Semilla de CONFIGURACIÓN que el banco sin datos no trae (el ajuste de mes cerrado pide el peso del referido).
-insert into crm.conversion_pesos (vigente_desde, peso_referido) values ('2026-01-01', 0.5) on conflict (vigente_desde) do nothing;
+-- Fase 4 (F4.1-A, ronda 2): era 0.5, que desde 20261007160937 viola el CHECK conversion_pesos_referido_con_tope
+-- (peso_referido <= 0.150 o tope_referidos_pct no nulo) y abortaba el archivo entero antes del caso 1. Va 0.150, el mismo
+-- arreglo que F4.2 hizo en el oráculo del 2.6. El valor no decide nada aquí: todas las ventas sembradas son 'landing'
+-- (pesan 1); la fila solo existe para que la tabla no esté vacía (private.peso_referido_conversion lanza 55000 si lo está).
+insert into crm.conversion_pesos (vigente_desde, peso_referido) values ('2026-01-01', 0.150) on conflict (vigente_desde) do nothing;
 
 -- Un lead convertido de Avance está enlazado a su perfil de cliente (como en producción).
 update crm.leads set perfil_id = 'a0000000-0000-4000-8000-0000000000a5' where id = 'c0000000-0000-4000-8000-0000000000c3';
@@ -522,12 +555,40 @@ begin
     'P0409', 'Varios leads convertidos');
   perform pg_temp.exigir(exists (select 1 from public.contratos where id = 'd0000000-0000-4000-8000-0000000000d5'), 'DOS: se tocó el contrato');
 
-  -- 24. (r4, Codex r2) Mes CERRADO: gerencia anula y elimina una conversión de julio con julio sellado → la respuesta lo dice,
-  --     nace exactamente UN ajuste para su analista (lo que valía en la conversión) y el lead sigue editable.
-  r := pg_temp.eliminar(GER, 'e0000000-0000-4000-8000-0000000000e9', 'Conversión de julio registrada por error');
-  perform pg_temp.exigir((r ->> 'conversion_anulada')::boolean and (r ->> 'mes_cerrado')::boolean, 'JULIO: la respuesta no informa el mes cerrado: ' || r::text);
-  perform pg_temp.exigir((select count(*) = 1 and min(numerador) = 1 and min(vendedor_id::text) = VEN::text and min(periodo_origen) = date '2026-07-01'
-    from crm.ajustes_mes_cerrado where lead_id = 'c0000000-0000-4000-8000-0000000000ca'), 'JULIO: el ajuste del mes cerrado no quedó exactamente una vez');
+  -- 24. (r4, Codex r2; ADAPTADO en la fase 4 a la regla del bloque 2.6 —20261009210000—, decisiones D-09, D-14 y D-17)
+  --     Mes CERRADO: conversión de cooperativa de julio con julio sellado.
+  --     · CON la regla (existe el detector private.mes_sellado_de_venta): la Gerencia SOLA (GSO: analista + gerencia, no
+  --       exenta) recibe el P0409 heredado de crm.anular_cierre_externo y NADA cambia; el admin SIN Gerencia (ADM) recibe
+  --       42501 (la conversión es de Gerencia); el par exento admin + gerencia (GER) la anula y la elimina SIN ajuste
+  --       (mes_cerrado:false, cero ajustes) y con el rastro excepcion_* en la actividad de la anulación.
+  --     · SIN la regla (una base sin 20261009210000, p. ej. tras su reversa) se mide lo de antes: la respuesta dice
+  --       mes_cerrado y nace exactamente UN ajuste para su analista (lo que valía en la conversión).
+  --     En los dos casos la conversión queda anulada y eliminada, el lead sigue editable y el periodo cerrado no se toca.
+  if to_regprocedure('private.mes_sellado_de_venta(uuid)') is not null then
+    perform pg_temp.rechaza(format('select pg_temp.eliminar(%L, %L, %L)', GSO, 'e0000000-0000-4000-8000-0000000000e9',
+      'Conversión de julio registrada por error'), 'P0409', 'No se puede anular: el mes de esta venta (2026-07) ya está sellado');
+    perform pg_temp.rechaza(format('select pg_temp.eliminar(%L, %L, %L)', ADM, 'e0000000-0000-4000-8000-0000000000e9',
+      'Conversión de julio registrada por error'), '42501', 'solo gerencia');
+    perform pg_temp.exigir(exists (select 1 from crm.cierres_externos where id = 'e0000000-0000-4000-8000-0000000000e9' and anulado_en is null)
+      and not private.cierre_anulado('c0000000-0000-4000-8000-0000000000ca')
+      and not exists (select 1 from crm.inversiones_eliminadas where fuente_id = 'e0000000-0000-4000-8000-0000000000e9')
+      and not exists (select 1 from crm.ajustes_mes_cerrado where lead_id = 'c0000000-0000-4000-8000-0000000000ca'),
+      'JULIO: un rechazo dejó rastro (anulación, copia o ajuste)');
+    r := pg_temp.eliminar(GER, 'e0000000-0000-4000-8000-0000000000e9', 'Conversión de julio registrada por error');
+    perform pg_temp.exigir((r ->> 'conversion_anulada')::boolean and not (r ->> 'mes_cerrado')::boolean,
+      'JULIO (exento): la respuesta debía decir conversion_anulada:true y mes_cerrado:false: ' || r::text);
+    perform pg_temp.exigir(not exists (select 1 from crm.ajustes_mes_cerrado where lead_id = 'c0000000-0000-4000-8000-0000000000ca'),
+      'JULIO (exento): nació un ajuste del mes cerrado');
+    perform pg_temp.exigir(exists (select 1 from crm.actividades act where act.lead_id = 'c0000000-0000-4000-8000-0000000000ca'
+        and act.metadata ->> 'accion' = 'anulacion_cierre_externo' and act.metadata ->> 'excepcion_mes_sellado' = '2026-07'
+        and act.metadata ->> 'excepcion_por' = GER::text and act.metadata ? 'excepcion_en'),
+      'JULIO (exento): la anulación no dejó el rastro de la excepción (excepcion_mes_sellado, excepcion_por, excepcion_en)');
+  else
+    r := pg_temp.eliminar(GER, 'e0000000-0000-4000-8000-0000000000e9', 'Conversión de julio registrada por error');
+    perform pg_temp.exigir((r ->> 'conversion_anulada')::boolean and (r ->> 'mes_cerrado')::boolean, 'JULIO: la respuesta no informa el mes cerrado: ' || r::text);
+    perform pg_temp.exigir((select count(*) = 1 and min(numerador) = 1 and min(vendedor_id::text) = VEN::text and min(periodo_origen) = date '2026-07-01'
+      from crm.ajustes_mes_cerrado where lead_id = 'c0000000-0000-4000-8000-0000000000ca'), 'JULIO: el ajuste del mes cerrado no quedó exactamente una vez');
+  end if;
   perform pg_temp.exigir(private.cierre_anulado('c0000000-0000-4000-8000-0000000000ca') and not exists (select 1 from crm.cierres_externos
     where id = 'e0000000-0000-4000-8000-0000000000e9'), 'JULIO: no se anuló o no se eliminó');
   update crm.leads set monto_estimado = monto_estimado + 1 where id = 'c0000000-0000-4000-8000-0000000000ca';
