@@ -65,12 +65,6 @@ describe('hoja lateral: los seis estados aprobados y realidad de producción', (
     expect(screen.getByRole('region', { name: abierto().titulo })).toHaveTextContent('Pulsaste S/ 14,250, un promedio: esta lista suma S/ 28,500 ÷ 2 días hábiles. Redondeado al sol.')
     expect(screen.queryByText(/Hay cifras nuevas/)).toBeNull()
   })
-  it('porcentaje: abre la base anterior con su fórmula', () => {
-    pintar({ valor: 100, cuenta: { modo: 'porcentaje', actual: 57000, cifraActual: abierto().cifra } })
-    expect(screen.getByRole('region', { name: abierto().titulo })).toHaveTextContent('Pulsaste 100 %')
-    expect(screen.getByRole('region', { name: abierto().titulo })).toHaveTextContent('(S/ 57,000 − S/ 28,500) ÷ S/ 28,500 × 100')
-    expect(screen.getByRole('region', { name: abierto().titulo })).toHaveTextContent('Esta lista es la de antes')
-  })
   it('cifras nuevas: no recarga sola; Actualizar pide la cifra y la lista', async () => {
     pintar({ valor: 25000, totales: respuesta().totales })
     expect(screen.getByText('Hay cifras nuevas ·')).toBeVisible()

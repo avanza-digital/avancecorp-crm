@@ -72,7 +72,7 @@ export interface NumeroAbierto {
   valor: number
   metrica: 'capital' | 'contratos'
   tasa?: number | undefined
-  cuenta?: { modo: 'promedio'; divisor: number } | { modo: 'porcentaje'; actual: number; cifraActual: CifraFacturacion } | undefined
+  cuenta?: { modo: 'promedio'; divisor: number } | undefined
 }
 
 /** Contrasta tanto la composición por moneda como el número pulsado (incluida su fórmula). */
@@ -83,10 +83,6 @@ export function listaCuadraConNumero(abierto: NumeroAbierto, lista: ListaOperaci
   if (abierto.cuenta?.modo === 'promedio') {
     calculado = base / abierto.cuenta.divisor
     if (abierto.metrica === 'capital') calculado = Math.round(calculado)
-  } else if (abierto.cuenta?.modo === 'porcentaje') {
-    if (base === 0) return Number.isNaN(abierto.valor)
-    calculado = (abierto.cuenta.actual - base) / base * 100
   }
-  if (abierto.cuenta?.modo === 'porcentaje') return Math.abs(calculado - abierto.valor) < 0.000001
   return abierto.metrica === 'contratos' ? calculado === abierto.valor : Math.abs(calculado - abierto.valor) < 0.005
 }

@@ -141,12 +141,12 @@ function malla(): HTMLElement {
   return screen.getByRole('region', { name: /Facturación diaria/ })
 }
 
-/** El contexto es texto visible fuera de la fila compacta de pastillas. */
-function contextoVisible(texto: Parameters<typeof screen.getByText>[0]): HTMLElement {
-  return screen.getByText((_contenido, el) => el?.matches('.facturacion-contexto') === true && (typeof texto === 'function' ? texto(el.textContent ?? '', el) : texto instanceof RegExp ? texto.test(el.textContent ?? '') : (el.textContent ?? '').includes(String(texto))))
-}
-function buscarContextoVisible(texto: Parameters<typeof screen.queryByText>[0]): HTMLElement | null {
-  return screen.queryByText((_contenido, el) => el?.matches('.facturacion-contexto') === true && (typeof texto === 'function' ? texto(el.textContent ?? '', el) : texto instanceof RegExp ? texto.test(el.textContent ?? '') : (el.textContent ?? '').includes(String(texto))))
+/** La pastilla conserva el contexto en su title, también sin botón por carga o error. */
+function indicador(rotulo: string | RegExp): HTMLElement {
+  const resumen = screen.getByRole('region', { name: 'Resumen de lo que estás viendo' })
+  const tarjeta = within(resumen).getByText(rotulo).closest('.facturacion-resumen > *')
+  if (!(tarjeta instanceof HTMLElement)) throw new Error(`sin tarjeta para «${rotulo}»`)
+  return tarjeta
 }
 
 beforeEach(() => {
@@ -536,11 +536,10 @@ describe('total del día con las dos monedas — petición de Miguel del 11/09/2
     const pie = within(malla()).getByRole('row', { name: /Total del día en soles/ })
     // El mes del fixture: S/ 520,000 en soles y US$ 7,000 en dólares.
     expect(within(pie).getByText('S/ 546,250')).toBeVisible()
-    // La tasa se dice sin siglas (regla de Miguel; auditoría 08/10/2026): nada de
-    // «TC» ni «prom. 7d» en pantalla.
-    expect(
-      within(malla()).getByText('tipo de cambio S/ 3.75 (Superintendencia Nacional de Administración Tributaria, promedio de 7 días hábiles)'),
-    ).toBeVisible()
+    // La tasa, solo la cifra (Miguel, 10/10/2026): «S/ 3.75 por dólar», sin la
+    // institución ni el promedio, y sin siglas («TC», «prom. 7d»).
+    expect(within(malla()).getByText('S/ 3.75 por dólar')).toBeVisible()
+    expect(within(malla()).queryByText(/Superintendencia|promedio de \d+ días/)).toBeNull()
     expect(within(malla()).queryByText(/\bTC\b|prom\./)).toBeNull()
     // Y los días sí llevan cifra: el 3 de setiembre es 40 000 + 7 000 × 3,75.
     expect(within(pie).queryAllByText(/\d/).length).toBeGreaterThan(0)
@@ -710,7 +709,7 @@ describe('tipos de capital — el contrato que Miguel no encontraba (11/09/2026)
       fila({ id: 'n8', dia: '2026-08-05', tipo: 'contrato_nuevo', capital: 400_000 }),
     ])
     elegirTipo('contrato_renovacion')
-    expect(contextoVisible(/\+100\.0 % respecto del mismo tramo de/)).toBeVisible()
+    expect(indicador(/facturado/i)).toHaveAttribute('title', expect.stringMatching(/\+100\.0 % respecto del mismo tramo de/))
   })
 
   it('el rótulo del KPI de contratos deja de decir «nuevos» siempre', () => {
@@ -752,8 +751,8 @@ describe('hallazgos de la auditoría del 11/09/2026', () => {
       fila({ id: 'a8a', dia: '2026-08-05', capital: 100_000 }),
       fila({ id: 'a8b', dia: '2026-08-20', capital: 900_000 }),
     ])
-    expect(contextoVisible(/\+0\.0 % respecto del mismo tramo de/)).toBeVisible()
-    expect(screen.queryByText(/−90\.0 %/)).toBeNull()
+    expect(indicador(/facturado/i)).toHaveAttribute('title', expect.stringMatching(/\+0\.0 % respecto del mismo tramo de/))
+    expect(indicador(/facturado/i)).not.toHaveAttribute('title', expect.stringMatching(/−90\.0 %/))
   })
 
   it('Todo S/ compara ambas monedas convertidas en los dos tramos', () => {
@@ -763,7 +762,7 @@ describe('hallazgos de la auditoría del 11/09/2026', () => {
       fila({ dia: '2026-08-02', moneda: 'PEN', capital: 100_000 }),
       fila({ dia: '2026-08-03', moneda: 'USD', capital: 25_000 }),
     ])
-    expect(contextoVisible(/−50\.0 % respecto del mismo tramo de/)).toBeVisible()
+    expect(indicador(/facturado/i)).toHaveAttribute('title', expect.stringMatching(/−50\.0 % respecto del mismo tramo de/))
   })
 
   it('un mes CERRADO sí compara contra el mes anterior completo', () => {
@@ -775,7 +774,7 @@ describe('hallazgos de la auditoría del 11/09/2026', () => {
       fila({ id: 'j7b', dia: '2026-07-28', capital: 50_000 }),
     ])
     fireEvent.click(screen.getByRole('button', { name: 'Mes anterior' }))
-    expect(contextoVisible(/\+100\.0 % respecto del mismo tramo de/)).toBeVisible()
+    expect(indicador(/facturado/i)).toHaveAttribute('title', expect.stringMatching(/\+100\.0 % respecto del mismo tramo de/))
   })
 
   it('el detalle de una celda NO trae dinero de otra moneda ni de otro equipo', () => {
@@ -965,28 +964,24 @@ describe('tramo: mes, semana y día (Miguel, 11/09/2026)', () => {
   it('TODOS los rótulos siguen al tramo: nunca el titular diciendo «mes»', () => {
     dobles.tc = { promedio: 3.75, fuente: 'SUNAT · prom. 7d' }
     pintar()
-    expect(contextoVisible(/^setiembre de 2026/)).toBeVisible()
+    expect(indicador(/facturado/i)).toHaveAttribute('title', expect.stringMatching(/^setiembre de 2026/))
     fireEvent.click(screen.getByRole('button', { name: 'Semana' }))
     // Un titular que dice «setiembre» sobre la cifra de una semana es la misma
     // clase de mentira que el % comparando contra el mes entero.
-    expect(
-      buscarContextoVisible(/^setiembre de 2026/),
-    ).toBeNull()
-    // El rótulo del indicador nombra EL MISMO tramo que la barra de navegación,
+    expect(indicador(/facturado/i)).not.toHaveAttribute('title', expect.stringMatching(/^setiembre de 2026/))
+    // El title del indicador nombra EL MISMO tramo que la barra de navegación,
     // sea cual sea el formato corto de fecha del sistema. (El prefijo cambia
     // entre «Total facturado» y «Facturado» según haya dólares en el tramo: eso
     // es correcto y no es lo que se está comprobando aquí.)
     const tramo = screen.getByRole('button', { name: 'Semana anterior' }).nextElementSibling
     expect(tramo?.textContent ?? '').not.toBe('')
-    expect(
-      contextoVisible((s) => s.includes(tramo?.textContent ?? 'x')),
-    ).toBeVisible()
-    expect(contextoVisible(/semana anterior/)).toBeVisible()
-    expect(screen.queryByText(/respecto del mismo tramo del mes anterior/)).toBeNull()
+    expect(indicador(/facturado/i)).toHaveAttribute('title', expect.stringContaining(tramo!.textContent!))
+    expect(indicador(/facturado/i)).toHaveAttribute('title', expect.stringMatching(/semana anterior/))
+    expect(indicador(/facturado/i)).not.toHaveAttribute('title', expect.stringMatching(/respecto del mismo tramo del mes anterior/))
     fireEvent.click(screen.getByRole('button', { name: 'Día' }))
     // Con el fixture no hay ventas el día anterior, así que no hay % — pero lo
     // que NUNCA puede quedar es la comparación hablando de meses.
-    expect(buscarContextoVisible(/mes anterior/)).toBeNull()
+    expect(indicador(/facturado/i)).not.toHaveAttribute('title', expect.stringMatching(/mes anterior/))
     dobles.tc = null
   })
 
@@ -1082,11 +1077,11 @@ describe('marcar días sueltos (Miguel, 11/09/2026)', () => {
     marcar(/Marcar el .*, 4 de setiembre/i)
     // Titular, rótulo, mejor día y divisor del promedio: o todos hablan de los
     // días elegidos, o la pantalla dice dos cosas a la vez.
-    // Sale en el rótulo del indicador Y en el aviso de arriba de la tabla.
+    // Sale en el title del indicador Y en el aviso de arriba de la tabla.
     expect(screen.getByText(/Estás viendo 2 días elegidos/)).toBeVisible()
-    expect(contextoVisible(/2 días elegidos/)).toBeVisible()
+    expect(indicador(/facturado/i)).toHaveAttribute('title', expect.stringMatching(/2 días elegidos/))
     expect(screen.getByText('Mejor día de los elegidos')).toBeVisible()
-    expect(contextoVisible(/2 días hábiles/)).toBeVisible()
+    expect(indicador('Promedio por día hábil')).toHaveAttribute('title', expect.stringMatching(/2 días hábiles/))
   })
 
   it('un día NO elegido no puede ganar el «mejor día»', () => {
@@ -1099,10 +1094,9 @@ describe('marcar días sueltos (Miguel, 11/09/2026)', () => {
     marcar(/Marcar el .*, 2 de setiembre/i)
     marcar(/Marcar el .*, 4 de setiembre/i)
     expect(screen.getByText('Mejor día de los elegidos')).toBeVisible()
-    const contexto = contextoVisible(/Mejor día:/)
-    expect(contexto).toBeVisible()
-    expect(contexto).toHaveTextContent(/Mejor día: .*4 de setiembre/)
-    expect(contexto).not.toHaveTextContent(/Mejor día: .*3 de setiembre/)
+    const mejor = indicador('Mejor día de los elegidos')
+    expect(mejor).toHaveAttribute('title', expect.stringMatching(/Mejor día: .*4 de setiembre/))
+    expect(mejor).not.toHaveAttribute('title', expect.stringMatching(/Mejor día: .*3 de setiembre/))
   })
 
   it('volver a pulsar un día lo desmarca', () => {
@@ -1127,10 +1121,10 @@ describe('marcar días sueltos (Miguel, 11/09/2026)', () => {
     // ¿Contra qué se compara «el 2 y el 4»? No hay respuesta honesta. Y el
     // fixture SÍ trae agosto, así que sin la guarda saldría un porcentaje.
     pintar([...TRES_DIAS, fila({ id: 'ago', dia: '2026-08-05', capital: 5_000 })])
-    expect(contextoVisible(/% respecto de/)).toBeVisible()
+    expect(indicador(/facturado/i)).toHaveAttribute('title', expect.stringMatching(/% respecto de/))
     marcar(/Marcar el .*, 2 de setiembre/i)
-    expect(contextoVisible(/Días elegidos a mano: sin comparación/)).toBeVisible()
-    expect(buscarContextoVisible(/% respecto de/)).toBeNull()
+    expect(indicador(/facturado/i)).toHaveAttribute('title', expect.stringMatching(/Días elegidos a mano: sin comparación/))
+    expect(indicador(/facturado/i)).not.toHaveAttribute('title', expect.stringMatching(/% respecto de/))
   })
 
   it('cambiar de tramo suelta los días: eran de otro sitio', () => {
@@ -1264,13 +1258,6 @@ describe('auditoría del 08/10/2026 — fase 1', () => {
     fireEvent.click(screen.getByRole('button', { name: nombre }))
   }
 
-  /** La tarjeta de un indicador, a partir de su rótulo. */
-  function indicador(rotulo: string): HTMLElement {
-    const tarjeta = screen.getByText(rotulo).closest('.facturacion-resumen > *')
-    if (!(tarjeta instanceof HTMLElement)) throw new Error(`sin tarjeta para «${rotulo}»`)
-    return tarjeta
-  }
-
   it('el % del titular es de SU cifra en las tres vistas, no de la moneda del botón', () => {
     // Setiembre: S/ 100,000 + US$ 10,000 (× 4 = S/ 140,000). El mismo tramo de
     // agosto: S/ 100,000. El titular siempre es el total unificado, así que el %
@@ -1285,7 +1272,7 @@ describe('auditoría del 08/10/2026 — fase 1', () => {
     for (const vista of ['Todo S/', 'Soles', 'Dólares']) {
       elegir(vista)
       expect(screen.getByText('Total facturado')).toBeVisible()
-      expect(contextoVisible(/\+40\.0 % respecto del mismo tramo del mes anterior/)).toBeVisible()
+      expect(indicador(/facturado/i)).toHaveAttribute('title', expect.stringMatching(/\+40\.0 % respecto del mismo tramo del mes anterior/))
     }
   })
 
@@ -1299,7 +1286,7 @@ describe('auditoría del 08/10/2026 — fase 1', () => {
       fila({ id: 's8', dia: '2026-08-05', capital: 400_000, analistaId: 'carla', analistaNombre: 'Carla Analista', supervisorId: 'sup-sara', supervisorNombre: 'Sara Dos' }),
     ])
     fireEvent.change(screen.getByLabelText('Equipo'), { target: { value: 'sup-rosa' } })
-    expect(contextoVisible(/\+100\.0 % respecto del mismo tramo del mes anterior/)).toBeVisible()
+    expect(indicador(/facturado/i)).toHaveAttribute('title', expect.stringMatching(/\+100\.0 % respecto del mismo tramo del mes anterior/))
   })
 
   it('sin tipo de cambio y con dólares, el titular NO se rotula «Total» y avisa con reintento', () => {
@@ -1309,7 +1296,7 @@ describe('auditoría del 08/10/2026 — fase 1', () => {
     pintar()
     expect(screen.getByText('Facturado en soles')).toBeVisible()
     expect(screen.queryByText(/Total facturado/)).toBeNull()
-    expect(contextoVisible(/solo soles — falta el tipo de cambio para sumar soles y dólares/)).toBeVisible()
+    expect(indicador(/facturado/i)).toHaveAttribute('title', expect.stringMatching(/solo soles — falta el tipo de cambio para sumar soles y dólares/))
     // La perilla se replegó sola de Todo S/ a Soles: el aviso dice por qué.
     expect(screen.getByText(/No llegó el tipo de cambio/)).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar el tipo de cambio' }))
@@ -1368,9 +1355,8 @@ describe('auditoría del 08/10/2026 — fase 1', () => {
   it('el titular dice la tasa sin siglas', () => {
     dobles.tc = { promedio: 3.75, fuente: 'SUNAT · prom. 7d' }
     pintar()
-    expect(
-      contextoVisible(/al tipo de cambio S\/ 3\.75 \(Superintendencia Nacional de Administración Tributaria, promedio de 7 días hábiles\)/),
-    ).toBeVisible()
+    expect(indicador(/facturado/i)).toHaveAttribute('title', expect.stringMatching(/al tipo de cambio S\/ 3\.75 \(Superintendencia Nacional de Administración Tributaria, promedio de 7 días hábiles\)/))
+    expect(indicador(/facturado/i)).not.toHaveAttribute('title', expect.stringMatching(/\bTC\b|SUNAT|prom\. 7d/))
     expect(screen.queryByText(/\bTC\b/)).toBeNull()
   })
 
@@ -1400,7 +1386,7 @@ describe('auditoría del 08/10/2026 — fase 1', () => {
     // HOY es el jueves 10/09: del 1 al 10 hay 9 días hábiles (el domingo 6 no
     // cuenta). El mes entero tendría 26 y hundiría el promedio casi tres veces.
     pintar()
-    expect(contextoVisible(/9 días hábiles corridos/)).toBeVisible()
+    expect(indicador('Promedio por día hábil')).toHaveAttribute('title', expect.stringMatching(/9 días hábiles corridos/))
   })
 
   it('la semana que cruza de mes no cuenta como hábiles los días que aún no pasan', () => {
@@ -1416,13 +1402,13 @@ describe('auditoría del 08/10/2026 — fase 1', () => {
     elegir('Día')
     elegir('Día anterior')
     elegir('Semana')
-    expect(contextoVisible(/4 días hábiles corridos/)).toBeVisible()
+    expect(indicador('Promedio por día hábil')).toHaveAttribute('title', expect.stringMatching(/4 días hábiles corridos/))
     vista.unmount()
 
     // Y la misma semana, entrando directo desde el mes, dice lo mismo.
     pintar(filas)
     elegir('Semana')
-    expect(contextoVisible(/4 días hábiles corridos/)).toBeVisible()
+    expect(indicador('Promedio por día hábil')).toHaveAttribute('title', expect.stringMatching(/4 días hábiles corridos/))
   })
 
   it('el futuro plegado no puede marcarse ni dividir el promedio (Codex, 08/10/2026)', () => {
@@ -1432,7 +1418,7 @@ describe('auditoría del 08/10/2026 — fase 1', () => {
     fireEvent.click(within(malla()).getByRole('button', { name: /Marcar el .*, 9 de setiembre/i }))
     expect(within(malla()).queryByRole('button', { name: /Marcar el .*, 11 de setiembre/i })).toBeNull()
     expect(within(malla()).getByRole('columnheader', { name: 'del 11 al 30 de setiembre, por venir' })).toBeVisible()
-    expect(contextoVisible(/1 día hábil corrido/)).toBeVisible()
+    expect(indicador('Promedio por día hábil')).toHaveAttribute('title', expect.stringMatching(/1 día hábil corrido/))
   })
 
   it('mes actual solo en soles y anterior con dólares: cada vista compara SU dinero', () => {
@@ -1446,15 +1432,15 @@ describe('auditoría del 08/10/2026 — fase 1', () => {
       fila({ id: 'p8', dia: '2026-08-02', moneda: 'PEN', capital: 100_000 }),
       fila({ id: 'u8', dia: '2026-08-03', moneda: 'USD', capital: 25_000 }),
     ])
-    expect(contextoVisible(/−50\.0 % respecto del mismo tramo del mes anterior/)).toBeVisible()
+    expect(indicador(/facturado/i)).toHaveAttribute('title', expect.stringMatching(/−50\.0 % respecto del mismo tramo del mes anterior/))
     elegir('Soles')
-    expect(contextoVisible(/\+0\.0 % respecto del mismo tramo del mes anterior/)).toBeVisible()
+    expect(indicador(/facturado/i)).toHaveAttribute('title', expect.stringMatching(/\+0\.0 % respecto del mismo tramo del mes anterior/))
   })
 
   it('la tasa de un solo día se dice en singular', () => {
     dobles.tc = { promedio: 3.75, fuente: 'SBS · prom. 1d' }
     pintar()
-    expect(contextoVisible(/tipo de cambio S\/ 3\.75 \(Superintendencia de Banca, Seguros y Pensiones, promedio de 1 día hábil\)/)).toBeVisible()
+    expect(indicador(/facturado/i)).toHaveAttribute('title', expect.stringMatching(/tipo de cambio S\/ 3\.75 \(Superintendencia de Banca, Seguros y Pensiones, promedio de 1 día hábil\)/))
   })
 
   it('un tramo de solo domingo no tiene promedio: «—», no S/ 0', () => {
@@ -1463,7 +1449,7 @@ describe('auditoría del 08/10/2026 — fase 1', () => {
     pintar([fila({ id: 'dom', dia: '2026-09-06', capital: 50_000 })])
     elegir('Día')
     for (let i = 0; i < 4; i += 1) elegir('Día anterior')
-    expect(contextoVisible('Sin días hábiles en este tramo: el domingo no cuenta')).toBeVisible()
+    expect(indicador('Promedio por día hábil')).toHaveAttribute('title', 'Sin días hábiles en este tramo: el domingo no cuenta')
     expect(within(indicador('Promedio por día hábil')).getByText('—')).toBeVisible()
   })
 
@@ -1492,29 +1478,39 @@ describe('hoja de Excel — fases E1 a E6 y accesibilidad', () => {
     fireEvent.click(within(resumen).getByRole('button', { name: /Mejor día/ }))
     expect(within(screen.getByRole('region', { name: /^Mejor día ·/ })).getAllByText('S/ 12,345')[0]).toBeVisible()
     expect(within(resumen).getByRole('button', { name: /Promedio/ })).toBeVisible()
-    expect(contextoVisible(/días hábiles corridos/)).toBeVisible()
-    for (const boton of within(resumen).getAllByRole('button').filter((b) => !b.textContent?.includes('%'))) expect(boton).toHaveAccessibleName(/ver el desglose$/)
+    expect(indicador('Promedio por día hábil')).toHaveAttribute('title', expect.stringMatching(/días hábiles corridos/))
+    for (const boton of within(resumen).getAllByRole('button')) expect(boton).toHaveAccessibleName(/ver el desglose$/)
   })
 
-  it('E1: todas las cifras globales abren su lista, incluido el porcentaje', () => {
+  it('E1: las cuatro cifras globales ofrecen su lista y conservan su contexto en el title', () => {
     pintar()
     const resumen = screen.getByRole('region', { name: 'Resumen de lo que estás viendo' })
-    expect(within(resumen).getAllByRole('button')).toHaveLength(5)
-    expect(contextoVisible(/Mejor día:.*días hábiles corridos/)).toBeVisible()
-    expect(contextoVisible(/solo soles — falta el tipo de cambio/)).toBeVisible()
-    expect(contextoVisible(/% respecto/)).toBeVisible()
+    expect(within(resumen).getAllByRole('button')).toHaveLength(4)
+    expect(indicador(/Mejor día/)).toHaveAttribute('title', expect.stringMatching(/Mejor día:/))
+    expect(indicador('Promedio por día hábil')).toHaveAttribute('title', expect.stringMatching(/días hábiles corridos/))
+    expect(indicador(/facturado/i)).toHaveAttribute('title', expect.stringMatching(/solo soles — falta el tipo de cambio/))
+    expect(indicador(/facturado/i)).toHaveAttribute('title', expect.stringMatching(/% respecto/))
   })
 
-  it('el contexto sin cierres se ve fuera de la fila compacta; una avería no afirma que no hubo cierres', () => {
+  it('el title de Mejor día distingue un tramo sin cierres de una avería', () => {
     const vista = pintar([])
-    const contexto = contextoVisible('Todavía sin cierres')
-    expect(contexto).toBeVisible()
-    expect(contexto).toHaveClass('text-sm', 'text-muted-foreground-strong')
-    expect(contexto.closest('.facturacion-resumen')).toBeNull()
+    expect(indicador(/Mejor día/)).toHaveAttribute('title', 'Todavía sin cierres')
     dobles.error = true
     vista.rerender(<Facturacion />)
-    expect(contextoVisible('No se pudo cargar: la cifra no está disponible')).toBeVisible()
-    expect(buscarContextoVisible('Todavía sin cierres')).toBeNull()
+    expect(indicador(/facturado/i)).toHaveAttribute('title', 'No se pudo cargar: la cifra no está disponible')
+    expect(indicador(/Mejor día/)).toHaveAttribute('title', 'No se pudo cargar: la cifra no está disponible')
+    expect(indicador(/Mejor día/)).not.toHaveAttribute('title', 'Todavía sin cierres')
+  })
+
+  it('no muestra la línea de contexto ni la frase de conversión de dólares', () => {
+    dobles.tc = { promedio: 3.75, fuente: 'SUNAT · prom. 7d' }
+    const { container } = pintar()
+    expect(container.querySelector('.facturacion-contexto')).toBeNull()
+    expect(container).not.toHaveTextContent(/Los dólares se suman convertidos|% respecto|Mejor día:|días hábiles corridos/)
+    const resumen = screen.getByRole('region', { name: 'Resumen de lo que estás viendo' })
+    expect(resumen).not.toHaveTextContent(/setiembre de 2026|tipo de cambio/)
+    expect(within(resumen).queryByRole('button', { name: /base del porcentaje/ })).toBeNull()
+    dobles.tc = null
   })
 
   it('la caption describe Día por tipo sin ofrecer botones de día; Mes explica por venir', () => {
@@ -1693,7 +1689,7 @@ it.each(['pendiente', 'error'])('8: la comparación %s no bloquea el tramo que y
   render(<Facturacion />)
   expect(malla()).toBeVisible()
   expect(within(malla()).getByText('S/ 520,000')).toBeVisible()
-  expect(contextoVisible(estado === 'pendiente' ? /Cargando la comparación/ : /Comparación no disponible/)).toBeVisible()
+  expect(indicador(/facturado/i)).toHaveAttribute('title', expect.stringMatching(estado === 'pendiente' ? /Cargando la comparación/ : /Comparación no disponible/))
 })
 
 describe('fase 4: todos los números abren su ámbito, sin perder el supervisor histórico', () => {
@@ -1757,11 +1753,4 @@ it('Esc devuelve el foco a la malla si el equipo del origen se plegó', () => {
   within(panel).getByRole('heading', { level: 2 }).focus()
   fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
   expect(malla()).toHaveFocus()
-})
-
-it('el contexto conserva los separadores a ambos lados del botón del porcentaje', () => {
-  pintar()
-  const contexto = document.querySelector('.facturacion-contexto')!
-  expect(contexto.textContent).not.toMatch(/·\s*·/)
-  expect(contexto.textContent).toMatch(/% respecto.* · Mejor día/)
 })
