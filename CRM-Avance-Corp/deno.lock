@@ -13,7 +13,8 @@
     "npm:@supabase/storage-js@2.110.8": "2.110.8",
     "npm:@supabase/supabase-js@2.110.2": "2.110.2",
     "npm:openai@^4.52.5": "4.104.0",
-    "npm:web-push@3.6.7": "3.6.7"
+    "npm:web-push@3.6.7": "3.6.7",
+    "npm:yaml@2.9.1": "2.9.1"
   },
   "jsr": {
     "@std/assert@1.0.19": {
@@ -411,12 +412,17 @@
         "tr46",
         "webidl-conversions"
       ]
+    },
+    "yaml@2.9.1": {
+      "integrity": "sha512-3NxN8+78OdzbT7C/WjGsyfPAtJaN3FNDsWxv7Y7mcDsT/oOmgW8BpyQQFFBnvZE3j9Y2Sdz1ULFLezL7Eb2yFw==",
+      "bin": true
     }
   },
   "workspace": {
     "packageJson": {
       "dependencies": [
-        "npm:@supabase/supabase-js@2.110.2"
+        "npm:@supabase/supabase-js@2.110.2",
+        "npm:yaml@2.9.1"
       ]
     }
   }

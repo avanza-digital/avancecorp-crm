@@ -110,6 +110,17 @@ npm run test:rls:preflight
 npm run test:edge-preflight
 ```
 
+Desde el Paso 05 (Etapa 2, implementación local) el mismo control incluye además, cada uno en su paso del workflow `crm-rls-preflight`:
+
+```bash
+npm run test:backend-gates          # contrato del gate: YAML/package reales, sin filtros ni desvíos (parser `yaml`)
+npm run test:backend-additional     # Deno unitario: crm-usuarios, teléfonos, temperatura (--cached-only)
+npm run test:contrato-pdf           # Deno unitario del contrato PDF v2 con su deno.json y --allow-read
+npm run test:mutantes:aislamiento   # aislamiento del arnés de mutantes aceptado en Etapa 1
+```
+
+Límites honestos de ese bloque: son pruebas **offline y unitarias**; no son la matriz RLS viva, ni advisors, ni E2E. `test:backend-gates` comprueba el contrato (activación sin `paths`, identidad del job, cableado, ausencia de `if`/`continue-on-error`/`|| true`/`;`, shell `bash` y `working-directory` fijados en `defaults.run` del job sin excepciones por paso, sincronía de `yaml` entre `package.json`, `package-lock.json` y `deno.lock`) y la propagación de fallos con **sustitutos** bajo `bash --noprofile --norc -eo pipefail`, la misma invocación que `shell: bash` declara en el job; un sustituto no demuestra que una suite real pase. Todas las entradas Deno (gates existentes `check:scripts` → `test:importar-leads-edge`, `test:edge-preflight` → `test:push-tasa`, suites nuevas y PDF con su `deno.json`) se descargan en el paso online «Prepare Deno imports for every Deno gate», situado tras `npm ci` y antes de todos los gates; el contrato exige ese orden y esa cobertura con una lista cerrada verificada contra los scripts reales. Esa preparación se ha repetido solo en caché cálida y sin red con el helper de Etapa 2, no en frío ni en GitHub. Estado al 2026-10-04 (R3): verificado solo en el runner local sin red; la revisión independiente, el disparo remoto y el fallo bloqueante en GitHub están `NOT RUN`. El devDependency `yaml` exige las tres entradas `yaml@2.9.1` en `deno.lock`; en R2 su aplicación quedó bloqueada por permisos del archivo y en R3, con autorización específica para ese único archivo (`evidence/AUTORIZACION-ESCRITURA-DENO-LOCK.md`), el lock generado se aplicó con el helper (`evidence/dependency-repair-proof.json`). Sincronización verificada localmente: la guarda del contrato (48/48), `test:backend-additional` (34/34), `test:edge-preflight` y el replay de la preparación pasan en caché cálida y sin red. La descarga en frío y el paso online en GitHub siguen `NOT RUN`.
+
 Para migraciones o seguridad de datos, además se aplican las reglas de `CRM-Avance-Corp/CLAUDE.md` y `CRM-Avance-Corp/supabase/migrations/LEEME.md`: no editar migraciones versionadas, actualizar `MIGRACIONES.md`, probar en una rama/instancia autorizada, ejecutar la matriz RLS pertinente y regenerar tipos cuando cambie el schema:
 
 ```bash
@@ -158,7 +169,7 @@ El reviewer no declara la tarea terminada. El `PRIMARY` evalúa los hallazgos y 
 ## CI existente
 
 - `.github/workflows/crm-app-quality.yml`: lint, typecheck, cobertura, tests y build del CRM frontend. E2E NO se ejecuta en GitHub Actions: se corre en local con `npm run test:e2e:docker` (ver «E2E: SIEMPRE en local con Docker»).
-- `.github/workflows/crm-rls-preflight.yml`: sintaxis de scripts, seed/RLS preflight offline y fronteras de Edge Functions.
+- `.github/workflows/crm-rls-preflight.yml`: sintaxis de scripts, seed/RLS preflight offline, fronteras de Edge Functions y, desde el Paso 05, el contrato del gate, las suites unitarias Deno adicionales, el PDF v2 y el aislamiento del arnés. Corre en todo PR y push a `main`/`tronco`, sin filtros de rutas, con `shell: bash` explícita y una única preparación de imports Deno antes de todos los gates.
 - `.github/workflows/ai-collaboration-config.yml`: JSON, shell, contratos de hooks e integración documental de este sistema.
 - `lefthook.yml`: lint/typecheck pre-commit y tests pre-push para el CRM.
 
