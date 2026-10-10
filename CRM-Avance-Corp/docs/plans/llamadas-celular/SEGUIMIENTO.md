@@ -17,6 +17,8 @@ primer release. Ninguna tarea física se cierra por la instalación. **08/10 ~01
 (`build-20261009T181538004Z`) y la prueba física del caso pasó en C1 (13:19 Lima; `REGISTRO.md` §5i; aviso en el #232).
 Sin casillas nuevas: 44/102. Quedan abiertos H-P5 y H-P10.
 
+**Actualizado el 10/10, 16:35 UTC:** F7.2.2 marcada (`SOPORTE.md` §2.2): **46/102**. Matriz de compatibilidad de C1 al día; textos de «comprar Pro» corregidos (Pro no durante las pruebas). Contrato de F4-e en el #249.
+
 **Actualizado el 10/10, 15:05 UTC:** noche 09→10 PASS en C1 (latidos 200 a las 00:45 y 06:50). Repetición focalizada de P5:
 en la app instalada, el enlace de la segunda llamada recarga la app entera y la encuesta abierta se pierde (las llamadas
 quedan en «Pendientes»); pasado a la sesión de Miguel para el arreglo de H-P5 (#232, 6098858656).
@@ -63,8 +65,8 @@ tablero).
 | F4 · Bandeja y registro conciliado | 13 | 8 | 4 | — | 1 | En curso: **F4-d aceptada en C1** (P1–P15 y consulta de Miguel, 09/10) y dos pestañas PASS (F4.4.1, 09/10); faltan baja y atribución (F4.3.2), «depurado» (F4.1.2), enlace manual (F4.2.4, **bloqueada**: falta la pantalla «¿Es este su resultado?»), crear y reasociar (F4.3.1) y «devolver» (#14); luego F4-e |
 | F5 · Jev | 15 | 0 | — | — | 15 | Pendiente |
 | F6 · Gerencia y métricas | 12 | 0 | — | 1 | 11 | Pendiente: diccionario aprobado (#17); primero F4-e, tras la aceptación de F4-d en C1 |
-| F7 · Despliegue y operación | 12 | 1 | — | 3 | 8 | En curso: primer release (07/10, H3); guía de soporte (09/10, F7.2.1) |
-| **Total** | **102** | **45** | **4** | **14** | **39** | |
+| F7 · Despliegue y operación | 12 | 2 | — | 3 | 7 | En curso: primer release (07/10, H3); guía de soporte (09/10, F7.2.1) y sus casos de reasignación, números compartidos, corrección y revocación (10/10, F7.2.2) |
+| **Total** | **102** | **46** | **4** | **14** | **38** | |
 
 Antes de este repaso había 25 marcadas; suben 5 con evidencia ya existente (F2.1.1–F2.1.3 ratificadas, F2.4.2 por el
 ensayo de Miguel en su banco y F3.1.3 porque los tipos ya están generados). **07/10 tarde:** sube F3.3.2 con el 429
@@ -219,7 +221,7 @@ prototipo aprobado por Jhosep (06/10) **no sustituye** el contrato: primero el c
 | F7.1.2 | Revisar la evidencia de F0–F6 y la decisión de Jev | Pendiente | — | — | Miguel · Claude | F0–F6 |
 | F7.1.3 | Responsables operativos y criterios para parar o ampliar | Pendiente | — | — | Miguel | F7.1.1 |
 | F7.2.1 | Guía de permisos, cola, clave perdida, cambio de equipo y baja de analista | **Marcada el 09/10** | Borradores: flujos de celular nuevo, pérdida y baja (`F4C-F4D-PLAN-CORTO.md`), `ACTIVAR-C1.md`, `macrodroid.md` §3c · 09/10: guía única `SOPORTE.md` (permisos con enlace a `macrodroid.md` §2, cola, clave perdida, cambio de equipo y baja); extravío, reemplazo y baja sin probar en un celular | — | Claude | — |
-| F7.2.2 | Reasignación, números compartidos y corrección/revocación de asociaciones | Pendiente | — | — | Claude | F7.2.1 |
+| F7.2.2 | Reasignación, números compartidos y corrección/revocación de asociaciones | **Marcada el 10/10** | `SOPORTE.md` §2.2: reasignación (P10, 08/10), números compartidos (por el código; sin probar en C1), corrección (P9, 09/10) y revocación (no existe: solo se mueve con «Registrar el corregido») | — | Claude | F7.2.1 |
 | F7.2.3 | Apagados independientes de captura, apertura y Jev; conservar el registro manual | Pendiente | Tres niveles de vuelta atrás escritos en `ACTIVAR-C1.md` §6 | Probarlos | Jhosep · Miguel | H4 |
 | F7.3.1 | Gates y release humano; commit verificado en `avancecorp/main` | En curso | Primer release del despliegue (07/10, H3): gates y release desde `main` limpio idéntico a `avancecorp/main` (`d4c9a689`) | Se marca al cerrar el despliegue por cohortes (F7.3.3) | Miguel | — |
 | F7.3.2 | Publicar solo el artefacto del commit verificado | En curso | 07/10: ZIP `crm-20261007T222047Z-d4c9a6897bb3.zip`, `build-20261007T222046462Z`, preflight PASS y 121/121 archivos idénticos | Ídem | Miguel | F7.3.1 |
@@ -242,7 +244,7 @@ prototipo aprobado por Jhosep (06/10) **no sustituye** el contrato: primero el c
 | --- | --- | --- | --- |
 | #16 | F0 solo con salientes (quitar las diez entrantes de F0.3.1) | **Aprobada** (Miguel, 07/10) | F0 se acepta con diez salientes por equipo y los casos especiales; las diez entrantes pasan a la aceptación de la #14. Nada sin probar se marca |
 | #17 | Diccionario de métricas A1–A7 y dónde va F4-e (F4 o F6) | **Aprobada** (Miguel, 07/10) | F4-e va en F4, después de la aceptación de F4-d en C1; F6 amplía la misma puerta. Desbloquea F6.1–F6.3 |
-| #18 | MacroDroid Pro en producción | **Aprobada para el piloto** (Miguel, 07/10) | Jhosep compra Pro en C1 antes del 09/10 ~15:50 Lima (S/ 19 por cuenta, pago único; hasta S/ 57 con tres compras) y registra equipo, licencia y fecha |
+| #18 | MacroDroid Pro en producción | **Aprobada para el piloto** (Miguel, 07/10) | Pro **no se compra** durante las pruebas (decisión de Jhosep, 08/10): MacroDroid gratis renovado con anuncios cada 3 días (09/10, 12/10, 15/10…); la compra queda para los celulares de producción y la #14 |
 | — | Rotación de la clave de TypeSafe (Jev) | Pendiente (Miguel) | Desbloquea F5.3.1. Jev sigue apagado |
 | — | Los 8 fallos de fondo del gate global | **Resueltos** (Miguel, 07/10) | Completando fixtures, sin debilitar aserciones; banco local 3292/3292 |
 

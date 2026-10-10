@@ -92,6 +92,43 @@ Las tres notificaciones que puede mostrar la macro (ninguna lleva el número):
    `build-20261009T181538004Z` o una versión posterior. Si no se pudo guardar, conservar el contenido con soporte
    antes de salir: una copia de la nota no equivale a un resultado registrado en el CRM.
 
+### 2.2 Reasignación, números compartidos, corrección y revocación (F7.2.2)
+
+Lo que está **probado en C1** lleva su fecha; lo demás sale del código (`20261005143843` §asociar, `20261006162813`
+§ingesta y §enlaces) y no se ha probado con el teléfono.
+
+**a) Reasignaron el lead** (probado: P10, 08/10). Las llamadas del celular **siguen al dueño actual del lead**
+(decisión 7). El analista anterior deja de verlas en «Pendientes» y en «Qué pasó hoy»; el nuevo dueño las ve y, si
+estaban pendientes, las registra él desde «Pendientes». Las cifras del día de cada uno no se mezclan: la llamada cuenta
+para quien la hizo (hallazgo H-P10: hoy la pantalla dice «tu celular» aunque no sea suya; en arreglo). **No:** registrar
+la misma llamada dos veces ni pedir que «devuelvan» la llamada al anterior.
+
+**b) Dos personas con el mismo número.**
+- *Dos leads del mismo analista o equipo:* la llamada llega como **«por revisar»** y la fila ofrece **«Elegir el lead»**,
+  solo entre los leads que tienen ese número y están en su ámbito (el servidor rechaza cualquier otro: «Ese lead no
+  tiene el número de la llamada»). Elegir no crea gestión; después, «Registrar resultado». *(Por el código; sin probar
+  en C1.)*
+- *El número está en un lead abierto de **otro** analista, en un cliente activo, o en «No contactar»/vetado:* el
+  servidor **no guarda la llamada para nadie** (`llamada_celular_contacto_admitido`). Al colgar, la encuesta avisa
+  «Ningún lead de tu cartera tiene el número…» y, si figura en otro, lo dice sin abrirlo (probado el 09/10 con un
+  cliente convertido). No aparece en «Pendientes». **Qué hacer:** nada en el CRM; si cree que el lead debería ser suyo,
+  pedir la reasignación a su supervisor. **No:** crear un lead nuevo con ese número (sería un duplicado y el servidor
+  seguiría sin tomar la llamada).
+
+**c) Corregir una asociación** (la llamada quedó en el lead equivocado).
+- *Mientras está pendiente:* **«Elegir el lead»** otra vez; solo admite leads con ese número.
+- *Ya registrada o descartada:* el lead **ya no se puede cambiar** («La llamada ya está registrada o descartada»).
+  Deshacer + «Registrar el corregido» corrigen el **resultado**, no el lead (probado: P9, 09/10). Si el resultado se
+  guardó en el lead equivocado: **Deshacer**, registrar la llamada en el lead correcto **desde su ficha** (quedará sin
+  unión) y avisar a soporte para dejarlo anotado. La unión equivocada se conserva como historial (regla de Miguel: no
+  se borran filas).
+- *Descartada por error:* también es definitiva; registrar desde la ficha del lead si hacía falta.
+
+**d) Revocar una unión** (separar la llamada de su resultado): **no existe** como botón. La unión solo se **mueve** con
+«Registrar el corregido» (séptima migración) y nunca se borra. Lo más cercano: **Deshacer** el resultado; la llamada
+queda «deshecha sin corregir» hasta que se registre el corregido. Si hiciera falta revocar de verdad, es una decisión de
+Miguel (toca la base). **No:** pedir a soporte que borre la fila.
+
 ## 3. Operaciones de gerencia (Configuración › Celulares)
 
 ### 3.1 Alta de un celular
