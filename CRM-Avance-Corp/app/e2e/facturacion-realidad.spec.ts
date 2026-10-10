@@ -125,6 +125,8 @@ const SETIEMBRE_SUPERVISOR: FilaRpc[] = [venta('2026-09-02', 'PEN', 5_000, UNO, 
 const TITULAR = 'S/ 46,269'
 const DELTA = '+124.7 % respecto del mismo tramo del mes anterior'
 const TASA = 'tipo de cambio S/ 3.53 (Superintendencia de Banca, Seguros y Pensiones, promedio de 7 días hábiles)'
+// Bajo «Total del día en soles», solo la cifra (Miguel, 10/10/2026).
+const TASA_CORTA = 'S/ 3.53 por dólar'
 const SIN_SIGLAS = /\bTC\b|prom\./
 
 /** Mock de la RPC de Facturación: filas fijas por mes, o una caída controlada. */
@@ -141,6 +143,29 @@ async function montarFacturacion(
       return route.fulfill({ status: 500, headers: CORS, json: { code: 'XX000', message: 'Caída controlada del e2e' } })
     }
     return route.fulfill({ status: 200, headers: CORS, json: porMes[String(cuerpo.p_mes)] ?? [] })
+  })
+  // Fase 4: el inspector consume operaciones. Este fixture sigue siendo local y respeta el ámbito enviado.
+  await page.route('**/rest/v1/rpc/listar_operaciones_facturacion_fn', async (route) => {
+    if (route.request().method() !== 'POST') return route.fallback()
+    const p = route.request().postDataJSON()
+    const filas = (porMes === 'error' ? [] : Object.values(porMes).flat()).filter((f) =>
+      f.dia >= p.p_desde && f.dia <= p.p_hasta && (!p.p_dias || p.p_dias.includes(f.dia)) &&
+      (!p.p_analistas || p.p_analistas.includes(f.analista_id)) && (!p.p_equipo || p.p_equipo === f.supervisor_id) &&
+      (!p.p_sin_analista || f.analista_id == null) && (!p.p_sin_equipo || f.supervisor_id == null) &&
+      (!p.p_tipos || p.p_tipos.includes(f.tipo)) && (!p.p_moneda || p.p_moneda === f.moneda))
+    const ops = filas.flatMap((f) => Array.from({ length: f.operaciones }, () => f))
+    const pagina = p.p_pagina ?? 1; const tamano = p.p_tamano ?? 25
+    return route.fulfill({ headers: CORS, json: { version: 1, pagina, tamano, total: ops.length,
+      totales: (['PEN', 'USD'] as const).flatMap((moneda) => {
+        const propias = filas.filter((f) => f.moneda === moneda)
+        return propias.length ? [{ moneda, operaciones: propias.reduce((n, f) => n + f.operaciones, 0), monto: propias.reduce((n, f) => n + f.capital, 0) }] : []
+      }), filas: ops.slice((pagina - 1) * tamano, pagina * tamano).map((f, i) => ({
+        n: (pagina - 1) * tamano + i + 1, fecha: f.dia, tipo: f.tipo, moneda: f.moneda, monto: f.capital / f.operaciones,
+        anulado: false, analista_id: f.analista_id, analista_nombre: f.analista_nombre, supervisor_id: f.supervisor_id,
+        supervisor_nombre: f.supervisor_nombre, visible: true, cliente_nombre: 'Cliente de ejemplo', estado: 'vigente',
+        ...(f.tipo === 'cooperativa' ? { cierre_externo_id: `ejemplo-${i}`, cooperativa: 'Ejemplo', lead_id: null }
+          : { contrato_id: `ejemplo-${i}`, numero_contrato: `Ejemplo ${i + 1}`, cliente_id: null }),
+      })) } })
   })
   return { cuerpos }
 }
@@ -228,9 +253,7 @@ test('1 · Gerencia, octubre con soles y dólares: el titular es el total unific
   }).map((el) => parseFloat(getComputedStyle(el).fontSize)))
   expect(Math.min(...letras)).toBeGreaterThanOrEqual(14)
   await expect(cifra(titular)).toHaveText(TITULAR)
-  await expect(area.locator('.facturacion-contexto')).toBeVisible()
-  await expect(area.locator('.facturacion-contexto')).toContainText(`S/ 20,500 + US$ 7,300 al ${TASA}`)
-  await expect(area.locator('.facturacion-contexto')).toContainText(DELTA)
+  await expect(titular).toHaveAttribute('title', `octubre de 2026 · S/ 20,500 + US$ 7,300 al ${TASA} · ${DELTA}`)
   await expect(malla).toHaveAccessibleName('Facturación diaria de octubre de 2026 en Todo S/, Todos los tipos')
   // En «Todo S/» el pie de la malla da la misma cifra que el titular.
   await expect(malla.getByRole('row', { name: /Total de la empresa/ }).getByRole('cell').last()).toHaveText(TITULAR)
@@ -243,7 +266,8 @@ test('1 · Gerencia, octubre con soles y dólares: el titular es el total unific
   await expect(moneda(area, 'Soles')).toHaveAttribute('aria-pressed', 'true')
   await expect(malla).toHaveAccessibleName(/ en Soles, /)
   const pie = malla.getByRole('row', { name: /Total del día en soles/ })
-  await expect(pie.getByRole('rowheader')).toContainText(TASA)
+  await expect(pie.getByRole('rowheader')).toContainText(TASA_CORTA)
+  await expect(pie.getByRole('rowheader')).not.toContainText('Superintendencia')
   await expect(pie.getByRole('cell').last()).toHaveText(TITULAR)
   // El 2 de octubre solo hubo dólares: US$ 5,000 × 3.53 = S/ 17,650, con la MISMA tasa.
   await expect(pie.getByRole('cell').nth(2)).toContainText('S/ 17,650')
@@ -252,7 +276,7 @@ test('1 · Gerencia, octubre con soles y dólares: el titular es el total unific
   // El titular no cambia ni de cifra ni de %.
   await expect(indicador(area, /^Total facturado/)).toHaveCount(1)
   await expect(cifra(titular)).toHaveText(TITULAR)
-  await expect(area.locator('.facturacion-contexto')).toContainText(DELTA)
+  await expect(titular).toHaveAttribute('title', `octubre de 2026 · S/ 20,500 + US$ 7,300 al ${TASA} · ${DELTA}`)
   await expect(area).not.toContainText(SIN_SIGLAS)
   await llevarALaVista(page, pie, 'abajo')
   await expectCarcasaQuieta(page)
@@ -262,7 +286,7 @@ test('1 · Gerencia, octubre con soles y dólares: el titular es el total unific
   await moneda(area, 'Dólares').click()
   await expect(moneda(area, 'Dólares')).toHaveAttribute('aria-pressed', 'true')
   await expect(cifra(titular)).toHaveText(TITULAR)
-  await expect(area.locator('.facturacion-contexto')).toContainText(DELTA)
+  await expect(titular).toHaveAttribute('title', `octubre de 2026 · S/ 20,500 + US$ 7,300 al ${TASA} · ${DELTA}`)
   await expect(malla.getByRole('row', { name: /Total del día en soles/ }).getByRole('cell').last()).toHaveText(TITULAR)
 
   // Se pidió el mes y el anterior, con la forma exacta de la RPC.
@@ -302,11 +326,11 @@ test('2 · Sin tipo de cambio: «Facturado en soles», un solo reintento que no 
   await expect(area.getByRole('status').filter({ hasText: 'Soles, no llegó el tipo de cambio' })).toHaveCount(1)
   // Un solo botón de reintento: con el aviso a la vista, el del pie no se duplica.
   await expect(reintento).toHaveCount(1)
-  await expect(pie.getByRole('button')).toHaveCount(0)
+  await expect(pie.getByRole('button', { name: 'Reintentar el tipo de cambio' })).toHaveCount(0)
   // El titular no se rotula «Total»…
   const titular = indicador(area, /^Facturado en soles/)
   await expect(cifra(titular)).toHaveText('S/ 20,500')
-  await expect(area.locator('.facturacion-contexto')).toContainText('solo soles — falta el tipo de cambio para sumar soles y dólares')
+  await expect(titular).toHaveAttribute('title', /solo soles — falta el tipo de cambio para sumar soles y dólares/)
   await expect(area.getByText(/Total facturado/)).toHaveCount(0)
   // …y el pie no afirma un total sin tasa.
   await expect(pie.getByRole('rowheader')).toContainText('total no disponible: falta el tipo de cambio')
@@ -321,7 +345,7 @@ test('2 · Sin tipo de cambio: «Facturado en soles», un solo reintento que no 
   await expect(reintento).toHaveCount(1)
   await moneda(area, 'Todo S/').click()
   await expect(noLlego).toBeVisible()
-  await expect(pie.getByRole('button')).toHaveCount(0)
+  await expect(pie.getByRole('button', { name: 'Reintentar el tipo de cambio' })).toHaveCount(0)
 
   // Reintentar NO desmonta el botón: mientras se consulta, el aviso sigue montado, dice
   // «Consultando…», el botón queda aria-disabled y el foco no se pierde. Sin salto de cifras.
@@ -365,8 +389,7 @@ test('3 · La RPC cae: «No se pudo cargar…» y ningún indicador dice «S/ 0�
     await expect(cifra(indicadores.nth(i))).toHaveText('—')
     await expect(indicadores.nth(i)).not.toContainText('S/ 0')
   }
-  await expect(area.locator('.facturacion-contexto')).toBeVisible()
-  await expect(area.locator('.facturacion-contexto')).toContainText('No se pudo cargar: la cifra no está disponible')
+  await expect(indicador(area, /^Facturado/)).toHaveAttribute('title', 'No se pudo cargar: la cifra no está disponible')
   expect(cuerpos.length).toBeGreaterThan(0)
 })
 
@@ -386,8 +409,7 @@ test('4 · Domingo 01/11 con una venta, vista «Día»: el promedio por día há
   await expect(tramo(area, 'Día')).toHaveAttribute('aria-pressed', 'true')
   await expect(area.getByText('Ese día, por tipo: por equipo y por analista')).toBeVisible()
   await expect(cifra(promedio)).toHaveText('—')
-  await expect(area.locator('.facturacion-contexto')).toBeVisible()
-  await expect(area.locator('.facturacion-contexto')).toContainText('Sin días hábiles en este tramo: el domingo no cuenta')
+  await expect(promedio).toHaveAttribute('title', 'Sin días hábiles en este tramo: el domingo no cuenta')
   await expect(promedio).not.toContainText('S/ 0')
   // Y el dinero de ese domingo sí está en pantalla.
   await expect(cifra(indicador(area, /^Ese día/))).toHaveText('S/ 15,000')
@@ -481,7 +503,7 @@ test.describe('6 · Teléfono 390×844, para todo rol', () => {
     await expect(page).toHaveURL(/#\/[\w-]+/)
     await page.evaluate(() => { window.location.hash = '#/facturacion' })
     const tarjetas = page.getByRole('region', { name: 'Facturación por analista' })
-    await expect(tarjetas.getByRole('button', { name: /^Ver el mes completo de Analista Real Uno: total/ })).toBeVisible()
+    await expect(tarjetas.getByRole('button', { name: /^Ver el mes de Analista Real Uno: total/ })).toBeVisible()
     await comprobarTarjetasDeTelefono(page, tarjetas)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     await page.screenshot({ path: info.outputPath('caso6-telefono-supervisor.png') })
@@ -552,8 +574,8 @@ test('8 · A 800×900 las tarjetas conservan los días y el desglose en una regi
   const tarjetas = page.getByRole('region', { name: 'Facturación por analista' })
   await expect(tarjetas).toBeVisible()
   await expect(mallaDe(page)).toHaveCount(0)
-  const ventaAna = tarjetas.getByRole('button', { name: /^ANA PRUEBA,.*1 de octubre: S\/ 12,000 en 1 operación — ver el desglose$/ })
+  const ventaAna = tarjetas.getByRole('button', { name: /^ANA PRUEBA,.*1 de octubre: S\/ 12,000, ver 1 operación$/ })
   await expect(ventaAna).toBeVisible()
   await ventaAna.click()
-  await expect(page.getByRole('dialog')).toContainText('S/ 12,000')
+  await expect(page.locator('.lista-operaciones')).toContainText('S/ 12,000')
 })

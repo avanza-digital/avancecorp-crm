@@ -6657,6 +6657,22 @@ export type Database = {
         Args: { p_lead_id: string; p_motivo: string }
         Returns: Json
       }
+      listar_operaciones_facturacion_fn: {
+        Args: {
+          p_analistas?: string[]
+          p_desde: string
+          p_dias?: string[]
+          p_equipo?: string
+          p_hasta: string
+          p_moneda?: string
+          p_pagina?: number
+          p_sin_analista?: boolean
+          p_sin_equipo?: boolean
+          p_tamano?: number
+          p_tipos?: string[]
+        }
+        Returns: Json
+      }
       llamada_celular_detalle_fn: {
         Args: { p_evento_id: string }
         Returns: Json

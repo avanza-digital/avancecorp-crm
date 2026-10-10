@@ -20,13 +20,16 @@ instalarSentry() // no-op sin VITE_SENTRY_DSN (y el chunk ni se descarga)
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <StoreProvider>
-          <App />
-        </StoreProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <div id="app-content" className="h-full">
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <StoreProvider>
+            <App />
+          </StoreProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+      <VersionPublicadaAviso />
+    </div>
     {/* Sin richColors: sonner pintaría los success de verde; el chrome es navy/azul. */}
     <Toaster
       position="top-right"
@@ -41,6 +44,5 @@ createRoot(document.getElementById('root')!).render(
         },
       }}
     />
-    <VersionPublicadaAviso />
   </StrictMode>,
 )

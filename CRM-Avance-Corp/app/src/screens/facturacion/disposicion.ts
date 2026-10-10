@@ -11,7 +11,12 @@ export function useDisposicionFacturacion() {
     if (!nodo || typeof ResizeObserver === 'undefined') return
     const medir = () => {
       // Los 8 px son el margen exterior del foco (4 px por lado).
-      if (nodo.clientWidth > 0) setEstrecha(nodo.clientWidth - 8 < 730)
+      if (nodo.clientWidth > 0) {
+        // Abrir el inspector reserva espacio, pero no cambia la vista elegida ni desmonta la cifra de origen.
+        const pantalla = nodo.closest<HTMLElement>('.facturacion-pantalla')
+        const reserva = pantalla ? parseFloat(getComputedStyle(pantalla).paddingRight) || 0 : 0
+        setEstrecha(nodo.clientWidth + reserva - 8 < 730)
+      }
     }
     const observador = new ResizeObserver(medir)
     observador.observe(nodo)
