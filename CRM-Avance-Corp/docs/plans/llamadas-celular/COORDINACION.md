@@ -41,7 +41,7 @@ están las reglas, el mapa de los PR, el turno de cada uno, el orden y lo que ya
 
 | Rama | Qué es | Turno | Estado |
 | --- | --- | --- | --- |
-| **#251** `crm/llamadas-c2-aviso-b7-20261010` | F4.2.4 (B7): botón «Unir a un resultado guardado» + panel «¿Es este su resultado?» (solo pantalla sobre `crm.enlazar_llamada_celular`); `ACTIVAR-C2.md` (C2 y C3 el lunes 12/10); borrador `AVISO-TRATAMIENTO.md`; seguimiento y `estado.json` hasta el cambio 210 | **Miguel** | **Abierto el 10/10 (listo)**. Revisión de su agente (21:41 UTC, CHANGES_REQUESTED: dos P2 y cuatro P3) **corregida en la misma rama** el 10/10: falta que revise ese commit; después fusionar y publicar, y revisar el aviso |
+| **#251** `crm/llamadas-c2-aviso-b7-20261010` | F4.2.4 (B7): botón «Unir a un resultado guardado» + panel «¿Es este su resultado?» (solo pantalla sobre `crm.enlazar_llamada_celular`); `ACTIVAR-C2.md` (C2 y C3 el lunes 12/10); borrador `AVISO-TRATAMIENTO.md`; seguimiento y `estado.json` hasta el cambio 212 | **Miguel** | **Abierto el 10/10 (listo)**. Revisión de su agente (21:41 UTC, CHANGES_REQUESTED: dos P2 y cuatro P3) **corregida en la misma rama** el 10/10: falta que revise ese commit; después fusionar y publicar, y revisar el aviso |
 | **#249** `crm/llamadas-f4e-contrato-20261010` | Contrato y oráculos de F4-e (`F4E-CONTRATO.md`), F7.2.2 en `SOPORTE.md` §2.2, decisiones de Miguel (C2/C3, alcance, F4.2.4) | — | **Fusionado** el 10/10 (`82e5edde`). Falta el OK explícito a la sección 9 para escribir la migración |
 | **#190** `crm/llamadas-quinta-migracion-20261005` | Las doce migraciones de llamadas, la Edge, el gate, F4-b con la fuente real conectada y los planes de F4-c/F4-d/F4-e | — | **Fusionado en `main`** el 06/10 23:28 UTC (`d1f16fea`). **Aplicado en producción el 07/10** (H1, acta `INSTALACION-20261007.md`) |
 | **#215** `crm/llamadas-f4c-celulares-20261006` | F4-c: la tarjeta «Celulares» de Configuración (solo gerencia), detrás del interruptor `LLAMADAS_CELULAR_APROBADAS`; sin migración | — | Aprobado por Miguel el 07/10 21:10 UTC (validación de cierre PASS, sin P0–P2; 6366/6366, E2E Docker 4/4) y **fusionado en `main`** a las 21:28 UTC con squash (`5f42e908`). Trae el checklist de las doce |
@@ -229,6 +229,11 @@ las reversas SQL con el sistema en uso.
 - [ ] **#251:** revisar el commit con las correcciones de su revisión, fusionar y publicar; revisar el borrador del aviso
   de tratamiento.
 - [ ] **OK explícito a la sección 9 del contrato de F4-e** (sin eso no se escribe la migración).
+- [ ] **Por investigar y decidir (anotado el 10/10; no bloquea el #251):** (1) leyendo el código, la unión a mano deja
+  al nuevo dueño unir la llamada del anterior si el lead no está descartado (`SOPORTE.md` §2.2 dice que no: vale para la
+  unión exacta); ¿se quiere así? Quedaría `analista_id` = quien llamó y `enlazado_por` = quien une. (2) Con el reloj
+  del celular adelantado más de 10 min, la unión a mano rechaza el resultado. (3) El supervisor no tiene la pestaña,
+  aunque la base se lo permitiría. Nada de esto se probó todavía.
 - [ ] H-P5 y H-P10 (su sesión; avisa en el hilo del #232).
 
 ## En llano

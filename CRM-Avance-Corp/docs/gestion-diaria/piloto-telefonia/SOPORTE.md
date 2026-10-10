@@ -69,7 +69,7 @@ Las tres notificaciones que puede mostrar la macro (ninguna lleva el número):
 | **Latido rechazado** (notificación) | El cuerpo del latido está mal armado en la macro | Revisar el latido contra `macrodroid.md` §3c (paso «Enviar cola») | — |
 | **Sin latido · N h** (tarjeta) | Celular apagado o sin internet, MacroDroid desactivado o la batería lo frena | Revisar §1.2 y que la batería de MacroDroid esté «Sin restricciones» (`macrodroid.md` §2) | — |
 | **Nunca habló** después de asignar o rotar | Falta poner `ultimo_latido` en 0: sin eso, el primer latido puede tardar hasta 6 h (hallazgo H-P11) | Poner `ultimo_latido` = 0; en ≤ 5 min pasa a «Al día» | — |
-| **Reloj desfasado** (tarjeta) | La hora del celular difiere de la del servidor en más de 5 min (hora automática apagada) | Encender «Fecha y hora automáticas» y **después** poner `ultimo_latido` en 0: si el latido sale antes de corregir la hora, la tarjeta sigue marcando el desfase hasta el siguiente (6 h). Las llamadas se unen igual, pero su hora queda corrida (probado en C1 el 09/10) | — |
+| **Reloj desfasado** (tarjeta) | La hora del celular difiere de la del servidor en más de 5 min (hora automática apagada) | Encender «Fecha y hora automáticas» y **después** poner `ultimo_latido` en 0: si el latido sale antes de corregir la hora, la tarjeta sigue marcando el desfase hasta el siguiente (6 h). Las llamadas se unen igual, pero su hora queda corrida (probado en C1 el 09/10). Por revisar (10/10, sin probar): la unión a mano rechaza un resultado si el reloj iba adelantado más de 10 min | — |
 | **Cola atascada** (tarjeta «En cola» > 0 que no baja) | Sin internet, clave que ya no vale o MacroDroid desactivado | Resolver la causa: la cola sale sola | No borrar entradas de la cola |
 | Al guardar sale **«Solo una tarea de llamada pendiente se cierra con el resultado de una llamada»** | Si todavía propone cerrar un **WhatsApp**, puede ser una versión anterior al #232 (H-WA, publicado y probado en C1 el 09/10). El mismo mensaje aparece si la tarea dejó de estar pendiente o disponible | Seguir §2.1: conservar la encuesta, revisar la tarea y confirmar el guardado antes de actualizar | No cerrar ni recargar con cambios sin guardar. No crear otro registro para un guardado por confirmar |
 | **Guardó el resultado equivocado** | — | Pulsar **Deshacer** en el aviso y, en «Celular» → «Qué pasó hoy», **«Registrar el corregido»** en la fila deshecha. Queda unido a la misma llamada. La fila sigue diciendo «Registrada al colgar»: es lo esperado | No registrar el corregido desde la ficha: no se une a la llamada |
@@ -108,6 +108,10 @@ gestión real **una sola vez**, desde la ficha del lead; dejar la fila pendiente
 estorba, «Descartar» → «Otro motivo» escribiendo «lead reasignado» (un descarte no cuenta como gestión). El recorrido
 para que el nuevo dueño la una está por diseñar junto con F4.2.4, conservando permisos y a quién se atribuye.
 **No:** registrar la misma llamada dos veces ni pedir que «devuelvan» la llamada al anterior.
+**Por revisar (10/10, revisión del #251; sale del código, sin probar):** la unión a mano de F4.2.4 («Unir a un
+resultado guardado») no mira quién hizo la llamada ni quién guardó el resultado, así que el nuevo dueño **sí** podría
+unir esa fila a un resultado del lead si el lead no está descartado. Hasta decidirlo con Miguel y probarlo, seguir el
+«Qué hacer» de arriba.
 
 **b) Dos personas con el mismo número.**
 - *Dos leads del mismo analista o equipo:* la llamada llega como **«por revisar»** y la fila ofrece **«Elegir el lead»**,
