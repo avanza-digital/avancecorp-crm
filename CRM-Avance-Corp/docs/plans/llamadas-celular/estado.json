@@ -1,8 +1,8 @@
 {
-  "actualizado": "2026-10-10T16:36:00Z",
+  "actualizado": "2026-10-10T16:40:00Z",
   "meta": {
-    "novedad": "10/10 16:36 UTC (11:36 Lima): F7.2.2 marcada — la guía de soporte ya explica reasignación, números compartidos, corrección y revocación: 46/102. Contrato de F4-e en el #249. Miguel debe: fusionar el #249 y responder D1–D5, las 5 decisiones del #243 y F7.2.3. 46/102, 2/8 fases.",
-    "actualizado": "2026-10-10T16:36:00Z"
+    "novedad": "10/10 16:40 UTC (11:40 Lima): el #249 lleva ahora el contrato de F4-e y F7.2.2 (guía de soporte): 46/102. Miguel debe: fusionar el #249 y responder D1–D5, las 5 decisiones del #243 y F7.2.3. 46/102, 2/8 fases.",
+    "actualizado": "2026-10-10T16:40:00Z"
   },
   "fases": {
     "F0": { "estado": "curso", "actualizado": "2026-10-07T19:10:00Z", "evidencia": "En curso con C1 (Samsung A16): registro, permisos, macro final y pruebas contra el receptor. Faltan C2/C3, la línea base de cinco días y la decisión de cierre (F0.4.3)." },
@@ -308,6 +308,7 @@
     { "at": "2026-10-10T15:53:00Z", "texto": "#243 fusionado por Miguel (squash 8a71317c, 15:53 UTC), sin comentario: las 5 decisiones (F4.2.4, H-PERMISO, NO APLICA, aviso de tratamiento, C2/C3) y la propuesta de F7.2.3 siguen sin respuesta. En main: pruebas S1–S3 y repetición de P5, arreglo de H-ESPERA en macrodroid.md, H-PERMISO en SOPORTE, estado.json hasta el cambio 189, nota del vault. No requiere publicación. main local al día." },
     { "at": "2026-10-10T15:58:00Z", "texto": "Contrato y oráculos de F4-e ESCRITOS (solo documento): docs/plans/llamadas-celular/F4E-CONTRATO.md, en la rama crm/llamadas-f4e-contrato-20261010 sobre main 8a71317c, sin commit todavía. Define la puerta (firma, roles, errores), el ámbito, la ventana de Lima, dos cohortes con cubetas que suman (llamadas de hoy por la hora de la llamada; resultados de hoy por la fecha del resultado, A2), el estado de ahora, la salud y «sin dato», la forma del jsonb con rótulos, 16 casos de oráculo con mutantes, el bloque del gate y el plan corto de la migración. Hallazgo al verificar: gestion_diaria_pulso_roster() solo deja pasar a gerencia (autorizar → 42501), así que el supervisor usa vendedor_ids_visibles (D4). Cinco decisiones para Miguel (D1–D5)." },
     { "at": "2026-10-10T16:06:00Z", "texto": "PR #249 abierto (listo, OK de Jhosep): contrato y oráculos de F4-e, solo documento, rama crm/llamadas-f4e-contrato-20261010 (5701318e sobre main 8a71317c). La descripción explica en llano a Miguel qué es F4-e y para qué sirve el contrato (pedido de Jhosep), y le pide D1–D5 y el OK a la sección 9 (plan corto de la migración). Turno de Miguel; su sesión revisa." },
-    { "at": "2026-10-10T16:36:00Z", "texto": "F7.2.2 MARCADA (46/102): SOPORTE.md §2.2 documenta reasignación (probada: P10), números compartidos (por el código), corrección (probada: P9) y revocación (no existe: la unión solo se mueve). De paso: matriz de compatibilidad de C1 al día (más de 40 salientes, noches, H-ESPERA, una SIM) y textos de «comprar Pro antes del 09/10» corregidos en SEGUIMIENTO (#18) y COORDINACION (Pro no durante las pruebas). Rama crm/llamadas-soporte-f722-20261010 sobre main 8a71317c; PR pendiente del OK de Jhosep." }
+    { "at": "2026-10-10T16:36:00Z", "texto": "F7.2.2 MARCADA (46/102): SOPORTE.md §2.2 documenta reasignación (probada: P10), números compartidos (por el código), corrección (probada: P9) y revocación (no existe: la unión solo se mueve). De paso: matriz de compatibilidad de C1 al día (más de 40 salientes, noches, H-ESPERA, una SIM) y textos de «comprar Pro antes del 09/10» corregidos en SEGUIMIENTO (#18) y COORDINACION (Pro no durante las pruebas). Rama crm/llamadas-soporte-f722-20261010 sobre main 8a71317c; PR pendiente del OK de Jhosep." },
+    { "at": "2026-10-10T16:40:00Z", "texto": "F7.2.2 (guía de soporte §2.2, matriz de C1 y textos de Pro) sumada al PR #249 del contrato de F4-e (decisión de Jhosep: todo en un solo PR): merge d67a5a5d sobre la rama crm/llamadas-f4e-contrato-20261010; la rama crm/llamadas-soporte-f722-20261010 se retira. Título y descripción del #249 ampliados. 46/102, 2/8." }
   ]
 }
