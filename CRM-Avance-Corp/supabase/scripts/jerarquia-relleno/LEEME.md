@@ -1,7 +1,7 @@
 # Facturación fase 5: relleno de jerarquía de Carmen Jaramillo y Jorge Marzano
 
-**Estado (10/10/2026):** en banco y ensayada en producción (deshecha), **sin aplicar**. Aprobada por Miguel el 10/10
-viendo el cambio mes a mes.
+**Estado (10/10/2026):** **APLICADA en producción y registrada** (~11:00 Lima, md5 del texto `00fb0e49…`) y comprobada
+después. Aprobada por Miguel el 10/10 viendo el cambio mes a mes.
 
 ## Qué arregla
 

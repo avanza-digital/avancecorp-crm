@@ -17634,8 +17634,11 @@ ni otros agentes). El banco anterior queda como evidencia histórica. **Reversa:
 
 ## 20261010150451 — Facturación fase 5: relleno de jerarquía de Carmen Jaramillo y Jorge Marzano
 
-**Estado:** **PENDIENTE de aplicar** (banco 14/14, Codex r1 sin P0/P1 con sus dos P2 aplicados, y ensayo de producción
-PASS con el texto final el 10/10/2026).
+**Estado:** **APLICADA en producción y registrada el 10/10/2026 (~11:00 Lima, Miguel con `!`)** (md5 del texto
+`00fb0e49cba90b54cd242b2878dc6554`). Comprobado después (solo lectura): los dos eventos `via: 'relleno'` a las 12:56:38
+del 29/08; las 9 ventas de Jorge desde el 29/08 con ADMINISTRADOR (sep 4 × S/ 1,271,900 + 1 × US$ 27,000; oct 3 ×
+S/ 213,600 + 1 × US$ 20,000); `medir-relleno.sql` ya no lista a Carmen ni a Jorge (réplica 821/821). Antes: banco 14/14,
+Codex r1 sin P0/P1 con sus dos P2 aplicados y ensayo de producción PASS con el texto final.
 Aprobada por Miguel el 10/10 viendo el cambio mes a mes. Solo DATOS: sin esquema, funciones ni permisos.
 **Cambio:** dos eventos `jerarquia_actualizada` en `crm.usuario_eventos` (autor «sistema» `f6d2941b…`, `via: 'relleno'`,
 idempotencia fija) con la hora, el antes y el después de `public.audit_log` (filas `9808d0f3…` y `13d8b650…`:
