@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
 import {
   cambiarLlamadaCelular, enlazarLlamadaCelular, listarLlamadasCelular, listarResueltasCelular, listarResultadosParaUnir, llamadasCelularKeys,
@@ -25,7 +25,7 @@ export interface FuenteLlamadasCelular {
   ocupado: string | null
   descartar: (fila: FilaBandeja, motivo: MotivoDescarte, detalle: string | null) => void
   elegirLead: (fila: FilaBandeja, lead: Lead) => void
-  /** Unir a mano (F4.2.4): los resultados del lead guardados después de la llamada y sin unir, y la unión. */
+  /** Unir a mano (F4.2.4): los resultados del lead guardados desde 10 min antes de la llamada y sin unir, y la unión. */
   buscarResultados: (fila: FilaBandeja, signal?: AbortSignal) => Promise<ResultadoGuardado[]>
   unir: (fila: FilaBandeja, resultado: ResultadoGuardado) => void
 }
@@ -105,9 +105,11 @@ export function useLlamadasCelular(): FuenteLlamadasCelular | null {
     resueltas: demoResueltasHoyCelular(Date.now()),
   }))
   // En la demo los resultados viven en el store (los registrados desde la ficha son filas locales): valen como candidatos.
+  // Los ya unidos a una llamada se descuentan con lo resuelto, como la base con sus marcas (revisión del #251).
   const { actividadesDe } = useCRMData()
+  const unidasDemo = useMemo(() => new Set(estado.resueltas.flatMap((r) => (r.actividad_id ? [r.actividad_id] : []))), [estado.resueltas])
   const buscarResultadosDemo = useCallback(async (fila: FilaBandeja) =>
-    resultadosParaUnir(fila, actividadesDe(fila.lead_id ?? ''), new Set(), { conLocales: true }), [actividadesDe])
+    resultadosParaUnir(fila, actividadesDe(fila.lead_id ?? ''), unidasDemo, { conLocales: true }), [actividadesDe, unidasDemo])
   const unirDemo = useCallback((fila: FilaBandeja, r: ResultadoGuardado) => {
     setEstado((e) => ({
       pendientes: e.pendientes.filter((f) => f.evento_id !== fila.evento_id),

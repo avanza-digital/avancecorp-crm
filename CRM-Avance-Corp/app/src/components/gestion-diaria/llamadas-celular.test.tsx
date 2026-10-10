@@ -194,7 +194,9 @@ it('unir a mano: con error permite reintentar; sin candidatos lo dice; cancelar 
   await user.click(screen.getByRole('button', { name: 'Unir a un resultado guardado' }))
   expect(await screen.findByRole('alert')).toHaveTextContent('No se pudieron cargar los resultados del lead.')
   await user.click(screen.getByRole('button', { name: 'Reintentar' }))
-  expect(await screen.findByText(/No hay resultados de este lead guardados después de esta llamada/)).toBeInTheDocument()
+  // El texto dice el margen real del servidor (desde 10 min antes), no «después de la llamada» (revisión del #251).
+  expect(await screen.findByText(/No hay resultados de este lead guardados desde 10 minutos antes de esta llamada y sin unir a otra/)).toBeInTheDocument()
+  expect(screen.getByText(/^Resultados de este lead guardados desde 10 minutos antes de la llamada/)).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: 'Cancelar' }))
   await waitFor(() => expect(screen.getByRole('button', { name: 'Unir a un resultado guardado' })).toHaveFocus())
 })

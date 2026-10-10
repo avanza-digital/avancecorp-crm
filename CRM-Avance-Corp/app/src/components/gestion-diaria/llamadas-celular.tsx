@@ -14,7 +14,7 @@ import type { EstadoListaCelular } from '@/data/use-llamadas-celular'
 import type { OpcionesResolucion } from '@/data/coincidencia-llamada'
 import { digitosParaBuscar } from '@/lib/coincidencia-telefono'
 import {
-  MOTIVOS_DESCARTE, accionPrincipal, comoSeResolvio, cuandoFue, estadoPendiente, estadoResuelta, lineaPendiente,
+  MARGEN_UNION_MS, MOTIVOS_DESCARTE, accionPrincipal, comoSeResolvio, cuandoFue, estadoPendiente, estadoResuelta, lineaPendiente,
   lineaResultadoGuardado, llegoTarde, momentoDeLlamada, numeroLegible, puedeRegistrarCorregido, puedeUnir, retrasoPendiente,
   type FilaBandeja, type MotivoDescarte, type ResueltaHoy, type ResultadoGuardado,
 } from '@/lib/llamadas-celular'
@@ -237,10 +237,13 @@ function PanelDescarte({ onConfirmar, onCancelar }: {
 
 type EstadoUnir = { fase: 'cargando' } | { fase: 'error' } | { fase: 'lista'; resultados: ResultadoGuardado[] }
 
+/** El margen del servidor dicho en palabras: un resultado guardado poco antes de la llamada también vale. */
+const DESDE_MARGEN = `desde ${MARGEN_UNION_MS / 60_000} minutos antes de`
+
 /**
- * «¿Es este su resultado?» (F4.2.4, B7): los resultados del lead guardados después de la llamada y sin unir, que trae la
- * pantalla; elegir uno los une sin crear otra gestión. Los candidatos se piden al abrir (no por fila) y la decisión final
- * es del servidor: si rechaza, la pantalla muestra su motivo.
+ * «¿Es este su resultado?» (F4.2.4, B7): los resultados del lead guardados desde 10 min antes de la llamada y sin unir,
+ * que trae la pantalla; elegir uno los une sin crear otra gestión. Los candidatos se piden al abrir (no por fila) y la
+ * decisión final es del servidor: si rechaza, la pantalla muestra su motivo.
  */
 function PanelUnir({ fila, ahora, buscar, onConfirmar, onCancelar }: {
   fila: FilaBandeja; ahora: number
@@ -266,7 +269,7 @@ function PanelUnir({ fila, ahora, buscar, onConfirmar, onCancelar }: {
     <div ref={grupo} tabIndex={-1} role="group" aria-labelledby={`${id}-titulo`}
       className="mt-2 space-y-2 rounded-xl border border-border bg-muted/40 p-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
       <p id={`${id}-titulo`} className="text-[13px] font-extrabold text-primary">¿Es este su resultado?</p>
-      <p className={APOYO}>Resultados de este lead guardados después de la llamada y sin unir a otra. Unir no crea otra gestión.</p>
+      <p className={APOYO}>Resultados de este lead guardados {DESDE_MARGEN} la llamada y sin unir a otra. Unir no crea otra gestión.</p>
       {estado.fase === 'cargando' && <p role="status" className="text-sm">Buscando resultados guardados…</p>}
       {estado.fase === 'error' && (
         <div role="alert" className="text-sm">
@@ -276,8 +279,8 @@ function PanelUnir({ fila, ahora, buscar, onConfirmar, onCancelar }: {
       )}
       {estado.fase === 'lista' && (estado.resultados.length === 0 ? (
         <p className="text-sm">
-          No hay resultados de este lead guardados después de esta llamada. Si lo guardaste hace un momento, espera y vuelve a
-          intentar; si no, regístralo con «Registrar resultado».
+          No hay resultados de este lead guardados {DESDE_MARGEN} esta llamada y sin unir a otra. Si lo guardaste hace un
+          momento, espera y vuelve a intentar; si no, regístralo con «Registrar resultado».
         </p>
       ) : (
         <ul aria-label="Resultados guardados" className="space-y-2">

@@ -34,8 +34,9 @@ Regla de siempre: **sin números de teléfono ni claves** en capturas, chats con
 ## 2. Ajustes de Android (5 min)
 
 1. **MacroDroid** desde Play Store (sin «Helper App» ni «ADB hack»). Anotar la versión.
-2. **Permisos** de MacroDroid: **Teléfono** y **Registro de llamadas** en «Permitir». Sin el segundo, el número llega
-   vacío, la llamada se pierde sin aviso y la tarjeta sigue «Al día» (hallazgo H-PERMISO, 09/10).
+2. **Permisos** de MacroDroid: **Teléfono** y **Registro de llamadas** en «Permitir». Sin el segundo, en C1 no se abrió
+   la encuesta, la llamada no llegó a «Pendientes» y la tarjeta siguió «Al día», aunque el celular mandó igual una
+   petición (202) (hallazgo H-PERMISO, 09/10). Hipótesis, no comprobada: sin ese permiso el número llega vacío.
 3. **«Aparecer encima»** (mostrar sobre otras apps) activado.
 4. **Batería** de MacroDroid: «No restringido». En Samsung, además: Ajustes → Batería → «Límites de uso en segundo
    plano» → **«Suspender aplicaciones sin uso» apagado**, y MacroDroid fuera de «suspendidas» y de «suspensión
@@ -55,17 +56,30 @@ Dos caminos. **Primero probar el A en C1**; si no funciona con la versión grati
 
 ### A. Copiar las macros desde C1 (por probar)
 
-1. **En C1**, en «Variables globales», **vaciar `clave_celular`** antes de exportar (si la exportación llevara los
-   valores de las variables, la clave de C1 viajaría en el archivo; después se vuelve a pegar en C1 o gerencia la rota).
+No se sabe si el archivo que exporta MacroDroid lleva los valores de las variables (globales o locales) ni las
+entradas de las colas. Por eso C1 se deja sin números ni clave antes de exportar, y el archivo se revisa antes de
+usarlo.
+
+1. **En C1, antes de exportar:**
+   - En la PC, tarjeta «Celulares»: C1 con **en cola 0**; y en MacroDroid, `cola_llamadas` **sin entradas**. Si hay
+     avisos pendientes, esperar a que salgan con internet: no borrarlos, se perderían.
+   - `errores_llamadas` **sin entradas**. Si tiene alguna, seguir antes `SOPORTE.md` §2, «Aviso rechazado», y solo
+     después borrarla con «Eliminar clave».
+   - En «Variables globales», **vaciar `numero_saliente` y `clave_celular`**.
+   - Desde ese momento y hasta exportar, **no hacer llamadas** desde C1.
 2. En C1, mantener presionada cada macro (**Llamadas-Salientes**, **Llamadas-Al colgar**, **Llamadas-Enviar cola**)
-   → **Exportar** → guardar el archivo y pasarlo al celular nuevo (WhatsApp o cable).
-3. **En el celular nuevo**: MacroDroid → menú → **Importar** cada archivo. Una macro importada llega **apagada**: no
-   encenderla todavía.
-4. Revisar en «Variables globales» que existan las nueve variables de la tabla de abajo (si la importación no las
+   → **Exportar** → guardar el archivo y pasarlo a la PC.
+3. **Antes de pasarlo al celular nuevo**, revisarlo en la PC abriéndolo como texto: no debe llevar números de teléfono
+   ni la clave. Si lleva alguno, o no se puede leer, **no usar el camino A**: borrar el archivo y armar las macros a
+   mano (camino B). El archivo no se le pasa a Claude.
+4. Pasar el archivo revisado al celular nuevo (WhatsApp o cable). **En el celular nuevo**: MacroDroid → menú →
+   **Importar** cada archivo. Una macro importada llega **apagada**: no encenderla todavía.
+5. Revisar en «Variables globales» que existan las nueve variables de la tabla de abajo (si la importación no las
    creó, crearlas) y poner sus valores iniciales.
-5. En **«Llamadas-Al colgar»** cambiar la etiqueta: la acción `id_llamada = C1-{system_time}` pasa a
+6. En **«Llamadas-Al colgar»** cambiar la etiqueta: la acción `id_llamada = C1-{system_time}` pasa a
    **`C2-{system_time}`** (C3 en C3). Con la etiqueta equivocada, el servidor rechaza el aviso (400).
-6. Si en C1 se vació `clave_celular` en el paso 1: volver a pegarla ahí.
+7. **En C1**, volver a pegar la clave en `clave_celular`, o que gerencia la rote (`SOPORTE.md` §3.2). `numero_saliente`
+   no hace falta reponerla: la macro la llena en la siguiente saliente.
 
 ### B. Armar las tres macros a mano
 
@@ -121,7 +135,8 @@ Seguir **`macrodroid.md` §3c**, Pasos 1 a 4, tal cual, con estas tres diferenci
 - **«La clave de este celular ya no vale»:** se pegó mal; volver a pegarla, o gerencia la rota (`SOPORTE.md` §3.2).
   Al rotar: pegar la nueva **y** `ultimo_latido` = 0.
 - **Aviso rechazado (400):** casi siempre la etiqueta (`C1-` en C2) o las comillas del aviso.
-- Para volver atrás del todo: gerencia **cierra** el celular en la tarjeta (`SOPORTE.md` §3.5). Nunca se borran datos.
+- Para volver atrás del todo: gerencia **cierra** el celular en la tarjeta, y como eso no apaga el celular, se hacen
+  también los pasos en el celular de `SOPORTE.md` §3.5. Nunca se borran datos del CRM.
 
 ## En llano
 

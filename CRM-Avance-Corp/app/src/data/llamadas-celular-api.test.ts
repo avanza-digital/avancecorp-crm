@@ -7,6 +7,7 @@ vi.mock('@/lib/supabase', async () => {
 })
 import { listarLlamadasCelular, listarResueltasCelular, cambiarLlamadaCelular, enlazarLlamadaCelular, listarResultadosParaUnir } from './llamadas-celular-api'
 import { demoPendientesCelular } from '@/lib/demo-llamadas-celular'
+import { TAMANO_PAGINA_HISTORIAL } from './crm-api'
 const servidor = setupServer()
 const ruta = 'http://supabase.test/rest/v1/rpc/:comando'
 beforeAll(() => servidor.listen({ onUnhandledRequest: 'error' }))
@@ -86,4 +87,52 @@ it('unir a mano: pide el historial del lead y las marcas, ofrece solo lo que la 
   await expect(enlazarLlamadaCelular(fila.evento_id, 'otro')).rejects.toMatchObject({ code: 'LLAMADAS_CONTRACT' })
   servidor.use(http.post(ruta, () => HttpResponse.json({ message: 'Ese resultado ya está enlazado a otra llamada', code: '23505' }, { status: 409 })))
   await expect(enlazarLlamadaCelular(fila.evento_id, 'nuevo')).rejects.toMatchObject({ code: '23505', message: 'Ese resultado ya está enlazado a otra llamada' })
+})
+
+// Revisión del #251 (P2): la búsqueda no puede cortarse a las 500 actividades del lead ni a las 500 marcas por petición.
+// El historial sintético responde como crm.actividades_de_lead_fn (del más reciente hacia atrás, cursor por id).
+function servirHistorial(filas: Array<Record<string, unknown> & { id: string }>, marcas: (ids: string[]) => unknown[]) {
+  const pedidos = { paginas: 0, lotesMarcas: [] as string[][] }
+  servidor.use(http.post(ruta, async ({ request, params }) => {
+    if (params.comando === 'actividades_con_llamada_celular_fn') {
+      const { p_actividad_ids } = await request.json() as { p_actividad_ids: string[] }
+      pedidos.lotesMarcas.push(p_actividad_ids)
+      return HttpResponse.json(marcas(p_actividad_ids))
+    }
+    const args = await request.json() as { p_antes_id?: string; p_limite: number }
+    const inicio = args.p_antes_id ? filas.findIndex((a) => a.id === args.p_antes_id) + 1 : 0
+    pedidos.paginas++
+    return HttpResponse.json({ version: 1, items: filas.slice(inicio, inicio + args.p_limite),
+      senales: { tiene_reunion_realizada: false, tiene_contacto: true, ultima_conversacion_en: null } })
+  }))
+  return pedidos
+}
+
+it('unir a mano: un resultado válido detrás de 500 actividades más recientes del lead sigue apareciendo', async () => {
+  const ahora = Date.parse('2026-10-10T15:00:00Z')
+  const fila = { ...demoPendientesCelular(ahora)[0]!, ocurrio_en: '2026-10-01T15:00:00Z', recibido_en: '2026-10-01T15:00:01Z' }
+  const filas = Array.from({ length: 501 }, (_, i) => ({
+    id: `actividad-${i}`, lead_id: fila.lead_id, tipo: i === 500 ? 'llamada_no_contestada' : 'nota',
+    detalle: null, autor_nombre: 'ANALISTA DE PRUEBA', creado_en: new Date(ahora - i * 60_000).toISOString(),
+    metadata: i === 500 ? { evento: 'resultado_llamada', resultado: 'no_contesto' } : {},
+  }))
+  const pedidos = servirHistorial(filas, () => [])
+  const resultados = await listarResultadosParaUnir(fila)
+  expect(resultados.map((r) => r.id)).toEqual(['actividad-500'])
+  expect(pedidos.paginas).toBe(Math.ceil(filas.length / TAMANO_PAGINA_HISTORIAL))
+})
+
+it('unir a mano: más de 500 candidatos se consultan en tandas de 500 y una marca de la última tanda también cuenta', async () => {
+  const ahora = Date.parse('2026-10-06T15:00:00Z')
+  const fila = demoPendientesCelular(ahora)[0]! // llamó hace 16 min: los 501 resultados (uno por segundo) caen en el margen
+  const filas = Array.from({ length: 501 }, (_, i) => ({
+    id: `r-${i}`, lead_id: fila.lead_id, tipo: 'llamada_no_contestada', detalle: null, autor_nombre: 'ANALISTA DE PRUEBA',
+    creado_en: new Date(ahora - i * 1_000).toISOString(), metadata: { evento: 'resultado_llamada', resultado: 'no_contesto' },
+  }))
+  const pedidos = servirHistorial(filas, (ids) => ids.includes('r-500')
+    ? [{ actividad_id: 'r-500', evento_id: 'otra-llamada', etiqueta: 'C1', via: 'al_colgar' }] : [])
+  const resultados = await listarResultadosParaUnir(fila)
+  expect(pedidos.lotesMarcas.map((lote) => lote.length)).toEqual([500, 1])
+  expect(resultados).toHaveLength(500)
+  expect(resultados.map((r) => r.id)).not.toContain('r-500')
 })

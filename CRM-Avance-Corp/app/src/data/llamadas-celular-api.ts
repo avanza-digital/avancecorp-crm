@@ -135,20 +135,24 @@ export async function cambiarLlamadaCelular(evento: string, accion:
 // Los 22023/23505/40001 de crm.enlazar_llamada_celular son textos de negocio sin datos personales («Ese resultado ya
 // está enlazado a otra llamada»): la pantalla los muestra tal cual, como hace con los de celulares.
 
-/** Tope de crm.actividades_con_llamada_celular_fn (22023 por encima). */
+/** Tope por petición de crm.actividades_con_llamada_celular_fn (22023 por encima): más ids van en varias tandas. */
 const MAX_IDS_MARCAS = 500
 
 /** Qué resultados ya están unidos a una llamada del celular (crm.actividades_con_llamada_celular_fn, F4-b). */
 export async function listarMarcasCelular(actividadIds: readonly string[], signal?: AbortSignal): Promise<MarcaCelular[]> {
   if (actividadIds.length === 0) return []
   if (!sb) throw new CrmApiError('No hay conexión con el CRM.', 'SIN_CLIENTE')
-  let consulta = sb.schema('crm').rpc('actividades_con_llamada_celular_fn', { p_actividad_ids: actividadIds.slice(0, MAX_IDS_MARCAS) })
-  if (signal) consulta = consulta.abortSignal(signal)
-  const { data, error } = await consulta
-  if (error) throw new CrmApiError(error.message, error.code)
-  const parsed = v.safeParse(MarcaCelularSchema, data)
-  if (!parsed.success) throw new CrmApiError('No se pudo confirmar qué resultados ya están unidos. Inténtalo de nuevo.', 'LLAMADAS_CONTRACT')
-  return parsed.output
+  const marcas: MarcaCelular[] = []
+  for (let i = 0; i < actividadIds.length; i += MAX_IDS_MARCAS) {
+    let consulta = sb.schema('crm').rpc('actividades_con_llamada_celular_fn', { p_actividad_ids: actividadIds.slice(i, i + MAX_IDS_MARCAS) })
+    if (signal) consulta = consulta.abortSignal(signal)
+    const { data, error } = await consulta
+    if (error) throw new CrmApiError(error.message, error.code)
+    const parsed = v.safeParse(MarcaCelularSchema, data)
+    if (!parsed.success) throw new CrmApiError('No se pudo confirmar qué resultados ya están unidos. Inténtalo de nuevo.', 'LLAMADAS_CONTRACT')
+    marcas.push(...parsed.output)
+  }
+  return marcas
 }
 
 /**
@@ -166,8 +170,9 @@ export async function listarResultadosParaUnir(fila: FilaBandeja, signal?: Abort
     historial.push(...pagina.items)
     cursor = pagina.cursor
     const ultima = pagina.items.at(-1)
-    // Otra página solo mientras la última fila siga dentro del margen; nunca más de lo que admiten las marcas.
-    if (!ultima || Date.parse(ultima.creado_en) < desde || historial.length >= MAX_IDS_MARCAS) break
+    // Otra página mientras la última fila siga dentro del margen, sin tope de cantidad: cortar antes dejaría fuera un
+    // resultado válido y el panel diría «no hay» habiendo uno (revisión del #251). El margen ya acota la búsqueda.
+    if (!ultima || Date.parse(ultima.creado_en) < desde) break
   } while (cursor)
   const candidatos = resultadosParaUnir(fila, historial, new Set())
   if (candidatos.length === 0) return []
