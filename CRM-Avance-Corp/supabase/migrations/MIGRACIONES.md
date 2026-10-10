@@ -1,3 +1,28 @@
+## 20261010154908 — Contrato PDF v10 y anexo v2: correcciones del modelo
+
+**PREPARADA LOCALMENTE; NO APLICADA EN PRODUCCIÓN.** Correos 8.1/14.2 a
+`atencionalcliente@groupmascapital.com`, firma transparente original del Word y
+cuenta destino congelada en el anexo, conservando ceros iniciales. La Edge emite
+`contrato-aep-17-v10` / `anexo-cronograma-v2`; sigue leyendo los PDF históricos.
+SQL aditivo de versiones: preserva documentos/snapshots sellados y convierte
+únicamente reservas v9 sin bytes ni lease. Aborta con cualquier trabajo que el
+nuevo renderer no pueda terminar (incluidos reintentos con bytes/leases vencidos).
+Reescribe un único literal en dos cuerpos privados vivos, conservando atributos.
+
+Banco PostgreSQL 17 aislado: 39 comprobaciones PASS, incluida reversa conservando
+PDF v10, restauración transaccional tras fallos y ACL/OID/cuerpos. Núcleo SQL PDF
+existente: PASS. Generador/almacenamiento: 94 pruebas Docker PASS. Navegador: 4 E2E
+Docker PASS con PDF reales v9/v10 y anexo v2. 14 muestras comparadas: solo cambian
+los correos y la fila de cuenta, sin variación de importes/fechas. Revisión independiente mediante `scripts/claude-review`: primer dictamen
+CHANGES_REQUESTED, hallazgos resueltos y revisión final PASS (confianza alta).
+Reversa Edge verificada: 91 pruebas y typecheck también en Docker.
+Paquete local listo para la publicación autorizada; producción intacta.
+Rama remota/advisors y comprobaciones productivas permanecen pendientes del
+carril de publicación. Preflights generales seed/RLS no ejecutaron aserciones
+por faltar `SUPABASE_URL`; los bancos SQL locales pertinentes sí pasaron.
+Archivos operativos: `../scripts/banco-pdf-v10/`; muestras: `../../output/pdf/correcciones-20261010/`.
+
+
 ## 20261007182719 — Corrección directa de tasa por Administración del Portal
 
 **PUBLICADA Y VERIFICADA EN PRODUCCIÓN 07/10/2026.** Pedido de Miguel: `admin`/`superadmin` pueden corregir la tasa sin autorización de Gerencia. La nueva RPC `crm.corregir_tasa_contrato_admin_pdf_v1` exige rol vigente, motivo de 5–500 caracteres y coincidencia de la tasa previamente vista, usa la corrección transaccional existente (contrato, cronograma, revisión PDF) y marca únicamente ese contrato para que el observador diferido admita la corrección aun con la política en `enforcement`. La excepción se niega si la misma operación cambia capital, moneda, plazo, modalidad, tipo de interés o categoría. El motivo queda en `crm.ledger_rentabilidad.detalle`; las demás escrituras conservan el candado. Siguen vigentes los límites numéricos, el producto contratado, las restricciones de contratos cerrados y la conservación de cuotas pagadas. No cambia el acceso a DNI ni correo.

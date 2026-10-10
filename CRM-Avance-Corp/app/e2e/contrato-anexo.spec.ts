@@ -1,4 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
+import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import { contratoReal, irAMiCartera, loginReal, montarBackendReal, UID, verTodaLaCartera } from './_helpers'
 
 // Anexo de cronograma: documento APARTE que el analista imprime desde la ficha
@@ -20,14 +22,22 @@ async function abrirDetalle(page: Page) {
 }
 
 const CONTRATO_ID = 'e0000000-0000-4000-8000-000000000777'
-const PDF = '%PDF-1.7\nanexo de cronograma e2e'
-
-async function sha256Hex(texto: string): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(texto))
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')
-}
+// Generados con el renderer de la Edge dentro de Docker; datos ficticios.
+// Reproducir: supabase/scripts/banco-pdf-v10/generar-fixtures.ts.
+const fixture = (nombre: string) => readFileSync(new URL(`./fixtures/contrato-correcciones/${nombre}`, import.meta.url))
+const PDF = fixture('anexo-v2.pdf')
+const sha256Hex = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex')
 
 test('«Imprimir anexo de cronograma» pide solo la acción anexo y abre el PDF verificado en una pestaña', async ({ page }) => {
+  await page.addInitScript(() => {
+    const original = URL.createObjectURL.bind(URL)
+    URL.createObjectURL = (objeto) => {
+      if (objeto instanceof Blob && objeto.type === 'application/pdf') {
+        (window as unknown as { pdfVerificado: Blob }).pdfVerificado = objeto
+      }
+      return original(objeto)
+    }
+  })
   await montarBackendReal(page, {
     rolCrm: 'vendedor',
     contratos: [
@@ -53,12 +63,12 @@ test('«Imprimir anexo de cronograma» pide solo la acción anexo y abre el PDF 
         anexo: {
           contrato_id: CONTRATO_ID,
           contrato_revision: 1,
-          contrato_template_version: 'contrato-aep-17-v9',
-          template: 'anexo-cronograma-v1',
+          contrato_template_version: 'contrato-aep-17-v10',
+          template: 'anexo-cronograma-v2',
           nombre_archivo: 'Anexo-2026-01-000777-CLIENTE-PORTAL-UNO.pdf',
-          sha256: await sha256Hex(PDF),
+          sha256: sha256Hex(PDF),
           bytes: PDF.length,
-          pdf_base64: Buffer.from(PDF, 'binary').toString('base64'),
+          pdf_base64: PDF.toString('base64'),
         },
       },
     })
@@ -81,7 +91,51 @@ test('«Imprimir anexo de cronograma» pide solo la acción anexo y abre el PDF 
   expect(solicitudes).toEqual([{ action: 'anexo', contratoId: CONTRATO_ID }])
   // Ni «Ver» ni «Descargar» se dispararon: el anexo no toca el contrato.
   await expect(page.getByText(/No se pudo/)).toHaveCount(0)
+  const hashRecibido = await page.evaluate(async () => {
+    const blob = (window as unknown as { pdfVerificado: Blob }).pdfVerificado
+    const digest = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer())
+    return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')
+  })
+  expect(hashRecibido).toBe(sha256Hex(PDF))
 })
+
+for (const version of [9, 10]) {
+  test(`descarga los bytes reales del contrato v${version} sin regenerarlo`, async ({ page }) => {
+    const bytes = fixture(`contrato-v${version}.pdf`)
+    const jobId = '22222222-2222-4222-8222-222222222222'
+    const path = `${CONTRATO_ID}/v2/${jobId}/contrato.pdf`
+    const url = `http://127.0.0.1:59999/storage/v1/object/sign/contratos-generados/${path}?token=prueba-local`
+    const metadata = {
+      contrato_id: CONTRATO_ID, job_id: jobId, storage_bucket: 'contratos-generados',
+      storage_path: path, nombre_archivo: 'Contrato-2026-01-000777.pdf',
+      sha256: sha256Hex(bytes), bytes: bytes.length, template_version: `contrato-aep-17-v${version}`,
+    }
+    await montarBackendReal(page, {
+      rolCrm: 'vendedor',
+      contratos: [contratoReal({ id: CONTRATO_ID, numero_contrato: '2026-01-000777',
+        fecha_inicio: '2026-09-01', fecha_vencimiento: '2027-09-01', creado_por: UID,
+        creado_en: new Date().toISOString() })],
+    })
+    const solicitudes: string[] = []
+    await page.route('**/functions/v1/crm-contrato-pdf-v2', (route) => {
+      solicitudes.push((route.request().postDataJSON() as { action: string }).action)
+      return route.fulfill({ json: { pdf: { ...metadata, estado: 'sellado', intentos: 1,
+        lease_expira_en: null, reintentable: false, archivo: metadata }, url } })
+    })
+    await page.route('**/storage/v1/object/sign/contratos-generados/**', (route) =>
+      route.fulfill({ contentType: 'application/pdf', body: bytes }))
+    const detalle = await abrirDetalle(page)
+    const descargando = page.waitForEvent('download')
+    await detalle.getByRole('button', { name: 'Descargar contrato PDF' }).click()
+    const descarga = await descargando
+    expect(descarga.suggestedFilename()).toBe(metadata.nombre_archivo)
+    const ruta = await descarga.path()
+    expect(ruta).not.toBeNull()
+    expect(readFileSync(ruta!).equals(bytes)).toBe(true)
+    expect(solicitudes.length).toBeGreaterThan(0)
+    expect(solicitudes.every((action) => action === 'status')).toBe(true)
+  })
+}
 
 test('sin PDF sellado, el aviso del servidor se muestra y la pestaña reservada se cierra', async ({ page }) => {
   await montarBackendReal(page, {
