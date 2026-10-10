@@ -104,9 +104,13 @@ con dos llamadas seguidas al mismo lead se equivocaría.
 
 ### 3. Resultados que ya estaban sin enlazar (F4.2.4)
 
-Para lo registrado desde el PC, o antes de la macro nueva: si un lead tiene una llamada pendiente y un resultado del
-mismo analista guardado **después** de esa llamada y sin enlazar, la fila propone «¿Es este su resultado?». Un toque
-enlaza (`crm.enlazar_llamada_celular`); nunca se enlaza solo, y no se duplica la gestión.
+Para lo registrado desde el PC, o antes de la macro nueva: si un lead tiene una llamada pendiente y un resultado de
+ese lead guardado desde 10 minutos antes de esa llamada y sin unir a otra, la fila propone «¿Es este su resultado?». Un
+toque enlaza (`crm.enlazar_llamada_celular`); nunca se enlaza solo, y no se duplica la gestión. *(10/10, PR #251: antes
+decía «del mismo analista guardado **después** de esa llamada». Lo programado sigue la regla del servidor: resultados
+del mismo lead y de cualquier autor (cada uno muestra quién lo guardó, «· por …»), guardados desde 10 minutos antes de
+la llamada, sin límite hacia después, y sin otra llamada unida. Se elige siempre a mano, nunca automáticamente, y la
+decisión final la toma la base.)*
 
 ### 4. Supervisor y gerencia (decisión 4)
 
