@@ -24,9 +24,10 @@ Entregable de **F0.4.1**. Se llena a mano durante el piloto (F0.1–F0.4 del pla
 
 Texto base del aviso (ajustar con quien revise el tratamiento de datos; plan, sección 15):
 
-**09/10: este texto quedó desactualizado desde la activación del 07/10.** Hoy el número marcado sí sale del celular: llega
-al servidor, la llamada sin resultado se borra a los 30 días y la registrada se conserva como historial. Hay que
-ajustarlo con Miguel antes de entregar C2 y C3 (auditoría del 09/10).
+**10/10: hay un borrador nuevo en `AVISO-TRATAMIENTO.md`, pendiente de la revisión de Miguel** (dijo sí al borrador en
+el #249); se entrega y se firma antes de instalar nada en C2 y C3 (`ACTIVAR-C2.md` §0). El texto de abajo es el del
+29/09 y quedó desactualizado desde la activación del 07/10: hoy el número marcado sí sale del celular, la llamada sin
+resultado se borra a los 30 días y la registrada se conserva como historial.
 
 > Durante el piloto, una app instalada en tu celular corporativo detectará cuándo termina una llamada y mostrará el número marcado o recibido para comprobar que el CRM podría abrir la encuesta de resultado automáticamente. En esta etapa ningún dato sale del celular. El registro se borra al terminar el piloto. Puedes retirarte cuando quieras avisando a soporte.
 
