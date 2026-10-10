@@ -312,7 +312,7 @@ const CLAUSULAS_ESTATICAS: Record<
     titulo:
       "OCTAVA: RETIRO ANTICIPADO, LIQUIDACIÓN ANTICIPADA Y RESOLUCIÓN POR INCUMPLIMIENTO",
     parrafos: [
-      "Si EL ASOCIADO desea retirarse antes del vencimiento del plazo contractual, deberá comunicarlo a EL ASOCIANTE mediante una solicitud escrita y debidamente firmada, remitida al correo electrónico: atencionalcliente@mascapitalgroup.com. En dicha comunicación deberá consignar el nombre del Analista Comercial encargado de su atención, identificado en el numeral 14.2 del presente contrato, a fin de facilitar la correcta identificación y tramitación de la solicitud.",
+      "Si EL ASOCIADO desea retirarse antes del vencimiento del plazo contractual, deberá comunicarlo a EL ASOCIANTE mediante una solicitud escrita y debidamente firmada, remitida al correo electrónico: atencionalcliente@groupmascapital.com. En dicha comunicación deberá consignar el nombre del Analista Comercial encargado de su atención, identificado en el numeral 14.2 del presente contrato, a fin de facilitar la correcta identificación y tramitación de la solicitud.",
       "La solicitud de retiro anticipado no genera derecho a exigir utilidades futuras. La liquidación anticipada se efectuará sobre los resultados reales generados por las actividades empresariales hasta la fecha de corte que EL ASOCIANTE comunique razonablemente.",
       "Si EL ASOCIADO solicita el retiro anticipado antes de cumplidos seis (6) meses desde la suscripción del presente contrato, no tendrá derecho a percibir participación alguna en las utilidades netas distribuibles. En consecuencia, la liquidación anticipada tendrá por finalidad determinar únicamente la restitución de la contribución efectuada.",
       "Si el retiro se solicita después de cumplidos seis (6) meses, la participación de EL ASOCIADO se reducirá excepcionalmente al diez por ciento (10.00 %) de las utilidades netas distribuibles generadas hasta la fecha de corte. En ningún caso EL ASOCIADO tendrá derecho a participar en utilidades que se generen con posterioridad a dicha fecha.",
@@ -576,12 +576,9 @@ function firmaAsociante(): Column {
     stack: [
       {
         image: "firmaAsociante",
-        cover: {
-          width: 93,
-          height: 65,
-          align: "center",
-          valign: "center",
-        },
+        // PNG original transparente del Word del 09/10/2026. fit conserva
+        // todos los trazos y la proporción; cover recortaba sus extremos.
+        fit: [93, 65],
         alignment: "center",
         margin: [0, 0, 0, -3],
       },
@@ -821,7 +818,7 @@ export function construirContratoPdf(
       {
         text: " y EL ASOCIANTE señala el correo electrónico ",
       },
-      { text: "atencionalcliente@mascapitalgroup.com", bold: true },
+      { text: "atencionalcliente@groupmascapital.com", bold: true },
       {
         text:
           ". Asimismo, EL ASOCIADO contará con un Analista Comercial encargado de brindarle atención, orientación y acompañamiento durante la vigencia del contrato, cuyos datos son los siguientes: ",

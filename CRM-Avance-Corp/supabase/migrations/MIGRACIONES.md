@@ -1,3 +1,28 @@
+## 20261010154908 — Contrato PDF v10 y anexo v2: correcciones del modelo
+
+**PREPARADA LOCALMENTE; NO APLICADA EN PRODUCCIÓN.** Correos 8.1/14.2 a
+`atencionalcliente@groupmascapital.com`, firma transparente original del Word y
+cuenta destino congelada en el anexo, conservando ceros iniciales. La Edge emite
+`contrato-aep-17-v10` / `anexo-cronograma-v2`; sigue leyendo los PDF históricos.
+SQL aditivo de versiones: preserva documentos/snapshots sellados y convierte
+únicamente reservas v9 sin bytes ni lease. Aborta con cualquier trabajo que el
+nuevo renderer no pueda terminar (incluidos reintentos con bytes/leases vencidos).
+Reescribe un único literal en dos cuerpos privados vivos, conservando atributos.
+
+Banco PostgreSQL 17 aislado: 39 comprobaciones PASS, incluida reversa conservando
+PDF v10, restauración transaccional tras fallos y ACL/OID/cuerpos. Núcleo SQL PDF
+existente: PASS. Generador/almacenamiento: 94 pruebas Docker PASS. Navegador: 4 E2E
+Docker PASS con PDF reales v9/v10 y anexo v2. 14 muestras comparadas: solo cambian
+los correos y la fila de cuenta, sin variación de importes/fechas. Revisión independiente mediante `scripts/claude-review`: primer dictamen
+CHANGES_REQUESTED, hallazgos resueltos y revisión final PASS (confianza alta).
+Reversa Edge verificada: 91 pruebas y typecheck también en Docker.
+Paquete local listo para la publicación autorizada; producción intacta.
+Rama remota/advisors y comprobaciones productivas permanecen pendientes del
+carril de publicación. Preflights generales seed/RLS no ejecutaron aserciones
+por faltar `SUPABASE_URL`; los bancos SQL locales pertinentes sí pasaron.
+Archivos operativos: `../scripts/banco-pdf-v10/`; muestras: `../../output/pdf/correcciones-20261010/`.
+
+
 ## 20261007182719 — Corrección directa de tasa por Administración del Portal
 
 **PUBLICADA Y VERIFICADA EN PRODUCCIÓN 07/10/2026.** Pedido de Miguel: `admin`/`superadmin` pueden corregir la tasa sin autorización de Gerencia. La nueva RPC `crm.corregir_tasa_contrato_admin_pdf_v1` exige rol vigente, motivo de 5–500 caracteres y coincidencia de la tasa previamente vista, usa la corrección transaccional existente (contrato, cronograma, revisión PDF) y marca únicamente ese contrato para que el observador diferido admita la corrección aun con la política en `enforcement`. La excepción se niega si la misma operación cambia capital, moneda, plazo, modalidad, tipo de interés o categoría. El motivo queda en `crm.ledger_rentabilidad.detalle`; las demás escrituras conservan el candado. Siguen vigentes los límites numéricos, el producto contratado, las restricciones de contratos cerrados y la conservación de cuotas pagadas. No cambia el acceso a DNI ni correo.
@@ -18074,3 +18099,30 @@ La fila de `supabase_migrations.schema_migrations` **se conserva** (regla de la 
 **Evidencia histórica de multiempresa F8/G7 (decisión del Director, F4.1-A ronda 4b):** `supabase/scripts/multiempresa-f8/cierre-g7-2026-09-15/verificar-evidencia.mjs:122-130` exige el SHA-256 de `f4/operaciones-fixture.mjs` que guardó su evidencia (`874d0bb6…`); el número opcional de la ronda 2 cambió ese archivo y el verificador da rojo (ya lo daba en `main` por `crm-inversion-portal/handler.mjs`). Se acepta como evidencia histórica: el fixture no se revierte.
 
 **Suites históricas tras la 2.3 (decisión del Director, F4.1-A ronda 4b):** las suites históricas que llaman a `crear_contrato` de un no exento sin número válido —o que fijan su cuerpo anterior, como la C4 de `categoria-sin-operacion/prueba.sql:171` (`md5(prosrc)` `1adfbe1a…`; sus altas las da el par exento)— dan rojo tras la 2.3; no se tocan (inventario en `fase-4/F4.1-A/salidas/ronda4/trabajo/inventario-clasificado.tsv` del plan).
+
+## 20261010150451 — Facturación fase 5: relleno de jerarquía de Carmen Jaramillo y Jorge Marzano
+
+**Estado:** **APLICADA en producción y registrada el 10/10/2026 (~11:00 Lima, Miguel con `!`)** (md5 del texto
+`00fb0e49cba90b54cd242b2878dc6554`). Comprobado después (solo lectura): los dos eventos `via: 'relleno'` a las 12:56:38
+del 29/08; las 9 ventas de Jorge desde el 29/08 con ADMINISTRADOR (sep 4 × S/ 1,271,900 + 1 × US$ 27,000; oct 3 ×
+S/ 213,600 + 1 × US$ 20,000); `medir-relleno.sql` ya no lista a Carmen ni a Jorge (réplica 821/821). Antes: banco 14/14,
+Codex r1 sin P0/P1 con sus dos P2 aplicados y ensayo de producción PASS con el texto final.
+Aprobada por Miguel el 10/10 viendo el cambio mes a mes. Solo DATOS: sin esquema, funciones ni permisos.
+**Cambio:** dos eventos `jerarquia_actualizada` en `crm.usuario_eventos` (autor «sistema» `f6d2941b…`, `via: 'relleno'`,
+idempotencia fija) con la hora, el antes y el después de `public.audit_log` (filas `9808d0f3…` y `13d8b650…`:
+29/08/2026 12:56:38 Lima, CARLOS VALLES → ADMINISTRADOR AVANCE CORP, hecho por el bloque `$normalizar_directorio$` de
+20260828210351 sin evento). Efecto: Facturación deja de atribuir a Carlos las ventas de Jorge desde el 29/08 (9:
+septiembre 4 × S/ 1,271,900 + 1 × US$ 27,000; octubre 3 × S/ 213,600 + 1 × US$ 20,000); Carmen, nada. Solo
+`private.facturacion_operaciones` lee estos eventos; la foto del sello no.
+**Guardas:** huellas de `facturacion_operaciones` y `capital_episodios`; rastro de auditoría exacto; jerarquía de hoy
+igual a la medida; relleno a medias → se niega; base sin estas personas → no hace nada. Oráculo en la misma transacción
+(Facturación entera antes/después): solo cambian las ventas de los dos desde el día del cambio, de Carlos a
+Administrador, todas, y lo fechado antes del 10/10 es exactamente lo aprobado. Candados antes de la instantánea:
+`crm.equipo` (SHARE) y `crm.usuario_eventos` (SHARE ROW EXCLUSIVE); una venta simultánea sigue la misma regla.
+**Verificación:** medición de producción 10/10 09:51 (réplica 821/821); banco Docker `banco-prueba.py` 14/14 (bueno,
+repetición, ensayo, base vacía, seis negativas, reversa y dos negativas, concurrencia con candados y mutante sin ellos);
+ensayo de producción con el texto final «ENSAYO RELLENO PASS: 9 operaciones de 821 … 226 ms — SE DESHACE TODO».
+**Revisión:** Codex r1 CHANGES_REQUESTED sin P0/P1; aceptados P2-1 (la reversa validaba solo parte del evento) y P2-2
+(precondiciones frente a escritores simultáneos: candados antes de la instantánea; ventas, delimitado).
+**Aplicar:** `supabase/scripts/jerarquia-relleno/` → `ensayo-produccion.sql`, la migración y `registrar.sql` por
+`db query --linked --file`. **Reversa:** `reversa.sql` (borra los dos eventos por su idempotencia).

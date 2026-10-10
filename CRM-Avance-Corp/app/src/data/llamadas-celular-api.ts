@@ -1,11 +1,14 @@
 import * as v from 'valibot'
 import { sb } from '@/lib/supabase'
-import { BandejaSchema, ResueltasHoySchema, type Bandeja, type ResueltasHoy, type MotivoDescarte } from '@/lib/llamadas-celular'
+import {
+  BandejaSchema, MARGEN_UNION_MS, MarcaCelularSchema, ResueltasHoySchema, momentoDeLlamada, resultadosParaUnir,
+  type Bandeja, type FilaBandeja, type MarcaCelular, type MotivoDescarte, type ResueltasHoy, type ResultadoGuardado,
+} from '@/lib/llamadas-celular'
 import {
   AsignacionesCelularSchema, CelularesSaludSchema, CierreCelularSchema, CredencialCelularSchema,
   type AsignacionCelular, type CelularSalud, type CredencialCelular, type MotivoCierre,
 } from '@/lib/celulares'
-import { CrmApiError } from './crm-api'
+import { CrmApiError, listarActividadesDeLead } from './crm-api'
 
 export const llamadasCelularKeys = {
   raiz: ['llamadas-celular'] as const,
@@ -125,5 +128,66 @@ export async function cambiarLlamadaCelular(evento: string, accion:
   const parsed = v.safeParse(ConfirmacionAccionSchema, data)
   if (!parsed.success || parsed.output.evento_id !== evento) {
     throw new CrmApiError('No se pudo confirmar el cambio. Actualiza la lista antes de reintentarlo.', 'LLAMADAS_CONTRACT')
+  }
+}
+
+// ── Unir a mano (F4.2.4, B7): «¿Es este su resultado?» ──────────────────────────────────────────────────────────────
+// Los 22023/23505/40001 de crm.enlazar_llamada_celular son textos de negocio sin datos personales («Ese resultado ya
+// está enlazado a otra llamada»): la pantalla los muestra tal cual, como hace con los de celulares.
+
+/** Tope por petición de crm.actividades_con_llamada_celular_fn (22023 por encima): más ids van en varias tandas. */
+const MAX_IDS_MARCAS = 500
+
+/** Qué resultados ya están unidos a una llamada del celular (crm.actividades_con_llamada_celular_fn, F4-b). */
+export async function listarMarcasCelular(actividadIds: readonly string[], signal?: AbortSignal): Promise<MarcaCelular[]> {
+  if (actividadIds.length === 0) return []
+  if (!sb) throw new CrmApiError('No hay conexión con el CRM.', 'SIN_CLIENTE')
+  const marcas: MarcaCelular[] = []
+  for (let i = 0; i < actividadIds.length; i += MAX_IDS_MARCAS) {
+    let consulta = sb.schema('crm').rpc('actividades_con_llamada_celular_fn', { p_actividad_ids: actividadIds.slice(i, i + MAX_IDS_MARCAS) })
+    if (signal) consulta = consulta.abortSignal(signal)
+    const { data, error } = await consulta
+    if (error) throw new CrmApiError(error.message, error.code)
+    const parsed = v.safeParse(MarcaCelularSchema, data)
+    if (!parsed.success) throw new CrmApiError('No se pudo confirmar qué resultados ya están unidos. Inténtalo de nuevo.', 'LLAMADAS_CONTRACT')
+    marcas.push(...parsed.output)
+  }
+  return marcas
+}
+
+/**
+ * Los resultados del lead que todavía se pueden unir a esta llamada: su historial (crm.actividades_de_lead_fn, del más
+ * reciente hacia atrás hasta pasar el margen de la llamada) menos los que ya tienen una llamada unida. El filtro espejo
+ * vive en lib (resultadosParaUnir); la decisión final la toma el servidor al unir.
+ */
+export async function listarResultadosParaUnir(fila: FilaBandeja, signal?: AbortSignal): Promise<ResultadoGuardado[]> {
+  if (!fila.lead_id) return []
+  const desde = momentoDeLlamada(fila) - MARGEN_UNION_MS
+  const historial: ResultadoGuardado[] = []
+  let cursor: Parameters<typeof listarActividadesDeLead>[1] = null
+  do {
+    const pagina = await listarActividadesDeLead(fila.lead_id, cursor, signal)
+    historial.push(...pagina.items)
+    cursor = pagina.cursor
+    const ultima = pagina.items.at(-1)
+    // Otra página mientras la última fila siga dentro del margen, sin tope de cantidad: cortar antes dejaría fuera un
+    // resultado válido y el panel diría «no hay» habiendo uno (revisión del #251). El margen ya acota la búsqueda.
+    if (!ultima || Date.parse(ultima.creado_en) < desde) break
+  } while (cursor)
+  const candidatos = resultadosParaUnir(fila, historial, new Set())
+  if (candidatos.length === 0) return []
+  const marcas = await listarMarcasCelular(candidatos.map((c) => c.id), signal)
+  return resultadosParaUnir(fila, candidatos, new Set(marcas.map((m) => m.actividad_id)))
+}
+
+const ConfirmacionUnionSchema = v.object({ evento_id: v.string(), actividad_id: v.string(), repetido: v.boolean(), movido: v.optional(v.boolean()) })
+/** Une una pendiente a un resultado ya guardado. Repetir el mismo par es seguro (`repetido: true`). */
+export async function enlazarLlamadaCelular(evento: string, actividad: string): Promise<void> {
+  if (!sb) throw new CrmApiError('No hay conexión con el CRM.', 'SIN_CLIENTE')
+  const { data, error } = await sb.schema('crm').rpc('enlazar_llamada_celular', { p_evento_id: evento, p_actividad_id: actividad })
+  if (error) throw new CrmApiError(error.message, error.code)
+  const parsed = v.safeParse(ConfirmacionUnionSchema, data)
+  if (!parsed.success || parsed.output.evento_id !== evento || parsed.output.actividad_id !== actividad) {
+    throw new CrmApiError('No se pudo confirmar la unión. Actualiza la lista antes de reintentarlo.', 'LLAMADAS_CONTRACT')
   }
 }

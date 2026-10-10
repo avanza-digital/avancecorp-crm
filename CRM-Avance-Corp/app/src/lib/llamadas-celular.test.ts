@@ -3,8 +3,9 @@ import * as v from 'valibot'
 import {
   BandejaSchema, DetalleLlamadaSchema, EnlaceV5Schema, MarcaCelularSchema, ResueltasHoySchema,
   accionPrincipal, comoSeResolvio, cuandoFue, estadoPendiente, estadoResuelta, etiquetaMotivoDescarte, haceCuanto,
-  lineaPendiente, llegoTarde, numeroLegible, puedeRegistrarCorregido, retrasoPendiente, textoEnlace,
-  type FilaBandeja, type ResueltaHoy,
+  lineaPendiente, lineaResultadoGuardado, llegoTarde, numeroLegible, puedeRegistrarCorregido, puedeUnir, resultadosParaUnir,
+  retrasoPendiente, textoEnlace,
+  type FilaBandeja, type ResueltaHoy, type ResultadoGuardado,
 } from './llamadas-celular'
 
 // 05/10/2026 10:58 en Lima (15:58 UTC).
@@ -133,5 +134,44 @@ describe('textos de la pestaña', () => {
     expect(textoEnlace({ estado: 'no_enlazado', motivo: 'resultado_en_uso' }, 'x')).toMatch(/sigue en «Llamadas del celular»/)
     expect(textoEnlace({ estado: 'no_enlazado', motivo: 'celular_ajeno' }, 'x')).not.toMatch(/sigue en/)
     expect(textoEnlace({ estado: 'no_enlazado', motivo: 'sin_llamada' }, 'x')).toMatch(/no es de un lead de tu cartera/)
+  })
+})
+
+// Unir a mano (F4.2.4, B7): el espejo de lo que crm.enlazar_llamada_celular acepta.
+describe('unir a mano', () => {
+  const guardado = (id: string, creado_en: string, extra: Partial<ResultadoGuardado> = {}): ResultadoGuardado => ({
+    id, lead_id: 'l2', tipo: 'llamada_no_contestada', creado_en, autor_nombre: 'ANA SOTO',
+    metadata: { evento: 'resultado_llamada', resultado: 'no_contesto' }, ...extra,
+  })
+
+  it('solo una pendiente identificada con lead se puede unir', () => {
+    expect(puedeUnir(fila())).toBe(true)
+    expect(puedeUnir(fila({ lead_id: null }))).toBe(false)
+    expect(puedeUnir(fila({ identificacion: 'ambiguo', lead_id: null }))).toBe(false)
+  })
+
+  it('candidatos: del lead, resultados de llamada vivos, desde 10 min antes de la llamada, sin unir; del más reciente al más viejo', () => {
+    // La llamada fue a las 15:42Z: el margen admite desde las 15:32Z.
+    const lista = [
+      guardado('justo', '2026-10-05T15:33:00Z'),
+      guardado('reciente', '2026-10-05T15:50:00Z', { tipo: 'llamada_realizada', metadata: { evento: 'resultado_llamada', resultado: 'agendo_reunion' } }),
+      guardado('antes', '2026-10-05T15:31:00Z'),
+      guardado('otro-lead', '2026-10-05T15:50:00Z', { lead_id: 'l9' }),
+      guardado('nota', '2026-10-05T15:50:00Z', { tipo: 'nota', metadata: undefined }),
+      guardado('deshecho', '2026-10-05T15:50:00Z', { metadata: { evento: 'resultado_llamada', resultado: 'no_contesto', deshecho_en: '2026-10-05T15:55:00Z' } }),
+      guardado('unido', '2026-10-05T15:50:00Z'),
+      guardado('local', '2026-10-05T15:51:00Z', { local: true }),
+    ]
+    expect(resultadosParaUnir(fila(), lista, new Set(['unido'])).map((r) => r.id)).toEqual(['reciente', 'justo'])
+    // El espejo optimista del navegador (id inventado) solo vale en la demo.
+    expect(resultadosParaUnir(fila(), lista, new Set(['unido']), { conLocales: true }).map((r) => r.id)).toEqual(['local', 'reciente', 'justo'])
+    // Sin hora de la llamada manda la de recepción.
+    expect(resultadosParaUnir(fila({ ocurrio_en: null, recibido_en: '2026-10-05T15:45:00Z' }), lista, new Set()).map((r) => r.id)).toEqual(['reciente', 'unido'])
+  })
+
+  it('cada candidato dice su resultado, cuándo se guardó y quién', () => {
+    expect(lineaResultadoGuardado(guardado('a', '2026-10-05T15:50:00Z'), AHORA)).toBe('No contestó · guardado a las 10:50 · por ANA SOTO')
+    expect(lineaResultadoGuardado(guardado('b', '2026-10-04T15:50:00Z', { metadata: { evento: 'resultado_llamada' } }), AHORA))
+      .toBe('Resultado de llamada · guardado ayer a las 10:50 · por ANA SOTO')
   })
 })

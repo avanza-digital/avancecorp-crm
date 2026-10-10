@@ -172,6 +172,61 @@ export function accionPrincipal(fila: Pick<FilaBandeja, 'identificacion' | 'lead
   return fila.identificacion === 'identificado' && fila.lead_id !== null ? 'registrar' : 'elegir'
 }
 
+// ── Unir a mano (F4.2.4, B7): «¿Es este su resultado?» ──────────────────────────────────────────
+// La puerta crm.enlazar_llamada_celular (núcleo en 20261005143843) une una pendiente a un resultado que el analista
+// ya guardó en ese lead (desde la ficha, desde la PC o porque la unión automática falló). Nunca se une sola y nunca
+// crea otra gestión. Aquí vive el espejo de sus reglas, para no ofrecer nada que la puerta vaya a rechazar.
+
+/** Margen del servidor: un resultado guardado más de 10 min ANTES de la llamada no es de esa llamada (22023). */
+export const MARGEN_UNION_MS = 10 * 60_000
+
+/** Un resultado de llamada ya guardado en el lead, como lo trae el historial (crm.actividades_de_lead_fn). */
+export interface ResultadoGuardado {
+  id: string
+  lead_id: string
+  tipo: string
+  creado_en: string
+  autor_nombre: string
+  metadata?: Record<string, unknown> | undefined
+  /** Fila optimista del store que todavía no llegó al servidor: en real no se puede unir (su id no existe allá). */
+  local?: boolean | undefined
+}
+
+/** Solo una pendiente con lead identificado se puede unir: la misma condición que «Registrar resultado». */
+export function puedeUnir(fila: Pick<FilaBandeja, 'identificacion' | 'lead_id'>): boolean {
+  return accionPrincipal(fila) === 'registrar'
+}
+
+/**
+ * Espejo del filtro del servidor: mismo lead, resultado de llamada registrado en la encuesta (`metadata.evento`), no
+ * deshecho (la clave `deshecho_en` no existe, como el `?` de jsonb), no anterior a la llamada por más de 10 min, y sin
+ * unir ya a otra llamada (`unidas`). El servidor no exige que lo haya guardado el mismo analista: se muestra quién lo
+ * guardó. Los más recientes primero.
+ */
+export function resultadosParaUnir(
+  fila: Pick<FilaBandeja, 'lead_id' | 'ocurrio_en' | 'recibido_en'>,
+  actividades: readonly ResultadoGuardado[],
+  unidas: ReadonlySet<string>,
+  opciones: { conLocales?: boolean } = {},
+): ResultadoGuardado[] {
+  const desde = momentoDeLlamada(fila) - MARGEN_UNION_MS
+  return actividades
+    .filter((a) => a.lead_id === fila.lead_id
+      && (a.tipo === 'llamada_realizada' || a.tipo === 'llamada_no_contestada')
+      && a.metadata?.evento === 'resultado_llamada'
+      && !('deshecho_en' in a.metadata)
+      && Date.parse(a.creado_en) >= desde
+      && !unidas.has(a.id)
+      && (opciones.conLocales === true || a.local !== true))
+    .sort((a, b) => Date.parse(b.creado_en) - Date.parse(a.creado_en))
+}
+
+/** «No contestó · guardado a las 10:42 · por Ana». */
+export function lineaResultadoGuardado(r: ResultadoGuardado, ahora: number): string {
+  const resultado = typeof r.metadata?.resultado === 'string' ? etiquetaResultado(r.metadata.resultado) : 'Resultado de llamada'
+  return `${resultado} · guardado ${cuandoFue(Date.parse(r.creado_en), ahora)} · por ${r.autor_nombre}`
+}
+
 /**
  * Hallazgo de P9 (F4-d, 07/10): tras «Deshacer», la llamada quedaba «· deshecho» sin ninguna acción y no había cómo unirla
  * al resultado corregido. La v5 ya mueve el enlace cuando el anterior se deshizo (20261005182227: estado «movido»), pero

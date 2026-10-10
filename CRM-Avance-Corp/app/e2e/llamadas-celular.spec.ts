@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { entrarDemo } from './_helpers'
+import { abrirLead, entrarDemo, irAPipeline } from './_helpers'
 
 test('Celular: descartar conserva el foco y aparece en lo resuelto con su motivo', async ({ page }) => {
   await entrarDemo(page, 'Analista')
@@ -14,4 +14,34 @@ test('Celular: descartar conserva el foco y aparece en lo resuelto con su motivo
   await page.getByRole('button', { name: /^Qué pasó hoy/ }).click()
   const resueltas = page.getByRole('list', { name: 'Llamadas resueltas hoy' })
   await expect(resueltas.getByRole('listitem').first()).toContainText('Descartada · Llamada personal')
+})
+
+// F4.2.4 (B7): el resultado se guardó desde la ficha (la unión automática no lo vio) y el analista lo une a mano.
+test('Celular: unir a mano una pendiente al resultado guardado desde la ficha, sin crear otra gestión', async ({ page }) => {
+  await entrarDemo(page, 'Analista')
+  await irAPipeline(page)
+  const drawer = await abrirLead(page, /MARÍA LÓPEZ CASTRO/)
+  await drawer.getByRole('button', { name: /Copiar el número de MARÍA LÓPEZ CASTRO y registrar la llamada/ }).click()
+  const panel = page.getByRole('dialog', { name: /Cómo salió la llamada/ })
+  await panel.getByRole('radio', { name: /No contestó/ }).check()
+  await panel.getByRole('button', { name: 'Guardar' }).click()
+  await expect(panel).toHaveCount(0)
+  await expect(page.getByText(/Llamada registrada · No contestó/)).toBeVisible()
+  await page.keyboard.press('Escape')
+  await page.getByRole('button', { name: 'Gestión Diaria' }).click()
+  await page.getByRole('tab', { name: /^Celular/ }).click()
+  const pendientes = page.getByRole('list', { name: 'Llamadas pendientes' })
+  const total = await pendientes.getByRole('listitem').count()
+  const maria = pendientes.getByRole('listitem').filter({ hasText: 'MARÍA LÓPEZ CASTRO' })
+  await maria.getByRole('button', { name: 'Unir a un resultado guardado', exact: true }).click()
+  const opciones = maria.getByRole('list', { name: 'Resultados guardados' })
+  await expect(opciones.getByRole('button')).toHaveCount(1)
+  await opciones.getByRole('button', { name: /^No contestó · guardado a las \d{2}:\d{2} · por ANALISTA UNO$/ }).click()
+  await expect(page.getByText('Llamada unida al resultado que ya estaba guardado. No se creó otra gestión.')).toBeVisible()
+  await expect(pendientes.getByRole('listitem')).toHaveCount(total - 1)
+  await expect(page.getByRole('heading', { name: 'Llamadas del celular', exact: true })).toBeFocused()
+  await page.getByRole('button', { name: /^Qué pasó hoy/ }).click()
+  const resueltas = page.getByRole('list', { name: 'Llamadas resueltas hoy' })
+  await expect(resueltas.getByRole('listitem').first()).toContainText('MARÍA LÓPEZ CASTRO')
+  await expect(resueltas.getByRole('listitem').first()).toContainText('Unida a un resultado que ya estaba guardado')
 })

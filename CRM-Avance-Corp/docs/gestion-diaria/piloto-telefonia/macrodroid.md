@@ -97,6 +97,7 @@ Pantalla principal de MacroDroid → recuadro **«Variables globales»** → bot
 | `en_saliente` | Booleana, valor Falso | «Llamadas-Salientes» la pone en Verdadero al marcar; «Al colgar» la lee y la vuelve a Falso |
 | `ultimo_latido` | Entera, valor 0 | `{system_time}` del último latido aceptado (200) |
 | `t_saliente` | Entera, valor 0 | Cuándo empezó la saliente: con más de 2 h, «Al colgar» la ignora (menor 16) |
+| `numero_saliente` | Cadena, vacía | El número marcado: «Llamadas-Salientes» lo guarda al marcar y «Al colgar» lo usa en la URL y en el aviso. **Obligatoria desde el 09/10 (H-ESPERA):** con una llamada en espera, el `{call_number}` de «Llamada terminada» trae el número de la entrante, no el de la saliente |
 | `ultimo_aviso_401` | Entera, valor 0 | Cuándo se avisó por última vez que la clave no vale (para avisar como mucho una vez por hora) |
 | `url_llamadas` | Cadena | La dirección del servidor: hoy el receptor del PC; al activar, la de la Edge |
 | `clave_celular` | Cadena | La clave de ESTE celular: hoy la de prueba; al activar, la que da la tarjeta «Celulares» (se ve una sola vez) |
@@ -106,6 +107,8 @@ Pantalla principal de MacroDroid → recuadro **«Variables globales»** → bot
 - **Disparador:** «Llamada saliente» → «Cualquier Número».
 - **Acción:** Variables → «Fijar Variable» → `en_saliente` → **Verdadero** (no tocar «PROBAR»).
 - **Acción:** «Fijar Variable» → `t_saliente` → **«Expresión»** `{system_time}` («Valor» solo acepta números fijos). **Va junto con la guarda del Paso 4**: sin ella no sirve, y la guarda sin esta acción vería `t_saliente` = 0 e ignoraría todas las salientes.
+- **Acción (09/10, H-ESPERA):** «Fijar Variable» → `numero_saliente` → texto **`{call_number}`** (se puede elegir con el botón de texto mágico, «Número de llamada»). En este disparo `{call_number}` es el número **marcado**; comprobado en C1 (Android 16) el 09/10.
+- En MacroDroid 5.67 las acciones de variables se ven como **«Establecer Variable Global (Booleana/Entera/Cadena)»**: es la misma «Fijar Variable». Al editar, **no tocar «PROBAR»** en ninguna: en `cola_llamadas` metería un aviso de mentira en la cola.
 
 ### Paso 3 — Macro «Llamadas-Enviar cola»
 
@@ -206,21 +209,32 @@ Se arma clonando «Piloto F0» (mantener pulsada → Clonar) para conservar la a
   Si en_saliente = Verdadero
       Fijar Variable: id_llamada (local, Cadena) = C1-{system_time}      ← C1 = la etiqueta de ESTE celular
       Fijar Variable: cola_llamadas[{lv=id_llamada}] (Cadena) = el aviso (abajo)
-      Abrir Sitio web: https://crm.miavance.com/#/gestion-diaria/llamada/{call_number}/{lv=id_llamada}
-          («codificación de URL» desmarcada; con el id desde el 06/10)
+      Abrir Sitio web: https://crm.miavance.com/#/gestion-diaria/llamada/{v=numero_saliente}/{lv=id_llamada}
+          («codificación de URL» desmarcada; con el id desde el 06/10; {v=numero_saliente} desde el 09/10, H-ESPERA)
       Iniciar macro: Llamadas-Enviar cola   («Omitir restricciones» ✓, «Siempre iniciar» ✓, «Bloquear…» sin marcar)
   Fin de Si
   Fijar Variable: en_saliente = Falso
   ```
 - **El aviso** (pegarlo, no teclearlo: el teclado cambia las comillas rectas por curvas y el servidor lo rechaza con 400):
   ```
-  {"accion":"llamada","evento":{"v":1,"evento_origen_id":"{lv=id_llamada}","numero":"{call_number}","direccion":"saliente","ocurrio_en":"{datetime}-05:00"}}
+  {"accion":"llamada","evento":{"v":1,"evento_origen_id":"{lv=id_llamada}","numero":"{v=numero_saliente}","direccion":"saliente","ocurrio_en":"{datetime}-05:00"}}
   ```
+  En una macro ya armada no hace falta volver a pegarlo: basta cambiar `call_number` por `v=numero_saliente` dentro de
+  sus llaves, sin tocar las comillas (así se hizo en C1 el 09/10).
+- **H-ESPERA (09/10, encontrado y arreglado en C1):** con `{call_number}` en «Al colgar», una llamada en espera durante
+  una saliente hacía que la URL y el aviso llevaran el número de **quien entró en espera**: la encuesta se abría para
+  ese número y la saliente real se perdía de la captura (si quien entraba era un lead del analista, se le habría abierto
+  su encuesta y registrado una saliente que no ocurrió). «Llamada terminada» se dispara una sola vez, al final, con el
+  último número que vio el teléfono. Con `numero_saliente` (Paso 2) las tres variantes pasan en C1: ignorar, rechazar y
+  contestar la entrante → el aviso usa siempre el número de la saliente (`REGISTRO.md` §5j). **Todo celular nuevo se
+  arma ya con este cambio.**
+- **Probar la llamada en espera con una saliente CONTESTADA:** si la saliente va a un número que no existe (la operadora
+  responde «apagado»), la red no deja pasar la llamada en espera y la prueba no reproduce nada (09/10).
   `{datetime}` es texto mágico de MacroDroid (`aaaa-MM-dd HH:mm:ss` en la hora del celular); el `-05:00` (Lima, sin horario de verano) es obligatorio: sin él, el servidor, que trabaja en UTC, la leería 5 horas corrida. Así un aviso reenviado horas después conserva la hora real de la llamada (comprobado en A3, A4 y A6). `{system_time}` está en segundos: basta, un celular no termina dos llamadas en el mismo segundo. Son los segundos del reloj del celular: si está corrido más de un día hacia adelante o 30 días hacia atrás, la base rechaza el aviso (400 «fuera de la ventana… ¿hora automática?»).
 - **Sin notificación ni «Registrar evento» con el número** (prueba 6).
 
 ### La URL con el id de la llamada — ya puesta en C1 (06/10)
-«Abrir sitio web» ya abre `…/llamada/{call_number}/{lv=id_llamada}` (decisión de Jhosep, 06/10: armar la macro final una
+«Abrir sitio web» ya abre `…/llamada/{call_number}/{lv=id_llamada}` (desde el 09/10, `{v=numero_saliente}` en lugar de `{call_number}`: H-ESPERA, Paso 4) (decisión de Jhosep, 06/10: armar la macro final una
 sola vez). El router publicado hoy ignora el segmento extra y el enlace funciona como F1 (comprobado en P2: abrió la
 encuesta). F4-b ya está en `main` (#190), detrás del interruptor `LLAMADAS_CELULAR_APROBADAS`: cuando Miguel aplique la
 base y lo abra, la encuesta llamará a `crm.registrar_llamada_v5` con ese id y la llamada quedará unida. Adelantarla no
@@ -291,7 +305,7 @@ Con la Edge desplegada se repiten A1 y A3 **con datos móviles** (cualquier red)
 
 **Decisiones de Claude:**
 - La contestada se detecta **con un disparador propio** («Llamada activa», que en una entrante se dispara al contestar). Nunca esperando: un hecho, no una suposición.
-- **Saliente y entrante no se pisan.** «Llamadas-Entrante» no toca nada de la saliente. Si entra una llamada en espera mientras el analista habla con un lead, la saliente conserva su aviso y su encuesta, y la entrante en espera sale como no atendida si no se contesta. Apagar `en_saliente` al sonar una entrante, como proponía el plan, rompería justo ese caso.
+- **Saliente y entrante no se pisan.** (09/10: en la macro gratuita de §3c esto ya lo cumple `numero_saliente`; ver H-ESPERA en el Paso 4.) «Llamadas-Entrante» no toca nada de la saliente. Si entra una llamada en espera mientras el analista habla con un lead, la saliente conserva su aviso y su encuesta, y la entrante en espera sale como no atendida si no se contesta. Apagar `en_saliente` al sonar una entrante, como proponía el plan, rompería justo ese caso.
 - **Una sola clave por entrante**, creada cuando suena (`id_entrante`) y con la hora del timbre (`hora_entrante`). «Perdida» y «Al colgar» escriben la misma entrada con el mismo contenido. Se dispare primero la que se dispare, sale un solo aviso, y el servidor lo ve como repetido si llegara dos veces.
 - **Las entrantes todavía no abren la encuesta.** Hoy F1 muestra «ningún lead» con cualquier número que no sea lead, y abrirla con cada llamada personal molestaría. Se añade cuando F1 sepa callar con esos números (#14, caso c). Es un cambio pequeño de pantalla, y el objetivo sigue siendo que la encuesta se abra siempre con leads.
 
@@ -452,4 +466,4 @@ El servidor exige exactamente esas cuatro claves. `version_macro` admite letras,
 - Chromium: [WebAPK no verificado en Android 12+](https://github.com/chromium/chromium/blob/main/components/external_intents/android/java/src/org/chromium/components/external_intents/ExternalNavigationHandler.java)
 - Tasker: [variables `%CONUM` / `%CODUR`](https://tasker.joaoapps.com/userguide/en/variables.html)
 
-Pendiente de dispositivo: que `{call_number}` llegue relleno en salientes con Android 12–15; que la variable de dirección pase de «Call Outgoing» a «Call Ended»; el «Send Intent» al WebAPK; si «Call Ended» dispara antes de que el sistema escriba el registro de llamadas.
+Pendiente de dispositivo: que `{call_number}` llegue relleno en salientes con Android 12–15 (en C1, Android 16, llega relleno en el disparo «Llamada saliente»: comprobado el 09/10); que la variable de dirección pase de «Call Outgoing» a «Call Ended»; el «Send Intent» al WebAPK; si «Call Ended» dispara antes de que el sistema escriba el registro de llamadas.

@@ -11,6 +11,8 @@ vi.mock('@/components/gestion-diaria/resumen-gestiones', () => ({ AccesoGestione
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render as renderBase, screen, waitFor, within } from '@testing-library/react'
 import type { DiaAnalista } from '@/lib/gestion-diaria-analista'
+import type { Actividad } from '@/lib/tipos'
+import type { FilaBandeja } from '@/lib/llamadas-celular'
 import * as config from '@/lib/config'
 import { listarLlamadasCelular, listarResueltasCelular } from '@/data/llamadas-celular-api'
 
@@ -54,7 +56,15 @@ const dobles = vi.hoisted(() => ({
     confirmacion: Promise.resolve({ actividad_id: 'act-corregida', siguiente_id: null, descartado: false }),
   })),
   historial: { items: [] as Array<Record<string, unknown>>, cargando: false, error: null as unknown, reintentar: vi.fn(), pedidos: [] as Array<string | null> },
+  /** Lo que el store devuelve en `actividadesDe` (unir a mano en la demo, F4.2.4). */
+  actividades: [] as Actividad[],
+  /** Pendientes de más en la demo (dos llamadas al mismo lead, F4.2.4); se suman a las de lib/demo-llamadas-celular. */
+  pendientesDemoExtra: null as null | ((ahora: number) => FilaBandeja[]),
 }))
+vi.mock('@/lib/demo-llamadas-celular', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@/lib/demo-llamadas-celular')>()
+  return { ...real, demoPendientesCelular: (ahora: number) => [...real.demoPendientesCelular(ahora), ...(dobles.pendientesDemoExtra?.(ahora) ?? [])] }
+})
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: dobles.yo }) }))
 vi.mock('@/lib/ahora', () => ({ useAhora: () => Date.parse('2026-09-20T18:00:00Z') }))
 vi.mock('@/lib/store-context', () => ({
@@ -65,6 +75,7 @@ vi.mock('@/lib/store-context', () => ({
     asegurarLead: dobles.asegurarLead,
     obtenerTareaParaRevision: dobles.obtenerTarea,
     registrarLlamada: dobles.registrarLlamada,
+    actividadesDe: (leadId: string) => dobles.actividades.filter((a) => a.lead_id === leadId),
     deshacerResultadoLlamada: vi.fn(() => ({ ok: true, persistido: Promise.resolve(true) })),
   }),
   usePanelesActions: () => ({ abrirLead: dobles.abrirLead }),
@@ -1414,5 +1425,62 @@ describe('GestionDiariaAnalista · «Llamadas del celular» (F4-b)', () => {
       resultado: 'no_contesto', evento_origen_id: armada?.origenLlamada, via_llamada: 'pestana',
     })
     limpiarIntencionesContacto()
+  })
+
+  // F4.2.4 (B7): unir a mano una pendiente a un resultado que ya estaba guardado en el lead.
+  it('en DEMO, «Unir a un resultado guardado» ofrece solo lo guardado desde 10 min antes de la llamada y deja la llamada en «Qué pasó hoy» unida a mano', async () => {
+    dobles.yo = { id: 'a1', rol: 'vendedor', demo: true, nombre_completo: 'ANALISTA UNO' }
+    const ahora = Date.now()
+    const actividad = (id: string, haceMs: number, extra: Partial<Actividad> = {}): Actividad => ({
+      id, lead_id: 'l2', tipo: 'llamada_no_contestada', detalle: null, autor_nombre: 'ANALISTA UNO',
+      creado_en: new Date(ahora - haceMs).toISOString(), metadata: { evento: 'resultado_llamada', resultado: 'no_contesto' }, ...extra,
+    })
+    // MARÍA (l2) llamó hace 16 min: un resultado de hace 5 min (desde la ficha, local) sí; uno de ayer, no.
+    dobles.actividades = [actividad('act-hoy', 5 * 60_000, { local: true }), actividad('act-ayer', 26 * 3_600_000)]
+    render(<GestionDiariaAnalista />)
+    fireEvent.click(screen.getByRole('tab', { name: /^Celular/ }))
+    const lista = await screen.findByRole('list', { name: 'Llamadas pendientes' })
+    const maria = within(lista).getAllByRole('listitem').find((li) => /MARÍA LÓPEZ CASTRO/.test(li.textContent ?? ''))!
+    fireEvent.click(within(maria).getByRole('button', { name: 'Unir a un resultado guardado' }))
+    const opciones = await within(maria).findByRole('list', { name: 'Resultados guardados' })
+    const botones = within(opciones).getAllByRole('button')
+    expect(botones).toHaveLength(1)
+    expect(botones[0]).toHaveTextContent(/^No contestó · guardado .* · por ANALISTA UNO$/)
+    fireEvent.click(botones[0]!)
+    await waitFor(() => expect(within(lista).queryByRole('button', { name: 'MARÍA LÓPEZ CASTRO' })).not.toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: /^Qué pasó hoy/ }))
+    const resueltas = await screen.findByRole('list', { name: 'Llamadas resueltas hoy' })
+    expect(within(resueltas).getAllByRole('listitem')[0]).toHaveTextContent(/MARÍA LÓPEZ CASTRO.*Unida a un resultado que ya estaba guardado/)
+    dobles.actividades = []
+  })
+
+  // Revisión del #251 (P3): como la base, la demo no ofrece a una segunda llamada el resultado ya unido a la primera.
+  it('en DEMO, dos llamadas al mismo lead y un solo resultado: unido a la primera, ya no se ofrece a la segunda', async () => {
+    dobles.yo = { id: 'a1', rol: 'vendedor', demo: true, nombre_completo: 'ANALISTA UNO' }
+    const ahora = Date.now()
+    // Una segunda llamada a MARÍA (l2), hace 12 min; la de la demo es de hace 16. El resultado (hace 5 min) vale para las dos.
+    const demo = await vi.importActual<typeof import('@/lib/demo-llamadas-celular')>('@/lib/demo-llamadas-celular')
+    dobles.pendientesDemoExtra = (t) => [{
+      ...demo.demoPendientesCelular(t).find((f) => f.lead_id === 'l2')!,
+      evento_id: 'demo-llamada-maria-2', evento_origen_id: `C1-${Math.floor((t - 12 * 60_000) / 1000)}`,
+      ocurrio_en: new Date(t - 12 * 60_000).toISOString(), recibido_en: new Date(t - 12 * 60_000 + 11_000).toISOString(),
+    }]
+    dobles.actividades = [{
+      id: 'act-hoy', lead_id: 'l2', tipo: 'llamada_no_contestada', detalle: null, autor_nombre: 'ANALISTA UNO', local: true,
+      creado_en: new Date(ahora - 5 * 60_000).toISOString(), metadata: { evento: 'resultado_llamada', resultado: 'no_contesto' },
+    } as Actividad]
+    render(<GestionDiariaAnalista />)
+    fireEvent.click(screen.getByRole('tab', { name: /^Celular/ }))
+    const lista = await screen.findByRole('list', { name: 'Llamadas pendientes' })
+    const deMaria = () => within(lista).getAllByRole('listitem').filter((li) => /MARÍA LÓPEZ CASTRO/.test(li.textContent ?? ''))
+    expect(deMaria()).toHaveLength(2)
+    fireEvent.click(within(deMaria()[0]!).getByRole('button', { name: 'Unir a un resultado guardado' }))
+    fireEvent.click(within(await within(deMaria()[0]!).findByRole('list', { name: 'Resultados guardados' })).getByRole('button'))
+    await waitFor(() => expect(deMaria()).toHaveLength(1))
+    fireEvent.click(within(deMaria()[0]!).getByRole('button', { name: 'Unir a un resultado guardado' }))
+    expect(await within(deMaria()[0]!).findByText(/No hay resultados de este lead guardados/)).toBeInTheDocument()
+    expect(within(deMaria()[0]!).queryByRole('list', { name: 'Resultados guardados' })).not.toBeInTheDocument()
+    dobles.actividades = []
+    dobles.pendientesDemoExtra = null
   })
 })

@@ -14,9 +14,9 @@ import type { EstadoListaCelular } from '@/data/use-llamadas-celular'
 import type { OpcionesResolucion } from '@/data/coincidencia-llamada'
 import { digitosParaBuscar } from '@/lib/coincidencia-telefono'
 import {
-  MOTIVOS_DESCARTE, accionPrincipal, comoSeResolvio, cuandoFue, estadoPendiente, estadoResuelta, lineaPendiente,
-  llegoTarde, momentoDeLlamada, numeroLegible, puedeRegistrarCorregido, retrasoPendiente,
-  type FilaBandeja, type MotivoDescarte, type ResueltaHoy,
+  MARGEN_UNION_MS, MOTIVOS_DESCARTE, accionPrincipal, comoSeResolvio, cuandoFue, estadoPendiente, estadoResuelta, lineaPendiente,
+  lineaResultadoGuardado, llegoTarde, momentoDeLlamada, numeroLegible, puedeRegistrarCorregido, puedeUnir, retrasoPendiente,
+  type FilaBandeja, type MotivoDescarte, type ResueltaHoy, type ResultadoGuardado,
 } from '@/lib/llamadas-celular'
 import type { Lead } from '@/lib/tipos'
 import { cn } from '@/lib/utils'
@@ -36,11 +36,15 @@ export interface LlamadasCelularProps {
   onCorregir?: ((fila: ResueltaHoy) => void) | undefined
   onElegirLead: (fila: FilaBandeja, lead: Lead) => void
   onDescartar: (fila: FilaBandeja, motivo: MotivoDescarte, detalle: string | null) => void
+  /** Unir a mano (F4.2.4, B7): los candidatos del lead y la unión. Sin las dos, el botón no aparece. */
+  onBuscarResultados?: ((fila: FilaBandeja, signal?: AbortSignal) => Promise<ResultadoGuardado[]>) | undefined
+  onUnir?: ((fila: FilaBandeja, resultado: ResultadoGuardado) => void) | undefined
   onAbrirFicha: (leadId: string) => void
 }
 
 type Vista = 'pendientes' | 'hoy'
-type Panel = { evento: string; modo: 'descartar' | 'elegir' } | null
+type ModoPanel = 'descartar' | 'elegir' | 'unir'
+type Panel = { evento: string; modo: ModoPanel } | null
 
 const BOTON_VISTA = 'inline-flex h-9 items-center rounded-full border px-3 text-[13px] font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-11'
 const NOMBRE = 'rounded-md text-left text-sm font-bold text-primary underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
@@ -53,9 +57,11 @@ export function LlamadasCelular(props: LlamadasCelularProps): JSX.Element {
   const titulo = useRef<HTMLHeadingElement>(null)
   const estado = vista === 'pendientes' ? props.estadoPendientes : props.estadoResueltas
   const devolverFoco = () => { requestAnimationFrame(() => titulo.current?.focus()) }
+  const { onUnir } = props
   const acciones = { ...props,
     onDescartar: (...args: Parameters<LlamadasCelularProps['onDescartar']>) => { props.onDescartar(...args); devolverFoco() },
     onElegirLead: (...args: Parameters<LlamadasCelularProps['onElegirLead']>) => { props.onElegirLead(...args); devolverFoco() },
+    onUnir: onUnir === undefined ? undefined : (...args: Parameters<typeof onUnir>) => { onUnir(...args); devolverFoco() },
   }
   const vistas: [Vista, string][] = [['pendientes', `Pendientes · ${pendientes.length}`], ['hoy', `Qué pasó hoy · ${resueltas.length}`]]
   return (
@@ -120,13 +126,20 @@ function Titulo({ leadId, nombre, numero, onAbrirFicha }: {
   return <span className="text-sm font-bold text-primary">{numeroLegible(numero)}</span>
 }
 
-function FilaPendiente({ fila, ahora, ocupado, busqueda, panel, onPanel, onRegistrar, onElegirLead, onDescartar, onAbrirFicha }:
-  LlamadasCelularProps & { fila: FilaBandeja; panel: 'descartar' | 'elegir' | null; onPanel: (modo: 'descartar' | 'elegir' | null) => void }): JSX.Element {
+function FilaPendiente({ fila, ahora, ocupado, busqueda, panel, onPanel, onRegistrar, onElegirLead, onDescartar, onBuscarResultados, onUnir, onAbrirFicha }:
+  LlamadasCelularProps & { fila: FilaBandeja; panel: ModoPanel | null; onPanel: (modo: ModoPanel | null) => void }): JSX.Element {
   const retraso = retrasoPendiente(fila, ahora)
   const principal = accionPrincipal(fila)
+  const unible = onUnir !== undefined && onBuscarResultados !== undefined && puedeUnir(fila)
   const enEspera = ocupado != null
   const volverA = useRef<HTMLButtonElement>(null)
-  const cerrarPanel = () => { onPanel(null); requestAnimationFrame(() => volverA.current?.focus()) }
+  const volverAUnir = useRef<HTMLButtonElement>(null)
+  // El botón se lee dentro del siguiente cuadro: la fila de acciones vuelve a montarse al cerrar el panel.
+  const cerrarPanel = () => {
+    const volver = panel === 'unir' ? volverAUnir : volverA
+    onPanel(null)
+    requestAnimationFrame(() => volver.current?.focus())
+  }
   return (
     <li className="border-b border-muted py-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -152,6 +165,11 @@ function FilaPendiente({ fila, ahora, ocupado, busqueda, panel, onPanel, onRegis
                 Elegir el lead
               </Button>
             )}
+            {unible && (
+              <Button ref={volverAUnir} size="sm" variant="outline" className="text-foreground pointer-coarse:h-11" disabled={enEspera} onClick={() => onPanel('unir')}>
+                Unir a un resultado guardado
+              </Button>
+            )}
             <Button ref={principal === 'registrar' ? volverA : undefined} size="sm" variant="outline" className="text-foreground pointer-coarse:h-11"
               disabled={enEspera} onClick={() => onPanel('descartar')}>
               Descartar
@@ -161,6 +179,10 @@ function FilaPendiente({ fila, ahora, ocupado, busqueda, panel, onPanel, onRegis
       </div>
       {panel === 'descartar' && (
         <PanelDescarte onCancelar={cerrarPanel} onConfirmar={(motivo, detalle) => { onPanel(null); onDescartar(fila, motivo, detalle) }} />
+      )}
+      {panel === 'unir' && onBuscarResultados && onUnir && (
+        <PanelUnir fila={fila} ahora={ahora} buscar={onBuscarResultados} onCancelar={cerrarPanel}
+          onConfirmar={(r) => { onPanel(null); onUnir(fila, r) }} />
       )}
       {panel === 'elegir' && (
         <div role="group" aria-label="Elegir el lead de esta llamada" className="mt-2 space-y-2 rounded-xl border border-border bg-muted/40 p-3">
@@ -209,6 +231,69 @@ function PanelDescarte({ onConfirmar, onCancelar }: {
           <Button type="submit" size="sm" variant="outline" className="text-foreground pointer-coarse:h-11" disabled={texto.trim().length < 3}>Descartar</Button>
         </form>
       )}
+    </div>
+  )
+}
+
+type EstadoUnir = { fase: 'cargando' } | { fase: 'error' } | { fase: 'lista'; resultados: ResultadoGuardado[] }
+
+/** El margen del servidor dicho en palabras: un resultado guardado poco antes de la llamada también vale. */
+const DESDE_MARGEN = `desde ${MARGEN_UNION_MS / 60_000} minutos antes de`
+
+/**
+ * «¿Es este su resultado?» (F4.2.4, B7): los resultados del lead guardados desde 10 min antes de la llamada y sin unir,
+ * que trae la pantalla; elegir uno los une sin crear otra gestión. Los candidatos se piden al abrir (no por fila) y la
+ * decisión final es del servidor: si rechaza, la pantalla muestra su motivo.
+ */
+function PanelUnir({ fila, ahora, buscar, onConfirmar, onCancelar }: {
+  fila: FilaBandeja; ahora: number
+  buscar: (fila: FilaBandeja, signal?: AbortSignal) => Promise<ResultadoGuardado[]>
+  onConfirmar: (resultado: ResultadoGuardado) => void
+  onCancelar: () => void
+}): JSX.Element {
+  const id = useId()
+  const grupo = useRef<HTMLDivElement>(null)
+  const [estado, setEstado] = useState<EstadoUnir>({ fase: 'cargando' })
+  const [intento, setIntento] = useState(0)
+  useEffect(() => {
+    const control = new AbortController()
+    setEstado({ fase: 'cargando' })
+    buscar(fila, control.signal)
+      .then((resultados) => { if (!control.signal.aborted) setEstado({ fase: 'lista', resultados }) })
+      .catch(() => { if (!control.signal.aborted) setEstado({ fase: 'error' }) })
+    return () => control.abort()
+  }, [buscar, fila, intento])
+  // Al abrirse, el foco va al panel (la lista llega después): quien pulsó «Unir…» sigue con el teclado donde estaba.
+  useEffect(() => { grupo.current?.focus() }, [])
+  return (
+    <div ref={grupo} tabIndex={-1} role="group" aria-labelledby={`${id}-titulo`}
+      className="mt-2 space-y-2 rounded-xl border border-border bg-muted/40 p-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+      <p id={`${id}-titulo`} className="text-[13px] font-extrabold text-primary">¿Es este su resultado?</p>
+      <p className={APOYO}>Resultados de este lead guardados {DESDE_MARGEN} la llamada y sin unir a otra. Unir no crea otra gestión.</p>
+      {estado.fase === 'cargando' && <p role="status" className="text-sm">Buscando resultados guardados…</p>}
+      {estado.fase === 'error' && (
+        <div role="alert" className="text-sm">
+          No se pudieron cargar los resultados del lead.
+          <Button size="sm" variant="outline" className="ml-2 text-foreground pointer-coarse:h-11" onClick={() => setIntento((n) => n + 1)}>Reintentar</Button>
+        </div>
+      )}
+      {estado.fase === 'lista' && (estado.resultados.length === 0 ? (
+        <p className="text-sm">
+          No hay resultados de este lead guardados {DESDE_MARGEN} esta llamada y sin unir a otra. Si lo guardaste hace un
+          momento, espera y vuelve a intentar; si no, regístralo con «Registrar resultado».
+        </p>
+      ) : (
+        <ul aria-label="Resultados guardados" className="space-y-2">
+          {estado.resultados.map((r) => (
+            <li key={r.id}>
+              <Button size="sm" variant="outline" className="h-auto min-h-9 whitespace-normal text-left text-foreground pointer-coarse:min-h-11" onClick={() => onConfirmar(r)}>
+                {lineaResultadoGuardado(r, ahora)}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      ))}
+      <Button size="sm" variant="ghost" className="text-foreground pointer-coarse:h-11" onClick={onCancelar}>Cancelar</Button>
     </div>
   )
 }

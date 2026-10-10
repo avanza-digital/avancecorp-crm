@@ -167,6 +167,54 @@ it('la carga y el error no anuncian que todo esté resuelto; permite reintentar 
   expect(cargarMas).toHaveBeenCalledOnce()
 })
 
+// Unir a mano (F4.2.4, B7): «¿Es este su resultado?».
+const RESULTADO = {
+  id: 'act1', lead_id: 'l2', tipo: 'llamada_no_contestada', creado_en: '2026-10-05T15:50:00Z', autor_nombre: 'ANA SOTO',
+  metadata: { evento: 'resultado_llamada', resultado: 'no_contesto' },
+}
+
+it('unir a mano: pide los candidatos al abrir, los lista con quién los guardó; elegir uno avisa y devuelve el foco al título', async () => {
+  const user = userEvent.setup()
+  const onBuscarResultados = vi.fn(async () => [RESULTADO])
+  const onUnir = vi.fn()
+  montar({ pendientes: [fila('e1')], onBuscarResultados, onUnir })
+  await user.click(screen.getByRole('button', { name: 'Unir a un resultado guardado' }))
+  const panel = screen.getByRole('group', { name: '¿Es este su resultado?' })
+  expect(panel).toHaveFocus()
+  expect(onBuscarResultados).toHaveBeenCalledWith(expect.objectContaining({ evento_id: 'e1' }), expect.any(AbortSignal))
+  await user.click(await within(panel).findByRole('button', { name: 'No contestó · guardado a las 10:50 · por ANA SOTO' }))
+  expect(onUnir).toHaveBeenCalledWith(expect.objectContaining({ evento_id: 'e1' }), RESULTADO)
+  await waitFor(() => expect(screen.getByRole('heading', { name: 'Llamadas del celular' })).toHaveFocus())
+})
+
+it('unir a mano: con error permite reintentar; sin candidatos lo dice; cancelar devuelve el foco al botón', async () => {
+  const user = userEvent.setup()
+  const onBuscarResultados = vi.fn().mockRejectedValueOnce(new Error('caída')).mockResolvedValueOnce([])
+  montar({ pendientes: [fila('e1')], onBuscarResultados, onUnir: vi.fn() })
+  await user.click(screen.getByRole('button', { name: 'Unir a un resultado guardado' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('No se pudieron cargar los resultados del lead.')
+  await user.click(screen.getByRole('button', { name: 'Reintentar' }))
+  // El texto dice el margen real del servidor (desde 10 min antes), no «después de la llamada» (revisión del #251).
+  expect(await screen.findByText(/No hay resultados de este lead guardados desde 10 minutos antes de esta llamada y sin unir a otra/)).toBeInTheDocument()
+  expect(screen.getByText(/^Resultados de este lead guardados desde 10 minutos antes de la llamada/)).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Cancelar' }))
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Unir a un resultado guardado' })).toHaveFocus())
+})
+
+it('unir a mano: solo con las dos acciones y en filas con lead; con otra acción en curso espera', () => {
+  const { unmount } = render(<LlamadasCelular pendientes={[fila('e1')]} resueltas={[]} ahora={AHORA} busqueda={{ demo: true, leadsLocales: [] }}
+    onRegistrar={vi.fn()} onElegirLead={vi.fn()} onDescartar={vi.fn()} onAbrirFicha={vi.fn()} />)
+  expect(screen.queryByRole('button', { name: 'Unir a un resultado guardado' })).not.toBeInTheDocument()
+  unmount()
+  montar({
+    pendientes: [fila('e1'), fila('e2', { identificacion: 'ambiguo', atencion: 'por_revisar', lead_id: null, lead_nombre: null })],
+    onBuscarResultados: vi.fn(async () => []), onUnir: vi.fn(), ocupado: 'e1',
+  })
+  const botones = screen.getAllByRole('button', { name: 'Unir a un resultado guardado' })
+  expect(botones).toHaveLength(1)
+  expect(botones[0]).toBeDisabled()
+})
+
 it('tras confirmar el descarte el foco queda en el encabezado estable de la lista', async () => {
   const user = userEvent.setup()
   montar({ pendientes: [fila('e1')] })

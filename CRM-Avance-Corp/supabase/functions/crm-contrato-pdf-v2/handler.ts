@@ -3,7 +3,7 @@ import { CronogramaIncoherenteError } from "./anexo-v1.ts";
 
 export const CONTRATO_PDF_BUCKET = "contratos-generados";
 export const CONTRATO_DOCUMENTOS_BUCKET = "documentos";
-export const CONTRATO_PDF_TEMPLATE_VERSION = "contrato-aep-17-v9";
+export const CONTRATO_PDF_TEMPLATE_VERSION = "contrato-aep-17-v10";
 export const CONTRATO_PDF_MAX_BYTES = 10 * 1024 * 1024;
 export const CONTRATO_PDF_MAX_REQUEST_BYTES = 2 * 1024;
 
@@ -49,7 +49,7 @@ export type RenderResult = {
 export type RenderAnexoResult = RenderResult & { nombreArchivo: string };
 
 /** Versión de la plantilla del anexo imprimible (documento aparte del contrato). */
-export const ANEXO_PDF_TEMPLATE_VERSION = "anexo-cronograma-v1";
+export const ANEXO_PDF_TEMPLATE_VERSION = "anexo-cronograma-v2";
 
 export interface DependenciasContratoPdfV2 {
   crearActor(token: string): ActorContratoPdfV2;
@@ -222,10 +222,15 @@ function tieneControl(valor: string): boolean {
 
 function versionJobLegible(valor: unknown): valor is string {
   return valor === "contrato-aep-17-v2" ||
+    valor === "contrato-aep-17-v3" ||
+    valor === "contrato-aep-17-v4" ||
     valor === "contrato-aep-17-v5" ||
     valor === "contrato-aep-17-v6" ||
     valor === "contrato-aep-17-v7" ||
     valor === "contrato-aep-17-v8" ||
+    // Leer un PDF sellado no vuelve a dibujarlo. La v9 sigue siendo legible
+    // aunque las emisiones nuevas usen la v10.
+    valor === "contrato-aep-17-v9" ||
     valor === CONTRATO_PDF_TEMPLATE_VERSION;
 }
 

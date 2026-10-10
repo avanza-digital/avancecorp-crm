@@ -59,7 +59,9 @@ Las tres notificaciones que puede mostrar la macro (ninguna lleva el número):
 
 | Lo que ve | Causa más probable | Qué hacer | Qué NO hacer |
 | --- | --- | --- | --- |
-| **Al colgar no se abre la encuesta** | MacroDroid desactivado (días gratis vencidos), una macro apagada o el ajuste «Abrir vínculos admitidos» perdido | Revisar §1.2. Si dice «desactivado»: Inicio → «Añadir Días Gratuitos» → encender. Revisar «Abrir vínculos admitidos» (`macrodroid.md` §2). La llamada no se pierde si el aviso llegó: registrarla desde «Celular» → «Pendientes» | No desinstalar MacroDroid: Android suele borrar sus datos, y con ellos las macros, la cola y la clave (no probado) |
+| **Al colgar no se abre la encuesta** | MacroDroid desactivado (días gratis vencidos), una macro apagada o el ajuste «Abrir vínculos admitidos» perdido | Revisar §1.2. Si dice «desactivado»: Inicio → «Añadir Días Gratuitos» → encender. Revisar «Abrir vínculos admitidos» (`macrodroid.md` §2). La llamada no se pierde si el aviso llegó: registrarla desde «Celular» → «Pendientes» | No desinstalar MacroDroid: Android suele borrar sus datos, y con ellos las macros, la cola y la clave (no probado). En un retiro definitivo sí se puede quitar (§3.5) |
+| **Al colgar no se abre la encuesta, la llamada no está en «Pendientes» y la tarjeta sigue «Al día»** | A MacroDroid le quitaron el permiso **«Registro de llamadas»** (hallazgo H-PERMISO, probado en C1 el 09/10): no hay encuesta ni pendiente y la tarjeta sigue «Al día», aunque el celular manda igual una petición (202). Hipótesis, no comprobada: sin ese permiso Android entrega el número vacío. El latido no depende de ese permiso | Ajustes → Aplicaciones → MacroDroid → Permisos → «Teléfono» y «Registro de llamadas» en **«Permitir»**. Registrar esa llamada desde la ficha del lead. Después, una llamada de control: debe abrir la encuesta | No reinstalar MacroDroid para «arreglarlo» |
+| **La encuesta se abrió con el número de otra persona** (la que llamó mientras el analista hablaba) | La macro del celular no tiene el arreglo del 09/10 (`numero_saliente`): con una llamada en espera tomaba el número de la entrante (hallazgo H-ESPERA) | Cerrar esa encuesta sin guardar. Revisar «Celular» → **«Pendientes»**: la macro anterior igual mandó el aviso con el número de quien entró en espera, y si ese número es de un lead elegible quedó ahí como una saliente que no ocurrió → **«Descartar» → «Error de captura»**. Actualizar la macro según `macrodroid.md` §3c (Pasos 1, 2 y 4) y registrar la llamada verdadera en su lead | No guardar un resultado en el lead equivocado. No registrar ni asociar esa fila de «Pendientes» como si fuera la llamada real |
 | **Se abren dos encuestas** | «Piloto F0» quedó encendida | Apagar «Piloto F0» | — |
 | **La llamada no aparece en «Pendientes» ni en «Qué pasó hoy»** | (a) el celular no tenía internet: el aviso espera en la cola y sale solo en ≤ 5 min al volver la red; (b) el número no es de un lead de su cartera (nada se guarda, por diseño); (c) era una **entrante** (no se capturan); (d) el CRM del celular está abierto con otra cuenta | (a) esperar 5 min con internet y mirar `cola_llamadas`; (b) y (c) es lo esperado; (d) la cuenta del CRM en el celular tiene que ser la del analista asignado | No reenviar a mano entradas de la cola |
 | **Clave que ya no vale** (notificación) | Se rotó la clave o se cerró el celular en la tarjeta | Gerencia comprueba si la asignación sigue vigente y el analista sigue activo. Si solo se rotó la clave, pegar la nueva en `clave_celular`, conservar las colas y poner `ultimo_latido` en 0; si la nueva se perdió, Gerencia rota otra vez (§3.2). Si se cerró la asignación o el analista está de baja, seguir el procedimiento de extravío, reemplazo o baja (§3.3–§3.5) | No vaciar las colas durante una rotación del mismo analista. No intentar rotar una asignación cerrada ni reenviar su cola con la clave de otro analista |
@@ -67,6 +69,7 @@ Las tres notificaciones que puede mostrar la macro (ninguna lleva el número):
 | **Latido rechazado** (notificación) | El cuerpo del latido está mal armado en la macro | Revisar el latido contra `macrodroid.md` §3c (paso «Enviar cola») | — |
 | **Sin latido · N h** (tarjeta) | Celular apagado o sin internet, MacroDroid desactivado o la batería lo frena | Revisar §1.2 y que la batería de MacroDroid esté «Sin restricciones» (`macrodroid.md` §2) | — |
 | **Nunca habló** después de asignar o rotar | Falta poner `ultimo_latido` en 0: sin eso, el primer latido puede tardar hasta 6 h (hallazgo H-P11) | Poner `ultimo_latido` = 0; en ≤ 5 min pasa a «Al día» | — |
+| **Reloj desfasado** (tarjeta) | La hora del celular difiere de la del servidor en más de 5 min (hora automática apagada) | Encender «Fecha y hora automáticas» y **después** poner `ultimo_latido` en 0: si el latido sale antes de corregir la hora, la tarjeta sigue marcando el desfase hasta el siguiente (6 h). Las llamadas se unen igual, pero su hora queda corrida (probado en C1 el 09/10). Por revisar (10/10, sin probar): la unión a mano rechaza un resultado si el reloj iba adelantado más de 10 min | — |
 | **Cola atascada** (tarjeta «En cola» > 0 que no baja) | Sin internet, clave que ya no vale o MacroDroid desactivado | Resolver la causa: la cola sale sola | No borrar entradas de la cola |
 | Al guardar sale **«Solo una tarea de llamada pendiente se cierra con el resultado de una llamada»** | Si todavía propone cerrar un **WhatsApp**, puede ser una versión anterior al #232 (H-WA, publicado y probado en C1 el 09/10). El mismo mensaje aparece si la tarea dejó de estar pendiente o disponible | Seguir §2.1: conservar la encuesta, revisar la tarea y confirmar el guardado antes de actualizar | No cerrar ni recargar con cambios sin guardar. No crear otro registro para un guardado por confirmar |
 | **Guardó el resultado equivocado** | — | Pulsar **Deshacer** en el aviso y, en «Celular» → «Qué pasó hoy», **«Registrar el corregido»** en la fila deshecha. Queda unido a la misma llamada. La fila sigue diciendo «Registrada al colgar»: es lo esperado | No registrar el corregido desde la ficha: no se une a la llamada |
@@ -88,6 +91,56 @@ Las tres notificaciones que puede mostrar la macro (ninguna lleva el número):
    actualizar»; si hace falta cerrar y abrir el CRM, hacerlo recién entonces. Soporte comprueba que se use
    `build-20261009T181538004Z` o una versión posterior. Si no se pudo guardar, conservar el contenido con soporte
    antes de salir: una copia de la nota no equivale a un resultado registrado en el CRM.
+
+### 2.2 Reasignación, números compartidos, corrección y revocación (F7.2.2)
+
+Lo que está **probado en C1** lleva su fecha; lo demás sale del código (`20261005143843` §asociar, `20261006162813`
+§ingesta y §enlaces) y no se ha probado con el teléfono.
+
+**a) Reasignaron el lead** (probado: P10, 08/10). Las llamadas del celular **siguen al dueño actual del lead**
+(decisión 7): el analista anterior deja de verlas y el nuevo dueño las ve en «Pendientes» y en «Qué pasó hoy». Las
+cifras del día no se mezclan: la llamada cuenta para quien la hizo (hallazgo H-P10: hoy la pantalla dice «tu celular»
+aunque no sea suya; en arreglo). **Límite actual (por el código):** si quedó una llamada del anterior en «Pendientes»,
+el nuevo dueño **no puede unirla**: la llamada es del celular del otro analista y el servidor responde «no se unió a la
+llamada del celular: la llamada es de otro celular». Si la registra desde «Pendientes», el resultado se guarda en el
+lead pero la fila **sigue pendiente**, y registrarla otra vez duplicaría la gestión. **Qué hacer:** registrar la
+gestión real **una sola vez**, desde la ficha del lead; dejar la fila pendiente (caduca sola a los 30 días) o, si
+estorba, «Descartar» → «Otro motivo» escribiendo «lead reasignado» (un descarte no cuenta como gestión). El recorrido
+para que el nuevo dueño la una está por diseñar junto con F4.2.4, conservando permisos y a quién se atribuye.
+**No:** registrar la misma llamada dos veces ni pedir que «devuelvan» la llamada al anterior.
+**Por revisar (10/10, revisión del #251; sale del código, sin probar):** la unión a mano de F4.2.4 («Unir a un
+resultado guardado») no mira quién hizo la llamada ni quién guardó el resultado, así que el nuevo dueño **sí** podría
+unir esa fila a un resultado del lead si el lead no está descartado. Hasta decidirlo con Miguel y probarlo, seguir el
+«Qué hacer» de arriba.
+
+**b) Dos personas con el mismo número.**
+- *Dos leads del mismo analista o equipo:* la llamada llega como **«por revisar»** y la fila ofrece **«Elegir el lead»**,
+  solo entre los leads que tienen ese número y están en su ámbito (el servidor rechaza cualquier otro: «Ese lead no
+  tiene el número de la llamada»). Elegir no crea gestión; después, «Registrar resultado». *(Por el código; sin probar
+  en C1.)*
+- *El número está en un lead abierto de **otro** analista, en un cliente activo, o en «No contactar»/vetado:* el
+  servidor **no guarda la llamada para nadie** (`llamada_celular_contacto_admitido`). Al colgar, la encuesta avisa
+  «Ningún lead de tu cartera tiene el número…» y, si figura en otro, lo dice sin abrirlo (probado el 09/10 con un
+  cliente convertido). No aparece en «Pendientes». **Qué hacer:** nada en el CRM; si cree que el lead debería ser suyo,
+  pedir la reasignación a su supervisor. **No:** crear un lead nuevo con ese número (sería un duplicado y el servidor
+  seguiría sin tomar la llamada).
+
+**c) Corregir una asociación** (la llamada quedó en el lead equivocado).
+- *Mientras está pendiente:* la pantalla **no ofrece volver a elegir el lead** una vez que la llamada ya tiene uno
+  («Elegir el lead» solo aparece cuando no lo tiene). El servidor sí lo admitiría, solo entre leads con ese número:
+  la acción puede entregarse en otro PR. Hoy: **«Descartar» → «Error de captura»**, registrar la gestión en el lead
+  correcto desde su ficha (quedará sin unión) y avisar a soporte.
+- *Ya registrada o descartada:* el lead **ya no se puede cambiar** («La llamada ya está registrada o descartada»).
+  Deshacer + «Registrar el corregido» corrigen el **resultado**, no el lead (probado: P9, 09/10). Si el resultado se
+  guardó en el lead equivocado: **Deshacer**, registrar la llamada en el lead correcto **desde su ficha** (quedará sin
+  unión) y avisar a soporte para dejarlo anotado. La unión equivocada se conserva como historial (regla de Miguel: no
+  se borran filas).
+- *Descartada por error:* también es definitiva; registrar desde la ficha del lead si hacía falta.
+
+**d) Revocar una unión** (separar la llamada de su resultado): **no existe** como botón. La unión solo se **mueve** con
+«Registrar el corregido» (séptima migración) y nunca se borra. Lo más cercano: **Deshacer** el resultado; la llamada
+queda «deshecha sin corregir» hasta que se registre el corregido. Si hiciera falta revocar de verdad, es una decisión de
+Miguel (toca la base). **No:** pedir a soporte que borre la fila.
 
 ## 3. Operaciones de gerencia (Configuración › Celulares)
 
@@ -122,20 +175,55 @@ Comprobado en C1 el 08/10 (P11).
 1. **Antes, la cola del celular viejo en 0** (con internet, esperar a que se vacíe).
 2. Tarjeta → **Cerrar** → **«Reemplazo por otro celular»**.
 3. Alta del nuevo con la misma etiqueta (§3.1).
+4. **En el celular viejo**, si no pasa a otro analista: los pasos 4 a 6 de §3.5. Cerrar no lo apaga: sin esos pasos
+   sigue capturando las salientes y reintentando el envío (revisión del #251, 10/10).
 
 Si se cierra con avisos en cola y esa cola se envía después con una clave nueva, esas llamadas se atribuyen al analista
 de la clave nueva. La tarjeta lo avisa en ámbar al cerrar.
 
-### 3.5 El analista deja el CRM
+### 3.5 El analista deja el CRM o deja de captar llamadas con su celular
+
+Mismo motivo de cierre en los dos casos: «Baja del analista» (la tarjeta lo describe como «Dejó el CRM o ya no capta
+llamadas con este celular»). También sirve para retirar un celular recién dado de alta (`ACTIVAR-C2.md` §6).
 
 1. **Antes, la cola de su celular en 0.**
-2. Su baja en «Usuarios y jerarquía». La fila del celular pasa a «Analista de baja» y ya no se puede rotar.
-3. Tarjeta → **Cerrar** → **«Baja del analista»**.
-4. Si el celular físico pasa a otro analista: alta (§3.1) con la misma etiqueta y el analista nuevo. En el celular,
+2. Si deja el CRM: su baja en «Usuarios y jerarquía». La fila del celular pasa a «Analista de baja» y ya no se puede
+   rotar.
+3. Tarjeta → **Cerrar** → **«Baja del analista»**. La clave muere al instante y el servidor rechaza (401) todo lo que
+   mande ese celular, sin guardar nada. Pero el celular **no recibe ninguna orden**: con las macros encendidas sigue
+   detectando las salientes, abriendo la encuesta, guardando cada aviso con el número en `cola_llamadas` y reintentando
+   el envío en cada vuelta. Por eso siguen los pasos 4 a 6, **en el celular** y en este orden.
+4. MacroDroid → Macros: **apagar** «Llamadas-Salientes», «Llamadas-Al colgar» y «Llamadas-Enviar cola».
+5. **Vaciar `cola_llamadas` y `errores_llamadas`**: abrir cada una y borrar **cada** entrada con «Eliminar clave»,
+   como en el alta (`ACTIVAR-C1.md` §3; no «Borrar valor», ni la X del diccionario, ni el tacho de la lista). Solo en
+   un retiro definitivo y después del paso 3: vaciar la cola de una asignación que sigue vigente pierde sus avisos (por
+   eso el paso 1).
+6. Dejar **vacías** `numero_saliente` y `clave_celular`. El **«Registro del sistema»** de MacroDroid (Inicio) también
+   guarda lo que hizo cada macro, con el número en cada «Abrir sitio web»: en un retiro definitivo, borrarlo también
+   (la opción exacta está por confirmar en C1).
+7. Si el celular físico pasa a otro analista: alta (§3.1) con la misma etiqueta y el analista nuevo. En el celular,
    la cuenta del CRM tiene que ser la del nuevo.
+8. Si no pasa a nadie, en este retiro definitivo también se puede **quitar MacroDroid** (el «no desinstalar» de §2 es
+   para los casos de soporte). Siempre después de los pasos 4 a 6: que Android borre sus datos al desinstalar no está
+   probado.
+
+En el CRM no se borra nada: el historial de sus llamadas se conserva y sigue los plazos de retención.
+
+**Comprobar que el retiro quedó completo** (si el celular no pasa a otro analista): desde ese celular, una llamada de
+prueba a un número del equipo. Después:
+- **No** se abrió la encuesta.
+- `cola_llamadas` sigue **sin entradas**.
+- Pasados al menos 5 minutos (una vuelta del intervalo), en MacroDroid → Inicio → **«Registro del sistema»** no
+  aparece ninguna «Solicitud HTTP» posterior a la llamada.
+
+Si se quitó MacroDroid, basta con que no se abra la encuesta. Si algo de lo anterior falla, repetir los pasos 4 a 6.
+
+**Prueba de apagado (F7.2.3 del plan):** un 401 (o la notificación «La clave de este celular ya no vale…») solo prueba
+que la clave murió, no que el celular dejó de capturar. Esa tarea no se cierra sin esta comprobación en el celular.
 
 §3.3–§3.5 siguen los flujos repasados con Jhosep el 06/10 (`F4C-F4D-PLAN-CORTO.md`). En C1 solo se probaron el alta y
-la rotación: cerrar por extravío, reemplazo o baja **no se ha probado en un celular** (sí en el banco de pruebas).
+la rotación: cerrar por extravío, reemplazo o baja **no se ha probado en un celular** (sí en el banco de pruebas). Los
+pasos en el celular de §3.5 y su comprobación (10/10) tampoco se han probado todavía.
 
 ## 4. Prueba rápida de que todo funciona (2 minutos)
 
@@ -165,4 +253,5 @@ Deja una gestión real en las cifras del analista: usar un lead de prueba propio
 
 Esta guía junta en un solo lugar cómo saber si un celular está bien, qué hacer cuando algo falla y cómo dar de alta,
 cambiar la clave o retirar un celular, sin que nadie tenga que ver ni pasar la clave. Casi todo lo de aquí se probó en
-C1 contra producción; lo que no (cerrar un celular por pérdida, cambio o baja) está marcado como no probado.
+C1 contra producción; lo que no (cerrar un celular por pérdida, cambio o baja, y apagar la captura en el propio
+celular) está marcado como no probado.
