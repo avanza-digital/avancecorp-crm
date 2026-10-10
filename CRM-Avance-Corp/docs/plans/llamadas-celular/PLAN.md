@@ -131,7 +131,7 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 | F0 · Piloto y línea base | 4 | 1/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-2) |
 | F1 · Formulario único y match exacto | 4 | 12/12 | Hecha | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-8) |
 | F2 · Núcleo confiable | 4 | 13/13 | Hecha | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-14) |
-| F3 · Captura y sincronización | 4 | 10/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-20) |
+| F3 · Captura y sincronización | 4 | 11/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-20) |
 | F4 · Pendientes y conciliación | 4 | 8/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-66) |
 | F5 · Jev para identificación asistida | 5 | 0/15 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-72) |
 | F6 · Gerencia y calidad | 4 | 0/12 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-78) |
@@ -149,7 +149,7 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 
 **Estado:** en curso · **Avance:** 0/3 · **Responsable:** Jhosep.
 
-- [ ] **F0.1.1** Seleccionar 2–3 celulares y registrar marca, Android, navegador, automatizador y restricciones de batería. — EN CURSO: C1 registrado: Samsung Galaxy A16 (SM-A165M), Android 16, Chrome predeterminado, MacroDroid 5.67 (Play Store, sep. 2026), batería «No restringido», «Aparecer encima» activado. 09/10 (S1): una sola SIM; «Suspender aplicaciones sin uso» apagado y MacroDroid fuera de «Aplicaciones suspendidas» y de «en suspensión profunda» (no está en «Aplicaciones sin autosuspensión», y con la suspensión apagada no hace falta). MacroDroid gratis renovado cada 3 días: Pro no se compra durante las pruebas (decisión de Jhosep, 08/10). Faltan 1–2 celulares más.
+- [ ] **F0.1.1** Seleccionar 2–3 celulares y registrar marca, Android, navegador, automatizador y restricciones de batería. — EN CURSO: C1 registrado: Samsung Galaxy A16 (SM-A165M), Android 16, Chrome predeterminado, MacroDroid 5.67 (Play Store, sep. 2026), batería «No restringido», «Aparecer encima» activado. 09/10 (S1): una sola SIM; «Suspender aplicaciones sin uso» apagado y MacroDroid fuera de «Aplicaciones suspendidas» y de «en suspensión profunda». MacroDroid gratis renovado cada 3 días: Pro no se compra durante las pruebas (decisión de Jhosep, 08/10); Pro corporativo hasta S/57 sigue autorizado (Miguel, 10/10). C2 y C3 disponibles el lunes 12/10 (Miguel, #249): registrarlos y activarlos.
 - [ ] **F0.1.2** Asignar analistas, soporte y responsable del registro de incidencias. — EN CURSO: Jhosep asume analista piloto (C1), soporte y registro de incidencias mientras haya un solo celular.
 - [ ] **F0.1.3** Comunicar finalidad y tratamiento de datos; instalar la PWA y configurar permisos del piloto. — EN CURSO: C1 completo: PWA instalada, permisos Teléfono y Registro de llamadas en «Permitir» (comprobados en Ajustes el 09/10, S1), «Aparecer encima», batería sin restricciones y, desde el 30/09, «Abrir vínculos admitidos» + dominio crm.miavance.com en la app (necesario para que la URL la abra). Aviso: no aplica al propio responsable. Pendiente para los próximos celulares: el aviso de tratamiento de REGISTRO.md §3 quedó obsoleto desde el 07/10 (el número ya viaja al servidor) y hay que actualizarlo.
 
@@ -170,7 +170,7 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 **Estado:** en curso · **Avance:** 0/3 · **Responsable:** Jhosep.
 
 - [ ] **F0.3.1** Probar al menos diez salientes y diez entrantes por equipo, además de atendidas, perdidas, rechazadas y canceladas. — EN CURSO: C1: salientes con número (29/09) y muchas más en las pruebas de C1 (02/10, 06/10 y 07–09/10 contra la Edge: 19 = 19 avisos el 07–08/10). Casos en C1: atendida (07/10, 45 s), no atendida y cancelada (02/10, prueba 5) y rechazada (09/10, S2: un solo aviso con el número de la saliente). Las entrantes están bloqueadas por la decisión 2 de Miguel; #16 aprobada (07/10): F0 se acepta con diez salientes por equipo y los casos especiales; las diez entrantes pasan a la aceptación de la #14. Falta: clasificar las diez salientes por caso en REGISTRO.md y C2/C3.
-- [ ] **F0.3.2** Validar oculto, fijo, internacional, doble SIM si aplica, enlace con +, login y retorno a PWA. — EN CURSO: C1: notificación con número y nombre PASS; la URL abre la PWA con «Abrir vínculos admitidos» (30/09); el número sobrevive al login (F1.2.2). 07/10 contra el receptor: saliente a un FIJO capturada y mostrada con +51 («ningún lead», correcto: no es lead); saliente a un lead propio con celular → se abrió su encuesta (REGISTRO.md §5h). 09/10 (S1): una sola SIM. 09/10 (S2): marcar «+51» a mano → PASS; llamada con la sesión cerrada → al entrar se abrió la encuesta y quedó unida (PASS, login real con el id). Propuestas para Miguel (según Jhosep: un solo chip por celular corporativo y Avance no llama al extranjero): doble SIM e internacional NO APLICA; «oculto» no aplica a salientes (pasarlo a la #14). Si las acepta, en C1 no queda nada pendiente de esta tarea.
+- [ ] **F0.3.2** Validar oculto, fijo, internacional, doble SIM si aplica, enlace con +, login y retorno a PWA. — EN CURSO: C1: notificación con número y nombre PASS; la URL abre la PWA con «Abrir vínculos admitidos» (30/09); el número sobrevive al login (F1.2.2). 07/10 contra el receptor: saliente a un FIJO capturada y mostrada con +51 («ningún lead», correcto: no es lead); saliente a un lead propio con celular → se abrió su encuesta (REGISTRO.md §5h). 09/10 (S1): una sola SIM. 09/10 (S2): marcar «+51» a mano → PASS; llamada con la sesión cerrada → al entrar se abrió la encuesta y quedó unida (PASS, login real con el id). 10/10 (Miguel, #249): doble SIM e internacional fuera del alcance del piloto (un solo chip; sin llamadas al extranjero), no contados como pruebas hechas; «oculto» y entrantes siguen para la #14. En C1 no queda nada; falta por equipo (C2/C3).
 - [ ] **F0.3.3** Probar pantalla bloqueada, batería, tres noches y ensayo sintético de cola, reinicio y respuesta HTTP. — EN CURSO: C1, noches: 29→30/09 PARCIAL (macro activa en la mañana); 07→08/10 macro viva toda la noche (reintentos cada 5 min en el registro de MacroDroid) pero sin internet de 01:15 a ~10:35 (DNS); 08→09/10 PASS (latidos 200 a las 18:40, 00:40 y 06:45, L3); 09→10/10 PASS (latidos 200 a las 18:45, 00:45 y 06:50). Ya probado en C1: cola sin red (A3), reinicio con aviso pendiente (A6), 503 (A4), 400 (A5), 401 que conserva la cola (P4), 429 (07/10), pantalla bloqueada (07/10), batería al 7 % sin efecto (08/10) y «Ahorro de energía» (09/10). En C1 no queda nada pendiente de esta tarea; falta por equipo (C2/C3) o que Miguel acepte cerrar F0 solo con C1.
 
 **Evidencia / fecha de validación:** pendiente.
@@ -333,7 +333,7 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 | Listar/alta/baja/rotar celular | Capacidad de administración resuelta en servidor |
 | Registrar salud | Credencial de equipo, datos mínimos; heartbeat no demuestra captura sana |
 
-**Seguimiento de F3:** 10/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
+**Seguimiento de F3:** 11/13 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
 
 ### F3.1 · Publicar el contrato de puertas
 
@@ -357,12 +357,12 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 
 ### F3.3 · Persistir y enviar
 
-**Estado:** en curso · **Avance:** 3/4 · **Responsable:** Jhosep (pruebas en C1) · Claude (receptor de pruebas).
+**Estado:** hecha · **Avance:** 4/4 · **Responsable:** Jhosep (pruebas en C1) · Claude (receptor de pruebas).
 
 - [x] **F3.3.1** Crear ID, hora y payload una vez; guardar en cola local antes del POST.
 - [x] **F3.3.2** Reintentar red caída, 429 y reinicio; retirar solo tras confirmación y visibilizar errores permanentes.
 - [x] **F3.3.3** Parsear respuesta y abrir UUID confirmado; mantener fallback manual si falta UUID.
-- [ ] **F3.3.4** Correlacionar doble trigger y validar dirección/duración por evento sin confundir desconocido con cero. — EN CURSO: En C1 (02/10): una sola notificación y un solo aviso por llamada en más de 8 llamadas, incluidas colgar antes de que contesten y sin respuesta (prueba 5). La dirección la marca «Llamadas-Salientes» y las entrantes no generan aviso (A2). La duración no se envía (MacroDroid no la da) y llega null, no 0. 09/10 (S1): «Llamada en espera» activada y una sola SIM. 09/10 (S2): la llamada en espera hacía que la macro usara el número de la entrante (hallazgo H-ESPERA); arreglado en la macro de C1 (guarda el número al marcar, numero_saliente) y probado: ignorar, rechazar y contestar → PASS, siempre con el número de la saliente. Para marcarla falta que Miguel acepte doble SIM NO APLICA (un solo chip por celular corporativo); entrantes, con la #14.
+- [x] **F3.3.4** Correlacionar doble trigger y validar dirección/duración por evento sin confundir desconocido con cero.
 
 **Evidencia / fecha de validación:** pendiente.
 
@@ -403,7 +403,7 @@ La migración puede agrupar campos en una tabla: justificar cada entidad física
 - [x] **F4.2.1** Propagar contexto del evento y confirmación real de actividad_id mediante formulario/store.
 - [x] **F4.2.2** Componer v4 + enlace en transacción sin alterar núcleo sellado; revisar recibos, replays y locks.
 - [x] **F4.2.3** Si la composición no es viable, implementar intención de enlace persistente y conciliación durable con reintentos.
-- [ ] **F4.2.4** Proponer y confirmar enlace para registros previos o desde PC; nunca decidir solo por ±10 minutos. — BLOQUEADA: Probada e instalada (07/10, H1–H3) en la base: asociación manual a un resultado ya guardado (vía manual); el camino exacto no usa la regla de ±10 minutos. BLOQUEADA en C1/PC (09/10): la pantalla no tiene «¿Es este su resultado?» (B7 de F4B-PLAN-CORTO, sin programar): la app no llama a crm.enlazar_llamada_celular, así que no hay cómo unir a mano desde la pestaña. Decide Miguel si se programa ahora (solo pantalla, sobre la puerta instalada) o después.
+- [ ] **F4.2.4** Proponer y confirmar enlace para registros previos o desde PC; nunca decidir solo por ±10 minutos. — EN CURSO: Probada e instalada (07/10, H1–H3) en la base: asociación manual a un resultado ya guardado (vía manual); el camino exacto no usa la regla de ±10 minutos. 09/10: la pantalla no tiene «¿Es este su resultado?» (B7 de F4B-PLAN-CORTO, sin programar): la app no llama a crm.enlazar_llamada_celular. 10/10: Miguel aprobó programarla ya (#249), solo pantalla sobre la puerta instalada, nuestra sesión; al mismo tiempo diseñar el recorrido del nuevo dueño tras una reasignación y la reasociación de un lead ya identificado (límites documentados en SOPORTE §2.2). Luego publicación y aceptación en C1.
 
 **Evidencia / fecha de validación:** pendiente.
 
