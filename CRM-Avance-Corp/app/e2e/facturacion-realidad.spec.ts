@@ -142,6 +142,29 @@ async function montarFacturacion(
     }
     return route.fulfill({ status: 200, headers: CORS, json: porMes[String(cuerpo.p_mes)] ?? [] })
   })
+  // Fase 4: el inspector consume operaciones. Este fixture sigue siendo local y respeta el ámbito enviado.
+  await page.route('**/rest/v1/rpc/listar_operaciones_facturacion_fn', async (route) => {
+    if (route.request().method() !== 'POST') return route.fallback()
+    const p = route.request().postDataJSON()
+    const filas = (porMes === 'error' ? [] : Object.values(porMes).flat()).filter((f) =>
+      f.dia >= p.p_desde && f.dia <= p.p_hasta && (!p.p_dias || p.p_dias.includes(f.dia)) &&
+      (!p.p_analistas || p.p_analistas.includes(f.analista_id)) && (!p.p_equipo || p.p_equipo === f.supervisor_id) &&
+      (!p.p_sin_analista || f.analista_id == null) && (!p.p_sin_equipo || f.supervisor_id == null) &&
+      (!p.p_tipos || p.p_tipos.includes(f.tipo)) && (!p.p_moneda || p.p_moneda === f.moneda))
+    const ops = filas.flatMap((f) => Array.from({ length: f.operaciones }, () => f))
+    const pagina = p.p_pagina ?? 1; const tamano = p.p_tamano ?? 25
+    return route.fulfill({ headers: CORS, json: { version: 1, pagina, tamano, total: ops.length,
+      totales: (['PEN', 'USD'] as const).flatMap((moneda) => {
+        const propias = filas.filter((f) => f.moneda === moneda)
+        return propias.length ? [{ moneda, operaciones: propias.reduce((n, f) => n + f.operaciones, 0), monto: propias.reduce((n, f) => n + f.capital, 0) }] : []
+      }), filas: ops.slice((pagina - 1) * tamano, pagina * tamano).map((f, i) => ({
+        n: (pagina - 1) * tamano + i + 1, fecha: f.dia, tipo: f.tipo, moneda: f.moneda, monto: f.capital / f.operaciones,
+        anulado: false, analista_id: f.analista_id, analista_nombre: f.analista_nombre, supervisor_id: f.supervisor_id,
+        supervisor_nombre: f.supervisor_nombre, visible: true, cliente_nombre: 'Cliente de ejemplo', estado: 'vigente',
+        ...(f.tipo === 'cooperativa' ? { cierre_externo_id: `ejemplo-${i}`, cooperativa: 'Ejemplo', lead_id: null }
+          : { contrato_id: `ejemplo-${i}`, numero_contrato: `Ejemplo ${i + 1}`, cliente_id: null }),
+      })) } })
+  })
   return { cuerpos }
 }
 
@@ -302,7 +325,7 @@ test('2 · Sin tipo de cambio: «Facturado en soles», un solo reintento que no 
   await expect(area.getByRole('status').filter({ hasText: 'Soles, no llegó el tipo de cambio' })).toHaveCount(1)
   // Un solo botón de reintento: con el aviso a la vista, el del pie no se duplica.
   await expect(reintento).toHaveCount(1)
-  await expect(pie.getByRole('button')).toHaveCount(0)
+  await expect(pie.getByRole('button', { name: 'Reintentar el tipo de cambio' })).toHaveCount(0)
   // El titular no se rotula «Total»…
   const titular = indicador(area, /^Facturado en soles/)
   await expect(cifra(titular)).toHaveText('S/ 20,500')
@@ -321,7 +344,7 @@ test('2 · Sin tipo de cambio: «Facturado en soles», un solo reintento que no 
   await expect(reintento).toHaveCount(1)
   await moneda(area, 'Todo S/').click()
   await expect(noLlego).toBeVisible()
-  await expect(pie.getByRole('button')).toHaveCount(0)
+  await expect(pie.getByRole('button', { name: 'Reintentar el tipo de cambio' })).toHaveCount(0)
 
   // Reintentar NO desmonta el botón: mientras se consulta, el aviso sigue montado, dice
   // «Consultando…», el botón queda aria-disabled y el foco no se pierde. Sin salto de cifras.
@@ -481,7 +504,7 @@ test.describe('6 · Teléfono 390×844, para todo rol', () => {
     await expect(page).toHaveURL(/#\/[\w-]+/)
     await page.evaluate(() => { window.location.hash = '#/facturacion' })
     const tarjetas = page.getByRole('region', { name: 'Facturación por analista' })
-    await expect(tarjetas.getByRole('button', { name: /^Ver el mes completo de Analista Real Uno: total/ })).toBeVisible()
+    await expect(tarjetas.getByRole('button', { name: /^Ver el mes de Analista Real Uno: total/ })).toBeVisible()
     await comprobarTarjetasDeTelefono(page, tarjetas)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     await page.screenshot({ path: info.outputPath('caso6-telefono-supervisor.png') })
@@ -552,8 +575,8 @@ test('8 · A 800×900 las tarjetas conservan los días y el desglose en una regi
   const tarjetas = page.getByRole('region', { name: 'Facturación por analista' })
   await expect(tarjetas).toBeVisible()
   await expect(mallaDe(page)).toHaveCount(0)
-  const ventaAna = tarjetas.getByRole('button', { name: /^ANA PRUEBA,.*1 de octubre: S\/ 12,000 en 1 operación — ver el desglose$/ })
+  const ventaAna = tarjetas.getByRole('button', { name: /^ANA PRUEBA,.*1 de octubre: S\/ 12,000, ver 1 operación$/ })
   await expect(ventaAna).toBeVisible()
   await ventaAna.click()
-  await expect(page.getByRole('dialog')).toContainText('S/ 12,000')
+  await expect(page.locator('.lista-operaciones')).toContainText('S/ 12,000')
 })
