@@ -7,6 +7,7 @@
 import { randomUUID, randomInt } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
 
 if (process.argv.length === 3 && process.argv[2] === '--origen-concreto') {
   await import('./ranking-origen/test-rls-origen-concreto.mjs');
@@ -9251,10 +9252,12 @@ async function testGestionDiariaResultado(sessions, seed) {
   }
 }
 
+const MES_FACTURACION = '2026-01-01';
+
 async function testFacturacionDiaria(sessions, seed) {
   console.log('\n— Facturación diaria (día x analista x supervisor) —');
   const FN = 'facturacion_diaria_fn';
-  const MES = '2026-01-01';
+  const MES = MES_FACTURACION;
   const MES_SIG = '2026-02-01';
 
   // Salto RUIDOSO si la funcion aun no esta en esta base; con
@@ -9456,25 +9459,381 @@ async function testFacturacionDiaria(sessions, seed) {
         and not has_function_privilege('anon', p.oid, 'EXECUTE')
         and not has_function_privilege('service_role', p.oid, 'EXECUTE')) is true
   `) === 1, `${FN}: la puerta es DEFINER de postgres y solo authenticated la ejecuta`);
-  //    CENSO DE LLAMADORES (auditor-rls 09/10): el núcleo NO tiene verja y devuelve toda la empresa.
-  //    Su único llamador es _visibles, y a _visibles solo la llaman las puertas de esta lista
-  //    cerrada (la de la lista, 3B, se añade aquí a mano). Las funciones SQL no registran sus
-  //    dependencias, así que el censo lee los cuerpos.
-  check(contarFueraDeBanda('Facturación 3A: censo de llamadores', `
+  // L.3B. Contrato exacto de ambas piezas nuevas: presencia, dueño, lenguaje, volatilidad, configuración y ACL.
+  const FIRMA_LISTA = '(date,date,date[],uuid[],boolean,uuid,boolean,text[],text,integer,integer)';
+  check(contarFueraDeBanda('Facturación 3B: contratos de puerta y núcleo', `
+    select count(*) from (values
+      ('private.facturacion_lista${FIRMA_LISTA}', false, 'plpgsql', '{postgres=X/postgres}'),
+      ('crm.listar_operaciones_facturacion_fn${FIRMA_LISTA}', true, 'sql', '{postgres=X/postgres,authenticated=X/postgres}')
+    ) e(firma, definidor, lenguaje, acl)
+    join pg_proc p on p.oid = to_regprocedure(e.firma) join pg_language l on l.oid = p.prolang
+    where (p.prosecdef = e.definidor and p.provolatile = 's' and l.lanname = e.lenguaje
+      and pg_get_userbyid(p.proowner) = 'postgres' and p.proacl::text = e.acl
+      and p.prorettype = 'jsonb'::regtype and not p.proretset and p.pronargdefaults = 9
+      and cardinality(p.proconfig) = 1 and p.proconfig[1] in ('search_path=', 'search_path=""')
+      and not has_function_privilege('anon', p.oid, 'EXECUTE')
+      and not has_function_privilege('service_role', p.oid, 'EXECUTE')
+      and has_function_privilege('authenticated', p.oid, 'EXECUTE') = e.definidor) is true
+  `) === 2, `${FN}: puerta 3B SQL/DEFINER solo authenticated y núcleo plpgsql/INVOKER solo postgres, ambos STABLE`);
+  // CENSO cerrado. El núcleo sin verja solo admite _visibles; esta admite cifra y lista; lista solo su puerta.
+  check(contarFueraDeBanda('Facturación 3B: censo de llamadores', `
     select count(*) from pg_proc p
     where (p.prosrc ~* 'private\\.facturacion_operaciones\\s*\\('
            and p.oid is distinct from to_regprocedure('private.facturacion_operaciones_visibles(timestamptz,timestamptz)'))
        or (p.prosrc ~* 'private\\.facturacion_operaciones_visibles\\s*\\('
-           and p.oid is distinct from to_regprocedure('crm.facturacion_diaria_fn(date)'))
-  `) === 0, `${FN}: el núcleo sin verja solo lo llama _visibles, y a _visibles solo la lista cerrada de puertas`);
-  //    Y el censo no es vacuo: la cadena puerta → _visibles → núcleo existe en el catálogo.
-  check(contarFueraDeBanda('Facturación 3A: la cadena existe', `
+           and p.oid is distinct from to_regprocedure('crm.facturacion_diaria_fn(date)')
+           and p.oid is distinct from to_regprocedure('private.facturacion_lista${FIRMA_LISTA}'))
+       or (p.prosrc ~* 'private\\.facturacion_lista\\s*\\('
+           and p.oid is distinct from to_regprocedure('crm.listar_operaciones_facturacion_fn${FIRMA_LISTA}'))
+  `) === 0, `${FN}: llamadores exactamente dentro de la lista cerrada 3A + 3B`);
+  check(contarFueraDeBanda('Facturación 3B: las dos cadenas existen', `
     select count(*) from pg_proc p
     where (p.oid = to_regprocedure('private.facturacion_operaciones_visibles(timestamptz,timestamptz)')
            and p.prosrc ~* 'private\\.facturacion_operaciones\\s*\\(')
        or (p.oid = to_regprocedure('crm.facturacion_diaria_fn(date)')
            and p.prosrc ~* 'private\\.facturacion_operaciones_visibles\\s*\\(')
-  `) === 2, `${FN}: la cadena puerta → _visibles → núcleo está en el catálogo (el censo no es vacuo)`);
+       or (p.oid = to_regprocedure('private.facturacion_lista${FIRMA_LISTA}')
+           and p.prosrc ~* 'private\\.facturacion_operaciones_visibles\\s*\\(')
+       or (p.oid = to_regprocedure('crm.listar_operaciones_facturacion_fn${FIRMA_LISTA}')
+           and p.prosrc ~* 'private\\.facturacion_lista\\s*\\(')
+  `) === 4, `${FN}: cifra → _visibles y puerta → lista → _visibles → núcleo existen en catálogo`);
+}
+
+// 3B: la lista suma SU cifra por identidad; los datos dependen de la relación actual.
+async function testFacturacionLista(sessions, seed) {
+  console.log('\n— Facturación: lista paginada y permisos de datos (3B) —');
+  const ids = seed.profileIdByKey;
+  const FN = 'listar_operaciones_facturacion_fn';
+  const base = { p_desde: MES_FACTURACION, p_hasta: '2026-01-31' };
+  const llamar = (quien, filtros = {}) => sessions[quien].client.schema('crm').rpc(FN, { ...base, ...filtros });
+  const probe = await llamar('gerencia');
+  if (probe.error?.code === 'PGRST202') {
+    const msg = `⚠ ${FN} NO desplegada: bloque 3B SALTADO (no probado)`;
+    if (process.env.CRM_RLS_EXIGE_FACTURACION === '1') fail(msg);
+    else console.log(`  ${msg}`);
+    return;
+  }
+  check(!probe.error, `${FN}: puerta disponible (${probe.error?.code ?? 'OK'})`);
+  if (probe.error) return;
+  if (!process.env.CRM_BANCO_PSQL_URL) {
+    fail(`${FN}: falta CRM_BANCO_PSQL_URL para probar ausencia de DNI fuera de banda`);
+    return;
+  }
+  // Única fuente de huellas: el bloque HUELLAS de la migración que instalará el PRIMARY.
+  const migracion = readFileSync(new URL('../migrations/20261009234500_crm_facturacion_lista_operaciones.sql', import.meta.url), 'utf8');
+  const bloques = [...migracion.matchAll(/-- INICIO HUELLAS\n([\s\S]*?)-- FIN HUELLAS/g)];
+  const huellas = bloques.length === 1 ? [...bloques[0][1].matchAll(/\('([^']+)', '([^']+)'/g)] : [];
+  const firma = '(date,date,date[],uuid[],boolean,uuid,boolean,text[],text,integer,integer)';
+  const firmas = ['private.facturacion_lista', 'crm.listar_operaciones_facturacion_fn'].map((f) => f + firma);
+  const selladas = huellas.length === 2 && new Set(huellas.map((h) => h[1])).size === 2
+    && huellas.every((h) => firmas.includes(h[1]) && /^[0-9a-f]{32}$/.test(h[2]));
+  check(selladas, `${FN}: HUELLAS de la migración medidas, sin marcadores ni firmas ambiguas`);
+  if (!selladas) return;
+  for (const [, funcion, huella] of huellas) {
+    check(contarFueraDeBanda('Facturación 3B: huella del cuerpo instalado', `
+      select count(*) from pg_proc where oid = to_regprocedure('${funcion}')
+        and md5(pg_get_functiondef(oid)) = '${huella}'
+    `) === 1, `${FN}: huella instalada de ${funcion.split('(')[0]} igual a la migración`);
+  }
+  const subarbolDe = (raiz) => {
+    const sub = new Set([ids[raiz]]);
+    let cambio = true;
+    while (cambio) {
+      cambio = false;
+      for (const u of USERS) {
+        if (u.supervisorKey && sub.has(ids[u.supervisorKey]) && !sub.has(ids[u.key])) {
+          sub.add(ids[u.key]); cambio = true;
+        }
+      }
+    }
+    return sub;
+  };
+  const listaSql = (valores) => valores.map((v) => `'${v}'::uuid`).join(',');
+  // Lectura independiente, con identidad en AMBOS GUC y transacción READ ONLY.
+  // Clientes esperados desde el fixture (asesor o creador si no hay asesor), NO desde el helper probado.
+  const esperadoDe = (quien) => JSON.parse(textoFueraDeBanda('Facturación 3B: secuencia y máscaras esperadas', `
+    begin transaction isolation level repeatable read read only;
+    set local request.jwt.claims = '${JSON.stringify({ sub: ids[quien], role: 'authenticated' })}';
+    set local request.jwt.claim.sub = '${ids[quien]}';
+    with esperadas as (
+      select row_number() over(order by o.fecha, o.tipo, o.operacion_id) as n,
+        o.dia as fecha, o.tipo, o.moneda, o.monto, o.anulado, o.analista_id, o.supervisor_id,
+        o.contrato_id, o.cliente_id, c.numero_contrato, o.cierre_externo_id, ce.lead_id, ce.cooperativa,
+        case when o.tipo <> 'cooperativa' then coalesce(p.rol = 'cliente' and
+          (p.asesor_perfil_id = any(array[${listaSql([...subarbolDe(quien)])}]) or (p.asesor_perfil_id is null
+            and p.creado_por = any(array[${listaSql([...subarbolDe(quien)])}]))), false)
+        when ce.inversionista_id is not null then exists (
+          select 1 from crm.inversionistas ip where ip.id = private.inversionista_canonica(ce.inversionista_id)
+            and ip.responsable_relacion_id = any(array(select private.vendedor_ids_visibles(auth.uid()))))
+        else coalesce(l.vendedor_id = any(array(select private.vendedor_ids_visibles(auth.uid()))), false) end as visible,
+        ce.inversionista_id is not null and not exists (
+          select 1 from crm.inversionistas ip where ip.id = private.inversionista_canonica(ce.inversionista_id)
+            and ip.responsable_relacion_id = any(array(select private.vendedor_ids_visibles(auth.uid())))) as canonica_ajena
+      from private.facturacion_operaciones_visibles('${base.p_desde}'::timestamp at time zone 'America/Lima',
+        ('${base.p_hasta}'::date + 1)::timestamp at time zone 'America/Lima') o
+      left join public.contratos c on c.id = o.contrato_id
+      left join public.perfiles p on p.id = o.cliente_id
+      left join crm.cierres_externos ce on ce.id = o.cierre_externo_id
+      left join crm.leads l on l.id = ce.lead_id
+    ) select jsonb_build_object('filas', coalesce(jsonb_agg(to_jsonb(e) order by e.n), '[]'),
+      'enmascaradas', count(*) filter(where not visible)) from esperadas e;
+    rollback;
+  `) ?? '{"filas":[],"enmascaradas":0}');
+  const supervisores = ['sup1', 'sup2', 'sup1Nested'];
+  const cobertura = (filas) => filas.some((f) => !f.visible && f.tipo !== 'cooperativa')
+    && filas.some((f) => f.visible && f.tipo !== 'cooperativa')
+    && filas.some((f) => f.tipo === 'cooperativa' && f.canonica_ajena)
+    && new Set(filas.map((f) => f.fecha)).size >= 3;
+  const faltaFixture = supervisores.some((quien) => !cobertura(esperadoDe(quien).filas));
+  const F = Object.fromEntries(['cliente1', 'cliente2', 'contrato1', 'contrato2', 'contrato3', 'contrato4',
+    'persona1', 'persona2', 'alias', 'lead1', 'lead2', 'cierre1', 'cierre2'].map((k) => [k, randomUUID()]));
+  try {
+    if (faltaFixture) {
+      // Enero puede estar sellado. Foto LEGADA exclusiva de este bloque, fuera de banda con replica
+      // (patrón de los otros fixtures). No cambiar periodos/banderas ni la semilla global.
+      ejecutarFueraDeBanda('Facturación 3B: fixture de relaciones entre equipos', `
+        set local session_replication_role = replica;
+        insert into auth.users(id, email) values
+          ('${F.cliente1}', '${F.cliente1}@facturacion-3b.test'), ('${F.cliente2}', '${F.cliente2}@facturacion-3b.test');
+        insert into public.perfiles(id, nombre_completo, correo, rol, activo, tipo_documento, dni,
+          asesor_perfil_id, creado_por, debe_cambiar_password, titular_distinto, titular_distinto_usd) values
+          ('${F.cliente1}', 'GATE 3B CLIENTE UNO', '${F.cliente1}@facturacion-3b.test', 'cliente', true, 'DNI', '99817601',
+            '${ids.vendNested}', '${ids.gerencia}', false, false, false),
+          ('${F.cliente2}', 'GATE 3B CLIENTE DOS', '${F.cliente2}@facturacion-3b.test', 'cliente', true, 'DNI', '99817602',
+            null, '${ids.vend3}', false, false, false);
+        insert into public.contratos(id, numero_contrato, cliente_id, capital, moneda, tasa_anual, modalidad,
+          tipo_interes, fecha_inicio, fecha_cierre_comercial, fecha_vencimiento, estado, categoria, creado_por, analista_cierre_id, es_demo,
+          producto_condicion_id)
+          select id, 'F3B-' || id::text, cliente, 1000, 'PEN', 15, 'mensual', 'simple',
+            dia, dia, dia + 365,
+            'activo', 'nuevo', '${ids.gerencia}', analista, false,
+            private.crear_snapshot_producto_legacy(id, 'nuevo', 'PEN', 'mensual', 'simple', 1000, 15,
+              dia, dia + 365) from (values
+              ('${F.contrato1}'::uuid, '${F.cliente1}'::uuid, '${ids.vendNested}'::uuid, date '2026-01-02'),
+              ('${F.contrato2}'::uuid, '${F.cliente2}'::uuid, '${ids.vendNested}'::uuid, date '2026-01-05'),
+              ('${F.contrato3}'::uuid, '${F.cliente2}'::uuid, '${ids.vend3}'::uuid, date '2026-01-05'),
+              ('${F.contrato4}'::uuid, '${F.cliente1}'::uuid, '${ids.vend3}'::uuid, date '2026-01-02')) f(id, cliente, analista, dia);
+        insert into crm.inversionistas(id, responsable_relacion_id, creado_por) values
+          ('${F.persona1}', '${ids.vendNested}', '${ids.gerencia}'), ('${F.persona2}', '${ids.vend3}', '${ids.gerencia}');
+        insert into crm.inversionistas(id, responsable_relacion_id, creado_por, estado, inversionista_canonico_id, fusionado_en)
+          values ('${F.alias}', '${ids.vendNested}', '${ids.gerencia}', 'fusionado', '${F.persona2}', now());
+        insert into crm.inversionista_identificadores(inversionista_id, tipo_documento, documento_normalizado, documento_original, creado_por)
+          values ('${F.persona1}', 'DNI', '99817611', '99817611', '${ids.gerencia}'),
+            ('${F.persona2}', 'DNI', '99817612', '99817612', '${ids.gerencia}');
+        insert into crm.leads(id, nombre_completo, telefono, origen, etapa, vendedor_id, convertido_en,
+          inversionista_id, creado_por, monto_estimado, dni) values
+          ('${F.lead1}', 'GATE 3B ALIAS', '+51998176001', 'oficina', 'convertido', '${ids.vendNested}',
+            '${base.p_desde}', '${F.alias}', '${ids.gerencia}', 1200, '99817621'),
+          ('${F.lead2}', 'GATE 3B AJENO', '+51998176002', 'oficina', 'convertido', '${ids.vend3}',
+            '${base.p_desde}', '${F.persona1}', '${ids.gerencia}', 1300, '99817622');
+        -- Alta a mediodía de LIMA: a medianoche UTC sería el día anterior en Lima y la imputación quedaría después
+        -- del alta (cierres_f4_fechas_validas).
+        insert into crm.cierres_externos(id, lead_id, cooperativa, monto, moneda, documento_tipo, documento,
+          nombre_completo, numero_transaccion, vendedor_id, creado_por, inversionista_id,
+          creado_en, fecha_comercial, fecha_imputacion, es_cierre_inicial, vence_en) values
+          ('${F.cierre1}', '${F.lead1}', 'qorilazo', 1200, 'PEN', 'DNI', '99817631', 'GATE 3B ALIAS',
+            'F3B-${F.cierre1}', '${ids.vendNested}', '${ids.gerencia}', '${F.alias}', '2026-01-07 12:00:00-05',
+            '2026-01-07', '2026-01-07', true, '2026-01-07'::date + 365),
+          ('${F.cierre2}', '${F.lead2}', 'prodelco', 1300, 'USD', 'DNI', '99817632', 'GATE 3B AJENO',
+            'F3B-${F.cierre2}', '${ids.vend3}', '${ids.gerencia}', '${F.persona1}', '2026-01-07 12:00:00-05',
+            '2026-01-07', '2026-01-07', true, '2026-01-07'::date + 365);
+      `);
+    }
+    const esperadas = new Map(supervisores.map((quien) => [quien, esperadoDe(quien)]));
+    // Leer documentos SOLO fuera de banda. Nunca incluir sus valores en un mensaje del gate.
+    const documentos = JSON.parse(textoFueraDeBanda('Facturación 3B: documentos del banco', `
+      select coalesce(jsonb_agg(distinct btrim(documento)), '[]'::jsonb) from (
+        select d.documento from public.perfiles p
+        cross join lateral unnest(array[p.dni, p.beneficiario_dni, p.beneficiario_dni_usd]) d(documento)
+        union all select documento from crm.cierres_externos
+        union all select dni from crm.leads
+        union all select documento_normalizado from crm.inversionista_identificadores
+        union all select documento_original from crm.inversionista_identificadores
+      ) d where length(btrim(documento)) >= 6
+    `) ?? '[]');
+    check(documentos.length > 0, `${FN}: hay documentos en el banco para que la prueba de ausencia no sea vacía`);
+    const sinDni = (respuesta) => !documentos.some((dni) => JSON.stringify(respuesta).includes(dni));
+    check(sinDni(probe), `${FN}: la sonda inicial no contiene ningún DNI del banco`);
+    const clavesExactas = (objeto, claves) => objeto !== null && typeof objeto === 'object' && !Array.isArray(objeto)
+      && JSON.stringify(Object.keys(objeto).sort()) === JSON.stringify([...claves].sort());
+    const formaRespuesta = (data) => clavesExactas(data, ['version', 'pagina', 'tamano', 'total', 'totales', 'filas'])
+      && Array.isArray(data.totales) && data.totales.every((t) => clavesExactas(t, ['moneda', 'operaciones', 'monto']));
+    check(formaRespuesta(probe.data), `${FN}: sonda con claves exactas en raíz y totales`);
+    const comunes = ['n', 'fecha', 'tipo', 'moneda', 'monto', 'anulado', 'analista_id', 'analista_nombre',
+      'supervisor_id', 'supervisor_nombre', 'visible', 'cliente_nombre'];
+    const clavesCorrectas = (fila) => {
+      const claves = fila.visible === false ? comunes : [...comunes, 'estado', ...(fila.tipo === 'cooperativa'
+        ? ['cierre_externo_id', 'cooperativa', 'lead_id'] : ['contrato_id', 'numero_contrato', 'cliente_id'])];
+      return typeof fila.visible === 'boolean'
+        && JSON.stringify(Object.keys(fila).sort()) === JSON.stringify([...claves].sort())
+        && (fila.visible || fila.cliente_nombre === 'Cliente de otro equipo');
+    };
+    // Importes en unidades decimales de 1e-6: la aritmética de sumas no introduce errores binarios.
+    // La comparación exacta NUMERIC vive además en el oráculo SQL de la migración.
+    const unidades = (monto) => BigInt(Math.round(Number(monto) * 1e6));
+    const agrupar = (filas, esCifra = false) => {
+      const porMoneda = new Map();
+      for (const f of filas) {
+        const anterior = porMoneda.get(f.moneda) ?? { operaciones: 0, monto: 0n };
+        anterior.operaciones += esCifra ? Number(f.operaciones) : 1;
+        anterior.monto += unidades(esCifra ? f.capital : f.monto);
+        porMoneda.set(f.moneda, anterior);
+      }
+      return [...porMoneda].sort(([a], [b]) => a.localeCompare(b))
+        .map(([moneda, t]) => [moneda, t.operaciones, t.monto.toString()]);
+    };
+    const normalizarTotales = (totales) => totales.map((t) => [t.moneda, Number(t.operaciones), unidades(t.monto).toString()])
+      .sort(([a], [b]) => a.localeCompare(b));
+    const iguales = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const recibidas = new Map();
+    const cifras = new Map();
+    for (const quien of ['gerencia', 'directorio', 'sup1', 'sup2', 'sup1Nested', 'vend1', 'coordinador', 'clientBank', 'vendInactive']) {
+      const cifra = await sessions[quien].client.schema('crm').rpc('facturacion_diaria_fn', { p_mes: MES_FACTURACION });
+      check(!cifra.error && Array.isArray(cifra.data), `${quien}: cifra disponible para comparar lista`);
+      if (cifra.error || !Array.isArray(cifra.data)) continue;
+      cifras.set(quien, cifra.data);
+      const totalCifra = cifra.data.reduce((n, f) => n + Number(f.operaciones), 0);
+      const totalesCifra = agrupar(cifra.data, true);
+      let referencia = null;
+      for (const tamano of [25, 50, 100]) {
+        let filas = [];
+        let pagina = 1;
+        let total = null;
+        let totales = null;
+        let correcto = true;
+        do {
+          const { data, error } = await llamar(quien, { p_pagina: pagina, p_tamano: tamano });
+          check(sinDni({ data, error }), `${quien}: página ${pagina}/${tamano} sin DNI en datos ni errores`);
+          const forma = !error && formaRespuesta(data) && data?.version === 1 && data.pagina === pagina && data.tamano === tamano
+            && Number.isSafeInteger(data.total) && data.total >= 0 && Array.isArray(data.filas) && Array.isArray(data.totales);
+          check(forma, `${quien}: página ${pagina}/${tamano} con contrato válido (${error?.code ?? 'OK'})`);
+          if (!forma) { correcto = false; break; }
+          check(data.filas.every(clavesCorrectas), `${quien}: claves exactas, filas enmascaradas sin identificadores`);
+          if (total === null) { total = data.total; totales = data.totales; }
+          const longitud = Math.min(tamano, Math.max(0, total - (pagina - 1) * tamano));
+          const estable = data.total === total && iguales(totales, data.totales) && data.filas.length === longitud;
+          check(estable, `${quien}: total y totales estables, longitud exacta en página ${pagina}/${tamano}`);
+          if (!estable) { correcto = false; break; }
+          filas = filas.concat(data.filas);
+          pagina += 1;
+          // Acotar por la cifra independiente, no por un total potencialmente mutado que haría infinito el gate.
+          if (pagina > Math.ceil(totalCifra / tamano) + 2) {
+            fail(`${quien}: la lista supera las páginas de su cifra`); correcto = false; break;
+          }
+        } while (filas.length < total);
+        if (!correcto) continue;
+        const ids = filas.filter((f) => f.visible).map((f) => `${f.tipo}:${f.contrato_id ?? f.cierre_externo_id}`);
+        check(filas.length === total && filas.every((f, i) => f.n === i + 1) && new Set(ids).size === ids.length,
+          `${quien}: ${tamano}, n=1..total, sin huecos, ids repetidos ni filas perdidas`);
+        check(total === totalCifra && iguales(normalizarTotales(totales), totalesCifra)
+          && iguales(agrupar(filas), totalesCifra), `${quien}: filas, total y totales de la lista = SU cifra`);
+        if (['vend1', 'coordinador', 'clientBank', 'vendInactive'].includes(quien)) {
+          check(total === 0 && filas.length === 0 && totales.length === 0, `${quien}: sin autorización, lista vacía sin error`);
+        }
+        if (quien === 'gerencia') check(filas.every((f) => f.visible === true), 'Gerencia ve todos los nombres');
+        if (quien === 'directorio') check(filas.every((f) => f.visible === (f.tipo !== 'cooperativa')),
+          'Directorio ve los contratos y enmascara TODAS las cooperativas');
+        if (esperadas.has(quien)) {
+          const esperadasActor = esperadas.get(quien).filas;
+          const ocultas = esperadas.get(quien).enmascaradas;
+          check(ocultas >= 1 && filas.filter((f) => !f.visible).length === ocultas,
+            `${quien}: al menos una máscara y conteo exacto independiente fuera de banda (${ocultas})`);
+          check(filas.some((f) => f.visible && f.tipo !== 'cooperativa' && f.cliente_nombre?.trim() && f.numero_contrato?.trim()),
+            `${quien}: al menos un contrato visible con nombre y N.º`);
+          const clientesPermitidos = new Set(esperadasActor.filter((f) => f.visible && f.tipo !== 'cooperativa').map((f) => f.cliente_id));
+          check(filas.filter((f) => f.visible && f.cliente_id).every((f) => clientesPermitidos.has(f.cliente_id)),
+            `${quien}: cada cliente visible tiene asesor del subárbol o asesor nulo y creador del subárbol del fixture`);
+          const ajenas = esperadasActor.filter((f) => f.tipo === 'cooperativa' && f.canonica_ajena);
+          check(ajenas.length >= 1 && ajenas.every((f) => filas[f.n - 1]?.visible === false),
+            `${quien}: cooperativas de identidad canónica de otro equipo enmascaradas`);
+          const campos = ['n', 'fecha', 'tipo', 'moneda', 'monto', 'anulado', 'analista_id', 'supervisor_id', 'visible'];
+          check(filas.length === esperadasActor.length && filas.every((f, i) => {
+            const e = esperadasActor[i];
+            const identidad = f.tipo === 'cooperativa' ? ['cierre_externo_id', 'lead_id', 'cooperativa']
+              : ['contrato_id', 'cliente_id', 'numero_contrato'];
+            return [...campos, ...(e.visible ? identidad : [])].every((k) => iguales(f[k], e[k]));
+          }), `${quien}: secuencia, relación e identificadores exactos por n contra lectura independiente`);
+        }
+        const conjunto = { total, totales, filas };
+        if (referencia !== null) check(iguales(referencia, conjunto), `${quien}: páginas 25/50/100 concatenadas son idénticas`);
+        referencia ??= conjunto;
+        const fuera = await llamar(quien, { p_pagina: Math.ceil(total / tamano) + 1, p_tamano: tamano });
+        check(!fuera.error && formaRespuesta(fuera.data) && fuera.data?.filas?.length === 0 && fuera.data.total === total
+          && iguales(fuera.data.totales, totales) && sinDni(fuera), `${quien}: página posterior al final vacía con totales estables y sin DNI`);
+      }
+      if (referencia) recibidas.set(quien, referencia);
+    }
+    const g = recibidas.get('gerencia'); const d = recibidas.get('directorio');
+    const datosOperacion = (f) => Object.fromEntries(comunes.filter((k) => !['visible', 'cliente_nombre'].includes(k)).map((k) => [k, f[k]]));
+    check(g && d && g.total === d.total && iguales(g.totales, d.totales)
+      && iguales(g.filas.map(datosOperacion), d.filas.map(datosOperacion))
+      && iguales(g.filas.filter((f) => f.tipo !== 'cooperativa'), d.filas.filter((f) => f.tipo !== 'cooperativa'))
+      && d.filas.filter((f) => f.tipo === 'cooperativa').every((f) => !f.visible && clavesCorrectas(f)),
+      `${FN}: Directorio conserva operaciones, total, totales y contratos de Gerencia; cooperativas enmascaradas`);
+    for (const quien of ['gerencia', 'sup1', 'sup2', 'sup1Nested']) {
+      const r = await llamar(quien, { p_sin_analista: true, p_tamano: 100 });
+      const e = recibidas.get(quien)?.filas.filter((f) => f.analista_id === null) ?? [];
+      check(!r.error && formaRespuesta(r.data) && sinDni(r) && r.data.total === e.length
+        && iguales(normalizarTotales(r.data.totales), agrupar(e))
+        && iguales(r.data.filas, e.slice(0, 100).map((f, i) => ({ ...f, n: i + 1 }))),
+        `${quien}: sin analista filtra la fila de analista NULL con totales exactos`);
+    }
+    for (const quien of ['gerencia', 'sup1']) {
+      const cifra = cifras.get(quien) ?? [];
+      const diasConOperaciones = [...new Set(cifra.filter((f) => Number(f.operaciones) > 0).map((f) => f.dia))].sort();
+      check(diasConOperaciones.length >= 3, `${quien}: días sueltos tiene al menos tres días con operaciones`);
+      if (diasConOperaciones.length < 3) continue;
+      // Dos días extremos: quedan operaciones entre ambos que deben excluirse, aun dentro de desde/hasta.
+      const dias = [diasConOperaciones[0], diasConOperaciones.at(-1)];
+      const cifraDias = cifra.filter((f) => dias.includes(f.dia));
+      const totalDias = cifraDias.reduce((n, f) => n + Number(f.operaciones), 0);
+      const totalesDias = agrupar(cifraDias, true);
+      const e = recibidas.get(quien)?.filas.filter((f) => dias.includes(f.fecha)) ?? [];
+      const r = await llamar(quien, { p_dias: dias, p_tamano: 100 });
+      check(totalDias > 0 && totalDias < (recibidas.get(quien)?.total ?? 0)
+        && !r.error && formaRespuesta(r.data) && sinDni(r) && r.data.total === totalDias
+        && iguales(normalizarTotales(r.data.totales), totalesDias)
+        && iguales(r.data.filas, e.slice(0, 100).map((f, i) => ({ ...f, n: i + 1 }))),
+        `${quien}: días sueltos, total y totales = SU cifra de esos días, secuencia y máscaras conservadas`);
+      const repetidos = await llamar(quien, { p_dias: [dias[1], dias[0], dias[1]], p_tamano: 100 });
+      check(!r.error && !repetidos.error && iguales(repetidos.data, r.data) && sinDni(repetidos),
+        `${quien}: repetir o desordenar días no cambia la lista ni sus totales`);
+    }
+    const invalidos = [
+      { p_desde: null }, { p_hasta: null }, { p_desde: '2026-02-01' }, { p_hasta: '2026-02-01' },
+      { p_tamano: null }, { p_tamano: 0 }, { p_tamano: 26 }, { p_tamano: 101 },
+      { p_pagina: null }, { p_pagina: 0 }, { p_pagina: -1 }, { p_moneda: 'EUR' }, { p_moneda: '' },
+      { p_equipo: '00000000-0000-0000-0000-000000000001', p_sin_equipo: true },
+      { p_analistas: [] }, { p_tipos: [] },
+      { p_analistas: [ids.vend1], p_sin_analista: true },
+      { p_dias: [] }, { p_dias: ['2026-01-02', null] }, { p_dias: ['2026-01-02', '2026-02-01'] },
+    ];
+    for (const [i, parametros] of invalidos.entries()) {
+      const { data, error } = await llamar('gerencia', parametros);
+      check(error?.code === '22023', `${FN}: negativa ${i + 1} da exactamente 22023 (${error?.code ?? 'sin error'})`);
+      check(sinDni({ data, error }), `${FN}: negativa ${i + 1} sin DNI en datos ni errores`);
+    }
+    const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-facturacion-lista'));
+    const respuestaAnon = await anon.schema('crm').rpc(FN, base);
+    const { error } = respuestaAnon;
+    check(isAuthorizationError(error), `anon NO ejecuta ${FN} (${error?.code ?? 'sin error'})`);
+    check(sinDni(respuestaAnon), `${FN}: respuesta anon sin DNI`);
+  } finally {
+    if (faltaFixture) ejecutarFueraDeBanda('Facturación 3B: retirar fixture exclusivo', `
+      set local session_replication_role = replica;
+      delete from crm.cierres_externos where id in (${listaSql([F.cierre1, F.cierre2])});
+      delete from crm.leads where id in (${listaSql([F.lead1, F.lead2])});
+      delete from public.contratos where id in (${listaSql([F.contrato1, F.contrato2, F.contrato3, F.contrato4])});
+      with condiciones as (
+        delete from crm.producto_condiciones where legacy_contrato_id in (${listaSql([F.contrato1, F.contrato2, F.contrato3, F.contrato4])})
+        returning version_id
+      ) delete from crm.producto_versiones where id in (select version_id from condiciones);
+      delete from crm.inversionista_identificadores where inversionista_id in (${listaSql([F.persona1, F.persona2, F.alias])});
+      delete from crm.inversionistas where id in (${listaSql([F.alias, F.persona1, F.persona2])});
+      delete from public.perfiles where id in (${listaSql([F.cliente1, F.cliente2])});
+      delete from auth.users where id in (${listaSql([F.cliente1, F.cliente2])});
+    `);
+  }
 }
 
 // P-055 F7.1 — las puertas cerradas de la Ola 1 responden 42501 a TODOS,
@@ -18488,6 +18847,7 @@ async function main() {
       await testF7Ola1(sessions);
       await testAltasNuevasPorAnalista(sessions, verifiedSeed);
       await testFacturacionDiaria(sessions, verifiedSeed);
+      await testFacturacionLista(sessions, verifiedSeed);
       await testGestionDiariaRegistro(sessions, verifiedSeed);
       await testGestionDiariaResultado(sessions, verifiedSeed);
       await testGestionDiariaAnalista(sessions, verifiedSeed);
