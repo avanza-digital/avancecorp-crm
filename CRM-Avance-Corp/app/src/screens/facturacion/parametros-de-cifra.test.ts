@@ -61,7 +61,7 @@ it.each([
   expect(mismosTotales(totales, [{ ...totales[0]!, monto: centimos + 0.01 }])).toBe(false)
 })
 
-it('el capital admite menos de medio céntimo; los contratos son exactos y el porcentaje conserva su tolerancia', () => {
+it('el capital admite menos de medio céntimo; los contratos son exactos', () => {
   const totales = [{ moneda: 'PEN' as const, operaciones: 3, monto: 100 }]
   const lista = { version: 1 as const, pagina: 1, tamano: 25 as const, total: 3, filas: [], totales }
   const abierto = { titulo: 'Total', cifra: base, totales, valor: 100.004, metrica: 'capital' as const }
@@ -69,7 +69,4 @@ it('el capital admite menos de medio céntimo; los contratos son exactos y el po
   expect(listaCuadraConNumero({ ...abierto, valor: 100.006 }, lista)).toBe(false)
   expect(listaCuadraConNumero({ ...abierto, metrica: 'contratos', valor: 3 }, lista)).toBe(true)
   expect(listaCuadraConNumero({ ...abierto, metrica: 'contratos', valor: 3.0000001 }, lista)).toBe(false)
-  const porcentaje = { ...abierto, cuenta: { modo: 'porcentaje' as const, actual: 110, cifraActual: base } }
-  expect(listaCuadraConNumero({ ...porcentaje, valor: 10.0000001 }, lista)).toBe(true)
-  expect(listaCuadraConNumero({ ...porcentaje, valor: 10.001 }, lista)).toBe(false)
 })

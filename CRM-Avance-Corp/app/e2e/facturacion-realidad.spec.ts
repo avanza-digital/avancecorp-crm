@@ -125,6 +125,8 @@ const SETIEMBRE_SUPERVISOR: FilaRpc[] = [venta('2026-09-02', 'PEN', 5_000, UNO, 
 const TITULAR = 'S/ 46,269'
 const DELTA = '+124.7 % respecto del mismo tramo del mes anterior'
 const TASA = 'tipo de cambio S/ 3.53 (Superintendencia de Banca, Seguros y Pensiones, promedio de 7 días hábiles)'
+// Bajo «Total del día en soles», solo la cifra (Miguel, 10/10/2026).
+const TASA_CORTA = 'S/ 3.53 por dólar'
 const SIN_SIGLAS = /\bTC\b|prom\./
 
 /** Mock de la RPC de Facturación: filas fijas por mes, o una caída controlada. */
@@ -251,9 +253,7 @@ test('1 · Gerencia, octubre con soles y dólares: el titular es el total unific
   }).map((el) => parseFloat(getComputedStyle(el).fontSize)))
   expect(Math.min(...letras)).toBeGreaterThanOrEqual(14)
   await expect(cifra(titular)).toHaveText(TITULAR)
-  await expect(area.locator('.facturacion-contexto')).toBeVisible()
-  await expect(area.locator('.facturacion-contexto')).toContainText(`S/ 20,500 + US$ 7,300 al ${TASA}`)
-  await expect(area.locator('.facturacion-contexto')).toContainText(DELTA)
+  await expect(titular).toHaveAttribute('title', `octubre de 2026 · S/ 20,500 + US$ 7,300 al ${TASA} · ${DELTA}`)
   await expect(malla).toHaveAccessibleName('Facturación diaria de octubre de 2026 en Todo S/, Todos los tipos')
   // En «Todo S/» el pie de la malla da la misma cifra que el titular.
   await expect(malla.getByRole('row', { name: /Total de la empresa/ }).getByRole('cell').last()).toHaveText(TITULAR)
@@ -266,7 +266,8 @@ test('1 · Gerencia, octubre con soles y dólares: el titular es el total unific
   await expect(moneda(area, 'Soles')).toHaveAttribute('aria-pressed', 'true')
   await expect(malla).toHaveAccessibleName(/ en Soles, /)
   const pie = malla.getByRole('row', { name: /Total del día en soles/ })
-  await expect(pie.getByRole('rowheader')).toContainText(TASA)
+  await expect(pie.getByRole('rowheader')).toContainText(TASA_CORTA)
+  await expect(pie.getByRole('rowheader')).not.toContainText('Superintendencia')
   await expect(pie.getByRole('cell').last()).toHaveText(TITULAR)
   // El 2 de octubre solo hubo dólares: US$ 5,000 × 3.53 = S/ 17,650, con la MISMA tasa.
   await expect(pie.getByRole('cell').nth(2)).toContainText('S/ 17,650')
@@ -275,7 +276,7 @@ test('1 · Gerencia, octubre con soles y dólares: el titular es el total unific
   // El titular no cambia ni de cifra ni de %.
   await expect(indicador(area, /^Total facturado/)).toHaveCount(1)
   await expect(cifra(titular)).toHaveText(TITULAR)
-  await expect(area.locator('.facturacion-contexto')).toContainText(DELTA)
+  await expect(titular).toHaveAttribute('title', `octubre de 2026 · S/ 20,500 + US$ 7,300 al ${TASA} · ${DELTA}`)
   await expect(area).not.toContainText(SIN_SIGLAS)
   await llevarALaVista(page, pie, 'abajo')
   await expectCarcasaQuieta(page)
@@ -285,7 +286,7 @@ test('1 · Gerencia, octubre con soles y dólares: el titular es el total unific
   await moneda(area, 'Dólares').click()
   await expect(moneda(area, 'Dólares')).toHaveAttribute('aria-pressed', 'true')
   await expect(cifra(titular)).toHaveText(TITULAR)
-  await expect(area.locator('.facturacion-contexto')).toContainText(DELTA)
+  await expect(titular).toHaveAttribute('title', `octubre de 2026 · S/ 20,500 + US$ 7,300 al ${TASA} · ${DELTA}`)
   await expect(malla.getByRole('row', { name: /Total del día en soles/ }).getByRole('cell').last()).toHaveText(TITULAR)
 
   // Se pidió el mes y el anterior, con la forma exacta de la RPC.
@@ -329,7 +330,7 @@ test('2 · Sin tipo de cambio: «Facturado en soles», un solo reintento que no 
   // El titular no se rotula «Total»…
   const titular = indicador(area, /^Facturado en soles/)
   await expect(cifra(titular)).toHaveText('S/ 20,500')
-  await expect(area.locator('.facturacion-contexto')).toContainText('solo soles — falta el tipo de cambio para sumar soles y dólares')
+  await expect(titular).toHaveAttribute('title', /solo soles — falta el tipo de cambio para sumar soles y dólares/)
   await expect(area.getByText(/Total facturado/)).toHaveCount(0)
   // …y el pie no afirma un total sin tasa.
   await expect(pie.getByRole('rowheader')).toContainText('total no disponible: falta el tipo de cambio')
@@ -388,8 +389,7 @@ test('3 · La RPC cae: «No se pudo cargar…» y ningún indicador dice «S/ 0�
     await expect(cifra(indicadores.nth(i))).toHaveText('—')
     await expect(indicadores.nth(i)).not.toContainText('S/ 0')
   }
-  await expect(area.locator('.facturacion-contexto')).toBeVisible()
-  await expect(area.locator('.facturacion-contexto')).toContainText('No se pudo cargar: la cifra no está disponible')
+  await expect(indicador(area, /^Facturado/)).toHaveAttribute('title', 'No se pudo cargar: la cifra no está disponible')
   expect(cuerpos.length).toBeGreaterThan(0)
 })
 
@@ -409,8 +409,7 @@ test('4 · Domingo 01/11 con una venta, vista «Día»: el promedio por día há
   await expect(tramo(area, 'Día')).toHaveAttribute('aria-pressed', 'true')
   await expect(area.getByText('Ese día, por tipo: por equipo y por analista')).toBeVisible()
   await expect(cifra(promedio)).toHaveText('—')
-  await expect(area.locator('.facturacion-contexto')).toBeVisible()
-  await expect(area.locator('.facturacion-contexto')).toContainText('Sin días hábiles en este tramo: el domingo no cuenta')
+  await expect(promedio).toHaveAttribute('title', 'Sin días hábiles en este tramo: el domingo no cuenta')
   await expect(promedio).not.toContainText('S/ 0')
   // Y el dinero de ese domingo sí está en pantalla.
   await expect(cifra(indicador(area, /^Ese día/))).toHaveText('S/ 15,000')

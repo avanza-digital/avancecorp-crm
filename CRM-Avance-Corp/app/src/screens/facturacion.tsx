@@ -911,19 +911,6 @@ export function Facturacion({
   const contextoPromedio = !cifrasFiables ? motivoSinCifras : habiles === 0
     ? 'Sin días hábiles en este tramo: el domingo no cuenta'
     : `${numero(habiles)} ${habiles === 1 ? 'día hábil corrido' : 'días hábiles corridos'} — el domingo no cuenta${sufijoTodoSoles}`
-  // La línea VISIBLE bajo las pastillas lleva el contexto que las pastillas no
-  // dicen (revisión a11y 09/10: no puede vivir solo en el `title`), sin repetir
-  // nada: fuera «En Todo S/, de N analistas…» (la vista está en su botón y los
-  // analistas en la hoja) y fuera el «soles y dólares convertidos» que salía dos
-  // veces. El tramo, la composición con su tasa y la comparación SÍ se quedan:
-  // las pruebas fijan que el texto siga al tramo y que la tasa se diga sin siglas.
-  const mejorCorto = mejor == null ? 'Todavía sin cierres' : `Mejor día: ${etiquetaDiaLargo(mejor.dia)}`
-  const promedioCorto = habiles === 0
-    ? 'Sin días hábiles en este tramo: el domingo no cuenta'
-    : `${numero(habiles)} ${habiles === 1 ? 'día hábil corrido' : 'días hábiles corridos'} — el domingo no cuenta`
-  const contextoResumen = cifrasFiables
-    ? [contextoTotal, mejorCorto, promedioCorto].join(' · ')
-    : motivoSinCifras
 
   /** Los filtros se cambian por PARCHES; la conciliación vive aquí, no en los controles. */
   const cambiarFiltro = (cambios: Partial<FiltroFacturacion>): void => {
@@ -1033,10 +1020,10 @@ export function Facturacion({
       if (!anterior || anterior !== seleccion) return anterior
       const ts = totalesDeCifra(filas, parametrosDeCifra(anterior.cifra))
       const base = valorDeTotales(ts, anterior.cifra.vista, anterior.metrica, anterior.tasa)
-      const cuenta = anterior.cuenta?.modo === 'porcentaje' ? { ...anterior.cuenta, actual: valorDeTotales(totalesDeCifra(filas, parametrosDeCifra(anterior.cuenta.cifraActual)), anterior.cifra.vista, 'capital', anterior.tasa) } : anterior.cuenta
+      const cuenta = anterior.cuenta
       const promedioNuevo = cuenta?.modo === 'promedio' ? base / cuenta.divisor : base
       const valor = cuenta?.modo === 'promedio' ? anterior.metrica === 'capital' ? Math.round(promedioNuevo) : promedioNuevo
-        : cuenta?.modo === 'porcentaje' ? base === 0 ? NaN : (cuenta.actual - base) / base * 100 : base
+        : base
       return { ...anterior, totales: ts, valor, cuenta }
     })
   }
@@ -1345,11 +1332,6 @@ export function Facturacion({
           title={contextoPromedio} pista="ver el desglose"
           onAbrir={cifrasFiables && promedio != null ? () => abrirNumero(tituloAmbito(alcance(), 'Promedio por día hábil'), alcance(), metrica === 'capital' ? Math.round(promedio) : promedio, metrica, { modo: 'promedio', divisor: habiles }) : undefined} />
         </div>
-        <p className="facturacion-contexto text-sm text-muted-foreground-strong">{delta != null && cifrasFiables && !comparacionPendiente && !comparacionFallida ? <>
-          {contextoResumen.split(comparacionTotal)[0]}
-          <button type="button" className="underline underline-offset-2" aria-label={`${comparacionTotal}: ver la base del porcentaje`}
-            onClick={() => abrirNumero('Comparación · base del porcentaje', alcance({ dias: previo.pen.dias, diasMarcados: undefined, vista: puedeUnificar ? 'TOTAL' : vistaEfectiva }), delta, 'capital', { modo: 'porcentaje', actual: totalActual, cifraActual: alcance({ vista: puedeUnificar ? 'TOTAL' : vistaEfectiva }) })}>{comparacionTotal}</button>{contextoResumen.split(comparacionTotal)[1]}
-        </> : contextoResumen}</p>
       </section>
 
       {/* La pantalla abre en «Todo S/». Si el tipo de cambio no llega, la perilla
@@ -1427,12 +1409,6 @@ export function Facturacion({
               <span>más</span>
             </div>
         </div>
-
-        {vistaEfectiva === 'TOTAL' && tc != null && (
-          <p className="px-5 pb-2 text-sm text-muted-foreground-strong">
-            Los dólares se suman convertidos al {rotuloTasa(tc.promedio, tc.fuente)}.
-          </p>
-        )}
 
         {/* VISIBLE. El aviso vivía en el <caption>, que es solo para lectores de
             pantalla: Miguel no encontraba dónde elegir los días porque nada se
@@ -1756,7 +1732,8 @@ export function Facturacion({
                         {metrica !== 'capital'
                           ? 'contratos de ambas monedas'
                           : totalMes.tc != null
-                            ? rotuloTasa(totalMes.tc, tc?.fuente ?? '')
+                            // Solo la cifra (Miguel, 10/10/2026): sin institución ni promedio.
+                            ? `S/ ${numero(totalMes.tc, 4)} por dólar`
                             : tc === undefined
                               ? 'consultando el tipo de cambio…'
                               : 'total no disponible: falta el tipo de cambio'}

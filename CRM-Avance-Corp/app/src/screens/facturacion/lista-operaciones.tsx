@@ -226,7 +226,6 @@ export function ListaOperaciones({ abierto, origen, focoRespaldo, onCerrar, onAc
   const moneda = abierto.cifra.vista === 'USD' ? 'USD' : 'PEN'
   const formato = (v: number) => abierto.metrica === 'capital' ? money(v, moneda) : `${numero(v, 1)} operaciones`
   const suma = datos ? valorDeTotales(datos.totales, abierto.cifra.vista, abierto.metrica, abierto.tasa) : 0
-  const base = valorDeTotales(abierto.totales, abierto.cifra.vista, abierto.metrica, abierto.tasa)
   const ajenas = datos?.filas.filter((f) => !f.visible).length ?? 0
   const ultimo = datos ? Math.min(datos.total, pagina * tamano) : 0
   const primero = datos?.filas.length ? (pagina - 1) * tamano + 1 : 0
@@ -250,9 +249,7 @@ export function ListaOperaciones({ abierto, origen, focoRespaldo, onCerrar, onAc
             <p><strong>{nuevas ? 'La cifra cambió.' : 'Cuadra.'}</strong>{' '}
               {abierto.cuenta?.modo === 'promedio'
                 ? `Pulsaste ${formato(abierto.valor)}, un promedio: esta lista suma ${formato(suma)} ÷ ${numero(abierto.cuenta.divisor)} días hábiles.${abierto.metrica === 'capital' ? ' Redondeado al sol.' : ''}`
-                : abierto.cuenta?.modo === 'porcentaje'
-                  ? base === 0 ? 'La base anterior quedó sin operaciones: ya no hay cifra con la que calcular el porcentaje.' : `Pulsaste ${numero(abierto.valor, 1)} % = (ahora − antes) ÷ antes × 100 = (${formato(abierto.cuenta.actual)} − ${formato(base)}) ÷ ${formato(base)} × 100. Esta lista es la de antes, la base del porcentaje.`
-                  : `Pulsaste ${formato(abierto.valor)}: la lista ${abierto.metrica === 'capital' ? 'suma' : 'tiene'} ${formato(suma)}, en todas sus páginas.`}
+                : `Pulsaste ${formato(abierto.valor)}: la lista ${abierto.metrica === 'capital' ? 'suma' : 'tiene'} ${formato(suma)}, en todas sus páginas.`}
             </p>
             {abierto.cifra.vista === 'TOTAL' && abierto.metrica === 'capital' && <p className="mt-1 text-muted-foreground-strong">
               {money(datos.totales.find((t) => t.moneda === 'PEN')?.monto ?? 0, 'PEN')} + {money(datos.totales.find((t) => t.moneda === 'USD')?.monto ?? 0, 'USD')}
