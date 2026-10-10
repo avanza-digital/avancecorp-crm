@@ -17587,3 +17587,46 @@ de `capital_episodios` en la reversa (fallar cerrado obliga a revertir en orden 
 **Aplicar (Miguel, con `!`):** `supabase/scripts/facturacion-una-fuente/ensayo-produccion.sql` y `medir.sql` (los dos
 terminan en un error «… PASS … SE DESHACE TODO»), luego la migración y `registrar.sql`. **Reversa:**
 `supabase/scripts/facturacion-una-fuente/reversa.sql`, antes que la de la fase 2. Detalle en el `LEEME.md` del kit.
+
+## 20261009234500 — Facturación fase 3B: puerta de lista y permisos
+
+**Estado: en banco, sin aplicar** (09/10/2026). Sin pantalla, cifra ni cambios a la 3A.
+**Verificación del PRIMARY (09/10/2026, banco Docker a paridad con producción):** huellas medidas núcleo `e8c3178b74ec5718e87b5b5fc697e1fd` y puerta `3b84fe0660b2257398edfd835828f3eb` (texto de la migración md5 `0383464b25f8a9ee2efd507c7cab1245`). Banco con datos: aplicar → «ORÁCULO 3B PASS: 4 meses, 7 identidades (1 Directorio), 172 filas, 9 enmascaradas (cooperativas de Directorio), 21 negativas» → reaplicar «reverificada» → la reversa de la 3A se NIEGA con la 3B instalada → reversa 3B PASS → otra vez «ya completa» → aplicar PASS; `test-facturacion.sql` 12/12; registrador idempotente. Gate RLS completo: 3421 aserciones, los mismos 9 rojos de fondo (diff vacío) y 49 comprobaciones de la lista en verde (el fixture de cooperativas del gate se dio de alta a mediodía de Lima: a medianoche UTC violaba `cierres_f4_fechas_validas`). Banco vacío: «ORÁCULO 3B PASS: 2 meses, 6 identidades, 660 filas, 220 enmascaradas, 21 negativas» y TRECE MUTANTES cazados por SQLSTATE exclusivo (P3B01–P3B13), reversa y ROLLBACK. Ensayo de producción en banco: PASS con la evidencia en el mensaje final. Medición en banco (Gerencia y supervisor, rutas global y no global): 1,6–3,7 ms por página de 100; elige el supervisor con más cooperativas y, si no hay, el de más operaciones. Pendiente: ensayo y medición en producción (Miguel con `!`), aplicar y registrar.
+**Cambio:** puerta SQL/STABLE/DEFINER solo authenticated y núcleo PL/pgSQL/STABLE/INVOKER solo postgres;
+dueño postgres, search_path vacío. Una llamada a `_visibles`; orden total, páginas 25/50/100 y totales por moneda.
+`p_dias date[] default null` después de `p_hasta`: NULL conserva el rango; si se indica, solo esos días de Lima
+cuentan (`dia = any(p_dias)`) después de la capa 1 y junto a los demás filtros. Vacío, elemento NULL o día fuera de
+`[p_desde,p_hasta]` dan `22023`; los repetidos no cambian el resultado. Regla de Miguel del 11/09 y maqueta fase 4.
+`p_sin_analista boolean default false` después de `p_analistas`, incompatible con este (`22023`). Firma de ambas:
+`(date,date,date[],uuid[],boolean,uuid,boolean,text[],text,integer,integer)`.
+**Miguel, 09/10 noche:** Gerencia ve todo; Directorio ve contratos con nombre y toda cooperativa como «Cliente de otro
+equipo». Dos banderas explícitas. Para no globales, contrato por cartera actual; cooperativa por relación actual con
+canónica, regla del teléfono vivo de `cierres_externos_fn`, más estricta que su reparto por `analista_efectivo_cierre`.
+**Excepción explícita:** fila enmascarada conserva analista, supervisor, día, tipo, moneda, importe y anulado (cifra o
+explicación de por qué cuenta); ningún id de cliente/contrato/cierre/lead. DNI nunca; cuenta viva; sin registro de aperturas.
+**Revisiones recibidas:** Codex revisor P2-1/P2-2/P2-3 aceptados (secuencia por n, visibilidad independiente, ids exactos,
+raíz/totales exactos y documentos sobre respuesta entera); auditor-rls P2-2 y P3-2..P3-7 aceptados (gate no vacío,
+huellas desde HUELLAS, cabecera neutra, medición no global, casos/mutantes, sin analista, comentarios y documentos de
+leads/identificadores). Rechazado retirar analista, supervisor y anulado: excepción explícita indicada arriba.
+**Evidencia ANTERIOR del PRIMARY:** ciclo, gate y ensayo con cinco mutantes PASS; canónica viva `34702897…`, 93 llamadas /
+1,1 ms. Se conservan ese lateral paginado, filtro en el mes con más operaciones, siembra sin beneficiarios y capital ≥100.
+Huellas anteriores `6596155d…` / `f3b53fbe…` caducadas por esta revisión; no acreditan el código nuevo.
+**Guardas/kit:** oráculo por posición además de cifra, visibilidad independiente, claves exactas y documentos en cada
+respuesta; trece mutantes con SQLSTATE propio (`P3B13`: días ignorados); pre/postflight y reversa fail-closed, generadores y registro exacto.
+Gate con nueve sesiones incluida sup1Nested, máscaras/conteos independientes READ ONLY con ambos GUC, clientes del
+subárbol del fixture y canónica ajena. Si falta cobertura, fixture exclusivo con alta/limpieza fuera de banda y `finally`,
+sin cambiar semilla global; patrón y alcance explicados en el LEEME. Huellas leídas únicamente del bloque HUELLAS.
+**Días sueltos:** oráculo en el mes con más operaciones, dos días extremos con operaciones para cada identidad,
+contra cifra y secuencia filtradas con `any`; exige al menos dos días distintos en ese mes. Sintético 1/5/20 con
+operaciones intermedias excluidas y repetidos/desorden; 21 negativas SQL, incluidas las tres nuevas (`22023`).
+Gate Gerencia/sup1 contra SU cifra para dos días extremos, total/totales exactos y secuencia conservada; fixture
+2/5/7 si falta cobertura de días, negativas y repetidos. Todas las firmas del kit y del censo actualizadas; registro regenerado.
+**Medición preparada:** Gerencia y supervisor con más cooperativas de cada mes (septiembre/octubre), página 1/100 con
+`p_dias => null` y totales, mediana de siete muestras, límite 150 ms por ruta/mes; ambas rutas en el error final que deshace el ensayo.
+**Riesgo:** reauditar `private.facturacion_lista` si cambian `cliente_ids_visibles_crm`, `vendedor_ids_visibles`,
+`inversionista_canonica`, `rol_crm` o `es_lector_global`.
+**Verificación offline del implementador: PASS** con generadores `--verificar`, 12/12 pruebas de generadores, `node --check` y
+`git diff --check`. SQL, nuevos mutantes, gate API/RLS, ciclo y rendimiento **NOT RUN** aquí (sin red/Docker/producción
+ni otros agentes). El banco anterior queda como evidencia histórica. **Reversa:**
+`supabase/scripts/facturacion-lista/reversa.sql`, sin CASCADE y antes de 3A. Procedimiento y resultados offline en
+`supabase/scripts/facturacion-lista/LEEME.md`.
