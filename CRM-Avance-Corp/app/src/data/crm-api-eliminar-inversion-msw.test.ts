@@ -57,7 +57,18 @@ describe('eliminarInversion (crm.eliminar_inversion_fn)', () => {
     expect(resultado).toEqual({ auditoriaId: AUDITORIA, empresa: 'qorilazo', conversionAnulada: false, mesCerrado: false })
   })
 
-  it('la conversión anulada en un mes cerrado llega a la pantalla', async () => {
+  // Bloque 2.6 (D-09, D-14, D-17): un mes sellado no se reescribe. Solo el par admin del Portal + Gerencia del CRM anula
+  // la conversión de un mes sellado, y lo hace SIN ajuste: el servidor responde conversion_anulada:true y mes_cerrado:false.
+  it('el par exento anula la conversión de un mes sellado sin ajuste: llega conversion_anulada y mes_cerrado:false', async () => {
+    server.use(http.post(RUTA, () => HttpResponse.json({ ...ACUSE, empresa: 'avance', conversion_anulada: true, mes_cerrado: false })))
+    await expect(eliminarInversion(FUENTE, 'Registro duplicado')).resolves.toEqual({
+      auditoriaId: AUDITORIA, empresa: 'avance', conversionAnulada: true, mesCerrado: false,
+    })
+  })
+
+  // Un servidor SIN la regla del 2.6 (anterior a 20261009210000, o tras su reversa) todavía respondía mes_cerrado:true con
+  // el ajuste al mes vivo: el cliente lo transmite tal cual (la pantalla conserva su aviso para ese caso).
+  it('un servidor sin la regla del 2.6 todavía puede decir mes_cerrado:true y llega tal cual a la pantalla', async () => {
     server.use(http.post(RUTA, () => HttpResponse.json({ ...ACUSE, empresa: 'avance', conversion_anulada: true, mes_cerrado: true })))
     await expect(eliminarInversion(FUENTE, 'Registro duplicado')).resolves.toEqual({
       auditoriaId: AUDITORIA, empresa: 'avance', conversionAnulada: true, mesCerrado: true,
@@ -90,10 +101,22 @@ describe('eliminarInversion (crm.eliminar_inversion_fn)', () => {
     ['P0002', 'La inversión no existe o ya fue eliminada', 'NO_ENCONTRADA', 'La inversión no existe o ya fue eliminada'],
     ['P0409', 'Este contrato ya se renovó: tiene historia propia y no se elimina', 'CONFLICTO',
       'Este contrato ya se renovó: tiene historia propia y no se elimina'],
+    // Bloque 2.6: quien no es el par exento recibe el rechazo de la puerta de anulación (heredado) y nada se elimina.
+    ['P0409', 'No se puede anular: el mes de esta venta (2026-07) ya está sellado', 'CONFLICTO',
+      'No se puede anular: el mes de esta venta (2026-07) ya está sellado'],
+    ['P0409', 'No se puede anular: no se puede determinar el mes de esta venta', 'CONFLICTO',
+      'No se puede anular: no se puede determinar el mes de esta venta'],
     ['55000', 'El PDF se está generando; reintenta la eliminación en unos minutos', 'CONFLICTO',
       'El PDF se está generando; reintenta la eliminación en unos minutos'],
     ['PT409', 'El lead tiene otra operacion en curso; reintenta la retirada', 'REINTENTAR',
       'El lead tiene otra operacion en curso; reintenta la retirada'],
+    // Bloque 2.6: la acreditación de la venta cambió mientras la anulación de su conversión (dentro de la eliminación)
+    // esperaba el cerrojo del mes, o mientras lo esperaba el disparador de acreditación de la cooperativa. Nada se
+    // eliminó y basta con reintentar: un texto claro, no el crudo del servidor (que habla del mecanismo).
+    ['PT409', 'La acreditacion cambio durante la anulacion; vuelve a intentar', 'REINTENTAR',
+      'La venta cambió mientras eliminabas la inversión. Vuelve a intentarlo.'],
+    ['PT409', 'La acreditacion cambio mientras esperaba el candado; vuelve a intentar', 'REINTENTAR',
+      'La venta cambió mientras eliminabas la inversión. Vuelve a intentarlo.'],
     ['55P03', 'canceling statement due to lock timeout', 'REINTENTAR', 'Otra operación está usando esta inversión. Vuelve a intentarlo en unos segundos.'],
     ['XX000', 'internal error', 'POSTGREST_ERROR', 'No se pudo eliminar la inversión.'],
   ])('el rechazo %s («%s») llega como %s', async (pg, textoServidor, codigo, mensaje) => {

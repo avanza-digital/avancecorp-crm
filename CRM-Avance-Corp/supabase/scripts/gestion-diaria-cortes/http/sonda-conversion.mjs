@@ -14,6 +14,15 @@ const login = await client.auth.signInWithPassword({email:'vend1.crm@demo.avance
 assert.ok(!login.error, 'Auth ficticio falló');
 const uid = login.data.user.id;
 const q = x => `'${String(x).replaceAll("'","''")}'`;
+// Bloque 2.3 (20261009210100): vend1 NO es exento (D-17) y sin número de contrato la confirmación muere con 22023. Número
+// válido (2026-01- + 6 dígitos; nunca 99xxxx, el bloque de los contratos fixture) y libre en este banco.
+const numeroLibre = () => {
+  for (let i=0;i<20;i++) {
+    const n = `2026-01-${randomInt(100000,990000)}`;
+    if (sql(`select count(*) from public.contratos where numero_contrato=${q(n)}`) === '0') return n;
+  }
+  throw new Error('20 números de contrato al azar ya estaban ocupados en el banco');
+};
 const flags = JSON.parse(sql("select jsonb_object_agg(nombre,activo) from crm.multiempresa_flags where nombre in ('resolver_en_puertas','inversiones_escritura')"));
 const leads = [randomUUID(),randomUUID()];
 try {
@@ -32,7 +41,7 @@ try {
   }
   console.log('PASS: cooperativa USD, comprobante real, confirmación y replay por HTTP');
   const r = await convertirAvanceVigente(client,{leadId:leads[1],documento:String(randomInt(80000000,89999999)),
-    vendedorId:uid,apiUrl:c.API_URL,anonKey:c.ANON_KEY,serviceKey:c.SERVICE_ROLE_KEY});
+    vendedorId:uid,apiUrl:c.API_URL,anonKey:c.ANON_KEY,serviceKey:c.SERVICE_ROLE_KEY,numero:numeroLibre()});
   assert.ok(!r.error,`Avance: ${r.error?.code ?? ''} ${r.error?.message ?? ''}`);
   assert.ok(r.data.inversion_id && r.data.fuente.id);
   console.log('PASS: Avance por flujo compartido, Auth HTTP real y handler de acceso en proceso');
