@@ -108,3 +108,5 @@ export function proyectarMalla(malla: MallaFacturacion, columnas: readonly Colum
     totalPorDia: columnas.map((c) => celdaDeColumna(malla, c)),
   }
 }
+
+export const accionOperaciones = (cantidad: number) => cantidad === 0 ? 'sin operaciones, abrir' : `ver ${numero(cantidad)} ${cantidad === 1 ? 'operación' : 'operaciones'}`

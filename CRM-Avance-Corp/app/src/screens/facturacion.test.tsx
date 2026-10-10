@@ -7,12 +7,16 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { FilaFacturacionDia } from '@/lib/facturacion'
+import type { ParametrosOperacionesFacturacion } from '@/data/crm-api'
+import { respuestaDeAgregados } from '@/test/operaciones-facturacion'
 
 // La pantalla recibe las filas por prop, así que ni la sesión ni el servidor
 // deciden nada aquí; se doblan para que el componente monte. El camino real
 // (RPC + modo demo) lo cubren la matriz de RLS y el oráculo del servidor.
 const dobles = vi.hoisted(() => ({
   demo: false,
+  filasLista: [] as readonly FilaFacturacionDia[],
+  pedidosLista: [] as ParametrosOperacionesFacturacion[],
   /** Quién mira. Gerencia por defecto; el supervisor entra desde el 16/09/2026. */
   yo: { id: 'g1', rol: 'gerencia' } as { id: string; rol: 'gerencia' | 'supervisor' },
   // El organigrama que la pantalla lee del store. Por defecto vacío: así los
@@ -60,6 +64,10 @@ vi.mock('@/lib/tipo-cambio', () => ({
   usdAPen: (usd: number, tc: number) => (tc > 0 ? usd * tc : 0),
 }))
 vi.mock('@/data/crm-queries', () => ({
+  useListaOperacionesFacturacion: (_habilitada: boolean, p: ParametrosOperacionesFacturacion) => {
+    dobles.pedidosLista.push(p)
+    return { data: respuestaDeAgregados(dobles.filasLista, p), isPending: false, isError: false, isFetching: false, refetch: vi.fn() }
+  },
   // La pantalla pide TODOS los meses que toca el tramo; el doble devuelve una
   // consulta por mes con los mismos datos, que es lo que la pantalla aplana.
   useFacturacionDeMeses: (_habilitada: boolean, meses: readonly string[]) =>
@@ -124,6 +132,7 @@ const FILAS: readonly FilaFacturacionDia[] = [
 ]
 
 function pintar(filas: readonly FilaFacturacionDia[] = FILAS) {
+  dobles.filasLista = filas
   return render(<Facturacion filas={filas} />)
 }
 
@@ -134,10 +143,10 @@ function malla(): HTMLElement {
 
 /** El contexto es texto visible fuera de la fila compacta de pastillas. */
 function contextoVisible(texto: Parameters<typeof screen.getByText>[0]): HTMLElement {
-  return screen.getByText(texto, { selector: '.facturacion-contexto', exact: false })
+  return screen.getByText((_contenido, el) => el?.matches('.facturacion-contexto') === true && (typeof texto === 'function' ? texto(el.textContent ?? '', el) : texto instanceof RegExp ? texto.test(el.textContent ?? '') : (el.textContent ?? '').includes(String(texto))))
 }
 function buscarContextoVisible(texto: Parameters<typeof screen.queryByText>[0]): HTMLElement | null {
-  return screen.queryByText(texto, { selector: '.facturacion-contexto', exact: false })
+  return screen.queryByText((_contenido, el) => el?.matches('.facturacion-contexto') === true && (typeof texto === 'function' ? texto(el.textContent ?? '', el) : texto instanceof RegExp ? texto.test(el.textContent ?? '') : (el.textContent ?? '').includes(String(texto))))
 }
 
 beforeEach(() => {
@@ -173,8 +182,8 @@ describe('lo que se ve al entrar', () => {
 
   it('agrupa por equipo, con sus analistas dentro y el total del mes', () => {
     pintar()
-    expect(screen.getByRole('button', { name: /Rosa Uno/ })).toBeVisible()
-    expect(screen.getByRole('button', { name: 'Ver el mes completo de Ana Analista' })).toBeVisible()
+    expect(screen.getByRole('button', { name: /Rosa Uno/, expanded: true })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Ver el mes de Ana Analista' })).toBeVisible()
     // 300 000 + 100 000 + 80 000 = 480 000 en soles, más los 40 000 de Carla.
     expect(within(malla()).getByText('S/ 520,000')).toBeVisible()
   })
@@ -204,11 +213,11 @@ describe('filtrar por equipo', () => {
     fireEvent.change(screen.getByLabelText('Equipo'), { target: { value: 'sup-sara' } })
 
     expect(screen.queryByRole('button', { name: /Rosa Uno/ })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Ver el mes completo de Carla Analista' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Ver el mes de Carla Analista' })).toBeVisible()
 
     const quitar = screen.getByRole('button', { name: 'Quitar Equipo de Sara Dos' })
     fireEvent.click(quitar)
-    expect(screen.getByRole('button', { name: /Rosa Uno/ })).toBeVisible()
+    expect(screen.getByRole('button', { name: /Rosa Uno/, expanded: true })).toBeVisible()
   })
 
   it('el pie deja de hablar de la empresa cuando hay filtro', () => {
@@ -251,7 +260,7 @@ describe('comparar analistas', () => {
     expect(screen.getByText('Equipo de Sara Dos')).toBeVisible()
     // Beto no está marcado: sale de la malla.
     expect(
-      screen.queryByRole('button', { name: 'Ver el mes completo de Beto Analista' }),
+      screen.queryByRole('button', { name: 'Ver el mes de Beto Analista' }),
     ).not.toBeInTheDocument()
     // Y las cabeceras de equipo desaparecen: comparar es una lista plana.
     expect(screen.queryByRole('button', { name: /Rosa Uno/ })).not.toBeInTheDocument()
@@ -323,8 +332,8 @@ describe('estado vacío — el que de verdad se ve en producción', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Dólares' }))
 
     expect(screen.queryByText('Ningún cierre coincide con estos filtros.')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Ver el mes completo de Ana Analista' })).toBeVisible()
-    expect(screen.queryByRole('button', { name: 'Ver el mes completo de Carla Analista' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ver el mes de Ana Analista' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Ver el mes de Carla Analista' })).not.toBeInTheDocument()
   })
 })
 
@@ -350,9 +359,9 @@ describe('el supervisor ve el avance de su equipo — petición de Miguel del 16
     pintar(FILAS.filter((f) => f.supervisorId === 'sup-rosa'))
     const region = malla()
     for (const nombre of ['Ana Analista', 'Beto Analista', 'Noe Novato']) {
-      expect(within(region).getByRole('button', { name: `Ver el mes completo de ${nombre}` })).toBeVisible()
+      expect(within(region).getByRole('button', { name: `Ver el mes de ${nombre}` })).toBeVisible()
     }
-    expect(within(region).queryByRole('button', { name: 'Ver el mes completo de Carla Analista' })).not.toBeInTheDocument()
+    expect(within(region).queryByRole('button', { name: 'Ver el mes de Carla Analista' })).not.toBeInTheDocument()
     expect(within(region).queryByText('Sara Dos')).not.toBeInTheDocument()
     // Y el resumen accesible dice lo mismo: un solo equipo, el suyo.
     expect(screen.getAllByText(/3 analistas en 1 equipo/).length).toBeGreaterThan(0)
@@ -371,8 +380,8 @@ describe('el supervisor ve el avance de su equipo — petición de Miguel del 16
       fila({ id: 'propia', dia: '2026-09-05', capital: 25_000, analistaId: 'sup-rosa', analistaNombre: 'Rosa Uno', supervisorId: 'sin-supervisor', supervisorNombre: 'Sin supervisor' }),
     ])
     const region = malla()
-    expect(within(region).getByRole('button', { name: 'Ver el mes completo de Rosa Uno' })).toBeVisible()
-    expect(within(region).getByRole('button', { name: 'Ver el mes completo de Ana Analista' })).toBeVisible()
+    expect(within(region).getByRole('button', { name: 'Ver el mes de Rosa Uno' })).toBeVisible()
+    expect(within(region).getByRole('button', { name: 'Ver el mes de Ana Analista' })).toBeVisible()
   })
 })
 
@@ -395,21 +404,21 @@ describe('el analista que no ha vendido — petición de Miguel del 11/09/2026',
     conEquipo()
     pintar()
     const fila = within(malla())
-      .getByRole('button', { name: 'Ver el mes completo de Noe Novato' })
+      .getByRole('button', { name: 'Ver el mes de Noe Novato' })
       .closest('tr')
     expect(fila).not.toBeNull()
     // La celda vacía no lleva cifra a la vista, pero SÍ la anuncia para quien
     // usa lector: toda su fila dice 'S/ 0' y ni un solo importe con dígito.
     expect(within(fila as HTMLElement).queryByText(/S\/ [1-9]/)).toBeNull()
-    expect(within(fila as HTMLElement).getAllByText('S/ 0').length).toBeGreaterThan(1)
+    expect(within(fila as HTMLElement).getAllByRole('button', { name: /S\/ 0/ }).length).toBeGreaterThan(1)
   })
 
   it('se puede filtrar por él, que era justo lo que no se podía', () => {
     conEquipo()
     pintar()
     fireEvent.click(within(malla()).getByRole('checkbox', { name: 'Comparar a Noe Novato' }))
-    expect(screen.getByRole('button', { name: 'Ver el mes completo de Noe Novato' })).toBeVisible()
-    expect(screen.queryByRole('button', { name: 'Ver el mes completo de Ana Analista' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ver el mes de Noe Novato' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Ver el mes de Ana Analista' })).not.toBeInTheDocument()
   })
 
   it('en DEMO no se siembra: el fixture no se mezcla con el organigrama real', () => {
@@ -417,7 +426,7 @@ describe('el analista que no ha vendido — petición de Miguel del 11/09/2026',
     dobles.demo = true
     try {
       pintar()
-      expect(screen.queryByRole('button', { name: 'Ver el mes completo de Noe Novato' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Ver el mes de Noe Novato' })).not.toBeInTheDocument()
     } finally {
       dobles.demo = false
     }
@@ -426,7 +435,7 @@ describe('el analista que no ha vendido — petición de Miguel del 11/09/2026',
   it('un analista dado de baja que no vendió NO aparece', () => {
     conEquipo()
     pintar()
-    expect(screen.queryByRole('button', { name: 'Ver el mes completo de Bruno Baja' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Ver el mes de Bruno Baja' })).not.toBeInTheDocument()
   })
 
   it('el organigrama no reescribe el equipo de una venta ya cerrada', () => {
@@ -716,10 +725,10 @@ describe('tipos de capital — el contrato que Miguel no encontraba (11/09/2026)
   it('el detalle de una celda habla del tipo que se está viendo', () => {
     pintar(VARIADAS)
     elegirTipo('contrato_renovacion')
-    fireEvent.click(within(malla()).getByRole('button', { name: 'Ver el mes completo de Ana Analista' }))
+    fireEvent.click(within(malla()).getByRole('button', { name: 'Ver el mes de Ana Analista' }))
     // Abrir una celda de renovaciones y encontrar ahí los contratos nuevos
     // contradiría la cifra sobre la que se acaba de pinchar.
-    const panel = screen.getByRole('dialog')
+    const panel = screen.getByRole('region', { name: /^Ana Analista ·/ })
     // El desglose lista «Renovación · N contratos»; el tipo aparece tantas
     // veces como líneas tenga, pero NUNCA el capital nuevo.
     expect(within(panel).getAllByText(/Renovación/).length).toBeGreaterThan(0)
@@ -776,9 +785,9 @@ describe('hallazgos de la auditoría del 11/09/2026', () => {
     pintar()
     fireEvent.click(screen.getByRole('button', { name: 'Dólares' }))
     elegirTipoAudit('todo')
-    fireEvent.click(within(malla()).getByRole('button', { name: 'Ver el mes completo de Carla Analista' }))
-    const panel = screen.getByRole('dialog')
-    expect(within(panel).getByText(/US\$ 7,000/)).toBeVisible()
+    fireEvent.click(within(malla()).getByRole('button', { name: 'Ver el mes de Carla Analista' }))
+    const panel = screen.getByRole('region', { name: /^Carla Analista ·/ })
+    expect(within(panel).getAllByText(/US\$ 7,000/)[0]).toBeVisible()
     expect(within(panel).queryByText(/S\/ 40,000/)).toBeNull()
   })
 
@@ -787,10 +796,10 @@ describe('hallazgos de la auditoría del 11/09/2026', () => {
       fila({ dia: '2026-09-02', supervisorId: 'sup-rosa', supervisorNombre: 'Rosa Uno', capital: 100_000 }),
       fila({ dia: '2026-09-03', supervisorId: 'sup-sara', supervisorNombre: 'Sara Dos', capital: 50_000 }),
     ])
-    const botones = within(malla()).getAllByRole('button', { name: 'Ver el mes completo de Ana Analista' })
+    const botones = within(malla()).getAllByRole('button', { name: 'Ver el mes de Ana Analista' })
     fireEvent.click(botones[1]!)
-    const panel = screen.getByRole('dialog')
-    expect(within(panel).getByText('S/ 50,000')).toBeVisible()
+    const panel = screen.getByRole('region', { name: /^Ana Analista ·/ })
+    expect(within(panel).getAllByText('S/ 50,000')[0]).toBeVisible()
     expect(within(panel).queryByText('S/ 100,000')).toBeNull()
   })
 })
@@ -821,7 +830,7 @@ describe('vista «Todo S/» — el arranque por defecto (Miguel, 11/09/2026)', (
     pintar([
       fila({ id: 'd', dia: '2026-09-02', moneda: 'USD', capital: 2_000, analistaId: 'solo', analistaNombre: 'Solo Dolares' }),
     ])
-    expect(screen.getByRole('button', { name: 'Ver el mes completo de Solo Dolares' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Ver el mes de Solo Dolares' })).toBeVisible()
     expect(within(malla()).getAllByText('S/ 7,500').length).toBeGreaterThan(0)
   })
 
@@ -989,10 +998,10 @@ describe('tramo: mes, semana y día (Miguel, 11/09/2026)', () => {
       fila({ id: 'a', dia: '2026-09-02', capital: 10_000, analistaId: 'ana', analistaNombre: 'Ana Analista' }),
       fila({ id: 'b', dia: '2026-09-10', capital: 20_000, analistaId: 'beto', analistaNombre: 'Beto Analista' }),
     ])
-    expect(screen.getByRole('button', { name: 'Ver el mes completo de Ana Analista' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Ver el mes de Ana Analista' })).toBeVisible()
     elegirTramo('Semana')
-    expect(screen.getByRole('button', { name: 'Ver el mes completo de Beto Analista' })).toBeVisible()
-    expect(screen.queryByRole('button', { name: 'Ver el mes completo de Ana Analista' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Ver la semana de Beto Analista' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Ver la semana de Ana Analista' })).toBeNull()
   })
 
   it('no deja navegar al futuro', () => {
@@ -1027,10 +1036,10 @@ describe('marcar días sueltos (Miguel, 11/09/2026)', () => {
     pintar(TRES_DIAS)
     marcar(/Marcar el .*, 2 de setiembre/i)
     marcar(/Marcar el .*, 4 de setiembre/i)
-    fireEvent.click(within(malla()).getByRole('button', { name: 'Ver el mes completo de Ana Analista' }))
-    const panel = screen.getByRole('dialog')
-    expect(within(panel).getByText('S/ 10,000')).toBeVisible()
-    expect(within(panel).getByText('S/ 40,000')).toBeVisible()
+    fireEvent.click(within(malla()).getByRole('button', { name: 'Ver los días elegidos de Ana Analista' }))
+    const panel = screen.getByRole('region', { name: /^Ana Analista ·/ })
+    expect(within(panel).getAllByText('S/ 10,000')[0]).toBeVisible()
+    expect(within(panel).getAllByText('S/ 40,000')[0]).toBeVisible()
     expect(within(panel).queryByText('S/ 20,000')).toBeNull()
   })
 
@@ -1215,7 +1224,7 @@ describe('moneda y métrica', () => {
     expect(within(malla()).getAllByText('US$ 7,000').length).toBeGreaterThanOrEqual(2)
     // Ana no vendió un solo dólar y aun así conserva su fila: la tabla es el
     // equipo, y las filas no aparecen y desaparecen al tocar un interruptor.
-    expect(screen.getByRole('button', { name: 'Ver el mes completo de Ana Analista' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Ver el mes de Ana Analista' })).toBeVisible()
   })
 
   it('el caption dice qué se está midiendo, no siempre «capital»', () => {
@@ -1237,7 +1246,7 @@ describe('restablecer', () => {
 
     fireEvent.click(boton)
     expect(screen.getByRole('button', { name: 'Restablecer filtros' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: /Rosa Uno/ })).toBeVisible()
+    expect(screen.getByRole('button', { name: /Rosa Uno/, expanded: true })).toBeVisible()
   })
 })
 
@@ -1371,19 +1380,20 @@ describe('auditoría del 08/10/2026 — fase 1', () => {
     // lo notaba.
     dobles.tc = { promedio: 3.75, fuente: 'SUNAT · prom. 7d' }
     pintar()
-    fireEvent.click(within(malla()).getByRole('button', { name: 'Ver el mes completo de Carla Analista' }))
-    const panel = screen.getByRole('dialog')
-    expect(within(panel).getByText('S/ 40,000')).toBeVisible()
-    expect(within(panel).getByText('US$ 7,000')).toBeVisible()
-    expect(within(panel).getByText(/= S\/ 66,250 en soles/)).toBeVisible()
+    fireEvent.click(within(malla()).getByRole('button', { name: 'Ver el mes de Carla Analista' }))
+    const panel = screen.getByRole('region', { name: /^Carla Analista ·/ })
+    expect(within(panel).getAllByText('S/ 40,000')[0]).toBeVisible()
+    expect(within(panel).getAllByText('US$ 7,000')[0]).toBeVisible()
+    expect(panel).toHaveTextContent('Cuadra. Pulsaste S/ 66,250')
+    expect(panel).toHaveTextContent('US$ 7,000 × 3.75')
   })
 
   it('en Soles el panel no hace suma: no hay nada que convertir', () => {
     dobles.tc = { promedio: 3.75, fuente: 'SUNAT · prom. 7d' }
     pintar()
     elegir('Soles')
-    fireEvent.click(within(malla()).getByRole('button', { name: 'Ver el mes completo de Carla Analista' }))
-    expect(within(screen.getByRole('dialog')).queryByText(/en soles$/)).toBeNull()
+    fireEvent.click(within(malla()).getByRole('button', { name: 'Ver el mes de Carla Analista' }))
+    expect(screen.getByRole('region', { name: /^Carla Analista ·/ })).not.toHaveTextContent('tipo de cambio en soles')
   })
 
   it('mutante: el promedio del mes en curso divide entre los días hábiles HASTA HOY', () => {
@@ -1469,27 +1479,27 @@ describe('auditoría del 08/10/2026 — fase 1', () => {
 describe('hoja de Excel — fases E1 a E6 y accesibilidad', () => {
   afterEach(() => { dobles.equipo = []; vi.unstubAllGlobals() })
 
-  it('E1: las pastillas reutilizan el desglose de un único analista; el promedio queda como texto con ayuda', () => {
+  it('E1: las pastillas reutilizan el desglose de un único analista; el promedio abre su base', () => {
     pintar([fila({ capital: 12_345 })])
     const resumen = screen.getByRole('region', { name: 'Resumen de lo que estás viendo' })
     expect(resumen.querySelector('.facturacion-resumen')?.children).toHaveLength(4)
     fireEvent.click(within(resumen).getByRole('button', { name: /Facturado/ }))
-    expect(within(screen.getByRole('dialog')).getByText('S/ 12,345')).toBeVisible()
+    expect(within(screen.getByRole('region', { name: /^Facturado ·/ })).getAllByText('S/ 12,345')[0]).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar detalle' }))
     fireEvent.click(within(resumen).getByRole('button', { name: /Contratos cerrados/ }))
-    expect(screen.getByRole('dialog')).toHaveTextContent('1 operación')
+    expect(screen.getByRole('region', { name: /^Contratos cerrados ·/ })).toHaveTextContent('1 operación')
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar detalle' }))
     fireEvent.click(within(resumen).getByRole('button', { name: /Mejor día/ }))
-    expect(within(screen.getByRole('dialog')).getByText('S/ 12,345')).toBeVisible()
-    expect(within(resumen).queryByRole('button', { name: /Promedio/ })).toBeNull()
+    expect(within(screen.getByRole('region', { name: /^Mejor día ·/ })).getAllByText('S/ 12,345')[0]).toBeVisible()
+    expect(within(resumen).getByRole('button', { name: /Promedio/ })).toBeVisible()
     expect(contextoVisible(/días hábiles corridos/)).toBeVisible()
-    for (const boton of within(resumen).getAllByRole('button')) expect(boton).toHaveAccessibleName(/ver el desglose$/)
+    for (const boton of within(resumen).getAllByRole('button').filter((b) => !b.textContent?.includes('%'))) expect(boton).toHaveAccessibleName(/ver el desglose$/)
   })
 
-  it('E1: una cifra global sin desglose existente no promete una lista nueva', () => {
+  it('E1: todas las cifras globales abren su lista, incluido el porcentaje', () => {
     pintar()
     const resumen = screen.getByRole('region', { name: 'Resumen de lo que estás viendo' })
-    expect(within(resumen).queryAllByRole('button')).toHaveLength(0)
+    expect(within(resumen).getAllByRole('button')).toHaveLength(5)
     expect(contextoVisible(/Mejor día:.*días hábiles corridos/)).toBeVisible()
     expect(contextoVisible(/solo soles — falta el tipo de cambio/)).toBeVisible()
     expect(contextoVisible(/% respecto/)).toBeVisible()
@@ -1520,9 +1530,9 @@ describe('hoja de Excel — fases E1 a E6 y accesibilidad', () => {
     pintar()
     fireEvent.click(within(malla()).getByRole('checkbox', { name: 'Comparar a Ana Analista' }))
     expect(within(malla()).getByText('Equipo de Rosa Uno')).toHaveClass('text-muted-foreground-strong')
-    fireEvent.click(within(malla()).getByRole('button', { name: 'Ver el mes completo de Ana Analista: total S/ 400,000' }))
-    expect(within(screen.getByRole('dialog')).getByText('S/ 300,000')).toBeVisible()
-    expect(within(screen.getByRole('dialog')).getByText('S/ 100,000')).toBeVisible()
+    fireEvent.click(within(malla()).getByRole('button', { name: 'Ver el mes de Ana Analista: total S/ 400,000, ver 2 operaciones' }))
+    expect(within(screen.getByRole('region', { name: /^Ana Analista ·/ })).getAllByText('S/ 300,000')[0]).toBeVisible()
+    expect(within(screen.getByRole('region', { name: /^Ana Analista ·/ })).getAllByText('S/ 100,000')[0]).toBeVisible()
   })
 
   it('tarjetas por ancho de región, con reservas medidas y limpieza de los observadores', () => {
@@ -1561,12 +1571,12 @@ describe('hoja de Excel — fases E1 a E6 y accesibilidad', () => {
     act(() => { observados.get(contenedor)!() })
     expect(screen.queryByRole('table')).toBeNull()
     const tarjetas = screen.getByRole('region', { name: 'Facturación por analista' })
-    expect(within(tarjetas).getByRole('button', { name: /^Ver el mes completo de Ana Analista: total S\/ 4,850/ })).toBeVisible()
+    expect(within(tarjetas).getByRole('button', { name: /^Ver el mes de Ana Analista: total S\/ 4,850/ })).toBeVisible()
     expect(observados.size).toBe(1)
     ancho = 738
     act(() => { observados.get(contenedor)!() })
     expect(malla()).toBeVisible()
-    expect(within(malla()).getByRole('button', { name: 'Ver el mes completo de Ana Analista: total S/ 4,850' })).toBeVisible()
+    expect(within(malla()).getByRole('button', { name: 'Ver el mes de Ana Analista: total S/ 4,850, ver 1 operación' })).toBeVisible()
     vista.unmount()
     expect(observados.size).toBe(0)
   })
@@ -1578,14 +1588,14 @@ describe('hoja de Excel — fases E1 a E6 y accesibilidad', () => {
     const tarjetas = screen.getByRole('region', { name: 'Facturación por analista' })
     expect(within(tarjetas).queryByRole('region')).toBeNull()
     expect(within(tarjetas).getByText('1 analista')).toBeVisible()
-    expect(within(tarjetas).getAllByRole('button', { name: /^Ver el mes completo/ })).toHaveLength(1)
-    expect(within(tarjetas).getAllByRole('button')).toHaveLength(2)
-    const venta = within(tarjetas).getByRole('button', { name: 'Ana Analista, jueves, 10 de setiembre: S/ 4,850 en 1 operación — ver el desglose' })
+    expect(within(tarjetas).getAllByRole('button', { name: /^Ver el mes/ })).toHaveLength(1)
+    expect(within(tarjetas).getAllByRole('button')).toHaveLength(6)
+    const venta = within(tarjetas).getByRole('button', { name: 'Ana Analista, jueves, 10 de setiembre: S/ 4,850, ver 1 operación' })
     fireEvent.click(venta)
-    expect(within(screen.getByRole('dialog')).getByText('S/ 4,850')).toBeVisible()
+    expect(within(screen.getByRole('dialog')).getAllByText('S/ 4,850')[0]).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar detalle' }))
     fireEvent.click(screen.getByRole('button', { name: 'Día' }))
-    expect(within(tarjetas).getByRole('button', { name: 'Ana Analista, Nuevo: S/ 4,850 en 1 operación — ver el desglose' })).toBeVisible()
+    expect(within(tarjetas).getByRole('button', { name: 'Ana Analista, Nuevo: S/ 4,850, ver 1 operación' })).toBeVisible()
   })
 
   it('E2: el número continúa entre bandas; número, nombre y total quedan fijos', () => {
@@ -1602,14 +1612,14 @@ describe('hoja de Excel — fases E1 a E6 y accesibilidad', () => {
 
   it('E3 y 7: nombres de 16 px, títulos sin salto, lista explícita y foco opaco', () => {
     pintar()
-    const nombre = screen.getByRole('button', { name: 'Ver el mes completo de Ana Analista' })
+    const nombre = screen.getByRole('button', { name: 'Ver el mes de Ana Analista' })
     expect(within(nombre).getByText('Ana Analista')).toHaveClass('text-base')
     expect(screen.getByRole('heading', { level: 2, name: /Cada día del mes/ })).toBeVisible()
     expect(screen.queryByRole('heading', { level: 3 })).toBeNull()
     expect(nombre).toHaveClass('focus-visible:ring-accent')
     fireEvent.click(nombre)
-    expect(screen.getByRole('dialog').querySelector('ul')).toHaveAttribute('role', 'list')
-    expect(screen.getByRole('dialog')).not.toHaveTextContent(/\b(PEN|USD|TC)\b/)
+    expect(within(screen.getByRole('region', { name: /^Ana Analista ·/ })).getByRole('table')).toBeVisible()
+    expect(screen.getByRole('region', { name: /^Ana Analista ·/ })).not.toHaveTextContent(/\b(PEN|USD|TC)\b/)
   })
 
   it('E4: por venir solo en el tramo que contiene hoy; en un mes cerrado aparecen todos los días', () => {
@@ -1630,18 +1640,18 @@ describe('hoja de Excel — fases E1 a E6 y accesibilidad', () => {
       fila({ dia: '2026-09-10', capital: 20, tipo: 'contrato_upgrade', moneda: 'USD' }),
       fila({ dia: '2026-09-10', capital: 30, tipo: 'cooperativa' }),
     ])
-    const totalMes = within(malla()).getByRole('button', { name: 'Ver el mes completo de Ana Analista: total S/ 260' }).textContent
+    const totalMes = within(malla()).getByRole('button', { name: 'Ver el mes de Ana Analista: total S/ 260, ver 4 operaciones' }).textContent
     fireEvent.click(screen.getByRole('button', { name: 'Día' }))
     for (const nombre of ['Nuevo', 'Renovación', 'Upgrade', 'Cooperativa', 'Total del día']) {
       expect(within(malla()).getByRole('columnheader', { name: nombre })).toBeVisible()
     }
-    expect(within(malla()).getByRole('button', { name: 'Ver el mes completo de Ana Analista: total S/ 260' })).toHaveTextContent(totalMes ?? '')
-    fireEvent.click(within(malla()).getByRole('button', { name: 'Ana Analista, Upgrade: S/ 80' }))
-    expect(within(screen.getByRole('dialog')).getByText('US$ 20')).toBeVisible()
-    expect(within(screen.getByRole('dialog')).queryByText(/Capital nuevo/)).toBeNull()
+    expect(within(malla()).getByRole('button', { name: 'Ver el día de Ana Analista: total S/ 260, ver 4 operaciones' })).toHaveTextContent(totalMes ?? '')
+    fireEvent.click(within(malla()).getByRole('button', { name: 'Ana Analista, Upgrade: S/ 80, ver 1 operación' }))
+    expect(within(screen.getByRole('region', { name: /^Ana Analista ·/ })).getAllByText('US$ 20')[0]).toBeVisible()
+    expect(within(screen.getByRole('region', { name: /^Ana Analista ·/ })).queryByText(/Capital nuevo/)).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar detalle' }))
     fireEvent.click(screen.getByRole('button', { name: 'Dólares' }))
-    expect(within(malla()).getByRole('button', { name: 'Ver el mes completo de Ana Analista: total US$ 20' })).toBeVisible()
+    expect(within(malla()).getByRole('button', { name: 'Ver el día de Ana Analista: total US$ 20, ver 1 operación' })).toBeVisible()
     dobles.tc = null
   })
 
@@ -1663,15 +1673,15 @@ describe('hoja de Excel — fases E1 a E6 y accesibilidad', () => {
     expect(within(tarjetas).getByText('Días en que vendió')).toBeVisible()
     expect(within(tarjetas).getByText('Activa sin ventas')).toBeVisible()
     expect(within(tarjetas).getByText('Sin ventas en este tramo.')).toBeVisible()
-    fireEvent.click(within(tarjetas).getByRole('button', { name: 'Ver el mes completo de ELIZABETH: total S/ 4,850 en 2 operaciones — ver el desglose' }))
-    expect(within(screen.getByRole('dialog')).getByText('S/ 4,850')).toBeVisible()
+    fireEvent.click(within(tarjetas).getByRole('button', { name: 'Ver el mes de ELIZABETH: total S/ 4,850 en 2 operaciones — ver el desglose' }))
+    expect(within(screen.getByRole('dialog')).getAllByText('S/ 4,850')[0]).toBeVisible()
   })
 
   it('8: solo hay una banda Sin supervisor, también con varios analistas sin ventas', () => {
     dobles.equipo = ['cero1', 'cero2'].map((id) => ({ perfil_id: id, nombre_completo: id,
       rol_crm: 'vendedor', supervisor_id: null, activo: true }))
     pintar([fila({ supervisorId: 'sin-supervisor', supervisorNombre: 'Sin supervisor' })])
-    expect(within(malla()).getAllByRole('button', { name: /Sin supervisor/ })).toHaveLength(1)
+    expect(within(malla()).getAllByRole('button', { name: /Sin supervisor/, expanded: true })).toHaveLength(1)
     expect(malla().querySelectorAll('[data-numero-fila]')).toHaveLength(3)
   })
 })
@@ -1684,4 +1694,74 @@ it.each(['pendiente', 'error'])('8: la comparación %s no bloquea el tramo que y
   expect(malla()).toBeVisible()
   expect(within(malla()).getByText('S/ 520,000')).toBeVisible()
   expect(contextoVisible(estado === 'pendiente' ? /Cargando la comparación/ : /Comparación no disponible/)).toBeVisible()
+})
+
+describe('fase 4: todos los números abren su ámbito, sin perder el supervisor histórico', () => {
+  it('celda, equipo, total del día y total general envían sus filtros exactos', () => {
+    pintar()
+    const region = malla()
+    const abrir = (nombre: string | RegExp) => {
+      fireEvent.click(within(region).getByRole('button', { name: nombre }))
+      const p = dobles.pedidosLista.at(-1)
+      fireEvent.click(screen.getByRole('button', { name: 'Cerrar detalle' }))
+      return p
+    }
+    expect(abrir('Ana Analista, miércoles, 2 de setiembre: S/ 300,000, ver 1 operación')).toEqual({ p_desde: '2026-09-02', p_hasta: '2026-09-02', p_analistas: ['ana'], p_equipo: 'sup-rosa', p_moneda: 'PEN', p_pagina: 1, p_tamano: 25 })
+    expect(abrir('Total del equipo de Rosa Uno: S/ 480,000, ver 3 operaciones')).toEqual({ p_desde: '2026-09-01', p_hasta: '2026-09-30', p_equipo: 'sup-rosa', p_moneda: 'PEN', p_pagina: 1, p_tamano: 25 })
+    expect(abrir('Total de miércoles, 2 de setiembre: S/ 380,000, ver 2 operaciones')).toEqual({ p_desde: '2026-09-02', p_hasta: '2026-09-02', p_moneda: 'PEN', p_pagina: 1, p_tamano: 25 })
+    expect(abrir('Total de lo que estás viendo: S/ 520,000, ver 4 operaciones')).toEqual({ p_desde: '2026-09-01', p_hasta: '2026-09-30', p_moneda: 'PEN', p_pagina: 1, p_tamano: 25 })
+  })
+  it('un cero es botón, el título recibe foco y Esc vuelve al mismo botón aunque el clic no lo enfocara', () => {
+    pintar()
+    const cero = within(malla()).getByRole('button', { name: 'Ana Analista, martes, 1 de setiembre: S/ 0, sin operaciones, abrir' })
+    fireEvent.click(cero)
+    expect(within(screen.getByRole('region', { name: /^Ana Analista ·/ })).getByRole('heading', { level: 2 })).toHaveFocus()
+    expect(screen.getByText('Sin operaciones en este número')).toBeVisible()
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+    expect(screen.queryByRole('region', { name: /^Ana Analista ·/ })).toBeNull()
+    expect(cero).toHaveFocus()
+  })
+  it('días sueltos solo recortan totales: otra celda conserva su propio día', () => {
+    pintar()
+    fireEvent.click(within(malla()).getByRole('button', { name: 'Marcar el miércoles, 2 de setiembre' }))
+    fireEvent.click(within(malla()).getByRole('button', { name: 'Marcar el viernes, 4 de setiembre' }))
+    fireEvent.click(within(malla()).getByRole('button', { name: 'Ver los días elegidos de Ana Analista: total S/ 400,000, ver 2 operaciones' }))
+    expect(dobles.pedidosLista.at(-1)).toMatchObject({ p_desde: '2026-09-02', p_hasta: '2026-09-04', p_dias: ['2026-09-02', '2026-09-04'] })
+    fireEvent.click(within(malla()).getByRole('button', { name: 'Carla Analista, jueves, 3 de setiembre: S/ 40,000, ver 1 operación' }))
+    expect(dobles.pedidosLista.at(-1)).toMatchObject({ p_desde: '2026-09-03', p_hasta: '2026-09-03', p_analistas: ['carla'], p_equipo: 'sup-sara' })
+    expect(dobles.pedidosLista.at(-1)).not.toHaveProperty('p_dias')
+  })
+  it('la vista Día por tipo lleva día, tipo y la moneda, incluso en una celda cero', () => {
+    pintar([fila({ dia: '2026-09-10' })])
+    fireEvent.click(screen.getByRole('button', { name: 'Día' }))
+    fireEvent.click(within(malla()).getByRole('button', { name: 'Ana Analista, Renovación: S/ 0, sin operaciones, abrir' }))
+    expect(dobles.pedidosLista.at(-1)).toEqual({ p_desde: '2026-09-10', p_hasta: '2026-09-10', p_analistas: ['ana'], p_equipo: 'sup-rosa', p_moneda: 'PEN', p_tipos: ['contrato_renovacion'], p_pagina: 1, p_tamano: 25 })
+  })
+  it('Sin analista y Sin supervisor se traducen en indicadores, nunca en ids falsos', () => {
+    pintar([fila({ analistaId: 'sin-analista', analistaNombre: 'Sin analista', supervisorId: 'sin-supervisor', supervisorNombre: 'Sin supervisor' })])
+    fireEvent.click(within(malla()).getByRole('button', { name: 'Ver el mes de Sin analista' }))
+    expect(dobles.pedidosLista.at(-1)).toMatchObject({ p_sin_analista: true, p_sin_equipo: true })
+    expect(dobles.pedidosLista.at(-1)).not.toHaveProperty('p_analistas')
+    expect(dobles.pedidosLista.at(-1)).not.toHaveProperty('p_equipo')
+  })
+})
+
+
+it('Esc devuelve el foco a la malla si el equipo del origen se plegó', () => {
+  pintar()
+  fireEvent.click(within(malla()).getByRole('button', { name: 'Ver el mes de Ana Analista' }))
+  const equipo = within(malla()).getByRole('button', { name: /Rosa Uno/, expanded: true })
+  fireEvent.click(equipo)
+  expect(screen.queryByRole('button', { name: 'Ver el mes de Ana Analista' })).toBeNull()
+  const panel = screen.getByRole('region', { name: /^Ana Analista ·/ })
+  within(panel).getByRole('heading', { level: 2 }).focus()
+  fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+  expect(malla()).toHaveFocus()
+})
+
+it('el contexto conserva los separadores a ambos lados del botón del porcentaje', () => {
+  pintar()
+  const contexto = document.querySelector('.facturacion-contexto')!
+  expect(contexto.textContent).not.toMatch(/·\s*·/)
+  expect(contexto.textContent).toMatch(/% respecto.* · Mejor día/)
 })

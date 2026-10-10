@@ -5,7 +5,7 @@ import type { CifraDetalle } from '@/lib/base-gestion'
 import { useAhora } from '@/lib/ahora'
 import { fechaLima } from '@/lib/agenda-derivada'
 import { senalarSolicitudTasaCreada } from '@/lib/respuestas-tasa'
-import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient, type InfiniteData, type QueryClient, type QueryKey } from '@tanstack/react-query'
+import { keepPreviousData, useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient, type InfiniteData, type QueryClient, type QueryKey } from '@tanstack/react-query'
 import type { CursorCartera, FiltrosCartera, PaginaCartera } from './crm-api'
 import type {
   AnularCierreAvanceDatos,
@@ -58,6 +58,9 @@ import {
   listarMetricasReuniones,
   listarAltasNuevasPorAnalista,
   listarFacturacionDiaria,
+  listarOperacionesFacturacion,
+  type ParametrosOperacionesFacturacion,
+  type ListaOperacionesFacturacion,
   listarObservacionRentabilidad,
   listarSolicitudesTasa,
   type OpcionesSolicitudesTasa,
@@ -871,6 +874,23 @@ export function useFacturacionDeMeses(habilitada: boolean, meses: readonly strin
       refetchInterval: mes.slice(0, 7) < mesActual ? 30 * 60_000 : 5 * 60_000,
       refetchOnWindowFocus: mes.slice(0, 7) < mesActual ? 'always' as const : true,
     })),
+  })
+}
+
+/** Cada filtro y la página forman la clave; ninguna respuesta de otra cifra se reutiliza. */
+export function useListaOperacionesFacturacion(habilitada: boolean, parametros: ParametrosOperacionesFacturacion,
+  detenerRefresco: (datos: ListaOperacionesFacturacion) => boolean = () => false) {
+  const cerrado = parametros.p_hasta.slice(0, 7) < useDiaLima().slice(0, 7)
+  return useQuery({
+    queryKey: [...crmQueryKeys.metricas(), 'operaciones-facturacion', parametros],
+    placeholderData: keepPreviousData,
+    queryFn: ({ signal }) => listarOperacionesFacturacion(parametros, signal),
+    enabled: habilitada,
+    staleTime: cerrado ? 30 * 60_000 : 5 * 60_000,
+    refetchOnMount: 'always',
+    refetchInterval: (consulta) => consulta.state.data && detenerRefresco(consulta.state.data) ? false : cerrado ? 30 * 60_000 : 5 * 60_000,
+    refetchOnWindowFocus: (consulta) => consulta.state.data && detenerRefresco(consulta.state.data) ? false : cerrado ? 'always' : true,
+    refetchOnReconnect: (consulta) => !(consulta.state.data && detenerRefresco(consulta.state.data)),
   })
 }
 

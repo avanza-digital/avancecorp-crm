@@ -34,6 +34,7 @@ export function Pastilla({ etiqueta, valor, urgente = false, presionada, pista, 
       type="button"
       title={title}
       onClick={onAbrir}
+      aria-label={`${etiqueta}: ${valor}${pista ? `, ${pista}` : ''}`}
       aria-pressed={presionada}
       className={cn(clase, 'cursor-pointer transition-colors pointer-coarse:min-h-11', urgente ? 'hover:bg-destructive/10' : 'hover:border-[var(--border-strong)]', FOCO)}
     >

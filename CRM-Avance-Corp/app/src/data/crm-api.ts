@@ -4764,6 +4764,72 @@ export async function listarFacturacionDiaria(
   return Object.assign(items, { descartadas })
 }
 
+/** Contrato versionado de la lista: se valida ENTERO, nunca se descartan operaciones. */
+export type ParametrosOperacionesFacturacion = Database['crm']['Functions']['listar_operaciones_facturacion_fn']['Args']
+const NumeroListaFacturacion = v.pipe(v.number(), v.finite())
+const EnteroListaFacturacion = v.pipe(NumeroListaFacturacion, v.integer(), v.minValue(0))
+const TipoOperacionFacturacion = v.picklist(['contrato_nuevo', 'contrato_upgrade', 'contrato_renovacion', 'cooperativa'])
+const BaseOperacionFacturacion = {
+  n: v.pipe(EnteroListaFacturacion, v.minValue(1)),
+  fecha: v.pipe(v.string(), v.isoDate()),
+  tipo: TipoOperacionFacturacion,
+  moneda: v.picklist(['PEN', 'USD']),
+  monto: NumeroListaFacturacion,
+  anulado: v.boolean(),
+  analista_id: v.nullable(v.string()), analista_nombre: v.string(),
+  supervisor_id: v.nullable(v.string()), supervisor_nombre: v.string(),
+}
+const OperacionFacturacionSchema = v.union([
+  v.strictObject({ ...BaseOperacionFacturacion, visible: v.literal(false), cliente_nombre: v.literal('Cliente de otro equipo') }),
+  v.strictObject({ ...BaseOperacionFacturacion, visible: v.literal(true), cliente_nombre: v.nullable(v.string()),
+    estado: v.nullable(v.string()), tipo: v.literal('cooperativa'), cierre_externo_id: v.string(),
+    cooperativa: v.nullable(v.string()), lead_id: v.nullable(v.string()) }),
+  v.strictObject({ ...BaseOperacionFacturacion, visible: v.literal(true), cliente_nombre: v.nullable(v.string()),
+    estado: v.nullable(v.string()), tipo: v.picklist(['contrato_nuevo', 'contrato_upgrade', 'contrato_renovacion']),
+    contrato_id: v.string(), numero_contrato: v.nullable(v.string()), cliente_id: v.nullable(v.string()) }),
+])
+const ListaOperacionesFacturacionSchema = v.strictObject({
+  version: v.literal(1), pagina: v.pipe(EnteroListaFacturacion, v.minValue(1)), tamano: v.picklist([25, 50, 100]),
+  total: EnteroListaFacturacion,
+  totales: v.array(v.strictObject({ moneda: v.picklist(['PEN', 'USD']), operaciones: v.pipe(EnteroListaFacturacion, v.minValue(1)), monto: NumeroListaFacturacion })),
+  filas: v.array(OperacionFacturacionSchema),
+})
+export type OperacionFacturacion = v.InferOutput<typeof OperacionFacturacionSchema>
+export type ListaOperacionesFacturacion = v.InferOutput<typeof ListaOperacionesFacturacionSchema>
+
+export function parsearListaOperacionesFacturacion(datos: unknown): ListaOperacionesFacturacion {
+  const resultado = v.safeParse(ListaOperacionesFacturacionSchema, datos)
+  const fallo = () => new CrmApiError('La lista de operaciones llegó con un formato o una versión no compatible. Vuelve a intentarlo; no se muestran datos incompletos.', 'CONTRATO_FACTURACION')
+  if (!resultado.success) throw fallo()
+  const lista = resultado.output
+  const inicio = (lista.pagina - 1) * lista.tamano
+  if (new Set(lista.totales.map((t) => t.moneda)).size !== lista.totales.length ||
+      lista.totales.reduce((n, t) => n + t.operaciones, 0) !== lista.total ||
+      lista.filas.length !== Math.min(lista.tamano, Math.max(0, lista.total - inicio)) ||
+      lista.filas.some((f, i) => f.n !== inicio + i + 1 || !lista.totales.some((t) => t.moneda === f.moneda))) throw fallo()
+  // Cuando la respuesta trae toda la lista, verifica además la cuenta por moneda.
+  if (lista.pagina === 1 && lista.filas.length === lista.total && lista.totales.some((t) => {
+    const filas = lista.filas.filter((f) => f.moneda === t.moneda)
+    return filas.length !== t.operaciones || Math.abs(filas.reduce((s, f) => s + f.monto, 0) - t.monto) > 0.000001
+  })) throw fallo()
+  return lista
+}
+
+export async function listarOperacionesFacturacion(params: ParametrosOperacionesFacturacion, signal?: AbortSignal): Promise<ListaOperacionesFacturacion> {
+  let consulta = cliente().schema('crm').rpc('listar_operaciones_facturacion_fn', params)
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw new CrmApiError(error.code === '22023'
+    ? 'No se puede abrir este número: elige un tramo de hasta 31 días y revisa los filtros y el tamaño de página.'
+    : 'No se pudo cargar la lista de operaciones. Vuelve a intentarlo.', error.code || 'POSTGREST_ERROR')
+  const lista = parsearListaOperacionesFacturacion(data)
+  if (lista.pagina !== (params.p_pagina ?? 1) || lista.tamano !== (params.p_tamano ?? 25)) {
+    throw new CrmApiError('La página recibida no corresponde a la solicitada. Vuelve a intentarlo.', 'CONTRATO_FACTURACION')
+  }
+  return lista
+}
+
 /** Altas nuevas por analista y mes (default: últimos 12 meses; el servidor acota 1..60). */
 export async function listarAltasNuevasPorAnalista(pMeses = 12, signal?: AbortSignal): Promise<FilaAltasAnalista[]> {
   let consulta = cliente().schema('crm').rpc('altas_nuevas_por_analista_fn', { p_meses: pMeses })
