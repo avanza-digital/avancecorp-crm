@@ -236,49 +236,58 @@ Deno.test("plantilla incompatible se informa antes de tomar el lease", async () 
   igual(calls.includes("render"), false, "no renderiza con otra plantilla");
 });
 
-Deno.test("versión cambiada entre reserva y reclamo libera el lease sin marcar corrupción", async () => {
-  const { deps, calls } = fake({
-    admin: [
-      { data: estado("pendiente"), error: null },
-      {
-        data: estado("procesando", {
-          adquirido: true,
-          lease_token: LEASE_TOKEN,
-          template_version: "contrato-aep-17-v6",
-          snapshot: SNAPSHOT,
-          renderizado_en: "2026-08-17T20:00:00Z",
-        }),
-        error: null,
-      },
-      {
-        data: estado("error_reintentable", {
-          template_version: "contrato-aep-17-v6",
-          reintentable: true,
-          lease_expira_en: null,
-        }),
-        error: null,
-      },
-    ],
+for (
+  const otraVersion of [
+    "contrato-aep-17-v6",
+    String(CONTRATO_PDF_TEMPLATE_VERSION) === "contrato-aep-17-v10"
+      ? "contrato-aep-17-v9"
+      : "contrato-aep-17-v10",
+  ]
+) {
+  Deno.test(`reclamo ${otraVersion} bajo ${CONTRATO_PDF_TEMPLATE_VERSION} libera el lease sin renderizar`, async () => {
+    const { deps, calls } = fake({
+      admin: [
+        { data: estado("pendiente"), error: null },
+        {
+          data: estado("procesando", {
+            adquirido: true,
+            lease_token: LEASE_TOKEN,
+            template_version: otraVersion,
+            snapshot: SNAPSHOT,
+            renderizado_en: "2026-08-17T20:00:00Z",
+          }),
+          error: null,
+        },
+        {
+          data: estado("error_reintentable", {
+            template_version: otraVersion,
+            reintentable: true,
+            lease_expira_en: null,
+          }),
+          error: null,
+        },
+      ],
+    });
+    const rpc = deps.rpcAdmin;
+    let codigo;
+    deps.rpcAdmin = (nombre, args) => {
+      if (nombre === "contrato_pdf_marcar_error") codigo = args.p_error_codigo;
+      return rpc(nombre, args);
+    };
+    const res = await crearHandlerContratoPdfV2(deps)(
+      request({ action: "ensure", contratoId: CONTRATO_ID }),
+    );
+    igual(res.status, 409, "versión incompatible");
+    igual(
+      codigo,
+      "PLANTILLA_NO_SOPORTADA",
+      "la versión desconocida no se declara corrupta",
+    );
+    igual(calls.includes("render"), false, "no renderiza");
+    igual(calls.includes("upload"), false, "no sube");
+    igual(calls.includes("admin:contrato_pdf_finalizar"), false, "no sella");
   });
-  const rpc = deps.rpcAdmin;
-  let codigo;
-  deps.rpcAdmin = (nombre, args) => {
-    if (nombre === "contrato_pdf_marcar_error") codigo = args.p_error_codigo;
-    return rpc(nombre, args);
-  };
-  const res = await crearHandlerContratoPdfV2(deps)(
-    request({ action: "ensure", contratoId: CONTRATO_ID }),
-  );
-  igual(res.status, 409, "versión incompatible");
-  igual(
-    codigo,
-    "PLANTILLA_NO_SOPORTADA",
-    "la versión desconocida no se declara corrupta",
-  );
-  igual(calls.includes("render"), false, "no renderiza");
-  igual(calls.includes("upload"), false, "no sube");
-  igual(calls.includes("admin:contrato_pdf_finalizar"), false, "no sella");
-});
+}
 
 Deno.test("respuesta de reclamo futura devuelve el lease identificable sin hacer I/O", async () => {
   const { deps, calls } = fake({
@@ -288,7 +297,7 @@ Deno.test("respuesta de reclamo futura devuelve el lease identificable sin hacer
         data: estado("procesando", {
           adquirido: true,
           lease_token: LEASE_TOKEN,
-          template_version: "contrato-aep-17-v10",
+          template_version: "contrato-aep-17-v99",
         }),
         error: null,
       },
@@ -621,6 +630,48 @@ Deno.test("status sellado verifica bytes y hash antes de firmar", async () => {
   igual(json.url, "https://storage.example.test/firma", "entrega URL firmada");
 });
 
+Deno.test("status conserva descarga de PDFs v1 históricos sin job ya sellados", async () => {
+  const blob = new Blob(["%PDF-1.7\nhistorico-v1"], {
+    type: "application/pdf",
+  });
+  const hash = await sha256(blob);
+  const templateVersion = "contrato-aep-17-v1";
+  const archivo = {
+    contrato_id: CONTRATO_ID,
+    job_id: null,
+    storage_bucket: "contratos-generados",
+    storage_path: `${CONTRATO_ID}/contrato.pdf`,
+    nombre_archivo: "Contrato-2026-01-000777.pdf",
+    sha256: hash,
+    bytes: blob.size,
+    template_version: templateVersion,
+    generado_en: "2026-08-17T20:00:00Z",
+  };
+  const { deps, calls } = fake({
+    actor: [{
+      data: estado("sellado", {
+        job_id: null,
+        storage_path: `${CONTRATO_ID}/contrato.pdf`,
+        lease_expira_en: null,
+        template_version: templateVersion,
+        sha256: hash,
+        bytes: blob.size,
+        archivo,
+      }),
+      error: null,
+    }],
+    downloads: [blob],
+  });
+  const res = await crearHandlerContratoPdfV2(deps)(
+    request({ action: "status", contratoId: CONTRATO_ID }),
+  );
+  igual(res.status, 200, "histórico v1 legible");
+  assert(
+    calls.indexOf("download") < calls.indexOf("sign"),
+    "también verifica el histórico antes de firmar",
+  );
+});
+
 Deno.test("status conserva descarga de PDFs v2 históricos ya sellados", async () => {
   const blob = new Blob(["%PDF-1.7\nhistorico-v2"], {
     type: "application/pdf",
@@ -738,44 +789,50 @@ Deno.test("status conserva descarga de PDFs v6 históricos ya sellados", async (
   );
 });
 
-Deno.test("status conserva descarga de PDFs v8 históricos ya sellados", async () => {
-  const blob = new Blob(["%PDF-1.7\nhistorico-v8"], {
-    type: "application/pdf",
+for (const version of [3, 4, 7, 8, 9]) {
+  Deno.test(`status conserva los bytes sellados v${version} bajo v10`, async () => {
+    const blob = new Blob([`%PDF-1.7\nhistorico-v${version}`], {
+      type: "application/pdf",
+    });
+    const hash = await sha256(blob);
+    const templateVersion = `contrato-aep-17-v${version}`;
+    const archivo = {
+      contrato_id: CONTRATO_ID,
+      job_id: JOB_ID,
+      storage_bucket: "contratos-generados",
+      storage_path: PATH,
+      nombre_archivo: "Contrato-2026-01-000777.pdf",
+      sha256: hash,
+      bytes: blob.size,
+      template_version: templateVersion,
+      generado_en: "2026-09-08T20:00:00Z",
+    };
+    const { deps, calls } = fake({
+      actor: [{
+        data: estado("sellado", {
+          template_version: templateVersion,
+          sha256: hash,
+          bytes: blob.size,
+          archivo,
+        }),
+        error: null,
+      }],
+      downloads: [blob],
+    });
+    const res = await crearHandlerContratoPdfV2(deps)(
+      request({ action: "status", contratoId: CONTRATO_ID }),
+    );
+    assert(
+      !calls.includes("render") && !calls.includes("upload"),
+      "no vuelve a generar ni sobrescribe el histórico",
+    );
+    igual(res.status, 200, "histórico legible bajo v10");
+    assert(
+      calls.indexOf("download") < calls.indexOf("sign"),
+      "también verifica el histórico antes de firmar",
+    );
   });
-  const hash = await sha256(blob);
-  const templateVersion = "contrato-aep-17-v8";
-  const archivo = {
-    contrato_id: CONTRATO_ID,
-    job_id: JOB_ID,
-    storage_bucket: "contratos-generados",
-    storage_path: PATH,
-    nombre_archivo: "Contrato-2026-01-000777.pdf",
-    sha256: hash,
-    bytes: blob.size,
-    template_version: templateVersion,
-    generado_en: "2026-09-08T20:00:00Z",
-  };
-  const { deps, calls } = fake({
-    actor: [{
-      data: estado("sellado", {
-        template_version: templateVersion,
-        sha256: hash,
-        bytes: blob.size,
-        archivo,
-      }),
-      error: null,
-    }],
-    downloads: [blob],
-  });
-  const res = await crearHandlerContratoPdfV2(deps)(
-    request({ action: "status", contratoId: CONTRATO_ID }),
-  );
-  igual(res.status, 200, "histórico v8 legible bajo la constante v9");
-  assert(
-    calls.indexOf("download") < calls.indexOf("sign"),
-    "también verifica el histórico antes de firmar",
-  );
-});
+}
 
 Deno.test("status jamás firma un objeto cuyo fingerprint diverge", async () => {
   const esperado = new Blob(["%PDF-1.7\nesperado"]);

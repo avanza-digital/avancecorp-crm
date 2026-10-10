@@ -592,6 +592,7 @@ function datosAnexo(snapshot: SnapshotContratoV2): AnexoPdfDatos {
       correo: snapshot.titular.correo,
     },
     analista: { nombreCompleto: snapshot.analista.nombreCompleto },
+    cuentaPago: { numeroCuenta: snapshot.cuentaPago.numeroCuenta },
     cotitulares: snapshot.cotitulares.map((cotitular) => ({
       nombreCompleto: cotitular.nombreCompleto,
       tipoDocumento: cotitular.tipoDocumento,

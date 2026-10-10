@@ -5,10 +5,11 @@
 //   deno run -A _render-muestra.ts [destino.pdf] [fechaISO] [--cotitulares=N]
 //                                  [--modalidad=mensual|trimestral|semestral|anual]
 //                                  [--compuesto] [--anios=N] [--anexo]
+//                                  [--moneda=PEN|USD] [--snapshot=destino.json]
 //
 // --cotitulares=N (0 por defecto, máximo 20) añade N co-titulares ficticios al
 // snapshot para ver cómo los nombra la comparecencia y cómo firman al final.
-// --anexo renderiza el ANEXO de cronograma (documento aparte, anexo-v1) en vez
+// --anexo renderiza el ANEXO de cronograma (documento aparte, versión vigente) en vez
 // del contrato, con el mismo snapshot ficticio.
 // --modalidad, --compuesto y --anios cambian el cronograma de muestra (espejo
 // del generador del CRM: cuotas de interés por periodo + retorno del capital a
@@ -65,6 +66,12 @@ const flagAnios = Deno.args.find((arg) => arg.startsWith("--anios="));
 const anios = Number(flagAnios?.split("=")[1] ?? "1");
 if (!Number.isInteger(anios) || anios < 1 || anios > 5) {
   throw new Error("--anios debe ser un entero entre 1 y 5");
+}
+
+const moneda =
+  Deno.args.find((arg) => arg.startsWith("--moneda="))?.split("=")[1] ?? "PEN";
+if (moneda !== "PEN" && moneda !== "USD") {
+  throw new Error("--moneda debe ser PEN o USD");
 }
 
 const CAPITAL = 15000;
@@ -159,7 +166,7 @@ const SNAPSHOT = {
     numero: "2026-01-000777",
     clienteId: "44444444-4444-4444-8444-444444444444",
     capital: CAPITAL,
-    moneda: "PEN",
+    moneda,
     porcentaje: PORCENTAJE,
     modalidad,
     tipoInteres: compuesto ? "compuesto" : "simple",
@@ -188,10 +195,10 @@ const SNAPSHOT = {
   cronograma: cronogramaDeMuestra(),
   cuentaPago: {
     cuentaId: "66666666-6666-4666-8666-666666666666",
-    moneda: "PEN",
+    moneda,
     banco: "BCP",
     tipoCuenta: "ahorros",
-    numeroCuenta: "19100000000000",
+    numeroCuenta: "0019100000000000",
     cci: "00219100000000000000",
     titularDistinto: false,
     beneficiarioNombre: null,
@@ -206,6 +213,14 @@ const fechaFija = posicionales[1] ?? "2026-09-01T12:00:00Z";
 const resultado = soloAnexo
   ? await renderizarAnexoPdfV1(SNAPSHOT, fechaFija)
   : await renderizarContratoPdfV2(SNAPSHOT, fechaFija);
+const snapshotDestino = Deno.args.find((arg) => arg.startsWith("--snapshot="))
+  ?.slice("--snapshot=".length);
+if (snapshotDestino) {
+  await Deno.writeTextFile(
+    snapshotDestino,
+    JSON.stringify(SNAPSHOT, null, 2) + "\n",
+  );
+}
 await Deno.writeFile(
   destino,
   new Uint8Array(await resultado.blob.arrayBuffer()),
@@ -216,6 +231,7 @@ console.log(
     documento: soloAnexo ? "anexo" : "contrato",
     cotitulares: cantidadCotitulares,
     modalidad,
+    moneda,
     compuesto,
     anios,
     cuotas: SNAPSHOT.cronograma.length,

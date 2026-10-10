@@ -1191,7 +1191,7 @@ select crm.contrato_pdf_anexo_emitido(
   'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
   '11111111-1111-4111-8111-111111111111',
   (:'anexo_uno'::jsonb->>'pdf_id')::uuid,
-  'anexo-cronograma-v1',
+  'anexo-cronograma-v2',
   repeat('c', 64),
   165463
 )::text as emision_dos \gset
@@ -1247,13 +1247,17 @@ select test_support.assert_true(
       where i.contrato_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'
         and i.actor_id = '11111111-1111-4111-8111-111111111111'
         and i.revision = 1
-        and i.template_anexo = 'anexo-cronograma-v1'
+        and i.template_anexo in ('anexo-cronograma-v1','anexo-cronograma-v2')
         and i.template_version_contrato = :'anexo_uno'::jsonb->>'template_version'
         and i.sha256 = repeat('c', 64) and i.bytes = 165463
         and i.pdf_id = (:'anexo_uno'::jsonb->>'pdf_id')::uuid
     )
     and (select count(*) = 2 from private.contrato_pdf_anexo_emisiones),
   'anexo: cada emision deja su asiento con hash y bytes; los rechazos no'
+);
+select test_support.assert_true(
+  (select count(*) = 1 from private.contrato_pdf_anexo_emisiones where template_anexo = 'anexo-cronograma-v2'),
+  'anexo v2: la RPC real registra la emision y el CHECK real acepta la nueva version'
 );
 select test_support.assert_true(
   not exists (
@@ -2573,5 +2577,8 @@ select test_support.assert_true(
     and (select count(*) = 2 from private.contrato_pdf_anexo_emisiones),
   'anexo: la migracion se reaplica sobre la bitacora conservada sin perder asientos'
 );
+
+-- Comprobar también las consultas de postflight sobre las tablas reales del banco.
+\ir ../scripts/banco-pdf-v10/verificar-catalogo.sql
 
 \echo CONTRATO_PDF_V2_SQL_OK
