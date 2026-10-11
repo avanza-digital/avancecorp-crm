@@ -27,6 +27,13 @@ import { GestionInversionistaDialogo } from './gestion-inversionista-dialogo'
 
 const AYUDA_UPGRADE_COOPERATIVA = 'Registra un aporte adicional vinculado a una inversión vigente. La inversión original se conserva; la reinversión se registra por separado.'
 const coopAmpliable = (i: InversionFuente) => i.empresa !== 'avance' && !i.es_demo && ['vigente', 'activo'].includes(i.estado)
+// Fase 6 de Facturación (10/10/2026): quién VENDIÓ la inversión y, si no es la misma persona, para quién CUENTA hoy
+// (cadena de upgrade o baja del analista). Un servidor anterior no envía el dato: una sola línea, como antes. Si consta
+// que no hay vendedor (null), sale «Sin información» y no se presenta como vendedor a quien solo cuenta.
+const analistasDeLaOperacion = (i: InversionFuente): ReadonlyArray<readonly [string, string | null | undefined]> =>
+  i.analista_venta_id === undefined || i.analista_venta_id === i.analista_origen_id
+    ? [['Analista de la operación', i.analista_origen_nombre]]
+    : [['Analista de la operación', i.analista_venta_nombre], ['Cuenta para', i.analista_origen_nombre]]
 
 export function ResumenEmpresas({totales, compacto = false, registrado = false}: {totales: ResumenEmpresa[]; compacto?: boolean; registrado?: boolean}) {
   return <div className="@container/resumen"><dl className={compacto ? 'grid grid-cols-2 gap-x-5 gap-y-3 @lg/resumen:grid-cols-[repeat(auto-fit,minmax(10rem,1fr))]' : 'grid gap-3 @md/resumen:grid-cols-2 @3xl/resumen:grid-cols-3'}>
@@ -110,7 +117,7 @@ function InversionDetalle({inversion, posicion, onDocumento, onOperacion, onRecu
         <div><dt className="text-muted-foreground">Rentabilidad anual</dt><dd>{i.contrato.tasa_anual}% · {i.contrato.tipo_interes === 'compuesto' ? 'al vencimiento' : i.contrato.modalidad}</dd></div>
       </>}
       {i.fecha_comercial !== i.fecha_imputacion && <div><dt className="text-muted-foreground">Fecha de imputación</dt><dd>{fmtFecha(i.fecha_imputacion)}</dd></div>}
-      <div><dt className="text-muted-foreground">Analista de la operación</dt><dd>{i.analista_origen_nombre || 'Sin información'}</dd></div>
+      {analistasDeLaOperacion(i).map(([rotulo, nombre]) => <div key={rotulo}><dt className="text-muted-foreground">{rotulo}</dt><dd>{nombre || 'Sin información'}</dd></div>)}
       {i.numero_transaccion && <div><dt className="text-muted-foreground">Depósito</dt><dd>{i.numero_transaccion}</dd></div>}
     </dl>
     {i.proxima_cuota && <p className="mt-3 text-xs">Próxima cuota: {fmtFecha(i.proxima_cuota.fecha)} · {money(i.proxima_cuota.monto, i.proxima_cuota.moneda)}</p>}
