@@ -1,6 +1,8 @@
 # Facturación fase 6: la ficha del inversionista dice quién vendió y para quién cuenta
 
-**Estado (10/10/2026):** PENDIENTE DE APLICAR. Decisión de Miguel del 10/10 («los dos nombres»).
+**Estado (10/10/2026):** **APLICADA en producción y registrada** (Miguel con `!`; md5 del texto `a163657c…`), comprobada
+después (huella `9d981c6c…`, comentario y permisos) y sin avisos nuevos de seguridad. Falta publicar el front
+(`/release-crm`). Decisión de Miguel del 10/10 («los dos nombres»).
 
 ## Qué arregla
 
@@ -77,7 +79,8 @@ repetir.
     `InversionFuenteSchema` es `v.object` en toda la historia del repo (el único `strictObject` del módulo es
     `InversionEliminadaSchema`, de otra RPC): un bundle viejo descarta las claves nuevas sin error.
   - `test-rls.mjs`: NOT RUN. No tiene ningún caso de esta función, y la visibilidad por rol la cubre este banco.
-  - Advisors: después de aplicar.
+  - Advisors de seguridad tras aplicar: sin avisos nuevos; la ficha solo sale en el aviso ya aceptado de DEFINER
+    ejecutable por `authenticated`, que tenía antes.
 - Datos de producción (10/10, solo lectura):
   - 0 contratos o cooperativas cuyo vendedor esté fuera de `crm.equipo`;
   - 9 contratos sin analista de cierre: si alguno entra en una ficha, sale «Sin información».

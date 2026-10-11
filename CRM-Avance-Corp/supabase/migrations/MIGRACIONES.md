@@ -18129,7 +18129,11 @@ ensayo de producción con el texto final «ENSAYO RELLENO PASS: 9 operaciones de
 
 ## 20261010203951 — Facturación fase 6: la ficha del inversionista dice quién vendió y para quién cuenta (`crm.inversionista_ficha_fn`)
 
-**Estado:** PENDIENTE DE APLICAR (banco PASS; ensayo de producción PASS el 10/10 con el texto final `a163657c…`).
+**Estado:** **APLICADA en producción y registrada el 10/10/2026 (Miguel con `!`)** (md5 del texto `a163657c14ef1c8e9c7630c803d8316b`;
+ensayo previo PASS). Comprobado después (solo lectura): huella `9d981c6c…`, comentario puesto, ACL
+`{postgres=X/postgres,authenticated=X/postgres}`, dueño postgres, DEFINER. Advisors de seguridad: sin avisos nuevos (la ficha
+solo sale en el aviso ya aceptado de DEFINER ejecutable por `authenticated`, que tenía antes). El front se publica con
+`/release-crm`; hasta entonces el bundle vivo ignora las dos claves.
 **Qué hace:** añade a cada inversión de la ficha `analista_venta_id` y `analista_venta_nombre`: el analista de cierre del
 contrato (`public.contratos.analista_cierre_id`) o el vendedor de la cooperativa (`crm.cierres_externos.vendedor_id`).
 `analista_origen_*` sigue siendo a quién CUENTA hoy (cadena de upgrade y baja). La pantalla enseña «Analista de la
@@ -18147,7 +18151,7 @@ se niega ante un cuerpo desconocido). El front nuevo tolera el cuerpo anterior.
 inversionistas es la de antes más las dos claves; baja simulada con 28 inversiones de dos nombres, vista por gerencia y
 por el heredero, y el que se fue ya no recibe la ficha; vendedor nulo; 2 mutantes mueren; negativas de permisos, cuerpo
 y comentario; reversa al byte). Nadie envuelve la ficha (pg_proc en producción; el front la valida con `v.object`).
-`test-rls.mjs` NOT RUN (sin casos de esta función); advisors, tras aplicar. Front: prueba nueva con 5 casos y 4
+`test-rls.mjs` NOT RUN (sin casos de esta función); advisors tras aplicar: sin avisos nuevos. Front: prueba nueva con 5 casos y 4
 mutantes muertos; `npm run check` PASS (6.612 pruebas). Codex r1: CHANGES_REQUESTED sin P0/P1; sus 4 P2 aceptados y
 corregidos (vendedor que no consta, guardas antes de «ya aplicada», ensayo ya aplicado, comentario ajeno en la reversa).
 auditor-rls: PASS; de sus tres P3 se aplicaron el comentario (por qué es DEFINER y qué ve Directorio) y la baja vista por
