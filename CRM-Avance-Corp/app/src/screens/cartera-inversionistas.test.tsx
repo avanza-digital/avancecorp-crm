@@ -88,6 +88,40 @@ describe('F5: cartera y ficha con acceso vigente', () => {
     expect(screen.getByText('12 meses')).toBeInTheDocument()
     expect(screen.getByRole('button',{name:/Copiar correo/i})).toBeInTheDocument()
   })
+  it('cada inversión dice quién la vendió y, solo si es otra persona, para quién cuenta (fase 6)', async () => {
+    const SE_FUE='55555555-5555-4555-8555-555555555555', FUENTE_2='66666666-6666-4666-8666-666666666666'
+    const FUENTE_4='77777777-7777-4777-8777-777777777777', FUENTE_5='88888888-8888-4888-8888-888888888888'
+    const d=structuredClone(fichaF5)
+    d.inversiones=[
+      {...inversionF5, numero:'SIN DATO DEL SERVIDOR'},
+      {...inversionF5, fuente_id:FUENTE_2, numero:'MISMA PERSONA', analista_venta_id:ACTOR_F5, analista_venta_nombre:'ANALISTA F5'},
+      {...inversionF5, fuente_id:SE_FUE, numero:'VENDIÓ OTRA', analista_venta_id:SE_FUE, analista_venta_nombre:'ANALISTA QUE SE FUE'},
+      {...inversionF5, fuente_id:FUENTE_4, numero:'VENDEDOR DESCONOCIDO', analista_venta_id:null, analista_venta_nombre:null},
+      {...inversionF5, fuente_id:FUENTE_5, numero:'NADIE CONSTA', analista_origen_id:null, analista_origen_nombre:null,
+        analista_venta_id:null, analista_venta_nombre:null},
+    ]
+    d.inversiones_total=5
+    // Por el esquema real: sin las dos claves en el esquema, valibot las quitaría y la tercera saldría con una línea.
+    const {parse}=await import('valibot')
+    const {FichaInversionistaSchema}=await import('@/lib/inversionistas')
+    api.ficha.mockResolvedValue(parse(FichaInversionistaSchema,d))
+    const {user}=montar()
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    const analistas=async (numero:string)=>{
+      const boton=await screen.findByRole('button',{name:`Ver inversión ${numero}`})
+      await user.click(boton)
+      const detalle=document.getElementById(boton.getAttribute('aria-controls') ?? '')
+      if(!detalle) throw new Error(`sin detalle para ${numero}`)
+      return within(detalle).getAllByRole('term').map(t=>`${t.textContent}: ${t.nextElementSibling?.textContent}`)
+        .filter(l=>l.startsWith('Analista de la operación') || l.startsWith('Cuenta para'))
+    }
+    expect(await analistas('SIN DATO DEL SERVIDOR')).toEqual(['Analista de la operación: ANALISTA F5'])
+    expect(await analistas('MISMA PERSONA')).toEqual(['Analista de la operación: ANALISTA F5'])
+    expect(await analistas('VENDIÓ OTRA')).toEqual(['Analista de la operación: ANALISTA QUE SE FUE', 'Cuenta para: ANALISTA F5'])
+    // Codex r1: un vendedor que no consta no se sustituye por quien cuenta.
+    expect(await analistas('VENDEDOR DESCONOCIDO')).toEqual(['Analista de la operación: Sin información', 'Cuenta para: ANALISTA F5'])
+    expect(await analistas('NADIE CONSTA')).toEqual(['Analista de la operación: Sin información'])
+  })
   it('conserva los totales del núcleo aunque la página solo contenga una inversión', async () => {
     const d=structuredClone(fichaF5)
     d.inversiones_total=40
