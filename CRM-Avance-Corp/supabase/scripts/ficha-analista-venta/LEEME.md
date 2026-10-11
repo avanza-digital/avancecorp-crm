@@ -18,7 +18,7 @@ es otra persona, «Cuenta para». Ninguna cifra cambia.
 - `vivo/crm.inversionista_ficha_fn.sql`: el cuerpo de producción al byte (`md5(pg_get_functiondef)` `d0c6543b…`).
 - `generar.py`: cuerpo nuevo = vivo + dos fragmentos (las dos claves y un `cross join lateral` sobre la misma fila).
   Escribe la migración, `reversa.sql`, `ensayo-produccion.sql` y `registrar.sql`. Con `--verificar` no escribe nada.
-- `banco-prueba.py`: 27 casos contra el banco Docker; deja el banco como estaba.
+- `banco-prueba.py`: 29 casos contra el banco Docker; deja el banco como estaba.
 
 ## Guardas de la migración
 
@@ -43,11 +43,13 @@ repetir.
 
 ## Verificación (10/10/2026, PRIMARY)
 
-- Banco Docker (stack fact0c; la ficha y `private.cartera_f5_fuentes` con las huellas de producción): 27/27 PASS.
+- Banco Docker (stack fact0c; la ficha y `private.cartera_f5_fuentes` con las huellas de producción): 29/29 PASS.
   - La ficha de 10 actores (gerencia, 3 supervisores, 5 vendedores y Directorio) para 40 inversionistas es la de antes
     más las dos claves, con el vendedor de su fila (103 inversiones).
   - Directorio sigue viendo solo Avance.
-  - En una baja simulada, 28 inversiones salen con dos nombres.
+  - En una baja simulada, 28 inversiones salen con dos nombres:
+    - gerencia y el heredero ven «vendió el que se fue · cuenta para el heredero»;
+    - el que se fue ya no recibe la ficha (`null`).
   - Dos mutantes mueren: «venta = a quién cuenta» y «otra clave cambia».
   - Un contrato sin analista de cierre llega con las dos claves en null.
   - Ensayo (también sobre la ficha ya aplicada), negativas de permisos, cuerpo y comentario en la migración, el
@@ -66,3 +68,19 @@ repetir.
 
   No se añaden casos de renovación, upgrade ni segunda página, porque el cambio no tiene ninguna rama por categoría
   ni por página. El caso «vendió una persona y cuenta para otra» ya lo cubre la baja, con 28 inversiones.
+- auditor-rls: PASS, sin nada que obligue a cambiar la migración. Tres P3:
+  - el comentario explica por qué la función es DEFINER y qué ve Directorio (aplicado);
+  - el banco mira la baja también como heredero y como el que se fue (aplicado);
+  - el ciclo completo queda anotado (abajo).
+- Ciclo de `supabase/migrations/LEEME.md`:
+  - Quién la envuelve: nadie. Se comprobó en producción y en el banco con `pg_proc`; ninguna Edge Function la llama.
+    `InversionFuenteSchema` es `v.object` en toda la historia del repo (el único `strictObject` del módulo es
+    `InversionEliminadaSchema`, de otra RPC): un bundle viejo descarta las claves nuevas sin error.
+  - `test-rls.mjs`: NOT RUN. No tiene ningún caso de esta función, y la visibilidad por rol la cubre este banco.
+  - Advisors: después de aplicar.
+- Datos de producción (10/10, solo lectura):
+  - 0 contratos o cooperativas cuyo vendedor esté fuera de `crm.equipo`;
+  - 9 contratos sin analista de cierre: si alguno entra en una ficha, sale «Sin información».
+- Ensayo en producción con el texto final (md5 `a163657c…`, 10/10): «ENSAYO FICHA PASS: cuerpo d0c6543b -> 9d981c6c,
+  solo los dos fragmentos, permisos iguales, comentario puesto — SE DESHACE TODO». Después, la huella seguía en
+  `d0c6543b…`, con la misma ACL y sin comentario.

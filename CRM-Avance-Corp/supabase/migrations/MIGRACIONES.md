@@ -18129,7 +18129,7 @@ ensayo de producción con el texto final «ENSAYO RELLENO PASS: 9 operaciones de
 
 ## 20261010203951 — Facturación fase 6: la ficha del inversionista dice quién vendió y para quién cuenta (`crm.inversionista_ficha_fn`)
 
-**Estado:** PENDIENTE DE APLICAR (banco PASS; ensayo de producción pendiente).
+**Estado:** PENDIENTE DE APLICAR (banco PASS; ensayo de producción PASS el 10/10 con el texto final `a163657c…`).
 **Qué hace:** añade a cada inversión de la ficha `analista_venta_id` y `analista_venta_nombre`: el analista de cierre del
 contrato (`public.contratos.analista_cierre_id`) o el vendedor de la cooperativa (`crm.cierres_externos.vendedor_id`).
 `analista_origen_*` sigue siendo a quién CUENTA hoy (cadena de upgrade y baja). La pantalla enseña «Analista de la
@@ -18143,9 +18143,13 @@ son los medidos; comprueba por texto que no cambió nada más; deja `9d981c6c…
 tenía. Sin cambios de firma, permisos, cifras ni filas visibles. Ensayo con `crm.ficha_analista_venta_ensayo`.
 **Reversa:** `supabase/scripts/ficha-analista-venta/reversa.sql` (cuerpo anterior al byte y sin comentario; idempotente;
 se niega ante un cuerpo desconocido). El front nuevo tolera el cuerpo anterior.
-**Verificación:** `banco-prueba.py` 27/27 en el banco Docker con el esquema de producción (la ficha de 10 actores × 40
-inversionistas es la de antes más las dos claves; baja simulada con 28 inversiones de dos nombres; vendedor nulo; 2
-mutantes mueren; negativas de permisos, cuerpo y comentario; reversa al byte). Front: prueba nueva con 5 casos y 4
+**Verificación:** `banco-prueba.py` 29/29 en el banco Docker con el esquema de producción (la ficha de 10 actores × 40
+inversionistas es la de antes más las dos claves; baja simulada con 28 inversiones de dos nombres, vista por gerencia y
+por el heredero, y el que se fue ya no recibe la ficha; vendedor nulo; 2 mutantes mueren; negativas de permisos, cuerpo
+y comentario; reversa al byte). Nadie envuelve la ficha (pg_proc en producción; el front la valida con `v.object`).
+`test-rls.mjs` NOT RUN (sin casos de esta función); advisors, tras aplicar. Front: prueba nueva con 5 casos y 4
 mutantes muertos; `npm run check` PASS (6.612 pruebas). Codex r1: CHANGES_REQUESTED sin P0/P1; sus 4 P2 aceptados y
 corregidos (vendedor que no consta, guardas antes de «ya aplicada», ensayo ya aplicado, comentario ajeno en la reversa).
+auditor-rls: PASS; de sus tres P3 se aplicaron el comentario (por qué es DEFINER y qué ve Directorio) y la baja vista por
+el heredero y por el que se fue, y el tercero es esta anotación del ciclo.
 **Despliegue:** servidor primero (Miguel con `!`: migración + `registrar.sql`), después `/release-crm`.

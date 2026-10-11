@@ -18,9 +18,12 @@ HUELLA_VIVA = 'd0c6543bc7226e027fb8364f137fd02a'  # md5(pg_get_functiondef) en p
 ACL = '{postgres=X/postgres,authenticated=X/postgres}'
 COMENTARIO = (
     'Ficha de un inversionista (cartera multiempresa F5): persona, capacidades, inversiones paginadas de 25 en 25, '
-    'continuidad, totales por empresa y moneda, historial y tareas. En cada inversión, analista_origen_* es a quién '
-    'CUENTA hoy (cadena de upgrade y, tras una baja, quien heredó al cliente) y analista_venta_* quién la VENDIÓ '
-    '(analista de cierre del contrato o vendedor de la cooperativa). Fase 6 de Facturación, 10/10/2026.'
+    'continuidad, totales por empresa y moneda, historial y tareas. SECURITY DEFINER porque la API no tiene permisos '
+    'sobre las tablas: autoriza con private.cartera_f5_personas_visibles al entrar y al salir; Directorio (lector '
+    'global) ve solo Avance, sin documentos, PDF, cotitulares ni antecedentes del lead. En cada inversión, '
+    'analista_origen_* es a quién CUENTA hoy (cadena de upgrade y, tras una baja, quien heredó al cliente) y '
+    'analista_venta_* quién la VENDIÓ (analista de cierre del contrato o vendedor de la cooperativa). Fase 6 de '
+    'Facturación, 10/10/2026.'
 )
 
 # Los dos fragmentos que se INSERTAN en el cuerpo vivo. Nada más cambia.

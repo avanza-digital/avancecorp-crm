@@ -32,7 +32,7 @@ begin
     raise exception 'REVERSA: cuerpo desconocido de la ficha (huella %); revisar a mano', md5(v_actual);
   end if;
   -- Un comentario distinto del que puso la migración es un cambio ajeno: no se borra (Codex r1).
-  if v_comentario is distinct from 'Ficha de un inversionista (cartera multiempresa F5): persona, capacidades, inversiones paginadas de 25 en 25, continuidad, totales por empresa y moneda, historial y tareas. En cada inversión, analista_origen_* es a quién CUENTA hoy (cadena de upgrade y, tras una baja, quien heredó al cliente) y analista_venta_* quién la VENDIÓ (analista de cierre del contrato o vendedor de la cooperativa). Fase 6 de Facturación, 10/10/2026.' then
+  if v_comentario is distinct from 'Ficha de un inversionista (cartera multiempresa F5): persona, capacidades, inversiones paginadas de 25 en 25, continuidad, totales por empresa y moneda, historial y tareas. SECURITY DEFINER porque la API no tiene permisos sobre las tablas: autoriza con private.cartera_f5_personas_visibles al entrar y al salir; Directorio (lector global) ve solo Avance, sin documentos, PDF, cotitulares ni antecedentes del lead. En cada inversión, analista_origen_* es a quién CUENTA hoy (cadena de upgrade y, tras una baja, quien heredó al cliente) y analista_venta_* quién la VENDIÓ (analista de cierre del contrato o vendedor de la cooperativa). Fase 6 de Facturación, 10/10/2026.' then
     raise exception 'REVERSA: la ficha tiene otro comentario; revisar a mano';
   end if;
 

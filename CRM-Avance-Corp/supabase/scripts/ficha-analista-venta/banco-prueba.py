@@ -171,7 +171,7 @@ set local session_replication_role = origin;"""
 
     # ANTES (cuerpo vivo).
     antes = foto(actores, invs)
-    antes_baja = foto([gerencia], invs, baja)
+    antes_baja = foto([gerencia, y, x], invs, baja)
     con_inversiones = {a: sum(1 for f in antes[a].values() if isinstance(f, dict) and f.get('inversiones'))
                        for a in actores}
     caso('la prueba no es vacía: gerencia, Directorio y al menos un vendedor ven inversiones',
@@ -223,13 +223,20 @@ set local session_replication_role = origin;"""
     lector = [inv for a in directorio for _, _, inv in inversiones({a: despues[a]})]
     caso('Directorio: solo Avance y con las dos claves',
          lector != [] and all(inv['empresa'] == 'avance' and all(k in inv for k in CLAVES_NUEVAS) for inv in lector))
-    despues_baja = foto([gerencia], invs, baja)
+    despues_baja = foto([gerencia, y, x], invs, baja)
     difs = diferencias(antes_baja, despues_baja)
-    distintos = [inv for _, _, inv in inversiones(despues_baja)
+    distintos = [inv for _, _, inv in inversiones({gerencia: despues_baja[gerencia]})
                  if inv['analista_venta_id'] == x and inv['analista_origen_id'] not in (x, None)]
     caso('baja: igual que antes salvo las claves; vendió el que se fue y cuenta para quien heredó',
          not difs and len(distintos) > 0 and not errores_de_venta(despues_baja, esperado),
          f'{len(distintos)} inversiones con dos nombres')
+    heredero = [inv for _, _, inv in inversiones({y: despues_baja[y]})
+                if inv['analista_venta_id'] == x and inv['analista_origen_id'] == y]
+    caso('baja vista por el heredero: vendió el que se fue y cuenta para él', len(heredero) > 0,
+         f'{len(heredero)} inversiones')
+    se_fue = {i: f for i, f in despues_baja[x].items() if isinstance(f, dict) and f.get('inversiones')}
+    caso('baja vista por el que se fue: ninguna ficha con inversiones', se_fue == {},
+         str(sorted({json.dumps(f)[:60] for f in despues_baja[x].values()})[:2]))
 
     # Contrato sin analista de cierre (la columna admite NULL, p. ej. importados): la ficha dice que no consta.
     nulo = valor("""select f.fuente_id from private.cartera_f5_fuentes() f

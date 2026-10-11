@@ -1,14 +1,14 @@
 -- REGISTRO en supabase_migrations.schema_migrations de 20261010203951_crm_ficha_analista_venta.
 -- Correr DESPUÉS de aplicar la migración, por la misma vía. Idempotente; se niega si la ficha no tiene el cuerpo y el
 -- comentario nuevos o si la versión ya está registrada con otro nombre u otro texto.
--- Generado por generar.py: md5 del texto de la migración 860f154082070640e4e69f5d2eec55ff.
+-- Generado por generar.py: md5 del texto de la migración a163657c14ef1c8e9c7630c803d8316b.
 begin;
 set local lock_timeout = '5s';
 select pg_advisory_xact_lock(hashtext('crm_ficha_analista_venta'));
 do $chk$
 begin
   if (select md5(pg_get_functiondef(p.oid)) = '9d981c6ca6eb214a318678e85bd851d6'
-             and obj_description(p.oid, 'pg_proc') = 'Ficha de un inversionista (cartera multiempresa F5): persona, capacidades, inversiones paginadas de 25 en 25, continuidad, totales por empresa y moneda, historial y tareas. En cada inversión, analista_origen_* es a quién CUENTA hoy (cadena de upgrade y, tras una baja, quien heredó al cliente) y analista_venta_* quién la VENDIÓ (analista de cierre del contrato o vendedor de la cooperativa). Fase 6 de Facturación, 10/10/2026.'
+             and obj_description(p.oid, 'pg_proc') = 'Ficha de un inversionista (cartera multiempresa F5): persona, capacidades, inversiones paginadas de 25 en 25, continuidad, totales por empresa y moneda, historial y tareas. SECURITY DEFINER porque la API no tiene permisos sobre las tablas: autoriza con private.cartera_f5_personas_visibles al entrar y al salir; Directorio (lector global) ve solo Avance, sin documentos, PDF, cotitulares ni antecedentes del lead. En cada inversión, analista_origen_* es a quién CUENTA hoy (cadena de upgrade y, tras una baja, quien heredó al cliente) y analista_venta_* quién la VENDIÓ (analista de cierre del contrato o vendedor de la cooperativa). Fase 6 de Facturación, 10/10/2026.'
              and p.proacl::text = '{postgres=X/postgres,authenticated=X/postgres}' and pg_get_userbyid(p.proowner) = 'postgres' and p.prosecdef
       from pg_proc p where p.oid = 'crm.inversionista_ficha_fn(uuid,integer,integer)'::regprocedure) is not true then
     raise exception 'REGISTRO: la ficha no tiene el cuerpo nuevo con sus permisos; aplica primero 20261010203951';
@@ -19,7 +19,7 @@ begin
   end if;
   if exists (select 1 from supabase_migrations.schema_migrations
              where version = '20261010203951' and (cardinality(statements) is distinct from 1
-               or md5(statements[1]) is distinct from '860f154082070640e4e69f5d2eec55ff')) then
+               or md5(statements[1]) is distinct from 'a163657c14ef1c8e9c7630c803d8316b')) then
     raise exception 'REGISTRO: la versión 20261010203951 ya está registrada con OTRO texto; revisar a mano';
   end if;
 end $chk$;
@@ -63,7 +63,7 @@ begin
       v_acl, v_dueno, v_definer;
   end if;
   -- Ya aplicada (cuerpo y comentario): repetir no hace nada. El ensayo acaba en error también aquí.
-  if md5(v_antes) = '9d981c6ca6eb214a318678e85bd851d6' and v_comentario = 'Ficha de un inversionista (cartera multiempresa F5): persona, capacidades, inversiones paginadas de 25 en 25, continuidad, totales por empresa y moneda, historial y tareas. En cada inversión, analista_origen_* es a quién CUENTA hoy (cadena de upgrade y, tras una baja, quien heredó al cliente) y analista_venta_* quién la VENDIÓ (analista de cierre del contrato o vendedor de la cooperativa). Fase 6 de Facturación, 10/10/2026.' then
+  if md5(v_antes) = '9d981c6ca6eb214a318678e85bd851d6' and v_comentario = 'Ficha de un inversionista (cartera multiempresa F5): persona, capacidades, inversiones paginadas de 25 en 25, continuidad, totales por empresa y moneda, historial y tareas. SECURITY DEFINER porque la API no tiene permisos sobre las tablas: autoriza con private.cartera_f5_personas_visibles al entrar y al salir; Directorio (lector global) ve solo Avance, sin documentos, PDF, cotitulares ni antecedentes del lead. En cada inversión, analista_origen_* es a quién CUENTA hoy (cadena de upgrade y, tras una baja, quien heredó al cliente) y analista_venta_* quién la VENDIÓ (analista de cierre del contrato o vendedor de la cooperativa). Fase 6 de Facturación, 10/10/2026.' then
     if current_setting('crm.ficha_analista_venta_ensayo', true) = 'on' then
       raise exception 'ENSAYO FICHA: ya aplicada; no hay nada que ensayar — SE DESHACE TODO';
     end if;
@@ -244,7 +244,7 @@ $fragmento$, ''),
     raise exception 'POSTFLIGHT: cambiaron los permisos, el dueño o el modo de la ficha';
   end if;
 
-  comment on function crm.inversionista_ficha_fn(uuid, integer, integer) is 'Ficha de un inversionista (cartera multiempresa F5): persona, capacidades, inversiones paginadas de 25 en 25, continuidad, totales por empresa y moneda, historial y tareas. En cada inversión, analista_origen_* es a quién CUENTA hoy (cadena de upgrade y, tras una baja, quien heredó al cliente) y analista_venta_* quién la VENDIÓ (analista de cierre del contrato o vendedor de la cooperativa). Fase 6 de Facturación, 10/10/2026.';
+  comment on function crm.inversionista_ficha_fn(uuid, integer, integer) is 'Ficha de un inversionista (cartera multiempresa F5): persona, capacidades, inversiones paginadas de 25 en 25, continuidad, totales por empresa y moneda, historial y tareas. SECURITY DEFINER porque la API no tiene permisos sobre las tablas: autoriza con private.cartera_f5_personas_visibles al entrar y al salir; Directorio (lector global) ve solo Avance, sin documentos, PDF, cotitulares ni antecedentes del lead. En cada inversión, analista_origen_* es a quién CUENTA hoy (cadena de upgrade y, tras una baja, quien heredó al cliente) y analista_venta_* quién la VENDIÓ (analista de cierre del contrato o vendedor de la cooperativa). Fase 6 de Facturación, 10/10/2026.';
 
   if current_setting('crm.ficha_analista_venta_ensayo', true) = 'on' then
     raise exception 'ENSAYO FICHA PASS: cuerpo % -> %, solo los dos fragmentos, permisos iguales, comentario puesto — SE DESHACE TODO',

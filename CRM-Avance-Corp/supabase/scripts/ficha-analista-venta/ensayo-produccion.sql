@@ -41,7 +41,7 @@ begin
       v_acl, v_dueno, v_definer;
   end if;
   -- Ya aplicada (cuerpo y comentario): repetir no hace nada. El ensayo acaba en error también aquí.
-  if md5(v_antes) = '9d981c6ca6eb214a318678e85bd851d6' and v_comentario = 'Ficha de un inversionista (cartera multiempresa F5): persona, capacidades, inversiones paginadas de 25 en 25, continuidad, totales por empresa y moneda, historial y tareas. En cada inversión, analista_origen_* es a quién CUENTA hoy (cadena de upgrade y, tras una baja, quien heredó al cliente) y analista_venta_* quién la VENDIÓ (analista de cierre del contrato o vendedor de la cooperativa). Fase 6 de Facturación, 10/10/2026.' then
+  if md5(v_antes) = '9d981c6ca6eb214a318678e85bd851d6' and v_comentario = 'Ficha de un inversionista (cartera multiempresa F5): persona, capacidades, inversiones paginadas de 25 en 25, continuidad, totales por empresa y moneda, historial y tareas. SECURITY DEFINER porque la API no tiene permisos sobre las tablas: autoriza con private.cartera_f5_personas_visibles al entrar y al salir; Directorio (lector global) ve solo Avance, sin documentos, PDF, cotitulares ni antecedentes del lead. En cada inversión, analista_origen_* es a quién CUENTA hoy (cadena de upgrade y, tras una baja, quien heredó al cliente) y analista_venta_* quién la VENDIÓ (analista de cierre del contrato o vendedor de la cooperativa). Fase 6 de Facturación, 10/10/2026.' then
     if current_setting('crm.ficha_analista_venta_ensayo', true) = 'on' then
       raise exception 'ENSAYO FICHA: ya aplicada; no hay nada que ensayar — SE DESHACE TODO';
     end if;
@@ -222,7 +222,7 @@ $fragmento$, ''),
     raise exception 'POSTFLIGHT: cambiaron los permisos, el dueño o el modo de la ficha';
   end if;
 
-  comment on function crm.inversionista_ficha_fn(uuid, integer, integer) is 'Ficha de un inversionista (cartera multiempresa F5): persona, capacidades, inversiones paginadas de 25 en 25, continuidad, totales por empresa y moneda, historial y tareas. En cada inversión, analista_origen_* es a quién CUENTA hoy (cadena de upgrade y, tras una baja, quien heredó al cliente) y analista_venta_* quién la VENDIÓ (analista de cierre del contrato o vendedor de la cooperativa). Fase 6 de Facturación, 10/10/2026.';
+  comment on function crm.inversionista_ficha_fn(uuid, integer, integer) is 'Ficha de un inversionista (cartera multiempresa F5): persona, capacidades, inversiones paginadas de 25 en 25, continuidad, totales por empresa y moneda, historial y tareas. SECURITY DEFINER porque la API no tiene permisos sobre las tablas: autoriza con private.cartera_f5_personas_visibles al entrar y al salir; Directorio (lector global) ve solo Avance, sin documentos, PDF, cotitulares ni antecedentes del lead. En cada inversión, analista_origen_* es a quién CUENTA hoy (cadena de upgrade y, tras una baja, quien heredó al cliente) y analista_venta_* quién la VENDIÓ (analista de cierre del contrato o vendedor de la cooperativa). Fase 6 de Facturación, 10/10/2026.';
 
   if current_setting('crm.ficha_analista_venta_ensayo', true) = 'on' then
     raise exception 'ENSAYO FICHA PASS: cuerpo % -> %, solo los dos fragmentos, permisos iguales, comentario puesto — SE DESHACE TODO',
