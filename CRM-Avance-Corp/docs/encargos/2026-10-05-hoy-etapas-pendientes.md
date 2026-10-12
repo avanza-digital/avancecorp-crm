@@ -1,6 +1,6 @@
 # HOY: etapas actuales y aviso de pendientes de gestión
 
-Estado: corrección implementada; publicación se registra después de comprobar el artefacto servido.
+Estado: PUBLICADO, integrado en Main por PR #192 y sesión cerrada el 05/10/2026.
 
 ## Criterio vigente de Miguel
 
@@ -41,3 +41,25 @@ Claude emitió CHANGES_REQUESTED (LEVEL 2). Su revisión quedó en el archivo he
 La PR #191 ya está fusionada a `avancecorp/main` en `0dfb1b5c`. Se integró ese Main en la copia de rescate existente, con árbol de código idéntico antes de este ajuste. El taller original preserva todos los cambios ajenos. La corrección continúa desde ese historial que contiene tanto Main como el commit vivo `ac46b2d3`.
 
 El chequeo intermedio detectó que jsdom unía el dígito y «sin gestionar» sin espacio en el nombre accesible. Se añadió un espacio explícito y pasaron tanto las 87 dirigidas como el gate completo de 6.100 y Docker 3/3.
+
+
+## Publicación y comprobación posterior
+
+- Fuente limpia: `5002b29725943d281cad3dd1eeeef1ae989616b4`.
+- Build: `build-20261005T172100476Z`.
+- ZIP: `crm-20261005T172101Z-5002b2972594.zip`.
+- SHA-256: `c0f3799f0a75b9a203ab39eb0ad8369b4e25af59fe2ece1014a16d493d13c7cd`.
+- `release:crm`, `release:crm:verify` y preflight **PASS**. El preflight confirmó que la fuente contiene el commit entonces vivo `ac46b2d37702` y el Main integrado `0dfb1b5c`.
+- Despliegue mediante el MCP oficial de Hostinger **PASS**. Comprobación posterior en `https://crm.miavance.com`: portada HTTP 200/hash exacto y **97/97 archivos HTTP 200/hash exacto**, sin fallos; versión y build exactos. Evidencia en `app/artifacts/hoy-etapas-pendientes/publicado-https.json`.
+- Navegador productivo: la sesión disponible ahora abre Resumen de gerencia, sin pestañas de analista. **NOT RUN** el recorrido visual de analista en esta versión productiva. No se cambiaron la cuenta ni datos reales. El recorrido de gestión 1 → 0 y etapas está validado en Docker local, y el contrato productivo mediante la lectura SQL autenticada descrita arriba.
+- Recuperación conservada: `crm-20261005T164936Z-ac46b2d37702.zip`, SHA-256 `a0b7e735c16b1fb03ccde1f126e2306ed8b77486a89ce743044641475dd83b05`, con su manifiesto. Sin rollback ejecutado.
+- PR: https://github.com/avanza-digital/avancecorp-crm/pull/192. Integrada el 05/10/2026 a las 17:29:27 UTC mediante squash en `618cf7cee39529662ee66a2e6fbef81ab0e2b50b`. Todos los checks ejecutados terminaron PASS (Supabase Preview SKIPPED). La publicación se hizo desde la rama de rescate existente.
+
+
+## Cierre solicitado por Miguel (05/10/2026)
+
+- Vista local de HOY detenida (PID 71409); comprobados proceso terminado y puerto 5187 sin escucha.
+- Las pestañas temporales locales y de comprobación ya no están abiertas. Cerrada la pestaña de PR #192 después de comprobar que no tenía un borrador; CRM productivo y ventanas ajenas conservados.
+- No quedan contenedores de Playwright de esta sesión. Los contenedores de otros bancos y los procesos de otras tareas permanecen intactos.
+- PR #192 MERGED; preflight, cambios, app-check y verify PASS. Main remoto `618cf7cee39529662ee66a2e6fbef81ab0e2b50b` tiene el árbol exactamente igual al commit publicado `5002b29725943d281cad3dd1eeeef1ae989616b4` (diff vacío). El squash cambia el historial, no el contenido.
+- Código, acta, pruebas, capturas y paquetes de publicación/recuperación conservados. La copia aislada y rama fuente se conservan como respaldo, sin servidor activo. El Main del taller original y sus cambios ajenos no se sobrescribieron.

@@ -2,9 +2,9 @@
 
 ## Estado
 
-**Implementación terminada y vista aprobada por Miguel el 06/10/2026. Preparación de despliegue autorizada.** Se retomó el serial `CRM-CLIENTES-CIERRE-20261006-01` por petición del usuario. La [pausa anterior](2026-10-06-cierre-gestiones-clientes-PAUSA.md) se conserva como historial. El estado de entrega y las puertas de instalación están en el [plan de despliegue](2026-10-06-cierre-gestiones-clientes-DESPLIEGUE.md).
+**Implementación y vista aprobadas; «deploy» autorizado por Miguel. PR #207 integrada en Main `a0c334ba`, sobre #190.** Se retomó el serial `CRM-CLIENTES-CIERRE-20261006-01` por petición del usuario. La [pausa anterior](2026-10-06-cierre-gestiones-clientes-PAUSA.md) se conserva como historial. El estado vigente y la coordinación con el agente que despliega #190 están en el [plan de despliegue](2026-10-06-cierre-gestiones-clientes-DESPLIEGUE.md).
 
-Evaluación de Claude y ajustes aplicables resueltos: [decisiones y evidencia](2026-10-06-cierre-gestiones-clientes-REVISION.md). Las dos migraciones están aplicadas únicamente en el banco sintético propio `gestiones_clientes_20261006`, dentro del contenedor Docker local existente. Producción sin cambios del encargo. El gate integral de entrega pasó en copia limpia del Main vigente: 6.219 pruebas y duplicación 0,43 %, conservando las copias ajenas del árbol compartido. Se mantienen pendientes las puertas remotas de instalación descritas en el plan.
+Evaluación de Claude y ajustes aplicables resueltos: [decisiones y evidencia](2026-10-06-cierre-gestiones-clientes-REVISION.md). **Las dos migraciones están instaladas en producción**, mediante `merge_branch`; postflight PASS el 07/10 a las 00:43:32 UTC (06/10 19:43 Lima). Cuatro suites SQL remotas PASS, también con SLA activo; matriz HTTP de este encargo: 3.075 aserciones, cero fallos. Main limpio: 6.263 pruebas y duplicación 0,44 %; Docker completo: 368 aprobadas, 26 omitidas, cero fallos. Las 22 Edge Functions y las 432 migraciones anteriores se conservaron; sin nuevas alertas de seguridad ni advertencias de rendimiento. Rama temporal propia eliminada. **El frontend está preparado y aún no publicado**: Miguel confirmó que el otro agente sigue trabajando en SQL y Edge de #190, dependencia del Main integrado.
 
 Entrada local vigente: `http://127.0.0.1:5197/artifacts/postventa-local-entrada.html`. Abre la ficha multiempresa actual con datos de ejemplo en memoria; no es una conexión a la base productiva.
 
@@ -55,7 +55,9 @@ Después de una reasignación, el autor conserva el conteo histórico de su trab
 
 El cursor del Registro incluye fecha con microsegundos, origen y UUID; soporta coincidencia de UUID/fecha entre fuentes. Se excluyen los espejos de postventa de leads y se deduplica la misma tarea entre F6 y actividades heredadas.
 
-## Evidencia técnica
+## Evidencia técnica de implementación (histórica)
+
+La tabla conserva las ejecuciones anteriores a la preparación productiva. Los gates posteriores y el estado actual están en la sección Estado y en el acta de despliegue.
 
 | Comprobación | Estado |
 | --- | --- |
@@ -89,13 +91,12 @@ Los contratos frontend ya verifican `vendedor_id` nullable: la cita sin responsa
 
 Logs vigentes: `gestiones-clientes-check-reanudado-final.log`, `gestiones-clientes-sql-reanudado.log`, `gestiones-clientes-volumen.log`, `gestiones-clientes-e2e-reanudado.log`, `gestiones-clientes-e2e-perfil.log`, `gestiones-clientes-preflight-scripts.log` y `gestiones-clientes-dup-reanudado-sin-copias.log`. Los logs de la pausa se conservan como evidencia anterior.
 
-## Instalación pendiente
+## Publicación pendiente
 
-Miguel aprobó la vista y pidió preparar el despliegue. El gate integral en copia limpia está aprobado. Quedan las puertas SQL y la publicación del entorno destino detalladas en el plan de despliegue; la tabla anterior conserva el historial técnico previo a esta preparación.
+Miguel aprobó la vista y autorizó «deploy». PR #207 integrada, SQL instalado y gates aprobados. Falta publicar el frontend integrado cuando el otro agente termine #190. La autorización persiste; no es necesaria una nueva invocación de `$release-crm`.
 
-1. Aprobar el SQL exacto de `20261005224214_crm_resultados_cliente_postventa.sql` y `20261006012208_crm_gestiones_clientes_supervision.sql`.
-2. Revalidar contra el esquema destino; la primera migración exige la huella anterior exacta del writer F6. Ensayar en rama autorizada y revisar advisors/permisos.
-3. Aplicar ambas migraciones, en ese orden, y comprobar las cinco RPC antes del frontend.
-4. Publicar solo mediante el flujo autorizado del proyecto, desde Main verificado contra `avancecorp/main`. No se realizó publicación ni commit en esta tarea.
+1. Verificar SQL y función de servidor de #190; #207 ya no requiere instalación SQL.
+2. Revalidar Main local = `avancecorp/main`, paquete y preflight Hostinger. El ZIP preparado es `crm-20261007T000643Z-a0c334bae19c.zip`; reconstruir si Main cambió.
+3. Publicar por Hostinger y comprobar versión y assets. El build vivo en la última lectura sigue siendo `build-20261006T213354829Z`, commit `4e6ee7ee`.
 
 Si hace falta retirar el frontend nuevo, el bundle anterior sigue admitido por el writer compatible. Conservar los resultados ya guardados; no borrar historial para revertir una pantalla.

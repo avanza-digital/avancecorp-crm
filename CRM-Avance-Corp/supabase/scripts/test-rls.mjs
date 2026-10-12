@@ -7648,6 +7648,11 @@ async function testMetricasServidor(sessions, seed) {
 // gerencia/lector global, asi que el gate es parte del entregable, no un
 // seguimiento. Tres bloques: (A) permitidos y FORMA, (B) denegaciones duras,
 // (C) NO VACUIDAD — sin el bloque C, todo A puede estar verde y vacio.
+// Dos peticiones HTTP tienen relojes distintos; se conservan todas las cifras,
+// identidades y alcances y se excluyen solo las tres marcas basadas en now().
+const huellaCifrasReporte = (reporte) => JSON.stringify(reporte, (clave, valor) =>
+  ['generado_en', 'madura_hasta', 'seguimiento_hasta'].includes(clave) ? undefined : valor);
+
 async function testMetricasConversionesGlobal(sessions) {
   // `num` vivia solo dentro de testCierreDeMes (linea ~7603) y este bloque
   // -el del filtro de origen, anadido el 28/08- lo llamaba desde otro ambito:
@@ -7930,8 +7935,14 @@ async function testMetricasConversionesGlobal(sessions) {
 
   // ── B · denegaciones DURAS (42501, jamas un payload de ceros) ─────────────
   // A diferencia de equipo_fn, aqui TAMBIEN los supervisores quedan fuera:
-  // el gate es gerencia/lector global y nada mas.
-  for (const key of ['vend1', 'vend3', 'sup1', 'sup2', 'sup1Nested', 'coordinador', 'vendInactive', 'clientBank']) {
+  // Coordinación también consulta estas cifras globales, sin permisos operativos.
+  const reporteCoord = await positive('coordinador consulta metricas_conversiones_fn',
+    sessions.coordinador.client.schema('crm').rpc('metricas_conversiones_fn', P));
+  const reporteGer = await positive('oraculo global de conversion para coordinador',
+    sessions.gerencia.client.schema('crm').rpc('metricas_conversiones_fn', P));
+  check(reporteCoord && reporteGer && huellaCifrasReporte(reporteCoord.data) === huellaCifrasReporte(reporteGer.data),
+    'coordinador recibe las mismas cifras de conversión que Gerencia');
+  for (const key of ['vend1', 'vend3', 'sup1', 'sup2', 'sup1Nested', 'vendInactive', 'clientBank']) {
     await expectExplicitAuthorizationDenied(
       `${key} no ejecuta metricas_conversiones_fn`,
       sessions[key].client.schema('crm').rpc('metricas_conversiones_fn', P),
@@ -9404,9 +9415,9 @@ async function testFacturacionDiaria(sessions, seed) {
       `gerencia lee ${FN} (${error?.code ?? filasGerencia.length + ' filas'})`);
   }
 
-  // B-E. Vendedor, coordinador, cliente del banco y el analista dado de baja
+  // B-E. Vendedor, cliente del banco y el analista dado de baja
   //      reciben VACIO: verja de visibilidad, no cierre (criterio M-1).
-  for (const quien of ['vend1', 'coordinador', 'clientBank', 'vendInactive']) {
+  for (const quien of ['vend1', 'clientBank', 'vendInactive']) {
     const { data, error } = await sessions[quien].client
       .schema('crm').rpc(FN, { p_mes: MES });
     check(!error && Array.isArray(data) && data.length === 0,
@@ -9418,10 +9429,35 @@ async function testFacturacionDiaria(sessions, seed) {
   //     excepcion sin motivo (mismo criterio que sus hermanas).
   {
     const ordenar = (filas) => (filas ?? []).map((f) => JSON.stringify(f)).sort();
-    const { data, error } = await sessions.directorio.client
-      .schema('crm').rpc(FN, { p_mes: MES });
-    check(!error && JSON.stringify(ordenar(data)) === JSON.stringify(ordenar(filasGerencia)),
-      `directorio lee ${FN} igual que gerencia (${error?.code ?? (data?.length ?? 0) + ' vs ' + filasGerencia.length + ' filas'})`);
+    for (const quien of ['directorio', 'coordinador']) {
+      const { data, error } = await sessions[quien].client
+        .schema('crm').rpc(FN, { p_mes: MES });
+      check(!error && JSON.stringify(ordenar(data)) === JSON.stringify(ordenar(filasGerencia)),
+        `${quien} lee ${FN} igual que gerencia (${error?.code ?? (data?.length ?? 0) + ' vs ' + filasGerencia.length + ' filas'})`);
+    }
+  }
+
+  // El roster de reportes está separado del ámbito operativo de Coordinación.
+  const roster = await positive('Coordinación consulta el roster exclusivo de reportes',
+    sessions.coordinador.client.schema('crm').rpc('equipo_reportes_fn'));
+  if (roster) {
+    const claves = ['activo', 'nombre_completo', 'perfil_id', 'rol_crm', 'supervisor_id'];
+    check(Array.isArray(roster.data) && roster.data.every((f) =>
+      JSON.stringify(Object.keys(f).sort()) === JSON.stringify(claves)
+      && f.activo === true && ['vendedor', 'supervisor', 'gerencia'].includes(f.rol_crm)),
+    'roster de reportes contiene solo identidad comercial activa, sin contactos ni permisos');
+    const ids = new Set((roster.data ?? []).map((f) => f.perfil_id));
+    check(ids.has(seed.profileIdByKey.vend1) && ids.has(seed.profileIdByKey.vend3)
+      && !ids.has(seed.profileIdByKey.coordinador) && !ids.has(seed.profileIdByKey.vendInactive),
+    'roster de reportes abarca dos equipos y excluye al coordinador y al analista inactivo');
+  }
+  const operativo = await positive('Coordinación conserva su roster operativo vacío',
+    sessions.coordinador.client.schema('crm').rpc('equipo_visible_fn'));
+  check(operativo && Array.isArray(operativo.data) && operativo.data.length === 0,
+    'el roster de reportes no amplía equipo_visible_fn');
+  for (const quien of ['vend1', 'sup1', 'vendInactive', 'clientBank']) {
+    await expectExplicitAuthorizationDenied(`${quien} no ejecuta equipo_reportes_fn`,
+      sessions[quien].client.schema('crm').rpc('equipo_reportes_fn'));
   }
 
   // F. EL SUPERVISOR YA NO RECIBE VACIO (16/09/2026): ve SU equipo. Cada fila
@@ -9847,9 +9883,11 @@ async function testFacturacionLista(sessions, seed) {
           `${quien}: ${tamano}, n=1..total, sin huecos, ids repetidos ni filas perdidas`);
         check(total === totalCifra && iguales(normalizarTotales(totales), totalesCifra)
           && iguales(agrupar(filas), totalesCifra), `${quien}: filas, total y totales de la lista = SU cifra`);
-        if (['vend1', 'coordinador', 'clientBank', 'vendInactive'].includes(quien)) {
+        if (['vend1', 'clientBank', 'vendInactive'].includes(quien)) {
           check(total === 0 && filas.length === 0 && totales.length === 0, `${quien}: sin autorización, lista vacía sin error`);
         }
+        if (quien === 'coordinador') check(total > 0 && filas.every((f) => !f.visible && clavesCorrectas(f)),
+          'Coordinación consulta operaciones reales del fixture, todas enmascaradas y sin identificadores de clientes');
         if (quien === 'gerencia') check(filas.every((f) => f.visible === true), 'Gerencia ve todos los nombres');
         if (quien === 'directorio') check(filas.every((f) => f.visible === (f.tipo !== 'cooperativa')),
           'Directorio ve los contratos y enmascara TODAS las cooperativas');
@@ -10244,7 +10282,13 @@ async function testMetricasConversionEquipo(sessions, seed) {
   }
 
   // ── B · denegaciones DURAS (42501, jamas un payload de ceros) ──────────────
-  for (const key of ['vend1', 'vend3', 'coordinador', 'vendInactive', 'clientBank']) {
+  const reporteCoord = await positive('coordinador consulta metricas_conversiones_equipo_fn',
+    sessions.coordinador.client.schema('crm').rpc('metricas_conversiones_equipo_fn', P));
+  const reporteGer = await positive('oraculo global de cosecha para coordinador',
+    sessions.gerencia.client.schema('crm').rpc('metricas_conversiones_equipo_fn', P));
+  check(reporteCoord && reporteGer && huellaCifrasReporte(reporteCoord.data) === huellaCifrasReporte(reporteGer.data),
+    'coordinador recibe las mismas cifras de cosecha que Gerencia');
+  for (const key of ['vend1', 'vend3', 'vendInactive', 'clientBank']) {
     await expectExplicitAuthorizationDenied(
       `${key} no ejecuta metricas_conversiones_equipo_fn`,
       sessions[key].client.schema('crm').rpc('metricas_conversiones_equipo_fn', P),
@@ -13793,14 +13837,14 @@ async function testConversionMensual(sessions, seed) {
     // ── B · denegaciones DURAS: 42501, jamas un payload de ceros ─────────────
     // Un cero se leeria como «0 % de conversion», o sea como que no cerro nada
     // de lo que recibio: por eso la denegacion es un ERROR y no una lista vacia.
-    //   coordinador     — miembro del CRM con rol denegado por contrato (la
-    //                     allowlist existe para que `rol_crm is not null` no lo
-    //                     cuele).
     //   vendInactive    — membresia inactiva = revocacion.
     //   clientBank      — cliente del portal y, a la vez, AJENO al CRM: no tiene
     //                     fila en crm.equipo. El fixture no distingue esos dos
     //                     casos porque no hay un tercer actor sin membresia.
-    for (const clave of ['coordinador', 'vendInactive', 'clientBank']) {
+    const coord = await positive('coordinador obtiene la conversion global', pedir('coordinador'));
+    check(coord && huellaCifrasReporte(coord.data) === huellaCifrasReporte(payload),
+      'Coordinación y Gerencia reciben el mismo reporte mensual');
+    for (const clave of ['vendInactive', 'clientBank']) {
       await expectExplicitAuthorizationDenied(
         `${clave} recibe 42501 en conversion_mensual_fn`,
         pedir(clave),
@@ -13813,7 +13857,7 @@ async function testConversionMensual(sessions, seed) {
     // codigo de error si el periodo que adivino era el bueno.
     const DIA_15 = `${MES}-15`;
     const MES_FUTURO = `${Number(MES.slice(0, 4)) + 1}-01-01`;
-    for (const clave of ['coordinador', 'clientBank']) {
+    for (const clave of ['clientBank']) {
       await expectExplicitAuthorizationDenied(
         `${clave} con un periodo basura recibe 42501 y NO 22023`,
         pedir(clave, DIA_15),
@@ -14460,13 +14504,11 @@ async function testCumplimientoMetas(sessions, seed) {
     'vend1 solo se ve a si mismo', JSON.stringify([...idsVend]));
   check(!idsVend.has(ids.vend2), 'vend1 NO ve a un companero de su propio equipo');
 
-  // ── E · COORDINADOR: pasa el gate pero no ve a nadie ────────────────────
-  // Es 200 con lista vacia, NO 42501: el gate inicial es permisivo por contrato
-  // (`rol_crm is not null`) y quien acota es `vendedor_ids_visibles`.
-  const coord = await positive('coordinador pasa el gate de cumplimiento', pedir('coordinador'));
-  check(filas(coord?.data).length === 0,
-    'el coordinador recibe la lista de analistas VACIA',
-    JSON.stringify(filas(coord?.data).length));
+  // ── E · COORDINADOR: consulta global de cumplimiento ───────────────────
+  // La capacidad de reportes concede las mismas cifras globales, sin edición.
+  const coord = await positive('coordinador consulta cumplimiento global', pedir('coordinador'));
+  check(coord && huellaCifrasReporte(coord.data) === huellaCifrasReporte(payGer),
+    'Coordinación y Gerencia reciben el mismo cumplimiento');
 
   // ── F · LECTOR GLOBAL: la rama que `p_global => true` existe para servir ─
   const dir = await positive('directorio (lector global) lee el cumplimiento', pedir('directorio'));

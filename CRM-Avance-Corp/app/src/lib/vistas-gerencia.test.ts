@@ -18,7 +18,7 @@ describe('navegación de Gerencia', () => {
       expect(vistaPermitida('facturacion', 'supervisor', llave)).toBe(true)
       expect(vistaPermitida('facturacion', 'vendedor', llave)).toBe(false)
       expect(vistaPermitida('facturacion', 'directorio', llave)).toBe(true)
-      expect(vistaPermitida('facturacion', 'coordinador', llave)).toBe(false)
+      expect(vistaPermitida('facturacion', 'coordinador', llave)).toBe(true)
     }
   })
 

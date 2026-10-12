@@ -1,0 +1,22 @@
+{
+  "fecha": "2026-09-30T21:10:24.642055+00:00",
+  "temporales_sueltos_eliminados": 70,
+  "copia_temporal_eliminada": "/private/tmp/avancecorp-gd-release-20260930",
+  "archivos_de_la_copia": 43712,
+  "bytes_aparentes_eliminados": 924870481,
+  "contenedores_eliminados": [
+    "avancecorp-gd-cola-20260930-pg167",
+    "avancecorp-gd-cola-20260930"
+  ],
+  "rama_de_trabajo_eliminada": "feat/gestion-diaria-cola-20260930",
+  "paquete_descartado_eliminado": "crm-20260930T191446Z-1e359cfea47a",
+  "conservados": [
+    "codigo y pruebas de la mejora",
+    "evidencia curada de SQL/RLS/E2E/publicación",
+    "ZIP publicado y manifiesto 57e7b3b4",
+    "ZIP anterior y manifiesto 6600af0a",
+    "rama rescue del commit publicado",
+    "trabajos y servicios ajenos"
+  ],
+  "pestana_oauth": "No se pudo comprobar/cerrar: servicio de navegador no disponible"
+}

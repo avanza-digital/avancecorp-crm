@@ -59,12 +59,12 @@ describe('ConversionCoordinacion', () => {
     const astrid = within(tabla).getByRole('row', { name: /ASTRID CENTENARO/ })
     // Analista · Supervisor · Llegadas (F, L, total) · Cierres (F, L, base, referido «n · aporte», sin peso (oficina + otros), upgrade, renovación «n · aporte», ponderados) · %
     expect(within(astrid).getAllByRole('cell').map(textoHablado))
-      .toEqual(['ASTRID CENTENARO', 'SUPERVISORA', '65', '50', '115', '5', '2', '0', '1 referido, aporta 0.15', '1', '4', '0 renovaciones, aportan 0', '11.15', '9.70%'])
+      .toEqual(['ASTRID CENTENAROVer cierres', 'SUPERVISORA', '65', '50', '115', '5', '2', '0', '1 referido, aporta 0.15', '1', '4', '0 renovaciones, aportan 0', '11.15', '9.70%'])
     expect(within(astrid).getAllByRole('cell')[8]?.querySelector('[aria-hidden="true"]')?.textContent).toBe('1 · 0.15')
 
     const merlys = within(tabla).getByRole('row', { name: /MERLYS GARCIA/ })
     expect(within(merlys).getAllByRole('cell').map(textoHablado))
-      .toEqual(['MERLYS GARCIA', 'SUPERVISORA', '60', '28', '88', '6', '1', '0', '0 referidos, aportan 0', '0', '2', '0 renovaciones, aportan 0', '9', '10.23%'])
+      .toEqual(['MERLYS GARCIAVer cierres', 'SUPERVISORA', '60', '28', '88', '6', '1', '0', '0 referidos, aportan 0', '0', '2', '0 renovaciones, aportan 0', '9', '10.23%'])
 
     // La fila sin analista: se ve «—» pero se oye «no aplica».
     const sinAnalista = within(tabla).getByRole('row', { name: /Sin analista asignado/ })
@@ -149,7 +149,7 @@ describe('ConversionCoordinacion', () => {
     const tabla = screen.getByRole('table', { name: 'Conversión por analista' })
     const astrid = within(tabla).getByRole('row', { name: /ASTRID CENTENARO/ })
     expect(within(astrid).getAllByRole('cell').map(textoHablado))
-      .toEqual(['ASTRID CENTENARO', 'SUPERVISORA', 'sin desglose: mes cerrado', 'sin desglose: mes cerrado', '115', '5', '2', '0', '1 referido, aporta 0.15', '1', '4', '0 renovaciones, aportan 0', '11.15', '9.70%'])
+      .toEqual(['ASTRID CENTENAROVer cierres', 'SUPERVISORA', 'sin desglose: mes cerrado', 'sin desglose: mes cerrado', '115', '5', '2', '0', '1 referido, aporta 0.15', '1', '4', '0 renovaciones, aportan 0', '11.15', '9.70%'])
     const resumen = screen.getByRole('group', { name: 'Resumen de conversión del mes' })
     expect(textoHablado(within(resumen).getByText('Formulario').nextElementSibling as HTMLElement)).toBe('sin desglose: mes cerrado')
     expect(screen.getByRole('status')).toHaveTextContent(/Mes cerrado: se muestra la foto del cierre/)
@@ -268,7 +268,7 @@ describe('ConversionCoordinacion', () => {
     expect(within(tabla).getByRole('columnheader', { name: 'Base cargada' })).toBeInTheDocument()
     const merlys = within(tabla).getByRole('row', { name: /MERLYS GARCIA/ })
     expect(within(merlys).getAllByRole('cell').map(textoHablado))
-      .toEqual(['MERLYS GARCIA', 'SUPERVISORA', '60', '28', '88', '6', '1', '2', '0 referidos, aportan 0', '0', '2', '0 renovaciones, aportan 0', '11', '12.50%'])
+      .toEqual(['MERLYS GARCIAVer cierres', 'SUPERVISORA', '60', '28', '88', '6', '1', '2', '0 referidos, aportan 0', '0', '2', '0 renovaciones, aportan 0', '11', '12.50%'])
     const resumen = screen.getByRole('group', { name: 'Resumen de conversión del mes' })
     expect(within(resumen).getByText('Base cargada').nextElementSibling?.textContent).toBe('2')
     expect(screen.getByTestId('formula-numerador')).toHaveTextContent(

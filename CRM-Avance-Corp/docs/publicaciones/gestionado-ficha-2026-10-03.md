@@ -2,8 +2,9 @@
 
 **PUBLICADO Y VERIFICADO en https://crm.miavance.com/.**
 Miguel autorizó «Sí, probar y publicar todo» y retomó la ejecución tras la pausa.
-Pendiente administrativo: aprobación de la PR #181 para integrar a Main; GitHub
-exige una aprobación y no permite automerge. No se modificó esa protección.
+Integración completada: PR #181 fusionada a Main el 03/10 a las 22:50 Lima,
+commit `19688216`, checks PASS. PR #180 también fusionada (`a8e5d496`).
+Sesión cerrada a petición de Miguel; ya no queda pendiente la aprobación.
 
 ## Comportamiento
 
@@ -80,7 +81,7 @@ del gate B1 al rechazo B4 ya vigente (42501 antes del CHECK); sin alterar permis
 
 PR propia: https://github.com/avanza-digital/avancecorp-crm/pull/181.
 Solo el parche de Gestionado y sus pruebas; la ficha Base F2 se integra por
-https://github.com/avanza-digital/avancecorp-crm/pull/180. Ambas necesitan aprobación.
+https://github.com/avanza-digital/avancecorp-crm/pull/180. Ambas están fusionadas.
 No se mezclaron ni descartaron cambios del taller compartido.
 
 Respaldo anterior:

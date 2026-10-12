@@ -1,9 +1,12 @@
 # Correcciones del contrato v10 / anexo v2 — 10/10/2026
 
-Preparación local. Ningún SQL ni despliegue de esta entrega se ha aplicado en
-producción. La publicación requiere autorización de Miguel sobre el SQL exacto
-mostrado y el proyecto de destino. Este documento conserva también los gates que
-solo podrán ejecutarse con ese entorno autorizado.
+Publicación autorizada por Miguel y verificada el 10/10/2026. PR #250 integrada en
+`5616d1e834c4c9e28e0fb7caeee2b3eae0a02498`; Main local y `avancecorp/main`
+verificados iguales. Edge v10 desplegada a las 16:56:46 UTC en PortalAvanceCorp
+(`dctqcbznekcyxhjujuci`), JWT activo y los diez módulos descargados iguales al
+artefacto de Main. SQL fusionado desde la rama ensayada después de 534 segundos
+de drenaje; postflight de las 17:07 UTC PASS. Acta y cierre de la rama temporal:
+[`PUBLICACION.md`](PUBLICACION.md).
 
 ## Resultado
 
@@ -60,13 +63,20 @@ cuenta completa, filas y cabeceras de tablas, numeración y bloques de cotitular
 | Texto completo antes/después, mismos snapshots | PASS: 14 comparaciones |
 | Deno check con el `deno.json` propio de la función | PASS |
 | Lint y typecheck del CRM | PASS; lint conserva avisos preexistentes ajenos al cambio |
-| Preflights generales seed/RLS | NOT RUN: faltan variables del banco (`SUPABASE_URL`); no ejecutaron aserciones |
-| Rama Supabase remota, advisors y smoke en producción | NOT RUN: pendientes del entorno y publicación autorizados |
+| Matriz remota de contratos/RLS | PASS: 319 aserciones en rama Supabase |
+| Catálogo remoto antes de la candidata | PASS: 9/9 huellas y ACL de funciones/tablas/columnas/secuencias iguales a producción |
+| Ciclo remoto de migración y reversa | PASS: v9→v10→v9→v10; cuerpos, atributos, snapshots y sellados conservados |
+| HTTP real en rama con datos ficticios | PASS: v10, anexo v2, descarga v9, denegaciones y cuenta vigente distinta del snapshot |
+| Advisors remotos | PASS: cero avisos nuevos de seguridad/rendimiento |
+| Suite completa del CRM, Node 24 | PASS: 410 archivos / 6.611 pruebas; checks de GitHub aprobados |
+| Producción | PASS: migración 462/462; 66 reservas v10; 298 sellados intactos; 3.107 ACL iguales; seis archivos con SHA/bytes exactos; anónimo 401 |
+| Emisión con caso de prueba en producción | NOT RUN: no se crearon contratos ficticios en producción |
 
 Límites del banco: la suite v10 usa las formas versionadas de las tablas y dos
 cuerpos privados suplentes. Verifica reemplazo del literal, atributos y reversa;
-no sustituye un ensayo sobre el catálogo vigente del proyecto destino. El banco
-SQL general verifica los cuerpos reales versionados en su etapa histórica.
+no sustituye el ensayo sobre el catálogo vigente del proyecto destino. Ese
+ensayo remoto ya se ejecutó, con paridad de catálogo y ACL antes de la candidata.
+El banco SQL general verifica los cuerpos reales versionados en su etapa histórica.
 Las pruebas de navegador usan autenticación/RPC/Storage simulados y PDF reales
 producidos por la Edge; no son una prueba HTTP contra producción. No hay cambios
 de esquema público ni firmas de RPC que requieran regenerar `database.types.ts`.

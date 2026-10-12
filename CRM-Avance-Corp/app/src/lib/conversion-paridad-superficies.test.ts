@@ -104,6 +104,7 @@ vi.mock('@/data/use-metricas-vendedores-operativas', () => ({
 }))
 
 vi.mock('@/data/crm-queries', () => ({
+  useEquipoReportes: () => ({ data: [], isPending: false, isError: false, refetch: vi.fn() }),
   // Fase 3 «sin topes»: la bitácora del directorio la sirve una RPC; aquí no
   // hay QueryClient y la paridad no la mira.
   useActividadesRecientes: () => ({ data: [], isPending: false, error: null, refetch: vi.fn() }),

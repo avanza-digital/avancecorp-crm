@@ -1,6 +1,8 @@
 # Tasa del nuevo upgrade Avance — 07/10/2026
 
-**Implementado y probado en local y en la rama Supabase autorizada.**
+**Publicado en producción (SQL y frontend) el 07/10/2026.**
+Commit `ab361d4f6c6d2b9db2e36c5a6ece71894725398d`; smoke obligatorio PASS.
+Acta, artefacto, huellas y límites: [PUBLICACION.md](PUBLICACION.md).
 El usuario confirmó que el registro de upgrades debe respetar el interruptor de
 solicitudes de tasa que ya existe. No se creó otra configuración ni se activó enforcement.
 
@@ -50,7 +52,9 @@ La forma SQL sigue siendo `jsonb`, sin cambios de firmas/tablas que regenerar.
 `BANCO LOCAL upgrade tasa 20261007`. Se creó como copia del fixture sintético
 `upgrade_cooperativas_20261006`; nunca usa una URL remota. Los tres cuerpos
 originales coincidieron con producción y están en `base-funciones.json`.
-No se modificó la base fuente. La copia queda disponible para repetir el ensayo.
+No se modificó la base fuente. El banco local se eliminó al limpiar esta sesión,
+por petición del usuario el 07/10/2026. Para repetir el ensayo hay que recrear
+la copia sintética con la misma identidad; se conservan el script y sus pruebas.
 
 ```sh
 node supabase/scripts/upgrade-tasa/banco.mjs test
@@ -101,9 +105,9 @@ Se restauraron los permisos efectivos de tablas/secuencias y el texto CRLF de
 una restricción antes del ensayo. El seed canónico se completó con la receta de
 contratos históricos y producto técnico del repositorio, sin relajar los triggers.
 
-El usuario autorizó publicar y confirmó el costo de la rama temporal y su fusión
-si las pruebas pasan. La suite E2E completa, la matriz RLS y el estado final de
-publicación se registran en el acta `PUBLICACION.md` al cerrar el release.
+El usuario autorizó publicar y confirmó el costo de la rama temporal y su fusión.
+La suite E2E completa pasó (383, con 26 omitidos); el cierre de la matriz RLS y la
+verificación productiva están en `PUBLICACION.md`. La rama temporal fue eliminada.
 
 Codex PRIMARY implementó; un Codex SECONDARY_REVIEWER realizó dos consultas sin
 escribir. P1 del parser antiguo: corregido con capacidad compatible y tests HTTP.

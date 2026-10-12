@@ -1,0 +1,65 @@
+{
+  "estado": "VALIDADO_EN_RAMA; PENDIENTE_MERGE",
+  "rama": {
+    "id": "b476c377-43c6-45eb-ba12-17888448b73b",
+    "ref": "bnevvswisucbaowjpewn",
+    "nombre": "conversion-sin-renovaciones-20261012",
+    "creada": "2026-10-12T19:07:20.207498Z"
+  },
+  "migracion": {
+    "archivo": "20261012184345_crm_conversion_sin_renovaciones.sql",
+    "version_rama": "20261012202228",
+    "sha256": "2eaeedc130cf7c629126328f33865d180400fb7956231d2b176e6a4f1327c56c"
+  },
+  "gates": {
+    "sql_local": 22,
+    "sql_remoto": 22,
+    "frontend_unitarios": 108,
+    "rls_remoto": {
+      "comando": "node supabase/scripts/test-rls.mjs --contratos",
+      "aserciones": 319,
+      "resultado": "PASS",
+      "alcance": "Matriz de contratos, jerarquía y banca; no matriz RLS global"
+    },
+    "typecheck": "PASS",
+    "lint": "PASS con avisos ajenos",
+    "tipos": "PASS sin diff",
+    "reversa_reaplicacion": "PASS local",
+    "concurrencia": "PASS local, espera de 2,02 s por candado global",
+    "e2e": "NOT RUN: no cambia pantalla ni se publica frontend"
+  },
+  "advisors": {
+    "security": {
+      "before": 364,
+      "after": 364,
+      "added": [],
+      "removed": []
+    },
+    "performance": {
+      "before": 343,
+      "after": 343,
+      "added": [],
+      "removed": []
+    }
+  },
+  "paridad": {
+    "funciones": 1067,
+    "columnas": 1489,
+    "disparadores": 382,
+    "policies": 111,
+    "tablas_rls": 146,
+    "indices": 548,
+    "vistas": 3,
+    "migraciones_previas": 463,
+    "historial_md5": "0d54d56e0a29711ff6fb87e39cb388e8",
+    "excepcion": "Tres CHECK con igual predicado y agrupación AND normalizada por pg_dump. El CHECK de atribución recuperó su CR literal antes del ensayo."
+  },
+  "edge": {
+    "funciones": 23,
+    "hashes_configuracion_versiones_identicos": true
+  },
+  "revision": {
+    "verdict_inicial": "CHANGES_REQUESTED sin P0/P1",
+    "resolucion": "Guardas de nota no nula y default/NOT NULL, ACCESS EXCLUSIVE previo, comentario preciso; reensayo completo PASS. Candado y auditoría comprobados. Hipótesis de NULL no aplicable a columna NOT NULL."
+  }
+}

@@ -1,7 +1,7 @@
 # Gestión diaria: evidencia local (30/09/2026)
 
-Acta histórica del ensayo local. La validación remota posterior y el estado
-de publicación están en [RELEASE.md](RELEASE.md).
+Cambio local para revisión y publicación posterior por `$release-crm`.
+No se aplicó migración ni frontend a producción.
 
 | Comprobación | Resultado |
 |---|---|

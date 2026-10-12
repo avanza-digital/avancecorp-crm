@@ -3,6 +3,7 @@ import { TareaRowSchema } from '@/lib/tarea-schema'
 import * as v from 'valibot'
 import { ESTADOS_SOLICITUD_TASA_VIVOS } from '@/lib/rentabilidad'
 import { sb, type ClienteCrm } from '@/lib/supabase'
+import { DetalleCierresCoordinacionSchema, detalleCierresConsistente } from '@/lib/conversion-cierres-coordinacion'
 import type { Database, Json } from '@/lib/database.types'
 import { idCorrelacion, registrarError } from '@/lib/observabilidad'
 import type { SenalesLead } from '@/lib/historial-lead'
@@ -1079,7 +1080,16 @@ const MiembroRowSchema = v.object({
 })
 
 export async function listarEquipo(signal?: AbortSignal): Promise<Miembro[]> {
-  let consulta = cliente().schema('crm').rpc('equipo_visible_fn')
+  return consultarEquipo('equipo_visible_fn', signal)
+}
+
+/** Nombres y jerarquía para reportes; no concede cartera ni fichas operativas. */
+export async function listarEquipoReportes(signal?: AbortSignal): Promise<Miembro[]> {
+  return consultarEquipo('equipo_reportes_fn', signal)
+}
+
+async function consultarEquipo(puerta: 'equipo_visible_fn' | 'equipo_reportes_fn', signal?: AbortSignal): Promise<Miembro[]> {
+  let consulta = cliente().schema('crm').rpc(puerta)
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
   lanzarAbortSiCorresponde(signal)
@@ -6197,6 +6207,37 @@ export async function conversionCoordinacion(
     )
     registrarError('crm.reparto.conversion_coordinacion_inconsistente', fallo)
     throw fallo
+  }
+  return resultado.output
+}
+
+/** Detalle nominal autorizado; solo la puerta decide qué episodios pertenecen al conteo. */
+export async function conversionCierresCoordinacion(
+  analista: string, periodo: ConsultaConversion, pagina = 0, signal?: AbortSignal,
+) {
+  const fechas = fechasDeConsulta(periodo)
+  if (!fechas || motivoConsultaInvalida(periodo, hoyLima()) || !Number.isInteger(pagina) || pagina < 0) {
+    throw new CrmApiError('El período o la página de cierres no es válido.', 'PERIODO_INVALIDO')
+  }
+  lanzarAbortSiCorresponde(signal)
+  const args = periodo.modo === 'mes'
+    ? { p_analista: analista, p_periodo: fechas.desde, p_pagina: pagina }
+    : { p_analista: analista, p_desde: fechas.desde, p_hasta: fechas.hasta, p_pagina: pagina }
+  let consulta = cliente().schema('crm').rpc('conversion_cierres_coordinacion_fn', args)
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) {
+    throw new CrmApiError(error.code === '42501' || error.code === 'PGRST301'
+      ? 'No tienes permiso para consultar los cierres.'
+      : 'No se pudieron cargar los cierres. Vuelve a intentarlo.', error.code || 'POSTGREST_ERROR')
+  }
+  const resultado = v.safeParse(DetalleCierresCoordinacionSchema, data)
+  if (!resultado.success || resultado.output.analista_id !== analista
+    || resultado.output.desde !== fechas.desde || resultado.output.hasta !== fechas.hasta
+    || resultado.output.pagina !== Math.min(pagina, Math.max(0, Math.ceil(resultado.output.total / 20) - 1))
+    || !detalleCierresConsistente(resultado.output)) {
+    throw new CrmApiError('El detalle de cierres no tiene el formato esperado.', 'CIERRES_COORDINACION_CONTRACT')
   }
   return resultado.output
 }

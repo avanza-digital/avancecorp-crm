@@ -1,48 +1,39 @@
 # Gestion Diaria - vuelta persistente verificada localmente (2026-09-30)
 
-Estado actualizado: migración validada en rama remota y aplicada a producción
-por merge_branch; frontend pendiente de empaquetar/publicar. Banco eliminado.
-Evidencia vigente: `CRM-Avance-Corp/docs/encargos/gestion-diaria-cola/RELEASE.md`.
+Estado actualizado: **PUBLICADA Y VERIFICADA** en https://crm.miavance.com.
 
-Miguel reportó que un lead al que llamó sin respuesta seguía delante y le obligaba
-a buscar dónde iba. Al guardar un resultado confirmado, el lead pasa al final de
-la cola completa y «Ahora» propone el siguiente pendiente, incluso entre páginas.
-Se muestra resultado y hora; al acabar la vuelta se permite revisar, sin volver
-a iniciar llamadas automáticamente.
+Al guardar una llamada, incluso «No contestó», el lead gestionado pasa al final
+de la cola completa y «Ahora» propone el siguiente pendiente, también entre
+páginas. Se muestra resultado y hora. El progreso se obtiene de la actividad
+confirmada del día de Lima, por actor, tenencia y ciclo; persiste al recargar.
+Deshacer recalcula el avance y un compromiso posterior reabre el turno a su hora.
+Al completar la vuelta no empieza otra automáticamente.
 
-El avance sale de actividades tipificadas vigentes del día de Lima, autor,
-tenencia y ciclo. No existe una marca de gestión paralela. Deshacer recalcula el
-avance; una reasignación no hereda la gestión de otro responsable; una próxima
-acción posterior a la llamada reactiva el turno a su hora. El grupo del trabajo
-terminado conserva el motivo de entrada de su primera gestión del día.
+Migración `20260930190028` promovida mediante merge_branch tras validar el banco
+remoto: 530 leads, roles, diez denegaciones y gate RLS oficial de 287 aserciones.
+Producción coincide con el catálogo probado y las 22 Edge Functions preservadas.
+Banco temporal eliminado; no quedaron datos de prueba en producción.
 
-La nueva RPC `crm.gestion_diaria_cola_trabajo_fn` ordena antes de paginar y
-devuelve conteos, ancla por clave, siguiente pendiente y próximo cambio.
-Es exclusiva del vendedor/supervisor autenticado sobre su cartera propia.
-Dos helpers privados INVOKER, sin EXECUTE API; puerta DEFINER con search_path
-vacío y actor de auth.uid(). La cola anterior y el núcleo SLA no se modifican.
-Las tareas de clientes conservan sus claves distintas por tarea y responsable.
+Frontend: 4.945 pruebas y build PASS, E2E Docker 289 passed / 26 skipped. Dos
+revisiones independientes atendidas con evidencia. Los dos oráculos pendientes
+del gate de realidad HTTP se completaron mediante SQL de sólo lectura.
 
-El navegador guarda sólo navegación por actor/día. Una sesión de llamada fija
-persona y tarea hasta guardar/cancelar. Tras guardar empieza una consulta nueva
-sin reutilizar lecturas anteriores; los leads no quedan ocultos por máscaras
-locales. La selección con teclado y el avance conservan el foco.
+La PR #145 se integró en Main `adb12c053a0676ae015f0a6b86c54a1034bb56e9`.
+El preflight rechazó la ascendencia del squash de GitHub; se siguió el rescate
+previsto en CLAUDE.md desde la base publicada. El contenido completo del rescate
+ya está en Main: los árboles son idénticos, no hay código pendiente de integrar.
+Commit realmente publicado: `57e7b3b4a79634109041f5dcc7c5ccc72e75fa34`.
+Build: `build-20260930T195218921Z`.
+ZIP: `crm-20260930T195219Z-57e7b3b4a796.zip`.
+SHA-256: `63bda8e5ab15a07075349e8260a9a71a10006620f0da2611645a360601dd94fd`.
 
-Verificación: gate frontend PASS (320 archivos, 4945 tests, tipos/lint/build);
-E2E Docker 289 passed y 26 skipped, más flujo dirigido final PASS con latencia y
-teclado. Banco SQL aislado: 530 leads, escritor real v4, reintentos, Lima,
-deshacer, reasignación real, clientes y denegaciones. Dos revisiones Claude
-atendidas y decisiones del PRIMARY documentadas. Sin publicación.
+Manifiesto, preflight y smoke HTTP PASS: portada 200 y 93 archivos con hashes
+idénticos al ZIP. Smoke visual NOT RUN por servicio de navegador no disponible;
+los E2E de Docker están aprobados. No se realizaron llamadas reales para probar.
 
-Limitación para el release: el gate general de realidad tuvo dos mediciones
-fallidas ajenas al cambio (periodos_cerrados sin permiso de lectura y timeout de
-conciliación). El flujo humano `$release-crm` debe resolver sus preflights,
-verificar rama remota/advisors y publicar desde el commit vigente verificado.
-
-Evidencia: `CRM-Avance-Corp/docs/encargos/gestion-diaria-cola/VERIFICACION.md`.
-Migración: `20260930190028_crm_gestion_diaria_cola_trabajo.sql`.
-Ensayo: `CRM-Avance-Corp/supabase/scripts/gestion-diaria-cola/ensayar.mjs`;
-su README documenta bootstrap sintético, matriz, alcance y reversa.
+Evidencia: `CRM-Avance-Corp/docs/encargos/gestion-diaria-cola/RELEASE.md` y
+`PUBLICACION.json`. Artefacto y manifiesto guardados en `CRM-Avance-Corp/releases/`.
+El artefacto anterior se conserva; no revertirlo sin el procedimiento autorizado.
 
 Relacionadas: [[Gestion Diaria F2 - resultado tipificado de llamada (2026-09-20)]],
 [[Gestion Diaria F3 - el dia del analista (2026-09-20)]],

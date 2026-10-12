@@ -1,0 +1,11 @@
+2026-10-12 — candidato local, no producción
+SQL: PASS (roles/bajas/ACL/paridad/detalle/paginación/fechas/sellado). Rollback de fixtures.
+Reversa/reaplicación: PASS.
+App: lint/typecheck/6640 tests/cobertura/build/bundle PASS.
+Duplicación general: FAIL por copias previas 2.*; excluyéndolas 0.43% PASS.
+E2E Repartir existentes: 31 PASS.
+E2E nuevos finales: 2 passed (2.5m), Docker, workers=1, timeout=60000, retries=0.
+Backend check:scripts y test:edge-preflight: PASS.
+seed:preflight / test:rls:preflight / gate:realidad: NOT RUN completo, sin variables de destino/credenciales.
+Rama Supabase, matriz HTTP/Auth general y advisors: NOT RUN, pendientes de release autorizado.
+Review: Claude auditor-rls y a11y CHANGES_REQUESTED; resoluciones y evidencia en LEEME.md.
