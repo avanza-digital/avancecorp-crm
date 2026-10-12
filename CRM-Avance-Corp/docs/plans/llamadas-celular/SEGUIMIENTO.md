@@ -35,6 +35,15 @@ por Legal (no se incorpora al sistema): C2 y C3 ya no tienen frenos. Macros de C
 (`ACTIVAR-C2.md` §3A). Hallazgos nuevos, vistos una vez: H-BLANCO y H-GUARDANDO. Propuestas #19 (llamadas largas) y #20
 (activar celulares sin trabajo manual).
 
+**Actualizado el 12/10, 20:55 UTC:** Miguel fusionó el #254 (20:41 UTC, sin comentarios). **F6.3.1 (F4-e): migración
+preparada en el PR #255**, con el OK de Jhosep al plan corto: decimotercera `20261012192500_crm_llamadas_celular_operacion_hoy.sql`
+(puerta `crm.llamadas_celular_operacion_hoy_fn` + núcleo), reversa, registrador, oráculo O1–O17 del contrato, 25
+mutantes (`test:llamadas:local` 453/453), bloque del gate (NOT RUN: sin base en esa máquina), ledger y encargo a Codex
+(NOT RUN: no instalado); `auditor-rls` PASS con sus tres P3 aplicados. Nada aplicado. Turno de Miguel: su banco y
+`EXPLAIN` (< 100 ms), gate con `CRM_RLS_EXIGE_LLAMADAS_F4E=1`, advisors, aplicar, registrar, `gen:types`, y confirmar
+dos decisiones (retención desde la política; sin porcentajes en el jsonb). La pantalla va en otro PR. Sin casillas
+nuevas: **48/102**.
+
 **Actualizado el 10/10, 16:35 UTC:** F7.2.2 marcada (`SOPORTE.md` §2.2): **46/102**. Matriz de compatibilidad de C1 al día; textos de «comprar Pro» corregidos (Pro no durante las pruebas). Contrato de F4-e en el #249.
 
 **Actualizado el 10/10, 15:05 UTC:** noche 09→10 PASS en C1 (latidos 200 a las 00:45 y 06:50). Repetición focalizada de P5:
@@ -82,7 +91,7 @@ tablero).
 | F3 · Captura y sincronización | 13 | 11 | — | 2 | — | En curso: Edge instalada (07/10, H2) y probada contra ella en C1; guía de soporte entregada (09/10). **09/10 (S1–S3):** llamada en espera arreglada en la macro (H-ESPERA) y PASS en sus tres variantes; batería, ráfaga y hora desfasada PASS; permisos revocados = hallazgo H-PERMISO. Faltan respuesta perdida, cierre de clave y baja en un celular, doble SIM NO APLICA (propuesta) y C2/C3 |
 | F4 · Bandeja y registro conciliado | 13 | **9** | 4 | — | — | En curso: **F4-d aceptada en C1** (P1–P15 y consulta de Miguel, 09/10), dos pestañas PASS (F4.4.1, 09/10) y **unión a mano aceptada en C1** (F4.2.4, 12/10; subfase F4.2 cerrada); faltan baja y atribución (F4.3.2), «depurado» (F4.1.2), crear y reasociar (F4.3.1) y «devolver» (#14); F4-e: contrato aprobado (#249) y **OK de Miguel a la sección 9 (12/10)** |
 | F5 · Jev | 15 | 0 | — | — | 15 | Pendiente |
-| F6 · Gerencia y métricas | 12 | 0 | — | 1 | 11 | Pendiente: diccionario aprobado (#17); F4-e primero: con el OK a la sección 9 (12/10) se puede preparar su migración |
+| F6 · Gerencia y métricas | 12 | 0 | — | 1 | 11 | En curso: diccionario aprobado (#17); **F4-e: migración preparada y probada en el #255 (12/10), sin aplicar**; turno de Miguel (banco, `EXPLAIN`, gate, aplicar); la pantalla después |
 | F7 · Despliegue y operación | 12 | 2 | — | 3 | 7 | En curso: primer release (07/10, H3); guía de soporte (09/10, F7.2.1) y sus casos de reasignación, números compartidos, corrección y revocación (10/10, F7.2.2) |
 | **Total** | **102** | **48** | **4** | **13** | **37** | |
 
@@ -224,7 +233,7 @@ prototipo aprobado por Jhosep (06/10) **no sustituye** el contrato: primero el c
 | F6.2.1 | Día de Lima `[inicio, fin)` y actor/asignación históricos | Pendiente | A1 y A3 aprobados (#17, 07/10); cada rótulo dice qué fecha usa | Ídem | Claude | F4-e |
 | F6.2.2 | Retraso de entrega/registro, sincronización, cola y antigüedad de la señal | En curso | La tarjeta de F4-c ya muestra la cola y las horas sin latido (sin hora exacta) | Retraso de entrega y de registro | Claude | F4-e |
 | F6.2.3 | Cobertura insuficiente ≠ cero llamadas; el latido solo no acredita captura | Pendiente | «Sin dato» separado de cero, aprobado (#17, 07/10); «La salud es lo que declara el celular» en la tarjeta | Ídem | Claude | F4-e |
-| F6.3.1 | Lecturas y pantalla de gerencia con ámbito y diccionario visible | En curso (12/10) | Prototipo F4-e aprobado por Jhosep; decisión 4 y A1–A7 aprobadas por Miguel (07/10): F4-e va en F4; contrato y oráculos en `F4E-CONTRATO.md` (#249, 10/10); **OK explícito de Miguel a la sección 9 (12/10, #251)** | Plan corto de la migración de F4-e con el OK de Jhosep; migración (función `definer`, LEVEL 3) con sus oráculos; después la pantalla. Se mantienen las revisiones y checks del contrato antes de aplicar o publicar | Claude · Miguel aprueba | — |
+| F6.3.1 | Lecturas y pantalla de gerencia con ámbito y diccionario visible | En curso (12/10) | Prototipo F4-e aprobado por Jhosep; decisión 4 y A1–A7 aprobadas por Miguel (07/10): F4-e va en F4; contrato y oráculos en `F4E-CONTRATO.md` (#249, 10/10); **OK explícito de Miguel a la sección 9 (12/10, #251)**; **migración preparada en el #255 (12/10, 20:46 UTC)**: decimotercera `20261012192500` (puerta definer + núcleo invoker), reversa, registrador, oráculo O1–O17, 25 mutantes (453/453 local), bloque del gate (NOT RUN), ledger; `auditor-rls` PASS (3 P3 aplicados); Codex NOT RUN (encargo escrito) | Miguel: su banco y `EXPLAIN` < 100 ms, gate con `CRM_RLS_EXIGE_LLAMADAS_F4E=1`, advisors, aplicar, `registrar-operacion-hoy.sql`, `gen:types`; confirmar la retención desde la política y que no viajen porcentajes. Después la pantalla (PR aparte): tercera pestaña de gerencia y «Su celular» | Claude (hecho) · Miguel aplica | — |
 | F6.3.2 | Ventana histórica limitada o agregados con retención propia | Pendiente | — | Decidir antes de mostrar históricos (sesgo por la purga de 30 días) | Miguel | F6.3.1 |
 | F6.3.3 | Eventos tardíos sin duplicar; límites de cobertura y retención visibles | Pendiente | — | — | Claude | F6.3.1 |
 | F6.4.1 | Contrastar la muestra con teléfono, eventos, enlaces y actividades | Pendiente | — | — | Jhosep · Claude | H4 |
@@ -281,7 +290,7 @@ prototipo aprobado por Jhosep (06/10) **no sustituye** el contrato: primero el c
 
 De las 102 tareas, 48 están cerradas con evidencia (12/10): F1 y F2 enteras, casi todo F3 y 9 de 13 en F4. Todo lo
 construido está en producción desde el 07/10 y C1 lo usa a diario; el 12/10 quedó aceptada la unión a mano de una
-llamada con un resultado ya guardado. Lo que sigue: activar C2 y C3 importando las macros que ya salieron de C1; la
-vista del día para supervisor y gerencia (F4-e), que ya tiene el OK de Miguel para su migración; y después F6
-(métricas) y F7 (despliegue). F5 (Jev) sigue apagado. Nada se marca como hecho por estar fusionado: se marca cuando
+llamada con un resultado ya guardado. La consulta de la vista del día para supervisor y gerencia (F4-e) ya está escrita
+y probada (PR #255); falta que Miguel la aplique y después su pantalla. Lo que sigue: activar C2 y C3 importando las
+macros que ya salieron de C1; y después F6 (métricas) y F7 (despliegue). F5 (Jev) sigue apagado. Nada se marca como hecho por estar fusionado: se marca cuando
 funciona en el teléfono.
