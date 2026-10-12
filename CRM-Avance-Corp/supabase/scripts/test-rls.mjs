@@ -18869,6 +18869,118 @@ async function testLlamadasCelular(sessions, seed) {
       await expectExplicitAuthorizationDenied('anon: sin la marca «Celular»', anonL.schema('crm').rpc('actividades_con_llamada_celular_fn', { p_actividad_ids: [opA] }));
     }
 
+    // ── F4-e (decimotercera 20261012192500): la operación de hoy para supervisión y gerencia. Sin ella, el tramo se
+    // salta (o falla con CRM_RLS_EXIGE_LLAMADAS_F4E=1). Casos del contrato (F4E-CONTRATO.md §8, gate): roles,
+    // aislamiento, p_supervisor_id, cifras antes y después de ingerir y registrar, claves de equipo iguales a las del
+    // pulso, privacidad y EXPLAIN registrado. Escrito el 12/10/2026 y NO ejecutado contra ninguna base al escribirlo. ──
+    const conOperacion = contarFueraDeBanda('Llamadas del celular: F4-e',
+      "select case when to_regprocedure('crm.llamadas_celular_operacion_hoy_fn(uuid)') is not null then 1 else 0 end") === 1;
+    if (!conOperacion) {
+      const msg = '⚠ F4-e (decimotercera, operación de hoy) no instalada: SALTADA (no probado)';
+      if (process.env.CRM_RLS_EXIGE_LLAMADAS_F4E === '1') fail(msg);
+      else console.log(`  ${msg}`);
+    } else {
+      const operacion = (quien, args = {}) => rpc(quien, 'llamadas_celular_operacion_hoy_fn', args);
+      const analistaDe = (op, clave) => (op.data?.analistas ?? []).find((a) => a.analista_id === id(clave)) ?? null;
+      // Las cifras de un analista sin lo que sí depende de quién pregunta (a qué equipo lo cuelgan).
+      const cifrasDe = (a) => (a ? JSON.stringify({ ...a, supervisor_id: null }) : null);
+      const sinHora = (op) => JSON.stringify({ ...(op.data ?? {}), generado_en: null });
+      const n = (o, ...ruta) => ruta.reduce((x, k) => (x == null ? x : x[k]), o);
+      // Roles: solo supervisión y gerencia.
+      for (const quien of ['vend1', 'vend3', 'coordinador', 'directorio', 'vendInactive']) {
+        await expectExplicitAuthorizationDenied(`${quien}: sin la operación de hoy (F4-e)`, operacion(quien));
+      }
+      const anonOp = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-llamadas-operacion'));
+      await expectExplicitAuthorizationDenied('anon: sin la operación de hoy (F4-e)', anonOp.schema('crm').rpc('llamadas_celular_operacion_hoy_fn', {}));
+      // Forma y alcance.
+      const opG = await operacion('gerencia');
+      const opS1 = await operacion('sup1');
+      const opS2 = await operacion('sup2');
+      check(!opG.error && opG.data?.alcance === 'operacion' && opG.data?.su_celular === null && Array.isArray(opG.data?.equipos)
+        && typeof opG.data?.rotulos?.llamadas_hoy === 'string' && typeof opG.data?.rotulos?.resultados_hoy === 'string'
+        && typeof opG.data?.dia === 'string' && !opS1.error && opS1.data?.alcance === 'equipo' && Array.isArray(opS1.data?.su_celular)
+        && opS1.data?.equipos?.length === 1 && opS1.data.equipos[0].supervisor_id === id('sup1'),
+      'operación de hoy: gerencia ve toda la operación; el supervisor, un único equipo con su id y «su celular» aparte',
+      `${errorText(opG.error)} / ${errorText(opS1.error)}`);
+      // Aislamiento: sup1 ve a vend1; sup2 no; gerencia ve a ambos, cada uno bajo su supervisor.
+      check(!opS2.error && Boolean(analistaDe(opS1, 'vend1')) && !analistaDe(opS2, 'vend1') && Boolean(analistaDe(opG, 'vend1'))
+        && Boolean(analistaDe(opS2, 'vend3')) && analistaDe(opG, 'vend3')?.supervisor_id === id('sup2'),
+      'operación de hoy: cada supervisor ve solo a los suyos; gerencia a todos con su supervisor', errorText(opS2.error));
+      // D4: las cifras de vend1 son las mismas para gerencia y para sup1.
+      check(cifrasDe(analistaDe(opG, 'vend1')) === cifrasDe(analistaDe(opS1, 'vend1')),
+        'operación de hoy (D4): gerencia y sup1 ven las mismas cifras de vend1');
+      // p_supervisor_id.
+      const opS1propio = await operacion('sup1', { p_supervisor_id: id('sup1') });
+      check(!opS1propio.error && sinHora(opS1propio) === sinHora(opS1), 'operación de hoy: sup1 con su propio id ve lo mismo que con nulo', errorText(opS1propio.error));
+      await expectExplicitAuthorizationDenied('operación de hoy: sup1 con el id de sup2 → 42501', operacion('sup1', { p_supervisor_id: id('sup2') }));
+      await expectExpectedFailure('operación de hoy: gerencia con un vendedor como supervisor → 22023',
+        operacion('gerencia', { p_supervisor_id: id('vend1') }), ['22023'], /supervisor activo/i);
+      const opGS1 = await operacion('gerencia', { p_supervisor_id: id('sup1') });
+      check(!opGS1.error && opGS1.data?.alcance === 'equipo' && opGS1.data?.equipos?.length === 1
+        && Boolean(analistaDe(opGS1, 'vend1')) && !analistaDe(opGS1, 'vend3'), 'operación de hoy: gerencia con sup1 como id ve solo su equipo', errorText(opGS1.error));
+      // Claves de equipo = las de «Actividad del día» (gestion_diaria_pulso_fn), para que las pestañas coincidan.
+      const pulso = await rpc('gerencia', 'gestion_diaria_pulso_fn', {});
+      const supervisorPulso = new Map((pulso.data?.personas ?? []).map((p) => [p.analista_id, p.supervisor_id ?? null]));
+      check(!pulso.error && (opG.data?.analistas ?? []).length > 0
+        && (opG.data?.analistas ?? []).every((a) => supervisorPulso.has(a.analista_id) && supervisorPulso.get(a.analista_id) === (a.supervisor_id ?? null)),
+      'operación de hoy: cada analista cuelga del mismo supervisor que en el pulso de Gestión Diaria', errorText(pulso.error));
+      // Cifras antes y después: ingerir una llamada de vend1 (hoy) y registrarla al colgar.
+      const antes = analistaDe(opG, 'vend1');
+      const idOp = idDe(cel.etiqueta);
+      const rOp = await ingerir(cel.credencial, evento(idOp));
+      const evOp = eventoDe(idOp);
+      if (evOp) eventos.push(evOp.id);
+      const trasIngesta = analistaDe(await operacion('gerencia'), 'vend1');
+      check(aceptado(rOp) && evOp?.atencion === 'requiere_resultado'
+        && n(trasIngesta, 'llamadas_hoy', 'total') === n(antes, 'llamadas_hoy', 'total') + 1
+        && n(trasIngesta, 'llamadas_hoy', 'sin_resultado') === n(antes, 'llamadas_hoy', 'sin_resultado') + 1
+        && n(trasIngesta, 'pendientes', 'de_hoy') === n(antes, 'pendientes', 'de_hoy') + 1
+        && trasIngesta?.sin_dato === false,
+      'operación de hoy: una llamada ingerida suma 1 llamada de hoy, 1 sin resultado y 1 pendiente de hoy', JSON.stringify({ antes, trasIngesta }));
+      const v5Op = await rpc('vend1', 'registrar_llamada_v5', { p_operacion_id: randomUUID(), p_lead_id: leadId, p_resultado: 'no_contesto',
+        p_evento_origen_id: idOp, p_via: 'al_colgar' });
+      const trasV5 = analistaDe(await operacion('gerencia'), 'vend1');
+      check(!v5Op.error && v5Op.data?.enlace?.estado === 'enlazado'
+        && n(trasV5, 'llamadas_hoy', 'total') === n(trasIngesta, 'llamadas_hoy', 'total')
+        && n(trasV5, 'llamadas_hoy', 'con_resultado') === n(trasIngesta, 'llamadas_hoy', 'con_resultado') + 1
+        && n(trasV5, 'llamadas_hoy', 'sin_resultado') === n(trasIngesta, 'llamadas_hoy', 'sin_resultado') - 1
+        && n(trasV5, 'resultados_hoy', 'total') === n(trasIngesta, 'resultados_hoy', 'total') + 1
+        && n(trasV5, 'resultados_hoy', 'al_colgar') === n(trasIngesta, 'resultados_hoy', 'al_colgar') + 1
+        && n(trasV5, 'pendientes', 'de_hoy') === n(trasIngesta, 'pendientes', 'de_hoy') - 1,
+      'operación de hoy: registrar al colgar mueve la llamada a «con resultado» y suma un resultado de hoy', `${errorText(v5Op.error)} ${JSON.stringify({ trasIngesta, trasV5 })}`);
+      // Cierre de cubetas en todos los analistas; equipos y totales = sumas.
+      const cierra = (a) => n(a, 'llamadas_hoy', 'total') === ['con_resultado', 'deshechas_sin_corregir', 'sin_resultado', 'cerradas_despues', 'descartadas', 'por_revisar']
+        .reduce((s, k) => s + n(a, 'llamadas_hoy', k), 0)
+        && n(a, 'resultados_hoy', 'total') === n(a, 'resultados_hoy', 'al_colgar') + n(a, 'resultados_hoy', 'desde_pestana') + n(a, 'resultados_hoy', 'a_mano')
+        && n(a, 'pendientes', 'total') === n(a, 'pendientes', 'de_hoy') + n(a, 'pendientes', 'anteriores');
+      const opFin = await operacion('gerencia');
+      const sumaDe = (lista, ...ruta) => lista.reduce((s, x) => s + (n(x, ...ruta) ?? 0), 0);
+      check(!opFin.error && (opFin.data?.analistas ?? []).every(cierra)
+        && n(opFin.data, 'totales', 'llamadas_hoy', 'total') === sumaDe(opFin.data?.analistas ?? [], 'llamadas_hoy', 'total')
+        && (opFin.data?.equipos ?? []).every((e) => n(e, 'llamadas_hoy', 'total')
+          === sumaDe((opFin.data?.analistas ?? []).filter((a) => (a.supervisor_id ?? null) === (e.supervisor_id ?? null)), 'llamadas_hoy', 'total')),
+      'operación de hoy: las seis cubetas suman el total; equipos y totales son sumas de sus analistas', errorText(opFin.error));
+      // Privacidad: ninguna clave ni valor delator a ninguna profundidad.
+      const hojas = (v, clave = null, acc = []) => {
+        if (Array.isArray(v)) v.forEach((x) => hojas(x, clave, acc));
+        else if (v && typeof v === 'object') Object.entries(v).forEach(([k, x]) => hojas(x, k, acc));
+        else acc.push([clave, v]);
+        return acc;
+      };
+      const delatoras = hojas(opFin.data).filter(([k, v]) => ['numero', 'numero_canonico', 'telefono', 'lead_id', 'evento_id', 'evento_origen_id',
+        'asignacion_id', 'credencial', 'credencial_hash', 'ultimo_latido_en', 'latido_celular_en', 'ultimo_envio_en', 'vigente_desde',
+        'analista_nombre', 'lead_nombre', 'nombre_completo'].includes(k)
+        || /porcentaje|pct|ratio/i.test(k ?? '') || (typeof v === 'string' && /^\+?[0-9]{7,}$/.test(v)));
+      check(delatoras.length === 0, 'operación de hoy: sin números, leads, ids de evento, horas de latido ni porcentajes en el jsonb', JSON.stringify(delatoras.slice(0, 5)));
+      // EXPLAIN registrado (contrato §7: < 100 ms sobre el banco de Miguel con historial acumulado). Aquí solo se anota.
+      const explain = textoFueraDeBanda('llamadas: EXPLAIN de la operación de hoy',
+        `begin; select set_config('request.jwt.claim.sub', '${id('gerencia')}', true);`
+        + ` explain (analyze, buffers, format text) select private.llamadas_celular_operacion_hoy('${id('gerencia')}'::uuid, null, now())`);
+      const msExplain = Number((explain ?? '').match(/Execution Time: ([0-9.]+) ms/)?.[1] ?? NaN);
+      check(Number.isFinite(msExplain), 'operación de hoy: EXPLAIN ANALYZE registrado', (explain ?? '').slice(-400));
+      console.log(`  EXPLAIN de la operación de hoy (gerencia): ${Number.isFinite(msExplain) ? `${msExplain} ms` : 'sin tiempo'}${msExplain > 100 ? ' ⚠ por encima de los 100 ms del contrato' : ''}`);
+    }
+
     // ── Rotar: la clave vieja no entra; el mismo id no duplica; un id nuevo entra con la asignación nueva ──
     rot = await rpc('gerencia', 'rotar_credencial_celular', { p_etiqueta: cel.etiqueta });
     check(!rot.error && /^[0-9a-f]{64}$/.test(rot.data?.credencial ?? '') && rot.data?.credencial !== cel.credencial,

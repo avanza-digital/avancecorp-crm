@@ -547,7 +547,7 @@ Mostrar hechos disponibles, no explicaciones inventadas: «Figura como alternati
 
 ### F6.3 · Construir reporte e histórico
 
-**Estado:** pendiente · **Avance:** 0/3 · **Responsable:** Claude (construye) · Miguel (aprueba).
+**Estado:** en curso · **Avance:** 0/3 · **Responsable:** Claude (construye) · Miguel (aplica).
 
 - [ ] **F6.3.1** Implementar lecturas y pantalla de gerencia bajo ámbito autorizado con diccionario de métricas.
 - [ ] **F6.3.2** Elegir ventana histórica limitada o agregados minimizados con retención propia antes de depurar.

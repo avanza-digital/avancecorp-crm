@@ -1,6 +1,8 @@
 # Coordinación — «Llamadas desde el celular» (Jhosep ↔ Miguel)
 
-**Última actualización:** 08/10/2026, ~01:30 UTC (07/10 20:30 Lima), por Jhosep (Claude). **H1–H3 hechos:** las doce migraciones y la
+**Última actualización:** 12/10/2026, 20:55 UTC (15:55 Lima), por Jhosep (Claude). **PR #255 abierto: la migración de F4-e
+(decimotercera) preparada y probada, sin aplicar; turno de Miguel.** El #254 (documentos) quedó fusionado a las 20:41 UTC. Lo
+anterior: 08/10/2026, ~01:30 UTC (07/10 20:30 Lima). **H1–H3 hechos:** las doce migraciones y la
 Edge están en producción y la app se publicó con el interruptor encendido (#222, `build-20261007T222046462Z`; acta
 `INSTALACION-20261007.md`). **C1 está activo desde el 07/10 ~19:15 Lima (H4 en curso)**: P1–P3, P6, P7 y P15-A1 PASS; P9 parcial, con un hallazgo para Miguel (`REGISTRO.md` §5i). Las decisiones #16, #17 y #18 están aprobadas
 (`DECISIONES-PENDIENTES.md`). Seguimiento tarea por tarea: `SEGUIMIENTO.md`. Para retomar: `HANDOFF-2026-10-08.md`.
@@ -41,7 +43,8 @@ están las reglas, el mapa de los PR, el turno de cada uno, el orden y lo que ya
 
 | Rama | Qué es | Turno | Estado |
 | --- | --- | --- | --- |
-| **PR de documentos del 12/10** `crm/llamadas-docs-20261012` | Solo documentos: aceptación de F4.2.4 en C1 (48/102), I-1 a I-5 en `SOPORTE.md`, macros de C1 exportadas (`ACTIVAR-C2.md` §3A), hallazgos H-BLANCO y H-GUARDANDO, propuestas #19 y #20, decisiones de Miguel del 12/10, tablero y `estado.json` hasta el cambio 231 | **Miguel** | Abierto el 12/10 (listo). Sin código: fusionar cuando le convenga |
+| **#255** `crm/llamadas-f4e-operacion-hoy-20261012` | F4-e (F6.3.1): decimotercera migración `20261012192500_crm_llamadas_celular_operacion_hoy.sql` (puerta `crm.llamadas_celular_operacion_hoy_fn` definer + núcleo invoker), reversa, registrador, oráculo O1–O17, 25 mutantes (453/453 local), bloque del gate (NOT RUN), ledger, encargo a Codex (NOT RUN) y estos documentos (tablero y `estado.json` hasta el cambio 241). `auditor-rls` PASS. **Nada aplicado.** Lleva además la **propuesta #21** (cierre en lote) con su encargo para Codex, solo para opinar | **Miguel** | Abierto el 12/10 20:46 UTC. Le toca: su banco y `EXPLAIN` < 100 ms, gate con `CRM_RLS_EXIGE_LLAMADAS_F4E=1`, advisors, aplicar, registrar, `gen:types`; confirmar dos decisiones (retención desde la política; sin porcentajes en el jsonb). Ojo: el #256 (suyo) también toca `MIGRACIONES.md`; el segundo en fusionarse resuelve un conflicto trivial |
+| **#254** `crm/llamadas-docs-20261012` | Solo documentos: aceptación de F4.2.4 en C1 (48/102), I-1 a I-5 en `SOPORTE.md`, macros de C1 exportadas (`ACTIVAR-C2.md` §3A), hallazgos H-BLANCO y H-GUARDANDO, propuestas #19 y #20, decisiones de Miguel del 12/10, tablero y `estado.json` hasta el cambio 231 | — | **Fusionado** por Miguel el 12/10 20:41 UTC (`ebdc72c9`), sin comentarios |
 | **#251** `crm/llamadas-c2-aviso-b7-20261010` | F4.2.4 (B7): botón «Unir a un resultado guardado» + panel «¿Es este su resultado?» (solo pantalla sobre `crm.enlazar_llamada_celular`); `ACTIVAR-C2.md`; borrador `AVISO-TRATAMIENTO.md`; seguimiento y `estado.json` hasta el cambio 212 | — | **Aprobado, fusionado (`7b0d0716`) y publicado** por el agente de Miguel el 10/10 (`build-20261010T224357802Z`); el **#253** (0 archivos) devolvió el historial del release a `main` (`3f81c40f`). **Aceptado en C1 el 12/10** |
 | **#249** `crm/llamadas-f4e-contrato-20261010` | Contrato y oráculos de F4-e (`F4E-CONTRATO.md`), F7.2.2 en `SOPORTE.md` §2.2, decisiones de Miguel (C2/C3, alcance, F4.2.4) | — | **Fusionado** el 10/10 (`82e5edde`). **OK explícito de Miguel a la sección 9 el 12/10** (#251, 6128409126): se puede preparar la migración |
 | **#190** `crm/llamadas-quinta-migracion-20261005` | Las doce migraciones de llamadas, la Edge, el gate, F4-b con la fuente real conectada y los planes de F4-c/F4-d/F4-e | — | **Fusionado en `main`** el 06/10 23:28 UTC (`d1f16fea`). **Aplicado en producción el 07/10** (H1, acta `INSTALACION-20261007.md`) |
@@ -59,7 +62,7 @@ están las reglas, el mapa de los PR, el turno de cada uno, el orden y lo que ya
 | 2 | Miguel | ~~Los 8 fallos de fondo del gate global (fila bancaria ×1, R2/hito ×3, bandera `potencial_lead` ×4)~~ | **Resueltos el 07/10** completando fixtures, sin debilitar aserciones: banco local 3292/3292 (acta) |
 | 3 | **Jhosep** | **Pro no se compra por ahora (Jhosep, 08/10 y 12/10); MacroDroid gratis se renueva cada 3 días (hechos el 09/10 y el 12/10; próximo 15/10…)** (#18; el 10/10 Miguel autorizó Pro corporativo para 2–3 celulares hasta S/ 57) | Con la cuenta corporativa. Comprobar que sigue en S/ 19 pago único; si cambia o pide suscripción, avisar antes de aceptar. Sin compartir credenciales ni datos de pago. Registrar equipo, licencia y fecha (saneado), confirmar que desapareció el límite por días y devolverle la evidencia a Miguel. La #16 también está aprobada: F0 con diez salientes por equipo |
 | 4 | **Jhosep**, con gerencia; Claude guía | ~~**F4-d: activar C1 (H4) y correr P1–P15** contra la Edge real~~ | **Hecho:** C1 activo desde el 07/10; **F4-d aceptada en C1 el 09/10** (P1–P15 y la consulta sin números de Miguel, #231). `ACTIVAR-C1.md`; evidencia en `REGISTRO.md` §5i–§5j |
-| 5 | Claude prepara; Miguel aprueba | F4-e: vista de supervisor y gerencia | **Contrato y oráculos en `F4E-CONTRATO.md` (#249, aprobado el 10/10)** con A1–A7 y D1–D5 respondidas. **OK explícito de Miguel a la sección 9 el 12/10.** Sigue: plan corto de la migración (función `definer`, LEVEL 3) con el OK de Jhosep, la migración con sus oráculos y, después, la pantalla; se mantienen las revisiones y checks del contrato antes de aplicar o publicar |
+| 5 | Claude prepara; Miguel aprueba | F4-e: vista de supervisor y gerencia | **Contrato y oráculos en `F4E-CONTRATO.md` (#249, aprobado el 10/10)** con A1–A7 y D1–D5 respondidas. **OK explícito de Miguel a la sección 9 el 12/10.** **Hecho el 12/10 (PR #255):** plan corto con el OK de Jhosep, migración con oráculo O1–O17 y 25 mutantes (453/453 local), `auditor-rls` PASS. Sigue (Miguel): su banco y `EXPLAIN`, gate y advisors, aplicar, registrar, `gen:types`; después, la pantalla (PR aparte) |
 | 6 | **Miguel** | ~~**#251**: revisar, fusionar y publicar; revisar el borrador del aviso~~ | **Hecho el 10/10** por su agente (aprobado 22:31 UTC, fusionado `7b0d0716`, publicado `build-20261010T224357802Z`; #253 devolvió el historial del release a `main`). **Aviso de tratamiento: resuelto** (Miguel, 12/10: Legal lo aprobó y tramitó; no se incorpora al sistema). H-P5 y H-P10 siguen en su sesión (hilo del #232) |
 | 7 | **Jhosep**; Claude guía | ~~Lunes 12/10: renovar MacroDroid en C1; aceptar F4.2.4 en C1~~ · **C2 y C3** con `ACTIVAR-C2.md` cuando Jhosep tenga los celulares | **Hecho el 12/10:** MacroDroid renovado (próximo 15/10) y **F4.2.4 aceptada** (48/102; `REGISTRO.md` §5k). Para C2/C3 ya están los tres `.macro` de C1, limpios (§3A): ~10 min por celular, de a uno, evidencia sin números |
 | 8 | **Miguel** | Decidir las propuestas **#19** (llamadas largas: margen desde el inicio) y **#20** (activar celulares sin trabajo manual, para después del piloto) y el arreglo de **H-BLANCO** (protección general de la pantalla que ofrezca actualizar en vez de quedar en blanco; solo pantalla) | Cuando le convenga: nada de esto bloquea C2/C3 ni F4-e |
@@ -72,6 +75,19 @@ las reversas SQL con el sistema en uso.
 
 ## 4. Bitácora (lo más nuevo arriba)
 
+- **12/10 17:00–17:15 Lima (22:00–22:15 UTC) — Miguel y Jhosep, en el #255:** el agente de Miguel corrió Codex r1 sobre
+  el encargo de F4-e y subió a la rama del PR la corrección de su P2 (`868db397`, merge `628f9c09`): el registrador ahora
+  certifica el catálogo instalado (huellas de los dos cuerpos, atributos y permisos) con 13 pasos nuevos en el banco
+  local; la migración no cambió. Nuestra sesión lo trajo, lo verificó aquí (466/466) y lo aceptó en el PR. Antes
+  (16:55 Lima) entró la propuesta #21. Pendiente de Miguel: lo mismo del PR, más su opinión sobre la #21.
+- **12/10 (14:00–15:55 Lima) — Jhosep:** sesión desde su cuenta nueva de Claude (el tablero siguió escribible).
+  **F4-e construida con su OK al plan corto:** rama `crm/llamadas-f4e-operacion-hoy-20261012` desde `main`,
+  decimotercera migración + reversa + registrador + oráculo O1–O17 (doble del roster del pulso en el banco reducido) +
+  pasada 19 con 25 mutantes (`test:llamadas:local` 453/453) + bloque del gate (NOT RUN aquí) + ledger + encargo a Codex
+  (NOT RUN: no instalado). `auditor-rls` PASS: tres P3 aplicados antes del commit. **Miguel fusionó el #254** (20:41
+  UTC, sin comentarios): `main` local al día, worktree retirado, rama rebasada. **PR #255 abierto (20:46 UTC)** con la
+  tabla para Miguel; estos documentos entran al mismo PR (decisión de Jhosep: menos PR). Vigilante con el #255. El
+  #256 (Miguel, conversión sin renovaciones) también toca `MIGRACIONES.md`: conflicto trivial para el segundo.
 - **12/10 (09:50–12:10 Lima) — Jhosep:** el #251 ya estaba fusionado y publicado por el agente de Miguel desde el
   10/10 (su cierre: 6104173210; investigación I-1 a I-3 en banco). Relevo entregado en el #251 (6126783439: sección
   «Noche del 10/10» saneada, definición de I-5, cómo funciona el vigilante). **MacroDroid renovado** en C1 (10:22).
@@ -243,11 +259,17 @@ las reversas SQL con el sistema en uso.
   reloj adelantado es una limitación documentada; el supervisor sin pestaña se coordina con F4-e. `SOPORTE.md` al día.
 - [ ] Decidir **#19** (llamadas largas), **#20** (activación sin trabajo manual) y el arreglo de **H-BLANCO**.
 - [ ] H-P5 y H-P10 (su sesión; avisa en el hilo del #232).
+- [ ] **#255 (F4-e):** su banco y `EXPLAIN` < 100 ms, gate con `CRM_RLS_EXIGE_LLAMADAS_F4E=1`, advisors, aplicar,
+  `registrar-operacion-hoy.sql`, `gen:types`; y confirmar dos decisiones: la retención de las pendientes sale de la
+  política (hoy 30 días) y ningún porcentaje viaja en el jsonb.
+- [ ] **Propuesta #21** (cierre en lote de llamadas pendientes del mismo lead; idea de Jhosep, 12/10): su opinión y
+  las cinco decisiones de `PROPUESTAS-DE-AJUSTE.md` #21; si quiere, pasar a Codex el encargo
+  `docs/encargos/2026-10-12-codex-cierre-en-lote-propuesta-21.md` (solo análisis, sin código).
 
 ## En llano
 
 El #251 ya está en producción y la unión a mano quedó probada en C1: van 48 de 102. Miguel destrabó lo que faltaba:
 el aviso de tratamiento lo resolvió Legal y F4-e tiene su visto bueno para la migración. Las macros de C1 ya están
-exportadas y limpias, así que C2 y C3 se activan en unos minutos cuando Jhosep tenga los celulares. Este PR es solo
-de documentos; lo siguiente de código es el plan corto de F4-e. La carpeta del plan (`PLAN.md`, `AVANCE.md`,
+exportadas y limpias, así que C2 y C3 se activan en unos minutos cuando Jhosep tenga los celulares. El 12/10 por la
+tarde quedó escrita y probada la consulta de F4-e (PR #255): a Miguel le toca aplicarla; después va su pantalla. La carpeta del plan (`PLAN.md`, `AVANCE.md`,
 `estado.json`, `SEGUIMIENTO.md`) sigue siendo el espejo del tablero vivo.

@@ -47,6 +47,8 @@
 //      niega con ella puesta, la suya vuelve a la huella exacta de las ocho; y sus mutantes.
 //  17. La DÉCIMA (20261006150154, id de origen en la bandeja y el detalle) sobre las nueve, con el mismo recorrido.
 //  18. La UNDÉCIMA (20261006150254, salud de los celulares sin la hora exacta del latido) sobre las diez, igual.
+//  19. La DECIMOTERCERA (20261012192500, F4-e: la operación de hoy para supervisión y gerencia) sobre las doce, con el
+//      mismo recorrido (la reversa de la duodécima se niega con ella puesta); y sus mutantes.
 //
 // Uso:  node supabase/scripts/test-llamadas-celular-local.mjs     (npm run test:llamadas:local)
 // Binarios: LLAMADAS_PG_BIN, o ~/.local/pg/pgsql/bin (zip oficial de EDB en Windows), o Homebrew.
@@ -93,6 +95,9 @@ const REVERSA_ORIGEN = join(RAIZ, 'supabase/scripts/llamadas-celular/reversa-ban
 const MIG_SALUD = join(RAIZ, 'supabase/migrations/20261006150254_crm_llamadas_celular_salud_sin_hora.sql');
 const ORACULO_SALUD = join(RAIZ, 'supabase/tests/llamadas-celular/oraculo-salud-sin-hora.sql');
 const REVERSA_SALUD = join(RAIZ, 'supabase/scripts/llamadas-celular/reversa-salud-sin-hora.sql');
+const MIG_OPERACION = join(RAIZ, 'supabase/migrations/20261012192500_crm_llamadas_celular_operacion_hoy.sql');
+const ORACULO_OPERACION = join(RAIZ, 'supabase/tests/llamadas-celular/oraculo-operacion-hoy.sql');
+const REVERSA_OPERACION = join(RAIZ, 'supabase/scripts/llamadas-celular/reversa-operacion-hoy.sql');
 const PUERTO = '55485';
 const USUARIO = 'llamadas_test_owner';
 const EXE = process.platform === 'win32' ? '.exe' : '';
@@ -489,6 +494,90 @@ const MUTANTES_SALUD = [
     buscar: 'and a.analista_id in (select private.vendedor_ids_visibles(p_actor))', poner: 'and true' },
   { nombre: 'la salud DEFINER', por: 'postflight', espera: 'debería ser SECURITY INVOKER',
     buscar: "language sql\nstable\nset search_path = ''", poner: "language sql\nstable\nsecurity definer\nset search_path = ''" },
+];
+
+// Mutantes de la decimotercera (20261012192500, F4-e). Cada uno neutraliza una regla del contrato (F4E-CONTRATO.md §8) y
+// tiene que morir en el oráculo o en el postflight.
+const MUTANTES_OPERACION = [
+  { nombre: 'la supervisión ve analistas de otro equipo (O3)',
+    buscar: '      and e.perfil_id in (select private.vendedor_ids_visibles(p_actor));', poner: '      and true;' },
+  { nombre: 'otro supervisor como id no se rechaza (O2)',
+    buscar: '    if p_supervisor_id is not null and p_supervisor_id <> p_actor then', poner: '    if false then' },
+  { nombre: 'gerencia con un id que no es supervisor activo no se rechaza (O2)',
+    buscar: "    if p_supervisor_id is not null and private.rol_crm(p_supervisor_id) is distinct from 'supervisor' then",
+    poner: '    if false then' },
+  { nombre: 'el núcleo acepta un actor distinto del autenticado (O1)',
+    aviso: 'Sin acceso a las llamadas del celular', total: 3, ocurrencia: 1 },
+  { nombre: 'el supervisor ve a un vendedor dado de baja a medias (perfil inactivo)',
+    buscar: "    where private.rol_crm(e.perfil_id) = 'vendedor'\n", poner: "    where e.rol_crm = 'vendedor' and e.activo\n" },
+  { nombre: 'gerencia con un supervisor como id ve toda la operación (O2)',
+    buscar: '    where p_supervisor_id is null or r.supervisor_id = p_supervisor_id;', poner: '    where true;' },
+  { nombre: 'la puerta y el núcleo dejan pasar a los analistas (O1)', cambios: [
+    { buscar: "array['supervisor', 'gerencia']", poner: "array['vendedor', 'supervisor', 'gerencia']" },
+    { aviso: 'Sin acceso a las llamadas del celular', total: 3, ocurrencia: 3 },
+  ] },
+  { nombre: 'sin el filtro de dirección: las entrantes cuentan (O12)',
+    buscar: "        and e.direccion = 'saliente'\n        and e.recibido_en >= least(", poner: '        and e.recibido_en >= least(' },
+  { nombre: 'los leads de baja cuentan (O11, A4)',
+    buscar: '      join crm.leads l on l.id = s.lead_id and l.activo\n      left join crm.llamadas_celular_enlaces en on en.evento_id = s.id',
+    poner: '      join crm.leads l on l.id = s.lead_id\n      left join crm.llamadas_celular_enlaces en on en.evento_id = s.id' },
+  { nombre: 'los resultados de hoy por la fecha del enlace y no de la actividad (O8, A2)',
+    buscar: "        and a.creado_en >= v_desde and a.creado_en < v_desde + interval '1 day'\n",
+    poner: "        and en.actualizado_en < v_desde + interval '1 day'\n" },
+  { nombre: 'las deshechas cuentan como «con resultado» (O9)',
+    buscar: "               when 'registrado' then case when h.deshecha and h.abierto then 'deshechas_sin_corregir'\n"
+      + "                                           when h.deshecha then 'cerradas_despues'\n"
+      + "                                           else 'con_resultado' end",
+    poner: "               when 'registrado' then 'con_resultado'" },
+  { nombre: 'las deshechas quedan fuera de toda cubeta (O9, O15)',
+    buscar: "               when 'registrado' then case when h.deshecha and h.abierto then 'deshechas_sin_corregir'\n"
+      + "                                           when h.deshecha then 'cerradas_despues'\n"
+      + "                                           else 'con_resultado' end",
+    poner: "               when 'registrado' then case when h.deshecha then null else 'con_resultado' end" },
+  { nombre: 'un resultado deshecho sigue contando como resultado de hoy (O9)',
+    buscar: "        and not (a.metadata ? 'deshecho_en')\n", poner: '' },
+  { nombre: 'la ventana del día en UTC (O6)',
+    buscar: "pg_catalog.date_trunc('day', p_ahora at time zone 'America/Lima') at time zone 'America/Lima'",
+    poner: "pg_catalog.date_trunc('day', p_ahora at time zone 'UTC') at time zone 'UTC'" },
+  { nombre: 'un porcentaje de cohortes distintas viaja en el jsonb (O14, O15)',
+    buscar: "               'por_revisar', coalesce(sum(pa.pe_por_revisar), 0)::integer) as cifras",
+    poner: "               'por_revisar', coalesce(sum(pa.pe_por_revisar), 0)::integer, 'porcentaje_resultados', 0) as cifras" },
+  { nombre: 'la cohorte acota la recepción desde hoy en vez de desde ayer (O6)',
+    buscar: "        and s.recibido_en >= v_desde - interval '1 day'\n", poner: '        and s.recibido_en >= v_desde\n' },
+  { nombre: 'D2: manda siempre la hora del celular, aunque vaya adelantada (O16)',
+    buscar: "             case when e.ocurrio_en is null or e.ocurrio_en > e.recibido_en + interval '5 minutes'\n"
+      + '                  then e.recibido_en else e.ocurrio_en end as momento',
+    poner: '             coalesce(e.ocurrio_en, e.recibido_en) as momento' },
+  { nombre: 'pendientes sin mirar si el lead sigue abierto y contactable (O11)',
+    buscar: "        select s.atencion = 'requiere_resultado' and l.activo\n"
+      + "               and l.etapa not in ('convertido', 'descartado') and not l.no_contactar and not private.persona_vetada(l.id)\n"
+      + '               and not exists',
+    poner: "        select s.atencion = 'requiere_resultado' and l.activo\n               and not exists" },
+  { nombre: 'pendientes sin tope de retención (O16, D5)', cambios: [
+    { buscar: "        and e.recibido_en >= least(v_desde - interval '1 day', p_ahora - pg_catalog.make_interval(days => v_dias))",
+      poner: '        and true' },
+    { buscar: '      where s.recibido_en >= p_ahora - pg_catalog.make_interval(days => v_dias)\n        and s.atencion in',
+      poner: '      where s.atencion in' },
+  ] },
+  { nombre: '«de hoy» y «anteriores» intercambiados (O4)',
+    buscar: '             (count(*) filter (where p.pendiente and s.momento >= v_desde))::integer as de_hoy,',
+    poner: '             (count(*) filter (where p.pendiente and s.momento < v_desde))::integer as de_hoy,' },
+  { nombre: '«sin dato» sin mirar el latido (O13, D1)',
+    buscar: '             (coalesce(lh.total, 0) = 0 and not coalesce(c.alguno_al_dia, false)) as sin_dato',
+    poner: '             (coalesce(lh.total, 0) = 0) as sin_dato' },
+  { nombre: 'un celular sin latido vale como al día para «sin dato» (O13)',
+    buscar: "bool_or(s.estado_latido = 'al_dia') as alguno_al_dia",
+    poner: "bool_or(s.estado_latido in ('al_dia', 'sin_latido')) as alguno_al_dia" },
+  { nombre: 'las cifras según quién pregunta (D4)', por: 'postflight', espera: 'no pueden depender de quién pregunta',
+    buscar: "        and e.direccion = 'saliente'\n        and e.recibido_en >= least(",
+    poner: "        and e.direccion = 'saliente'\n        and private.llamada_celular_visible(p_actor, e.lead_id, e.analista_id) is not null\n"
+      + '        and e.recibido_en >= least(' },
+  { nombre: 'la puerta INVOKER', por: 'postflight', espera: 'debería ser SECURITY DEFINER',
+    buscar: "stable\nsecurity definer\nset search_path = ''", poner: "stable\nset search_path = ''" },
+  { nombre: 'el núcleo con EXECUTE para authenticated', por: 'postflight', espera: 'EXECUTE inesperado',
+    buscar: 'grant execute on function crm.llamadas_celular_operacion_hoy_fn(uuid) to authenticated;',
+    poner: 'grant execute on function crm.llamadas_celular_operacion_hoy_fn(uuid) to authenticated;\n'
+      + 'grant execute on function private.llamadas_celular_operacion_hoy(uuid,uuid,timestamptz) to authenticated;' },
 ];
 
 function carpetaBinarios() {
@@ -990,6 +1079,46 @@ const CARRERAS_SIN_CICLO_TITULOS = [
   ['deshacerRevertido', 'Deshacer pausado que se revierte → sin interbloqueo; la llamada queda para unirla a mano (lo aceptado al no esperar)'],
   ['reintentoV5DuranteDeshacer', 'reintento de la v5 con Deshacer entre sus candados → no_enlazado «resultado_en_uso», sin interbloqueo'],
 ];
+
+
+// El registrador debe certificar el catálogo instalado, incluso al repetir un registro existente.
+function probarRegistradorOperacion() {
+  const db = 'registro_operacion';
+  const registrar = join(RAIZ, 'supabase/scripts/llamadas-celular/registrar-operacion-hoy.sql');
+  let r = psqlSql(`create database ${db} template plantilla_doce`, 'postgres');
+  paso('banco del registrador de F4-e', r.ok);
+  r = psqlArchivo(MIG_OPERACION, db);
+  paso('F4-e aplicada para probar el registrador', r.ok, r.ok ? '' : cola(r.salida));
+  r = psqlSql(`create schema supabase_migrations;
+    create table supabase_migrations.schema_migrations(version text primary key, name text, statements text[]);`, db);
+  paso('ledger sintético del registrador', r.ok);
+  for (const nombre of ['registro válido', 'registro válido idempotente']) {
+    r = psqlArchivo(registrar, db);
+    paso(nombre, r.ok && /\bt\b/.test(r.salida), r.ok ? '' : cola(r.salida));
+  }
+  const casos = [
+    ['cuerpo vacío de la puerta', `create or replace function crm.llamadas_celular_operacion_hoy_fn(p_supervisor_id uuid default null)
+      returns jsonb language plpgsql stable security definer set search_path = '' as $$begin return '{}'::jsonb; end$$;`, 'definición alterada'],
+    ['cuerpo vacío del núcleo', `create or replace function private.llamadas_celular_operacion_hoy(p_actor uuid,p_supervisor_id uuid,p_ahora timestamptz)
+      returns jsonb language plpgsql stable set search_path = '' as $$begin return '{}'::jsonb; end$$;`, 'definición alterada'],
+    ['puerta INVOKER', 'alter function crm.llamadas_celular_operacion_hoy_fn(uuid) security invoker;', 'definición alterada'],
+    ['núcleo DEFINER', 'alter function private.llamadas_celular_operacion_hoy(uuid,uuid,timestamptz) security definer;', 'definición alterada'],
+    ['search_path alterado', "alter function crm.llamadas_celular_operacion_hoy_fn(uuid) set search_path = public;", 'definición alterada'],
+    ['núcleo abierto a authenticated', 'grant execute on function private.llamadas_celular_operacion_hoy(uuid,uuid,timestamptz) to authenticated;', 'permisos alterados'],
+    ['puerta abierta a PUBLIC', 'grant execute on function crm.llamadas_celular_operacion_hoy_fn(uuid) to public;', 'permisos alterados'],
+    ['puerta sin permiso authenticated', 'revoke execute on function crm.llamadas_celular_operacion_hoy_fn(uuid) from authenticated;', 'permisos alterados'],
+  ];
+  for (const [nombre, cambio, error] of casos) {
+    // Cada caso parte del catálogo y ledger correctos. No deja una entrada falsa tras el rechazo.
+    const archivo = join(temporal, 'registro-alterado.sql');
+    const original = readFileSync(registrar, 'utf8');
+    writeFileSync(archivo, original.replace('begin;', () => `begin;\n${cambio}`));
+    r = psqlArchivo(archivo, db);
+    const n = psqlSql("select count(*) from supabase_migrations.schema_migrations", db);
+    paso(`registrador rechaza ${nombre}`, !r.ok && r.salida.includes(error) && n.salida.trim() === '1', lineaError(r.salida));
+  }
+  psqlSql(`drop database ${db}`, 'postgres');
+}
 
 let arrancado = false;
 try {
@@ -1559,6 +1688,19 @@ try {
     { nombre: 'veto cae en sin identificar', buscar: 'if v_admitido is distinct from true then return v_aceptado; end if;', poner: '' },
     { nombre: 'supervisor pierde llamada propia descartada', buscar: ' or p_actor = p_analista)', poner: ')' },
   ], 'plantilla_once', ocierre, 'mut_cierre');
+
+  // ── Pasada 19: la decimotercera (F4-e: la operación de hoy para supervisión y gerencia) sobre las doce ──
+  psqlSql('create database plantilla_doce template plantilla_once', 'postgres');
+  r = psqlArchivo(cierre, 'plantilla_doce');
+  paso('plantilla de las doce para la decimotercera', r.ok, r.ok ? '' : cola(r.salida));
+  probarRegistradorOperacion();
+  pasadaEnmienda({
+    titulo: 'Pasada 19: la decimotercera (la operación de hoy para supervisión y gerencia)', nombre: 'la decimotercera', db: 'operacion',
+    mig: MIG_OPERACION, oraculo: ORACULO_OPERACION, marca: 'ORACULO OPERACION HOY OK', reversa: REVERSA_OPERACION,
+    mutantes: MUTANTES_OPERACION, plantilla: 'plantilla_doce', base: 'las doce', que: 'puerta de solo lectura con las cifras de hoy',
+    anterior: 'la duodécima', plantillaAnterior: 'plantilla_once', faltaAnterior: 'falta la duodécima',
+    reversaAnterior: rcierre, niegaAnterior: 'revertir primero la decimotercera',
+  });
 } catch (error) {
   paso('arranque del banco', false, error.message);
 } finally {

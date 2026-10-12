@@ -10,8 +10,10 @@
 --   (20260907025220) · private.rol_crm y private.es_lector_global (20260828210351) ·
 --   private.vendedor_ids_visibles (20260803164348, con su defensa: solo para quien llama) ·
 --   private.idem_hash (20260903205000) · CHECK actividades_resultado_llamada_forma (20260920005000).
--- DOBLES DECLARADOS: auth.uid (lee request.jwt.claim.sub), public.log_audit_change y private.llamada_registrar_v4
--- (el núcleo sellado de la encuesta v4, que la v5 de F4-a compone; ver su comentario abajo).
+-- DOBLES DECLARADOS: auth.uid (lee request.jwt.claim.sub), public.log_audit_change, private.llamada_registrar_v4
+-- (el núcleo sellado de la encuesta v4, que la v5 de F4-a compone; ver su comentario abajo) y
+-- private.gestion_diaria_pulso_roster (el roster del pulso de Gestión Diaria, que la decimotercera usa para las claves
+-- de equipo de gerencia; ver su comentario abajo).
 -- COLUMNAS REDUCIDAS: public.perfiles, public.audit_log, crm.equipo, crm.leads, crm.actividades.
 --
 -- No sustituye el gate test-rls.mjs contra un banco con el esquema de producción.
@@ -474,6 +476,36 @@ begin
   end if;
 end;
 $$;
+-- ── roster del pulso (DOBLE) ────────────────────────────────────────────────────────────────
+-- private.gestion_diaria_pulso_roster real (20260924201358) parte de crm.equipo_visible_fn() (que el banco no tiene) y
+-- exige gerencia por private.gestion_diaria_pulso_autorizar. Doble declarado para la decimotercera (F4-e): la misma
+-- partición disjunta —vendedores activos con su supervisor activo más cercano, cortando ciclos— sobre crm.equipo, y el
+-- mismo 42501 para quien no sea gerencia.
+create function private.gestion_diaria_pulso_roster()
+returns table(analista_id uuid, nombre_completo text, supervisor_id uuid)
+language plpgsql stable security invoker set search_path = '' as $$
+begin
+  if auth.uid() is null or coalesce(private.rol_crm(auth.uid()), '') <> 'gerencia' then
+    raise exception 'Solo gerencia puede consultar toda la operación' using errcode = '42501';
+  end if;
+  return query
+  with recursive vendedores as (
+    -- Rol efectivo (equipo y perfil activos), como crm.equipo_visible_fn en la real.
+    select e.perfil_id, e.supervisor_id from crm.equipo e where private.rol_crm(e.perfil_id) = 'vendedor'
+  ), ascendientes as (
+    select v.perfil_id as analista, v.supervisor_id as ancestro, array[v.perfil_id] as camino, 1 as profundidad
+    from vendedores v
+    union all
+    select a.analista, e.supervisor_id, a.camino || a.ancestro, a.profundidad + 1
+    from ascendientes a join crm.equipo e on e.perfil_id = a.ancestro
+    where a.ancestro is not null and not a.ancestro = any(a.camino)
+  )
+  select v.perfil_id, p.nombre_completo,
+    (select a.ancestro from ascendientes a
+      where a.analista = v.perfil_id and private.rol_crm(a.ancestro) = 'supervisor'
+      and not a.ancestro = any(a.camino) order by a.profundidad, a.ancestro limit 1)
+  from vendedores v join public.perfiles p on p.id = v.perfil_id order by v.perfil_id;
+end $$;
 create function private.sla_gestion_permitida(p_actor uuid,p_lead uuid) returns boolean
 language sql stable security invoker set search_path='' as $function$
   select p_actor is not null and exists (

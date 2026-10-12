@@ -1,3 +1,58 @@
+## 20261012192500 — Llamadas desde el celular · DECIMOTERCERA (F4-e): la operación de hoy para supervisión y gerencia (`crm.llamadas_celular_operacion_hoy_fn`)
+
+**PREPARADA; VERIFICADA EN EL BANCO REDUCIDO LOCAL, SIN APLICAR EN PRODUCCIÓN (12/10/2026).** Tarea F6.3.1 del plan de
+llamadas. Contrato aprobado por Miguel: [`F4E-CONTRATO.md`](../../docs/plans/llamadas-celular/F4E-CONTRATO.md) (D1–D5 el
+10/10 en el #249; sección 9 el 12/10 en el #251, 6128409126). Plan corto con OK de Jhosep el 12/10.
+**Depende de:** las doce anteriores (todas en producción desde el 07/10); se conservan sin editar. Preflight exige la
+undécima, la duodécima, el roster del pulso (`private.gestion_diaria_pulso_roster`), `vendedor_ids_visibles`,
+`persona_vetada` y `llamadas_celular_actor`.
+**Qué hace:** añade dos funciones y nada más (sin tablas, RLS, índices ni grants nuevos salvo el EXECUTE de la puerta):
+núcleo INVOKER `private.llamadas_celular_operacion_hoy(p_actor, p_supervisor_id, p_ahora)` sin EXECUTE para nadie y
+puerta DEFINER `crm.llamadas_celular_operacion_hoy_fn(p_supervisor_id default null)` con EXECUTE solo para
+`authenticated` y rol resuelto por `private.llamadas_celular_actor(supervisor, gerencia)`. Devuelve, para hoy en Lima,
+las cifras por analista y por equipo con tres relojes rotulados en el jsonb: `llamadas_hoy` por el momento de la llamada
+(D2) en seis cubetas disjuntas que suman el total; `resultados_hoy` por la fecha de la actividad (A2) partida por vía;
+`pendientes` como foto de ahora dentro de la retención de la política (D5), con las deshechas sin corregir aparte y sin
+tope. Atribuye a quien marcó (A1); leads de baja fuera (A4); lead cerrado después → `cerradas_despues` (A5); salud de la
+undécima (A6); `su_celular` aparte para el supervisor (A7); `sin_dato` = 0 llamadas y ningún celular al día (D1). Ámbito:
+gerencia con el roster del pulso (claves de equipo de «Actividad del día»; `p_supervisor_id` opcional, 22023 si no es un
+supervisor activo), supervisión con su subárbol bajo su id (otro id → 42501 uniforme). Regla D4: las cifras de un
+analista no dependen de quién pregunta (el postflight rechaza `llamada_celular_visible` y la atención efectiva). Sin
+números, leads, ids de evento, horas de latido ni porcentajes en el jsonb. Solo lectura; no escribe bitácora.
+**Reversa:** `supabase/scripts/llamadas-celular/reversa-operacion-hoy.sql` (drop de las dos funciones; la huella vuelve
+exacta a la de las doce; sin datos). La reversa de la duodécima recibió la guarda «revertir primero la decimotercera».
+**Registro:** `supabase/scripts/llamadas-celular/registrar-operacion-hoy.sql` (md5 `7f7fbda41adc6a1d2580c26d71da581f`
+del archivo en LF; se niega si la puerta no está o la versión ya está registrada con otro contenido). **Desde `868db397`
+(agente de Miguel con Codex, 12/10 22:00 UTC, P2 de Codex r1):** antes de anotar certifica el catálogo instalado —
+huellas `md5(pg_proc.prosrc)` de la puerta (`952abdd1…`) y del núcleo (`648a8c73…`), lenguaje, retorno, STABLE,
+DEFINER/INVOKER, `search_path`, nombres y valor por defecto de los parámetros y la ACL de EXECUTE— y rechaza
+cuerpos vacíos, accesos de más y permisos de menos aunque la versión ya estuviera registrada. Ojo: fija tres huellas
+(archivo + dos cuerpos); si la migración cambia antes de aplicarse, hay que regenerar las tres en LF y repetir el banco.
+**Verificación (12/10, esta máquina):** `npm run test:llamadas:local` **466/466 PASS** con el registrador endurecido
+(antes de `868db397`, 453/453; los 13 nuevos: registro válido, idempotente y ocho alteraciones rechazadas conservando el
+ledger; Miguel reporta el mismo 466/466 en PostgreSQL 17.10) (pasada 19: se niega sin la
+duodécima, huella, aplica, se niega a repetirse, oráculo `oraculo-operacion-hoy.sql` O1–O17 del contrato, oráculos de
+F4-a y la quinta con ella puesta, la reversa de la duodécima se niega, reversa exacta y reaplicación; pasada 19b: 25
+mutantes cazados, 22 por el oráculo y 3 por el postflight). Banco reducido con un doble declarado nuevo:
+`private.gestion_diaria_pulso_roster` en `base.sql`. Gate `test-rls.mjs`: bloque nuevo escrito (bandera
+`CRM_RLS_EXIGE_LLAMADAS_F4E`, roles, aislamiento, `p_supervisor_id`, cifras antes y después de ingerir y registrar,
+claves de equipo iguales al pulso, cierre de cubetas, privacidad y EXPLAIN registrado) y **NOT RUN** (sin base Supabase
+en esta máquina; `test:rls:preflight` se detiene por falta de `SUPABASE_URL`). `check:scripts`: el `node --check` de
+`test-rls.mjs` y `test-llamadas-celular-local.mjs` PASS; el resto de la cadena NOT RUN aquí (falta `deno`). Advisors
+**NOT RUN**. Codex r1: encargo transcrito en `docs/encargos/2026-10-12-codex-f4e-operacion-hoy.md`; **lo corrió Miguel
+el 12/10** y su único hallazgo publicado fue un P2 sobre el registrador (no certificaba el catálogo instalado),
+corregido por Codex en `868db397` sin tocar la migración (respuesta en
+`docs/encargos/2026-10-12-codex-f4e-registrador-respuesta.md`; su `scripts/claude-review` terminó con exit 1 sin
+veredicto: no cuenta como PASS). `auditor-rls` (12/10): **PASS**, sin cambios
+obligatorios y tres P3, los tres aplicados antes del commit: rol efectivo (`private.rol_crm`, equipo y perfil activos)
+para el ámbito del supervisor y para el 22023 de gerencia (un dado de baja a medias en el Portal ya no cuenta para
+nadie), aserción en el núcleo de que `p_actor` es `auth.uid()`, y precondición sin cast directo a `regprocedure`; sus
+huecos de prueba (service_role, actor distinto del autenticado, perfil inactivo) entraron al oráculo y a los mutantes.
+**Despliegue (turno de Miguel, sección 9 del contrato):** su banco con historial acumulado → `EXPLAIN ANALYZE` de
+`private.llamadas_celular_operacion_hoy(<gerencia>, null, now())` con objetivo < 100 ms y sin índice nuevo salvo que lo
+pida → aplicar → `registrar-operacion-hoy.sql` → `npm run gen:types`. La pantalla (tercera pestaña de gerencia y bloque
+«Su celular») va en un PR aparte sobre esta puerta.
+
 ## 20261012165115 — Coordinación: Facturación y Ranking en lectura
 
 **PREPARADA, SIN APLICAR EN PRODUCCIÓN.** Autorizada por Miguel el 12/10/2026.
