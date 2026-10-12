@@ -9,8 +9,9 @@ Regla de siempre: **sin números de teléfono ni claves** en capturas, chats con
 
 ## 0. Antes de empezar
 
-- [ ] **Aviso de tratamiento firmado** por el analista (`AVISO-TRATAMIENTO.md`, cuando Miguel lo apruebe). Nada se
-  instala sin eso (`macrodroid.md` §1).
+- [x] **Aviso de tratamiento: resuelto** (Miguel, 12/10: Legal aprobó el asunto e hizo el trámite; no hace falta
+  incorporarlo al sistema ni una pantalla). `AVISO-TRATAMIENTO.md` queda como borrador de referencia. No bloquea la
+  activación.
 - [ ] La **cuenta del CRM del analista** que va a usar el celular (vendedor o supervisor activo). La llamada solo se une
   si el celular es de quien registra.
 - [ ] **MacroDroid encendido** todo el tiempo. Dos opciones, a decidir antes (Pro corporativo hasta S/ 57 está
@@ -50,36 +51,38 @@ Regla de siempre: **sin números de teléfono ni claves** en capturas, chats con
 8. **Fecha y hora automáticas** ✓ (Samsung: Ajustes → Administración general → Fecha y hora).
 9. **«Llamada en espera»** se deja como esté (en C1, activada): la macro ya la resuelve.
 
-## 3. MacroDroid (8–30 min)
+## 3. MacroDroid (≈10 min importando; ≈30 a mano)
 
-Dos caminos. **Primero probar el A en C1**; si no funciona con la versión gratis, ir al B.
+Dos caminos. **El A ya está probado en C1 (12/10): úsalo.** El B queda por si falla la importación.
 
-### A. Copiar las macros desde C1 (por probar)
+### A. Importar las macros de C1 (comprobado el 12/10)
 
-No se sabe si el archivo que exporta MacroDroid lleva los valores de las variables (globales o locales) ni las
-entradas de las colas. Por eso C1 se deja sin números ni clave antes de exportar, y el archivo se revisa antes de
-usarlo.
+Lo que se aprendió al exportar desde C1 (`REGISTRO.md` §5k):
+- Cada macro se exporta **una por una** (mantener presionada → compartir/exportar) a un archivo **`.macro`** (JSON
+  con `globalVariables`, `macro` y `macroExportVersion`). No usar la exportación del mosaico (`.mdr`, lleva todo).
+- El archivo **lleva las variables globales que usa la macro con su valor**: por eso C1 se vació antes. `url_llamadas`
+  llega puesta (sirve tal cual); `ultimo_latido`, `ultimo_aviso_401` y `t_saliente` llegan con el valor de C1 y hay
+  que ponerlos en 0; `cola_llamadas` y `errores_llamadas` salieron vacías. Entre los tres archivos están las nueve.
+- El formato trae `isSecure` por variable: la 5.67 tiene «variable segura» (no se probó en pantalla).
+- Importar abriendo el archivo, y qué pasa con una cola con entradas: **sin comprobar** (se comprueba en C2).
 
-1. **En C1, antes de exportar:**
-   - En la PC, tarjeta «Celulares»: C1 con **en cola 0**; y en MacroDroid, `cola_llamadas` **sin entradas**. Si hay
-     avisos pendientes, esperar a que salgan con internet: no borrarlos, se perderían.
-   - `errores_llamadas` **sin entradas**. Si tiene alguna, seguir antes `SOPORTE.md` §2, «Aviso rechazado», y solo
-     después borrarla con «Eliminar clave».
-   - En «Variables globales», **vaciar `numero_saliente` y `clave_celular`**.
-   - Desde ese momento y hasta exportar, **no hacer llamadas** desde C1.
-2. En C1, mantener presionada cada macro (**Llamadas-Salientes**, **Llamadas-Al colgar**, **Llamadas-Enviar cola**)
-   → **Exportar** → guardar el archivo y pasarlo a la PC.
-3. **Antes de pasarlo al celular nuevo**, revisarlo en la PC abriéndolo como texto: no debe llevar números de teléfono
-   ni la clave. Si lleva alguno, o no se puede leer, **no usar el camino A**: borrar el archivo y armar las macros a
-   mano (camino B). El archivo no se le pasa a Claude.
-4. Pasar el archivo revisado al celular nuevo (WhatsApp o cable). **En el celular nuevo**: MacroDroid → menú →
-   **Importar** cada archivo. Una macro importada llega **apagada**: no encenderla todavía.
-5. Revisar en «Variables globales» que existan las nueve variables de la tabla de abajo (si la importación no las
-   creó, crearlas) y poner sus valores iniciales.
-6. En **«Llamadas-Al colgar»** cambiar la etiqueta: la acción `id_llamada = C1-{system_time}` pasa a
+**Los archivos ya existen** (12/10): tres `.macro` limpios —sin clave, sin números— en la PC de Jhosep (carpeta
+`MACROS-C1-C2-C3`, fuera del repo), revisados con un script que solo cuenta y nunca muestra valores. **No hace falta
+volver a exportar desde C1** mientras su macro no cambie. Si cambia, repetir lo del 12/10: C1 con cola 0 y colas sin
+entradas, vaciar `numero_saliente` y `clave_celular`, no llamar, exportar las tres, revisar los archivos en la PC (sin
+pasárselos a Claude si no es por un script que no muestre valores), y reponer la clave (la misma o una rotada) con
+`ultimo_latido` = 0.
+
+1. Pasar los tres archivos al celular nuevo (WhatsApp o cable). **En el celular nuevo**: abrir cada archivo con
+   MacroDroid (o MacroDroid → menú → Exportar/Importar → **Importar**). Una macro importada llega **apagada**: no
+   encenderla todavía. Anotar cómo se importó, para la guía.
+2. Revisar en «Variables globales» que existan las nueve variables de la tabla de abajo (la importación crea las que
+   faltan) y dejar sus valores iniciales: `ultimo_latido`, `ultimo_aviso_401` y `t_saliente` **en 0**; colas sin
+   entradas; `en_saliente` Falso; `numero_saliente` y `clave_celular` vacías hasta el paso de la clave.
+3. En **«Llamadas-Al colgar»** cambiar la etiqueta: la acción `id_llamada = C1-{system_time}` pasa a
    **`C2-{system_time}`** (C3 en C3). Con la etiqueta equivocada, el servidor rechaza el aviso (400).
-7. **En C1**, volver a pegar la clave en `clave_celular`, o que gerencia la rote (`SOPORTE.md` §3.2). `numero_saliente`
-   no hace falta reponerla: la macro la llena en la siguiente saliente.
+4. Comprobar de paso en «Al colgar» que «Abrir Sitio web» llegó con la URL del CRM y con «Parámetros de codificación
+   de URL» y «HTTP GET (sin navegador)» desmarcados.
 
 ### B. Armar las tres macros a mano
 
@@ -141,6 +144,6 @@ Seguir **`macrodroid.md` §3c**, Pasos 1 a 4, tal cual, con estas tres diferenci
 ## En llano
 
 Dar de alta un celular nuevo es: gerencia lo asigna y copia una clave; en el celular se instala MacroDroid, se le dan
-los permisos y se instala el CRM como app con la cuenta del analista; se copian las tres macros desde C1 (o se arman a
-mano) cambiando la etiqueta a C2; se pega la clave y, recién entonces, se encienden las macros. Una llamada de control
-confirma que todo funciona. Y antes de todo eso, el analista firma el aviso de qué datos salen de su celular.
+los permisos y se instala el CRM como app con la cuenta del analista; se importan los tres archivos que ya salieron de
+C1 el 12/10 (o se arman a mano) cambiando la etiqueta a C2; se pega la clave y, recién entonces, se encienden las
+macros. Una llamada de control confirma que todo funciona. El aviso de tratamiento ya lo resolvió Legal (12/10).
