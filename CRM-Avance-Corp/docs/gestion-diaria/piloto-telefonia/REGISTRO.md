@@ -230,13 +230,42 @@ teléfono: las capturas que los muestran no se suben.
 
 Pendiente de S3: «respuesta perdida tras guardar» (reinyección manual en la cola). Sigue S4 (apagados).
 
+## 5k. Aceptación de F4.2.4 y exportación de las macros de C1 (12/10/2026) — Edge real
+
+Con el #251 fusionado y publicado por Miguel el 10/10 (`7b0d0716`, `build-20261010T224357802Z`; build viva el 12/10:
+`build-20261011T013450162Z`, con «Unir a un resultado guardado» en el bundle). Sin números de teléfono. Lo que dice
+«comprobado en la base» lo consultó Claude en producción en **solo lectura**, con los ids de la llamada y la actividad,
+sin leer datos personales.
+
+| Fecha y hora (Lima) | Caso | Resultado | Evidencia |
+| --- | --- | --- | --- |
+| 12/10 10:22 | MacroDroid gratis renovado en C1 (+3 días, un anuncio) | Hecho | Antes del vencimiento de las ~15:50. Próxima renovación: **15/10** |
+| 12/10 10:26 | F4.2.4, paso 1: llamada a «prueba leeds» desde C1 sin guardar resultado | **PASS con hallazgo H-BLANCO** | Al colgar, la app hizo la carga completa y **quedó en blanco**, sin encuesta. El aviso llegó igual: la llamada apareció en «Celular» → «Pendientes» con «Pide resultado» (captura de las 10:31). Tras cerrar la app del todo y abrirla, cargó normal y una segunda llamada (10:28) abrió su encuesta y se registró «No contestó» (10:31): unida al colgar, en «Qué pasó hoy» |
+| 12/10 10:42 | F4.2.4, paso 2: «No contestó» guardado desde la **PC** (encuesta del panel «Ahora»), sin el id de la llamada | **PASS con hallazgo H-GUARDANDO** | La pantalla se quedó en «Guardando…» y el cuadro «Guardados por confirmar» en «Confirmando…». Comprobado en la base: el resultado **sí** se guardó a las 10:42:19, una sola vez, sin llamada unida; ninguna consulta esperando ni bloqueada. Al recargar la PC, el cuadro desapareció (el recibo ya estaba confirmado) |
+| 12/10 ~11:10 | F4.2.4, paso 3: en la PC, «Celular» → «Pendientes» → **«Unir a un resultado guardado»** | **PASS → F4.2.4 ACEPTADA (48/102)** | El panel ofreció **un solo** resultado (el de las 10:42) y al elegirlo salió «Llamada está unida». Comprobado en la base: la llamada de las 10:26 pasó a «registrado», unida a ese resultado con vía **`manual`** por quien llamó; el resultado tiene **un** enlace; la de las 10:28 sigue unida a su resultado de las 10:31 con vía `al_colgar`; ninguna pendiente del lead |
+| 12/10 ~11:30 | Camino A de `ACTIVAR-C2.md`, paso 1: C1 sin avisos pendientes | Comprobado | Tarjeta «Celulares»: C1 en cola 0; en MacroDroid, `cola_llamadas` y `errores_llamadas` con 0 entradas |
+| 12/10 ~11:47 | Paso 2: `numero_saliente` y `clave_celular` vaciadas en C1 | Hecho | Sin llamadas desde C1 hasta reponer la clave |
+| 12/10 ~11:49 | Paso 3: las tres macros exportadas una por una (mantener presionada → compartir/exportar) y enviadas por WhatsApp a la PC de Jhosep | Hecho | Tres archivos **`.macro`**, uno por macro (JSON: `globalVariables` + `macro` + `macroExportVersion`). No se usó la exportación del mosaico (`.mdr`) |
+| 12/10 ~11:55 | Paso 4: revisión de los archivos en la PC, con un script que solo cuenta y nunca muestra valores (probado antes con archivos inventados que traían una clave y teléfonos falsos, también como llaves de diccionario: no filtró nada) | **LIMPIOS** | En los tres: 0 posibles teléfonos, 0 cadenas con forma de clave, 0 «+51»; `clave_celular` y `numero_saliente` vacías. Lo aprendido está en `ACTIVAR-C2.md` §3A. Los archivos quedan en la PC de Jhosep, fuera del repo |
+| 12/10 ~12:06 | Paso 5: la **misma** clave pegada otra vez en `clave_celular` (no hizo falta rotar: los archivos salieron limpios) y `ultimo_latido` = 0 | **PASS**: C1 operativo | A los pocos minutos `ultimo_latido` pasó de 0 a un número largo (la macro solo lo fija así con un latido 200) y no hubo aviso de clave rechazada. `numero_saliente` queda vacía: la llena la próxima saliente |
+
+**Hallazgos del 12/10** (los dos vistos **una vez**, sin pérdida de datos; detalle en `SOPORTE.md` §2):
+- **H-BLANCO:** la app del celular quedó en blanco al abrir el enlace de la llamada. Hipótesis de Jhosep, respaldada por
+  el código (no reproducida): la app llevaba abierta desde antes de la publicación del 11/10 y le faltaba refrescarse.
+  Cada publicación reemplaza el sitio entero, así que los archivos de la versión vieja ya no existen; el receptor del
+  enlace del celular está fuera de la protección por pantalla y la app no tiene una protección general, y el aviso de
+  versión nueva calla el error de carga (Vite 8.1.4 devuelve `undefined` en vez de fallar claro). Propuesta para Miguel
+  (solo pantalla): una protección general que ofrezca «Hay una versión nueva: actualizar» en vez de quedar en blanco.
+- **H-GUARDANDO:** la PC se quedó en «Guardando…» con el resultado ya guardado. La protección funcionó como se diseñó
+  (un solo guardado, recuperable al recargar); causa no determinada; a vigilar si se repite.
+
 ## 6. Incidencias
 
 | Fecha | Celular | Qué pasó | Impacto (perdida / duplicada / no abrió / otro) | Cómo se resolvió | Abierta o cerrada |
 | --- | --- | --- | --- | --- | --- |
 | 02/10/2026 ~16:40 (Lima) | C1 | MacroDroid no dejó crear la sexta macro: la versión gratuita admite **5 macros** por celular | Otro: límite de la herramienta | Se borraron las macros de prueba «Prueba F3» y «Reintento F3» (su configuración está en §5d) y la variable `pendiente`. La macro definitiva de salientes usa 3 (Saliente, Al colgar, Enviar cola); con las entrantes (propuesta #14) harían falta más | **Cerrada el 03/10; revisada el 05/10:** Miguel aprobó las entrantes (#14) el 02/10, pero (03/10) **MacroDroid Pro no se compra todavía**. Se queda en 3 macros + «Piloto F0» apagada (4 de 5). El latido va dentro de «Llamadas-Enviar cola» y no suma macros (`macrodroid.md` §3c). Las entrantes esperan a la #14 y a la decisión de Pro (`macrodroid.md` §3d, diseño sin probar) |
 
-| 06/10/2026 ~15:50 (Lima) | C1 | MacroDroid gratuito **se desactivó solo** porque se acabaron sus «días gratuitos de uso». Inicio decía «MacroDroid está actualmente desactivado»; las macros, encendidas, figuraban con «última activación hace 4 días» | **Perdida:** desde ~02/10 no se capturó ninguna llamada en C1, sin aviso en el celular | Inicio → «Añadir Días Gratuitos» (un anuncio = 3 días) → interruptor general encendido. En producción no es viable: propuesta #18 (MacroDroid Pro). El latido lo habría marcado «sin latido» en la tarjeta de salud | **Abierta.** Miguel aprobó Pro en la #18 (07/10), pero Jhosep decidió no comprarlo mientras duren las pruebas de F4-d: los días gratis se renuevan con un anuncio antes de que venzan. **Renovado el 09/10 ~09:30 Lima** (Jhosep), antes del vencimiento de las ~15:50; el próximo se espera hacia el 12/10 ~15:50 (el contador no se leyó en pantalla) |
+| 06/10/2026 ~15:50 (Lima) | C1 | MacroDroid gratuito **se desactivó solo** porque se acabaron sus «días gratuitos de uso». Inicio decía «MacroDroid está actualmente desactivado»; las macros, encendidas, figuraban con «última activación hace 4 días» | **Perdida:** desde ~02/10 no se capturó ninguna llamada en C1, sin aviso en el celular | Inicio → «Añadir Días Gratuitos» (un anuncio = 3 días) → interruptor general encendido. En producción no es viable: propuesta #18 (MacroDroid Pro). El latido lo habría marcado «sin latido» en la tarjeta de salud | **Abierta.** Miguel aprobó Pro en la #18 (07/10), pero Jhosep decidió no comprarlo mientras duren las pruebas de F4-d: los días gratis se renuevan con un anuncio antes de que venzan. **Renovado el 09/10 ~09:30 Lima** (Jhosep), antes del vencimiento de las ~15:50, y **otra vez el 12/10 10:22 Lima** (+3 días); el próximo se espera hacia el **15/10** (el contador no se leyó en pantalla). Miguel autorizó el 10/10 Pro corporativo para 2–3 celulares hasta S/ 57; Jhosep sigue con la versión gratis por ahora |
 
 | 07/10/2026 ~19:11 (Lima) | C1 | Una captura de «Variables globales» enviada a Claude mostró los **primeros 16 de 64** caracteres de la clave nueva | Otro: exposición parcial de la credencial en un chat. Sin riesgo práctico: faltan 48 caracteres y la Edge limita 30 intentos por minuto | La clave se reemplazó en P11 (rotación del 08/10 ~12:00, gerencia): la clave vista ya no vale. Desde ahora, capturas de Variables sin la fila `clave_celular`. El valor no se copió a ningún documento | **Cerrada el 08/10** (P11 PASS) |
 

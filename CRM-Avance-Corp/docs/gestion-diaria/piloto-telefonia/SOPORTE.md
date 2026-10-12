@@ -60,6 +60,7 @@ Las tres notificaciones que puede mostrar la macro (ninguna lleva el número):
 | Lo que ve | Causa más probable | Qué hacer | Qué NO hacer |
 | --- | --- | --- | --- |
 | **Al colgar no se abre la encuesta** | MacroDroid desactivado (días gratis vencidos), una macro apagada o el ajuste «Abrir vínculos admitidos» perdido | Revisar §1.2. Si dice «desactivado»: Inicio → «Añadir Días Gratuitos» → encender. Revisar «Abrir vínculos admitidos» (`macrodroid.md` §2). La llamada no se pierde si el aviso llegó: registrarla desde «Celular» → «Pendientes» | No desinstalar MacroDroid: Android suele borrar sus datos, y con ellos las macros, la cola y la clave (no probado). En un retiro definitivo sí se puede quitar (§3.5) |
+| **Al colgar, la app del celular carga y queda en blanco** | La app llevaba abierta desde antes de una publicación nueva y le faltaba refrescarse (hallazgo **H-BLANCO**, visto una vez en C1 el 12/10; hipótesis respaldada por el código, no reproducida) | Cerrar la app del todo (apps recientes → deslizarla) y abrirla otra vez. **La llamada no se pierde:** el aviso llegó igual; está en «Celular» → «Pendientes» → «Registrar resultado» | No desinstalar ni reinstalar. No registrar la llamada dos veces |
 | **Al colgar no se abre la encuesta, la llamada no está en «Pendientes» y la tarjeta sigue «Al día»** | A MacroDroid le quitaron el permiso **«Registro de llamadas»** (hallazgo H-PERMISO, probado en C1 el 09/10): no hay encuesta ni pendiente y la tarjeta sigue «Al día», aunque el celular manda igual una petición (202). Hipótesis, no comprobada: sin ese permiso Android entrega el número vacío. El latido no depende de ese permiso | Ajustes → Aplicaciones → MacroDroid → Permisos → «Teléfono» y «Registro de llamadas» en **«Permitir»**. Registrar esa llamada desde la ficha del lead. Después, una llamada de control: debe abrir la encuesta | No reinstalar MacroDroid para «arreglarlo» |
 | **La encuesta se abrió con el número de otra persona** (la que llamó mientras el analista hablaba) | La macro del celular no tiene el arreglo del 09/10 (`numero_saliente`): con una llamada en espera tomaba el número de la entrante (hallazgo H-ESPERA) | Cerrar esa encuesta sin guardar. Revisar «Celular» → **«Pendientes»**: la macro anterior igual mandó el aviso con el número de quien entró en espera, y si ese número es de un lead elegible quedó ahí como una saliente que no ocurrió → **«Descartar» → «Error de captura»**. Actualizar la macro según `macrodroid.md` §3c (Pasos 1, 2 y 4) y registrar la llamada verdadera en su lead | No guardar un resultado en el lead equivocado. No registrar ni asociar esa fila de «Pendientes» como si fuera la llamada real |
 | **Se abren dos encuestas** | «Piloto F0» quedó encendida | Apagar «Piloto F0» | — |
@@ -69,7 +70,10 @@ Las tres notificaciones que puede mostrar la macro (ninguna lleva el número):
 | **Latido rechazado** (notificación) | El cuerpo del latido está mal armado en la macro | Revisar el latido contra `macrodroid.md` §3c (paso «Enviar cola») | — |
 | **Sin latido · N h** (tarjeta) | Celular apagado o sin internet, MacroDroid desactivado o la batería lo frena | Revisar §1.2 y que la batería de MacroDroid esté «Sin restricciones» (`macrodroid.md` §2) | — |
 | **Nunca habló** después de asignar o rotar | Falta poner `ultimo_latido` en 0: sin eso, el primer latido puede tardar hasta 6 h (hallazgo H-P11) | Poner `ultimo_latido` = 0; en ≤ 5 min pasa a «Al día» | — |
-| **Reloj desfasado** (tarjeta) | La hora del celular difiere de la del servidor en más de 5 min (hora automática apagada) | Encender «Fecha y hora automáticas» y **después** poner `ultimo_latido` en 0: si el latido sale antes de corregir la hora, la tarjeta sigue marcando el desfase hasta el siguiente (6 h). Las llamadas se unen igual, pero su hora queda corrida (probado en C1 el 09/10). Por revisar (10/10, sin probar): la unión a mano rechaza un resultado si el reloj iba adelantado más de 10 min | — |
+| **Reloj desfasado** (tarjeta) | La hora del celular difiere de la del servidor en más de 5 min (hora automática apagada) | Encender «Fecha y hora automáticas» y **después** poner `ultimo_latido` en 0: si el latido sale antes de corregir la hora, la tarjeta sigue marcando el desfase hasta el siguiente (6 h). Al colgar, las llamadas se unen igual, pero su hora queda corrida (probado en C1 el 09/10). **La unión a mano sí rechaza** el resultado si el reloj iba adelantado más de 10 min: sale «El resultado se registró antes de la llamada» (confirmado en banco por el agente de Miguel, 10/10); ver esa fila | No cambiar fechas ni registrar otro resultado para «forzar» la unión |
+| Al unir a mano sale **«El resultado se registró antes de la llamada»** | Para el CRM la llamada ocurre cuando se **cuelga** (la macro manda esa hora, sin duración). «Unir a un resultado guardado» acepta resultados desde 10 min antes de colgar. Lo rechaza si el resultado se guardó antes: (a) en la PC a mitad de una llamada larga, más de 10 min antes de colgar; (b) con el reloj del celular adelantado más de 10 min | La fila queda pendiente y el resultado guardado vale como gestión. Avisar a soporte con la hora; limitación anotada (propuesta #19: contar el margen desde el inicio de la llamada; lo decide Miguel) | No registrar otro resultado (duplicaría la gestión) ni tocar fechas. Regla para los analistas: guardar en la encuesta que se abre **al colgar**; así no aplica ningún margen |
+| Al unir a mano sale **«Ese resultado ya está enlazado a otra llamada»** | En un lead **descartado**, el panel puede ofrecer un resultado que ya es de la llamada de otra persona (p. ej. el supervisor llamó al mismo lead minutos antes y guardó): la marca de «ya unido» solo se ve para llamadas visibles (hallazgo I-5, confirmado en banco el 12/10). Caso raro; la base lo rechaza y no rompe nada | Ese resultado es de otra llamada: si la tuya tuvo su propia gestión, «Registrar resultado» en la pendiente; si no, «Descartar» con su motivo | No insistir con el mismo resultado |
+| **La PC se queda en «Guardando…»** y abajo a la izquierda «Guardados por confirmar · Confirmando…» | El servidor pudo guardar aunque la respuesta no llegó a la pantalla (hallazgo **H-GUARDANDO**, visto una vez el 12/10: el resultado estaba guardado una sola vez) | Esperar un minuto; si sigue, recargar (F5). Si el cuadro reaparece con **«Verificar guardado»**, pulsarlo: reenvía el mismo recibo y **no duplica**. Después, confirmar en la ficha del lead que hay **un** resultado | No volver a guardar desde cero sin verificar: eso sí duplicaría la gestión |
 | **Cola atascada** (tarjeta «En cola» > 0 que no baja) | Sin internet, clave que ya no vale o MacroDroid desactivado | Resolver la causa: la cola sale sola | No borrar entradas de la cola |
 | Al guardar sale **«Solo una tarea de llamada pendiente se cierra con el resultado de una llamada»** | Si todavía propone cerrar un **WhatsApp**, puede ser una versión anterior al #232 (H-WA, publicado y probado en C1 el 09/10). El mismo mensaje aparece si la tarea dejó de estar pendiente o disponible | Seguir §2.1: conservar la encuesta, revisar la tarea y confirmar el guardado antes de actualizar | No cerrar ni recargar con cambios sin guardar. No crear otro registro para un guardado por confirmar |
 | **Guardó el resultado equivocado** | — | Pulsar **Deshacer** en el aviso y, en «Celular» → «Qué pasó hoy», **«Registrar el corregido»** en la fila deshecha. Queda unido a la misma llamada. La fila sigue diciendo «Registrada al colgar»: es lo esperado | No registrar el corregido desde la ficha: no se une a la llamada |
@@ -100,18 +104,18 @@ Lo que está **probado en C1** lleva su fecha; lo demás sale del código (`2026
 **a) Reasignaron el lead** (probado: P10, 08/10). Las llamadas del celular **siguen al dueño actual del lead**
 (decisión 7): el analista anterior deja de verlas y el nuevo dueño las ve en «Pendientes» y en «Qué pasó hoy». Las
 cifras del día no se mezclan: la llamada cuenta para quien la hizo (hallazgo H-P10: hoy la pantalla dice «tu celular»
-aunque no sea suya; en arreglo). **Límite actual (por el código):** si quedó una llamada del anterior en «Pendientes»,
-el nuevo dueño **no puede unirla**: la llamada es del celular del otro analista y el servidor responde «no se unió a la
-llamada del celular: la llamada es de otro celular». Si la registra desde «Pendientes», el resultado se guarda en el
-lead pero la fila **sigue pendiente**, y registrarla otra vez duplicaría la gestión. **Qué hacer:** registrar la
-gestión real **una sola vez**, desde la ficha del lead; dejar la fila pendiente (caduca sola a los 30 días) o, si
-estorba, «Descartar» → «Otro motivo» escribiendo «lead reasignado» (un descarte no cuenta como gestión). El recorrido
-para que el nuevo dueño la una está por diseñar junto con F4.2.4, conservando permisos y a quién se atribuye.
-**No:** registrar la misma llamada dos veces ni pedir que «devuelvan» la llamada al anterior.
-**Por revisar (10/10, revisión del #251; sale del código, sin probar):** la unión a mano de F4.2.4 («Unir a un
-resultado guardado») no mira quién hizo la llamada ni quién guardó el resultado, así que el nuevo dueño **sí** podría
-unir esa fila a un resultado del lead si el lead no está descartado. Hasta decidirlo con Miguel y probarlo, seguir el
-«Qué hacer» de arriba.
+aunque no sea suya; en arreglo). **Si quedó una llamada del anterior en «Pendientes»:** el camino **al colgar** no la
+une (la llamada es del celular del otro analista: el servidor responde «no se unió a la llamada del celular: la llamada
+es de otro celular»), y si el nuevo dueño la registra desde «Pendientes» con «Registrar resultado», el resultado se
+guarda en el lead pero la fila **sigue pendiente**. En cambio, **«Unir a un resultado guardado» (F4.2.4, publicada el
+10/10) sí se la deja unir** a un resultado del lead: la unión a mano no mira quién llamó ni quién guardó, solo que el
+lead esté en su ámbito y no descartado (comprobado en banco por el agente de Miguel el 10/10: quedan los dos autores,
+`analista_id` = quien llamó y `enlazado_por` = quien une; alguien fuera del ámbito es rechazado). Decisión de Miguel
+(10/10): se mantiene así, dentro del ámbito actual. **Qué hacer:** registrar la gestión real **una sola vez** y, si la
+fila sigue pendiente, «Unir a un resultado guardado» → elegir ese resultado. Si no interesa unirla: dejarla (caduca
+sola a los 30 días) o «Descartar» → «Otro motivo» escribiendo «lead reasignado» (un descarte no cuenta como gestión).
+**No:** registrar la misma llamada dos veces ni pedir que «devuelvan» la llamada al anterior. (Corregido el 12/10: la
+versión anterior de este párrafo decía que el nuevo dueño no podía unirla; eso vale solo para el camino al colgar.)
 
 **b) Dos personas con el mismo número.**
 - *Dos leads del mismo analista o equipo:* la llamada llega como **«por revisar»** y la fila ofrece **«Elegir el lead»**,
@@ -238,9 +242,10 @@ Deja una gestión real en las cifras del analista: usar un lead de prueba propio
 
 - La versión gratuita **se apaga sola** cada 3 días si no se renuevan: Inicio → «Añadir Días Gratuitos» (un anuncio)
   → encender. **No avisa:** mientras está apagada no se captura nada (pasó el 06/10 en C1).
-- Hay que renovarlo antes de que venza. En C1 el próximo vencimiento es hacia el 12/10 (renovado el 09/10).
-- Pro (pago único) está aprobado por Miguel (#18) y quita este límite. Se compra cuando terminen las pruebas, por
-  decisión de Jhosep.
+- Hay que renovarlo antes de que venza. En C1 se renovó el 09/10 y el 12/10 (10:22); el próximo vencimiento es hacia
+  el **15/10**.
+- Pro (pago único) está aprobado por Miguel (#18; el 10/10 autorizó Pro corporativo para 2–3 celulares, hasta S/ 57) y
+  quita este límite. Jhosep sigue con la versión gratis por ahora (decisión suya, 12/10).
 - La versión gratuita admite 5 macros; el piloto usa 3 más «Piloto F0» apagada.
 
 ## 6. Qué reportar y a quién
