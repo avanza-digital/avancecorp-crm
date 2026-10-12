@@ -9684,7 +9684,7 @@ async function testFacturacionLista(sessions, seed) {
   const firma = '(date,date,date[],uuid[],boolean,uuid,boolean,text[],text,integer,integer)';
   const permisos = readFileSync(new URL('../migrations/20261012165115_crm_coordinacion_reportes_lectura.sql', import.meta.url), 'utf8');
   const guardias = [...permisos.matchAll(/do \$guardia\$\n([\s\S]*?)end \$guardia\$/g)];
-  const cuerpos = guardias.length === 1 ? [...guardias[0][1].matchAll(/\('([^']+)', '([^']+)'/g)] : [];
+  const cuerpos = guardias.length === 2 ? [...guardias[1][1].matchAll(/\('([^']+)', '([^']+)'/g)] : [];
   const privadas = cuerpos.filter((h) => h[1] === 'private.facturacion_lista' + firma);
   const privadaAnterior = huellas.find((h) => h[1] === 'private.facturacion_lista' + firma);
   if (privadas.length === 1 && privadaAnterior) privadaAnterior[2] = privadas[0][2];
