@@ -12,6 +12,9 @@ begin;
 set local lock_timeout = '5s';
 select pg_advisory_xact_lock(hashtext('crm_llamadas_celular_registro'));
 do $chk$
+declare
+  v_f record;
+  v_p record;
 begin
   if (
     to_regprocedure('crm.llamadas_celular_operacion_hoy_fn(uuid)') is not null
@@ -19,6 +22,33 @@ begin
   ) is not true then
     raise exception 'REGISTRO: la migración 20261012192500 no está aplicada (o no con su forma); aplícala primero';
   end if;
+  -- Huellas del cuerpo de las funciones del archivo aprobado (LF), no del texto que se inserta en el ledger.
+  -- pg_proc.prosrc conserva el cuerpo literalmente. La configuración y ACL se verifican por separado.
+  for v_f in select * from (values
+    ('private.llamadas_celular_operacion_hoy(uuid,uuid,timestamptz)', '648a8c7341599f6e28e2e3edd94ebe52', false, 0,
+     array['p_actor','p_supervisor_id','p_ahora']::text[], null::text),
+    ('crm.llamadas_celular_operacion_hoy_fn(uuid)', '952abdd141001309f08ab56e8a828698', true, 1,
+     array['p_supervisor_id']::text[], 'authenticated')
+  ) as f(firma, huella, definer, defaults, argumentos, rol)
+  loop
+    select p.* into strict v_p from pg_catalog.pg_proc p where p.oid = v_f.firma::regprocedure;
+    if pg_catalog.md5(v_p.prosrc) is distinct from v_f.huella
+       or v_p.prolang <> (select oid from pg_catalog.pg_language where lanname = 'plpgsql')
+       or v_p.prorettype <> 'jsonb'::regtype or v_p.proretset or v_p.proisstrict
+       or v_p.prosecdef is distinct from v_f.definer or v_p.provolatile <> 's'
+       or v_p.pronargdefaults <> v_f.defaults or v_p.proargnames is distinct from v_f.argumentos
+       or v_p.proconfig is distinct from array['search_path=""']::text[]
+       or (v_f.defaults = 1 and pg_catalog.pg_get_expr(v_p.proargdefaults, 0) is distinct from 'NULL::uuid') then
+      raise exception 'REGISTRO: definición alterada de %', v_f.firma;
+    end if;
+    if v_p.proacl is null or exists (
+      select 1 from pg_catalog.aclexplode(v_p.proacl) a
+      where a.privilege_type = 'EXECUTE' and a.grantee <> v_p.proowner
+        and (v_f.rol is null or a.grantee <> v_f.rol::regrole::oid or a.is_grantable)
+    ) or (v_f.rol is not null and not pg_catalog.has_function_privilege(v_f.rol, v_f.firma, 'EXECUTE')) then
+      raise exception 'REGISTRO: permisos alterados de %', v_f.firma;
+    end if;
+  end loop;
   if exists (select 1 from supabase_migrations.schema_migrations
              where version = '20261012192500' and (coalesce(name, '') <> 'crm_llamadas_celular_operacion_hoy' or statements is distinct from array[$mig$-- Llamadas desde el celular · decimotercera migración (F4-e, tarea F6.3.1): la operación de hoy para supervisión y
 -- gerencia. Contrato aprobado: docs/plans/llamadas-celular/F4E-CONTRATO.md (D1–D5 el 10/10/2026, sección 9 el

@@ -1080,6 +1080,46 @@ const CARRERAS_SIN_CICLO_TITULOS = [
   ['reintentoV5DuranteDeshacer', 'reintento de la v5 con Deshacer entre sus candados → no_enlazado «resultado_en_uso», sin interbloqueo'],
 ];
 
+
+// El registrador debe certificar el catálogo instalado, incluso al repetir un registro existente.
+function probarRegistradorOperacion() {
+  const db = 'registro_operacion';
+  const registrar = join(RAIZ, 'supabase/scripts/llamadas-celular/registrar-operacion-hoy.sql');
+  let r = psqlSql(`create database ${db} template plantilla_doce`, 'postgres');
+  paso('banco del registrador de F4-e', r.ok);
+  r = psqlArchivo(MIG_OPERACION, db);
+  paso('F4-e aplicada para probar el registrador', r.ok, r.ok ? '' : cola(r.salida));
+  r = psqlSql(`create schema supabase_migrations;
+    create table supabase_migrations.schema_migrations(version text primary key, name text, statements text[]);`, db);
+  paso('ledger sintético del registrador', r.ok);
+  for (const nombre of ['registro válido', 'registro válido idempotente']) {
+    r = psqlArchivo(registrar, db);
+    paso(nombre, r.ok && /\bt\b/.test(r.salida), r.ok ? '' : cola(r.salida));
+  }
+  const casos = [
+    ['cuerpo vacío de la puerta', `create or replace function crm.llamadas_celular_operacion_hoy_fn(p_supervisor_id uuid default null)
+      returns jsonb language plpgsql stable security definer set search_path = '' as $$begin return '{}'::jsonb; end$$;`, 'definición alterada'],
+    ['cuerpo vacío del núcleo', `create or replace function private.llamadas_celular_operacion_hoy(p_actor uuid,p_supervisor_id uuid,p_ahora timestamptz)
+      returns jsonb language plpgsql stable set search_path = '' as $$begin return '{}'::jsonb; end$$;`, 'definición alterada'],
+    ['puerta INVOKER', 'alter function crm.llamadas_celular_operacion_hoy_fn(uuid) security invoker;', 'definición alterada'],
+    ['núcleo DEFINER', 'alter function private.llamadas_celular_operacion_hoy(uuid,uuid,timestamptz) security definer;', 'definición alterada'],
+    ['search_path alterado', "alter function crm.llamadas_celular_operacion_hoy_fn(uuid) set search_path = public;", 'definición alterada'],
+    ['núcleo abierto a authenticated', 'grant execute on function private.llamadas_celular_operacion_hoy(uuid,uuid,timestamptz) to authenticated;', 'permisos alterados'],
+    ['puerta abierta a PUBLIC', 'grant execute on function crm.llamadas_celular_operacion_hoy_fn(uuid) to public;', 'permisos alterados'],
+    ['puerta sin permiso authenticated', 'revoke execute on function crm.llamadas_celular_operacion_hoy_fn(uuid) from authenticated;', 'permisos alterados'],
+  ];
+  for (const [nombre, cambio, error] of casos) {
+    // Cada caso parte del catálogo y ledger correctos. No deja una entrada falsa tras el rechazo.
+    const archivo = join(temporal, 'registro-alterado.sql');
+    const original = readFileSync(registrar, 'utf8');
+    writeFileSync(archivo, original.replace('begin;', () => `begin;\n${cambio}`));
+    r = psqlArchivo(archivo, db);
+    const n = psqlSql("select count(*) from supabase_migrations.schema_migrations", db);
+    paso(`registrador rechaza ${nombre}`, !r.ok && r.salida.includes(error) && n.salida.trim() === '1', lineaError(r.salida));
+  }
+  psqlSql(`drop database ${db}`, 'postgres');
+}
+
 let arrancado = false;
 try {
   const init = correr('initdb', ['-D', datos, '-U', USUARIO, '-A', 'scram-sha-256', '--pwfile', archivoClave,
@@ -1653,6 +1693,7 @@ try {
   psqlSql('create database plantilla_doce template plantilla_once', 'postgres');
   r = psqlArchivo(cierre, 'plantilla_doce');
   paso('plantilla de las doce para la decimotercera', r.ok, r.ok ? '' : cola(r.salida));
+  probarRegistradorOperacion();
   pasadaEnmienda({
     titulo: 'Pasada 19: la decimotercera (la operación de hoy para supervisión y gerencia)', nombre: 'la decimotercera', db: 'operacion',
     mig: MIG_OPERACION, oraculo: ORACULO_OPERACION, marca: 'ORACULO OPERACION HOY OK', reversa: REVERSA_OPERACION,
