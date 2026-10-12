@@ -22,8 +22,15 @@ números, leads, ids de evento, horas de latido ni porcentajes en el jsonb. Solo
 **Reversa:** `supabase/scripts/llamadas-celular/reversa-operacion-hoy.sql` (drop de las dos funciones; la huella vuelve
 exacta a la de las doce; sin datos). La reversa de la duodécima recibió la guarda «revertir primero la decimotercera».
 **Registro:** `supabase/scripts/llamadas-celular/registrar-operacion-hoy.sql` (md5 `7f7fbda41adc6a1d2580c26d71da581f`
-del archivo en LF; se niega si la puerta no está o la versión ya está registrada con otro contenido).
-**Verificación (12/10, esta máquina):** `npm run test:llamadas:local` **453/453 PASS** (pasada 19: se niega sin la
+del archivo en LF; se niega si la puerta no está o la versión ya está registrada con otro contenido). **Desde `868db397`
+(agente de Miguel con Codex, 12/10 22:00 UTC, P2 de Codex r1):** antes de anotar certifica el catálogo instalado —
+huellas `md5(pg_proc.prosrc)` de la puerta (`952abdd1…`) y del núcleo (`648a8c73…`), lenguaje, retorno, STABLE,
+DEFINER/INVOKER, `search_path`, nombres y valor por defecto de los parámetros y la ACL de EXECUTE— y rechaza
+cuerpos vacíos, accesos de más y permisos de menos aunque la versión ya estuviera registrada. Ojo: fija tres huellas
+(archivo + dos cuerpos); si la migración cambia antes de aplicarse, hay que regenerar las tres en LF y repetir el banco.
+**Verificación (12/10, esta máquina):** `npm run test:llamadas:local` **466/466 PASS** con el registrador endurecido
+(antes de `868db397`, 453/453; los 13 nuevos: registro válido, idempotente y ocho alteraciones rechazadas conservando el
+ledger; Miguel reporta el mismo 466/466 en PostgreSQL 17.10) (pasada 19: se niega sin la
 duodécima, huella, aplica, se niega a repetirse, oráculo `oraculo-operacion-hoy.sql` O1–O17 del contrato, oráculos de
 F4-a y la quinta con ella puesta, la reversa de la duodécima se niega, reversa exacta y reaplicación; pasada 19b: 25
 mutantes cazados, 22 por el oráculo y 3 por el postflight). Banco reducido con un doble declarado nuevo:
@@ -32,8 +39,11 @@ mutantes cazados, 22 por el oráculo y 3 por el postflight). Banco reducido con 
 claves de equipo iguales al pulso, cierre de cubetas, privacidad y EXPLAIN registrado) y **NOT RUN** (sin base Supabase
 en esta máquina; `test:rls:preflight` se detiene por falta de `SUPABASE_URL`). `check:scripts`: el `node --check` de
 `test-rls.mjs` y `test-llamadas-celular-local.mjs` PASS; el resto de la cadena NOT RUN aquí (falta `deno`). Advisors
-**NOT RUN**. Codex r1 **NOT RUN** (no está instalado aquí): encargo transcrito en
-`docs/encargos/2026-10-12-codex-f4e-operacion-hoy.md` para quien lo corra. `auditor-rls` (12/10): **PASS**, sin cambios
+**NOT RUN**. Codex r1: encargo transcrito en `docs/encargos/2026-10-12-codex-f4e-operacion-hoy.md`; **lo corrió Miguel
+el 12/10** y su único hallazgo publicado fue un P2 sobre el registrador (no certificaba el catálogo instalado),
+corregido por Codex en `868db397` sin tocar la migración (respuesta en
+`docs/encargos/2026-10-12-codex-f4e-registrador-respuesta.md`; su `scripts/claude-review` terminó con exit 1 sin
+veredicto: no cuenta como PASS). `auditor-rls` (12/10): **PASS**, sin cambios
 obligatorios y tres P3, los tres aplicados antes del commit: rol efectivo (`private.rol_crm`, equipo y perfil activos)
 para el ámbito del supervisor y para el 22023 de gerencia (un dado de baja a medias en el Portal ya no cuenta para
 nadie), aserción en el núcleo de que `p_actor` es `auth.uid()`, y precondición sin cast directo a `regprocedure`; sus

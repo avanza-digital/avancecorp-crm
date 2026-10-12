@@ -75,6 +75,11 @@ las reversas SQL con el sistema en uso.
 
 ## 4. Bitácora (lo más nuevo arriba)
 
+- **12/10 17:00–17:15 Lima (22:00–22:15 UTC) — Miguel y Jhosep, en el #255:** el agente de Miguel corrió Codex r1 sobre
+  el encargo de F4-e y subió a la rama del PR la corrección de su P2 (`868db397`, merge `628f9c09`): el registrador ahora
+  certifica el catálogo instalado (huellas de los dos cuerpos, atributos y permisos) con 13 pasos nuevos en el banco
+  local; la migración no cambió. Nuestra sesión lo trajo, lo verificó aquí (466/466) y lo aceptó en el PR. Antes
+  (16:55 Lima) entró la propuesta #21. Pendiente de Miguel: lo mismo del PR, más su opinión sobre la #21.
 - **12/10 (14:00–15:55 Lima) — Jhosep:** sesión desde su cuenta nueva de Claude (el tablero siguió escribible).
   **F4-e construida con su OK al plan corto:** rama `crm/llamadas-f4e-operacion-hoy-20261012` desde `main`,
   decimotercera migración + reversa + registrador + oráculo O1–O17 (doble del roster del pulso en el banco reducido) +
