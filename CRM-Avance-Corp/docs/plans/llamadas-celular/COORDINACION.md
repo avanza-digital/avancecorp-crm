@@ -43,7 +43,7 @@ están las reglas, el mapa de los PR, el turno de cada uno, el orden y lo que ya
 
 | Rama | Qué es | Turno | Estado |
 | --- | --- | --- | --- |
-| **#255** `crm/llamadas-f4e-operacion-hoy-20261012` | F4-e (F6.3.1): decimotercera migración `20261012192500_crm_llamadas_celular_operacion_hoy.sql` (puerta `crm.llamadas_celular_operacion_hoy_fn` definer + núcleo invoker), reversa, registrador, oráculo O1–O17, 25 mutantes (453/453 local), bloque del gate (NOT RUN), ledger, encargo a Codex (NOT RUN) y estos documentos (tablero y `estado.json` hasta el cambio 240). `auditor-rls` PASS. **Nada aplicado** | **Miguel** | Abierto el 12/10 20:46 UTC. Le toca: su banco y `EXPLAIN` < 100 ms, gate con `CRM_RLS_EXIGE_LLAMADAS_F4E=1`, advisors, aplicar, registrar, `gen:types`; confirmar dos decisiones (retención desde la política; sin porcentajes en el jsonb). Ojo: el #256 (suyo) también toca `MIGRACIONES.md`; el segundo en fusionarse resuelve un conflicto trivial |
+| **#255** `crm/llamadas-f4e-operacion-hoy-20261012` | F4-e (F6.3.1): decimotercera migración `20261012192500_crm_llamadas_celular_operacion_hoy.sql` (puerta `crm.llamadas_celular_operacion_hoy_fn` definer + núcleo invoker), reversa, registrador, oráculo O1–O17, 25 mutantes (453/453 local), bloque del gate (NOT RUN), ledger, encargo a Codex (NOT RUN) y estos documentos (tablero y `estado.json` hasta el cambio 241). `auditor-rls` PASS. **Nada aplicado.** Lleva además la **propuesta #21** (cierre en lote) con su encargo para Codex, solo para opinar | **Miguel** | Abierto el 12/10 20:46 UTC. Le toca: su banco y `EXPLAIN` < 100 ms, gate con `CRM_RLS_EXIGE_LLAMADAS_F4E=1`, advisors, aplicar, registrar, `gen:types`; confirmar dos decisiones (retención desde la política; sin porcentajes en el jsonb). Ojo: el #256 (suyo) también toca `MIGRACIONES.md`; el segundo en fusionarse resuelve un conflicto trivial |
 | **#254** `crm/llamadas-docs-20261012` | Solo documentos: aceptación de F4.2.4 en C1 (48/102), I-1 a I-5 en `SOPORTE.md`, macros de C1 exportadas (`ACTIVAR-C2.md` §3A), hallazgos H-BLANCO y H-GUARDANDO, propuestas #19 y #20, decisiones de Miguel del 12/10, tablero y `estado.json` hasta el cambio 231 | — | **Fusionado** por Miguel el 12/10 20:41 UTC (`ebdc72c9`), sin comentarios |
 | **#251** `crm/llamadas-c2-aviso-b7-20261010` | F4.2.4 (B7): botón «Unir a un resultado guardado» + panel «¿Es este su resultado?» (solo pantalla sobre `crm.enlazar_llamada_celular`); `ACTIVAR-C2.md`; borrador `AVISO-TRATAMIENTO.md`; seguimiento y `estado.json` hasta el cambio 212 | — | **Aprobado, fusionado (`7b0d0716`) y publicado** por el agente de Miguel el 10/10 (`build-20261010T224357802Z`); el **#253** (0 archivos) devolvió el historial del release a `main` (`3f81c40f`). **Aceptado en C1 el 12/10** |
 | **#249** `crm/llamadas-f4e-contrato-20261010` | Contrato y oráculos de F4-e (`F4E-CONTRATO.md`), F7.2.2 en `SOPORTE.md` §2.2, decisiones de Miguel (C2/C3, alcance, F4.2.4) | — | **Fusionado** el 10/10 (`82e5edde`). **OK explícito de Miguel a la sección 9 el 12/10** (#251, 6128409126): se puede preparar la migración |
@@ -257,6 +257,9 @@ las reversas SQL con el sistema en uso.
 - [ ] **#255 (F4-e):** su banco y `EXPLAIN` < 100 ms, gate con `CRM_RLS_EXIGE_LLAMADAS_F4E=1`, advisors, aplicar,
   `registrar-operacion-hoy.sql`, `gen:types`; y confirmar dos decisiones: la retención de las pendientes sale de la
   política (hoy 30 días) y ningún porcentaje viaja en el jsonb.
+- [ ] **Propuesta #21** (cierre en lote de llamadas pendientes del mismo lead; idea de Jhosep, 12/10): su opinión y
+  las cinco decisiones de `PROPUESTAS-DE-AJUSTE.md` #21; si quiere, pasar a Codex el encargo
+  `docs/encargos/2026-10-12-codex-cierre-en-lote-propuesta-21.md` (solo análisis, sin código).
 
 ## En llano
 
