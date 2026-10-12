@@ -5,6 +5,9 @@ lock table crm.celulares_asignaciones, private.celulares_estado, private.llamada
   crm.llamadas_celular_eventos, crm.llamadas_celular_enlaces, private.llamadas_celular_intenciones in access exclusive mode;
 do $pre$
 begin
+  if to_regprocedure('crm.llamadas_celular_operacion_hoy_fn(uuid)') is not null then
+    raise exception 'REVERSA_CIERRE_REVISION: revertir primero la decimotercera (reversa-operacion-hoy.sql)';
+  end if;
   if to_regprocedure('private.llamada_celular_contacto_admitido(uuid,text[])') is null then
     raise exception 'REVERSA_CIERRE_REVISION: la duodécima no está aplicada';
   end if;
