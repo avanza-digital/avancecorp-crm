@@ -243,6 +243,7 @@ let CONVERSION_MENSUAL: import('@/lib/conversion-mensual').ConversionMensual | n
 let CONVERSION_MENSUAL_FALLA = false
 let CONVERSION_MENSUAL_FETCHING = false
 vi.mock('@/data/crm-queries', () => ({
+  useEquipoReportes: () => ({ data: [], isPending: false, isError: false, refetch: vi.fn() }),
   // Rentabilidad R3: sin solicitudes ni decisiones en estos escenarios (tienen sus propios tests).
   useSolicitudesTasa: () => ({ data: [], isPending: false, isError: false, refetch: () => {} }),
   useResolverSolicitudTasa: () => ({ mutateAsync: async () => ({}), isPending: false }),

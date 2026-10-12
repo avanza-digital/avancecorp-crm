@@ -1,0 +1,115 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+La puerta en sí está bien construida. Es SECURITY DEFINER, fija `search_path = ''`, aplica el gate de rol en las dos capas, solo da EXECUTE a `authenticated` y no expone IDs de lead ni de cliente, montos ni contactos. La UI cumple los patrones a11y del proyecto: Sheet sobre Radix, título enlazado, botón de cierre con `aria-label`, sin `autoFocus` y sin enlaces a ficha. Quedan tres puntos que pueden romper la promesa de "explicar todos los contadores" o el alcance de la autorización:
+
+- una posible discrepancia de filtro frente al agregado (`not e.anulado`);
+- un alcance de coordinador no demostrado con la evidencia adjunta;
+- un comentario de contrato que es falso para los rangos libres.
+
+Además falta evidencia esencial de los archivos llamadores. No la trato como bug, sino como condición para dar PASS.
+
+FINDINGS:
+
+[P1] Posible pérdida de operaciones de cartera por `not e.anulado` con NULL
+File: `supabase/migrations/20261012203925_crm_conversion_cierres_coordinacion.sql`
+Lines: 36
+Problem: el filtro `where e.tipo in ('cierre','operacion') and not e.anulado` descarta cualquier fila con `anulado IS NULL`, porque `not NULL` da NULL. Según el propio PRIMARY, el agregado aplica "cierres tipo cierre no anulado, cartera tipo operacion". Es decir, el agregado no filtra `anulado` para las operaciones.
+Evidence: no se adjuntó el cuerpo de `private.conversion_episodios`. Si esa función devuelve `anulado` NULL para `tipo='operacion'`, porque no viene de `crm.leads`, el detalle omite todas las operaciones de cartera y su `total` deja de cuadrar con el contador del resumen. Es una hipótesis, con confianza media.
+Impact: el detalle no explicaría los contadores, que es justo el objetivo aprobado. Afectaría a upgrade y renovación.
+Recommendation: replicar literalmente el predicado del agregado. Por ejemplo: `where (e.tipo = 'cierre' and e.anulado is false) or e.tipo = 'operacion'`, o `coalesce(e.anulado,false) = false` si el agregado usa esa semántica. Añadir un test SQL de paridad: `total` del detalle igual al numerador (conteo) del agregado, por analista, para mes abierto y para rango.
+
+[P1] Alcance del coordinador no demostrado: `p_analista` arbitrario
+File: misma migración
+Lines: 6–21, 70–86
+Problem: cualquier coordinador activo puede pedir los nombres de clientes de cualquier `p_analista`. El contexto del auditor define "visibilidad escalonada". Si en este proyecto el coordinador está acotado a su equipo o subárbol, y no es lector global como gerencia, esta puerta le daría nombres de clientes fuera de su alcance.
+Evidence: la consulta no tiene ningún filtro tipo `private.es_lector_global()`, subárbol o equipo. Tampoco se adjuntaron los cuerpos de `private.puede_operar_reparto_crm`, `private.rol_crm` ni la lógica de visibilidad que usa el resumen de conversión para el coordinador.
+Impact: posible fuga de PII (nombres) entre equipos.
+Recommendation: adjuntar la evidencia de que el resumen de Conversiones ya muestra a todos los analistas a cualquier coordinador. Si no es así, añadir una comprobación de pertenencia de `p_analista` al alcance del llamante, con el mismo predicado que usa el resumen, y cubrir el caso denegado en `test-rls.mjs`.
+
+[P2] El gate reutiliza un permiso de otra capacidad ("reparto")
+File: misma migración
+Lines: 18, 81
+Problem: la autorización para leer nombres queda acoplada a `puede_operar_reparto_crm`. Si mañana se amplía quién puede operar el reparto, por ejemplo a un comercial líder, esta lectura de PII se amplía en silencio.
+Evidence: es el nombre de la función, y el pedido define la puerta como "SOLO coordinador/gerencia".
+Recommendation: crear un gate propio, por ejemplo `private.puede_ver_cierres_conversion()`, aunque hoy tenga el mismo cuerpo. Como mínimo, documentar el acoplamiento en el `comment` y en el ledger.
+
+[P2] Comentario de contrato falso: los rangos libres sí reconstruyen nombres de meses sellados
+File: misma migración
+Lines: 21–26, 115–116
+Problem: `v_sellado` solo se evalúa cuando `v_es_mes`. Un rango como 01/09–30/09, siendo septiembre un mes sellado, devuelve nombres vivos. Sin embargo, el comentario afirma "No reconstruye nombres de fotos selladas". Además, los conteos vivos pueden diferir de la foto sellada que el usuario vio en el resumen mensual.
+Evidence: líneas 12–13 y 21. El rango solo se valida en las líneas 97–101 y no consulta `periodos_cerrados`.
+Impact: hay un contrato documental engañoso para futuros auditores. Si la intención es "rangos vivos", se acepta, pero debe decirse así.
+Recommendation: elegir una de dos opciones. (a) Corregir el comentario a algo como "Mes sellado consultado como mes: no disponible; rangos libres: datos vivos actuales, pueden no coincidir con la foto". (b) Devolver `disponible:false` cuando el rango solapa un periodo sellado. Coordinarlo con lo que hace el resumen en modo rango.
+
+[P2] `service_role` pierde EXECUTE
+File: misma migración
+Lines: 112–113
+Problem: se revoca a `service_role` en la función pública `crm.*`. Es correcto como hardening, pero el checklist del auditor-rls (punto 4) exige que figure en el ledger.
+Evidence: no se adjuntó la fila de `MIGRACIONES.md` ni `reversa.sql`.
+Recommendation: anotarlo en la fila del ledger y verificar que `reversa.sql` hace `drop function` de ambas firmas exactas.
+
+[P3] Orden no totalmente determinista
+File: misma migración
+Lines: 43, 63–64
+Problem: el orden `fecha_numerador desc, tipo, lead_id, operacion_id` puede empatar si `conversion_episodios` devuelve dos episodios `cierre` del mismo lead con el mismo instante. Con `operacion_id` NULL en ambos, el empate se resuelve de forma arbitraria. El resultado serían filas duplicadas u omitidas entre páginas.
+Evidence: es una hipótesis, porque no se adjuntó la clave única de los episodios.
+Recommendation: añadir al final del `order by` la clave única del episodio, si existe (por ejemplo `e.episodio_id`), o confirmar que `(tipo, lead_id)` es único para los cierres no anulados.
+
+[P3] Validación de respuesta incompleta en el cliente
+File: `app/src/lib/conversion-cierres-coordinacion.ts`
+Lines: 26–31
+Problem: `detalleCierresConsistente` no comprueba que `analista_id`, `desde` y `hasta` de la respuesta coincidan con lo pedido. Tampoco se adjuntó `crm-api.ts`, así que no hay evidencia de que la función se invoque realmente tras `v.parse`.
+Recommendation: comparar `analista_id`, `desde` y `hasta` con la consulta enviada, y adjuntar el hunk de `crm-api.ts` que valida y aborta con `signal`.
+
+[P3] a11y: retorno de foco frágil si la fila del resumen se re-renderiza
+File: `app/src/components/app/conversion-cierres-coordinacion.tsx` y el llamador (no adjunto)
+Lines: 60
+Problem: `Sheet` devuelve el foco al nodo origen solo si sigue conectado. Si no lo está, usa la gemela de `data-foco-clave` o `focoRespaldo`. Si el resumen se refetchea con el Sheet abierto (refetch en foco de ventana, invalidación) y el botón "Ver cierres" se recrea, el foco cae en `<body>` (WCAG 2.4.3).
+Evidence: `sheet.tsx:99–110`. No se adjuntó el JSX del botón.
+Recommendation: poner `data-foco-clave={`cierres-${analista_id}`}` en el botón "Ver cierres" o pasar `focoRespaldo`.
+
+[P3] a11y: foco durante la paginación y el reintento
+File: `conversion-cierres-coordinacion.tsx`
+Lines: 37, 70, 89
+Problem: `setDatos(null)` desmonta el bloque que contiene `Paginacion` mientras ese bloque tiene el foco. Lo mismo ocurre si `PanelError` deshabilita el botón al reintentar. El foco cae al contenedor o a `<body>` hasta la respuesta. Si el reintento falla, `enfocar.current` queda en `true` sin destino. No es bloqueante, porque `role="status"` anuncia la carga y luego se enfoca el contenido.
+Recommendation: conservar `datos` previos durante la carga de una página nueva, marcando `aria-busy` en la lista, en lugar de vaciarlos. Además, usar `key={`${fila.fecha}-${indice}-${pagina}`}` o una clave estable en lugar de `indice` a secas.
+
+TEST GAPS:
+(No son bugs; son pendientes que ya declaró el PRIMARY, concretados.)
+- RLS/ACL:
+  - `anon` → error de permiso en `crm.*_fn`;
+  - `authenticated` sin rol, `comercial`, y coordinador o gerencia con `activo=false` en perfil, y por separado en equipo → 42501;
+  - EXECUTE directo sobre `private.conversion_cierres_coordinacion` → denegado para `anon`, `authenticated` y `service_role`.
+- Paridad: `total` del detalle igual al contador del agregado, en mes abierto y en rango, con manuales, automáticos, operaciones de cartera y episodios de aporte 0.
+- Bordes Lima: cierre a las 23:59 del último día y a las 00:00 del día 1 (UTC-5).
+- Sellado: mes sellado → `disponible:false`; rango que solapa el sellado → comportamiento documentado.
+- Paginación: página fuera de rango → clamp; `p_pagina` = -1 o 50001 → 22023; `total` = 0, 20 y 21.
+- Validación: `p_periodo` combinado con rango, mes futuro, rango mayor de 366 días, `p_hasta` en el futuro.
+- Front:
+  - render de `disponible:false`;
+  - abort de una respuesta tardía al cambiar de página;
+  - retorno de foco al botón al cerrar;
+  - el botón no se renderiza para comercial.
+
+ARCHITECTURE RISKS:
+- El gate de lectura de PII está acoplado al permiso de reparto (P2).
+- El detalle depende de que `conversion_episodios` se mantenga como núcleo compartido. Un cambio en el agregado sin replicarlo aquí rompe la paridad. Mitigación: un test de paridad permanente.
+
+SECURITY RISKS:
+- Alcance del coordinador sobre `p_analista` sin acotar (P1, pendiente de evidencia).
+- Lectura de `public.perfiles` con privilegios definer: es solo lectura de `nombre_completo` y no altera `public`. Es aceptable si el ledger lo documenta.
+
+REGRESSION RISKS:
+- Ninguno sobre datos ni agregados, porque la migración solo crea funciones. Hay que confirmarlo con el diff de `conversion-coordinacion.tsx`, `crm-api.ts` y `crm-queries.ts`, que no se adjuntó.
+
+RECOMMENDED NEXT ACTIONS:
+1. Adjuntar los cuerpos de `private.conversion_episodios` (sus columnas, en especial `anulado` por tipo) y del filtro exacto de `private.conversion_divisor_empresa`. Corregir el predicado de la línea 36 si difiere.
+2. Adjuntar `private.puede_operar_reparto_crm`, `private.rol_crm` y la regla de visibilidad del resumen para coordinador. Si el coordinador no es global, acotar `p_analista`.
+3. Corregir el `comment` sobre los sellados y los rangos, y documentar en el ledger la revocación a `service_role` y la elección del gate.
+4. Adjuntar el hunk del botón en `conversion-coordinacion.tsx` y el de `crm-api.ts` (parse, consistencia y `signal`). Añadir `data-foco-clave` al botón.
+5. Ejecutar la matriz de tests listada arriba.
+
+CONFIDENCE:
+MEDIUM. El código adjunto se revisó completo; los dos P1 dependen de cuerpos SQL que no se adjuntaron.

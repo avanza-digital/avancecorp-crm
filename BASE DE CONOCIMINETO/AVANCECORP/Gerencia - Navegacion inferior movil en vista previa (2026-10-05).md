@@ -1,6 +1,6 @@
-# Gerencia — navegación inferior móvil (adaptación local)
+# Gerencia — navegación inferior móvil publicada
 
-Estado: Miguel aprobó la vista y pidió completar la adaptación y el plan de implementación. **Implementado y verificado en local**, sin commit, PR ni deploy de esta navegación. Base validada: `b286b2bfce9a24004e887ee0cb127ecf5dab5a23`.
+Estado: **publicado y verificado en https://crm.miavance.com/**, tras la autorización de deploy de Miguel y la integración del [PR #201](https://github.com/avanza-digital/avancecorp-crm/pull/201). Fuente: `1d4134e6476f007ac14cbb38df42b84e22fe862f`; build `build-20261006T031013454Z`. Main local y `avancecorp/main` coincidían al publicar. Artefacto: `crm-20261006T031014Z-1d4134e6476f.zip`, SHA-256 `054ad6350741d6b73055e3233ead75adb214581e246cdb9adc01a3c5c5b42961`.
 
 Solo Gerencia y ancho menor de 768 px: **Resumen, Citas, Metas, Más**. La barra reserva su propia fila, sin tapar contenido. Más reúne Facturación, Ranking, Gestión Diaria y Cartera; Análisis, Operación y Administración desplegables; identidad y cierre de sesión. Los 18 destinos heredan el catálogo ya filtrado del Sidebar y la navegación saneada de App. Desktop, tablet y otros roles conservan su lateral. La campana continúa arriba.
 
@@ -12,7 +12,7 @@ Verificación final: **PASS** `npm run check` (379 archivos / 6.120 pruebas, lin
 
 Revisión secundaria por wrapper: **PASS**, sin bloqueantes; incorporada espera explícita del diálogo en el helper E2E. Los P3 e hipótesis restantes están evaluados en `decision-review.txt`. Verificación CUA en Chrome: Resumen, Citas, Metas, abrir/cancelar Nuevo lead y vuelta móvil → escritorio → móvil. PWA en iPhone/Android físicos: **NOT RUN**, pendiente del smoke de publicación. Gate con base real: **NOT RUN**, intento previo sin credenciales de servicio; esta fase no cambia backend.
 
-Plan completo: `CRM-Avance-Corp/docs/encargos/2026-10-05-gerencia-navegacion-movil.md`. Pendiente preparar commit/PR solo del alcance, integrar `avancecorp/main`, verificar igualdad con Main local, construir desde ese commit y publicar cuando Miguel lo indique. Después comprobar actualización PWA y dispositivos físicos. Mantener trabajos ajenos fuera del cambio.
+Plan completo: `CRM-Avance-Corp/docs/encargos/2026-10-05-gerencia-navegacion-movil.md`. Acta: `CRM-Avance-Corp/docs/publicaciones/gerencia-navegacion-movil-2026-10-05.md`. Código de la app idéntico al verificado en `7253de7e`. Build limpio, manifiesto, preflight y publicación Hostinger PASS. Verificación posterior: **135 archivos con SHA-256 y tamaño exactos**, incluidos HTML, JS/CSS, service worker y versión; 13 PNG HTTP 200. ZIP no accesible públicamente (404). En Gerencia real: barra móvil, cita de equipo con día/supervisor y 9 citas coherentes, Metas, Más → Ranking, Atrás y paso escritorio/móvil PASS. No hubo errores JS; se observaron avisos de GSAP por selectores de animación ausentes. PWA en iPhone/Android físicos: **NOT RUN**. El paquete anterior `crm-20261006T003149Z-b286b2bfce9a.zip` y su manifiesto quedan conservados. Trabajos ajenos sin confirmar preservados; no se aplicó SQL ni se cambiaron datos para probar.
 
 Evidencia: `CRM-Avance-Corp/output/navegacion-movil-local/verificacion.json`, logs y capturas. Producto: `components/app/navegacion-gerencia-movil.tsx` y `.css`, integración en Sidebar y App.Workspace; soporte: helpers, spec de navegación, siete specs existentes y comparador local (no entra al build productivo).
 

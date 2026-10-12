@@ -1043,12 +1043,12 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         Promise.resolve<Lead[]>([]),
         esCoordinador ? Promise.resolve<Miembro[]>([]) : listarEquipo(signal),
         listarTareasDelAmbito(signal),
-        obtenerMetasDelMes(periodoMetas, signal).catch((error: unknown) => {
+        esCoordinador ? Promise.resolve(null) : obtenerMetasDelMes(periodoMetas, signal).catch((error: unknown) => {
           registrarError('crm.metas.configuracion_boot_degradada', error)
           objetivosError = true
           return null
         }),
-        obtenerCumplimientoMetas(periodoMetas, signal).catch((error: unknown) => {
+        esCoordinador ? Promise.resolve(null) : obtenerCumplimientoMetas(periodoMetas, signal).catch((error: unknown) => {
           registrarError('crm.metas.cumplimiento_boot_degradado', error)
           cumplimientoMetasError = true
           return null

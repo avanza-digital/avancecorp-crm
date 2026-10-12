@@ -2,14 +2,24 @@
 
 ## Estado
 
-Corrección preparada en `codex/correo-acceso-20260925`, en un worktree aislado
-autorizado por Miguel. **No aplicada en producción ni publicada en el frontend.**
-La recuperación puntual anterior de una solicitud no autoriza esta migración general.
+**Aplicada y verificada en producción el 03/10/2026, 11:16 Lima**, mediante merge
+de la branch Supabase `correo-acceso-20260925`, con autorización expresa de Miguel.
+Las dos versiones originales figuran en producción; funciones, triggers y permisos
+coinciden con el candidato ensayado. La pantalla publicada ya era compatible;
+no fue necesaria otra publicación frontend.
+Acta: `../../../docs/publicaciones/correo-acceso-2026-10-03.md`.
+
+Cierre autorizado el 03/10: branch hospedada, base y contenedores propios locales,
+credenciales y temporales retirados. Las instrucciones del banco permiten volver
+a crearlo; los scripts y la reversa se conservan.
 
 SQL: `../../migrations/20260925170437_crm_correo_acceso_sincronizado.sql`.
 
 ## Comportamiento
 
+- El camino principal del analista es editar «Correo de acceso Avance» dentro de
+  «Convertir cliente», revisar y continuar la misma solicitud. La ficha se actualiza
+  automáticamente; no necesita salir a editarla ni cancelar el trámite.
 - Antes de crear Auth, guardar un correo válido en la ficha sincroniza todas sus
   solicitudes Avance preparadas, incluso si ya reservaron el acceso.
 - Revisar o corregir el primer acceso guarda el correo también en la ficha.
@@ -17,6 +27,9 @@ SQL: `../../migrations/20260925170437_crm_correo_acceso_sincronizado.sql`.
   leads ni confirmar inversiones. La auditoría registra el `auth.uid()` real.
 - Con cuenta Auth creada, el correo de contacto puede editarse sin reasignar
   credenciales. La corrección de alta informa que debe usarse gestión de acceso.
+  Es la operación del administrador del portal en Clientes → Editar → Correo
+  electrónico, con motivo; conserva la contraseña. No existe un menú con el nombre
+  «Gestión de acceso».
 - Una importación sin actor conserva el contacto pero no inventa auditoría. Si
   difiere del acceso pendiente, no se puede crear Auth hasta revisar el correo.
 - Una solicitud anterior con correos distintos muestra ambos y exige elegir.
@@ -30,6 +43,12 @@ La respuesta de solicitud agrega `acceso_creado`: permite retomar Auth existente
 aunque aún no haya perfil y el contacto haya cambiado. Consumidores anteriores
 usaban `v.object`, compatible con el campo adicional; el nuevo frontend lo acepta
 como opcional. Orden de publicación: SQL primero, frontend después.
+
+Validación de activación del 03/10: SQL 22/22, HTTP local 21/21, E2E Docker 5/5,
+RLS hospedado completo 2.547/2.547 y tres escenarios Auth hospedados PASS.
+Preflights y seed reales PASS; advisors sin alertas nuevas. Review adicional
+NOT RUN por falta de dictamen válido del wrapper; se mantienen los dos reviews
+de implementación documentados en `REVISION.md`. Detalles y límites en el acta.
 
 ## Concurrencia y seguridad
 

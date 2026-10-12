@@ -29,7 +29,8 @@ export const ACCIONES = [
   'verAgenda',
   'verGestionEquipo',
   'verDerivacionesEquipo', // módulo de reparto propio del supervisor
-  'verFacturacion',     // tablero Facturación: Gerencia y Directorio (lector global,
+  'verRanking',         // ranking general: Gerencia y Coordinación, solo consulta
+  'verFacturacion',     // tablero Facturación: Gerencia, Coordinación y Directorio (lector global,
                         // solo lectura; Miguel, 08/10/2026) ven la empresa,
                         // Supervisión SU equipo (16/09/2026). Espejo de la verja
                         // de crm.facturacion_diaria_fn: a los demás les da vacío
@@ -74,7 +75,7 @@ export const CAPS: Record<Rol, Caps> = {
     reasignar: false, repartirLeads: false, repartirCola: false, verCartera: true,
     verPipeline: true, verLeads: true, verAgenda: true, verGestionEquipo: false,
     verDerivacionesEquipo: false,
-    verFacturacion: false,
+    verFacturacion: false, verRanking: false,
     verCitasEquipo: false,
     verAlertas: true, tomarLeadDirecto: true,
     verConfiguracion: true, editarConfiguracion: false,
@@ -86,7 +87,7 @@ export const CAPS: Record<Rol, Caps> = {
     reasignar: true, repartirLeads: true, repartirCola: false, verCartera: true,
     verPipeline: true, verLeads: true, verAgenda: true, verGestionEquipo: true,
     verDerivacionesEquipo: true,
-    verFacturacion: true,
+    verFacturacion: true, verRanking: false,
     verCitasEquipo: true,
     verAlertas: true, tomarLeadDirecto: false,
     verConfiguracion: false, editarConfiguracion: false,
@@ -98,7 +99,7 @@ export const CAPS: Record<Rol, Caps> = {
     reasignar: true, repartirLeads: true, repartirCola: true, verCartera: true,
     verPipeline: true, verLeads: true, verAgenda: true, verGestionEquipo: true,
     verDerivacionesEquipo: false,
-    verFacturacion: true,
+    verFacturacion: true, verRanking: true,
     verCitasEquipo: true,
     verAlertas: true, tomarLeadDirecto: false,
     verConfiguracion: true, editarConfiguracion: true,
@@ -112,23 +113,23 @@ export const CAPS: Record<Rol, Caps> = {
     verDerivacionesEquipo: false,
     // Miguel, 08/10/2026: «sí, que la vea». El servidor ya le daba la empresa
     // entera (es lector global); solo el menú se la escondía.
-    verFacturacion: true,
+    verFacturacion: true, verRanking: false,
     verCitasEquipo: false,
     verAlertas: false, tomarLeadDirecto: false,
     verConfiguracion: true, editarConfiguracion: false,
     verReportes: true, editarMetas: false, editarCapacidad: false, soloLecturaTotal: true,
   },
-  // Coordinador (C1): SOLO reparte la cola global a las bandejas de supervisión.
+  // Coordinador: reparte la cola global y consulta Facturación/Ranking (12/10/2026).
   // verTodo:false es CRÍTICO — su ámbito de leads es ∅ (espejo exacto de la RLS:
   // private.vendedor_ids_visibles devuelve vacío para este rol). No tiene cartera
-  // ni equipo: su único destino es la pantalla "Repartir leads".
+  // ni cartera operativa. Los reportes usan una proyección mínima de nombres.
   coordinador: {
     verTodo: false, verEquipo: false, filtrarPorVendedor: false,
     altaDirectaCliente: false,
     reasignar: false, repartirLeads: false, repartirCola: true, verCartera: false,
     verPipeline: false, verLeads: false, verAgenda: false, verGestionEquipo: false,
     verDerivacionesEquipo: false,
-    verFacturacion: false,
+    verFacturacion: true, verRanking: true,
     verCitasEquipo: false,
     verAlertas: false, tomarLeadDirecto: false,
     verConfiguracion: false, editarConfiguracion: false,

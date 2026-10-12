@@ -845,7 +845,8 @@ describe('pantalla Repartir leads', () => {
     const tabla = await screen.findByRole('table', { name: 'Conversión por analista' })
     const astrid = within(tabla).getByRole('row', { name: /ASTRID CENTENARO/ })
     const celdas = within(astrid).getAllByRole('cell').map((celda) => celda.textContent ?? '')
-    expect(celdas[0]).toBe('ASTRID CENTENARO')
+    expect(celdas[0]).toBe('ASTRID CENTENAROVer cierres')
+    expect(within(astrid).getByRole('button', { name: 'Ver cierres de ASTRID CENTENARO' })).toBeEnabled()
     expect(celdas.slice(2, 5)).toEqual(['65', '50', '115'])            // llegadas: formulario, landing, total
     expect(celdas[7]).toBe('0')                                          // base cargada (B11)
     expect(celdas[8]).toContain('1 · 0.15')                              // referidos: cantidad · aporte

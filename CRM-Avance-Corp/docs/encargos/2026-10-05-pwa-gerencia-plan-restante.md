@@ -2,9 +2,15 @@
 
 El objetivo es que Gerencia pueda revisar la operación, identificar los pendientes importantes y llegar al caso correspondiente desde el teléfono. El alcance visual es Gerencia por debajo de 768 px, tanto en navegador como en PWA instalada.
 
-La distribución solicitada por Miguel es **Resumen · Citas · Gestión Diaria · Más**. Metas y cumplimiento queda en Más. **Las cuatro mejoras están implementadas e integradas en el workspace local al 6 de octubre de 2026**. La publicación, el contraste con backend y la validación de PWA instalada en dispositivos físicos siguen pendientes; el detalle de resultados está debajo.
+La distribución solicitada por Miguel es **Resumen · Citas · Gestión Diaria · Más**. Metas y cumplimiento queda en Más. **Las cuatro mejoras están publicadas en crm.miavance.com desde el 6 de octubre de 2026**, mediante PR #202 y commit `ea3b6ed22a9bc37031bd9c01ca54e694cffb3f11`. El smoke con sesión real de Gerencia y la verificación HTTPS pasaron. Siguen pendientes la configuración del comando automatizado de realidad y la validación de PWA instalada en dispositivos físicos. A las 09:40 Lima se completaron sus nueve mediciones equivalentes mediante SQL/MCP de solo lectura: ocho sin divergencia y una observación de datos (279 clientes activos con domicilio vacío); detalle en el acta de publicación.
 
-## Base publicada
+## Publicación verificada — 6 de octubre, 09:25 Lima
+
+Build `build-20261006T140145431Z`, desde Main limpio igual a `avancecorp/main`; ZIP, manifiesto y preflight PASS. Check final: **6.187 pruebas PASS**. Docker completo: **358 PASS, 2 fallos de un spec obsoleto y 26 omitidas**; tras actualizar solo ese spec, sus **2 casos PASS**, sin reintentos. No se rotula la primera suite completa como PASS.
+
+HTTPS: **139 archivos exactos, 13 imágenes disponibles y un archivo protegido**; versión correcta y ZIP no expuesto. Smoke real: Resumen, Pendientes y retorno con filtro/foco, Citas, Gestión Diaria, Más y escritorio **PASS**. Detalle, huella y limitaciones: [acta de publicación](../publicaciones/gerencia-pwa-cuatro-mejoras-2026-10-06.md).
+
+## Base publicada antes de esta entrega
 
 | Pieza | Estado de partida |
 | --- | --- |
@@ -19,7 +25,7 @@ La distribución solicitada por Miguel es **Resumen · Citas · Gestión Diaria 
 
 Referencia de navegación publicada: commit `1d4134e6476f007ac14cbb38df42b84e22fe862f`, build `build-20261006T031013454Z`. Las actas de esa entrega conservan su distribución histórica; este plan registra el cambio posterior solicitado por Miguel.
 
-## Resultado local al 6 de octubre de 2026
+## Historial: resultado local previo a la publicación
 
 | Entrega | Resultado implementado |
 | --- | --- |
@@ -28,7 +34,7 @@ Referencia de navegación publicada: commit `1d4134e6476f007ac14cbb38df42b84e22f
 | 3 Pantallas prioritarias | Gestión Diaria con ordenación compacta; Citas conserva filtros, vista y página; Ranking y Metas compactan fuentes e indicadores; Facturación contiene la tabla y conserva nombres; Cartera muestra consulta y conteo |
 | 4 PWA | Desconexión visible, revalidación existente, actualización voluntaria aplazable, ajuste de teclado/viewport y convivencia con Más y diálogos |
 
-La integración conserva los cambios locales ajenos `ResumenGestionesHoy` y `CitasClientes`. No hubo commit, PR ni publicación de esta entrega. La copia aislada verificada parte del commit de PR 201 mencionado arriba; la vista local utiliza datos demo.
+La integración conserva los cambios locales ajenos `ResumenGestionesHoy` y `CitasClientes`. En esa fase inicial todavía no había commit, PR ni publicación; posteriormente se integró PR #202 y se publicó la versión indicada arriba. La copia aislada verificada parte del commit de PR 201 mencionado arriba; la vista local utiliza datos demo.
 
 Validación:
 
@@ -39,7 +45,7 @@ Validación:
 - Review secundario mediante el wrapper: **CHANGES_REQUESTED**; Codex evaluó sus observaciones, corrigió las aceptadas y ejecutó las verificaciones. Resolución en el acta local.
 - Backend real: **NOT RUN**, falta `SUPABASE_URL`. PWA instalada, teclado/áreas seguras y recepción de push en Android/iPhone físicos: **NOT RUN**, no disponibles en la sesión.
 
-Evidencia: `output/pwa-gerencia-cuatro/ENTREGA.md`, `verificacion.json`, `review-resolucion.md`, logs, capturas, patch y copias de integración. Vista local: <http://127.0.0.1:5184/navegacion-movil.html>. Las secciones siguientes conservan los requisitos y criterios de cierre de cada entrega; las comprobaciones físicas y de publicación aún no están cerradas.
+Evidencia: `output/pwa-gerencia-cuatro/ENTREGA.md`, `verificacion.json`, `review-resolucion.md`, logs, capturas, patch y copias de integración. Vista local: <http://127.0.0.1:5184/navegacion-movil.html>. Las secciones siguientes conservan los requisitos y criterios de cierre de cada entrega; las comprobaciones físicas siguen pendientes; la publicación está cerrada con la evidencia del acta.
 
 ## Decisiones de la adaptación
 
@@ -58,7 +64,7 @@ Cambiar el tercer acceso inferior, conservar el icono y nombre del catálogo com
 
 Actualizar el comparador local y las pruebas existentes. Verificar el texto completo a 360 px, los 18 destinos, Atrás, apertura y cierre de Más, cambio a tablet y navegación de los demás roles. Esta entrega puede publicarse de forma independiente del desarrollo de Pendientes.
 
-Resultado local de este ajuste: `npm run check` PASS, 379 archivos y 6.120 pruebas; E2E de navegación en Docker PASS, 9 pruebas y 0 reintentos; comprobación visual a 360 × 800 PASS. La suite Docker completa y el smoke de dispositivos físicos no se han repetido para este ajuste. Evidencia: `output/gestion-diaria-acceso-local/verificacion.json`, logs y `gestion-diaria-360.png`. Vista local: <http://127.0.0.1:5184/navegacion-movil.html>. No se ha creado un nuevo PR ni deploy de esta corrección.
+Resultado local de este ajuste: `npm run check` PASS, 379 archivos y 6.120 pruebas; E2E de navegación en Docker PASS, 9 pruebas y 0 reintentos; comprobación visual a 360 × 800 PASS. La suite Docker completa y el smoke de dispositivos físicos no se han repetido para este ajuste. Evidencia: `output/gestion-diaria-acceso-local/verificacion.json`, logs y `gestion-diaria-360.png`. Vista local: <http://127.0.0.1:5184/navegacion-movil.html>. Ese ajuste local todavía no tenía PR ni deploy propio; quedó incluido en la publicación de PR #202 indicada arriba.
 
 ## Entrega 1 Pendientes visibles desde Resumen
 

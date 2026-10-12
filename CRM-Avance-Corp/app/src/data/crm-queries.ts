@@ -18,6 +18,7 @@ import type { ConversionMensual } from '@/lib/conversion-mensual'
 import type { MetricasConversionesEquipo } from '@/lib/metricas-conversiones-equipo'
 import { cumplimientoDesdeRpc } from '@/lib/objetivos'
 import {
+  listarEquipoReportes,
   actualizarCapacidadLeadsObjetivo,
   anularCierreAvance,
   anularCierreExterno,
@@ -852,6 +853,15 @@ export function useFacturacionDiaria(habilitada: boolean, mes: string) {
     // (Auditoría de Codex, 11/09/2026.)
     refetchInterval: 5 * 60_000,
     refetchOnWindowFocus: true,
+  })
+}
+
+/** Lectura independiente: un fallo del reporte nunca impide repartir leads. */
+export function useEquipoReportes(habilitada: boolean, actorId?: string | null) {
+  return useQuery({
+    queryKey: [...crmQueryKeys.raiz, 'equipo-reportes', actorId ?? 'sin-actor'],
+    queryFn: ({ signal }) => listarEquipoReportes(signal),
+    enabled: habilitada && Boolean(actorId),
   })
 }
 

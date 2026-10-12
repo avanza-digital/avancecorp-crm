@@ -1,6 +1,25 @@
+## 20261012165115 — Coordinación: Facturación y Ranking en lectura
+
+**PREPARADA, SIN APLICAR EN PRODUCCIÓN.** Autorizada por Miguel el 12/10/2026.
+Coordinación activa consulta cifras de toda la empresa y meses cerrados. El detalle
+de Facturación siempre oculta nombres e identificadores de clientes, leads y contratos.
+No amplía `es_lector_global`, el alcance operativo ni las escrituras; Repartir conserva su permiso.
+La proyección `equipo_reportes_fn` entrega exclusivamente nombres y jerarquía comercial activa.
+Las diez funciones existentes conservan firmas, cálculos, propietario, atributos y ACL.
+La instalación exige las huellas del catálogo vivo capturado; rechaza cualquier cambio concurrente.
+
+App: 6.624 pruebas, tipos, build y bundle PASS; E2E dirigidos existentes 38 PASS y
+los tres nuevos de Coordinación PASS. El gate integral falla por copias preexistentes
+` 2.*`; duplicación sin esas copias 0,43 % PASS. Matriz SQL en banco exclusivo PASS:
+120 comparaciones de otros roles, 24 lecturas globales, 3 páginas sin PII, bajas y ACL.
+Reversa/reaplicación PASS. Dos revisiones independientes; hallazgos evaluados y
+corregidos por el PRIMARY (ver kit). Matriz HTTP general y advisors: NOT RUN,
+pendientes del ciclo de release en rama Supabase. Kit, preflight y reversa:
+[`coordinacion-reportes/LEEME.md`](../scripts/coordinacion-reportes/LEEME.md).
+
 ## 20261010154908 — Contrato PDF v10 y anexo v2: correcciones del modelo
 
-**PREPARADA LOCALMENTE; NO APLICADA EN PRODUCCIÓN.** Correos 8.1/14.2 a
+**PUBLICADA Y VERIFICADA EN PRODUCCIÓN 10/10/2026 mediante `merge_branch`.** Correos 8.1/14.2 a
 `atencionalcliente@groupmascapital.com`, firma transparente original del Word y
 cuenta destino congelada en el anexo, conservando ceros iniciales. La Edge emite
 `contrato-aep-17-v10` / `anexo-cronograma-v2`; sigue leyendo los PDF históricos.
@@ -16,12 +35,20 @@ Docker PASS con PDF reales v9/v10 y anexo v2. 14 muestras comparadas: solo cambi
 los correos y la fila de cuenta, sin variación de importes/fechas. Revisión independiente mediante `scripts/claude-review`: primer dictamen
 CHANGES_REQUESTED, hallazgos resueltos y revisión final PASS (confianza alta).
 Reversa Edge verificada: 91 pruebas y typecheck también en Docker.
-Paquete local listo para la publicación autorizada; producción intacta.
-Rama remota/advisors y comprobaciones productivas permanecen pendientes del
-carril de publicación. Preflights generales seed/RLS no ejecutaron aserciones
-por faltar `SUPABASE_URL`; los bancos SQL locales pertinentes sí pasaron.
+PR #250 integrada en `5616d1e834c4c9e28e0fb7caeee2b3eae0a02498`, Main local/remoto
+iguales y artefacto aislado de ese commit. Rama Supabase reconstruida sin clientes,
+9/9 huellas de catálogo y ACL exactas; 461 migraciones originales idénticas más
+esta candidata. Ida/reversa/reaplicación PASS; 319 aserciones RLS y HTTP real con
+fixtures ficticios PASS, incluido cambio de cuenta vigente sin variar el anexo.
+Edge v10 desplegada primero, drenaje 534 s, 66 pendientes v9 con intentos cero y
+sin objetos Storage. Merge aplicó una sola migración (462/462): reservas v10,
+298 sellados intactos, OID/atributos/cuerpos exactos, trigger O y 3.107 ACL iguales.
+Seis descargas históricas SHA/bytes PASS y cero avisos nuevos en advisors.
+Edge final 29: diez módulos iguales a Main; otras 22 funciones intactas.
+No se crearon contratos de prueba en producción; ese smoke de emisión es NOT RUN.
+Rama temporal eliminada y ausencia confirmada; observación final de 137 s PASS.
+Acta y cierre de rama: [PUBLICACION.md](../scripts/banco-pdf-v10/PUBLICACION.md).
 Archivos operativos: `../scripts/banco-pdf-v10/`; muestras: `../../output/pdf/correcciones-20261010/`.
-
 
 ## 20261007182719 — Corrección directa de tasa por Administración del Portal
 
@@ -31,7 +58,9 @@ Ensayo local `supabase/scripts/admin-tasa/test-local.sql`: grants, sesión anón
 
 ## 20261007180108 — Tasa flexible al registrar el upgrade Avance
 
-**PREPARADA Y VERIFICADA SOLO EN LOCAL, 07/10/2026. Sin aplicar en producción.**
+**PUBLICADA Y VERIFICADA EN PRODUCCIÓN, 07/10/2026.**
+SQL fusionado desde la rama Supabase ensayada; frontend `ab361d4f6c6d` publicado.
+Acta: `../scripts/upgrade-tasa/PUBLICACION.md`. Rama temporal eliminada.
 El nuevo aporte puede tener tasa menor/igual a la referencia; con solicitudes
 activadas una superior requiere Gerencia. Con solicitudes desactivadas se
 registra libre dentro de límites, sin solicitudes ni bloqueos por pendientes.
@@ -56,7 +85,7 @@ PR #216; commit publicado `e511d30504f24045aa28230a2d2eb03891bdf967`; build `bui
 
 ## 20261006221545 — Upgrade cooperativo separado de reinversión
 
-**PREPARADA, NO APLICADA EN PRODUCCIÓN.** Decisión de Miguel: upgrade y reinversión separados en Qorilazo y Prodelco. Añade tipo inmutable al vínculo solicitud/origen, RPC autenticada de upgrade, validación de origen vigente e historial propio. Conserva la inversión anterior y el escritor financiero; conflictos de continuidad devuelven PT409. Preflight de cuerpos y catálogo de historial; reversa rechaza eliminar el tipo con upgrades existentes. Banco SQL con permisos, recuperación, historial y carreras PASS; frontend y E2E locales PASS. Guía, límites y publicación pendiente: `../scripts/upgrade-cooperativas/README.md`.
+**APLICADA Y VERIFICADA EN PRODUCCIÓN 06/10/2026 (07/10 UTC), mediante `merge_branch`, con el SQL exacto autorizado por Miguel.** Decisión: upgrade y reinversión separados en Qorilazo y Prodelco. Añade tipo inmutable al vínculo solicitud/origen, RPC autenticada de upgrade, validación de origen vigente e historial propio. Conserva la inversión anterior y el escritor financiero; conflictos de continuidad devuelven PT409. Matriz remota RLS: 3.076 aserciones PASS; SQL propio, HTTP/Auth/Storage y carreras reales PASS. Postflight productivo: siete huellas exactas, ACL/RLS y tipos correctos, historial anterior intacto, 22 Edge Functions sin cambios. El aviso nuevo del RPC autenticado SECURITY DEFINER es intencional y está evaluado; rendimiento sin delta. Rama temporal eliminada. PR #208 fusionado en `62a375f0`. **Frontend PUBLICADO Y VERIFICADO**, Main `3bdfded2c813`, build `build-20261007T045430720Z`; #212 integrado y ascendencia del vivo preservada. HTTPS 155 archivos PASS; UI de Upgrade y Reinversión separados en Qorilazo/Prodelco y Nueva inversión deshabilitada PASS. Postflight SQL final 07/10 05:01 UTC PASS. Evidencia y límites: `../../docs/encargos/2026-10-06-upgrade-cooperativas-RETOMA.md` y `../scripts/upgrade-cooperativas/README.md`.
 
 ## 20261006162813 — Llamadas desde el celular · DUODÉCIMA: cierre de revisión del PR #190
 
@@ -578,6 +607,77 @@ ficticia de 15 contratos por caso; nada en producción):
   ninguna Edge Function del repo escribe ahí.
 - Comportamiento previo que sigue (F5): si se corrige la FECHA de una cuota pagada antes del
   vínculo, su sello la marca «inferido» en la cuenta vinculada.
+## 20260930193325 — Documento tipado del lead y conversión coherente
+
+**PREPARADA; SOLO APLICADA EN BANCO SINTÉTICO LOCAL. NO PUBLICADA.**
+Alta y edición con DNI/CE/PASAPORTE sin recortar números ni eliminar letras.
+`crm.leads.dni` conserva su contrato exclusivo de DNI; CE/pasaporte se guardan
+en la identidad canónica existente. Cuatro RPC: `crear_lead_documento_fn`,
+`documento_lead_fn`, `fijar_documento_lead_fn`, `editar_lead_documento_fn`.
+Esta última es INVOKER y guarda documento y ficha en una transacción.
+Lectura bajo el mismo ámbito de leads; escrituras solo vendedor/supervisor/gerencia
+activos y en ámbito. EXECUTE solo authenticated, helper privado sin grants API.
+No cambia tablas, policies, triggers ni objetos de public. La corrección de una
+identidad reconocida reutiliza la puerta administrativa auditada existente,
+con identificador anterior, motivo y postcondición que impide dejar el lead incoherente.
+No se corrigen datos reales automáticamente ni se adivinan documentos truncados.
+
+Preflight de diez fuentes cotejadas con producción; flag y jerarquía bajo candado,
+documento antes de persona y lead, rechazo por duplicidad, veto y conversión en curso.
+Banco `lead_documentos_20260930`: 52 aserciones SQL PASS con rollback; concurrencia
+en dos sesiones PASS. Gate frontend PASS (4958 tests, lint, tipos, build y bundle).
+E2E Docker completo: 297 passed, 26 skipped, 0 failed (incluye los 33 focales).
+Reversa y reaplicación PASS. Revisión inicial atendida; intento final sin VERDICT
+válido, no contado como aprobación independiente.
+Tipos de las cuatro RPC generados desde postgres-meta local; se conservan los otros
+cambios del árbol. Evidencia y límites en `supabase/scripts/lead-documentos/README.md`.
+Rama remota, matriz HTTP RLS completa y advisors pendientes antes de publicar.
+Reversa: retirar el frontend nuevo y eliminar estas cuatro RPC y el helper;
+las identidades ya guardadas siguen siendo válidas para el sistema existente.
+
+Preparación integrada: check 5.021 PASS y Docker 298 PASS / 26 omitidos. Usuario
+ordenó esperar su aviso antes de publicar. Banco remoto eliminado tras fallo
+de provisión de Storage; SQL/HTTP RLS/advisors remotos **NOT RUN**. Detalle y
+evaluación del review: `supabase/scripts/lead-documentos/README.md`.
+
+## 20260930190028 — Gestión diaria: vuelta persistente y cola completa
+
+**APLICADA Y VERIFICADA EN PRODUCCIÓN por merge_branch (30/09/2026).** Nueva puerta
+`crm.gestion_diaria_cola_trabajo_fn`, exclusiva del analista autenticado
+(vendedor/supervisor), sobre los ayudantes autorizados de SLA y clientes.
+El núcleo SLA recibe global=false y únicamente el actor visible, usando su
+acción de atención incluso si es supervisor. Ordena todas las filas antes de paginar: pendientes, luego gestiones del día de
+Lima por hora. La actividad tipificada vigente acredita el avance por autor,
+tenencia y ciclo; deshacer lo recalcula y un compromiso posterior lo reabre a
+su hora. No cambia el reloj de conversación ni escribe marcas adicionales.
+
+Dos ayudantes privados INVOKER sin ejecutores API y una puerta DEFINER con
+`search_path` vacío, actor de `auth.uid()` y EXECUTE solo authenticated.
+La nueva RPC no concede EXECUTE a anon ni service_role; los ayudantes tampoco.
+Sin tablas, policies, índices, triggers ni objetos de public modificados.
+Cola v3 y sus consumidores conservan su contrato.
+
+Banco sintético aislado: `supabase/scripts/gestion-diaria-cola/ensayar.mjs`.
+Ensayo de 530 leads, escritor v4, orden global, páginas, reintentos, Lima,
+deshacer, exclusiones y permisos PASS. Matriz propia de esta RPC en ensayar.mjs
+(complementa test-rls.mjs, que no conoce esta puerta); supervisor con cartera
+propia, llamada contestada, dos intentos con grupo conservado, metadata histórica,
+clientes y reasignación real por gerencia PASS. Dos revisiones independientes
+atendidas con decisiones y evidencia en `docs/encargos/gestion-diaria-cola/`.
+Gate frontend integrado PASS: 4945 tests y build. E2E Docker: 289 passed, 26 skipped;
+flujo final de teclado, guardado y vuelta repetido PASS (1/1).
+Gate de realidad HTTP: parcial FAIL; ambos oráculos pendientes completados por
+SQL read-only (cero revisiones fuera de sello, cinco caminos de conversión concordantes).
+Rama remota: 530 leads, roles y diez denegaciones PASS; RLS oficial 287 aserciones PASS.
+Advisors, tipos remotos y paridad productiva documentados en RELEASE.md.
+Banco temporal eliminado; 22 Edge Functions sin cambios. Frontend publicado y verificado
+(93 archivos HTTP), build-20260930T195218921Z, commit 57e7b3b4a796; contenido idéntico
+a Main adb12c05 integrado por PR #145. Acta: docs/encargos/gestion-diaria-cola/RELEASE.md.
+Tipos generados con postgres-meta del banco e incorporada sólo la nueva RPC.
+Reversa: retirar la puerta y los dos ayudantes; no hay datos que revertir.
+La publicación queda para la invocación humana de `$release-crm`, con rama
+Supabase, matriz/advisors y preflight del commit que se vaya a publicar.
+
 
 ## 20261001222431 — Llamadas desde el celular · corrección de F2-c: la elegibilidad de la ingesta se evalúa como el dueño del celular (`private.llamada_celular_elegible_dueno`, `private.llamada_celular_ingerir`)
 
@@ -1860,7 +1960,7 @@ bloquea pasarlas en línea; la migración no cambia visibilidad, permisos ni la 
 ensayo se hizo sobre los datos reales, que es lo que decide el plan). `npm run check:scripts` PASS.
 ## 20260929201813 — Reasignación y conversión consistentes
 
-**VALIDADA EN RAMA REMOTA; PENDIENTE DE PUBLICAR.** Solución permanente autorizada
+**✅ PUBLICADA Y VERIFICADA 29/09/2026 17:55 LIMA.** Main `43606c00` (PR #137), merge nativo de la rama Supabase; registro productivo `20260929221625`. Catálogo idéntico al banco probado, 391 migraciones anteriores conservadas, cero avisos nuevos, 22 Edge Functions intactas y rama eliminada. Solución permanente autorizada
 por Miguel tras la conciliación puntual de Zoila. Un trigger privado AFTER diferido al cierre de la transacción en
 `crm.leads` acompaña las reasignaciones ya autorizadas por las puertas actuales:
 lleva el responsable de la persona y el borrador de conversión al nuevo analista,
@@ -2689,7 +2789,7 @@ en el vault. Para revertir S1, usar exclusivamente los IDs de
 
 ## 20260925201350 — conservar un solo índice de la reserva de acceso
 
-**PROBADA EN RAMA TEMPORAL; NO APLICADA EN PRODUCCIÓN.** El advisor del
+**APLICADA Y VERIFICADA EN PRODUCCIÓN el 03/10/2026 por `merge_branch`, versión original conservada.** El advisor del
 despliegue detectó que `inversion_solicitudes_auth_claim_idx` duplicaba el índice
 vigente `inversion_solicitudes_auth_idx`. Esta migración comprueba que ambos son
 equivalentes y que el original está listo y válido, y elimina únicamente el nuevo.
@@ -2698,7 +2798,7 @@ mismo despliegue de correo; no se reescribe la migración ya versionada.
 
 ## 20260925170437 — correo del primer acceso sincronizado con la ficha
 
-**PREPARADA; NO APLICADA EN PRODUCCIÓN.** Fix de la conversión del 25/09.
+**APLICADA Y VERIFICADA EN PRODUCCIÓN el 03/10/2026 por `merge_branch`, versión original conservada.** Fix de la conversión del 25/09.
 Antes de crear Auth, editar el correo en la ficha actualiza la solicitud preparada
 (y su reserva), y corregir el acceso actualiza la ficha. La reserva mantiene claim,
 token y hash original de preparación. La corrección conserva control de revisión,
@@ -2715,8 +2815,15 @@ una importación sin actor no inventa auditoría y exige revisión antes de Auth
 
 Guardas MD5 de seis dependencias contrastadas con producción en lectura. Banco
 Docker sintético propio: SQL, GoTrue/PostgREST, Edge actual y carreras concurrentes.
-Pendientes de autorización/ejecución: branch hospedada → RLS/advisors → merge;
-publicación frontend por `$release-crm`. Campo JSON aditivo `acceso_creado` para recuperar Auth sin perfil; esquema frontend opcional y consumidores `v.object` compatibles. Sin nuevas firmas ni columnas públicas.
+Autorización expresa de Miguel → branch rebasada → RLS hospedado completo
+(2.547 aserciones PASS), SQL 22/22, HTTP local 21/21, E2E Docker 5/5 y tres escenarios
+Auth hospedados PASS → advisors → merge → postflight exacto. 420 migraciones,
+866 funciones CRM/private y 1.100 objetos estructurales coincidentes con la branch;
+22 Edge Functions sin cambios, helpers sin EXECUTE API y cero alertas nuevas.
+La pantalla publicada ya era compatible; no se necesitó otra publicación frontend.
+Review adicional sin dictamen válido (NOT RUN); revisiones previas en REVISION.md.
+Acta: `../../docs/publicaciones/correo-acceso-2026-10-03.md`.
+Campo JSON aditivo `acceso_creado` para recuperar Auth sin perfil; esquema frontend opcional y consumidores `v.object` compatibles. Sin nuevas firmas ni columnas públicas.
 Runbook y resultados: `../scripts/correo-acceso/README.md`. Reversión operativa
 conserva el guard de Auth frente a peticiones tardías, no borra datos ni cuentas.
 
@@ -17019,7 +17126,6 @@ borra las puertas y ayudantes de B10, los núcleos con capital, la definición �
 consumidores de B10, si derivó alguna de sus 22 huellas, si cambiaron las puertas publicadas o si el clasificador de B9 ya existe.
 **Registrador:** `supabase/scripts/base-gestion/registrar/20261004223253.sql`. **Comprobación tras aplicar:**
 `supabase/scripts/base-gestion/b10-comprobar-tras-aplicar.sql` (ROLLBACK siempre, veredicto en una fila).
-
 ## 20261005200945 — Eliminar inversión (admin y gerencia, Avance · Prodelco · Qorilazo) con copia inmutable
 
 **✅ APLICADA EN PRODUCCIÓN 05/10/2026 ~22:50 Lima** (Miguel con `!`: `supabase db query --linked --file` + registrador
@@ -17074,13 +17180,15 @@ carrera; `comprobar-tras-aplicar.sql` APTA; reversa → huellas idénticas a pro
 
 ## 20261005224214 — Resultado de gestiones de clientes en postventa
 
-**PREPARADA; VERIFICADA EN BANCO LOCAL, SIN APLICAR EN PRODUCCIÓN.** Ajusta solo `crm.postventa_tarea_fn` con una guarda sobre la huella viva de F6. El cierre de llamadas guarda uno de los siete resultados comerciales, WhatsApp distingue enviado/respondido y la cita realizada guarda su resultado comercial en `crm.tareas.resultado_reunion`; el recibo atómico y `crm.inversionista_gestiones.metadata` conservan la clasificación. El historial existente recibe una descripción legible («Entrevista realizada · resultado · detalle»). El payload v2 exige resultado y el siguiente compromiso cuando corresponde; los bundles anteriores siguen admitidos y conservan clasificación desconocida cuando no mandan resultado. Guarda responsable de tarea separado del autor. No crea tablas, columnas ni grants; no altera leads, métricas o `public`. Ensayo SQL y dos conexiones concurrentes PASS. La base debe actualizarse y verificarse antes de publicar el frontend. Pendiente: aprobación de Miguel al SQL, ensayo RLS en rama de Supabase, advisors y publicación autorizada. Evidencia: `docs/encargos/2026-10-06-cierre-gestiones-clientes.md`.
+**APLICADA EN PRODUCCIÓN 06/10/2026 19:43 Lima (07/10 00:43 UTC), mediante `merge_branch`, con «deploy» autorizado por Miguel.** Ajusta solo `crm.postventa_tarea_fn` con una guarda sobre la huella viva de F6. El cierre de llamadas guarda uno de los siete resultados comerciales, WhatsApp distingue enviado/respondido y la cita realizada guarda su resultado comercial en `crm.tareas.resultado_reunion`; el recibo atómico y `crm.inversionista_gestiones.metadata` conservan la clasificación. El historial existente recibe una descripción legible («Entrevista realizada · resultado · detalle»). El payload v2 exige resultado y el siguiente compromiso cuando corresponde; los bundles anteriores siguen admitidos y conservan clasificación desconocida cuando no mandan resultado. Guarda responsable de tarea separado del autor. No crea tablas, columnas ni grants; no altera leads, métricas o `public`. Ensayo SQL, concurrencia y ensayo remoto PASS; writer productivo `md5(prosrc) = 6a929c3d7170f9b90acb9fb5d3888c35`. Frontend preparado, pendiente de SQL y Edge de #190 que despliega otro agente. Evidencia: `docs/encargos/2026-10-06-cierre-gestiones-clientes-DESPLIEGUE.md`.
 
 ## 20261006012208 — Gestiones de clientes visibles para supervisión
 
-**PREPARADA; VERIFICADA EN BANCO LOCAL, SIN APLICAR EN PRODUCCIÓN.** Depende de `20261005224214`. Añade Registro v2, resumen operativo de leads/clientes/total, citas de clientes y versiones v2 de listas G4b/pendientes que identifican al cliente sin alterar sus conteos/cursor. Lectores privados DEFINER acotados por sesión, rol, banderas y árbol; la rama de leads conserva INVOKER/RLS. No concede SELECT sobre el historial F6. Autoría histórica independiente de acceso actual al cliente; redacta identidad y detalle tras perder acceso. Excluye espejos y usa cursor compuesto entre fuentes. Índices por autor/fecha para las dos fuentes de clientes. Conserva núcleos de captación, metas, alertas y registro v1. SQL transaccional de roles, flags, reasignación, paginación, ventana Lima y fuentes PASS. Pendiente la misma aprobación y flujo de publicación de la migración anterior.
+**APLICADA EN PRODUCCIÓN 06/10/2026 19:43 Lima**, junto a `20261005224214`, de la que depende. Añade Registro v2, resumen operativo de leads/clientes/total, citas de clientes y versiones v2 de listas G4b/pendientes que identifican al cliente sin alterar sus conteos/cursor. Lectores privados DEFINER acotados por sesión, rol, banderas y árbol; la rama de leads conserva INVOKER/RLS. No concede SELECT sobre el historial F6. Autoría histórica independiente de acceso actual al cliente; redacta identidad y detalle tras perder acceso. Excluye espejos y usa cursor compuesto entre fuentes. Índices por autor/fecha para las dos fuentes de clientes. Conserva núcleos de captación, metas, alertas y registro v1. SQL transaccional de roles, flags, reasignación, paginación, ventana Lima y fuentes PASS.
 
-**Revisión local del 06/10:** se limita cada fuente antes de resolver identidad y detalle; el resumen cuenta sin consultar F5 ni presentar PII por evento. La lista vacía de identidades evita F5, los nombres vacíos tienen respaldo y un índice parcial por tarea acelera la exclusión de espejos F6. SQL contra los catálogos reales de la interfaz y carga sintética de 90.000 eventos PASS, sin truncar conteos. Recomendaciones de Claude evaluadas y decisiones documentadas en `docs/encargos/2026-10-06-cierre-gestiones-clientes-REVISION.md`; estado vigente y límites de verificación en `docs/encargos/2026-10-06-cierre-gestiones-clientes.md`. Continúa pendiente la validación del entorno destino y la autorización de instalación/publicación. Preparación de entrega del 06/10: vista aprobada por Miguel; gate integral en copia limpia de Main PASS (6.219 pruebas, duplicación 0,43 %); preflight de 17 dependencias contra producción PASS en solo lectura; ensayo de instalación exacta, catálogo/permisos y cuatro suites SQL con ROLLBACK PASS. Pendientes: rama Supabase, RLS HTTP/advisors posteriores y autorización productiva. Orden y recuperación: `docs/encargos/2026-10-06-cierre-gestiones-clientes-DESPLIEGUE.md`.
+**Revisión local del 06/10:** se limita cada fuente antes de resolver identidad y detalle; el resumen cuenta sin consultar F5 ni presentar PII por evento. La lista vacía de identidades evita F5, los nombres vacíos tienen respaldo y un índice parcial por tarea acelera la exclusión de espejos F6. SQL contra los catálogos reales de la interfaz y carga sintética de 90.000 eventos PASS, sin truncar conteos. Recomendaciones de Claude evaluadas y decisiones documentadas en `docs/encargos/2026-10-06-cierre-gestiones-clientes-REVISION.md`.
+
+**Verificación de instalación:** cuatro suites remotas PASS, también con SLA activo; matriz HTTP de este encargo 3.075 aserciones PASS; Main integrado `a0c334ba` 6.263 pruebas, Docker 368 aprobadas/26 omitidas/0 fallos. Postflight productivo PASS a las `2026-10-07T00:43:32.969586Z`: 17 dependencias, 13 funciones, ACL y tres índices. Las 432 versiones anteriores y las 22 Edge Functions quedaron intactas; las dos migraciones nuevas se cotejaron sentencia por sentencia con sus archivos. Sin nuevas alertas de seguridad ni advertencias de rendimiento. Rama temporal propia eliminada. El ensayo remoto se recuperó mediante copia solo de esquema tras fallar un replay histórico dependiente de datos; esta limitación y la evidencia están en `docs/encargos/2026-10-06-cierre-gestiones-clientes-DESPLIEGUE.md`. Frontend todavía pendiente de la dependencia #190; publicación ya autorizada.
 
 ## 20261006042144 — Bases cargadas · B11: el cierre de un contacto de base pesa 1 y queda fuera del divisor
 
@@ -18182,3 +18290,9 @@ E2E NOT RUN; no se publicó frontend. Las correcciones del review fueron reensay
 
 **Reversa y evidencia:** `supabase/scripts/conversion-sin-renovaciones/LEEME.md`,
 `reversa.sql`, `prueba.sql`. No se aplica directo a producción: pendiente circuito de rama/gates/merge.
+
+## 20261012203925 — Detalle de cierres de Coordinación
+
+`crm_conversion_cierres_coordinacion`: aprobado por Miguel (12/10/2026), nombres, origen, fecha Lima, registro manual/sistema/cartera y aporte en «Ver cierres» por analista. Núcleo canónico sin cambios; solo Coordinación y Gerencia activas; página de 20 y meses sellados sin reconstrucción nominal. Sin nuevos permisos sobre tablas ni contactos/documentos/IDs de clientes. **Preparada localmente, no aplicada a producción**. Reversa: `supabase/scripts/conversion-cierres-coordinacion/reversa.sql`. Ensayo y resultado en el LEEME de esa carpeta.
+
+ACL de la nueva consulta: `PUBLIC`, `anon` y `service_role` sin EXECUTE; `authenticated` solo ejecuta la puerta con rol efectivo Coordinación/Gerencia activo. Núcleo privado sin grants externos. Lectura mínima de `public.perfiles.nombre_completo` para operaciones de cartera, sin alterar objetos del portal.

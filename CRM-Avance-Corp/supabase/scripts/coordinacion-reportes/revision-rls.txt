@@ -1,0 +1,120 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+El diseño es coherente con los requisitos. No amplía `es_lector_global` ni `vendedor_ids_visibles`, no toca policies ni grants de tablas, no crea tablas ni escrituras, y los helpers nuevos quedan sellados. La única superficie con enmascarado explícito es `private.facturacion_lista`, y su parche es correcto.
+
+El problema es que la autorización se amplía a funciones completas, no a proyecciones. Las pruebas exigen que Coordinación reciba **exactamente** el mismo payload que Gerencia en siete RPC (`r.cifras-'lista' = r.gerente-'lista'`). Por tanto, cualquier ID o nombre de cliente o lead que Gerencia reciba en esos payloads también llega a Coordinación, y la evidencia no muestra la forma de esos payloads. Además, la matriz SQL no ha terminado y hay una sustitución global de texto con alcance no verificado. No veo P0 en lo adjuntado.
+
+FINDINGS:
+
+[P1] El requisito "sin IDs ni PII" solo se verifica en la lista de Facturación; las otras siete RPC se igualan a Gerencia
+File: pruebas SQL (`$prueba$`), generador `generar.py`
+Lines: bloque "Comprobando cifras globales de Coordinación"; ramas `conversion_mensual`, `cumplimiento_metas_fn`, `metricas_conversiones_*`, `metricas_cartera_fn`, `ranking_origen_vendedor_v2_fn`
+Problem: La prueba solo busca claves prohibidas (`cliente_id`, `lead_id`, `contrato_id`, `dni`, …) en `lista.filas`. Para `facturacion`, `conversion`, `metas`, `cosecha`, `origen`, `origen_oficina` y `desglose` exige igualdad total con Gerencia y nunca comprueba ausencia de PII.
+Evidence:
+- `ranking_origen_vendedor_v2_fn`, para meses cerrados, devuelve `cierre_mes_vendedor.cartera_ranking` tal cual.
+- Para meses abiertos devuelve `private.ranking_cartera_desglose(...)`.
+- No se adjunta el contenido de ninguno de los dos, ni la forma de `metricas_cartera_fn`, `metricas_conversiones_fn` ni `facturacion_diaria_fn`.
+- Los nombres "cartera" y "desglose" hacen plausible un detalle por lead o cliente. Esto es una hipótesis, no está demostrado.
+Impact: Coordinación podría obtener por PostgREST IDs o nombres de leads o clientes de toda la empresa, violando el requisito aprobado. El gating de la UI (`vistaPermitida`) no protege, porque las RPC son invocables directamente.
+Recommendation:
+- Añadir una aserción recursiva sobre **todos** los payloads de Coordinación: `jsonb_path_exists` sobre claves `cliente_id|lead_id|contrato_id|cierre_externo_id|inversionista_id|dni|telefono|correo|nombre_cliente|numero_contrato`, y comprobar que no aparezca ningún UUID de `crm.leads` ni de `public.perfiles` con rol cliente.
+- Si alguna RPC devuelve detalle por cliente o lead, aplicar un flag `v_solo_cifras` análogo al de `facturacion_lista` en lugar de igualar a Gerencia.
+
+[P1] Faltan los llamadores de `private.facturacion_operaciones_visibles` y `private.metricas_conversiones_implementacion`
+File: generador, rama `private.facturacion_operaciones_visibles` (`... as lector`)
+Problem: El parche abre `lector` para Coordinación en la fuente de filas. Solo `facturacion_lista` recibió enmascarado.
+Evidence: CodeGraph solo menciona "consultas RPC -> fuentes financieras privadas", sin lista de llamadores. Cualquier otro definer que consuma esta función y emita `cliente_id`, `contrato_id` o un nombre de cliente (exportación, detalle por día, etc.) queda abierto para Coordinación sin enmascarar.
+Impact: Posible fuga por una ruta no parcheada.
+Recommendation: Adjuntar la lista completa de llamadores, por ejemplo con `pg_depend` o una búsqueda de `prosrc ILIKE '%facturacion_operaciones_visibles%'` y `'%metricas_conversiones_implementacion%'`, y su forma de salida. Cada llamador debe enmascarar o quedar en la matriz de pruebas.
+
+[P2] La sustitución global de `cierre_mes_visible(` no está acotada y falta su equivalencia semántica
+File: `generar.py`, `if 'private.cierre_mes_visible(' in texto: texto = texto.replace(...)`
+Problem:
+- Se aplica a toda función de `catalogo.json`, sin `cambiar()` ni recuento esperado. Si se recaptura el catálogo con una función más, la puerta se amplía en silencio.
+- No se adjunta el cuerpo original de `private.cierre_mes_visible`, así que no puedo verificar que `cierre_mes_reportes_visible` sea idéntica para los roles que no son Coordinación (`es_lector_global() or rol_crm(p_uid)='gerencia' or supervisor_id=p_uid or vendedor_id=p_uid`).
+Impact: Podría haber un cambio de visibilidad de fotos mensuales para Supervisión o Vendedor que los snapshots no cubran. Los snapshots solo cubren tres meses, con datos sintéticos de dos equipos.
+Recommendation:
+- Usar `cambiar(texto, ..., cantidad=N)` con N explícito por firma.
+- Afirmar en el generador el conjunto exacto de firmas afectadas.
+- Adjuntar el cuerpo vivo de `cierre_mes_visible` para un diff de predicados.
+
+[P2] La matriz SQL está incompleta y la afirmación "reparto" es falsa
+File: pruebas SQL, bloque `leads_por_repartir`
+Problem:
+- El bloque es un `null;` en ambas ramas, pero el `raise notice 'PASS: ... roster, RLS y reparto'` declara reparto probado.
+- El ledger y la evidencia indican que la matriz sigue "en curso" por el segfault.
+Evidence: El texto del bloque y la frase "Matriz SQL aún en curso".
+Impact: La preservación de Repartir y las bajas/ACL no tienen un PASS SQL completo.
+Recommendation:
+- Quitar "reparto" del mensaje PASS, o probar al menos que `crm.leads_por_repartir()` y la RPC de reparto no lanzan 42501 para Coordinación tras la migración.
+- No marcar la revisión RLS como cerrada hasta tener la ejecución completa de la matriz.
+
+[P2] Segfault de Postgres 17.6 sin reproducción documentada
+File: banco SQL
+Problem: Se esquivó el crash sustituyendo la llamada por `has_function_privilege`. No sabemos si el patrón que lo provoca (helper INVOKER revocado, invocado primero vía DEFINER y luego directamente en el mismo backend) puede darse en producción, donde los pools de PostgREST reutilizan backends.
+Impact: Si es reproducible fuera del banco, un usuario podría tumbar el backend y provocar reinicio de conexiones. Es una hipótesis con confianza baja.
+Recommendation: Adjuntar la reproducción mínima y el stack o log. Confirmar que PostgREST no puede alcanzar `private.*` (schema no expuesto) y que el crash requiere la llamada directa denegada.
+
+[P2] Ranking de Coordinación sin vendedores inactivos o no-"vendedor"
+File: `app/src/screens/hoy/gerencia.tsx`, `equipoConversionVigente`; `equipo_reportes_fn`
+Problem:
+- Para Coordinación la identidad sale de `equipo.filter(m => m.rol_crm === 'vendedor')`. Para Gerencia sale de `ambito.vendedores`.
+- `equipo_reportes_fn` filtra por `private.rol_crm(e.perfil_id) in (...)`, que solo devuelve miembros activos, así que excluye bajas. La columna `activo` siempre vale `true`.
+Evidence: El cuerpo de `rol_crm` exige `e.activo is true and p.activo is true`.
+Impact: En meses pasados, un vendedor dado de baja con cierres podría desaparecer o quedar sin nombre en el ranking de Coordinación, pero no en el de Gerencia. Lo mismo vale para supervisores con cartera propia. La paridad SQL no lo detecta, porque compara RPC y no la resolución de identidades en la UI. Es una hipótesis, confianza media.
+Recommendation: Añadir un E2E o test unitario con un vendedor inactivo que tenga cifras en un mes cerrado. Valorar devolver también miembros inactivos con `activo=false` real, ya que solo son nombres y jerarquía.
+
+[P3] `isPending` permanente con la consulta deshabilitada
+File: `gerencia.tsx`, `fotoMensualCargando={... || (lecturaCoordinacion && consultaEquipo.isPending)}`
+Problem: Para un coordinador con `yo.demo === true`, la consulta queda `enabled:false`. Con TanStack Query v5, una consulta deshabilitada sin datos mantiene `isPending=true`, así que el ranking se quedaría cargando indefinidamente. Hipótesis: depende de la versión y de si existe un coordinador demo. `facturacion.tsx` sí excluye la demo en `lecturaCoordinacion`.
+Recommendation: Usar `lecturaCoordinacion && !yo?.demo` de forma consistente, o `consultaEquipo.isLoading`/`fetchStatus`.
+
+[P3] `es_coordinador_reportes()` ignora `v_actor`
+File: generador, ramas `metricas_conversiones_fn` y `metricas_conversiones_implementacion`
+Problem: El helper usa `auth.uid()`, mientras que la condición vecina usa `private.rol_crm(v_actor)`. Si `v_actor` puede diferir de `auth.uid()` (llamada interna o service), la puerta es inconsistente.
+Recommendation: Confirmar que `v_actor := auth.uid()` en ambos cuerpos, o parametrizar el helper.
+
+[P3] La reversa no verifica ACL ni contrato
+File: `reversa.sql` generada
+Problem: Tiene la guardia de huellas de `nuevas`, pero no comprueba ACL/owner/secdef después de restaurar.
+Recommendation: Reutilizar `preflight`/`postflight` (`coord_acl`) también en la reversa.
+
+[P3] Store: Coordinación ya no carga metas ni cumplimiento
+File: `app/src/lib/store.tsx`
+Problem: Para Coordinación devuelve `null` sin marcar error. Si alguna parte del ranking del mes en curso usa `objetivos` o `cumplimientoMetas` del store en vez de `qCumplimientoRanking`, Coordinación verá "sin metas" donde Gerencia ve metas. Hipótesis; los E2E nuevos podrían no cubrirlo.
+Recommendation: Comprobar con un E2E de mes abierto con metas publicadas que las columnas de metas coinciden con Gerencia.
+
+TEST GAPS:
+- Escaneo recursivo de PII y de IDs de cliente/lead/contrato en **todos** los payloads de Coordinación, no solo en `lista`.
+- Llamadores de `facturacion_operaciones_visibles` y `metricas_conversiones_implementacion` dentro de la matriz.
+- En la paridad antes/después, afirmar que el recuento de filas `antes` = `despues` = 5 roles × 3 meses. El `join using(clase,periodo)` descarta en silencio una fase ausente.
+- Supervisión: que `cierre_mes_reportes_visible` no amplíe ni reduzca su foto respecto a `cierre_mes_visible`, incluido un supervisor anterior del mes cerrado (`supervisor_id` histórico).
+- Repartir realmente invocado por Coordinación tras la migración (SQL o E2E citado por nombre).
+- Escrituras adicionales denegadas: anular cierre avance/externo, editar capacidad, cerrar mes. Hoy solo se prueba `publicar_metas_vendedores`.
+- La aserción `count(*) = 6` del roster es frágil ante cambios en la siembra. Es mejor comparar contra una consulta esperada.
+
+ARCHITECTURE RISKS:
+- Autorizar funciones completas con `or es_coordinador_reportes()` acopla Coordinación a toda evolución futura del payload de Gerencia. Un campo nuevo con PII en esas RPC se filtraría sin revisión. Conviene documentar en cada función que el payload es compartido con Coordinación, o devolver proyecciones dedicadas.
+- El generador por reemplazo de texto depende de un catálogo capturado. La guardia md5 lo hace seguro frente a deriva, lo cual es correcto, pero el reemplazo global sin recuento (P2) es el punto débil.
+
+SECURITY RISKS:
+- Posible exposición de detalle por lead o cliente mediante `desglose`/`cartera_ranking` y las otras RPC (P1). Sin evidencia de forma, queda sin resolver.
+- `equipo_reportes_fn` (definer, `search_path=''`, gate interno, `revoke ... grant authenticated`) es correcta. Expone a Coordinación nombres y jerarquía incluidos los de Gerencia, dentro de lo aprobado.
+- Los helpers `private.*` son INVOKER y están revocados a todos; solo son alcanzables desde definers propiedad de `postgres`. Es coherente con el patrón existente.
+
+REGRESSION RISKS:
+- Que otros roles cambien por la sustitución de `cierre_mes_visible` (P2). Esto está mitigado parcialmente por los snapshots.
+- La UI del ranking para Coordinación con bajas y supervisores (P2).
+- El postflight preserva ACL, owner, `prosecdef`, `provolatile` y `proconfig`. Bien.
+
+RECOMMENDED NEXT ACTIONS:
+1. Adjuntar la forma de salida (claves) de `ranking_origen_vendedor_fn`, `private.ranking_cartera_desglose`, `cierre_mes_vendedor.cartera_ranking`, `metricas_cartera_fn`, `metricas_conversiones_fn` y `facturacion_diaria_fn`, y añadir el escaneo recursivo de PII sobre todos los payloads de Coordinación.
+2. Listar los llamadores de las dos fuentes privadas abiertas y enmascarar o probar cada uno.
+3. Acotar el reemplazo de `cierre_mes_visible` con recuento explícito y adjuntar el cuerpo original para el diff de predicados.
+4. Completar la matriz SQL (bajas, ACL, reparto real) con salida PASS adjunta, y documentar la reproducción del segfault.
+5. Añadir un E2E de ranking de Coordinación con un vendedor inactivo en un mes cerrado y corregir el `isPending` en demo.
+
+CONFIDENCE:
+MEDIUM. Es alta sobre lo que se ve del SQL y de la app. Es baja sobre la exposición real de PII en las siete RPC, porque faltan sus cuerpos y payloads.

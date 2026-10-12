@@ -64,6 +64,7 @@ vi.mock('@/lib/tipo-cambio', () => ({
   usdAPen: (usd: number, tc: number) => (tc > 0 ? usd * tc : 0),
 }))
 vi.mock('@/data/crm-queries', () => ({
+  useEquipoReportes: () => ({ data: [], isPending: false, isError: false, refetch: vi.fn() }),
   useListaOperacionesFacturacion: (_habilitada: boolean, p: ParametrosOperacionesFacturacion) => {
     dobles.pedidosLista.push(p)
     return { data: respuestaDeAgregados(dobles.filasLista, p), isPending: false, isError: false, isFetching: false, refetch: vi.fn() }
