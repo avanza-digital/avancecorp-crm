@@ -9451,9 +9451,10 @@ async function testFacturacionDiaria(sessions, seed) {
       && !ids.has(seed.profileIdByKey.coordinador) && !ids.has(seed.profileIdByKey.vendInactive),
     'roster de reportes abarca dos equipos y excluye al coordinador y al analista inactivo');
   }
-  const operativo = await positive('Coordinación conserva su roster operativo vacío',
+  const operativo = await positive('Coordinación conserva solo su identidad en el roster operativo',
     sessions.coordinador.client.schema('crm').rpc('equipo_visible_fn'));
-  check(operativo && Array.isArray(operativo.data) && operativo.data.length === 0,
+  check(operativo && Array.isArray(operativo.data) && operativo.data.length === 1
+    && operativo.data[0].perfil_id === seed.profileIdByKey.coordinador,
     'el roster de reportes no amplía equipo_visible_fn');
   for (const quien of ['vend1', 'sup1', 'vendInactive', 'clientBank']) {
     await expectExplicitAuthorizationDenied(`${quien} no ejecuta equipo_reportes_fn`,
@@ -9675,13 +9676,20 @@ async function testFacturacionLista(sessions, seed) {
     fail(`${FN}: falta CRM_BANCO_PSQL_URL para probar ausencia de DNI fuera de banda`);
     return;
   }
-  // Única fuente de huellas: el bloque HUELLAS de la migración que instalará el PRIMARY.
+  // El wrapper conserva su sello 3B; el cuerpo privado usa la última guardia
+  // de la migración de permisos de Coordinación, sin duplicar huellas aquí.
   const migracion = readFileSync(new URL('../migrations/20261009234500_crm_facturacion_lista_operaciones.sql', import.meta.url), 'utf8');
   const bloques = [...migracion.matchAll(/-- INICIO HUELLAS\n([\s\S]*?)-- FIN HUELLAS/g)];
   const huellas = bloques.length === 1 ? [...bloques[0][1].matchAll(/\('([^']+)', '([^']+)'/g)] : [];
   const firma = '(date,date,date[],uuid[],boolean,uuid,boolean,text[],text,integer,integer)';
+  const permisos = readFileSync(new URL('../migrations/20261012165115_crm_coordinacion_reportes_lectura.sql', import.meta.url), 'utf8');
+  const guardias = [...permisos.matchAll(/do \$guardia\$\n([\s\S]*?)end \$guardia\$/g)];
+  const cuerpos = guardias.length === 1 ? [...guardias[0][1].matchAll(/\('([^']+)', '([^']+)'/g)] : [];
+  const privadas = cuerpos.filter((h) => h[1] === 'private.facturacion_lista' + firma);
+  const privadaAnterior = huellas.find((h) => h[1] === 'private.facturacion_lista' + firma);
+  if (privadas.length === 1 && privadaAnterior) privadaAnterior[2] = privadas[0][2];
   const firmas = ['private.facturacion_lista', 'crm.listar_operaciones_facturacion_fn'].map((f) => f + firma);
-  const selladas = huellas.length === 2 && new Set(huellas.map((h) => h[1])).size === 2
+  const selladas = privadas.length === 1 && huellas.length === 2 && new Set(huellas.map((h) => h[1])).size === 2
     && huellas.every((h) => firmas.includes(h[1]) && /^[0-9a-f]{32}$/.test(h[2]));
   check(selladas, `${FN}: HUELLAS de la migración medidas, sin marcadores ni firmas ambiguas`);
   if (!selladas) return;
