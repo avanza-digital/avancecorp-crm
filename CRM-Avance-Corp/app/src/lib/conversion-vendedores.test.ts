@@ -132,6 +132,19 @@ describe('filtro por fuente del índice comercial', () => {
     })
   })
 
+  it('renovaciones con peso cero conservan su cantidad y aportan cero sin heredar el peso del referido', () => {
+    const datos = metricasConNucleo()
+    datos.nucleo = { ...datos.nucleo!, peso_referido: 1, peso_renovacion: 0, tope_referidos_pct: 15 }
+    datos.conversion_operaciones!.detalle = datos.conversion_operaciones!.detalle.map((operacion) => ({
+      ...operacion,
+      aporte_numerador: operacion.categoria === 'renovacion' ? 0 : operacion.aporte_numerador,
+    }))
+    expect(adaptarAporteConversionRango(datos, 'renovacion')).toMatchObject({
+      numerador: 0, porcentaje: 0, resultados: 1, peso: 0, divisor: 100,
+    })
+    expect(adaptarAporteConversionRango(datos, 'upgrade')).toMatchObject({ numerador: 1, peso: 1 })
+  })
+
   it('octubre con tope: el aporte de los referidos lo trae recortado el servidor (5 cerrados, 3 cuentan) y el tope viaja para rotular', () => {
     const datos = metricasConNucleo()
     datos.origen_filtrado = 'referido'
