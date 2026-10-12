@@ -1,7 +1,9 @@
 # HOY del analista: agenda, recibidos y aviso numérico
 
-Estado: implementado y verificado localmente. Esta revisión visual aún no está
-publicada. La versión productiva previa es `a98cf73f` (bloque sobre citas).
+Estado: **PUBLICADO** en https://crm.miavance.com/ el 05/10/2026, tras la
+autorización explícita «publica». Fuente `ac46b2d37702`; sustituye el bloque
+sobre citas de la versión anterior `a98cf73f`. La fusión a Main sigue pendiente
+de aprobación externa de la PR #191.
 
 ## Comportamiento aprobado
 
@@ -90,6 +92,38 @@ Review completo guardado en `docs/encargos/2026-10-05-hoy-pestanas-review.txt`.
 
 PR: https://github.com/avanza-digital/avancecorp-crm/pull/191. GitHub requiere
 aprobación externa; Miguel indicó que la gestionaría. No se eluden protecciones.
-La implementación aprobada está preparada para esa integración. La publicación
-de esta revisión sigue pendiente y debe construirse desde el commit autorizado
-y verificado conforme a las reglas del proyecto.
+La versión aprobada ya está publicada desde la rama de rescate existente,
+conforme a la excepción de `CLAUDE.md` raíz. La integración a Main continúa
+pendiente de esa aprobación; no se usó bypass ni push forzado.
+
+
+## Publicación verificada (05/10/2026)
+
+- URL: https://crm.miavance.com/
+- Commit fuente: `ac46b2d37702c62b0d2c6dc075d0da2cde929c79`.
+- Build: `build-20261005T164935122Z`.
+- ZIP: `crm-20261005T164936Z-ac46b2d37702.zip`.
+- SHA-256: `a0b7e735c16b1fb03ccde1f126e2306ed8b77486a89ce743044641475dd83b05`.
+- Fuente limpia según manifiesto; artefacto y preflight **PASS**. El candidato
+  contiene el release vivo anterior y `avancecorp/main`
+  (`447208e105f08fa51af71e0815eae6752ad8f0bc`), reconfirmado antes de subir.
+- Hostinger oficial: subida y solicitud de despliegue aceptadas. Comprobación
+  posterior **PASS**: portada HTTP 200/hash exacto y **97/97** HTML/JS/CSS/version
+  HTTP 200/hash exacto; build servido idéntico al ZIP.
+- Smoke real de analista **PASS**: sesión disponible en el navegador, pestañas
+  visibles, total real 9, lista con 9 filas y aviso naranja/animación
+  `hoy-leads-latido` presentes antes y después de abrir «Leads de hoy».
+  «Tus citas» conserva la columna completa. No se modificaron datos reales.
+  Esta comprobación posterior supera la limitación de sesión descrita en
+  las pruebas previas; el gate general de realidad sigue NOT RUN.
+- Checks de GitHub del commit fuente: app-check, verify, preflight y cambios
+  **PASS**. Se reutiliza el check local de 6.096 tests y Docker del mismo código.
+- Recuperación conservada: último ZIP efectivamente publicado
+  `crm-20261005T154517Z-a98cf73fbd28.zip`, SHA-256
+  `8f4bef27c3f705a601b7c3d4f8a41fda1ef753fbae486698081a69e35a395977`.
+- Paquete nuevo, anterior y manifiestos conservados en `CRM-Avance-Corp/releases/`
+  tanto en el taller como en la copia aislada. Evidencia HTTP saneada en
+  `app/artifacts/hoy-implementacion/publicacion-https.json`.
+
+La fuente del despliegue es el commit del manifiesto, no esta acta posterior.
+No hubo cambios de backend, permisos, migraciones ni datos durante la publicación.

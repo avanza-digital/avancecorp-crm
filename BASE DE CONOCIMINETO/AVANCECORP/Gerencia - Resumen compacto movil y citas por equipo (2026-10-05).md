@@ -1,6 +1,6 @@
 # Gerencia — Resumen compacto móvil y citas por equipo
 
-Estado: implementado y verificado en local el 2026-10-05. Publicación autorizada por Miguel («ok deploy»); pendiente de completar el release y su verificación. La pestaña local de revisión usa sesión demo y lo indica expresamente.
+Estado: publicado y verificado el 2026-10-05 (Lima), autorizado por Miguel («ok deploy»). PR #199 integrado. Main local y `avancecorp/main` alineados en `b286b2bfce9a24004e887ee0cb127ecf5dab5a23`; artefacto construido desde copia limpia de ese commit. La vista local de revisión sigue siendo demo y lo indica expresamente.
 
 Decisión de Miguel: aplicar la primera mejora de la PWA a Gerencia; sustituir «próxima cita del equipo» por el total de citas de hoy por equipo, con clic hacia Citas. En teléfono (<768 px), Resumen compacto; en escritorio permanece la vista completa. Se puede abrir y cerrar el resumen completo desde móvil.
 
@@ -10,7 +10,11 @@ Decisión de Miguel: aplicar la primera mejora de la PWA a Gerencia; sustituir �
 - Solicitudes: pendientes que el servidor permite resolver (`puede_resolver`); abre la bandeja existente y conserva los enlaces de notificaciones. No se añadió un flujo de aprobación.
 - Revalida la foto financiera mientras está visible y al volver a la PWA; Citas y solicitudes usan sus lectores periódicos. Sin conexión se advierte que los datos pueden estar desactualizados. Cambio de día en Lima al reanudar, sin sobrescribir históricos elegidos a mano.
 
-Verificación: 6.120 pruebas unitarias, 10 E2E en Docker, lint/typecheck/build/bundle PASS; revisión Claude con dos P2 aceptados/corregidos y regresiones verificadas. El gate integral falla únicamente por copias preexistentes «archivo 2» que elevan duplicación a 1,07%; diagnóstico excluyéndolas: 0,43% PASS. Se conservaron esas copias y el resto del trabajo local ajeno. Lectores reales probados con transporte simulado; no se afirma validación con cuenta real de Gerencia en producción.
+Verificación del release: `npm run check` PASS en copia limpia (379 archivos / 6.120 pruebas, duplicación 0,43%); E2E Docker completo PASS (342 aprobadas, 26 omitidas, 0 fallos, 12,9 min). GitHub `preflight`, `app-check` y `verify` PASS. El código de aplicación del merge de Main es idéntico al commit probado `85d8d13f`. Revisión independiente: hallazgos aceptados y corregidos por PRIMARY, con regresiones verificadas. Los trabajos locales ajenos y las copias «archivo 2» se conservaron.
+
+Publicación: build `build-20261006T003148355Z`; ZIP `crm-20261006T003149Z-b286b2bfce9a.zip`; SHA-256 `90b29455d9e6b2fc8eded87f0cb5a02286e18ddf2dc42c8b07eccef5a63f429d`. Preflight de ascendencia PASS contra el release anterior `8fca20bf`. Hostinger aceptó el despliegue y el postflight confirmó el nuevo build y 135/135 archivos exactos (portada, versión, JS/CSS/PWA, fuentes y SVG); PNG excluidos por transformación conocida del CDN. El ZIP no está expuesto por HTTP. Se conserva el ZIP anterior `crm-20261005T214347Z-8fca20bf1215.zip`.
+
+Smoke con sesión real de Gerencia en producción PASS: Resumen a 390 px, capital coherente con escritorio, total de 28 citas y desglose por equipo. El enlace de un equipo con 9 citas abrió exactamente las 9 del día/equipo; recargar mantuvo ambos filtros. Navegación de lectura, sin crear ni modificar datos de negocio. `gate:realidad`: NOT RUN por ausencia de `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` en el entorno de shell; no se aplicó SQL ni Edge. Evidencia y captura: `CRM-Avance-Corp/output/resumen-movil-local/deploy/`.
 
 Código principal: `app/src/screens/hoy/resumen-gerencia-movil.tsx`, integración en `gerencia.tsx`, lector compartido `use-datos-citas-gerencia.ts`, contexto de Citas en `lib/router.ts` y `lib/enlace-citas.ts`. Evidencia local ignorada por Git: `CRM-Avance-Corp/output/resumen-movil-local/verificacion.json`, logs, revisión y captura.
 

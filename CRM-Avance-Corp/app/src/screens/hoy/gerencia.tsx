@@ -47,6 +47,7 @@ import { useTipoCambio } from '@/lib/tipo-cambio'
 import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
 import {
   useActualizarCapacidadLeadsObjetivo,
+  useEquipoReportes,
   useConversionMensual,
   useCumplimientoMetas,
   useMetricasConversiones,
@@ -218,13 +219,16 @@ export type SeccionGerencia = 'completo' | 'resumen' | 'conversiones' | 'ranking
 export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerencia }): JSX.Element {
   const {
     ambito,
-    equipo,
+    equipo: equipoOperativo,
     objetivos,
     objetivosError = false,
     cumplimientoMetas,
     recargar,
   } = useCRMData()
   const { yo } = useAuth()
+  const lecturaCoordinacion = yo?.rol === 'coordinador' && !yo?.demo
+  const consultaEquipo = useEquipoReportes(lecturaCoordinacion && !yo?.demo && seccion === 'ranking-vendedores', yo?.id)
+  const equipo = lecturaCoordinacion ? consultaEquipo.data ?? [] : equipoOperativo
   const esMovil = useEsMovil()
   const [resumenCompleto, setResumenCompleto] = useState(false)
   const resumenMovil = seccion === 'resumen' && esMovil && !resumenCompleto
@@ -476,8 +480,8 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
       ? undefined
       : fotoMensualBaseDesalineada ? null : (qConversionMensual.data ?? null)
   const equipoConversionVigente = useMemo(
-    () => identidadesEquipoConversion(ambito.vendedores, equipo),
-    [ambito.vendedores, equipo],
+    () => identidadesEquipoConversion(lecturaCoordinacion ? equipo.filter((m) => m.rol_crm === 'vendedor') : ambito.vendedores, equipo),
+    [ambito.vendedores, equipo, lecturaCoordinacion],
   )
   // Nombres del roster completo para la traza de compromisos (F4.4).
   const nombresEquipo = useMemo(
@@ -748,9 +752,10 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
           {...(rankingHistorico && cumplimientoRanking?.cierre
             ? { estadoFotoMensual: cumplimientoRanking.cierre.cerrado ? 'sellada' as const : 'abierta' as const }
             : {})}
-          fotoMensualCargando={cumplimientoRankingCargando}
-          fotoMensualError={errorFotoMensualRanking}
+          fotoMensualCargando={cumplimientoRankingCargando || (lecturaCoordinacion && consultaEquipo.isPending)}
+          fotoMensualError={errorFotoMensualRanking ?? (lecturaCoordinacion && consultaEquipo.isError ? 'No se pudo cargar el equipo del reporte.' : null)}
           onReintentarFotoMensual={() => {
+            if (lecturaCoordinacion) void consultaEquipo.refetch()
             void qConversionMensual.refetch()
             void qCumplimientoRanking.refetch()
             void qCosechaRanking.refetch()

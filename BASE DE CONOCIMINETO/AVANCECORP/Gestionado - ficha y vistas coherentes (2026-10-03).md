@@ -24,9 +24,11 @@ No es una etapa editable. Si no se puede comprobar, muestra «Gestión sin verif
   actual. Lectura productiva de tres roles: cero diferencias; ningún cliente
   ni actividad creada para verificar.
 - Banco temporal retirado. ZIP y manifiesto publicado/anterior conservados.
-- Integración pendiente: [PR #181](https://github.com/avanza-digital/avancecorp-crm/pull/181);
-  la ficha Base F2 está en [PR #180](https://github.com/avanza-digital/avancecorp-crm/pull/180).
-  GitHub exige una aprobación; no cambiar esa protección ni forzar Main.
+- Integración completada: [PR #181](https://github.com/avanza-digital/avancecorp-crm/pull/181)
+  fusionada a Main el 03/10 a las 22:50 Lima, commit `19688216`, checks PASS.
+  La ficha Base F2 también quedó integrada por [PR #180](https://github.com/avanza-digital/avancecorp-crm/pull/180)
+  a las 22:32 Lima, commit `a8e5d496`. Ya no queda pendiente la aprobación.
+- Sesión cerrada a petición de Miguel; estado final verificado en GitHub.
 - Limitaciones generales registradas: gate de realidad NOT RUN sin credencial
   de servicio productiva; gate analítico global tenía un fallo anterior ajeno
   a este cambio. Las comprobaciones específicas sí pasaron.

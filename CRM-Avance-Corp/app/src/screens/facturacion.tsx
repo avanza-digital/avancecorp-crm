@@ -52,12 +52,13 @@ import { accionOperaciones, columnasDeDias, columnasDeTipos, crearFormatoCifras,
 import { TarjetasFacturacion } from './facturacion/tarjetas'
 import { useDisposicionFacturacion } from './facturacion/disposicion'
 import { PanelCargando, PanelError } from '@/components/common/estado-panel'
-import { useFacturacionDeMeses } from '@/data/crm-queries'
+import { useEquipoReportes, useFacturacionDeMeses } from '@/data/crm-queries'
 import { useAhora } from '@/lib/ahora'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData } from '@/lib/store-context'
 import { useEsEstrecha, useEsTactil } from '@/lib/media'
 import { useTipoCambio } from '@/lib/tipo-cambio'
+import type { Miembro } from '@/lib/tipos'
 import { useValorDiferido } from '@/lib/use-valor-diferido'
 import { normalizar } from '@/lib/clientes-vista'
 import { formatDateLocal } from '@/lib/cronograma'
@@ -111,6 +112,7 @@ import './facturacion.css'
 
 /** Referencia estable: un `[]` nuevo en cada render invalidaría los useMemo. */
 const SIN_FILAS: readonly FilaFacturacionDia[] = []
+const SIN_EQUIPO: Miembro[] = []
 
 /**
  * La tasa dicha en castellano, sin siglas: «tipo de cambio S/ 3.751 (SBS,
@@ -427,8 +429,11 @@ export function Facturacion({
   filas?: readonly FilaFacturacionDia[] | undefined
 } = {}): JSX.Element {
   const { yo } = useAuth()
-  const { equipo } = useCRMData()
+  const { equipo: equipoOperativo } = useCRMData()
   const esDemo = yo?.demo === true
+  const lecturaCoordinacion = yo?.rol === 'coordinador' && fuente == null && !esDemo
+  const consultaEquipo = useEquipoReportes(lecturaCoordinacion, yo?.id)
+  const equipo = lecturaCoordinacion ? consultaEquipo.data ?? SIN_EQUIPO : equipoOperativo
   const ahora = useAhora(600_000)
   // EL DÍA DE LIMA, no el del reloj de la máquina. El negocio opera en Perú:
   // con un portátil en otro huso, el 1 de mes la pantalla abría el mes anterior
@@ -555,10 +560,13 @@ export function Facturacion({
   const comparacionPendiente = consultasPrevias.some((c) => c.isPending)
   const comparacionFallida = consultasPrevias.some((c) => c.isError)
   const consulta = {
-    isPending: consultasVisibles.some((c) => c.isPending),
-    isError: consultasVisibles.some((c) => c.isError),
+    isPending: consultasVisibles.some((c) => c.isPending) || (lecturaCoordinacion && consultaEquipo.isPending),
+    isError: consultasVisibles.some((c) => c.isError) || (lecturaCoordinacion && consultaEquipo.isError),
     isFetching: consultas.some((c) => c.isFetching),
-    refetch: () => consultas.forEach((c) => void c.refetch()),
+    refetch: () => {
+      consultas.forEach((c) => void c.refetch())
+      if (lecturaCoordinacion) void consultaEquipo.refetch()
+    },
     data: filasDeMeses.length > 0 || consultas.length > 0 ? filasDeMeses : undefined,
     descartadas: consultas.reduce((n, c) => n + ((c.data as { descartadas?: number } | undefined)?.descartadas ?? 0), 0),
     algunaCortada: consultas.some((c) => ((c.data ?? []) as unknown[]).length >= LIMITE_FILAS_RPC),

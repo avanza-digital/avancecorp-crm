@@ -1,6 +1,6 @@
 # HOY del analista: leads recibidos hoy
 
-Estado: publicación autorizada por Miguel el 05/10/2026; candidato verificado, pendiente de despliegue y comprobación HTTPS.
+Estado: PUBLICADO Y VERIFICADO el 05/10/2026 en https://crm.miavance.com/. Integración por PR #191 pendiente de aprobación externa obligatoria.
 
 ## Alcance confirmado por Miguel
 
@@ -54,7 +54,7 @@ texto accesible del contador, descripción de teléfono/hora, foco de paginació
 y ciclo horario h23. Todos quedaron cubiertos por pruebas.
 
 Dos hipótesis se contrastaron con código existente: `vivos` es `count(*)` de la
-misma base filtrada (migración `20260929010707_crm_leads_reasignados.sql`, sección
+misma base filtrada (migración `20260929195918_crm_leads_reasignados.sql`, sección
 `metricas`), y el espejo usa `ambito.length` (`lib/resumen-cartera.ts`). El filtro
 `p_vendedor_id` aplica junto al ámbito autorizado; no hay prohibición por rol
 vendedor en esa función. En la preparación de publicación se verificó también el cuerpo vivo y su ejecución bajo el rol autenticado.
@@ -66,7 +66,7 @@ interno para conservar el espacio de citas.
 
 Solo se tocaron los dos archivos de HOY previamente limpios y se añadieron el
 componente, sus tests y el spec. Se preservaron los cambios ajenos del árbol.
-Publicación pendiente del flujo de release autorizado por el usuario.
+La autorización posterior de publicación y su resultado se registran debajo.
 
 
 ## Preparación de publicación autorizada
@@ -103,7 +103,42 @@ aplicó el parche verificado (`798a746b`). Los tres conflictos eran actas y el
 banco RLS: se conservaron las versiones remotas actualizadas. No se aplicó SQL.
 `git diff acf8e4c3b668 798a746b` vacío; los checks corresponden al mismo código.
 El vivo es ahora ancestro real del candidato. Se reconstruye desde fuente limpia,
-se repite el preflight y se integra a Main mediante la PR de esta misma rama.
+se repitió el preflight y se abrió la PR de esta misma rama para integrar a Main.
 
 Recuperación conservada: `crm-20261005T023047Z-27e6f24849aa.zip`, SHA-256
 `31d974446fc2c61bcb9a21c0764e460a6448531f0e69f140235d7b4cf1c704f9`.
+
+
+## Publicación efectiva
+
+- Build vivo: `build-20261005T154516511Z`.
+- Fuente limpia: `a98cf73fbd2866ee79f7f8801475631d010c2616`.
+- ZIP: `crm-20261005T154517Z-a98cf73fbd28.zip`.
+- SHA-256: `8f4bef27c3f705a601b7c3d4f8a41fda1ef753fbae486698081a69e35a395977`.
+- Preflight y verificación del artefacto PASS. Hostinger oficial aceptó el despliegue.
+- HTTPS: portada y 96/96 HTML/JS/CSS/version devuelven 200 y SHA-256 exacto;
+  `version.json` idéntico al ZIP. Sin cambios de base de datos.
+- Acceso productivo PASS con sesión existente de gerencia. HOY de analista en
+  sesión productiva: NOT RUN, no había sesión de ese rol en el navegador;
+  recorrido E2E simulado y consulta real READ ONLY del rol sí pasaron.
+- PR: https://github.com/avanza-digital/avancecorp-crm/pull/191.
+- Copia aislada de publicación: `/private/tmp/avancecorp-hoy-20261005-release`.
+  El taller original conserva sus cambios ajenos e historial local divergente.
+
+
+## Cierre de verificaciones e integración pendiente
+
+GitHub **PASS**: app-check, verify, preflight y cambios para el HEAD publicado
+`a98cf73fbd2866ee79f7f8801475631d010c2616`. Supabase Preview: SKIPPED por su integración,
+no se usó como evidencia. E2E exclusivamente locales en Docker.
+
+La fusión normal `gh pr merge 191 --squash --match-head-commit a98cf73fbd2866ee79f7f8801475631d010c2616`
+fue rechazada por la política de Main: `REVIEW_REQUIRED`. Hace falta la aprobación
+de otro revisor; `allow_auto_merge=false`. No se usó `--admin` ni se modificaron
+protecciones. Se solicitó a Miguel gestionar esa revisión. El despliegue está
+completo, pero la integración a Main sigue pendiente. Mantener la rama de rescate.
+
+Se preservaron ZIP y manifiesto en el taller original y se trajeron los objetos
+de la rama publicada para que futuros preflights resuelvan la versión viva.
+Se sincronizaron solo los ajustes propios de HOY en el taller; sus 58 pruebas
+dirigidas pasan. No confundir su Main local antiguo con la fuente del despliegue.

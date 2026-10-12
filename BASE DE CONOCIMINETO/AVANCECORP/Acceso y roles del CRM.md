@@ -14,7 +14,7 @@ El CRM tiene **5 roles de aplicación** — fuente única en `CRM-Avance-Corp/ap
 La app no intenta deducirlo leyendo `crm.equipo`: RLS oculta por igual una fila ausente y una inactiva. La RPC propia `crm.mi_acceso_fn()` resuelve dentro de la frontera uno de cuatro estados y devuelve el UUID de la sesión, que el cliente exige que coincida con el `getUser()` que inició la verificación.
 
 1. **`miembro`:** fila en `crm.equipo` con rol válido y ambos flags activos (`crm.equipo.activo` + `public.perfiles.activo`).
-2. **`global`:** no existe fila de equipo y el perfil activo tiene rol `directorio|admin|superadmin`; entra como Directorio.
+2. **`global`:** no existe fila de equipo y el perfil activo tiene rol `directorio`; entra como Directorio. **Corregido el 2026-10-07 por decisión de Miguel (D-10):** un `admin` o `superadmin` del Portal **sin ficha** en `crm.equipo` **no** entra como Directorio. Un `admin` sin ficha queda `no_enrolado`; un `superadmin` que no es Gerencia queda en su estado propio `administrador_roles` (lista usuarios y administra roles, sin leer el CRM). Un analista del Portal sin ficha tampoco tiene acceso hasta que un Superadmin le asigne rol.
 3. **`revocado`:** perfil inactivo o fila CRM explícitamente inactiva. Nunca cae al fallback global.
 4. **`no_enrolado`:** autentica, pero no pertenece al CRM ni cumple el fallback.
 

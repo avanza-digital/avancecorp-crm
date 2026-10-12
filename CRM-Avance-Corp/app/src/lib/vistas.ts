@@ -24,7 +24,7 @@ const CAPACIDAD_POR_VISTA = {
   seguimiento: 'verLeads',
   'gestion-diaria': 'verLeads',
   conversiones: null,
-  'ranking-vendedores': null,
+  'ranking-vendedores': 'verRanking',
   // Gerencia ve el universo y Supervisión solo su equipo; la RPC impone el alcance.
   reuniones: 'verCitasEquipo',
   metas: null,
@@ -100,6 +100,8 @@ export function vistaPermitida(
   // su subárbol, y Gerencia conserva el universo. Las demás vistas ejecutivas
   // continúan siendo exclusivas de Gerencia.
   if (vista === 'reuniones') return can(rol, 'verCitasEquipo')
+  // Compartir este reporte no concede las demás páginas de Gerencia.
+  if (vista === 'ranking-vendedores') return can(rol, 'verRanking')
   if (esVistaGerencia(vista)) return rol === 'gerencia'
   // El mundo leads se cierra por la llave general y, SIEMPRE, para el
   // coordinador: su ámbito de leads es ∅ y su único destino es «Repartir».

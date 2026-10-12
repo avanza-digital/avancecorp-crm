@@ -1,6 +1,6 @@
 # Recuperación del primer acceso Avance rechazado
 
-Estado: corrección local verificada; pendiente de publicación. Fecha: 2026-09-29.
+Estado: publicado en producción; integración del PR #134 en Main pendiente de la revisión exigida por GitHub. Fecha: 2026-09-29.
 
 ## Evidencia y alcance
 
@@ -39,6 +39,27 @@ Parche aislado de esos tres archivos: `/private/tmp/crm-recuperacion-acceso-2026
 
 Logs finales: `/private/tmp/crm-acceso-check-final2-20260929.log`, `/private/tmp/crm-acceso-e2e-final2-20260929.log`, `/private/tmp/crm-acceso-fix-review-result-20260929.txt`. Logs focalizados iniciales: `/private/tmp/crm-acceso-e2e-20260929.log`, `/private/tmp/crm-acceso-e2e-cartera-20260929.log`.
 
-## Publicación pendiente
+## Publicación realizada
 
-No se ha publicado ni registrado la inversión del cliente. `CLAUDE.md` exige invocación humana de `$release-crm` para publicar. La corrección debe aislarse de los cambios ajenos que ya estaban en el árbol y seguir el flujo de Main/avancecorp/main, artefacto y preflight del repositorio. No usar el `dist` del taller como artefacto de producción verificado.
+Miguel invocó `$release-crm` y confirmó «publica yo verifico». Publicación completada mediante `hosting_deployStaticWebsite` del MCP oficial de Hostinger en **https://crm.miavance.com**. No se registró la inversión del cliente; Miguel realizará la comprobación del flujo real.
+
+- Fuente publicada: `b131ffbe979dc796c5b45f8c5a4ebe0fcda606e4`, rama `rescue/acceso-ec6-20260929`.
+- Build: `build-20260929T213329217Z`; entrada `/assets/index-747QTame.js`.
+- Artefacto: `releases/crm-20260929T213330Z-b131ffbe979d.zip` (2.375.047 bytes).
+- SHA-256 del ZIP: `169828785ea35eda64e050f4ed347a79132d661719ec1475af0aa2ccb6fb2052`.
+- Manifiesto: `releases/crm-20260929T213330Z-b131ffbe979d.manifest.json`; fuente limpia, 130 archivos y destino verificados.
+- PASS: `release:crm`, `release:crm:verify` y preflight del artefacto publicado.
+- PASS: comprobación HTTP posterior, portada y JS principal con 200; **94/94 archivos HTML/JS/CSS/JSON** descargados coinciden exactamente con el SHA-256 del manifiesto. Evidencia: `releases/acceso-postflight-20260929.json`. La versión pública se reconfirmó después de la interrupción del servidor.
+- NOT RUN por el agente: comprobación manual autenticada del registro en producción; el usuario asumió esa verificación. Las pruebas locales de navegador sí pasaron como se detalla arriba.
+
+### Fuente, rescate e integración
+
+Se aisló la corrección en `/private/tmp/crm-acceso-release-20260929`, sobre `avancecorp/main` (`a243c12c480615b5cacd0e4c40d44b017ad0447c`). El commit de integración es `50d6c737b704f96382f18c5164451dc4f8c1a2ca`, disponible en [PR #134](https://github.com/avanza-digital/avancecorp-crm/pull/134). Los 944 archivos seguidos de `app` coincidían con el código que pasó los gates integrales; se reutilizó esa evidencia y se construyó el artefacto desde fuente limpia.
+
+El primer preflight rechazó el candidato basado en Main porque no contenía en su historial el commit vivo `ec6eb4eb754ab5ff19f896564c29d7048c137348`. Se aplicó la excepción de rescate de `CLAUDE.md`: rama desde ese commit vivo y cherry-pick de la corrección. El contenido de `app` de ambos commits es idéntico. El segundo preflight pasó. La rama publicada se conserva en `releases/acceso-rescue-b131ffbe-20260929.bundle` (requiere el commit ec6eb4eb del bundle previo).
+
+La integración en Main **no está completada**. El intento normal de merge fue rechazado por la protección de GitHub. Tras completar CI, `cambios`, `app-check` y `verify` están en PASS; el PR sigue `OPEN / BLOCKED / REVIEW_REQUIRED` y requiere una aprobación. No se usó bypass administrativo ni push forzado. El árbol compartido y sus trabajos ajenos se conservaron. La fuente del despliegue sigue siendo b131ffbe, independientemente del futuro commit de integración.
+
+### Recuperación conservada
+
+El ZIP publicado anterior es `releases/crm-20260929T200402Z-ec6eb4eb754a.zip`, SHA-256 `fd52c3c02b23a84f834f802d838ea0e3f3089792c7651163c8c52ddb35ede9c9`, con su manifiesto y bundle. No se ejecutó rollback.

@@ -17,6 +17,8 @@ import {
 import { porcentajeConversionCanonica } from '@/lib/format'
 import { paginar } from '@/lib/paginacion'
 import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { ConversionCierresCoordinacion } from './conversion-cierres-coordinacion'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { SectionHead } from '@/components/common/section-head'
@@ -151,10 +153,16 @@ function CeldasCierres({
   )
 }
 
-function FilaAnalista({ analista, sellado }: { analista: AnalistaConversionCoordinacion; sellado: boolean }) {
+function FilaAnalista({ analista, sellado, onVerCierres }: {
+  analista: AnalistaConversionCoordinacion; sellado: boolean; onVerCierres: () => void
+}) {
   return (
     <tr className="border-b border-border last:border-0">
-      <Td className="text-base font-medium">{analista.nombre ?? 'Sin nombre'}</Td>
+      <Td className="text-base font-medium">
+        {analista.nombre ?? 'Sin nombre'}
+        <Button type="button" variant="link" size="sm" className="mt-1 block px-0"
+          data-foco-clave={`cierres-${analista.analista_id}`} aria-label={`Ver cierres de ${analista.nombre ?? 'analista'}`} onClick={onVerCierres}>Ver cierres</Button>
+      </Td>
       <Td className="hidden text-muted-foreground lg:table-cell">
         {analista.supervisor_nombre ?? <SinDato motivo="sin supervisor" />}
       </Td>
@@ -231,6 +239,7 @@ export function ConversionCoordinacion() {
   const [hasta, setHasta] = useState(hoy)
   const [estado, setEstado] = useState<EstadoConversion>({ datos: null, clave: '', cargando: true, error: null })
   const [pagina, setPagina] = useState(0)
+  const [detalle, setDetalle] = useState<{ analista: AnalistaConversionCoordinacion; clave: string; consulta: ConsultaConversion } | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const contenidoRef = useRef<HTMLDivElement>(null)
   const focoPendiente = useRef(false)
@@ -289,6 +298,7 @@ export function ConversionCoordinacion() {
 
   useEffect(() => {
     focoPendiente.current = false // un cambio de período cancela el aterrizaje pendiente
+    setDetalle(null)
     setPagina(0)
     void cargar()
     return () => abortRef.current?.abort()
@@ -541,7 +551,8 @@ export function ConversionCoordinacion() {
                 </TheadCrm>
                 <tbody>
                   {analistas.visibles.map((analista) => (
-                    <FilaAnalista key={analista.analista_id} analista={analista} sellado={datos.sellado} />
+                    <FilaAnalista key={analista.analista_id} analista={analista} sellado={datos.sellado}
+                      onVerCierres={() => setDetalle({ analista, clave: estado.clave, consulta: JSON.parse(estado.clave) as ConsultaConversion })} />
                   ))}
                   {sinAnalista && analistas.paginaActual === analistas.paginas - 1 ? (
                     <tr className="border-b border-border last:border-0 bg-muted/30 text-muted-foreground">
@@ -580,6 +591,12 @@ export function ConversionCoordinacion() {
             a la bandeja antes de gestionarse.
           </p>
         </div>
+      ) : null}
+      {detalle && datos && detalle.clave === estado.clave ? (
+        <ConversionCierresCoordinacion analista={detalle.analista}
+          consulta={detalle.consulta}
+          desde={datos.periodo.desde} hasta={datos.periodo.hasta}
+          focoRespaldo={() => contenidoRef.current ?? document.querySelector<HTMLElement>('[aria-label="Tipo de período"]')} onCerrar={() => setDetalle(null)} />
       ) : null}
     </Card>
   )

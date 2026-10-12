@@ -1,6 +1,6 @@
 # Reasignación y conversión pendiente — 29/09/2026
 
-**Estado: validada en rama remota; publicación en preparación.**
+**Estado: PUBLICADA Y VERIFICADA el 29/09/2026, 17:55 Lima.**
 
 La migración `20260929201813_crm_reasignacion_conversion_consistente.sql` añade
 un trigger privado AFTER UPDATE diferido al COMMIT a `crm.leads`. Una reasignación ya autorizada
@@ -40,11 +40,15 @@ al lead. Bandeja conserva el último responsable hasta la siguiente entrega.
 ## Verificación local
 
 Banco: base `reasignacion_conversion_v3_20260929` dentro de
-`supabase_db_avancecorp-venta-cruzada`. Es una copia aislada del esquema y los
+`supabase_db_avancecorp-venta-cruzada`. Fue una copia aislada del esquema y los
 fixtures sintéticos del banco de venta cruzada, sin datos de producción.
 No se instaló la candidata en la base original del contenedor.
 La restauración necesitó dos autores históricos inactivos sintéticos para las
 FK de configuración: no se desactivaron RLS/triggers ni se otorgaron permisos.
+
+**Banco local retirado tras el cierre.** Para repetir las pruebas, reconstruir
+primero la base aislada y sus fixtures; los comandos siguientes documentan el
+ensayo realizado. No apuntarlos a producción ni a la base original compartida.
 
 Ejecutar desde la raíz CRM, con Docker encendido y la candidata instalada:
 
@@ -74,8 +78,10 @@ Resultados:
 | PostgREST real: ámbitos, veto y COMMIT alineado | PASS — 3 comprobaciones |
 | test-rls.mjs remoto --contratos / --identidad-d5 | PASS — 287 / 30 comprobaciones |
 | Advisors de la rama antes/después | PASS — cero avisos nuevos |
-| Merge de la rama | PENDIENTE |
-| E2E frontend/build | NOT RUN — sin cambio de código frontend de producto |
+| Merge de la rama y relectura de producción | PASS — catálogo idéntico al banco probado |
+| Advisors de producción y 22 Edge Functions | PASS — cero avisos nuevos y paquetes/permisos conservados |
+| CI Main actualizado: 318 archivos, 4.925 tests, tipos, build/bundle/duplicación | PASS — verify y preflight aprobados |
+| E2E frontend | NOT RUN — sin cambio de código frontend de producto |
 
 Los cinco fallos previos de guardas son: inventario de auditoría de 11 tablas
 existentes, `cron.job` ausente en esta copia y tres suites de mutantes que exigen
@@ -127,3 +133,38 @@ consumidor de la nota y recuperación canónica probada, y candados oficiales.
 No se afirma una tercera aprobación del reviewer: el cierre corresponde a los
 checks reales del PRIMARY. Producción tenía cero enlaces canónicos sin
 `leads.inversionista_id` al verificar este supuesto.
+
+## Publicación verificada
+
+[PR #137](https://github.com/avanza-digital/avancecorp-crm/pull/137) integrado
+el 29/09 a las 22:49:27 UTC en Main `43606c00d6d96446b5e2039ab8207ed0a8a81cef`.
+La copia limpia de publicación y `avancecorp/main` coincidían en ese commit.
+Se conservaron los cambios ajenos del taller compartido. El SQL exacto del commit
+(SHA-256 `3fefe303981bb94e13e00492b99128fe280a0f1151015064a6fef7176fc6ade2`)
+fue promovido con `merge_branch`, nunca por aplicación directa a producción.
+
+Registro productivo: `20260929221625_crm_reasignacion_conversion_consistente`.
+El merge serializa el archivo en diez sentencias. Función, trigger y catálogo
+final coinciden íntegramente con la rama probada: 851 funciones, 333 triggers,
+125 policies, 134 tablas/vistas y 7.668 grants de columna. Se conservaron las
+391 migraciones anteriores (huella `8d6af85b539463c0842cce0a73ad16cf`).
+Función privada MD5 `412344d7e9713200ad291d2cfcd7d2e9`, trigger activo/diferido,
+resolver ON, sin EXECUTE para anon/authenticated/service_role. Las 22 Edge
+Functions conservan sus paquetes y verify_jwt. Advisors: cero nuevos sobre
+311 avisos de seguridad y 192 de rendimiento anteriores. El caso original
+mantiene las tres referencias alineadas; al releer su solicitud ya figura
+confirmada. La migración no creó ni confirmó una inversión de prueba.
+
+Rama temporal eliminada y ausencia confirmada a las 22:55:11 UTC, tras unos
+69 minutos (aproximadamente US$0,0155 a la tarifa indicada, no factura).
+Evidencia estructurada: `docs/encargos/2026-09-29-reasignacion-conversion-evidencia.json`.
+La reversa sigue disponible y conserva los datos e historiales generados.
+
+## Limpieza solicitada
+
+El 29/09 a las 23:03 UTC se retiraron las tres bases locales creadas para esta
+tarea, 71 entradas temporales (incluidas credenciales, dumps, logs y consultas
+de diagnóstico) y la rama Git del PR ya integrado. No quedaban procesos de la
+tarea. La rama Supabase sigue ausente. Se conservan las fuentes, pruebas,
+resultados, hashes y el acta en `docs/reasignacion-evidencias-20260929`; los
+contenedores y bases originales se comparten con otros trabajos y se conservan.

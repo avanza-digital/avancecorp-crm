@@ -1,6 +1,8 @@
 # Upgrade cooperativo separado de reinversión
 
-Estado: preparado y probado localmente el 06/10/2026. **No aplicado en producción.**
+Estado: **SQL y frontend publicados y verificados en producción.** SQL aplicado
+el 06/10/2026 (07/10 UTC); verificación final de publicación 07/10 05:02 UTC.
+PR #208 fusionado en `62a375f0`; frontend vigente desde Main `3bdfded2c813`.
 Decisión de Miguel: «Sí, upgrade y reinversión separados». La primera inversión
 sigue bloqueada cuando la persona ya tiene historial en cualquier empresa.
 
@@ -33,11 +35,54 @@ confirmación cooperativa. En la confirmación conserva la guarda que vuelve a
 lanzar el error original para solicitudes F4 ordinarias. El parche sustituye
 una condición bajo la huella exacta del cuerpo, sin alterar el escritor económico.
 
-Orden pendiente: aprobación de SQL y PR → rama Supabase con esquema equivalente
-→ aplicar solo esta migración, matriz RLS y advisors → integración de backend
-→ frontend construido desde main local/remoto idénticos → lectura y botones en
-producción. Nunca `db push` general ni `apply_migration` directo al proyecto vivo.
-Las comprobaciones remotas de rama/advisors/publicación están **NOT RUN**.
+Miguel aprobó el SQL exacto de `39f9e0e7`, la rama temporal y la publicación.
+La rama se verificó, se integró mediante `merge_branch` y se eliminó después del
+postflight productivo. SHA-256 del SQL aplicado:
+`1a5caac35c5bbf6c10764dfee97f3f582ad2f2ad22f56e5d0774efd65adf1bbe`.
+No reaplicar la migración ni ejecutar `db push` general.
+
+PR #209 ya está integrado y conserva Celular cerrado mientras su SQL/Edge siguen
+pendientes; no asumir esa instalación. Gate completo Docker terminado: 369 PASS,
+1 caso flaky y 26 omitidos; el caso de gráficas se reprodujo y corrigió en #211,
+con repetición aislada PASS sin retries y CI PASS. No afirmar cero retries en
+la suite completa. Main con #210: check 6.286/392 y Docker F5 13/13 PASS.
+
+#212 integrado y publicación conjunta realizada por la otra sesión desde Main
+limpio `3bdfded2c813`, igual al remoto; conserva la ascendencia del release vivo.
+Build `build-20261007T045430720Z`, ZIP SHA-256
+`053780737f010276acda83b6d6cf8c035ac4e3f947e179ff820eaf9f593afafd`.
+Comprobación independiente HTTPS de 155 archivos PASS, portada/versión exactas
+y ZIP no público. UI productiva con Gerencia PASS en Qorilazo y Prodelco:
+Upgrade visible/habilitado, Reinversión separada y Nueva inversión deshabilitada.
+No se crearon inversiones productivas. Postflight SQL 07/10 05:01 UTC mantiene
+las siete huellas y permisos PASS. Evidencia y capturas sin datos personales en
+`../../../output/upgrade-cooperativas-20261006/deploy/`. No repetir el deploy.
+Estado actualizado: `../../../docs/encargos/2026-10-06-upgrade-cooperativas-RETOMA.md`.
+
+## Verificación remota y productiva
+
+- Rama equivalente sin datos de clientes reales. El replay histórico se detuvo
+  en una migración antigua dependiente de datos; se reconstruyó con esquema,
+  configuración e historial productivos cotejados. No se declara replay histórico PASS.
+- Matriz RLS final: **3.076 aserciones PASS, cero fallos**. Se corrigieron dos
+  problemas de fixtures entre corridas: representación de ACL de propietario y
+  cuenta bancaria sintética residual. Se repitió el gate íntegro después.
+- Casos de llamadas omitidos porque su backend aún no existe; variante de nombre
+  canónico sin fixture y canario de meses cerrados sin datos: no acreditados aquí.
+- SQL propio: **8 grupos PASS**. Auth, RPC y Storage reales: **PASS** para
+  comprobante, confirmación, reintento único, inversión original intacta,
+  recuperación, historial separado y permisos negativos. Solo datos sintéticos.
+- Postflight productivo: **PASS**, siete huellas de funciones exactas, ACL,
+  RLS/default/CHECK correctos; historial previo y 22 Edge Functions intactos.
+  Supabase resegmentó el archivo en 22 sentencias al registrar el merge.
+- Advisors: seguridad 337→338 por el RPC autenticado SECURITY DEFINER previsto,
+  con sesión/rol/persona/empresa/fuente validados y helpers privados INVOKER.
+  [Criterio del aviso](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable).
+  Rendimiento 212→212, sin avisos nuevos.
+- Rama de pago eliminada y credenciales temporales borradas; producción no
+  recibió operaciones financieras de prueba.
+
+Logs y huellas: `../../../output/upgrade-cooperativas-20261006/`.
 
 Reversa: `reversa.sql` toma candado antes de comprobar que no existen upgrades.
 Solo restaura el esquema antes del primer upgrade. Con operaciones registradas,
@@ -107,5 +152,6 @@ ante un borrador corrupto; la API rechaza intenciones mixtas.
 Una segunda consulta acotada a los cambios finales terminó sin un dictamen
 válido (salida vacía del wrapper); no se declara `PASS` del reviewer final ni
 se repite la consulta para obtenerlo. El cierre técnico del PRIMARY se basa en
-los controles ejecutados arriba. Falta la aprobación humana de GitHub y del SQL,
-y después los controles remotos previos a publicar.
+los controles ejecutados arriba. La aprobación humana de GitHub y del SQL ya
+se obtuvo; los controles remotos están documentados arriba. La publicación del
+frontend conserva sus gates pendientes y no se presenta como realizada.

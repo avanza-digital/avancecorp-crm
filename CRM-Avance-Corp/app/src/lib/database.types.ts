@@ -5998,6 +5998,16 @@ export type Database = {
         }
         Returns: Json
       }
+      conversion_cierres_coordinacion_fn: {
+        Args: {
+          p_analista: string
+          p_desde?: string
+          p_hasta?: string
+          p_pagina?: number
+          p_periodo?: string
+        }
+        Returns: Json
+      }
       conversion_divisor_coordinacion_fn: {
         Args: { p_desde?: string; p_hasta?: string; p_periodo?: string }
         Returns: Json
@@ -6308,6 +6318,16 @@ export type Database = {
       enlazar_llamada_celular: {
         Args: { p_actividad_id: string; p_evento_id: string }
         Returns: Json
+      }
+      equipo_reportes_fn: {
+        Args: never
+        Returns: {
+          activo: boolean
+          nombre_completo: string
+          perfil_id: string
+          rol_crm: string
+          supervisor_id: string
+        }[]
       }
       equipo_visible_fn: {
         Args: never

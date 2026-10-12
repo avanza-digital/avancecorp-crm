@@ -53,4 +53,8 @@ La revisión secundaria señaló policies ALL/permisos de escritura futuros; el 
 
 Hostinger funciona mediante la vía local documentada en [[Deploy a Hostinger]], usando el token ya guardado; no hace falta solicitar otro ni cambiar configuración. El paquete pasa el preflight de ascendencia y conserva el build vivo.
 
-Evidencia privada (sin incluirla en el ZIP): `/private/tmp/reasignados-banco-remoto-20260929/`. El estado recuperable se guarda también en `CRM-Avance-Corp/releases/REASIGNADOS-20260929-ESTADO-ACTIVO.md`. El historial de primera branch fallida y eliminada corresponde al intento anterior, no al banco remoto vigente.
+La evidencia privada temporal fue retirada en la limpieza autorizada al cerrar la sesión. El estado y los resultados de validación se conservan en `CRM-Avance-Corp/releases/REASIGNADOS-20260929-ESTADO-ACTIVO.md`. El historial de primera branch fallida y eliminada corresponde al intento anterior, no al banco remoto vigente.
+
+Cierre GitHub: la [PR #133](https://github.com/avanza-digital/avancecorp-crm/pull/133) fue fusionada el 29/09/2026 a las 20:20:59 UTC en `avancecorp/main`, commit `a243c12c480615b5cacd0e4c40d44b017ad0447c`, con todos los checks PASS. Main de la copia aislada quedó sincronizado con ese commit y su árbol completo coincide con el revisado; el árbol de la aplicación coincide con el publicado. No queda aprobación pendiente. El Main compartido y los cambios de otras tareas se conservaron intactos.
+
+Sesión cerrada por Miguel el 29/09/2026. Se retiraron las cinco copias temporales, cuatro bases de prueba locales, el volumen E2E exclusivo, la rama de integración ya fusionada, credenciales temporales, dumps y paquetes de ensayo. Se conserva el paquete productivo con manifest, SQL nativo final, bundle recuperable, respaldo anterior y acta de cierre. Los recursos y cambios ajenos permanecen intactos.

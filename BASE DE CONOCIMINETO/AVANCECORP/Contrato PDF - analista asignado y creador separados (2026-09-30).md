@@ -1,24 +1,40 @@
 ---
-tags: [crm, contratos, pdf, analista, incidente]
+tags: [crm, contratos, pdf, analista, incidente, publicado]
 fecha: 2026-09-30
-estado: correccion autorizada y probada, pendiente de publicacion
+estado: publicado y verificado
 ---
 
 # PDF: analista asignado y creador separados
 
-El PDF tomaba al creador del contrato aunque la ficha ya mostraba al analista
-asignado. La cláusula 14.2 debe tomar `public.contratos.analista_cierre_id` con
-el nombre, teléfono y correo del mismo perfil. `creado_por` sigue siendo autoría.
+Publicado por PR [#154](https://github.com/avanza-digital/avancecorp-crm/pull/154),
+Main `b1751d7d04b7b50b4b77677b51030b1d9820f9a3`.
+Migración `20260930235814_crm_pdf_analista_asignado` fusionada desde
+rama Supabase; Edge PDF versión 27, JWT activado. Sin publicación de frontend.
 
-Snapshot 3 añade `contrato.analistaId`; la Edge admite estrictamente v2 y v3.
-Los documentos históricos no se reescriben. La corrección de uno ya emitido se
-realiza por la revisión auditada existente, conservando número y condiciones.
-Una reasignación de cartera por sí sola no reescribe los PDFs congelados.
+La cláusula 14.2 toma `public.contratos.analista_cierre_id` y el nombre,
+teléfono y correo del mismo perfil. `creado_por` conserva la autoría.
+Snapshot 3 añade `contrato.analistaId`; el renderer admite estrictamente
+v2 y v3. Los documentos históricos son inmutables: reasignar una cartera
+por sí solo no reescribe sus PDFs.
 
-Migración `20260930235814_crm_pdf_analista_asignado.sql`; evidencia en
-`CRM-Avance-Corp/supabase/scripts/pdf-analista/README.md`. Desplegar la Edge dual
-antes del merge SQL, incluso después de un rebase de Supabase: el rebase también
-repone la Edge del padre. La reversa SQL mantiene el renderer dual para leer v3.
+Contrato 2026-01-001519: revisión 3 sellada y descargada con KELLY VEGA,
+verificada visualmente y mediante SHA256. Número, condiciones económicas,
+cuentas y las dos versiones anteriores conservados. Se emitió desde
+«Corregir contrato» en la sesión administrativa, sin cambiar los valores:
+sólo cambia la marca de actualización del contrato; la UI renueva los UUID
+del cronograma, conservando todas sus fechas, importes y estados.
+
+PASS: 73 pruebas Deno, 15 SQL, 287 RLS remotas, HTTP real y E2E Docker
+(15 passed, 13 skipped, 0 failed). Claude se intentó sin VERDICT válido;
+no equivale a una aprobación. Advisors sin incremento de avisos.
+Rama temporal eliminada. Acta local:
+`CRM-Avance-Corp/releases/pdf-analista-PUBLICADO.md`.
+
+Desplegar siempre la Edge dual antes del SQL. Un rebase de Supabase también
+repone/reconstruye la Edge del padre: cotejar nuevamente los archivos.
+La reversa SQL debe conservar el renderer dual para seguir leyendo v3.
+En bancos vacíos, una migración ajena puede exigir catálogos no personales;
+copiar su configuración vigente sin inventar pesos ni copiar clientes.
 
 Relacionadas: [[PDF contractual privado e inmutable 2026-08-17]],
 [[Contrato PDF - cuentas con origen portal bloqueaban el PDF (2026-09-29)]],

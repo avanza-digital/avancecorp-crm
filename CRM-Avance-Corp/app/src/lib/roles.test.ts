@@ -118,6 +118,7 @@ describe('capacidades por rol', () => {
       // Supervisión, aunque Gerencia conserve otras puertas de reparto.
       verDerivacionesEquipo: false,
       verFacturacion: true,
+      verRanking: true,
       verCitasEquipo: true,
       verAlertas: true,
       // La ÚNICA excepción del operador total, y es deliberada (F2 lead
@@ -140,14 +141,23 @@ describe('capacidades por rol', () => {
     expect(ROLES.filter((rol) => CAPS[rol].tomarLeadDirecto)).toEqual(['vendedor'])
   })
 
-  it('Facturación es de Gerencia, Supervisión (su equipo) y Directorio (lectura); nadie más', () => {
+  it('Facturación añade la lectura de Coordinación sin abrir su cartera', () => {
     // Directorio desde el 08/10/2026 (Miguel: «sí, que la vea»): el servidor ya
     // le abría la empresa entera por ser lector global.
-    expect(ROLES.filter((rol) => CAPS[rol].verFacturacion)).toEqual(['supervisor', 'gerencia', 'directorio'])
+    expect(ROLES.filter((rol) => CAPS[rol].verFacturacion)).toEqual(['supervisor', 'gerencia', 'directorio', 'coordinador'])
     expect(can('vendedor', 'verFacturacion')).toBe(false)
     expect(can('directorio', 'verFacturacion')).toBe(true)
-    expect(can('coordinador', 'verFacturacion')).toBe(false)
+    expect(can('coordinador', 'verFacturacion')).toBe(true)
     expect(can(null, 'verFacturacion')).toBe(false)
+  })
+
+  it('Coordinación consulta Ranking sin adquirir escrituras ni perder el reparto', () => {
+    expect(ROLES.filter((rol) => CAPS[rol].verRanking)).toEqual(['gerencia', 'coordinador'])
+    for (const accion of ['verTodo', 'verCartera', 'verLeads', 'editarMetas', 'editarCapacidad', 'editarConfiguracion', 'soloLecturaTotal'] as const) {
+      expect(can('coordinador', accion)).toBe(false)
+    }
+    expect(can('coordinador', 'repartirCola')).toBe(true)
+    expect(puedeEscribir('coordinador')).toBe(true)
   })
 
   it('reserva Citas a Gerencia y Supervisión; el servidor reduce al equipo', () => {
