@@ -334,8 +334,8 @@ begin
 
   -- ── CASO 8 — LA VERJA, IDENTIDAD POR IDENTIDAD. Se cambia de identidad como
   --    lo hace PostgREST (claim `sub` del JWT) y se recorre TODO el equipo del
-  --    banco. La intención se escribe como afirmación —la ven Gerencia y el
-  --    Directorio enteras, cada supervisor exactamente lo suyo, nadie más— en
+  --    banco. La intención se escribe como afirmación —la ven Gerencia,
+  --    Directorio y Coordinación enteras, cada supervisor exactamente lo suyo— en
   --    vez de copiar la condición de la función, que sería tautológico.
   declare
     r          record;
@@ -350,7 +350,7 @@ begin
       select * from crm.facturacion_diaria_fn(v_mes);
 
     for r in
-      select e.perfil_id, e.rol_crm, (e.rol_crm in ('gerencia','directorio')) as deberia_ver
+      select e.perfil_id, e.rol_crm, (e.rol_crm in ('gerencia','directorio','coordinador')) as deberia_ver
       from crm.equipo e where e.activo order by e.rol_crm, e.perfil_id
     loop
       perform set_config('request.jwt.claims',
@@ -372,7 +372,13 @@ begin
           v_mal := v_mal + 1;
           raise warning 'VERJA MAL: el supervisor % vio % filas y le tocaban %', r.perfil_id, v_filas, v_esperado;
         end if;
-      elsif (v_filas > 0) <> r.deberia_ver then
+      elsif r.deberia_ver then
+        select count(*) into v_esperado from zz_verja_gerencia;
+        if v_filas <> v_esperado then
+          v_mal := v_mal + 1;
+          raise warning 'VERJA MAL: el rol % vio % filas globales y le tocaban %', r.rol_crm, v_filas, v_esperado;
+        end if;
+      elsif v_filas > 0 then
         v_mal := v_mal + 1;
         raise warning 'VERJA MAL: el rol % vio % filas (deberia_ver=%)', r.rol_crm, v_filas, r.deberia_ver;
       end if;
