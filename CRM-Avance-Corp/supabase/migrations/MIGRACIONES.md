@@ -18157,3 +18157,28 @@ corregidos (vendedor que no consta, guardas antes de «ya aplicada», ensayo ya 
 auditor-rls: PASS; de sus tres P3 se aplicaron el comentario (por qué es DEFINER y qué ve Directorio) y la baja vista por
 el heredero y por el que se fue, y el tercero es esta anotación del ciclo.
 **Despliegue:** servidor primero (Miguel con `!`: migración + `registrar.sql`), después `/release-crm`.
+
+
+## 20261012184345 — Renovaciones sin aporte a conversión desde octubre
+
+**Estado: VALIDADA EN RAMA REMOTA; PENDIENTE MERGE.** Decisión de Miguel del 12/10/2026,
+explícitamente a nivel del sistema. Octubre está abierto; agosto y septiembre sellados no cambian.
+
+**Cambio:** `crm.conversion_pesos` de octubre: renovación 0 (antes 0,15); referido 1
+y tope 15 intactos. Default 0 y restricción para versiones desde octubre. No cambia
+ninguna función, firma, permiso, operación, importe ni foto. Se conserva la primera
+operación elegible por cliente/mes, incluso si es renovación seguida de upgrade.
+Candado global compartido con `cerrar_periodo` y bloqueo de las dos tablas antes del preflight.
+Se rechaza si hay meses afectados cerrados, otra configuración o aplicación previa.
+
+**Verificación local:** banco Docker propio con esquema de producción sin datos; siete
+huellas de funciones coincidentes. Migración/reversa/reaplicación PASS; 22 comprobaciones
+SQL PASS (incluye oficial, Coordinación, Metas, capital PEN/USD, foto y permisos),
+4 preflights negativos PASS, concurrencia del candado PASS. 108 pruebas frontend PASS,
+typecheck y lint PASS (avisos ajenos), diff --check PASS. Rama propia: 22 SQL PASS,
+319 aserciones PASS (`test-rls.mjs --contratos`); advisors 364/343 sin altas ni bajas.
+Versión remota `20261012202228`, mismo SHA-256 que el archivo. Matriz RLS global y
+E2E NOT RUN; no se publicó frontend. Las correcciones del review fueron reensayadas.
+
+**Reversa y evidencia:** `supabase/scripts/conversion-sin-renovaciones/LEEME.md`,
+`reversa.sql`, `prueba.sql`. No se aplica directo a producción: pendiente circuito de rama/gates/merge.
