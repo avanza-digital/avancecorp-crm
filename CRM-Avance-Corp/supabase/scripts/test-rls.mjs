@@ -9632,17 +9632,37 @@ async function testFacturacionDiaria(sessions, seed) {
       and not has_function_privilege('service_role', p.oid, 'EXECUTE')
       and has_function_privilege('authenticated', p.oid, 'EXECUTE') = e.definidor) is true
   `) === 2, `${FN}: puerta 3B SQL/DEFINER solo authenticated y núcleo plpgsql/INVOKER solo postgres, ambos STABLE`);
-  // CENSO cerrado. El núcleo sin verja solo admite _visibles; esta admite cifra y lista; lista solo su puerta.
+  // CENSO cerrado: además de 3A/3B, admite la consulta de nombres sellada si está instalada.
+  const nombresInstalados = contarFueraDeBanda('Facturación nombres: presencia en censo', `select count(*) from pg_proc
+    where oid=to_regprocedure('private.facturacion_lista_nombres${FIRMA_LISTA}')`) === 1;
+  if (nombresInstalados) check(contarFueraDeBanda('Facturación nombres: contrato de las dos piezas', `
+    select count(*) from (values
+      ('private.facturacion_lista_nombres${FIRMA_LISTA}',false,'plpgsql','{postgres=X/postgres}'),
+      ('crm.listar_operaciones_facturacion_v2_fn${FIRMA_LISTA}',true,'sql','{postgres=X/postgres,authenticated=X/postgres}')
+    ) e(firma,definidor,lenguaje,acl) join pg_proc p on p.oid=to_regprocedure(e.firma)
+    join pg_language l on l.oid=p.prolang
+    where (p.prosecdef=e.definidor and p.provolatile='s' and l.lanname=e.lenguaje
+      and pg_get_userbyid(p.proowner)='postgres' and p.proacl::text=e.acl
+      and p.prorettype='jsonb'::regtype and not p.proretset and p.pronargdefaults=9
+      and cardinality(p.proconfig)=1 and p.proconfig[1] in ('search_path=','search_path=""')
+      and not has_function_privilege('anon',p.oid,'EXECUTE')
+      and not has_function_privilege('service_role',p.oid,'EXECUTE')
+      and has_function_privilege('authenticated',p.oid,'EXECUTE')=e.definidor) is true
+  `) === 2, `${FN}: nombres v2 sellados, sin ampliar ACL del núcleo`);
   check(contarFueraDeBanda('Facturación 3B: censo de llamadores', `
     select count(*) from pg_proc p
     where (p.prosrc ~* 'private\\.facturacion_operaciones\\s*\\('
            and p.oid is distinct from to_regprocedure('private.facturacion_operaciones_visibles(timestamptz,timestamptz)'))
        or (p.prosrc ~* 'private\\.facturacion_operaciones_visibles\\s*\\('
            and p.oid is distinct from to_regprocedure('crm.facturacion_diaria_fn(date)')
-           and p.oid is distinct from to_regprocedure('private.facturacion_lista${FIRMA_LISTA}'))
+           and p.oid is distinct from to_regprocedure('private.facturacion_lista${FIRMA_LISTA}')
+           and p.oid is distinct from to_regprocedure('private.facturacion_lista_nombres${FIRMA_LISTA}'))
        or (p.prosrc ~* 'private\\.facturacion_lista\\s*\\('
-           and p.oid is distinct from to_regprocedure('crm.listar_operaciones_facturacion_fn${FIRMA_LISTA}'))
-  `) === 0, `${FN}: llamadores exactamente dentro de la lista cerrada 3A + 3B`);
+           and p.oid is distinct from to_regprocedure('crm.listar_operaciones_facturacion_fn${FIRMA_LISTA}')
+           and p.oid is distinct from to_regprocedure('private.facturacion_lista_nombres${FIRMA_LISTA}'))
+       or (p.prosrc ~* 'private\\.facturacion_lista_nombres\\s*\\('
+           and p.oid is distinct from to_regprocedure('crm.listar_operaciones_facturacion_v2_fn${FIRMA_LISTA}'))
+  `) === 0, `${FN}: llamadores exactamente dentro de la lista cerrada 3A + 3B + nombres v2`);
   check(contarFueraDeBanda('Facturación 3B: las dos cadenas existen', `
     select count(*) from pg_proc p
     where (p.oid = to_regprocedure('private.facturacion_operaciones_visibles(timestamptz,timestamptz)')
@@ -9653,7 +9673,12 @@ async function testFacturacionDiaria(sessions, seed) {
            and p.prosrc ~* 'private\\.facturacion_operaciones_visibles\\s*\\(')
        or (p.oid = to_regprocedure('crm.listar_operaciones_facturacion_fn${FIRMA_LISTA}')
            and p.prosrc ~* 'private\\.facturacion_lista\\s*\\(')
-  `) === 4, `${FN}: cifra → _visibles y puerta → lista → _visibles → núcleo existen en catálogo`);
+       or (p.oid = to_regprocedure('private.facturacion_lista_nombres${FIRMA_LISTA}')
+           and p.prosrc ~* 'private\\.facturacion_lista\\s*\\('
+           and p.prosrc ~* 'private\\.facturacion_operaciones_visibles\\s*\\(')
+       or (p.oid = to_regprocedure('crm.listar_operaciones_facturacion_v2_fn${FIRMA_LISTA}')
+           and p.prosrc ~* 'private\\.facturacion_lista_nombres\\s*\\(')
+  `) === (nombresInstalados ? 6 : 4), `${FN}: las cadenas aprobadas de cifras/listas/nombres existen en catálogo`);
 }
 
 // 3B: la lista suma SU cifra por identidad; los datos dependen de la relación actual.
