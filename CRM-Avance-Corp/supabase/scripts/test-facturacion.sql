@@ -131,6 +131,8 @@ begin
   -- La sesión pasa a ser Gerencia (si no, el gate cierra y no hay nada que ver).
   perform set_config('request.jwt.claims',
     json_build_object('sub', v_gerencia, 'role', 'authenticated')::text, true);
+  perform set_config('request.jwt.claim.sub', (v_gerencia)::text, true);
+  if auth.uid() is distinct from (v_gerencia)::uuid then raise exception 'Identidad incorrecta del fixture de Facturación'; end if;
 
   -- ── CASO 1 — la venta ANTERIOR al cambio se queda con el supervisor VIEJO ──
   -- Se miran TODAS las filas del día, no la primera: un LIMIT 1 aceptaría una
@@ -263,6 +265,8 @@ begin
   --    lo vería todo: las dos hipótesis dan respuestas distintas.
   perform set_config('request.jwt.claims',
     json_build_object('sub', v_sup_viejo, 'role', 'authenticated')::text, true);
+  perform set_config('request.jwt.claim.sub', (v_sup_viejo)::text, true);
+  if auth.uid() is distinct from (v_sup_viejo)::uuid then raise exception 'Identidad incorrecta del fixture de Facturación'; end if;
   select count(*) filter (where f.dia = v_antes), count(*) filter (where f.dia = v_despues)
     into v_ops, v_filas
   from crm.facturacion_diaria_fn(v_mes) f
@@ -273,6 +277,8 @@ begin
   end if;
   perform set_config('request.jwt.claims',
     json_build_object('sub', v_sup_nuevo, 'role', 'authenticated')::text, true);
+  perform set_config('request.jwt.claim.sub', (v_sup_nuevo)::text, true);
+  if auth.uid() is distinct from (v_sup_nuevo)::uuid then raise exception 'Identidad incorrecta del fixture de Facturación'; end if;
   select count(*) filter (where f.dia = v_antes), count(*) filter (where f.dia = v_despues)
     into v_ops, v_filas
   from crm.facturacion_diaria_fn(v_mes) f
@@ -314,6 +320,8 @@ begin
   update crm.equipo set supervisor_id = v_sup_viejo where perfil_id = v_analista;
   perform set_config('request.jwt.claims',
     json_build_object('sub', v_sup_viejo, 'role', 'authenticated')::text, true);
+  perform set_config('request.jwt.claim.sub', (v_sup_viejo)::text, true);
+  if auth.uid() is distinct from (v_sup_viejo)::uuid then raise exception 'Identidad incorrecta del fixture de Facturación'; end if;
   select count(*) into v_malas
   from crm.facturacion_diaria_fn(v_mes) f
   where f.analista_id = v_analista and f.dia = v_despues and f.tipo = 'contrato_nuevo';
@@ -326,6 +334,8 @@ begin
 
   -- ── CASO 5 — el gate: sin sesión, ni una fila ─────────────────────────────
   perform set_config('request.jwt.claims', '', true);
+  perform set_config('request.jwt.claim.sub', '', true);
+  if auth.uid() is not null then raise exception 'La sesión anónima del fixture conserva identidad'; end if;
   select count(*) into v_filas from crm.facturacion_diaria_fn(v_mes);
   if v_filas <> 0 then
     raise exception 'ORACULO 5 FALLA: sin sesion devolvio % filas', v_filas;
@@ -346,6 +356,8 @@ begin
     -- La foto de Gerencia, para medir a cada supervisor contra ella.
     perform set_config('request.jwt.claims',
       json_build_object('sub', v_gerencia, 'role', 'authenticated')::text, true);
+    perform set_config('request.jwt.claim.sub', (v_gerencia)::text, true);
+    if auth.uid() is distinct from (v_gerencia)::uuid then raise exception 'Identidad incorrecta del fixture de Facturación'; end if;
     create temp table zz_verja_gerencia on commit drop as
       select * from crm.facturacion_diaria_fn(v_mes);
 
@@ -355,6 +367,8 @@ begin
     loop
       perform set_config('request.jwt.claims',
         json_build_object('sub', r.perfil_id, 'role', 'authenticated')::text, true);
+      perform set_config('request.jwt.claim.sub', (r.perfil_id)::text, true);
+      if auth.uid() is distinct from (r.perfil_id)::uuid then raise exception 'Identidad incorrecta del fixture de Facturación'; end if;
       select count(*) into v_filas from crm.facturacion_diaria_fn(v_mes);
       v_ident := v_ident + 1;
       if r.rol_crm = 'supervisor' then
@@ -388,6 +402,8 @@ begin
     -- Un uuid que no es nadie tampoco entra.
     perform set_config('request.jwt.claims',
       json_build_object('sub', '00000000-0000-4000-8000-000000000000', 'role', 'authenticated')::text, true);
+    perform set_config('request.jwt.claim.sub', ('00000000-0000-4000-8000-000000000000')::text, true);
+    if auth.uid() is distinct from ('00000000-0000-4000-8000-000000000000')::uuid then raise exception 'Identidad incorrecta del fixture de Facturación'; end if;
     select count(*) into v_filas from crm.facturacion_diaria_fn(v_mes);
     v_ident := v_ident + 1;
     if v_filas <> 0 then
