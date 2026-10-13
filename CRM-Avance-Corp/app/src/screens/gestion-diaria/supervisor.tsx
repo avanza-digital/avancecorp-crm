@@ -8,6 +8,8 @@ import { fechaLima } from '@/lib/agenda-derivada'
 import { horaLimaDe } from '@/lib/gestion-diaria-analista'
 import { compararGravedad, filtrarOrdenarEquipo, presentarEquipo, type FiltrosEquipo, type OrdenEquipo, type FilaEquipoPresentada } from '@/lib/gestion-diaria-equipo'
 import { useDiaEquipo } from '@/data/gestion-diaria-equipo-queries'
+import { useOperacionCelularHoy } from '@/data/llamadas-celular-operacion-queries'
+import { presentarSalud } from '@/lib/celulares'
 import { CrmApiError } from '@/data/crm-api'
 import { TablaEquipoDiaria } from '@/components/gestion-diaria/tabla-equipo-diaria'
 import { PanelAnalistaSupervisor, type SeleccionSupervisor } from '@/components/gestion-diaria/panel-analista-supervisor'
@@ -58,6 +60,12 @@ function VistaSupervisor({ hoy, actor, demo, accesoSeguimiento }: { hoy: string;
   const entradaFecha = useRef<HTMLInputElement>(null)
   const consulta = useDiaEquipo(fecha)
   const esHoy = fecha === hoy
+  // F4-e: las cifras del celular de cada analista (bloque «Su celular» de la ficha) y el del propio supervisor (A7),
+  // que no entra en la tabla y se dice al pie.
+  const celular = useOperacionCelularHoy(esHoy)
+  const tuCelular = esHoy && celular.datos?.su_celular?.length
+    ? `Tu celular: ${celular.datos.su_celular.map((c) => `${c.etiqueta} · ${presentarSalud(c, null).principal.texto.toLocaleLowerCase('es')}`).join(', ')} (no entra en la tabla).`
+    : null
   // Mismo intervalo inclusivo que gestion_diaria_equipo_fn: 365 días Lima.
   const primeraFecha = fechaLima(Date.parse(`${hoy}T12:00:00-05:00`) - 365 * 86_400_000)
   const avisos = useGestionDiariaAvisos()
@@ -311,7 +319,7 @@ function VistaSupervisor({ hoy, actor, demo, accesoSeguimiento }: { hoy: string;
                     panelId={panelId} minimo={dia.umbrales.minimo_llamadas_utiles} irAlDetalle={() => { tituloPanel.current?.focus({ preventScroll: true }); tituloPanel.current?.scrollIntoView?.({ block: 'nearest' }) }} />
                   <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-border px-4 py-2.5 text-xs text-[var(--muted-foreground-strong)]">
                     <p><span role="status">{filas.length} de {dia.resumen.analistas} analistas</span> · Actualizado {hora}</p>
-                    <p>La actividad registrada no acredita presencia.</p>
+                    <p>{tuCelular && <>{tuCelular} </>}La actividad registrada no acredita presencia.</p>
                   </div>
                 </>}
             </>}
@@ -321,7 +329,7 @@ function VistaSupervisor({ hoy, actor, demo, accesoSeguimiento }: { hoy: string;
             ampliado={ampliado} puedeAmpliar={!estrecho} ampliar={() => { setAmpliado((v) => !v); if (automatica) setSeleccion((s) => s && { ...s, origen: 'usuario' }) }} cerrar={cerrar}
             oculta={Boolean(dia && seleccion?.analista && !filas.some((f) => f.analista_id === seleccion.analista))}
             limpiar={() => setFiltros(FILTROS_INICIALES)} actualizacion={actualizacion} revalidar={() => { void consulta.recargar() }}
-            esHoy={esHoy} ahora={ahora} vacio={vacioPanel} silencioso={automatica} />
+            esHoy={esHoy} ahora={ahora} vacio={vacioPanel} silencioso={automatica} celularHoy={esHoy ? celular : null} />
         </PanelSupervisorAdaptable>
       </div>
       {esHoy ? <FranjaCortesSupervisor consulta={consulta} abrir={() => { setDevolverFocoAuxiliar(true); setAuxiliar('avisos') }} />
