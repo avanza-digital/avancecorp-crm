@@ -64,3 +64,35 @@ días) y no de un 30 fijo; ningún porcentaje viaja en el jsonb (la pantalla los
 - Tablero: cambios 232–245. Handoff local: `_DEV_NO_SUBIR/HANDOFF-2026-10-12-tarde.md`.
 - Lección extra: el registrador fija tres huellas; si la migración cambia antes de aplicarse hay que regenerarlas en
   LF y repetir el banco. Si ya se aplicó, cualquier cambio va en una migración nueva.
+
+## La pantalla (13/10/2026, PR #261)
+
+Sesión de Jhosep del martes 13/10 por la mañana (cuenta jhosep@). Al arrancar, Miguel no había aplicado la migración
+ni respondido las dos decisiones ni la #21 (sin comentarios en el #255; `origin/main` solo traía el #258 y luego su
+#259). Jhosep dio el OK a hacer la pantalla **en demo** (sus dos decisiones no cambian la forma del jsonb) y a que el
+commit de documentos del cierre viajara en el mismo PR (`main` está protegida: el push directo lo rechaza GitHub).
+
+- **Lo que entró (rama `crm/llamadas-f4e-pantalla-20261013`, asentada sobre el #259):**
+  - `lib/llamadas-celular-operacion.ts`: el espejo del jsonb de §6 con **comprobaciones de suma** (las seis cubetas suman
+    el total; equipos y totales = suma de sus analistas; `sin_dato` sigue D1) y lo que la pantalla deriva (porcentajes
+    de cada par de la misma cohorte, filas por equipo, filtros, motivos de atención, detalles).
+  - `lib/llamadas-celular-operacion-demo.ts`: la misma forma con el organigrama del store (d-sup1 → d-v1 C1 al día,
+    d-v2 C2 sin latido con 3 en cola; d-sup2 → d-v3 C3 nunca habló = sin dato; su_celular C4 para d-sup1), pasando
+    por el mismo esquema.
+  - Tipo `llamadas_celular_operacion_hoy_fn` a mano en `database.types.ts`; llamada en `data/llamadas-celular-api.ts`;
+    hook `useOperacionCelularHoy` (refresco 60 s, solo supervisor/gerencia, solo hoy).
+  - Gerencia: tercera pestaña «Llamadas del celular» (`components/gestion-diaria/llamadas-celular-gerencia.tsx`):
+    tabla por equipo + ficha con cuadros, «Necesitan atención» y los tres rótulos. Con otro día elegido: aviso y «Ver hoy».
+  - Supervisor: bloque «Su celular» (`su-celular-analista.tsx`) entre la línea del día y los cuadros del resumen
+    (`ResumenAnalista` ganó el hueco `antesDeCuadros`), y el celular del supervisor al pie de la tabla (A7).
+- **Verificación:** typecheck, lint, suite completa 6659/6660 (la fallida pasa sola: CPU), E2E Docker en demo
+  (`llamadas-celular-operacion.spec.ts`), `revisor-a11y` (1 P1 + 4 P2 + 3 P3, todos aplicados), navegador en demo con
+  los dos roles. NOT RUN: `gate:realidad` (clave de servicio) y producción (puerta sin aplicar).
+- **Decisiones de pantalla (ninguna toca el contrato):** sin listas por analista desde gerencia ni desde «Su celular»
+  (no hay puerta; F6); «sin latido» cuenta también a los que nunca hablaron; en la tabla la antigüedad de la pendiente
+  más vieja va en la ficha; el botón que alternaba columnas en la tabla del supervisor (prototipo, pantalla 2) queda
+  fuera: el plan corto solo pedía el bloque.
+- **Lecciones:** en este clon Windows el E2E en Docker se ahoga si corre a la vez que la suite unitaria completa
+  (timeouts de 30 s en `page.goto`): correrlos por turnos. Docker Desktop vive en
+  `%LOCALAPPDATA%\Programs\DockerDesktop` (no en Program Files). El tablero/`main` protegida: todo entra por PR.
+
