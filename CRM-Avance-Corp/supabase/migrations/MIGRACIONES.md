@@ -18397,7 +18397,9 @@ el heredero y por el que se fue, y el tercero es esta anotación del ciclo.
 
 ## 20261012184345 — Renovaciones sin aporte a conversión desde octubre
 
-**Estado: VALIDADA EN RAMA REMOTA; PENDIENTE MERGE.** Decisión de Miguel del 12/10/2026,
+**Estado: ACTIVA EN PRODUCCIÓN, 12/10/2026 21:39 UTC.** Versión productiva `20261012213521`.
+PR #256 fusionada en Main `16f493006dce0ee4a82d0b065d9660f251953469`.
+Decisión de Miguel del 12/10/2026,
 explícitamente a nivel del sistema. Octubre está abierto; agosto y septiembre sellados no cambian.
 
 **Cambio:** `crm.conversion_pesos` de octubre: renovación 0 (antes 0,15); referido 1
@@ -18417,7 +18419,12 @@ Versión remota `20261012202228`, mismo SHA-256 que el archivo. Matriz RLS globa
 E2E NOT RUN; no se publicó frontend. Las correcciones del review fueron reensayadas.
 
 **Reversa y evidencia:** `supabase/scripts/conversion-sin-renovaciones/LEEME.md`,
-`reversa.sql`, `prueba.sql`. No se aplica directo a producción: pendiente circuito de rama/gates/merge.
+`reversa.sql`, `prueba.sql`. Publicada por rama/gates/merge, sin aplicación directa.
+Nueva rama `conversion-activar-20261012`: 22 SQL y 319 RLS PASS. Producción: renovación
+0 en oficial/Coordinación/Metas; referido 1 y tope 15 %. Fotos, periodos, operaciones
+y funciones conservan sus huellas. Advisors productivos 366/235 sin altas ni bajas.
+Rama propia eliminada a las 21:40 UTC. Acta `PUBLICACION.md`
+y evidencia `activacion.json` en el kit. La versión del ensayo anterior no se publicó.
 
 ## 20261012203925 — Detalle de cierres de Coordinación
 
