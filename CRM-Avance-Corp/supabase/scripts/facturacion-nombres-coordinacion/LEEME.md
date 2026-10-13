@@ -39,22 +39,46 @@ La huella protege la instalación; no sincroniza cambios futuros automáticament
 - Bajas CRM y Portal con el mismo JWT: PASS. Se fabrican flags de fixture
   suspendiendo BEFORE guards solo durante la siembra; se restauran antes de leer.
   Esto mide el estado revocado, no el comando de offboarding.
-- Frontend: `npm run check` PASS, 413 archivos / 6.651 tests, duplicación 0,43 %.
-  E2E local Docker: 50 PASS (Facturación, realidad de Facturación, Coordinación y
-  Repartir). Tras integrar Main remoto, repetir los checks pertinentes.
+- Frontend integrado con la versión viva: `npm run check` PASS, 416 archivos /
+  6.671 tests. E2E local Docker: 54 PASS, cero fallos (Facturación, realidad,
+  Coordinación, Repartir, llamadas y Conversión). El frontend probado en
+  `97c2d2e0` es idéntico al publicado en `4e31dbbf`; después solo cambiaron pruebas.
 - Revisión independiente `scripts/claude-review`, auditor RLS: PASS. El primer
   intento fue rechazado por formato; la repetición entregó dictamen válido.
   Recomendaciones aceptadas: contrato v2 exigido, nombres nulos y regresión HTTP
   de paridad con v1. Aviso de mantenimiento documentado aquí sin modificar v1.
 - `gate:realidad`: NOT RUN en producción por falta de credenciales configuradas;
   no equivale a las pruebas sintéticas. La identidad de Rosa se verificó por lectura.
-- Rama Auth remota, advisors y publicación: pendientes; no afirmar instalación viva.
+- Auth remoto real: matriz general 3.932/3.932 PASS sobre el baseline previo;
+  bloque Facturación 392/392 PASS tras reflejar las 470 migraciones del padre
+  vigente. Incluye nombres exactos, claves mínimas, nueve roles, anonimato y los
+  12 oráculos de atribución. El oráculo exige supervisores de ramas independientes
+  y ambos GUC de identidad. El alcance reducido crea y retira sus dos ventas
+  sintéticas del mes actual; no depende de fixtures de otros recorridos.
+- Advisors finales en producción: seguridad 5→5 y rendimiento 6→6; cero avisos
+  nuevos. Catálogo de las cuatro funciones idéntico al banco validado.
+- **PUBLICADO Y VERIFICADO el 13/10/2026:** build `build-20261013T182849030Z`,
+  fuente limpia `4e31dbbf13efc8b462c7ceb217d18eb408c58203`. Portada, versión y
+  JS/CSS: 123 archivos HTTP 200 con bytes/huellas iguales al manifiesto.
+  Lectura de producción con identidad Rosa: 71 filas con nombres, estructura y
+  totales intactos, sin campos privados. Rama temporal y credenciales retiradas.
+  Detalles y límites: [`publicacion.json`](publicacion.json).
 
 Desde la raíz CRM, con la candidata instalada en el banco local:
 
 ```sh
 python3 supabase/scripts/facturacion-nombres-coordinacion/ensayar.py
 ```
+
+En rama/staging con las variables y la semilla de `LEEME-seed.md`:
+
+```sh
+node supabase/scripts/test-rls.mjs --facturacion-nombres
+```
+
+Este alcance no sustituye la matriz general. La corrida general conserva una
+advertencia de banco sin meses sellados para el check de metas históricas; la
+denegación de escrituras de Coordinación se comprueba en el ensayo SQL específico.
 
 ## Instalación y reversa
 
@@ -67,16 +91,25 @@ El primer `apply_migration` falló al registrar el historial por ausencia del í
 único de idempotencia en esa réplica. Se comprobó el estado, se revirtió la candidata,
 se repuso exclusivamente esa restricción del padre y se reaplicó: PASS.
 
+Una publicación paralela añadió el límite de referidos. El rebase volvió a
+fallar por el replay histórico. Solo en nuestra rama vacía se reflejaron el
+schema, los cuerpos actuales y la configuración técnica del padre, sin datos
+personales. Reaplicar la migración antigua después de «Realización» rechazó su
+guarda y revirtió la transacción; la réplica se hizo con los cuerpos vigentes,
+respetando la combinación ya publicada. Historial final: padre 470, rama 471,
+único extra `20261013171002 crm_facturacion_nombres_coordinacion`. La matriz
+focalizada y los advisors pasaron antes del merge; no se ejecutó DDL directo en
+producción para esta corrección.
+
 Confirmar que PostgREST ve v2 y permite una lectura autenticada de Gerencia antes
 de publicar frontend. Construir y publicar desde Main limpio y verificado conforme
 al flujo de release del proyecto. Para revertir: frontend compatible primero;
 después `reversa.sql`, que exige cuerpos y v1 intactos y elimina solo las dos
 funciones nuevas, sin CASCADE ni cambios de datos.
 
-El preflight del candidato Main `f81d726e` fue rechazado: no contiene el commit
-vivo `33a701156385` (build `build-20261013T153933959Z`). Conforme al procedimiento
-de rescate, la fuente de publicación se prepara desde ese commit vivo en una
-copia aparte, con únicamente el parche de nombres y sus pruebas/documentación.
-Conserva la realización anticipada publicada; no adelanta el cambio de referidos
-que Main aún documenta pendiente de backend. El rescate debe volver a Main el
-mismo día mediante un merge que preserve su historia, después del despliegue.
+El preflight de Main `f81d726e` rechazó la falta del commit vivo `33a701156385`.
+Se creó el rescate en una copia aparte desde ese commit. Durante la verificación
+se publicó `767e04447c94`, que se integró y volvió a probar: conserva Realización,
+referidos y las pantallas F4-e publicadas. El preflight de `4e31dbbf13ef` pasó
+contra `767e04447c94` antes del despliegue. El rescate vuelve a Main mediante
+el PR #264 con merge que preserva su historia; el acta no cambia la fuente del ZIP.

@@ -1,0 +1,167 @@
+{
+  "schema_version": 1,
+  "estado": "publicado y verificado",
+  "fecha_utc": "2026-10-13T18:37:34Z",
+  "autorizacion": "Mostrar nombres en Facturación, manteniendo solo lectura",
+  "fuente": {
+    "commit": "4e31dbbf13efc8b462c7ceb217d18eb408c58203",
+    "rama": "rescate/coordinacion-nombres-20261013",
+    "anterior_vivo": "767e04447c94471b1b78cc05e43ced41b1c58278",
+    "integracion": "PR #264 mediante merge que conserva la historia"
+  },
+  "frontend": {
+    "url": "https://crm.miavance.com",
+    "build_id": "build-20261013T182849030Z",
+    "zip": "crm-20261013T182850Z-4e31dbbf13ef.zip",
+    "sha256": "aeda98ff7557268176e0a2cb7f246555c9c55f6689579eb8b44921811b0154b6",
+    "fuente_limpia": true,
+    "smoke": {
+      "resultado": "PASS",
+      "portada_version_y_js_css": 123
+    }
+  },
+  "backend": {
+    "proyecto": "dctqcbznekcyxhjujuci",
+    "version_historial": "20261013171002",
+    "archivo_migracion": "20261013154615_crm_facturacion_nombres_coordinacion.sql",
+    "sha256": "6a48a1dfa8d27f93ebfe2164cc548def50fc93215bf7e6f5a4a86891f478d62c",
+    "funciones": [
+      {
+        "funcion": "crm.listar_operaciones_facturacion_fn",
+        "argumentos": "p_desde date, p_hasta date, p_dias date[], p_analistas uuid[], p_sin_analista boolean, p_equipo uuid, p_sin_equipo boolean, p_tipos text[], p_moneda text, p_pagina integer, p_tamano integer",
+        "propietario": "postgres",
+        "prosecdef": true,
+        "provolatile": "s",
+        "proconfig": [
+          "search_path=\"\""
+        ],
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "cuerpo_md5": "f15cefa9d435c76b784ff7754aa78073",
+        "definicion_md5": "3b84fe0660b2257398edfd835828f3eb"
+      },
+      {
+        "funcion": "crm.listar_operaciones_facturacion_v2_fn",
+        "argumentos": "p_desde date, p_hasta date, p_dias date[], p_analistas uuid[], p_sin_analista boolean, p_equipo uuid, p_sin_equipo boolean, p_tipos text[], p_moneda text, p_pagina integer, p_tamano integer",
+        "propietario": "postgres",
+        "prosecdef": true,
+        "provolatile": "s",
+        "proconfig": [
+          "search_path=\"\""
+        ],
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "cuerpo_md5": "65b5ac0014d67b23024fe3208fb05b50",
+        "definicion_md5": "0dcf1aae840cc116b24315256707993e"
+      },
+      {
+        "funcion": "private.facturacion_lista",
+        "argumentos": "p_desde date, p_hasta date, p_dias date[], p_analistas uuid[], p_sin_analista boolean, p_equipo uuid, p_sin_equipo boolean, p_tipos text[], p_moneda text, p_pagina integer, p_tamano integer",
+        "propietario": "postgres",
+        "prosecdef": false,
+        "provolatile": "s",
+        "proconfig": [
+          "search_path=\"\""
+        ],
+        "acl": "{postgres=X/postgres}",
+        "cuerpo_md5": "f9d42ef87cd1acf2cbed94caca1db996",
+        "definicion_md5": "f98f0bea3397cb7f054e4f25b6ae5cb8"
+      },
+      {
+        "funcion": "private.facturacion_lista_nombres",
+        "argumentos": "p_desde date, p_hasta date, p_dias date[], p_analistas uuid[], p_sin_analista boolean, p_equipo uuid, p_sin_equipo boolean, p_tipos text[], p_moneda text, p_pagina integer, p_tamano integer",
+        "propietario": "postgres",
+        "prosecdef": false,
+        "provolatile": "s",
+        "proconfig": [
+          "search_path=\"\""
+        ],
+        "acl": "{postgres=X/postgres}",
+        "cuerpo_md5": "1f611c3a29e3c5594d6baa8243c56700",
+        "definicion_md5": "8e330d026e11d2f77bf029791c4d3357"
+      }
+    ],
+    "delta_historial": {
+      "base": 470,
+      "rama": 471,
+      "faltan": [],
+      "extra": [
+        {
+          "name": "crm_facturacion_nombres_coordinacion",
+          "version": "20261013171002"
+        }
+      ]
+    },
+    "lectura_rosa_sin_datos_personales": {
+      "version": 2,
+      "solo_nombre": true,
+      "totales_intactos": true,
+      "filas_comprobadas": 71,
+      "nombres_presentes": 71,
+      "estructura_intacta": true
+    },
+    "http_anon": {
+      "resultado": "PASS",
+      "http": 401,
+      "codigo": "42501"
+    },
+    "advisors": {
+      "security": {
+        "base": 5,
+        "actual": 5,
+        "nuevos": []
+      },
+      "performance": {
+        "base": 6,
+        "actual": 6,
+        "nuevos": []
+      }
+    }
+  },
+  "verificacion": {
+    "frontend": {
+      "resultado": "PASS",
+      "archivos": 416,
+      "tests": 6671
+    },
+    "e2e_docker": {
+      "resultado": "PASS",
+      "passed": 54,
+      "failed": 0
+    },
+    "rls_general": {
+      "resultado": "PASS",
+      "aserciones": 3932,
+      "fallos": 0,
+      "baseline_padre": 469,
+      "limite": "Advertencia de banco sin meses cerrados para el check de metas históricas; permisos de nombres y bajas cubiertos por SQL específico."
+    },
+    "rls_facturacion_backend_vigente": {
+      "resultado": "PASS",
+      "aserciones": 392,
+      "fallos": 0,
+      "baseline_padre": 470
+    },
+    "sql_local": {
+      "resultado": "PASS",
+      "filas": 220,
+      "comparaciones_otros_roles": 15,
+      "meses": 3,
+      "oraculos_atribucion": 12,
+      "reversa": "PASS"
+    },
+    "review_independiente": "PASS",
+    "check_scripts": "PASS",
+    "seed_preflight": "PASS",
+    "rls_preflight": "PASS",
+    "edge_preflight": "PASS",
+    "gate_realidad_produccion": "NOT RUN: no credenciales de login de usuario configuradas; no se crearon ventas reales",
+    "equivalencia_fuente": "El frontend de 97c2d2e0 probado con npm run check y Docker es idéntico al de 4e31dbbf publicado; cambios posteriores solo pruebas/backend-documentación."
+  },
+  "limpieza": {
+    "rama_id": "28abed88-8468-4a18-931e-99f98561a790",
+    "rama_eliminada": true,
+    "credenciales_temporales_retiradas": true,
+    "otras_ramas_preservadas": true,
+    "coste_rama_estimado_usd": 0.03174,
+    "limite_autorizado_usd": 1
+  }
+}

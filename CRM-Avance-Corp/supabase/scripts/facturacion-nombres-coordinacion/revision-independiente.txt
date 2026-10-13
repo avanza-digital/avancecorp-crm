@@ -1,0 +1,65 @@
+VERDICT:
+PASS
+
+SUMMARY:
+No encontré errores de privacidad ni de autorización demostrables en lo adjuntado. Para otros roles, v2 delega en `private.facturacion_lista` con los mismos argumentos y solo cambia `version`. La rama de Coordinación fuerza `visible=false` mediante `coalesce(not v_reporte_coordinacion and …, false)`. Así nunca entran `estado`, `contrato_id`, `numero_contrato`, `cliente_id`, `cierre_externo_id`, `cooperativa` ni `lead_id`. Las ACL y los atributos se verifican dentro de la transacción. v1 queda intacta y su firma md5 se comprueba antes y después. Los hallazgos son P2/P3 de mantenibilidad, endurecimiento del contrato y rollout; ninguno es obligatorio. Para cerrar faltan dos gates que el propio PRIMARY declara pendientes: el gate integral del frontend y el banco Auth remoto.
+
+FINDINGS:
+
+[P2] Deriva silenciosa entre el núcleo v1 y la copia de Coordinación
+File: CRM-Avance-Corp/supabase/migrations/20261013154615_crm_facturacion_nombres_coordinacion.sql
+Lines: 42-133 (copia de `private.facturacion_lista`); generar.py 29-43
+Problem: Coordinación ya no ejecuta el núcleo publicado, sino una copia textual de su validación, filtros, paginación y totales.
+Evidence: La línea 40 delega a v1 solo cuando `not v_reporte_coordinacion`. El resto del cuerpo replica `facturacion_operaciones_visibles`, filtros, `row_number`, `offset/limit` y `totales`. La guarda md5 (líneas 7-18 y 178-189) protege v1 solo durante esta migración. Una migración futura que haga `CREATE OR REPLACE private.facturacion_lista` no sabrá que existe la copia.
+Impact: Una corrección futura de fórmula, filtro o validación en v1 no llegaría a Coordinación. Sus cifras podrían divergir de gerencia sin que falle nada; hoy esa igualdad solo se comprueba en `prueba.sql:47`, que es un ensayo manual.
+Recommendation: Añadir un `comment on function private.facturacion_lista` que avise de la copia en `facturacion_lista_nombres`. `pg_get_functiondef` no incluye comentarios, así que no altera la huella de v1. Además, conservar la comprobación de `prueba.sql` (totales de Coordinación v2 = gerencia v1 y `nueva - filas = antigua - filas`) como regresión obligatoria en cualquier migración que toque `facturacion_lista`.
+
+[P3] El parser acepta version 1 desde el endpoint v2
+File: CRM-Avance-Corp/app/src/data/crm-api.ts
+Lines: 4803 (`version: v.picklist([1, 2])`), 4816, 4831
+Problem: `listarOperacionesFacturacion` siempre llama a `listar_operaciones_facturacion_v2_fn`, que siempre añade `{"version":2}` (migración:143). Aun así, el parser admite 1.
+Evidence: En `crm-api-operaciones-facturacion-msw.test.ts` se sirven cuerpos `respuesta()` con `version: 1` en la URL v2 y pasan. El fixture `respuesta()` (operaciones-facturacion.ts) sigue devolviendo `version: 1`.
+Impact: Un desvío accidental a v1, o un proxy o mock incorrecto, pasaría inadvertido. Los tests no fijan el contrato real de v2.
+Recommendation: Exigir `version === 2` en la función que consume v2, o parametrizar el parser con la versión esperada. Hacer que el fixture por defecto devuelva 2 y conservar un caso v1 explícito solo si algún consumidor lo necesita. Según la evidencia de CodeGraph, ninguno lo necesita.
+
+[P3] Orden de despliegue y reversa sin guarda técnica
+File: migración (cabecera, líneas 1-3); reversa.sql (generar.py:119-120)
+Problem: El frontend nuevo depende de una RPC que solo existe tras la migración. La reversa la elimina sin comprobar qué frontend está desplegado.
+Evidence: `crm-api.ts:4831` llama a `listar_operaciones_facturacion_v2_fn` sin fallback. La reversa ejecuta `drop function {publica}`.
+Impact: Si el frontend se despliega antes de la migración, o se aplica la reversa con ese frontend vivo, el desglose de Facturación falla para todos los roles con `CONTRATO_FACTURACION` o PGRST202. Falla cerrado, sin fuga de datos.
+Recommendation: Documentar en el runbook este orden: migrar, confirmar que PostgREST ve la RPC (recarga del schema cache y llamada autenticada con un rol no coordinador), y solo después desplegar el frontend. Para revertir, primero el frontend y después `reversa.sql`.
+
+[P3] La huella con `pg_get_functiondef` depende de la versión del servidor
+File: migración, líneas 14 y 185
+Problem: La huella de v1 se calcula sobre la salida formateada de `pg_get_functiondef`, cuyo formato puede variar entre versiones mayores de Postgres. La de v2 usa `prosrc`, que es estable.
+Evidence: El ensayo local usó Postgres 17.6; la huella procede de `vivo/catalogo.json`.
+Impact: Si el catálogo vivo no salió del mismo servidor de destino, la migración aborta. Falla cerrado; el riesgo es solo de bloqueo del despliegue.
+Recommendation: Confirmar que `catalogo.json` se extrajo del proyecto de destino. Si no, recalcular contra ese proyecto.
+
+TEST GAPS:
+- Coordinación con `cliente_nombre: null`, por ejemplo un contrato sin perfil de cliente o una cooperativa sin `nombre_completo`. Falta comprobar que el parser lo acepta, la UI muestra «Cliente sin nombre» y la fila no se marca como ajena. El SQL lo cubre solo si el sintético lo genera; no consta.
+- Respuesta v2 de un rol no coordinador, con filas `visible:true` y enmascaradas mezcladas y `version: 2`, a través del parser. Hoy solo se prueba con `version: 1`.
+- `prueba.sql:73-75` solo acepta `insufficient_privilege`. Si `publicar_metas_vendedores` niega con otro errcode, el ensayo falla (cerrado), pero conviene confirmar el errcode real.
+- El caso de un usuario que sea a la vez coordinador y lector global o gerencia no está cubierto. En la rama de Coordinación perdería `visible=true`, porque `v_reporte_coordinacion` tiene prioridad (líneas 93 y 106). Es una hipótesis: depende de que `es_coordinador_reportes()` sea excluyente con `rol_crm`, lo que no veo en la evidencia.
+
+ARCHITECTURE RISKS:
+- La copia del núcleo (P2) es la deuda principal. Está justificada porque la salida enmascarada de v1 no expone `operacion_id` para unir nombres a posteriori, pero necesita una alarma explícita.
+
+SECURITY RISKS:
+- Ninguno demostrable en lo adjuntado.
+- El helper es INVOKER y no tiene grant para `authenticated`. Solo lo ejecuta el wrapper SECURITY DEFINER, con `search_path=''` y STABLE; su dueño `postgres` queda verificado en el bloque `$acl$`.
+- La puerta es `private.es_coordinador_reportes()`, evaluada en cada petición con `auth.uid()`, y la baja en CRM y en Portal la corta (ensayar.py). Las claves de las filas de Coordinación se validan con una lista blanca exacta y una búsqueda de IDs privados por valor.
+- `analista_id` y `supervisor_id` son de personal y ya estaban en v1.
+
+REGRESSION RISKS:
+- Pestañas abiertas con v1: compatibles, porque v1 no cambia y su parser estricto sigue rechazando `nombre_visible`.
+- UI: el criterio `lista-ajena`/EyeOff/explicación ahora sigue `nombreVisible`, pero `Referencia` y cualquier acción siguen dependiendo de `f.visible`. Los tests verifican que no aparecen links ni botones de ficha en 1440 y 390 px y en E2E.
+
+RECOMMENDED NEXT ACTIONS:
+1. Completar el gate integral del frontend y el ensayo en el banco Auth remoto, y reportar el resultado real.
+2. Añadir el comentario de aviso en `private.facturacion_lista` y fijar la regresión de paridad de totales con gerencia (P2).
+3. Exigir `version === 2` en el consumidor v2 y actualizar el fixture por defecto (P3).
+4. Documentar el orden de rollout y reversa, y confirmar el origen de las huellas md5.
+
+CONFIDENCE:
+MEDIUM. No tengo el cuerpo de `private.facturacion_lista`, `private.facturacion_operaciones_visibles` ni `private.es_coordinador_reportes`. Mi conclusión se apoya en la copia generada, en los asserts del generador y en los ensayos reportados.
