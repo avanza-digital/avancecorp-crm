@@ -405,17 +405,17 @@ describe('ConversionCoordinacion — tope de referidos (octubre 2026)', () => {
     render(<ConversionCoordinacion />)
 
     const resumen = await screen.findByRole('group', { name: 'Resumen de conversión del mes' })
-    expect(textoHablado(within(resumen).getByText('Referidos').nextElementSibling as HTMLElement)).toBe('5 referidos, aportan 3')
+    expect(textoHablado(within(resumen).getByText('Referidos').nextElementSibling as HTMLElement)).toBe('5 referidos, aportan 0.75')
     const formula = screen.getByTestId('formula-numerador')
-    expect(formula).toHaveTextContent('3 de referidos (cerraron 5; cuentan hasta el 15 % de los cierres de leads asignados de cada analista)')
+    expect(formula).toHaveTextContent('0.75 de referidos (cerraron 5; límite del 15 % de sus cierres referidos válidos por analista y mes)')
     expect(formula).not.toHaveTextContent('5 × 1')
-    expect(screen.getByText(/Los referidos cuentan hasta el 15 % de los cierres de leads asignados de cada analista: los que sobran no suman/)).toBeInTheDocument()
+    expect(screen.getByText(/El aporte total de referidos tiene un límite del 15 % de sus cierres referidos válidos por analista y mes; el exceso no suma/)).toBeInTheDocument()
   })
 
   it('setiembre, sin tope: el texto de siempre, sin la explicación del tope', async () => {
     render(<ConversionCoordinacion />)
     await screen.findByRole('group', { name: 'Resumen de conversión del mes' })
     expect(screen.getByTestId('formula-numerador')).toHaveTextContent('0.15 de referidos (1 × 0.15)')
-    expect(screen.queryByText(/cuentan hasta el/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/límite del/)).not.toBeInTheDocument()
   })
 })

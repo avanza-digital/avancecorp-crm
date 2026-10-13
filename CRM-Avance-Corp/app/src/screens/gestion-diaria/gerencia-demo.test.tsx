@@ -3,7 +3,7 @@
 // REALES en su rama demo: se prueba el camino completo sin red.
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { Yo } from '@/lib/tipos'
 
@@ -67,5 +67,33 @@ describe('Gerencia en modo demo (G0)', () => {
     montar()
     expect(screen.getByRole('alert')).toHaveTextContent('requiere una sesión de gerencia')
     expect(screen.queryByRole('region', { name: /^Toda la operación/ })).not.toBeInTheDocument()
+  })
+})
+
+// F4-e: la tercera pestaña con la operación de ejemplo pasa por el MISMO contrato que la respuesta real, sin red.
+describe('Llamadas del celular en modo demo (F4-e)', () => {
+  it('la pestaña lista los equipos con sus cifras del celular y abre la ficha, sin pedir nada al servidor', () => {
+    montar()
+    fireEvent.click(screen.getByRole('tab', { name: 'Llamadas del celular' }))
+    const tabla = screen.getByRole('table', { name: 'Llamadas del celular por equipo' })
+    expect(within(tabla).getAllByRole('button', { name: /^Seleccionar / }).map((b) => b.getAttribute('aria-label')))
+      .toEqual(['Seleccionar Equipo de SUPERVISOR UNO', 'Seleccionar Equipo de SUPERVISOR DOS'])
+    fireEvent.click(within(tabla).getByRole('button', { name: 'Seleccionar Equipo de SUPERVISOR UNO' }))
+    const ficha = screen.getByRole('region', { name: 'Detalle del Equipo de SUPERVISOR UNO' })
+    expect(within(ficha).getByRole('list', { name: 'Analistas que necesitan atención' }).children).toHaveLength(2)
+    expect(d.rpc).not.toHaveBeenCalled()
+  })
+  it('con otro día elegido la pestaña dice que es solo de hoy y «Ver hoy» vuelve', async () => {
+    montar()
+    const fecha = screen.getByLabelText('Día de la operación')
+    fireEvent.change(fecha, { target: { value: '2026-09-20' } })
+    fireEvent.click(screen.getByRole('tab', { name: 'Llamadas del celular' }))
+    expect(screen.getByText(/Las llamadas del celular se muestran solo para hoy./)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Ver hoy' }))
+    expect(screen.getByRole('table', { name: 'Llamadas del celular por equipo' })).toBeInTheDocument()
+    // a11y: el botón desaparece con el aviso; el foco va al título de la pantalla.
+    await act(async () => { await new Promise((r) => requestAnimationFrame(() => r(null))) })
+    expect(screen.getByRole('heading', { name: 'Toda la operación hoy' })).toHaveFocus()
+    expect(d.rpc).not.toHaveBeenCalled()
   })
 })

@@ -11,6 +11,7 @@ import { CrmApiError } from '@/data/crm-api'
 const dobles = vi.hoisted(() => ({ consulta: {} as DiaEquipoHook, consultar: vi.fn(), recargar: vi.fn(), registro: vi.fn(), yo: { id: 's1', rol: 'supervisor', demo: false }, avisos: null as AvisosGestionDiaria | null, ahora: Date.parse('2026-09-21T15:00:00Z') }))
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: dobles.yo }) }))
 vi.mock('@/lib/ahora', () => ({ useAhora: () => dobles.ahora }))
+vi.mock('@/data/llamadas-celular-operacion-queries', () => ({ useOperacionCelularHoy: () => ({ datos: null, cargando: false, enVuelo: false, error: null, recargar: async () => {} }) }))
 vi.mock('@/data/gestion-diaria-equipo-queries', () => ({ useDiaEquipo: (dia: string) => { dobles.consultar(dia); return dobles.consulta } }))
 vi.mock('@/lib/gestion-diaria-avisos-context', () => ({ useGestionDiariaAvisos: () => dobles.avisos }))
 vi.mock('@/components/gestion-diaria/ultimas-gestiones-supervisor', () => ({ UltimasGestionesSupervisor: () => <p>Últimas gestiones</p> }))

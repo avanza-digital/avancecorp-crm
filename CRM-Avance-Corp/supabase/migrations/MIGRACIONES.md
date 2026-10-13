@@ -14,10 +14,55 @@ orden inverso. Al modificar `private.facturacion_lista`, comprobar también la
 copia de Coordinación y su paridad SQL/HTTP.
 [Guía, evidencia y reversa](../scripts/facturacion-nombres-coordinacion/LEEME.md).
 
+## 20261013145935 — F4-e: rendimiento de la operación de hoy
+
+**APLICADA Y REGISTRADA EN PRODUCCIÓN (13/10/2026, verificada 15:39 UTC / 10:39 Lima).**
+Continuación del PR #255 y del paso 5 del contrato, autorizada por Miguel.
+Materializa la contactabilidad por lead en el núcleo de la decimotercera;
+conserva firma, propietario, ACL, atributos y resultados. No añade índices.
+Huella de cuerpo: `0047b3a6edfe8dead60526e5575b72d9`; puerta inalterada:
+`952abdd141001309f08ab56e8a828698`. Archivo LF: `31eb4cbde86a020e34b2fba6df1d9057`.
+Banco reducido **482/482 PASS**, incluido O9 con lead exclusivamente antiguo,
+mutante sin esa rama rechazado, reversa exacta, registro/reversa/reaplicación,
+ledger adulterado rechazado y rollback de la reversa comprobado.
+Gate Supabase `test:rls -- --llamadas` con `CRM_RLS_EXIGE_LLAMADAS_F4E=1`:
+**347/347 PASS**, matriz global ajena al alcance NOT RUN. EXPLAIN de 20.000 eventos,
+18.000 enlaces y 100 días: original 2.882–2.976 ms; optimizada 15–22 ms.
+Registro: `registrar-operacion-hoy-rendimiento.sql`, después de registrar la
+original. Reversa: `reversa-operacion-hoy-rendimiento.sql`; restaura el núcleo
+original y retira solo su entrada exacta del ledger en una transacción.
+Revisión Claude: CHANGES_REQUESTED; los dos P2 corregidos y verificados por
+Codex PRIMARY, sin una segunda consulta. Evidencia, límites y entrega a Jhosep:
+[`acta F4-e`](../../docs/encargos/2026-10-13-f4e-aplicacion-y-propuesta21.md).
+
+## 20261012220959 — Límite exacto sobre cierres referidos
+
+**PREPARADA Y PROBADA EN LOCAL; NO APLICADA EN PRODUCCIÓN.** El límite desde
+el octubre abierto pasa de `ceil(15 % de cierres automáticos)` al **15 % exacto
+del total de cierres referidos válidos por analista/mes**. Conserva orden de
+admisión y permite un último aporte parcial. Congela el descuento marginal del límite al sellar:
+Miguel confirmó que pasar de 4 a 3 referidos reduce 0,60 a 0,45 (descuento 0,15),
+independientemente de la posición de admisión. Renovaciones
+siguen en cero; divisor, cartera, permisos e histórico previo conservados.
+Nueva columna privada `ajuste_anulacion_en_sello` (descuento marginal congelado,
+distinto del aporte individual mostrado), tres funciones con guardas y reversa; textos del CRM y
+tipos alineados. Ensayo local: 36 + 7 aserciones SQL, ocho escenarios de
+recuperación y tres E2E Docker PASS. Revisión independiente y gate frontend
+(6.640 tests, lint, typecheck, build, bundle y duplicación) PASS. Rama remota,
+Auth/HTTP, advisors y activación pendientes. [Guía y evidencia](../scripts/conversion-limite-referidos/LEEME.md).
+
 ## 20261012192500 — Llamadas desde el celular · DECIMOTERCERA (F4-e): la operación de hoy para supervisión y gerencia (`crm.llamadas_celular_operacion_hoy_fn`)
 
-**PREPARADA; VERIFICADA EN EL BANCO REDUCIDO LOCAL, SIN APLICAR EN PRODUCCIÓN (12/10/2026).** Tarea F6.3.1 del plan de
-llamadas. Contrato aprobado por Miguel: [`F4E-CONTRATO.md`](../../docs/plans/llamadas-celular/F4E-CONTRATO.md) (D1–D5 el
+**APLICADA Y REGISTRADA EN PRODUCCIÓN (13/10/2026, verificada 15:39 UTC / 10:39 Lima).** Tarea F6.3.1 del plan de
+llamadas. **Actualización 13/10:** aplicación → registrador original con veredicto true →
+optimización `20261013145935` → registrador con veredicto true → `gen:types`. Catálogo/ACL
+y accesos por rol PASS en producción. Retención de política 30 días, sin porcentajes.
+Gate dirigido 347/347, banco 482/482 y diferencial 7/7 PASS; advisors antes/después
+consultados (único aviso nuevo: puerta DEFINER para authenticated, deliberado y con
+validación interna de rol). Evidencia en el acta de aplicación del bloque anterior.
+Los NOT RUN del párrafo histórico de 12/10 se conservan como historial.
+
+Contrato aprobado por Miguel: [`F4E-CONTRATO.md`](../../docs/plans/llamadas-celular/F4E-CONTRATO.md) (D1–D5 el
 10/10 en el #249; sección 9 el 12/10 en el #251, 6128409126). Plan corto con OK de Jhosep el 12/10.
 **Depende de:** las doce anteriores (todas en producción desde el 07/10); se conservan sin editar. Preflight exige la
 undécima, la duodécima, el roster del pulso (`private.gestion_diaria_pulso_roster`), `vendedor_ids_visibles`,
@@ -71,7 +116,10 @@ pida → aplicar → `registrar-operacion-hoy.sql` → `npm run gen:types`. La p
 
 ## 20261012165115 — Coordinación: Facturación y Ranking en lectura
 
-**PREPARADA, SIN APLICAR EN PRODUCCIÓN.** Autorizada por Miguel el 12/10/2026.
+**PUBLICADA Y VERIFICADA EN PRODUCCIÓN 12/10/2026.** Autorizada por Miguel.
+Registro Supabase: `20261012223850 crm_coordinacion_reportes_lectura`, instalado
+en el flujo paralelo de Ver cierres mediante su rama autorizada. Trece funciones
+con cuerpos, propietarios y ACL idénticos a nuestra rama ensayada; no se reaplicó.
 Coordinación activa consulta cifras de toda la empresa y meses cerrados. El detalle
 de Facturación siempre oculta nombres e identificadores de clientes, leads y contratos.
 No amplía `es_lector_global`, el alcance operativo ni las escrituras; Repartir conserva su permiso.
@@ -79,13 +127,18 @@ La proyección `equipo_reportes_fn` entrega exclusivamente nombres y jerarquía 
 Las diez funciones existentes conservan firmas, cálculos, propietario, atributos y ACL.
 La instalación exige las huellas del catálogo vivo capturado; rechaza cualquier cambio concurrente.
 
-App: 6.624 pruebas, tipos, build y bundle PASS; E2E dirigidos existentes 38 PASS y
-los tres nuevos de Coordinación PASS. El gate integral falla por copias preexistentes
-` 2.*`; duplicación sin esas copias 0,43 % PASS. Matriz SQL en banco exclusivo PASS:
+App limpia: `npm run check` PASS, 413 archivos / 6.640 tests y duplicación 0,43 %.
+E2E Docker integrado: 36 PASS. Suite sobre bundle de desarrollo: 405 PASS / 2 FAIL /
+26 SKIPPED; esos dos casos, que requieren fuentes de Vite, repetidos con su servidor:
+2 PASS. No se declara PASS de la primera corrida general fallida. Matriz SQL PASS:
 120 comparaciones de otros roles, 24 lecturas globales, 3 páginas sin PII, bajas y ACL.
 Reversa/reaplicación PASS. Dos revisiones independientes; hallazgos evaluados y
-corregidos por el PRIMARY (ver kit). Matriz HTTP general y advisors: NOT RUN,
-pendientes del ciclo de release en rama Supabase. Kit, preflight y reversa:
+corregidos por el PRIMARY (ver kit). Matriz HTTP general PASS: 3.900 aserciones,
+cero fallos. Rama temporal eliminada; coste estimado US$0,0332. Advisors sin
+nueva ampliación de permisos de tablas, aviso esperado de la RPC DEFINER protegida.
+Publicado desde Main limpio `10e3411d`: `crm-20261012T224323Z-10e3411deb22.zip`,
+SHA-256 `265fbb65b89b0ed0527b8a9e36cf9f9a9a494dc65f83f4a915915fc04801b10e`.
+Portada, versión y 121 JS/CSS con bytes y huellas exactos: PASS. Kit y reversa:
 [`coordinacion-reportes/LEEME.md`](../scripts/coordinacion-reportes/LEEME.md).
 
 ## 20261010154908 — Contrato PDF v10 y anexo v2: correcciones del modelo

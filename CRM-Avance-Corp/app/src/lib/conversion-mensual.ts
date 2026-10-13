@@ -257,13 +257,13 @@ export function hayTopeReferidos(
  * Cómo se nombran los referidos en una fórmula. Sin tope (agosto, septiembre)
  * el texto de siempre, «referidos ×0.15». Con tope (octubre 2026 en adelante)
  * el peso 1 ya no dice cuánto aportan: los referidos de un analista cuentan
- * como máximo ese porcentaje de sus cierres de leads asignados.
+ * como máximo ese porcentaje del total de sus propios cierres válidos.
  */
 export function textoReferidosFormula(
   ponderacion: { referido: number, tope_referidos_pct?: number | null | undefined },
 ): string {
   return hayTopeReferidos(ponderacion)
-    ? `referidos (cuentan hasta el ${numero(ponderacion.tope_referidos_pct, 2)} % de los cierres de leads asignados)`
+    ? `referidos (aporte limitado al ${numero(ponderacion.tope_referidos_pct, 2)} % de sus cierres referidos válidos)`
     : `referidos ×${numero(ponderacion.referido, 2)}`
 }
 
@@ -272,7 +272,9 @@ export function textoReferidosFormula(
  *
  * Sin tope (agosto, septiembre) el aporte es EXACTAMENTE
  * `100 × peso × cierres_referidos ÷ divisor`. Con tope el servidor recorta los
- * referidos sobrantes (valen 0), así que el aporte real puede ser MENOR: solo
+ * referidos sobrantes (el último admitido puede aportar una fracción), así que
+ * el aporte real puede ser MENOR. En un rango parcial el límite se determina
+ * sobre el mes completo, no sobre los cierres del rango; por eso solo
  * se exige `0 ≤ aporte ≤ 100 × peso × cierres ÷ divisor`. Con divisor 0 no hay
  * aporte (null) en ambos casos.
  */
@@ -484,12 +486,12 @@ export function lineaReferidos(
   return `${base} · aporta ${aporta} %`
 }
 
-/** «Hasta el 15 % de los cierres de leads asignados» (null si el mes no tiene tope). */
+/** Límite sobre los propios cierres referidos (null si el mes no tiene tope). */
 export function textoTopeReferidos(
   ponderacion: { tope_referidos_pct?: number | null | undefined },
 ): string | null {
   return hayTopeReferidos(ponderacion)
-    ? `Los referidos cuentan hasta el ${numero(ponderacion.tope_referidos_pct, 2)} % de los cierres de leads asignados; los que sobran no suman.`
+    ? `El aporte total de referidos tiene un límite del ${numero(ponderacion.tope_referidos_pct, 2)} % de sus cierres referidos válidos por analista y mes; el exceso no suma.`
     : null
 }
 

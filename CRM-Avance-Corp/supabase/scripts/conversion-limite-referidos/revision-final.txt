@@ -1,0 +1,69 @@
+VERDICT:
+PASS
+
+SUMMARY:
+La evidencia nueva cierra los hallazgos previos y no encuentro cambios obligatorios en la corrección del candidato.
+
+- **P1, resuelto con la regla confirmada por Miguel.** El sello congela `min(ponderacion_referido, tope_pct/100)` para cada referido válido. Esa es la contribución marginal exacta del límite agregado:
+  - si `peso ≥ tope/100`, el total admitido es `N·tope/100`;
+  - si no, es `N·peso`.
+  
+  La deuda queda independiente de la posición y del orden, y es aditiva: cuatro anulaciones suman 0,60, igual a la contribución sellada. Además, el registrador de octubre en adelante solo lee la foto (`ajuste_anulacion_en_sello`) y no la configuración viva.
+- **P2, resuelto.**
+  - El CHECK `periodo_comercial = mes(fecha_comercial)` y la rama de `conversion_cierres` posterior a septiembre (`fecha_numerador = fecha_comercial` en Lima) hacen coincidir la ventana del núcleo con el filtro del `UPDATE`.
+  - Se recuperaron los predicados explícitos (`estado`, `cierre_externo_anulado`, `conversion_exclusion_fuente`).
+  - El cambio de `incluida_en_sello` para oficina/otros (de true a false) no altera ningún resultado: el único lector que decide deuda las habría devuelto `NULL` igualmente con numerador 0.
+- **Concurrencia, resuelta.** `cerrar_periodo` toma el lock global bigint y después el `(int,int)` del periodo. La migración serializa contra el global, y el trigger y el registrador comparten el del periodo.
+- **Aritmética del frontend, verificada.** Cuadran: 1,15/56 = 2,05; 19,75/115 = 17,17; 28,75/205 = 14,02; 15,75/90 = 17,5; 0,75/90 = 0,83; 0,75/298 = 0,25; 8·0,15/11 = 10,9.
+
+FINDINGS:
+
+[P3] Persona gramatical mixta en `vendedor.tsx`
+File: `app/src/screens/hoy/vendedor.tsx`
+Lines: ~1323-1324
+Problem: La rama con tope dice «Solo recibiste referidos…». La rama sin tope sigue diciendo «Solo recibió referidos este mes — al cerrarse suman al 15 %».
+Impact: Inconsistencia cosmética entre meses, sin efecto en las cifras.
+Recommendation: Unificar en «recibiste» si se quiere coherencia. Es opcional y no bloquea.
+
+[P3] El postflight solo verifica parte de los privilegios de escritura
+File: migración, líneas 406-410
+Problem: Para `authenticated`/`anon` se comprueba `SELECT`, pero no `INSERT` ni `UPDATE` sobre `ajuste_anulacion_en_sello`. Para `service_role` solo se comprueba `UPDATE`.
+Evidence: Si existiera un grant de `UPDATE` a nivel de tabla, el nuevo descuento congelado sería escribible por API, limitado solo por RLS. Es una hipótesis: no veo los grants actuales de la tabla y RLS está activo, así que la confianza es baja.
+Recommendation: Añadir `has_column_privilege(...,'INSERT'/'UPDATE')` para `authenticated` y `anon`, y `INSERT` para `service_role`. Cuesta una línea y asegura la columna que ahora fija dinero.
+
+[P3] El aislamiento de `prueba.sql` debilita algunas aserciones
+File: `supabase/scripts/conversion-limite-referidos/prueba.sql`
+Lines: 3, 13-17, 128-153
+Problem: Las funciones de elegibilidad son stubs, y el registrador corre con `session_replication_role=replica`, es decir, sin triggers ni FK sobre `ajustes_mes_cerrado`. El test 25 es trivialmente independiente del orden porque cada descuento es constante (0,15).
+Impact: Queda cubierto según el PRIMARY por las 7 aserciones RPC reales, que no están transcritas aquí. No lo puedo verificar, pero no cambia el veredicto.
+Recommendation: Ninguna obligatoria. Si se añade algo, que sea un caso con `peso < tope/100` (por ejemplo, peso 0,10 y tope 15) que fije el ajuste en `peso`, para cubrir la otra rama del `least`.
+
+TEST GAPS:
+- La rama `peso < tope/100` del `least` en el trigger no tiene prueba.
+- Las 7 aserciones RPC reales y las 8 de recuperación no están adjuntas. Las acepto como reportadas.
+- Están pendientes, como reconoce el PRIMARY y fuera del dictamen de corrección:
+  - matriz Auth/HTTP;
+  - `test-rls`;
+  - advisors;
+  - branch remoto;
+  - rerun final de E2E y fullcheck tras los cambios de copy.
+
+ARCHITECTURE RISKS:
+- Hay que documentar en `MIGRACIONES.md` la nueva columna y su semántica: descuento marginal congelado, distinto del aporte mostrado. No tengo el archivo en la evidencia.
+- Que la anulación falle cerrada (excepción `P0409`) cuando falta la foto de octubre en adelante es la decisión correcta. Hoy no debería ocurrir: el sello hace `coalesce` a 0 y el preflight impide que octubre ya esté sellado.
+
+SECURITY RISKS:
+- No hay regresiones: `SECURITY DEFINER`, `search_path=''`, ACL por MD5 en el preflight y columna sin `SELECT` para `anon`/`authenticated`.
+- Solo queda el P3 de privilegios de escritura.
+
+REGRESSION RISKS:
+- Agosto y septiembre conservan su rama intacta (líneas 198-214 y 279-290).
+- `incluida_en_sello` cambia de significado para octubre en adelante. Según la búsqueda en el catálogo, solo tiene dos lectores y ambos están contemplados.
+
+RECOMMENDED NEXT ACTIONS:
+1. Opcional: endurecer el postflight con `INSERT`/`UPDATE` para `anon` y `authenticated`, y unificar la persona en `vendedor.tsx`.
+2. Documentar `ajuste_anulacion_en_sello` en `MIGRACIONES.md`.
+3. Completar los gates de release pendientes (rerun de E2E y fullcheck, Auth/HTTP, `test-rls`, advisors, branch remoto) antes de activar en remoto. Esto es independiente de este dictamen.
+
+CONFIDENCE:
+HIGH en la matemática, el modelo de deuda y la concurrencia. MEDIUM en grants y ACL de escritura, porque no veo los grants de tabla.

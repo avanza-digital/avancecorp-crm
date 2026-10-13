@@ -15,7 +15,9 @@ import { equipoConAtencion, filasOperacion, filtrarOrdenarOperacion, filtrosDePr
 import { hashDe, leerHash } from '@/lib/router'
 import { CrmApiError } from '@/data/crm-api'
 import { usePulsoGerencia, useHabitosGerencia, useDetallePulso } from '@/data/gestion-diaria-pulso-queries'
+import { useOperacionCelularHoy } from '@/data/llamadas-celular-operacion-queries'
 import { ErrorConsultaGerencia } from '@/components/gestion-diaria/error-consulta-gerencia'
+import { LlamadasCelularGerencia } from '@/components/gestion-diaria/llamadas-celular-gerencia'
 import { ReporteHabitos } from '@/components/gestion-diaria/reporte-habitos'
 import { TablaEquiposGerencia, type AccionEquipo } from '@/components/gestion-diaria/tabla-equipos-gerencia'
 import { PanelOperacionGerencia, type VistaOperacion } from '@/components/gestion-diaria/panel-operacion-gerencia'
@@ -41,7 +43,9 @@ const METRICAS: { campo: keyof MetricasPulso; titulo: string; porcentaje?: boole
   { campo: 'llamadas_por_lead', titulo: 'Llamadas por lead' }, { campo: 'citas_agendadas', titulo: 'Citas agendadas' },
 ]
 // «Pulso diario» era jerga (Miguel, 27/09): la pestaña dice lo que muestra.
-const PESTANAS = [{ valor: 'pulso', etiqueta: 'Actividad del día' }, { valor: 'habitos', etiqueta: 'Hábitos del equipo' }] as const
+// F4-e: la tercera pestaña es solo de hoy (las llamadas que el celular detectó y qué pasó con ellas).
+const PESTANAS = [{ valor: 'pulso', etiqueta: 'Actividad del día' }, { valor: 'habitos', etiqueta: 'Hábitos del equipo' }, { valor: 'celular', etiqueta: 'Llamadas del celular' }] as const
+type Pestana = (typeof PESTANAS)[number]['valor']
 const SIN_PERMISO = new CrmApiError('Permiso de gerencia revocado', '42501')
 const suscribirRuta = (cambio: () => void) => { window.addEventListener('hashchange', cambio); return () => window.removeEventListener('hashchange', cambio) }
 const fotoRuta = () => window.location.hash
@@ -94,7 +98,7 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
   const panelId = useId()
   const id = useId()
   const [avisoFecha, setAvisoFecha] = useState('')
-  const [pestana, setPestana] = useState<'pulso' | 'habitos'>('pulso')
+  const [pestana, setPestana] = useState<Pestana>('pulso')
   const [dias, setDias] = useState<7 | 14 | 30>(14)
   const [actualizacion, setActualizacion] = useState(0)
   const [revocada, setRevocada] = useState(false)
@@ -117,13 +121,15 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
   // El detalle sostiene la atención y las barras de la operación: se carga al entrar
   // y se actualiza con el pulso, haya o no un equipo abierto (Codex, plan v2).
   const detalle = useDetallePulso(dia, activa === 'pulso' && pulso.datos !== null)
+  // Las llamadas del celular solo existen para hoy: con otro día elegido la pestaña lo dice y no consulta.
+  const celular = useOperacionCelularHoy(activa === 'celular' && esHoy)
   // Una denegación en cualquier consulta retira toda la vista, aunque se cambie
   // de pestaña o se deshabilite después esa consulta. Revalidar sesión inicia
   // consultas nuevas, sin reutilizar la memoria paginada anterior.
-  const sinPermiso = revocada || [pulso.error, detalle.error, habitos.error].some((e) => e instanceof CrmApiError && e.code === '42501')
+  const sinPermiso = revocada || [pulso.error, detalle.error, habitos.error, celular.error].some((e) => e instanceof CrmApiError && e.code === '42501')
   if (sinPermiso && !revocada) setRevocada(true)
-  const error = sinPermiso ? SIN_PERMISO : activa === 'habitos' ? habitos.error : pulso.error
-  const consulta = activa === 'habitos' ? habitos : pulso
+  const error = sinPermiso ? SIN_PERMISO : activa === 'habitos' ? habitos.error : activa === 'celular' ? celular.error : pulso.error
+  const consulta = activa === 'habitos' ? habitos : activa === 'celular' ? celular : pulso
   const datos = pulso.datos
   const filasDetalle = useMemo(() => detalle.datos ? presentarEquipo(detalle.datos) : null, [detalle.datos])
   const filasOp = useMemo(() => datos ? filasOperacion(datos, filasDetalle) : [], [datos, filasDetalle])
@@ -255,6 +261,10 @@ function VistaGerencia({ actor, hoy, accesoSeguimiento }: { actor: string; hoy: 
         onChange={(e) => { focoPeriodo.current = document.activeElement === e.currentTarget; setDias(Number(e.target.value) as 7 | 14 | 30) }}>
         {[7, 14, 30].map((n) => <option key={n} value={n}>{n} días calendario</option>)}</Select></div>
     </div>} />
+  else if (activa === 'celular') contenido = !esHoy
+    ? <p role="status" className="rounded-2xl border border-border bg-card p-6 text-[13.5px]">Las llamadas del celular se muestran solo para hoy.{' '}
+      <button type="button" className={cn('cursor-pointer rounded-md font-semibold text-[var(--accent-press)] underline-offset-2 hover:underline', FOCO)} onClick={() => { cambiarDia(hoy); requestAnimationFrame(() => titulo.current?.focus({ preventScroll: true })) }}>Ver hoy</button></p>
+    : celular.datos && <LlamadasCelularGerencia datos={celular.datos} estrecho={estrecho} hora={horaLimaDe(celular.datos.generado_en)} />
   else if (!datos) contenido = null
   else if (ruta && grupo) {
     const activos = new Set(grupo.personas.flatMap((p) => p.activo && p.analista_id !== null ? [p.analista_id] : []))

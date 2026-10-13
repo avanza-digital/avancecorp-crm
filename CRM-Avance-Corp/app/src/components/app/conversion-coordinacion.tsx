@@ -201,7 +201,7 @@ function formulaDelNumerador(datos: DatosConversion): string | null {
   // el servidor dice que cuenta y se explica el tope. Sin tope, el texto de siempre.
   const conTope = datos.tope_referidos_pct != null
   const referidos = conTope
-    ? `${numero(cierres.referido_aporte)} de referidos (cerraron ${numero(cierres.referido)}; cuentan hasta el ${numero(datos.tope_referidos_pct!)} % de los cierres de leads asignados de cada analista)`
+    ? `${numero(cierres.referido_aporte)} de referidos (cerraron ${numero(cierres.referido)}; límite del ${numero(datos.tope_referidos_pct!)} % de sus cierres referidos válidos por analista y mes)`
     : `${numero(cierres.referido_aporte)} de referidos (${numero(cierres.referido)}${enRango ? '' : ` × ${numero(datos.peso_referido)}`})`
   const renovacion = `${numero(cartera.renovacion_aporte)} de renovación (${numero(cartera.renovacion)}${enRango ? '' : ` × ${numero(datos.peso_renovacion)}`})`
   const partes = [
@@ -582,7 +582,7 @@ export function ConversionCoordinacion() {
           <p className="border-t border-border px-5 py-2 text-sm text-muted-foreground">
             Referido y Renov. (renovación) van como «cantidad · aporte al numerador».
             {datos.tope_referidos_pct != null
-              ? ` Los referidos cuentan hasta el ${numero(datos.tope_referidos_pct)} % de los cierres de leads asignados de cada analista: los que sobran no suman.`
+              ? ` El aporte total de referidos tiene un límite del ${numero(datos.tope_referidos_pct)} % de sus cierres referidos válidos por analista y mes; el exceso no suma.`
               : ''}
             {' '}«Base» son los
             cierres de contactos de una base cargada: suman 1 cada uno y no entran a las llegadas. «Sin peso» son los
