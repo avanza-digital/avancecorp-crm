@@ -153,12 +153,13 @@ const HELP = `
 Gate RLS del CRM (solo branch/staging con seed-demo)
 
 Uso:
-  node supabase/scripts/test-rls.mjs [--preflight] [--contratos | --identidad-d5]
+  node supabase/scripts/test-rls.mjs [--preflight] [--contratos | --identidad-d5 | --facturacion-nombres]
 
 Opciones:
   --preflight  Valida runtime, variables y matriz sin abrir conexiones.
   --contratos  Ejecuta visibilidad, frontera bancaria, contratos y acceso anónimo.
   --identidad-d5 Repite solo D-5 con un lead nuevo; admite un banco ya utilizado.
+  --facturacion-nombres Ejecuta Facturación v1/v2 y nombres; no sustituye la matriz general.
   --help       Muestra esta ayuda sin exigir variables de entorno.
 
 Variables requeridas:
@@ -174,7 +175,7 @@ tareas/ICS, las metas versionadas y la frontera bancaria del CRM.
 `;
 
 const args = new Set(process.argv.slice(2));
-const allowedArgs = new Set(['--help', '-h', '--preflight', '--contratos', '--identidad-d5']);
+const allowedArgs = new Set(['--help', '-h', '--preflight', '--contratos', '--identidad-d5', '--facturacion-nombres']);
 const unknownArgs = [...args].filter((arg) => !allowedArgs.has(arg));
 
 if (unknownArgs.length > 0) {
@@ -188,8 +189,8 @@ if (args.has('--help') || args.has('-h')) {
   process.exit(0);
 }
 
-if (args.has('--contratos') && args.has('--identidad-d5')) {
-  console.error('Elige un solo alcance: --contratos o --identidad-d5.');
+if (['--contratos', '--identidad-d5', '--facturacion-nombres'].filter((alcance) => args.has(alcance)).length > 1) {
+  console.error('Elige un solo alcance: --contratos, --identidad-d5 o --facturacion-nombres.');
   process.exit(2);
 }
 
@@ -18979,7 +18980,9 @@ async function testLlamadasCelular(sessions, seed) {
         && Boolean(analistaDe(opGS1, 'vend1')) && !analistaDe(opGS1, 'vend3'), 'operación de hoy: gerencia con sup1 como id ve solo su equipo', errorText(opGS1.error));
       // Claves de equipo = las de «Actividad del día» (gestion_diaria_pulso_fn), para que las pestañas coincidan.
       const pulso = await rpc('gerencia', 'gestion_diaria_pulso_fn', {});
-      const supervisorPulso = new Map((pulso.data?.personas ?? []).map((p) => [p.analista_id, p.supervisor_id ?? null]));
+      // El contrato del pulso agrupa las personas dentro de equipos, no en la raíz.
+      const supervisorPulso = new Map((pulso.data?.equipos ?? []).flatMap((equipo) =>
+        (equipo.personas ?? []).map((persona) => [persona.analista_id, equipo.supervisor_id ?? null])));
       check(!pulso.error && (opG.data?.analistas ?? []).length > 0
         && (opG.data?.analistas ?? []).every((a) => supervisorPulso.has(a.analista_id) && supervisorPulso.get(a.analista_id) === (a.supervisor_id ?? null)),
       'operación de hoy: cada analista cuelga del mismo supervisor que en el pulso de Gestión Diaria', errorText(pulso.error));
