@@ -72,3 +72,11 @@ de publicar frontend. Construir y publicar desde Main limpio y verificado confor
 al flujo de release del proyecto. Para revertir: frontend compatible primero;
 después `reversa.sql`, que exige cuerpos y v1 intactos y elimina solo las dos
 funciones nuevas, sin CASCADE ni cambios de datos.
+
+El preflight del candidato Main `f81d726e` fue rechazado: no contiene el commit
+vivo `33a701156385` (build `build-20261013T153933959Z`). Conforme al procedimiento
+de rescate, la fuente de publicación se prepara desde ese commit vivo en una
+copia aparte, con únicamente el parche de nombres y sus pruebas/documentación.
+Conserva la realización anticipada publicada; no adelanta el cambio de referidos
+que Main aún documenta pendiente de backend. El rescate debe volver a Main el
+mismo día mediante un merge que preserve su historia, después del despliegue.
