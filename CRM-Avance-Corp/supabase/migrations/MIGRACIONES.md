@@ -18595,3 +18595,37 @@ EXECUTE solo postgres), el comentario (md5 `4a052fcd…` = el que exige el prefl
 `npm run check` PASS (410 archivos, 6 623 pruebas). **Codex PASS** sobre F4.2-bis y la integración (`fase-4/grupo-b/revision/` del plan). **Despliegue: servidor
 primero** (la migración, por la branch y su merge), **después** `/release-crm` con el texto «citas vencidas o ya realizadas» (la RPC no gana claves: los dos órdenes
 son compatibles; así el texto nuevo nunca describe la regla vieja). Revertir: `supabase/scripts/metricas-reuniones-realizacion/reversa.sql`.
+
+## 20261013233000 — F7: re-declarar la huella de `crm.metricas_cartera_fn`
+
+**PENDIENTE DE APLICAR** (con el `!` de Miguel). Actualiza dos campos (`huella_md5` y el rastro en `nota`) de UNA fila de
+`private.f7_piezas_en_observacion`: la de `crm.metricas_cartera_fn(date)`, `0b4ede54…` → `869853c2…`. No toca estado
+(`cerrada_permanente`), ACL (`{postgres=X/postgres}`), ventana, patrón de censo, llamadores permitidos
+(`crm.conversion_mensual_fn(date)`) ni ninguna otra fila; no reabre, no demuele, no toca objetos de `public`. Mismo esqueleto
+que `20260924161110`.
+**Por qué (medido en producción el 13/10, solo lectura):** `20261012165115_crm_coordinacion_reportes_lectura` (prod
+`20261012223850`, aprobada por Miguel el 12/10) cambió UNA línea de esa función cerrada —`v_lector` pasa a incluir
+`private.es_coordinador_reportes()`— y nadie actualizó el retrato del vigilante. Es la única migración desde el cierre
+(`20260831060000`) que la recrea; `0b4ede54…` es exactamente el `md5(prosrc)` del cuerpo anterior (el de su reversa). Desde
+el 13/10 01:59 `private.assert_f7_piezas_cerradas()` lanza «F7: el cuerpo de crm.metricas_cartera_fn(date) cambio estando
+cerrada (huella 869853c2…)» y el vigía abre una alerta cada noche (1 abierta al 13/10). Ninguna otra pieza vigilada está derivada.
+**Diferencia con el precedente:** el postflight NO llama a `private.assert_analitica_leads_citas()`, en rojo en producción
+por otra causa (alertas `f6a` abiertas desde el 01/10): llamarlo abortaría una migración que no lo empeora ni lo arregla.
+Preflight: fila, estado/ola, huella vieja, llamadores, cuerpo vivo por DOS anclas (`prosrc` + `pg_get_functiondef`
+`67cdc767…`), ACL, dueño, ninguna otra pieza derivada y el vigilante en rojo por ESTA causa (mensaje completo). Baja solo el
+candado `trg_f7_obs_00_solo_crece` y lo re-activa en la misma transacción. Postflight: vigilante `OK…`, el candado muerde
+(42501 con su mensaje y habilitado), solo se movieron los dos campos, anclas del cuerpo otra vez, fila final.
+Después: el vigía de las 01:59 cierra solo la alerta al volver a verde (o `select private.vigia_f7_piezas();`).
+Revertir (solo si el cuerpo vivo no fuera legítimo): restaurar antes el cuerpo anterior (reversa de `coordinacion-reportes`) y
+re-declarar con este esqueleto la huella al revés cambiando también las dos anclas de definición (`67cdc767…` → `0bfcc0d4…`).
+**Ensayo (laboratorio Docker = producción en esta fila, función y candados; todo con rollback, 13/10):** entra y el vigilante
+queda `OK`; aplicada dos veces, la 2.ª se niega en el preflight; mutantes «candado sin re-activar» y «otro campo tocado» mueren
+en el postflight. **Codex PASS** (13/10): P2 sin exclusión de DDL concurrente sobre la función entre la última ancla y el
+`COMMIT` (como el precedente: aplicar sin otra publicación de servidor a la vez); P3 reversa incompleta y P3 «tapa cualquier
+alerta» demasiado absoluto, corregidos en los comentarios.
+**Registro:** `db query --linked --file` no registra; `supabase/scripts/f7-huella-metricas-cartera/registrar.sql` (generado
+por `generar_registrador.py`) lo hace después, idempotente, y se niega si la migración no está aplicada (ensayado: sin la
+migración se niega; con ella, una fila; dos veces, una fila). El precedente `20260924161110` nunca se registró.
+Aplicar (Miguel, desde `CRM-Avance-Corp/`):
+`supabase db query --linked --file supabase/migrations/20261013233000_crm_f7_redeclarar_huella_metricas_cartera.sql` y después
+`supabase db query --linked --file supabase/scripts/f7-huella-metricas-cartera/registrar.sql`.
