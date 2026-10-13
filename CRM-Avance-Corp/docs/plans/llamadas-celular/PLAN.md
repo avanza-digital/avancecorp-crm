@@ -134,7 +134,7 @@ Cada tarea tiene un ID estable, por ejemplo `F3.2.1`. Una fase contiene subfases
 | F3 · Captura y sincronización | 4 | 11/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-20) |
 | F4 · Pendientes y conciliación | 4 | 9/13 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-66) |
 | F5 · Jev para identificación asistida | 5 | 0/15 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-72) |
-| F6 · Gerencia y calidad | 4 | 0/12 | Pendiente | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-78) |
+| F6 · Gerencia y calidad | 4 | 1/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-78) |
 | F7 · Despliegue y operación | 4 | 2/12 | En curso | [Ver fase](https://www.figma.com/board/39XA8pQGdbXrg8r2UiPhpY?node-id=3-84) |
 
 **Total inicial: 0/102 tareas, agrupadas en 33 subfases.** Los ocho checks comunes de la sección 14 son criterios que se aplican al cerrar cada fase; no se suman como otra fase de trabajo.
@@ -523,7 +523,7 @@ Mostrar hechos disponibles, no explicaciones inventadas: «Figura como alternati
 
 **Objetivo:** cifras interpretables sin alterar las métricas comerciales existentes.
 
-**Seguimiento de F6:** 0/12 tareas completadas · Estado: pendiente · Responsable nominal: por asignar.
+**Seguimiento de F6:** 1/12 tareas completadas · Estado: en curso · Responsable nominal: por asignar.
 
 ### F6.1 · Definir métricas
 
@@ -547,9 +547,9 @@ Mostrar hechos disponibles, no explicaciones inventadas: «Figura como alternati
 
 ### F6.3 · Construir reporte e histórico
 
-**Estado:** en curso · **Avance:** 0/3 · **Responsable:** Claude (construye) · Miguel (aplica).
+**Estado:** en curso · **Avance:** 1/3 · **Responsable:** Claude (construye) · Miguel (aplica).
 
-- [ ] **F6.3.1** Implementar lecturas y pantalla de gerencia bajo ámbito autorizado con diccionario de métricas.
+- [x] **F6.3.1** Implementar lecturas y pantalla de gerencia bajo ámbito autorizado con diccionario de métricas.
 - [ ] **F6.3.2** Elegir ventana histórica limitada o agregados minimizados con retención propia antes de depurar.
 - [ ] **F6.3.3** Actualizar eventos tardíos sin duplicar y mostrar límites de cobertura y retención.
 

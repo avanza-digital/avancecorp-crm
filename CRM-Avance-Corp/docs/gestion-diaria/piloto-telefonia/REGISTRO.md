@@ -259,6 +259,89 @@ sin leer datos personales.
 - **H-GUARDANDO:** la PC se quedó en «Guardando…» con el resultado ya guardado. La protección funcionó como se diseñó
   (un solo guardado, recuperable al recargar); causa no determinada; a vigilar si se repite.
 
+## 5l. Aceptación de F4-e (la pantalla) en C1 con los dos roles — guion (preparado el 13/10/2026)
+
+La puerta `crm.llamadas_celular_operacion_hoy_fn` está aplicada en producción desde el 13/10 (15:39 UTC, #262) y la
+pantalla se fusionó en `main` el mismo día (#261, `b3f258bf`). **Se prueba cuando la build viva traiga la pantalla**
+(Claude lo confirma con el vigilante: marcador «Su celular» en el bundle). Sin números de teléfono en este registro.
+
+**Antes de empezar (todo en la PC, salvo que se diga):**
+- [ ] Claude confirmó que la build viva trae «Su celular» (si no, la pestaña no existe todavía).
+- [ ] Tarjeta «Celulares» (Configuración, gerencia): **C1 «Al día»**. Si está «Sin latido», primero `ultimo_latido` = 0 en
+      **C1** (`SOPORTE.md` §1) y esperar un latido.
+- [ ] Cuentas a mano: **gerencia** y el **supervisor del equipo de Jhosep** (el que figura en el organigrama). Si Jhosep no
+      tiene cuenta de supervisor, pedirle a Miguel que preste una o que haga él los pasos 5 y 6b. Sin supervisor se
+      acepta solo la parte de gerencia y queda anotado.
+- [ ] Un lead de prueba a mano («prueba leeds», el de F4.2.4).
+
+Cada paso dice **el aparato** en negrita, qué hacer y qué debe verse. Se anota la hora de Lima y el resultado (PASS /
+FAIL / PARCIAL) en la tabla del final. Si algo falla, se anota en §6 y **no se toca MacroDroid**.
+
+1. **PC (gerencia):** Gestión Diaria → «Toda la operación hoy» → pestaña **«Llamadas del celular»**.
+   Debe verse: la tabla por equipo, el equipo de Jhosep con «Celulares» = 1 y «al día». «En el celular» con la cifra
+   de hoy (si todavía no hubo llamadas: **0**, no «—», porque C1 está al día: decisión D1). Anotar las tres cifras de
+   la fila: En el celular · Con resultado · Sin resultado.
+2. **C1:** llamar al lead de prueba, colgar, y en la encuesta **guardar «No contestó»**.
+3. **PC (gerencia):** botón «Actualizar» (o esperar un minuto).
+   Debe verse: En el celular **+1**, Con resultado **+1** (y el porcentaje debajo), Al colgar **+1 «de +1»**. Al
+   seleccionar el equipo, la ficha repite las cifras y «Necesitan atención» no lista a Jhosep por esta llamada.
+4. **C1:** segunda llamada al lead de prueba, colgar, y **cerrar la encuesta sin guardar**.
+5. **PC (gerencia):** «Actualizar».
+   Debe verse: En el celular **+2**, Sin resultado **1** con «1 de hoy» debajo (en ámbar), la pastilla «Con sin
+   resultado» con un **1**, y en la ficha «Necesitan atención» → Jhosep con «1 llamada sin resultado».
+6. **PC (supervisor del equipo de Jhosep):** Gestión Diaria → «Mi equipo hoy» → seleccionar a Jhosep → pestaña
+   «Resumen». Debe verse el bloque **«Su celular · C1»** justo debajo de la línea del día: chip «Al día»; En el
+   celular **2**; Con resultado **1** («50 % de las de hoy»); Resultados hoy **1** («1 al colgar»); Sin resultado
+   **1** («1 de hoy»); Por revisar 0; la línea «Macro llamadas-v3 · 0 avisos en cola». Al pie de la tabla no debe
+   salir «Tu celular…» (el supervisor no tiene celular asignado).
+7. **PC (analista, Jhosep):** Gestión Diaria → «Celular» → «Pendientes» → registrar **«No contestó»** en la llamada
+   del paso 4 (la vía «desde la pestaña»).
+8. **PC (gerencia y supervisor):** «Actualizar» en cada una.
+   Debe verse: Sin resultado **0**, Con resultado **2**, Resultados hoy **2** con «1 al colgar · 1 desde la
+   pestaña». «Necesitan atención» vacío («Nadie…»). Las cifras de gerencia y de supervisor para Jhosep son
+   **las mismas** (regla D4).
+9. **PC (gerencia):** cambiar la fecha a **ayer**. La pestaña debe decir «Las llamadas del celular se muestran solo
+   para hoy» con el enlace «Ver hoy»; al pulsarlo vuelve la tabla y el foco va al título.
+10. **PC (gerencia), cruce con la tarjeta:** en Configuración → «Celulares», C1 sigue «Al día» y con cola 0, igual que
+    la columna «Celulares» de la pestaña. Si hubiera otro celular «Sin latido» o «Nunca habló», la columna y la
+    pastilla «Con celular sin latido» deben contarlo (los que nunca hablaron también cuentan).
+11. *(Opcional, teclado)* **PC (gerencia):** Tab hasta la fila del equipo, Enter la selecciona, Tab hasta «Cerrar
+    detalle», Enter: el foco debe volver al botón de la fila, no al principio de la página.
+
+**Criterio de aceptación:** pasos 1–10 en PASS (el 6 puede quedar PARCIAL si no hay cuenta de supervisor). Con eso
+**F6.3.1 (pantalla de gerencia con ámbito y diccionario visible) se marca hecha** en el plan; el bloque «Su celular»
+cuenta dentro de la misma tarea.
+
+| Fecha y hora (Lima) | Paso | Resultado | Evidencia |
+| --- | --- | --- | --- |
+| 13/10 12:53 | Build viva con la pantalla | Confirmado | `build-20261013T175342472Z` (y la `…182849030Z` de las 13:28): el bundle trae «Su celular» y conserva «Unir a un resultado guardado» |
+| 13/10 ~12:55 | Prerrequisitos | Hecho | Tarjeta «Celulares»: C1 «Al día», macro `llamadas-v3`, cola 0. Cuentas de gerencia y del supervisor de C1 (JORGE MARZANO). Lead de prueba «prueba leeds» |
+| 13/10 12:58 | Paso 1: pestaña «Llamadas del celular» (gerencia) | **PASS** | Tres equipos (uno por supervisor). El de JORGE MARZANO: 10 analistas, 1 celular, En el celular 2 · Con resultado 2 (100 %) · Al colgar 2 de 2 (las de la mañana). Los dos equipos sin celular salen con «—» (sin dato, D1), no con 0 |
+| 13/10 13:08 y 13:09 | Paso 2: dos llamadas desde **C1** al lead de prueba, «No contestó» guardado al colgar en las dos | Hecho | La encuesta se abrió sola las dos veces. El número de prueba ya no da tono (la llamada se corta sola): no afecta, la saliente cuenta igual |
+| 13/10 13:15 | Paso 3: «Actualizar» (gerencia) | **PASS** | Fila: 4 · 4 (100 %) · 4 de 4 · Sin resultado 0 · Celulares 1 al día. Ficha del equipo con las mismas cifras |
+| 13/10 13:24 | Paso 4: llamada desde **C1**, encuesta cerrada sin guardar | Hecho | — |
+| 13/10 ~13:30 | Paso 5: «Actualizar» (gerencia) | **PASS** | Ficha: En el celular 5 · Con resultado 4 (80 % de las de hoy) · Resultados hoy 4 (4 al colgar) · Sin resultado 1 (1 de hoy, en ámbar) · Celulares 1 todos al día · Por revisar 0. Las cubetas suman: 4 + 1 = 5 |
+| 13/10 13:37 | Paso 6: «Mi equipo hoy» con la cuenta del supervisor → MIGUEL BRICEÑO → Resumen | **PASS** | Bloque «Su celular · C1» bajo la línea del día: Al día · 5 · 4 (80 %) · Resultados hoy 4 (4 al colgar) · Sin resultado 1 (1 de hoy) · Por revisar 0 · Deshechas sin corregir 1 · «Macro llamadas-v3 · 0 avisos en cola». El resto de la ficha («Llamadas 4») cuenta lo registrado, no lo detectado: dos cuentas distintas, como dice el contrato |
+| 13/10 13:49 | Paso 7: «No contestó» registrado desde «Celular → Pendientes» (cuenta del analista, PC) | Hecho | La vía «desde la pestaña» |
+| 13/10 13:50 y 13:51 | Paso 8: «Actualizar» en gerencia y en supervisor | **PASS** | Las dos: Sin resultado 0 · Con resultado 5 (100 %) · Resultados hoy 5 («4 al colgar · 1 desde la pestaña») · Al colgar 4 de 5. Cifras idénticas en los dos roles (regla D4) |
+| 13/10 ~13:58 | Paso 9: fecha 12/10 en gerencia | **PASS** | «Las llamadas del celular se muestran solo para hoy. Ver hoy»; al pulsarlo vuelve la tabla |
+| 13/10 ~13:59 | Paso 10: cruce con la tarjeta «Celulares» | **PASS** | C1 «Al día», `llamadas-v3`, cola 0, desde 8 oct.: igual que la columna «Celulares» (1, al día) |
+| 13/10 ~14:00 | **F4-e ACEPTADA con los dos roles → F6.3.1 hecha (49/102)** | **PASS** | Paso 11 (teclado) no se hizo: la unitaria lo cubre |
+
+**Hallazgos del 13/10** (ninguno bloquea; los tres son de pantalla y van a Miguel como propuestas):
+- **H-ATENCION:** en producción casi ningún analista tiene celular, y cada uno «sin dato del celular» cuenta como «necesita
+  atención»: el equipo de JORGE MARZANO sale con «10 con atención» (9 son solo «sin celular») y los otros con «8». Propuesta:
+  quien no tiene celular asignado no es «atención»; decirlo aparte («9 sin celular») y reservar «atención» para quien sí
+  tiene celular y arrastra pendientes, por revisar, sin latido o cola.
+- **H-DESHECHA-VIEJA:** MIGUEL BRICEÑO muestra «1 deshecha sin corregir» (una llamada de C1 de las pruebas anteriores cuyo
+  resultado se deshizo y nunca se volvió a registrar). El contrato dice que no caduca, y la pantalla lo cuenta bien; pero
+  el analista solo ve «Registrar el corregido» en «Qué pasó hoy» si la deshizo **hoy**: una de días atrás no tiene dónde
+  corregirse y quedará contada para siempre. Propuesta: que la pestaña del analista liste las deshechas sin corregir de
+  cualquier fecha (o que cerrar el lead la retire).
+- **H-PENDIENTES-NOMBRE:** en la ficha del analista conviven «Pendientes 4 · 2 vencidas» (tareas agendadas, cuadro de
+  siempre) y «Su celular → Sin resultado» (llamadas sin registrar). Jhosep preguntó cuáles eran «las del celular».
+  Propuesta menor: renombrar el cuadro a «Tareas pendientes».
+
 ## 6. Incidencias
 
 | Fecha | Celular | Qué pasó | Impacto (perdida / duplicada / no abrió / otro) | Cómo se resolvió | Abierta o cerrada |
