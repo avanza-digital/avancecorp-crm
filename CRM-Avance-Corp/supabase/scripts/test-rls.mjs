@@ -191,7 +191,7 @@ if (args.has('--help') || args.has('-h')) {
 }
 
 if (['--contratos', '--identidad-d5', '--facturacion-nombres', '--llamadas'].filter((alcance) => args.has(alcance)).length > 1) {
-  console.error('Elige un solo alcance: --contratos, --identidad-d5 --facturacion-nombres o --llamadas.');
+  console.error('Elige un solo alcance: --contratos, --identidad-d5, --facturacion-nombres o --llamadas.');
   process.exit(2);
 }
 
@@ -20264,8 +20264,34 @@ async function main() {
       }
     } else if (args.has('--facturacion-nombres')) {
       console.log('ALCANCE: Facturación v1/v2 y nombres de Coordinación; no sustituye la matriz global.');
-      await testFacturacionDiaria(sessions, verifiedSeed);
-      await testFacturacionLista(sessions, verifiedSeed);
+      // El oráculo necesita dos ventas del mes actual. La matriz general las crea
+      // en sus recorridos; este alcance debe preparar su propio fixture y retirarlo.
+      const contratosOraculo = [randomUUID(), randomUUID()];
+      const listaOraculo = contratosOraculo.map((id) => `'${id}'::uuid`).join(',');
+      const idsOraculo = verifiedSeed.profileIdByKey;
+      try {
+        ejecutarFueraDeBanda('Facturación nombres: ventas sintéticas del oráculo', `
+          set local session_replication_role = replica;
+          insert into public.contratos(id,numero_contrato,cliente_id,capital,moneda,tasa_anual,modalidad,
+            tipo_interes,fecha_inicio,fecha_cierre_comercial,fecha_vencimiento,estado,categoria,
+            creado_por,analista_cierre_id,es_demo,producto_condicion_id)
+          select id,'NOMBRES-ORACULO-'||id::text,'${idsOraculo.clientBank}',1000,'PEN',15,'mensual',
+            'simple',dia,dia,dia+365,'activo','nuevo','${idsOraculo.gerencia}','${idsOraculo.vend1}',false,
+            private.crear_snapshot_producto_legacy(id,'nuevo','PEN','mensual','simple',1000,15,dia,dia+365)
+          from unnest(array[${listaOraculo}]) id
+          cross join (select date_trunc('month',now() at time zone 'America/Lima')::date+4 as dia) fecha;
+        `);
+        await testFacturacionDiaria(sessions, verifiedSeed);
+        await testFacturacionLista(sessions, verifiedSeed);
+      } finally {
+        ejecutarFueraDeBanda('Facturación nombres: retirar ventas del oráculo', `
+          set local session_replication_role = replica;
+          delete from public.contratos where id in (${listaOraculo});
+          with condiciones as (
+            delete from crm.producto_condiciones where legacy_contrato_id in (${listaOraculo}) returning version_id
+          ) delete from crm.producto_versiones where id in (select version_id from condiciones);
+        `);
+      }
     } else if (args.has('--llamadas')) {
       console.log('ALCANCE: llamadas del celular y visibilidad; no sustituye la matriz global.');
       await readVisibilityMatrix(sessions, verifiedSeed);
