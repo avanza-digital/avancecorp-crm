@@ -153,12 +153,13 @@ const HELP = `
 Gate RLS del CRM (solo branch/staging con seed-demo)
 
 Uso:
-  node supabase/scripts/test-rls.mjs [--preflight] [--contratos | --identidad-d5 | --llamadas]
+  node supabase/scripts/test-rls.mjs [--preflight] [--contratos | --identidad-d5 | --facturacion-nombres | --llamadas]
 
 Opciones:
   --preflight  Valida runtime, variables y matriz sin abrir conexiones.
   --contratos  Ejecuta visibilidad, frontera bancaria, contratos y acceso anónimo.
   --identidad-d5 Repite solo D-5 con un lead nuevo; admite un banco ya utilizado.
+  --facturacion-nombres Ejecuta Facturación v1/v2 y nombres; no sustituye la matriz general.
   --llamadas   Ejecuta visibilidad y llamadas del celular, incluidas las banderas F4-b/F4-e.
   --help       Muestra esta ayuda sin exigir variables de entorno.
 
@@ -175,7 +176,7 @@ tareas/ICS, las metas versionadas y la frontera bancaria del CRM.
 `;
 
 const args = new Set(process.argv.slice(2));
-const allowedArgs = new Set(['--help', '-h', '--preflight', '--contratos', '--identidad-d5', '--llamadas']);
+const allowedArgs = new Set(['--help', '-h', '--preflight', '--contratos', '--identidad-d5', '--facturacion-nombres', '--llamadas']);
 const unknownArgs = [...args].filter((arg) => !allowedArgs.has(arg));
 
 if (unknownArgs.length > 0) {
@@ -189,8 +190,8 @@ if (args.has('--help') || args.has('-h')) {
   process.exit(0);
 }
 
-if (['--contratos', '--identidad-d5', '--llamadas'].filter((arg) => args.has(arg)).length > 1) {
-  console.error('Elige un solo alcance: --contratos, --identidad-d5 o --llamadas.');
+if (['--contratos', '--identidad-d5', '--facturacion-nombres', '--llamadas'].filter((alcance) => args.has(alcance)).length > 1) {
+  console.error('Elige un solo alcance: --contratos, --identidad-d5 --facturacion-nombres o --llamadas.');
   process.exit(2);
 }
 
@@ -9633,17 +9634,37 @@ async function testFacturacionDiaria(sessions, seed) {
       and not has_function_privilege('service_role', p.oid, 'EXECUTE')
       and has_function_privilege('authenticated', p.oid, 'EXECUTE') = e.definidor) is true
   `) === 2, `${FN}: puerta 3B SQL/DEFINER solo authenticated y núcleo plpgsql/INVOKER solo postgres, ambos STABLE`);
-  // CENSO cerrado. El núcleo sin verja solo admite _visibles; esta admite cifra y lista; lista solo su puerta.
+  // CENSO cerrado: además de 3A/3B, admite la consulta de nombres sellada si está instalada.
+  const nombresInstalados = contarFueraDeBanda('Facturación nombres: presencia en censo', `select count(*) from pg_proc
+    where oid=to_regprocedure('private.facturacion_lista_nombres${FIRMA_LISTA}')`) === 1;
+  if (nombresInstalados) check(contarFueraDeBanda('Facturación nombres: contrato de las dos piezas', `
+    select count(*) from (values
+      ('private.facturacion_lista_nombres${FIRMA_LISTA}',false,'plpgsql','{postgres=X/postgres}'),
+      ('crm.listar_operaciones_facturacion_v2_fn${FIRMA_LISTA}',true,'sql','{postgres=X/postgres,authenticated=X/postgres}')
+    ) e(firma,definidor,lenguaje,acl) join pg_proc p on p.oid=to_regprocedure(e.firma)
+    join pg_language l on l.oid=p.prolang
+    where (p.prosecdef=e.definidor and p.provolatile='s' and l.lanname=e.lenguaje
+      and pg_get_userbyid(p.proowner)='postgres' and p.proacl::text=e.acl
+      and p.prorettype='jsonb'::regtype and not p.proretset and p.pronargdefaults=9
+      and cardinality(p.proconfig)=1 and p.proconfig[1] in ('search_path=','search_path=""')
+      and not has_function_privilege('anon',p.oid,'EXECUTE')
+      and not has_function_privilege('service_role',p.oid,'EXECUTE')
+      and has_function_privilege('authenticated',p.oid,'EXECUTE')=e.definidor) is true
+  `) === 2, `${FN}: nombres v2 sellados, sin ampliar ACL del núcleo`);
   check(contarFueraDeBanda('Facturación 3B: censo de llamadores', `
     select count(*) from pg_proc p
     where (p.prosrc ~* 'private\\.facturacion_operaciones\\s*\\('
            and p.oid is distinct from to_regprocedure('private.facturacion_operaciones_visibles(timestamptz,timestamptz)'))
        or (p.prosrc ~* 'private\\.facturacion_operaciones_visibles\\s*\\('
            and p.oid is distinct from to_regprocedure('crm.facturacion_diaria_fn(date)')
-           and p.oid is distinct from to_regprocedure('private.facturacion_lista${FIRMA_LISTA}'))
+           and p.oid is distinct from to_regprocedure('private.facturacion_lista${FIRMA_LISTA}')
+           and p.oid is distinct from to_regprocedure('private.facturacion_lista_nombres${FIRMA_LISTA}'))
        or (p.prosrc ~* 'private\\.facturacion_lista\\s*\\('
-           and p.oid is distinct from to_regprocedure('crm.listar_operaciones_facturacion_fn${FIRMA_LISTA}'))
-  `) === 0, `${FN}: llamadores exactamente dentro de la lista cerrada 3A + 3B`);
+           and p.oid is distinct from to_regprocedure('crm.listar_operaciones_facturacion_fn${FIRMA_LISTA}')
+           and p.oid is distinct from to_regprocedure('private.facturacion_lista_nombres${FIRMA_LISTA}'))
+       or (p.prosrc ~* 'private\\.facturacion_lista_nombres\\s*\\('
+           and p.oid is distinct from to_regprocedure('crm.listar_operaciones_facturacion_v2_fn${FIRMA_LISTA}'))
+  `) === 0, `${FN}: llamadores exactamente dentro de la lista cerrada 3A + 3B + nombres v2`);
   check(contarFueraDeBanda('Facturación 3B: las dos cadenas existen', `
     select count(*) from pg_proc p
     where (p.oid = to_regprocedure('private.facturacion_operaciones_visibles(timestamptz,timestamptz)')
@@ -9654,7 +9675,12 @@ async function testFacturacionDiaria(sessions, seed) {
            and p.prosrc ~* 'private\\.facturacion_operaciones_visibles\\s*\\(')
        or (p.oid = to_regprocedure('crm.listar_operaciones_facturacion_fn${FIRMA_LISTA}')
            and p.prosrc ~* 'private\\.facturacion_lista\\s*\\(')
-  `) === 4, `${FN}: cifra → _visibles y puerta → lista → _visibles → núcleo existen en catálogo`);
+       or (p.oid = to_regprocedure('private.facturacion_lista_nombres${FIRMA_LISTA}')
+           and p.prosrc ~* 'private\\.facturacion_lista\\s*\\('
+           and p.prosrc ~* 'private\\.facturacion_operaciones_visibles\\s*\\(')
+       or (p.oid = to_regprocedure('crm.listar_operaciones_facturacion_v2_fn${FIRMA_LISTA}')
+           and p.prosrc ~* 'private\\.facturacion_lista_nombres\\s*\\(')
+  `) === (nombresInstalados ? 6 : 4), `${FN}: las cadenas aprobadas de cifras/listas/nombres existen en catálogo`);
 }
 
 // 3B: la lista suma SU cifra por identidad; los datos dependen de la relación actual.
@@ -9931,6 +9957,32 @@ async function testFacturacionLista(sessions, seed) {
       if (referencia) recibidas.set(quien, referencia);
     }
     const g = recibidas.get('gerencia'); const d = recibidas.get('directorio');
+    // Regresión de nombres: v1 sigue siendo el oráculo publicado. La copia de
+    // Coordinación v2 debe conservar sus cifras/filtros y los nombres de Gerencia.
+    // Ejecutar también al modificar facturacion_lista, sin ampliar permiso de ficha.
+    const v2 = 'listar_operaciones_facturacion_v2_fn';
+    if (contarFueraDeBanda('Facturación nombres: API v2 instalada', `select count(*) from pg_proc
+      where oid=to_regprocedure('crm.${v2}${firma}')`) === 1) {
+      check(g?.filas.some((f) => f.tipo === 'cooperativa') && g.filas.some((f) => f.tipo !== 'cooperativa'),
+        `${v2}: oráculo HTTP tiene contratos y cooperativas`);
+      for (const [quien, anterior] of recibidas) {
+        for (let pagina = 1; pagina <= Math.max(1, Math.ceil(anterior.total / 100)); pagina += 1) {
+          const { data, error } = await sessions[quien].client.schema('crm').rpc(v2,
+            { ...base, p_pagina: pagina, p_tamano: 100 });
+          const esperadas = anterior.filas.slice((pagina - 1) * 100, pagina * 100).map((f) => quien === 'coordinador'
+            ? { ...f, nombre_visible: true, cliente_nombre: g?.filas[f.n - 1]?.cliente_nombre } : f);
+          const esperado = { version: 2, pagina, tamano: 100, total: anterior.total, totales: anterior.totales, filas: esperadas };
+          // Comparación de valores y claves ordenadas: el orden JSON no es un contrato.
+          const ordenar = (valor) => Array.isArray(valor) ? valor.map(ordenar) : valor && typeof valor === 'object'
+            ? Object.fromEntries(Object.keys(valor).sort().map((k) => [k, ordenar(valor[k])])) : valor;
+          check(!error && sinDni({ data, error }) && iguales(ordenar(data), ordenar(esperado)),
+            `${v2}: ${quien} página ${pagina}, nombres exactos y ningún campo extra; v1 y cifras intactas`);
+        }
+      }
+      const anonimo = await createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-facturacion-v2'))
+        .schema('crm').rpc(v2, base);
+      check(anonimo.error?.code === '42501', `${v2}: anónimo sin EXECUTE`);
+    } else console.log(`  ⚠ ${v2} NO desplegada: nombres de Coordinación SALTADOS (no probados)`);
     const datosOperacion = (f) => Object.fromEntries(comunes.filter((k) => !['visible', 'cliente_nombre'].includes(k)).map((k) => [k, f[k]]));
     check(g && d && g.total === d.total && iguales(g.totales, d.totales)
       && iguales(g.filas.map(datosOperacion), d.filas.map(datosOperacion))
@@ -18929,8 +18981,9 @@ async function testLlamadasCelular(sessions, seed) {
         && Boolean(analistaDe(opGS1, 'vend1')) && !analistaDe(opGS1, 'vend3'), 'operación de hoy: gerencia con sup1 como id ve solo su equipo', errorText(opGS1.error));
       // Claves de equipo = las de «Actividad del día» (gestion_diaria_pulso_fn), para que las pestañas coincidan.
       const pulso = await rpc('gerencia', 'gestion_diaria_pulso_fn', {});
-      const personasPulso = (pulso.data?.equipos ?? []).flatMap((equipo) => equipo.personas ?? []);
-      const supervisorPulso = new Map(personasPulso.map((p) => [p.analista_id, p.supervisor_id ?? null]));
+      // El contrato del pulso agrupa las personas dentro de equipos, no en la raíz.
+      const supervisorPulso = new Map((pulso.data?.equipos ?? []).flatMap((equipo) =>
+        (equipo.personas ?? []).map((persona) => [persona.analista_id, equipo.supervisor_id ?? null])));
       check(!pulso.error && (opG.data?.analistas ?? []).length > 0
         && (opG.data?.analistas ?? []).every((a) => supervisorPulso.has(a.analista_id) && supervisorPulso.get(a.analista_id) === (a.supervisor_id ?? null)),
       'operación de hoy: cada analista cuelga del mismo supervisor que en el pulso de Gestión Diaria', errorText(pulso.error));
@@ -20209,6 +20262,10 @@ async function main() {
         ejecutarFueraDeBanda('restaurar F3 después de D-5',
           `update crm.multiempresa_flags set activo=${f3Anterior} where nombre='resolver_en_puertas';`);
       }
+    } else if (args.has('--facturacion-nombres')) {
+      console.log('ALCANCE: Facturación v1/v2 y nombres de Coordinación; no sustituye la matriz global.');
+      await testFacturacionDiaria(sessions, verifiedSeed);
+      await testFacturacionLista(sessions, verifiedSeed);
     } else if (args.has('--llamadas')) {
       console.log('ALCANCE: llamadas del celular y visibilidad; no sustituye la matriz global.');
       await readVisibilityMatrix(sessions, verifiedSeed);
@@ -20358,7 +20415,8 @@ async function main() {
   // Auditor P3-2: si el grupo A se saltó (sin CRM_RLS_EXIGE_GRUPO_A=1), el resumen no puede decir «gate aprobado» a secas.
   const noProbado = grupoANoProbado.length > 0 ? `grupo A NO PROBADO (${grupoANoProbado.join(' · ')})` : '';
   if (failures === 0) {
-    const alcance = args.has('--contratos') ? ' CONTRATOS' : args.has('--identidad-d5') ? ' IDENTIDAD D5' : args.has('--llamadas') ? ' LLAMADAS' : '';
+    const alcance = args.has('--contratos') ? ' CONTRATOS' : args.has('--identidad-d5') ? ' IDENTIDAD D5'
+      : args.has('--facturacion-nombres') ? ' FACTURACIÓN NOMBRES' : args.has('--llamadas') ? ' LLAMADAS' : '';
     if (noProbado) {
       console.log(`\n⚠️ RLS${alcance} OK — ${assertions} aserciones; ${noProbado}. Esto NO aprueba el grupo A: repetir en su branch `
         + 'con CRM_RLS_EXIGE_GRUPO_A=1.');

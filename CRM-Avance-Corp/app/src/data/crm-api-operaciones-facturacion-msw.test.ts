@@ -8,7 +8,7 @@ vi.mock('@/lib/supabase', async () => {
 })
 import { listarOperacionesFacturacion, parsearListaOperacionesFacturacion } from './crm-api'
 import { operacion, oculta, respuesta } from '@/test/operaciones-facturacion'
-const RPC = 'http://supabase.test/rest/v1/rpc/listar_operaciones_facturacion_fn'
+const RPC = 'http://supabase.test/rest/v1/rpc/listar_operaciones_facturacion_v2_fn'
 const servidor = setupServer()
 beforeAll(() => servidor.listen({ onUnhandledRequest: 'error' }))
 afterEach(() => servidor.resetHandlers())
@@ -34,12 +34,32 @@ describe('lista de operaciones: frontera HTTP y contrato entero', () => {
     const coop = { ...oculta, n: 1, visible: true as const, tipo: 'cooperativa' as const, cliente_nombre: 'Ejemplo', estado: 'vigente', cierre_externo_id: 'cierre', cooperativa: 'Horizonte', lead_id: null }
     expect(parsearListaOperacionesFacturacion(respuesta([coop])).filas[0]).toEqual(coop)
   })
+  it('v2 permite nombres de contratos y cooperativas sin permiso de ficha ni identificadores', async () => {
+    const esperado = { ...respuesta([
+      { ...oculta, n: 1, tipo: 'contrato_nuevo' as const, nombre_visible: true as const, cliente_nombre: 'Cliente del reporte' },
+      { ...oculta, n: 2, nombre_visible: true as const, cliente_nombre: 'Cliente de cooperativa' },
+      { ...oculta, n: 3, nombre_visible: true as const, cliente_nombre: null },
+    ]), version: 2 as const }
+    servidor.use(http.post(RPC, () => HttpResponse.json(esperado)))
+    const lista = await listarOperacionesFacturacion(params)
+    expect(lista).toEqual(esperado)
+    for (const fila of lista.filas) {
+      expect(fila.visible).toBe(false)
+      for (const clave of ['cliente_id', 'contrato_id', 'numero_contrato', 'lead_id', 'cierre_externo_id', 'telefono', 'correo', 'dni']) {
+        expect(fila).not.toHaveProperty(clave)
+      }
+    }
+  })
   it.each([
-    ['versión desconocida', { ...respuesta(), version: 2 }],
+    ['versión desconocida', { ...respuesta(), version: 3 }],
     ['fila incompleta', { ...respuesta(), filas: [{}] }],
     ['no es una lista', null],
     ['ids en fila oculta', respuesta([{ ...oculta, n: 1, numero_contrato: 'privado' } as typeof oculta])],
-    ['nombre expuesto en fila oculta', respuesta([{ ...oculta, n: 1, cliente_nombre: 'No debe mostrarse' } as typeof oculta])],
+    ['nombre expuesto en fila oculta', respuesta([{ ...oculta, n: 1, cliente_nombre: 'No debe mostrarse' } as unknown as typeof oculta])],
+    ['nombre de reporte en v1', { ...respuesta([{ ...oculta, n: 1, nombre_visible: true, cliente_nombre: 'Cliente del reporte' }]), version: 1 }],
+    ['identificador en reporte v2', { ...respuesta([{ ...oculta, n: 1, nombre_visible: true, cliente_nombre: 'Cliente del reporte', cliente_id: 'privado' } as unknown as typeof oculta]), version: 2 }],
+    ['contacto en reporte v2', { ...respuesta([{ ...oculta, n: 1, nombre_visible: true, cliente_nombre: 'Cliente del reporte', telefono: '+51999999999' } as unknown as typeof oculta]), version: 2 }],
+    ['permiso de nombre falso', { ...respuesta([{ ...oculta, n: 1, nombre_visible: false, cliente_nombre: 'Cliente del reporte' } as unknown as typeof oculta]), version: 2 }],
     ['moneda ajena', { ...respuesta(), totales: [{ moneda: 'EUR', monto: 25000, operaciones: 1 }] }],
     ['número roto', { ...respuesta(), total: NaN }],
     ['hueco en numeración', respuesta([{ ...operacion, n: 2 }])],
@@ -52,6 +72,14 @@ describe('lista de operaciones: frontera HTTP y contrato entero', () => {
   it('mes sin operaciones', async () => {
     servidor.use(http.post(RPC, () => HttpResponse.json(respuesta([]))))
     expect(await listarOperacionesFacturacion(params)).toEqual(respuesta([]))
+  })
+  it('el endpoint v2 rechaza una respuesta de versión 1', async () => {
+    servidor.use(http.post(RPC, () => HttpResponse.json({ ...respuesta(), version: 1 })))
+    await expect(listarOperacionesFacturacion(params)).rejects.toThrow(/versión no compatible/)
+  })
+  it('el parser conserva el contrato v1 enmascarado', () => {
+    const anterior = { ...respuesta([{ ...oculta, n: 1 }]), version: 1 }
+    expect(parsearListaOperacionesFacturacion(anterior)).toEqual(anterior)
   })
   it.each(['22023', '42501', 'XX000'])('error %s en palabras', async (code) => {
     servidor.use(http.post(RPC, () => HttpResponse.json({ code, message: 'detalle SQL privado' }, { status: 400 })))

@@ -63,10 +63,24 @@ begin
     raise exception 'ORACULO: el banco no tiene gerencia activa; no se puede probar';
   end if;
 
-  select perfil_id into v_sup_viejo from crm.equipo where rol_crm = 'supervisor' order by perfil_id limit 1;
-  select perfil_id into v_sup_nuevo from crm.equipo where rol_crm = 'supervisor' order by perfil_id desc limit 1;
+  -- Dos UUID distintos podían elegir un supervisor y su hijo: el padre ve
+  -- legítimamente ambas ventas. El oráculo exige ramas independientes, activas
+  -- y sin un rol lector global del Portal, no el orden aleatorio de los UUID.
+  with recursive ramas(raiz,id) as (
+    select perfil_id,perfil_id from crm.equipo where rol_crm='supervisor'
+    union select r.raiz,e.perfil_id from crm.equipo e join ramas r on e.supervisor_id=r.id
+  )
+  select a.perfil_id,b.perfil_id into v_sup_viejo,v_sup_nuevo
+  from crm.equipo a join public.perfiles pa on pa.id=a.perfil_id
+  cross join crm.equipo b join public.perfiles pb on pb.id=b.perfil_id
+  where a.rol_crm='supervisor' and b.rol_crm='supervisor' and a.activo and b.activo
+    and pa.activo and pb.activo and pa.rol in('analista','comercial') and pb.rol in('analista','comercial')
+    and a.perfil_id<>b.perfil_id
+    and not exists(select 1 from ramas r where
+      (r.raiz=a.perfil_id and r.id=b.perfil_id) or (r.raiz=b.perfil_id and r.id=a.perfil_id))
+  order by a.perfil_id,b.perfil_id limit 1;
   if v_sup_viejo is null or v_sup_viejo = v_sup_nuevo then
-    raise exception 'ORACULO: hacen falta DOS supervisores distintos en el banco';
+    raise exception 'ORACULO: hacen falta DOS supervisores activos de ramas independientes en el banco';
   end if;
 
   -- Un analista con al menos dos ventas nuevas este mes.
@@ -131,6 +145,8 @@ begin
   -- La sesión pasa a ser Gerencia (si no, el gate cierra y no hay nada que ver).
   perform set_config('request.jwt.claims',
     json_build_object('sub', v_gerencia, 'role', 'authenticated')::text, true);
+  perform set_config('request.jwt.claim.sub', (v_gerencia)::text, true);
+  if auth.uid() is distinct from (v_gerencia)::uuid then raise exception 'Identidad incorrecta del fixture de Facturación'; end if;
 
   -- ── CASO 1 — la venta ANTERIOR al cambio se queda con el supervisor VIEJO ──
   -- Se miran TODAS las filas del día, no la primera: un LIMIT 1 aceptaría una
@@ -263,6 +279,8 @@ begin
   --    lo vería todo: las dos hipótesis dan respuestas distintas.
   perform set_config('request.jwt.claims',
     json_build_object('sub', v_sup_viejo, 'role', 'authenticated')::text, true);
+  perform set_config('request.jwt.claim.sub', (v_sup_viejo)::text, true);
+  if auth.uid() is distinct from (v_sup_viejo)::uuid then raise exception 'Identidad incorrecta del fixture de Facturación'; end if;
   select count(*) filter (where f.dia = v_antes), count(*) filter (where f.dia = v_despues)
     into v_ops, v_filas
   from crm.facturacion_diaria_fn(v_mes) f
@@ -273,6 +291,8 @@ begin
   end if;
   perform set_config('request.jwt.claims',
     json_build_object('sub', v_sup_nuevo, 'role', 'authenticated')::text, true);
+  perform set_config('request.jwt.claim.sub', (v_sup_nuevo)::text, true);
+  if auth.uid() is distinct from (v_sup_nuevo)::uuid then raise exception 'Identidad incorrecta del fixture de Facturación'; end if;
   select count(*) filter (where f.dia = v_antes), count(*) filter (where f.dia = v_despues)
     into v_ops, v_filas
   from crm.facturacion_diaria_fn(v_mes) f
@@ -314,6 +334,8 @@ begin
   update crm.equipo set supervisor_id = v_sup_viejo where perfil_id = v_analista;
   perform set_config('request.jwt.claims',
     json_build_object('sub', v_sup_viejo, 'role', 'authenticated')::text, true);
+  perform set_config('request.jwt.claim.sub', (v_sup_viejo)::text, true);
+  if auth.uid() is distinct from (v_sup_viejo)::uuid then raise exception 'Identidad incorrecta del fixture de Facturación'; end if;
   select count(*) into v_malas
   from crm.facturacion_diaria_fn(v_mes) f
   where f.analista_id = v_analista and f.dia = v_despues and f.tipo = 'contrato_nuevo';
@@ -326,6 +348,8 @@ begin
 
   -- ── CASO 5 — el gate: sin sesión, ni una fila ─────────────────────────────
   perform set_config('request.jwt.claims', '', true);
+  perform set_config('request.jwt.claim.sub', '', true);
+  if auth.uid() is not null then raise exception 'La sesión anónima del fixture conserva identidad'; end if;
   select count(*) into v_filas from crm.facturacion_diaria_fn(v_mes);
   if v_filas <> 0 then
     raise exception 'ORACULO 5 FALLA: sin sesion devolvio % filas', v_filas;
@@ -346,6 +370,8 @@ begin
     -- La foto de Gerencia, para medir a cada supervisor contra ella.
     perform set_config('request.jwt.claims',
       json_build_object('sub', v_gerencia, 'role', 'authenticated')::text, true);
+    perform set_config('request.jwt.claim.sub', (v_gerencia)::text, true);
+    if auth.uid() is distinct from (v_gerencia)::uuid then raise exception 'Identidad incorrecta del fixture de Facturación'; end if;
     create temp table zz_verja_gerencia on commit drop as
       select * from crm.facturacion_diaria_fn(v_mes);
 
@@ -355,6 +381,8 @@ begin
     loop
       perform set_config('request.jwt.claims',
         json_build_object('sub', r.perfil_id, 'role', 'authenticated')::text, true);
+      perform set_config('request.jwt.claim.sub', (r.perfil_id)::text, true);
+      if auth.uid() is distinct from (r.perfil_id)::uuid then raise exception 'Identidad incorrecta del fixture de Facturación'; end if;
       select count(*) into v_filas from crm.facturacion_diaria_fn(v_mes);
       v_ident := v_ident + 1;
       if r.rol_crm = 'supervisor' then
@@ -388,6 +416,8 @@ begin
     -- Un uuid que no es nadie tampoco entra.
     perform set_config('request.jwt.claims',
       json_build_object('sub', '00000000-0000-4000-8000-000000000000', 'role', 'authenticated')::text, true);
+    perform set_config('request.jwt.claim.sub', ('00000000-0000-4000-8000-000000000000')::text, true);
+    if auth.uid() is distinct from ('00000000-0000-4000-8000-000000000000')::uuid then raise exception 'Identidad incorrecta del fixture de Facturación'; end if;
     select count(*) into v_filas from crm.facturacion_diaria_fn(v_mes);
     v_ident := v_ident + 1;
     if v_filas <> 0 then
