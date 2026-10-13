@@ -1,0 +1,274 @@
+{
+  "pr": 256,
+  "commit": "16f493006dce0ee4a82d0b065d9660f251953469",
+  "branch": {
+    "id": "0253de82-bbeb-4dd5-b970-342d09dee2ec",
+    "ref": "wkqygywfqpgsfjkionok",
+    "created_at": "2026-10-12T21:29:45.683448+00:00",
+    "deleted_at": "2026-10-12 21:40:00 UTC",
+    "cost_estimate_usd": 0.0022934501333333334
+  },
+  "migration": {
+    "local": "20261012184345",
+    "remote": "20261012213521",
+    "sha256": "2eaeedc130cf7c629126328f33865d180400fb7956231d2b176e6a4f1327c56c"
+  },
+  "before": {
+    "estado": {
+      "pesos": [
+        {
+          "nota": "Acordado con Miguel 2026-08-10 (noche): el referido NO entra en el divisor y pesa 0,15 en el numerador. Corrige el incentivo perverso de la primera version, donde registrar referidos BAJABA la conversion.",
+          "creado_en": "2026-08-11T21:34:35.280537+00:00",
+          "peso_referido": 0.15,
+          "vigente_desde": "2026-07-01",
+          "peso_renovacion": 0.15,
+          "tope_referidos_pct": null
+        },
+        {
+          "nota": "Miguel 2026-10-07: desde octubre el referido que cierra vale 1, con tope del 15 % de los cierres del mes del analista de leads asignados por el sistema (landing y formulario; sin referidos, renovaciones, upgrades ni base cargada; redondeo hacia arriba; sin esos cierres el tope es 0); los referidos que pasan del tope, los más recientes, valen 0. Renovación sigue en 0,15. El pasado no se toca.",
+          "creado_en": "2026-10-08T00:35:30.939209+00:00",
+          "peso_referido": 1,
+          "vigente_desde": "2026-10-01",
+          "peso_renovacion": 0.15,
+          "tope_referidos_pct": 15
+        }
+      ],
+      "octubre": {
+        "bruto": 39.3,
+        "divisor": 779,
+        "renovaciones": 2,
+        "aporte_renovaciones": 0.3,
+        "episodios_sin_pesos_huella": "0da3e66e049f54e7687530eeb3e1dedd"
+      },
+      "periodos": [
+        "2026-08-01",
+        "2026-09-01"
+      ],
+      "funciones": {
+        "n": 1067,
+        "huella": "e1c9c4f818c879c501762a9720c733cc"
+      },
+      "migracion": null,
+      "check_cero": null,
+      "operaciones": 148,
+      "capturado_en": "2026-10-12T21:35:40.022401+00:00",
+      "fotos_huella": "9d31dccc490536fb720bc1c1a46ef97a",
+      "column_default": "0.15",
+      "periodos_huella": "24898809569af4b018768327eed39cd6",
+      "historial_anterior": {
+        "n": 463,
+        "huella": "0d54d56e0a29711ff6fb87e39cb388e8"
+      },
+      "operaciones_huella": "eb9d4bb519a7887925a382d0c15e023c"
+    },
+    "puertas": {
+      "metas": {
+        "numerador": 38.3,
+        "vendedores": 26
+      },
+      "oficial": {
+        "total": {
+          "cartera": {
+            "operaciones_upgrade": 13,
+            "capital_renovado_pen": 0,
+            "capital_renovado_usd": 6000,
+            "conversiones_upgrade": 11,
+            "capital_adicional_pen": 0,
+            "capital_adicional_usd": 7000,
+            "conversiones_clientes": 13,
+            "operaciones_renovacion": 2,
+            "conversiones_renovacion": 2,
+            "renovaciones_sin_desglose": 0
+          },
+          "divisor": 779,
+          "analistas": 26,
+          "numerador": 39.3,
+          "conversion_pct": 5.04,
+          "cierres_referidos": 5,
+          "cierres_de_arrastre": 8,
+          "referidos_recibidos": 18,
+          "cierres_no_referidos": 25,
+          "referidos_aporta_pct": 0.39
+        },
+        "ponderacion": {
+          "fuente": "crm.conversion_pesos",
+          "referido": 1,
+          "renovacion": 0.15,
+          "tope_referidos_pct": 15
+        }
+      },
+      "coordinacion": {
+        "numerador": 39.3,
+        "peso_renovacion": 0.15,
+        "aporte_renovaciones": 0.3
+      }
+    }
+  },
+  "parity": {
+    "functions": 1067,
+    "columns": 1489,
+    "triggers": 382,
+    "rls_policies": 111,
+    "prior_migrations": 463,
+    "edge_functions_equal": 23,
+    "constraint_format_differences": [
+      {
+        "name": "crm.alertas_reconocimientos.alertas_reconocimientos_miembros_check",
+        "before": "CHECK ((((cardinality(miembros) >= 1) AND (cardinality(miembros) <= 2000)) AND (array_ndims(miembros) = 1)))",
+        "after": "CHECK (((cardinality(miembros) >= 1) AND (cardinality(miembros) <= 2000) AND (array_ndims(miembros) = 1)))"
+      },
+      {
+        "name": "crm.empresas.empresas_monedas_check",
+        "before": "CHECK ((((cardinality(monedas) >= 1) AND (cardinality(monedas) <= 5)) AND (monedas <@ ARRAY['PEN'::text, 'USD'::text]) AND (array_ndims(monedas) = 1)))",
+        "after": "CHECK (((cardinality(monedas) >= 1) AND (cardinality(monedas) <= 5) AND (monedas <@ ARRAY['PEN'::text, 'USD'::text]) AND (array_ndims(monedas) = 1)))"
+      },
+      {
+        "name": "crm.producto_condiciones.producto_condiciones_capital_check",
+        "before": "CHECK ((((capital_minimo >= (100)::numeric) AND (capital_minimo <= (100000000)::numeric)) AND ((capital_maximo >= capital_minimo) AND (capital_maximo <= (100000000)::numeric))))",
+        "after": "CHECK (((capital_minimo >= (100)::numeric) AND (capital_minimo <= (100000000)::numeric) AND ((capital_maximo >= capital_minimo) AND (capital_maximo <= (100000000)::numeric))))"
+      }
+    ]
+  },
+  "tests": {
+    "conversion_sql": "PASS 22",
+    "rls": "PASS 319",
+    "github": [
+      "preflight PASS",
+      "app-check PASS",
+      "verify PASS"
+    ],
+    "sql_statement_exact_match": true,
+    "global_rls": "NOT RUN (sin cambio de políticas ni funciones)",
+    "e2e": "NOT RUN (sin cambio de pantalla ni release frontend)"
+  },
+  "after": {
+    "estado": {
+      "pesos": [
+        {
+          "nota": "Acordado con Miguel 2026-08-10 (noche): el referido NO entra en el divisor y pesa 0,15 en el numerador. Corrige el incentivo perverso de la primera version, donde registrar referidos BAJABA la conversion.",
+          "creado_en": "2026-08-11T21:34:35.280537+00:00",
+          "peso_referido": 0.15,
+          "vigente_desde": "2026-07-01",
+          "peso_renovacion": 0.15,
+          "tope_referidos_pct": null
+        },
+        {
+          "nota": "Miguel 2026-10-07: desde octubre el referido que cierra vale 1, con tope del 15 % de los cierres del mes del analista de leads asignados por el sistema (landing y formulario; sin referidos, renovaciones, upgrades ni base cargada; redondeo hacia arriba; sin esos cierres el tope es 0); los referidos que pasan del tope, los más recientes, valen 0. Renovación sigue en 0,15. El pasado no se toca.\nMiguel 2026-10-12: desde octubre de 2026 las renovaciones aportan 0 a la conversión de analistas. Sustituye la mención anterior de renovación 0,15. Se conservan los meses anteriores, los registros e importes de cartera, el peso y tope del referido y la primera operación elegible por cliente/mes.",
+          "creado_en": "2026-10-08T00:35:30.939209+00:00",
+          "peso_referido": 1,
+          "vigente_desde": "2026-10-01",
+          "peso_renovacion": 0,
+          "tope_referidos_pct": 15
+        }
+      ],
+      "octubre": {
+        "bruto": 39,
+        "divisor": 779,
+        "renovaciones": 2,
+        "aporte_renovaciones": 0,
+        "episodios_sin_pesos_huella": "2f7144ea72d9935c1e6514e4193bf6fa"
+      },
+      "periodos": [
+        "2026-08-01",
+        "2026-09-01"
+      ],
+      "funciones": {
+        "n": 1067,
+        "huella": "e1c9c4f818c879c501762a9720c733cc"
+      },
+      "migracion": [
+        {
+          "name": "crm_conversion_sin_renovaciones",
+          "version": "20261012213521",
+          "sentencias": 14,
+          "sql_sha256": "9f354e120b43cb6f34cf9c73354e02cfc24f258a1a32229e23dd951fbe16515c"
+        }
+      ],
+      "check_cero": "CHECK (((vigente_desde < '2026-10-01'::date) OR (peso_renovacion = (0)::numeric)))",
+      "operaciones": 148,
+      "capturado_en": "2026-10-12T21:39:17.660588+00:00",
+      "fotos_huella": "9d31dccc490536fb720bc1c1a46ef97a",
+      "column_default": "0",
+      "periodos_huella": "24898809569af4b018768327eed39cd6",
+      "historial_anterior": {
+        "n": 463,
+        "huella": "0d54d56e0a29711ff6fb87e39cb388e8"
+      },
+      "operaciones_huella": "eb9d4bb519a7887925a382d0c15e023c"
+    },
+    "puertas": {
+      "metas": {
+        "numerador": 38,
+        "vendedores": 26
+      },
+      "oficial": {
+        "total": {
+          "cartera": {
+            "operaciones_upgrade": 13,
+            "capital_renovado_pen": 0,
+            "capital_renovado_usd": 6000,
+            "conversiones_upgrade": 11,
+            "capital_adicional_pen": 0,
+            "capital_adicional_usd": 7000,
+            "conversiones_clientes": 13,
+            "operaciones_renovacion": 2,
+            "conversiones_renovacion": 2,
+            "renovaciones_sin_desglose": 0
+          },
+          "divisor": 779,
+          "analistas": 26,
+          "numerador": 39,
+          "conversion_pct": 5.01,
+          "cierres_referidos": 5,
+          "cierres_de_arrastre": 8,
+          "referidos_recibidos": 18,
+          "cierres_no_referidos": 25,
+          "referidos_aporta_pct": 0.39
+        },
+        "ponderacion": {
+          "fuente": "crm.conversion_pesos",
+          "referido": 1,
+          "renovacion": 0,
+          "tope_referidos_pct": 15
+        }
+      },
+      "coordinacion": {
+        "numerador": 39,
+        "peso_renovacion": 0,
+        "aporte_renovaciones": 0
+      }
+    }
+  },
+  "merge_requested_at": "2026-10-12 21:38:17 UTC",
+  "advisors": {
+    "security": {
+      "production_before": 366,
+      "production_after": 366,
+      "added": 0,
+      "removed": 0
+    },
+    "performance": {
+      "production_before": 235,
+      "production_after": 235,
+      "added": 0,
+      "removed": 0
+    },
+    "branch": {
+      "security_before": 364,
+      "security_after": 365,
+      "new_database_findings": 0,
+      "auth_notice": "auth_leaked_password_protection apareció después del seed; también existe en producción y la migración no modifica Auth.",
+      "performance_before": 343,
+      "performance_after": 301,
+      "removed": "42 unused_index por actividad de pruebas; sin altas"
+    }
+  },
+  "assertions": {
+    "fotos_huella": true,
+    "periodos_huella": true,
+    "operaciones_huella": true,
+    "funciones": true,
+    "historial_anterior": true
+  },
+  "status": "ACTIVO EN PRODUCCION"
+}

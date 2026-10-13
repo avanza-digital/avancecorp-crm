@@ -9,8 +9,9 @@ Reversa: `reversa.sql`, que se niega si hay meses afectados sellados o cambió
 la configuración. No modifica el historial de migraciones: el circuito de
 publicación debe registrar tanto la aplicación como cualquier reversa.
 
-Estado: **VALIDADA EN RAMA REMOTA; PENDIENTE MERGE A PRODUCCIÓN**.
-La publicación requiere el circuito de rama Supabase, gates y merge de
+Estado: **ACTIVA EN PRODUCCIÓN** desde el 12/10/2026, versión remota `20261012213521`.
+Ver [acta de publicación](PUBLICACION.md) y [evidencia productiva](activacion.json).
+Se completó el circuito de rama Supabase, gates y merge de
 `supabase/migrations/LEEME.md`. Las ramas remotas existentes (`banco-f7` y
 `plan-backend-fase4`) pertenecen a otros trabajos y figuran `MIGRATIONS_FAILED`.
 No se han reutilizado ni alterado.
@@ -96,5 +97,5 @@ Estas cifras son la foto de esa consulta, no un valor fijo del sistema.
 
 [Conversión del analista · Gerencia](https://www.figma.com/board/tO6Lpx3ieJ6QuwUxfZcSvM?node-id=50-19).
 Se reemplazaron los 12 bloques anteriores por una sola vista: cuatro pasos,
-regla de referidos y ejemplo. El aviso visible indica que el cambio de sistema
-está preparado pero no aplicado. Al verificar la publicación se actualizará ese aviso.
+regla de referidos y ejemplo. El aviso visible confirma que el cambio está activo en el sistema, tras verificar
+producción. Captura final revisada sin recortes.
