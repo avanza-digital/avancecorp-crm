@@ -45,3 +45,22 @@ días) y no de un 30 fijo; ningún porcentaje viaja en el jsonb (la pantalla los
 - En este clon de Windows los `.sql` de llamadas deben pasarse a LF antes de `test:llamadas:local` (git no ve ningún
   cambio: solo finales de línea); antes de un `rebase` hay que restaurarlos, porque git sí los considera sucios.
 - `/nueva-migracion` vive en `CRM-Avance-Corp/.claude/skills` y solo aparece cuando el cwd está dentro de esa carpeta.
+
+## Cierre de la tarde: el #255 se fusionó (12/10, 22:27 UTC)
+
+- **Miguel fusionó el #255** (squash `10e3411d` en `main`). Antes, su agente corrió Codex r1 sobre el encargo y subió
+  a la rama la corrección de su único hallazgo (P2): el registrador ahora certifica el catálogo instalado con tres
+  huellas (md5 del archivo y md5 de `pg_proc.prosrc` de la puerta y del núcleo) y rechaza cuerpos vacíos, accesos de
+  más y permisos de menos. Verificado en la máquina de Jhosep: `test:llamadas:local` **466/466**. La migración no cambió.
+- **Build nueva en producción a las 22:43 UTC** (`build-20261012T224322167Z`, de Miguel): el bundle vivo conserva
+  «Unir a un resultado guardado» (F4.2.4). F4-e no tiene pantalla todavía, así que nada visible cambió.
+- **Fusionar no es aplicar.** La migración sigue **sin aplicar**: el ledger en `main` dice «PREPARADA, SIN APLICAR»,
+  `database.types.ts` no trae `llamadas_celular_operacion_hoy_fn` y Miguel no comentó. Sigue en su turno: banco,
+  `EXPLAIN`, gate, aplicar, registrador, `gen:types`, las dos decisiones y su opinión sobre la propuesta #21
+  (cierre en lote). No se da por aplicado nada sin esas huellas.
+- La pantalla de F4-e (tercera pestaña de gerencia y bloque «Su celular») va en un PR aparte desde `main`, con plan
+  corto y OK de Jhosep; puede empezar en demo aunque Miguel no haya aplicado, porque sus dos decisiones no cambian la
+  forma del jsonb.
+- Tablero: cambios 232–245. Handoff local: `_DEV_NO_SUBIR/HANDOFF-2026-10-12-tarde.md`.
+- Lección extra: el registrador fija tres huellas; si la migración cambia antes de aplicarse hay que regenerarlas en
+  LF y repetir el banco. Si ya se aplicó, cualquier cambio va en una migración nueva.
