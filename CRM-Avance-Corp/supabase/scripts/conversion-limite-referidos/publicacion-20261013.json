@@ -1,0 +1,137 @@
+{
+  "fecha": "2026-10-13",
+  "estado": "BACKEND_ACTIVO_FRONTEND_PUBLICADO_HISTORIAL_INTEGRADO",
+  "autorizacion": "Miguel: Sí, valida y activa; $release-crm para publicar.",
+  "repositorio": "avanza-digital/avancecorp-crm",
+  "pr_implementacion": 259,
+  "supabase": {
+    "proyecto": "dctqcbznekcyxhjujuci",
+    "migration_local": "20261012220959_crm_conversion_limite_total_referidos.sql",
+    "migration_remota": "20261012232305",
+    "sha256": "72ef4f4485447d3fb6956b08171d2d9e94700cfd6c4018d96fd4a7015da3bcc7",
+    "rama_temporal": {
+      "id": "76ac37c2-5026-43e1-88bf-83defc045da4",
+      "proyecto": "jcmotyosqstvbyyrpdwe",
+      "eliminada": true
+    },
+    "antes": {
+      "divisor": 833,
+      "numerador": 44,
+      "historico_fotos": "272e1bc83807f0e39af7ee17c0b8d69c",
+      "aporte_referidos": 3,
+      "referidos_validos": 5,
+      "historico_periodos": "33c284f31bba9953c7c54e2275824881",
+      "aporte_renovaciones": 0,
+      "grupos_con_referidos": 5,
+      "grupos_que_cumplen_limite": 0
+    },
+    "despues": {
+      "divisor": 833,
+      "numerador": 41.75,
+      "historico_fotos": "272e1bc83807f0e39af7ee17c0b8d69c",
+      "aporte_referidos": 0.75,
+      "referidos_validos": 5,
+      "historico_periodos": "33c284f31bba9953c7c54e2275824881",
+      "aporte_renovaciones": 0,
+      "grupos_con_referidos": 5,
+      "grupos_que_cumplen_limite": 5
+    },
+    "funciones_md5": {
+      "private.conversion_episodios": "ed15fbd034c636e4897c7600002ee8cf",
+      "private.conversion_fijar_sello_trg": "f682c7a79ec49c35d30da890ac476944",
+      "private.registrar_ajuste_si_mes_cerrado": "6635dd1b4776fb10dab9d202805e92e9"
+    },
+    "columna_privada_denegaciones": 9,
+    "edge_sin_cambios": 23,
+    "advisors": "PASS: sin alertas nuevas frente a producción; unused_index dependiente del uso"
+  },
+  "gates": {
+    "sql_remoto": {
+      "estado": "PASS",
+      "aserciones": 43
+    },
+    "rls_auth": {
+      "estado": "PASS",
+      "aserciones": 319
+    },
+    "http_conversion": {
+      "estado": "PASS",
+      "aserciones": 44
+    },
+    "frontend_check": {
+      "estado": "PASS",
+      "tests": 6660,
+      "commit_fuente": "b3f258bf3132b0689432e1875b5abb9152eb8c9b"
+    },
+    "e2e_docker": {
+      "estado": "PASS",
+      "passed": 411,
+      "skipped": 26,
+      "failed": 0,
+      "duracion_minutos": 16.6,
+      "commit_fuente": "b3f258bf3132b0689432e1875b5abb9152eb8c9b"
+    },
+    "review": {
+      "estado": "PASS",
+      "rondas": 2
+    }
+  },
+  "figma": {
+    "url": "https://www.figma.com/board/tO6Lpx3ieJ6QuwUxfZcSvM?node-id=50-19",
+    "estado": "ACTIVO",
+    "verificacion_visual": "PASS",
+    "observaciones": {
+      "estado": "EXPLICADAS_AL_COSTADO",
+      "ajustes_node_id": "79:115",
+      "empresa_sin_analista_node_id": "79:126",
+      "verificacion_visual": "PASS",
+      "consulta_solo_lectura": {
+        "fecha": "2026-10-13T13:35:14-05:00",
+        "ajustes_pendientes": 0,
+        "aporte_pendiente_descontar": 0,
+        "analistas_con_ajustes": 0,
+        "periodo_leads": "2026-10",
+        "leads_automaticos_sin_primera_asignacion": 0
+      },
+      "alcance": "Snapshot de la consulta indicada, no un contador actualizado en tiempo real. Se explican ajustes ya registrados y leads automáticos sin primera asignación."
+    }
+  },
+  "frontend": {
+    "estado": "PASS_PUBLICADO",
+    "url": "https://crm.miavance.com",
+    "fecha_verificacion": "2026-10-13T17:55:38.014Z",
+    "commit": "767e04447c94471b1b78cc05e43ced41b1c58278",
+    "rama": "rescate/referidos-publicacion-20261013",
+    "artefacto": "crm-20261013T175343Z-767e04447c94.zip",
+    "buildId": "build-20261013T175342472Z",
+    "sha256": "8b8428fa0d5dd6942739980de7b8ef80e02ab6e5d51ad71c2a1e72c6e83db524",
+    "fuente_limpia": true,
+    "preflight": "PASS: contiene el release vivo 33a7011563853baa86a50f43e610323716ac164e",
+    "smoke": {
+      "estado": "PASS",
+      "portada_http": 200,
+      "principal_http": 200,
+      "archivos_exactos": 123,
+      "fallos": 0
+    },
+    "recuperacion_conservada": "crm-20261013T153935Z-33a701156385.zip",
+    "equivalencia_verificacion": "Árbol app 36dc8fb70ad1b5e7796bc53a1a0e4c9194caf3bf idéntico al commit b3f258bf probado; cambios posteriores de Main solo backend aplicado, pruebas backend y actas.",
+    "publicacion_excepcion": "Rescate exigido por preflight de CLAUDE.md: conserva el commit vivo cuyo PR previo se había fusionado con squash.",
+    "alcance": "Evidencia de la publicación de esta intervención a las 17:55 UTC; publicaciones posteriores pueden cambiar la versión viva."
+  },
+  "git": {
+    "estado": "HISTORIAL_INTEGRADO",
+    "pr_implementacion": 259,
+    "commit_implementacion": "b41857414a1c5dd215ada6da7259dec030fb8579",
+    "merge_implementacion": "bdb81dc3964d4613b3624fcecc018ad45ac2844e",
+    "pr_integracion": 266,
+    "url": "https://github.com/avanza-digital/avancecorp-crm/pull/266",
+    "merge_commit": "6cffe735b96bef07c41458c58dcdfebd2e437719",
+    "merged_at": "2026-10-13T19:22:01Z",
+    "main_verificado": "4ec46ba30838559142320692aa137305454a62d8",
+    "verificado_en": "2026-10-13T22:19:36.354047+00:00",
+    "commit_publicado_es_ancestro_de_main": true,
+    "commit_vivo_anterior_es_ancestro_de_main": true,
+    "antecedente": "La PR #265 se fusionó con squash como c19fe165d29fb01bde88aaacdb73c75f5b3084d7. La PR #266 resolvió la conservación del historial mediante un merge con dos padres."
+  }
+}
