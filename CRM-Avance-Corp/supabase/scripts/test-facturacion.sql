@@ -63,10 +63,24 @@ begin
     raise exception 'ORACULO: el banco no tiene gerencia activa; no se puede probar';
   end if;
 
-  select perfil_id into v_sup_viejo from crm.equipo where rol_crm = 'supervisor' order by perfil_id limit 1;
-  select perfil_id into v_sup_nuevo from crm.equipo where rol_crm = 'supervisor' order by perfil_id desc limit 1;
+  -- Dos UUID distintos podían elegir un supervisor y su hijo: el padre ve
+  -- legítimamente ambas ventas. El oráculo exige ramas independientes, activas
+  -- y sin un rol lector global del Portal, no el orden aleatorio de los UUID.
+  with recursive ramas(raiz,id) as (
+    select perfil_id,perfil_id from crm.equipo where rol_crm='supervisor'
+    union select r.raiz,e.perfil_id from crm.equipo e join ramas r on e.supervisor_id=r.id
+  )
+  select a.perfil_id,b.perfil_id into v_sup_viejo,v_sup_nuevo
+  from crm.equipo a join public.perfiles pa on pa.id=a.perfil_id
+  cross join crm.equipo b join public.perfiles pb on pb.id=b.perfil_id
+  where a.rol_crm='supervisor' and b.rol_crm='supervisor' and a.activo and b.activo
+    and pa.activo and pb.activo and pa.rol in('analista','comercial') and pb.rol in('analista','comercial')
+    and a.perfil_id<>b.perfil_id
+    and not exists(select 1 from ramas r where
+      (r.raiz=a.perfil_id and r.id=b.perfil_id) or (r.raiz=b.perfil_id and r.id=a.perfil_id))
+  order by a.perfil_id,b.perfil_id limit 1;
   if v_sup_viejo is null or v_sup_viejo = v_sup_nuevo then
-    raise exception 'ORACULO: hacen falta DOS supervisores distintos en el banco';
+    raise exception 'ORACULO: hacen falta DOS supervisores activos de ramas independientes en el banco';
   end if;
 
   -- Un analista con al menos dos ventas nuevas este mes.

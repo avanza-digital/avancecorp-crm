@@ -20258,6 +20258,10 @@ async function main() {
         ejecutarFueraDeBanda('restaurar F3 después de D-5',
           `update crm.multiempresa_flags set activo=${f3Anterior} where nombre='resolver_en_puertas';`);
       }
+    } else if (args.has('--facturacion-nombres')) {
+      console.log('ALCANCE: Facturación v1/v2 y nombres de Coordinación; no sustituye la matriz global.');
+      await testFacturacionDiaria(sessions, verifiedSeed);
+      await testFacturacionLista(sessions, verifiedSeed);
     } else if (args.has('--contratos')) {
       console.log('ALCANCE: contratos y frontera bancaria; no sustituye la matriz global.');
       await readVisibilityMatrix(sessions, verifiedSeed);
@@ -20403,7 +20407,8 @@ async function main() {
   // Auditor P3-2: si el grupo A se saltó (sin CRM_RLS_EXIGE_GRUPO_A=1), el resumen no puede decir «gate aprobado» a secas.
   const noProbado = grupoANoProbado.length > 0 ? `grupo A NO PROBADO (${grupoANoProbado.join(' · ')})` : '';
   if (failures === 0) {
-    const alcance = args.has('--contratos') ? ' CONTRATOS' : args.has('--identidad-d5') ? ' IDENTIDAD D5' : '';
+    const alcance = args.has('--contratos') ? ' CONTRATOS' : args.has('--identidad-d5') ? ' IDENTIDAD D5'
+      : args.has('--facturacion-nombres') ? ' FACTURACIÓN NOMBRES' : '';
     if (noProbado) {
       console.log(`\n⚠️ RLS${alcance} OK — ${assertions} aserciones; ${noProbado}. Esto NO aprueba el grupo A: repetir en su branch `
         + 'con CRM_RLS_EXIGE_GRUPO_A=1.');
