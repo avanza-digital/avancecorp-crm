@@ -6724,6 +6724,10 @@ export type Database = {
         }
         Returns: Json
       }
+      llamadas_celular_operacion_hoy_fn: {
+        Args: { p_supervisor_id?: string }
+        Returns: Json
+      }
       llamadas_celular_politica_fn: { Args: never; Returns: Json }
       llamadas_celular_resueltas_hoy_fn: {
         Args: {

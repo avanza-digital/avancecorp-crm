@@ -15,6 +15,7 @@ let yo: Yo, pulso = estado(v.parse(PulsoGerenciaSchema, fixture.pulso)), habitos
 const pedidos: string[] = [], periodos: number[] = []
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo }) }))
 vi.mock('@/lib/ahora', () => ({ useAhora: () => Date.parse('2026-09-24T17:00:00Z') }))
+vi.mock('@/data/llamadas-celular-operacion-queries', () => ({ useOperacionCelularHoy: () => ({ datos: null, cargando: false, enVuelo: false, error: null, recargar: async () => {} }) }))
 vi.mock('@/data/gestion-diaria-pulso-queries', () => ({
   usePulsoGerencia: (dia: string) => { pedidos.push(dia); return pulso },
   useHabitosGerencia: (_dia: string, dias: number) => { periodos.push(dias); return habitos }, useDetallePulso: () => detalle,

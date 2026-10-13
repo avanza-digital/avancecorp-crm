@@ -8,6 +8,7 @@ import {
   AsignacionesCelularSchema, CelularesSaludSchema, CierreCelularSchema, CredencialCelularSchema,
   type AsignacionCelular, type CelularSalud, type CredencialCelular, type MotivoCierre,
 } from '@/lib/celulares'
+import { OperacionCelularHoySchema, type OperacionCelularHoy } from '@/lib/llamadas-celular-operacion'
 import { CrmApiError, listarActividadesDeLead } from './crm-api'
 
 export const llamadasCelularKeys = {
@@ -190,4 +191,18 @@ export async function enlazarLlamadaCelular(evento: string, actividad: string): 
   if (!parsed.success || parsed.output.evento_id !== evento || parsed.output.actividad_id !== actividad) {
     throw new CrmApiError('No se pudo confirmar la unión. Actualiza la lista antes de reintentarlo.', 'LLAMADAS_CONTRACT')
   }
+}
+
+// ── F4-e: la operación de hoy para supervisión y gerencia ───────────────────────────────────────────────────────────
+// La puerta resuelve el ámbito del lado del servidor (gerencia: toda la operación; supervisor: su subárbol), así que
+// no se le pasa nada: `p_supervisor_id` queda para que gerencia acote a un equipo cuando una pantalla lo pida.
+export async function obtenerOperacionCelularHoy(signal?: AbortSignal): Promise<OperacionCelularHoy> {
+  if (!sb) throw new CrmApiError('No hay conexión con el CRM.', 'SIN_CLIENTE')
+  let consulta = sb.schema('crm').rpc('llamadas_celular_operacion_hoy_fn', {})
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  if (error) throw new CrmApiError(error.message, error.code)
+  const parsed = v.safeParse(OperacionCelularHoySchema, data)
+  if (!parsed.success) throw new CrmApiError('No se pudo confirmar la operación de hoy del celular. Actualiza e inténtalo de nuevo.', 'LLAMADAS_CONTRACT')
+  return parsed.output
 }
