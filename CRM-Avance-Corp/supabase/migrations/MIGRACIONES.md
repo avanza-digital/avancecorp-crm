@@ -18351,3 +18351,167 @@ E2E NOT RUN; no se publicó frontend. Las correcciones del review fueron reensay
 `crm_conversion_cierres_coordinacion`: aprobado por Miguel (12/10/2026), nombres, origen, fecha Lima, registro manual/sistema/cartera y aporte en «Ver cierres» por analista. Núcleo canónico sin cambios; solo Coordinación y Gerencia activas; página de 20 y meses sellados sin reconstrucción nominal. Sin nuevos permisos sobre tablas ni contactos/documentos/IDs de clientes. **Preparada localmente, no aplicada a producción**. Reversa: `supabase/scripts/conversion-cierres-coordinacion/reversa.sql`. Ensayo y resultado en el LEEME de esa carpeta.
 
 ACL de la nueva consulta: `PUBLIC`, `anon` y `service_role` sin EXECUTE; `authenticated` solo ejecuta la puerta con rol efectivo Coordinación/Gerencia activo. Núcleo privado sin grants externos. Lectura mínima de `public.perfiles.nombre_completo` para operaciones de cartera, sin alterar objetos del portal.
+
+## 20261013145852 — «Realización» cuenta la cita realizada desde que se marca (`private.metricas_reuniones_implementacion`)
+
+**Estado: PREPARADA — pendiente de aplicar en producción (fase 4, grupo B; D-95).** Archivo `20261013145852_crm_realizacion_cuenta_anticipada.sql`
+(antes `20261012184210` y `20261007205643`: re-fechada para ir después de `20261012223850`, la última aplicada en producción el 12/10). **13/10/2026:**
+producción re-emitió `private.metricas_conversiones_implementacion` (`20261012223850_crm_coordinacion_reportes_lectura`: Coordinación lee los reportes;
+única diferencia del cuerpo, la autorización `or private.es_coordinador_reportes()`): re-auditada, el cálculo y la «cita real» iguales (D-13 en pie); la
+huella del postflight pasa de `14f45688…` a `24fed436…` y la cabecera lo cuenta. Es el único cambio del SQL frente a F4.2-bis (`4453c22c…`). Verificada en el laboratorio local (07/10/2026, dos rondas) y resellada el 09/10/2026 en el laboratorio igual a producción (F4.2 y
+F4.2-bis, verificadas por el Director; Codex PASS en F4.2). **12/10/2026:** las ocho huellas que fija el preflight (cuerpo y definición de la función,
+los dos `citas_episodios`, `contadores_crudos_leads_citas`, `huella_exenciones_analitica_lc`, `crm.metricas_reuniones_fn` y la exención `4b28cc41…`)
+leídas en producción (solo lectura) son las auditadas. No aplicada en ninguna base real. Plan de mantenibilidad del backend, fase 2, bloque 2.2
+(decisiones D-11/Q2 y D-13 de Miguel, 06/10/2026; luz verde D-18, 07/10/2026).
+
+**Reselle F4.2 (09/10/2026, fase 4; D-24, D-26, D-33):** en el laboratorio igual a producción la migración entraba en su preflight y
+se negaba en su postflight: de lo que fija, solo cambió en `main` `private.metricas_conversiones_implementacion` (`1a0e7f7f…` →
+`14f45688…`: bases cargadas `20261006042144` y tope de referidos `20261007203000`). **Re-auditada:** su «cita real» (`ce.realizada and
+ce.debio_ocurrir` del núcleo) es la misma línea (D-13 en pie) y la migración no la toca; la función de la métrica, el núcleo
+`citas_episodios`, la exención (`4b28cc41…`), las piezas del vigía y la puerta `crm.metricas_reuniones_fn`, idénticos a los auditados:
+«Realización» (numerador y divisor, D-11/Q2 y D-13) es la verificada. Cambian: esa huella del postflight (y, en el oráculo, la del caso
+6b y la de `private.conversion_episodios`, tope de referidos, que la pantalla solo usa para «terminan en cliente/contrato» y cuyas filas
+de cierre son las mismas); **los dos barridos de `private.assert_*()` de la migración y los dos de la reversa excluyen los `*_mutantes`**
+(`p.proname !~ '_mutantes$'`, requisito F4.2 del plan, como el bloque 2.7: 30 de 36; el ensayo `--trinquetes` sigue barriendo los 36); y
+el montaje del ensayo (`antes.sql`), que completa los tres vendedores con los de menos reuniones y neutraliza dentro de la transacción
+las que ya tuvieran (el banco dejó una de hoy a uno de ellos). El cuerpo de la función, sin cambio. Cadena repetida: ROJO 8 (mismos fallos
+y cifras que la ronda 2), VERDE 0 fallos/25, 11 mutantes + 1 equivalente, 14 derivas + control + 3 mutantes de la migración, reversa,
+reversa con `SET`, reversa con el gate sembrado y su mutante, y los 36 `assert_*` y el censo idénticos. El sello vale `5c0de3fa…` (no el
+de la fase 2: otras exenciones se re-sellaron en `main`; la migración exige su coherencia, no un valor). Evidencia:
+`fase-4/F4.2-reselle/salidas/` del plan.
+
+**Reselle F4.2-bis (09/10/2026, tarde):** producción aplicó `20261009200000_crm_baja_analista_heredero`. De lo que fija la migración
+no cambió nada (entra igual: postflight con las mismas huellas y 30 trinquetes idénticos); el sello vale ahora `3e1f7ca3…` (esa
+migración re-selló la exención de `crm.cierres_externos_fn`; se exige coherencia, no un valor). Cambiaron dos funciones que fija el
+oráculo (caso 6b): `private.conversion_episodios` (`e3d278a1…` → `125b4046…`) y `private.capital_episodios` (`214c6bad…` → `b4ee7e56…`),
+solo en el analista de las operaciones y del capital, que esta pantalla no lee. **Re-auditada:** «Realización» sale de
+`private.citas_episodios`, sin cambio; ensayo de equivalencia aparte: la respuesta de la pantalla con las funciones de producción y
+con las auditadas, sin y con analistas dados de baja con heredero, idéntica (8 de 8, con una reunión convertida sembrada). Cambian
+esas dos huellas del caso 6b, la cabecera de la migración (el código SQL es el de F4.2) y el montaje del ensayo (`antes.sql`): el banco
+deja reuniones de hoy con la hora unas tres horas por delante y el ensayo abortaba hasta que pasaban; ahora se neutralizan dentro de la
+transacción, como las de los actores. Cadena: ROJO 8 (mismos fallos y cifras), VERDE 0 fallos/25, 11 mutantes + 1 equivalente, 14
+derivas + control + 3 mutantes de la migración, reversa, reversa con `SET`, reversa con el gate sembrado, y los 36 `assert_*` y el censo
+idénticos. Evidencia: `fase-4/F4.2b-reselle/salidas/` del plan.
+Regla: una cita marcada como realizada **antes de su hora pactada** entra al numerador **y** al divisor del indicador «Realización»
+de Gerencia desde que se marca («1 de 3» pasa a «1 de 4»). La cita pertenece al mes de su hora pactada; los periodos ya pasados no
+cambian; las canceladas por el asesor ya vencidas siguen en el divisor; los informes de conversiones («cita real» = realizada y hora
+vencida) no cambian.
+
+**Qué hace:** re-emite `private.metricas_reuniones_implementacion(date,date)` (definición vigente `20260907194622…:27-354`) con el
+cuerpo vigente y **un solo cambio**, en la CTE `base`: `ce.debio_ocurrir as metrica_debio_ocurrir` pasa a
+`(ce.debio_ocurrir or ce.realizada) as metrica_debio_ocurrir`. El divisor del resumen y los de modalidad, origen y responsable se
+ajustan solos (todos cuentan `metrica_debio_ocurrir`); `canceladas_sistema_vencidas` y `reprogramadas_vencidas` no cambian. `create
+or replace` con la misma firma, dueño `postgres`, `security definer`, `STABLE`, `search_path` vacío y ACL (EXECUTE solo para el
+dueño); el resto del cuerpo, byte a byte el vigente. **Re-sella la huella analítica** en la misma transacción (plantilla
+`20260908020020`): fija la huella previa `4b28cc41…` en `private.analitica_leads_citas_exenciones`, la actualiza a la del cuerpo
+nuevo (`d54d4f87…`, calculada sobre el cuerpo vivo y comparada con la revisada) y re-sella `private.analitica_lc_sello` con
+`private.huella_exenciones_analitica_lc()`; no toca razón, clase ni tope. Comentario de la función ampliado con la regla.
+
+**Precondiciones (fail-closed):** el preflight exige, antes de reemplazar: `md5(prosrc)` = `6880150bfda80eddda014068aeb9c7da` y
+`md5(pg_get_functiondef)` = `cec7ee9ec1c31ddd8fa17f1d42e88fc1` (si el cuerpo ya es `ca6fe61e…`, la migración ya está aplicada y se
+niega); la ficha (dueño `postgres`, DEFINER, STABLE, `proconfig` = solo `search_path=""`, EXECUTE solo para el dueño) y el
+comentario auditados; la exención tal como se revisó (tipo `funcion`, clase `analitica`, huella `4b28cc41…`, razón); el sello previo
+coincidiendo con la lista y el censo `private.contadores_crudos_leads_citas()` reconociendo la exención; y las huellas de las fuentes
+de las que depende el cambio (`private.citas_episodios` de 3 y 4 argumentos, `private.contadores_crudos_leads_citas`,
+`private.huella_exenciones_analitica_lc`, `crm.metricas_reuniones_fn`). El postflight exige el cambio en el cuerpo (y solo él),
+`md5(prosrc)` = `ca6fe61e76bcb8bf2d213acb1b7fc030` y `md5(pg_get_functiondef)` = `ce852e3740f60a57938e2baf2c0b736d`, la ficha
+idéntica a la previa, la exención con la huella nueva y lo demás intacto, el sello coincidente, el censo reconociéndola, las fuentes
+y `private.metricas_conversiones_implementacion` intactas (esta, con su huella de producción `14f45688…` desde F4.2), el comentario
+nuevo y **la foto de los `private.assert_*()` sin argumentos, sin los `*_mutantes` (30 de 36 desde F4.2), idéntica a la del preflight:
+por cada gate, su estado (`pasa`) o, si cae, el SQLSTATE y el texto íntegro de su primer error (sin truncar), con igualdad exacta.** Lo que esa foto garantiza, ni más ni menos: estado y texto íntegro del primer error de
+cada gate, idénticos antes y después. **No acredita PASS de los gates que ya caían** (en el laboratorio 7 caen desde antes por
+trabajos ajenos; `assert_analitica_leads_citas` cae por `private.gestion_diaria_cola_hechos` sin declarar, antes de llegar a su
+control «cuerpo CAMBIO»); la garantía fuerte sobre lo que la migración toca son las huellas de la función, el sello de la lista de
+exenciones y el censo analítico, exigidos aparte. `set local search_path = ''`, `lock_timeout 5s`, `statement_timeout 60s`,
+cerrojo consultivo y `lock table` sobre las tres tablas del vigía.
+
+**Qué NO cambia (D-13):** la bandera `debio_ocurrir` del núcleo `private.citas_episodios` (la leen los informes de conversiones:
+`private.metricas_conversiones_implementacion` y los orígenes ponderados siguen contando la «cita real» desde su hora); la puerta
+`crm.metricas_reuniones_fn`; cancelaciones y reprogramaciones; la excepción del admin (D-17) no aplica; tablas, grants, policies,
+`public`. No corrige datos.
+
+**Límites conocidos (lo que NO garantiza):**
+1. El efecto real existe solo el día de la cita, entre marcarla realizada y su hora pactada; en periodos pasados el resultado es
+   idéntico (toda cita pasada tiene la hora vencida y la consulta exige `p_hasta <= hoy`). Una cita exactamente en su hora
+   (`vence_en = now()`) ya contaba en el divisor antes de la migración (`<=`; ensayado). No se verificó si en producción existe
+   una foto externa o un cierre sellado que guarde «Realización» (por grep, ninguno; inventario pendiente para la fase 4).
+2. El ensayo siembra las citas en su estado final con los triggers apagados: mide cómo la métrica LEE la tabla, no el camino de
+   escritura (bloque 2.1) ni los informes de conversiones con cohortes reales (se comprueba su huella y la bandera del núcleo).
+
+**Verificación en el laboratorio (corte B5 + B6, `20261003162500`; rondas 1 y 2 del 07/10/2026):**
+`supabase/scripts/metricas-reuniones-realizacion/`, todo en transacciones con rollback; huella de la base IGUAL en todas las corridas.
+- Oráculo ROJO sin la migración, con 8 fallos y todos por el motivo correcto: «la realizada anticipada no entra al divisor» del
+  resumen (Δdivisor 5 en vez de 7), del analista A («1 de 3 · 33,3 %» en vez de «1 de 4 · 25,0 %»), de la modalidad virtual, de los
+  orígenes web y whatsapp (`pct_realizacion = null` con 1 realizada) y de la ventana del mes; el analista con una sola anticipada
+  queda `realizadas=1, divisor=0`; la pantalla rechazaría el payload (`realizadas > divisor`). Los otros 17 casos, en «ok». VERDE con
+  ella (25 comprobaciones «ok»).
+- Periodo pasado idéntico antes y después dentro de la misma transacción; canceladas por el asesor vencidas en el divisor; futuras
+  fuera; la anticipada del mes siguiente fuera del periodo actual; **frontera exacta** (`vence_en = now()`, sin mover el reloj):
+  `debio_ocurrir = t` en el núcleo y +1 al divisor igual antes y después; núcleo e informes con su huella y la anticipada con
+  `debio_ocurrir = false` en el núcleo; huella re-sellada; ficha; contrato de la pantalla.
+- `mutantes.sh`: 11/11 muertos, cada uno nombrando su fallo (cambio revertido; `or` aplicado también a canceladas, reprogramadas y
+  pendientes futuras; la bandera del núcleo cambiada en vez de la de la métrica —muere solo por el núcleo—; solo el divisor del
+  resumen y no los cortes; la migración sin re-sellar; INVOKER, `search_path`, VOLATILE, EXECUTE a `authenticated`) y 1 equivalente
+  confirmado (el orden de las banderas en el `or`).
+- `derivas.sh`: 14/14 derivas instaladas ANTES de la migración la hacen abortar con su mensaje y dejan cuerpo, ACL, comentario,
+  exención y sello intactos: 13 en el preflight (cuerpo, `SET`, INVOKER, VOLATILE, EXECUTE previo, comentario, núcleo alterado,
+  `contadores_crudos_leads_citas` alterada, exención con otra huella sin y con re-sellado, otra razón, sello distinto, ya aplicada)
+  y 1 en el postflight (un gate sembrado solo en el ensayo cuyo primer error cambia solo después del carácter 160: la foto íntegra
+  lo ve). El control entra. Tres mutantes de la migración mueren: sin comparar el sello previo, sin comparar las fuentes en pre y
+  postflight, y con la foto de los `assert_*` truncada a 160 (la de la ronda 1: deja pasar ese gate). Borrar la exención lo impide
+  la propia tabla.
+- Reversa → huellas, exención, **valor** del sello, comentario y ficha originales (`sellado_en` queda en `now()`, como la plantilla
+  del repo: el timestamp anterior no vuelve); la reversa tras un `ALTER FUNCTION … SET lock_timeout` ABORTA sin dejar rastro; la
+  reversa con el gate sembrado ABORTA en su postflight sin dejar rastro, y una reversa con la foto truncada lo dejaría pasar (su
+  mutante muere). Foto de los 36 `private.assert_*()` y del censo idéntica a la del 07/10 con la migración puesta (también en
+  texto íntegro, 7 caen desde antes: mensajes de hasta 611 caracteres).
+- NO ejecutados: branch de Supabase, `test-rls.mjs`, advisors, el banco por HTTP (R5b), los informes de conversiones con cohorte real.
+
+**Revisiones:** nivel 2, Codex (07/10/2026): CHANGES_REQUESTED sin P0/P1 (P2 foto de los `assert_*`, P3 espacio en la pantalla),
+ambos resueltos en la ronda 2; validación corta de Codex pendiente (la lanza el Director del plan).
+
+**Requisitos antes del gate de la branch y de la integración:**
+- Leer de la base viva, antes de aplicar, las huellas de la función (`prosrc`, definición), la exención (`huella`, `razon`, `clase`),
+  el sello y las fuentes: el preflight las exige iguales a las del laboratorio (corte anterior a `main`); si algo difiere, aborta.
+  (F4.2, 09/10/2026: leídas en el laboratorio igual a producción del 08/10; solo cambió `metricas_conversiones_implementacion`,
+  re-auditada. F4.2-bis, esa tarde: con `20261009200000` en producción no cambió nada de lo que fija la migración; el sello vale
+  `3e1f7ca3…`. Vuelve a valer si `main` o producción cambian antes de la branch.)
+- Línea base de los gates en verde: en producción `assert_analitica_leads_citas` debe pasar antes y después (aquí cae por un sujeto
+  ajeno); el postflight exige «igual», no «pasa».
+- Banco de pruebas (ronda aparte): R5b debería pasar a PASS sin tocar la prueba; ajustar la nota «la métrica NO se cambia»
+  (`45_fila5_reuniones.py:108`), `README.md:94` y que el banco acepte que las canceladas por asesor vencidas se quedan en el divisor
+  (`assertions.py:204`); añadir el caso del analista con una sola anticipada.
+- Lo que fija las huellas viejas y NO se cambia aquí: `supabase/scripts/rollback-citas-gerencia-bases-y-alcance.sql:19` (revertidor
+  histórico de `20260907194622`, ya no aplicable tras esta migración) y `supabase/scripts/citas-control-20260907/*` (control histórico
+  ya aplicado como `20260908020020`).
+- Orden de despliegue: indistinto (la pantalla solo cambia texto y su validación ya exige `realizadas <= divisor`, que es lo que la
+  migración garantiza). Build y e2e en Docker: no ejecutados.
+
+**Pantalla:** solo texto. `app/src/screens/hoy/reuniones-gerencia.tsx`: «N vencidas» → «N citas vencidas o ya realizadas» (detalle
+por analista y detalle global, este con sus separadores «· N») y «Citas realizadas sobre citas vencidas, excluyendo…» → «Citas
+realizadas sobre citas vencidas o ya realizadas, excluyendo…»; su prueba `reuniones-gerencia.test.tsx` fija el texto nuevo y el
+detalle global exacto («28 citas vencidas o ya realizadas · 4 canceladas por sistema · 0 reprogramadas.»). Sin cambio de lógica ni
+de contrato (`metricas-reuniones.ts` sigue exigiendo `divisor == debieron − …` y `realizadas <= divisor`). `npm run lint` (0 errores;
+7 avisos previos en otros archivos), `npm run typecheck` y `npx vitest run` (pantalla, lib y componentes de Gerencia: 6 archivos, 74
+pruebas) en verde el 07/10/2026.
+
+**Reversa:** `supabase/scripts/metricas-reuniones-realizacion/reversa.sql` — FALLA CERRADA: se niega si la función no tiene
+exactamente la definición que dejó la migración (cuerpo y atributos), si la exención no lleva `d54d4f87…`, si el sello no coincide o
+si la foto íntegra de los `assert_*` (sin los `*_mutantes` desde F4.2) cambia al revertir; repone el cuerpo anterior byte a byte, la huella `4b28cc41…`, el valor del
+sello y el comentario; `md5(prosrc)` vuelve a `6880150b…` y `md5(pg_get_functiondef)` a `cec7ee9e…`. `sellado_en` queda en `now()`.
+No deshace datos.
+
+**SHA-256 del archivo de la migración (07/10/2026, ronda 2):** `253a8c61bd213b883500aa32c7b9a7c72736b64623ceab145a8fea9865ba7bc5`
+(ronda 1: `5ebb0421…`; cambió solo el preflight/postflight de la foto y la cabecera; el cuerpo de la función es byte a byte el mismo).
+**SHA-256 del archivo de la migración (09/10/2026, reselle F4.2, pendiente de verificación):**
+`0bfe26f819705bbd5595a1fcca75baf8ce43df867701c871ce0a07563d026e4a` (cambian la huella de `metricas_conversiones_implementacion` en el
+postflight, el filtro de los `*_mutantes` en los dos barridos y la cabecera; el cuerpo de la función es byte a byte el mismo; verificado).
+**SHA-256 del archivo de la migración (09/10/2026, reselle F4.2-bis, pendiente de verificación):**
+`4453c22c73a7071f2e69e4d241e35045890b5b757fdee32ca6e48ff4f8d38002` (cambia solo la cabecera; el código SQL es byte a byte el de F4.2).
+
+**Grupo B (12/10/2026, fase 4; D-95):** copia de integración limpia sobre `main` (`01dd5742` = lo publicado, app `10e3411d`, + pruebas; sin la #259, cuya migración no está en producción); además de las ocho huellas del preflight, leídas en
+producción (solo lectura) la del postflight (`private.metricas_conversiones_implementacion`, `24fed436…` desde el 12/10), la ficha (postgres, DEFINER, STABLE, `search_path` vacío,
+EXECUTE solo postgres), el comentario (md5 `4a052fcd…` = el que exige el preflight) y la exención (`funcion`/`analitica`/`4b28cc41…`): todo como lo auditado. App
+`npm run check` PASS (410 archivos, 6 623 pruebas). **Codex PASS** sobre F4.2-bis y la integración (`fase-4/grupo-b/revision/` del plan). **Despliegue: servidor
+primero** (la migración, por la branch y su merge), **después** `/release-crm` con el texto «citas vencidas o ya realizadas» (la RPC no gana claves: los dos órdenes
+son compatibles; así el texto nuevo nunca describe la regla vieja). Revertir: `supabase/scripts/metricas-reuniones-realizacion/reversa.sql`.

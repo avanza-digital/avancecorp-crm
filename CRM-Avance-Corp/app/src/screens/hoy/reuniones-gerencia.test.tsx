@@ -60,6 +60,8 @@ describe('resumen de reuniones de Gerencia', () => {
     expect(screen.getByText('20.8%')).toBeInTheDocument()
     expect(screen.getByText('23.8%')).toBeInTheDocument()
     expect(screen.getByText(/las pactadas incluyen las canceladas/i)).toBeInTheDocument()
+    // El detalle global de la base, con sus separadores («· 4», no «·4»).
+    expect(screen.getByText('28 citas vencidas o ya realizadas · 4 canceladas por sistema · 0 reprogramadas.')).toBeInTheDocument()
   })
 
   it('muestra el porcentaje servido por modalidad sin la fracción de vencidas brutas', () => {
@@ -76,7 +78,7 @@ describe('resumen de reuniones de Gerencia', () => {
     expect(within(virtual).getByText('4 realizadas')).toBeInTheDocument()
     expect(within(virtual).getByText('Base y exclusiones no disponibles.')).toBeInTheDocument()
     expect(within(virtual).queryByText('4 de 21')).not.toBeInTheDocument()
-    expect(screen.getByText(/Citas realizadas sobre citas vencidas/)).toBeInTheDocument()
+    expect(screen.getByText(/Citas realizadas sobre citas vencidas o ya realizadas, excluyendo/)).toBeInTheDocument()
   })
 
   it.each([

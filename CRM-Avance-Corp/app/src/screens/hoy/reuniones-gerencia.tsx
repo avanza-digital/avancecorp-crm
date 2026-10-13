@@ -93,7 +93,7 @@ function ResultadosPorVendedor({ datos, destino }: { datos: MetricasReuniones; d
                   <strong className="text-[var(--gi-blue)]">{pct(fila.pct_realizacion)}</strong>
                   {tieneBase ? <details className="mt-1 min-w-40 text-[var(--gi-muted)]">
                     <summary className="cursor-pointer focus-visible:outline-2">{numero(fila.realizadas)} de {numero(fila.divisor_realizacion!)} computables</summary>
-                    <p className="mt-2 max-w-64 text-left leading-relaxed">{numero(fila.debieron_ocurrir!)} vencidas. Excluidas: {numero(fila.canceladas_sistema_vencidas!)} canceladas por sistema, {numero(fila.canceladas_ajenas_vencidas!)} por otro asesor y {numero(fila.reprogramadas_vencidas!)} reprogramadas. {numero(fila.programadas_futuras!)} próximas dentro del período.</p>
+                    <p className="mt-2 max-w-64 text-left leading-relaxed">{numero(fila.debieron_ocurrir!)} citas vencidas o ya realizadas. Excluidas: {numero(fila.canceladas_sistema_vencidas!)} canceladas por sistema, {numero(fila.canceladas_ajenas_vencidas!)} por otro asesor y {numero(fila.reprogramadas_vencidas!)} reprogramadas. {numero(fila.programadas_futuras!)} próximas dentro del período.</p>
                   </details> : <p className="mt-1 text-[var(--gi-muted)]">Base no disponible</p>}
                 </td>
               </tr>
@@ -172,7 +172,7 @@ export function ReunionesGerenciaPanel({ datos, cargando, error, modoDemo, puede
           <details className="gi-card px-5 py-3 text-sm">
             <summary className="cursor-pointer font-semibold focus-visible:outline-2">Ver bases y asistencia</summary>
             <div className="mt-3 grid gap-4 sm:grid-cols-2">
-              <div><p className="font-semibold">Realización</p><p className="gi-caption mt-1">Citas realizadas sobre citas vencidas, excluyendo las reprogramadas y canceladas por el sistema.</p>{baseGlobalDisponible && <p className="gi-caption mt-1">{numero(datos.resumen.debieron_ocurrir)} vencidas · {numero(datos.resumen.canceladas_sistema_vencidas!)} canceladas por sistema · {numero(datos.resumen.reprogramadas_vencidas!)} reprogramadas.</p>}</div>
+              <div><p className="font-semibold">Realización</p><p className="gi-caption mt-1">Citas realizadas sobre citas vencidas o ya realizadas, excluyendo las reprogramadas y canceladas por el sistema.</p>{baseGlobalDisponible && <p className="gi-caption mt-1">{numero(datos.resumen.debieron_ocurrir)} citas vencidas o ya realizadas · {numero(datos.resumen.canceladas_sistema_vencidas!)} canceladas por sistema · {numero(datos.resumen.reprogramadas_vencidas!)} reprogramadas.</p>}</div>
               <div><p className="font-semibold">Asistencia</p><p className="mt-1 text-xl font-bold">{pct(datos.resumen.pct_asistencia)}</p><p className="gi-caption mt-1">{datos.resumen.divisor_asistencia != null ? `${numero(datos.resumen.realizadas)} de ${numero(datos.resumen.divisor_asistencia)} citas con asistencia o inasistencia registrada.` : 'Base no disponible.'} {numero(datos.resumen.no_show)} no asistieron.</p></div>
             </div>
           </details>
