@@ -9952,7 +9952,8 @@ async function testFacturacionLista(sessions, seed) {
             `${v2}: ${quien} página ${pagina}, nombres exactos y ningún campo extra; v1 y cifras intactas`);
         }
       }
-      const anonimo = await anon.schema('crm').rpc(v2, base);
+      const anonimo = await createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-facturacion-v2'))
+        .schema('crm').rpc(v2, base);
       check(anonimo.error?.code === '42501', `${v2}: anónimo sin EXECUTE`);
     } else console.log(`  ⚠ ${v2} NO desplegada: nombres de Coordinación SALTADOS (no probados)`);
     const datosOperacion = (f) => Object.fromEntries(comunes.filter((k) => !['visible', 'cliente_nombre'].includes(k)).map((k) => [k, f[k]]));
