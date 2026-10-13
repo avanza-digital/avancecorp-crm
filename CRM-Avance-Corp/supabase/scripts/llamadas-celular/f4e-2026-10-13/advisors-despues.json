@@ -1,0 +1,100 @@
+{
+  "security": {
+    "groups": [
+      {
+        "name": "rls_enabled_no_policy",
+        "level": "INFO",
+        "count": 86,
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy",
+        "observed_at": "2026-10-13T15:39:00.425Z"
+      },
+      {
+        "name": "extension_in_public",
+        "level": "WARN",
+        "count": 1,
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0014_extension_in_public",
+        "observed_at": "2026-10-13T15:39:00.425Z"
+      },
+      {
+        "name": "anon_security_definer_function_executable",
+        "level": "WARN",
+        "count": 2,
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+        "observed_at": "2026-10-13T15:39:00.425Z"
+      },
+      {
+        "name": "authenticated_security_definer_function_executable",
+        "level": "WARN",
+        "count": 279,
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+        "observed_at": "2026-10-13T15:39:00.425Z"
+      },
+      {
+        "name": "auth_leaked_password_protection",
+        "level": "WARN",
+        "count": 1,
+        "remediation": "https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection"
+      }
+    ],
+    "added": [
+      {
+        "name": "authenticated_security_definer_function_executable",
+        "detail": "Function `crm.llamadas_celular_operacion_hoy_fn(p_supervisor_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/llamadas_celular_operacion_hoy_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+        "metadata": {
+          "name": "llamadas_celular_operacion_hoy_fn",
+          "schema": "crm",
+          "language": "plpgsql",
+          "arguments": "p_supervisor_id uuid",
+          "security_definer": true
+        },
+        "observed_at": "2026-10-13T15:39:00.425Z"
+      }
+    ]
+  },
+  "performance": {
+    "groups": [
+      {
+        "name": "unindexed_foreign_keys",
+        "level": "INFO",
+        "count": 52,
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0001_unindexed_foreign_keys",
+        "observed_at": "2026-10-13T15:39:00.727Z"
+      },
+      {
+        "name": "auth_rls_initplan",
+        "level": "WARN",
+        "count": 2,
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0003_auth_rls_initplan",
+        "observed_at": "2026-10-13T15:39:00.727Z"
+      },
+      {
+        "name": "no_primary_key",
+        "level": "INFO",
+        "count": 2,
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0004_no_primary_key",
+        "observed_at": "2026-10-13T15:39:00.727Z"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "count": 181,
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index",
+        "observed_at": "2026-10-13T15:39:00.727Z"
+      },
+      {
+        "name": "multiple_permissive_policies",
+        "level": "WARN",
+        "count": 5,
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0006_multiple_permissive_policies",
+        "observed_at": "2026-10-13T15:39:00.727Z"
+      },
+      {
+        "name": "auth_db_connections_absolute",
+        "level": "INFO",
+        "count": 1,
+        "remediation": "https://supabase.com/docs/guides/deployment/going-into-prod"
+      }
+    ],
+    "added": []
+  }
+}
