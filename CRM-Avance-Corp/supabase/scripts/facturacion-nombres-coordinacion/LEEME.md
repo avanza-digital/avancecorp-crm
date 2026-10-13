@@ -112,5 +112,5 @@ Se cre처 el rescate en una copia aparte desde ese commit. Durante la verificaci�
 se public처 `767e04447c94`, que se integr처 y volvi처 a probar: conserva Realizaci처n,
 referidos y las pantallas F4-e publicadas. El preflight de `4e31dbbf13ef` pas처
 contra `767e04447c94` antes del despliegue. El rescate vuelve a Main mediante
-el PR #267 con merge que preserva su historia, tras la fusi처n previa del PR #264;
-el acta no cambia la fuente del ZIP.
+el PR #266 con Merge que preserva su historia, tras las fusiones con squash
+del PR #264 (correcci처n) y el PR #267 (acta); el acta no cambia la fuente del ZIP.
