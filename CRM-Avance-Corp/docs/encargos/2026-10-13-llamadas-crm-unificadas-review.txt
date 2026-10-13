@@ -1,0 +1,98 @@
+VERDICT: CHANGES_REQUESTED
+
+SUMMARY:
+El contrato es coherente como encargo de implementación. Corrige bien el orden lead → evento del plan #21, el replay antes de «ya tiene resultado» y la prohibición de deduplicar por lead, número u hora. Quedan huecos que el implementador no puede cerrar sin decidir semántica: la asociación tardía no tiene comando propio; la intención reservada no define conflictos al llegar la captura; la identidad y el día de la llamada no son estables tras conciliar o purgar; y la guarda contra escritores v5 antiguos aparece como «estrategia» pendiente, no como prerrequisito. Todo se basa en el contrato y en la evidencia transcrita. No hay código de #21 ni SQL nuevo que revisar.
+
+FINDINGS:
+
+[P1] La asociación captura ↔ actividad existente no tiene contrato de escritura
+File: contrato §3, §4, §6 (Analista: «asociar»), caso 5
+Problem: §3 define un único comando de resultado. §4 y §6 exigen además «asociar un resultado existente» y «descartar con motivo». Ninguno tiene definidos idempotencia, autorización, orden de bloqueos ni recibo.
+Evidence: el helper vigente (20261005182227:92–110) solo enlaza dentro de v5 y devuelve `no_enlazado`/`ya_tiene_resultado`. No existe una puerta para enlazar una actividad ya creada sin referencia. §5 separa quién llamó (captura) de quién registró (actividad), pero no dice quién puede asociar si son personas distintas o si hubo reasignación.
+Impact: el caso 5 obligatorio no es implementable sin inventar una segunda puerta. Si cada implementación la resuelve de forma ad hoc, aparecen enlaces N:1, asociaciones sin recibo o asociaciones hechas por un actor fuera de ámbito.
+Recommendation: especificar el comando `asociar`/`descartar` con estas reglas:
+- unicidad 1:1 evento ↔ actividad vigente;
+- clave actor + operación + evento + actividad;
+- orden lead → evento → enlace;
+- quién puede asociar (llamante, registrante, supervisor del ámbito);
+- reversión de una asociación errónea;
+- efecto nulo sobre `creado_en` y sobre los efectos comerciales.
+
+[P1] La intención previa a la captura no define qué pasa si la captura llega incompatible
+File: contrato §3.5, §4 («Intención exacta antes de la captura»), caso 4
+Problem: el resultado se confirma atómicamente con la reserva, pero el enlace ocurre después. El contrato no cubre tres situaciones al llegar el aviso:
+- la captura corresponde a otro lead o a otro actor;
+- el evento ya fue resuelto por una puerta antigua (v5) en el intervalo;
+- la captura nunca llega.
+Evidence: §3.5 solo cubre el rechazo en el momento del registro («no debe dejar una segunda actividad»). En el enlace diferido la actividad ya existe, y §3.1 prohíbe confiar en actor/lead del navegador. Validar un «id de origen válido» antes de que exista el evento solo puede ser una validación de formato.
+Impact: hay riesgo de enlazar silenciosamente un resultado al evento equivocado. También hay un vector de abuso: un actor puede reservar un id de origen que pertenece a la captura de otra persona. El estado de las reservas huérfanas queda indefinido.
+Recommendation:
+- vincular la reserva a actor y dispositivo/asignación;
+- al ingerir la captura, revalidar actor, lead y ámbito, y si no coinciden pasar ambos a «Por revisar» sin auto-enlace;
+- definir TTL y estado visible para reservas sin captura;
+- añadir los casos de aceptación correspondientes.
+
+[P1] La guarda contra puertas antiguas debe ser prerrequisito, y su ubicación está acotada
+File: contrato §3 (último párrafo), casos 11–12; 20261005155914:639–647
+Problem: el contrato deja a Jhosep «definir el adaptador o la guarda común». Pero v5 llama a `private.llamada_registrar_v4` **antes** del helper de enlace, así que la guarda no puede vivir en el helper (llega tarde) ni en v4 (no recibe el evento).
+Impact: mientras exista un cliente v5 en uso, sigue siendo posible crear una gestión con resultado `no_enlazado` sobre una llamada ya resuelta por v6. Eso rompe el caso 11 aunque v6 sea correcto.
+Recommendation: exigir en la Entrega B una nueva definición de v5 con este orden:
+1. leer el recibo y, si existe, devolver la respuesta histórica literal, incluido `no_enlazado`;
+2. tomar el lead;
+3. tomar el evento;
+4. rechazar si el evento ya tiene enlace vigente;
+5. solo entonces llamar al núcleo v4.
+
+Hacer la Entrega C dependiente de esa migración. Confirmar también el orden de bloqueos de la ingesta y de Deshacer: la evidencia adjunta no lo muestra, así que el riesgo de interbloqueo con la ingesta es una hipótesis.
+
+[P2] La identidad estable y el día de la llamada pueden cambiar al conciliar o purgar
+File: contrato §4 («identidad estable»), §5 («Llamadas de hoy»), §5 retención, casos 7, 16, 17
+Problem: una actividad sin captura cuenta por su fecha de registro. Si después se concilia una captura con otra hora física, la fila puede cambiar de día y de identidad. Si la identidad se ancla en la captura, la purga la rompe.
+Impact: cambian retroactivamente los totales de días cerrados, el cursor de paginación se vuelve inestable y la identidad se pierde tras la purga.
+Recommendation:
+- fijar la regla de anclaje: identidad = primer ancla persistente no purgable (actividad o reserva), con la captura como alias;
+- declarar si el día se recalcula al conciliar y versionarlo;
+- la purga elimina evidencia, no la identidad.
+
+[P2] Falta la regla de conteo del estado «Por revisar»
+File: contrato §4 último bullet, §5 tabla, caso 5
+Problem: con una captura candidata y una actividad sin referencia, no se dice si «Llamadas de hoy» cuenta 1, 2 o un rango. Tampoco se dice si la captura candidata aparece en «Sin resultado» además de «Por revisar», ni qué criterio la convierte en candidata y no en pendiente.
+Impact: los tres roles pueden mostrar cifras distintas, lo que rompe el caso 1 en presencia de candidatos.
+Recommendation: cubetas mutuamente excluyentes, regla determinista (por ejemplo, contar ambas como identidades distintas con la marca «provisional») y criterio de candidatura documentado.
+
+[P2] Deshacer un registro manual sin captura deja una llamada fantasma
+File: contrato §4 (Corrección/Deshacer), §5 «Sin resultado … incluidas las deshechas»
+Problem: si la única evidencia es la actividad, deshacerla mantiene la identidad como pendiente. Un registro hecho por error (lead equivocado) queda como una llamada real sin resultado.
+Recommendation: distinguir «deshacer resultado» de «anular registro sin evidencia física», con su efecto en el conteo.
+
+[P2] La cohorte de contacto contradice «mismo conjunto en pantalla»
+File: contrato §1 y §5 (Contacto); pulso 20260924201358:9–22, :53–54
+Problem: el contacto heredado usa `creado_en` de la actividad, mientras «Llamadas de hoy» usa el momento de la llamada. Si ambas cifras aparecen en la misma vista, mezclan cohortes. El caso 7 lo exige evitar.
+Recommendation: declarar qué cohorte usa el contacto en la vista nueva (llamadas de hoy con resultado vigente, o resultados registrados hoy) y rotularla.
+
+[P2] Lote #21 frente a validaciones de v4
+File: contrato §7; 20260921153654:230–240
+Problem: §7 elimina tarea y próxima acción en cada elemento. No se demuestra que v4 acepte «No contestó» sin `p_siguiente`. Es una hipótesis: las validaciones de v4 no están adjuntas.
+Recommendation: citar las reglas de v4 sobre próxima acción obligatoria y, si las hay, definir qué valor recibe cada elemento.
+
+[P3] SLA del cliente
+File: sla-operacion-comandos.ts:209–230
+Problem: `replace(/_v[2345]$/)` no normaliza `_v6`. El contrato ya lo señala. Recomiendo añadir un test que falle si se agrega un comando sin actualizar la lista cerrada.
+
+TEST GAPS:
+- Reserva sin captura: captura con otro lead, otro actor o evento ya resuelto por v5; reserva huérfana.
+- Asociar y desasociar: idempotencia, otro id sobre el mismo par, actor fuera de ámbito, unicidad 1:1.
+- Replay de v5 histórico con respuesta `no_enlazado` después de la nueva guarda: respuesta idéntica.
+- Ingesta concurrente con v6, v5 y Deshacer (orden de bloqueos de la ingesta).
+- Conciliación que mueve una llamada de día; purga de una captura enlazada sin perder identidad ni paginación.
+- Anulación de un registro manual sin captura.
+- Lote: «No contestó» sin próxima acción frente a las validaciones de v4.
+
+RECOMMENDED NEXT ACTIONS:
+1. Añadir a §3 el comando de asociar/descartar y el ciclo de vida de la reserva diferida (conflicto, TTL, vínculo al actor).
+2. Convertir la guarda en v5 en prerrequisito obligatorio de B, con el orden recibo → lead → evento → v4.
+3. Fijar la regla de anclaje de identidad, día y purga, la regla de conteo de «Por revisar» y la cohorte de contacto.
+4. Adjuntar, o encargar que se verifique, el orden de bloqueos de la ingesta y las validaciones de próxima acción de v4.
+
+CONFIDENCE:
+MEDIUM. El análisis se basa en el contrato y en los extractos transcritos. No se vio el código de ingesta, el de Deshacer ni el de la rama local de #21.
