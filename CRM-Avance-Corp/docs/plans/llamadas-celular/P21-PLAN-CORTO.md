@@ -1,5 +1,9 @@
 # Propuesta #21 — Registrar varias pendientes del mismo lead de una vez: plan corto (13/10/2026, solo análisis)
 
+> **En pausa desde el 13/10 (tarde):** la propuesta #23 («Gestión Diaria unificada», fila 23 de `PROPUESTAS-DE-AJUSTE.md`) decide
+> dónde vive el botón de la #21 («Llamadas sin cerrar encuesta», no una pestaña aparte). La puerta descrita abajo ya está
+> escrita y probada en local (rama local sin subir); se retoma cuando Miguel responda la #23.
+
 Para el OK de Jhosep y el contrato con Miguel. Sin código hasta los dos OK. Sigue a
 `docs/encargos/2026-10-12-codex-cierre-en-lote-propuesta-21.md` (análisis verificado contra el código el 12/10) y a los
 reparos a–e de Miguel del 13/10 (`docs/encargos/2026-10-13-f4e-aplicacion-y-propuesta21.md`), con el alcance que Jhosep
