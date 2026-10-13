@@ -9930,6 +9930,32 @@ async function testFacturacionLista(sessions, seed) {
       if (referencia) recibidas.set(quien, referencia);
     }
     const g = recibidas.get('gerencia'); const d = recibidas.get('directorio');
+    // Regresión de nombres: v1 sigue siendo el oráculo publicado. La copia de
+    // Coordinación v2 debe conservar sus cifras/filtros y los nombres de Gerencia.
+    // Ejecutar también al modificar facturacion_lista, sin ampliar permiso de ficha.
+    const v2 = 'listar_operaciones_facturacion_v2_fn';
+    if (contarFueraDeBanda('Facturación nombres: API v2 instalada', `select count(*) from pg_proc
+      where oid=to_regprocedure('crm.${v2}${firma}')`) === 1) {
+      check(g?.filas.some((f) => f.tipo === 'cooperativa') && g.filas.some((f) => f.tipo !== 'cooperativa'),
+        `${v2}: oráculo HTTP tiene contratos y cooperativas`);
+      for (const [quien, anterior] of recibidas) {
+        for (let pagina = 1; pagina <= Math.max(1, Math.ceil(anterior.total / 100)); pagina += 1) {
+          const { data, error } = await sessions[quien].client.schema('crm').rpc(v2,
+            { ...base, p_pagina: pagina, p_tamano: 100 });
+          const esperadas = anterior.filas.slice((pagina - 1) * 100, pagina * 100).map((f) => quien === 'coordinador'
+            ? { ...f, nombre_visible: true, cliente_nombre: g?.filas[f.n - 1]?.cliente_nombre } : f);
+          const esperado = { version: 2, pagina, tamano: 100, total: anterior.total, totales: anterior.totales, filas: esperadas };
+          // Comparación de valores y claves ordenadas: el orden JSON no es un contrato.
+          const ordenar = (valor) => Array.isArray(valor) ? valor.map(ordenar) : valor && typeof valor === 'object'
+            ? Object.fromEntries(Object.keys(valor).sort().map((k) => [k, ordenar(valor[k])])) : valor;
+          check(!error && sinDni({ data, error }) && iguales(ordenar(data), ordenar(esperado)),
+            `${v2}: ${quien} página ${pagina}, nombres exactos y ningún campo extra; v1 y cifras intactas`);
+        }
+      }
+      const anonimo = await createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-facturacion-v2'))
+        .schema('crm').rpc(v2, base);
+      check(anonimo.error?.code === '42501', `${v2}: anónimo sin EXECUTE`);
+    } else console.log(`  ⚠ ${v2} NO desplegada: nombres de Coordinación SALTADOS (no probados)`);
     const datosOperacion = (f) => Object.fromEntries(comunes.filter((k) => !['visible', 'cliente_nombre'].includes(k)).map((k) => [k, f[k]]));
     check(g && d && g.total === d.total && iguales(g.totales, d.totales)
       && iguales(g.filas.map(datosOperacion), d.filas.map(datosOperacion))

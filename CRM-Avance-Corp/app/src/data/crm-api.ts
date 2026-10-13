@@ -4775,7 +4775,7 @@ export async function listarFacturacionDiaria(
 }
 
 /** Contrato versionado de la lista: se valida ENTERO, nunca se descartan operaciones. */
-export type ParametrosOperacionesFacturacion = Database['crm']['Functions']['listar_operaciones_facturacion_fn']['Args']
+export type ParametrosOperacionesFacturacion = Database['crm']['Functions']['listar_operaciones_facturacion_v2_fn']['Args']
 const NumeroListaFacturacion = v.pipe(v.number(), v.finite())
 const EnteroListaFacturacion = v.pipe(NumeroListaFacturacion, v.integer(), v.minValue(0))
 const TipoOperacionFacturacion = v.picklist(['contrato_nuevo', 'contrato_upgrade', 'contrato_renovacion', 'cooperativa'])
@@ -4791,6 +4791,7 @@ const BaseOperacionFacturacion = {
 }
 const OperacionFacturacionSchema = v.union([
   v.strictObject({ ...BaseOperacionFacturacion, visible: v.literal(false), cliente_nombre: v.literal('Cliente de otro equipo') }),
+  v.strictObject({ ...BaseOperacionFacturacion, visible: v.literal(false), nombre_visible: v.literal(true), cliente_nombre: v.nullable(v.string()) }),
   v.strictObject({ ...BaseOperacionFacturacion, visible: v.literal(true), cliente_nombre: v.nullable(v.string()),
     estado: v.nullable(v.string()), tipo: v.literal('cooperativa'), cierre_externo_id: v.string(),
     cooperativa: v.nullable(v.string()), lead_id: v.nullable(v.string()) }),
@@ -4799,7 +4800,7 @@ const OperacionFacturacionSchema = v.union([
     contrato_id: v.string(), numero_contrato: v.nullable(v.string()), cliente_id: v.nullable(v.string()) }),
 ])
 const ListaOperacionesFacturacionSchema = v.strictObject({
-  version: v.literal(1), pagina: v.pipe(EnteroListaFacturacion, v.minValue(1)), tamano: v.picklist([25, 50, 100]),
+  version: v.picklist([1, 2]), pagina: v.pipe(EnteroListaFacturacion, v.minValue(1)), tamano: v.picklist([25, 50, 100]),
   total: EnteroListaFacturacion,
   totales: v.array(v.strictObject({ moneda: v.picklist(['PEN', 'USD']), operaciones: v.pipe(EnteroListaFacturacion, v.minValue(1)), monto: NumeroListaFacturacion })),
   filas: v.array(OperacionFacturacionSchema),
@@ -4812,6 +4813,7 @@ export function parsearListaOperacionesFacturacion(datos: unknown): ListaOperaci
   const fallo = () => new CrmApiError('La lista de operaciones llegó con un formato o una versión no compatible. Vuelve a intentarlo; no se muestran datos incompletos.', 'CONTRATO_FACTURACION')
   if (!resultado.success) throw fallo()
   const lista = resultado.output
+  if (lista.version === 1 && lista.filas.some((f) => 'nombre_visible' in f)) throw fallo()
   const inicio = (lista.pagina - 1) * lista.tamano
   if (new Set(lista.totales.map((t) => t.moneda)).size !== lista.totales.length ||
       lista.totales.reduce((n, t) => n + t.operaciones, 0) !== lista.total ||
@@ -4826,7 +4828,7 @@ export function parsearListaOperacionesFacturacion(datos: unknown): ListaOperaci
 }
 
 export async function listarOperacionesFacturacion(params: ParametrosOperacionesFacturacion, signal?: AbortSignal): Promise<ListaOperacionesFacturacion> {
-  let consulta = cliente().schema('crm').rpc('listar_operaciones_facturacion_fn', params)
+  let consulta = cliente().schema('crm').rpc('listar_operaciones_facturacion_v2_fn', params)
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
   lanzarAbortSiCorresponde(signal)
@@ -4834,6 +4836,7 @@ export async function listarOperacionesFacturacion(params: ParametrosOperaciones
     ? 'No se puede abrir este número: elige un tramo de hasta 31 días y revisa los filtros y el tamaño de página.'
     : 'No se pudo cargar la lista de operaciones. Vuelve a intentarlo.', error.code || 'POSTGREST_ERROR')
   const lista = parsearListaOperacionesFacturacion(data)
+  if (lista.version !== 2) throw new CrmApiError('La lista de operaciones llegó con una versión no compatible. Vuelve a intentarlo.', 'CONTRATO_FACTURACION')
   if (lista.pagina !== (params.p_pagina ?? 1) || lista.tamano !== (params.p_tamano ?? 25)) {
     throw new CrmApiError('La página recibida no corresponde a la solicitada. Vuelve a intentarlo.', 'CONTRATO_FACTURACION')
   }
