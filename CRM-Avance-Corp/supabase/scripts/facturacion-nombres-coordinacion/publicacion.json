@@ -7,7 +7,7 @@
     "commit": "4e31dbbf13efc8b462c7ceb217d18eb408c58203",
     "rama": "rescate/coordinacion-nombres-20261013",
     "anterior_vivo": "767e04447c94471b1b78cc05e43ced41b1c58278",
-    "integracion": "PR #267: acta y merge del rescate tras la fusión del PR #264"
+    "integracion": "PR #264: corrección; PR #267: acta mediante squash; PR #266: merge que conserva el historial del rescate"
   },
   "frontend": {
     "url": "https://crm.miavance.com",
