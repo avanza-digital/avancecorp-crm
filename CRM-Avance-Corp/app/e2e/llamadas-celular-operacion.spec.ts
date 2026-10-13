@@ -14,7 +14,8 @@ test('Celular (gerencia): la pestaña «Llamadas del celular» lista los equipos
   const ficha = page.getByRole('region', { name: 'Detalle del Equipo de SUPERVISOR UNO' })
   await expect(ficha.getByRole('list', { name: 'Analistas que necesitan atención' }).getByRole('listitem')).toHaveCount(2)
   await expect(ficha).toContainText('Llamadas de hoy (por la hora de la llamada)')
-  await page.getByRole('button', { name: /^Con celular sin latido/ }).click()
+  // «Con por revisar» deja un solo equipo; «sin latido» cuenta también al que nunca habló (los dos equipos).
+  await page.getByRole('button', { name: /^Con por revisar/ }).click()
   await expect(tabla.getByRole('button', { name: /^Seleccionar / })).toHaveCount(1)
 })
 
