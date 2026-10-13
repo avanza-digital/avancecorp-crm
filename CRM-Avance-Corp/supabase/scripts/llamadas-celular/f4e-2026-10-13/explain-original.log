@@ -1,0 +1,50 @@
+BEGIN
+SET
+SET
+SELECT 3
+INSERT 0 3
+SELECT 20000
+INSERT 0 20000
+INSERT 0 18000
+INSERT 0 18000
+SET
+ANALYZE
+ANALYZE
+ANALYZE
+ eventos_sinteticos | enlazados | dias_historial 
+--------------------+-----------+----------------
+              20000 |     18000 |            100
+(1 row)
+
+              set_config              
+--------------------------------------
+ 72b95b62-b566-407a-941b-cc6db1664cc7
+(1 row)
+
+                                        QUERY PLAN                                         
+-------------------------------------------------------------------------------------------
+ Result  (cost=0.00..0.29 rows=1 width=32) (actual time=2975.889..2975.889 rows=1 loops=1)
+   Buffers: shared hit=710660 dirtied=1
+ Planning:
+   Buffers: shared hit=34
+ Planning Time: 0.057 ms
+ Execution Time: 2975.906 ms
+(6 rows)
+
+                                        QUERY PLAN                                         
+-------------------------------------------------------------------------------------------
+ Result  (cost=0.00..0.29 rows=1 width=32) (actual time=2966.459..2966.459 rows=1 loops=1)
+   Buffers: shared hit=708851
+ Planning Time: 0.020 ms
+ Execution Time: 2966.468 ms
+(4 rows)
+
+                                        QUERY PLAN                                         
+-------------------------------------------------------------------------------------------
+ Result  (cost=0.00..0.29 rows=1 width=32) (actual time=2882.354..2882.354 rows=1 loops=1)
+   Buffers: shared hit=708851
+ Planning Time: 0.020 ms
+ Execution Time: 2882.364 ms
+(4 rows)
+
+ROLLBACK

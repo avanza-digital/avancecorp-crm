@@ -1701,6 +1701,53 @@ try {
     anterior: 'la duodécima', plantillaAnterior: 'plantilla_once', faltaAnterior: 'falta la duodécima',
     reversaAnterior: rcierre, niegaAnterior: 'revertir primero la decimotercera',
   });
+  // Rendimiento de F4-e: contrato idéntico, catálogo reversible y registrador estricto.
+  const dr = 'operacion_rendimiento';
+  psqlSql(`create database ${dr} template plantilla_doce`, 'postgres');
+  r = psqlArchivo(MIG_OPERACION, dr);
+  paso('base F4-e para rendimiento', r.ok, r.ok ? '' : cola(r.salida));
+  const antesR = huella(dr);
+  const rendimiento = join(RAIZ, 'supabase/migrations/20261013145935_crm_llamadas_celular_operacion_hoy_rendimiento.sql');
+  const reversaR = join(RAIZ, 'supabase/scripts/llamadas-celular/reversa-operacion-hoy-rendimiento.sql');
+  r = psqlArchivo(rendimiento, dr);
+  paso('rendimiento F4-e aplicado conservando atributos y ACL', r.ok, r.ok ? '' : cola(r.salida));
+  oraculoEn('O1–O17 con rendimiento F4-e', ORACULO_OPERACION, 'ORACULO OPERACION HOY OK', dr);
+  r = psqlArchivo(rendimiento, dr);
+  paso('rendimiento rechaza reaplicación', !r.ok && r.salida.includes('catálogo distinto'));
+  r = psqlArchivo(reversaR, dr);
+  paso('reversa de rendimiento', r.ok, r.ok ? '' : cola(r.salida));
+  paso('reversa de rendimiento restaura catálogo exacto', huella(dr).salida === antesR.salida);
+  r = psqlArchivo(rendimiento, dr);
+  paso('rendimiento reaplicable tras reversa', r.ok, r.ok ? '' : cola(r.salida));
+  psqlSql('create schema supabase_migrations; create table supabase_migrations.schema_migrations(version text primary key,name text,statements text[]);', dr);
+  const registrarR = join(RAIZ, 'supabase/scripts/llamadas-celular/registrar-operacion-hoy-rendimiento.sql');
+  for (const nombre of ['registro rendimiento', 'registro rendimiento idempotente']) {
+    r = psqlArchivo(registrarR, dr);
+    paso(nombre, r.ok && /\bt\b/.test(r.salida), r.ok ? '' : cola(r.salida));
+  }
+  r = psqlArchivo(reversaR, dr);
+  paso('reversa tras registro conserva catálogo y retira versión del ledger', r.ok && huella(dr).salida === antesR.salida
+    && psqlSql("select count(*) from supabase_migrations.schema_migrations where version='20261013145935'", dr).salida.trim() === '0');
+  r = psqlArchivo(registrarR, dr);
+  paso('registro rendimiento rechaza núcleo original', !r.ok && r.salida.includes('definición alterada'));
+  r = psqlArchivo(reversaR, dr);
+  paso('reversa rendimiento rechaza núcleo original', !r.ok && r.salida.includes('catálogo distinto'));
+  r = psqlArchivo(rendimiento, dr);
+  paso('reaplicación tras reversa registrada', r.ok, r.ok ? '' : cola(r.salida));
+  const ddlR = readFileSync(rendimiento, 'utf8').match(/create or replace function[\s\S]+?\$function\$;/)[0];
+  const sinHistoria = ddlR.replace(/\n        union\n        select e\.lead_id[\s\S]+?(?=\n      \))/, '');
+  r = psqlSql(sinHistoria, dr);
+  const sinHistoriaResultado = psqlArchivo(ORACULO_OPERACION, dr);
+  paso('oráculo caza pérdida de deshecha antigua sin llamadas recientes', sinHistoria !== ddlR && r.ok
+    && !sinHistoriaResultado.ok && sinHistoriaResultado.salida.includes('ORACULO O9: la deshecha de hace 40 días'));
+  psqlSql(ddlR, dr);
+  psqlSql("insert into supabase_migrations.schema_migrations values ('20261013145935','alterado',array['alterado'])", dr);
+  r = psqlArchivo(registrarR, dr);
+  paso('registrador rendimiento rechaza ledger distinto', !r.ok && r.salida.includes('contenido distinto'));
+  r = psqlArchivo(reversaR, dr);
+  paso('reversa rendimiento rechaza ledger distinto sin cambiar núcleo', !r.ok && r.salida.includes('ledger distinto')
+    && psqlSql("select md5(prosrc) from pg_proc where oid='private.llamadas_celular_operacion_hoy(uuid,uuid,timestamptz)'::regprocedure", dr).salida.trim() === '0047b3a6edfe8dead60526e5575b72d9');
+  psqlSql(`drop database ${dr}`, 'postgres');
 } catch (error) {
   paso('arranque del banco', false, error.message);
 } finally {

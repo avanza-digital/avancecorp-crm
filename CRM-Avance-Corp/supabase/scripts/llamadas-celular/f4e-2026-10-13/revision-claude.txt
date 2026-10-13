@@ -1,0 +1,85 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+Revisé solo la evidencia adjunta. El cambio del CTE es semánticamente equivalente al original en los tres consumidores: `hoy`, `pendientes` y `deshechas`, incluida la lógica de tres valores con NULL. La seguridad no cambia: misma firma, mismas capas INVOKER/DEFINER y el mismo `auth.uid()`; `CREATE OR REPLACE` conserva owner, ACL y comentario, y el postflight lo verifica contra `pg_proc`. La migración y la reversa son atómicas y fallan cerradas por huella. Pido cambios por dos motivos: la reversa deja el ledger desalineado si ya se ejecutó el registrador, y ningún test demuestra que exista y funcione la rama de `leads_estado` que solo alimenta `deshechas`. Lo demás es menor.
+
+**Equivalencia del CTE, verificada sobre el texto:**
+- **`hoy`.** `leads_estado` contiene todo lead activo con `id ∈ salientes.lead_id`. `hoy` es un subconjunto de `salientes`: `recibido_en >= v_desde-1d` ⊆ `least(...)`. `abierto` usa la misma expresión, con la misma propagación de NULL. Es equivalente.
+- **`pendientes`.** El original hace `left join crm.leads` (incluye inactivos) y luego filtra `(s.lead_id is null or l.activo)`. El nuevo hace `left join leads_estado` (solo activos), así que un inactivo da `l` NULL y `(false or null)` excluye la fila. Si `lead_id` es NULL, `pendiente` vale NULL y no se cuenta en ninguno de los dos; `por_revisar` cuenta las mismas filas. Es equivalente. Los NULL de `salientes.lead_id` dentro de `IN (... union ...)` no afectan.
+- **`deshechas`.** La rama `union` de `leads_estado` reproduce exactamente los joins y predicados de `deshechas`, salvo los del lead. `and l.abierto` con NULL excluye igual que antes. Es equivalente.
+- **Snapshot.** Es una sola sentencia, así que comparte snapshot y no aparecen inconsistencias nuevas entre CTEs.
+
+FINDINGS:
+
+[P2] La reversa no toca `supabase_migrations.schema_migrations`
+- **File:** `supabase/scripts/llamadas-celular/reversa-operacion-hoy-rendimiento.sql`
+- **Lines:** todo el script; la cabecera dice «sin borrar datos ni registrar historia».
+- **Problem:** si se ejecutó `registrar-operacion-hoy-rendimiento.sql` y después la reversa, el ledger sigue marcando `20261013145935` como aplicada, pero el catálogo tiene el cuerpo original (`648a…`).
+- **Evidence:** el registrador inserta con `on conflict do nothing`. La reversa solo valida y restaura `pg_proc`. El test ejecuta reversa → reaplicación → registro, pero nunca registro → reversa.
+- **Impact:**
+  - `supabase migration list` / `db push` considerará aplicada una versión que no lo está, y la CLI no la volverá a aplicar.
+  - Reejecutar el registrador fallará con «definición alterada», lo que oculta la causa real.
+  - Es deriva entre ledger y catálogo en producción.
+- **Recommendation:** elegir una de dos opciones.
+  - Que la reversa borre la fila del ledger dentro de la misma transacción, con guarda: solo si `md5(statements[1])='2d29…'`, y tras tomar el mismo `pg_advisory_xact_lock`.
+  - O documentar, en la cabecera y en el runbook, el paso manual obligatorio. Antes conviene revisar cómo lo resolvieron las reversas anteriores de la familia y seguir ese patrón.
+- **Test:** añadir el caso registro → reversa → comprobar que el ledger quedó coherente.
+
+[P2] No hay test que pruebe que la rama `union` de `leads_estado` es necesaria
+- **File:** migración `20261013145935…`, CTE `leads_estado` (segunda rama del `union`); `test-llamadas-celular-local.mjs` (bloque nuevo).
+- **Problem:** esa rama solo importa cuando un lead tiene una actividad deshecha enlazada y ningún evento suyo cae en la ventana de `salientes`, por ser más antiguo que la retención (`least(v_desde-1d, ahora-v_dias)`). Si nadie la ejercita, borrarla haría que `deshechas` deje de contar esos leads en silencio.
+- **Evidence:** el bloque nuevo solo reejecuta O1–O17 sobre la base migrada. No se adjunta ningún oráculo ni mutante que construya una deshecha «antigua», fuera de la ventana de `salientes`. O1–O17 se escribió contra el original, donde esa distinción no existía.
+- **Impact:** una regresión futura en esta rama (por ejemplo, «simplificar» el `union`) pasaría todos los gates.
+- **Recommendation:**
+  - Añadir un caso al oráculo: deshecha sin corregir, lead abierto, evento con `recibido_en < ahora - v_dias - 1 día`. Esperado: `pendientes.deshechas_sin_corregir = 1`.
+  - Añadir un mutante sin la rama `union` que deba fallar.
+
+[P3] Falta una prueba diferencial original vs. nuevo
+- **Evidence:** la equivalencia se apoya en O1–O17 y en el razonamiento.
+- **Recommendation:** en `operacion_rendimiento`, capturar el jsonb del original para varios actores (gerencia, gerencia+sup, supervisor) y `p_ahora` antes de migrar, con datos variados: leads inactivos, vetados, `no_contactar`, `lead_id` NULL con `por_revisar` y deshechas antiguas. Después de migrar, comparar con igualdad exacta de `jsonb`.
+- **Cómo invocarlo:** llamando al núcleo con `request.jwt.claims` fijados.
+
+[P3] Ampliación del dominio de `persona_vetada`
+- **Evidence:** antes se evaluaba solo en filas que pasaban los filtros de cada CTE. Ahora se evalúa una vez por cada lead activo de la unión, incluidos leads de `salientes` cuyas filas luego se descartan (por ejemplo, `por_revisar` fuera de la cohorte de hoy).
+- **Impact:** es una hipótesis, porque no se adjunta su cuerpo. Si `persona_vetada` puede lanzar excepciones o tiene coste dependiente del lead, aparecen errores o coste donde antes no los había.
+- **Recommendation:** confirmar que es STABLE, que no lanza excepciones y que no depende del actor.
+
+[P3] El registrador da un mensaje engañoso
+- **Evidence:** la primera guarda solo verifica que existan las funciones, que ya existen desde PR255. Por eso, sin la migración 14 aplicada, el error real será «definición alterada de private…» y no «no está aplicada».
+- **Recommendation:** distinguir el caso `md5 = 648a…` y dar el mensaje correcto.
+
+[P3] Consistencia y documentación
+- `$pre$` y `$post$` usan `pg_proc` y `md5` sin calificar, mientras que la migración original usa `pg_catalog.` siempre. Con un `search_path` hostil en la sesión de aplicación, la resolución cambia. Recomiendo calificarlos.
+- La cabecera de la migración 14 dice «~21–27 ms»; el request dice 15–22 ms. Hay que unificar las cifras del EXPLAIN.
+- Las huellas md5 dependen de que `prosrc` tenga LF. El fallo es cerrado, pero conviene un `.gitattributes` con `eol=lf` para `supabase/**/*.sql` si no existe ya.
+- En los tests, `/\bt\b/` sobre la salida de psql es una aserción débil. Mejor exigir `veredicto_registro_20261013145935` seguido de `t`, o usar `-tA` y comparar exacto.
+- El `git status` muestra sin rastrear `supabase/scripts/.f4e-gate-dirigido.mjs`. No está en la evidencia: aclarar si se versiona o se descarta, y no dejarlo oculto en el PR.
+
+[P3] Rendimiento residual
+- La unión de enlaces → actividades deshechas → eventos se recorre dos veces: una en `leads_estado` y otra en `deshechas`. No es obligatorio cambiarlo. Si el EXPLAIN de producción lo muestra, se puede materializar una base común `deshechas_base` y derivar ambos CTEs de ella.
+
+TEST GAPS:
+- Deshecha con evento fuera de la ventana de `salientes`, más su mutante sin la rama `union`.
+- Secuencia registro → reversa → coherencia del ledger.
+- Diferencial jsonb exacto entre original y nuevo con datos adversariales de NULL, inactivo y vetado.
+- El registrador debe rechazar si la migración 14 no está aplicada (`md5 = 648a…`) y si el ledger tiene contenido distinto. Hoy solo se prueba el camino feliz y la idempotencia.
+- La reversa debe rechazar si se ejecuta sobre el original (precondición).
+
+SECURITY RISKS:
+- No encontré ninguno nuevo. Firma, `prosecdef`, `search_path=''`, ACL y owner quedan preservados y verificados por `to_jsonb(p)-'prosrc'`. El resultado sigue siendo agregado y no expone ids de lead.
+
+REGRESSION RISKS:
+- Desalineación entre ledger y catálogo tras la reversa (ver P2).
+- Fragilidad futura de la rama `union` mientras no tenga test.
+- En `test-rls.mjs`, el cambio a `equipos[].personas[]` asume ese contrato de `gestion_diaria_pulso_fn`. Lo respalda el 347/347 PASS, pero conviene citar dónde está definido.
+
+RECOMMENDED NEXT ACTIONS:
+1. Resolver el ledger en la reversa (borrado guardado y atómico, o paso documentado según el patrón de reversas previas) y probar registro → reversa.
+2. Añadir el caso de deshecha antigua al oráculo, con su mutante sin la rama `union`.
+3. Opcional antes de producción: diferencial jsonb original vs. nuevo, calificar `pg_catalog.`, unificar las cifras de EXPLAIN y decidir qué hacer con `.f4e-gate-dirigido.mjs`.
+
+CONFIDENCE:
+MEDIUM-HIGH. La equivalencia del CTE es alta, porque está verificada sobre el texto. La parte de ledger y operación es media, porque no tengo los cuerpos de `persona_vetada` ni el patrón de las reversas previas.
+
+Nota: respondo como SECONDARY_REVIEWER sin herramientas, como pide el encargo. Esta revisión no crea ningún plan ni archivo.

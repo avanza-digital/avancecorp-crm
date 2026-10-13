@@ -1,3 +1,24 @@
+## 20261013145935 — F4-e: rendimiento de la operación de hoy
+
+**PREPARADA, VERIFICADA LOCALMENTE; SIN APLICAR EN PRODUCCIÓN (13/10/2026).**
+Continuación del PR #255 y del paso 5 del contrato, autorizada por Miguel.
+Materializa la contactabilidad por lead en el núcleo de la decimotercera;
+conserva firma, propietario, ACL, atributos y resultados. No añade índices.
+Huella de cuerpo: `0047b3a6edfe8dead60526e5575b72d9`; puerta inalterada:
+`952abdd141001309f08ab56e8a828698`. Archivo LF: `31eb4cbde86a020e34b2fba6df1d9057`.
+Banco reducido **482/482 PASS**, incluido O9 con lead exclusivamente antiguo,
+mutante sin esa rama rechazado, reversa exacta, registro/reversa/reaplicación,
+ledger adulterado rechazado y rollback de la reversa comprobado.
+Gate Supabase `test:rls -- --llamadas` con `CRM_RLS_EXIGE_LLAMADAS_F4E=1`:
+**347/347 PASS**, matriz global ajena al alcance NOT RUN. EXPLAIN de 20.000 eventos,
+18.000 enlaces y 100 días: original 2.882–2.976 ms; optimizada 15–22 ms.
+Registro: `registrar-operacion-hoy-rendimiento.sql`, después de registrar la
+original. Reversa: `reversa-operacion-hoy-rendimiento.sql`; restaura el núcleo
+original y retira solo su entrada exacta del ledger en una transacción.
+Revisión Claude: CHANGES_REQUESTED; los dos P2 corregidos y verificados por
+Codex PRIMARY, sin una segunda consulta. Evidencia, límites y entrega a Jhosep:
+[`acta F4-e`](../../docs/encargos/2026-10-13-f4e-aplicacion-y-propuesta21.md).
+
 ## 20261012220959 — Límite exacto sobre cierres referidos
 
 **PREPARADA Y PROBADA EN LOCAL; NO APLICADA EN PRODUCCIÓN.** El límite desde

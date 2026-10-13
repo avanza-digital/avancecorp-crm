@@ -153,12 +153,13 @@ const HELP = `
 Gate RLS del CRM (solo branch/staging con seed-demo)
 
 Uso:
-  node supabase/scripts/test-rls.mjs [--preflight] [--contratos | --identidad-d5]
+  node supabase/scripts/test-rls.mjs [--preflight] [--contratos | --identidad-d5 | --llamadas]
 
 Opciones:
   --preflight  Valida runtime, variables y matriz sin abrir conexiones.
   --contratos  Ejecuta visibilidad, frontera bancaria, contratos y acceso anónimo.
   --identidad-d5 Repite solo D-5 con un lead nuevo; admite un banco ya utilizado.
+  --llamadas   Ejecuta visibilidad y llamadas del celular, incluidas las banderas F4-b/F4-e.
   --help       Muestra esta ayuda sin exigir variables de entorno.
 
 Variables requeridas:
@@ -174,7 +175,7 @@ tareas/ICS, las metas versionadas y la frontera bancaria del CRM.
 `;
 
 const args = new Set(process.argv.slice(2));
-const allowedArgs = new Set(['--help', '-h', '--preflight', '--contratos', '--identidad-d5']);
+const allowedArgs = new Set(['--help', '-h', '--preflight', '--contratos', '--identidad-d5', '--llamadas']);
 const unknownArgs = [...args].filter((arg) => !allowedArgs.has(arg));
 
 if (unknownArgs.length > 0) {
@@ -188,8 +189,8 @@ if (args.has('--help') || args.has('-h')) {
   process.exit(0);
 }
 
-if (args.has('--contratos') && args.has('--identidad-d5')) {
-  console.error('Elige un solo alcance: --contratos o --identidad-d5.');
+if (['--contratos', '--identidad-d5', '--llamadas'].filter((arg) => args.has(arg)).length > 1) {
+  console.error('Elige un solo alcance: --contratos, --identidad-d5 o --llamadas.');
   process.exit(2);
 }
 
@@ -18928,7 +18929,8 @@ async function testLlamadasCelular(sessions, seed) {
         && Boolean(analistaDe(opGS1, 'vend1')) && !analistaDe(opGS1, 'vend3'), 'operación de hoy: gerencia con sup1 como id ve solo su equipo', errorText(opGS1.error));
       // Claves de equipo = las de «Actividad del día» (gestion_diaria_pulso_fn), para que las pestañas coincidan.
       const pulso = await rpc('gerencia', 'gestion_diaria_pulso_fn', {});
-      const supervisorPulso = new Map((pulso.data?.personas ?? []).map((p) => [p.analista_id, p.supervisor_id ?? null]));
+      const personasPulso = (pulso.data?.equipos ?? []).flatMap((equipo) => equipo.personas ?? []);
+      const supervisorPulso = new Map(personasPulso.map((p) => [p.analista_id, p.supervisor_id ?? null]));
       check(!pulso.error && (opG.data?.analistas ?? []).length > 0
         && (opG.data?.analistas ?? []).every((a) => supervisorPulso.has(a.analista_id) && supervisorPulso.get(a.analista_id) === (a.supervisor_id ?? null)),
       'operación de hoy: cada analista cuelga del mismo supervisor que en el pulso de Gestión Diaria', errorText(pulso.error));
@@ -20207,6 +20209,10 @@ async function main() {
         ejecutarFueraDeBanda('restaurar F3 después de D-5',
           `update crm.multiempresa_flags set activo=${f3Anterior} where nombre='resolver_en_puertas';`);
       }
+    } else if (args.has('--llamadas')) {
+      console.log('ALCANCE: llamadas del celular y visibilidad; no sustituye la matriz global.');
+      await readVisibilityMatrix(sessions, verifiedSeed);
+      await testLlamadasCelular(sessions, verifiedSeed);
     } else if (args.has('--contratos')) {
       console.log('ALCANCE: contratos y frontera bancaria; no sustituye la matriz global.');
       await readVisibilityMatrix(sessions, verifiedSeed);
@@ -20352,7 +20358,7 @@ async function main() {
   // Auditor P3-2: si el grupo A se saltó (sin CRM_RLS_EXIGE_GRUPO_A=1), el resumen no puede decir «gate aprobado» a secas.
   const noProbado = grupoANoProbado.length > 0 ? `grupo A NO PROBADO (${grupoANoProbado.join(' · ')})` : '';
   if (failures === 0) {
-    const alcance = args.has('--contratos') ? ' CONTRATOS' : args.has('--identidad-d5') ? ' IDENTIDAD D5' : '';
+    const alcance = args.has('--contratos') ? ' CONTRATOS' : args.has('--identidad-d5') ? ' IDENTIDAD D5' : args.has('--llamadas') ? ' LLAMADAS' : '';
     if (noProbado) {
       console.log(`\n⚠️ RLS${alcance} OK — ${assertions} aserciones; ${noProbado}. Esto NO aprueba el grupo A: repetir en su branch `
         + 'con CRM_RLS_EXIGE_GRUPO_A=1.');
