@@ -1,3 +1,19 @@
+## 20261012220959 — Límite exacto sobre cierres referidos
+
+**PREPARADA Y PROBADA EN LOCAL; NO APLICADA EN PRODUCCIÓN.** El límite desde
+el octubre abierto pasa de `ceil(15 % de cierres automáticos)` al **15 % exacto
+del total de cierres referidos válidos por analista/mes**. Conserva orden de
+admisión y permite un último aporte parcial. Congela el descuento marginal del límite al sellar:
+Miguel confirmó que pasar de 4 a 3 referidos reduce 0,60 a 0,45 (descuento 0,15),
+independientemente de la posición de admisión. Renovaciones
+siguen en cero; divisor, cartera, permisos e histórico previo conservados.
+Nueva columna privada `ajuste_anulacion_en_sello` (descuento marginal congelado,
+distinto del aporte individual mostrado), tres funciones con guardas y reversa; textos del CRM y
+tipos alineados. Ensayo local: 36 + 7 aserciones SQL, ocho escenarios de
+recuperación y tres E2E Docker PASS. Revisión independiente y gate frontend
+(6.640 tests, lint, typecheck, build, bundle y duplicación) PASS. Rama remota,
+Auth/HTTP, advisors y activación pendientes. [Guía y evidencia](../scripts/conversion-limite-referidos/LEEME.md).
+
 ## 20261012192500 — Llamadas desde el celular · DECIMOTERCERA (F4-e): la operación de hoy para supervisión y gerencia (`crm.llamadas_celular_operacion_hoy_fn`)
 
 **PREPARADA; VERIFICADA EN EL BANCO REDUCIDO LOCAL, SIN APLICAR EN PRODUCCIÓN (12/10/2026).** Tarea F6.3.1 del plan de

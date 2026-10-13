@@ -1073,6 +1073,7 @@ export type Database = {
         Row: {
           acreditado_en: string
           actualizado_en: string
+          ajuste_anulacion_en_sello: number | null
           analista_id: string | null
           confirmado_en: string
           creado_en: string
@@ -1096,6 +1097,7 @@ export type Database = {
         Insert: {
           acreditado_en: string
           actualizado_en?: string
+          ajuste_anulacion_en_sello?: number | null
           analista_id?: string | null
           confirmado_en: string
           creado_en?: string
@@ -1119,6 +1121,7 @@ export type Database = {
         Update: {
           acreditado_en?: string
           actualizado_en?: string
+          ajuste_anulacion_en_sello?: number | null
           analista_id?: string | null
           confirmado_en?: string
           creado_en?: string

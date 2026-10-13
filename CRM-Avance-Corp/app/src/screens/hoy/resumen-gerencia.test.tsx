@@ -758,13 +758,13 @@ describe('gráfica por origen — publicación fail-closed', () => {
       nucleo: { ...datos.nucleo!, peso_referido: 1, tope_referidos_pct: 15 },
       origenes: [
         filaOrigen('formulario', 717, 22, 3.1, 1, 3.1),
-        filaOrigen('referido', 11, 8, 72.7, 1, 4.2),
+        filaOrigen('referido', 11, 8, 72.7, 1, 10.9),
       ],
     })
 
     const panel = panelOrigenes()
-    expect(within(panel).getByText('4.2%')).toBeInTheDocument()
-    expect(within(panel).getByText(/^Referido: sus cierres cuentan hasta el 15 % de los cierres de leads asignados de cada analista \(los que sobran no suman\), como en la conversión general/)).toBeInTheDocument()
+    expect(within(panel).getByText('10.9%')).toBeInTheDocument()
+    expect(within(panel).getByText(/^Referido: su aporte total tiene un límite del 15 % de sus cierres referidos válidos por analista y mes \(los que sobran no suman\), como en la conversión general/)).toBeInTheDocument()
     expect(within(panel).queryByText(/cada cierre cuenta ×1/)).not.toBeInTheDocument()
   })
 
@@ -776,7 +776,7 @@ describe('gráfica por origen — publicación fail-closed', () => {
       origenes: [filaOrigen('referido', 11, 8, 72.7, 0.15, 10.9)],
     })
     expect(within(panelOrigenes()).getByText(/^Referido: cada cierre cuenta ×0\.15, como en la conversión general/)).toBeInTheDocument()
-    expect(within(panelOrigenes()).queryByText(/cuentan hasta el/)).not.toBeInTheDocument()
+    expect(within(panelOrigenes()).queryByText(/su aporte total tiene un límite/)).not.toBeInTheDocument()
   })
 
   it('con un servidor que aún no publica la ponderada, muestra la de siempre y lo dice', () => {
