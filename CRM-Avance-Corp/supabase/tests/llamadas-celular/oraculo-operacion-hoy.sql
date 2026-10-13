@@ -118,6 +118,7 @@ declare
   vi constant uuid := '00000000-0000-0000-0000-0000000000e4'; -- vendedor de b1 con perfil inactivo (no cuenta)
   si constant uuid := '00000000-0000-0000-0000-0000000000e5'; -- supervisor con perfil inactivo (22023 para gerencia)
   c9 uuid := gen_random_uuid(); -- lead de a3 que se convierte después (O9)
+  c40 uuid := gen_random_uuid(); -- lead de a3 con SOLO la llamada deshecha de hace 40 días
   k1 uuid; k2 uuid; k3 uuid; k4 uuid; k5 uuid;
   v_ahora constant timestamptz := now();
   v_desde constant timestamptz := date_trunc('day', now() at time zone 'America/Lima') at time zone 'America/Lima';
@@ -353,9 +354,10 @@ begin
     raise exception 'ORACULO O9: deshecha de un lead convertido → cerradas después (%)', v_a;
   end if;
   -- Variante: deshecha de hace 40 días → sigue en pendientes.deshechas_sin_corregir (la purga no la toca).
-  v_e := pg_temp.evento(k2, a3, c8, pg_temp.origen('C2', 3), v_ahora - interval '40 days', v_ahora - interval '40 days', 'registrado');
-  v_act := pg_temp.actividad(c8, a3, v_ahora - interval '40 days' + interval '1 minute', true);
-  perform pg_temp.enlace(v_e, v_act, c8, a3, 'al_colgar', v_ahora - interval '40 days' + interval '2 minutes');
+  insert into crm.leads (id, nombre_completo, telefono, etapa, vendedor_id) values (c40, 'Lead solo historial antiguo', '+51900000040', 'nuevo', a3);
+  v_e := pg_temp.evento(k2, a3, c40, pg_temp.origen('C2', 3), v_ahora - interval '40 days', v_ahora - interval '40 days', 'registrado');
+  v_act := pg_temp.actividad(c40, a3, v_ahora - interval '40 days' + interval '1 minute', true);
+  perform pg_temp.enlace(v_e, v_act, c40, a3, 'al_colgar', v_ahora - interval '40 days' + interval '2 minutes');
   v_a := pg_temp.analista(pg_temp.nucleo(g1, null, v_ahora), a3);
   if pg_temp.n(v_a, 'pendientes', 'deshechas_sin_corregir') <> 1 or pg_temp.n(v_a, 'llamadas_hoy', 'total') <> 2
      or pg_temp.n(v_a, 'pendientes', 'total') <> 0 then

@@ -1,0 +1,33 @@
+BEGIN
+SET
+SET
+SELECT 3
+INSERT 0 3
+SELECT 20000
+INSERT 0 20000
+INSERT 0 18000
+INSERT 0 18000
+SET
+ANALYZE
+ANALYZE
+ANALYZE
+ eventos_sinteticos | enlazados | dias_historial 
+--------------------+-----------+----------------
+              20000 |     18000 |            100
+(1 row)
+
+              set_config              
+--------------------------------------
+ 72b95b62-b566-407a-941b-cc6db1664cc7
+(1 row)
+
+CREATE FUNCTION
+SELECT 7
+CREATE FUNCTION
+DO
+ comparaciones_exactas_jsonb 
+-----------------------------
+                           7
+(1 row)
+
+ROLLBACK

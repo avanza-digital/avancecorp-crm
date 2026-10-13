@@ -153,13 +153,14 @@ const HELP = `
 Gate RLS del CRM (solo branch/staging con seed-demo)
 
 Uso:
-  node supabase/scripts/test-rls.mjs [--preflight] [--contratos | --identidad-d5 | --facturacion-nombres]
+  node supabase/scripts/test-rls.mjs [--preflight] [--contratos | --identidad-d5 | --facturacion-nombres | --llamadas]
 
 Opciones:
   --preflight  Valida runtime, variables y matriz sin abrir conexiones.
   --contratos  Ejecuta visibilidad, frontera bancaria, contratos y acceso anónimo.
   --identidad-d5 Repite solo D-5 con un lead nuevo; admite un banco ya utilizado.
   --facturacion-nombres Ejecuta Facturación v1/v2 y nombres; no sustituye la matriz general.
+  --llamadas   Ejecuta visibilidad y llamadas del celular, incluidas las banderas F4-b/F4-e.
   --help       Muestra esta ayuda sin exigir variables de entorno.
 
 Variables requeridas:
@@ -175,7 +176,7 @@ tareas/ICS, las metas versionadas y la frontera bancaria del CRM.
 `;
 
 const args = new Set(process.argv.slice(2));
-const allowedArgs = new Set(['--help', '-h', '--preflight', '--contratos', '--identidad-d5', '--facturacion-nombres']);
+const allowedArgs = new Set(['--help', '-h', '--preflight', '--contratos', '--identidad-d5', '--facturacion-nombres', '--llamadas']);
 const unknownArgs = [...args].filter((arg) => !allowedArgs.has(arg));
 
 if (unknownArgs.length > 0) {
@@ -189,8 +190,8 @@ if (args.has('--help') || args.has('-h')) {
   process.exit(0);
 }
 
-if (['--contratos', '--identidad-d5', '--facturacion-nombres'].filter((alcance) => args.has(alcance)).length > 1) {
-  console.error('Elige un solo alcance: --contratos, --identidad-d5 o --facturacion-nombres.');
+if (['--contratos', '--identidad-d5', '--facturacion-nombres', '--llamadas'].filter((alcance) => args.has(alcance)).length > 1) {
+  console.error('Elige un solo alcance: --contratos, --identidad-d5 --facturacion-nombres o --llamadas.');
   process.exit(2);
 }
 
@@ -20265,6 +20266,10 @@ async function main() {
       console.log('ALCANCE: Facturación v1/v2 y nombres de Coordinación; no sustituye la matriz global.');
       await testFacturacionDiaria(sessions, verifiedSeed);
       await testFacturacionLista(sessions, verifiedSeed);
+    } else if (args.has('--llamadas')) {
+      console.log('ALCANCE: llamadas del celular y visibilidad; no sustituye la matriz global.');
+      await readVisibilityMatrix(sessions, verifiedSeed);
+      await testLlamadasCelular(sessions, verifiedSeed);
     } else if (args.has('--contratos')) {
       console.log('ALCANCE: contratos y frontera bancaria; no sustituye la matriz global.');
       await readVisibilityMatrix(sessions, verifiedSeed);
@@ -20411,7 +20416,7 @@ async function main() {
   const noProbado = grupoANoProbado.length > 0 ? `grupo A NO PROBADO (${grupoANoProbado.join(' · ')})` : '';
   if (failures === 0) {
     const alcance = args.has('--contratos') ? ' CONTRATOS' : args.has('--identidad-d5') ? ' IDENTIDAD D5'
-      : args.has('--facturacion-nombres') ? ' FACTURACIÓN NOMBRES' : '';
+      : args.has('--facturacion-nombres') ? ' FACTURACIÓN NOMBRES' : args.has('--llamadas') ? ' LLAMADAS' : '';
     if (noProbado) {
       console.log(`\n⚠️ RLS${alcance} OK — ${assertions} aserciones; ${noProbado}. Esto NO aprueba el grupo A: repetir en su branch `
         + 'con CRM_RLS_EXIGE_GRUPO_A=1.');

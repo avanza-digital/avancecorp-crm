@@ -97,7 +97,9 @@ export interface SaludPresentada {
  * Las reglas de la columna «Salud». `analistaActivo` sale del catálogo de usuarios; `null` = no se pudo saber, y
  * entonces se confía en el servidor (rotar sigue habilitado y, si corresponde, él lo niega con su texto).
  */
-export function presentarSalud(c: CelularSalud, analistaActivo: boolean | null): SaludPresentada {
+/** Lo que necesita la columna «Salud»: también lo publica F4-e de cada celular (sin asignación ni nombre). */
+export type SaludBase = Pick<CelularSalud, 'estado_latido' | 'horas_sin_latido' | 'reloj_desfasado' | 'version_macro' | 'eventos_en_cola'>
+export function presentarSalud(c: SaludBase, analistaActivo: boolean | null): SaludPresentada {
   const deBaja = analistaActivo === false
   const principal: AvisoSalud = deBaja ? { texto: 'Analista de baja', tono: 'mal' }
     : c.estado_latido === 'nunca' ? { texto: 'Nunca habló', tono: 'quieto' }
