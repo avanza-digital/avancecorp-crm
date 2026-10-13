@@ -1,3 +1,19 @@
+## 20261013154615 — Nombres en Facturación para Coordinación, solo lectura
+
+**IMPLEMENTADA Y PROBADA; INSTALADA SOLO EN RAMA DE PRUEBAS.** Miguel aprobó
+mostrar nombres para los reportes de Rosa el 13/10/2026. Nueva RPC v2 y helper
+privado sellado: Coordinación activa CRM+Portal recibe `nombre_visible:true`,
+mantiene `visible:false` y no recibe IDs de clientes/contratos/leads/cierres,
+referencias, documentos, contactos ni escrituras. Otros roles delegan exactamente
+en v1; la RPC publicada v1 permanece intacta para pestañas anteriores.
+SQL sintético y reversa PASS; 15 comparaciones de otros roles, 220 filas en tres
+meses/páginas, bajas, RLS y ACL. Frontend PASS: 6.651 tests; 50 E2E Docker PASS.
+Auditor RLS independiente PASS; tipos obtenidos del banco real. Matriz Auth,
+advisors y publicación pendientes. Backend antes del frontend; reversa en el
+orden inverso. Al modificar `private.facturacion_lista`, comprobar también la
+copia de Coordinación y su paridad SQL/HTTP.
+[Guía, evidencia y reversa](../scripts/facturacion-nombres-coordinacion/LEEME.md).
+
 ## 20261012220959 — Límite exacto sobre cierres referidos
 
 **PREPARADA Y PROBADA EN LOCAL; NO APLICADA EN PRODUCCIÓN.** El límite desde

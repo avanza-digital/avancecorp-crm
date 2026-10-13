@@ -52,6 +52,21 @@ describe('hoja lateral: los seis estados aprobados y realidad de producción', (
     expect(screen.getByRole('region', { name: abierto().titulo })).toHaveTextContent('El cliente hoy lo atiende otro equipo')
     expect(screen.getByRole('region', { name: abierto().titulo })).not.toHaveTextContent(/SECRETO|privada/)
   })
+  it.each([[1440, 'Cliente del reporte'], [390, 'Cliente del reporte'], [1440, null], [390, null]] as const)('Coordinación ve el nombre para reportar, sin ficha ni referencia privada (%s px, %s)', (ancho, nombre) => {
+    vi.stubGlobal('matchMedia', (q: string) => ({
+      matches: (ancho <= 640 && q === '(max-width: 640px)') || (ancho < 1280 && q === '(max-width: 1279px)'),
+      addEventListener: vi.fn(), removeEventListener: vi.fn(),
+    }))
+    doble.data = respuesta([{ ...oculta, n: 1, nombre_visible: true, cliente_nombre: nombre }])
+    pintar({ totales: doble.data.totales, valor: 3500 })
+    const panel = screen.getByRole(ancho < 1280 ? 'dialog' : 'region', { name: abierto().titulo })
+    expect(within(panel).getByText(nombre ?? 'Cliente sin nombre', { exact: true })).toBeVisible()
+    expect(panel).not.toHaveTextContent('Cliente de otro equipo')
+    expect(panel).not.toHaveTextContent('El cliente hoy lo atiende otro equipo')
+    expect(within(panel).queryByRole('link')).toBeNull()
+    expect(within(panel).queryByRole('button', { name: /Ver ficha|Editar|Anular|Abrir cliente/ })).toBeNull()
+    expect(panel.querySelector('.lista-ajena')).toBeNull()
+  })
   it('cero: un mes sin operaciones se abre y se explica', () => {
     doble.data = respuesta([])
     pintar({ valor: 0, totales: [] })

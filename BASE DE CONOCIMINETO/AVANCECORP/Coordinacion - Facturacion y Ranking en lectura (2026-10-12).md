@@ -6,6 +6,10 @@ estado: publicado y verificado; rama temporal eliminada
 
 # Coordinación — Facturación y Ranking en lectura
 
+Actualización aprobada el 13/10/2026: [[Coordinacion - nombres en Facturacion para reportes (2026-10-13)]].
+Habilita nombres exclusivamente en el desglose de Facturación, conservando solo
+lectura; esta nota registra el contrato histórico publicado el 12/10.
+
 Miguel autorizó que Coordinación consulte Facturación y Ranking de toda la empresa,
 con filtros y desgloses numéricos, conservando Repartir leads como inicio. Este permiso
 de reportes no habilita fichas ni PII o identificadores de clientes/leads/contratos

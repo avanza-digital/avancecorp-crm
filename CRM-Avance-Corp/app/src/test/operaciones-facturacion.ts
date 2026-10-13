@@ -2,18 +2,18 @@ import type { ListaOperacionesFacturacion, OperacionFacturacion, ParametrosOpera
 import type { FilaFacturacionDia } from '@/lib/facturacion'
 import { filasDeCifra } from '@/screens/facturacion/parametros-de-cifra'
 
-export const operacion: OperacionFacturacion = {
+export const operacion = {
   n: 1, fecha: '2026-10-05', tipo: 'contrato_nuevo', moneda: 'PEN', monto: 25000,
   anulado: false, analista_id: 'ana', analista_nombre: 'Ana Prueba', supervisor_id: 'sup', supervisor_nombre: 'Supervisora Prueba',
   visible: true, cliente_nombre: 'Cliente Prueba', estado: 'vigente', contrato_id: 'contrato', numero_contrato: '2026-10-000001', cliente_id: 'cliente',
-}
-export const oculta: OperacionFacturacion = {
+} satisfies OperacionFacturacion
+export const oculta = {
   n: 2, fecha: '2026-10-05', tipo: 'cooperativa', moneda: 'USD', monto: 1000, anulado: false,
   analista_id: 'ana', analista_nombre: 'Ana Prueba', supervisor_id: 'sup', supervisor_nombre: 'Supervisora Prueba',
   visible: false, cliente_nombre: 'Cliente de otro equipo',
-}
+} satisfies OperacionFacturacion
 export function respuesta(filas: OperacionFacturacion[] = [operacion], pagina = 1, tamano: 25 | 50 | 100 = 25): ListaOperacionesFacturacion {
-  return { version: 1, pagina, tamano, total: filas.length,
+  return { version: 2, pagina, tamano, total: filas.length,
     totales: (['PEN', 'USD'] as const).flatMap((moneda) => {
       const propias = filas.filter((f) => f.moneda === moneda)
       return propias.length ? [{ moneda, operaciones: propias.length, monto: propias.reduce((n, f) => n + f.monto, 0) }] : []
