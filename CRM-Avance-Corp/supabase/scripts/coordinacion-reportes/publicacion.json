@@ -1,0 +1,45 @@
+{
+  "estado": "PUBLICADO Y VERIFICADO",
+  "fecha": "2026-10-12",
+  "acta_actualizada": "2026-10-13",
+  "fuente_publicada": "10e3411deb2288cbf01c81513b63a5c1ca6d9a51",
+  "build": "build-20261012T224322167Z",
+  "artefacto": "crm-20261012T224323Z-10e3411deb22.zip",
+  "sha256_zip": "265fbb65b89b0ed0527b8a9e36cf9f9a9a494dc65f83f4a915915fc04801b10e",
+  "backend": {
+    "version_produccion": "20261012223850",
+    "version_rama_propia": "20261012212842",
+    "sha256_fuente": "57aec100a96c73f6a47b8ee8288386a06e22be55914a308615efb17a5ecfd8d3",
+    "paridad_funciones": "PASS: 13 cuerpos, propietarios, ACL y atributos idénticos",
+    "instalacion": "Realizada por el flujo paralelo autorizado Ver cierres; no reaplicada"
+  },
+  "verificacion": {
+    "app": "PASS: 413 archivos / 6640 tests, check completo, fuente app idéntica entre 3c42d572 y 10e3411d",
+    "duplicacion_pct": 0.43,
+    "sql": "PASS: 120 comparaciones otros roles, 24 lecturas Coordinación, 3 páginas sin PII, bajas, RLS y reversa",
+    "e2e_integrado": "PASS: 36 Docker",
+    "e2e_general": "405 PASS / 2 FAIL / 26 SKIPPED en bundle de desarrollo; dos casos dependientes de fuentes Vite repetidos en Docker con servidor Vite: 2 PASS",
+    "rls_http": "PASS: 3900 aserciones / 0 fallos, grupo A incluido; F4-e no instalado, omitido",
+    "oraculos_pr": "https://github.com/avanza-digital/avancecorp-crm/pull/258",
+    "oraculos_estado": "PR #258 fusionada el 12/10/2026 a las 23:07:46 UTC; commit Main 01dd574271bce9a7cbab33cd06b6c7746a8410ff. Validado commit 83cf8989156a7d64fc4cb1ac197ff53a516f4a2d",
+    "smoke": "PASS: portada, versión y 121 JS/CSS exactos en bytes y SHA-256",
+    "advisors_performance": "343 antes / 202 después, cero agregados",
+    "advisors_seguridad": "Aviso esperado por equipo_reportes_fn SECURITY DEFINER; demás avisos anteriores o del cambio separado Ver cierres",
+    "post_banco": "Cero triggers desactivados; grant temporal seed revocado",
+    "gate_realidad": "NOT RUN: falta de credencial service-role; lectura parcial de contexto no sustituye el gate",
+    "trinquete_analitico": "Mismas 4 puertas no declaradas en padre y rama; FAIL preexistente, no se declara PASS"
+  },
+  "limpieza": {
+    "rama_id": "8b6b2718-8cbf-40b1-a212-465981905b1c",
+    "rama_ref": "nkouxfpyfvecivftrami",
+    "estado": "Eliminada y confirmada ausente",
+    "otras_ramas": "Preservadas",
+    "credenciales_temporales": "Archivos propios eliminados",
+    "creada": "2026-10-12T20:47:26.876849Z",
+    "eliminada": "2026-10-12T23:15:44Z",
+    "tarifa_usd_h": 0.01344,
+    "coste_computo_estimado_usd": 0.0332,
+    "limite_autorizado_usd": 1,
+    "nota": "Estimación; no factura"
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "fecha": "2026-10-12T23:03:18.157154+00:00",
+  "estado": "PREPARADO_LOCAL_SIN_ACTIVAR",
+  "base_git": "10e3411d",
+  "migracion": "20261012220959_crm_conversion_limite_total_referidos.sql",
+  "sha256": "72ef4f4485447d3fb6956b08171d2d9e94700cfd6c4018d96fd4a7015da3bcc7",
+  "regla": "limite = 15 % del total de cierres referidos validos por analista y mes; sin ceil",
+  "anulacion_confirmada_por_miguel": "4 referidos a 3: limite 0.60 a 0.45, descuento 0.15 independiente de posicion",
+  "banco": "avancecorp-conversion-sin-renovaciones-20261012",
+  "checks": {
+    "sql_nucleo": {
+      "estado": "PASS",
+      "aserciones": 36
+    },
+    "sql_lecturas_y_ambito": {
+      "estado": "PASS",
+      "aserciones": 7
+    },
+    "recuperacion_y_guardas": {
+      "estado": "PASS",
+      "escenarios": 8,
+      "espera_lock_segundos": 2.03
+    },
+    "privilegios_columna": {
+      "estado": "PASS",
+      "combinaciones_denegadas": 9
+    },
+    "frontend_check": {
+      "estado": "PASS",
+      "tests": 6640,
+      "archivos": 413,
+      "duplicacion_pct": 0.44
+    },
+    "e2e_docker": {
+      "estado": "PASS",
+      "tests": 3
+    },
+    "revision_independiente": {
+      "estado": "PASS",
+      "rondas": 2
+    },
+    "auth_http_rls_remoto": {
+      "estado": "NOT RUN",
+      "motivo": "pendiente rama temporal autorizada"
+    },
+    "advisors_remotos": {
+      "estado": "NOT RUN"
+    },
+    "produccion": {
+      "estado": "NOT RUN"
+    }
+  }
+}
