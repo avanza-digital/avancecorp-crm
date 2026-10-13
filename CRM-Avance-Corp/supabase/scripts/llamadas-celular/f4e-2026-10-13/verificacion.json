@@ -1,0 +1,70 @@
+{
+  "produccion": {
+    "verificado_en": "2026-10-13 15:39:31.810746+00",
+    "migraciones": [
+      {
+        "name": "crm_llamadas_celular_operacion_hoy",
+        "md5_sql": "7f7fbda41adc6a1d2580c26d71da581f",
+        "version": "20261012192500"
+      },
+      {
+        "name": "crm_llamadas_celular_operacion_hoy_rendimiento",
+        "md5_sql": "31eb4cbde86a020e34b2fba6df1d9057",
+        "version": "20261013145935"
+      }
+    ],
+    "funciones": [
+      {
+        "acl": [
+          "postgres=X/postgres"
+        ],
+        "firma": "private.llamadas_celular_operacion_hoy(uuid,uuid,timestamp with time zone)",
+        "owner": "postgres",
+        "config": [
+          "search_path=\"\""
+        ],
+        "definer": false,
+        "md5_cuerpo": "0047b3a6edfe8dead60526e5575b72d9"
+      },
+      {
+        "acl": [
+          "postgres=X/postgres",
+          "authenticated=X/postgres"
+        ],
+        "firma": "crm.llamadas_celular_operacion_hoy_fn(uuid)",
+        "owner": "postgres",
+        "config": [
+          "search_path=\"\""
+        ],
+        "definer": true,
+        "md5_cuerpo": "952abdd141001309f08ab56e8a828698"
+      }
+    ],
+    "retencion_dias": 30,
+    "salientes": 46,
+    "desconocidas": 46
+  },
+  "roles": {
+    "postflight_roles_acl": "PASS",
+    "verificado_en": "2026-10-13 15:40:20.778707+00"
+  },
+  "checks": {
+    "banco_reducido": "482/482 PASS",
+    "gate_llamadas": "347/347 PASS; CRM_RLS_EXIGE_LLAMADAS_F4E=1",
+    "diferencial_historial": "7/7 JSON idéntico",
+    "explain_ms": [
+      21.729,
+      16.039,
+      15.014
+    ],
+    "gen_types": "PASS; incorporada firma F4-e y conservado campo preparado del PR259",
+    "typecheck": "PASS",
+    "lint": "PASS con 10 avisos preexistentes",
+    "matriz_global": "NOT RUN (alcance dirigido de llamadas)",
+    "e2e": "NOT RUN (sin cambios de pantallas ni release de aplicación)",
+    "review": "CHANGES_REQUESTED, 2 P2 corregidos y verificados por PRIMARY",
+    "build": "PASS",
+    "preflight": "seed y RLS --llamadas PASS"
+  },
+  "commit_migracion": "cf8dda63"
+}
