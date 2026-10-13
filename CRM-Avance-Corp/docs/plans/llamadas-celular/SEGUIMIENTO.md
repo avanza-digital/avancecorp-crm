@@ -44,6 +44,16 @@ mutantes (`test:llamadas:local` 453/453), bloque del gate (NOT RUN: sin base en 
 dos decisiones (retención desde la política; sin porcentajes en el jsonb). La pantalla va en otro PR. Sin casillas
 nuevas: **48/102**.
 
+**Actualizado el 13/10, 15:14 UTC:** **pantalla de F4-e en el PR #261** (rama `crm/llamadas-f4e-pantalla-20261013`,
+sobre el #259 de Miguel), con el OK de Jhosep a hacerla en demo: tercera pestaña «Llamadas del celular» en «Toda la
+operación hoy» (tabla por equipo + ficha) y bloque «Su celular» en la ficha del analista de «Mi equipo hoy» (más el
+celular del supervisor al pie), sobre la puerta `crm.llamadas_celular_operacion_hoy_fn` del #255; esquema del jsonb con
+sus sumas, demo con el organigrama del store, tipo a mano hasta `gen:types`. Verificado: typecheck, lint, 6660/6660
+unitarias en el pre-push, E2E Docker en demo, `revisor-a11y` aplicado, navegador. NOT RUN: `gate:realidad` y
+producción (la puerta sigue sin aplicar: Miguel fusionó el #255 pero no la aplicó). Miguel: fusionar el PR; siguen
+pendientes del #255 (aplicar, `gen:types`, dos decisiones) y la #21. F6.3.1 sigue en curso hasta publicar y aceptar en
+C1: **48/102**.
+
 **Actualizado el 10/10, 16:35 UTC:** F7.2.2 marcada (`SOPORTE.md` §2.2): **46/102**. Matriz de compatibilidad de C1 al día; textos de «comprar Pro» corregidos (Pro no durante las pruebas). Contrato de F4-e en el #249.
 
 **Actualizado el 10/10, 15:05 UTC:** noche 09→10 PASS en C1 (latidos 200 a las 00:45 y 06:50). Repetición focalizada de P5:
@@ -233,7 +243,7 @@ prototipo aprobado por Jhosep (06/10) **no sustituye** el contrato: primero el c
 | F6.2.1 | Día de Lima `[inicio, fin)` y actor/asignación históricos | Pendiente | A1 y A3 aprobados (#17, 07/10); cada rótulo dice qué fecha usa | Ídem | Claude | F4-e |
 | F6.2.2 | Retraso de entrega/registro, sincronización, cola y antigüedad de la señal | En curso | La tarjeta de F4-c ya muestra la cola y las horas sin latido (sin hora exacta) | Retraso de entrega y de registro | Claude | F4-e |
 | F6.2.3 | Cobertura insuficiente ≠ cero llamadas; el latido solo no acredita captura | Pendiente | «Sin dato» separado de cero, aprobado (#17, 07/10); «La salud es lo que declara el celular» en la tarjeta | Ídem | Claude | F4-e |
-| F6.3.1 | Lecturas y pantalla de gerencia con ámbito y diccionario visible | En curso (12/10) | Prototipo F4-e aprobado por Jhosep; decisión 4 y A1–A7 aprobadas por Miguel (07/10): F4-e va en F4; contrato y oráculos en `F4E-CONTRATO.md` (#249, 10/10); **OK explícito de Miguel a la sección 9 (12/10, #251)**; **migración preparada en el #255 (12/10, 20:46 UTC)**: decimotercera `20261012192500` (puerta definer + núcleo invoker), reversa, registrador, oráculo O1–O17, 25 mutantes (453/453 local), bloque del gate (NOT RUN), ledger; `auditor-rls` PASS (3 P3 aplicados); Codex NOT RUN (encargo escrito) | Miguel: su banco y `EXPLAIN` < 100 ms, gate con `CRM_RLS_EXIGE_LLAMADAS_F4E=1`, advisors, aplicar, `registrar-operacion-hoy.sql`, `gen:types`; confirmar la retención desde la política y que no viajen porcentajes. Después la pantalla (PR aparte): tercera pestaña de gerencia y «Su celular» | Claude (hecho) · Miguel aplica | — |
+| F6.3.1 | Lecturas y pantalla de gerencia con ámbito y diccionario visible | En curso (12/10) | Prototipo F4-e aprobado por Jhosep; decisión 4 y A1–A7 aprobadas por Miguel (07/10): F4-e va en F4; contrato y oráculos en `F4E-CONTRATO.md` (#249, 10/10); **OK explícito de Miguel a la sección 9 (12/10, #251)**; **migración preparada en el #255 (12/10, 20:46 UTC)**: decimotercera `20261012192500` (puerta definer + núcleo invoker), reversa, registrador, oráculo O1–O17, 25 mutantes (453/453 local), bloque del gate (NOT RUN), ledger; `auditor-rls` PASS (3 P3 aplicados); Codex NOT RUN (encargo escrito); **pantalla en el PR #261 (13/10, en demo: typecheck, lint, 6660/6660, E2E Docker, a11y)** | Miguel: su banco y `EXPLAIN` < 100 ms, gate con `CRM_RLS_EXIGE_LLAMADAS_F4E=1`, advisors, aplicar, `registrar-operacion-hoy.sql`, `gen:types`; confirmar la retención desde la política y que no viajen porcentajes. Después la pantalla (PR aparte): tercera pestaña de gerencia y «Su celular» | Claude (hecho) · Miguel aplica | — |
 | F6.3.2 | Ventana histórica limitada o agregados con retención propia | Pendiente | — | Decidir antes de mostrar históricos (sesgo por la purga de 30 días) | Miguel | F6.3.1 |
 | F6.3.3 | Eventos tardíos sin duplicar; límites de cobertura y retención visibles | Pendiente | — | — | Claude | F6.3.1 |
 | F6.4.1 | Contrastar la muestra con teléfono, eventos, enlaces y actividades | Pendiente | — | — | Jhosep · Claude | H4 |
