@@ -33,8 +33,10 @@ const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno
 
 const FECHA_RESUMEN = new Intl.DateTimeFormat('es-PE', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Lima' })
 
-export function ResumenAnalista({ fila: f, dia, minimo, esHoy, ahora, abrirLlamadas, abrirPendientes, abrirCitas }: {
+export function ResumenAnalista({ fila: f, dia, minimo, esHoy, ahora, abrirLlamadas, abrirPendientes, abrirCitas, antesDeCuadros }: {
   fila: FilaEquipoPresentada
+  /** F4-e: el bloque «Su celular» va entre la línea del día y los cuadros (prototipo del 06/10). */
+  antesDeCuadros?: ReactNode | undefined
   /** El día consultado (AAAA-MM-DD): se dice, también dentro de la ventana. */
   dia: string
   minimo: number
@@ -58,6 +60,7 @@ export function ResumenAnalista({ fila: f, dia, minimo, esHoy, ahora, abrirLlama
       <p className="text-xs text-[var(--muted-foreground-strong)]">
         {plural(f.gestiones_hoy, 'gestión', 'gestiones')} · {FECHA_RESUMEN.format(new Date(`${dia}T12:00:00-05:00`))} · Lima
       </p>
+      {antesDeCuadros}
       {f.tareas_vencidas > 0 && (abrirPendientes ? (
         <button type="button" onClick={() => abrirPendientes(true)}
           className={cn('flex w-full cursor-pointer items-center gap-2.5 rounded-xl bg-destructive/10 px-4 py-3 text-left text-sm font-bold text-[var(--destructive-text)] transition-colors hover:bg-destructive/15', FOCO)}>

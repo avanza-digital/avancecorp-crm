@@ -15,7 +15,7 @@ import { CrmApiError } from './crm-api'
 
 export const clavePulso = (actor: string | null, rol: string | null, tipo: string, dia: string, alcance: number | string | null = null) =>
   [...gestionDiariaKeys.raiz(), actor, rol, 'gerencia', tipo, dia, alcance] as const
-function estadoConsulta<T>(consulta: UseQueryResult<T>, habilitada: boolean) {
+export function estadoConsulta<T>(consulta: UseQueryResult<T>, habilitada: boolean) {
   return { datos: habilitada && !consulta.error ? consulta.data ?? null : null,
     cargando: habilitada && consulta.isPending, enVuelo: habilitada && consulta.isFetching,
     error: habilitada ? consulta.error : null,
@@ -33,7 +33,7 @@ function useMundoDemo(activo: boolean): MundoDemo | null {
   return useMemo(() => activo ? { miembros: equipo, leads: ambito.leads, actividades: actividadesDelAmbito, tareas, ahora } : null,
     [activo, equipo, ambito.leads, actividadesDelAmbito, tareas, ahora])
 }
-function estadoDemo<S extends v.GenericSchema>(esquema: S, calcular: () => unknown) {
+export function estadoDemo<S extends v.GenericSchema>(esquema: S, calcular: () => unknown) {
   let datos: v.InferOutput<S> | null = null
   let error: Error | null = null
   try {
