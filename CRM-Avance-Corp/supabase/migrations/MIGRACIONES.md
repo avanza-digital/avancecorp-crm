@@ -1,6 +1,6 @@
 ## 20261013145935 — F4-e: rendimiento de la operación de hoy
 
-**PREPARADA, VERIFICADA LOCALMENTE; SIN APLICAR EN PRODUCCIÓN (13/10/2026).**
+**APLICADA Y REGISTRADA EN PRODUCCIÓN (13/10/2026, verificada 15:39 UTC / 10:39 Lima).**
 Continuación del PR #255 y del paso 5 del contrato, autorizada por Miguel.
 Materializa la contactabilidad por lead en el núcleo de la decimotercera;
 conserva firma, propietario, ACL, atributos y resultados. No añade índices.
@@ -37,8 +37,16 @@ Auth/HTTP, advisors y activación pendientes. [Guía y evidencia](../scripts/con
 
 ## 20261012192500 — Llamadas desde el celular · DECIMOTERCERA (F4-e): la operación de hoy para supervisión y gerencia (`crm.llamadas_celular_operacion_hoy_fn`)
 
-**PREPARADA; VERIFICADA EN EL BANCO REDUCIDO LOCAL, SIN APLICAR EN PRODUCCIÓN (12/10/2026).** Tarea F6.3.1 del plan de
-llamadas. Contrato aprobado por Miguel: [`F4E-CONTRATO.md`](../../docs/plans/llamadas-celular/F4E-CONTRATO.md) (D1–D5 el
+**APLICADA Y REGISTRADA EN PRODUCCIÓN (13/10/2026, verificada 15:39 UTC / 10:39 Lima).** Tarea F6.3.1 del plan de
+llamadas. **Actualización 13/10:** aplicación → registrador original con veredicto true →
+optimización `20261013145935` → registrador con veredicto true → `gen:types`. Catálogo/ACL
+y accesos por rol PASS en producción. Retención de política 30 días, sin porcentajes.
+Gate dirigido 347/347, banco 482/482 y diferencial 7/7 PASS; advisors antes/después
+consultados (único aviso nuevo: puerta DEFINER para authenticated, deliberado y con
+validación interna de rol). Evidencia en el acta de aplicación del bloque anterior.
+Los NOT RUN del párrafo histórico de 12/10 se conservan como historial.
+
+Contrato aprobado por Miguel: [`F4E-CONTRATO.md`](../../docs/plans/llamadas-celular/F4E-CONTRATO.md) (D1–D5 el
 10/10 en el #249; sección 9 el 12/10 en el #251, 6128409126). Plan corto con OK de Jhosep el 12/10.
 **Depende de:** las doce anteriores (todas en producción desde el 07/10); se conservan sin editar. Preflight exige la
 undécima, la duodécima, el roster del pulso (`private.gestion_diaria_pulso_roster`), `vendedor_ids_visibles`,

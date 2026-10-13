@@ -6,7 +6,9 @@ ya fusionado. Este encargo cubre el paso 5 de la sección 9 de
 
 ## Aplicación y verificación
 
-Estado: **preparado para aplicación; consultar el ledger antes de iniciar pantallas**.
+Estado: **APLICADAS Y REGISTRADAS ambas migraciones el 13/10/2026**,
+verificación 15:39 UTC / 10:39 Lima; registradores con veredicto `true`.
+Catálogo, propietario, ACL y accesos por rol comprobados en producción.
 Proyecto de producción: `dctqcbznekcyxhjujuci` (PortalAvanceCorp).
 
 El banco Supabase local tiene las mismas huellas de las ocho dependencias de
@@ -27,6 +29,8 @@ La migración adicional `20261013145935` evalúa la contactabilidad una vez por
 lead, incluyendo las deshechas antiguas. Resultado: **21,729 / 16,039 / 15,014 ms**,
 sin índices nuevos. La migración original `20261012192500` se conserva intacta.
 Son mediciones locales con datos sintéticos; no una garantía para cualquier volumen.
+El diferencial de siete combinaciones de gerencia, supervisores y equipos sobre
+el historial devolvió JSON exactamente igual antes y después.
 
 Evidencia: [`f4e-2026-10-13`](../../supabase/scripts/llamadas-celular/f4e-2026-10-13/).
 Banco de rendimiento reproducible, **solo local con seed-demo**, terminado en
@@ -41,6 +45,17 @@ Reversa: primero `reversa-operacion-hoy-rendimiento.sql`. Restaura el núcleo
 original, conserva ACL/atributos y retira su entrada exacta del ledger en la misma
 transacción; rechaza otra huella o contenido. Solo entonces podría revertirse la
 decimotercera si hiciera falta. No ejecutar reversas para un despliegue normal.
+
+`npm run gen:types`, typecheck, build y lint PASS (lint con 10 avisos previos). La generación
+reflejó que `ajuste_anulacion_en_sello`, preparado por el PR #259, todavía no está
+en producción: se conserva su declaración de main y se incorpora la firma F4-e
+generada. No se modifica ni se despliega la migración de ese otro encargo.
+
+Advisors consultados antes/después, respuestas frescas de 15:39 UTC. Rendimiento
+sin avisos nuevos; seguridad añade únicamente la puerta F4-e como DEFINER
+ejecutable por authenticated (278 → 279). Es deliberado: valida supervisor/gerencia
+internamente, deniega anon/service_role y mantiene el núcleo privado. Los avisos
+previos siguen fuera de este encargo. [Criterio y remediación de Supabase](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable).
 
 ## Dos decisiones confirmadas por Miguel
 
@@ -89,8 +104,8 @@ Hechos que cambian el análisis:
   `actividades.creado_en` después de la última conversación
   (`20260921153654`, líneas 283–299). Registrar ahora llamadas antiguas no prueba
   que se haya vuelto a intentar después de hablar con el lead.
-- **Utilidad medida:** el 13/10 había 45 eventos salientes en producción, los
-  45 con `estado_tecnico='desconocido'`: cero elegibles para este alcance en esa
+- **Utilidad medida:** en la comprobación final de 13/10 15:39 UTC había 46 eventos salientes en producción, los
+  46 con `estado_tecnico='desconocido'`: cero elegibles para este alcance en esa
   fotografía. Validar lo que captura MacroDroid antes de construir #21; no
   reclasificar esos registros por duración ni ampliar el alcance silenciosamente.
 - **Una tarea y una confirmación pendientes:** enviar `p_tarea_id` solo una vez,
