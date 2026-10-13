@@ -1,0 +1,78 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+La matemática del núcleo es correcta para el requisito confirmado: 10 directos + 4 referidos dan 10,60, y 8 referidos dan 1, 0,20, 0… Se conserva el orden de admisión, no hay redondeo entero y el límite se calcula sobre el mes completo antes de recortar el rango. ACL, `search_path`, preflight por MD5 y reversa están bien planteados.
+
+Hay un hallazgo P1. Con la nueva base (los propios referidos), la deuda de un mes sellado por posición de admisión deja de coincidir con lo que haría el recálculo del mes abierto. Las pruebas del PRIMARY lo demuestran. Requiere decisión de Miguel antes de producción.
+
+FINDINGS:
+
+[P1] La deuda por anulación en mes sellado contradice la semántica del límite agregado
+File: `supabase/migrations/20261012220959_crm_conversion_limite_total_referidos.sql`; `supabase/scripts/conversion-limite-referidos/prueba.sql`
+Lines: migración 167-184 y 260-266; prueba 73-74, 110-115
+Problem: El total admitido de referidos es `tope_pct/100 × N` (N = referidos válidos). Por eso cada referido válido aporta marginalmente 0,15 al numerador, sea cual sea su posición. Sin embargo, el sello guarda el aporte por posición (`aporte_en_sello` = 0,60 para el primero y 0 para el resto), y la deuda descuenta ese valor.
+Evidence:
+- Prueba 10, mes abierto: anular el referido del día 14 (exceso) deja A en 10,45, es decir, −0,15.
+- Prueba 19, mes sellado: anular ese mismo referido no genera deuda (0).
+- Prueba 18, mes sellado: anular el referido del día 11 (admitido) genera deuda de 0,60. El recálculo daría 10,45, es decir, −0,15.
+Impact: El mismo hecho produce resultados distintos según el estado del mes. Anular un referido admitido sobrecobra (0,60 frente a 0,15) y anular uno en exceso no cobra nada, aunque inflaba el límite. La suma por analista depende de qué referido se anule. Además, la regla resultante equivale en total a "peso 0,15 por referido". El orden y la fracción final solo influyen en esta distribución por lead, que es justamente lo que alimenta la deuda.
+Recommendation: Confirmar con Miguel qué debe descontar la anulación de un referido sellado. Recomiendo la deuda marginal: la contribución sellada del analista menos la recalculada con N−1. Con aportes de 1 eso es exactamente `tope_pct/100` (0,15). Varias anulaciones en el mismo mes deben ser secuencialmente consistentes. En ese caso:
+- `incluida_en_sello` debe ser verdadero para todo referido válido.
+- `aporte_en_sello` debe guardar el marginal, o bien el conteo y el porcentaje por analista.
+Si Miguel acepta la regla posicional, documentar la divergencia explícitamente en la migración y en `MIGRACIONES.md`.
+
+[P2] El sello de octubre en adelante redefine `incluida_en_sello` solo como `aporte>0`, por `lead_id` y por la ventana de `fecha_numerador`
+File: migración
+Lines: 170-183 (frente a 196-202 del cuerpo previo)
+Problem: Se eliminan los predicados explícitos `estado='acreditada'`, `not cierre_externo_anulado` y `conversion_exclusion_fuente='elegible'`. Pasa a depender de que `conversion_cierres` los aplique. La búsqueda se hace por la ventana de `fecha_numerador` del periodo, mientras el `UPDATE` filtra por `periodo_comercial`.
+Evidence:
+- Una acreditación de origen sin peso (oficina/otros) pasa de `incluida_en_sello=true` a `false`.
+- Si `periodo_comercial` no coincide con el mes de `fecha_numerador`, la fila queda en 0/false. El caso "a caballo del mes" está documentado en las líneas 307-313.
+- `conversion_cierres` no está en la evidencia, y la prueba 11 sustituye las funciones de elegibilidad por stubs.
+Impact (hipótesis, confianza media): Pueden cambiar los consumidores de `incluida_en_sello` y puede perderse deuda en cierres de borde de mes.
+Recommendation:
+1. Adjuntar `conversion_cierres` y la lista de lectores de `incluida_en_sello`.
+2. Añadir un test con `periodo_comercial` distinto del mes de `fecha_numerador`.
+3. Valorar mantener los predicados previos en conjunción con el aporte.
+
+[P3] Fixtures y copy desalineados con la nueva regla
+Evidence:
+- `inteligencia-comercial.test.tsx:1186` sigue esperando "5 cierres … aporte 3"; con 5 referidos el máximo es 0,75.
+- `vendedor.test.tsx:975` y `ranking-vendedores.test.tsx` usan `renovacion: 1` y esperan "renovaciones ×1", cuando octubre tiene 0.
+- La copy "15 % de sus cierres válidos" (héroe y ranking) es ambigua: puede leerse como el total de cierres del analista, que es justamente la interpretación corregida.
+Recommendation:
+- Actualizar los fixtures a datos posibles.
+- Escribir "de sus cierres referidos válidos" en todos los textos.
+- `vendedor.tsx` mezcla "recibió" con "tus"; conviene unificar la persona gramatical.
+
+[P3] Validación de cliente laxa
+Evidence: `conversion-mensual.ts` solo exige `0 ≤ aporte ≤ peso×cierres`. En mes completo con tope se cumple además que `aporte = tope×N` (con aportes de 1).
+Recommendation: Opcional: invariante estricta solo en modo mensual y no en rango.
+
+TEST GAPS:
+- Anulación en mes sellado de un referido admitido y de uno en exceso, comparada con el recálculo abierto. Hoy los tests 18 y 19 fijan el comportamiento discutido.
+- Varias anulaciones sucesivas del mismo analista en mes sellado.
+- `conversion_exclusion_fuente` y `cierre_externo_anulado` reales; hoy son stubs con los FK desactivados.
+- `periodo_comercial` distinto del mes de `fecha_numerador` en el sello.
+- Concurrencia entre sello y anulación sobre la rama nueva de octubre.
+- Matriz Auth/HTTP, `test-rls.mjs` y advisors siguen pendientes.
+
+SECURITY RISKS:
+- No encuentro regresiones:
+  - `SECURITY DEFINER`, `search_path=''` y ACL verificados en preflight.
+  - Columna sin SELECT para `authenticated` ni UPDATE para `service_role`.
+- Sugerencia menor: comprobar también `anon` en el postflight.
+
+REGRESSION RISKS:
+- Sello de octubre y semántica de `incluida_en_sello` (P2).
+- La migración usa `pg_advisory_xact_lock(bigint)`, que es un espacio de claves distinto del `(int,int)` por periodo. La exclusión con el sellado descansa en el `LOCK periodos_cerrados`. Confirmar que la espera de 2,03 s medida corresponde a ese bloqueo.
+
+RECOMMENDED NEXT ACTIONS:
+1. Pedir a Miguel la regla de deuda por anulación de referido sellado (marginal 0,15 frente a posicional) y ajustar el trigger, el registrador y los tests 17-19.
+2. Adjuntar `conversion_cierres` y los consumidores de `incluida_en_sello`, y cubrir el borde de mes.
+3. Corregir los fixtures y la copy ambigua del frontend.
+4. Completar branch remoto, `test-rls`, advisors y el fullgate final antes de producción.
+
+CONFIDENCE:
+HIGH en matemática y P1 (se apoya en las propias pruebas 10, 18 y 19); MEDIUM en P2 (falta `conversion_cierres`).

@@ -1,3 +1,19 @@
+## 20261012220959 — Límite exacto sobre cierres referidos
+
+**PREPARADA Y PROBADA EN LOCAL; NO APLICADA EN PRODUCCIÓN.** El límite desde
+el octubre abierto pasa de `ceil(15 % de cierres automáticos)` al **15 % exacto
+del total de cierres referidos válidos por analista/mes**. Conserva orden de
+admisión y permite un último aporte parcial. Congela el descuento marginal del límite al sellar:
+Miguel confirmó que pasar de 4 a 3 referidos reduce 0,60 a 0,45 (descuento 0,15),
+independientemente de la posición de admisión. Renovaciones
+siguen en cero; divisor, cartera, permisos e histórico previo conservados.
+Nueva columna privada `ajuste_anulacion_en_sello` (descuento marginal congelado,
+distinto del aporte individual mostrado), tres funciones con guardas y reversa; textos del CRM y
+tipos alineados. Ensayo local: 36 + 7 aserciones SQL, ocho escenarios de
+recuperación y tres E2E Docker PASS. Revisión independiente y gate frontend
+(6.640 tests, lint, typecheck, build, bundle y duplicación) PASS. Rama remota,
+Auth/HTTP, advisors y activación pendientes. [Guía y evidencia](../scripts/conversion-limite-referidos/LEEME.md).
+
 ## 20261012192500 — Llamadas desde el celular · DECIMOTERCERA (F4-e): la operación de hoy para supervisión y gerencia (`crm.llamadas_celular_operacion_hoy_fn`)
 
 **PREPARADA; VERIFICADA EN EL BANCO REDUCIDO LOCAL, SIN APLICAR EN PRODUCCIÓN (12/10/2026).** Tarea F6.3.1 del plan de
@@ -55,7 +71,10 @@ pida → aplicar → `registrar-operacion-hoy.sql` → `npm run gen:types`. La p
 
 ## 20261012165115 — Coordinación: Facturación y Ranking en lectura
 
-**PREPARADA, SIN APLICAR EN PRODUCCIÓN.** Autorizada por Miguel el 12/10/2026.
+**PUBLICADA Y VERIFICADA EN PRODUCCIÓN 12/10/2026.** Autorizada por Miguel.
+Registro Supabase: `20261012223850 crm_coordinacion_reportes_lectura`, instalado
+en el flujo paralelo de Ver cierres mediante su rama autorizada. Trece funciones
+con cuerpos, propietarios y ACL idénticos a nuestra rama ensayada; no se reaplicó.
 Coordinación activa consulta cifras de toda la empresa y meses cerrados. El detalle
 de Facturación siempre oculta nombres e identificadores de clientes, leads y contratos.
 No amplía `es_lector_global`, el alcance operativo ni las escrituras; Repartir conserva su permiso.
@@ -63,13 +82,18 @@ La proyección `equipo_reportes_fn` entrega exclusivamente nombres y jerarquía 
 Las diez funciones existentes conservan firmas, cálculos, propietario, atributos y ACL.
 La instalación exige las huellas del catálogo vivo capturado; rechaza cualquier cambio concurrente.
 
-App: 6.624 pruebas, tipos, build y bundle PASS; E2E dirigidos existentes 38 PASS y
-los tres nuevos de Coordinación PASS. El gate integral falla por copias preexistentes
-` 2.*`; duplicación sin esas copias 0,43 % PASS. Matriz SQL en banco exclusivo PASS:
+App limpia: `npm run check` PASS, 413 archivos / 6.640 tests y duplicación 0,43 %.
+E2E Docker integrado: 36 PASS. Suite sobre bundle de desarrollo: 405 PASS / 2 FAIL /
+26 SKIPPED; esos dos casos, que requieren fuentes de Vite, repetidos con su servidor:
+2 PASS. No se declara PASS de la primera corrida general fallida. Matriz SQL PASS:
 120 comparaciones de otros roles, 24 lecturas globales, 3 páginas sin PII, bajas y ACL.
 Reversa/reaplicación PASS. Dos revisiones independientes; hallazgos evaluados y
-corregidos por el PRIMARY (ver kit). Matriz HTTP general y advisors: NOT RUN,
-pendientes del ciclo de release en rama Supabase. Kit, preflight y reversa:
+corregidos por el PRIMARY (ver kit). Matriz HTTP general PASS: 3.900 aserciones,
+cero fallos. Rama temporal eliminada; coste estimado US$0,0332. Advisors sin
+nueva ampliación de permisos de tablas, aviso esperado de la RPC DEFINER protegida.
+Publicado desde Main limpio `10e3411d`: `crm-20261012T224323Z-10e3411deb22.zip`,
+SHA-256 `265fbb65b89b0ed0527b8a9e36cf9f9a9a494dc65f83f4a915915fc04801b10e`.
+Portada, versión y 121 JS/CSS con bytes y huellas exactos: PASS. Kit y reversa:
 [`coordinacion-reportes/LEEME.md`](../scripts/coordinacion-reportes/LEEME.md).
 
 ## 20261010154908 — Contrato PDF v10 y anexo v2: correcciones del modelo

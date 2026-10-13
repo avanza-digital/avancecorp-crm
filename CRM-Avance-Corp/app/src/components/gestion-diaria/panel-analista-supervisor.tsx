@@ -9,6 +9,8 @@ import { PendientesSupervisor } from './pendientes-supervisor'
 import { CitasAgendadas } from './citas-agendadas'
 import { ResumenAnalista } from './resumen-analista'
 import { UltimasGestionesSupervisor } from './ultimas-gestiones-supervisor'
+import { SuCelularAnalista } from './su-celular-analista'
+import type { OperacionCelularHook } from '@/data/llamadas-celular-operacion-queries'
 import type { FilaEquipoPresentada } from '@/lib/gestion-diaria-equipo'
 import type { PestanaRegistro } from '@/lib/gestion-diaria'
 import { cn } from '@/lib/utils'
@@ -26,7 +28,7 @@ type PestanaPanel = 'resumen' | 'registro' | 'pendientes' | 'citas'
 
 const BOTON_ICONO = 'grid size-9 shrink-0 cursor-pointer place-items-center rounded-[10px] text-[var(--muted-foreground-strong)] transition-colors hover:bg-muted hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:size-11'
 
-export function PanelAnalistaSupervisor({ id, seleccion, fila, dia, minimo, tituloRef, ampliado, ampliar, cerrar, puedeAmpliar, oculta, limpiar, actualizacion, revalidar, esHoy, ahora, vacio, silencioso = false, conPendientes = true, idsEquipo = null, subtitulo = 'Analista de tu equipo' }: {
+export function PanelAnalistaSupervisor({ id, seleccion, fila, dia, minimo, tituloRef, ampliado, ampliar, cerrar, puedeAmpliar, oculta, limpiar, actualizacion, revalidar, esHoy, ahora, vacio, silencioso = false, conPendientes = true, idsEquipo = null, subtitulo = 'Analista de tu equipo', celularHoy = null }: {
   id: string
   seleccion: SeleccionSupervisor | null
   fila: FilaEquipoPresentada | undefined
@@ -52,6 +54,8 @@ export function PanelAnalistaSupervisor({ id, seleccion, fila, dia, minimo, titu
   /** Alcance del registro del equipo; null = lo que la sesión puede ver (el equipo del supervisor). */
   idsEquipo?: readonly string[] | null
   subtitulo?: string
+  /** F4-e: la consulta de «la operación de hoy» del celular; con ella, el resumen lleva el bloque «Su celular». Solo hoy. */
+  celularHoy?: OperacionCelularHook | null
 }) {
   const equipo = seleccion?.analista === null
   const nombre = seleccion && !equipo ? fila?.nombre_completo ?? seleccion.nombre ?? 'Analista' : null
@@ -77,7 +81,7 @@ export function PanelAnalistaSupervisor({ id, seleccion, fila, dia, minimo, titu
       </header>
       {!seleccion ? <div className="flex flex-1 flex-col items-center justify-center gap-3 px-8 text-center text-[13.5px] text-[var(--muted-foreground-strong)]">
         <Users className="size-9 text-muted-foreground" aria-hidden /><p>{vacio ?? 'Selecciona un analista de la tabla para consultar su día.'}</p></div>
-        : <ContenidoSeleccionado key={`${seleccion.analista ?? 'equipo'}:${seleccion.apertura}`} seleccion={seleccion} fila={fila} dia={dia} minimo={minimo} conPendientes={conPendientes} idsEquipo={idsEquipo}
+        : <ContenidoSeleccionado key={`${seleccion.analista ?? 'equipo'}:${seleccion.apertura}`} seleccion={seleccion} fila={fila} dia={dia} minimo={minimo} conPendientes={conPendientes} idsEquipo={idsEquipo} celularHoy={celularHoy}
           tituloRef={tituloRef} oculta={oculta} limpiar={limpiar} actualizacion={actualizacion} revalidar={revalidar} esHoy={esHoy} ahora={ahora} silencioso={silencioso} />}
     </section>
   )
@@ -85,7 +89,7 @@ export function PanelAnalistaSupervisor({ id, seleccion, fila, dia, minimo, titu
 
 const FECHA_TITULO = new Intl.DateTimeFormat('es-PE', { day: 'numeric', month: 'long', timeZone: 'America/Lima' })
 
-function ContenidoSeleccionado({ seleccion, fila, dia, minimo, tituloRef, oculta, limpiar, actualizacion, revalidar, esHoy, ahora, silencioso, conPendientes, idsEquipo }: Pick<Parameters<typeof PanelAnalistaSupervisor>[0], 'seleccion' | 'fila' | 'dia' | 'minimo' | 'tituloRef' | 'oculta' | 'limpiar' | 'actualizacion' | 'revalidar'> & { seleccion: SeleccionSupervisor; esHoy: boolean; ahora: number; silencioso: boolean; conPendientes: boolean; idsEquipo: readonly string[] | null }) {
+function ContenidoSeleccionado({ seleccion, fila, dia, minimo, tituloRef, oculta, limpiar, actualizacion, revalidar, esHoy, ahora, silencioso, conPendientes, idsEquipo, celularHoy }: Pick<Parameters<typeof PanelAnalistaSupervisor>[0], 'seleccion' | 'fila' | 'dia' | 'minimo' | 'tituloRef' | 'oculta' | 'limpiar' | 'actualizacion' | 'revalidar'> & { seleccion: SeleccionSupervisor; esHoy: boolean; ahora: number; silencioso: boolean; conPendientes: boolean; idsEquipo: readonly string[] | null; celularHoy: OperacionCelularHook | null }) {
   const equipo = seleccion.analista === null
   const [pestana, setPestana] = useState<PestanaPanel>(equipo || seleccion.enfocar ? 'registro' : 'resumen')
   const [registro, setRegistro] = useState<{ pestana: PestanaRegistro; apertura: number } | null>(equipo || seleccion.enfocar ? { pestana: seleccion.pestana, apertura: 0 } : null)
@@ -136,7 +140,10 @@ function ContenidoSeleccionado({ seleccion, fila, dia, minimo, tituloRef, oculta
     <div ref={cuerpoResumen} className={cn(cuerpo, 'space-y-5')} hidden={pestana !== 'resumen'} inert={pestana !== 'resumen'}>
       {!fila || minimo === undefined ? <p role="status" className="text-[13px] text-[var(--muted-foreground-strong)]">El resumen no está disponible. El registro conserva su consulta independiente.</p>
         : <ResumenAnalista fila={fila} dia={dia} minimo={minimo} esHoy={esHoy} ahora={ahora}
-          abrirLlamadas={() => abrirRegistro('llamadas')} abrirPendientes={conPendientes ? abrirPendientes : undefined} abrirCitas={abrirCitas} />}
+          abrirLlamadas={() => abrirRegistro('llamadas')} abrirPendientes={conPendientes ? abrirPendientes : undefined} abrirCitas={abrirCitas}
+          // F4-e: «Su celular» va entre la línea del día y los cuadros (prototipo del 06/10). Solo hoy.
+          antesDeCuadros={celularHoy && esHoy && seleccion.analista !== null
+            ? <SuCelularAnalista estado={celularHoy} analista={celularHoy.datos?.analistas.find((a) => a.analista_id === seleccion.analista)} /> : undefined} />}
       {seleccion.analista !== null && <>
         <UltimasGestionesSupervisor analista={seleccion.analista} dia={dia} visible={pestana === 'resumen'} actualizacion={actualizacion} revalidar={revalidar} silencioso={silencioso} />
         <div className="space-y-2">

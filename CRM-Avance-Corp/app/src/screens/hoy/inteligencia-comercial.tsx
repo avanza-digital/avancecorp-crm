@@ -762,7 +762,7 @@ export function InteligenciaComercialPanel({
   const pesoHero = aporteRango?.peso == null
     ? null
     : aporteRango.topeReferidosPct != null && aporteRango.fuente === 'referido'
-      ? `×${numero(aporteRango.peso, 2)} · hasta ${numero(aporteRango.topeReferidosPct, 2)} % de los cierres asignados`
+      ? `${numero(aporteRango.topeReferidosPct, 2)} % de sus cierres referidos válidos`
       : `×${numero(aporteRango.peso, 2)}`
 
   return (
@@ -804,7 +804,7 @@ export function InteligenciaComercialPanel({
             <div className="grid flex-1 gap-3 sm:grid-cols-3">
               <div className="gi-hero-metric"><span>Base automática</span><strong>{baseHero}</strong></div>
               <div className="gi-hero-metric"><span>{fuenteActiva == null || aporteRango?.familia === 'todos' ? 'Cierres y operaciones' : aporteRango?.familia === 'cartera' ? 'Operaciones' : 'Cierres'}</span><strong>{resultadosHero}</strong></div>
-              <div className="gi-hero-metric"><span>{fuenteActiva == null ? 'Operaciones de cartera' : 'Peso por resultado'}</span><strong>{fuenteActiva == null ? numeroDisponible(datos?.nucleo?.operaciones_cartera ?? null) : pesoHero ?? '—'}</strong></div>
+              <div className="gi-hero-metric"><span>{fuenteActiva == null ? 'Operaciones de cartera' : aporteRango?.topeReferidosPct != null && aporteRango.fuente === 'referido' ? 'Límite mensual de referidos' : 'Peso por resultado'}</span><strong>{fuenteActiva == null ? numeroDisponible(datos?.nucleo?.operaciones_cartera ?? null) : pesoHero ?? '—'}</strong></div>
             </div>
             {modoDemo && <span className="gi-demo-badge">Datos de ejemplo</span>}
           </section>
