@@ -1,10 +1,10 @@
 ---
 tags: [crm, supabase, diagnostico, f7]
 fecha: 2026-10-13
-estado: F7 y SLA aplicados en producción; transporte de sesión pendiente de publicación
+estado: F7 y SLA aplicados; transporte de sesión publicado y verificado
 ---
 
-# PostgreSQL — F7 y rendimiento corregidos; frontend pendiente
+# PostgreSQL — F7, rendimiento y transporte de sesión publicados
 
 Consultas de catálogo y logs productivos de `dctqcbznekcyxhjujuci`, realizadas el
 13/10/2026 desde 23:26 UTC. Ventana agregada: 12/10 23:26–13/10 23:26 UTC.
@@ -36,9 +36,15 @@ Advisors posteriores sin hallazgos nuevos. EXPLAIN productivo puntual:
 núcleo 1.808,639 → 1.244,137 ms, 3.594 filas; RPC de equipo authenticated
 1.644,650 → 1.369,887 ms. No garantiza latencia HTTP bajo concurrencia.
 
-El transporte de sesión sigue pendiente de publicación: PR #273 con main
-integrado, 6.689 tests/419 archivos y 3 E2E Docker PASS. Requiere revisión del PR
-e invocación humana `$release-crm`. El guardián analítico general mantiene su
+El transporte de sesión quedó publicado tras fusionar el PR #273 y la invocación
+humana `$release-crm`: Main `e791502ff6961a9ef71b434bdb50a1748e744331`, build
+`build-20261014T031546721Z`, verificación el 13/10 a las 22:19 Lima. Los 6.689 tests
+/419 archivos y 3 E2E Docker PASS se reutilizaron por identidad exacta del código.
+Portada y 121 JS/CSS servidos idénticos; acceso visible sin errores. ZIP
+`crm-20261014T031547Z-e791502ff696.zip`, SHA-256
+`bc5ab73f4cbce6ead31a3560f07f47f6eab48456315960422601d5e389a12a74`.
+Acta: `CRM-Avance-Corp/supabase/scripts/incidencias-20261013/PUBLICACION.md`.
+El guardián analítico general mantiene su
 deriva previa; esta corrección no normaliza sus declaraciones. Detalle y reversa:
 `CRM-Avance-Corp/supabase/scripts/incidencias-20261013/LEEME.md`.
 
@@ -87,8 +93,9 @@ Precedente: `20260924161110_crm_f7_redeclarar_huella_crear_contrato_con_cuenta.s
 
 Verificado después de la corrección: bancos local/remoto, frontend integrado,
 merge SQL, catálogo y ledger productivos, vigía, advisors y EXPLAIN puntual.
-Pendientes: publicación del transporte y observación de errores/timeouts bajo
-carga real tras publicar. [PR #273](https://github.com/avanza-digital/avancecorp-crm/pull/273).
+Publicación del transporte completada. La observación de errores/timeouts bajo
+carga real no forma parte del smoke y no está automatizada por esta acta.
+[PR #273](https://github.com/avanza-digital/avancecorp-crm/pull/273).
 
 Relacionadas: [[Coordinacion - Facturacion y Ranking en lectura (2026-10-12)]],
 [[Inicio]].

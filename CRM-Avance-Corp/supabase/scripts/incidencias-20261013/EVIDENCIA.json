@@ -5,7 +5,7 @@
   "commitProducto": "bd59d35d878ed97df71bb45f83db117c71425222",
   "mainIntegrado": "db63676bb21450a84de8e7e2ca73728500d4e2f5",
   "gitMerge": "40bef333",
-  "frontend": "PREPARADO, SIN PUBLICAR",
+  "frontend": "PUBLICADO Y VERIFICADO: e791502ff6961a9ef71b434bdb50a1748e744331, build-20261014T031546721Z; ver PUBLICACION.md y PUBLICACION-HTTP.json",
   "f7": {
     "f7": "OK: 15 piezas vigiladas (observacion 3, permanentes 4, demolidas 8, liberadas 0)",
     "abiertas": 0,
@@ -357,7 +357,7 @@
   },
   "limites": [
     "Guardián analítico general: deriva previa ajena a este arreglo, documentada.",
-    "Frontend pendiente de revisión del PR e invocación humana $release-crm.",
+    "Frontend publicado; smoke sin operaciones de negocio reales. La observación bajo carga posterior no se extrapola del smoke.",
     "No se subieron límites de tiempo ni permisos anon."
   ]
 }
