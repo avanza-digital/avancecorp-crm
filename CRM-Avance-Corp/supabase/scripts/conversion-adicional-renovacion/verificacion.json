@@ -1,0 +1,69 @@
+{
+  "fecha": "2026-10-14",
+  "branch": "yeiwghzhcrvwfcybymxy",
+  "produccion_modificada": false,
+  "produccion_hash_final": "ed15fbd034c636e4897c7600002ee8cf",
+  "branch_hash": "13d0c920eb7f620d1992826fb43cb584",
+  "captura_final": "2026-10-14T20:26:35.586834+00:00",
+  "huellas_finales_iguales_a_antes": true,
+  "historico_extendido": {
+    "desde": "2025-12-01",
+    "hasta": "2026-09-01",
+    "meses": 10,
+    "salidas_por_mes": 7,
+    "comparacion": "JSON exacto en la misma transacción",
+    "estado": "PASS",
+    "ensayo": "historico.sql"
+  },
+  "ensayos": {
+    "sintetico": {
+      "estado": "PASS",
+      "aserciones": 22
+    },
+    "cierre": {
+      "estado": "PASS",
+      "aserciones": 7,
+      "reloj_simulado": "2026-11-11",
+      "rollback": true
+    },
+    "guardas": {
+      "estado": "PASS",
+      "escenarios": 6
+    },
+    "roles_sql": {
+      "estado": "PASS",
+      "contextos": 43
+    },
+    "frontend_conversion": {
+      "estado": "PASS",
+      "tests": 108
+    },
+    "check_scripts": "PASS",
+    "auth_http": {
+      "estado": "PASS",
+      "contextos": 7,
+      "metodo": "Sesiones reales Auth; respuestas HTTP iguales a SQL; sesiones cerradas al finalizar. No prueba contraseña ni recuperación.",
+      "archivo": "http.json"
+    },
+    "frontend_build_e2e": {
+      "estado": "NOT RUN",
+      "motivo": "No se modificó ni publicó frontend"
+    },
+    "rls_preflight": "PASS",
+    "matriz_rls_general": {
+      "estado": "NOT RUN",
+      "motivo": "Requiere fixtures propios; se ejecutó la matriz pertinente sin sustituir los datos clonados."
+    }
+  },
+  "review": {
+    "verdict": "PASS",
+    "archivo": "revision.txt",
+    "resolucion": "Operaciones inmutables; CHECK impide renovación no elegible; sin invariantes entre conteos de conversión/operación en frontend. Se añadió rango intermensual. Migración sin cambios tras revisión."
+  },
+  "figma": {
+    "file_key": "tO6Lpx3ieJ6QuwUxfZcSvM",
+    "node_id": "89:115",
+    "visual": "PASS"
+  },
+  "coste_branch_usd_hora": 0.01344
+}
