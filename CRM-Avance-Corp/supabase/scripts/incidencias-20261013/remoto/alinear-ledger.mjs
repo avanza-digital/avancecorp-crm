@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import{readFileSync,writeFileSync}from'node:fs';
+import{carpeta,sql,objeto}from'./banco.mjs';
+assert.deepEqual(process.argv.slice(2),['--solo-rama-autorizada']);
+for(const f of ['paridad-esquema.json','edge-paridad.json'])assert.equal(JSON.parse(readFileSync(`${carpeta}/${f}`)).estado,'PASS');
+assert.equal(sql('select count(*) from supabase_migrations.schema_migrations'),'0');
+const contenido=readFileSync('/private/tmp/incidencias-prod-ledger.sql','utf8');
+assert.ok(contenido.includes('"idempotency_key"'));
+sql(`begin; ${contenido} set session_replication_role=origin; commit;`);
+const ledger=objeto(`select jsonb_build_object('cantidad',count(*),'huella',md5(string_agg(to_jsonb(t)::text,E'\n' order by version)),'ultimo',max(version)) from supabase_migrations.schema_migrations t`);
+writeFileSync(`${carpeta}/ledger-base.json`,JSON.stringify({estado:'PASS',fecha:new Date().toISOString(),...ledger}),{mode:0o600});
+console.log(JSON.stringify(ledger));
