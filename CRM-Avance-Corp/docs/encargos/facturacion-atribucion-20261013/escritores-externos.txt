@@ -1,0 +1,100 @@
+../public_html/js/dashboard.js:203:    .select(`id, nombre_completo, nombres, rol, asesor_id, pwa_instalada_at`)
+app/src/data/crm-api.ts:1644:  asesor_id: v.string(),
+app/src/data/crm-api.ts:3633:  'asesor_perfil_id',
+app/src/data/crm-api.ts:3652:  asesor_perfil_id: v.nullable(v.string()),
+app/src/data/crm-api.ts:3653:  // Junto con asesor_perfil_id decide la regla de cartera POR FILA en la UI
+app/src/data/crm-api.ts:3690:  asesor_perfil_id: v.nullable(v.string()),
+app/src/data/crm-api.ts:3736:  asesor_perfil_id: v.nullable(v.string()),
+app/src/data/crm-api.ts:3837: * `asesor_perfil_id = auth.uid()` o (`asesor_perfil_id is null` y
+app/src/data/crm-api.ts:3843: * `asesor_perfil_id`, así que el cliente puede quedar a nombre de otro analista.
+app/src/data/crm-api.ts:4132: * (`perfiles_analista_select` exige `asesor_perfil_id = auth.uid()`). Devolverlo
+app/src/data/crm-api.ts:4598:  const { error } = await cliente().rpc('reasignar_analista_contrato', {
+app/src/data/crm-api.ts:6434:      p_asesor_ids: derivaciones.map((d) => d.asesorId),
+../_supabase_functions/functions/importar-clientes/index.ts:32://                       beneficiario_nombre?, beneficiario_dni?, asesor_perfil_id? }],
+../_supabase_functions/functions/importar-clientes/index.ts:171:          asesor_perfil_id: f.asesor_perfil_id,
+../_supabase_functions/functions/importar-clientes/index.ts:253:        telefono: f.telefono, asesor_id: f.asesor_perfil_id,
+../_supabase_functions/functions/importar-clientes/index.ts:370:  asesor_perfil_id: string | null;
+../_supabase_functions/functions/importar-clientes/index.ts:422:    asesor_perfil_id: null,
+../_supabase_functions/functions/importar-clientes/index.ts:425:  // asesor_perfil_id: opcional; solo se acepta si es un uuid bien formado (el
+../_supabase_functions/functions/importar-clientes/index.ts:427:  const aid = str(c.asesor_perfil_id);
+../_supabase_functions/functions/importar-clientes/index.ts:428:  if (aid && RE_UUID.test(aid)) f.asesor_perfil_id = aid;
+../public_html/js/perfil.js:51:    .select(`nombre_completo, nombres, tipo_documento, dni, telefono, correo, asesor_id`)
+../public_html/js/admin/analista.js:13: *   - VE su cartera: clientes con `asesor_perfil_id` = él (o sin asesor y creados por él).
+../public_html/js/admin/analista.js:272:  // La RLS ya filtra a la CARTERA del analista (clientes con asesor_perfil_id = él,
+../public_html/js/admin/clientes.js:45:let MIEMBROS_MAP = {}     // id → miembro del equipo (asesor del cliente vía asesor_perfil_id; incluye inactivos para resolver el nombre)
+../public_html/js/admin/clientes.js:181:  // no migrados (asesor_id → tabla `asesores`). Cuando se elimine esa tabla en la
+../public_html/js/admin/clientes.js:183:  // todos los clientes ya tendrán asesor_perfil_id y el mapa legacy deja de usarse).
+../public_html/js/admin/clientes.js:193:// `asesor_perfil_id`. Activos e inactivos, para resolver el nombre en la columna de
+../public_html/js/admin/clientes.js:214:  // (se guarda en asesor_perfil_id).
+../public_html/js/admin/clientes.js:352:      'id, nombre_completo, apellidos, nombres, tipo_documento, dni, correo, telefono, activo, creado_en, asesor_id, asesor_perfil_id, pwa_instalada_at',
+../public_html/js/admin/clientes.js:492:    // Analista (asesor) del cliente: el miembro del equipo (asesor_perfil_id); si es
+../public_html/js/admin/clientes.js:493:    // un cliente viejo aún no migrado, cae al asesor legacy (asesor_id → tabla asesores).
+../public_html/js/admin/clientes.js:494:    const asesor = c.asesor_perfil_id ? MIEMBROS_MAP[c.asesor_perfil_id]
+../public_html/js/admin/clientes.js:495:                 : (c.asesor_id ? ASESORES_MAP[c.asesor_id] : null)
+../public_html/js/admin/clientes.js:1226:  fijarAsesorEnSelect(document.getElementById('asg_asesor'), cliente.asesor_perfil_id || '')
+../public_html/js/admin/clientes.js:1411:    asesor_perfil_id: analistaIdNuevo,
+../public_html/js/admin/clientes.js:1569:  fijarAsesorEnSelect(selAsesor, cliente.asesor_perfil_id || '')
+../public_html/js/admin/clientes.js:2163:        asesor_perfil_id: null,
+../public_html/js/admin/clientes.js:2184:      datos.asesor_perfil_id = res.id
+../public_html/js/admin/conciliacion.js:246:  const columnasPerfil = 'id, nombre_completo, dni, rol, activo, asesor_perfil_id, asesor_id'
+../public_html/js/admin/conciliacion.js:265:  const idsAnalistas = unicos(clientes.map((perfil) => perfil.asesor_perfil_id))
+../public_html/js/admin/conciliacion.js:266:  const idsLegacy = unicos(clientes.map((perfil) => perfil.asesor_id))
+../_supabase_functions/functions/ciclo-contratos/index.ts:75:  asesor_perfil_id: string | null
+../_supabase_functions/functions/ciclo-contratos/index.ts:206:      perfiles!contratos_cliente_id_fkey(id, nombre_completo, nombres, correo, activo, asesor_perfil_id)
+../_supabase_functions/functions/ciclo-contratos/index.ts:241:        .map(c => c.perfiles?.asesor_perfil_id)
+../_supabase_functions/functions/ciclo-contratos/index.ts:306:      const aId = c.perfiles?.asesor_perfil_id
+../_supabase_functions/functions/enviar-comunicado/index.ts:23:  asesor_perfil_id?: string | null
+../_supabase_functions/functions/enviar-comunicado/index.ts:73:        .select('id, nombre_completo, nombres, correo, asesor_perfil_id, asesor:asesores(nombre_completo, whatsapp, cargo)')
+../_supabase_functions/functions/enviar-comunicado/index.ts:93:        .select('id, nombre_completo, nombres, correo, asesor_perfil_id, asesor:asesores(nombre_completo, whatsapp, cargo)')
+../_supabase_functions/functions/enviar-comunicado/index.ts:101:    // Asesor del EQUIPO (auto-asignado): si el cliente tiene asesor_perfil_id, ese
+../_supabase_functions/functions/enviar-comunicado/index.ts:103:    const equipoIds = [...new Set(destinatarios.map(d => d.asesor_perfil_id).filter(Boolean))]
+../_supabase_functions/functions/enviar-comunicado/index.ts:111:        const m = d.asesor_perfil_id ? mapaEquipo.get(d.asesor_perfil_id) : null
+../public_html/js/admin/conciliacion-core.js:350:  if (perfil.asesor_perfil_id && perfilesPorId.has(perfil.asesor_perfil_id)) {
+../public_html/js/admin/conciliacion-core.js:351:    return perfilesPorId.get(perfil.asesor_perfil_id)
+../public_html/js/admin/conciliacion-core.js:353:  if (perfil.asesor_id && asesoresPorId.has(perfil.asesor_id)) {
+../public_html/js/admin/conciliacion-core.js:354:    return asesoresPorId.get(perfil.asesor_id)
+../public_html/js/admin/contratos.js:24:// asesor_perfil_id → miembro del equipo (MIEMBROS_MAP); si es un cliente viejo aún
+../public_html/js/admin/contratos.js:25:// no migrado, cae al asesor legacy (asesor_id → tabla `asesores`, ASESORES_MAP).
+../public_html/js/admin/contratos.js:91:      perfiles!contratos_cliente_id_fkey(id, nombre_completo, dni, asesor_perfil_id, asesor_id)
+../public_html/js/admin/contratos.js:190:// pocos clientes aún no migrados (asesor_id). Cuando se borre la tabla, la query falla
+../public_html/js/admin/contratos.js:191:// en silencio → [] (para entonces todos los clientes ya tendrán asesor_perfil_id).
+../public_html/js/admin/contratos.js:248:      perfiles!contratos_cliente_id_fkey(id, nombre_completo, dni, asesor_perfil_id, asesor_id)
+../public_html/js/admin/contratos.js:505:    // Analista que atiende a este cliente: asesor_perfil_id → miembro del equipo;
+../public_html/js/admin/contratos.js:506:    // si es un cliente viejo aún no migrado, cae al asesor legacy (asesor_id).
+../public_html/js/admin/contratos.js:507:    const aId   = c.perfiles?.asesor_perfil_id
+../public_html/js/admin/contratos.js:508:    const aLegId = c.perfiles?.asesor_id
+../_supabase_functions/functions/crm-convertir-lead/index.ts:214:        asesor_perfil_id: asesorId,
+../_supabase_functions/functions/crear-cliente/index.ts:98:      domicilio, tipo_documento, bancarios, asesor_perfil_id,
+../_supabase_functions/functions/crear-cliente/index.ts:119:    if (asesor_perfil_id !== undefined && asesor_perfil_id !== null && asesor_perfil_id !== "") {
+../_supabase_functions/functions/crear-cliente/index.ts:120:      if (!["admin", "superadmin"].includes(perfil?.rol ?? "") || typeof asesor_perfil_id !== "string") {
+../_supabase_functions/functions/crear-cliente/index.ts:125:        .eq("id", asesor_perfil_id).maybeSingle();
+../_supabase_functions/functions/crear-cliente/index.ts:190:          asesor_perfil_id: asesorIdAlta,
+../_supabase_functions/functions/crear-cliente/index.ts:259:        bancarios, asesor_id: asesorIdAlta,
+app/src/lib/clientes-tipos.ts:32:  asesor_perfil_id: string | null
+app/src/lib/clientes-tipos.ts:33:  /** Quién registró al cliente — con asesor_perfil_id NULL define el dueño de cartera (regla del servidor). */
+app/src/lib/clientes-tipos.ts:54:  | 'asesor_perfil_id'
+app/src/lib/clientes-tipos.ts:76:  asesor_perfil_id: string | null
+app/src/lib/cliente-ficha-modelo.ts:52:  const analistaId = cliente.asesor_perfil_id
+app/src/lib/demo-clientes.ts:66:// ── 6 clientes REPARTIDOS entre el equipo demo (asesor_perfil_id/creado_por
+app/src/lib/demo-clientes.ts:86:    asesor_perfil_id: ASESOR_DEMO,
+app/src/lib/demo-clientes.ts:102:    asesor_perfil_id: null,
+app/src/lib/demo-clientes.ts:116:    asesor_perfil_id: 'd-v2', // equipo de d-sup1: el supervisor la ve sin acciones
+app/src/lib/demo-clientes.ts:130:    asesor_perfil_id: 'd-v3', // equipo de d-sup2: solo gerencia/directorio lo ven
+app/src/lib/demo-clientes.ts:144:    asesor_perfil_id: ASESOR_DEMO, // dueña del contrato C — sigue con d-v1
+app/src/lib/demo-clientes.ts:158:    asesor_perfil_id: 'd-sup1', // cartera PROPIA del supervisor demo (también es analista)
+app/src/lib/demo-clientes.ts:217:    asesor_perfil_id: cliente.asesor_perfil_id,
+app/src/lib/clientes-vista.ts:20:  asesor_perfil_id: string | null
+app/src/lib/clientes-vista.ts:26: * (crear_contrato y perfiles_analista_update): manda asesor_perfil_id y, solo
+app/src/lib/clientes-vista.ts:30:  return fila.asesor_perfil_id ?? fila.creado_por
+app/src/lib/clientes-vista.ts:58: * (analista o, con `asesor_perfil_id` nulo, el creador) — lo mismo que muestra
+app/src/lib/reporte-derivaciones-equipo.ts:22:  asesor_id: UuidSchema,
+app/src/lib/reporte-derivaciones-equipo.ts:35:  asesor_id: UuidSchema,
+app/src/lib/demo-metricas.ts:92:    // coalesce(asesor_perfil_id, creado_por). Un alta con `asesor_perfil_id`
+app/src/lib/demo-metricas.ts:96:    const analistaId = cliente.asesor_perfil_id ?? cliente.creado_por
+app/src/lib/demo-metricas.ts:120:    CLIENTES_DEMO.map((c) => [c.id, c.asesor_perfil_id ?? c.creado_por ?? null]),
+app/src/lib/tipos.ts:751:  asesor_id: string
+app/src/lib/roles.ts:253: * `public.reasignar_analista_contrato`: gestor de cartera del portal (admin o
+app/src/screens/derivaciones.tsx:607:                <li key={asesor.asesor_id}>
+app/src/screens/derivaciones.tsx:611:                    borradorHoy={borradorPorAsesor.get(asesor.asesor_id) ?? 0}
+app/src/components/app/cliente-ficha.tsx:271:    (detalleRemoto.asesor_perfil_id !== grupo.cliente.asesor_perfil_id || detalleRemoto.activo !== grupo.cliente.activo)
+app/src/components/app/cliente-ficha.tsx:279:    const firma = `${clienteId}:${detalleRemoto.asesor_perfil_id ?? 'sin-analista'}:${detalleRemoto.activo}`

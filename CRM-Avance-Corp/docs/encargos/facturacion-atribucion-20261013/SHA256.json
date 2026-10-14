@@ -1,0 +1,23 @@
+{
+  "AUDITORIA.md": "994cebb4e8f565b29a55217f0e83b2862503ddb69647bff94957d1b2437582e4",
+  "EVALUACION-CIERRE.md": "fa4dcccc1d0ee1c72fc487e6fb6f99a859ca5825664a957c9f242a5adba1b17e",
+  "PLAN.md": "92f9a1f12536eb1cd16e3350af34ed845ab4e192d05e4c695c6330ed042720aa",
+  "REVISION.md": "51e3302257a89adae2dbc4ea1e3af1872a7d50ab82a5d8e2a8ac96abe09aa970",
+  "SQL-RESULTADOS.txt": "dba428426667292d09c6c0c2e8f7001e77230b34530186e8e6c5dc283f2f697a",
+  "VERIFICACION.md": "648466eb2c76dc6d0b1e76893e65447e5a1efda776bfa37e9bbc13a1979dee71",
+  "advisors-antes.json": "28cb3d69d74cffbe5d0fbf2aa44ed7bc643519152f88c213a7e55bed580deb9a",
+  "advisors-final.json": "28cb3d69d74cffbe5d0fbf2aa44ed7bc643519152f88c213a7e55bed580deb9a",
+  "advisors-rama-delta.json": "db7bbc86e92ac24e8c3b33425d080a7b4cd055cfc6290ab1c609bf2866c9ac83",
+  "correccion-real-facturacion.jpg": "fb2a171bd4a0c8715ad32cec89bb747f79e453c707b1173138d4bd7c8e3abba5",
+  "correccion-real-verificada.json": "b5d1dcac5679092fbb8a38af8691a693254917529cce2ee0e824d7dd8f43dbc0",
+  "duplicados-resguardados.json": "6b3c69858c24b933506acbd7431efa7369e27479dc6d5adc660cae5ba098e669",
+  "escritores-externos.txt": "f79d204506bb6d07b974b911139075a7c6edb815fae5d5145f832eda26e25452",
+  "evidencia.json": "6cf863fbba00459ba84196f65b5caaa169f579030b25e2fddbba07489027879e",
+  "integracion-local.json": "f830f09bbab1bdd9648f9feba531f6d9c6b127f67bc7aeae6e1334a1f1ca9bbe",
+  "integracion-rama.json": "07547edc2debff4e0922d4dfb2f1ecf9d8ff8c2902f1b7ce19517df683624906",
+  "inventario-escritores-local.json": "513ffa12889a56a3936fbf2788f214c78e3e502515188c5acbace4efbe8994ae",
+  "limite-oraculo.log": "5a37dd71a08c4c276e458123d87ed612aec714cdc9ed3d2fa13bbf281e51f4e2",
+  "review-cierre.txt": "9d925cd86c79a65d1d626bc0d7eb0a8b3a311533d1664e31ec48976e554cd288",
+  "review-correccion-puntual.txt": "bb389b96af703022da281ad8f7f36fba0007db1e5ca3bfdffdc90c9f1213fc0f",
+  "review-cuatro-pasos-r1.txt": "2c7e4f22b7f58dd06df0b1d0b7ee7ec6647820910e0c28f4dd4fa8a1382ba135"
+}

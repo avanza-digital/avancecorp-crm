@@ -7,8 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  // Metadata HTTP preservada: el banco SQL no ejecuta PostgREST.
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
@@ -5790,6 +5789,16 @@ export type Database = {
         }
         Returns: Json
       }
+      confirmar_cambio_responsabilidad_fn: {
+        Args: {
+          p_accion: string
+          p_destino: string
+          p_id: string
+          p_motivo: string
+          p_version: string
+        }
+        Returns: Json
+      }
       confirmar_envio_push_tasa_fn: {
         Args: {
           p_codigo_http?: number
@@ -6982,6 +6991,10 @@ export type Database = {
       }
       preparar_upgrade_fn: {
         Args: { p_clave: string; p_datos: Json; p_fuente: string }
+        Returns: Json
+      }
+      previsualizar_cambio_responsabilidad_fn: {
+        Args: { p_accion: string; p_destino: string; p_id: string }
         Returns: Json
       }
       productos_inversion_gestion_fn: { Args: never; Returns: Json }

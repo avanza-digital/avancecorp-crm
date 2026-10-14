@@ -1,0 +1,203 @@
+{
+  "fecha": "2026-10-13",
+  "zona": "America/Lima",
+  "modo": "solo lectura; sin correccion productiva",
+  "caso": {
+    "contrato": {
+      "id": "0be4d71f-6c5f-4097-a1c3-45af9df11fd8",
+      "fecha": "2026-10-11",
+      "estado": "activo",
+      "moneda": "PEN",
+      "numero": "2026-01-001595",
+      "capital": 150000,
+      "creador": "JORGE MARZANO",
+      "categoria": "nuevo",
+      "creado_en": "2026-10-12T21:40:43.685499+00:00",
+      "asesor_cliente": "JORGE MARZANO",
+      "analista_activo": true,
+      "analista_cierre": "FIORELLA RUIZ"
+    },
+    "auditoria": [
+      {
+        "ts": "2026-10-12T21:37:16.546974+00:00",
+        "actor": "JORGE MARZANO",
+        "tabla": "perfiles",
+        "cambios": [
+          {
+            "antes": null,
+            "campo": "asesor_perfil_id",
+            "despues": "d571aeed-e65d-4369-ac86-00a83bf9d389"
+          }
+        ],
+        "operacion": "INSERT"
+      },
+      {
+        "ts": "2026-10-12T21:40:43.685499+00:00",
+        "actor": "JORGE MARZANO",
+        "tabla": "contratos",
+        "cambios": [
+          {
+            "antes": null,
+            "campo": "estado",
+            "despues": "activo"
+          },
+          {
+            "antes": null,
+            "campo": "capital",
+            "despues": 150000
+          },
+          {
+            "antes": null,
+            "campo": "categoria",
+            "despues": "nuevo"
+          },
+          {
+            "antes": null,
+            "campo": "analista_cierre_id",
+            "despues": "d571aeed-e65d-4369-ac86-00a83bf9d389"
+          },
+          {
+            "antes": null,
+            "campo": "fecha_cierre_comercial",
+            "despues": "2026-10-11"
+          }
+        ],
+        "operacion": "INSERT"
+      },
+      {
+        "ts": "2026-10-12T21:44:00.07976+00:00",
+        "actor": "GABRIEL",
+        "tabla": "perfiles",
+        "cambios": [
+          {
+            "antes": "d571aeed-e65d-4369-ac86-00a83bf9d389",
+            "campo": "asesor_perfil_id",
+            "despues": "0eeb8c64-25e4-418b-b5d5-e07b06758b5e"
+          }
+        ],
+        "operacion": "UPDATE"
+      }
+    ],
+    "inversiones": [
+      {
+        "estado": "vigente",
+        "responsable": "JORGE MARZANO",
+        "inversion_id": "ffad787d-ecae-4145-b116-f06afa179de5",
+        "actualizado_en": "2026-10-13T18:59:46.073406+00:00",
+        "inversionista_id": "b988cb29-8610-40a2-b5de-0fbf2fd9eb2c"
+      }
+    ],
+    "tablas_eventos": [
+      "usuario_eventos",
+      "reasignaciones_analista",
+      "inversion_eventos",
+      "lead_potencial_eventos",
+      "llamadas_celular_eventos"
+    ]
+  },
+  "historia": {
+    "otro_caso": [
+      {
+        "ts": "2026-10-02T14:42:13.974917+00:00",
+        "tabla": "perfiles",
+        "operacion": "INSERT",
+        "asesor_antes": null,
+        "analista_antes": null,
+        "asesor_despues": "0eeb8c64-25e4-418b-b5d5-e07b06758b5e",
+        "analista_despues": null
+      },
+      {
+        "ts": "2026-10-02T14:46:49.991355+00:00",
+        "tabla": "contratos",
+        "operacion": "INSERT",
+        "asesor_antes": null,
+        "analista_antes": null,
+        "asesor_despues": null,
+        "analista_despues": "0eeb8c64-25e4-418b-b5d5-e07b06758b5e"
+      },
+      {
+        "ts": "2026-10-13T18:47:38.740245+00:00",
+        "tabla": "perfiles",
+        "operacion": "UPDATE",
+        "asesor_antes": "0eeb8c64-25e4-418b-b5d5-e07b06758b5e",
+        "analista_antes": null,
+        "asesor_despues": "2ec5954f-0490-44f2-87cd-af6210f3426f",
+        "analista_despues": null
+      }
+    ],
+    "anulacion_lead": null,
+    "gerencia_lectura": null,
+    "totales_fiorella": [
+      {
+        "moneda": "PEN",
+        "capital": 159600,
+        "operaciones": 2,
+        "capital_sin_1595": 9600
+      },
+      {
+        "moneda": "USD",
+        "capital": 17690,
+        "operaciones": 3,
+        "capital_sin_1595": 17690
+      }
+    ],
+    "historia_responsable": [
+      {
+        "por": "JORGE MARZANO",
+        "motivo": "preparar_conversion_inversion",
+        "desde_lima": "2026-10-12T16:33:25.642135",
+        "hasta_lima": "2026-10-13T13:59:46.089552",
+        "responsable": "FIORELLA RUIZ"
+      },
+      {
+        "por": "ADMINISTRADOR AVANCE CORP",
+        "motivo": "venta de jorge",
+        "desde_lima": "2026-10-13T13:59:46.089552",
+        "hasta_lima": null,
+        "responsable": "JORGE MARZANO"
+      }
+    ]
+  },
+  "controles": {
+    "anuladas": 1,
+    "duplicadas": 0,
+    "sin_analista": 0,
+    "tipo_contrato": 58,
+    "tipo_cooperativa": 13,
+    "total_operaciones": 71,
+    "montos_no_positivos": 0
+  },
+  "segundo_caso": [
+    {
+      "contrato": "2026-01-001546",
+      "perfil_asesor": "ASTRID CENTENARO",
+      "inversionista_estado": "activo",
+      "reasignaciones_venta": 0,
+      "responsable_relacion": "JORGE MARZANO",
+      "inversionista_actualizado": "2026-10-02T14:42:14.614307+00:00"
+    }
+  ],
+  "totales": [
+    {
+      "moneda": "PEN",
+      "capital": 2728900,
+      "operaciones": 59,
+      "operaciones_distintas": 59
+    },
+    {
+      "moneda": "USD",
+      "capital": 138190,
+      "operaciones": 12,
+      "operaciones_distintas": 12
+    }
+  ],
+  "verificacion": {
+    "vitest": {
+      "archivos": 5,
+      "pruebas": 49,
+      "resultado": "PASS"
+    },
+    "e2e": "NOT RUN; sin implementacion",
+    "rls_candidata": "NOT RUN; sin implementacion"
+  }
+}

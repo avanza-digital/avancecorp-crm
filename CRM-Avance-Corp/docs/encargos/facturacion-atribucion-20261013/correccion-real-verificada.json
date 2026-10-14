@@ -1,0 +1,69 @@
+{
+  "resultado": "PASS",
+  "contrato": {
+    "analista": "0eeb8c64-25e4-418b-b5d5-e07b06758b5e",
+    "capital": 150000,
+    "demo": false,
+    "estado": "activo",
+    "fecha": "2026-10-11",
+    "id": "0be4d71f-6c5f-4097-a1c3-45af9df11fd8",
+    "moneda": "PEN",
+    "numero": "2026-01-001595",
+    "registrante": "0eeb8c64-25e4-418b-b5d5-e07b06758b5e",
+    "renovado_a": null
+  },
+  "reasignacion": {
+    "analista_a": "0eeb8c64-25e4-418b-b5d5-e07b06758b5e",
+    "analista_de": "d571aeed-e65d-4369-ac86-00a83bf9d389",
+    "contrato_id": "0be4d71f-6c5f-4097-a1c3-45af9df11fd8",
+    "id": "04d3aee0-7fc5-42f8-baef-e474bbc5044a",
+    "motivo": "Corrección solicitada por Miguel: venta de Jorge Marzano, atribuida por error a Fiorella. Operado por Codex desde la sesión de Gerencia autorizada. Contrato 2026-01-001595; no cambia la atención del cliente.",
+    "reasignado_en": "2026-10-13T23:12:03.427632+00:00",
+    "reasignado_por": "bf1c562e-ed08-4cc3-92a8-34f1fa3e9127"
+  },
+  "operaciones_antes": 75,
+  "operaciones_despues": 75,
+  "otras_operaciones_identicas": 74,
+  "cambios": [
+    {
+      "operacion": "0be4d71f-6c5f-4097-a1c3-45af9df11fd8",
+      "cambios": {
+        "supervisor_id": [
+          "0eeb8c64-25e4-418b-b5d5-e07b06758b5e",
+          "bf1c562e-ed08-4cc3-92a8-34f1fa3e9127"
+        ],
+        "analista_id": [
+          "d571aeed-e65d-4369-ac86-00a83bf9d389",
+          "0eeb8c64-25e4-418b-b5d5-e07b06758b5e"
+        ]
+      }
+    }
+  ],
+  "totales_dia_moneda_identicos": true,
+  "totales_analistas": [
+    {
+      "analista": "Fiorella",
+      "moneda": "PEN",
+      "operaciones": 1,
+      "total": 9600
+    },
+    {
+      "analista": "Fiorella",
+      "moneda": "USD",
+      "operaciones": 3,
+      "total": 17690
+    },
+    {
+      "analista": "Jorge",
+      "moneda": "PEN",
+      "operaciones": 4,
+      "total": 363600
+    },
+    {
+      "analista": "Jorge",
+      "moneda": "USD",
+      "operaciones": 1,
+      "total": 20000
+    }
+  ]
+}

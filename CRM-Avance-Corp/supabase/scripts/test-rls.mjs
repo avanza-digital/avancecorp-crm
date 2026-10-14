@@ -9,6 +9,13 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 
+// Regresión de las puertas de atención/venta y del offboarding con Auth real.
+// El módulo cierra sus destinos al banco exclusivo autorizado de esta tarea.
+if (process.argv.length === 3 && process.argv[2] === '--atencion-venta') {
+  await import('./atencion-venta/integracion-permisos.mjs');
+  process.exit(0);
+}
+
 if (process.argv.length === 3 && process.argv[2] === '--origen-concreto') {
   await import('./ranking-origen/test-rls-origen-concreto.mjs');
   process.exit(0);
@@ -12633,7 +12640,15 @@ async function testIdentidadF2bD2(sessions) {
          or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid = f.firma::regprocedure and a.grantee = 0)
          or not exists (select 1 from pg_proc p where p.oid = f.firma::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'])`) === 0,
       'D-2 las tres RPC conservan sus grants (solo authenticated) y son DEFINER con search_path vacío');
-    check(FIRMAS.reduce((n, f) => n + marcador(f), 0) === 3, 'D-2 las tres funciones llevan la transformación (marcador en el cuerpo)');
+    const atencionPrivada = cuenta('núcleo de atención instalado', `select (to_regprocedure('private.cambiar_atencion_persona(uuid,uuid,text)') is not null)::int`) === 1;
+    const relacionTransformada = atencionPrivada
+      ? marcador('private.cambiar_atencion_persona(uuid,uuid,text)') === 1
+        && cuenta('puerta delega y ejecutor conserva núcleo D-2', `select (
+          strpos(pg_get_functiondef('crm.reasignar_responsable_relacion_fn(uuid,uuid,text)'::regprocedure),'private.ejecutar_cambio_responsabilidad(')>0
+          and strpos(pg_get_functiondef('private.ejecutar_cambio_responsabilidad(text,uuid,uuid,text,text,boolean)'::regprocedure),'private.cambiar_atencion_persona(')>0)::int`) === 1
+      : marcador(FIRMAS[2]) === 1;
+    check(FIRMAS.slice(0,2).every(f => marcador(f) === 1) && relacionTransformada,
+      'D-2 conserva la baja y el cambio de relación, directamente o delegado al núcleo privado');
     check(cuenta('conteo retirado', `select (to_regprocedure('crm.personas_por_responsable_fn(uuid)') is null)::int`) === 1,
       'D-2 crm.personas_por_responsable_fn no existe (un conteo no es un interlock; retirada en b5 v2)');
     check(cuenta('leads_de_personas', `select count(*) from pg_proc p where p.oid = 'private.leads_de_personas(uuid[])'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""']`) === 1,
@@ -14024,12 +14039,15 @@ async function testConversionMensual(sessions, seed) {
     const deltaTotal = (campo) => num(totalDespues[campo]) - num(totalAntes[campo]);
     // D8 (F2.6): el total del ambito SUMA el agregado fuera de roster. Lo
     // sembrado mueve +1 divisor por vend1 (roster) y +1 por sup1 (el productor
-    // fuera de roster), cuyo analista tambien entra al total.
+    // fuera de roster). Solo vend1 cierra: el total debe sumar exactamente su
+    // delta, ya medida arriba. Con el tope no se puede exigir +2: la parte
+    // referida depende de la base elegible. El oráculo exacto del tope está en
+    // conversion-limite-referidos/prueba.sql; aquí se prueba la agregación.
     check(deltaTotal('divisor') === 2
       && deltaTotal('cierres_no_referidos') === 1
       && deltaTotal('cierres_referidos') === 1
       && deltaTotal('referidos_recibidos') === 2
-      && cerca(deltaTotal('numerador'), TOPE_ACTIVO ? 1 + FACTOR_ESPERADO : 1.15)
+      && cerca(deltaTotal('numerador'), TOPE_ACTIVO ? deltaVend1(f => f.numerador) : 1.15)
       && deltaTotal('analistas') === 0,
       `D8 · el TOTAL global se mueve lo sembrado INCLUYENDO al productor fuera de roster (+2 divisor; el listado de analistas conserva su tamaño)`,
       JSON.stringify({ antes: totalAntes, despues: totalDespues, sup1YaContaba: deltaAnalistaFueraRoster === 0 }));

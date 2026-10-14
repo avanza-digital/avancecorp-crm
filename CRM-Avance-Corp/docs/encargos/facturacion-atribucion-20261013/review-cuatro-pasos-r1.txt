@@ -1,0 +1,129 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+No encuentro ningún P0 en las dos migraciones. El diseño es sólido en tres puntos:
+
+- **Autorización:** el núcleo private revalida la autorización real (`puede_cambiar_atencion`, `rol_crm`).
+- **Concurrencia:** primero calcula un `v_pre`, después toma candados NOWAIT y luego recalcula `v_pos` con el mismo hash. El orden de candados es coherente con offboarding.
+- **Postcondiciones:** comprueba el resultado con las funciones de Facturación y revierte ante cualquier divergencia.
+
+El riesgo principal es de regresión, no de fuga de datos. El trigger `aaa_asesor_solo_nucleo` rechaza **todo** UPDATE de `asesor_perfil_id`/`asesor_id` cuyo `current_user` no sea literalmente `postgres`. La suite que demostraría que alta Auth, revisión F4 y baja de analistas siguen funcionando consta como NOT RUN (`REVISION.md:41`). Mientras no se ejecute, no debe haber publicación.
+
+En el plan, mover las copias `* 2.*` a `/private/tmp` contradice el objetivo de no perder trabajo. La corrección de 001595 necesita además una precondición explícita de alcance y un rastro de autoría que sea honesto.
+
+FINDINGS:
+
+[P1] Regresión no descartada en escritores legítimos de asesor (alta, F4, baja, fusión/veto, importación)
+File: `20261013192850_crm_atencion_venta_separadas.sql`
+Lines: 444-455; `REVISION.md:29,41`
+Problem: El trigger se basa en una identidad de rol fija: `current_user<>'postgres'` ⇒ 42501. Cualquier escritor que no sea una función SECURITY DEFINER **propiedad de `postgres`** queda cortado. Esto incluye:
+- Edge Functions con service_role que hagan PATCH o UPDATE.
+- `upsert` / `INSERT … ON CONFLICT DO UPDATE`, que dispara los BEFORE UPDATE.
+- Triggers INVOKER de tablas crm que escriban en `perfiles`.
+- Funciones cuyo owner sea `supabase_admin` u otro rol.
+Evidence:
+- La aserción 28 confirma que service_role directo queda bloqueado y que solo se verificó el camino INSERT.
+- El inventario de `REVISION.md:29` cubre `crear-cliente`, `crm-convertir-lead`, `importar-clientes` y `public_html/js`. No menciona la Edge o RPC de baja de analistas, ni si `importar-clientes` hace upsert sobre clientes existentes.
+- La suite de alta Auth/F4/offboarding está NOT RUN.
+Impact: Es una hipótesis con probabilidad no despreciable. La baja de un analista, la reimportación o la revisión F4 podrían fallar en producción con "usa la acción Cambiar quién atiende". Coincide exactamente con el paso 1 que pidió Miguel.
+Recommendation: Antes del merge, adjuntar tres evidencias:
+- (a) Consulta de catálogo con `proname`, `pg_get_userbyid(proowner)`, `prosecdef` de toda función cuyo `prosrc` contenga `asesor_perfil_id` o `asesor_id` junto con `update`, más los triggers sobre crm que escriban `public.perfiles`. Todas deben ser definer y propiedad de `postgres`.
+- (b) Un grep de `.update(`/`.upsert(` sobre `perfiles` en `supabase/functions/**` y `public_html/js/**`.
+- (c) La ejecución real del fixture `crear_perfil_cliente_con_cuentas` con Auth, la revisión F4 por su puerta y `fijar_membresia_activa_fn` con reemplazo, verificando perfil, tareas y responsable.
+
+[P2] El trigger por columna y su orden permiten modificar el asesor sin pasar por el guardia
+File: `20261013192850…sql`
+Lines: 454
+Problem: `BEFORE UPDATE OF asesor_perfil_id,asesor_id` solo se dispara si esas columnas aparecen en la lista SET. Además, el prefijo `aaa_` lo ejecuta **antes** que los demás triggers BEFORE. Un trigger posterior que reescriba `NEW.asesor_*`, o un UPDATE que no las nombre pero que algún trigger modifique, escapa al control.
+Evidence: Es una hipótesis. No se adjunta el inventario de triggers de `public.perfiles`.
+Impact: Puede abrir un hueco silencioso en la invariante de que solo el núcleo cambia la atención.
+Recommendation: Hay dos opciones:
+- Usar `BEFORE UPDATE` sin lista de columnas y con nombre que ordene **último** (`zzz_…`), comparando el `NEW` final con `OLD`.
+- O adjuntar `pg_trigger` de `public.perfiles` para demostrar que ningún trigger escribe esas columnas.
+
+Conviene además no fijar el literal `'postgres'`. Es preferible comparar contra el owner de las funciones núcleo, o al menos documentarlo en el ledger y verificarlo en el branch, donde el rol que aplica migraciones puede ser distinto.
+
+[P2] Formularios del portal que reenvían `asesor_id` o `asesor_perfil_id` sin cambios intencionales
+File: `20261013192850…sql:447-449` frente a `proteger_campos_inmutables:508-509`
+Problem: Antes, a un analista que enviaba esas columnas el trigger se las congelaba en silencio, devolviéndoles su valor anterior. Ahora `aaa_` se ejecuta primero y **lanza error**. Basta con que el formulario de edición mande el objeto completo con `asesor_id:null` sobre un cliente que tiene `asesor_id` legado. Editar el teléfono o el email de ese cliente fallaría, también con el JS cacheado.
+Evidence: Es una hipótesis. No se adjunta el payload de edición de `public_html/js`.
+Recommendation: Verificar que los formularios de edición y el JS antiguo no envían columnas de asesor. Incluir un E2E de "editar cliente con `asesor_id` legado ≠ null" como analista y como admin.
+
+[P2] Persona no determinista en la vista previa
+File: `20261013192850…sql`
+Lines: 219
+Problem: `select * into v_persona … where perfil_id=v_cliente and estado<>'fusionado'` no es STRICT. Si existen dos identidades no fusionadas (por ejemplo `activo` y `en_revision`, justo el escenario del paso 2 de duplicados), se toma una fila arbitraria. Las consecuencias posibles son tres:
+- un rechazo espurio,
+- un 40001 entre `v_pre` y `v_pos` porque el orden difiere,
+- actuar sobre la identidad equivocada.
+Evidence: No se adjunta un índice único parcial `(perfil_id) where estado<>'fusionado'`.
+Recommendation: Hay dos opciones:
+- Adjuntar ese índice.
+- O usar `INTO STRICT` o un conteo previo con `raise … P0409 'Identidad duplicada: resolver antes'`.
+
+Además, conviene añadir un caso de prueba con dos identidades vivas para el mismo perfil.
+
+[P2] Postcondición de tareas con destino Gerencia
+File: `20261013192850…sql`
+Lines: 383-387 frente a 64-68
+Problem: Con destino `gerencia`, `cambiar_atencion_persona` declara que no hay cartera que mover. Sin embargo, la postcondición exige que toda tarea pendiente con `inversionista_id=v_persona` tenga `vendedor_id=p_destino`. Si no existe un trigger que reasigne esas tareas al cambiar el tramo, toda atención a Gerencia de una persona con tareas pendientes revierte siempre.
+Evidence: La aserción 18 pasa, pero no consta que el fixture tenga una tarea pendiente ligada a `inversionista_id`.
+Recommendation: Confirmar qué trigger mueve esas tareas, o adjuntar el fixture. Añadir el caso "Gerencia + tarea pendiente por persona".
+
+[P2] Plan de duplicados: `/private/tmp` no es almacenamiento durable
+Problem: macOS purga `/private/tmp` al reiniciar y periódicamente. Moverlas ahí, aunque se acompañe de manifiesto y sha256, puede perder trabajo, que es justo lo que el paso 2 pide evitar. Además, una copia `X 2.tsx` puede contener cambios no integrados. Suelen ser conflictos de sincronización de Finder o iCloud.
+Recommendation:
+- Antes de mover, ejecutar `diff`/`cmp` de cada copia contra su original y clasificarla como idéntica, divergente o huérfana.
+- Las divergentes requieren decisión humana.
+- Usar un destino durable fuera del árbol escaneado, por ejemplo una carpeta fechada bajo el home o una ruta ignorada del repo, con el manifiesto versionado.
+- Las otras copias `* 2.*` (`.claude/settings 2.json`, `settings.local 2.json`, notas del vault) quedan fuera de alcance, pero debe declararse explícitamente.
+
+[P2] Autoría en la corrección de 001595
+Problem: El banco usa `set_config('request.jwt.claim.sub', …)` como `postgres` (`http-concurrencia.mjs:13`). Repetir ese patrón en producción registraría `reasignaciones_analista.reasignado_por` = Gerencia sin que Gerencia haya actuado. Sería un rastro de auditoría falseado.
+Recommendation: Ejecutar preview y confirm con la **sesión real** del usuario Gerencia (UI o HTTP con su JWT). Si se hace por SQL operado, debe constar en el motivo y en el acta quién lo ejecutó materialmente.
+
+[P3] Leads «sueltos por documento» no quedan bloqueados contra inserciones
+Lines: 327, 376-382
+Problem: `leads_de_personas` incluye leads sueltos con el DNI. Un INSERT concurrente posterior a `v_pos` no choca con ningún candado.
+Impact: Solo provoca un rollback por postcondición o un lead suelto no movido. No corrompe datos.
+Recommendation: Declararlo como limitación o cubrirlo con el advisory del documento, si existe.
+
+[P3] Grants y ledger
+Problem: Dos detalles menores:
+- `grant execute on public.proteger_campos_inmutables() to authenticated` (línea 580) no es necesario para que se dispare el trigger. Es inocuo, pero conviene justificarlo o eliminarlo.
+- `public.reasignar_analista_contrato` y `crm.reasignar_responsable_relacion_fn` pierden EXECUTE para `service_role`.
+Recommendation: Confirmar que ninguna Edge o cron los llama con service_role. Documentarlo en `MIGRACIONES.md` (checklist 4 y 8; su contenido no viene adjunto). La migración de hardening es redundante con las líneas 545-581, pero idempotente.
+
+Verificado sin hallazgos:
+- **search_path:** fijo en todas las funciones nuevas.
+- **Puertas definer:** delgadas, con justificación escrita (407-408) y gate interno en el núcleo.
+- **GUC:** `crm.atencion_autorizada` no autoriza por sí solo. Las condiciones IF anidadas exigen `current_user='postgres'` y el estado canónico ya escrito (460-467, 486-491).
+- **Hash de versión:** incluye al actor.
+- **Firma legacy:** no confirma un alcance ampliado (345-348).
+- **Conflictos de concurrencia:** se traducen a PT409, lo que evita los reintentos infinitos de PostgREST.
+- **RLS:** no se crean tablas, policies DELETE ni cambios de RLS.
+- **Inmutabilidad:** no se tocan los triggers de inmutabilidad.
+
+TEST GAPS:
+- Suite alta Auth+RPC, revisión F4 y `fijar_membresia_activa_fn` con reemplazo, todas NOT RUN (P1).
+- Upsert o reimportación de un cliente existente con service_role, y la Edge o RPC de baja de analista.
+- Editar un cliente con `asesor_id` legado desde el portal (JS nuevo y JS cacheado).
+- Atención a Gerencia con tarea pendiente por `inversionista_id`.
+- Dos identidades no fusionadas para el mismo perfil.
+- **Equivalencia:** para todos los contratos vivos del esquema copia, comprobar que `analista_previsto_contrato(id, analista_cierre_id, null, null, cliente, asesor) = analista_efectivo_contrato(id, analista_cierre_id)`. Hoy una divergencia solo produce un rechazo falso, pero conviene medirla antes de producción.
+- `test-rls.mjs`: no hay evidencia de que la matriz se haya ampliado. Debe cubrir preview y confirm × {venta, atencion_persona, atencion_cliente} × {gerencia, admin portal sin CRM, gestor cartera, vendedor, operaciones, anon, revocado}, en casos permitidos y denegados.
+
+RECOMMENDED NEXT ACTIONS (evidencia requerida antes de cada mutación):
+1. **Antes del branch:** ejecutar el inventario de catálogo y de código de escritores de `asesor_*` con owners. Ejecutar la suite alta/F4/offboarding en el stack aislado, con salida adjunta. Resolver P2-trigger y P2-persona, o justificarlos.
+2. **Copias `* 2.*`:** generar el manifiesto con diff contra el original, decidir las divergentes con Miguel y moverlas a un destino durable. El build se hace desde una copia limpia del commit integrado.
+3. **Branch Supabase:** `test-rls` en verde con la matriz ampliada, advisors sin avisos nuevos, la fila de `MIGRACIONES.md` con estado honesto y verificación en el branch de que el rol que aplica migraciones es dueño de los núcleos.
+4. **Publicación:** merge del backend y despliegue inmediato del portal y del CRM, con cache-busting del JS. Comprobar en producción que un PATCH antiguo devuelve 403 con el mensaje claro y nunca 2xx, y que una alta real de prueba funciona.
+5. **001595, con SQL fail-closed:**
+   - **Precondiciones:** id, número, PEN, 150000.00, `analista_cierre_id`=Fiorella, cero filas en `reasignaciones_analista` y `operaciones_cartera` para el contrato, que el mes no esté en `periodos_cerrados` (o comportamiento esperado declarado), y Jorge activo en `crm.equipo`.
+   - **Vista previa:** `efectos` debe tener exactamente un contrato con previsto=Jorge. Si aparece cualquier otro efecto, abortar.
+   - **Confirmación:** confirm con la versión, ejecutado por la sesión real de Gerencia y con el consentimiento de Miguel registrado.
+   - **Postcondiciones:** facturación por día, moneda, analista y supervisor con el delta exacto −150000 Fiorella / +150000 Jorge en PEN, el resto idéntico, capital y registrador sin cambios, y una sola fila de historial.
+
+CONFIDENCE:
+MEDIUM. Las migraciones y las pruebas se revisaron completas. El inventario de escritores, los triggers de `perfiles`, `test-rls.mjs`, el ledger y el código de las Edge Functions no venían adjuntos.
