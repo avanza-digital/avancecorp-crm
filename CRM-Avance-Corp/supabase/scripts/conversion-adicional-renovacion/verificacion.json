@@ -1,10 +1,10 @@
 {
   "fecha": "2026-10-14",
   "branch": "yeiwghzhcrvwfcybymxy",
-  "produccion_modificada": false,
-  "produccion_hash_final": "ed15fbd034c636e4897c7600002ee8cf",
+  "produccion_modificada": true,
+  "produccion_hash_final": "13d0c920eb7f620d1992826fb43cb584",
   "branch_hash": "13d0c920eb7f620d1992826fb43cb584",
-  "captura_final": "2026-10-14T20:26:35.586834+00:00",
+  "captura_final": "2026-10-14T21:29:24.450797+00:00",
   "huellas_finales_iguales_a_antes": true,
   "historico_extendido": {
     "desde": "2025-12-01",
@@ -46,8 +46,8 @@
       "archivo": "http.json"
     },
     "frontend_build_e2e": {
-      "estado": "NOT RUN",
-      "motivo": "No se modificó ni publicó frontend"
+      "build": "PASS en CI del PR #278",
+      "e2e": "NOT RUN: sin cambios de frontend; no se ejecutaron E2E en GitHub"
     },
     "rls_preflight": "PASS",
     "matriz_rls_general": {
@@ -63,7 +63,33 @@
   "figma": {
     "file_key": "tO6Lpx3ieJ6QuwUxfZcSvM",
     "node_id": "89:115",
-    "visual": "PASS"
+    "visual": "PASS",
+    "estado": "ACTIVO EN PRODUCCIÓN"
   },
-  "coste_branch_usd_hora": 0.01344
+  "coste_branch_usd_hora": 0.01344,
+  "autorizacion_produccion": "RECIBIDA Y EJECUTADA",
+  "github": {
+    "pr": "https://github.com/avanza-digital/avancecorp-crm/pull/278",
+    "head": "ab4c5d37369f38a8f47956d0988069efaabf52f6",
+    "estado": "MERGED",
+    "preflight": "PASS",
+    "app_check": "PASS",
+    "verify": "PASS",
+    "tests": 6689,
+    "archivos_test": 419,
+    "tests_corresponden_a_head": "c58f85d1825e5d27fc363cf818ce636e53d719d5",
+    "build": "PASS",
+    "regla": "1 aprobación; code owner obligatorio; historial lineal; checks verify y preflight",
+    "merge_commit": "2338514179a6712e3aab74d5fffd54cf2b29b1e4",
+    "merged_at": "2026-10-14T21:26:07Z"
+  },
+  "produccion": {
+    "estado": "PASS",
+    "migracion": "20261014185718",
+    "comparacion": "produccion.json",
+    "http": "produccion-http.json",
+    "auth_http_contextos": 7,
+    "branch_retirada": true
+  },
+  "branch_retirada": true
 }

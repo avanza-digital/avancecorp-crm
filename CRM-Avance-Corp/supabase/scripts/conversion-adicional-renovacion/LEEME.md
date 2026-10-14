@@ -1,14 +1,30 @@
-# Adicional de renovación: resultado del ensayo
+# Adicional de renovación: aplicado y verificado
 
-**14/10/2026. Probado únicamente en la branch de Supabase; producción no modificada.**
+**APLICADO Y VERIFICADO EN PRODUCCIÓN el 14/10/2026, tras autorización de Miguel. PR #278 integrado; merge de la branch Supabase completado.**
 
 El adicional de una renovación cuenta como upgrade desde el 01/10/2026. La renovación pura sigue aportando cero. Se conserva la primera operación elegible por cliente/mes: si ya hay una operación elegible anterior, la siguiente no aporta otro punto. Una renovación pura anterior también ocupa ese lugar, tal como ocurría antes.
 
-Vladimir es el único analista cuyo numerador cambia en esta copia. El contrato **2026-01-001568**, del 06/10/2026, conserva US$ 5.000 renovados y US$ 7.000 adicionales. Ese adicional añade un punto: **3/67 = 4,48 % → 4/67 = 5,97 %**. Los dos cierres de lead y el upgrade de otro cliente se conservan.
+Vladimir es el único analista cuyo numerador cambia, tanto en el ensayo como en producción. El contrato **2026-01-001568**, del 06/10/2026, conserva US$ 5.000 renovados y US$ 7.000 adicionales. Ese adicional añade un punto: **3/67 = 4,48 % → 4/67 = 5,97 %**. Los dos cierres de lead y el upgrade de otro cliente se conservan.
 
-El total de empresa pasa de **50,05/905 = 5,53 %** a **51,05/905 = 5,64 %**. El divisor y los importes no cambian.
+En producción, el total de empresa pasa de **55,05/905 = 6,08 %** a **56,05/905 = 6,19 %**. El divisor y los importes no cambian.
 
-## Comparación de todos los analistas
+## Verificación en producción
+
+[Resultado completo de los 32 analistas](produccion.json). Lecturas del 14/10/2026 a las 21:27 y 21:29 UTC (16:27 y 16:29 de Lima): **solo Vladimir cambia, 3/67 → 4/67; 4,48 % → 5,97 %**. Todos los divisores se conservan. La fila completa de cada responsable se cotejó por vendedor_id, ya que el ranking cambia de orden al subir Vladimir.
+
+El total oficial actual de empresa pasa de **55,05/905 (6,08 %) a 56,05/905 (6,19 %)**. Es distinto del ensayo inicial porque hubo actividad real después de crear la copia; el efecto de esta migración sigue siendo exactamente un punto.
+
+Setenta salidas históricas de diciembre 2025 a setiembre 2026 conservan todos sus datos. Entre las lecturas productivas solo avanzan las marcas de reloj `generado_en`, `cosecha.madura_hasta` y `citas_reales.seguimiento_hasta`; las dos últimas se comprobaron iguales a la hora exacta de cada captura. La equivalencia JSON literal ya se había probado en la misma transacción en la branch. Pesos, periodos cerrados, fotos, contratos y operaciones mantienen las mismas huellas completas. Las 12 tareas cron productivas siguen activas; las 23 Edge Functions conservan código y validación JWT. Advisors de seguridad y rendimiento sin diferencias.
+
+[Auth/HTTP en producción](produccion-http.json): **7/7 PASS**, con respuestas iguales a SQL para Vladimir, otro analista, Supervisión, Gerencia, Coordinación, anónimo y servicio. Sesiones temporales generadas y cerradas internamente, sin correos ni cambio de contraseñas. Entre las 1.047 funciones comparadas, solo cambió `private.conversion_episodios`; dueño, ACL, estabilidad y search_path intactos.
+
+El SQL aprobado está en Main `2338514179a6712e3aab74d5fffd54cf2b29b1e4` y fue cotejado por SHA-256 antes del merge de Supabase. Registro productivo: **20261014185718**. La branch temporal fue eliminada después de verificar; ya no genera coste horario.
+
+El [preflight previo](produccion-preflight.json) conserva el estado histórico de las 21:00 UTC, cuando todavía faltaba la aprobación de GitHub. El estado final es el de [produccion.json](produccion.json) y [verificacion.json](verificacion.json): aplicado y verificado.
+
+## Comparación del ensayo en branch
+
+En la copia inicial, el total de empresa pasó de **50,05/905 = 5,53 %** a **51,05/905 = 5,64 %**. Estos son los resultados de ese ensayo, anterior a las capturas productivas.
 
 Se compararon 32 perfiles: 27 del ranking oficial y 5 inactivos. Los inactivos no aparecen en el ranking: también se comprobó el núcleo, sin actividad ni aporte. «—» significa que no hay porcentaje porque el divisor es cero. Todos los divisores antes/después son iguales.
 
@@ -87,7 +103,8 @@ La migración toma el mismo candado global del cierre y rechaza si ya existe un 
 | Puerta afectada por Auth/HTTP | PASS: 7 contextos; respuestas iguales a SQL |
 | `npm run test:rls:preflight` | PASS con variables de la branch |
 | Matriz general `test-rls.mjs` | NOT RUN: necesita fixtures propios; se ejecutó la matriz pertinente de esta puerta sin reemplazar los datos clonados |
-| Build y E2E de frontend | NOT RUN: no se modifica ni publica frontend |
+| Gate completo de aplicación en CI | PASS: lint, tipos, 6.689 tests en 419 archivos y build |
+| E2E de frontend | NOT RUN: sin cambios de frontend; no se ejecutaron E2E en GitHub |
 
 El ensayo de cierre cambia **solo las dos guardas de reloj** de `cerrar_periodo` a noviembre 11 dentro de una transacción; el cálculo, la inserción de la foto y sus lecturas usan el código real. Después se carga el núcleo anterior: el cálculo vivo vuelve a 3 pero la foto de Vladimir sigue en 4 y el total oficial en 51,05. Todo se revierte. El cierre vigente omite un perfil sin metas ni actividad (Luis Vela), aunque la pantalla viva sí lo muestra con ceros; se comprobó esta diferencia preexistente.
 
@@ -101,14 +118,14 @@ La revisión pidió comprobar mutabilidad y consumidores. El catálogo confirma 
 
 - Organización aprobada: `fzxtxnkvslpcsscxqfbr`.
 - Branch: `conversion-adicional-renovacion-20261014`, proyecto `yeiwghzhcrvwfcybymxy`, copia con datos de `dctqcbznekcyxhjujuci`.
-- Creada el 14/10/2026 18:30:49 UTC. Coste autorizado: **US$ 0,01344/h** (aprox. US$ 0,32/día); sigue disponible para revisión.
-- Sus 12 tareas cron están desactivadas. Las branches ajenas no se tocaron.
+- Creada el 14/10/2026 18:30:49 UTC. Coste autorizado: **US$ 0,01344/h** (aprox. US$ 0,32/día); eliminada tras la verificación productiva.
+- Durante el ensayo sus 12 tareas cron estuvieron desactivadas. En producción se conservan las 12 activas. Solo se retiró la branch propia.
 - Migración en el ledger remoto: `20261014185718_crm_conversion_adicional_renovacion`; archivo local: `20261014174026`. El conector asignó el timestamp remoto. No hacer `db push` masivo ni repetir ambas versiones.
-- Huella de cuerpo anterior: `ed15fbd034c636e4897c7600002ee8cf`; candidata: `13d0c920eb7f620d1992826fb43cb584`. Producción conserva la anterior, verificada al finalizar.
+- Huella de cuerpo anterior: `ed15fbd034c636e4897c7600002ee8cf`; candidata: `13d0c920eb7f620d1992826fb43cb584`. Producción conserva la candidata, verificada después del merge.
 - Las capturas extensas permanecen fuera del repositorio en `/private/tmp/conversion-adicional-antes.json` y `/private/tmp/conversion-adicional-despues.json`. La comparación publicable está en este directorio.
 - El contenedor local propio se detuvo al terminar.
 
-Con Supabase CLI autenticada, desde la raíz CRM:
+Comandos usados durante el ensayo. La branch indicada fue retirada: para repetir, preparar otra copia autorizada y actualizar primero sus identificadores fijos en los ejecutores; nunca apuntarlos a producción:
 
 ```sh
 python3 supabase/scripts/conversion-adicional-renovacion/branch-prueba.py prueba.sql /private/tmp/adicional-prueba.log
@@ -122,8 +139,8 @@ python3 supabase/scripts/conversion-adicional-renovacion/probar-http.py
 
 El ejecutor fija el proyecto de la branch, expande los includes y solo acepta ensayos terminados en rollback. No imprime credenciales. La conexión administrativa de la CLI funciona; la conexión PostgreSQL directa de la copia no estuvo disponible.
 
-## Figma y paso pendiente
+## Figma y cierre
 
 [Tablero actualizado, con el caso y los resultados](https://www.figma.com/board/tO6Lpx3ieJ6QuwUxfZcSvM/?node-id=89-115). Se actualizaron también la regla del numerador y sus ejemplos. Captura revisada sin recortes.
 
-**No aplicado en producción.** Antes de una activación: confirmación expresa del usuario y nueva comprobación de que el cuerpo productivo y los meses cerrados siguen siendo los revisados. No fusionar automáticamente la branch. El SQL de reversa base está en `nucleo-anterior.sql`; no ejecutarlo aisladamente ni después de un cierre sin revisar las fotos y el estado vigente.
+**Aplicado y verificado.** El [PR #278](https://github.com/avanza-digital/avancecorp-crm/pull/278) fue integrado el 14/10/2026 a las 21:26 UTC con sus controles PASS. Main local y `avancecorp/main` se comprobaron en el mismo commit antes del merge de Supabase. Figma muestra «Activo en producción». El SQL de reversa base está en `nucleo-anterior.sql`; no ejecutarlo aisladamente ni después de un cierre sin revisar las fotos y el estado vigente.

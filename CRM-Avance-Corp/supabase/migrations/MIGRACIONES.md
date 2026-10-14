@@ -1,18 +1,22 @@
 ## 20261014174026 — Adicional de renovación como upgrade de conversión
 
-**PROBADA EN BRANCH; NO APLICADA EN PRODUCCIÓN (14/10/2026).** Decisión de Miguel:
+**APLICADA Y VERIFICADA EN PRODUCCIÓN (14/10/2026, 21:29 UTC).** Decisión de Miguel:
 desde octubre, la primera operación elegible del cliente/mes, si es renovación
 con `capital_adicional > 0`, aporta 1 como upgrade. Renovación pura, pesos de
 renovación/referido, divisor, importes y fotos anteriores intactos. Solo cambia
 `private.conversion_episodios`, conservando firma, dueño y permisos. La migración
 rechaza si octubre o un mes posterior ya está cerrado o si deriva el núcleo.
-Branch autorizada con datos: `yeiwghzhcrvwfcybymxy`.
+Branch autorizada con datos `yeiwghzhcrvwfcybymxy`: merge completado y branch retirada.
+Versión productiva `20261014185718`; PR #278 integrado en Main `23385141`.
 Comparados 32 perfiles: solo Vladimir pasa de 3/67 (4,48 %) a 4/67 (5,97 %).
 Histórico completo diciembre 2025–setiembre 2026 idéntico; 22 casos sintéticos,
 7 aserciones de cierre con reloj simulado, 6 guardas y 43 contextos SQL de roles PASS.
 Revisión independiente de migración y RLS PASS; 7 contextos con Auth/HTTP real y
 preflight RLS PASS. Matriz general ajena al cambio no ejecutada sobre la copia con datos.
-Miguel confirmó la aplicación en producción el 14/10/2026; pendiente del merge verificado. [Evidencia y guía](../scripts/conversion-adicional-renovacion/LEEME.md).
+Miguel confirmó la aplicación en producción el 14/10/2026. Preflight, pruebas,
+tipos, lint y build PASS en el PR fusionado. Comprobación productiva: 32 analistas,
+solo Vladimir +1; 7 contextos Auth/HTTP PASS, huellas de pesos/fotos/contratos/
+operaciones intactas, cron y Edge Functions conservadas, advisors sin diferencias. [Evidencia y guía](../scripts/conversion-adicional-renovacion/LEEME.md).
 
 ## 20261014001346 — SLA: agregar tareas una vez por lead
 

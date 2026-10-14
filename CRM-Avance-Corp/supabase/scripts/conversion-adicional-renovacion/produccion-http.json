@@ -1,0 +1,78 @@
+{
+  "branch": "dctqcbznekcyxhjujuci",
+  "casos": 7,
+  "pass": 7,
+  "metodo": "Sesiones reales Auth generadas sin enviar correos; HTTP PostgREST idéntico a SQL por rol. No prueba login con contraseña ni recuperación.",
+  "resultados": [
+    {
+      "id": "d571aeed-e65d-4369-ac86-00a83bf9d389",
+      "rol": "vendedor",
+      "activo": true,
+      "dbrol": "authenticated",
+      "http_status": 200,
+      "estado": "PASS",
+      "codigo": null,
+      "mensaje": null
+    },
+    {
+      "id": "2c10b18a-a15d-4952-952b-c4ab91b96153",
+      "rol": "vendedor",
+      "activo": true,
+      "dbrol": "authenticated",
+      "http_status": 200,
+      "estado": "PASS",
+      "codigo": null,
+      "mensaje": null
+    },
+    {
+      "id": "8821227a-add2-4e75-83bc-8f7c30070062",
+      "rol": "coordinador",
+      "activo": true,
+      "dbrol": "authenticated",
+      "http_status": 200,
+      "estado": "PASS",
+      "codigo": null,
+      "mensaje": null
+    },
+    {
+      "id": "bf1c562e-ed08-4cc3-92a8-34f1fa3e9127",
+      "rol": "gerencia",
+      "activo": true,
+      "dbrol": "authenticated",
+      "http_status": 200,
+      "estado": "PASS",
+      "codigo": null,
+      "mensaje": null
+    },
+    {
+      "id": "0eeb8c64-25e4-418b-b5d5-e07b06758b5e",
+      "rol": "supervisor",
+      "activo": true,
+      "dbrol": "authenticated",
+      "http_status": 200,
+      "estado": "PASS",
+      "codigo": null,
+      "mensaje": null
+    },
+    {
+      "id": null,
+      "rol": "sin_sesion",
+      "activo": false,
+      "dbrol": "anon",
+      "http_status": 401,
+      "estado": "PASS",
+      "codigo": "42501",
+      "mensaje": null
+    },
+    {
+      "id": null,
+      "rol": "servicio",
+      "activo": false,
+      "dbrol": "service_role",
+      "http_status": 403,
+      "estado": "PASS",
+      "codigo": "42501",
+      "mensaje": null
+    }
+  ]
+}
