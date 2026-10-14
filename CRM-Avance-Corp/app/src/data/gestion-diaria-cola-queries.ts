@@ -24,7 +24,8 @@ export function useColaTrabajo(pedido: PedidoColaTrabajo, dia: string, revision 
       && anterior?.elegido === pedido.elegido && anterior.filtro === pedido.filtro && anterior.limite === pedido.limite
       && queryKey.slice(0, -1).every((v, i) => consultaAnterior?.queryKey[i] === v) ? anterior : undefined,
     refetchOnMount: 'always', refetchOnWindowFocus: 'always', refetchOnReconnect: 'always',
-    refetchInterval: (q) => intervaloReconsultaSla(q.state.data ? {
+    // Con error, respaldo de 60 s: la foto vieja con la frontera vencida reconsultaría cada segundo.
+    refetchInterval: (q) => intervaloReconsultaSla(!q.state.error && q.state.data ? {
       calculado_en: q.state.data.generado_en, proximo_cambio_en: q.state.data.proximo_cambio_en,
     } : undefined, q.state.dataUpdatedAt),
   })
