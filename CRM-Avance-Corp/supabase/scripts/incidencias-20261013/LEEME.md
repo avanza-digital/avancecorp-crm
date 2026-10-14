@@ -2,7 +2,8 @@
 
 Estado: **F7 y optimización SLA aplicados y verificados en producción** mediante
 merge de `banco-f7` el 14/10/2026 a las 02:38 UTC (13/10 en Lima). El transporte
-que bloquea consultas sin sesión está probado y pendiente de publicar el frontend.
+que bloquea consultas sin sesión está publicado y verificado en el frontend desde
+el 13/10 a las 22:19 Lima. [Acta de publicación](PUBLICACION.md).
 
 ## Cambios
 
@@ -36,7 +37,7 @@ que bloquea consultas sin sesión está probado y pendiente de publicar el front
 | Vigía F7 productivo | PASS: 15 piezas, cero alertas F7 abiertas; cierre 02:39:01 UTC |
 | Advisors posteriores | PASS sin avisos nuevos; las incidencias anteriores se conservan |
 | Edge Functions después del merge | PASS: 23/23 con contenido, JWT, entrada e import map equivalentes |
-| Publicación del frontend | NOT RUN: requiere revisión del PR e invocación humana `$release-crm` |
+| Publicación del frontend | PASS: PR #273 fusionado, `$release-crm` humano, Main e791502f; portada y 121 JS/CSS idénticos, acceso sin errores. Detalle en PUBLICACION.md |
 
 EXPLAIN ANALYZE del núcleo completo, con hechos reales del banco y datos sintéticos:
 2.009 leads, 6.860 tareas nuevas; 667,874 ms antes / 301,780 ms después. Primera
@@ -113,8 +114,9 @@ Evaluación y correcciones: [RESOLUCION-REVISION.md](RESOLUCION-REVISION.md).
    separó los SQL en 10/8 sentencias; solo difieren los separadores y líneas vacías
    entre sentencias respecto de los archivos inmutables. Versiones conservadas;
    huellas del array de sentencias productivo registradas en la evidencia.
-3. Pendiente: publicar el frontend mediante la invocación humana `$release-crm`; medir las
-   solicitudes anónimas y los timeouts del periodo posterior al despliegue.
+3. Completado: frontend publicado mediante la invocación humana `$release-crm` y
+   comprobado por HTTP/navegador. La observación de solicitudes anónimas y timeouts
+   bajo carga posterior queda fuera del smoke; no se promete ausencia absoluta.
 
 `reversa-sla.sql` restaura exactamente la función anterior y pasa sus guardianes;
 se convierte en una migración nueva, sin borrar historial. F7 no cambia el
