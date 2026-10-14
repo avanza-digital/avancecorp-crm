@@ -12640,15 +12640,35 @@ async function testIdentidadF2bD2(sessions) {
          or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid = f.firma::regprocedure and a.grantee = 0)
          or not exists (select 1 from pg_proc p where p.oid = f.firma::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'])`) === 0,
       'D-2 las tres RPC conservan sus grants (solo authenticated) y son DEFINER con search_path vacío');
-    const atencionPrivada = cuenta('núcleo de atención instalado', `select (to_regprocedure('private.cambiar_atencion_persona(uuid,uuid,text)') is not null)::int`) === 1;
-    const relacionTransformada = atencionPrivada
-      ? marcador('private.cambiar_atencion_persona(uuid,uuid,text)') === 1
-        && cuenta('puerta delega y ejecutor conserva núcleo D-2', `select (
-          strpos(pg_get_functiondef('crm.reasignar_responsable_relacion_fn(uuid,uuid,text)'::regprocedure),'private.ejecutar_cambio_responsabilidad(')>0
-          and strpos(pg_get_functiondef('private.ejecutar_cambio_responsabilidad(text,uuid,uuid,text,text,boolean)'::regprocedure),'private.cambiar_atencion_persona(')>0)::int`) === 1
-      : marcador(FIRMAS[2]) === 1;
-    check(FIRMAS.slice(0,2).every(f => marcador(f) === 1) && relacionTransformada,
-      'D-2 conserva la baja y el cambio de relación, directamente o delegado al núcleo privado');
+    // Atención/venta (20261013192850) convirtió la tercera RPC en adaptador.
+    // D-2 vive ahora en la implementación privada: exigir ambos enlaces y sus
+    // permisos, no un comentario en el adaptador ni aceptar cualquier helper.
+    const reasignacionD2 = cuenta('implementación de la reasignación', `
+      select case when to_regprocedure('private.ejecutar_cambio_responsabilidad(text,uuid,uuid,text,text,boolean)') is null
+        then (strpos(prosrc, 'F2.b [D-2]') > 0)::int
+        else (exists (
+          select 1 from pg_proc nucleo cross join pg_proc impl
+          where nucleo.oid = to_regprocedure('private.ejecutar_cambio_responsabilidad(text,uuid,uuid,text,text,boolean)')
+            and impl.oid = to_regprocedure('private.cambiar_atencion_persona(uuid,uuid,text)')
+            and strpos(regexp_replace(adaptador.prosrc, '[[:space:]]+', '', 'g'),
+              'returnprivate.ejecutar_cambio_responsabilidad(''atencion_persona'',p_inversionista,p_nuevo_responsable,p_motivo,null,true)') > 0
+            and strpos(regexp_replace(nucleo.prosrc, '[[:space:]]+', '', 'g'),
+              'v_resultado:=private.cambiar_atencion_persona(v_persona,p_destino,v_motivo)') > 0
+            and strpos(impl.prosrc, 'F2.b [D-2]') > 0
+            and not nucleo.prosecdef and not impl.prosecdef
+            and nucleo.proconfig @> array['search_path=""', 'lock_timeout=5s']
+            and impl.proconfig @> array['search_path=""', 'lock_timeout=5s']
+            and not exists (
+              select 1 from unnest(array['anon','authenticated','service_role']) r(rol)
+              where has_function_privilege(r.rol, nucleo.oid, 'EXECUTE')
+                 or has_function_privilege(r.rol, impl.oid, 'EXECUTE'))
+            and not exists (
+              select 1 from aclexplode(coalesce(nucleo.proacl, acldefault('f', nucleo.proowner))) a where a.grantee=0)
+            and not exists (
+              select 1 from aclexplode(coalesce(impl.proacl, acldefault('f', impl.proowner))) a where a.grantee=0)
+        ))::int end from pg_proc adaptador where oid = '${FIRMAS[2]}'::regprocedure`);
+    check(FIRMAS.slice(0, 2).reduce((n, f) => n + marcador(f), 0) === 2 && reasignacionD2 === 1,
+      'D-2 conserva offboarding y reasignación: implementación directa o cadena privada completa y sin grants API');
     check(cuenta('conteo retirado', `select (to_regprocedure('crm.personas_por_responsable_fn(uuid)') is null)::int`) === 1,
       'D-2 crm.personas_por_responsable_fn no existe (un conteo no es un interlock; retirada en b5 v2)');
     check(cuenta('leads_de_personas', `select count(*) from pg_proc p where p.oid = 'private.leads_de_personas(uuid[])'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""']`) === 1,
@@ -13573,11 +13593,9 @@ async function testConversionMensual(sessions, seed) {
   }).format(fecha);
   const MES = enLima(new Date()).slice(0, 7);
   const PERIODO = `${MES}-01`;
-  // Tope de referidos (migracion 20261007160937): desde 2026-10 el referido que cierra vale 1 y entre todos los
-  // referidos de un analista solo cuentan hasta el 15 % de sus cierres de leads asignados (landing y formulario). El
-  // oraculo de este bloque SIGUE el mes: antes de octubre, factor 0,15 y suma exacta; desde octubre, factor 1 y la suma
-  // exacta pasa a ser una COTA (el tope depende de los cierres de landing y formulario sin alta manual, que el payload no
-  // separa de los de base cargada ni de los de alta manual).
+  // Regla vigente (20261012220959): desde octubre el peso nominal es 1, limitado
+  // al 15 % de los propios cierres referidos, sin redondeo. Antes de octubre el
+  // peso es 0,15 y no hay tope. El oráculo usa el peso y límite declarados del mes.
   const TOPE_ACTIVO = MES >= '2026-10';
   const FACTOR_ESPERADO = TOPE_ACTIVO ? 1 : 0.15;
   const ids = seed.profileIdByKey;
@@ -13993,17 +14011,10 @@ async function testConversionMensual(sessions, seed) {
       && deltaVend1((f) => f.cierres_referidos) === 1,
       'T2/T3 · los dos cierres del mes se atribuyen a vend1, cada uno en su cubo',
       JSON.stringify({ cnr: deltaVend1((f) => f.cierres_no_referidos), cr: deltaVend1((f) => f.cierres_referidos) }));
-    // Antes del tope: 1 + 0,15 × 1 exactos. Con tope (octubre en adelante) el referido vale 1 si cabe en el tope
-    // (siempre cabe el primero del mes: el cierre landing de este mismo bloque es base) y 0 si otro referido anterior de vend1
-    // ya ocupa el lugar: el delta cae en [1, 1 + factor]. NO es un oraculo exacto a proposito: la base del tope (landing y
-    // formulario sin alta manual) no se separa en este payload de los cierres de base cargada y de alta manual, ni de los
-    // referidos del fixture, asi que el caso exacto lo prueba conversion-tope-referidos/prueba-tope.sql en el banco.
-    check(TOPE_ACTIVO
-        ? (deltaVend1((f) => f.numerador) >= 1 - 1e-9 && deltaVend1((f) => f.numerador) <= 1 + FACTOR_ESPERADO + 1e-9)
-        : cerca(deltaVend1((f) => f.numerador), 1.15),
-      TOPE_ACTIVO
-        ? 'T6 · con el tope de referidos el numerador de vend1 sube entre 1 y 1 + factor (el referido cuenta o queda fuera del tope)'
-        : 'T6 · el numerador sube 1,15 exactos: 1 + 0,15 × 1, fraccionario y sin redondear',
+    // Un directo y un referido: delta exacta, también con el límite vigente.
+    const aporteReferidoEsperado = topeDeclarado == null ? factor : Math.min(factor, Number(topeDeclarado) / 100);
+    check(cerca(deltaVend1((f) => f.numerador), 1 + aporteReferidoEsperado),
+      'T6 · el numerador sube un directo más el aporte referido limitado sobre sus propios cierres, sin redondear',
       String(deltaVend1((f) => f.numerador)));
     check(deltaVend1((f) => f.referidos.cerrados) === 1
       && deltaVend1((f) => f.referidos.dados_de_alta) === 1,
@@ -14039,15 +14050,12 @@ async function testConversionMensual(sessions, seed) {
     const deltaTotal = (campo) => num(totalDespues[campo]) - num(totalAntes[campo]);
     // D8 (F2.6): el total del ambito SUMA el agregado fuera de roster. Lo
     // sembrado mueve +1 divisor por vend1 (roster) y +1 por sup1 (el productor
-    // fuera de roster). Solo vend1 cierra: el total debe sumar exactamente su
-    // delta, ya medida arriba. Con el tope no se puede exigir +2: la parte
-    // referida depende de la base elegible. El oráculo exacto del tope está en
-    // conversion-limite-referidos/prueba.sql; aquí se prueba la agregación.
+    // fuera de roster), cuyo analista tambien entra al total.
     check(deltaTotal('divisor') === 2
       && deltaTotal('cierres_no_referidos') === 1
       && deltaTotal('cierres_referidos') === 1
       && deltaTotal('referidos_recibidos') === 2
-      && cerca(deltaTotal('numerador'), TOPE_ACTIVO ? deltaVend1(f => f.numerador) : 1.15)
+      && cerca(deltaTotal('numerador'), 1 + aporteReferidoEsperado)
       && deltaTotal('analistas') === 0,
       `D8 · el TOTAL global se mueve lo sembrado INCLUYENDO al productor fuera de roster (+2 divisor; el listado de analistas conserva su tamaño)`,
       JSON.stringify({ antes: totalAntes, despues: totalDespues, sup1YaContaba: deltaAnalistaFueraRoster === 0 }));
@@ -17733,7 +17741,7 @@ async function testBasesCargadasB7(sessions, seed) {
   const vend1 = sessions.vend1.client.schema('crm');
   const sup1 = sessions.sup1.client.schema('crm');
   const ger = sessions.gerencia.client.schema('crm');
-  check(cuenta('tablas', `select count(*) from pg_class c where c.oid in ('crm.bases_carga'::regclass, 'crm.base_carga_leads'::regclass, 'crm.base_carga_operaciones'::regclass) and c.relrowsecurity and c.relacl is not null and not exists (select 1 from aclexplode(c.relacl) a where a.grantee <> 'postgres'::regrole)`) === 3,
+  check(cuenta('tablas', `select count(*) from pg_class c where c.oid in ('crm.bases_carga'::regclass, 'crm.base_carga_leads'::regclass, 'crm.base_carga_operaciones'::regclass) and c.relrowsecurity and c.relowner = 'postgres'::regrole and not exists (select 1 from aclexplode(coalesce(c.relacl, acldefault('r', c.relowner))) a where a.grantee <> 'postgres'::regrole)`) === 3,
     'B7 las 3 tablas con RLS y sin ningún grant fuera de postgres');
   check(cuenta('sello', `select count(*) from pg_trigger t join pg_proc p on p.oid = t.tgfoid where t.tgrelid = 'crm.leads'::regclass and t.tgname = 'trg_leads_000_base_cargada_solo_puerta' and t.tgenabled = 'O' and t.tgtype = 23 and t.tgqual is null and t.tgattr = ''::int2vector and not p.prosecdef and p.proconfig = array['search_path=""']::text[] and not has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('service_role', p.oid, 'EXECUTE')`) === 1,
     'B7 sello de crm.leads habilitado (BEFORE INSERT OR UPDATE, por fila, sin WHEN), INVOKER con search_path vacío y sin EXECUTE para la API');
@@ -19267,7 +19275,7 @@ async function prepararActoresD17(d17) {
     if (!listos.has(usuario.key)) continue;
     const id = d17.ids[usuario.key];
     const medida = contarFueraDeBanda(`D-17: excepción medida para ${usuario.key}`, `
-      create function pg_temp.excepcion_d17(p uuid) returns int language plpgsql as $f$
+      create or replace function pg_temp.excepcion_d17(p uuid) returns int language plpgsql as $f$
       begin
         perform set_config('request.jwt.claim.sub', p::text, true);
         perform set_config('request.jwt.claims', json_build_object('sub', p, 'role', 'authenticated')::text, true);

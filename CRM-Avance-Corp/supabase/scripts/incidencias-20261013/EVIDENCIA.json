@@ -1,0 +1,363 @@
+{
+  "fecha": "2026-10-14T02:45:24.980Z",
+  "pr": 273,
+  "estadoBase": "APLICADA Y VERIFICADA EN PRODUCCIÓN",
+  "commitProducto": "bd59d35d878ed97df71bb45f83db117c71425222",
+  "mainIntegrado": "db63676bb21450a84de8e7e2ca73728500d4e2f5",
+  "gitMerge": "40bef333",
+  "frontend": "PREPARADO, SIN PUBLICAR",
+  "f7": {
+    "f7": "OK: 15 piezas vigiladas (observacion 3, permanentes 4, demolidas 8, liberadas 0)",
+    "abiertas": 0,
+    "ultimo_cierre": "2026-10-14 02:39:01.904721+00"
+  },
+  "postflight": {
+    "f7": "OK: 15 piezas vigiladas (observacion 3, permanentes 4, demolidas 8, liberadas 0)",
+    "fecha": "2026-10-14T02:43:53.712273+00:00",
+    "estado": "PASS",
+    "sla_md5": "0abdf640b5f4f10ab2e85b6bd2494522",
+    "piezas_f7": 15,
+    "guardianes": [
+      "sla_nucleo",
+      "sla_avisos",
+      "cola_v3",
+      "gestion_diaria"
+    ],
+    "migraciones": [
+      {
+        "huella": "77b56b4f5ab30c4be790875daf7ac8ef",
+        "nombre": "crm_f7_redeclarar_huella_metricas_cartera",
+        "version": "20261014013757"
+      },
+      {
+        "huella": "f75bdc4cbce3ceff71b2a919a0ff9878",
+        "nombre": "crm_sla_agrupar_tareas_por_lead",
+        "version": "20261014013830"
+      }
+    ],
+    "alertas_f7_abiertas": 0
+  },
+  "pruebas": {
+    "frontend": {
+      "archivos": 419,
+      "tests": 6689,
+      "estado": "PASS"
+    },
+    "e2eDocker": {
+      "tests": 3,
+      "segundos": 11,
+      "estado": "PASS"
+    },
+    "sql": {
+      "bloques": 13,
+      "ambitos": 6,
+      "rpcPares": 44,
+      "casosLimite": 9,
+      "estado": "PASS"
+    },
+    "http": {
+      "aserciones": 3931,
+      "estado": "PASS",
+      "fuente": "0daf3d80:CRM-Avance-Corp/supabase/scripts/test-rls.mjs",
+      "sha256": "9ca11397eb4e6d1e483d1bd2a7f759fc75fdd59cf67835bcba44f51c897f212a",
+      "logSha256": "c071d81b3c09fe8a11fd481c3bac9e33bba230940c0687dcd7065af6172d5234",
+      "restauracion": "Wrapper inicial falló al restaurar timestamp; recuperar solo touch confirmó bandera/fecha originales, trigger activo y cero marcas. Todas las aserciones HTTP pasaron sin excepciones."
+    }
+  },
+  "rendimiento": {
+    "tipo": "EXPLAIN ANALYZE puntual en producción; no equivale a latencia HTTP ni garantiza ausencia de timeouts bajo concurrencia",
+    "nucleo": {
+      "antes_ms": 1808.639,
+      "despues_ms": 1244.137,
+      "filas_antes": 3594,
+      "filas_despues": 3594
+    },
+    "equipoAuthenticated": {
+      "antes_ms": 1644.65,
+      "despues_ms": 1369.887
+    },
+    "bancoSinteticoRemoto": {
+      "antes_ms": 2383.839,
+      "despues_ms": 873.048
+    }
+  },
+  "edges": [
+    {
+      "slug": "crear-cliente",
+      "igual": true,
+      "metodo": "todos los archivos literales",
+      "archivos": 8,
+      "entradaCorrecta": true,
+      "mapaCorrecto": true
+    },
+    {
+      "slug": "crear-admin",
+      "igual": true,
+      "metodo": "todos los archivos literales",
+      "archivos": 1,
+      "entradaCorrecta": true,
+      "mapaCorrecto": true
+    },
+    {
+      "slug": "enviar-comunicado",
+      "igual": true,
+      "metodo": "todos los archivos literales",
+      "archivos": 1,
+      "entradaCorrecta": true,
+      "mapaCorrecto": true
+    },
+    {
+      "slug": "enviar-push",
+      "igual": true,
+      "metodo": "todos los archivos literales",
+      "archivos": 1,
+      "entradaCorrecta": true,
+      "mapaCorrecto": true
+    },
+    {
+      "slug": "diagnostico-push",
+      "igual": true,
+      "metodo": "todos los archivos literales",
+      "archivos": 1,
+      "entradaCorrecta": true,
+      "mapaCorrecto": true
+    },
+    {
+      "slug": "resetear-password",
+      "igual": true,
+      "metodo": "todos los archivos literales",
+      "archivos": 1,
+      "entradaCorrecta": true,
+      "mapaCorrecto": true
+    },
+    {
+      "slug": "eliminar-cliente",
+      "igual": true,
+      "metodo": "todos los archivos literales",
+      "archivos": 1,
+      "entradaCorrecta": true,
+      "mapaCorrecto": true
+    },
+    {
+      "slug": "notificar-pagos",
+      "igual": true,
+      "metodo": "todos los archivos literales",
+      "archivos": 1,
+      "entradaCorrecta": true,
+      "mapaCorrecto": true
+    },
+    {
+      "slug": "importar-clientes",
+      "igual": true,
+      "metodo": "todos los archivos literales",
+      "archivos": 4,
+      "entradaCorrecta": true,
+      "mapaCorrecto": true
+    },
+    {
+      "slug": "ciclo-contratos",
+      "igual": true,
+      "metodo": "todos los archivos literales",
+      "archivos": 1,
+      "entradaCorrecta": true,
+      "mapaCorrecto": true
+    },
+    {
+      "slug": "crm-convertir-lead",
+      "igual": true,
+      "metodo": "todos los archivos literales",
+      "archivos": 7,
+      "entradaCorrecta": true,
+      "mapaCorrecto": true
+    },
+    {
+      "slug": "crm-tipo-cambio",
+      "igual": true,
+      "metodo": "todos los archivos literales",
+      "archivos": 2,
+      "entradaCorrecta": true,
+      "mapaCorrecto": true
+    },
+    {
+      "slug": "crm-agenda-ics",
+      "igual": true,
+      "metodo": "todos los archivos literales",
+      "archivos": 1,
+      "entradaCorrecta": true,
+      "mapaCorrecto": true
+    },
+    {
+      "slug": "crm-importar-leads",
+      "igual": true,
+      "metodo": "todos los archivos literales",
+      "archivos": 6,
+      "entradaCorrecta": true,
+      "mapaCorrecto": true
+    },
+    {
+      "slug": "crm-usuarios",
+      "igual": true,
+      "metodo": "paquete sin cambio",
+      "entradaCorrecta": true,
+      "mapaCorrecto": true
+    },
+    {
+      "slug": "crm-contrato-pdf-v2",
+      "igual": true,
+      "metodo": "paquete sin cambio",
+      "entradaCorrecta": true,
+      "mapaCorrecto": true
+    },
+    {
+      "slug": "crm-inversion-portal",
+      "igual": true,
+      "metodo": "paquete sin cambio",
+      "entradaCorrecta": true,
+      "mapaCorrecto": true
+    },
+    {
+      "slug": "crm-inversion-documento",
+      "igual": true,
+      "metodo": "paquete sin cambio",
+      "entradaCorrecta": true,
+      "mapaCorrecto": true
+    },
+    {
+      "slug": "crm-notificaciones-tasa",
+      "igual": true,
+      "metodo": "paquete sin cambio",
+      "entradaCorrecta": true,
+      "mapaCorrecto": true
+    },
+    {
+      "slug": "corregir-correo-cliente",
+      "igual": true,
+      "metodo": "todos los archivos literales",
+      "archivos": 2,
+      "entradaCorrecta": true,
+      "mapaCorrecto": true
+    },
+    {
+      "slug": "crm-inversion-bienvenida",
+      "igual": true,
+      "metodo": "todos los archivos literales",
+      "archivos": 2,
+      "entradaCorrecta": true,
+      "mapaCorrecto": true
+    },
+    {
+      "slug": "notificar-cambio-cuenta",
+      "igual": true,
+      "metodo": "todos los archivos literales",
+      "archivos": 2,
+      "entradaCorrecta": true,
+      "mapaCorrecto": true
+    },
+    {
+      "slug": "crm-llamadas-ingesta",
+      "igual": true,
+      "metodo": "paquete sin cambio",
+      "entradaCorrecta": true,
+      "mapaCorrecto": true
+    }
+  ],
+  "advisors": {
+    "security": [
+      {
+        "name": "rls_enabled_no_policy",
+        "level": "INFO",
+        "antes": 86,
+        "despues": 86,
+        "nuevas": [],
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy"
+      },
+      {
+        "name": "extension_in_public",
+        "level": "WARN",
+        "antes": 1,
+        "despues": 1,
+        "nuevas": [],
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0014_extension_in_public"
+      },
+      {
+        "name": "anon_security_definer_function_executable",
+        "level": "WARN",
+        "antes": 2,
+        "despues": 2,
+        "nuevas": [],
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable"
+      },
+      {
+        "name": "authenticated_security_definer_function_executable",
+        "level": "WARN",
+        "antes": 282,
+        "despues": 282,
+        "nuevas": [],
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable"
+      },
+      {
+        "name": "auth_leaked_password_protection",
+        "level": "WARN",
+        "antes": 1,
+        "despues": 1,
+        "nuevas": [],
+        "remediation": "https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection"
+      }
+    ],
+    "performance": [
+      {
+        "name": "unindexed_foreign_keys",
+        "level": "INFO",
+        "antes": 52,
+        "despues": 52,
+        "nuevas": [],
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0001_unindexed_foreign_keys"
+      },
+      {
+        "name": "auth_rls_initplan",
+        "level": "WARN",
+        "antes": 2,
+        "despues": 2,
+        "nuevas": [],
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0003_auth_rls_initplan"
+      },
+      {
+        "name": "no_primary_key",
+        "level": "INFO",
+        "antes": 2,
+        "despues": 2,
+        "nuevas": [],
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0004_no_primary_key"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "antes": 178,
+        "despues": 178,
+        "nuevas": [],
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "multiple_permissive_policies",
+        "level": "WARN",
+        "antes": 5,
+        "despues": 5,
+        "nuevas": [],
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0006_multiple_permissive_policies"
+      },
+      {
+        "name": "auth_db_connections_absolute",
+        "level": "INFO",
+        "antes": 1,
+        "despues": 1,
+        "nuevas": [],
+        "remediation": "https://supabase.com/docs/guides/deployment/going-into-prod"
+      }
+    ]
+  },
+  "limites": [
+    "Guardián analítico general: deriva previa ajena a este arreglo, documentada.",
+    "Frontend pendiente de revisión del PR e invocación humana $release-crm.",
+    "No se subieron límites de tiempo ni permisos anon."
+  ]
+}

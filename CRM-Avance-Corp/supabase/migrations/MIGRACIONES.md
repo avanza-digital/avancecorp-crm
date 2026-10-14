@@ -1,3 +1,38 @@
+## 20261014001346 — SLA: agregar tareas una vez por lead
+
+**APLICADA Y VERIFICADA EN PRODUCCIÓN (14/10/2026 02:38 UTC; 13/10 en Lima).**
+Merge desde `banco-f7`, versión remota `20261014013830`. Sustituye el
+escaneo lateral repetido por una agregación por lead. Conserva las seis columnas,
+filtros, NULL, desempates y reglas SLA. Propietario, ACL y definición previa
+anclados; cuatro guardianes posteriores. Oráculo completo: seis ámbitos con
+2.009 leads y 6.860 tareas sintéticas nuevas; igualdad exacta. EXPLAIN del núcleo
+667,874 → 301,780 ms en el banco (no es una medición de producción).
+44 pares de RPC/respuestas/denegaciones idénticos, reversa exacta y reaplicación
+PASS. Huella completa anterior `12749d608bb0a296f763e000f18c03de`, nueva
+`0abdf640b5f4f10ab2e85b6bd2494522`.
+Banco reconstruido con autorización: 13 bloques SQL y 3.931 aserciones HTTP PASS;
+advisors sin avisos nuevos de seguridad ni WARN/ERROR de rendimiento. Producción:
+EXPLAIN puntual del núcleo 1.808,639 → 1.244,137 ms (3.594 filas); RPC de equipo
+1.644,650 → 1.369,887 ms. Los 473 registros previos, ACL, tablas y demás funciones
+se conservan; 23 Edge con contenido idéntico. No se aplica SQL directamente al padre.
+[Kit, pruebas, reversa y límites](../scripts/incidencias-20261013/LEEME.md).
+
+## 20261014001044 — F7: sello de metricas_cartera tras Coordinación
+
+**APLICADA Y VERIFICADA EN PRODUCCIÓN (14/10/2026 02:38 UTC; 13/10 en Lima).**
+Merge desde `banco-f7`, versión remota `20261014013757`. La migración de
+Coordinación aplicada como `20261012223850` cambió el cuerpo autorizado de
+`crm.metricas_cartera_fn(date)` sin actualizar su huella F7. Se actualiza solo
+`huella_md5` y su nota, manteniendo `cerrada_permanente`, propietario, ACL y
+atributos. Anclas de cuerpo y definición completa; exige la causa exacta del
+vigilante, preserva el candado y comprueba que rechaza una escritura indebida.
+Ensayo positivo y rechazos por repetición, apertura de ACL y cambio de atributos
+PASS. F7 vuelve a OK con 15 piezas en producción. `vigia_f7_piezas()` ejecutado
+a las 02:39:01 UTC: cero alertas F7 abiertas. Solo cambiaron huella y nota.
+La deriva previa del guardián
+analítico general queda documentada; no se reescriben sus declaraciones.
+[Kit y secuencia de verificación](../scripts/incidencias-20261013/LEEME.md).
+
 ## 20261013154615 — Nombres en Facturación para Coordinación, solo lectura
 
 **APLICADA Y PUBLICADA; VERIFICADA EN PRODUCCIÓN (13/10/2026).** Miguel aprobó
