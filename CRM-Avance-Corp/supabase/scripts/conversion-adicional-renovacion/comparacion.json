@@ -1,0 +1,680 @@
+{
+  "historia": [
+    {
+      "mes": "2026-01-01",
+      "identico": true,
+      "episodios": 1
+    },
+    {
+      "mes": "2026-02-01",
+      "identico": true,
+      "episodios": 0
+    },
+    {
+      "mes": "2026-03-01",
+      "identico": true,
+      "episodios": 3
+    },
+    {
+      "mes": "2026-04-01",
+      "identico": true,
+      "episodios": 2
+    },
+    {
+      "mes": "2026-05-01",
+      "identico": true,
+      "episodios": 3
+    },
+    {
+      "mes": "2026-06-01",
+      "identico": true,
+      "episodios": 0
+    },
+    {
+      "mes": "2026-07-01",
+      "identico": true,
+      "episodios": 0
+    },
+    {
+      "mes": "2026-08-01",
+      "identico": true,
+      "episodios": 874
+    },
+    {
+      "mes": "2026-09-01",
+      "identico": true,
+      "episodios": 1963
+    }
+  ],
+  "huellas_iguales": true,
+  "huellas": {
+    "fotos": "fc78c0e94638d60939f3950a19b11c69",
+    "pesos": "8b53019eb0786d9bb411cfb2025df004",
+    "contratos": "ee66d38e55841b2f6eec7eb77a12f5aa",
+    "operaciones": "13468bb717b4afa1a43f886b6ace025a",
+    "periodos_cerrados": "24898809569af4b018768327eed39cd6"
+  },
+  "analistas": [
+    {
+      "id": "0705094c-42f4-4f25-8f5e-0ce215213d29",
+      "activo": true,
+      "nombre": "LISSETH NUÑEZ GARCÍA",
+      "oficial": true,
+      "divisor_antes": 66,
+      "divisor_despues": 66,
+      "numerador_antes": 2.3,
+      "numerador_despues": 2.3,
+      "conversion_antes": 3.48,
+      "conversion_despues": 3.48
+    },
+    {
+      "id": "0c7ffc92-260a-4f87-b2fe-a732740c8d17",
+      "activo": false,
+      "nombre": "ANALISTA CRM (DEMO)",
+      "oficial": false,
+      "divisor_antes": 0,
+      "divisor_despues": 0,
+      "numerador_antes": 0,
+      "numerador_despues": 0,
+      "conversion_antes": null,
+      "conversion_despues": null
+    },
+    {
+      "id": "1de5eba1-e6bb-435d-9eff-74286e881d01",
+      "activo": true,
+      "nombre": "LINDA CONDORI GUTIERREZ",
+      "oficial": true,
+      "divisor_antes": 68,
+      "divisor_despues": 68,
+      "numerador_antes": 5,
+      "numerador_despues": 5,
+      "conversion_antes": 7.35,
+      "conversion_despues": 7.35
+    },
+    {
+      "id": "1f22b1e3-9b75-4bab-bb41-433964c25e56",
+      "activo": true,
+      "nombre": "ALAN YUTRONIC",
+      "oficial": true,
+      "divisor_antes": 64,
+      "divisor_despues": 64,
+      "numerador_antes": 0,
+      "numerador_despues": 0,
+      "conversion_antes": 0,
+      "conversion_despues": 0
+    },
+    {
+      "id": "244439ac-dbc7-4d27-91d1-941c5dbc6dd5",
+      "activo": true,
+      "nombre": "ADELAYDA GASPAR MARTINEZ",
+      "oficial": true,
+      "divisor_antes": 56,
+      "divisor_despues": 56,
+      "numerador_antes": 5,
+      "numerador_despues": 5,
+      "conversion_antes": 8.93,
+      "conversion_despues": 8.93
+    },
+    {
+      "id": "2c10b18a-a15d-4952-952b-c4ab91b96153",
+      "activo": true,
+      "nombre": "VLADIMIR JURADO",
+      "oficial": true,
+      "divisor_antes": 67,
+      "divisor_despues": 67,
+      "numerador_antes": 3,
+      "numerador_despues": 4,
+      "conversion_antes": 4.48,
+      "conversion_despues": 5.97
+    },
+    {
+      "id": "2d33a809-714f-4115-baa8-bb114284764b",
+      "activo": true,
+      "nombre": "EDGAR ANCCASI HUAMANI",
+      "oficial": true,
+      "divisor_antes": 0,
+      "divisor_despues": 0,
+      "numerador_antes": 0,
+      "numerador_despues": 0,
+      "conversion_antes": null,
+      "conversion_despues": null
+    },
+    {
+      "id": "2ec5954f-0490-44f2-87cd-af6210f3426f",
+      "activo": true,
+      "nombre": "ASTRID CENTENARO",
+      "oficial": true,
+      "divisor_antes": 65,
+      "divisor_despues": 65,
+      "numerador_antes": 1.15,
+      "numerador_despues": 1.15,
+      "conversion_antes": 1.77,
+      "conversion_despues": 1.77
+    },
+    {
+      "id": "46222e1e-f368-40c0-bca8-15fdaf42dbea",
+      "activo": true,
+      "nombre": "GABRIELA CUTIPA ROBLES",
+      "oficial": true,
+      "divisor_antes": 0,
+      "divisor_despues": 0,
+      "numerador_antes": 0,
+      "numerador_despues": 0,
+      "conversion_antes": null,
+      "conversion_despues": null
+    },
+    {
+      "id": "4764b8fa-d493-4023-8e82-b51d20fb6579",
+      "activo": true,
+      "nombre": "ALVARO LEOMAR CCAHUANA ALHUIRCA",
+      "oficial": true,
+      "divisor_antes": 0,
+      "divisor_despues": 0,
+      "numerador_antes": 0,
+      "numerador_despues": 0,
+      "conversion_antes": null,
+      "conversion_despues": null
+    },
+    {
+      "id": "4b657849-cde5-4936-8a1a-4f774c364518",
+      "activo": true,
+      "nombre": "JAICO CERVERA LUNA",
+      "oficial": true,
+      "divisor_antes": 0,
+      "divisor_despues": 0,
+      "numerador_antes": 0,
+      "numerador_despues": 0,
+      "conversion_antes": null,
+      "conversion_despues": null
+    },
+    {
+      "id": "4e929ee5-b708-4a97-81f8-945e331f2221",
+      "activo": false,
+      "nombre": "IVETT TEEVIN",
+      "oficial": false,
+      "divisor_antes": 0,
+      "divisor_despues": 0,
+      "numerador_antes": 0,
+      "numerador_despues": 0,
+      "conversion_antes": null,
+      "conversion_despues": null
+    },
+    {
+      "id": "6077e821-aaa6-40d8-812d-eee34c71e046",
+      "activo": true,
+      "nombre": "JHON ESPINOZA",
+      "oficial": true,
+      "divisor_antes": 0,
+      "divisor_despues": 0,
+      "numerador_antes": 0,
+      "numerador_despues": 0,
+      "conversion_antes": null,
+      "conversion_despues": null
+    },
+    {
+      "id": "62e1a05b-fa30-4834-86b7-c3a9864215ff",
+      "activo": true,
+      "nombre": "LUIS ENRIQUE VELA RAMÍREZ",
+      "oficial": true,
+      "divisor_antes": 0,
+      "divisor_despues": 0,
+      "numerador_antes": 0,
+      "numerador_despues": 0,
+      "conversion_antes": null,
+      "conversion_despues": null
+    },
+    {
+      "id": "75c0933c-9cce-4e5f-ae0e-2b4bfd557a37",
+      "activo": true,
+      "nombre": "MERLYS GARCIA",
+      "oficial": true,
+      "divisor_antes": 57,
+      "divisor_despues": 57,
+      "numerador_antes": 8.15,
+      "numerador_despues": 8.15,
+      "conversion_antes": 14.3,
+      "conversion_despues": 14.3
+    },
+    {
+      "id": "76b76c37-e2c2-427c-9196-fdbf6a663986",
+      "activo": true,
+      "nombre": "BETZABETH FUENMAYOR SAAVEDRA",
+      "oficial": true,
+      "divisor_antes": 62,
+      "divisor_despues": 62,
+      "numerador_antes": 3,
+      "numerador_despues": 3,
+      "conversion_antes": 4.84,
+      "conversion_despues": 4.84
+    },
+    {
+      "id": "7c124080-c310-40d3-b245-794657852968",
+      "activo": true,
+      "nombre": "ROSA AGUIRRE",
+      "oficial": true,
+      "divisor_antes": 66,
+      "divisor_despues": 66,
+      "numerador_antes": 1,
+      "numerador_despues": 1,
+      "conversion_antes": 1.52,
+      "conversion_despues": 1.52
+    },
+    {
+      "id": "8efe6ff6-5486-4dd5-b9a8-5ad59d3bebfb",
+      "activo": true,
+      "nombre": "EDSON ALAGON VILCA",
+      "oficial": true,
+      "divisor_antes": 0,
+      "divisor_despues": 0,
+      "numerador_antes": 0,
+      "numerador_despues": 0,
+      "conversion_antes": null,
+      "conversion_despues": null
+    },
+    {
+      "id": "94f6d213-2037-4df6-af06-42816326a0bd",
+      "activo": true,
+      "nombre": "GRECIA RAMIREZ CORTEZ",
+      "oficial": true,
+      "divisor_antes": 0,
+      "divisor_despues": 0,
+      "numerador_antes": 0,
+      "numerador_despues": 0,
+      "conversion_antes": null,
+      "conversion_despues": null
+    },
+    {
+      "id": "98725f9b-bdbf-4c76-bd5e-9eac0d4d6581",
+      "activo": false,
+      "nombre": "PIERINA LEVANO PURIZACA",
+      "oficial": false,
+      "divisor_antes": 0,
+      "divisor_despues": 0,
+      "numerador_antes": 0,
+      "numerador_despues": 0,
+      "conversion_antes": null,
+      "conversion_despues": null
+    },
+    {
+      "id": "ad36b962-5175-4e4e-b644-e546897c3a85",
+      "activo": true,
+      "nombre": "NAYRA GAMERO LINO",
+      "oficial": true,
+      "divisor_antes": 67,
+      "divisor_despues": 67,
+      "numerador_antes": 4.3,
+      "numerador_despues": 4.3,
+      "conversion_antes": 6.42,
+      "conversion_despues": 6.42
+    },
+    {
+      "id": "b1943c83-ffa1-4693-806a-eb2aaacd72a3",
+      "activo": true,
+      "nombre": "GUILLERMO CASTRO SOTOMAYOR",
+      "oficial": true,
+      "divisor_antes": 65,
+      "divisor_despues": 65,
+      "numerador_antes": 2,
+      "numerador_despues": 2,
+      "conversion_antes": 3.08,
+      "conversion_despues": 3.08
+    },
+    {
+      "id": "bed9fc40-cb59-4264-9ce2-84c78364a332",
+      "activo": true,
+      "nombre": "ANTONELLA JARAMILLO JULCA",
+      "oficial": true,
+      "divisor_antes": 58,
+      "divisor_despues": 58,
+      "numerador_antes": 2.15,
+      "numerador_despues": 2.15,
+      "conversion_antes": 3.71,
+      "conversion_despues": 3.71
+    },
+    {
+      "id": "c026aa64-5303-422e-b985-77bbdc8fd9f9",
+      "activo": true,
+      "nombre": "CLAUDIA FERNANDA CRUCES BRAVO",
+      "oficial": true,
+      "divisor_antes": 0,
+      "divisor_despues": 0,
+      "numerador_antes": 0,
+      "numerador_despues": 0,
+      "conversion_antes": null,
+      "conversion_despues": null
+    },
+    {
+      "id": "c2c415de-c981-41cf-9346-13c0fab71026",
+      "activo": true,
+      "nombre": "ELIZABETH CHIROQUE NAVARRO",
+      "oficial": true,
+      "divisor_antes": 11,
+      "divisor_despues": 11,
+      "numerador_antes": 3,
+      "numerador_despues": 3,
+      "conversion_antes": 27.27,
+      "conversion_despues": 27.27
+    },
+    {
+      "id": "c7917328-6525-42d5-bb22-d8efa8755095",
+      "activo": true,
+      "nombre": "KELLY VEGA",
+      "oficial": true,
+      "divisor_antes": 1,
+      "divisor_despues": 1,
+      "numerador_antes": 1,
+      "numerador_despues": 1,
+      "conversion_antes": 100,
+      "conversion_despues": 100
+    },
+    {
+      "id": "d571aeed-e65d-4369-ac86-00a83bf9d389",
+      "activo": true,
+      "nombre": "FIORELLA RUIZ",
+      "oficial": true,
+      "divisor_antes": 67,
+      "divisor_despues": 67,
+      "numerador_antes": 4,
+      "numerador_despues": 4,
+      "conversion_antes": 5.97,
+      "conversion_despues": 5.97
+    },
+    {
+      "id": "d731f284-eeaa-4c27-b71f-ac4f1d8e96c2",
+      "activo": true,
+      "nombre": "MIGUEL BRICEÑO",
+      "oficial": true,
+      "divisor_antes": 0,
+      "divisor_despues": 0,
+      "numerador_antes": 1,
+      "numerador_despues": 1,
+      "conversion_antes": null,
+      "conversion_despues": null
+    },
+    {
+      "id": "d81aca5b-e39e-42d7-b723-1a44930145b8",
+      "activo": false,
+      "nombre": "GERENTE CRM (DEMO)",
+      "oficial": false,
+      "divisor_antes": 0,
+      "divisor_despues": 0,
+      "numerador_antes": 0,
+      "numerador_despues": 0,
+      "conversion_antes": null,
+      "conversion_despues": null
+    },
+    {
+      "id": "df688ab0-7a07-4d8d-9e61-ebf03cfe5197",
+      "activo": true,
+      "nombre": "JESSICA ESCUDERO TENAZOA",
+      "oficial": true,
+      "divisor_antes": 0,
+      "divisor_despues": 0,
+      "numerador_antes": 0,
+      "numerador_despues": 0,
+      "conversion_antes": null,
+      "conversion_despues": null
+    },
+    {
+      "id": "fa2996d6-4d51-4316-be2e-297590b5756e",
+      "activo": false,
+      "nombre": "NOELIA SALAZAR RUIZ",
+      "oficial": false,
+      "divisor_antes": 0,
+      "divisor_despues": 0,
+      "numerador_antes": 0,
+      "numerador_despues": 0,
+      "conversion_antes": null,
+      "conversion_despues": null
+    },
+    {
+      "id": "fc9c3b91-eabb-4411-81e9-3ae428298e46",
+      "activo": true,
+      "nombre": "DANIELA ALESSANDRA CASTILLO",
+      "oficial": true,
+      "divisor_antes": 65,
+      "divisor_despues": 65,
+      "numerador_antes": 3,
+      "numerador_despues": 3,
+      "conversion_antes": 4.62,
+      "conversion_despues": 4.62
+    }
+  ],
+  "cambios": [
+    {
+      "id": "2c10b18a-a15d-4952-952b-c4ab91b96153",
+      "activo": true,
+      "nombre": "VLADIMIR JURADO",
+      "oficial": true,
+      "divisor_antes": 67,
+      "divisor_despues": 67,
+      "numerador_antes": 3,
+      "numerador_despues": 4,
+      "conversion_antes": 4.48,
+      "conversion_despues": 5.97
+    }
+  ],
+  "episodios_cambiados": [
+    {
+      "before": {
+        "tipo": "operacion",
+        "monto": null,
+        "moneda": "USD",
+        "motivo": null,
+        "origen": null,
+        "anulado": false,
+        "lead_id": null,
+        "categoria": "renovacion",
+        "aproximado": null,
+        "mes_origen": "2026-10-01",
+        "analista_id": "2c10b18a-a15d-4952-952b-c4ab91b96153",
+        "fue_referido": false,
+        "operacion_id": "22a7be9b-b040-4c67-a01e-000ac1c12fbb",
+        "fecha_divisor": null,
+        "aporte_divisor": 0,
+        "fecha_numerador": "2026-10-06T05:00:00+00:00",
+        "aporte_numerador": 0
+      },
+      "after": {
+        "tipo": "operacion",
+        "monto": null,
+        "moneda": "USD",
+        "motivo": null,
+        "origen": null,
+        "anulado": false,
+        "lead_id": null,
+        "categoria": "upgrade",
+        "aproximado": null,
+        "mes_origen": "2026-10-01",
+        "analista_id": "2c10b18a-a15d-4952-952b-c4ab91b96153",
+        "fue_referido": false,
+        "operacion_id": "22a7be9b-b040-4c67-a01e-000ac1c12fbb",
+        "fecha_divisor": null,
+        "aporte_divisor": 0,
+        "fecha_numerador": "2026-10-06T05:00:00+00:00",
+        "aporte_numerador": 1
+      }
+    }
+  ],
+  "total_antes": {
+    "cartera": {
+      "operaciones_upgrade": 17,
+      "capital_renovado_pen": 0,
+      "capital_renovado_usd": 6000,
+      "conversiones_upgrade": 13,
+      "capital_adicional_pen": 0,
+      "capital_adicional_usd": 7000,
+      "conversiones_clientes": 15,
+      "operaciones_renovacion": 2,
+      "conversiones_renovacion": 2,
+      "renovaciones_sin_desglose": 0
+    },
+    "divisor": 905,
+    "analistas": 27,
+    "numerador": 50.05,
+    "conversion_pct": 5.53,
+    "cierres_referidos": 7,
+    "cierres_de_arrastre": 9,
+    "referidos_recibidos": 19,
+    "cierres_no_referidos": 36,
+    "referidos_aporta_pct": 0.12
+  },
+  "total_despues": {
+    "cartera": {
+      "operaciones_upgrade": 17,
+      "capital_renovado_pen": 0,
+      "capital_renovado_usd": 6000,
+      "conversiones_upgrade": 14,
+      "capital_adicional_pen": 0,
+      "capital_adicional_usd": 7000,
+      "conversiones_clientes": 15,
+      "operaciones_renovacion": 2,
+      "conversiones_renovacion": 1,
+      "renovaciones_sin_desglose": 0
+    },
+    "divisor": 905,
+    "analistas": 27,
+    "numerador": 51.05,
+    "conversion_pct": 5.64,
+    "cierres_referidos": 7,
+    "cierres_de_arrastre": 9,
+    "referidos_recibidos": 19,
+    "cierres_no_referidos": 36,
+    "referidos_aporta_pct": 0.12
+  },
+  "branch": "yeiwghzhcrvwfcybymxy",
+  "captura_antes": "2026-10-14T18:36:07.265663+00:00",
+  "captura_despues": "2026-10-14T18:57:35.986483+00:00",
+  "advisors": {
+    "security": {
+      "before": [
+        {
+          "name": "rls_enabled_no_policy",
+          "level": "INFO",
+          "count": 86
+        },
+        {
+          "name": "extension_in_public",
+          "level": "WARN",
+          "count": 1
+        },
+        {
+          "name": "anon_security_definer_function_executable",
+          "level": "WARN",
+          "count": 2
+        },
+        {
+          "name": "authenticated_security_definer_function_executable",
+          "level": "WARN",
+          "count": 282
+        },
+        {
+          "name": "auth_leaked_password_protection",
+          "level": "WARN",
+          "count": 1
+        }
+      ],
+      "after": [
+        {
+          "name": "rls_enabled_no_policy",
+          "level": "INFO",
+          "count": 86
+        },
+        {
+          "name": "extension_in_public",
+          "level": "WARN",
+          "count": 1
+        },
+        {
+          "name": "anon_security_definer_function_executable",
+          "level": "WARN",
+          "count": 2
+        },
+        {
+          "name": "authenticated_security_definer_function_executable",
+          "level": "WARN",
+          "count": 282
+        },
+        {
+          "name": "auth_leaked_password_protection",
+          "level": "WARN",
+          "count": 1
+        }
+      ],
+      "new": [],
+      "removed": []
+    },
+    "performance": {
+      "before": [
+        {
+          "name": "unindexed_foreign_keys",
+          "level": "INFO",
+          "count": 52
+        },
+        {
+          "name": "auth_rls_initplan",
+          "level": "WARN",
+          "count": 2
+        },
+        {
+          "name": "no_primary_key",
+          "level": "INFO",
+          "count": 2
+        },
+        {
+          "name": "unused_index",
+          "level": "INFO",
+          "count": 280
+        },
+        {
+          "name": "multiple_permissive_policies",
+          "level": "WARN",
+          "count": 5
+        },
+        {
+          "name": "auth_db_connections_absolute",
+          "level": "INFO",
+          "count": 1
+        }
+      ],
+      "after": [
+        {
+          "name": "unindexed_foreign_keys",
+          "level": "INFO",
+          "count": 52
+        },
+        {
+          "name": "auth_rls_initplan",
+          "level": "WARN",
+          "count": 2
+        },
+        {
+          "name": "no_primary_key",
+          "level": "INFO",
+          "count": 2
+        },
+        {
+          "name": "unused_index",
+          "level": "INFO",
+          "count": 256
+        },
+        {
+          "name": "multiple_permissive_policies",
+          "level": "WARN",
+          "count": 5
+        },
+        {
+          "name": "auth_db_connections_absolute",
+          "level": "INFO",
+          "count": 1
+        }
+      ],
+      "new": [
+        "unused_index"
+      ],
+      "removed": [
+        "unused_index"
+      ]
+    }
+  }
+}
