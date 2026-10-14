@@ -20,6 +20,16 @@ execFileSync('git',['diff','--exit-code',commitProbado,'--',
  'CRM-Avance-Corp/app/src/lib/supabase.ts','CRM-Avance-Corp/app/src/lib/transporte-crm.ts',
  'CRM-Avance-Corp/app/src/lib/transporte-crm.test.ts','CRM-Avance-Corp/app/src/lib/supabase-transporte.test.ts'],{cwd:repo});
 const json=f=>JSON.parse(readFileSync(`${carpeta}/${f}`));
+// La matriz completa usa el código identificado por su hash al iniciar y al
+// terminar. El merge posterior de main añade un alcance CLI independiente;
+// no sustituye el cuerpo de la matriz efectivamente ejecutada.
+const gateFuente='0daf3d80:CRM-Avance-Corp/supabase/scripts/test-rls.mjs';
+assert.equal(json('gate-http-estado.json').gateSha256,
+ createHash('sha256').update(execFileSync('git',['show',gateFuente],{cwd:repo,maxBuffer:4*1024*1024})).digest('hex'));
+assert.deepEqual(json('gate-http-estado.json').migraciones,artefactos);
+const advisors=json('advisors-delta.json');
+assert.ok(advisors.security.every(x=>x.nuevas.length===0),'Avisos de seguridad nuevos');
+assert.ok(advisors.performance.filter(x=>x.level!=='INFO').every(x=>x.nuevas.length===0),'WARN/ERROR de rendimiento nuevos');
 for(const f of ['gate-http-estado.json','sql-resultados.json']){
  assert.equal(json(f).estado,'PASS',f);
  assert.ok(statSync(`${carpeta}/${f}`).mtimeMs>Date.parse('2026-10-14T01:38:30Z'),f+' anterior a las migraciones');
@@ -57,7 +67,8 @@ assert.deepEqual(b.extensiones.filter(x=>x[0]!=='pg_net'),p.extensiones.filter(x
 // pg_net es infraestructura preexistente distinta entre servicios; las dos
 // migraciones no la nombran ni el merge transporta su catálogo.
 const f7base=json('produccion-controles.json').rows[0].controles['private.f7_piezas_en_observacion'];
-assert.deepEqual(p.f7,[...f7base].sort((a,b)=>a.firma.localeCompare(b.firma)),'Las declaraciones F7 productivas cambiaron');
+const ordenarF7=filas=>[...filas].sort((a,b)=>a.firma.localeCompare(b.firma));
+assert.deepEqual(ordenarF7(p.f7),ordenarF7(f7base),'Las declaraciones F7 productivas cambiaron');
 const f7=objeto('select jsonb_agg(to_jsonb(t) order by firma) from private.f7_piezas_en_observacion t');
 for(const f of f7){const original=f7base.find(x=>x.firma===f.firma);assert.ok(original);
  if(f.firma==='crm.metricas_cartera_fn(date)'){
@@ -75,7 +86,7 @@ for(const d of declaradas)for(const [lado,sha]of[['padre','shaProduccion'],['ban
 }
 for(const f of ['produccion-catalogo-premerge.json','produccion-extra-premerge.json','edge-premerge.json'])
  assert.ok(Date.now()-statSync(`${carpeta}/${f}`).mtimeMs<60000,'La verificación excedió la ventana: '+f);
-const resultado={estado:'PASS',fecha:new Date().toISOString(),commitProbado,artefactos,
+const resultado={estado:'PASS',fecha:new Date().toISOString(),commitProbado,gateFuente,artefactos,
  gates:Object.fromEntries(['gate-http-estado.json','sql-resultados.json'].map(f=>[f,createHash('sha256').update(readFileSync(`${carpeta}/${f}`)).digest('hex')])),
  base:473,migracionesExtra:b.nuevas,tablas:149,funciones:1085,edges:23,
  excepcionInfraestructura:'pg_net: padre public 0.20.0, banco extensions 0.20.4; no modificado ni incluido en las migraciones'};

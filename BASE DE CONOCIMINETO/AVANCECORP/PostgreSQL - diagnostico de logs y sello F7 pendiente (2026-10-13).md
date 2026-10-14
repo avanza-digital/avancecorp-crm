@@ -1,16 +1,17 @@
 ---
 tags: [crm, supabase, diagnostico, f7]
 fecha: 2026-10-13
-estado: correcciones implementadas y probadas localmente; producción pendiente
+estado: F7 y SLA aplicados en producción; transporte de sesión pendiente de publicación
 ---
 
-# PostgreSQL — diagnóstico de logs y sello F7 pendiente
+# PostgreSQL — F7 y rendimiento corregidos; frontend pendiente
 
 Consultas de catálogo y logs productivos de `dctqcbznekcyxhjujuci`, realizadas el
 13/10/2026 desde 23:26 UTC. Ventana agregada: 12/10 23:26–13/10 23:26 UTC.
-No se modificaron datos, permisos, funciones ni configuración de producción.
+En ese diagnóstico inicial no se modificó producción. La corrección posterior
+autorizada por Miguel queda registrada a continuación.
 
-## Corrección preparada por encargo de Miguel
+## Corrección aplicada por encargo de Miguel
 
 Miguel autorizó corregir F7, timeouts y consultas sin sesión. Se prepararon las
 migraciones `20261014001044` (solo sello F7) y `20261014001346` (agregación de tareas
@@ -20,11 +21,25 @@ escrituras. Ensayo local: F7 verde con 15 piezas, seis ámbitos idénticos, 44 p
 de RPC/denegaciones idénticos, reversa exacta, 13 tests de sesión y 3 E2E Docker.
 EXPLAIN sintético del núcleo: 667,874 → 301,780 ms; no es latencia productiva.
 
-Producción sigue pendiente. La actualización de `banco-f7` terminó
-`MIGRATIONS_FAILED`: `reservar_conversion_lead(uuid)` no coincide con el texto
-esperado por una migración histórica F2.b b4 (14/10 00:27 UTC). No se omitió el
-gate remoto ni se aplicó directo a producción. El guardián analítico general
-también tiene deriva previa, que esta corrección no normaliza. Detalle y reversa:
+Miguel autorizó reconstruir solo `banco-f7` tras el fallo histórico de replay
+F2.b b4. Se respaldó su contenido, se copió el esquema vigente y se sembraron datos
+sintéticos. Se integraron las dos migraciones concurrentes de atención/venta.
+SQL remoto: 13 bloques PASS; matriz HTTP: 3.931 aserciones PASS. El cierre del
+fixture requirió restaurar por separado la fecha de una bandera, conservando
+la evidencia del fallo del wrapper. Ninguna assertion HTTP se omitió.
+
+Merge Supabase confirmado el 14/10/2026 a las 02:38 UTC (13/10 en Lima):
+`20261014013757` F7 y `20261014013830` SLA. F7 verifica 15 piezas; el vigía cerró
+la alerta a las 02:39:01 UTC, dejando cero abiertas. Los 473 registros anteriores
+del ledger y todos los permisos se conservaron; 23 Edge con contenido idéntico.
+Advisors posteriores sin hallazgos nuevos. EXPLAIN productivo puntual:
+núcleo 1.808,639 → 1.244,137 ms, 3.594 filas; RPC de equipo authenticated
+1.644,650 → 1.369,887 ms. No garantiza latencia HTTP bajo concurrencia.
+
+El transporte de sesión sigue pendiente de publicación: PR #273 con main
+integrado, 6.689 tests/419 archivos y 3 E2E Docker PASS. Requiere revisión del PR
+e invocación humana `$release-crm`. El guardián analítico general mantiene su
+deriva previa; esta corrección no normaliza sus declaraciones. Detalle y reversa:
 `CRM-Avance-Corp/supabase/scripts/incidencias-20261013/LEEME.md`.
 
 ## Sello F7: causa confirmada
@@ -45,7 +60,7 @@ Corregir mediante migración guardada que redeclare la huella autorizada y valid
 F7; no copiar la huella viva sin verificar cuerpo, ACL, propietario y contrato.
 Precedente: `20260924161110_crm_f7_redeclarar_huella_crear_contrato_con_cuenta.sql`.
 
-## Otros registros
+## Otros registros del diagnóstico inicial
 
 - 195 rechazos `permission denied for schema crm` por PostgREST en 24 h.
   Las muestras HTTP correlacionadas de 21:20–23:11 llegan con JWT `anon` (401),
@@ -70,8 +85,10 @@ Precedente: `20260924161110_crm_f7_redeclarar_huella_crear_contrato_con_cuenta.s
 - El estado oficial de Supabase confirma un incidente de Realtime; no se
   estableció causalidad con los problemas de PostgreSQL de este diagnóstico.
 
-Verificado: consultas de logs y catálogo. No ejecutados: pruebas de frontend,
-EXPLAIN con carga, cambios SQL o despliegue. Este documento no cierra el incidente.
+Verificado después de la corrección: bancos local/remoto, frontend integrado,
+merge SQL, catálogo y ledger productivos, vigía, advisors y EXPLAIN puntual.
+Pendientes: publicación del transporte y observación de errores/timeouts bajo
+carga real tras publicar. [PR #273](https://github.com/avanza-digital/avancecorp-crm/pull/273).
 
 Relacionadas: [[Coordinacion - Facturacion y Ranking en lectura (2026-10-12)]],
 [[Inicio]].

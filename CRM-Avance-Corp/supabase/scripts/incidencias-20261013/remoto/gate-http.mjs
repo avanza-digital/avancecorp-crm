@@ -4,6 +4,7 @@ import{spawnSync}from'node:child_process';
 import{fileURLToPath}from'node:url';
 import{createHash}from'node:crypto';
 import{carpeta,cfg,env as pgEnv,sql,objeto}from'./banco.mjs';
+import{restaurarBandera}from'./restaurar-bandera.mjs';
 assert.deepEqual(process.argv.slice(2),['--solo-rama-autorizada']);
 assert.equal(JSON.parse(readFileSync(`${carpeta}/sql-resultados.json`)).estado,'PASS');
 const env={...pgEnv,PATH:'/opt/homebrew/opt/postgresql@17/bin:'+process.env.PATH,
@@ -21,15 +22,13 @@ assert.equal(pre.status,0,pre.stderr);console.log('PASS: preflight HTTP con dest
 // encendida; se preserva su fila exacta y se restaura incluso si falla la suite.
 const flag=objeto("select to_jsonb(f) from crm.multiempresa_flags f where nombre='potencial_lead'");
 assert.ok(flag&&typeof flag.activo==='boolean');
+writeFileSync(`${carpeta}/gate-http-inicio.json`,JSON.stringify({...evidencia,flag}),{mode:0o600});
 assert.equal(sql('select count(*) from crm.lead_potencial'),'0','El fixture debe iniciar sin marcas');
 sql("update crm.multiempresa_flags set activo=false where nombre='potencial_lead'");
 const fd=openSync(`${carpeta}/gate-http.log`,'w',0o600);
 const inicio=Date.now();let r;try{r=spawnSync(process.execPath,[archivo],{env,stdio:['ignore',fd,fd],timeout:7200000});}finally{
  closeSync(fd);
- const instante=flag.actualizado_en.replaceAll("'","''");
- sql(`update crm.multiempresa_flags set activo=${flag.activo},actualizado_en='${instante}'::timestamptz where nombre='potencial_lead'`);
- assert.deepEqual(objeto("select to_jsonb(f) from crm.multiempresa_flags f where nombre='potencial_lead'"),flag);
- assert.equal(sql('select count(*) from crm.lead_potencial'),'0','El gate dejó marcas sintéticas');
+ restaurarBandera(flag);
 }
 assert.equal(sha256(archivo),evidencia.gateSha256,'El gate cambió durante la corrida');
 writeFileSync(`${carpeta}/gate-http-estado.json`,JSON.stringify({...evidencia,fin:new Date().toISOString(),estado:r.status===0?'PASS':'FAIL',exit:r.status,segundos:Math.round((Date.now()-inicio)/1000),error:r.error?.message??null}),{mode:0o600});

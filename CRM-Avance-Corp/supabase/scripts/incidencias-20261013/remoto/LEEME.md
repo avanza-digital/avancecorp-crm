@@ -46,6 +46,44 @@ La primera corrida HTTP se interrumpió por la ausencia del bucket de pruebas:
 log, se restauró la fotografía sintética previa y se crearon los buckets antes
 de repetir. Ese intento no cuenta como gate aprobado.
 
+La segunda corrida llegó a la matriz D-17 y falló por cinco diferencias del
+arnés respecto del esquema/entorno vigente. Se conservaron sus logs y se
+restauró nuevamente el fixture antes de repetir la matriz completa:
+
+- D-2 ya vive en el núcleo privado de atención/venta. Se verifica la cadena
+  adaptador → ejecutor → implementación, sus atributos y ausencia de grants API.
+- El límite de referidos aprobado el 12/10 usa los propios cierres referidos.
+  El oráculo exige la delta exacta según peso y límite del mes, sin redondeo.
+- B7 interpreta `relacl=NULL` mediante `acldefault`; sigue exigiendo RLS,
+  propietario postgres y ningún privilegio para terceros. No cambia grants.
+- Potencial viene encendido de producción. El wrapper guarda su fila, inicia
+  OFF para los bloques OFF/ON y restaura exactamente activo/fecha en `finally`.
+- El pooler puede reutilizar una sesión con `pg_temp.excepcion_d17` ya creada.
+  El helper temporal usa `CREATE OR REPLACE`; no altera funciones del producto.
+
+Estos ajustes no declaran válidos los intentos fallidos. La nueva corrida
+registra hash del gate y de ambos SQL al iniciar, y exige que el gate permanezca
+igual al finalizar. Main añadió por separado el alcance `--atencion-venta`;
+la matriz general conserva el cuerpo probado, con verificaciones más estrictas
+de D-2 y de las deltas de conversión.
+
+Resultado definitivo: **3.931 aserciones HTTP PASS**, incluido el grupo A.
+El wrapper falló después del resumen aprobado al restaurar `actualizado_en`:
+`trg_multiempresa_flags_touch` lo sustituía por `now()`. Se conservó ese fallo
+y `cerrar-gate.mjs` exigió el resumen canónico sin fallos, el hash exacto del
+código probado y la foto original. `restaurar-bandera.mjs` suspende solo touch
+dentro de una transacción, restaura la fecha y lo habilita antes del commit;
+confirmados bandera/fecha originales y cero marcas. No se convirtió ninguna
+aserción fallida en aprobada ni se omitió un bloque. El runner quedó corregido
+para futuras corridas; esta recuperación está identificada en la evidencia.
+
+Premerge PASS 02:36:56 UTC; merge solicitado dentro de su ventana de 60 segundos.
+Aplicación productiva confirmada 02:38:30 UTC y cierre del vigía 02:39:01 UTC.
+El catálogo conserva 149 tablas y 1.085 funciones: solo cambió el cuerpo SLA;
+en F7 solo huella/nota. Los 473 registros anteriores del ledger siguen idénticos.
+Las 23 Edge conservan sus archivos, JWT, entrada e import map, aunque el merge
+reempacó parte de ellas. Advisors productivos posteriores sin hallazgos nuevos.
+
 Las credenciales, dumps y logs completos quedan en archivos privados fuera del
 repositorio. El resultado definitivo del gate, los advisors y la aplicación
 productiva se registran en [el informe de la incidencia](../LEEME.md).
