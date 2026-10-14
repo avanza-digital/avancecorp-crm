@@ -1,3 +1,31 @@
+## 20261014001346 — SLA: agregar tareas una vez por lead
+
+**PREPARADA Y PROBADA EN LOCAL; NO APLICADA EN PRODUCCIÓN.** Sustituye el
+escaneo lateral repetido por una agregación por lead. Conserva las seis columnas,
+filtros, NULL, desempates y reglas SLA. Propietario, ACL y definición previa
+anclados; cuatro guardianes posteriores. Oráculo completo: seis ámbitos con
+2.009 leads y 6.860 tareas sintéticas nuevas; igualdad exacta. EXPLAIN del núcleo
+667,874 → 301,780 ms en el banco (no es una medición de producción).
+44 pares de RPC/respuestas/denegaciones idénticos, reversa exacta y reaplicación
+PASS. Huella completa anterior `12749d608bb0a296f763e000f18c03de`, nueva
+`0abdf640b5f4f10ab2e85b6bd2494522`.
+El ensayo remoto está bloqueado por deriva histórica de `reservar_conversion_lead`
+al actualizar `banco-f7`; no se omite el gate remoto ni se aplica directo a producción.
+[Kit, pruebas, reversa y límites](../scripts/incidencias-20261013/LEEME.md).
+
+## 20261014001044 — F7: sello de metricas_cartera tras Coordinación
+
+**PREPARADA Y PROBADA EN LOCAL; NO APLICADA EN PRODUCCIÓN.** La migración de
+Coordinación aplicada como `20261012223850` cambió el cuerpo autorizado de
+`crm.metricas_cartera_fn(date)` sin actualizar su huella F7. Se actualiza solo
+`huella_md5` y su nota, manteniendo `cerrada_permanente`, propietario, ACL y
+atributos. Anclas de cuerpo y definición completa; exige la causa exacta del
+vigilante, preserva el candado y comprueba que rechaza una escritura indebida.
+Ensayo positivo y rechazos por repetición, apertura de ACL y cambio de atributos
+PASS. F7 vuelve a OK con 15 piezas en el banco. La deriva previa del guardián
+analítico general queda documentada; no se reescriben sus declaraciones.
+[Kit y secuencia de verificación](../scripts/incidencias-20261013/LEEME.md).
+
 ## 20261013154615 — Nombres en Facturación para Coordinación, solo lectura
 
 **APLICADA Y PUBLICADA; VERIFICADA EN PRODUCCIÓN (13/10/2026).** Miguel aprobó
