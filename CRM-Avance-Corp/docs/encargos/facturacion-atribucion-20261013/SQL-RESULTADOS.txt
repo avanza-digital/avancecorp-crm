@@ -1,0 +1,29 @@
+PASS: Atención alinea persona y portal
+PASS: Atención conserva dueño, creador y capital aunque el motivo diga venta de Jorge
+PASS: La tarea pendiente sigue al nuevo responsable
+PASS: Corrección cambia solo vendedor; preserva capital y registrador
+PASS: Una sola fila de historial
+PASS: Facturación de Fiorella conserva las otras cuatro ventas: PEN 9600 y USD 17690
+PASS: Capital global por moneda idéntico tras corregir 150k
+PASS: Reintento rechazado sin duplicar historial
+PASS: Admin portal sin CRM puede cambiar atención completa por núcleo
+PASS: Gerencia con asiento analista alinea perfil y limpia asesor legado
+PASS: GUC falsificado y cambio directo de asesor legado bloqueados
+PASS: Perfil sin persona cambia atención con motivo y autor, sin crear identidad
+PASS: Núcleo y puerta anónima cerrados
+PASS: Importe obsoleto no crea historial ni altera vendedor
+PASS: Adaptador público compatible
+PASS: Postcondición fallida revierte vendedor e historial
+PASS: Mismo tramo concilia el perfil; no devuelve sin_cambios incompleto
+PASS: Gerencia recibe relación y conserva asesor operativo explícitamente
+PASS: Vista previa incluye upgrade y descendiente sin mezclar moneda
+PASS: Cadena corregida sin reescribir autoría de operaciones_cartera
+PASS: Stock y desglose coinciden en el núcleo financiero
+PASS: Rechaza divergencia de desglose y resuelve ciclo sin colgarse
+PASS: Corrección viva conserva íntegra la foto sellada del mismo mes
+PASS: Vista previa muestra heredero de analista de baja
+PASS: Vista previa incluye herencia de cooperativa
+PASS: Herencia efectiva coincide con vista previa
+PASS: Cooperativa hereda del nuevo responsable sin cambiar vendedor registrado
+PASS: service_role directo bloqueado; las altas INSERT conservan su camino
+PASS: Vendedor, sin sesión, Operaciones y admin revocado rechazados

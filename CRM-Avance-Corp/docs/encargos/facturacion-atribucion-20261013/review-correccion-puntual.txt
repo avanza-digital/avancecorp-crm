@@ -1,0 +1,61 @@
+VERDICT: PASS
+
+SUMMARY:
+No veo ningún impedimento concreto para ejecutar ahora la corrección de la venta 2026-01-001595 con la puerta ya publicada public.reasignar_analista_contrato desde la UI con sesión de Gerencia. No hace falta desplegar nada nuevo. Las precondiciones adjuntas cumplen todas las guardas de la función y de los dos triggers mostrados. Quedan riesgos menores de verificación, no de corrección. Los detallo abajo como acciones previas al click, no como bloqueos.
+
+Trazado contra la evidencia:
+- Autorización. La función exige auth.uid() no nulo, que se cumpla es_gestor_cartera() o rol_crm = 'gerencia', y que la membresía CRM no esté revocada. Una sesión real de Gerencia lo satisface. Si rol_crm no devolviera 'gerencia' para ese uid, la función falla con insufficient_privilege antes de escribir. Ese caso es seguro.
+- Motivo. El texto propuesto tiene unos 207 caracteres, por debajo del límite de 300, y no está vacío tras btrim.
+- Contrato. Existe, es_demo es false y la fila queda bloqueada con FOR UPDATE.
+- Destino. Jorge es 0eeb8c64…, con rol 'supervisor' en crm.equipo, que está en ('vendedor','supervisor','gerencia'). Es distinto del analista actual d571aeed…, así que no salta el P0409 de "ya atribuida".
+- trg_contratos_analista_solo_por_la_puerta. La válvula crm.reasignando_analista se activa con alcance de transacción (is_local = true) solo alrededor del UPDATE. Pasa.
+- proteger_contrato_documental. analista_cierre_id no forma parte de la tupla documental, así que v_cambio_documental vale false y el congelamiento por PDF no aplica. Solo fallaría si contrato_en_eliminacion fuera true, cosa que la evidencia no sugiere.
+- Atribución efectiva. Con cartera = 0 y renovado_a nulo, analista_atribuido_cadena solo se mira a sí mismo. Si la categoría es 'nuevo' devuelve NULL y se usa el respaldo, es decir analista_cierre_id. Si fuera 'upgrade' devuelve analista_cierre_id. En ambos casos el resultado es Jorge y no hay descendientes a los que propagar.
+- Auditoría. Se inserta una fila en crm.reasignaciones_analista con analista_de = Fiorella, analista_a = Jorge y reasignado_por = uid real de la sesión. Es coherente con "historia una fila, actor sesión real".
+
+FINDINGS:
+
+[P2] El periodo cerrado no lo protege la puerta, solo la precondición
+- File: public.reasignar_analista_contrato (cuerpo adjunto).
+- Evidence: la función no consulta en ningún punto el cierre de periodo. "periodo_cerrado: 0" sale de una lectura previa en otra transacción.
+- Impact: si octubre se cerrara entre la lectura y el click (TOCTOU), la puerta reasignaría igualmente dentro de un periodo cerrado. La probabilidad es baja hoy (13/10), pero el control depende enteramente del operador.
+- Recommendation: releer periodo_cerrado y el estado de Jorge y Fiorella inmediatamente antes del click, como ya prevé el plan. Abortar si cambia cualquier cosa. Como deuda aparte, sin publicarlo ahora, la puerta debería rechazar periodos cerrados.
+
+[P2] La evidencia no incluye todos los triggers de public.contratos
+- File: public.contratos (triggers).
+- Evidence: solo se adjuntan proteger_contrato_documental y trg_contratos_analista_solo_por_la_puerta. No aparece el inventario completo de pg_trigger de la tabla.
+- Impact (hipótesis): otro trigger AFTER UPDATE (outbox, notificaciones, metas, updated_at, sincronización externa) podría producir efectos que el snapshot de facturacion_operaciones no captura.
+- Recommendation: antes del click, listar en modo read-only los triggers de public.contratos y confirmar que ninguno dispara efectos externos al cambiar analista_cierre_id. Si alguno lo hace, incluirlo en la comparación posterior.
+
+[P2] Hay que confirmar que la UI es la publicada y que llama a esta función con estos argumentos
+- Evidence: el plan dice "UI real" pero no adjunta qué build se usa ni el payload RPC. El árbol local tiene cambios sin commitear en CRM-Avance-Corp/app/src/components/app/contrato-detalle.tsx. Esto es una observación del entorno, no de la evidencia adjunta.
+- Impact: una app local con código no publicado apuntando a producción podría llamar a otra RPC o a otra firma, en contra de "la implementación nueva continúa sin publicación".
+- Recommendation: usar exclusivamente el front desplegado en producción. Verificar en la petición de red que se llama a reasignar_analista_contrato(p_contrato_id = 0be4d71f…, p_analista_id = 0eeb8c64…, p_motivo) y no a otra cosa.
+
+[P3] Supervisor derivado y estado de baja
+- Evidence: facturacion_operaciones resuelve el supervisor por tramos históricos o, si no hay, por eq.supervisor_id. analista_efectivo_contrato desvía a heredero_de_baja cuando analista_dado_de_baja(...) es true. Que "activo = true" en crm.equipo implique dado_de_baja = false es una inferencia, no un dato adjunto.
+- Impact: el supervisor resultante podría no ser bf1c562e… si existe un tramo histórico de Jorge que cubra el 2026-10-11, o la operación podría acabar en un heredero.
+- Recommendation: la comparación posterior ya lo detectaría. Fijar como esperado explícito analista = 0eeb8c64… y supervisor = el que devuelva la regla de tramos para el 2026-10-11, no un valor asumido.
+
+[P3] La categoría del contrato no está en la evidencia
+- El plan dice "contrato nuevo", pero el JSON de precondiciones no incluye categoria. Con cartera = 0 no cambia el resultado. Conviene incluirla en la relectura previa para cerrar el razonamiento.
+
+TEST GAPS:
+- No existe ninguna prueba automatizada de que la puerta rechace periodos cerrados (no lo hace).
+- La comparación posterior debe ser exacta: 75 operaciones antes y después, 74 idénticas campo a campo, una sola con el cambio analista d571→0eeb y su supervisor, totales global, por día y por moneda idénticos. Los totales por analista esperados son:
+  - Fiorella: PEN 9 600 en 1 operación y USD 17 690 en 3.
+  - Jorge: PEN 363 600 en 4 operaciones y USD 20 000 en 1.
+
+SECURITY RISKS:
+- Ninguno nuevo. No se usan JWT forjados, set_config de claims ni UPDATE directo. El actor queda registrado como el uid real y el motivo declara que operó Codex en esa sesión.
+
+REGRESSION RISKS:
+- Bajos. Los consumidores de analista_cierre_id ajenos a facturación (metas, rankings, comisiones) cambiarán, que es el efecto buscado. Conviene mirarlos al menos una vez después.
+
+RECOMMENDED NEXT ACTIONS:
+1. Justo antes del click, releer las precondiciones añadiendo categoria, analista_dado_de_baja de ambos y el inventario de triggers de public.contratos. Abortar ante cualquier diferencia.
+2. Ejecutar desde el front de producción y verificar la llamada RPC en la pestaña de red.
+3. Hacer el snapshot posterior y el diff exacto según TEST GAPS. Comprobar una sola fila en reasignaciones_analista con reasignado_por igual al uid de la sesión.
+4. Si el diff no cuadra, revertir por la misma puerta, de Jorge a Fiorella, con motivo explícito. Nunca con SQL directo.
+
+CONFIDENCE: MEDIUM-HIGH. Es alta en el trazado de la función y los triggers adjuntos, y media en los efectos laterales por triggers no inventariados y por la build de UI no verificada.

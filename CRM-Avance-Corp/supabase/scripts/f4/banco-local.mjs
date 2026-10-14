@@ -4,15 +4,20 @@ import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 import assert from 'node:assert/strict';
 
-// Dos destinos cerrados: banco de desarrollo y reconstrucción independiente.
+// Destinos cerrados: desarrollo, reconstrucción y regresión de atención/venta.
 // Nunca recibe una URL, ruta o nombre Docker elegido por el llamador.
 const seleccion = process.env.F4_BANCO ?? 'desarrollo';
-assert(['desarrollo','reconstruccion'].includes(seleccion), 'Banco F4 no permitido');
-export const entorno = seleccion === 'desarrollo' ? 'avancecorp-f4-bank' : 'avancecorp-f4-reconstruccion';
+const destinos = {
+  desarrollo: ['avancecorp-f4-bank', 56321, 56322],
+  reconstruccion: ['avancecorp-f4-reconstruccion', 57321, 57322],
+  atencion: ['avancecorp-atencion-integracion-20261013', 56461, 56462],
+};
+assert(Object.hasOwn(destinos, seleccion), 'Banco F4 no permitido');
+export const [entorno, puertoApi, puertoDb] = destinos[seleccion];
 export const banco = `/private/tmp/${entorno}`;
 export const contenedor = `supabase_db_${entorno}`;
-export const apiUrl = seleccion === 'desarrollo' ? 'http://127.0.0.1:56321' : 'http://127.0.0.1:57321';
-const dbUrl = seleccion === 'desarrollo' ? 'postgresql://postgres:postgres@127.0.0.1:56322/postgres' : 'postgresql://postgres:postgres@127.0.0.1:57322/postgres';
+export const apiUrl = `http://127.0.0.1:${puertoApi}`;
+const dbUrl = `postgresql://postgres:postgres@127.0.0.1:${puertoDb}/postgres`;
 const inicio = readFileSync(join(banco, 'start.log'), 'utf8').split('\n')
   .filter(linea => linea.startsWith('{')).map(linea => JSON.parse(linea))
   .find(dato => dato.API_URL && dato.SERVICE_ROLE_KEY);

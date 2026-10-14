@@ -1,0 +1,177 @@
+[
+  {
+    "original": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/app/e2e/_navegacion 2.ts",
+    "respaldo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/resguardos/atencion-duplicados-20261013/app/e2e/_navegacion 2.ts",
+    "sha256": "7a90558ad6c9113413823d18cac84917ffb9809b5a89dd52c6f623ff7f175190",
+    "igual_al_original": false,
+    "respaldo_temporal_anterior": "/private/tmp/atencion-respaldo-duplicados-20261013/app/e2e/_navegacion 2.ts"
+  },
+  {
+    "original": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/app/e2e/gestion-diaria-vuelta.spec 2.ts",
+    "respaldo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/resguardos/atencion-duplicados-20261013/app/e2e/gestion-diaria-vuelta.spec 2.ts",
+    "sha256": "6a151827b44f9e1ad84ddb1dd87c0a524515807e58b25aa6238c1dcc01733233",
+    "igual_al_original": false,
+    "respaldo_temporal_anterior": "/private/tmp/atencion-respaldo-duplicados-20261013/app/e2e/gestion-diaria-vuelta.spec 2.ts"
+  },
+  {
+    "original": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/app/e2e/hoy-leads-recibidos.spec 2.ts",
+    "respaldo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/resguardos/atencion-duplicados-20261013/app/e2e/hoy-leads-recibidos.spec 2.ts",
+    "sha256": "54038861a6b6421cc6bef153615742e8444cfa5e86ca7164c107f7bc5596dfaf",
+    "igual_al_original": true,
+    "respaldo_temporal_anterior": "/private/tmp/atencion-respaldo-duplicados-20261013/app/e2e/hoy-leads-recibidos.spec 2.ts"
+  },
+  {
+    "original": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/app/e2e/lead-documento.spec 2.ts",
+    "respaldo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/resguardos/atencion-duplicados-20261013/app/e2e/lead-documento.spec 2.ts",
+    "sha256": "9a1e1d48a5fb51e648acaa9c8785a8297fecfc0de754a05f0098182bf8698699",
+    "igual_al_original": true,
+    "respaldo_temporal_anterior": "/private/tmp/atencion-respaldo-duplicados-20261013/app/e2e/lead-documento.spec 2.ts"
+  },
+  {
+    "original": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/app/e2e/menu-gerencia.spec 2.ts",
+    "respaldo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/resguardos/atencion-duplicados-20261013/app/e2e/menu-gerencia.spec 2.ts",
+    "sha256": "7e2f4efeedec5128e5178ab49c825a922173a1582b6e037c6f96cd8e408d2a4f",
+    "igual_al_original": true,
+    "respaldo_temporal_anterior": "/private/tmp/atencion-respaldo-duplicados-20261013/app/e2e/menu-gerencia.spec 2.ts"
+  },
+  {
+    "original": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/app/src/components/app/reasignado-chip 2.tsx",
+    "respaldo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/resguardos/atencion-duplicados-20261013/app/src/components/app/reasignado-chip 2.tsx",
+    "sha256": "08b2226b58b9a6b4fd825bf0bf18da53edd45419dee60a0c098c8ec236688736",
+    "igual_al_original": true,
+    "respaldo_temporal_anterior": "/private/tmp/atencion-respaldo-duplicados-20261013/app/src/components/app/reasignado-chip 2.tsx"
+  },
+  {
+    "original": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/app/src/data/crm-api-reasignacion-conversion.test 2.ts",
+    "respaldo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/resguardos/atencion-duplicados-20261013/app/src/data/crm-api-reasignacion-conversion.test 2.ts",
+    "sha256": "f2eeb0cae7d54ca4e8ae39bfcf95e3504e5ce338b08348c1136569be63425a69",
+    "igual_al_original": true,
+    "respaldo_temporal_anterior": "/private/tmp/atencion-respaldo-duplicados-20261013/app/src/data/crm-api-reasignacion-conversion.test 2.ts"
+  },
+  {
+    "original": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/app/src/data/documento-lead 2.ts",
+    "respaldo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/resguardos/atencion-duplicados-20261013/app/src/data/documento-lead 2.ts",
+    "sha256": "5f94fdc982dd5ec385ae7c8e4339c7d00e2c7b7953f6d7ac79113a7da6e47a55",
+    "igual_al_original": false,
+    "respaldo_temporal_anterior": "/private/tmp/atencion-respaldo-duplicados-20261013/app/src/data/documento-lead 2.ts"
+  },
+  {
+    "original": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/app/src/data/documento-lead.test 2.ts",
+    "respaldo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/resguardos/atencion-duplicados-20261013/app/src/data/documento-lead.test 2.ts",
+    "sha256": "f7155adc9cfa3a0c6b7a71a2656448aa3b657f0c7ac45796eeeafe94339e98b3",
+    "igual_al_original": true,
+    "respaldo_temporal_anterior": "/private/tmp/atencion-respaldo-duplicados-20261013/app/src/data/documento-lead.test 2.ts"
+  },
+  {
+    "original": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/app/src/data/gestion-diaria-cola-api 2.ts",
+    "respaldo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/resguardos/atencion-duplicados-20261013/app/src/data/gestion-diaria-cola-api 2.ts",
+    "sha256": "5bc87bbba32cd5bccc6e33c9c682aacbc5c9723f23464d4ed8630bb88339144b",
+    "igual_al_original": true,
+    "respaldo_temporal_anterior": "/private/tmp/atencion-respaldo-duplicados-20261013/app/src/data/gestion-diaria-cola-api 2.ts"
+  },
+  {
+    "original": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/app/src/data/gestion-diaria-cola-api.test 2.ts",
+    "respaldo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/resguardos/atencion-duplicados-20261013/app/src/data/gestion-diaria-cola-api.test 2.ts",
+    "sha256": "c2a4665b165393fcffed5c6b011fb5322a38ce5036cacf51c4d850721c657d4c",
+    "igual_al_original": true,
+    "respaldo_temporal_anterior": "/private/tmp/atencion-respaldo-duplicados-20261013/app/src/data/gestion-diaria-cola-api.test 2.ts"
+  },
+  {
+    "original": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/app/src/data/gestion-diaria-cola-queries 2.ts",
+    "respaldo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/resguardos/atencion-duplicados-20261013/app/src/data/gestion-diaria-cola-queries 2.ts",
+    "sha256": "675ff469988aed5a6ec2347582a8ec71e5eae8af58cd4846b0de8360704bc39c",
+    "igual_al_original": true,
+    "respaldo_temporal_anterior": "/private/tmp/atencion-respaldo-duplicados-20261013/app/src/data/gestion-diaria-cola-queries 2.ts"
+  },
+  {
+    "original": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/app/src/data/gestion-diaria-cola-queries.test 2.tsx",
+    "respaldo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/resguardos/atencion-duplicados-20261013/app/src/data/gestion-diaria-cola-queries.test 2.tsx",
+    "sha256": "316b71652b057ca91668f5c0db9fa11eea5e13cf42fc80456130267ae3b00c18",
+    "igual_al_original": true,
+    "respaldo_temporal_anterior": "/private/tmp/atencion-respaldo-duplicados-20261013/app/src/data/gestion-diaria-cola-queries.test 2.tsx"
+  },
+  {
+    "original": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/app/src/data/gestion-diaria-cola-sql.fixture 2.json",
+    "respaldo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/resguardos/atencion-duplicados-20261013/app/src/data/gestion-diaria-cola-sql.fixture 2.json",
+    "sha256": "2f992f11797e98521cb6fa48d16aed94f86159ead6740c4690848733393b2565",
+    "igual_al_original": true,
+    "respaldo_temporal_anterior": "/private/tmp/atencion-respaldo-duplicados-20261013/app/src/data/gestion-diaria-cola-sql.fixture 2.json"
+  },
+  {
+    "original": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/app/src/lib/database.types 2.ts",
+    "respaldo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/resguardos/atencion-duplicados-20261013/app/src/lib/database.types 2.ts",
+    "sha256": "3a637ec0fc51491cb4f24c221150749fd4408d0fc6bccc34fc3c434dea9e9cf9",
+    "igual_al_original": false,
+    "respaldo_temporal_anterior": "/private/tmp/atencion-respaldo-duplicados-20261013/app/src/lib/database.types 2.ts"
+  },
+  {
+    "original": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/app/src/lib/documento-lead 2.ts",
+    "respaldo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/resguardos/atencion-duplicados-20261013/app/src/lib/documento-lead 2.ts",
+    "sha256": "2899c6cc03912670c102b3cbcc928b13d5e0b696a7e8fc6f0aea4dbbca625ce2",
+    "igual_al_original": true,
+    "respaldo_temporal_anterior": "/private/tmp/atencion-respaldo-duplicados-20261013/app/src/lib/documento-lead 2.ts"
+  },
+  {
+    "original": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/app/src/lib/gestion-diaria-cola 2.ts",
+    "respaldo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/resguardos/atencion-duplicados-20261013/app/src/lib/gestion-diaria-cola 2.ts",
+    "sha256": "67ab36cd1ec30992a7b61e74533986d04174eb8460a51d5a8fdb36787ef42cc4",
+    "igual_al_original": true,
+    "respaldo_temporal_anterior": "/private/tmp/atencion-respaldo-duplicados-20261013/app/src/lib/gestion-diaria-cola 2.ts"
+  },
+  {
+    "original": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/app/src/lib/gestion-diaria-cola-demo 2.ts",
+    "respaldo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/resguardos/atencion-duplicados-20261013/app/src/lib/gestion-diaria-cola-demo 2.ts",
+    "sha256": "11d9e89c3647d51359af6fa81929a321f1ab45cabaf95bdfd231f97958010af8",
+    "igual_al_original": true,
+    "respaldo_temporal_anterior": "/private/tmp/atencion-respaldo-duplicados-20261013/app/src/lib/gestion-diaria-cola-demo 2.ts"
+  },
+  {
+    "original": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/app/src/lib/pipeline-columnas 2.ts",
+    "respaldo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/resguardos/atencion-duplicados-20261013/app/src/lib/pipeline-columnas 2.ts",
+    "sha256": "4964072ea0d2786b2490bba29aa5d535ceb58d2c7e9f0a553575a46fbf0edf2b",
+    "igual_al_original": true,
+    "respaldo_temporal_anterior": "/private/tmp/atencion-respaldo-duplicados-20261013/app/src/lib/pipeline-columnas 2.ts"
+  },
+  {
+    "original": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/app/src/lib/pipeline-columnas.test 2.ts",
+    "respaldo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/resguardos/atencion-duplicados-20261013/app/src/lib/pipeline-columnas.test 2.ts",
+    "sha256": "c7d902e713ce6e4f5fa0eb17c05b97db2bed98b4c9925c45e98f3d8be94dfcde",
+    "igual_al_original": true,
+    "respaldo_temporal_anterior": "/private/tmp/atencion-respaldo-duplicados-20261013/app/src/lib/pipeline-columnas.test 2.ts"
+  },
+  {
+    "original": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/app/src/screens/hoy/agenda-leads-hoy 2.css",
+    "respaldo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/resguardos/atencion-duplicados-20261013/app/src/screens/hoy/agenda-leads-hoy 2.css",
+    "sha256": "9ef86b6e2c4067c2e762805a5887e6e39eab53ee3bef6b5d11642f28e5483820",
+    "igual_al_original": true,
+    "respaldo_temporal_anterior": "/private/tmp/atencion-respaldo-duplicados-20261013/app/src/screens/hoy/agenda-leads-hoy 2.css"
+  },
+  {
+    "original": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/app/src/screens/hoy/agenda-leads-hoy 2.tsx",
+    "respaldo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/resguardos/atencion-duplicados-20261013/app/src/screens/hoy/agenda-leads-hoy 2.tsx",
+    "sha256": "1c29931767a8be82d5485bd0d1305208e3b498cea5b915fe0b94fe608e003be4",
+    "igual_al_original": true,
+    "respaldo_temporal_anterior": "/private/tmp/atencion-respaldo-duplicados-20261013/app/src/screens/hoy/agenda-leads-hoy 2.tsx"
+  },
+  {
+    "original": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/app/src/screens/hoy/leads-recibidos-hoy 2.tsx",
+    "respaldo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/resguardos/atencion-duplicados-20261013/app/src/screens/hoy/leads-recibidos-hoy 2.tsx",
+    "sha256": "d89239e989ad8a749d4ff3a0ea19a1329bd02642dd61ee52bf716e3972c01a11",
+    "igual_al_original": true,
+    "respaldo_temporal_anterior": "/private/tmp/atencion-respaldo-duplicados-20261013/app/src/screens/hoy/leads-recibidos-hoy 2.tsx"
+  },
+  {
+    "original": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/app/src/screens/hoy/leads-recibidos-hoy.test 2.tsx",
+    "respaldo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/resguardos/atencion-duplicados-20261013/app/src/screens/hoy/leads-recibidos-hoy.test 2.tsx",
+    "sha256": "44a96b7b9ff1cc3a1b8684bf79e45cebe899223a56565c238465bb0f1a2f24a3",
+    "igual_al_original": true,
+    "respaldo_temporal_anterior": "/private/tmp/atencion-respaldo-duplicados-20261013/app/src/screens/hoy/leads-recibidos-hoy.test 2.tsx"
+  },
+  {
+    "original": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/app/src/screens/hoy/use-leads-recibidos-hoy 2.ts",
+    "respaldo": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/resguardos/atencion-duplicados-20261013/app/src/screens/hoy/use-leads-recibidos-hoy 2.ts",
+    "sha256": "0225721ca6155f0f499b6cbc41c38ac266a5bdca01245f41840a4ec5f4dfe6d1",
+    "igual_al_original": true,
+    "respaldo_temporal_anterior": "/private/tmp/atencion-respaldo-duplicados-20261013/app/src/screens/hoy/use-leads-recibidos-hoy 2.ts"
+  }
+]

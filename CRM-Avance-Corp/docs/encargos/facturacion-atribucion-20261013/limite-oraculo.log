@@ -1,0 +1,55 @@
+BEGIN
+SET
+SET
+CREATE TABLE
+CREATE FUNCTION
+CREATE TABLE
+CREATE TABLE
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE TABLE
+DO
+ exigir
+--------
+
+(1 row)
+
+ exigir
+--------
+
+(1 row)
+
+ exigir
+--------
+
+(1 row)
+
+ exigir
+--------
+
+(1 row)
+
+ exigir
+--------
+
+(1 row)
+
+ exigir
+--------
+
+(1 row)
+
+ exigir
+--------
+
+(1 row)
+
+DO
+ comprobaciones |          resultado
+----------------+-----------------------------
+             16 | PASS ORACULO EXACTO VIGENTE
+(1 row)
+
+ROLLBACK

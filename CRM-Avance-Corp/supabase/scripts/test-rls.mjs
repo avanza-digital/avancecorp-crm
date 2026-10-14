@@ -9,6 +9,13 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 
+// Regresión de las puertas de atención/venta y del offboarding con Auth real.
+// El módulo cierra sus destinos al banco exclusivo autorizado de esta tarea.
+if (process.argv.length === 3 && process.argv[2] === '--atencion-venta') {
+  await import('./atencion-venta/integracion-permisos.mjs');
+  process.exit(0);
+}
+
 if (process.argv.length === 3 && process.argv[2] === '--origen-concreto') {
   await import('./ranking-origen/test-rls-origen-concreto.mjs');
   process.exit(0);

@@ -26,7 +26,8 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
-import { reasignarAnalistaContrato } from '@/data/crm-api'
+import { previsualizarResponsabilidad, confirmarResponsabilidad, type PreviaResponsabilidad } from '@/data/cambio-responsabilidad-api'
+import { CambioResponsabilidadPrevia } from './cambio-responsabilidad-previa'
 import { CATEGORIA_LABEL, MODALIDAD_LABEL } from '@/lib/contratos-catalogo'
 import { etiquetaDocumento } from '@/lib/titulares'
 import type { ContratoRow, Cuota, EstadoContrato, EstadoCuota, Titular } from '@/lib/clientes-tipos'
@@ -143,6 +144,7 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
   const qAtribucion = useAtribucionContrato(contratoId, !precargado)
   const atribucion = qAtribucion.data ?? null
   const [reasignando, setReasignando] = useState(false)
+  const [previaVenta, setPreviaVenta] = useState<PreviaResponsabilidad | null>(null)
   const [nuevoAnalista, setNuevoAnalista] = useState('')
   const [motivoReasignar, setMotivoReasignar] = useState('')
   const [enviandoReasignar, setEnviandoReasignar] = useState(false)
@@ -583,7 +585,7 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
                   </div>
                   {puedeReasignar && analistas && analistas.length > 0 && !atribucion.es_demo && !reasignando ? (
                     <Button variant="outline" size="sm" onClick={() => setReasignando(true)}>
-                      Reasignar
+                      Corregir dueño de la venta
                     </Button>
                   ) : null}
                 </div>
@@ -595,7 +597,7 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
                       <Select
                         id="cd-analista"
                         value={nuevoAnalista}
-                        onChange={(e) => setNuevoAnalista(e.target.value)}
+                        onChange={(e) => {setNuevoAnalista(e.target.value); setPreviaVenta(null)}}
                         disabled={enviandoReasignar}
                       >
                         <option value="">Elige el analista</option>
@@ -614,7 +616,7 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
                         id="cd-motivo"
                         value={motivoReasignar}
                         maxLength={300}
-                        onChange={(e) => setMotivoReasignar(e.target.value)}
+                        onChange={(e) => {setMotivoReasignar(e.target.value); setPreviaVenta(null)}}
                         disabled={enviandoReasignar}
                         placeholder="Por qué cambia de analista"
                       />
@@ -622,6 +624,7 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
                         Queda escrito: esto mueve el mérito de la venta de una persona a otra.
                       </p>
                     </div>
+                    {previaVenta && <CambioResponsabilidadPrevia previa={previaVenta} />}
                     <div className="flex justify-end gap-2">
                       <Button
                         variant="ghost"
@@ -629,6 +632,7 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
                         disabled={enviandoReasignar}
                         onClick={() => {
                           setReasignando(false)
+                          setPreviaVenta(null)
                           setNuevoAnalista('')
                           setMotivoReasignar('')
                         }}
@@ -642,17 +646,23 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
                           setEnviandoReasignar(true)
                           onEnviandoCambio?.(true)
                           try {
-                            await reasignarAnalistaContrato(contratoId, nuevoAnalista, motivoReasignar.trim())
+                            if (!previaVenta) {
+                              setPreviaVenta(await previsualizarResponsabilidad('venta', contratoId, nuevoAnalista))
+                              return
+                            }
+                            await confirmarResponsabilidad(previaVenta, motivoReasignar)
                             await Promise.all([
                               qAtribucion.refetch(),
                               queryClient.invalidateQueries({ queryKey: crmQueryKeys.metricas() }),
                             ])
                             setReasignando(false)
+                            setPreviaVenta(null)
                             setNuevoAnalista('')
                             setMotivoReasignar('')
                             toast.success('La venta cambió de analista.')
                             onActualizado?.()
                           } catch (e) {
+                            setPreviaVenta(null)
                             toast.error(mensajeDeError(e, 'No se pudo reasignar la venta.'))
                           } finally {
                             setEnviandoReasignar(false)
@@ -661,7 +671,7 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
                         }}
                       >
                         {enviandoReasignar ? <LoaderCircle className="animate-spin" /> : null}
-                        Reasignar
+                        {previaVenta ? 'Confirmar corrección de venta' : 'Revisar efecto'}
                       </Button>
                     </div>
                   </div>
