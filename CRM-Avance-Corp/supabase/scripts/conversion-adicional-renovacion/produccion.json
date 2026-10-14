@@ -1,0 +1,912 @@
+{
+  "fecha_antes": "2026-10-14T21:27:18.379791+00:00",
+  "fecha_despues": "2026-10-14T21:29:24.450797+00:00",
+  "proyecto": "dctqcbznekcyxhjujuci",
+  "pr": "https://github.com/avanza-digital/avancecorp-crm/pull/278",
+  "commit_main": "2338514179a6712e3aab74d5fffd54cf2b29b1e4",
+  "metodo": "Merge de la branch ensayada. JSON comparados excluyendo generado_en; las dos marcas de reloj de métricas se verificaron iguales a la hora de cada captura. Responsables del ranking cotejados por vendedor_id.",
+  "migracion": "20261014185718",
+  "hash_nucleo": "13d0c920eb7f620d1992826fb43cb584",
+  "funciones_cambiadas": [
+    {
+      "hash": "1e374f6b0d63d631272c675f66ed205a",
+      "firma": "private.conversion_episodios(timestamp with time zone,timestamp with time zone,date,boolean,uuid[],numeric)"
+    }
+  ],
+  "analistas": [
+    {
+      "id": "0705094c-42f4-4f25-8f5e-0ce215213d29",
+      "nombre": "LISSETH NUÑEZ GARCÍA",
+      "activo": true,
+      "divisor_antes": 66,
+      "divisor_despues": 66,
+      "numerador_antes": 2.3,
+      "numerador_despues": 2.3,
+      "conversion_antes": 3.48,
+      "conversion_despues": 3.48
+    },
+    {
+      "id": "0c7ffc92-260a-4f87-b2fe-a732740c8d17",
+      "nombre": "ANALISTA CRM (DEMO)",
+      "activo": false,
+      "divisor_antes": 0,
+      "divisor_despues": 0,
+      "numerador_antes": 0,
+      "numerador_despues": 0,
+      "conversion_antes": null,
+      "conversion_despues": null
+    },
+    {
+      "id": "1de5eba1-e6bb-435d-9eff-74286e881d01",
+      "nombre": "LINDA CONDORI GUTIERREZ",
+      "activo": true,
+      "divisor_antes": 68,
+      "divisor_despues": 68,
+      "numerador_antes": 6,
+      "numerador_despues": 6,
+      "conversion_antes": 8.82,
+      "conversion_despues": 8.82
+    },
+    {
+      "id": "1f22b1e3-9b75-4bab-bb41-433964c25e56",
+      "nombre": "ALAN YUTRONIC",
+      "activo": true,
+      "divisor_antes": 64,
+      "divisor_despues": 64,
+      "numerador_antes": 0,
+      "numerador_despues": 0,
+      "conversion_antes": 0,
+      "conversion_despues": 0
+    },
+    {
+      "id": "244439ac-dbc7-4d27-91d1-941c5dbc6dd5",
+      "nombre": "ADELAYDA GASPAR MARTINEZ",
+      "activo": true,
+      "divisor_antes": 56,
+      "divisor_despues": 56,
+      "numerador_antes": 5,
+      "numerador_despues": 5,
+      "conversion_antes": 8.93,
+      "conversion_despues": 8.93
+    },
+    {
+      "id": "2c10b18a-a15d-4952-952b-c4ab91b96153",
+      "nombre": "VLADIMIR JURADO",
+      "activo": true,
+      "divisor_antes": 67,
+      "divisor_despues": 67,
+      "numerador_antes": 3,
+      "numerador_despues": 4,
+      "conversion_antes": 4.48,
+      "conversion_despues": 5.97
+    },
+    {
+      "id": "2d33a809-714f-4115-baa8-bb114284764b",
+      "nombre": "EDGAR ANCCASI HUAMANI",
+      "activo": true,
+      "divisor_antes": 0,
+      "divisor_despues": 0,
+      "numerador_antes": 0,
+      "numerador_despues": 0,
+      "conversion_antes": null,
+      "conversion_despues": null
+    },
+    {
+      "id": "2ec5954f-0490-44f2-87cd-af6210f3426f",
+      "nombre": "ASTRID CENTENARO",
+      "activo": true,
+      "divisor_antes": 65,
+      "divisor_despues": 65,
+      "numerador_antes": 3.15,
+      "numerador_despues": 3.15,
+      "conversion_antes": 4.85,
+      "conversion_despues": 4.85
+    },
+    {
+      "id": "46222e1e-f368-40c0-bca8-15fdaf42dbea",
+      "nombre": "GABRIELA CUTIPA ROBLES",
+      "activo": true,
+      "divisor_antes": 0,
+      "divisor_despues": 0,
+      "numerador_antes": 0,
+      "numerador_despues": 0,
+      "conversion_antes": null,
+      "conversion_despues": null
+    },
+    {
+      "id": "4764b8fa-d493-4023-8e82-b51d20fb6579",
+      "nombre": "ALVARO LEOMAR CCAHUANA ALHUIRCA",
+      "activo": true,
+      "divisor_antes": 0,
+      "divisor_despues": 0,
+      "numerador_antes": 0,
+      "numerador_despues": 0,
+      "conversion_antes": null,
+      "conversion_despues": null
+    },
+    {
+      "id": "4b657849-cde5-4936-8a1a-4f774c364518",
+      "nombre": "JAICO CERVERA LUNA",
+      "activo": true,
+      "divisor_antes": 0,
+      "divisor_despues": 0,
+      "numerador_antes": 0,
+      "numerador_despues": 0,
+      "conversion_antes": null,
+      "conversion_despues": null
+    },
+    {
+      "id": "4e929ee5-b708-4a97-81f8-945e331f2221",
+      "nombre": "IVETT TEEVIN",
+      "activo": false,
+      "divisor_antes": 0,
+      "divisor_despues": 0,
+      "numerador_antes": 0,
+      "numerador_despues": 0,
+      "conversion_antes": null,
+      "conversion_despues": null
+    },
+    {
+      "id": "6077e821-aaa6-40d8-812d-eee34c71e046",
+      "nombre": "JHON ESPINOZA",
+      "activo": true,
+      "divisor_antes": 0,
+      "divisor_despues": 0,
+      "numerador_antes": 0,
+      "numerador_despues": 0,
+      "conversion_antes": null,
+      "conversion_despues": null
+    },
+    {
+      "id": "62e1a05b-fa30-4834-86b7-c3a9864215ff",
+      "nombre": "LUIS ENRIQUE VELA RAMÍREZ",
+      "activo": true,
+      "divisor_antes": 0,
+      "divisor_despues": 0,
+      "numerador_antes": 0,
+      "numerador_despues": 0,
+      "conversion_antes": null,
+      "conversion_despues": null
+    },
+    {
+      "id": "75c0933c-9cce-4e5f-ae0e-2b4bfd557a37",
+      "nombre": "MERLYS GARCIA",
+      "activo": true,
+      "divisor_antes": 57,
+      "divisor_despues": 57,
+      "numerador_antes": 8.15,
+      "numerador_despues": 8.15,
+      "conversion_antes": 14.3,
+      "conversion_despues": 14.3
+    },
+    {
+      "id": "76b76c37-e2c2-427c-9196-fdbf6a663986",
+      "nombre": "BETZABETH FUENMAYOR SAAVEDRA",
+      "activo": true,
+      "divisor_antes": 62,
+      "divisor_despues": 62,
+      "numerador_antes": 3,
+      "numerador_despues": 3,
+      "conversion_antes": 4.84,
+      "conversion_despues": 4.84
+    },
+    {
+      "id": "7c124080-c310-40d3-b245-794657852968",
+      "nombre": "ROSA AGUIRRE",
+      "activo": true,
+      "divisor_antes": 66,
+      "divisor_despues": 66,
+      "numerador_antes": 1,
+      "numerador_despues": 1,
+      "conversion_antes": 1.52,
+      "conversion_despues": 1.52
+    },
+    {
+      "id": "8efe6ff6-5486-4dd5-b9a8-5ad59d3bebfb",
+      "nombre": "EDSON ALAGON VILCA",
+      "activo": true,
+      "divisor_antes": 0,
+      "divisor_despues": 0,
+      "numerador_antes": 0,
+      "numerador_despues": 0,
+      "conversion_antes": null,
+      "conversion_despues": null
+    },
+    {
+      "id": "94f6d213-2037-4df6-af06-42816326a0bd",
+      "nombre": "GRECIA RAMIREZ CORTEZ",
+      "activo": true,
+      "divisor_antes": 0,
+      "divisor_despues": 0,
+      "numerador_antes": 0,
+      "numerador_despues": 0,
+      "conversion_antes": null,
+      "conversion_despues": null
+    },
+    {
+      "id": "98725f9b-bdbf-4c76-bd5e-9eac0d4d6581",
+      "nombre": "PIERINA LEVANO PURIZACA",
+      "activo": false,
+      "divisor_antes": 0,
+      "divisor_despues": 0,
+      "numerador_antes": 0,
+      "numerador_despues": 0,
+      "conversion_antes": null,
+      "conversion_despues": null
+    },
+    {
+      "id": "ad36b962-5175-4e4e-b644-e546897c3a85",
+      "nombre": "NAYRA GAMERO LINO",
+      "activo": true,
+      "divisor_antes": 67,
+      "divisor_despues": 67,
+      "numerador_antes": 4.3,
+      "numerador_despues": 4.3,
+      "conversion_antes": 6.42,
+      "conversion_despues": 6.42
+    },
+    {
+      "id": "b1943c83-ffa1-4693-806a-eb2aaacd72a3",
+      "nombre": "GUILLERMO CASTRO SOTOMAYOR",
+      "activo": true,
+      "divisor_antes": 65,
+      "divisor_despues": 65,
+      "numerador_antes": 2,
+      "numerador_despues": 2,
+      "conversion_antes": 3.08,
+      "conversion_despues": 3.08
+    },
+    {
+      "id": "bed9fc40-cb59-4264-9ce2-84c78364a332",
+      "nombre": "ANTONELLA JARAMILLO JULCA",
+      "activo": true,
+      "divisor_antes": 58,
+      "divisor_despues": 58,
+      "numerador_antes": 2.15,
+      "numerador_despues": 2.15,
+      "conversion_antes": 3.71,
+      "conversion_despues": 3.71
+    },
+    {
+      "id": "c026aa64-5303-422e-b985-77bbdc8fd9f9",
+      "nombre": "CLAUDIA FERNANDA CRUCES BRAVO",
+      "activo": true,
+      "divisor_antes": 0,
+      "divisor_despues": 0,
+      "numerador_antes": 0,
+      "numerador_despues": 0,
+      "conversion_antes": null,
+      "conversion_despues": null
+    },
+    {
+      "id": "c2c415de-c981-41cf-9346-13c0fab71026",
+      "nombre": "ELIZABETH CHIROQUE NAVARRO",
+      "activo": true,
+      "divisor_antes": 11,
+      "divisor_despues": 11,
+      "numerador_antes": 3,
+      "numerador_despues": 3,
+      "conversion_antes": 27.27,
+      "conversion_despues": 27.27
+    },
+    {
+      "id": "c7917328-6525-42d5-bb22-d8efa8755095",
+      "nombre": "KELLY VEGA",
+      "activo": true,
+      "divisor_antes": 1,
+      "divisor_despues": 1,
+      "numerador_antes": 3,
+      "numerador_despues": 3,
+      "conversion_antes": 300,
+      "conversion_despues": 300
+    },
+    {
+      "id": "d571aeed-e65d-4369-ac86-00a83bf9d389",
+      "nombre": "FIORELLA RUIZ",
+      "activo": true,
+      "divisor_antes": 67,
+      "divisor_despues": 67,
+      "numerador_antes": 4,
+      "numerador_despues": 4,
+      "conversion_antes": 5.97,
+      "conversion_despues": 5.97
+    },
+    {
+      "id": "d731f284-eeaa-4c27-b71f-ac4f1d8e96c2",
+      "nombre": "MIGUEL BRICEÑO",
+      "activo": true,
+      "divisor_antes": 0,
+      "divisor_despues": 0,
+      "numerador_antes": 1,
+      "numerador_despues": 1,
+      "conversion_antes": null,
+      "conversion_despues": null
+    },
+    {
+      "id": "d81aca5b-e39e-42d7-b723-1a44930145b8",
+      "nombre": "GERENTE CRM (DEMO)",
+      "activo": false,
+      "divisor_antes": 0,
+      "divisor_despues": 0,
+      "numerador_antes": 0,
+      "numerador_despues": 0,
+      "conversion_antes": null,
+      "conversion_despues": null
+    },
+    {
+      "id": "df688ab0-7a07-4d8d-9e61-ebf03cfe5197",
+      "nombre": "JESSICA ESCUDERO TENAZOA",
+      "activo": true,
+      "divisor_antes": 0,
+      "divisor_despues": 0,
+      "numerador_antes": 0,
+      "numerador_despues": 0,
+      "conversion_antes": null,
+      "conversion_despues": null
+    },
+    {
+      "id": "fa2996d6-4d51-4316-be2e-297590b5756e",
+      "nombre": "NOELIA SALAZAR RUIZ",
+      "activo": false,
+      "divisor_antes": 0,
+      "divisor_despues": 0,
+      "numerador_antes": 0,
+      "numerador_despues": 0,
+      "conversion_antes": null,
+      "conversion_despues": null
+    },
+    {
+      "id": "fc9c3b91-eabb-4411-81e9-3ae428298e46",
+      "nombre": "DANIELA ALESSANDRA CASTILLO",
+      "activo": true,
+      "divisor_antes": 65,
+      "divisor_despues": 65,
+      "numerador_antes": 3,
+      "numerador_despues": 3,
+      "conversion_antes": 4.62,
+      "conversion_despues": 4.62
+    }
+  ],
+  "cambian": [
+    {
+      "id": "2c10b18a-a15d-4952-952b-c4ab91b96153",
+      "nombre": "VLADIMIR JURADO",
+      "activo": true,
+      "divisor_antes": 67,
+      "divisor_despues": 67,
+      "numerador_antes": 3,
+      "numerador_despues": 4,
+      "conversion_antes": 4.48,
+      "conversion_despues": 5.97
+    }
+  ],
+  "divisores_iguales": true,
+  "historico": [
+    {
+      "mes": "2025-12-01",
+      "estado": "PASS",
+      "salidas": 7,
+      "cambios_de_datos": [],
+      "marcas_temporales": [
+        {
+          "path": "/metricas/cosecha/madura_hasta",
+          "antes": "2026-10-14T21:27:18.379791+00:00",
+          "despues": "2026-10-14T21:29:24.450797+00:00"
+        },
+        {
+          "path": "/metricas/citas_reales/seguimiento_hasta",
+          "antes": "2026-10-14T21:27:18.379791+00:00",
+          "despues": "2026-10-14T21:29:24.450797+00:00"
+        }
+      ]
+    },
+    {
+      "mes": "2026-01-01",
+      "estado": "PASS",
+      "salidas": 7,
+      "cambios_de_datos": [],
+      "marcas_temporales": [
+        {
+          "path": "/metricas/cosecha/madura_hasta",
+          "antes": "2026-10-14T21:27:18.379791+00:00",
+          "despues": "2026-10-14T21:29:24.450797+00:00"
+        },
+        {
+          "path": "/metricas/citas_reales/seguimiento_hasta",
+          "antes": "2026-10-14T21:27:18.379791+00:00",
+          "despues": "2026-10-14T21:29:24.450797+00:00"
+        }
+      ]
+    },
+    {
+      "mes": "2026-02-01",
+      "estado": "PASS",
+      "salidas": 7,
+      "cambios_de_datos": [],
+      "marcas_temporales": [
+        {
+          "path": "/metricas/cosecha/madura_hasta",
+          "antes": "2026-10-14T21:27:18.379791+00:00",
+          "despues": "2026-10-14T21:29:24.450797+00:00"
+        },
+        {
+          "path": "/metricas/citas_reales/seguimiento_hasta",
+          "antes": "2026-10-14T21:27:18.379791+00:00",
+          "despues": "2026-10-14T21:29:24.450797+00:00"
+        }
+      ]
+    },
+    {
+      "mes": "2026-03-01",
+      "estado": "PASS",
+      "salidas": 7,
+      "cambios_de_datos": [],
+      "marcas_temporales": [
+        {
+          "path": "/metricas/cosecha/madura_hasta",
+          "antes": "2026-10-14T21:27:18.379791+00:00",
+          "despues": "2026-10-14T21:29:24.450797+00:00"
+        },
+        {
+          "path": "/metricas/citas_reales/seguimiento_hasta",
+          "antes": "2026-10-14T21:27:18.379791+00:00",
+          "despues": "2026-10-14T21:29:24.450797+00:00"
+        }
+      ]
+    },
+    {
+      "mes": "2026-04-01",
+      "estado": "PASS",
+      "salidas": 7,
+      "cambios_de_datos": [],
+      "marcas_temporales": [
+        {
+          "path": "/metricas/cosecha/madura_hasta",
+          "antes": "2026-10-14T21:27:18.379791+00:00",
+          "despues": "2026-10-14T21:29:24.450797+00:00"
+        },
+        {
+          "path": "/metricas/citas_reales/seguimiento_hasta",
+          "antes": "2026-10-14T21:27:18.379791+00:00",
+          "despues": "2026-10-14T21:29:24.450797+00:00"
+        }
+      ]
+    },
+    {
+      "mes": "2026-05-01",
+      "estado": "PASS",
+      "salidas": 7,
+      "cambios_de_datos": [],
+      "marcas_temporales": [
+        {
+          "path": "/metricas/cosecha/madura_hasta",
+          "antes": "2026-10-14T21:27:18.379791+00:00",
+          "despues": "2026-10-14T21:29:24.450797+00:00"
+        },
+        {
+          "path": "/metricas/citas_reales/seguimiento_hasta",
+          "antes": "2026-10-14T21:27:18.379791+00:00",
+          "despues": "2026-10-14T21:29:24.450797+00:00"
+        }
+      ]
+    },
+    {
+      "mes": "2026-06-01",
+      "estado": "PASS",
+      "salidas": 7,
+      "cambios_de_datos": [],
+      "marcas_temporales": [
+        {
+          "path": "/metricas/cosecha/madura_hasta",
+          "antes": "2026-10-14T21:27:18.379791+00:00",
+          "despues": "2026-10-14T21:29:24.450797+00:00"
+        },
+        {
+          "path": "/metricas/citas_reales/seguimiento_hasta",
+          "antes": "2026-10-14T21:27:18.379791+00:00",
+          "despues": "2026-10-14T21:29:24.450797+00:00"
+        }
+      ]
+    },
+    {
+      "mes": "2026-07-01",
+      "estado": "PASS",
+      "salidas": 7,
+      "cambios_de_datos": [],
+      "marcas_temporales": [
+        {
+          "path": "/metricas/cosecha/madura_hasta",
+          "antes": "2026-10-14T21:27:18.379791+00:00",
+          "despues": "2026-10-14T21:29:24.450797+00:00"
+        },
+        {
+          "path": "/metricas/citas_reales/seguimiento_hasta",
+          "antes": "2026-10-14T21:27:18.379791+00:00",
+          "despues": "2026-10-14T21:29:24.450797+00:00"
+        }
+      ]
+    },
+    {
+      "mes": "2026-08-01",
+      "estado": "PASS",
+      "salidas": 7,
+      "cambios_de_datos": [],
+      "marcas_temporales": [
+        {
+          "path": "/metricas/cosecha/madura_hasta",
+          "antes": "2026-10-14T21:27:18.379791+00:00",
+          "despues": "2026-10-14T21:29:24.450797+00:00"
+        },
+        {
+          "path": "/metricas/citas_reales/seguimiento_hasta",
+          "antes": "2026-10-14T21:27:18.379791+00:00",
+          "despues": "2026-10-14T21:29:24.450797+00:00"
+        }
+      ]
+    },
+    {
+      "mes": "2026-09-01",
+      "estado": "PASS",
+      "salidas": 7,
+      "cambios_de_datos": [],
+      "marcas_temporales": [
+        {
+          "path": "/metricas/cosecha/madura_hasta",
+          "antes": "2026-10-14T21:27:18.379791+00:00",
+          "despues": "2026-10-14T21:29:24.450797+00:00"
+        },
+        {
+          "path": "/metricas/citas_reales/seguimiento_hasta",
+          "antes": "2026-10-14T21:27:18.379791+00:00",
+          "despues": "2026-10-14T21:29:24.450797+00:00"
+        }
+      ]
+    }
+  ],
+  "huellas_antes": {
+    "fotos": "fc78c0e94638d60939f3950a19b11c69",
+    "pesos": "8b53019eb0786d9bb411cfb2025df004",
+    "contratos": "4a74d9819a9528656c0f129056efaef2",
+    "operaciones": "63c33cbd1175b12b5de963487f50602c",
+    "periodos_cerrados": "24898809569af4b018768327eed39cd6"
+  },
+  "huellas_despues": {
+    "fotos": "fc78c0e94638d60939f3950a19b11c69",
+    "pesos": "8b53019eb0786d9bb411cfb2025df004",
+    "contratos": "4a74d9819a9528656c0f129056efaef2",
+    "operaciones": "63c33cbd1175b12b5de963487f50602c",
+    "periodos_cerrados": "24898809569af4b018768327eed39cd6"
+  },
+  "huellas_iguales": true,
+  "cron_iguales": true,
+  "edges_cambiadas": [],
+  "advisors_seguridad_diferencias": [],
+  "advisors_rendimiento_diferencias": [],
+  "empresa_antes": {
+    "cartera": {
+      "operaciones_upgrade": 20,
+      "capital_renovado_pen": 0,
+      "capital_renovado_usd": 6000,
+      "conversiones_upgrade": 16,
+      "capital_adicional_pen": 0,
+      "capital_adicional_usd": 7000,
+      "conversiones_clientes": 18,
+      "operaciones_renovacion": 2,
+      "conversiones_renovacion": 2,
+      "renovaciones_sin_desglose": 0
+    },
+    "divisor": 905,
+    "analistas": 27,
+    "numerador": 55.05,
+    "conversion_pct": 6.08,
+    "cierres_referidos": 7,
+    "cierres_de_arrastre": 9,
+    "referidos_recibidos": 19,
+    "cierres_no_referidos": 38,
+    "referidos_aporta_pct": 0.12
+  },
+  "empresa_despues": {
+    "cartera": {
+      "operaciones_upgrade": 20,
+      "capital_renovado_pen": 0,
+      "capital_renovado_usd": 6000,
+      "conversiones_upgrade": 17,
+      "capital_adicional_pen": 0,
+      "capital_adicional_usd": 7000,
+      "conversiones_clientes": 18,
+      "operaciones_renovacion": 2,
+      "conversiones_renovacion": 1,
+      "renovaciones_sin_desglose": 0
+    },
+    "divisor": 905,
+    "analistas": 27,
+    "numerador": 56.05,
+    "conversion_pct": 6.19,
+    "cierres_referidos": 7,
+    "cierres_de_arrastre": 9,
+    "referidos_recibidos": 19,
+    "cierres_no_referidos": 38,
+    "referidos_aporta_pct": 0.12
+  },
+  "octubre_diferencias": [
+    {
+      "path": "/metas/vendedores/17/numerador",
+      "antes": 3,
+      "despues": 4
+    },
+    {
+      "path": "/metas/vendedores/17/conversion_real",
+      "antes": 4.48,
+      "despues": 5.97
+    },
+    {
+      "path": "/equipo/nucleo/recalculo_vivo/numerador",
+      "antes": 54.05,
+      "despues": 55.05
+    },
+    {
+      "path": "/equipo/responsables/7/nucleo_numerador",
+      "antes": 3,
+      "despues": 4
+    },
+    {
+      "path": "/equipo/responsables/7/nucleo_conversion_pct",
+      "antes": 4.48,
+      "despues": 5.97
+    },
+    {
+      "path": "/nucleo/5/numerador",
+      "antes": 3,
+      "despues": 4
+    },
+    {
+      "path": "/nucleo/5/conversion_pct",
+      "antes": 4.48,
+      "despues": 5.97
+    },
+    {
+      "path": "/oficial/total/cartera/conversiones_upgrade",
+      "antes": 16,
+      "despues": 17
+    },
+    {
+      "path": "/oficial/total/cartera/conversiones_renovacion",
+      "antes": 2,
+      "despues": 1
+    },
+    {
+      "path": "/oficial/total/numerador",
+      "antes": 55.05,
+      "despues": 56.05
+    },
+    {
+      "path": "/oficial/total/conversion_pct",
+      "antes": 6.08,
+      "despues": 6.19
+    },
+    {
+      "path": "/oficial/cartera/conversiones_upgrade",
+      "antes": 16,
+      "despues": 17
+    },
+    {
+      "path": "/oficial/cartera/conversiones_renovacion",
+      "antes": 2,
+      "despues": 1
+    },
+    {
+      "path": "/metricas/nucleo/upgrades",
+      "antes": 16,
+      "despues": 17
+    },
+    {
+      "path": "/metricas/nucleo/numerador",
+      "antes": 55.05,
+      "despues": 56.05
+    },
+    {
+      "path": "/metricas/nucleo/renovaciones",
+      "antes": 2,
+      "despues": 1
+    },
+    {
+      "path": "/metricas/nucleo/aporte_cartera",
+      "antes": 16,
+      "despues": 17
+    },
+    {
+      "path": "/metricas/nucleo/conversion_pct",
+      "antes": 6.08,
+      "despues": 6.19
+    },
+    {
+      "path": "/metricas/nucleo/recalculo_vivo/numerador",
+      "antes": 55.05,
+      "despues": 56.05
+    },
+    {
+      "path": "/metricas/nucleo/recalculo_vivo/conversion_pct",
+      "antes": 6.08,
+      "despues": 6.19
+    },
+    {
+      "path": "/metricas/citas_reales/seguimiento_hasta",
+      "antes": "2026-10-14T21:27:18.379791+00:00",
+      "despues": "2026-10-14T21:29:24.450797+00:00"
+    },
+    {
+      "path": "/metricas/responsables/7/nucleo_numerador",
+      "antes": 3,
+      "despues": 4
+    },
+    {
+      "path": "/metricas/responsables/7/nucleo_conversion_pct",
+      "antes": 4.48,
+      "despues": 5.97
+    },
+    {
+      "path": "/metricas/conversion_operaciones/detalle/2/categoria",
+      "antes": "renovacion",
+      "despues": "upgrade"
+    },
+    {
+      "path": "/metricas/conversion_operaciones/detalle/2/aporte_numerador",
+      "antes": 0,
+      "despues": 1
+    },
+    {
+      "path": "/metricas/conversion_operaciones/aporte_total",
+      "antes": 16,
+      "despues": 17
+    },
+    {
+      "path": "/episodios/57/categoria",
+      "antes": "renovacion",
+      "despues": "upgrade"
+    },
+    {
+      "path": "/episodios/57/aporte_numerador",
+      "antes": 0,
+      "despues": 1
+    },
+    {
+      "path": "/coordinacion/empresa/cartera/upgrade",
+      "antes": 16,
+      "despues": 17
+    },
+    {
+      "path": "/coordinacion/empresa/cartera/renovacion",
+      "antes": 2,
+      "despues": 1
+    },
+    {
+      "path": "/coordinacion/empresa/numerador",
+      "antes": 55.05,
+      "despues": 56.05
+    },
+    {
+      "path": "/coordinacion/empresa/conversion_pct",
+      "antes": 6.08,
+      "despues": 6.19
+    },
+    {
+      "path": "/coordinacion/empresa/numerador_bruto",
+      "antes": 55.05,
+      "despues": 56.05
+    },
+    {
+      "path": "/coordinacion/analistas/22/cartera/upgrade",
+      "antes": 1,
+      "despues": 2
+    },
+    {
+      "path": "/coordinacion/analistas/22/cartera/renovacion",
+      "antes": 1,
+      "despues": 0
+    },
+    {
+      "path": "/coordinacion/analistas/22/numerador",
+      "antes": 3,
+      "despues": 4
+    },
+    {
+      "path": "/coordinacion/analistas/22/conversion_pct",
+      "antes": 4.48,
+      "despues": 5.97
+    },
+    {
+      "path": "/coordinacion/analistas/22/numerador_bruto",
+      "antes": 3,
+      "despues": 4
+    }
+  ],
+  "oficial_por_vendedor_diferencias": [
+    {
+      "path": "/2c10b18a-a15d-4952-952b-c4ab91b96153/cartera/conversiones_upgrade",
+      "antes": 1,
+      "despues": 2
+    },
+    {
+      "path": "/2c10b18a-a15d-4952-952b-c4ab91b96153/cartera/conversiones_renovacion",
+      "antes": 1,
+      "despues": 0
+    },
+    {
+      "path": "/2c10b18a-a15d-4952-952b-c4ab91b96153/numerador",
+      "antes": 3,
+      "despues": 4
+    },
+    {
+      "path": "/2c10b18a-a15d-4952-952b-c4ab91b96153/conversion_pct",
+      "antes": 4.48,
+      "despues": 5.97
+    }
+  ],
+  "ranking_antes": [
+    "c7917328-6525-42d5-bb22-d8efa8755095",
+    "c2c415de-c981-41cf-9346-13c0fab71026",
+    "75c0933c-9cce-4e5f-ae0e-2b4bfd557a37",
+    "244439ac-dbc7-4d27-91d1-941c5dbc6dd5",
+    "1de5eba1-e6bb-435d-9eff-74286e881d01",
+    "ad36b962-5175-4e4e-b644-e546897c3a85",
+    "d571aeed-e65d-4369-ac86-00a83bf9d389",
+    "2ec5954f-0490-44f2-87cd-af6210f3426f",
+    "76b76c37-e2c2-427c-9196-fdbf6a663986",
+    "fc9c3b91-eabb-4411-81e9-3ae428298e46",
+    "2c10b18a-a15d-4952-952b-c4ab91b96153",
+    "bed9fc40-cb59-4264-9ce2-84c78364a332",
+    "0705094c-42f4-4f25-8f5e-0ce215213d29",
+    "b1943c83-ffa1-4693-806a-eb2aaacd72a3",
+    "7c124080-c310-40d3-b245-794657852968",
+    "1f22b1e3-9b75-4bab-bb41-433964c25e56",
+    "d731f284-eeaa-4c27-b71f-ac4f1d8e96c2",
+    "2d33a809-714f-4115-baa8-bb114284764b",
+    "46222e1e-f368-40c0-bca8-15fdaf42dbea",
+    "4764b8fa-d493-4023-8e82-b51d20fb6579",
+    "4b657849-cde5-4936-8a1a-4f774c364518",
+    "6077e821-aaa6-40d8-812d-eee34c71e046",
+    "62e1a05b-fa30-4834-86b7-c3a9864215ff",
+    "8efe6ff6-5486-4dd5-b9a8-5ad59d3bebfb",
+    "94f6d213-2037-4df6-af06-42816326a0bd",
+    "c026aa64-5303-422e-b985-77bbdc8fd9f9",
+    "df688ab0-7a07-4d8d-9e61-ebf03cfe5197"
+  ],
+  "ranking_despues": [
+    "c7917328-6525-42d5-bb22-d8efa8755095",
+    "c2c415de-c981-41cf-9346-13c0fab71026",
+    "75c0933c-9cce-4e5f-ae0e-2b4bfd557a37",
+    "244439ac-dbc7-4d27-91d1-941c5dbc6dd5",
+    "1de5eba1-e6bb-435d-9eff-74286e881d01",
+    "ad36b962-5175-4e4e-b644-e546897c3a85",
+    "2c10b18a-a15d-4952-952b-c4ab91b96153",
+    "d571aeed-e65d-4369-ac86-00a83bf9d389",
+    "2ec5954f-0490-44f2-87cd-af6210f3426f",
+    "76b76c37-e2c2-427c-9196-fdbf6a663986",
+    "fc9c3b91-eabb-4411-81e9-3ae428298e46",
+    "bed9fc40-cb59-4264-9ce2-84c78364a332",
+    "0705094c-42f4-4f25-8f5e-0ce215213d29",
+    "b1943c83-ffa1-4693-806a-eb2aaacd72a3",
+    "7c124080-c310-40d3-b245-794657852968",
+    "1f22b1e3-9b75-4bab-bb41-433964c25e56",
+    "d731f284-eeaa-4c27-b71f-ac4f1d8e96c2",
+    "2d33a809-714f-4115-baa8-bb114284764b",
+    "46222e1e-f368-40c0-bca8-15fdaf42dbea",
+    "4764b8fa-d493-4023-8e82-b51d20fb6579",
+    "4b657849-cde5-4936-8a1a-4f774c364518",
+    "6077e821-aaa6-40d8-812d-eee34c71e046",
+    "62e1a05b-fa30-4834-86b7-c3a9864215ff",
+    "8efe6ff6-5486-4dd5-b9a8-5ad59d3bebfb",
+    "94f6d213-2037-4df6-af06-42816326a0bd",
+    "c026aa64-5303-422e-b985-77bbdc8fd9f9",
+    "df688ab0-7a07-4d8d-9e61-ebf03cfe5197"
+  ],
+  "produccion_modificada": true,
+  "resultado": "PASS",
+  "auth_http": {
+    "estado": "PASS",
+    "contextos": 7,
+    "archivo": "produccion-http.json"
+  },
+  "branch_retirada": true,
+  "branch_id": "58636694-c82f-46e8-97b4-398ce224569c"
+}
