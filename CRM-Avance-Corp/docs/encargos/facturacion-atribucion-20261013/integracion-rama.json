@@ -1,0 +1,338 @@
+{
+  "destino": "rama",
+  "ejecucion": "e887d5b1-2f1c-4819-a98f-8271fc7dd7cb",
+  "pruebas": [
+    {
+      "nombre": "gerencia previsualiza venta",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "gerencia confirma venta",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "gerencia cambia solo venta",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "gerencia previsualiza atencion_cliente",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "gerencia confirma atencion_cliente",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "gerencia alinea atención sin cambiar venta",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "gerencia previsualiza atencion_persona",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "gerencia confirma atencion_persona",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "gerencia alinea atención sin cambiar venta",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "gerenciaAnalista previsualiza venta",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "gerenciaAnalista confirma venta",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "gerenciaAnalista cambia solo venta",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "gerenciaAnalista previsualiza atencion_cliente",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "gerenciaAnalista confirma atencion_cliente",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "gerenciaAnalista alinea atención sin cambiar venta",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "gerenciaAnalista previsualiza atencion_persona",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "gerenciaAnalista confirma atencion_persona",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "gerenciaAnalista alinea atención sin cambiar venta",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "admin previsualiza venta",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "admin confirma venta",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "admin cambia solo venta",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "admin previsualiza atencion_cliente",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "admin confirma atencion_cliente",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "admin alinea atención sin cambiar venta",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "admin previsualiza atencion_persona",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "admin confirma atencion_persona",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "admin alinea atención sin cambiar venta",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "superadmin previsualiza venta",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "superadmin confirma venta",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "superadmin cambia solo venta",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "superadmin previsualiza atencion_cliente",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "superadmin confirma atencion_cliente",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "superadmin alinea atención sin cambiar venta",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "superadmin previsualiza atencion_persona",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "superadmin confirma atencion_persona",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "superadmin alinea atención sin cambiar venta",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "operaciones previsualiza venta",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "operaciones confirma venta",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "operaciones cambia solo venta",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "operaciones preview atencion_cliente denegado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "operaciones confirm atencion_cliente denegado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "operaciones preview atencion_persona denegado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "operaciones confirm atencion_persona denegado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "supervisor preview venta denegado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "supervisor confirm venta denegado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "supervisor preview atencion_cliente denegado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "supervisor confirm atencion_cliente denegado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "supervisor preview atencion_persona denegado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "supervisor confirm atencion_persona denegado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "vendedor preview venta denegado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "vendedor confirm venta denegado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "vendedor preview atencion_cliente denegado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "vendedor confirm atencion_cliente denegado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "vendedor preview atencion_persona denegado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "vendedor confirm atencion_persona denegado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "revocado preview venta denegado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "revocado confirm venta denegado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "revocado preview atencion_cliente denegado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "revocado confirm atencion_cliente denegado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "revocado preview atencion_persona denegado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "revocado confirm atencion_persona denegado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "anon preview venta denegado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "anon confirm venta denegado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "anon preview atencion_cliente denegado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "anon confirm atencion_cliente denegado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "anon preview atencion_persona denegado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "anon confirm atencion_persona denegado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "servicio preview venta denegado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "servicio confirm venta denegado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "servicio preview atencion_cliente denegado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "servicio confirm atencion_cliente denegado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "servicio preview atencion_persona denegado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "servicio confirm atencion_persona denegado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "Destino Gerencia mueve tarea por persona y conserva cartera operativa",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "admin edita teléfono con asesor legado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "vendedor edita teléfono con asesor legado",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "admin no cambia asesor por PATCH directo",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "vendedor no cambia asesor por PATCH directo",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "servicio no cambia asesor por PATCH directo",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "Baja con reemplazo alinea perfil, persona, lead y tarea",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "Baja conserva capital y dueño histórico de la venta",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "Baja idempotente deja un solo evento",
+      "resultado": "PASS"
+    },
+    {
+      "nombre": "Atención legacy exige preview si mueve venta heredada",
+      "resultado": "PASS"
+    }
+  ]
+}

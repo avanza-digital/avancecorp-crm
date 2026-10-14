@@ -18595,3 +18595,11 @@ EXECUTE solo postgres), el comentario (md5 `4a052fcd…` = el que exige el prefl
 `npm run check` PASS (410 archivos, 6 623 pruebas). **Codex PASS** sobre F4.2-bis y la integración (`fase-4/grupo-b/revision/` del plan). **Despliegue: servidor
 primero** (la migración, por la branch y su merge), **después** `/release-crm` con el texto «citas vencidas o ya realizadas» (la RPC no gana claves: los dos órdenes
 son compatibles; así el texto nuevo nunca describe la regla vieja). Revertir: `supabase/scripts/metricas-reuniones-realizacion/reversa.sql`.
+
+### 2026-10-13 · Atención y venta separadas (verificada para publicación autorizada)
+
+- `20261013192850_crm_atencion_venta_separadas.sql`: núcleos privados, vista previa con versión y confirmación atómica; adaptador `public.reasignar_analista_contrato` y guardia de UPDATE directo de asesor. Miguel autorizó expresamente implementar y probar en banco aislado, tocar esos objetos de `public` y permitir atención completa a Gerencia y administradores del portal. Operaciones conserva solo sus permisos previos de corrección de venta.
+- `20261013193653_crm_atencion_venta_hardening.sql`: ACL mínimas del bloque; `private` no expuesto. Definer solo en puertas que requieren atravesar RLS; núcleos invoker y autorización interna.
+- Banco propio `avancecorp-facturacion-atribucion-20261013`, `127.0.0.1:55483`, esquema productivo sin datos; 338 funciones CRM y 700 privadas con huellas idénticas antes del cambio. 29 aserciones SQL finales PASS, con roles, rollback, cooperativas y foto sellada; HTTP real PostgREST 14.5 con dos sesiones PASS; advisors 7 → 7, sin avisos nuevos. Conflictos traducidos a HTTP 409 en las puertas para evitar reintentos automáticos.
+- Reversa de código: `supabase/scripts/atencion-venta/reversa.sql`; preserva datos e historial. Reversa y reinstalación ensayadas. No modifica snapshots sellados ni el vendedor histórico del ledger de cartera.
+- Estado previo al merge: dos candidatas probadas localmente y en rama Supabase; RLS 3.933 y focal 83 PASS. Publicación de los cuatro pasos autorizada. La venta 001595 ya fue corregida separadamente por la puerta auditada existente. Evidencia, review, delta de advisors y publicación efectiva: `docs/encargos/facturacion-atribucion-20261013/`.

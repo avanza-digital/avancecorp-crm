@@ -15,7 +15,8 @@ import { useEnvioPostventa } from '@/data/use-envio-postventa'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData } from '@/lib/store-context'
 import { mensajeDeError } from '@/data/crm-api'
-import { asignarResponsablePostventa } from '@/data/postventa-api'
+import { previsualizarResponsabilidad, confirmarResponsabilidad, type PreviaResponsabilidad } from '@/data/cambio-responsabilidad-api'
+import { CambioResponsabilidadPrevia } from './cambio-responsabilidad-previa'
 import { refrescarPostventa, useFichaPostventa } from '@/data/postventa-queries'
 import { EMPRESA_NOMBRE, type FichaInversionista, type InversionFuente } from '@/lib/inversionistas'
 import { RETIRO_ETIQUETA, type EstadoRetiro, type RetiroPostventa } from '@/lib/postventa'
@@ -75,7 +76,7 @@ export function PostventaPersona({actor, ficha, retiroElegido, onRetiroCerrado, 
     agendar: <Button className="min-h-11" disabled={deshabilitado || ficha.persona.no_contactar || !ficha.persona.responsable_id}
       onClick={() => setAccion({tipo: 'agendar'})}><CalendarPlus aria-hidden />Agendar gestión</Button>,
     acciones: (!ficha.persona.no_contactar || yo?.rol === 'gerencia') && <div className="flex flex-wrap justify-end gap-1.5">
-        {yo?.rol === 'gerencia' && <Button size="xs" className="min-h-10" variant="outline" disabled={deshabilitado} onClick={() => setAccion({tipo: 'asignar'})}>{ficha.persona.responsable_id ? 'Cambiar responsable' : 'Asignar responsable'}</Button>}
+        {yo?.rol === 'gerencia' && <Button size="xs" className="min-h-10" variant="outline" disabled={deshabilitado} onClick={() => setAccion({tipo: 'asignar'})}>Cambiar quién atiende</Button>}
         {(!ficha.persona.no_contactar || yo?.rol === 'gerencia') && <Button size="xs" className="min-h-10" variant="outline" disabled={deshabilitado} onClick={() => setAccion({tipo: 'veto'})}>{ficha.persona.no_contactar ? 'Levantar No contactar' : 'Marcar No contactar'}</Button>}
     </div>,
     retiros: (q.data?.retiros.length ?? 0) > 0 && <FichaComercialSeccion icono={ClipboardList} titulo="Solicitudes de retiro">
@@ -107,24 +108,30 @@ function AsignarResponsable({ficha, actor, onCerrar, onOcupado}: {ficha: FichaIn
   const [motivo, setMotivo] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState(false)
+  const [previa, setPrevia] = useState<PreviaResponsabilidad | null>(null)
   async function guardar() {
     setOcupado(true); onOcupado(true); setError(null)
     try {
-      await asignarResponsablePostventa(ficha.persona.inversionista_id, responsable, motivo)
+      if (!previa) {
+        setPrevia(await previsualizarResponsabilidad('atencion_persona', ficha.persona.inversionista_id, responsable))
+        return
+      }
+      await confirmarResponsabilidad(previa, motivo)
       await Promise.all([recargar(), refrescarPostventa(actor)]); toast.success('Responsable actualizado.'); onCerrar()
-    } catch (e) {setError(mensajeDeError(e, 'No pudimos actualizar el responsable.'))}
+    } catch (e) {setPrevia(null); setError(mensajeDeError(e, 'No pudimos actualizar el responsable.'))}
     finally {setOcupado(false); onOcupado(false)}
   }
-  return <><DialogHeader><DialogTitle>Asignar responsable de relación</DialogTitle></DialogHeader>
+  return <><DialogHeader><DialogTitle>Cambiar quién atiende al cliente</DialogTitle></DialogHeader>
     <DialogBody className="space-y-3"><Label htmlFor="pv-responsable">Responsable</Label>
-      <Select id="pv-responsable" value={responsable} onChange={e => setResponsable(e.target.value)} disabled={ocupado}>
+      <Select id="pv-responsable" value={responsable} onChange={e => {setResponsable(e.target.value); setPrevia(null)}} disabled={ocupado}>
         <option value="">Selecciona un responsable</option>
         {equipo.filter(m => m.activo && ['vendedor', 'supervisor', 'gerencia'].includes(m.rol_crm)).map(m => <option key={m.perfil_id} value={m.perfil_id}>{m.nombre_completo}</option>)}
       </Select><Label htmlFor="pv-motivo-responsable">Motivo, sin números de documento</Label>
-      <Textarea id="pv-motivo-responsable" value={motivo} onChange={e => setMotivo(e.target.value)} minLength={3} maxLength={500} disabled={ocupado} />
+      <Textarea id="pv-motivo-responsable" value={motivo} onChange={e => {setMotivo(e.target.value); setPrevia(null)}} minLength={3} maxLength={500} disabled={ocupado} />
+      {previa && <CambioResponsabilidadPrevia previa={previa} />}
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
     </DialogBody><DialogFooter><Button variant="outline" onClick={onCerrar} disabled={ocupado}>Cerrar</Button>
-      <Button disabled={ocupado || !responsable || motivo.trim().length < 3} onClick={() => void guardar()}>Guardar responsable</Button></DialogFooter></>
+      <Button disabled={ocupado || !responsable || motivo.trim().length < 3} onClick={() => void guardar()}>{previa ? 'Confirmar cambio de atención' : 'Revisar efecto'}</Button></DialogFooter></>
 }
 function TramitePostventa({actor, ficha, accion, gerencia, onCerrar, onOcupado}: {
   actor: string; ficha: FichaInversionista; accion: Exclude<AccionPersona, {tipo: 'agendar' | 'asignar'}>;
