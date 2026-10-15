@@ -9,6 +9,10 @@ actualizado: 2026-09-25
 
 # 🏠 Inicio — Portal Avance Corp
 
+- ✅ **15/10 08:51 Lima — FORMULARIO 3, PLAN COMPLETADO Y AUTOMATIZACIÓN ACTIVA:** 152 filas conciliadas (116 altas y 36 duplicados); dos ciclos iniciales y nuevas llegadas reales comprobados. Cada cinco minutos; alertas conectadas y controles conservados. Supervisores queda como siguiente trabajo — [[Formulario 3 - fase 6 carga y activación (2026-10-15)]].
+
+- ✅ **15/10 00:28 Lima — FORMULARIO 3, FASE 5 COMPROBADA:** una fila real y un recibo; ejecución repetida sin envío, duplicado ni reasignación. Visible en la cola de Coordinación. n8n sigue apagado; sigue carga supervisada y activación de fase 6. Supervisores se adapta después, por decisión de Miguel — [[Formulario 3 - plan de integración en CRM y activación (2026-10-14)]].
+
 - 🗓️ [[Cierre de mes - plazo de carga por mes decidido por Gerencia (2026-10-14)]] — **15/10: configuración LISTA, falta aplicarla.** Gerencia fija en Hoy el último día de carga de un mes (sin tope; solo meses con metas) y la misma acción reabre el último mes sellado si es el anterior. Reevalúa la conversión «fuera de plazo». Codex r1 y r2 corregidos (el sello vuelve a mirar el plazo con los candados).
 - 🔓 [[Cierre de mes - septiembre reabierto para ventas tardias (2026-10-14)]] — **14/10: SEPTIEMBRE REABIERTO EN PRODUCCIÓN, ciclo diario (job 3) EN PAUSA.** Ventas tardías de septiembre ya se pueden cargar; Qorilazo S/ 20 000 (Astrid) devuelto de 13/10 a 15/09. Sigue: aplicar la configuración de plazo → Gerencia fija septiembre → reactivar job 3.
 - ✅ **14/10 23:17 Lima — FORMULARIO 3 PUBLICADO Y VERIFICADO:** campaña, etiqueta y filtro listos; reglas de FORMULARIO y Coordinación conservadas. Fuente `0fa4a398`, build `build-20261015T041350920Z`. n8n apagado; sigue una fila real controlada en fase 5 — [[Formulario 3 - fase 4 publicada y verificada (2026-10-14)]].
