@@ -1,7 +1,8 @@
 import { expect, test, type Page, type Route } from '@playwright/test'
 import { loginReal, mesPlazoCargaReal, montarBackendReal, plazosCargaMesReal } from './_helpers'
+import { irAModulo } from './_navegacion'
 
-// «Plazo de carga» en Hoy · Gerencia (DISENO.md de plazo-carga-mes): ver hasta
+// «Plazo de carga» en Configuración (Gerencia; DISENO.md de plazo-carga-mes): ver hasta
 // cuándo cuenta cada mes, ampliarlo o reabrir el mes sellado, y leer qué movió.
 // El estado de partida es el de PRODUCCIÓN el 14/10: setiembre reabierto por
 // script, sin decisión y con el plazo normal (10/10) vencido; octubre en curso.
@@ -68,6 +69,7 @@ test('Gerencia ve setiembre vencido, amplía su plazo y lee el resultado', async
   await montarBackendReal(page, { rolCrm: 'gerencia' })
   const { pedidos, fallidas } = await montarPlazo(page, [SEPTIEMBRE, OCTUBRE], (cuerpo) => ({ status: 200, json: acuse(cuerpo) }))
   await loginReal(page)
+  await irAModulo(page, 'Configuración')
 
   const tarjeta = page.getByRole('region', { name: 'Plazo de carga' })
   const setiembre = tarjeta.getByRole('listitem').filter({ hasText: 'Setiembre 2026' })
@@ -120,6 +122,7 @@ test('reabrir setiembre sellado: la negativa del servidor se lee tal cual; al re
     },
   )
   await loginReal(page)
+  await irAModulo(page, 'Configuración')
 
   const tarjeta = page.getByRole('region', { name: 'Plazo de carga' })
   const setiembre = tarjeta.getByRole('listitem').filter({ hasText: 'Setiembre 2026' })

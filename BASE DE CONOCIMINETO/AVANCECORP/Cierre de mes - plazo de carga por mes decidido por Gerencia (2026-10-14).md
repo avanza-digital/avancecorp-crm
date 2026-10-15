@@ -6,7 +6,7 @@ estado: migración APLICADA y verificada en producción (15/10 ~10:40); falta pu
 
 # Cierre de mes — plazo de carga por mes decidido por Gerencia (14/10/2026)
 
-**Qué es.** En Hoy de Gerencia, la tarjeta «Plazo de carga» deja fijar el **último día** en que se
+**Qué es.** En **Configuración** (solo Gerencia; desde el 15/10 por pedido de Miguel, antes estuvo unas horas en Hoy), la tarjeta «Plazo de carga» deja fijar el **último día** en que se
 pueden cargar las ventas de un mes y acreditarse su conversión. Sin decisión, el plazo es el de
 siempre: el día 10 del mes siguiente (cierra a las 00:00 del 11, hora de Lima). Pedido de Miguel
 tras reabrir septiembre ([[Cierre de mes - septiembre reabierto para ventas tardias (2026-10-14)]]):
