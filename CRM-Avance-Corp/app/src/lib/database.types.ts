@@ -4087,6 +4087,47 @@ export type Database = {
         }
         Relationships: []
       }
+      plazos_carga_mes: {
+        Row: {
+          decidido_en: string
+          decidido_por: string
+          id: string
+          motivo: string
+          periodo: string
+          plazo_hasta: string
+          reapertura_id: string | null
+          ultimo_dia: string
+        }
+        Insert: {
+          decidido_en?: string
+          decidido_por: string
+          id?: string
+          motivo: string
+          periodo: string
+          plazo_hasta: string
+          reapertura_id?: string | null
+          ultimo_dia: string
+        }
+        Update: {
+          decidido_en?: string
+          decidido_por?: string
+          id?: string
+          motivo?: string
+          periodo?: string
+          plazo_hasta?: string
+          reapertura_id?: string | null
+          ultimo_dia?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plazos_carga_mes_reapertura_fkey"
+            columns: ["reapertura_id", "periodo"]
+            isOneToOne: false
+            referencedRelation: "reaperturas_mes"
+            referencedColumns: ["id", "periodo"]
+          },
+        ]
+      }
       politica_abandono: {
         Row: {
           actualizado_en: string
@@ -4547,6 +4588,39 @@ export type Database = {
           id?: string
           permite_altas_legacy?: boolean
           revision?: number
+        }
+        Relationships: []
+      }
+      reaperturas_mes: {
+        Row: {
+          decidido_por: string
+          id: string
+          motivo: string
+          periodo: string
+          reabierto_en: string
+          respaldo: Json
+          resumen: Json
+          transaccion: unknown
+        }
+        Insert: {
+          decidido_por: string
+          id?: string
+          motivo: string
+          periodo: string
+          reabierto_en?: string
+          respaldo: Json
+          resumen: Json
+          transaccion?: unknown
+        }
+        Update: {
+          decidido_por?: string
+          id?: string
+          motivo?: string
+          periodo?: string
+          reabierto_en?: string
+          respaldo?: Json
+          resumen?: Json
+          transaccion?: unknown
         }
         Relationships: []
       }
@@ -6464,6 +6538,10 @@ export type Database = {
         }
         Returns: Json
       }
+      fijar_plazo_carga_mes: {
+        Args: { p_motivo: string; p_periodo: string; p_ultimo_dia: string }
+        Returns: Json
+      }
       fijar_politica_llamadas_celular: {
         Args: {
           p_dias_retencion_descartados?: number
@@ -6946,6 +7024,7 @@ export type Database = {
         }
         Returns: Json
       }
+      plazos_carga_mes_fn: { Args: never; Returns: Json }
       politica_rentabilidad_fn: { Args: never; Returns: Json }
       postventa_agenda_fn: { Args: never; Returns: Json }
       postventa_agendar_fn: {

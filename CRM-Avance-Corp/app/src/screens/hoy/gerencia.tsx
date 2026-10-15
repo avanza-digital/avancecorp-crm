@@ -64,6 +64,7 @@ import { RankingVendedoresPanel } from './ranking-vendedores'
 import { AltasNuevasAnalistaPanel } from './altas-nuevas-analista'
 import { ReunionesGerenciaPanel } from './reuniones-gerencia'
 import { AvisoCierreMesPanel } from './aviso-cierre-mes'
+import { PlazoCargaMesPanel } from './plazo-carga-mes'
 import { ResumenGerenciaPanel } from './resumen-gerencia'
 import { DesglosePorEmpresa } from '@/components/app/cierres-externos-seccion'
 import { CompromisosSupervisoresPanel } from './compromisos-supervisores'
@@ -669,6 +670,11 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
           alarma de un ciclo atascado no puede depender de qué pestaña se mire.
           Solo en sesión real — el estado habla de la maquinaria de verdad. */}
       {sesionReal && <AvisoCierreMesPanel />}
+
+      {/* Hasta qué día cuentan las ventas de cada mes, y el botón de Gerencia
+          para ampliarlo o reabrir el mes sellado. Junto al aviso, pero solo en
+          Hoy: es una decisión, no una alarma que tenga que seguir a cada pestaña. */}
+      {sesionReal && esResumen && <PlazoCargaMesPanel />}
 
       {esResumen && <ResumenGestionesHoy />}
       {esResumen && <ResumenGerenciaPanel conversiones={datosConversion} conversionMensual={cumplimientoRankingCargando ? undefined : conversionMensualPaneles} origenFiltrado={origenActivo} fuenteConversion={fuenteActiva} lecturaFuente={lecturaFuentePaneles} reuniones={datosReuniones} equipo={datosEquipoConversionRango} equipoMensual={datosEquipoConversion} meta={meta} cumplimiento={cumplimiento} metaMensual={metaMensualRanking} tc={tipoCambio.tc} cargando={estaCargando(sesionReal, conversiones) || conversionMensualCargando || cumplimientoRankingCargando || estaCargando(sesionReal, reuniones)} rangoCargando={!conversionesDeEjemplo && fuenteCargando} mensualCargando={!conversionesDeEjemplo && (conversionMensualCargando || cumplimientoRankingCargando)} error={errorResumen} modoDemo={modoDemo} onReintentar={() => { reintentarConversiones(); reintentarConversionMensual(); void qCumplimientoRanking.refetch(); reintentarReuniones(); tipoCambio.recargar() }} />}

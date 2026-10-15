@@ -9,6 +9,8 @@ actualizado: 2026-09-25
 
 # 🏠 Inicio — Portal Avance Corp
 
+- 🗓️ [[Cierre de mes - plazo de carga por mes decidido por Gerencia (2026-10-14)]] — **15/10: configuración LISTA, falta aplicarla.** Gerencia fija en Hoy el último día de carga de un mes (sin tope; solo meses con metas) y la misma acción reabre el último mes sellado si es el anterior. Reevalúa la conversión «fuera de plazo». Codex r1 y r2 corregidos (el sello vuelve a mirar el plazo con los candados).
+- 🔓 [[Cierre de mes - septiembre reabierto para ventas tardias (2026-10-14)]] — **14/10: SEPTIEMBRE REABIERTO EN PRODUCCIÓN, ciclo diario (job 3) EN PAUSA.** Ventas tardías de septiembre ya se pueden cargar; Qorilazo S/ 20 000 (Astrid) devuelto de 13/10 a 15/09. Sigue: aplicar la configuración de plazo → Gerencia fija septiembre → reactivar job 3.
 - ✅ **14/10 23:17 Lima — FORMULARIO 3 PUBLICADO Y VERIFICADO:** campaña, etiqueta y filtro listos; reglas de FORMULARIO y Coordinación conservadas. Fuente `0fa4a398`, build `build-20261015T041350920Z`. n8n apagado; sigue una fila real controlada en fase 5 — [[Formulario 3 - fase 4 publicada y verificada (2026-10-14)]].
 
 - ✅ **09/10 tarde — BAJA DE ANALISTA APLICADA EN PRODUCCIÓN** (migración `20261009200000`, PR #233 fusionada `f3efe078`): un analista desactivado ya no aparece; su capital (todos los meses vivos) cuenta al responsable actual del cliente. Pierina → Betzabeth/Vladimir, Noelia → Elizabeth Chiroque, 001570 → Betzabeth; Ivett se queda (sin responsable activo). Septiembre se sella ya con la regla — [[Baja de analista - su capital pasa al responsable actual (2026-10-09)]].
