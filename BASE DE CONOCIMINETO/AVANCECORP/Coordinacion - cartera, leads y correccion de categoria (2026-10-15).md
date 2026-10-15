@@ -19,8 +19,10 @@ Los meses sellados permanecen protegidos. Coordinación consulta Leads y cliente
 escrituras generales, banca, archivos o postventa; mantiene el reparto ya autorizado.
 
 Implementación y pruebas en `CRM-Avance-Corp/supabase/scripts/permisos-coordinacion/`.
-Migraciones preparadas `20261015211217` y `20261015212939`; no aplicadas a producción.
-74 checks SQL y carreras de revocación/sello PASS. Cierre de verificación en `VERIFICACION.md`.
+Migraciones preparadas `20261015211217`, `20261015212939` y `20261015224848`; no aplicadas a producción.
+93 checks SQL y carreras de revocación/sello PASS. Frontend: 6.928 tests y build PASS;
+E2E Docker: 422 PASS, 26 omitidos, cero fallos. Matriz HTTP/Auth completa y gate de realidad
+NOT RUN por falta del entorno correspondiente. Detalle en `VERIFICACION.md`.
 
 Relacionadas: [[Categorización de inversiones - Nuevo Renovación Upgrade]],
 [[Coordinacion - Facturacion y Ranking en lectura (2026-10-12)]],

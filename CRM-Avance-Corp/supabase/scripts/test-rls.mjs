@@ -3001,7 +3001,7 @@ async function testDomicilioLegal(sessions, seed) {
     /fuera de tu cartera/i,
   );
   await expectExpectedFailure(
-    'coordinación no tiene ámbito de cartera y queda fuera',
+    'coordinación no puede escribir el domicilio legal',
     escribir(sessions.coordinador.client, DOMICILIO_OK),
     ['42501', 'P0001'],
     /fuera de tu cartera/i,
@@ -7388,11 +7388,8 @@ async function testMetricasServidor(sessions, seed) {
     }
   }
 
-  // Tanda 2 (20260809144920): la rama de reparto da al coordinador los
-  // AGREGADOS de TODOS los sin-dueño (cola global + bandejas) en resumen y
-  // series — y NADA más. Oraculo: los sin-dueño que ve gerencia por RLS,
-  // leidos inmediatamente antes (la suite es secuencial: nada muta entre
-  // ambas lecturas).
+  // Coordinación consulta el resumen global de Leads. La serie histórica de
+  // reparto conserva su ámbito original de sin-dueño (no se amplía esa RPC).
   const parkGerencia = await positive(
     'gerencia lista los sin-dueno como oraculo del coordinador',
     sessions.gerencia.client.schema('crm').from('leads')
@@ -7406,18 +7403,16 @@ async function testMetricasServidor(sessions, seed) {
     'coordinador llama resumen_cartera_fn',
     sessions.coordinador.client.schema('crm').rpc('resumen_cartera_fn'),
   );
-  if (coordResumen && sinDueno) {
-    const abiertosSinDueno = sinDueno.filter((l) => ETAPAS_ABIERTAS_F1.has(l.etapa));
-    const parkPen = abiertosSinDueno
-      .filter((l) => l.moneda !== 'USD')
-      .reduce((suma, l) => suma + Number(l.monto_estimado ?? 0), 0);
-    const t = coordResumen.data?.totales ?? {};
-    check(t.parkeados === abiertosSinDueno.length && t.asignados === 0,
-      'coordinador ve exactamente los parkeados (rama de reparto) y cero asignados',
-      JSON.stringify({ rpc: t, esperado: abiertosSinDueno.length }));
-    check(Number(coordResumen.data?.capital?.parkeado?.pen ?? -1) === parkPen
-      && Number(coordResumen.data?.capital?.asignado?.pen ?? -1) === 0,
-      'coordinador: el capital parkeado cuadra y el asignado sigue en cero');
+  const gerResumen = await positive(
+    'gerencia consulta el resumen global como oráculo de Coordinación',
+    sessions.gerencia.client.schema('crm').rpc('resumen_cartera_fn'),
+  );
+  if (coordResumen && gerResumen) {
+    check(['parkeados', 'asignados', 'vivos'].every((k) =>
+      coordResumen.data?.totales?.[k] === gerResumen.data?.totales?.[k]),
+    'coordinador ve los mismos totales de leads que gerencia');
+    check(JSON.stringify(coordResumen.data?.capital) === JSON.stringify(gerResumen.data?.capital),
+      'coordinador ve el capital estimado de todos los leads');
   }
   const coordCola = await positive(
     'coordinador llama cola_accion_fn',
@@ -9488,11 +9483,14 @@ async function testFacturacionDiaria(sessions, seed) {
       && !ids.has(seed.profileIdByKey.coordinador) && !ids.has(seed.profileIdByKey.vendInactive),
     'roster de reportes abarca dos equipos y excluye al coordinador y al analista inactivo');
   }
-  const operativo = await positive('Coordinación conserva solo su identidad en el roster operativo',
+  const operativo = await positive('Coordinación consulta el equipo para filtrar la cartera',
     sessions.coordinador.client.schema('crm').rpc('equipo_visible_fn'));
-  check(operativo && Array.isArray(operativo.data) && operativo.data.length === 1
-    && operativo.data[0].perfil_id === seed.profileIdByKey.coordinador,
-    'el roster de reportes no amplía equipo_visible_fn');
+  const equipoGerencia = await positive('Gerencia consulta el equipo completo como oráculo',
+    sessions.gerencia.client.schema('crm').rpc('equipo_visible_fn'));
+  const idsEquipo = (filas) => (filas ?? []).map((fila) => fila.perfil_id).sort().join(',');
+  check(operativo && equipoGerencia && operativo.data?.length > 1
+    && idsEquipo(operativo.data) === idsEquipo(equipoGerencia.data),
+    'Coordinación consulta el mismo equipo que Gerencia');
   for (const quien of ['vend1', 'sup1', 'vendInactive', 'clientBank']) {
     await expectExplicitAuthorizationDenied(`${quien} no ejecuta equipo_reportes_fn`,
       sessions[quien].client.schema('crm').rpc('equipo_reportes_fn'));
@@ -12251,16 +12249,19 @@ async function testCarteraKeyset(sessions, seed) {
       JSON.stringify(nombres));
   }
 
-  // ── El coordinador: 0 filas, pero NO un error ─────────────────────────────
-  // Es la mitad que da sentido a la guardia de admision. Sin esta asercion, la
-  // comparacion "vacio == vacio" del bucle de arriba pasa sin probar nada.
+  // Coordinación tiene consulta global: buscar devuelve la misma página que Gerencia.
   const coordinador = await positive(
     'coordinador ejecuta cartera_pagina_fn (pasa la guardia)',
     sessions.coordinador.client.schema('crm').rpc('cartera_pagina_fn', { p_limite: 50 }),
   );
-  if (coordinador) {
-    check((coordinador.data ?? []).length === 0,
-      'el coordinador recibe 0 filas y NO un 42501 (su ambito de leads es ∅ por diseno)');
+  const paginaGerencia = await positive(
+    'gerencia consulta la misma página como oráculo global',
+    sessions.gerencia.client.schema('crm').rpc('cartera_pagina_fn', { p_limite: 50 }),
+  );
+  if (coordinador && paginaGerencia) {
+    check(coordinador.data?.length > 0 && JSON.stringify(coordinador.data.map((f) => f.id))
+      === JSON.stringify(paginaGerencia.data.map((f) => f.id)),
+    'Coordinación recibe la misma página de leads que Gerencia');
   }
 
   // ── ultimo_contacto_en: mismo valor para todos los que ven el lead ─────────
@@ -13013,9 +13014,9 @@ async function testIdentidadF2bD15(sessions, seed) {
     check(!e4 && r4?.ok === true && r4?.dni_por_puerta === false && cuenta('editada', `select count(*) from crm.leads where id = '${L_V1}' and nota = 'editada por su analista' and distrito = 'Lima' and dni is null`) === 1,
       'D-15 OFF vend1 edita el suyo por editar_lead_fn → escrito (nota, distrito, dni null), dni_por_puerta=false (el UPDATE de hoy)', e4?.message ?? JSON.stringify(r4));
     await expectExpectedFailure('D-15 vend1 editar_lead_fn sin cambios ({}) → 22023', sessions.vend1.client.schema('crm').rpc('editar_lead_fn', { p_lead_id: L_V1, p_cambios: {} }), ['22023'], /sin cambios|inválidos/i);
-    // Matriz de roles (auditor v5 #3): los que no ven el lead (RLS) → P0002 sin sondear; los jerárquicos escriben.
+    // Matriz de roles: sin permiso UPDATE → P0002; consultar el lead no concede edición.
     for (const clave of ['coordinador', 'directorio', 'clientBank', 'vendInactive']) {
-      await expectExpectedFailure(`D-15 ${clave} editar_lead_fn sobre el lead de vend1 → P0002 (la RLS no se lo muestra)`, sessions[clave].client.schema('crm').rpc('editar_lead_fn', { p_lead_id: L_V1, p_cambios: { nota: 'ajena' } }), ['P0002'], /no encontrado/i);
+      await expectExpectedFailure(`D-15 ${clave} editar_lead_fn sobre el lead de vend1 → P0002 (la RLS no permite actualizarlo)`, sessions[clave].client.schema('crm').rpc('editar_lead_fn', { p_lead_id: L_V1, p_cambios: { nota: 'ajena' } }), ['P0002'], /no encontrado/i);
     }
     const { data: r5, error: e5 } = await sessions.sup1.client.schema('crm').rpc('editar_lead_fn', { p_lead_id: L_V1, p_cambios: { nota: 'editada por el supervisor' } });
     check(!e5 && r5?.ok === true && cuenta('editada sup1', `select count(*) from crm.leads where id = '${L_V1}' and nota = 'editada por el supervisor'`) === 1, 'D-15 OFF sup1 edita el lead de su analista (ámbito jerárquico)', e5?.message ?? JSON.stringify(r5));
@@ -13032,9 +13033,8 @@ async function testIdentidadF2bD15(sessions, seed) {
       const { data: r8, error: e8 } = await sessions.vend1.client.schema('crm').rpc('editar_lead_fn', { p_lead_id: L_V1, p_cambios: { dni: DNI_LIBRE, nota: 'con documento por su puerta' } });
       check(!e8 && r8?.ok === true && r8?.dni_por_puerta === true && cuenta('dni y nota', `select count(*) from crm.leads where id = '${L_V1}' and dni = '${DNI_LIBRE}' and nota = 'con documento por su puerta'`) === 1,
         'D-15 ON: DNI libre + nota → el DNI por su puerta (dni_por_puerta=true) y la nota en la misma transacción', e8?.message ?? JSON.stringify(r8));
-      // coordinador no ve el lead (P0002 antes de llamar a la puerta); directorio (lector global) lo VE pero no tiene rol CRM
-      // que edite: la puerta del DNI lo rechaza con 42501 antes de tocar nada.
-      await expectExpectedFailure('D-15 ON coordinador editar_lead_fn con otro DNI → P0002 (la RLS no muestra el lead; la puerta del DNI no llega a llamarse)', sessions.coordinador.client.schema('crm').rpc('editar_lead_fn', { p_lead_id: L_V1, p_cambios: { dni: `7${RUN_IDENTIDAD}193` } }), ['P0002'], /no encontrado/i);
+      // Coordinación y Directorio consultan el lead; la puerta del DNI exige un rol que pueda editarlo.
+      await expectExpectedFailure('D-15 ON coordinador editar_lead_fn con otro DNI → 42501 (consulta no concede edición)', sessions.coordinador.client.schema('crm').rpc('editar_lead_fn', { p_lead_id: L_V1, p_cambios: { dni: `7${RUN_IDENTIDAD}193` } }), ['42501'], /revocado/i);
       await expectExpectedFailure('D-15 ON directorio editar_lead_fn con otro DNI → 42501 (lo ve como lector global, pero la puerta del DNI exige rol CRM que edite)', sessions.directorio.client.schema('crm').rpc('editar_lead_fn', { p_lead_id: L_V1, p_cambios: { dni: `7${RUN_IDENTIDAD}193` } }), ['42501', 'P0002'], /revocado|no encontrado/i);
     } finally {
       flagD15(false);
@@ -15686,15 +15686,14 @@ async function testCierresExternos(sessions, seed) {
       'el lector global ve el estado igual que gerencia (la policy se lo permite)',
       JSON.stringify(estadoDir?.data));
 
-    // El coordinador PASA el gate y recibe vacio: su ambito de leads es ∅, igual
-    // que en cumplimiento_metas_fn. Es 200 con [], no 42501 — quien acota es
-    // `vendedor_ids_visibles`, no la admision.
+    // Coordinación consulta el estado del cierre en toda la empresa.
     const estadoCoord = await positive(
       'coordinador pasa el gate de cierres_estado_fn',
       estado('coordinador', [IDS_CIERRES_EXTERNOS.leadCoop]),
     );
-    check((estadoCoord?.data ?? []).length === 0,
-      'el coordinador recibe la lista VACIA (ambito ∅)', JSON.stringify(estadoCoord?.data));
+    check(estadoCoord?.data?.length === 1
+      && JSON.stringify(estadoCoord.data) === JSON.stringify(estadoGer?.data),
+      'Coordinación recibe el mismo estado del cierre que Gerencia', JSON.stringify(estadoCoord?.data));
 
     await expectExplicitAuthorizationDenied(
       'cliente denegado en cierres_estado_fn',
@@ -16329,16 +16328,13 @@ async function testAtribucionVentas(sessions, seed) {
   );
 }
 
-// ── Categoría por operación (20261009120000) ────────────────────────────────────────────────────────────────────────
-// La puerta crm.corregir_categoria_contrato_fn (solo Gerencia vigente, motivo de 5 a 300, respaldo de la operación de
-// cartera) y los dos triggers. NO escribe en el mundo compartido: las negaciones no escriben y el único camino feliz pide
-// la categoría que el contrato YA tiene ({cambio:false}). La sincronización, el sellado, el PDF, el libro de rentabilidad
-// y la prevención sobre contratos con operación se prueban en el banco (supabase/scripts/categoria-por-operacion/prueba.sql),
-// porque la semilla no trae contratos con operación de cartera. 20261009180000 (sin operación, solo 'nuevo', toda vía): un
-// caso fuera de banda que se deshace; el resto, en el banco (supabase/scripts/categoria-sin-operacion/prueba.sql).
+// ── Corrección manual de categoría (20261015212939) ──────────────────────────
+// La puerta admite Admin/Superadmin, Gerencia y Coordinación, con motivo de 5 a 300.
+// Aquí solo sondas sin escrituras y negativas. Las seis direcciones, conversión, ranking,
+// auditoría y sello mensual se ejercitan en permisos-coordinacion/prueba.sql con rollback.
 async function testCategoriaPorOperacion(sessions, seed) {
   void seed;
-  console.log('\n— Categoría por operación: puerta de Gerencia (autoridad, motivo, respaldo) —');
+  console.log('\n— Corrección manual de categoría: autoridad, motivo y auditoría —');
   const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-categoria'));
   const gerencia = sessions.gerencia.client.schema('crm');
   let contratoId;
@@ -16371,24 +16367,28 @@ async function testCategoriaPorOperacion(sessions, seed) {
   check(!sonda.error && sonda.data?.cambio === false,
     'categoría: Gerencia pidiendo la categoría que ya tiene → {cambio:false} y nada escrito', errorText(sonda.error));
 
-  // Autoridad: solo Gerencia.
+  const sondaCoord = await llamar(sessions.coordinador.client.schema('crm'), 'nuevo', motivo);
+  check(!sondaCoord.error && sondaCoord.data?.cambio === false,
+    'categoría: Coordinación puede corregir; repetir la categoría vigente no escribe', errorText(sondaCoord.error));
+
+  // La consulta global no habilita a los demás roles para corregir.
   await expectExplicitAuthorizationDenied('categoría: anon no corrige', llamar(anon.schema('crm'), 'upgrade', motivo), ['42501', 'PGRST202']);
-  for (const key of ['vend1', 'sup1', 'coordinador', 'directorio']) {
+  for (const key of ['vend1', 'sup1', 'directorio', 'vendInactive']) {
     if (!sessions[key]) continue;
-    await expectExplicitAuthorizationDenied(`categoría: ${key} no corrige (solo Gerencia)`,
+    await expectExplicitAuthorizationDenied(`categoría: ${key} no corrige`,
       llamar(sessions[key].client.schema('crm'), 'upgrade', motivo), ['42501']);
   }
   // Datos.
   await expectExpectedFailure('categoría: motivo en blanco → 22023', llamar(gerencia, 'upgrade', '    '), ['22023'], /motivo/i);
   await expectExpectedFailure('categoría: motivo de 4 caracteres → 22023', llamar(gerencia, 'upgrade', 'abcd'), ['22023'], /motivo/i);
   await expectExpectedFailure('categoría: categoría inválida → 22023', llamar(gerencia, 'otra', motivo), ['22023'], /categor/i);
-  // Respaldo: sin operación de cartera solo cabe 'nuevo'.
-  await expectExpectedFailure('categoría: un contrato sin operación de cartera no pasa a upgrade → 23514',
-    llamar(gerencia, 'upgrade', motivo), ['23514'], /sin operaci[oó]n de cartera solo puede quedar como nuevo/i);
+  // La corrección manual sin operación se verifica con rollback en el banco sintético.
+  await expectExpectedFailure('categoría: Coordinación tampoco puede omitir el motivo → 22023',
+    llamar(sessions.coordinador.client.schema('crm'), 'upgrade', ' '), ['22023'], /motivo/i);
   check(filasDeMotivo() === filasAntes
       && textoFueraDeBanda('categoría: categoría del contrato sonda', `select categoria from public.contratos where id = '${contratoId}'`) === 'nuevo',
     'categoría: ninguna sonda escribió (sin filas de motivo nuevas y el contrato sigue en nuevo)');
-  // 20261009180000: la regla vale para TODA vía, no solo la puerta. Fuera de banda, un UPDATE directo de un contrato
+  // El UPDATE directo sigue sin la excepción de corrección auditada. Fuera de banda, un UPDATE de un contrato
   // legacy sin operación a upgrade, dentro de una subtransacción que termina SIEMPRE en raise (no escribe nada). Se salta
   // si la regla no está desplegada en esta base.
   if (contarFueraDeBanda('categoría: guarda con la regla sin operación',
@@ -17053,9 +17053,8 @@ async function testPotencialLectura(sessions, seed) {
 //       que la RLS de crm.leads deja ver a ese actor, y «sin_marca» el resto. Después borra sus
 //       cuatro marcas y repone la bandera (finally), y comprueba las dos cosas.
 //   3 · La ruta SIN RLS (auditor-rls f3b): crm.resumen_cartera_fn es DEFINER y llama a la cartera
-//       sin RLS. Para quien tiene ámbito de filas sus conteos son los mismos que por la API;
-//       coordinación, que opera el reparto pero no lee leads, NO recibe conteos por nivel ni por la
-//       API ni por el envoltorio. Y el ayudante no se alcanza por PostgREST (esquema private).
+//       sin RLS. Sus conteos son los mismos que por la API, incluida la consulta global de
+//       Coordinación. El ayudante no se alcanza por PostgREST (esquema private).
 // Mismo AISLAMIENTO que el bloque de lectura: la suite se niega a correr contra producción y usa un
 // banco desechable; si el proceso muere a mitad quedan la bandera encendida y hasta cuatro marcas
 // sintéticas (apagar-bandera.sql y un delete de esas filas las reponen). Denegados: dado de baja,
@@ -17093,10 +17092,7 @@ async function testPotencialFiltro(sessions, seed) {
   }
 
   const FN = 'cartera_filtrada_fn';
-  // Coordinación opera el reparto pero su RLS no le deja leer leads: no tiene ámbito de filas y
-  // para ella el potencial no existe (ni conteos ni filtro). Va aparte.
-  const CON_AMBITO = ['vend1', 'vend3', 'sup1', 'sup1Nested', 'sup2', 'gerencia', 'directorio'];
-  const ROLES = [...CON_AMBITO, 'coordinador'];
+  const ROLES = ['vend1', 'vend3', 'sup1', 'sup1Nested', 'sup2', 'gerencia', 'directorio', 'coordinador'];
   const NIVELES = ['estrella', 'tibio', 'frio'];
   const AYUDANTE = 'private.cartera_potencial_fn()';
   const resumenDe = (cliente) => cliente.schema('crm').rpc('resumen_cartera_fn');
@@ -17114,7 +17110,7 @@ async function testPotencialFiltro(sessions, seed) {
                      and (a.grantee not in ('postgres'::regrole, 'authenticated'::regrole) or (a.grantee = 'authenticated'::regrole and a.is_grantable)))`) === 0,
   'cartera_potencial_fn: EXECUTE exactamente para authenticated (ni anon, ni service_role, ni PUBLIC, sin opción de concederlo)');
   check(contarFueraDeBanda('potencial filtro: huella del ayudante',
-    `set search_path = ''; set quote_all_identifiers = off; select (md5(pg_get_functiondef(to_regprocedure('${AYUDANTE}'))) = '73e993d618b203cdbe21e8127f7ea5b4')::int`) === 1,
+    `set search_path = ''; set quote_all_identifiers = off; select (md5(pg_get_functiondef(to_regprocedure('${AYUDANTE}'))) = 'c475709205aed4422a44c852d1b28b81')::int`) === 1,
   'cartera_potencial_fn: el cuerpo es el ensayado (gate, bandera y espejo de leads_select)');
   check(contarFueraDeBanda('potencial filtro: tabla sin grants',
     `select (has_table_privilege('authenticated', 'crm.lead_potencial', 'SELECT') or has_any_column_privilege('authenticated', 'crm.lead_potencial', 'SELECT') or has_table_privilege('anon', 'crm.lead_potencial', 'SELECT') or has_any_column_privilege('anon', 'crm.lead_potencial', 'SELECT'))::int`) === 0,
@@ -17191,20 +17187,7 @@ async function testPotencialFiltro(sessions, seed) {
       `insert into crm.lead_potencial (lead_id, nivel, origen, marcado_por, marcado_en) values ${MARCAS.map((m) =>
         `('${m.lead}', '${m.nivel}', 'manual', '${m.por}', now())`).join(', ')};`);
     fijarBandera(true);
-    // Coordinación: ni conteos ni filtro, por la API y por el envoltorio (que sí cuenta su bandeja).
-    {
-      const porApi = await cartera(sessions.coordinador.client);
-      check(!porApi.error && porApi.data?.resumen && !('potencial' in porApi.data.resumen),
-        'potencial filtro coordinador: encendida → por la API no recibe conteos por nivel',
-        porApi.error ? `${porApi.error.code ?? ''} ${porApi.error.message}` : JSON.stringify(porApi.data?.resumen?.potencial ?? null));
-      await expectExpectedFailure('potencial filtro coordinador: pedir un nivel → 55000 (sin ámbito de filas el filtro no existe)',
-        cartera(sessions.coordinador.client, { p_potencial: 'frio' }), ['55000'], /no est[aá] habilitado/i);
-      const porEnvoltorio = await resumenDe(sessions.coordinador.client);
-      check(!porEnvoltorio.error && porEnvoltorio.data && !('potencial' in porEnvoltorio.data),
-        'potencial filtro coordinador: encendida → resumen_cartera_fn (sin RLS) tampoco le da conteos por nivel',
-        porEnvoltorio.error ? `${porEnvoltorio.error.code ?? ''} ${porEnvoltorio.error.message}` : JSON.stringify(porEnvoltorio.data?.potencial ?? null));
-    }
-    for (const clave of CON_AMBITO) {
+    for (const clave of ROLES) {
       const cliente = sessions[clave].client;
       const todos = await cartera(cliente);
       if (todos.error) {
@@ -17271,6 +17254,7 @@ async function testPotencialFiltro(sessions, seed) {
     check(esLista(await idsDe('sup1', 'frio'), [idDe('luis')]), 'potencial filtro sup1 con frío: el parqueado de su bandeja (luis)');
     check(esLista(await idsDe('sup2', 'tibio'), []), 'potencial filtro sup2 con tibio: maría es de otro equipo');
     check(esLista(await idsDe('gerencia', 'estrella'), [idDe('juan'), idDe('ana')]), 'potencial filtro gerencia con estrella: juan y ana');
+    check(esLista(await idsDe('coordinador', 'estrella'), [idDe('juan'), idDe('ana')]), 'potencial filtro coordinador con estrella: juan y ana de ambos equipos');
     // Negativa cruzada: pedir el analista de OTRO equipo con un nivel no enseña nada ni cuenta nada.
     {
       const { data, error } = await cartera(sessions.vend1.client, { p_vendedor_id: seed.profileIdByKey.vend3, p_potencial: 'estrella' });

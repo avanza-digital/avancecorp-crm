@@ -735,7 +735,7 @@ export function validateFixtureModel() {
   // Un lead es visible para el usuario segun la jerarquia recomputada; la tarea
   // hereda EXACTAMENTE esa visibilidad porque su tenencia se deriva del lead.
   const leadVisibleFor = (user, lead, visibleOwners) => {
-    if (user.crmRole === 'gerencia') return true;
+    if (user.crmRole === 'gerencia' || user.crmRole === 'coordinador') return true;
     if (lead.sellerKey) return visibleOwners.has(lead.sellerKey);
     return lead.supervisorKey ? visibleOwners.has(lead.supervisorKey) : false;
   };

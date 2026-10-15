@@ -25,6 +25,22 @@ select pg_temp.asegurar((select count(*)=1 from crm.tareas),'Coordinación consu
 select pg_temp.asegurar(jsonb_array_length(crm.cartera_filtrada_fn()->'items')=11,'Listado global de Leads');
 select pg_temp.asegurar(jsonb_array_length(crm.cartera_filtrada_fn(p_desde=>'2026-10-01',p_hasta=>'2026-10-15')->'items')=11,'Leads filtrados por recepción');
 select pg_temp.asegurar((select count(*)=11 from crm.cartera_pagina_fn()),'Buscador global de Leads');
+select pg_temp.asegurar((crm.resumen_cartera_fn()->'totales'->>'vivos')::int=11,'Resumen global de Leads');
+select pg_temp.asegurar(pg_temp.estado('select crm.editar_lead_fn(pg_temp.uid(4010),''{"nota":"Edición denegada"}'')')='P0002','RPC de edición de lead no concede UPDATE');
+select pg_temp.asegurar(pg_temp.estado('select crm.editar_lead_fn(pg_temp.uid(4010),''{"dni":"48009999"}'')')='42501','RPC de edición de DNI denegada aunque se consulte el lead');
+reset role;
+insert into crm.multiempresa_flags(nombre,activo) values('potencial_lead',true)
+  on conflict(nombre) do update set activo=true;
+insert into crm.lead_potencial(lead_id,nivel,origen,marcado_por,marcado_en)
+  values(pg_temp.uid(4010),'estrella','manual',pg_temp.uid(4),now());
+set local role authenticated;
+select pg_temp.asegurar(jsonb_array_length(crm.cartera_filtrada_fn(p_potencial=>'estrella')->'items')=1,'Filtro de potencial global');
+select pg_temp.asegurar(crm.potencial_leads_fn(array[pg_temp.uid(4010)])->'items'->0->>'puede_marcar'='false','Consulta de potencial sin permiso para marcar');
+select pg_temp.asegurar((crm.resumen_cartera_fn()->'potencial'->>'estrella')::int=1,'Resumen de potencial global');
+reset role;
+delete from crm.lead_potencial where lead_id=pg_temp.uid(4010);
+update crm.multiempresa_flags set activo=false where nombre='potencial_lead';
+set local role authenticated;
 select pg_temp.asegurar(crm.documento_lead_fn(pg_temp.uid(4010))->>'lead_id'=pg_temp.uid(4010)::text,'Identidad visible en la ficha del lead');
 select pg_temp.asegurar(pg_temp.estado('select crm.conversion_estado_lead_v1(pg_temp.uid(4010))')='00000','Conversión del lead consultable');
 select pg_temp.asegurar(pg_temp.estado('select crm.potencial_leads_fn(array[pg_temp.uid(4010)])')='00000','Potencial del lead consultable');
@@ -37,6 +53,13 @@ select pg_temp.asegurar(crm.inversionista_ficha_fn(pg_temp.uid(110))->'capacidad
 select pg_temp.asegurar(pg_temp.estado('select crm.inversionista_gestion_fn(pg_temp.uid(110))')='42501','Gestión general denegada');
 select pg_temp.asegurar(pg_temp.estado('select crm.inversionista_documento_fn(pg_temp.uid(110),pg_temp.uid(2010),pg_temp.uid(2010))')='42501','Documentos denegados');
 select pg_temp.asegurar(pg_temp.estado('select crm.inversionista_cuentas_fn(pg_temp.uid(110),pg_temp.uid(10),''PEN'')')='42501','Banca denegada');
+select pg_temp.asegurar(crm.postventa_estado_fn()->>'habilitada'='false','Postventa no habilitada para Coordinación');
+select pg_temp.asegurar(pg_temp.estado('select crm.inversionista_corregir_contacto_fn(pg_temp.uid(110),pg_temp.uid(9001),''revision'',''{"nombre_completo":"PRUEBA","telefono":"999111222","domicilio":null}'')')='42501','Corregir contacto no hereda permiso de consulta');
+select pg_temp.asegurar(pg_temp.estado('select crm.inversionista_corregir_coopac_fn(pg_temp.uid(110),pg_temp.uid(2010),pg_temp.uid(9001),''revision'',''{}'')')='42501','Corregir cooperativa no hereda permiso de consulta');
+select pg_temp.asegurar(pg_temp.estado('select crm.postventa_agendar_fn(pg_temp.uid(9001),pg_temp.uid(110),''{}'')')='42501','Agenda de postventa denegada');
+select pg_temp.asegurar(pg_temp.estado('select crm.postventa_veto_fn(pg_temp.uid(9001),pg_temp.uid(110),true,''Motivo sintético'')')='42501','Veto de postventa denegado');
+select pg_temp.asegurar(pg_temp.estado('select crm.postventa_solicitar_retiro_fn(pg_temp.uid(9001),pg_temp.uid(110),pg_temp.uid(2010),''Motivo sintético'')')='42501','Solicitud de retiro denegada');
+select pg_temp.asegurar(pg_temp.estado('select crm.registrar_actividad_v2(pg_temp.uid(9001),pg_temp.uid(4010),''nota'',''Nota sintética'',''{}'')')='42501','Registro de gestión de leads denegado');
 with escritos as (update crm.leads set nota='Intento fuera de permisos' where id=pg_temp.uid(4010) returning id)
 select pg_temp.asegurar(not exists(select 1 from escritos),'Consulta no concede UPDATE de leads');
 select pg_temp.asegurar(pg_temp.estado('insert into crm.actividades(lead_id,tipo,creado_por) values(pg_temp.uid(4010),''nota'',pg_temp.uid(1))')='42501','Consulta no concede actividades');
@@ -55,6 +78,11 @@ do $$ declare n int; r text; begin
     perform pg_temp.asegurar(r='42501','Corrección rechazada para actor '||n);
   end loop;
 end; $$;
+select pg_temp.sesion(9);
+set local role authenticated;
+select pg_temp.asegurar(not exists(select 1 from crm.leads),'Perfil inactivo no lee leads');
+select pg_temp.asegurar(pg_temp.estado('select crm.documento_lead_fn(pg_temp.uid(4010))')='42501','Perfil inactivo no abre identidad del lead');
+reset role;
 select pg_temp.sesion(1);
 set local role authenticated;
 select pg_temp.asegurar(pg_temp.estado('select crm.corregir_categoria_contrato_fn(pg_temp.uid(2010),''otra'',''Categoría mal registrada'')')='22023','Categoría inválida');
@@ -70,9 +98,9 @@ select pg_temp.asegurar(not exists(select to_jsonb(o) from crm.operaciones_carte
   select to_jsonb(p)-'categoria_corregida' from private.operaciones_cartera_clasificadas() p)
   and not exists(select to_jsonb(p)-'categoria_corregida' from private.operaciones_cartera_clasificadas() p except
   select to_jsonb(o) from crm.operaciones_cartera o),'Proyección idéntica sin correcciones, incluidos demo');
-select pg_temp.asegurar((select count(*)=2 and bool_and(categoria='renovacion') from private.capital_episodios(
+select pg_temp.asegurar((select count(*)=2 and sum(monto)=2000 and bool_and(categoria='renovacion') from private.capital_episodios(
   '2026-10-01 00:00:00-05','2026-11-01 00:00:00-05',true,'{}') where contrato_id=pg_temp.uid(2012)
-  and medida in ('desglose_renovado','desglose_adicional')),'Desglose histórico sin corrección conserva su categoría');
+  and tipo in ('desglose_renovado','desglose_adicional')),'Desglose histórico sin corrección conserva su categoría');
 set local session_replication_role=replica;
 update public.contratos set categoria='renovacion' where id=pg_temp.uid(2012);
 update public.contratos set es_demo=false where id=pg_temp.uid(2014);
@@ -101,9 +129,9 @@ select pg_temp.asegurar(not exists(select * from dinero_antes except
   select id,capital,tasa_anual,moneda,fecha_inicio,fecha_vencimiento,analista_cierre_id from public.contratos),'Capital, tasa, fechas y vendedor conservados');
 select pg_temp.asegurar(not exists(select * from relojes_antes except
   select id,confirmado_en,vinculado_en,acreditado_en,fecha_comercial,plazo_hasta from crm.conversion_acreditaciones),'Relojes de conversión conservados');
-select pg_temp.asegurar((select count(*)=2 and bool_and(categoria='upgrade') from private.capital_episodios(
+select pg_temp.asegurar((select count(*)=2 and sum(monto)=2000 and bool_and(categoria='upgrade') from private.capital_episodios(
   '2026-10-01 00:00:00-05','2026-11-01 00:00:00-05',true,'{}') where contrato_id=pg_temp.uid(2012)
-  and medida in ('desglose_renovado','desglose_adicional')),'Desglose corregido reclasificado sin cambiar importes');
+  and tipo in ('desglose_renovado','desglose_adicional')),'Desglose corregido reclasificado sin cambiar importes');
 
 do $$ declare r record; v_cierres int; v_ops int; v_aporte numeric; v_categoria text; begin
   for r in select * from pg_temp.transiciones loop

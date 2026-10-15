@@ -1,3 +1,12 @@
+## 20261015224848 — Consolidar policies de consulta de Coordinación
+
+**PREPARADA, NO APLICADA EN PRODUCCIÓN.** Hardening del bloque de permisos: une mediante
+OR los predicados equivalentes de SELECT original y Coordinación en leads/actividades/tareas;
+verifica huellas, rol y permisividad antes de modificar. Conserva los filtros restrictivos y
+no cambia escrituras. Advisors locales antes/después: mismos 7 avisos, cero nuevos.
+Reversa protegida `../scripts/permisos-coordinacion/reversa-politicas.sql`, antes de las otras
+dos reversas. Replay de las tres + matriz 87 checks PASS. No modifica migraciones ya versionadas.
+
 ## 20261015212939 — Corrección manual auditada de categoría de inversión
 
 **PREPARADA, NO APLICADA EN PRODUCCIÓN.** Pedido y confirmación de Miguel, 15/10/2026:
@@ -10,7 +19,7 @@ tasa, fechas, reloj de captación, identidad única y sellos mensuales. Producto
 admite reclasificación sin relajar sus condiciones económicas. Cambios de funciones por
 huellas verificadas, incluida variante F3. Depende de la migración de consulta siguiente.
 
-Ensayo PostgreSQL 17: 74 checks PASS, reversa/reaplicación PASS y dos carreras (baja CRM/sello)
+Ensayo PostgreSQL 17: 93 checks PASS, reversa/reaplicación PASS y dos carreras (baja CRM/sello)
 PASS. Tipos regenerados localmente. Gate frontend y revisión: ver
 `../scripts/permisos-coordinacion/VERIFICACION.md`. Kit y límites en
 `../scripts/permisos-coordinacion/LEEME.md`. Reversa se niega después de la primera corrección;

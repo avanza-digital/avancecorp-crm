@@ -10,10 +10,12 @@ end; $$;
 create temporary table funciones_antes as
 select p.oid::regprocedure::text as firma,pg_get_functiondef(p.oid) as definicion
 from pg_proc p where p.pronamespace in ('private'::regnamespace,'crm'::regnamespace) and p.prokind='f';
+\ir reversa-politicas.sql
 \ir reversa-categoria.sql
 \ir reversa-consulta.sql
 \ir ../../migrations/20261015211217_crm_coordinacion_consulta_cartera_leads.sql
 \ir ../../migrations/20261015212939_crm_correccion_manual_categoria_inversion.sql
+\ir ../../migrations/20261015224848_crm_coordinacion_unificar_politicas_consulta.sql
 do $$ begin
   if exists(select firma,definicion from funciones_antes except
     select p.oid::regprocedure::text,pg_get_functiondef(p.oid) from pg_proc p
