@@ -31,7 +31,7 @@ insert into crm.equipo (perfil_id, rol_crm, activo) values
 
 -- L1 válido (con TODO lo que puede colgar), L2 convertido, L3 con contrato, L4 de hace 40 días, L5 con reserva,
 -- L6 válido mínimo (para admin), L7 válido (para el mes cerrado), L8 válido (para superadmin), L9 (copias trucadas),
--- L11–L25: un motivo de rechazo aislado cada uno.
+-- L11–L25: un motivo de rechazo aislado cada uno (r2: L12, L18 y L20 ya se pueden borrar). L31–L40: casos de r2.
 insert into crm.leads (id, nombre_completo, telefono, origen, etapa, vendedor_id, activo, creado_en, contrato_id, convertido_en,
   monto_estimado, moneda)
 select ('20000000-0000-4000-8000-' || pg_catalog.lpad(n::text, 12, '0'))::uuid, 'LEAD PRUEBA ' || n,
@@ -40,7 +40,7 @@ select ('20000000-0000-4000-8000-' || pg_catalog.lpad(n::text, 12, '0'))::uuid, 
        case when n = 4 then pg_catalog.now() - interval '40 days' else pg_catalog.now() - interval '2 days' end,
        case when n = 3 then '30000000-0000-4000-8000-000000000003'::uuid end,
        case when n = 2 then pg_catalog.now() - interval '1 day' end, 10000, 'PEN'
-from pg_catalog.generate_series(1, 25) n;
+from pg_catalog.generate_series(1, 58) n;
 
 insert into crm.lead_asignaciones (id, lead_id, ciclo_n, episodio_n, analista_id, motivo_apertura, asignado_en, moneda, origen,
   resultado, resultado_en, finalizado_en, finalizado_por, motivo_cierre,
@@ -53,7 +53,7 @@ select ('40000000-0000-4000-8000-' || pg_catalog.lpad(n::text, 12, '0'))::uuid,
        case when n in (2, 13) then '10000000-0000-4000-8000-000000000003'::uuid end,
        case when n in (2, 13) then 'convertido' end, pg_catalog.now() - interval '2 days', '50000000-0000-4000-8000-000000000001',
        pg_catalog.now(), pg_catalog.now()
-from pg_catalog.generate_series(1, 25) n;
+from pg_catalog.generate_series(1, 58) n;
 insert into crm.lead_asignacion_sla_hitos (id, lead_asignacion_id, primera_gestion_en)
 values ('41000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000001', pg_catalog.now() - interval '1 day');
 insert into crm.lead_sla_ciclos (id, lead_id, ciclo_n, politica_id, iniciado_en, primera_gestion_limite_en, primer_contacto_limite_en)
@@ -170,7 +170,8 @@ insert into siembra values
      '{"lead_id":"20000000-0000-4000-8000-000000000015","episodio_id":"40000000-0000-4000-8000-000000000015"}')),
   ('L16 cierres_avance_anulados', pg_temp.sembrar('crm.cierres_avance_anulados', '{"lead_id":"20000000-0000-4000-8000-000000000016"}')),
   ('L17 ajustes_mes_cerrado', pg_temp.sembrar('crm.ajustes_mes_cerrado', '{"lead_id":"20000000-0000-4000-8000-000000000017"}')),
-  ('L18 solicitudes_tasa', pg_temp.sembrar('crm.solicitudes_tasa', '{"lead_id":"20000000-0000-4000-8000-000000000018"}')),
+  ('L18 solicitudes_tasa', pg_temp.sembrar('crm.solicitudes_tasa', '{"id":"63000000-0000-4000-8000-000000000018","lead_id":"20000000-0000-4000-8000-000000000018","estado":"pendiente","categoria":"nuevo"}')),
+  ('L18 envio push', pg_temp.sembrar('crm.envios_push_tasa', '{"solicitud_id":"63000000-0000-4000-8000-000000000018"}')),
   ('L19 inversion_solicitudes', pg_temp.sembrar('crm.inversion_solicitudes', '{"lead_origen_id":"20000000-0000-4000-8000-000000000019"}')),
   ('L20 inversionista_leads', pg_temp.sembrar('crm.inversionista_leads', '{"lead_id":"20000000-0000-4000-8000-000000000020"}')),
   ('L21 inversionista_operaciones', pg_temp.sembrar('crm.inversionista_operaciones', '{"lead_id":"20000000-0000-4000-8000-000000000021"}')),
@@ -208,6 +209,9 @@ begin
   execute 'set local role authenticated';
   v_res := crm.eliminar_lead_error_carga(p_lead, p_motivo);
   execute 'reset role';
+  -- La sesión simulada no debe filtrarse a los casos siguientes (los candados miran auth.uid()).
+  perform pg_catalog.set_config('request.jwt.claims', '', true);
+  perform pg_catalog.set_config('request.jwt.claim.sub', '', true);
   insert into pg_temp.r (caso, esperado, obtenido, ok) values (p_caso, 'OK', v_res::text, coalesce((v_res ->> 'ok')::boolean, false));
   return v_res;
 end $$;
@@ -280,19 +284,226 @@ begin
     'P0409 No se puede eliminar este lead: .*' || p_msg);
 end $s$;
 select pg_temp.rechazo(11, null, 'está enlazado a un perfil de cliente');
-select pg_temp.rechazo(12, null, 'está enlazado a un inversionista');
+-- r2: una ficha de inversionista sin dinero ya no frena (se borra con el lead); ver también el bloque 2b.
+select pg_temp.probar('L12 con ficha sin dinero → se borra (r2)', '10000000-0000-4000-8000-000000000001',
+  '20000000-0000-4000-8000-000000000012', 'cargado por error en prueba', 'OK true');
 select pg_temp.rechazo(13, null, 'tiene una conversión registrada');
 select pg_temp.rechazo(14, 'L14 cierres_externos', 'tiene un cierre en cooperativa');
 select pg_temp.rechazo(15, 'L15 conversion_acreditaciones', 'tiene una conversión acreditada');
 select pg_temp.rechazo(16, 'L16 cierres_avance_anulados', 'tiene un cierre anulado');
 select pg_temp.rechazo(17, 'L17 ajustes_mes_cerrado', 'tiene un ajuste de mes cerrado');
-select pg_temp.rechazo(18, 'L18 solicitudes_tasa', 'tiene solicitudes de tasa');
-select pg_temp.rechazo(19, 'L19 inversion_solicitudes', 'es el origen de una solicitud de inversión');
-select pg_temp.rechazo(20, 'L20 inversionista_leads', 'está en la cartera de inversionistas');
-select pg_temp.rechazo(21, 'L21 inversionista_operaciones', 'está en la cartera de inversionistas');
+select pg_temp.probar('L18 con solicitud de tasa sin usar → se borra (r2)', '10000000-0000-4000-8000-000000000001',
+  '20000000-0000-4000-8000-000000000018', 'cargado por error en prueba', 'OK true');
+select pg_temp.rechazo(19, 'L19 inversion_solicitudes', 'tiene una solicitud de inversión en curso');
+select pg_temp.probar('L20 con enlace a ficha sin dinero → se borra (r2)', '10000000-0000-4000-8000-000000000001',
+  '20000000-0000-4000-8000-000000000020', 'cargado por error en prueba', 'OK true');
+select pg_temp.rechazo(21, 'L21 inversionista_operaciones', 'tiene operaciones de inversionista registradas');
 select pg_temp.rechazo(22, 'L22 busquedas_cliente_existente', 'tiene búsquedas de cliente existente registradas');
 select pg_temp.rechazo(23, 'L23 inversionista_gestiones', 'tiene gestiones de inversionista');
 select pg_temp.rechazo(24, null, 'otro lead tiene tareas o llamadas enlazadas a las suyas');
+
+-- ── 2b · r2 (20261015150731): fichas de inversionista, solicitudes de inversión y de tasa ────────────────────────────
+-- Siembra (sin triggers ni FK). L31: ficha exclusiva y sin dinero con TODO lo que puede colgarle → se borra completa.
+-- L32/L33: ficha compartida. L34: con inversión. L35: fusionada. L36: con perfil. L37: con tarea de inversionista.
+-- L38: solicitud cancelada con revisión. L39: tasa consumida. L40: tasa con movimiento de rentabilidad.
+set local session_replication_role = replica;
+insert into pg_temp.siembra values
+  ('I31 ficha', pg_temp.sembrar('crm.inversionistas', '{"id":"61000000-0000-4000-8000-000000000031"}')),
+  ('I31 enlace', pg_temp.sembrar('crm.inversionista_leads', '{"inversionista_id":"61000000-0000-4000-8000-000000000031","lead_id":"20000000-0000-4000-8000-000000000031"}')),
+  ('I31 identificador', pg_temp.sembrar('crm.inversionista_identificadores', '{"inversionista_id":"61000000-0000-4000-8000-000000000031"}')),
+  ('I31 responsable', pg_temp.sembrar('crm.inversionista_responsables', '{"inversionista_id":"61000000-0000-4000-8000-000000000031"}')),
+  ('I31 gestion', pg_temp.sembrar('crm.inversionista_gestiones', '{"inversionista_id":"61000000-0000-4000-8000-000000000031"}')),
+  ('I31 lectura', pg_temp.sembrar('crm.cartera_lecturas', '{"inversionista_id":"61000000-0000-4000-8000-000000000031"}')),
+  ('I31 contacto', pg_temp.sembrar('crm.inversionista_datos_contacto', '{"inversionista_id":"61000000-0000-4000-8000-000000000031"}')),
+  ('I31 solicitud cancelada', pg_temp.sembrar('crm.inversion_solicitudes', '{"inversionista_id":"61000000-0000-4000-8000-000000000031","lead_origen_id":"20000000-0000-4000-8000-000000000031","estado":"cancelada"}')),
+  ('I32 ficha', pg_temp.sembrar('crm.inversionistas', '{"id":"61000000-0000-4000-8000-000000000032"}')),
+  ('I32 enlace L32', pg_temp.sembrar('crm.inversionista_leads', '{"inversionista_id":"61000000-0000-4000-8000-000000000032","lead_id":"20000000-0000-4000-8000-000000000032"}')),
+  ('I32 enlace L33', pg_temp.sembrar('crm.inversionista_leads', '{"inversionista_id":"61000000-0000-4000-8000-000000000032","lead_id":"20000000-0000-4000-8000-000000000033","rol":"historico"}')),
+  ('I34 ficha', pg_temp.sembrar('crm.inversionistas', '{"id":"61000000-0000-4000-8000-000000000034"}')),
+  ('I34 inversion', pg_temp.sembrar('crm.inversiones', '{"inversionista_id":"61000000-0000-4000-8000-000000000034"}')),
+  ('I35 ficha fusionada', pg_temp.sembrar('crm.inversionistas', '{"id":"61000000-0000-4000-8000-000000000035","inversionista_canonico_id":"61000000-0000-4000-8000-000000000034"}')),
+  ('I36 ficha con perfil', pg_temp.sembrar('crm.inversionistas', '{"id":"61000000-0000-4000-8000-000000000036","perfil_id":"10000000-0000-4000-8000-000000000001"}')),
+  ('I37 ficha', pg_temp.sembrar('crm.inversionistas', '{"id":"61000000-0000-4000-8000-000000000037"}')),
+  ('I37 tarea', pg_temp.sembrar('crm.tareas', '{"inversionista_id":"61000000-0000-4000-8000-000000000037","tipo":"llamada","titulo":"postventa"}')),
+  ('S38 solicitud cancelada', pg_temp.sembrar('crm.inversion_solicitudes', '{"id":"62000000-0000-4000-8000-000000000038","lead_origen_id":"20000000-0000-4000-8000-000000000038","estado":"cancelada"}')),
+  ('S38 revision', pg_temp.sembrar('crm.inversion_solicitud_revisiones', '{"solicitud_id":"62000000-0000-4000-8000-000000000038"}')),
+  ('T39 tasa consumida', pg_temp.sembrar('crm.solicitudes_tasa', '{"id":"63000000-0000-4000-8000-000000000039","lead_id":"20000000-0000-4000-8000-000000000039","estado":"consumida"}')),
+  ('T40 tasa', pg_temp.sembrar('crm.solicitudes_tasa', '{"id":"63000000-0000-4000-8000-000000000040","lead_id":"20000000-0000-4000-8000-000000000040","estado":"rechazada"}')),
+  ('T40 ledger', pg_temp.sembrar('crm.ledger_rentabilidad', '{"solicitud_id":"63000000-0000-4000-8000-000000000040"}'));
+update crm.leads set inversionista_id = '61000000-0000-4000-8000-000000000031' where id = '20000000-0000-4000-8000-000000000031';
+update crm.leads set inversionista_id = '61000000-0000-4000-8000-000000000034' where id = '20000000-0000-4000-8000-000000000034';
+update crm.leads set inversionista_id = '61000000-0000-4000-8000-000000000035' where id = '20000000-0000-4000-8000-000000000035';
+update crm.leads set inversionista_id = '61000000-0000-4000-8000-000000000036' where id = '20000000-0000-4000-8000-000000000036';
+update crm.leads set inversionista_id = '61000000-0000-4000-8000-000000000037' where id = '20000000-0000-4000-8000-000000000037';
+set local session_replication_role = origin;
+-- Si una siembra falla, el caso que depende de ella no prueba nada: se registra como FALLO.
+insert into pg_temp.r (caso, esperado, obtenido, ok)
+select 'siembra r2: ' || s.caso, 'ok', s.resultado, false from pg_temp.siembra s
+where (s.caso like 'I3%' or s.caso like 'S3%' or s.caso like 'T%' or s.caso like 'L18 %') and s.resultado <> 'ok';
+
+-- Rechazos r2.
+select pg_temp.probar('L32 ficha compartida → P0409', '10000000-0000-4000-8000-000000000001',
+  '20000000-0000-4000-8000-000000000032', 'cargado por error en prueba', 'P0409 No se puede eliminar este lead: .*también pertenece a otro lead');
+select pg_temp.probar('L34 ficha con inversión → P0409', '10000000-0000-4000-8000-000000000001',
+  '20000000-0000-4000-8000-000000000034', 'cargado por error en prueba', 'P0409 No se puede eliminar este lead: .*tiene inversiones o cierres');
+select pg_temp.probar('L35 ficha fusionada → P0409', '10000000-0000-4000-8000-000000000001',
+  '20000000-0000-4000-8000-000000000035', 'cargado por error en prueba', 'P0409 No se puede eliminar este lead: .*está fusionada con otra');
+select pg_temp.probar('L36 ficha con perfil de cliente → P0409', '10000000-0000-4000-8000-000000000001',
+  '20000000-0000-4000-8000-000000000036', 'cargado por error en prueba', 'P0409 No se puede eliminar este lead: .*tiene acceso de cliente');
+select pg_temp.probar('L37 ficha con tarea propia → P0409', '10000000-0000-4000-8000-000000000001',
+  '20000000-0000-4000-8000-000000000037', 'cargado por error en prueba', 'P0409 No se puede eliminar este lead: .*tiene historia propia');
+select pg_temp.probar('L38 solicitud cancelada con revisión → P0409', '10000000-0000-4000-8000-000000000001',
+  '20000000-0000-4000-8000-000000000038', 'cargado por error en prueba', 'P0409 No se puede eliminar este lead: .*con revisiones o fuentes');
+select pg_temp.probar('L39 tasa consumida → P0409', '10000000-0000-4000-8000-000000000001',
+  '20000000-0000-4000-8000-000000000039', 'cargado por error en prueba', 'P0409 No se puede eliminar este lead: .*solicitud de tasa ya usada');
+select pg_temp.probar('L40 tasa con movimiento de rentabilidad → P0409', '10000000-0000-4000-8000-000000000001',
+  '20000000-0000-4000-8000-000000000040', 'cargado por error en prueba', 'P0409 No se puede eliminar este lead: .*solicitud de tasa ya usada');
+-- Sin la puerta, la solicitud de tasa sigue sin poder borrarse.
+select pg_temp.borrar_directo('directo solicitudes_tasa', $q$delete from crm.solicitudes_tasa where id = '63000000-0000-4000-8000-000000000039'$q$, 'P0409 Una solicitud de tasa no se borra');
+
+-- L31: ficha exclusiva y sin dinero → se borra el lead con su ficha y todo lo que le cuelga, con copia.
+select pg_temp.ejecutar('L31 con ficha exclusiva se borra completa', '10000000-0000-4000-8000-000000000001',
+  '20000000-0000-4000-8000-000000000031', 'Ficha creada por un registro que no se completó');
+reset role;
+insert into pg_temp.r (caso, esperado, obtenido, ok)
+select 'L31: ficha y anexos borrados', '0', v.n::text, v.n = 0
+from (select (select pg_catalog.count(*) from crm.inversionistas where id = '61000000-0000-4000-8000-000000000031')
+           + (select pg_catalog.count(*) from crm.inversionista_leads where inversionista_id = '61000000-0000-4000-8000-000000000031')
+           + (select pg_catalog.count(*) from crm.inversionista_identificadores where inversionista_id = '61000000-0000-4000-8000-000000000031')
+           + (select pg_catalog.count(*) from crm.inversionista_responsables where inversionista_id = '61000000-0000-4000-8000-000000000031')
+           + (select pg_catalog.count(*) from crm.inversionista_gestiones where inversionista_id = '61000000-0000-4000-8000-000000000031')
+           + (select pg_catalog.count(*) from crm.cartera_lecturas where inversionista_id = '61000000-0000-4000-8000-000000000031')
+           + (select pg_catalog.count(*) from crm.inversionista_datos_contacto where inversionista_id = '61000000-0000-4000-8000-000000000031')
+           + (select pg_catalog.count(*) from crm.inversion_solicitudes where inversionista_id = '61000000-0000-4000-8000-000000000031')
+           + (select pg_catalog.count(*) from crm.leads where id = '20000000-0000-4000-8000-000000000031') n) v;
+insert into pg_temp.r (caso, esperado, obtenido, ok)
+select 'L31: copia con la ficha y sus 8 anexos', 'version 2 · 1 de cada', e.filas::text,
+       (e.copia ->> 'version') = '2'
+       and (e.filas ->> 'inversionistas')::int = 1 and (e.filas ->> 'inversionista_leads')::int = 1
+       and (e.filas ->> 'inversionista_identificadores')::int = 1 and (e.filas ->> 'inversionista_responsables')::int = 1
+       and (e.filas ->> 'inversionista_gestiones')::int = 1 and (e.filas ->> 'cartera_lecturas')::int = 1
+       and (e.filas ->> 'inversionista_datos_contacto')::int = 1 and (e.filas ->> 'inversion_solicitudes')::int = 1
+from crm.leads_eliminados e where e.lead_id = '20000000-0000-4000-8000-000000000031';
+-- Las fichas que NO se podían borrar siguen ahí.
+insert into pg_temp.r (caso, esperado, obtenido, ok)
+select 'fichas rechazadas intactas', '5', v.n::text, v.n = 5
+from (select pg_catalog.count(*) n from crm.inversionistas
+      where id in ('61000000-0000-4000-8000-000000000032', '61000000-0000-4000-8000-000000000034',
+                   '61000000-0000-4000-8000-000000000035', '61000000-0000-4000-8000-000000000036',
+                   '61000000-0000-4000-8000-000000000037')) v;
+
+-- ── 2c · r2 tras revisión (auditor-rls + Codex): pertenencia, cliente, ficha preexistente, saga, veto, historia ─────────
+set local session_replication_role = replica;
+insert into pg_temp.siembra values
+  ('S41 solicitud de otra persona', pg_temp.sembrar('crm.inversion_solicitudes', '{"lead_origen_id":"20000000-0000-4000-8000-000000000041","inversionista_id":"61000000-0000-4000-8000-000000000034","estado":"cancelada"}')),
+  ('I42 ficha', pg_temp.sembrar('crm.inversionistas', '{"id":"61000000-0000-4000-8000-000000000042"}')),
+  ('I42 enlace', pg_temp.sembrar('crm.inversionista_leads', '{"inversionista_id":"61000000-0000-4000-8000-000000000042","lead_id":"20000000-0000-4000-8000-000000000042","rol":"canonico"}')),
+  ('S42 solicitud de otro lead', pg_temp.sembrar('crm.inversion_solicitudes', '{"lead_origen_id":"20000000-0000-4000-8000-000000000043","inversionista_id":"61000000-0000-4000-8000-000000000042","estado":"cancelada"}')),
+  ('T44 tasa de cliente', pg_temp.sembrar('crm.solicitudes_tasa', '{"lead_id":"20000000-0000-4000-8000-000000000044","estado":"rechazada","cliente_id":"10000000-0000-4000-8000-000000000003","categoria":"nuevo"}')),
+  ('I45 ficha', pg_temp.sembrar('crm.inversionistas', '{"id":"61000000-0000-4000-8000-000000000045"}')),
+  ('I45 enlace', pg_temp.sembrar('crm.inversionista_leads', '{"inversionista_id":"61000000-0000-4000-8000-000000000045","lead_id":"20000000-0000-4000-8000-000000000045","rol":"canonico"}')),
+  ('S45 cancelada que fue confirmada', pg_temp.sembrar('crm.inversion_solicitudes', '{"lead_origen_id":"20000000-0000-4000-8000-000000000045","inversionista_id":"61000000-0000-4000-8000-000000000045","estado":"cancelada","confirmado_por":"10000000-0000-4000-8000-000000000001"}')),
+  ('I46 ficha preexistente', pg_temp.sembrar('crm.inversionistas', '{"id":"61000000-0000-4000-8000-000000000046","creado_en":"2026-01-01T00:00:00Z"}')),
+  ('I46 enlace', pg_temp.sembrar('crm.inversionista_leads', '{"inversionista_id":"61000000-0000-4000-8000-000000000046","lead_id":"20000000-0000-4000-8000-000000000046","rol":"canonico"}')),
+  ('I47 ficha', pg_temp.sembrar('crm.inversionistas', '{"id":"61000000-0000-4000-8000-000000000047"}')),
+  ('I47 enlace', pg_temp.sembrar('crm.inversionista_leads', '{"inversionista_id":"61000000-0000-4000-8000-000000000047","lead_id":"20000000-0000-4000-8000-000000000047","rol":"canonico"}')),
+  ('I47 saga', pg_temp.sembrar('crm.multiempresa_idempotencia', '{"clave":"auth_persona:61000000-0000-4000-8000-000000000047","tipo":"alta_cliente"}')),
+  ('I48 ficha con veto', pg_temp.sembrar('crm.inversionistas', '{"id":"61000000-0000-4000-8000-000000000048","no_contactar":true}')),
+  ('I48 enlace', pg_temp.sembrar('crm.inversionista_leads', '{"inversionista_id":"61000000-0000-4000-8000-000000000048","lead_id":"20000000-0000-4000-8000-000000000048","rol":"canonico"}')),
+  ('I49 ficha', pg_temp.sembrar('crm.inversionistas', '{"id":"61000000-0000-4000-8000-000000000049"}')),
+  ('I49 enlace', pg_temp.sembrar('crm.inversionista_leads', '{"inversionista_id":"61000000-0000-4000-8000-000000000049","lead_id":"20000000-0000-4000-8000-000000000049","rol":"canonico"}')),
+  ('I49 reserva', pg_temp.sembrar('crm.conversion_reservas', '{"inversionista_id":"61000000-0000-4000-8000-000000000049","lead_id":"20000000-0000-4000-8000-000000000050"}')),
+  ('I51 ficha', pg_temp.sembrar('crm.inversionistas', '{"id":"61000000-0000-4000-8000-000000000051"}')),
+  ('I51 enlace', pg_temp.sembrar('crm.inversionista_leads', '{"inversionista_id":"61000000-0000-4000-8000-000000000051","lead_id":"20000000-0000-4000-8000-000000000051","rol":"canonico"}')),
+  ('I51 identificador', pg_temp.sembrar('crm.inversionista_identificadores', '{"id":"64000000-0000-4000-8000-000000000051","inversionista_id":"61000000-0000-4000-8000-000000000051","documento_normalizado":"10000051"}')),
+  ('I51 cotitular', pg_temp.sembrar('crm.inversion_cotitular_origenes', '{"identificador_origen_id":"64000000-0000-4000-8000-000000000051"}')),
+  ('I52 ficha', pg_temp.sembrar('crm.inversionistas', '{"id":"61000000-0000-4000-8000-000000000052"}')),
+  ('I52 enlace', pg_temp.sembrar('crm.inversionista_leads', '{"inversionista_id":"61000000-0000-4000-8000-000000000052","lead_id":"20000000-0000-4000-8000-000000000052","rol":"canonico"}')),
+  ('I52 identificador', pg_temp.sembrar('crm.inversionista_identificadores', '{"id":"64000000-0000-4000-8000-000000000052","inversionista_id":"61000000-0000-4000-8000-000000000052","documento_normalizado":"10000052"}')),
+  ('I52 operacion', pg_temp.sembrar('crm.inversionista_operaciones', '{"identificador_nuevo_id":"64000000-0000-4000-8000-000000000052"}')),
+  ('I53 ficha', pg_temp.sembrar('crm.inversionistas', '{"id":"61000000-0000-4000-8000-000000000053"}')),
+  ('I53 enlace', pg_temp.sembrar('crm.inversionista_leads', '{"inversionista_id":"61000000-0000-4000-8000-000000000053","lead_id":"20000000-0000-4000-8000-000000000053","rol":"canonico"}')),
+  ('I53 backfill', pg_temp.sembrar('crm.backfill_multiempresa_mapa', '{"inversionista_id":"61000000-0000-4000-8000-000000000053"}')),
+  ('I54 ficha', pg_temp.sembrar('crm.inversionistas', '{"id":"61000000-0000-4000-8000-000000000054"}')),
+  ('I54 enlace', pg_temp.sembrar('crm.inversionista_leads', '{"inversionista_id":"61000000-0000-4000-8000-000000000054","lead_id":"20000000-0000-4000-8000-000000000054","rol":"canonico"}')),
+  ('I54 otra ficha fusionada en ella', pg_temp.sembrar('crm.inversionistas', '{"inversionista_canonico_id":"61000000-0000-4000-8000-000000000054"}'));
+set local session_replication_role = origin;
+insert into pg_temp.r (caso, esperado, obtenido, ok)
+select 'siembra 2c: ' || s.caso, 'ok', s.resultado, false from pg_temp.siembra s
+where (s.caso ~ '^(S4|I4|I5|T44)') and s.resultado <> 'ok';
+
+select pg_temp.probar('L41 solicitud de otra persona → P0409', '10000000-0000-4000-8000-000000000001',
+  '20000000-0000-4000-8000-000000000041', 'cargado por error en prueba', 'P0409 No se puede eliminar este lead: .*solicitud de inversión de otra persona');
+select pg_temp.probar('L42 ficha con solicitud de otro lead → P0409', '10000000-0000-4000-8000-000000000001',
+  '20000000-0000-4000-8000-000000000042', 'cargado por error en prueba', 'P0409 No se puede eliminar este lead: .*tiene solicitudes de otro lead');
+select pg_temp.probar('L44 tasa de un cliente → P0409', '10000000-0000-4000-8000-000000000001',
+  '20000000-0000-4000-8000-000000000044', 'cargado por error en prueba', 'P0409 No se puede eliminar este lead: .*solicitud de tasa de un cliente');
+select pg_temp.probar('L45 solicitud cancelada que fue confirmada → P0409', '10000000-0000-4000-8000-000000000001',
+  '20000000-0000-4000-8000-000000000045', 'cargado por error en prueba', 'P0409 No se puede eliminar este lead: .*solicitud de inversión en curso');
+select pg_temp.probar('L46 ficha anterior al lead → P0409', '10000000-0000-4000-8000-000000000001',
+  '20000000-0000-4000-8000-000000000046', 'cargado por error en prueba', 'P0409 No se puede eliminar este lead: .*ya existía antes del lead');
+select pg_temp.probar('L47 ficha con alta al portal en proceso → P0409', '10000000-0000-4000-8000-000000000001',
+  '20000000-0000-4000-8000-000000000047', 'cargado por error en prueba', 'P0409 No se puede eliminar este lead: .*alta al portal en proceso');
+select pg_temp.probar('L48 persona pidió no ser contactada → P0409', '10000000-0000-4000-8000-000000000001',
+  '20000000-0000-4000-8000-000000000048', 'cargado por error en prueba', 'P0409 No se puede eliminar este lead: .*pidió no ser contactada');
+select pg_temp.probar('L49 ficha con reserva de conversión → P0409', '10000000-0000-4000-8000-000000000001',
+  '20000000-0000-4000-8000-000000000049', 'cargado por error en prueba', 'P0409 No se puede eliminar este lead: .*tiene inversiones o cierres');
+select pg_temp.probar('L51 identificador usado como cotitular → P0409', '10000000-0000-4000-8000-000000000001',
+  '20000000-0000-4000-8000-000000000051', 'cargado por error en prueba', 'P0409 No se puede eliminar este lead: .*tiene historia propia');
+select pg_temp.probar('L52 identificador en una operación → P0409', '10000000-0000-4000-8000-000000000001',
+  '20000000-0000-4000-8000-000000000052', 'cargado por error en prueba', 'P0409 No se puede eliminar este lead: .*tiene historia propia');
+select pg_temp.probar('L53 ficha en el mapa de backfill → P0409', '10000000-0000-4000-8000-000000000001',
+  '20000000-0000-4000-8000-000000000053', 'cargado por error en prueba', 'P0409 No se puede eliminar este lead: .*tiene historia propia');
+select pg_temp.probar('L54 otra ficha fusionada en la suya → P0409', '10000000-0000-4000-8000-000000000001',
+  '20000000-0000-4000-8000-000000000054', 'cargado por error en prueba', 'P0409 No se puede eliminar este lead: .*está fusionada con otra');
+
+-- El candado de tasa con la excepción: el permiso puesto a mano sin copia no abre; una copia trucada solo abre con todo
+-- en regla (control positivo) y no desde otra transacción.
+select pg_temp.borrar_directo('tasa: permiso a mano sin copia', $q$do $d$ begin perform set_config('crm.borrado_lead_error', '20000000-0000-4000-8000-000000000039', true); perform set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000001', true); delete from crm.solicitudes_tasa where id = '63000000-0000-4000-8000-000000000039'; end $d$$q$, 'P0409 Una solicitud de tasa no se borra');
+create function pg_temp.trucar_tasa(p_caso text, p_tx text, p_esperado text) returns void language plpgsql as $s$
+declare v_fila jsonb;
+begin
+  select pg_catalog.to_jsonb(t) into v_fila from crm.solicitudes_tasa t where t.id = '63000000-0000-4000-8000-000000000039';
+  perform pg_temp.borrar_directo(p_caso, pg_catalog.format($q$do $d$ begin
+      insert into crm.leads_eliminados (lead_id, motivo, eliminado_por, rol_actor, copia, filas, transaccion)
+      values ('20000000-0000-4000-8000-000000000039', 'motivo de prueba', '10000000-0000-4000-8000-000000000001', 'gerencia',
+              %L, '{}', coalesce(%L::xid8, pg_catalog.pg_current_xact_id()));
+      perform pg_catalog.set_config('crm.borrado_lead_error', '20000000-0000-4000-8000-000000000039', true);
+      perform pg_catalog.set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000001', true);
+      delete from crm.solicitudes_tasa where id = '63000000-0000-4000-8000-000000000039';
+      if not found then raise exception 'NO BORRÓ'; end if;
+    end $d$$q$, pg_catalog.jsonb_build_object('lead', '{}'::jsonb, 'solicitudes_tasa', pg_catalog.jsonb_build_array(v_fila)), p_tx), p_esperado);
+end $s$;
+select pg_temp.trucar_tasa('tasa trucada: control positivo', null, 'BORRÓ');
+select pg_temp.trucar_tasa('tasa trucada: copia de otra transacción', '1', 'P0409 Una solicitud de tasa no se borra');
+
+-- Ficha anterior al lead (Codex r2): solo pasa la que nació CON el lead (<1 s antes y con el documento del lead).
+set local session_replication_role = replica;
+insert into pg_temp.siembra
+select 'I5' || n || ' ficha', pg_temp.sembrar('crm.inversionistas', pg_catalog.jsonb_build_object(
+         'id', '61000000-0000-4000-8000-0000000000' || n,
+         'creado_en', (select l.creado_en - case n when 56 then interval '1 millisecond' when 57 then interval '30 seconds' else interval '500 milliseconds' end
+                       from crm.leads l where l.id = ('20000000-0000-4000-8000-0000000000' || n)::uuid)))
+from pg_catalog.generate_series(56, 58) n
+union all
+select 'I5' || n || ' enlace', pg_temp.sembrar('crm.inversionista_leads', pg_catalog.jsonb_build_object(
+         'inversionista_id', '61000000-0000-4000-8000-0000000000' || n, 'lead_id', '20000000-0000-4000-8000-0000000000' || n, 'rol', 'canonico'))
+from pg_catalog.generate_series(56, 58) n
+union all
+select 'I5' || n || ' identificador', pg_temp.sembrar('crm.inversionista_identificadores', pg_catalog.jsonb_build_object(
+         'inversionista_id', '61000000-0000-4000-8000-0000000000' || n, 'documento_normalizado', '200000' || n,
+         'fuente', case n when 56 then 'documento_lead' else 'conversion_inversion' end))
+from pg_catalog.generate_series(56, 57) n;
+set local session_replication_role = origin;
+insert into pg_temp.r (caso, esperado, obtenido, ok)
+select 'siembra 2d: ' || s.caso, 'ok', s.resultado, false from pg_temp.siembra s where s.caso ~ '^I5[678]' and s.resultado <> 'ok';
+select pg_temp.probar('L56 ficha nacida con el lead (1 ms antes, documento del lead) → se borra', '10000000-0000-4000-8000-000000000001',
+  '20000000-0000-4000-8000-000000000056', 'cargado por error en prueba', 'OK true');
+select pg_temp.probar('L57 ficha de otro origen 30 s antes del lead → P0409', '10000000-0000-4000-8000-000000000001',
+  '20000000-0000-4000-8000-000000000057', 'cargado por error en prueba', 'P0409 No se puede eliminar este lead: .*ya existía antes del lead');
+select pg_temp.probar('L58 ficha sin documento 0,5 s antes del lead → P0409', '10000000-0000-4000-8000-000000000001',
+  '20000000-0000-4000-8000-000000000058', 'cargado por error en prueba', 'P0409 No se puede eliminar este lead: .*ya existía antes del lead');
+
 savepoint mes;
 set local session_replication_role = replica;
 insert into pg_temp.siembra values ('mes cerrado', pg_temp.sembrar('crm.periodos_cerrados',
@@ -313,6 +524,8 @@ select caso, esperado, obtenido, ok::text as ok from pg_temp.r order by n desc l
 rollback to savepoint fk;
 insert into pg_temp.r (caso, esperado, obtenido, ok) values (:'sp_caso', :'sp_esperado', :'sp_obtenido', :'sp_ok'::boolean);
 -- Misma tabla, misma columna de origen y misma acción, pero OTRA columna de destino: también es desconocida (Codex r2).
+-- Un ALTER TABLE no admite eventos de trigger pendientes (la FK diferida de los recibos tras los borrados de arriba).
+set constraints all immediate;
 savepoint fk2;
 alter table crm.leads add column zz_clave_alterna uuid unique;
 alter table crm.llamadas_celular_eventos add constraint zz_prueba_fk_alterna
@@ -452,7 +665,7 @@ begin
   end;
 end $s$;
 insert into pg_temp.r (caso, esperado, obtenido, ok)
-select 'listar: gerencia ve las 3 eliminaciones', 'FILAS 3', x, x = 'FILAS 3'
+select 'listar: gerencia ve las 4 eliminaciones', 'FILAS 4', x, x = 'FILAS 4'
 from pg_temp.listar('10000000-0000-4000-8000-000000000001') x;
 insert into pg_temp.r (caso, esperado, obtenido, ok)
 select 'listar: admin del portal → 42501', '42501', x, x like '42501%'

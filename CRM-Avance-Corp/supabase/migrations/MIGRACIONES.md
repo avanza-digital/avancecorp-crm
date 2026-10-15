@@ -1,3 +1,24 @@
+## 20261015150731 — Eliminar lead: también con ficha de inversionista sin dinero (r2)
+
+**PROBADA EN BANCO DOCKER; PENDIENTE DE OK DE MIGUEL; NO APLICADA.** Pedido de Miguel (15/10): «yo quiero borrar
+cualquier tipo de lead»; el que tiene contrato, inversión, cierre o conversión es cliente y nunca se borra; se mantienen
+30 días y mes sellado. `crm.eliminar_lead_error_carga` (misma firma y grants) ya no rechaza por inversionista: borra con
+el lead sus fichas de inversionista si son SOLO suyas, nacieron con o después del lead, y no tienen dinero ni historia
+propia (perfil o alta al portal, otro lead, inversiones, cierres, reservas, acreditaciones, postventa, fusiones,
+cotitulares, operaciones, tareas, búsquedas, backfill, veto «no contactar»), con su enlace, identificadores,
+responsables, gestiones sin tarea, lecturas, datos de contacto y solicitudes de inversión canceladas (de ESTE lead y SU
+ficha, nunca confirmadas, sin revisiones ni fuentes). Solicitud de tasa sin usar y no de un cliente → se borra con sus
+envíos push; el candado `private.trg_solicitudes_tasa_solo_por_puerta` gana la misma excepción de 5 líneas que los otros 8.
+Orden de bloqueo ficha → lead (como `crm.reservar_conversion_lead`); enlaces y gestiones bloqueados antes de validar.
+Medido en producción: de 3.535 leads no clientes, 7 con ficha; 5 quedan borrables (2 tienen perfil de cliente).
+
+Banco `banco-elimlead-20261014`: pre/postflight en verde (huella de la puerta r2 `15ce9327e21306ec9682552815936e71`);
+`test-eliminar-lead.sql` **100/100 PASS** (incluye 31 casos nuevos de r2); carrera de dos conexiones (el enlace de la ficha
+se mueve a otro lead mientras se borra → espera y rechaza, nada borrado); reversa-r2 → huellas exactas de producción y
+se niega si algo cambió. Review: auditor-rls (CHANGES_REQUESTED, 1 P1 de tasa de cliente) y Codex 2 rondas (2 P1 de
+pertenencia y bloqueo, cerrados; 1 P2 de ficha preexistente, cerrado); todo aceptado. `test-rls.mjs` ampliado
+(preflight PASS; contra base NOT RUN). Sin cambios de pantalla. Reversa: `../scripts/eliminar-lead-error-carga/reversa-r2.sql`.
+
 ## 20261015044917 — Eliminar lead por error de carga
 
 **APLICADA EN PRODUCCIÓN 15/10/2026 ~00:55 Lima** (Miguel, `supabase db query --linked --file`; PR #283 fusionada
