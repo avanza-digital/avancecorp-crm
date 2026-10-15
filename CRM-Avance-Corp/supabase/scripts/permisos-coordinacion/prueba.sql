@@ -71,7 +71,7 @@ select pg_temp.asegurar(not exists(select to_jsonb(o) from crm.operaciones_carte
   and not exists(select to_jsonb(p)-'categoria_corregida' from private.operaciones_cartera_clasificadas() p except
   select to_jsonb(o) from crm.operaciones_cartera o),'Proyección idéntica sin correcciones, incluidos demo');
 select pg_temp.asegurar((select count(*)=2 and bool_and(categoria='renovacion') from private.capital_episodios(
-  '2026-10-01 00:00:00-05','2026-11-01 00:00:00-05',true,'{}') where fuente_id=pg_temp.uid(2012)
+  '2026-10-01 00:00:00-05','2026-11-01 00:00:00-05',true,'{}') where contrato_id=pg_temp.uid(2012)
   and medida in ('desglose_renovado','desglose_adicional')),'Desglose histórico sin corrección conserva su categoría');
 set local session_replication_role=replica;
 update public.contratos set categoria='renovacion' where id=pg_temp.uid(2012);
@@ -102,7 +102,7 @@ select pg_temp.asegurar(not exists(select * from dinero_antes except
 select pg_temp.asegurar(not exists(select * from relojes_antes except
   select id,confirmado_en,vinculado_en,acreditado_en,fecha_comercial,plazo_hasta from crm.conversion_acreditaciones),'Relojes de conversión conservados');
 select pg_temp.asegurar((select count(*)=2 and bool_and(categoria='upgrade') from private.capital_episodios(
-  '2026-10-01 00:00:00-05','2026-11-01 00:00:00-05',true,'{}') where fuente_id=pg_temp.uid(2012)
+  '2026-10-01 00:00:00-05','2026-11-01 00:00:00-05',true,'{}') where contrato_id=pg_temp.uid(2012)
   and medida in ('desglose_renovado','desglose_adicional')),'Desglose corregido reclasificado sin cambiar importes');
 
 do $$ declare r record; v_cierres int; v_ops int; v_aporte numeric; v_categoria text; begin
