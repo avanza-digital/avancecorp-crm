@@ -70,14 +70,22 @@ guardada en un reintento (el escritor tampoco la refresca en su rama de reintent
 metas fuera del sellado), sin P0/P1; confirmó las correcciones r1; aceptado: solo meses con metas admiten plazo y
 reapertura (`private.fijar_plazo_carga` 22023 tras los candados y antes de mirar el sello; `private.reapertura_impedimento`
 con su motivo). Con esa regla, la rama «meses abiertos con decisión» de la lectura queda redundante (se conserva).
+**Primer ensayo en producción (15/10, 01:15): NEGADO sin escribir** en el postflight: `crm.cerrar_periodo(date)` está
+DECLARADA en el censo analítico de producción (`private.analitica_leads_citas_exenciones`, clase analitica, huella
+`8073f806…`) y el banco de solo esquema no tenía esa fila. Corregido con la plantilla de `20261013145852`: candados del
+censo, preflight (huella normalizada viva, declaración vigente, sello al día), RE-SELLADO de su huella a la del cuerpo
+nuevo (`4b89856a…`) y del sello de la lista, postflight de todas las declaraciones y del tope; la reversa re-sella de
+vuelta. Probado sobre los registros REALES de producción (`leer-registros-produccion.sql`: 43 declaraciones, sello
+`412aba2d…` igual al calculado, F7, vigencia y auditoría): el ensayo exacto pasa y la foto de trinquetes queda igual.
 **Verificación local** (banco Docker propio, esquema de producción del 14/10 sin datos + #280, 1049 funciones
 crm+private): `prueba.sql` 186 casos PASS (12 bloques; B12: con un mes ampliado, el ciclo no sella el siguiente y
 `crm.cerrar_periodo` responde «Falta cerrar»); 62/62 mutantes mueren (+4 controles de defensa redundante que sobreviven a
 propósito); dos sesiones 14/14 (otra transacción no hereda la autorización; candados global, mensual y de
 identidad; el sello que esperaba a una ampliación se niega a mano y por el ciclo; mutantes sin candados y con el sello
-de antes); Auth/HTTP real 42 PASS (ampliar y reabrir; `test-rls.mjs --plazo-carga-mes`); transporte 9/9 (el ensayo
-exacto del LEEME sobre un mundo como producción, también cuando la operación simulada falla; la reversa que se niega; el
-registrador); oráculo del cierre de mes 22/22 y `eliminar_inversion` 24 bloques con la migración puesta; foto de los 36
+de antes); Auth/HTTP real 42 PASS (ampliar y reabrir; `test-rls.mjs --plazo-carga-mes`); transporte 21/21 (el ensayo
+exacto del LEEME sobre un mundo con los registros REALES de producción, también cuando la operación simulada falla; el
+ciclo aplicar → registrar → verificar → reversa sobre ese mundo; 5 mutantes del re-sellado que se niegan; la reversa que
+se niega; el registrador); oráculo del cierre de mes 22/22 y `eliminar_inversion` 24 bloques con la migración puesta; foto de los 36
 `assert_*` y de los censos (103 filas) idéntica con y sin la migración; reversa al byte (huella del esquema igual a la de
 antes, `crm.cerrar_periodo` incluido) y reaplicación PASS; plpgsql_check sin avisos en las 11 funciones de una tabla y,
 en `f4_fuente_inmutable` (trigger de tres tablas), los mismos «record has no field» de ramas guardadas por tabla que la
