@@ -326,6 +326,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   // llegan calculados por el mismo núcleo comercial.
   const origenActivo = fuenteActiva === 'landing'
     || fuenteActiva === 'formulario'
+    || fuenteActiva === 'formulario_3'
     || fuenteActiva === 'referido'
     ? fuenteActiva
     : null
@@ -360,6 +361,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   const seleccionMultiple = fuenteActiva != null && typeof fuenteActiva !== 'string' ? fuenteActiva : []
   const conversionLanding = useMetricasConversiones(sesionReal && consultarFuente && seleccionMultiple.includes('landing'), periodoConsultaConversion.desde, periodoConsultaConversion.hasta, 'landing')
   const conversionFormulario = useMetricasConversiones(sesionReal && consultarFuente && seleccionMultiple.includes('formulario'), periodoConsultaConversion.desde, periodoConsultaConversion.hasta, 'formulario')
+  const conversionFormulario3 = useMetricasConversiones(sesionReal && consultarFuente && seleccionMultiple.includes('formulario_3'), periodoConsultaConversion.desde, periodoConsultaConversion.hasta, 'formulario_3')
   const conversionReferido = useMetricasConversiones(sesionReal && consultarFuente && seleccionMultiple.includes('referido'), periodoConsultaConversion.desde, periodoConsultaConversion.hasta, 'referido')
   const conversiones = useMetricasConversiones(
     sesionReal && consultarFuente,
@@ -368,6 +370,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   const consultasFuente = consultarFuente ? [conversiones,
     ...(seleccionMultiple.includes('landing') ? [conversionLanding] : []),
     ...(seleccionMultiple.includes('formulario') ? [conversionFormulario] : []),
+    ...(seleccionMultiple.includes('formulario_3') ? [conversionFormulario3] : []),
     ...(seleccionMultiple.includes('referido') ? [conversionReferido] : []),
   ] : []
   const fuenteCargando = consultasFuente.some((consulta) => estaCargando(sesionReal, consulta))
@@ -536,11 +539,11 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
     if (datosConversion?.periodo?.desde !== periodoConsultaConversion.desde
       || datosConversion?.periodo?.hasta !== periodoConsultaConversion.hasta) return null
     return adaptarAporteConversionRango(datosConversion, fuenteActiva, {
-      landing: conversionLanding.data, formulario: conversionFormulario.data, referido: conversionReferido.data,
+      landing: conversionLanding.data, formulario: conversionFormulario.data, formulario_3: conversionFormulario3.data, referido: conversionReferido.data,
     })
   }, [datosConversion, fuenteActiva, fuenteMensualSellada, fuenteMensualPendiente, necesitaConversiones,
     periodoConsultaConversion.desde, periodoConsultaConversion.hasta,
-    conversionLanding.data, conversionFormulario.data, conversionReferido.data])
+    conversionLanding.data, conversionFormulario.data, conversionFormulario3.data, conversionReferido.data])
   const lecturaFuentePaneles = fuenteActiva != null && !conversionesDeEjemplo
     && (fuenteCargando || fuenteMensualPendiente) ? undefined : lecturaFuenteConversion
   const datosEquipoConversionRango = conversionesDeEjemplo

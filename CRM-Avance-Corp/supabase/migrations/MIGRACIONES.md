@@ -1,3 +1,51 @@
+## 20261015173031 — Formulario 3: activación del origen y reclasificación conservadora (B)
+
+**PROBADA EN DOCKER Y RAMA SUPABASE; NO APLICADA NI PUBLICADA EN PRODUCCIÓN.** Requiere A, frontend/Edge compatibles y pestañas del equipo
+renovadas. Drena escritores previos con el bloqueo de `crm.leads` y normaliza productores legados a
+`formulario_3`; no cambia n8n ni sus recibos. Reclasifica exclusivamente `formulario` + campaña exacta
+`Formulario 3`, conservando asignaciones, estado, veto, tareas, historial, ledger y fotos cerradas.
+
+Se detectó un cliente ya convertido durante el desarrollo: B admite solo acreditaciones coherentes,
+no selladas y del mes de alta. Verifica identidad, episodio/analista acreditado, fuente, fecha y confirmación.
+Actualiza primero SOLO el origen acreditado y después el del lead; el retorno temprano de las tres funciones
+comerciales guardadas por huella conserva motivo, relojes y atribución. Meses con try-lock y filas NOWAIT:
+si hay una operación financiera en curso, aborta B sin esperarla reteniendo leads. Comparaciones antes/después
+exigen igualdad de fuentes, inversiones, solicitudes, historial y conversión total, incluida suma
+Formulario + F3 por analista/empresa. Rechaza meses sellados, datos incoherentes o cambios concurrentes.
+
+Ensayos: convertido previo → B → sincronización sin recalcular PASS; tres cierres reales sintéticos
+(manual, automático, legado); mes/fecha/identidad incompatibles sin efectos parciales PASS; dos conexiones
+con mes/fila ocupados rechazan en 0,05/0,04 s y luego reintentan; escritor n8n previo incluido sin duplicados.
+El CHECK de campaña acepta NULL en alta manual F3 o la campaña exacta de importación. No toca permisos de campaña.
+Rama `yefiownpxvembwvfbtfx`: A/B PASS, 116 copiados reclasificados (1 convertido), cero legados restantes;
+huellas de los 3.861 leads/dependencias conservadas salvo orígenes y timestamp técnico permitido.
+Matriz focalizada RLS HTTP + Edge: **111 comprobaciones PASS**, ocho Auth reales. Advisors: cero hallazgos
+nuevos; deuda previa no saneada. Gate RLS general con seed-demo **NOT RUN** sobre copia con datos.
+Los 12 cron se desactivaron; rama y credenciales retiradas el 15/10 a las 20:40 UTC.
+Evidencia y orden: [`formulario3-origen/LEEME.md`](../scripts/formulario3-origen/LEEME.md).
+
+## 20261015171407 — Formulario 3: compatibilidad de origen, reparto y métricas (A)
+
+**PROBADA EN DOCKER Y RAMA SUPABASE; NO APLICADA NI PUBLICADA EN PRODUCCIÓN.** `formulario_3` usa `crm.leads.origen` y las mismas puertas,
+RLS, roles y asignación existentes. Actualiza 22 funciones verificadas por huella, dos CHECKs de catálogo y
+tres helpers privados. F3 es filtro/origen propio y comparte únicamente el turno operativo Formulario
+(dos turnos de agenda). Peso: llegada automática 1, manual 0 y cierre 1; mantiene primer analista y fotos
+históricas. Añade desglose diario por origen en agenda, campo campaña en cola y columnas aditivas F3 de
+conversión; el histórico sin desglose F3 devuelve NULL. Los cuatro retornos recreados conservan firmas de
+entrada, ACL, propietario y dependencias, sin CASCADE. Re-sella solo sus declaraciones del censo, sin
+alterar el tope ni ocultar deuda previa. Cartera encuentra legados por filtro F3 antes del backfill.
+
+Hasta B, el trigger persiste importaciones canónicas con forma legada y rechaza temporalmente altas
+manuales F3; no genera una clave desconocida para el cliente anterior. El ranking vacío conserva su
+catálogo previo. Comparadores de identidad reconocen reintentos legado/canónico en ambos sentidos,
+sin reescribir las huellas originales ni duplicar solicitudes, notas o tareas.
+
+Matriz A/B/ROLLBACK y A persistida/B revertida PASS; solamente 22 contratos + tres helpers, ACL/owners
+conservados; repetición de A rechazada. Roles de vendedor, supervisor, gerencia inactiva y Directorio
+rechazados en Coordinación; helpers sin ejecución API. Tipos regenerados con postgres-meta v0.99.0,
+nueve contratos cotejados. Revisión Claude y agentes propios evaluada en
+[`formulario3-origen/REVISION.md`](../scripts/formulario3-origen/REVISION.md).
+
 ## 20261015150731 — Eliminar lead: también con ficha de inversionista sin dinero (r2)
 
 **APLICADA EN PRODUCCIÓN 15/10/2026 ~11:50 Lima** (Miguel, `supabase db query --linked --file`; PR #288 fusionada

@@ -19,6 +19,7 @@ import {
  */
 const CierresSchema = v.object({
   formulario: EnteroNoNegativoRpcSchema,
+  formulario_3: v.optional(v.nullable(EnteroNoNegativoRpcSchema)),
   landing: EnteroNoNegativoRpcSchema,
   referido: EnteroNoNegativoRpcSchema,
   /** Cuánto suman los referidos al numerador (cantidad × peso del referido; con tope, solo los que cuentan). */
@@ -52,6 +53,7 @@ const AnalistaConversionCoordinacionSchema = v.object({
   divisor: EnteroNoNegativoRpcSchema,
   /** Null solo en un mes sellado: la foto no guarda el desglose por origen. */
   divisor_formulario: v.nullable(EnteroNoNegativoRpcSchema),
+  divisor_formulario_3: v.optional(v.nullable(EnteroNoNegativoRpcSchema)),
   divisor_landing: v.nullable(EnteroNoNegativoRpcSchema),
   numerador: v.nullable(NumeroRpcSchema),
   conversion_pct: v.nullable(NumeroRpcSchema),
@@ -69,6 +71,7 @@ const EmpresaConversionCoordinacionSchema = v.object({
   numerador: NumeroRpcSchema,
   conversion_pct: v.nullable(NumeroRpcSchema),
   divisor_formulario: v.nullable(EnteroNoNegativoRpcSchema),
+  divisor_formulario_3: v.optional(v.nullable(EnteroNoNegativoRpcSchema)),
   divisor_landing: v.nullable(EnteroNoNegativoRpcSchema),
   numerador_bruto: v.nullable(NumeroRpcSchema),
   ajuste_pendiente: v.nullable(NumeroRpcSchema),
@@ -211,7 +214,7 @@ const EPSILON = 1e-6
 
 /** Cuánto suman las partes del numerador: cierres directos y de base, referidos con peso, upgrade y renovación con peso. */
 export function sumaDePartes(cierres: CierresConversion, cartera: CarteraConversion): number {
-  return cierres.formulario + cierres.landing + (cierres.base_cargada ?? 0) + cierres.referido_aporte
+  return cierres.formulario + (cierres.formulario_3 ?? 0) + cierres.landing + (cierres.base_cargada ?? 0) + cierres.referido_aporte
     + cartera.upgrade + cartera.renovacion_aporte
 }
 
@@ -232,7 +235,7 @@ function desgloseConsistente(fila: {
   if (fila.cierres === null || fila.cartera === null) return false
   if (fila.sellado) return fila.numerador_bruto === null && fila.ajuste_pendiente === null
   // Mes abierto o rango: el servidor siempre sabe cuántos cierres de base hubo.
-  if (fila.cierres.base_cargada === null) return false
+  if (fila.cierres.base_cargada === null || fila.cierres.formulario_3 === null) return false
   if (fila.numerador_bruto === null || fila.ajuste_pendiente === null || fila.numerador === null) return false
   if (Math.abs(sumaDePartes(fila.cierres, fila.cartera) - fila.numerador_bruto) > EPSILON) return false
   // Por persona: neto = bruto menos lo que arrastra de meses ya pagados, con suelo en cero.
@@ -272,6 +275,7 @@ export function conversionCoordinacionConsistente(
   const ids = new Set<string>()
   let divisorAnalistas = 0
   let formulario = 0
+  let formulario3 = 0
   let landing = 0
   for (const analista of datos.analistas) {
     if (ids.has(analista.analista_id)) return false
@@ -279,11 +283,13 @@ export function conversionCoordinacionConsistente(
     divisorAnalistas += analista.divisor
     if (!desgloseConsistente({ ...analista, sellado: datos.sellado })) return false
     if (datos.sellado) {
-      if (analista.divisor_formulario !== null || analista.divisor_landing !== null) return false
+      if (analista.divisor_formulario !== null || analista.divisor_landing !== null || analista.divisor_formulario_3 != null) return false
       continue
     }
     if (analista.divisor_formulario === null || analista.divisor_landing === null) return false
-    if (analista.divisor_formulario + analista.divisor_landing !== analista.divisor) return false
+    if (analista.divisor_formulario + (analista.divisor_formulario_3 ?? 0) + analista.divisor_landing !== analista.divisor) return false
+    if (analista.divisor_formulario_3 === null) return false
+    formulario3 += analista.divisor_formulario_3 ?? 0
     formulario += analista.divisor_formulario
     landing += analista.divisor_landing
   }
@@ -291,15 +297,16 @@ export function conversionCoordinacionConsistente(
   if (!desgloseConsistente({ ...datos.empresa, sellado: datos.sellado, esEmpresa: true })) return false
   if (datos.sellado) {
     if (datos.periodo.cruza_meses_sellados) return false
-    return datos.empresa.divisor_formulario === null && datos.empresa.divisor_landing === null
+    return datos.empresa.divisor_formulario === null && datos.empresa.divisor_landing === null && datos.empresa.divisor_formulario_3 == null
   }
   // La empresa suma los NETOS por persona (cada uno con su suelo en cero), nunca
   // aplica un suelo al agregado: 11,15 + max(9 − 12, 0) = 11,15, no 8,15.
   const netoEsperado = datos.analistas.reduce((acc, a) => acc + (a.numerador ?? 0), 0) + (datos.sin_analista?.numerador ?? 0)
   if (Math.abs(netoEsperado - datos.empresa.numerador) > EPSILON) return false
   if (datos.empresa.divisor_formulario === null || datos.empresa.divisor_landing === null) return false
-  if (datos.empresa.divisor_formulario + datos.empresa.divisor_landing !== datos.empresa.divisor) return false
+  if (datos.empresa.divisor_formulario + (datos.empresa.divisor_formulario_3 ?? 0) + datos.empresa.divisor_landing !== datos.empresa.divisor) return false
   if (divisorAnalistas + (datos.sin_analista?.divisor ?? 0) !== datos.empresa.divisor) return false
+  if (datos.empresa.divisor_formulario_3 === null || formulario3 > (datos.empresa.divisor_formulario_3 ?? 0)) return false
   if (formulario > datos.empresa.divisor_formulario || landing > datos.empresa.divisor_landing) return false
   return true
 }

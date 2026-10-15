@@ -36,24 +36,25 @@ function payloadFiltrado(n = 60) {
 
 describe('cartera integrada: listado y total del mismo filtro', () => {
   const filtros = { integrada: true, recepcion: { desde: '2026-09-01', hasta: '2026-09-03' } }
-  it('campaña viaja en cada página, se mapea y fuerza la ruta integrada incluso desde la antigua', async () => {
+  it.each(['formulario', 'formulario_3'])('Formulario 3 conserva páginas y mapea filas del servidor %s durante la transición', async origenFila => {
     const cuerpos: Record<string, unknown>[] = []
     server.use(http.post(RPC_INTEGRADA, async ({ request }) => {
       cuerpos.push(await request.json() as Record<string, unknown>)
       const payload = payloadFiltrado()
-      return HttpResponse.json({ ...payload, campania_origen: 'Formulario 3', origen: 'formulario', procedencia: 'sistema',
-        items: payload.items.map(l => ({ ...l, campania_origen: 'Formulario 3', origen: 'formulario', procedencia: 'sistema' })) })
+      return HttpResponse.json({ ...payload, campania_origen: 'Formulario 3', origen: 'formulario_3', procedencia: 'sistema',
+        items: payload.items.map(l => ({ ...l, campania_origen: 'Formulario 3', origen: origenFila, procedencia: 'sistema' })) })
     }))
     const pedido = { ...filtros, integrada: false, campania: 'Formulario 3' as const,
-      origen: 'formulario' as const, procedencia: 'sistema' as const }
+      origen: 'formulario_3' as const, procedencia: 'sistema' as const }
     const primera = await listarCarteraPagina(pedido, null)
     await listarCarteraPagina(pedido, primera.cursor)
     expect(cuerpos).toHaveLength(2)
     expect(cuerpos.every(c => c.p_campania_origen === 'Formulario 3')).toBe(true)
     expect(cuerpos[0]).toMatchObject({ p_desde: '2026-09-01', p_hasta: '2026-09-03',
-      p_origen: 'formulario', p_procedencia: 'sistema' })
+      p_origen: 'formulario_3', p_procedencia: 'sistema' })
     expect(cuerpos[1]?.p_antes_id).toBe(primera.cursor?.id)
     expect(primera.items.every(l => l.campania_origen === 'Formulario 3')).toBe(true)
+    expect(primera.items.every(l => l.origen === 'formulario_3')).toBe(true)
     expect(primera.resumen?.totales.vivos).toBe(60)
   })
   it.each(['sin eco', 'otra campaña', 'fila sin campaña', 'fila ajena'])('rechaza la campaña inconsistente: %s', async caso => {

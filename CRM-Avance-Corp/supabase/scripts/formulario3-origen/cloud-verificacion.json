@@ -1,0 +1,243 @@
+{
+  "fecha": "2026-10-15",
+  "estado": "PASS",
+  "rama": {
+    "nombre": "formulario3-origen-nativo-20261015",
+    "ref": "yefiownpxvembwvfbtfx",
+    "id": "50900622-0678-45b4-9184-bc83690eda62",
+    "with_data": true,
+    "creada_utc": "2026-10-15T20:05:36.592977Z",
+    "eliminada_confirmada_utc": "2026-10-15T20:40:24Z",
+    "cron_total": 12,
+    "cron_activos": 0,
+    "credenciales_efimeras": "eliminadas",
+    "coste_autorizado_usd_hora": 0.01344
+  },
+  "base": {
+    "funciones": 22,
+    "huellas_iguales": 22,
+    "migraciones": 479,
+    "leads": 3861,
+    "legados": 116,
+    "nativos": 0,
+    "convertidos": 1,
+    "colisiones_nombre": 0,
+    "cron_activos": 0
+  },
+  "instalacion": {
+    "compatibilidad_A": "PASS",
+    "activacion_B": "PASS",
+    "frontend_produccion": "NO PUBLICADO",
+    "edge_produccion": "NO PUBLICADA",
+    "db_produccion": "NO APLICADA"
+  },
+  "despues": {
+    "nativos_copiados": 116,
+    "legados_copiados": 0,
+    "convertidos_copiados": 1,
+    "cron_activos": 0
+  },
+  "huellas_antes": {
+    "leads": 3861,
+    "tareas": "b0dafc7d7fc25a630869ac59fb1eef9a",
+    "contratos": "c904ac45eb2dfbf5a9728a922a0cfa7b",
+    "historial": "e897db3a24e1773fc5ce93cc15c71adb",
+    "datos_leads": "9aabfd7cf1587dfa256238d53e450922",
+    "inversiones": "eda051c36879855214deab800d7f6d0e",
+    "solicitudes": "68b98b2070771fa01c86776ac88a2a5f",
+    "asignaciones": "2a108557bf77b0b280ea3b5eb15c1bf1",
+    "acreditaciones": "528262677fd49948af8c4fad731a4f37",
+    "meses_sellados": "1677a37db633b2211a9080a948fa2ae9",
+    "fotos_vendedores": "281e784b7759ec91030bd9e3cfd2d8ca"
+  },
+  "huellas_despues": {
+    "leads": 3861,
+    "tareas": "b0dafc7d7fc25a630869ac59fb1eef9a",
+    "contratos": "c904ac45eb2dfbf5a9728a922a0cfa7b",
+    "historial": "e897db3a24e1773fc5ce93cc15c71adb",
+    "datos_leads": "9aabfd7cf1587dfa256238d53e450922",
+    "inversiones": "eda051c36879855214deab800d7f6d0e",
+    "solicitudes": "68b98b2070771fa01c86776ac88a2a5f",
+    "asignaciones": "2a108557bf77b0b280ea3b5eb15c1bf1",
+    "acreditaciones": "528262677fd49948af8c4fad731a4f37",
+    "meses_sellados": "1677a37db633b2211a9080a948fa2ae9",
+    "fotos_vendedores": "281e784b7759ec91030bd9e3cfd2d8ca"
+  },
+  "huellas_iguales": true,
+  "exclusiones_huellas": {
+    "leads": [
+      "origen",
+      "actualizado_en"
+    ],
+    "conversion_acreditaciones": [
+      "origen"
+    ],
+    "fixtures": "prefijo PRUEBA F3 NATIVO ausente antes del setup"
+  },
+  "http": {
+    "setup": 9,
+    "matriz_A": 49,
+    "matriz_B": 51,
+    "edge_A": 5,
+    "edge_B": 6,
+    "comprobaciones_sin_setup": 111,
+    "usuarios_auth_reales": 8,
+    "correo_enviado": false,
+    "fixture_generada_sin_reemplazar_copia": true
+  },
+  "advisors": {
+    "security": {
+      "before": [
+        {
+          "name": "rls_enabled_no_policy",
+          "level": "INFO",
+          "count": 90,
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy"
+        },
+        {
+          "name": "extension_in_public",
+          "level": "WARN",
+          "count": 1,
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0014_extension_in_public"
+        },
+        {
+          "name": "anon_security_definer_function_executable",
+          "level": "WARN",
+          "count": 2,
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable"
+        },
+        {
+          "name": "authenticated_security_definer_function_executable",
+          "level": "WARN",
+          "count": 286,
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable"
+        },
+        {
+          "name": "auth_leaked_password_protection",
+          "level": "WARN",
+          "count": 1,
+          "remediation": "https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection"
+        }
+      ],
+      "after": [
+        {
+          "name": "rls_enabled_no_policy",
+          "level": "INFO",
+          "count": 90,
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy"
+        },
+        {
+          "name": "extension_in_public",
+          "level": "WARN",
+          "count": 1,
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0014_extension_in_public"
+        },
+        {
+          "name": "anon_security_definer_function_executable",
+          "level": "WARN",
+          "count": 2,
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable"
+        },
+        {
+          "name": "authenticated_security_definer_function_executable",
+          "level": "WARN",
+          "count": 286,
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable"
+        },
+        {
+          "name": "auth_leaked_password_protection",
+          "level": "WARN",
+          "count": 1,
+          "remediation": "https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection"
+        }
+      ],
+      "added": [],
+      "removed_count": 0
+    },
+    "performance": {
+      "before": [
+        {
+          "name": "unindexed_foreign_keys",
+          "level": "INFO",
+          "count": 53,
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0001_unindexed_foreign_keys"
+        },
+        {
+          "name": "auth_rls_initplan",
+          "level": "WARN",
+          "count": 2,
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0003_auth_rls_initplan"
+        },
+        {
+          "name": "no_primary_key",
+          "level": "INFO",
+          "count": 3,
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0004_no_primary_key"
+        },
+        {
+          "name": "unused_index",
+          "level": "INFO",
+          "count": 281,
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+        },
+        {
+          "name": "multiple_permissive_policies",
+          "level": "WARN",
+          "count": 5,
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0006_multiple_permissive_policies"
+        },
+        {
+          "name": "auth_db_connections_absolute",
+          "level": "INFO",
+          "count": 1,
+          "remediation": "https://supabase.com/docs/guides/deployment/going-into-prod"
+        }
+      ],
+      "after": [
+        {
+          "name": "unindexed_foreign_keys",
+          "level": "INFO",
+          "count": 53,
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0001_unindexed_foreign_keys"
+        },
+        {
+          "name": "auth_rls_initplan",
+          "level": "WARN",
+          "count": 2,
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0003_auth_rls_initplan"
+        },
+        {
+          "name": "no_primary_key",
+          "level": "INFO",
+          "count": 3,
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0004_no_primary_key"
+        },
+        {
+          "name": "unused_index",
+          "level": "INFO",
+          "count": 254,
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+        },
+        {
+          "name": "multiple_permissive_policies",
+          "level": "WARN",
+          "count": 5,
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0006_multiple_permissive_policies"
+        },
+        {
+          "name": "auth_db_connections_absolute",
+          "level": "INFO",
+          "count": 1,
+          "remediation": "https://supabase.com/docs/guides/deployment/going-into-prod"
+        }
+      ],
+      "added": [],
+      "removed_count": 27
+    }
+  },
+  "limites": [
+    "El gate RLS general presupone seed-demo exclusivo; no se ejecutó sobre datos copiados. Se ejecutó su dispatch focalizado --formulario3-origen con Auth y PostgREST reales.",
+    "El turno estricto y los rechazos/concurrencia financiera están probados en Docker. Cloud conserva configuracion_reparto.coordinacion_libre=true.",
+    "La prueba aislada no equivale a publicación. Se requieren preflight productivo y artefacto desde avancecorp/main antes del release."
+  ]
+}

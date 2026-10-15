@@ -1,0 +1,21 @@
+{
+  "generador": "postgres-meta v0.99.0",
+  "entorno": "Docker local A+B, sin producción",
+  "estado": "PASS",
+  "esquemas": [
+    "public",
+    "crm"
+  ],
+  "contratos": [
+    "agenda_reparto_diaria",
+    "cartera_filtrada_fn",
+    "conversion_divisor_coordinacion_fn",
+    "crear_lead_si_disponible",
+    "guardar_agenda_reparto_diaria",
+    "importar_lead_fn",
+    "leads_por_repartir",
+    "reporte_derivaciones_coordinacion_fn",
+    "rescate_descartes_mes"
+  ],
+  "cambio": "leads_por_repartir.Returns.campania_origen; contratos restantes idénticos"
+}

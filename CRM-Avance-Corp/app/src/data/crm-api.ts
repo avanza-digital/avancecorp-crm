@@ -1,4 +1,6 @@
 import { DocumentoLeadSchema } from '@/lib/documento-lead'
+import { diaRepartoCoherente } from '@/lib/origenes-reparto'
+import { origenDeFila } from '@/lib/tipos'
 import { TareaRowSchema } from '@/lib/tarea-schema'
 import * as v from 'valibot'
 import { ESTADOS_SOLICITUD_TASA_VIVOS } from '@/lib/rentabilidad'
@@ -528,7 +530,7 @@ function aLead(fila: LeadRow): Lead {
     genero: fila.genero ?? null,
     fecha_nacimiento: fila.fecha_nacimiento ?? null,
     distrito: fila.distrito,
-    origen: fila.origen, // ya validado contra el catálogo por LeadRowSchema
+    origen: origenDeFila(fila.origen, fila.campania_origen),
     campania_origen: fila.campania_origen ?? null,
     procedencia: procedenciaDeFila(fila),
     reasignado: fila.reasignado ?? null,
@@ -892,7 +894,7 @@ export async function listarCarteraPagina(
       // El servidor devuelve el origen que aplicó: si no coincide con el pedido
       // (o no lo aplicó), los indicadores no serían los del filtro en pantalla.
       || (payload.origen ?? null) !== origenPedido
-      || (origenPedido !== null && payload.items.some((l) => l.origen !== origenPedido))
+      || (origenPedido !== null && payload.items.some((l) => origenDeFila(l.origen, l.campania_origen) !== origenPedido))
       || (payload.campania_origen ?? null) !== campaniaPedida
       || (campaniaPedida !== null && payload.items.some((l) => l.campania_origen !== campaniaPedida))
       // Misma exigencia para la procedencia: eco y filas coherentes, o nada.
@@ -1381,6 +1383,7 @@ const ColaLeadSchema = v.object({
   // caerse del parseo (deploy seguro en cualquier orden, BD antes o después).
   clasificacion_auto: v.optional(v.nullable(v.picklist(['posible_credito'] as const)), null),
   comentario: v.optional(v.nullable(v.string()), null),
+  campania_origen: v.optional(v.nullable(v.string())),
 })
 
 const SupervisorRepartoSchema = v.object({
@@ -1444,6 +1447,14 @@ const EntregaAgendaRepartoSchema = v.object({
   coincide_turno: v.boolean(),
 })
 
+const OrigenEntregasRepartoSchema = v.object({
+  origen: v.picklist(ORIGENES_LECTURA.map((o) => o.k)),
+  turno: v.optional(v.nullable(OrigenAgendaRepartoSchema)),
+  derivados: v.pipe(v.union([v.number(), v.string()]), v.transform(Number)),
+  fuera_turno: v.nullable(v.pipe(v.union([v.number(), v.string()]), v.transform(Number))),
+  entregas: v.array(EntregaAgendaRepartoSchema),
+})
+
 const AsignacionAgendaRepartoSchema = v.object({
   origen: OrigenAgendaRepartoSchema,
   supervisor_id: v.nullable(v.string()),
@@ -1454,11 +1465,13 @@ const AsignacionAgendaRepartoSchema = v.object({
   // siempre los sirve; el frontend anterior puede ignorarlos sin caerse.
   fuera_turno: v.optional(v.pipe(v.union([v.number(), v.string()]), v.transform(Number))),
   entregas: v.optional(v.array(EntregaAgendaRepartoSchema)),
+  origenes: v.optional(v.array(OrigenEntregasRepartoSchema)),
 })
 
 const DiaAgendaRepartoSchema = v.object({
   fecha: v.string(),
   asignaciones: v.array(AsignacionAgendaRepartoSchema),
+  origenes: v.optional(v.array(OrigenEntregasRepartoSchema)),
 })
 
 const AgendaRepartoDiariaSchema = v.object({
@@ -1500,7 +1513,11 @@ export async function leadsPorRepartir(signal?: AbortSignal): Promise<ColaLead[]
   const items: ColaLead[] = []
   for (const cruda of data ?? []) {
     const r = v.safeParse(ColaLeadSchema, cruda)
-    if (r.success) items.push(r.output)
+    if (r.success) {
+      const { campania_origen, ...cruda } = r.output
+      const fila = { ...cruda, origen: origenDeFila(cruda.origen, campania_origen) }
+      items.push(campania_origen === undefined ? fila : { ...fila, campania_origen })
+    }
   }
   return items
 }
@@ -1560,7 +1577,7 @@ export async function agendaRepartoDiaria(
     throw fallo
   }
   const resultado = v.safeParse(AgendaRepartoDiariaSchema, data)
-  if (!resultado.success) {
+  if (!resultado.success || !resultado.output.dias.every(diaRepartoCoherente)) {
     const fallo = new CrmApiError('La agenda de reparto no tiene el formato esperado.', 'AGENDA_REPARTO_CONTRACT')
     registrarError('crm.reparto.agenda_fuera_de_contrato', fallo)
     throw fallo

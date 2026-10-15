@@ -1,0 +1,211 @@
+{
+  "ref": "yefiownpxvembwvfbtfx",
+  "fase": "a",
+  "estado": "PASS",
+  "pruebas": [
+    {
+      "nombre": "A: siete altas por puerta exclusiva del servidor; no se ejecutó Edge",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Sesión Auth real: supervisor",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Sesión Auth real: supervisor_otro",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Sesión Auth real: vendedor",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Sesión Auth real: vendedor_otro",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Sesión Auth real: gerencia",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Sesión Auth real: coordinador",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Sesión Auth real: inactivo",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Sesión Auth real: directorio",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "A: persistencia de origen, campaña y alta automática correcta",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "RLS directo conserva ámbito: vendedor",
+      "estado": "PASS",
+      "cantidad": 3
+    },
+    {
+      "nombre": "Filtros y cifras Formulario/Formulario 3 separados: vendedor",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Contratos anteriores y paginación siguen funcionando: vendedor",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "RLS directo conserva ámbito: supervisor",
+      "estado": "PASS",
+      "cantidad": 3
+    },
+    {
+      "nombre": "Filtros y cifras Formulario/Formulario 3 separados: supervisor",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Contratos anteriores y paginación siguen funcionando: supervisor",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "RLS directo conserva ámbito: vendedor_otro",
+      "estado": "PASS",
+      "cantidad": 1
+    },
+    {
+      "nombre": "Filtros y cifras Formulario/Formulario 3 separados: vendedor_otro",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Contratos anteriores y paginación siguen funcionando: vendedor_otro",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "RLS directo conserva ámbito: supervisor_otro",
+      "estado": "PASS",
+      "cantidad": 1
+    },
+    {
+      "nombre": "Filtros y cifras Formulario/Formulario 3 separados: supervisor_otro",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Contratos anteriores y paginación siguen funcionando: supervisor_otro",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "RLS directo conserva ámbito: gerencia",
+      "estado": "PASS",
+      "cantidad": 4
+    },
+    {
+      "nombre": "Filtros y cifras Formulario/Formulario 3 separados: gerencia",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Contratos anteriores y paginación siguen funcionando: gerencia",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "RLS directo conserva ámbito: directorio",
+      "estado": "PASS",
+      "cantidad": 4
+    },
+    {
+      "nombre": "Filtros y cifras Formulario/Formulario 3 separados: directorio",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Contratos anteriores y paginación siguen funcionando: directorio",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "RLS directo conserva ámbito: coordinador",
+      "estado": "PASS",
+      "cantidad": 0
+    },
+    {
+      "nombre": "Filtros y cifras Formulario/Formulario 3 separados: coordinador",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Contratos anteriores y paginación siguen funcionando: coordinador",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "RLS directo conserva ámbito: inactivo",
+      "estado": "PASS",
+      "cantidad": 0
+    },
+    {
+      "nombre": "Filtros y cifras Formulario/Formulario 3 separados: inactivo",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Puertas Coordinación: autorización exacta de supervisor",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Puertas Coordinación: autorización exacta de supervisor_otro",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Puertas Coordinación: autorización exacta de vendedor",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Puertas Coordinación: autorización exacta de vendedor_otro",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Puertas Coordinación: autorización exacta de gerencia",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Puertas Coordinación: autorización exacta de coordinador",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Puertas Coordinación: autorización exacta de inactivo",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Puertas Coordinación: autorización exacta de directorio",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Campaña automática no editable por analista",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Gestión comercial normal permitida sin perder campaña",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Escritura cruzada bloqueada por RLS",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Sesión humana no invoca importador servidor",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Anónimo no puede leer leads",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Cola contiene los tres pendientes y excluye los cuatro asignados",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Reenvío de los siete registros conserva fichas completas, historia, tareas y responsables",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "A: alta manual F3 espera activación",
+      "estado": "PASS"
+    }
+  ]
+}

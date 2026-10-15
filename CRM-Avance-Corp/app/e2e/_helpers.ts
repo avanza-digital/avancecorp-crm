@@ -890,7 +890,10 @@ export function carteraPaginaReal(
   const digitos = texto.replace(/\D/g, '')
   const filtrados = leads.filter((l) => {
     if (!l.activo) return false
-    if (args.p_origen && l.origen !== args.p_origen) return false
+    // Contrato A→B de cartera_filtrada_fn: la campaña legada y la clave nativa
+    // comparten el filtro exacto F3; Formulario no las incluye.
+    const origen = l.origen === 'formulario' && l.campania_origen === 'Formulario 3' ? 'formulario_3' : l.origen
+    if (args.p_origen && origen !== args.p_origen) return false
     if (args.p_campania_origen && l.campania_origen !== args.p_campania_origen) return false
     if (args.p_reasignados && (!l.reasignado || !l.vendedor_id)) return false
     if (args.p_desde) {

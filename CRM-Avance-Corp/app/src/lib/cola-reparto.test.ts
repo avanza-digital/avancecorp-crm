@@ -55,6 +55,16 @@ describe('filtrarYOrdenarCola', () => {
     expect(filas.map((l) => l.id)).toEqual(['nuevo', 'viejo'])
   })
 
+  it('Formulario y Formulario 3 son filtros disjuntos, sin inferir por campaña o comentario', () => {
+    const f3 = { ...MEDIO, id: 'f3', origen: 'formulario_3' as const, campania_origen: null }
+    const antiguo = { ...MEDIO, id: 'antiguo', campania_origen: 'Formulario 3', comentario: 'Formulario 3' }
+    const todas = [NUEVO, antiguo, f3]
+    expect(filtrarYOrdenarCola(todas, { ...FILTROS_INICIALES, origen: 'formulario_3' })).toEqual([f3])
+    expect(filtrarYOrdenarCola(todas, { ...FILTROS_INICIALES, origen: 'formulario' })).toEqual([antiguo])
+    expect(filtrarYOrdenarCola(todas, { ...FILTROS_INICIALES, origen: 'formulario_3', soloMarcados: true, busqueda: 'préstamo' })).toEqual([f3])
+    expect(todas).toEqual([NUEVO, antiguo, f3])
+  })
+
   it('la búsqueda matchea nombre, distrito y comentario, sin tildes', () => {
     expect(filtrarYOrdenarCola(COLA, { ...FILTROS_INICIALES, busqueda: 'lead medio' })
       .map((l) => l.id)).toEqual(['medio'])

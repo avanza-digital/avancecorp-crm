@@ -45,7 +45,7 @@ export interface EpisodioConversionDemo {
   /** Alta original; si no se declara, la demo la sitúa en su primer episodio. */
   llegadaHaceMeses?: 0 | 1
   altaManual?: boolean
-  origen: 'referido' | 'landing' | 'formulario' | 'web' | 'oficina' | 'otro'
+  origen: 'referido' | 'landing' | 'formulario' | 'formulario_3' | 'web' | 'oficina' | 'otro'
   resultado?: 'convertido' | 'descartado'
   /** Mes del cierre; solo tiene sentido con `resultado`. */
   resultadoHaceMeses?: 0 | 1
@@ -104,7 +104,7 @@ function filaDe(
   const recibidosMes = [...primeras.values()].filter((episodio) => (
     episodio.analistaId === analista.analistaId
     && (episodio.llegadaHaceMeses ?? episodio.asignadoHaceMeses) === 0
-    && ['landing', 'formulario', 'referido'].includes(episodio.origen)
+    && ['landing', 'formulario', 'formulario_3', 'referido'].includes(episodio.origen)
   ))
   const divisor = new Set(
     recibidosMes.filter((episodio) => episodio.origen !== 'referido' && !episodio.altaManual).map((episodio) => episodio.leadId),
@@ -117,7 +117,7 @@ function filaDe(
   // episodio y la procedencia por el mes de SU asignación.
   const cierres = propios.filter((episodio) => (
     episodio.resultado === 'convertido' && episodio.resultadoHaceMeses === 0
-    && ['landing', 'formulario', 'referido'].includes(episodio.origen)
+    && ['landing', 'formulario', 'formulario_3', 'referido'].includes(episodio.origen)
   ))
   const cierresNoReferidos = cierres.filter((episodio) => episodio.origen !== 'referido').length
   const cierresReferidos = cierres.filter((episodio) => episodio.origen === 'referido').length

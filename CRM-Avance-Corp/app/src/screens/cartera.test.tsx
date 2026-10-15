@@ -93,27 +93,29 @@ vi.mock('@/data/use-cartera-paginada', async () => {
 
 const { Cartera } = await import('./cartera')
 
-describe('Cartera · campaña de origen', () => {
-  it('rotula la campaña, conserva FORMULARIO y combina su filtro con los existentes', () => {
+describe('Cartera · Formulario 3 como origen', () => {
+  it('muestra un solo origen y filtra sin confundir las notas de reingreso', () => {
     montar([
-      lead({ id: 'f3', nombre_completo: 'ALTA FORMULARIO', origen: 'formulario', campania_origen: 'Formulario 3' }),
+      lead({ id: 'f3', nombre_completo: 'ALTA FORMULARIO', origen: 'formulario_3', campania_origen: 'Formulario 3' }),
       lead({ id: 'viejo', nombre_completo: 'CONTACTO ANTERIOR', origen: 'formulario', campania_origen: null, nota: 'Reingreso por Formulario 3' }),
       lead({ id: 'otra', nombre_completo: 'OTRA CAMPAÑA', campania_origen: 'Campaña anterior' }),
     ])
     const fila = screen.getByRole('row', { name: /ALTA FORMULARIO/ })
     expect(fila).toHaveTextContent('Formulario 3')
-    expect(fila).toHaveTextContent('FORMULARIO')
-    expect(fila).toHaveAccessibleDescription('Campaña de origen: Formulario 3')
+    expect(fila.textContent?.match(/Formulario 3/g)).toHaveLength(1)
+    expect(within(fila).queryByText('FORMULARIO', { exact: true })).not.toBeInTheDocument()
+    expect(fila).not.toHaveAccessibleDescription('Campaña de origen: Formulario 3')
     expect(screen.getByRole('row', { name: /CONTACTO ANTERIOR/ })).not.toHaveTextContent('Campaña de origen:')
-    const filtro = screen.getByLabelText('Filtrar por campaña')
-    fireEvent.change(filtro, { target: { value: 'Formulario 3' } })
+    expect(screen.queryByLabelText('Filtrar por campaña')).not.toBeInTheDocument()
+    const filtro = screen.getByLabelText('Filtrar por origen')
+    fireEvent.change(filtro, { target: { value: 'formulario_3' } })
     expect(screen.queryByRole('row', { name: /CONTACTO ANTERIOR/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('row', { name: /OTRA CAMPAÑA/ })).not.toBeInTheDocument()
     expect(within(chipDe('Total leads')).getByText('1')).toBeInTheDocument()
-    fireEvent.change(screen.getByLabelText('Filtrar por origen'), { target: { value: 'landing' } })
+    fireEvent.change(screen.getByLabelText('Filtrar por etapa'), { target: { value: 'descartado' } })
     expect(screen.getByText('Sin resultados')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }))
-    expect(filtro).toHaveValue('todas')
+    expect(filtro).toHaveValue('todos')
     expect(screen.getByRole('row', { name: /CONTACTO ANTERIOR/ })).toBeInTheDocument()
   })
 })

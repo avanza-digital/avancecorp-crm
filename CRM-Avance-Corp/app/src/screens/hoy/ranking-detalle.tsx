@@ -233,7 +233,7 @@ export function DetalleCapitalRanking({ abierto, fila, periodo, tc, fuenteTc, ca
                       capitalPen: origen.capital_pen,
                       capitalUsd: origen.capital_usd,
                       conversionPct: origen.conversion_pct,
-                      mostrarConversion: ['landing', 'formulario', 'referido', 'oficina'].includes(origen.origen),
+                      mostrarConversion: ['landing', 'formulario', 'formulario_3', 'referido', 'oficina'].includes(origen.origen),
                     }))} tc={tc} total={fila.capitalTotal} ejemplo={false} cartera={origenes?.cartera ?? fila.cartera} />
                     : <div className="flex items-center justify-between gap-3 text-xs text-[var(--gi-muted)]">
                         <span>Desglose no disponible</span>

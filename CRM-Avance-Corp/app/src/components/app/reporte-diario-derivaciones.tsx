@@ -1,3 +1,4 @@
+import { useRefrescarAlVolver } from '@/lib/use-refrescar-al-volver'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarDays, RotateCcw } from 'lucide-react'
 import { listarReporteDerivacionesCoordinacion } from '@/data/crm-api'
@@ -149,6 +150,8 @@ export function ReporteDiarioDerivaciones() {
     }
   }, [periodo.desde, periodo.hasta, rangoValido])
 
+  useRefrescarAlVolver(cargar, estado.cargando)
+
   useEffect(() => {
     setPagina(0)
     void cargar()
@@ -214,11 +217,10 @@ export function ReporteDiarioDerivaciones() {
       <SectionHead
         icon={CalendarDays}
         title="Supervisión → analistas"
-        right={estado.cargando ? (
-          <span className="text-[11px] font-semibold text-muted-foreground" role="status">
-            Actualizando…
-          </span>
-        ) : undefined}
+        right={<Button size="sm" variant="outline" disabled={estado.cargando || !rangoValido}
+          onClick={() => void cargar()} aria-label="Actualizar entregas a analistas">
+          <RotateCcw aria-hidden /> {estado.cargando ? 'Actualizando…' : 'Actualizar'}
+        </Button>}
       />
       <p className="px-5 pb-3 text-xs text-muted-foreground">
         Revisa cuánto entregó cada supervisor a sus analistas y de qué fuente provino. Este conteo corresponde a la segunda etapa.

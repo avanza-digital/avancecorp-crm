@@ -6792,6 +6792,7 @@ export type Database = {
       leads_por_repartir: {
         Args: never
         Returns: {
+          campania_origen: string
           categoria_interes: string
           clasificacion_auto: string
           comentario: string

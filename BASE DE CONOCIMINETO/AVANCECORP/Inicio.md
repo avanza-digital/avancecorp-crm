@@ -9,6 +9,10 @@ actualizado: 2026-09-25
 
 # 🏠 Inicio — Portal Avance Corp
 
+- **15/10 — FORMULARIO 3 COMO ORIGEN NATIVO, PREPARADO SIN PUBLICAR:** misma estructura, permisos y procesos que los demás orígenes; filtros y métricas propios, turno compartido con Formulario. Repartir pasa a tabla por origen. Ensayos locales incluyen clientes ya convertidos y concurrencia; pendiente gate cloud y publicación. [[Formulario 3 - origen nativo preparado (2026-10-15)]].
+
+- ✅ **15/10 11:18 Lima — REPARTO DE FORMULARIO 3 CORREGIDO:** 76 traslados según los Excel de Jorge/Carmen y 1 ya correcto; 39 fuera de los archivos intactos. Historial y 27 tareas conservados; los 4 descartados trasladados siguen descartados y mantienen No contactar donde existía. n8n sigue activo. Pantalla de Coordinación aún pendiente — [[Formulario 3 - reparto corregido segun Excel (2026-10-15)]].
+
 - ✅ **15/10 08:51 Lima — FORMULARIO 3, PLAN COMPLETADO Y AUTOMATIZACIÓN ACTIVA:** 152 filas conciliadas (116 altas y 36 duplicados); dos ciclos iniciales y nuevas llegadas reales comprobados. Cada cinco minutos; alertas conectadas y controles conservados. Supervisores queda como siguiente trabajo — [[Formulario 3 - fase 6 carga y activación (2026-10-15)]].
 
 - ✅ **15/10 00:28 Lima — FORMULARIO 3, FASE 5 COMPROBADA:** una fila real y un recibo; ejecución repetida sin envío, duplicado ni reasignación. Visible en la cola de Coordinación. n8n sigue apagado; sigue carga supervisada y activación de fase 6. Supervisores se adapta después, por decisión de Miguel — [[Formulario 3 - plan de integración en CRM y activación (2026-10-14)]].

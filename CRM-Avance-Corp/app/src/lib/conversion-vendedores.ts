@@ -118,6 +118,7 @@ export interface ConversionVendedoresAdaptada<D extends DetalleRankeable = Detal
 export const FUENTES_CONVERSION = [
   { id: 'landing', etiqueta: 'Landing', familia: 'prospectos' },
   { id: 'formulario', etiqueta: 'Formulario', familia: 'prospectos' },
+  { id: 'formulario_3', etiqueta: 'Formulario 3', familia: 'prospectos' },
   { id: 'upgrade', etiqueta: 'Upgrade', familia: 'cartera' },
   { id: 'referido', etiqueta: 'Referido', familia: 'prospectos' },
   { id: 'renovacion', etiqueta: 'Renovación', familia: 'cartera' },

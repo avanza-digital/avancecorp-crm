@@ -16,6 +16,7 @@ import { IndicadorGerencia } from '@/components/gerencia/indicador-gerencia'
 import { money, numero, fmtFecha } from '@/lib/format'
 import type { MetricasReuniones } from '@/lib/metricas-reuniones'
 import { presentarCitas } from '@/lib/terminologia'
+import { etiquetaOrigen } from '@/lib/tipos'
 
 type Modalidad = MetricasReuniones['modalidades'][number]['modalidad']
 
@@ -140,7 +141,7 @@ export function ReunionesGerenciaPanel({ datos, cargando, error, modoDemo, puede
     grid: { left: 105, right: 150, top: 8, bottom: 28 },
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
     xAxis: { type: 'value', min: 0, axisLabel: { formatter: '{value}%', color: C.muted, fontFamily: 'IBM Plex Sans' }, splitLine: { lineStyle: { color: C.grid } } },
-    yAxis: { type: 'category', inverse: true, data: origenes.map((fila) => fila.origen), axisTick: { show: false }, axisLine: { show: false }, axisLabel: { color: C.navy, fontFamily: 'IBM Plex Sans', fontSize: 11 } },
+    yAxis: { type: 'category', inverse: true, data: origenes.map((fila) => etiquetaOrigen(fila.origen)), axisTick: { show: false }, axisLine: { show: false }, axisLabel: { color: C.navy, fontFamily: 'IBM Plex Sans', fontSize: 11 } },
     series: [{ type: 'bar', data: origenes.map((fila) => fila.conversion_contrato_pct), barMaxWidth: 18, itemStyle: { color: C.green, borderRadius: [0, 8, 8, 0] }, label: { show: true, position: 'right', formatter: (parametros) => {
       const fila = origenes[parametros.dataIndex]
       return fila ? `${numero(fila.clientes)} de ${numero(fila.leads_reunidos)} · ${pct(fila.conversion_contrato_pct)}` : ''
@@ -225,8 +226,8 @@ export function ReunionesGerenciaPanel({ datos, cargando, error, modoDemo, puede
               {datos.conversion.leads_con_cierre_previo != null && datos.conversion.leads_con_cierre_previo > 0 && <p className="mt-3 rounded-lg border border-[var(--gi-line)] bg-[var(--gi-soft)] px-3 py-2 text-sm">Con cierre anterior a la hora programada: <strong>{numero(datos.conversion.leads_con_cierre_previo)}</strong>. Se muestran aparte.</p>}
               {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Permite recorrer con teclado el gráfico en pantallas pequeñas. */}
               <div role="region" aria-label="Gráfico de cierres posteriores por origen" tabIndex={0} className="mt-3 overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-2"><GerenciaEChart tipo="barras" option={opcionOrigen} ariaLabel="Cierres posteriores a citas por origen" className="min-w-[430px] w-full" style={{ height: Math.max(220, origenes.length * 50) }} /></div>
-              {origenes.filter((fila) => fila.conversion_contrato_pct == null).map((fila) => <p key={fila.origen} className="gi-caption">{fila.origen}: — (sin base para calcular)</p>)}
-              <details className="mt-3 text-xs"><summary className="w-fit cursor-pointer py-2 font-semibold text-[var(--gi-blue)]">Ver valores por origen</summary><table className="w-full text-left"><caption className="sr-only">Cierres posteriores a citas por origen</caption><thead><tr><th scope="col" className="p-2">Origen</th><th scope="col" className="p-2">Conversión</th></tr></thead><tbody>{origenes.map((fila) => <tr key={fila.origen}><th scope="row" className="p-2 font-medium">{fila.origen}</th><td className="p-2">{pct(fila.conversion_contrato_pct)}</td></tr>)}</tbody></table></details>
+              {origenes.filter((fila) => fila.conversion_contrato_pct == null).map((fila) => <p key={etiquetaOrigen(fila.origen)} className="gi-caption">{etiquetaOrigen(fila.origen)}: — (sin base para calcular)</p>)}
+              <details className="mt-3 text-xs"><summary className="w-fit cursor-pointer py-2 font-semibold text-[var(--gi-blue)]">Ver valores por origen</summary><table className="w-full text-left"><caption className="sr-only">Cierres posteriores a citas por origen</caption><thead><tr><th scope="col" className="p-2">Origen</th><th scope="col" className="p-2">Conversión</th></tr></thead><tbody>{origenes.map((fila) => <tr key={etiquetaOrigen(fila.origen)}><th scope="row" className="p-2 font-medium">{etiquetaOrigen(fila.origen)}</th><td className="p-2">{pct(fila.conversion_contrato_pct)}</td></tr>)}</tbody></table></details>
               <details className="mt-3 border-t border-[var(--gi-line)] pt-3 text-sm"><summary className="cursor-pointer font-semibold focus-visible:outline-2">Qué cierres y capital incluye</summary><p className="gi-caption mt-2">Cierres registrados desde la hora programada de la última cita realizada de cada prospecto. El seguimiento incluye cierres posteriores al período. Los cierres anteriores se buscan desde el inicio del período. El capital reúne los importes asociados a esos cierres, en la moneda del prospecto y sin recorte por fecha.</p>{datos.conversion.leads_con_cierre_previo == null && <p className="gi-caption mt-2">El detalle de cierres anteriores no está disponible.</p>}<p className="gi-caption mt-2">Seguimiento al {corte} (Lima).</p></details>
             </section>
             <section data-gi-panel className="gi-card p-5"><h3 className="gi-title">Resultado registrado de la cita</h3><div className="mt-4 flex flex-wrap gap-2">{datos.resultados.map((fila) => <span key={fila.resultado} className="rounded-full border border-[var(--gi-line)] bg-[var(--gi-soft)] px-3 py-1.5 text-xs"><strong>{numero(fila.cantidad)}</strong> · {textoResultado(fila.resultado)}</span>)}</div></section>

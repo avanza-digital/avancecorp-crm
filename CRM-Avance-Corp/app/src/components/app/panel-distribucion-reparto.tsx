@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Network, UserRound, Users } from 'lucide-react'
+import { useRefrescarAlVolver } from '@/lib/use-refrescar-al-volver'
+import { Button } from '@/components/ui/button'
 import { panelDistribucionReparto } from '@/data/crm-api'
 import {
   etiquetaOrigen,
@@ -84,6 +86,8 @@ export function PanelDistribucionReparto() {
     return () => abortRef.current?.abort()
   }, [cargar])
 
+  useRefrescarAlVolver(cargar, estado.cargando)
+
   const cambiarFiltros = useCallback((siguiente: Partial<Filtros>) => {
     setFiltros((actual) => ({ ...actual, ...siguiente }))
     setPaginaSupervisores(0)
@@ -139,9 +143,9 @@ export function PanelDistribucionReparto() {
           icon={Network}
           title="Cartera activa actual"
           right={(
-            <span className="text-[11px] font-semibold tabular-nums text-muted-foreground" role="status">
+            <div className="flex items-center gap-3"><span className="text-[11px] font-semibold tabular-nums text-muted-foreground" role="status">
               {estado.cargando ? 'Actualizando…' : `${estado.datos?.total_leads ?? 0} activos`}
-            </span>
+            </span><Button size="sm" variant="outline" disabled={estado.cargando} onClick={() => void cargar()}>Actualizar cartera</Button></div>
           )}
         />
         <p className="px-5 pb-3 text-xs text-muted-foreground">

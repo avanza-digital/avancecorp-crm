@@ -164,6 +164,18 @@ describe('leadsPorRepartir (msw)', () => {
     expect(filas[1]).toMatchObject({ distrito: null, categoria_interes: null, monto_estimado: 4500 })
   })
 
+  it('conserva campaña real, null y ausencia del campo sin inferir del comentario', async () => {
+    server.use(http.post(RPC('leads_por_repartir'), () => HttpResponse.json([
+      { ...FILA_COLA, id: 'campania', origen: 'formulario', campania_origen: 'Formulario 3' },
+      { ...FILA_COLA, id: 'sin-campania', campania_origen: null, comentario: 'Campaña: Formulario 3' },
+      { ...FILA_COLA, id: 'rpc-anterior' },
+    ])))
+    const filas = await leadsPorRepartir()
+    expect(filas[0]).toMatchObject({ campania_origen: 'Formulario 3' })
+    expect(filas[1]).toMatchObject({ campania_origen: null })
+    expect(filas[2]).not.toHaveProperty('campania_origen')
+  })
+
   it('descarta filas fuera de contrato sin tumbar las válidas', async () => {
     server.use(
       http.post(RPC('leads_por_repartir'), () =>
@@ -360,6 +372,41 @@ describe('listarReporteDerivacionesCoordinacion (msw)', () => {
 })
 
 describe('agendaRepartoDiaria (msw)', () => {
+  function agendaConCampanias() {
+    const agenda = structuredClone(AGENDA_REPARTO)
+    const asignacion = agenda.dias[0]!.asignaciones[1]!
+    return {
+      ...agenda,
+      dias: [{ ...agenda.dias[0], asignaciones: [agenda.dias[0]!.asignaciones[0]!, {
+        ...asignacion,
+        origenes: [
+          { origen: 'formulario_3', derivados: '5', fuera_turno: '0', entregas: [{ ...asignacion.entregas[0]!, derivados: '5' }] },
+          { origen: 'formulario', derivados: '3', fuera_turno: '0', entregas: [{ ...asignacion.entregas[0]!, derivados: '3' }] },
+        ],
+      }] }],
+    }
+  }
+
+  it('coerciona y conserva el desglose completo de campañas sin cambiar totales ni turnos', async () => {
+    server.use(http.post(RPC('agenda_reparto_diaria'), () => HttpResponse.json(agendaConCampanias())))
+    const agenda = await agendaRepartoDiaria()
+    expect(agenda.dias[0]?.asignaciones).toHaveLength(2)
+    expect(agenda.dias[0]?.asignaciones[1]).toMatchObject({
+      origen: 'formulario', supervisor_id: 'sup-jor', derivados: 8,
+      origenes: [
+        { origen: 'formulario_3', derivados: 5, fuera_turno: 0, entregas: [{ derivados: 5 }] },
+        { origen: 'formulario', derivados: 3, fuera_turno: 0, entregas: [{ derivados: 3 }] },
+      ],
+    })
+  })
+
+  it('rechaza un desglose que no explica el total del origen', async () => {
+    const agenda = agendaConCampanias()
+    agenda.dias[0]!.asignaciones[1]!.derivados = 9
+    server.use(http.post(RPC('agenda_reparto_diaria'), () => HttpResponse.json(agenda)))
+    await expect(agendaRepartoDiaria()).rejects.toMatchObject({ code: 'AGENDA_REPARTO_CONTRACT' })
+  })
+
   it.each([true, false, undefined])('lee el permiso del servidor con compatibilidad segura: %s', async (permiso) => {
     server.use(http.post(RPC('agenda_reparto_diaria'), () => HttpResponse.json({ ...AGENDA_REPARTO, reparto_libre: permiso })))
     await expect(agendaRepartoDiaria()).resolves.toMatchObject({ reparto_libre: permiso === true })

@@ -9,6 +9,14 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 
+// Origen nativo: matriz HTTP focalizada en la copia cloud autorizada. No exige
+// reemplazar su población por seed-demo ni modifica el gate general.
+if (process.argv.length === 4 && process.argv[2] === '--formulario3-origen') {
+  const { ejecutar } = await import('./formulario3-origen/http-cloud.mjs');
+  await ejecutar(process.argv[3]);
+  process.exit(0);
+}
+
 // Cambio aditivo de campaña: matriz focalizada sobre banco local exclusivo.
 if (process.argv.length === 3 && process.argv[2] === '--formulario3-fase2') {
   await import('./formulario3-fase2/rls.mjs');

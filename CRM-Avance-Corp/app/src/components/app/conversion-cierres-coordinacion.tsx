@@ -9,7 +9,7 @@ import { PanelCargando, PanelError } from '@/components/common/estado-panel'
 import { Paginacion } from '@/components/common/paginacion'
 
 const origenes: Record<string, string> = {
-  formulario: 'Formulario', landing: 'Landing', referido: 'Referido', oficina: 'Oficina',
+  formulario: 'Formulario', formulario_3: 'Formulario 3', landing: 'Landing', referido: 'Referido', oficina: 'Oficina',
   base_cargada: 'Base cargada', otro: 'Otro', upgrade: 'Upgrade', renovacion: 'Renovación',
 }
 const registros = { manual: 'Registro manual', sistema: 'Registro del sistema', cartera: 'Operación de cartera' }
