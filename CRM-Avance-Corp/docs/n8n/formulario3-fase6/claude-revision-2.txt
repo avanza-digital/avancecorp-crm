@@ -1,0 +1,71 @@
+VERDICT:
+PASS
+
+SUMMARY:
+Dentro del alcance adjunto no veo fallos materiales que obliguen a cambiar el código antes de habilitar el HTTP en borrador.
+
+Lo que se sostiene con la evidencia:
+- **Comparación completa de nodos.** `nodoComparable` solo normaliza defaults conocidos y compara el resto entero.
+- **Ajustes completos.** `setWorkflowSettings` envía todo `AJUSTES`.
+- **Gate exacto.** `verificarFase6` exige igualdad en cada operación del modo pedido.
+- **Retención acotada.** `restaurarRetencion` exige `versionId === activeVersionId === versionId` verificado y emite un único `setWorkflowSettings`.
+- **Rama de inválidos.** El argumento sobre `mapeo_correcto` es correcto según `CONEXIONES`: `Datos válidos` índice 1 lleva a `Marcar para revisión`, luego a `Preparar recibo` y `Registrar resultado`. No existe arista desde la rama false hacia `Importar en CRM`.
+- **Presupuesto de tiempo.** El cálculo de 180 − 100 − 62 = 18 s es coherente. `inicio_ms` se fija en `Control del envío`, antes de leer la hoja, así que la lectura de Sheets también cuenta dentro del umbral.
+
+Hay tres puntos P2 que conviene confirmar con evidencia ya disponible. Ninguno abre un camino inseguro: si fallan, el workflow se detiene sin enviar, pero podrían frenar los lotes.
+
+FINDINGS:
+
+[P2] El selector puede abortar el lote entero por una fila inválida si `prepararFila` no le construye un payload completo
+File: `formulario3.fase6.mjs`
+Lines: `seleccionarPendientes`, condición de identidad (`fila.payload?.filas?.length !== 1 … canal !== 'FORMULARIO'`)
+Problem: El razonamiento de que las filas inválidas llegan a revisión depende de que `prepararFila` genere, también para `mapeo_correcto:false`, un `payload.filas[0]` con `fila`, `campania_origen:'Formulario 3'` y `canal:'FORMULARIO'`. Si no lo hace, `seleccionarPendientes` lanza "Identidad o campaña inválida" antes de `Procesar de una en una`. En ese caso no se escribe ningún recibo y todas las filas válidas quedan bloqueadas en cada corrida, que es justo el efecto que se quiso evitar al no exigir `mapeo_correcto` en el selector.
+Evidence: El test `inválidos se dirigen a revisión…` construye la fila inválida con el fixture sintético `fila()`, que ya trae el payload completo. No se adjuntó `formulario3.mjs` (`prepararFila`, `reciboDeRechazo`). El preflight menciona 127 teléfonos válidos, pero no cuántas filas tienen `mapeo_correcto:false` en la hoja real.
+Impact: Si alguna fila real tiene mapeo inválido y payload incompleto, la importación queda detenida. Falla de forma cerrada (sin POST), pero en bucle cada 5 minutos una vez programado.
+Recommendation: Antes del primer lote, confirmar con la salida de `Preparar leads` sobre el snapshot real, sin datos personales, dos cosas: el número de filas con `mapeo_correcto:false` y que todas pasan la validación de identidad de `seleccionarPendientes`. Opcionalmente, añadir un test que use `prepararFila` real con una fila de capital no reconocido y la pase por `seleccionarPendientes`.
+
+[P2] Las variantes de código de fase 5 se aceptan en cualquier nodo que fase 5 haya tocado, no solo en los que fase 6 restaura
+File: `formulario3.fase6.mjs`
+Lines: `operacionesFase6`, bucle de nodos (`guardadoF5 → permitidos.push`), y `verificarFase6`
+Problem: `permitidos` admite el `jsCode` de fase 5 en cualquier nodo de `f5`. Después, `verificarFase6` solo exige código exacto en los nodos que tienen una operación (`Preparar leads`, `Seleccionar lote rotativo`, `Resumen de importación`). Si `operacionesFase5` modificara el código de otro nodo, por ejemplo `Confirmar respuesta del CRM` o `Mantener pendiente`, esa variante pasaría la transición y el gate sin revertirse.
+Evidence: El cuerpo de `operacionesFase5` no está adjunto. El test `restituye toda la preparación tras fase5` solo comprueba `Preparar leads` y `Control del envío`.
+Impact: Si el conjunto de nodos de fase 5 fuera más amplio, el código piloto de fase 5 llegaría a producción. Es una hipótesis: si fase 5 solo toca `Preparar leads` y `Control del envío`, el riesgo es nulo.
+Recommendation: Hacer una aserción barata en `operacionesFase6`: todo `nodeName` de `f5` con `jsCode` debe tener una operación propia de fase 6. Otra opción es añadir un test que lo compruebe sobre `operacionesFase5(...)`.
+
+[P2] Una ejecución cortada por timeout entre un POST correcto y el upsert del recibo deja la fila sin recibo
+File: `formulario3.workflow.mjs`
+Lines: `AJUSTES.executionTimeout:180`, `UMBRAL_MS`, nodo `Registrar resultado`
+Problem: El margen de 18 s cubre el caso normal. Aun así, si n8n corta la ejecución después de que el CRM respondió y antes del upsert (por latencia de la Data Table o del propio n8n), el lead queda importado sin recibo. La corrida siguiente volverá a enviarlo con POST.
+Evidence: El orden de nodos `Importar → Confirmar → Preparar recibo → Registrar` y el presupuesto descrito por el PRIMARY.
+Impact: Solo es seguro si `crm-importar-leads` es idempotente por teléfono/campaña y responde `duplicado` en lugar de crear un segundo lead. La línea base de 39 coincidencias sugiere que existe deduplicación, pero no se adjunta el contrato del importador.
+Recommendation: No hace falta cambiar código. En la conciliación de cada lote, verificar que el número de leads nuevos en el CRM sea igual a `importado`, y que no aparezcan leads duplicados por teléfono normalizado.
+
+[P3] El workflow vivo diverge de `cargarDefinicion()`
+File: `formulario3.fase6.mjs`
+Problem: `Seleccionar lote rotativo` (con `seleccionarPendientes` en lugar de `seleccionarLote`) y `Resumen de importación` (con `exigirRevisionRechazos`) se publican con un código que el generador canónico no produce. Las fases futuras que partan de `cargarDefinicion()` lo considerarán "Código no revisado", o lo revertirán.
+Recommendation: Al cerrar la fase, incorporar ambos cambios al generador canónico de `formulario3.workflow.mjs` para que el canon vuelva a coincidir con el workflow vivo.
+
+[P3] Ejecuciones exitosas guardadas con datos personales durante la ventana temporal
+Problem: Con `saveDataSuccessExecution:'all'` y dos triggers reales, las ejecuciones guardadas contienen las filas de la hoja y los payloads. Restaurar la retención no borra las ejecuciones ya guardadas.
+Recommendation: Después de verificar los dos triggers, borrar o podar esas ejecuciones si la política de datos lo requiere.
+
+[P3] Ejecución manual solapada con el cron
+Problem: Si alguien lanza `Revisar hoja` mientras corre un trigger programado, ambas ejecuciones pueden leer las mismas filas antes de que exista su recibo y enviar POST dos veces. Depende del mismo supuesto de idempotencia del importador.
+Recommendation: Una vez activo el cron, no lanzar ejecuciones manuales de forma operativa.
+
+TEST GAPS:
+- No hay un test que use `prepararFila` real con una fila de mapeo inválido y la pase por `seleccionarPendientes` (ver el primer P2).
+- No hay un test de que `verificarFase6` rechace el código canónico `seleccionarLote` o el resumen sin `exigirRevisionRechazos` (es decir, que no se aplicaron esas operaciones). Por inspección sí lo detecta, pero no está cubierto.
+- No hay una aserción de que el conjunto de nodos modificados por `operacionesFase5` esté cubierto por las operaciones de fase 6.
+
+REGRESSION RISKS:
+- Vista previa: con `enviar=false`, `simular_registro=true` y la rama false de `Enviar al CRM` termina en `Resumen de vista previa`. No veo regresión.
+
+RECOMMENDED NEXT ACTIONS:
+1. Antes del primer lote, confirmar sobre el snapshot real el número de filas con `mapeo_correcto:false` y que todas pasan `seleccionarPendientes` (primer P2).
+2. Confirmar qué nodos toca `operacionesFase5`, o añadir la aserción de cobertura (segundo P2).
+3. En cada lote, conciliar los leads nuevos del CRM contra `importado` y comprobar que no hay duplicados por teléfono (tercer P2).
+4. Al cerrar la fase, alinear el generador canónico y podar las ejecuciones guardadas con éxito.
+
+CONFIDENCE:
+MEDIUM. El análisis del grafo, el gate y la retención tiene confianza alta. Los dos primeros P2 dependen de `formulario3.mjs` y `formulario3.fase5.mjs`, que no se adjuntaron.

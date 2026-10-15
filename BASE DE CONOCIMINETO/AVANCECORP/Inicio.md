@@ -9,6 +9,8 @@ actualizado: 2026-09-25
 
 # 🏠 Inicio — Portal Avance Corp
 
+- ✅ **15/10 08:51 Lima — FORMULARIO 3, PLAN COMPLETADO Y AUTOMATIZACIÓN ACTIVA:** 152 filas conciliadas (116 altas y 36 duplicados); dos ciclos iniciales y nuevas llegadas reales comprobados. Cada cinco minutos; alertas conectadas y controles conservados. Supervisores queda como siguiente trabajo — [[Formulario 3 - fase 6 carga y activación (2026-10-15)]].
+
 - ✅ **15/10 00:28 Lima — FORMULARIO 3, FASE 5 COMPROBADA:** una fila real y un recibo; ejecución repetida sin envío, duplicado ni reasignación. Visible en la cola de Coordinación. n8n sigue apagado; sigue carga supervisada y activación de fase 6. Supervisores se adapta después, por decisión de Miguel — [[Formulario 3 - plan de integración en CRM y activación (2026-10-14)]].
 
 - ✅ **14/10 23:17 Lima — FORMULARIO 3 PUBLICADO Y VERIFICADO:** campaña, etiqueta y filtro listos; reglas de FORMULARIO y Coordinación conservadas. Fuente `0fa4a398`, build `build-20261015T041350920Z`. n8n apagado; sigue una fila real controlada en fase 5 — [[Formulario 3 - fase 4 publicada y verificada (2026-10-14)]].

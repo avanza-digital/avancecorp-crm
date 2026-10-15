@@ -1,6 +1,6 @@
 # Formulario 3 - plan de integración en CRM y activación
 
-Fecha inicial: 2026-10-14. Actualización: 2026-10-15. Continuación de **N8N-AVANCE-141026**. Estado vigente: **fases 1–5 completadas; CRM publicado y una fila real comprobada**. Una alta y un recibo confirmados; repetir la fila no produjo otro envío, duplicado ni reasignación. n8n principal sigue apagado. Sigue la carga supervisada y activación de fase 6. Codex PRIMARY; Miguel opera el navegador. Claude revisó el plan, las implementaciones y la evidencia relevante; Codex incorporó las mejoras justificadas. Estado publicado: [[Formulario 3 - fase 4 publicada y verificada (2026-10-14)]]. Las notas de fases 1–4 conservan la evidencia histórica de cada cierre.
+Fecha inicial: 2026-10-14. Actualización: 2026-10-15. Continuación de **N8N-AVANCE-141026**. Estado vigente: **fases 1–6 completadas; integración activa cada cinco minutos**. Foto inicial de 127 filas conciliada (95 altas contando el piloto, 32 duplicados). El cron procesó otras 25 filas (21 altas, 4 duplicados): total 152 confirmaciones, 116 leads de campaña y 36 duplicados, sin rechazos ni pendientes. Ejecuciones 64/65 y 153/154 comprobadas; 91 ciclos programados SUCCESS en el historial observado. [[Formulario 3 - fase 6 carga y activación (2026-10-15)]]. Codex PRIMARY; Miguel opera el navegador. Claude revisó el plan, las implementaciones y la evidencia relevante; Codex incorporó las mejoras justificadas. Estado publicado: [[Formulario 3 - fase 4 publicada y verificada (2026-10-14)]]. Las notas de fases 1–4 conservan la evidencia histórica de cada cierre.
 
 Relacionado: [[n8n - Formulario 3 preparado y avisos conectados (2026-10-14)]] · [[Canales de origen de leads CRM]] · [[Carga de leads desde hoja de Google]].
 
@@ -8,13 +8,13 @@ Relacionado: [[n8n - Formulario 3 preparado y avisos conectados (2026-10-14)]] �
 
 Los contactos nuevos de esta hoja mostrarán **Formulario 3** como campaña y se podrán filtrar por ella. Su canal seguirá siendo **FORMULARIO**, con el mismo turno de reparto y las mismas reglas de conversión de las altas automáticas.
 
-Se conservan el historial y responsable de contactos existentes. Una coincidencia no autoriza reclasificar su origen ni crear otro lead. Para clientes reconocidos, la campaña acompañará la actividad o solicitud que ya produce el importador. Los duplicados ordinarios seguirán identificados como tales en el registro de importación; no se promete que sean altas nuevas ni que aparezcan retroactivamente en el filtro de campaña de origen.
+Se conservan el historial y responsable de contactos existentes. Una coincidencia con un lead abierto no autoriza reclasificar su origen ni crear otro lead. Los históricos convertidos/descartados se distinguen conforme a la puerta e índice de leads vivos existentes; pueden admitir una nueva entrada sin alterar el histórico. Para clientes reconocidos, la campaña acompañará la actividad o solicitud que ya produce el importador. Los duplicados ordinarios seguirán identificados como tales en el registro de importación; no se promete que sean altas nuevas ni que aparezcan retroactivamente en el filtro de campaña de origen.
 
 ## Punto de partida comprobado
 
 - Fuente vigente: https://docs.google.com/spreadsheets/d/1lPvJ-65PNY1d4eme5xpcJ8ITVazkQRdjtkgW4ZLoIsI/edit#gid=0.
-- Última lectura: **127 leads** ya filtrados. Actualizar esta foto antes de cargar, porque la hoja puede cambiar.
-- Flujo n8n **Avance Corp — Formulario 3 → CRM**, ID `BjI5m1PKVWhO0NDb`: inactivo, envío apagado, HTTP deshabilitado; un recibo confirmado en la prueba de fase 5.
+- Foto inicial: **127 filas** conciliadas. Foto actual: **152 filas**, 116 altas de campaña y 36 duplicados. Las lecturas 63, 64, 65 y 153 no reenviaron confirmadas; 154 procesó únicamente las 25 llegadas nuevas.
+- Flujo n8n **Avance Corp — Formulario 3 → CRM**, ID `BjI5m1PKVWhO0NDb`: activo cada cinco minutos, envío habilitado y 152 recibos; ciclos programados y llegadas nuevas comprobados.
 - Payload preparado con `canal=formulario` y `campania_origen=Formulario 3`. Desde fase 4 el importador v24 guarda la campaña y el CRM la muestra y filtra; 3.687 leads históricos sin reclasificar en el postflight.
 - Avisos a **miguel@miavance.com** comprobados automáticamente en el flujo aislado: ejecución 44 enviada y 46 suprimida por repetición de la misma hora. Aviso productivo manual de fase 4: ejecución 52 SUCCESS, Gmail confirmó envío.
 - Se mantienen las decisiones de mapeo ya cerradas: capital, moneda, teléfonos y consentimiento. Esta etapa no rediseña esas reglas.
@@ -116,6 +116,8 @@ Si una comprobación falla, detener los envíos y corregir antes de cargar más.
 
 ### 6. Cargar el resto y activar el funcionamiento periódico
 
+**COMPLETADA (15/10, 08:51 Lima):** lotes 57–62 conciliados; repetición 63 sin reenvíos; dos primeros ciclos reales 64/65 comprobados, más 153 sin reenvíos y 154 con 25 llegadas nuevas. 152 recibos, 116 altas de campaña y 36 duplicados. Alertas enlazadas y retención operativa restaurada. [Acta de fase 6](../../CRM-Avance-Corp/docs/N8N-FORMULARIO3-FASE6.md). El protocolo siguiente queda como historial de lo ejecutado.
+
 Con cron todavía apagado, ejecutar lotes supervisados de hasta **25 pendientes**. Conciliar por filas de la foto de origen, manteniendo la relación con sus fingerprints (una edición crea otra huella), con resultados: importadas, duplicadas, clientes reconocidos, rechazadas y pendientes. Las 127 filas de la lectura inicial no equivalen necesariamente a 127 contactos nuevos.
 
 Revisar rechazos y resolver pendientes; las filas nuevas que lleguen después de la foto se distinguen del lote inicial. Ejecutar la carga supervisada en una ventana acordada y observar su efecto en el turno antes de cada lote siguiente. Estas entradas se procesan con la fecha real de recepción y las reglas automáticas de FORMULARIO ya autorizadas; no se retrofechan según la captura en la hoja. Evitar una importación manual concurrente con el cron. Verificar si la versión/plan de n8n permite limitar a una ejecución simultánea por flujo y usarlo si está disponible; no dar esa opción por configurada. El timeout actual de 180 s es menor que el intervalo de 300 s.
@@ -131,7 +133,7 @@ Si aparecen fallos, apagar envío y cron, conservar recibos y altas correctas, y
 - La entrega de n8n es al menos una vez. Se comprobó que un alta cuyo recibo se pierde se recupera como duplicado sin repetirla. Contar altas desde CRM por campaña; no sumar recibos importado como total de altas. Para un lote, cruzar la foto de filas/huellas con CRM.
 - La campaña de origen del lead no es un historial de todas las campañas en que participó una persona. Los reingresos/clientes existentes conservan su historia mediante los mecanismos existentes; una eventual vista de participación múltiple sería otro alcance.
 - Los avisos que dependen de n8n no detectan por sí solos la caída completa del VPS.
-- Fases 1–5 completadas; carga restante y activación corresponden a fase 6. No se afirmó prueba remota específica de 5xx/timeout ni de fallo de recibo en modo trigger: la recuperación y el aviso se verificaron con los casos descritos en el cierre.
+- Fases 1–6 completadas; integración activa y comprobada. No se afirmó prueba remota específica de 5xx/timeout ni de fallo de recibo en modo trigger: la recuperación y el aviso se verificaron con los casos descritos en el cierre.
 - **Diferido por Miguel (15/10):** adaptar la pantalla **Supervisores dentro de Coordinación** para distinguir Formulario 3. Se aborda después de terminar el plan principal. El turno de negocio sigue siendo FORMULARIO; no se introduce otro turno ni se cambia el reparto por esta decisión. En Repartir la campaña se identifica actualmente en el comentario; en Cartera/ficha/Pipeline persiste el campo y etiqueta desplegados.
 - Avisos agrupados por hora de reloj, sin exclusión atómica: pueden coincidir varios en una carrera o cambio de hora. Gmail no tiene canal alternativo.
 - Tras cambiar únicamente el parser, revisar y retirar solo recibos rechazados afectados antes de reprocesar; no vaciar el registro.
@@ -170,8 +172,8 @@ Miguel pidió trasladar el plan por fases a Figma. Tablero editable creado el 14
 
 [Formulario 3 · Plan de desarrollo](https://www.figma.com/board/JB4jRdmLXZXS0hBhEHxRbV?node-id=2-34).
 
-Contiene el punto de partida, la regla FORMULARIO, el mapa secuencial y seis fichas con trabajo, criterio de cierre y responsables: guardar campaña; mostrar y filtrar; pruebas y revisión; publicar CRM; probar un lead real; cargar y activar. Incluye conciliación de filas, actuación ante fallos y avisos a Miguel. Actualizado al cierre de fase 5: fases 1–5 completadas, una alta y un recibo, repetición sin duplicados ni reasignación; fase 6 siguiente. n8n principal permanece apagado. El pie registra la adaptación de Supervisores diferida por Miguel.
+Contiene el punto de partida, la regla FORMULARIO, el mapa secuencial y seis fichas con trabajo, criterio de cierre y responsables: guardar campaña; mostrar y filtrar; pruebas y revisión; publicar CRM; probar un lead real; cargar y activar. Incluye conciliación de filas, actuación ante fallos y avisos a Miguel. Actualizado al cierre de fase 6: fases 1–6 completadas, 152 filas conciliadas, 116 altas de campaña y 36 duplicados; programación cada cinco minutos activa y comprobada. El pie registra la adaptación de Supervisores diferida por Miguel.
 
-Archivo FigJam: `JB4jRdmLXZXS0hBhEHxRbV`. Sección principal: `2:34`. Verificación estructural: seis fases, tarjetas y conexiones conservadas. Captura visual revisada para cada actualización. El tablero se creó al planificar y se actualizó tras cada fase. El CRM está publicado; la automatización de importación todavía no está activada.
+Archivo FigJam: `JB4jRdmLXZXS0hBhEHxRbV`. Sección principal: `2:34`. Verificación estructural: seis fases, tarjetas y conexiones conservadas. Captura visual revisada para cada actualización. El tablero se creó al planificar y se actualizó tras cada fase. El CRM está publicado y la automatización está activada y comprobada.
 
 Historial del tablero: fase 3 incorporó recorrido aislado, campaña/reparto/cifras/permisos, reintentos, duplicados, recuperación y aviso automático. Fase 4 actualizó mapa, estados, resultado de publicación y siguiente paso; la pausa intermedia quedó superada al reanudar el objetivo.
