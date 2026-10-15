@@ -3,7 +3,10 @@
 -- Deja el esquema como estaba ANTES de la migración: el plazo vuelve a ser la fórmula fija (IMMUTABLE), los tres candados
 -- vuelven a sus cuerpos sin la rama de la reapertura, crm.cerrar_periodo vuelve a su cuerpo sin la segunda mirada a la
 -- ventana, vuelve el CHECK de igualdad de crm.conversion_acreditaciones y se retiran las dos tablas, el núcleo nuevo y las
--- dos puertas.
+-- dos puertas. crm.cerrar_periodo está declarada en el censo analítico (private.analitica_leads_citas_exenciones; en
+-- producción, sí): al volver a su cuerpo de antes se re-sella DE VUELTA su huella (4b89856a… → 8073f806…) y el sello de la
+-- lista, en la misma transacción y con los mismos candados que la migración (plantilla de 20261013145852); razón, clase y
+-- tope no se tocan. Sin declaración (banco de solo esquema), nada.
 -- SE NIEGA si ya hay decisiones de plazo o reaperturas (perdería su historia y el plazo de un mes) o si alguna acreditación
 -- guarda un plazo distinto de la base (el CHECK de igualdad no la admitiría). En ese caso la salida es una migración nueva.
 -- Antes de correrla: retirar la pantalla (o publicar el front sin la tarjeta «Plazo de carga»), porque las puertas dejan de
@@ -17,6 +20,12 @@ set local search_path = '';
 select pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('crm_migracion_funciones'));
 select pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('crm.periodos_cerrados')::bigint);
 lock table crm.periodos_cerrados in share mode;
+-- El censo analítico (los mismos candados y en el mismo orden que la migración).
+select pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('private.analitica_leads_citas_exenciones'),
+                                        pg_catalog.hashtext('migracion'));
+lock table private.analitica_leads_citas_exenciones in share row exclusive mode;
+lock table private.analitica_lc_sello in share row exclusive mode;
+lock table private.analitica_leads_citas_tope in share row exclusive mode;
 lock table crm.reaperturas_mes in access exclusive mode;
 lock table crm.plazos_carga_mes in access exclusive mode;
 
@@ -52,6 +61,36 @@ begin
   end if;
 end
 $preflight$;
+
+-- Preflight del censo analítico (re-sellado DE VUELTA de crm.cerrar_periodo) y foto de sus registros para el postflight.
+create temp table _reversa_censo_antes on commit drop as
+  select e.objeto, pg_catalog.to_jsonb(e) as fila from private.analitica_leads_citas_exenciones e;
+create temp table _reversa_censo_tope_antes on commit drop as
+  select pg_catalog.to_jsonb(t) as fila from private.analitica_leads_citas_tope t;
+do $preflight_censo$
+declare v_huella text;
+begin
+  if md5(pg_catalog.pg_get_functiondef('private.contadores_crudos_leads_citas()'::regprocedure)) <> '6a5d2a2ed9e6442aff17d598af6d59da'
+     or md5(pg_catalog.pg_get_functiondef('private.huella_exenciones_analitica_lc()'::regprocedure)) <> 'ad7d8cfd4e4f4ae6f1c2c3fecf51bb99' then
+    raise exception 'REVERSA plazo_carga_mes: cambió el censo analítico (contadores o huella de la lista); revisar antes de re-sellar';
+  end if;
+  -- La huella NORMALIZADA del cuerpo vivo de crm.cerrar_periodo es la que dejó la migración.
+  select md5(regexp_replace(regexp_replace(lower(coalesce(p.prosrc, pg_catalog.pg_get_functiondef(p.oid))), '--[^\n]*', ' ', 'g'), '/\*.*?\*/', ' ', 'g'))
+    into v_huella from pg_catalog.pg_proc p where p.oid = 'crm.cerrar_periodo(date)'::regprocedure;
+  if v_huella is distinct from '4b89856af0ebc6c4e46f6ffef8be61af' then
+    raise exception 'REVERSA plazo_carga_mes: la huella normalizada de crm.cerrar_periodo (%) no es la de la migración (4b89856a…)', v_huella;
+  end if;
+  -- Si está declarada (en producción lo está): con la huella que dejó la migración, reconocida por el censo y con el sello
+  -- de la lista al día.
+  if exists (select 1 from private.analitica_leads_citas_exenciones e where e.objeto = 'crm.cerrar_periodo(date)') then
+    if (select e.huella from private.analitica_leads_citas_exenciones e where e.objeto = 'crm.cerrar_periodo(date)') is distinct from '4b89856af0ebc6c4e46f6ffef8be61af'
+       or not exists (select 1 from private.contadores_crudos_leads_citas() c where c.objeto = 'crm.cerrar_periodo(date)' and c.declarada and c.huella_ok)
+       or (select s.sello from private.analitica_lc_sello s where s.id) is distinct from private.huella_exenciones_analitica_lc() then
+      raise exception 'REVERSA plazo_carga_mes: la declaración analítica de crm.cerrar_periodo no es la que dejó la migración o el sello del censo no está al día; revisar antes de re-sellar';
+    end if;
+  end if;
+end
+$preflight_censo$;
 
 -- Foto de los trinquetes ANTES (la misma de la migración): tiene que ser igual DESPUÉS.
 create temp table _plazo_trinquetes (momento text not null, pieza text not null, resultado text not null) on commit drop;
@@ -705,6 +744,34 @@ begin
 end;
 $function$;
 
+-- 2c. Re-sellado DE VUELTA de su huella en el censo analítico: solo cambian la huella de su declaración (a la del cuerpo de
+--     antes) y el sello de la lista; razón, clase y tope no se tocan. Sin declaración (banco de solo esquema), nada.
+do $resello$
+declare v_huella text; v_n integer;
+begin
+  select md5(regexp_replace(regexp_replace(lower(coalesce(p.prosrc, pg_catalog.pg_get_functiondef(p.oid))), '--[^\n]*', ' ', 'g'), '/\*.*?\*/', ' ', 'g'))
+    into v_huella from pg_catalog.pg_proc p where p.oid = 'crm.cerrar_periodo(date)'::regprocedure;
+  if v_huella is distinct from '8073f806d602fd55532f1f9d4651b7d4' then
+    raise exception 'RESELLO reversa: la huella normalizada del cuerpo restaurado (%) no es la de antes (8073f806…)', v_huella;
+  end if;
+  update private.analitica_leads_citas_exenciones
+     set huella = v_huella
+   where objeto = 'crm.cerrar_periodo(date)' and huella = '4b89856af0ebc6c4e46f6ffef8be61af';
+  get diagnostics v_n = row_count;
+  if v_n = 1 then
+    update private.analitica_lc_sello
+       set sello = private.huella_exenciones_analitica_lc(), sellado_en = pg_catalog.now()
+     where id;
+    get diagnostics v_n = row_count;
+    if v_n <> 1 then
+      raise exception 'RESELLO reversa: se esperaba actualizar un sello del censo y fueron %', v_n;
+    end if;
+  elsif exists (select 1 from private.analitica_leads_citas_exenciones e where e.objeto = 'crm.cerrar_periodo(date)') then
+    raise exception 'RESELLO reversa: la declaración de crm.cerrar_periodo no tenía la huella de la migración';
+  end if;
+end
+$resello$;
+
 -- 3. El plazo fijo de antes (IMMUTABLE) y la volatilidad de antes.
 CREATE OR REPLACE FUNCTION private.conversion_plazo_hasta(p_periodo date)
  RETURNS timestamp with time zone
@@ -810,6 +877,30 @@ begin
      or to_regprocedure('crm.plazos_carga_mes_fn()') is not null then
     raise exception 'POSTFLIGHT reversa: quedó un objeto de la migración';
   end if;
+  -- El re-sellado DE VUELTA: la declaración de crm.cerrar_periodo (si existía) cambió SOLO su huella, a la del cuerpo de
+  -- antes; las demás declaraciones y el tope, intactos; el sello coincide con la lista; el censo la reconoce vigente.
+  if (select pg_catalog.count(*) from private.analitica_leads_citas_exenciones)
+       <> (select pg_catalog.count(*) from pg_temp._reversa_censo_antes)
+     or exists (select 1 from pg_temp._reversa_censo_antes a
+                 where a.objeto <> 'crm.cerrar_periodo(date)'
+                   and a.fila is distinct from (select pg_catalog.to_jsonb(e) from private.analitica_leads_citas_exenciones e
+                                                 where e.objeto = a.objeto))
+     or exists (select 1 from pg_temp._reversa_censo_antes a
+                 where a.objeto = 'crm.cerrar_periodo(date)'
+                   and ((a.fila - 'huella') is distinct from (select pg_catalog.to_jsonb(e) - 'huella'
+                                                                from private.analitica_leads_citas_exenciones e
+                                                               where e.objeto = a.objeto)
+                        or (select e.huella from private.analitica_leads_citas_exenciones e where e.objeto = a.objeto)
+                             is distinct from '8073f806d602fd55532f1f9d4651b7d4'
+                        or not exists (select 1 from private.contadores_crudos_leads_citas() c
+                                        where c.objeto = a.objeto and c.declarada and c.huella_ok)))
+     or (select coalesce(pg_catalog.jsonb_agg(x.fila order by x.fila::text), '[]'::jsonb) from pg_temp._reversa_censo_tope_antes x)
+          is distinct from (select coalesce(pg_catalog.jsonb_agg(pg_catalog.to_jsonb(t) order by pg_catalog.to_jsonb(t)::text), '[]'::jsonb)
+                              from private.analitica_leads_citas_tope t)
+     or (exists (select 1 from private.analitica_lc_sello)
+         and (select s.sello from private.analitica_lc_sello s where s.id) is distinct from private.huella_exenciones_analitica_lc()) then
+    raise exception 'POSTFLIGHT reversa: el re-sellado del censo analítico no quedó como se esperaba';
+  end if;
 end
 $postflight$;
 
@@ -834,7 +925,11 @@ begin
              except select pieza, resultado from pg_temp._plazo_trinquetes where momento = 'despues')
      or exists (select pieza, resultado from pg_temp._plazo_trinquetes where momento = 'despues'
                 except select pieza, resultado from pg_temp._plazo_trinquetes where momento = 'antes') then
-    raise exception 'POSTFLIGHT reversa: la foto de los trinquetes cambió';
+    raise exception 'POSTFLIGHT reversa: la foto de los trinquetes cambió: %',
+      (select pg_catalog.string_agg(momento || ' · ' || pieza || ' · ' || pg_catalog.left(resultado, 200), ' | ')
+         from (select * from pg_temp._plazo_trinquetes t1
+                where not exists (select 1 from pg_temp._plazo_trinquetes t2
+                                   where t2.momento <> t1.momento and t2.pieza = t1.pieza and t2.resultado = t1.resultado)) d);
   end if;
 end
 $foto_despues$;

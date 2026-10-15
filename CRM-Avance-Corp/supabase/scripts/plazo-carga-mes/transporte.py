@@ -10,18 +10,29 @@
        «que deben rebotar» (avisos).
   E1b · El ensayo FALLA si la operación simulada falla (revisión Codex r1): el mismo mensaje sobre un mundo donde fijar el
        plazo de septiembre no se puede (octubre ya sellado: septiembre quedó por detrás) no dice «ENSAYO OK».
+  E1c · Sobre ese mismo mundo, el ciclo entero de producción en una transacción que se deshace: aplicar → registrar →
+       verificar («APLICADA Y REGISTRADA», con la declaración analítica re-sellada) → reversa (la declaración vuelve a la
+       huella de antes, vigente).
   E2 · La reversa se NIEGA si ya hay una decisión de plazo (y no toca nada).
   E3 · El registrador: registra, es idempotente, y se niega si la migración no está.
+  E4 · Mutantes del RE-SELLADO del censo analítico (el primer ensayo en producción, 15/10, se negó porque
+       crm.cerrar_periodo está declarada allí y el banco no la tenía): sin el re-sellado, otra huella, tocar la razón o la
+       clase, o no re-sellar la lista. Cada migración mutada, sobre el mundo de E1, tiene que NEGARSE.
 
-Uso:  python3 -I supabase/scripts/plazo-carga-mes/transporte.py supabase_db_<project_id>
+El mundo de E1 lleva los REGISTROS de los trinquetes de producción si se pasa la salida de leer-registros-produccion.sql
+(exenciones, tope y sello analíticos; F7; vigencia; auditoría): así el banco ve las declaraciones que ve producción. Sin
+ese archivo, se siembra solo la declaración analítica de crm.cerrar_periodo como la de producción (y su sello).
+
+Uso:  python3 -I supabase/scripts/plazo-carga-mes/transporte.py supabase_db_<project_id> [/tmp/registros-produccion.json]
 """
+import json
 import pathlib
 import re
 import subprocess
 import sys
 
-if len(sys.argv) != 2 or not sys.argv[1].startswith("supabase_db_"):
-    sys.exit("Uso: transporte.py supabase_db_<project_id> (un banco local, nunca producción)")
+if len(sys.argv) not in (2, 3) or not sys.argv[1].startswith("supabase_db_"):
+    sys.exit("Uso: transporte.py supabase_db_<project_id> [registros.json] (un banco local, nunca producción)")
 C = sys.argv[1]
 AQUI = pathlib.Path(__file__).resolve().parent
 MIG = (AQUI.parent.parent / "migrations" / "20261015000852_crm_plazo_carga_mes.sql").read_text(encoding="utf-8")
@@ -139,15 +150,80 @@ values ('ca7e15f0-0000-4000-8000-000000000401', 'ca7e15f0-0000-4000-8000-0000000
         date '2026-09-01', timestamptz '2026-10-11 00:00-05', 'fuera_de_plazo', 'Siembra del transporte');
 """
 
+# Los registros de los trinquetes de producción (leer-registros-produccion.sql), tabla por tabla; o, sin ellos, solo la
+# declaración analítica de crm.cerrar_periodo como la de producción (clase analitica, huella del cuerpo de antes).
+TABLAS_REGISTROS = {
+    "f7": "private.f7_piezas_en_observacion",
+    "analitica_exenciones": "private.analitica_leads_citas_exenciones",
+    "analitica_tope": "private.analitica_leads_citas_tope",
+    "analitica_sello": "private.analitica_lc_sello",
+    "vigencia_exenciones": "private.analista_vigencia_exenciones",
+    "vigencia_tope": "private.analista_vigencia_tope",
+    "auditoria_exenciones": "private.auditoria_exenciones",
+    "auditoria_condicionada": "private.auditoria_condicionada",
+    "auditoria_sello": "private.auditoria_sello",
+}
+
+
+def registros_de(ruta):
+    """El objeto `registros` de la salida JSON de `db query -o json` (filas envueltas)."""
+    def hallar(x):
+        if isinstance(x, dict):
+            if "registros" in x:
+                return x["registros"]
+            for v in x.values():
+                r = hallar(v)
+                if r is not None:
+                    return r
+        if isinstance(x, list):
+            for v in x:
+                r = hallar(v)
+                if r is not None:
+                    return r
+        return None
+    r = hallar(json.loads(pathlib.Path(ruta).read_text(encoding="utf-8")))
+    return json.loads(r) if isinstance(r, str) else r
+
+
+if len(sys.argv) == 3:
+    REGS = registros_de(sys.argv[2])
+    partes = ["set local session_replication_role = replica;"]
+    for clave, tabla in TABLAS_REGISTROS.items():
+        j = json.dumps(REGS.get(clave) or [], ensure_ascii=False)
+        assert "$registros$" not in j
+        partes.append(f"insert into {tabla} select * from pg_catalog.jsonb_populate_recordset(null::{tabla}, "
+                      f"$registros${j}$registros$::jsonb);")
+    partes.append("set local session_replication_role = origin;")
+    REGISTROS = "\n".join(partes) + "\n"
+    ORIGEN_REGISTROS = f"registros reales de producción ({len(REGS.get('analitica_exenciones') or [])} declaraciones analíticas)"
+else:
+    REGISTROS = """
+insert into private.analitica_leads_citas_exenciones (objeto, tipo, huella, razon, clase)
+values ('crm.cerrar_periodo(date)', 'funcion', '8073f806d602fd55532f1f9d4651b7d4',
+        'TRANSPORTE: declaración analítica sembrada como la de producción (clase analitica, huella del cuerpo de antes).',
+        'analitica');
+insert into private.analitica_leads_citas_tope (id, tope) values (true, 14);
+insert into private.analitica_lc_sello (id, sello) values (true, private.huella_exenciones_analitica_lc());
+"""
+    ORIGEN_REGISTROS = "declaración analítica sintética de crm.cerrar_periodo"
+print(f"Mundo de E1: {ORIGEN_REGISTROS}")
+
 # ── E1 · el ensayo del LEEME (sed '/^commit;$/d' + vista-previa.sql), sobre el mundo sembrado ──────────────────────────
 assert len(re.findall(r"(?m)^commit;$", MIG)) == 1
 ensayo = re.sub(r"(?m)^commit;$\n?", "", MIG) + VISTA
 # El andamiaje (retirar la migración del banco y sembrar) va en un mensaje ANTERIOR de la misma sesión y transacción; el
 # mensaje que se prueba es EXACTAMENTE el del paso 1 del LEEME (la migración sin su commit + la vista previa).
-andamiaje = ("begin;\n" + sin_tx(REVERSA).replace(
+REVERSA_SIN_RESULTADO = sin_tx(REVERSA).replace(
     "select 'REVERSA de 20261015000852_crm_plazo_carga_mes aplicada: plazo fijo, candados y CHECK como antes; tablas y "
     "puertas retiradas' as resultado;", "")
-    + "\ndrop table pg_temp._plazo_trinquetes;\nset local search_path = '';\n" + SIEMBRA + "\n")
+andamiaje = ("begin;\n" + REVERSA_SIN_RESULTADO
+    + "\ndrop table pg_temp._plazo_trinquetes;\nset local search_path = '';\n" + SIEMBRA + "\n" + REGISTROS + "\n")
+for nombre, texto in (("andamiaje", andamiaje), ("ensayo", ensayo)):
+    assert len(texto.encode("utf-8")) < 128 * 1024, f"el {nombre} pasa de 128 KB ({len(texto.encode('utf-8'))} bytes)"
+CENSO = ("select 'CENSO ' || c::text || ' · huella ' || coalesce((select e.huella from private.analitica_leads_citas_exenciones e "
+         "where e.objeto = 'crm.cerrar_periodo(date)'), '-') || ' · sello al dia ' || coalesce(((select s.sello from "
+         "private.analitica_lc_sello s where s.id) = private.huella_exenciones_analitica_lc())::text, '-') "
+         "from private.contadores_crudos_leads_citas() c where c.objeto = 'crm.cerrar_periodo(date)';")
 rc, out = un_mensaje(ensayo, previo=andamiaje)
 caso("E1 el ensayo del LEEME pasa preflight, postflight y la foto de trinquetes, y termina en ROLLBACK",
      rc == 0 and "ENSAYO OK" in out, out)
@@ -173,6 +249,70 @@ caso("E1b el ensayo FALLA (sin «ENSAYO OK») si la operación simulada falla",
 rc2, out2 = un_mensaje("select (select count(*) from crm.periodos_cerrados) + (select count(*) from public.perfiles) "
                        "+ (select count(*) from crm.plazos_carga_mes) + (select count(*) from public.audit_log);")
 caso("E1b el banco quedó como estaba (todo deshecho)", rc2 == 0 and out2.strip() == "0", out2)
+
+# ── E1c · aplicar → registrar → verificar → reversa, sobre el mismo mundo, en una transacción que se deshace ─────────
+# (Pasa de 128 KB: va por archivo, sentencia a sentencia; aquí no se prueba el transporte sino el ciclo.)
+SOLTAR_TEMPORALES = ("\ndrop table if exists pg_temp._plazo_trinquetes;\ndrop table if exists pg_temp._reversa_censo_antes;\n"
+                     "drop table if exists pg_temp._reversa_censo_tope_antes;\n")
+ciclo = (andamiaje
+         + "select 'CENSO_ANTES';\n" + CENSO + "\n"
+         + sin_tx(MIG) + "\n"
+         + sin_tx(REG) + "\n"
+         + (AQUI / "verificar-produccion.sql").read_text(encoding="utf-8") + "\n"
+         + "select 'CENSO_APLICADA';\n" + CENSO + "\n"
+         + SOLTAR_TEMPORALES + REVERSA_SIN_RESULTADO + "\n"
+         + "select 'CENSO_REVERSA';\n" + CENSO + "\n"
+         + "select 'tablas nuevas tras la reversa: ' || (to_regclass('crm.plazos_carga_mes') is not null)::text;\n"
+         + "rollback;\n")
+rc, out = un_mensaje(ciclo, por_archivo=True)
+tramos = re.split(r"(?m)^CENSO_(?:ANTES|APLICADA|REVERSA)$", out)
+caso("E1c el ciclo entero corre sin error (aplicar, registrar, verificar, reversa)", rc == 0 and len(tramos) == 4, out)
+if rc == 0 and len(tramos) == 4:
+    vivo = '(funcion,"crm.cerrar_periodo(date)",t,t)'
+    caso("E1c antes: la declaración de producción, vigente, con la huella de antes y el sello al día",
+         f"CENSO {vivo} · huella 8073f806d602fd55532f1f9d4651b7d4 · sello al dia true" in tramos[1], tramos[1])
+    # La salida de verificar-produccion.sql sale ANTES de la marca CENSO_APLICADA: está en el tramo 1.
+    caso("E1c verificar: «APLICADA Y REGISTRADA» con la declaración re-sellada",
+         '"veredicto": "APLICADA Y REGISTRADA"' in tramos[1] and '"huella": "4b89856af0ebc6c4e46f6ffef8be61af"' in tramos[1]
+         and '"vigente": true' in tramos[1] and '"sello_al_dia": true' in tramos[1], tramos[1][-3000:])
+    caso("E1c aplicada: el censo la ve vigente con la huella nueva y el sello al día",
+         f"CENSO {vivo} · huella 4b89856af0ebc6c4e46f6ffef8be61af · sello al dia true" in tramos[2], tramos[2][-1500:])
+    caso("E1c reversa: vuelve a la huella de antes, vigente, con el sello al día, y retira las tablas",
+         f"CENSO {vivo} · huella 8073f806d602fd55532f1f9d4651b7d4 · sello al dia true" in tramos[3]
+         and "tablas nuevas tras la reversa: false" in tramos[3], tramos[3])
+rc2, out2 = un_mensaje("select (select count(*) from crm.periodos_cerrados) + (select count(*) from public.perfiles) "
+                       "+ (select count(*) from crm.plazos_carga_mes) + (select count(*) from public.audit_log) "
+                       "+ (select count(*) from private.analitica_leads_citas_exenciones) "
+                       "+ (select count(*) from private.analitica_lc_sello);")
+caso("E1c el banco quedó como estaba (todo deshecho, sin registros sembrados)", rc2 == 0 and out2.strip() == "0", out2)
+
+# ── E4 · mutantes del re-sellado: la migración mutada, sobre el mundo de E1, tiene que NEGARSE ────────────────────────
+RESELLO_UPDATE = ("  update private.analitica_leads_citas_exenciones\n     set huella = v_huella\n"
+                  "   where objeto = 'crm.cerrar_periodo(date)' and huella = '8073f806d602fd55532f1f9d4651b7d4';\n")
+RESELLO_SELLO = ("    update private.analitica_lc_sello\n       set sello = private.huella_exenciones_analitica_lc(), "
+                 "sellado_en = pg_catalog.now()\n     where id;\n")
+inicio_resello = MIG.index("do $resello$\n")
+fin_resello = MIG.index("$resello$;\n", inicio_resello) + len("$resello$;\n")
+MUTANTES_RESELLO = [
+    ("MR1 sin el re-sellado", MIG[inicio_resello:fin_resello], ""),
+    ("MR2 re-sella OTRA huella", RESELLO_UPDATE, RESELLO_UPDATE.replace("set huella = v_huella",
+                                                                        "set huella = pg_catalog.md5(v_huella)")),
+    ("MR3 toca la razón", RESELLO_UPDATE, RESELLO_UPDATE.replace("set huella = v_huella",
+                                                                 "set huella = v_huella, razon = razon || ' (re-sellada)'")),
+    ("MR4 toca la clase", RESELLO_UPDATE, RESELLO_UPDATE.replace("set huella = v_huella",
+                                                                 "set huella = v_huella, clase = 'mixta'")),
+    ("MR5 no re-sella la lista", RESELLO_SELLO, "    perform 1;\n"),
+]
+for nombre, viejo, nuevo in MUTANTES_RESELLO:
+    assert MIG.count(viejo) == 1, f"{nombre}: el texto a cambiar aparece {MIG.count(viejo)} veces"
+    mutada = re.sub(r"(?m)^commit;$\n?", "", MIG.replace(viejo, nuevo, 1)) + "\nrollback;\n"
+    rc, out = un_mensaje(mutada, previo=andamiaje)
+    caso(f"E4 {nombre}: la migración mutada se NIEGA sobre el mundo de producción",
+         rc != 0 and ("POSTFLIGHT plazo_carga_mes" in out or "RESELLO plazo_carga_mes" in out), out)
+rc2, out2 = un_mensaje("select (select count(*) from crm.periodos_cerrados) + (select count(*) from public.perfiles) "
+                       "+ (select count(*) from crm.plazos_carga_mes) + (select count(*) from public.audit_log) "
+                       "+ (select count(*) from private.analitica_leads_citas_exenciones);")
+caso("E4 el banco quedó como estaba (todo deshecho)", rc2 == 0 and out2.strip() == "0", out2)
 
 # ── E2 · la reversa se niega con una decisión de plazo ──────────────────────────────────────────────────────────────
 rc, out = un_mensaje(f"""begin;

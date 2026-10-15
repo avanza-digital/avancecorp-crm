@@ -9,3 +9,6 @@
   candado cambió después de la migración; conserva `crm.leads_eliminados` si tiene filas.
 - Carreras de dos conexiones (INSERT y UPDATE concurrentes de una fila hija) y mutantes de la llave: ver la entrada
   del ledger `MIGRACIONES.md` (20261015044917).
+- r2 (`20261015150731`): fichas de inversionista sin dinero, solicitudes canceladas y de tasa sin usar. Reversa:
+  `reversa-r2.sql` (devuelve la puerta r1 —copia en `candados-produccion/crm.eliminar_lead_error_carga.r1.sql`— y el
+  candado de tasa). Pruebas: el mismo `test-eliminar-lead.sql`, 100/100 PASS con r2.

@@ -1,6 +1,6 @@
 # Formulario 3 - plan de integración en CRM y activación
 
-Fecha: 2026-10-14. Continuación de **N8N-AVANCE-141026**. Estado vigente: **fases 1–4 completadas; CRM publicado y verificado**. Base, importador y frontend admiten la campaña. n8n sigue apagado y no se cargó ninguna fila real de esta hoja. Sigue la prueba controlada de fase 5. Codex PRIMARY; Miguel opera el navegador. Claude revisó el plan, las implementaciones y la evidencia relevante; Codex incorporó las mejoras justificadas. Estado publicado: [[Formulario 3 - fase 4 publicada y verificada (2026-10-14)]]. Las notas de fases 1–3 conservan su evidencia histórica previa a publicación.
+Fecha inicial: 2026-10-14. Actualización: 2026-10-15. Continuación de **N8N-AVANCE-141026**. Estado vigente: **fases 1–6 completadas; integración activa cada cinco minutos**. Foto inicial de 127 filas conciliada (95 altas contando el piloto, 32 duplicados). El cron procesó otras 25 filas (21 altas, 4 duplicados): total 152 confirmaciones, 116 leads de campaña y 36 duplicados, sin rechazos ni pendientes. Ejecuciones 64/65 y 153/154 comprobadas; 91 ciclos programados SUCCESS en el historial observado. [[Formulario 3 - fase 6 carga y activación (2026-10-15)]]. Codex PRIMARY; Miguel opera el navegador. Claude revisó el plan, las implementaciones y la evidencia relevante; Codex incorporó las mejoras justificadas. Estado publicado: [[Formulario 3 - fase 4 publicada y verificada (2026-10-14)]]. Las notas de fases 1–4 conservan la evidencia histórica de cada cierre.
 
 Relacionado: [[n8n - Formulario 3 preparado y avisos conectados (2026-10-14)]] · [[Canales de origen de leads CRM]] · [[Carga de leads desde hoja de Google]].
 
@@ -8,13 +8,13 @@ Relacionado: [[n8n - Formulario 3 preparado y avisos conectados (2026-10-14)]] �
 
 Los contactos nuevos de esta hoja mostrarán **Formulario 3** como campaña y se podrán filtrar por ella. Su canal seguirá siendo **FORMULARIO**, con el mismo turno de reparto y las mismas reglas de conversión de las altas automáticas.
 
-Se conservan el historial y responsable de contactos existentes. Una coincidencia no autoriza reclasificar su origen ni crear otro lead. Para clientes reconocidos, la campaña acompañará la actividad o solicitud que ya produce el importador. Los duplicados ordinarios seguirán identificados como tales en el registro de importación; no se promete que sean altas nuevas ni que aparezcan retroactivamente en el filtro de campaña de origen.
+Se conservan el historial y responsable de contactos existentes. Una coincidencia con un lead abierto no autoriza reclasificar su origen ni crear otro lead. Los históricos convertidos/descartados se distinguen conforme a la puerta e índice de leads vivos existentes; pueden admitir una nueva entrada sin alterar el histórico. Para clientes reconocidos, la campaña acompañará la actividad o solicitud que ya produce el importador. Los duplicados ordinarios seguirán identificados como tales en el registro de importación; no se promete que sean altas nuevas ni que aparezcan retroactivamente en el filtro de campaña de origen.
 
 ## Punto de partida comprobado
 
 - Fuente vigente: https://docs.google.com/spreadsheets/d/1lPvJ-65PNY1d4eme5xpcJ8ITVazkQRdjtkgW4ZLoIsI/edit#gid=0.
-- Última lectura: **127 leads** ya filtrados. Actualizar esta foto antes de cargar, porque la hoja puede cambiar.
-- Flujo n8n **Avance Corp — Formulario 3 → CRM**, ID `BjI5m1PKVWhO0NDb`: inactivo, envío apagado, HTTP deshabilitado; recibos de producción en cero al cierre anterior.
+- Foto inicial: **127 filas** conciliadas. Foto actual: **152 filas**, 116 altas de campaña y 36 duplicados. Las lecturas 63, 64, 65 y 153 no reenviaron confirmadas; 154 procesó únicamente las 25 llegadas nuevas.
+- Flujo n8n **Avance Corp — Formulario 3 → CRM**, ID `BjI5m1PKVWhO0NDb`: activo cada cinco minutos, envío habilitado y 152 recibos; ciclos programados y llegadas nuevas comprobados.
 - Payload preparado con `canal=formulario` y `campania_origen=Formulario 3`. Desde fase 4 el importador v24 guarda la campaña y el CRM la muestra y filtra; 3.687 leads históricos sin reclasificar en el postflight.
 - Avisos a **miguel@miavance.com** comprobados automáticamente en el flujo aislado: ejecución 44 enviada y 46 suprimida por repetición de la misma hora. Aviso productivo manual de fase 4: ejecución 52 SUCCESS, Gmail confirmó envío.
 - Se mantienen las decisiones de mapeo ya cerradas: capital, moneda, teléfonos y consentimiento. Esta etapa no rediseña esas reglas.
@@ -92,17 +92,31 @@ Claude revisa los riesgos y la implementación relevante con evidencia saneada; 
 
 ### 5. Importar una fila real de forma controlada
 
-**PENDIENTE.** Antes de la primera fila, verificar la poda del contenido fallido del VPS (máximo siete días) o desactivar su almacenamiento. No dar esa configuración por aplicada.
+**COMPLETADA (15/10, 00:25 Lima; confirmación visual de Miguel a las 00:28).** Una fila real recorrió Sheets → n8n → CRM y quedó visible en Repartir con **Campaña: Formulario 3**. Se compararon 20 campos/invariantes: todos correctos. El origen comercial visible sigue siendo **FORMULARIO**. [Evidencia saneada](../../CRM-Avance-Corp/docs/N8N-FORMULARIO3-FASE5-EVIDENCIA.json).
+
+- **53 — vista previa, SUCCESS:** una fila preparada, cero envíos; SHA-256 del nodo comprobado con cálculo independiente.
+- **54 — importación, SUCCESS:** preflight sin coincidencias; una alta y un recibo confirmados. Total de CRM 3.687 → 3.688, campaña 0 → 1. Lead en cola global para Coordinación, sin vendedor/supervisor y sin episodios de asignación.
+- **55 — repetición, SUCCESS:** misma fila y huella; `Omitir filas confirmadas` devolvió cero pendientes. HTTP y registro no ejecutados; lead completo, responsables, recibo y asignaciones idénticos.
+- **Coordinación:** RPC bajo rol SQL authenticated de un coordinador activo en transacción READ ONLY antes y después de 55. Esto acredita autorización, no un login HTTP. La captura de Miguel muestra una sola tarjeta y la campaña en el comentario; no se infiere el rol de su sesión. No hay turno guardado y no se hizo reparto humano.
+- **Retención: PASS_CONFIGURACION.** Miguel aplicó y verificó `true / 144 / 1` dentro del contenedor. Imagen fijada `2.43.5`, comparación previa y recreación solo del servicio sin descargar otra imagen. Ciclo real de poda y borrado forense: NOT RUN. Revisar envejecimiento de 53–55 después del 21/10 a las 06:30 UTC, considerando el intervalo de poda; no se creó un recordatorio automático.
+- **Estado al cierre:** workflow sin publicar/inactivo, cron y HTTP deshabilitados, envío false, simulación true, cero ejecuciones pendientes. Se conserva la selección de fila 2 y el código que exige una fila/huella; `huella_objetivo=null` al cierre, por lo que la guarda rechaza cualquier intento de enviar sin volver a fijarla. Fase 6 debe sustituir expresamente esa selección antes de procesar lotes.
+- **Calidad:** 30 tests locales PASS y validación MCP PASS. Dos revisiones de Claude, ambas CHANGES_REQUESTED sin P0/P1; correcciones aceptadas aplicadas. La segunda pidió precisar la evidencia y completar documentación, sin otra consulta. Los controles efectivos de 53/54/55 se recuperaron de las propias ejecuciones. Las versiones se vinculan a lecturas previas del workflow; el MCP no devuelve el workflow histórico completo.
+
+El protocolo ejecutado se conserva a continuación. No implica volver a importar la fila de prueba.
 
 Con cron apagado y ninguna ejecución simultánea, fijar explícitamente el límite en **una fila**. Seleccionar una fila real pendiente que se espere nueva y registrar su identidad/fingerprint; usar la misma identidad y tabla de recibos que se usarán después.
 
 Comprobar respuesta, campaña visible, procedencia automática, tratamiento de reparto y recibo confirmado. Repetir la misma selección para confirmar que se omite y no produce otro alta o reparto. Si resulta duplicado o cliente reconocido, verificar ese camino y elegir una alta nueva para comprobar también el resultado visible de creación.
 
+La repetición solo procede tras comprobar una ejecución exitosa, un recibo definitivo para la huella elegida y una única alta que coincida con la identidad esperada. Guardar antes y después la evidencia de responsable, cola y asignaciones, sin publicar datos personales. Una discrepancia exige detenerse y conciliar mediante lecturas; no repetir el POST a ciegas. La entrada habitual de FORMULARIO queda inicialmente en la cola de Coordinación y no implica asignar un analista automáticamente al importar.
+
 Si una comprobación falla, detener los envíos y corregir antes de cargar más.
 
-**Salida exigida:** prueba de extremo a extremo aceptada con evidencia de repetición segura.
+**Salida acreditada:** alta real, campaña visible, acceso de Coordinación, entrada a su cola con reglas de FORMULARIO, recibo confirmado y repetición sin envío, alta ni asignación adicional. Figma actualizado; programación automática apagada.
 
 ### 6. Cargar el resto y activar el funcionamiento periódico
+
+**COMPLETADA (15/10, 08:51 Lima):** lotes 57–62 conciliados; repetición 63 sin reenvíos; dos primeros ciclos reales 64/65 comprobados, más 153 sin reenvíos y 154 con 25 llegadas nuevas. 152 recibos, 116 altas de campaña y 36 duplicados. Alertas enlazadas y retención operativa restaurada. [Acta de fase 6](../../CRM-Avance-Corp/docs/N8N-FORMULARIO3-FASE6.md). El protocolo siguiente queda como historial de lo ejecutado.
 
 Con cron todavía apagado, ejecutar lotes supervisados de hasta **25 pendientes**. Conciliar por filas de la foto de origen, manteniendo la relación con sus fingerprints (una edición crea otra huella), con resultados: importadas, duplicadas, clientes reconocidos, rechazadas y pendientes. Las 127 filas de la lectura inicial no equivalen necesariamente a 127 contactos nuevos.
 
@@ -119,7 +133,8 @@ Si aparecen fallos, apagar envío y cron, conservar recibos y altas correctas, y
 - La entrega de n8n es al menos una vez. Se comprobó que un alta cuyo recibo se pierde se recupera como duplicado sin repetirla. Contar altas desde CRM por campaña; no sumar recibos importado como total de altas. Para un lote, cruzar la foto de filas/huellas con CRM.
 - La campaña de origen del lead no es un historial de todas las campañas en que participó una persona. Los reingresos/clientes existentes conservan su historia mediante los mecanismos existentes; una eventual vista de participación múltiple sería otro alcance.
 - Los avisos que dependen de n8n no detectan por sí solos la caída completa del VPS.
-- Fases 1–4 completadas; primera fila real y carga corresponden a fases 5–6. No se afirmó prueba remota específica de 5xx/timeout ni de fallo de recibo en modo trigger: la recuperación y el aviso se verificaron con los casos descritos en el cierre.
+- Fases 1–6 completadas; integración activa y comprobada. No se afirmó prueba remota específica de 5xx/timeout ni de fallo de recibo en modo trigger: la recuperación y el aviso se verificaron con los casos descritos en el cierre.
+- **Diferido por Miguel (15/10):** adaptar la pantalla **Supervisores dentro de Coordinación** para distinguir Formulario 3. Se aborda después de terminar el plan principal. El turno de negocio sigue siendo FORMULARIO; no se introduce otro turno ni se cambia el reparto por esta decisión. En Repartir la campaña se identifica actualmente en el comentario; en Cartera/ficha/Pipeline persiste el campo y etiqueta desplegados.
 - Avisos agrupados por hora de reloj, sin exclusión atómica: pueden coincidir varios en una carrera o cambio de hora. Gmail no tiene canal alternativo.
 - Tras cambiar únicamente el parser, revisar y retirar solo recibos rechazados afectados antes de reprocesar; no vaciar el registro.
 
@@ -157,8 +172,8 @@ Miguel pidió trasladar el plan por fases a Figma. Tablero editable creado el 14
 
 [Formulario 3 · Plan de desarrollo](https://www.figma.com/board/JB4jRdmLXZXS0hBhEHxRbV?node-id=2-34).
 
-Contiene el punto de partida, la regla FORMULARIO, el mapa secuencial y seis fichas con trabajo, criterio de cierre y responsables: guardar campaña; mostrar y filtrar; pruebas y revisión; publicar CRM; probar un lead real; cargar y activar. Incluye conciliación de filas, actuación ante fallos y avisos a Miguel. Actualizado al cierre de fase 4: fases 1–2 publicadas, fase 3 validada y fase 4 publicada/verificada; fases 5–6 pendientes. n8n principal permanece apagado.
+Contiene el punto de partida, la regla FORMULARIO, el mapa secuencial y seis fichas con trabajo, criterio de cierre y responsables: guardar campaña; mostrar y filtrar; pruebas y revisión; publicar CRM; probar un lead real; cargar y activar. Incluye conciliación de filas, actuación ante fallos y avisos a Miguel. Actualizado al cierre de fase 6: fases 1–6 completadas, 152 filas conciliadas, 116 altas de campaña y 36 duplicados; programación cada cinco minutos activa y comprobada. El pie registra la adaptación de Supervisores diferida por Miguel.
 
-Archivo FigJam: `JB4jRdmLXZXS0hBhEHxRbV`. Sección principal: `2:34`. Verificación estructural: seis fases, tarjetas y conexiones conservadas. Captura visual revisada para cada actualización. El tablero se creó al planificar y se actualizó tras cada fase. El CRM está publicado; la automatización de importación todavía no está activada.
+Archivo FigJam: `JB4jRdmLXZXS0hBhEHxRbV`. Sección principal: `2:34`. Verificación estructural: seis fases, tarjetas y conexiones conservadas. Captura visual revisada para cada actualización. El tablero se creó al planificar y se actualizó tras cada fase. El CRM está publicado y la automatización está activada y comprobada.
 
 Historial del tablero: fase 3 incorporó recorrido aislado, campaña/reparto/cifras/permisos, reintentos, duplicados, recuperación y aviso automático. Fase 4 actualizó mapa, estados, resultado de publicación y siguiente paso; la pausa intermedia quedó superada al reanudar el objetivo.

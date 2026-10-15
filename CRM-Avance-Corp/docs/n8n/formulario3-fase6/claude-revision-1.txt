@@ -1,0 +1,97 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+La selección por huella, el `pairedItem` y el error tras conservar recibos son correctos para lo que hacen. El resumen de rechazos no filtra PII y la conciliación por huella es coherente. Antes de la carga real hay que cerrar cuatro cosas en el helper de transición.
+
+1. El helper fija `disabled` solo en dos nodos y compara parámetros completos solo en el HTTP. Un nodo de dedupe, recibo o resumen deshabilitado, o con `onError`/`mode` alterado, pasa sin aviso.
+2. No está demostrado que `setWorkflowSettings` fusione. Si reemplaza, se pierden `errorWorkflow` y `executionTimeout`, y los errores quedan en silencio.
+3. El paso 5 (restaurar `none` con el flujo publicado) no lo cubre el helper, que rechaza flujos activos.
+4. Falta evidencia del presupuesto de tiempo del bucle frente a 180 s y del orden de los nodos «Datos válidos» y selección.
+
+No veo un riesgo P0 en el código adjunto. Por eso CHANGES_REQUESTED y no BLOCK. Los puntos sin código adjunto los marco como hipótesis.
+
+FINDINGS:
+
+[P1] El estado `disabled` y las propiedades de nodo no se verifican fuera del trigger y el HTTP
+File: CRM-Avance-Corp/scripts/n8n/formulario3.fase6.mjs
+Lines: 52-79, 81-87; formulario3.fase5.mjs:5-38
+Problem: `operacionesFase6` solo emite `setNodeDisabled` para «Cada 5 minutos» e «Importar en CRM». Ni el bucle de 52-64 ni `comprobarRecorrido` comprueban `n.disabled`, `onError`, `alwaysOutputData`, `executeOnce` o `parameters.mode` en los demás nodos.
+Evidence: `comprobarRecorrido` compara nombre, tipo, versión, aristas y algunos parámetros concretos (filtros, `dryRun`, puertas). Ninguna línea lee `n.disabled` ni `n.onError` salvo para el HTTP (línea 73).
+Impact: en n8n un nodo deshabilitado deja pasar los items.
+- «Omitir filas confirmadas» deshabilitado: se reenvía todo cada 5 min. La puerta CRM evita altas dobles, pero los recibos acaban como `duplicado` en lugar de `importado`.
+- «Registrar resultado» deshabilitado: no hay recibos y el reenvío es perpetuo.
+- «Resumen de importación» deshabilitado o con `onError: continueRegularOutput`: los rechazos y pendientes no generan error ni correo. Es justo el silencio que fase6 intenta evitar.
+- `mode: runOnceForEachItem` en «Seleccionar lote rotativo»: se rompen el límite de 25 y el dedupe.
+Recommendation: comparar cada nodo con el canónico, excepto los campos que el propio helper muta (`jsCode` permitidos, `jsonOutput` de Control y `disabled` de trigger/HTTP). La comparación debe incluir `disabled` normalizado a `false`, `onError`, `retryOnFail`, `alwaysOutputData`, `executeOnce`, `credentials` y los `parameters` completos con defaults normalizados, como ya se hace con `contentType`. Añadir un test que deshabilite «Registrar resultado» y otro que ponga `onError` en «Resumen», y comprobar que ambos lanzan.
+
+[P1] Semántica de `setWorkflowSettings` sin demostrar: posible pérdida de `errorWorkflow` y `executionTimeout`
+File: formulario3.fase6.mjs:87; formulario3.fase6.test.mjs:12
+Problem: la operación envía solo `{saveDataSuccessExecution}`. El test simula una fusión (`Object.assign(copia.settings, ...)`) que no prueba cómo se comporta el MCP real.
+Evidence: la línea 79 exige `executionTimeout 180` y `errorWorkflow 4jfthNhVJLiZUeIo` antes de la operación, pero nada lo verifica después de aplicarla.
+Impact: si el MCP reemplaza `settings`, el flujo se publicaría sin flujo de errores y con el timeout por defecto. Fallos y rechazos quedarían en silencio y se perdería el límite 180 < 300.
+Recommendation: incluir explícitamente en la operación `executionTimeout:180`, `errorWorkflow:'4jfthNhVJLiZUeIo'`, `saveDataErrorExecution:'all'` y los demás ajustes vigentes. Después de cada `update_workflow`, releer el flujo y volver a validar `settings` antes de publicar (gate posterior a la aplicación, no solo previo).
+
+[P2] El paso 5 (restaurar `none` y republicar) queda fuera del helper revisado
+File: formulario3.fase6.mjs:38
+Problem: `operacionesFase6` lanza si `actual.active || actual.activeVersionId`. Tras observar las dos ejecuciones TRIGGER, el cambio a `saveDataSuccessExecution:'none'` sobre el flujo publicado tiene dos salidas:
+- se hace a mano, sin la validación de grafo, credenciales e intervalo;
+- o exige despublicar primero.
+
+Además, es hipótesis que la versión instalada de n8n limpie `activeVersionId` al despublicar. Si no lo hace, el helper rechazará el flujo para siempre.
+Impact: deriva sin revisar en la versión final. Si se despublica, hay una ventana entre ejecuciones que hay que coordinar.
+Recommendation: añadir un modo `restaurarRetencion` que acepte el flujo activo y exija `activeVersionId` igual al verificado. Ese modo emitiría solo el cambio de settings (completo, según el P1 anterior) y validaría que el grafo, las credenciales, el control (`enviar_crm:true`, `simular_registro:false`) y el intervalo son idénticos a los publicados. Comprobar también qué hace el MCP con un flujo activo y documentarlo. Ese mismo modo puede servir de semáforo de emergencia documentado (despublicar sin el helper).
+
+[P2] Presupuesto de tiempo del bucle frente a `executionTimeout` 180 s: falta evidencia
+File: no adjunto (bucle secuencial y lógica de `aplazado`); formulario3.mjs:186; fase6.mjs:73-74
+Problem: el HTTP tiene 3 intentos con 1 s de espera y el plan habla de 20 s por intento. El peor caso es ≈62 s por fila y 25 filas ≫ 180 s. Existe el resultado `aplazado`, pero no veo su umbral ni dónde se aplica.
+Impact (hipótesis): si el timeout de n8n mata la ejecución después de que el CRM acepte una fila y antes del upsert de su recibo, la fila se reenvía en la siguiente ejecución. Quedaría registrada como `duplicado`, no como `importado`, y la auditoría de altas reales sale distorsionada. El resultado operativo es seguro gracias a la puerta CRM.
+Recommendation: adjuntar o verificar que el bucle corta con `aplazado` dejando margen de al menos un ciclo HTTP completo (p. ej. no iniciar una fila si quedan menos de 70 s de los 180). Confirmar que «Registrar resultado» escribe por fila dentro del bucle. En la conciliación, cruzar con el CRM para distinguir `duplicado` de «importado por este flujo».
+
+[P2] `seleccionarPendientes` no comprueba `mapeo_correcto`: depende de un orden de nodos no adjuntado
+File: formulario3.fase6.mjs:12-16 frente a formulario3.fase5.mjs:58 (`validarEnvioUnico` sí exigía `mapeo_correcto === true`)
+Problem: fase6 elimina esa defensa en profundidad.
+Impact (hipótesis): si «Datos válidos» no precede a la selección, filas inválidas podrían llegar al POST. El CRM las rechazaría, pero sería un POST con datos que nunca debieron salir.
+Recommendation: añadir `fila.mapeo_correcto !== true` a la condición de la línea 12 o confirmar el orden con la lista de aristas `CONEXIONES`. Cuesta una línea y recupera la garantía de fase5.
+
+[P3] Mensaje de rechazo engañoso en simulación
+File: formulario3.fase6.mjs:29
+Problem: «Sus resultados definitivos se conservaron» también se emite cuando `simular_registro:true`, y en ese caso «Registrar resultado» tiene `dryRun` y no conserva nada.
+Recommendation: recibir `simulacion` y ajustar el texto, o no lanzar en vista previa.
+
+[P3] La conciliación no informa de los recibos huérfanos
+File: formulario3.fase6.mjs:91-102
+Problem: no informa de los recibos cuya huella no aparece en la foto, por ejemplo filas editadas después de importarse. Tampoco valida el formato de `filas[].huella`.
+Impact: la edición posterior a una alta no se ve en la auditoría. La fila nueva cuenta como `pendiente` y el CRM probablemente responda `duplicado`, pero el vínculo con el recibo anterior se pierde.
+Recommendation: devolver `recibos_sin_fila` (solo el recuento y las filas, sin PII) y validar `/^[0-9a-f]{64}$/` en `filas`.
+
+TEST GAPS:
+- Nodos `disabled` u `onError` alterados en «Omitir filas confirmadas», «Registrar resultado» y «Resumen de importación»: la transición debe lanzar.
+- Cambio de `mode` en un Code node y cambio de columnas o valores en «Registrar resultado»: deben lanzar.
+- `settings` tras aplicar las operaciones: que `errorWorkflow`, `executionTimeout` y `saveDataErrorExecution` se conservan aunque la operación reemplace en lugar de fusionar (cambiar `aplicar` para reemplazar y comprobar que el helper sigue siendo correcto).
+- `errorWorkflow` y `timeout` distintos, y credencial de Sheets distinta: sin test negativo (línea 79).
+- La selección con una fila `mapeo_correcto:false` debe lanzar o excluirla.
+- Que el duplicado dentro de la lectura no recibe un segundo POST de extremo a extremo (hoy solo se prueba la función pura).
+- Restauración con el flujo activo (modo nuevo del P2).
+
+ARCHITECTURE RISKS:
+- La validación es una lista de permitidos parcial: valida lo que se muta y algunas invariantes, pero no el resto del grafo. Conviene invertirla a «igual al canónico salvo diferencias declaradas».
+- La validación es solo previa. Sin una relectura posterior al `update_workflow`, el helper no garantiza lo que queda publicado.
+
+SECURITY RISKS:
+- Sin problemas nuevos en lo adjuntado: el error de rechazo solo expone números de fila, el destino y la credencial HTTP están fijados y la credencial de Sheets está fijada.
+- El preflight de teléfonos y la consulta SQL READ ONLY con hashes (paso 1) no están adjuntos. Asegurar que el fichero temporal con permisos 600 se borre al terminar y que no quede en el historial de shell ni en los logs de n8n (las ejecuciones con `saveDataSuccessExecution:'all'` guardarán PII en n8n durante las dos ejecuciones TRIGGER; la retención de 144 h lo acota, como indicáis).
+
+REGRESSION RISKS:
+- La rotación (líneas 23-24) se calcula sobre la lista ya deduplicada, así que con duplicados el desplazamiento difiere de `seleccionarLote`. Es aceptable porque los recibos filtran lo ya procesado.
+- Ninguna operación toca el reparto ni las conversiones. `Preparar leads` se restaura al canónico (probado en la línea 40 del test), así que capital, canal, campaña y destino vendedor/supervisor siguen sin cambios.
+
+RECOMMENDED NEXT ACTIONS:
+1. Ampliar `operacionesFase6` a una comparación completa por nodo (`disabled`, `onError`, `mode` y parámetros) y emitir los `settings` completos. Añadir una relectura y validación posteriores a cada `update_workflow`, antes del primer lote con `enviar:true`.
+2. Confirmar o adjuntar el umbral de `aplazado` frente a 180 s y el orden «Datos válidos» → selección. Añadir `mapeo_correcto === true` en `seleccionarPendientes`.
+3. Añadir el modo de restauración sobre el flujo activo (o un procedimiento con despublicación y verificación de `activeVersionId`) antes de activar el cron, no después.
+4. Añadir los tests de TEST GAPS y volver a ejecutar los 36 tests más los nuevos y `validate_workflow`.
+5. Después, proceder con los lotes manuales de 25 o menos según el plan. Los puntos de detención ante fallos o no coincidencias son correctos.
+
+CONFIDENCE:
+MEDIUM. Alta sobre el código adjunto. Media sobre el comportamiento real de `setWorkflowSettings`, de `activeVersionId` tras despublicar y del bucle o presupuesto de tiempo, que no están adjuntos.

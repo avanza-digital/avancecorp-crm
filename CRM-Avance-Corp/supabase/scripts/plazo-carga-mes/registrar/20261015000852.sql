@@ -1,7 +1,7 @@
 -- REGISTRO en supabase_migrations.schema_migrations de 20261015000852_crm_plazo_carga_mes.
 -- GENERADO por generar_registrador.py: no editar a mano. `db query --linked --file` NO registra: correr DESPUÉS de aplicar la
 -- migración. Idempotente; se niega si los objetos no están, o si la versión ya está registrada con otro nombre u otro contenido.
--- statements = el archivo entero (md5 9821d93a34c0f6f31a1a96a4e01d71e4).
+-- statements = el archivo entero (md5 b4708ca27ee28daea35c6d3205bfe6e7).
 begin;
 set local lock_timeout = '5s';
 select pg_advisory_xact_lock(hashtext('crm_plazo_carga_mes_registro'));
@@ -73,6 +73,9 @@ begin
 --      (22023): ningún ciclo lo sellará y reevaluarlo solo movería la regla de identidad.
 --
 --   7. crm.cerrar_periodo: cuerpo vivo + la ventana mirada OTRA VEZ después de tomar los candados (revisión Codex P1).
+--      Está declarada en el censo analítico (private.analitica_leads_citas_exenciones): se re-sella su huella en la misma
+--      transacción (plantilla de 20261013145852). El primer ensayo en producción (15/10) se negó justo por esto: el banco de
+--      solo esquema no tenía la declaración.
 --
 -- QUÉ NO TOCA: public (salvo el DML que ya hacen los triggers), el cron (la reapertura NO pausa el job 3: con el plazo nuevo
 --   en el futuro el ciclo no la vuelve a sellar antes), la forma de crm.cierre_mes_estado_fn (su `cierra_el` refleja el plazo
@@ -103,6 +106,14 @@ set local search_path = '';
 select pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('crm_migracion_funciones'));
 select pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('crm.periodos_cerrados')::bigint);
 lock table crm.periodos_cerrados in share mode;
+-- El censo analítico: crm.cerrar_periodo está declarada en private.analitica_leads_citas_exenciones con la huella de su
+-- cuerpo (en producción; un banco de solo esquema no tiene la fila). Esta migración cambia su cuerpo y la re-sella en la misma
+-- transacción con la plantilla de 20261013145852 (mismos candados, en el mismo orden).
+select pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('private.analitica_leads_citas_exenciones'),
+                                        pg_catalog.hashtext('migracion'));
+lock table private.analitica_leads_citas_exenciones in share row exclusive mode;
+lock table private.analitica_lc_sello in share row exclusive mode;
+lock table private.analitica_leads_citas_tope in share row exclusive mode;
 
 -- ── 0 · Preflight ──────────────────────────────────────────────────────────────────────────────────────────────────────
 do $preflight$
@@ -198,6 +209,36 @@ begin
   end if;
 end
 $preflight$;
+
+-- Preflight del censo analítico (re-sellado de crm.cerrar_periodo) y foto de sus registros para el postflight.
+create temp table _plazo_censo_antes on commit drop as
+  select e.objeto, pg_catalog.to_jsonb(e) as fila from private.analitica_leads_citas_exenciones e;
+create temp table _plazo_censo_tope_antes on commit drop as
+  select pg_catalog.to_jsonb(t) as fila from private.analitica_leads_citas_tope t;
+do $preflight_censo$
+declare v_huella text;
+begin
+  -- Las piezas del censo, como las fija 20261013145852.
+  if md5(pg_catalog.pg_get_functiondef('private.contadores_crudos_leads_citas()'::regprocedure)) <> '6a5d2a2ed9e6442aff17d598af6d59da'
+     or md5(pg_catalog.pg_get_functiondef('private.huella_exenciones_analitica_lc()'::regprocedure)) <> 'ad7d8cfd4e4f4ae6f1c2c3fecf51bb99' then
+    raise exception 'PREFLIGHT plazo_carga_mes: cambió el censo analítico (contadores o huella de la lista); revisar antes de re-sellar';
+  end if;
+  -- La huella NORMALIZADA del cuerpo vivo de crm.cerrar_periodo (la expresión de private.contadores_crudos_leads_citas).
+  select md5(regexp_replace(regexp_replace(lower(coalesce(p.prosrc, pg_catalog.pg_get_functiondef(p.oid))), '--[^\n]*', ' ', 'g'), '/\*.*?\*/', ' ', 'g'))
+    into v_huella from pg_catalog.pg_proc p where p.oid = 'crm.cerrar_periodo(date)'::regprocedure;
+  if v_huella is distinct from '8073f806d602fd55532f1f9d4651b7d4' then
+    raise exception 'PREFLIGHT plazo_carga_mes: la huella normalizada de crm.cerrar_periodo (%) no es la revisada (8073f806…)', v_huella;
+  end if;
+  -- Si está declarada (en producción lo está): vigente, reconocida por el censo y con el sello de la lista al día.
+  if exists (select 1 from private.analitica_leads_citas_exenciones e where e.objeto = 'crm.cerrar_periodo(date)') then
+    if (select e.huella from private.analitica_leads_citas_exenciones e where e.objeto = 'crm.cerrar_periodo(date)') is distinct from '8073f806d602fd55532f1f9d4651b7d4'
+       or not exists (select 1 from private.contadores_crudos_leads_citas() c where c.objeto = 'crm.cerrar_periodo(date)' and c.declarada and c.huella_ok)
+       or (select s.sello from private.analitica_lc_sello s where s.id) is distinct from private.huella_exenciones_analitica_lc() then
+      raise exception 'PREFLIGHT plazo_carga_mes: la declaración analítica de crm.cerrar_periodo no está vigente o el sello del censo no está al día; revisar antes de re-sellar';
+    end if;
+  end if;
+end
+$preflight_censo$;
 
 -- Foto de los trinquetes ANTES (F7, analítica, vigencia del analista y auditoría): un cambio que pasa sus propias pruebas
 -- puede romper un sello ajeno. Se compara con la de DESPUÉS en el postflight; lo que importa es que NO CAMBIE.
@@ -1528,6 +1569,34 @@ begin
 end;
 $function$;
 
+-- Re-sellado de la huella de crm.cerrar_periodo en el censo analítico (plantilla de 20261013145852): solo cambian la huella de
+-- su declaración y el sello de la lista; razón, clase y tope no se tocan. Sin declaración (banco de solo esquema), nada.
+do $resello$
+declare v_huella text; v_n integer;
+begin
+  select md5(regexp_replace(regexp_replace(lower(coalesce(p.prosrc, pg_catalog.pg_get_functiondef(p.oid))), '--[^\n]*', ' ', 'g'), '/\*.*?\*/', ' ', 'g'))
+    into v_huella from pg_catalog.pg_proc p where p.oid = 'crm.cerrar_periodo(date)'::regprocedure;
+  if v_huella is distinct from '4b89856af0ebc6c4e46f6ffef8be61af' then
+    raise exception 'RESELLO plazo_carga_mes: la huella normalizada del cuerpo aplicado (%) no es la revisada (4b89856a…)', v_huella;
+  end if;
+  update private.analitica_leads_citas_exenciones
+     set huella = v_huella
+   where objeto = 'crm.cerrar_periodo(date)' and huella = '8073f806d602fd55532f1f9d4651b7d4';
+  get diagnostics v_n = row_count;
+  if v_n = 1 then
+    update private.analitica_lc_sello
+       set sello = private.huella_exenciones_analitica_lc(), sellado_en = pg_catalog.now()
+     where id;
+    get diagnostics v_n = row_count;
+    if v_n <> 1 then
+      raise exception 'RESELLO plazo_carga_mes: se esperaba actualizar un sello del censo y fueron %', v_n;
+    end if;
+  elsif exists (select 1 from private.analitica_leads_citas_exenciones e where e.objeto = 'crm.cerrar_periodo(date)') then
+    raise exception 'RESELLO plazo_carga_mes: la declaración de crm.cerrar_periodo no tenía la huella revisada';
+  end if;
+end
+$resello$;
+
 create function crm.fijar_plazo_carga_mes(p_periodo date, p_ultimo_dia date, p_motivo text)
 returns jsonb
 language plpgsql
@@ -1886,6 +1955,30 @@ begin
                                  'crm.plazos_carga_mes_fn()', 'private.conversion_plazo_hasta(date)',
                                  'private.fijar_plazo_carga(date,date,text,uuid)', 'private.plazos_carga_mes_lectura()')) then
     raise exception 'POSTFLIGHT plazo_carga_mes: una función nueva entró al censo analítico';
+  end if;
+  -- El re-sellado: la declaración de crm.cerrar_periodo (si existía) cambió SOLO su huella, a la del cuerpo nuevo; las demás
+  -- declaraciones y el tope, intactos; el sello coincide con la lista; el censo la reconoce vigente.
+  if (select pg_catalog.count(*) from private.analitica_leads_citas_exenciones)
+       <> (select pg_catalog.count(*) from pg_temp._plazo_censo_antes)
+     or exists (select 1 from pg_temp._plazo_censo_antes a
+                 where a.objeto <> 'crm.cerrar_periodo(date)'
+                   and a.fila is distinct from (select pg_catalog.to_jsonb(e) from private.analitica_leads_citas_exenciones e
+                                                 where e.objeto = a.objeto))
+     or exists (select 1 from pg_temp._plazo_censo_antes a
+                 where a.objeto = 'crm.cerrar_periodo(date)'
+                   and ((a.fila - 'huella') is distinct from (select pg_catalog.to_jsonb(e) - 'huella'
+                                                                from private.analitica_leads_citas_exenciones e
+                                                               where e.objeto = a.objeto)
+                        or (select e.huella from private.analitica_leads_citas_exenciones e where e.objeto = a.objeto)
+                             is distinct from '4b89856af0ebc6c4e46f6ffef8be61af'
+                        or not exists (select 1 from private.contadores_crudos_leads_citas() c
+                                        where c.objeto = a.objeto and c.declarada and c.huella_ok)))
+     or (select coalesce(pg_catalog.jsonb_agg(x.fila order by x.fila::text), '[]'::jsonb) from pg_temp._plazo_censo_tope_antes x)
+          is distinct from (select coalesce(pg_catalog.jsonb_agg(pg_catalog.to_jsonb(t) order by pg_catalog.to_jsonb(t)::text), '[]'::jsonb)
+                              from private.analitica_leads_citas_tope t)
+     or (exists (select 1 from private.analitica_lc_sello)
+         and (select s.sello from private.analitica_lc_sello s where s.id) is distinct from private.huella_exenciones_analitica_lc()) then
+    raise exception 'POSTFLIGHT plazo_carga_mes: el re-sellado del censo analítico no quedó como se esperaba';
   end if;
 end
 $postflight$;
@@ -1983,6 +2076,9 @@ values ('20261015000852', 'crm_plazo_carga_mes', array[$mig$-- 20261015000852_cr
 --      (22023): ningún ciclo lo sellará y reevaluarlo solo movería la regla de identidad.
 --
 --   7. crm.cerrar_periodo: cuerpo vivo + la ventana mirada OTRA VEZ después de tomar los candados (revisión Codex P1).
+--      Está declarada en el censo analítico (private.analitica_leads_citas_exenciones): se re-sella su huella en la misma
+--      transacción (plantilla de 20261013145852). El primer ensayo en producción (15/10) se negó justo por esto: el banco de
+--      solo esquema no tenía la declaración.
 --
 -- QUÉ NO TOCA: public (salvo el DML que ya hacen los triggers), el cron (la reapertura NO pausa el job 3: con el plazo nuevo
 --   en el futuro el ciclo no la vuelve a sellar antes), la forma de crm.cierre_mes_estado_fn (su `cierra_el` refleja el plazo
@@ -2013,6 +2109,14 @@ set local search_path = '';
 select pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('crm_migracion_funciones'));
 select pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('crm.periodos_cerrados')::bigint);
 lock table crm.periodos_cerrados in share mode;
+-- El censo analítico: crm.cerrar_periodo está declarada en private.analitica_leads_citas_exenciones con la huella de su
+-- cuerpo (en producción; un banco de solo esquema no tiene la fila). Esta migración cambia su cuerpo y la re-sella en la misma
+-- transacción con la plantilla de 20261013145852 (mismos candados, en el mismo orden).
+select pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('private.analitica_leads_citas_exenciones'),
+                                        pg_catalog.hashtext('migracion'));
+lock table private.analitica_leads_citas_exenciones in share row exclusive mode;
+lock table private.analitica_lc_sello in share row exclusive mode;
+lock table private.analitica_leads_citas_tope in share row exclusive mode;
 
 -- ── 0 · Preflight ──────────────────────────────────────────────────────────────────────────────────────────────────────
 do $preflight$
@@ -2108,6 +2212,36 @@ begin
   end if;
 end
 $preflight$;
+
+-- Preflight del censo analítico (re-sellado de crm.cerrar_periodo) y foto de sus registros para el postflight.
+create temp table _plazo_censo_antes on commit drop as
+  select e.objeto, pg_catalog.to_jsonb(e) as fila from private.analitica_leads_citas_exenciones e;
+create temp table _plazo_censo_tope_antes on commit drop as
+  select pg_catalog.to_jsonb(t) as fila from private.analitica_leads_citas_tope t;
+do $preflight_censo$
+declare v_huella text;
+begin
+  -- Las piezas del censo, como las fija 20261013145852.
+  if md5(pg_catalog.pg_get_functiondef('private.contadores_crudos_leads_citas()'::regprocedure)) <> '6a5d2a2ed9e6442aff17d598af6d59da'
+     or md5(pg_catalog.pg_get_functiondef('private.huella_exenciones_analitica_lc()'::regprocedure)) <> 'ad7d8cfd4e4f4ae6f1c2c3fecf51bb99' then
+    raise exception 'PREFLIGHT plazo_carga_mes: cambió el censo analítico (contadores o huella de la lista); revisar antes de re-sellar';
+  end if;
+  -- La huella NORMALIZADA del cuerpo vivo de crm.cerrar_periodo (la expresión de private.contadores_crudos_leads_citas).
+  select md5(regexp_replace(regexp_replace(lower(coalesce(p.prosrc, pg_catalog.pg_get_functiondef(p.oid))), '--[^\n]*', ' ', 'g'), '/\*.*?\*/', ' ', 'g'))
+    into v_huella from pg_catalog.pg_proc p where p.oid = 'crm.cerrar_periodo(date)'::regprocedure;
+  if v_huella is distinct from '8073f806d602fd55532f1f9d4651b7d4' then
+    raise exception 'PREFLIGHT plazo_carga_mes: la huella normalizada de crm.cerrar_periodo (%) no es la revisada (8073f806…)', v_huella;
+  end if;
+  -- Si está declarada (en producción lo está): vigente, reconocida por el censo y con el sello de la lista al día.
+  if exists (select 1 from private.analitica_leads_citas_exenciones e where e.objeto = 'crm.cerrar_periodo(date)') then
+    if (select e.huella from private.analitica_leads_citas_exenciones e where e.objeto = 'crm.cerrar_periodo(date)') is distinct from '8073f806d602fd55532f1f9d4651b7d4'
+       or not exists (select 1 from private.contadores_crudos_leads_citas() c where c.objeto = 'crm.cerrar_periodo(date)' and c.declarada and c.huella_ok)
+       or (select s.sello from private.analitica_lc_sello s where s.id) is distinct from private.huella_exenciones_analitica_lc() then
+      raise exception 'PREFLIGHT plazo_carga_mes: la declaración analítica de crm.cerrar_periodo no está vigente o el sello del censo no está al día; revisar antes de re-sellar';
+    end if;
+  end if;
+end
+$preflight_censo$;
 
 -- Foto de los trinquetes ANTES (F7, analítica, vigencia del analista y auditoría): un cambio que pasa sus propias pruebas
 -- puede romper un sello ajeno. Se compara con la de DESPUÉS en el postflight; lo que importa es que NO CAMBIE.
@@ -3438,6 +3572,34 @@ begin
 end;
 $function$;
 
+-- Re-sellado de la huella de crm.cerrar_periodo en el censo analítico (plantilla de 20261013145852): solo cambian la huella de
+-- su declaración y el sello de la lista; razón, clase y tope no se tocan. Sin declaración (banco de solo esquema), nada.
+do $resello$
+declare v_huella text; v_n integer;
+begin
+  select md5(regexp_replace(regexp_replace(lower(coalesce(p.prosrc, pg_catalog.pg_get_functiondef(p.oid))), '--[^\n]*', ' ', 'g'), '/\*.*?\*/', ' ', 'g'))
+    into v_huella from pg_catalog.pg_proc p where p.oid = 'crm.cerrar_periodo(date)'::regprocedure;
+  if v_huella is distinct from '4b89856af0ebc6c4e46f6ffef8be61af' then
+    raise exception 'RESELLO plazo_carga_mes: la huella normalizada del cuerpo aplicado (%) no es la revisada (4b89856a…)', v_huella;
+  end if;
+  update private.analitica_leads_citas_exenciones
+     set huella = v_huella
+   where objeto = 'crm.cerrar_periodo(date)' and huella = '8073f806d602fd55532f1f9d4651b7d4';
+  get diagnostics v_n = row_count;
+  if v_n = 1 then
+    update private.analitica_lc_sello
+       set sello = private.huella_exenciones_analitica_lc(), sellado_en = pg_catalog.now()
+     where id;
+    get diagnostics v_n = row_count;
+    if v_n <> 1 then
+      raise exception 'RESELLO plazo_carga_mes: se esperaba actualizar un sello del censo y fueron %', v_n;
+    end if;
+  elsif exists (select 1 from private.analitica_leads_citas_exenciones e where e.objeto = 'crm.cerrar_periodo(date)') then
+    raise exception 'RESELLO plazo_carga_mes: la declaración de crm.cerrar_periodo no tenía la huella revisada';
+  end if;
+end
+$resello$;
+
 create function crm.fijar_plazo_carga_mes(p_periodo date, p_ultimo_dia date, p_motivo text)
 returns jsonb
 language plpgsql
@@ -3797,6 +3959,30 @@ begin
                                  'private.fijar_plazo_carga(date,date,text,uuid)', 'private.plazos_carga_mes_lectura()')) then
     raise exception 'POSTFLIGHT plazo_carga_mes: una función nueva entró al censo analítico';
   end if;
+  -- El re-sellado: la declaración de crm.cerrar_periodo (si existía) cambió SOLO su huella, a la del cuerpo nuevo; las demás
+  -- declaraciones y el tope, intactos; el sello coincide con la lista; el censo la reconoce vigente.
+  if (select pg_catalog.count(*) from private.analitica_leads_citas_exenciones)
+       <> (select pg_catalog.count(*) from pg_temp._plazo_censo_antes)
+     or exists (select 1 from pg_temp._plazo_censo_antes a
+                 where a.objeto <> 'crm.cerrar_periodo(date)'
+                   and a.fila is distinct from (select pg_catalog.to_jsonb(e) from private.analitica_leads_citas_exenciones e
+                                                 where e.objeto = a.objeto))
+     or exists (select 1 from pg_temp._plazo_censo_antes a
+                 where a.objeto = 'crm.cerrar_periodo(date)'
+                   and ((a.fila - 'huella') is distinct from (select pg_catalog.to_jsonb(e) - 'huella'
+                                                                from private.analitica_leads_citas_exenciones e
+                                                               where e.objeto = a.objeto)
+                        or (select e.huella from private.analitica_leads_citas_exenciones e where e.objeto = a.objeto)
+                             is distinct from '4b89856af0ebc6c4e46f6ffef8be61af'
+                        or not exists (select 1 from private.contadores_crudos_leads_citas() c
+                                        where c.objeto = a.objeto and c.declarada and c.huella_ok)))
+     or (select coalesce(pg_catalog.jsonb_agg(x.fila order by x.fila::text), '[]'::jsonb) from pg_temp._plazo_censo_tope_antes x)
+          is distinct from (select coalesce(pg_catalog.jsonb_agg(pg_catalog.to_jsonb(t) order by pg_catalog.to_jsonb(t)::text), '[]'::jsonb)
+                              from private.analitica_leads_citas_tope t)
+     or (exists (select 1 from private.analitica_lc_sello)
+         and (select s.sello from private.analitica_lc_sello s where s.id) is distinct from private.huella_exenciones_analitica_lc()) then
+    raise exception 'POSTFLIGHT plazo_carga_mes: el re-sellado del censo analítico no quedó como se esperaba';
+  end if;
 end
 $postflight$;
 
@@ -3842,10 +4028,10 @@ do $post$
 begin
   if not exists (select 1 from supabase_migrations.schema_migrations
                  where version = '20261015000852' and name = 'crm_plazo_carga_mes' and cardinality(statements) = 1
-                   and md5(statements[1]) = '9821d93a34c0f6f31a1a96a4e01d71e4') then
+                   and md5(statements[1]) = 'b4708ca27ee28daea35c6d3205bfe6e7') then
     raise exception 'REGISTRO: la fila 20261015000852 / crm_plazo_carga_mes no quedó como se esperaba';
   end if;
   raise notice 'REGISTRO: 20261015000852 / crm_plazo_carga_mes (1 sentencia: el archivo entero)';
 end $post$;
-select '20261015000852' as version_registrada, '9821d93a34c0f6f31a1a96a4e01d71e4' as md5_del_archivo;
+select '20261015000852' as version_registrada, 'b4708ca27ee28daea35c6d3205bfe6e7' as md5_del_archivo;
 commit;
