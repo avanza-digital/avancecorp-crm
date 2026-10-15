@@ -139,11 +139,11 @@ describe('lo que dice cada mes', () => {
     const region = await tarjeta()
 
     const setiembre = fila(region, /^Setiembre 2026/)
-    expect(setiembre).toHaveTextContent('Setiembre 2026 · el plazo de carga venció el 10 oct.')
+    expect(setiembre).toHaveTextContent('Setiembre 2026 · el plazo de carga venció el 10 oct. 2026')
     // Sin esta línea, «abierto» se lee como «todo cuenta» y no es así.
     expect(setiembre).toHaveTextContent('Sigue abierto: lo que se cargue ahora suma capital, pero su conversión queda fuera de plazo.')
     expect(setiembre).not.toHaveTextContent('se puede cargar hasta el 10 oct.')
-    expect(fila(region, /^Octubre 2026/)).toHaveTextContent('Octubre 2026 · se puede cargar hasta el 10 nov.')
+    expect(fila(region, /^Octubre 2026/)).toHaveTextContent('Octubre 2026 · se puede cargar hasta el 10 nov. 2026')
 
     expect(within(region).getByRole('button', { name: 'Ampliar plazo de setiembre 2026' })).toHaveTextContent('Ampliar plazo')
     expect(within(region).getByRole('button', { name: 'Ampliar plazo de octubre 2026' })).toBeInTheDocument()
@@ -160,7 +160,7 @@ describe('lo que dice cada mes', () => {
     const setiembre = fila(await tarjeta(), /^Setiembre 2026/)
 
     expect(setiembre).toHaveTextContent('Setiembre 2026 · se puede cargar hasta el 20 oct.')
-    expect(setiembre).toHaveTextContent(`Ampliado por MIGUEL BRICEÑO el 14 oct. · «${MOTIVO}»`)
+    expect(setiembre).toHaveTextContent(`Ampliado por MIGUEL BRICEÑO el 14 oct. 2026 · «${MOTIVO}»`)
     expect(setiembre).not.toHaveTextContent('Sigue abierto')
   })
 
@@ -175,12 +175,12 @@ describe('lo que dice cada mes', () => {
     const region = await tarjeta()
 
     const agosto = fila(region, /^Agosto 2026/)
-    expect(agosto).toHaveTextContent('Agosto 2026 · cerrado · se pudo cargar hasta el 10 set.')
+    expect(agosto).toHaveTextContent('Agosto 2026 · cerrado · se pudo cargar hasta el 10 set. 2026')
     expect(agosto).toHaveTextContent('Solo se reabre el último mes cerrado, y setiembre 2026 ya está cerrado')
     expect(within(agosto).queryByRole('button')).not.toBeInTheDocument()
 
     const setiembre = fila(region, /^Setiembre 2026/)
-    expect(setiembre).toHaveTextContent('Setiembre 2026 · cerrado · se pudo cargar hasta el 10 oct.')
+    expect(setiembre).toHaveTextContent('Setiembre 2026 · cerrado · se pudo cargar hasta el 10 oct. 2026')
     expect(within(setiembre).getByRole('button', { name: 'Reabrir setiembre' })).toBeInTheDocument()
   })
 })
@@ -204,7 +204,7 @@ describe('ampliar el plazo', () => {
     const dialogo = await screen.findByRole('dialog', { name: 'Ampliar el plazo de setiembre 2026' })
     const guardar = within(dialogo).getByRole('button', { name: 'Guardar plazo' })
     const fecha = within(dialogo).getByLabelText('Último día para cargar')
-    expect(dialogo).toHaveTextContent('Hoy: Setiembre 2026 · el plazo de carga venció el 10 oct.')
+    expect(dialogo).toHaveTextContent('Hoy: Setiembre 2026 · el plazo de carga venció el 10 oct. 2026.')
     // El foco entra a la fecha: es lo primero que hay que decidir.
     expect(fecha).toHaveFocus()
     expect(fecha).toHaveAttribute('min', HOY)
@@ -213,8 +213,8 @@ describe('ampliar el plazo', () => {
     // Antes de hoy: se marca, se dice (también al lector de pantalla) y no deja guardar.
     fireEvent.change(fecha, { target: { value: '2026-10-13' } })
     expect(fecha).toHaveAttribute('aria-invalid', 'true')
-    expect(fecha).toHaveAccessibleDescription('Elige un día desde el 14 oct.')
-    expect(within(dialogo).getByRole('status')).toHaveTextContent('Elige un día desde el 14 oct.')
+    expect(fecha).toHaveAccessibleDescription('Elige un día desde el 14 oct. 2026.')
+    expect(within(dialogo).getByRole('status')).toHaveTextContent('Elige un día desde el 14 oct. 2026.')
 
     fireEvent.change(fecha, { target: { value: '2026-10-20' } })
     expect(fecha).not.toHaveAttribute('aria-invalid')
@@ -237,7 +237,7 @@ describe('ampliar el plazo', () => {
     ])
     // El resumen llega DESPUÉS de cerrar el modal (con él abierto, el fondo está oculto al lector).
     const aviso = within(region).getByRole('status')
-    await waitFor(() => expect(aviso).toHaveTextContent('Setiembre 2026: se puede cargar hasta el 20 oct.'))
+    await waitFor(() => expect(aviso).toHaveTextContent('Setiembre 2026: se puede cargar hasta el 20 oct. 2026.'))
     expect(aviso).toHaveTextContent('Se volvieron a revisar 12 conversiones con el plazo nuevo.')
     expect(aviso).toHaveTextContent('1 conversión se quedó como estaba: esa persona ya tenía otra conversión acreditada.')
     // Solo texto en la región viva: el botón de cerrar no se lee con el anuncio.
@@ -245,7 +245,7 @@ describe('ampliar el plazo', () => {
     // La tarjeta ya enseña lo que quedó (la lectura se volvió a pedir antes de cerrar).
     const setiembre = fila(region, /^Setiembre 2026/)
     expect(setiembre).toHaveTextContent('Setiembre 2026 · se puede cargar hasta el 20 oct.')
-    expect(setiembre).toHaveTextContent('Ampliado por GERENTE REAL el 14 oct.')
+    expect(setiembre).toHaveTextContent('Ampliado por GERENTE REAL el 14 oct. 2026')
     expect(invalidar).toHaveBeenCalledWith({ queryKey: crmQueryKeys.plazosCargaMes() })
     expect(invalidar).toHaveBeenCalledWith({ queryKey: crmQueryKeys.cierreMesEstado() })
     // Ampliar no mueve ventas entre meses: el store no se recarga.
@@ -259,13 +259,52 @@ describe('ampliar el plazo', () => {
     expect(within(region).getByRole('heading', { name: 'Plazo de carga' })).toHaveFocus()
   })
 
+  it('una fecha lejana (el 2926 del 15/10) se avisa con el año y no se guarda sin confirmarla', async () => {
+    const { user } = montar()
+    const region = await tarjeta()
+    await user.click(within(region).getByRole('button', { name: 'Ampliar plazo de setiembre 2026' }))
+    const dialogo = await screen.findByRole('dialog', { name: 'Ampliar el plazo de setiembre 2026' })
+    const guardar = within(dialogo).getByRole('button', { name: 'Guardar plazo' })
+    const fecha = within(dialogo).getByLabelText('Último día para cargar')
+    fireEvent.change(within(dialogo).getByLabelText('Motivo'), { target: { value: MOTIVO } })
+
+    fireEvent.change(fecha, { target: { value: '2926-10-20' } })
+    // El aviso no se lleva el foco: sigue en la fecha.
+    expect(fecha).toHaveFocus()
+    const aviso = 'El 20 oct. 2926 queda a más de dos meses: hasta ese día setiembre no se cierra, y los meses siguientes tampoco. Revisa el año.'
+    expect(within(dialogo).getByText(aviso)).toBeInTheDocument()
+    expect(fecha).toHaveAccessibleDescription(expect.stringContaining(aviso))
+    expect(within(dialogo).getByRole('status')).toHaveTextContent('La fecha queda a más de dos meses: confírmala para poder guardar.')
+    const confirma = within(dialogo).getByRole('checkbox', { name: 'Sí, el 20 oct. 2926 es correcto' })
+    expect(confirma).not.toBeChecked()
+    expect(confirma).toHaveAttribute('aria-required', 'true')
+    expect(guardar).toBeDisabled()
+
+    await user.click(confirma)
+    expect(guardar).toBeEnabled()
+    expect(within(dialogo).getByRole('status')).toBeEmptyDOMElement()
+
+    // Otra fecha lejana: la confirmación era de la anterior y se borra.
+    fireEvent.change(fecha, { target: { value: '2927-10-20' } })
+    expect(within(dialogo).getByRole('checkbox', { name: 'Sí, el 20 oct. 2927 es correcto' })).not.toBeChecked()
+    expect(guardar).toBeDisabled()
+
+    // Una fecha cercana no pide nada.
+    fireEvent.change(fecha, { target: { value: '2026-10-20' } })
+    expect(within(dialogo).queryByRole('checkbox')).not.toBeInTheDocument()
+    expect(fecha).not.toHaveAccessibleDescription(expect.stringContaining('queda a más de dos meses'))
+    expect(within(dialogo).getByRole('status')).toBeEmptyDOMElement()
+    expect(guardar).toBeEnabled()
+    expect(llamadasA('fijar_plazo_carga_mes')).toEqual([])
+  })
+
   it('el mes en curso no se puede fijar antes de su plazo normal: el mínimo es el 10 nov.', async () => {
     const { user } = montar()
     const region = await tarjeta()
     await user.click(within(region).getByRole('button', { name: 'Ampliar plazo de octubre 2026' }))
     const dialogo = await screen.findByRole('dialog', { name: 'Ampliar el plazo de octubre 2026' })
     expect(within(dialogo).getByLabelText('Último día para cargar')).toHaveAttribute('min', '2026-11-10')
-    expect(dialogo).toHaveTextContent('Desde el 10 nov. Ese día todavía se puede cargar.')
+    expect(dialogo).toHaveTextContent('Desde el 10 nov. 2026. Ese día todavía se puede cargar.')
   })
 
   it('un rechazo del servidor se muestra tal cual y el diálogo sigue abierto con lo escrito', async () => {
@@ -286,6 +325,22 @@ describe('ampliar el plazo', () => {
 })
 
 describe('reabrir un mes sellado', () => {
+  it('una fecha lejana también se confirma al reabrir, y el anuncio nombra el botón que hay', async () => {
+    mesesServidor = [mes({ sellado: true, reabrible: true }), OCTUBRE]
+    const { user } = montar()
+    const region = await tarjeta()
+    await user.click(within(fila(region, /^Setiembre 2026/)).getByRole('button', { name: 'Reabrir setiembre' }))
+    const dialogo = await screen.findByRole('dialog', { name: 'Reabrir setiembre 2026' })
+    const reabrir = within(dialogo).getByRole('button', { name: 'Reabrir setiembre' })
+    fireEvent.change(within(dialogo).getByLabelText('Motivo'), { target: { value: MOTIVO } })
+    fireEvent.change(within(dialogo).getByLabelText('Último día para cargar'), { target: { value: '2926-10-20' } })
+    expect(within(dialogo).getByRole('status')).toHaveTextContent('La fecha queda a más de dos meses: confírmala para poder reabrir.')
+    expect(reabrir).toBeDisabled()
+    await user.click(within(dialogo).getByRole('checkbox', { name: 'Sí, el 20 oct. 2926 es correcto' }))
+    expect(reabrir).toBeEnabled()
+    expect(llamadasA('fijar_plazo_carga_mes')).toEqual([])
+  })
+
   it('avisa que se retira el cierre, reabre, cuenta las ventas devueltas y recarga el store', async () => {
     mesesServidor = [mes({ sellado: true, reabrible: true }), OCTUBRE]
     respuestaFijar = (args) => {
@@ -316,10 +371,10 @@ describe('reabrir un mes sellado', () => {
       ['fijar_plazo_carga_mes', { p_periodo: '2026-09-01', p_ultimo_dia: '2026-10-20', p_motivo: MOTIVO }],
     ])
     const aviso = within(region).getByRole('status')
-    await waitFor(() => expect(aviso).toHaveTextContent('Setiembre 2026 reabierto: se puede cargar hasta el 20 oct.'))
-    expect(aviso).toHaveTextContent('Venta devuelta a setiembre: COOPAC Qorilazo · S/ 20,000 · del 15 set. (estaba contada el 13 oct.).')
+    await waitFor(() => expect(aviso).toHaveTextContent('Setiembre 2026 reabierto: se puede cargar hasta el 20 oct. 2026.'))
+    expect(aviso).toHaveTextContent('Venta devuelta a setiembre: COOPAC Qorilazo · S/ 20,000 · del 15 set. 2026 (estaba contada el 13 oct. 2026).')
     const setiembre = fila(region, /^Setiembre 2026/)
-    expect(setiembre).toHaveTextContent('Reabierto por GERENTE REAL el 14 oct. · ampliado por GERENTE REAL el 14 oct.')
+    expect(setiembre).toHaveTextContent('Reabierto por GERENTE REAL el 14 oct. 2026 · ampliado por GERENTE REAL el 14 oct. 2026')
     expect(within(setiembre).getByRole('button', { name: 'Ampliar plazo de setiembre 2026' })).toBeInTheDocument()
     // Las ventas devueltas salen del mes en curso, cuyo cumplimiento vive en el store.
     expect(recargar).toHaveBeenCalledTimes(1)

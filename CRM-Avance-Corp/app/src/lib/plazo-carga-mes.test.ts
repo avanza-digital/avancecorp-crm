@@ -1,6 +1,9 @@
 import * as v from 'valibot'
 import { describe, expect, it } from 'vitest'
 import {
+  DIAS_FECHA_LEJANA,
+  avisoFechaLejana,
+  esFechaLejana,
   AVISO_PLAZO_VENCIDO,
   PlazoCargaFijadoSchema,
   PlazosCargaMesSchema,
@@ -183,22 +186,22 @@ describe('lo que dice cada mes', () => {
   it('abierto con plazo por delante: «se puede cargar hasta el 20 oct.»', () => {
     const m = mes({ plazo_ultimo_dia: '2026-10-20', ampliado: true })
     expect(estadoDelPlazo(m, HOY)).toBe('vigente')
-    expect(lineaDelPlazo(m, HOY)).toBe('se puede cargar hasta el 20 oct.')
+    expect(lineaDelPlazo(m, HOY)).toBe('se puede cargar hasta el 20 oct. 2026')
   })
 
   it('el último día es hoy: lo dice así', () => {
-    expect(lineaDelPlazo(mes({ plazo_ultimo_dia: HOY }), HOY)).toBe('se puede cargar hasta hoy, 14 oct.')
+    expect(lineaDelPlazo(mes({ plazo_ultimo_dia: HOY }), HOY)).toBe('se puede cargar hasta hoy, 14 oct. 2026')
   })
 
   it('ESTADO DE PRODUCCIÓN: setiembre abierto con el plazo vencido no dice «se puede cargar hasta el 10 oct.»', () => {
     const m = mes()
     expect(estadoDelPlazo(m, HOY)).toBe('vencido')
-    expect(lineaDelPlazo(m, HOY)).toBe('el plazo de carga venció el 10 oct.')
+    expect(lineaDelPlazo(m, HOY)).toBe('el plazo de carga venció el 10 oct. 2026')
     expect(AVISO_PLAZO_VENCIDO).toMatch(/conversión queda fuera de plazo/)
   })
 
   it('sellado: cerrado, con el plazo que tuvo', () => {
-    expect(lineaDelPlazo(mes({ sellado: true }), HOY)).toBe('cerrado · se pudo cargar hasta el 10 oct.')
+    expect(lineaDelPlazo(mes({ sellado: true }), HOY)).toBe('cerrado · se pudo cargar hasta el 10 oct. 2026')
   })
 
   it('el nombre lo pone el servidor: solo se sube la primera letra', () => {
@@ -213,12 +216,12 @@ describe('lo que dice cada mes', () => {
     expect(lineaDecision(mes({
       ampliado: true,
       decision: { ultimo_dia: '2026-10-20', motivo: 'x', decidido_por: 'MIGUEL BRICEÑO', decidido_en: '2026-10-15T01:00:00Z' },
-    }))).toBe('Ampliado por MIGUEL BRICEÑO el 14 oct.')
+    }))).toBe('Ampliado por MIGUEL BRICEÑO el 14 oct. 2026')
     expect(lineaDecision(mes({
       ampliado: false,
       decision: { ultimo_dia: '2026-10-10', motivo: 'x', decidido_por: 'ANA', decidido_en: '2026-10-14T15:00:00Z' },
       ultima_reapertura: { reabierto_en: '2026-10-14T14:00:00Z', decidido_por: 'ANA' },
-    }))).toBe('Reabierto por ANA el 14 oct. · fijado por ANA el 14 oct.')
+    }))).toBe('Reabierto por ANA el 14 oct. 2026 · fijado por ANA el 14 oct. 2026')
   })
 
   it('el botón: ampliar si está abierto, reabrir si el servidor dice que se puede, nada si no', () => {
@@ -237,9 +240,22 @@ describe('reglas del formulario', () => {
   it('la fecha: vacía, inválida, antes del mínimo o aceptada', () => {
     expect(errorUltimoDia('', '2026-10-14')).toBe('Elige el último día para cargar.')
     expect(errorUltimoDia('20/10/2026', '2026-10-14')).toBe('La fecha no es válida.')
-    expect(errorUltimoDia('2026-10-13', '2026-10-14')).toBe('Elige un día desde el 14 oct.')
+    expect(errorUltimoDia('2026-10-13', '2026-10-14')).toBe('Elige un día desde el 14 oct. 2026.')
     expect(errorUltimoDia('2026-10-14', '2026-10-14')).toBeNull()
     expect(errorUltimoDia('2027-03-31', '2026-10-14')).toBeNull()
+  })
+
+  it('una fecha a más de dos meses de hoy pide confirmación (no es un tope): el error del 15/10 era el año 2926', () => {
+    expect(DIAS_FECHA_LEJANA).toBe(60)
+    expect(esFechaLejana('2026-12-13', '2026-10-14')).toBe(false) // 60 días: todavía no
+    expect(esFechaLejana('2026-12-14', '2026-10-14')).toBe(true) // 61 días
+    expect(esFechaLejana('2926-10-20', '2026-10-15')).toBe(true)
+    expect(esFechaLejana('2027-10-20', '2026-10-15')).toBe(true) // un año de más también
+    expect(esFechaLejana('2026-10-20', '2026-10-15')).toBe(false)
+    expect(esFechaLejana('', '2026-10-15')).toBe(false)
+    expect(esFechaLejana('20/10/2926', '2026-10-15')).toBe(false)
+    expect(avisoFechaLejana('2926-10-20', 'setiembre 2026')).toBe(
+      'El 20 oct. 2926 queda a más de dos meses: hasta ese día setiembre no se cierra, y los meses siguientes tampoco. Revisa el año.')
   })
 
   it('el motivo se cuenta como Postgres (sin espacios de borde, un emoji es uno) y va de 5 a 300', () => {
@@ -257,7 +273,7 @@ describe('el aviso tras guardar', () => {
 
   it('ampliar: el plazo que quedó y cuántas conversiones se volvieron a revisar', () => {
     expect(resumenPlazoFijado(acuse(), 'setiembre 2026')).toEqual({
-      titulo: 'Setiembre 2026: se puede cargar hasta el 20 oct.',
+      titulo: 'Setiembre 2026: se puede cargar hasta el 20 oct. 2026.',
       lineas: ['Se volvieron a revisar 12 conversiones con el plazo nuevo.'],
     })
     expect(resumenPlazoFijado(acuse({ acreditaciones_reevaluadas: 0 }), 'setiembre 2026').lineas)
@@ -279,12 +295,12 @@ describe('el aviso tras guardar', () => {
         { cooperativa: 'otra', monto: 1500.5, moneda: 'USD', fecha_comercial: '2026-09-30', imputada_antes_a: '2026-10-02' },
       ],
     }), 'setiembre 2026')
-    expect(r.titulo).toBe('Setiembre 2026 reabierto: se puede cargar hasta el 20 oct.')
+    expect(r.titulo).toBe('Setiembre 2026 reabierto: se puede cargar hasta el 20 oct. 2026.')
     expect(r.lineas).toEqual([
       'Se volvieron a revisar 3 conversiones con el plazo nuevo.',
       '2 conversiones se quedaron como estaban: esas personas ya tenían otra conversión acreditada.',
-      'Venta devuelta a setiembre: COOPAC Qorilazo · S/ 20,000 · del 15 set. (estaba contada el 13 oct.).',
-      'Venta devuelta a setiembre: OTRA · US$ 1,500.5 · del 30 set. (estaba contada el 02 oct.).',
+      'Venta devuelta a setiembre: COOPAC Qorilazo · S/ 20,000 · del 15 set. 2026 (estaba contada el 13 oct. 2026).',
+      'Venta devuelta a setiembre: OTRA · US$ 1,500.5 · del 30 set. 2026 (estaba contada el 02 oct. 2026).',
     ])
   })
 })

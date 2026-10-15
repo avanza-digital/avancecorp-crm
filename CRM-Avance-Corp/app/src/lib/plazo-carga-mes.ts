@@ -8,7 +8,7 @@ import {
   TextoNoVacioSchema,
   UuidSchema,
 } from './esquemas-rpc'
-import { fmtDiaMes, fmtDiaMesLima, money } from './format'
+import { fmtFecha, fmtFechaLima, money } from './format'
 
 /**
  * El PLAZO DE CARGA de cada mes, decidido por Gerencia (`crm.plazos_carga_mes_fn`
@@ -140,11 +140,34 @@ export function conPunto(frase: string): string {
   return frase.endsWith('.') ? frase : `${frase}.`
 }
 
+/**
+ * Desde cuántos días después de hoy el diálogo pide CONFIRMAR el último día. No es un tope (Miguel decidió «sin tope»):
+ * es la defensa contra el error de tipeo del 15/10/2026, cuando septiembre quedó abierto hasta 2926.
+ */
+export const DIAS_FECHA_LEJANA = 60
+
+/** Días de calendario de `desde` a `hasta` (fechas 'AAAA-MM-DD'), sin zona horaria de por medio. */
+function diasEntre(desde: string, hasta: string): number {
+  return Math.round((Date.parse(`${hasta}T00:00:00Z`) - Date.parse(`${desde}T00:00:00Z`)) / 86_400_000)
+}
+
+/** ¿El último día elegido queda a más de `DIAS_FECHA_LEJANA` de hoy? Entonces hay que confirmarlo antes de guardar. */
+export function esFechaLejana(valor: string, hoy: string): boolean {
+  if (!v.safeParse(FechaSchema, valor).success || !v.safeParse(FechaSchema, hoy).success) return false
+  return diasEntre(hoy, valor) > DIAS_FECHA_LEJANA
+}
+
+/** El aviso de una fecha lejana, con el año a la vista y lo que significa esperar. */
+export function avisoFechaLejana(valor: string, mesNombre: string): string {
+  return `El ${fmtFecha(valor)} queda a más de dos meses: hasta ese día ${mesSinAnio(mesNombre)} no se cierra, `
+    + 'y los meses siguientes tampoco. Revisa el año.'
+}
+
 /** Qué le falta a la fecha elegida, o `null` si la puerta la aceptaría. */
 export function errorUltimoDia(valor: string, minimo: string): string | null {
   if (valor === '') return 'Elige el último día para cargar.'
   if (!v.safeParse(FechaSchema, valor).success) return 'La fecha no es válida.'
-  if (valor < minimo) return conPunto(`Elige un día desde el ${fmtDiaMes(minimo)}`)
+  if (valor < minimo) return conPunto(`Elige un día desde el ${fmtFecha(minimo)}`)
   return null
 }
 
@@ -168,9 +191,12 @@ export function estadoDelPlazo(mes: MesPlazoCarga, hoy: string): EstadoPlazo {
   return mes.plazo_ultimo_dia === hoy ? 'ultimo_dia' : 'vencido'
 }
 
-/** Lo que va detrás del nombre del mes: «se puede cargar hasta el 20 oct.». */
+/**
+ * Lo que va detrás del nombre del mes: «se puede cargar hasta el 20 oct. 2026». Siempre CON año (15/10/2026:
+ * un plazo guardado en 2926 por un error de tipeo se leía «hasta el 20 oct.» y no se notó).
+ */
 export function lineaDelPlazo(mes: MesPlazoCarga, hoy: string): string {
-  const fecha = fmtDiaMes(mes.plazo_ultimo_dia)
+  const fecha = fmtFecha(mes.plazo_ultimo_dia)
   switch (estadoDelPlazo(mes, hoy)) {
     case 'vigente':
       return `se puede cargar hasta el ${fecha}`
@@ -190,14 +216,14 @@ export function lineaDelPlazo(mes: MesPlazoCarga, hoy: string): string {
  */
 export const AVISO_PLAZO_VENCIDO = 'Sigue abierto: lo que se cargue ahora suma capital, pero su conversión queda fuera de plazo.'
 
-/** Quién decidió y cuándo: «Ampliado por MIGUEL el 14 oct.», con la reapertura delante si la hubo. */
+/** Quién decidió y cuándo: «Ampliado por MIGUEL el 14 oct. 2026», con la reapertura delante si la hubo. */
 export function lineaDecision(mes: MesPlazoCarga): string | null {
   const partes: string[] = []
   if (mes.ultima_reapertura) {
-    partes.push(`reabierto por ${mes.ultima_reapertura.decidido_por} el ${fmtDiaMesLima(mes.ultima_reapertura.reabierto_en)}`)
+    partes.push(`reabierto por ${mes.ultima_reapertura.decidido_por} el ${fmtFechaLima(mes.ultima_reapertura.reabierto_en)}`)
   }
   if (mes.decision) {
-    partes.push(`${mes.ampliado ? 'ampliado' : 'fijado'} por ${mes.decision.decidido_por} el ${fmtDiaMesLima(mes.decision.decidido_en)}`)
+    partes.push(`${mes.ampliado ? 'ampliado' : 'fijado'} por ${mes.decision.decidido_por} el ${fmtFechaLima(mes.decision.decidido_en)}`)
   }
   return partes.length === 0 ? null : conMayuscula(partes.join(' · '))
 }
@@ -224,7 +250,7 @@ function nombreCooperativa(codigo: string): string {
 
 function lineaVentaDevuelta(venta: VentaDevuelta, mesNombre: string): string {
   return `Venta devuelta a ${mesSinAnio(mesNombre)}: ${nombreCooperativa(venta.cooperativa)} · ${money(venta.monto, venta.moneda)}`
-    + ` · del ${fmtDiaMes(venta.fecha_comercial)} (estaba contada el ${fmtDiaMes(venta.imputada_antes_a)}).`
+    + ` · del ${fmtFecha(venta.fecha_comercial)} (estaba contada el ${fmtFecha(venta.imputada_antes_a)}).`
 }
 
 export interface ResumenPlazoFijado {
@@ -235,7 +261,7 @@ export interface ResumenPlazoFijado {
 /** El aviso que queda en la tarjeta tras guardar: qué plazo quedó y qué movió. */
 export function resumenPlazoFijado(acuse: PlazoCargaFijado, mesNombre: string): ResumenPlazoFijado {
   const nombre = conMayuscula(mesNombre)
-  const fecha = fmtDiaMes(acuse.ultimo_dia)
+  const fecha = fmtFecha(acuse.ultimo_dia)
   const revisadas = acuse.acreditaciones_reevaluadas
   const conflictos = acuse.conflictos_identidad
   const lineas = [
