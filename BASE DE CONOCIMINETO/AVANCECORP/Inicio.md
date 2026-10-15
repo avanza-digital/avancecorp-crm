@@ -9,7 +9,7 @@ actualizado: 2026-09-25
 
 # 🏠 Inicio — Portal Avance Corp
 
-- 📝 **15/10 — NUEVA PLANILLA DE REPARTO:** Miguel pide equilibrar cantidades totales entre supervisores combinando orígenes, con acumulado semanal y filtros independientes de fecha de ingreso/reparto (un día, rango o días sueltos). Maqueta en Figma; aún sin implementación ni cambios productivos. [[Coordinacion - planilla de reparto y equilibrio por fechas (2026-10-15)]].
+- 📝 **15/10 — NUEVA PLANILLA DE REPARTO:** Miguel pide equilibrar cantidades totales entre supervisores combinando orígenes, con acumulado semanal y filtros independientes de fecha de ingreso/reparto (un día, rango o días sueltos). Planilla implementada y validada (6.946 tests; 40 E2E de reparto); Figma actualizado. Pendiente de publicación, sin cambios productivos. [[Coordinacion - planilla de reparto y equilibrio por fechas (2026-10-15)]].
 
 - **15/10 — FORMULARIO 3 COMO ORIGEN NATIVO, PREPARADO SIN PUBLICAR:** misma estructura, permisos y procesos que los demás orígenes; filtros y métricas propios, turno compartido con Formulario. Repartir pasa a tabla por origen. Ensayos locales incluyen clientes ya convertidos y concurrencia; pendiente gate cloud y publicación. [[Formulario 3 - origen nativo preparado (2026-10-15)]].
 

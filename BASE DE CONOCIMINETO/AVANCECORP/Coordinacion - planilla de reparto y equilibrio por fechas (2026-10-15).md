@@ -1,6 +1,6 @@
 # Coordinación - planilla de reparto y equilibrio por fechas
 
-Estado: requerimiento acordado y maqueta en Figma; **todavía sin implementación ni publicación en el CRM**. La publicación anterior de Formulario 3 nativo sigue completa. No se modificaron leads, responsables, permisos, turnos ni n8n durante esta definición.
+Estado: **implementada en rama y validada; pendiente de publicación en el CRM**. La publicación anterior de Formulario 3 nativo sigue completa. No se modificaron leads, responsables, permisos, turnos ni n8n durante esta definición.
 
 ## Decisión de Miguel
 
@@ -12,7 +12,7 @@ Eligió el **acumulado semanal** como referencia habitual. Después amplió el r
 - Fecha de reparto: consultar cuánto se entregó a cada supervisor en esos días.
 - Origen y supervisor: ajustar las filas, columnas, desglose y totales a la selección. No presentar un total global como si fuese el filtrado.
 
-La semana es un acceso rápido, no una restricción del módulo. Las fechas se interpretan en America/Lima. Falta definir en implementación si «ingreso» utiliza el ingreso al CRM o la fecha original de la fuente; no confundirlas al importar históricos. La actual cola devuelve `creado_en` del CRM.
+La semana es un acceso rápido, no una restricción del módulo. Las fechas se interpretan en America/Lima. La pantalla dice **Fecha de ingreso al CRM** y utiliza `creado_en`. No utiliza la fecha original del formulario o Excel; así no se confunden los históricos importados.
 
 ## Vista acordada
 
@@ -64,3 +64,12 @@ Claude se intentó mediante `scripts/claude-review`, con evidencia saneada. El i
 No se ejecutaron pruebas de producto porque este cambio solo documenta y dibuja el requerimiento. Antes de implementar: cerrar semántica de fecha de ingreso, concretar UX de selección de días y borradores, completar revisión técnica útil, implementar y verificar antes de cualquier publicación.
 
 Relacionados: [[Historial de derivaciones de Coordinacion]], [[Reparto de Leads]], [[Formulario 3 - origen nativo publicado (2026-10-15)]].
+
+
+## Implementación autorizada y preparada
+
+Miguel autorizó construir la planilla, conservando recursos visuales del CRM. Rama `feat/coordinacion-planilla-reparto-20261015`, clon aislado `/private/tmp/formulario3-fase4-publicacion`. No se tocaron producción ni n8n.
+
+Se reutilizan las RPC existentes. Lectura completa de pendientes con conteo exacto/paginación, agendas en ventanas de 14 días, ambos calendarios separados, rangos y días sueltos, tabla dinámica, revisión de IDs y confirmación secuencial. Rechazos, resultados inciertos y no intentados se muestran por separado. No redistribuye leads ya asignados.
+
+Claude revisó y se aplicaron las observaciones pertinentes. Codex revisó cancelación de consultas y coordinación de escrituras entre las dos vistas. La evidencia y límites están en `CRM-Avance-Corp/docs/plans/planilla-reparto/VALIDACION.md`. Gate integral: 6.946 tests; E2E de reparto: 40/40. Publicación pendiente del flujo de release.
