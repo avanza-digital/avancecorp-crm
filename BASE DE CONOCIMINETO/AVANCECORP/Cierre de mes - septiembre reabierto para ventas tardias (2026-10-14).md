@@ -1,7 +1,7 @@
 ---
 tags: [crm, cierre-mes, produccion, decision]
 fecha: 2026-10-14
-estado: septiembre reabierto en producción; configuración de plazo lista (migración 20261015000852), falta aplicarla, que Gerencia fije el plazo y reactivar el ciclo
+estado: resuelto — plazo de septiembre hasta el 21/10/2026 fijado por Gerencia y ciclo diario reactivado (se sella solo el 22/10 09:20)
 ---
 
 # Cierre de mes — septiembre reabierto para ventas tardías (14/10/2026)
@@ -43,11 +43,11 @@ septiembre pero su **conversión** queda «fuera de plazo» (plazo fijo 10/10 23
 que exista la configuración de plazo de Gerencia, que debe **reevaluarla explícitamente**
 (el escritor devuelve la fila tal cual si la fuente no cambia).
 
-**Pendiente.** Aplicar la configuración de plazo ([[Cierre de mes - plazo de carga por mes decidido por Gerencia (2026-10-14)]]):
-migración `20261015000852` + pantalla «Plazo de carga» en Hoy de Gerencia → Gerencia fija el último día de
-septiembre (es «ampliar»: septiembre ya está abierto) → `scripts/plazo-carga-mes/reactivar-ciclo.sql` (job 3, solo
-con ese plazo en el futuro) → el ciclo sella septiembre solo cuando venza. Con eso `02-resellar.sql` y
-`03-restaurar.sql` quedan superados (03 ya no aplica: la huella del mes cambió en cuanto se cargó algo).
+**Resuelto (15/10).** La configuración de plazo ([[Cierre de mes - plazo de carga por mes decidido por Gerencia (2026-10-14)]])
+se aplicó y publicó (tarjeta en Configuración). Gerencia fijó el último día de septiembre en el **21/10/2026** (el
+primer intento quedó en 2926 por un error de tipeo y se corrigió con otra decisión: vale la última) y se reactivó el
+job 3: el ciclo sella septiembre solo el 22/10 a las 09:20 y luego octubre en su fecha. `02-resellar.sql` y
+`03-restaurar.sql` quedan superados.
 
 Relacionado: [[Cierre de mes]] · [[Periodo comercial de contratos]] ·
 [[Conversion - fecha comercial y plazo de registro (propuesta 2026-09-26)]] ·

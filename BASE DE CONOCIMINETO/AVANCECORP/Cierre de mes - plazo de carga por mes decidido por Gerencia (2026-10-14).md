@@ -1,7 +1,7 @@
 ---
 tags: [crm, cierre-mes, conversion, decision]
 fecha: 2026-10-14
-estado: migración APLICADA y verificada en producción (15/10 ~10:40); falta publicar el front, que Gerencia fije septiembre y reactivar el ciclo
+estado: en producción (servidor 15/10 ~10:40; tarjeta en Configuración 15/10 12:28); septiembre fijado al 21/10 y ciclo reactivado
 ---
 
 # Cierre de mes — plazo de carga por mes decidido por Gerencia (14/10/2026)
@@ -50,6 +50,11 @@ en el censo analítico y el banco de solo esquema no tenía esa fila. Se corrigi
 probó con los registros REALES de producción sembrados en el banco. Segundo ensayo «ENSAYO OK» → aplicar → registrar →
 verificar «APLICADA Y REGISTRADA». Lección: antes de tocar una función existente, sembrar en el banco los registros de
 los controles de producción (`leer-registros-produccion.sql`).
+
+**Primer uso (15/10).** Gerencia guardó por error el año **2926** («hasta el 20 oct.»: la tarjeta no muestra el año)
+y la reactivación del ciclo lo delató (`plazo_septiembre_lima: 2926-10-21`). Se corrigió desde la misma tarjeta con una
+decisión nueva (21/10/2026). Lección: sin tope de fecha, la pantalla debe mostrar el año y pedir confirmación ante una
+fecha lejana; y un guion que reactiva un proceso debe enseñar el valor que va a usar.
 
 **Cómo se aplica.** Pasos con `!` en `CRM-Avance-Corp/supabase/scripts/plazo-carga-mes/LEEME.md`:
 ensayo con ROLLBACK → aplicar → registrar → verificar → publicar el front → Gerencia fija septiembre →
