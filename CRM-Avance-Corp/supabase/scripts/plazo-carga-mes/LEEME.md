@@ -63,7 +63,7 @@ Orden por dirección: **servidor primero** (la pantalla nueva llama a dos funcio
    pausa).
 5. **Tipos**: en `app/`, `npm run gen:types`; debe salir igual al `database.types.ts` de esta rama (79 líneas nuevas:
    las dos tablas y las dos funciones).
-6. **Front**: fusionar la PR y `/release-crm` (tarjeta «Plazo de carga» en Hoy de Gerencia).
+6. **Front**: fusionar la PR y `/release-crm` (tarjeta «Plazo de carga» en Configuración, solo Gerencia; publicada primero en Hoy el 15/10 y movida el mismo día).
 7. **Gerencia fija el plazo de septiembre** desde la pantalla («Ampliar plazo»: septiembre ya está abierto, no se
    reabre). Al guardar, la conversión «fuera de plazo» de septiembre se reevalúa sola. (Solo un mes con metas publicadas
    admite plazo: septiembre las tiene; un mes sin metas responde «no tiene metas publicadas: no tiene cierre ni plazo de
