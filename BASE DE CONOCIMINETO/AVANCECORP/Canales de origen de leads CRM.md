@@ -1,12 +1,15 @@
 # Canales de origen de leads CRM
 
-Decisión vigente desde el 2026-07-17, ampliada el 2026-09-01.
+Decisión vigente desde el 2026-07-17, ampliada el 2026-09-01 y el 2026-10-15 para Formulario 3.
+
+Formulario 3 está publicado como origen nativo con los mismos permisos y procesos, turno operativo Formulario y desglose propio. [[Formulario 3 - origen nativo publicado (2026-10-15)]].
 
 ## Orígenes seleccionables
 
 - `referido` — Referido
 - `landing` — LANDING
 - `formulario` — FORMULARIO
+- `formulario_3` — Formulario 3
 - `oficina` — Wallking
 - `otro` — Otro
 
@@ -30,14 +33,14 @@ el lead queda a su propio nombre. Supervisores y gerencia pueden seleccionar
 
 ### Efecto en la conversión mensual
 
-Un lead `landing` o `formulario` creado manualmente cuenta en la cartera, la
+Un lead `landing`, `formulario` o `formulario_3` creado manualmente cuenta en la cartera, la
 trazabilidad, los cierres, el numerador y cualquier otra métrica que le
 corresponda. La única excepción es su recepción: aporta **0 al divisor mensual**
 del analista. Por ello, si convierte, puede sumar 1 al numerador sin sumar 1 al
 divisor y la conversión puede superar el 100 %.
 
 La regla depende de la procedencia del alta, no solo del texto del origen. Un
-`landing` o `formulario` ingresado por el puente automático conserva su aporte
+`landing`, `formulario` o `formulario_3` ingresado por el puente automático conserva su aporte
 normal de 1 al divisor. La base sella esa procedencia en
 `crm.leads.alta_manual`; no se deduce de `creado_por`, porque su FK puede quedar
 en `NULL` al eliminarse el perfil autor.
