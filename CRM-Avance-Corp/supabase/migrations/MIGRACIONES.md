@@ -1,6 +1,8 @@
 ## 20261015173031 — Formulario 3: activación del origen y reclasificación conservadora (B)
 
-**PROBADA EN DOCKER Y RAMA SUPABASE; NO APLICADA NI PUBLICADA EN PRODUCCIÓN.** Requiere A, frontend/Edge compatibles y pestañas del equipo
+Publicación: [acta verificada](../../docs/FORMULARIO3-ORIGEN-NATIVO-PUBLICADO.md). 116 leads nativos, cero legados; un convertido y su acreditación conservados. Huellas de negocio antes/después idénticas. Web `597cab1c`, Edge v26, recarga del equipo confirmada antes de B. MD5 SQL registrado: `0f8f34071f7565105f8e8af2f410e420`.
+
+**APLICADA Y REGISTRADA EN PRODUCCIÓN 15/10/2026, autorización explícita de Miguel.** Requiere A, frontend/Edge compatibles y pestañas del equipo
 renovadas. Drena escritores previos con el bloqueo de `crm.leads` y normaliza productores legados a
 `formulario_3`; no cambia n8n ni sus recibos. Reclasifica exclusivamente `formulario` + campaña exacta
 `Formulario 3`, conservando asignaciones, estado, veto, tareas, historial, ledger y fotos cerradas.
@@ -26,7 +28,9 @@ Evidencia y orden: [`formulario3-origen/LEEME.md`](../scripts/formulario3-origen
 
 ## 20261015171407 — Formulario 3: compatibilidad de origen, reparto y métricas (A)
 
-**PROBADA EN DOCKER Y RAMA SUPABASE; NO APLICADA NI PUBLICADA EN PRODUCCIÓN.** `formulario_3` usa `crm.leads.origen` y las mismas puertas,
+Promovida antes de frontend/Edge y B; 22 huellas vivas comprobadas. Registro original con el archivo íntegro: MD5 `b7f8878b3dcd95e0da737897dd3b44bb`. Lecturas productivas bajo authenticated de cuatro roles PASS antes y después de B. [Acta](../../docs/FORMULARIO3-ORIGEN-NATIVO-PUBLICADO.md).
+
+**APLICADA Y REGISTRADA EN PRODUCCIÓN 15/10/2026, autorización explícita de Miguel.** `formulario_3` usa `crm.leads.origen` y las mismas puertas,
 RLS, roles y asignación existentes. Actualiza 22 funciones verificadas por huella, dos CHECKs de catálogo y
 tres helpers privados. F3 es filtro/origen propio y comparte únicamente el turno operativo Formulario
 (dos turnos de agenda). Peso: llegada automática 1, manual 0 y cierre 1; mantiene primer analista y fotos
