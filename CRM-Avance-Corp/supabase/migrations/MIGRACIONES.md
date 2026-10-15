@@ -1,3 +1,63 @@
+## 20261015000852 — Plazo de carga por mes, decidido por Gerencia (y reapertura del último mes sellado)
+
+**Estado: PREPARADA Y PROBADA EN LOCAL, con las revisiones Codex r1 y r2 aplicadas; NO APLICADA (15/10/2026, Lima).** Pedido y decisiones de Miguel (14/10): solo
+Gerencia decide, sin tope de fecha, ampliar el plazo Y reabrir un mes sellado desde la pantalla
+([diseño](../../docs/plans/plazo-carga-mes/DISENO.md)). `crm.fijar_plazo_carga_mes(date,date,text)` fija el último día
+incluido (plazo = 00:00 de Lima del día siguiente; nunca antes de la base del día 10, desde hoy, motivo de 5 a 300; solo
+un mes con metas publicadas, porque el ciclo solo sella esos; 22023 para un mes sin metas o sin sellar por detrás del
+último cierre) y, si el mes está sellado, tiene metas y es el ÚLTIMO sellado y el ANTERIOR al mes en curso, lo reabre (`private.reabrir_mes`: las operaciones de `scripts/reexpresion-septiembre-2026/01-reabrir.sql` en el
+mismo orden, sin `ALTER TABLE` ni GUC). La autorización de los candados es la fila de `crm.reaperturas_mes`: solo su mes,
+solo su transacción superior (id e instante, fijados por trigger; llave única `(transaccion, reabierto_en)`; vale también
+en sus subtransacciones) y, para un cierre en cooperativa, solo una venta que esa reapertura respaldó y solo para devolver
+su imputación a la fecha comercial, sin ningún otro cambio en la fila. Reevalúa las acreditaciones «fuera de
+plazo»/«mes sellado» del mes con la decisión, la exclusión de fuente, la regla de identidad (antes de decidir el estado,
+como el escritor) y su candado.
+`crm.plazos_carga_mes_fn()` (solo Gerencia) alimenta la tarjeta «Plazo de carga». Las dos puertas validan, autorizan y
+delegan en núcleo `private` (`fijar_plazo_carga`, `plazos_carga_mes_lectura`): ningún salto de capa nuevo.
+Tablas nuevas `crm.plazos_carga_mes` y `crm.reaperturas_mes`: RLS sin políticas, sin grants, append-only, auditoría
+`log_audit_crm` de los tres verbos (el respaldo va sin documento ni nombre del cliente). Sin `negocio_id` (el cierre de
+mes no tiene inquilino). `private.conversion_plazo_hasta` pasa a STABLE (última decisión o la base nueva
+`private.conversion_plazo_base`); `conversion_decidir_plazo` y `cierre_mes_ventana_desde`, IMMUTABLE → STABLE con el
+cuerpo intacto; CHECK de plazo de `crm.conversion_acreditaciones` de igualdad → mínimo
+(`conversion_acreditaciones_plazo_minimo_check`). Los tres candados del cierre (`trg_cierre_mes_append_only`,
+`f4_fuente_inmutable`, `trg_cierres_externos_inmutables`) son los cuerpos vivos + la rama de la reapertura.
+`crm.cerrar_periodo` = cuerpo vivo + una segunda mirada a la ventana DESPUÉS de tomar sus candados (si Gerencia amplió
+el plazo mientras el sello esperaba, 22023; el ciclo lo anota en su `fallo`).
+Preflight con las huellas de lo vivo (7 piezas que cambian, 14 que se llaman o se reproducen); postflight con permisos
+exactos, intentos que deben rebotar y la foto de trinquetes (F7, analítica, vigencia, auditoría) igual antes y después.
+No toca `public` (salvo el DML de siempre de los triggers), el cron, `crm.ciclo_cierre_mes` ni la forma de
+`crm.cierre_mes_estado_fn`.
+**Revisión:** `auditor-rls` CHANGES_REQUESTED sin P0/P1 (1 P2 y P3 de endurecimiento): todo aceptado y aplicado. Codex
+r1 (LEVEL 3): FAIL, 1 P1 + 2 P2 + 3 P3; aceptados y corregidos los seis + la vista previa (que ahora falla si la
+operación simulada falla): P1 la carrera del sello con una ampliación (con «sin tope» podía sellar antes del plazo un
+mes que la pantalla ya no reabre) → `crm.cerrar_periodo` vuelve a mirar la ventana con los candados; P2 la rama de la
+reapertura con la válvula `crm.op_privilegiada` dejaba cambiar otras columnas → igualdad de toda la fila salvo la
+imputación; P2 un mes abierto con decisión y sin metas desaparecía de la lectura → entra (y un nombre en blanco sale
+«(sin nombre · …)»); P3 identidad antes de decidir el estado; P3 llave única `(transaccion, reabierto_en)`; P3 alcance
+de la autorización documentado (transacción superior con sus subtransacciones). Rechazado con evidencia: la identidad
+guardada en un reintento (el escritor tampoco la refresca en su rama de reintento). Codex r2: FAIL por 1 P2 (mes sin
+metas fuera del sellado), sin P0/P1; confirmó las correcciones r1; aceptado: solo meses con metas admiten plazo y
+reapertura (`private.fijar_plazo_carga` 22023 tras los candados y antes de mirar el sello; `private.reapertura_impedimento`
+con su motivo). Con esa regla, la rama «meses abiertos con decisión» de la lectura queda redundante (se conserva).
+**Verificación local** (banco Docker propio, esquema de producción del 14/10 sin datos + #280, 1049 funciones
+crm+private): `prueba.sql` 186 casos PASS (12 bloques; B12: con un mes ampliado, el ciclo no sella el siguiente y
+`crm.cerrar_periodo` responde «Falta cerrar»); 62/62 mutantes mueren (+4 controles de defensa redundante que sobreviven a
+propósito); dos sesiones 14/14 (otra transacción no hereda la autorización; candados global, mensual y de
+identidad; el sello que esperaba a una ampliación se niega a mano y por el ciclo; mutantes sin candados y con el sello
+de antes); Auth/HTTP real 42 PASS (ampliar y reabrir; `test-rls.mjs --plazo-carga-mes`); transporte 9/9 (el ensayo
+exacto del LEEME sobre un mundo como producción, también cuando la operación simulada falla; la reversa que se niega; el
+registrador); oráculo del cierre de mes 22/22 y `eliminar_inversion` 24 bloques con la migración puesta; foto de los 36
+`assert_*` y de los censos (103 filas) idéntica con y sin la migración; reversa al byte (huella del esquema igual a la de
+antes, `crm.cerrar_periodo` incluido) y reaplicación PASS; plpgsql_check sin avisos en las 11 funciones de una tabla y,
+en `f4_fuente_inmutable` (trigger de tres tablas), los mismos «record has no field» de ramas guardadas por tabla que la
+versión revisada antes; `verificar-produccion.sql` exige las 14 huellas exactas; `check:scripts` (340 pass) y
+`test:rls:preflight` PASS. Bloque «Plazo de carga por mes» añadido a la matriz general de `test-rls.mjs` (NO corrido: necesita el seed de una
+branch). Advisors: NOT RUN (son de la nube). Tipos generados desde el banco (con #280 y esta migración) iguales al
+`database.types.ts` de la rama salvo el formato y la metadata HTTP preservada.
+**Aplicación (Miguel con `!`):** ensayo con ROLLBACK + vista previa → aplicar → registrar → verificar → front →
+Gerencia fija el plazo de septiembre → `reactivar-ciclo.sql` (job 3, solo con plazo futuro). Pasos exactos, reversa y
+límites: [`scripts/plazo-carga-mes/LEEME.md`](../scripts/plazo-carga-mes/LEEME.md).
+
 ## 20261014215453 — Campaña de origen en cartera y filtro, fase 2
 
 **PROBADA EN LOCAL Y RAMA REMOTA; NO PUBLICADA.** Depende de la fase 1. La cartera

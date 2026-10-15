@@ -1791,6 +1791,30 @@ export function diaLimaReal(dias = 0): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(new Date(Date.now() + dias * 86_400_000))
 }
 
+/** Un mes de `crm.plazos_carga_mes_fn`: abierto, sin decisión y con su plazo normal. */
+export function mesPlazoCargaReal(over: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    mes: '2026-08', mes_nombre: 'agosto 2026', sellado: false,
+    plazo_base_ultimo_dia: '2026-09-10', plazo_ultimo_dia: '2026-09-10', ampliado: false,
+    decision: null, reabrible: false, motivo_no_reabrible: null, ultima_reapertura: null,
+    ...over,
+  }
+}
+
+/**
+ * `crm.plazos_carga_mes_fn` coherente con el `cierre_mes_estado_fn` del backend
+ * simulado (02/09): agosto abierto en su ventana y setiembre en curso.
+ */
+export function plazosCargaMesReal(
+  hoy = '2026-09-02',
+  meses: Record<string, unknown>[] = [
+    mesPlazoCargaReal(),
+    mesPlazoCargaReal({ mes: '2026-09', mes_nombre: 'setiembre 2026', plazo_base_ultimo_dia: '2026-10-10', plazo_ultimo_dia: '2026-10-10' }),
+  ],
+): Record<string, unknown> {
+  return { version: 1, generado_en: `${hoy}T15:00:00.000000+00:00`, hoy, zona: 'America/Lima', meses }
+}
+
 /**
  * Ítem de `crm.potencial_leads_fn` para un lead del fixture. Si el fixture da
  * solo el nivel, es una marca RECIÉN PUESTA (hoy, reloj en cero): ahí el
@@ -3270,6 +3294,11 @@ export async function montarBackendReal(
           automatico: true,
         },
       })
+    }
+    if (p === '/rest/v1/rpc/plazos_carga_mes_fn' && method === 'POST') {
+      // La tarjeta «Plazo de carga» de Hoy · Gerencia. Sin esta ruta, todo spec
+      // de Gerencia real recibiría un 500 de la red fail-closed.
+      return json(route, plazosCargaMesReal())
     }
     if (p === '/rest/v1/rpc/cumplimiento_metas_fn' && method === 'POST') {
       const body = (req.postDataJSON() ?? {}) as { p_periodo?: string }

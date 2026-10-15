@@ -32,6 +32,13 @@ if (process.argv.length === 3 && process.argv[2] === '--origen-concreto') {
   process.exit(0);
 }
 
+// Plazo de carga por mes (20261015000852): Auth y PostgREST reales con ESCRITURAS de verdad (decisiones de Gerencia),
+// solo en un banco LOCAL propio que el módulo limpia al terminar. No sustituye al bloque del gate general.
+if (process.argv.length === 3 && process.argv[2] === '--plazo-carga-mes') {
+  await import('./plazo-carga-mes/integracion-permisos.mjs');
+  process.exit(0);
+}
+
 // Matriz focalizada del nuevo RPC. No sustituye ni modifica el gate general.
 if (process.argv.length === 3 && process.argv[2] === '--ranking-origen') {
   await import('./ranking-origen/test-rls.mjs');
@@ -16591,6 +16598,118 @@ async function testCierreDeMes(sessions, seed) {
   }
 }
 
+// ── Plazo de carga por mes (20261015000852): crm.fijar_plazo_carga_mes y crm.plazos_carga_mes_fn ────────────────────
+// Solo Gerencia. Esta matriz NO fija ningún plazo: una decisión es historia append-only y movería para siempre el plazo
+// (y con él el sello) de un mes de la branch. Gerencia pasa el gate y la detiene una VALIDACIÓN (22023): ese rechazo ES
+// el positivo sin escribir, como en el potencial del lead. El resto, 42501. La lectura sí se prueba en positivo (no
+// escribe). Las escrituras, la reapertura, la reevaluación y los candados: supabase/scripts/plazo-carga-mes/prueba.sql
+// (deshecha, con mutantes); las dos sesiones: dos-sesiones.py; Auth/HTTP con escrituras: `test-rls.mjs --plazo-carga-mes`.
+// Aquí no entran Gerencia de baja, admin/superadmin del Portal ni service_role (el seed no tiene esas sesiones, y llamar sin
+// EXECUTE tumbaba el backend en imágenes viejas): los cubren prueba.sql (B5) e integracion-permisos.mjs.
+const TABLAS_PLAZO_CARGA = ['plazos_carga_mes', 'reaperturas_mes'];
+const CLAVES_MES_PLAZO = ['ampliado', 'decision', 'mes', 'mes_nombre', 'motivo_no_reabrible', 'plazo_base_ultimo_dia',
+  'plazo_ultimo_dia', 'reabrible', 'sellado', 'ultima_reapertura'];
+
+function diaLima(desplazamientoDias = 0) {
+  const hoy = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(new Date());
+  const d = new Date(`${hoy}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + desplazamientoDias);
+  return d.toISOString().slice(0, 10);
+}
+
+async function testPlazoCargaMes(sessions, seed) {
+  console.log('\n— Plazo de carga por mes: puertas de Gerencia (sin escribir) —');
+  void seed;
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-plazo'));
+  const sonda = await sessions.gerencia.client.schema('crm').rpc('plazos_carga_mes_fn');
+  if (sonda.error && String(sonda.error.code ?? '') === 'PGRST202') {
+    // Salto RUIDOSO; con CRM_RLS_EXIGE_PLAZO_CARGA=1 (la base ya debería tenerla) es un FALLO, no un aviso.
+    if (process.env.CRM_RLS_EXIGE_PLAZO_CARGA === '1') {
+      fail('Plazo de carga: crm.plazos_carga_mes_fn no existe y CRM_RLS_EXIGE_PLAZO_CARGA=1 la exige');
+      return;
+    }
+    console.log('  ⚠ OMITIDO: 20261015000852 no está aplicada en esta base (crm.plazos_carga_mes_fn no existe)');
+    return;
+  }
+  const hoyLima = diaLima();
+  const mesPasado = `${new Date(Date.UTC(Number(hoyLima.slice(0, 4)), Number(hoyLima.slice(5, 7)) - 2, 1))
+    .toISOString().slice(0, 7)}-01`;
+  const args = { p_periodo: mesPasado, p_ultimo_dia: diaLima(5), p_motivo: 'Intento del gate de roles' };
+
+  // (A) Las dos tablas no se leen ni se escriben por la Data API, ni siquiera Gerencia.
+  for (const tabla of TABLAS_PLAZO_CARGA) {
+    for (const key of [...ROLES_CON_AVISO, ...ROLES_SIN_AVISO]) {
+      if (!sessions[key]) continue;
+      await expectExplicitAuthorizationDenied(
+        `${key} no lee crm.${tabla} directamente`,
+        sessions[key].client.schema('crm').from(tabla).select('*').limit(1),
+        ['42501', 'PGRST205', 'PGRST202'],
+      );
+    }
+    await expectExplicitAuthorizationDenied(
+      `anon no lee crm.${tabla}`,
+      anon.schema('crm').from(tabla).select('*').limit(1),
+      ['42501', 'PGRST205', 'PGRST202'],
+    );
+    await expectBlockedMutation(
+      `gerencia no inserta en crm.${tabla}`,
+      sessions.gerencia.client.schema('crm').from(tabla).insert({ periodo: '2020-01-01', motivo: 'Intento directo' }).select(),
+      ['42501', 'PGRST205', 'PGRST202'],
+    );
+  }
+
+  // (B) Fijar el plazo: solo Gerencia. Los demás cortan en el gate ANTES de mirar nada (no escriben).
+  for (const key of ['vend1', 'sup1', 'coordinador', 'directorio', 'vendInactive', 'clientBank']) {
+    if (!sessions[key]) continue;
+    await expectExpectedFailure(
+      `${key} no fija el plazo de carga (42501)`,
+      sessions[key].client.schema('crm').rpc('fijar_plazo_carga_mes', args),
+      ['42501'], /Solo Gerencia decide el plazo de carga/,
+    );
+  }
+  await expectExplicitAuthorizationDenied(
+    'anon no fija el plazo de carga',
+    anon.schema('crm').rpc('fijar_plazo_carga_mes', args),
+    ['42501', 'PGRST202'],
+  );
+  // Gerencia pasa el gate: lo prueba que la detenga la validación (sin escribir nada).
+  await expectExpectedFailure(
+    'gerencia pasa el gate y la detiene la validación del motivo (22023, sin escribir)',
+    sessions.gerencia.client.schema('crm').rpc('fijar_plazo_carga_mes', { ...args, p_motivo: 'abc' }),
+    ['22023'], /motivo debe tener entre 5 y 300/,
+  );
+  await expectExpectedFailure(
+    'gerencia no fija un último día en el pasado (22023, sin escribir)',
+    sessions.gerencia.client.schema('crm').rpc('fijar_plazo_carga_mes', { ...args, p_ultimo_dia: diaLima(-1) }),
+    ['22023'], /no puede ser anterior a hoy/,
+  );
+
+  // (C) La lectura: Gerencia la recibe con su forma exacta (el front la valida con strictObject); el resto, 42501.
+  const { data, error } = await sessions.gerencia.client.schema('crm').rpc('plazos_carga_mes_fn');
+  if (check(!error, 'gerencia lee crm.plazos_carga_mes_fn', errorText(error))) {
+    check(data?.version === 1 && data?.zona === 'America/Lima' && data?.hoy === hoyLima
+      && Array.isArray(data?.meses) && data.meses.length >= 2,
+    'la lectura trae versión, hoy de Lima y al menos el mes anterior y el mes en curso', JSON.stringify(data)?.slice(0, 300));
+    check((data?.meses ?? []).every((m) => JSON.stringify(Object.keys(m).sort()) === JSON.stringify(CLAVES_MES_PLAZO)),
+      'cada mes trae exactamente sus claves', JSON.stringify(data?.meses?.[0]));
+    check((data?.meses ?? []).some((m) => m.mes === mesPasado.slice(0, 7)),
+      'el mes anterior siempre aparece', JSON.stringify((data?.meses ?? []).map((m) => m.mes)));
+  }
+  for (const key of ['vend1', 'sup1', 'coordinador', 'directorio', 'vendInactive', 'clientBank']) {
+    if (!sessions[key]) continue;
+    await expectExpectedFailure(
+      `${key} no lee los plazos de carga (42501)`,
+      sessions[key].client.schema('crm').rpc('plazos_carga_mes_fn'),
+      ['42501'], /Solo Gerencia ve y decide los plazos de carga/,
+    );
+  }
+  await expectExplicitAuthorizationDenied(
+    'anon no lee los plazos de carga',
+    anon.schema('crm').rpc('plazos_carga_mes_fn'),
+    ['42501', 'PGRST202'],
+  );
+}
+
 let verifiedSeed = null;
 
 // ── Potencial del lead (20260930213647): puerta crm.marcar_potencial_lead_fn ──────────────────
@@ -20411,6 +20530,7 @@ async function main() {
       await conInversionesVigentes(() => testConversionMensual(sessions, verifiedSeed));
       await testCumplimientoMetas(sessions, verifiedSeed);
       await testCierreDeMes(sessions, verifiedSeed);
+      await testPlazoCargaMes(sessions, verifiedSeed);
       await testAtribucionVentas(sessions, verifiedSeed);
       await testCapacidadUnificada(sessions, verifiedSeed);
       await testVentasNucleoF5c(sessions, verifiedSeed);

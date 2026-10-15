@@ -235,6 +235,9 @@ vi.mock('./resumen-gerencia', () => ({
 vi.mock('./equipo-gerencia', () => ({ EquipoGerenciaPanel: () => null }))
 vi.mock('./graficas-gerencia', () => ({ GraficasGerencia: () => null }))
 vi.mock('./metas-editor', () => ({ MetasEditor: () => <div>Editor de metas</div> }))
+// La tarjeta del plazo de carga tiene su propio test (plazo-carga-mes.test.tsx);
+// aquí solo se prueba DÓNDE se monta.
+vi.mock('./plazo-carga-mes', () => ({ PlazoCargaMesPanel: () => <div>Tarjeta del plazo de carga</div> }))
 vi.mock('@/components/gerencia/motion', () => ({
   GerenciaMotion: ({ children }: { children: ReactNode }) => <>{children}</>,
 }))
@@ -464,6 +467,23 @@ describe('Hoy · gerencia — compromisos de supervisores (F4.4)', () => {
     ASIENTOS_TRAZA = [asientoTraza]
     montar({}, 'conversiones')
     expect(screen.queryByRole('heading', { name: 'Compromisos de supervisores' })).not.toBeInTheDocument()
+  })
+})
+
+describe('Hoy · gerencia — plazo de carga', () => {
+  it.each(['resumen', 'completo'] as const)('la sección %s monta la tarjeta del plazo de carga', (seccion) => {
+    montar({}, seccion)
+    expect(screen.getByText('Tarjeta del plazo de carga')).toBeInTheDocument()
+  })
+
+  it.each(['conversiones', 'ranking-vendedores', 'metas'] as const)('la sección %s no la monta: es una decisión de Hoy, no una alarma', (seccion) => {
+    montar({}, seccion)
+    expect(screen.queryByText('Tarjeta del plazo de carga')).not.toBeInTheDocument()
+  })
+
+  it('en demo no se monta: habla de la maquinaria real del cierre', () => {
+    montar({ demo: true }, 'resumen')
+    expect(screen.queryByText('Tarjeta del plazo de carga')).not.toBeInTheDocument()
   })
 })
 
