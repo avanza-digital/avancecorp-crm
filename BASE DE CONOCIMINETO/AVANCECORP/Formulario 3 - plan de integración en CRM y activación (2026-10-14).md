@@ -1,6 +1,6 @@
 # Formulario 3 - plan de integración en CRM y activación
 
-Fecha: 2026-10-14. Continuación de **N8N-AVANCE-141026**. Estado vigente: **fases 1–3 implementadas y validadas; sin publicar**. El recorrido integrado y sus fallos fueron comprobados en una rama temporal, ya retirada. Sigue fase 4; publicación y carga real pendientes. Codex PRIMARY; Miguel opera el navegador. Claude revisó el plan, las implementaciones y la evidencia integrada; Codex incorporó las mejoras justificadas. Evidencia y cierre: [[Formulario 3 - fase 3 integrada y validada sin publicar (2026-10-14)]].
+Fecha: 2026-10-14. Continuación de **N8N-AVANCE-141026**. Estado vigente: **fases 1–4 completadas; CRM publicado y verificado**. Base, importador y frontend admiten la campaña. n8n sigue apagado y no se cargó ninguna fila real de esta hoja. Sigue la prueba controlada de fase 5. Codex PRIMARY; Miguel opera el navegador. Claude revisó el plan, las implementaciones y la evidencia relevante; Codex incorporó las mejoras justificadas. Estado publicado: [[Formulario 3 - fase 4 publicada y verificada (2026-10-14)]]. Las notas de fases 1–3 conservan su evidencia histórica previa a publicación.
 
 Relacionado: [[n8n - Formulario 3 preparado y avisos conectados (2026-10-14)]] · [[Canales de origen de leads CRM]] · [[Carga de leads desde hoja de Google]].
 
@@ -15,15 +15,15 @@ Se conservan el historial y responsable de contactos existentes. Una coincidenci
 - Fuente vigente: https://docs.google.com/spreadsheets/d/1lPvJ-65PNY1d4eme5xpcJ8ITVazkQRdjtkgW4ZLoIsI/edit#gid=0.
 - Última lectura: **127 leads** ya filtrados. Actualizar esta foto antes de cargar, porque la hoja puede cambiar.
 - Flujo n8n **Avance Corp — Formulario 3 → CRM**, ID `BjI5m1PKVWhO0NDb`: inactivo, envío apagado, HTTP deshabilitado; recibos de producción en cero al cierre anterior.
-- Payload ya preparado con `canal=formulario` y `campania_origen=Formulario 3`. El importador actual ignora la campaña; el CRM todavía no tiene ese campo.
-- Avisos a **miguel@miavance.com** comprobados automáticamente en el flujo aislado: ejecución 44 enviada y 46 suprimida por repetición de la misma hora. Se conserva la prueba manual del aviso productivo como control previo a activar.
+- Payload preparado con `canal=formulario` y `campania_origen=Formulario 3`. Desde fase 4 el importador v24 guarda la campaña y el CRM la muestra y filtra; 3.687 leads históricos sin reclasificar en el postflight.
+- Avisos a **miguel@miavance.com** comprobados automáticamente en el flujo aislado: ejecución 44 enviada y 46 suprimida por repetición de la misma hora. Aviso productivo manual de fase 4: ejecución 52 SUCCESS, Gmail confirmó envío.
 - Se mantienen las decisiones de mapeo ya cerradas: capital, moneda, teléfonos y consentimiento. Esta etapa no rediseña esas reglas.
 
 ## Orden de trabajo y condiciones para avanzar
 
 ### 1. Guardar la campaña sin cambiar las reglas comerciales
 
-**COMPLETADA EN BANCO, SIN PUBLICAR (14/10):** 36 comprobaciones de contrato y 18 de permisos PASS en local y remoto; regresión de ficha viva corregida; histórico conservado, advisors sin avisos nuevos y rama temporal retirada. Detalle en [[Formulario 3 - fase 1 validada sin publicar (2026-10-14)]].
+**PUBLICADA Y VERIFICADA EN FASE 4 (14/10 Lima):** migración exacta `20261014210146` e importador v24. Ensayo previo: 36 comprobaciones de contrato y 18 de permisos PASS en local y remoto; regresión de ficha viva corregida; histórico conservado, advisors sin avisos nuevos y rama temporal retirada. Detalle del ensayo en [[Formulario 3 - fase 1 validada sin publicar (2026-10-14)]]. Los párrafos siguientes conservan el contrato implementado.
 
 Agregar un campo opcional `campania_origen` en `crm.leads`, con escritura controlada por el servidor. Usar texto de 1 a 80 caracteres una vez recortado, o NULL cuando no se proporciona; la integración enviará el valor canónico **Formulario 3**. Rechazar valores explícitos inválidos en vez de descartarlos silenciosamente. Evitar un enum de base que obligue a migrar por cada campaña futura. Los registros históricos quedan sin campaña, sin reclasificación masiva.
 
@@ -41,7 +41,7 @@ Probar el caso de veredicto con lead cerrado y otra ficha viva: el importador ac
 
 ### 2. Mostrar y filtrar la campaña en el CRM
 
-**PREPARADA Y VALIDADA LOCALMENTE, SIN PUBLICAR (14/10):** 6.700 pruebas de app, 9 E2E Docker y 43 SQL PASS. Revisión de Claude resuelta; consultas y metadatos compatibles, permisos y etiquetas comprobados. Auth/HTTP integrado y ensayo remoto final completados en fase 3; ver su nota de cierre. Cierre: [[Formulario 3 - fase 2 validada sin publicar (2026-10-14)]].
+**PUBLICADA Y VERIFICADA EN FASE 4 (14/10 Lima):** migración exacta `20261014215453`, frontend `build-20261015T041350920Z`. Ensayo de fase 2: 6.700 pruebas de app, 9 E2E Docker y 43 SQL PASS. Revisión de Claude resuelta; consultas y metadatos compatibles, permisos y etiquetas comprobados. Auth/HTTP integrado y ensayo remoto final completados en fase 3. Evidencia histórica: [[Formulario 3 - fase 2 validada sin publicar (2026-10-14)]]. Los párrafos siguientes conservan el contrato implementado; la firma final de cartera tiene 15 argumentos.
 
 Actualizar tipos, validadores, mapeos, proyecciones SQL y lecturas. Incorporar una etiqueta de campaña por contacto en Cartera, ficha y las vistas pertinentes que ya muestran el origen, manteniendo **FORMULARIO** como agrupación de turno y métricas.
 
@@ -57,7 +57,7 @@ La columna necesita permisos de lectura bajo el ámbito de cada rol. La inspecci
 
 **Objetivo:** demostrar que Google Sheets → n8n → importador → CRM funciona de principio a fin en un entorno aislado, con autenticación real, campaña visible, reparto y cifras correctos, y recuperación comprobada ante reintentos y fallos. Verificar el aviso automático a Miguel y dejar evidencia suficiente para decidir el paso a publicación.
 
-**Estado: VALIDADA EN ENTORNO AISLADO (14/10).** 98 SQL, 49 casos HTTP/Auth/reparto, 6 casos adicionales de reingreso/conversión y cuatro roles de UI real. Sheets → n8n → Edge pasó; repetición, movimiento, rechazo, fallo, aviso automático y recuperación comprobados. Evidencia y límites: [[Formulario 3 - fase 3 integrada y validada sin publicar (2026-10-14)]]. No se publicó ni se cargó la hoja real. El gate de realidad original permanece FAIL con complemento SQL; se exige repararlo o enmendarlo antes de fase 4.
+**Estado: VALIDADA EN ENTORNO AISLADO (14/10).** 98 SQL, 49 casos HTTP/Auth/reparto, 6 casos adicionales de reingreso/conversión y cuatro roles de UI real. Sheets → n8n → Edge pasó; repetición, movimiento, rechazo, fallo, aviso automático y recuperación comprobados. Evidencia y límites: [[Formulario 3 - fase 3 integrada y validada sin publicar (2026-10-14)]]. En esa fase no se publicó ni se cargó la hoja real. El fallo del gate de realidad se resolvió y documentó en fase 4: diez mediciones completas, con dos advertencias históricas ajenas a campaña, sin alterar datos para ocultarlas.
 
 Usar un entorno de datos autorizado y aislado, con fixtures, sin contactos ficticios en producción. Casos mínimos:
 
@@ -79,18 +79,20 @@ Claude revisa los riesgos y la implementación relevante con evidencia saneada; 
 
 ### 4. Publicar el soporte de CRM
 
-**Estado: PLANIFICADA, NO EJECUTADA.** Detalle ampliado el 14/10 tras cerrar la limpieza de fase 3. **Objetivo:** llevar al CRM real el soporte de campaña Formulario 3, su etiqueta y filtro, manteniendo las reglas comerciales de FORMULARIO y la compatibilidad con contactos existentes. Al terminar quedará preparado para la prueba de una fila de fase 5; el envío periódico permanece apagado.
+**Estado: PUBLICADA Y VERIFICADA (14/10, 23:17 Lima).** **Objetivo cumplido:** el CRM real recibe, guarda, identifica y filtra la campaña Formulario 3, manteniendo las reglas comerciales de FORMULARIO, Coordinación y la compatibilidad con contactos existentes. Queda preparado para la prueba de una fila de fase 5; el envío periódico permanece apagado. [Acta técnica](../../CRM-Avance-Corp/docs/N8N-FORMULARIO3-FASE4-PUBLICADA.md) y [[Formulario 3 - fase 4 publicada y verificada (2026-10-14)]].
 
-1. **Resolver el control previo de publicación.** Reparar o enmendar formalmente el verificador de realidad: lectura de sellos denegada y timeout. Volver a medir el estado vigente y guardar resultados. Clasificar las advertencias preexistentes de datos y dejar explícito su criterio de bloqueo; el complemento SQL de fase 3 no convierte el FAIL original en PASS. Conservar permisos de negocio y no alterar datos ajenos a la campaña para forzar un resultado favorable.
-2. **Preparar una versión verificable.** Integrar los cambios remotos sin sobrescribirlos y conservar el trabajo ajeno. Comprobar Main local y `avancecorp/main` en el mismo commit; construir el artefacto desde ese commit. Ejecutar las comprobaciones pertinentes al cambio final, incluidos permisos, contratos y E2E locales Docker cuando corresponda. Adjuntar a Claude las correcciones y evidencia relevantes, evaluar sus mejoras justificadas y resolver bloqueos antes de publicar. Preparar la vuelta a artefactos compatibles con el esquema aditivo.
-3. **Revisar la configuración operativa.** Releer historial, credencial original, destino del importador y ajustes de n8n con las pestañas antiguas cerradas o recargadas. Confirmar importación inactiva. Definir cuánto tiempo conservar ejecuciones fallidas y verificar el aviso productivo a Miguel mediante su trigger manual; actualizar su nombre antiguo. La prueba del correo no requiere importar leads.
-4. **Publicar en orden compatible.** Primero la base y permisos que admiten la campaña; después el importador que la guarda; por último la pantalla que la muestra y filtra. Comprobar capacidad y versión antes de cada paso: el importador nuevo no debe quedar conectado a una función antigua que ignore el campo. La publicación se inicia mediante `$release-crm`, conforme a `CRM-Avance-Corp/CLAUDE.md`; este detalle del plan no ejecuta ni autoriza esa publicación.
-5. **Verificar el CRM publicado.** Confirmar que la versión accesible corresponde al artefacto previsto, revisar acceso y lecturas de los roles pertinentes, disponibilidad del campo y filtro de campaña, compatibilidad de contactos sin campaña y coherencia de las cifras existentes. Verificar también la transición para pantallas que permanecieran abiertas. Registrar evidencia y cualquier límite. Si falla un control obligatorio, detener el avance y aplicar la recuperación compatible preparada; no borrar campañas ni contactos como mecanismo de reversión.
-6. **Cerrar y entregar.** Guardar versión, comprobaciones, decisiones sobre advertencias y procedimiento de recuperación; actualizar Figma y vault. Mantener n8n detenido y los recibos correctos conservados. La primera fila real corresponde a fase 5; la carga supervisada y activación cada cinco minutos, a fase 6.
+1. **Control previo resuelto.** Diez mediciones completas; salida 0 sin modo estricto. Persisten 45 ventas de analistas inactivos y 273 clientes sin domicilio, advertencias anteriores y ajenas a campaña. El modo estricto retorna 1 ante ellas; no se presenta como PASS ni se alteran datos comerciales. Sellos y cinco caminos de conversión medidos completaron.
+2. **Artefacto verificable.** PR 280 fusionada; Main limpio y `avancecorp/main` iguales a `0fa4a39892c1b38946d06b7a0e03d57b83b013c9` al construir. App 6.707 tests y controles relevantes PASS; E2E en Docker local, ensayos SQL/Auth en rama y 44 huellas de producto conservadas. Claude revisó; observaciones resueltas con evidencia. ZIP anterior y manifiesto conservados para recuperación compatible.
+3. **Operación comprobada.** Credencial original y destino productivo conservados; n8n inactivo, envío false, nodo HTTP deshabilitado y cero ejecuciones pendientes/en curso al cierre. Aviso productivo renombrado y envío manual 52 SUCCESS. Política definida de contenido fallido: máximo siete días; configuración efectiva del VPS NOT RUN, pendiente antes de la primera fila real.
+4. **Publicación ordenada.** SQL exacto `20261014210146` y `20261014215453` → capacidad/permisos/firma/caché → `crm-importar-leads` v24 → frontend `build-20261015T041350920Z`. Se siguió el procedimiento release-crm y su preflight obligatorio, bajo la autorización explícita del objetivo de publicación y su reanudación por Miguel. La rama de pago ya había sido retirada; no se recreó.
+5. **Producción verificada.** 124 archivos HTTP exactos y acceso público Chromium/Docker PASS. Cuatro contextos SQL authenticated (Coordinación, Supervisor, Vendedor y Gerencia), lectura anterior y filtro nuevo PASS en READ ONLY; esto no se presenta como inicio de sesión HTTP de producción. HTTP/Auth reales y el frontend anterior contra esquema nuevo se probaron en la rama. Columna/ACL, RLS y firma única de 15 argumentos correctas; 3.687 leads históricos sin campaña y sin reclasificación.
+6. **Cierre registrado.** Acta con evidencia, ledger, vault y Figma actualizados. n8n detenido y recibos conservados. Ninguna fila real importada. La primera fila corresponde a fase 5; la carga supervisada y activación cada cinco minutos, a fase 6.
 
-**Salida exigida:** controles de publicación resueltos, versión publicada verificada, accesos y lecturas existentes operativos, soporte Formulario 3 disponible y avisos comprobados. La publicación requiere la invocación humana indicada; Codex prepara primero el paquete concreto y revisable.
+**Salida acreditada:** controles de publicación resueltos, versión publicada verificada, lecturas y permisos existentes operativos, soporte Formulario 3 disponible y avisos comprobados. Recuperación compatible documentada; no se borran datos ni se revierte SQL automáticamente.
 
 ### 5. Importar una fila real de forma controlada
+
+**PENDIENTE.** Antes de la primera fila, verificar la poda del contenido fallido del VPS (máximo siete días) o desactivar su almacenamiento. No dar esa configuración por aplicada.
 
 Con cron apagado y ninguna ejecución simultánea, fijar explícitamente el límite en **una fila**. Seleccionar una fila real pendiente que se espere nueva y registrar su identidad/fingerprint; usar la misma identidad y tabla de recibos que se usarán después.
 
@@ -117,7 +119,7 @@ Si aparecen fallos, apagar envío y cron, conservar recibos y altas correctas, y
 - La entrega de n8n es al menos una vez. Se comprobó que un alta cuyo recibo se pierde se recupera como duplicado sin repetirla. Contar altas desde CRM por campaña; no sumar recibos importado como total de altas. Para un lote, cruzar la foto de filas/huellas con CRM.
 - La campaña de origen del lead no es un historial de todas las campañas en que participó una persona. Los reingresos/clientes existentes conservan su historia mediante los mecanismos existentes; una eventual vista de participación múltiple sería otro alcance.
 - Los avisos que dependen de n8n no detectan por sí solos la caída completa del VPS.
-- Fases 1–3 validadas; publicación y carga real corresponden a fases 4–6. No se afirmó prueba remota específica de 5xx/timeout ni de fallo de recibo en modo trigger: la recuperación y el aviso se verificaron con los casos descritos en el cierre.
+- Fases 1–4 completadas; primera fila real y carga corresponden a fases 5–6. No se afirmó prueba remota específica de 5xx/timeout ni de fallo de recibo en modo trigger: la recuperación y el aviso se verificaron con los casos descritos en el cierre.
 - Avisos agrupados por hora de reloj, sin exclusión atómica: pueden coincidir varios en una carrera o cambio de hora. Gmail no tiene canal alternativo.
 - Tras cambiar únicamente el parser, revisar y retirar solo recibos rechazados afectados antes de reprocesar; no vaciar el registro.
 
@@ -137,8 +139,8 @@ Enmiendas aceptadas en este plan:
 Evidencia adicional obtenida después del review, mediante lecturas de definiciones SQL:
 
 1. `private.registrar_solicitud_cliente_fn` **sí** tiene candado e idempotencia de siete días con huella sin `fila`. La ausencia de esa protección era una duda del reviewer, no un defecto confirmado. Se conserva y se prueba con campaña.
-2. `crm.registrar_reingreso_lead_fn` **sí filtra las claves** de `p_datos` y hoy no incluye campaña. Es obligatorio ampliar su lista y verificar igualdad entre lo comparado y lo guardado.
-3. El uso de `v_lead` después de localizar `v_lead_vivo` está presente en la definición viva. La fase 1 reprodujo el defecto y verificó la corrección mínima en banco local y remoto; no se ha publicado.
+2. `crm.registrar_reingreso_lead_fn` **sí filtra las claves** de `p_datos`; al inicio no incluía campaña. La fase 1 amplió su lista y verificó igualdad entre lo comparado y lo guardado; está publicada desde fase 4.
+3. El uso de `v_lead` después de localizar `v_lead_vivo` estaba presente en la definición inicial. La fase 1 reprodujo el defecto y verificó la corrección mínima en banco local y remoto; está publicada desde fase 4.
 4. `LeadRowSchema` usa `v.object` en `app/src/data/crm-api.ts:244`. Esto no acredita por sí solo todos los lectores: el gate revisará también envoltorios y esquemas estrictos.
 
 No se repreguntó si debían aplicar las reglas normales de FORMULARIO: Miguel ya lo autorizó expresamente. Se explicita la fecha de recepción y el tratamiento de duplicados, en lugar de introducir otra aprobación para una decisión ya tomada. El ritmo se mantiene supervisado; no se promete una duración fija para cargar 127 filas.
@@ -155,8 +157,8 @@ Miguel pidió trasladar el plan por fases a Figma. Tablero editable creado el 14
 
 [Formulario 3 · Plan de desarrollo](https://www.figma.com/board/JB4jRdmLXZXS0hBhEHxRbV?node-id=2-34).
 
-Contiene el punto de partida, la regla FORMULARIO, el mapa secuencial y seis fichas con trabajo, criterio de cierre y responsables: guardar campaña; mostrar y filtrar; pruebas y revisión; publicar CRM; probar un lead real; cargar y activar. Incluye conciliación de filas, actuación ante fallos y avisos a Miguel. Actualizado al cierre de fase 3: fases 1–3 validadas sin publicar; fase 4 siguiente, con gate de publicación pendiente; fases 5–6 pendientes. n8n principal permanece apagado.
+Contiene el punto de partida, la regla FORMULARIO, el mapa secuencial y seis fichas con trabajo, criterio de cierre y responsables: guardar campaña; mostrar y filtrar; pruebas y revisión; publicar CRM; probar un lead real; cargar y activar. Incluye conciliación de filas, actuación ante fallos y avisos a Miguel. Actualizado al cierre de fase 4: fases 1–2 publicadas, fase 3 validada y fase 4 publicada/verificada; fases 5–6 pendientes. n8n principal permanece apagado.
 
-Archivo FigJam: `JB4jRdmLXZXS0hBhEHxRbV`. Sección principal: `2:34`. Verificación estructural: seis fases, sin desbordamientos ni marcadores de trabajo pendientes. Captura visual revisada: texto legible, tarjetas y conexiones completas, sin solapamientos. El tablero se creó al planificar y se actualizó tras cada fase, incluida la integración real de fase 3. No se publicó ni activó la integración.
+Archivo FigJam: `JB4jRdmLXZXS0hBhEHxRbV`. Sección principal: `2:34`. Verificación estructural: seis fases, tarjetas y conexiones conservadas. Captura visual revisada para cada actualización. El tablero se creó al planificar y se actualizó tras cada fase. El CRM está publicado; la automatización de importación todavía no está activada.
 
-Actualización del objetivo de fase 3 (14/10/2026): tarjeta `2:52` con recorrido aislado, campaña/reparto/cifras/permisos, reintentos, duplicados, recuperación, aviso automático, ensayo remoto y acceso del verificador. Cierre: recorrido y fallos comprobados, pruebas obligatorias aprobadas, revisión resuelta y evidencia guardada. Ese fue el estado inicial. Al cierre de fase 3, tarjeta, mapa y pie se actualizan a validada, con recursos de ensayo retirados y publicación pendiente.
+Historial del tablero: fase 3 incorporó recorrido aislado, campaña/reparto/cifras/permisos, reintentos, duplicados, recuperación y aviso automático. Fase 4 actualizó mapa, estados, resultado de publicación y siguiente paso; la pausa intermedia quedó superada al reanudar el objetivo.
