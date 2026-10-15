@@ -1,6 +1,8 @@
 # Reexpresión de septiembre 2026 (ventas cargadas tarde)
 
-**Estado (14/10/2026, Lima): SEPTIEMBRE REABIERTO EN PRODUCCIÓN.** Ensayo compuesto
+**Estado (15/10/2026): RESUELTO con la configuración de plazo** ([`../plazo-carga-mes/LEEME.md`](../plazo-carga-mes/LEEME.md)): septiembre con plazo al 21/10/2026 y ciclo reactivado; se sella solo el 22/10. `02-resellar.sql` y `03-restaurar.sql` quedan superados.
+
+**Antes (14/10/2026, Lima): SEPTIEMBRE REABIERTO EN PRODUCCIÓN.** Ensayo compuesto
 (01 → 02 → deshacer 02 → 03, con ROLLBACK) verde dos veces; luego Miguel ejecutó
 `01-reabrir.sql`: foto retirada 21 filas, 144 acreditaciones respaldadas (143 liberadas
 del sello, 142 estaban incluidas), Qorilazo S/ 20 000 de Astrid Centenaro devuelto de
