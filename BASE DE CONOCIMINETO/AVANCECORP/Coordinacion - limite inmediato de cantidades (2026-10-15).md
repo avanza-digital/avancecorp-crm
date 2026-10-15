@@ -15,3 +15,15 @@ Claude: PASS. Se incorporaron las recomendaciones de cobertura para disponibilid
 Figma actualizado y verificado visualmente: [Planilla](https://www.figma.com/board/JB4jRdmLXZXS0hBhEHxRbV?node-id=52-34). Evidencia técnica en `CRM-Avance-Corp/docs/plans/planilla-reparto/LIMITE-CANTIDADES.md`.
 
 Relacionados: [[Coordinacion - planilla de reparto y equilibrio por fechas (2026-10-15)]], [[Reparto de Leads]].
+
+## PR299 fusionada; paquete preparado, dependencia pendiente
+
+Comprobación 15/10/2026 23:48–23:51 UTC: PR299 fusionada en `81480ebb475fc61b4a19f5b2cb17f30da88df815`; Main local y remoto iguales al construir. La PR298 ya estaba fusionada (`05c19efc`, 23:34 UTC) y viene incluida. El código de la planilla es idéntico al revisado; los cambios de PR298 requieren backend previo.
+
+Main combinado: `npm run check` PASS, 433 archivos / 6.966 tests; E2E Docker de planilla, reparto, Coordinación-reportes y cartera/categoría 44/44 PASS. Artefacto verificado y preflight de ascendencia PASS: `crm-20261015T234847Z-81480ebb475f.zip`, SHA-256 `b59f6a93a29ebc245dd967dc2de2395e53920de58b8095ecfb3be2f0904ca2fe`. Esto NO acredita compatibilidad de backend ni publicación.
+
+Consulta productiva READ ONLY: ninguna de las migraciones `20261015211217`, `20261015212939`, `20261015224848` está en el ledger; tampoco existen `crm.correcciones_categoria_contrato`, `private.es_coordinacion_consulta()` ni `private.operaciones_cartera_clasificadas()`. Las actas de PR298 las declaran pendientes, junto con matriz HTTP/Auth y gate de realidad. Reviewer Codex confirmó dependencia real sin feature flag.
+
+**NO publicado.** Sigue vivo `build-20261015T225912394Z` / `875054a2`. No se tocó Hostinger ni se ejecutó SQL de escritura. Se conserva el paquete anterior y el candidato. Hace falta completar el ciclo backend autorizado de PR298 antes de desplegar Main; no publicar una rama alternativa ni omitir los cambios fusionados. Miguel indicó que no veía PR298; se le pasó enlace y se explicó que está entre fusionadas. Figma actualizado con este estado.
+
+Relacionado: [[Coordinacion - cartera, leads y correccion de categoria (2026-10-15)]].
