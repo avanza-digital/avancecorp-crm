@@ -432,18 +432,19 @@ test('el coordinador aterriza en Repartir y su navegación se reduce a lo suyo',
   // Aterrizaje por capacidad (no por hash guardado): su vista base es 'repartir'.
   await expect(page).toHaveURL(/#\/repartir$/)
 
-  // El nav NO le ofrece cartera, equipo ni configuración (espejo de la RLS: su
-  // ámbito de leads es vacío y no tiene cartera propia).
+  // Consulta global de Leads y Cartera; conserva Repartir como inicio.
   await expect(page.getByRole('button', { name: 'Repartir leads' })).toBeVisible()
-  for (const ajena of ['Mi cartera', 'Cartera', 'Equipo', 'Configuración', 'Pipeline']) {
+  await expect(page.getByRole('button', { name: 'Cartera', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Leads', exact: true })).toBeVisible()
+  for (const ajena of ['Mi cartera', 'Equipo', 'Configuración', 'Pipeline']) {
     await expect(page.getByRole('button', { name: ajena, exact: true })).toHaveCount(0)
   }
 })
 
-test('#/mi-cartera por URL expulsa al coordinador de vuelta a Repartir', async ({ page }) => {
+test('#/pipeline por URL sigue expulsando al coordinador de vuelta a Repartir', async ({ page }) => {
   await entrarComoCoordinador(page)
 
-  await page.evaluate(() => { window.location.hash = '#/mi-cartera' })
+  await page.evaluate(() => { window.location.hash = '#/pipeline' })
 
   await expect(page).toHaveURL(/#\/repartir$/)
   await expect(page.getByRole('heading', { name: 'Repartir leads' })).toBeVisible()
@@ -569,7 +570,7 @@ test('el StatStrip dice lo que dice el SERVIDOR, aunque no cuadre con las filas 
 test('resumen_reparto_fn caída: los tiles degradan a «—» con aviso y la cola sigue repartible', async ({ page }) => {
   const backend = await entrarComoCoordinador(page, { fallarResumenReparto: true })
 
-  await expect(page.getByRole('status')).toContainText(/No se pudieron cargar los indicadores de la cola/)
+  await expect(page.getByRole('status').filter({ hasText: 'No se pudieron cargar los indicadores de la cola' })).toBeVisible()
   for (const etiqueta of ['Por repartir', 'Capital en juego (PEN)', 'Capital en juego (USD)', 'Espera más larga']) {
     await expect(page.locator('.ac-lift').filter({ hasText: etiqueta }).getByText('—')).toBeVisible()
   }

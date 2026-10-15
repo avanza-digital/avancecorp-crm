@@ -1,3 +1,32 @@
+## 20261015212939 — Corrección manual auditada de categoría de inversión
+
+**PREPARADA, NO APLICADA EN PRODUCCIÓN.** Pedido y confirmación de Miguel, 15/10/2026:
+Admin/Superadmin, Gerencia y Coordinadora corrigen errores de Nuevo/Renovación/Upgrade y
+la corrección actualiza conversión y ranking. Mantiene la firma de la RPC existente;
+autoriza contra perfil/membresía activos con bloqueo, exige motivo y guarda auditoría
+inmutable sin grants de API. Excepción del trigger ligada a actor/transacción/contrato/categorías.
+Proyección comercial de las operaciones, sin modificar hechos financieros; conserva capital,
+tasa, fechas, reloj de captación, identidad única y sellos mensuales. Producto catalogado/archivado
+admite reclasificación sin relajar sus condiciones económicas. Cambios de funciones por
+huellas verificadas, incluida variante F3. Depende de la migración de consulta siguiente.
+
+Ensayo PostgreSQL 17: 74 checks PASS, reversa/reaplicación PASS y dos carreras (baja CRM/sello)
+PASS. Tipos regenerados localmente. Gate frontend y revisión: ver
+`../scripts/permisos-coordinacion/VERIFICACION.md`. Kit y límites en
+`../scripts/permisos-coordinacion/LEEME.md`. Reversa se niega después de la primera corrección;
+conservar historia y usar compensación auditada.
+
+## 20261015211217 — Coordinación consulta Leads y cartera de toda la empresa
+
+**PREPARADA, NO APLICADA EN PRODUCCIÓN.** Coordinación activa obtiene SELECT de leads,
+actividades y tareas de leads; búsqueda/listado, filtros de equipo, fichas y estados, y
+cartera F5 completa. No amplía helpers compartidos de escritura. Mantiene bancos, archivos,
+postventa y gestión general fuera del permiso de consulta; corrección de categoría usa su
+puerta específica. Front habilita Cartera/Leads y conserva Repartir como inicio.
+Preflight de 16 definiciones por huella (incluida variante F3); 29 funciones entre ambas
+migraciones compatibles con el catálogo vivo leído al preparar el cambio. Misma prueba y
+reversa documentadas en `../scripts/permisos-coordinacion/LEEME.md`.
+
 ## 20261015173031 — Formulario 3: activación del origen y reclasificación conservadora (B)
 
 Publicación: [acta verificada](../../docs/FORMULARIO3-ORIGEN-NATIVO-PUBLICADO.md). 116 leads nativos, cero legados; un convertido y su acreditación conservados. Huellas de negocio antes/después idénticas. Web `597cab1c`, Edge v26, recarga del equipo confirmada antes de B. MD5 SQL registrado: `0f8f34071f7565105f8e8af2f410e420`.

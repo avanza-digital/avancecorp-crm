@@ -22,7 +22,8 @@ vi.mock('@/lib/auth-context', () => ({useAuth: () => ({yo: {id: ACTOR_F5, rol: s
 
 const api = vi.hoisted(() => ({lista:vi.fn(), ficha:vi.fn(), bancos:vi.fn(), documento:vi.fn(), consultar:vi.fn(), preparar:vi.fn(),
   corregir:vi.fn(), responsable:vi.fn(), confirmar:vi.fn(), acceso:vi.fn(), subir:vi.fn(), postventa:vi.fn(), eliminar:vi.fn(),
-  buscarCliente:vi.fn(), eliminarInversion:vi.fn()}))
+  buscarCliente:vi.fn(), eliminarInversion:vi.fn(), categoria:vi.fn()}))
+vi.mock('@/data/categoria-inversion-api', () => ({corregirCategoriaInversion:api.categoria}))
 vi.mock('@/data/crm-api', async (original) => ({...await original<typeof import('@/data/crm-api')>(), eliminarInversion:api.eliminarInversion}))
 vi.mock('@/data/cliente-existente-api', () => ({buscarClienteExistente:api.buscarCliente, obtenerContextoClienteExistente:vi.fn(),
   cuentasClienteExistente:vi.fn(), datosLegalesClienteExistente:vi.fn(), contratosUpgradeClienteExistente:vi.fn()}))
@@ -53,6 +54,56 @@ beforeEach(() => {
 })
 afterEach(() => {cleanup(); vi.restoreAllMocks()})
 describe('F5: cartera y ficha con acceso vigente', () => {
+  it.each([
+    ['coordinador','comercial',true],['gerencia','comercial',true],['vendedor','admin',true],
+    ['gerencia','superadmin',true],['vendedor','comercial',false],['supervisor','comercial',false],['directorio','directorio',false],
+  ])('categoría: %s / %s ofrece corrección %s', async (rol,portal,visible) => {
+    sesion.rol=rol; sesion.rolPortal=portal
+    const d=structuredClone(fichaF5)
+    d.inversiones=[{...inversionF5,empresa:'avance',numero:'CONTRATO DE PRUEBA',perfil_id:PERFIL_F5,
+      contrato:{fecha_inicio:'2026-10-05',tasa_anual:15,modalidad:'mensual',tipo_interes:'simple',categoria:'nuevo'}}]
+    if(rol==='coordinador') d.capacidades={...d.capacidades,nueva_inversion:false,postventa:false,documentos:false,cuentas_perfil_ids:[]}
+    api.ficha.mockResolvedValue(d)
+    const {user}=montar()
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    await screen.findByText('CONTRATO DE PRUEBA · Vencimiento:',{exact:false})
+    const boton=screen.queryByRole('button',{name:'Corregir categoría de CONTRATO DE PRUEBA'})
+    if(visible) expect(boton).toBeEnabled()
+    else expect(boton).not.toBeInTheDocument()
+    if(rol==='coordinador') {
+      expect(screen.queryByRole('button',{name:'Datos y correcciones'})).not.toBeInTheDocument()
+      expect(screen.queryByRole('button',{name:'Detalle completo de CONTRATO DE PRUEBA'})).not.toBeInTheDocument()
+      expect(screen.queryByRole('button',{name:'Registrar nueva inversión'})).not.toBeInTheDocument()
+    }
+  })
+
+  it('corrige con motivo, conserva el error del servidor e invalida cartera y ranking al guardar', async () => {
+    sesion.rol='coordinador';sesion.rolPortal='comercial'
+    const d=structuredClone(fichaF5)
+    d.capacidades={...d.capacidades,nueva_inversion:false,postventa:false,documentos:false,cuentas_perfil_ids:[]}
+    d.inversiones=[{...inversionF5,empresa:'avance',numero:'CORREGIBLE',perfil_id:PERFIL_F5,
+      contrato:{fecha_inicio:'2026-10-05',tasa_anual:15,modalidad:'mensual',tipo_interes:'simple',categoria:'nuevo'}}]
+    api.ficha.mockResolvedValue(d)
+    api.categoria.mockRejectedValueOnce(new CrmApiError('El mes ya está sellado','P0409')).mockResolvedValue({cambio:true})
+    const {user,qc}=montar()
+    const invalidar=vi.spyOn(qc,'invalidateQueries')
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    await user.click(await screen.findByRole('button',{name:'Corregir categoría de CORREGIBLE'}))
+    const guardar=screen.getByRole('button',{name:'Guardar corrección'})
+    expect(guardar).toBeDisabled()
+    await user.selectOptions(screen.getByLabelText('Categoría correcta'),'renovacion')
+    expect(guardar).toBeDisabled()
+    await user.type(screen.getByLabelText('Motivo de la corrección'),'El analista seleccionó Nuevo por error')
+    await user.click(guardar)
+    expect(await screen.findByRole('alert')).toHaveTextContent('El mes ya está sellado')
+    expect(screen.getByLabelText('Motivo de la corrección')).toHaveValue('El analista seleccionó Nuevo por error')
+    await user.click(guardar)
+    await waitFor(()=>expect(screen.queryByRole('dialog',{name:'Corregir categoría de inversión'})).not.toBeInTheDocument())
+    expect(api.categoria).toHaveBeenLastCalledWith(FUENTE_F5,'renovacion','El analista seleccionó Nuevo por error')
+    expect(invalidar).toHaveBeenCalledWith({queryKey:inversionistasKeys.actor(ACTOR_F5)})
+    expect(invalidar).toHaveBeenCalledWith({queryKey:crmQueryKeys.metricas()})
+    expect(invalidar).toHaveBeenCalledWith({queryKey:crmQueryKeys.metricasAmbito()})
+  })
   it.each([
     ['gerencia',true,true],['supervisor',true,true],['analista',true,false],
     ['directorio',true,false],['gerencia',false,false],

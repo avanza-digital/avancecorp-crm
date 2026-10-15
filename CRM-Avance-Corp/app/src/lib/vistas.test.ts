@@ -15,10 +15,8 @@ const VISTAS_POR_GATE = {
     gerencia: ['hoy', 'alertas', 'seguimiento', 'gestion-diaria', 'conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento', 'facturacion', 'informes-empresas', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'repartir', 'rescate', 'rescate-carpeta', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla', 'config-gestion-diaria', 'config-rentabilidad', 'config-celulares'],
     // Directorio ve Facturación en lectura desde el 08/10/2026 (Miguel: «sí, que la vea»).
     directorio: ['hoy', 'facturacion', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla', 'config-gestion-diaria', 'config-rentabilidad'],
-    // El coordinador NO entra al mundo leads ni con la llave abierta (2026-08-18):
-    // «hoy» es la única vista de leads sin capacidad exigida y se la habría
-    // regalado. Su ámbito de leads es ∅ y su destino único es «Repartir».
-    coordinador: ['ranking-vendedores', 'facturacion', 'repartir'],
+    // Consulta global de Leads y Cartera; no se abren las otras vistas operativas.
+    coordinador: ['ranking-vendedores', 'facturacion', 'cartera', 'mi-cartera', 'repartir'],
   },
   cerrado: {
     vendedor: ['mi-cartera', 'config'],
@@ -26,12 +24,12 @@ const VISTAS_POR_GATE = {
     supervisor: ['reuniones', 'facturacion', 'mi-cartera', 'derivaciones', 'equipo'],
     gerencia: ['hoy', 'alertas', 'conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento', 'facturacion', 'informes-empresas', 'mi-cartera', 'repartir', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla', 'config-gestion-diaria', 'config-rentabilidad', 'config-celulares'],
     directorio: ['facturacion', 'mi-cartera', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla', 'config-gestion-diaria', 'config-rentabilidad'],
-    coordinador: ['ranking-vendedores', 'facturacion', 'repartir'],
+    coordinador: ['ranking-vendedores', 'facturacion', 'mi-cartera', 'repartir'],
   },
 } as const satisfies Record<'abierto' | 'cerrado', Record<Rol, readonly Vista[]>>
 
 describe('vistaBase — dónde aterriza cada rol', () => {
-  it('aterriza al coordinador en Repartir (no tiene cartera ni leads)', () => {
+  it('conserva Repartir como inicio de Coordinación', () => {
     expect(vistaBase('coordinador', false)).toBe('repartir')
     // Aunque el gate de leads se abriera algún día, su landing no cambia.
     expect(vistaBase('coordinador', true)).toBe('repartir')
@@ -99,18 +97,20 @@ describe('sanearVista — expulsión por URL', () => {
     expect(sanearVista('derivaciones', 'coordinador', false)).toBe('repartir')
   })
 
-  it('Coordinación conserva Repartir y solo añade Facturación y Ranking', () => {
+  it('Coordinación consulta Leads y Cartera conservando los límites de las otras vistas', () => {
     expect(sanearVista('repartir', 'coordinador', false)).toBe('repartir')
     for (const llave of [true, false]) {
       expect(sanearVista('facturacion', 'coordinador', llave)).toBe('facturacion')
       expect(sanearVista('ranking-vendedores', 'coordinador', llave)).toBe('ranking-vendedores')
     }
     // Bookmarks o URLs a mano: ninguna vista ajena es alcanzable.
-    expect(sanearVista('mi-cartera', 'coordinador', false)).toBe('repartir')
+    expect(sanearVista('mi-cartera', 'coordinador', false)).toBe('mi-cartera')
     expect(sanearVista('equipo', 'coordinador', false)).toBe('repartir')
     expect(sanearVista('config', 'coordinador', false)).toBe('repartir')
     expect(sanearVista('hoy', 'coordinador', false)).toBe('repartir')
     expect(sanearVista('cartera', 'coordinador', false)).toBe('repartir')
+    expect(sanearVista('cartera', 'coordinador', true)).toBe('cartera')
+    expect(sanearVista('hoy', 'coordinador', true)).toBe('repartir')
   })
 
   it('expulsa de #/repartir a quien no reparte la cola', () => {

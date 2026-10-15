@@ -50,7 +50,7 @@ describe('capacidades por rol', () => {
     expect(can('coordinador', 'verAlertas')).toBe(false)
   })
 
-  it('acota al coordinador al reparto de la cola (C1): sin ámbito, sin cartera', () => {
+  it('Coordinación consulta toda la cartera y conserva su reparto específico', () => {
     // repartirCola ≠ repartirLeads: la primera es la COLA GLOBAL (coordinador),
     // la segunda es bajar de la bandeja al analista (supervisor).
     expect(can('coordinador', 'repartirCola')).toBe(true)
@@ -58,10 +58,10 @@ describe('capacidades por rol', () => {
     expect(can('supervisor', 'repartirCola')).toBe(false)
     expect(can('vendedor', 'repartirCola')).toBe(false)
     expect(can('directorio', 'repartirCola')).toBe(false)
-    // verTodo:false es el espejo exacto de la RLS (su ámbito de leads es ∅).
-    expect(can('coordinador', 'verTodo')).toBe(false)
-    expect(can('coordinador', 'verEquipo')).toBe(false)
-    expect(can('coordinador', 'verCartera')).toBe(false)
+    // El alcance global es de consulta; no concede reasignación ni altas.
+    expect(can('coordinador', 'verTodo')).toBe(true)
+    expect(can('coordinador', 'verEquipo')).toBe(true)
+    expect(can('coordinador', 'verCartera')).toBe(true)
     expect(can('coordinador', 'reasignar')).toBe(false)
     expect(can('coordinador', 'repartirLeads')).toBe(false)
     // Los roles operativos y de auditoría conservan la cartera unificada.
@@ -142,7 +142,7 @@ describe('capacidades por rol', () => {
     expect(ROLES.filter((rol) => CAPS[rol].tomarLeadDirecto)).toEqual(['vendedor'])
   })
 
-  it('Facturación añade la lectura de Coordinación sin abrir su cartera', () => {
+  it('Facturación conserva la lectura de Coordinación', () => {
     // Directorio desde el 08/10/2026 (Miguel: «sí, que la vea»): el servidor ya
     // le abría la empresa entera por ser lector global.
     expect(ROLES.filter((rol) => CAPS[rol].verFacturacion)).toEqual(['supervisor', 'gerencia', 'directorio', 'coordinador'])
@@ -154,11 +154,11 @@ describe('capacidades por rol', () => {
 
   it('Coordinación consulta Ranking sin adquirir escrituras ni perder el reparto', () => {
     expect(ROLES.filter((rol) => CAPS[rol].verRanking)).toEqual(['gerencia', 'coordinador'])
-    for (const accion of ['verTodo', 'verCartera', 'verLeads', 'editarMetas', 'editarCapacidad', 'editarConfiguracion', 'soloLecturaTotal'] as const) {
+    for (const accion of ['editarMetas', 'editarCapacidad', 'editarConfiguracion', 'soloLecturaTotal'] as const) {
       expect(can('coordinador', accion)).toBe(false)
     }
     expect(can('coordinador', 'repartirCola')).toBe(true)
-    expect(puedeEscribir('coordinador')).toBe(true)
+    expect(puedeEscribir('coordinador')).toBe(false)
   })
 
   it('reserva Citas a Gerencia y Supervisión; el servidor reduce al equipo', () => {

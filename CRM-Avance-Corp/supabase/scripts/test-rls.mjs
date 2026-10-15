@@ -6307,7 +6307,7 @@ async function testActividadesDeLead(sessions, seed) {
   }
 
   // Denegación EXPLÍCITA (nunca vacío). Dos razones distintas para el 42501:
-  // coordinador PASA la admisión al CRM pero no ve el lead (visibilidad);
+  // Un analista fuera del equipo no ve el lead (visibilidad);
   // vendInactive NO pasa la admisión (P04: revocado ≠ ajeno). Nombrarlas
   // distinto es lo que hace útil al mutante «quitar el exists de la puerta».
   for (const key of ['vend3', 'sup2', 'vend2']) {
@@ -6316,9 +6316,9 @@ async function testActividadesDeLead(sessions, seed) {
       rpc(key, { p_lead_id: juanLead.id }),
     );
   }
-  await expectExpectedFailure(
-    'coordinador: admitido al CRM pero sin ambito sobre juan → 42501 de VISIBILIDAD',
-    rpc('coordinador', { p_lead_id: juanLead.id }), ['42501'], /fuera de tu cartera/i,
+  await positive(
+    'coordinador consulta el historial de cualquier lead',
+    rpc('coordinador', { p_lead_id: juanLead.id }),
   );
   await expectExpectedFailure(
     'vendInactive: membresia revocada → 42501 de ADMISION (P04)',

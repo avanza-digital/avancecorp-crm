@@ -1023,11 +1023,8 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           leads: [] as Lead[],
         }
       }
-      // El coordinador (C1) es OFF-ROSTER: no tiene cartera ni panel de equipo, y
-      // su pantalla usa supervisores_para_reparto (no `ambito.equipo`). Se omite
-      // listarEquipo porque equipo_visible_fn puede RAISE para su rol y el
-      // Promise.all sin catch tumbaría su boot entero. Los demás fetches son
-      // seguros: leen por RLS con ámbito ∅ → [] (la RLS filtra, no lanza).
+      // Coordinación consulta el roster para los filtros y responsables de
+      // Leads. Metas y cumplimiento siguen fuera de su arranque.
       const esCoordinador = yo?.rol === 'coordinador'
       // Gerencia también opera la cartera completa: necesita las mismas fuentes
       // transaccionales que el resto del equipo además de sus RPC de inteligencia.
@@ -1046,7 +1043,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       // propia, búsqueda, fichas por id) y registró con `conocerLeads`.
       const [leads, miembros, tareasAmbito, configuracionMetas, cumplimientoRpc] = await Promise.all([
         Promise.resolve<Lead[]>([]),
-        esCoordinador ? Promise.resolve<Miembro[]>([]) : listarEquipo(signal),
+        listarEquipo(signal),
         listarTareasDelAmbito(signal),
         esCoordinador ? Promise.resolve(null) : obtenerMetasDelMes(periodoMetas, signal).catch((error: unknown) => {
           registrarError('crm.metas.configuracion_boot_degradada', error)

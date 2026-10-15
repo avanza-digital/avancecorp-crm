@@ -354,9 +354,8 @@ export const EXPECTED_LEAD_NAMES = Object.freeze({
   vend4: [],
   vendNested: leadNames('carlos'),
   vendInactive: [],
-  // Coordinador (C1): ambito VACIO por diseno — no ve leads por RLS, solo por
-  // las RPC SECURITY DEFINER de reparto (que proyectan sin PII de contacto).
-  coordinador: [],
+  // Coordinación consulta todos los leads (15/10/2026), sin ampliar escritura.
+  coordinador: leadNames('juan', 'maria', 'carlos', 'ana', 'luis', 'rosa', 'inactiveOwned'),
   directorio: leadNames('juan', 'maria', 'carlos', 'ana', 'luis', 'rosa', 'inactiveOwned'),
   clientBank: [],
 });
@@ -432,7 +431,7 @@ export const EXPECTED_TAREA_TITULOS = Object.freeze({
   vend4: [],
   vendNested: tareaTitulos('reunionCarlos'),
   vendInactive: [],
-  coordinador: [],
+  coordinador: tareaTitulos('llamadaJuan', 'reunionCarlos', 'whatsappAna', 'bandejaLuis', 'bandejaRosa'),
   directorio: tareaTitulos('llamadaJuan', 'reunionCarlos', 'whatsappAna', 'bandejaLuis', 'bandejaRosa'),
   clientBank: [],
 });

@@ -32,11 +32,8 @@ describe('funcionesLeadsVisibles — la llave del pipeline de leads', () => {
     expect(funcionesLeadsVisibles(false, 'supervisor')).toBe(true)
   })
 
-  it('el coordinador NO las ve ni con la llave abierta: su mundo es «Repartir leads»', () => {
-    // Su ámbito de leads es ∅ (espejo de private.vendedor_ids_visibles). Sin
-    // este corte, abrir la llave le regalaba «Hoy» (la única vista de leads sin
-    // capacidad exigida) y un buscador de leads que nunca encuentra nada.
-    expect(funcionesLeadsVisibles(false, 'coordinador')).toBe(false)
+  it('Coordinación consulta Leads cuando la llave está abierta', () => {
+    expect(funcionesLeadsVisibles(false, 'coordinador')).toBe(FUNCIONES_LEADS_APROBADAS)
   })
 
   it('un rol nulo o desconocido tampoco (mínimo privilegio: la lista es cerrada)', () => {
