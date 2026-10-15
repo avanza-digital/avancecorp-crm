@@ -1273,6 +1273,39 @@ export type Database = {
           },
         ]
       }
+      correcciones_categoria_contrato: {
+        Row: {
+          actor_id: string
+          categoria_anterior: string | null
+          categoria_nueva: string
+          contrato_id: string
+          creado_en: string
+          id: string
+          motivo: string
+          transaccion: number
+        }
+        Insert: {
+          actor_id: string
+          categoria_anterior?: string | null
+          categoria_nueva: string
+          contrato_id: string
+          creado_en?: string
+          id?: string
+          motivo: string
+          transaccion?: number
+        }
+        Update: {
+          actor_id?: string
+          categoria_anterior?: string | null
+          categoria_nueva?: string
+          contrato_id?: string
+          creado_en?: string
+          id?: string
+          motivo?: string
+          transaccion?: number
+        }
+        Relationships: []
+      }
       correcciones_correo_acceso: {
         Row: {
           auth_confirmado_en: string | null

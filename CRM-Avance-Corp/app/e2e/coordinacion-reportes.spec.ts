@@ -68,7 +68,9 @@ test('Coordinación consulta nombres en Facturación y conserva el reporte sin f
   await page.evaluate(() => { window.location.hash = '#/configuracion' })
   await expect(page).toHaveURL(/#\/repartir$/)
   expect(pedidos).toContain('equipo_reportes_fn')
-  expect(pedidos).not.toContain('equipo_visible_fn')
+  expect(pedidos).toContain('equipo_visible_fn')
+  await expect(page.getByRole('button', { name: 'Cartera', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Leads', exact: true })).toBeVisible()
 })
 
 test('Ranking de Coordinación consulta el mes completo y permite cambiar la lectura', async ({ page }) => {

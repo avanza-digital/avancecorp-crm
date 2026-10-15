@@ -31,13 +31,18 @@ import { CrmApiError, eliminarInversion as eliminarInversionServidor, mensajeDeE
 import { descargarDocumentoInversionista } from '@/data/inversionistas-api'
 import { archivarContratoPdfConfirmado, ContratoEliminacionError, eliminarContratoConPdf } from '@/lib/contrato-pdf-archivo'
 import { useAuth } from '@/lib/auth-context'
-import { can, puedeEliminarContratos, puedeEliminarInversion, puedeEliminarInversiones } from '@/lib/roles'
+import { can, puedeCorregirCategoriaInversion, puedeEliminarContratos, puedeEliminarInversion, puedeEliminarInversiones } from '@/lib/roles'
+import { corregirCategoriaInversion } from '@/data/categoria-inversion-api'
+import type { CategoriaContrato } from '@/lib/cronograma'
 import { crmQueryKeys } from '@/data/crm-queries'
 
 export function CarteraInversionistas({actor, permiteInversion}: {
   actor: string; permiteInversion: boolean
 }) {
   const {yo} = useAuth()
+  const permiteCategoria = yo?.id === actor && !yo.demo && puedeCorregirCategoriaInversion(yo)
+  const permiteGestion = yo?.rol !== 'coordinador'
+  const puedeInvertir = permiteInversion && permiteGestion
   const permiteEliminar = yo?.id === actor && !yo.demo && puedeEliminarContratos(yo)
   const permiteEliminarInversion = yo?.id === actor && !yo.demo && puedeEliminarInversiones(yo)
   const qc = useQueryClient()
@@ -64,7 +69,7 @@ export function CarteraInversionistas({actor, permiteInversion}: {
   // Venta cruzada: buscar a un cliente de otra cartera y registrar su inversión (vendedor o
   // supervisor). Gerencia también busca, para abrir la ficha.
   const [ventaCruzada, setVentaCruzada] = useState<{inicial?: CriterioBusqueda | undefined} | null>(null)
-  const puedeVentaCruzada = yo?.id === actor && !yo.demo && permiteInversion
+  const puedeVentaCruzada = yo?.id === actor && !yo.demo && puedeInvertir
   const registraVentaCruzada = puedeVentaCruzada && (yo?.rol === 'vendedor' || yo?.rol === 'supervisor')
   const [aviso, setAviso] = useState('')
   const [descargando, setDescargando] = useState(false)
@@ -152,6 +157,12 @@ export function CarteraInversionistas({actor, permiteInversion}: {
     qc.invalidateQueries({queryKey: crmQueryKeys.leads()}),
     qc.invalidateQueries({queryKey: postventaKeys.actor(actor)}),
   ])
+  async function corregirCategoria(i: InversionFuente, categoria: CategoriaContrato, motivo: string) {
+    if (!permiteCategoria || i.empresa !== 'avance' || !i.contrato) throw new CrmApiError('No tienes permiso para corregir esta categoría.', '42501')
+    await corregirCategoriaInversion(i.fuente_id, categoria, motivo)
+    await refrescarGestionInversionista(qc, actor)
+    toast.success('Categoría corregida. Conversión y ranking actualizados.')
+  }
   async function eliminarContrato(i: InversionFuente) {
     if (!permiteEliminar || i.empresa !== 'avance' || !i.contrato) throw new ContratoEliminacionError('No tienes permiso para eliminar este contrato.')
     const {auditoriaId} = await eliminarContratoConPdf(i.fuente_id)
@@ -233,17 +244,18 @@ export function CarteraInversionistas({actor, permiteInversion}: {
             onCambio={n => setFiltros(f => ({...f, pagina: n + 1}))} mostrarSiempre ariaLabel="Paginación de inversionistas" /></div>
         </>}
     </Card>
-    <VencimientosPostventa key={filtros.empresa} actor={actor} empresa={filtros.empresa} onAbrir={seleccionar} />
+    {permiteGestion && <VencimientosPostventa key={filtros.empresa} actor={actor} empresa={filtros.empresa} onAbrir={seleccionar} />}
     {seleccion && !nueva && <Sheet open onClose={() => {documento.current?.abort(); setDescargando(false); seleccionar(null)}} ariaLabel="Ficha del inversionista" className="w-[620px] max-w-full">
       {descargando && <p role="status" className="px-5 pt-3 text-sm">Comprobando acceso y descargando documento…</p>}
       <InversionistaFicha key={seleccion} actor={actor} inversionistaId={seleccion} onCerrar={() => seleccionar(null)} onRevocado={revocar}
-        enfocarInversiones={volverAInversiones}
-        onNuevaInversion={permiteInversion ? f => setNueva({persona: f.persona.inversionista_id}) : undefined}
-        onOperacion={permiteInversion ? op => setNueva({persona: seleccion, operacion: op}) : undefined}
+        enfocarInversiones={volverAInversiones} permiteGestion={permiteGestion}
+        onCorregirCategoria={permiteCategoria ? corregirCategoria : undefined}
+        onNuevaInversion={puedeInvertir ? f => setNueva({persona: f.persona.inversionista_id}) : undefined}
+        onOperacion={puedeInvertir ? op => setNueva({persona: seleccion, operacion: op}) : undefined}
         onEliminar={permiteEliminar ? eliminarContrato : undefined}
         onEliminarInversion={permiteEliminarInversion ? eliminarInversion : undefined}
         puedeEliminarInversion={i => puedeEliminarInversion(yo, i)}
-        onDocumento={(i, id) => void abrirDocumento(i, id)} onRecuperarPdf={i => void abrirDocumento(i, i.fuente_id, true)} />
+        onDocumento={(i, id) => void abrirDocumento(i, id)} onRecuperarPdf={permiteGestion ? i => void abrirDocumento(i, i.fuente_id, true) : undefined} />
     </Sheet>}
     {ventaCruzada && <VentaCruzada actor={actor} inicial={ventaCruzada.inicial} puedeRegistrar={registraVentaCruzada}
       onCerrar={() => setVentaCruzada(null)}

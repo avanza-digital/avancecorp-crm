@@ -115,11 +115,8 @@ export const FUNCIONES_LEADS_APROBADAS: boolean = true
  * En sesiones reales: gerencia y directorio siempre (aprobación parcial del
  * 2026-07-16) y la FUERZA DE VENTAS (vendedor/supervisor) según la llave.
  * La lista es cerrada a propósito — quien no está, no ve:
- *  · el COORDINADOR nunca entra al mundo leads, ni con la llave abierta: su
- *    ámbito de leads es ∅ (espejo exacto de la RLS
- *    `private.vendedor_ids_visibles`) y su único destino es «Repartir leads».
- *    Sin este corte, abrir la llave le pintaría «Hoy» —la única vista de leads
- *    que no exige capacidad— y un buscador de leads que nunca encuentra nada.
+ *  · Coordinación consulta Leads desde el 15/10/2026. `vistaPermitida` limita
+ *    su navegación al listado, sin abrir Hoy, Pipeline ni Gestión Diaria.
  *  · un rol ausente o desconocido tampoco: mínimo privilegio.
  *
  * ⚠️ Esto NO es un permiso: es solo qué PINTA el navegador. El ámbito de datos
@@ -128,7 +125,7 @@ export const FUNCIONES_LEADS_APROBADAS: boolean = true
 export function funcionesLeadsVisibles(esDemo: boolean, rol?: string | null): boolean {
   if (esDemo) return true
   if (rol === 'gerencia' || rol === 'directorio') return true
-  if (rol === 'vendedor' || rol === 'supervisor') return FUNCIONES_LEADS_APROBADAS
-  // Coordinador, rol ausente o desconocido: mínimo privilegio, la llave no les toca.
+  if (rol === 'vendedor' || rol === 'supervisor' || rol === 'coordinador') return FUNCIONES_LEADS_APROBADAS
+  // Rol ausente o desconocido: mínimo privilegio.
   return false
 }
