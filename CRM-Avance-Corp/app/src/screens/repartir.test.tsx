@@ -128,6 +128,12 @@ vi.mock('@/data/crm-api', async (importActual) => {
   }
 })
 
+// La planilla tiene su banco propio (fechas, RPC y envíos parciales).
+// Este banco conserva las regresiones de cola y agenda sin lecturas ajenas.
+vi.mock('@/components/app/planilla-reparto', () => ({
+  PlanillaReparto: () => <h3>Coordinación → supervisores</h3>,
+}))
+
 // F1b tanda 3: los tiles ya NO los cuenta la pantalla, se los sirve el RPC. Se
 // mockea el hook de fuente con el ESPEJO PURO sobre la misma cola del test —
 // números derivados de verdad, sin red ni QueryClientProvider — y con un
@@ -152,6 +158,7 @@ const { CrmApiError } = await import('@/data/crm-api')
 
 it('la agenda termina de cargar al remontar los efectos en StrictMode', async () => {
   render(<StrictMode><Repartir /></StrictMode>)
+  await userEvent.click(screen.getByRole('tab', { name: 'Agenda de turnos' }))
   expect(await screen.findByLabelText('Asignar Landing a una supervisora')).toBeInTheDocument()
   expect(screen.queryByText('Cargando agenda…')).not.toBeInTheDocument()
 })
@@ -276,7 +283,7 @@ describe('pantalla Repartir leads', () => {
     render(<Repartir />)
 
     expect(await screen.findByRole('heading', { name: 'Coordinación → supervisores' })).toBeInTheDocument()
-    expect(screen.getByText(/No depende de que Supervisión lo reparta después/)).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Agenda de turnos' })).toHaveAttribute('aria-selected', 'false')
     expect(panelMock).not.toHaveBeenCalled()
 
     await usuario.click(screen.getByRole('tab', { name: 'Supervisión → analistas' }))
@@ -313,6 +320,7 @@ describe('pantalla Repartir leads', () => {
     AGENDA.dias[0]!.origenes = [{ origen: 'landing', turno: 'landing', derivados: 22, fuera_turno: 20,
       entregas: AGENDA.dias[0]!.asignaciones[0]!.entregas! }]
     render(<Repartir />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Agenda de turnos' }))
     const tabla = await screen.findByRole('table', { name: 'Entregas por origen y supervisora' })
     expect(within(tabla).getByRole('row', { name: /Supervisora uno 20 20/ })).toBeInTheDocument()
     expect(within(tabla).getByRole('row', { name: /Supervisora dos 2 0/ })).toBeInTheDocument()
@@ -441,6 +449,7 @@ describe('pantalla Repartir leads', () => {
     }
     const usuario = userEvent.setup()
     render(<Repartir />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Agenda de turnos' }))
 
     expect(await screen.findByRole('heading', { name: 'Coordinación → supervisores' })).toBeInTheDocument()
     await usuario.selectOptions(screen.getByLabelText('Asignar Landing a una supervisora'), 'sup-carmen')
@@ -481,6 +490,7 @@ describe('pantalla Repartir leads', () => {
     ]
     const usuario = userEvent.setup()
     render(<Repartir />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Agenda de turnos' }))
     expect(await screen.findByText('31 entregados · 2 fuera de turno')).toBeInTheDocument()
     expect(colaMock).not.toHaveBeenCalled()
     expect(screen.getAllByLabelText(/^Asignar .* a una supervisora$/)).toHaveLength(2)
@@ -491,7 +501,7 @@ describe('pantalla Repartir leads', () => {
     expect(screen.getByText('12 entregados · 2 fuera de turno')).toBeInTheDocument()
     expect(screen.getByLabelText('Asignar Landing a una supervisora')).toHaveValue('sup-2')
     await usuario.click(screen.getByRole('tab', { name: 'Cola de nuevos' }))
-    await usuario.click(screen.getByRole('tab', { name: 'Coordinación → supervisores' }))
+    await usuario.click(screen.getByRole('tab', { name: 'Agenda de turnos' }))
     expect(screen.getByLabelText('Asignar Landing a una supervisora')).toHaveValue('sup-2')
     await usuario.click(screen.getByRole('button', { name: 'Guardar turno' }))
     await waitFor(() => expect(guardarAgendaMock).toHaveBeenCalledWith(fechaHoyLima, 'sup-2', 'sup-1'))
@@ -499,6 +509,7 @@ describe('pantalla Repartir leads', () => {
 
   it('distingue un desglose ausente de un día sin entregas', async () => {
     render(<Repartir />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Agenda de turnos' }))
     expect(await screen.findByText(/Desglose por origen no disponible/)).toBeInTheDocument()
     expect(screen.getByLabelText('Filtrar entregas a supervisoras por origen')).toBeDisabled()
     expect(screen.queryByText('0 entregados · 0 fuera de turno')).not.toBeInTheDocument()
@@ -507,6 +518,7 @@ describe('pantalla Repartir leads', () => {
   it('conserva el turno confirmado cuando falla la relectura posterior al guardado', async () => {
     const usuario = userEvent.setup()
     render(<Repartir />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Agenda de turnos' }))
     await screen.findByLabelText('Asignar Landing a una supervisora')
     await usuario.click(screen.getByRole('button', { name: 'Invertir' }))
     agendaMock.mockRejectedValueOnce(new Error('Sin conexión temporal'))
@@ -520,21 +532,23 @@ describe('pantalla Repartir leads', () => {
   it('al regresar a Coordinación recarga los conteos sin requerir foco del navegador', async () => {
     const usuario = userEvent.setup()
     render(<Repartir />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Agenda de turnos' }))
     await screen.findByLabelText('Asignar Landing a una supervisora')
     await abrirCola(usuario)
     const lecturas = agendaMock.mock.calls.length
-    await usuario.click(screen.getByRole('tab', { name: 'Coordinación → supervisores' }))
+    await usuario.click(screen.getByRole('tab', { name: 'Agenda de turnos' }))
     await waitFor(() => expect(agendaMock).toHaveBeenCalledTimes(lecturas + 1))
   })
 
   it('recupera la lectura aplazada al volver con borrador y deshacerlo', async () => {
     const usuario = userEvent.setup()
     render(<Repartir />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Agenda de turnos' }))
     await screen.findByLabelText('Asignar Landing a una supervisora')
     await usuario.click(screen.getByRole('button', { name: 'Invertir' }))
     await abrirCola(usuario)
     const lecturas = agendaMock.mock.calls.length
-    await usuario.click(screen.getByRole('tab', { name: 'Coordinación → supervisores' }))
+    await usuario.click(screen.getByRole('tab', { name: 'Agenda de turnos' }))
     expect(agendaMock).toHaveBeenCalledTimes(lecturas)
     await usuario.click(screen.getByRole('button', { name: 'Invertir' }))
     await waitFor(() => expect(agendaMock).toHaveBeenCalledTimes(lecturas + 1))
@@ -544,6 +558,7 @@ describe('pantalla Repartir leads', () => {
     const usuario = userEvent.setup()
     let resolver!: (datos: AgendaRepartoDiaria) => void
     render(<Repartir />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Agenda de turnos' }))
     await screen.findByLabelText('Asignar Landing a una supervisora')
     agendaMock.mockImplementationOnce(() => new Promise((r) => { resolver = r }))
     await usuario.click(screen.getByRole('button', { name: 'Actualizar' }))
@@ -557,7 +572,7 @@ describe('pantalla Repartir leads', () => {
     expect(screen.getByRole('button', { name: 'Actualizar' })).toBeEnabled()
   })
 
-  it('no lee la cola al volver durante un reparto y reconcilia al finalizar', async () => {
+  it('bloquea cambiar de vista durante un reparto y reconcilia al volver después', async () => {
     COLA = [lead()]
     let resolver!: () => void
     repartirMock.mockImplementation(() => new Promise<void>((r) => { resolver = r }))
@@ -566,11 +581,14 @@ describe('pantalla Repartir leads', () => {
     await abrirCola(usuario)
     await usuario.click(await screen.findByRole('button', { name: 'Repartir a ROSA QUISPE' }))
     const lecturas = colaMock.mock.calls.length
+    expect(screen.getByRole('tab', { name: 'Coordinación → supervisores' })).toBeDisabled()
     await usuario.click(screen.getByRole('tab', { name: 'Coordinación → supervisores' }))
     await abrirCola(usuario)
     expect(colaMock).toHaveBeenCalledTimes(lecturas)
     COLA = []
     await act(async () => resolver())
+    await usuario.click(screen.getByRole('tab', { name: 'Coordinación → supervisores' }))
+    await abrirCola(usuario)
     await waitFor(() => expect(colaMock).toHaveBeenCalledTimes(lecturas + 1))
     expect(screen.queryByText('ROSA QUISPE')).not.toBeInTheDocument()
   })
@@ -578,6 +596,7 @@ describe('pantalla Repartir leads', () => {
   it('un desglose vacío explícito sí informa cero entregas', async () => {
     AGENDA.dias[0]!.origenes = []
     render(<Repartir />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Agenda de turnos' }))
     expect(await screen.findByText('0 entregados · 0 fuera de turno')).toBeInTheDocument()
     expect(screen.getByText('No hay entregas con estos filtros en el día seleccionado.')).toBeInTheDocument()
   })

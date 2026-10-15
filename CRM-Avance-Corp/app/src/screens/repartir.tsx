@@ -63,6 +63,7 @@ import { PanelCargando, PanelError, PanelVacio } from '@/components/common/estad
 import { HistorialDerivaciones } from '@/components/app/historial-derivaciones'
 import { PanelDistribucionReparto } from '@/components/app/panel-distribucion-reparto'
 import { AgendaRepartoDiaria } from '@/components/app/agenda-reparto-diaria'
+import { PlanillaReparto } from '@/components/app/planilla-reparto'
 import { ConversionCoordinacion } from '@/components/app/conversion-coordinacion'
 import { ChipCampania } from '@/components/app/campania-chip'
 import { Paginacion } from '@/components/common/paginacion'
@@ -153,7 +154,7 @@ function sumarEntregaLocal(
   }
 }
 
-function useReparto(activo: boolean, revision: number) {
+function useReparto(activo: boolean, revision: number, onCambio: () => void) {
   const [estado, setEstado] = useState<EstadoReparto>({
     cola: [], supervisores: [], agendaHoy: null, repartoLibre: false, cargando: true, error: null,
   })
@@ -274,8 +275,9 @@ function useReparto(activo: boolean, revision: number) {
       }
     } finally {
       terminarEnvio(lead.id)
+      onCambio()
     }
-  }, [cargar, estado.supervisores, iniciarEnvio, terminarEnvio])
+  }, [cargar, estado.supervisores, iniciarEnvio, terminarEnvio, onCambio])
 
   /** C1-bis: cierra el lead con motivo. Devuelve si el descarte ENTRÓ (el
    *  llamador decide a dónde va el foco). El deshacer vive en el toast — la
@@ -302,6 +304,7 @@ function useReparto(activo: boolean, revision: number) {
               } finally {
                 // Con o sin éxito, la verdad la tiene el servidor.
                 void cargar()
+                onCambio()
                 refrescarResumenReparto()
               }
             })()
@@ -320,15 +323,18 @@ function useReparto(activo: boolean, revision: number) {
       return false
     } finally {
       terminarEnvio(lead.id)
+      onCambio()
     }
-  }, [cargar, iniciarEnvio, terminarEnvio])
+  }, [cargar, iniciarEnvio, terminarEnvio, onCambio])
 
   return { ...estado, enviandoIds, recargar: cargar, repartir, descartar }
 }
 
 /** Pestaña "Cola": repartir o descartar los leads nuevos sin dueño. */
-function PanelCola({ activo, revision }: { activo: boolean; revision: number }) {
-  const { cola, supervisores, agendaHoy, repartoLibre, cargando, error, enviandoIds, recargar, repartir, descartar } = useReparto(activo, revision)
+function PanelCola({ activo, revision, onCambio, onOcupado }: { activo: boolean; revision: number; onCambio: () => void; onOcupado: (valor: boolean) => void }) {
+  const { cola, supervisores, agendaHoy, repartoLibre, cargando, error, enviandoIds, recargar, repartir, descartar } = useReparto(activo, revision, onCambio)
+  const ocupado = enviandoIds.size > 0
+  useEffect(() => { onOcupado(ocupado); return () => onOcupado(false) }, [ocupado, onOcupado])
   const { yo } = useAuth()
   const esAdministrador = yo?.rol_portal === 'superadmin'
   const puedeElegirDestino = esAdministrador || repartoLibre
@@ -950,11 +956,16 @@ function PanelDescartados({ onCambio }: { onCambio: () => void }) {
 }
 
 export function Repartir() {
-  const [tab, setTab] = useState<'coordinacion' | 'panel' | 'conversiones' | 'cola' | 'descartados' | 'historial'>('coordinacion')
+  const [tab, setTab] = useState<'coordinacion' | 'agenda' | 'panel' | 'conversiones' | 'cola' | 'descartados' | 'historial'>('coordinacion')
   // Al deshacer desde Descartados el lead vuelve a la cola: forzamos un remonte
   // de la pestaña Cola (key) para que la relea al volver a ella.
   const [colaRevision, setColaRevision] = useState(0)
   const [visitadas, setVisitadas] = useState(() => new Set([tab]))
+  const [colaOcupada, setColaOcupada] = useState(false)
+  const [planillaRevision, setPlanillaRevision] = useState(0)
+  const actualizarPlanilla = useCallback(() => setPlanillaRevision((n) => n + 1), [])
+  const [repartiendo, setRepartiendo] = useState(false)
+  const actualizarReparto = useCallback(() => { setColaRevision((n) => n + 1); refrescarResumenReparto() }, [])
 
   return (
     <div className="mx-auto max-w-[1240px] space-y-4">
@@ -971,12 +982,14 @@ export function Repartir() {
             ['cola', 'Cola de nuevos'],
             ['historial', 'Historial'],
             ['descartados', 'Descartados'],
+            ['agenda', 'Agenda de turnos'],
           ] as const).map(([k, label]) => (
             <button
               key={k}
               type="button"
               role="tab"
               aria-selected={tab === k}
+              disabled={repartiendo || colaOcupada}
               onClick={() => { setVisitadas((prev) => new Set(prev).add(k)); setTab(k) }}
               className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
                 tab === k ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
@@ -988,8 +1001,9 @@ export function Repartir() {
         </div>
       </div>
 
-      {visitadas.has('coordinacion') ? <div hidden={tab !== 'coordinacion'}><AgendaRepartoDiaria activo={tab === 'coordinacion'} /></div> : null}
-      {visitadas.has('cola') ? <div hidden={tab !== 'cola'}><PanelCola activo={tab === 'cola'} revision={colaRevision} /></div> : null}
+      {visitadas.has('coordinacion') ? <div hidden={tab !== 'coordinacion'}><PlanillaReparto activo={tab === 'coordinacion'} revision={colaRevision + planillaRevision} onCambio={actualizarReparto} onOcupado={setRepartiendo} /></div> : null}
+      {visitadas.has('agenda') ? <div hidden={tab !== 'agenda'}><AgendaRepartoDiaria activo={tab === 'agenda'} /></div> : null}
+      {visitadas.has('cola') ? <div hidden={tab !== 'cola'}><PanelCola activo={tab === 'cola'} revision={colaRevision} onCambio={actualizarPlanilla} onOcupado={setColaOcupada} /></div> : null}
       {tab === 'panel' ? <PanelDistribucionReparto /> : null}
       {tab === 'conversiones' ? <ConversionCoordinacion /> : null}
       {tab === 'historial' ? <HistorialDerivaciones /> : null}
