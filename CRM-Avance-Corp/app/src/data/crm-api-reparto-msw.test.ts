@@ -147,6 +147,32 @@ const REPORTE_DERIVACIONES_COORDINACION = {
 }
 
 describe('leadsPorRepartir (msw)', () => {
+  it('la planilla lee todas las páginas con conteo exacto y orden estable', async () => {
+    const offsets: string[] = []
+    server.use(http.post(RPC('leads_por_repartir'), ({ request }) => {
+      const url = new URL(request.url)
+      expect(request.headers.get('prefer')).toContain('count=exact')
+      expect(url.searchParams.get('order')).toBe('creado_en.asc,id.asc')
+      const inicio = Number(url.searchParams.get('offset') ?? 0)
+      offsets.push(String(inicio))
+      // Simula un límite servidor menor que los 500 pedidos por la pantalla.
+      const cantidad = Math.min(2, 3 - inicio)
+      return HttpResponse.json(Array.from({ length: cantidad }, (_, i) => ({ ...FILA_COLA, id: `lead-${inicio + i}` })), { headers: { 'content-range': `${inicio}-${inicio + cantidad - 1}/3` } })
+    }))
+    expect(await leadsPorRepartir(undefined, true)).toHaveLength(3)
+    expect(offsets).toEqual(['0', '2'])
+  })
+
+  it.each(['sin_conteo', 'fecha_invalida', 'fila_invalida', 'duplicada', 'total_cambiante'])('la planilla rechaza %s sin mostrar un total incompleto', async (caso) => {
+    let llamada = 0
+    server.use(http.post(RPC('leads_por_repartir'), () => {
+      llamada++
+      const fila = caso === 'fecha_invalida' ? { ...FILA_COLA, creado_en: 'no-fecha' } : caso === 'fila_invalida' ? { id: 'invalido' } : FILA_COLA
+      return HttpResponse.json([fila], { headers: caso === 'sin_conteo' ? {} : { 'content-range': `0-0/${caso === 'total_cambiante' && llamada > 1 ? 3 : caso === 'duplicada' || caso === 'total_cambiante' ? 2 : 1}` } })
+    }))
+    await expect(leadsPorRepartir(undefined, true)).rejects.toMatchObject({ code: 'COLA_INCOMPLETA' })
+  })
+
   it('coerciona el monto numeric string→number y conserva distrito null', async () => {
     server.use(
       http.post(RPC('leads_por_repartir'), () =>

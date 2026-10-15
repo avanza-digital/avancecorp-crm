@@ -9,6 +9,8 @@ actualizado: 2026-09-25
 
 # 🏠 Inicio — Portal Avance Corp
 
+- 📝 **15/10 — NUEVA PLANILLA DE REPARTO:** Miguel pide equilibrar cantidades totales entre supervisores combinando orígenes, con acumulado semanal y filtros independientes de fecha de ingreso/reparto (un día, rango o días sueltos). Planilla PUBLICADA 18:05 Lima, PR #296 / `875054a2`; 126 HTTP PASS y permiso real de Coordinación confirmado. 6.946 tests y 41 escenarios E2E; Figma actualizado. Sin reasignar leads ni cambiar n8n. [[Coordinacion - planilla de reparto y equilibrio por fechas (2026-10-15)]].
+
 - ✅ **15/10 — FORMULARIO 3 COMO ORIGEN NATIVO PUBLICADO:** misma tabla, permisos y procesos; 116 leads reclasificados, responsables/historial/tareas/inversiones conservados, cero legados. Web `597cab1c`, SQL A/B y Edge v26 verificados; ficha confirmada por Miguel. Turno compartido con Formulario, filtros y métricas propios; n8n activo con 152 recibos. [[Formulario 3 - origen nativo publicado (2026-10-15)]].
 
 - ✅ **15/10 11:18 Lima — REPARTO DE FORMULARIO 3 CORREGIDO:** 76 traslados según los Excel de Jorge/Carmen y 1 ya correcto; 39 fuera de los archivos intactos. Historial y 27 tareas conservados; los 4 descartados trasladados siguen descartados y mantienen No contactar donde existía. n8n sigue activo. Pantalla de Coordinación aún pendiente — [[Formulario 3 - reparto corregido segun Excel (2026-10-15)]].

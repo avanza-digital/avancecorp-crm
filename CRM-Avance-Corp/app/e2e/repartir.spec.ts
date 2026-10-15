@@ -156,6 +156,7 @@ for (const ancho of [390, 1366]) {
     })
     await page.setViewportSize({ width: ancho, height: 900 })
     if (ancho < 600) await page.getByRole('button', { name: 'Ocultar menú', exact: true }).click()
+    await page.getByRole('tab', { name: 'Agenda de turnos' }).click()
     await expect(page.getByText('9 entregados · 2 fuera de turno')).toBeVisible()
     await expect(page.getByRole('combobox', { name: /Asignar .* a una supervisora/ })).toHaveCount(2)
     const filtroAgenda = page.getByLabel('Filtrar entregas a supervisoras por origen')
@@ -199,6 +200,7 @@ test('la agenda conserva el origen de entregas históricas aunque su cola esté 
       origenes: [{ origen: 'formulario_3', derivados: 5, fuera_turno: 0, entregas: [entrega] }],
     }] }] },
   })
+  await page.getByRole('tab', { name: 'Agenda de turnos' }).click()
   await expect(page.getByText('5 entregados · 0 fuera de turno')).toBeVisible()
   await page.getByLabel('Filtrar entregas a supervisoras por origen').selectOption('formulario_3')
   await expect(page.getByRole('row', { name: /Formulario 3 Supervisor dos 5 0/ })).toBeVisible()
@@ -417,6 +419,7 @@ test('Coordinación muestra la entrega real antes de que Supervisión la reparta
   })
 
   await expect(page.getByRole('tab', { name: 'Coordinación → supervisores' })).toHaveAttribute('aria-selected', 'true')
+  await page.getByRole('tab', { name: 'Agenda de turnos' }).click()
   const tabla = page.getByRole('table', { name: 'Entregas por origen y supervisora' })
   await expect(tabla.getByRole('row', { name: 'LANDING Jor 2 0' })).toBeVisible()
   await expect(tabla.getByRole('row', { name: 'LANDING Carmen 20 20' })).toBeVisible()
@@ -432,18 +435,19 @@ test('el coordinador aterriza en Repartir y su navegación se reduce a lo suyo',
   // Aterrizaje por capacidad (no por hash guardado): su vista base es 'repartir'.
   await expect(page).toHaveURL(/#\/repartir$/)
 
-  // El nav NO le ofrece cartera, equipo ni configuración (espejo de la RLS: su
-  // ámbito de leads es vacío y no tiene cartera propia).
+  // Consulta global de Leads y Cartera; conserva Repartir como inicio.
   await expect(page.getByRole('button', { name: 'Repartir leads' })).toBeVisible()
-  for (const ajena of ['Mi cartera', 'Cartera', 'Equipo', 'Configuración', 'Pipeline']) {
+  await expect(page.getByRole('button', { name: 'Cartera', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Leads', exact: true })).toBeVisible()
+  for (const ajena of ['Mi cartera', 'Equipo', 'Configuración', 'Pipeline']) {
     await expect(page.getByRole('button', { name: ajena, exact: true })).toHaveCount(0)
   }
 })
 
-test('#/mi-cartera por URL expulsa al coordinador de vuelta a Repartir', async ({ page }) => {
+test('#/pipeline por URL sigue expulsando al coordinador de vuelta a Repartir', async ({ page }) => {
   await entrarComoCoordinador(page)
 
-  await page.evaluate(() => { window.location.hash = '#/mi-cartera' })
+  await page.evaluate(() => { window.location.hash = '#/pipeline' })
 
   await expect(page).toHaveURL(/#\/repartir$/)
   await expect(page.getByRole('heading', { name: 'Repartir leads' })).toBeVisible()
@@ -569,7 +573,7 @@ test('el StatStrip dice lo que dice el SERVIDOR, aunque no cuadre con las filas 
 test('resumen_reparto_fn caída: los tiles degradan a «—» con aviso y la cola sigue repartible', async ({ page }) => {
   const backend = await entrarComoCoordinador(page, { fallarResumenReparto: true })
 
-  await expect(page.getByRole('status')).toContainText(/No se pudieron cargar los indicadores de la cola/)
+  await expect(page.getByRole('status').filter({ hasText: 'No se pudieron cargar los indicadores de la cola' })).toBeVisible()
   for (const etiqueta of ['Por repartir', 'Capital en juego (PEN)', 'Capital en juego (USD)', 'Espera más larga']) {
     await expect(page.locator('.ac-lift').filter({ hasText: etiqueta }).getByText('—')).toBeVisible()
   }
