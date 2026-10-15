@@ -103,11 +103,9 @@ export function vistaPermitida(
   // Compartir este reporte no concede las demás páginas de Gerencia.
   if (vista === 'ranking-vendedores') return can(rol, 'verRanking')
   if (esVistaGerencia(vista)) return rol === 'gerencia'
-  // El mundo leads se cierra por la llave general y, SIEMPRE, para el
-  // coordinador: su ámbito de leads es ∅ y su único destino es «Repartir».
-  // «hoy» no exige capacidad, así que sin este corte la llave abierta se la
-  // regalaría. Defensa en profundidad: config.ts tampoco la enciende para él.
-  if (esVistaLeads(vista) && (!leadsVisibles || rol === 'coordinador')) return false
+  // Coordinación entra al listado Leads; Hoy y las demás vistas operativas
+  // conservan sus roles. La llave general sigue cerrando el mundo leads.
+  if (esVistaLeads(vista) && (!leadsVisibles || (rol === 'coordinador' && vista !== 'cartera'))) return false
   // La cola operativa se ofrece a quienes ya la tenían en Hoy. Directorio
   // conserva su auditoría ejecutiva y no incorpora este módulo de gestión.
   if (vista === 'seguimiento') return rol === 'gerencia' || rol === 'supervisor' || rol === 'vendedor'
