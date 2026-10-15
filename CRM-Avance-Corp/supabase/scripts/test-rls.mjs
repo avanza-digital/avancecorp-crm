@@ -18342,6 +18342,131 @@ async function testEliminarInversion(sessions, seed) {
   check(Boolean(lectura.error), 'eliminar inversión: gerencia no lee la copia directamente (solo funciones del servidor)');
 }
 
+// ── Eliminar lead por error de carga (20261015044917): gerencia o admin del portal; copia inmutable; 8 candados ──
+// El borrado de verdad (copia, cascada, cuadre y la llave de los 8 candados) se prueba en el banco aislado con
+// supabase/scripts/eliminar-lead-error-carga/test-eliminar-lead.sql. Esta matriz NO borra ningún lead de la semilla
+// compartida: catálogo, roles, validaciones, rechazo de negocio (P0409) y DML directa cerrada. Toda llamada que podría
+// pasar el rol lleva un lead inexistente (randomUUID) o uno que la puerta rechaza (convertido o con contrato).
+// Salto RUIDOSO si la migración no está en esta base; con CRM_RLS_EXIGE_ELIMINAR_LEAD=1 es un FALLO.
+async function testEliminarLeadErrorCarga(sessions, seed) {
+  console.log('\n— Eliminar lead por error de carga: puertas, candados y copia inmutable —');
+  const saltar = (msg) => {
+    if (process.env.CRM_RLS_EXIGE_ELIMINAR_LEAD === '1') fail(msg);
+    else console.log(`  ${msg}`);
+  };
+  let aplicada;
+  try {
+    aplicada = contarFueraDeBanda('eliminar lead: aplicada',
+      "select (to_regprocedure('crm.eliminar_lead_error_carga(uuid,text)') is not null and to_regprocedure('crm.listar_leads_eliminados()') is not null and to_regclass('crm.leads_eliminados') is not null)::int");
+  } catch (error) {
+    saltar(`⚠ Eliminar lead SALTADO: sin vía fuera de banda (${error?.message ?? String(error)})`);
+    return;
+  }
+  if (aplicada !== 1) {
+    saltar('⚠ 20261015044917 (eliminar lead por error de carga) NO desplegada en esta base: bloque SALTADO (no probado)');
+    return;
+  }
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`eliminar lead: ${etiqueta}`, sql);
+
+  // ── Catálogo (fuera de banda) ──
+  const PUERTAS = "'crm.eliminar_lead_error_carga(uuid,text)'::regprocedure, 'crm.listar_leads_eliminados()'::regprocedure";
+  const NUCLEO = "'private.borrado_lead_error_autoriza(text,jsonb)'::regprocedure, 'private.proteger_lead_eliminado()'::regprocedure";
+  const CANDADOS = ['private.trg_sla_nucleo_entrada_guard()', 'private.trg_lead_asignacion_sla_hitos_guard()',
+    'private.trg_lead_sla_etapas_guard()', 'private.trg_lead_sla_ciclos_guard()', 'private.trg_lead_asignaciones_inmutables()',
+    'private.trg_sla_recibo_guard()', 'private.potencial_evento_inmutable()', 'private.trg_actividades_no_contactar_solo_puerta()']
+    .map((f) => `'${f}'::regprocedure`).join(', ');
+  const LLAVE = 'private.borrado_lead_error_autoriza(tg_table_name, pg_catalog.to_jsonb(old))';
+  check(cuenta('puertas', `select count(*) from pg_proc p where p.oid in (${PUERTAS}) and p.prosecdef and p.proowner = 'postgres'::regrole and 'search_path=""' = any(p.proconfig) and p.proacl is not null and has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('anon', p.oid, 'EXECUTE') and not has_function_privilege('service_role', p.oid, 'EXECUTE') and not exists (select 1 from aclexplode(p.proacl) a where a.grantee = 0 or (a.grantee <> p.proowner and a.grantee <> 'authenticated'::regrole))`) === 2,
+    'eliminar lead C1: las dos puertas son DEFINER de postgres, search_path vacío, EXECUTE solo authenticated (sin anon, service_role ni PUBLIC)');
+  check(cuenta('nucleo', `select count(*) from pg_proc p cross join unnest(array['anon','authenticated','service_role']) r(rol) where p.oid in (${NUCLEO}) and has_function_privilege(r.rol, p.oid, 'EXECUTE')`) === 0,
+    'eliminar lead C2: la llave de los candados y el candado de la copia sin EXECUTE para anon, authenticated ni service_role');
+  check(cuenta('copia', "select count(*) from pg_class c where c.oid = 'crm.leads_eliminados'::regclass and c.relrowsecurity and not exists (select 1 from pg_policy p where p.polrelid = c.oid) and not exists (select 1 from unnest(array['anon','authenticated','service_role']) r(rol) where has_table_privilege(r.rol, c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER') or has_any_column_privilege(r.rol, c.oid, 'SELECT, INSERT, UPDATE, REFERENCES'))") === 1,
+    'eliminar lead C3: crm.leads_eliminados con RLS, 0 políticas y ningún privilegio (tabla ni columna) para anon, authenticated ni service_role');
+  check(cuenta('triggers de la copia', "select count(*) from pg_trigger t where t.tgrelid = 'crm.leads_eliminados'::regclass and not t.tgisinternal and t.tgenabled = 'O' and t.tgname in ('trg_audit_leads_eliminados', 'trg_leads_eliminados_inmutables', 'trg_leads_eliminados_no_truncate')") === 3,
+    'eliminar lead C4: la copia conserva sus 3 triggers habilitados (auditoría, inmutable, sin TRUNCATE)');
+  check(cuenta('candados', `select count(*) from pg_proc p where p.oid in (${CANDADOS}) and (length(p.prosrc) - length(replace(p.prosrc, '${LLAVE}', ''))) = length('${LLAVE}')`) === 8,
+    'eliminar lead C5: los 8 candados llevan la excepción del DELETE exactamente una vez');
+
+  // ── RPC denegados (ninguno escribe: lead inexistente o rechazado) ──
+  const DENEGADO = /permission denied/i;
+  const ROL = /Solo gerencia o un admin del portal/;
+  const MOTIVO = 'Prueba del gate de RLS: lead cargado por error';
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-eliminar-lead'));
+  const args = () => ({ p_lead_id: randomUUID(), p_motivo: MOTIVO });
+  await expectExpectedFailure('eliminar lead: anon → 42501 (sin EXECUTE)', anon.schema('crm').rpc('eliminar_lead_error_carga', args()), ['42501'], DENEGADO);
+  await expectExpectedFailure('eliminar lead: service_role → 42501 (sin EXECUTE)', admin.schema('crm').rpc('eliminar_lead_error_carga', args()), ['42501'], DENEGADO);
+  for (const clave of ['vend1', 'vend2', 'vend3', 'vend4', 'vendNested', 'sup1', 'sup2', 'sup1Nested', 'coordinador', 'directorio', 'clientBank', 'vendInactive']) {
+    await expectExpectedFailure(`eliminar lead: ${clave} → 42501`, sessions[clave].client.schema('crm').rpc('eliminar_lead_error_carga', args()), ['42501'], ROL);
+  }
+  const ger = sessions.gerencia.client.schema('crm');
+  const MOTIVOS_INVALIDOS = [
+    ['motivo corto (abc)', 'abc', /al menos 10 caracteres/],
+    ['motivo solo de blancos', ` \t\n${String.fromCharCode(160)}  `, /al menos 10 caracteres/],
+    ['motivo nulo', null, /al menos 10 caracteres/],
+    ['motivo de 501 caracteres', 'x'.repeat(501), /500 caracteres/],
+  ];
+  for (const [etiqueta, motivo, patron] of MOTIVOS_INVALIDOS) {
+    await expectExpectedFailure(`eliminar lead: gerencia con ${etiqueta} → 22023`, ger.rpc('eliminar_lead_error_carga', { p_lead_id: randomUUID(), p_motivo: motivo }), ['22023'], patron);
+  }
+  await expectExpectedFailure('eliminar lead: gerencia sin lead (nulo) → 22023', ger.rpc('eliminar_lead_error_carga', { p_lead_id: null, p_motivo: MOTIVO }), ['22023'], /Falta el lead/);
+  await expectExpectedFailure('eliminar lead: gerencia sobre un lead inexistente → P0002', ger.rpc('eliminar_lead_error_carga', args()), ['P0002'], /no existe o ya fue eliminado/);
+  // P0409: un lead convertido o con contrato (de la semilla si alguno lo está a esta altura; si no, el que haya en la base).
+  const semilla = seed.leads.map((l) => `'${l.id}'`).join(', ');
+  const bloqueado = textoFueraDeBanda('eliminar lead: lead convertido o con contrato',
+    `select l.id::text from crm.leads l where l.contrato_id is not null or l.convertido_en is not null or exists (select 1 from crm.lead_asignaciones a where a.lead_id = l.id and a.resultado = 'convertido') order by (l.id in (${semilla})) desc, l.id limit 1`);
+  if (!bloqueado) {
+    saltar('⚠ eliminar lead: P0409 NO probado — la base no tiene ningún lead convertido ni con contrato');
+  } else {
+    await expectExpectedFailure('eliminar lead: gerencia sobre un lead convertido o con contrato → P0409',
+      ger.rpc('eliminar_lead_error_carga', { p_lead_id: bloqueado, p_motivo: MOTIVO }), ['P0409'],
+      /No se puede eliminar este lead: .*(contrato enlazado|conversi.n registrada)/);
+    check(cuenta('P0409 sin efecto', `select (exists (select 1 from crm.leads where id = '${bloqueado}') and not exists (select 1 from crm.leads_eliminados where lead_id = '${bloqueado}'))::int`) === 1,
+      'eliminar lead: tras el P0409 el lead sigue en crm.leads y no quedó copia en crm.leads_eliminados');
+  }
+
+  // ── DML directa por la API: los candados y la RLS siguen cerrando el DELETE ──
+  const vend1Leads = [LEAD_BY_KEY.juan.name, LEAD_BY_KEY.maria.name].map((n) => `'${seed.leadByName.get(n).id}'`).join(', ');
+  const objetivo = textoFueraDeBanda('eliminar lead: lead de vend1 para la DML directa',
+    `select coalesce((select l.id::text from crm.leads l where l.id in (${vend1Leads}) and exists (select 1 from crm.lead_asignaciones a where a.lead_id = l.id) order by l.id limit 1), '${seed.leadByName.get(LEAD_BY_KEY.juan.name).id}')`);
+  const asignacionesAntes = cuenta('asignaciones antes', `select count(*) from crm.lead_asignaciones where lead_id = '${objetivo}'`);
+  for (const clave of ['gerencia', 'vend1']) {
+    const crm = sessions[clave].client.schema('crm');
+    await expectBlockedMutation(`eliminar lead: ${clave} borra directo crm.lead_asignaciones`,
+      crm.from('lead_asignaciones').delete().eq('lead_id', objetivo).select('id'));
+    await expectBlockedMutation(`eliminar lead: ${clave} borra directo crm.leads`,
+      crm.from('leads').delete().eq('id', objetivo).select('id'));
+  }
+  check(cuenta('lead sigue', `select count(*) from crm.leads where id = '${objetivo}'`) === 1
+      && cuenta('asignaciones después', `select count(*) from crm.lead_asignaciones where lead_id = '${objetivo}'`) === asignacionesAntes,
+    `eliminar lead: tras la DML directa el lead sigue y conserva sus ${asignacionesAntes} asignación(es)`);
+  const exigeError = async (label, ejecutar) => {
+    let r;
+    try {
+      r = await ejecutar();
+    } catch (error) {
+      fail(`${label}: excepción inesperada — ${error?.message ?? String(error)}`);
+      return;
+    }
+    check(Boolean(r.error), `${label}${r.error ? ` (rechazo: ${r.error.code || 'sin código'})` : ''}`, r.error ? '' : `aceptado: ${JSON.stringify(r.data)}`);
+  };
+  for (const [quien, cliente] of [['gerencia', sessions.gerencia.client], ['anon', anon]]) {
+    const copia = () => cliente.schema('crm').from('leads_eliminados');
+    await exigeError(`eliminar lead: ${quien} no lee crm.leads_eliminados directo`, () => copia().select('id').limit(1));
+    await exigeError(`eliminar lead: ${quien} no inserta en crm.leads_eliminados`, () => copia()
+      .insert({ lead_id: randomUUID(), motivo: MOTIVO, eliminado_por: randomUUID(), rol_actor: 'gerencia', copia: { lead: {} }, filas: {} }).select('id'));
+    await exigeError(`eliminar lead: ${quien} no actualiza crm.leads_eliminados`, () => copia().update({ motivo: MOTIVO }).eq('lead_id', randomUUID()).select('id'));
+    await exigeError(`eliminar lead: ${quien} no borra en crm.leads_eliminados`, () => copia().delete().eq('lead_id', randomUUID()).select('id'));
+  }
+
+  // ── Lectura por la puerta ──
+  const lista = await positive('eliminar lead: gerencia lista los leads eliminados', ger.rpc('listar_leads_eliminados'));
+  if (lista) check(Array.isArray(lista.data), 'eliminar lead: listar_leads_eliminados devuelve un arreglo a gerencia', typeof lista.data);
+  for (const clave of ['vend1', 'sup1']) {
+    await expectExpectedFailure(`eliminar lead: ${clave} lista los leads eliminados → 42501`,
+      sessions[clave].client.schema('crm').rpc('listar_leads_eliminados'), ['42501'], /Solo gerencia ve los leads eliminados/);
+  }
+}
+
 // ── Venta cruzada (20260924005126 … 20260924045245): puertas del cliente existente ──
 // Solo catálogo y rechazos: ninguna llamada de esta matriz llega a escribir. Una puerta que
 // rechaza aborta su transacción entera, así que ni la bitácora (inmutable) guarda rastro; los
@@ -20445,6 +20570,7 @@ async function main() {
       await testBasesCargadasB10(sessions, verifiedSeed);
       await testBasesCargadasB11(sessions);
       await testEliminarInversion(sessions, verifiedSeed);
+      await testEliminarLeadErrorCarga(sessions, verifiedSeed);
       await testCategoriaPorOperacion(sessions, verifiedSeed);
       // Fase 4 · grupo A (2.3 y 2.6), el ÚLTIMO a propósito: siembra y retira su propio mes sellado (2001-07) y deja
       // inactivas las identidades D-17; nada de eso puede alterar a un bloque posterior.
