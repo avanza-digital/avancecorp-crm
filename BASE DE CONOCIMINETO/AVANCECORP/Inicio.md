@@ -9,6 +9,8 @@ actualizado: 2026-09-25
 
 # 🏠 Inicio — Portal Avance Corp
 
+- ✅ **15/10 11:18 Lima — REPARTO DE FORMULARIO 3 CORREGIDO:** 76 traslados según los Excel de Jorge/Carmen y 1 ya correcto; 39 fuera de los archivos intactos. Historial y 27 tareas conservados; los 4 descartados trasladados siguen descartados y mantienen No contactar donde existía. n8n sigue activo. Pantalla de Coordinación aún pendiente — [[Formulario 3 - reparto corregido segun Excel (2026-10-15)]].
+
 - 🗓️ [[Cierre de mes - plazo de carga por mes decidido por Gerencia (2026-10-14)]] — **15/10: configuración LISTA, falta aplicarla.** Gerencia fija en Hoy el último día de carga de un mes (sin tope; solo meses con metas) y la misma acción reabre el último mes sellado si es el anterior. Reevalúa la conversión «fuera de plazo». Codex r1 y r2 corregidos (el sello vuelve a mirar el plazo con los candados).
 - 🔓 [[Cierre de mes - septiembre reabierto para ventas tardias (2026-10-14)]] — **14/10: SEPTIEMBRE REABIERTO EN PRODUCCIÓN, ciclo diario (job 3) EN PAUSA.** Ventas tardías de septiembre ya se pueden cargar; Qorilazo S/ 20 000 (Astrid) devuelto de 13/10 a 15/09. Sigue: aplicar la configuración de plazo → Gerencia fija septiembre → reactivar job 3.
 - ✅ **14/10 23:17 Lima — FORMULARIO 3 PUBLICADO Y VERIFICADO:** campaña, etiqueta y filtro listos; reglas de FORMULARIO y Coordinación conservadas. Fuente `0fa4a398`, build `build-20261015T041350920Z`. n8n apagado; sigue una fila real controlada en fase 5 — [[Formulario 3 - fase 4 publicada y verificada (2026-10-14)]].
