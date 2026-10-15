@@ -1,6 +1,7 @@
 -- VERIFICACIÓN posterior de 20261015000852_crm_plazo_carga_mes (SOLO LECTURA). Se corre DESPUÉS de aplicarla y
 -- registrarla. Devuelve UNA fila con el veredicto (supabase db query solo muestra la última sentencia con filas).
--- «APLICADA Y REGISTRADA» exige además que las 14 piezas creadas o reemplazadas tengan su huella esperada exacta.
+-- «APLICADA Y REGISTRADA» exige además que las 14 piezas creadas o reemplazadas tengan su huella esperada exacta y que la
+-- declaración analítica de crm.cerrar_periodo quedara re-sellada (huella 4b89856a…, vigente, sello del censo al día).
 --   npx supabase db query --linked --file supabase/scripts/plazo-carga-mes/verificar-produccion.sql
 set search_path = '';
 -- Huellas esperadas (md5 de pg_get_functiondef con search_path vacío) de lo que la migración crea o reemplaza, medidas en
@@ -25,6 +26,15 @@ with esperadas (firma, huella) as (values
          (select pg_catalog.md5(pg_catalog.pg_get_functiondef(p.oid)) from pg_catalog.pg_proc p
            where p.oid = pg_catalog.to_regprocedure(e.firma)) as medida
     from esperadas e
+), censo as (
+  -- El re-sellado del censo analítico: crm.cerrar_periodo está declarada en producción; su declaración debe tener la huella
+  -- normalizada del cuerpo nuevo (4b89856a…), el censo debe verla vigente y el sello de la lista debe coincidir.
+  select exists (select 1 from private.analitica_leads_citas_exenciones e where e.objeto = 'crm.cerrar_periodo(date)') as declarada,
+         (select e.huella from private.analitica_leads_citas_exenciones e where e.objeto = 'crm.cerrar_periodo(date)') as huella,
+         exists (select 1 from private.contadores_crudos_leads_citas() c
+                  where c.objeto = 'crm.cerrar_periodo(date)' and c.declarada and c.huella_ok) as vigente,
+         (not exists (select 1 from private.analitica_lc_sello)
+          or (select s.sello from private.analitica_lc_sello s where s.id) = private.huella_exenciones_analitica_lc()) as sello_al_dia
 )
 select jsonb_build_object(
   'veredicto', case when (
@@ -39,11 +49,15 @@ select jsonb_build_object(
             = '{postgres=X/postgres,authenticated=X/postgres}'
       and exists (select 1 from supabase_migrations.schema_migrations where version = '20261015000852')
       and not exists (select 1 from medidas m where m.medida is distinct from m.esperada)
+      and (select (not c.declarada or (c.huella = '4b89856af0ebc6c4e46f6ffef8be61af' and c.vigente)) and c.sello_al_dia
+             from censo c)
     ) then 'APLICADA Y REGISTRADA' else 'REVISAR' end,
   'registrada', exists (select 1 from supabase_migrations.schema_migrations where version = '20261015000852'),
   'huellas_ok', not exists (select 1 from medidas m where m.medida is distinct from m.esperada),
   'huellas_distintas', (select coalesce(pg_catalog.jsonb_object_agg(m.firma, m.medida), '{}'::jsonb)
                           from medidas m where m.medida is distinct from m.esperada),
+  'censo_cerrar_periodo', (select pg_catalog.jsonb_build_object('declarada', c.declarada, 'huella', c.huella,
+                            'vigente', c.vigente, 'sello_al_dia', c.sello_al_dia) from censo c),
   'decisiones', (select pg_catalog.count(*) from crm.plazos_carga_mes),
   'reaperturas', (select pg_catalog.count(*) from crm.reaperturas_mes),
   'meses_sellados', (select pg_catalog.jsonb_agg(pc.periodo order by pc.periodo) from crm.periodos_cerrados pc),
