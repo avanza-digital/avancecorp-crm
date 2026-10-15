@@ -23,7 +23,19 @@ La semana es un acceso rápido, no una restricción del módulo. Las fechas se i
 5. Destinos y orígenes dinámicos. Supervisores inactivos con entregas históricas siguen visibles en consulta, pero no pueden recibir nuevos leads.
 6. Conservar los leads ya repartidos y la historia. No redistribuirlos automáticamente para igualar los totales.
 
-Figma: [Planilla de reparto](https://www.figma.com/board/JB4jRdmLXZXS0hBhEHxRbV?node-id=52-34). Sección `52:34`, tablas `53:37` y `53:59`. Maqueta sin cifras reales; revisión visual sin cortes ni solapamientos PASS. No es una pantalla publicada ni una conexión de datos.
+Figma: [Planilla de reparto](https://www.figma.com/board/JB4jRdmLXZXS0hBhEHxRbV?node-id=52-34). Sección `52:34`, tabla de reparto `53:59`. Maqueta sin cifras reales; revisión visual sin cortes ni solapamientos PASS. No es una pantalla publicada ni una conexión de datos.
+
+## Ajuste visual aprobado
+
+Miguel aprobó la propuesta y pidió acercarla a lo que ya tiene el CRM en recursos. Se adaptó la misma sección de Figma a los estilos reales de `app/src/index.css` y a las primitivas existentes:
+
+- Fuente Plus Jakarta Sans; tinta `#16233f`, navy `#111e3d`, azul `#2563eb`, fondo `#f6f8fc`, bordes `#e4e9f2` / `#dbe2ef`.
+- Ancho 1240 px, cabecera compacta, filtros alineados con campos redondeados, cabecera clara de tabla y botones primario/contorno.
+- En implementación reutilizar `Card`, `SectionHead`, `TablaEnvoltura`, `TheadCrm`, `Th`, `Td`, `Input`, `Select`, `Button` y, si conviene para el resumen, `Pastilla` / `StatStrip`. No introducir otro kit visual ni otra tipografía.
+- La explicación tabular de filtros (`53:37`) quedó oculta; se sustituyó visualmente por controles separados de ingreso, reparto, agrupación, origen y supervisor. Se conservan las reglas funcionales acordadas.
+- FigJam no admite bibliotecas de componentes Design; no había Code Connect en el repositorio. La maqueta reproduce los tokens del CRM mediante texto, tabla y controles editables, sin una captura aplanada.
+
+Comprobación de fuente: todos los textos visibles usan Plus Jakarta Sans. Revisión visual final PASS (1240 × 1010), sin recortes ni solapamientos. Esta iteración solo cambia diseño/documentación; no requiere tests de runtime ni modifica producción.
 
 ## Base técnica verificada
 
