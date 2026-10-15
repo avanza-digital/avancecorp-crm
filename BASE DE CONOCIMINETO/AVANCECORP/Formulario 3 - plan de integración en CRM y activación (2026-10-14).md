@@ -1,12 +1,14 @@
 # Formulario 3 - plan de integración en CRM y activación
 
+**Ampliación publicada el 15/10/2026:** Formulario 3 ya es `formulario_3` nativo en `crm.leads.origen`. Web `597cab1c`, migraciones A/B e importador v26 verificados; 116 contactos conservan responsables, historial y datos financieros. [[Formulario 3 - origen nativo publicado (2026-10-15)]]. Las fases siguientes conservan la evolución previa basada en campaña.
+
 Fecha inicial: 2026-10-14. Actualización: 2026-10-15. Continuación de **N8N-AVANCE-141026**. Estado vigente: **fases 1–6 completadas; integración activa cada cinco minutos**. Foto inicial de 127 filas conciliada (95 altas contando el piloto, 32 duplicados). El cron procesó otras 25 filas (21 altas, 4 duplicados): total 152 confirmaciones, 116 leads de campaña y 36 duplicados, sin rechazos ni pendientes. Ejecuciones 64/65 y 153/154 comprobadas; 91 ciclos programados SUCCESS en el historial observado. [[Formulario 3 - fase 6 carga y activación (2026-10-15)]]. Codex PRIMARY; Miguel opera el navegador. Claude revisó el plan, las implementaciones y la evidencia relevante; Codex incorporó las mejoras justificadas. Estado publicado: [[Formulario 3 - fase 4 publicada y verificada (2026-10-14)]]. Las notas de fases 1–4 conservan la evidencia histórica de cada cierre.
 
 Relacionado: [[n8n - Formulario 3 preparado y avisos conectados (2026-10-14)]] · [[Canales de origen de leads CRM]] · [[Carga de leads desde hoja de Google]].
 
 ## Resultado que debe ver Miguel
 
-Los contactos nuevos de esta hoja mostrarán **Formulario 3** como campaña y se podrán filtrar por ella. Su canal seguirá siendo **FORMULARIO**, con el mismo turno de reparto y las mismas reglas de conversión de las altas automáticas.
+Los contactos nuevos de esta hoja tienen **Formulario 3** como origen propio (`formulario_3`) y filtro. Comparten el turno de reparto y las reglas de conversión de Formulario. n8n mantiene su payload y recibos; el servidor normaliza automáticamente el contrato legado.
 
 Se conservan el historial y responsable de contactos existentes. Una coincidencia con un lead abierto no autoriza reclasificar su origen ni crear otro lead. Los históricos convertidos/descartados se distinguen conforme a la puerta e índice de leads vivos existentes; pueden admitir una nueva entrada sin alterar el histórico. Para clientes reconocidos, la campaña acompañará la actividad o solicitud que ya produce el importador. Los duplicados ordinarios seguirán identificados como tales en el registro de importación; no se promete que sean altas nuevas ni que aparezcan retroactivamente en el filtro de campaña de origen.
 
@@ -134,7 +136,7 @@ Si aparecen fallos, apagar envío y cron, conservar recibos y altas correctas, y
 - La campaña de origen del lead no es un historial de todas las campañas en que participó una persona. Los reingresos/clientes existentes conservan su historia mediante los mecanismos existentes; una eventual vista de participación múltiple sería otro alcance.
 - Los avisos que dependen de n8n no detectan por sí solos la caída completa del VPS.
 - Fases 1–6 completadas; integración activa y comprobada. No se afirmó prueba remota específica de 5xx/timeout ni de fallo de recibo en modo trigger: la recuperación y el aviso se verificaron con los casos descritos en el cierre.
-- **Diferido por Miguel (15/10):** adaptar la pantalla **Supervisores dentro de Coordinación** para distinguir Formulario 3. Se aborda después de terminar el plan principal. El turno de negocio sigue siendo FORMULARIO; no se introduce otro turno ni se cambia el reparto por esta decisión. En Repartir la campaña se identifica actualmente en el comentario; en Cartera/ficha/Pipeline persiste el campo y etiqueta desplegados.
+- **Resuelto en la ampliación nativa del 15/10:** Coordinación/Supervisores, Repartir, Cartera, ficha, Gerencia y métricas integran Formulario 3 como origen. Repartir usa tabla por origen y supervisora; se conserva el turno operativo Formulario. Véase el acta de origen nativo.
 - Avisos agrupados por hora de reloj, sin exclusión atómica: pueden coincidir varios en una carrera o cambio de hora. Gmail no tiene canal alternativo.
 - Tras cambiar únicamente el parser, revisar y retirar solo recibos rechazados afectados antes de reprocesar; no vaciar el registro.
 

@@ -1,6 +1,7 @@
 # Formulario 3 como origen propio
 
-Estado: **implementado y probado en Docker y Supabase; sin aplicar ni publicar en producción**.
+Estado: **publicado y verificado en producción el 15/10/2026**.
+[Acta de publicación](../../../docs/FORMULARIO3-ORIGEN-NATIVO-PUBLICADO.md) y `publicacion-verificacion.json`: A/B registradas, web `597cab1c`, Edge v26, 116 nativos y cero legados. La captura humana confirma una sola identificación de origen. No repetir la instalación.
 La clave es `formulario_3` en `crm.leads.origen`. No hay otra tabla de leads ni
 otra política de permisos. Comparte el turno operativo Formulario y sus pesos:
 alta automática 1, alta manual 0 en el divisor y cierre 1 en el numerador.
@@ -141,8 +142,7 @@ La conexión SQL del harness usa la API de administración: la contraseña postg
 devuelta por `branches get` no funcionó tras la restauración. No se cambió ninguna
 contraseña. Las sesiones humanas y sus aserciones siguen usando Auth/PostgREST.
 
-**Pendiente: publicación**, preflight vigente y actualización del equipo según
-el orden de instalación. n8n sigue activo con su contrato y recibos originales.
+**Publicación completada:** preflight vigente, A, Edge/frontend, recarga del equipo confirmada y B, en ese orden. n8n sigue activo con su contrato y 152 recibos originales. La evidencia de ensayo anterior se conserva como fotografía previa a la publicación.
 El censo analítico tenía deuda previa: esta migración re-sella sus propias
 declaraciones y exige no añadir anomalías; no declara saneado todo el censo.
 

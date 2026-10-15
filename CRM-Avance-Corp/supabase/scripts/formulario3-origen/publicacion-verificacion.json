@@ -1,0 +1,218 @@
+{
+  "fecha": "2026-10-15T21:39:36.929Z",
+  "estado": "PUBLICADO_VERIFICADO_TECNICAMENTE",
+  "frontend": {
+    "commit": "597cab1cbfe68d53a2742073cfc7fc3292901af5",
+    "build": "build-20261015T212300418Z",
+    "artefacto": "crm-20261015T212301Z-597cab1cbfe6.zip",
+    "sha256": "7fd053eda9631665791c6a72959ea60e0959e1e73c99b13833a83f7ecea1bbd8",
+    "httpArchivos": 126,
+    "http": "PASS"
+  },
+  "backend": {
+    "migraciones": [
+      {
+        "version": "20261015171407",
+        "md5": "b7f8878b3dcd95e0da737897dd3b44bb"
+      },
+      {
+        "version": "20261015173031",
+        "md5": "0f8f34071f7565105f8e8af2f410e420"
+      }
+    ],
+    "nativos": 116,
+    "legados": 0,
+    "convertidos": 1,
+    "acreditacionesNativas": 1,
+    "rls": true,
+    "edge": {
+      "version": 26,
+      "verify_jwt": true,
+      "archivosExactos": 8,
+      "sha256": "96720d80a77fa7a41e70abc349af58cf88ef87474d17c8dc13456ff55d1c0a3a",
+      "peticionSinCredencial": 401
+    }
+  },
+  "conservacion": {
+    "before": {
+      "acreditaciones": "5ee1ad865ed148df2061acfa7672bfb4",
+      "asignaciones": "89bae6db6c7c0bace9a760e4df39c54e",
+      "contratos": "6885e78d03ed4435848bc91897e6d3f9",
+      "datos_leads": "8f68b139d68abce90b2c162819ecf7da",
+      "fotos_vendedores": "281e784b7759ec91030bd9e3cfd2d8ca",
+      "historial": "6cd38d1fa2efa50182015af420290424",
+      "inversiones": "6d87a503f163b08be15a4b71ed106876",
+      "leads": 116,
+      "meses_sellados": "1677a37db633b2211a9080a948fa2ae9",
+      "solicitudes": "29a4f389e0680259fc46139804156c89",
+      "tareas": "eb125317872cb53f0cc223fdc025e344"
+    },
+    "after": {
+      "acreditaciones": "5ee1ad865ed148df2061acfa7672bfb4",
+      "asignaciones": "89bae6db6c7c0bace9a760e4df39c54e",
+      "contratos": "6885e78d03ed4435848bc91897e6d3f9",
+      "datos_leads": "8f68b139d68abce90b2c162819ecf7da",
+      "fotos_vendedores": "281e784b7759ec91030bd9e3cfd2d8ca",
+      "historial": "6cd38d1fa2efa50182015af420290424",
+      "inversiones": "6d87a503f163b08be15a4b71ed106876",
+      "leads": 116,
+      "meses_sellados": "1677a37db633b2211a9080a948fa2ae9",
+      "solicitudes": "29a4f389e0680259fc46139804156c89",
+      "tareas": "eb125317872cb53f0cc223fdc025e344"
+    },
+    "delta": []
+  },
+  "n8n": {
+    "id": "BjI5m1PKVWhO0NDb",
+    "activo": true,
+    "version": "e2f62a7e-7675-414d-a7b0-b617e2528c72",
+    "recibos": 152,
+    "modificado": false
+  },
+  "recargaEquipo": "Confirmada por Miguel antes de B",
+  "visual": "PASS: captura de Miguel 15/10/2026 16:39 Lima; etiqueta y campo Origen muestran Formulario 3 sin FORMULARIO adicional; conserva Descartado y responsable. No se controló el navegador.",
+  "lecturasSql": {
+    "A": [
+      {
+        "rol": "coordinador",
+        "cola": 0,
+        "agenda": 1,
+        "ejecutor": "authenticated",
+        "cartera_anterior": 0,
+        "cartera_formulario3": 0
+      },
+      {
+        "rol": "gerencia",
+        "cola": 0,
+        "agenda": 1,
+        "ejecutor": "authenticated",
+        "cartera_anterior": 1,
+        "cartera_formulario3": 1
+      },
+      {
+        "rol": "supervisor",
+        "ejecutor": "authenticated",
+        "cartera_anterior": 1,
+        "cartera_formulario3": 1
+      },
+      {
+        "rol": "vendedor",
+        "ejecutor": "authenticated",
+        "cartera_anterior": 1,
+        "cartera_formulario3": 0
+      }
+    ],
+    "B": [
+      {
+        "rol": "coordinador",
+        "cola": 0,
+        "agenda": 1,
+        "ejecutor": "authenticated",
+        "cartera_anterior": 0,
+        "cartera_formulario3": 0,
+        "conversion_coordinacion": 1
+      },
+      {
+        "rol": "gerencia",
+        "cola": 0,
+        "agenda": 1,
+        "ejecutor": "authenticated",
+        "cartera_anterior": 1,
+        "cartera_formulario3": 1,
+        "conversion_coordinacion": 1
+      },
+      {
+        "rol": "supervisor",
+        "ejecutor": "authenticated",
+        "cartera_anterior": 1,
+        "cartera_formulario3": 1
+      },
+      {
+        "rol": "vendedor",
+        "ejecutor": "authenticated",
+        "cartera_anterior": 1,
+        "cartera_formulario3": 0
+      }
+    ]
+  },
+  "advisors": {
+    "security": [
+      {
+        "name": "rls_enabled_no_policy",
+        "level": "INFO",
+        "count": 90,
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy"
+      },
+      {
+        "name": "extension_in_public",
+        "level": "WARN",
+        "count": 1,
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0014_extension_in_public"
+      },
+      {
+        "name": "anon_security_definer_function_executable",
+        "level": "WARN",
+        "count": 2,
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable"
+      },
+      {
+        "name": "authenticated_security_definer_function_executable",
+        "level": "WARN",
+        "count": 286,
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable"
+      },
+      {
+        "name": "auth_leaked_password_protection",
+        "level": "WARN",
+        "count": 1,
+        "remediation": "https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection"
+      }
+    ],
+    "performance": [
+      {
+        "name": "unindexed_foreign_keys",
+        "level": "INFO",
+        "count": 53,
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0001_unindexed_foreign_keys"
+      },
+      {
+        "name": "auth_rls_initplan",
+        "level": "WARN",
+        "count": 2,
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0003_auth_rls_initplan"
+      },
+      {
+        "name": "no_primary_key",
+        "level": "INFO",
+        "count": 3,
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0004_no_primary_key"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "count": 130,
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "multiple_permissive_policies",
+        "level": "WARN",
+        "count": 5,
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0006_multiple_permissive_policies"
+      },
+      {
+        "name": "auth_db_connections_absolute",
+        "level": "INFO",
+        "count": 1,
+        "remediation": "https://supabase.com/docs/guides/deployment/going-into-prod"
+      }
+    ]
+  },
+  "limites": [
+    "Lecturas productivas con rol SQL authenticated e identidad existente, no inicio de sesión Auth humano.",
+    "Gate RLS completo seed-demo NOT RUN en copia con datos; matriz focalizada HTTP de ocho sesiones en rama PASS 111.",
+    "E2E Docker 419 passed / 26 skipped / 1 flaky resuelta en retry y tres repeticiones sin retry; no se afirma una primera ejecución íntegramente verde.",
+    "Advisors conserva deuda previa. Mismas categorías y conteos de seguridad que la rama; índices no usados varían por actividad.",
+    "Publicación mediante promoción escalonada de SQL exacto y registro separado con autorización específica; no fue merge Supabase, rama validada ya retirada.",
+    "No se crearon ni borraron datos reales para hacer smoke y no se controló el navegador."
+  ]
+}

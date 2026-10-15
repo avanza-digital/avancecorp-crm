@@ -9,9 +9,9 @@ actualizado: 2026-09-25
 
 # 🏠 Inicio — Portal Avance Corp
 
-- 📝 **15/10 — NUEVA PLANILLA DE REPARTO:** Miguel pide equilibrar cantidades totales entre supervisores combinando orígenes, con acumulado semanal y filtros independientes de fecha de ingreso/reparto (un día, rango o días sueltos). Planilla implementada y validada (6.946 tests; 40 E2E de reparto); Figma actualizado. Pendiente de publicación, sin cambios productivos. [[Coordinacion - planilla de reparto y equilibrio por fechas (2026-10-15)]].
+- 📝 **15/10 — NUEVA PLANILLA DE REPARTO:** Miguel pide equilibrar cantidades totales entre supervisores combinando orígenes, con acumulado semanal y filtros independientes de fecha de ingreso/reparto (un día, rango o días sueltos). Planilla implementada y validada (6.946 tests; 41 escenarios E2E de reparto); Figma actualizado. Pendiente de publicación, sin cambios productivos. [[Coordinacion - planilla de reparto y equilibrio por fechas (2026-10-15)]].
 
-- **15/10 — FORMULARIO 3 COMO ORIGEN NATIVO, PREPARADO SIN PUBLICAR:** misma estructura, permisos y procesos que los demás orígenes; filtros y métricas propios, turno compartido con Formulario. Repartir pasa a tabla por origen. Ensayos locales incluyen clientes ya convertidos y concurrencia; pendiente gate cloud y publicación. [[Formulario 3 - origen nativo preparado (2026-10-15)]].
+- ✅ **15/10 — FORMULARIO 3 COMO ORIGEN NATIVO PUBLICADO:** misma tabla, permisos y procesos; 116 leads reclasificados, responsables/historial/tareas/inversiones conservados, cero legados. Web `597cab1c`, SQL A/B y Edge v26 verificados; ficha confirmada por Miguel. Turno compartido con Formulario, filtros y métricas propios; n8n activo con 152 recibos. [[Formulario 3 - origen nativo publicado (2026-10-15)]].
 
 - ✅ **15/10 11:18 Lima — REPARTO DE FORMULARIO 3 CORREGIDO:** 76 traslados según los Excel de Jorge/Carmen y 1 ya correcto; 39 fuera de los archivos intactos. Historial y 27 tareas conservados; los 4 descartados trasladados siguen descartados y mantienen No contactar donde existía. n8n sigue activo. Pantalla de Coordinación aún pendiente — [[Formulario 3 - reparto corregido segun Excel (2026-10-15)]].
 

@@ -5,7 +5,9 @@ actualizado: 2026-10-15
 
 # Formulario 3 — origen nativo preparado
 
-**Implementado y probado en local y rama Supabase; no aplicado ni publicado en producción.**
+**Nota histórica de preparación. Publicado posteriormente el 15/10/2026:**
+[[Formulario 3 - origen nativo publicado (2026-10-15)]] contiene el estado vigente.
+El contenido siguiente conserva el ensayo anterior a publicar.
 Miguel pidió que Formulario 3 fuera un origen real de backend, conectado como los
 demás, y autorizó cambiar Repartir para que soporte más orígenes.
 
