@@ -21,6 +21,8 @@ Follow .ai/REVIEW_PROTOCOL.md.
   - Este plan implementa esas correcciones sin las entregas B–D del contrato y declara dónde se aparta de su texto (§6
     del plan).
   - No revises si B–D están hechas: no lo están, y quedan NOT RUN.
+  - **Principio rector (Jhosep):** la versión final se ve y se usa como el prototipo aprobado, porque así lo entienden
+    los analistas. Las diferencias con el prototipo están listadas y decididas en el §7 del plan.
 
 ## Preguntas concretas
 
@@ -33,16 +35,23 @@ Follow .ai/REVIEW_PROTOCOL.md.
    gerencia? ¿Está bien declarado el riesgo aceptado?
 5. **Orden de PR y despliegue (§3 y §8):** ¿es seguro, con primero el SQL y la cola v1 intacta hasta retirarla?
 6. **Riesgos omitidos (§9 y §10)** que cambien una decisión.
+7. **Prototipo:** si alguna recomendación tuya cambia lo que ve o usa el analista respecto del prototipo, márcala así;
+   por el principio rector, Jhosep la decide antes de implementarla.
 
 ## A. El plan (copia literal)
 
 # Plan de implementación — Gestión Diaria: las 12 correcciones del prototipo aprobado
+
 
 **Estado:** las 4 decisiones de Jhosep quedaron tomadas el 15/10 (§7). Falta:
 - la confirmación por escrito de Miguel de las divergencias (§6);
 - la revisión de Codex (encargo `docs/encargos/2026-10-15-codex-plan-gestion-diaria-correcciones.md`).
 
 Sin código hasta tener ambas.
+
+**Principio rector (Jhosep, 15/10):** la versión final se ve y se usa como el prototipo aprobado, porque así lo
+entienden los analistas. Toda diferencia con el prototipo —técnica, del contrato o de una revisión de Codex o de
+Miguel— se lista en §7 y la aprueba Jhosep antes de implementarla.
 
 **Fecha:** 15/10/2026. **PRIMARY:** Claude (sesión de Jhosep). **Revisor previsto:** Codex (agente de Miguel).
 
@@ -114,7 +123,7 @@ palabra «captura»; solo el resultado, «Sin resultado», «Por revisar» y «T
 |---|---|
 | Correcciones 1–12 con las lecturas aditivas de §5 | Comando común `registrar_llamada_v6` y guarda de la v5 (§3 del contrato) |
 | Quitar `sin_dato` de los motivos de atención (hallazgo C1-1) | Identidad de llamada (`llamada_id`) y lectura única con cursor y `conteo_estado` (§4) |
-| «Tareas pendientes» (hallazgo C1-3) | «Por revisar» excluyente con «Sin resultado», incluidas las que tienen candidato (§4) |
+| «Pendientes» se queda como en el prototipo (hallazgo C1-3: punto 10 para Miguel) | «Por revisar» excluyente con «Sin resultado», incluidas las que tienen candidato (§4) |
 | Deshechas de hoy en «Sin resultado» (decisión 4) | Cifras unificadas en los cuadros del supervisor y «Necesitan atención» con llamadas (§6) |
 | | Columna «Sin resultado» y totales en la tabla de gerencia (§6) |
 | | Deshechas de días anteriores en la lista del analista (hallazgo C1-2; decisión 4; diseño M3 en §5) |
@@ -131,7 +140,7 @@ palabra «captura»; solo el resultado, «Sin resultado», «Por revisar» y «T
 | Fase | Qué | PR | Nivel de riesgo y revisión | Quién cierra |
 |---|---|---|---|---|
 | F0 · Preparar | Comentario en el #270 (§6), documentos al #270, fusión del #270 e integrar `main` | #270 (docs) | 1, sin revisión | Miguel fusiona |
-| F1 · Pantalla sin base | 1 (con las deshechas de hoy), 2, 6, 7, 8, 10, 12, C1-1 y C1-3 | PR-1 | 2, 0–1 revisión | Miguel publica (preflight) |
+| F1 · Pantalla sin base | 1 (con las deshechas de hoy), 2, 6, 7, 8, 10, 12 y C1-1 | PR-1 | 2, 0–1 revisión | Miguel publica (preflight) |
 | F2 · Base y pantalla dependiente | M1, M2 y M4 (§5) y, encima, 3, 4, 5, 9 y 11 | PR-2 | 3, 1 revisión (máximo 2) | Miguel aplica el SQL y después publica |
 | F3 · Cierre | Aceptación en el C1 con los tres roles, documentos, vault y memoria; retomar llamadas | — | — | Jhosep acepta |
 
@@ -165,11 +174,11 @@ Rutas: `app/` = `CRM-Avance-Corp/app/src/`; `mig/` = `CRM-Avance-Corp/supabase/m
 
 | # | Hoy (evidencia) | Cambio | Fase | Tipo |
 |---|---|---|---|---|
-| 1 | Pestaña «Celular · N», con N = filas descargadas (`analista.tsx:672-674`). Vistas «Pendientes / Qué pasó hoy» (`llamadas-celular.tsx:45,66-77,301-324`). Las deshechas solo están en «Qué pasó hoy», que se corta por la fecha del enlace (`mig/20261006162813:383-385`) [V] | «Sin resultado · N»: pendientes + deshechas corregibles (`puedeRegistrarCorregido`, `lib/llamadas-celular.ts:236-240`) con «Registrar el corregido» (`analista.tsx:179-190`). Se quita «Qué pasó hoy». N exacto si la lista cabe en una página; si no, «50+». Se quitan los textos de origen (`llamadas-celular.tsx:69,85,88`; `lib/llamadas-celular.ts:279-282,309-314`; `registrar-resultado.tsx:480,523`) | F1 (solo las deshechas de hoy: decisión 4) | Pantalla |
+| 1 | Pestaña «Celular · N», con N = filas descargadas (`analista.tsx:672-674`). Vistas «Pendientes / Qué pasó hoy» (`llamadas-celular.tsx:45,66-77,301-324`). Las deshechas solo están en «Qué pasó hoy», que se corta por la fecha del enlace (`mig/20261006162813:383-385`) [V] | «Sin resultado · N»: pendientes + deshechas corregibles (`puedeRegistrarCorregido`, `lib/llamadas-celular.ts:236-240`) con «Registrar el corregido» (`analista.tsx:179-190`). Se quita «Qué pasó hoy». N exacto si la lista cabe en una página; si no, «50+». Se quitan los textos de origen (`llamadas-celular.tsx:69,85,88`; `lib/llamadas-celular.ts:279-282,309-314`; `registrar-resultado.tsx:480,523`): quedan «Llamadas que hiciste y todavía no tienen resultado» y «Llamada de las 11:32» (diferencia a, aprobada) | F1 (solo las deshechas de hoy: decisión 4) | Pantalla |
 | 2 | Lista cerrada + «Otro»; ya envía `otro` + texto de 3 o más (`llamadas-celular.tsx:199-236`). La base exige 3–300 tras recortar, además de un CHECK (`mig/20261005143843:769-778`) [V] | Un solo campo obligatorio de 3–300, con foco y el aviso «Lo verá tu supervisor». El largo se cuenta en caracteres reales y se envía recortado | F1 | Pantalla pura |
 | 3 | «Unir…» aparece en toda pendiente con lead (`llamadas-celular.tsx:168-172`); los candidatos se piden al abrir el panel (`:248-299`, `data/llamadas-celular-api.ts:164-182`) [V] | La fila pregunta sola, solo si M4 devuelve un candidato (decisión 3): «¿Ya registraste esta llamada? A las 10:32 …» [Sí, es esa] [No, registrar resultado]; con varios, «¿Cuál de estos es?». «Sí, es esa» → `crm.enlazar_llamada_celular` (`api.ts:186-194`), que el contrato conserva (§3.1). Si lo registró otra persona: «Ana registró…» | F2 | Base y pantalla |
 | 4 | «Todo» por defecto (`lib/gestion-diaria-cola.ts:78`). Orden actual: Sin primer intento → Vencidas → Hoy → Sin conversación (`lib/gestion-diaria-analista.ts:129-134`). No salta al vaciarse un bloque (`analista.tsx:253,394-405`) [V] | Sin «Todo». Orden Hoy → Sin primer intento → Vencidas → Contactar de nuevo. Arranca en el primer bloque con gente; al vaciarse, salta y lo avisa. «Hoy» = todo lo de hoy desde la mañana, con su hora; «Ahora» lo propone desde su hora (decisión 2). Orden y salto salen del servidor (M1) | F2 | Base y pantalla |
-| 5 | `total` = pendientes + gestionados + programados (`mig/20260930190028:221-231`). Lo gestionado conserva su grupo (`:137-139`). El banco exige «reintento futuro fuera de pendientes» (`scripts/gestion-diaria-cola/prueba.sql:91-112`) [V] | Las pastillas cuentan y listan solo lo «por hacer»; lo gestionado sale, salvo un reintento de hoy, que va a «Hoy» (M1, decisión 2). Se retiran la leyenda, «Vuelta completada» y `siguienteTrasGuardar` (`cola-de-hoy.tsx:113-119`, `analista.tsx:810`, `gestion-diaria-analista.ts:363-394`) | F2 | Base y pantalla |
+| 5 | `total` = pendientes + gestionados + programados (`mig/20260930190028:221-231`). Lo gestionado conserva su grupo (`:137-139`). El banco exige «reintento futuro fuera de pendientes» (`scripts/gestion-diaria-cola/prueba.sql:91-112`) [V] | Las pastillas cuentan y listan solo lo «por hacer»; lo gestionado sale, salvo un reintento de hoy, que va a «Hoy» (M1, decisión 2). Se retiran la leyenda, «Vuelta completada» y `siguienteTrasGuardar` (`cola-de-hoy.tsx:113-119`, `analista.tsx:810`, `gestion-diaria-analista.ts:363-394`). El pie de «Ahora» pasa a «Pendientes primero. Al guardar, sale de esta lista y continúas con el siguiente.» (diferencia b, aprobada) | F2 | Base y pantalla |
 | 6 | Etiqueta en `lib/gestion-diaria-analista.ts:133` (solo la usa la cola) [V] | «Contactar de nuevo» solo en la pastilla; los chips de fila no cambian | F1 | Pantalla pura |
 | 7 | Ayuda absoluta, `hidden … 2xl:flex` (`cola-de-hoy.tsx:99`): solo se ve desde 1536 px [V] | Por la ranura `acciones` de `Tabs`, que ya baja de línea (`components/ui/tabs.tsx:48-52,150-155`). 14 px seminegrita. Usar `claseLista`, porque los selectores de `cola-de-hoy.tsx:110` dejan de aplicar al envolver | F1 | Pantalla pura |
 | 8 | «1–8 de 97» visible y Anterior/Siguiente (`cola-de-hoy.tsx:165-181`). `Paginacion` común sin números (`components/common/paginacion.tsx:34-53`) [V] | `ventanaPaginas()` (nuevo, en `lib/`): 7, 5 o 3 casillas según el ancho (`lib/media.ts:35,101`), centrada, `aria-current="page"`, «…» oculto al lector, rango solo para lector con `role=status`. Sirve con la v1 y con la v2 | F1 | Pantalla pura |
@@ -178,7 +187,7 @@ Rutas: `app/` = `CRM-Avance-Corp/app/src/`; `mig/` = `CRM-Avance-Corp/supabase/m
 | 11 | `PestanaPanel` sin «Descartes» (`panel-analista-supervisor.tsx:27,192`); separación de 22 px (`:193`) [V] | 5.ª pestaña «Descartes»: lista con hora, lead y motivo, y vacío «Ningún descarte hoy». Línea en Resumen «N llamadas descartadas hoy · Ver motivos ›». 18 px de separación. Datos de M2, una consulta al abrir la ficha que reutiliza la pestaña (Decisión 4). Copia el patrón de `citas-agendadas.tsx:25-58` y `etiquetaMotivoDescarte` (`lib/llamadas-celular.ts:265-268`) | F2 | Base y pantalla |
 | 12 | 3.ª pestaña (`screens/gestion-diaria/gerencia.tsx:47`, ramas `:125,131-132,264-267`). La ficha dentro del equipo no recibe `celularHoy` (`vista-equipo-gerencia.tsx:221-225`) [V] | Quedan dos pestañas. Se activa `useOperacionCelularHoy` con la ficha abierta (`esHoy && ruta && grupo`) y se pasa a `PanelAnalistaSupervisor`. Ya autoriza a gerencia (`data/llamadas-celular-operacion-queries.ts:33`) y su 42501 sigue retirando la vista (`gerencia.tsx:126-129`) | F1 | Pantalla pura |
 | C1-1 | `motivosAtencion` añade `sin_dato` y la salud del aparato (`lib/llamadas-celular-operacion.ts:142-157`); solo lo usa la 3.ª pestaña (`llamadas-celular-gerencia.tsx:207`) [V] | Se borra con la 12 | F1 | Pantalla pura |
-| C1-3 | Cuadro «Pendientes» (`resumen-analista.tsx:108`) y pestaña «Pendientes» (`panel-analista-supervisor.tsx:192`) [V] | Cuadro «Tareas pendientes» y pestaña «Tareas» (Decisión 3) | F1 | Pantalla pura |
+| C1-3 | Cuadro «Pendientes» (`resumen-analista.tsx:108`) y pestaña «Pendientes» (`panel-analista-supervisor.tsx:192`) [V] | **Sin cambio:** se queda «Pendientes», como en el prototipo (Jhosep, 15/10). Punto 10 para Miguel | — | — |
 
 **Comportamientos del prototipo que ya existen [V]:**
 - «Ahora» no vuelve a proponer el lead recién registrado (`analista.tsx:388-405`, `mig/20260930190028:255-258`, prueba en `analista.test.tsx:292-311`).
@@ -258,6 +267,9 @@ Cada una cita el contrato `9b26fab2` y lleva una recomendación.
 7. **Rótulo del conteo provisional:** §4 pide «declarar el conteo provisional», y la regla de Jhosep quita esa palabra. *Recomendación:* acordar ya un rótulo para B (por ejemplo, «—» con «N por revisar»).
 8. **El prototipo no dibuja los estados de error** (la Entrega A los pide). *Recomendación:* se reutilizan los estados reales (`llamadas-celular.tsx:78-81` y los de cada lista), probados en las pruebas de pantalla.
 9. **Pausa:** las Entregas B, D y E, y la parte de C de §2, quedan para después. Los 26 casos, NOT RUN.
+10. **«Pendientes» se queda como en el prototipo** (decisión de Jhosep, 15/10). §6, hallazgo 3: «llamar «Tareas
+    pendientes» a las tareas y «Sin resultado» a las llamadas». *Recomendación:* aceptarlo; las llamadas ya se llaman
+    «Sin resultado» y no se confunden con las tareas.
 
 ## 7. Decisiones
 
@@ -268,16 +280,31 @@ Cada una cita el contrato `9b26fab2` y lleva una recomendación.
 3. **Dónde pregunta la corrección 3:** en la fila, con la consulta nueva M4, como en el prototipo. La recomendación era preguntar al pulsar «Registrar», sin base.
 4. **Deshechas antiguas:** solo las de hoy por ahora; M3 queda para el plan de llamadas. La recomendación era cubrirlas ya.
 
+### Diferencias con el prototipo (principio rector: las aprueba Jhosep)
+
+- a. **APROBADA.** **Textos sin «del celular»:** «Llamada del celular de las 11:32» pasa a «Llamada de las 11:32 a Carlos Ruiz», y el
+  título «Llamadas del celular» de la lista pasa a «Sin resultado». Por la regla de Jhosep del 14/10 y el §5 del
+  contrato. La hora y el lead siguen a la vista. Jhosep (15/10): «llamadas es igual si no la cierras la encuesta desde
+  el pc o celular; la finalidad es cerrar la tarea de llamada con la encuesta».
+- b. **APROBADA.** **Pie de «Ahora»:** el texto real «Al guardar, este lead pasa al final» (`analista.tsx:890-892`, copiado en el
+  prototipo) deja de ser cierto con las correcciones 5 y 9. Pasa a «Pendientes primero. Al guardar, sale de esta lista
+  y continúas con el siguiente.»
+- c. **APROBADA.** **Aviso del supervisor sin enlace:** el prototipo abría «Registro», donde esas llamadas no aparecen (Decisión 1).
+- d. **NO APROBADA: se queda «Pendientes»**, como en el prototipo. El contrato pedía «Tareas pendientes»: punto 10 de §6.
+- e. **«Ahora» propone una llamada de hoy desde su hora**, no desde la mañana: decisión 2 de Jhosep, ya aprobada.
+- f. **«50+» en la pestaña** cuando hay más de una página (50) de llamadas sin resultado; con menos, el número exacto,
+  como en el prototipo.
+
 ### De criterio, tomadas por Claude (Jhosep puede revocarlas)
 
-1. Decisión: el aviso de «sin resultado» va sin enlace. Motivo: «Registro» lista actividades y una llamada sin resultado no es actividad; el enlace llevaba a una lista donde no aparece.
+1. Decisión: el aviso de «sin resultado» va sin enlace. Motivo: «Registro» lista actividades y una llamada sin resultado no es actividad; el enlace llevaba a una lista donde no aparece. **Aprobada por Jhosep (15/10).**
 2. Decisión: N del aviso = sin resultado + deshechas sin corregir; M = por revisar. Motivo: el contrato cuenta las deshechas como pendientes (§5).
-3. Decisión: cuadro «Tareas pendientes» y pestaña «Tareas». Motivo: lo pide el hallazgo 3 del contrato, y «Tareas pendientes» no entra en la barra de 5 pestañas.
+3. ~~Decisión: cuadro «Tareas pendientes» y pestaña «Tareas».~~ **Revocada por Jhosep (15/10):** se queda «Pendientes», como en el prototipo (punto 10 de §6).
 4. Decisión: la línea «N descartadas hoy» y la pestaña salen de la misma consulta (M2), no de F4-e. Motivo: el contrato exige cifra y filas de la misma lectura (líneas 170-172).
 5. Decisión: el campo del motivo avisa «Lo verá tu supervisor». Motivo: el texto libre llega a supervisor y gerencia.
 6. Decisión: los descartes se cortan por la hora del descarte y, fuera de ámbito, se oculta el nombre pero no la fila. Motivo: «descartadas hoy» se lee así, y ocultar filas daría totales distintos según quién mira.
 7. Decisión: la cola v2 es una puerta nueva; la v1 no se toca. Motivo: la app publicada exige `version: 1` (`lib/gestion-diaria-cola.ts:39-74`) y se rompería entre el SQL y el release.
-8. Decisión: una pastilla en 0 se abre y muestra «Nada pendiente en este bloque»; el salto automático solo ocurre al vaciarse el bloque en uso. Motivo: un clic que te lleva a otro bloque confunde.
+8. Decisión: una pastilla en 0 se comporta como en el prototipo: al pulsarla, la cola muestra el primer bloque con gente. Motivo: principio rector; así lo vieron y entendieron los analistas (corregido el 15/10 tras el recordatorio de Jhosep; antes decía «Nada pendiente en este bloque»).
 9. Decisión: dos PR de código, más los documentos en el #270. Motivo: «un solo PR abierto a la vez» y «menos PR»; lo de pantalla no espera el turno de SQL de Miguel.
 10. Decisión: no se aplica `f7c9fecf` (#21) ni se crean puertas de escritura. Motivo: el contrato pide el lote sobre la v6 (§7); además, su replay por enlace deja trabada la intención tras Deshacer.
 
@@ -344,7 +371,7 @@ Cada una cita el contrato `9b26fab2` y lleva una recomendación.
 **En llano.** Las correcciones de Gestión Diaria se pueden hacer sin tocar cómo se guardan las llamadas.
 - Lo que sí hace falta en la base son 3 consultas nuevas: la cola del analista con su orden nuevo, los descartes con su motivo y los candidatos de la pregunta «¿Ya registraste esta llamada?».
 - Conviene hacerlo aparte del plan de llamadas: va antes y no se rehace después, porque todo lee desde piezas que al retomar llamadas solo cambian de fuente.
-- Jhosep ya eligió los 4 puntos. Antes de escribir código falta que Miguel confirme por escrito 9 puntos donde el prototipo se aparta de su contrato, porque Codex revisa contra lo escrito.
+- Jhosep ya eligió los 4 puntos. Antes de escribir código falta que Miguel confirme por escrito 10 puntos donde el prototipo se aparta de su contrato, porque Codex revisa contra lo escrito.
 - Este plan se armó con cinco análisis de solo lectura. No se ejecutó código, ni pruebas, ni migraciones.
 
 
