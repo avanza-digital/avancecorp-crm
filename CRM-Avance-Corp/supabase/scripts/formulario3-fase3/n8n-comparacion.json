@@ -1,0 +1,23 @@
+{
+  "estado": "PASS",
+  "nodos": 22,
+  "conexiones": 26,
+  "diferencias": [],
+  "ajustes": {
+    "executionOrder": "v1",
+    "timezone": "America/Lima",
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "executionTimeout": 180,
+    "errorWorkflow": "K5zUJos1RrK1tMv4"
+  },
+  "exclusiones": [
+    "id y position: identidad y ubicación de canvas",
+    "orden de nodos: se compara por nombre",
+    "output: ejemplos del SDK, no pinData",
+    "availableInMCP: metadato de acceso al MCP"
+  ],
+  "configuracion": "definicion({preparado:true})",
+  "recibo_restaurado": true
+}

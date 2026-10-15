@@ -1,0 +1,131 @@
+{
+  "ejecucion": {
+    "id": "51",
+    "workflowId": "YheEXeO0m5kO7ayj",
+    "mode": "manual",
+    "status": "success",
+    "startedAt": "2026-10-15T00:07:01.050Z",
+    "stoppedAt": "2026-10-15T00:07:01.753Z",
+    "retryOf": null,
+    "retrySuccessId": null,
+    "waitTill": null
+  },
+  "hoja": {
+    "id": "1QsB_sUVjPJIH4yVSHW7F7isCdGpWogTxfeXs3SNVpfU",
+    "http": 204
+  },
+  "tablas": [
+    "0AGwleVZe229mdVe",
+    "AzKAJhB5uALZDNuL"
+  ],
+  "resultados": {
+    "Actualizar datos ficticios": [
+      {
+        "startTime": 1792022821063,
+        "executionIndex": 1,
+        "source": [
+          {
+            "previousNode": "Preparar hoja de prueba",
+            "previousNodeOutput": 0,
+            "previousNodeRun": 0
+          }
+        ],
+        "hints": [],
+        "executionTime": 601,
+        "executionStatus": "success",
+        "data": {
+          "main": [
+            [
+              {
+                "json": {
+                  "headers": {
+                    "vary": "Origin, X-Origin",
+                    "pragma": "no-cache",
+                    "expires": "Mon, 01 Jan 1990 00:00:00 GMT",
+                    "date": "Thu, 15 Oct 2026 00:07:01 GMT",
+                    "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+                    "content-type": "text/html",
+                    "server": "ESF",
+                    "content-length": "0",
+                    "x-xss-protection": "0",
+                    "x-frame-options": "SAMEORIGIN",
+                    "x-content-type-options": "nosniff",
+                    "alt-svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+                    "connection": "close"
+                  },
+                  "statusCode": 204,
+                  "statusMessage": "No Content"
+                },
+                "pairedItem": {
+                  "item": 0
+                }
+              }
+            ]
+          ]
+        }
+      }
+    ],
+    "Eliminar recibos temporales F3": [
+      {
+        "startTime": 1792022821666,
+        "executionIndex": 2,
+        "source": [
+          {
+            "previousNode": "Actualizar datos ficticios",
+            "previousNodeOutput": 0,
+            "previousNodeRun": 0
+          }
+        ],
+        "hints": [],
+        "executionTime": 49,
+        "executionStatus": "success",
+        "data": {
+          "main": [
+            [
+              {
+                "json": {
+                  "success": true,
+                  "deletedTableId": "0AGwleVZe229mdVe"
+                },
+                "pairedItem": {
+                  "item": 0
+                }
+              }
+            ]
+          ]
+        }
+      }
+    ],
+    "Eliminar avisos temporales F3": [
+      {
+        "startTime": 1792022821715,
+        "executionIndex": 3,
+        "source": [
+          {
+            "previousNode": "Eliminar recibos temporales F3",
+            "previousNodeOutput": 0,
+            "previousNodeRun": 0
+          }
+        ],
+        "hints": [],
+        "executionTime": 37,
+        "executionStatus": "success",
+        "data": {
+          "main": [
+            [
+              {
+                "json": {
+                  "success": true,
+                  "deletedTableId": "AzKAJhB5uALZDNuL"
+                },
+                "pairedItem": {
+                  "item": 0
+                }
+              }
+            ]
+          ]
+        }
+      }
+    ]
+  }
+}

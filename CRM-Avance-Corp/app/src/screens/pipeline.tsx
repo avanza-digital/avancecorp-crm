@@ -22,6 +22,7 @@ import {
 import { StatStrip, type StatChipData } from '@/components/common/stat-strip'
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { CAT_LABEL, ETAPA_INFO, TERMINALES, origenLabel, type EtapaActiva, type Lead } from '@/lib/tipos'
+import { ChipCampania } from '@/components/app/campania-chip'
 import {
   COLUMNAS_TABLERO,
   agruparPorColumna,
@@ -175,13 +176,14 @@ function LeadCard({ l, nombreVendedor, semaforo, rotuloEtapa, escribe, arrastran
           <p className="shrink-0 text-sm font-extrabold tabular-nums text-primary">{moneyK(l.monto_estimado, l.moneda)}</p>
         )}
       </div>
-      <div className="mt-2 flex items-center gap-1.5">
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {l.categoria_interes ? (
           <Badge color="var(--chart-4)" className="text-[10px]">Inversión · {CAT_LABEL[l.categoria_interes]}</Badge>
         ) : (
           <Badge color="var(--muted-foreground)" className="text-[10px]">{origenLabel(l.origen)}</Badge>
         )}
         <ChipPotencial marca={potencial} pequeno />
+        <ChipCampania lead={l} />
       </div>
       <div className="mt-2.5 flex items-center justify-between border-t border-border pt-2">
         {l.vendedor_id == null ? (

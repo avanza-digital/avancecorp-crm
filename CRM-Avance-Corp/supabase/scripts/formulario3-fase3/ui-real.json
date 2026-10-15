@@ -1,0 +1,12 @@
+{
+  "destino": "bxkborlvpmuwttzjrjqn",
+  "autenticacion": "Supabase Auth real; cuentas sintéticas",
+  "ejecucion": "Docker local; Playwright 1.61.1; Chromium; respuestas HTTP reales",
+  "config": "app/playwright.formulario3.config.ts",
+  "spec": "app/e2e-integration/formulario3-real.spec.ts",
+  "primera_corrida": {"passed":3,"failed":1,"duracion_segundos":52.3},
+  "ajuste_del_ensayo": "La primera carga remota de Directorio seguía en splash a los 5 s. Se amplió la espera de aserciones de este ensayo a 30 s; no se modificó código de producto.",
+  "repeticion_directorio": {"passed":1,"failed":0,"duracion_segundos":19.9},
+  "roles_comprobados": ["vendedor","supervisor","gerencia","directorio"],
+  "comprobaciones": ["inicio de sesión real","ámbito por rol","campaña separada del canal","filtro","total coherente","ficha sin edición de campaña","recarga","históricos sin etiqueta"]
+}

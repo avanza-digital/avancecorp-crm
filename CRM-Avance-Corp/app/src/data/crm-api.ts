@@ -193,6 +193,7 @@ const COLUMNAS_LEAD = [
   'fecha_nacimiento',
   'distrito',
   'origen',
+  'campania_origen',
   'etapa',
   'motivo_descarte',
   'monto_estimado',
@@ -259,6 +260,7 @@ const LeadRowSchema = v.object({
   // Catálogo de LECTURA: incluye `base_cargada` (solo lo pone el servidor, B7). Un origen cerrado al alta
   // descartaba EN SILENCIO al contacto de base y lo hacía desaparecer de toda lista (hallazgo del F0, 04/10).
   origen: v.picklist(ORIGENES_LECTURA.map((o) => o.k)),
+  campania_origen: v.optional(v.nullable(v.string())),
   // Procedencia: la RPC de la cartera manda `procedencia` + `cargado_por` ya
   // resueltos; el ámbito (select directo) manda las columnas crudas
   // `alta_manual` + `creado_por` y el mapper deriva. Todo opcional: un servidor
@@ -510,6 +512,7 @@ function aLead(fila: LeadRow): Lead {
     fecha_nacimiento: fila.fecha_nacimiento ?? null,
     distrito: fila.distrito,
     origen: fila.origen, // ya validado contra el catálogo por LeadRowSchema
+    campania_origen: fila.campania_origen ?? null,
     procedencia: procedenciaDeFila(fila),
     reasignado: fila.reasignado ?? null,
     cargado_por: fila.cargado_por ?? fila.creado_por ?? null,
@@ -681,6 +684,8 @@ export async function obtenerLeadDelAmbitoPorId(id: string, signal?: AbortSignal
 // aquí solo para normalizar lo que teclea el usuario.
 
 export interface FiltrosCartera {
+  /** Campaña de origen: el recorte se aplica antes de contar o paginar. */
+  campania?: import('@/lib/campania').FiltroCampania
   etapa?: Etapa | 'todas'
   vendedorId?: string | 'todos' | 'sin_asignar'
   texto?: string
@@ -745,6 +750,7 @@ const CarteraFiltradaSchema = v.object({
   origen: v.optional(v.nullable(v.string())),
   // Eco de la procedencia filtrada, con la misma lógica que `origen`.
   procedencia: v.optional(v.nullable(v.string())),
+  campania_origen: v.optional(v.nullable(v.string())),
   // Presente desde la migración de reasignados; un servidor previo no inventa cero.
   reasignados: v.optional(v.boolean()),
   items: v.array(v.object({
@@ -773,6 +779,10 @@ export async function listarCarteraPagina(
   cursor: CursorCartera | null,
   signal?: AbortSignal,
 ): Promise<PaginaCartera> {
+  const campaniaPedida = filtros.campania && filtros.campania !== 'todas' ? filtros.campania : null
+  // La ruta legada no implementa este filtro. Si se pide, toda la consulta
+  // (incluidos sus demás filtros) usa la ruta integrada; nunca se ignora.
+  const integrada = filtros.integrada === true || campaniaPedida !== null
   const texto = textoBuscable(filtros.texto)
   // Se pide UNA fila de más: es lo que distingue "hay más" de "justo cabía",
   // sin gastar una petición extra que vuelva vacía al final de la lista.
@@ -792,18 +802,18 @@ export async function listarCarteraPagina(
   // El servidor RECHAZA (22023) un texto por debajo del mínimo: quien decide si
   // el filtro viaja es `textoBuscable`, la MISMA regla que aplica el espejo demo.
   if (texto !== null) argumentos.p_texto = texto
-  if (filtros.integrada && filtros.recepcion) {
+  if (integrada && filtros.recepcion) {
     argumentos.p_desde = filtros.recepcion.desde
     argumentos.p_hasta = filtros.recepcion.hasta
   }
   // «todos» no viaja: un servidor previo a la firma con p_origen sigue
   // resolviendo la llamada sin él (PGRST202 evitado), igual que en métricas.
-  const origenPedido = filtros.integrada && filtros.origen && filtros.origen !== 'todos' ? filtros.origen : null
+  const origenPedido = integrada && filtros.origen && filtros.origen !== 'todos' ? filtros.origen : null
   if (origenPedido !== null) argumentos.p_origen = origenPedido
   // «todas» tampoco viaja: mismo motivo, misma tolerancia a un servidor previo.
-  const procedenciaPedida = filtros.integrada && filtros.procedencia && filtros.procedencia !== 'todas' ? filtros.procedencia : null
+  const procedenciaPedida = integrada && filtros.procedencia && filtros.procedencia !== 'todas' ? filtros.procedencia : null
   if (procedenciaPedida !== null) argumentos.p_procedencia = procedenciaPedida
-  const reasignadosPedidos = filtros.integrada && filtros.reasignados === true
+  const reasignadosPedidos = integrada && filtros.reasignados === true
   if (reasignadosPedidos) argumentos.p_reasignados = true
   // La gestión solo viaja cuando recorta, y solo a la lista integrada: sin
   // ella la llamada es idéntica a la de siempre (Leads y las demás columnas no
@@ -812,15 +822,16 @@ export async function listarCarteraPagina(
   // Tampoco se comprueba contra las filas: la regla descarta los resultados de
   // llamada deshechos, así que un lead `sin_gestion` puede traer un
   // `ultimo_contacto_en` posterior a su tenencia y estar bien servido.
-  const gestionPedida = filtros.integrada && filtros.gestion ? filtros.gestion : null
+  const gestionPedida = integrada && filtros.gestion ? filtros.gestion : null
   if (gestionPedida !== null) argumentos.p_gestion = gestionPedida
   // El potencial solo viaja cuando recorta, y solo a la lista integrada: un
   // servidor anterior a `p_potencial` sigue resolviendo la llamada sin él.
-  const potencialPedido = filtros.integrada && filtros.potencial ? filtros.potencial : null
+  const potencialPedido = integrada && filtros.potencial ? filtros.potencial : null
   if (potencialPedido !== null) argumentos.p_potencial = potencialPedido
+  if (campaniaPedida !== null) argumentos.p_campania_origen = campaniaPedida
 
   lanzarAbortSiCorresponde(signal)
-  let consulta = cliente().schema('crm').rpc(filtros.integrada ? 'cartera_filtrada_fn' : 'cartera_pagina_fn', argumentos)
+  let consulta = cliente().schema('crm').rpc(integrada ? 'cartera_filtrada_fn' : 'cartera_pagina_fn', argumentos)
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
   lanzarAbortSiCorresponde(signal)
@@ -842,6 +853,7 @@ export async function listarCarteraPagina(
       etapa: filtros.etapa ?? 'todas',
       filtraVendedor: Boolean(filtros.vendedorId && filtros.vendedorId !== 'todos'),
       filtraOrigen: origenPedido !== null,
+      filtraCampania: campaniaPedida !== null,
       filtraProcedencia: procedenciaPedida !== null,
       filtraReasignados: reasignadosPedidos,
       filtraGestion: gestionPedida !== null,
@@ -852,7 +864,7 @@ export async function listarCarteraPagina(
     throw fallo
   }
 
-  if (filtros.integrada) {
+  if (integrada) {
     const resultado = v.safeParse(CarteraFiltradaSchema, data)
     if (!resultado.success) throw new CrmApiError('La cartera y sus indicadores no cumplen el contrato esperado.', 'ROW_CONTRACT')
     const payload = resultado.output
@@ -864,6 +876,8 @@ export async function listarCarteraPagina(
       // (o no lo aplicó), los indicadores no serían los del filtro en pantalla.
       || (payload.origen ?? null) !== origenPedido
       || (origenPedido !== null && payload.items.some((l) => l.origen !== origenPedido))
+      || (payload.campania_origen ?? null) !== campaniaPedida
+      || (campaniaPedida !== null && payload.items.some((l) => l.campania_origen !== campaniaPedida))
       // Misma exigencia para la procedencia: eco y filas coherentes, o nada.
       || (payload.procedencia ?? null) !== procedenciaPedida
       || (procedenciaPedida !== null && payload.items.some((l) => l.procedencia !== procedenciaPedida))

@@ -1,0 +1,149 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+Revisé el gate nuevo, las dos migraciones, la matriz `permisos.sql`, la evidencia HTTP de fase 3 y el diff de frontend y scripts.
+
+Lo que sale bien:
+- **Integridad de las migraciones.** Las huellas del preflight de ambas migraciones coinciden con `preflight-produccion.json`, campo por campo.
+- **Orden de versiones.** `20261014210146` y `20261014215453` son posteriores a la última migración viva, `20261014185718`.
+- **Permisos de campaña.** El modelo es correcto: SELECT por columna, sin UPDATE ni INSERT para `authenticated`, y un trigger que también frena rutas DEFINER con `auth.uid()` humano.
+- **Compatibilidad con el frontend vivo** en la dirección DB nueva → front viejo: firma con DEFAULT, columna extra al final, valibot no estricto.
+
+Hay cinco cosas accionables, ninguna P0 ni P1:
+- Una posible divergencia semántica en la consulta SQL del gate (P2).
+- Una dependencia no verificada del binding `--linked` / `--project-ref` (P2).
+- Un `process.exit(0)` que puede enmascarar fallos de la matriz RLS nueva (P2).
+- Una incompatibilidad de orden de despliegue que debe quedar escrita como restricción, con su plan de reversa (P2).
+- Varios P3 de documentación y cobertura.
+
+Fuera del alcance revisado, porque no se adjuntó:
+- Edge `crm-importar-leads` (`index.ts`, `campania.ts`, `handler.ts`).
+- `use-filtro-campania.ts`, `campania-chip.tsx` y `campania.ts` del front.
+- `formulario3-fase1/rls.mjs`, `formulario3-fase2/rls.mjs` y `fixtures.sql`.
+- El diff de `MIGRACIONES.md` y `scripts/n8n/`.
+
+No emito juicio sobre esos archivos.
+
+FINDINGS:
+
+[P2] La consulta SQL de `metas_bajo_el_sello` no es equivalente a la ruta PostgREST cuando `meta_revision` es NULL
+File: `CRM-Avance-Corp/supabase/scripts/gate-realidad-sql.mjs`
+Lines: 8–12 (y `gate-realidad.mjs:304-307` como referencia)
+Problem: Las dos rutas tratan distinto un sello sin revisión fotografiada.
+Evidence:
+- La ruta PostgREST hace `sellada === undefined || m.revision > sellada`. Si `sellada` es `null`, JS evalúa `revision > null` como `revision > 0`, que da `true`, y la fila cuenta.
+- La ruta SQL hace `s.periodo is null or m.revision > s.meta_revision`. Si `meta_revision` es NULL, la comparación da NULL y la fila no cuenta.
+Impact: Si existe un mes sellado sin metas (`meta_revision` NULL) y luego alguien publica metas de ese mes, el canario devuelve 0 por la vía CLI y >0 por la vía PostgREST. Es justo la anomalía que el canario existe para detectar. Esto es hipótesis condicionada a que `crm.periodos_cerrados.meta_revision` admita NULL; no se adjuntó su DDL.
+Recommendation:
+- Confirmar la nulabilidad de la columna.
+- Si admite NULL, usar `m.revision > coalesce(s.meta_revision, 0)` o `(s.meta_revision is null or m.revision > s.meta_revision)`, según la semántica deseada.
+- Añadir un caso de paridad JS/SQL con un sello `meta_revision = null`.
+
+[P2] La comprobación «mismo proyecto que la URL» depende de que la CLI respete `--project-ref` junto con `--linked`
+File: `CRM-Avance-Corp/supabase/scripts/gate-realidad-sql.mjs`
+Lines: 23–27, 37–38
+Problem: `proyectoSQL` valida el ref contra `SUPABASE_URL`, pero la ejecución pasa `--linked` y `--project-ref` a la vez.
+Evidence: Si la versión instalada de la CLI resuelve `--linked` desde `supabase/.temp/project-ref` del cwd y no aplica el override, las dos mediciones SQL podrían salir de otro proyecto enlazado. Habría conteos PostgREST de una base y sellos/conversión de otra, que es exactamente lo que la línea 23 dice evitar. El test (`gate-realidad-sql.test.mjs:25`) solo comprueba los argv, no el destino real. Además, `execFile` no fija `cwd`, así que el enlace depende de desde dónde se invoque. Es hipótesis: no hay evidencia de la semántica exacta de la CLI en la versión usada.
+Impact: Un falso «completo/cuadra» atribuido a producción.
+Recommendation (cualquiera de las dos):
+- Dejar documentada la evidencia de la CLI: versión y prueba de que `--project-ref` prevalece, o de que `supabase/.temp/project-ref` coincide.
+- Mejor: añadir una medición de anclaje cruzado, por ejemplo `count(*)` de `crm.leads where activo` por SQL, y exigir igualdad con `leads_en_cartera` de PostgREST antes de aceptar las mediciones SQL. Si no son iguales, marcar error, no divergencia.
+
+[P2] `process.exit(0)` incondicional puede convertir un fallo de la matriz RLS en éxito
+File: `CRM-Avance-Corp/supabase/scripts/test-rls.mjs`
+Lines: hunk añadido (líneas ~13–21)
+Problem: Tras `await import('./formulario3-fase*/rls.mjs')` se llama a `process.exit(0)`.
+Evidence: `process.exit(0)` ignora cualquier `process.exitCode = 1` que el módulo haya fijado. Solo un rechazo de la importación (un throw de nivel superior) produciría un código distinto de cero. `rls.mjs` no se adjuntó, así que no puedo confirmar cómo reporta los fallos.
+Impact: En la rama de publicación, «repetir SQL/RLS» podría verse verde con casos fallidos.
+Recommendation:
+- Usar `process.exit(process.exitCode ?? 0)`, o simplemente no salir y dejar terminar al proceso.
+- Verificar que los dos módulos lanzan excepciones o fijan `exitCode` ante un FAIL.
+
+[P2] Frontend nuevo contra una DB sin migrar rompe la carga de leads; falta escribir la restricción y la reversa
+File: `CRM-Avance-Corp/app/src/data/crm-api.ts`
+Lines: 196 (`'campania_origen'` en `COLUMNAS_LEAD`), 829–834
+Problem: El frontend nuevo depende de la columna y del parámetro nuevos.
+Evidence:
+- `COLUMNAS_LEAD` entra en el `select` de PostgREST (el test de `crm-api-msw.test.ts` lo exige). Contra una base sin `campania_origen`, PostgREST responde 400 / 42703 en toda lectura que use esas columnas, no solo con el filtro.
+- `p_campania_origen` contra la firma vieja da PGRST202.
+Impact: El orden planificado (DB → Edge → front) es correcto. Pero un rollback de las migraciones con este front publicado, o un front publicado desde otro artefacto antes del merge de DB, deja Cartera, la ficha y el store sin datos. No hay migración de reversa: revertir la fase 2 exige recrear las firmas viejas.
+Recommendation:
+- Dejar escrito en el plan: «el front solo se publica tras verificar en producción la columna, el grant SELECT y `pg_get_function_identity_arguments` de `cartera_filtrada_fn` con 15 parámetros, más el reload de PostgREST».
+- Definir el orden de reversa: primero el front, luego la DB.
+- Tener preparado, sin aplicarlo, el SQL de reversa de la fase 2: las definiciones vivas actuales, hashes `23a63…` y `4bbfd…`.
+
+[P3] Cambio de modelo de grants de UPDATE en `crm.leads` con efecto a futuro
+File: `20261014210146_crm_formulario3_campania_origen.sql`
+Lines: 45–58, 508–511
+Problem: El paso de UPDATE de tabla a UPDATE por columna tiene consecuencias más allá de esta migración, y el postflight solo vigila a `authenticated`.
+Evidence:
+- La conversión es correcta: lista calculada antes del REVOKE, y PG revoca también los privilegios de columna al revocar el de tabla.
+- Desde ahora, cualquier columna nueva de `crm.leads` nace sin UPDATE para `authenticated`. Es la misma clase de «falla silenciosa» que el auditor ya señala para SELECT.
+- El postflight no comprueba `anon`. Si `anon` conserva UPDATE o INSERT de tabla, que es el default de Supabase en esquemas expuestos, `campania_origen` también le queda escribible a nivel ACL. RLS y la falta de lectura lo neutralizan en la práctica (`permisos.sql:73-79`).
+Recommendation:
+- Registrar el cambio de modelo en `MIGRACIONES.md`.
+- Añadir al postflight y a `permisos.sql`: `not has_column_privilege('anon', …, 'UPDATE'|'INSERT')`.
+
+[P3] Grafías no canónicas se guardan como otra campaña
+File: `20261014210146_crm_formulario3_campania_origen.sql`
+Lines: 74–83
+Evidence: Solo `lower(v) = 'formulario 3'` se canoniza. Variantes como `Formulario  3` (doble espacio), `Formulario3` o un NBSP pasan el CHECK como campañas distintas, y el filtro `= 'Formulario 3'` no las verá.
+Recommendation: Confirmar, en `campania.ts` del Edge (no adjunto) o en el nodo n8n, que se envía la constante exacta. Si no, colapsar espacios internos antes de comparar.
+
+[P3] Texto del gate inconsistente con su propia medición
+File: `gate-realidad.json` (128–129) y `gate-realidad.mjs` (314, 343)
+Evidence: El valor dice «5 caminos», pero el título y `esperado` dicen «cuatro caminos».
+Recommendation: Actualizar el texto, o explicar por qué se leen 5.
+
+[P3] `verificacion.json` llama «PASS» a un gate con 2 divergencias
+File: `formulario3-fase4/verificacion.json`
+Lines: 10
+Recommendation: Escribir «exit 0 sin `--estricto`; con `--estricto` saldría 1 (2 divergencias de datos ajenas, aceptadas por criterio documentado)». Así nadie lo lee como gate estricto superado.
+
+TEST GAPS:
+- No hay paridad JS/SQL de `metas_bajo_el_sello`, incluido el caso `meta_revision` NULL.
+- No hay prueba de que la CLI mide contra el ref indicado: ni anclaje cruzado ni test de integración.
+- No hay test de `gate-realidad.mjs` en sí: la etiqueta `via`, la impresión de errores, el código de salida con mezcla de error y divergencia (solo se testea `codigoSalida` aislado).
+- `permisos.sql`: faltan los privilegios de `anon` sobre la columna. También falta un INSERT directo de `authenticated` con `campania_origen` (POST PostgREST), denegado por ACL más que por trigger.
+- La validación de compatibilidad del front viejo contra la DB nueva está razonada, pero no veo prueba. Conviene un smoke del artefacto actualmente publicado contra la rama migrada antes del merge: Cartera, Pipeline y ficha.
+- `rls.mjs` de fases 1 y 2: verificar que un FAIL produce exit ≠ 0 (ver el P2).
+
+ARCHITECTURE RISKS:
+- Hay dos implementaciones de la misma medición (PostgREST y SQL) que pueden derivar. Conviene fijar una como oráculo.
+- `normalizar_campania_origen` es lista abierta en DB, mientras `CAMPANIAS` es una lista cerrada en el front. Una campaña nueva requiere tocar el front para poder filtrarla. Es aceptable, pero debe documentarse.
+
+SECURITY RISKS:
+- Ninguno bloqueante en el alcance revisado:
+  - Las tres puertas conservan ACL, `prosecdef` y `proconfig`, con verificación pre y post.
+  - El normalizador y el trigger quedan sin EXECUTE de API.
+  - La lectura de campaña queda bajo RLS: la matriz de roles HTTP y SQL cubre propio, ajeno, supervisor, gerencia, coordinador, inactivo y anon.
+  - `cartera_*` conserva el ACL exacto.
+- El gate SQL usa la sesión administrativa de la CLI, que se salta RLS. Es aceptable por ser READ ONLY con consultas fijas y agregadas, pero solo debe ejecutarlo quien ya tiene ese acceso.
+
+REGRESSION RISKS:
+- Front nuevo contra DB vieja o revertida: rotura total de la carga de leads (P2).
+- `ADD CONSTRAINT CHECK` valida toda la tabla bajo ACCESS EXCLUSIVE. Con el volumen medido es trivial, y `lock_timeout` de 5 s aborta limpio si hay contención. Es aceptable.
+- La idempotencia de reingresos y solicitudes no cambia para filas sin campaña: la clave solo se añade si no es NULL. Para filas con campaña no hay histórico, porque n8n está apagado.
+
+PENDIENTES DE EJECUCIÓN (no son defectos):
+1. Recalcular las huellas inmediatamente antes de aplicar: las de las 7 funciones y la lista de migraciones. El preflight es de `2026-10-15T00:43Z`.
+2. Confirmar que el conector o la sesión apuntan al proyecto CRM correcto antes de cualquier `apply`. El conector disponible es «Agency» y no lista CRM: esto es condición bloqueante, no formalidad.
+3. Nueva rama autorizada:
+   - aplicar las 2 migraciones exactas;
+   - ejecutar `permisos.sql`, `test-rls --formulario3` y `--formulario3-fase2` con el exit code corregido;
+   - revisar los advisors;
+   - hacer el smoke del front viejo.
+4. Merge solo de las dos migraciones. Después, verificar el esquema vivo y el reload de PostgREST.
+5. Desplegar el Edge y luego el front desde main sincronizado, con artefacto limpio.
+6. Dejar n8n OFF, fijar la retención de fallos y probar el flujo de avisos con nombre actualizado (pendiente heredado de fase 3) antes de la fase 5.
+
+RECOMMENDED NEXT ACTIONS:
+1. Corregir `process.exit(0)` en `test-rls.mjs` y alinear la consulta SQL de `metas_bajo_el_sello` tras confirmar la nulabilidad de `meta_revision`.
+2. Añadir el anclaje cruzado PostgREST↔SQL, o documentar con evidencia que `--project-ref` prevalece sobre `--linked`.
+3. Escribir en el plan de publicación la precondición del front, el orden de reversa y el SQL de reversa de la fase 2 preparado.
+4. Ampliar el postflight y `permisos.sql` con `anon`, y registrar en el ledger el cambio a UPDATE por columna.
+5. Si se quiere dictamen sobre el Edge, `campania.ts`, el hook del filtro y los módulos RLS, adjuntarlos. No están cubiertos por este review.
+
+CONFIDENCE:
+MEDIUM. Es alta sobre los archivos adjuntos. Los dos P2 del gate dependen de hechos no adjuntos (DDL de `periodos_cerrados` y semántica de la CLI) y están marcados como hipótesis.

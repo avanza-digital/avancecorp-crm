@@ -3164,6 +3164,7 @@ export type Database = {
           actualizado_en: string
           alta_manual: boolean
           asignado_supervisor_id: string | null
+          campania_origen: string | null
           categoria_interes: string | null
           ciclo_actual: number
           clasificacion_auto: string | null
@@ -3207,6 +3208,7 @@ export type Database = {
           actualizado_en?: string
           alta_manual?: boolean
           asignado_supervisor_id?: string | null
+          campania_origen?: string | null
           categoria_interes?: string | null
           ciclo_actual?: number
           clasificacion_auto?: string | null
@@ -3250,6 +3252,7 @@ export type Database = {
           actualizado_en?: string
           alta_manual?: boolean
           asignado_supervisor_id?: string | null
+          campania_origen?: string | null
           categoria_interes?: string | null
           ciclo_actual?: number
           clasificacion_auto?: string | null
@@ -5503,6 +5506,7 @@ export type Database = {
         Args: {
           p_antes_de?: string
           p_antes_id?: string
+          p_campania_origen?: string
           p_desde?: string
           p_etapa?: string
           p_gestion?: string
@@ -5560,6 +5564,7 @@ export type Database = {
           activo: boolean
           actualizado_en: string
           asignado_supervisor_id: string
+          campania_origen: string
           categoria_interes: string
           contrato_id: string
           convertido_en: string

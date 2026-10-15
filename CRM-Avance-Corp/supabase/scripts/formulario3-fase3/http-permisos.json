@@ -1,0 +1,223 @@
+[
+  {
+    "nombre": "HTTP real acepta campaña y envíos antiguos",
+    "estado": "PASS",
+    "resultados": [
+      {
+        "fila": 11,
+        "resultado": "importado",
+        "estado": "IMPORTADO ✓"
+      },
+      {
+        "fila": 12,
+        "resultado": "importado",
+        "estado": "IMPORTADO ✓"
+      },
+      {
+        "fila": 13,
+        "resultado": "importado",
+        "estado": "IMPORTADO ✓"
+      }
+    ]
+  },
+  {
+    "nombre": "Auth real inicia sesión de vendedor",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Auth real inicia sesión de gerencia",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Auth real inicia sesión de supervisor",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Auth real inicia sesión de vendedor_otro",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Auth real inicia sesión de supervisor_otro",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Auth real inicia sesión de coordinador",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Auth real inicia sesión de inactivo",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Auth real inicia sesión de directorio",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Persistencia conserva campaña, canal y procedencia automática",
+    "estado": "PASS",
+    "leads": [
+      {
+        "id": "c6bbd610-b17e-4eca-b98b-7d7104f685a1",
+        "nombre_completo": "PRUEBA F3 Rol Legacy",
+        "telefono": "+51984300011",
+        "origen": "formulario",
+        "campania_origen": null,
+        "vendedor_id": "0a713da7-6886-4794-b8b1-4c9f6f3fc0e2",
+        "alta_manual": false,
+        "nota": null,
+        "creado_por": null,
+        "asignado_supervisor_id": null
+      },
+      {
+        "id": "9af83cb1-8b39-41fd-8037-cbfd3cb477a4",
+        "nombre_completo": "PRUEBA F3 Rol Campaña",
+        "telefono": "+51984300012",
+        "origen": "formulario",
+        "campania_origen": "Formulario 3",
+        "vendedor_id": "0a713da7-6886-4794-b8b1-4c9f6f3fc0e2",
+        "alta_manual": false,
+        "nota": null,
+        "creado_por": null,
+        "asignado_supervisor_id": null
+      },
+      {
+        "id": "b7f8094e-cd60-4b3a-9e16-3ec5f4c255c7",
+        "nombre_completo": "PRUEBA F3 Rol Otro",
+        "telefono": "+51984300013",
+        "origen": "formulario",
+        "campania_origen": "Formulario 3",
+        "vendedor_id": "3091ae93-3868-4767-a37c-b77f2df74013",
+        "alta_manual": false,
+        "nota": null,
+        "creado_por": null,
+        "asignado_supervisor_id": null
+      }
+    ]
+  },
+  {
+    "nombre": "RLS HTTP: vendedor solo lee su ámbito",
+    "estado": "PASS",
+    "cantidad": 2
+  },
+  {
+    "nombre": "Filtro y cifras HTTP: vendedor",
+    "estado": "PASS",
+    "cantidad": 1
+  },
+  {
+    "nombre": "RLS HTTP: supervisor solo lee su ámbito",
+    "estado": "PASS",
+    "cantidad": 2
+  },
+  {
+    "nombre": "Filtro y cifras HTTP: supervisor",
+    "estado": "PASS",
+    "cantidad": 1
+  },
+  {
+    "nombre": "RLS HTTP: vendedor_otro solo lee su ámbito",
+    "estado": "PASS",
+    "cantidad": 1
+  },
+  {
+    "nombre": "Filtro y cifras HTTP: vendedor_otro",
+    "estado": "PASS",
+    "cantidad": 1
+  },
+  {
+    "nombre": "RLS HTTP: supervisor_otro solo lee su ámbito",
+    "estado": "PASS",
+    "cantidad": 1
+  },
+  {
+    "nombre": "Filtro y cifras HTTP: supervisor_otro",
+    "estado": "PASS",
+    "cantidad": 1
+  },
+  {
+    "nombre": "RLS HTTP: gerencia solo lee su ámbito",
+    "estado": "PASS",
+    "cantidad": 3
+  },
+  {
+    "nombre": "Filtro y cifras HTTP: gerencia",
+    "estado": "PASS",
+    "cantidad": 2
+  },
+  {
+    "nombre": "RLS HTTP: directorio solo lee su ámbito",
+    "estado": "PASS",
+    "cantidad": 3
+  },
+  {
+    "nombre": "Filtro y cifras HTTP: directorio",
+    "estado": "PASS",
+    "cantidad": 2
+  },
+  {
+    "nombre": "RLS HTTP: coordinador solo lee su ámbito",
+    "estado": "PASS",
+    "cantidad": 0
+  },
+  {
+    "nombre": "Filtro y cifras HTTP: coordinador",
+    "estado": "PASS",
+    "cantidad": 0
+  },
+  {
+    "nombre": "RLS HTTP: inactivo solo lee su ámbito",
+    "estado": "PASS",
+    "cantidad": 0
+  },
+  {
+    "nombre": "RPC rechaza membresía CRM inactiva",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "PATCH humano de campaña rechazado",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "PATCH comercial permitido conserva campaña",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "PATCH cruzado no modifica otra cartera",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Usuario autenticado no ejecuta la puerta del servidor",
+    "estado": "PASS",
+    "codigo": "42501"
+  },
+  {
+    "nombre": "Anónimo sin lectura de leads",
+    "estado": "PASS",
+    "codigo": "42501"
+  },
+  {
+    "nombre": "Reenvío HTTP con otra fila no altera fichas ni crea leads",
+    "estado": "PASS",
+    "resultados": [
+      {
+        "fila": 111,
+        "resultado": "duplicado",
+        "estado": "DUPLICADO: ya existe en el CRM"
+      },
+      {
+        "fila": 112,
+        "resultado": "duplicado",
+        "estado": "DUPLICADO: ya existe en el CRM"
+      },
+      {
+        "fila": 113,
+        "resultado": "duplicado",
+        "estado": "DUPLICADO: ya existe en el CRM"
+      }
+    ]
+  },
+  {
+    "nombre": "Campaña inválida rechazada sin alta parcial",
+    "estado": "PASS"
+  }
+]

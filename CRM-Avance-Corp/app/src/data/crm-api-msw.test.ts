@@ -286,12 +286,13 @@ describe('obtenerLeadDelAmbitoPorId (msw)', () => {
     server.use(http.get(RUTA_LEADS, ({ request }) => {
       pedida = new URL(request.url)
       expect(request.headers.get('accept-profile')).toBe('crm')
-      return HttpResponse.json([fila({ id: 'fuera-del-lote', monto_estimado: '2000.50', nota: 'Detalle completo' })])
+      return HttpResponse.json([fila({ id: 'fuera-del-lote', monto_estimado: '2000.50', nota: 'Detalle completo', campania_origen: 'Formulario 3' })])
     }))
-    await expect(obtenerLeadDelAmbitoPorId('fuera-del-lote')).resolves.toMatchObject({ id: 'fuera-del-lote', monto_estimado: 2000.5, nota: 'Detalle completo', telefono: '+51987650000' })
+    await expect(obtenerLeadDelAmbitoPorId('fuera-del-lote')).resolves.toMatchObject({ id: 'fuera-del-lote', monto_estimado: 2000.5, nota: 'Detalle completo', telefono: '+51987650000', campania_origen: 'Formulario 3' })
     expect(pedida?.searchParams.get('id')).toBe('eq.fuera-del-lote')
     expect(pedida?.searchParams.get('activo')).toBe('eq.true')
     expect(pedida?.searchParams.get('select')).toContain('telefono,')
+    expect(pedida?.searchParams.get('select')).toContain('campania_origen')
     expect(pedida?.searchParams.has('or')).toBe(false)
   })
   it('devuelve null si RLS no devuelve el lead, sin revelar su existencia', async () => {

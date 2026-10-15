@@ -1,0 +1,105 @@
+[
+  {
+    "nombre": "HTTP crea dos altas en la cola normal de FORMULARIO",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Campaña y legacy llegan sin forzar vendedor ni supervisor",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Misma configuración vigente: Coordinación libre",
+    "estado": "PASS",
+    "configuracion": {
+      "version": 1,
+      "revision": 1,
+      "actualizado_en": "2026-10-07T15:37:31.37571+00:00",
+      "coordinacion_libre": true
+    }
+  },
+  {
+    "nombre": "Analista no reparte PRUEBA F3 Reparto Legacy",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Coordinación reparte PRUEBA F3 Reparto Legacy",
+    "estado": "PASS",
+    "resultado": {
+      "lead_id": "1afacc1c-d60a-44cd-b3ec-8d889b70a72f",
+      "supervisor": "PRUEBA F3 SUPERVISOR",
+      "repartido_en": "2026-10-14T23:45:56.36982+00:00",
+      "repartido_por": "d92e382d-8c3c-4b14-86ec-4da2e01c82e5",
+      "excepcion_turno": true,
+      "asignado_supervisor_id": "5bad4098-3d30-4680-b340-9ea1cb41e104"
+    }
+  },
+  {
+    "nombre": "Segundo reparto rechazado para la misma ficha",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Analista no reparte PRUEBA F3 Reparto Campaña",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Coordinación reparte PRUEBA F3 Reparto Campaña",
+    "estado": "PASS",
+    "resultado": {
+      "lead_id": "83d946ae-4f07-47af-ae77-a89a9829eb98",
+      "supervisor": "PRUEBA F3 SUPERVISOR",
+      "repartido_en": "2026-10-14T23:45:57.091504+00:00",
+      "repartido_por": "d92e382d-8c3c-4b14-86ec-4da2e01c82e5",
+      "excepcion_turno": true,
+      "asignado_supervisor_id": "5bad4098-3d30-4680-b340-9ea1cb41e104"
+    }
+  },
+  {
+    "nombre": "Segundo reparto rechazado para la misma ficha",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Supervisor deriva ambos al analista mediante la puerta normal",
+    "estado": "PASS",
+    "resultado": {
+      "version": 1,
+      "lead_ids": [
+        "1afacc1c-d60a-44cd-b3ec-8d889b70a72f",
+        "83d946ae-4f07-47af-ae77-a89a9829eb98"
+      ],
+      "derivados": 2
+    }
+  },
+  {
+    "nombre": "Segunda derivación rechazada",
+    "estado": "PASS",
+    "codigo": "P0001"
+  },
+  {
+    "nombre": "Reparto conserva campaña de origen y procedimiento comercial",
+    "estado": "PASS",
+    "leads": [
+      {
+        "id": "1afacc1c-d60a-44cd-b3ec-8d889b70a72f",
+        "nombre_completo": "PRUEBA F3 Reparto Legacy",
+        "origen": "formulario",
+        "campania_origen": null,
+        "vendedor_id": "0a713da7-6886-4794-b8b1-4c9f6f3fc0e2",
+        "asignado_supervisor_id": null,
+        "alta_manual": false
+      },
+      {
+        "id": "83d946ae-4f07-47af-ae77-a89a9829eb98",
+        "nombre_completo": "PRUEBA F3 Reparto Campaña",
+        "origen": "formulario",
+        "campania_origen": "Formulario 3",
+        "vendedor_id": "0a713da7-6886-4794-b8b1-4c9f6f3fc0e2",
+        "asignado_supervisor_id": null,
+        "alta_manual": false
+      }
+    ]
+  },
+  {
+    "nombre": "Reenvío después del reparto conserva dueño y fichas",
+    "estado": "PASS"
+  }
+]

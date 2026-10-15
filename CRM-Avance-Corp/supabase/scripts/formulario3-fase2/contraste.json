@@ -1,0 +1,25 @@
+{
+  "texto": "#2563eb",
+  "fuente": "app/src/index.css:40; Badge outline usa ese color, no accent-foreground",
+  "fondos": [
+    {
+      "color": "#ffffff",
+      "contraste": 5.169,
+      "minimo_texto_pequeno": 4.5,
+      "resultado": "PASS"
+    },
+    {
+      "color": "#f6f8fc",
+      "contraste": 4.861,
+      "minimo_texto_pequeno": 4.5,
+      "resultado": "PASS"
+    },
+    {
+      "color": "#eef2f8",
+      "contraste": 4.6,
+      "minimo_texto_pequeno": 4.5,
+      "resultado": "PASS"
+    }
+  ],
+  "otro_tema": "No hay tema oscuro definido en index.css; el CRM usa tema claro."
+}

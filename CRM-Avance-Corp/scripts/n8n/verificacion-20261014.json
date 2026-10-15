@@ -1,0 +1,245 @@
+{
+  "task": "N8N-AVANCE-141026",
+  "date": "2026-10-14",
+  "mainWorkflow": "BjI5m1PKVWhO0NDb",
+  "status": {
+    "active": false,
+    "enviar_crm": false,
+    "httpDisabled": true,
+    "sourceRows": 127,
+    "crmLeadsSent": 0,
+    "crmRecordsWritten": 0,
+    "credentialVerified": true,
+    "emailAlertConfigured": true,
+    "emailTestSent": true
+  },
+  "checks": [
+    {
+      "check": "Node unit and generator safety tests",
+      "status": "PASS",
+      "count": 25
+    },
+    {
+      "check": "npm run check:scripts",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "check": "Main SDK and remote graph",
+      "status": "PASS",
+      "nodes": 22,
+      "edges": 26
+    },
+    {
+      "execution": 16,
+      "check": "Real HTTP authentication with empty filas",
+      "status": "PASS",
+      "httpStatus": 400,
+      "responseError": "Sin filas que importar",
+      "crmWrites": 0
+    },
+    {
+      "execution": 17,
+      "check": "Real Google Sheets preview",
+      "status": "PASS",
+      "prepared": 127,
+      "PEN": 121,
+      "USD": 6,
+      "crmSends": 0
+    },
+    {
+      "execution": 18,
+      "check": "Two synthetic errors do not block next row",
+      "status": "PASS",
+      "expectedWorkflowStatus": "error",
+      "pending": [
+        20,
+        21
+      ],
+      "confirmed": [
+        22
+      ]
+    },
+    {
+      "execution": 19,
+      "check": "Recovery imports only pending rows",
+      "status": "PASS",
+      "confirmed": [
+        20,
+        21
+      ]
+    },
+    {
+      "execution": 20,
+      "check": "Repeated synthetic run skips all confirmed rows",
+      "status": "PASS",
+      "crmStubCalls": 0,
+      "ledgerWrites": 0
+    },
+    {
+      "execution": 21,
+      "check": "Batch bound and invalid-row branch",
+      "status": "PASS",
+      "inputRows": 30,
+      "selectedRows": 25,
+      "simulatedImported": 24,
+      "simulatedRejected": 1,
+      "dryRun": true
+    },
+    {
+      "execution": 22,
+      "check": "Insufficient time defers without ledger or CRM",
+      "status": "PASS",
+      "deferred": 25,
+      "crmStubCalls": 0,
+      "ledgerWrites": 0
+    },
+    {
+      "execution": 23,
+      "check": "Real HTTP error output preserves input identity",
+      "status": "PASS",
+      "pendingRow": 777,
+      "crmWrites": 0
+    },
+    {
+      "check": "CRM frontend build and Docker E2E",
+      "status": "NOT RUN",
+      "reason": "No CRM frontend changes; current task is n8n draft"
+    },
+    {
+      "execution": 24,
+      "check": "All rows deferred fails visibly after final review correction",
+      "status": "PASS",
+      "expectedWorkflowStatus": "error"
+    },
+    {
+      "execution": 25,
+      "check": "Rotating batch wraps around and still selects25",
+      "status": "PASS",
+      "selected": [
+        106,
+        107,
+        108,
+        109,
+        110,
+        111,
+        112,
+        113,
+        114,
+        115,
+        116,
+        117,
+        118,
+        119,
+        120,
+        121,
+        122,
+        123,
+        124,
+        125,
+        126,
+        127,
+        128,
+        129,
+        100
+      ]
+    },
+    {
+      "execution": 26,
+      "check": "Authorized Gmail test to miguel@miavance.com",
+      "status": "PASS",
+      "messagesSent": 1
+    },
+    {
+      "execution": 27,
+      "check": "Disabled import node leaves pending rows and no receipts",
+      "status": "PASS",
+      "expectedWorkflowStatus": "error"
+    },
+    {
+      "execution": 28,
+      "check": "Hourly alert suppression prevents second email",
+      "status": "PASS",
+      "messagesSent": 0
+    },
+    {
+      "execution": 29,
+      "check": "Delete only isolated synthetic test table",
+      "status": "PASS"
+    },
+    {
+      "check": "Final local/main workflow parameter and graph parity",
+      "status": "PASS",
+      "nodes": 22,
+      "edges": 26
+    },
+    {
+      "check": "Production Error Trigger event and real lead import",
+      "status": "NOT RUN",
+      "reason": "Main import remains inactive pending CRM campaign support"
+    }
+  ],
+  "knownLimits": [
+    "Main import inactive; campaign field/backend/UI still pending.",
+    "At-least-once delivery: crash between CRM success and receipt can retry; existing CRM duplicate window is7 days.",
+    "Do not run manual import concurrently with the cron; use inactive workflow for supervised backfill.",
+    "Alerts originate from n8n; they cannot report total n8n/VPS outage.",
+    "Unchanging pending sets rotate every5 minutes; source corrections can change identity and permit reprocessing."
+  ],
+  "cleanup": {
+    "oldHarnessArchived": true,
+    "authProbeArchived": true,
+    "newHarnessArchived": true,
+    "testLedgerRemoval": "deleted KyI10xJJApbQOHRp in execution29",
+    "productionLedgerCount": 0
+  },
+  "alert": {
+    "workflowId": "4jfthNhVJLiZUeIo",
+    "active": true,
+    "recipient": "miguel@miavance.com",
+    "tableId": "TcpMCmhVw3oT9GjD",
+    "maxPerClockHour": 1,
+    "testSeparateFromProduction": true
+  },
+  "review": {
+    "reviews": 2,
+    "verdicts": [
+      "CHANGES_REQUESTED",
+      "CHANGES_REQUESTED"
+    ],
+    "finalFindingsDisposition": [
+      {
+        "finding": "Repeated timeouts starve later rows",
+        "action": "APPLIED: pure rotation by cron time bucket, every item eventually first; tests n1,2,5,25,30,127"
+      },
+      {
+        "finding": "External alert missing",
+        "action": "APPLIED after user selected email; Gmail OAuth configured manually, real test1mail and repeatedtest0"
+      },
+      {
+        "finding": "All deferred shown green",
+        "action": "APPLIED: final summary fails on zero definitive outcomes; exec24 verified"
+      },
+      {
+        "finding": "nextBatch tied to Limit name",
+        "action": "APPLIED: explicit loop flags,3 returnedges and26totaledges tested and remotecompared"
+      },
+      {
+        "finding": "Time-margin test hardcoded",
+        "action": "APPLIED: UMBRAL_MS and actual executionTimeout used"
+      },
+      {
+        "finding": "Manual+cron duplicate requests",
+        "action": "DOCUMENTED: supervisedmanual only when inactive; existingserverguard, at-least-once limitation"
+      },
+      {
+        "finding": "Actual HTTP error pairing unobserved",
+        "action": "VERIFIED independently in exec23"
+      },
+      {
+        "finding": "Credential type hypothesis",
+        "action": "REJECTED with current schema/docs and authenticated exec16; reviewer accepted evidence"
+      }
+    ]
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "estado": "PASS",
+  "directorio_privado_retirado": "/private/tmp/formulario3-fase3-privado",
+  "archivos_retirados": [
+    "branch.json",
+    "e2e.json",
+    "importar.env",
+    "n8n-auth.json",
+    "n8n-credencial.txt",
+    "usuarios.json"
+  ],
+  "secretos_en_artefactos": 0,
+  "docker": "Sin contenedor de ensayo F3 persistente; /f3-privado era un montaje temporal de solo lectura; trazas desactivadas",
+  "capturas_conservadas": [
+    "directorio-cartera.png",
+    "directorio-ficha.png"
+  ]
+}

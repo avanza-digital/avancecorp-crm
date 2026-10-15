@@ -498,6 +498,8 @@ export interface Lead {
   correo?: string | null
   etapa: Etapa
   origen: OrigenLectura
+  /** Campaña atribuida al alta por el servidor; no se edita en la ficha. */
+  readonly campania_origen?: string | null
   /**
    * Capital estimado. `null` SOLO cuando el servidor lo devuelve vacío: un contacto de base cargada sin capital
    * en el Excel (E8, Miguel 04/10/2026; la base lo permite solo con origen `base_cargada`). Nunca se inventa 0:

@@ -33,6 +33,7 @@ let CONSULTA_GERENCIA: { consulta: { gestionAnalista: { id: string; nombre: stri
 const ABRIR_LEAD = vi.fn()
 
 beforeEach(() => {
+  sessionStorage.clear()
   ABRIR_LEAD.mockClear()
   CONSULTAR_CARTERA.mockClear()
   ACTIVIDADES = []
@@ -91,6 +92,31 @@ vi.mock('@/data/use-cartera-paginada', async () => {
 })
 
 const { Cartera } = await import('./cartera')
+
+describe('Cartera · campaña de origen', () => {
+  it('rotula la campaña, conserva FORMULARIO y combina su filtro con los existentes', () => {
+    montar([
+      lead({ id: 'f3', nombre_completo: 'ALTA FORMULARIO', origen: 'formulario', campania_origen: 'Formulario 3' }),
+      lead({ id: 'viejo', nombre_completo: 'CONTACTO ANTERIOR', origen: 'formulario', campania_origen: null, nota: 'Reingreso por Formulario 3' }),
+      lead({ id: 'otra', nombre_completo: 'OTRA CAMPAÑA', campania_origen: 'Campaña anterior' }),
+    ])
+    const fila = screen.getByRole('row', { name: /ALTA FORMULARIO/ })
+    expect(fila).toHaveTextContent('Formulario 3')
+    expect(fila).toHaveTextContent('FORMULARIO')
+    expect(fila).toHaveAccessibleDescription('Campaña de origen: Formulario 3')
+    expect(screen.getByRole('row', { name: /CONTACTO ANTERIOR/ })).not.toHaveTextContent('Campaña de origen:')
+    const filtro = screen.getByLabelText('Filtrar por campaña')
+    fireEvent.change(filtro, { target: { value: 'Formulario 3' } })
+    expect(screen.queryByRole('row', { name: /CONTACTO ANTERIOR/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('row', { name: /OTRA CAMPAÑA/ })).not.toBeInTheDocument()
+    expect(within(chipDe('Total leads')).getByText('1')).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Filtrar por origen'), { target: { value: 'landing' } })
+    expect(screen.getByText('Sin resultados')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }))
+    expect(filtro).toHaveValue('todas')
+    expect(screen.getByRole('row', { name: /CONTACTO ANTERIOR/ })).toBeInTheDocument()
+  })
+})
 
 describe('Cartera · filtro Gestionado', () => {
   it('pide la clasificación al servidor, compone con origen y la retira al cambiar de etapa', () => {

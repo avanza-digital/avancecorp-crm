@@ -1,0 +1,42 @@
+{
+  "vendedor": {
+    "id": "0a713da7-6886-4794-b8b1-4c9f6f3fc0e2",
+    "email": "f3_vendedor_20261014@pruebas.invalid",
+    "dni": "49430091"
+  },
+  "gerencia": {
+    "id": "295be3ee-7411-4f28-beed-0deeebf90760",
+    "email": "f3_gerencia_20261014@pruebas.invalid",
+    "dni": "49430092"
+  },
+  "supervisor": {
+    "id": "5bad4098-3d30-4680-b340-9ea1cb41e104",
+    "email": "f3_supervisor_20261014@pruebas.invalid",
+    "dni": "49430093"
+  },
+  "vendedor_otro": {
+    "id": "3091ae93-3868-4767-a37c-b77f2df74013",
+    "email": "f3_vendedor_otro_20261014@pruebas.invalid",
+    "dni": "49430094"
+  },
+  "supervisor_otro": {
+    "id": "cd4edeef-25b4-47b4-a91d-f015c8745ce1",
+    "email": "f3_supervisor_otro_20261014@pruebas.invalid",
+    "dni": "49430095"
+  },
+  "coordinador": {
+    "id": "d92e382d-8c3c-4b14-86ec-4da2e01c82e5",
+    "email": "f3_coordinador_20261014@pruebas.invalid",
+    "dni": "49430096"
+  },
+  "inactivo": {
+    "id": "cf779b1c-8b70-4d6b-863b-389d3e09dadc",
+    "email": "f3_inactivo_20261014@pruebas.invalid",
+    "dni": "49430097"
+  },
+  "directorio": {
+    "id": "b7115713-5fab-4258-a4f8-59c9e11bd2b1",
+    "email": "f3_directorio_20261014@pruebas.invalid",
+    "dni": "49430098"
+  }
+}

@@ -1,0 +1,34 @@
+[
+  {
+    "nombre": "Auth creó vendedor sin enviar correo",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Auth creó gerencia sin enviar correo",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Auth creó supervisor sin enviar correo",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Auth creó vendedor_otro sin enviar correo",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Auth creó supervisor_otro sin enviar correo",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Auth creó coordinador sin enviar correo",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Auth creó inactivo sin enviar correo",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Auth creó directorio sin enviar correo",
+    "estado": "PASS"
+  }
+]

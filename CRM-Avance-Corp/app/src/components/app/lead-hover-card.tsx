@@ -55,6 +55,7 @@ export function LeadHoverCard({ lead, children }: { lead: Lead; children: ReactN
             <span className="tabular-nums">{lead.telefono}</span>
           </Fila>
           <Fila label="Origen">{origenLabel(lead.origen)}</Fila>
+          {lead.campania_origen && <Fila label="Campaña">{lead.campania_origen}</Fila>}
           {textoCargadoPor(lead) && <Fila label="Cargado por">{textoCargadoPor(lead)}</Fila>}
           {lead.categoria_interes && <Fila label="Interés">{CAT_LABEL[lead.categoria_interes]}</Fila>}
           <Fila label="Creado">{fmtFecha(lead.creado_en)}</Fila>

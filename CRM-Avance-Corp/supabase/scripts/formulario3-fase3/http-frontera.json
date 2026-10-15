@@ -1,0 +1,14 @@
+[
+  {
+    "nombre": "Gateway rechaza solicitud sin JWT",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Importador rechaza solicitud sin secreto",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Dos capas de autenticación válidas llegan a validación de filas",
+    "estado": "PASS"
+  }
+]

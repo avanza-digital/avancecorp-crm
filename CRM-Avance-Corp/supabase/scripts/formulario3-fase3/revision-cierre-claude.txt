@@ -1,0 +1,82 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+La corrección de la credencial está respaldada: el diff `1dbc8d0d → 95f649de` está vacío, y `limpieza.json` (00:11 UTC) lee `YNRHr2PjhfLXnKff`, `active=false`, `importarDisabled=true` y `enviar_crm=false`. La prueba de numerador ahora sí demuestra paridad de numerador y divisor (1/1) entre legacy y Formulario 3. No hay P0 ni P1.
+
+Quedan tres huecos de evidencia o documentación que afectan afirmaciones concretas del LEEME:
+- la línea base elegida es a su vez un autosave de UI sin explicar;
+- falta un historial posterior a la restauración;
+- hay una asimetría sin explicar en el reingreso legacy.
+
+El gate original sigue en FAIL y la fase 4 sigue sin autorizar. Eso ya está documentado y no lo repito como hallazgo.
+
+FINDINGS:
+
+[P2] La línea base «previa al ensayo» es un autosave de UI cuyo contenido no se demuestra
+File: `LEEME.md` («Estado de producción…»), `n8n-estados.json`
+Problem: El LEEME afirma que `95f649de` no tiene diferencias frente a `1dbc8d0d`, «previa al ensayo». Pero `1dbc8d0d` también es `autosaved:true` (20:49:44, autor UI), creado 19 minutos después de la última versión nominal por MCP, `cbc1ce82` (20:30:07). No se adjunta qué cambió entre `cbc1ce82` y `1dbc8d0d`. Además, el diff solo informa nodos y conexiones, no `settings`.
+Evidence: `historial_main` muestra dos autosaves consecutivos. `comparacion_tras_restaurar` solo compara contra `1dbc8d0d`. Hay una hipótesis plausible: el enlace `errorWorkflow: 4jfthNhVJLiZUeIo` o alguna selección de credencial pudo hacerse en ese autosave de las 20:49.
+Impact: Si `1dbc8d0d` ya contenía una selección accidental en la UI, la restauración la habría preservado y el diff vacío no lo detectaría.
+Recommendation: Adjunta el diff `cbc1ce82 → 95f649de`, o `cbc1ce82 → 1dbc8d0d`, incluyendo `settings`. Si no hay diferencias, o solo diferencias esperadas como el `errorWorkflow`, deja constancia en `n8n-estados.json` y ajusta la frase del LEEME.
+
+[P2] No hay historial posterior a la restauración y la causa (autosave de una pestaña del editor) puede repetirse
+File: `n8n-estados.json` (`historial_main`), `LEEME.md`
+Problem: El historial adjunto termina en `6de7addb`. No lista `95f649de` ni prueba que no haya autosaves posteriores. El origen fue un autosave de UI a las 23:49. Si sigue abierta una pestaña del editor con el estado antiguo (credencial `Ag61` seleccionada), la siguiente interacción puede volver a autosalvarlo.
+Evidence: `main_antes_de_restaurar.updatedAt` es 23:49:18 y coincide con `6de7addb (autosaved)`. `historial_main.count=8` no incluye la versión restaurada. `limpieza.json` lee el estado, pero no el historial.
+Impact: La afirmación «restaurado» es válida en un instante concreto, pero no queda protegida frente a una reaparición antes de la fase 4.
+Recommendation:
+- Pide a Miguel que cierre o recargue cualquier pestaña de `BjI5…`.
+- Vuelve a listar el historial y confirma que `95f649de` es la última versión.
+- Repite esa comprobación (historial y credencial del nodo «Importar en CRM») como precondición explícita de la fase 4.
+- Borrar la entrada `Ag61…` elimina la posibilidad de volver a seleccionarla. Sigue pendiente y no debe darse por hecho.
+
+[P2] Asimetría sin explicar en el primer reingreso legacy
+File: `conversion-real.json`, `conversion-real.mjs`
+Problem: La primera llamada de reingreso de Formulario 3 (fila 32) devuelve «reingreso **registrado** en su ficha». La primera de legacy (fila 31) devuelve «reingreso **ya anotado**», como si la nota existiera antes de esa llamada. El script no registra el resultado del alta (`importado` o `duplicado`) y acepta ambos: `assert.ok(['importado','duplicado'].includes(...))`.
+Evidence: `casos[1].resultados[0][0].estado` frente a `casos[4].resultados[0][0].estado`.
+Impact: Caben dos explicaciones:
+- (a) Hubo una ejecución previa parcial del caso legacy que sobrescribió la evidencia y no se declaró.
+- (b) La ruta legacy deduplica contra algo distinto que la ruta de campaña.
+
+Ambas debilitan la afirmación de paridad del reingreso, aunque la aserción final (una sola nota) pase en los dos casos.
+Recommendation: Explica la causa. Si fue (a), decláralo en el LEEME. Si fue (b), muestra qué deduplica ese primer intento. En lo sucesivo, guarda `alta.body.resultados` en la evidencia.
+
+[P3] `conversion-numerador.json` no tiene script ni consulta de origen
+File: `conversion-numerador.json`
+Problem: No se adjunta la consulta, vista o función que produjo los episodios y las filas de conversión, al contrario que con `conversion-real.mjs`. La rama ya está eliminada y no se puede reproducir.
+Observation (no es defecto de F3): `fecha_numerador` es `2026-10-14T05:00Z` (medianoche de Lima de `fecha_comercial`), anterior en tiempo absoluto a `fecha_divisor`. `monto`, `moneda` y `operacion_id` son nulos en el `cierre`. Es idéntico en legacy y en campaña, así que la paridad se sostiene.
+Recommendation: Versiona la consulta usada junto a la evidencia.
+
+[P3] El modo `preparado` del generador fija recursos ya retirados
+File: `scripts/n8n/formulario3.fase3.mjs`, `ENSAYO_VERIFICADO`, `REF`, `HOJA`, `TABLA`
+Problem: El generador queda en el repo con el ID de la credencial temporal, el `errorWorkflow` archivado, la rama eliminada, la hoja y la tabla. «Reproducible» solo es cierto como documentación de lo que se probó.
+Recommendation: Añade un comentario o nota en el LEEME de que esos IDs son históricos y no reutilizables, para que nadie ejecute `preparado` esperando un entorno vivo.
+
+[P3] Nombre del flujo de avisos productivo desactualizado
+File: `n8n-estados.json` (`alertas`)
+Evidence: La versión `82886ed4` se llama «pendiente conectar Gmail», pero el nodo ya tiene `gmailOAuth2: FNfEzbpTEsdutlzd`. `updatedAt` (20:36:15) es posterior al `createdAt` de la versión (20:35:36) sin que haya una versión nueva.
+Impact: Probablemente solo refleja la activación y la conexión de la credencial, pero el nombre induce a error.
+Recommendation: En la fase 4, al probar el aviso con su trigger manual, guarda una versión nominal con el nombre correcto.
+
+LÍMITES YA DOCUMENTADOS (sin acción nueva):
+- Gate original en FAIL y su complemento por SQL de gestión, que no ejercita la ruta de permisos que valida el gate.
+- NOT RUN de 5xx/timeout y del fallo de recibo en modo trigger.
+- Entrega «al menos una vez».
+- Avisos agrupados por hora de reloj.
+- 409 de Storage resuelto eliminando la rama completa.
+- Entrada de credencial `Ag61…` conservada. El LEEME no la da por borrada, lo cual es correcto.
+
+SECURITY RISKS:
+- La entrada `Ag61…` contiene un secreto de una rama ya inexistente, así que es inerte. El riesgo residual es solo de reselección accidental (ver P2).
+- En la ventana de 23:49 a 00:04 el nodo HTTP estaba deshabilitado y el flujo inactivo, así que no hubo envío posible. Con `saveDataSuccessExecution:'none'`, una ejecución manual correcta no dejaría rastro, aunque tampoco podría llamar al CRM.
+
+RECOMMENDED NEXT ACTIONS:
+1. Adjunta el diff `cbc1ce82 → 95f649de` con `settings` y ajusta el texto «previa al ensayo».
+2. Cierra las pestañas de UI, vuelve a listar el historial de `BjI5…` y fija esa comprobación como precondición de la fase 4.
+3. Explica la asimetría «ya anotado» del primer reingreso legacy.
+4. Versiona la consulta de `conversion-numerador.json` y marca como históricos los IDs de `ENSAYO_VERIFICADO`.
+5. Mantén el gate en FAIL y la fase 4 sin autorizar hasta su reparación o enmienda formal.
+
+CONFIDENCE:
+MEDIUM. Los estados y diffs de n8n y la evidencia de conversión son coherentes. Los dos P2 de n8n se deben a evidencia ausente, no a un defecto demostrado. El P2 de reingreso es una asimetría observada cuya causa no puedo determinar.

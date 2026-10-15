@@ -1,0 +1,94 @@
+{
+  "phase": 3,
+  "workflow": "OKrtxmixSxpfhVxE",
+  "sheet": "1QsB_sUVjPJIH4yVSHW7F7isCdGpWogTxfeXs3SNVpfU",
+  "sheetGid": 490643893,
+  "table": "0AGwleVZe229mdVe",
+  "credential": {
+    "id": "Ag61FRD4BJjGI4hZ",
+    "name": "Simplified Custom Auth account 2"
+  },
+  "alerts": {
+    "workflow": "K5zUJos1RrK1tMv4",
+    "table": "AzKAJhB5uALZDNuL",
+    "active": false
+  },
+  "tests": [
+    {
+      "id": "36",
+      "case": "Primer envío real",
+      "status": "PASS",
+      "importados": 2,
+      "recibos": 2
+    },
+    {
+      "id": "37",
+      "case": "Repetir sin cambios",
+      "status": "PASS",
+      "httpInvocations": 0
+    },
+    {
+      "id": "39",
+      "case": "Mover filas",
+      "status": "PASS",
+      "httpInvocations": 0
+    },
+    {
+      "id": "41",
+      "case": "Contacto existente y moneda inválida",
+      "status": "PASS",
+      "duplicados": 1,
+      "rechazados": 1
+    },
+    {
+      "id": "43",
+      "case": "401 controlado",
+      "status": "PASS_EXPECTED_ERROR",
+      "recibo_de_pendiente": false
+    },
+    {
+      "id": "44",
+      "case": "Aviso automático real",
+      "status": "PASS",
+      "mode": "error",
+      "gmail_id": "1a13cd4a1cb53998"
+    },
+    {
+      "id": "45",
+      "case": "Segundo 401 controlado",
+      "status": "PASS_EXPECTED_ERROR"
+    },
+    {
+      "id": "46",
+      "case": "Aviso repetido suprimido en misma hora",
+      "status": "PASS",
+      "gmailInvocations": 0
+    },
+    {
+      "id": "47",
+      "case": "Recuperar pendiente",
+      "status": "PASS",
+      "importados": 1
+    },
+    {
+      "id": "49",
+      "case": "Fallo al guardar recibo después de alta",
+      "status": "PASS_EXPECTED_ERROR"
+    },
+    {
+      "id": "50",
+      "case": "Recuperar confirmación y continuar",
+      "status": "PASS",
+      "duplicados": 1,
+      "importados": 1
+    }
+  ],
+  "note": "Recursos temporales; producción permanece desactivada.",
+  "estado_final": "ARCHIVADO; RAMA, HOJA Y TABLAS RETIRADAS",
+  "ajustes_ensayo": {
+    "errorWorkflow": "K5zUJos1RrK1tMv4",
+    "cron": "0 0 1 1 *",
+    "reproducible": "definicion({preparado:true})"
+  },
+  "semantica_recibo": "Tras éxito CRM sin recibo, el reintento puede quedar duplicado. Contar altas desde CRM; no sumar recibos importado."
+}

@@ -1,0 +1,39 @@
+[
+  {
+    "momento": "2026-10-15 01:09:15.806752+00",
+    "leads": 3687,
+    "perfiles": 651,
+    "auth_users": 651,
+    "ultima_migracion": "20261014185718",
+    "funciones": [
+      {
+        "firma": "crm.cartera_pagina_fn(integer,timestamp with time zone,uuid,text,uuid,boolean,text)",
+        "huella": "4bbfd838ef6665f3bdad4603fa400e65"
+      },
+      {
+        "firma": "crm.cierres_estado_fn(uuid[])",
+        "huella": "5f6eca13b613aaa40b459ea56f7c8ac5"
+      },
+      {
+        "firma": "crm.importar_lead_fn(jsonb)",
+        "huella": "0518b2643f258ca458d3a6acc492a7bf"
+      },
+      {
+        "firma": "crm.registrar_reingreso_lead_fn(uuid,text,jsonb)",
+        "huella": "c3c4ab696ba6f3e30895cae1a9a27b77"
+      },
+      {
+        "firma": "private.registrar_solicitud_cliente_fn(uuid,text,jsonb)",
+        "huella": "23c2b6216684ac77801e39af5efe4b7c"
+      },
+      {
+        "firma": "crm.resumen_cartera_fn()",
+        "huella": "4a896597486e8b23788a2b2497f16309"
+      },
+      {
+        "firma": "crm.cartera_filtrada_fn(integer,timestamp with time zone,uuid,text,uuid,boolean,text,date,date,text,text,boolean,text,text)",
+        "huella": "23a63cc3965472b9db85aa81cadffbeb"
+      }
+    ]
+  }
+]

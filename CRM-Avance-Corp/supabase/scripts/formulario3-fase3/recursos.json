@@ -1,0 +1,37 @@
+{
+  "fase": 3,
+  "estado": "VALIDADA_SIN_PUBLICAR",
+  "produccion": "dctqcbznekcyxhjujuci",
+  "rama": {
+    "nombre": "formulario3-fase3-20261014",
+    "id": "5ee659f3-56b1-49e2-af96-8d3bd9502887",
+    "ref": "bxkborlvpmuwttzjrjqn",
+    "creada_utc": "2026-10-14T23:18:19.563963Z",
+    "con_datos": true,
+    "cron_total": 12,
+    "cron_activos": 0,
+    "webhooks_detectados": 0,
+    "coste_hora_usd": 0.01344,
+    "eliminar_al_terminar": true,
+    "eliminada": true
+  },
+  "n8n": {
+    "principal": "BjI5m1PKVWhO0NDb",
+    "principal_activo": false,
+    "fixtures": "YheEXeO0m5kO7ayj",
+    "tabla_recibos": "0AGwleVZe229mdVe",
+    "ensayo": "OKrtxmixSxpfhVxE",
+    "ensayo_activo": false,
+    "avisos": "K5zUJos1RrK1tMv4",
+    "avisos_activo": false,
+    "tabla_avisos": "AzKAJhB5uALZDNuL",
+    "credencial_temporal": "Ag61FRD4BJjGI4hZ",
+    "hoja_temporal": "1QsB_sUVjPJIH4yVSHW7F7isCdGpWogTxfeXs3SNVpfU",
+    "gid": 490643893,
+    "temporales_archivados": true,
+    "tablas_hoja_retiradas": true,
+    "credencial_temporal_eliminada": true,
+    "principal_version_cierre": "29940eb5-d36c-49c7-bf7f-686b66cc3f76"
+  },
+  "figma": "https://www.figma.com/board/JB4jRdmLXZXS0hBhEHxRbV?node-id=2-34"
+}

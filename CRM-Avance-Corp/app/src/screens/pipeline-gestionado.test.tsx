@@ -232,10 +232,10 @@ describe('Pipeline con listas reales · «Nuevo» y «Gestionado» no comparten 
     const claves = cliente.getQueryCache().findAll({ queryKey: [...crmQueryKeys.leads(), 'cartera-pagina', 'nuevo'] })
       .map((q) => q.queryKey)
     expect(claves).toHaveLength(2)
-    // La gestión es el PENÚLTIMO componente de la clave; el último es el potencial
-    // (filtro de Leads), que el Pipeline no usa: `null`.
-    expect(claves.map((clave) => clave.at(-2)).sort()).toEqual(['con_gestion', 'sin_gestion'])
-    expect(claves.map((clave) => clave.at(-1))).toEqual([null, null])
+    // La cola de filtros incluye gestión, potencial y campaña. El Pipeline
+    // conserva sus recortes de gestión y no pide potencial ni campaña.
+    expect(claves.map((clave) => clave.at(-3)).sort()).toEqual(['con_gestion', 'sin_gestion'])
+    expect(claves.map((clave) => clave.slice(-2))).toEqual([[null, 'todas'], [null, 'todas']])
   })
 })
 

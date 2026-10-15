@@ -106,6 +106,7 @@ import {
 } from '@/lib/tipos'
 import { ChipProcedencia } from '@/components/app/procedencia-chip'
 import { ChipReasignado } from '@/components/app/reasignado-chip'
+import { ChipCampania } from '@/components/app/campania-chip'
 import { fechaLima, proximoSlotSugerido, tareaAEvento } from '@/lib/agenda-derivada'
 import { tituloProximaAccion } from '@/lib/campos-siguiente'
 import { presentarCitas } from '@/lib/terminologia'
@@ -243,6 +244,7 @@ function Ficha({ l }: { l: Lead }) {
                 <Badge color="var(--chart-4)">Inversión · {CAT_LABEL[l.categoria_interes]}</Badge>
               )}
               <Badge color="var(--muted-foreground)">{origenLabel(l.origen)}</Badge>
+              <ChipCampania lead={l} />
               <ChipProcedencia lead={l} conNombre />
               <ChipReasignado lead={l} />
               <ChipPotencialDeLead leadId={l.id} />

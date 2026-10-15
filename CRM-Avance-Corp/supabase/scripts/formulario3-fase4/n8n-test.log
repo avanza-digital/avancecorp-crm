@@ -1,0 +1,33 @@
+✔ el aviso usa el destinatario autorizado y excluye mensajes crudos, secretos y datos personales (0.478375ms)
+✔ la clave agrupa errores de la misma hora y separa las pruebas del aviso real (0.101625ms)
+✔ el recibo del aviso se escribe después de Gmail y ambas tablas apuntan al registro de avisos (0.749916ms)
+✔ datos inesperados del error no fabrican enlaces ni contenido en el correo (0.1405ms)
+✔ el rango de capital conserva el piso decidido para el puente y no fabrica un promedio (1.074042ms)
+✔ un capital ambiguo, invertido, ausente o fuera de límite necesita revisión (0.172334ms)
+✔ monedas con emojis, subrayados y tildes se reconocen; se conserva la regla de moneda mixta (0.865375ms)
+✔ la importación conserva los dos candidatos a teléfono, la fecha, las respuestas y la campaña (0.257458ms)
+✔ un primer teléfono vacío no elimina una fila que conserva el segundo (0.089875ms)
+✔ una fila incompleta se expone en el resumen y no se anuncia como preparada (0.137084ms)
+✔ una fila enteramente vacía de la hoja se omite, sin ocultar una fila parcialmente rellenada (0.087833ms)
+✔ mover una fila no cambia su huella; corregir datos sí permite un nuevo intento (0.14725ms)
+✔ solo una respuesta completa, definitiva y de la misma fila produce un recibo (0.60375ms)
+✔ la etiqueta permanece al limitar la nota; tipos inesperados no se convierten en datos comerciales (0.186917ms)
+✔ un encabezado opcional renombrado detiene la lectura antes de reenviar el histórico (0.203792ms)
+✔ el recorte de nota no deja un surrogate suelto y advierte sobre divisas contradictorias (0.08075ms)
+✔ una fila pendiente no se presenta como importada y deja la ejecución en error después del resumen (0.185709ms)
+✔ cada pendiente llega al primer puesto en un ciclo completo, aunque los anteriores fallen (0.465875ms)
+✔ el lote vacío no inventa una fila y los parámetros inválidos fallan (0.06675ms)
+✔ el borrador reproduce la hoja y credenciales verificadas, con el envío cerrado (0.409ms)
+✔ los recibos de lectura y escritura usan la misma tabla y la simulación conserva su control (0.108416ms)
+✔ los errores vuelven al bucle sin entrar al registro definitivo (0.452833ms)
+✔ el lote y margen de tiempo dejan espacio para los tres intentos HTTP (0.104125ms)
+✔ el banco exige tabla aislada y sustituye todas las lecturas y llamadas externas (0.424459ms)
+✔ el SDK deriva conexiones y grupos por nombre, incluso si se reordenan nodos (0.576042ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 47.430208

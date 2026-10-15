@@ -1,0 +1,95 @@
+{
+  "fecha_utc": "2026-10-15T00:11:18.303Z",
+  "rama": {
+    "id": "5ee659f3-56b1-49e2-af96-8d3bd9502887",
+    "ref": "bxkborlvpmuwttzjrjqn",
+    "eliminacion": {
+      "success": true
+    },
+    "ausente_en_listado": true,
+    "otras_ramas": [
+      {
+        "id": "dff61d67-6c6e-4564-811b-e0458ed12747",
+        "nombre": "banco-f7",
+        "ref": "cwkiejoaqadcnaieghnf"
+      },
+      {
+        "id": "e8dd9b77-b6dd-49a0-b452-a971efb4e8ba",
+        "nombre": "main",
+        "ref": "dctqcbznekcyxhjujuci"
+      },
+      {
+        "id": "67970245-d541-4d8a-8716-7a09abcade26",
+        "nombre": "plan-backend-fase4",
+        "ref": "gdozieobriieniindgeo"
+      }
+    ]
+  },
+  "n8n": {
+    "hoja_eliminada_http": 204,
+    "tablas_eliminadas": [
+      "0AGwleVZe229mdVe",
+      "AzKAJhB5uALZDNuL"
+    ],
+    "tablas_temporales_restantes": 0,
+    "flujos_archivados": [
+      "OKrtxmixSxpfhVxE",
+      "K5zUJos1RrK1tMv4",
+      "YheEXeO0m5kO7ayj"
+    ],
+    "flujos_en_busqueda_activa": 0,
+    "credencial_temporal": {
+      "id": "Ag61FRD4BJjGI4hZ",
+      "presente_en_mcp": false,
+      "estado": "ELIMINADA_POR_USUARIO_Y_AUSENCIA_VERIFICADA_MCP",
+      "credencial_original_conservada": true,
+      "destino_eliminado": true,
+      "asignada_al_principal": false,
+      "fecha_utc": "2026-10-15T00:30:21.783Z"
+    }
+  },
+  "produccion": {
+    "sql": [
+      {
+        "campania_publicada": false,
+        "leads_de_ensayo_en_produccion": 0
+      }
+    ],
+    "workflow": {
+      "id": "BjI5m1PKVWhO0NDb",
+      "versionId": "29940eb5-d36c-49c7-bf7f-686b66cc3f76",
+      "active": false,
+      "activeVersionId": null,
+      "updatedAt": "2026-10-15T00:29:19.196Z",
+      "importarDisabled": true,
+      "credencial": {
+        "httpTemplatedCustomAuth": {
+          "id": "YNRHr2PjhfLXnKff",
+          "name": "Simplified Custom Auth account"
+        }
+      },
+      "control": {
+        "mode": "raw",
+        "jsonOutput": "={{ JSON.stringify({enviar_crm:false,simular_registro:false,inicio_ms:$now.toMillis()}) }}",
+        "options": {}
+      },
+      "settings": {
+        "executionOrder": "v1",
+        "availableInMCP": true,
+        "timezone": "America/Lima",
+        "executionTimeout": 180,
+        "saveManualExecutions": true,
+        "saveDataErrorExecution": "all",
+        "saveDataSuccessExecution": "none",
+        "errorWorkflow": "4jfthNhVJLiZUeIo",
+        "binaryMode": "separate"
+      }
+    },
+    "recibos": 0
+  },
+  "storage": {
+    "eliminacion_individual": "FAIL 409: FK de la inversión impide retirar comprobante",
+    "resolucion": "Se elimina toda la rama autorizada mediante API de Supabase; no se relajan restricciones"
+  },
+  "actualizacion_limpieza_utc": "2026-10-15T00:30:21.783Z"
+}

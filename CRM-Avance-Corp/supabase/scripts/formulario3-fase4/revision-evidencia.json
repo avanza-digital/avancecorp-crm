@@ -1,0 +1,30 @@
+{
+  "cli_destino": {
+    "estado": "PASS",
+    "version": "2.117.0",
+    "enlace_local_ficticio": "aaaaaaaaaaaaaaaaaaaa",
+    "destino_explicito": "dctqcbznekcyxhjujuci",
+    "resultado": [
+      {
+        "anon_crm": false,
+        "anon_insert": false,
+        "anon_select": false,
+        "anon_update": false,
+        "meta_revision_nullable": "NO",
+        "solo_lectura": "on"
+      }
+    ]
+  },
+  "rls_fallo": [
+    {
+      "opcion": "--formulario3",
+      "exit_code": 1,
+      "estado": "PASS: el fallo no se oculta"
+    },
+    {
+      "opcion": "--formulario3-fase2",
+      "exit_code": 1,
+      "estado": "PASS: el fallo no se oculta"
+    }
+  ]
+}

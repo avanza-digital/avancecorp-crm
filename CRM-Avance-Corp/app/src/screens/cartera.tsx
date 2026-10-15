@@ -19,6 +19,9 @@ import { TablaEnvoltura, Td, Th, TheadCrm } from '@/components/common/tabla'
 import { ETAPAS, TERMINALES, MOTIVOS_DESCARTE_LECTURA, CAT_LABEL, ORIGENES, ORIGENES_HEREDADOS, origenLabel, type Etapa, type Origen, type Procedencia } from '@/lib/tipos'
 import { ChipProcedencia } from '@/components/app/procedencia-chip'
 import { ChipReasignado } from '@/components/app/reasignado-chip'
+import { ChipCampania } from '@/components/app/campania-chip'
+import { CAMPANIAS, esFiltroCampania } from '@/lib/campania'
+import { useFiltroCampania } from '@/lib/use-filtro-campania'
 import { ChipPotencial } from '@/components/app/potencial-chip'
 import { FiltroPotencialCartera } from '@/components/app/potencial-filtro'
 import { idsDescripcion, potencialFila } from '@/components/app/potencial-efectos'
@@ -180,6 +183,7 @@ export function Cartera() {
   const [q, setQ] = useState('')
   const [fEtapa, setFEtapa] = useState<FiltroEtapa>('todas')
   const [fOrigen, setFOrigen] = useState<FiltroOrigen>('todos')
+  const [fCampania, setFCampania] = useFiltroCampania(yo ? `${yo.demo ? 'demo' : 'real'}:${yo.id}` : null)
   const [fProc, setFProc] = useState<FiltroProcedencia>('todas')
   const [fReasignados, setFReasignados] = useState(false)
   // Potencial del lead: un nivel a la vez o «sin marcar»; null = sin filtro.
@@ -212,10 +216,10 @@ export function Cartera() {
     useMemo(
       () => ({ etapa: fEtapa === 'gestionado' ? 'nuevo' : fEtapa,
         ...(fEtapa === 'gestionado' ? { gestion: 'con_gestion' as const } : {}),
-        vendedorId: fVend, texto: qDiferido, origen: fOrigen, procedencia: fProc, reasignados: fReasignados,
+        vendedorId: fVend, texto: qDiferido, origen: fOrigen, campania: fCampania, procedencia: fProc, reasignados: fReasignados,
         ...(fPotencial ? { potencial: fPotencial } : {}),
         recepcion: periodo }),
-      [fEtapa, fVend, qDiferido, fOrigen, fProc, fReasignados, fPotencial, periodo],
+      [fEtapa, fVend, qDiferido, fOrigen, fCampania, fProc, fReasignados, fPotencial, periodo],
     ),
   )
   // Fase 4e: el store conoce lo que la tabla muestra (verbos de escritura por id).
@@ -344,7 +348,7 @@ export function Cartera() {
     toast.info('El filtro por potencial ya no está disponible. Se quitó de la lista.')
   }, [potencialApagado])
 
-  const hayFiltro = q.trim() !== '' || fEtapa !== 'todas' || fOrigen !== 'todos' || fProc !== 'todas' || fReasignados || fPotencial !== null || fVend !== 'todos' || modoFecha !== 'todas'
+  const hayFiltro = q.trim() !== '' || fEtapa !== 'todas' || fOrigen !== 'todos' || fCampania !== 'todas' || fProc !== 'todas' || fReasignados || fPotencial !== null || fVend !== 'todos' || modoFecha !== 'todas'
 
   // El nombre del analista lo resuelve el roster: `crm.leads` guarda el id y la
   // RPC de la página no lo desnormaliza (el store hace lo mismo con su ámbito).
@@ -493,6 +497,14 @@ export function Cartera() {
             </optgroup>
           </Select>
         </div>
+        <div className="w-[180px]">
+          <Select aria-label="Filtrar por campaña" value={fCampania} onChange={(e) => {
+            if (esFiltroCampania(e.target.value)) setFCampania(e.target.value)
+          }}>
+            <option value="todas">Todas las campañas</option>
+            {CAMPANIAS.map((campania) => <option key={campania} value={campania}>{campania}</option>)}
+          </Select>
+        </div>
         {/* Procedencia: quién lo metió (puente vs. persona). Es otra pregunta que
             el origen: desde el 01/09 un LANDING puede haberlo cargado un analista. */}
         <div className="w-[170px]">
@@ -533,7 +545,7 @@ export function Cartera() {
             de 300» contando un array parcial es justo la mentira que esta fase
             viene a matar. */}
         {hayFiltro && <Button variant="ghost" size="sm" onClick={() => {
-          setQ(''); setFEtapa('todas'); setFOrigen('todos'); setFProc('todas'); setFReasignados(false); setFPotencial(null); setFVend('todos'); setModoFecha('todas')
+          setQ(''); setFEtapa('todas'); setFOrigen('todos'); setFCampania('todas'); setFProc('todas'); setFReasignados(false); setFPotencial(null); setFVend('todos'); setModoFecha('todas')
         }}>Limpiar filtros</Button>}
         {/* La región viva queda SIEMPRE montada y solo cambia su texto: una
             región que aparece ya escrita no se anuncia de forma fiable, y es el
@@ -626,6 +638,7 @@ export function Cartera() {
                       aria-describedby={idsDescripcion(
                         potencial.porLead.get(l.id)?.nivel && `potencial-${l.id}`,
                         descripcionProcedencia(l) && `procedencia-${l.id}`,
+                        l.campania_origen && `campania-${l.id}`,
                       )}
                       onClick={() => abrirLead(l.id)}
                       onKeyDown={(ev) => {
@@ -644,13 +657,14 @@ export function Cartera() {
                             <div className="leading-tight">
                               {/* text-[13px]: misma densidad de nombre que FilaCliente/
                                   FilaContrato — las tres carteras leen como una familia. */}
-                              <p className="flex items-center gap-1.5 text-[13px] font-semibold">
+                              <p className="flex flex-wrap items-center gap-1.5 text-[13px] font-semibold">
                                 {l.nombre_completo}
                                 <ChipPotencial id={`potencial-${l.id}`} marca={potencial.porLead.get(l.id)} />
                                 {/* Procedencia a simple vista, pegada al nombre: lo manual
                                     en azul, lo del sistema en gris silencioso. */}
                                 <ChipProcedencia lead={l} />
                                 <ChipReasignado lead={l} />
+                                <ChipCampania id={`campania-${l.id}`} lead={l} />
                                 {descripcionProcedencia(l) && (
                                   <span id={`procedencia-${l.id}`} className="sr-only">{descripcionProcedencia(l)}</span>
                                 )}

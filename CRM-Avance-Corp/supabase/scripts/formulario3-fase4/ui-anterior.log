@@ -1,0 +1,7 @@
+
+Running 2 tests using 1 worker
+
+  ✓  1 [frontend-vivo-base-nueva] › e2e-integration/formulario3-anterior.spec.ts:11:3 › vendedor: ZIP anterior con base nueva, Cartera, ficha y Pipeline (7.9s)
+  ✓  2 [frontend-vivo-base-nueva] › e2e-integration/formulario3-anterior.spec.ts:11:3 › gerencia: ZIP anterior con base nueva, Cartera, ficha y Pipeline (10.1s)
+
+  2 passed (19.0s)
