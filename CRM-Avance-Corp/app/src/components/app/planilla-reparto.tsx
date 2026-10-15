@@ -4,7 +4,7 @@ import { cargarPlanilla, type DatosPlanilla } from '@/data/planilla-reparto'
 import { repartirLead } from '@/data/crm-api'
 import { hoyLimaIso } from '@/lib/distribucion-lecturas'
 import { ORIGENES_LECTURA, origenLabel, type OrigenLectura } from '@/lib/tipos'
-import { ejecutarReparto, fechasPeriodo, filasPlanilla, filtrarColaPlanilla, periodoInicial, prepararReparto, type BorradorReparto, type EntregaPreparada, type ResultadoReparto } from '@/lib/planilla-reparto'
+import { ejecutarReparto, fechasPeriodo, filasPlanilla, filtrarColaPlanilla, maximoCantidadReparto, periodoInicial, prepararReparto, type BorradorReparto, type EntregaPreparada, type ResultadoReparto } from '@/lib/planilla-reparto'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -101,6 +101,15 @@ export function PlanillaReparto({ activo = true, revision = 0, onCambio, onOcupa
   const desglose = useMemo(() => vista === 'dias' && datos ? datos.dias.flatMap((dia) => filasPlanilla(datos.supervisores, [dia], origenes, supervisorFiltro).map((fila) => ({ ...fila, fecha: dia.fecha }))) : [], [vista, datos, origenes, supervisorFiltro])
   const pagina = paginar(desglose, paginaDesglose)
 
+  function cambiarCantidad(supervisorId: string, origen: OrigenLectura, texto: string) {
+    if (texto && !/^\d+$/.test(texto)) { setAviso('Escribe una cantidad entera mayor o igual a cero.'); return }
+    const maximo = maximoCantidadReparto(borrador, supervisorId, origen, disponibilidad[origen] ?? 0)
+    const excede = Number(texto) > maximo
+    setAviso(excede ? `Solo puedes preparar hasta ${maximo} de ${origenLabel(origen)} en esta casilla. Se ajustó la cantidad a ese máximo.` : '')
+    setErrorRevision(null)
+    setBorrador((actual) => ({ ...actual, [supervisorId]: { ...actual[supervisorId], [origen]: texto === '' ? '' : String(Math.min(Number(texto), maximoCantidadReparto(actual, supervisorId, origen, disponibilidad[origen] ?? 0))) } }))
+  }
+
   async function revisar() {
     if (candado.current || seleccion.error || !totalPreparado) return
     candado.current = true
@@ -172,7 +181,8 @@ export function PlanillaReparto({ activo = true, revision = 0, onCambio, onOcupa
           <div><p className="text-xs text-muted-foreground">Preparados para hoy</p><p className="text-xl font-bold tabular-nums">{totalPreparado}</p></div>
           <div><p className="text-xs text-muted-foreground">Pendientes después del plan</p><p className="text-xl font-bold tabular-nums">{errorPlan ? '—' : cola.length - totalPreparado}</p></div>
         </div>
-        <div className="flex flex-wrap gap-2 text-xs">{origenes.map((origen) => <span key={origen} className="rounded-md border border-border px-2 py-1">{origenLabel(origen)}: <strong>{disponibilidad[origen]}</strong> disponibles</span>)}</div>
+        <div className="flex flex-wrap gap-2 text-xs">{origenes.map((origen) => <span key={origen} className="rounded-md border border-border px-2 py-1">{origenLabel(origen)}: <strong>{disponibilidad[origen]}</strong> disponibles · <strong>{maximoCantidadReparto(borrador, null, origen, disponibilidad[origen] ?? 0)}</strong> sin preparar</span>)}</div>
+        <p className="text-xs text-muted-foreground">Cada casilla permite como máximo lo que queda de ese origen, descontando lo preparado para los demás supervisores.</p>
         <p className="text-xs text-muted-foreground">Entregas del {seleccion.reparto[0]} al {seleccion.reparto.at(-1)}{reparto.modo === 'dias' ? ' (solo los días seleccionados)' : ''}. Se cuenta cada entrada a bandeja, aunque luego pase a un analista.</p>
         <fieldset className="min-w-0" disabled={ocupado || !datos.repartoLibre || plan !== null}>
           <TablaEnvoltura ariaLabel="Planilla de reparto">
@@ -180,7 +190,7 @@ export function PlanillaReparto({ activo = true, revision = 0, onCambio, onOcupa
             <tbody>{filas.map((fila) => <tr key={fila.id} className="border-b border-border/70">
               <Th scope="row" className="text-left text-xs font-semibold">{fila.nombre}{!fila.activo ? <span className="block text-[11px] font-normal text-muted-foreground">Solo histórico</span> : null}</Th>
               <Td className="text-right tabular-nums">{fila.recibidos}</Td>
-              {origenes.map((origen) => <Td key={origen}><Input className="min-w-20 max-w-24 text-right tabular-nums" type="number" min="0" step="1" inputMode="numeric" disabled={!fila.activo} aria-label={`Enviar ${origenLabel(origen)} a ${fila.nombre}`} value={borrador[fila.id]?.[origen] ?? ''} placeholder="0" onChange={(e) => { setAviso(''); setErrorRevision(null); setBorrador((actual) => ({ ...actual, [fila.id]: { ...actual[fila.id], [origen]: e.target.value } })) }} /></Td>)}
+              {origenes.map((origen) => <Td key={origen}><Input className="min-w-20 max-w-24 text-right tabular-nums" type="number" min="0" max={maximoCantidadReparto(borrador, fila.id, origen, disponibilidad[origen] ?? 0)} step="1" inputMode="numeric" disabled={!fila.activo} aria-label={`Enviar ${origenLabel(origen)} a ${fila.nombre}`} value={borrador[fila.id]?.[origen] ?? ''} placeholder="0" onChange={(e) => cambiarCantidad(fila.id, origen, e.target.value)} /></Td>)}
               <Td className="text-right tabular-nums">{cantidadFila(fila.id)}</Td><Td className="text-right font-semibold tabular-nums">{fila.recibidos + (incluyeHoy ? cantidadFila(fila.id) : 0)}</Td>
             </tr>)}{!filas.length ? <tr><Td colSpan={origenes.length + 4}>No hay supervisores para estos filtros.</Td></tr> : null}</tbody>
             <tfoot><tr className="bg-muted/30 font-semibold"><Th scope="row" className="text-left">Total seleccionado</Th><Td className="text-right">{suma(filas.map((f) => f.recibidos))}</Td>{origenes.map((origen) => <Td key={origen} className="text-right">{suma(filas.map((f) => Number(borrador[f.id]?.[origen]) || 0))}</Td>)}<Td className="text-right">{totalPreparado}</Td><Td className="text-right">{suma(filas.map((f) => f.recibidos)) + (incluyeHoy ? totalPreparado : 0)}</Td></tr></tfoot>

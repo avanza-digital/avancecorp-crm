@@ -72,6 +72,12 @@ export function filasPlanilla(supervisores: SupervisorReparto[], dias: DiaAgenda
 export type BorradorReparto = Record<string, Partial<Record<OrigenLectura, string>>>
 export interface EntregaPreparada { lead: ColaLead; supervisorId: string; supervisorNombre: string }
 
+/** Cada origen comparte disponibilidad entre todos los destinos; editar una celda libera su cantidad anterior. */
+export function maximoCantidadReparto(borrador: BorradorReparto, supervisorId: string | null, origen: OrigenLectura, disponibles: number): number {
+  const preparadosEnOtros = Object.entries(borrador).reduce((total, [id, cantidades]) => id === supervisorId ? total : total + (Number(cantidades[origen]) || 0), 0)
+  return Math.max(0, disponibles - preparadosEnOtros)
+}
+
 /** Fija IDs una sola vez para revisión: FIFO por ingreso al CRM, sin sustituciones durante el envío. */
 export function prepararReparto(borrador: BorradorReparto, cola: ColaLead[], destinos: FilaPlanilla[], origenes: OrigenLectura[]): EntregaPreparada[] {
   const filas = new Map(destinos.map((fila) => [fila.id, fila]))
