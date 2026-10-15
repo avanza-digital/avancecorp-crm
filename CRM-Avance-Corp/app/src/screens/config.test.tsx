@@ -28,6 +28,9 @@ vi.mock('@/components/app/calendario-google', () => ({
   CalendarioGoogle: () => <div>Calendario personal</div>,
 }))
 
+vi.mock('@/components/config/plazo-carga-mes', () => ({
+  PlazoCargaMesPanel: () => <div>Tarjeta del plazo de carga</div>,
+}))
 vi.mock('@/components/config/reparto-libre', () => ({
   RepartoLibre: () => <div>Control de reparto libre</div>,
 }))
@@ -86,6 +89,17 @@ describe('Configuración y riel operativo', () => {
     dobles.yo = identidad({ rol, demo: false })
     render(<Config />)
     expect(screen.queryByText('Control de reparto libre') !== null).toBe(rol === 'gerencia')
+  })
+
+  it.each(['gerencia', 'supervisor', 'vendedor', 'directorio', 'coordinador'] as const)('solo Gerencia real ve el plazo de carga: %s', (rol) => {
+    dobles.yo = identidad({ rol, demo: false })
+    render(<Config />)
+    expect(screen.queryByText('Tarjeta del plazo de carga') !== null).toBe(rol === 'gerencia')
+  })
+
+  it('Gerencia demo no muestra el plazo de carga real', () => {
+    render(<Config />)
+    expect(screen.queryByText('Tarjeta del plazo de carga')).not.toBeInTheDocument()
   })
 
   it('Gerencia demo no muestra un control real de reparto', () => {

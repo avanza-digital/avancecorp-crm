@@ -1,6 +1,6 @@
 # Plazo de carga por mes (migración 20261015000852)
 
-**Estado (15/10/2026, Lima): APLICADA, REGISTRADA Y VERIFICADA EN PRODUCCIÓN (~10:40, pasos 1–4 de abajo).** Sigue: publicar el front (paso 6), que Gerencia fije el plazo de septiembre (paso 7) y reactivar el ciclo (paso 8). El primer ensayo en producción (15/10, 01:15) se negó sin escribir: `crm.cerrar_periodo` está declarada en el censo analítico de producción y el banco de solo esquema no tenía esa fila. Corregido con el re-sellado de su huella (plantilla de `20261013145852`) y probado sobre los registros reales de producción.
+**Estado (15/10/2026, Lima): COMPLETO.** Migración aplicada, registrada y verificada (~10:40); front publicado con la tarjeta en Configuración (`f2b7d6af`, 12:28); Gerencia fijó septiembre al 21/10/2026 (primer intento en 2926 por error de tipeo, corregido con otra decisión) y el ciclo diario quedó reactivado (`reactivar-ciclo.sql`).
 
 Gerencia decide hasta qué día se pueden cargar las ventas de un mes (sin tope; nunca antes del día 10 del mes
 siguiente; solo un mes con metas publicadas, porque el ciclo solo sella esos: revisión Codex r2) y, si ese mes ya está
@@ -63,7 +63,7 @@ Orden por dirección: **servidor primero** (la pantalla nueva llama a dos funcio
    pausa).
 5. **Tipos**: en `app/`, `npm run gen:types`; debe salir igual al `database.types.ts` de esta rama (79 líneas nuevas:
    las dos tablas y las dos funciones).
-6. **Front**: fusionar la PR y `/release-crm` (tarjeta «Plazo de carga» en Hoy de Gerencia).
+6. **Front**: fusionar la PR y `/release-crm` (tarjeta «Plazo de carga» en Configuración, solo Gerencia; publicada primero en Hoy el 15/10 y movida el mismo día).
 7. **Gerencia fija el plazo de septiembre** desde la pantalla («Ampliar plazo»: septiembre ya está abierto, no se
    reabre). Al guardar, la conversión «fuera de plazo» de septiembre se reevalúa sola. (Solo un mes con metas publicadas
    admite plazo: septiembre las tiene; un mes sin metas responde «no tiene metas publicadas: no tiene cierre ni plazo de

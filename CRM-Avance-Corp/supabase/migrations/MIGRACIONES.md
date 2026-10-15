@@ -44,7 +44,11 @@ nueve contratos cotejados. Revisión Claude y agentes propios evaluada en
 
 ## 20261015150731 — Eliminar lead: también con ficha de inversionista sin dinero (r2)
 
-**PROBADA EN BANCO DOCKER; PENDIENTE DE OK DE MIGUEL; NO APLICADA.** Pedido de Miguel (15/10): «yo quiero borrar
+**APLICADA EN PRODUCCIÓN 15/10/2026 ~11:50 Lima** (Miguel, `supabase db query --linked --file`; PR #288 fusionada
+`b12aaee2`). Verificado en producción, solo lectura: puerta `15ce9327e21306ec9682552815936e71`, candado de tasa
+`9d5d0a1a82675f2b5ae8ec7e93e5e5d1` y las 11 funciones intactas con la huella de r1; ACL igual (puerta: `authenticated`
+EXECUTE; candado: solo `postgres`); los 3 triggers de `crm.solicitudes_tasa` activos. Advisors: mismas 5 categorías de
+seguridad y 6 de rendimiento que tras r1, ninguna nueva. Pedido de Miguel (15/10): «yo quiero borrar
 cualquier tipo de lead»; el que tiene contrato, inversión, cierre o conversión es cliente y nunca se borra; se mantienen
 30 días y mes sellado. `crm.eliminar_lead_error_carga` (misma firma y grants) ya no rechaza por inversionista: borra con
 el lead sus fichas de inversionista si son SOLO suyas, nacieron con o después del lead, y no tienen dinero ni historia
@@ -70,7 +74,9 @@ pertenencia y bloqueo, cerrados; 1 P2 de ficha preexistente, cerrado); todo acep
 md5, dueño y ACL que en el banco; `crm.leads_eliminados` con RLS, 0 políticas, sin grants, 3 triggers y 0 filas; los
 17 triggers de los candados idénticos. Advisors: los objetos nuevos solo aparecen en `rls_enabled_no_policy` (INFO) y
 `authenticated_security_definer_function_executable` (WARN), igual que `crm.inversiones_eliminadas` y
-`crm.eliminar_inversion_fn`; ninguna categoría nueva. Front pendiente de `/release-crm`.
+`crm.eliminar_inversion_fn`; ninguna categoría nueva. Front publicado 15/10 ~01:05 (`build-20261015T055830904Z`,
+commit `f6c711f2`). Primer uso real: MARGARITA `de667c0d` borrada 15/10 01:19 Lima (copia versión 1 con 6 filas hijas;
+0 filas suyas en las 22 tablas que apuntan a `crm.leads`).
 Vía oficial para que gerencia (rol CRM) o admin/superadmin (portal) borre un lead cargado por error con todo
 lo que cuelga de él: `crm.eliminar_lead_error_carga(p_lead_id, p_motivo)`. Antes de borrar guarda una copia
 completa e inmutable en `crm.leads_eliminados` (RLS sin políticas ni grants; gerencia la consulta con

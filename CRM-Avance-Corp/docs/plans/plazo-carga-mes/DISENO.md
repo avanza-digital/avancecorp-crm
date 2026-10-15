@@ -149,7 +149,7 @@ exenciones analíticas) re-declarados si alguna función tocada está anclada; l
 `MIGRACIONES.md`; reversa exacta; `npm run gen:types`.
 
 ## 3. Pantalla (solo Gerencia)
-- Tarjeta «Plazo de carga» junto al aviso de cierre en Hoy de Gerencia
+- Tarjeta «Plazo de carga» en Configuración, solo Gerencia (15/10/2026, Miguel: «esto debe salir pero en configuración»; primero se publicó en Hoy de Gerencia)
   (`app/src/screens/hoy/aviso-cierre-mes.tsx`): por mes, «Septiembre 2026 · se puede cargar
   hasta el 20 oct.» (+ «ampliado por X el …» y el motivo); botón **«Ampliar plazo»** (mes
   abierto) o **«Reabrir septiembre»** (sellado y `reabrible`); si sellado y no reabrible,

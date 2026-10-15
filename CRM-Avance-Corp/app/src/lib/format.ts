@@ -183,6 +183,13 @@ export function fmtDiaMesLima(ts: string | null | undefined): string {
   return Number.isNaN(d.getTime()) ? '—' : FECHA_LIMA.format(d).replace(/\s\d{4}$/, '')
 }
 
+/** Igual que `fmtDiaMesLima` pero CON año («14 oct. 2026»): donde un año equivocado no puede quedar oculto. */
+export function fmtFechaLima(ts: string | null | undefined): string {
+  if (!ts) return '—'
+  const d = new Date(ts)
+  return Number.isNaN(d.getTime()) ? '—' : FECHA_LIMA.format(d)
+}
+
 /**
  * Rótulo de un bloque semanal servido: «08 set. – 14 set.». El bloque más
  * corto que una semana (el último de un rango que termina hoy) lo declara
