@@ -73,9 +73,9 @@ test('Gerencia ve setiembre vencido, amplía su plazo y lee el resultado', async
 
   const tarjeta = page.getByRole('region', { name: 'Plazo de carga' })
   const setiembre = tarjeta.getByRole('listitem').filter({ hasText: 'Setiembre 2026' })
-  await expect(setiembre).toContainText('Setiembre 2026 · el plazo de carga venció el 10 oct.')
+  await expect(setiembre).toContainText('Setiembre 2026 · el plazo de carga venció el 10 oct. 2026')
   await expect(setiembre).toContainText('su conversión queda fuera de plazo')
-  await expect(tarjeta.getByRole('listitem').filter({ hasText: 'Octubre 2026' })).toContainText('Octubre 2026 · se puede cargar hasta el 10 nov.')
+  await expect(tarjeta.getByRole('listitem').filter({ hasText: 'Octubre 2026' })).toContainText('Octubre 2026 · se puede cargar hasta el 10 nov. 2026')
   await tarjeta.screenshot({ path: info.outputPath('plazo-carga-produccion.png') })
 
   await tarjeta.getByRole('button', { name: 'Ampliar plazo de setiembre 2026' }).click()
@@ -89,10 +89,10 @@ test('Gerencia ve setiembre vencido, amplía su plazo y lee el resultado', async
   await dialogo.getByRole('button', { name: 'Guardar plazo' }).click()
 
   await expect(dialogo).toHaveCount(0)
-  await expect(tarjeta.getByRole('status')).toContainText('Setiembre 2026: se puede cargar hasta el 20 oct.')
+  await expect(tarjeta.getByRole('status')).toContainText('Setiembre 2026: se puede cargar hasta el 20 oct. 2026.')
   await expect(tarjeta.getByRole('status')).toContainText('Se volvieron a revisar 12 conversiones con el plazo nuevo.')
-  await expect(setiembre).toContainText('Setiembre 2026 · se puede cargar hasta el 20 oct.')
-  await expect(setiembre).toContainText(`Ampliado por GERENTE REAL el 14 oct. · «${MOTIVO}»`)
+  await expect(setiembre).toContainText('Setiembre 2026 · se puede cargar hasta el 20 oct. 2026')
+  await expect(setiembre).toContainText(`Ampliado por GERENTE REAL el 14 oct. 2026 · «${MOTIVO}»`)
   await expect(setiembre).not.toContainText('fuera de plazo')
   await tarjeta.screenshot({ path: info.outputPath('plazo-carga-ampliado.png') })
 
@@ -126,7 +126,7 @@ test('reabrir setiembre sellado: la negativa del servidor se lee tal cual; al re
 
   const tarjeta = page.getByRole('region', { name: 'Plazo de carga' })
   const setiembre = tarjeta.getByRole('listitem').filter({ hasText: 'Setiembre 2026' })
-  await expect(setiembre).toContainText('Setiembre 2026 · cerrado · se pudo cargar hasta el 10 oct.')
+  await expect(setiembre).toContainText('Setiembre 2026 · cerrado · se pudo cargar hasta el 10 oct. 2026')
   await setiembre.getByRole('button', { name: 'Reabrir setiembre' }).click()
 
   const dialogo = page.getByRole('dialog', { name: 'Reabrir setiembre 2026' })
@@ -141,9 +141,9 @@ test('reabrir setiembre sellado: la negativa del servidor se lee tal cual; al re
   await dialogo.getByRole('button', { name: 'Reabrir setiembre' }).click()
   await expect(dialogo).toHaveCount(0)
   const aviso = tarjeta.getByRole('status')
-  await expect(aviso).toContainText('Setiembre 2026 reabierto: se puede cargar hasta el 20 oct.')
-  await expect(aviso).toContainText('Venta devuelta a setiembre: COOPAC Qorilazo · S/ 20,000 · del 15 set. (estaba contada el 13 oct.).')
-  await expect(setiembre).toContainText('Reabierto por GERENTE REAL el 14 oct.')
+  await expect(aviso).toContainText('Setiembre 2026 reabierto: se puede cargar hasta el 20 oct. 2026.')
+  await expect(aviso).toContainText('Venta devuelta a setiembre: COOPAC Qorilazo · S/ 20,000 · del 15 set. 2026 (estaba contada el 13 oct. 2026).')
+  await expect(setiembre).toContainText('Reabierto por GERENTE REAL el 14 oct. 2026')
   await expect(setiembre.getByRole('button', { name: 'Ampliar plazo de setiembre 2026' })).toBeVisible()
   expect(pedidos).toHaveLength(2)
 })
