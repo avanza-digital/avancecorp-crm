@@ -1,6 +1,11 @@
 ## 20261015044917 — Eliminar lead por error de carga
 
-**PROBADA EN BANCO DOCKER (esquema de producción, huella idéntica); OK DE MIGUEL 15/10; PENDIENTE DE APLICAR EN PRODUCCIÓN.**
+**APLICADA EN PRODUCCIÓN 15/10/2026 ~00:55 Lima** (Miguel, `supabase db query --linked --file`; PR #283 fusionada
+`abd04f61`). Verificado en producción, solo lectura: las 12 funciones (4 nuevas + 8 candados) con la misma huella
+md5, dueño y ACL que en el banco; `crm.leads_eliminados` con RLS, 0 políticas, sin grants, 3 triggers y 0 filas; los
+17 triggers de los candados idénticos. Advisors: los objetos nuevos solo aparecen en `rls_enabled_no_policy` (INFO) y
+`authenticated_security_definer_function_executable` (WARN), igual que `crm.inversiones_eliminadas` y
+`crm.eliminar_inversion_fn`; ninguna categoría nueva. Front pendiente de `/release-crm`.
 Vía oficial para que gerencia (rol CRM) o admin/superadmin (portal) borre un lead cargado por error con todo
 lo que cuelga de él: `crm.eliminar_lead_error_carga(p_lead_id, p_motivo)`. Antes de borrar guarda una copia
 completa e inmutable en `crm.leads_eliminados` (RLS sin políticas ni grants; gerencia la consulta con
