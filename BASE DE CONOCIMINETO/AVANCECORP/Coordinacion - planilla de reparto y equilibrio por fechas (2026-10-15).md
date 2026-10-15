@@ -1,6 +1,6 @@
 # Coordinación - planilla de reparto y equilibrio por fechas
 
-Estado: **implementada en rama y validada; pendiente de publicación en el CRM**. La publicación anterior de Formulario 3 nativo sigue completa. No se modificaron leads, responsables, permisos, turnos ni n8n durante esta definición.
+Estado: **PUBLICADA Y VERIFICADA el 15/10/2026, 18:05 Lima**. PR #296, fuente `875054a2`. No se modificaron leads, responsables, permisos, turnos ni n8n en este release. Las secciones siguientes conservan las decisiones y etapas anteriores.
 
 ## Decisión de Miguel
 
@@ -73,3 +73,10 @@ Miguel autorizó construir la planilla, conservando recursos visuales del CRM. R
 Se reutilizan las RPC existentes. Lectura completa de pendientes con conteo exacto/paginación, agendas en ventanas de 14 días, ambos calendarios separados, rangos y días sueltos, tabla dinámica, revisión de IDs y confirmación secuencial. Rechazos, resultados inciertos y no intentados se muestran por separado. No redistribuye leads ya asignados.
 
 Claude revisó y se aplicaron las observaciones pertinentes. Codex revisó cancelación de consultas y coordinación de escrituras entre las dos vistas. La evidencia y límites están en `CRM-Avance-Corp/docs/plans/planilla-reparto/VALIDACION.md`. Gate integral: 6.946 tests; E2E de reparto: 40/40. Publicación pendiente del flujo de release.
+
+
+## Publicación comprobada
+
+PR #296 integrada; Main local y remoto `875054a2d630cb8d8786fe02e870000d5dfdba07`, fuente limpia. Build `build-20261015T225912394Z`. Artefacto y recuperación verificados, preflight PASS; 126 comprobaciones HTTP PASS y login público visible sin errores JavaScript en Docker. Identidad productiva real de Coordinación, en SQL READ ONLY como authenticated, confirma `reparto_libre=true`. No se asignaron leads para comprobarlo.
+
+Se reutilizan 6.946 tests y 41 escenarios E2E distintos de reparto: árbol idéntico al probado. No hay SQL ni Edge nuevos. Acta exacta: `CRM-Avance-Corp/docs/plans/planilla-reparto/PUBLICACION.md`. Figma actualizado. La comprobación visual de la pantalla autenticada por Miguel aún no se ha recibido. Relacionados: [[Formulario 3 - origen nativo publicado (2026-10-15)]], [[Reparto de Leads]].

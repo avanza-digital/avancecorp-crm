@@ -1,6 +1,6 @@
 # Planilla de reparto — 15/10/2026
 
-Estado: implementada y validada. **No publicada; sin escrituras a leads de producción.**
+Estado: implementada, validada y **publicada el 15/10/2026**. Sin escrituras a leads de producción. Véase [PUBLICACION.md](PUBLICACION.md) para el commit, artefacto y smoke exactos.
 
 ## Comportamiento
 
