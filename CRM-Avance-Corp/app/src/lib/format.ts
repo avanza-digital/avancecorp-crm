@@ -164,6 +164,25 @@ export function fmtFecha(iso: string | null | undefined): string {
   return d.toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
+/** Día y mes SIN año («20 oct.»), para rótulos en los que el año ya lo da el contexto. Misma lectura que `fmtFecha`. */
+export function fmtDiaMes(iso: string | null | undefined): string {
+  return fmtFecha(iso).replace(/\s\d{4}$/, '')
+}
+
+// Con año y luego sin él, igual que `fmtDiaMes`: pedido sin año, es-PE escribe «14-oct.».
+const FECHA_LIMA = new Intl.DateTimeFormat('es-PE', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'America/Lima' })
+
+/**
+ * Día y mes («14 oct.») de un INSTANTE (timestamptz), leído en Lima y no en la
+ * zona del navegador: una decisión tomada a las 20:00 de Lima es del día 14,
+ * aunque en UTC ya sea el 15.
+ */
+export function fmtDiaMesLima(ts: string | null | undefined): string {
+  if (!ts) return '—'
+  const d = new Date(ts)
+  return Number.isNaN(d.getTime()) ? '—' : FECHA_LIMA.format(d).replace(/\s\d{4}$/, '')
+}
+
 /**
  * Rótulo de un bloque semanal servido: «08 set. – 14 set.». El bloque más
  * corto que una semana (el último de un rango que termina hoy) lo declara
@@ -172,7 +191,7 @@ export function fmtFecha(iso: string | null | undefined): string {
  * toca ninguna métrica.
  */
 export function etiquetaBloqueSemanal(desde: string, hasta: string): string {
-  const diaYMes = (iso: string) => fmtFecha(iso).replace(/\s\d{4}$/, '')
+  const diaYMes = fmtDiaMes
   if (desde === hasta) return `${diaYMes(desde)} (1 día)`
   const dias = Math.round((Date.parse(`${hasta}T12:00:00Z`) - Date.parse(`${desde}T12:00:00Z`)) / 86_400_000) + 1
   const rango = `${diaYMes(desde)} – ${diaYMes(hasta)}`

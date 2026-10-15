@@ -3315,6 +3315,42 @@ export type Database = {
           },
         ]
       }
+      leads_eliminados: {
+        Row: {
+          copia: Json
+          eliminado_en: string
+          eliminado_por: string
+          filas: Json
+          id: string
+          lead_id: string
+          motivo: string
+          rol_actor: string
+          transaccion: unknown
+        }
+        Insert: {
+          copia: Json
+          eliminado_en?: string
+          eliminado_por: string
+          filas: Json
+          id?: string
+          lead_id: string
+          motivo: string
+          rol_actor: string
+          transaccion?: unknown
+        }
+        Update: {
+          copia?: Json
+          eliminado_en?: string
+          eliminado_por?: string
+          filas?: Json
+          id?: string
+          lead_id?: string
+          motivo?: string
+          rol_actor?: string
+          transaccion?: unknown
+        }
+        Relationships: []
+      }
       ledger_rentabilidad: {
         Row: {
           actor_id: string | null
@@ -4051,6 +4087,47 @@ export type Database = {
         }
         Relationships: []
       }
+      plazos_carga_mes: {
+        Row: {
+          decidido_en: string
+          decidido_por: string
+          id: string
+          motivo: string
+          periodo: string
+          plazo_hasta: string
+          reapertura_id: string | null
+          ultimo_dia: string
+        }
+        Insert: {
+          decidido_en?: string
+          decidido_por: string
+          id?: string
+          motivo: string
+          periodo: string
+          plazo_hasta: string
+          reapertura_id?: string | null
+          ultimo_dia: string
+        }
+        Update: {
+          decidido_en?: string
+          decidido_por?: string
+          id?: string
+          motivo?: string
+          periodo?: string
+          plazo_hasta?: string
+          reapertura_id?: string | null
+          ultimo_dia?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plazos_carga_mes_reapertura_fkey"
+            columns: ["reapertura_id", "periodo"]
+            isOneToOne: false
+            referencedRelation: "reaperturas_mes"
+            referencedColumns: ["id", "periodo"]
+          },
+        ]
+      }
       politica_abandono: {
         Row: {
           actualizado_en: string
@@ -4511,6 +4588,39 @@ export type Database = {
           id?: string
           permite_altas_legacy?: boolean
           revision?: number
+        }
+        Relationships: []
+      }
+      reaperturas_mes: {
+        Row: {
+          decidido_por: string
+          id: string
+          motivo: string
+          periodo: string
+          reabierto_en: string
+          respaldo: Json
+          resumen: Json
+          transaccion: unknown
+        }
+        Insert: {
+          decidido_por: string
+          id?: string
+          motivo: string
+          periodo: string
+          reabierto_en?: string
+          respaldo: Json
+          resumen: Json
+          transaccion?: unknown
+        }
+        Update: {
+          decidido_por?: string
+          id?: string
+          motivo?: string
+          periodo?: string
+          reabierto_en?: string
+          respaldo?: Json
+          resumen?: Json
+          transaccion?: unknown
         }
         Relationships: []
       }
@@ -6319,6 +6429,10 @@ export type Database = {
         Args: { p_fuente_id: string; p_motivo: string }
         Returns: Json
       }
+      eliminar_lead_error_carga: {
+        Args: { p_lead_id: string; p_motivo: string }
+        Returns: Json
+      }
       eliminar_usuario_fn: {
         Args: {
           p_nombre_confirmacion: string
@@ -6422,6 +6536,10 @@ export type Database = {
           p_reemplazo_id: string
           p_version_equipo: string
         }
+        Returns: Json
+      }
+      fijar_plazo_carga_mes: {
+        Args: { p_motivo: string; p_periodo: string; p_ultimo_dia: string }
         Returns: Json
       }
       fijar_politica_llamadas_celular: {
@@ -6694,6 +6812,22 @@ export type Database = {
         Args: { p_lead_id: string; p_motivo: string }
         Returns: Json
       }
+      listar_leads_eliminados: {
+        Args: never
+        Returns: {
+          eliminado_en: string
+          eliminado_por: string
+          eliminado_por_nombre: string
+          filas: Json
+          id: string
+          lead_creado_en: string
+          lead_id: string
+          motivo: string
+          nombre: string
+          origen: string
+          rol_actor: string
+        }[]
+      }
       listar_operaciones_facturacion_fn: {
         Args: {
           p_analistas?: string[]
@@ -6890,6 +7024,7 @@ export type Database = {
         }
         Returns: Json
       }
+      plazos_carga_mes_fn: { Args: never; Returns: Json }
       politica_rentabilidad_fn: { Args: never; Returns: Json }
       postventa_agenda_fn: { Args: never; Returns: Json }
       postventa_agendar_fn: {

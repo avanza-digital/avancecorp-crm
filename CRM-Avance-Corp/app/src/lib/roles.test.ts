@@ -10,6 +10,7 @@ import {
   puedeEliminarContratos,
   puedeEliminarInversion,
   puedeEliminarInversiones,
+  puedeEliminarLeadErrorCarga,
   puedeEscribir,
   puedeOrganizarJerarquiaCrm,
   puedeVerDirectorioUsuariosCrm,
@@ -210,6 +211,20 @@ describe('capacidades administrativas Portal ↔ CRM', () => {
     expect(puedeEliminarInversion(identidad, { empresa: 'avance' })).toBe(avance)
     expect(puedeEliminarInversion(identidad, { empresa: 'qorilazo' })).toBe(cooperativa)
     expect(puedeEliminarInversion(identidad, { empresa: 'prodelco' })).toBe(cooperativa)
+  })
+
+  // «Eliminar lead (error de carga)» (14/10/2026): espejo del gate de crm.eliminar_lead_error_carga.
+  it.each([
+    ['gerencia', { rol: 'gerencia' as const, rol_portal: 'directorio' }, true],
+    ['admin del portal', { rol: 'directorio' as const, rol_portal: 'admin' }, true],
+    ['superadmin del portal', { rol: 'vendedor' as const, rol_portal: 'superadmin' }, true],
+    ['analista', { rol: 'vendedor' as const, rol_portal: 'analista' }, false],
+    ['supervisor', { rol: 'supervisor' as const, rol_portal: 'comercial' }, false],
+    ['coordinador', { rol: 'coordinador' as const, rol_portal: 'comercial' }, false],
+    ['directorio', { rol: 'directorio' as const, rol_portal: 'directorio' }, false],
+    ['sin identidad', null, false],
+  ])('eliminar un lead por error de carga · %s: %s', (_, identidad, esperado) => {
+    expect(puedeEliminarLeadErrorCarga(identidad)).toBe(esperado)
   })
 
   it('Gerencia administra personas y jerarquía, pero no roles', () => {

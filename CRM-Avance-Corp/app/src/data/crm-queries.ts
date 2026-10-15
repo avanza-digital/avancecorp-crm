@@ -12,8 +12,10 @@ import type {
   AnularCierreExternoDatos,
   ConvertirLeadExternoDatos,
   CorregirCierreExternoDatos,
+  FijarPlazoCargaMesDatos,
 } from './crm-api'
 import { normalizarLeadIds } from '@/lib/cierre-estado'
+import { codigoDeError } from '@/lib/plazo-carga-mes'
 import type { ConversionMensual } from '@/lib/conversion-mensual'
 import type { MetricasConversionesEquipo } from '@/lib/metricas-conversiones-equipo'
 import { cumplimientoDesdeRpc } from '@/lib/objetivos'
@@ -25,7 +27,9 @@ import {
   convertirLeadExterno,
   corregirCierreExterno,
   derivarLeadsEquipo,
+  fijarPlazoCargaMes,
   obtenerCierreMesEstado,
+  obtenerPlazosCargaMes,
   obtenerCierresEstado,
   obtenerConversionEstado,
   obtenerCierresExternos,
@@ -215,6 +219,9 @@ export const crmQueryKeys = {
   // El estado de la maquinaria del cierre de MES (no de los cierres de venta).
   // Sin parámetros: habla del reloj, no del período que se esté mirando.
   cierreMesEstado: () => [...crmQueryKeys.raiz, 'cierre-mes-estado'] as const,
+  // El plazo de carga por mes que decide Gerencia. Clave propia y no colgada de
+  // cierreMesEstado: el sondeo del aviso no tiene por qué arrastrar esta lectura.
+  plazosCargaMes: () => [...crmQueryKeys.raiz, 'plazos-carga-mes'] as const,
   // Cierres en cooperativas (Qorilazo/Prodelco). Clave propia bajo metricas():
   // el ámbito lo recorta el servidor. El builder SIN periodo existe para que la
   // mutación de convertir invalide todos los meses cacheados de una pasada.
@@ -331,6 +338,13 @@ const CLAVES_INVALIDACION_COMERCIAL = {
     crmQueryKeys.cierresEstadoPrefijo(),
     ...CLAVES_FOTOS_POR_PERIODO,
     crmQueryKeys.metricasAmbito(),
+  ],
+  // Fijar el plazo de carga vuelve a decidir conversiones del mes (fuera de
+  // plazo → acreditada) y, al reabrir, devuelve ventas en cooperativa a su mes:
+  // se mueven conversión, cumplimiento, cierres externos, el estado de cada
+  // cierre y la lista diaria de Facturación. Todas cuelgan de metricas().
+  plazoCarga: [
+    crmQueryKeys.metricas(),
   ],
 } as const satisfies Record<string, readonly QueryKey[]>
 
@@ -1206,6 +1220,57 @@ export function useCierreMesEstado(habilitada: boolean) {
   }, [consulta.data, queryClient, ultimoCerrado])
 
   return consulta
+}
+
+/**
+ * Opciones de la lectura del plazo de carga, puras para probarlas sin montar.
+ * Mismo sondeo que el aviso del ciclo: el sello de las 09:20 y la medianoche de
+ * Lima cambian lo que la tarjeta dice (abierto → cerrado, vigente → vencido)
+ * sin que nadie toque la pantalla.
+ */
+export function opcionesPlazosCargaMes(habilitada: boolean) {
+  return {
+    queryKey: crmQueryKeys.plazosCargaMes(),
+    queryFn: ({ signal }: { signal?: AbortSignal }) => obtenerPlazosCargaMes(signal),
+    enabled: habilitada,
+    refetchInterval: INTERVALO_CIERRE_MES_ESTADO_MS,
+  }
+}
+
+/** El plazo de carga de los meses que Gerencia puede decidir (`crm.plazos_carga_mes_fn`). */
+export function usePlazosCargaMes(habilitada: boolean) {
+  return useQuery(opcionesPlazosCargaMes(habilitada))
+}
+
+/**
+ * Un error tras el que el plazo PUDO guardarse (sin respuesta, o un acuse
+ * 2xx fuera de contrato): la caché se refresca igual que en un éxito, para que
+ * la tarjeta enseñe lo que de verdad quedó antes de que alguien reintente.
+ */
+const ERRORES_PLAZO_INCIERTO = new Set(['RESPUESTA_NO_RECIBIDA', 'PLAZO_CARGA_CONTRACT'])
+
+async function invalidarTrasPlazoCarga(queryClient: QueryClient): Promise<void> {
+  // Las fotos de métricas no se esperan: refrescan pantallas que no son esta y
+  // el diálogo no debe quedarse «Guardando…» por ellas.
+  void invalidarLecturasComerciales(queryClient, CLAVES_INVALIDACION_COMERCIAL.plazoCarga)
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: crmQueryKeys.plazosCargaMes() }),
+    // El aviso del ciclo: `cierra_el` refleja el plazo nuevo y, al reabrir,
+    // el último mes sellado retrocede.
+    queryClient.invalidateQueries({ queryKey: crmQueryKeys.cierreMesEstado() }),
+  ])
+}
+
+/** Gerencia amplía el plazo de carga de un mes o, si ya se selló, lo reabre. */
+export function useFijarPlazoCargaMes() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (datos: FijarPlazoCargaMesDatos) => fijarPlazoCargaMes(datos),
+    onSuccess: () => invalidarTrasPlazoCarga(queryClient),
+    onError: async (error) => {
+      if (ERRORES_PLAZO_INCIERTO.has(codigoDeError(error) ?? '')) await invalidarTrasPlazoCarga(queryClient)
+    },
+  })
 }
 
 /** Ranking de conversión del equipo/global (decisión #10, parte b2). */

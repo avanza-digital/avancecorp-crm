@@ -89,6 +89,17 @@ import { RankingOrigenVendedorSchema, type RankingOrigenVendedor } from '@/lib/r
 import { MetricasReunionesSchema, type MetricasReuniones } from '@/lib/metricas-reuniones'
 import { ConfiguracionMetasSchema, type ConfiguracionMetas } from '@/lib/metas-versionadas'
 import { CierreMesEstadoSchema, type CierreMesEstadoRpc } from '@/lib/cierre-de-mes'
+import {
+  CODIGO_PLAZO_NO_DISPONIBLE,
+  MOTIVO_PLAZO_MAX,
+  MOTIVO_PLAZO_MIN,
+  PlazoCargaFijadoSchema,
+  PlazosCargaMesSchema,
+  motivoPlazoValido,
+  periodoDelMes,
+  type PlazoCargaFijado,
+  type PlazosCargaMes,
+} from '@/lib/plazo-carga-mes'
 import { CumplimientoMetasSchema, type CumplimientoMetasRpc } from '@/lib/objetivos'
 import {
   DisponibilidadLeadSchema,
@@ -173,6 +184,12 @@ import {
   motivoEliminacionValido,
   type EmpresaInversion,
 } from '@/lib/inversionistas'
+import {
+  LeadEliminadoSchema,
+  MOTIVO_ELIMINAR_LEAD_MAX,
+  MOTIVO_ELIMINAR_LEAD_MIN,
+  motivoEliminarLeadValido,
+} from '@/lib/lead-error-carga'
 import { conGestionVigente } from './gestion-vigente'
 
 export type { DisponibilidadLead, ResultadoCreacionLeadAtomica, ResultadoTomaLead } from '@/lib/disponibilidad-lead'
@@ -1213,6 +1230,133 @@ export async function obtenerCierreMesEstado(signal?: AbortSignal): Promise<Cier
     throw fallo
   }
   return resultado.output
+}
+
+// ── Plazo de carga por mes (solo Gerencia) ──────────────────────────────────
+
+/**
+ * Los meses cuyo plazo de carga Gerencia puede ver y decidir
+ * (`crm.plazos_carga_mes_fn`): plazo vigente, última decisión, si el mes está
+ * sellado y si se puede reabrir (con el porqué si no). Sin cifras ni PII.
+ *
+ * PGRST202 (la función todavía no existe: front publicado antes que la
+ * migración) es `NO_DISPONIBLE` y la tarjeta se oculta; no se registra porque
+ * es un estado esperado del despliegue, y el sondeo lo repetiría cada 5 min.
+ */
+export async function obtenerPlazosCargaMes(signal?: AbortSignal): Promise<PlazosCargaMes> {
+  let consulta = cliente().schema('crm').rpc('plazos_carga_mes_fn')
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) {
+    if (error.code === 'PGRST202') {
+      throw new CrmApiError('El plazo de carga llega con la próxima actualización del servidor.', CODIGO_PLAZO_NO_DISPONIBLE)
+    }
+    const fallo = error.code === '42501' || error.code === 'PGRST301'
+      ? new CrmApiError('Solo Gerencia ve el plazo de carga.', 'SIN_PERMISO')
+      : new CrmApiError('No se pudo leer el plazo de carga.', error.code || 'POSTGREST_ERROR')
+    registrarError('crm.plazo_carga.lectura_fallida', fallo, { pg: error.code ?? '' })
+    throw fallo
+  }
+  const resultado = v.safeParse(PlazosCargaMesSchema, data)
+  if (!resultado.success) {
+    const fallo = new CrmApiError('El servidor devolvió un plazo de carga no reconocido.', 'ROW_CONTRACT')
+    registrarError('crm.plazo_carga.contrato_invalido', fallo)
+    throw fallo
+  }
+  return resultado.output
+}
+
+export interface FijarPlazoCargaMesDatos {
+  /** Mes 'YYYY-MM', tal como lo sirve `plazos_carga_mes_fn` (la puerta recibe su primer día). */
+  mes: string
+  /** Último día INCLUIDO para cargar: 'YYYY-MM-DD'. */
+  ultimoDia: string
+  motivo: string
+}
+
+/**
+ * Los RAISE de la puerta (42501, 22023, P0409) llegan en español de negocio y
+ * se muestran tal cual: dicen por qué no (fecha antes del día 10, mes que ya no
+ * se puede reabrir…). Solo se reescribe lo que Postgres redacta por su cuenta
+ * (permiso del catálogo, candados) y el corte de red, que no prueba que el
+ * plazo NO se guardara.
+ */
+function aErrorFijarPlazo(error: { code?: string | null; message?: string | null }): CrmApiError {
+  const pg = error.code ?? ''
+  const texto = error.message?.trim() ?? ''
+  let code = 'POSTGREST_ERROR'
+  let mensaje = 'No se pudo guardar el plazo de carga.'
+  if (pg === '') {
+    code = 'RESPUESTA_NO_RECIBIDA'
+    mensaje = 'No llegó la respuesta del servidor y el plazo pudo guardarse. Revisa el plazo de carga antes de reintentar.'
+  } else if (pg === '42501' || pg === 'PGRST301') {
+    code = 'SIN_PERMISO'
+    // «permission denied for function …» es del catálogo (falta un GRANT), no un mensaje de la puerta.
+    mensaje = pg === '42501' && texto && !texto.startsWith('permission denied')
+      ? texto : 'Solo Gerencia decide el plazo de carga.'
+  } else if (pg === 'P0001' && texto.startsWith('REAPERTURA:')) {
+    // Postflight de private.reabrir_mes: una comprobación interna falló y la
+    // transacción entera se deshizo. Su texto habla del mecanismo, no del negocio.
+    code = 'REAPERTURA_INCOMPLETA'
+    mensaje = 'No se reabrió el mes: una comprobación interna no cuadró y no se cambió nada. Avisa a soporte.'
+  } else if (pg === '22023' || pg === 'P0001') {
+    code = 'REGLA_SERVIDOR'
+    if (texto) mensaje = texto
+  } else if (pg === 'P0409' || pg === '55000') {
+    code = 'CONFLICTO'
+    if (texto) mensaje = texto
+  } else if (pg === 'PT409' || pg === '55P03' || pg === '40001' || pg === '40P01') {
+    code = 'REINTENTAR'
+    mensaje = 'Otra operación está usando el cierre de este mes. Vuelve a intentarlo en unos segundos.'
+  } else if (pg === 'PGRST202') {
+    code = CODIGO_PLAZO_NO_DISPONIBLE
+    mensaje = 'Ampliar el plazo de carga llega con la próxima actualización del servidor.'
+  }
+  const fallo = new CrmApiError(mensaje, code)
+  registrarError('crm.plazo_carga.fijar_fallido', fallo, { pg })
+  return fallo
+}
+
+/**
+ * Gerencia fija el último día de carga de un mes (`crm.fijar_plazo_carga_mes`).
+ * Si el mes ya estaba sellado, la misma puerta lo REABRE (y se niega con el
+ * motivo si no se puede). El acuse dice qué movió: conversiones revisadas con
+ * el plazo nuevo y ventas devueltas al mes reabierto.
+ */
+export async function fijarPlazoCargaMes(datos: FijarPlazoCargaMesDatos): Promise<PlazoCargaFijado> {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(datos.mes)) {
+    throw new CrmApiError('El mes del plazo de carga no es válido.', 'PLAZO_CARGA_MES_INVALIDO')
+  }
+  if (!v.safeParse(FechaSchema, datos.ultimoDia).success) {
+    throw new CrmApiError('Elige una fecha válida para el último día de carga.', 'PLAZO_CARGA_FECHA_INVALIDA')
+  }
+  const motivo = datos.motivo.trim()
+  if (!motivoPlazoValido(motivo)) {
+    throw new CrmApiError(
+      `Escribe el motivo (de ${MOTIVO_PLAZO_MIN} a ${MOTIVO_PLAZO_MAX} caracteres).`,
+      'PLAZO_CARGA_MOTIVO_INVALIDO',
+    )
+  }
+
+  const { data, error } = await cliente().schema('crm').rpc('fijar_plazo_carga_mes', {
+    p_periodo: periodoDelMes(datos.mes),
+    p_ultimo_dia: datos.ultimoDia,
+    p_motivo: motivo,
+  })
+  if (error) throw aErrorFijarPlazo(error)
+
+  const respuesta = v.safeParse(PlazoCargaFijadoSchema, data)
+  if (!respuesta.success || respuesta.output.mes !== datos.mes || respuesta.output.ultimo_dia !== datos.ultimoDia) {
+    // El servidor respondió 2xx: el plazo pudo guardarse aunque el acuse no sea el pactado.
+    const fallo = new CrmApiError(
+      'El servidor no confirmó el plazo con el formato esperado; pudo guardarse. Revisa el plazo de carga antes de reintentar.',
+      'PLAZO_CARGA_CONTRACT',
+    )
+    registrarError('crm.plazo_carga.fijar_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return respuesta.output
 }
 
 // ── Reparto de la cola global (C1) — 3 RPC SECURITY DEFINER con gate propio ───
@@ -7043,6 +7187,92 @@ export async function eliminarInversion(fuenteId: string, motivo: string): Promi
     conversionAnulada: respuesta.output.conversion_anulada,
     mesCerrado: respuesta.output.mes_cerrado,
   }
+}
+
+// ─── Eliminar lead por error de carga (gerencia o admin del portal, 14/10/2026) ──
+// crm.eliminar_lead_error_carga borra un lead cargado por error con sus tareas,
+// actividades e historial de asignación, y deja ANTES una copia inmutable con el
+// motivo y su autor. Quién puede y si ese lead se puede borrar (sin contrato ni
+// conversión, de hace 30 días o menos, fuera de un mes cerrado…) lo decide el
+// servidor; si no se puede, su mensaje trae TODAS las razones.
+
+export interface LeadEliminadoResultado {
+  copiaId: string
+  /** Filas copiadas y borradas, por tabla (las claves las pone el servidor). */
+  filas: Record<string, number>
+}
+
+/**
+ * Los RAISE de la puerta (42501, 22023, P0002, P0409, 55000) ya llegan en español
+ * de negocio: se muestran tal cual. Solo se reescribe lo que Postgres redacta en
+ * inglés (permiso del catálogo, bloqueos y conflictos de concurrencia) y el corte
+ * de red, que no prueba que la eliminación fallara.
+ */
+const RECHAZOS_ELIMINAR_LEAD: Record<string, string> = {
+  P0409: 'CONFLICTO', // «No se puede eliminar este lead: …razones…» (todas, en un mensaje)
+  '55000': 'CONFLICTO', // tablas nuevas enlazadas al lead o borrado incompleto: no se aplicó nada
+  '22023': 'REGLA_SERVIDOR', // motivo fuera de 10–500 caracteres o falta el lead
+  P0001: 'REGLA_SERVIDOR',
+}
+
+function aErrorEliminarLeadErrorCarga(error: { code?: string | null; message?: string | null }): CrmApiError {
+  const pg = error.code ?? ''
+  const texto = error.message?.trim() ?? ''
+  let code = 'POSTGREST_ERROR'
+  let mensaje = 'No se pudo eliminar el lead.'
+  if (pg === '') {
+    code = 'RESPUESTA_NO_RECIBIDA'
+    mensaje = 'No llegó la respuesta del servidor y el lead pudo eliminarse. Comprueba tu conexión y búscalo de nuevo antes de reintentar.'
+  } else if (pg === '42501' || pg === 'PGRST301') {
+    code = 'SIN_PERMISO'
+    // «permission denied for function …» es del catálogo (falta un GRANT), no un mensaje de la puerta.
+    mensaje = pg === '42501' && texto && !texto.startsWith('permission denied')
+      ? texto : 'No tienes permiso para eliminar este lead.'
+  } else if (pg === 'P0002') {
+    code = 'NO_ENCONTRADA'
+    mensaje = texto || 'El lead no existe o ya fue eliminado.'
+  } else if (Object.hasOwn(RECHAZOS_ELIMINAR_LEAD, pg)) {
+    code = RECHAZOS_ELIMINAR_LEAD[pg] ?? code
+    if (texto) mensaje = texto
+  } else if (pg === 'PT409' || pg === '55P03' || pg === '40001' || pg === '40P01') {
+    code = 'REINTENTAR'
+    mensaje = pg === 'PT409' && texto ? texto : 'Otra operación está usando este lead. Vuelve a intentarlo en unos segundos.'
+  }
+  const fallo = new CrmApiError(mensaje, code)
+  registrarError('crm.leads.eliminar_error_carga_fallido', fallo, { pg })
+  return fallo
+}
+
+/** Elimina un lead cargado por error, con su motivo (de 10 a 500 caracteres). */
+export async function eliminarLeadErrorCarga(leadId: string, motivo: string): Promise<LeadEliminadoResultado> {
+  if (!v.safeParse(UuidSchema, leadId).success) {
+    throw new CrmApiError('El identificador del lead no es válido.', 'LEAD_ELIMINAR_INVALIDO')
+  }
+  const limpio = motivo.trim()
+  if (!motivoEliminarLeadValido(limpio)) {
+    throw new CrmApiError(
+      `Escribe el motivo de la eliminación (de ${MOTIVO_ELIMINAR_LEAD_MIN} a ${MOTIVO_ELIMINAR_LEAD_MAX} caracteres).`,
+      'LEAD_ELIMINAR_MOTIVO_INVALIDO',
+    )
+  }
+
+  const { data, error } = await cliente().schema('crm').rpc('eliminar_lead_error_carga', {
+    p_lead_id: leadId,
+    p_motivo: limpio,
+  })
+  if (error) throw aErrorEliminarLeadErrorCarga(error)
+
+  const respuesta = v.safeParse(LeadEliminadoSchema, data)
+  if (!respuesta.success || respuesta.output.lead_id.toLowerCase() !== leadId.toLowerCase()) {
+    // El servidor respondió 2xx: el borrado pudo completarse aunque el acuse no sea el pactado.
+    const fallo = new CrmApiError(
+      'El servidor no confirmó la eliminación con el formato esperado; pudo completarse. Busca el lead de nuevo antes de reintentar.',
+      'LEAD_ELIMINADO_CONTRACT',
+    )
+    registrarError('crm.leads.eliminar_error_carga_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return { copiaId: respuesta.output.copia_id, filas: respuesta.output.filas }
 }
 
 /** Crédito temporal leído de la puerta autorizada, separado del estado de cierre. */

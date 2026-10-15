@@ -31,6 +31,7 @@ vi.mock('@/data/gestion-diaria-api', async (importActual) => ({
 }))
 import { crmQueryKeys } from '@/data/crm-queries'
 import { slaOperacionKeys } from '@/data/sla-operacion-queries'
+import { gestionDiariaKeys } from '@/data/gestion-diaria-queries'
 import { queryClient } from './query-client'
 
 vi.mock('sonner', () => ({
@@ -800,6 +801,39 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
       expect(montaje.api().ambito.leads.map((l) => l.id)).toEqual([leadBase().id])
       expect(await abrir(montaje, ID_A)).toBe(false)
       expect(montaje.api().lead(ID_A)).toBeUndefined()
+    })
+
+    // «Eliminar lead (error de carga)»: `recargar()` conserva los leads conocidos (Fase 4e);
+    // el lead que el servidor ya borró se olvida, su ficha se cierra y se refrescan listas y cola.
+    it('olvidarLeadEliminado retira el lead borrado, cierra su ficha y refresca listas y la cola del día', async () => {
+      obtenerLeadPorId.mockResolvedValueOnce(filaA())
+      const montaje = montar()
+      await waitFor(() => expect(montaje.estado().cargando).toBe(false))
+      expect(await abrir(montaje, ID_A)).toBe(true)
+      expect(montaje.api().lead(ID_A)).toBeDefined()
+      invalidarQueriesMock.mockClear()
+
+      await act(async () => { expect(await montaje.api().olvidarLeadEliminado(ID_A)).toBe(true) })
+
+      expect(montaje.api().lead(ID_A)).toBeUndefined()
+      expect(montaje.api().ambito.leads.map((l) => l.id)).toEqual([leadBase().id])
+      expect(montaje.panelState().leadAbiertoId).toBeNull()
+      await waitFor(() => {
+        expect(invalidarQueriesMock).toHaveBeenCalledWith({ queryKey: crmQueryKeys.leads() })
+        expect(invalidarQueriesMock).toHaveBeenCalledWith({ queryKey: gestionDiariaKeys.raiz() })
+      })
+    })
+
+    it('olvidarLeadEliminado retira también un lead conocido que no está abierto (el resync lo conservaría)', async () => {
+      const montaje = montar()
+      await waitFor(() => expect(montaje.estado().cargando).toBe(false))
+      act(() => { montaje.api().conocerLeads([filaB()]) })
+      expect(montaje.api().lead(ID_B)).toBeDefined()
+
+      await act(async () => { expect(await montaje.api().olvidarLeadEliminado(ID_B)).toBe(true) })
+
+      expect(montaje.api().lead(ID_B)).toBeUndefined()
+      expect(montaje.api().ambito.leads.map((l) => l.id)).toEqual([leadBase().id])
     })
 
     it('una revalidación lenta de A no borra B abierta mientras viajaba el resync', async () => {

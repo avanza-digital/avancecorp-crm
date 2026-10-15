@@ -164,6 +164,7 @@ vi.mock('@/components/gerencia/motion', () => ({
   GerenciaMotion: ({ children }: { children: ReactNode }) => createElement('div', null, children),
 }))
 vi.mock('@/screens/hoy/aviso-cierre-mes', () => ({ AvisoCierreMesPanel: () => null }))
+vi.mock('@/screens/hoy/plazo-carga-mes', () => ({ PlazoCargaMesPanel: () => null }))
 vi.mock('@/screens/hoy/metas-editor', () => ({ MetasEditor: () => null }))
 
 const { ResumenGerenciaPanel } = await import('@/screens/hoy/resumen-gerencia')
