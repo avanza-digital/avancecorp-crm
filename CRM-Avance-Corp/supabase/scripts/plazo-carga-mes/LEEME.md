@@ -1,6 +1,6 @@
 # Plazo de carga por mes (migración 20261015000852)
 
-**Estado (15/10/2026, Lima): PREPARADA Y PROBADA EN LOCAL, con las revisiones Codex r1 y r2 aplicadas; NO APLICADA EN PRODUCCIÓN.**
+**Estado (15/10/2026, Lima): APLICADA, REGISTRADA Y VERIFICADA EN PRODUCCIÓN (~10:40, pasos 1–4 de abajo).** Sigue: publicar el front (paso 6), que Gerencia fije el plazo de septiembre (paso 7) y reactivar el ciclo (paso 8). El primer ensayo en producción (15/10, 01:15) se negó sin escribir: `crm.cerrar_periodo` está declarada en el censo analítico de producción y el banco de solo esquema no tenía esa fila. Corregido con el re-sellado de su huella (plantilla de `20261013145852`) y probado sobre los registros reales de producción.
 
 Gerencia decide hasta qué día se pueden cargar las ventas de un mes (sin tope; nunca antes del día 10 del mes
 siguiente; solo un mes con metas publicadas, porque el ciclo solo sella esos: revisión Codex r2) y, si ese mes ya está
@@ -30,8 +30,8 @@ Nada de esta carpeta corre contra producción por sí solo: lo corre Miguel con 
 | `dos-sesiones.py` | Lo que no se ve en una sesión: otra transacción no hereda la autorización; la puerta espera los candados global y mensual, y la reevaluación el de la identidad; el sello que esperaba a una ampliación se niega (a mano y por el ciclo); mutantes sin esos candados y con el sello de antes. |
 | `integracion-permisos.mjs` | `node supabase/scripts/test-rls.mjs --plazo-carga-mes`: Auth y PostgREST reales con escrituras (ampliar y REABRIR), en un banco LOCAL; limpia al terminar. |
 | `huella-esquema.sql` | Huella del esquema que toca la migración: igual antes de aplicarla y después de la reversa. |
-| `transporte.py` | Los guiones de producción tal como se mandan (un mensaje): el ensayo del paso 1 sobre un mundo sembrado como el del 14/10 (y que falla si la operación simulada falla), la negativa de la reversa y el registrador. |
-| `leer-registros-produccion.sql` | OPCIONAL, solo lectura: los registros de los trinquetes y el cron de producción, para llevarlos a un banco (la lectura desde la sesión de Claude fue denegada). |
+| `transporte.py` | Los guiones de producción tal como se mandan (un mensaje). Con el JSON de `leer-registros-produccion.sql` como segundo argumento, el mundo lleva los registros REALES de los trinquetes: el ensayo del paso 1 (y que falla si la operación simulada falla), el ciclo aplicar → registrar → verificar → reversa, 5 mutantes del re-sellado, la negativa de la reversa y el registrador. 21/21. |
+| `leer-registros-produccion.sql` | RECOMENDADO ANTES DEL ENSAYO, solo lectura: los registros de los trinquetes (censo analítico, F7, vigencia, auditoría) y el cron de producción, para sembrarlos en el banco (`transporte.py <banco> <json>`). Un banco de solo esquema no los tiene: por eso el primer ensayo del 15/10 se negó. |
 | `../test-rls.mjs` (bloque «Plazo de carga por mes») | En el gate general: rechazos por rol y la lectura de Gerencia, sin escribir (una decisión es historia permanente). |
 
 ## Pasos en producción (Miguel con `!`, desde `CRM-Avance-Corp/`)

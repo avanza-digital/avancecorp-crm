@@ -1,7 +1,7 @@
 ---
 tags: [crm, cierre-mes, conversion, decision]
 fecha: 2026-10-14
-estado: lista y probada en local (migración 20261015000852 + tarjeta «Plazo de carga»); falta aplicar en producción
+estado: migración APLICADA y verificada en producción (15/10 ~10:40); falta publicar el front, que Gerencia fije septiembre y reactivar el ciclo
 ---
 
 # Cierre de mes — plazo de carga por mes decidido por Gerencia (14/10/2026)
@@ -44,6 +44,12 @@ tras reabrir septiembre ([[Cierre de mes - septiembre reabierto para ventas tard
 62/62 mutantes, 14/14 con dos sesiones a la vez, 9/9 del ensayo tal como se manda a producción,
 42 contra Auth y la API reales, oráculo del cierre 22/22, reversa al byte. Front: 6800 pruebas y
 39/39 E2E en Docker. Codex: r1 FAIL (1 P1, 2 P2, 3 P3) y r2 FAIL (1 P2), todo corregido.
+
+**Aplicada (15/10, ~10:40 Lima).** El primer ensayo (01:15) se negó sin escribir: `crm.cerrar_periodo` está declarada
+en el censo analítico y el banco de solo esquema no tenía esa fila. Se corrigió re-sellando su huella (PR #287) y se
+probó con los registros REALES de producción sembrados en el banco. Segundo ensayo «ENSAYO OK» → aplicar → registrar →
+verificar «APLICADA Y REGISTRADA». Lección: antes de tocar una función existente, sembrar en el banco los registros de
+los controles de producción (`leer-registros-produccion.sql`).
 
 **Cómo se aplica.** Pasos con `!` en `CRM-Avance-Corp/supabase/scripts/plazo-carga-mes/LEEME.md`:
 ensayo con ROLLBACK → aplicar → registrar → verificar → publicar el front → Gerencia fija septiembre →
