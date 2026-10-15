@@ -1,6 +1,6 @@
 # Formulario 3 — fase 7: celda rara, clientes sin registrar y resumen diario
 
-15/10/2026. Estado: **código, pruebas y banco listos; sin publicar en el importador**. La publicación necesita que Miguel autorice publicar flujos en n8n (el clasificador de permisos la bloqueó).
+15/10/2026. Estado: **código, pruebas y banco listos; sin publicar en el importador**. Miguel autorizó publicar en n8n; se publica desde el commit fusionado en `main`.
 
 ## Qué cambia
 
@@ -31,7 +31,12 @@
   - asunto `[PRUEBA]`, porque el disparo no fue el programado;
   - el latido vacío generó el aviso ⚠️;
   - Gmail `SENT`.
-- **NOT RUN:** Error Trigger real del banco y publicación de los tres flujos (requieren publicar en n8n); primer correo programado de las 19:00.
+- **Error Trigger real del banco:** banco publicado una sola vez con su copia de avisos `bq7R13pHeI7g1Q58`.
+  - Ejecución de producción 272 → aviso 273.
+  - Correo `[PRUEBA F7]` enviado: «Revisar filas de la hoja: 3 (rechazada), 4 (cliente sin registrar). Pendientes para reintentar: 5.», sin el sufijo `[line N]`.
+  - Las dos copias se despublicaron enseguida: no hubo más ejecuciones.
+- Pre-push: app 429 archivos / 6.915 tests PASS. `npm run check:scripts` PASS.
+- **NOT RUN:** publicación de los tres flujos de producción; primer correo programado de las 19:00.
 
 ## Publicación (pendiente)
 
