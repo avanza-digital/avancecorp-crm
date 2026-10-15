@@ -1,6 +1,6 @@
 ## 20261015173031 — Formulario 3: activación del origen y reclasificación conservadora (B)
 
-**PROBADA EN DOCKER; NO APLICADA NI PUBLICADA.** Requiere A, frontend/Edge compatibles y pestañas del equipo
+**PROBADA EN DOCKER Y RAMA SUPABASE; NO APLICADA NI PUBLICADA EN PRODUCCIÓN.** Requiere A, frontend/Edge compatibles y pestañas del equipo
 renovadas. Drena escritores previos con el bloqueo de `crm.leads` y normaliza productores legados a
 `formulario_3`; no cambia n8n ni sus recibos. Reclasifica exclusivamente `formulario` + campaña exacta
 `Formulario 3`, conservando asignaciones, estado, veto, tareas, historial, ledger y fotos cerradas.
@@ -17,12 +17,16 @@ Ensayos: convertido previo → B → sincronización sin recalcular PASS; tres c
 (manual, automático, legado); mes/fecha/identidad incompatibles sin efectos parciales PASS; dos conexiones
 con mes/fila ocupados rechazan en 0,05/0,04 s y luego reintentan; escritor n8n previo incluido sin duplicados.
 El CHECK de campaña acepta NULL en alta manual F3 o la campaña exacta de importación. No toca permisos de campaña.
-Matriz RLS HTTP, advisors y rama Supabase autorizada: **NOT RUN**, pendientes del gate cloud.
+Rama `yefiownpxvembwvfbtfx`: A/B PASS, 116 copiados reclasificados (1 convertido), cero legados restantes;
+huellas de los 3.861 leads/dependencias conservadas salvo orígenes y timestamp técnico permitido.
+Matriz focalizada RLS HTTP + Edge: **111 comprobaciones PASS**, ocho Auth reales. Advisors: cero hallazgos
+nuevos; deuda previa no saneada. Gate RLS general con seed-demo **NOT RUN** sobre copia con datos.
+Los 12 cron se desactivaron; rama y credenciales retiradas el 15/10 a las 20:40 UTC.
 Evidencia y orden: [`formulario3-origen/LEEME.md`](../scripts/formulario3-origen/LEEME.md).
 
 ## 20261015171407 — Formulario 3: compatibilidad de origen, reparto y métricas (A)
 
-**PROBADA EN DOCKER; NO APLICADA NI PUBLICADA.** `formulario_3` usa `crm.leads.origen` y las mismas puertas,
+**PROBADA EN DOCKER Y RAMA SUPABASE; NO APLICADA NI PUBLICADA EN PRODUCCIÓN.** `formulario_3` usa `crm.leads.origen` y las mismas puertas,
 RLS, roles y asignación existentes. Actualiza 22 funciones verificadas por huella, dos CHECKs de catálogo y
 tres helpers privados. F3 es filtro/origen propio y comparte únicamente el turno operativo Formulario
 (dos turnos de agenda). Peso: llegada automática 1, manual 0 y cierre 1; mantiene primer analista y fotos

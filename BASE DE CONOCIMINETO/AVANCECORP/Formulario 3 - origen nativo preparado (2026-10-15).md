@@ -5,7 +5,7 @@ actualizado: 2026-10-15
 
 # Formulario 3 — origen nativo preparado
 
-**Implementado y probado en local; no aplicado ni publicado en producción.**
+**Implementado y probado en local y rama Supabase; no aplicado ni publicado en producción.**
 Miguel pidió que Formulario 3 fuera un origen real de backend, conectado como los
 demás, y autorizó cambiar Repartir para que soporte más orígenes.
 
@@ -51,10 +51,19 @@ rechazos por inconsistencia, escritor n8n concurrente y bloqueos financieros.
 Claude revisó arquitectura e implementación; los agentes propios revisaron
 consistencia y concurrencia. Se incorporaron correcciones y se ejecutaron pruebas.
 
-El cierre local se registra en `supabase/scripts/formulario3-origen/LEEME.md` y
-`REVISION.md`; el ledger conserva el estado **no aplicado**. Pendientes: rama
-Supabase temporal autorizada, matriz RLS HTTP/advisors y publicación con invocación
-humana de release. No afirmar que el origen productivo ya es nativo.
+El cierre se registra en `supabase/scripts/formulario3-origen/LEEME.md`,
+`REVISION.md` y `cloud-verificacion.json`; el ledger conserva **no aplicado en
+producción**. La rama autorizada `formulario3-origen-nativo-20261015` copió 479
+migraciones y 3.861 leads. A/B pasaron: los 116 F3, incluido el convertido,
+cambiaron de origen conservando las huellas de asignaciones, historial, tareas,
+inversiones, contratos, acreditación (salvo origen) y fotos selladas.
+
+Ocho sesiones Auth reales, 111 comprobaciones de contratos/permisos/Edge PASS;
+advisors sin hallazgos nuevos. No se ejecutó el seed general sobre datos copiados:
+se usó la matriz HTTP focalizada. Sus 12 cron quedaron desactivados y la rama
+`yefiownpxvembwvfbtfx` se eliminó a las 20:40 UTC; credenciales efímeras borradas.
+Pendiente: publicación con preflight vigente e invocación humana de release.
+No afirmar que el origen productivo ya es nativo.
 
 Figma: [plan de Formulario 3](https://www.figma.com/board/JB4jRdmLXZXS0hBhEHxRbV?node-id=2-34).
 Relacionado: [[Formulario 3 - fase 6 carga y activación (2026-10-15)]] ·

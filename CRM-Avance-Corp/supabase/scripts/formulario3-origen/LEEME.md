@@ -1,6 +1,6 @@
 # Formulario 3 como origen propio
 
-Estado: **implementado y probado en Docker; sin aplicar ni publicar en producción**.
+Estado: **implementado y probado en Docker y Supabase; sin aplicar ni publicar en producción**.
 La clave es `formulario_3` en `crm.leads.origen`. No hay otra tabla de leads ni
 otra política de permisos. Comparte el turno operativo Formulario y sus pesos:
 alta automática 1, alta manual 0 en el divisor y cierre 1 en el numerador.
@@ -92,7 +92,48 @@ transacción de prueba. Los ensayos reversibles comprueban restaurar esas ACL.
   `tipos-contratos.json` registra el alcance. El cambio de retorno es
   `leads_por_repartir.Returns.campania_origen`.
 
-La rama cloud, la matriz RLS HTTP, advisors y publicación siguen pendientes.
+## Ensayo Supabase completado y retirado
+
+Rama autorizada `formulario3-origen-nativo-20261015`, ref `yefiownpxvembwvfbtfx`,
+creada con datos el 15/10/2026. La copia contenía 479 migraciones y 3.861 leads;
+coincidían las huellas de las 22 funciones. Se desactivaron sus 12 cron antes de
+preparar fixtures. A y B se aplicaron correctamente. Los 116 F3 copiados quedaron
+nativos, incluido un convertido, sin legados residuales.
+
+Se compararon huellas de los 3.861 leads y sus dependencias antes y después:
+responsables, historial, tareas, episodios, acreditaciones, contratos, inversiones,
+solicitudes y fotos selladas se conservaron. Solo se excluyen de la comparación
+`origen` y el timestamp técnico del lead; en la acreditación, solo `origen`.
+Los postflights de B también verifican invariantes y la conversión agregada.
+
+`test-rls.mjs --formulario3-origen` ejecutó 49 comprobaciones A y 51 B con ocho
+sesiones Auth reales; el importador desplegado **solo en la rama** pasó otras
+5 antes y 6 después de B. Total: **111 comprobaciones PASS**, más 9 pasos de setup.
+Incluye alta manual, permisos por rol, lectura cruzada, contratos anteriores,
+filtros disjuntos, cola, reparto/derivación y reenvíos sin alterar fichas completas,
+historia ni tareas. Edge exige JWT y secreto y rechaza campañas incompatibles.
+
+El gate RLS general presupone una base exclusivamente `seed-demo`: **NOT RUN**
+sobre esta copia, para no sustituir datos. Se ejecutó su matriz focalizada HTTP.
+Cloud conservó el reparto libre copiado; el turno estricto está probado en Docker.
+Advisors: **cero hallazgos nuevos** de seguridad o rendimiento. Persisten los
+avisos previos; 27 índices dejaron de figurar como no usados por la actividad del
+ensayo. Esto no acredita haber corregido toda la deuda del sistema.
+
+La rama fue eliminada a las **20:40 UTC** y se borraron sus credenciales efímeras.
+La rama vacía inicial se había retirado al detectar un replay antiguo de solo 86
+migraciones; no se usó como evidencia del esquema vigente. Las dos ramas se
+usaron consecutivamente para la misma validación autorizada, sin modificar producción.
+
+Evidencia saneada: `cloud-verificacion.json` y `http-cloud-*.json`. Los scripts
+cloud quedan cerrados a la rama ya retirada: para repetir, autorizar otra copia y
+adaptar/verificar su referencia; no reutilizar credenciales ni apuntar a producción.
+La conexión SQL del harness usa la API de administración: la contraseña postgres
+devuelta por `branches get` no funcionó tras la restauración. No se cambió ninguna
+contraseña. Las sesiones humanas y sus aserciones siguen usando Auth/PostgREST.
+
+**Pendiente: publicación**, preflight vigente y actualización del equipo según
+el orden de instalación. n8n sigue activo con su contrato y recibos originales.
 El censo analítico tenía deuda previa: esta migración re-sella sus propias
 declaraciones y exige no añadir anomalías; no declara saneado todo el censo.
 

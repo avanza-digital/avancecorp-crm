@@ -57,3 +57,19 @@ Formulario + Formulario 3, por empresa y analista.
 
 Las revisiones son asesoría; los resultados de pruebas y los gates de publicación
 determinan el estado. No se volvió a consultar a Claude para obtener conformidad.
+
+## Revisión propia del harness cloud
+
+El reviewer detectó que A filtra virtualmente F3 pero conserva `origen=formulario`
+en el payload. Se corrigió el esperado del harness, no el contrato del producto.
+Se exigió `42501` en las denegaciones (un error genérico podía ocultar un fallo
+de validación), se filtró la cola por IDs sintéticos y se comprobó explícitamente
+el reparto libre copiado sin modificar la agenda. Los JSON de evidencia ahora
+incluyen estado global FAIL/PASS. Se amplió el reenvío para comparar huellas de
+fichas completas, actividades, tareas y episodios, además de sus responsables.
+
+Después de las correcciones, la matriz cloud pasó con ocho sesiones reales:
+49 comprobaciones A, 51 B y 11 de Edge. La copia conservó las huellas de sus
+3.861 leads y dependencias al activar los 116 F3. Advisors no añadió hallazgos.
+La rama y sus credenciales se retiraron. No se invocó una tercera revisión de
+Claude; se comprobó la evidencia y se ejecutaron los tests por el PRIMARY.

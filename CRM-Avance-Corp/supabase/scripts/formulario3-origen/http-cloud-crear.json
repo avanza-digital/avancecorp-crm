@@ -1,0 +1,43 @@
+{
+  "ref": "yefiownpxvembwvfbtfx",
+  "fase": "crear",
+  "estado": "PASS",
+  "pruebas": [
+    {
+      "nombre": "Auth: usuario sintético supervisor sin enviar correo",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Auth: usuario sintético supervisor_otro sin enviar correo",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Auth: usuario sintético vendedor sin enviar correo",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Auth: usuario sintético vendedor_otro sin enviar correo",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Auth: usuario sintético gerencia sin enviar correo",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Auth: usuario sintético coordinador sin enviar correo",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Auth: usuario sintético inactivo sin enviar correo",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Auth: usuario sintético directorio sin enviar correo",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Ocho perfiles sintéticos con jerarquía y membresía real, sin modificar usuarios copiados",
+      "estado": "PASS"
+    }
+  ]
+}
