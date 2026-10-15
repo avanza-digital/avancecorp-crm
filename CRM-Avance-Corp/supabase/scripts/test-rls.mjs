@@ -9,6 +9,17 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 
+// Cambio aditivo de campaña: matriz focalizada sobre banco local exclusivo.
+if (process.argv.length === 3 && process.argv[2] === '--formulario3-fase2') {
+  await import('./formulario3-fase2/rls.mjs');
+  process.exit(0);
+}
+
+if (process.argv.length === 3 && process.argv[2] === '--formulario3') {
+  await import('./formulario3-fase1/rls.mjs');
+  process.exit(0);
+}
+
 // Regresión de las puertas de atención/venta y del offboarding con Auth real.
 // El módulo cierra sus destinos al banco exclusivo autorizado de esta tarea.
 if (process.argv.length === 3 && process.argv[2] === '--atencion-venta') {
@@ -161,6 +172,8 @@ Gate RLS del CRM (solo branch/staging con seed-demo)
 
 Uso:
   node supabase/scripts/test-rls.mjs [--preflight] [--contratos | --identidad-d5 | --facturacion-nombres | --llamadas]
+  node supabase/scripts/test-rls.mjs --formulario3
+  node supabase/scripts/test-rls.mjs --formulario3-fase2
 
 Opciones:
   --preflight  Valida runtime, variables y matriz sin abrir conexiones.

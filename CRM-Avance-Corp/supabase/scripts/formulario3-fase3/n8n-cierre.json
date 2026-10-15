@@ -1,0 +1,1205 @@
+{
+  "fecha_utc": "2026-10-15T00:18:34.438Z",
+  "historial_final": {
+    "success": true,
+    "workflowId": "BjI5m1PKVWhO0NDb",
+    "versions": [
+      {
+        "versionId": "95f649de-8cdc-43af-ba89-5cd4a3d74840",
+        "authors": "Avance Corp mascapital (via MCP)",
+        "name": "Restaurar credencial original tras selección de prueba",
+        "description": "El historial identificó una selección de la credencial temporal en el flujo principal. Se restaura exclusivamente la referencia original. El envío permanece deshabilitado y el flujo sin publicar.",
+        "autosaved": false,
+        "createdAt": "2026-10-15T00:04:39.486Z",
+        "updatedAt": "2026-10-15T00:04:39.486Z"
+      },
+      {
+        "versionId": "6de7addb-5eb3-4267-b27f-ae9e7dd34637",
+        "authors": "Avance Corp mascapital",
+        "name": null,
+        "description": null,
+        "autosaved": true,
+        "createdAt": "2026-10-14T23:49:18.787Z",
+        "updatedAt": "2026-10-14T23:49:18.787Z"
+      },
+      {
+        "versionId": "1dbc8d0d-7bed-465d-b33f-33c48f5cd953",
+        "authors": "Avance Corp mascapital",
+        "name": null,
+        "description": null,
+        "autosaved": true,
+        "createdAt": "2026-10-14T20:49:44.145Z",
+        "updatedAt": "2026-10-14T20:49:44.145Z"
+      },
+      {
+        "versionId": "cbc1ce82-db6a-40c1-ba65-68de065c1f25",
+        "authors": "Avance Corp mascapital (via MCP)",
+        "name": "Rotación justa de pendientes y detección de falta de avance",
+        "description": "Added nodes: Seleccionar lote rotativo\nRemoved nodes: Máximo 25 por ejecución\nUpdated nodes: Preparar leads, Resumen de vista previa, Confirmar respuesta del CRM, Marcar para revisión, Resumen de importación and 1 more\nConnections: 2 added, 2 removed",
+        "autosaved": false,
+        "createdAt": "2026-10-14T20:30:07.091Z",
+        "updatedAt": "2026-10-14T20:30:07.091Z"
+      },
+      {
+        "versionId": "aa5ffee6-43f6-4646-8db0-e425778cda23",
+        "authors": "Avance Corp mascapital (via MCP)",
+        "name": "Errores por fila, límite de lote y credencial verificada",
+        "description": "Aplica la revisión de Claude: valida encabezados, procesa hasta 25 filas con margen de tiempo y conserva pendientes sin recibos. Envío todavía apagado.",
+        "autosaved": false,
+        "createdAt": "2026-10-14T20:17:22.756Z",
+        "updatedAt": "2026-10-14T20:17:22.756Z"
+      },
+      {
+        "versionId": "b0ea3fbc-1285-47ae-95e9-a827c315f34e",
+        "authors": "Avance Corp mascapital (via MCP)",
+        "name": "Updated Conservar recibo",
+        "description": "Un único recibo por fila: la simulación de DataTable devuelve estado anterior y posterior.",
+        "autosaved": false,
+        "createdAt": "2026-10-14T18:43:15.884Z",
+        "updatedAt": "2026-10-14T18:43:15.884Z"
+      },
+      {
+        "versionId": "dc00ab22-924b-48fb-a7c9-03c7f38a90a0",
+        "authors": "Avance Corp mascapital (via MCP)",
+        "name": "Updated Importar en CRM",
+        "description": "Updated nodes: Importar en CRM",
+        "autosaved": false,
+        "createdAt": "2026-10-14T18:42:08.466Z",
+        "updatedAt": "2026-10-14T18:42:08.466Z"
+      },
+      {
+        "versionId": "aa356f08-3671-4b0e-9806-a9ade7537ab2",
+        "authors": "Avance Corp mascapital (via MCP)",
+        "name": "Updated Importar en CRM",
+        "description": "Updated nodes: Importar en CRM",
+        "autosaved": false,
+        "createdAt": "2026-10-14T18:42:07.662Z",
+        "updatedAt": "2026-10-14T18:42:07.662Z"
+      },
+      {
+        "versionId": "ffdf10dd-2e2c-4aae-b78c-dbe136d5feb4",
+        "authors": "Avance Corp mascapital (via MCP)",
+        "name": "Updated Preparar leads, Resumen de vista previa, Confirmar respuesta del CRM, M…",
+        "description": "Acepta la banda real 100,000_o_más. y omite las filas completamente vacías.",
+        "autosaved": false,
+        "createdAt": "2026-10-14T18:40:26.798Z",
+        "updatedAt": "2026-10-14T18:40:26.798Z"
+      },
+      {
+        "versionId": "ee751e87-71b0-4369-9871-73464df0e11e",
+        "authors": "Avance Corp mascapital (via MCP)",
+        "name": "Updated Importar en CRM",
+        "description": "Importador deshabilitado hasta configurar su credencial; vista previa segura.",
+        "autosaved": false,
+        "createdAt": "2026-10-14T18:39:37.436Z",
+        "updatedAt": "2026-10-14T18:39:37.436Z"
+      },
+      {
+        "versionId": "4dee84df-03ba-4609-9ca8-35d4ecc24209",
+        "authors": "Avance Corp mascapital (via MCP)",
+        "name": "Formulario 3 — vista previa completa",
+        "description": "Lectura completa, mapeo, huellas, importación por fila y recibos persistentes. Envío apagado para pruebas.",
+        "autosaved": false,
+        "createdAt": "2026-10-14T18:38:58.940Z",
+        "updatedAt": "2026-10-14T18:38:58.940Z"
+      },
+      {
+        "versionId": "d1e3642e-0f34-43ae-8388-b1e3e2f21c87",
+        "authors": "Avance Corp mascapital (via MCP)",
+        "name": "Credencial Google conectada",
+        "description": "Se fija explícitamente la credencial OAuth conectada correctamente.",
+        "autosaved": false,
+        "createdAt": "2026-10-14T18:10:26.511Z",
+        "updatedAt": "2026-10-14T18:10:26.511Z"
+      },
+      {
+        "versionId": "7bcc6a62-8bf8-4f7b-ab06-18f311ac15c0",
+        "authors": "Avance Corp mascapital (via MCP)",
+        "name": "Conexión Google y lectura de muestra",
+        "description": "Primera etapa: acceso OAuth verificado, lectura manual de las primeras diez filas de Hoja 1 y preparación del mapeo al CRM.",
+        "autosaved": false,
+        "createdAt": "2026-10-14T18:09:45.922Z",
+        "updatedAt": "2026-10-14T18:09:45.922Z"
+      }
+    ],
+    "count": 13
+  },
+  "comparacion_ultima_version_mcp": {
+    "success": true,
+    "workflowId": "BjI5m1PKVWhO0NDb",
+    "fromVersionId": "cbc1ce82-db6a-40c1-ba65-68de065c1f25",
+    "toVersionId": "95f649de-8cdc-43af-ba89-5cd4a3d74840",
+    "nodesAdded": [],
+    "nodesRemoved": [],
+    "nodesModified": [
+      {
+        "id": "99295f5a-41c2-4414-af96-c24235c378e4",
+        "name": "Leer leads filtrados",
+        "type": "n8n-nodes-base.googleSheets",
+        "changes": {
+          "parameters": {
+            "resource__deleted": "sheet",
+            "operation__deleted": "read",
+            "authentication__deleted": "oAuth2"
+          }
+        }
+      },
+      {
+        "id": "86b5d41c-344c-4cdb-8dff-c9b49d27926c",
+        "name": "Cada 5 minutos",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "changes": {
+          "parameters": {
+            "rule": {
+              "interval": [
+                [
+                  "~",
+                  {
+                    "minutesInterval__deleted": 5
+                  }
+                ]
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": "56367619-28fa-426a-b4a0-a3b26fef36ea",
+        "name": "Control del envío",
+        "type": "n8n-nodes-base.set",
+        "changes": {
+          "parameters": {
+            "options__added": {}
+          }
+        }
+      },
+      {
+        "id": "4b85e6d6-f559-47df-a44b-a24028c01b32",
+        "name": "Preparar leads",
+        "type": "n8n-nodes-base.code",
+        "changes": {
+          "parameters": {
+            "mode__deleted": "runOnceForAllItems",
+            "language__deleted": "javaScript"
+          }
+        }
+      },
+      {
+        "id": "a2bd73cf-f454-4d9a-9ed3-30c5034651d4",
+        "name": "Identificar fila",
+        "type": "n8n-nodes-base.crypto",
+        "changes": {
+          "parameters": {
+            "action__deleted": "hash",
+            "type__deleted": "SHA256",
+            "encoding__deleted": "hex"
+          }
+        }
+      },
+      {
+        "id": "8cda6850-e544-4f05-aa67-f97e4bc665e2",
+        "name": "Enviar al CRM",
+        "type": "n8n-nodes-base.if",
+        "changes": {
+          "parameters": {
+            "options__added": {}
+          }
+        }
+      },
+      {
+        "id": "22f8d801-2941-4d70-82da-e4dbab289d85",
+        "name": "Resumen de vista previa",
+        "type": "n8n-nodes-base.code",
+        "changes": {
+          "parameters": {
+            "mode__deleted": "runOnceForAllItems",
+            "language__deleted": "javaScript"
+          }
+        }
+      },
+      {
+        "id": "2217926b-1ea9-4507-9308-07ba7436398e",
+        "name": "Omitir filas confirmadas",
+        "type": "n8n-nodes-base.dataTable",
+        "changes": {
+          "parameters": {
+            "resource__deleted": "row"
+          }
+        }
+      },
+      {
+        "id": "463e9fd9-f894-482a-acd8-4017ba5c8440",
+        "name": "Procesar de una en una",
+        "type": "n8n-nodes-base.splitInBatches",
+        "changes": {
+          "parameters": {
+            "batchSize__deleted": 1
+          }
+        }
+      },
+      {
+        "id": "3a5c535d-82f3-4284-bb57-d4af312906c5",
+        "name": "Datos válidos",
+        "type": "n8n-nodes-base.if",
+        "changes": {
+          "parameters": {
+            "options__added": {}
+          }
+        }
+      },
+      {
+        "id": "b2d0bc45-f78c-4a58-8a2f-e99538aa8539",
+        "name": "Importar en CRM",
+        "type": "n8n-nodes-base.httpRequest",
+        "changes": {
+          "parameters": {
+            "contentType__deleted": "json"
+          }
+        }
+      },
+      {
+        "id": "31dc51a9-8654-406d-94b7-69acd55af2cb",
+        "name": "Confirmar respuesta del CRM",
+        "type": "n8n-nodes-base.code",
+        "changes": {
+          "parameters": {
+            "mode__deleted": "runOnceForAllItems",
+            "language__deleted": "javaScript"
+          }
+        }
+      },
+      {
+        "id": "b3c61832-d712-4fb8-aa1e-2ffacec078a8",
+        "name": "Marcar para revisión",
+        "type": "n8n-nodes-base.code",
+        "changes": {
+          "parameters": {
+            "mode__deleted": "runOnceForAllItems",
+            "language__deleted": "javaScript"
+          }
+        }
+      },
+      {
+        "id": "cf5278ab-25d5-43c5-a477-85211a32aa9a",
+        "name": "Preparar recibo",
+        "type": "n8n-nodes-base.set",
+        "changes": {
+          "parameters": {
+            "options__added": {}
+          }
+        }
+      },
+      {
+        "id": "7edaa859-5026-4ded-95d3-0d4f4dc518d7",
+        "name": "Registrar resultado",
+        "type": "n8n-nodes-base.dataTable",
+        "changes": {
+          "parameters": {
+            "resource__deleted": "row",
+            "filters": {
+              "conditions": [
+                [
+                  "~",
+                  {
+                    "condition__deleted": "eq"
+                  }
+                ]
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": "26ee2fc5-b615-42f5-b03c-6f1462a3a32c",
+        "name": "Conservar recibo",
+        "type": "n8n-nodes-base.set",
+        "changes": {
+          "parameters": {
+            "options__added": {}
+          }
+        }
+      },
+      {
+        "id": "9fb89451-2325-40f7-b368-4af7b487fc4d",
+        "name": "Resumen de importación",
+        "type": "n8n-nodes-base.code",
+        "changes": {
+          "parameters": {
+            "mode__deleted": "runOnceForAllItems",
+            "language__deleted": "javaScript"
+          }
+        }
+      },
+      {
+        "id": "e290027d-bf45-40e3-9d75-68a59055c976",
+        "name": "Tiempo disponible",
+        "type": "n8n-nodes-base.if",
+        "changes": {
+          "parameters": {
+            "options__added": {}
+          }
+        }
+      },
+      {
+        "id": "27f3bb7d-4d9b-4c0e-8e85-4fcb020d8b96",
+        "name": "Mantener pendiente",
+        "type": "n8n-nodes-base.code",
+        "changes": {
+          "parameters": {
+            "mode__deleted": "runOnceForAllItems",
+            "language__deleted": "javaScript"
+          }
+        }
+      },
+      {
+        "id": "7f06683a-db6e-461e-a73a-a0e5a77d2627",
+        "name": "Aplazar hasta próxima revisión",
+        "type": "n8n-nodes-base.set",
+        "changes": {
+          "parameters": {
+            "options__added": {}
+          }
+        }
+      },
+      {
+        "id": "e6cbd4a6-a8f1-479b-af16-1a838ecb4bd8",
+        "name": "Seleccionar lote rotativo",
+        "type": "n8n-nodes-base.code",
+        "changes": {
+          "parameters": {
+            "mode__deleted": "runOnceForAllItems",
+            "language__deleted": "javaScript"
+          }
+        }
+      }
+    ],
+    "connectionsAdded": [],
+    "connectionsRemoved": []
+  },
+  "version_mcp": "cbc1ce82-db6a-40c1-ba65-68de065c1f25",
+  "ajustes_historicos_disponibles": false,
+  "limite_ajustes": "get_workflow_version/get_workflow_versions_diff no devuelven settings históricos. Se compara la lectura actual con la captura previa a restaurar; no se afirma reconstrucción de settings de las 20:30.",
+  "estado_actual": {
+    "id": "BjI5m1PKVWhO0NDb",
+    "name": "Avance Corp — Formulario 3 → CRM",
+    "active": false,
+    "isArchived": false,
+    "versionId": "95f649de-8cdc-43af-ba89-5cd4a3d74840",
+    "activeVersionId": null,
+    "triggerCount": 0,
+    "nodeCount": 22,
+    "createdAt": "2026-10-14T18:09:45.917Z",
+    "updatedAt": "2026-10-15T00:04:39.477Z",
+    "settings": {
+      "executionOrder": "v1",
+      "availableInMCP": true,
+      "timezone": "America/Lima",
+      "executionTimeout": 180,
+      "saveManualExecutions": true,
+      "saveDataErrorExecution": "all",
+      "saveDataSuccessExecution": "none",
+      "errorWorkflow": "4jfthNhVJLiZUeIo",
+      "binaryMode": "separate"
+    },
+    "tags": [],
+    "parentFolderId": null,
+    "description": "Lee todos los leads filtrados de Formulario 3, valida sus datos y registra respuestas definitivas del CRM. Vista previa habilitada; envío y publicación pendientes.",
+    "canExecute": true,
+    "connections": {
+      "Revisar hoja": {
+        "main": [
+          [
+            {
+              "node": "Control del envío",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Cada 5 minutos": {
+        "main": [
+          [
+            {
+              "node": "Control del envío",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Control del envío": {
+        "main": [
+          [
+            {
+              "node": "Leer leads filtrados",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Leer leads filtrados": {
+        "main": [
+          [
+            {
+              "node": "Preparar leads",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Preparar leads": {
+        "main": [
+          [
+            {
+              "node": "Identificar fila",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Identificar fila": {
+        "main": [
+          [
+            {
+              "node": "Enviar al CRM",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Enviar al CRM": {
+        "main": [
+          [
+            {
+              "node": "Omitir filas confirmadas",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Resumen de vista previa",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Procesar de una en una": {
+        "main": [
+          [
+            {
+              "node": "Resumen de importación",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Tiempo disponible",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Datos válidos": {
+        "main": [
+          [
+            {
+              "node": "Importar en CRM",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Marcar para revisión",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Importar en CRM": {
+        "main": [
+          [
+            {
+              "node": "Confirmar respuesta del CRM",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Mantener pendiente",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Confirmar respuesta del CRM": {
+        "main": [
+          [
+            {
+              "node": "Preparar recibo",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Mantener pendiente",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Marcar para revisión": {
+        "main": [
+          [
+            {
+              "node": "Preparar recibo",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Preparar recibo": {
+        "main": [
+          [
+            {
+              "node": "Registrar resultado",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Registrar resultado": {
+        "main": [
+          [
+            {
+              "node": "Conservar recibo",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Conservar recibo": {
+        "main": [
+          [
+            {
+              "node": "Procesar de una en una",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Tiempo disponible": {
+        "main": [
+          [
+            {
+              "node": "Datos válidos",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Aplazar hasta próxima revisión",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Aplazar hasta próxima revisión": {
+        "main": [
+          [
+            {
+              "node": "Procesar de una en una",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Mantener pendiente": {
+        "main": [
+          [
+            {
+              "node": "Procesar de una en una",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Omitir filas confirmadas": {
+        "main": [
+          [
+            {
+              "node": "Seleccionar lote rotativo",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Seleccionar lote rotativo": {
+        "main": [
+          [
+            {
+              "node": "Procesar de una en una",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodes": [
+      {
+        "parameters": {},
+        "id": "de812186-0591-4011-9535-817910e481ab",
+        "name": "Revisar hoja",
+        "type": "n8n-nodes-base.manualTrigger",
+        "typeVersion": 1,
+        "position": [
+          0,
+          128
+        ]
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "mode": "id",
+            "value": "1lPvJ-65PNY1d4eme5xpcJ8ITVazkQRdjtkgW4ZLoIsI"
+          },
+          "sheetName": {
+            "__rl": true,
+            "mode": "list",
+            "value": "gid=0",
+            "cachedResultName": "Hoja 1"
+          },
+          "options": {
+            "dataLocationOnSheet": {
+              "values": {
+                "rangeDefinition": "specifyRangeA1",
+                "range": "A1:J"
+              }
+            },
+            "outputFormatting": {
+              "values": {
+                "general": "UNFORMATTED_VALUE",
+                "date": "SERIAL_NUMBER"
+              }
+            }
+          }
+        },
+        "id": "99295f5a-41c2-4414-af96-c24235c378e4",
+        "name": "Leer leads filtrados",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          592,
+          240
+        ],
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "vPzsYCzKnotpycYi",
+            "name": "Google Sheets account 2"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "minutes"
+              }
+            ]
+          }
+        },
+        "id": "86b5d41c-344c-4cdb-8dff-c9b49d27926c",
+        "name": "Cada 5 minutos",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.4,
+        "position": [
+          0,
+          368
+        ]
+      },
+      {
+        "parameters": {
+          "mode": "raw",
+          "jsonOutput": "={{ JSON.stringify({enviar_crm:false,simular_registro:false,inicio_ms:$now.toMillis()}) }}",
+          "options": {}
+        },
+        "id": "56367619-28fa-426a-b4a0-a3b26fef36ea",
+        "name": "Control del envío",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.5,
+        "position": [
+          304,
+          240
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const CAMPAÑA = 'Formulario 3'\nconst DOCUMENTO = '1lPvJ-65PNY1d4eme5xpcJ8ITVazkQRdjtkgW4ZLoIsI'\nconst COLUMNAS = {\n  fecha: 'Fecha',\n  intencion: '¿qué deseas hacer con qorilazo?',\n  informacion: '¿qué información te gustaría evaluar antes de realizar un depósito a plazo fijo?',\n  moneda: '¿en qué moneda te interesa ahorrar?',\n  capital: '¿qué monto aproximado deseas evaluar para tu depósito?',\n  asesor: '¿qué te gustaría reforzar con el asesor antes de realizar tu deposito a plazo fijjo?',\n  telefono: 'n.º celular',\n  nombre: 'nombre completo',\n  alternativo: 'número de teléfono',\n  ciudad: 'ciudad',\n}\n\nfunction texto(valor) {\n  if (valor == null) return ''\n  if (typeof valor === 'string') return valor.trim()\n  if (typeof valor === 'number' && Number.isFinite(valor)) return String(valor)\n  throw new Error('La celda contiene un tipo de dato inesperado')\n}\n\nfunction normalizarRespuesta(valor) {\n  return texto(valor).normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')\n    .replace(/_/g, ' ').replace(/[^a-zA-Z0-9,.$/+\\-\\s]/g, '')\n    .replace(/\\s+/g, ' ').trim().toLowerCase()\n}\n\nfunction capitalEstimado(valor) {\n  const numero = '(?:\\\\d{1,3}(?:,\\\\d{3})+|\\\\d+)(?:\\\\.\\\\d{1,2})?'\n  const limpio = normalizarRespuesta(valor).replace(/^(?:s\\/\\.?|us\\$|\\$)\\s*/, '').replace(/(mas)\\.$/, '$1')\n  const rango = new RegExp('^de\\\\s+(' + numero + ')\\\\s+(?:a|hasta)\\\\s+(' + numero + ')$').exec(limpio)\n  const abierto = new RegExp('^(?:(?:mas de|desde|mayor a)\\\\s+)?(' + numero + ')(?:\\\\s+(?:a mas|o mas)|\\\\s*\\\\+)?$').exec(limpio)\n  const match = rango || abierto\n  if (!match) throw new Error('Capital no reconocido: conserva el rango para revisar')\n  const piso = Number(match[1].replace(/,/g, ''))\n  const techo = rango ? Number(rango[2].replace(/,/g, '')) : piso\n  if (!Number.isFinite(piso) || piso <= 0 || piso > 9_999_999_999.99 || techo < piso || techo > 9_999_999_999.99) {\n    throw new Error('Capital fuera del rango permitido')\n  }\n  return String(piso)\n}\n\nfunction monedaDeRespuesta(valor) {\n  const limpio = normalizarRespuesta(valor)\n  const soles = /\\b(?:sol|soles|pen)\\b/.test(limpio)\n  const dolares = /\\b(?:dolar|dolares|usd)\\b|us\\$/.test(limpio)\n  if (!soles && !dolares) throw new Error('Moneda no reconocida: debe indicar soles o dólares')\n  return { moneda: soles ? 'PEN' : 'USD', ambigua: soles && dolares }\n}\n\nfunction validarColumnas(registros) {\n  const claves = new Set(registros.flatMap((registro) => Object.keys(registro)))\n  if (!Object.values(COLUMNAS).some((columna) => claves.has(columna))) {\n    if (registros.every((registro) => Object.entries(registro).every(([clave, valor]) => clave === 'row_number' || valor == null || valor === ''))) return\n  }\n  const faltantes = Object.values(COLUMNAS).filter((columna) => !claves.has(columna))\n  if (faltantes.length) throw new Error('Cambió la estructura de Google Sheets. Faltan columnas: ' + faltantes.join(' | '))\n}\n\nfunction prepararFila(registro) {\n  const fila = Number(registro.row_number)\n  if (!Number.isInteger(fila) || fila < 2) throw new Error('La lectura no incluye un número de fila válido')\n  const datos = {}\n  for (const [clave, columna] of Object.entries(COLUMNAS)) datos[clave] = texto(registro[columna])\n  if (Object.values(datos).every((valor) => valor === '')) return null\n  const errores = []\n  if (!datos.nombre) errores.push('Falta el nombre completo')\n  if (datos.nombre.length > 160) errores.push('El nombre supera 160 caracteres')\n  if (!datos.telefono && !datos.alternativo) errores.push('Faltan ambos teléfonos')\n  let capital = null\n  let moneda = null\n  let monedaAmbigua = false\n  try { capital = capitalEstimado(datos.capital) } catch (error) { errores.push(error.message) }\n  try {\n    const resultado = monedaDeRespuesta(datos.moneda)\n    moneda = resultado.moneda\n    monedaAmbigua = resultado.ambigua\n  } catch (error) { errores.push(error.message) }\n  const partes = [\n    'Campaña: ' + CAMPAÑA,\n    'Fecha original: ' + datos.fecha,\n    'Capital declarado: ' + datos.capital,\n    'Moneda declarada: ' + datos.moneda,\n    datos.intencion ? 'Intención: ' + datos.intencion : '',\n    datos.informacion ? 'Información solicitada: ' + datos.informacion : '',\n    datos.asesor ? 'Consulta para el asesor: ' + datos.asesor : '',\n    monedaAmbigua ? 'Indicó soles y dólares; se usa PEN según la regla del puente' : '',\n  ].filter(Boolean)\n  const prefijo = normalizarRespuesta(datos.capital)\n  const monedaCapital = /^us\\$/.test(prefijo) ? 'USD' : /^s\\//.test(prefijo) ? 'PEN' : null\n  const conflictoMoneda = monedaCapital && moneda && monedaCapital !== moneda\n  if (conflictoMoneda) partes.splice(4, 0, 'Aviso: el símbolo del capital indica ' + monedaCapital + '; se conserva la moneda declarada ' + moneda)\n  const notaCompleta = partes.join('\\n')\n  const nota = notaCompleta.slice(0, 2000).toWellFormed()\n  const avisos = []\n  if (conflictoMoneda) avisos.push('El símbolo del capital y la moneda declarada no coinciden')\n  if (nota.length < notaCompleta.length) avisos.push('La nota se limita a 2000 caracteres; el original permanece en Google Sheets')\n  const importacion = {\n    fila,\n    nombre: datos.nombre,\n    telefono: datos.telefono,\n    telefono_alternativo: datos.alternativo,\n    capital,\n    moneda,\n    canal: 'FORMULARIO',\n    campania_origen: CAMPAÑA,\n    distrito: datos.ciudad,\n    interes: 'Nuevo',\n    nota,\n    autorizo: 'SI',\n    fuente_consentimiento: 'Formulario 3 de Facebook',\n  }\n  return {\n    fila,\n    campania: CAMPAÑA,\n    mapeo_correcto: errores.length === 0,\n    errores,\n    avisos,\n    huella_material: JSON.stringify({ documento: DOCUMENTO, pestana: 'gid=0', datos }),\n    payload: { filas: [importacion] },\n  }\n}\n\nfunction resumirPreparacion(filas) {\n  const monedas = {}\n  for (const fila of filas) {\n    const moneda = fila.payload.filas[0].moneda\n    if (moneda) monedas[moneda] = (monedas[moneda] || 0) + 1\n  }\n  return {\n    campania: CAMPAÑA,\n    modo: 'Vista previa: no se envían datos al CRM',\n    total_filas: filas.length,\n    preparadas: filas.filter((fila) => fila.mapeo_correcto).length,\n    para_revisar: filas.filter((fila) => !fila.mapeo_correcto).map((fila) => ({ fila: fila.fila, motivos: fila.errores })),\n    monedas,\n    envios_crm: 0,\n  }\n}\n\nfunction reciboDeRechazo(fila) {\n  return {\n    huella: fila.huella,\n    campania: CAMPAÑA,\n    fila: fila.fila,\n    resultado: 'rechazado',\n    estado: 'RECHAZADO: ' + fila.errores.join('; '),\n  }\n}\n\nfunction conciliarRespuesta(respuesta, original) {\n  if (!respuesta || !Array.isArray(respuesta.resultados) || respuesta.resultados.length !== 1) {\n    throw new Error('Respuesta del CRM incompleta: la fila sigue pendiente')\n  }\n  const resultado = respuesta.resultados[0]\n  if (resultado.fila !== original.fila) throw new Error('El CRM respondió para otra fila: no se confirma la importación')\n  if (resultado.resultado === 'error_temporal') throw new Error('Error temporal del CRM: la fila sigue pendiente para reintentar')\n  if (!['importado', 'duplicado', 'ya_cliente', 'rechazado'].includes(resultado.resultado) || typeof resultado.estado !== 'string' || !resultado.estado.trim()) {\n    throw new Error('Resultado del CRM no reconocido: la fila sigue pendiente')\n  }\n  if (typeof original.huella !== 'string' || !/^[0-9a-f]{64}$/.test(original.huella)) throw new Error('Falta la huella SHA-256 de la fila')\n  return {\n    huella: original.huella,\n    campania: CAMPAÑA,\n    fila: original.fila,\n    resultado: resultado.resultado,\n    estado: resultado.estado,\n  }\n}\n\nfunction pendienteDeFila(original) {\n  if (!original || !Number.isInteger(original.fila) || !/^[0-9a-f]{64}$/.test(original.huella)) throw new Error('Falta la identidad de la fila pendiente')\n  return { huella: original.huella, campania: CAMPAÑA, fila: original.fila, resultado: 'pendiente', estado: 'PENDIENTE: el CRM no confirmó un resultado definitivo' }\n}\n\nfunction resumirImportacion(filas, simulacion) {\n  const resultados = {}\n  for (const fila of filas) {\n    if (!['importado', 'duplicado', 'ya_cliente', 'rechazado', 'pendiente', 'aplazado'].includes(fila.resultado)) throw new Error('Falta el recibo de una fila')\n    resultados[fila.resultado] = (resultados[fila.resultado] || 0) + 1\n  }\n  const pendientes = filas.filter((fila) => fila.resultado === 'pendiente').map((fila) => fila.fila)\n  if (pendientes.length) throw new Error('Filas pendientes para reintentar: ' + pendientes.join(', ') + '. Resultados: ' + JSON.stringify(resultados))\n  const definitivos = filas.filter((fila) => ['importado', 'duplicado', 'ya_cliente', 'rechazado'].includes(fila.resultado)).length\n  if (resultados.aplazado && definitivos === 0) throw new Error('Sin avance: todas las filas se aplazaron por falta de tiempo')\n  return { campania: CAMPAÑA, filas_procesadas: filas.length, resultados, simulacion }\n}\n\n// Rota un puesto por intervalo del cron. Incluso dos filas lentas no pueden\n// quedarse permanentemente al principio. No muta los items ni conserva estado.\nfunction seleccionarLote(items, inicioMs, max = 25) {\n  if (!Array.isArray(items)) throw new Error('El lote debe ser una lista')\n  if (!items.length) return []\n  if (!Number.isFinite(inicioMs) || inicioMs < 0 || !Number.isInteger(max) || max < 1) throw new Error('Configuración de lote inválida')\n  const offset = Math.floor(inicioMs / 300000) % items.length\n  return [...items.slice(offset), ...items.slice(0, offset)].slice(0, max)\n}\n\nconst entradas=$input.all(); validarColumnas(entradas.map(item=>item.json));\nreturn entradas.map((item,index)=>({json:prepararFila(item.json),pairedItem:{item:index}})).filter(item=>item.json!==null);"
+        },
+        "id": "4b85e6d6-f559-47df-a44b-a24028c01b32",
+        "name": "Preparar leads",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          864,
+          240
+        ]
+      },
+      {
+        "parameters": {
+          "value": "={{ $json.huella_material }}",
+          "dataPropertyName": "huella"
+        },
+        "id": "a2bd73cf-f454-4d9a-9ed3-30c5034651d4",
+        "name": "Identificar fila",
+        "type": "n8n-nodes-base.crypto",
+        "typeVersion": 2,
+        "position": [
+          1152,
+          240
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "leftValue": "={{ $(\"Control del envío\").first().json.enviar_crm }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "equals"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "8cda6850-e544-4f05-aa67-f97e4bc665e2",
+        "name": "Enviar al CRM",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          1424,
+          240
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const CAMPAÑA = 'Formulario 3'\nconst DOCUMENTO = '1lPvJ-65PNY1d4eme5xpcJ8ITVazkQRdjtkgW4ZLoIsI'\nconst COLUMNAS = {\n  fecha: 'Fecha',\n  intencion: '¿qué deseas hacer con qorilazo?',\n  informacion: '¿qué información te gustaría evaluar antes de realizar un depósito a plazo fijo?',\n  moneda: '¿en qué moneda te interesa ahorrar?',\n  capital: '¿qué monto aproximado deseas evaluar para tu depósito?',\n  asesor: '¿qué te gustaría reforzar con el asesor antes de realizar tu deposito a plazo fijjo?',\n  telefono: 'n.º celular',\n  nombre: 'nombre completo',\n  alternativo: 'número de teléfono',\n  ciudad: 'ciudad',\n}\n\nfunction texto(valor) {\n  if (valor == null) return ''\n  if (typeof valor === 'string') return valor.trim()\n  if (typeof valor === 'number' && Number.isFinite(valor)) return String(valor)\n  throw new Error('La celda contiene un tipo de dato inesperado')\n}\n\nfunction normalizarRespuesta(valor) {\n  return texto(valor).normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')\n    .replace(/_/g, ' ').replace(/[^a-zA-Z0-9,.$/+\\-\\s]/g, '')\n    .replace(/\\s+/g, ' ').trim().toLowerCase()\n}\n\nfunction capitalEstimado(valor) {\n  const numero = '(?:\\\\d{1,3}(?:,\\\\d{3})+|\\\\d+)(?:\\\\.\\\\d{1,2})?'\n  const limpio = normalizarRespuesta(valor).replace(/^(?:s\\/\\.?|us\\$|\\$)\\s*/, '').replace(/(mas)\\.$/, '$1')\n  const rango = new RegExp('^de\\\\s+(' + numero + ')\\\\s+(?:a|hasta)\\\\s+(' + numero + ')$').exec(limpio)\n  const abierto = new RegExp('^(?:(?:mas de|desde|mayor a)\\\\s+)?(' + numero + ')(?:\\\\s+(?:a mas|o mas)|\\\\s*\\\\+)?$').exec(limpio)\n  const match = rango || abierto\n  if (!match) throw new Error('Capital no reconocido: conserva el rango para revisar')\n  const piso = Number(match[1].replace(/,/g, ''))\n  const techo = rango ? Number(rango[2].replace(/,/g, '')) : piso\n  if (!Number.isFinite(piso) || piso <= 0 || piso > 9_999_999_999.99 || techo < piso || techo > 9_999_999_999.99) {\n    throw new Error('Capital fuera del rango permitido')\n  }\n  return String(piso)\n}\n\nfunction monedaDeRespuesta(valor) {\n  const limpio = normalizarRespuesta(valor)\n  const soles = /\\b(?:sol|soles|pen)\\b/.test(limpio)\n  const dolares = /\\b(?:dolar|dolares|usd)\\b|us\\$/.test(limpio)\n  if (!soles && !dolares) throw new Error('Moneda no reconocida: debe indicar soles o dólares')\n  return { moneda: soles ? 'PEN' : 'USD', ambigua: soles && dolares }\n}\n\nfunction validarColumnas(registros) {\n  const claves = new Set(registros.flatMap((registro) => Object.keys(registro)))\n  if (!Object.values(COLUMNAS).some((columna) => claves.has(columna))) {\n    if (registros.every((registro) => Object.entries(registro).every(([clave, valor]) => clave === 'row_number' || valor == null || valor === ''))) return\n  }\n  const faltantes = Object.values(COLUMNAS).filter((columna) => !claves.has(columna))\n  if (faltantes.length) throw new Error('Cambió la estructura de Google Sheets. Faltan columnas: ' + faltantes.join(' | '))\n}\n\nfunction prepararFila(registro) {\n  const fila = Number(registro.row_number)\n  if (!Number.isInteger(fila) || fila < 2) throw new Error('La lectura no incluye un número de fila válido')\n  const datos = {}\n  for (const [clave, columna] of Object.entries(COLUMNAS)) datos[clave] = texto(registro[columna])\n  if (Object.values(datos).every((valor) => valor === '')) return null\n  const errores = []\n  if (!datos.nombre) errores.push('Falta el nombre completo')\n  if (datos.nombre.length > 160) errores.push('El nombre supera 160 caracteres')\n  if (!datos.telefono && !datos.alternativo) errores.push('Faltan ambos teléfonos')\n  let capital = null\n  let moneda = null\n  let monedaAmbigua = false\n  try { capital = capitalEstimado(datos.capital) } catch (error) { errores.push(error.message) }\n  try {\n    const resultado = monedaDeRespuesta(datos.moneda)\n    moneda = resultado.moneda\n    monedaAmbigua = resultado.ambigua\n  } catch (error) { errores.push(error.message) }\n  const partes = [\n    'Campaña: ' + CAMPAÑA,\n    'Fecha original: ' + datos.fecha,\n    'Capital declarado: ' + datos.capital,\n    'Moneda declarada: ' + datos.moneda,\n    datos.intencion ? 'Intención: ' + datos.intencion : '',\n    datos.informacion ? 'Información solicitada: ' + datos.informacion : '',\n    datos.asesor ? 'Consulta para el asesor: ' + datos.asesor : '',\n    monedaAmbigua ? 'Indicó soles y dólares; se usa PEN según la regla del puente' : '',\n  ].filter(Boolean)\n  const prefijo = normalizarRespuesta(datos.capital)\n  const monedaCapital = /^us\\$/.test(prefijo) ? 'USD' : /^s\\//.test(prefijo) ? 'PEN' : null\n  const conflictoMoneda = monedaCapital && moneda && monedaCapital !== moneda\n  if (conflictoMoneda) partes.splice(4, 0, 'Aviso: el símbolo del capital indica ' + monedaCapital + '; se conserva la moneda declarada ' + moneda)\n  const notaCompleta = partes.join('\\n')\n  const nota = notaCompleta.slice(0, 2000).toWellFormed()\n  const avisos = []\n  if (conflictoMoneda) avisos.push('El símbolo del capital y la moneda declarada no coinciden')\n  if (nota.length < notaCompleta.length) avisos.push('La nota se limita a 2000 caracteres; el original permanece en Google Sheets')\n  const importacion = {\n    fila,\n    nombre: datos.nombre,\n    telefono: datos.telefono,\n    telefono_alternativo: datos.alternativo,\n    capital,\n    moneda,\n    canal: 'FORMULARIO',\n    campania_origen: CAMPAÑA,\n    distrito: datos.ciudad,\n    interes: 'Nuevo',\n    nota,\n    autorizo: 'SI',\n    fuente_consentimiento: 'Formulario 3 de Facebook',\n  }\n  return {\n    fila,\n    campania: CAMPAÑA,\n    mapeo_correcto: errores.length === 0,\n    errores,\n    avisos,\n    huella_material: JSON.stringify({ documento: DOCUMENTO, pestana: 'gid=0', datos }),\n    payload: { filas: [importacion] },\n  }\n}\n\nfunction resumirPreparacion(filas) {\n  const monedas = {}\n  for (const fila of filas) {\n    const moneda = fila.payload.filas[0].moneda\n    if (moneda) monedas[moneda] = (monedas[moneda] || 0) + 1\n  }\n  return {\n    campania: CAMPAÑA,\n    modo: 'Vista previa: no se envían datos al CRM',\n    total_filas: filas.length,\n    preparadas: filas.filter((fila) => fila.mapeo_correcto).length,\n    para_revisar: filas.filter((fila) => !fila.mapeo_correcto).map((fila) => ({ fila: fila.fila, motivos: fila.errores })),\n    monedas,\n    envios_crm: 0,\n  }\n}\n\nfunction reciboDeRechazo(fila) {\n  return {\n    huella: fila.huella,\n    campania: CAMPAÑA,\n    fila: fila.fila,\n    resultado: 'rechazado',\n    estado: 'RECHAZADO: ' + fila.errores.join('; '),\n  }\n}\n\nfunction conciliarRespuesta(respuesta, original) {\n  if (!respuesta || !Array.isArray(respuesta.resultados) || respuesta.resultados.length !== 1) {\n    throw new Error('Respuesta del CRM incompleta: la fila sigue pendiente')\n  }\n  const resultado = respuesta.resultados[0]\n  if (resultado.fila !== original.fila) throw new Error('El CRM respondió para otra fila: no se confirma la importación')\n  if (resultado.resultado === 'error_temporal') throw new Error('Error temporal del CRM: la fila sigue pendiente para reintentar')\n  if (!['importado', 'duplicado', 'ya_cliente', 'rechazado'].includes(resultado.resultado) || typeof resultado.estado !== 'string' || !resultado.estado.trim()) {\n    throw new Error('Resultado del CRM no reconocido: la fila sigue pendiente')\n  }\n  if (typeof original.huella !== 'string' || !/^[0-9a-f]{64}$/.test(original.huella)) throw new Error('Falta la huella SHA-256 de la fila')\n  return {\n    huella: original.huella,\n    campania: CAMPAÑA,\n    fila: original.fila,\n    resultado: resultado.resultado,\n    estado: resultado.estado,\n  }\n}\n\nfunction pendienteDeFila(original) {\n  if (!original || !Number.isInteger(original.fila) || !/^[0-9a-f]{64}$/.test(original.huella)) throw new Error('Falta la identidad de la fila pendiente')\n  return { huella: original.huella, campania: CAMPAÑA, fila: original.fila, resultado: 'pendiente', estado: 'PENDIENTE: el CRM no confirmó un resultado definitivo' }\n}\n\nfunction resumirImportacion(filas, simulacion) {\n  const resultados = {}\n  for (const fila of filas) {\n    if (!['importado', 'duplicado', 'ya_cliente', 'rechazado', 'pendiente', 'aplazado'].includes(fila.resultado)) throw new Error('Falta el recibo de una fila')\n    resultados[fila.resultado] = (resultados[fila.resultado] || 0) + 1\n  }\n  const pendientes = filas.filter((fila) => fila.resultado === 'pendiente').map((fila) => fila.fila)\n  if (pendientes.length) throw new Error('Filas pendientes para reintentar: ' + pendientes.join(', ') + '. Resultados: ' + JSON.stringify(resultados))\n  const definitivos = filas.filter((fila) => ['importado', 'duplicado', 'ya_cliente', 'rechazado'].includes(fila.resultado)).length\n  if (resultados.aplazado && definitivos === 0) throw new Error('Sin avance: todas las filas se aplazaron por falta de tiempo')\n  return { campania: CAMPAÑA, filas_procesadas: filas.length, resultados, simulacion }\n}\n\n// Rota un puesto por intervalo del cron. Incluso dos filas lentas no pueden\n// quedarse permanentemente al principio. No muta los items ni conserva estado.\nfunction seleccionarLote(items, inicioMs, max = 25) {\n  if (!Array.isArray(items)) throw new Error('El lote debe ser una lista')\n  if (!items.length) return []\n  if (!Number.isFinite(inicioMs) || inicioMs < 0 || !Number.isInteger(max) || max < 1) throw new Error('Configuración de lote inválida')\n  const offset = Math.floor(inicioMs / 300000) % items.length\n  return [...items.slice(offset), ...items.slice(0, offset)].slice(0, max)\n}\n\nreturn [{json:resumirPreparacion($input.all().map(item=>item.json))}];"
+        },
+        "id": "22f8d801-2941-4d70-82da-e4dbab289d85",
+        "name": "Resumen de vista previa",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1744,
+          1360
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "rowNotExists",
+          "dataTableId": {
+            "__rl": true,
+            "mode": "list",
+            "value": "1foRUzITWOnUJsNf",
+            "cachedResultName": "Formulario 3 — importaciones"
+          },
+          "matchType": "allConditions",
+          "filters": {
+            "conditions": [
+              {
+                "keyName": "huella",
+                "keyValue": "={{ $json.huella }}"
+              }
+            ]
+          }
+        },
+        "id": "2217926b-1ea9-4507-9308-07ba7436398e",
+        "name": "Omitir filas confirmadas",
+        "type": "n8n-nodes-base.dataTable",
+        "typeVersion": 1.1,
+        "position": [
+          1856,
+          160
+        ]
+      },
+      {
+        "parameters": {
+          "options": {
+            "reset": false
+          }
+        },
+        "id": "463e9fd9-f894-482a-acd8-4017ba5c8440",
+        "name": "Procesar de una en una",
+        "type": "n8n-nodes-base.splitInBatches",
+        "typeVersion": 3,
+        "position": [
+          2144,
+          160
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "leftValue": "={{ $json.mapeo_correcto }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "equals"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "3a5c535d-82f3-4284-bb57-d4af312906c5",
+        "name": "Datos válidos",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          2512,
+          208
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://dctqcbznekcyxhjujuci.supabase.co/functions/v1/crm-importar-leads",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpTemplatedCustomAuth",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify($json.payload) }}",
+          "options": {
+            "response": {
+              "response": {
+                "responseFormat": "json"
+              }
+            },
+            "timeout": 20000
+          }
+        },
+        "id": "b2d0bc45-f78c-4a58-8a2f-e99538aa8539",
+        "name": "Importar en CRM",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          2720,
+          192
+        ],
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 1000,
+        "disabled": true,
+        "onError": "continueErrorOutput",
+        "credentials": {
+          "httpTemplatedCustomAuth": {
+            "id": "YNRHr2PjhfLXnKff",
+            "name": "Simplified Custom Auth account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "const CAMPAÑA = 'Formulario 3'\nconst DOCUMENTO = '1lPvJ-65PNY1d4eme5xpcJ8ITVazkQRdjtkgW4ZLoIsI'\nconst COLUMNAS = {\n  fecha: 'Fecha',\n  intencion: '¿qué deseas hacer con qorilazo?',\n  informacion: '¿qué información te gustaría evaluar antes de realizar un depósito a plazo fijo?',\n  moneda: '¿en qué moneda te interesa ahorrar?',\n  capital: '¿qué monto aproximado deseas evaluar para tu depósito?',\n  asesor: '¿qué te gustaría reforzar con el asesor antes de realizar tu deposito a plazo fijjo?',\n  telefono: 'n.º celular',\n  nombre: 'nombre completo',\n  alternativo: 'número de teléfono',\n  ciudad: 'ciudad',\n}\n\nfunction texto(valor) {\n  if (valor == null) return ''\n  if (typeof valor === 'string') return valor.trim()\n  if (typeof valor === 'number' && Number.isFinite(valor)) return String(valor)\n  throw new Error('La celda contiene un tipo de dato inesperado')\n}\n\nfunction normalizarRespuesta(valor) {\n  return texto(valor).normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')\n    .replace(/_/g, ' ').replace(/[^a-zA-Z0-9,.$/+\\-\\s]/g, '')\n    .replace(/\\s+/g, ' ').trim().toLowerCase()\n}\n\nfunction capitalEstimado(valor) {\n  const numero = '(?:\\\\d{1,3}(?:,\\\\d{3})+|\\\\d+)(?:\\\\.\\\\d{1,2})?'\n  const limpio = normalizarRespuesta(valor).replace(/^(?:s\\/\\.?|us\\$|\\$)\\s*/, '').replace(/(mas)\\.$/, '$1')\n  const rango = new RegExp('^de\\\\s+(' + numero + ')\\\\s+(?:a|hasta)\\\\s+(' + numero + ')$').exec(limpio)\n  const abierto = new RegExp('^(?:(?:mas de|desde|mayor a)\\\\s+)?(' + numero + ')(?:\\\\s+(?:a mas|o mas)|\\\\s*\\\\+)?$').exec(limpio)\n  const match = rango || abierto\n  if (!match) throw new Error('Capital no reconocido: conserva el rango para revisar')\n  const piso = Number(match[1].replace(/,/g, ''))\n  const techo = rango ? Number(rango[2].replace(/,/g, '')) : piso\n  if (!Number.isFinite(piso) || piso <= 0 || piso > 9_999_999_999.99 || techo < piso || techo > 9_999_999_999.99) {\n    throw new Error('Capital fuera del rango permitido')\n  }\n  return String(piso)\n}\n\nfunction monedaDeRespuesta(valor) {\n  const limpio = normalizarRespuesta(valor)\n  const soles = /\\b(?:sol|soles|pen)\\b/.test(limpio)\n  const dolares = /\\b(?:dolar|dolares|usd)\\b|us\\$/.test(limpio)\n  if (!soles && !dolares) throw new Error('Moneda no reconocida: debe indicar soles o dólares')\n  return { moneda: soles ? 'PEN' : 'USD', ambigua: soles && dolares }\n}\n\nfunction validarColumnas(registros) {\n  const claves = new Set(registros.flatMap((registro) => Object.keys(registro)))\n  if (!Object.values(COLUMNAS).some((columna) => claves.has(columna))) {\n    if (registros.every((registro) => Object.entries(registro).every(([clave, valor]) => clave === 'row_number' || valor == null || valor === ''))) return\n  }\n  const faltantes = Object.values(COLUMNAS).filter((columna) => !claves.has(columna))\n  if (faltantes.length) throw new Error('Cambió la estructura de Google Sheets. Faltan columnas: ' + faltantes.join(' | '))\n}\n\nfunction prepararFila(registro) {\n  const fila = Number(registro.row_number)\n  if (!Number.isInteger(fila) || fila < 2) throw new Error('La lectura no incluye un número de fila válido')\n  const datos = {}\n  for (const [clave, columna] of Object.entries(COLUMNAS)) datos[clave] = texto(registro[columna])\n  if (Object.values(datos).every((valor) => valor === '')) return null\n  const errores = []\n  if (!datos.nombre) errores.push('Falta el nombre completo')\n  if (datos.nombre.length > 160) errores.push('El nombre supera 160 caracteres')\n  if (!datos.telefono && !datos.alternativo) errores.push('Faltan ambos teléfonos')\n  let capital = null\n  let moneda = null\n  let monedaAmbigua = false\n  try { capital = capitalEstimado(datos.capital) } catch (error) { errores.push(error.message) }\n  try {\n    const resultado = monedaDeRespuesta(datos.moneda)\n    moneda = resultado.moneda\n    monedaAmbigua = resultado.ambigua\n  } catch (error) { errores.push(error.message) }\n  const partes = [\n    'Campaña: ' + CAMPAÑA,\n    'Fecha original: ' + datos.fecha,\n    'Capital declarado: ' + datos.capital,\n    'Moneda declarada: ' + datos.moneda,\n    datos.intencion ? 'Intención: ' + datos.intencion : '',\n    datos.informacion ? 'Información solicitada: ' + datos.informacion : '',\n    datos.asesor ? 'Consulta para el asesor: ' + datos.asesor : '',\n    monedaAmbigua ? 'Indicó soles y dólares; se usa PEN según la regla del puente' : '',\n  ].filter(Boolean)\n  const prefijo = normalizarRespuesta(datos.capital)\n  const monedaCapital = /^us\\$/.test(prefijo) ? 'USD' : /^s\\//.test(prefijo) ? 'PEN' : null\n  const conflictoMoneda = monedaCapital && moneda && monedaCapital !== moneda\n  if (conflictoMoneda) partes.splice(4, 0, 'Aviso: el símbolo del capital indica ' + monedaCapital + '; se conserva la moneda declarada ' + moneda)\n  const notaCompleta = partes.join('\\n')\n  const nota = notaCompleta.slice(0, 2000).toWellFormed()\n  const avisos = []\n  if (conflictoMoneda) avisos.push('El símbolo del capital y la moneda declarada no coinciden')\n  if (nota.length < notaCompleta.length) avisos.push('La nota se limita a 2000 caracteres; el original permanece en Google Sheets')\n  const importacion = {\n    fila,\n    nombre: datos.nombre,\n    telefono: datos.telefono,\n    telefono_alternativo: datos.alternativo,\n    capital,\n    moneda,\n    canal: 'FORMULARIO',\n    campania_origen: CAMPAÑA,\n    distrito: datos.ciudad,\n    interes: 'Nuevo',\n    nota,\n    autorizo: 'SI',\n    fuente_consentimiento: 'Formulario 3 de Facebook',\n  }\n  return {\n    fila,\n    campania: CAMPAÑA,\n    mapeo_correcto: errores.length === 0,\n    errores,\n    avisos,\n    huella_material: JSON.stringify({ documento: DOCUMENTO, pestana: 'gid=0', datos }),\n    payload: { filas: [importacion] },\n  }\n}\n\nfunction resumirPreparacion(filas) {\n  const monedas = {}\n  for (const fila of filas) {\n    const moneda = fila.payload.filas[0].moneda\n    if (moneda) monedas[moneda] = (monedas[moneda] || 0) + 1\n  }\n  return {\n    campania: CAMPAÑA,\n    modo: 'Vista previa: no se envían datos al CRM',\n    total_filas: filas.length,\n    preparadas: filas.filter((fila) => fila.mapeo_correcto).length,\n    para_revisar: filas.filter((fila) => !fila.mapeo_correcto).map((fila) => ({ fila: fila.fila, motivos: fila.errores })),\n    monedas,\n    envios_crm: 0,\n  }\n}\n\nfunction reciboDeRechazo(fila) {\n  return {\n    huella: fila.huella,\n    campania: CAMPAÑA,\n    fila: fila.fila,\n    resultado: 'rechazado',\n    estado: 'RECHAZADO: ' + fila.errores.join('; '),\n  }\n}\n\nfunction conciliarRespuesta(respuesta, original) {\n  if (!respuesta || !Array.isArray(respuesta.resultados) || respuesta.resultados.length !== 1) {\n    throw new Error('Respuesta del CRM incompleta: la fila sigue pendiente')\n  }\n  const resultado = respuesta.resultados[0]\n  if (resultado.fila !== original.fila) throw new Error('El CRM respondió para otra fila: no se confirma la importación')\n  if (resultado.resultado === 'error_temporal') throw new Error('Error temporal del CRM: la fila sigue pendiente para reintentar')\n  if (!['importado', 'duplicado', 'ya_cliente', 'rechazado'].includes(resultado.resultado) || typeof resultado.estado !== 'string' || !resultado.estado.trim()) {\n    throw new Error('Resultado del CRM no reconocido: la fila sigue pendiente')\n  }\n  if (typeof original.huella !== 'string' || !/^[0-9a-f]{64}$/.test(original.huella)) throw new Error('Falta la huella SHA-256 de la fila')\n  return {\n    huella: original.huella,\n    campania: CAMPAÑA,\n    fila: original.fila,\n    resultado: resultado.resultado,\n    estado: resultado.estado,\n  }\n}\n\nfunction pendienteDeFila(original) {\n  if (!original || !Number.isInteger(original.fila) || !/^[0-9a-f]{64}$/.test(original.huella)) throw new Error('Falta la identidad de la fila pendiente')\n  return { huella: original.huella, campania: CAMPAÑA, fila: original.fila, resultado: 'pendiente', estado: 'PENDIENTE: el CRM no confirmó un resultado definitivo' }\n}\n\nfunction resumirImportacion(filas, simulacion) {\n  const resultados = {}\n  for (const fila of filas) {\n    if (!['importado', 'duplicado', 'ya_cliente', 'rechazado', 'pendiente', 'aplazado'].includes(fila.resultado)) throw new Error('Falta el recibo de una fila')\n    resultados[fila.resultado] = (resultados[fila.resultado] || 0) + 1\n  }\n  const pendientes = filas.filter((fila) => fila.resultado === 'pendiente').map((fila) => fila.fila)\n  if (pendientes.length) throw new Error('Filas pendientes para reintentar: ' + pendientes.join(', ') + '. Resultados: ' + JSON.stringify(resultados))\n  const definitivos = filas.filter((fila) => ['importado', 'duplicado', 'ya_cliente', 'rechazado'].includes(fila.resultado)).length\n  if (resultados.aplazado && definitivos === 0) throw new Error('Sin avance: todas las filas se aplazaron por falta de tiempo')\n  return { campania: CAMPAÑA, filas_procesadas: filas.length, resultados, simulacion }\n}\n\n// Rota un puesto por intervalo del cron. Incluso dos filas lentas no pueden\n// quedarse permanentemente al principio. No muta los items ni conserva estado.\nfunction seleccionarLote(items, inicioMs, max = 25) {\n  if (!Array.isArray(items)) throw new Error('El lote debe ser una lista')\n  if (!items.length) return []\n  if (!Number.isFinite(inicioMs) || inicioMs < 0 || !Number.isInteger(max) || max < 1) throw new Error('Configuración de lote inválida')\n  const offset = Math.floor(inicioMs / 300000) % items.length\n  return [...items.slice(offset), ...items.slice(0, offset)].slice(0, max)\n}\n\nconst recibidas=$input.all();\nif(recibidas.length!==1)throw new Error(\"Se esperaba la respuesta de una sola fila\");\nreturn [{json:conciliarRespuesta(recibidas[0].json,$(\"Datos válidos\").itemMatching(0).json),pairedItem:{item:0}}];"
+        },
+        "id": "31dc51a9-8654-406d-94b7-69acd55af2cb",
+        "name": "Confirmar respuesta del CRM",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          3024,
+          192
+        ],
+        "onError": "continueErrorOutput"
+      },
+      {
+        "parameters": {
+          "jsCode": "const CAMPAÑA = 'Formulario 3'\nconst DOCUMENTO = '1lPvJ-65PNY1d4eme5xpcJ8ITVazkQRdjtkgW4ZLoIsI'\nconst COLUMNAS = {\n  fecha: 'Fecha',\n  intencion: '¿qué deseas hacer con qorilazo?',\n  informacion: '¿qué información te gustaría evaluar antes de realizar un depósito a plazo fijo?',\n  moneda: '¿en qué moneda te interesa ahorrar?',\n  capital: '¿qué monto aproximado deseas evaluar para tu depósito?',\n  asesor: '¿qué te gustaría reforzar con el asesor antes de realizar tu deposito a plazo fijjo?',\n  telefono: 'n.º celular',\n  nombre: 'nombre completo',\n  alternativo: 'número de teléfono',\n  ciudad: 'ciudad',\n}\n\nfunction texto(valor) {\n  if (valor == null) return ''\n  if (typeof valor === 'string') return valor.trim()\n  if (typeof valor === 'number' && Number.isFinite(valor)) return String(valor)\n  throw new Error('La celda contiene un tipo de dato inesperado')\n}\n\nfunction normalizarRespuesta(valor) {\n  return texto(valor).normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')\n    .replace(/_/g, ' ').replace(/[^a-zA-Z0-9,.$/+\\-\\s]/g, '')\n    .replace(/\\s+/g, ' ').trim().toLowerCase()\n}\n\nfunction capitalEstimado(valor) {\n  const numero = '(?:\\\\d{1,3}(?:,\\\\d{3})+|\\\\d+)(?:\\\\.\\\\d{1,2})?'\n  const limpio = normalizarRespuesta(valor).replace(/^(?:s\\/\\.?|us\\$|\\$)\\s*/, '').replace(/(mas)\\.$/, '$1')\n  const rango = new RegExp('^de\\\\s+(' + numero + ')\\\\s+(?:a|hasta)\\\\s+(' + numero + ')$').exec(limpio)\n  const abierto = new RegExp('^(?:(?:mas de|desde|mayor a)\\\\s+)?(' + numero + ')(?:\\\\s+(?:a mas|o mas)|\\\\s*\\\\+)?$').exec(limpio)\n  const match = rango || abierto\n  if (!match) throw new Error('Capital no reconocido: conserva el rango para revisar')\n  const piso = Number(match[1].replace(/,/g, ''))\n  const techo = rango ? Number(rango[2].replace(/,/g, '')) : piso\n  if (!Number.isFinite(piso) || piso <= 0 || piso > 9_999_999_999.99 || techo < piso || techo > 9_999_999_999.99) {\n    throw new Error('Capital fuera del rango permitido')\n  }\n  return String(piso)\n}\n\nfunction monedaDeRespuesta(valor) {\n  const limpio = normalizarRespuesta(valor)\n  const soles = /\\b(?:sol|soles|pen)\\b/.test(limpio)\n  const dolares = /\\b(?:dolar|dolares|usd)\\b|us\\$/.test(limpio)\n  if (!soles && !dolares) throw new Error('Moneda no reconocida: debe indicar soles o dólares')\n  return { moneda: soles ? 'PEN' : 'USD', ambigua: soles && dolares }\n}\n\nfunction validarColumnas(registros) {\n  const claves = new Set(registros.flatMap((registro) => Object.keys(registro)))\n  if (!Object.values(COLUMNAS).some((columna) => claves.has(columna))) {\n    if (registros.every((registro) => Object.entries(registro).every(([clave, valor]) => clave === 'row_number' || valor == null || valor === ''))) return\n  }\n  const faltantes = Object.values(COLUMNAS).filter((columna) => !claves.has(columna))\n  if (faltantes.length) throw new Error('Cambió la estructura de Google Sheets. Faltan columnas: ' + faltantes.join(' | '))\n}\n\nfunction prepararFila(registro) {\n  const fila = Number(registro.row_number)\n  if (!Number.isInteger(fila) || fila < 2) throw new Error('La lectura no incluye un número de fila válido')\n  const datos = {}\n  for (const [clave, columna] of Object.entries(COLUMNAS)) datos[clave] = texto(registro[columna])\n  if (Object.values(datos).every((valor) => valor === '')) return null\n  const errores = []\n  if (!datos.nombre) errores.push('Falta el nombre completo')\n  if (datos.nombre.length > 160) errores.push('El nombre supera 160 caracteres')\n  if (!datos.telefono && !datos.alternativo) errores.push('Faltan ambos teléfonos')\n  let capital = null\n  let moneda = null\n  let monedaAmbigua = false\n  try { capital = capitalEstimado(datos.capital) } catch (error) { errores.push(error.message) }\n  try {\n    const resultado = monedaDeRespuesta(datos.moneda)\n    moneda = resultado.moneda\n    monedaAmbigua = resultado.ambigua\n  } catch (error) { errores.push(error.message) }\n  const partes = [\n    'Campaña: ' + CAMPAÑA,\n    'Fecha original: ' + datos.fecha,\n    'Capital declarado: ' + datos.capital,\n    'Moneda declarada: ' + datos.moneda,\n    datos.intencion ? 'Intención: ' + datos.intencion : '',\n    datos.informacion ? 'Información solicitada: ' + datos.informacion : '',\n    datos.asesor ? 'Consulta para el asesor: ' + datos.asesor : '',\n    monedaAmbigua ? 'Indicó soles y dólares; se usa PEN según la regla del puente' : '',\n  ].filter(Boolean)\n  const prefijo = normalizarRespuesta(datos.capital)\n  const monedaCapital = /^us\\$/.test(prefijo) ? 'USD' : /^s\\//.test(prefijo) ? 'PEN' : null\n  const conflictoMoneda = monedaCapital && moneda && monedaCapital !== moneda\n  if (conflictoMoneda) partes.splice(4, 0, 'Aviso: el símbolo del capital indica ' + monedaCapital + '; se conserva la moneda declarada ' + moneda)\n  const notaCompleta = partes.join('\\n')\n  const nota = notaCompleta.slice(0, 2000).toWellFormed()\n  const avisos = []\n  if (conflictoMoneda) avisos.push('El símbolo del capital y la moneda declarada no coinciden')\n  if (nota.length < notaCompleta.length) avisos.push('La nota se limita a 2000 caracteres; el original permanece en Google Sheets')\n  const importacion = {\n    fila,\n    nombre: datos.nombre,\n    telefono: datos.telefono,\n    telefono_alternativo: datos.alternativo,\n    capital,\n    moneda,\n    canal: 'FORMULARIO',\n    campania_origen: CAMPAÑA,\n    distrito: datos.ciudad,\n    interes: 'Nuevo',\n    nota,\n    autorizo: 'SI',\n    fuente_consentimiento: 'Formulario 3 de Facebook',\n  }\n  return {\n    fila,\n    campania: CAMPAÑA,\n    mapeo_correcto: errores.length === 0,\n    errores,\n    avisos,\n    huella_material: JSON.stringify({ documento: DOCUMENTO, pestana: 'gid=0', datos }),\n    payload: { filas: [importacion] },\n  }\n}\n\nfunction resumirPreparacion(filas) {\n  const monedas = {}\n  for (const fila of filas) {\n    const moneda = fila.payload.filas[0].moneda\n    if (moneda) monedas[moneda] = (monedas[moneda] || 0) + 1\n  }\n  return {\n    campania: CAMPAÑA,\n    modo: 'Vista previa: no se envían datos al CRM',\n    total_filas: filas.length,\n    preparadas: filas.filter((fila) => fila.mapeo_correcto).length,\n    para_revisar: filas.filter((fila) => !fila.mapeo_correcto).map((fila) => ({ fila: fila.fila, motivos: fila.errores })),\n    monedas,\n    envios_crm: 0,\n  }\n}\n\nfunction reciboDeRechazo(fila) {\n  return {\n    huella: fila.huella,\n    campania: CAMPAÑA,\n    fila: fila.fila,\n    resultado: 'rechazado',\n    estado: 'RECHAZADO: ' + fila.errores.join('; '),\n  }\n}\n\nfunction conciliarRespuesta(respuesta, original) {\n  if (!respuesta || !Array.isArray(respuesta.resultados) || respuesta.resultados.length !== 1) {\n    throw new Error('Respuesta del CRM incompleta: la fila sigue pendiente')\n  }\n  const resultado = respuesta.resultados[0]\n  if (resultado.fila !== original.fila) throw new Error('El CRM respondió para otra fila: no se confirma la importación')\n  if (resultado.resultado === 'error_temporal') throw new Error('Error temporal del CRM: la fila sigue pendiente para reintentar')\n  if (!['importado', 'duplicado', 'ya_cliente', 'rechazado'].includes(resultado.resultado) || typeof resultado.estado !== 'string' || !resultado.estado.trim()) {\n    throw new Error('Resultado del CRM no reconocido: la fila sigue pendiente')\n  }\n  if (typeof original.huella !== 'string' || !/^[0-9a-f]{64}$/.test(original.huella)) throw new Error('Falta la huella SHA-256 de la fila')\n  return {\n    huella: original.huella,\n    campania: CAMPAÑA,\n    fila: original.fila,\n    resultado: resultado.resultado,\n    estado: resultado.estado,\n  }\n}\n\nfunction pendienteDeFila(original) {\n  if (!original || !Number.isInteger(original.fila) || !/^[0-9a-f]{64}$/.test(original.huella)) throw new Error('Falta la identidad de la fila pendiente')\n  return { huella: original.huella, campania: CAMPAÑA, fila: original.fila, resultado: 'pendiente', estado: 'PENDIENTE: el CRM no confirmó un resultado definitivo' }\n}\n\nfunction resumirImportacion(filas, simulacion) {\n  const resultados = {}\n  for (const fila of filas) {\n    if (!['importado', 'duplicado', 'ya_cliente', 'rechazado', 'pendiente', 'aplazado'].includes(fila.resultado)) throw new Error('Falta el recibo de una fila')\n    resultados[fila.resultado] = (resultados[fila.resultado] || 0) + 1\n  }\n  const pendientes = filas.filter((fila) => fila.resultado === 'pendiente').map((fila) => fila.fila)\n  if (pendientes.length) throw new Error('Filas pendientes para reintentar: ' + pendientes.join(', ') + '. Resultados: ' + JSON.stringify(resultados))\n  const definitivos = filas.filter((fila) => ['importado', 'duplicado', 'ya_cliente', 'rechazado'].includes(fila.resultado)).length\n  if (resultados.aplazado && definitivos === 0) throw new Error('Sin avance: todas las filas se aplazaron por falta de tiempo')\n  return { campania: CAMPAÑA, filas_procesadas: filas.length, resultados, simulacion }\n}\n\n// Rota un puesto por intervalo del cron. Incluso dos filas lentas no pueden\n// quedarse permanentemente al principio. No muta los items ni conserva estado.\nfunction seleccionarLote(items, inicioMs, max = 25) {\n  if (!Array.isArray(items)) throw new Error('El lote debe ser una lista')\n  if (!items.length) return []\n  if (!Number.isFinite(inicioMs) || inicioMs < 0 || !Number.isInteger(max) || max < 1) throw new Error('Configuración de lote inválida')\n  const offset = Math.floor(inicioMs / 300000) % items.length\n  return [...items.slice(offset), ...items.slice(0, offset)].slice(0, max)\n}\n\nreturn $input.all().map((item,index)=>({json:reciboDeRechazo(item.json),pairedItem:{item:index}}));"
+        },
+        "id": "b3c61832-d712-4fb8-aa1e-2ffacec078a8",
+        "name": "Marcar para revisión",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2880,
+          528
+        ]
+      },
+      {
+        "parameters": {
+          "mode": "raw",
+          "jsonOutput": "={{ JSON.stringify({huella:$json.huella,campania:$json.campania,fila:$json.fila,resultado:$json.resultado,estado:$json.estado,procesado_en:$now.toISO()}) }}",
+          "options": {}
+        },
+        "id": "cf5278ab-25d5-43c5-a477-85211a32aa9a",
+        "name": "Preparar recibo",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.5,
+        "position": [
+          3312,
+          272
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "upsert",
+          "dataTableId": {
+            "__rl": true,
+            "mode": "list",
+            "value": "1foRUzITWOnUJsNf",
+            "cachedResultName": "Formulario 3 — importaciones"
+          },
+          "matchType": "allConditions",
+          "filters": {
+            "conditions": [
+              {
+                "keyName": "huella",
+                "keyValue": "={{ $json.huella }}"
+              }
+            ]
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "huella": "={{ $json.huella }}",
+              "campania": "={{ $json.campania }}",
+              "fila": "={{ $json.fila }}",
+              "resultado": "={{ $json.resultado }}",
+              "estado": "={{ $json.estado }}",
+              "procesado_en": "={{ $json.procesado_en }}"
+            }
+          },
+          "options": {
+            "dryRun": "={{ $(\"Control del envío\").first().json.simular_registro }}"
+          }
+        },
+        "id": "7edaa859-5026-4ded-95d3-0d4f4dc518d7",
+        "name": "Registrar resultado",
+        "type": "n8n-nodes-base.dataTable",
+        "typeVersion": 1.1,
+        "position": [
+          3600,
+          272
+        ]
+      },
+      {
+        "parameters": {
+          "mode": "raw",
+          "jsonOutput": "={{ JSON.stringify($(\"Preparar recibo\").item.json) }}",
+          "options": {}
+        },
+        "id": "26ee2fc5-b615-42f5-b03c-6f1462a3a32c",
+        "name": "Conservar recibo",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.5,
+        "position": [
+          3872,
+          272
+        ],
+        "executeOnce": true
+      },
+      {
+        "parameters": {
+          "jsCode": "const CAMPAÑA = 'Formulario 3'\nconst DOCUMENTO = '1lPvJ-65PNY1d4eme5xpcJ8ITVazkQRdjtkgW4ZLoIsI'\nconst COLUMNAS = {\n  fecha: 'Fecha',\n  intencion: '¿qué deseas hacer con qorilazo?',\n  informacion: '¿qué información te gustaría evaluar antes de realizar un depósito a plazo fijo?',\n  moneda: '¿en qué moneda te interesa ahorrar?',\n  capital: '¿qué monto aproximado deseas evaluar para tu depósito?',\n  asesor: '¿qué te gustaría reforzar con el asesor antes de realizar tu deposito a plazo fijjo?',\n  telefono: 'n.º celular',\n  nombre: 'nombre completo',\n  alternativo: 'número de teléfono',\n  ciudad: 'ciudad',\n}\n\nfunction texto(valor) {\n  if (valor == null) return ''\n  if (typeof valor === 'string') return valor.trim()\n  if (typeof valor === 'number' && Number.isFinite(valor)) return String(valor)\n  throw new Error('La celda contiene un tipo de dato inesperado')\n}\n\nfunction normalizarRespuesta(valor) {\n  return texto(valor).normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')\n    .replace(/_/g, ' ').replace(/[^a-zA-Z0-9,.$/+\\-\\s]/g, '')\n    .replace(/\\s+/g, ' ').trim().toLowerCase()\n}\n\nfunction capitalEstimado(valor) {\n  const numero = '(?:\\\\d{1,3}(?:,\\\\d{3})+|\\\\d+)(?:\\\\.\\\\d{1,2})?'\n  const limpio = normalizarRespuesta(valor).replace(/^(?:s\\/\\.?|us\\$|\\$)\\s*/, '').replace(/(mas)\\.$/, '$1')\n  const rango = new RegExp('^de\\\\s+(' + numero + ')\\\\s+(?:a|hasta)\\\\s+(' + numero + ')$').exec(limpio)\n  const abierto = new RegExp('^(?:(?:mas de|desde|mayor a)\\\\s+)?(' + numero + ')(?:\\\\s+(?:a mas|o mas)|\\\\s*\\\\+)?$').exec(limpio)\n  const match = rango || abierto\n  if (!match) throw new Error('Capital no reconocido: conserva el rango para revisar')\n  const piso = Number(match[1].replace(/,/g, ''))\n  const techo = rango ? Number(rango[2].replace(/,/g, '')) : piso\n  if (!Number.isFinite(piso) || piso <= 0 || piso > 9_999_999_999.99 || techo < piso || techo > 9_999_999_999.99) {\n    throw new Error('Capital fuera del rango permitido')\n  }\n  return String(piso)\n}\n\nfunction monedaDeRespuesta(valor) {\n  const limpio = normalizarRespuesta(valor)\n  const soles = /\\b(?:sol|soles|pen)\\b/.test(limpio)\n  const dolares = /\\b(?:dolar|dolares|usd)\\b|us\\$/.test(limpio)\n  if (!soles && !dolares) throw new Error('Moneda no reconocida: debe indicar soles o dólares')\n  return { moneda: soles ? 'PEN' : 'USD', ambigua: soles && dolares }\n}\n\nfunction validarColumnas(registros) {\n  const claves = new Set(registros.flatMap((registro) => Object.keys(registro)))\n  if (!Object.values(COLUMNAS).some((columna) => claves.has(columna))) {\n    if (registros.every((registro) => Object.entries(registro).every(([clave, valor]) => clave === 'row_number' || valor == null || valor === ''))) return\n  }\n  const faltantes = Object.values(COLUMNAS).filter((columna) => !claves.has(columna))\n  if (faltantes.length) throw new Error('Cambió la estructura de Google Sheets. Faltan columnas: ' + faltantes.join(' | '))\n}\n\nfunction prepararFila(registro) {\n  const fila = Number(registro.row_number)\n  if (!Number.isInteger(fila) || fila < 2) throw new Error('La lectura no incluye un número de fila válido')\n  const datos = {}\n  for (const [clave, columna] of Object.entries(COLUMNAS)) datos[clave] = texto(registro[columna])\n  if (Object.values(datos).every((valor) => valor === '')) return null\n  const errores = []\n  if (!datos.nombre) errores.push('Falta el nombre completo')\n  if (datos.nombre.length > 160) errores.push('El nombre supera 160 caracteres')\n  if (!datos.telefono && !datos.alternativo) errores.push('Faltan ambos teléfonos')\n  let capital = null\n  let moneda = null\n  let monedaAmbigua = false\n  try { capital = capitalEstimado(datos.capital) } catch (error) { errores.push(error.message) }\n  try {\n    const resultado = monedaDeRespuesta(datos.moneda)\n    moneda = resultado.moneda\n    monedaAmbigua = resultado.ambigua\n  } catch (error) { errores.push(error.message) }\n  const partes = [\n    'Campaña: ' + CAMPAÑA,\n    'Fecha original: ' + datos.fecha,\n    'Capital declarado: ' + datos.capital,\n    'Moneda declarada: ' + datos.moneda,\n    datos.intencion ? 'Intención: ' + datos.intencion : '',\n    datos.informacion ? 'Información solicitada: ' + datos.informacion : '',\n    datos.asesor ? 'Consulta para el asesor: ' + datos.asesor : '',\n    monedaAmbigua ? 'Indicó soles y dólares; se usa PEN según la regla del puente' : '',\n  ].filter(Boolean)\n  const prefijo = normalizarRespuesta(datos.capital)\n  const monedaCapital = /^us\\$/.test(prefijo) ? 'USD' : /^s\\//.test(prefijo) ? 'PEN' : null\n  const conflictoMoneda = monedaCapital && moneda && monedaCapital !== moneda\n  if (conflictoMoneda) partes.splice(4, 0, 'Aviso: el símbolo del capital indica ' + monedaCapital + '; se conserva la moneda declarada ' + moneda)\n  const notaCompleta = partes.join('\\n')\n  const nota = notaCompleta.slice(0, 2000).toWellFormed()\n  const avisos = []\n  if (conflictoMoneda) avisos.push('El símbolo del capital y la moneda declarada no coinciden')\n  if (nota.length < notaCompleta.length) avisos.push('La nota se limita a 2000 caracteres; el original permanece en Google Sheets')\n  const importacion = {\n    fila,\n    nombre: datos.nombre,\n    telefono: datos.telefono,\n    telefono_alternativo: datos.alternativo,\n    capital,\n    moneda,\n    canal: 'FORMULARIO',\n    campania_origen: CAMPAÑA,\n    distrito: datos.ciudad,\n    interes: 'Nuevo',\n    nota,\n    autorizo: 'SI',\n    fuente_consentimiento: 'Formulario 3 de Facebook',\n  }\n  return {\n    fila,\n    campania: CAMPAÑA,\n    mapeo_correcto: errores.length === 0,\n    errores,\n    avisos,\n    huella_material: JSON.stringify({ documento: DOCUMENTO, pestana: 'gid=0', datos }),\n    payload: { filas: [importacion] },\n  }\n}\n\nfunction resumirPreparacion(filas) {\n  const monedas = {}\n  for (const fila of filas) {\n    const moneda = fila.payload.filas[0].moneda\n    if (moneda) monedas[moneda] = (monedas[moneda] || 0) + 1\n  }\n  return {\n    campania: CAMPAÑA,\n    modo: 'Vista previa: no se envían datos al CRM',\n    total_filas: filas.length,\n    preparadas: filas.filter((fila) => fila.mapeo_correcto).length,\n    para_revisar: filas.filter((fila) => !fila.mapeo_correcto).map((fila) => ({ fila: fila.fila, motivos: fila.errores })),\n    monedas,\n    envios_crm: 0,\n  }\n}\n\nfunction reciboDeRechazo(fila) {\n  return {\n    huella: fila.huella,\n    campania: CAMPAÑA,\n    fila: fila.fila,\n    resultado: 'rechazado',\n    estado: 'RECHAZADO: ' + fila.errores.join('; '),\n  }\n}\n\nfunction conciliarRespuesta(respuesta, original) {\n  if (!respuesta || !Array.isArray(respuesta.resultados) || respuesta.resultados.length !== 1) {\n    throw new Error('Respuesta del CRM incompleta: la fila sigue pendiente')\n  }\n  const resultado = respuesta.resultados[0]\n  if (resultado.fila !== original.fila) throw new Error('El CRM respondió para otra fila: no se confirma la importación')\n  if (resultado.resultado === 'error_temporal') throw new Error('Error temporal del CRM: la fila sigue pendiente para reintentar')\n  if (!['importado', 'duplicado', 'ya_cliente', 'rechazado'].includes(resultado.resultado) || typeof resultado.estado !== 'string' || !resultado.estado.trim()) {\n    throw new Error('Resultado del CRM no reconocido: la fila sigue pendiente')\n  }\n  if (typeof original.huella !== 'string' || !/^[0-9a-f]{64}$/.test(original.huella)) throw new Error('Falta la huella SHA-256 de la fila')\n  return {\n    huella: original.huella,\n    campania: CAMPAÑA,\n    fila: original.fila,\n    resultado: resultado.resultado,\n    estado: resultado.estado,\n  }\n}\n\nfunction pendienteDeFila(original) {\n  if (!original || !Number.isInteger(original.fila) || !/^[0-9a-f]{64}$/.test(original.huella)) throw new Error('Falta la identidad de la fila pendiente')\n  return { huella: original.huella, campania: CAMPAÑA, fila: original.fila, resultado: 'pendiente', estado: 'PENDIENTE: el CRM no confirmó un resultado definitivo' }\n}\n\nfunction resumirImportacion(filas, simulacion) {\n  const resultados = {}\n  for (const fila of filas) {\n    if (!['importado', 'duplicado', 'ya_cliente', 'rechazado', 'pendiente', 'aplazado'].includes(fila.resultado)) throw new Error('Falta el recibo de una fila')\n    resultados[fila.resultado] = (resultados[fila.resultado] || 0) + 1\n  }\n  const pendientes = filas.filter((fila) => fila.resultado === 'pendiente').map((fila) => fila.fila)\n  if (pendientes.length) throw new Error('Filas pendientes para reintentar: ' + pendientes.join(', ') + '. Resultados: ' + JSON.stringify(resultados))\n  const definitivos = filas.filter((fila) => ['importado', 'duplicado', 'ya_cliente', 'rechazado'].includes(fila.resultado)).length\n  if (resultados.aplazado && definitivos === 0) throw new Error('Sin avance: todas las filas se aplazaron por falta de tiempo')\n  return { campania: CAMPAÑA, filas_procesadas: filas.length, resultados, simulacion }\n}\n\n// Rota un puesto por intervalo del cron. Incluso dos filas lentas no pueden\n// quedarse permanentemente al principio. No muta los items ni conserva estado.\nfunction seleccionarLote(items, inicioMs, max = 25) {\n  if (!Array.isArray(items)) throw new Error('El lote debe ser una lista')\n  if (!items.length) return []\n  if (!Number.isFinite(inicioMs) || inicioMs < 0 || !Number.isInteger(max) || max < 1) throw new Error('Configuración de lote inválida')\n  const offset = Math.floor(inicioMs / 300000) % items.length\n  return [...items.slice(offset), ...items.slice(0, offset)].slice(0, max)\n}\n\nreturn [{json:resumirImportacion($input.all().map(item=>item.json),$(\"Control del envío\").first().json.simular_registro)}];"
+        },
+        "id": "9fb89451-2325-40f7-b368-4af7b487fc4d",
+        "name": "Resumen de importación",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2768,
+          -400
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "leftValue": "={{ $now.toMillis()-$(\"Control del envío\").first().json.inicio_ms < 100000 }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "equals"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "e290027d-bf45-40e3-9d75-68a59055c976",
+        "name": "Tiempo disponible",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          2320,
+          272
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const CAMPAÑA = 'Formulario 3'\nconst DOCUMENTO = '1lPvJ-65PNY1d4eme5xpcJ8ITVazkQRdjtkgW4ZLoIsI'\nconst COLUMNAS = {\n  fecha: 'Fecha',\n  intencion: '¿qué deseas hacer con qorilazo?',\n  informacion: '¿qué información te gustaría evaluar antes de realizar un depósito a plazo fijo?',\n  moneda: '¿en qué moneda te interesa ahorrar?',\n  capital: '¿qué monto aproximado deseas evaluar para tu depósito?',\n  asesor: '¿qué te gustaría reforzar con el asesor antes de realizar tu deposito a plazo fijjo?',\n  telefono: 'n.º celular',\n  nombre: 'nombre completo',\n  alternativo: 'número de teléfono',\n  ciudad: 'ciudad',\n}\n\nfunction texto(valor) {\n  if (valor == null) return ''\n  if (typeof valor === 'string') return valor.trim()\n  if (typeof valor === 'number' && Number.isFinite(valor)) return String(valor)\n  throw new Error('La celda contiene un tipo de dato inesperado')\n}\n\nfunction normalizarRespuesta(valor) {\n  return texto(valor).normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')\n    .replace(/_/g, ' ').replace(/[^a-zA-Z0-9,.$/+\\-\\s]/g, '')\n    .replace(/\\s+/g, ' ').trim().toLowerCase()\n}\n\nfunction capitalEstimado(valor) {\n  const numero = '(?:\\\\d{1,3}(?:,\\\\d{3})+|\\\\d+)(?:\\\\.\\\\d{1,2})?'\n  const limpio = normalizarRespuesta(valor).replace(/^(?:s\\/\\.?|us\\$|\\$)\\s*/, '').replace(/(mas)\\.$/, '$1')\n  const rango = new RegExp('^de\\\\s+(' + numero + ')\\\\s+(?:a|hasta)\\\\s+(' + numero + ')$').exec(limpio)\n  const abierto = new RegExp('^(?:(?:mas de|desde|mayor a)\\\\s+)?(' + numero + ')(?:\\\\s+(?:a mas|o mas)|\\\\s*\\\\+)?$').exec(limpio)\n  const match = rango || abierto\n  if (!match) throw new Error('Capital no reconocido: conserva el rango para revisar')\n  const piso = Number(match[1].replace(/,/g, ''))\n  const techo = rango ? Number(rango[2].replace(/,/g, '')) : piso\n  if (!Number.isFinite(piso) || piso <= 0 || piso > 9_999_999_999.99 || techo < piso || techo > 9_999_999_999.99) {\n    throw new Error('Capital fuera del rango permitido')\n  }\n  return String(piso)\n}\n\nfunction monedaDeRespuesta(valor) {\n  const limpio = normalizarRespuesta(valor)\n  const soles = /\\b(?:sol|soles|pen)\\b/.test(limpio)\n  const dolares = /\\b(?:dolar|dolares|usd)\\b|us\\$/.test(limpio)\n  if (!soles && !dolares) throw new Error('Moneda no reconocida: debe indicar soles o dólares')\n  return { moneda: soles ? 'PEN' : 'USD', ambigua: soles && dolares }\n}\n\nfunction validarColumnas(registros) {\n  const claves = new Set(registros.flatMap((registro) => Object.keys(registro)))\n  if (!Object.values(COLUMNAS).some((columna) => claves.has(columna))) {\n    if (registros.every((registro) => Object.entries(registro).every(([clave, valor]) => clave === 'row_number' || valor == null || valor === ''))) return\n  }\n  const faltantes = Object.values(COLUMNAS).filter((columna) => !claves.has(columna))\n  if (faltantes.length) throw new Error('Cambió la estructura de Google Sheets. Faltan columnas: ' + faltantes.join(' | '))\n}\n\nfunction prepararFila(registro) {\n  const fila = Number(registro.row_number)\n  if (!Number.isInteger(fila) || fila < 2) throw new Error('La lectura no incluye un número de fila válido')\n  const datos = {}\n  for (const [clave, columna] of Object.entries(COLUMNAS)) datos[clave] = texto(registro[columna])\n  if (Object.values(datos).every((valor) => valor === '')) return null\n  const errores = []\n  if (!datos.nombre) errores.push('Falta el nombre completo')\n  if (datos.nombre.length > 160) errores.push('El nombre supera 160 caracteres')\n  if (!datos.telefono && !datos.alternativo) errores.push('Faltan ambos teléfonos')\n  let capital = null\n  let moneda = null\n  let monedaAmbigua = false\n  try { capital = capitalEstimado(datos.capital) } catch (error) { errores.push(error.message) }\n  try {\n    const resultado = monedaDeRespuesta(datos.moneda)\n    moneda = resultado.moneda\n    monedaAmbigua = resultado.ambigua\n  } catch (error) { errores.push(error.message) }\n  const partes = [\n    'Campaña: ' + CAMPAÑA,\n    'Fecha original: ' + datos.fecha,\n    'Capital declarado: ' + datos.capital,\n    'Moneda declarada: ' + datos.moneda,\n    datos.intencion ? 'Intención: ' + datos.intencion : '',\n    datos.informacion ? 'Información solicitada: ' + datos.informacion : '',\n    datos.asesor ? 'Consulta para el asesor: ' + datos.asesor : '',\n    monedaAmbigua ? 'Indicó soles y dólares; se usa PEN según la regla del puente' : '',\n  ].filter(Boolean)\n  const prefijo = normalizarRespuesta(datos.capital)\n  const monedaCapital = /^us\\$/.test(prefijo) ? 'USD' : /^s\\//.test(prefijo) ? 'PEN' : null\n  const conflictoMoneda = monedaCapital && moneda && monedaCapital !== moneda\n  if (conflictoMoneda) partes.splice(4, 0, 'Aviso: el símbolo del capital indica ' + monedaCapital + '; se conserva la moneda declarada ' + moneda)\n  const notaCompleta = partes.join('\\n')\n  const nota = notaCompleta.slice(0, 2000).toWellFormed()\n  const avisos = []\n  if (conflictoMoneda) avisos.push('El símbolo del capital y la moneda declarada no coinciden')\n  if (nota.length < notaCompleta.length) avisos.push('La nota se limita a 2000 caracteres; el original permanece en Google Sheets')\n  const importacion = {\n    fila,\n    nombre: datos.nombre,\n    telefono: datos.telefono,\n    telefono_alternativo: datos.alternativo,\n    capital,\n    moneda,\n    canal: 'FORMULARIO',\n    campania_origen: CAMPAÑA,\n    distrito: datos.ciudad,\n    interes: 'Nuevo',\n    nota,\n    autorizo: 'SI',\n    fuente_consentimiento: 'Formulario 3 de Facebook',\n  }\n  return {\n    fila,\n    campania: CAMPAÑA,\n    mapeo_correcto: errores.length === 0,\n    errores,\n    avisos,\n    huella_material: JSON.stringify({ documento: DOCUMENTO, pestana: 'gid=0', datos }),\n    payload: { filas: [importacion] },\n  }\n}\n\nfunction resumirPreparacion(filas) {\n  const monedas = {}\n  for (const fila of filas) {\n    const moneda = fila.payload.filas[0].moneda\n    if (moneda) monedas[moneda] = (monedas[moneda] || 0) + 1\n  }\n  return {\n    campania: CAMPAÑA,\n    modo: 'Vista previa: no se envían datos al CRM',\n    total_filas: filas.length,\n    preparadas: filas.filter((fila) => fila.mapeo_correcto).length,\n    para_revisar: filas.filter((fila) => !fila.mapeo_correcto).map((fila) => ({ fila: fila.fila, motivos: fila.errores })),\n    monedas,\n    envios_crm: 0,\n  }\n}\n\nfunction reciboDeRechazo(fila) {\n  return {\n    huella: fila.huella,\n    campania: CAMPAÑA,\n    fila: fila.fila,\n    resultado: 'rechazado',\n    estado: 'RECHAZADO: ' + fila.errores.join('; '),\n  }\n}\n\nfunction conciliarRespuesta(respuesta, original) {\n  if (!respuesta || !Array.isArray(respuesta.resultados) || respuesta.resultados.length !== 1) {\n    throw new Error('Respuesta del CRM incompleta: la fila sigue pendiente')\n  }\n  const resultado = respuesta.resultados[0]\n  if (resultado.fila !== original.fila) throw new Error('El CRM respondió para otra fila: no se confirma la importación')\n  if (resultado.resultado === 'error_temporal') throw new Error('Error temporal del CRM: la fila sigue pendiente para reintentar')\n  if (!['importado', 'duplicado', 'ya_cliente', 'rechazado'].includes(resultado.resultado) || typeof resultado.estado !== 'string' || !resultado.estado.trim()) {\n    throw new Error('Resultado del CRM no reconocido: la fila sigue pendiente')\n  }\n  if (typeof original.huella !== 'string' || !/^[0-9a-f]{64}$/.test(original.huella)) throw new Error('Falta la huella SHA-256 de la fila')\n  return {\n    huella: original.huella,\n    campania: CAMPAÑA,\n    fila: original.fila,\n    resultado: resultado.resultado,\n    estado: resultado.estado,\n  }\n}\n\nfunction pendienteDeFila(original) {\n  if (!original || !Number.isInteger(original.fila) || !/^[0-9a-f]{64}$/.test(original.huella)) throw new Error('Falta la identidad de la fila pendiente')\n  return { huella: original.huella, campania: CAMPAÑA, fila: original.fila, resultado: 'pendiente', estado: 'PENDIENTE: el CRM no confirmó un resultado definitivo' }\n}\n\nfunction resumirImportacion(filas, simulacion) {\n  const resultados = {}\n  for (const fila of filas) {\n    if (!['importado', 'duplicado', 'ya_cliente', 'rechazado', 'pendiente', 'aplazado'].includes(fila.resultado)) throw new Error('Falta el recibo de una fila')\n    resultados[fila.resultado] = (resultados[fila.resultado] || 0) + 1\n  }\n  const pendientes = filas.filter((fila) => fila.resultado === 'pendiente').map((fila) => fila.fila)\n  if (pendientes.length) throw new Error('Filas pendientes para reintentar: ' + pendientes.join(', ') + '. Resultados: ' + JSON.stringify(resultados))\n  const definitivos = filas.filter((fila) => ['importado', 'duplicado', 'ya_cliente', 'rechazado'].includes(fila.resultado)).length\n  if (resultados.aplazado && definitivos === 0) throw new Error('Sin avance: todas las filas se aplazaron por falta de tiempo')\n  return { campania: CAMPAÑA, filas_procesadas: filas.length, resultados, simulacion }\n}\n\n// Rota un puesto por intervalo del cron. Incluso dos filas lentas no pueden\n// quedarse permanentemente al principio. No muta los items ni conserva estado.\nfunction seleccionarLote(items, inicioMs, max = 25) {\n  if (!Array.isArray(items)) throw new Error('El lote debe ser una lista')\n  if (!items.length) return []\n  if (!Number.isFinite(inicioMs) || inicioMs < 0 || !Number.isInteger(max) || max < 1) throw new Error('Configuración de lote inválida')\n  const offset = Math.floor(inicioMs / 300000) % items.length\n  return [...items.slice(offset), ...items.slice(0, offset)].slice(0, max)\n}\n\nreturn [{json:pendienteDeFila($(\"Procesar de una en una\").itemMatching(0).json),pairedItem:{item:0}}];"
+        },
+        "id": "27f3bb7d-4d9b-4c0e-8e85-4fcb020d8b96",
+        "name": "Mantener pendiente",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          3360,
+          688
+        ]
+      },
+      {
+        "parameters": {
+          "mode": "raw",
+          "jsonOutput": "={{ JSON.stringify({huella:$json.huella,campania:$json.campania,fila:$json.fila,resultado:\"aplazado\",estado:\"APLAZADO: se agotó el margen de esta ejecución\"}) }}",
+          "options": {}
+        },
+        "id": "7f06683a-db6e-461e-a73a-a0e5a77d2627",
+        "name": "Aplazar hasta próxima revisión",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.5,
+        "position": [
+          2688,
+          704
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const CAMPAÑA = 'Formulario 3'\nconst DOCUMENTO = '1lPvJ-65PNY1d4eme5xpcJ8ITVazkQRdjtkgW4ZLoIsI'\nconst COLUMNAS = {\n  fecha: 'Fecha',\n  intencion: '¿qué deseas hacer con qorilazo?',\n  informacion: '¿qué información te gustaría evaluar antes de realizar un depósito a plazo fijo?',\n  moneda: '¿en qué moneda te interesa ahorrar?',\n  capital: '¿qué monto aproximado deseas evaluar para tu depósito?',\n  asesor: '¿qué te gustaría reforzar con el asesor antes de realizar tu deposito a plazo fijjo?',\n  telefono: 'n.º celular',\n  nombre: 'nombre completo',\n  alternativo: 'número de teléfono',\n  ciudad: 'ciudad',\n}\n\nfunction texto(valor) {\n  if (valor == null) return ''\n  if (typeof valor === 'string') return valor.trim()\n  if (typeof valor === 'number' && Number.isFinite(valor)) return String(valor)\n  throw new Error('La celda contiene un tipo de dato inesperado')\n}\n\nfunction normalizarRespuesta(valor) {\n  return texto(valor).normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')\n    .replace(/_/g, ' ').replace(/[^a-zA-Z0-9,.$/+\\-\\s]/g, '')\n    .replace(/\\s+/g, ' ').trim().toLowerCase()\n}\n\nfunction capitalEstimado(valor) {\n  const numero = '(?:\\\\d{1,3}(?:,\\\\d{3})+|\\\\d+)(?:\\\\.\\\\d{1,2})?'\n  const limpio = normalizarRespuesta(valor).replace(/^(?:s\\/\\.?|us\\$|\\$)\\s*/, '').replace(/(mas)\\.$/, '$1')\n  const rango = new RegExp('^de\\\\s+(' + numero + ')\\\\s+(?:a|hasta)\\\\s+(' + numero + ')$').exec(limpio)\n  const abierto = new RegExp('^(?:(?:mas de|desde|mayor a)\\\\s+)?(' + numero + ')(?:\\\\s+(?:a mas|o mas)|\\\\s*\\\\+)?$').exec(limpio)\n  const match = rango || abierto\n  if (!match) throw new Error('Capital no reconocido: conserva el rango para revisar')\n  const piso = Number(match[1].replace(/,/g, ''))\n  const techo = rango ? Number(rango[2].replace(/,/g, '')) : piso\n  if (!Number.isFinite(piso) || piso <= 0 || piso > 9_999_999_999.99 || techo < piso || techo > 9_999_999_999.99) {\n    throw new Error('Capital fuera del rango permitido')\n  }\n  return String(piso)\n}\n\nfunction monedaDeRespuesta(valor) {\n  const limpio = normalizarRespuesta(valor)\n  const soles = /\\b(?:sol|soles|pen)\\b/.test(limpio)\n  const dolares = /\\b(?:dolar|dolares|usd)\\b|us\\$/.test(limpio)\n  if (!soles && !dolares) throw new Error('Moneda no reconocida: debe indicar soles o dólares')\n  return { moneda: soles ? 'PEN' : 'USD', ambigua: soles && dolares }\n}\n\nfunction validarColumnas(registros) {\n  const claves = new Set(registros.flatMap((registro) => Object.keys(registro)))\n  if (!Object.values(COLUMNAS).some((columna) => claves.has(columna))) {\n    if (registros.every((registro) => Object.entries(registro).every(([clave, valor]) => clave === 'row_number' || valor == null || valor === ''))) return\n  }\n  const faltantes = Object.values(COLUMNAS).filter((columna) => !claves.has(columna))\n  if (faltantes.length) throw new Error('Cambió la estructura de Google Sheets. Faltan columnas: ' + faltantes.join(' | '))\n}\n\nfunction prepararFila(registro) {\n  const fila = Number(registro.row_number)\n  if (!Number.isInteger(fila) || fila < 2) throw new Error('La lectura no incluye un número de fila válido')\n  const datos = {}\n  for (const [clave, columna] of Object.entries(COLUMNAS)) datos[clave] = texto(registro[columna])\n  if (Object.values(datos).every((valor) => valor === '')) return null\n  const errores = []\n  if (!datos.nombre) errores.push('Falta el nombre completo')\n  if (datos.nombre.length > 160) errores.push('El nombre supera 160 caracteres')\n  if (!datos.telefono && !datos.alternativo) errores.push('Faltan ambos teléfonos')\n  let capital = null\n  let moneda = null\n  let monedaAmbigua = false\n  try { capital = capitalEstimado(datos.capital) } catch (error) { errores.push(error.message) }\n  try {\n    const resultado = monedaDeRespuesta(datos.moneda)\n    moneda = resultado.moneda\n    monedaAmbigua = resultado.ambigua\n  } catch (error) { errores.push(error.message) }\n  const partes = [\n    'Campaña: ' + CAMPAÑA,\n    'Fecha original: ' + datos.fecha,\n    'Capital declarado: ' + datos.capital,\n    'Moneda declarada: ' + datos.moneda,\n    datos.intencion ? 'Intención: ' + datos.intencion : '',\n    datos.informacion ? 'Información solicitada: ' + datos.informacion : '',\n    datos.asesor ? 'Consulta para el asesor: ' + datos.asesor : '',\n    monedaAmbigua ? 'Indicó soles y dólares; se usa PEN según la regla del puente' : '',\n  ].filter(Boolean)\n  const prefijo = normalizarRespuesta(datos.capital)\n  const monedaCapital = /^us\\$/.test(prefijo) ? 'USD' : /^s\\//.test(prefijo) ? 'PEN' : null\n  const conflictoMoneda = monedaCapital && moneda && monedaCapital !== moneda\n  if (conflictoMoneda) partes.splice(4, 0, 'Aviso: el símbolo del capital indica ' + monedaCapital + '; se conserva la moneda declarada ' + moneda)\n  const notaCompleta = partes.join('\\n')\n  const nota = notaCompleta.slice(0, 2000).toWellFormed()\n  const avisos = []\n  if (conflictoMoneda) avisos.push('El símbolo del capital y la moneda declarada no coinciden')\n  if (nota.length < notaCompleta.length) avisos.push('La nota se limita a 2000 caracteres; el original permanece en Google Sheets')\n  const importacion = {\n    fila,\n    nombre: datos.nombre,\n    telefono: datos.telefono,\n    telefono_alternativo: datos.alternativo,\n    capital,\n    moneda,\n    canal: 'FORMULARIO',\n    campania_origen: CAMPAÑA,\n    distrito: datos.ciudad,\n    interes: 'Nuevo',\n    nota,\n    autorizo: 'SI',\n    fuente_consentimiento: 'Formulario 3 de Facebook',\n  }\n  return {\n    fila,\n    campania: CAMPAÑA,\n    mapeo_correcto: errores.length === 0,\n    errores,\n    avisos,\n    huella_material: JSON.stringify({ documento: DOCUMENTO, pestana: 'gid=0', datos }),\n    payload: { filas: [importacion] },\n  }\n}\n\nfunction resumirPreparacion(filas) {\n  const monedas = {}\n  for (const fila of filas) {\n    const moneda = fila.payload.filas[0].moneda\n    if (moneda) monedas[moneda] = (monedas[moneda] || 0) + 1\n  }\n  return {\n    campania: CAMPAÑA,\n    modo: 'Vista previa: no se envían datos al CRM',\n    total_filas: filas.length,\n    preparadas: filas.filter((fila) => fila.mapeo_correcto).length,\n    para_revisar: filas.filter((fila) => !fila.mapeo_correcto).map((fila) => ({ fila: fila.fila, motivos: fila.errores })),\n    monedas,\n    envios_crm: 0,\n  }\n}\n\nfunction reciboDeRechazo(fila) {\n  return {\n    huella: fila.huella,\n    campania: CAMPAÑA,\n    fila: fila.fila,\n    resultado: 'rechazado',\n    estado: 'RECHAZADO: ' + fila.errores.join('; '),\n  }\n}\n\nfunction conciliarRespuesta(respuesta, original) {\n  if (!respuesta || !Array.isArray(respuesta.resultados) || respuesta.resultados.length !== 1) {\n    throw new Error('Respuesta del CRM incompleta: la fila sigue pendiente')\n  }\n  const resultado = respuesta.resultados[0]\n  if (resultado.fila !== original.fila) throw new Error('El CRM respondió para otra fila: no se confirma la importación')\n  if (resultado.resultado === 'error_temporal') throw new Error('Error temporal del CRM: la fila sigue pendiente para reintentar')\n  if (!['importado', 'duplicado', 'ya_cliente', 'rechazado'].includes(resultado.resultado) || typeof resultado.estado !== 'string' || !resultado.estado.trim()) {\n    throw new Error('Resultado del CRM no reconocido: la fila sigue pendiente')\n  }\n  if (typeof original.huella !== 'string' || !/^[0-9a-f]{64}$/.test(original.huella)) throw new Error('Falta la huella SHA-256 de la fila')\n  return {\n    huella: original.huella,\n    campania: CAMPAÑA,\n    fila: original.fila,\n    resultado: resultado.resultado,\n    estado: resultado.estado,\n  }\n}\n\nfunction pendienteDeFila(original) {\n  if (!original || !Number.isInteger(original.fila) || !/^[0-9a-f]{64}$/.test(original.huella)) throw new Error('Falta la identidad de la fila pendiente')\n  return { huella: original.huella, campania: CAMPAÑA, fila: original.fila, resultado: 'pendiente', estado: 'PENDIENTE: el CRM no confirmó un resultado definitivo' }\n}\n\nfunction resumirImportacion(filas, simulacion) {\n  const resultados = {}\n  for (const fila of filas) {\n    if (!['importado', 'duplicado', 'ya_cliente', 'rechazado', 'pendiente', 'aplazado'].includes(fila.resultado)) throw new Error('Falta el recibo de una fila')\n    resultados[fila.resultado] = (resultados[fila.resultado] || 0) + 1\n  }\n  const pendientes = filas.filter((fila) => fila.resultado === 'pendiente').map((fila) => fila.fila)\n  if (pendientes.length) throw new Error('Filas pendientes para reintentar: ' + pendientes.join(', ') + '. Resultados: ' + JSON.stringify(resultados))\n  const definitivos = filas.filter((fila) => ['importado', 'duplicado', 'ya_cliente', 'rechazado'].includes(fila.resultado)).length\n  if (resultados.aplazado && definitivos === 0) throw new Error('Sin avance: todas las filas se aplazaron por falta de tiempo')\n  return { campania: CAMPAÑA, filas_procesadas: filas.length, resultados, simulacion }\n}\n\n// Rota un puesto por intervalo del cron. Incluso dos filas lentas no pueden\n// quedarse permanentemente al principio. No muta los items ni conserva estado.\nfunction seleccionarLote(items, inicioMs, max = 25) {\n  if (!Array.isArray(items)) throw new Error('El lote debe ser una lista')\n  if (!items.length) return []\n  if (!Number.isFinite(inicioMs) || inicioMs < 0 || !Number.isInteger(max) || max < 1) throw new Error('Configuración de lote inválida')\n  const offset = Math.floor(inicioMs / 300000) % items.length\n  return [...items.slice(offset), ...items.slice(0, offset)].slice(0, max)\n}\n\nreturn seleccionarLote($input.all().map((item,index)=>({...item,pairedItem:{item:index}})),$(\"Control del envío\").first().json.inicio_ms);"
+        },
+        "id": "e6cbd4a6-a8f1-479b-af16-1a838ecb4bd8",
+        "name": "Seleccionar lote rotativo",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2016,
+          160
+        ]
+      }
+    ],
+    "nodeGroups": [
+      {
+        "id": "f61b5bf1-2234-461c-97b3-a8a42a20e1b6",
+        "name": "Lectura y preparación",
+        "nodeNames": [
+          "Control del envío",
+          "Leer leads filtrados",
+          "Preparar leads",
+          "Identificar fila"
+        ],
+        "description": "Lee la hoja de Formulario 3, conserva las respuestas y prepara una huella estable por fila."
+      },
+      {
+        "id": "076098a7-c860-42da-909d-f4e9f430c47e",
+        "name": "Importación con confirmación",
+        "nodeNames": [
+          "Omitir filas confirmadas",
+          "Procesar de una en una",
+          "Datos válidos",
+          "Importar en CRM",
+          "Confirmar respuesta del CRM",
+          "Marcar para revisión",
+          "Preparar recibo",
+          "Registrar resultado",
+          "Conservar recibo",
+          "Seleccionar lote rotativo",
+          "Tiempo disponible",
+          "Mantener pendiente",
+          "Aplazar hasta próxima revisión"
+        ],
+        "description": "Evita reprocesar filas confirmadas, importa una por una y guarda únicamente resultados definitivos."
+      }
+    ],
+    "activeVersion": null,
+    "meta": {
+      "aiBuilderAssisted": true,
+      "builderVariant": "mcp"
+    }
+  },
+  "schedule_definicion": "# TypeScript Type Definitions\n\n## n8n-nodes-base.scheduleTrigger (v13)\n\n```typescript\n/**\n * Schedule Trigger Node - Version 1.3\n * Triggers the workflow on a given schedule\n */\n\n\nexport interface ScheduleTriggerV13Params {\n  rule?: {\n        /** Trigger Interval\n     * @builderHint You can add multiple intervals to trigger at different times. Use \"Custom (Cron)\" for more specific scheduling patterns.\n     */\n    interval?: Array<{\n      /** Trigger Interval\n       * @default days\n       */\n      field?: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months' | 'cronExpression' | Expression<string>;\n      /** Number of seconds between each workflow trigger\n       * @hint Must be in range 1-59\n       * @displayOptions.show { field: [\"seconds\"] }\n       * @default 30\n       */\n      secondsInterval?: number | Expression<number>;\n      /** Number of minutes between each workflow trigger\n       * @hint Must be in range 1-59\n       * @displayOptions.show { field: [\"minutes\"] }\n       * @default 5\n       */\n      minutesInterval?: number | Expression<number>;\n      /** Number of hours between each workflow trigger\n       * @hint Must be in range 1-23\n       * @displayOptions.show { field: [\"hours\"] }\n       * @default 1\n       */\n      hoursInterval?: number | Expression<number>;\n      /** Number of days between each workflow trigger\n       * @hint Must be in range 1-31\n       * @displayOptions.show { field: [\"days\"] }\n       * @default 1\n       */\n      daysInterval?: number | Expression<number>;\n      /** Would run every week unless specified otherwise\n       * @displayOptions.show { field: [\"weeks\"] }\n       * @default 1\n       */\n      weeksInterval?: number | Expression<number>;\n      /** Would run every month unless specified otherwise\n       * @displayOptions.show { field: [\"months\"] }\n       * @default 1\n       */\n      monthsInterval?: number | Expression<number>;\n      /** The day of the month to trigger (1-31)\n       * @hint If a month doesn’t have this day, the node won’t trigger\n       * @displayOptions.show { field: [\"months\"] }\n       * @default 1\n       */\n      triggerAtDayOfMonth?: number | Expression<number>;\n      /** Trigger on Weekdays\n       * @displayOptions.show { field: [\"weeks\"] }\n       * @default [0]\n       */\n      triggerAtDay?: Array<1 | 2 | 3 | 4 | 5 | 6 | 0>;\n      /** The hour of the day to trigger\n       * @displayOptions.show { field: [\"days\", \"weeks\", \"months\"] }\n       * @default 0\n       */\n      triggerAtHour?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | Expression<number>;\n      /** The minute past the hour to trigger (0-59)\n       * @displayOptions.show { field: [\"hours\", \"days\", \"weeks\", \"months\"] }\n       * @default 0\n       */\n      triggerAtMinute?: number | Expression<number>;\n      /** Expression\n       * @hint Format: ([Second]) [Minute] [Hour] [Day of Month] [Month] [Day of Week]\n       * @displayOptions.show { field: [\"cronExpression\"] }\n       */\n      expression?: string | Expression<string>;\n    }>;\n  };\n/**\n * Whether to run this trigger through the legacy in-memory scheduler instead of the durable scheduler\n * @default false\n */\n    skipDurableScheduler?: boolean | Expression<boolean>;\n}\n\ninterface ScheduleTriggerV13NodeBase {\n  type: 'n8n-nodes-base.scheduleTrigger';\n  version: 1.3;\n  isTrigger: true;\n}\n\nexport type ScheduleTriggerV13ParamsNode = ScheduleTriggerV13NodeBase & {\n  config: NodeConfig<ScheduleTriggerV13Params>;\n};\n\nexport type ScheduleTriggerV13Node = ScheduleTriggerV13ParamsNode;\n```",
+  "credencial_temporal": {
+    "data": [
+      {
+        "id": "Ag61FRD4BJjGI4hZ",
+        "name": "Simplified Custom Auth account 2",
+        "type": "httpTemplatedCustomAuth",
+        "scopes": [
+          "credential:connect",
+          "credential:create",
+          "credential:createEndUser",
+          "credential:delete",
+          "credential:list",
+          "credential:manageInstance",
+          "credential:move",
+          "credential:read",
+          "credential:share",
+          "credential:shareGlobally",
+          "credential:unshare",
+          "credential:update",
+          "credential:use"
+        ],
+        "isManaged": false,
+        "isGlobal": false,
+        "homeProject": {
+          "id": "Wh9TzBU6GdZNVPHi",
+          "name": "Avance Corp mascapital <miguel@miavance.com>",
+          "type": "personal"
+        }
+      }
+    ],
+    "count": 1
+  }
+}

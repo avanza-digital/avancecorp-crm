@@ -1,0 +1,83 @@
+{
+  "rls": true,
+  "funciones": [
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "firma": "crm.importar_lead_fn(jsonb)",
+      "owner": "postgres",
+      "config": [
+        "search_path=\"\"",
+        "lock_timeout=5s"
+      ],
+      "definer": true,
+      "cuerpo_md5": "261411a75326cbe78220d3ef1a61a7cd",
+      "definicion_md5": "0518b2643f258ca458d3a6acc492a7bf"
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "firma": "crm.registrar_reingreso_lead_fn(uuid,text,jsonb)",
+      "owner": "postgres",
+      "config": [
+        "search_path=\"\""
+      ],
+      "definer": true,
+      "cuerpo_md5": "2875987459d47958333637736c057ffb",
+      "definicion_md5": "c3c4ab696ba6f3e30895cae1a9a27b77"
+    },
+    {
+      "acl": "{postgres=X/postgres}",
+      "firma": "private.registrar_solicitud_cliente_fn(uuid,text,jsonb)",
+      "owner": "postgres",
+      "config": [
+        "search_path=\"\"",
+        "lock_timeout=5s"
+      ],
+      "definer": true,
+      "cuerpo_md5": "38cc98b993d92b10816c95a479994d20",
+      "definicion_md5": "23c2b6216684ac77801e39af5efe4b7c"
+    }
+  ],
+  "historicos": {
+    "flags": {
+      "n": 6,
+      "md5": "5ca5c770d27ab866b23c39e1e79e5565"
+    },
+    "leads": {
+      "n": 3677,
+      "md5": "3655ce7f8d822d8589c91b8a1cf52314"
+    },
+    "tareas": {
+      "n": 10685,
+      "md5": "ac7b7d04d4bd9a3e613d019fd2f223c2"
+    },
+    "perfiles": {
+      "n": 650,
+      "md5": "ea227ce1eb39b8a021906fa9a35a3e5e"
+    },
+    "auth_users": {
+      "n": 650,
+      "md5": "87c7605ea0faaa4ed21a70f7704797ae"
+    },
+    "actividades": {
+      "n": 27098,
+      "md5": "804b683fd8cdc34653c44798131e8c94"
+    },
+    "asignaciones": {
+      "n": 4075,
+      "md5": "75757a31c2c265033ba5110e4dec3917"
+    },
+    "actividades_cliente": {
+      "n": 119,
+      "md5": "a562efd7a2be78c8f36986f18a450728"
+    }
+  },
+  "controles_c1": true,
+  "campania_existe": false,
+  "escritores_insert": [
+    "crm.crear_lead_si_disponible(text,text,text,numeric,text,uuid,text,text,text,date,text,text,text,uuid,text,text)",
+    "crm.importar_lead_fn(jsonb)",
+    "private.bases_carga_cargar_lote_core(uuid,uuid,uuid,jsonb)"
+  ],
+  "campanias_no_nulas": 0,
+  "permisos_columnas_anteriores": "f3ba0967422c4c1c4fbbab2adf1019a3"
+}

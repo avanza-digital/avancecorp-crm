@@ -36,6 +36,44 @@ function payloadFiltrado(n = 60) {
 
 describe('cartera integrada: listado y total del mismo filtro', () => {
   const filtros = { integrada: true, recepcion: { desde: '2026-09-01', hasta: '2026-09-03' } }
+  it('campaña viaja en cada página, se mapea y fuerza la ruta integrada incluso desde la antigua', async () => {
+    const cuerpos: Record<string, unknown>[] = []
+    server.use(http.post(RPC_INTEGRADA, async ({ request }) => {
+      cuerpos.push(await request.json() as Record<string, unknown>)
+      const payload = payloadFiltrado()
+      return HttpResponse.json({ ...payload, campania_origen: 'Formulario 3', origen: 'formulario', procedencia: 'sistema',
+        items: payload.items.map(l => ({ ...l, campania_origen: 'Formulario 3', origen: 'formulario', procedencia: 'sistema' })) })
+    }))
+    const pedido = { ...filtros, integrada: false, campania: 'Formulario 3' as const,
+      origen: 'formulario' as const, procedencia: 'sistema' as const }
+    const primera = await listarCarteraPagina(pedido, null)
+    await listarCarteraPagina(pedido, primera.cursor)
+    expect(cuerpos).toHaveLength(2)
+    expect(cuerpos.every(c => c.p_campania_origen === 'Formulario 3')).toBe(true)
+    expect(cuerpos[0]).toMatchObject({ p_desde: '2026-09-01', p_hasta: '2026-09-03',
+      p_origen: 'formulario', p_procedencia: 'sistema' })
+    expect(cuerpos[1]?.p_antes_id).toBe(primera.cursor?.id)
+    expect(primera.items.every(l => l.campania_origen === 'Formulario 3')).toBe(true)
+    expect(primera.resumen?.totales.vivos).toBe(60)
+  })
+  it.each(['sin eco', 'otra campaña', 'fila sin campaña', 'fila ajena'])('rechaza la campaña inconsistente: %s', async caso => {
+    const p = payloadFiltrado()
+    const payload: Record<string, unknown> = { ...p, campania_origen: 'Formulario 3',
+      items: p.items.map(l => ({ ...l, campania_origen: 'Formulario 3' as string | null })) }
+    if (caso === 'sin eco') delete payload.campania_origen
+    if (caso === 'otra campaña') payload.campania_origen = 'Otra'
+    if (caso.startsWith('fila')) (payload.items as Array<{ campania_origen: string | null }>)[0]!.campania_origen = caso === 'fila ajena' ? 'Otra' : null
+    server.use(http.post(RPC_INTEGRADA, () => HttpResponse.json(payload)))
+    await expect(listarCarteraPagina({ ...filtros, campania: 'Formulario 3' }, null)).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
+  })
+  it('Todas conserva el contrato anterior sin eco ni campaña en sus filas', async () => {
+    server.use(http.post(RPC_INTEGRADA, async ({ request }) => {
+      expect(await request.json()).not.toHaveProperty('p_campania_origen')
+      return HttpResponse.json(payloadFiltrado())
+    }))
+    const pagina = await listarCarteraPagina({ ...filtros, campania: 'todas' }, null)
+    expect(pagina.items.every(l => l.campania_origen === null)).toBe(true)
+  })
   it('Gestionado envía etapa nuevo y gestión vigente, también al pedir la segunda página', async () => {
     const cuerpos: Record<string, unknown>[] = []
     server.use(http.post(RPC_INTEGRADA, async ({ request }) => {

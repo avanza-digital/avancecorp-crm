@@ -1,3 +1,52 @@
+## 20261014215453 — Campaña de origen en cartera y filtro, fase 2
+
+**PROBADA EN LOCAL Y RAMA REMOTA; NO PUBLICADA.** Depende de la fase 1. La cartera
+integrada devuelve `campania_origen` y acepta `p_campania_origen` antes de calcular
+filas, totales, capital, embudo y conteos por potencial. El lector anterior también
+devuelve la campaña para mantener coherente la ficha y el resto del CRM.
+
+Se retiran las dos firmas exactas y se recrean en la misma transacción, sin CASCADE.
+Preflight por huellas completas, dueño, atributos, permisos y dependencias;
+postflight de firma única y grants idénticos. Se conserva el envoltorio
+`resumen_cartera_fn` y sus claves, las policies y todos los permisos de escritura.
+No hay reclasificación de datos ni cambios de reparto o conversión.
+
+Banco final `formulario3_fase2_20261014_review`: 43 comprobaciones SQL PASS, con
+roles reales y rollback. Tras review se conservan comentarios del catálogo y se
+anclan los cuerpos que mencionan ambas puertas, además de `pg_depend`.
+Evidencia y estado final de los gates en
+`../scripts/formulario3-fase2/LEEME.md`. Publicar después de fase 1 y antes del
+frontend de fase 2; el nuevo frontend solicita la columna al abrir una ficha.
+Reversión operativa: volver al frontend anterior, conservando el esquema aditivo.
+
+## 20261014210146 — Campaña de origen Formulario 3, fase 1
+
+**PROBADA EN BANCO LOCAL Y RAMA REMOTA; NO APLICADA EN PRODUCCIÓN.** Campo opcional
+`crm.leads.campania_origen`; validación de texto 1–80 caracteres y combinación
+Formulario 3 + formulario. Alta atómica en el importador, compatibilidad con
+payloads anteriores, campaña en reingresos y solicitudes de clientes sin
+reclasificar registros existentes. Reproducción local del reingreso dirigido a
+ficha cerrada pese a otra viva: corrección mínima de destino e idempotencia.
+La ACL viva tenía UPDATE de tabla para authenticated: se conservan sus permisos
+efectivos de columnas previas y se excluye la nueva; lectura bajo las mismas
+policies, más trigger de defensa frente a puertas DEFINER con sesión humana.
+No altera objetos de public, reglas de reparto/conversión ni EXECUTE de las tres
+puertas existentes. Preflight de cuerpo/definición/owner/ACL y postflight de
+atributos; la validación canal/campaña se aplica en la entrada, sin bloquear
+correcciones autorizadas posteriores del canal. Columnas futuras necesitan su
+GRANT UPDATE explícito si deben ser editables por humanos.
+36 comprobaciones de contrato + 18 de permisos + regresión de ficha viva PASS
+en local y remoto; Edge, check:scripts y check completo de app PASS. Revisión
+de Claude evaluada y mejoras justificadas incorporadas. Advisors sin alertas
+nuevas; 8 conjuntos de filas históricas idénticos, incluidos 3.677 leads.
+Rama `sdgqkuejylkeqabpplyk` retirada el 14/10/2026 21:35 UTC, sin merge.
+Versión de ensayo asignada por conector: `20261014213157`.
+Orden obligatorio al publicar: SQL → comprobar capacidad/huellas → Edge →
+frontend; n8n sigue apagado hasta la prueba integral. No publicar el Edge nuevo
+sobre SQL antiguo. Los reintentos de notas antes mal ubicadas pueden añadir
+una nota correcta a la ficha viva; no crean otro lead. UI/filtro: fase 2.
+[Pruebas y evidencia](../scripts/formulario3-fase1/LEEME.md).
+
 ## 20261014174026 — Adicional de renovación como upgrade de conversión
 
 **APLICADA Y VERIFICADA EN PRODUCCIÓN (14/10/2026, 21:29 UTC).** Decisión de Miguel:

@@ -1,0 +1,32 @@
+{
+  "proyecto": "dctqcbznekcyxhjujuci",
+  "principal": {
+    "id": "BjI5m1PKVWhO0NDb",
+    "version": "29940eb5-d36c-49c7-bf7f-686b66cc3f76",
+    "active": false,
+    "activeVersionId": null,
+    "http_disabled": true,
+    "enviar_crm": false,
+    "credencial": "YNRHr2PjhfLXnKff"
+  },
+  "aviso": {
+    "id": "4jfthNhVJLiZUeIo",
+    "nombre": "Avance Corp — Avisos de Formulario 3",
+    "version": "82886ed4-7a9b-4371-bcef-221f031d38b1",
+    "nombre_ya_correcto": true,
+    "prueba": {
+      "ejecucion": "52",
+      "modo": "manual",
+      "status": "success",
+      "fecha_utc": "2026-10-15T00:50:01.196Z",
+      "destinatario": "miguel@miavance.com",
+      "gmail_id": "1a13d0999a814209",
+      "recibo_registrado": true
+    }
+  },
+  "retencion": {
+    "actual": "saveDataErrorExecution=all; saveManualExecutions=true; saveDataSuccessExecution=none",
+    "limite_servidor": "NO VERIFICADO: sin acceso al Compose/VPS desde las herramientas actuales",
+    "requisito_antes_de_activar": "Fijar y verificar máximo 7 días de datos de ejecución, o desactivar guardado de contenido de ejecuciones. Los recibos de huella/estado se conservan aparte."
+  }
+}

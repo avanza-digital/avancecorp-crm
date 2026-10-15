@@ -1,0 +1,50 @@
+[
+  {
+    "episodios": [
+      {
+        "lead": "PRUEBA F3 Rol Legacy",
+        "motivo": "ingreso",
+        "origen": "formulario",
+        "cerrado": false
+      },
+      {
+        "lead": "PRUEBA F3 Rol Otro",
+        "motivo": "ingreso",
+        "origen": "formulario",
+        "cerrado": false
+      },
+      {
+        "lead": "PRUEBA F3 Rol Campaña",
+        "motivo": "ingreso",
+        "origen": "formulario",
+        "cerrado": false
+      }
+    ],
+    "conversion": [
+      {
+        "tipo": "recibido",
+        "divisor": 1,
+        "lead_id": "c6bbd610-b17e-4eca-b98b-7d7104f685a1",
+        "numerador": 0
+      },
+      {
+        "tipo": "recibido",
+        "divisor": 1,
+        "lead_id": "9af83cb1-8b39-41fd-8037-cbfd3cb477a4",
+        "numerador": 0
+      },
+      {
+        "tipo": "recibido",
+        "divisor": 1,
+        "lead_id": "b7f8094e-cd60-4b3a-9e16-3ec5f4c255c7",
+        "numerador": 0
+      }
+    ],
+    "funciones": [
+      "private.configuracion_reparto",
+      "crm.configuracion_reparto_fn",
+      "private.guardar_configuracion_reparto",
+      "crm.guardar_configuracion_reparto_fn"
+    ]
+  }
+]

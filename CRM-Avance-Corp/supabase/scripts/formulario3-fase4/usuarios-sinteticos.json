@@ -1,0 +1,20 @@
+[
+  {
+    "rol": "supervisor",
+    "id": "16e65952-09c0-45e1-a61b-e51e93885036",
+    "email": "f4_supervisor_20261014@pruebas.invalid",
+    "dni": "49440091"
+  },
+  {
+    "rol": "vendedor",
+    "id": "f0e826ea-dfab-42f4-b3b1-8713c4a20961",
+    "email": "f4_vendedor_20261014@pruebas.invalid",
+    "dni": "49440092"
+  },
+  {
+    "rol": "gerencia",
+    "id": "ada98d04-dd5d-43e9-8fbe-f945059feeba",
+    "email": "f4_gerencia_20261014@pruebas.invalid",
+    "dni": "49440093"
+  }
+]

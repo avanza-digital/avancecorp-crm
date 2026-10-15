@@ -1,0 +1,140 @@
+[
+  {
+    "clave": "metas_publicadas",
+    "titulo": "Hay una revisión de metas publicada",
+    "valor": 24,
+    "esperado": "≥ 1 periodo con revisión publicada",
+    "diverge": false,
+    "error": null,
+    "afecta": [
+      "Hoy · asesor → «Tu cumplimiento del mes» (las 3 columnas de meta)",
+      "Hoy · supervisor y gerencia → metas de equipo y empresa",
+      "Ranking de vendedores (capital y conversión): sin meta no hay % de avance"
+    ],
+    "via": "PostgREST"
+  },
+  {
+    "clave": "roster_metas_completo",
+    "titulo": "Todo vendedor activo tiene supervisor activo",
+    "valor": 0,
+    "esperado": "0 vendedores sin supervisor activo",
+    "diverge": false,
+    "error": null,
+    "afecta": [
+      "Configuración · Metas → publicar la revisión del mes",
+      "Hoy · asesor → sin revisión publicada no hay meta que enseñar",
+      "Rankings y metas de equipo (la atribución sale del supervisor)"
+    ],
+    "via": "PostgREST"
+  },
+  {
+    "clave": "leads_en_cartera",
+    "titulo": "La cartera tiene leads que trabajar",
+    "valor": 3687,
+    "esperado": "≥ 5 leads activos",
+    "diverge": false,
+    "error": null,
+    "afecta": [
+      "Cartera → paginación keyset y «Cargar más» (con 1 lead nunca aparece)",
+      "Pipeline → columnas del kanban",
+      "Hoy · asesor → cola de acción y agenda"
+    ],
+    "via": "PostgREST"
+  },
+  {
+    "clave": "actividades",
+    "titulo": "Los leads tienen historial de contacto",
+    "valor": 27303,
+    "esperado": "≥ 1 actividad",
+    "diverge": false,
+    "error": null,
+    "afecta": [
+      "Cartera → semáforo de último contacto (todo saldrá «sin contactar»)",
+      "Hoy · asesor → buckets de la cola (sin_responder, insistir, seguimiento)"
+    ],
+    "via": "PostgREST"
+  },
+  {
+    "clave": "tareas_pendientes",
+    "titulo": "Hay agenda viva (tareas pendientes)",
+    "valor": 1732,
+    "esperado": "≥ 1 tarea pendiente",
+    "diverge": false,
+    "error": null,
+    "afecta": [
+      "Hoy · asesor → agenda del día y el modo «viernes de higiene»",
+      "Cola de acción → el escudo de «tiene plan vigente»"
+    ],
+    "via": "PostgREST"
+  },
+  {
+    "clave": "equipo_operativo",
+    "titulo": "Hay fuerza de ventas activa en el CRM",
+    "valor": 31,
+    "esperado": "≥ 2 entre vendedores y supervisores activos",
+    "diverge": false,
+    "error": null,
+    "afecta": [
+      "Gestión de equipo y rankings (sin vendedores, tabla vacía)",
+      "Reparto de la cola global (sin supervisores no hay destino)"
+    ],
+    "via": "PostgREST"
+  },
+  {
+    "clave": "facturacion_ventas_de_analistas_de_baja",
+    "titulo": "Hay ventas de analistas dados de baja (cuentan al heredero)",
+    "valor": 45,
+    "esperado": "0 (con ventas de bajas, la cifra la decide la regla del heredero, no el fixture)",
+    "diverge": true,
+    "error": null,
+    "afecta": [
+      "Facturación → malla y totales por analista y por equipo",
+      "Metas, cumplimiento y el sello del mes (capital_real)",
+      "Cartera → ficha del inversionista («Analista de la operación»)",
+      "Altas de contratos nuevos por analista"
+    ],
+    "via": "PostgREST"
+  },
+  {
+    "clave": "clientes_con_domicilio_legal",
+    "titulo": "Los clientes tienen domicilio legal",
+    "valor": 273,
+    "esperado": "0 clientes activos sin domicilio legal",
+    "diverge": true,
+    "error": null,
+    "afecta": [
+      "Mi cartera · «+ Contrato» → el alta se REVIERTE entera sin domicilio",
+      "Convertir lead → contrato (el domicilio se captura ahí y por eso ese camino sí funciona)",
+      "Ver / descargar el PDF de un contrato viejo que aún no lo tenga sellado"
+    ],
+    "via": "PostgREST"
+  },
+  {
+    "clave": "metas_bajo_el_sello",
+    "titulo": "Ninguna revisión de metas vive por debajo del último mes sellado",
+    "valor": 0,
+    "esperado": "0 revisiones bajo el sello sin fotografiar (residuo de 20260815223000)",
+    "diverge": false,
+    "error": null,
+    "afecta": [
+      "Cierre de mes: un mes con metas bajo el suelo jamás se sellará (metas muertas)",
+      "Configuración · Metas: el editor las mostraría como si contaran"
+    ],
+    "via": "Supabase CLI · SQL READ ONLY"
+  },
+  {
+    "clave": "conversion_un_solo_nucleo",
+    "titulo": "La conversión del mes es UNA por los cuatro caminos",
+    "valor": "cuadra · 5 caminos · 6.3 % (2026-10-01 → 2026-10-14)",
+    "esperado": "los cuatro caminos con el mismo divisor, numerador y %",
+    "diverge": false,
+    "error": null,
+    "afecta": [
+      "Hoy · gerencia → Resumen (número grande del rango)",
+      "Conversiones → héroe «Índice comercial»",
+      "Distribución → índice del núcleo",
+      "Ranking, Metas y HOY → lectura mensual (la cifra oficial)"
+    ],
+    "via": "Supabase CLI · SQL READ ONLY"
+  }
+]

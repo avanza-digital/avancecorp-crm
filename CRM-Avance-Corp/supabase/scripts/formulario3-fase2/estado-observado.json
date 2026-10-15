@@ -1,0 +1,50 @@
+{
+  "production": [
+    {
+      "campania_publicada": false,
+      "cartera_md5": "23a63cc3965472b9db85aa81cadffbeb"
+    }
+  ],
+  "callers": [
+    {
+      "firma": "crm.cartera_pagina_fn(integer,timestamp with time zone,uuid,text,uuid,boolean,text)",
+      "md5": "4bbfd838ef6665f3bdad4603fa400e65",
+      "comentario": "Pagina keyset de la cartera (cursor actualizado_en desc, id asc). SECURITY INVOKER: el alcance lo pone la policy leads_select; la funcion solo pone la guardia de admision al CRM. Desde 20260826 devuelve telefono_alternativo y el buscador por digitos tambien lo mira.",
+      "security_labels": []
+    },
+    {
+      "firma": "crm.cierres_estado_fn(uuid[])",
+      "md5": "5f6eca13b613aaa40b459ea56f7c8ac5",
+      "comentario": "Estado del cierre de los leads pedidos, SOLO los que el llamador puede ver (espejo de la policy leads_select, anclada por md5 en el preflight de su migracion). Devuelve una fila por lead que cerro en cooperativa o cuyo cierre esta anulado, con canal (avance/cooperativa), anulado_en y motivo. Existe porque crm.cierres_avance_anulados es deny-by-default y sin esto la anulacion de gerencia seria invisible en la aplicacion; y el canal es lo que impide ofrecer el boton de Avance sobre un cierre en cooperativa, que la RPC rechaza.",
+      "security_labels": []
+    },
+    {
+      "firma": "crm.resumen_cartera_fn()",
+      "md5": "4a896597486e8b23788a2b2497f16309",
+      "comentario": "Resumen de la cartera del mes en curso. Desde la Ola 2 (22/09/2026) declara su fuente. Es la excepcion de las doce puertas: NO publica ninguna tasa de conversion, sino recuentos (totales.convertidos = cierres del mes sin ponderar, totales.operaciones_cartera), asi que no hay cifra que delegar. es_mes_calendario=true, fuente=rango_vivo, sellado=null y ajuste_aplicado=false: la deuda de anulacion se resta del numerador ponderado, que aqui no existe.",
+      "security_labels": []
+    },
+    {
+      "firma": "crm.cartera_filtrada_fn(integer,timestamp with time zone,uuid,text,uuid,boolean,text,date,date,text,text,boolean,text,text)",
+      "md5": "23a63cc3965472b9db85aa81cadffbeb",
+      "comentario": "Inventario de Leads con filtros comunes, incluidos reasignados (titular actual con una asignacion anterior a un analista), gestion (p_gestion: con_gestion = el titular actual ya intento el contacto desde tenencia_desde, sin contar resultados de llamada deshechos; sin_gestion = el resto) y potencial (p_potencial: estrella, tibio, frio o sin_marca; con la bandera potencial_lead apagada se rechaza con 55000). Listado y resumen salen de la misma base; resumen.potencial cuenta cada nivel con los demas filtros puestos, antes de aplicar p_potencial; solo viaja con la bandera encendida y para quien tiene ambito de filas (global o con analistas visibles), y cuenta solo las marcas que el actor puede ver por la RLS de crm.leads (una marca que no puede ver cuenta como sin_marca).",
+      "security_labels": []
+    }
+  ],
+  "locale": [
+    {
+      "version": "PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-bit",
+      "datcollate": "en_US.UTF-8",
+      "datctype": "en_US.UTF-8",
+      "datlocprovider": "i"
+    }
+  ],
+  "n8n": {
+    "id": "BjI5m1PKVWhO0NDb",
+    "active": false,
+    "activeVersionId": null,
+    "importarEnCrmDisabled": true,
+    "enviar_crm": false
+  },
+  "figma": "https://www.figma.com/board/JB4jRdmLXZXS0hBhEHxRbV?node-id=2-34"
+}

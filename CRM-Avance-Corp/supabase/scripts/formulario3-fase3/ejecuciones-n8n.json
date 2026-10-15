@@ -1,0 +1,800 @@
+{
+  "36": {
+    "execution": {
+      "id": "36",
+      "workflowId": "OKrtxmixSxpfhVxE",
+      "mode": "manual",
+      "status": "success",
+      "startedAt": "2026-10-14T23:49:44.895Z",
+      "stoppedAt": "2026-10-14T23:49:46.878Z",
+      "retryOf": null,
+      "retrySuccessId": null,
+      "waitTill": null
+    },
+    "nodes": {
+      "Leer leads filtrados": [
+        {
+          "ms": 747,
+          "status": "success",
+          "outputs": [
+            [
+              {
+                "row_number": 2,
+                "Fecha": "14/10/2026",
+                "nombre completo": "PRUEBA F3 HTTP Uno",
+                "n.º celular": "984300001",
+                "número de teléfono": "",
+                "¿en qué moneda te interesa ahorrar?": "soles",
+                "¿qué monto aproximado deseas evaluar para tu depósito?": "de_50,000_a_100,000",
+                "ciudad": "Prueba",
+                "¿qué deseas hacer con qorilazo?": "Invertir",
+                "¿qué información te gustaría evaluar antes de realizar un depósito a plazo fijo?": "Tasa",
+                "¿qué te gustaría reforzar con el asesor antes de realizar tu deposito a plazo fijjo?": "Sin contacto: datos ficticios"
+              },
+              {
+                "row_number": 3,
+                "Fecha": "14/10/2026",
+                "nombre completo": "PRUEBA F3 HTTP Dos",
+                "n.º celular": "984300002",
+                "número de teléfono": "",
+                "¿en qué moneda te interesa ahorrar?": "dólares",
+                "¿qué monto aproximado deseas evaluar para tu depósito?": "de_50,000_a_100,000",
+                "ciudad": "Prueba",
+                "¿qué deseas hacer con qorilazo?": "Invertir",
+                "¿qué información te gustaría evaluar antes de realizar un depósito a plazo fijo?": "Plazo",
+                "¿qué te gustaría reforzar con el asesor antes de realizar tu deposito a plazo fijjo?": "Sin contacto: datos ficticios"
+              }
+            ]
+          ]
+        }
+      ],
+      "Importar en CRM": [
+        {
+          "ms": 668,
+          "status": "success",
+          "outputs": [
+            [
+              {
+                "resultados": [
+                  {
+                    "fila": 3,
+                    "resultado": "importado",
+                    "estado": "IMPORTADO ✓"
+                  }
+                ],
+                "conciliacion": {
+                  "solicitadas": 1,
+                  "confirmadas": 1,
+                  "no_importadas": 0,
+                  "importadas": 1,
+                  "duplicadas": 0,
+                  "ya_clientes": 0,
+                  "rechazadas": 0,
+                  "errores_temporales": 0
+                }
+              }
+            ],
+            []
+          ]
+        },
+        {
+          "ms": 387,
+          "status": "success",
+          "outputs": [
+            [
+              {
+                "resultados": [
+                  {
+                    "fila": 2,
+                    "resultado": "importado",
+                    "estado": "IMPORTADO ✓"
+                  }
+                ],
+                "conciliacion": {
+                  "solicitadas": 1,
+                  "confirmadas": 1,
+                  "no_importadas": 0,
+                  "importadas": 1,
+                  "duplicadas": 0,
+                  "ya_clientes": 0,
+                  "rechazadas": 0,
+                  "errores_temporales": 0
+                }
+              }
+            ],
+            []
+          ]
+        }
+      ],
+      "Confirmar respuesta del CRM": [
+        {
+          "ms": 16,
+          "status": "success",
+          "outputs": [
+            [
+              {
+                "huella": "cb79bacf6fa3bb7337bf514c45ab34dc0055184d3274f97fe1cf439db193fdb8",
+                "campania": "Formulario 3",
+                "fila": 3,
+                "resultado": "importado",
+                "estado": "IMPORTADO ✓"
+              }
+            ],
+            []
+          ]
+        },
+        {
+          "ms": 17,
+          "status": "success",
+          "outputs": [
+            [
+              {
+                "huella": "781df1b1bbc23f2722b02a0cdf0d36ba3615fd12850a8e090cb8f4e1249ad900",
+                "campania": "Formulario 3",
+                "fila": 2,
+                "resultado": "importado",
+                "estado": "IMPORTADO ✓"
+              }
+            ],
+            []
+          ]
+        }
+      ],
+      "Registrar resultado": [
+        {
+          "ms": 26,
+          "status": "success",
+          "outputs": [
+            [
+              {
+                "huella": "cb79bacf6fa3bb7337bf514c45ab34dc0055184d3274f97fe1cf439db193fdb8",
+                "campania": "Formulario 3",
+                "fila": 3,
+                "resultado": "importado",
+                "estado": "IMPORTADO ✓",
+                "procesado_en": "2026-10-14T23:49:46.404Z",
+                "id": 1,
+                "createdAt": "2026-10-14T23:49:46.425Z",
+                "updatedAt": "2026-10-14T23:49:46.425Z"
+              }
+            ]
+          ]
+        },
+        {
+          "ms": 22,
+          "status": "success",
+          "outputs": [
+            [
+              {
+                "huella": "781df1b1bbc23f2722b02a0cdf0d36ba3615fd12850a8e090cb8f4e1249ad900",
+                "campania": "Formulario 3",
+                "fila": 2,
+                "resultado": "importado",
+                "estado": "IMPORTADO ✓",
+                "procesado_en": "2026-10-14T23:49:46.841Z",
+                "id": 2,
+                "createdAt": "2026-10-14T23:49:46.860Z",
+                "updatedAt": "2026-10-14T23:49:46.860Z"
+              }
+            ]
+          ]
+        }
+      ],
+      "Resumen de importación": [
+        {
+          "ms": 11,
+          "status": "success",
+          "outputs": [
+            [
+              {
+                "campania": "Formulario 3",
+                "filas_procesadas": 2,
+                "resultados": {
+                  "importado": 2
+                },
+                "simulacion": false
+              }
+            ]
+          ]
+        }
+      ]
+    }
+  },
+  "37": {
+    "execution": {
+      "id": "37",
+      "workflowId": "OKrtxmixSxpfhVxE",
+      "mode": "manual",
+      "status": "success",
+      "startedAt": "2026-10-14T23:50:18.245Z",
+      "stoppedAt": "2026-10-14T23:50:18.718Z",
+      "retryOf": null,
+      "retrySuccessId": null,
+      "waitTill": null
+    },
+    "httpInvocations": 0
+  },
+  "39": {
+    "execution": {
+      "id": "39",
+      "workflowId": "OKrtxmixSxpfhVxE",
+      "mode": "manual",
+      "status": "success",
+      "startedAt": "2026-10-14T23:51:07.870Z",
+      "stoppedAt": "2026-10-14T23:51:08.458Z",
+      "retryOf": null,
+      "retrySuccessId": null,
+      "waitTill": null
+    },
+    "nodes": {
+      "Omitir filas confirmadas": [
+        {
+          "ms": 118,
+          "status": "success",
+          "outputs": [
+            []
+          ]
+        }
+      ]
+    }
+  },
+  "41": {
+    "execution": {
+      "id": "41",
+      "workflowId": "OKrtxmixSxpfhVxE",
+      "mode": "manual",
+      "status": "success",
+      "startedAt": "2026-10-14T23:51:28.996Z",
+      "stoppedAt": "2026-10-14T23:51:30.232Z",
+      "retryOf": null,
+      "retrySuccessId": null,
+      "waitTill": null
+    },
+    "nodes": {
+      "Importar en CRM": [
+        {
+          "ms": 622,
+          "status": "success",
+          "outputs": [
+            [
+              {
+                "resultados": [
+                  {
+                    "fila": 4,
+                    "resultado": "duplicado",
+                    "estado": "DUPLICADO: ya existe en el CRM"
+                  }
+                ],
+                "conciliacion": {
+                  "solicitadas": 1,
+                  "confirmadas": 1,
+                  "no_importadas": 1,
+                  "importadas": 0,
+                  "duplicadas": 1,
+                  "ya_clientes": 0,
+                  "rechazadas": 0,
+                  "errores_temporales": 0
+                }
+              }
+            ],
+            []
+          ]
+        }
+      ],
+      "Marcar para revisión": [
+        {
+          "ms": 13,
+          "status": "success",
+          "outputs": [
+            [
+              {
+                "huella": "9409f713f850ae91eda92dad6795e9bebf50d96911eac327e5860b129a2bca1c",
+                "campania": "Formulario 3",
+                "fila": 5,
+                "resultado": "rechazado",
+                "estado": "RECHAZADO: Moneda no reconocida: debe indicar soles o dólares"
+              }
+            ]
+          ]
+        }
+      ],
+      "Registrar resultado": [
+        {
+          "ms": 25,
+          "status": "success",
+          "outputs": [
+            [
+              {
+                "huella": "889eb96432b0a4c755a86016491f17f17a0b3a0b040a084ff1f8a2b3647a4f10",
+                "campania": "Formulario 3",
+                "fila": 4,
+                "resultado": "duplicado",
+                "estado": "DUPLICADO: ya existe en el CRM",
+                "procesado_en": "2026-10-14T23:51:30.146Z",
+                "id": 3,
+                "createdAt": "2026-10-14T23:51:30.168Z",
+                "updatedAt": "2026-10-14T23:51:30.168Z"
+              }
+            ]
+          ]
+        },
+        {
+          "ms": 24,
+          "status": "success",
+          "outputs": [
+            [
+              {
+                "huella": "9409f713f850ae91eda92dad6795e9bebf50d96911eac327e5860b129a2bca1c",
+                "campania": "Formulario 3",
+                "fila": 5,
+                "resultado": "rechazado",
+                "estado": "RECHAZADO: Moneda no reconocida: debe indicar soles o dólares",
+                "procesado_en": "2026-10-14T23:51:30.193Z",
+                "id": 4,
+                "createdAt": "2026-10-14T23:51:30.212Z",
+                "updatedAt": "2026-10-14T23:51:30.212Z"
+              }
+            ]
+          ]
+        }
+      ],
+      "Resumen de importación": [
+        {
+          "ms": 11,
+          "status": "success",
+          "outputs": [
+            [
+              {
+                "campania": "Formulario 3",
+                "filas_procesadas": 2,
+                "resultados": {
+                  "duplicado": 1,
+                  "rechazado": 1
+                },
+                "simulacion": false
+              }
+            ]
+          ]
+        }
+      ]
+    }
+  },
+  "43": {
+    "execution": {
+      "id": "43",
+      "workflowId": "OKrtxmixSxpfhVxE",
+      "mode": "trigger",
+      "status": "error",
+      "startedAt": "2026-10-14T23:52:06.148Z",
+      "stoppedAt": "2026-10-14T23:52:09.197Z",
+      "retryOf": null,
+      "retrySuccessId": null,
+      "waitTill": null
+    },
+    "error": {
+      "name": "WrappedExecutionError",
+      "message": "Filas pendientes para reintentar: 6. Resultados: {\"pendiente\":1} [line 184]"
+    },
+    "nodes": {
+      "Importar en CRM": [
+        {
+          "ms": 2508,
+          "status": "success",
+          "outputs": [
+            [],
+            [
+              {
+                "error": "401 - {\"code\":\"UNAUTHORIZED_NO_AUTH_HEADER\",\"message\":\"Missing authorization header\"}"
+              }
+            ]
+          ]
+        }
+      ],
+      "Mantener pendiente": [
+        {
+          "ms": 14,
+          "status": "success",
+          "outputs": [
+            [
+              {
+                "huella": "4ddb11a4f6a7852a3893bfab0212294e72fd8422672d27d1c48630031dfa3ba1",
+                "campania": "Formulario 3",
+                "fila": 6,
+                "resultado": "pendiente",
+                "estado": "PENDIENTE: el CRM no confirmó un resultado definitivo"
+              }
+            ]
+          ]
+        }
+      ],
+      "Resumen de importación": [
+        {
+          "ms": 23,
+          "status": "error",
+          "error": {
+            "name": "WrappedExecutionError",
+            "message": "Filas pendientes para reintentar: 6. Resultados: {\"pendiente\":1} [line 184]"
+          }
+        }
+      ]
+    }
+  },
+  "44": {
+    "execution": {
+      "id": "44",
+      "workflowId": "K5zUJos1RrK1tMv4",
+      "mode": "error",
+      "status": "success",
+      "startedAt": "2026-10-14T23:52:09.224Z",
+      "stoppedAt": "2026-10-14T23:52:10.457Z",
+      "retryOf": null,
+      "retrySuccessId": null,
+      "waitTill": null
+    },
+    "nodes": {
+      "Preparar aviso": [
+        {
+          "ms": 7,
+          "status": "success",
+          "outputs": [
+            [
+              {
+                "clave": "OKrtxmixSxpfhVxE|error|497783",
+                "workflow": "OKrtxmixSxpfhVxE",
+                "asunto": "[PRUEBA F3] Avance Corp — Revisar importación Formulario 3",
+                "mensaje": "PRUEBA AISLADA: se provocó un fallo controlado en la importación de Formulario 3.\nEjecución: 43\n\nRevisa la ejecución en n8n para identificar los pendientes y corregir el problema:\nhttps://n8n-t27j.srv1906432.hstgr.cloud/workflow/OKrtxmixSxpfhVxE\n\nSe envía como máximo un aviso por hora mientras persistan los errores."
+              }
+            ]
+          ]
+        }
+      ],
+      "Enviar aviso a Miguel": [
+        {
+          "ms": 1183,
+          "status": "success",
+          "outputs": [
+            [
+              {
+                "id": "1a13cd4a1cb53998",
+                "threadId": "1a13cd4a1cb53998",
+                "labelIds": [
+                  "UNREAD",
+                  "SENT",
+                  "INBOX"
+                ]
+              }
+            ]
+          ]
+        }
+      ],
+      "Registrar aviso enviado": [
+        {
+          "ms": 21,
+          "status": "success",
+          "outputs": [
+            [
+              {
+                "clave": "OKrtxmixSxpfhVxE|error|497783",
+                "workflow": "OKrtxmixSxpfhVxE",
+                "enviado_en": "2026-10-14T23:52:10.442Z",
+                "id": 1,
+                "createdAt": "2026-10-14T23:52:10.452Z",
+                "updatedAt": "2026-10-14T23:52:10.452Z"
+              }
+            ]
+          ]
+        }
+      ]
+    }
+  },
+  "45": {
+    "execution": {
+      "id": "45",
+      "workflowId": "OKrtxmixSxpfhVxE",
+      "mode": "trigger",
+      "status": "error",
+      "startedAt": "2026-10-14T23:52:38.451Z",
+      "stoppedAt": "2026-10-14T23:52:41.446Z",
+      "retryOf": null,
+      "retrySuccessId": null,
+      "waitTill": null
+    }
+  },
+  "46": {
+    "execution": {
+      "id": "46",
+      "workflowId": "K5zUJos1RrK1tMv4",
+      "mode": "error",
+      "status": "success",
+      "startedAt": "2026-10-14T23:52:41.468Z",
+      "stoppedAt": "2026-10-14T23:52:41.515Z",
+      "retryOf": null,
+      "retrySuccessId": null,
+      "waitTill": null
+    },
+    "nodes": {
+      "Limitar avisos a uno por hora": [
+        {
+          "ms": 28,
+          "status": "success",
+          "outputs": [
+            []
+          ]
+        }
+      ]
+    }
+  },
+  "47": {
+    "execution": {
+      "id": "47",
+      "workflowId": "OKrtxmixSxpfhVxE",
+      "mode": "manual",
+      "status": "success",
+      "startedAt": "2026-10-14T23:53:01.159Z",
+      "stoppedAt": "2026-10-14T23:53:02.351Z",
+      "retryOf": null,
+      "retrySuccessId": null,
+      "waitTill": null
+    },
+    "nodes": {
+      "Importar en CRM": [
+        {
+          "ms": 620,
+          "status": "success",
+          "outputs": [
+            [
+              {
+                "resultados": [
+                  {
+                    "fila": 6,
+                    "resultado": "importado",
+                    "estado": "IMPORTADO ✓"
+                  }
+                ],
+                "conciliacion": {
+                  "solicitadas": 1,
+                  "confirmadas": 1,
+                  "no_importadas": 0,
+                  "importadas": 1,
+                  "duplicadas": 0,
+                  "ya_clientes": 0,
+                  "rechazadas": 0,
+                  "errores_temporales": 0
+                }
+              }
+            ],
+            []
+          ]
+        }
+      ],
+      "Registrar resultado": [
+        {
+          "ms": 20,
+          "status": "success",
+          "outputs": [
+            [
+              {
+                "huella": "4ddb11a4f6a7852a3893bfab0212294e72fd8422672d27d1c48630031dfa3ba1",
+                "campania": "Formulario 3",
+                "fila": 6,
+                "resultado": "importado",
+                "estado": "IMPORTADO ✓",
+                "procesado_en": "2026-10-14T23:53:02.315Z",
+                "id": 5,
+                "createdAt": "2026-10-14T23:53:02.331Z",
+                "updatedAt": "2026-10-14T23:53:02.331Z"
+              }
+            ]
+          ]
+        }
+      ],
+      "Resumen de importación": [
+        {
+          "ms": 12,
+          "status": "success",
+          "outputs": [
+            [
+              {
+                "campania": "Formulario 3",
+                "filas_procesadas": 1,
+                "resultados": {
+                  "importado": 1
+                },
+                "simulacion": false
+              }
+            ]
+          ]
+        }
+      ]
+    }
+  },
+  "49": {
+    "execution": {
+      "id": "49",
+      "workflowId": "OKrtxmixSxpfhVxE",
+      "mode": "manual",
+      "status": "error",
+      "startedAt": "2026-10-14T23:53:52.886Z",
+      "stoppedAt": "2026-10-14T23:53:53.951Z",
+      "retryOf": null,
+      "retrySuccessId": null,
+      "waitTill": null
+    },
+    "error": {
+      "message": "Validation error with data table request: value 'FALLO_CONTROLADO_F3' does not match column type 'number': 'fila' expects a number but we got 'FALLO_CONTROLADO_F3'"
+    },
+    "nodes": {
+      "Importar en CRM": [
+        {
+          "ms": 531,
+          "status": "success",
+          "outputs": [
+            [
+              {
+                "resultados": [
+                  {
+                    "fila": 5,
+                    "resultado": "importado",
+                    "estado": "IMPORTADO ✓"
+                  }
+                ],
+                "conciliacion": {
+                  "solicitadas": 1,
+                  "confirmadas": 1,
+                  "no_importadas": 0,
+                  "importadas": 1,
+                  "duplicadas": 0,
+                  "ya_clientes": 0,
+                  "rechazadas": 0,
+                  "errores_temporales": 0
+                }
+              }
+            ],
+            []
+          ]
+        }
+      ],
+      "Registrar resultado": [
+        {
+          "ms": 37,
+          "status": "error",
+          "error": {
+            "message": "Validation error with data table request: value 'FALLO_CONTROLADO_F3' does not match column type 'number': 'fila' expects a number but we got 'FALLO_CONTROLADO_F3'"
+          }
+        }
+      ]
+    }
+  },
+  "50": {
+    "execution": {
+      "id": "50",
+      "workflowId": "OKrtxmixSxpfhVxE",
+      "mode": "manual",
+      "status": "success",
+      "startedAt": "2026-10-14T23:54:14.931Z",
+      "stoppedAt": "2026-10-14T23:54:16.395Z",
+      "retryOf": null,
+      "retrySuccessId": null,
+      "waitTill": null
+    },
+    "nodes": {
+      "Importar en CRM": [
+        {
+          "ms": 402,
+          "status": "success",
+          "outputs": [
+            [
+              {
+                "resultados": [
+                  {
+                    "fila": 5,
+                    "resultado": "duplicado",
+                    "estado": "DUPLICADO: ya existe en el CRM"
+                  }
+                ],
+                "conciliacion": {
+                  "solicitadas": 1,
+                  "confirmadas": 1,
+                  "no_importadas": 1,
+                  "importadas": 0,
+                  "duplicadas": 1,
+                  "ya_clientes": 0,
+                  "rechazadas": 0,
+                  "errores_temporales": 0
+                }
+              }
+            ],
+            []
+          ]
+        },
+        {
+          "ms": 305,
+          "status": "success",
+          "outputs": [
+            [
+              {
+                "resultados": [
+                  {
+                    "fila": 7,
+                    "resultado": "importado",
+                    "estado": "IMPORTADO ✓"
+                  }
+                ],
+                "conciliacion": {
+                  "solicitadas": 1,
+                  "confirmadas": 1,
+                  "no_importadas": 0,
+                  "importadas": 1,
+                  "duplicadas": 0,
+                  "ya_clientes": 0,
+                  "rechazadas": 0,
+                  "errores_temporales": 0
+                }
+              }
+            ],
+            []
+          ]
+        }
+      ],
+      "Registrar resultado": [
+        {
+          "ms": 20,
+          "status": "success",
+          "outputs": [
+            [
+              {
+                "huella": "0fdcc53d972a666fea3ab8f34464af9c1ecb51c7768d3de56bb935085865698b",
+                "campania": "Formulario 3",
+                "fila": 5,
+                "resultado": "duplicado",
+                "estado": "DUPLICADO: ya existe en el CRM",
+                "procesado_en": "2026-10-14T23:54:16.020Z",
+                "id": 6,
+                "createdAt": "2026-10-14T23:54:16.035Z",
+                "updatedAt": "2026-10-14T23:54:16.035Z"
+              }
+            ]
+          ]
+        },
+        {
+          "ms": 17,
+          "status": "success",
+          "outputs": [
+            [
+              {
+                "huella": "a7590394c294e075f951b7d1eef77948c2e11ad80eb449ea678cede04e9fc1ee",
+                "campania": "Formulario 3",
+                "fila": 7,
+                "resultado": "importado",
+                "estado": "IMPORTADO ✓",
+                "procesado_en": "2026-10-14T23:54:16.363Z",
+                "id": 7,
+                "createdAt": "2026-10-14T23:54:16.377Z",
+                "updatedAt": "2026-10-14T23:54:16.377Z"
+              }
+            ]
+          ]
+        }
+      ],
+      "Resumen de importación": [
+        {
+          "ms": 12,
+          "status": "success",
+          "outputs": [
+            [
+              {
+                "campania": "Formulario 3",
+                "filas_procesadas": 2,
+                "resultados": {
+                  "duplicado": 1,
+                  "importado": 1
+                },
+                "simulacion": false
+              }
+            ]
+          ]
+        }
+      ]
+    }
+  }
+}

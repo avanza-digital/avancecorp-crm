@@ -1,0 +1,30 @@
+{
+  "security": {
+    "produccion": {
+      "INFO": 1,
+      "WARN": 4,
+      "ERROR": 0
+    },
+    "rama": {
+      "INFO": 1,
+      "WARN": 4,
+      "ERROR": 0
+    },
+    "nuevas_warn_error": [],
+    "nuevas_info_por_tipo": {}
+  },
+  "performance": {
+    "produccion": {
+      "INFO": 4,
+      "WARN": 2,
+      "ERROR": 0
+    },
+    "rama": {
+      "INFO": 4,
+      "WARN": 2,
+      "ERROR": 0
+    },
+    "nuevas_warn_error": [],
+    "nuevas_info_por_tipo": {}
+  }
+}

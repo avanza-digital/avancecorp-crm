@@ -1,0 +1,351 @@
+{
+  "avisos": {
+    "id": "K5zUJos1RrK1tMv4",
+    "name": "PRUEBA F3 — avisos automáticos aislados",
+    "active": true,
+    "isArchived": false,
+    "versionId": "04f4d019-2bce-4b1f-95f2-328ab97332f3",
+    "activeVersionId": "04f4d019-2bce-4b1f-95f2-328ab97332f3",
+    "triggerCount": 0,
+    "nodeCount": 5,
+    "createdAt": "2026-10-14T23:43:03.747Z",
+    "updatedAt": "2026-10-14T23:43:12.258Z",
+    "settings": {
+      "executionOrder": "v1",
+      "availableInMCP": true,
+      "timezone": "America/Lima",
+      "saveManualExecutions": true,
+      "saveDataErrorExecution": "all",
+      "saveDataSuccessExecution": "all",
+      "executionTimeout": 120
+    },
+    "tags": [],
+    "parentFolderId": null,
+    "description": "Ensayo aislado de Error Trigger y Gmail para fase 3. Solo datos ficticios; retirar al terminar.",
+    "scopes": [
+      "execution:delete",
+      "execution:list",
+      "execution:read",
+      "execution:reveal",
+      "workflow:create",
+      "workflow:delete",
+      "workflow:disableRedaction",
+      "workflow:enableRedaction",
+      "workflow:execute",
+      "workflow:execute-chat",
+      "workflow:export",
+      "workflow:import",
+      "workflow:list",
+      "workflow:move",
+      "workflow:publish",
+      "workflow:read",
+      "workflow:share",
+      "workflow:unpublish",
+      "workflow:unshare",
+      "workflow:update"
+    ],
+    "canExecute": true,
+    "connections": {
+      "Error de importación": {
+        "main": [
+          [
+            {
+              "node": "Preparar aviso",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Preparar aviso": {
+        "main": [
+          [
+            {
+              "node": "Limitar avisos a uno por hora",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Limitar avisos a uno por hora": {
+        "main": [
+          [
+            {
+              "node": "Enviar aviso a Miguel",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Enviar aviso a Miguel": {
+        "main": [
+          [
+            {
+              "node": "Registrar aviso enviado",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodes": [
+      {
+        "id": "53969868-ded5-445f-985c-f4868387039f",
+        "name": "Error de importación",
+        "type": "n8n-nodes-base.errorTrigger",
+        "typeVersion": 1,
+        "position": [
+          0,
+          0
+        ],
+        "parameters": {}
+      },
+      {
+        "id": "5745b44c-c8be-44da-a1a9-3c36f2c52017",
+        "name": "Preparar aviso",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          580,
+          100
+        ],
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "language": "javaScript",
+          "jsCode": "function prepararAlerta(evento, ahoraMs) {\n  if (evento?.workflow?.id !== 'OKrtxmixSxpfhVxE') return null\n  if (!Number.isFinite(ahoraMs) || ahoraMs < 0) throw new Error('Falta la hora del aviso')\n  const prueba = evento.prueba === true\n  const id = String(evento.execution?.id ?? '')\n  const ejecucion = /^\\d+$/.test(id) ? id : 'consultar historial'\n  const url = 'https://n8n-t27j.srv1906432.hstgr.cloud/workflow/OKrtxmixSxpfhVxE'\n  return {\n    clave: 'OKrtxmixSxpfhVxE|' + (prueba ? 'prueba|' : 'error|') + Math.floor(ahoraMs / 3600000),\n    workflow: 'OKrtxmixSxpfhVxE',\n    asunto: '[PRUEBA F3] ' + 'Avance Corp — Revisar importación Formulario 3',\n    mensaje: prueba\n      ? 'Este es un aviso de prueba de Formulario 3. El canal de correo funciona.\\n\\nFlujo: ' + url\n      : 'PRUEBA AISLADA: se provocó un fallo controlado en la importación de Formulario 3.\\nEjecución: ' + ejecucion + '\\n\\nRevisa la ejecución en n8n para identificar los pendientes y corregir el problema:\\n' + url + '\\n\\nSe envía como máximo un aviso por hora mientras persistan los errores.',\n  }\n}\nreturn $input.all().map((item,i)=>({json:prepararAlerta(item.json,Date.now()),pairedItem:{item:i}})).filter(item=>item.json!==null);"
+        }
+      },
+      {
+        "id": "ea120ad5-008d-47c8-a278-5ef97ff19412",
+        "name": "Limitar avisos a uno por hora",
+        "type": "n8n-nodes-base.dataTable",
+        "typeVersion": 1.1,
+        "position": [
+          860,
+          100
+        ],
+        "parameters": {
+          "resource": "row",
+          "operation": "rowNotExists",
+          "dataTableId": {
+            "__rl": true,
+            "mode": "list",
+            "value": "AzKAJhB5uALZDNuL",
+            "cachedResultName": "Formulario 3 — avisos enviados"
+          },
+          "matchType": "allConditions",
+          "filters": {
+            "conditions": [
+              {
+                "keyName": "clave",
+                "condition": "eq",
+                "keyValue": "={{ $json.clave }}"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "3fb64576-f7c8-4ac4-97e5-aa351241a9b4",
+        "name": "Enviar aviso a Miguel",
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 2.2,
+        "position": [
+          1140,
+          100
+        ],
+        "parameters": {
+          "resource": "message",
+          "operation": "send",
+          "authentication": "oAuth2",
+          "sendTo": "miguel@miavance.com",
+          "subject": "={{ $json.asunto }}",
+          "emailType": "text",
+          "message": "={{ $json.mensaje }}",
+          "options": {
+            "appendAttribution": false,
+            "senderName": "Avance Corp — Automatizaciones"
+          }
+        },
+        "webhookId": "61687f6b-d797-48ea-b151-819c23fddde0",
+        "credentials": {
+          "gmailOAuth2": {
+            "id": "FNfEzbpTEsdutlzd",
+            "name": "Gmail account"
+          }
+        }
+      },
+      {
+        "id": "ccc2743e-d5d1-4f91-9c7c-62077c5991b2",
+        "name": "Registrar aviso enviado",
+        "type": "n8n-nodes-base.dataTable",
+        "typeVersion": 1.1,
+        "position": [
+          1420,
+          100
+        ],
+        "parameters": {
+          "resource": "row",
+          "operation": "upsert",
+          "dataTableId": {
+            "__rl": true,
+            "mode": "list",
+            "value": "AzKAJhB5uALZDNuL",
+            "cachedResultName": "Formulario 3 — avisos enviados"
+          },
+          "matchType": "allConditions",
+          "filters": {
+            "conditions": [
+              {
+                "keyName": "clave",
+                "condition": "eq",
+                "keyValue": "={{ $(\"Preparar aviso\").first().json.clave }}"
+              }
+            ]
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "clave": "={{ $(\"Preparar aviso\").first().json.clave }}",
+              "workflow": "={{ $(\"Preparar aviso\").first().json.workflow }}",
+              "enviado_en": "={{ $now.toISO() }}"
+            }
+          },
+          "options": {
+            "dryRun": false
+          }
+        }
+      }
+    ],
+    "nodeGroups": [
+      {
+        "id": "1c57147e-8675-4de8-b713-8c689c060701",
+        "name": "Aviso por correo",
+        "nodeNames": [
+          "Preparar aviso",
+          "Limitar avisos a uno por hora",
+          "Enviar aviso a Miguel",
+          "Registrar aviso enviado"
+        ],
+        "description": "Prepara el aviso, limita repeticiones a una por hora y registra el envío confirmado."
+      }
+    ],
+    "activeVersion": {
+      "sameAsDraft": true
+    },
+    "meta": {
+      "aiBuilderAssisted": true,
+      "builderVariant": "mcp"
+    }
+  },
+  "fixtures": {
+    "id": "YheEXeO0m5kO7ayj",
+    "name": "PRUEBA F3 — datos aislados",
+    "active": false,
+    "isArchived": false,
+    "versionId": "5b4b3da6-f87c-42d3-a656-8d3a3cd379cc",
+    "activeVersionId": null,
+    "triggerCount": 0,
+    "nodeCount": 2,
+    "createdAt": "2026-10-14T23:23:24.363Z",
+    "updatedAt": "2026-10-14T23:53:32.223Z",
+    "settings": {
+      "executionOrder": "v1",
+      "availableInMCP": true
+    },
+    "tags": [],
+    "parentFolderId": null,
+    "description": "Hoja temporal con datos ficticios para la fase 3. No modifica la hoja de campaña.",
+    "scopes": [
+      "execution:delete",
+      "execution:list",
+      "execution:read",
+      "execution:reveal",
+      "workflow:create",
+      "workflow:delete",
+      "workflow:disableRedaction",
+      "workflow:enableRedaction",
+      "workflow:execute",
+      "workflow:execute-chat",
+      "workflow:export",
+      "workflow:import",
+      "workflow:list",
+      "workflow:move",
+      "workflow:publish",
+      "workflow:read",
+      "workflow:share",
+      "workflow:unpublish",
+      "workflow:unshare",
+      "workflow:update"
+    ],
+    "canExecute": true,
+    "connections": {
+      "Preparar hoja de prueba": {
+        "main": [
+          [
+            {
+              "node": "Actualizar datos ficticios",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodes": [
+      {
+        "id": "a763471c-7fe8-4f1a-8aa5-36db86404453",
+        "name": "Preparar hoja de prueba",
+        "type": "n8n-nodes-base.manualTrigger",
+        "typeVersion": 1,
+        "position": [
+          0,
+          0
+        ],
+        "parameters": {}
+      },
+      {
+        "id": "deb2093a-1e07-44ee-9fcb-11c44b02c76c",
+        "name": "Actualizar datos ficticios",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          280,
+          0
+        ],
+        "parameters": {
+          "method": "PUT",
+          "url": "https://sheets.googleapis.com/v4/spreadsheets/1QsB_sUVjPJIH4yVSHW7F7isCdGpWogTxfeXs3SNVpfU/values/Hoja%201!A1:J40?valueInputOption=RAW",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "googleSheetsOAuth2Api",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "{\"range\":\"Hoja 1!A1:J40\",\"majorDimension\":\"ROWS\",\"values\":[[\"Fecha\",\"nombre completo\",\"n.º celular\",\"número de teléfono\",\"¿en qué moneda te interesa ahorrar?\",\"¿qué monto aproximado deseas evaluar para tu depósito?\",\"ciudad\",\"¿qué deseas hacer con qorilazo?\",\"¿qué información te gustaría evaluar antes de realizar un depósito a plazo fijo?\",\"¿qué te gustaría reforzar con el asesor antes de realizar tu deposito a plazo fijjo?\"],[\"14/10/2026\",\"PRUEBA F3 HTTP Dos\",\"984300002\",\"\",\"dólares\",\"de_50,000_a_100,000\",\"Prueba\",\"Invertir\",\"Plazo\",\"Sin contacto: datos ficticios\"],[\"14/10/2026\",\"PRUEBA F3 HTTP Uno\",\"984300001\",\"\",\"soles\",\"de_50,000_a_100,000\",\"Prueba\",\"Invertir\",\"Tasa\",\"Sin contacto: datos ficticios\"],[\"14/10/2026\",\"PRUEBA F3 HTTP Uno\",\"984300001\",\"\",\"soles\",\"de_50,000_a_100,000\",\"Prueba\",\"Invertir\",\"Tasa\",\"Consulta adicional ficticia de un contacto existente\"],[\"14/10/2026\",\"PRUEBA F3 Rechazo\",\"984300004\",\"\",\"soles\",\"de_50,000_a_100,000\",\"Prueba\",\"Invertir\",\"Tasa\",\"Sin contacto: datos ficticios\"],[\"14/10/2026\",\"PRUEBA F3 Recuperación\",\"984300003\",\"\",\"soles\",\"de_50,000_a_100,000\",\"Prueba\",\"Invertir\",\"Tasa\",\"Sin contacto: datos ficticios\"],[\"14/10/2026\",\"PRUEBA F3 Confirmación\",\"984300005\",\"\",\"soles\",\"de_50,000_a_100,000\",\"Prueba\",\"Invertir\",\"Tasa\",\"Sin contacto: datos ficticios\"],[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"],[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"],[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"],[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"],[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"],[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"],[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"],[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"],[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"],[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"],[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"],[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"],[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"],[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"],[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"],[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"],[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"],[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"],[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"],[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"],[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"],[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"],[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"],[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"],[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"],[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"],[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"],[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"],[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"],[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"],[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"],[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"],[\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\"]]}",
+          "options": {
+            "timeout": 20000,
+            "response": {
+              "response": {
+                "responseFormat": "json"
+              }
+            }
+          }
+        },
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "vPzsYCzKnotpycYi",
+            "name": "Google Sheets account 2"
+          }
+        }
+      }
+    ],
+    "nodeGroups": [],
+    "activeVersion": null,
+    "meta": {
+      "aiBuilderAssisted": true,
+      "builderVariant": "mcp"
+    }
+  }
+}

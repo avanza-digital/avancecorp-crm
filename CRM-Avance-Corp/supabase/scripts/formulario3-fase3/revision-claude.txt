@@ -1,0 +1,82 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+La evidencia respalda los objetivos centrales de la fase 3. Quedan demostrados con datos reales en la rama aislada: autenticación doble, Formulario 3 separado del canal FORMULARIO, misma puerta de reparto y derivación, deduplicación HTTP y SQL, recuperación de pendientes y aviso con límite. No veo defectos de producto que bloqueen la fase 3. Sí faltan piezas de evidencia y hay semánticas de recibo que conviene corregir o documentar antes de cerrar. Ningún hallazgo es P0 ni P1. Los cambios pedidos son de evidencia, reproducibilidad y documentación, no de código de producto.
+
+FINDINGS:
+
+[P2] El recibo de una fila importada cuya confirmación se perdió queda como «duplicado»
+File: `scripts/n8n/formulario3.mjs` (conciliarRespuesta), `formulario3.workflow.mjs` (Registrar resultado)
+Lines: 152-170; nodo «Registrar resultado»
+Problem: Si el CRM importa la fila pero n8n no guarda el recibo, el reintento recibe `duplicado` y eso queda como resultado definitivo. Lo mismo ocurre con `retryOnFail` tras un timeout en el que el servidor sí insertó.
+Evidence: En la ejecución 49, la fila 5 da `importado` y luego falla el registro. En la ejecución 50, la misma fila da `duplicado` (receipt id 6). La tabla de recibos ya no refleja que esa alta la hizo este flujo.
+Impact: No se pierden ni se duplican leads. Pero cualquier conteo o conciliación de «importados por Formulario 3» basado en los recibos sale bajo, y un operador puede leer como «ya existía» una alta propia.
+Recommendation: Documéntalo explícitamente como límite de «at least once». Si los recibos se usarán para conciliar, cuenta altas desde `crm.leads.campania_origen='Formulario 3'` y no desde la tabla de n8n.
+
+[P2] No hay evidencia de que la producción de n8n quedó intacta tras las manipulaciones del ensayo
+File: n/a (instancia n8n compartida)
+Problem: Se afirma que `BjI5m1PKVWhO0NDb` sigue inactiva con el nodo HTTP deshabilitado, y que el error workflow `4jfthNhVJLiZUeIo` no cambió. No se adjunta ninguna salida que lo pruebe. Las ejecuciones 49 y 50 implicaron editar el flujo temporal («dato deliberado tipo erróneo» y luego «restaura esquema»), y no se muestra que el flujo final coincida con el generador.
+Evidence: Solo hay prosa. `ejecuciones-n8n.json` no incluye `versionId`, `updatedAt` ni `active` de los workflows de producción.
+Impact: Sin esa evidencia no se puede descartar una edición accidental en el mismo n8n antes de la fase 4.
+Recommendation: Adjunta `active`, `versionId` y `updatedAt` de `BjI5…` y `4jfth…` antes y después, más el estado `disabled:true` del nodo «Importar en CRM». Para el flujo temporal, compara los nodos desplegados contra `formulario3.fase3.mjs definicion()` después de restaurar.
+
+[P2] El enlace al error workflow probado no lo genera el script versionado
+File: `scripts/n8n/formulario3.fase3.mjs`, `scripts/n8n/formulario3.fase3.alertas.mjs`
+Lines: fase3.mjs:35-36; fase3.alertas.mjs:6-18
+Problem: `definicion()` elimina `errorWorkflow` de `AJUSTES` y no asigna ningún otro. El flujo de avisos temporal (`K5zUJos1RrK1tMv4`) se creó sin ID fijo en el generador. El enlace OKrtx→K5zU que hizo funcionar la ejecución 44 se configuró fuera del código.
+Evidence: `const {errorWorkflow,...settings}=AJUSTES` y la ausencia de `errorWorkflow` en la salida. La ejecución 44 corre bajo `workflowId: K5zUJos1RrK1tMv4`.
+Impact: El ensayo de avisos no es reproducible desde el repositorio. Además, el filtro de producción (`id !== 'BjI5…'`) solo quedó probado tras el `replaceAll`, no tal cual.
+Recommendation: Registra en el manifest el ajuste manual y su ID. Opcionalmente, parametriza `errorWorkflow` en `definicion()`. En la fase 4, prueba el aviso de producción con su Manual Trigger existente («Probar aviso por correo»).
+
+[P2] La paridad de conversión solo cubre el divisor
+File: evidencia `conversion-http.json`
+Problem: Para legacy y para campaña solo hay episodios `recibido` (divisor 1, numerador 0). No se convirtió ningún lead de campaña ni legacy.
+Evidence: Los tres episodios tienen `cerrado:false` y `numerador:0`.
+Impact: La afirmación «misma conversión» queda demostrada para el denominador, no para el numerador ni para el tratamiento en metas/F7 cuando hay venta.
+Recommendation: En la rama, cierra un lead de campaña y uno legacy por la puerta normal y verifica `numerador` idéntico. Si no se hace, rebaja la afirmación en el informe a «mismo divisor».
+
+[P3] El límite de avisos usa una cubeta de hora fija, sin control atómico
+File: `scripts/n8n/formulario3.alertas.mjs`
+Lines: 18, 35-37
+Problem: La clave `floor(ahoraMs/3600000)` permite dos correos con minutos de diferencia en el cambio de hora. Además, `rowNotExists` seguido de `upsert` no es atómico, así que dos errores casi simultáneos pueden enviar ambos. Si Gmail falla, no hay aviso alternativo.
+Impact: Correos repetidos ocasionales, o silencio si Gmail cae. Es menor.
+Recommendation: Ajusta el texto a «como máximo uno por hora de reloj» o acepta el comportamiento documentándolo.
+
+[P3] Los rechazos de mapeo son permanentes ante cambios del parser
+File: `scripts/n8n/formulario3.mjs`
+Lines: 120, 142-150
+Problem: La huella depende solo de los datos. Una fila rechazada (por ejemplo, capital no reconocido) no se reintenta si luego se mejora `capitalEstimado` o `monedaDeRespuesta`.
+Recommendation: Documenta un procedimiento: borrar recibos `rechazado` tras un cambio de parser. La deduplicación SQL hace que reprocesar sea seguro.
+
+[P3] Reintentos ante errores 4xx definitivos
+File: `formulario3.workflow.mjs`, nodo «Importar en CRM»
+Problem: `retryOnFail` con 3 intentos también se aplica a 401 y 400. La ejecución 43 tardó 2.5 s en tres intentos.
+Impact: El presupuesto de tiempo cuadra (peor caso por fila ≈62 s; 100 s + 62 s < 180 s), así que solo es ruido.
+Recommendation: Ninguna acción obligatoria.
+
+TEST GAPS:
+- No hay recorrido HTTP real de la rama `ya_cliente` con `campania_origen` (reingreso o solicitud de cliente con «· campaña:»). Se asume cubierto por las 98 aserciones SQL; conviene citar cuáles.
+- No hay conversión real (numerador) de un lead de campaña frente a uno legacy.
+- No se probó `error_temporal` (5xx o timeout del edge) desde n8n; el 401 cubre la ruta de error HTTP pero no la de `conciliarRespuesta`.
+- No se ejecutó el error workflow ante un fallo de `Registrar resultado` en modo trigger. La ejecución 49 fue manual y n8n no dispara error workflows en ejecuciones manuales.
+
+SECURITY RISKS:
+- Hay artefactos con secretos fuera del repositorio que deben limpiarse y figurar en el manifest de limpieza: `/private/tmp/formulario3-fase3-privado/` (`branch.json` con service_role, `importar.env`, `usuarios.json` con contraseñas) y `/f3-privado/e2e.json`.
+- También deben limpiarse en n8n la credencial temporal, el flujo de avisos `K5zU…` todavía activo (tiene la credencial de Gmail) y los data tables `0AGwleVZe229mdVe` y `AzKAJhB5uALZDNuL`.
+- Hay archivos escritos dentro del repo que no deberían versionarse sin revisión: `supabase/scripts/formulario3-fase3/usuarios-sinteticos.json` y `http-*.json`.
+- En producción, `saveDataErrorExecution:'all'` guardará el payload con nombre y teléfono en las ejecuciones fallidas. Define la retención en la fase 4.
+
+REGRESSION RISKS:
+- Gate de realidad: debe reportarse como **FAIL original**, complementado por SQL de solo lectura en producción (metas 0 desviaciones; conversión 6.3% = 57.05/905 en 5 caminos). No afecta la validez de la fase 3, que no escribe en producción. Para la fase 4 queda la deuda de que el gate no corre con su herramienta prevista: permisos de lectura de sellos para service_role y timeout de PostgREST. Hay que arreglar el gate o enmendarlo formalmente.
+- Las 45 ventas de analistas inactivos y los 273 clientes sin domicilio son preexistentes y ajenos. Que no se tocaran es correcto; regístralos como fuera de alcance.
+
+RECOMMENDED NEXT ACTIONS:
+1. Adjunta la evidencia del API de n8n del estado de `BjI5…` y `4jfth…` (active, versionId, nodo HTTP deshabilitado), junto con la comparación del flujo temporal restaurado contra el generador.
+2. Documenta en el manifest la semántica «importado → duplicado tras recibo perdido» y el enlace manual del error workflow `K5zU…`.
+3. Completa la prueba de conversión con numerador, o rebaja la afirmación a «mismo divisor».
+4. Haz la limpieza: rama Supabase, credencial y flujos temporales de n8n, data tables, hoja de ensayo, `/private/tmp` y `/f3-privado`, y los JSON escritos en el repo. Verifica cada borrado.
+5. En el informe, mantén el gate original como FAIL complementado y deja su reparación como requisito de la fase 4.
+
+CONFIDENCE:
+MEDIUM. El código y las ejecuciones adjuntas son coherentes. Varias afirmaciones (estado de producción en n8n, las 98 aserciones SQL, los hashes) se basan en prosa sin salida adjunta.

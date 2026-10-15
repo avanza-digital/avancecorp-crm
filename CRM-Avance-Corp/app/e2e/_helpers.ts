@@ -120,6 +120,7 @@ const SESSION = {
 }
 
 export interface LeadReal {
+  campania_origen?: string | null
   id: string
   documento?: { tipo: string; numero: string | null }
   reasignado?: boolean
@@ -879,6 +880,7 @@ export function carteraPaginaReal(
     p_reasignados?: boolean
     p_gestion?: string | null
     p_potencial?: string | null
+    p_campania_origen?: string | null
   },
   conGestion: (lead: LeadReal) => boolean = () => false,
   nivelDe: (lead: LeadReal) => string | null = () => null,
@@ -889,6 +891,7 @@ export function carteraPaginaReal(
   const filtrados = leads.filter((l) => {
     if (!l.activo) return false
     if (args.p_origen && l.origen !== args.p_origen) return false
+    if (args.p_campania_origen && l.campania_origen !== args.p_campania_origen) return false
     if (args.p_reasignados && (!l.reasignado || !l.vendedor_id)) return false
     if (args.p_desde) {
       const fecha = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(new Date(l.creado_en))
@@ -3481,6 +3484,7 @@ export async function montarBackendReal(
       // La FORMA de la respuesta no cambia con `p_gestion`: ni eco ni campos nuevos.
       return json(route, { version: 1, generado_en: new Date().toISOString(),
         desde: body.p_desde ?? null, hasta: body.p_hasta ?? null, origen: body.p_origen ?? null,
+        campania_origen: body.p_campania_origen ?? null,
         reasignados: body.p_reasignados ?? false, resumen: potencial ? { ...resumen, potencial } : resumen,
         items: carteraPaginaReal(estado.leads, body, conGestionVigente, nivelDe).map((l) => ({ ...l,
           recibido_en: body.p_desde ? l.creado_en : null, recepcion_aproximada: false })),

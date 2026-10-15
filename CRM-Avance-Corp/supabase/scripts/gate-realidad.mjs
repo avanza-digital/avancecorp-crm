@@ -27,8 +27,11 @@
 //   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node supabase/scripts/gate-realidad.mjs
 //   ... --json     salida legible por máquina (para CI)
 //   ... --estricto  sale con código 1 si hay divergencias (por defecto: 0, es un aviso)
+//   ... --sql-project-ref <ref>  mide sellos/conversión con la sesión administrativa
+//       de Supabase CLI, en transacciones READ ONLY. Debe ser la misma base de URL.
 
 import { createClient } from '@supabase/supabase-js';
+import { codigoSalida, medirSQL, proyectoSQL } from './gate-realidad-sql.mjs';
 
 const ARGS = process.argv.slice(2);
 const JSON_OUT = ARGS.includes('--json');
@@ -44,6 +47,8 @@ function fatal(mensaje) {
 
 if (!SUPABASE_URL) fatal('Falta SUPABASE_URL.');
 if (!SERVICE_KEY) fatal('Falta SUPABASE_SERVICE_ROLE_KEY (lectura de conteos).');
+let SQL_PROJECT;
+try { SQL_PROJECT = proyectoSQL(ARGS, SUPABASE_URL); } catch (error) { fatal(error.message); }
 
 const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
@@ -286,6 +291,7 @@ const SUPUESTOS = [
       // Las metas del propio mes sellado son legítimas (se selló CON ellas).
       // Lo anómalo: una revisión MAYOR que la fotografiada por su sello, o un
       // mes bajo el suelo que ni siquiera tiene sello propio.
+      if (SQL_PROJECT) return medirSQL('metas_bajo_el_sello', SQL_PROJECT);
       const { data: sellos, error: errorSellos } = await admin.from('periodos_cerrados')
         .select('periodo, meta_revision');
       if (errorSellos) throw errorSellos;
@@ -305,7 +311,7 @@ const SUPUESTOS = [
   },
   {
     clave: 'conversion_un_solo_nucleo',
-    titulo: 'La conversión del mes es UNA por los cuatro caminos',
+    titulo: 'La conversión del mes coincide por todos los caminos medidos',
     asume: 'Resumen, Conversiones y Distribución recalculan por su cuenta y se da por hecho que '
       + 'coinciden con Ranking, Metas y HOY (la lectura mensual). Hasta el 21/09/2026 lo único '
       + 'que se comprobaba era una sonda que compara el núcleo consigo mismo.',
@@ -321,8 +327,10 @@ const SUPUESTOS = [
       + 'anulación que viaje de mes; hoy coinciden por casualidad, no por construcción.',
     async medir() {
       // crm.alarma_conversion_fn solo la puede ejecutar service_role: compara divisor,
-      // numerador y % por los cuatro caminos y devuelve solo agregados.
-      const { data, error } = await admin.rpc('alarma_conversion_fn');
+      // numerador y % por los caminos medidos y devuelve solo agregados.
+      const { data, error } = SQL_PROJECT
+        ? { data: await medirSQL('conversion_un_solo_nucleo', SQL_PROJECT), error: null }
+        : await admin.rpc('alarma_conversion_fn');
       if (error) throw error;
       if (data?.cuadra == null) return `sin veredicto (${data?.motivo ?? 'sin datos'})`;
       const d = data.detalle ?? {};
@@ -332,7 +340,7 @@ const SUPUESTOS = [
         : `NO CUADRA · ${resumen}`;
     },
     divergeSi: (v) => typeof v !== 'string' || !v.startsWith('cuadra'),
-    esperado: 'los cuatro caminos con el mismo divisor, numerador y %',
+    esperado: 'todos los caminos medidos con el mismo divisor, numerador y %',
   },
 ];
 
@@ -354,11 +362,15 @@ function pintar(resultados) {
     process.stdout.write('\n');
   }
 
-  if (divergentes.length === 0) {
+  const errores = resultados.filter(r => r.error);
+  if (errores.length) {
+    process.stdout.write(`\n❌ Medición incompleta: ${errores.length} errores; no se puede aprobar el gate.\n`);
+  }
+  if (divergentes.length === 0 && errores.length === 0) {
     process.stdout.write('\n✅ Sin divergencias: los fixtures y la base cuentan la misma película.\n');
     return;
   }
-  process.stdout.write(
+  if (divergentes.length) process.stdout.write(
     `\n⚠️  ${divergentes.length} de ${resultados.length} supuestos NO se cumplen en esta base.\n`
     + '   Esto no es un bug: es la lista de sitios donde un cambio puede pasar\n'
     + '   el gate entero y no hacer nada en producción. Antes de dar por bueno\n'
@@ -372,7 +384,9 @@ async function principal() {
   for (const supuesto of SUPUESTOS) {
     try {
       const valor = await supuesto.medir();
-      resultados.push({ ...supuesto, valor, diverge: supuesto.divergeSi(valor), error: null });
+      const via = SQL_PROJECT && ['metas_bajo_el_sello', 'conversion_un_solo_nucleo'].includes(supuesto.clave)
+        ? 'Supabase CLI · SQL READ ONLY' : 'PostgREST';
+      resultados.push({ ...supuesto, valor, diverge: supuesto.divergeSi(valor), error: null, via });
     } catch (error) {
       resultados.push({
         ...supuesto, valor: null, diverge: false,
@@ -383,8 +397,8 @@ async function principal() {
 
   if (JSON_OUT) {
     process.stdout.write(`${JSON.stringify(
-      resultados.map(({ clave, titulo, valor, esperado, diverge, error, afecta }) => ({
-        clave, titulo, valor, esperado, diverge, error, afecta,
+      resultados.map(({ clave, titulo, valor, esperado, diverge, error, afecta, via }) => ({
+        clave, titulo, valor, esperado, diverge, error, afecta, via,
       })),
       null, 2,
     )}\n`);
@@ -392,9 +406,7 @@ async function principal() {
     pintar(resultados);
   }
 
-  const hayFallosDeMedicion = resultados.some((r) => r.error);
-  if (hayFallosDeMedicion) process.exit(2);
-  if (ESTRICTO && resultados.some((r) => r.diverge)) process.exit(1);
+  process.exitCode = codigoSalida(resultados, ESTRICTO);
 }
 
 principal().catch((error) => fatal(error?.message ?? String(error)));

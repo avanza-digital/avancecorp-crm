@@ -47,6 +47,7 @@ const MAX_BUSQUEDA = 80
 export type GestionCartera = 'con_gestion' | 'sin_gestion'
 
 export interface FiltrosCarteraLocal {
+  campania?: import('./campania').FiltroCampania
   etapa?: Etapa | 'todas'
   vendedorId?: string | 'todos' | 'sin_asignar'
   texto?: string
@@ -113,6 +114,7 @@ export function filtrarCarteraLocal(
     if (!coincideFechaRecepcionDemo(l, filtros.recepcionDemo)) return false
     if (filtros.etapa && filtros.etapa !== 'todas' && l.etapa !== filtros.etapa) return false
     if (filtros.origen && filtros.origen !== 'todos' && l.origen !== filtros.origen) return false
+    if (filtros.campania && filtros.campania !== 'todas' && l.campania_origen !== filtros.campania) return false
     // Sin dato de procedencia el lead NO coincide con ningún recorte: un
     // «sistema» inventado sobre un lead sin sello sería un dato falso.
     if (filtros.procedencia && filtros.procedencia !== 'todas' && l.procedencia !== filtros.procedencia) return false

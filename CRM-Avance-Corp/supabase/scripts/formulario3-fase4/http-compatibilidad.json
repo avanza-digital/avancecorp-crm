@@ -1,0 +1,74 @@
+[
+  {
+    "nombre": "Auth real supervisor",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Auth real vendedor",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Auth real gerencia",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Fixtures por puerta SQL del servidor; no prueba de Edge",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Contrato HTTP anterior sin parámetro de campaña: supervisor",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Contrato HTTP nuevo filtra campaña: supervisor",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "RPC antigua de paginación: supervisor",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Cierres conserva contrato: supervisor",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Contrato HTTP anterior sin parámetro de campaña: vendedor",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Contrato HTTP nuevo filtra campaña: vendedor",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "RPC antigua de paginación: vendedor",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Cierres conserva contrato: vendedor",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Contrato HTTP anterior sin parámetro de campaña: gerencia",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Contrato HTTP nuevo filtra campaña: gerencia",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "RPC antigua de paginación: gerencia",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "Cierres conserva contrato: gerencia",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "POST autenticado con campaña rechazado por permisos",
+    "estado": "PASS"
+  },
+  {
+    "nombre": "POST rechazado no dejó una fila",
+    "estado": "PASS"
+  }
+]

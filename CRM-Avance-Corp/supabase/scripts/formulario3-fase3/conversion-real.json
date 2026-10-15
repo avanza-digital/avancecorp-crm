@@ -1,0 +1,176 @@
+{
+  "rama": "bxkborlvpmuwttzjrjqn",
+  "casos": [
+    {
+      "nombre": "Alta y reconocimiento real: Legacy",
+      "estado": "PASS",
+      "lead_id": "15c43aa0-2892-4aa1-81ac-cfe421ee1936",
+      "inversionista_id": "6884753f-acde-4f51-a5d3-e64ec869ff45"
+    },
+    {
+      "nombre": "Reingreso HTTP conserva una sola nota: Legacy",
+      "estado": "PASS",
+      "resultados": [
+        [
+          {
+            "fila": 31,
+            "resultado": "ya_cliente",
+            "estado": "YA ES CLIENTE (asesor: PRUEBA F3 VENDEDOR): reingreso ya anotado en su ficha"
+          }
+        ],
+        [
+          {
+            "fila": 131,
+            "resultado": "ya_cliente",
+            "estado": "YA ES CLIENTE (asesor: PRUEBA F3 VENDEDOR): reingreso ya anotado en su ficha"
+          }
+        ]
+      ],
+      "notas": [
+        {
+          "id": "9bed5a80-8486-45ee-95e3-59b1d9044516",
+          "detalle": "Reingreso por hoja: la persona volvió a dejar sus datos",
+          "metadata": {
+            "datos": {
+              "fila": 31,
+              "nota": null,
+              "canal": "formulario",
+              "correo": null,
+              "moneda": "PEN",
+              "nombre": "PRUEBA F3 Conversión Legacy",
+              "capital": 5000,
+              "interes": null,
+              "distrito": null,
+              "telefono": "+51984300031",
+              "telefono_alternativo": null
+            },
+            "evento": "reingreso",
+            "origen": "hoja"
+          }
+        }
+      ]
+    },
+    {
+      "nombre": "Conversión y reintento único por la puerta actual: Legacy",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Alta y reconocimiento real: Formulario 3",
+      "estado": "PASS",
+      "lead_id": "12743927-a9c0-40c1-9cfa-c83ff3b65699",
+      "inversionista_id": "36641915-3335-4a95-927a-bde08dbcb350"
+    },
+    {
+      "nombre": "Reingreso HTTP conserva una sola nota: Formulario 3",
+      "estado": "PASS",
+      "resultados": [
+        [
+          {
+            "fila": 32,
+            "resultado": "ya_cliente",
+            "estado": "YA ES CLIENTE (asesor: PRUEBA F3 VENDEDOR): reingreso registrado en su ficha"
+          }
+        ],
+        [
+          {
+            "fila": 132,
+            "resultado": "ya_cliente",
+            "estado": "YA ES CLIENTE (asesor: PRUEBA F3 VENDEDOR): reingreso ya anotado en su ficha"
+          }
+        ]
+      ],
+      "notas": [
+        {
+          "id": "c266c68b-af6e-42e8-83fe-45936e190eb7",
+          "detalle": "Reingreso por hoja: la persona volvió a dejar sus datos · campaña: Formulario 3",
+          "metadata": {
+            "datos": {
+              "fila": 32,
+              "nota": null,
+              "canal": "formulario",
+              "correo": null,
+              "moneda": "PEN",
+              "nombre": "PRUEBA F3 Conversión Formulario 3",
+              "capital": 5000,
+              "interes": null,
+              "distrito": null,
+              "telefono": "+51984300032",
+              "campania_origen": "Formulario 3",
+              "telefono_alternativo": null
+            },
+            "evento": "reingreso",
+            "origen": "hoja"
+          }
+        }
+      ]
+    },
+    {
+      "nombre": "Conversión y reintento único por la puerta actual: Formulario 3",
+      "estado": "PASS"
+    }
+  ],
+  "conversiones": [
+    {
+      "campania": null,
+      "lead": {
+        "id": "15c43aa0-2892-4aa1-81ac-cfe421ee1936",
+        "etapa": "convertido",
+        "campania_origen": null,
+        "origen": "formulario",
+        "vendedor_id": "0a713da7-6886-4794-b8b1-4c9f6f3fc0e2"
+      },
+      "solicitud_id": "d9570cfd-d92a-4220-aa91-1f7680e341e8",
+      "resultado": {
+        "ok": true,
+        "fuente": {
+          "vence_en": "2027-10-14",
+          "cierre_id": "3c4ece97-068f-4055-886c-6788194644ed",
+          "tasa_anual": 18,
+          "plazo_meses": 12,
+          "fecha_comercial": "2026-10-14",
+          "fecha_imputacion": "2026-10-14",
+          "ajuste_mes_cerrado": false
+        },
+        "empresa": "qorilazo",
+        "lead_id": "15c43aa0-2892-4aa1-81ac-cfe421ee1936",
+        "inversion_id": "001bab90-7adf-4767-9960-4e7817a02106",
+        "solicitud_id": "d9570cfd-d92a-4220-aa91-1f7680e341e8",
+        "revision_datos": 0,
+        "inversionista_id": "6884753f-acde-4f51-a5d3-e64ec869ff45"
+      }
+    },
+    {
+      "campania": "Formulario 3",
+      "lead": {
+        "id": "12743927-a9c0-40c1-9cfa-c83ff3b65699",
+        "etapa": "convertido",
+        "campania_origen": "Formulario 3",
+        "origen": "formulario",
+        "vendedor_id": "0a713da7-6886-4794-b8b1-4c9f6f3fc0e2"
+      },
+      "solicitud_id": "f2119be6-3a96-4178-88cc-7466694cb479",
+      "resultado": {
+        "ok": true,
+        "fuente": {
+          "vence_en": "2027-10-14",
+          "cierre_id": "9379dadc-b4e9-4451-a612-3f41187c44b6",
+          "tasa_anual": 18,
+          "plazo_meses": 12,
+          "fecha_comercial": "2026-10-14",
+          "fecha_imputacion": "2026-10-14",
+          "ajuste_mes_cerrado": false
+        },
+        "empresa": "qorilazo",
+        "lead_id": "12743927-a9c0-40c1-9cfa-c83ff3b65699",
+        "inversion_id": "f40e5a19-1878-4b32-b89c-27cb81f10df2",
+        "solicitud_id": "f2119be6-3a96-4178-88cc-7466694cb479",
+        "revision_datos": 0,
+        "inversionista_id": "36641915-3335-4a95-927a-bde08dbcb350"
+      }
+    }
+  ],
+  "objetos": [
+    "6884753f-acde-4f51-a5d3-e64ec869ff45/d9570cfd-d92a-4220-aa91-1f7680e341e8/comprobante.png",
+    "36641915-3335-4a95-927a-bde08dbcb350/f2119be6-3a96-4178-88cc-7466694cb479/comprobante.png"
+  ]
+}

@@ -96,13 +96,11 @@ describe('claves de la caché de cartera (contrato con las invalidaciones)', () 
     const gestionado = crmQueryKeys.carteraPagina('nuevo', 'v-1', '', true, null, null, 'todos', 'todas', false, 'con_gestion')
     const etapaEntera = crmQueryKeys.carteraPagina('nuevo', 'v-1', '', true)
 
-    // Literal A PROPÓSITO: el penúltimo componente es la gestión y el último el
-    // potencial (Leads); `null` = sin recorte.
+    // Literal A PROPÓSITO: gestión, potencial y campaña son filtros independientes.
     expect(gestionado).toEqual([
-      'crm', 'leads', 'cartera-pagina', 'nuevo', 'v-1', '', true, null, null, 'todos', 'todas', false, 'con_gestion', null,
+      'crm', 'leads', 'cartera-pagina', 'nuevo', 'v-1', '', true, null, null, 'todos', 'todas', false, 'con_gestion', null, 'todas',
     ])
-    expect(etapaEntera.at(-2)).toBeNull()
-    expect(etapaEntera.at(-1)).toBeNull()
+    expect(etapaEntera.slice(-3)).toEqual([null, null, 'todas'])
     expect(new Set([nuevo, gestionado, etapaEntera].map((clave) => JSON.stringify(clave))).size).toBe(3)
 
     const { cliente } = arnes()
@@ -118,8 +116,21 @@ describe('claves de la caché de cartera (contrato con las invalidaciones)', () 
     const sinFiltro = crmQueryKeys.carteraPagina(...base)
     const claves = [sinFiltro, ...(['frio', 'tibio', 'estrella', 'sin_marca'] as const).map((p) => crmQueryKeys.carteraPagina(...base, p))]
     expect(new Set(claves.map((clave) => JSON.stringify(clave))).size).toBe(5)
-    expect(crmQueryKeys.carteraPagina(...base, 'tibio').at(-1)).toBe('tibio')
-    expect(sinFiltro.at(-1)).toBeNull()
+    expect(crmQueryKeys.carteraPagina(...base, 'tibio').at(-2)).toBe('tibio')
+    expect(sinFiltro.slice(-2)).toEqual([null, 'todas'])
+  })
+
+  it('la campaña separa páginas y conserva las invalidaciones del ámbito', async () => {
+    const base = ['todas', 'todos', '', true, null, null, 'todos', 'todas', false, null, null] as const
+    const todas = crmQueryKeys.carteraPagina(...base)
+    const formulario3 = crmQueryKeys.carteraPagina(...base, 'Formulario 3')
+    expect(todas).not.toEqual(formulario3)
+    const { cliente } = arnes()
+    cliente.setQueryData(todas, { pages: [{ items: ['histórico'] }], pageParams: [null] })
+    cliente.setQueryData(formulario3, { pages: [{ items: ['campaña'] }], pageParams: [null] })
+    await cliente.invalidateQueries({ queryKey: crmQueryKeys.leads() })
+    expect(cliente.getQueryState(todas)?.isInvalidated).toBe(true)
+    expect(cliente.getQueryState(formulario3)?.isInvalidated).toBe(true)
   })
 
   it('abre una foto operativa nueva cuando cambia el mes calendario', () => {

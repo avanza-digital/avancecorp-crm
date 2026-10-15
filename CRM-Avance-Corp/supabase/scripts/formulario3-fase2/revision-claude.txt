@@ -1,0 +1,108 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+La migración y el filtro están bien diseñados: la función sigue siendo INVOKER, la RLS y la pista de ámbito no cambian, y el recorte por campaña se aplica en `previa`. Por eso filas, totales, capital, embudo y conteos de potencial salen del mismo conjunto. El cliente comprueba el eco y las filas, y la clave de caché separa la campaña. No encontré ninguna fuga de roles ni ningún P0/P1 confirmado.
+
+Pido cambios por tres huecos de evidencia que sí son accionables:
+- caminos de escritura que podrían arrastrar la columna nueva, que es de solo lectura;
+- llamadores plpgsql que `pg_depend` no detecta;
+- el contraste del chip.
+
+El E2E todavía no tiene una pasada limpia final, así que no cuenta como PASS.
+
+FINDINGS:
+
+[P2] Hipótesis: escrituras que incluyan `campania_origen` fallarían solo contra la base real
+File: `app/src/lib/tipos.ts` (Lead.campania_origen) · `app/src/data/crm-api.ts:196` (lista de columnas) · `aLead` (~515)
+Problem: `campania_origen` ya forma parte de `Lead` y de la lista de columnas de lectura. Supongamos que algún `insert`/`update`/`upsert` arma su payload esparciendo un `Lead` o reutilizando esa lista. Postgres comprueba el privilegio por columna aunque el valor sea `null`. La operación completa fallaría con 42501.
+Evidence: El preflight de la migración y `cartera.sql:69-72` confirman que `authenticated` no tiene UPDATE ni INSERT sobre la columna. Los 6.700 tests y el E2E usan MSW o HTTP simulado, que no aplican grants, así que no detectarían esta regresión. No se adjuntaron los payloads de escritura.
+Impact: Si existiera ese patrón, editar o dar de alta un lead dejaría de funcionar en producción después de publicar la fase 1 y la fase 2.
+Recommendation: Hacer un grep de `.update(`, `.insert(`, `.upsert(` y de los argumentos de RPC de escritura sobre leads, y confirmar que construyen el payload con listas de campos permitidos. Añadir un test que verifique que el payload de edición y de alta no contiene `campania_origen`.
+
+[P2] La comprobación de dependencias no cubre llamadores plpgsql de `cartera_pagina_fn`
+File: `supabase/migrations/20261014215453_crm_formulario3_cartera.sql:30-32, 441`
+Problem: `pg_depend` no registra las llamadas dentro de cuerpos plpgsql. Para `cartera_filtrada_fn` lo compensan el md5 de `resumen_cartera_fn` y la búsqueda de llamadores que hizo el PRIMARY. Para `cartera_pagina_fn` cambia el `RETURNS TABLE` (columna nueva al final), y la evidencia no muestra que se buscaran sus llamadores en `prosrc`.
+Impact (hipótesis): Un plpgsql que haga `select * into` sobre un tipo de fila fijo, o que copie columnas por posición, fallaría o desalinearía datos en tiempo de ejecución, no en la migración.
+Recommendation: Adjuntar la salida de `select oid::regprocedure from pg_proc where prosrc ilike '%cartera_pagina_fn%' or prosrc ilike '%cartera_filtrada_fn%'` en producción. Si conviene, añadir esa misma comprobación al preflight.
+
+[P2] Hipótesis: contraste del chip con `color="var(--accent)"`
+File: `app/src/components/app/campania-chip.tsx:8`
+Problem: En los temas de tipo shadcn, `--accent` suele ser un color de fondo claro (por ejemplo `#f1f5f9`), no un color de texto. Los otros chips usan `--chart-4` y `--muted-foreground`.
+Impact: Si `Badge` aplica `color` al texto o al borde, el contraste podría quedar muy por debajo de 4.5:1. El tema claro de la app es blanco con navy.
+Recommendation: Comprobar el valor de `--accent` en los dos temas y cómo `Badge` usa `color`. Si es un fondo, usar un token de texto, por ejemplo `--accent-foreground` o el mismo patrón que `ChipProcedencia`.
+
+[P3] DROP pierde metadatos que el preflight no compara
+File: migración, líneas 44-45
+Problem: `DROP FUNCTION` elimina `COMMENT ON FUNCTION` y las security labels. El preflight compara owner, ACL, volatilidad y search_path, pero no `obj_description`. PostgREST publica esos comentarios en el OpenAPI.
+Recommendation: Comprobar `obj_description(f,'pg_proc')` en producción. Si existe, recrearlo dentro de la migración.
+
+[P3] Huellas md5 que dependen de cómo formatea la versión de Postgres
+File: migración, líneas 19-20 y 441
+Problem: Las huellas de `cartera_filtrada_fn` y de `cartera_pagina_fn` se verificaron en producción. No consta lo mismo para `resumen_cartera_fn` (`4a8965…`).
+Impact: Si no coincide, la migración aborta y revierte. Es un fallo seguro, pero bloquearía la publicación.
+Recommendation: Verificar por lectura en producción la huella de `resumen_cartera_fn` antes de la fase 4.
+
+[P3] Filtro persistido y ventana de reparto: posible confusión de producto
+File: `app/src/lib/use-filtro-campania.ts`, `cartera.tsx:186`
+Problem: Solo la campaña sobrevive a la recarga. Los demás filtros se reinician. Un analista que vuelve a la cartera puede no ver leads nuevos sin campaña.
+Mitigación: El select es visible y `hayFiltro` muestra «Limpiar filtros».
+Recommendation: Aceptable. Documentarlo o confirmarlo con el usuario.
+
+[P3] Los reingresos no aparecen bajo «Formulario 3»
+Evidence: `LEEME.md:10` («no se infiere desde notas») y el E2E de cartera histórica.
+Problem: Un contacto antiguo que vuelve a entrar por Formulario 3 conserva `campania_origen` nulo si la fase 1 no lo rellena. El filtro lo excluye.
+Recommendation: Es coherente con el contrato de la fase 1. Confirmar explícitamente con el usuario que es lo que espera el negocio.
+
+Verificado sin hallazgos:
+- **DROP/recreate y ACL**
+  - El DROP usa la firma exacta, sin CASCADE (RESTRICT implícito).
+  - Se revocan todos los permisos a public, anon, authenticated y service_role, y se concede EXECUTE solo a authenticated.
+  - El postflight compara `proacl` con el valor anterior. service_role no tenía EXECUTE antes y tampoco lo gana ahora.
+  - `notify pgrst` se entrega al hacer commit. El parámetro nuevo va al final, así que las llamadas posicionales y nominales anteriores siguen resolviendo.
+- **Ámbito por rol**
+  - La función sigue sin `prosecdef` y el predicado de ámbito no cambia. El filtro solo puede restar filas.
+  - La matriz comprueba: propio 135/70, supervisor 70, gerencia y Directorio 79, analista ajeno 9, coordinación 0, miembro inactivo y sesión vacía rechazados con 42501.
+  - Un `p_vendedor_id` ajeno no amplía el ámbito.
+- **Totales y paginación**
+  - Las páginas 50+20 tienen el mismo `resumen`.
+  - El cursor con empates no repite ni pierde leads.
+  - La suma del embudo coincide con el total, y el capital PEN/USD sale del conjunto completo.
+- **Contrato del resumen**: sin filtro, `resumen` e `items`, quitando `campania_origen`, son idénticos a los de la definición anterior.
+- **Cliente**
+  - El eco y todas las filas se validan, incluido el caso de fila sin campaña (`undefined !== 'Formulario 3'`).
+  - Si se pide campaña, la consulta usa la ruta integrada; nunca la omite en silencio.
+  - La clave de caché añade la campaña al final con valor por defecto `'todas'`, y la invalidación por `leads()` alcanza ambas claves (test).
+  - `registrarError` solo recibe un booleano, sin PII.
+- **Demo**: `filtrarCarteraLocal` filtra antes de paginar y `setPaginasDemo(1)` se reinicia al cambiar de campaña (test 130→70).
+- **Accesibilidad**
+  - El `<select>` es nativo, operable con teclado y tiene `aria-label`, igual que los filtros vecinos.
+  - El chip tiene un texto `sr-only` con id único por fila, referenciado desde el `aria-describedby` de la fila, que tiene `tabIndex` y `onKeyDown` existentes. El texto visible lleva `aria-hidden`.
+  - La ficha no tiene ningún textbox de campaña (E2E).
+- **Persistencia por cuenta**: la clave incluye `real`/`demo` y el id, y el estado se ajusta durante el render al cambiar de cuenta, así que no hay ninguna consulta con la selección ajena.
+
+TEST GAPS:
+- Ningún test cubre los payloads de escritura (alta y edición) sin `campania_origen`. Ver el P2 de escrituras.
+- `cartera.sql:52` solo comprueba que `resumen_cartera_fn()->'totales'` no es nulo. Convendría compararlo completo con su salida usando `pg_temp.cartera_anterior`.
+- Falta el ACL de `cartera_pagina_fn` en la matriz (anon sin EXECUTE). El postflight lo cubre, pero el banco de pruebas no.
+- `chr(133)` y `[[:cntrl:]]` dependen del ctype de la base. Pasó en el clon; confirmar que el collation de producción es el mismo.
+- Ruta antigua forzada a integrada con otros filtros (origen y procedencia, que antes se ignoraban): el MSW solo comprueba `p_desde`. Añadir un caso con `origen`.
+- E2E: falta la repetición limpia en Docker (`npm run test:e2e:docker`) con el resumen N passed / M failed.
+
+ARCHITECTURE RISKS:
+- Desde esta fase, `LEAD_COLUMNAS` exige la columna. Revertir el SQL de la fase 1 rompería la lectura de todo el store (42703). Esto ya está documentado como «reversión: conservar esquema» y el orden de publicación es correcto.
+
+SECURITY RISKS:
+- No se detectaron. La función es invoker con RLS, tiene grants mínimos, la columna es de solo lectura y el anónimo queda rechazado.
+
+REGRESSION RISKS:
+- Escrituras de leads (P2, hipótesis) y llamadores plpgsql de `cartera_pagina_fn` (P2, falta evidencia).
+
+RECOMMENDED NEXT ACTIONS:
+1. Grep de los payloads de escritura de leads y adjuntar la evidencia, o el test correspondiente.
+2. Búsqueda en `prosrc` de llamadores de las dos funciones en producción, más la huella y `obj_description` de `resumen_cartera_fn`.
+3. Revisar el token de color del chip y medir el contraste.
+4. Repetir el E2E en Docker en limpio y reportar el resultado real.
+
+CONFIDENCE:
+MEDIUM: alta sobre el SQL y el ámbito revisados; limitada por los caminos de escritura y los llamadores no adjuntos.

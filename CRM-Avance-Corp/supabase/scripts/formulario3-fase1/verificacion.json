@@ -1,0 +1,209 @@
+{
+  "fecha": "2026-10-14",
+  "fase": 1,
+  "estado": "IMPLEMENTADA_Y_VALIDADA_SIN_PUBLICAR",
+  "sha256": {
+    "supabase/migrations/20261014210146_crm_formulario3_campania_origen.sql": "fe0ea0f266aa6e43b5bf71b61cef24b4ab5c4c164c189485180d7736e31b8711",
+    "supabase/functions/crm-importar-leads/index.ts": "5c5cdefaab373c33a57738a18c2d3d7987cc04b19d8fdda59a64b1371d34596a",
+    "supabase/functions/crm-importar-leads/handler.ts": "cdab55e1c7f5658681743449eca78815165cbb921da896e2d5e92b4d5b021311",
+    "supabase/functions/crm-importar-leads/campania.ts": "9ccf0d7aab029209f18244cb36e3ca9d91829a6e43564f15a2c541844af16534",
+    "supabase/functions/crm-importar-leads/campania.test.ts": "e59fb0604699b82f002745ba6412033e07cc587a6473185a360dca817fbbb022",
+    "supabase/functions/crm-importar-leads/handler.test.ts": "99a6656cc8f839383d9bc42bb5a9db94f9d2d242b66cc1b69ff726b356d6d91c",
+    "supabase/scripts/formulario3-fase1/contrato.sql": "5ba9b5ab84e530c02159c61a9efde580c697c792a8b2acf3a8b2bc5fcbddf510",
+    "supabase/scripts/formulario3-fase1/permisos.sql": "13e8bd3bcc78013d733ebe75157fe4a6b1a2adc8939c21c4a4067f4627ef9812",
+    "supabase/scripts/formulario3-fase1/reingreso-ficha-viva.sql": "263a80c3922ecf057f4231c5f17028d96ad18687eae9c800a8a2c0e01faf0778",
+    "supabase/scripts/formulario3-fase1/fixtures.sql": "aadb1f69f9775b09977d82c81c2fbbe3fa6f1c14149c8e1687dfcdb12a7ecbde",
+    "supabase/scripts/formulario3-fase1/branch-prueba.py": "ea495a0278c93745a7bfdd1f6d58b1a7094df135130f98997907bd0486ec4598",
+    "supabase/scripts/formulario3-fase1/estado.sql": "cb2ae979b82591c2e39a6c703c187eeb4c2d86117e4f8dd4b5bac8003adf04cd",
+    "supabase/scripts/formulario3-fase1/rls.mjs": "a95fe6995e9fbd0f63dd0947554abf2db8e276f8654c8ec1a56bbcada686157b",
+    "app/src/lib/database.types.ts": "fc3f322cc104525b1f013ac6e9a9ba60e68644ec0edbecefe14d69fa12fa6f81"
+  },
+  "migracion": {
+    "local": "20261014210146",
+    "remota_ensayo": "20261014213157",
+    "produccion": "NOT RUN: fase 4",
+    "solo_schemas": [
+      "crm",
+      "private"
+    ]
+  },
+  "rama": {
+    "nombre": "formulario3-fase1-20261014",
+    "ref": "sdgqkuejylkeqabpplyk",
+    "id": "0ab8223d-5ea0-49c2-9ab9-6c15093d8434",
+    "parent": "dctqcbznekcyxhjujuci",
+    "creada_utc": "2026-10-14T21:25:58.460848Z",
+    "eliminada_utc": "2026-10-14T21:35:41Z",
+    "ausencia_confirmada": true,
+    "cron_desactivados": 12,
+    "tarifa_autorizada_usd_hora": 0.01344,
+    "merge_a_produccion": false,
+    "primera_rama": {
+      "ref": "qlmlzsorelohhbcauutb",
+      "id": "ea8f7af1-fcc4-4b85-a098-eb6d742c6b41",
+      "resultado": "MIGRATIONS_FAILED en historial anterior; eliminada antes de recrear"
+    }
+  },
+  "banco_local": {
+    "contenedor": "avancecorp-coordinacion-pg-actual",
+    "base_final": "formulario3_fase1_20261014_v2",
+    "base_fuente": "conversion_cierres_20261012",
+    "fixtures": "sintéticas; transacciones ROLLBACK; funciones/triggers reales"
+  },
+  "resultados": {
+    "contrato_local": {
+      "estado": "PASS",
+      "comprobaciones": 36,
+      "exit_code": 0
+    },
+    "rls_local": {
+      "estado": "PASS",
+      "comprobaciones": 18,
+      "comando": "npm run test:rls -- --formulario3",
+      "exit_code": 0
+    },
+    "remoto": {
+      "contrato": [
+        {
+          "comprobaciones": 36,
+          "estado": "PASS",
+          "persistencia": "ROLLBACK"
+        }
+      ],
+      "permisos": [
+        {
+          "comprobaciones": 18,
+          "estado": "PASS",
+          "persistencia": "ROLLBACK"
+        }
+      ],
+      "reingreso": [
+        {
+          "comprobaciones": 1,
+          "estado": "PASS",
+          "persistencia": "ROLLBACK"
+        }
+      ]
+    },
+    "regresion_ficha_viva": {
+      "antes": "Defecto reproducido en baseline",
+      "despues": "PASS local y remoto"
+    },
+    "edge": {
+      "estado": "PASS",
+      "unitarios": 40,
+      "manejador_http": {
+        "tests": 1,
+        "pasos": 4,
+        "fetch_postgrest": "sustituido en test"
+      },
+      "deno_check": "PASS"
+    },
+    "check_scripts": {
+      "estado": "PASS",
+      "exit_code": 0,
+      "session_id": 91381
+    },
+    "check_app": {
+      "estado": "PASS",
+      "exit_code": 0,
+      "session_id": 15042,
+      "incluye": [
+        "lint",
+        "typecheck",
+        "test con cobertura",
+        "release config",
+        "build",
+        "bundle",
+        "duplicación"
+      ],
+      "lint_warnings_preexistentes": 11
+    },
+    "tipos": {
+      "estado": "PASS",
+      "fuente": "Supabase CLI 2.117.0 / banco local",
+      "aplicacion": "bloque crm.leads generado; 3 líneas nuevas, sin sobrescribir tipos ajenos más recientes"
+    },
+    "historicos": {
+      "estado": "PASS",
+      "conjuntos": 8,
+      "iguales": true,
+      "detalle_antes": "remoto-antes.json",
+      "detalle_despues": "remoto-despues.json"
+    },
+    "permisos_columnas_anteriores": {
+      "estado": "PASS",
+      "md5": "f3ba0967422c4c1c4fbbab2adf1019a3"
+    },
+    "atributos_tres_puertas": {
+      "estado": "PASS",
+      "campos": [
+        "firma",
+        "owner",
+        "ACL",
+        "DEFINER",
+        "config"
+      ]
+    },
+    "controles_c1": {
+      "estado": "PASS",
+      "local": true,
+      "remoto": true
+    },
+    "advisors": {
+      "seguridad_nuevos": 0,
+      "rendimiento_nuevos": 0,
+      "indices_ya_no_sin_uso": 27,
+      "detalle": "advisors-comparacion.json"
+    },
+    "copias_edge_canonicas": "PASS: cinco archivos idénticos",
+    "diff_check": "PASS",
+    "matriz_rls_general": "NOT RUN; se ejecutó matriz focalizada pertinente",
+    "auth_http_remoto": "NOT RUN en fase 1; pendiente de pruebas integradas",
+    "e2e_visual": "NOT RUN; pantallas pendientes en fase 2",
+    "importacion_real": "NOT RUN; fases 5–6"
+  },
+  "claude": {
+    "wrapper": "scripts/claude-review",
+    "rol": "SECONDARY_REVIEWER",
+    "dictamen": "CHANGES_REQUESTED",
+    "confianza": "MEDIUM",
+    "p0_p1_demostrados": 0,
+    "archivo": "revision-claude.txt",
+    "decisiones": "Hallazgos evaluados; mejoras justificadas aplicadas y verificadas por PRIMARY; ver LEEME. No segundo dictamen."
+  },
+  "produccion_verificada": {
+    "campania_instalada": false,
+    "importador_definicion_md5": "0518b2643f258ca458d3a6acc492a7bf"
+  },
+  "n8n": {
+    "id": "BjI5m1PKVWhO0NDb",
+    "active": false,
+    "activeVersionId": null,
+    "updatedAt": "2026-10-14T20:49:44.143Z",
+    "control": [
+      {
+        "name": "Control del envío",
+        "parameters": {
+          "mode": "raw",
+          "jsonOutput": "={{ JSON.stringify({enviar_crm:false,simular_registro:false,inicio_ms:$now.toMillis()}) }}",
+          "options": {}
+        }
+      }
+    ],
+    "importador": [
+      {
+        "name": "Importar en CRM",
+        "disabled": true
+      }
+    ]
+  },
+  "figma": {
+    "url": "https://www.figma.com/board/JB4jRdmLXZXS0hBhEHxRbV?node-id=2-34",
+    "fase1": "VALIDADA · SIN PUBLICAR",
+    "fase2": "SIGUIENTE · PENDIENTE",
+    "validacion": "estructura sin desbordamientos y captura revisada",
+    "captura_local": "/private/tmp/formulario3-fase1-20261014/figma-fase1-validada.png"
+  },
+  "siguiente": "Fase 2: etiqueta y filtro en pantallas"
+}

@@ -288,8 +288,8 @@ export const crmQueryKeys = {
   // la MISMA etapa y el mismo analista — sin ella en la clave compartirían
   // caché y las dos columnas pintarían la misma lista. `null` = sin recorte.
   // El potencial (Frío · Tibio · Estrella · sin marca), por el mismo motivo.
-  carteraPagina: (etapa: string, vendedor: string, texto: string, integrada = false, desde: string | null = null, hasta: string | null = null, origen = 'todos', procedencia = 'todas', reasignados = false, gestion: string | null = null, potencial: string | null = null) =>
-    [...crmQueryKeys.carteraPaginas(), etapa, vendedor, texto, integrada, desde, hasta, origen, procedencia, reasignados, gestion, potencial] as const,
+  carteraPagina: (etapa: string, vendedor: string, texto: string, integrada = false, desde: string | null = null, hasta: string | null = null, origen = 'todos', procedencia = 'todas', reasignados = false, gestion: string | null = null, potencial: string | null = null, campania = 'todas') =>
+    [...crmQueryKeys.carteraPaginas(), etapa, vendedor, texto, integrada, desde, hasta, origen, procedencia, reasignados, gestion, potencial, campania] as const,
   /** Prefijo de TODAS las listas de la cartera (cualquier combinación de filtros). */
   carteraPaginas: () => [...crmQueryKeys.leads(), 'cartera-pagina'] as const,
 }
@@ -766,7 +766,7 @@ export function useCarteraInfinita(habilitada: boolean, filtros: FiltrosCartera)
   const vendedor = filtros.vendedorId ?? 'todos'
   const texto = filtros.texto ?? ''
   return useInfiniteQuery({
-    queryKey: crmQueryKeys.carteraPagina(etapa, vendedor, texto, filtros.integrada, filtros.recepcion?.desde, filtros.recepcion?.hasta, filtros.origen ?? 'todos', filtros.procedencia ?? 'todas', filtros.reasignados ?? false, filtros.gestion ?? null, filtros.potencial ?? null),
+    queryKey: crmQueryKeys.carteraPagina(etapa, vendedor, texto, filtros.integrada, filtros.recepcion?.desde, filtros.recepcion?.hasta, filtros.origen ?? 'todos', filtros.procedencia ?? 'todas', filtros.reasignados ?? false, filtros.gestion ?? null, filtros.potencial ?? null, filtros.campania ?? 'todas'),
     queryFn: ({ pageParam, signal }) => listarCarteraPagina(filtros, pageParam, signal),
     initialPageParam: null as CursorCartera | null,
     // `cursor: null` significa "no hay más" y lo decide el SERVIDOR (pidió una

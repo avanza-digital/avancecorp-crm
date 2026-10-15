@@ -60,6 +60,7 @@ export function useCarteraPaginada(
   const vendedorId = filtros.vendedorId ?? 'todos'
   const texto = filtros.texto ?? ''
   const origen = filtros.origen ?? 'todos'
+  const campania = filtros.campania ?? 'todas'
   const procedencia = filtros.procedencia ?? 'todas'
   const reasignados = filtros.reasignados ?? false
   // Gestión vigente (columnas «Nuevo»/«Gestionado» del Pipeline). Solo recorta
@@ -76,12 +77,13 @@ export function useCarteraPaginada(
     () => ({ etapa, vendedorId, texto, integrada: true,
       // El origen solo viaja cuando recorta: «todos» es el valor neutro y no se manda.
       ...(origen !== 'todos' ? { origen } : {}),
+      ...(campania !== 'todas' ? { campania } : {}),
       ...(procedencia !== 'todas' ? { procedencia } : {}),
       ...(reasignados ? { reasignados: true } : {}),
       ...(gestion ? { gestion } : {}),
       ...(potencial ? { potencial } : {}),
       ...(desde != null && hasta != null ? { recepcion: { desde, hasta }, recepcionDemo: { desde, hasta } } : {}) }),
-    [etapa, vendedorId, texto, origen, procedencia, reasignados, gestion, potencial, desde, hasta],
+    [etapa, vendedorId, texto, origen, campania, procedencia, reasignados, gestion, potencial, desde, hasta],
   )
 
   const rangoValido = rangoFechaCarteraValido(filtrosEstables.recepcion ?? null, fechaLima(Date.now()))
@@ -103,7 +105,7 @@ export function useCarteraPaginada(
   // Cambiar de filtro EMPIEZA una lista nueva: conservar el número de páginas
   // dejaría la vista mostrando 150 resultados de una búsqueda que acaba de
   // cambiar (y en real el cursor viejo ni siquiera sería válido).
-  useEffect(() => { setPaginasDemo(1) }, [etapa, vendedorId, texto, origen, procedencia, reasignados, gestion, potencial, desde, hasta])
+  useEffect(() => { setPaginasDemo(1) }, [etapa, vendedorId, texto, origen, campania, procedencia, reasignados, gestion, potencial, desde, hasta])
 
   // Como en el servidor: primero todos los DEMÁS filtros (`previa`), de ahí salen
   // los conteos por potencial, y después el recorte por potencial.

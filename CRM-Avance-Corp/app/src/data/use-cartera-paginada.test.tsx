@@ -58,6 +58,26 @@ describe('sesión demo', () => {
 
   beforeEach(() => { mocks.yo = { id: 'u-demo', rol: 'vendedor', demo: true } })
 
+  it('filtra campaña antes de paginar, cuenta todo y reinicia la ventana al cambiar', () => {
+    const filas = Array.from({ length: 130 }, (_, i) => ({ ...lead(i), campania_origen: i >= 60 ? 'Formulario 3' : null }))
+    const { wrapper } = arnes()
+    const { result, rerender } = renderHook(
+      ({ campania }: { campania: 'todas' | 'Formulario 3' }) => useCarteraPaginada(filas, { campania }),
+      { wrapper, initialProps: { campania: 'todas' } },
+    )
+    act(() => { result.current.cargarMas() })
+    expect(result.current.leads).toHaveLength(100)
+    rerender({ campania: 'Formulario 3' })
+    expect(result.current.leads).toHaveLength(50)
+    expect(result.current.leads[0]?.id).toBe('lead-060')
+    expect(result.current.resumen?.totales.vivos).toBe(70)
+    expect(result.current.resumen?.capital.asignado.pen).toBe(70_000)
+    act(() => { result.current.cargarMas() })
+    expect(result.current.leads).toHaveLength(70)
+    expect(result.current.hayMas).toBe(false)
+    expect(mocks.listarCarteraPagina).not.toHaveBeenCalled()
+  })
+
   it('pagina el ámbito vivo del store sin tocar la red', () => {
     const { wrapper } = arnes()
     const { result } = renderHook(() => useCarteraPaginada(ambito, {}), { wrapper })
