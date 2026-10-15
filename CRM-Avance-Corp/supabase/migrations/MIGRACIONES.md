@@ -31,7 +31,7 @@ Reversa: `../scripts/eliminar-lead-error-carga/reversa.sql` (conserva las copias
 
 ## 20261015000852 — Plazo de carga por mes, decidido por Gerencia (y reapertura del último mes sellado)
 
-**Estado: PREPARADA Y PROBADA EN LOCAL, con las revisiones Codex r1 y r2 aplicadas; NO APLICADA (15/10/2026, Lima).** Pedido y decisiones de Miguel (14/10): solo
+**APLICADA, REGISTRADA Y VERIFICADA EN PRODUCCIÓN (15/10/2026, ~10:40 Lima, por Miguel con `!`):** ensayo con ROLLBACK «ENSAYO OK» (fijar septiembre a 7 días: 1 acreditación «fuera de plazo» pasaría a acreditada, 0 conflictos) → aplicar → registrar (md5 del archivo `b4708ca2…`) → `verificar-produccion.sql`: «APLICADA Y REGISTRADA», 14 huellas OK, censo de `crm.cerrar_periodo` re-sellado (`4b89856a…`, vigente, sello al día), 0 decisiones, ciclo diario aún en pausa. Revisiones Codex r1 y r2 aplicadas. Pedido y decisiones de Miguel (14/10): solo
 Gerencia decide, sin tope de fecha, ampliar el plazo Y reabrir un mes sellado desde la pantalla
 ([diseño](../../docs/plans/plazo-carga-mes/DISENO.md)). `crm.fijar_plazo_carga_mes(date,date,text)` fija el último día
 incluido (plazo = 00:00 de Lima del día siguiente; nunca antes de la base del día 10, desde hoy, motivo de 5 a 300; solo
