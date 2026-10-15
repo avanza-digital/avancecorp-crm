@@ -10,11 +10,12 @@ import { VentaCruzada } from './venta-cruzada'
 import { ChipPotencialDeLead } from './potencial-chip'
 import { SeccionPotencial } from './potencial-seccion'
 import { buscarClienteExistente, type BusquedaCliente } from '@/data/cliente-existente-api'
-import type { CondicionesTasaLead } from '@/data/crm-api'
+import { eliminarLeadErrorCarga, type CondicionesTasaLead } from '@/data/crm-api'
 import { fechaSla, puedeRegistrarGestionSla, type AvisoSla } from '@/lib/sla-operacion'
 import { useEstadosSlaV2 } from '@/data/sla-operacion-queries'
 import { EstadoSlaFicha } from '@/components/app/sla-operacion'
 import { RegistrarResultado } from '@/components/gestion-diaria/registrar-resultado'
+import { EliminarLeadErrorCarga } from '@/components/app/eliminar-lead-error-carga'
 // Ficha del lead (drawer derecho) — F1b. Se monta UNA vez en App.tsx y se abre
 // desde cualquier pantalla vía usePanelesActions().abrirLead(id). Write-gating doble:
 // la UI oculta acciones (directorio = solo lectura total) y el store re-valida.
@@ -33,6 +34,7 @@ import {
   RotateCcw,
   Send,
   Sparkles,
+  Trash2,
   X,
   XCircle,
 } from 'lucide-react'
@@ -64,7 +66,7 @@ import {
 } from '@/components/app/campos-reunion'
 import { validarReunionOperativa } from '@/lib/reunion-operativa'
 import { useAuth } from '@/lib/auth-context'
-import { can, puedeEscribir } from '@/lib/roles'
+import { can, puedeEliminarLeadErrorCarga, puedeEscribir } from '@/lib/roles'
 import { useCRMData, usePanelesActions, usePanelesState } from '@/lib/store-context'
 import { useActividadesDeLead } from '@/data/use-actividades-de-lead'
 import { haceRelativo } from './actividad-visual'
@@ -154,7 +156,7 @@ function Ficha({ l }: { l: Lead }) {
   const etapaDe = useEtapaVisible()
   const { cerrarPaneles } = usePanelesActions()
   const { yo } = useAuth()
-  const { obtenerTareaParaRevision, ambito } = useCRMData()
+  const { obtenerTareaParaRevision, ambito, olvidarLeadEliminado } = useCRMData()
   const rol = yo?.rol
   const escribe = puedeEscribir(rol)
   const puedeRegistrarGestion = puedeRegistrarGestionSla(rol)
@@ -172,7 +174,9 @@ function Ficha({ l }: { l: Lead }) {
   const puedeConvertir =
     escribe && (yo?.puede_contratar ?? false) && (seraMiCliente || (operaGlobal && tieneAnalista) || operaEquipo)
   const esTerminal = l.etapa === 'convertido' || l.etapa === 'descartado'
-  const [dialogo, setDialogo] = useState<'convertir' | 'descartar' | null>(null)
+  // «Eliminar lead (error de carga)»: también en terminales; si se puede lo decide el servidor.
+  const puedeEliminarLead = Boolean(yo && !yo.demo && puedeEliminarLeadErrorCarga(yo))
+  const [dialogo, setDialogo] = useState<'convertir' | 'descartar' | 'eliminar' | null>(null)
   // Reabrir el descarte de alguien que ya es cliente no reabre nada: se muestra quién es y se
   // ofrece su venta cruzada. Vive aquí y no en el banner: el reabrir optimista pasa el lead a
   // «Nuevo» (y desmonta el banner) antes de que el servidor responda.
@@ -230,6 +234,12 @@ function Ficha({ l }: { l: Lead }) {
     }
   }
   const info = etapaDe(l)
+  // El servidor ya borró el lead: avisar, olvidarlo, cerrar su ficha y refrescar listas y colas.
+  async function eliminarPorErrorDeCarga(motivo: string) {
+    await eliminarLeadErrorCarga(l.id, motivo)
+    toast.success('Lead eliminado. Quedó una copia de auditoría.')
+    void olvidarLeadEliminado(l.id)
+  }
 
   return (
     <>
@@ -335,6 +345,18 @@ function Ficha({ l }: { l: Lead }) {
           </div>}
         </SheetFooter>
       )}
+      {puedeEliminarLead && (
+        <SheetFooter>
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-destructive/40 text-destructive hover:border-destructive/60 hover:bg-destructive/10"
+            onClick={() => setDialogo('eliminar')}
+          >
+            <Trash2 /> Eliminar lead (error de carga)
+          </Button>
+        </SheetFooter>
+      )}
 
       <CerrarTareaDialog tarea={tareaAviso} onCerrar={() => setTareaAviso(null)} />
       {l.etapa === 'convertido' && puedeConvertir && !yo?.demo && <SheetFooter>
@@ -342,6 +364,9 @@ function Ficha({ l }: { l: Lead }) {
       </SheetFooter>}
       {dialogo === 'convertir' && <DialogConvertir l={l} condicionesTasa={condicionesLead?.condiciones} bloqueoTasa={bloqueoTasa} onClose={() => setDialogo(null)} />}
       {dialogo === 'descartar' && <DialogDescartar l={l} onClose={() => setDialogo(null)} />}
+      {dialogo === 'eliminar' && puedeEliminarLead && (
+        <EliminarLeadErrorCarga lead={l} onConfirmar={eliminarPorErrorDeCarga} onCerrar={() => setDialogo(null)} />
+      )}
       {clienteDelLead && yo && (
         <VentaCruzada
           actor={yo.id}

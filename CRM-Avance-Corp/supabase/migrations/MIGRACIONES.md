@@ -1,3 +1,29 @@
+## 20261015044917 — Eliminar lead por error de carga
+
+**PROBADA EN BANCO DOCKER (esquema de producción, huella idéntica); OK DE MIGUEL 15/10; PENDIENTE DE APLICAR EN PRODUCCIÓN.**
+Vía oficial para que gerencia (rol CRM) o admin/superadmin (portal) borre un lead cargado por error con todo
+lo que cuelga de él: `crm.eliminar_lead_error_carga(p_lead_id, p_motivo)`. Antes de borrar guarda una copia
+completa e inmutable en `crm.leads_eliminados` (RLS sin políticas ni grants; gerencia la consulta con
+`crm.listar_leads_eliminados()`). Rechaza (P0409, con todas las razones) leads con contrato, perfil,
+inversionista, conversión o cierre, historia de inversión, tareas o llamadas enlazadas desde otro lead, de más
+de 30 días (confirmado por Miguel el 14/10) o con un mes cerrado desde su alta. Los 8 candados que custodian
+filas del lead ganan UNA excepción, solo para DELETE y solo si la fila está ya copiada, idéntica, en esta
+transacción, por este actor, y el permiso `crm.borrado_lead_error` nombra a ese lead
+(`private.borrado_lead_error_autoriza`); el resto de cada candado queda idéntico a producción (postflight por
+huella). Sin `DISABLE TRIGGER`. Fail-closed ante llaves foráneas nuevas (columnas de origen y destino y acción),
+padres bloqueados antes de copiar, cuadre de lo borrado contra lo copiado, READ COMMITTED obligatorio. No toca `public`.
+
+Banco `banco-elimlead-20261014` (127.0.0.1:55491; 1.049 funciones crm+private = producción): migración
+1049 → 1053 con pre/postflight en verde; `test-eliminar-lead.sql` 69/69 PASS (roles, 19 rechazos aislados,
+13 DELETE directos bloqueados, 8 copias trucadas, borrado completo por gerencia/admin/superadmin, lectura);
+mutantes de la llave 5/6 cazados (el 6.º, «hay sesión», es redundante con «mismo actor»); preflight se niega
+con un trigger `WHEN (false)`; carreras reales de dos conexiones (INSERT y UPDATE de una fila hija) resueltas;
+reversa → huella exacta de producción, y se niega si un candado cambió después. Front: `npm run check` PASS,
+e2e Docker 415 PASS / 26 skipped. `test-rls.mjs`: bloque `testEliminarLeadErrorCarga` (preflight PASS; NOT RUN
+contra base: el banco no tiene PostgREST). Review: Codex r1 y r2 (CHANGES_REQUESTED, sin P0; todo aceptado y
+corregido) y auditor-rls (CHANGES_REQUESTED, sin P0/P1; aceptado). Evidencia en `../scripts/eliminar-lead-error-carga/`.
+Reversa: `../scripts/eliminar-lead-error-carga/reversa.sql` (conserva las copias si existen).
+
 ## 20261015000852 — Plazo de carga por mes, decidido por Gerencia (y reapertura del último mes sellado)
 
 **Estado: PREPARADA Y PROBADA EN LOCAL, con las revisiones Codex r1 y r2 aplicadas; NO APLICADA (15/10/2026, Lima).** Pedido y decisiones de Miguel (14/10): solo
@@ -60,7 +86,8 @@ límites: [`scripts/plazo-carga-mes/LEEME.md`](../scripts/plazo-carga-mes/LEEME.
 
 ## 20261014215453 — Campaña de origen en cartera y filtro, fase 2
 
-**PROBADA EN LOCAL Y RAMA REMOTA; NO PUBLICADA.** Depende de la fase 1. La cartera
+**APLICADA Y VERIFICADA EN PRODUCCIÓN (15/10/2026 UTC; 14/10 en Lima).** Versión
+exacta `20261014215453`, después de fase 1. La cartera
 integrada devuelve `campania_origen` y acepta `p_campania_origen` antes de calcular
 filas, totales, capital, embudo y conteos por potencial. El lector anterior también
 devuelve la campaña para mantener coherente la ficha y el resto del CRM.
@@ -75,13 +102,18 @@ Banco final `formulario3_fase2_20261014_review`: 43 comprobaciones SQL PASS, con
 roles reales y rollback. Tras review se conservan comentarios del catálogo y se
 anclan los cuerpos que mencionan ambas puertas, además de `pg_depend`.
 Evidencia y estado final de los gates en
-`../scripts/formulario3-fase2/LEEME.md`. Publicar después de fase 1 y antes del
-frontend de fase 2; el nuevo frontend solicita la columna al abrir una ficha.
+`../scripts/formulario3-fase2/LEEME.md`. Se publicó después de fase 1 y antes del
+frontend; firma única de 15 argumentos, permisos y caché PostgREST comprobados.
+Cuatro contextos SQL authenticated en producción aprobaron lectura anterior y
+filtro nuevo dentro de transacciones READ ONLY; no equivalen a sesiones HTTP.
+Fuente `0fa4a398`, build `build-20261015T041350920Z`; 124 archivos HTTP exactos.
+[Acta posterior a publicar](../../docs/N8N-FORMULARIO3-FASE4-PUBLICADA.md).
 Reversión operativa: volver al frontend anterior, conservando el esquema aditivo.
 
 ## 20261014210146 — Campaña de origen Formulario 3, fase 1
 
-**PROBADA EN BANCO LOCAL Y RAMA REMOTA; NO APLICADA EN PRODUCCIÓN.** Campo opcional
+**APLICADA Y VERIFICADA EN PRODUCCIÓN (15/10/2026 UTC; 14/10 en Lima).** Versión
+exacta `20261014210146`. Campo opcional
 `crm.leads.campania_origen`; validación de texto 1–80 caracteres y combinación
 Formulario 3 + formulario. Alta atómica en el importador, compatibilidad con
 payloads anteriores, campaña en reingresos y solicitudes de clientes sin
@@ -100,12 +132,16 @@ en local y remoto; Edge, check:scripts y check completo de app PASS. Revisión
 de Claude evaluada y mejoras justificadas incorporadas. Advisors sin alertas
 nuevas; 8 conjuntos de filas históricas idénticos, incluidos 3.677 leads.
 Rama `sdgqkuejylkeqabpplyk` retirada el 14/10/2026 21:35 UTC, sin merge.
-Versión de ensayo asignada por conector: `20261014213157`.
-Orden obligatorio al publicar: SQL → comprobar capacidad/huellas → Edge →
-frontend; n8n sigue apagado hasta la prueba integral. No publicar el Edge nuevo
-sobre SQL antiguo. Los reintentos de notas antes mal ubicadas pueden añadir
+Versión histórica de ensayo asignada por conector: `20261014213157`; no es la
+versión aplicada en producción. Orden cumplido: SQL → comprobar capacidad/huellas
+→ Edge v24 (`verify_jwt=true`) → frontend. SELECT de campaña autorizado,
+INSERT/UPDATE humano y anónimo denegados; RLS conservado. Los 3.687 leads de la
+comprobación productiva siguen sin campaña: no se importó la hoja ni se
+reclasificó el histórico. n8n sigue apagado hasta la prueba controlada de fase 5.
+Los reintentos de notas antes mal ubicadas pueden añadir
 una nota correcta a la ficha viva; no crean otro lead. UI/filtro: fase 2.
-[Pruebas y evidencia](../scripts/formulario3-fase1/LEEME.md).
+[Pruebas y evidencia](../scripts/formulario3-fase1/LEEME.md) ·
+[Publicación y verificación](../../docs/N8N-FORMULARIO3-FASE4-PUBLICADA.md).
 
 ## 20261014174026 — Adicional de renovación como upgrade de conversión
 
