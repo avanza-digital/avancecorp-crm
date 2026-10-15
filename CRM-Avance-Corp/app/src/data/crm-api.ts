@@ -1496,29 +1496,42 @@ export interface FiltrosAgendaRepartoDiaria {
   dias?: number
 }
 
-export async function leadsPorRepartir(signal?: AbortSignal): Promise<ColaLead[]> {
-  let consulta = cliente().schema('crm').rpc('leads_por_repartir')
-  if (signal) consulta = consulta.abortSignal(signal)
-  const { data, error } = await consulta
-  // Un fetch ABORTADO (desmontaje, recarga, doble efecto de StrictMode) no es un
-  // fallo del servidor. Antes se propagaba como CrmApiError sin reportarlo, lo que
-  // dejaba la query en ERROR y podía pintar un aviso de degradación falso al volver
-  // a la pantalla; ahora usa la MISMA guarda que el resto de lecturas.
-  lanzarAbortSiCorresponde(signal)
-  if (error) {
-    const fallo = new CrmApiError('No se pudo cargar la cola de leads.', error.code || 'POSTGREST_ERROR')
-    registrarError('crm.reparto.cola_fallida', fallo)
-    throw fallo
-  }
+/** La planilla exige conteo exacto y páginas completas; la cola individual conserva su contrato legado. */
+export async function leadsPorRepartir(signal?: AbortSignal, completa = false): Promise<ColaLead[]> {
   const items: ColaLead[] = []
-  for (const cruda of data ?? []) {
-    const r = v.safeParse(ColaLeadSchema, cruda)
-    if (r.success) {
-      const { campania_origen, ...cruda } = r.output
-      const fila = { ...cruda, origen: origenDeFila(cruda.origen, campania_origen) }
-      items.push(campania_origen === undefined ? fila : { ...fila, campania_origen })
+  const vistos = new Set<string>()
+  let total: number | null = null
+  do {
+    let consulta = completa
+      ? cliente().schema('crm').rpc('leads_por_repartir', undefined, { count: 'exact' })
+        .order('creado_en', { ascending: true }).order('id', { ascending: true }).range(items.length, items.length + 499)
+      : cliente().schema('crm').rpc('leads_por_repartir')
+    if (signal) consulta = consulta.abortSignal(signal)
+    const { data, error, count } = await consulta
+    lanzarAbortSiCorresponde(signal)
+    if (error) {
+      const fallo = new CrmApiError('No se pudo cargar la cola de leads.', error.code || 'POSTGREST_ERROR')
+      registrarError('crm.reparto.cola_fallida', fallo)
+      throw fallo
     }
-  }
+    if (completa && (count === null || !Number.isSafeInteger(count) || count < 0 || (total !== null && count !== total) || (count > items.length && !data?.length))) {
+      throw new CrmApiError('La cola cambió o llegó incompleta. Actualiza antes de preparar el reparto.', 'COLA_INCOMPLETA')
+    }
+    total = count
+    for (const cruda of data ?? []) {
+      const r = v.safeParse(ColaLeadSchema, cruda)
+      if (completa && (!r.success || vistos.has(r.output.id) || !Number.isFinite(Date.parse(r.output.creado_en)))) {
+        throw new CrmApiError('La cola tiene una fila inválida o repetida. No se pueden calcular los disponibles.', 'COLA_INCOMPLETA')
+      }
+      if (r.success) {
+        const { campania_origen, ...cruda } = r.output
+        const fila = { ...cruda, origen: origenDeFila(cruda.origen, campania_origen) }
+        items.push(campania_origen === undefined ? fila : { ...fila, campania_origen })
+        vistos.add(fila.id)
+      }
+    }
+    if (completa && total !== null && items.length > total) throw new CrmApiError('La cola cambió durante la consulta. Actualiza.', 'COLA_INCOMPLETA')
+  } while (completa && total !== null && items.length < total)
   return items
 }
 

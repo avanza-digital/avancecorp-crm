@@ -156,6 +156,7 @@ for (const ancho of [390, 1366]) {
     })
     await page.setViewportSize({ width: ancho, height: 900 })
     if (ancho < 600) await page.getByRole('button', { name: 'Ocultar menú', exact: true }).click()
+    await page.getByRole('tab', { name: 'Agenda de turnos' }).click()
     await expect(page.getByText('9 entregados · 2 fuera de turno')).toBeVisible()
     await expect(page.getByRole('combobox', { name: /Asignar .* a una supervisora/ })).toHaveCount(2)
     const filtroAgenda = page.getByLabel('Filtrar entregas a supervisoras por origen')
@@ -199,6 +200,7 @@ test('la agenda conserva el origen de entregas históricas aunque su cola esté 
       origenes: [{ origen: 'formulario_3', derivados: 5, fuera_turno: 0, entregas: [entrega] }],
     }] }] },
   })
+  await page.getByRole('tab', { name: 'Agenda de turnos' }).click()
   await expect(page.getByText('5 entregados · 0 fuera de turno')).toBeVisible()
   await page.getByLabel('Filtrar entregas a supervisoras por origen').selectOption('formulario_3')
   await expect(page.getByRole('row', { name: /Formulario 3 Supervisor dos 5 0/ })).toBeVisible()
@@ -417,6 +419,7 @@ test('Coordinación muestra la entrega real antes de que Supervisión la reparta
   })
 
   await expect(page.getByRole('tab', { name: 'Coordinación → supervisores' })).toHaveAttribute('aria-selected', 'true')
+  await page.getByRole('tab', { name: 'Agenda de turnos' }).click()
   const tabla = page.getByRole('table', { name: 'Entregas por origen y supervisora' })
   await expect(tabla.getByRole('row', { name: 'LANDING Jor 2 0' })).toBeVisible()
   await expect(tabla.getByRole('row', { name: 'LANDING Carmen 20 20' })).toBeVisible()

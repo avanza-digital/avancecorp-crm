@@ -2949,6 +2949,13 @@ export async function montarBackendReal(
     // ── C1: reparto de la cola global (pantalla del coordinador) ──
     if (p === '/rest/v1/rpc/leads_por_repartir') {
       estado.llamadas.rpcLeadsPorRepartir += 1
+      if (req.headers()['prefer']?.includes('count=exact')) {
+        const inicio = Number(url.searchParams.get('offset') ?? 0)
+        const limite = Number(url.searchParams.get('limit') ?? 500)
+        const ordenada = [...estado.colaReparto].sort((a, b) => String(a.creado_en).localeCompare(String(b.creado_en)) || String(a.id).localeCompare(String(b.id)))
+        const pagina = ordenada.slice(inicio, inicio + limite)
+        return route.fulfill({ json: pagina, headers: { ...cors, 'content-range': pagina.length ? `${inicio}-${inicio + pagina.length - 1}/${ordenada.length}` : `*/${ordenada.length}` } })
+      }
       return json(route, estado.colaReparto)
     }
     if (p === '/rest/v1/rpc/supervisores_para_reparto') {
