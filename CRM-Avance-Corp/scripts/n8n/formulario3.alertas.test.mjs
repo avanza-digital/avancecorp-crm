@@ -33,3 +33,21 @@ test('datos inesperados del error no fabrican enlaces ni contenido en el correo'
   assert.ok(!a.mensaje.includes('malicioso'))
   assert.throws(()=>prepararAlerta(evento,NaN))
 })
+
+test('fase 7: el correo copia solo la lista de filas y reconoce el resumen diario', () => {
+  const aviso = (id, message) => prepararAlerta({ workflow: { id }, execution: { id: '30', error: { message } } }, 3600000)
+  const lista = 'Revisar filas de la hoja: 153 (rechazada), 160 (cliente sin registrar). Pendientes para reintentar: 161.'
+  assert.match(aviso('BjI5m1PKVWhO0NDb', lista).mensaje, /terminó con un error\.\nRevisar filas de la hoja: 153 \(rechazada\), 160 \(cliente sin registrar\)\. Pendientes para reintentar: 161\.\nEjecución: 30/)
+  assert.match(aviso('BjI5m1PKVWhO0NDb', lista + ' [line 245]').mensaje, /Pendientes para reintentar: 161\.\nEjecución/)
+  assert.match(aviso('BjI5m1PKVWhO0NDb', 'Pendientes para reintentar: 4, 5.').mensaje, /Pendientes para reintentar: 4, 5\.\n/)
+  for (const otro of ['Revisar filas de la hoja: 153 (Persona Privada).', 'SECRETO 999000111', lista + ' extra', '']) {
+    assert.match(aviso('BjI5m1PKVWhO0NDb', otro).mensaje, /terminó con un error\.\nEjecución: 30/)
+  }
+  const resumen = aviso('Chn5g93IgxNlkF3K', 'Recibo sin fecha')
+  assert.match(resumen.asunto, /resumen diario/)
+  assert.match(resumen.mensaje, /workflow\/Chn5g93IgxNlkF3K/)
+  assert.ok(!resumen.mensaje.includes('Recibo sin fecha'))
+  assert.notEqual(resumen.clave, aviso('BjI5m1PKVWhO0NDb', '').clave)
+  assert.equal(aviso('toString', ''), null)
+  assert.equal(aviso('__proto__', ''), null)
+})
