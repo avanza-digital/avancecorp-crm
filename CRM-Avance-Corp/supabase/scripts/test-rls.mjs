@@ -18462,11 +18462,14 @@ async function testEliminarInversion(sessions, seed) {
 }
 
 // ── Eliminar lead por error de carga (20261015044917): gerencia o admin del portal; copia inmutable; 8 candados ──
-// El borrado de verdad (copia, cascada, cuadre y la llave de los 8 candados) se prueba en el banco aislado con
+// r2 (20261015150731): borra también la ficha de inversionista sin dinero y sus anexos (10 tablas) y abre el candado de
+// solicitudes de tasa (9.º candado). Se detecta por la huella de la puerta (o por la copia `'version', 2`).
+// El borrado de verdad (copia, cascada, cuadre y la llave de los candados) se prueba en el banco aislado con
 // supabase/scripts/eliminar-lead-error-carga/test-eliminar-lead.sql. Esta matriz NO borra ningún lead de la semilla
 // compartida: catálogo, roles, validaciones, rechazo de negocio (P0409) y DML directa cerrada. Toda llamada que podría
-// pasar el rol lleva un lead inexistente (randomUUID) o uno que la puerta rechaza (convertido o con contrato).
-// Salto RUIDOSO si la migración no está en esta base; con CRM_RLS_EXIGE_ELIMINAR_LEAD=1 es un FALLO.
+// pasar el rol lleva un lead inexistente (randomUUID) o uno que la puerta rechaza (convertido o con contrato); los
+// leads REALES solo van con roles que la puerta corta antes de mirar el lead (42501).
+// Salto RUIDOSO si la migración (r1 o r2) no está en esta base; con CRM_RLS_EXIGE_ELIMINAR_LEAD=1 es un FALLO.
 async function testEliminarLeadErrorCarga(sessions, seed) {
   console.log('\n— Eliminar lead por error de carga: puertas, candados y copia inmutable —');
   const saltar = (msg) => {
@@ -18486,6 +18489,19 @@ async function testEliminarLeadErrorCarga(sessions, seed) {
     return;
   }
   const cuenta = (etiqueta, sql) => contarFueraDeBanda(`eliminar lead: ${etiqueta}`, sql);
+  // r2: la huella acreditada en el banco y en el postflight de 20261015150731; si una versión posterior la cambia, basta
+  // con que la puerta siga escribiendo la copia versión 2 (aviso, no fallo).
+  const PUERTA = "'crm.eliminar_lead_error_carga(uuid,text)'::regprocedure";
+  const huellaR2 = cuenta('huella r2', `select (md5(pg_get_functiondef(${PUERTA})) = '15ce9327e21306ec9682552815936e71')::int`) === 1;
+  const textoR2 = cuenta('copia versión 2', `select (position($v$'version', 2,$v$ in p.prosrc) > 0)::int from pg_proc p where p.oid = ${PUERTA}`) === 1;
+  const r2 = huellaR2 || textoR2;
+  if (!r2) {
+    saltar('⚠ 20261015150731 (eliminar lead r2: ficha de inversionista y candado de tasa) NO desplegada en esta base: casos r2 SALTADOS (no probados)');
+  } else if (!huellaR2) {
+    console.log('  ⚠ eliminar lead: la puerta escribe la copia versión 2 pero su huella no es la de r2 (6e7fedf2…): ¿versión posterior?');
+  } else {
+    console.log('  · eliminar lead: r2 desplegada (huella 6e7fedf2… de la puerta)');
+  }
 
   // ── Catálogo (fuera de banda) ──
   const PUERTAS = "'crm.eliminar_lead_error_carga(uuid,text)'::regprocedure, 'crm.listar_leads_eliminados()'::regprocedure";
@@ -18503,8 +18519,30 @@ async function testEliminarLeadErrorCarga(sessions, seed) {
     'eliminar lead C3: crm.leads_eliminados con RLS, 0 políticas y ningún privilegio (tabla ni columna) para anon, authenticated ni service_role');
   check(cuenta('triggers de la copia', "select count(*) from pg_trigger t where t.tgrelid = 'crm.leads_eliminados'::regclass and not t.tgisinternal and t.tgenabled = 'O' and t.tgname in ('trg_audit_leads_eliminados', 'trg_leads_eliminados_inmutables', 'trg_leads_eliminados_no_truncate')") === 3,
     'eliminar lead C4: la copia conserva sus 3 triggers habilitados (auditoría, inmutable, sin TRUNCATE)');
-  check(cuenta('candados', `select count(*) from pg_proc p where p.oid in (${CANDADOS}) and (length(p.prosrc) - length(replace(p.prosrc, '${LLAVE}', ''))) = length('${LLAVE}')`) === 8,
-    'eliminar lead C5: los 8 candados llevan la excepción del DELETE exactamente una vez');
+  // C5: los 8 de r1 siempre; el de solicitudes de tasa lleva la excepción solo con r2 (sin r2 tiene que seguir sin ella).
+  const TASA = "'private.trg_solicitudes_tasa_solo_por_puerta()'::regprocedure";
+  const conLlave = (etiqueta, lista) => cuenta(etiqueta, `select count(*) from pg_proc p where p.oid in (${lista}) and (length(p.prosrc) - length(replace(p.prosrc, '${LLAVE}', ''))) = length('${LLAVE}')`);
+  const candadosR1 = conLlave('candados', CANDADOS);
+  const candadoTasa = conLlave('candado de tasa', TASA);
+  check(candadosR1 === 8 && candadoTasa === (r2 ? 1 : 0),
+    r2 ? 'eliminar lead C5: los 9 candados (8 de r1 + solicitudes de tasa) llevan la excepción del DELETE exactamente una vez'
+      : 'eliminar lead C5: los 8 candados de r1 llevan la excepción del DELETE exactamente una vez (el de tasa, sin ella)',
+    `r1: ${candadosR1}/8 · tasa: ${candadoTasa}/${r2 ? 1 : 0}`);
+  if (r2) {
+    // ── Catálogo r2 (20261015150731) ──
+    check(cuenta('candado de tasa: dueño y permisos', `select count(*) from pg_proc p where p.oid = ${TASA} and p.prosecdef and p.proowner = 'postgres'::regrole and 'search_path=""' = any(p.proconfig) and p.proacl = '{postgres=X/postgres}'::aclitem[]`) === 1,
+      'eliminar lead C6 (r2): el candado de tasa es DEFINER de postgres, search_path vacío y proacl exacto {postgres=X/postgres}');
+    check(cuenta('trigger del candado de tasa', `select count(*) from pg_trigger t where t.tgrelid = 'crm.solicitudes_tasa'::regclass and not t.tgisinternal and t.tgname = 'trg_solicitudes_tasa_00_solo_por_puerta' and t.tgfoid = ${TASA} and t.tgenabled = 'O' and replace(replace(pg_get_triggerdef(t.oid), 'crm.', ''), 'private.', '') = 'CREATE TRIGGER trg_solicitudes_tasa_00_solo_por_puerta BEFORE DELETE OR UPDATE ON solicitudes_tasa FOR EACH ROW EXECUTE FUNCTION trg_solicitudes_tasa_solo_por_puerta()'`) === 1,
+      'eliminar lead C7 (r2): trg_solicitudes_tasa_00_solo_por_puerta BEFORE DELETE OR UPDATE FOR EACH ROW, sin WHEN y habilitado (O)');
+    const TABLAS_R2 = ['inversionistas', 'inversionista_leads', 'inversionista_identificadores', 'inversionista_responsables',
+      'inversionista_gestiones', 'cartera_lecturas', 'inversionista_datos_contacto', 'inversion_solicitudes', 'solicitudes_tasa',
+      'envios_push_tasa'].map((t) => `'crm.${t}'`).join(', ');
+    const abiertas = textoFueraDeBanda('eliminar lead: privilegios de escritura en las tablas de r2',
+      `select string_agg(t.rel::text || ' ' || r.rol, ', ' order by t.rel::text, r.rol) from unnest(array[${TABLAS_R2}]::regclass[]) t(rel) cross join unnest(array['anon','authenticated','service_role']) r(rol) where has_table_privilege(r.rol, t.rel, 'DELETE, UPDATE, TRUNCATE') or has_any_column_privilege(r.rol, t.rel, 'UPDATE')`);
+    check(abiertas === null,
+      'eliminar lead C8 (r2): las 10 tablas que r2 borra sin DELETE, UPDATE (tabla ni columna) ni TRUNCATE para anon, authenticated ni service_role',
+      `con privilegio: ${abiertas}`);
+  }
 
   // ── RPC denegados (ninguno escribe: lead inexistente o rechazado) ──
   const DENEGADO = /permission denied/i;
@@ -18576,6 +18614,47 @@ async function testEliminarLeadErrorCarga(sessions, seed) {
     await exigeError(`eliminar lead: ${quien} no actualiza crm.leads_eliminados`, () => copia().update({ motivo: MOTIVO }).eq('lead_id', randomUUID()).select('id'));
     await exigeError(`eliminar lead: ${quien} no borra en crm.leads_eliminados`, () => copia().delete().eq('lead_id', randomUUID()).select('id'));
   }
+
+  // ── DML directa sobre las tablas que la puerta borra desde r2 (la frontera es el privilegio; vale también sin r2) ──
+  // Cada DELETE apunta a una fila REAL (si la tabla tiene alguna): 0 filas o error, y el conteo de la tabla intacto.
+  const DIRECTAS = [['solicitudes_tasa', 'id'], ['inversionistas', 'id'], ['inversion_solicitudes', 'id'],
+    ['inversionista_identificadores', 'id'], ['inversionista_datos_contacto', 'inversionista_id']];
+  for (const [tabla, pk] of DIRECTAS) {
+    const fila = textoFueraDeBanda(`eliminar lead: una fila de crm.${tabla}`, `select ${pk}::text from crm.${tabla} order by ${pk} limit 1`);
+    const antes = cuenta(`${tabla} antes`, `select count(*) from crm.${tabla}`);
+    for (const clave of ['gerencia', 'vend1']) {
+      await expectBlockedMutation(`eliminar lead: ${clave} borra directo crm.${tabla}${fila ? '' : ' (tabla vacía en esta base)'}`,
+        sessions[clave].client.schema('crm').from(tabla).delete().eq(pk, fila ?? randomUUID()).select(pk),
+        // PGRST205: tabla sin grant alguno, fuera de la caché de la API. P0409: el candado de tasa (cinturón).
+        tabla === 'solicitudes_tasa' ? ['PGRST205', 'P0409'] : ['PGRST205']);
+    }
+    const despues = cuenta(`${tabla} después`, `select count(*) from crm.${tabla}`);
+    check(despues === antes, `eliminar lead: tras la DML directa crm.${tabla} conserva sus ${antes} fila(s)`, `después: ${despues}`);
+  }
+
+  // ── Fuga de información: un rol sin permiso sobre un lead REAL recibe el 42501 de rol, nunca el detalle del P0409 ──
+  const leadsReales = [['propio de vend1', objetivo], ['de vend3, fuera de su alcance', seed.leadByName.get(LEAD_BY_KEY.ana.name).id]];
+  if (bloqueado) leadsReales.push(['convertido o con contrato', bloqueado]);
+  for (const clave of ['vend1', 'sup1', 'coordinador']) {
+    for (const [cual, leadId] of leadsReales) {
+      const label = `eliminar lead (fuga): ${clave} sobre un lead real ${cual} → 42501 de rol, sin detalle`;
+      let r;
+      try {
+        r = await sessions[clave].client.schema('crm').rpc('eliminar_lead_error_carga', { p_lead_id: leadId, p_motivo: MOTIVO });
+      } catch (error) {
+        fail(`${label}: excepción inesperada — ${error?.message ?? String(error)}`);
+        continue;
+      }
+      check(r.error?.code === '42501' && /^Solo gerencia o un admin del portal pueden eliminar un lead$/.test(r.error?.message ?? '')
+          && !r.error?.details && !r.error?.hint,
+        label, r.error ? errorText(r.error) : `aceptado: ${JSON.stringify(r.data)}`);
+    }
+  }
+  const idsReales = [...new Set(leadsReales.map(([, id]) => id))];
+  const listaReales = idsReales.map((id) => `'${id}'`).join(', ');
+  check(cuenta('leads reales siguen', `select count(*) from crm.leads where id in (${listaReales})`) === idsReales.length
+      && cuenta('sin copia de los leads reales', `select count(*) from crm.leads_eliminados where lead_id in (${listaReales})`) === 0,
+    'eliminar lead (fuga): los leads reales siguen en crm.leads y sin copia en crm.leads_eliminados');
 
   // ── Lectura por la puerta ──
   const lista = await positive('eliminar lead: gerencia lista los leads eliminados', ger.rpc('listar_leads_eliminados'));
