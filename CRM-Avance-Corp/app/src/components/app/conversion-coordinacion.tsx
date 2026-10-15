@@ -127,6 +127,7 @@ function CeldasCierres({
   return (
     <>
       <Td className="text-right tabular-nums">{cierres ? numero(cierres.formulario) : <SinDato motivo={motivo} />}</Td>
+      <Td className="text-right tabular-nums">{cierres ? <Cifra valor={cierres.formulario_3 === undefined ? null : cierres.formulario_3} motivo="desglose de Formulario 3 no disponible" /> : <SinDato motivo={motivo} />}</Td>
       <Td className="text-right tabular-nums">{cierres ? numero(cierres.landing) : <SinDato motivo={motivo} />}</Td>
       <Td className="text-right tabular-nums">
         {cierres ? <Cifra valor={cierres.base_cargada === undefined ? 0 : cierres.base_cargada} motivo={MOTIVO_BASE_SELLADA} /> : <SinDato motivo={motivo} />}
@@ -170,6 +171,9 @@ function FilaAnalista({ analista, sellado, onVerCierres }: {
         {sellado ? <SinDato motivo={MOTIVO_SELLADO} /> : <Cifra valor={analista.divisor_formulario} motivo={MOTIVO_SIN_LLEGADAS} />}
       </Td>
       <Td className="text-right tabular-nums">
+        <Cifra valor={analista.divisor_formulario_3 ?? null} motivo={sellado ? MOTIVO_SELLADO : "desglose de Formulario 3 no disponible"} />
+      </Td>
+      <Td className="text-right tabular-nums">
         {sellado ? <SinDato motivo={MOTIVO_SELLADO} /> : <Cifra valor={analista.divisor_landing} motivo={MOTIVO_SIN_LLEGADAS} />}
       </Td>
       <Td className="text-right text-base font-extrabold tabular-nums text-primary">{numero(analista.divisor)}</Td>
@@ -205,7 +209,7 @@ function formulaDelNumerador(datos: DatosConversion): string | null {
     : `${numero(cierres.referido_aporte)} de referidos (${numero(cierres.referido)}${enRango ? '' : ` × ${numero(datos.peso_referido)}`})`
   const renovacion = `${numero(cartera.renovacion_aporte)} de renovación (${numero(cartera.renovacion)}${enRango ? '' : ` × ${numero(datos.peso_renovacion)}`})`
   const partes = [
-    `${numero(cierres.formulario + cierres.landing)} directos (formulario y landing)`,
+    `${numero(cierres.formulario + (cierres.formulario_3 ?? 0) + cierres.landing)} directos (Formulario, Formulario 3 y Landing)`,
     cierres.base_cargada === null ? 'base cargada: la foto no la guarda' : `${numero(cierres.base_cargada ?? 0)} de base cargada`,
     referidos,
     `${numero(cartera.upgrade)} de upgrade`,
@@ -356,9 +360,10 @@ export function ConversionCoordinacion() {
   const chips: Array<{ etiqueta: string; valor: React.ReactNode }> = datos ? [
     { etiqueta: 'Llegadas', valor: numero(datos.empresa.divisor) },
     { etiqueta: 'Formulario', valor: datos.sellado ? <SinDato motivo={MOTIVO_SELLADO} /> : <Cifra valor={datos.empresa.divisor_formulario} motivo={MOTIVO_SIN_LLEGADAS} /> },
+    { etiqueta: 'Formulario 3', valor: <Cifra valor={datos.empresa.divisor_formulario_3 ?? null} motivo={datos.sellado ? MOTIVO_SELLADO : 'desglose de Formulario 3 no disponible'} /> },
     { etiqueta: 'Landing', valor: datos.sellado ? <SinDato motivo={MOTIVO_SELLADO} /> : <Cifra valor={datos.empresa.divisor_landing} motivo={MOTIVO_SIN_LLEGADAS} /> },
     { etiqueta: 'Conversión', valor: <Porcentaje valor={datos.empresa.conversion_pct} /> },
-    { etiqueta: 'Cierres directos', valor: datos.empresa.cierres ? numero(datos.empresa.cierres.formulario + datos.empresa.cierres.landing) : <SinDato motivo={MOTIVO_SELLADO} /> },
+    { etiqueta: 'Cierres directos', valor: datos.empresa.cierres ? numero(datos.empresa.cierres.formulario + (datos.empresa.cierres.formulario_3 ?? 0) + datos.empresa.cierres.landing) : <SinDato motivo={MOTIVO_SELLADO} /> },
     { etiqueta: 'Base cargada', valor: datos.empresa.cierres ? <Cifra valor={datos.empresa.cierres.base_cargada === undefined ? 0 : datos.empresa.cierres.base_cargada} motivo={MOTIVO_BASE_SELLADA} /> : <SinDato motivo={MOTIVO_SELLADO} /> },
     { etiqueta: 'Referidos', valor: datos.empresa.cierres ? <CantidadYAporte cantidad={datos.empresa.cierres.referido} aporte={datos.empresa.cierres.referido_aporte} nombre={REFERIDO} /> : <SinDato motivo={MOTIVO_SELLADO} /> },
     { etiqueta: 'Upgrade', valor: datos.empresa.cartera ? numero(datos.empresa.cartera.upgrade) : <SinDato motivo={MOTIVO_SELLADO} /> },
@@ -530,9 +535,11 @@ export function ConversionCoordinacion() {
                   segundaFila={(
                     <>
                       <Th scope="col" className="text-right">Form.</Th>
+                      <Th scope="col" className="text-right">Form. 3</Th>
                       <Th scope="col" className="text-right">Land.</Th>
                       <Th scope="col" className="text-right">Total</Th>
                       <Th scope="col" className="text-right">Form.</Th>
+                      <Th scope="col" className="text-right">Form. 3</Th>
                       <Th scope="col" className="text-right">Land.</Th>
                       <Th scope="col" className="text-right">Base <span className="sr-only">cargada</span></Th>
                       <Th scope="col" className="text-right">Referido</Th>
@@ -545,8 +552,8 @@ export function ConversionCoordinacion() {
                 >
                   <Th scope="col" rowSpan={2} className="align-bottom">Analista</Th>
                   <Th scope="col" rowSpan={2} className="hidden align-bottom lg:table-cell">Supervisor</Th>
-                  <Th scope="colgroup" colSpan={3} className="text-center">Llegadas</Th>
-                  <Th scope="colgroup" colSpan={8} className="text-center">Cierres</Th>
+                  <Th scope="colgroup" colSpan={4} className="text-center">Llegadas</Th>
+                  <Th scope="colgroup" colSpan={9} className="text-center">Cierres</Th>
                   <Th scope="col" rowSpan={2} className="text-right align-bottom">Conversión</Th>
                 </TheadCrm>
                 <tbody>
@@ -558,6 +565,7 @@ export function ConversionCoordinacion() {
                     <tr className="border-b border-border last:border-0 bg-muted/30 text-muted-foreground">
                       <Td className="text-base font-medium">Sin analista asignado</Td>
                       <Td className="hidden lg:table-cell"><SinDato motivo={MOTIVO_NO_APLICA} /></Td>
+                      <Td className="text-right tabular-nums"><SinDato motivo={MOTIVO_NO_APLICA} /></Td>
                       <Td className="text-right tabular-nums"><SinDato motivo={MOTIVO_NO_APLICA} /></Td>
                       <Td className="text-right tabular-nums"><SinDato motivo={MOTIVO_NO_APLICA} /></Td>
                       <Td className="text-right text-base font-extrabold tabular-nums">{numero(sinAnalista.divisor)}</Td>

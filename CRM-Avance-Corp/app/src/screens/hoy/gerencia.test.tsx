@@ -809,7 +809,7 @@ describe('Hoy · gerencia — período del tablero', () => {
   it('un mes sellado no consulta episodios vivos ni permite cambiar su desglose', () => {
     CONVERSION_MENSUAL = { ...conversionMensualDemo(MIERCOLES_10AM.getTime(), { alcance: 'global' }), cierre: { cerrado: true } }
     const vista = montar({}, 'resumen')
-    for (const fuente of ['Landing', 'Formulario', 'Referido', 'Renovación']) fireEvent.click(screen.getByRole('checkbox', { name: fuente }))
+    for (const fuente of ['Landing', 'Formulario', 'Formulario 3', 'Referido', 'Renovación']) fireEvent.click(screen.getByRole('checkbox', { name: fuente }))
     CONSULTAS.conversiones.mockClear()
     vista.rerender(<PeriodoGerenciaProvider><HoyGerencia seccion="metas" /></PeriodoGerenciaProvider>)
     expect(screen.getByRole('checkbox', { name: 'Upgrade' })).toBeDisabled()
@@ -823,7 +823,7 @@ describe('Hoy · gerencia — período del tablero', () => {
     CONVERSION_MENSUAL = conversionMensualDemo(MIERCOLES_10AM.getTime(), { alcance: 'global' })
     ESTADO_CONVERSIONES.error = new Error('falló el origen')
     montar({}, 'ranking-vendedores')
-    for (const fuente of ['Landing', 'Upgrade', 'Referido', 'Renovación']) fireEvent.click(screen.getByRole('checkbox', { name: fuente }))
+    for (const fuente of ['Landing', 'Formulario 3', 'Upgrade', 'Referido', 'Renovación']) fireEvent.click(screen.getByRole('checkbox', { name: fuente }))
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar conversión filtrada' }))
     expect(ESTADO_CONVERSIONES.refetch).toHaveBeenCalledTimes(1)
     expect(REFETCH_CONVERSION_MENSUAL).toHaveBeenCalledTimes(1)
@@ -834,7 +834,7 @@ describe('Hoy · gerencia — período del tablero', () => {
 
     const selector = within(screen.getByRole('group', { name: 'Fuentes de conversión' }))
     expect(selector.getAllByRole('checkbox').map((opcion) => opcion.getAttribute('aria-label')))
-      .toEqual(['Landing', 'Formulario', 'Upgrade', 'Referido', 'Renovación'])
+      .toEqual(['Landing', 'Formulario', 'Formulario 3', 'Upgrade', 'Referido', 'Renovación'])
   })
 
   it.each(['mes', 'revisión', 'cierre'] as const)('Resumen retira fotos con %s discordante sin ocultar el rango independiente', (discrepancia) => {
@@ -1009,7 +1009,7 @@ describe('Hoy · gerencia — período del tablero', () => {
 
     fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-05-01' } })
     expect(screen.getByRole('button', { name: 'Aplicar' })).toBeEnabled()
-    for (const fuente of ['Landing', 'Formulario', 'Referido', 'Renovación']) fireEvent.click(screen.getByRole('checkbox', { name: fuente }))
+    for (const fuente of ['Landing', 'Formulario', 'Formulario 3', 'Referido', 'Renovación']) fireEvent.click(screen.getByRole('checkbox', { name: fuente }))
     fireEvent.click(screen.getByRole('button', { name: 'Ir a ranking' }))
 
     expect(screen.getByLabelText('Mes calendario')).toHaveValue('2026-06')
@@ -1197,7 +1197,7 @@ describe('Hoy · gerencia — el ranking y la conversión mensual', () => {
     montar({}, 'conversiones', new Date('2026-09-02T15:00:00Z'))
 
     const origen = screen.getByRole('checkbox', { name: 'Referido' })
-    for (const fuente of ['Landing', 'Formulario', 'Upgrade', 'Renovación']) fireEvent.click(screen.getByRole('checkbox', { name: fuente }))
+    for (const fuente of ['Landing', 'Formulario', 'Formulario 3', 'Upgrade', 'Renovación']) fireEvent.click(screen.getByRole('checkbox', { name: fuente }))
     expect(origen).toBeChecked()
     expect(screen.getByLabelText('Error mensual de Conversiones')).not.toBeEmptyDOMElement()
     fireEvent.click(screen.getByRole('button', { name: 'Ver ejemplo' }))

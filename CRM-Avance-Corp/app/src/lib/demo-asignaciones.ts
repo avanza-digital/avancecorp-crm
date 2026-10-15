@@ -20,7 +20,7 @@ export interface EpisodioDemo {
   analistaId: 'd-v1' | 'd-v2' | 'd-v3'
   /** 0 = mes en curso · 1 = mes anterior (se resuelve contra periodoLima). */
   asignadoHaceMeses: 0 | 1
-  origen: 'referido' | 'landing' | 'formulario' | 'web' | 'oficina' | 'otro'
+  origen: 'referido' | 'landing' | 'formulario' | 'formulario_3' | 'web' | 'oficina' | 'otro'
   resultado?: 'convertido' | 'descartado'
   /** Mes del cierre; solo tiene sentido con `resultado`. */
   resultadoHaceMeses?: 0 | 1

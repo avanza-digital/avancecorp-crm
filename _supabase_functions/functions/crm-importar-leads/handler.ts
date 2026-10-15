@@ -100,6 +100,8 @@ const CANALES: Record<string, string> = {
   referido: "referido",
   landing: "landing",
   formulario: "formulario",
+  formulario_3: "formulario_3",
+  "formulario 3": "formulario_3",
   wallking: "oficina", // label comercial del catálogo del CRM
   walking: "oficina",
   oficina: "oficina",

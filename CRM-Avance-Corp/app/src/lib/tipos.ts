@@ -124,6 +124,7 @@ export const ORIGENES = [
   { k: 'referido', label: 'Referido' },
   { k: 'landing', label: 'LANDING' },
   { k: 'formulario', label: 'FORMULARIO' },
+  { k: 'formulario_3', label: 'Formulario 3' },
   { k: 'oficina', label: 'Walking' },
 ] as const
 
@@ -146,6 +147,11 @@ export const ORIGENES_LECTURA = [...ORIGENES_TODOS, ...ORIGENES_SOLO_LECTURA] as
 
 /** Origen tal como lo puede devolver el servidor; `Origen` es el subconjunto que el front escribe o filtra. */
 export type OrigenLectura = (typeof ORIGENES_LECTURA)[number]['k']
+
+/** Lectura compatible durante A→B; nunca infiere una campaña desde comentarios. */
+export function origenDeFila(origen: OrigenLectura, campania?: string | null): OrigenLectura {
+  return origen === 'formulario' && campania === 'Formulario 3' ? 'formulario_3' : origen
+}
 
 /** Alta manual: exige un canal concreto; los heredados solo se leen. */
 export function esOrigenAlta(valor: unknown): valor is (typeof ORIGENES)[number]['k'] {
@@ -615,6 +621,8 @@ export interface ColaLead {
   /** C1-bis: lo que escribió el cliente, ya REDACTADO por el servidor
    *  (correo/celular/documento ocultos) y trunco a 400. */
   comentario?: string | null
+  /** Ausente: servidor anterior; null: lead sin campaña registrada. Solo lectura. */
+  readonly campania_origen?: string | null
 }
 
 /** Movimiento de distribución sin datos de contacto del prospecto. */
@@ -664,6 +672,13 @@ export interface PanelDistribucionReparto {
 /** Los dos carriles que Rosa planifica en su agenda de reparto diaria. */
 export type OrigenAgendaReparto = 'landing' | 'formulario'
 
+/** El origen exacto se conserva; varios orígenes pueden compartir un turno. */
+export function turnoDeOrigen(origen: OrigenLectura): OrigenAgendaReparto | null {
+  if (origen === 'landing') return 'landing'
+  if (origen === 'formulario' || origen === 'formulario_3') return 'formulario'
+  return null
+}
+
 /** Supervisora habilitada de forma explícita para el turno Landing/Formulario. */
 export interface DestinoAgendaReparto {
   perfil_id: string
@@ -680,6 +695,15 @@ export interface EntregaAgendaReparto {
   coincide_turno: boolean
 }
 
+/** Subconjunto de las entregas reales, conservando el turno del origen. */
+export interface OrigenEntregasReparto {
+  origen: OrigenLectura
+  turno?: OrigenAgendaReparto | null | undefined
+  derivados: number
+  fuera_turno: number | null
+  entregas: EntregaAgendaReparto[]
+}
+
 /** Una fila de la agenda: el plan y su evidencia real, sin exponer leads. */
 export interface AsignacionAgendaReparto {
   origen: OrigenAgendaReparto
@@ -690,11 +714,15 @@ export interface AsignacionAgendaReparto {
   /** Compatibilidad durante el despliegue: la RPC anterior no enviaba estos dos campos. */
   fuera_turno?: number
   entregas?: EntregaAgendaReparto[]
+  /** Ausente significa desglose no disponible, no cero entregas. */
+  origenes?: OrigenEntregasReparto[]
 }
 
 export interface DiaAgendaReparto {
   fecha: string
   asignaciones: AsignacionAgendaReparto[]
+  /** Todas las entregas, incluso de orígenes sin turno. Ausente: RPC anterior. */
+  origenes?: OrigenEntregasReparto[]
 }
 
 /** Semana de turnos para Coordinación; solo fecha, origen, destino y conteos. */

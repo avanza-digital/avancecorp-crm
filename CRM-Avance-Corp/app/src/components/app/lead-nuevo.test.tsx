@@ -612,7 +612,7 @@ describe('LeadNuevo — orígenes del alta manual (2026-09-01)', () => {
     const opciones = [...screen.getByLabelText('Origen *').querySelectorAll('option')]
       .map((opcion) => opcion.value)
       .filter((valor) => valor !== '')
-    expect(opciones).toEqual(['referido', 'landing', 'formulario', 'oficina'])
+    expect(opciones).toEqual(['referido', 'landing', 'formulario', 'formulario_3', 'oficina'])
   })
 
   it('un supervisor ve LANDING y FORMULARIO, pero no Referido', () => {
@@ -620,7 +620,7 @@ describe('LeadNuevo — orígenes del alta manual (2026-09-01)', () => {
     const opciones = [...screen.getByLabelText('Origen *').querySelectorAll('option')]
       .map((opcion) => opcion.value)
       .filter((valor) => valor !== '')
-    expect(opciones).toEqual(['landing', 'formulario', 'oficina'])
+    expect(opciones).toEqual(['landing', 'formulario', 'formulario_3', 'oficina'])
   })
 
   it('gerencia ve LANDING y FORMULARIO, pero tampoco Referido', () => {
@@ -628,10 +628,10 @@ describe('LeadNuevo — orígenes del alta manual (2026-09-01)', () => {
     const opciones = [...screen.getByLabelText('Origen *').querySelectorAll('option')]
       .map((opcion) => opcion.value)
       .filter((valor) => valor !== '')
-    expect(opciones).toEqual(['landing', 'formulario', 'oficina'])
+    expect(opciones).toEqual(['landing', 'formulario', 'formulario_3', 'oficina'])
   })
 
-  it.each(['landing', 'formulario'] as const)(
+  it.each(['landing', 'formulario', 'formulario_3'] as const)(
     'envía el origen manual %s al crear el lead',
     async (origen) => {
       const user = userEvent.setup()

@@ -2408,7 +2408,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             ok: false,
             codigo: 'origen_invalido',
             campo: 'origen',
-            error: 'Selecciona un canal concreto: Landing, Formulario, Referido o Walking',
+            error: 'Selecciona un canal concreto: Landing, Formulario, Formulario 3, Referido o Walking',
           }
         }
         // En creación ambos campos son obligatorios incluso en runtime. El

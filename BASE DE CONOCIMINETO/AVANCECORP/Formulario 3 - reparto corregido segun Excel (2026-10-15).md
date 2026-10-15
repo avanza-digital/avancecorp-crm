@@ -7,7 +7,9 @@ actualizado: 2026-10-15
 
 ## Resultado vigente
 
-**Aplicado y verificado en producción el 15/10/2026, 11:18 Lima.** Se trasladaron **76 leads** al analista indicado en `Data Jorge.xlsx` y `Data Carmen.xlsx`: primer bloque de 72 y segundo bloque de 4 descartados. Un lead ya tenía el destino correcto: **77 coincidencias de Formulario 3 quedan alineadas con los Excel**.
+**Aplicado y verificado en producción el 15/10/2026, 11:18 Lima.** Se trasladaron **76 leads** al analista indicado en `Data Jorge.xlsx` y `Data Carmen.xlsx`: primer bloque de 72 y segundo bloque de 4 descartados. Un lead ya tenía el destino correcto: en esa comprobación inicial, las **77 coincidencias de Formulario 3 estaban alineadas con los Excel**.
+
+**Verificación vigente, 11:57 Lima:** 76 conservan al analista del Excel y 1 está en la bandeja de Carmen. Carmen devolvió a su bandeja el caso de `Data Carmen.xlsx`, DATA fila 14, después de la corrección; Miguel confirmó expresamente conservar ese movimiento posterior. Son **77/77 responsables correctos según los Excel y esta decisión posterior**, con supervisión correcta en los 77 casos y cero cambios de responsable entre los 39 ajenos a los Excel. No volver a trasladar el caso de Carmen a Lisseth usando únicamente el Excel.
 
 - **39 leads de Formulario 3 ausentes de los Excel:** sin cambios, por decisión expresa de Miguel.
 - **4 descartados:** responsable corregido sin reactivar; estado, motivo y fecha de descarte conservados. La restricción **No contactar** existente en uno permanece. Sus cuatro episodios cerrados no se modificaron ni se abrió ninguno nuevo.
@@ -42,6 +44,17 @@ El plan en [FigJam](https://www.figma.com/board/JB4jRdmLXZXS0hBhEHxRbV?node-id=2
 
 ## Pendiente separado
 
-La adaptación visual de Supervisores de Coordinación para identificar Formulario 3 sigue en preparación. No forma parte del traslado de datos ni está publicada. La migración `20261015145742_crm_coordinacion_campania_formulario3.sql` no se aplicó a producción.
+### Fechas originales y fecha de importación
+
+Auditoría de solo lectura del 15/10/2026, **11:59 Lima**: se cruzaron los 116 leads de Formulario 3 en producción con las 152 filas válidas de Google Sheets leídas por la ejecución n8n 154 (15/10, 08:50 Lima), usando nombre y teléfono. **116/116 coincidencias confirmadas, sin conflictos de fecha**. Una nota de lead ya no incluía la fecha original; se recuperó de su fila coincidente en la fuente, sin editar el CRM.
+
+- Los **77 identificados en los Excel** se registraron originalmente entre el **7 y el 13 de octubre**: 2 el día 7, 7 el 8, 5 el 9, 4 el 10, 19 el 11, 34 el 12 y 6 el 13.
+- Los **39 ausentes de los Excel no son todos registros del día 15**: **16** corresponden al **13/10**, **22** al **14/10** y **1** al **15/10**.
+- Los **116 fueron dados de alta en el CRM el 15/10**. Esa fecha corresponde a la importación y no sustituye la fecha original del formulario. No utilizar la ausencia en los Excel como indicador de que un lead se registró hoy.
+- Evidencia privada: `/private/tmp/formulario3-reorden-20261015/auditoria-fechas-origen-20261015.json`. No se modificaron leads ni automatizaciones durante esta comprobación.
+
+### Interfaz
+
+La adaptación de Coordinación evolucionó al pedido de un origen propio en todo el backend. No forma parte del traslado de datos ni está publicada. El borrador `20261015145742_crm_coordinacion_campania_formulario3.sql`, nunca aplicado, fue sustituido por las migraciones A/B de origen nativo. Estado vigente: [[Formulario 3 - origen nativo preparado (2026-10-15)]].
 
 Relacionado: [[Historial de derivaciones de Coordinacion]] · [[Leads - marca y filtro de reasignados (2026-09-28)]] · [[Formulario 3 - plan de integración en CRM y activación (2026-10-14)]].

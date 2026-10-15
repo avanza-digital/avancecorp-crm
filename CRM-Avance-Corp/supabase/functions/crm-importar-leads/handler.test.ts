@@ -90,6 +90,18 @@ Deno.test("HTTP: campaña llega a la misma RPC, compatibilidad y rechazo por fil
         );
       }
     });
+    await t.step("canal nuevo usa la misma puerta con origen propio", async () => {
+      for (const canal of ["FORMULARIO_3", "Formulario 3"]) {
+        llamadas.length = 0;
+        const respuesta = await enviar([{ ...fila, canal }]);
+        exigir(respuesta.status === 200 && llamadas.length === 1, "una sola RPC");
+        const payload = llamadas[0].cuerpo.p_fila as Record<string, unknown>;
+        exigir(payload.origen === "formulario_3" && payload.campania_origen === "Formulario 3", "origen propio y campaña coherentes");
+      }
+      llamadas.length = 0;
+      await enviar([{ ...fila, canal: "FORMULARIO_3", campania_origen: "Otra" }]);
+      exigir(llamadas.length === 0, "campaña incompatible no llega a la base");
+    });
     await t.step(
       "fila inválida no escribe ni bloquea otra válida",
       async () => {

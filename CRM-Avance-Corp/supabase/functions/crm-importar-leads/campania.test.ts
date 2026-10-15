@@ -48,3 +48,10 @@ Deno.test("campaña explícita inválida se rechaza, no se descarta", () => {
   }
   igual(interpretarCampania("Formulario 3", "landing").ok, false);
 });
+
+Deno.test("origen Formulario 3 completa su campaña y rechaza otra", () => {
+  for (const valor of [undefined, null, "Formulario 3", " FORMULARIO 3 "]) {
+    igual(interpretarCampania(valor, "formulario_3"), { ok: true, valor: "Formulario 3" });
+  }
+  igual(interpretarCampania("Otra campaña", "formulario_3").ok, false);
+});
