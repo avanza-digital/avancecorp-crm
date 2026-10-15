@@ -1,6 +1,6 @@
 # Plazo de carga por mes (migración 20261015000852)
 
-**Estado (15/10/2026, Lima): COMPLETO.** Migración aplicada, registrada y verificada (~10:40); front publicado con la tarjeta en Configuración (`f2b7d6af`, 12:28); Gerencia fijó septiembre al 21/10/2026 (primer intento en 2926 por error de tipeo, corregido con otra decisión) y el ciclo diario quedó reactivado (`reactivar-ciclo.sql`).
+**Estado (15/10/2026, Lima): COMPLETO.** Migración aplicada, registrada y verificada (~10:40); front publicado con la tarjeta en Configuración (`f2b7d6af`, 12:28); Gerencia fijó septiembre al 21/10/2026 (primer intento en 2926 por error de tipeo, corregido con otra decisión) y el ciclo diario quedó reactivado (`reactivar-ciclo.sql`). Desde `e25c8b8f` (#292, ~14:40) la tarjeta muestra siempre el año y pide confirmar un último día a más de 60 días.
 
 Gerencia decide hasta qué día se pueden cargar las ventas de un mes (sin tope; nunca antes del día 10 del mes
 siguiente; solo un mes con metas publicadas, porque el ciclo solo sella esos: revisión Codex r2) y, si ese mes ya está
