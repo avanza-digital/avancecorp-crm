@@ -3315,6 +3315,42 @@ export type Database = {
           },
         ]
       }
+      leads_eliminados: {
+        Row: {
+          copia: Json
+          eliminado_en: string
+          eliminado_por: string
+          filas: Json
+          id: string
+          lead_id: string
+          motivo: string
+          rol_actor: string
+          transaccion: unknown
+        }
+        Insert: {
+          copia: Json
+          eliminado_en?: string
+          eliminado_por: string
+          filas: Json
+          id?: string
+          lead_id: string
+          motivo: string
+          rol_actor: string
+          transaccion?: unknown
+        }
+        Update: {
+          copia?: Json
+          eliminado_en?: string
+          eliminado_por?: string
+          filas?: Json
+          id?: string
+          lead_id?: string
+          motivo?: string
+          rol_actor?: string
+          transaccion?: unknown
+        }
+        Relationships: []
+      }
       ledger_rentabilidad: {
         Row: {
           actor_id: string | null
@@ -6319,6 +6355,10 @@ export type Database = {
         Args: { p_fuente_id: string; p_motivo: string }
         Returns: Json
       }
+      eliminar_lead_error_carga: {
+        Args: { p_lead_id: string; p_motivo: string }
+        Returns: Json
+      }
       eliminar_usuario_fn: {
         Args: {
           p_nombre_confirmacion: string
@@ -6693,6 +6733,22 @@ export type Database = {
       levantar_no_contactar: {
         Args: { p_lead_id: string; p_motivo: string }
         Returns: Json
+      }
+      listar_leads_eliminados: {
+        Args: never
+        Returns: {
+          eliminado_en: string
+          eliminado_por: string
+          eliminado_por_nombre: string
+          filas: Json
+          id: string
+          lead_creado_en: string
+          lead_id: string
+          motivo: string
+          nombre: string
+          origen: string
+          rol_actor: string
+        }[]
       }
       listar_operaciones_facturacion_fn: {
         Args: {

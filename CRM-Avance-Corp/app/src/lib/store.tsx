@@ -513,6 +513,11 @@ export interface StoreDataApi {
   // Refresco explícito desde el servidor (tras un flujo async que NO pasa por el
   // camino optimista: p. ej. la conversión lead→cliente vía edge). En demo es no-op.
   recargar(): Promise<boolean>
+  /** «Eliminar lead (error de carga)»: el servidor YA borró el lead. Lo olvida
+   *  (con sus actividades y tareas locales), cierra su ficha y resincroniza
+   *  invalidando las listas, la cola del día y las métricas que lo contaban.
+   *  `recargar()` solo no basta: conserva los leads ya conocidos (Fase 4e). */
+  olvidarLeadEliminado(id: string): Promise<boolean>
 }
 
 export interface PanelesState {
@@ -3400,6 +3405,21 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
 
       // El flujo de conversión (edge) escribe server-side; aquí se trae la verdad.
       recargar: () => (realActivo ? resincronizarReal() : Promise.resolve(true)),
+
+      olvidarLeadEliminado: (id) => {
+        setDatos((d) => ({
+          ...d,
+          leads: d.leads.filter((l) => l.id !== id),
+          actividades: d.actividades.filter((a) => a.lead_id !== id),
+        }))
+        setTareas((ts) => ts.filter((t) => t.lead_id !== id))
+        // Cerrar también descarta toda resincronización en vuelo (cambia la
+        // apertura): una foto anterior al borrado no puede devolverlo al store.
+        if (contextoPanelRef.current.leadAbiertoId === id) cerrarPaneles()
+        return realActivo
+          ? resincronizarReal({ invalidarNucleosConversion: true, invalidarReuniones: true, invalidarAgenda: true })
+          : Promise.resolve(true)
+      },
     }
   }, [
     datos,
@@ -3413,6 +3433,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     equipo,
     auxiliares,
     resincronizarReal,
+    cerrarPaneles,
     cierresExternosDemo,
     anuladosAvanceDemo,
   ])

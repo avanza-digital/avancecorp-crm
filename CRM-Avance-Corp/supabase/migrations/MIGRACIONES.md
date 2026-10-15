@@ -1,3 +1,29 @@
+## 20261015044917 — Eliminar lead por error de carga
+
+**PROBADA EN BANCO DOCKER (esquema de producción, huella idéntica); OK DE MIGUEL 15/10; PENDIENTE DE APLICAR EN PRODUCCIÓN.**
+Vía oficial para que gerencia (rol CRM) o admin/superadmin (portal) borre un lead cargado por error con todo
+lo que cuelga de él: `crm.eliminar_lead_error_carga(p_lead_id, p_motivo)`. Antes de borrar guarda una copia
+completa e inmutable en `crm.leads_eliminados` (RLS sin políticas ni grants; gerencia la consulta con
+`crm.listar_leads_eliminados()`). Rechaza (P0409, con todas las razones) leads con contrato, perfil,
+inversionista, conversión o cierre, historia de inversión, tareas o llamadas enlazadas desde otro lead, de más
+de 30 días (confirmado por Miguel el 14/10) o con un mes cerrado desde su alta. Los 8 candados que custodian
+filas del lead ganan UNA excepción, solo para DELETE y solo si la fila está ya copiada, idéntica, en esta
+transacción, por este actor, y el permiso `crm.borrado_lead_error` nombra a ese lead
+(`private.borrado_lead_error_autoriza`); el resto de cada candado queda idéntico a producción (postflight por
+huella). Sin `DISABLE TRIGGER`. Fail-closed ante llaves foráneas nuevas (columnas de origen y destino y acción),
+padres bloqueados antes de copiar, cuadre de lo borrado contra lo copiado, READ COMMITTED obligatorio. No toca `public`.
+
+Banco `banco-elimlead-20261014` (127.0.0.1:55491; 1.049 funciones crm+private = producción): migración
+1049 → 1053 con pre/postflight en verde; `test-eliminar-lead.sql` 69/69 PASS (roles, 19 rechazos aislados,
+13 DELETE directos bloqueados, 8 copias trucadas, borrado completo por gerencia/admin/superadmin, lectura);
+mutantes de la llave 5/6 cazados (el 6.º, «hay sesión», es redundante con «mismo actor»); preflight se niega
+con un trigger `WHEN (false)`; carreras reales de dos conexiones (INSERT y UPDATE de una fila hija) resueltas;
+reversa → huella exacta de producción, y se niega si un candado cambió después. Front: `npm run check` PASS,
+e2e Docker 415 PASS / 26 skipped. `test-rls.mjs`: bloque `testEliminarLeadErrorCarga` (preflight PASS; NOT RUN
+contra base: el banco no tiene PostgREST). Review: Codex r1 y r2 (CHANGES_REQUESTED, sin P0; todo aceptado y
+corregido) y auditor-rls (CHANGES_REQUESTED, sin P0/P1; aceptado). Evidencia en `../scripts/eliminar-lead-error-carga/`.
+Reversa: `../scripts/eliminar-lead-error-carga/reversa.sql` (conserva las copias si existen).
+
 ## 20261014215453 — Campaña de origen en cartera y filtro, fase 2
 
 **APLICADA Y VERIFICADA EN PRODUCCIÓN (15/10/2026 UTC; 14/10 en Lima).** Versión

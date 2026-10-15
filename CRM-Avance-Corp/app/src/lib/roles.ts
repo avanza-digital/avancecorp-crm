@@ -207,6 +207,15 @@ export function puedeEliminarInversiones(identidad: IdentidadAdministrativa | nu
 }
 
 /**
+ * «Eliminar lead (error de carga)» (14/10/2026): el mismo par que «Eliminar inversión»
+ * —Gerencia del CRM o Admin/Superadmin del Portal—. Espejo del gate de
+ * `crm.eliminar_lead_error_carga`; si el lead se puede borrar lo decide el servidor.
+ */
+export function puedeEliminarLeadErrorCarga(identidad: IdentidadAdministrativa | null | undefined): boolean {
+  return puedeEliminarInversiones(identidad)
+}
+
+/**
  * Por inversión: la de Avance la borra el contrato auditado, que solo admite
  * Admin/Superadmin del Portal; las de cooperativa, quien elimina inversiones.
  * La conversión de un lead (solo Gerencia) no se adivina aquí: la decide el servidor.
