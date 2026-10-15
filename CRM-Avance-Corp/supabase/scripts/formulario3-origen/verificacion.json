@@ -1,0 +1,90 @@
+{
+  "fecha": "2026-10-15",
+  "estado": "VALIDADO_SIN_PUBLICAR",
+  "pr": "https://github.com/avanza-digital/avancecorp-crm/pull/294",
+  "producto_commit": "77e5eb09",
+  "integracion_main_codigo": "2e736c3a",
+  "main_integrado": "b07fa88c",
+  "head_verificado": "1be2e32864f72a14c43be73f03e99b7a2c6ccea2",
+  "frontend": {
+    "estado": "PASS",
+    "archivos_unitarios": 429,
+    "pruebas_unitarias": 6915,
+    "cobertura": {
+      "statements": 81.56,
+      "branches": 78.09,
+      "functions": 78.6,
+      "lines": 84.5
+    },
+    "lint": "PASS",
+    "typecheck": "PASS",
+    "build": "PASS",
+    "bundle": "PASS",
+    "release_config": "PASS",
+    "duplicacion_lineas_porcentaje": 0.42
+  },
+  "e2e_docker": {
+    "estado": "PASS_CON_INTERMITENCIA",
+    "exit_code": 0,
+    "passed": 419,
+    "skipped": 26,
+    "flaky": 1,
+    "total": 446,
+    "duracion_minutos": 16.2,
+    "intermitente": "gestion-diaria-pulso.spec.ts:385, foco al volver a la operación, assertion línea 459",
+    "repeticion_sin_retries": {
+      "passed": 3,
+      "failed": 0,
+      "duracion_segundos": 12
+    },
+    "suites_focalizadas_previas": {
+      "repartir": 34,
+      "integracion": 10
+    }
+  },
+  "backend": {
+    "scripts_y_preflights": "PASS",
+    "sql_local": "PASS",
+    "contratos_tipos_cotejados": 9,
+    "cloud": "PASS; ver cloud-verificacion.json",
+    "http_cloud_sin_setup": 111,
+    "rls_general_seed_demo": "NOT RUN: requiere población exclusiva; se ejecutó matriz focalizada Auth/HTTP en la copia autorizada"
+  },
+  "revisiones": {
+    "claude": 2,
+    "evaluacion": "REVISION.md",
+    "agentes_propios": "consistencia, Coordinación y harness cloud; solo lectura"
+  },
+  "n8n": {
+    "id": "BjI5m1PKVWhO0NDb",
+    "active": true,
+    "versionId": "e2f62a7e-7675-414d-a7b0-b617e2528c72",
+    "activeVersionId": "e2f62a7e-7675-414d-a7b0-b617e2528c72",
+    "modificado_en_esta_validacion": false
+  },
+  "produccion": {
+    "migracion_A": "NO APLICADA",
+    "migracion_B": "NO APLICADA",
+    "frontend": "NO PUBLICADO",
+    "edge": "NO PUBLICADA",
+    "gate": "Invocación humana $release-crm o /release-crm según CLAUDE.md"
+  },
+  "evidencia_local_sha256": {
+    "check-integrado-final.log": "8742f084859a5f84616c9f62f6661d38dd3ec1f897c09e766fca8e86886fccb1",
+    "backend-check-2.log": "76d7b4d90ebff015d9018a2284c028d7856cbef2b1df9bf2973479a927270a7b",
+    "edge-preflight.log": "10ee0339172e0dd29e5adf77bb9988601d39c95c83915a2567e29c8cb261bd6f",
+    "sql-matriz-b-final.log": "5a6af42a4812bb260a3e7b8df00372af7d71c759a5172225daf9d2e84d73d04c",
+    "sql-convertidos.log": "30be8e483a87c845ef5b0c2c183da1e48fa5db9641986b0c900790f4d657f6d5",
+    "sql-rechazos-revision.log": "0032ffc3e1cd88ed05a3a881008787b45d8ef0b8090b68be7a3b25a48558983d",
+    "sql-bloqueos-financieros.log": "2f9a451c84243fb280feeb34565ab615ef7d96871cb9888f54210cd3453aea5f",
+    "sql-concurrencia-revision.log": "8ba80c33b93a387269c1c7ec812bc9b4d6219a5c733e46fc2fef26aa1e1164c0",
+    "e2e-repartir-final.log": "0e1b354b532f434a257a68a284281da6776dd452b8688cad3466db018b32a5ab",
+    "e2e-integracion-origen.log": "f5447cf63c4ad3cf33cbcb3fd58273f535a7db4e9ad0bfa83492e405d3daec69",
+    "e2e-completo.log": "8d3f604a55640747f046aba7042fa6fed543b9dd52d7170be81733a76c1d9143",
+    "push.log": "5e22d1abb39f83b4e8ec18e93a7c6129582c0a5b2be5073590b1f5a780339916"
+  },
+  "migraciones_sha256": {
+    "20261015171407_crm_formulario3_origen_compatibilidad.sql": "db38ce97c3f13dc8903c772468d03517b7a395229344a536fdc1068875ffeddc",
+    "20261015173031_crm_formulario3_origen_activacion.sql": "0fe7acab9c8bd3cfeac1325a21cae7b3678eb400f2811bde7a4acb2a2c4bf317"
+  }
+}

@@ -65,6 +65,13 @@ se usó la matriz HTTP focalizada. Sus 12 cron quedaron desactivados y la rama
 Pendiente: publicación con preflight vigente e invocación humana de release.
 No afirmar que el origen productivo ya es nativo.
 
+Preparación revisable: [PR #294](https://github.com/avanza-digital/avancecorp-crm/pull/294).
+Frontend: 6.915 unitarias y gate completo PASS. Docker general: 419 passed,
+26 skipped y 1 flaky de foco en Gestión diaria; pasó al reintentar y en tres
+repeticiones adicionales sin retries. n8n se volvió a comprobar activo, con la
+misma versión publicada, sin modificarlo. Figma registra el ensayo terminado,
+la rama eliminada y la publicación pendiente.
+
 Figma: [plan de Formulario 3](https://www.figma.com/board/JB4jRdmLXZXS0hBhEHxRbV?node-id=2-34).
 Relacionado: [[Formulario 3 - fase 6 carga y activación (2026-10-15)]] ·
 [[Formulario 3 - plan de integración en CRM y activación (2026-10-14)]].

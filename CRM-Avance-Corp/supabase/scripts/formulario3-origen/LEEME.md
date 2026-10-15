@@ -37,6 +37,15 @@ candados y con igualdad íntegra de las demás columnas. No se recalcula una ven
 
 ## Ensayos locales
 
+Cierre de interfaz: `npm run check` PASS (429 archivos, 6.915 pruebas; lint,
+tipos, cobertura, build y gates de bundle). E2E completo en Docker: **419 passed,
+26 skipped, 1 flaky**, exit 0. La prueba de foco de Gestión diaria pasó al
+reintentarse y en otras **3 repeticiones sin retries** (12 s); se conserva la
+incidencia, no se afirma que la primera ejecución fuera totalmente limpia.
+Las suites focalizadas anteriores aprobaron 34 casos de Repartir y 10 de
+Cartera/Coordinación/Gerencia. El hook pre-push repitió las 6.915 unitarias: PASS.
+Véase `verificacion.json` para alcance, huellas de logs y límites.
+
 Requieren Docker `avancecorp-coordinacion-pg-actual` y una copia exclusiva
 `origen_f3_*` con esquema vigente, sin datos de clientes. Nunca admiten una URL
 remota. El preflight de A exige las huellas de las 22 funciones y los CHECKs
