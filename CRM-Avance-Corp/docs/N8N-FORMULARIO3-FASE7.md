@@ -1,6 +1,6 @@
 # Formulario 3 — fase 7: celda rara, clientes sin registrar y resumen diario
 
-15/10/2026. Estado: **código, pruebas y banco listos; sin publicar en el importador**. Miguel autorizó publicar en n8n; se publica desde el commit fusionado en `main`.
+15/10/2026. Estado: **PUBLICADA Y VERIFICADA en producción** (19:02 Lima), desde `2ed57674` (PR #300 fusionada en `main`). Miguel autorizó publicar en n8n.
 
 ## Qué cambia
 
@@ -36,16 +36,23 @@
   - Correo `[PRUEBA F7]` enviado: «Revisar filas de la hoja: 3 (rechazada), 4 (cliente sin registrar). Pendientes para reintentar: 5.», sin el sufijo `[line N]`.
   - Las dos copias se despublicaron enseguida: no hubo más ejecuciones.
 - Pre-push: app 429 archivos / 6.915 tests PASS. `npm run check:scripts` PASS.
-- **NOT RUN:** publicación de los tres flujos de producción; primer correo programado de las 19:00.
+- **NOT RUN:** primer correo programado del resumen (16/10, 19:00 Lima; hoy ya había pasado la hora al publicar).
 
-## Publicación (pendiente)
+## Publicación (hecha el 15/10, 18:58–19:05 Lima)
 
-1. Publicar el aviso compatible (`4jfthNhVJLiZUeIo`, `prepararAlerta` nuevo) y comprobarlo.
-2. Comprobar que no hay ninguna vuelta en curso, despublicar el importador `BjI5m1PKVWhO0NDb` y volver a comprobarlo.
-3. Aplicar `operacionesFase7(actual)` y volver a leer el flujo.
-4. Pasar `verificarFase7(actual)`, publicar y pasar `verificarFase7(actual, TABLA_LATIDO, { publicado: true })`.
-5. Publicar el resumen `Chn5g93IgxNlkF3K`.
-6. Observar: el latido se mueve cada 5 minutos, 0 errores y los 152 recibos siguen intactos.
-7. Archivar el banco (`IbHjfwXuPbxeKNrt`, `bq7R13pHeI7g1Q58`) y vaciar sus tablas de prueba.
+1. **Aviso** `4jfthNhVJLiZUeIo`: `prepararAlerta` nuevo, publicado como versión activa `505bcd5e`.
+2. **Importador** `BjI5m1PKVWhO0NDb`:
+   - Sin ninguna vuelta en curso, ni antes ni después de despublicar.
+   - `operacionesFase7` aceptó la fase 6 exacta (`e2f62a7e`).
+   - La primera comprobación detectó que el envío había convertido el texto `̀-ͯ` de `normalizarRespuesta` en caracteres. Era equivalente, pero no idéntico. Se reenvió escribiendo `\u0300` y el código quedó igual al del repo.
+   - `verificarFase7` PASS como borrador. Publicado como versión `b6c88f1b`; `verificarFase7(..., { publicado: true })` PASS.
+3. **Resumen** `Chn5g93IgxNlkF3K`: publicado como versión `452ba77d`.
+4. **Primera vuelta real** (00:05 UTC):
+   - latido `leido_en` 19:05:12 Lima, `filas_leidas` 152;
+   - 0 ejecuciones con error;
+   - 152 recibos intactos (la hoja no tenía filas nuevas).
+5. **Banco archivado** (`IbHjfwXuPbxeKNrt`, `bq7R13pHeI7g1Q58`). Sus tablas de prueba (`5Ls25BfGtRY9fovr`, `YKjmAhMrzJc6qxGg`, `L8xIasab8hOzYxc5`) quedan con datos ficticios: el MCP no permite borrar tablas.
 
 **Volver atrás:** `restore_workflow_version` a `e2f62a7e`, publicar y pasar `verificarFase6`. Despublicar el resumen. Los leads y los recibos no se tocan.
+
+**Cambios futuros del importador:** se parte de `cargarDefinicionOperativaF7()` y se verifican con `verificarFase7`; la fase 6 queda como base histórica.
