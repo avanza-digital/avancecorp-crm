@@ -1,6 +1,7 @@
 # Coordinación: consulta y corrección de categoría
 
-Estado: **backend aplicado y verificado en producción; frontend pendiente de publicar por `$release-crm`**.
+Estado: **backend y frontend publicados y verificados el 15/10/2026**.
+[Acta de publicación y artefacto](../../../docs/COORDINACION-CARTERA-CATEGORIA-PUBLICADA.md).
 Validación remota y promoción: [VERIFICACION-CLOUD.md](VERIFICACION-CLOUD.md).
 Pedido de Miguel del 15/10/2026: Coordinadora ve Leads y la cartera completa de clientes;
 Admin/Superadmin, Gerencia y Coordinadora corrigen Nuevo / Renovación / Upgrade porque

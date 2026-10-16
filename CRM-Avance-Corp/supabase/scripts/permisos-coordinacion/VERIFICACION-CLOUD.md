@@ -2,7 +2,7 @@
 
 15/10/2026, 18:58 Lima. Miguel autorizó explícitamente validar y aplicar las tres
 migraciones en PortalAvanceCorp, crear una rama temporal de pago y eliminarla al terminar.
-El frontend se publica por `$release-crm`; su artefacto y smoke se registran por separado.
+El frontend se publicó por `$release-crm`; [artefacto y smoke verificados](../../../docs/COORDINACION-CARTERA-CATEGORIA-PUBLICADA.md).
 
 ## Rama y pruebas
 
