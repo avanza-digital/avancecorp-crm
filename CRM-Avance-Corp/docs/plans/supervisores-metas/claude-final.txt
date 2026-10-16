@@ -1,0 +1,105 @@
+VERDICT: CHANGES_REQUESTED
+
+SUMMARY:
+The SQL change is correct and narrowly scoped. Three things hold up:
+
+- **Global readers unchanged.** The global branch is untouched, and the parity test covers it byte for byte.
+- **Supervisor sees only their own row.** In open months the UUID filter is applied before any join, so a supervisor's `fuera_ranking` contains only their own row. Closed months filter the frozen photo by `persona_id`, `rol_crm` and `motivo`, without recomputing or writing anything.
+- **No cross-team exposure found.** I found no way for a supervisor to see another supervisor's or another team's data in the attached code.
+
+The frontend adapter adds own sales once to the team and once to the company, and keeps the analysts' conversion target. Two findings need changes or evidence before promotion:
+
+- **(P2-1)** From October, the frontend moves supervisor rows out of `fueraRanking` into a new optional `supervisores` field. Because the field is optional, the compiler cannot catch a consumer that still reads only `fueraRanking`.
+- **(P2-2)** Management's per-supervisor team views may not include the supervisor's own sales, while the supervisor's own view does.
+
+The remaining items are P3 or explicit scope limits.
+
+FINDINGS:
+
+[P2-1] Optional `supervisores` hides consumers that silently lose October supervisor production
+File: CRM-Avance-Corp/app/src/lib/objetivos.ts
+Lines: 494-495 (interface), 761-762 (return)
+Problem: From October, `cumplimientoDesdeRpc` removes supervisor rows from `fueraRanking`:
+- `fueraRanking: fueraRanking.filter((fila) => !supervisores.includes(fila))`
+- `supervisores` is declared optional: `supervisores?: ProduccionFueraRanking[]`
+Evidence:
+- `produccionPorPersona` (668) was updated to merge both arrays.
+- `gerencia.tsx:754` and `equipo.tsx:840` were updated to pass `supervisores`.
+- `RankingVendedoresPanel` defaults `supervisores = []` (679).
+- Any other consumer of `CumplimientoMetasJerarquico.fueraRanking` will now type-check and silently drop October supervisor production. Examples: Directorio or Coordinación screens, "Por empresa" totals, exports, or another `RankingVendedoresPanel` call site that passes only `fueraRanking`.
+- No inventory of call sites was attached. CodeGraph failed, and the diff touches only two screens.
+Impact: A screen not shown here could lose supervisor production from October onward without any type error. That would be a totals regression for global readers, whose RPC JSON is byte-identical but whose presentation is not.
+Recommendation:
+1. Make `supervisores` required in `CumplimientoMetasJerarquico`, so the compiler lists every construction and consumer site.
+2. Attach a grep of `fueraRanking`, `RankingVendedoresPanel` and `cumplimientoDesdeRpc` call sites showing each one handles `supervisores`.
+3. Alternative: keep `fueraRanking` complete and partition only at presentation, inside `RankingVendedoresPanel`.
+
+[P2-2] Management's per-team view may not count the supervisor's own sales (hypothesis — evidence missing)
+File: CRM-Avance-Corp/app/src/lib/objetivos.ts L740-758; per-team aggregation in Gerencia (not attached; JEV pointed to `app/src/screens/hoy/datos-supervisor.ts:164-183`)
+Problem: Own sales are added to a team only through `supervisor`, which is computed only for `actorId`. Management sees one block per supervisor (e2e `equipo.spec.ts:195`). If that block aggregates `porVendedor` by `supervisorId`, it excludes the supervisor's own sales.
+Evidence:
+- `equipoConVentas` is built only from `propias[actorId]`.
+- No change to `datos-supervisor.ts` or to Management's per-team aggregation appears in the diff.
+Impact: The same team would show different progress in the supervisor's view and in Management's view. That contradicts the requirement that own sales count toward the team target.
+Recommendation:
+1. Confirm with code how Management's per-team progress is computed.
+2. If it aggregates by `supervisorId`, extract a shared helper that returns team plus own sale from `supervisores`, and use it in both views.
+3. Add a unit test that compares the supervisor's view against Management's block for the same supervisor.
+
+[P3-1] The September e2e assertion may pass for a reason other than the one stated (hypothesis)
+File: CRM-Avance-Corp/app/e2e/equipo.spec.ts (new test, last lines)
+Problem: The mock always returns `cumplimientoMetas` with `periodo: '2026-10-01'`. After `selectorMes.fill('2026-09')`, the panel disappears. The comment attributes this to "el corte del adaptador". However, that cutoff uses `respuesta.periodo`, which the mock still returns as October.
+Evidence: The cutoff is `respuesta.periodo >= VENTAS_SUPERVISORES_DESDE` (objetivos.ts:725). The mock does not vary the period (unless `montarBackendReal` remaps it, which was not attached).
+Impact: The test may be checking a stale-response or loading guard rather than the October cutoff. The cutoff itself is covered by the unit test at `objetivos.test.ts:253`, so the risk is a misleading comment, not a missing check.
+Recommendation: Make the mock return `periodo` according to the requested month, or correct the comment.
+
+[P3-2] Every supervisor read from October now runs the company-wide kernels
+File: 20261016180000_crm_supervisores_ventas_equipo.sql
+Lines: 62-87
+Problem: Before this change, the `conv`, `nombrados`, `prod` and `car` CTEs (each materialized over the full universe) ran only for global readers. Now every supervisor call from October in an open month also runs them, and then the result is reduced to one UUID.
+Evidence: The `elsif v_global or v_propia_visible` branch evaluates the kernels before the `personas` filter.
+Impact: Latency regression on Gestión de equipo and Hoy for supervisors. There is no data exposure. Not measured.
+Recommendation: Before promotion, run `EXPLAIN (ANALYZE, BUFFERS)` as a supervisor on a dataset of production size. If it is costly, consider filtering within the kernels where their signatures allow it.
+
+[P3-3] Unrequested default title change
+File: ranking-vendedores.tsx
+Lines: 686-689
+Problem: The default `titulo` changes from 'Ranking general de analistas' to 'Ranking comercial'. This affects every call site that does not pass `titulo`, and it was not part of the stated scope.
+Recommendation: Justify the change or revert it. If it stays, confirm that no accessible-name selectors in other specs depend on the old title.
+
+[P3-4] Missing snapshot row would null the whole response (pre-existing, not a regression)
+File: 20261016180000_crm_supervisores_ventas_equipo.sql
+Lines: 50-53, 220
+Problem: If `v_cerrado` is true but no `periodos_cerrados` row exists, the global branch gets `v_fuera_ranking = NULL`. Since `jsonb_set(..., NULL)` returns NULL, the whole response would be NULL. The supervisor branch is safe, because the aggregation collapses to `'[]'`.
+Note: The global branch is identical to before and `v_cerrado` comes from the same table, so this is pre-existing. Optionally wrap with `coalesce(v_fuera_ranking, '[]')` only if the reverse migration can also accept it.
+
+EXPLICIT SCOPE LIMITS (not regressions):
+- **Supervisor with an analyst target in October.** They fall into `dentro`, are excluded from `fuera_ranking`, and would be ranked as an analyst without adding to their own team. This is documented, and no current case exists in production. A unit test documenting this would be useful.
+- **Closed months use the role in the photo.** A person who was not a supervisor at closing does not see rows, even if they are a supervisor today. This is consistent with "manda la foto".
+- **No individual supervisor target.** This is correct per the user's decision.
+
+TEST GAPS:
+- Equality between the supervisor's view of their team and Management's per-team block for the same supervisor (see P2-2).
+- Compiler- or grep-based inventory of `fueraRanking` consumers from October (see P2-1).
+- An e2e for the closed-October supervisor view (photo plus team) in the frontend. Today the frozen-photo case is covered only in SQL.
+- Supervisor with an analyst target in an open month, verifying no double count in Management.
+
+SECURITY RISKS:
+- None found.
+- The open-month filter `p.persona_id = v_uid` is applied before joins.
+- The closed-month filter uses uuid text comparison, consistent with `jsonb_build_object` on a uuid.
+- Authorization is still gated by `private.rol_crm`, which requires an active profile and active team membership. Revocation by inactive profile, CRM removal and role downgrade is verified in SQL.
+- ACL, `SECURITY DEFINER` and `search_path` are verified unchanged.
+
+REGRESSION RISKS:
+- Consumers of `fueraRanking` not updated (P2-1).
+- For a supervisor actor, `gerencia` in the adapter now includes their own row. Previously the RPC sent them `'[]'`. If any supervisor screen shows `gerencia` as a total, it will change (hypothesis; probably correct).
+- Older clients receive one extra row in `fuera_ranking` that is valid under the strict schema. They display it as "Producción fuera del ranking" without adding it to the team. This is compatible, and documented as such.
+
+RECOMMENDED NEXT ACTIONS:
+1. Make `supervisores` required (or partition only in presentation) and attach the inventory of `fueraRanking` and `RankingVendedoresPanel` consumers.
+2. Verify, or unify with a shared helper, the per-supervisor team calculation in Management so it includes own sales; add a parity test.
+3. Measure the cost of the kernels for supervisors and fix the September e2e mock or its comment. Justify or revert the default title change.
+
+CONFIDENCE:
+MEDIUM. HIGH on the SQL, given the attached tests. MEDIUM on the frontend, because the consumers of `fueraRanking` and Management's per-team aggregation were not attached.

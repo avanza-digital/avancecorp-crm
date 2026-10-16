@@ -9,6 +9,13 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 
+// Ventas propias de supervisores: rama cloud sintética con Auth/PostgREST reales.
+if (process.argv.length === 4 && process.argv[2] === '--supervisores-metas') {
+  const { ejecutar } = await import('./supervisores-metas/http-cloud.mjs');
+  await ejecutar(process.argv[3]);
+  process.exit(0);
+}
+
 // Sesiones Auth reales en la rama exclusiva autorizada para Coordinación.
 if (process.argv.length === 3 && process.argv[2] === '--permisos-coordinacion') {
   const { ejecutar } = await import('./permisos-coordinacion/http-cloud.mjs');

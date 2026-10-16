@@ -751,6 +751,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
           equipo={datosEquipoConversion}
           metasVendedores={metasVendedoresRanking}
           cumplimientoVendedores={cumplimientoRanking?.porVendedor ?? {}}
+          supervisores={cumplimientoRanking?.supervisores ?? []}
           fueraRanking={cumplimientoRanking?.fueraRanking ?? []}
           metaMensual={metaMensualRanking}
           // El mes vivo sigue el roster activo; solo un mes histórico congela
