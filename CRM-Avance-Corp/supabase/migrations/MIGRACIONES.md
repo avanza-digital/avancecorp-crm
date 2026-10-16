@@ -1,6 +1,6 @@
 ## 20261016190408 — SLA: «próximo cambio» en el mismo paso
 
-**APLICADA EN PRODUCCIÓN el 16/10/2026** (~15:35 Lima), con `db query --linked --file` lanzado por Miguel desde `afc0fda7`
+**APLICADA EN PRODUCCIÓN el 16/10/2026** (entre 15:24 y 15:27 Lima), con `db query --linked --file` lanzado por Miguel desde `afc0fda7`
 (PR #311), entre dos `verificar.sql`; fila del índice registrada a mano. [Acta de publicación](../../docs/plans/sla-proximo-cambio/PUBLICACION.md).
 Decisión de Miguel, 16/10/2026: hacer la mejora corta por el disco.
 `private.sla_operacion_autorizada(uuid[],boolean)` calcula `proximo_cambio_en` con `min()` en el mismo `SELECT` que arma

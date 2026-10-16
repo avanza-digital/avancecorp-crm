@@ -1,6 +1,7 @@
 # Publicación: SLA, «próximo cambio» en el mismo paso
 
-**APLICADA Y VERIFICADA EN PRODUCCIÓN el 16/10/2026**, alrededor de las 15:35 Lima (20:35 UTC).
+**APLICADA Y VERIFICADA EN PRODUCCIÓN el 16/10/2026**, entre las 15:24:37 y las 15:27:05 Lima (20:24–20:27 UTC; horas de
+las dos verificaciones en `postgres_logs`).
 
 Solo cambia la base de datos: `private.sla_operacion_autorizada(uuid[],boolean)` calcula `proximo_cambio_en` con `min()` en el
 mismo `SELECT` que arma la ventana, en vez de recorrer otra vez todo el JSON. El resultado es el mismo. Con muchas consultas a la
