@@ -41,3 +41,9 @@ La evidencia de la sesión propietaria acredita 93 comprobaciones SQL y 61 punto
 Main avanzó a `2ed57674` por PR300 (n8n). La aplicación frontend y sus manifests de dependencias son idénticos a `81480ebb`: se reutilizan los 6.966 tests y los 44 E2E focalizados. Se preparó y verificó otro candidato desde Main limpio: `crm-20261015T235722Z-2ed57674b37e.zip`, SHA-256 `33517502c56bc4ebd2529ba232529f46cebfe26eefe7b7e2a93915f302f9d832`. Este paquete preparado todavía NO acredita publicación; el artefacto publicado se registrará tras comprobar los archivos servidos.
 
 Figma actualizado en el mismo tablero `JB4jRdmLXZXS0hBhEHxRbV`, sección `52:34`, con backend aplicado y publicación de pantalla en curso.
+
+## Visibilidad del avance en Figma
+
+Miguel indicó que no veía los cambios: la actualización reciente estaba en el pie pequeño de la planilla. Se añadió el resumen grande «Qué está listo y qué falta» encima del plan principal, sección `75:126`, y se actualizaron 18 textos del plan `2:34`. Se distinguen integración activa, origen nativo, planilla publicada y tope de cantidades todavía pendiente. Los avisos antiguos de programación apagada en fases 4/5 se contextualizaron como hitos previos a la activación de fase 6. Se agregó un enlace desde el plan hacia la planilla `52:34`. Capturas de ambas secciones verificadas visualmente, sin recortes ni superposiciones.
+
+Entrada directa al estado actual: https://www.figma.com/board/JB4jRdmLXZXS0hBhEHxRbV?node-id=75-126. No se cambió la interfaz del CRM ni se marcó como publicada la mejora pendiente.
