@@ -1,6 +1,6 @@
 # Coordinación: cartera, Leads y corrección de categoría publicados
 
-**Publicado y verificado el 15/10/2026, 19:28 Lima**, mediante `$release-crm` y el
+**Publicado el 15/10/2026 a las 19:28 Lima y verificado por HTTP a las 19:29**, mediante `$release-crm` y el
 conector oficial de Hostinger, destino [crm.miavance.com](https://crm.miavance.com).
 El backend se había promovido a las 18:58 Lima tras la autorización explícita de Miguel.
 
