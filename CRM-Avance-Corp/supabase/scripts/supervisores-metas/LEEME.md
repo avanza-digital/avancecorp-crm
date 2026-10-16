@@ -1,7 +1,9 @@
 # Ensayo de ventas propias de supervisores
 
 Migración: `20261016162937_crm_supervisores_ventas_equipo.sql`.
-Estado: probada localmente y en la rama cloud autorizada, pendiente de promoción.
+Estado: probada localmente y en la rama cloud autorizada; promovida a producción
+el 16/10/2026, frontend publicado y rama eliminada.
+[Acta productiva](../../../docs/plans/supervisores-metas/PUBLICACION.md).
 
 ## Banco y ejecución
 
