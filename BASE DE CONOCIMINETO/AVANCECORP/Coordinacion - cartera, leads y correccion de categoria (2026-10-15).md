@@ -1,6 +1,6 @@
 ---
 fecha: 2026-10-15
-estado: backend aplicado; frontend pendiente de publicar
+estado: publicado y verificado
 tags: [crm, coordinacion, permisos, conversion, ranking]
 ---
 
@@ -26,7 +26,11 @@ el 15/10 a las 18:58 Lima, tras autorización explícita. 93 SQL + 61 Auth/Postg
 nuevos y dos INFO esperados de la auditoría privada. Gate de realidad PASS (dos divergencias
 preexistentes); matriz general seed-demo NOT RUN, matriz focalizada PASS.
 Frontend sobre Main con #299: 6.966 tests y Docker completo 427 PASS / 26 omitidos / 0 fallos.
-Pendiente únicamente construir y publicar el artefacto verificado.
+Publicado a las 19:28 Lima en https://crm.miavance.com. Fuente `d1796dd4`, build
+`build-20261016T002734754Z`; ZIP `crm-20261016T002735Z-d1796dd4cf8c.zip`. Smoke 126 archivos
+idénticos, incluidos los 123 JS/CSS. Coordinación comprobada en Chrome: Leads, 664 clientes
+sin filtros y formulario de categoría en contrato Avance; cancelado sin modificar datos.
+Acta exacta: `CRM-Avance-Corp/docs/COORDINACION-CARTERA-CATEGORIA-PUBLICADA.md`.
 Detalle en `VERIFICACION-CLOUD.md`.
 
 Relacionadas: [[Categorización de inversiones - Nuevo Renovación Upgrade]],
