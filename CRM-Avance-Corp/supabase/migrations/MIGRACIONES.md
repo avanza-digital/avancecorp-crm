@@ -1,6 +1,8 @@
 ## 20261016190408 — SLA: «próximo cambio» en el mismo paso
 
-**VALIDADA EN BANCO; NO APLICADA EN PRODUCCIÓN.** Decisión de Miguel, 16/10/2026: hacer la mejora corta por el disco.
+**APLICADA EN PRODUCCIÓN el 16/10/2026** (~15:35 Lima), con `db query --linked --file` lanzado por Miguel desde `afc0fda7`
+(PR #311), entre dos `verificar.sql`; fila del índice registrada a mano. [Acta de publicación](../../docs/plans/sla-proximo-cambio/PUBLICACION.md).
+Decisión de Miguel, 16/10/2026: hacer la mejora corta por el disco.
 `private.sla_operacion_autorizada(uuid[],boolean)` calcula `proximo_cambio_en` con `min()` en el mismo `SELECT` que arma
 `v_filas`; deja de recorrer otra vez todo el JSON con `jsonb_array_elements`.
 - Mismo `jsonb` y mismos errores para todo lo que devuelve el productor: 2.403 comparaciones, más 43 de un verificador independiente
