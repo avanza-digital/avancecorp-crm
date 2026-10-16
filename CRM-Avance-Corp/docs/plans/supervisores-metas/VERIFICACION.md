@@ -2,7 +2,9 @@
 
 16/10/2026. PRIMARY: Codex. Copia aislada autorizada desde main `65764411`.
 Miguel autorizó la publicación y la rama temporal de pago, con eliminación al
-terminar. Validación cloud completa; promoción y publicación aún pendientes.
+terminar. Validación, promoción y publicación completas; rama temporal eliminada.
+Fuente publicada: `3a0fa7075296149fa45c646cbb48beca3fbdbe41`.
+Ver [acta productiva](PUBLICACION.md).
 
 | Gate | Resultado | Evidencia y límite |
 | --- | --- | --- |
@@ -17,7 +19,9 @@ terminar. Validación cloud completa; promoción y publicación aún pendientes.
 | SQL cloud | PASS | Las mismas 59 aserciones y rollback sobre las 1.110 funciones actuales de producción. `sql-cloud.log`. |
 | Auth/PostgREST cloud | PASS | 37 comprobaciones, 10 identidades y sesiones Auth reales, 27 respuestas antes y después; `http-cloud.log`. |
 | Advisors cloud | PASS | Sin hallazgos nuevos. Seguridad 382 → 380; rendimiento 336 → 334. La deuda anterior queda fuera de alcance. |
-| Merge Supabase / frontend productivo | NOT RUN | Pendientes de promoción del candidato verificado. |
+| Merge Supabase | PASS | Solo la migración prevista; 1.110 funciones iguales al banco, 23 Edge Functions sin cambios, 14 lecturas productivas y huellas de negocio antes/después iguales. |
+| Publicación / smoke web | PASS | Paquete desde main limpio e igual al remoto; preflight y manifiesto válidos; portada, acceso y JS/CSS verificados, cero errores JavaScript. Detalle de imágenes optimizadas en el acta. |
+| Advisors productivos / limpieza | PASS | Sin hallazgos nuevos: seguridad 381 → 381, rendimiento 192 → 192. Rama temporal eliminada y ausencia confirmada. |
 | Replay completo desde cero / escritor de cierre | NOT RUN | No se modifican. Banco basado en plantilla existente; foto cerrada sintética. |
 | Tipos generados | No aplica | Misma firma `date → jsonb`, sin tablas/columnas/grants nuevos. |
 
@@ -60,8 +64,9 @@ Evaluación del PRIMARY sobre la arquitectura:
 La revisión es asesoría; los resultados de los checks anteriores son la evidencia
 de ejecución. Ver [decisión final](PLAN.md).
 
-Medición adicional read-only en producción: bloque de ventas propias 181,270 ms,
-planning 4,405 ms; [EXPLAIN](rendimiento.txt). No se instaló la migración, no se
-devolvieron nombres ni importes y no se midió HTTP/p95/concurrencia. La base local
+Medición adicional read-only previa a la promoción: bloque de ventas propias
+181,270 ms, planning 4,405 ms; [EXPLAIN](rendimiento.txt). En esa medición no se
+instaló la migración, no se devolvieron nombres ni importes y no se midió
+HTTP/p95/concurrencia. La base local
 quedó vacía tras el ensayo (0 miembros, 0 contratos) y con la huella original de
 la función, confirmando el rollback de datos y DDL.

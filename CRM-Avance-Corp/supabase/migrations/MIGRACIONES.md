@@ -1,6 +1,9 @@
 ## 20261016162937 — Ventas propias de supervisores y aporte al equipo
 
-**PREPARADA; NO APLICADA EN PRODUCCIÓN.** Decisión de Miguel, 16/10/2026:
+**APLICADA EN PRODUCCIÓN el 16/10/2026**, mediante merge de la rama validada.
+Frontend publicado desde `3a0fa7075296`; rama temporal eliminada.
+[Acta de publicación](../../docs/plans/supervisores-metas/PUBLICACION.md).
+Decisión de Miguel, 16/10/2026:
 desde octubre las ventas personales de Supervisión también aportan a su equipo,
 y sus filas aparecen al final del ranking. `crm.cumplimiento_metas_fn(date)`
 mantiene firma, ACL y claves JSON; solo amplía la lectura propia del supervisor

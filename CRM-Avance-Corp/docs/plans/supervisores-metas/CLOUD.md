@@ -35,4 +35,20 @@ El SQL registrado coincide íntegramente con el archivo (MD5
 es `crm.cumplimiento_metas_fn(date)`; conserva propietario y ACL. La única
 diferencia de historial es esta nueva migración.
 
-Promoción productiva y eliminación de rama pendientes de ejecución.
+Promoción productiva completada el 16/10/2026 mediante `merge_branch`.
+Producción terminó `FUNCTIONS_DEPLOYED / ACTIVE_HEALTHY`; las 1.110 funciones
+coinciden con el banco validado y las 23 Edge Functions permanecen iguales.
+Los 484 registros históricos previos son idénticos. La nueva migración conserva
+todo el texto SQL, pero el promotor lo separó en cinco sentencias, retirando sus
+delimitadores externos: por eso su hash de registro difiere del banco, sin
+diferencias en el contenido ejecutado ni en la definición resultante.
+
+Verificación productiva: 14 lecturas con roles autenticados; septiembre y los
+campos ajenos a ventas propias permanecen iguales. Los cuatro supervisores leen
+solo su producción de octubre, idéntica a la atribución vista por Gerencia
+(tres con actividad, uno sin ella). Las huellas de 820 contratos, 165 operaciones
+y un sello son idénticas antes/después. Advisors productivos sin novedades:
+seguridad 381 → 381, rendimiento 192 → 192.
+
+Frontend publicado y rama temporal eliminada; ausencia confirmada en el listado.
+Las otras ramas no se modificaron. [Acta y evidencia](PUBLICACION.md).
