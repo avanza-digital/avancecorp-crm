@@ -1,0 +1,32 @@
+{
+  "rama": "xniiuzkqssqnabkluusv",
+  "produccion": "dctqcbznekcyxhjujuci",
+  "fecha": "2026-10-16",
+  "comparacion": [
+    {
+      "tipo": "security",
+      "antes": 379,
+      "despues": 380,
+      "nuevas": [
+        {
+          "name": "auth_leaked_password_protection",
+          "detail": "Supabase Auth prevents the use of compromised passwords by checking against HaveIBeenPwned.org. Enable this feature to enhance security.",
+          "metadata": {
+            "type": "auth",
+            "entity": "Auth"
+          }
+        }
+      ],
+      "retiradas": 0
+    },
+    {
+      "tipo": "performance",
+      "antes": 350,
+      "despues": 317,
+      "nuevas": [],
+      "retiradas": 33
+    }
+  ],
+  "nota": "La advertencia auth_leaked_password_protection apareció al usar Auth en la rama; ya existe en el baseline productivo. No se cambió configuración Auth. No hubo nuevas advertencias de funciones, ACL o RLS.",
+  "remediacion": "https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection"
+}

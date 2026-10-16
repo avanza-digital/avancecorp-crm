@@ -9,6 +9,13 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 
+// Referidos propios: sesiones Auth reales en la rama exclusiva de validación.
+if (process.argv.length === 4 && process.argv[2] === '--supervisores-referidos') {
+  const { ejecutar } = await import('./supervisores-referidos/http-cloud.mjs');
+  await ejecutar(process.argv[3]);
+  process.exit(0);
+}
+
 // Ventas propias de supervisores: rama cloud sintética con Auth/PostgREST reales.
 if (process.argv.length === 4 && process.argv[2] === '--supervisores-metas') {
   const { ejecutar } = await import('./supervisores-metas/http-cloud.mjs');

@@ -1,0 +1,91 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+El cambio de autorización es correcto y fail-closed en la lógica revisada:
+
+- **Rol:** el supervisor entra en Referido; Gerencia, coordinador, directorio y cliente siguen fuera.
+- **Dueño:** el destino omitido se normaliza al actor y cualquier destino ajeno se rechaza con 42501.
+- **Rol vigente:** se revalida después de los locks.
+- **Idempotencia:** el reintento con dueño explícito u omitido confirma la misma alta, porque `v_vendedor` se normaliza antes de comparar.
+- **SQL NULL:** está cubierto por las líneas 30 y 71 de la función viva.
+- **Catálogo:** ACL, atributos y policies quedan intactos según la prueba.
+
+Pido un ajuste barato en la migración antes de promover: afirmar dentro de la propia migración que el resultado coincide con lo ensayado. Además, cubrir dos huecos de prueba y de inventario. Nada de esto bloquea el ensayo local.
+
+FINDINGS:
+
+[P2] La migración no verifica su propio resultado; un `replace()` parcial podría dejar una regla fail-open sin error
+File: supabase/migrations/20261016174128_crm_supervisores_referidos_propios.sql
+Lines: 15–38
+Problem: Solo hay preflight sobre la huella anterior (L11–14). Los dos `replace()` son silenciosos si no encuentran el texto. No hay comprobación posterior de la huella `145b30a3…`.
+Evidence:
+- La huella nueva solo se exige en `prueba.sql:13`, no en la migración que se aplicará en la rama o en producción.
+- Escenario fail-open: si el primer `replace` (L16–31) acierta y el segundo (L32–37) no, el supervisor podría registrar un Referido. Pero seguiría pasando por el `elsif` de `vivo/crear_lead_si_disponible.sql:121`. Un Referido sin destino quedaría en su bandeja de reparto, y uno con destino podría ir a un analista de su subárbol. Ambas cosas violan la decisión de Miguel.
+- Mitigación real: el preflight fija `prosrc` y `pg_get_functiondef` es determinista para el mismo cuerpo, así que el riesgo es bajo. Aun así, el control debe vivir en el artefacto que se aplica.
+Impact: Si el entorno de promoción reconstruye el texto de otra forma, el error no se detecta.
+Recommendation: Después de `execute v_def;`, añadir dentro del mismo DO:
+`if (select md5(prosrc) from pg_catalog.pg_proc where oid=v_oid) is distinct from '145b30a30e69807a1838c1b960a0675d' then raise exception 'POSTFLIGHT: resultado inesperado'; end if;`
+Aplicar lo mismo en `reversa.sql` con la huella `b6ec8ddd…`.
+
+[P2] La matriz Auth/PostgREST (`test-rls.mjs`) no cubre los casos nuevos
+File: supabase/scripts/test-rls.mjs (no figura entre los modificados del git status)
+Problem: El checklist auditor-rls (punto 7) exige casos permitidos y denegados por rol en la matriz. `prueba.sql` los cubre por SQL con `SET LOCAL ROLE`, pero no a través de PostgREST ni JWT real. El PRIMARY ya lo reconoce como pendiente.
+Evidence: El git status solo muestra la migración, scripts locales, frontend y ledger.
+Impact: La promoción dependería de una matriz que no ejercita la regla nueva.
+Recommendation: Añadir a `test-rls.mjs` estos casos vía RPC:
+- supervisor + referido sin destino → creado, con `vendedor_id=sub`;
+- supervisor + referido con un analista de su equipo → 42501;
+- supervisor + referido con otro supervisor → 42501;
+- gerencia + referido → 42501;
+- `crear_lead_documento_fn` con `vendedor_id` ajeno → 42501;
+- un origen no-referido del supervisor sigue cayendo en la bandeja (regresión).
+
+[P2] Hipótesis: consumidores de `origen='referido'` que asuman que el dueño es un analista
+File: no adjuntado (funciones de `crm` y `private` que filtran por `origen='referido'`)
+Problem: El comentario retirado de `lead-nuevo.tsx` decía que Referido «mueve su conversión», y existe `crm.conversion_pesos.peso_referido` (`semilla.sql:19-20`). Hasta hoy, todo Referido tenía `vendedor_id` con rol vendedor. Ahora puede pertenecer a un supervisor.
+Evidence: Solo hay prueba positiva para `cumplimiento_metas_fn` (fuera_ranking) y Cartera (`prueba.sql:133-139`). No hay inventario de conversión ponderada, ranking ni reportes por referido.
+Impact (hipótesis, confianza baja): un supervisor podría aparecer en un ranking o tasa de conversión de analistas, o quedar excluido de un cálculo de forma inconsistente.
+Recommendation: Listar con `pg_proc` las funciones cuyo `prosrc` contenga `'referido'` y confirmar que ninguna combina `origen='referido'` con un rol vendedor implícito. Adjuntar el resultado al VERIFICACION.md.
+
+[P3] Ruido en el fixture
+File: supabase/scripts/supervisores-referidos/prueba.sql
+Lines: 95–96
+Problem: `sesion('sup1')` se pisa inmediatamente con `sesion('para_baja')`. Es inocuo, pero confunde a quien lea el caso.
+Recommendation: Eliminar la línea 95.
+
+[P3] Orden de publicación
+File: LEEME.md (sección Promoción)
+Problem: Si el frontend se publica antes que la migración, el supervisor verá Referido y el servidor lo rechazará con el mensaje antiguo «Un referido lo registra el vendedor…». El caso está cubierto por la prueba de que el formulario se conserva, pero es mala experiencia de usuario.
+Recommendation: Dejar explícito en el LEEME y el ledger el orden de publicación: migración promovida primero, frontend después.
+
+Verificado sin hallazgos:
+- **SECURITY DEFINER, `search_path=''` y `lock_timeout`:** se conservan, porque provienen de `pg_get_functiondef`. `CREATE OR REPLACE` mantiene owner y ACL, y `prueba.sql:14-15` lo confirma.
+- **Superficie intacta:** no hay cambios en policies, grants por columna, triggers de inmutabilidad ni objetos de `public`. La prueba toca `public.perfiles` solo como fixture con rollback.
+- **Revalidación de rol tras los locks** (L159–163): cubre baja de perfil, baja de membresía y cambio a Gerencia (log L49–53).
+- **Envoltorio documental:** hereda el control, con DNI, CE y pasaporte probados y rechazo de dueño ajeno.
+- **Frontend:** `vendedor_id` se fuerza a `yo.id` en Referido y el store replica la regla. El cambio de origen restaura la selección previa para otros orígenes. Gerencia sigue sin la opción.
+- **Ledger:** el estado PREPARADA es honesto.
+
+TEST GAPS:
+- Casos en `test-rls.mjs` vía PostgREST (detallados arriba).
+- Inventario de consumidores de `origen='referido'` en métricas y conversión.
+- Opcional: un caso SQL en que la primera alta se hace con dueño explícito y el reintento sin destino (el simétrico del caso de L24).
+
+ARCHITECTURE RISKS:
+- El patrón «parchear `pg_get_functiondef` con `replace()`» depende de coincidencias textuales exactas. Es aceptable con preflight más postflight; sin postflight, no.
+
+SECURITY RISKS:
+- Ninguno confirmado. El único camino fail-open teórico es el `replace` parcial (P2 #1).
+
+REGRESSION RISKS:
+- Una reasignación posterior de un Referido del supervisor a un analista conserva `origen='referido'`, que es inmutable. Es comportamiento preexistente y está fuera de alcance por decisión confirmada. Conviene que Miguel lo sepa si afecta a comisiones o a conversión.
+- Los otros orígenes del supervisor conservan su asignación y su bandeja (log L18–25).
+
+RECOMMENDED NEXT ACTIONS:
+1. Añadir el postflight de huella en la migración y en la reversa, y volver a correr `ensayar.py`.
+2. Ampliar `test-rls.mjs` con la matriz de Referido del supervisor y ejecutarla en la rama Supabase.
+3. Inventariar las funciones que leen `origen='referido'` y documentarlas en VERIFICACION.md antes de la promoción; después, advisors y publicación del frontend, en ese orden.
+
+CONFIDENCE:
+HIGH sobre la lógica de autorización de la RPC y del frontend; MEDIUM sobre el impacto en métricas downstream, que no tiene evidencia adjunta.

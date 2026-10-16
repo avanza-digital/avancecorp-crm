@@ -87,6 +87,26 @@ describe('mutaciones del store demo', () => {
   afterAll(() => vi.unstubAllEnvs())
 
   describe('crearLead', () => {
+    it.each(['vendedor', 'supervisor'] as const)('el %s registra su referido sin destino explícito y nunca lo deja en reparto', async (rol) => {
+      const { api, mutar } = await montarStore(rol)
+      const creado = mutar((a) => a.crearLead(inputBase({ origen: 'referido', vendedor_id: null })))
+      expect(creado.ok).toBe(true)
+      expect(api().lead(creado.id!)).toMatchObject({ origen: 'referido', vendedor_id: DEMO_YO[rol].id, asignado_supervisor_id: null })
+    })
+
+    it.each(['d-v1', 'd-v3', 'd-sup2'])('el supervisor no puede registrar el referido a nombre de %s', async (destino) => {
+      const { api, mutar } = await montarStore('supervisor')
+      const creado = mutar((a) => a.crearLead(inputBase({ origen: 'referido', vendedor_id: destino })))
+      expect(creado).toMatchObject({ ok: false, codigo: 'solo_autoasignar' })
+      expect(api().leads).toHaveLength(20)
+    })
+
+    it('Gerencia sigue sin poder registrar un referido aunque indique un analista', async () => {
+      const { api, mutar } = await montarStore('gerencia')
+      expect(mutar((a) => a.crearLead(inputBase({ origen: 'referido' })))).toMatchObject({ ok: false, codigo: 'sin_permiso' })
+      expect(api().leads).toHaveLength(20)
+    })
+
     it.each([['CE', '001234567'], ['PASAPORTE', 'AB12345678']] as const)('conserva %s en la identidad y rechaza un duplicado', async (tipo, numero) => {
       const { api, mutar } = await montarStore('vendedor')
       const creado = mutar((a) => a.crearLead(inputBase({ documento: { tipo, numero } })))

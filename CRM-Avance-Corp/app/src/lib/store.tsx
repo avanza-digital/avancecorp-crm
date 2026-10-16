@@ -2408,6 +2408,16 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             error: 'Selecciona un canal concreto: Landing, Formulario, Formulario 3, Referido o Walking',
           }
         }
+        // Espejo de crear_lead_si_disponible: Referido solo nace a nombre
+        // del analista o supervisor que lo registra, también sin destino explícito.
+        const referidoPropio = input.origen === 'referido'
+        if (referidoPropio && rol !== 'vendedor' && rol !== 'supervisor') {
+          return { ok: false, codigo: 'sin_permiso', campo: 'origen', error: 'Solo analistas y supervisores pueden registrar sus propios referidos' }
+        }
+        if (referidoPropio && input.vendedor_id != null && input.vendedor_id !== yo?.id) {
+          return { ok: false, codigo: 'solo_autoasignar', error: 'El referido debe quedar a tu cargo' }
+        }
+        const vendedorSolicitado = referidoPropio ? yo?.id : input.vendedor_id
         // En creación ambos campos son obligatorios incluso en runtime. El
         // validador compartido acepta `undefined` a propósito porque también
         // valida PATCHes parciales; por eso este guard vive antes de llamarlo.
@@ -2467,7 +2477,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         // Espejo de la policy leads_insert: sin can('reasignar') el lead solo
         // puede nacer asignado a uno mismo (parkear es de supervisor/gerencia).
         // El gate de permisos corre ANTES del dedup: sin permiso no hay sondeo.
-        if (!can(rol, 'reasignar') && (input.vendedor_id ?? null) !== (yo?.id ?? null)) {
+        if (!can(rol, 'reasignar') && (vendedorSolicitado ?? null) !== (yo?.id ?? null)) {
           return {
             ok: false,
             codigo: 'solo_autoasignar',
@@ -2479,12 +2489,12 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         // Resuelve el analista SIN tragar ids inválidos (mismo criterio que reasignar()).
         let vendedor_id: string | null = null
         let vendedor_nombre: string | null = null
-        if (input.vendedor_id) {
-          const m = equipo.find((x) => x.perfil_id === input.vendedor_id)
+        if (vendedorSolicitado) {
+          const m = equipo.find((x) => x.perfil_id === vendedorSolicitado)
           if (m) {
             vendedor_id = m.perfil_id
             vendedor_nombre = m.nombre_completo
-          } else if (yo && input.vendedor_id === yo.id) {
+          } else if (yo && vendedorSolicitado === yo.id) {
             // Usuario (demo o sesión real) fuera de EQUIPO_DEMO: se auto-asigna igual.
             vendedor_id = yo.id
             vendedor_nombre = yo.nombre_completo

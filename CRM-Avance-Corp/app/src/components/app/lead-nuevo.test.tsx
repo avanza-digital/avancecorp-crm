@@ -200,12 +200,53 @@ describe('LeadNuevo — documento sin recortes', () => {
 })
 
 describe('LeadNuevo — responsable comercial del supervisor', () => {
+  it.each([true, false])('registra su referido automáticamente, sin analistas a cargo (demo=%s)', async (demo) => {
+    const { crearLead, actions } = montar({ rol: 'supervisor', demo })
+    completarBaseReal('referido')
+    expect(screen.queryByRole('combobox', { name: 'Responsable comercial' })).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Responsable comercial')).toHaveValue(SESION.yo!.nombre_completo)
+    expect(screen.getByLabelText('Responsable comercial')).toBeDisabled()
+    expect(screen.getByText('El referido queda a tu cargo automáticamente.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Crear lead' }))
+    await waitFor(() => expect(crearLead).toHaveBeenCalledWith(expect.objectContaining({
+      vendedor_id: SESION.yo!.id, origen: 'referido',
+    })))
+    await waitFor(() => expect(actions.abrirLead).toHaveBeenCalledWith('lead-nuevo-1'))
+  })
+
+  it('cambiar a Referido ignora el analista elegido y conserva esa selección para otros orígenes', async () => {
+    const miembro = { perfil_id: 'analista-equipo', nombre_completo: 'ANALISTA EQUIPO', rol_crm: 'vendedor', activo: true, supervisor_id: SESION.yo!.id } satisfies Miembro
+    const { crearLead } = montar({ rol: 'supervisor', demo: false, vendedores: [miembro] })
+    completarBaseReal('formulario')
+    fireEvent.change(screen.getByLabelText('Responsable comercial'), { target: { value: miembro.perfil_id } })
+    fireEvent.change(screen.getByLabelText('Origen *'), { target: { value: 'referido' } })
+    expect(screen.getByLabelText('Responsable comercial')).toBeDisabled()
+    fireEvent.change(screen.getByLabelText('Origen *'), { target: { value: 'oficina' } })
+    expect(screen.getByRole('combobox', { name: 'Responsable comercial' })).toHaveValue(miembro.perfil_id)
+    fireEvent.change(screen.getByLabelText('Origen *'), { target: { value: 'referido' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Crear lead' }))
+    await waitFor(() => expect(crearLead).toHaveBeenCalledWith(expect.objectContaining({ vendedor_id: SESION.yo!.id, origen: 'referido' })))
+  })
+
+  it('si el servidor rechaza el referido, conserva el formulario y no anuncia éxito', async () => {
+    const { actions } = montar({ rol: 'supervisor', demo: false, crearLeadImpl: () => ({
+      ok: true, id: 'referido-fallido', persistido: Promise.resolve({ ok: false, error: 'Acceso CRM revocado' }),
+    }) })
+    completarBaseReal('referido')
+    fireEvent.click(screen.getByRole('button', { name: 'Crear lead' }))
+    await waitFor(() => expect(screen.getByText('Acceso CRM revocado')).toBeInTheDocument())
+    expect(actions.abrirLead).not.toHaveBeenCalled()
+    expect(toast.success).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('Origen *')).toHaveValue('referido')
+    expect(screen.getByLabelText('Nombre completo *')).toHaveValue('ANA NUEVO LEAD')
+  })
+
   it.each([true, false])('crea un lead propio sin analistas a cargo (demo=%s)', async (demo) => {
     const { crearLead, actions } = montar({ rol: 'supervisor', demo })
     const responsable = screen.getByRole('combobox', { name: 'Responsable comercial' })
     expect(responsable).toHaveValue('')
     expect(screen.getByRole('option', { name: 'Yo — lead propio' })).toHaveValue(SESION.yo!.id)
-    expect(screen.queryByRole('option', { name: 'Referido' })).not.toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Referido' })).toBeInTheDocument()
     completarBaseReal('oficina')
     fireEvent.change(responsable, { target: { value: SESION.yo!.id } })
     fireEvent.click(screen.getByRole('button', { name: 'Crear lead' }))
@@ -605,8 +646,7 @@ describe('LeadNuevo — disponibilidad P-048', () => {
 })
 
 describe('LeadNuevo — orígenes del alta manual (2026-09-01)', () => {
-  // LANDING y FORMULARIO también pueden declararse a mano. Referido conserva
-  // su regla propia: solo lo declara el analista, a su nombre.
+  // Referido se registra a nombre del analista o supervisor que lo consigue.
   it('el analista ve todos los orígenes activos', () => {
     montar()
     const opciones = [...screen.getByLabelText('Origen *').querySelectorAll('option')]
@@ -615,12 +655,12 @@ describe('LeadNuevo — orígenes del alta manual (2026-09-01)', () => {
     expect(opciones).toEqual(['referido', 'landing', 'formulario', 'formulario_3', 'oficina'])
   })
 
-  it('un supervisor ve LANDING y FORMULARIO, pero no Referido', () => {
+  it('un supervisor también puede registrar su Referido', () => {
     montar({ rol: 'supervisor' })
     const opciones = [...screen.getByLabelText('Origen *').querySelectorAll('option')]
       .map((opcion) => opcion.value)
       .filter((valor) => valor !== '')
-    expect(opciones).toEqual(['landing', 'formulario', 'formulario_3', 'oficina'])
+    expect(opciones).toEqual(['referido', 'landing', 'formulario', 'formulario_3', 'oficina'])
   })
 
   it('gerencia ve LANDING y FORMULARIO, pero tampoco Referido', () => {

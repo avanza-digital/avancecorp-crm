@@ -269,6 +269,7 @@ function FormularioNuevoLead({
   const [moneda, setMoneda] = useState<Moneda>('PEN')
   const [categoria, setCategoria] = useState<CategoriaInteres | null>(null)
   const [vendedorId, setVendedorId] = useState('')
+  const referidoPropio = origen === 'referido'
   const [nota, setNota] = useState('')
   const [errores, setErrores] = useState<Record<string, string>>({})
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
@@ -719,7 +720,7 @@ function FormularioNuevoLead({
         monto_estimado: montoNum,
         moneda,
         categoria_interes: categoria,
-        vendedor_id: puedeElegirVendedor ? vendedorId || null : (yo?.id ?? null),
+        vendedor_id: puedeElegirVendedor && !referidoPropio ? vendedorId || null : (yo?.id ?? null),
         nota: nota.trim() || null,
       })
       if (res.ok && res.id) {
@@ -1124,12 +1125,10 @@ function FormularioNuevoLead({
                 <option value="" disabled>
                   Selecciona…
                 </option>
-                {/* Decisión de Miguel (2026-09-01): LANDING y FORMULARIO
-                    también pueden declararse en el alta manual. Referido
-                    conserva su regla especial: solo lo registra el analista,
-                    a su propio nombre, porque esa etiqueta mueve su conversión. */}
+                {/* Referido: analista o supervisor, siempre a su propio nombre.
+                    El servidor vuelve a comprobar rol y responsabilidad. */}
                 {ORIGENES
-                  .filter((o) => o.k !== 'referido' || yo?.rol === 'vendedor')
+                  .filter((o) => o.k !== 'referido' || yo?.rol === 'vendedor' || yo?.rol === 'supervisor')
                   .map((o) => (
                     <option key={o.k} value={o.k}>
                       {o.label}
@@ -1174,7 +1173,7 @@ function FormularioNuevoLead({
             </Campo>
           </div>
           <Campo label="Responsable comercial" htmlFor="nl-vendedor">
-            {puedeElegirVendedor ? (
+            {puedeElegirVendedor && !referidoPropio ? (
               <Select
                 id="nl-vendedor"
                 value={vendedorId}
@@ -1192,7 +1191,7 @@ function FormularioNuevoLead({
               <>
                 <Input id="nl-vendedor" value={yo?.nombre_completo ?? ''} disabled readOnly />
                 <p className="text-[11px] text-muted-foreground">
-                  El lead se te asigna automáticamente.
+                  {referidoPropio ? 'El referido queda a tu cargo automáticamente.' : 'El lead se te asigna automáticamente.'}
                 </p>
               </>
             )}
