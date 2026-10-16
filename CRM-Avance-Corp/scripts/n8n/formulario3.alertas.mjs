@@ -7,20 +7,31 @@ export const TABLA_AVISOS = 'TcpMCmhVw3oT9GjD'
 export const DESTINATARIO = 'miguel@miavance.com'
 export const NOMBRE_AVISOS = 'Avance Corp — Avisos de Formulario 3'
 
+// Fase 7: también avisa por el resumen diario. Del error solo pasa al correo la
+// lista de filas que arma cerrarVuelta (números y etiquetas fijas); cualquier
+// otro mensaje queda fuera.
 export function prepararAlerta(evento, ahoraMs) {
-  if (evento?.workflow?.id !== 'BjI5m1PKVWhO0NDb') return null
+  const flujos = {
+    BjI5m1PKVWhO0NDb: { asunto: 'Avance Corp — Revisar importación Formulario 3', texto: 'La importación de Formulario 3 terminó con un error.' },
+    Chn5g93IgxNlkF3K: { asunto: 'Avance Corp — Revisar resumen diario de Formulario 3', texto: 'El resumen diario de Formulario 3 terminó con un error.' },
+  }
+  const flujo = evento?.workflow?.id
+  if (typeof flujo !== 'string' || !Object.hasOwn(flujos, flujo)) return null
   if (!Number.isFinite(ahoraMs) || ahoraMs < 0) throw new Error('Falta la hora del aviso')
   const prueba = evento.prueba === true
   const id = String(evento.execution?.id ?? '')
   const ejecucion = /^\d+$/.test(id) ? id : 'consultar historial'
-  const url = 'https://n8n-t27j.srv1906432.hstgr.cloud/workflow/BjI5m1PKVWhO0NDb'
+  const url = 'https://n8n-t27j.srv1906432.hstgr.cloud/workflow/' + flujo
+  const crudo = typeof evento.execution?.error?.message === 'string' ? evento.execution.error.message : ''
+  const filas = /^((?:Revisar filas de la hoja: \d+ \((?:rechazada|cliente sin registrar)\)(?:, \d+ \((?:rechazada|cliente sin registrar)\))*\.)?(?: ?Pendientes para reintentar: \d+(?:, \d+)*\.)?)(?: \[line \d+(?:, for item \d+)?\])?$/.exec(crudo)
+  const detalle = filas && filas[1] ? filas[1] + '\n' : ''
   return {
-    clave: 'BjI5m1PKVWhO0NDb|' + (prueba ? 'prueba|' : 'error|') + Math.floor(ahoraMs / 3600000),
-    workflow: 'BjI5m1PKVWhO0NDb',
-    asunto: (prueba ? '[PRUEBA] ' : '') + 'Avance Corp — Revisar importación Formulario 3',
+    clave: flujo + '|' + (prueba ? 'prueba|' : 'error|') + Math.floor(ahoraMs / 3600000),
+    workflow: flujo,
+    asunto: (prueba ? '[PRUEBA] ' : '') + flujos[flujo].asunto,
     mensaje: prueba
       ? 'Este es un aviso de prueba de Formulario 3. El canal de correo funciona.\n\nFlujo: ' + url
-      : 'La importación de Formulario 3 terminó con un error.\nEjecución: ' + ejecucion + '\n\nRevisa la ejecución en n8n para identificar los pendientes y corregir el problema:\n' + url + '\n\nSe envía como máximo un aviso por hora mientras persistan los errores.',
+      : flujos[flujo].texto + '\n' + detalle + 'Ejecución: ' + ejecucion + '\n\nRevisa la ejecución en n8n para identificar los pendientes y corregir el problema:\n' + url + '\n\nSe envía como máximo un aviso por hora mientras persistan los errores.',
   }
 }
 
