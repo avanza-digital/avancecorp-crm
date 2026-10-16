@@ -9,6 +9,8 @@ actualizado: 2026-09-25
 
 # 🏠 Inicio — Portal Avance Corp
 
+- ✅ **15/10 19:46 Lima — LÍMITE DE REPARTO PUBLICADO Y VERIFICADO:** #299 incluida en el build `build-20261016T002734754Z` / fuente `d1796dd4`. Si hay 90 y se preparan 60, solo quedan 30 para los demás supervisores del mismo origen. 126 recursos web idénticos al paquete, acceso básico PASS y Figma actualizado en el resumen, plan principal y planilla. [[Coordinacion - limite inmediato de cantidades (2026-10-15)]].
+
 - ✅ **15/10 19:28 Lima — COORDINACIÓN: CARTERA Y LEADS PUBLICADOS.** Consulta de toda la empresa; Admin/Gerencia/Coordinación corrigen categoría en contratos Avance con motivo e historial, actualizando conversión y ranking. Tres SQL aplicados por rama, pantalla `d1796dd4`, smoke 126/126 y acceso real comprobados. [[Coordinacion - cartera, leads y correccion de categoria (2026-10-15)]].
 
 - ✅ **15/10 19:02 Lima — n8n FORMULARIO 3, FASE 7 PUBLICADA:** una celda rara solo frena su fila; el aviso lista las filas para revisar (rechazadas y clientes sin registrar); latido de cada lectura y resumen diario a las 7 p. m. a Miguel (el primero, el 16/10). PR #300 `2ed57674`; 57 tests, 12 mutantes, banco y Error Trigger reales; primera vuelta con 152 filas y sin errores — [[n8n - auditoria del flujo Formulario 3 (2026-10-15)]].
