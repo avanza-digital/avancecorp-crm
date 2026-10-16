@@ -1,0 +1,9 @@
+{
+  "resultado": "PASS",
+  "url": "https://crm.miavance.com/",
+  "build": "build-20261016T184742062Z",
+  "portada": 200,
+  "login": "visible y habilitado",
+  "erroresJavaScript": [],
+  "escriturasDeNegocio": 0
+}

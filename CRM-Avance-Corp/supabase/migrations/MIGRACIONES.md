@@ -1,6 +1,7 @@
 ## 20261016183308 — Referidos propios de supervisores
 
-**VALIDADA EN RAMA; NO APLICADA EN PRODUCCIÓN.** Decisión de Miguel, 16/10/2026:
+**APLICADA EN PRODUCCIÓN el 16/10/2026**, por merge de la rama validada.
+Decisión de Miguel, 16/10/2026:
 el supervisor puede registrar referidos, siempre a su propio cargo al darlos
 de alta. `crm.crear_lead_si_disponible` admite Referido para analista o supervisor,
 normaliza el destino omitido al actor y rechaza cualquier destino ajeno, incluido
@@ -15,7 +16,9 @@ Formulario y store reflejan la misma regla. No requiere regenerar tipos.
 Ver [kit local](../scripts/supervisores-referidos/LEEME.md),
 [alcance y verificación](../../docs/plans/supervisores-referidos/VERIFICACION.md).
 Rama Supabase validada: SQL 67 PASS, Auth/PostgREST 28 PASS y advisors cotejados.
-Promover primero el backend por merge de rama y después publicar el frontend.
+Backend promovido primero y frontend publicado después. SQL productivo 6 PASS,
+1110 funciones cotejadas y advisors sin cambios. Rama temporal eliminada.
+Ver [publicación y artefacto](../../docs/plans/supervisores-referidos/PUBLICACION.md).
 
 ## 20261016162937 — Ventas propias de supervisores y aporte al equipo
 

@@ -1,0 +1,6 @@
+NOTICE:  PASS: huella productiva coincide con la rama ensayada
+NOTICE:  PASS: supervisor no registra Referido con responsable ajeno [42501]
+NOTICE:  PASS: vendedor no registra Referido con responsable ajeno [42501]
+NOTICE:  PASS: gerencia no registra Referido con responsable ajeno [42501]
+NOTICE:  PASS: anon no registra Referido [42501]
+NOTICE:  PASS: no hay identidades sintéticas del banco en producción

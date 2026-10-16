@@ -3,6 +3,10 @@
 16/10/2026. Codex PRIMARY. Cambio LEVEL 3 por autorización de alta.
 Base de trabajo: `82a995b4e8fedfe4d737a348907a9719638962fe` de `avancecorp/main`.
 
+Actualización de cierre: **PUBLICADO Y VERIFICADO**. Ver [PUBLICACION.md](PUBLICACION.md)
+para commit, artefacto, controles productivos y eliminación de la rama temporal.
+El resto de esta nota conserva la evidencia previa a promoción.
+
 ## Decisión y alcance
 
 Miguel pidió habilitar Referido para Supervisión y respondió «Siempre a cargo

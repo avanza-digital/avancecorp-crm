@@ -1,0 +1,47 @@
+{
+  "fecha_utc": "2026-10-16T18:51:52Z",
+  "proyecto": "dctqcbznekcyxhjujuci",
+  "advisors": [
+    {
+      "tipo": "security",
+      "antes": 381,
+      "despues": 381,
+      "nuevas": [],
+      "retiradas": []
+    },
+    {
+      "tipo": "performance",
+      "antes": 192,
+      "despues": 192,
+      "nuevas": [],
+      "retiradas": []
+    }
+  ],
+  "edge_functions_antes": 23,
+  "edge_functions_despues": 23,
+  "edge_functions_identicas": true,
+  "rama_eliminada": "e2f383bf-1c87-48f7-befd-d1396fbd5973",
+  "ramas_restantes": [
+    {
+      "id": "dff61d67-6c6e-4564-811b-e0458ed12747",
+      "name": "banco-f7",
+      "project_ref": "cwkiejoaqadcnaieghnf",
+      "status": "MIGRATIONS_FAILED",
+      "preview_project_status": "ACTIVE_HEALTHY"
+    },
+    {
+      "id": "e8dd9b77-b6dd-49a0-b452-a971efb4e8ba",
+      "name": "main",
+      "project_ref": "dctqcbznekcyxhjujuci",
+      "status": "FUNCTIONS_DEPLOYED",
+      "preview_project_status": "ACTIVE_HEALTHY"
+    },
+    {
+      "id": "67970245-d541-4d8a-8716-7a09abcade26",
+      "name": "plan-backend-fase4",
+      "project_ref": "gdozieobriieniindgeo",
+      "status": "MIGRATIONS_FAILED",
+      "preview_project_status": "ACTIVE_HEALTHY"
+    }
+  ]
+}

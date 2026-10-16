@@ -1,0 +1,19 @@
+{
+  "funciones_antes": 1110,
+  "funciones_despues": 1110,
+  "modificadas": [
+    "crm.crear_lead_si_disponible(text,text,text,numeric,text,uuid,text,text,text,date,text,text,text,uuid,text,text)"
+  ],
+  "catalogo_igual_al_banco": true,
+  "owner_acl_inalterados": true,
+  "historial_anterior_intacto": true,
+  "migraciones_antes": 485,
+  "migraciones_despues": 486,
+  "version_promovida": "20261016183308",
+  "sentencias_registradas": 4,
+  "sql_reconstruido_identico": true,
+  "sha256_sql": "fe59d9d4a8fda030a77a4796113dc33ed948dff7fab71258641840041c1c8ec7",
+  "md5_cuerpo_resultante": "145b30a30e69807a1838c1b960a0675d",
+  "permisos_productivos_solo_lectura": "6 PASS",
+  "datos_sinteticos_en_produccion": 0
+}
