@@ -1,3 +1,26 @@
+## 20261016195003 — Plazo de cooperativas a 360 días
+
+**SQL APROBADO Y ENSAYADO EN RAMA TEMPORAL; NO INSTALADO EN PRODUCCIÓN NI PUBLICADO.**
+Decisión de Miguel del 16/10/2026: Qorilazo y Prodelco vencen a los
+360 días de la fecha de inicio en lugar de 12 meses calendario.
+Cada mes del plazo equivale a 30 días corridos. Rentabilidad anual intacta.
+
+La fuente conserva su convención en `base_plazo`: las filas existentes
+siguen con calendario; las altas posteriores usan `dias_360`. La corrección
+de Gerencia utiliza la convención persistida. No se recalculan históricos,
+no hay nuevos grants ni cambios en objetos de public o firmas expuestas.
+SQL protegido por huellas del helper, la corrección y el CHECK productivos.
+
+Ensayo con Auth/RPC/Storage reales: 95 comprobaciones PASS; advisors sin
+avisos nuevos. Rama temporal eliminada. Pendientes: matriz RLS/Edge integral
+y gates de release, integración en Main y publicación coordinada con
+actualización de la PWA. Los tres borradores
+COOPAC observados deberán editarse/revisarse para recalcular su vencimiento.
+Reversa conserva la convención de los contratos que ya hayan sido creados.
+
+Ver `supabase/scripts/coopac-plazo-360/` y el expediente local
+`docs/plans/cooperativas-plazo-360-20261016/`.
+
 ## 20261016190408 — SLA: «próximo cambio» en el mismo paso
 
 **APLICADA EN PRODUCCIÓN el 16/10/2026** (entre 15:24 y 15:27 Lima), con `db query --linked --file` lanzado por Miguel desde `afc0fda7`

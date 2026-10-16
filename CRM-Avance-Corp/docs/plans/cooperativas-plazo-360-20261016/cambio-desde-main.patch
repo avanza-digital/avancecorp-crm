@@ -1,0 +1,525 @@
+--- a/CRM-Avance-Corp/app/src/lib/coopac-condiciones.ts
++++ b/CRM-Avance-Corp/app/src/lib/coopac-condiciones.ts
+@@ -5,12 +5,14 @@
+ const fechaValida = (fecha: string) => /^\d{4}-\d{2}-\d{2}$/.test(fecha)
+   && Number(fecha.slice(0, 4)) >= 1000 && vencimientoDesdePlazo(fecha, 0) === fecha
+ 
+-/** Meses naturales: el mismo ajuste de fin de mes que usan los contratos Avance. */
++/** Plazo cooperativo: cada mes equivale a 30 días; 12 meses son 360 días. */
+ export function vencimientoCoopac(fecha: string, plazo: string): string | null {
+   const meses = Number(plazo)
+   if (!/^\d+$/.test(plazo.trim()) || !Number.isInteger(meses) || meses < 1 || meses > 1200) return null
+   if (!fechaValida(fecha)) return null
+-  return vencimientoDesdePlazo(fecha, meses)
++  const vencimiento = new Date(`${fecha}T00:00:00Z`)
++  vencimiento.setUTCDate(vencimiento.getUTCDate() + meses * 30)
++  return vencimiento.getUTCFullYear() <= 9999 ? vencimiento.toISOString().slice(0, 10) : null
+ }
+ 
+ export function condicionesCoopac(fecha: string, plazo: string, tasa: string) {
+--- a/CRM-Avance-Corp/app/src/lib/coopac-condiciones.test.ts
++++ b/CRM-Avance-Corp/app/src/lib/coopac-condiciones.test.ts
+@@ -3,16 +3,18 @@
+ 
+ describe('Condiciones COOPAC pactadas', () => {
+   it.each([
+-    ['2026-01-31', '1', '2026-02-28'],
+-    ['2024-01-31', '1', '2024-02-29'],
+-    ['2024-02-29', '12', '2025-02-28'],
+-    ['2026-08-31', '6', '2027-02-28'],
+-    ['2026-09-14', '12', '2027-09-14'],
+-  ])('calcula %s + %s meses sin saltar el fin de mes', (fecha, plazo, esperado) => {
++    ['2026-01-31', '1', '2026-03-02'],
++    ['2024-01-31', '1', '2024-03-01'],
++    ['2024-02-29', '12', '2025-02-23'],
++    ['2026-08-31', '6', '2027-02-27'],
++    ['2026-09-14', '12', '2027-09-09'],
++    ['2026-10-16', '12', '2027-10-11'],
++    ['2026-10-16', '24', '2028-10-05'],
++  ])('calcula %s + %s meses de 30 días', (fecha, plazo, esperado) => {
+     expect(vencimientoCoopac(fecha, plazo)).toBe(esperado)
+   })
+   it('conserva el porcentaje anual: 12 significa 12%, y acepta coma decimal', () => {
+-    expect(condicionesCoopac('2026-09-14', '12', '12')).toEqual({ok:true, plazoMeses:12, tasaAnual:12, venceEn:'2027-09-14'})
++    expect(condicionesCoopac('2026-09-14', '12', '12')).toEqual({ok:true, plazoMeses:12, tasaAnual:12, venceEn:'2027-09-09'})
+     expect(condicionesCoopac('2026-09-14', '6', '12,50')).toMatchObject({ok:true, tasaAnual:12.5})
+   })
+   it.each(['', '0', '-1', '1.5', '1201', 'NaN'])('rechaza el plazo inválido %s', plazo => {
+@@ -23,5 +25,6 @@
+   })
+   it('no calcula a partir de una fecha imposible', () => {
+     expect(vencimientoCoopac('2026-02-31', '12')).toBeNull()
++    expect(vencimientoCoopac('9999-12-31', '1')).toBeNull()
+   })
+ })
+--- a/CRM-Avance-Corp/app/src/components/app/condiciones-coopac.tsx
++++ b/CRM-Avance-Corp/app/src/components/app/condiciones-coopac.tsx
+@@ -23,8 +23,10 @@
+     <div className="min-w-0 space-y-1">
+       <Label htmlFor={`${prefijo}-plazo`}>Plazo (meses)</Label>
+       <Input id={`${prefijo}-plazo`} inputMode="numeric" required value={plazo}
+-        aria-invalid={invalido === 'plazo'} aria-describedby={invalido === 'plazo' ? errorId : undefined}
++        aria-invalid={invalido === 'plazo'}
++        aria-describedby={[`${prefijo}-ayuda-plazo`, invalido === 'plazo' ? errorId : null].filter(Boolean).join(' ')}
+         placeholder="Ej. 12" disabled={ocupado} onChange={e => onPlazo(e.target.value)} />
++      <p id={`${prefijo}-ayuda-plazo`} className="text-[11px] text-muted-foreground">Cada mes equivale a 30 días; 12 meses son 360 días.</p>
+     </div>
+     <div className="min-w-0 space-y-1">
+       <Label htmlFor={`${prefijo}-vence`}>Vencimiento</Label>
+--- a/CRM-Avance-Corp/app/src/components/app/gestion-inversionista-formularios.tsx
++++ b/CRM-Avance-Corp/app/src/components/app/gestion-inversionista-formularios.tsx
+@@ -70,7 +70,7 @@
+     <DialogBody className="space-y-4">
+       <p className="text-xs text-muted-foreground">Corrección de Gerencia. La empresa, la moneda, el cliente y el autor original se conservan.</p>
+       {envio.pendiente ? <RecuperacionPostventa envio={envio} onRecuperar={()=>void guardar(true)} /> : <>
+-        <div className="space-y-1"><Label htmlFor="coopac-monto">Capital en soles</Label><Input id="coopac-monto" type="number" min="0.01" step="0.01" value={monto} onChange={e=>setMonto(e.target.value)} disabled={envio.ocupado} /></div>
++        <div className="space-y-1"><Label htmlFor="coopac-monto">Capital en {base.moneda==='USD'?'dólares':'soles'}</Label><Input id="coopac-monto" type="number" min="0.01" step="0.01" value={monto} onChange={e=>setMonto(e.target.value)} disabled={envio.ocupado} /></div>
+         <div className="space-y-1"><Label htmlFor="coopac-operacion">Número de operación</Label><Input id="coopac-operacion" value={operacion} maxLength={64} onChange={e=>setOperacion(e.target.value)} disabled={envio.ocupado} /></div>
+         <div className="space-y-1"><Label htmlFor="coopac-referencia">Certificado o referencia</Label><Input id="coopac-referencia" value={referencia} maxLength={64} onChange={e=>setReferencia(e.target.value)} disabled={envio.ocupado} /></div>
+         <div className="grid grid-cols-2 gap-3">
+@@ -78,7 +78,7 @@
+           <div className="space-y-1"><Label htmlFor="coopac-tasa">Rentabilidad anual (%)</Label><Input id="coopac-tasa" type="number" min="0.01" step="0.01" value={tasa} onChange={e=>setTasa(e.target.value)} disabled={envio.ocupado} /></div>
+         </div>
+         {base.plazo_meses===null && !plazo && !tasa ? <div className="space-y-1"><Label htmlFor="coopac-vence">Vencimiento histórico</Label><Input id="coopac-vence" type="date" value={vence} onChange={e=>setVence(e.target.value)} disabled={envio.ocupado} /></div>
+-          : <p className="text-xs text-muted-foreground">El vencimiento se ajustará al plazo desde la fecha comercial original.</p>}
++          : <p className="text-xs text-muted-foreground">El vencimiento se ajustará al plazo desde la fecha comercial original, conservando la forma de calcular el plazo de ese contrato.</p>}
+         <div className="space-y-1"><Label htmlFor="coopac-nota">Notas de la operación</Label><Textarea id="coopac-nota" value={nota} maxLength={2000} onChange={e=>setNota(e.target.value)} disabled={envio.ocupado} /></div>
+         {envio.error && <p role="alert" className="text-sm text-destructive">{envio.error}</p>}
+       </>}
+--- a/CRM-Avance-Corp/app/src/screens/cartera-inversionistas.test.tsx
++++ b/CRM-Avance-Corp/app/src/screens/cartera-inversionistas.test.tsx
+@@ -646,7 +646,7 @@
+     await user.type(screen.getByLabelText('Número de operación del depósito'),'F5-DEP-001')
+     await user.clear(screen.getByLabelText('Fecha comercial (inicio)')); await user.type(screen.getByLabelText('Fecha comercial (inicio)'),'2026-09-01')
+     await user.type(screen.getByLabelText('Plazo (meses)'),'12')
+-    expect(screen.getByLabelText('Vencimiento')).toHaveValue('2027-09-01')
++    expect(screen.getByLabelText('Vencimiento')).toHaveValue('2027-08-27')
+     expect(screen.getByLabelText('Vencimiento')).toHaveAttribute('readonly')
+     await user.type(screen.getByLabelText('Rentabilidad anual (%)'),'12')
+     await user.type(screen.getByLabelText('Referencia de la inversión'),'REFERENCIA SINTÉTICA')
+@@ -657,7 +657,7 @@
+     fireEvent.submit(screen.getByRole('button',{name:'Revisar inversión'}).closest('form')!)
+     await screen.findByRole('button',{name:'Confirmar inversión'})
+     expect(confirmada).not.toHaveBeenCalled(); expect(api.confirmar).not.toHaveBeenCalled()
+-    expect(leerIntentoInversion(ACTOR_F5,PERSONA_F5)?.datos).toMatchObject({plazo_meses:12,tasa_anual:12,vence_en:'2027-09-01'})
++    expect(leerIntentoInversion(ACTOR_F5,PERSONA_F5)?.datos).toMatchObject({plazo_meses:12,tasa_anual:12,vence_en:'2027-08-27'})
+     await user.click(screen.getByRole('button',{name:'Confirmar inversión'}))
+     expect(api.confirmar).toHaveBeenCalledWith(vigente.solicitud_id,3)
+     await screen.findByText('Respuesta perdida')
+--- a/CRM-Avance-Corp/app/src/lib/database.types.ts
++++ b/CRM-Avance-Corp/app/src/lib/database.types.ts
+@@ -740,6 +740,7 @@
+         Row: {
+           anulado_en: string | null
+           anulado_por: string | null
++          base_plazo: string
+           comprobante_objeto_id: string | null
+           cooperativa: string
+           creado_en: string
+@@ -767,6 +768,7 @@
+         Insert: {
+           anulado_en?: string | null
+           anulado_por?: string | null
++          base_plazo?: string
+           comprobante_objeto_id?: string | null
+           cooperativa: string
+           creado_en?: string
+@@ -794,6 +796,7 @@
+         Update: {
+           anulado_en?: string | null
+           anulado_por?: string | null
++          base_plazo?: string
+           comprobante_objeto_id?: string | null
+           cooperativa?: string
+           creado_en?: string
+--- a/CRM-Avance-Corp/app/e2e/f5-cartera.spec.ts
++++ b/CRM-Avance-Corp/app/e2e/f5-cartera.spec.ts
+@@ -153,7 +153,8 @@
+   await page.getByLabel('Número de operación del depósito').fill('F5-UI-SINTETICO')
+   await page.getByLabel('Fecha comercial (inicio)').fill('2026-01-31')
+   await page.getByLabel('Plazo (meses)').fill('1')
+-  await expect(page.getByLabel('Vencimiento')).toHaveValue('2026-02-28')
++  await expect(page.getByLabel('Vencimiento')).toHaveValue('2026-03-02')
++  await expect(page.getByText('Cada mes equivale a 30 días; 12 meses son 360 días.')).toBeVisible()
+   await page.getByLabel('Rentabilidad anual (%)').fill('12,50')
+   await page.screenshot({path:testInfo.outputPath('coopac-plazo-rentabilidad-movil.png'),fullPage:true})
+   await page.getByLabel('Referencia de la inversión').fill('ENSAYO F5 DE NAVEGADOR')
+@@ -167,7 +168,7 @@
+   await page.getByRole('button',{name:'Revisar inversión',exact:true}).click()
+   await expect(page.getByRole('heading',{name:'Revisar inversión'})).toBeVisible()
+   expect(estado.confirmaciones).toBe(0)
+-  expect(estado.solicitud?.datos).toMatchObject({plazo_meses:1,tasa_anual:12.5,vence_en:'2026-02-28'})
++  expect(estado.solicitud?.datos).toMatchObject({plazo_meses:1,tasa_anual:12.5,vence_en:'2026-03-02'})
+   await expect(page.getByText('12.5% anual')).toBeVisible()
+   await expect(page.getByRole('button',{name:'Confirmar inversión'})).toBeEnabled()
+   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+--- /dev/null
++++ b/CRM-Avance-Corp/supabase/migrations/20261016195003_crm_coopac_plazo_360_dias.sql
+@@ -0,0 +1,151 @@
++-- Qorilazo y Prodelco: un año de plazo equivale a 360 días corridos.
++-- Borrador preparado desde el catálogo de producción leído el 16/10/2026.
++-- Requiere aprobación del SQL y ensayo en una rama antes de instalar.
++-- Las filas existentes mantienen meses calendario; no se recalculan fechas.
++-- Reversa: cambiar el DEFAULT y el helper de nuevas altas a calendario.
++-- Conservar la columna, su CHECK y la corrección por base para contratos de 360 días.
++begin;
++set local lock_timeout='5s';
++
++do $deriva$
++begin
++  if md5(pg_get_functiondef('private.coopac_validar_condiciones(date,integer,numeric)'::regprocedure))
++       is distinct from '10ad4aaf7e96013a50273fd1ac47f5b7'
++    or md5(pg_get_functiondef('crm.inversionista_corregir_coopac_fn(uuid,uuid,uuid,text,jsonb)'::regprocedure))
++       is distinct from 'd347a2c84dc07fa3f3bb91c871719872'
++    or (select md5(pg_get_constraintdef(oid)) from pg_constraint
++        where conrelid='crm.cierres_externos'::regclass
++          and conname='cierres_coopac_condiciones_completas')
++       is distinct from 'd6a4d93538ee16cf31d5f373209c901f' then
++    raise exception 'Las condiciones COOPAC cambiaron; revisar el SQL antes de aplicar';
++  end if;
++end;
++$deriva$;
++
++-- El primer DEFAULT conserva la convención de todas las filas anteriores,
++-- incluidos históricos sin plazo. El segundo rige solamente altas nuevas.
++alter table crm.cierres_externos
++  add column base_plazo text not null default 'calendario';
++alter table crm.cierres_externos
++  alter column base_plazo set default 'dias_360',
++  add constraint cierres_coopac_base_plazo check (base_plazo in ('calendario','dias_360'));
++comment on column crm.cierres_externos.base_plazo is
++  'Convención del plazo, fijada al registrar: calendario en históricos; dias_360 en nuevas inversiones (30 días por mes). Se conserva al corregir. No altera importes ni rentabilidad.';
++
++create function private.coopac_validar_condiciones_base(
++  p_inicio date,p_plazo_meses integer,p_tasa_anual numeric,p_base_plazo text)
++returns date language plpgsql immutable set search_path='' as $function$
++begin
++  if p_inicio is null or not isfinite(p_inicio)
++    or p_plazo_meses is null or p_plazo_meses not between 1 and 1200 then
++    raise exception 'Indica una fecha de inicio válida y un plazo de 1 a 1200 meses enteros' using errcode='22023';
++  end if;
++  if p_tasa_anual is null or p_tasa_anual in ('NaN'::numeric,'Infinity'::numeric,'-Infinity'::numeric)
++    or p_tasa_anual<=0 or p_tasa_anual<>trunc(p_tasa_anual,2) then
++    raise exception 'La rentabilidad anual debe ser un porcentaje positivo con hasta dos decimales' using errcode='22023';
++  end if;
++  if p_base_plazo='calendario' then
++    return (p_inicio + make_interval(months=>p_plazo_meses))::date;
++  elsif p_base_plazo='dias_360' then
++    return p_inicio + p_plazo_meses * 30;
++  end if;
++  raise exception 'Convención del plazo de cooperativa inválida' using errcode='22023';
++end;
++$function$;
++alter function private.coopac_validar_condiciones_base(date,integer,numeric,text) owner to postgres;
++revoke all on function private.coopac_validar_condiciones_base(date,integer,numeric,text) from public,anon,authenticated;
++comment on function private.coopac_validar_condiciones_base(date,integer,numeric,text) is
++  'Núcleo de vencimiento COOPAC: valida condiciones y conserva la convención del contrato al corregir.';
++
++create or replace function private.coopac_validar_condiciones(p_inicio date,p_plazo_meses integer,p_tasa_anual numeric)
++returns date language plpgsql immutable set search_path='' as $function$
++begin
++  return private.coopac_validar_condiciones_base(p_inicio,p_plazo_meses,p_tasa_anual,'dias_360');
++end;
++$function$;
++comment on function private.coopac_validar_condiciones(date,integer,numeric) is
++  'Núcleo de nuevas inversiones COOPAC: meses enteros de 30 días; 12 meses son 360 días corridos.';
++
++alter table crm.cierres_externos drop constraint cierres_coopac_condiciones_completas;
++alter table crm.cierres_externos add constraint cierres_coopac_condiciones_completas check (
++  (plazo_meses is null and tasa_anual is null)
++  or (plazo_meses is not null and tasa_anual is not null
++    and base_plazo in ('calendario','dias_360') and plazo_meses between 1 and 1200
++    and tasa_anual not in ('NaN'::numeric,'Infinity'::numeric,'-Infinity'::numeric)
++    and tasa_anual>0 and tasa_anual=trunc(tasa_anual,2)
++    and vence_en is not null and isfinite(vence_en)
++    and vence_en=case base_plazo
++      when 'calendario' then
++        (coalesce(fecha_comercial,(creado_en at time zone 'America/Lima')::date)
++          + make_interval(months=>plazo_meses))::date
++      when 'dias_360' then
++        coalesce(fecha_comercial,(creado_en at time zone 'America/Lima')::date) + plazo_meses * 30
++    end)
++);
++comment on constraint cierres_coopac_condiciones_completas on crm.cierres_externos is
++  'Plazo, tasa y vencimiento coherentes según la convención persistida. Conserva fechas históricas y exige 30 días por mes en nuevas altas.';
++
++-- Mismos permisos, revisión optimista, idempotencia, auditoría y firma.
++-- Único cambio funcional: calcular con la convención persistida en la fuente.
++CREATE OR REPLACE FUNCTION crm.inversionista_corregir_coopac_fn(p_inversionista uuid, p_fuente uuid, p_clave uuid, p_revision text, p_datos jsonb)
++ RETURNS jsonb
++ LANGUAGE plpgsql
++ SECURITY DEFINER
++ SET search_path TO ''
++ SET lock_timeout TO '5s'
++AS $function$
++declare v_i crm.inversionistas%rowtype; v_ce crm.cierres_externos%rowtype;
++  v_recibo jsonb; v_vence date; v_plazo integer; v_tasa numeric; v_monto numeric; v_contexto_previo text;
++begin
++  if private.rol_crm(auth.uid()) is distinct from 'gerencia' or private.es_lector_global() then
++    raise exception 'Solo Gerencia corrige inversiones de cooperativas' using errcode='42501'; end if;
++  v_i:=private.postventa_persona(p_inversionista,false);
++  v_ce:=private.postventa_fuente(p_fuente,v_i.id);
++  select * into strict v_ce from crm.cierres_externos where id=p_fuente for update nowait;
++  v_recibo:=private.postventa_recibo(p_clave,v_i.id,'corregir_coopac',
++    jsonb_build_object('fuente',p_fuente,'revision',p_revision,'datos',p_datos));
++  if v_recibo is not null then return v_recibo; end if;
++  if p_revision is distinct from md5(to_jsonb(v_ce)::text) then
++    raise exception 'La inversión cambió. Vuelve a abrirla antes de corregir' using errcode='PT409'; end if;
++  if p_datos is null or jsonb_typeof(p_datos)<>'object' or
++    p_datos-array['monto','numero_transaccion','referencia','nota','plazo_meses','tasa_anual','vence_en']<>'{}'::jsonb then
++    raise exception 'Datos de inversión inválidos' using errcode='22023'; end if;
++  if length(p_datos->>'nota')>2000 then raise exception 'La nota admite hasta 2000 caracteres' using errcode='22023'; end if;
++  v_monto:=(p_datos->>'monto')::numeric;
++  if v_monto is null or v_monto in ('NaN'::numeric,'Infinity'::numeric,'-Infinity'::numeric)
++    or v_monto<=0 or v_monto>999999999999.99 or v_monto<>trunc(v_monto,2) then
++    raise exception 'Indica un monto positivo con hasta dos decimales' using errcode='22023'; end if;
++  v_plazo:=(p_datos->>'plazo_meses')::integer; v_tasa:=(p_datos->>'tasa_anual')::numeric;
++  if v_plazo is null and v_tasa is null and v_ce.plazo_meses is null then
++    v_vence:=case when p_datos ? 'vence_en' then (p_datos->>'vence_en')::date else v_ce.vence_en end;
++    if v_vence is not null and not isfinite(v_vence) then raise exception 'Vencimiento inválido' using errcode='22023'; end if;
++  else
++    v_vence:=private.coopac_validar_condiciones_base(coalesce(v_ce.fecha_comercial,(v_ce.creado_en at time zone 'America/Lima')::date),v_plazo,v_tasa,v_ce.base_plazo);
++  end if;
++  -- Las condiciones y el vencimiento cambian juntos para conservar su CHECK.
++  perform set_config('crm.op_privilegiada','on',true);
++  update crm.cierres_externos set plazo_meses=v_plazo,tasa_anual=v_tasa,vence_en=v_vence where id=p_fuente;
++  perform set_config('crm.op_privilegiada','off',true);
++  v_contexto_previo:=current_setting('crm.gestion_neutral',true);
++  perform set_config('crm.gestion_neutral','on',true);
++  perform crm.corregir_cierre_externo(p_fuente,v_monto,v_ce.moneda,v_ce.cooperativa,
++    p_datos->>'numero_transaccion',p_datos->>'referencia',v_vence,p_datos->>'nota');
++  perform set_config('crm.gestion_neutral',coalesce(v_contexto_previo,'off'),true);
++  insert into crm.inversionista_gestiones(inversionista_id,empresa,tipo,detalle,metadata,creado_por)
++    values(v_i.id,v_ce.cooperativa,'correccion_coopac','Gerencia corrigió la inversión de cooperativa',
++      jsonb_build_object('accion','correccion_coopac','fuente_id',p_fuente,
++        'antes',jsonb_build_object('monto',v_ce.monto,'numero_transaccion',v_ce.numero_transaccion,
++          'referencia_externa',v_ce.referencia_externa,'nota',v_ce.nota),
++        'despues',jsonb_build_object('monto',v_monto,'numero_transaccion',btrim(p_datos->>'numero_transaccion'),
++          'referencia_externa',nullif(btrim(p_datos->>'referencia'),''),'nota',nullif(btrim(p_datos->>'nota'),'')),
++        'condiciones_antes',jsonb_build_object('plazo_meses',v_ce.plazo_meses,'tasa_anual',v_ce.tasa_anual,'vence_en',v_ce.vence_en),
++        'condiciones_despues',jsonb_build_object('plazo_meses',v_plazo,'tasa_anual',v_tasa,'vence_en',v_vence)),auth.uid());
++  return private.postventa_responder(p_clave,jsonb_build_object('ok',true,'inversionista_id',v_i.id,'fuente_id',p_fuente));
++exception when serialization_failure or lock_not_available or deadlock_detected then
++  raise exception 'La inversión está cambiando. Vuelve a comprobarla' using errcode='PT409';
++when invalid_text_representation or invalid_datetime_format or datetime_field_overflow or numeric_value_out_of_range then
++  raise exception 'Revisa el monto, el plazo, la tasa y la fecha de vencimiento' using errcode='22023';
++end;
++$function$;
++
++commit;
+--- a/CRM-Avance-Corp/supabase/migrations/MIGRACIONES.md
++++ b/CRM-Avance-Corp/supabase/migrations/MIGRACIONES.md
+@@ -1,3 +1,26 @@
++## 20261016195003 — Plazo de cooperativas a 360 días
++
++**SQL APROBADO Y ENSAYADO EN RAMA TEMPORAL; NO INSTALADO EN PRODUCCIÓN NI PUBLICADO.**
++Decisión de Miguel del 16/10/2026: Qorilazo y Prodelco vencen a los
++360 días de la fecha de inicio en lugar de 12 meses calendario.
++Cada mes del plazo equivale a 30 días corridos. Rentabilidad anual intacta.
++
++La fuente conserva su convención en `base_plazo`: las filas existentes
++siguen con calendario; las altas posteriores usan `dias_360`. La corrección
++de Gerencia utiliza la convención persistida. No se recalculan históricos,
++no hay nuevos grants ni cambios en objetos de public o firmas expuestas.
++SQL protegido por huellas del helper, la corrección y el CHECK productivos.
++
++Ensayo con Auth/RPC/Storage reales: 95 comprobaciones PASS; advisors sin
++avisos nuevos. Rama temporal eliminada. Pendientes: matriz RLS/Edge integral
++y gates de release, integración en Main y publicación coordinada con
++actualización de la PWA. Los tres borradores
++COOPAC observados deberán editarse/revisarse para recalcular su vencimiento.
++Reversa conserva la convención de los contratos que ya hayan sido creados.
++
++Ver `supabase/scripts/coopac-plazo-360/` y el expediente local
++`docs/plans/cooperativas-plazo-360-20261016/`.
++
+ ## 20261016190408 — SLA: «próximo cambio» en el mismo paso
+ 
+ **APLICADA EN PRODUCCIÓN el 16/10/2026** (entre 15:24 y 15:27 Lima), con `db query --linked --file` lanzado por Miguel desde `afc0fda7`
+--- /dev/null
++++ b/CRM-Avance-Corp/supabase/scripts/coopac-plazo-360/test.sql
+@@ -0,0 +1,117 @@
++\set ON_ERROR_STOP on
++-- Ejecutar exclusivamente en los bancos declarados, con esquema copiado de local.
++-- Fixtures directas con réplica SOLO para probar conservación y CHECKs.
++-- No acredita la conversión ni la corrección autenticada completa.
++do $$ begin
++  if current_database() not in ('coopac_360_20261016','coopac_360_replay_20261016') then raise exception 'Banco incorrecto'; end if;
++end $$;
++set session_replication_role=replica;
++select exists(select 1 from information_schema.columns where table_schema='crm'
++  and table_name='cierres_externos' and column_name='base_plazo') as ya_instalada \gset
++\if :ya_instalada
++\echo Conservando las fixtures históricas ya preparadas.
++\else
++insert into crm.cierres_externos(id,lead_id,cooperativa,monto,moneda,documento_tipo,documento,
++  nombre_completo,numero_transaccion,vendedor_id,creado_por,fecha_comercial,fecha_imputacion,
++  plazo_meses,tasa_anual,vence_en)
++values('00000000-0000-4000-8000-000000000001',gen_random_uuid(),'qorilazo',1000,'PEN','DNI','49990001',
++  'ENSAYO SINTETICO','ENSAYO-360-ANTIGUO',gen_random_uuid(),gen_random_uuid(),'2026-01-31','2026-01-31',12,12,'2027-01-31'),
++('00000000-0000-4000-8000-000000000002',gen_random_uuid(),'prodelco',2000,'USD','DNI','49990002',
++  'ENSAYO HISTORICO','ENSAYO-360-HISTORICO',gen_random_uuid(),gen_random_uuid(),null,null,null,null,'2027-03-10')
++on conflict(id) do nothing;
++\endif
++create temporary table foto_cierres as
++select id,to_jsonb(c)-'base_plazo' as datos from crm.cierres_externos c
++where id in ('00000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000002');
++create temporary table foto_funciones as
++select p.oid,p.proname,p.proacl,p.proowner,md5(pg_get_functiondef(p.oid)) as huella
++from pg_proc p where p.pronamespace in ('crm'::regnamespace,'private'::regnamespace) and p.prokind='f';
++\if :ya_instalada
++\echo Migración ya ensayada en este banco; se comprueban las condiciones.
++\else
++\ir ../../migrations/20261016195003_crm_coopac_plazo_360_dias.sql
++\endif
++create function pg_temp.exigir(ok boolean,mensaje text) returns void language plpgsql as $$
++begin if ok is not true then raise exception 'COOPAC360: %',mensaje; end if; end $$;
++select pg_temp.exigir(not exists(select 1 from foto_cierres f join crm.cierres_externos c using(id)
++  where to_jsonb(c)-'base_plazo'<>f.datos or c.base_plazo<>'calendario'),'históricos alterados');
++select pg_temp.exigir(not exists(select 1 from foto_funciones f join pg_proc p using(oid)
++  where f.proacl is distinct from p.proacl or f.proowner<>p.proowner),'ACL o propietario alterados');
++select pg_temp.exigir(not exists(select 1 from foto_funciones f join pg_proc p using(oid)
++  where f.proname not in ('coopac_validar_condiciones','inversionista_corregir_coopac_fn')
++    and f.huella<>md5(pg_get_functiondef(p.oid))),'funciones ajenas alteradas');
++select pg_temp.exigir(not has_function_privilege('anon','private.coopac_validar_condiciones_base(date,integer,numeric,text)','EXECUTE')
++  and not has_function_privilege('authenticated','private.coopac_validar_condiciones_base(date,integer,numeric,text)','EXECUTE'),
++  'helper interno expuesto');
++select pg_temp.exigir((select relrowsecurity from pg_class where oid='crm.cierres_externos'::regclass)
++  and not has_table_privilege('authenticated','crm.cierres_externos','INSERT'),'acceso directo a cierres');
++do $casos$
++declare c record; n integer:=0;
++begin
++  for c in select * from (values
++    ('2026-01-31'::date,1,'2026-03-02'::date),
++    ('2024-01-31'::date,1,'2024-03-01'::date),
++    ('2024-02-29'::date,12,'2025-02-23'::date),
++    ('2026-08-31'::date,6,'2027-02-27'::date),
++    ('2026-09-14'::date,12,'2027-09-09'::date),
++    ('2026-10-16'::date,12,'2027-10-11'::date),
++    ('2026-10-16'::date,24,'2028-10-05'::date)
++  ) x(inicio,plazo,fin) loop
++    perform pg_temp.exigir(private.coopac_validar_condiciones(c.inicio,c.plazo,12)=c.fin,'fecha calculada');
++    perform pg_temp.exigir(private.coopac_validar_condiciones(c.inicio,c.plazo,12)-c.inicio=c.plazo*30,'días exactos');
++    n:=n+1;
++  end loop;
++  perform pg_temp.exigir(private.coopac_validar_condiciones_base('2026-01-31',12,12,'calendario')='2027-01-31','corrección histórica');
++  perform pg_temp.exigir(private.coopac_validar_condiciones_base('2026-01-31',1,12,'calendario')='2026-02-28','fin de mes histórico');
++  raise notice 'PASS: % fechas y diferencias exactas; 2 cálculos históricos',n;
++end $casos$;
++do $invalidos$
++declare s text; n integer:=0;
++begin
++  foreach s in array array[
++    $$select private.coopac_validar_condiciones(null,12,12)$$,
++    $$select private.coopac_validar_condiciones('infinity',12,12)$$,
++    $$select private.coopac_validar_condiciones('2026-01-01',0,12)$$,
++    $$select private.coopac_validar_condiciones('2026-01-01',1201,12)$$,
++    $$select private.coopac_validar_condiciones('2026-01-01',12,null)$$,
++    $$select private.coopac_validar_condiciones('2026-01-01',12,'NaN')$$,
++    $$select private.coopac_validar_condiciones('2026-01-01',12,'Infinity')$$,
++    $$select private.coopac_validar_condiciones('2026-01-01',12,0)$$,
++    $$select private.coopac_validar_condiciones('2026-01-01',12,12.345)$$,
++    $$select private.coopac_validar_condiciones_base('2026-01-01',12,12,null)$$
++  ] loop
++    begin
++      execute s;
++      raise exception 'Se aceptó una condición inválida';
++    exception when sqlstate '22023' then n:=n+1;
++    end;
++  end loop;
++  raise notice 'PASS: % entradas inválidas rechazadas',n;
++end $invalidos$;
++do $tabla$
++declare empresa text; v_cierre uuid; n integer:=0; antiguo date;
++begin
++  foreach empresa in array array['qorilazo','prodelco'] loop
++    insert into crm.cierres_externos(lead_id,cooperativa,monto,moneda,documento_tipo,documento,nombre_completo,
++      numero_transaccion,vendedor_id,creado_por,fecha_comercial,fecha_imputacion,plazo_meses,tasa_anual,vence_en)
++    values(gen_random_uuid(),empresa,1500,'PEN','DNI','49990003','ENSAYO NUEVO',empresa||'-360',
++      gen_random_uuid(),gen_random_uuid(),'2026-01-31','2026-01-31',12,12,'2027-01-26') returning crm.cierres_externos.id into v_cierre;
++    perform pg_temp.exigir((select base_plazo='dias_360' from crm.cierres_externos c where c.id=v_cierre),'DEFAULT nuevo');
++    begin
++      update crm.cierres_externos set vence_en='2027-01-31' where crm.cierres_externos.id=v_cierre;
++      raise exception 'Se aceptó vencimiento calendario en contrato nuevo';
++    exception when check_violation then n:=n+1;
++    end;
++    begin
++      update crm.cierres_externos set base_plazo='otra' where crm.cierres_externos.id=v_cierre;
++      raise exception 'Se aceptó convención desconocida';
++    exception when check_violation then n:=n+1;
++    end;
++  end loop;
++  update crm.cierres_externos c set nota='Corrección de nota' where c.id='00000000-0000-4000-8000-000000000001';
++  select c.vence_en into antiguo from crm.cierres_externos c where c.id='00000000-0000-4000-8000-000000000001';
++  perform pg_temp.exigir(antiguo='2027-01-31','nota cambia vencimiento antiguo');
++  raise notice 'PASS: ambas cooperativas; % restricciones; corrección de nota conserva fecha',n;
++end $tabla$;
++set session_replication_role=origin;
++select 'COOPAC_360_SQL_PASS' as resultado;
+--- /dev/null
++++ b/CRM-Avance-Corp/supabase/scripts/coopac-plazo-360/reversa.sql
+@@ -0,0 +1,14 @@
++-- Reversa de nuevas altas. Coordinar con la pantalla de meses calendario.
++-- Conserva todos los contratos ya pactados a 360 días y sus correcciones.
++begin;
++set local lock_timeout='5s';
++alter table crm.cierres_externos alter column base_plazo set default 'calendario';
++create or replace function private.coopac_validar_condiciones(p_inicio date,p_plazo_meses integer,p_tasa_anual numeric)
++returns date language plpgsql immutable set search_path='' as $function$
++begin
++  return private.coopac_validar_condiciones_base(p_inicio,p_plazo_meses,p_tasa_anual,'calendario');
++end;
++$function$;
++comment on function private.coopac_validar_condiciones(date,integer,numeric) is
++  'Reversa COOPAC: altas nuevas por meses calendario; contratos ya pactados conservan su base.';
++commit;
+--- a/CRM-Avance-Corp/app/src/data/gestion-inversionista.ts
++++ b/CRM-Avance-Corp/app/src/data/gestion-inversionista.ts
+@@ -22,7 +22,7 @@
+     empresa:v.picklist(['avance','qorilazo','prodelco']), fuente_id:Id,
+     puede_corregir:v.boolean(), sin_limite:v.boolean(), puede_reasignar:v.boolean(),
+     contrato:v.nullable(Contrato),
+-    coopac:v.nullable(v.object({monto:Numero, moneda:v.literal('PEN'), numero_transaccion:v.string(),
++    coopac:v.nullable(v.object({monto:Numero, moneda:v.picklist(['PEN','USD']), numero_transaccion:v.string(),
+       referencia:Texto, vence_en:Texto, nota:Texto, creado_en:v.string(), fecha_comercial:Texto,
+       anulado_en:Texto, motivo_anulacion:Texto, plazo_meses:v.nullable(Numero), tasa_anual:v.nullable(Numero), revision:v.string()})),
+     operaciones:v.array(v.object({id:Id, tipo:v.picklist(['renovacion','upgrade']), moneda:v.picklist(['PEN','USD']),
+--- a/CRM-Avance-Corp/app/src/components/app/gestion-inversionista-dialogo.test.tsx
++++ b/CRM-Avance-Corp/app/src/components/app/gestion-inversionista-dialogo.test.tsx
+@@ -25,7 +25,7 @@
+   mock.sesion.mockResolvedValue({data:{session:{user:{id:actor}}},error:null})
+   mock.rpc.mockImplementation((nombre:string)=>{
+     if(nombre==='inversionista_gestion_fn')return leer()
+-    if(nombre==='inversionista_corregir_contacto_fn')return escribir()
++    if(nombre==='inversionista_corregir_contacto_fn' || nombre==='inversionista_corregir_coopac_fn')return escribir()
+     if(nombre==='postventa_operacion_estado_fn')return respuesta({registrada:true})
+     throw new Error('RPC no esperada: '+nombre)
+   })
+@@ -36,6 +36,27 @@
+   return {...render(<QueryClientProvider client={qc}><GestionInversionistaDialogo actor={actor} persona={persona} fuente={fuenteId} onCerrar={cerrar} onRevocado={revocado}/></QueryClientProvider>),qc,user:userEvent.setup()}
+ }
+ describe('Gestión desde ficha neutral',()=>{
++  it.each(['PEN','USD'] as const)('corrige un plazo histórico en %s con la revisión del servidor y sin adelantar otra fecha',async(moneda)=>{
++    base.inversion={empresa:moneda==='USD'?'prodelco':'qorilazo',fuente_id:fuente,
++      puede_corregir:true,sin_limite:true,puede_reasignar:false,contrato:null,operaciones:[],
++      coopac:{monto:1000,moneda,numero_transaccion:'OP-HISTORICA',referencia:null,nota:null,
++        creado_en:'2026-01-31T12:00:00Z',fecha_comercial:'2026-01-31',vence_en:'2027-01-31',
++        anulado_en:null,motivo_anulacion:null,plazo_meses:12,tasa_anual:12.5,revision:'revision-del-servidor'}}
++    escribir=()=>Promise.resolve(respuesta({ok:true,inversionista_id:persona,fuente_id:fuente}))
++    const {user}=montar(fuente)
++    await user.click(await screen.findByRole('button',{name:'Corregir inversión'}))
++    expect(screen.getByLabelText(moneda==='USD'?'Capital en dólares':'Capital en soles')).toHaveValue(1000)
++    const plazo=screen.getByLabelText('Plazo en meses')
++    await user.clear(plazo);await user.type(plazo,'6')
++    expect(screen.getByText(/conservando la forma de calcular el plazo de ese contrato/)).toBeInTheDocument()
++    expect(document.querySelector('input[type="date"]')).toBeNull()
++    await user.click(screen.getByRole('button',{name:'Guardar corrección'}))
++    await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('inversionista_corregir_coopac_fn',expect.objectContaining({
++      p_inversionista:persona,p_fuente:fuente,p_revision:'revision-del-servidor',
++      p_datos:{monto:1000,numero_transaccion:'OP-HISTORICA',referencia:null,nota:null,plazo_meses:6,tasa_anual:12.5,vence_en:'2027-01-31'},
++    })))
++    await waitFor(()=>expect(cerrar).toHaveBeenCalledTimes(1))
++  })
+   it('precarga, guarda una vez, bloquea Escape durante el envío y retorna a la ficha',async()=>{
+     let resolver!:(x:unknown)=>void
+     escribir=()=>new Promise(r=>{resolver=r})

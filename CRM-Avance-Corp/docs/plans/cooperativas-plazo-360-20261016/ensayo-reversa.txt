@@ -1,0 +1,13 @@
+SELECT 4
+BEGIN
+SET
+ALTER TABLE
+CREATE FUNCTION
+COMMENT
+COMMIT
+DO
+      ?column?       
+---------------------
+ REVERSA_COOPAC_PASS
+(1 row)
+

@@ -1,0 +1,60 @@
+{
+  "produccion_vs_banco_previo": {
+    "tipos": {
+      "antes": 1,
+      "despues": 1,
+      "cambiados": [],
+      "nuevos": [],
+      "eliminados": []
+    },
+    "tablas": {
+      "antes": 154,
+      "despues": 154,
+      "cambiados": [
+        "crm.empresas",
+        "crm.producto_condiciones",
+        "crm.alertas_reconocimientos"
+      ],
+      "nuevos": [],
+      "eliminados": []
+    },
+    "funciones": {
+      "antes": 1110,
+      "despues": 1110,
+      "cambiados": [],
+      "nuevos": [],
+      "eliminados": []
+    }
+  },
+  "banco_previo_vs_sql_aprobado": {
+    "tipos": {
+      "antes": 1,
+      "despues": 1,
+      "cambiados": [],
+      "nuevos": [],
+      "eliminados": []
+    },
+    "tablas": {
+      "antes": 154,
+      "despues": 154,
+      "cambiados": [
+        "crm.cierres_externos"
+      ],
+      "nuevos": [],
+      "eliminados": []
+    },
+    "funciones": {
+      "antes": 1110,
+      "despues": 1111,
+      "cambiados": [
+        "private.coopac_validar_condiciones(date,integer,numeric)",
+        "crm.inversionista_corregir_coopac_fn(uuid,uuid,uuid,text,jsonb)"
+      ],
+      "nuevos": [
+        "private.coopac_validar_condiciones_base(date,integer,numeric,text)"
+      ],
+      "eliminados": []
+    }
+  },
+  "nota": "Tres CHECKs ajenos difieren solo en paréntesis asociativos de AND: empresas_monedas_check, alertas_reconocimientos_miembros_check, producto_condiciones_capital_check. Ninguna función difiere antes del candidato. El banco se reconstruyó sin datos de clientes; el historial viejo de la rama no admite merge automático."
+}

@@ -70,7 +70,7 @@ export function CorregirInversionCoopac({actor,persona,inversion,permitido,onCer
     <DialogBody className="space-y-4">
       <p className="text-xs text-muted-foreground">Corrección de Gerencia. La empresa, la moneda, el cliente y el autor original se conservan.</p>
       {envio.pendiente ? <RecuperacionPostventa envio={envio} onRecuperar={()=>void guardar(true)} /> : <>
-        <div className="space-y-1"><Label htmlFor="coopac-monto">Capital en soles</Label><Input id="coopac-monto" type="number" min="0.01" step="0.01" value={monto} onChange={e=>setMonto(e.target.value)} disabled={envio.ocupado} /></div>
+        <div className="space-y-1"><Label htmlFor="coopac-monto">Capital en {base.moneda==='USD'?'dólares':'soles'}</Label><Input id="coopac-monto" type="number" min="0.01" step="0.01" value={monto} onChange={e=>setMonto(e.target.value)} disabled={envio.ocupado} /></div>
         <div className="space-y-1"><Label htmlFor="coopac-operacion">Número de operación</Label><Input id="coopac-operacion" value={operacion} maxLength={64} onChange={e=>setOperacion(e.target.value)} disabled={envio.ocupado} /></div>
         <div className="space-y-1"><Label htmlFor="coopac-referencia">Certificado o referencia</Label><Input id="coopac-referencia" value={referencia} maxLength={64} onChange={e=>setReferencia(e.target.value)} disabled={envio.ocupado} /></div>
         <div className="grid grid-cols-2 gap-3">
@@ -78,7 +78,7 @@ export function CorregirInversionCoopac({actor,persona,inversion,permitido,onCer
           <div className="space-y-1"><Label htmlFor="coopac-tasa">Rentabilidad anual (%)</Label><Input id="coopac-tasa" type="number" min="0.01" step="0.01" value={tasa} onChange={e=>setTasa(e.target.value)} disabled={envio.ocupado} /></div>
         </div>
         {base.plazo_meses===null && !plazo && !tasa ? <div className="space-y-1"><Label htmlFor="coopac-vence">Vencimiento histórico</Label><Input id="coopac-vence" type="date" value={vence} onChange={e=>setVence(e.target.value)} disabled={envio.ocupado} /></div>
-          : <p className="text-xs text-muted-foreground">El vencimiento se ajustará al plazo desde la fecha comercial original.</p>}
+          : <p className="text-xs text-muted-foreground">El vencimiento se ajustará al plazo desde la fecha comercial original, conservando la forma de calcular el plazo de ese contrato.</p>}
         <div className="space-y-1"><Label htmlFor="coopac-nota">Notas de la operación</Label><Textarea id="coopac-nota" value={nota} maxLength={2000} onChange={e=>setNota(e.target.value)} disabled={envio.ocupado} /></div>
         {envio.error && <p role="alert" className="text-sm text-destructive">{envio.error}</p>}
       </>}
