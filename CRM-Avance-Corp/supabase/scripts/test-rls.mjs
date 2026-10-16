@@ -9,6 +9,13 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 
+// Sesiones Auth reales en la rama exclusiva autorizada para Coordinación.
+if (process.argv.length === 3 && process.argv[2] === '--permisos-coordinacion') {
+  const { ejecutar } = await import('./permisos-coordinacion/http-cloud.mjs');
+  await ejecutar();
+  process.exit(0);
+}
+
 // Origen nativo: matriz HTTP focalizada en la copia cloud autorizada. No exige
 // reemplazar su población por seed-demo ni modifica el gate general.
 if (process.argv.length === 4 && process.argv[2] === '--formulario3-origen') {

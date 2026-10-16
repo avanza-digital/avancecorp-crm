@@ -1,6 +1,7 @@
 # Verificación — Coordinación, cartera y categoría
 
-15/10/2026. **Implementación validada localmente; producción sin cambios.**
+15/10/2026. **Acta del ensayo local inicial. Backend aplicado posteriormente.**
+El estado vigente, Auth/PostgREST, advisors y promoción están en [VERIFICACION-CLOUD.md](VERIFICACION-CLOUD.md).
 Trabajo en copia aislada autorizada por Miguel, integrado sobre `avancecorp/main` `9bb58ec1`,
 con los cambios Formulario 3 publicados durante el desarrollo conservados. El working tree
 original no se modificó. No se ejecutó publicación ni ninguna migración remota.
@@ -50,9 +51,9 @@ Dos consultas independientes por `scripts/claude-review`, con Codex como único 
 El dictamen final fue **CHANGES_REQUESTED**; no se presenta como PASS del reviewer. El PRIMARY
 corrigió los hallazgos aceptados y resolvió las hipótesis con evidencia. Ver [REVISION.md](REVISION.md).
 
-El esquema de ensayo incluye F3 pero no se afirma que reproduzca todo producción. Antes de
-aplicar quedan la matriz pertinente con Auth/PostgREST, el gate de realidad y los preflights
-actualizados del flujo de publicación. Las 26 omisiones de Playwright no cuentan como pruebas
+El ensayo local incluía F3, sin afirmar paridad completa. Posteriormente se reprodujo el esquema
+productivo en la rama autorizada: 93 SQL y 61 Auth/PostgREST PASS. El gate de realidad administrativo
+de solo lectura pasó (cero errores; dos divergencias preexistentes). Véase el acta cloud vigente. Las 26 omisiones de Playwright no cuentan como pruebas
 aprobadas. Las escrituras de ensayo fueron únicamente en bancos sintéticos locales.
 
 Para repetir los ensayos y revisar la reversa protegida: [LEEME.md](LEEME.md).

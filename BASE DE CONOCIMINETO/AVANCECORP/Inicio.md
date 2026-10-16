@@ -9,6 +9,8 @@ actualizado: 2026-09-25
 
 # 🏠 Inicio — Portal Avance Corp
 
+- ✅ **15/10 19:02 Lima — n8n FORMULARIO 3, FASE 7 PUBLICADA:** una celda rara solo frena su fila; el aviso lista las filas para revisar (rechazadas y clientes sin registrar); latido de cada lectura y resumen diario a las 7 p. m. a Miguel (el primero, el 16/10). PR #300 `2ed57674`; 57 tests, 12 mutantes, banco y Error Trigger reales; primera vuelta con 152 filas y sin errores — [[n8n - auditoria del flujo Formulario 3 (2026-10-15)]].
+
 - 📝 **15/10 — NUEVA PLANILLA DE REPARTO:** Miguel pide equilibrar cantidades totales entre supervisores combinando orígenes, con acumulado semanal y filtros independientes de fecha de ingreso/reparto (un día, rango o días sueltos). Planilla PUBLICADA 18:05 Lima, PR #296 / `875054a2`; 126 HTTP PASS y permiso real de Coordinación confirmado. 6.946 tests y 41 escenarios E2E; Figma actualizado. Sin reasignar leads ni cambiar n8n. [[Coordinacion - planilla de reparto y equilibrio por fechas (2026-10-15)]].
 
 - ✅ **15/10 — FORMULARIO 3 COMO ORIGEN NATIVO PUBLICADO:** misma tabla, permisos y procesos; 116 leads reclasificados, responsables/historial/tareas/inversiones conservados, cero legados. Web `597cab1c`, SQL A/B y Edge v26 verificados; ficha confirmada por Miguel. Turno compartido con Formulario, filtros y métricas propios; n8n activo con 152 recibos. [[Formulario 3 - origen nativo publicado (2026-10-15)]].
