@@ -33,8 +33,9 @@ export function SenalMetrica({ valor, objetivo, ritmo, etiqueta, abrir, barra = 
     {abrir ? <button type="button" className="cm-senal" data-senal={estado} aria-label={`${nombre}. Ver detalle`} title={`${nombre}. Ver detalle`} onClick={abrir}>{contenido}</button>
       : <span className="cm-senal" data-senal={estado} title={nombre}>{contenido}</span>}
     {barra && <div className="cm-progreso" title={ritmo == null ? 'Sin referencia del mes' : `Ritmo orientativo: ${numero(ritmo, 1)}%`}>
-      <span style={{ width: `${Math.max(0, Math.min(100, valor ?? 0))}%` }} />
-      {ritmo != null && <i style={{ left: `${ritmo}%` }} aria-hidden />}
+      {/* La barra llena es la meta, aunque la cifra se lea en bruto (125%). */}
+      <span style={{ width: `${Math.max(0, Math.min(100, objetivo > 0 ? (valor ?? 0) / objetivo * 100 : 0))}%` }} />
+      {ritmo != null && objetivo > 0 && <i style={{ left: `${Math.min(100, ritmo / objetivo * 100)}%` }} aria-hidden />}
     </div>}
   </div>
 }
