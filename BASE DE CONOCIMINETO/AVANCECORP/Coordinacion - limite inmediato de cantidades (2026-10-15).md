@@ -27,3 +27,17 @@ Consulta productiva READ ONLY: ninguna de las migraciones `20261015211217`, `202
 **NO publicado.** Sigue vivo `build-20261015T225912394Z` / `875054a2`. No se tocó Hostinger ni se ejecutó SQL de escritura. Se conserva el paquete anterior y el candidato. Hace falta completar el ciclo backend autorizado de PR298 antes de desplegar Main; no publicar una rama alternativa ni omitir los cambios fusionados. Miguel indicó que no veía PR298; se le pasó enlace y se explicó que está entre fusionadas. Figma actualizado con este estado.
 
 Relacionado: [[Coordinacion - cartera, leads y correccion de categoria (2026-10-15)]].
+
+## Backend comprobado; una sola sesión publica
+
+Miguel autorizó completar las validaciones, aplicar las tres migraciones y publicar. Se detectó otra sesión PRIMARY ejecutando precisamente PR298; Miguel confirmó que seguía trabajando. Esa sesión conserva la promoción y la publicación. Esta sesión comprueba el resultado mediante consultas de solo lectura y no repite migraciones ni despliegues.
+
+El 15/10 a las 19:10 Lima se verificaron las tres versiones originales en el ledger productivo. Las 1.072 funciones de `crm` y `private` coinciden entre rama validada y producción en definición, firma, propietario y ACL. La nueva tabla de auditoría tiene RLS, sin privilegios de tabla para `anon`/`authenticated`, y sus dos triggers de auditoría/inmutabilidad están habilitados. Las policies de consulta están consolidadas. Advisors: el aviso informativo de auditoría sin policies corresponde al acceso exclusivo por RPC; sin avisos de rendimiento relativos a los objetos nuevos.
+
+La evidencia de la sesión propietaria acredita 93 comprobaciones SQL y 61 puntos de control con Auth/PostgREST reales y SQL auxiliar, solo datos sintéticos. Incluye seis transiciones de categoría, roles permitidos/denegados, baja sin renovar JWT, mes sellado e idempotencia. El reviewer de esta sesión cotejó scripts, logs y huellas; esta matriz focalizada no se presenta como la matriz RLS general.
+
+`gate:realidad` productivo a las 19:10 Lima: exit 0 y cero errores; las mismas dos divergencias preexistentes (45 ventas de analistas de baja y 273 clientes sin domicilio legal). Los cinco caminos de conversión coinciden: 6,16 %. No se modificaron datos para verificar.
+
+Main avanzó a `2ed57674` por PR300 (n8n). La aplicación frontend y sus manifests de dependencias son idénticos a `81480ebb`: se reutilizan los 6.966 tests y los 44 E2E focalizados. Se preparó y verificó otro candidato desde Main limpio: `crm-20261015T235722Z-2ed57674b37e.zip`, SHA-256 `33517502c56bc4ebd2529ba232529f46cebfe26eefe7b7e2a93915f302f9d832`. Este paquete preparado todavía NO acredita publicación; el artefacto publicado se registrará tras comprobar los archivos servidos.
+
+Figma actualizado en el mismo tablero `JB4jRdmLXZXS0hBhEHxRbV`, sección `52:34`, con backend aplicado y publicación de pantalla en curso.
