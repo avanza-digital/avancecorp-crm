@@ -5,7 +5,7 @@ import {carteraF5, fichaF5, FUENTE_F5, PERSONA_F5, inversionF5} from '../src/tes
 for (const movil of [false, true]) test(`renovación: capital activo al buscar documento, ${movil ? 'móvil' : 'escritorio'}`, async ({page}, testInfo) => {
   await montarF5(page)
   await page.setViewportSize({width:movil ? 390 : 1440,height:movil ? 844 : 1000})
-  if (movil) await page.getByRole('button',{name:'Ocultar menú'}).click()
+  if (movil) await expect(page.getByRole('navigation', { name: 'Navegación principal de Analista' })).toBeVisible()
   const resumen=[{empresa:'avance',moneda:'USD',cantidad:2,capital_registrado:17000,capital_activo:12000}]
   await page.route('**/rest/v1/rpc/cartera_inversionistas_filtrada_fn',route => route.fulfill({json:{
     ...carteraF5,totales:resumen,filas:[{...carteraF5.filas[0],empresas:['avance'],resumen}],
@@ -86,7 +86,7 @@ for(const empresa of ['qorilazo','prodelco'] as const) {
   test(`${empresa}: upgrade y reinversión separados, aporte adicional y recuperación móvil`,async({page},testInfo)=>{
     const {estado}=await montarF5(page,'vendedor',false,empresa)
     await page.setViewportSize({width:390,height:844})
-    await page.getByRole('button',{name:'Ocultar menú'}).click()
+    await expect(page.getByRole('navigation', { name: 'Navegación principal de Analista' })).toBeVisible()
     await page.getByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}).click()
     const inversiones=page.getByRole('region',{name:'Inversiones y contratos'})
     await expect(inversiones.getByRole('button',{name:'Registrar nueva inversión'})).toBeEnabled()
@@ -144,7 +144,7 @@ for(const rol of ['vendedor','supervisor','gerencia','directorio'] as const) {
 test('móvil: búsqueda conservada, formulario nativo, revisión y confirmación única',async({page},testInfo)=>{
   const {estado}=await montarF5(page,'vendedor',true)
   await page.setViewportSize({width:390,height:844})
-  await page.getByRole('button',{name:'Ocultar menú'}).click()
+  await expect(page.getByRole('navigation', { name: 'Navegación principal de Analista' })).toBeVisible()
   await page.getByLabel('Buscar persona').fill('9333')
   await page.getByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}).click()
   await page.getByRole('button',{name:'Registrar primera inversión',exact:true}).click()
@@ -222,7 +222,7 @@ test('tres empresas y dos monedas: la ficha mantiene cada capital separado',asyn
 for(const movil of [false,true]) test(`primera inversión por empresa: Qorilazo vigente ofrece Avance y Prodelco, ${movil?'móvil':'escritorio'}`,async({page},testInfo)=>{
   const {estado}=await montarF5(page)
   await page.setViewportSize({width:movil?390:1440,height:movil?844:1000})
-  if(movil) await page.getByRole('button',{name:'Ocultar menú'}).click()
+  if(movil) await expect(page.getByRole('navigation', { name: 'Navegación principal de Analista' })).toBeVisible()
   await page.getByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}).click()
   const inversiones=page.getByRole('region',{name:'Inversiones y contratos'})
   await expect(inversiones.getByRole('button',{name:'Registrar upgrade',exact:true})).toBeEnabled()

@@ -9,7 +9,7 @@ import { money, primerNombre } from '@/lib/format'
 import { useDatosCitasGerencia } from './use-datos-citas-gerencia'
 import { resumirCitasDia } from './resumen-gerencia-movil-modelo'
 import { SolicitudesTasaGerenciaPanel } from './solicitudes-tasa-gerencia'
-import { PendientesGerenciaMovil } from './pendientes-gerencia-movil'
+import { PendientesMovil } from './pendientes-movil'
 import './resumen-gerencia-movil.css'
 
 interface Props {
@@ -133,7 +133,7 @@ export function ResumenGerenciaMovil({ dia, mes, capital, meta, fuenteTc, cargan
       {citasDisponibles && <div className="grm-equipos-lista">{resumen.equipos.map(grupo => <a key={grupo.id} href={enlaceCitas(grupo.id)} className="grm-equipo" aria-label={`${grupo.nombre}: ${grupo.total} ${grupo.total === 1 ? 'cita' : 'citas'} de hoy. Ir a Citas`}><span>{grupo.nombre}</span><strong>{grupo.total}</strong><ChevronRight size={16} aria-hidden /></a>)}{resumen.equipos.length === 0 && <p className="grm-estado">Sin equipos ni citas para hoy.</p>}</div>}
       <p className="grm-estado">Citas de leads · hora de Lima.</p>
     </section>
-    <PendientesGerenciaMovil />
+    <PendientesMovil />
     <button type="button" onClick={onCompleto} className="grm-full">Abrir el resumen completo<ArrowUpRight size={16} aria-hidden /></button>
     <Dialog open={bandeja} onClose={cerrarBandeja} className="grm-dialog">
       <DialogHeader><DialogTitle>Solicitudes de tasa</DialogTitle></DialogHeader>

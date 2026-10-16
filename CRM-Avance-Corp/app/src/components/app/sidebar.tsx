@@ -18,7 +18,7 @@ import {
   type VistaConfiguracion,
 } from '@/lib/router'
 import { vistaPermitida } from '@/lib/vistas'
-import { NavegacionGerenciaMovil } from './navegacion-gerencia-movil'
+import { NavegacionMovil } from './navegacion-movil'
 
 type SeccionNav = 'principal' | 'administracion'
 /** Gerencia conserva los accesos principales y despliega los secundarios. */
@@ -367,12 +367,13 @@ export function Sidebar({ vista, onNavegar, movil = false }: { vista: Vista; onN
   }))
   const indiceUsuario = cascada
 
-  if (movil && rol === 'gerencia') {
-    return <NavegacionGerenciaMovil
-      key={yo?.id}
+  if (movil && (rol === 'gerencia' || rol === 'vendedor')) {
+    return <NavegacionMovil
+      key={`${yo?.id}:${rol}`}
+      rol={rol}
       vista={vista}
       grupos={grupos}
-      nombre={yo?.nombre_completo ?? 'Gerencia'}
+      nombre={yo?.nombre_completo ?? (rol === 'gerencia' ? 'Gerencia' : 'Analista')}
       demo={yo?.demo === true}
       onNavegar={onNavegar}
       onSalir={() => void salir()}

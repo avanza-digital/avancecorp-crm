@@ -14,12 +14,12 @@ const estado: EstadoAlertasCRM = {
     destino: { vista: 'ranking-vendedores', etiqueta: 'Ver ranking' },
   })), pendientes: 2, pospuestas: 0, rol: 'gerencia', cargando: false, errores: [], generadoEn: null, reintentar: vi.fn(), reconocer: vi.fn(),
 }
-function Escena({ abierta = true, cuenta = 'uno' }: { abierta?: boolean; cuenta?: string }) {
-  return <PeriodoGerenciaProvider key={cuenta}><AlertasCRMContext value={estado}>{abierta ? <Alertas /> : <p>Detalle</p>}</AlertasCRMContext></PeriodoGerenciaProvider>
+function Escena({ abierta = true, cuenta = 'uno', rol = 'gerencia' }: { abierta?: boolean; cuenta?: string; rol?: 'gerencia' | 'vendedor' }) {
+  return <PeriodoGerenciaProvider key={`${cuenta}:${rol}`}><AlertasCRMContext value={{ ...estado, rol }}>{abierta ? <Alertas /> : <p>Detalle</p>}</AlertasCRMContext></PeriodoGerenciaProvider>
 }
-describe('Bandeja móvil de Gerencia', () => {
+describe.each(['gerencia', 'vendedor'] as const)('Bandeja móvil de %s', (rol) => {
   it('pliega filtros, conserva la búsqueda sin tildes al volver y permite limpiar sin perder el total', () => {
-    const vista = render(<Escena />)
+    const vista = render(<Escena rol={rol} />)
     expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
     expect(within(screen.getByRole('list', { name: 'Pendientes activos' })).getAllByRole('listitem')[0]).toHaveTextContent('Ana Equipo Sur')
     fireEvent.click(screen.getByRole('button', { name: 'Filtrar' }))
@@ -27,8 +27,8 @@ describe('Bandeja móvil de Gerencia', () => {
     expect(screen.getByText('1 pendiente activo de 2')).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: /Filtrar · activos/ }))
     expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
-    vista.rerender(<Escena abierta={false} />)
-    vista.rerender(<Escena />)
+    vista.rerender(<Escena rol={rol} abierta={false} />)
+    vista.rerender(<Escena rol={rol} />)
     expect(screen.getByText('1 pendiente activo de 2')).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: /Filtrar · activos/ }))
     expect(screen.getByRole('searchbox')).toHaveValue('jose')
@@ -36,13 +36,26 @@ describe('Bandeja móvil de Gerencia', () => {
     expect(screen.getByText('2 pendientes activos')).toBeVisible()
   })
   it('el cambio de cuenta elimina la consulta anterior y la nueva fuente gobierna el estado vacío', () => {
-    const vista = render(<Escena />)
+    const vista = render(<Escena rol={rol} />)
     fireEvent.click(screen.getByRole('button', { name: 'Filtrar' }))
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'sin coincidencias' } })
     expect(screen.getByText('Sin coincidencias')).toBeVisible()
-    vista.rerender(<Escena cuenta="dos" />)
+    vista.rerender(<Escena rol={rol} cuenta="dos" />)
     expect(screen.getByText('2 pendientes activos')).toBeVisible()
     expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
+  })
+  it('al pasar a escritorio conserva la consulta y muestra todos los filtros para poder limpiarla', () => {
+    const vista = render(<Escena rol={rol} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Filtrar' }))
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'jose' } })
+    fireEvent.click(screen.getByRole('button', { name: /Filtrar · activos/ }))
+    ancho.movil = false
+    vista.rerender(<Escena rol={rol} />)
+    expect(screen.getByRole('searchbox')).toBeVisible()
+    expect(screen.getByRole('searchbox')).toHaveValue('jose')
+    expect(screen.getByText('1 pendiente activo de 2')).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Limpiar' }))
+    expect(screen.getByText('2 pendientes activos')).toBeVisible()
   })
   it.each([['gerencia', false], ['supervisor', false], ['supervisor', true]] as const)('mantiene los cortes pospuestos visibles para %s, móvil=%s', (rol, movil) => {
     ancho.movil = movil

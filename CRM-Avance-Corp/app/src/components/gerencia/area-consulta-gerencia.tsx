@@ -2,10 +2,11 @@ import { useLayoutEffect, useRef, type ReactNode } from 'react'
 import { useConsultaGerencia } from './use-consulta-gerencia'
 
 const CONTROLES_MOVILES = new Set(['hoy', 'reuniones', 'gestion-diaria', 'ranking-vendedores', 'metas', 'facturacion', 'mi-cartera', 'alertas'])
+const CONTROLES_ANALISTA = new Set(['agenda', 'cartera', 'pipeline', 'seguimiento', 'rescate', 'rescate-carpeta'])
 
 /** Conserva el lugar de lectura al desmontarse una vista. Espera al contenido
  * diferido; cualquier interacción del usuario cancela la restauración. */
-export function AreaConsultaGerencia({ vista, children, habilitada = true }: { vista: string; children: ReactNode; habilitada?: boolean }) {
+export function AreaConsultaGerencia({ vista, children, habilitada = true, controlesAnalista = false }: { vista: string; children: ReactNode; habilitada?: boolean; controlesAnalista?: boolean }) {
   const elemento = useRef<HTMLDivElement>(null)
   const posiciones = useConsultaGerencia()?.posiciones
 
@@ -77,5 +78,5 @@ export function AreaConsultaGerencia({ vista, children, habilitada = true }: { v
     }
   }, [habilitada, posiciones, vista])
 
-  return <div ref={elemento} data-vista-scroll={vista} data-controles-moviles={CONTROLES_MOVILES.has(vista) || undefined} className="ac-scroll flex-1 overflow-auto p-3 sm:p-6">{children}</div>
+  return <div ref={elemento} data-vista-scroll={vista} data-controles-moviles={CONTROLES_MOVILES.has(vista) || (controlesAnalista && CONTROLES_ANALISTA.has(vista)) || undefined} className="ac-scroll flex-1 overflow-auto p-3 sm:p-6">{children}</div>
 }

@@ -57,7 +57,7 @@ async function abrirUpgrade(page: Page, modo: 'observacion' | 'enforcement', anc
   await loginReal(page)
   await irAMiCartera(page)
   await page.setViewportSize({width: ancho, height: 900})
-  if (ancho < 600) await page.getByRole('button', {name: 'Ocultar menú'}).click()
+  if (ancho < 600) await expect(page.getByRole('navigation', { name: 'Navegación principal de Analista' })).toBeVisible()
   await page.getByRole('button', {name: 'Abrir ficha de ANA SINTÉTICA F5'}).click()
   await page.getByRole('region', {name: 'Inversiones y contratos'}).getByRole('button', {name: 'Registrar upgrade', exact: true}).click()
   const formulario = page.getByRole('dialog', {name: /Registrar upgrade de ANA SINTÉTICA F5/})

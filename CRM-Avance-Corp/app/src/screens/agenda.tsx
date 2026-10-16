@@ -240,7 +240,7 @@ function TarjetaTarea({
     <div
       {...interaccionFicha}
       className={cn(
-        'group flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg p-2 transition-colors',
+        'agenda-tarea group flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg p-2 transition-colors',
         abreFichaLead &&
           'cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40',
       )}
@@ -250,14 +250,14 @@ function TarjetaTarea({
       <span
         title={ev.cuando}
         className={cn(
-          'w-12 shrink-0 text-right text-xs font-semibold tabular-nums',
+          'agenda-tarea-hora w-12 shrink-0 text-right text-xs font-semibold tabular-nums',
           ev.vencida ? 'text-[#d97706]' : 'text-muted-foreground',
         )}
       >
         {hora || '—'}
       </span>
       <span className="w-1 self-stretch rounded" style={{ background: ev.color, minHeight: 44 }} aria-hidden />
-      <div className="min-w-0 flex-1 leading-tight">
+      <div className="agenda-tarea-datos min-w-0 flex-1 leading-tight">
         <div className="flex flex-wrap items-center gap-1.5">
           {/* La tarjeta flotante necesita el lead ENTERO (origen, alta…): con el
               recorte embebido en la tarea (sesión real, Fase 4b) se omite y la
@@ -317,7 +317,7 @@ function TarjetaTarea({
             // y en el celular —donde el analista de calle trabaja— no quedaba
             // NINGUNA forma de posponer una tarea: en táctil no hay hover ni
             // ancho ≥ 640 px.
-            <span className="flex items-center gap-1">
+            <span className="agenda-tarea-saltos flex items-center gap-1">
               {SALTOS.map((s) => (
                 <button
                   key={s.label}
@@ -358,7 +358,7 @@ function TarjetaTarea({
       </div>
 
       {/* Acciones de canal + anti no-show + cierre — cortan la propagación */}
-      <span className="flex shrink-0 items-center gap-1">
+      <span className="agenda-tarea-acciones flex shrink-0 items-center gap-1">
         {/* Secundarias (recordar/confirmar/gcal): aparecen al hover o con foco
             de teclado; en táctil (sin hover) quedan siempre visibles. Las
             comerciales — contacto y cerrar — nunca se esconden. */}

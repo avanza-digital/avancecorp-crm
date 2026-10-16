@@ -179,7 +179,7 @@ test('Analista: dos columnas sin bajar a 1440×900 y móvil sin desbordamiento',
   })).toBe(true)
   await page.screenshot({ path: info.outputPath('analista-integracion-escritorio.png'), fullPage: true })
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.getByRole('button', { name: 'Ocultar menú', exact: true }).click()
+  await expect(page.getByRole('navigation', { name: 'Navegación principal de Analista' })).toBeVisible()
   await page.getByRole('heading', { name: '¿A quién llamo ahora?' }).scrollIntoViewIfNeeded()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   const tabs = page.getByRole('tablist', { name: 'Grupos de la cola' })

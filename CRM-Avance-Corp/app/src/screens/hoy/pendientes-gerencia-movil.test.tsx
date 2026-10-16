@@ -5,7 +5,7 @@ import { alertasActivas } from '@/lib/alertas-presentacion'
 import type { AlertaCRM } from '@/lib/alertas'
 import { PeriodoGerenciaProvider } from '@/components/gerencia/periodo-context'
 import { usePeriodoGerencia } from '@/components/gerencia/use-periodo-gerencia'
-import { PendientesGerenciaMovil } from './pendientes-gerencia-movil'
+import { PendientesMovil } from './pendientes-movil'
 
 const aviso = (id: string, severidad: AlertaCRM['severidad'] = 'atencion'): AlertaCRM => ({
   id, severidad, tipo: 'bajo_meta_conversion', alcance: 'empresa', titulo: `Revisar ${id}`,
@@ -15,7 +15,7 @@ const aviso = (id: string, severidad: AlertaCRM['severidad'] = 'atencion'): Aler
 function montar(cambios: Partial<EstadoAlertasCRM> = {}) {
   const estado: EstadoAlertasCRM = { alertas: [], pendientes: 0, pospuestas: 0, cargando: false,
     rol: 'gerencia', errores: [], generadoEn: '2026-10-05T15:00:00Z', reintentar: vi.fn(), reconocer: vi.fn(), ...cambios }
-  const renderizar = (s: EstadoAlertasCRM) => <PeriodoGerenciaProvider><AlertasCRMContext value={s}><PendientesGerenciaMovil /><Sonda /></AlertasCRMContext></PeriodoGerenciaProvider>
+  const renderizar = (s: EstadoAlertasCRM) => <PeriodoGerenciaProvider><AlertasCRMContext value={s}><PendientesMovil /><Sonda /></AlertasCRMContext></PeriodoGerenciaProvider>
   const vista = render(renderizar(estado))
   return { estado, cambiar: (c: Partial<EstadoAlertasCRM>) => vista.rerender(renderizar({ ...estado, ...c })) }
 }
@@ -23,6 +23,15 @@ function Sonda() { const { periodo } = usePeriodoGerencia(); return <output aria
 afterEach(() => { Object.defineProperty(navigator, 'onLine', { configurable: true, value: true }) })
 
 describe('Pendientes de gestión en Resumen', () => {
+  it('Analista conserva su destino operativo, el total del proveedor y su texto vacío', () => {
+    const propio: AlertaCRM = { ...aviso('propio', 'critica'), alcance: 'personal', destino: { vista: 'cartera', leadId: 'lead-propio', etiqueta: 'Abrir lead' } }
+    const vista = montar({ rol: 'vendedor', alertas: [propio], pendientes: 1 })
+    expect(screen.getByRole('link', { name: /Ver todos/ })).toHaveTextContent('(1)')
+    expect(within(screen.getByRole('listitem')).getByRole('link')).toHaveAttribute('href', '#/cartera/lead/lead-propio')
+    vista.cambiar({ rol: 'vendedor', alertas: [], pendientes: 0 })
+    expect(screen.getByText('No tienes avisos pendientes en este momento.')).toBeVisible()
+    expect(screen.queryByText(/Puede faltar un corte/)).not.toBeInTheDocument()
+  })
   it('prioriza críticas, conserva empates y fuente, muestra tres y cuenta los mismos avisos que la campana', () => {
     const avisos = [aviso('atención-1'), aviso('crítica-1', 'critica'), aviso('atención-2'), aviso('crítica-2', 'critica')]
     const foto = JSON.stringify(avisos)

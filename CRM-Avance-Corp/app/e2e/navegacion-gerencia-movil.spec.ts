@@ -100,7 +100,7 @@ test('solo teléfono: 360/430 sin desborde; cambiar a tablet cierra Más y recup
   await expect(page.locator('main')).toBeFocused()
 })
 
-for (const rol of ['Analista', 'Supervisor', 'Directorio'] as const) test(`${rol} mantiene su navegación habitual en móvil`, async ({ page }) => {
+for (const rol of ['Supervisor', 'Directorio'] as const) test(`${rol} mantiene su navegación habitual en móvil`, async ({ page }) => {
   await bloquearSupabase(page)
   await entrarDemo(page, rol)
   await expect(page.locator('aside')).toBeVisible()
