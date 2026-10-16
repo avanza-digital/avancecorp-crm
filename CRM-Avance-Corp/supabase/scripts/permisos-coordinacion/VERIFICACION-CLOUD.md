@@ -59,5 +59,6 @@ una repetición requiere preparar otra rama autorizada y revisar explícitamente
 PR #298 integrada como `05c19efc`; se conservó después la corrección de cantidades de #299.
 `npm run check` sobre `81480ebb`: **433 archivos, 6.966 tests PASS**, lint, tipos, cobertura,
 build, bundle y duplicación. El árbol de app probado es `9adc5c59fa90c640437ac0054036bf07376ecd10`.
-La suite anterior pasó 426 casos / 26 omitidos; la suite Docker del árbol final se registra
-en el acta del frontend cuando termine. Los cambios de este registro no alteran ese árbol.
+La suite Docker completa del árbol final pasó **427 casos / 26 omitidos / 0 fallidos**,
+16,2 minutos, dos workers. Se ejecutó desde una copia exacta obtenida por `git archive`
+para aislar las dependencias de Docker. Los cambios de este registro no alteran ese árbol.

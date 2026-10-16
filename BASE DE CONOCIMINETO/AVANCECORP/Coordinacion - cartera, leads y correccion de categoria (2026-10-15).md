@@ -25,7 +25,8 @@ el 15/10 a las 18:58 Lima, tras autorización explícita. 93 SQL + 61 Auth/Postg
 165 operaciones, importes y categorías. Rama temporal eliminada. Advisors: cero WARN/ERROR
 nuevos y dos INFO esperados de la auditoría privada. Gate de realidad PASS (dos divergencias
 preexistentes); matriz general seed-demo NOT RUN, matriz focalizada PASS.
-Frontend sobre Main con #299: 6.966 tests PASS; publicación pendiente de cerrar Docker y artefacto.
+Frontend sobre Main con #299: 6.966 tests y Docker completo 427 PASS / 26 omitidos / 0 fallos.
+Pendiente únicamente construir y publicar el artefacto verificado.
 Detalle en `VERIFICACION-CLOUD.md`.
 
 Relacionadas: [[Categorización de inversiones - Nuevo Renovación Upgrade]],
