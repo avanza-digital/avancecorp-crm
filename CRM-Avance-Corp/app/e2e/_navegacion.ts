@@ -4,10 +4,10 @@ import { expect, type Page } from '@playwright/test'
  * hace falta; los demás roles conservan sus accesos directos. */
 export async function irAModulo(page: Page, nombre: string): Promise<void> {
   const menu = page.locator('aside').getByRole('navigation')
-  const movil = page.getByRole('navigation', { name: 'Navegación principal de Gerencia' })
+  const movil = page.getByRole('navigation', { name: /^Navegación principal de (Gerencia|Analista)$/ })
   await expect(menu.or(movil)).toBeVisible()
   if (await movil.isVisible()) {
-    const directo = movil.getByRole('button', { name: nombre === 'Metas y cumplimiento' ? 'Metas' : nombre, exact: true })
+    const directo = movil.getByRole('button', { name: nombre === 'Hoy' ? 'Mi día' : nombre, exact: true })
     if (await directo.count()) { await directo.click(); return }
     await movil.getByRole('button', { name: 'Más', exact: true }).click()
     const panel = page.getByRole('dialog', { name: 'Más opciones' })

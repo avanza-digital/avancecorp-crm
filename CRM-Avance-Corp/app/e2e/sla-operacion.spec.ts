@@ -139,7 +139,7 @@ test('Analista: Seguimiento se abre desde su módulo, pagina sin acumular filas 
   await expect.poll(() => pedidos.at(-1)?.p_senal).toBe('seguimientos_pendientes')
   expect(pedidos.at(-1)?.p_cursor).toBeNull()
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.getByRole('button', { name: 'Ocultar menú', exact: true }).click()
+  await expect(page.getByRole('navigation', { name: 'Navegación principal de Analista' })).toBeVisible()
   await page.getByRole('heading', { name: 'Seguimiento comercial' }).scrollIntoViewIfNeeded()
   await expect(page.getByRole('combobox', { name: 'Mostrar', exact: true })).toHaveValue('seguimientos_pendientes')
   await page.screenshot({ path: test.info().outputPath('sla-ui-mobile.png'), fullPage: true })

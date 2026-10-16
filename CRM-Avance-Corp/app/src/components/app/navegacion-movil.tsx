@@ -7,10 +7,14 @@ import './navegacion-gerencia-movil.css'
 
 interface Entrada { id: Vista; label: string; icon: LucideIcon }
 interface Grupo { grupo: string; label: string; items: readonly Entrada[] }
-const PRINCIPALES: readonly Vista[] = ['hoy', 'reuniones', 'gestion-diaria']
+const PRINCIPALES: Record<'gerencia' | 'vendedor', readonly Vista[]> = {
+  gerencia: ['hoy', 'reuniones', 'gestion-diaria'],
+  vendedor: ['hoy', 'gestion-diaria', 'agenda'],
+}
 
 /** Recibe exactamente las entradas que el menú lateral ya autorizó. */
-export function NavegacionGerenciaMovil({ vista, grupos, nombre, demo, onNavegar, onSalir, esActiva }: {
+export function NavegacionMovil({ rol, vista, grupos, nombre, demo, onNavegar, onSalir, esActiva }: {
+  rol: 'gerencia' | 'vendedor'
   vista: Vista
   grupos: readonly Grupo[]
   nombre: string
@@ -26,8 +30,10 @@ export function NavegacionGerenciaMovil({ vista, grupos, nombre, demo, onNavegar
   const navegando = useRef(false)
   const disparador = useRef<HTMLButtonElement>(null)
   const entradas = grupos.flatMap(g => g.items)
-  const accesos = PRINCIPALES.flatMap(id => entradas.filter(n => n.id === id))
-  const secundarios = grupos.map(g => ({ ...g, items: g.items.filter(n => !PRINCIPALES.includes(n.id)) }))
+  const principales = PRINCIPALES[rol]
+  const rolVisible = rol === 'gerencia' ? 'Gerencia' : 'Analista'
+  const accesos = principales.flatMap(id => entradas.filter(n => n.id === id))
+  const secundarios = grupos.map(g => ({ ...g, items: g.items.filter(n => !principales.includes(n.id)) }))
     .filter(g => g.items.length > 0)
   const masActivo = secundarios.some(g => g.items.some(n => esActiva(n.id)))
   const cambiar = (destino: Vista) => {
@@ -44,11 +50,11 @@ export function NavegacionGerenciaMovil({ vista, grupos, nombre, demo, onNavegar
     navegando.current = false
     setPanel({ vista, abierto: valor })
   }}>
-    <nav className="gm-barra" aria-label="Navegación principal de Gerencia">
+    <nav className="gm-barra" aria-label={`Navegación principal de ${rolVisible}`}>
       {accesos.map(n => <button key={n.id} type="button" className="gm-destino"
         aria-current={esActiva(n.id) ? 'page' : undefined} onClick={() => onNavegar(n.id)}>
         <span className="gm-icono"><n.icon size={22} aria-hidden /></span>
-        <span>{n.label}</span>
+        <span>{rol === 'vendedor' && n.id === 'hoy' ? 'Mi día' : n.label}</span>
       </button>)}
       <Dialog.Trigger asChild>
         <button ref={disparador} type="button" className="gm-destino"
@@ -74,7 +80,7 @@ export function NavegacionGerenciaMovil({ vista, grupos, nombre, demo, onNavegar
         </div>
         <div className="gm-modulos ac-scroll">
           {secundarios.map(g => g.grupo === 'principal'
-            ? <section key={g.grupo} aria-label="Gestión del equipo" className="gm-prioritarios">{g.items.map(entrada)}</section>
+            ? <section key={g.grupo} aria-label={rol === 'gerencia' ? 'Gestión del equipo' : 'Mi gestión'} className="gm-prioritarios">{g.items.map(entrada)}</section>
             : <details key={g.grupo} className="gm-grupo" open={g.items.some(n => esActiva(n.id)) || undefined}>
               <summary>{g.label}<ChevronDown size={18} aria-hidden /></summary>
               <div>{g.items.map(entrada)}</div>
@@ -82,7 +88,7 @@ export function NavegacionGerenciaMovil({ vista, grupos, nombre, demo, onNavegar
         </div>
         <div className="gm-cuenta">
           <Avatar nombre={nombre} color="#2563eb" className="size-9" />
-          <div className="gm-identidad"><strong>{nombre}</strong><span>Gerencia{demo ? ' · Demo' : ''}</span></div>
+          <div className="gm-identidad"><strong>{nombre}</strong><span>{rolVisible}{demo ? ' · Demo' : ''}</span></div>
           <button type="button" onClick={onSalir} aria-label="Cerrar sesión" title="Cerrar sesión"><LogOut size={20} aria-hidden /></button>
         </div>
       </Dialog.Content>

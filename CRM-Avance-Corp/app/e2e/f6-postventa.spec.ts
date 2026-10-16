@@ -184,7 +184,7 @@ for (const vista of [{nombre:'escritorio',width:1280,height:900},{nombre:'móvil
   test(`${vista.nombre}: cerrar la entrevista desde Seguimiento conserva abierta la ficha`,async({page},info)=>{
     const s=await montarF6(page)
     await page.setViewportSize({width:vista.width,height:vista.height})
-    if(vista.nombre==='móvil')await page.getByRole('button',{name:'Ocultar menú'}).click()
+    if(vista.nombre==='móvil')await expect(page.getByRole('navigation', { name: 'Navegación principal de Analista' })).toBeVisible()
     await abrir(page);await agendar(page,'Cita de renovación')
     await expect(page.getByText('Gestión agendada · la verás en Hoy y en Agenda',{exact:true})).toBeVisible()
     Object.assign(s.tareas[0]!,{tipo:'reunion',modalidad_reunion:'virtual'})
@@ -207,7 +207,7 @@ for (const vista of [{nombre:'escritorio',width:1280,height:900},{nombre:'móvil
   })
 }
 test('móvil: recupera un alta confirmada cuya respuesta se cortó sin duplicarla',async({page},info)=>{
-  const s=await montarF6(page);await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'Ocultar menú'}).click()
+  const s=await montarF6(page);await page.setViewportSize({width:390,height:844});await expect(page.getByRole('navigation', { name: 'Navegación principal de Analista' })).toBeVisible()
   await abrir(page);s.cortar=true;await agendar(page,'Gestión con respuesta interrumpida')
   await expect(page.getByRole('button',{name:'Verificar envío guardado'})).toBeVisible()
   await page.reload();await expect(page.getByRole('button',{name:'Agendar gestión',exact:true})).toBeVisible()

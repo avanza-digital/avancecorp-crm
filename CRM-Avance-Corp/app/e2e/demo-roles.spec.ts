@@ -3,17 +3,10 @@ import { irAModulo } from './_navegacion'
 // no existía ninguna prueba end-to-end). Verifica el recorrido real: login
 // demo → panel Hoy → navegación → ficha de lead (incluido el manejo por
 // TECLADO y el focus-trap del drawer, arreglos de esta misma auditoría).
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
+import { entrarDemo } from './_helpers'
 
 const ROLES = ['Analista', 'Supervisor', 'Gerencia', 'Directorio'] as const
-
-async function entrarDemo(page: Page, rol: (typeof ROLES)[number]): Promise<void> {
-  await page.goto('/')
-  await page.getByRole('button', { name: /explorar en modo demo/i }).click()
-  await page.getByRole('button', { name: new RegExp(`^${rol}`) }).click()
-  // El workspace queda listo cuando aparece la navegación lateral.
-  await expect(page.locator('aside').getByRole('navigation').getByRole('button', { name: rol === 'Gerencia' ? 'Resumen' : 'Hoy', exact: true })).toBeVisible()
-}
 
 for (const rol of ROLES) {
   test(`${rol}: entra a la demo, ve su panel principal y navega el pipeline`, async ({ page }) => {

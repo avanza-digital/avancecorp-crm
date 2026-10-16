@@ -22,7 +22,7 @@ export async function entrarDemo(page: Page, rol: RolDemo): Promise<void> {
   await page.goto('/')
   await page.getByRole('button', { name: /explorar en modo demo/i }).click()
   await page.getByRole('button', { name: new RegExp(`^${rol}`) }).click()
-  await expect(page.getByRole('navigation').getByRole('button', { name: rol === 'Gerencia' ? 'Resumen' : 'Hoy', exact: true })).toBeVisible({ timeout: 10_000 })
+  await expect(page.getByRole('navigation').getByRole('button', { name: rol === 'Gerencia' ? 'Resumen' : /^(Hoy|Mi día)$/, exact: true })).toBeVisible({ timeout: 10_000 })
 }
 
 /** Navega al Pipeline (donde viven las cards de lead operables). */
@@ -41,6 +41,11 @@ export async function irAMiCartera(page: Page): Promise<void> {
   if (await titulo.count() > 0) return
   if (await page.getByRole('navigation', { name: 'Navegación principal de Gerencia' }).isVisible()) {
     await irAModulo(page, 'Cartera')
+    await expect(titulo).toBeVisible()
+    return
+  }
+  if (await page.getByRole('navigation', { name: 'Navegación principal de Analista' }).isVisible()) {
+    await irAModulo(page, 'Mi cartera')
     await expect(titulo).toBeVisible()
     return
   }

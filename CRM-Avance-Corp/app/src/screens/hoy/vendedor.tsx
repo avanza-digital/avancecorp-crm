@@ -84,6 +84,8 @@ import { TasasAutorizadasAnalistaPanel } from './tasas-autorizadas-analista'
 import { CitasAnalista } from './citas-analista'
 import { LeadsRecibidosHoy } from './leads-recibidos-hoy'
 import { AgendaLeadsHoy } from './agenda-leads-hoy'
+import { PendientesMovil } from './pendientes-movil'
+import { useEsMovil } from '@/lib/media'
 import { cn } from '@/lib/utils'
 
 // ── Helpers puros ─────────────────────────────────────────────────────────────
@@ -842,6 +844,7 @@ function LineaBaseGestion({ paraHoy, vencidas }: { paraHoy: number; vencidas: nu
 // ── Pantalla ──────────────────────────────────────────────────────────────────
 
 export function HoyVendedor(): JSX.Element {
+  const esMovil = useEsMovil()
   const modoSla = useModoSla()
   const {
     ambito,
@@ -1671,6 +1674,8 @@ export function HoyVendedor(): JSX.Element {
       {/* Fuera del modo activo (legado/demo, o mientras el seguimiento se
           consulta o falla) el cumplimiento sigue aquí, debajo y a todo el ancho. */}
       {!modoSla.activo && tarjetaCumplimiento}
+
+      {esMovil && yo?.rol === 'vendedor' && <PendientesMovil />}
 
       <p className="shrink-0 text-[11px] text-muted-foreground">
         {yo?.demo ? 'Demo — ves' : 'Ves'} únicamente tu propia cartera; cada analista trabaja solo con sus leads.
