@@ -17,14 +17,17 @@ Auditoría de solo lectura del flujo `BjI5m1PKVWhO0NDb` (Formulario 3 → CRM), 
 
 ## Fase 7 (15/10, noche): puntos 1 y 2, más el latido y el resumen diario
 
-Preparada, probada y **sin publicar** (publicar flujos en n8n necesita el permiso de Miguel). Acta: `CRM-Avance-Corp/docs/N8N-FORMULARIO3-FASE7.md`.
+**PUBLICADA Y VERIFICADA el 15/10 a las 19:02 Lima** (PR #300, `2ed57674`). Importador en la versión `b6c88f1b`, aviso en `505bcd5e` y resumen en `452ba77d`. Primera vuelta: latido a las 19:05, 152 filas, sin errores. Primer correo diario: 16/10 a las 19:00. Acta: `CRM-Avance-Corp/docs/N8N-FORMULARIO3-FASE7.md`.
+
+- ⚠️ **Al reenviar código por el MCP, `\uXXXX` se convierte en el carácter.** Para que llegue el texto literal hay que escribir `\u0300`. `verificarFase7` lo detectó antes de publicar.
+- **Cambios futuros:** parten de `cargarDefinicionOperativaF7()`; la fase 6 queda como histórica.
 
 - **Una celda rara solo frena su fila.** La fila queda «rechazada» con la columna afectada.
 - **El aviso incluye las filas que hay que revisar,** también la del cliente que no se pudo registrar.
 - **Correo diario a las 7 p. m.** (flujo `Chn5g93IgxNlkF3K`) con nuevos, duplicados, clientes que volvieron, filas para revisar y la última lectura de la hoja (tabla de latido `CJpN45ukEXmZInuG`).
 - **Pruebas:** 57/57 tests y 12 mutantes; banco en n8n (ejecución 268) y resumen de prueba (269, correo enviado). Codex revisó el plan y el código; sus hallazgos están aceptados.
 
-## Pendientes que siguen vigentes (antes de la fase 7)
+## Pendientes de la auditoría (los puntos 1 y 2 quedaron resueltos en la fase 7)
 
 1. **Fila veneno (P2).** `texto()` lanza ante un tipo inesperado (`formulario3.mjs:20`), sin captura por fila en «Preparar leads» (código igual al vivo). Una celda VERDADERO/FALSO en la hoja frena **todas** las importaciones hasta corregirla (avisa 1 vez por hora).
 2. **«Ya cliente» que no se pudo anotar no avisa (P2).** `exigirRevisionRechazos` solo mira `rechazado`. «YA ES CLIENTE: NO se pudo anotar (nadie a cargo de este cliente)» (`resultado-importacion.ts`, rama `sin_ficha`) queda solo en la tabla de recibos.
