@@ -1,3 +1,19 @@
+## 20261016162937 — Ventas propias de supervisores y aporte al equipo
+
+**PREPARADA; NO APLICADA EN PRODUCCIÓN.** Decisión de Miguel, 16/10/2026:
+desde octubre las ventas personales de Supervisión también aportan a su equipo,
+y sus filas aparecen al final del ranking. `crm.cumplimiento_metas_fn(date)`
+mantiene firma, ACL y claves JSON; solo amplía la lectura propia del supervisor
+activo, filtrando por UUID antes de unir identidades y en la foto sellada.
+Lectores globales y analistas conservan su respuesta exacta. No cambia tablas,
+policies, metas publicadas, atribución, conversión ni sellos.
+
+Frontend compatible: suma capital/contratos propios al equipo y mantiene su meta
+de conversión; empresa cuenta cada venta una vez. Migra desde la huella de función
+`be18b2feac623d18db695830d70e2a2e`, con reversa protegida y ensayo transaccional.
+Ver [kit y límites](../scripts/supervisores-metas/LEEME.md) y
+[verificación](../../docs/plans/supervisores-metas/VERIFICACION.md).
+
 Promoción del bloque Coordinación: [acta cloud](../scripts/permisos-coordinacion/VERIFICACION-CLOUD.md).
 93 pruebas SQL + 61 Auth/PostgREST PASS; merge de rama, cero WARN/ERROR nuevos y rama eliminada.
 

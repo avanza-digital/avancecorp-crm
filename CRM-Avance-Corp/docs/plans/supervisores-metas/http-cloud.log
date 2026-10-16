@@ -1,0 +1,38 @@
+PASS: Diez sesiones humanas con JWT emitido por Auth
+PASS: Lectura denegada: anon
+PASS: Lectura denegada: cliente
+PASS: Paridad histórica o de rol: gerencia / 2026-09-01
+PASS: Paridad histórica o de rol: gerencia / 2026-10-01
+PASS: Paridad histórica o de rol: gerencia / 2026-11-01
+PASS: Paridad histórica o de rol: directorio / 2026-09-01
+PASS: Paridad histórica o de rol: directorio / 2026-10-01
+PASS: Paridad histórica o de rol: directorio / 2026-11-01
+PASS: Paridad histórica o de rol: coordinador / 2026-09-01
+PASS: Paridad histórica o de rol: coordinador / 2026-10-01
+PASS: Paridad histórica o de rol: coordinador / 2026-11-01
+PASS: Paridad histórica o de rol: sup1 / 2026-09-01
+PASS: Solo ventas propias, una vez y sin equipo ajeno: sup1 / 2026-10-01
+PASS: Solo ventas propias, una vez y sin equipo ajeno: sup1 / 2026-11-01
+PASS: Paridad histórica o de rol: sup2 / 2026-09-01
+PASS: Solo ventas propias, una vez y sin equipo ajeno: sup2 / 2026-10-01
+PASS: Solo ventas propias, una vez y sin equipo ajeno: sup2 / 2026-11-01
+PASS: Paridad histórica o de rol: sin_equipo / 2026-09-01
+PASS: Solo ventas propias, una vez y sin equipo ajeno: sin_equipo / 2026-10-01
+PASS: Solo ventas propias, una vez y sin equipo ajeno: sin_equipo / 2026-11-01
+PASS: Paridad histórica o de rol: sin_ventas / 2026-09-01
+PASS: Solo ventas propias, una vez y sin equipo ajeno: sin_ventas / 2026-10-01
+PASS: Solo ventas propias, una vez y sin equipo ajeno: sin_ventas / 2026-11-01
+PASS: Paridad histórica o de rol: vend1 / 2026-09-01
+PASS: Paridad histórica o de rol: vend1 / 2026-10-01
+PASS: Paridad histórica o de rol: vend1 / 2026-11-01
+PASS: Paridad histórica o de rol: vend2 / 2026-09-01
+PASS: Paridad histórica o de rol: vend2 / 2026-10-01
+PASS: Paridad histórica o de rol: vend2 / 2026-11-01
+PASS: Importes PEN/USD, cooperativa y foto sellada conservan atribución exacta
+PASS: Lectura denegada: sin_equipo
+PASS: La baja de perfil revoca acceso con el mismo JWT
+PASS: Cambio a analista retira acceso de supervisor en mes abierto y sellado con el mismo JWT
+PASS: Lectura denegada: sin_ventas
+PASS: Baja CRM revoca acceso con el mismo JWT
+PASS: Contratos, cooperativas y sellos permanecen íntegros
+PASS: 37 comprobaciones con Auth/PostgREST reales

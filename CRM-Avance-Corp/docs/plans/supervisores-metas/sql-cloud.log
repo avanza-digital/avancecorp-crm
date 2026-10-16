@@ -1,0 +1,59 @@
+NOTICE:  PASS: matriz completa: nueve actores, tres meses, antes y después
+NOTICE:  PASS: paridad JSON exacta: gerencia / 2026-09-01
+NOTICE:  PASS: paridad JSON exacta: gerencia / 2026-10-01
+NOTICE:  PASS: paridad JSON exacta: gerencia / 2026-11-01
+NOTICE:  PASS: paridad JSON exacta: directorio / 2026-09-01
+NOTICE:  PASS: paridad JSON exacta: sup1 / 2026-09-01
+NOTICE:  PASS: paridad JSON exacta: directorio / 2026-10-01
+NOTICE:  PASS: paridad JSON exacta: directorio / 2026-11-01
+NOTICE:  PASS: paridad JSON exacta: coordinador / 2026-09-01
+NOTICE:  PASS: paridad JSON exacta: coordinador / 2026-10-01
+NOTICE:  PASS: paridad JSON exacta: coordinador / 2026-11-01
+NOTICE:  PASS: solo producción propia, sin equipo ajeno: sup1 / 2026-10-01
+NOTICE:  PASS: resto del contrato intacto: sup1 / 2026-10-01
+NOTICE:  PASS: atribución única o vacío sin ventas: sup1 / 2026-10-01
+NOTICE:  PASS: solo producción propia, sin equipo ajeno: sup1 / 2026-11-01
+NOTICE:  PASS: resto del contrato intacto: sup1 / 2026-11-01
+NOTICE:  PASS: atribución única o vacío sin ventas: sup1 / 2026-11-01
+NOTICE:  PASS: paridad JSON exacta: sup2 / 2026-09-01
+NOTICE:  PASS: solo producción propia, sin equipo ajeno: sup2 / 2026-10-01
+NOTICE:  PASS: resto del contrato intacto: sup2 / 2026-10-01
+NOTICE:  PASS: atribución única o vacío sin ventas: sup2 / 2026-10-01
+NOTICE:  PASS: solo producción propia, sin equipo ajeno: sup2 / 2026-11-01
+NOTICE:  PASS: resto del contrato intacto: sup2 / 2026-11-01
+NOTICE:  PASS: atribución única o vacío sin ventas: sup2 / 2026-11-01
+NOTICE:  PASS: paridad JSON exacta: sin_equipo / 2026-09-01
+NOTICE:  PASS: solo producción propia, sin equipo ajeno: sin_equipo / 2026-10-01
+NOTICE:  PASS: resto del contrato intacto: sin_equipo / 2026-10-01
+NOTICE:  PASS: atribución única o vacío sin ventas: sin_equipo / 2026-10-01
+NOTICE:  PASS: solo producción propia, sin equipo ajeno: sin_equipo / 2026-11-01
+NOTICE:  PASS: resto del contrato intacto: sin_equipo / 2026-11-01
+NOTICE:  PASS: atribución única o vacío sin ventas: sin_equipo / 2026-11-01
+NOTICE:  PASS: paridad JSON exacta: sin_ventas / 2026-09-01
+NOTICE:  PASS: solo producción propia, sin equipo ajeno: sin_ventas / 2026-10-01
+NOTICE:  PASS: resto del contrato intacto: sin_ventas / 2026-10-01
+NOTICE:  PASS: atribución única o vacío sin ventas: sin_ventas / 2026-10-01
+NOTICE:  PASS: solo producción propia, sin equipo ajeno: sin_ventas / 2026-11-01
+NOTICE:  PASS: resto del contrato intacto: sin_ventas / 2026-11-01
+NOTICE:  PASS: atribución única o vacío sin ventas: sin_ventas / 2026-11-01
+NOTICE:  PASS: paridad JSON exacta: vend1 / 2026-09-01
+NOTICE:  PASS: paridad JSON exacta: vend1 / 2026-10-01
+NOTICE:  PASS: paridad JSON exacta: vend1 / 2026-11-01
+NOTICE:  PASS: paridad JSON exacta: vend2 / 2026-09-01
+NOTICE:  PASS: paridad JSON exacta: vend2 / 2026-10-01
+NOTICE:  PASS: paridad JSON exacta: vend2 / 2026-11-01
+NOTICE:  PASS: capital propio PEN conserva al autor comercial
+NOTICE:  PASS: mes sellado conserva USD de la foto sin recalcular noviembre
+NOTICE:  PASS: cliente sin rol CRM rechazado
+NOTICE:  PASS: sesión sin identidad rechazada
+NOTICE:  PASS: contrato y cooperativa propios suman una vez cada uno
+NOTICE:  PASS: perfil inactivo revoca la lectura propia
+NOTICE:  PASS: cambio a analista retira la capacidad de supervisión
+NOTICE:  PASS: cambio de rol tampoco hereda acceso a fotos de supervisión
+NOTICE:  PASS: baja CRM revoca las ventas propias con el mismo actor
+NOTICE:  PASS: ACL, security definer, estabilidad y search_path intactos
+NOTICE:  PASS: ningún sello modificado
+NOTICE:  PASS: ninguna venta duplicada, reasignada ni modificada
+NOTICE:  PASS: cooperativas conservan atribución, monto e identidad
+NOTICE:  PASS: reversa recupera exactamente el comportamiento anterior
+NOTICE:  PASS: reaplicación recupera exactamente las ventas propias

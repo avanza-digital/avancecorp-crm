@@ -383,7 +383,7 @@ describe('ranking general de analistas', () => {
     expect(mensual).toEqual(original)
   })
 
-  it('muestra la producción no analista aparte sin concederle puesto', () => {
+  it.each([false, true])('muestra ventas propias al final sin concederles puesto (desde octubre: %s)', (desdeOctubre) => {
     const cumplimiento = cumplimientoMetasConversionEquipoDemo()
     const base = cumplimiento.porVendedor['demo-v1']!
     const fueraRanking: ProduccionFueraRanking[] = [{
@@ -404,7 +404,7 @@ describe('ranking general de analistas', () => {
       detalles: base.detalles.map((detalle, indice) => ({
         ...detalle,
         capitalObjetivo: 0,
-        capitalReal: indice === 0 ? 70_000 : indice === 1 ? 1_000 : 0,
+        capitalReal: indice === 0 ? 7_000_000 : indice === 1 ? 1_000 : 0,
         capitalCumplimientoPct: null,
         contratosObjetivo: 0,
         contratosReal: indice < 2 ? 1 : 0,
@@ -431,20 +431,29 @@ describe('ranking general de analistas', () => {
         equipo={conversionEquipoDemo()}
         metasVendedores={metasConversionEquipoDemo()}
         cumplimientoVendedores={cumplimiento.porVendedor}
-        fueraRanking={fueraRanking}
-        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        fueraRanking={desdeOctubre ? [] : fueraRanking}
+        supervisores={desdeOctubre ? fueraRanking : []}
+        metaMensual={{ etiqueta: desdeOctubre ? 'octubre 2026' : 'agosto 2026', comparable: true }}
         tc={{ promedio: 3.5, fuente: 'SBS · prom. 7d' }}
         {...fuentesRankingSinError()}
       />,
     )
 
     expect(screen.getByText('6 analistas')).toBeInTheDocument()
-    const bloque = screen.getByRole('complementary', { name: 'Producción fuera del ranking' })
+    const bloque = screen.getByRole('complementary', { name: desdeOctubre ? 'Ventas propias de supervisores' : 'Producción fuera del ranking' })
     expect(within(bloque).getByText('Supervisor con inversión propia')).toBeInTheDocument()
-    expect(within(bloque).getByText('Producción atribuida a supervisor')).toBeInTheDocument()
-    expect(within(bloque).getByText('No suma al ranking')).toBeInTheDocument()
+    expect(within(bloque).getByText(desdeOctubre ? 'Ventas propias · Supervisor' : 'Producción atribuida a supervisor')).toBeInTheDocument()
+    expect(within(bloque).getByText(desdeOctubre ? 'Aporta a su equipo' : 'No suma al ranking')).toBeInTheDocument()
     expect(within(bloque).queryByLabelText(/Puesto/)).not.toBeInTheDocument()
     expect(within(bloque).getByText('2 contratos')).toBeInTheDocument()
+    // Aunque supere el capital de todos los analistas, nunca toma sus puestos.
+    for (const tab of ['Capital total', 'Conversión general']) {
+      fireEvent.click(screen.getByRole('tab', { name: tab }))
+      const tabla = screen.getByRole('table', { name: tab === 'Capital total' ? 'Ranking de capital total en soles' : 'Ranking de conversión general' })
+      expect(within(tabla).queryByText('Supervisor con inversión propia')).not.toBeInTheDocument()
+      expect(tabla.compareDocumentPosition(bloque) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(screen.getAllByRole('complementary').at(-1)).toBe(bloque)
+    }
   })
 
   it('no promete una foto sellada en Cosecha, que continúa madurando', () => {

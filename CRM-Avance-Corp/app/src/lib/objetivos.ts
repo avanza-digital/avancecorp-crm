@@ -491,6 +491,8 @@ export interface CumplimientoMetasJerarquico {
   porVendedor: Record<string, CumplimientoVendedor>
   /** Produccion identificada que cuadra en empresa sin generar un puesto. */
   fueraRanking: ProduccionFueraRanking[]
+  /** Ventas propias, al final del ranking y con aporte al equipo. */
+  supervisores: ProduccionFueraRanking[]
 }
 
 function cumplimientoDesdeVendedor(
@@ -654,19 +656,21 @@ export function metaVigente(
 
 /**
  * Producción de TODA persona con cierres en el mes: `porVendedor` (quien tiene
- * meta) más `fueraRanking` (supervisores o analistas sin meta). «Por empresa»
+ * meta), `fueraRanking` y `supervisores` (desde octubre). «Por empresa»
  * la necesita completa: sin la segunda parte decía «falta su foto de
  * cumplimiento» de quien sí la tiene. Si un id está en las dos, gana la fila
  * con meta.
  */
 export function produccionPorPersona(
-  cumplimiento: Pick<CumplimientoMetasJerarquico, 'porVendedor'> & { fueraRanking?: readonly ProduccionFueraRanking[] } | null | undefined,
+  cumplimiento: Pick<CumplimientoMetasJerarquico, 'porVendedor'> & { fueraRanking?: readonly ProduccionFueraRanking[]; supervisores?: readonly ProduccionFueraRanking[] } | null | undefined,
 ): Record<string, Pick<CumplimientoVendedor, 'nombre' | 'detalles'>> | null {
   if (cumplimiento == null) return null
-  const fuera = Object.fromEntries((cumplimiento.fueraRanking ?? [])
+  const fuera = Object.fromEntries([...(cumplimiento.fueraRanking ?? []), ...(cumplimiento.supervisores ?? [])]
     .map((fila) => [fila.personaId, { nombre: fila.nombre, detalles: fila.detalles }]))
   return { ...fuera, ...cumplimiento.porVendedor }
 }
+
+const VENTAS_SUPERVISORES_DESDE = '2026-10-01'
 
 export function cumplimientoDesdeRpc(
   respuesta: CumplimientoMetasRpc,
@@ -716,7 +720,12 @@ export function cumplimientoDesdeRpc(
       renovacionesSinDesglose: fila.cartera.renovaciones_sin_desglose,
     },
   }))
-  const fueraComoCumplimiento: CumplimientoComercial[] = fueraRanking.map((fila) => ({
+  // Mismo corte comercial que la puerta SQL; el servidor mantiene fuera_ranking
+  // compatible para todos los lectores y el adaptador separa su presentación.
+  const supervisores = respuesta.periodo >= VENTAS_SUPERVISORES_DESDE
+    ? fueraRanking.filter((fila) => fila.rolCrm === 'supervisor' && fila.motivo === 'supervisor')
+    : []
+  const comoCumplimiento = (fila: ProduccionFueraRanking): CumplimientoComercial => ({
     conversionObjetivo: 0,
     conversionReal: null,
     convertidos: (fila.conversion?.cierresNoReferidos ?? 0)
@@ -725,7 +734,12 @@ export function cumplimientoDesdeRpc(
     resueltos: fila.conversion?.divisor ?? 0,
     numerador: fila.conversion?.numerador ?? 0,
     detalles: fila.detalles,
-  }))
+  })
+  const propias = Object.fromEntries(supervisores.map((fila) => [fila.personaId, comoCumplimiento(fila)]))
+  const propia = actorId ? propias[actorId] : undefined
+  const equipo = filas.filter((fila) => fila.supervisorId === actorId)
+  const metaEquipo = agregarCumplimientos(equipo)
+  const equipoConVentas = agregarCumplimientos([...equipo, ...(propia ? [propia] : [])])
   return {
     periodo: respuesta.periodo,
     revision: respuesta.revision,
@@ -736,10 +750,16 @@ export function cumplimientoDesdeRpc(
     },
     cierre: respuesta.cierre ?? null,
     vendedor: actorId ? (porVendedor[actorId] ?? null) : null,
-    supervisor: agregarCumplimientos(filas.filter((fila) => fila.supervisorId === actorId)),
-    gerencia: agregarCumplimientos([...filas, ...fueraComoCumplimiento]),
+    // Su producción aporta capital y contratos; no añade una meta individual
+    // ni diluye el objetivo de conversión pactado con los analistas.
+    supervisor: equipoConVentas == null ? null : {
+      ...equipoConVentas,
+      conversionObjetivo: metaEquipo?.conversionObjetivo ?? 0,
+    },
+    gerencia: agregarCumplimientos([...filas, ...fueraRanking.map(comoCumplimiento)]),
     porVendedor,
-    fueraRanking,
+    fueraRanking: fueraRanking.filter((fila) => !supervisores.includes(fila)),
+    supervisores,
   }
 }
 

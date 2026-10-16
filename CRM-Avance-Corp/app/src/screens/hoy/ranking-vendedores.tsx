@@ -76,6 +76,8 @@ interface RankingVendedoresPanelProps {
   cumplimientoVendedores: Record<string, CumplimientoVendedor>
   /** Produccion empresarial identificada que no puede recibir un puesto. */
   fueraRanking?: ProduccionFueraRanking[]
+  /** Sus ventas propias se muestran siempre después de todos los analistas. */
+  supervisores?: ProduccionFueraRanking[]
   metaMensual: MetaMensualGerencia
   /** Nombre, supervisor y población salen de la foto mensual autoritativa. */
   usarIdentidadSnapshot?: boolean
@@ -575,26 +577,33 @@ function RankingCapitalTotal({ ranking, onAbrirDetalle }: { ranking: RankingCapi
 function ProduccionFueraRankingPanel({
   filas,
   tc,
+  sonSupervisores = false,
 }: {
   filas: ProduccionFueraRanking[]
   tc: TipoCambio | null | undefined
+  sonSupervisores?: boolean
 }): JSX.Element | null {
   if (filas.length === 0) return null
+  const titulo = sonSupervisores ? 'Ventas propias de supervisores' : 'Producción fuera del ranking'
 
   return (
     <aside
-      aria-label="Producción fuera del ranking"
+      aria-label={titulo}
       className="border-t border-[var(--gi-line)] bg-amber-50/45 px-4 py-4 sm:px-5"
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h3 className="text-sm font-bold text-[var(--gi-navy)]">Producción fuera del ranking</h3>
+          <h3 className="text-sm font-bold text-[var(--gi-navy)]">{titulo}</h3>
           <p className="mt-1 max-w-3xl text-[11px] font-medium leading-relaxed text-[var(--gi-muted)]">
-            Suma al resultado total de la empresa, pero no entrega puesto ni altera el orden de los analistas.
+            {sonSupervisores
+              ? 'Los supervisores aparecen al final. Sus ventas propias también suman al avance de su equipo.'
+              : 'Suma al resultado total de la empresa, pero no entrega puesto ni altera el orden de los analistas.'}
           </p>
         </div>
         <span className="rounded-full border border-amber-300 bg-amber-100 px-2.5 py-1 text-[10px] font-bold text-amber-900">
-          {numero(filas.length)} {filas.length === 1 ? 'responsable' : 'responsables'} sin puesto
+          {numero(filas.length)} {sonSupervisores
+            ? (filas.length === 1 ? 'supervisor' : 'supervisores')
+            : (filas.length === 1 ? 'responsable sin puesto' : 'responsables sin puesto')}
         </span>
       </div>
 
@@ -623,11 +632,11 @@ function ProduccionFueraRankingPanel({
                 <span className="min-w-0">
                   <strong className="block truncate text-xs text-[var(--gi-navy)]">{fila.nombre}</strong>
                   <span className="mt-0.5 block text-[10px] font-medium text-[var(--gi-muted)]">
-                    {MOTIVO_FUERA_RANKING[fila.motivo]}
+                    {sonSupervisores ? 'Ventas propias · Supervisor' : MOTIVO_FUERA_RANKING[fila.motivo]}
                   </span>
                 </span>
                 <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-700">
-                  No suma al ranking
+                  {sonSupervisores ? 'Aporta a su equipo' : 'No suma al ranking'}
                 </span>
               </div>
               <div className="mt-2 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
@@ -667,6 +676,7 @@ export function RankingVendedoresPanel({
   metasVendedores,
   cumplimientoVendedores,
   fueraRanking = [],
+  supervisores = [],
   metaMensual,
   usarIdentidadSnapshot = false,
   estadoFotoMensual,
@@ -676,7 +686,7 @@ export function RankingVendedoresPanel({
   capitalError,
   onReintentarCapital,
   tc,
-  titulo = 'Ranking general de analistas',
+  titulo = 'Ranking comercial',
   etiquetaAlcance = 'Equipo completo',
   tabInicial = 'conversion',
   tipoSeleccionado,
@@ -941,7 +951,10 @@ export function RankingVendedoresPanel({
         </>
       )}
       {fuenteConversion == null && !fotoMensualCargando && !fotoMensualError && (
-        <ProduccionFueraRankingPanel filas={fueraRanking} tc={tc} />
+        <>
+          <ProduccionFueraRankingPanel filas={fueraRanking} tc={tc} />
+          <ProduccionFueraRankingPanel filas={supervisores} tc={tc} sonSupervisores />
+        </>
       )}
       <DetalleCapitalRanking
         abierto={detalleId !== null}

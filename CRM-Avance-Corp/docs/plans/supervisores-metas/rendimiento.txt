@@ -1,0 +1,114 @@
+Aggregate  (cost=440.84..440.85 rows=1 width=32) (actual time=180.727..180.744 rows=1 loops=1)
+  Buffers: shared hit=24903
+  CTE conv
+    ->  Function Scan on conversion_neta_por_vendedor n  (cost=0.25..10.25 rows=500 width=297) (actual time=86.112..86.115 rows=25 loops=1)
+          Filter: en_nucleo
+          Buffers: shared hit=10253
+  CTE nombrados
+    ->  Function Scan on roster_conversion_mensual r  (cost=0.25..10.25 rows=1000 width=16) (actual time=5.255..5.258 rows=27 loops=1)
+          Buffers: shared hit=278
+  CTE prod
+    ->  Function Scan on produccion_mes_por_vendedor r_1  (cost=1.79..11.79 rows=1000 width=116) (actual time=29.165..29.170 rows=44 loops=1)
+          Buffers: shared hit=5309
+          InitPlan 3
+            ->  Limit  (cost=0.15..1.54 rows=1 width=20) (actual time=0.015..0.016 rows=1 loops=1)
+                  Buffers: shared hit=2
+                  ->  Index Scan using meta_periodos_vigente_idx on meta_periodos  (cost=0.15..5.72 rows=4 width=20) (actual time=0.015..0.015 rows=1 loops=1)
+                        Index Cond: (periodo = '2026-10-01'::date)
+                        Buffers: shared hit=2
+  CTE car
+    ->  Function Scan on metricas_cartera_por_vendedor m  (cost=0.25..10.25 rows=1000 width=168) (actual time=59.674..59.675 rows=11 loops=1)
+          Buffers: shared hit=9047
+  InitPlan 8
+    ->  Limit  (cost=0.41..4.06 rows=1 width=16) (actual time=0.030..0.032 rows=1 loops=1)
+          Buffers: shared hit=5
+          ->  Nested Loop  (cost=0.41..11.34 rows=3 width=16) (actual time=0.029..0.030 rows=1 loops=1)
+                Buffers: shared hit=5
+                ->  Index Scan using equipo_pkey on equipo e_1  (cost=0.14..3.86 rows=3 width=16) (actual time=0.014..0.014 rows=1 loops=1)
+                      Filter: (activo AND (rol_crm = 'supervisor'::text))
+                      Rows Removed by Filter: 2
+                      Buffers: shared hit=2
+                ->  Index Scan using perfiles_pkey on perfiles p_1  (cost=0.28..2.49 rows=1 width=16) (actual time=0.012..0.013 rows=1 loops=1)
+                      Index Cond: (id = e_1.perfil_id)
+                      Filter: activo
+                      Buffers: shared hit=3
+  ->  Sort  (cost=348.67..348.69 rows=10 width=388) (actual time=175.339..175.352 rows=1 loops=1)
+        Sort Key: (COALESCE(NULLIF(btrim(pf.nombre_completo), ''::text), (('(sin nombre · '::text || "left"((c.analista_id)::text, 8)) || ')'::text)))
+        Sort Method: quicksort  Memory: 26kB
+        Buffers: shared hit=24625
+        ->  Nested Loop Left Join  (cost=79.66..348.50 rows=10 width=388) (actual time=175.280..175.304 rows=1 loops=1)
+              Buffers: shared hit=24622
+              ->  Nested Loop Left Join  (cost=56.80..119.78 rows=10 width=356) (actual time=175.135..175.154 rows=1 loops=1)
+                    Buffers: shared hit=24622
+                    ->  Nested Loop Left Join  (cost=56.80..97.13 rows=2 width=204) (actual time=175.132..175.149 rows=1 loops=1)
+                          Buffers: shared hit=24622
+                          ->  Nested Loop Left Join  (cost=56.80..85.86 rows=1 width=68) (actual time=175.127..175.136 rows=1 loops=1)
+                                Buffers: shared hit=24622
+                                ->  Nested Loop Left Join  (cost=56.53..83.36 rows=1 width=41) (actual time=175.115..175.123 rows=1 loops=1)
+                                      Join Filter: (sup.perfil_id = eq.supervisor_id)
+                                      Rows Removed by Join Filter: 4
+                                      Buffers: shared hit=24619
+                                      ->  Nested Loop Left Join  (cost=56.53..82.02 rows=1 width=41) (actual time=175.104..175.111 rows=1 loops=1)
+                                            Buffers: shared hit=24618
+                                            ->  Nested Loop Anti Join  (cost=56.53..80.71 rows=1 width=16) (actual time=175.085..175.091 rows=1 loops=1)
+                                                  Buffers: shared hit=24617
+                                                  ->  Unique  (cost=56.53..56.59 rows=12 width=16) (actual time=175.078..175.082 rows=1 loops=1)
+                                                        Buffers: shared hit=24617
+                                                        ->  Sort  (cost=56.53..56.56 rows=12 width=16) (actual time=175.077..175.080 rows=6 loops=1)
+                                                              Sort Key: c.analista_id
+                                                              Sort Method: quicksort  Memory: 25kB
+                                                              Buffers: shared hit=24617
+                                                              ->  Append  (cost=0.00..56.31 rows=12 width=16) (actual time=86.148..175.039 rows=6 loops=1)
+                                                                    Buffers: shared hit=24614
+                                                                    ->  CTE Scan on conv c  (cost=0.00..11.25 rows=2 width=16) (actual time=86.148..86.160 rows=1 loops=1)
+                                                                          Filter: ((analista_id IS NOT NULL) AND (analista_id = (InitPlan 8).col1))
+                                                                          Rows Removed by Filter: 24
+                                                                          Buffers: shared hit=10258
+                                                                    ->  CTE Scan on prod p  (cost=0.00..22.50 rows=5 width=16) (actual time=29.169..29.191 rows=4 loops=1)
+                                                                          Filter: ((vendedor_id IS NOT NULL) AND (vendedor_id = (InitPlan 8).col1))
+                                                                          Rows Removed by Filter: 40
+                                                                          Buffers: shared hit=5309
+                                                                    ->  CTE Scan on car c_1  (cost=0.00..22.50 rows=5 width=16) (actual time=59.679..59.681 rows=1 loops=1)
+                                                                          Filter: ((vendedor_id IS NOT NULL) AND (vendedor_id = (InitPlan 8).col1))
+                                                                          Rows Removed by Filter: 10
+                                                                          Buffers: shared hit=9047
+                                                  ->  Function Scan on jsonb_array_elements e  (cost=0.00..2.00 rows=1 width=32) (actual time=0.006..0.006 rows=0 loops=1)
+                                                        Filter: (((value ->> 'vendedor_id'::text))::uuid = (InitPlan 8).col1)
+                                            ->  Seq Scan on equipo eq  (cost=0.00..1.30 rows=1 width=41) (actual time=0.017..0.017 rows=1 loops=1)
+                                                  Filter: (perfil_id = (InitPlan 8).col1)
+                                                  Rows Removed by Filter: 19
+                                                  Buffers: shared hit=1
+                                      ->  Seq Scan on equipo sup  (cost=0.00..1.30 rows=3 width=16) (actual time=0.006..0.008 rows=4 loops=1)
+                                            Filter: (rol_crm = 'supervisor'::text)
+                                            Rows Removed by Filter: 36
+                                            Buffers: shared hit=1
+                                ->  Index Scan using perfiles_pkey on perfiles pf  (cost=0.28..2.49 rows=1 width=43) (actual time=0.010..0.011 rows=1 loops=1)
+                                      Index Cond: (id = (InitPlan 8).col1)
+                                      Buffers: shared hit=3
+                          ->  CTE Scan on conv cv  (cost=0.00..11.25 rows=2 width=136) (actual time=0.002..0.009 rows=1 loops=1)
+                                Filter: (analista_id = (InitPlan 8).col1)
+                                Rows Removed by Filter: 24
+                    ->  CTE Scan on car  (cost=0.00..22.50 rows=5 width=168) (actual time=0.001..0.002 rows=1 loops=1)
+                          Filter: (vendedor_id = (InitPlan 8).col1)
+                          Rows Removed by Filter: 10
+              ->  Aggregate  (cost=22.85..22.86 rows=1 width=32) (actual time=0.140..0.142 rows=1 loops=1)
+                    ->  Sort  (cost=22.79..22.81 rows=6 width=100) (actual time=0.046..0.049 rows=6 loops=1)
+                          Sort Key: (array_position('{nuevo,renovacion,upgrade}'::text[], "*VALUES*".column1)), "*VALUES*".column2
+                          Sort Method: quicksort  Memory: 25kB
+                          ->  Hash Right Join  (cost=0.17..22.71 rows=6 width=100) (actual time=0.021..0.035 rows=6 loops=1)
+                                Hash Cond: ((pr.categoria = "*VALUES*".column1) AND (pr.moneda = "*VALUES*".column2))
+                                ->  CTE Scan on prod pr  (cost=0.00..22.50 rows=5 width=100) (actual time=0.001..0.007 rows=4 loops=1)
+                                      Filter: (vendedor_id = c.analista_id)
+                                      Rows Removed by Filter: 40
+                                ->  Hash  (cost=0.08..0.08 rows=6 width=64) (actual time=0.010..0.011 rows=6 loops=1)
+                                      Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                      ->  Values Scan on "*VALUES*"  (cost=0.00..0.08 rows=6 width=64) (actual time=0.003..0.006 rows=6 loops=1)
+  SubPlan 6
+    ->  CTE Scan on nombrados nm  (cost=0.00..22.50 rows=5 width=0) (actual time=5.268..5.268 rows=0 loops=1)
+          Filter: (vendedor_id = c.analista_id)
+          Rows Removed by Filter: 27
+          Buffers: shared hit=278
+Planning:
+  Buffers: shared hit=528
+Planning Time: 4.405 ms
+Execution Time: 181.270 ms

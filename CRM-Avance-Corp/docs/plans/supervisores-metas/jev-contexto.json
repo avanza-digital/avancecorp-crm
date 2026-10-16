@@ -1,0 +1,46 @@
+{
+  "consulta": "¿Qué extractos explican cómo incorporar ventas propias de supervisores a la meta del equipo, preservando atribución, visibilidad y meses cerrados, y ubicarlos al final del ranking?",
+  "corte": 2,
+  "extractos": [
+    {
+      "de": "app/src/lib/objetivos.ts:660-752",
+      "puntos": 2.14,
+      "confianza": 0.72
+    },
+    {
+      "de": "supabase/scripts/supervisores-metas/vivo/crm.cumplimiento_metas_fn.sql:1-200",
+      "puntos": 2,
+      "confianza": 0.69
+    },
+    {
+      "de": "app/src/screens/hoy/ranking-vendedores.tsx:574-650",
+      "puntos": 1.82,
+      "confianza": 0.61
+    },
+    {
+      "de": "supabase/migrations/20261015000852_crm_plazo_carga_mes.sql:1250-1450",
+      "puntos": 1.73,
+      "confianza": 0.6
+    },
+    {
+      "de": "app/src/lib/objetivos.ts:346-375",
+      "puntos": 1.66,
+      "confianza": 0.64
+    },
+    {
+      "de": "supabase/migrations/20260807203757_crm_metas_sla_versionados.sql:35-50",
+      "puntos": 1.55,
+      "confianza": 0.54
+    },
+    {
+      "de": "app/src/screens/hoy/ranking-vendedores.tsx:708-773",
+      "puntos": 1.33,
+      "confianza": 0.32
+    },
+    {
+      "de": "app/src/screens/hoy/datos-supervisor.ts:164-183",
+      "puntos": 0.84,
+      "confianza": 0.17
+    }
+  ]
+}

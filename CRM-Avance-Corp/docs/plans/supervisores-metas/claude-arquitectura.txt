@@ -1,0 +1,97 @@
+VERDICT: CHANGES_REQUESTED
+
+SUMMARY:
+El plan puede implementarse dentro de la puerta existente de crm.cumplimiento_metas_fn, sin núcleo privado nuevo, sin grants ni RLS nuevos y sin tocar el escritor del sello. Hay que cambiar antes el contrato propuesto. Separar un campo `supervisores` de `fuera_ranking` rompe al cliente desplegado, que valida con strictObject, y abre una vía de doble conteo en el total de empresa durante la transición. La rama del supervisor tiene además un riesgo de acceso cruzado si el filtro se apoya en `motivo` y no en `persona_id = v_uid`. Tampoco está definido qué entra en "ventas" del equipo: capital y contratos, sin conversión. Recomiendo no crear campo nuevo. Los supervisores deben seguir en `fuera_ranking` y el supervisor debe recibir solo su propia fila desde octubre.
+
+FINDINGS:
+
+[P1] Separar `supervisores` de `fuera_ranking` rompe la transición y permite doble conteo
+File: app/src/lib/objetivos.ts; supabase/scripts/supervisores-metas/vivo/crm.cumplimiento_metas_fn.sql
+Lines: objetivos.ts:346-374, 719-740; vivo:95-127
+Problem: El punto 1 del plan mueve las filas de supervisor fuera de `fuera_ranking` hacia un campo nuevo.
+Evidence: `CumplimientoMetasSchema` es `v.strictObject` (346). Cualquier clave de primer nivel que el bundle actual no conozca hace fallar el parseo completo. El despliegue del frontend no está autorizado. El total de gerencia se calcula como `agregarCumplimientos([...filas, ...fueraComoCumplimiento])` (740). Si el servidor saca a los supervisores de `fuera_ranking`, un cliente viejo pierde ese capital del total de empresa. Si el servidor emite la misma fila en los dos campos, un cliente nuevo que sume ambos la duplica.
+Impact: Con el cliente actual, la pantalla deja de cargar o el total de empresa baja. Con un desfase de versiones, una venta se cuenta dos veces.
+Recommendation: Contrato concreto:
+(a) Sin claves nuevas en la respuesta.
+(b) Lectores globales: `fuera_ranking` sin cambios. Ya incluye `motivo = 'supervisor'` en vivo (vivo:82) y en el sello (escritor:1239).
+(c) Rol supervisor, desde 2026-10-01: `fuera_ranking` contiene solo su fila. Antes de octubre recibe `[]`, como hoy.
+(d) El cliente obtiene "ventas de supervisión" filtrando `fueraRanking` por `motivo === 'supervisor'`.
+(e) El total de empresa se sigue calculando como `filas + fuera`, deduplicado por `personaId`. Nunca debe calcularse como suma de equipos.
+Con esto, la paridad del total de empresa se cumple por construcción y no hace falta modificar el schema.
+
+[P1] Riesgo de acceso cruzado: `dentro` depende de la visibilidad de quien llama
+File: supabase/scripts/supervisores-metas/vivo/crm.cumplimiento_metas_fn.sql
+Lines: 24, 63-94, 173
+Problem: `fuera` se calcula como el universo de `conv ∪ prod ∪ car` (todas las personas, porque los núcleos `private.*` no filtran por actor) menos `v_base->'vendedores'`.
+Evidence: Para el rol global, `v_base` contiene a todos los vendedores. La rama cerrada usa `private.cierre_mes_reportes_visible(p_periodo, v_uid)` (173), lo que indica que `cumplimiento_metas_sin_cartera_fn` recorta por actor. Esto es una hipótesis: no se adjuntó su cuerpo. Si se cumple, cuando llama un supervisor, los analistas de otros equipos quedan fuera de `dentro` y caen en `fuera` con nombre, capital y conversión.
+Impact: Si la rama del supervisor reutiliza el bloque y filtra después por `motivo = 'supervisor'`, o por cualquier otra cosa distinta de la identidad, expone filas de otros supervisores o de analistas ajenos.
+Recommendation: En la rama del supervisor:
+- Exigir `v_rol = 'supervisor'` de forma explícita. No usar `not v_global`.
+- Restringir `personas` a `persona_id = v_uid` dentro del CTE, antes de los joins, no al final.
+- En meses cerrados, filtrar `jsonb_array_elements(pc.cobertura->'fuera_ranking')` por `persona_id = v_uid::text` y `motivo = 'supervisor'`.
+- Aplicar la condición `p_periodo >= date '2026-10-01'` en las dos ramas.
+Así no hace falta extraer un núcleo privado. Si se extrae de todos modos, debe recibir `p_persona uuid`, aplicar `REVOKE ALL` a public, anon y authenticated, usar `SET search_path ''`, y venir acompañado de una prueba de paridad byte a byte de la salida global.
+
+[P1] "Ventas" sin definir: sumar la fila completa altera la conversión del equipo
+File: app/src/lib/objetivos.ts
+Lines: 719-728, 739
+Problem: El plan dice que el avance de capital suma analistas más ventas propias. Pero `fueraComoCumplimiento` también lleva `convertidos`, `resueltos` y `numerador`.
+Evidence: Si se añade la fila del supervisor a `agregarCumplimientos(filas.filter(...supervisorId === actorId))`, también se agregan las medidas de conversión. Hoy la conversión del equipo sale de `conversion_mensual_fn` (datos-supervisor.ts:175-178). Aun así, cualquier consumidor de `cumplimiento.supervisor` que lea numerador o resueltos cambiaría.
+Impact: La conversión del equipo cambia sin que nadie lo haya pedido.
+Recommendation: Para el equipo, agregar solo `detalles` (capital real y contratos reales por categoría y moneda) de la fila propia. Conversión en cero o fuera. Confirmar con Miguel si los contratos cuentan: el objetivo del equipo tiene capital y contratos. Añadir una prueba unitaria que fije que la conversión del supervisor no cambia.
+
+[P2] Supervisores sin ventas: abierto y cerrado no coinciden
+File: vivo:63-68; escritor:1216-1221
+Problem: El punto 3 incluye en meses abiertos a supervisores activos sin ventas. Pero el sello solo guarda a quien tiene actividad en `conv`, `prod` o `car`.
+Evidence: El universo de `personas` es el mismo en los dos. Para fabricar filas en cero en el mes abierto hay que leer `crm.equipo` vivo. ranking-vendedores.tsx:708-709 evita expresamente esa dependencia de la identidad viva.
+Impact: Una fila desaparece al sellar el mes. Para el cliente viejo, también cambia el contador "N responsables sin puesto".
+Recommendation: No emitir filas en cero desde el servidor. Si Miguel quiere verlas, el cliente puede mostrar "sin ventas propias" solo para el propio supervisor en el mes abierto, sin alterar totales.
+
+[P2] Las ventas del supervisor no reciben ajustes de saldo (hipótesis)
+File: escritor 20261015000852:1421, 1435-1437; vivo:141-142
+Evidence: Para la foto, el sello descuenta `sal.aplicado_numerador/pen/usd` solo a las personas de `cierre_mes_vendedor`. Las filas de `fuera_ranking` llevan `capital_ajuste: 0`.
+Impact: Si los saldos representan descuentos por anulaciones de meses previos, el capital que el supervisor aporta al equipo queda sin neto. El total de empresa ya tiene este mismo efecto hoy, así que no es nuevo, pero pasaría a afectar la meta del equipo.
+Recommendation: Confirmar la semántica de `sal.*`. Si aplica a supervisores, documentarlo como limitación conocida, porque el escritor no se toca.
+
+[P2] El corte de octubre exige una fuente única
+Problem: Los lectores globales ya reciben filas de supervisor en septiembre. La vista de equipo del cliente necesita su propio corte para no sumarlas antes de octubre.
+Recommendation: En SQL, crear `private.supervisores_suman_equipo(p_periodo) returns boolean`: IMMUTABLE, sin grants a authenticated. En TypeScript, una constante única con prueba unitaria de 2026-09 contra 2026-10. Para el rol supervisor, que el servidor sea la única puerta: si la fila llega, se suma.
+
+[P3] Cambios de rol entre fin de mes y sello
+Evidence: `motivo` y `elegibles` se calculan con `crm.equipo` en el momento del sello (escritor:1227-1242).
+Case 1: Un supervisor degradado a vendedor con supervisor antes del sello pasa a ser elegible y entra en la foto del equipo de otra persona.
+Case 2: Un supervisor que recibe una fila en `metas_vendedor` pasa a `vendedores` y deja de aparecer en `fuera`. No hay duplicado en el servidor, pero el cliente debe deduplicar por persona.
+Recommendation: Cubrir ambos casos con pruebas y documentarlos.
+
+[P3] El texto del panel contradice la nueva regla
+File: ranking-vendedores.tsx:593, 630
+Evidence: El panel dice "No suma al ranking" y "Suma al resultado total de la empresa". Desde octubre, las ventas del supervisor también suman a la meta del equipo.
+Recommendation: Crear una sección separada al final del ranking ("Ventas propias de supervisión"), sin puesto y sin reordenar `rankingCapitalTotal.conPuesto`.
+
+TEST GAPS:
+- RLS: el supervisor A ve solo su fila. No ve la de B ni filas de analistas ajenos. Debe cubrirse en meses abiertos y cerrados, con el sello simulado.
+- Accesos por rol: analista recibe `[]`. Rol revocado o inactivo recibe 42501 (confirmar que `private.rol_crm` devuelve null cuando `activo = false`). Coordinación y directorio reciben la salida global sin cambios.
+- Septiembre: el supervisor recibe `[]` y la salida global es idéntica (md5 del JSON antes y después) para 2026-09 y 2026-10.
+- Supervisor con meta en `metas_vendedor`: no se duplica. Supervisor sin analistas: el agregado del equipo es igual a su propia fila.
+- Verificar si `equipo` (ranking-vendedores.tsx:712-716) ya incluye supervisores con leads y les asigna puesto. Es una hipótesis no verificada.
+- Cliente viejo frente a respuesta nueva del supervisor: el parseo strictObject pasa y ningún panel de supervisor muestra un total de empresa equivocado.
+- Prueba unitaria: la conversión del equipo no cambia al añadir la fila del supervisor.
+
+ARCHITECTURE RISKS:
+- El bloque vivo (vivo:95-153) y el del sello (escritor:1250-1305) ya divergen: el numerador neto o bruto (vivo:108-111 frente a escritor:1263) y el motivo `analista_sin_meta`. No hay que añadir una tercera copia: se reutiliza el bloque con el filtro por persona.
+
+SECURITY RISKS:
+- Se resuelven con lo indicado en el segundo hallazgo P1. No hace falta ningún grant ni policy nuevos, y no hay escritura en `public` (solo lectura de `perfiles`, como hoy).
+
+REGRESSION RISKS:
+- El total de empresa y el orden de los analistas no deberían cambiar con el contrato recomendado. Los dos se verifican con la prueba de paridad.
+
+RECOMMENDED NEXT ACTIONS:
+1. Adoptar el contrato sin claves nuevas: supervisores dentro de `fuera_ranking` y, para el rol supervisor, solo su fila desde octubre.
+2. En SQL: rama supervisor con filtro por `v_uid` dentro del CTE y en el JSON sellado, más la función de corte de octubre.
+3. Cerrar con Miguel la definición de "ventas" (capital, y contratos sí o no) y si se muestran supervisores sin ventas.
+4. Cliente: el agregado del equipo suma solo los `detalles` de la fila propia; el total de empresa se deduplica por persona; sección final sin puesto.
+5. Pruebas de la matriz anterior, con frontend primero según la regla de la casa.
+
+CONFIDENCE:
+MEDIUM. No se adjuntaron los cuerpos de `cumplimiento_metas_sin_cartera_fn`, `private.rol_crm`, `agregarCumplimientos` ni el origen de `equipo`. Las afirmaciones que dependen de ellos están marcadas como hipótesis.

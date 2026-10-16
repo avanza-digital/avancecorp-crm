@@ -296,4 +296,5 @@ export const CUMPLIMIENTO_METAS_DEMO: CumplimientoMetasJerarquico = {
   gerencia: agregarCumplimientos(CUMPLIMIENTO_DEMO_FILAS),
   porVendedor: CUMPLIMIENTO_VENDEDORES_DEMO,
   fueraRanking: [],
+  supervisores: [],
 }
