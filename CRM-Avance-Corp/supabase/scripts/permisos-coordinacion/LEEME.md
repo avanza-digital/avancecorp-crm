@@ -1,6 +1,7 @@
 # Coordinación: consulta y corrección de categoría
 
-Estado: **implementado y validado localmente en copia aislada; NO publicado ni aplicado a producción**.
+Estado: **backend aplicado y verificado en producción; frontend pendiente de publicar por `$release-crm`**.
+Validación remota y promoción: [VERIFICACION-CLOUD.md](VERIFICACION-CLOUD.md).
 Pedido de Miguel del 15/10/2026: Coordinadora ve Leads y la cartera completa de clientes;
 Admin/Superadmin, Gerencia y Coordinadora corrigen Nuevo / Renovación / Upgrade porque
 el analista pudo registrarlo mal. Confirmación explícita: también corrige conversión y ranking.
@@ -79,4 +80,4 @@ Reversa, solo antes de la primera corrección: `reversa-politicas.sql` → `reve
 compensatoria y conservar el historial. No borrar la tabla ni reconstruir hechos financieros.
 
 La publicación del frontend requiere invocación humana de `$release-crm` o `/release-crm`
-según `CRM-Avance-Corp/CLAUDE.md`; este trabajo no ejecuta esa publicación.
+según `CRM-Avance-Corp/CLAUDE.md`; Miguel ya invocó la habilidad para esta publicación.

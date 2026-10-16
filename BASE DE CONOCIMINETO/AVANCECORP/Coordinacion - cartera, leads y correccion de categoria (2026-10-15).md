@@ -1,6 +1,6 @@
 ---
 fecha: 2026-10-15
-estado: preparado en copia aislada; no publicado
+estado: backend aplicado; frontend pendiente de publicar
 tags: [crm, coordinacion, permisos, conversion, ranking]
 ---
 
@@ -19,10 +19,14 @@ Los meses sellados permanecen protegidos. Coordinación consulta Leads y cliente
 escrituras generales, banca, archivos o postventa; mantiene el reparto ya autorizado.
 
 Implementación y pruebas en `CRM-Avance-Corp/supabase/scripts/permisos-coordinacion/`.
-Migraciones preparadas `20261015211217`, `20261015212939` y `20261015224848`; no aplicadas a producción.
-93 checks SQL y carreras de revocación/sello PASS. Frontend: 6.928 tests y build PASS;
-E2E Docker: 422 PASS, 26 omitidos, cero fallos. Matriz HTTP/Auth completa y gate de realidad
-NOT RUN por falta del entorno correspondiente. Detalle en `VERIFICACION.md`.
+Migraciones `20261015211217`, `20261015212939` y `20261015224848` aplicadas por merge de rama
+el 15/10 a las 18:58 Lima, tras autorización explícita. 93 SQL + 61 Auth/PostgREST PASS;
+1.110 funciones/propietarios/ACL idénticos a la rama validada. Se conservaron 818 contratos,
+165 operaciones, importes y categorías. Rama temporal eliminada. Advisors: cero WARN/ERROR
+nuevos y dos INFO esperados de la auditoría privada. Gate de realidad PASS (dos divergencias
+preexistentes); matriz general seed-demo NOT RUN, matriz focalizada PASS.
+Frontend sobre Main con #299: 6.966 tests PASS; publicación pendiente de cerrar Docker y artefacto.
+Detalle en `VERIFICACION-CLOUD.md`.
 
 Relacionadas: [[Categorización de inversiones - Nuevo Renovación Upgrade]],
 [[Coordinacion - Facturacion y Ranking en lectura (2026-10-12)]],

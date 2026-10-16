@@ -1,6 +1,9 @@
+Promoción del bloque Coordinación: [acta cloud](../scripts/permisos-coordinacion/VERIFICACION-CLOUD.md).
+93 pruebas SQL + 61 Auth/PostgREST PASS; merge de rama, cero WARN/ERROR nuevos y rama eliminada.
+
 ## 20261015224848 — Consolidar policies de consulta de Coordinación
 
-**PREPARADA, NO APLICADA EN PRODUCCIÓN.** Hardening del bloque de permisos: une mediante
+**APLICADA Y VERIFICADA EN PRODUCCIÓN 15/10/2026 18:58 Lima.** Hardening del bloque de permisos: une mediante
 OR los predicados equivalentes de SELECT original y Coordinación en leads/actividades/tareas;
 verifica huellas, rol y permisividad antes de modificar. Conserva los filtros restrictivos y
 no cambia escrituras. Advisors locales antes/después: mismos 7 avisos, cero nuevos.
@@ -9,7 +12,7 @@ dos reversas. Replay de las tres + matriz 87 checks PASS. No modifica migracione
 
 ## 20261015212939 — Corrección manual auditada de categoría de inversión
 
-**PREPARADA, NO APLICADA EN PRODUCCIÓN.** Pedido y confirmación de Miguel, 15/10/2026:
+**APLICADA Y VERIFICADA EN PRODUCCIÓN 15/10/2026 18:58 Lima.** Pedido y confirmación de Miguel, 15/10/2026:
 Admin/Superadmin, Gerencia y Coordinadora corrigen errores de Nuevo/Renovación/Upgrade y
 la corrección actualiza conversión y ranking. Mantiene la firma de la RPC existente;
 autoriza contra perfil/membresía activos con bloqueo, exige motivo y guarda auditoría
@@ -27,7 +30,7 @@ conservar historia y usar compensación auditada.
 
 ## 20261015211217 — Coordinación consulta Leads y cartera de toda la empresa
 
-**PREPARADA, NO APLICADA EN PRODUCCIÓN.** Coordinación activa obtiene SELECT de leads,
+**APLICADA Y VERIFICADA EN PRODUCCIÓN 15/10/2026 18:58 Lima.** Coordinación activa obtiene SELECT de leads,
 actividades y tareas de leads; búsqueda/listado, filtros de equipo, fichas y estados, y
 cartera F5 completa. No amplía helpers compartidos de escritura. Mantiene bancos, archivos,
 postventa y gestión general fuera del permiso de consulta; corrección de categoría usa su
