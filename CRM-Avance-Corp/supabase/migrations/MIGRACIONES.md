@@ -1,3 +1,29 @@
+## 20261016190408 — SLA: «próximo cambio» en el mismo paso
+
+**VALIDADA EN BANCO; NO APLICADA EN PRODUCCIÓN.** Decisión de Miguel, 16/10/2026: hacer la mejora corta por el disco.
+`private.sla_operacion_autorizada(uuid[],boolean)` calcula `proximo_cambio_en` con `min()` en el mismo `SELECT` que arma
+`v_filas`; deja de recorrer otra vez todo el JSON con `jsonb_array_elements`.
+- Mismo `jsonb` y mismos errores para todo lo que devuelve el productor: 2.403 comparaciones, más 43 de un verificador independiente
+  y 163 con esta migración aplicada en el banco; 0 diferencias.
+- Con 30+ consultas pesadas a la vez: −16 a −19 % de escrituras temporales (no es el I/O total ni latencia); la memoria total no
+  cambia de forma medible.
+
+Cambio protegido por huella productiva `0f4f44bed201e7eeb00301d82cc6401f`, productor `e47f610fb4cde0741f2a22c3e2e7ee2c` y DDL
+`a5bd718f2f288565ecb510f6ba1e8634`; resultado `a5fd870bf432dc907f5849a61a5fb9a8` (familia SLA `1adaf6c5708637fd916705cc090a4218`).
+- Conserva firma, ACL, SECURITY DEFINER, search_path, volatilidad, paralelismo, comentario y el resto de atributos (comprobados).
+- Corre `assert_sla_nucleo`, `assert_cola_v3` y `assert_sla_avisos` antes del `commit`. Mutante probado: un guardián rojo aborta.
+- No toca objetos de public, tablas, policies, grants, datos, fórmulas ni sellos. No requiere regenerar tipos.
+
+Revisiones:
+- `auditor-rls`: PASS, solo P3, incorporados.
+- Codex: plan CHANGES_REQUESTED → incorporado; migración CHANGES_REQUESTED (solo lectura de `verificar.sql` y registro tras una
+  reversa) → incorporado.
+
+Gates: CI `crm-rls-preflight` en local 4/4 PASS. `test:rls` completo NOT RUN: hace falta una pila con fixtures; no cambian permisos.
+
+Ver [kit, aplicación y reversa](../scripts/sla-proximo-cambio/LEEME.md). Aplicar con `db query --linked --file` (con el «!» de
+Miguel), entre dos corridas de `verificar.sql`, y registrar la fila del índice solo si la segunda da lo esperado.
+
 ## 20261016183308 — Referidos propios de supervisores
 
 **APLICADA EN PRODUCCIÓN el 16/10/2026**, por merge de la rama validada.
