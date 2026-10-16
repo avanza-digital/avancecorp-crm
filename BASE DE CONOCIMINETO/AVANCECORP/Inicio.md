@@ -9,6 +9,8 @@ actualizado: 2026-09-25
 
 # 🏠 Inicio — Portal Avance Corp
 
+- ✅ **15/10 21:33 Lima — PWA DE ANALISTA PUBLICADA:** barra «Mi día · Gestión Diaria · Agenda · Más», mejoras de teclado, pendientes y actualización. Fuente `94ef6886`, build `build-20261016T023049819Z`, PR #305; 6976 pruebas unitarias, 436 E2E y 126 archivos publicados verificados. Pendiente prueba instalada en Android/iPhone. [[Analista - PWA con navegacion inferior (2026-10-15)]].
+
 - ✅ **15/10 19:46 Lima — LÍMITE DE REPARTO PUBLICADO Y VERIFICADO:** #299 incluida en el build `build-20261016T002734754Z` / fuente `d1796dd4`. Si hay 90 y se preparan 60, solo quedan 30 para los demás supervisores del mismo origen. 126 recursos web idénticos al paquete, acceso básico PASS y Figma actualizado en el resumen, plan principal y planilla. [[Coordinacion - limite inmediato de cantidades (2026-10-15)]].
 
 - ✅ **15/10 19:28 Lima — COORDINACIÓN: CARTERA Y LEADS PUBLICADOS.** Consulta de toda la empresa; Admin/Gerencia/Coordinación corrigen categoría en contratos Avance con motivo e historial, actualizando conversión y ranking. Tres SQL aplicados por rama, pantalla `d1796dd4`, smoke 126/126 y acceso real comprobados. [[Coordinacion - cartera, leads y correccion de categoria (2026-10-15)]].

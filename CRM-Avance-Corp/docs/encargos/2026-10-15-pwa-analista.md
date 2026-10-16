@@ -1,6 +1,6 @@
 # PWA de Analista — implementación y verificación
 
-Fecha: 15/10/2026. Estado: implementación verificada, publicación autorizada por Miguel («publiquemos»).
+Fecha: 15/10/2026. Estado: **publicado y verificado**. Fuente y comprobaciones en [el acta de publicación](2026-10-15-publicacion-pwa-analista.md).
 
 ## Pedido y alcance
 
@@ -75,3 +75,7 @@ La primera corrida Docker de preparación se interrumpió al detectar referencia
 Pruebas unitarias repetidas con las dependencias fijadas por el lockfile (`npm run test:run -- --maxWorkers=2`): **PASS, 434 archivos y 6976 pruebas**, 198,83 s. Registro: `output/pwa-analista-20261015/publicacion-unitarias-lock.log`.
 
 La prueba física de la nueva vista del Analista sigue pendiente; la confirmación previa de Gerencia no la sustituye. El resultado de publicación se registra después de verificar el artefacto servido.
+
+Suite completa final en Docker: **436 PASS / 0 FAIL / 26 SKIP**, dos workers, cero reintentos, 18,8 minutos. Incluye los diez casos nuevos de Analista y la regresión PWA de Gerencia. Registro de la suite: `output/pwa-analista-20261015/publicacion-e2e-completo.log`.
+
+Integración completada por Miguel en [PR #305](https://github.com/avanza-digital/avancecorp-crm/pull/305), con controles `verify`, `app-check` y `preflight` en verde. Commit de implementación `eac8480271e0393824aa272847044215a4b503fa`; commit integrado y publicado `94ef6886b50d0734a29fff57c10d268680aaed9d`, con árbol idéntico. Se publicó mediante Hostinger y se verificaron por HTTPS 126 archivos contra el manifiesto. El login en navegador limpio pasó en móvil y escritorio.
