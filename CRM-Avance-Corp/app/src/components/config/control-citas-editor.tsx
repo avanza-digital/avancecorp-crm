@@ -15,7 +15,7 @@ import {
 } from '@/lib/control-citas'
 
 const CAMPOS_META = [
-  { clave: 'citas_por_lead', etiqueta: 'Citas por lead', ayuda: 'Meta interna. No se muestra en el tablero.', maximo: 10 },
+  { clave: 'citas_por_lead', etiqueta: 'Citas por lead', ayuda: 'Meta del avance mensual: 1.25 citas por lead se muestra como 125%.', maximo: 10 },
   { clave: 'entrevistas_porcentaje', etiqueta: 'Objetivo de entrevistas (%)', ayuda: 'Porcentaje que quieres alcanzar con la gestión.', maximo: 100 },
   { clave: 'depositos_porcentaje', etiqueta: 'Objetivo de depósitos (%)', ayuda: 'Cada persona convertida cuenta una sola vez.', maximo: 100 },
 ] as const
@@ -223,7 +223,7 @@ export function ControlCitasEditor({ consulta, guardar, aplicar, practica = fals
       </Dialog>
       <Dialog open={confirmarAplicacion} onClose={() => { if (!ocupado) setConfirmarAplicacion(false) }} ariaLabel="Aplicar configuración de Citas">
         <DialogHeader><DialogTitle>Aplicar versión {base.version_actual}</DialogTitle><DialogDescription>Estas reglas se usarán desde {config.mes_inicio}. Los meses anteriores conservarán su configuración.</DialogDescription></DialogHeader>
-        <DialogBody><p className="text-sm">Meta interna: {textoNumeroControlCitas(config.citas_por_lead)} citas por lead. Entrevistas: {config.entrevistas_porcentaje}%. Depósitos: {config.depositos_porcentaje}%. El cambio quedará registrado en el historial.</p></DialogBody>
+        <DialogBody><p className="text-sm">Meta de citas: {textoNumeroControlCitas(config.citas_por_lead)} citas por lead. Entrevistas: {config.entrevistas_porcentaje}%. Depósitos: {config.depositos_porcentaje}%. El cambio quedará registrado en el historial.</p></DialogBody>
         <DialogFooter><Button type="button" variant="outline" disabled={ocupado} onClick={() => setConfirmarAplicacion(false)}>Cancelar</Button><Button type="button" disabled={ocupado} onClick={() => void aplicarVersion()}>{ocupado ? 'Aplicando…' : 'Confirmar aplicación'}</Button></DialogFooter>
       </Dialog>
     </form>
