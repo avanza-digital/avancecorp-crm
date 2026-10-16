@@ -1,0 +1,67 @@
+NOTICE:  PASS: la regla anterior rechaza referidos del supervisor [42501]
+NOTICE:  PASS: huella nueva exacta
+NOTICE:  PASS: ACL y atributos de todas las funciones intactos
+NOTICE:  PASS: solo cambia una función
+NOTICE:  PASS: ninguna policy cambia
+NOTICE:  PASS: migración no reescribe leads
+NOTICE:  PASS: supervisor crea referido sin destino
+NOTICE:  PASS: referido conserva autor y dueño, fuera de reparto
+NOTICE:  PASS: reintento con dueño explícito confirma la misma alta
+NOTICE:  PASS: reintento no duplica
+NOTICE:  PASS: supervisor crea referido con dueño propio explícito
+NOTICE:  PASS: reintento sin destino de alta explícita mantiene identidad
+NOTICE:  PASS: rechaza referido para analista propio [42501]
+NOTICE:  PASS: rechaza referido para analista ajeno [42501]
+NOTICE:  PASS: rechaza referido para otro supervisor [42501]
+NOTICE:  PASS: misma llave con otro origen rechazada [22023]
+NOTICE:  PASS: origen del referido permanece inmutable [P0409]
+NOTICE:  PASS: INSERT directo sigue revocado [42501]
+NOTICE:  PASS: oficina conserva asignación al equipo
+NOTICE:  PASS: oficina conserva bandeja de reparto
+NOTICE:  PASS: landing conserva asignación al equipo
+NOTICE:  PASS: landing conserva bandeja de reparto
+NOTICE:  PASS: formulario conserva asignación al equipo
+NOTICE:  PASS: formulario conserva bandeja de reparto
+NOTICE:  PASS: formulario_3 conserva asignación al equipo
+NOTICE:  PASS: formulario_3 conserva bandeja de reparto
+NOTICE:  PASS: supervisor sin analistas crea su referido
+NOTICE:  PASS: analista conserva su referido propio
+NOTICE:  PASS: analista no crea referido para supervisor [42501]
+NOTICE:  PASS: analista no lee referido del supervisor
+NOTICE:  PASS: otro supervisor no lee el referido
+NOTICE:  PASS: referido denegado a gerencia [42501]
+NOTICE:  PASS: referido denegado a coordinador [42501]
+NOTICE:  PASS: referido denegado a directorio [42501]
+NOTICE:  PASS: referido denegado a cliente [42501]
+NOTICE:  PASS: referido denegado a desconocido [42501]
+NOTICE:  PASS: alta con documento DNI
+NOTICE:  PASS: dueño propio con documento DNI
+NOTICE:  PASS: reintento documental DNI
+NOTICE:  PASS: envoltorio no permite otro dueño: DNI [42501]
+NOTICE:  PASS: alta con documento CE
+NOTICE:  PASS: dueño propio con documento CE
+NOTICE:  PASS: reintento documental CE
+NOTICE:  PASS: envoltorio no permite otro dueño: CE [42501]
+NOTICE:  PASS: alta con documento PASAPORTE
+NOTICE:  PASS: dueño propio con documento PASAPORTE
+NOTICE:  PASS: reintento documental PASAPORTE
+NOTICE:  PASS: envoltorio no permite otro dueño: PASAPORTE [42501]
+NOTICE:  PASS: otro id no duplica el mismo contacto
+NOTICE:  PASS: fixture confirma baja de perfil
+NOTICE:  PASS: perfil inactivo no crea referido con mismo JWT [42501]
+NOTICE:  PASS: fixture confirma baja de membresía
+NOTICE:  PASS: membresía inactiva no crea referido con mismo JWT [42501]
+NOTICE:  PASS: cambiar a Gerencia retira el alta de referido con el mismo JWT [42501]
+NOTICE:  PASS: referido del supervisor se convierte por la puerta compartida vigente
+NOTICE:  PASS: reintento de conversión no duplica inversión
+NOTICE:  PASS: conversión conserva el supervisor
+NOTICE:  PASS: Cartera conserva responsable del referido
+NOTICE:  PASS: venta referida aparece en producción propia para aportar al equipo
+NOTICE:  PASS: núcleo conserva el referido del supervisor y su tope mensual, sin duplicar ni sumar divisor
+NOTICE:  PASS: total de empresa incluye el referido y su aporte una sola vez
+NOTICE:  PASS: supervisor no entra en filas de conversión de analistas
+NOTICE:  PASS: reporte por origen incluye el cierre referido del supervisor
+NOTICE:  PASS: reversa restaura función exacta
+NOTICE:  PASS: reversa conserva referidos creados
+NOTICE:  PASS: reversa restaura rechazo anterior [42501]
+NOTICE:  PASS: reaplicación habilita de nuevo el alta propia

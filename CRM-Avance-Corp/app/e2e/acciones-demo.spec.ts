@@ -29,19 +29,25 @@ test('crear lead: alta rápida, toast "(demo)" y abre la ficha del nuevo lead', 
   await expect(page.getByRole('dialog', { name: 'LEAD PRUEBA E2E' })).toBeVisible()
 })
 
-test('supervisor: crea un lead propio y lo convierte sin asignarlo a un analista', async ({ page }) => {
+for (const origen of ['oficina', 'referido']) {
+test(`supervisor: crea un lead propio de ${origen} y lo convierte sin asignarlo a un analista`, async ({ page }) => {
   await entrarDemo(page, 'Supervisor')
   await page.getByRole('button', { name: /nuevo lead/i }).click()
   const modal = page.getByRole('dialog', { name: 'Nuevo lead' })
   await modal.getByLabel('Nombre completo *').fill('LEAD PROPIO SUPERVISOR E2E')
   await modal.getByLabel('Teléfono *', { exact: true }).fill('987111333')
   await modal.getByLabel('Capital estimado *').fill('5000')
-  await modal.getByLabel('Origen *').selectOption('oficina')
   const responsable = modal.getByRole('combobox', { name: 'Responsable comercial' })
   await expect(responsable).toHaveValue('')
   await responsable.selectOption({ label: 'Yo — lead propio' })
   const responsableId = await responsable.inputValue()
   expect(responsableId).not.toBe('')
+  if (origen === 'referido') await responsable.selectOption('d-v1')
+  await modal.getByLabel('Origen *').selectOption(origen)
+  if (origen === 'referido') {
+    await expect(modal.getByLabel('Responsable comercial')).toBeDisabled()
+    await expect(modal.getByText('El referido queda a tu cargo automáticamente.')).toBeVisible()
+  }
   await modal.getByRole('button', { name: /crear lead/i }).click()
 
   const drawer = page.getByRole('dialog', { name: 'LEAD PROPIO SUPERVISOR E2E' })
@@ -62,6 +68,7 @@ test('supervisor: crea un lead propio y lo convierte sin asignarlo a un analista
   await page.getByRole('button',{name:'Cerrar',exact:true}).click()
   await expect(drawer.getByRole('button',{name:/Convertir a cliente/i})).toHaveCount(0)
 })
+}
 
 test('editar lead: cambia el monto y confirma con toast "(demo)"', async ({ page }) => {
   await entrarDemo(page, 'Analista')

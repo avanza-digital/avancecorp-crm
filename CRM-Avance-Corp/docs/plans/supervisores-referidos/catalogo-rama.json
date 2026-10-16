@@ -1,0 +1,21 @@
+{
+  "funciones_antes": 1110,
+  "funciones_despues": 1110,
+  "modificadas": [
+    "crm.crear_lead_si_disponible(text,text,text,numeric,text,uuid,text,text,text,date,text,text,text,uuid,text,text)"
+  ],
+  "owner_acl_identicos": true,
+  "historial_anterior_identico": true,
+  "historial_antes": 485,
+  "historial_despues": 486,
+  "migracion": "20261016183308",
+  "sha256_sql": "fe59d9d4a8fda030a77a4796113dc33ed948dff7fab71258641840041c1c8ec7",
+  "sql_registrado_identico_al_archivo": true,
+  "nota_normalizacion": "Firma de regprocedure sin calificación public y primera línea p_contrato public.contratos normalizadas por search_path del lector; cuerpos no normalizados.",
+  "metadata_intacta": {
+    "roles": true,
+    "membresias": true,
+    "auth_grants": true,
+    "triggers_auth": true
+  }
+}
