@@ -3,6 +3,18 @@
 **Estado: PENDIENTE DE APROBACIÓN de Miguel (16/10/2026).** Nada está implementado ni aplicado. Único archivo tocado: este documento.
 **v2 (16/10, tarde):** incorpora los 5 hallazgos de la revisión (sección 8). Cambian R1, R2, R3, el script de datos y la secuencia de publicación.
 
+## 0. Plan por fases
+
+Cada fase termina en una puerta: si no está en verde, la siguiente no empieza. Las secciones 1 a 8 son el detalle.
+
+| Fase | Quién | Qué se hace | Entregable | Puerta de salida |
+|---|---|---|---|---|
+| **0 · Decidir y medir** | Miguel y yo | Las 6 confirmaciones (sección 7); medir en producción (solo lectura) huellas vivas y hechos de los 2 casos; montar el banco Docker a paridad. | Plan aprobado, banco listo. | **Plan aprobado** por Miguel. |
+| **1 · Servidor** (R1 a R4) | Yo | Migración única (eliminar ya no anula, reemplazo automático, rehabilitación con revocación, lectores parcheados, puertas, barrido), reversa fail-closed, registrador; `pruebas.sql` en ROLLBACK, mutantes, carrera; regresión de eliminar inversión y mes sellado; `auditor-rls`. | Migración y scripts en la rama `crm/conversion-reemplazo-20261016`. | **Banco en verde** y `auditor-rls` sin P0/P1. |
+| **2 · Recuperar los 2 casos** | Yo | Script de datos de lista cerrada (2 rehabilitaciones, categoría de 2026-01-001621 a `nuevo`, enlace y acreditación), ensayado en banco con los hechos copiados de producción. | `recuperar-16-10.sql` con comprobación. | **Casos OK en banco**: Jurado y Gaspar cuentan; las 4 pruebas siguen anuladas. |
+| **3 · Pantalla** (R5) | Yo | Textos de eliminar y Cartera, categoría fija con fecha límite, chip en la ficha, reintento de vínculo; `gen:types`; vitest; E2E en Docker. | App en la misma rama. | **`npm run check` y E2E en verde** (Docker apagado = no se avanza). |
+| **4 · Revisión y publicación** | Yo ejecuto; Miguel aprueba PR y despliegue | Review de Codex (LEVEL 3) y conciliación; branch de Supabase con migración y script; advisors; `main` = `avancecorp/main`; preflight; publicar; push el mismo día; comprobación en producción; ledger y vault. | Producción con la regla nueva y los 2 casos recuperados. | **Producción verificada**. |
+
 ## 1. El problema
 
 Un analista registra una venta con la moneda equivocada. Gerencia la elimina con «Eliminar inversión» y registra el contrato correcto. La conversión del analista desaparece para siempre: el lead sigue contando en el divisor (llegada) y el numerador queda en 0. La tasa del analista baja.
