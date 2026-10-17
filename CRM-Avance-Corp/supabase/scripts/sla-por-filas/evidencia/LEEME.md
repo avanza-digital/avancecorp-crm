@@ -17,5 +17,6 @@ estos informes son relativas a esa carpeta.
 | `06-gate-rls-completo.md` | `test:rls` completo ANTES/DESPUÉS en stack local con el volcado de producción del 17/10: PASS |
 | `07-carga-concurrente.md` | Carga ABABAB ANTES vs M3: memoria baja; veredicto NO PASA solo por el p95 de `estado` |
 | `08-estado-2x2-y-gestion-diaria.md` | 2×2 con sonda dedicada: `estado` gasta la misma CPU; carga con Gestión Diaria |
+| `13-acta-produccion-20261017.md` | Acta de la aplicación en producción del 17/10 (paso a paso, registro, advisors y logs) |
 | `10-cadenas-completas.md` | Las 239 cadenas «hasta el final» del verificador, completas: 5.733 páginas, 0 diferencias |
 | `09-produccion-verificar-ANTES-20261017.txt` | `verificar.sql` corrido por Miguel en producción el 17/10: `SERIE=ANTES` |
