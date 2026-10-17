@@ -817,7 +817,12 @@ describe('ContratoNuevo — el aviso de la cadena de upgrade (ATR-3)', () => {
     expect(
       screen.getByText(/Esta renovación cuenta al analista del upgrade: MARIA UPGRADE/),
     ).toBeInTheDocument()
-    expect(screen.getByText(/El núcleo determina el aporte de la renovación/)).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'Desde octubre de 2026, una renovación con capital adicional cuenta como upgrade en la conversión si es la primera operación elegible del cliente en el mes, salvo corrección manual. El adicional queda separado para su pago.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/no crea otra conversión/)).not.toBeInTheDocument()
     expect(screen.queryByText(/La renovación suma una conversión/)).not.toBeInTheDocument()
     vi.mocked(crmQueries.useAtribucionContrato).mockReturnValue({ data: null, isPending: false, isError: false } as never)
   })
