@@ -1,10 +1,11 @@
 # Cooperativas: vencimiento a los 360 días
 
-**Release PAUSADO por petición de Miguel (16/10/2026, 23:45 UTC).**
-Producción sigue intacta; no se publicó ni se hizo push. Los dos bancos
-temporales de esta tarea fueron eliminados. Trabajo y punto de continuación
-guardados en `PAUSA.md` y `ACTA-RELEASE.md`. El estado inicial y su evidencia
-se conservan abajo como historial.
+**Release REANUDADO por Miguel con «sigamos!!!».**
+La pausa segura y eliminación de los dos bancos anteriores están registradas
+en `PAUSA.md`. El estado vigente está en [ACTA-RELEASE.md](ACTA-RELEASE.md) y
+la reconstrucción y gates de la retoma en [RETOMA-20261017.md](RETOMA-20261017.md).
+La verificación inicial de abajo se conserva como historial; sus NOT RUN no
+sustituyen los resultados posteriores de esas actas.
 
 Para Qorilazo y Prodelco, cada mes representa 30 días corridos: 12 meses son
 360 días desde el inicio. Ejemplo: 16/10/2026 + 12 meses → 11/10/2027.

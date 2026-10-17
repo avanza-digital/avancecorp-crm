@@ -40,7 +40,10 @@ declare
   v_sup_viejo uuid;
   v_sup_nuevo uuid;
   v_gerencia  uuid;
-  v_mes       date := date_trunc('month', (now() at time zone 'America/Lima'))::date;
+  v_mes_fuente date := date_trunc('month', (now() at time zone 'America/Lima'))::date;
+  -- Todas las ventas de la sonda deben quedar EN EL PASADO: el cambio real
+  -- de equipo que registra el caso 12 hoy sí puede cambiar una venta futura.
+  v_mes       date := (v_mes_fuente - interval '1 month')::date;
   v_antes     date := v_mes + 4;   -- día 5: ANTES del cambio
   v_cambio    date := v_mes + 9;   -- día 10: el cambio
   v_despues   date := v_mes + 19;  -- día 20: DESPUÉS del cambio
@@ -56,6 +59,9 @@ declare
   v_cap_real  numeric;
   v_tocadas   integer;
 begin
+  if v_despues >= (now() at time zone 'America/Lima')::date then
+    raise exception 'ORACULO: la sonda histórica no puede usar ventas futuras';
+  end if;
   -- ── Fixture ───────────────────────────────────────────────────────────────
   select e.perfil_id into v_gerencia
   from crm.equipo e where e.rol_crm = 'gerencia' and e.activo limit 1;
@@ -87,8 +93,8 @@ begin
   select private.analista_efectivo_contrato(c.id, c.analista_cierre_id) into v_analista
   from public.contratos c
   where c.categoria = 'nuevo' and not c.es_demo
-    and c.fecha_cierre_comercial >= v_mes
-    and c.fecha_cierre_comercial < (v_mes + interval '1 month')
+    and c.fecha_cierre_comercial >= v_mes_fuente
+    and c.fecha_cierre_comercial < (v_mes_fuente + interval '1 month')
   group by 1 having count(*) >= 2 order by count(*) desc limit 1;
   if v_analista is null then
     raise exception 'ORACULO: ningun analista tiene 2+ ventas este mes en el banco';
@@ -105,14 +111,14 @@ begin
   select c2.id into v_c1 from public.contratos c2
   where private.analista_efectivo_contrato(c2.id, c2.analista_cierre_id) = v_analista
     and c2.categoria = 'nuevo' and not c2.es_demo
-    and c2.fecha_cierre_comercial >= v_mes
-    and c2.fecha_cierre_comercial < (v_mes + interval '1 month')
+    and c2.fecha_cierre_comercial >= v_mes_fuente
+    and c2.fecha_cierre_comercial < (v_mes_fuente + interval '1 month')
   order by c2.id limit 1;
   select c2.id into v_c2 from public.contratos c2
   where private.analista_efectivo_contrato(c2.id, c2.analista_cierre_id) = v_analista
     and c2.categoria = 'nuevo' and not c2.es_demo
-    and c2.fecha_cierre_comercial >= v_mes
-    and c2.fecha_cierre_comercial < (v_mes + interval '1 month')
+    and c2.fecha_cierre_comercial >= v_mes_fuente
+    and c2.fecha_cierre_comercial < (v_mes_fuente + interval '1 month')
     and c2.id <> v_c1
   order by c2.id limit 1;
   if v_c1 is null or v_c2 is null then

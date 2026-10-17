@@ -1,7 +1,8 @@
 # Cooperativas 360 días — publicación autorizada
 
-Estado: **PAUSADO por petición de Miguel el 16/10/2026, 23:45 UTC**.
-Producción intacta, sin merge SQL, push a Main ni publicación del frontend.
+Estado: **REANUDADO por Miguel con «sigamos!!!»**.
+La pausa del 16/10 a las 23:45 UTC quedó cerrada con sus dos bancos eliminados.
+Producción sigue intacta mientras se completan los gates de la retoma.
 Miguel invocó `$release-crm` y aprobó además «corrige el control y continúa la
 publicación». El destino es `crm.miavance.com`, desde `avancecorp/main`.
 
@@ -27,7 +28,18 @@ SQL candidato (contenido exacto registrado en el banco):
 | 20261016231301 | `be058004682a2f198da54ff8be3a49d3cb461f4178e50be759c42edd2a59a827` |
 | 20261016232742 | `9cc1490237da010ab3849a956fbb26024cda2af865e243a4fa3d5b748d076a37` |
 
-## Evidencia de preparación
+## Retoma vigente
+
+Se integraron los cambios remotos #313 y #314 sin sobrescribirlos. La fuente
+de aplicación que se vuelve a verificar es
+`61281001217df76cdfc1295654559f21dcc073b9`. La retoma usa un tercer banco
+ficticio, con las tres migraciones aplicadas por CLI conservando sus versiones,
+historial base idéntico y paridad de catálogo. La primera matriz completa
+detectó 73 fallos por fixtures y expectativas antiguas; se corrigieron sin
+cambiar permisos ni añadir SQL productivo. Una ejecución nueva está pendiente
+de cierre. Detalle y resultados actuales: [RETOMA-20261017.md](RETOMA-20261017.md).
+
+## Evidencia anterior a la pausa
 
 - `npm run check`: PASS, 434 archivos y 6.998 pruebas, además de lint,
   TypeScript, cobertura, configuración de release, build, bundle y duplicación.
