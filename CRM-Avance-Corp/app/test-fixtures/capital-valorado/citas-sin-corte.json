@@ -31,19 +31,19 @@
         "corte": null,
         "estado": "pendiente",
         "pendientes": {
-          "pen": 9000,
-          "usd": 11000,
+          "pen": 9000.0,
+          "usd": 11000.0,
           "cantidad": 4
         },
         "generado_en": null,
         "por_incorporar": {
-          "pen": 9000,
-          "usd": 11000,
+          "pen": 9000.0,
+          "usd": 11000.0,
           "cantidad": 4
         },
         "ventas_pendientes": [
           {
-            "monto": 1000,
+            "monto": 1000.0,
             "fuente": "contrato",
             "moneda": "PEN",
             "motivo": "revision_pendiente",
@@ -52,7 +52,7 @@
             "fecha_imputacion": "2026-10-02"
           },
           {
-            "monto": 2000,
+            "monto": 2000.0,
             "fuente": "contrato",
             "moneda": "USD",
             "motivo": "revision_pendiente",
@@ -61,7 +61,7 @@
             "fecha_imputacion": "2026-10-02"
           },
           {
-            "monto": 8000,
+            "monto": 8000.0,
             "fuente": "contrato",
             "moneda": "PEN",
             "motivo": "revision_pendiente",
@@ -70,7 +70,7 @@
             "fecha_imputacion": "2026-10-02"
           },
           {
-            "monto": 9000,
+            "monto": 9000.0,
             "fuente": "cierre_externo",
             "moneda": "USD",
             "motivo": "revision_pendiente",
@@ -93,8 +93,9 @@
     "hasta": "2026-10-31"
   },
   "version": 2,
-  "generado_en": "2026-10-16T23:42:29.427298+00:00",
+  "generado_en": "2026-10-17T06:03:58.959375+00:00",
   "conversiones": [],
   "citas_clientes": 0,
+  "criterio_depositos": "fecha_comercial",
   "disponibilidad_depositos": "conversion_cliente"
 }

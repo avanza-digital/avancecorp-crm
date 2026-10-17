@@ -2,18 +2,15 @@ import { normalizar, type CitaEjemplo, type FiltrosCitas } from './modelo'
 import { baseCitasFiltrada, type GestionCitas } from './metas'
 import type { GestionMensualCitas } from '@/lib/gestion-citas'
 import { totalEnSoles, tcAplicable } from '@/lib/capital-unificado'
+import { fechaLocalCitas, entrevistaCompatibleConVenta, ventaComercialDelMes } from './fecha-comercial'
+export { fechaLocalCitas } from './fecha-comercial'
 
 type Persona = GestionMensualCitas['poblacion'][number]
 type Capital = GestionMensualCitas['capital'][number]
 const TIPOS_CAPITAL = { contrato_nuevo: 'nuevos', contrato_upgrade: 'upgrades', contrato_renovacion: 'renovaciones', cooperativa: 'cooperativas' } as const
 export type OperacionesCapital = Record<(typeof TIPOS_CAPITAL)[keyof typeof TIPOS_CAPITAL], number>
 const instanteCita = (c: CitaEjemplo) => Date.parse(`${c.fecha}T${c.hora}:00-05:00`)
-// El registro de entrevista acredita la relación; la fecha prevista sola no.
-const instanteEntrevista = (c: CitaEjemplo) => c.asistioEn ? Date.parse(c.asistioEn) : Number.POSITIVE_INFINITY
 const fechaResultado = (c: CitaEjemplo) => c.estado === 'realizada' ? c.asistioEn : `${c.fecha}T${c.hora}:00-05:00`
-export const fechaLocalCitas = (fecha: string) => new Intl.DateTimeFormat('en-CA', {
-  timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit',
-}).format(new Date(fecha))
 export function periodoAvance(mes: string, corte: string) {
   const [anio, numero] = mes.split('-').map(Number)
   const dias = new Date(Date.UTC(anio!, numero!, 0)).getUTCDate()
@@ -90,7 +87,7 @@ export function calcularAvanceCitas(gestion: GestionCitas, todas: CitaEjemplo[],
   const entrevistas = resueltas.filter(c => c.estado === 'realizada')
   const cierres = datos.conversiones.filter(c => personas.has(c.lead_id)
     && ambito(owner(c.lead_id, c.analista_id)) && actividad(c.lead_id, owner(c.lead_id, c.analista_id))
-    && Date.parse(c.convertido_en) <= limiteResultado && mesResultado(personas.get(c.lead_id)!, c.convertido_en))
+    && ventaComercialDelMes(c, filtros.mes, corte))
   // Todo el capital del mes cuenta para el ticket: contratos nuevos, upgrades,
   // renovaciones y cooperativas, atribuidos al analista del núcleo (Miguel,
   // 15/09/2026: «nada debe quedar fuera»). No exige que el cliente venga de un
@@ -117,7 +114,7 @@ export function calcularAvanceCitas(gestion: GestionCitas, todas: CitaEjemplo[],
     // también la colaboración entre analistas incluidos en la consulta.
     const vinculados = clientesMes.filter(c => visitas.some(v => personaEntrevistada(v.leadId) === personaEntrevistada(c.lead_id)
       && (!id || owner(v.leadId, v.analista) === owner(c.lead_id, c.analista_id))
-      && instanteEntrevista(v) <= Date.parse(c.convertido_en)))
+      && entrevistaCompatibleConVenta(v.asistioEn, c.fecha_comercial)))
     const perfilesVinculados = new Set(vinculados.map(c => personaEntrevistada(c.lead_id)))
     const clientes = perfilesVinculados.size
     const clientesPeriodo = new Set(clientesMes.map(c => personaEntrevistada(c.lead_id))).size
@@ -131,7 +128,7 @@ export function calcularAvanceCitas(gestion: GestionCitas, todas: CitaEjemplo[],
     // El ticket es mensual aunque el seguimiento esté configurado por cohorte.
     const cierresTicket = datos.conversiones.filter(c => personas.has(c.lead_id) && ambito(c.analista_id)
       && (!id || c.analista_id === id) && actividad(c.lead_id, c.analista_id)
-      && Date.parse(c.convertido_en) >= periodo.inicio && Date.parse(c.convertido_en) <= periodo.corte)
+      && ventaComercialDelMes(c, filtros.mes, corte))
     const capital = capitalMes.filter(k => !id || k.analista_id === id)
     const capitalPerfiles = new Set(capital.map(personaCapital))
     const operaciones: OperacionesCapital = { nuevos: 0, upgrades: 0, renovaciones: 0, cooperativas: 0 }
@@ -201,15 +198,18 @@ export function calcularAvanceCitas(gestion: GestionCitas, todas: CitaEjemplo[],
   const sinFiltros = !normalizar(filtros.q) && !filtros.leadId && !filtros.origen && !filtros.registro
     && !filtros.moneda && !filtros.analista && !filtros.equipo
   const testigo = gestion.testigo
-  const testigoCuadra = !testigo || !sinFiltros ? null
-    : testigo.reglas_listas === reglasListas
-      && testigo.entrevistas === total.entrevistas
-      && testigo.personas_entrevistadas === total.unicas
-      && testigo.clientes_periodo === total.clientesPeriodo
-      && testigo.clientes_vinculados === total.clientes
-      && testigo.base_conversion === total.baseConversion
+  const diferenciasTestigo = !testigo || !sinFiltros ? [] : [
+    { campo: 'Reglas aplicadas', pantalla: reglasListas, servidor: testigo.reglas_listas },
+    { campo: 'Entrevistas', pantalla: total.entrevistas, servidor: testigo.entrevistas },
+    { campo: 'Personas entrevistadas', pantalla: total.unicas, servidor: testigo.personas_entrevistadas },
+    { campo: 'Clientes del mes comercial', pantalla: total.clientesPeriodo, servidor: testigo.clientes_periodo },
+    { campo: 'Clientes vinculados a entrevistas', pantalla: total.clientes, servidor: testigo.clientes_vinculados },
+    { campo: 'Base del porcentaje', pantalla: total.baseConversion, servidor: testigo.base_conversion },
+  ].filter(d => d.pantalla !== d.servidor)
+  const testigoCuadra = !testigo || !sinFiltros ? null : diferenciasTestigo.length === 0
+
   return { filas, total, periodo, config, reglasListas, version: datos.control.version,
-    tc: !valoracion && total.capitalUsd > 0 ? tcAplicable(tipoCambio) : null, valoracion, testigoCuadra }
+    tc: !valoracion && total.capitalUsd > 0 ? tcAplicable(tipoCambio) : null, valoracion, testigoCuadra, diferenciasTestigo }
 }
 export type AvanceCitas = ReturnType<typeof calcularAvanceCitas>
 export type FilaAvanceCitas = AvanceCitas['filas'][number]

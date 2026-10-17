@@ -138,7 +138,7 @@ describe('Citas conectadas al CRM',() => {
   it('muestra la conversión como depósito sin presentar un monto estimado como abonado',async () => {
     const usuario=userEvent.setup()
     montar({depositosDisponibles:true,depositoPorConversion:true,depositos:[{
-      id:'conversion-L-031',leadId:'L-031',fuente:'conversion_cliente',monto:null,moneda:null,
+      id:'conversion-L-031',leadId:'L-031',fuente:'conversion_cliente',fechaComercial:'2026-09-04',monto:null,moneda:null,
       depositadoEn:'2026-09-04T15:00:00Z',confirmadoEn:'2026-09-04T15:00:00Z',
     }]})
     const indicador=screen.getByRole('region',{name:'Conversión de inasistencias a depósito'})
