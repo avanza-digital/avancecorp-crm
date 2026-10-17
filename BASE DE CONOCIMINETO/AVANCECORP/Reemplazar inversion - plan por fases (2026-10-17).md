@@ -1,6 +1,6 @@
 # Reemplazar inversión — plan por fases (propuesta 17/10/2026)
 
-Estado: **Fase 0 decidida · Fase 1 CONSTRUIDA Y ENSAYADA (17/10/2026), SIN PUBLICAR · checklist 9/9 · Codex r4 PASS.** Migración candidata
+Estado: **Fase 0 decidida · Fase 1 CONSTRUIDA Y ENSAYADA (17/10/2026), SIN PUBLICAR · checklist 9/9 · Codex final PASS (ningún P0/P1 abierto).** Migración candidata
 `20261017162053_crm_reemplazar_inversion.sql` en la rama `crm/reemplazar-inversion-20261017` (worktree
 `~/dev/avancecorp-crm-reemplazar-inversion`). Nada aplicado en producción ni en branch.
 
@@ -73,7 +73,7 @@ informe «¿apta para producción?» + «qué arregla comercialmente», con su c
 - [x] 4. Ensayo: conversión y capital del mes iguales antes y después, copia «reemplazada por N°…» y todo o nada (45 bloques PASS).
 - [x] 5. Rechazos probados: analista, mes sellado (conversión y capital), upgrade/renovación, dos convertidos, otro cliente; además plazo vencido, cuotas pagadas (también con el pago en curso), demo, duplicado que no es igual (datos o cotitulares), lead enlazado a otra inversión, membresía revocada.
 - [x] 6. test-rls entero en verde para lo propio, antes y después: los mismos 15 fallos ajenos del banco; bloque nuevo 17/17.
-- [x] 7. auditor-rls y Codex sin P0/P1 abiertos (ver «Revisiones»): Codex r4 PASS.
+- [x] 7. auditor-rls y Codex sin P0/P1 abiertos (ver «Revisiones»): revisión consolidada de Codex sobre la versión final completa: PASS, ningún P0/P1 abierto.
 
 ## Revisiones (17/10/2026)
 
@@ -83,6 +83,7 @@ informe «¿apta para producción?» + «qué arregla comercialmente», con su c
 - **auditor-rls sobre el delta r2**: el arreglo del P1 es correcto, sin P0/P1; su P2 (la comparación de cotitulares no ordenaba: `order by 1` dentro de un agregado ordena por la constante) quedó corregido con C35b y su mutante.
 - **Codex r3** (acotada al cierre de r2): los tres hallazgos de r2 **CERRADOS**. Abrió 1 P1 en la reversa (decidía si conservar `reemplazada_por` con una foto anterior al candado: un reemplazo confirmado en ese instante perdía su vínculo) y 1 P2 (un mutante quitaba dos defensas a la vez). El P1 se reprodujo con la carrera E5 (la columna se perdía) y se corrigió con un `LOCK TABLE` antes de la primera consulta; el mutante quedó aislado y muere en C33.
 - **Codex r4** (mínima, solo el cierre de r3): **PASS**, los dos cerrados, sin P0/P1 nuevos.
+- **Codex, revisión consolidada final** (migración md5 f3d99ce2… + reversa + registro + comprobación + pruebas, todo ya commiteado): **PASS — «Ningún P0/P1 abierto en la versión final revisada»**, sin P2/P3 que condicionen publicar. Límites de cobertura que señala (no defectos): E4 usa una actualización directa de la cuota, no la puerta real de pagos; E5 no detiene el reemplazo antes de escribir su copia.
 - [x] 8. Informe con «¿apta para producción?» y «qué arregla comercialmente» (abajo).
 - [x] 9. Este checklist.
 

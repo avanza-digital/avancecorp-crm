@@ -32,7 +32,8 @@ cotitulares en «quedarme con la otra», reintento con origen confirmado), todos
 reproducidos en el banco y corregidos; auditor-rls sobre el delta r2 sin P0/P1 (su P2,
 orden de cotitulares, corregido); Codex r3 cerró los de r2 y abrió 1 P1 en la reversa
 (decidía con una foto vieja) + 1 P2 de mutante, corregidos y reproducidos; Codex r4
-PASS (todo cerrado); concurrencia, seguridad y negocio sin P0/P1 abiertos. Kit en `supabase/scripts/reemplazar-inversion/` (LEEME, reversa, registrar,
+PASS (todo cerrado); revisión consolidada final de Codex sobre todo el kit: PASS, ningún
+P0/P1 abierto; concurrencia, seguridad y negocio sin P0/P1 abiertos. Kit en `supabase/scripts/reemplazar-inversion/` (LEEME, reversa, registrar,
 comprobar, carreras).
 Plan: vault «Reemplazar inversion - plan por fases (2026-10-17)».
 
