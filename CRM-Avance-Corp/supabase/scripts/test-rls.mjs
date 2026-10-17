@@ -9,6 +9,12 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 
+// Citas: misma autorización y ámbito en ambas puertas, con Auth cloud real.
+if (process.argv[2] === '--citas-fecha-comercial-cloud' && process.argv.length <= 4) {
+  await import('./citas-fecha-comercial/http-cloud.mjs');
+  process.exit(0);
+}
+
 // Tipo de cambio por venta: misma matriz HTTP sobre la rama cloud aprobada.
 if (process.argv.length === 3 && process.argv[2] === '--tipo-cambio-venta-cloud') {
   process.argv.push('--cloud');

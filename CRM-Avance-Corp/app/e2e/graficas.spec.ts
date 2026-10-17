@@ -75,6 +75,7 @@ test.describe('resumen de Gerencia en sesión real', () => {
     await page.screenshot({ path: testInfo.outputPath('resumen-mobile.png'), fullPage: true, animations: 'disabled' })
     await page.setViewportSize({ width: 1280, height: 900 })
 
+    await expect(page.locator('aside').getByRole('navigation')).toBeVisible()
     await irAModulo(page, 'Conversiones')
     await expect(page.getByRole('heading', { name: 'Conversión del equipo' })).toBeVisible()
     const avance = page.locator('[data-gi-kpi]').filter({ hasText: 'Reunión o avance posterior' })
@@ -120,7 +121,8 @@ test.describe('resumen de Gerencia en sesión real', () => {
     await page.getByRole('button',{name:'PERSONA RECUPERADA',exact:true}).click()
     const recorrido=page.getByRole('dialog',{name:'PERSONA RECUPERADA'})
     await expect(recorrido.getByRole('list',{name:'Recorrido de la persona'})).toContainText('Convertido a cliente')
-    await expect(recorrido.getByRole('list',{name:'Recorrido de la persona'})).toContainText('Fecha de conversión:')
+    await expect(recorrido.getByRole('list',{name:'Recorrido de la persona'})).toContainText('Fecha comercial: 04 set. 2026')
+    await expect(recorrido.getByRole('list',{name:'Recorrido de la persona'})).toContainText('Registrado en el CRM: 04 set. 2026')
     await expect(recorrido.getByRole('list',{name:'Recorrido de la persona'})).not.toContainText('35,000')
     await page.keyboard.press('Escape')
     await page.getByRole('button',{name:'No asistieron 2'}).click()
