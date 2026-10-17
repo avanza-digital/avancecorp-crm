@@ -1249,8 +1249,8 @@ export function ContratoNuevo({
               </span>
             </div>
             <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-              El núcleo determina el aporte de la renovación a la conversión del mes. El adicional queda separado
-              para su pago y no crea otra conversión.
+              Desde octubre de 2026, si la renovación trae capital adicional, cuenta como upgrade en la conversión
+              del mes (una vez por cliente y mes). El adicional queda separado para su pago.
             </p>
           </section>
         ) : (
