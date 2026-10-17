@@ -1,6 +1,7 @@
 # Cooperativas 360 días — release
 
-Estado: **GATES APROBADOS; publicación pendiente**. Miguel reanudó con
+Estado: **PUBLICADO Y VERIFICADO**. Cierre y salvedades del smoke en
+[PUBLICACION-20261017.md](PUBLICACION-20261017.md). Miguel reanudó con
 «sigamos!!!» la pausa segura del 16/10. Autorizó `$release-crm` y «corrige
 el control y continúa la publicación». Destino: crm.miavance.com,
 repositorio avanza-digital/avancecorp-crm, Main sigue avancecorp/main.
@@ -59,9 +60,10 @@ como satisfechos. El aviso dinámico del índice está documentado en
 
 ## Banco y flujo SQL
 
-Banco actual: coopac360-retoma-20261017, ref qlsukwhdouhgzkjgsebe,
+Banco utilizado y eliminado: coopac360-retoma-20261017, ref qlsukwhdouhgzkjgsebe,
 ID 94cba615-4071-46ea-b69a-85c2092041ad, creado 17/10 02:24:08 UTC.
-Misma organización y tarifa autorizada US$0,01344/h. Eliminar al terminar.
+Misma organización y tarifa autorizada US$0,01344/h. Eliminado alrededor de
+las 04:27 UTC; ausencia verificada. Coste orientativo de este banco: US$0,0276.
 Los dos bancos anteriores fueron eliminados; constancia en PAUSA.md.
 
 El replay histórico falla antes del candidato. Se reconstruyó esquema vacío,
@@ -83,7 +85,9 @@ Las 23 Edge Functions conservan versiones, configuración y hashes del origen.
 
 Preflight productivo reciente: 487 migraciones / última 20261016190408,
 helper/corrección/CHECK originales exactos, base_plazo ausente,
-84 cierres / 59 con condiciones, cero incompatibles. Repetir antes del merge.
+84 cierres / 59 con condiciones, cero incompatibles. Repetido inmediatamente
+antes del merge. Después: 490 migraciones, 84 filas originales idénticas
+excluyendo la nueva columna, todas con base calendario; 12 meses nuevos = 360 días.
 
 ## Revisión independiente y límites
 
@@ -95,18 +99,20 @@ paridad, mutantes y gates reales. No se atribuye PASS a esa revisión fallida.
 
 ## Publicación y recuperación
 
-Pendiente: Main local/remoto idénticos, ZIP limpio, verificación de manifiesto y
-preflight obligatorio, merge nativo Supabase de solo las tres migraciones,
-publicación por MCP Hostinger, smoke de bytes/versión y acceso básico,
-eliminación del banco y sus credenciales privadas.
+Completado: Main local/remoto idénticos en `f1e6f60269b300f300291b64ad0a007788d9a94b`,
+ZIP limpio verificado, preflight obligatorio, merge nativo Supabase de solo tres
+migraciones y publicación por MCP Hostinger. Smoke HTML/JS/CSS/versión y acceso
+básico PASS; comparación literal ampliada FAIL únicamente en 12 PNG transformados,
+conservada en el informe. Banco eliminado y ausencia comprobada.
 
 Hostinger: la prueba inicial forzaba un token antiguo del llavero y dio 401.
 La sesión OAuth MCP ya configurada sí funcionó. No se cambió la configuración
 MCP ni se pidió un token por chat.
 
-Recuperación: ZIP anteriormente publicado
-crm-20261016T184742Z-0d6aa930fe3b.zip, SHA-256
-595bc1deeb84014b7813699b761e3346f34fdb317dd395dba2ff5f5f8c1d79be.
+Recuperación inmediata: ZIP anteriormente publicado
+crm-20261017T032704Z-92ae6f94d3a7.zip, SHA-256
+4acec75eabfb88ad320ded8ee2d21877b3bd43616f0dfee4292536d8587b62c4.
+También se conserva el ZIP anterior de 0d6aa930.
 El paquete antiguo preparado desde d4d4750 no se publicó ni es el candidato final.
 No se revierte SQL ni frontend automáticamente. La reversa conserva base_plazo
 y los contratos 360 ya creados; cualquier rollback lo decide Miguel.
@@ -115,3 +121,13 @@ Las sesiones/PWA antiguas necesitan actualizarse: el servidor rechaza fechas
 calendario de nuevas altas en lugar de guardar un vencimiento incorrecto.
 Los borradores existentes no se reescriben silenciosamente. Una revisión de
 Gerencia abierta durante el cambio puede requerir volver a abrir la fuente.
+
+
+## Registro posterior a la preparación
+
+Todos los checks de GitHub aprobaron. La PR #315 se fusionó a las 04:18:24 UTC;
+el árbol final es idéntico al candidato probado. Release final:
+`crm-20261017T042148Z-f1e6f60269b3.zip`, SHA-256
+`ec0cd6f70893b19ec11f85bfe92a6cabac25c1bc8893725a977b16fb6ac0ea1c`.
+Fuente, límites, evidencia SQL/HTTP y coste del banco:
+[PUBLICACION-20261017.md](PUBLICACION-20261017.md).

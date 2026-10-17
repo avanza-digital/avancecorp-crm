@@ -1,11 +1,19 @@
 # Cooperativas: vencimiento a los 360 días
 
-**Gates finales aprobados; publicación en preparación tras «sigamos!!!».**
+**PUBLICADO Y VERIFICADO** en crm.miavance.com el 16/10/2026 a las 23:27 de Lima.
+Fuente `f1e6f60269b300f300291b64ad0a007788d9a94b`, PR #315 fusionada.
+Detalle, artefacto, conservación de los 84 históricos y salvedad de imágenes:
+[PUBLICACION-20261017.md](PUBLICACION-20261017.md). Banco temporal eliminado.
 La pausa segura y eliminación de los dos bancos anteriores están registradas
 en `PAUSA.md`. El estado vigente está en [ACTA-RELEASE.md](ACTA-RELEASE.md) y
 la reconstrucción y gates de la retoma en [RETOMA-20261017.md](RETOMA-20261017.md).
 La verificación inicial de abajo se conserva como historial; sus NOT RUN no
 sustituyen los resultados posteriores de esas actas.
+
+`ajuste-auditoria-propuesto.sql`, `pausa-huellas.json` y
+`release-pausado-desde-1170.patch` conservan la propuesta y la pausa históricas.
+El estado final, las tres migraciones efectivamente aplicadas y el artefacto
+publicado constan en [PUBLICACION-20261017.md](PUBLICACION-20261017.md).
 
 Para Qorilazo y Prodelco, cada mes representa 30 días corridos: 12 meses son
 360 días desde el inicio. Ejemplo: 16/10/2026 + 12 meses → 11/10/2027.
