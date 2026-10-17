@@ -39,7 +39,7 @@ Plan: vault «Reemplazar inversion - plan por fases (2026-10-17)».
 
 ## 20261017054427 — SLA por filas · M3: la cola del día pagina sobre filas (v2)
 
-**Pendiente de banco/PR.** v2 del 17/10, con las revisiones de Codex, auditor-rls y el verificador independiente. Ensayada en el
+**EN PRODUCCIÓN 17/10/2026** (Miguel con «!»; M1 16:50, M2 16:52, M3 16:54, registro 16:58, hora de Lima; `db query --linked --file`, `verificar.sql` antes y después de cada una). Acta: `scripts/sla-por-filas/evidencia/13-acta-produccion-20261017.md`. v2 del 17/10, con las revisiones de Codex, auditor-rls y el verificador independiente. Ensayada en el
 banco Docker (esquema de producción):
 - aplica;
 - se niega a una segunda vez, fuera de orden, con su versión ya en el índice, con el productor cambiado y con un guardián en rojo;
@@ -68,7 +68,7 @@ Evidencia, cifras y reversa: [kit](../scripts/sla-por-filas/LEEME.md).
 
 ## 20261017054426 — SLA por filas · M2: el resumen de avisos cuenta sobre filas (v2)
 
-**Pendiente de banco/PR.** Requiere `20261017054425`.
+**EN PRODUCCIÓN 17/10/2026** (Miguel con «!»; M1 16:50, M2 16:52, M3 16:54, registro 16:58, hora de Lima; `db query --linked --file`, `verificar.sql` antes y después de cada una). Acta: `scripts/sla-por-filas/evidencia/13-acta-produccion-20261017.md`. Requiere `20261017054425`.
 
 `crm.avisos_sla_resumen_v2_fn()` cuenta sobre `private.sla_operacion_autorizada_filas(private.sla_leads_operativos())`. El
 resultado es el mismo byte a byte, con `COMMENT ON` nuevo.
@@ -85,7 +85,7 @@ Resumen `e9ce617a…` → `82a7cabd…`. Familia SLA `64 · 5e4e27c4…`. SHA-25
 
 ## 20261017054425 — SLA por filas · M1: ventana operativa por filas y autoridad única (v2)
 
-**Pendiente de banco/PR.** Plan «foto del SLA», Fase 3, paso 3a. Miguel autorizó el 16/10/2026 a las 23:55 tocar los 3
+**EN PRODUCCIÓN 17/10/2026** (Miguel con «!»; M1 16:50, M2 16:52, M3 16:54, registro 16:58, hora de Lima; `db query --linked --file`, `verificar.sql` antes y después de cada una). Acta: `scripts/sla-por-filas/evidencia/13-acta-produccion-20261017.md`. Plan «foto del SLA», Fase 3, paso 3a. Miguel autorizó el 16/10/2026 a las 23:55 tocar los 3
 guardianes del SLA (excepción a su decisión 4); el aviso a C2 está dejado.
 
 **Piezas nuevas,** las dos sin EXECUTE para nadie de la API y con `COMMENT ON`:
@@ -143,10 +143,12 @@ tras reversas registradas va con versiones nuevas.
 - 2×2 de `estado` con sonda dedicada: la misma CPU por llamada (~3,3 ms; +0,08 ms, IC [−0,27, +0,43]). Con Gestión Diaria
   en la mezcla: memoria 2,19 → 1,81 GiB; Gestión Diaria ≈ +5 MiB de temporales por llamada (+10 MiB gerencia) hasta la Fase 4.
 
-**Pendiente:**
-- decisión de Miguel sobre la excepción de latencia de `estado` (NO PASA del arnés);
-- su «!»;
-- advisors tras aplicar.
+**Decisión de Miguel (17/10, 16:45):** acepta la excepción de latencia de `estado`. El arnés da NO PASA, pero la CPU es la misma.
+
+**Tras aplicar:**
+- advisors sin alertas nuevas: las piezas privadas no aparecen y las puertas siguen con la misma ACL;
+- 0 errores de Postgres;
+- las RPC del SLA y de Gestión Diaria responden 200.
 
 Aplicación, registro, «commit hecho, registro pendiente» y reversas registradas (M3 → M2 → M1, como migraciones nuevas):
 [kit](../scripts/sla-por-filas/LEEME.md).
