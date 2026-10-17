@@ -96,3 +96,26 @@ commit de documentos del cierre viajara en el mismo PR (`main` está protegida: 
   (timeouts de 30 s en `page.goto`): correrlos por turnos. Docker Desktop vive en
   `%LOCALAPPDATA%\Programs\DockerDesktop` (no en Program Files). El tablero/`main` protegida: todo entra por PR.
 
+
+## Aplicada, publicada y aceptada (13/10/2026, tarde)
+
+- **Miguel aplicó la decimotercera en producción** (15:39 UTC) junto con una **migración de rendimiento**
+  `20261013145935`: el núcleo repetía `persona_vetada` por cada evento (2,9 s con 20.000 llamadas); ahora evalúa la
+  contactabilidad una vez por lead en un CTE materializado (15–22 ms), mismo jsonb y mismos rótulos, con candados de
+  huella antes y después y reversa que retira su entrada del ledger (#262, acta
+  `docs/encargos/2026-10-13-f4e-aplicacion-y-propuesta21.md`). `gen:types` dejó la firma idéntica a la escrita a mano.
+- **Decisiones confirmadas:** retención desde `dias_retencion_sin_resolver` (hoy 30); ningún porcentaje en el jsonb.
+  **#21 con reparos** (a–e): hora de confirmación sin retrofechar; solo «no contestó» con no atendida/rechazada/cancelada;
+  parcial en serie con idempotencia en el servidor; sin «No responde»; primero las pantallas. En producción los 46
+  salientes están en estado «desconocido»: cero elegibles. Sin implementar.
+- **#261 fusionado (17:26 UTC) y publicado (17:53, `build-20261013T175342472Z`).** Para publicar, Miguel abrió ramas de
+  rescate (#265, #266) porque el preflight exige conservar el historial del commit vivo; `main` está protegida (PR con
+  Approve obligatorio: Jhosep aprobó el #262 con su cuenta tras revisión en línea).
+- **Aceptación en C1 con los dos roles** (12:53–14:00 Lima, `REGISTRO.md` §5l): pasos 1–10 PASS. Gerencia: tres equipos,
+  los dos sin celular en «—»; C1 (asignado a MIGUEL BRICEÑO, equipo de JORGE MARZANO). Dos llamadas con «No contestó» al
+  colgar → 4 · 4 · 4 de 4; una cerrada sin guardar → 5 · 4 (80 %) · 1 sin resultado; supervisor ve «Su celular · C1» con
+  las mismas cifras; registro desde la pestaña → 5 · 5 · «4 al colgar · 1 desde la pestaña», idénticas en los dos roles.
+  **F6.3.1 hecha: 49/102.**
+- **Hallazgos de pantalla (para Miguel, sin bloquear):** H-ATENCION (quien no tiene celular cuenta como «atención»: en
+  producción casi todos), H-DESHECHA-VIEJA (una deshecha sin corregir de días atrás no tiene dónde corregirse y no caduca),
+  H-PENDIENTES-NOMBRE (el cuadro «Pendientes» de tareas se confunde con las llamadas sin resultado).
