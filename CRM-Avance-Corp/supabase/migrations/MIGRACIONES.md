@@ -94,14 +94,19 @@ tras reversas registradas va con versiones nuevas.
   - el pico de memoria baja de 1,56 a 1,12 GiB y de 2,24 a 1,78 GiB;
   - avisos y cola bajan de −24 % a −28 %;
   - de punta a punta, `estado` cambia +3,3 % y +9,8 %;
-  - el 2×2 de la sonda está en curso.
+  - el 2×2 de la sonda: abajo.
 
   Evidencia: `scripts/foto-sla/fase3/carga-3a/INFORME.md`.
-- Codex de cierre: CHANGES_REQUESTED. Los cambios del kit (v3) ya están hechos: `foto-sla/fase3/ensayo-3a/RESULTADO-KIT-v3.md`.
+- Codex (cierre y verificación): sin fugas ni diferencias de resultado. Lo que pidió sobre el registro del historial está en el kit
+  v4: las reversas se registran solas en su transacción, con orden global y NULL (`sla-por-filas/evidencia/11-kit-v4.md`).
+- Las 239 cadenas del verificador hasta el final: 5.733 páginas, 0 diferencias.
+
+- 2×2 de `estado` con sonda dedicada: la misma CPU por llamada (~3,3 ms; +0,08 ms, IC [−0,27, +0,43]). Con Gestión Diaria
+  en la mezcla: memoria 2,19 → 1,81 GiB; Gestión Diaria ≈ +5 MiB de temporales por llamada (+10 MiB gerencia) hasta la Fase 4.
 
 **Pendiente:**
-- el 2×2 de `estado` y la carga con Gestión Diaria;
-- las 71 cadenas del verificador;
+- decisión de Miguel sobre la excepción de latencia de `estado` (NO PASA del arnés);
+- su «!»;
 - advisors tras aplicar.
 
 Aplicación, registro, «commit hecho, registro pendiente» y reversas registradas (M3 → M2 → M1, como migraciones nuevas):
