@@ -1,0 +1,22 @@
+Corrido por Miguel con «!» el 17/10/2026 (después de las 01:44 Lima), desde la copia aislada:
+npx supabase db query --linked --file supabase/scripts/sla-por-filas/verificar.sql
+
+VERIFICACION SLA POR FILAS (no escribe nada)
+SERIE=ANTES · familia SLA=62 · 1adaf6c5708637fd916705cc090a4218 (la esperada)
+  private.assert_cola_v3() = ANTES
+  private.assert_sla_avisos() = ANTES
+  private.assert_sla_nucleo() = ANTES
+  crm.avisos_sla_resumen_v2_fn() = ANTES
+  private.sla_operacion_ambito(uuid[],boolean) = AUSENTE
+  private.sla_operacion_autorizada_filas(uuid[]) = AUSENTE
+  private.sla_operacion_autorizada(uuid[],boolean) = ANTES
+  crm.cola_accion_v3_fn(integer,text,text,uuid,jsonb) = ANTES
+ACL piezas privadas (debe ser «ninguna»): ninguna
+ACL puertas (debe ser «authenticated» en las dos): crm.avisos_sla_resumen_v2_fn()=authenticated; crm.cola_accion_v3_fn(integer,text,text,uuid,jsonb)=authenticated
+private.assert_sla_nucleo(): OK
+private.assert_cola_v3(): OK
+private.assert_sla_avisos(): OK
+private.assert_gestion_diaria(): FALLA [P0001] El cuerpo de private.trg_sla_recibo_guard() cambio: re-sellar el resultado de llamada de Gestion Diaria (md5 f111fdd9d8eb904fde961c6dcc7a9a9a)
+private.assert_analitica_leads_citas(): FALLA [P0001] Contadores crudos de leads/citas SIN declarar: funcion crm.cartera_filtrada_fn(integer,timestamp with time zone,uuid,text,uuid,boolean,text,date,date,text,text,
+private.assert_analista_vigencia(): FALLA [P0001] Puertas exentas cuyo cuerpo CAMBIO desde que se declararon (la razon ya no se puede dar por buena): funcion public.proteger_campos_inmutables()
+private.assert_f7_piezas_cerradas(): FALLA [P0001] F7: el cuerpo de crm.crear_contrato_con_cuenta(jsonb,jsonb,jsonb) cambio estando cerrada (huella da0740d21984aa020be0fe00a942da4e)
