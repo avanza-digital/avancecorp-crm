@@ -8,7 +8,7 @@ Aceptación por requisito: VALIDACION.md. Operación futura: ACTIVACION.md.
 
 Contenedor exclusivo `avancecorp-tc-20261016`, network none, sin puertos.
 `tc_venta` contiene esquema productivo restaurado + fundación vacía M1;
-los replays crean clones con nombre propio, aplican las diez candidatas y
+los replays crean clones con nombre propio, aplican las once candidatas y
 retiran únicamente su clon en finally. No aplicar guardas otra vez sobre un
 banco ya integrado. No dirigir estos scripts a producción u otro contenedor.
 
@@ -76,3 +76,16 @@ No reactivar/pausar el cron existente. La reversa de persistencia solo sirve
 con fundación vacía; integrada o con historia, suspender presentación y
 conservar tasas, auditoría y sellos. Un cierre desde octubre con política
 suspendida bloquea reactivación automática; ver ACTIVACION.md.
+
+## Censo y gate cloud de publicación
+
+`verificar-censo-local.mjs <configuracion-analitica.json>` prueba conservación
+transaccional del censo nativo sin datos personales. El JSON privado incluye
+analitica_exenciones, analitica_tope y analitica_sello; no se versiona.
+
+`test-rls.mjs --tipo-cambio-venta-cloud` ejecuta la misma matriz HTTP del banco
+local, fijando exclusivamente la referencia de la rama temporal aprobada.
+CRM_TC_BRANCH_CREDENTIALS apunta al JSON privado de la CLI, nunca al proyecto
+productivo. No reutilizar ese destino en otra tarea sin autorización y guardas.
+El despliegue mantiene verify_jwt=true y el secreto de servicio JWT dedicado
+CRM_CAPITAL_VALORAR_SERVICE_KEY. Ver acta PUBLICACION-20261017.md.
