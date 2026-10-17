@@ -11919,7 +11919,9 @@ async function testCarteraKeyset(sessions, seed) {
       // sesion un intento sin respuesta: sello del servidor, dentro de su tenencia.
       // Quien lo ve lo tiene en con_gestion; quien no, en ninguna mitad.
       const idIntentado = TRANSIENT_IDS.avanceLeadIntento;
-      if (['vend1', 'sup1', 'gerencia', 'directorio'].includes(key)) {
+      // Coordinación ya consulta leads activos por la policy publicada;
+      // la lectura no le concede autoridad de escritura sobre la cartera.
+      if (['vend1', 'sup1', 'gerencia', 'directorio', 'coordinador'].includes(key)) {
         check(idsCon.has(idIntentado) && !idsSin.has(idIntentado),
           `${key}: el lead que vend1 ya intento esta en con_gestion (y no en sin_gestion)`);
       } else {
@@ -11994,26 +11996,29 @@ async function testCarteraKeyset(sessions, seed) {
   // interna «No autorizado»; esto si: EXECUTE exactamente para authenticated,
   // INVOKER, stable, search_path vacio y una sola firma. La viva es la de 13
   // (20261001154153, p_gestion) o, desde la entrega B del potencial
-  // (20261001212341), la de 14: p_gestion sigue 13.o y p_potencial es el 14.o.
+  // (20261001212341), la de 14. F3 (20261014215453) añade la de 15:
+  // p_gestion sigue 13.o, p_potencial 14.o y p_campania_origen 15.o.
   if (process.env.CRM_BANCO_PSQL_URL) {
     const F13 = 'crm.cartera_filtrada_fn(integer,timestamptz,uuid,text,uuid,boolean,text,date,date,text,text,boolean,text)';
     const F14 = 'crm.cartera_filtrada_fn(integer,timestamptz,uuid,text,uuid,boolean,text,date,date,text,text,boolean,text,text)';
+    const F15 = 'crm.cartera_filtrada_fn(integer,timestamptz,uuid,text,uuid,boolean,text,date,date,text,text,boolean,text,text,text)';
     const cuenta = (etiqueta, sql) => contarFueraDeBanda(`cartera con gestion: ${etiqueta}`, sql);
     check(cuenta('una sola firma', `select count(*) from pg_proc where proname = 'cartera_filtrada_fn' and pronamespace = 'crm'::regnamespace`) === 1,
       'cartera_filtrada_fn: una sola firma (dos candidatas romperian PostgREST)');
     const con14 = cuenta('firma de 14', `select count(*) from pg_proc p where p.oid = to_regprocedure('${F14}')`) === 1;
-    const VIVA = con14 ? F14 : F13;
-    const N = con14 ? 14 : 13;
+    const con15 = cuenta('firma de 15', `select count(*) from pg_proc p where p.oid = to_regprocedure('${F15}')`) === 1;
+    const VIVA = con15 ? F15 : con14 ? F14 : F13;
+    const N = con15 ? 15 : con14 ? 14 : 13;
     const existe = cuenta('firma viva', `select count(*) from pg_proc p where p.oid = to_regprocedure('${VIVA}')`) === 1;
-    check(existe, `cartera_filtrada_fn: la firma viva es la de ${N} argumentos (con p_gestion${con14 ? ' y p_potencial' : ''})`);
+    check(existe, `cartera_filtrada_fn: la firma viva es la de ${N} argumentos (con p_gestion${N >= 14 ? ', p_potencial' : ''}${con15 ? ' y p_campania_origen' : ''})`);
     if (existe) {
       check(cuenta('grants', `select count(*) from (select '${VIVA}'::text as firma) f
         where has_function_privilege('anon', f.firma, 'EXECUTE') or has_function_privilege('service_role', f.firma, 'EXECUTE')
            or not has_function_privilege('authenticated', f.firma, 'EXECUTE')
            or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid = f.firma::regprocedure and a.grantee = 0)`) === 0,
         `cartera_filtrada_fn(${N}): EXECUTE exactamente para authenticated (ni anon, ni service_role, ni PUBLIC)`);
-      check(cuenta('forma', `select count(*) from pg_proc p where p.oid = '${VIVA}'::regprocedure and not p.prosecdef and p.provolatile = 's' and p.proconfig = array['search_path=""'] and p.pronargs = ${N} and p.proargnames[13] = 'p_gestion'${con14 ? " and p.proargnames[14] = 'p_potencial'" : ''}`) === 1,
-        `cartera_filtrada_fn(${N}): INVOKER, stable, search_path vacio y p_gestion como 13.o argumento${con14 ? ' (p_potencial, 14.o)' : ''}`);
+      check(cuenta('forma', `select count(*) from pg_proc p where p.oid = '${VIVA}'::regprocedure and not p.prosecdef and p.provolatile = 's' and p.proconfig = array['search_path=""'] and p.pronargs = ${N} and p.proargnames[13] = 'p_gestion'${N >= 14 ? " and p.proargnames[14] = 'p_potencial'" : ''}${con15 ? " and p.proargnames[15] = 'p_campania_origen'" : ''}`) === 1,
+        `cartera_filtrada_fn(${N}): INVOKER, stable, search_path vacio y nombres/posiciones exactos de gestion, potencial y campaña`);
     }
   } else {
     console.log('  · ACL/forma de cartera_filtrada_fn: NOT RUN (sin CRM_BANCO_PSQL_URL)');
@@ -15382,7 +15387,7 @@ async function testCierresExternos(sessions, seed) {
     timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit',
   }).format(fecha);
   const PERIODO = `${enLima(new Date()).slice(0, 7)}-01`;
-  const VENCE_COOP = enLima(new Date(Date.now() + 365 * 86400_000));
+  const VENCE_COOP = enLima(new Date(Date.now() + 360 * 86400_000));
   const ids = seed.profileIdByKey;
 
   const pedirFn = (clave) => sessions[clave].client
@@ -16913,8 +16918,16 @@ async function testBaseGestionB1(sessions, seed) {
     'B1/B1b trigger del sello BEFORE INSERT OR UPDATE OF las tres columnas, habilitado');
   check(cuenta('anon', `select (has_column_privilege('anon', 'crm.leads', 'enfriado_hasta', 'SELECT') or has_column_privilege('anon', 'crm.leads', 'reactivado_en', 'SELECT') or has_column_privilege('anon', 'crm.leads', 'proxima_llamada_en', 'SELECT'))::int`) === 0,
     'B1/B1b anon no lee las columnas nuevas');
-  check(cuenta('acl por columna', `select count(*) from pg_attribute a, aclexplode(a.attacl) e where a.attrelid = 'crm.leads'::regclass and a.attname in ('reactivado_en', 'enfriado_hasta', 'proxima_llamada_en') and e.privilege_type in ('INSERT', 'UPDATE') and e.grantee in ('anon'::regrole, 'authenticated'::regrole)`) === 0,
-    'B1/B1b sin INSERT/UPDATE por columna para la API (pg_attribute.attacl)');
+  // F3 (20261014210146) trasladó UPDATE de tabla a columnas para excluir
+  // campania_origen. Conserva los no-op; los cambios reales siguen sellados
+  // por el trigger y las siete negativas HTTP de arriba. No se concede nada.
+  const conF3 = cuenta('F3 aplicada', `select count(*) from pg_attribute where attrelid='crm.leads'::regclass and attname='campania_origen' and not attisdropped`) === 1;
+  check(cuenta('sin INSERT ni UPDATE anon', `select count(*) from pg_attribute a, aclexplode(a.attacl) e where a.attrelid = 'crm.leads'::regclass and a.attname in ('reactivado_en', 'enfriado_hasta', 'proxima_llamada_en') and ((e.privilege_type = 'INSERT' and e.grantee in ('anon'::regrole, 'authenticated'::regrole)) or (e.privilege_type = 'UPDATE' and e.grantee = 'anon'::regrole))`) === 0,
+    'B1/B1b sin INSERT por columna para la API ni UPDATE para anon');
+  check(cuenta('UPDATE de la forma publicada', `select count(*) from pg_attribute a, aclexplode(a.attacl) e where a.attrelid = 'crm.leads'::regclass and a.attname in ('reactivado_en', 'enfriado_hasta', 'proxima_llamada_en') and e.privilege_type = 'UPDATE' and e.grantee = 'authenticated'::regrole and not e.is_grantable`) === (conF3 ? 3 : 0)
+    && cuenta('UPDATE de tabla', `select has_table_privilege('authenticated','crm.leads','UPDATE')::int`) === (conF3 ? 0 : 1)
+    && cuenta('sin GRANT OPTION', `select count(*) from pg_attribute a, aclexplode(a.attacl) e where a.attrelid='crm.leads'::regclass and a.attname in ('reactivado_en','enfriado_hasta','proxima_llamada_en') and e.grantee in ('anon'::regrole,'authenticated'::regrole) and e.is_grantable`) === 0,
+    `B1/B1b UPDATE exacto ${conF3 ? 'por columna tras F3' : 'por tabla antes de F3'}, sin GRANT OPTION y con sello funcional`);
   check(cuenta('acl exacta', `select count(*) from pg_attribute a, aclexplode(a.attacl) e where a.attrelid = 'crm.leads'::regclass and a.attname in ('reactivado_en', 'enfriado_hasta', 'proxima_llamada_en') and e.privilege_type = 'SELECT' and not e.is_grantable and e.grantee in ('authenticated'::regrole, 'service_role'::regrole)`) === 6,
     'B1/B1b ACL por columna exacta: 6 entradas SELECT (authenticated + service_role × 3)');
   check(cuenta('constantes', `select (c.max_intentos = 3 and c.dias_enfriamiento = 30 and c.dias_max_rellamada = 10)::int from private.base_gestion_constantes() c`) === 1,

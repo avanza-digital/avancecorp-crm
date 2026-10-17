@@ -1,0 +1,1762 @@
+✓ precondicion: la API y la vía fuera de banda ven la MISMA base (mismo id del perfil de la gerencia del seed)
+✓ precondicion: seed completo y coherente verificado con service_role
+  ✓ login gerencia corresponde al correo esperado
+  ✓ login sup1 corresponde al correo esperado
+  ✓ login sup2 corresponde al correo esperado
+  ✓ login sup1Nested corresponde al correo esperado
+  ✓ login vend1 corresponde al correo esperado
+  ✓ login vend2 corresponde al correo esperado
+  ✓ login vend3 corresponde al correo esperado
+  ✓ login vend4 corresponde al correo esperado
+  ✓ login vendNested corresponde al correo esperado
+  ✓ login vendInactive corresponde al correo esperado
+  ✓ login coordinador corresponde al correo esperado
+  ✓ login directorio corresponde al correo esperado
+  ✓ login clientBank corresponde al correo esperado
+
+— Visibilidad jerarquica exacta —
+  ✓ gerencia: count exact coincide con las filas
+  ✓ gerencia ve 7 lead(s)
+  ✓ gerencia ve exactamente su conjunto
+  ✓ sup1: count exact coincide con las filas
+  ✓ sup1 ve 4 lead(s)
+  ✓ sup1 ve exactamente su conjunto
+  ✓ sup2: count exact coincide con las filas
+  ✓ sup2 ve 3 lead(s)
+  ✓ sup2 ve exactamente su conjunto
+  ✓ sup1Nested: count exact coincide con las filas
+  ✓ sup1Nested ve 1 lead(s)
+  ✓ sup1Nested ve exactamente su conjunto
+  ✓ vend1: count exact coincide con las filas
+  ✓ vend1 ve 2 lead(s)
+  ✓ vend1 ve exactamente su conjunto
+  ✓ vend2: count exact coincide con las filas
+  ✓ vend2 ve 0 lead(s)
+  ✓ vend2 ve exactamente su conjunto
+  ✓ vend3: count exact coincide con las filas
+  ✓ vend3 ve 1 lead(s)
+  ✓ vend3 ve exactamente su conjunto
+  ✓ vend4: count exact coincide con las filas
+  ✓ vend4 ve 0 lead(s)
+  ✓ vend4 ve exactamente su conjunto
+  ✓ vendNested: count exact coincide con las filas
+  ✓ vendNested ve 1 lead(s)
+  ✓ vendNested ve exactamente su conjunto
+  ✓ vendInactive: count exact coincide con las filas
+  ✓ vendInactive ve 0 lead(s)
+  ✓ vendInactive ve exactamente su conjunto
+  ✓ coordinador: count exact coincide con las filas
+  ✓ coordinador ve 7 lead(s)
+  ✓ coordinador ve exactamente su conjunto
+  ✓ directorio: count exact coincide con las filas
+  ✓ directorio ve 7 lead(s)
+  ✓ directorio ve exactamente su conjunto
+  ✓ clientBank: count exact coincide con las filas
+  ✓ clientBank ve 0 lead(s)
+  ✓ clientBank ve exactamente su conjunto
+
+— Actividades siguen la misma cartera —
+  ✓ gerencia: count exact de actividades coincide
+  ✓ gerencia ve exactamente 7 actividad(es) fixture
+  ✓ sup1: count exact de actividades coincide
+  ✓ sup1 ve exactamente 4 actividad(es) fixture
+  ✓ sup2: count exact de actividades coincide
+  ✓ sup2 ve exactamente 3 actividad(es) fixture
+  ✓ sup1Nested: count exact de actividades coincide
+  ✓ sup1Nested ve exactamente 1 actividad(es) fixture
+  ✓ vend1: count exact de actividades coincide
+  ✓ vend1 ve exactamente 2 actividad(es) fixture
+  ✓ vend2: count exact de actividades coincide
+  ✓ vend2 ve exactamente 0 actividad(es) fixture
+  ✓ vend3: count exact de actividades coincide
+  ✓ vend3 ve exactamente 1 actividad(es) fixture
+  ✓ vend4: count exact de actividades coincide
+  ✓ vend4 ve exactamente 0 actividad(es) fixture
+  ✓ vendNested: count exact de actividades coincide
+  ✓ vendNested ve exactamente 1 actividad(es) fixture
+  ✓ vendInactive: count exact de actividades coincide
+  ✓ vendInactive ve exactamente 0 actividad(es) fixture
+  ✓ coordinador: count exact de actividades coincide
+  ✓ coordinador ve exactamente 7 actividad(es) fixture
+  ✓ directorio: count exact de actividades coincide
+  ✓ directorio ve exactamente 7 actividad(es) fixture
+  ✓ clientBank: count exact de actividades coincide
+  ✓ clientBank ve exactamente 0 actividad(es) fixture
+
+— Tareas de agenda siguen la misma cartera —
+  ✓ gerencia: count exact de tareas coincide
+  ✓ gerencia ve 5 tarea(s)
+  ✓ gerencia ve exactamente sus tareas
+  ✓ sup1: count exact de tareas coincide
+  ✓ sup1 ve 3 tarea(s)
+  ✓ sup1 ve exactamente sus tareas
+  ✓ sup2: count exact de tareas coincide
+  ✓ sup2 ve 2 tarea(s)
+  ✓ sup2 ve exactamente sus tareas
+  ✓ sup1Nested: count exact de tareas coincide
+  ✓ sup1Nested ve 1 tarea(s)
+  ✓ sup1Nested ve exactamente sus tareas
+  ✓ vend1: count exact de tareas coincide
+  ✓ vend1 ve 1 tarea(s)
+  ✓ vend1 ve exactamente sus tareas
+  ✓ vend2: count exact de tareas coincide
+  ✓ vend2 ve 0 tarea(s)
+  ✓ vend2 ve exactamente sus tareas
+  ✓ vend3: count exact de tareas coincide
+  ✓ vend3 ve 1 tarea(s)
+  ✓ vend3 ve exactamente sus tareas
+  ✓ vend4: count exact de tareas coincide
+  ✓ vend4 ve 0 tarea(s)
+  ✓ vend4 ve exactamente sus tareas
+  ✓ vendNested: count exact de tareas coincide
+  ✓ vendNested ve 1 tarea(s)
+  ✓ vendNested ve exactamente sus tareas
+  ✓ vendInactive: count exact de tareas coincide
+  ✓ vendInactive ve 0 tarea(s)
+  ✓ vendInactive ve exactamente sus tareas
+  ✓ coordinador: count exact de tareas coincide
+  ✓ coordinador ve 5 tarea(s)
+  ✓ coordinador ve exactamente sus tareas
+  ✓ directorio: count exact de tareas coincide
+  ✓ directorio ve 5 tarea(s)
+  ✓ directorio ve exactamente sus tareas
+  ✓ clientBank: count exact de tareas coincide
+  ✓ clientBank ve 0 tarea(s)
+  ✓ clientBank ve exactamente sus tareas
+
+— Membresia y desactivacion —
+  ✓ gerencia resuelve su rol CRM activo
+  ✓ sup1 resuelve su rol CRM activo
+  ✓ sup2 resuelve su rol CRM activo
+  ✓ sup1Nested resuelve su rol CRM activo
+  ✓ vend1 resuelve su rol CRM activo
+  ✓ vend2 resuelve su rol CRM activo
+  ✓ vend3 resuelve su rol CRM activo
+  ✓ vend4 resuelve su rol CRM activo
+  ✓ vendNested resuelve su rol CRM activo
+  ✓ coordinador resuelve su rol CRM activo
+  ✓ usuario inactivo no resuelve membresia activa
+  ✓ usuario inactivo no lee ni su propia fila de crm.equipo (0 filas por RLS)
+  ✓ usuario inactivo no lee ni su lead previamente asignado (0 filas por RLS)
+  ✓ usuario inactivo no lee la actividad de su lead (0 filas por RLS)
+
+— Jerarquia recursiva (dos niveles) —
+  ✓ sup1 ve supervisor hijo y analista nieto por recursion
+  ✓ supervisor anidado ve su propia fila y su analista
+  ✓ lead recursivo pertenece al analista anidado
+  ✓ vend1 no ve al analista de la rama anidada hermana (0 filas por RLS)
+  ✓ vend1 no ve el lead de la rama anidada hermana (0 filas por RLS)
+  ✓ sup2 no ve la rama anidada de sup1 (0 filas por RLS)
+  ✓ sup2 no ve el lead anidado de sup1 (0 filas por RLS)
+
+— Lecturas cruzadas bloqueadas —
+  ✓ vend1 no lee un lead de vend3 (otro subarbol) (0 filas por RLS)
+  ✓ sup1 no lee un lead del equipo de sup2 (0 filas por RLS)
+  ✓ sup2 no lee un lead del equipo de sup1 (0 filas por RLS)
+  ✓ vend3 no lee el lead de otro analista (0 filas por RLS)
+  ✓ vend1 no lee actividades del otro subarbol (0 filas por RLS)
+  ✓ sup1 no lee actividades del equipo de sup2 (0 filas por RLS)
+
+— El lector global: todo lo vivo, nada de lo borrado —
+  ✓ el lector global ve EXACTAMENTE los leads vivos de gerencia (la rama viva no se rompio)
+  ✓ directorio NO lee leads borrados (policy) (0 filas por RLS)
+  ✓ directorio NO lee tareas borradas (policy) (0 filas por RLS)
+  ✓ directorio NO lee actividades de leads borrados (policy) (0 filas por RLS)
+  ✓ actividades_del_ambito_fn (DEFINER) NO sirve al lector el timeline de leads borrados
+  ✓ cierres_estado_fn (DEFINER) NO sirve al lector el estado de leads borrados
+  ✓ P04 INTACTO: el lector global SIGUE viendo las membresias dadas de baja (revocado ≠ ajeno)
+  ✓ la limpieza deja habilitado el guard de reapertura
+
+— Escrituras cruzadas y privilegios bloqueados —
+  ✓ vend1 no reasigna su lead a otro analista (bloqueado: P0001)
+  ✓ reasignacion bloqueada sin cambio lateral
+  ✓ vend1 no puede hacer soft-delete de su lead (bloqueado: 42501)
+  ✓ soft-delete no altero el lead
+  ✓ vend1 no puede hacer hard-delete (bloqueado: 42501)
+  ✓ hard-delete no elimino el lead
+  ✓ vend1 no actualiza un lead de vend3 (0 filas afectadas)
+  ✓ sup1 no actualiza un lead del equipo de sup2 (0 filas afectadas)
+  ✓ lead ajeno no fue alterado
+  ✓ sup1 no inserta un lead en el equipo de sup2 (bloqueado: 42501)
+  ✓ directorio no inserta leads (bloqueado: 42501)
+  ✓ directorio no actualiza leads aunque pueda leerlos (0 filas afectadas)
+  ✓ vend1 no registra actividad en un lead de vend3 (bloqueado: 42501)
+  ✓ directorio no inserta actividades (bloqueado: 42501)
+  ✓ actividades no admite UPDATE (bloqueado: 42501)
+  ✓ actividades no admite DELETE (bloqueado: 42501)
+  ✓ crm.equipo es de solo lectura por Data API (bloqueado: 42501)
+  ✓ cliente del portal no inserta leads CRM (bloqueado: 42501)
+
+— Timeline estructurado de movimientos de tenencia —
+  ✓ INSERT de lead ya asignado no emite actividad de reasignacion
+  ✓ cambio de analista emite exactamente una reasignacion
+  ✓ reasignacion conserva el detalle humano exacto
+  ✓ reasignacion conserva analista anterior y nuevo en metadata
+  ✓ reasignacion acredita como actor al supervisor autenticado
+  ✓ cambio solo de asignado_supervisor_id emite exactamente un movimiento
+  ✓ movimiento de bandeja conserva el detalle humano exacto
+  ✓ movimiento de bandeja conserva supervisor anterior/nuevo y clasificador
+  ✓ movimiento de bandeja acredita a Gerencia como actor
+  ✓ UPDATE sin cambio de tenencia no emite reasignacion
+
+— El reloj del analista: tenencia_desde —
+  ✓ un lead parkeado en bandeja NO tiene reloj de analista
+  ✓ asignar a un analista enciende el reloj de tenencia
+  ✓ el reloj arranca en la ASIGNACION, no cuando entro el lead
+  ✓ el analista recibe tenencia_desde de su lead (sin grant, PostgREST la omitiria en silencio)
+  ✓ un analista NO puede falsificar su propio reloj (lo reimpone el trigger)
+  ✓ editar el lead no reinicia el reloj de tenencia
+  ✓ un analista de otro equipo no ve el lead ajeno ni su reloj
+
+— La etapa avanza sola: conversacion vs intento —
+  ✓ una CONVERSACION sube el lead de nuevo a contactado, sin que nadie mueva la tarjeta
+  ✓ un INTENTO fallido NO avanza la etapa (el embudo no se infla solo)
+  ✓ el avance escribe EXACTAMENTE un cambio_etapa
+  ✓ el cambio de etapa automatico queda marcado como tal en el timeline
+  ✓ un cambio de etapa MANUAL no se puede disfrazar de automatico
+  ✓ agendar una reunion sobre un lead trabajado lo sube solo a reunion_agendada
+  ✓ el lead de la cola global es INVISIBLE para el supervisor (premisa de C1)
+  ✓ sup1 intenta agendar una reunion sobre un lead de la cola global que NO puede ver (bloqueado: 23514)
+  ✓ ESCALADA CERRADA: el lead de la cola global sigue en nuevo tras el intento
+  ✓ ni service_role fabrica una reunion sobre el lead de la cola global (trigger de destino) (bloqueado: 23514)
+  ✓ DEFENSA EN PROFUNDIDAD: el lead sin dueno sigue en nuevo; el estado gatillo es infabricable
+  ✓ vend3 (otro subarbol) intenta registrar una conversacion en un lead ajeno (bloqueado: 42501)
+  ✓ un miembro DESACTIVADO intenta registrar una conversacion (bloqueado: 42501)
+  ✓ un tercero sin ambito no puede mover la etapa de un lead ajeno por la via de actividades
+
+— Agenda: aislamiento y privilegios de crm.tareas —
+  ✓ vend1 no lee la tarea de otro subarbol (0 filas por RLS)
+  ✓ vend3 no lee la tarea de la rama anidada de sup1 (0 filas por RLS)
+  ✓ sup1 no lee la tarea del equipo de sup2 (0 filas por RLS)
+  ✓ sup2 no lee la bandeja de tareas de sup1 (0 filas por RLS)
+  ✓ vend1 no lee la tarea de bandeja de su propio supervisor (0 filas por RLS)
+  ✓ vend1 no actualiza una tarea ajena (bloqueado: 42501)
+  ✓ sup1 no actualiza tareas del subarbol de sup2 (bloqueado: 42501)
+  ✓ la tarea ajena no fue alterada
+  ✓ vend1 no puede hacer hard-delete ni de su propia tarea (bloqueado: 42501)
+  ✓ gerencia tampoco puede hacer hard-delete de tareas (bloqueado: 42501)
+  ✓ vend1 no inserta una tarea acreditando a otro creador (bloqueado: 42501)
+  ✓ la tarea del cliente queda anclada al analista y supervisor canónicos
+  ✓ la tarea del Analista queda anclada al analista y supervisor canónicos
+  ✓ vend1 no completa su tarea por UPDATE directo (bloqueado: 42501)
+  ✓ la tarea fixture sigue pendiente
+  ✓ directorio no actualiza tareas aunque pueda leerlas (bloqueado: 42501)
+  ✓ directorio no inserta tareas (bloqueado: 42501)
+  ✓ directorio no cierra tareas por la RPC (bloqueado: P0001)
+  ✓ cliente del portal no lee tareas CRM (0 filas por RLS)
+  ✓ cliente del portal no inserta tareas CRM (bloqueado: 42501)
+
+— Agenda: cierre atomico por crm.cerrar_tarea —
+  ✓ el trigger derivo la tenencia de la tarea desde el lead
+  ✓ la tarea transitoria nace pendiente
+  ✓ la RPC devolvio ok y el id de la actividad de resultado
+  ✓ la tarea quedo completada
+  ✓ la tarea apunta a la actividad del log
+  ✓ la actividad de cierre quedo en el log del lead correcto
+  ✓ vend1 no reabre una tarea cerrada (bloqueado: 42501)
+
+— Agenda: anular con autoria y retroceso de etapa —
+  ✓ agendar la reunion subio el lead a reunion_agendada
+  ✓ vend1 NO puede anular por UPDATE directo (tiene que pasar por la RPC) (bloqueado: 42501)
+  ✓ vend1 intenta escribir cancelada_por="sistema" en una tarea viva (sin UPDATE desde 20260829175638) (rechazo esperado: 42501)
+  ✓ vend1 intenta firmar una tarea viva como si la hubiera anulado sup1 (sin UPDATE desde 20260829175638) (rechazo esperado: 42501)
+  ✓ el trigger reescribe etiqueta y firma desde old (no-op) incluso para service_role
+  ✓ la anulacion quedo firmada con el sentinel legacy `asesor`
+  ✓ la firma es el analista que la ordeno (anulacion PROPIA: cuenta en su %)
+  ✓ firma == dueño de la tarea, que es como la metrica la clasifica como propia
+  ✓ anular NO escribe actividad de resultado en el log
+  ✓ anular la ultima reunion devolvio el lead a contactado
+  ✓ anular una LLAMADA no mueve la etapa
+  ✓ la cancelacion automatica quedo firmada por el SISTEMA, no por el analista
+  ✓ una cancelacion de SISTEMA no lleva firma: no hay a quien atribuirla
+  ✓ anular siendo supervisor tambien es una PERSONA: sentinel legacy `asesor`
+  ✓ la firma es el SUPERVISOR que la ordeno, no el analista
+  ✓ firma != dueño de la tarea: la metrica la clasifica como AJENA y la saca del % del analista
+  ✓ ninguna anulacion con sentinel legacy `asesor` quedo sin firma (si no, saldria del % de todos en silencio)
+
+— Agenda: la tarea pendiente sigue al lead reasignado —
+  ✓ la tarea nace con la tenencia del lead (vend1)
+  ✓ la tarea pendiente siguio al nuevo analista
+  ✓ el seguimiento no altero el estado de la tarea
+  ✓ vend2 lee la tarea reasignada
+  ✓ vend1 dejo de ver la tarea que siguio al lead (0 filas por RLS)
+
+— Agenda ICS: token privado por miembro —
+  ✓ la fila propia tiene token autogenerado
+  ✓ la rotacion cambio el token
+  ✓ sup1 no ve el token de su analista (0 filas por RLS)
+  ✓ gerencia no ve el token de vend1 (0 filas por RLS)
+  ✓ directorio (lector global) no ve el token de vend1 (0 filas por RLS)
+  ✓ sup1 no puede rotar el token de vend1 (0 filas afectadas)
+  ✓ vend1 no puede crear la fila de su supervisor (bloqueado: 42501)
+  ✓ vend1 no puede borrar ni su propia fila (bloqueado: 42501)
+  ✓ directorio no puede crear su fila (no esta en crm.equipo) (bloqueado: 23503)
+
+— Domicilio legal faltante —
+  ✓ el cliente de la sonda arranca SIN domicilio (si no, este bloque no prueba nada)
+  ✓ la lectura declara el domicilio ausente
+  ✓ el domicilio aparece nombrado en faltan_cliente
+  ✓ faltan_analista viaja siempre, aunque esté vacío
+  ✓ la lectura NO devuelve el valor del domicilio, solo nombres de campo
+  ✓ un analista de OTRO subárbol no lee los datos legales (rechazo esperado: 42501)
+  ✓ un analista de OTRO subárbol tampoco escribe el domicilio (rechazo esperado: 42501)
+  ✓ el supervisor de OTRO subárbol tampoco alcanza (rechazo esperado: 42501)
+  ✓ coordinación no puede escribir el domicilio legal (rechazo esperado: 42501)
+  ✓ el lector global sin membresía CRM queda fuera (rechazo esperado: 42501)
+  ✓ el propio cliente no puede escribirse el domicilio legal (rechazo esperado: 42501)
+  ✓ un sujeto que NO es cliente se rechaza igual (rechazo esperado: 42501)
+  ✓ un cliente inexistente da el MISMO rechazo que uno ajeno (sin oráculo de existencia) (rechazo esperado: 42501)
+  ✓ ajeno e inexistente se rechazan por la misma vía
+  ✓ se rechaza un domicilio con cuatro caracteres (rechazo esperado: 22023)
+  ✓ se rechaza un domicilio con 241 caracteres (rechazo esperado: 22023)
+  ✓ se rechaza un domicilio con un control C0 (rechazo esperado: 22023)
+  ✓ se rechaza un domicilio con seis espacios de ancho cero (rechazo esperado: 22023)
+  ✓ se rechaza un domicilio con seis guiones suaves (rechazo esperado: 22023)
+  ✓ se rechaza un domicilio con un invisible escondido dentro (rechazo esperado: 22023)
+  ✓ ningún rechazo dejó rastro: la columna sigue vacía
+  ✓ las RPC del domicilio responden: el «no existe» de la sonda siguiente es real, no la migración ausente
+  ✓ el normalizador NO es superficie pública ni para un analista autorizado (denegado: 42501)
+  ✓ anon no lee los datos legales del contrato (denegado: 42501)
+  ✓ anon no escribe el domicilio legal (denegado: 42501)
+  ✓ la primera escritura responde completado
+  ✓ la respuesta NO devuelve el domicilio (sería lectura de PII para el supervisor)
+  ✓ la columna quedó escrita Y normalizada igual que en el navegador
+  ✓ la segunda escritura responde conservado
+  ✓ el domicilio existente NO fue sobrescrito
+  ✓ falta_domicilio vuelve a false
+  ✓ el domicilio desaparece de faltan_cliente
+
+— Reporte y reparto de derivaciones del equipo —
+  ✓ supervisor consulta el reporte con el rango Ayer por defecto
+  ✓ reporte de derivaciones conserva contrato V1
+  ✓ el rango por defecto es exactamente un día
+  ✓ SUPERVISOR UNO recibe solo sus analistas directos activos
+  ✓ el analista del supervisor anidado no se mezcla en las cards directas
+  ✓ los movimientos de hoy no exponen contacto, notas ni metadata
+  ✓ el segundo supervisor consulta su propio reporte
+  ✓ el segundo supervisor no recibe analistas del primero
+  ✓ el supervisor anidado consulta su equipo directo
+  ✓ el supervisor anidado recibe únicamente a su analista directo
+  ✓ vend1 no consulta el reporte exclusivo de Supervisión (denegado: 42501)
+  ✓ coordinador no consulta el reporte exclusivo de Supervisión (denegado: 42501)
+  ✓ gerencia no consulta el reporte exclusivo de Supervisión (denegado: 42501)
+  ✓ directorio no consulta el reporte exclusivo de Supervisión (denegado: 42501)
+  ✓ vendInactive no consulta el reporte exclusivo de Supervisión (denegado: 42501)
+  ✓ clientBank no consulta el reporte exclusivo de Supervisión (denegado: 42501)
+  ✓ anon no consulta el reporte de derivaciones (denegado: 42501)
+  ✓ el supervisor no deriva un lead a un analista de otro equipo (bloqueado: 42501)
+  ✓ un borrador no puede repetir el mismo lead (bloqueado: 22023)
+  ✓ no se devuelve un lead que no es una derivación vigente de hoy (bloqueado: P0001)
+  ✓ el reporte rechaza rangos invertidos (bloqueado: 22023)
+  ✓ el reporte rechaza fechas futuras (bloqueado: 22023)
+
+— P04: matriz completa de offboarding —
+  ✓ P058: Gerencia Comercial puede contratar: estado=miembro
+  ✓ P058: Gerencia Comercial puede contratar: identidad ligada a la sesión
+  ✓ P058: Gerencia Comercial puede contratar: rol_crm=gerencia
+  ✓ P058: Gerencia Comercial puede contratar: puede_contratar=true
+  ✓ P058: Supervisor Comercial puede contratar: estado=miembro
+  ✓ P058: Supervisor Comercial puede contratar: identidad ligada a la sesión
+  ✓ P058: Supervisor Comercial puede contratar: rol_crm=supervisor
+  ✓ P058: Supervisor Comercial puede contratar: puede_contratar=true
+  ✓ P058: Coordinador Comercial no puede contratar: estado=miembro
+  ✓ P058: Coordinador Comercial no puede contratar: identidad ligada a la sesión
+  ✓ P058: Coordinador Comercial no puede contratar: rol_crm=coordinador
+  ✓ P058: Coordinador Comercial no puede contratar: puede_contratar=false
+  ✓ P04: el fallback global sin membresía devuelve datos
+  ✓ P04: auth canónica conserva fallback global sin fila CRM: estado=global
+  ✓ P04: auth canónica conserva fallback global sin fila CRM: identidad ligada a la sesión
+  ✓ P04: auth canónica conserva fallback global sin fila CRM: rol_crm=directorio
+  ✓ P04: auth canónica conserva fallback global sin fila CRM: puede_contratar=false
+  ✓ P04 true/true: conserva el rol CRM
+  ✓ P04 true/true: auth canónica reconoce la membresía: estado=miembro
+  ✓ P04 true/true: auth canónica reconoce la membresía: identidad ligada a la sesión
+  ✓ P04 true/true: auth canónica reconoce la membresía: rol_crm=vendedor
+  ✓ P04 true/true: auth canónica reconoce la membresía: puede_contratar=true
+  ✓ P04 true/true: conserva el JSON {estado} de P-047
+  ✓ P04 true/true: contacto existente queda tomado y no se crea otro lead
+  ✓ F1 lead libre: ultima_conversacion_en = max(conversaciones reales), intentos fuera
+  ✓ P04 true/true: conserva los siete motivos de enfriamiento (más base_cargada desde B7, y ninguno otro)
+  ✓ F1 lead libre: la fila única trae Y=7 y X=7
+  ✓ F1 lead libre: el analista NO edita las perillas (0 filas afectadas)
+  ✓ F1 lead libre: nadie inserta una segunda fila de perillas (ni con singleton=true) (bloqueado: 42501)
+  ✓ F1 lead libre: el log anti-pesca es invisible para el analista (aunque él generó filas) (0 filas por RLS)
+  ✓ F1 lead libre: la RPC del analista dejó su rastro (quién y veredicto)
+  ✓ F1 lead libre: ni gerencia escribe el log a mano — solo la RPC (bloqueado: 42501)
+  ✓ F1 lead libre: la edición de gerencia aplica
+  ✓ F1 lead libre: actualizado_por lo sella el servidor con el editor real
+  ✓ F2 lead libre: gerencia NO toma (su puerta es el reparto) (denegado: 42501)
+  ✓ F2 lead libre: supervisor tampoco toma (auditor M2) (denegado: 42501)
+  ✓ F2 lead libre: sin blanco tomable el veredicto es libre
+  ✓ F2 lead libre: el dueño vigente queda intacto y sin lead_id filtrado
+  ✓ F2 lead libre: la toma fallida quedó asentada (quién y veredicto)
+  ✓ F2 lead libre: el analista NO se auto-asigna la bolsa por PATCH directo (0 filas afectadas)
+  ✓ F2 lead libre: tomado_ok de bolsa con el lead esperado
+  ✓ F2 lead libre: dueño nuevo y tenencia renacida
+  ✓ F2 lead libre: la traza lleva evento toma_directa y modo bolsa
+  ✓ F2 lead libre: la bolsa liberada queda sin dueño
+  ✓ F3 lead libre: la autoría la SELLA el servidor con el actor real
+  ✓ F3 lead libre: el teléfono queda normalizado a +519########
+  ✓ F3 lead libre: una fecha de revisión en el pasado no entra (bloqueado: 22023)
+  ✓ F3 lead libre: el veneno infinity no entra en recordar_en (bloqueado: 22023)
+  ✓ F3 lead libre: el tope de 365 días también gobierna (auditor m5) (bloqueado: 22023)
+  ✓ F3 lead libre: un teléfono no-celular rebota con el 22023 amable del trigger (bloqueado: 22023)
+  ✓ F3 lead libre: segundo recordatorio del MISMO contacto rebota (la llave es upsert) (bloqueado: 23505)
+  ✓ F3 lead libre: ni GERENCIA lee recordatorios ajenos (nota personal) (0 filas por RLS)
+  ✓ F3 lead libre: el supervisor no crea recordatorios (la antesala de tomar es del analista) (bloqueado: 42501)
+  ✓ F3 lead libre: OTRO analista no ve el recordatorio ajeno (predicado owner) (0 filas por RLS)
+  ✓ F3 lead libre: otro analista no reprograma el ajeno (0 filas afectadas)
+  ✓ F3 lead libre: otro analista no borra el ajeno (0 filas afectadas)
+  ✓ F3 lead libre: directorio (lector global) tampoco ve notas personales (0 filas por RLS)
+  ✓ F3 lead libre: gerencia tampoco borra el recordatorio ajeno (0 filas afectadas)
+  ✓ F3 lead libre: reprogramar conserva la identidad de la fila
+  ✓ F3 lead libre: el borrado propio afecta exactamente su fila
+  ✓ F3 lead libre: el veneno infinity muere en crm.actividades (CHECK de finitud) (bloqueado: 23514)
+  ✓ F4 sin ruido: la autoría la SELLA el servidor con el actor real
+  ✓ F4 sin ruido: posponer más allá de 7 días rebota (tope de Miguel) (rechazo esperado: 22023)
+  ✓ F4 sin ruido: posponer SIN fecha no existe (CHECK de coherencia) (rechazo esperado: 23514)
+  ✓ F4 sin ruido: reconocer no lleva fecha (CHECK de coherencia) (rechazo esperado: 23514)
+  ✓ F4 sin ruido: nadie reconoce alertas AJENAS (el id queda atado al actor) (rechazo esperado: 42501)
+  ✓ F4 sin ruido: un tipo de alerta fuera del catálogo rebota (CHECK de formato) (rechazo esperado: 23514)
+  ✓ F4 sin ruido: una foto de miembros con ids venenosos rebota (22023 del trigger) (rechazo esperado: 22023)
+  ✓ F4 sin ruido: la foto vacía no entra (cardinalidad 1..2000) (rechazo esperado: 23514)
+  ✓ F4 sin ruido: posponer con fecha PASADA rebota (auditor #1) (rechazo esperado: 22023)
+  ✓ F4 sin ruido: hasta=infinity muere en la puerta (dos candados, auditor #10) (rechazo esperado: 22023)
+  ✓ F4 sin ruido: un NULL dentro de la foto rebota (mata el mutante del m is null, auditor #2) (rechazo esperado: 22023)
+  ✓ F4 sin ruido: una foto de 2001 miembros rebota (anti-abuso, auditor #10) (rechazo esperado: 23514)
+  ✓ F4 sin ruido: la secuencia da el orden total del libro (el 2.º > el 1.º)
+  ✓ F4 sin ruido: una acción fuera del catálogo rebota (CHECK de accion) (rechazo esperado: 23514)
+  ✓ F4 sin ruido: una severidad fuera del catálogo rebota (CHECK de severidad) (rechazo esperado: 23514)
+  ✓ F4 sin ruido: una foto 2D no entra (array_ndims=1, Codex #2) (bloqueado: 23514)
+  ✓ F4 sin ruido: el uuid en MAYÚSCULAS no entra (auth.uid()::text siempre es minúscula) (rechazo esperado: 42501)
+  ✓ F4 sin ruido: el creado_en devuelto es de AHORA, no del cliente
+  ✓ F4 sin ruido: el COORDINADOR no escribe en el libro (auditor #3) (bloqueado: 42501)
+  ✓ F4 sin ruido: el ANALISTA no escribe en el libro (gate de rol) (bloqueado: 42501)
+  ✓ F4 sin ruido: GERENCIA tampoco escribe — el compromiso es personal (bloqueado: 42501)
+  ✓ F4 sin ruido: la traza dice QUIÉN reconoció
+  ✓ F4 sin ruido: el rastro es un INSERT de esta fila
+  ✓ F4 sin ruido: OTRO supervisor no lee el libro ajeno (predicado owner) (0 filas por RLS)
+  ✓ F4 sin ruido: el analista no lee el libro (gate de rol) (0 filas por RLS)
+  ✓ F4 sin ruido: el coordinador tampoco lee el libro (auditor #3) (0 filas por RLS)
+  ✓ F4 sin ruido: directorio (lector global) tampoco lee el libro (0 filas por RLS)
+  ✓ F4 sin ruido: ni el dueño reescribe el libro (sin UPDATE) (bloqueado: 42501)
+  ✓ F4 sin ruido: ni el dueño arranca hojas del libro (sin DELETE) (bloqueado: 42501)
+  ✓ F4.2 vigentes: OTRO supervisor no ve el libro ajeno por la vista (security_invoker) (0 filas por RLS)
+  ✓ F4.2 vigentes: el analista tampoco ve nada por la vista (0 filas por RLS)
+  ✓ F4.2 vigentes: el coordinador tampoco (la vista no amplía la RLS) (0 filas por RLS)
+  ✓ F4.2 vigentes: directorio (lector global) tampoco ve el libro por la vista (0 filas por RLS)
+  ✓ F4.2 vigentes: anon no lee la vista (denegado: 42501)
+  ✓ F4.2 vigentes: ni el dueño INSERTA a través de la vista (bloqueado: 55000)
+  ✓ F4.2 vigentes: ni el dueño EDITA a través de la vista (bloqueado: 55000)
+  ✓ F4.2 vigentes: ni el dueño BORRA a través de la vista (bloqueado: 55000)
+  ✓ F4.2 vigentes: pasado su hasta, la vista la SUELTA (reloj del servidor) (0 filas por RLS)
+  ✓ F4.4 vigentes: el posponer vencido BLOQUEA a los asientos anteriores (nada resucita) (0 filas por RLS)
+  ✓ F4.4 vigentes: gerencia TAMPOCO lista la alerta cuyo último asiento venció (0 filas por RLS)
+  ✓ P04 true/true: feed ICS autorizado: autorizado=true
+  ✓ P04 miembro activo: no se puede reclasificar como Directorio en el Portal (bloqueado: P0001)
+  ✓ P04 miembro activo: auth conserva la membresía CRM tras el rechazo: estado=miembro
+  ✓ P04 miembro activo: auth conserva la membresía CRM tras el rechazo: identidad ligada a la sesión
+  ✓ P04 miembro activo: auth conserva la membresía CRM tras el rechazo: rol_crm=vendedor
+  ✓ P04 miembro activo: auth conserva la membresía CRM tras el rechazo: puede_contratar=true
+  ✓ P04 miembro activo: ve exactamente su cartera CRM
+  ✓ P04 false/true: auth canónica no aplica fallback: estado=revocado
+  ✓ P04 false/true: auth canónica no aplica fallback: identidad ligada a la sesión
+  ✓ P04 false/true: auth canónica no aplica fallback: puede_contratar=false
+  ✓ P04 false/true: no lee su fila de equipo (0 filas por RLS)
+  ✓ P04 false/true: no lee su lead histórico (0 filas por RLS)
+  ✓ P04 false/true: no lee la actividad de su lead (0 filas por RLS)
+  ✓ P04 false/true: no lee configuración de enfriamiento (0 filas por RLS)
+  ✓ P04 false/true: no lee las perillas de abandono (F1 lead libre) (0 filas por RLS)
+  ✓ P04 false/true: no lee el log anti-pesca (F1 lead libre) (0 filas por RLS)
+  ✓ P04 false/true: no lee la configuracion versionada de metas (bloqueado: 42501)
+  ✓ P04 false/true: no lee su token ICS (0 filas por RLS)
+  ✓ P04 false/true: equipo_visible_fn no filtra roster (0 filas por RLS)
+  ✓ P04 false/true: verificar_disponibilidad_lead queda denegada (denegado por permisos)
+  ✓ P04 false/true: crear_lead_si_disponible queda denegada (denegado: 42501)
+  ✓ P04 false/true: tomar_lead_libre queda denegada (F2 lead libre) (denegado: 42501)
+  ✓ P04 false/true: no actualiza su lead histórico (0 filas afectadas)
+  ✓ P04 false/true: el gate corta el feed sin alterar tablas public
+  ✓ P04 false/true: el token no autoriza mientras el perfil está suspendido: autorizado=false
+  ✓ P04 false/true: service_role no asigna a perfil portal inactivo (bloqueado: P0001)
+  ✓ P04 reactivar perfil: conserva el token de la suspensión temporal
+  ✓ P04 reactivar perfil: el token suspendido vuelve a autorizar: autorizado=true
+  ✓ P04 true/false: auth canónica no aplica fallback: estado=revocado
+  ✓ P04 true/false: auth canónica no aplica fallback: identidad ligada a la sesión
+  ✓ P04 true/false: auth canónica no aplica fallback: puede_contratar=false
+  ✓ P04 true/false: no lee su fila de equipo (0 filas por RLS)
+  ✓ P04 true/false: no lee su lead histórico (0 filas por RLS)
+  ✓ P04 true/false: no lee la actividad de su lead (0 filas por RLS)
+  ✓ P04 true/false: no lee configuración de enfriamiento (0 filas por RLS)
+  ✓ P04 true/false: no lee las perillas de abandono (F1 lead libre) (0 filas por RLS)
+  ✓ P04 true/false: no lee el log anti-pesca (F1 lead libre) (0 filas por RLS)
+  ✓ P04 true/false: no lee la configuracion versionada de metas (bloqueado: 42501)
+  ✓ P04 true/false: no lee su token ICS (0 filas por RLS)
+  ✓ P04 true/false: equipo_visible_fn no filtra roster (0 filas por RLS)
+  ✓ P04 true/false: verificar_disponibilidad_lead queda denegada (denegado por permisos)
+  ✓ P04 true/false: crear_lead_si_disponible queda denegada (denegado: 42501)
+  ✓ P04 true/false: tomar_lead_libre queda denegada (F2 lead libre) (denegado: 42501)
+  ✓ P04 true/false: no actualiza su lead histórico (0 filas afectadas)
+  ✓ P04 true/false: apagar la membresía rota el token ICS
+  ✓ P04 true/false: el token anterior queda inválido: autorizado=false
+  ✓ P04 true/false: service_role no asigna a membresía CRM inactiva (bloqueado: P0001)
+  ✓ P04 false/false: auth canónica no aplica fallback: estado=revocado
+  ✓ P04 false/false: auth canónica no aplica fallback: identidad ligada a la sesión
+  ✓ P04 false/false: auth canónica no aplica fallback: puede_contratar=false
+  ✓ P04 false/false: no lee su fila de equipo (0 filas por RLS)
+  ✓ P04 false/false: no lee su lead histórico (0 filas por RLS)
+  ✓ P04 false/false: no lee la actividad de su lead (0 filas por RLS)
+  ✓ P04 false/false: no lee configuración de enfriamiento (0 filas por RLS)
+  ✓ P04 false/false: no lee las perillas de abandono (F1 lead libre) (0 filas por RLS)
+  ✓ P04 false/false: no lee el log anti-pesca (F1 lead libre) (0 filas por RLS)
+  ✓ P04 false/false: no lee la configuracion versionada de metas (bloqueado: 42501)
+  ✓ P04 false/false: no lee su token ICS (0 filas por RLS)
+  ✓ P04 false/false: equipo_visible_fn no filtra roster (0 filas por RLS)
+  ✓ P04 false/false: verificar_disponibilidad_lead queda denegada (denegado por permisos)
+  ✓ P04 false/false: crear_lead_si_disponible queda denegada (denegado: 42501)
+  ✓ P04 false/false: tomar_lead_libre queda denegada (F2 lead libre) (denegado: 42501)
+  ✓ P04 false/false: no actualiza su lead histórico (0 filas afectadas)
+  ✓ P04: el proceso de sistema todavía lee el fixture
+  ✓ P04 global con equipo inactivo: auth canónica no aplica fallback: estado=revocado
+  ✓ P04 global con equipo inactivo: auth canónica no aplica fallback: identidad ligada a la sesión
+  ✓ P04 global con equipo inactivo: auth canónica no aplica fallback: puede_contratar=false
+  ✓ P04 global con equipo inactivo: no lee su fila de equipo (0 filas por RLS)
+  ✓ P04 global con equipo inactivo: no lee su lead histórico (0 filas por RLS)
+  ✓ P04 global con equipo inactivo: no lee la actividad de su lead (0 filas por RLS)
+  ✓ P04 global con equipo inactivo: no lee configuración de enfriamiento (0 filas por RLS)
+  ✓ P04 global con equipo inactivo: no lee las perillas de abandono (F1 lead libre) (0 filas por RLS)
+  ✓ P04 global con equipo inactivo: no lee el log anti-pesca (F1 lead libre) (0 filas por RLS)
+  ✓ P04 global con equipo inactivo: no lee la configuracion versionada de metas (bloqueado: 42501)
+  ✓ P04 global con equipo inactivo: no lee su token ICS (0 filas por RLS)
+  ✓ P04 global con equipo inactivo: equipo_visible_fn no filtra roster (0 filas por RLS)
+  ✓ P04 global con equipo inactivo: verificar_disponibilidad_lead queda denegada (denegado por permisos)
+  ✓ P04 global con equipo inactivo: crear_lead_si_disponible queda denegada (denegado: 42501)
+  ✓ P04 global con equipo inactivo: tomar_lead_libre queda denegada (F2 lead libre) (denegado: 42501)
+  ✓ P04 global con equipo inactivo: no actualiza su lead histórico (0 filas afectadas)
+  ✓ P04: coordinador no usa verificar_disponibilidad_lead (denegado por permisos)
+  ✓ P04: directorio no usa verificar_disponibilidad_lead (denegado por permisos)
+  ✓ P04: clientBank no usa verificar_disponibilidad_lead (denegado por permisos)
+
+— Ventana de actividades: fuera de 365 dias no viaja —
+  ✓ vend1 no recibe la actividad fuera de la ventana de 365 dias
+  ✓ vend1 sigue recibiendo la actividad reciente del mismo lead
+  ✓ sup1 no recibe la actividad fuera de la ventana de 365 dias
+  ✓ sup1 sigue recibiendo la actividad reciente del mismo lead
+  ✓ gerencia no recibe la actividad fuera de la ventana de 365 dias
+  ✓ gerencia sigue recibiendo la actividad reciente del mismo lead
+  ✓ directorio no recibe la actividad fuera de la ventana de 365 dias
+  ✓ directorio sigue recibiendo la actividad reciente del mismo lead
+  ✓ vend3 no recibe actividades del subarbol de sup1
+  ✓ vend3 tampoco recibe la actividad vieja ajena
+  ✓ coordinador recibe el timeline vacio (ambito nulo por diseno)
+  ✓ vendInactive recibe el timeline vacio (ambito nulo por diseno)
+
+— Historial por lead: completo para quien ve el lead, 42501 para el resto —
+  ✓ vend1: el payload cumple el contrato {version, items, senales}
+  ✓ vend1: recibe el historial COMPLETO de juan en orden (creado_en desc, id asc)
+  ✓ vend1: la actividad de 400 dias SI viaja (sin ventana de fecha)
+  ✓ vend1: cada gestion trae el nombre de su autor (ayudante DEFINER acotado a crm.equipo)
+  ✓ vend1: senales.tiene_reunion_realizada refleja TODO el historial, no la pagina
+  ✓ sup1: el payload cumple el contrato {version, items, senales}
+  ✓ sup1: recibe el historial COMPLETO de juan en orden (creado_en desc, id asc)
+  ✓ sup1: la actividad de 400 dias SI viaja (sin ventana de fecha)
+  ✓ sup1: cada gestion trae el nombre de su autor (ayudante DEFINER acotado a crm.equipo)
+  ✓ sup1: senales.tiene_reunion_realizada refleja TODO el historial, no la pagina
+  ✓ gerencia: el payload cumple el contrato {version, items, senales}
+  ✓ gerencia: recibe el historial COMPLETO de juan en orden (creado_en desc, id asc)
+  ✓ gerencia: la actividad de 400 dias SI viaja (sin ventana de fecha)
+  ✓ gerencia: cada gestion trae el nombre de su autor (ayudante DEFINER acotado a crm.equipo)
+  ✓ gerencia: senales.tiene_reunion_realizada refleja TODO el historial, no la pagina
+  ✓ directorio: el payload cumple el contrato {version, items, senales}
+  ✓ directorio: recibe el historial COMPLETO de juan en orden (creado_en desc, id asc)
+  ✓ directorio: la actividad de 400 dias SI viaja (sin ventana de fecha)
+  ✓ directorio: cada gestion trae el nombre de su autor (ayudante DEFINER acotado a crm.equipo)
+  ✓ directorio: senales.tiene_reunion_realizada refleja TODO el historial, no la pagina
+  ✓ vend1: la RPC (invoker) devuelve exactamente las filas que su RLS ya le muestra
+  ✓ vend1: las dos paginas no repiten ninguna gestion
+  ✓ vend1: las dos paginas reconstruyen el orden del oraculo sin huecos
+  ✓ vend1: las senales no dependen de la pagina pedida
+  ✓ vend3 no lee el historial de juan (fuera de su cartera) (denegado: 42501)
+  ✓ sup2 no lee el historial de juan (fuera de su cartera) (denegado: 42501)
+  ✓ vend2 no lee el historial de juan (fuera de su cartera) (denegado: 42501)
+  ✓ vendInactive: membresia revocada → 42501 de ADMISION (P04) (rechazo esperado: 42501)
+  ✓ clientBank: cliente del portal, ajeno al CRM → 42501 de ADMISION (rechazo esperado: 42501)
+  ✓ vend1 no lee el historial de un lead de otro subarbol (ana, de vend3) (denegado: 42501)
+  ✓ sup1Nested no lee el historial de juan (vend1 no cuelga de el) (denegado: 42501)
+  ✓ vend1 no lee el historial de un lead parkeado (sin vendedor) (denegado: 42501)
+  ✓ sup2 no lee el historial de un parkeado de la bandeja de sup1 (denegado: 42501)
+  ✓ un lead inexistente responde 42501, no un historial vacio (denegado: 42501)
+  ✓ p_limite 0 → 22023 (rechazo esperado: 22023)
+  ✓ p_limite 501 → 22023 (rechazo esperado: 22023)
+  ✓ cursor a medias → 22023 (rechazo esperado: 22023)
+  ✓ p_lead_id nulo → 22023 (rechazo esperado: 22023)
+  ✓ historial por lead: las tres funciones exponen EXECUTE exactamente a authenticated (ni anon, ni service_role, ni PUBLIC)
+  ✓ historial por lead: puerta y nucleo son INVOKER, stable y con search_path vacio
+  ✓ historial por lead: el ayudante del nombre de autor es el unico DEFINER, stable, con search_path vacio y gate interno
+  ✓ historial por lead: los dos trinquetes no tienen EXECUTE para la API
+  ✓ historial por lead: el trinquete private.assert_actividades_de_lead() responde OK
+  ✓ historial por lead: los 5 mutantes del trinquete fueron detectados (OK: 5 mutantes detectados por private.assert_actividades_de_lead())
+
+— Tareas pendientes por cursor: invoker ≡ RLS, sin tope —
+  ✓ vend1: el payload cumple el contrato {version, items}
+  ✓ vend1: la puerta (invoker) devuelve EXACTAMENTE las filas que su RLS ya le muestra, en orden (vence_en, id)
+  ✓ vend1: cada tarea viene pendiente, activa y con lead_nombre/lead_etapa
+  ✓ vend1: cada tarea trae las ocho claves del lead de la Fase 4b
+  ✓ vend1: la tarea borrada no viaja ni por la puerta ni por la tabla
+  ✓ vend2: el payload cumple el contrato {version, items}
+  ✓ vend2: la puerta (invoker) devuelve EXACTAMENTE las filas que su RLS ya le muestra, en orden (vence_en, id)
+  ✓ vend2: cada tarea viene pendiente, activa y con lead_nombre/lead_etapa
+  ✓ vend2: cada tarea trae las ocho claves del lead de la Fase 4b
+  ✓ vend2: la tarea borrada no viaja ni por la puerta ni por la tabla
+  ✓ sup1: el payload cumple el contrato {version, items}
+  ✓ sup1: la puerta (invoker) devuelve EXACTAMENTE las filas que su RLS ya le muestra, en orden (vence_en, id)
+  ✓ sup1: cada tarea viene pendiente, activa y con lead_nombre/lead_etapa
+  ✓ sup1: cada tarea trae las ocho claves del lead de la Fase 4b
+  ✓ sup1: la tarea borrada no viaja ni por la puerta ni por la tabla
+  ✓ sup1Nested: el payload cumple el contrato {version, items}
+  ✓ sup1Nested: la puerta (invoker) devuelve EXACTAMENTE las filas que su RLS ya le muestra, en orden (vence_en, id)
+  ✓ sup1Nested: cada tarea viene pendiente, activa y con lead_nombre/lead_etapa
+  ✓ sup1Nested: cada tarea trae las ocho claves del lead de la Fase 4b
+  ✓ sup1Nested: la tarea borrada no viaja ni por la puerta ni por la tabla
+  ✓ sup2: el payload cumple el contrato {version, items}
+  ✓ sup2: la puerta (invoker) devuelve EXACTAMENTE las filas que su RLS ya le muestra, en orden (vence_en, id)
+  ✓ sup2: cada tarea viene pendiente, activa y con lead_nombre/lead_etapa
+  ✓ sup2: cada tarea trae las ocho claves del lead de la Fase 4b
+  ✓ sup2: la tarea borrada no viaja ni por la puerta ni por la tabla
+  ✓ vendNested: el payload cumple el contrato {version, items}
+  ✓ vendNested: la puerta (invoker) devuelve EXACTAMENTE las filas que su RLS ya le muestra, en orden (vence_en, id)
+  ✓ vendNested: cada tarea viene pendiente, activa y con lead_nombre/lead_etapa
+  ✓ vendNested: cada tarea trae las ocho claves del lead de la Fase 4b
+  ✓ vendNested: la tarea borrada no viaja ni por la puerta ni por la tabla
+  ✓ gerencia: el payload cumple el contrato {version, items}
+  ✓ gerencia: la puerta (invoker) devuelve EXACTAMENTE las filas que su RLS ya le muestra, en orden (vence_en, id)
+  ✓ gerencia: cada tarea viene pendiente, activa y con lead_nombre/lead_etapa
+  ✓ gerencia: cada tarea trae las ocho claves del lead de la Fase 4b
+  ✓ gerencia: la tarea borrada no viaja ni por la puerta ni por la tabla
+  ✓ directorio: el payload cumple el contrato {version, items}
+  ✓ directorio: la puerta (invoker) devuelve EXACTAMENTE las filas que su RLS ya le muestra, en orden (vence_en, id)
+  ✓ directorio: cada tarea viene pendiente, activa y con lead_nombre/lead_etapa
+  ✓ directorio: cada tarea trae las ocho claves del lead de la Fase 4b
+  ✓ directorio: la tarea borrada no viaja ni por la puerta ni por la tabla
+  ✓ coordinador: el payload cumple el contrato {version, items}
+  ✓ coordinador: la puerta (invoker) devuelve EXACTAMENTE las filas que su RLS ya le muestra, en orden (vence_en, id)
+  ✓ coordinador: cada tarea viene pendiente, activa y con lead_nombre/lead_etapa
+  ✓ coordinador: cada tarea trae las ocho claves del lead de la Fase 4b
+  ✓ coordinador: la tarea borrada no viaja ni por la puerta ni por la tabla
+  ✓ vend1: las tareas sembradas viajan con lead_nombre/lead_etapa de juan
+  ✓ vend1: telefono, capital, tenencia, correo, no_contactar y telefono alternativo embebidos = crm.leads bajo su sesion
+  ✓ gerencia: telefono, capital, tenencia, correo, no_contactar y telefono alternativo embebidos = crm.leads bajo su sesion
+  ✓ vend1: la tarea re-apuntada viaja (su RLS la muestra) con las diez claves del lead en NULO (leads_select no le muestra a ana)
+  ✓ vend1: las paginas no repiten ninguna tarea
+  ✓ vend1: las paginas de 2 reconstruyen el oraculo completo sin huecos (empate de vence_en incluido)
+  ✓ vendInactive: membresia revocada → 42501 de ADMISION (P04) (rechazo esperado: 42501)
+  ✓ clientBank: cliente del portal, ajeno al CRM → 42501 de ADMISION (rechazo esperado: 42501)
+  ✓ p_limite 0 → 22023 (rechazo esperado: 22023)
+  ✓ p_limite 1001 → 22023 (rechazo esperado: 22023)
+  ✓ cursor a medias (solo p_despues_de) → 22023 (rechazo esperado: 22023)
+  ✓ cursor a medias (solo p_despues_id) → 22023 (rechazo esperado: 22023)
+  ✓ tareas por cursor: puerta y nucleo exponen EXECUTE exactamente a authenticated (ni anon, ni service_role, ni PUBLIC)
+  ✓ tareas por cursor: puerta y nucleo son INVOKER, stable y con search_path vacio
+  ✓ tareas por cursor: el indice parcial del cursor existe y es valido
+  ✓ tareas por cursor: los dos trinquetes no tienen EXECUTE para la API
+  ✓ tareas por cursor: el trinquete private.assert_tareas_pendientes() responde OK
+  ✓ tareas por cursor: los 17 mutantes del trinquete fueron detectados (OK: 18 mutantes detectados por private.assert_tareas_pendientes())
+
+— Actividad reciente: las N mas nuevas de cada RLS, con lead y autor —
+  ✓ vend1: el payload cumple el contrato {version, items}
+  ✓ vend1: la puerta (invoker) devuelve EXACTAMENTE las 8 mas recientes que su RLS muestra, en orden (creado_en desc, id asc)
+  ✓ vend1: cada fila trae autor, tipo, fecha y lead_nombre (o null si el lead no es visible)
+  ✓ vend3: el payload cumple el contrato {version, items}
+  ✓ vend3: la puerta (invoker) devuelve EXACTAMENTE las 1 mas recientes que su RLS muestra, en orden (creado_en desc, id asc)
+  ✓ vend3: cada fila trae autor, tipo, fecha y lead_nombre (o null si el lead no es visible)
+  ✓ sup1: el payload cumple el contrato {version, items}
+  ✓ sup1: la puerta (invoker) devuelve EXACTAMENTE las 8 mas recientes que su RLS muestra, en orden (creado_en desc, id asc)
+  ✓ sup1: cada fila trae autor, tipo, fecha y lead_nombre (o null si el lead no es visible)
+  ✓ sup1Nested: el payload cumple el contrato {version, items}
+  ✓ sup1Nested: la puerta (invoker) devuelve EXACTAMENTE las 1 mas recientes que su RLS muestra, en orden (creado_en desc, id asc)
+  ✓ sup1Nested: cada fila trae autor, tipo, fecha y lead_nombre (o null si el lead no es visible)
+  ✓ sup2: el payload cumple el contrato {version, items}
+  ✓ sup2: la puerta (invoker) devuelve EXACTAMENTE las 3 mas recientes que su RLS muestra, en orden (creado_en desc, id asc)
+  ✓ sup2: cada fila trae autor, tipo, fecha y lead_nombre (o null si el lead no es visible)
+  ✓ gerencia: el payload cumple el contrato {version, items}
+  ✓ gerencia: la puerta (invoker) devuelve EXACTAMENTE las 8 mas recientes que su RLS muestra, en orden (creado_en desc, id asc)
+  ✓ gerencia: cada fila trae autor, tipo, fecha y lead_nombre (o null si el lead no es visible)
+  ✓ directorio: el payload cumple el contrato {version, items}
+  ✓ directorio: la puerta (invoker) devuelve EXACTAMENTE las 8 mas recientes que su RLS muestra, en orden (creado_en desc, id asc)
+  ✓ directorio: cada fila trae autor, tipo, fecha y lead_nombre (o null si el lead no es visible)
+  ✓ coordinador: el payload cumple el contrato {version, items}
+  ✓ coordinador: la puerta (invoker) devuelve EXACTAMENTE las 8 mas recientes que su RLS muestra, en orden (creado_en desc, id asc)
+  ✓ coordinador: cada fila trae autor, tipo, fecha y lead_nombre (o null si el lead no es visible)
+  ✓ vend1 recibe la gestion fresca de juan entre sus 8 mas recientes
+  ✓ vend3 (otro subarbol) NO recibe la gestion de juan aunque pida 50
+  ✓ vendInactive: membresia revocada → 42501 de ADMISION (P04) (rechazo esperado: 42501)
+  ✓ clientBank: cliente del portal, ajeno al CRM → 42501 de ADMISION (rechazo esperado: 42501)
+  ✓ p_limite 0 → 22023 (rechazo esperado: 22023)
+  ✓ p_limite 51 → 22023 (rechazo esperado: 22023)
+  ✓ p_limite nulo explicito → 22023 (rechazo esperado: 22023)
+  ✓ actividad reciente: puerta y nucleo exponen EXECUTE exactamente a authenticated
+  ✓ actividad reciente: puerta y nucleo son INVOKER, stable y con search_path vacio
+  ✓ actividad reciente: los dos trinquetes no tienen EXECUTE para la API
+  ✓ actividad reciente: el trinquete private.assert_actividades_recientes() responde OK
+  ✓ actividad reciente: los 20 mutantes del trinquete fueron detectados (OK: 20 mutantes detectados por private.assert_actividades_recientes())
+
+— Metas versionadas: lectura scopeada y escritura solo Gerencia —
+  ✓ la configuracion de metas declara version y revision validas
+  ✓ solo Gerencia recibe capacidad de edicion
+  ✓ cada analista visible conserva las seis dimensiones categoria x moneda
+  ✓ gerencia ve al analista activo vend1
+  ✓ gerencia ve al analista activo vend2
+  ✓ gerencia ve al analista activo vend3
+  ✓ gerencia ve al analista activo vend4
+  ✓ gerencia ve al analista activo vendNested
+  ✓ el roster de metas excluye al analista inactivo
+  ✓ vend1 recibe metas en solo lectura
+  ✓ vend1 incluye vend1
+  ✓ vend1 excluye vend2
+  ✓ vend1 excluye vend3
+  ✓ sup1Nested recibe metas en solo lectura
+  ✓ sup1Nested incluye vendNested
+  ✓ sup1Nested excluye vend1
+  ✓ sup1Nested excluye vend3
+  ✓ sup1 recibe metas en solo lectura
+  ✓ sup1 incluye vend1
+  ✓ sup1 incluye vend2
+  ✓ sup1 incluye vendNested
+  ✓ sup1 excluye vend3
+  ✓ sup1 excluye vend4
+  ✓ sup2 recibe metas en solo lectura
+  ✓ sup2 incluye vend3
+  ✓ sup2 incluye vend4
+  ✓ sup2 excluye vend1
+  ✓ sup2 excluye vendNested
+  ✓ coordinador no obtiene metas de analistas
+  ✓ directorio recibe metas en solo lectura
+  ✓ directorio y Gerencia ven el mismo roster global
+  ✓ la configuracion de metas siempre declara la lista de excluidos
+  ✓ cada excluido llega con id y nombre utilizables
+  ✓ ningun excluido aparece tambien en el roster editable
+  ✓ directorio, como lector global, ve los mismos excluidos que Gerencia
+  ✓ vend1 no enumera analistas fuera de su ambito
+  ✓ sup1 no enumera analistas fuera de su ambito
+  ✓ sup2 no enumera analistas fuera de su ambito
+  ✓ coordinador no enumera analistas fuera de su ambito
+  ✓ vend1 no publica metas (bloqueado: 42501)
+  ✓ sup1 no publica metas (bloqueado: 42501)
+  ✓ coordinador no publica metas (bloqueado: 42501)
+  ✓ directorio no publica metas (bloqueado: 42501)
+  ✓ Gerencia no puede saltarse la validacion del periodo (bloqueado: 22023)
+  ✓ Gerencia no inserta directo en la historia de metas (bloqueado: 42501)
+  ✓ el archivo legacy de metas no pertenece al Data API autenticado (denegado: 42501)
+  ✓ la RPC legacy fijar_objetivos ya no existe (denegado: PGRST202)
+  ✓ la publicacion crea la revision siguiente
+  ✓ el editor ve la revision nueva
+  ✓ el capital publicado vuelve intacto en la relectura
+  ✓ Gerencia no publica un roster incompleto (bloqueado: 22023)
+  ✓ Gerencia no cuela una meta para alguien fuera del roster (bloqueado: 22023)
+
+— Metricas agregadas en el servidor (F1 tandas 1+2) —
+  ✓ vend1 recibe el contrato v1 con la ventana de 45 dias
+  ✓ vend1: los totales del resumen cuadran con su propio SELECT por RLS
+  ✓ vend1: el capital asignado por moneda cuadra (PEN y USD jamas sumados)
+  ✓ vend1: cada item de la cola es un lead que su RLS ya le muestra
+  ✓ vend1: por_repartir cuadra con sus parkeados visibles (0)
+  ✓ sup1 recibe el contrato v1 con la ventana de 45 dias
+  ✓ sup1: los totales del resumen cuadran con su propio SELECT por RLS
+  ✓ sup1: el capital asignado por moneda cuadra (PEN y USD jamas sumados)
+  ✓ sup1: cada item de la cola es un lead que su RLS ya le muestra
+  ✓ sup1: por_repartir cuadra con sus parkeados visibles (1)
+  ✓ sup2 recibe el contrato v1 con la ventana de 45 dias
+  ✓ sup2: los totales del resumen cuadran con su propio SELECT por RLS
+  ✓ sup2: el capital asignado por moneda cuadra (PEN y USD jamas sumados)
+  ✓ sup2: cada item de la cola es un lead que su RLS ya le muestra
+  ✓ sup2: por_repartir cuadra con sus parkeados visibles (1)
+  ✓ gerencia recibe el contrato v1 con la ventana de 45 dias
+  ✓ gerencia: los totales del resumen cuadran con su propio SELECT por RLS
+  ✓ gerencia: el capital asignado por moneda cuadra (PEN y USD jamas sumados)
+  ✓ gerencia: cada item de la cola es un lead que su RLS ya le muestra
+  ✓ gerencia: por_repartir cuadra con sus parkeados visibles (5)
+  ✓ directorio recibe el contrato v1 con la ventana de 45 dias
+  ✓ directorio: los totales del resumen cuadran con su propio SELECT por RLS
+  ✓ directorio: el capital asignado por moneda cuadra (PEN y USD jamas sumados)
+  ✓ directorio: cada item de la cola es un lead que su RLS ya le muestra
+  ✓ directorio: por_repartir cuadra con sus parkeados visibles (5)
+  ✓ vend1 jamas recibe un item por_repartir
+  ✓ vend1 solo recibe items de su propia cartera
+  ✓ sup2 incluye a vend3
+  ✓ sup2 incluye a su analista desactivado (gerencia reasigna esa cartera)
+  ✓ sup2 excluye a vend1 (subarbol ajeno)
+  ✓ sup2 solo recibe la comparativa de su propio equipo
+  ✓ vend1 recibe solo su propia fila y cero equipos
+  ✓ gerencia ve la fila del analista desactivado marcada activo=false
+  ✓ F1: cada fila de vendedores trae SOLO las 14 claves del contrato (sin conversion_pct)
+  ✓ F1: cada fila de equipos trae SOLO las 12 claves del contrato (sin conversion_pct)
+  ✓ F1: nucleo_total no lleva el entero conversion_pct
+  ✓ F1: sup2 no recibe el entero conversion_pct en ninguna fila
+  ✓ F1: sup2 sigue recibiendo las 5 claves nucleo_* en cada fila
+  ✓ F1: vend1 no recibe el entero conversion_pct en ninguna fila
+  ✓ F1: vend1 sigue recibiendo las 5 claves nucleo_* en cada fila
+  ✓ F2: el payload de citas trae `testigo`
+  ✓ F2: el testigo trae SOLO sus 10 claves
+  ✓ F2: testigo version 1 con reglas_listas booleano
+  ✓ F2: los conteos del testigo son enteros no negativos
+  ✓ F2: personas <= entrevistas y vinculados <= clientes del periodo
+  ✓ F2: la base sigue a la configuracion vigente
+  ✓ F2: conversion_pct es su propia division (o null sin reglas/base)
+  ✓ F2: el testigo no arrastra ningun identificador
+  ✓ F2: sup1 no recibe el testigo global de Gerencia
+  ✓ F2: sup1 solo recibe citas, base, cierres y capital de su subárbol
+  ✓ F2: sup1 no recibe ninguna fila atribuida al subárbol ajeno
+  ✓ F2: vend1 no entra por la puerta de citas de gerencia (ni al testigo) (denegado: 42501)
+  ✓ F2: coordinador no entra por la puerta de citas de gerencia (ni al testigo) (denegado: 42501)
+  ✓ F2: clientBank no entra por la puerta de citas de gerencia (ni al testigo) (denegado: 42501)
+  ✓ F3: los cuatro caminos de la conversion del mes coinciden en el fixture
+  ✓ F3: la alarma leyo los cinco caminos
+  ✓ F3: el camino del recalculo de la puerta #4 viaja en el detalle
+  ✓ F3: el recalculo de la puerta #4 sigue dando el BRUTO, no el neto
+  ✓ F3: la puerta #4 DECLARA que delego; publicar la cifra buena sin decirlo es un acierto por casualidad
+  ✓ F3: la alarma devuelve SOLO mes, hasta, cuadra, caminos_leidos, declaran, detalle, motivo y conciliacion
+  ✓ F3: la conciliacion trae sus cinco claves y ninguna mas
+  ✓ F3: el bruto nunca es menor que el neto
+  ✓ F3: bruto menos neto es exactamente la deuda aplicada
+  ✓ F3: no se aplica mas deuda de la pendiente
+  ✓ F3: sin nadie topado, se aplica TODA la deuda pendiente
+  ✓ F3: el bruto conciliado es el del nucleo directo (misma poblacion)
+  ✓ F3: motivo distingue ausencia de datos de una discrepancia real
+  ✓ F3: la alarma no arrastra ningun identificador
+  ✓ F3: gerencia no puede leer la alarma (es del gate, no de una pantalla) (denegado: 42501)
+  ✓ F3: directorio no puede leer la alarma (es del gate, no de una pantalla) (denegado: 42501)
+  ✓ F3: coordinador no puede leer la alarma (es del gate, no de una pantalla) (denegado: 42501)
+  ✓ F3: sup1 no puede leer la alarma (es del gate, no de una pantalla) (denegado: 42501)
+  ✓ F3: vend1 no puede leer la alarma (es del gate, no de una pantalla) (denegado: 42501)
+  ✓ F3: vendInactive no puede leer la alarma (es del gate, no de una pantalla) (denegado: 42501)
+  ✓ F3: clientBank no puede leer la alarma (es del gate, no de una pantalla) (denegado: 42501)
+  ✓ F3: la alarma exige el dia 1 de un mes (rechazo esperado: 22023)
+  ✓ F3: la segunda lectura sigue leyendo los cinco caminos
+  ✓ series declara version 2
+  ✓ la clave sin apellido ya no existe (F6.c)
+  ✓ gerencia recibe 6 arrays paralelos de 6 meses
+  ✓ la serie mensual del nucleo viaja con 6 posiciones (null permitido)
+  ✓ la serie mensual del nucleo cuadra con la oficial (serie=null oficial=null)
+  ✓ coordinador ve los mismos totales de leads que gerencia
+  ✓ coordinador ve el capital estimado de todos los leads
+  ✓ coordinador recibe la cola vacia (ni siquiera por_repartir)
+  ✓ coordinador recibe roster y comparativa vacios
+  ✓ coordinador: las series suman solo las altas de los sin-dueno
+  ✓ vend1: el total de tareas pendientes cuadra con su propio SELECT por RLS
+  ✓ vend1: el desglose de pendientes por tipo cuadra
+  ✓ vend1: vencidas por hora cuadran (las de dia jamas las superan)
+  ✓ vend1: un lead vencido por fila y todos de su propio ambito
+  ✓ vend1: sin_accion cuadra con su ambito
+  ✓ sup1: el total de tareas pendientes cuadra con su propio SELECT por RLS
+  ✓ sup1: el desglose de pendientes por tipo cuadra
+  ✓ sup1: vencidas por hora cuadran (las de dia jamas las superan)
+  ✓ sup1: un lead vencido por fila y todos de su propio ambito
+  ✓ sup1: sin_accion cuadra con su ambito
+  ✓ sup2: el total de tareas pendientes cuadra con su propio SELECT por RLS
+  ✓ sup2: el desglose de pendientes por tipo cuadra
+  ✓ sup2: vencidas por hora cuadran (las de dia jamas las superan)
+  ✓ sup2: un lead vencido por fila y todos de su propio ambito
+  ✓ sup2: sin_accion cuadra con su ambito
+  ✓ gerencia: el total de tareas pendientes cuadra con su propio SELECT por RLS
+  ✓ gerencia: el desglose de pendientes por tipo cuadra
+  ✓ gerencia: vencidas por hora cuadran (las de dia jamas las superan)
+  ✓ gerencia: un lead vencido por fila y todos de su propio ambito
+  ✓ gerencia: sin_accion cuadra con su ambito
+  ✓ directorio: el total de tareas pendientes cuadra con su propio SELECT por RLS
+  ✓ directorio: el desglose de pendientes por tipo cuadra
+  ✓ directorio: vencidas por hora cuadran (las de dia jamas las superan)
+  ✓ directorio: un lead vencido por fila y todos de su propio ambito
+  ✓ directorio: sin_accion cuadra con su ambito
+  ✓ coordinador recibe las tareas en cero (su superficie es el reparto)
+  ✓ vend1: los conteos de clientes cuadran con clientes_basicos_fn
+  ✓ vend1: el capital activo por moneda cuadra (PEN y USD jamas sumados)
+  ✓ vend1: sin_asesor cuadra con su visibilidad (0)
+  ✓ vend1: la alarma de renovacion cuadra (0)
+  ✓ sup1: los conteos de clientes cuadran con clientes_basicos_fn
+  ✓ sup1: el capital activo por moneda cuadra (PEN y USD jamas sumados)
+  ✓ sup1: sin_asesor cuadra con su visibilidad (0)
+  ✓ sup1: la alarma de renovacion cuadra (0)
+  ✓ gerencia: los conteos de clientes cuadran con clientes_basicos_fn
+  ✓ gerencia: el capital activo por moneda cuadra (PEN y USD jamas sumados)
+  ✓ gerencia: sin_asesor cuadra con su visibilidad (0)
+  ✓ gerencia: la alarma de renovacion cuadra (0)
+  ✓ directorio: los conteos de clientes cuadran con clientes_basicos_fn
+  ✓ directorio: el capital activo por moneda cuadra (PEN y USD jamas sumados)
+  ✓ directorio: sin_asesor cuadra con su visibilidad (0)
+  ✓ directorio: la alarma de renovacion cuadra (0)
+  ✓ coordinador recibe la cartera de clientes en cero
+  ✓ coordinador: el resumen de reparto cuadra con leads_por_repartir
+  ✓ gerencia: el resumen de reparto cuadra con leads_por_repartir
+  ✓ vend1 recibe 42501 en resumen_reparto_fn (denegado: 42501)
+  ✓ sup1 recibe 42501 en resumen_reparto_fn (denegado: 42501)
+  ✓ directorio recibe 42501 en resumen_reparto_fn (denegado: 42501)
+  ✓ vendInactive recibe 42501 en resumen_cartera_fn (denegado: 42501)
+  ✓ vendInactive recibe 42501 en cola_accion_fn (denegado: 42501)
+  ✓ vendInactive recibe 42501 en metricas_vendedores_fn (denegado: 42501)
+  ✓ vendInactive recibe 42501 en series_comerciales_fn (denegado: 42501)
+  ✓ vendInactive recibe 42501 en resumen_tareas_fn (denegado: 42501)
+  ✓ vendInactive recibe 42501 en resumen_cartera_clientes_fn (denegado: 42501)
+  ✓ vendInactive recibe 42501 en resumen_reparto_fn (denegado: 42501)
+  ✓ clientBank recibe 42501 en resumen_cartera_fn (denegado: 42501)
+  ✓ clientBank recibe 42501 en cola_accion_fn (denegado: 42501)
+  ✓ clientBank recibe 42501 en metricas_vendedores_fn (denegado: 42501)
+  ✓ clientBank recibe 42501 en series_comerciales_fn (denegado: 42501)
+  ✓ clientBank recibe 42501 en resumen_tareas_fn (denegado: 42501)
+  ✓ clientBank recibe 42501 en resumen_cartera_clientes_fn (denegado: 42501)
+  ✓ clientBank recibe 42501 en resumen_reparto_fn (denegado: 42501)
+  ✓ cola_accion_fn rechaza p_limite=0 (rechazo esperado: 22023)
+  ✓ cola_accion_fn rechaza p_limite=501 (rechazo esperado: 22023)
+  ✓ series_comerciales_fn rechaza p_meses=0 (rechazo esperado: 22023)
+  ✓ series_comerciales_fn rechaza p_meses=25 (rechazo esperado: 22023)
+
+— Ranking de conversion del equipo (decision #10 b2) —
+  ✓ el payload de conversion del equipo declara version 1
+  ✓ gerencia recibe alcance "global"
+  ✓ responsables es SIEMPRE un array, nunca null
+  ✓ cada responsable trae SOLO los 7 campos del contrato
+  ✓ el bloque sondas del ranking trae SOLO su contrato
+  ✓ la sonda de paridad del ranking cuadra con el nucleo (o se declara no aplicable)
+  ✓ el lector global recibe alcance "global"
+  ✓ directorio ve el MISMO conjunto que gerencia
+  ✓ el supervisor recibe alcance "equipo"
+  ✓ el subarbol es RECURSIVO: sup1 ve al analista de su supervisor anidado
+  ✓ sup1 NO ve a los analistas de sup2
+  ✓ los supervisores no aparecen como filas del ranking
+  ✓ el analista inactivo NO figura como responsable
+  ✓ sup2 ve a sus dos analistas
+  ✓ sup2 NO ve el subarbol de sup1
+  ✓ sup1Nested no ve HACIA ARRIBA: solo su propia rama
+  ✓ PARIDAD: sup1 ve los mismos numeros que gerencia para sus analistas
+  ✓ coordinador recibe las mismas cifras de cosecha que Gerencia
+  ✓ vend1 no ejecuta metricas_conversiones_equipo_fn (denegado: 42501)
+  ✓ vend3 no ejecuta metricas_conversiones_equipo_fn (denegado: 42501)
+  ✓ vendInactive no ejecuta metricas_conversiones_equipo_fn (denegado: 42501)
+  ✓ clientBank no ejecuta metricas_conversiones_equipo_fn (denegado: 42501)
+  ✓ un rol denegado recibe 42501 y NO 22023 con un periodo invalido (denegado: 42501)
+  ✓ gerencia recibe 22023 con p_hasta en el futuro (rechazo esperado: 22023)
+  ✓ el supervisor entra en la MISMA rama de validacion que gerencia (rechazo esperado: 22023)
+  ✓ el scope del supervisor es ESTRICTAMENTE menor que el global
+  ✓ los dos subarboles no se solapan (forma observable de "subarbol ajeno")
+  ✓ ambos supervisores reciben al menos un responsable: el recorte no es vacio
+
+— Citas: la pantalla de reuniones y el nucleo (P-055 F6.a) —
+  ✓ reuniones: el fixture trae al menos una reunion con fecha valida
+  ✓ reuniones: el fixture sigue al alcance de la RPC (reuniones de seed-demo con 365 dias o menos; si esto falla, re-fechar fixtures.mjs)
+  ✓ reuniones: el payload declara version 1
+  ✓ reuniones: el resumen trae pactadas y realizadas numericas
+  ✓ reuniones: la ventana del fixture contiene al menos una cita pactada
+  ✓ vend1 no ejecuta metricas_reuniones_fn (denegado: 42501)
+  ✓ sup1 no ejecuta metricas_reuniones_fn (denegado: 42501)
+  ✓ coordinador no ejecuta metricas_reuniones_fn (denegado: 42501)
+  ✓ gerencia NO alcanza private.citas_episodios por la API (PGRST106)
+  ✓ vend1 NO alcanza private.citas_episodios por la API (PGRST106)
+  ✓ el payload de conversiones declara version 1
+  ✓ origen_filtrado se declara y es null sin filtro
+  ✓ produccion trae SOLO su contrato F1.3
+  ✓ la sonda sin_rastro es un numero, no un hueco
+  ✓ cada origen trae SOLO los campos del contrato vigente (17, o 18 con la ponderada)
+  ✓ la conversion ponderada de cada origen es la de su propia fila (contratos × peso ÷ leads)
+  ✓ cada responsable trae SOLO los 15 campos del contrato vigente
+  ✓ el bloque sondas de conversiones trae SOLO su contrato F1.3b
+  ✓ el payload no expone columnas de identidad de cierres_externos
+  ✓ el lector global recibe el mismo contrato
+  ✓ el payload declara el origen filtrado
+  ✓ origenes[] solo trae el origen elegido
+  ✓ con filtro Referido, su conversion ponderada lleva el peso del referido
+  ✓ el lote filtrado nunca supera al total
+  ✓ el nucleo del mes queda SIN filtrar (deliberado y documentado)
+  ✓ el payload declara 'sin_origen' como filtro
+  ✓ con sin_origen, origenes[] solo trae esa fila (o ninguna)
+  ✓ lote vacio: cohorte 0 y sin origenes
+  ✓ la forma del payload sobrevive al lote vacio
+  ✓ el contrato de la unificacion viaja ENTERO o no viaja (nunca a medias)
+  ✓ del dia 1 a hoy, el nucleo declara es_mes_calendario: true
+  ✓ mes calendario y sin filtro: la cifra la sirve la mensual (fuente: mensual)
+  ✓ al delegar, `sellado` deja de ser null: la oficial sabe si el mes esta cerrado
+  ✓ al delegar, la deuda de anulacion SI esta descontada (ajuste_aplicado: true)
+  ✓ al delegar, el recalculo en vivo viaja al lado (recalculo_vivo)
+  ✓ la puerta publica EXACTAMENTE la cifra de crm.conversion_mensual_fn
+  ✓ el `sellado` que publica la puerta es el que dice la oficial
+  ✓ un rango de dos dias NO se declara mes calendario
+  ✓ un rango parcial NO delega: se calcula en vivo y se dice
+  ✓ un rango parcial no finge saber si el mes esta sellado ni haber restado la deuda
+  ✓ con filtro de origen el rango SIGUE siendo mes calendario
+  ✓ con filtro de origen NO se delega, aunque el rango sea un mes completo
+  ✓ con filtro de origen la deuda no esta descontada, y se dice
+  ✓ el lector global recibe las cuatro claves y la MISMA fuente que gerencia
+  ✓ el lector global ve la misma cifra que gerencia, no otra
+  ✓ coordinador recibe las mismas cifras de conversión que Gerencia
+  ✓ vend1 no ejecuta metricas_conversiones_fn (denegado: 42501)
+  ✓ vend3 no ejecuta metricas_conversiones_fn (denegado: 42501)
+  ✓ sup1 no ejecuta metricas_conversiones_fn (denegado: 42501)
+  ✓ sup2 no ejecuta metricas_conversiones_fn (denegado: 42501)
+  ✓ sup1Nested no ejecuta metricas_conversiones_fn (denegado: 42501)
+  ✓ vendInactive no ejecuta metricas_conversiones_fn (denegado: 42501)
+  ✓ clientBank no ejecuta metricas_conversiones_fn (denegado: 42501)
+  ✓ un supervisor recibe 42501 y NO 22023 con un periodo invalido (denegado: 42501)
+  ✓ un analista sigue denegado aunque pida p_origen (denegado: 42501)
+  ✓ gerencia recibe 22023 con p_hasta en el futuro (rechazo esperado: 22023)
+
+— Cartera paginada por keyset (F2 tramo 1) —
+  ✓ vend1: la pagina cuadra fila a fila (y en orden) con su propio SELECT
+  ✓ vend1: la pagina trae todo lo visible que cabe en el limite pedido
+  ✓ vend1: ninguna fila servida cae fuera de lo que su RLS ya mostraba
+  ✓ vend1: las dos paginas no repiten ningun lead
+  ✓ vend1: las dos paginas reconstruyen el orden del oraculo sin huecos
+  ✓ vend1: el eco de procedencia es exactamente el pedido
+  ✓ vend1: toda fila trae procedencia valida y cargado_por (lo del sistema, sin autor)
+  ✓ vend1: cada recorte solo trae su propia procedencia
+  ✓ vend1: sistema + manual reconstruyen toda su cartera
+  ✓ vend1: ningun recorte por procedencia se sale de lo que su RLS ya mostraba
+  ✓ vend1: con procedencia sigue viendo solo leads propios
+  ✓ vend1 recibe 22023 con una procedencia fuera de dominio (denegado: 22023)
+  ✓ vend1: con gestion + sin gestion reconstruyen toda su cartera
+  ✓ vend1: ningun lead aparece en las dos mitades de la gestion
+  ✓ vend1: toda fila con gestion trae titular y un ultimo contacto dentro de su tenencia
+  ✓ vend1: el filtro de gestion no cambia la forma del payload (sin eco, sin campos nuevos)
+  ✓ vend1: ningun recorte por gestion se sale de lo que su RLS ya mostraba
+  ✓ vend1: con el filtro de gestion sigue viendo solo leads propios
+  ✓ vend1: el oraculo de gestion leyo todos sus leads y contactos
+  ✓ vend1: toda fila de con_gestion tiene, segun sus propias lecturas, titular y un contacto vigente dentro de la tenencia
+  ✓ vend1: ninguna fila de sin_gestion lo tiene
+  ✓ vend1: cada lead de su cartera cae en exactamente una mitad de la gestion
+  ✓ vend1: el lead que vend1 ya intento esta en con_gestion (y no en sin_gestion)
+  ✓ vend1 recibe 22023 con una gestion fuera de dominio (rechazo esperado: 22023)
+  ✓ sup1: la pagina cuadra fila a fila (y en orden) con su propio SELECT
+  ✓ sup1: la pagina trae todo lo visible que cabe en el limite pedido
+  ✓ sup1: ninguna fila servida cae fuera de lo que su RLS ya mostraba
+  ✓ sup1: las dos paginas no repiten ningun lead
+  ✓ sup1: las dos paginas reconstruyen el orden del oraculo sin huecos
+  ✓ sup1: el eco de procedencia es exactamente el pedido
+  ✓ sup1: toda fila trae procedencia valida y cargado_por (lo del sistema, sin autor)
+  ✓ sup1: cada recorte solo trae su propia procedencia
+  ✓ sup1: sistema + manual reconstruyen toda su cartera
+  ✓ sup1: ningun recorte por procedencia se sale de lo que su RLS ya mostraba
+  ✓ sup1 recibe 22023 con una procedencia fuera de dominio (denegado: 22023)
+  ✓ sup1: con gestion + sin gestion reconstruyen toda su cartera
+  ✓ sup1: ningun lead aparece en las dos mitades de la gestion
+  ✓ sup1: toda fila con gestion trae titular y un ultimo contacto dentro de su tenencia
+  ✓ sup1: el filtro de gestion no cambia la forma del payload (sin eco, sin campos nuevos)
+  ✓ sup1: ningun recorte por gestion se sale de lo que su RLS ya mostraba
+  ✓ sup1: el oraculo de gestion leyo todos sus leads y contactos
+  ✓ sup1: toda fila de con_gestion tiene, segun sus propias lecturas, titular y un contacto vigente dentro de la tenencia
+  ✓ sup1: ninguna fila de sin_gestion lo tiene
+  ✓ sup1: cada lead de su cartera cae en exactamente una mitad de la gestion
+  ✓ sup1: el lead que vend1 ya intento esta en con_gestion (y no en sin_gestion)
+  ✓ sup1 recibe 22023 con una gestion fuera de dominio (rechazo esperado: 22023)
+  ✓ sup2: la pagina cuadra fila a fila (y en orden) con su propio SELECT
+  ✓ sup2: la pagina trae todo lo visible que cabe en el limite pedido
+  ✓ sup2: ninguna fila servida cae fuera de lo que su RLS ya mostraba
+  ✓ sup2: las dos paginas no repiten ningun lead
+  ✓ sup2: las dos paginas reconstruyen el orden del oraculo sin huecos
+  ✓ sup2: el eco de procedencia es exactamente el pedido
+  ✓ sup2: toda fila trae procedencia valida y cargado_por (lo del sistema, sin autor)
+  ✓ sup2: cada recorte solo trae su propia procedencia
+  ✓ sup2: sistema + manual reconstruyen toda su cartera
+  ✓ sup2: ningun recorte por procedencia se sale de lo que su RLS ya mostraba
+  ✓ sup2 recibe 22023 con una procedencia fuera de dominio (denegado: 22023)
+  ✓ sup2: con gestion + sin gestion reconstruyen toda su cartera
+  ✓ sup2: ningun lead aparece en las dos mitades de la gestion
+  ✓ sup2: toda fila con gestion trae titular y un ultimo contacto dentro de su tenencia
+  ✓ sup2: el filtro de gestion no cambia la forma del payload (sin eco, sin campos nuevos)
+  ✓ sup2: ningun recorte por gestion se sale de lo que su RLS ya mostraba
+  ✓ sup2: el oraculo de gestion leyo todos sus leads y contactos
+  ✓ sup2: toda fila de con_gestion tiene, segun sus propias lecturas, titular y un contacto vigente dentro de la tenencia
+  ✓ sup2: ninguna fila de sin_gestion lo tiene
+  ✓ sup2: cada lead de su cartera cae en exactamente una mitad de la gestion
+  ✓ sup2: el lead intentado por vend1 no aparece en ninguna mitad (fuera de su ambito)
+  ✓ sup2 recibe 22023 con una gestion fuera de dominio (rechazo esperado: 22023)
+  ✓ gerencia: la pagina cuadra fila a fila (y en orden) con su propio SELECT
+  ✓ gerencia: la pagina trae todo lo visible que cabe en el limite pedido
+  ✓ gerencia: ninguna fila servida cae fuera de lo que su RLS ya mostraba
+  ✓ gerencia: las dos paginas no repiten ningun lead
+  ✓ gerencia: las dos paginas reconstruyen el orden del oraculo sin huecos
+  ✓ gerencia: el eco de procedencia es exactamente el pedido
+  ✓ gerencia: toda fila trae procedencia valida y cargado_por (lo del sistema, sin autor)
+  ✓ gerencia: cada recorte solo trae su propia procedencia
+  ✓ gerencia: sistema + manual reconstruyen toda su cartera
+  ✓ gerencia: ningun recorte por procedencia se sale de lo que su RLS ya mostraba
+  ✓ gerencia recibe 22023 con una procedencia fuera de dominio (denegado: 22023)
+  ✓ gerencia: con gestion + sin gestion reconstruyen toda su cartera
+  ✓ gerencia: ningun lead aparece en las dos mitades de la gestion
+  ✓ gerencia: toda fila con gestion trae titular y un ultimo contacto dentro de su tenencia
+  ✓ gerencia: el filtro de gestion no cambia la forma del payload (sin eco, sin campos nuevos)
+  ✓ gerencia: ningun recorte por gestion se sale de lo que su RLS ya mostraba
+  ✓ gerencia: el oraculo de gestion leyo todos sus leads y contactos
+  ✓ gerencia: toda fila de con_gestion tiene, segun sus propias lecturas, titular y un contacto vigente dentro de la tenencia
+  ✓ gerencia: ninguna fila de sin_gestion lo tiene
+  ✓ gerencia: cada lead de su cartera cae en exactamente una mitad de la gestion
+  ✓ gerencia: el lead que vend1 ya intento esta en con_gestion (y no en sin_gestion)
+  ✓ gerencia: con_gestion no esta vacio (5 leads)
+  ✓ gerencia recibe 22023 con una gestion fuera de dominio (rechazo esperado: 22023)
+  ✓ directorio: la pagina cuadra fila a fila (y en orden) con su propio SELECT
+  ✓ directorio: la pagina trae todo lo visible que cabe en el limite pedido
+  ✓ directorio: ninguna fila servida cae fuera de lo que su RLS ya mostraba
+  ✓ directorio: las dos paginas no repiten ningun lead
+  ✓ directorio: las dos paginas reconstruyen el orden del oraculo sin huecos
+  ✓ directorio: el eco de procedencia es exactamente el pedido
+  ✓ directorio: toda fila trae procedencia valida y cargado_por (lo del sistema, sin autor)
+  ✓ directorio: cada recorte solo trae su propia procedencia
+  ✓ directorio: sistema + manual reconstruyen toda su cartera
+  ✓ directorio: ningun recorte por procedencia se sale de lo que su RLS ya mostraba
+  ✓ directorio recibe 22023 con una procedencia fuera de dominio (denegado: 22023)
+  ✓ directorio: con gestion + sin gestion reconstruyen toda su cartera
+  ✓ directorio: ningun lead aparece en las dos mitades de la gestion
+  ✓ directorio: toda fila con gestion trae titular y un ultimo contacto dentro de su tenencia
+  ✓ directorio: el filtro de gestion no cambia la forma del payload (sin eco, sin campos nuevos)
+  ✓ directorio: ningun recorte por gestion se sale de lo que su RLS ya mostraba
+  ✓ directorio: el oraculo de gestion leyo todos sus leads y contactos
+  ✓ directorio: toda fila de con_gestion tiene, segun sus propias lecturas, titular y un contacto vigente dentro de la tenencia
+  ✓ directorio: ninguna fila de sin_gestion lo tiene
+  ✓ directorio: cada lead de su cartera cae en exactamente una mitad de la gestion
+  ✓ directorio: el lead que vend1 ya intento esta en con_gestion (y no en sin_gestion)
+  ✓ directorio recibe 22023 con una gestion fuera de dominio (rechazo esperado: 22023)
+  ✓ coordinador: la pagina cuadra fila a fila (y en orden) con su propio SELECT
+  ✓ coordinador: la pagina trae todo lo visible que cabe en el limite pedido
+  ✓ coordinador: ninguna fila servida cae fuera de lo que su RLS ya mostraba
+  ✓ coordinador: las dos paginas no repiten ningun lead
+  ✓ coordinador: las dos paginas reconstruyen el orden del oraculo sin huecos
+  ✓ coordinador: el eco de procedencia es exactamente el pedido
+  ✓ coordinador: toda fila trae procedencia valida y cargado_por (lo del sistema, sin autor)
+  ✓ coordinador: cada recorte solo trae su propia procedencia
+  ✓ coordinador: sistema + manual reconstruyen toda su cartera
+  ✓ coordinador: ningun recorte por procedencia se sale de lo que su RLS ya mostraba
+  ✓ coordinador recibe 22023 con una procedencia fuera de dominio (denegado: 22023)
+  ✓ coordinador: con gestion + sin gestion reconstruyen toda su cartera
+  ✓ coordinador: ningun lead aparece en las dos mitades de la gestion
+  ✓ coordinador: toda fila con gestion trae titular y un ultimo contacto dentro de su tenencia
+  ✓ coordinador: el filtro de gestion no cambia la forma del payload (sin eco, sin campos nuevos)
+  ✓ coordinador: ningun recorte por gestion se sale de lo que su RLS ya mostraba
+  ✓ coordinador: el oraculo de gestion leyo todos sus leads y contactos
+  ✓ coordinador: toda fila de con_gestion tiene, segun sus propias lecturas, titular y un contacto vigente dentro de la tenencia
+  ✓ coordinador: ninguna fila de sin_gestion lo tiene
+  ✓ coordinador: cada lead de su cartera cae en exactamente una mitad de la gestion
+  ✗ coordinador: el lead intentado por vend1 no aparece en ninguna mitad (fuera de su ambito)
+  ✓ coordinador recibe 22023 con una gestion fuera de dominio (rechazo esperado: 22023)
+  ✓ vendInactive: no admitido al CRM → 42501 en cartera_filtrada_fn sin p_gestion (rechazo esperado: 42501)
+  ✓ vendInactive: no admitido al CRM → 42501 en cartera_filtrada_fn con con_gestion (rechazo esperado: 42501)
+  ✓ vendInactive: no admitido al CRM → 42501 en cartera_filtrada_fn con sin_gestion (rechazo esperado: 42501)
+  ✓ clientBank: no admitido al CRM → 42501 en cartera_filtrada_fn sin p_gestion (rechazo esperado: 42501)
+  ✓ clientBank: no admitido al CRM → 42501 en cartera_filtrada_fn con con_gestion (rechazo esperado: 42501)
+  ✓ clientBank: no admitido al CRM → 42501 en cartera_filtrada_fn con sin_gestion (rechazo esperado: 42501)
+  ✓ vend1 con p_vendedor_id de vend3 y con_gestion: cero leads
+  ✓ vend1 con p_vendedor_id de vend3 y sin_gestion: cero leads
+  ✓ vend3 tiene leads propios que vend1 no puede alcanzar con el filtro
+  ✓ anon recibe 42501 en cartera_filtrada_fn con procedencia (denegado: 42501)
+  ✓ anon recibe 42501 en cartera_filtrada_fn con gestion (denegado: 42501)
+  ✓ cartera_filtrada_fn: una sola firma (dos candidatas romperian PostgREST)
+  ✗ cartera_filtrada_fn: la firma viva es la de 13 argumentos (con p_gestion)
+  ✓ gerencia recibe una cartera no vacia (23 leads)
+  ✓ ultimo_contacto_en viaja en todas las filas de la pagina
+  ✓ ultimo_contacto_en es el ultimo CONTACTO real de cada lead (nunca una nota)
+  ✓ al menos un lead de la pagina tiene contacto real (el check anterior no es vacio)
+  ✓ el filtro por etapa devuelve exactamente los nuevos visibles
+  ✓ el filtro sin_asignar solo devuelve parkeados (5)
+  ✓ el filtro por analista solo devuelve su cartera (13)
+  ✓ vend1 no obtiene ni una fila filtrando por un analista ajeno
+  ✓ la busqueda por nombre encuentra el lead propio
+  ✓ la busqueda jamas alcanza un lead fuera del ambito
+  ✓ la busqueda por telefono encuentra el lead propio
+  ✓ el telefono exacto de un lead ajeno no lo saca del ambito
+  ✓ un prefijo que casa con TODA la tabla sigue devolviendo solo su ambito
+  ✓ los comodines de LIKE del texto se tratan como literales
+  ✓ vendInactive recibe 42501 en cartera_pagina_fn (denegado: 42501)
+  ✓ clientBank recibe 42501 en cartera_pagina_fn (denegado: 42501)
+  ✓ cartera_pagina_fn rechaza p_limite=0 (rechazo esperado: 22023)
+  ✓ cartera_pagina_fn rechaza p_limite=201 (rechazo esperado: 22023)
+  ✓ cartera_pagina_fn rechaza un cursor a medias (rechazo esperado: 22023)
+  ✓ cartera_pagina_fn rechaza una etapa fuera del catalogo (rechazo esperado: 22023)
+  ✓ cartera_pagina_fn rechaza una busqueda de 1 caracter (rechazo esperado: 22023)
+  ✓ cartera_pagina_fn rechaza sin_asignar junto a un analista (rechazo esperado: 22023)
+  ✓ "A_" se busca como literal, no como patron
+  ✓ "A\\" se busca como literal, no como patron
+  ✓ un cursor ajeno no amplia el ambito de la pagina
+  ✓ Coordinación recibe la misma página de leads que Gerencia
+  ✓ el contacto real llena ultimo_contacto_en (ya no es null)
+  ✓ analista, supervisor y gerencia ven EXACTAMENTE el mismo ultimo contacto
+
+— Reparto libre de Coordinación: control exclusivo de Gerencia —
+  ✗ gerencia lee el control de reparto: query fallo — P0002 · query returned no rows
+
+— Reparto de la cola global (C1: rol coordinador) —
+  ✓ coordinador no ve clientes_basicos (PII del portal) (0 filas por RLS)
+  ✓ coordinador no ve los contratos de cartera (capital + nombre de cliente) (0 filas por RLS)
+  ✓ coordinador no puede sondear DNIs (existe_cliente_por_dni) (bloqueado: 42501)
+  ✓ coordinador no lee las metricas de agenda del equipo (bloqueado: 42501)
+  ✓ coordinador no lee las metricas de distribucion (metricas_distribucion_leads_fn) (bloqueado: 42501)
+  ✓ coordinador no lee las metricas de distribucion (metricas_distribucion_leads_v2_fn) (bloqueado: 42501)
+  ✓ coordinador no lee las metricas de distribucion (metricas_distribucion_leads_v3_fn) (bloqueado: 42501)
+  ✓ vendedor no lee la conversion por analista de Coordinacion (bloqueado: 42501)
+  ✓ supervisor no lee la conversion por analista de Coordinacion (bloqueado: 42501)
+  ✓ directorio (lector global, fuera del gate del reparto) no lee la conversion por analista de Coordinacion (bloqueado: 42501)
+  ✓ vendInactive (membresia revocada) no lee la conversion por analista de Coordinacion (bloqueado: 42501)
+  ✓ coordinador: un mes futuro se rechaza con 22023 (bloqueado: 22023)
+  ✓ coordinador: un dia que no es el primero del mes se rechaza con 22023 (bloqueado: 22023)
+  ✓ la conversion de Coordinacion declara version 1 y alcance global
+  ✓ analistas es SIEMPRE un array
+  ✓ cada analista trae SOLO las 15 claves del contrato (v2 con desglose)
+  ✓ PARIDAD: formulario + landing = divisor en cada analista (mes abierto)
+  ✓ PARIDAD v2: cierres (con base cargada desde B11) + referidos×peso + upgrade + renovación×peso = numerador bruto; neto = bruto − ajuste
+  ✓ la puerta declara los dos pesos vigentes (referido y renovación)
+  ✓ PARIDAD: la empresa suma analistas + sin analista
+  ✓ la conversion de Coordinacion no expone PII ni filas de leads
+  ✓ gerencia y coordinador reciben el MISMO payload (ambito de toda la empresa)
+  ✓ el rango eco-a desde/hasta inclusivos y declara el modo
+  ✓ PARIDAD v2: el rango del 1 a hoy tiene el mismo divisor que el mes
+  ✓ coordinador: un rango con la fecha inicial posterior a la final se rechaza con 22023 (bloqueado: 22023)
+  ✓ coordinador: un rango con fecha futura se rechaza con 22023 (bloqueado: 22023)
+  ✓ coordinador: un rango de más de 366 días se rechaza con 22023 (bloqueado: 22023)
+  ✓ coordinador: un rango con una sola fecha se rechaza con 22023 (bloqueado: 22023)
+  ✓ gerencia y coordinador reciben el mismo rango
+  ✓ coordinador: mes y rango a la vez se rechaza con 22023 (bloqueado: 22023)
+  ✓ vendedor: el modo rango tampoco entra (42501 antes que validar) (bloqueado: 42501)
+  ✓ sin p_periodo la puerta sirve el mes vigente
+  ✓ vendedor no lee la distribucion v3 (solo gerencia o lector global) (bloqueado: 42501)
+  ✓ supervisor no lee la distribucion v3 (solo gerencia o lector global) (bloqueado: 42501)
+  ✓ gerencia: v3 con sondas + resumen.conversion, sin SLA, version 3
+  ✓ directorio (lector global): v3 con sondas + resumen.conversion, sin SLA, version 3
+  ✓ coordinador no obtiene filas de metricas_capital_mes_fn (0 filas por RLS)
+  ✓ coordinador no obtiene filas de metricas_pagos_mes_fn (0 filas por RLS)
+  ✓ coordinador no obtiene filas de metricas_vencimientos_fn (0 filas por RLS)
+  ✓ coordinador no alcanza metricas_altas_analista_fn (cerrada F7.1 o demolida en la Ola 2b) (denegado: PGRST202)
+  ✓ coordinador no puede convertir un lead en cliente (bloqueado: 42501)
+  ✓ coordinador no puede cerrar tareas ajenas por la RPC (bloqueado: 42501)
+  ✓ coordinador no puede crear tareas de agenda (bloqueado: 42501)
+  ✓ coordinador no se auto-inserta un lead (analista = él mismo) (bloqueado: 42501)
+  ✓ coordinador no inserta un lead directo en la cola global (bloqueado: 42501)
+  ✓ vend1 no puede ver la cola por repartir (bloqueado: 42501)
+  ✓ vend1 no puede listar los supervisores de reparto (bloqueado: 42501)
+  ✓ vend1 no puede repartir un lead (bloqueado: 42501)
+  ✓ sup1 no puede ver la cola por repartir (bloqueado: 42501)
+  ✓ sup1 no puede listar los supervisores de reparto (bloqueado: 42501)
+  ✓ sup1 no puede repartir un lead (bloqueado: 42501)
+  ✓ directorio no puede ver la cola por repartir (bloqueado: 42501)
+  ✓ directorio no puede listar los supervisores de reparto (bloqueado: 42501)
+  ✓ directorio no puede repartir un lead (bloqueado: 42501)
+  ✓ la cola incluye el lead contactable
+  ✓ no_contactar: NUNCA aparece listado en leads_por_repartir (Ley 29571)
+  ✓ la cola no proyecta PII de contacto (telefono/correo/dni)
+  ✓ el lead quedo en la bandeja del supervisor, con vendedor_id null (tenencia exclusiva)
+  ✓ la traza del movimiento acredita al coordinador como autor
+  ✓ no_contactar: bloqueado con el codigo LEGAL P0429 (no un 42501 de permisos)
+  ✓ no_contactar: el lead permanecio en la cola global, sin bandeja
+  ✓ no se puede repartir a un destino que no es supervisor (bloqueado: 22023)
+  ✓ no se puede repartir un lead que ya tiene dueno (bloqueado: P0002)
+  ✓ carrera de reparto: exactamente uno gana
+  ✓ carrera: el perdedor recibe P0002 (o 40001 si el aislamiento es mayor)
+  ✓ carrera: quedo UN solo supervisor asignado y ningun analista
+  ✓ re-encolado: el lead quedo sin dueno, listo para la cola global
+  ✓ re-encolado: la etapa retrocedio y el lead ya no sostiene una reunion inexistente
+  ✓ re-encolado: la tarea quedo cancelada POR SISTEMA, conservando su bandeja como historia
+  ✓ re-encolado: el retroceso quedo sellado como AUTOMATICO, no imputado a la persona
+  ✓ la semilla con contacto llego de verdad a reunion_agendada (si no, la sonda no probaria nada)
+  ✓ re-encolado: con contacto en el ciclo la etapa cae a contactado, NO a nuevo
+  ✓ la semilla de reunion realizada llego de verdad a reunion_agendada
+  ✓ re-encolado: con la reunion YA realizada la etapa NO retrocede (el hecho es verdadero)
+  ✓ la semilla de la no-regresion llego de verdad a reunion_agendada
+  ✓ reasignar NO retrocede la etapa: solo el re-encolado real la mueve
+  ✓ reasignar NO cancela la reunion: la tarea sigue viva y espeja al nuevo dueno
+
+— Descarte de la cola global (C1-bis: pide_credito) —
+  ✓ vend1 no puede descartar un lead de la cola (bloqueado: 42501)
+  ✓ vend1 no puede deshacer un descarte (bloqueado: 42501)
+  ✓ sup1 no puede descartar un lead de la cola (bloqueado: 42501)
+  ✓ sup1 no puede deshacer un descarte (bloqueado: 42501)
+  ✓ directorio no puede descartar un lead de la cola (bloqueado: 42501)
+  ✓ directorio no puede deshacer un descarte (bloqueado: 42501)
+  ✓ el clasificador marco "préstamo" en el INSERT real (posible_credito)
+  ✓ la pregunta de la cooperativa NO quedo marcada (falso positivo)
+  ✓ el comentario de la cola viaja redactado (correo y celular ocultos)
+  ✓ no queda PII legible dentro del comentario de la cola
+  ✓ clasificacion_auto es inmutable incluso para service_role (dato de medicion)
+  ✓ el primer descarte no vino marcado como ya_estaba
+  ✓ el sello del descarte acredita al coordinador
+  ✓ el lead quedo descartado con motivo y sello nominal
+  ✓ el descarte NO desactiva el lead (nada se pierde)
+  ✓ la marca del clasificador sobrevive al cierre (matriz de confusion)
+  ✓ la nota del cliente se appendeo sin pisarse
+  ✓ el reintento devolvio ya_estaba=true sin doble traza
+  ✓ re-descartar con OTRO motivo es un conflicto (P0002) (bloqueado: P0002)
+  ✓ el lead descartado ya no aparece en la cola
+  ✓ gerencia no puede deshacer el descarte del coordinador (bloqueado: P0002)
+  ✓ el deshacer reabrio en etapa nuevo e incremento el ciclo
+  ✓ el deshacer limpio motivo y sello (describe el cierre VIGENTE)
+  ✓ carrera de descarte: exactamente uno gana
+  ✓ carrera de descarte: el perdedor recibe P0002 (o 40001 si el aislamiento es mayor)
+  ✓ carrera: quedo UN descarte consistente con el ganador
+  ✓ vend1 no puede listar los descartados de la cola (bloqueado: 42501)
+  ✓ sup1 no puede listar los descartados de la cola (bloqueado: 42501)
+  ✓ directorio no puede listar los descartados de la cola (bloqueado: 42501)
+  ✓ el descarte fresco aparece en el listado
+  ✓ el descarte propio y reciente llega con es_mio y puede_deshacer
+  ✓ la marca del clasificador y el motivo viajan en el listado
+  ✓ creado_en viaja y nota_descarte es null cuando no hubo nota de cierre
+  ✓ el listado no proyecta PII de contacto
+  ✓ para OTRO actor el mismo descarte llega sin es_mio ni puede_deshacer
+
+— Frontera portal/CRM y datos bancarios —
+  ✓ clientes_basicos devuelve una fila conocida (prueba no vacia)
+  ✓ clientes_basicos no expone columnas bancarias
+  ✓ clientes_basicos rechaza incluso una proyeccion explicita de banco
+  ✓ clientes_basicos scopea por cartera: vend3 no ve el cliente de vend1 (0 filas por RLS)
+  ✓ cliente del portal lee crm.clientes_basicos: 0 filas (guardia de la fn) (0 filas por RLS)
+  ✓ cliente del portal lee crm.contratos_cartera: 0 filas (guardia de la fn) (0 filas por RLS)
+  ✓ rol CRM (comercial) no lee el perfil crudo de otro miembro del equipo (0 filas por RLS)
+  ✓ rol CRM no lee columnas bancarias del cliente crudo (0 filas por RLS)
+  ✓ Directorio tampoco lee el perfil crudo del cliente (0 filas por RLS)
+  ✓ Supervisor recibe una fila bancaria completa dentro de su árbol
+  ✓ analista de otro árbol no descubre el cliente por cliente_detalle_fn (0 filas por RLS)
+  ✓ Directorio recibe identidad mínima con domicilio y banca redactados
+  ✓ rol CRM no lee el contrato sensible desde public.contratos (0 filas por RLS)
+  ✓ rol CRM no alcanza datos bancarios mediante contratos crudos (0 filas por RLS)
+  ✓ RPC de DNI confirma el cliente fixture
+  ✓ cliente del portal no usa el RPC de enumeracion de DNI (bloqueado: 42501)
+  ✓ contrato_tiene_pagos: el dueño sigue viendo la señal real (true)
+  ✓ contrato_tiene_pagos devuelve false para un authenticated fuera de ámbito
+  ✓ contrato_tiene_pagos: service_role sin JWT recibe false (lee tablas directo)
+  ✓ service_role no agrega banca PEN en perfiles (bloqueado: 22023)
+  ✓ service_role no agrega banca USD en perfiles (bloqueado: 22023)
+  ✓ el cliente tampoco escribe banca en perfiles (bloqueado: 22023)
+
+— Cuenta bancaria fija por contrato —
+  ✓ retirar_cuenta_cliente: vendedor → 42501 (la negativa de modo no asoma por la API) (rechazo esperado: 42501)
+  ✓ cambiar_cuenta_pago_contratos: vendedor → 42501 (la negativa de modo no asoma por la API) (rechazo esperado: 42501)
+  ✓ el listado autorizado incluye la cuenta PEN conocida del cliente
+  ✓ la RPC devuelve la cuenta completa en la moneda solicitada
+  ✓ analista ajeno no lista cuentas fuera de su cartera (denegado: 42501)
+  ✓ directorio no lista cuentas bancarias de clientes (denegado: 42501)
+  ✓ banca P04 false/true: no lista cuentas contractuales (rechazo esperado: 42501)
+  ✓ banca P04 false/true: no crea contrato con cuenta (via pdf_v2) (rechazo esperado: 42501)
+  ✓ banca P04 false/true: no corrige contrato ya enlazado (via pdf_v3) (rechazo esperado: 42501)
+  ✓ banca P04 false/true: no corrige contrato legacy sin enlace (via pdf_v3) (rechazo esperado: 42501)
+  ✓ banca P04 false/true: no resuelve cuentas contractuales para Pagos (rechazo esperado: 42501)
+  ✓ banca P04 false/true: no lee el motivo del bloqueo de pagos (rechazo esperado: 42501)
+  ✓ banca P04 false/true: no asigna la cuenta de pago de un contrato (rechazo esperado: 42501)
+  ✓ banca P04 true/false: no lista cuentas contractuales (rechazo esperado: 42501)
+  ✓ banca P04 true/false: no crea contrato con cuenta (via pdf_v2) (rechazo esperado: 42501)
+  ✓ banca P04 true/false: no corrige contrato ya enlazado (via pdf_v3) (rechazo esperado: 42501)
+  ✓ banca P04 true/false: no corrige contrato legacy sin enlace (via pdf_v3) (rechazo esperado: 42501)
+  ✓ banca P04 true/false: no resuelve cuentas contractuales para Pagos (rechazo esperado: 42501)
+  ✓ banca P04 true/false: no lee el motivo del bloqueo de pagos (rechazo esperado: 42501)
+  ✓ banca P04 true/false: no asigna la cuenta de pago de un contrato (rechazo esperado: 42501)
+  ✓ admin con membresia CRM activa: el listado incluye la cuenta contractual
+  ✓ admin con membresia CRM activa: Pagos recibe la fotografia contractual esperada
+  ✓ admin con membresia CRM activa: un contrato con cuenta de pago no trae motivo
+  ✓ admin con membresia CRM activa: el contrato legacy sin enlace trae su caso y su motivo
+  ✓ admin con membresia CRM activa: el motivo no expone el CCI del cliente
+  ✓ admin con membresia CRM activa: la puerta de motivos nunca clasifica todos los contratos
+  ✓ admin con membresia CRM activa: la puerta de motivos rechaza más de 5000 contratos (rechazo esperado: 22023)
+  ✓ admin con membresia CRM activa: la asignación de cuenta de pago llega al núcleo y exige el motivo (rechazo esperado: 22023)
+  ✓ banca P04 admin con membresia revocada: no lista cuentas contractuales (rechazo esperado: 42501)
+  ✓ banca P04 admin con membresia revocada: no crea contrato con cuenta (via pdf_v2) (rechazo esperado: 42501)
+  ✓ banca P04 admin con membresia revocada: no corrige contrato ya enlazado (via pdf_v3) (rechazo esperado: 42501)
+  ✓ banca P04 admin con membresia revocada: no corrige contrato legacy sin enlace (via pdf_v3) (rechazo esperado: 42501)
+  ✓ banca P04 admin con membresia revocada: no resuelve cuentas contractuales para Pagos (rechazo esperado: 42501)
+  ✓ banca P04 admin con membresia revocada: no lee el motivo del bloqueo de pagos (rechazo esperado: 42501)
+  ✓ banca P04 admin con membresia revocada: no asigna la cuenta de pago de un contrato (rechazo esperado: 42501)
+  ✓ admin global sin membresia CRM (fallback P04): el listado incluye la cuenta contractual
+  ✓ admin global sin membresia CRM (fallback P04): Pagos recibe la fotografia contractual esperada
+  ✓ admin global sin membresia CRM (fallback P04): un contrato con cuenta de pago no trae motivo
+  ✓ admin global sin membresia CRM (fallback P04): el contrato legacy sin enlace trae su caso y su motivo
+  ✓ admin global sin membresia CRM (fallback P04): el motivo no expone el CCI del cliente
+  ✓ admin global sin membresia CRM (fallback P04): la puerta de motivos nunca clasifica todos los contratos
+  ✓ admin global sin membresia CRM (fallback P04): la puerta de motivos rechaza más de 5000 contratos (rechazo esperado: 22023)
+  ✓ admin global sin membresia CRM (fallback P04): la asignación de cuenta de pago llega al núcleo y exige el motivo (rechazo esperado: 22023)
+  ✓ analista sin membresia CRM: la cartera sigue cerrando la banca ajena (rechazo esperado: 42501)
+  ✓ analista vigente registra para cliente ajeno: la Opcion B ya NO cierra el alta por cartera (rechazo esperado: 23514)
+  ✓ admin con membresia CRM revocada: la revocacion prevalece sobre la banca (rechazo esperado: 42501)
+  ✓ admin con membresia CRM revocada: la revocacion prevalece sobre Pagos (rechazo esperado: 42501)
+  ✓ admin con membresia CRM revocada: la revocacion prevalece sobre el motivo del bloqueo (rechazo esperado: 42501)
+  ✓ admin con membresia CRM revocada: no asigna la cuenta de pago de un contrato (rechazo esperado: 42501)
+  ✓ admin con membresia CRM revocada: no corrige terminos del contrato (rechazo esperado: 42501)
+  ✓ admin con membresia CRM revocada: no corrige N/notas aunque haya cuotas pagadas (rechazo esperado: 42501)
+  ✓ admin revocado: el contrato quedo intacto (el rechazo no escribio nada)
+  ✓ admin sin membresia CRM: la correccion de terminos NO se le cierra (rechazo esperado: P0001)
+  ✓ admin sin membresia CRM: la correccion de N/notas NO se le cierra (rechazo esperado: P0001)
+  ✓ admin sin membresia con perfil APAGADO: no lista cuentas bancarias (rechazo esperado: 42501)
+  ✓ admin sin membresia con perfil APAGADO: no resuelve cuentas para Pagos (rechazo esperado: 42501)
+  ✓ admin sin membresia con perfil APAGADO: no lee el motivo del bloqueo de pagos (rechazo esperado: 42501)
+  ✓ admin sin membresia con perfil APAGADO: no asigna la cuenta de pago de un contrato (rechazo esperado: 42501)
+  ✓ authenticated no tiene SELECT directo sobre crm.cuentas_bancarias (denegado: 42501)
+  ✓ authenticated no tiene SELECT directo sobre crm.contrato_cuentas_pago (denegado: 42501)
+  ✓ el alta rechaza una instantanea obsoleta de la cuenta del perfil (via pdf_v2) (rechazo esperado: P0001)
+  ✓ el alta rechaza un UUID de cuenta existente forjado (via pdf_v2) (rechazo esperado: 22023)
+  ✓ la cuenta sentinela es unica antes de probar el rollback
+  ✓ una falla del contrato revierte tambien la cuenta nueva de la misma RPC (via pdf_v2) (rechazo esperado: P0001)
+  ✓ rollback atomico: no quedo ninguna cuenta bancaria sentinela
+  ✓ rollback atomico: no quedo ningun enlace cuenta-contrato
+  ✓ idempotencia: la respuesta trae id, pdf.estado=sin_reserva, job_id=null y SIN marca idempotente
+  ✓ idempotencia: la MISMA clave con OTRO numero se rechaza nombrando el contrato ya creado (el incidente) (rechazo esperado: P0409)
+  ✓ idempotencia: el replay devuelve el MISMO contrato, idempotente=true y el pdf recalculado del mismo contrato
+  ✓ idempotencia: la MISMA clave con OTRO capital tampoco hace replay (P0409) (rechazo esperado: P0409)
+  ✓ idempotencia: hay UN solo contrato tras las cuatro llamadas (el duplicado del 05/09 no nace)
+  ✓ idempotencia: una clave que no es uuid se rechaza (22023) sin escribir (rechazo esperado: 22023)
+  ✓ idempotencia: la clave invalida no dejo contrato
+  ✓ idempotencia: la clave distinta produce un contrato distinto
+  ✓ idempotencia: gerencia no hereda ni el contrato de vend1 ni la marca idempotente
+  ✓ idempotencia: el replay de gerencia devuelve su contrato (no el de vend1) con idempotente=true
+  ✓ idempotencia: vend1 REVOCADO no recupera el alta por replay (denegado: 42501)
+  ✓ idempotencia: tras reactivar, el replay devuelve el contrato original con idempotente=true
+  ✓ idempotencia: el revocado no recreo el contrato
+  ✓ idempotencia: anon NO alcanza private.contrato_altas_idempotentes por la API (PGRST106)
+  ✓ idempotencia: vend1 NO alcanza private.contrato_altas_idempotentes por la API (PGRST106)
+  ✓ idempotencia: gerencia NO alcanza private.contrato_altas_idempotentes por la API (PGRST106)
+  ✓ idempotencia: service_role NO alcanza private.contrato_altas_idempotentes por la API (PGRST106)
+  ✓ idempotencia: dos envios simultaneos con la misma clave devuelven el MISMO contrato
+  ✓ idempotencia: en la carrera exactamente uno de los dos es el replay (idempotente=true)
+  ✓ idempotencia: la carrera dejo UN solo contrato
+  ✓ eliminación auditada: el contrato a borrar existe
+  ✓ anon no invoca eliminación auditada como service_role (denegado: 42501)
+  ✓ vend1 no invoca eliminación auditada como service_role (denegado: 42501)
+  ✓ service_role no prepara la ruta antigua que borraba Storage (denegado: 42501)
+  ✓ eliminación devuelve copia de auditoría
+  ✓ eliminación conserva exactamente una copia atribuida
+  ✓ eliminación por API atribuye el DELETE al actor
+  ✓ replay conserva el mismo acuse
+  ✓ service_role no lee directamente las copias privadas
+  ✓ vend3 no corrige el contrato bancario por el wrapper (via pdf_v3) (denegado: 42501)
+  ✓ directorio no corrige el contrato bancario por el wrapper (via pdf_v3) (denegado: 42501)
+  ✓ vend1 no usa el resolver de cuentas reservado al administrador (denegado: 42501)
+  ✓ vend1 no lee el motivo del bloqueo de pagos reservado al gestor de cartera (denegado: 42501)
+  ✓ directorio no usa el resolver de cuentas reservado al administrador (denegado: 42501)
+  ✓ directorio no lee el motivo del bloqueo de pagos reservado al gestor de cartera (denegado: 42501)
+  ✓ clientBank no lee el motivo del bloqueo de pagos de su propio contrato (denegado: 42501)
+  ✓ vend1 no asigna la cuenta de pago de un contrato (denegado: 42501)
+  ✓ directorio no asigna la cuenta de pago de un contrato (denegado: 42501)
+  ✓ clientBank no asigna la cuenta de pago de un contrato (denegado: 42501)
+
+— Acceso anonimo —
+  ✓ anon no lee crm.leads (denegado por permisos)
+  ✓ anon no lee crm.equipo (denegado por permisos)
+  ✓ anon no lee crm.actividades (denegado por permisos)
+  ✓ anon no lee crm.tareas (denegado por permisos)
+  ✓ anon no lee crm.agenda_ics (denegado por permisos)
+  ✓ anon no ejecuta la configuracion versionada de metas (denegado: 42501)
+  ✓ anon no ejecuta el timeline del ambito (denegado: 42501)
+  ✓ anon no ejecuta el historial por lead (denegado: 42501)
+  ✓ anon no ejecuta las tareas pendientes por cursor (denegado: 42501)
+  ✓ anon no ejecuta la actividad reciente (denegado: 42501)
+  ✓ anon no ejecuta la cartera paginada por keyset (denegado: 42501)
+  ✓ anon no lee directamente crm.cuentas_bancarias (denegado: 42501)
+  ✓ anon no lee directamente crm.contrato_cuentas_pago (denegado: 42501)
+  ✓ anon no ejecuta el listado de cuentas bancarias por cliente (denegado: 42501)
+  ✓ anon no crea contratos con cuenta bancaria (denegado: 42501)
+  ✓ anon no corrige contratos legacy por el wrapper bancario (denegado: 42501)
+  ✓ anon no resuelve cuentas contractuales para Pagos (denegado: 42501)
+  ✓ anon no lee el motivo del bloqueo de pagos (denegado: 42501)
+  ✓ anon no asigna la cuenta de pago de un contrato (denegado: 42501)
+  ✓ anon no puede ver la cola por repartir (bloqueado: 42501)
+  ✓ anon no puede listar los supervisores de reparto (bloqueado: 42501)
+  ✓ anon no puede repartir un lead (bloqueado: 42501)
+  ✓ anon no puede listar los descartados de la cola (bloqueado: 42501)
+  ✓ anon no ejecuta resumen_cartera_fn (denegado: 42501)
+  ✓ anon no ejecuta cola_accion_fn (denegado: 42501)
+  ✓ anon no ejecuta metricas_vendedores_fn (denegado: 42501)
+  ✓ anon no ejecuta series_comerciales_fn (denegado: 42501)
+  ✓ anon no ejecuta metricas_conversiones_equipo_fn (denegado: 42501)
+  ✓ anon no lee datos bancarios public.perfiles (0 filas por RLS)
+
+— Cierres externos en cooperativas (Qorilazo/Prodelco) —
+  ✓ cierres_externos: select directo denegado para vend1 (denegado: 42501)
+  ✓ cierres_externos: select directo denegado para sup1 (denegado: 42501)
+  ✓ cierres_externos: select directo denegado para gerencia (denegado: 42501)
+  ✓ cierres_externos: select directo denegado para coordinador (denegado: 42501)
+  ✓ cierres_externos: select directo denegado para directorio (denegado: 42501)
+  ✓ cierres_externos: select directo denegado para clientBank (denegado: 42501)
+  ✓ cierres_externos: insert directo denegado incluso para gerencia (denegado: 42501)
+  ✓ el alcance de vend1 es propio
+  ✓ el alcance de sup1 es equipo
+  ✓ el alcance de gerencia es global
+  ✓ el alcance del lector global es global
+  ✓ el lector global recibe agregados SIN filas (la PII es de los operadores)
+  ✓ coordinador denegado en cierres_externos_fn (denegado: 42501)
+  ✓ cliente denegado en cierres_externos_fn (denegado: 42501)
+  ✓ vend1 no convierte a coop un lead del equipo ajeno
+  ✓ coordinador no convierte a cooperativa (denegado: 42501)
+  ✓ cliente no convierte a cooperativa (denegado: 42501)
+  ✓ directorio (lector global) no convierte a cooperativa (denegado: 42501)
+  ✓ la conversion externa respondio ok
+  ✓ el lead quedo convertido SIN perfil de portal (el invariante relajado)
+  ✓ el reintento idéntico devuelve el mismo cierre sin duplicarlo
+  ✓ la misma operación con otro monto se rechaza (rechazo esperado: P0409)
+  ✓ el cierre de vend1 aparece en sus filas con su distintivo
+  ✓ la fila trae cooperativa y monto reales
+  ✓ cierres_total global subio exactamente en 1
+  ✓ qorilazo rechaza un cierre en USD (rechazo esperado: 22023)
+  ✓ la fila quedo en USD con su monto y su cooperativa
+  ✓ gerencia NO puede mover ese cierre a qorilazo/USD (rechazo esperado: 22023)
+  ✓ el lector global no recibe ni una fila de cierres, tampoco en USD
+  ✓ los totales traen la linea USD separada, y solo de prodelco
+  ✓ el lead de coop se declara canal cooperativa y sin anular (es lo que apaga el boton de Avance)
+  ✓ vend3 no recibe NADA del lead ajeno (el ambito no se recorta en el cliente)
+  ✓ gerencia recibe exactamente la fila del lead pedido
+  ✓ el lector global ve el estado igual que gerencia (la policy se lo permite)
+  ✓ Coordinación recibe el mismo estado del cierre que Gerencia
+  ✓ cliente denegado en cierres_estado_fn (denegado: 42501)
+  ✓ usuario revocado denegado en cierres_estado_fn (denegado: 42501)
+  ✓ el payload solo trae leads con algo que decir
+  ✓ cierres_estado_fn rechaza mas de 200 ids (rechazo esperado: 22023)
+  ✓ vend1 no corrige un cierre externo (denegado: 42501)
+  ✓ sup1 no corrige un cierre externo (denegado: 42501)
+  ✓ directorio no corrige un cierre externo (denegado: 42501)
+  ✓ la correccion quedo en la foto
+  ✓ la correccion movio prodelco/PEN EXACTAMENTE +1500 y +1 cierre
+  ✓ vend1 no anula un cierre externo (denegado: 42501)
+  ✓ sup1 no anula un cierre externo (denegado: 42501)
+  ✓ directorio no anula un cierre externo (denegado: 42501)
+  ✓ gerencia tampoco anula SIN motivo
+  ✓ el cierre anulado SIGUE en las filas, marcado
+  ✓ ATR-4: anular NO movio ni un centimo de prodelco/PEN (sanciona la conversion del analista; el capital no se toca jamas)
+  ✓ un cierre anulado no se anula dos veces
+  ✓ coordinador no reserva una conversion (denegado: 42501)
+  ✓ cliente no reserva una conversion (denegado: 42501)
+  ✓ vend1 no reserva un lead del equipo ajeno
+  ✓ la reserva legacy no abre otra conversión ni crea accesos sobre el lead cerrado
+  ✓ conversion_reservas: select directo denegado para vend1 (denegado: 42501)
+  ✓ conversion_reservas: insert directo denegado para vend1 (denegado: 42501)
+  ✓ conversion_reservas: select directo denegado para sup1 (denegado: 42501)
+  ✓ conversion_reservas: insert directo denegado para sup1 (denegado: 42501)
+  ✓ conversion_reservas: select directo denegado para gerencia (denegado: 42501)
+  ✓ conversion_reservas: insert directo denegado para gerencia (denegado: 42501)
+  ✓ conversion_reservas: select directo denegado para coordinador (denegado: 42501)
+  ✓ conversion_reservas: insert directo denegado para coordinador (denegado: 42501)
+  ✓ conversion_reservas: select directo denegado para directorio (denegado: 42501)
+  ✓ conversion_reservas: insert directo denegado para directorio (denegado: 42501)
+  ✓ conversion_reservas: select directo denegado para clientBank (denegado: 42501)
+  ✓ conversion_reservas: insert directo denegado para clientBank (denegado: 42501)
+  ✓ un monto NaN por la Data API se rechaza (envenenaba la cuota del equipo)
+  ✓ un actor autorizado tampoco reabre la conversión externa legacy (rechazo esperado: P0409)
+  ✓ la vía legacy rechazada no deja un cierre externo
+
+— Identidad multiempresa: puertas canónicas (lote Contrato-F2) —
+  ✓ #1 carrera: UNA conversión ganó y la otra fue P0409 por identidad/lead ya reconocido
+  ✓ #4 el reintento devolvió reintento=true
+  ✓ #4 misma clave con payload DISTINTO → P0409 (rechazo esperado: P0409)
+  ✓ identidad: coordinador no convierte por coop (denegado: 42501)
+  ✓ identidad: directorio no convierte por coop (denegado: 42501)
+  ✓ identidad: clientBank no convierte por coop (denegado: 42501)
+  ✓ #2 la vía Avance antigua no convierte sin inversión confirmada (rechazo esperado: P0409)
+  ✓ #2 el intento legacy no crea una inversión a medias
+  ✓ #2 la conversión Avance devolvió inversionista_id
+  ✓ #4 reintento Avance idempotente
+  ✓ #2 una persona con conversión no admite un segundo lead (rechazo esperado: P0409)
+  ✓ #2 el segundo lead queda intacto tras rechazar la duplicación
+  ✓ #3 disponibilidad → ya_es_cliente vía IDENTIDAD (un solo lead total)
+  ✓ #3 alta (INSERT con sesión) de un 2.º lead por documento de persona con lead → denegada (bloqueado: 42501)
+  ✓ #3 alta por RPC → ya_es_cliente y NO creó lead (un solo lead total)
+  ✓ #5 coordinador no marca no_contactar (denegado: 42501)
+  ✓ #5 directorio no marca no_contactar (denegado: 42501)
+  ✓ #5 clientBank no marca no_contactar (denegado: 42501)
+  ✓ #5 disponibilidad → no_contactar aunque cambie el teléfono
+  ✓ #5 UPDATE directo para BAJAR el veto → rechazado (bandera on) (bloqueado: 42501)
+  ✓ #5 vendedor no levanta (denegado: 42501)
+  ✓ #5 gerencia sin motivo → 22023 (rechazo esperado: 22023)
+  ✓ #5 B2 sup2 (otro equipo) no levanta → P0002 (no revela el lead) (rechazo esperado: P0002)
+  ✓ #5 B2 directorio no levanta → 42501 (rechazo esperado: 42501)
+  ✓ #5 B2 clientBank no levanta → 42501 (rechazo esperado: 42501)
+  ✓ #5 B2 vendInactive no levanta → 42501 (rechazo esperado: 42501)
+  ✓ #5 B2 coordinador no levanta → 42501 (rechazo esperado: 42501)
+  ✓ #5 B2 sup1 sin motivo → 22023 (rechazo esperado: 22023)
+  ✓ #5 alta de un lead nuevo de la persona vetada (como el importador) → P0429 (b1) (rechazo esperado: P0429)
+  ✓ #5 el lead nuevo de la persona vetada no se insertó (b1 cierra el bypass de importación)
+  ✓ OFF: el registro compartido se rechaza sin efectos (rechazo esperado: P0409)
+
+— Identidad multiempresa F2.b: el alta reconoce a la persona (b1) y el veto de la persona bloquea mutaciones (b2) —
+  ✓ F2.b #0 cinco identidades vigentes+verificadas sin lead
+  ✓ F2.b #0 la persona vetada (sin lead) quedó vetada en la identidad
+  ✓ F2.b #0 la conversión enlazó el lead a su persona
+  ✓ b1 #2 vend1 no puede poner en su lead suelto el dni de una persona reconocida → P0409 (rechazo esperado: P0409)
+  ✓ b1 #2 el lead suelto sigue sin dni y sin enlace
+  ✓ b1 #2b el lead NACIÓ enlazado (inversionista_id = identidad del documento)
+  ✓ b1 #2b apareció el puente canónico en crm.inversionista_leads
+  ✓ b1 #1 vend1 no cambia el dni de un lead enlazado → P0409 (rechazo esperado: P0409)
+  ✓ b1 #1 el lead enlazado conserva dni y enlace
+  ✓ b1 #3 el UPDATE directo rechaza la identidad ocupada con veredicto ya_es_cliente
+  ✓ b1 #3 la puerta rechaza la identidad ocupada con veredicto ya_es_cliente
+  ✓ b1 #3 coordinador: dni de una persona que ya tiene lead → denegado (0 filas afectadas)
+  ✓ b1 #3 nada cambió en el lead (sin dni, sin enlace)
+  ✓ b1 #3 la persona sigue con UN solo lead
+  ✓ b1 #4a el INSERT directo con inversionista_id forjado (sin dni) se rechaza por permisos (RLS/grant por columna)
+  ✓ b1 #4b el INSERT directo con inversionista_id forjado (con dni) se rechaza por permisos (RLS/grant por columna)
+  ✓ b1 #5 anon no ejecuta registrar_reingreso_lead_fn (denegado: 42501)
+  ✓ b1 #5 vend1 (authenticated) no ejecuta registrar_reingreso_lead_fn por ACL
+  ✓ b1 #5 sup1 (authenticated) no ejecuta registrar_reingreso_lead_fn por ACL
+  ✓ b1 #5 gerencia (authenticated) no ejecuta registrar_reingreso_lead_fn por ACL
+  ✓ b1 #5 coordinador (authenticated) no ejecuta registrar_reingreso_lead_fn por ACL
+  ✓ b1 #5 anon/authenticated (ni PUBLIC) sin EXECUTE sobre inversionista_por_documento / identidad_bloquear_documento / identidad_bloquear_persona / registrar_reingreso_lead_fn
+  ✓ b1 #5 service_role sin EXECUTE sobre los helpers privados de b1
+  ✓ b1 #6 bandera_activa(resolver_en_puertas) = true con la bandera encendida
+  ✓ b1 #6 el reingreso devolvió ok
+  ✓ b1 #6 actividad nota evento=reingreso con teléfono y SIN clave dni en metadata.datos
+  ✓ b1 #7 INSERT service_role (importador) con documento de persona vetada → P0429, sin documento en el DETAIL
+  ✓ b1 #7 UPDATE dni de vendedor con documento de persona vetada → P0481 no_contactar (00) o P0429, sin documento
+  ✓ b1 #7 no nació el lead de la persona vetada y el suelto no cambió
+  ✓ b1 #8 OFF (#1): el dni cambió sin puerta de identidad
+  ✓ b1 #8 OFF (#2): sin enlace y sin puente
+  ✓ b1 #8 OFF (#3): el dni entró y no hubo enlace
+  ✓ b1 #8 OFF (#7): el UPDATE pasó sin enlace ni veto heredado
+  ✓ b1 #8 OFF (#7): el alta nació sin enlace y sin veto heredado
+  ✓ F2.b #0 los 4 leads sueltos nacen sin enlace ni veto con la bandera apagada
+  ✓ b2 #0 lu3 quedó con vend1
+  ✓ b2 #0 lu5 nació enlazado
+  ✓ b2 #0 la tarea de lu5 está pendiente
+  ✓ b2 #0 las 5 personas quedaron vetadas
+  ✓ b2 #0 [D-3] los 4 sueltos heredan el veto de la persona y siguen SIN enlace
+  ✓ b2 #0 persona_vetada(): por documento (suelto) y por enlace
+  ✓ b2 #9 gerencia no reparte un suelto de persona vetada → P0429 (rechazo esperado: P0429)
+  ✓ b2 #9 la cola (leads_por_repartir_implementacion) no lista los sueltos de personas vetadas
+  ✓ b2 #9 resumen_reparto_fn cuenta lo mismo que la cola
+  ✓ b2 #9 tomar_lead_libre → veredicto no_contactar y el lead sigue en la bolsa
+  ✓ b2 #9 sup1 no deriva un suelto de persona vetada → P0429 (rechazo esperado: P0429)
+  ✓ b2 #9 sup1 no devuelve a la bandeja (revertir) un suelto de persona vetada → P0429 (rechazo esperado: P0429)
+  ✓ b2 #9 vend1 no registra una actividad humana sobre lu3 → P0429 (rechazo esperado: P0429)
+  ✓ b2 #9 vend1 no agenda una tarea humana sobre lu3 → P0429 (rechazo esperado: P0429)
+  ✓ b2 #9 lu4 quedó descartado
+  ✓ b2 #9 coordinador no deshace el descarte de una persona vetada → P0429 (rechazo esperado: P0429)
+  ✓ b2 #10 marcar_no_contactar canceló la tarea pendiente de la persona (cancelada_por = sistema)
+  ✓ b2 #10 la nota de marcar entró bajo la válvula (el trigger de gestión la exime)
+  ✓ b2 #10 levantar NO revive la tarea
+  ✓ b2 #12 persona_vetada / leads_vetados_persona sin EXECUTE para anon, authenticated, service_role (ni PUBLIC)
+  ✓ b2 #11 OFF: persona_vetada() = false
+  ✓ b2 #11 OFF: lu1 fue a la bandeja de sup1
+  ✓ b2 #11 OFF: lu2 quedó con vend1
+
+— Identidad multiempresa F2.b b5: puertas de Gerencia (fusión, corrección, enlace, reasignación) —
+  ✓ b5 OFF gerencia no ejecuta la corrección documental retirada (rechazo esperado: 42501)
+  ✓ b5 OFF vend1 no ejecuta la corrección documental retirada (rechazo esperado: 42501)
+  ✓ b5 OFF sup1 no ejecuta la corrección documental retirada (rechazo esperado: 42501)
+  ✓ b5 OFF coordinador no ejecuta la corrección documental retirada (rechazo esperado: 42501)
+  ✓ b5 OFF directorio no ejecuta la corrección documental retirada (rechazo esperado: 42501)
+  ✓ b5 OFF vendInactive no ejecuta la corrección documental retirada (rechazo esperado: 42501)
+  ✓ b5 OFF clientBank no ejecuta la corrección documental retirada (rechazo esperado: 42501)
+  ✓ b5 OFF anon no ejecuta la corrección documental retirada (rechazo esperado: 42501)
+  ✓ b5 OFF service_role no ejecuta la corrección documental retirada (rechazo esperado: 42501)
+  ✓ b5 ON gerencia no ejecuta la corrección documental retirada (rechazo esperado: 42501)
+  ✓ b5 ON vend1 no ejecuta la corrección documental retirada (rechazo esperado: 42501)
+  ✓ b5 ON sup1 no ejecuta la corrección documental retirada (rechazo esperado: 42501)
+  ✓ b5 ON coordinador no ejecuta la corrección documental retirada (rechazo esperado: 42501)
+  ✓ b5 ON directorio no ejecuta la corrección documental retirada (rechazo esperado: 42501)
+  ✓ b5 ON vendInactive no ejecuta la corrección documental retirada (rechazo esperado: 42501)
+  ✓ b5 ON clientBank no ejecuta la corrección documental retirada (rechazo esperado: 42501)
+  ✓ b5 ON anon no ejecuta la corrección documental retirada (rechazo esperado: 42501)
+  ✓ b5 ON service_role no ejecuta la corrección documental retirada (rechazo esperado: 42501)
+  ✓ b5 OFF gerencia fusion_previsualizar_fn → P0409 apagada (rechazo esperado: P0409)
+  ✓ b5 OFF vend1 fusion_previsualizar_fn → P0409 apagada (rechazo esperado: P0409)
+  ✓ b5 OFF sup1 fusion_previsualizar_fn → P0409 apagada (rechazo esperado: P0409)
+  ✓ b5 OFF coordinador fusion_previsualizar_fn → P0409 apagada (rechazo esperado: P0409)
+  ✓ b5 OFF directorio fusion_previsualizar_fn → P0409 apagada (rechazo esperado: P0409)
+  ✓ b5 OFF vendInactive fusion_previsualizar_fn → P0409 apagada (rechazo esperado: P0409)
+  ✓ b5 OFF clientBank fusion_previsualizar_fn → P0409 apagada (rechazo esperado: P0409)
+  ✓ b5 anon fusion_previsualizar_fn → 42501 (sin EXECUTE) (rechazo esperado: 42501)
+  ✓ b5 service_role fusion_previsualizar_fn → 42501 (sin EXECUTE) (rechazo esperado: 42501)
+  ✓ b5 OFF gerencia fusionar_inversionistas_fn → P0409 apagada (rechazo esperado: P0409)
+  ✓ b5 OFF vend1 fusionar_inversionistas_fn → P0409 apagada (rechazo esperado: P0409)
+  ✓ b5 OFF sup1 fusionar_inversionistas_fn → P0409 apagada (rechazo esperado: P0409)
+  ✓ b5 OFF coordinador fusionar_inversionistas_fn → P0409 apagada (rechazo esperado: P0409)
+  ✓ b5 OFF directorio fusionar_inversionistas_fn → P0409 apagada (rechazo esperado: P0409)
+  ✓ b5 OFF vendInactive fusionar_inversionistas_fn → P0409 apagada (rechazo esperado: P0409)
+  ✓ b5 OFF clientBank fusionar_inversionistas_fn → P0409 apagada (rechazo esperado: P0409)
+  ✓ b5 anon fusionar_inversionistas_fn → 42501 (sin EXECUTE) (rechazo esperado: 42501)
+  ✓ b5 service_role fusionar_inversionistas_fn → 42501 (sin EXECUTE) (rechazo esperado: 42501)
+  ✓ b5 OFF gerencia enlazar_lead_inversionista_fn → P0409 apagada (rechazo esperado: P0409)
+  ✓ b5 OFF vend1 enlazar_lead_inversionista_fn → P0409 apagada (rechazo esperado: P0409)
+  ✓ b5 OFF sup1 enlazar_lead_inversionista_fn → P0409 apagada (rechazo esperado: P0409)
+  ✓ b5 OFF coordinador enlazar_lead_inversionista_fn → P0409 apagada (rechazo esperado: P0409)
+  ✓ b5 OFF directorio enlazar_lead_inversionista_fn → P0409 apagada (rechazo esperado: P0409)
+  ✓ b5 OFF vendInactive enlazar_lead_inversionista_fn → P0409 apagada (rechazo esperado: P0409)
+  ✓ b5 OFF clientBank enlazar_lead_inversionista_fn → P0409 apagada (rechazo esperado: P0409)
+  ✓ b5 anon enlazar_lead_inversionista_fn → 42501 (sin EXECUTE) (rechazo esperado: 42501)
+  ✓ b5 service_role enlazar_lead_inversionista_fn → 42501 (sin EXECUTE) (rechazo esperado: 42501)
+  ✓ b5 OFF gerencia reasignar_responsable_relacion_fn → P0409 apagada (rechazo esperado: P0409)
+  ✓ b5 OFF vend1 reasignar_responsable_relacion_fn → P0409 apagada (rechazo esperado: P0409)
+  ✓ b5 OFF sup1 reasignar_responsable_relacion_fn → P0409 apagada (rechazo esperado: P0409)
+  ✓ b5 OFF coordinador reasignar_responsable_relacion_fn → P0409 apagada (rechazo esperado: P0409)
+  ✓ b5 OFF directorio reasignar_responsable_relacion_fn → P0409 apagada (rechazo esperado: P0409)
+  ✓ b5 OFF vendInactive reasignar_responsable_relacion_fn → P0409 apagada (rechazo esperado: P0409)
+  ✓ b5 OFF clientBank reasignar_responsable_relacion_fn → P0409 apagada (rechazo esperado: P0409)
+  ✓ b5 anon reasignar_responsable_relacion_fn → 42501 (sin EXECUTE) (rechazo esperado: 42501)
+  ✓ b5 service_role reasignar_responsable_relacion_fn → 42501 (sin EXECUTE) (rechazo esperado: 42501)
+  ✓ b5 gerencia no lee crm.inversionista_operaciones (sin grants) (rechazo esperado: 42501)
+  ✓ b5 vend1 no lee crm.inversionista_operaciones (sin grants) (rechazo esperado: 42501)
+  ✓ b5 anon no lee crm.inversionista_operaciones (sin grants) (rechazo esperado: 42501)
+  ✓ b5 service_role no lee crm.inversionista_operaciones (sin grants) (rechazo esperado: 42501)
+  ✓ b5 helpers privados sin EXECUTE (anon/authenticated/service_role/PUBLIC)
+  ✓ b5 las 5 RPC sin EXECUTE para anon/service_role ni PUBLIC
+  ✓ b5 crm.inversionista_operaciones con RLS activa
+  ✓ b5 sin policies de escritura en el libro de operaciones
+  ✓ b5 ON vend1 fusion_previsualizar_fn → 42501 (solo Gerencia) (rechazo esperado: 42501)
+  ✓ b5 ON sup1 fusion_previsualizar_fn → 42501 (solo Gerencia) (rechazo esperado: 42501)
+  ✓ b5 ON coordinador fusion_previsualizar_fn → 42501 (solo Gerencia) (rechazo esperado: 42501)
+  ✓ b5 ON directorio fusion_previsualizar_fn → 42501 (solo Gerencia) (rechazo esperado: 42501)
+  ✓ b5 ON vendInactive fusion_previsualizar_fn → 42501 (solo Gerencia) (rechazo esperado: 42501)
+  ✓ b5 ON clientBank fusion_previsualizar_fn → 42501 (solo Gerencia) (rechazo esperado: 42501)
+  ✓ b5 ON vend1 fusionar_inversionistas_fn → 42501 (solo Gerencia) (rechazo esperado: 42501)
+  ✓ b5 ON sup1 fusionar_inversionistas_fn → 42501 (solo Gerencia) (rechazo esperado: 42501)
+  ✓ b5 ON coordinador fusionar_inversionistas_fn → 42501 (solo Gerencia) (rechazo esperado: 42501)
+  ✓ b5 ON directorio fusionar_inversionistas_fn → 42501 (solo Gerencia) (rechazo esperado: 42501)
+  ✓ b5 ON vendInactive fusionar_inversionistas_fn → 42501 (solo Gerencia) (rechazo esperado: 42501)
+  ✓ b5 ON clientBank fusionar_inversionistas_fn → 42501 (solo Gerencia) (rechazo esperado: 42501)
+  ✓ b5 ON vend1 enlazar_lead_inversionista_fn → 42501 (solo Gerencia) (rechazo esperado: 42501)
+  ✓ b5 ON sup1 enlazar_lead_inversionista_fn → 42501 (solo Gerencia) (rechazo esperado: 42501)
+  ✓ b5 ON coordinador enlazar_lead_inversionista_fn → 42501 (solo Gerencia) (rechazo esperado: 42501)
+  ✓ b5 ON directorio enlazar_lead_inversionista_fn → 42501 (solo Gerencia) (rechazo esperado: 42501)
+  ✓ b5 ON vendInactive enlazar_lead_inversionista_fn → 42501 (solo Gerencia) (rechazo esperado: 42501)
+  ✓ b5 ON clientBank enlazar_lead_inversionista_fn → 42501 (solo Gerencia) (rechazo esperado: 42501)
+  ✓ b5 ON vend1 reasignar_responsable_relacion_fn → 42501 (solo Gerencia) (rechazo esperado: 42501)
+  ✓ b5 ON sup1 reasignar_responsable_relacion_fn → 42501 (solo Gerencia) (rechazo esperado: 42501)
+  ✓ b5 ON coordinador reasignar_responsable_relacion_fn → 42501 (solo Gerencia) (rechazo esperado: 42501)
+  ✓ b5 ON directorio reasignar_responsable_relacion_fn → 42501 (solo Gerencia) (rechazo esperado: 42501)
+  ✓ b5 ON vendInactive reasignar_responsable_relacion_fn → 42501 (solo Gerencia) (rechazo esperado: 42501)
+  ✓ b5 ON clientBank reasignar_responsable_relacion_fn → 42501 (solo Gerencia) (rechazo esperado: 42501)
+  ✓ b5 ON gerencia previsualiza dos uuid inexistentes → viable=false con bloqueos (sin excepción)
+  ✓ b5 ON gerencia fusionar con huella mal formada → 22023 (rechazo esperado: 22023)
+  ✓ b5 ON gerencia enlazar a una persona inexistente → P0002 (rechazo esperado: P0002)
+  ✓ b5 ON gerencia reasignar a alguien que no es del equipo → 22023 (rol efectivo) (rechazo esperado: 22023)
+
+— Identidad multiempresa F2.b E4: contrato reconoce a la persona + candado del documento (Portal) —
+  ✓ E4 la función del candado no tiene EXECUTE para anon/authenticated/service_role ni PUBLIC
+  ✓ E4 el candado está habilitado sobre public.perfiles
+  ✓ E4 OFF: se comprobó una escritura real
+  ✓ E4 ON: el cliente no corrige su documento ni cambia id+dni (rechazo esperado: 42501)
+  ✓ E4 ON: el cliente no corrige su documento ni cambia id+dni (rechazo esperado: 42501)
+  ✓ E4 ON: el documento permanece intacto
+  ✓ E4 gerencia: la corrección administrativa exige rol de administrador del Portal (rechazo esperado: 42501)
+  ✓ E4 vend1: la corrección administrativa exige rol de administrador del Portal (rechazo esperado: 42501)
+  ✓ E4 sup1: la corrección administrativa exige rol de administrador del Portal (rechazo esperado: 42501)
+  ✓ E4 coordinador: la corrección administrativa exige rol de administrador del Portal (rechazo esperado: 42501)
+  ✓ E4 directorio: la corrección administrativa exige rol de administrador del Portal (rechazo esperado: 42501)
+  ✓ E4 vendInactive: la corrección administrativa exige rol de administrador del Portal (rechazo esperado: 42501)
+  ✓ E4 clientBank: la corrección administrativa exige rol de administrador del Portal (rechazo esperado: 42501)
+  ✓ E4 ON: un cliente no registra ventas → 42501 uniforme, sin código documental (rechazo esperado: 42501)
+  ✓ E4 ON: un vendedor inactivo no registra ventas → 42501 uniforme (rechazo esperado: 42501)
+  ✓ E4 ON: los rechazos no dejaron identidad nueva (sin efectos laterales persistentes)
+
+— Identidad multiempresa F2.b [D-10]: la reserva por persona cuenta el puente —
+  ✓ D-10 la reserva por persona conserva sus grants (solo authenticated; ni anon, ni service_role, ni PUBLIC)
+  ✓ D-10 la reserva legacy coincide con su definición productiva vigente
+  ✓ D-10 OFF reserva legacy alcanza la validación del lead (rechazo esperado: P0001)
+  ✓ D-10 ON reserva legacy exige la puerta por persona (rechazo esperado: P0409)
+  ✓ D-10 private.leads_de_identidades sigue sin EXECUTE para la API (solo la llama la definer)
+  ✓ D-10 OFF vend1 reserva por persona → P0409 apagada (rechazo esperado: P0409)
+  ✓ D-10 anon reserva por persona → 42501 (sin EXECUTE) (rechazo esperado: 42501)
+  ✓ D-10 service_role reserva por persona → 42501 (sin EXECUTE) (rechazo esperado: 42501)
+  ✓ D-10 OFF coordinador reserva por persona → 42501 (no gestiona contratos; muere ANTES de la bandera) (rechazo esperado: 42501)
+  ✓ D-10 OFF directorio reserva por persona → 42501 (no gestiona contratos; muere ANTES de la bandera) (rechazo esperado: 42501)
+  ✓ D-10 OFF vendInactive reserva por persona → 42501 (no gestiona contratos; muere ANTES de la bandera) (rechazo esperado: 42501)
+  ✓ D-10 OFF clientBank reserva por persona → 42501 (no gestiona contratos; muere ANTES de la bandera) (rechazo esperado: 42501)
+  ✓ D-10 ON vend1 sin documento → 22023 (rama ON alcanzable, sin efectos) (rechazo esperado: 22023)
+  ✓ D-10 ON cliente de banca → 42501 (no gestiona contratos) (rechazo esperado: 42501)
+  ✓ D-10 ON: los rechazos no dejaron identidad nueva
+
+— Identidad multiempresa F2.b [D-13]: un solo lead y el puente manda en todas las puertas —
+  ✓ D-13 helper y funciones privadas (verificador, trigger, puente) sin EXECUTE para la API ni PUBLIC
+  ✓ D-13 las cinco RPC transformadas conservan sus grants (solo authenticated)
+  ✓ D-13 las cinco puertas llevan la transformación (marcador en el cuerpo)
+  ✓ D-13 el trigger de nacimiento sigue BEFORE INSERT OR UPDATE OF dni y habilitado
+  ✓ D-13 trg_leads_000_hereda_veto sigue BEFORE INSERT, habilitado y tomando el candado documental (la reserva y el alta se serializan)
+  ✓ D-13 v2: el sellado, el rescate y el deshacer llevan la transformación
+  ✓ D-13 v3: la reserva por persona (texto de D-10) cuenta también los sueltos por documento
+  ✓ D-13 v3: el trigger «reabrir solo por RPC» está BEFORE UPDATE OF etapa, activo y habilitado
+  ✓ D-13 coordinador fijar_dni_lead_fn → 42501 (no es del CRM o está inactivo) (rechazo esperado: 42501)
+  ✓ D-13 clientBank fijar_dni_lead_fn → 42501 (no es del CRM o está inactivo) (rechazo esperado: 42501)
+  ✓ D-13 vendInactive fijar_dni_lead_fn → 42501 (no es del CRM o está inactivo) (rechazo esperado: 42501)
+  ✓ D-13 anon fijar_dni_lead_fn → 42501 (sin EXECUTE) (rechazo esperado: 42501)

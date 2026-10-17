@@ -135,8 +135,10 @@ test('Hoy lista los recibidos en Lima, pagina y abre la ficha; cabe en escritori
   await expect(page.getByRole('dialog', { name: 'RECIBIDO HOY 55', exact: true })).toBeVisible()
   await page.keyboard.press('Escape')
   await page.setViewportSize({ width: 390, height: 844 })
-  const menu = page.getByRole('button', { name: 'Ocultar menú', exact: true })
-  if (await menu.isVisible()) await menu.click()
+  // El cambio de media query sustituye el sidebar por la navegación móvil.
+  // Esperar ese montaje evita clicar el botón de escritorio mientras se retira.
+  await expect(page.getByRole('navigation', { name: 'Navegación principal de Analista', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Ocultar menú', exact: true })).toBeHidden()
   await panel.scrollIntoViewIfNeeded()
   await expect(page.getByRole('tab', { name: /^Leads de hoy/ })).toBeVisible()
   const cajaContador = await contador.boundingBox()

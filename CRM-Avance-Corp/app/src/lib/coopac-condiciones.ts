@@ -5,12 +5,14 @@ export type CampoCondicionesCoopac = 'fecha' | 'plazo' | 'tasa'
 const fechaValida = (fecha: string) => /^\d{4}-\d{2}-\d{2}$/.test(fecha)
   && Number(fecha.slice(0, 4)) >= 1000 && vencimientoDesdePlazo(fecha, 0) === fecha
 
-/** Meses naturales: el mismo ajuste de fin de mes que usan los contratos Avance. */
+/** Plazo cooperativo: cada mes equivale a 30 días; 12 meses son 360 días. */
 export function vencimientoCoopac(fecha: string, plazo: string): string | null {
   const meses = Number(plazo)
   if (!/^\d+$/.test(plazo.trim()) || !Number.isInteger(meses) || meses < 1 || meses > 1200) return null
   if (!fechaValida(fecha)) return null
-  return vencimientoDesdePlazo(fecha, meses)
+  const vencimiento = new Date(`${fecha}T00:00:00Z`)
+  vencimiento.setUTCDate(vencimiento.getUTCDate() + meses * 30)
+  return vencimiento.getUTCFullYear() <= 9999 ? vencimiento.toISOString().slice(0, 10) : null
 }
 
 export function condicionesCoopac(fecha: string, plazo: string, tasa: string) {

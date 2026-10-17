@@ -1,0 +1,1 @@
+{"tipo":"seguridad","grupos_antes":4,"grupos_despues":4,"avisos_antes":380,"avisos_despues":380,"nuevos":[],"retirados":0,"normalizacion":"Se ignora únicamente observed_at y el orden de claves JSON; se compara cada hallazgo completo."}

@@ -1,0 +1,241 @@
+npm notice run avancecorp-crm-tools@0.0.0 test:edge-preflight
+npm notice run node --test supabase/functions/crm-inversion-bienvenida/handler.test.mjs ../_supabase_functions/functions/crm-inversion-portal/handler.test.mjs ../_supabase_functions/functions/_shared/bancarios.test.mjs ../_supabase_functions/functions/_shared/alta-perfil-cuentas.test.mjs ../_supabase_functions/functions/_shared/domicilio.test.mjs ../_supabase_functions/functions/crm-convertir-lead/acceso.test.mjs ../_supabase_functions/functions/crm-convertir-lead/preflight.test.mjs ../_supabase_functions/functions/crm-convertir-lead/domicilio-atomico.test.mjs ../_supabase_functions/functions/crm-convertir-lead/tasa-preconversion.test.mjs ../_supabase_functions/functions/crear-cliente/autorizacion.test.mjs && deno check --node-modules-dir=auto --frozen ../_supabase_functions/functions/crm-inversion-portal/index.ts ../_supabase_functions/functions/crm-convertir-lead/index.ts ../_supabase_functions/functions/crear-cliente/index.ts supabase/functions/crm-inversion-bienvenida/index.ts supabase/functions/crm-tipo-cambio/index.ts supabase/functions/crm-tipo-cambio/handler.ts && deno test --node-modules-dir=auto --frozen supabase/functions/crm-tipo-cambio/handler.test.ts && npm run test:push-tasa
+✔ respuesta confirmada devuelve el UUID sin hacer una lectura adicional (0.522167ms)
+✔ respuesta perdida tras COMMIT confirma solo si el reintento idempotente responde con UUID (0.126459ms)
+✔ perfil previo con cuenta distinta y P0409 no confirma ni compensa el Auth (2.081083ms)
+✔ un perfil existente no confirma un transporte incierto si el reintento falla (0.13225ms)
+✔ error de red sin perfil confirmado queda incierto y nunca se compensa (0.0765ms)
+✔ rechazo SQL con ausencia confirmada permite compensar y verifica su resultado (0.102541ms)
+✔ fallo de lectura conserva el Auth aun con un SQLSTATE de rechazo (0.055875ms)
+✔ sin ninguna cuenta NO se puede crear el cliente (0.7185ms)
+✔ body sin el bloque bancarios se rechaza (fail-closed, no crea a medias) (0.145125ms)
+✔ basta la cuenta en SOLES (0.103542ms)
+✔ basta la cuenta en DÓLARES (0.0855ms)
+✔ las dos monedas van a filas separadas del ledger (0.415375ms)
+✔ devuelve solo las claves de una cuenta del ledger (0.167333ms)
+✔ una sección a medias no pasa: exige el set completo (0.163333ms)
+✔ el CCI debe tener exactamente 20 dígitos (0.075292ms)
+✔ tipo de cuenta fuera del catálogo se rechaza (0.078959ms)
+✔ la caja municipal con letras en el número de cuenta SÍ pasa (0.113958ms)
+✔ un número de cuenta con espacios se rechaza (0.066833ms)
+✔ con titular distinto se exigen nombre y documento del beneficiario (0.128583ms)
+✔ el documento del beneficiario sigue la regla genérica 8–12 dígitos (0.082208ms)
+✔ el nombre del beneficiario se normaliza a MAYÚSCULA sin espacios dobles (0.041458ms)
+✔ sin titular distinto los campos del beneficiario quedan en null (0.058ms)
+✔ rechaza límites que también aplica la base antes de crear Auth (0.753ms)
+✔ marcar SOLO el check de titular distinto no cuenta como sección vacía (0.07075ms)
+✔ los espacios de los extremos no cuelan una sección vacía (0.055333ms)
+✔ titular_distinto solo es cierto con el booleano true (nunca por truthy) (0.040083ms)
+✔ el mensaje dice de qué moneda es el problema (0.044542ms)
+✔ normaliza solo los bordes y conserva el domicilio legal literal (1.364333ms)
+✔ el CRM exige domicilio y el caller legacy puede omitirlo explícitamente (0.091458ms)
+✔ rechaza tipos no textuales, tamaños inválidos y controles C0/C1 (1.308833ms)
+✔ las dos edges validan antes de efectos y persisten el valor normalizado (5.608958ms)
+✔ rechaza al analista del CRM (vendedor) aunque pueda contratar, con rol Portal nuevo o legacy (0.690958ms)
+✔ los roles administrativos del Portal conservan el alta directa, con o sin membresía CRM (0.524584ms)
+✔ un supervisor o gerente comercial SIN capacidad de contratar no da de alta (la rama CRM exige puede_contratar) (0.093416ms)
+✔ conserva los roles históricos del Portal y su autoasignación (0.07975ms)
+✔ un supervisor con el rol Portal legacy `analista` conserva exactamente la vía de hoy (0.070583ms)
+✔ supervisión y Gerencia CRM crean sin apropiarse de la cartera (0.070375ms)
+✔ una revocación CRM explícita gana incluso sobre un rol Portal legacy (0.046625ms)
+✔ falla cerrado para perfil inactivo, capacidad ausente o identidad distinta (0.045ms)
+✔ el fallback Portal también exige un contrato canónico ligado al JWT (0.077541ms)
+✔ la edge usa la RPC con JWT y no vuelve a leer crm.equipo con service_role (0.124875ms)
+✔ acepta al Comercial nuevo con membresía CRM Vendedor habilitada (0.792375ms)
+✔ no interpreta por su cuenta el rol del Portal (0.102458ms)
+✔ falla cerrado si la respuesta pertenece a otra sesión (0.050625ms)
+✔ rechaza un contrato de acceso no operativo: null (0.04775ms)
+✔ rechaza un contrato de acceso no operativo: [] (0.040875ms)
+✔ rechaza un contrato de acceso no operativo: {} (0.041834ms)
+✔ rechaza un contrato de acceso no operativo: {"estado":"revocado","perfil_id":"usuario-1","puede_contratar":false} (0.035667ms)
+✔ rechaza un contrato de acceso no operativo: {"estado":"global","perfil_id":"usuario-1","rol_crm":"directorio","puede_contratar":false} (0.031666ms)
+✔ rechaza un contrato de acceso no operativo: {"estado":"miembro","perfil_id":"usuario-1","rol_crm":"vendedor"} (0.045458ms)
+✔ rechaza un contrato de acceso no operativo: {"estado":"miembro","perfil_id":"usuario-1","rol_crm":"","puede_contratar":true} (0.077ms)
+✔ la edge consulta la capacidad con el JWT del caller antes de cualquier efecto (0.106209ms)
+✔ la edge no conserva una segunda allowlist de roles Portal (0.062208ms)
+✔ el dedup no modifica perfiles con service_role antes de autorizar (0.433041ms)
+✔ la única frontera de persistencia recibe lead, perfil y domicilio juntos (0.093959ms)
+✔ rechaza un lead parqueado antes de crear cliente (0.485459ms)
+✔ rechaza a un analista (vendedor) que no es el responsable del lead (0.069875ms)
+✔ acepta a un supervisor sobre un lead de un analista de su equipo (0.05275ms)
+✔ acepta al analista que ya es dueño del lead (0.60175ms)
+✔ acepta a Gerencia sobre un lead que conserva analista responsable (0.057167ms)
+✔ Gerencia tampoco convierte un lead sin analista responsable (0.040417ms)
+(node:9828) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ identidad false: el handler convierte a 12.5 cuando el servidor lo admite (16.449958ms)
+✔ identidad false: transporta 12.5 intacta al servidor y respeta una solicitud pendiente (1.252ms)
+✔ identidad false: P0411 impide Auth, perfiles y correo antes de convertir (0.843709ms)
+✔ identidad false: P0410 impide Auth, perfiles y correo antes de convertir (2.52575ms)
+✔ identidad false: PGRST202 impide Auth, perfiles y correo antes de convertir (1.012209ms)
+✔ identidad false: omitir la propuesta no evita preguntar al servidor (1.236667ms)
+✔ identidad false: cambiar documento de la propuesta se rechaza antes de reservar o crear Auth (4.003084ms)
+✔ identidad true: el handler convierte a 12.5 cuando el servidor lo admite (1.52475ms)
+✔ identidad true: transporta 12.5 intacta al servidor y respeta una solicitud pendiente (0.945584ms)
+✔ identidad true: P0411 impide Auth, perfiles y correo antes de convertir (0.871208ms)
+✔ identidad true: P0410 impide Auth, perfiles y correo antes de convertir (0.590083ms)
+✔ identidad true: PGRST202 impide Auth, perfiles y correo antes de convertir (0.624375ms)
+✔ identidad true: omitir la propuesta no evita preguntar al servidor (0.662292ms)
+✔ identidad true: cambiar documento de la propuesta se rechaza antes de reservar o crear Auth (0.47ms)
+✔ CORS solo refleja los orígenes publicados y nunca usa wildcard (13.471833ms)
+✔ Cuerpo transmitido sin longitud se corta antes de acumular más de 4096 bytes (3.161709ms)
+✔ Límite por bytes multibyte y UTF-8 inválido, sin llamadas privilegiadas (0.589709ms)
+✔ Longitud declarada inválida o excesiva y JSON inválido se rechazan (0.737458ms)
+✔ Errores PostgreSQL no contractuales ocultan mensaje y detalles (1.978542ms)
+✔ Errores contractuales mantienen diagnóstico público y estado autorizado (0.650375ms)
+✔ Fallo de Auth externo no expone sus mensajes internos (0.221083ms)
+✔ Fallo recuperable conserva el token sin filtrar el mensaje interno (0.286209ms)
+✔ completa el acceso con secret key: crear (4.868916ms)
+✔ completa el acceso con secret key: reanudar (0.596666ms)
+✔ completa el acceso con secret key: correo_registrado (0.573583ms)
+✔ completa el acceso con JWT legacy: crear (0.387833ms)
+✔ completa el acceso con JWT legacy: reanudar (0.281084ms)
+✔ completa el acceso con JWT legacy: correo_registrado (0.383792ms)
+✔ la clave de servicio no se usa si el usuario o el ámbito de la solicitud se rechazan (0.345584ms)
+✔ rechaza entradas inválidas antes de consultar datos o enviar correo (24.034ms)
+✔ una sesión sin ámbito no obtiene el servicio ni llama al proveedor (0.684708ms)
+✔ un resultado terminal no vuelve a reclamar ni reenviar (1.124792ms)
+✔ la plantilla trata el nombre como texto, sin incluir el documento (0.285208ms)
+✔ reclama y confirma bienvenida con secret key (1.4115ms)
+✔ reclama y confirma bienvenida con JWT legacy (0.718292ms)
+ℹ tests 96
+ℹ suites 0
+ℹ pass 96
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 132.096333
+Initialize openai@4.104.0
+Initialize @supabase/functions-js@2.110.8
+Initialize web-push@3.6.7
+Initialize @supabase/supabase-js@2.110.2
+Initialize @supabase/auth-js@2.110.8
+Initialize @supabase/postgrest-js@2.110.8
+Initialize @supabase/storage-js@2.110.8
+Initialize @supabase/realtime-js@2.110.8
+Initialize @types/node@18.19.130
+Initialize node-fetch@2.7.0
+Initialize formdata-node@4.4.1
+Initialize @types/node-fetch@2.6.13
+Initialize form-data-encoder@1.7.2
+Initialize agentkeepalive@4.6.0
+Initialize abort-controller@3.0.0
+Initialize tslib@2.8.1
+Initialize http_ece@1.2.0
+Initialize https-proxy-agent@7.0.6
+Initialize asn1.js@5.4.1
+Initialize jws@4.0.1
+Initialize minimist@1.2.8
+Initialize @supabase/storage-js@2.110.2
+Initialize @supabase/realtime-js@2.110.2
+Initialize @supabase/auth-js@2.110.2
+Initialize @supabase/functions-js@2.110.2
+Initialize @supabase/postgrest-js@2.110.2
+Initialize iceberg-js@0.8.1
+Initialize @supabase/phoenix@0.4.5
+Initialize undici-types@5.26.5
+Initialize whatwg-url@5.0.0
+Initialize web-streams-polyfill@4.0.0-beta.3
+Initialize node-domexception@1.0.0
+Initialize form-data@4.0.6
+Initialize humanize-ms@1.2.1
+Initialize event-target-shim@5.0.1
+Initialize debug@4.4.3
+Initialize agent-base@7.1.4
+Initialize minimalistic-assert@1.0.1
+Initialize bn.js@4.12.5
+Initialize safer-buffer@2.1.2
+Initialize inherits@2.0.4
+Initialize jwa@2.0.1
+Initialize safe-buffer@5.2.1
+Initialize @supabase/phoenix@0.4.4
+Initialize webidl-conversions@3.0.1
+Initialize tr46@0.0.3
+Initialize combined-stream@1.0.8
+Initialize mime-types@2.1.35
+Initialize asynckit@0.4.0
+Initialize es-set-tostringtag@2.1.0
+Initialize hasown@2.0.4
+Initialize ms@2.1.3
+Initialize ecdsa-sig-formatter@1.0.11
+Initialize buffer-equal-constant-time@1.0.1
+Initialize delayed-stream@1.0.0
+Initialize mime-db@1.52.0
+Initialize get-intrinsic@1.3.0
+Initialize es-errors@1.3.0
+Initialize has-tostringtag@1.0.2
+Initialize function-bind@1.1.2
+Initialize es-object-atoms@1.1.2
+Initialize es-define-property@1.0.1
+Initialize call-bind-apply-helpers@1.0.2
+Initialize get-proto@1.0.1
+Initialize gopd@1.2.0
+Initialize math-intrinsics@1.1.0
+Initialize has-symbols@1.1.0
+Initialize dunder-proto@1.0.1
+╭ Warning
+│
+│  The following packages are deprecated:
+│  npm:node-domexception@1.0.0 (Use your platform's native DOMException instead)
+╰─
+Check ../_supabase_functions/functions/crm-inversion-portal/index.ts
+Check ../_supabase_functions/functions/crm-convertir-lead/index.ts
+Check ../_supabase_functions/functions/crear-cliente/index.ts
+Check supabase/functions/crm-inversion-bienvenida/index.ts
+Check supabase/functions/crm-tipo-cambio/index.ts
+Check supabase/functions/crm-tipo-cambio/handler.ts
+Check supabase/functions/crm-tipo-cambio/handler.test.ts
+running 12 tests from ./supabase/functions/crm-tipo-cambio/handler.test.ts
+calcula los últimos 7 días hábiles hasta el corte, no hasta hoy ... ok (13ms)
+el cache se reutiliza para el mismo corte y se separa entre meses ... ok (2ms)
+sin fecha conserva el contrato previo y usa hoy en Lima ... ok (225µs)
+rechaza fechas futuras e inválidas antes de consultar BCRP ... ok (230µs)
+GET también acepta fecha_corte sin crear otra ruta ... ok (368µs)
+septiembre real («Set» en español): 7 días hábiles y el n.d. del 18 se descarta ... ok (85µs)
+septiembre real por la frontera HTTP responde 200 (antes 502) ... ok (160µs)
+agosto real en inglés sigue funcionando y también descarta n.d. ... ok (60µs)
+acepta ambas variantes de todos los meses, sin importar mayúsculas ni espacios ... ok (75µs)
+un período ilegible NO se disfraza de «sin datos»: 502 nombrando el período ... ok (176µs)
+sin períodos o todos «n.d.» conserva el mensaje de «sin datos» ... ok (134µs)
+si solo algunos períodos son ilegibles, los legibles siguen contando ... ok (79µs)
+
+ok | 12 passed | 0 failed (21ms)
+
+npm notice run avancecorp-crm-tools@0.0.0 test:push-tasa
+npm notice run node --test supabase/scripts/push-tasa/preflight.test.mjs && deno check --node-modules-dir=auto --frozen supabase/functions/crm-notificaciones-tasa/index.ts && env ECE_KEYLOG=0 deno test --node-modules-dir=auto --frozen --allow-env=ECE_KEYLOG supabase/functions/crm-notificaciones-tasa/handler.test.ts supabase/functions/crm-notificaciones-tasa/transporte.test.ts
+✔ la Edge publicada y la copia CRM coinciden: index.ts (0.948083ms)
+✔ la Edge publicada y la copia CRM coinciden: handler.ts (0.350333ms)
+✔ la Edge publicada y la copia CRM coinciden: transporte.ts (0.287167ms)
+✔ el manifiesto de la PWA apunta a iconos PNG reales del tamaño declarado (3.4105ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 46.552417
+Check supabase/functions/crm-notificaciones-tasa/index.ts
+Check supabase/functions/crm-notificaciones-tasa/handler.test.ts
+Check supabase/functions/crm-notificaciones-tasa/transporte.test.ts
+running 13 tests from ./supabase/functions/crm-notificaciones-tasa/handler.test.ts
+cron: faltante, falso o JWT de usuario no permiten reclamar la cola ... ok (7ms)
+configuración exige la sesión y el rol comprobados por la RPC ... ok (763µs)
+sin VAPID no reclama ni aparenta estar configurado ... ok (281µs)
+envía contenido sin PII, URL o dinero y confirma usando la reserva exacta ... ok (634µs)
+membresía revocada o solicitud resuelta entre reclamar y enviar cancela el aviso ... ok (278µs)
+suscripción caducada se desactiva; errores temporales reintentan; rechazos permanentes terminan ... ok (610µs)
+SSRF: rechaza IP privada, puerto, credenciales, dominios falsos y redirección en URL ... ok (128µs)
+una URL alterada en base de datos tampoco sale a la red ... ok (199µs)
+prueba requiere dispositivo propio, configuración y límite por servidor ... ok (259µs)
+origen ajeno se rechaza; local solo está permitido con configuración explícita ... ok (226µs)
+solicitud vencida y fallo de confirmación conservan semántica honesta ... ok (176µs)
+el fallo de una confirmación no abandona los otros seis envíos del lote ... ok (303µs)
+limita el cuerpo antes de cargarlo completamente en memoria ... ok (147µs)
+running 2 tests from ./supabase/functions/crm-notificaciones-tasa/transporte.test.ts
+cifra un Web Push real con VAPID, TTL y destino sin redirecciones ... ok (9ms)
+el transporte rechaza destinos ajenos antes de usar claves o red ... ok (260µs)
+
+ok | 15 passed | 0 failed (137ms)
+

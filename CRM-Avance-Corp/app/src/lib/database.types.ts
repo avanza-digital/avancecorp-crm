@@ -928,6 +928,7 @@ export type Database = {
         Row: {
           anulado_en: string | null
           anulado_por: string | null
+          base_plazo: string
           comprobante_objeto_id: string | null
           cooperativa: string
           creado_en: string
@@ -955,6 +956,7 @@ export type Database = {
         Insert: {
           anulado_en?: string | null
           anulado_por?: string | null
+          base_plazo?: string
           comprobante_objeto_id?: string | null
           cooperativa: string
           creado_en?: string
@@ -982,6 +984,7 @@ export type Database = {
         Update: {
           anulado_en?: string | null
           anulado_por?: string | null
+          base_plazo?: string
           comprobante_objeto_id?: string | null
           cooperativa?: string
           creado_en?: string
