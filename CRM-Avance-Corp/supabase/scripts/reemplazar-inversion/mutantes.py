@@ -106,7 +106,9 @@ MUTANTES = [
                                                        "    v_fi := v_cons.fecha_inicio;\n    v_dia_registro := (v_cons.creado_en at time zone 'America/Lima')::date;\n  end if;")]),
     ('sin pasar la fecha comercial a la inversión', NUCLEO, [("    update crm.inversiones i set fecha_comercial = v_fecha_cc where", "    update crm.inversiones i set fecha_comercial = i.fecha_comercial where")]),
     ('sin pasar los cotitulares', NUCLEO, [("    if not (p_contrato ? 'titulares') and v_titulares is not null then", "    if false then")]),
-    ('sin juzgar la tasa de la fuente antes de borrarla', NUCLEO, [("  set constraints public.trg_contratos_zz_observar_rentabilidad immediate;\n  set constraints public.trg_contratos_zz_observar_rentabilidad deferred;\n", "")]),
+    # Solo el IMMEDIATE (el DEFERRED se queda): así no cae antes en C20 y llega a C33 (Codex r3, P2).
+    ('sin juzgar la tasa de la fuente antes de borrarla', NUCLEO, [("  set constraints public.trg_contratos_zz_observar_rentabilidad immediate;\n  set constraints public.trg_contratos_zz_observar_rentabilidad deferred;\n",
+                                                                    "  set constraints public.trg_contratos_zz_observar_rentabilidad deferred;\n")]),
     ('sin comparar los cotitulares al conservar', NUCLEO, [("                from public.contrato_titulares t where t.contrato_id = p_fuente) x) then",
                                                           "                from public.contrato_titulares t where t.contrato_id = p_fuente) x) and false then")]),
     ('reintento sin Gerencia por el origen confirmado', NUCLEO, [("      if coalesce((v_previo.snapshot #>> '{reemplazo,origen_confirmado}')::boolean, false) and not v_gerencia then", "      if false then")]),

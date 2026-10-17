@@ -18,6 +18,11 @@ set local lock_timeout = '5s';
 set local statement_timeout = '60s';
 set local search_path = '';
 set local quote_all_identifiers = off;
+-- ANTES de cualquier consulta (en REPEATABLE READ la foto se toma en la primera): un reemplazo en curso que ya escribió
+-- su copia termina primero, y la foto de esta reversa la ve; los siguientes esperan a que termine. Sin esto, la decisión
+-- de conservar reemplazada_por se tomaba con una foto vieja y retiraba la columna con una copia recién confirmada
+-- (Codex r3, P1; carrera-reversa.sh).
+lock table crm.inversiones_eliminadas in share row exclusive mode;
 
 do $preflight$
 begin

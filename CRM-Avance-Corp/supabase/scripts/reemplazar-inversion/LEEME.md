@@ -14,6 +14,9 @@
 - `carrera-pago.sh`: E4, un pago en curso contra el reemplazo, en una base desechable copiada del banco (se borra al
   terminar). Esperado P0409 «cuotas pagadas»; con `MUTANTE=1` (sin el candado del cronograma) termina OK: el pago se
   perdería. Última corrida: los dos PASS.
+- `carrera-reversa.sh`: E5, la reversa mientras un reemplazo está por confirmarse (misma base desechable). Esperado:
+  columna, CHECK y copia conservados; con `MUTANTE=1` (sin el candado inicial de la reversa) la columna se pierde.
+  Última corrida: los dos PASS.
 - `banco/`: montaje del banco (`montar.sh`) y del stack local propio para el gate entero (`gate-rls-stack.sh <etiqueta>`,
   con `CRM_RLS_EXIGE_REEMPLAZAR_INVERSION=1`). El gate deja 15 fallos ajenos en el banco, iguales antes y después.
 - `reversa.sql`: retira las dos puertas y el núcleo y devuelve el observador a 9a0c0411…; se niega si el observador cambió

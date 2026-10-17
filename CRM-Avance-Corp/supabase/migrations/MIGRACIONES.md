@@ -22,16 +22,17 @@ duplicado que no es igual (datos o cotitulares), venta con el lead enlazado a ot
 inversión. Pasa origen de capital confirmado y cotitulares.
 
 Verificación (banco Docker con esquema de producción, worktree propio): batería
-45 bloques PASS; 43/43 mutantes muertos; 4/4 carreras PASS (E4: un pago en curso
-se respeta; sin el candado del cronograma se perdería); regresión «Eliminar
+45 bloques PASS; 43/43 mutantes muertos; 5/5 carreras PASS (E4: un pago en curso
+se respeta; E5: la reversa a la vez que un reemplazo conserva su copia); regresión «Eliminar
 inversión» 24 y «Eliminar lead» 100/0 PASS; test-rls en stack propio: los mismos 15
 fallos ajenos antes y después, bloque nuevo 17/17; reversa ejecutada en el banco
 (observador vuelve a 9a0c0411… con dueño, configuración y ACL). Revisiones: Codex r1
 (6 hallazgos) y r2 (1 P1 + 2 P2: cadena A → B → C que saltaba el candado de tasa,
 cotitulares en «quedarme con la otra», reintento con origen confirmado), todos
 reproducidos en el banco y corregidos; auditor-rls sobre el delta r2 sin P0/P1 (su P2,
-orden de cotitulares, corregido); concurrencia, seguridad y negocio sin P0/P1
-abiertos. Kit en `supabase/scripts/reemplazar-inversion/` (LEEME, reversa, registrar,
+orden de cotitulares, corregido); Codex r3 cerró los de r2 y abrió 1 P1 en la reversa
+(decidía con una foto vieja) + 1 P2 de mutante, corregidos y reproducidos; Codex r4
+PASS (todo cerrado); concurrencia, seguridad y negocio sin P0/P1 abiertos. Kit en `supabase/scripts/reemplazar-inversion/` (LEEME, reversa, registrar,
 comprobar, carreras).
 Plan: vault «Reemplazar inversion - plan por fases (2026-10-17)».
 
