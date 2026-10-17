@@ -1,0 +1,9 @@
+{
+  "resultado": "PASS",
+  "url": "https://crm.miavance.com",
+  "commit": "bc3c43034f20dc60eb5fa575c66b5c28e4a866ce",
+  "buildId": "build-20261017T064501541Z",
+  "archivos_js_css_index_version": 124,
+  "sha256_zip": "fc86828104b1886cb7346b5866e9603fe29400260367dc892f28fcaf9c35f593",
+  "manifiesto": "crm-20261017T064502Z-bc3c43034f20.manifest.json"
+}

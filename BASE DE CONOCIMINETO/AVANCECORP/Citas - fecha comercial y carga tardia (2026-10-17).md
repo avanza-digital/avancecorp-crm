@@ -1,6 +1,6 @@
 ---
 fecha: 2026-10-17
-estado: candidata-local-sin-publicar
+estado: publicada-verificada
 tags: [crm, citas, fecha-comercial, conversion, conciliacion]
 ---
 
@@ -23,7 +23,7 @@ Conciliación al 17/10/2026 05:06 UTC: septiembre 116 clientes, 10 vinculados so
 Cada fila de analista coincide con SQL independiente. Son resultados al corte,
 no valores que deban fijarse en el programa.
 
-La implementación candidata obtiene la fecha del núcleo `conversion_cierres`.
+La implementación publicada obtiene la fecha del núcleo `conversion_cierres`.
 La fecha comercial no tiene hora: una entrevista del mismo día local se considera
 compatible y una posterior se excluye. Esto no prueba el orden dentro del día.
 No se usa `convertido_en` como sustituto si falta una fecha acreditada.
@@ -41,10 +41,17 @@ operación, integrar e instalar esa tarea primero: su preflight espera aún la
 huella anterior del lector. Compatibilidad probada localmente con cortes y
 meses sellados; no se reabren ni reescriben sellos monetarios.
 
-Evidencia y límites: `CRM-Avance-Corp/docs/plans/citas-fecha-comercial/RESULTADO.md`.
-Sin aplicación en producción ni publicación. Gates remotos de publicación
-pendientes; el censo analítico global conserva 11 incidencias previas ajenas,
-sin ocultarlas ni añadir otras. No presentar la candidata como ya publicada.
+Publicada el 17/10/2026: SQL por merge nativo 06:46 UTC, frontend fuente
+`bc3c43034f20dc60eb5fa575c66b5c28e4a866ce`, build `build-20261017T064501541Z`.
+ZIP `crm-20261017T064502Z-bc3c43034f20.zip`, SHA256
+`fc86828104b1886cb7346b5866e9603fe29400260367dc892f28fcaf9c35f593`.
+Conciliación de producción 06:47 UTC confirma los mismos valores Sep/Oct y
+todas las filas. Chrome confirma ambos meses sin aviso y con exportación activa.
+124 archivos HTTP/bytes PASS. Rama temporal de pago eliminada y ausencia verificada.
+La integración preservó el TC por venta ya publicado y las 24 Edge intactas.
+El censo analítico conserva sus incidencias previas sin ocultarlas ni añadir otras.
+Acta vigente: `CRM-Avance-Corp/docs/plans/citas-fecha-comercial/PUBLICACION.md`;
+la evidencia local histórica permanece en `RESULTADO.md`.
 
 Relacionadas: [[Citas Gerencia - reglas confirmadas y propuesta revisada 2026-09-13]],
 [[Citas Gerencia - deposito acreditado por conversion a cliente 2026-09-08]],

@@ -1,6 +1,9 @@
 ## 20261017043000 — Citas por fecha comercial
 
-**Candidata ensayada en Docker aislado; NO aplicada en producción.**
+**EN PRODUCCIÓN — 17/10/2026 06:46 UTC**, por merge nativo desde rama aislada
+tras gates SQL/Auth/Advisors. Frontend `bc3c4303`, build
+`build-20261017T064501541Z`; conciliación real Sep/Oct, HTTP/bytes y UI PASS.
+Acta: `docs/plans/citas-fecha-comercial/PUBLICACION.md`.
 Añade `fecha_comercial` canónica a conversiones de consulta y gestión,
 `criterio_depositos=fecha_comercial` y `testigo.comercial` independiente.
 Conserva los campos anteriores y la raíz del testigo para clientes publicados.

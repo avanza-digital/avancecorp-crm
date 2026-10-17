@@ -1,8 +1,47 @@
 # Publicación de Citas por fecha comercial — 17/10/2026
 
 Miguel autorizó «publica» y el costo de la rama temporal US$0,01344/h.
+**PUBLICADO Y VERIFICADO** en https://crm.miavance.com.
 Fuente integrada con el TC por venta ya publicado: `6f176603`; integración
-`3c5a566f`. Producción todavía pendiente en esta etapa del acta.
+`3c5a566f`; PR #318 incorporado a Main como
+`bc3c43034f20dc60eb5fa575c66b5c28e4a866ce`. Miguel autorizó expresamente
+la integración administrativa ante la exigencia de revisión de otra cuenta.
+Los checks `app-check`, `verify`, `preflight` y `cambios` pasaron antes de integrar.
+
+## Publicación efectiva
+
+- Main local, `avancecorp/main` y HEAD iguales a `bc3c4303`, fuente limpia.
+  El árbol es idéntico al commit ensayado `ce010888`: el squash no cambió código.
+- Artefacto: `crm-20261017T064502Z-bc3c43034f20.zip` (2.564.940 bytes).
+- SHA-256: `fc86828104b1886cb7346b5866e9603fe29400260367dc892f28fcaf9c35f593`.
+- Build servido: `build-20261017T064501541Z`.
+- PASS `release:crm`, `release:crm:verify` y preflight contra el vivo
+  `build-20261017T053850955Z` / `6f176603`. ZIP anterior preservado.
+- Merge nativo Supabase aceptado 06:45 UTC; el workflow aplicó exclusivamente
+  `20261017043000_crm_citas_fecha_comercial.sql` a las 06:46:09 UTC.
+  Configuración y seed de producción omitidos por protección; 24 Edge sin cambios.
+- Postflight PASS: tres lectores nuevos exactos, núcleo intacto, censo completo
+  idéntico, sello válido y anon denegado en ambas puertas. Historial 501→502;
+  huella del historial anterior intacta: `6331e35fcc67364525ec68eb2e8a60b8`.
+  El merge nativo divide el SQL en 14 sentencias sin delimitadores: MD5 almacenado
+  `3de3c19f8b608423523391bc2ad4d357`. Restituyendo delimitadores y normalizando
+  espacios coincide con el archivo ensayado: `1ddd0ae1dba19de4e34f7710029e2442`.
+- Conciliación real de producción 06:47 UTC: **2 tests PASS** atravesando
+  RPC v2 → esquema estricto → cálculo de pantalla, contra SQL independiente.
+  Septiembre: 116 clientes, 10 vinculados / 62 personas, 74 entrevistas,
+  depósito 16,13 %, 26 filas. Octubre: 43 clientes, 15 / 79 personas,
+  84 entrevistas, depósito 18,99 %, 28 filas; corte de valoración activo.
+  Son valores al corte, no constantes del programa.
+- Hostinger MCP oficial: upload y deploy aceptados. Smoke HTTP/bytes **PASS**:
+  124 archivos (index, version, todos los JS/CSS) iguales al manifiesto.
+- Chrome, sesión real de Gerencia: Resumen y Citas cargan; septiembre y octubre
+  muestran los totales anteriores, exportación habilitada y cero avisos de
+  discrepancia. Porcentaje visual redondeado: 16,1 % / 19 %.
+- Rama temporal `35e8a7f8-58c7-4081-95d9-8a1c7af4096c` eliminada y ausencia
+  confirmada; las otras ramas se preservaron. Finalizado el consumo temporal.
+
+La fuente del despliegue es el commit del manifiesto aunque esta acta posterior
+avance Main. No se reconstruye ni se vuelve a desplegar solo por documentación.
 
 ## Gates de la fuente integrada
 
@@ -40,7 +79,8 @@ que el servicio no permite reescribir. No afecta a esta migración: reemplaza
 funciones existentes en private y no crea objetos persistentes ni en public
 ni en crm. No usar este banco como evidencia de futuros objetos de public.
 
-Base 501 migraciones; candidata 502. Una sola diferencia: SQL exacto
+Base 501 versiones/nombres restaurados como metadatos, sin reproducir sus SQL;
+candidata 502. Una sola versión nueva: SQL exacto
 20261017043000, MD5 e851dd57616e27c67e845fc93b628703. La versión técnica
 asignada por MCP se alineó con guardas de nombre, contenido y ausencia del
 destino. Ninguna restauración o fixture pertenece al historial del merge.
