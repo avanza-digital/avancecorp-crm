@@ -33,7 +33,8 @@ import { mensajeDeError } from '@/data/crm-api'
 import { money, moneyK, numero, porcentajeConversionCanonica } from '@/lib/format'
 import { useMetricasVendedoresOperativas } from '@/data/use-metricas-vendedores-operativas'
 import { useResumenCarteraOperativo } from '@/data/use-resumen-cartera-operativo'
-import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
+import { rotuloTipoCambio } from '@/lib/capital-unificado'
+import { capitalComercialEnSoles, metaComercialEnSoles } from '@/lib/capital-unificado'
 import { useTipoCambio } from '@/lib/tipo-cambio'
 
 // Texto neutro de una meta que gerencia todavía no fijó para el mes.
@@ -211,11 +212,11 @@ export function useDatosSupervisor() {
   // barra. Se consolida con el MISMO tipo de cambio en numerador y denominador
   // —comparar a tasas distintas es comparar peras con manzanas— igual que en el
   // panel del analista y en el de gerencia.
-  const capitalConfirmado = totalEnSoles(capitalConfirmadoPen, capitalConfirmadoUsd, tc?.promedio)
-  const metaCapital = totalEnSoles(metaCapitalPen, metaCapitalUsd, tc?.promedio)
+  const capitalConfirmado = capitalComercialEnSoles(capitalConfirmadoPen, capitalConfirmadoUsd, tc?.promedio, cumplimiento?.capitalValorado)
+  const metaCapital = metaComercialEnSoles(metaCapitalPen, metaCapitalUsd, tc?.promedio, cumplimiento?.capitalValorado)
   const hayDolares = (capitalConfirmadoUsd ?? 0) > 0 || metaCapitalUsd > 0
-  const tcEnVuelo = tc === undefined && hayDolares
-  const tcCaido = tc === null && hayDolares
+  const tcEnVuelo = !capitalConfirmado.valorado && tc === undefined && hayDolares
+  const tcCaido = !capitalConfirmado.valorado && tc === null && hayDolares
   const ajusteCierre = cumplimiento?.ajuste
   const notaAjusteCierre = ajusteCierre != null && (
     ajusteCierre.aplicadoPen > 0
@@ -233,7 +234,9 @@ export function useDatosSupervisor() {
     : null
   const notaCapitalMonedas = !tcEnVuelo && (capitalConfirmadoUsd ?? 0) > 0
     ? `${moneyK(capitalConfirmadoPen ?? 0, 'PEN')} + ${moneyK(capitalConfirmadoUsd ?? 0, 'USD')}`
-      + (capitalConfirmado.tc == null
+      + (capitalConfirmado.valorado
+            ? ' · TC fijado por venta'
+            : capitalConfirmado.tc == null
         ? ' · sin tipo de cambio: el total NO incluye los dólares'
         : ` · ${rotuloTipoCambio(capitalConfirmado.tc, tc?.fuente ?? 'TC del día')}`)
     : null

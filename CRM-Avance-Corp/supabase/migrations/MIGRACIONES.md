@@ -18,6 +18,137 @@ Ver `docs/plans/citas-fecha-comercial/RESULTADO.md` para resultados, limitacione
 y orden de publicación. Si se integra la valoración paralela, instalarla antes
 de esta migración: su preflight aún exige la huella anterior de Citas.
 
+## 20261017040525 — Conservar la certificación del censo analítico
+
+**CANDIDATA EN RAMA DE PRUEBAS; PRODUCCIÓN PENDIENTE.** Conserva las 44
+declaraciones nativas, actualiza exclusivamente la huella conocida del cierre
+y declara las dos piezas analíticas extraídas para producción/Citas. No cambia
+el tope 14, permisos, clasificadores ni deuda ajena. Guardas de cuerpo/sello y
+pruebas de rechazo con rollback PASS. Replay de once candidatas: 89 aserciones
+de cortes/permisos PASS. Estado de publicación en
+docs/plans/tipo-cambio-por-venta/PUBLICACION-20261017.md.
+
+## 20261017033241 — Cierre acotado: reconciliar antes de bloquear
+
+**CANDIDATA LOCAL, SIN PUBLICAR.** Elimina el bucle de materialización de atrasos
+bajo los locks del sello. Exige cobertura previa, revalida bajo bloqueo y limita
+espera de locks a 5 s. Guard MD5 exacto. SQL: 27 +16 +89 aserciones y cuatro
+carreras PASS con diez candidatas; 600 ventas conocidas se difieren sin crear
+valoraciones durante el cierre. Auth HTTP/F4 y Advisors finales PASS. Estado
+vigente en docs/plans/tipo-cambio-por-venta/ESTADO.md; las cifras de entradas
+anteriores documentan sus respectivas etapas, no pendientes actuales.
+
+## 20261017025829 — Índices de las relaciones nuevas
+
+**CANDIDATA LOCAL, SIN PUBLICAR.** Cuatro índices para FK de cortes/meta,
+sellos/corte y valoraciones/anterior y tasa/política. Comparación oficial
+Advisors antes/después ya no añade FK sin índice ni WARN/ERROR. Los INFO
+unused_index del banco vacío y RLS deny-all se justifican en ADVISORS.md.
+
+## 20261016233037 — Ticket y CSV de Citas por operación
+
+**CANDIDATA LOCAL, SIN PUBLICAR.** Nueva lectura v2 sobre el corte aceptado;
+conserva la puerta v1, permisos/PII, población, testigo y stock sin anulados.
+Congela la identidad canónica en base para conservar también el divisor del
+ticket. Guards de cuerpo original y catálogo de public intacto. SQL completo:
+27 + 14 + 87 aserciones y cuatro escenarios concurrentes PASS, ocho candidatas.
+API/UI/CSV y E2E locales: ver estado y límites en docs/plans/tipo-cambio-por-venta.
+
+## 20261016230914 — Reevaluación de cierre después de reconciliar
+
+**CANDIDATA LOCAL, SIN PUBLICAR.** RPC exclusiva de servicio; tras el commit de
+reconciliación solicita el ciclo normal solo con política activa y cron único,
+activo y compatible. Omite ausencia/pausa; no altera cron. La Edge conserva el
+éxito monetario aunque falle solicitar el ciclo. Nueva señal cortes_publicados.
+Deno 30 PASS; SQL prueba metadata simulada y ciclo nativo, no scheduler real.
+
+## 20261016223745 — Valoración en la transacción de altas y correcciones
+
+**CANDIDATA LOCAL, SIN PUBLICAR.** Comparte el materializador monetario entre
+worker y escritores, acotando fecha/fuente/id para una operación. Integra el
+alta CRM con cuenta, el helper privado de vinculación, la corrección comercial
+y un trigger de cierres externos en crm. Con PEN o tasa existente guarda la
+revisión al escribir; sin tasa conserva la venta y deja pendiente la revisión.
+El corrector toma el cerrojo global del cierre antes de bloquear la fuente.
+No cambia tablas, funciones ni triggers de public ni payloads de los escritores.
+
+Gate SQL PASS: 27 + 14 + 62 aserciones y cuatro escenarios concurrentes con las
+seis candidatas. Alta real SQL del portal con rol authenticated, cuenta/PDF,
+idempotencia y US$ 20 000 → S/ 68 000; fallo documental revierte todo; corrección
+PEN/USD y cooperativa mediante RPC nativa, con triggers y constraints diferidos
+comprobados. Mil pendientes no bloquean PEN; 10 000 fuentes adicionales: 4,52 ms
+en uno de los ensayos individuales locales. No acredita todavía GoTrue/PostgREST,
+todos los roles ni el wizard completo con F4 activa. Detalle en el estado del plan.
+
+## 20261016220524 — Detalle de Facturación del mismo corte
+
+**CANDIDATA LOCAL, SIN PUBLICAR.** Añade `listar_operaciones_facturacion_v3_fn`
+con referencias explícitas de cortes por mes, monto original, equivalente,
+fecha comercial y tasa por operación. Reutiliza la lógica de filtros,
+paginación y máscaras de las puertas anteriores; v1/v2 conservan exactamente
+sus payloads y límite de 31 días. Solo v3 admite hasta 366 días para agregar
+cortes mensuales: legado hasta septiembre y valoraciones desde octubre. Un
+mes sellado exige su referencia exacta. Las tasas del cliente no entran a SQL.
+
+Replay de cinco candidatas PASS; 45 aserciones de cortes/permisos, incluidas
+paridad v2 con filas, rango agosto-octubre y privacidad de Coordinación.
+Cliente integrado con fixtures generados por SQL, 6 732 pruebas del gate
+frontend y dos E2E Docker de Ranking/Facturación. Altas reales, Auth/HTTP y
+otros gates del plan siguen pendientes; esta evidencia no autoriza activación.
+
+## 20261016204946 — Sello de capital valorado y activación explícita
+
+**CANDIDATA LOCAL, SIN ACTIVAR EN PRODUCCIÓN.** El cierre toma el candado
+existente y bloquea escritores de las fuentes durante la foto. Con la política
+activa, una valoración pendiente revierte el mes entero antes de conversión y
+ajustes; el ciclo existente conserva su siguiente intento. Una referencia
+inmutable enlaza el sello con la publicación de operaciones/metas de ese corte.
+La suspensión de presentación conserva las lecturas de meses ya sellados.
+Activación de servicio exige bundle compatible y huella vigente del censo;
+rechaza cobertura pendiente, sellos incompatibles, metas USD sin valoración,
+desgloses contradictorios o ajustes monetarios sin correspondencia resuelta.
+No reactiva cron. La instalación desactivada conserva el cierre anterior.
+
+Ensayo local con reloj simulado y replay desde el esquema base: cierre pendiente,
+recuperación, S/ 68 000 invariables, reversa, guardas de activación y permisos SQL
+authenticated. Detalle y alcance de pruebas en ESTADO.md; todavía no es release.
+
+## 20261016204221 — Cortes completos, cobertura y lecturas compatibles
+
+**CANDIDATA LOCAL.** Publicaciones inmutables por mes/corte con importes,
+cantidades, metas y personas de la misma revisión. Una corrección pendiente
+conserva el último corte completo. Ámbitos extraídos de las puertas originales;
+RPC v2 para cumplimiento, Facturación y detalle de operaciones sin ampliar
+payloads v1. Cobertura recortada por actor, pendientes en moneda original y
+estado atascado después de 24 horas del plazo de cierre. Referencias de
+valoración/tasa permiten conciliar el detalle con el mismo corte del ranking.
+
+## 20261016201516 — Proyección canónica por operación
+
+**CANDIDATA LOCAL.** Extrae la atribución vigente de producción sin cambiar sus
+agregados: analista explícito, leads/autor, fuera de metas y fechas distintas de
+cooperativas. Comparación idéntica de once meses en banco histórico, 14
+aserciones específicas y guardas de huella de los núcleos antes de instalar.
+
+## 20261016190725 — Tipo de cambio fijo por venta: persistencia y cola
+
+**CANDIDATA, PROBADA SOLO EN BANCO LOCAL; ACTIVACIÓN DESHABILITADA.** Vigencia
+comercial desde 01/10/2026. Tasas/evidencias inmutables por fecha, promedio de
+siete pares compra/venta BCRP calculado en numeric y equivalentes por operación
+con revisiones auditables. Cola persistente con reservas, expiración y reintentos.
+RLS, revokes y escritores exclusivos de servicio; sin acceso directo a tablas.
+No altera tablas/triggers/policies de public ni modifica todavía las lecturas
+comerciales o el cierre. Esa integración continúa en el plan de tipo de cambio.
+
+Esquema productivo vigente copiado en modo lectura a Docker exclusivo. 27
+aserciones SQL de dominio/legado y reversa antes de datos consolidados aprobadas; 24
+pruebas Deno del calculador y la Edge candidata, typecheck y preflight Edge
+anterior aprobados. La reconstrucción aislada de octubre valoró 108 operaciones
+(17 USD) con nueve tasas reales BCRP: equivalente total S/ 4 588 500,67; repetir
+creó cero revisiones adicionales. Identidades personales ficticias en el ensayo.
+El cierre se integra y ensaya en la candidata 20261016204946. Falta todavía el
+alta real y Auth/HTTP, integración completa de UI y validación final de release.
+Detalle y pendientes: `../../docs/plans/tipo-cambio-por-venta/ESTADO.md`.
 ## 20261016232742 — Completa huellas de lectura de Coordinación
 
 **Ensayada en rama; pendiente de producción y gate RLS integral.**

@@ -838,6 +838,7 @@ function EquipoSupervisor(): JSX.Element {
           metasVendedores={metasVendedoresRanking}
           cumplimientoVendedores={cumplimientoRanking?.porVendedor ?? {}}
           supervisores={cumplimientoRanking?.supervisores ?? []}
+          valoracionCapital={cumplimientoRanking?.valoracionCapital}
           metaMensual={metaMensual}
           // El vigente conserva altas/bajas del roster vivo; la identidad se
           // congela únicamente al consultar un mes histórico.

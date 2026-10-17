@@ -8,6 +8,8 @@ import { depositosDeInasistencias } from '@/components/citas/depositos'
 import { baseCitasFiltrada, metaCitas } from '@/components/citas/metas'
 import { GestionMensualCitasSchema } from '@/lib/gestion-citas'
 import { controlCitasInicial } from '@/lib/control-citas'
+import citasValoradas from '../../test-fixtures/capital-valorado/citas-sellado.json'
+import citasSinCorte from '../../test-fixtures/capital-valorado/citas-sin-corte.json'
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12,'0')}`
 const fila = (cambios: Partial<ConsultaCitasRpc['citas'][number]> = {}): ConsultaCitasRpc['citas'][number] => ({
@@ -28,6 +30,38 @@ beforeEach(() => {
 })
 
 describe('frontera de la consulta detallada de Citas',() => {
+  it.each([citasValoradas, citasSinCorte])('acepta el payload valorado ejecutado en SQL sin perder su referencia de corte', async datos => {
+    mocks.rpc.mockResolvedValue({ data: datos, error: null })
+    const resultado = await cargarCitasGerencia('2026-10')
+    expect(adaptarGestion(resultado)?.avance?.valoracion).toEqual(datos.gestion.valoracion)
+  })
+  it.each(['sin_equivalente', 'importe_incompatible', 'sin_fecha', 'sin_corte_con_capital', 'corte_inconsistente', 'sello_incompleto'] as const)(
+    'rechaza capital valorado incompleto: %s', async defecto => {
+      const datos = structuredClone(citasValoradas)
+      if (defecto==='sin_equivalente') Reflect.deleteProperty(datos.gestion.capital[0]!, 'equivalente_pen')
+      if (defecto==='importe_incompatible') datos.gestion.capital[0]!.equivalente_pen += 100
+      if (defecto==='sin_fecha') Reflect.deleteProperty(datos.gestion.capital[0]!, 'fecha_comercial')
+      if (defecto==='sin_corte_con_capital') Object.assign(datos.gestion.valoracion, { corte_id: null, sellado: false, cobertura: citasSinCorte.gestion.valoracion.cobertura })
+      if (defecto==='corte_inconsistente') Object.assign(datos.gestion.valoracion, { corte_id: null })
+      if (defecto==='sello_incompleto') datos.gestion.valoracion.cobertura.estado = 'pendiente'
+      mocks.rpc.mockResolvedValue({ data: datos, error: null })
+      await expect(cargarCitasGerencia('2026-10')).rejects.toThrow('valoración completa')
+    })
+  it('consulta el servidor anterior solo cuando falta la puerta v2 y conserva la cancelación', async () => {
+    const control = new AbortController()
+    mocks.rpc.mockImplementation(nombre => ({
+      then: (resolver: (r: unknown) => unknown) => Promise.resolve(nombre==='citas_gerencia_consulta_v2_fn'
+        ? { data: null, error: { code: 'PGRST202' } } : { data: respuesta(), error: null }).then(resolver), abortSignal: mocks.abortSignal,
+    }))
+    await cargarCitasGerencia('2026-09', control.signal)
+    expect(mocks.rpc.mock.calls.map(c=>c[0])).toEqual(['citas_gerencia_consulta_v2_fn', 'citas_gerencia_consulta_fn'])
+    expect(mocks.abortSignal).toHaveBeenCalledTimes(2)
+  })
+  it.each(['42501', 'PT409', '57014'])('no oculta el error %s de v2 con una lectura antigua', async code => {
+    mocks.rpc.mockResolvedValue({ data: null, error: { code } })
+    await expect(cargarCitasGerencia('2026-10')).rejects.toMatchObject({ code })
+    expect(mocks.rpc).toHaveBeenCalledTimes(1)
+  })
   it('valida gestión mensual y capital por perfil aunque el lead no enlace un contrato', async () => {
     const datos = respuestaConversion()
     datos.citas = datos.citas.map(c => ({ ...c, manual_propio: false, registro_manual: false }))
@@ -104,7 +138,7 @@ describe('frontera de la consulta detallada de Citas',() => {
     const r = await cargarCitasGerencia('2026-09',control.signal)
     expect(r.citas).toHaveLength(1)
     expect(mocks.schema).toHaveBeenCalledWith('crm')
-    expect(mocks.rpc).toHaveBeenCalledWith('citas_gerencia_consulta_fn',{p_desde:'2026-09-01',p_hasta:'2026-09-30'})
+    expect(mocks.rpc).toHaveBeenCalledWith('citas_gerencia_consulta_v2_fn',{p_desde:'2026-09-01',p_hasta:'2026-09-30'})
     expect(mocks.abortSignal).toHaveBeenCalledWith(control.signal)
   })
   it('rechaza meses inválidos antes de llamar al servidor',async () => {

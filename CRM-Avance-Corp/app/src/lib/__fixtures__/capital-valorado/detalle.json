@@ -1,0 +1,54 @@
+{
+  "corte": "2026-10-16",
+  "version": 1,
+  "corte_id": "628a4674-249d-4121-ae39-94c805df3cd6",
+  "total_pen": 74000,
+  "operaciones": [
+    {
+      "tasa": 1,
+      "monto": 4000,
+      "fuente": "contrato",
+      "moneda": "PEN",
+      "numero": "ATR-TC-4",
+      "fecha_tc": null,
+      "categoria": "upgrade",
+      "fuente_id": "f2000000-0000-4000-8000-000000000004",
+      "politica_tc": null,
+      "valoracion_id": "e59061b5-15e9-4bee-9d32-b731c1fc8434",
+      "equivalente_pen": 4000,
+      "fecha_comercial": "2026-10-02",
+      "fecha_imputacion": "2026-10-02"
+    },
+    {
+      "tasa": 1,
+      "monto": 8000,
+      "fuente": "contrato",
+      "moneda": "PEN",
+      "numero": "ATR-TC-8",
+      "fecha_tc": null,
+      "categoria": "nuevo",
+      "fuente_id": "f2000000-0000-4000-8000-000000000008",
+      "politica_tc": null,
+      "valoracion_id": "d84aa185-fa9d-435f-88ae-5d6f7744c90c",
+      "equivalente_pen": 8000,
+      "fecha_comercial": "2026-10-02",
+      "fecha_imputacion": "2026-10-02"
+    },
+    {
+      "tasa": 3.1,
+      "monto": 20000,
+      "fuente": "contrato",
+      "moneda": "USD",
+      "numero": "ATR-TC-1",
+      "fecha_tc": "2026-10-05",
+      "categoria": "nuevo",
+      "fuente_id": "f2000000-0000-4000-8000-000000000001",
+      "politica_tc": "sbs_punto_medio_7d_v1",
+      "valoracion_id": "287e7179-bd9e-47a3-9f09-77750ea0ef9e",
+      "equivalente_pen": 62000,
+      "fecha_comercial": "2026-10-05",
+      "fecha_imputacion": "2026-10-05"
+    }
+  ],
+  "valoracion_activa": true
+}

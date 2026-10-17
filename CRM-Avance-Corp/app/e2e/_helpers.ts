@@ -3315,6 +3315,11 @@ export async function montarBackendReal(
       // de Gerencia real recibiría un 500 de la red fail-closed.
       return json(route, plazosCargaMesReal())
     }
+    if (['/rest/v1/rpc/cumplimiento_metas_v2_fn', '/rest/v1/rpc/facturacion_diaria_v2_fn', '/rest/v1/rpc/citas_gerencia_consulta_v2_fn'].includes(p) && method === 'POST') {
+      // Compatibilidad con el servidor previo a TC por venta. Los escenarios
+      // nuevos sobrescriben estas puertas con sus respuestas SQL versionadas.
+      return json(route, { code: 'PGRST202', message: 'Función versionada aún no instalada' }, 404)
+    }
     if (p === '/rest/v1/rpc/cumplimiento_metas_fn' && method === 'POST') {
       const body = (req.postDataJSON() ?? {}) as { p_periodo?: string }
       const periodo = body.p_periodo ?? String(estado.cumplimientoMetas.periodo)

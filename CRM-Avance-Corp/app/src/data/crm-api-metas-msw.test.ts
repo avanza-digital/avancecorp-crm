@@ -11,17 +11,43 @@ vi.mock('@/lib/supabase', async () => {
 })
 
 import { CrmApiError, obtenerCumplimientoMetas, obtenerMetasDelMes } from './crm-api'
+import valorado from '@/lib/__fixtures__/capital-valorado/activo.json'
 
 const RPC = (fn: string) => `http://supabase.test/rest/v1/rpc/${fn}`
 const VENDEDOR_ID = '10000000-0000-4000-8000-000000000001'
 const SUPERVISOR_ID = '10000000-0000-4000-8000-000000000002'
 const RESPONSABLE_FUERA_ID = '10000000-0000-4000-8000-000000000003'
-const server = setupServer()
+const server = setupServer(http.post(RPC('cumplimiento_metas_v2_fn'), () => (
+  HttpResponse.json({ code: 'PGRST202', message: 'Función versionada aún no instalada' }, { status: 404 })
+)))
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
 afterEach(() => server.resetHandlers())
 afterAll(() => server.close())
 beforeEach(() => vi.spyOn(console, 'error').mockImplementation(() => {}))
+
+describe('lectura versionada de capital por venta', () => {
+  it('acepta el payload generado al ejecutar SQL, sin consultar la función anterior', async () => {
+    let anterior = false
+    server.use(
+      http.post(RPC('cumplimiento_metas_v2_fn'), () => HttpResponse.json(valorado)),
+      http.post(RPC('cumplimiento_metas_fn'), () => { anterior = true; return HttpResponse.json({}) }),
+    )
+    const respuesta = await obtenerCumplimientoMetas('2026-10-01')
+    expect(respuesta.capital_valoracion?.personas[0]?.capital_valorado.equivalente_pen).toBe(74000)
+    expect(anterior).toBe(false)
+  })
+
+  it('un rechazo de autorización no vuelve a intentar con la lectura anterior', async () => {
+    let anterior = false
+    server.use(
+      http.post(RPC('cumplimiento_metas_v2_fn'), () => HttpResponse.json({ code: '42501' }, { status: 403 })),
+      http.post(RPC('cumplimiento_metas_fn'), () => { anterior = true; return HttpResponse.json({}) }),
+    )
+    await expect(obtenerCumplimientoMetas('2026-10-01')).rejects.toMatchObject({ code: '42501' })
+    expect(anterior).toBe(false)
+  })
+})
 
 function detallesMeta(): Record<string, unknown>[] {
   return (['nuevo', 'renovacion', 'upgrade'] as const).flatMap((categoria) => [

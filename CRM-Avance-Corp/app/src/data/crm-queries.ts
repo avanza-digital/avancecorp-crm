@@ -60,6 +60,7 @@ import {
   obtenerConversionMensual,
   obtenerCumplimientoMetas,
   obtenerRankingOrigenVendedor,
+  obtenerCapitalOperacionesValoradas,
   listarMetricasReuniones,
   listarAltasNuevasPorAnalista,
   listarFacturacionDiaria,
@@ -889,7 +890,7 @@ export function useEquipoReportes(habilitada: boolean, actorId?: string | null) 
  */
 export function useFacturacionDeMeses(habilitada: boolean, meses: readonly string[]) {
   const mesActual = useDiaLima().slice(0, 7)
-  return useQueries({
+  const consultas = useQueries({
     queries: meses.map((mes) => ({
       queryKey: crmQueryKeys.facturacionDiaria(mes),
       queryFn: ({ signal }: { signal: AbortSignal }) => listarFacturacionDiaria(mes, signal),
@@ -899,16 +900,32 @@ export function useFacturacionDeMeses(habilitada: boolean, meses: readonly strin
       refetchOnWindowFocus: mes.slice(0, 7) < mesActual ? 'always' as const : true,
     })),
   })
+  const necesitaTramos = consultas.some((c) => c.data?.capitalValoracion?.activa)
+  const anteriores = necesitaTramos ? meses.filter((mes) => mes < '2026-10-01') : []
+  const legadas = useQueries({ queries: anteriores.map((mes) => ({
+    queryKey: [...crmQueryKeys.facturacionDiaria(mes), 'corte-mensual-legado'],
+    queryFn: ({ signal }: { signal: AbortSignal }) => listarFacturacionDiaria(mes, signal, true),
+    enabled: habilitada, staleTime: 30 * 60_000,
+  })) })
+  return consultas.map((consulta, i) => {
+    const indice = anteriores.indexOf(meses[i] ?? '')
+    return indice < 0 ? consulta : legadas[indice]!
+  })
 }
 
 /** Cada filtro y la página forman la clave; ninguna respuesta de otra cifra se reutiliza. */
+export function opcionesListaOperacionesFacturacion(parametros: ParametrosOperacionesFacturacion) {
+  return {
+    queryKey: [...crmQueryKeys.metricas(), 'operaciones-facturacion', parametros],
+    queryFn: ({ signal }: { signal: AbortSignal }) => listarOperacionesFacturacion(parametros, signal),
+  }
+}
 export function useListaOperacionesFacturacion(habilitada: boolean, parametros: ParametrosOperacionesFacturacion,
   detenerRefresco: (datos: ListaOperacionesFacturacion) => boolean = () => false) {
   const cerrado = parametros.p_hasta.slice(0, 7) < useDiaLima().slice(0, 7)
   return useQuery({
-    queryKey: [...crmQueryKeys.metricas(), 'operaciones-facturacion', parametros],
+    ...opcionesListaOperacionesFacturacion(parametros),
     placeholderData: keepPreviousData,
-    queryFn: ({ signal }) => listarOperacionesFacturacion(parametros, signal),
     enabled: habilitada,
     staleTime: cerrado ? 30 * 60_000 : 5 * 60_000,
     refetchOnMount: 'always',
@@ -1159,10 +1176,13 @@ export function useRankingOrigenVendedor(
   periodo: string,
   vendedorId: string | null,
   actorId?: string | null,
+  corteId?: string | null,
 ) {
   return useQuery({
-    queryKey: crmQueryKeys.rankingOrigenes(periodo, vendedorId ?? '', actorId),
-    queryFn: ({ signal }) => obtenerRankingOrigenVendedor(periodo, vendedorId!, signal),
+    queryKey: [...crmQueryKeys.rankingOrigenes(periodo, vendedorId ?? '', actorId), corteId ?? 'legado'],
+    queryFn: async ({ signal }) => corteId
+      ? obtenerCapitalOperacionesValoradas(periodo, vendedorId!, corteId, signal)
+      : obtenerRankingOrigenVendedor(periodo, vendedorId!, signal),
     enabled: habilitada && Boolean(periodo) && Boolean(vendedorId) && Boolean(actorId),
   })
 }

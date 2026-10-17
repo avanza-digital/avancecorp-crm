@@ -124,9 +124,14 @@ export async function cargarCitasGerencia(mes: string, signal?: AbortSignal): Pr
   const [desde,hasta] = rango(defaults(mes))
   if (!desde) throw new CrmApiError('Selecciona un mes válido.','CITAS_PERIODO')
   if (!sb) throw new CrmApiError('No se pudo conectar con el CRM.','CITAS_SIN_CONEXION')
-  const peticion = sb.schema('crm').rpc('citas_gerencia_consulta_fn', {p_desde:desde,p_hasta:hasta})
-  if (signal) peticion.abortSignal(signal)
-  const {data,error} = await peticion
+  const parametros = {p_desde:desde,p_hasta:hasta}
+  const consultar = (nombre: 'citas_gerencia_consulta_fn' | 'citas_gerencia_consulta_v2_fn') => {
+    const peticion = sb!.schema('crm').rpc(nombre, parametros)
+    if (signal) peticion.abortSignal(signal)
+    return peticion
+  }
+  let {data,error} = await consultar('citas_gerencia_consulta_v2_fn')
+  if (error?.code === 'PGRST202') ({data,error} = await consultar('citas_gerencia_consulta_fn'))
   if (error) throw new CrmApiError(error.code==='PGRST202'
     ? 'La consulta detallada de citas aún no está habilitada en este servidor.'
     : 'No se pudieron cargar las citas. Reintenta la consulta.',error.code)
@@ -145,6 +150,16 @@ export async function cargarCitasGerencia(mes: string, signal?: AbortSignal): Pr
     }
     const g=datos.gestion
     if (g.version===2) {
+      const valoracion = g.valoracion
+      if (valoracion && (desde<'2026-10-01'
+        || (valoracion.corte_id===null)!==(valoracion.cobertura.corte===null)
+        || (valoracion.sellado && (valoracion.corte_id===null || valoracion.cobertura.estado!=='completo'))
+        || (valoracion.corte_id===null && g.capital.length>0)
+        || g.capital.some(k=>k.equivalente_pen===undefined || k.tasa===undefined || k.fecha_comercial===undefined
+          || k.fecha_tc===undefined || k.politica_tc===undefined
+          || Math.abs(k.monto*k.tasa-k.equivalente_pen)>0.00500001))) {
+        throw new CrmApiError('El capital de Citas no corresponde a una valoración completa. Actualiza para reintentar.','CITAS_CONTRATO')
+      }
       const poblacion=new Set(g.poblacion.map(p=>p.lead_id))
       const cierres=new Map(g.conversiones.map(c=>[c.lead_id,c]))
       const cfg=g.control.configuracion

@@ -1,0 +1,162 @@
+{
+  "citas": [],
+  "gestion": {
+    "capital": [
+      {
+        "tasa": 3.4,
+        "tipo": "contrato_renovacion",
+        "fecha": "2026-10-02T05:00:00+00:00",
+        "monto": 2000.0,
+        "moneda": "USD",
+        "lead_id": "f1000000-0000-4000-8000-000000000021",
+        "fecha_tc": "2026-10-02",
+        "perfil_id": "f1000000-0000-4000-8000-000000000005",
+        "analista_id": "f1000000-0000-4000-8000-000000000003",
+        "contrato_id": "f2000000-0000-4000-8000-000000000002",
+        "politica_tc": "sbs_punto_medio_7d_v1",
+        "supervisor_id": "f1000000-0000-4000-8000-000000000001",
+        "analista_nombre": "Persona sintética 3",
+        "equivalente_pen": 6800.0,
+        "fecha_comercial": "2026-10-02",
+        "cierre_externo_id": null,
+        "identidad_persona": "perfil:f1000000-0000-4000-8000-000000000005",
+        "supervisor_nombre": "Persona sintética 1"
+      },
+      {
+        "tasa": 1.0,
+        "tipo": "contrato_nuevo",
+        "fecha": "2026-10-02T05:00:00+00:00",
+        "monto": 8000.0,
+        "moneda": "PEN",
+        "lead_id": "f1000000-0000-4000-8000-000000000021",
+        "fecha_tc": null,
+        "perfil_id": "f1000000-0000-4000-8000-000000000005",
+        "analista_id": "f1000000-0000-4000-8000-000000000002",
+        "contrato_id": "f2000000-0000-4000-8000-000000000008",
+        "politica_tc": null,
+        "supervisor_id": "f1000000-0000-4000-8000-000000000001",
+        "analista_nombre": "Persona sintética 2",
+        "equivalente_pen": 8000.0,
+        "fecha_comercial": "2026-10-02",
+        "cierre_externo_id": null,
+        "identidad_persona": "perfil:f1000000-0000-4000-8000-000000000005",
+        "supervisor_nombre": "Persona sintética 1"
+      },
+      {
+        "tasa": 3.4,
+        "tipo": "cooperativa",
+        "fecha": "2026-10-03T05:00:00+00:00",
+        "monto": 9000.0,
+        "moneda": "USD",
+        "lead_id": "f1000000-0000-4000-8000-000000000041",
+        "fecha_tc": "2026-10-02",
+        "perfil_id": null,
+        "analista_id": "f1000000-0000-4000-8000-000000000003",
+        "contrato_id": null,
+        "politica_tc": "sbs_punto_medio_7d_v1",
+        "supervisor_id": "f1000000-0000-4000-8000-000000000001",
+        "analista_nombre": "Persona sintética 3",
+        "equivalente_pen": 30600.0,
+        "fecha_comercial": "2026-10-02",
+        "cierre_externo_id": "f1000000-0000-4000-8000-000000000031",
+        "identidad_persona": "lead:f1000000-0000-4000-8000-000000000041",
+        "supervisor_nombre": "Persona sintética 1"
+      },
+      {
+        "tasa": 3.4,
+        "tipo": "contrato_nuevo",
+        "fecha": "2026-10-06T05:00:00+00:00",
+        "monto": 20000.0,
+        "moneda": "USD",
+        "lead_id": "f1000000-0000-4000-8000-000000000021",
+        "fecha_tc": "2026-10-06",
+        "perfil_id": "f1000000-0000-4000-8000-000000000005",
+        "analista_id": "f1000000-0000-4000-8000-000000000002",
+        "contrato_id": "f2000000-0000-4000-8000-000000000001",
+        "politica_tc": "sbs_punto_medio_7d_v1",
+        "supervisor_id": "f1000000-0000-4000-8000-000000000001",
+        "analista_nombre": "Persona sintética 2",
+        "equivalente_pen": 68000.0,
+        "fecha_comercial": "2026-10-06",
+        "cierre_externo_id": null,
+        "identidad_persona": "perfil:f1000000-0000-4000-8000-000000000005",
+        "supervisor_nombre": "Persona sintética 1"
+      }
+    ],
+    "control": {
+      "version": 0,
+      "mes_inicio": null,
+      "configuracion": {
+        "mes_inicio": null,
+        "base_avance": "actividad_real",
+        "mes_resultado": null,
+        "base_depositos": null,
+        "citas_por_lead": 1.25,
+        "actividad_manuales": "incluir",
+        "analista_resultado": null,
+        "conteo_entrevistas": "citas_realizadas",
+        "mostrar_meta_citas": false,
+        "depositos_porcentaje": 70,
+        "excluir_manuales_base": false,
+        "entrevistas_porcentaje": 70
+      }
+    },
+    "version": 2,
+    "poblacion": [
+      {
+        "moneda": "PEN",
+        "nombre": "Lead sintético 1",
+        "origen": "landing",
+        "lead_id": "f1000000-0000-4000-8000-000000000021",
+        "telefono": "+51900000001",
+        "creado_por": null,
+        "monto_estimado": 1000,
+        "registro_manual": false,
+        "identidad_persona": "perfil:f1000000-0000-4000-8000-000000000005",
+        "analista_origen_id": null,
+        "supervisor_origen_id": null,
+        "primera_asignacion_en": null,
+        "analista_origen_nombre": "Sin analista",
+        "supervisor_origen_nombre": "Sin supervisor"
+      }
+    ],
+    "valoracion": {
+      "activa": true,
+      "sellado": true,
+      "version": 1,
+      "corte_id": "3881ac95-f418-4cb2-b286-76c561310e91",
+      "cobertura": {
+        "corte": "2026-10-31",
+        "estado": "completo",
+        "pendientes": {
+          "pen": 0,
+          "usd": 0,
+          "cantidad": 0
+        },
+        "generado_en": "2026-10-17T06:04:00.669851+00:00",
+        "por_incorporar": {
+          "pen": 0,
+          "usd": 0,
+          "cantidad": 0
+        },
+        "ventas_pendientes": []
+      }
+    },
+    "asignaciones": [],
+    "conversiones": [],
+    "citas_por_lead": 1.25,
+    "actividad_manuales": "incluir",
+    "depositos_porcentaje": 70,
+    "entrevistas_porcentaje": 70
+  },
+  "periodo": {
+    "desde": "2026-10-01",
+    "hasta": "2026-10-31"
+  },
+  "version": 2,
+  "generado_en": "2026-10-17T06:03:58.959375+00:00",
+  "conversiones": [],
+  "citas_clientes": 0,
+  "criterio_depositos": "fecha_comercial",
+  "disponibilidad_depositos": "conversion_cliente"
+}

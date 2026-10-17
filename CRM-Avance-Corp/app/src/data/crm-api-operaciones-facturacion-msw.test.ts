@@ -8,6 +8,9 @@ vi.mock('@/lib/supabase', async () => {
 })
 import { listarOperacionesFacturacion, parsearListaOperacionesFacturacion } from './crm-api'
 import { operacion, oculta, respuesta } from '@/test/operaciones-facturacion'
+import valorada from '@/lib/__fixtures__/capital-valorado/facturacion-lista.json'
+import mixta from '@/lib/__fixtures__/capital-valorado/facturacion-lista-mixta.json'
+import coordinacion from '@/lib/__fixtures__/capital-valorado/facturacion-lista-coordinacion.json'
 const RPC = 'http://supabase.test/rest/v1/rpc/listar_operaciones_facturacion_v2_fn'
 const servidor = setupServer()
 beforeAll(() => servidor.listen({ onUnhandledRequest: 'error' }))
@@ -15,6 +18,49 @@ afterEach(() => servidor.resetHandlers())
 afterAll(() => servidor.close())
 const params = { p_desde: '2026-10-01', p_hasta: '2026-10-31', p_dias: ['2026-10-05'], p_analistas: ['ana'], p_sin_analista: false,
   p_equipo: 'sup', p_sin_equipo: false, p_tipos: ['contrato_nuevo', 'cooperativa'], p_moneda: 'PEN', p_pagina: 1, p_tamano: 25 }
+const RPC_VALORADO = 'http://supabase.test/rest/v1/rpc/listar_operaciones_facturacion_v3_fn'
+describe('lista del mismo corte: respuestas ejecutadas en Postgres', () => {
+  it('usa equivalentes guardados y no envía las tasas del cliente', async () => {
+    let cuerpo: unknown
+    servidor.use(http.post(RPC_VALORADO, async ({ request }) => {
+      cuerpo = await request.json()
+      return HttpResponse.json(valorada)
+    }))
+    const args = { p_desde: '2026-10-01', p_hasta: '2026-10-31', p_cortes: valorada.cortes }
+    const lista = await listarOperacionesFacturacion({ ...args, tasasLegadas: { '2026-09-01': { fecha: '2026-09-30', tasa: 99 } } })
+    expect(cuerpo).toEqual(args)
+    expect(lista.totales.reduce((s, t) => s + t.equivalente_pen!, 0)).toBe(142400)
+    expect(lista.filas.find((f) => f.monto === 20000)).toMatchObject({ tasa: 3.1, equivalente_pen: 62000 })
+  })
+  it('agosto y septiembre usan sus cortes históricos y octubre conserva sus valores', async () => {
+    servidor.use(http.post(RPC_VALORADO, () => HttpResponse.json(mixta)))
+    const lista = await listarOperacionesFacturacion({ p_desde: '2026-08-01', p_hasta: '2026-10-31', p_cortes: mixta.cortes,
+      tasasLegadas: { '2026-08-01': { fecha: '2026-08-31', tasa: 3.6 }, '2026-09-01': { fecha: '2026-09-30', tasa: 3.5 } } })
+    expect(lista.totales.reduce((s, t) => s + t.equivalente_pen!, 0)).toBe(177700)
+    expect(lista.filas.find((f) => f.fecha === '2026-08-02')).toMatchObject({ tasa: 3.6, fecha_tc: '2026-08-31', equivalente_pen: 10800 })
+    expect(lista.filas.find((f) => f.monto === 20000)).toMatchObject({ tasa: 3.1, equivalente_pen: 62000 })
+    const incompleta = await listarOperacionesFacturacion({ p_desde: '2026-08-01', p_hasta: '2026-10-31', p_cortes: mixta.cortes })
+    expect(incompleta.totales.find((t) => t.moneda === 'USD')?.equivalente_pen).toBeNull()
+    expect(incompleta.filas.find((f) => f.fecha === '2026-08-02')?.equivalente_pen).toBeNull()
+  })
+  it('mantiene los nombres permitidos de Coordinación sin ids ni contacto', () => {
+    const lista = parsearListaOperacionesFacturacion(coordinacion)
+    expect(lista.filas.length).toBeGreaterThan(0)
+    expect(lista.filas.every((f) => !f.visible && 'nombre_visible' in f && f.nombre_visible)).toBe(true)
+    for (const fila of lista.filas) for (const clave of ['cliente_id', 'contrato_id', 'numero_contrato', 'lead_id', 'telefono']) expect(fila).not.toHaveProperty(clave)
+    expect(() => parsearListaOperacionesFacturacion({ ...coordinacion, filas: coordinacion.filas.map((f) => ({ ...f, telefono: 'privado' })) })).toThrow(/formato/)
+  })
+  it('rechaza otra referencia de corte y una valoración faltante; no cae a v2', async () => {
+    servidor.use(http.post(RPC_VALORADO, () => HttpResponse.json(valorada)))
+    await expect(listarOperacionesFacturacion({ p_desde: '2026-10-01', p_hasta: '2026-10-31', p_cortes: { '2026-10-01': crypto.randomUUID() } })).rejects.toThrow(/cortes/)
+    servidor.use(http.post(RPC_VALORADO, () => HttpResponse.json({ ...valorada, filas: valorada.filas.map((f) => ({ ...f, equivalente_pen: f.equivalente_pen + 0.01 })) })))
+    await expect(listarOperacionesFacturacion({ p_desde: '2026-10-01', p_hasta: '2026-10-31', p_cortes: valorada.cortes })).rejects.toThrow(/no concilian/)
+    servidor.use(http.post(RPC_VALORADO, () => HttpResponse.json({ ...valorada, totales_por_mes: valorada.totales_por_mes.map((t) => ({ ...t, equivalente_pen: null })) })))
+    await expect(listarOperacionesFacturacion({ p_desde: '2026-10-01', p_hasta: '2026-10-31', p_cortes: valorada.cortes })).rejects.toThrow(/valoración guardada/)
+    servidor.use(http.post(RPC_VALORADO, () => HttpResponse.json({ code: 'PGRST202' }, { status: 404 })))
+    await expect(listarOperacionesFacturacion({ p_desde: '2026-10-01', p_hasta: '2026-10-31', p_cortes: valorada.cortes })).rejects.toThrow(/No se pudo cargar/)
+  })
+})
 describe('lista de operaciones: frontera HTTP y contrato entero', () => {
   it('envía todos los argumentos exactos al esquema crm, conserva la anulada y no añade ids a la enmascarada', async () => {
     let cuerpo: unknown

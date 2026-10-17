@@ -1,0 +1,285 @@
+{
+  "cierre": {
+    "cerrado": true,
+    "automatico": true,
+    "cerrado_en": "2026-10-16T22:27:31.030948+00:00"
+  },
+  "fuente": "mensual",
+  "periodo": "2026-10-01",
+  "sellado": true,
+  "version": 1,
+  "revision": 1,
+  "vendedores": [
+    {
+      "ajuste": {
+        "aplicado": 0,
+        "pendiente": 0,
+        "aplicado_pen": 0,
+        "aplicado_usd": 0
+      },
+      "nombre": "Persona sintética 2",
+      "detalles": [
+        {
+          "moneda": "PEN",
+          "categoria": "nuevo",
+          "capital_real": 8000,
+          "capital_ajuste": 0,
+          "contratos_real": 1,
+          "capital_objetivo": 100000,
+          "contratos_ajuste": 0,
+          "contratos_objetivo": 0,
+          "capital_cumplimiento_pct": 8,
+          "contratos_cumplimiento_pct": null
+        },
+        {
+          "moneda": "USD",
+          "categoria": "nuevo",
+          "capital_real": 20000,
+          "capital_ajuste": 0,
+          "contratos_real": 1,
+          "capital_objetivo": 0,
+          "contratos_ajuste": 0,
+          "contratos_objetivo": 0,
+          "capital_cumplimiento_pct": null,
+          "contratos_cumplimiento_pct": null
+        },
+        {
+          "moneda": "PEN",
+          "categoria": "renovacion",
+          "capital_real": 0,
+          "capital_ajuste": 0,
+          "contratos_real": 0,
+          "capital_objetivo": 0,
+          "contratos_ajuste": 0,
+          "contratos_objetivo": 0,
+          "capital_cumplimiento_pct": null,
+          "contratos_cumplimiento_pct": null
+        },
+        {
+          "moneda": "USD",
+          "categoria": "renovacion",
+          "capital_real": 0,
+          "capital_ajuste": 0,
+          "contratos_real": 0,
+          "capital_objetivo": 0,
+          "contratos_ajuste": 0,
+          "contratos_objetivo": 0,
+          "capital_cumplimiento_pct": null,
+          "contratos_cumplimiento_pct": null
+        },
+        {
+          "moneda": "PEN",
+          "categoria": "upgrade",
+          "capital_real": 4000,
+          "capital_ajuste": 0,
+          "contratos_real": 1,
+          "capital_objetivo": 0,
+          "contratos_ajuste": 0,
+          "contratos_objetivo": 0,
+          "capital_cumplimiento_pct": null,
+          "contratos_cumplimiento_pct": null
+        },
+        {
+          "moneda": "USD",
+          "categoria": "upgrade",
+          "capital_real": 0,
+          "capital_ajuste": 0,
+          "contratos_real": 0,
+          "capital_objetivo": 0,
+          "contratos_ajuste": 0,
+          "contratos_objetivo": 0,
+          "capital_cumplimiento_pct": null,
+          "contratos_cumplimiento_pct": null
+        }
+      ],
+      "numerador": 0,
+      "resueltos": 0,
+      "convertidos": 0,
+      "vendedor_id": "f1000000-0000-4000-8000-000000000002",
+      "supervisor_id": "f1000000-0000-4000-8000-000000000001",
+      "conversion_real": null,
+      "capital_valorado": {
+        "corte": "2026-10-31",
+        "version": 1,
+        "corte_id": "6ec8d828-f1c5-4007-955c-9a5c458f09cd",
+        "detalles": [
+          {
+            "moneda": "PEN",
+            "categoria": "nuevo",
+            "capital_real": 8000,
+            "contratos_real": 1,
+            "equivalente_pen": 8000,
+            "capital_objetivo": 100000,
+            "contratos_objetivo": 0
+          },
+          {
+            "moneda": "USD",
+            "categoria": "nuevo",
+            "capital_real": 20000,
+            "contratos_real": 1,
+            "equivalente_pen": 68000,
+            "capital_objetivo": 0,
+            "contratos_objetivo": 0
+          },
+          {
+            "moneda": "PEN",
+            "categoria": "renovacion",
+            "capital_real": 0,
+            "contratos_real": 0,
+            "equivalente_pen": 0,
+            "capital_objetivo": 0,
+            "contratos_objetivo": 0
+          },
+          {
+            "moneda": "USD",
+            "categoria": "renovacion",
+            "capital_real": 0,
+            "contratos_real": 0,
+            "equivalente_pen": 0,
+            "capital_objetivo": 0,
+            "contratos_objetivo": 0
+          },
+          {
+            "moneda": "PEN",
+            "categoria": "upgrade",
+            "capital_real": 4000,
+            "contratos_real": 1,
+            "equivalente_pen": 4000,
+            "capital_objetivo": 0,
+            "contratos_objetivo": 0
+          },
+          {
+            "moneda": "USD",
+            "categoria": "upgrade",
+            "capital_real": 0,
+            "contratos_real": 0,
+            "equivalente_pen": 0,
+            "capital_objetivo": 0,
+            "contratos_objetivo": 0
+          }
+        ],
+        "contratos": 3,
+        "capital_pen": 12000,
+        "capital_usd": 20000,
+        "generado_en": "2026-10-16T22:27:31.457169+00:00",
+        "objetivo_pen": 100000,
+        "meta_revision": 1,
+        "equivalente_pen": 80000
+      },
+      "cierres_referidos": 0,
+      "supervisor_nombre": "Persona sintética 1",
+      "conversion_objetivo": 10,
+      "cierres_no_referidos": 0
+    }
+  ],
+  "publicada_en": "2026-10-16T22:27:31.034365+00:00",
+  "fuera_ranking": [],
+  "fuentes_reales": {
+    "conversion": "leads_recibidos_ponderado",
+    "capital_y_contratos": "contratos_confirmados"
+  },
+  "ajuste_aplicado": true,
+  "es_mes_calendario": true,
+  "capital_valoracion": {
+    "activa": true,
+    "sellado": true,
+    "version": 1,
+    "corte_id": "6ec8d828-f1c5-4007-955c-9a5c458f09cd",
+    "personas": [
+      {
+        "motivo": "analista_sin_meta",
+        "nombre": "Persona sintética 2",
+        "en_meta": true,
+        "rol_crm": "vendedor",
+        "en_ranking": true,
+        "vendedor_id": "f1000000-0000-4000-8000-000000000002",
+        "supervisor_id": "f1000000-0000-4000-8000-000000000001",
+        "capital_valorado": {
+          "corte": "2026-10-31",
+          "version": 1,
+          "corte_id": "6ec8d828-f1c5-4007-955c-9a5c458f09cd",
+          "detalles": [
+            {
+              "moneda": "PEN",
+              "categoria": "nuevo",
+              "capital_real": 8000,
+              "contratos_real": 1,
+              "equivalente_pen": 8000,
+              "capital_objetivo": 100000,
+              "contratos_objetivo": 0
+            },
+            {
+              "moneda": "USD",
+              "categoria": "nuevo",
+              "capital_real": 20000,
+              "contratos_real": 1,
+              "equivalente_pen": 68000,
+              "capital_objetivo": 0,
+              "contratos_objetivo": 0
+            },
+            {
+              "moneda": "PEN",
+              "categoria": "renovacion",
+              "capital_real": 0,
+              "contratos_real": 0,
+              "equivalente_pen": 0,
+              "capital_objetivo": 0,
+              "contratos_objetivo": 0
+            },
+            {
+              "moneda": "USD",
+              "categoria": "renovacion",
+              "capital_real": 0,
+              "contratos_real": 0,
+              "equivalente_pen": 0,
+              "capital_objetivo": 0,
+              "contratos_objetivo": 0
+            },
+            {
+              "moneda": "PEN",
+              "categoria": "upgrade",
+              "capital_real": 4000,
+              "contratos_real": 1,
+              "equivalente_pen": 4000,
+              "capital_objetivo": 0,
+              "contratos_objetivo": 0
+            },
+            {
+              "moneda": "USD",
+              "categoria": "upgrade",
+              "capital_real": 0,
+              "contratos_real": 0,
+              "equivalente_pen": 0,
+              "capital_objetivo": 0,
+              "contratos_objetivo": 0
+            }
+          ],
+          "contratos": 3,
+          "capital_pen": 12000,
+          "capital_usd": 20000,
+          "generado_en": "2026-10-16T22:27:31.457169+00:00",
+          "objetivo_pen": 100000,
+          "meta_revision": 1,
+          "equivalente_pen": 80000
+        },
+        "supervisor_nombre": "Persona sintética 1"
+      }
+    ],
+    "cobertura": {
+      "corte": "2026-10-31",
+      "estado": "completo",
+      "pendientes": {
+        "pen": 0,
+        "usd": 0,
+        "cantidad": 0
+      },
+      "por_incorporar": {
+        "pen": 0,
+        "usd": 0,
+        "cantidad": 0
+      },
+      "ventas_pendientes": []
+    }
+  },
+  "ponderacion_referido": 1
+}

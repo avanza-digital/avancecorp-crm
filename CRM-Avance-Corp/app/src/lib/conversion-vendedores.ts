@@ -16,6 +16,7 @@ import {
   type ObjetivosPorVendedor,
 } from './objetivos'
 import { tcAplicable, totalEnSoles } from './capital-unificado'
+import { totalCapitalValorado, type CapitalValoracion } from './capital-valorado'
 
 /**
  * Los estados del analista en el ranking. Mapa CERRADO servidor→front (la
@@ -750,6 +751,7 @@ export type CapitalTotalSinMeta = CapitalTotalVendedor & {
 }
 
 export interface RankingCapitalTotalVendedores {
+  valoracion?: CapitalValoracion
   conPuesto: CapitalTotalConPuesto[]
   sinMeta: CapitalTotalSinMeta[]
   indisponibles: CapitalTotalVendedor[]
@@ -771,6 +773,7 @@ export function clasificarRankingCapitalTotal(
   metas: ObjetivosPorVendedor,
   cumplimientos: Record<string, CumplimientoVendedor>,
   tc: number | null,
+  valoracion?: CapitalValoracion,
 ): RankingCapitalTotalVendedores {
   // La política de conversión vive en lib/capital-unificado (fuente única): la
   // comparten este ranking y las filas de equipo desde la decisión #10.
@@ -782,7 +785,14 @@ export function clasificarRankingCapitalTotal(
   // inventar una identidad cuando el equipo vigente o la foto histórica están
   // explícitamente vacíos.
   const identidadPorId = new Map<string, IdentidadVendedorRanking>()
-  for (const vendedor of vendedores) {
+  const personasValoradas = new Map(valoracion?.personas.filter((persona) => persona.en_ranking)
+    .map((persona) => [persona.vendedor_id, persona]))
+  const poblacion = valoracion === undefined ? vendedores : [...personasValoradas.values()].map((persona) => ({
+    vendedorId: persona.vendedor_id,
+    nombre: persona.nombre,
+    supervisorNombre: persona.supervisor_nombre,
+  }))
+  for (const vendedor of poblacion) {
     if (!vendedor.vendedorId || identidadPorId.has(vendedor.vendedorId)) continue
     identidadPorId.set(vendedor.vendedorId, {
       vendedorId: vendedor.vendedorId,
@@ -795,26 +805,31 @@ export function clasificarRankingCapitalTotal(
     // frontera RPC no debería producir — se degrada a indisponible, no a puesto
     // con cero (hallazgo Codex: el tipo público no garantiza la matriz completa).
     const crudo = cumplimientos[vendedor.vendedorId]
+    const valorado = personasValoradas.get(vendedor.vendedorId)?.capital_valorado
     const cumplimiento = crudo != null && crudo.detalles.length > 0 ? crudo : undefined
-    const capitalPen = cumplimiento ? capitalReal(cumplimiento, 'PEN') : null
-    const capitalUsd = cumplimiento ? capitalReal(cumplimiento, 'USD') : null
-    const cartera = cumplimiento ? (['renovacion', 'upgrade'] as const).map((categoria) => ({
+    const capitalPen = valoracion === undefined ? (cumplimiento ? capitalReal(cumplimiento, 'PEN') : null) : valorado?.capital_pen ?? null
+    const capitalUsd = valoracion === undefined ? (cumplimiento ? capitalReal(cumplimiento, 'USD') : null) : valorado?.capital_usd ?? null
+    const cartera = valorado ? (['renovacion', 'upgrade'] as const).map((categoria) => ({
+      categoria,
+      pen: valorado.detalles.filter((d) => d.categoria === categoria && d.moneda === 'PEN').reduce((suma, d) => suma + d.capital_real, 0),
+      usd: valorado.detalles.filter((d) => d.categoria === categoria && d.moneda === 'USD').reduce((suma, d) => suma + d.capital_real, 0),
+    })) : cumplimiento ? (['renovacion', 'upgrade'] as const).map((categoria) => ({
       categoria,
       pen: cumplimiento.detalles.filter((d) => d.categoria === categoria && d.moneda === 'PEN')
         .reduce((suma, d) => suma + d.capitalReal + (d.capitalAjuste ?? 0), 0),
       usd: cumplimiento.detalles.filter((d) => d.categoria === categoria && d.moneda === 'USD')
         .reduce((suma, d) => suma + d.capitalReal + (d.capitalAjuste ?? 0), 0),
     })) : null
-    const capitalAjustePen = cumplimiento?.ajuste?.aplicadoPen ?? 0
-    const capitalAjusteUsd = cumplimiento?.ajuste?.aplicadoUsd ?? 0
-    const contratosAjuste = cumplimiento?.ajuste?.contratosAplicados ?? 0
-    const capitalTotal = totalEnSoles(capitalPen, capitalUsd, tcValido).total
+    const capitalAjustePen = valoracion ? 0 : cumplimiento?.ajuste?.aplicadoPen ?? 0
+    const capitalAjusteUsd = valoracion ? 0 : cumplimiento?.ajuste?.aplicadoUsd ?? 0
+    const contratosAjuste = valoracion ? 0 : cumplimiento?.ajuste?.contratosAplicados ?? 0
+    const capitalTotal = valoracion === undefined ? totalEnSoles(capitalPen, capitalUsd, tcValido).total : totalCapitalValorado(valorado ?? null)
     const meta = metas[vendedor.vendedorId]
-    const metaPen = meta ? capitalObjetivo(meta, 'PEN') : 0
-    const metaUsd = meta ? capitalObjetivo(meta, 'USD') : 0
-    const objetivo = meta ? totalEnSoles(metaPen, metaUsd, tcValido).total : null
+    const metaPen = valoracion ? valorado?.objetivo_pen ?? 0 : meta ? capitalObjetivo(meta, 'PEN') : 0
+    const metaUsd = valoracion ? 0 : meta ? capitalObjetivo(meta, 'USD') : 0
+    const objetivo = valoracion ? valorado?.objetivo_pen ?? null : meta ? totalEnSoles(metaPen, metaUsd, tcValido).total : null
     const metaCapital = objetivo != null && objetivo > 0 ? objetivo : null
-    const estadoCapital: EstadoCapitalVendedor = cumplimiento == null
+    const estadoCapital: EstadoCapitalVendedor = (valoracion ? valorado == null : cumplimiento == null)
       ? 'indisponible'
       : metaCapital == null
         ? 'sin_meta'
@@ -862,5 +877,5 @@ export function clasificarRankingCapitalTotal(
     .filter((fila) => fila.estadoCapital === 'indisponible')
     .sort((a, b) => porNombre(a.vendedor, b.vendedor))
 
-  return { conPuesto, sinMeta, indisponibles, tc: tcValido }
+  return { conPuesto, sinMeta, indisponibles, tc: valoracion ? null : tcValido, ...(valoracion ? { valoracion } : {}) }
 }
