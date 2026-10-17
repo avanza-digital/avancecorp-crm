@@ -1,0 +1,20 @@
+{
+  "estado": "PAUSADO por petición de Miguel",
+  "fecha_utc": "2026-10-16T23:45:54Z",
+  "produccion_modificada": false,
+  "publicado": false,
+  "push_realizado": false,
+  "rama_eliminada": "bede730d-5858-43de-98ae-fe5fc17789f5",
+  "ausencia_rama_verificada": true,
+  "base_git": "1170a5e36b957d186f079edf053d2e7745351cd5",
+  "commit_local_feature": "d4d47502087b2ebd394c64456bee28a656317079",
+  "parche": "release-pausado-desde-1170.patch",
+  "sha256_parche": "0f02cc856c5c2101b0aedf50354341a8d1fba6206e470e685a443b872af1b350",
+  "bytes_parche": 664224,
+  "verificacion_parche": "git apply --reverse --check PASS contra copia candidata",
+  "rls": "INCOMPLETO:1677 positivas,3 fallos conocidos corregidos, repetición pendiente",
+  "controles_scripts": "PASS",
+  "banco_horas_aprox": 1.354,
+  "tarifa_hora_autorizada_usd": 0.01344,
+  "coste_estimado_usd": 0.0182
+}

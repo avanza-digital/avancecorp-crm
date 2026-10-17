@@ -1,0 +1,20 @@
+{
+  "banco_eliminado_y_ausencia_verificada": true,
+  "copias_privadas_retiradas": [
+    "rama-privada.json",
+    "password-privada.txt",
+    "llaves-produccion-privadas.json",
+    "esquema-vivo.sql",
+    "restaurar-esquema.sql",
+    "historial-vivo-privado.sql",
+    "restaurar-historial-privado.sql",
+    "registro-base-privado.json",
+    "filas-previas-privadas.json",
+    "hostinger-cuenta-respuesta-privada.json",
+    "hostinger-sitio-privado.json",
+    "ultimo-error-privado.log",
+    "cli-migraciones/"
+  ],
+  "credenciales_globales_y_oauth_conservadas": true,
+  "fecha_comprobacion_utc": "2026-10-17T04:30:22.502792+00:00"
+}

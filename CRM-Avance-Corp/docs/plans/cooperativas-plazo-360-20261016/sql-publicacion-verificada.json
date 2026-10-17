@@ -1,0 +1,55 @@
+{
+  "nuevas": [
+    {
+      "n": 17,
+      "name": "crm_coopac_plazo_360_dias",
+      "version": "20261016195003"
+    },
+    {
+      "n": 7,
+      "name": "crm_actualiza_huellas_consulta_coordinacion",
+      "version": "20261016231301"
+    },
+    {
+      "n": 7,
+      "name": "crm_completa_huellas_consulta_coordinacion",
+      "version": "20261016232742"
+    }
+  ],
+  "columna": {
+    "null": "NO",
+    "tipo": "text",
+    "default": "'dias_360'::text"
+  },
+  "dias_360": 0,
+  "contratos": 84,
+  "calendario": 84,
+  "constraints": {
+    "cierres_coopac_base_plazo": true,
+    "cierres_coopac_condiciones_completas": true
+  },
+  "historia_filas": 490,
+  "historia_base_huella": "c2bb35ce082c65d2948ca2724548aece",
+  "ejemplo_12_meses_dias": 360,
+  "ejemplo_12_meses_calendario": "2027-10-16",
+  "historicos_conservados": 84,
+  "historicos_alterados": 0,
+  "advisors": {
+    "security": {
+      "before": 381,
+      "after": 381,
+      "added": [],
+      "removed": []
+    },
+    "performance": {
+      "before": 190,
+      "after": 190,
+      "added": [],
+      "removed": []
+    }
+  },
+  "edge_funciones_sin_cambios": 23,
+  "acl_columnas_sin_cambios": true,
+  "banco_eliminado": true,
+  "fecha_comprobacion": "2026-10-17T04:27:14Z"
+}
