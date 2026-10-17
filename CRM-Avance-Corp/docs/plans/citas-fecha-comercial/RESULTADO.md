@@ -1,7 +1,10 @@
 # Resultado — Citas por fecha comercial
 
-Candidata local, sin publicar. Copia autorizada: `/private/tmp/crm-citas-fecha-comercial-20261017`.
-Base Main integrada: `e4ded65d`. La carpeta original conserva el trabajo de otras tareas.
+**Publicada y verificada el 17/10/2026.** Fuente `bc3c4303`, build
+`build-20261017T064501541Z`; acta vigente: [PUBLICACION.md](PUBLICACION.md).
+El resto de esta nota conserva la evidencia de la etapa local original, basada
+en `e4ded65d`. Copia autorizada: `/private/tmp/crm-citas-fecha-comercial-20261017`.
+La carpeta original conserva el trabajo de otras tareas.
 
 ## Regla aplicada
 
