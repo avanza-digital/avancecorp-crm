@@ -38,6 +38,11 @@ estado de `crm-cierre-mes-diario`.
    además `Authorization: Bearer <service_role exacta>`. La clave permanece en
    el entorno de Edge y en el almacén secreto del servicio invocador. Nunca en
    el bundle, SQL versionado, parámetros de URL, capturas ni logs.
+   Configurar `CRM_CAPITAL_VALORAR_SERVICE_KEY` con la service_role JWT vigente
+   del proyecto: algunas ramas asignan una clave moderna sb_secret a la
+   variable reservada, que no es válida para el gateway JWT. Se conserva tanto
+   verify_jwt como la comparación exacta del handler; no se rotan claves ni
+   se cambia la autenticación de las otras Edge.
 3. Preparar una invocación de servidor POST con cuerpo `{}` y esa autorización.
    El worker descubre fechas, reserva trabajos, consulta las dos series BCRP y
    reconcilia por lotes de hasta 500. Para cada lote consume hasta tres fechas;

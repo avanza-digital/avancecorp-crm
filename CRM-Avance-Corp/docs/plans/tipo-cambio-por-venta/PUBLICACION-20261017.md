@@ -58,7 +58,39 @@ Las tres migraciones base de cooperativas ya publicadas se reprodujeron
 sin cambios en la rama y se identificaron con sus versiones productivas:
 490 entradas base más once propias. No se reenviarán como cambios nuevos.
 
-Pendiente: delta Advisors sin objetos temporales, fuente
+La fuente integrada con `e4ded65d` pasó `npm run check`: **438 archivos / 7047
+tests**, lint/tipos/cobertura/release/build/bundle y duplicación 0,76 %.
+`check:scripts` PASS; el primer intento tuvo un bloqueo EPERM del sandbox al
+abrir el servidor de prueba local y se repitió con permiso. E2E afectados por
+la integración: **23 PASS**, sin fallos, en Docker.
+
+Worker cloud final: anónimo/anon JWT/vendedor HTTP401; tasa proporcionada por
+el cliente HTTP400; servicio HTTP200, pendientes0 y revisiones nuevas0. La
+venta de USD20000 conserva S/68000. Se configuró un secreto propio de JWT:
+la variable reservada de esta rama contenía una clave moderna sb_secret,
+incompatible con verify_jwt. Se conservan verify_jwt y el check exacto;
+no se cambian claves ni autenticación de otras Edge. Deno 30 PASS posterior.
+
+Las once sentencias registradas por MCP coinciden byte a byte con los archivos
+revisados, ignorando solo salto de línea final. Se alinearon exclusivamente sus
+versiones técnicas con las del repositorio usando guardas de nombre y MD5 de
+SQL; no cambió su contenido ni se volvió a ejecutarlo. Base490 + propias11.
+Las 23 Edge originales de la rama coinciden con producción en SHA/verify_jwt;
+la única nueva es crm-capital-valorar.
+
+Advisors cloud final sin objetos temporales: seguridad379→391 y rendimiento
+350→322. Son seis INFO de RLS deny-all de las tablas nuevas, cinco WARN de
+RPC SECURITY DEFINER intencionalmente expuestas a authenticated y un aviso de
+configuración Auth de la rama. Las cinco RPC mantienen autorización nativa y
+matriz HTTP aprobada; no se revocan sus APIs legítimas para silenciar el linter.
+No hay nuevos errores, search_path mutable ni FK nueva sin índice. El delta de
+producción se mide separadamente, pues configuración y uso de índices difieren.
+
+Censo productivo nuevo 17/10 00:17 Lima: 116 operaciones, objetivos USD0,
+ajustes USD0, solo agosto sellado; job3 activo. Historial490. Sigue sin instalarse
+este cambio en producción en esta etapa.
+
+Pendiente: fuente
 Main/remoto limpia, artefacto/preflight, merge autorizado, backfill real,
 publicación frontend y activación con huella fresca. Eliminar esta rama propia
 al terminar para detener su coste.

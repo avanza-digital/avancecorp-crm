@@ -37,3 +37,12 @@ advisors-delta.json, cli-integridad.json y advisors-final-review.log.
 También se consultaron Advisors productivos solo como baseline; no verifican
 las candidatas que siguen sin instalarse. Sus avisos preexistentes no se
 resuelven ampliando este alcance ni cambiando tablas/grants en producción.
+# Actualización del gate cloud de publicación
+
+La CLI local anterior y el MCP vigente no exponen las mismas categorías de
+linter. La evidencia cloud más reciente y su evaluación están en
+PUBLICACION-20261017.md. Allí aparecen cinco WARN genéricos por las nuevas
+RPC SECURITY DEFINER autorizadas: se conservan deliberadamente por su contrato
+y se acreditan con la matriz Auth/HTTP real. No interpretar el PASS de la
+comparación local anterior como ausencia de esos avisos en el servicio actual.
+

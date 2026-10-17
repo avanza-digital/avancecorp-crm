@@ -1,7 +1,10 @@
 import { createClient } from "npm:@supabase/supabase-js@2.110.2";
 import { crearHandlerValoracion, type TrabajoTipoCambio } from "./handler.ts";
 
-const claveServicio = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+// Algunas ramas reciben una sb_secret en la variable reservada. El gateway
+// verify_jwt exige un JWT: fijar la service_role JWT vigente en secreto propio.
+const claveServicio = Deno.env.get("CRM_CAPITAL_VALORAR_SERVICE_KEY") ??
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const servicio = createClient(
   Deno.env.get("SUPABASE_URL") ?? "",
   claveServicio,
