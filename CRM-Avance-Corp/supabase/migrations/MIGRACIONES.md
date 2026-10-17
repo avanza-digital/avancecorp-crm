@@ -1,3 +1,26 @@
+## 20261016232742 — Completa huellas de lectura de Coordinación
+
+**Ensayada en rama; pendiente de producción y gate RLS integral.**
+Completa la corrección del control autorizada por Miguel: los validadores
+de tareas pendientes y actividades recientes también conservaban las huellas
+anteriores al permiso de consulta ya publicado. Se cambian dos constantes,
+con guardas del cuerpo completo y de la policy vigente. No altera políticas,
+ACL, propietarios, firmas ni comprobaciones. Las tareas de Coordinación siguen
+limitadas a leads activos. Los tres validadores de lectura pasan en rama.
+SHA256 SQL `9cc1490237da010ab3849a956fbb26024cda2af865e243a4fa3d5b748d076a37`.
+
+## 20261016231301 — Actualiza huellas de las policies de consulta de Coordinación
+
+**APROBADA POR MIGUEL y ensayada en rama; pendiente de producción.**
+El gate integral detectó que `assert_actividades_de_lead_base()` conservaba
+las huellas anteriores a la consulta de Coordinación ya publicada. Las
+policies reales de `crm.leads` y `crm.actividades` mantienen ámbitos coextensivos.
+Esta migración cambia únicamente las dos constantes del validador, con guardas
+sobre la función y las policies actuales. Conserva firma, propietario, ACL,
+modo de seguridad y todas las comprobaciones. Los dos validadores dependientes
+pasan en rama. Matriz RLS y advisors en curso antes de merge.
+SQL exacto: SHA256 `be058004682a2f198da54ff8be3a49d3cb461f4178e50be759c42edd2a59a827`.
+
 ## 20261016195003 — Plazo de cooperativas a 360 días
 
 **SQL APROBADO Y ENSAYADO EN RAMA TEMPORAL; NO INSTALADO EN PRODUCCIÓN NI PUBLICADO.**

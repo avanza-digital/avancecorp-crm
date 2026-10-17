@@ -1,7 +1,10 @@
 # Cooperativas: vencimiento a los 360 días
 
-**Implementado y validado en copia aislada. SQL aprobado por Miguel.
-No integrado en Main, instalado en producción ni publicado. Banco remoto eliminado.**
+**Release PAUSADO por petición de Miguel (16/10/2026, 23:45 UTC).**
+Producción sigue intacta; no se publicó ni se hizo push. Los dos bancos
+temporales de esta tarea fueron eliminados. Trabajo y punto de continuación
+guardados en `PAUSA.md` y `ACTA-RELEASE.md`. El estado inicial y su evidencia
+se conservan abajo como historial.
 
 Para Qorilazo y Prodelco, cada mes representa 30 días corridos: 12 meses son
 360 días desde el inicio. Ejemplo: 16/10/2026 + 12 meses → 11/10/2027.

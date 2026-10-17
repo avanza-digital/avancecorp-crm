@@ -1,0 +1,31 @@
+{
+  "security": {
+    "antes": 379,
+    "despues": 380,
+    "nuevos": [
+      {
+        "categories": [
+          "SECURITY"
+        ],
+        "description": "Leaked password protection is currently disabled.",
+        "detail": "Supabase Auth prevents the use of compromised passwords by checking against HaveIBeenPwned.org. Enable this feature to enhance security.",
+        "facing": "EXTERNAL",
+        "level": "WARN",
+        "metadata": {
+          "entity": "Auth",
+          "type": "auth"
+        },
+        "name": "auth_leaked_password_protection",
+        "remediation": "https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection",
+        "title": "Leaked Password Protection Disabled"
+      }
+    ],
+    "retirados": 0
+  },
+  "performance": {
+    "antes": 350,
+    "despues": 313,
+    "nuevos": [],
+    "retirados": 37
+  }
+}
