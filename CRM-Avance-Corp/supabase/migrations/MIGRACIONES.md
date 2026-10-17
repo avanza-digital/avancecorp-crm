@@ -1,3 +1,40 @@
+## 20261017162053 — Reemplazar inversión sin perder la venta
+
+**CANDIDATA LOCAL, SIN PUBLICAR.** Nada aplicado en producción ni en branch.
+Corrige un error de carga de una inversión de Avance sin anular la venta del lead:
+en una sola transacción elimina la original con copia «reemplazada por N°…»
+(`crm.inversiones_eliminadas.reemplazada_por`, sin anular), da de alta la correcta
+por la puerta de siempre (`crm.reemplazar_inversion_fn`) o conserva la cargada dos
+veces (`crm.reemplazar_inversion_por_existente_fn`), vuelve a enlazar el lead y
+mueve la acreditación con su único escritor. La conversión y el capital del mes
+quedan iguales; si cambiarían, falla entero. Núcleo `private.reemplazar_inversion_avance`
+(INVOKER) y copia `private.registrar_inversion_reemplazada_avance`. Cambia por
+anclas `private.trg_contratos_observar_rentabilidad` (9a0c0411… → 1606e0a6…): la
+tasa aprobada se hereda solo si en la misma transacción hay copia del reemplazo
+con la misma tasa (y en enforcement, los mismos datos). No toca objetos de `public`.
+
+Decisiones de Miguel: Avance la reemplaza un admin del portal; si es la venta de
+un lead, además Gerencia. Cambia todo menos el cliente; mismo analista; mes
+sellado o plazo de carga vencido → no deja; otra fecha mueve la venta solo a un
+mes abierto, con el día de registro de la venta (también tras varios reemplazos).
+Rechaza: cuotas pagadas, upgrade/renovación, demo, dos convertidos, otro cliente,
+duplicado que no es igual (datos o cotitulares), venta con el lead enlazado a otra
+inversión. Pasa origen de capital confirmado y cotitulares.
+
+Verificación (banco Docker con esquema de producción, worktree propio): batería
+45 bloques PASS; 43/43 mutantes muertos; 4/4 carreras PASS (E4: un pago en curso
+se respeta; sin el candado del cronograma se perdería); regresión «Eliminar
+inversión» 24 y «Eliminar lead» 100/0 PASS; test-rls en stack propio: los mismos 15
+fallos ajenos antes y después, bloque nuevo 17/17; reversa ejecutada en el banco
+(observador vuelve a 9a0c0411… con dueño, configuración y ACL). Revisiones: Codex r1
+(6 hallazgos) y r2 (1 P1 + 2 P2: cadena A → B → C que saltaba el candado de tasa,
+cotitulares en «quedarme con la otra», reintento con origen confirmado), todos
+reproducidos en el banco y corregidos; auditor-rls sobre el delta r2 sin P0/P1 (su P2,
+orden de cotitulares, corregido); concurrencia, seguridad y negocio sin P0/P1
+abiertos. Kit en `supabase/scripts/reemplazar-inversion/` (LEEME, reversa, registrar,
+comprobar, carreras).
+Plan: vault «Reemplazar inversion - plan por fases (2026-10-17)».
+
 ## 20261017043000 — Citas por fecha comercial
 
 **EN PRODUCCIÓN — 17/10/2026 06:46 UTC**, por merge nativo desde rama aislada
