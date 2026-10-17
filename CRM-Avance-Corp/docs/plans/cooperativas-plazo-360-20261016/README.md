@@ -1,6 +1,6 @@
 # Cooperativas: vencimiento a los 360 días
 
-**Release REANUDADO por Miguel con «sigamos!!!».**
+**Gates finales aprobados; publicación en preparación tras «sigamos!!!».**
 La pausa segura y eliminación de los dos bancos anteriores están registradas
 en `PAUSA.md`. El estado vigente está en [ACTA-RELEASE.md](ACTA-RELEASE.md) y
 la reconstrucción y gates de la retoma en [RETOMA-20261017.md](RETOMA-20261017.md).
