@@ -23,8 +23,10 @@ export function CondicionesCoopac({prefijo, fecha, plazo, tasa, ocupado, invalid
     <div className="min-w-0 space-y-1">
       <Label htmlFor={`${prefijo}-plazo`}>Plazo (meses)</Label>
       <Input id={`${prefijo}-plazo`} inputMode="numeric" required value={plazo}
-        aria-invalid={invalido === 'plazo'} aria-describedby={invalido === 'plazo' ? errorId : undefined}
+        aria-invalid={invalido === 'plazo'}
+        aria-describedby={[`${prefijo}-ayuda-plazo`, invalido === 'plazo' ? errorId : null].filter(Boolean).join(' ')}
         placeholder="Ej. 12" disabled={ocupado} onChange={e => onPlazo(e.target.value)} />
+      <p id={`${prefijo}-ayuda-plazo`} className="text-[11px] text-muted-foreground">Cada mes equivale a 30 días; 12 meses son 360 días.</p>
     </div>
     <div className="min-w-0 space-y-1">
       <Label htmlFor={`${prefijo}-vence`}>Vencimiento</Label>

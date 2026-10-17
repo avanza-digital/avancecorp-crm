@@ -1,0 +1,8 @@
+npm notice run app@0.0.0 test:e2e:docker
+npm notice run bash scripts/e2e-docker.sh e2e/hoy-leads-recibidos.spec.ts --repeat-each=3 --retries=0 --workers=1
+E2E en Docker · imagen mcr.microsoft.com/playwright:v1.61.1-noble
+
+Running 9 tests using 1 worker
+·········
+::notice title=🎭 Playwright Run Summary::  9 passed (43.8s)
+  9 passed (43.8s)

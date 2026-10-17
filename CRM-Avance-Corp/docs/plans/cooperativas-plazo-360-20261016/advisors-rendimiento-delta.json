@@ -1,0 +1,1 @@
+{"tipo":"rendimiento","grupos_antes":6,"grupos_despues":6,"avisos_antes":345,"avisos_despues":332,"nuevos":[],"retirados":13,"normalizacion":"Se ignora únicamente observed_at y el orden de claves JSON; se compara cada hallazgo completo."}

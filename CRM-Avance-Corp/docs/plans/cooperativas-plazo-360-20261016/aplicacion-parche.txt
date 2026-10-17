@@ -1,0 +1,4 @@
+PASS: git apply --check y aplicación real de 13 archivos sobre avancecorp/main 1170a5e36b957d186f079edf053d2e7745351cd5 en copia temporal.
+Todos los archivos resultantes coinciden byte por byte con la implementación validada.
+Main y el checkout compartido no se modificaron.
+PASS: no cambió ningún archivo de app entre la base inicial y 1170a5e3; los checks de app se ejecutaron sobre los mismos bytes.

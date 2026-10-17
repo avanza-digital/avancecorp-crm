@@ -1,0 +1,4 @@
+OK: 5 mutantes detectados por private.assert_actividades_de_lead()
+OK: 18 mutantes detectados por private.assert_tareas_pendientes()
+OK: 20 mutantes detectados por private.assert_actividades_recientes()
+OK: historial por lead bajo la RLS, un solo salto privilegiado (nombre del autor, con gate interno) y policies selladas|OK: tareas por cursor bajo la RLS, sin predicado copiado, guardia de admision presente y tareas_select sellada|OK: actividad reciente bajo la RLS, sin predicado copiado, guardia de admision presente y actividades_select sellada

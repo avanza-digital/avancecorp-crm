@@ -22,7 +22,7 @@ export const GestionInversionistaSchema = v.object({
     empresa:v.picklist(['avance','qorilazo','prodelco']), fuente_id:Id,
     puede_corregir:v.boolean(), sin_limite:v.boolean(), puede_reasignar:v.boolean(),
     contrato:v.nullable(Contrato),
-    coopac:v.nullable(v.object({monto:Numero, moneda:v.literal('PEN'), numero_transaccion:v.string(),
+    coopac:v.nullable(v.object({monto:Numero, moneda:v.picklist(['PEN','USD']), numero_transaccion:v.string(),
       referencia:Texto, vence_en:Texto, nota:Texto, creado_en:v.string(), fecha_comercial:Texto,
       anulado_en:Texto, motivo_anulacion:Texto, plazo_meses:v.nullable(Numero), tasa_anual:v.nullable(Numero), revision:v.string()})),
     operaciones:v.array(v.object({id:Id, tipo:v.picklist(['renovacion','upgrade']), moneda:v.picklist(['PEN','USD']),

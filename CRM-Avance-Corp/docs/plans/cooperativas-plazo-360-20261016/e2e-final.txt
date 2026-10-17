@@ -1,0 +1,40 @@
+npm notice run app@0.0.0 test:e2e:docker
+npm notice run bash scripts/e2e-docker.sh
+E2E en Docker · imagen mcr.microsoft.com/playwright:v1.61.1-noble
+
+Running 465 tests using 2 workers
+······························································°°°°°°°°°°°°°·····
+····················°°°°°°°°°°°°°···············································
+·························[caso 5] región y=64.0 alto=572.0 · scrollTop=400 · th esquina y=65.0 · th día y=65.0 · elemento thead y=-335.0 · primera fila y: 126.0 → -274.0
+·······················································
+····················································×··±::error file=e2e/hoy-leads-recibidos.spec.ts,title=[chromium] › e2e/hoy-leads-recibidos.spec.ts:78:1 › Hoy lista los recibidos en Lima, pagina y abre la ficha; cabe en escritorio y móvil::  1) [chromium] › e2e/hoy-leads-recibidos.spec.ts:78:1 › Hoy lista los recibidos en Lima, pagina y abre la ficha; cabe en escritorio y móvil %0A    Test timeout of 30000ms exceeded.
+::error file=e2e/hoy-leads-recibidos.spec.ts,title=[chromium] › e2e/hoy-leads-recibidos.spec.ts:78:1 › Hoy lista los recibidos en Lima, pagina y abre la ficha; cabe en escritorio y móvil,line=139,col=42::  1) [chromium] › e2e/hoy-leads-recibidos.spec.ts:78:1 › Hoy lista los recibidos en Lima, pagina y abre la ficha; cabe en escritorio y móvil %0A    Error: locator.click: Test timeout of 30000ms exceeded.%0A    Call log:%0A      - waiting for getByRole('button', { name: 'Ocultar menú', exact: true })%0A%0A%0A      137 |   await page.setViewportSize({ width: 390, height: 844 })%0A      138 |   const menu = page.getByRole('button', { name: 'Ocultar menú', exact: true })%0A    > 139 |   if (await menu.isVisible()) await menu.click()%0A          |                                          ^%0A      140 |   await panel.scrollIntoViewIfNeeded()%0A      141 |   await expect(page.getByRole('tab', { name: /^Leads de hoy/ })).toBeVisible()%0A      142 |   const cajaContador = await contador.boundingBox()%0A        at /app/e2e/hoy-leads-recibidos.spec.ts:139:42
+························
+················································································
+··································································
+::notice title=🎭 Playwright Run Summary::  1 flaky%0A    [chromium] › e2e/hoy-leads-recibidos.spec.ts:78:1 › Hoy lista los recibidos en Lima, pagina y abre la ficha; cabe en escritorio y móvil %0A  26 skipped%0A  438 passed (18.0m)
+
+  1) [chromium] › e2e/hoy-leads-recibidos.spec.ts:78:1 › Hoy lista los recibidos en Lima, pagina y abre la ficha; cabe en escritorio y móvil 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: locator.click: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: 'Ocultar menú', exact: true })
+
+
+      137 |   await page.setViewportSize({ width: 390, height: 844 })
+      138 |   const menu = page.getByRole('button', { name: 'Ocultar menú', exact: true })
+    > 139 |   if (await menu.isVisible()) await menu.click()
+          |                                          ^
+      140 |   await panel.scrollIntoViewIfNeeded()
+      141 |   await expect(page.getByRole('tab', { name: /^Leads de hoy/ })).toBeVisible()
+      142 |   const cajaContador = await contador.boundingBox()
+        at /app/e2e/hoy-leads-recibidos.spec.ts:139:42
+
+    Error Context: test-results/hoy-leads-recibidos-Hoy-li-b0ba9--cabe-en-escritorio-y-móvil-chromium/error-context.md
+
+  1 flaky
+    [chromium] › e2e/hoy-leads-recibidos.spec.ts:78:1 › Hoy lista los recibidos en Lima, pagina y abre la ficha; cabe en escritorio y móvil 
+  26 skipped
+  438 passed (18.0m)

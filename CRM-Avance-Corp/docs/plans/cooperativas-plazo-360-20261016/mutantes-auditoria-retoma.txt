@@ -1,0 +1,1 @@
+OK: historial por lead bajo la RLS, un solo salto privilegiado (nombre del autor, con gate interno) y policies selladas|OK: registro de Gestion Diaria bajo la RLS (puerta y nucleo INVOKER), EXECUTE solo authenticated, indice presente, policies selladas por la base del historial por lead

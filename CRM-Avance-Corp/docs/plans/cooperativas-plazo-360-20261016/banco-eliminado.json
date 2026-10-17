@@ -1,0 +1,22 @@
+{
+  "branch_id": "0a241056-b88a-49de-9d3b-ec5b1d4e8576",
+  "nombre": "coopac-plazo-360-20261016",
+  "project_ref": "kfqjwcgwutxpgrpqeoqc",
+  "creada_utc": "2026-10-16T20:33:34.553496Z",
+  "eliminada_utc": "2026-10-16T22:01:02Z",
+  "respuesta_borrado": [
+    {
+      "success": true
+    }
+  ],
+  "ausente_en_lista_posterior": true,
+  "otras_ramas_nombres": [
+    "banco-f7",
+    "main",
+    "plan-backend-fase4"
+  ],
+  "tarifa_autorizada_usd_hora": 0.01344,
+  "coste_estimado_usd": 0.01959,
+  "factura_real": false,
+  "produccion_modificada": false
+}
