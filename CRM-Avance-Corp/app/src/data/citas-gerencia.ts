@@ -7,8 +7,10 @@ import { defaults, rango } from '@/components/citas/modelo'
 import type { CitaConLead } from '@/components/citas/datos'
 import type { DepositoEjemplo } from '@/components/citas/depositos'
 import type { GestionCitas } from '@/components/citas/metas'
+import { entrevistaCompatibleConVenta } from '@/components/citas/fecha-comercial'
 import { horaLima } from '@/components/citas/contexto'
-import { CamposGestionMensualSchema, TestigoCitasSchema } from '@/lib/gestion-citas'
+import { CamposGestionMensualSchema, TestigoComercialCitasSchema } from '@/lib/gestion-citas'
+import { FechaSchema } from '@/lib/esquemas-rpc'
 
 const Instante = v.pipe(v.string(), v.check(s => Number.isFinite(Date.parse(s))))
 const Id = v.pipe(v.string(), v.uuid())
@@ -51,18 +53,18 @@ const CamposConsulta = {
   citas_clientes: v.pipe(v.number(),v.integer(),v.minValue(0)),
   gestion: v.optional(GestionCitasSchema),
   // F2: clave nueva en la respuesta; opcional para leer también al servidor anterior.
-  testigo: v.optional(TestigoCitasSchema),
+  testigo: v.optional(TestigoComercialCitasSchema),
 }
 export const ConsultaCitasSchema = v.variant('version',[
   v.object({ ...CamposConsulta, version:v.literal(1), disponibilidad_depositos:v.literal('sin_registro'), depositos:v.pipe(v.array(v.unknown()),v.length(0)) }),
-  v.object({ ...CamposConsulta, version:v.literal(2), disponibilidad_depositos:v.literal('conversion_cliente'),
-    conversiones:v.pipe(v.array(v.object({lead_id:Id,perfil_id:Id,convertido_en:Instante})),v.maxLength(10000)) }),
+  v.object({ ...CamposConsulta, version:v.literal(2), disponibilidad_depositos:v.literal('conversion_cliente'), criterio_depositos:v.literal('fecha_comercial'),
+    conversiones:v.pipe(v.array(v.object({lead_id:Id,perfil_id:Id,convertido_en:Instante,fecha_comercial:v.nullable(FechaSchema)})),v.maxLength(10000)) }),
 ])
 export type ConsultaCitasRpc = v.InferOutput<typeof ConsultaCitasSchema>
 export function adaptarDepositos(datos: ConsultaCitasRpc): DepositoEjemplo[] {
-  return datos.version===2 ? datos.conversiones.map(c => ({
+  return datos.version===2 ? datos.conversiones.filter(c => c.fecha_comercial !== null).map(c => ({
     id:`conversion-${c.lead_id}`,leadId:c.lead_id,fuente:'conversion_cliente',
-    depositadoEn:c.convertido_en,confirmadoEn:c.convertido_en,monto:null,moneda:null,
+    depositadoEn:c.convertido_en,confirmadoEn:c.convertido_en,fechaComercial:c.fecha_comercial!,monto:null,moneda:null,
   })) : []
 }
 const fechaLima = (fecha: string) => new Intl.DateTimeFormat('en-CA', {timeZone:'America/Lima',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(fecha))
@@ -76,7 +78,7 @@ export function adaptarGestion(datos: ConsultaCitasRpc): GestionCitas | undefine
     depositosPorcentaje:g.depositos_porcentaje,
     ...(g.actividad_manuales ? {actividadManuales:g.actividad_manuales} : {}),
     ...(g.version === 2 ? { avance: g, excluirManualesBase: g.control.configuracion.excluir_manuales_base } : {}),
-    ...(datos.testigo ? { testigo: datos.testigo } : {}),
+    ...(datos.testigo ? { testigo: datos.testigo.comercial } : {}),
     asignaciones:g.asignaciones.map(l => ({
       id:l.analista_id,nombre:l.analista_nombre,supervisor:l.supervisor_nombre,
       supervisorId:l.supervisor_id ?? 'sin_supervisor',leadId:l.lead_id,nombreLead:l.nombre,
@@ -88,6 +90,13 @@ export function adaptarGestion(datos: ConsultaCitasRpc): GestionCitas | undefine
 }
 
 export function adaptarCitas(datos: ConsultaCitasRpc): CitaConLead[] {
+  const comerciales = new Map(datos.version === 2 ? datos.conversiones.map(c => [c.lead_id, c.fecha_comercial]) : [])
+  // La marca heredada comparaba el último cierre con vence_en por instante.
+  // V2 conserva ese campo para clientes anteriores, pero aquí usa el día de la
+  // asistencia (o de la cita pendiente), con las mismas exclusiones del servidor.
+  const cierreCompatible = (c: ConsultaCitasRpc['citas'][number]) => datos.version === 2
+    ? entrevistaCompatibleConVenta(c.asistencia_registrada_en ?? c.vence_en, comerciales.get(c.lead_id) ?? null)
+    : c.cierre_posterior
   const sucesoras = new Map<string, ConsultaCitasRpc['citas'][number]>()
   for (const cita of datos.citas) {
     if (!cita.reagendada_de) continue
@@ -101,8 +110,8 @@ export function adaptarCitas(datos: ConsultaCitasRpc): CitaConLead[] {
     estado:c.estado_comercial ?? (c.estado==='pendiente' ? Date.parse(c.vence_en)<=Date.parse(datos.generado_en) ? 'vencida' : 'programada'
       : c.estado==='completada' ? 'realizada' : c.estado==='cancelada' && c.cancelada_por!=='asesor' ? 'sistema' : c.estado),
     modalidad:rotulo(c.modalidad),origen:rotulo(c.origen),moneda:c.moneda,monto:c.monto_estimado,
-    resultado:rotulo(c.resultado),nota:c.nota,cerrado:c.cierre_posterior,
-    seguimiento:c.estado==='completada' && !c.cierre_posterior,
+    resultado:rotulo(c.resultado),nota:c.nota,cerrado:cierreCompatible(c),
+    seguimiento:c.estado==='completada' && !cierreCompatible(c),
     nuevaFecha:(() => { const siguiente = sucesoras.get(`${c.id}|${c.lead_id}`); return siguiente ? fechaLima(siguiente.vence_en) : null })(),
     ...(c.reagendada_de ? {citaAnteriorId:c.reagendada_de,reprogramadaEn:c.creado_en} : {}),
     ...(c.asistencia_registrada_en ? {asistioEn:c.asistencia_registrada_en} : {}),
@@ -115,9 +124,14 @@ export async function cargarCitasGerencia(mes: string, signal?: AbortSignal): Pr
   const [desde,hasta] = rango(defaults(mes))
   if (!desde) throw new CrmApiError('Selecciona un mes válido.','CITAS_PERIODO')
   if (!sb) throw new CrmApiError('No se pudo conectar con el CRM.','CITAS_SIN_CONEXION')
-  const peticion = sb.schema('crm').rpc('citas_gerencia_consulta_fn', {p_desde:desde,p_hasta:hasta})
-  if (signal) peticion.abortSignal(signal)
-  const {data,error} = await peticion
+  const parametros = {p_desde:desde,p_hasta:hasta}
+  const consultar = (nombre: 'citas_gerencia_consulta_fn' | 'citas_gerencia_consulta_v2_fn') => {
+    const peticion = sb!.schema('crm').rpc(nombre, parametros)
+    if (signal) peticion.abortSignal(signal)
+    return peticion
+  }
+  let {data,error} = await consultar('citas_gerencia_consulta_v2_fn')
+  if (error?.code === 'PGRST202') ({data,error} = await consultar('citas_gerencia_consulta_fn'))
   if (error) throw new CrmApiError(error.code==='PGRST202'
     ? 'La consulta detallada de citas aún no está habilitada en este servidor.'
     : 'No se pudieron cargar las citas. Reintenta la consulta.',error.code)
@@ -136,6 +150,16 @@ export async function cargarCitasGerencia(mes: string, signal?: AbortSignal): Pr
     }
     const g=datos.gestion
     if (g.version===2) {
+      const valoracion = g.valoracion
+      if (valoracion && (desde<'2026-10-01'
+        || (valoracion.corte_id===null)!==(valoracion.cobertura.corte===null)
+        || (valoracion.sellado && (valoracion.corte_id===null || valoracion.cobertura.estado!=='completo'))
+        || (valoracion.corte_id===null && g.capital.length>0)
+        || g.capital.some(k=>k.equivalente_pen===undefined || k.tasa===undefined || k.fecha_comercial===undefined
+          || k.fecha_tc===undefined || k.politica_tc===undefined
+          || Math.abs(k.monto*k.tasa-k.equivalente_pen)>0.00500001))) {
+        throw new CrmApiError('El capital de Citas no corresponde a una valoración completa. Actualiza para reintentar.','CITAS_CONTRATO')
+      }
       const poblacion=new Set(g.poblacion.map(p=>p.lead_id))
       const cierres=new Map(g.conversiones.map(c=>[c.lead_id,c]))
       const cfg=g.control.configuracion

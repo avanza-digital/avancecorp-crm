@@ -1,0 +1,23 @@
+[
+  {
+    "numero_contrato": "2026-01-001379",
+    "fecha_comercial": "2026-09-05",
+    "periodo_comercial": "2026-09-01",
+    "registro_crm": "2026-10-06",
+    "estado": "acreditada"
+  },
+  {
+    "numero_contrato": "2026-01-001428",
+    "fecha_comercial": "2026-09-14",
+    "periodo_comercial": "2026-09-01",
+    "registro_crm": "2026-10-05",
+    "estado": "acreditada"
+  },
+  {
+    "numero_contrato": "2026-01-001481",
+    "fecha_comercial": "2026-09-21",
+    "periodo_comercial": "2026-09-01",
+    "registro_crm": "2026-10-01",
+    "estado": "acreditada"
+  }
+]

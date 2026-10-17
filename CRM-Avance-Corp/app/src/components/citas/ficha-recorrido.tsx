@@ -42,7 +42,7 @@ export function FichaRecorrido({ fila, depositos, citas, onCerrar, onCita }: {
         {!fila.nueva && <li><h4 className="text-warning-text">Sin nueva cita</h4><p>No hay una reprogramación vinculada al corte.</p></li>}
         {depositos.map(deposito => <li key={deposito.id}>
           <h4>Depositó</h4>{deposito.fuente==='conversion_cliente'
-            ? <><p>Convertido a cliente</p><p>Fecha de conversión: {fmtFecha(deposito.depositadoEn)} · {horaLima(deposito.depositadoEn)} Lima</p></>
+            ? <><p>Convertido a cliente</p><p>Fecha comercial: {fmtFecha(deposito.fechaComercial)}</p><p>Registrado en el CRM: {fmtFecha(deposito.depositadoEn)} · {horaLima(deposito.depositadoEn)} Lima</p></>
             : <><p>{money(deposito.monto, deposito.moneda)} · {fmtFecha(deposito.depositadoEn)} · {horaLima(deposito.depositadoEn)}</p><p>Confirmado: {fmtFecha(deposito.confirmadoEn!)} · {horaLima(deposito.confirmadoEn!)} Lima</p></>}
           <p className="mt-2 text-xs">{deposito.id}</p>
         </li>)}

@@ -1,0 +1,183 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+The core design holds up within the evidence I was given. It has immutable rates and valuations, append-only revisions, cuts that only publish complete prefixes, a close that fails closed and defers the whole month, service-only writers, and a gated activation. The required numbers (68000, then 31000 for a total of 99000) are proven over real Auth/PostgREST.
+
+One correctness gap needs a fix or an explicit proof before rollout. The materializer's locked re-read uses a different source projection from the one discovery and readers use. If the two ever disagree, an operation stays pending forever and blocks the close of its month, possibly without any visible error. The other findings are rollout or operational risks, plus test gaps.
+
+Nothing here is P0. Scope and authorization look correct in the code I could see.
+
+FINDINGS:
+
+[P1] The locked re-read diverges from the canonical projection, which can leave operations pending forever and block the close.
+
+File:
+`supabase/migrations/20261016190725_crm_tipo_cambio_por_venta.sql` (as wrapped into `materializar_capital_valoraciones_para` by M6)
+
+Lines:
+- 239–259: re-read and imputation filter
+- 255: signature
+- Compare with M2 lines 92–99 (`capital_fuentes_tc`) and M3 lines 118–128 (`capital_valoraciones_actuales`)
+
+Problem:
+Discovery and every reader use the episode projection (`capital_operaciones_base`): `b.monto`, `b.moneda`, and `fecha_imputacion = (e.fecha at time zone Lima)::date`.
+
+After locking, the loop instead re-reads raw columns:
+- For contratos it uses `c.capital`, `c.moneda`, and `fecha_imputacion := c.fecha_cierre_comercial` (line 242–243). The imputation date is the commercial date, not the episode date.
+- For cierres_externos it uses `ce.monto` and `coalesce(ce.fecha_imputacion, creado_en)`.
+
+The firma is then computed from those re-read values (line 255). A valuation only counts as current if `firma`, `fecha_comercial`, `moneda` and `monto` all equal the projection's values (M3 lines 126–128).
+
+Evidence:
+1. If the episode monto ≠ `c.capital` for a stock contract, the loop writes a valuation whose firma never equals the projection's firma.
+   - The next run's filter `s.firma_fuente is distinct from actual.firma_fuente` (line 227) keeps selecting the row.
+   - The re-read reproduces the same firma, so line 258 hits `continue`.
+   - The row is never current, is never re-valued, and is ordered first for PEN or rated USD (line 228). It consumes `p_limite` slots on every run.
+2. If a contract's episode day is in October but `fecha_cierre_comercial` is before October, line 259 `continue`s. That is the "pre-October operation imputed in October" case that `ACTIVACION.md` line 25–26 explicitly asks to credit. The row is never valued.
+3. In both cases:
+   - `publicar_corte_capital` (M3 lines 152–157) caps October's cut before that operation.
+   - `preparar_sello_capital` raises PT409 (M4 lines 147–153), so the month stays open.
+   - The status becomes `atascado` with no root-cause signal.
+   - `preflight` reports `pendientes>0`, so activation is also blocked.
+
+It is a hypothesis whether real data ever hits this. That depends on `capital_episodios`, whose body was not attached. However, this branch's own head commit (c58f85d1, "contar adicional de renovación como upgrade") changes how renewal additionals are counted. That is exactly the kind of change that makes episode monto ≠ `contratos.capital`.
+
+Impact:
+- A month can be permanently unsealable.
+- With 500 or more such rows, the batch worker makes zero progress, and `preparar`'s loop exits on `creadas=0` (M4 line 138).
+- The design itself fails closed, so this does not produce wrong money. It is a liveness and availability defect in the close.
+
+Recommendation:
+- After taking the per-source lock and `for share skip locked`, re-read through the same projection: `select * from private.capital_fuentes_tc_para(f.fuente, f.fuente_id)`. Treat 0 rows as `continue` and more than 1 row as an error.
+- Add SQL assertions for these fixtures:
+  - (a) a stock contract whose episode monto ≠ `c.capital`, such as an October renewal with an additional amount
+  - (b) a contract whose episode Lima date ≠ `fecha_cierre_comercial`, across the 2026-10-01 boundary
+  - (c) a cierre_externo with `fecha_imputacion` ≥ October and `fecha_comercial` before October
+- If the invariant "episode == raw columns" is intended, assert it in `validar_datos_capital_valorado`. It should then fail activation and sealing with an explicit message instead of stalling silently.
+- Confirm the `capital_episodios` hash guard (`c87bec95…`, M2 line 10) was taken *after* c58f85d1.
+
+[P2] Valuation failures now abort business writes.
+
+File:
+- M6 `20261016223745_crm_capital_valoracion_en_escritores.sql`, lines 100–101, 115, 132, 137–145
+- M1 lines 46, 51, 56–58
+
+Problem:
+`crear_contrato_con_cuenta`, `inversion_vincular_fuente`, `corregir_fecha_cierre_comercial` and the `cierres_externos` trigger now call `materializar_capital_valoraciones_para` inside the writer's transaction. Any exception rolls back the contract, link or external close itself. Possible sources are:
+- the duplicate-episode check (line 202–205)
+- `monto>=0`
+- the `equivalente_pen=round(monto*tasa,2)` CHECK
+
+Evidence:
+- `capital_valoraciones.monto` is `numeric(20,2)`, but the insert computes `round(f.monto*v_tasa,2)` from the *unrounded* `f.monto` (line 281). The CHECK then evaluates `round(stored_monto*tasa,2)`.
+- If the source capital has more than 2 decimals, the CHECK can fail and abort the writer. Even when it passes, `v.monto=b.monto` (M3 line 128) never matches, so the row is permanently pending.
+- Whether the source scale is ≤2 is not shown in the evidence.
+
+Impact:
+A data edge case in the valuation subsystem can make a native commercial write fail. Before activation that would be a regression of currently working flows.
+
+Recommendation:
+- Either guarantee scale=2 and monto≥0 at the source and document it, or have the writer path catch and defer (`v_pendientes`) rather than raise. The safest option is to raise only for invariants the writer itself owns.
+- Add a test for a writer with a 3-decimal amount, or prove that the column is already `numeric(*,2)`.
+
+[P2] The close holds SHARE locks on hot CRM tables for the entire materialization loop.
+
+File:
+M4 lines 19–28 and 134–144
+
+Problem:
+`bloquear_fuentes_capital` locks `crm.leads`, `crm.equipo`, `public.contratos`, `crm.metas_*` and others in SHARE mode. `preparar_sello_capital` then loops up to 200×500 materializations while still holding them. The lock runs inside `cerrar_periodo` and runs again from the `periodos_cerrados` trigger. The function sets no `lock_timeout`.
+
+Evidence:
+- The lock is taken at line 25–27 and held for the whole transaction.
+- The loop bound is at line 140.
+- The trigger path at line 177 calls `preparar` a second time in the same transaction.
+- The 8.58 ms measurement covers a single materialization, not a close with a backlog.
+
+Impact:
+During a month close, every lead, assignment or team write across the CRM blocks until the close commits. A large backlog can turn that into minutes.
+
+Recommendation:
+- Require backlog=0 before closing, for example a cheap precheck that defers with PT409 instead of materializing under lock.
+- Narrow the lock set to the tables that affect the valued census.
+- Set a function-level `lock_timeout`.
+- Skip the second `preparar` when a seal-prep for this period already ran in the same transaction, for example via a transaction-local GUC.
+
+[P2] Suspension followed by a close makes reactivation permanently impossible.
+
+File:
+- M4 lines 86–87, 102–103, 133
+- `ACTIVACION.md`, Reversa section
+
+Problem:
+When `activa=false`, `preparar_sello_capital` returns null, so the month closes without a capital seal. `preflight` counts `sellos_incompatibles` for every closed month from October onward. `activar` then refuses forever, and the code provides no remediation path.
+
+Impact:
+A temporary reversal that spans a month-end silently becomes permanent. The runbook does not state this.
+
+Recommendation:
+- At minimum, document in Reversa: "do not let a month ≥ Oct close while suspended, or accept that the feature cannot be reactivated".
+- Better, make reactivation require only that months closed while suspended are explicitly accepted as legacy, so the readers keep the v1 path for them.
+
+[P3] Anchor replacements check presence, not cardinality.
+
+File:
+- M3 lines 57–61, 68–70
+- M5 lines 85–102
+
+Evidence:
+- M3 slices `capital_autorizada` from 'v_global := coalesce' to 'return query'. It drops everything in between, including any intermediate validation.
+- M3 replaces the whole prefix of `facturacion_operaciones_visibles` before `select ep.*`.
+- M5 uses `replace()`, which rewrites every occurrence, for `) || case when` and `)\n  select jsonb_build_object('version', 1`, but only checks `strpos>0`.
+
+The hash guards mitigate this, and replay compiled. Even so, the intent "preserve validations and error order" is not proven.
+
+Recommendation:
+- Add exact-count checks, as M2 and M4 already do.
+- Add an assertion that the original and new `capital_autorizada` raise the same errors for: no session, an empty visible set, and invalid dates.
+
+[P3] Audit volume from the job queue.
+
+File:
+M1 lines 100–101
+
+Problem:
+`trg_audit_tipo_cambio_trabajos` fires on every reservation and retry update. Pending dates retry at intervals of up to 60 minutes indefinitely, and a permanent BCRP gap is a valid stuck state by design. That produces unbounded audit rows per stuck date.
+
+Recommendation:
+Audit only inserts and the completion transition, or cap the retry count before raising an alert.
+
+TEST GAPS:
+- Projection-divergence fixtures (P1): episode monto ≠ `contratos.capital`, and episode date ≠ `fecha_cierre_comercial` across October.
+- Validation is not yet proven at scale. Add a seal attempt with ≥500 non-materializable rows to confirm it raises PT409 with an actionable reason, not just "falta una valoración".
+- Coordinator scope: show that the `es_coordinador_reportes` role is global in v1 `cumplimiento_metas_fn` as well. v2 grants it global `personas` (M3 line 321), but `ambito_capital_confirmado` (M3 line 23) does not include it, so the two ambits differ.
+- `cumplimiento_metas_v2_fn` with `v_corte=null` (first cut absent): `vendedores[].capital_valorado` becomes JSON null. Confirm the frontend schema for vendedores accepts null; only `personas` uses the strict `CapitalResumenSchema`.
+- The full 455-test E2E suite is still pending and must not be reported as PASS.
+- There is no real-auth F4 browser wizard, PDF or Storage evidence (acknowledged).
+- The historical census is old. A fresh preflight and census are required before activation (acknowledged as a precondition).
+
+ARCHITECTURE RISKS:
+- M4, M6, M7 and M8 rewrite live function bodies by string surgery, pinned by md5. This is correct as a guard, but every unrelated hotfix to those functions will block these migrations. The hashes must be re-taken after rebasing on c58f85d1 and any later main commits.
+- `preparar_sello_capital` runs twice per close (inline in `cerrar_periodo` and from the trigger).
+
+SECURITY RISKS:
+- None found in the attached code:
+  - New tables revoke all roles, including service_role.
+  - Writers are service-only, and `reevaluar` rejects a non-null `auth.uid()`.
+  - The Edge function requires `verify_jwt` plus a constant-time exact match against the service key, and rejects non-empty bodies.
+  - User RPCs re-derive scope server-side, and `p_corte_id` is constrained to the authorized period and person.
+- `capital_operaciones_valoradas_fn` lets a user read any earlier revision of an *unsealed* month for a person who is authorized now. This looks acceptable, but it should be a deliberate decision.
+
+REGRESSION RISKS:
+- The P2 writer coupling is active from installation, while the policy is still off, because M6 hooks the writers unconditionally.
+- September and legacy paths: readers short-circuit for months before `vigente_desde` and when inactive. The M2 extraction is equality-checked against prior production for every month since 2025-12, which covers the legacy calculator well.
+
+RECOMMENDED NEXT ACTIONS:
+1. Fix P1 by re-reading via `capital_fuentes_tc_para` under the lock, and add the divergence fixtures.
+2. Decide the behaviour when a writer-path valuation raises (defer rather than abort), and prove that the source amount scale is ≤2.
+3. Bound the close: require backlog=0 or defer before taking the SHARE locks, set a `lock_timeout`, and avoid running `preparar` twice.
+4. Document, or add a remediation path for, "closed while suspended blocks reactivation", and re-take the hash guards after rebasing on c58f85d1.
+
+CONFIDENCE:
+MEDIUM. The code-level analysis is high-confidence. Whether P1 and the scale part of P2 trigger on real data depends on `capital_episodios` and the source column types, which were not attached.

@@ -1,0 +1,30 @@
+[
+  {
+    "mes": "2026-09",
+    "corte": "2026-10-17T05:06:10.205644+00:00",
+    "poblacion": 2018,
+    "citas": 671,
+    "analistas": 26,
+    "comparadosConActividad": 20,
+    "clientes": 116,
+    "vinculados": 10,
+    "entrevistas": 74,
+    "personas": 62,
+    "porcentaje": 16.13,
+    "testigoCuadra": true
+  },
+  {
+    "mes": "2026-10",
+    "corte": "2026-10-17T05:06:13.881957+00:00",
+    "poblacion": 1635,
+    "citas": 750,
+    "analistas": 28,
+    "comparadosConActividad": 22,
+    "clientes": 43,
+    "vinculados": 15,
+    "entrevistas": 84,
+    "personas": 79,
+    "porcentaje": 18.99,
+    "testigoCuadra": true
+  }
+]

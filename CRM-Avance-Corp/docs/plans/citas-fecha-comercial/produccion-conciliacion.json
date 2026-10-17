@@ -1,0 +1,26 @@
+[
+  {
+    "mes": "2026-09",
+    "corte": "2026-10-17T06:47:02.489295+00:00",
+    "cuadra": true,
+    "clientes": 116,
+    "vinculados": 10,
+    "entrevistas": 74,
+    "personas": 62,
+    "deposito_pct": 16.13,
+    "filas": 26,
+    "valoracion": "legado"
+  },
+  {
+    "mes": "2026-10",
+    "corte": "2026-10-17T06:47:07.241042+00:00",
+    "cuadra": true,
+    "clientes": 43,
+    "vinculados": 15,
+    "entrevistas": 84,
+    "personas": 79,
+    "deposito_pct": 18.99,
+    "filas": 28,
+    "valoracion": "corte activo"
+  }
+]

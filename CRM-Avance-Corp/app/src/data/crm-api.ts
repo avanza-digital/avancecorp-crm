@@ -102,7 +102,9 @@ import {
   type PlazoCargaFijado,
   type PlazosCargaMes,
 } from '@/lib/plazo-carga-mes'
-import { CumplimientoMetasSchema, type CumplimientoMetasRpc } from '@/lib/objetivos'
+import { CumplimientoMetasV2Schema, type CumplimientoMetasRpc } from '@/lib/objetivos'
+import { CapitalOperacionesSchema, CoberturaCapitalSchema, type CapitalOperaciones, type CoberturaCapital } from '@/lib/capital-valorado'
+import { consultarTipoCambioHistorico } from '@/lib/tipo-cambio'
 import {
   DisponibilidadLeadSchema,
   ResultadoCreacionLeadAtomicaSchema,
@@ -1169,17 +1171,42 @@ export async function obtenerMetasDelMes(periodo: string, signal?: AbortSignal):
  * categoría/moneda en cada dimensión contractual.
  */
 export async function obtenerCumplimientoMetas(periodo: string, signal?: AbortSignal): Promise<CumplimientoMetasRpc> {
-  let consulta = cliente().schema('crm').rpc('cumplimiento_metas_fn', { p_periodo: periodo })
+  let consulta = cliente().schema('crm').rpc('cumplimiento_metas_v2_fn', { p_periodo: periodo })
   if (signal) consulta = consulta.abortSignal(signal)
-  const { data, error } = await consulta
+  let { data, error } = await consulta
+  // Solo una función ausente permite usar el servidor anterior. Un rechazo de
+  // autorización o un payload inválido jamás provoca otra consulta más amplia.
+  if (error?.code === 'PGRST202') {
+    consulta = cliente().schema('crm').rpc('cumplimiento_metas_fn', { p_periodo: periodo })
+    if (signal) consulta = consulta.abortSignal(signal)
+    ;({ data, error } = await consulta)
+  }
   lanzarAbortSiCorresponde(signal)
   if (error) {
     const fallo = new CrmApiError('No se pudo calcular el cumplimiento de metas.', error.code || 'POSTGREST_ERROR')
     registrarError('crm.metas.cumplimiento_fallido', fallo)
     throw fallo
   }
-  const resultado = v.safeParse(CumplimientoMetasSchema, data)
+  const resultado = v.safeParse(CumplimientoMetasV2Schema, data)
   if (!resultado.success) throw contratoMetasInvalido('crm.metas.cumplimiento_contrato_invalido')
+  return resultado.output
+}
+
+/** Detalle de la misma publicación de capital que el ranking, sin recalcular TC. */
+export async function obtenerCapitalOperacionesValoradas(
+  periodo: string, vendedorId: string, corteId: string, signal?: AbortSignal,
+): Promise<CapitalOperaciones> {
+  let consulta = cliente().schema('crm').rpc('capital_operaciones_valoradas_fn', {
+    p_periodo: periodo, p_vendedor_id: vendedorId, p_corte_id: corteId,
+  })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw new CrmApiError('No se pudo cargar el detalle de capital valorado.', error.code || 'POSTGREST_ERROR')
+  const resultado = v.safeParse(CapitalOperacionesSchema, data)
+  if (!resultado.success || (resultado.output.valoracion_activa && resultado.output.corte_id !== corteId)) {
+    throw new CrmApiError('El detalle no corresponde al corte del ranking.', 'CAPITAL_VALORADO_CONTRACT')
+  }
   return resultado.output
 }
 
@@ -4905,25 +4932,50 @@ const FacturacionDiaRowSchema = v.object({
   supervisor_nombre: v.string(),
   operaciones: NumericoRpc,
   capital: NumericoRpc,
+  capital_equivalente_pen: v.optional(NumericoRpc),
 })
 
 
 /** Facturación de UN mes comercial (`p_mes` = 'YYYY-MM-01'). */
 /** El array de filas, más cuántas vinieron ilegibles (para poder avisarlo). */
-export type FacturacionDelMes = FilaFacturacionDia[] & { descartadas: number }
+export type FacturacionDelMes = FilaFacturacionDia[] & {
+  descartadas: number
+  capitalValoracion?: { activa: true; corteId: string | null; corte: string | null; cobertura: CoberturaCapital }
+  tipoCambioLegado?: { fecha: string; tasa: number }
+}
+
+const FacturacionV2Schema = v.variant('valoracion_activa', [
+  v.object({ version: v.literal(2), valoracion_activa: v.literal(false), filas: v.array(v.unknown()) }),
+  v.object({ version: v.literal(2), valoracion_activa: v.literal(true), filas: v.array(v.unknown()),
+    corte_id: v.nullable(v.string()), corte: v.nullable(v.string()), cobertura: CoberturaCapitalSchema }),
+])
 
 export async function listarFacturacionDiaria(
   mes: string,
   signal?: AbortSignal,
+  consolidarLegado = false,
 ): Promise<FacturacionDelMes> {
-  let consulta = cliente().schema('crm').rpc('facturacion_diaria_fn', { p_mes: mes })
+  let consulta = cliente().schema('crm').rpc('facturacion_diaria_v2_fn', { p_mes: mes })
   if (signal) consulta = consulta.abortSignal(signal)
-  const { data, error } = await consulta
+  let { data, error } = await consulta
+  if (error?.code === 'PGRST202') {
+    let anterior = cliente().schema('crm').rpc('facturacion_diaria_fn', { p_mes: mes })
+    if (signal) anterior = anterior.abortSignal(signal)
+    const legado = await anterior
+    data = legado.data
+    error = legado.error
+  }
   lanzarAbortSiCorresponde(signal)
   if (error) throw falloMetricas(error, 'crm.metricas.facturacion_diaria_fallido')
+  const respuesta = Array.isArray(data) ? null : v.safeParse(FacturacionV2Schema, data)
+  if (respuesta && !respuesta.success) throw new CrmApiError('Facturación devolvió una valoración inválida.', 'ROW_CONTRACT')
+  const versionada = respuesta?.success ? respuesta.output : null
+  const valoracion = versionada?.valoracion_activa ? {
+    activa: true as const, corteId: versionada.corte_id, corte: versionada.corte, cobertura: versionada.cobertura,
+  } : undefined
   const items: FilaFacturacionDia[] = []
   let descartadas = 0
-  for (const cruda of data ?? []) {
+  for (const cruda of versionada?.filas ?? (Array.isArray(data) ? data : [])) {
     const r = v.safeParse(FacturacionDiaRowSchema, cruda)
     // La moneda llega como texto libre del servidor; si no es una de las dos que
     // el CRM maneja, la fila no se pinta: sumarla a la columna equivocada sería
@@ -4940,6 +4992,8 @@ export async function listarFacturacionDiaria(
     // (Auditoría de Codex, 11/09/2026.)
     const operaciones = aNumero(r.output.operaciones)
     const capital = aNumero(r.output.capital)
+    const equivalente = r.output.capital_equivalente_pen !== undefined ? aNumero(r.output.capital_equivalente_pen) : null
+    if (valoracion && (equivalente === null || equivalente < 0)) throw new CrmApiError('Falta el equivalente aceptado de una fila.', 'ROW_CONTRACT')
     if (operaciones == null || capital == null || !/^\d{4}-\d{2}-\d{2}$/.test(r.output.dia)) {
       descartadas += 1
       continue
@@ -4954,16 +5008,41 @@ export async function listarFacturacionDiaria(
       supervisorNombre: r.output.supervisor_nombre,
       operaciones,
       capital,
+      ...(equivalente !== null ? { capitalEquivalentePen: equivalente } : {}),
     })
   }
   registrarFilasMetricasInvalidas('facturacion_diaria', descartadas)
   // Se DECLARA cuántas filas no se pudieron leer para que la pantalla pueda
   // avisar. Un total al que le faltan cifras sin decirlo es peor que un error.
-  return Object.assign(items, { descartadas })
+  if (valoracion && descartadas) throw new CrmApiError('El corte de Facturación contiene filas ilegibles.', 'ROW_CONTRACT')
+  if (consolidarLegado && mes < '2026-10-01') {
+    const [anio, mesNumero] = mes.split('-').map(Number)
+    const ultimo = new Date(Date.UTC(anio!, mesNumero!, 0)).toISOString().slice(0, 10)
+    try {
+      const tasa = await consultarTipoCambioHistorico(ultimo)
+      lanzarAbortSiCorresponde(signal)
+      return Object.assign(items.map((fila) => ({ ...fila,
+        capitalEquivalentePen: fila.moneda === 'PEN' ? fila.capital : fila.capital * tasa.promedio,
+      })), { descartadas, tipoCambioLegado: { fecha: ultimo, tasa: tasa.promedio } })
+    } catch {
+      lanzarAbortSiCorresponde(signal)
+      // Las monedas originales siguen disponibles. Un total mixto queda
+      // incompleto hasta recuperar el corte histórico, sin tasa de emergencia.
+    }
+  }
+  return Object.assign(items, { descartadas, ...(valoracion ? { capitalValoracion: valoracion } : {}) })
 }
 
 /** Contrato versionado de la lista: se valida ENTERO, nunca se descartan operaciones. */
-export type ParametrosOperacionesFacturacion = Database['crm']['Functions']['listar_operaciones_facturacion_v2_fn']['Args']
+export interface ContextoCortesFacturacion {
+  cortes?: Record<string, string> | undefined
+  tasasLegadas?: Record<string, { fecha: string; tasa: number }> | undefined
+}
+export type ParametrosOperacionesFacturacion = Database['crm']['Functions']['listar_operaciones_facturacion_v2_fn']['Args'] & {
+  p_cortes?: Record<string, string> | undefined
+  /** Solo presentación del régimen anterior; jamás se envía una tasa al servidor. */
+  tasasLegadas?: ContextoCortesFacturacion['tasasLegadas']
+}
 const NumeroListaFacturacion = v.pipe(v.number(), v.finite())
 const EnteroListaFacturacion = v.pipe(NumeroListaFacturacion, v.integer(), v.minValue(0))
 const TipoOperacionFacturacion = v.picklist(['contrato_nuevo', 'contrato_upgrade', 'contrato_renovacion', 'cooperativa'])
@@ -4977,24 +5056,47 @@ const BaseOperacionFacturacion = {
   analista_id: v.nullable(v.string()), analista_nombre: v.string(),
   supervisor_id: v.nullable(v.string()), supervisor_nombre: v.string(),
 }
-const OperacionFacturacionSchema = v.union([
-  v.strictObject({ ...BaseOperacionFacturacion, visible: v.literal(false), cliente_nombre: v.literal('Cliente de otro equipo') }),
-  v.strictObject({ ...BaseOperacionFacturacion, visible: v.literal(false), nombre_visible: v.literal(true), cliente_nombre: v.nullable(v.string()) }),
-  v.strictObject({ ...BaseOperacionFacturacion, visible: v.literal(true), cliente_nombre: v.nullable(v.string()),
+function operacionesFacturacionSchema(valorada: boolean) {
+  const extra = valorada ? ValorOperacionFacturacionSchema : {}
+  return v.union([
+  v.strictObject({ ...BaseOperacionFacturacion, ...extra, visible: v.literal(false), cliente_nombre: v.literal('Cliente de otro equipo') }),
+  v.strictObject({ ...BaseOperacionFacturacion, ...extra, visible: v.literal(false), nombre_visible: v.literal(true), cliente_nombre: v.nullable(v.string()) }),
+  v.strictObject({ ...BaseOperacionFacturacion, ...extra, visible: v.literal(true), cliente_nombre: v.nullable(v.string()),
     estado: v.nullable(v.string()), tipo: v.literal('cooperativa'), cierre_externo_id: v.string(),
     cooperativa: v.nullable(v.string()), lead_id: v.nullable(v.string()) }),
-  v.strictObject({ ...BaseOperacionFacturacion, visible: v.literal(true), cliente_nombre: v.nullable(v.string()),
+  v.strictObject({ ...BaseOperacionFacturacion, ...extra, visible: v.literal(true), cliente_nombre: v.nullable(v.string()),
     estado: v.nullable(v.string()), tipo: v.picklist(['contrato_nuevo', 'contrato_upgrade', 'contrato_renovacion']),
     contrato_id: v.string(), numero_contrato: v.nullable(v.string()), cliente_id: v.nullable(v.string()) }),
-])
-const ListaOperacionesFacturacionSchema = v.strictObject({
-  version: v.picklist([1, 2]), pagina: v.pipe(EnteroListaFacturacion, v.minValue(1)), tamano: v.picklist([25, 50, 100]),
+]) }
+const ValorOperacionFacturacionSchema = {
+  equivalente_pen: v.nullable(NumeroListaFacturacion),
+  tasa: v.nullable(v.pipe(NumeroListaFacturacion, v.minValue(Number.MIN_VALUE))),
+  fecha_comercial: v.nullable(v.pipe(v.string(), v.isoDate())),
+  fecha_tc: v.nullable(v.pipe(v.string(), v.isoDate())), politica_tc: v.nullable(v.string()),
+}
+const OperacionFacturacionSchema = operacionesFacturacionSchema(false)
+const OperacionValoradaFacturacionSchema = operacionesFacturacionSchema(true)
+const ListaFacturacionComun = {
+  pagina: v.pipe(EnteroListaFacturacion, v.minValue(1)), tamano: v.picklist([25, 50, 100]),
   total: EnteroListaFacturacion,
   totales: v.array(v.strictObject({ moneda: v.picklist(['PEN', 'USD']), operaciones: v.pipe(EnteroListaFacturacion, v.minValue(1)), monto: NumeroListaFacturacion })),
-  filas: v.array(OperacionFacturacionSchema),
-})
-export type OperacionFacturacion = v.InferOutput<typeof OperacionFacturacionSchema>
-export type ListaOperacionesFacturacion = v.InferOutput<typeof ListaOperacionesFacturacionSchema>
+}
+const ListaOperacionesFacturacionSchema = v.union([
+  v.strictObject({ ...ListaFacturacionComun, version: v.picklist([1, 2]), filas: v.array(OperacionFacturacionSchema) }),
+  v.strictObject({ ...ListaFacturacionComun, version: v.literal(3), filas: v.array(OperacionValoradaFacturacionSchema),
+    cortes: v.record(v.pipe(v.string(), v.regex(/^\d{4}-\d{2}-01$/)), v.pipe(v.string(), v.uuid())),
+    totales_por_mes: v.array(v.strictObject({ mes: v.pipe(v.string(), v.isoDate()), moneda: v.picklist(['PEN', 'USD']),
+      operaciones: v.pipe(EnteroListaFacturacion, v.minValue(1)), monto: NumeroListaFacturacion, equivalente_pen: v.nullable(NumeroListaFacturacion) })),
+  }),
+])
+export type OperacionFacturacion = v.InferOutput<typeof OperacionFacturacionSchema> & Partial<v.InferOutput<v.ObjectSchema<typeof ValorOperacionFacturacionSchema, undefined>>>
+type ListaFacturacionSalida = v.InferOutput<typeof ListaOperacionesFacturacionSchema>
+export type ListaOperacionesFacturacion = Omit<ListaFacturacionSalida, 'totales' | 'filas'> & {
+  totales: Array<{ moneda: 'PEN' | 'USD'; operaciones: number; monto: number; equivalente_pen?: number | null }>
+  filas: OperacionFacturacion[]
+  cortes?: Record<string, string>
+  totales_por_mes?: Array<{ mes: string; moneda: 'PEN' | 'USD'; operaciones: number; monto: number; equivalente_pen: number | null }>
+}
 
 export function parsearListaOperacionesFacturacion(datos: unknown): ListaOperacionesFacturacion {
   const resultado = v.safeParse(ListaOperacionesFacturacionSchema, datos)
@@ -5002,6 +5104,13 @@ export function parsearListaOperacionesFacturacion(datos: unknown): ListaOperaci
   if (!resultado.success) throw fallo()
   const lista = resultado.output
   if (lista.version === 1 && lista.filas.some((f) => 'nombre_visible' in f)) throw fallo()
+  if (lista.version === 3 && (new Set(lista.totales_por_mes.map((t) => `${t.mes}:${t.moneda}`)).size !== lista.totales_por_mes.length ||
+      lista.totales_por_mes.some((t) => !t.mes.endsWith('-01') || !lista.totales.some((r) => r.moneda === t.moneda)) ||
+      lista.totales.some((t) => {
+        const meses = lista.totales_por_mes.filter((m) => m.moneda === t.moneda)
+        return meses.reduce((s, m) => s + m.operaciones, 0) !== t.operaciones ||
+          Math.round(meses.reduce((s, m) => s + m.monto, 0) * 100) !== Math.round(t.monto * 100)
+      }))) throw fallo()
   const inicio = (lista.pagina - 1) * lista.tamano
   if (new Set(lista.totales.map((t) => t.moneda)).size !== lista.totales.length ||
       lista.totales.reduce((n, t) => n + t.operaciones, 0) !== lista.total ||
@@ -5016,17 +5125,53 @@ export function parsearListaOperacionesFacturacion(datos: unknown): ListaOperaci
 }
 
 export async function listarOperacionesFacturacion(params: ParametrosOperacionesFacturacion, signal?: AbortSignal): Promise<ListaOperacionesFacturacion> {
-  let consulta = cliente().schema('crm').rpc('listar_operaciones_facturacion_v2_fn', params)
+  const { tasasLegadas, ...args } = params
+  let consulta = cliente().schema('crm').rpc(params.p_cortes ? 'listar_operaciones_facturacion_v3_fn' : 'listar_operaciones_facturacion_v2_fn', args)
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
   lanzarAbortSiCorresponde(signal)
   if (error) throw new CrmApiError(error.code === '22023'
-    ? 'No se puede abrir este número: elige un tramo de hasta 31 días y revisa los filtros y el tamaño de página.'
+    ? `No se puede abrir este número: elige un tramo de hasta ${params.p_cortes ? 366 : 31} días y revisa los filtros y el tamaño de página.`
     : 'No se pudo cargar la lista de operaciones. Vuelve a intentarlo.', error.code || 'POSTGREST_ERROR')
   const lista = parsearListaOperacionesFacturacion(data)
-  if (lista.version !== 2) throw new CrmApiError('La lista de operaciones llegó con una versión no compatible. Vuelve a intentarlo.', 'CONTRATO_FACTURACION')
+  if (lista.version !== (params.p_cortes ? 3 : 2)) throw new CrmApiError('La lista de operaciones llegó con una versión no compatible. Vuelve a intentarlo.', 'CONTRATO_FACTURACION')
   if (lista.pagina !== (params.p_pagina ?? 1) || lista.tamano !== (params.p_tamano ?? 25)) {
     throw new CrmApiError('La página recibida no corresponde a la solicitada. Vuelve a intentarlo.', 'CONTRATO_FACTURACION')
+  }
+  if (params.p_cortes) {
+    if (!lista.cortes || Object.keys(params.p_cortes).length !== Object.keys(lista.cortes).length ||
+        Object.entries(params.p_cortes).some(([mes, id]) => lista.cortes?.[mes] !== id) ||
+        lista.filas.some((f) => f.fecha < params.p_desde || f.fecha > params.p_hasta) ||
+        lista.totales_por_mes?.some((t) => t.mes < `${params.p_desde.slice(0, 7)}-01` || t.mes > `${params.p_hasta.slice(0, 7)}-01`)) {
+      throw new CrmApiError('El detalle no corresponde a los cortes de la cifra. Actualiza la facturación.', 'CONTRATO_FACTURACION')
+    }
+    const equivalente = (mes: string, moneda: 'PEN' | 'USD', monto: number, guardado: number | null | undefined) => {
+      if (mes >= '2026-10-01') {
+        if (guardado == null) throw new CrmApiError('Falta la valoración guardada de una operación del corte.', 'CONTRATO_FACTURACION')
+        return guardado
+      }
+      if (moneda === 'PEN') return monto
+      const corte = tasasLegadas?.[mes]
+      const fin = new Date(Date.UTC(Number(mes.slice(0, 4)), Number(mes.slice(5, 7)), 0)).toISOString().slice(0, 10)
+      return corte?.fecha === fin && Number.isFinite(corte.tasa) && corte.tasa > 0 ? monto * corte.tasa : null
+    }
+    lista.filas = lista.filas.map((f) => {
+      const mes = `${f.fecha.slice(0, 7)}-01`
+      const legado = mes < '2026-10-01' ? tasasLegadas?.[mes] : undefined
+      const valor = equivalente(mes, f.moneda, f.monto, f.equivalente_pen)
+      return { ...f, equivalente_pen: valor,
+        ...(legado && valor !== null && f.moneda === 'USD' ? { tasa: legado.tasa, fecha_tc: legado.fecha } : {}) }
+    })
+    lista.totales_por_mes = lista.totales_por_mes!.map((t) => ({ ...t, equivalente_pen: equivalente(t.mes, t.moneda, t.monto, t.equivalente_pen) }))
+    lista.totales = lista.totales.map((t) => {
+      const meses = lista.totales_por_mes!.filter((m) => m.moneda === t.moneda)
+      return { ...t, equivalente_pen: meses.some((m) => m.equivalente_pen == null) ? null : meses.reduce((s, m) => s + m.equivalente_pen!, 0) }
+    })
+    if (lista.pagina === 1 && lista.filas.length === lista.total && lista.totales_por_mes.some((t) => {
+      const filas = lista.filas.filter((f) => `${f.fecha.slice(0, 7)}-01` === t.mes && f.moneda === t.moneda)
+      return filas.length !== t.operaciones || (t.equivalente_pen !== null &&
+        (filas.some((f) => f.equivalente_pen == null) || Math.abs(filas.reduce((s, f) => s + f.equivalente_pen!, 0) - t.equivalente_pen) >= 0.005))
+    })) throw new CrmApiError('Los equivalentes del detalle no concilian con su total.', 'CONTRATO_FACTURACION')
   }
   return lista
 }

@@ -30,6 +30,8 @@ export interface DesgloseMonedasProps {
   usd: number
   /** TC APLICADO (el que devolvió la conversión), no el que se pidió. */
   tc: number | null
+  /** El total ya suma equivalentes guardados; no existe una tasa única. */
+  valorado?: boolean
   /** Formato corto (S/ 113k) para filas densas; largo para tiles. */
   compacto?: boolean
   tono?: keyof typeof TONOS
@@ -39,6 +41,7 @@ export function DesgloseMonedas({
   pen,
   usd,
   tc,
+  valorado = false,
   compacto = false,
   tono = 'casa',
 }: DesgloseMonedasProps) {
@@ -48,9 +51,9 @@ export function DesgloseMonedas({
   const fmt = compacto ? moneyK : money
   const paleta = TONOS[tono]
   return (
-    <span className={cn('block text-[11px] font-medium', tc != null ? paleta.conTc : paleta.sinTc)}>
+    <span className={cn('block text-[11px] font-medium', tc != null || valorado ? paleta.conTc : paleta.sinTc)}>
       <span className="sr-only">Desglose: </span>
-      {tc != null
+      {tc != null || valorado
         ? `${fmt(pen, 'PEN').replace(' ', '\u00a0')} + ${fmt(usd, 'USD').replace(' ', '\u00a0')}`
         : `+ ${fmt(usd, 'USD').replace(' ', '\u00a0')} aparte (sin TC)`}
     </span>

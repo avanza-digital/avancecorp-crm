@@ -19,7 +19,8 @@ import {
   type MetaMensualGerencia,
 } from '@/components/gerencia/periodo'
 import { etiquetaBloqueSemanal, fmtFecha, money, moneyCompacta, numero, porcentajeConversionCanonica } from '@/lib/format'
-import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
+import { rotuloTipoCambio } from '@/lib/capital-unificado'
+import { capitalComercialEnSoles, metaComercialEnSoles } from '@/lib/capital-unificado'
 import { rotuloDeLaCifra } from '@/lib/conversion-rotulo'
 import {
   capitalObjetivo,
@@ -46,6 +47,8 @@ import { lecturaCobertura, totalConversionPublicable } from '@/lib/conversion-me
 import { presentarCitas } from '@/lib/terminologia'
 import { etiquetaOrigen } from '@/lib/tipos'
 import { estadoVerificacionNucleo, sondasNucleoVerificadas } from '@/lib/sondas-conversion'
+import type { CapitalValoracion } from '@/lib/capital-valorado'
+import { CoberturaCapitalAviso } from '@/components/common/cobertura-capital'
 
 interface ResumenGerenciaPanelProps {
   conversiones: MetricasConversiones | null | undefined
@@ -62,6 +65,7 @@ interface ResumenGerenciaPanelProps {
   equipoMensual?: ConversionEquipoVendedor[]
   meta: ObjetivoComercial
   cumplimiento: CumplimientoAgregado | null
+  valoracionCapital?: CapitalValoracion | undefined
   metaMensual: MetaMensualGerencia
   tc: { promedio: number, fuente: string } | null | undefined
   /** Origen de prospecto enviado a la RPC; null para total y cartera. */
@@ -155,6 +159,7 @@ export function ResumenGerenciaPanel({
   equipoMensual,
   meta,
   cumplimiento,
+  valoracionCapital,
   metaMensual,
   tc,
   origenFiltrado,
@@ -242,11 +247,11 @@ export function ResumenGerenciaPanel({
   // Capital CONSOLIDADO, no dos barras: la meta se pacta en soles, así que la
   // barra de dólares no podía tener meta y decía «Sin meta» para siempre
   // mientras el capital real en USD no contaba para nada.
-  const capitalTotal = totalEnSoles(cumplimientoCapitalPen, cumplimientoCapitalUsd, tc?.promedio)
-  const metaTotalCapital = totalEnSoles(metaCapitalPen, metaCapitalUsd, tc?.promedio)
+  const capitalTotal = capitalComercialEnSoles(cumplimientoCapitalPen, cumplimientoCapitalUsd, tc?.promedio, cumplimiento?.capitalValorado)
+  const metaTotalCapital = metaComercialEnSoles(metaCapitalPen, metaCapitalUsd, tc?.promedio, cumplimiento?.capitalValorado)
   const hayDolares = (cumplimientoCapitalUsd ?? 0) > 0 || metaCapitalUsd > 0
-  const tcEnVuelo = tc === undefined && hayDolares
-  const tcCaido = tc === null && hayDolares
+  const tcEnVuelo = !capitalTotal.valorado && tc === undefined && hayDolares
+  const tcCaido = !capitalTotal.valorado && tc === null && hayDolares
   // El capital del héroe y del KPI es el CONFIRMADO del mes (cumplimiento de
   // cierres) — la misma fuente y el mismo nombre que Metas y «Avance de metas».
   // Antes leía `produccion.capital_*`, que suma contratos enlazados a un lead
@@ -259,13 +264,17 @@ export function ResumenGerenciaPanel({
   const capitalMesTexto = tcEnVuelo
     ? 'Calculando…'
     : capitalTotal.total == null ? '—' : money(capitalTotal.total, 'PEN')
-  const capitalMesDetalle = cumplimiento == null
+  const capitalMesDetalle = capitalTotal.valorado
+    ? `Capital con TC fijado por venta · Corte ${capitalTotal.corte ?? 'pendiente'}`
+    : cumplimiento == null
     ? 'Cumplimiento confirmado no disponible'
     : tcEnVuelo
       ? 'Consultando el tipo de cambio para consolidar los dólares…'
       : (cumplimientoCapitalUsd ?? 0) > 0
         ? `${money(cumplimientoCapitalPen ?? 0, 'PEN')} + ${money(cumplimientoCapitalUsd ?? 0, 'USD')}${
-          capitalTotal.tc == null
+          capitalTotal.valorado
+            ? ' · TC fijado por venta'
+            : capitalTotal.tc == null
             ? ' · sin tipo de cambio: el total NO incluye los dólares'
             : ` · ${rotuloTipoCambio(capitalTotal.tc, tc?.fuente ?? 'TC del día')}`}`
         : (capitalTotal.total ?? 0) > 0
@@ -461,6 +470,7 @@ export function ResumenGerenciaPanel({
   return (
     <div className="space-y-4">
       {error && <ErrorResumen error={error} onReintentar={onReintentar} />}
+      {valoracionCapital && <div className="gi-card p-4"><CoberturaCapitalAviso cobertura={valoracionCapital.cobertura} sellado={valoracionCapital.sellado} /></div>}
       {tcCaido && (
         <div className="gi-card flex flex-wrap items-center justify-between gap-3 p-5" role="alert">
           <span className="flex items-center gap-2 text-sm font-semibold text-amber-900">
@@ -666,7 +676,9 @@ export function ResumenGerenciaPanel({
                 {(cumplimientoCapitalUsd ?? 0) > 0 && (
                   <p className="mt-1 text-[11px] tabular-nums text-[var(--gi-muted)]">
                     {money(cumplimientoCapitalPen ?? 0, 'PEN')} + {money(cumplimientoCapitalUsd ?? 0, 'USD')}
-                    {capitalTotal.tc == null
+                    {capitalTotal.valorado
+            ? ' · TC fijado por venta'
+            : capitalTotal.tc == null
                       ? ' · sin tipo de cambio: el total NO incluye los dólares'
                       : ` · ${rotuloTipoCambio(capitalTotal.tc, tc?.fuente ?? 'TC del día')}`}
                   </p>

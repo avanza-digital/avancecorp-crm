@@ -26,7 +26,7 @@ function ejemplo() {
       manualPropio: true, registroManual: true, origen: 'Referido', moneda: 'PEN', monto: 2500 }],
     avance: { control: { version: 1, mes_inicio: '2026-09', configuracion: { ...controlCitasInicial(),
       base_depositos: 'entrevistas', mes_resultado: 'evento', analista_resultado: 'evento', mes_inicio: '2026-09' } },
-    poblacion: [persona], conversiones: [{ lead_id: 'lead-1', perfil_id: 'cliente-1', convertido_en: '2026-09-03T15:00:00Z',
+    poblacion: [persona], conversiones: [{ lead_id: 'lead-1', perfil_id: 'cliente-1', convertido_en: '2026-09-03T15:00:00Z', fecha_comercial: '2026-09-03',
       analista_id: 'ana', analista_nombre: 'Ana', supervisor_id: 'sup', supervisor_nombre: 'Supervisor', contrato_id: 'contrato-1' }],
     capital: [{ contrato_id: 'contrato-1', lead_id: 'lead-1', perfil_id: 'cliente-1', analista_id: 'ana', moneda: 'PEN', monto: 1000, fecha: '2026-09-03T05:00:00Z' }] },
   }
@@ -37,6 +37,34 @@ function ejemplo() {
 }
 
 describe('Avance mensual conectado a hechos de Citas', () => {
+  it('una venta de septiembre cargada en octubre pertenece a septiembre y conserva su registro', () => {
+    const e = ejemplo()
+    e.datos.conversiones[0]!.convertido_en = '2026-10-06T18:58:10Z'
+    const consultar = (mes: string) => calcularAvanceCitas(e.gestion, e.citas, { ...e.filtros, mes }, '2026-10-17T04:00:00Z', null)
+    expect(consultar('2026-09').total).toMatchObject({ clientesPeriodo: 1, clientes: 1, conversion: 1 })
+    expect(consultar('2026-10').total).toMatchObject({ clientesPeriodo: 0, clientes: 0 })
+    expect(consultar('2026-09').total.cierres[0]!.convertido_en).toBe('2026-10-06T18:58:10Z')
+  })
+  it('el día comercial admite entrevista del mismo día y excluye la del día posterior', () => {
+    const e = ejemplo()
+    e.cita.asistioEn = '2026-09-04T04:59:00Z' // 03/09 23:59 Lima
+    expect(e.calcular().total).toMatchObject({ clientes: 1, clientesPeriodo: 1 })
+    e.cita.asistioEn = '2026-09-04T05:00:00Z' // 04/09 00:00 Lima
+    expect(e.calcular().total).toMatchObject({ clientes: 0, clientesPeriodo: 1 })
+  })
+  it('la carga tardía no convierte una entrevista de octubre en origen de una venta de septiembre', () => {
+    const e = ejemplo()
+    e.cita.asistioEn = '2026-10-03T15:00:00Z'
+    e.datos.conversiones[0]!.convertido_en = '2026-10-06T18:58:10Z'
+    const r = calcularAvanceCitas(e.gestion, e.citas, { ...e.filtros, mes: '2026-10' }, '2026-10-17T04:00:00Z', null)
+    expect(r.total).toMatchObject({ entrevistas: 1, clientes: 0, clientesPeriodo: 0, conversion: 0 })
+  })
+  it('la configuración por asignación conserva el mes comercial de las ventas', () => {
+    const e = ejemplo()
+    e.config.mes_resultado = 'asignacion'
+    e.datos.poblacion[0]!.primera_asignacion_en = '2026-08-01T15:00:00Z'
+    expect(e.calcular().total).toMatchObject({ entrevistas: 0, clientesPeriodo: 1, clientes: 0 })
+  })
   it('incluye altas manuales y calcula 1,25 como configuración interna', () => {
     const { calcular } = ejemplo()
     expect(calcular().total).toMatchObject({ leads: 1, citas: 1, promedio: 1, cumplimiento: 80,

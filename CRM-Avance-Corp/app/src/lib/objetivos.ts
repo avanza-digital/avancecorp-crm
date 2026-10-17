@@ -10,6 +10,7 @@ import {
 } from './esquemas-rpc'
 import type { ConfiguracionMetas, DetalleMeta, MetaVendedorConfig } from './metas-versionadas'
 import { CATEGORIAS_PRODUCTO, MONEDAS_PRODUCTO } from './productos-inversion'
+import { CapitalResumenSchema, CapitalValoracionSchema, sumarCapitalValorado, type CapitalResumen, type CapitalValoracion } from './capital-valorado'
 
 export type CategoriaMeta = DetalleMeta['categoria']
 export type MonedaMeta = DetalleMeta['moneda']
@@ -23,6 +24,7 @@ export interface ObjetivoDetalle {
 
 /** Meta mensual. La moneda y la categoría nunca se pierden al agregar. */
 export interface ObjetivoComercial {
+  capitalValorado?: CapitalResumen | null
   conversionObjetivo: number
   detalles: ObjetivoDetalle[]
 }
@@ -157,6 +159,9 @@ export function capitalObjetivo(
   moneda: MonedaMeta,
   categoria?: CategoriaMeta,
 ): number {
+  if (meta.capitalValorado) return meta.capitalValorado.detalles.reduce((total, detalle) => (
+    detalle.moneda === moneda && (categoria == null || detalle.categoria === categoria) ? total + detalle.capital_objetivo : total
+  ), 0)
   return meta.detalles.reduce((total, detalle) => (
     detalle.moneda === moneda && (categoria == null || detalle.categoria === categoria)
       ? total + detalle.capitalObjetivo
@@ -373,7 +378,22 @@ export const CumplimientoMetasSchema = v.strictObject({
   fuera_ranking: v.optional(v.array(ProduccionFueraRankingSchema)),
 })
 
-export type CumplimientoMetasRpc = v.InferOutput<typeof CumplimientoMetasSchema>
+// V1 mantiene su contrato estricto. Solo la puerta versionada admite las claves
+// de valoración, y sigue aceptando la respuesta anterior durante la transición.
+export const CumplimientoMetasV2Schema = v.strictObject({
+  ...CumplimientoMetasSchema.entries,
+  vendedores: v.array(v.strictObject({
+    ...CumplimientoVendedorSchema.entries,
+    capital_valorado: v.optional(v.nullable(CapitalResumenSchema)),
+  })),
+  fuera_ranking: v.optional(v.array(v.strictObject({
+    ...ProduccionFueraRankingSchema.entries,
+    capital_valorado: v.optional(v.nullable(CapitalResumenSchema)),
+  }))),
+  capital_valoracion: v.optional(CapitalValoracionSchema),
+})
+
+export type CumplimientoMetasRpc = v.InferOutput<typeof CumplimientoMetasV2Schema>
 
 export interface CumplimientoDetalle extends ObjetivoDetalle {
   capitalReal: number
@@ -400,6 +420,8 @@ export interface AjusteCumplimiento {
 }
 
 export interface CumplimientoComercial {
+  /** undefined = régimen anterior; null = aún no existe un corte completo. */
+  capitalValorado?: CapitalResumen | null
   conversionObjetivo: number
   conversionReal: number | null
   convertidos: number
@@ -427,6 +449,7 @@ export interface CumplimientoVendedor extends CumplimientoComercial {
 }
 
 export interface ProduccionFueraRanking {
+  capitalValorado?: CapitalResumen | null
   personaId: string
   nombre: string
   rolCrm:
@@ -474,6 +497,7 @@ export interface FuentesRealesCumplimientoMetas {
 }
 
 export interface CumplimientoMetasJerarquico {
+  valoracionCapital?: CapitalValoracion
   periodo: string
   revision: number
   publicadaEn: string | null
@@ -523,6 +547,7 @@ function cumplimientoDesdeVendedor(
 
   return {
     vendedorId: fila.vendedor_id,
+    ...(fila.capital_valorado !== undefined ? { capitalValorado: fila.capital_valorado } : {}),
     nombre: fila.nombre,
     supervisorId: fila.supervisor_id,
     supervisorNombre: fila.supervisor_nombre,
@@ -601,8 +626,10 @@ export function agregarCumplimientos(
     }
   }
 
+  const capitalValorado = sumarCapitalValorado(filas.map((fila) => fila.capitalValorado))
   return {
     conversionObjetivo: metas.conversionObjetivo,
+    ...(capitalValorado !== undefined ? { capitalValorado } : {}),
     ...(tieneAjuste ? { ajuste } : {}),
     detalles: metas.detalles.map((meta) => {
       const real = reales.get(`${meta.categoria}:${meta.moneda}`) ?? {
@@ -681,6 +708,7 @@ export function cumplimientoDesdeRpc(
   )
   const filas = Object.values(porVendedor)
   const fueraRanking: ProduccionFueraRanking[] = (respuesta.fuera_ranking ?? []).map((fila) => ({
+    ...(fila.capital_valorado !== undefined ? { capitalValorado: fila.capital_valorado } : {}),
     personaId: fila.persona_id,
     nombre: fila.nombre,
     rolCrm: fila.rol_crm,
@@ -726,6 +754,7 @@ export function cumplimientoDesdeRpc(
     ? fueraRanking.filter((fila) => fila.rolCrm === 'supervisor' && fila.motivo === 'supervisor')
     : []
   const comoCumplimiento = (fila: ProduccionFueraRanking): CumplimientoComercial => ({
+    ...(fila.capitalValorado !== undefined ? { capitalValorado: fila.capitalValorado } : {}),
     conversionObjetivo: 0,
     conversionReal: null,
     convertidos: (fila.conversion?.cierresNoReferidos ?? 0)
@@ -740,8 +769,17 @@ export function cumplimientoDesdeRpc(
   const equipo = filas.filter((fila) => fila.supervisorId === actorId)
   const metaEquipo = agregarCumplimientos(equipo)
   const equipoConVentas = agregarCumplimientos([...equipo, ...(propia ? [propia] : [])])
+  const gerencia = agregarCumplimientos([...filas, ...fueraRanking.map(comoCumplimiento)])
+  const personasCapital = respuesta.capital_valoracion?.personas
+  if (personasCapital) {
+    if (gerencia) gerencia.capitalValorado = sumarCapitalValorado(personasCapital.map(p => p.capital_valorado)) ?? null
+    if (equipoConVentas) equipoConVentas.capitalValorado = sumarCapitalValorado(personasCapital
+      .filter(p => (p.en_ranking && p.supervisor_id === actorId)
+        || (p.vendedor_id === actorId && p.rol_crm === 'supervisor')).map(p => p.capital_valorado)) ?? null
+  }
   return {
     periodo: respuesta.periodo,
+    ...(respuesta.capital_valoracion ? { valoracionCapital: respuesta.capital_valoracion } : {}),
     revision: respuesta.revision,
     publicadaEn: respuesta.publicada_en,
     fuentesReales: {
@@ -756,7 +794,7 @@ export function cumplimientoDesdeRpc(
       ...equipoConVentas,
       conversionObjetivo: metaEquipo?.conversionObjetivo ?? 0,
     },
-    gerencia: agregarCumplimientos([...filas, ...fueraRanking.map(comoCumplimiento)]),
+    gerencia,
     porVendedor,
     fueraRanking: fueraRanking.filter((fila) => !supervisores.includes(fila)),
     supervisores,
@@ -768,6 +806,9 @@ export function capitalReal(
   moneda: MonedaMeta,
   categoria?: CategoriaMeta,
 ): number {
+  if (cumplimiento.capitalValorado) return cumplimiento.capitalValorado.detalles.reduce((total, detalle) => (
+    detalle.moneda === moneda && (categoria == null || detalle.categoria === categoria) ? total + detalle.capital_real : total
+  ), 0)
   return cumplimiento.detalles.reduce((total, detalle) => (
     detalle.moneda === moneda && (categoria == null || detalle.categoria === categoria)
       ? total + detalle.capitalReal
@@ -780,6 +821,9 @@ export function contratosReales(
   moneda: MonedaMeta,
   categoria?: CategoriaMeta,
 ): number {
+  if (cumplimiento.capitalValorado) return cumplimiento.capitalValorado.detalles.reduce((total, detalle) => (
+    detalle.moneda === moneda && (categoria == null || detalle.categoria === categoria) ? total + detalle.contratos_real : total
+  ), 0)
   return cumplimiento.detalles.reduce((total, detalle) => (
     detalle.moneda === moneda && (categoria == null || detalle.categoria === categoria)
       ? total + detalle.contratosReal

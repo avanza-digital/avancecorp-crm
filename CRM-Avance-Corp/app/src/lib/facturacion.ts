@@ -20,7 +20,6 @@
 //     (`crm.metricas_capital_mes_fn`) tampoco lo descuenta,
 //   · PEN y USD JAMÁS se suman: la malla se construye para UNA moneda.
 import { tcAplicable, totalEnSoles, type CapitalUnificado } from './capital-unificado'
-import { usdAPen } from './tipo-cambio'
 import { parseDateLocal, formatDateLocal } from './cronograma'
 import type { Moneda } from './format'
 
@@ -43,6 +42,7 @@ export interface FilaFacturacionDia {
   readonly supervisorNombre: string
   readonly operaciones: number
   readonly capital: number
+  readonly capitalEquivalentePen?: number
 }
 
 /** El tipo que la pantalla muestra por defecto: capital nuevo. */
@@ -78,6 +78,8 @@ export type MetricaFacturacion = (typeof METRICAS_FACTURACION)[number]
 export interface CeldaFacturacion {
   readonly capital: number
   readonly contratos: number
+  readonly capitalEquivalentePen?: number
+  readonly valorado?: true
 }
 
 export interface FilaFacturacion {
@@ -260,11 +262,24 @@ export function pasoDeEscala(valor: number, maximo: number): PasoEscalaFacturaci
 }
 
 function sumar(a: CeldaFacturacion, fila: FilaFacturacionDia): CeldaFacturacion {
-  return { capital: a.capital + fila.capital, contratos: a.contratos + fila.operaciones }
+  return acumular(a, { capital: fila.capital, contratos: fila.operaciones,
+    ...(fila.capitalEquivalentePen !== undefined ? { capitalEquivalentePen: fila.capitalEquivalentePen, valorado: true } : {}) })
 }
 
-function acumular(a: CeldaFacturacion, b: CeldaFacturacion): CeldaFacturacion {
-  return { capital: a.capital + b.capital, contratos: a.contratos + b.contratos }
+export function acumular(a: CeldaFacturacion, b: CeldaFacturacion): CeldaFacturacion {
+  const valorado = a.valorado || b.valorado
+  const ae = a.capitalEquivalentePen ?? (a.capital === 0 && a.contratos === 0 ? 0 : undefined)
+  const be = b.capitalEquivalentePen ?? (b.capital === 0 && b.contratos === 0 ? 0 : undefined)
+  return { capital: a.capital + b.capital, contratos: a.contratos + b.contratos,
+    ...(valorado ? { valorado: true as const, ...(ae !== undefined && be !== undefined ? { capitalEquivalentePen: ae + be } : {}) } : {}) }
+}
+
+/** Una celda mixta incompleta nunca se reconvierte con una tasa global. */
+function capitalDeCeldas(pen: CeldaFacturacion, usd: CeldaFacturacion, tc: number | null | undefined): CapitalUnificado {
+  if (!pen.valorado && !usd.valorado) return totalEnSoles(pen.capital, usd.capital, tc)
+  const equivalenteUsd = usd.capitalEquivalentePen ?? (usd.capital === 0 ? 0 : null)
+  return { pen: pen.capital, usd: usd.capital, total: equivalenteUsd === null ? null : pen.capital + equivalenteUsd,
+    tc: null, estado: equivalenteUsd === null ? 'indisponible' : 'convertido', valorado: true }
 }
 
 function maximo(a: CeldaFacturacion, b: CeldaFacturacion): CeldaFacturacion {
@@ -675,14 +690,14 @@ export function totalesUnificados(
     const pen = mallaPen.totalPorDia[i] ?? CELDA_VACIA
     const usd = mallaUsd.totalPorDia[i] ?? CELDA_VACIA
     porDia.push({
-      capital: totalEnSoles(pen.capital, usd.capital, tc),
+      capital: capitalDeCeldas(pen, usd, tc),
       contratos: pen.contratos + usd.contratos,
     })
   }
   return {
     porDia,
     mes: {
-      capital: totalEnSoles(mallaPen.total.capital, mallaUsd.total.capital, tc),
+      capital: capitalDeCeldas(mallaPen.total, mallaUsd.total, tc),
       contratos: mallaPen.total.contratos + mallaUsd.total.contratos,
     },
   }
@@ -709,10 +724,11 @@ export function combinarEnSoles(
   tc: number | null | undefined,
 ): MallaFacturacion | null {
   const tasa = tcAplicable(tc)
-  if (tasa == null) return null
+  const total = capitalDeCeldas(mallaPen.total, mallaUsd.total, tc)
+  if (total.valorado ? total.total === null : tasa === null) return null
 
   const aSoles = (pen: CeldaFacturacion, usd: CeldaFacturacion): CeldaFacturacion => ({
-    capital: pen.capital + usdAPen(usd.capital, tasa),
+    capital: capitalDeCeldas(pen, usd, tc).total ?? 0,
     contratos: pen.contratos + usd.contratos,
   })
   const VACIA: CeldaFacturacion = { capital: 0, contratos: 0 }

@@ -89,7 +89,7 @@ export function TableroCitas({ conservarConsulta = false }: { conservarConsulta?
   const pestañas = useRef<Partial<Record<VistaCitas, HTMLButtonElement | null>>>({})
   const error = errorFiltros(filtros)
   const citas = filtrar(filtros, CITAS)
-  const hayBase = gestion && baseCitasFiltrada(gestion.asignaciones, filtros).length > 0
+  const hayBase = gestion && (gestion.avance !== undefined || baseCitasFiltrada(gestion.asignaciones, filtros).length > 0)
   const sinEstado = filtrar({ ...filtros, estados: [] }, CITAS)
   const paginas = Math.max(1, Math.ceil(citas.length / POR_PAGINA))
   const paginaActual = Math.min(pagina, paginas)

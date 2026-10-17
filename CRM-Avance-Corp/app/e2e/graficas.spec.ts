@@ -74,8 +74,8 @@ test.describe('resumen de Gerencia en sesión real', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)
     await page.screenshot({ path: testInfo.outputPath('resumen-mobile.png'), fullPage: true, animations: 'disabled' })
     await page.setViewportSize({ width: 1280, height: 900 })
-    await expect(page.getByRole('navigation', { name: 'Navegación principal de Gerencia' })).toBeHidden()
 
+    await expect(page.locator('aside').getByRole('navigation')).toBeVisible()
     await irAModulo(page, 'Conversiones')
     await expect(page.getByRole('heading', { name: 'Conversión del equipo' })).toBeVisible()
     const avance = page.locator('[data-gi-kpi]').filter({ hasText: 'Reunión o avance posterior' })
@@ -106,7 +106,6 @@ test.describe('resumen de Gerencia en sesión real', () => {
     await page.getByRole('heading', { name: 'Avance comercial inferido' }).scrollIntoViewIfNeeded()
     await page.screenshot({ path: testInfo.outputPath('conversiones-mobile-avance.png'), fullPage: true, animations: 'disabled' })
     await page.setViewportSize({ width: 1280, height: 900 })
-    await expect(page.getByRole('navigation', { name: 'Navegación principal de Gerencia' })).toBeHidden()
 
     await montarConsultaCitas(page)
     await page.getByRole('button', { name: 'Citas', exact: true }).click()
@@ -122,7 +121,8 @@ test.describe('resumen de Gerencia en sesión real', () => {
     await page.getByRole('button',{name:'PERSONA RECUPERADA',exact:true}).click()
     const recorrido=page.getByRole('dialog',{name:'PERSONA RECUPERADA'})
     await expect(recorrido.getByRole('list',{name:'Recorrido de la persona'})).toContainText('Convertido a cliente')
-    await expect(recorrido.getByRole('list',{name:'Recorrido de la persona'})).toContainText('Fecha de conversión:')
+    await expect(recorrido.getByRole('list',{name:'Recorrido de la persona'})).toContainText('Fecha comercial: 04 set. 2026')
+    await expect(recorrido.getByRole('list',{name:'Recorrido de la persona'})).toContainText('Registrado en el CRM: 04 set. 2026')
     await expect(recorrido.getByRole('list',{name:'Recorrido de la persona'})).not.toContainText('35,000')
     await page.keyboard.press('Escape')
     await page.getByRole('button',{name:'No asistieron 2'}).click()
@@ -196,6 +196,7 @@ test.describe('resumen de Gerencia en sesión real', () => {
     const foto = rankingAgostoReal()
     const llamadas: { ruta: string; cuerpo: Record<string, unknown> }[] = []
     const respuestasNoSimuladas: string[] = []
+    const compatibilidad: Promise<void>[] = []
     page.on('request', (request) => {
       if (request.method() !== 'POST') return
       const ruta = new URL(request.url()).pathname
@@ -210,6 +211,10 @@ test.describe('resumen de Gerencia en sesión real', () => {
     page.on('response', (response) => {
       if (response.status() < 400) return
       const request = response.request()
+      if (response.status() === 404 && new URL(response.url()).pathname === '/rest/v1/rpc/cumplimiento_metas_v2_fn') {
+        compatibilidad.push(response.json().then((cuerpo) => { expect(cuerpo.code).toBe('PGRST202') }))
+        return
+      }
       respuestasNoSimuladas.push(
         `${response.status()} ${request.method()} ${new URL(response.url()).pathname}`,
       )
@@ -269,6 +274,8 @@ test.describe('resumen de Gerencia en sesión real', () => {
         cuerpo: expect.objectContaining({ fecha_corte: '2026-08-31' }),
       }),
     ]))
+    await Promise.all(compatibilidad)
+    expect(compatibilidad.length).toBeGreaterThan(0)
     expect(respuestasNoSimuladas).toEqual([])
   })
 })

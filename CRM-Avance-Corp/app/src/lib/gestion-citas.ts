@@ -1,10 +1,16 @@
 import * as v from 'valibot'
 import { ControlCitasSchema } from './control-citas'
+import { CoberturaCapitalSchema } from './capital-valorado'
+import { FechaSchema } from './esquemas-rpc'
 
 const Id = v.pipe(v.string(), v.uuid())
 const Instante = v.pipe(v.string(), v.check(s => Number.isFinite(Date.parse(s))))
 const Importe = v.pipe(v.number(), v.finite(), v.minValue(0))
 export const CamposGestionMensualSchema = {
+  valoracion: v.optional(v.strictObject({
+    version: v.literal(1), activa: v.literal(true), corte_id: v.nullable(Id), sellado: v.boolean(),
+    cobertura: CoberturaCapitalSchema,
+  })),
   control: v.object({
     version: v.pipe(v.number(), v.integer(), v.minValue(0)),
     mes_inicio: v.nullable(v.pipe(v.string(), v.regex(/^20\d{2}-(0[1-9]|1[0-2])$/))),
@@ -20,7 +26,7 @@ export const CamposGestionMensualSchema = {
     analista_origen_nombre: v.string(), supervisor_origen_id: v.nullable(Id), supervisor_origen_nombre: v.string(),
   })), v.maxLength(10000)),
   conversiones: v.pipe(v.array(v.object({
-    lead_id: Id, perfil_id: Id, convertido_en: Instante, analista_id: v.nullable(Id),
+    lead_id: Id, perfil_id: Id, convertido_en: Instante, fecha_comercial: v.nullable(FechaSchema), analista_id: v.nullable(Id),
     analista_nombre: v.string(), supervisor_id: v.nullable(Id), supervisor_nombre: v.string(),
     contrato_id: v.nullable(Id),
   })), v.maxLength(10000)),
@@ -35,6 +41,9 @@ export const CamposGestionMensualSchema = {
     analista_id: v.nullable(Id), analista_nombre: v.nullish(v.string()),
     supervisor_id: v.nullish(Id), supervisor_nombre: v.nullish(v.string()),
     moneda: v.picklist(['PEN', 'USD']), monto: Importe, fecha: Instante,
+    equivalente_pen: v.optional(Importe), tasa: v.optional(v.pipe(v.number(), v.finite(), v.minValue(0.0001))),
+    fecha_comercial: v.optional(FechaSchema), fecha_tc: v.optional(v.nullable(FechaSchema)),
+    politica_tc: v.optional(v.nullable(v.string())),
   })), v.maxLength(10000)),
 }
 export const GestionMensualCitasSchema = v.object(CamposGestionMensualSchema)
@@ -57,5 +66,8 @@ export const TestigoCitasSchema = v.object({
   base_conversion: v.pipe(v.number(), v.integer(), v.minValue(0)),
   conversion_pct: v.nullable(v.pipe(v.number(), v.finite(), v.minValue(0))),
 })
+// El servidor conserva la raíz anterior para clientes publicados. La pantalla
+// comercial exige el cálculo nuevo cuando hay testigo global.
+export const TestigoComercialCitasSchema = v.object({ ...TestigoCitasSchema.entries, comercial: TestigoCitasSchema })
 export type TestigoCitas = v.InferOutput<typeof TestigoCitasSchema>
 export type GestionMensualCitas = v.InferOutput<typeof GestionMensualCitasSchema>
