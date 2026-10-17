@@ -1,10 +1,10 @@
-import { SIN_ANALISTA_ID, type ListaOperacionesFacturacion, type ParametrosOperacionesFacturacion } from '@/data/crm-api'
+import { SIN_ANALISTA_ID, type ContextoCortesFacturacion, type FacturacionDelMes, type ListaOperacionesFacturacion, type ParametrosOperacionesFacturacion } from '@/data/crm-api'
 import { SIN_SUPERVISOR_ID, TIPO_TODOS, type FilaFacturacionDia } from '@/lib/facturacion'
 import { totalEnSoles } from '@/lib/capital-unificado'
 import type { Moneda } from '@/lib/format'
 
 /** El ámbito pertenece al número, no al estado posterior de los filtros. */
-export interface CifraFacturacion {
+export interface CifraFacturacion extends ContextoCortesFacturacion {
   dias: readonly string[]
   diasMarcados?: readonly string[] | undefined
   analistaId?: string | undefined
@@ -14,16 +14,29 @@ export interface CifraFacturacion {
   vista: 'TOTAL' | Moneda
 }
 
+/** Captura las referencias consultadas al abrir una cifra; la paginación las conserva. */
+export function contextoCortesDeMeses(meses: readonly (FacturacionDelMes | undefined)[], periodos: readonly string[]): ContextoCortesFacturacion {
+  if (!meses.some((m) => m?.capitalValoracion)) return {}
+  return {
+    cortes: Object.fromEntries(meses.flatMap((m, i) => m?.capitalValoracion?.corteId && periodos[i]
+      ? [[periodos[i]!, m.capitalValoracion.corteId]] : [])),
+    tasasLegadas: Object.fromEntries(meses.flatMap((m) => m?.tipoCambioLegado
+      ? [[`${m.tipoCambioLegado.fecha.slice(0, 7)}-01`, m.tipoCambioLegado]] : [])),
+  }
+}
+
 /** Celda/día/tipo pasan sus días propios; los totales pasan además los días marcados. */
 export function parametrosDeCifra(cifra: CifraFacturacion, pagina = 1, tamano: 25 | 50 | 100 = 25): ParametrosOperacionesFacturacion {
   const dias = [...new Set(cifra.diasMarcados?.length ? cifra.diasMarcados : cifra.dias)].sort()
   const desde = dias[0]
   const hasta = dias.at(-1)
   if (!desde || !hasta || !dias.every((d) => /^\d{4}-\d{2}-\d{2}$/.test(d) && Number.isFinite(Date.parse(d)) && new Date(d).toISOString().slice(0, 10) === d) ||
-      (Date.parse(hasta) - Date.parse(desde)) / 86400000 > 30) throw new Error('Elige un tramo de entre 1 y 31 días.')
+      (Date.parse(hasta) - Date.parse(desde)) / 86400000 > (cifra.cortes ? 365 : 30)) throw new Error(`Elige un tramo de entre 1 y ${cifra.cortes ? 366 : 31} días.`)
   const analistas = cifra.analistaId ? [cifra.analistaId] : [...(cifra.analistas ?? [])]
   if (analistas.includes(SIN_ANALISTA_ID) && analistas.length > 1) throw new Error('Abre «Sin analista» por separado.')
   const params: ParametrosOperacionesFacturacion = { p_desde: desde, p_hasta: hasta, p_pagina: pagina, p_tamano: tamano }
+  if (cifra.cortes) params.p_cortes = { ...cifra.cortes }
+  if (cifra.tasasLegadas) params.tasasLegadas = { ...cifra.tasasLegadas }
   if (cifra.diasMarcados?.length || dias.some((d, i) => i > 0 && Date.parse(d) - Date.parse(dias[i - 1]!) !== 86400000)) params.p_dias = dias
   if (analistas[0] === SIN_ANALISTA_ID) params.p_sin_analista = true
   else if (analistas.length) params.p_analistas = analistas
@@ -47,7 +60,10 @@ export function totalesDeCifra(filas: readonly FilaFacturacionDia[], p: Parametr
   return (['PEN', 'USD'] as const).flatMap((moneda) => {
     const propias = elegidas.filter((f) => f.moneda === moneda)
     const operaciones = propias.reduce((n, f) => n + f.operaciones, 0)
-    return operaciones ? [{ moneda, operaciones, monto: propias.reduce((n, f) => n + f.capital, 0) }] : []
+    const valorada = p.p_cortes != null || elegidas.some((f) => f.capitalEquivalentePen !== undefined)
+    return operaciones ? [{ moneda, operaciones, monto: propias.reduce((n, f) => n + f.capital, 0),
+      ...(valorada ? { equivalente_pen: propias.some((f) => f.capitalEquivalentePen == null && f.moneda !== 'PEN')
+        ? null : propias.reduce((n, f) => n + (f.capitalEquivalentePen ?? f.capital), 0) } : {}) }] : []
   })
 }
 
@@ -55,14 +71,19 @@ export function mismosTotales(a: ListaOperacionesFacturacion['totales'], b: List
   return (['PEN', 'USD'] as const).every((moneda) => {
     const x = a.find((t) => t.moneda === moneda)
     const y = b.find((t) => t.moneda === moneda)
-    return (x?.operaciones ?? 0) === (y?.operaciones ?? 0) && Math.round((x?.monto ?? 0) * 100) === Math.round((y?.monto ?? 0) * 100)
+    const valoracionIgual = x?.equivalente_pen === y?.equivalente_pen ||
+      (x?.equivalente_pen != null && y?.equivalente_pen != null && Math.round(x.equivalente_pen * 100) === Math.round(y.equivalente_pen * 100))
+    return valoracionIgual && (x?.operaciones ?? 0) === (y?.operaciones ?? 0) && Math.round((x?.monto ?? 0) * 100) === Math.round((y?.monto ?? 0) * 100)
   })
 }
 
-export function valorDeTotales(totales: ListaOperacionesFacturacion['totales'], vista: CifraFacturacion['vista'], metrica: 'capital' | 'contratos', tasa?: number): number {
+export function valorDeTotales(totales: ListaOperacionesFacturacion['totales'], vista: CifraFacturacion['vista'], metrica: 'capital' | 'contratos', tasa?: number): number | null {
   if (metrica === 'contratos') return totales.reduce((n, t) => n + t.operaciones, 0)
   const monto = (moneda: Moneda) => totales.find((t) => t.moneda === moneda)?.monto ?? 0
-  return vista === 'TOTAL' ? totalEnSoles(monto('PEN'), monto('USD'), tasa).total ?? 0 : monto(vista)
+  if (vista !== 'TOTAL') return monto(vista)
+  if (totales.some((t) => t.equivalente_pen !== undefined)) return totales.some((t) => t.equivalente_pen == null)
+    ? null : totales.reduce((n, t) => n + t.equivalente_pen!, 0)
+  return totalEnSoles(monto('PEN'), monto('USD'), tasa).total
 }
 
 export interface NumeroAbierto {
@@ -79,6 +100,7 @@ export interface NumeroAbierto {
 export function listaCuadraConNumero(abierto: NumeroAbierto, lista: ListaOperacionesFacturacion): boolean {
   if (!mismosTotales(abierto.totales, lista.totales)) return false
   const base = valorDeTotales(lista.totales, abierto.cifra.vista, abierto.metrica, abierto.tasa)
+  if (base === null) return false
   let calculado = base
   if (abierto.cuenta?.modo === 'promedio') {
     calculado = base / abierto.cuenta.divisor

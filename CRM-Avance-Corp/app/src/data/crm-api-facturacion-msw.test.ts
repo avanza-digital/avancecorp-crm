@@ -21,9 +21,12 @@ vi.mock('@/lib/observabilidad', async (importActual) => ({
 
 import { CrmApiError, listarFacturacionDiaria, SIN_ANALISTA_ID } from './crm-api'
 import { SIN_SUPERVISOR_ID } from '@/lib/facturacion'
+import facturacionValorada from '@/lib/__fixtures__/capital-valorado/facturacion.json'
 
 const RPC = 'http://supabase.test/rest/v1/rpc/facturacion_diaria_fn'
-const server = setupServer()
+const server = setupServer(http.post('http://supabase.test/rest/v1/rpc/facturacion_diaria_v2_fn', () => (
+  HttpResponse.json({ code: 'PGRST202' }, { status: 404 })
+)))
 
 // Estado de PRODUCCIÓN desde el 09/10/2026 (20261009200000): la venta de un analista de baja llega ya a nombre del
 // heredero (aquí ELIZABETH, por una cooperativa de NOELIA). El front no recalcula nada: pinta lo que el servidor dice.
@@ -43,6 +46,16 @@ beforeEach(() => {
 })
 
 describe('frontera HTTP de Facturación', () => {
+  it('valida la respuesta v2 ejecutada en SQL y conserva equivalentes y cobertura', async () => {
+    server.use(http.post('http://supabase.test/rest/v1/rpc/facturacion_diaria_v2_fn', () => HttpResponse.json(facturacionValorada)))
+    const filas = await listarFacturacionDiaria('2026-10-01')
+    expect(filas.capitalValoracion?.activa).toBe(true)
+    expect(filas.capitalValoracion?.corteId).toBe(facturacionValorada.corte_id)
+    expect(filas.every((fila) => fila.capitalEquivalentePen !== undefined)).toBe(true)
+    expect(filas.reduce((suma, fila) => suma + (fila.capitalEquivalentePen ?? 0), 0))
+      .toBe(facturacionValorada.filas.reduce((suma, fila) => suma + fila.capital_equivalente_pen, 0))
+  })
+
   it('pide el mes al esquema crm y traduce cada fila (números, analista y supervisor)', async () => {
     const cuerpos: unknown[] = []
     const perfiles: Array<string | null> = []

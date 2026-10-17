@@ -1,0 +1,100 @@
+{
+  "citas": [],
+  "gestion": {
+    "capital": [],
+    "control": {
+      "version": 0,
+      "mes_inicio": null,
+      "configuracion": {
+        "mes_inicio": null,
+        "base_avance": "actividad_real",
+        "mes_resultado": null,
+        "base_depositos": null,
+        "citas_por_lead": 1.25,
+        "actividad_manuales": "incluir",
+        "analista_resultado": null,
+        "conteo_entrevistas": "citas_realizadas",
+        "mostrar_meta_citas": false,
+        "depositos_porcentaje": 70,
+        "excluir_manuales_base": false,
+        "entrevistas_porcentaje": 70
+      }
+    },
+    "version": 2,
+    "poblacion": [],
+    "valoracion": {
+      "activa": true,
+      "sellado": false,
+      "version": 1,
+      "corte_id": null,
+      "cobertura": {
+        "corte": null,
+        "estado": "pendiente",
+        "pendientes": {
+          "pen": 9000,
+          "usd": 11000,
+          "cantidad": 4
+        },
+        "generado_en": null,
+        "por_incorporar": {
+          "pen": 9000,
+          "usd": 11000,
+          "cantidad": 4
+        },
+        "ventas_pendientes": [
+          {
+            "monto": 1000,
+            "fuente": "contrato",
+            "moneda": "PEN",
+            "motivo": "revision_pendiente",
+            "fuente_id": "f2000000-0000-4000-8000-000000000001",
+            "fecha_comercial": "2026-10-02",
+            "fecha_imputacion": "2026-10-02"
+          },
+          {
+            "monto": 2000,
+            "fuente": "contrato",
+            "moneda": "USD",
+            "motivo": "revision_pendiente",
+            "fuente_id": "f2000000-0000-4000-8000-000000000002",
+            "fecha_comercial": "2026-10-02",
+            "fecha_imputacion": "2026-10-02"
+          },
+          {
+            "monto": 8000,
+            "fuente": "contrato",
+            "moneda": "PEN",
+            "motivo": "revision_pendiente",
+            "fuente_id": "f2000000-0000-4000-8000-000000000008",
+            "fecha_comercial": "2026-10-02",
+            "fecha_imputacion": "2026-10-02"
+          },
+          {
+            "monto": 9000,
+            "fuente": "cierre_externo",
+            "moneda": "USD",
+            "motivo": "revision_pendiente",
+            "fuente_id": "f1000000-0000-4000-8000-000000000031",
+            "fecha_comercial": "2026-10-02",
+            "fecha_imputacion": "2026-10-03"
+          }
+        ]
+      }
+    },
+    "asignaciones": [],
+    "conversiones": [],
+    "citas_por_lead": 1.25,
+    "actividad_manuales": "incluir",
+    "depositos_porcentaje": 70,
+    "entrevistas_porcentaje": 70
+  },
+  "periodo": {
+    "desde": "2026-10-01",
+    "hasta": "2026-10-31"
+  },
+  "version": 2,
+  "generado_en": "2026-10-16T23:42:29.427298+00:00",
+  "conversiones": [],
+  "citas_clientes": 0,
+  "disponibilidad_depositos": "conversion_cliente"
+}

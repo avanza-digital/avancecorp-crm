@@ -527,6 +527,194 @@ export type Database = {
         }
         Relationships: []
       }
+      capital_cortes_valorados: {
+        Row: {
+          base: Json
+          corte: string
+          creado_en: string
+          facturacion: Json
+          huella: string
+          id: string
+          meta_periodo_id: string | null
+          meta_revision: number
+          metas: Json
+          periodo: string
+          personas: Json
+          produccion: Json
+          revision: number
+        }
+        Insert: {
+          base: Json
+          corte: string
+          creado_en?: string
+          facturacion: Json
+          huella: string
+          id?: string
+          meta_periodo_id?: string | null
+          meta_revision?: number
+          metas: Json
+          periodo: string
+          personas: Json
+          produccion: Json
+          revision: number
+        }
+        Update: {
+          base?: Json
+          corte?: string
+          creado_en?: string
+          facturacion?: Json
+          huella?: string
+          id?: string
+          meta_periodo_id?: string | null
+          meta_revision?: number
+          metas?: Json
+          periodo?: string
+          personas?: Json
+          produccion?: Json
+          revision?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "capital_cortes_valorados_meta_periodo_id_fkey"
+            columns: ["meta_periodo_id"]
+            isOneToOne: false
+            referencedRelation: "meta_periodos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      capital_mes_sellos: {
+        Row: {
+          corte_id: string
+          creado_en: string
+          periodo: string
+        }
+        Insert: {
+          corte_id: string
+          creado_en?: string
+          periodo: string
+        }
+        Update: {
+          corte_id?: string
+          creado_en?: string
+          periodo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "capital_mes_sellos_corte_id_fkey"
+            columns: ["corte_id"]
+            isOneToOne: false
+            referencedRelation: "capital_cortes_valorados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "capital_mes_sellos_periodo_fkey"
+            columns: ["periodo"]
+            isOneToOne: true
+            referencedRelation: "periodos_cerrados"
+            referencedColumns: ["periodo"]
+          },
+        ]
+      }
+      capital_valoracion_politica: {
+        Row: {
+          activa: boolean
+          activada_en: string | null
+          bundle_compatible: string | null
+          censo_huella: string | null
+          id: boolean
+          politica: string
+          vigente_desde: string
+        }
+        Insert: {
+          activa?: boolean
+          activada_en?: string | null
+          bundle_compatible?: string | null
+          censo_huella?: string | null
+          id?: boolean
+          politica?: string
+          vigente_desde?: string
+        }
+        Update: {
+          activa?: boolean
+          activada_en?: string | null
+          bundle_compatible?: string | null
+          censo_huella?: string | null
+          id?: boolean
+          politica?: string
+          vigente_desde?: string
+        }
+        Relationships: []
+      }
+      capital_valoraciones: {
+        Row: {
+          anterior_id: string | null
+          creado_en: string
+          equivalente_pen: number
+          fecha_comercial: string
+          fecha_tc: string | null
+          firma_fuente: string
+          fuente: string
+          fuente_id: string
+          id: string
+          moneda: string
+          monto: number
+          motivo: string
+          politica_tc: string | null
+          revision: number
+          tasa: number
+        }
+        Insert: {
+          anterior_id?: string | null
+          creado_en?: string
+          equivalente_pen: number
+          fecha_comercial: string
+          fecha_tc?: string | null
+          firma_fuente: string
+          fuente: string
+          fuente_id: string
+          id?: string
+          moneda: string
+          monto: number
+          motivo: string
+          politica_tc?: string | null
+          revision: number
+          tasa: number
+        }
+        Update: {
+          anterior_id?: string | null
+          creado_en?: string
+          equivalente_pen?: number
+          fecha_comercial?: string
+          fecha_tc?: string | null
+          firma_fuente?: string
+          fuente?: string
+          fuente_id?: string
+          id?: string
+          moneda?: string
+          monto?: number
+          motivo?: string
+          politica_tc?: string | null
+          revision?: number
+          tasa?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "capital_valoraciones_anterior_id_fkey"
+            columns: ["anterior_id"]
+            isOneToOne: false
+            referencedRelation: "capital_valoraciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "capital_valoraciones_fecha_tc_politica_tc_fkey"
+            columns: ["fecha_tc", "politica_tc"]
+            isOneToOne: false
+            referencedRelation: "tipo_cambio_diario"
+            referencedColumns: ["fecha_corte", "politica"]
+          },
+        ]
+      }
       cartera_lecturas: {
         Row: {
           actor_id: string
@@ -5259,6 +5447,75 @@ export type Database = {
           },
         ]
       }
+      tipo_cambio_diario: {
+        Row: {
+          consolidado_en: string
+          fecha_corte: string
+          fuente: string
+          huella_respuestas: string
+          pares: Json
+          politica: string
+          publicacion_confirmada: string
+          tasa: number
+        }
+        Insert: {
+          consolidado_en?: string
+          fecha_corte: string
+          fuente: string
+          huella_respuestas: string
+          pares: Json
+          politica: string
+          publicacion_confirmada: string
+          tasa: number
+        }
+        Update: {
+          consolidado_en?: string
+          fecha_corte?: string
+          fuente?: string
+          huella_respuestas?: string
+          pares?: Json
+          politica?: string
+          publicacion_confirmada?: string
+          tasa?: number
+        }
+        Relationships: []
+      }
+      tipo_cambio_trabajos: {
+        Row: {
+          completado_en: string | null
+          creado_en: string
+          fecha_corte: string
+          intentos: number
+          politica: string
+          proximo_intento_en: string
+          reserva: string | null
+          reservada_hasta: string | null
+          ultimo_motivo: string | null
+        }
+        Insert: {
+          completado_en?: string | null
+          creado_en?: string
+          fecha_corte: string
+          intentos?: number
+          politica?: string
+          proximo_intento_en?: string
+          reserva?: string | null
+          reservada_hasta?: string | null
+          ultimo_motivo?: string | null
+        }
+        Update: {
+          completado_en?: string | null
+          creado_en?: string
+          fecha_corte?: string
+          intentos?: number
+          politica?: string
+          proximo_intento_en?: string
+          reserva?: string | null
+          reservada_hasta?: string | null
+          ultimo_motivo?: string | null
+        }
+        Relationships: []
+      }
       usuario_eventos: {
         Row: {
           accion: string
@@ -5386,6 +5643,10 @@ export type Database = {
       }
       acceso_inversion_fn: {
         Args: { p_paso: string; p_payload?: Json; p_solicitud: string }
+        Returns: Json
+      }
+      activar_capital_valorado_fn: {
+        Args: { p_bundle: string; p_huella: string }
         Returns: Json
       }
       actividades_con_llamada_celular_fn: {
@@ -5644,6 +5905,10 @@ export type Database = {
         Args: { p_revision_datos_esperada: number; p_solicitud: string }
         Returns: Json
       }
+      capital_operaciones_valoradas_fn: {
+        Args: { p_corte_id?: string; p_periodo: string; p_vendedor_id: string }
+        Returns: Json
+      }
       cargar_base_lote: {
         Args: { p_base_id: string; p_filas: Json; p_operacion_id: string }
         Returns: Json
@@ -5826,6 +6091,10 @@ export type Database = {
         Returns: Json
       }
       citas_gerencia_consulta_fn: {
+        Args: { p_desde: string; p_hasta: string }
+        Returns: Json
+      }
+      citas_gerencia_consulta_v2_fn: {
         Args: { p_desde: string; p_hasta: string }
         Returns: Json
       }
@@ -6408,6 +6677,7 @@ export type Database = {
         Args: { p_periodo: string }
         Returns: Json
       }
+      cumplimiento_metas_v2_fn: { Args: { p_periodo: string }; Returns: Json }
       datos_legales_cliente_existente_fn: {
         Args: { p_busqueda?: string; p_solicitud?: string }
         Returns: Json
@@ -6550,6 +6820,7 @@ export type Database = {
           tipo: string
         }[]
       }
+      facturacion_diaria_v2_fn: { Args: { p_mes?: string }; Returns: Json }
       fijar_dni_lead_fn: {
         Args: { p_dni: string; p_lead_id: string }
         Returns: Json
@@ -6897,6 +7168,23 @@ export type Database = {
         }
         Returns: Json
       }
+      listar_operaciones_facturacion_v3_fn: {
+        Args: {
+          p_analistas?: string[]
+          p_cortes?: Json
+          p_desde: string
+          p_dias?: string[]
+          p_equipo?: string
+          p_hasta: string
+          p_moneda?: string
+          p_pagina?: number
+          p_sin_analista?: boolean
+          p_sin_equipo?: boolean
+          p_tamano?: number
+          p_tipos?: string[]
+        }
+        Returns: Json
+      }
       llamada_celular_detalle_fn: {
         Args: { p_evento_id: string }
         Returns: Json
@@ -7127,6 +7415,7 @@ export type Database = {
         Returns: Json
       }
       potencial_leads_fn: { Args: { p_lead_ids: string[] }; Returns: Json }
+      preflight_capital_valorado_fn: { Args: never; Returns: Json }
       preparar_correccion_correo_acceso_fn: {
         Args: {
           p_actor_id: string
@@ -7317,6 +7606,11 @@ export type Database = {
         }
         Returns: Json
       }
+      reconciliar_capital_valoraciones_fn: {
+        Args: { p_limite?: number }
+        Returns: Json
+      }
+      reevaluar_cierre_capital_fn: { Args: never; Returns: Json }
       registrar_actividad_v2: {
         Args: {
           p_detalle?: string
@@ -7560,6 +7854,15 @@ export type Database = {
         Args: { p_condiciones: Json; p_lead_id: string }
         Returns: Json
       }
+      resolver_fecha_tipo_cambio_fn: {
+        Args: {
+          p_evidencia?: Json
+          p_fecha: string
+          p_motivo?: string
+          p_reserva: string
+        }
+        Returns: Json
+      }
       resolver_solicitud_tasa_fn: {
         Args: {
           p_decision: string
@@ -7712,6 +8015,7 @@ export type Database = {
           perfil_id: string
         }[]
       }
+      suspender_capital_valorado_fn: { Args: never; Returns: Json }
       tareas_pendientes_fn: {
         Args: {
           p_despues_de?: string
@@ -7731,6 +8035,14 @@ export type Database = {
         }[]
       }
       tomar_envios_push_tasa_fn: { Args: { p_limite?: number }; Returns: Json }
+      tomar_fechas_tipo_cambio_fn: {
+        Args: { p_limite?: number }
+        Returns: {
+          fecha_corte: string
+          politica: string
+          reserva: string
+        }[]
+      }
       tomar_lead_libre: {
         Args: { p_dni?: string; p_telefono: string }
         Returns: Json

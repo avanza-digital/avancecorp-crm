@@ -9,6 +9,13 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 
+// Tipo de cambio por venta: misma matriz HTTP sobre la rama cloud aprobada.
+if (process.argv.length === 3 && process.argv[2] === '--tipo-cambio-venta-cloud') {
+  process.argv.push('--cloud');
+  await import('./tipo-cambio-por-venta/verificar-http-local.mjs');
+  process.exit(0);
+}
+
 // Referidos propios: sesiones Auth reales en la rama exclusiva de validación.
 if (process.argv.length === 4 && process.argv[2] === '--supervisores-referidos') {
   const { ejecutar } = await import('./supervisores-referidos/http-cloud.mjs');

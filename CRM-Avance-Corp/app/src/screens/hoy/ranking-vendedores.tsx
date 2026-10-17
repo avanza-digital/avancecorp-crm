@@ -5,13 +5,15 @@ import { Skeleton } from '@/components/ui/skeleton'
 import type { TipoRankingGerencia } from '@/components/gerencia/consulta-context'
 import { BotonDetalleRanking, DetalleCapitalRanking } from './ranking-detalle'
 import { DesgloseMonedas } from '@/components/common/desglose-monedas'
+import { CoberturaCapitalAviso } from '@/components/common/cobertura-capital'
+import type { CapitalValoracion } from '@/lib/capital-valorado'
 import { GERENCIA_CHART_COLORS as C } from '@/components/gerencia/chart-theme'
 import {
   mensajeMetaNoComparable,
   type MetaMensualGerencia,
 } from '@/components/gerencia/periodo'
 import { money, numero, porcentajeConversionCanonica } from '@/lib/format'
-import { totalEnSoles } from '@/lib/capital-unificado'
+import { capitalComercialEnSoles } from '@/lib/capital-unificado'
 import type { ConversionEquipoVendedor } from '@/lib/conversion-equipo'
 import { descuentoArrastre, textoReferidosFormula, type ConversionMensual } from '@/lib/conversion-mensual'
 import { ChipArrastre } from '@/components/common/chip-arrastre'
@@ -74,6 +76,7 @@ interface RankingVendedoresPanelProps {
   equipo: ConversionEquipoVendedor[]
   metasVendedores: ObjetivosPorVendedor
   cumplimientoVendedores: Record<string, CumplimientoVendedor>
+  valoracionCapital?: CapitalValoracion | undefined
   /** Produccion empresarial identificada que no puede recibir un puesto. */
   fueraRanking?: ProduccionFueraRanking[]
   /** Sus ventas propias se muestran siempre después de todos los analistas. */
@@ -480,7 +483,7 @@ function RankingCapitalTotal({ ranking, onAbrirDetalle }: { ranking: RankingCapi
                 <td className="max-w-48 px-3 py-3 text-xs font-medium text-[var(--gi-muted)]"><span className="block truncate">{vendedor.supervisorNombre}</span></td>
                 <td className="px-3 py-3 text-right text-sm font-semibold tabular-nums">
                   <span className="block">{money(capitalTotal, 'PEN')}</span>
-                  <DesgloseMonedas pen={capitalPen} usd={capitalUsd} tc={ranking.tc} tono="gerencia" />
+                  <DesgloseMonedas pen={capitalPen} usd={capitalUsd} tc={ranking.tc} valorado={ranking.valoracion !== undefined} tono="gerencia" />
                   {(capitalAjustePen > 0 || capitalAjusteUsd > 0 || contratosAjuste > 0) && (
                     <span
                       className="mt-1 block text-[10px] font-semibold text-amber-800"
@@ -495,7 +498,7 @@ function RankingCapitalTotal({ ranking, onAbrirDetalle }: { ranking: RankingCapi
                 </td>
                 <td className="px-3 py-3 text-right text-sm font-semibold tabular-nums">
                   <span className="block">{money(metaCapital, 'PEN')}</span>
-                  <DesgloseMonedas pen={metaPen} usd={metaUsd} tc={ranking.tc} tono="gerencia" />
+                  <DesgloseMonedas pen={metaPen} usd={metaUsd} tc={ranking.tc} valorado={ranking.valoracion !== undefined} tono="gerencia" />
                 </td>
                 <td className="px-3 py-3 text-right text-sm font-bold tabular-nums text-[var(--gi-blue)]">{pct(avance)}</td>
                 <td className="px-5 py-3" aria-label={`Cumplimiento ${pct(avance)}`}>
@@ -516,8 +519,8 @@ function RankingCapitalTotal({ ranking, onAbrirDetalle }: { ranking: RankingCapi
               <strong className="text-sm tabular-nums text-[var(--gi-blue)]">{pct(avance)}</strong>
             </div>
             <div className="mt-3 grid grid-cols-2 gap-3 text-xs font-medium text-[var(--gi-muted)]">
-              <span>Capital confirmado <strong className="block text-sm text-[var(--gi-navy)]">{money(capitalTotal, 'PEN')}</strong><DesgloseMonedas pen={capitalPen} usd={capitalUsd} tc={ranking.tc} tono="gerencia" /></span>
-              <span>Meta mensual <strong className="block text-sm text-[var(--gi-navy)]">{money(metaCapital, 'PEN')}</strong><DesgloseMonedas pen={metaPen} usd={metaUsd} tc={ranking.tc} tono="gerencia" /></span>
+              <span>Capital confirmado <strong className="block text-sm text-[var(--gi-navy)]">{money(capitalTotal, 'PEN')}</strong><DesgloseMonedas pen={capitalPen} usd={capitalUsd} tc={ranking.tc} valorado={ranking.valoracion !== undefined} tono="gerencia" /></span>
+              <span>Meta mensual <strong className="block text-sm text-[var(--gi-navy)]">{money(metaCapital, 'PEN')}</strong><DesgloseMonedas pen={metaPen} usd={metaUsd} tc={ranking.tc} valorado={ranking.valoracion !== undefined} tono="gerencia" /></span>
             </div>
             {(capitalAjustePen > 0 || capitalAjusteUsd > 0 || contratosAjuste > 0) && (
               <p
@@ -544,7 +547,7 @@ function RankingCapitalTotal({ ranking, onAbrirDetalle }: { ranking: RankingCapi
                 <span className="min-w-0">
                   <strong className="block truncate text-xs text-[var(--gi-navy)]">{fila.vendedor.nombre}</strong>
                   <span className="block truncate text-[10px] text-[var(--gi-muted)]">{money(fila.capitalTotal, 'PEN')} confirmado</span>
-                  <DesgloseMonedas pen={fila.capitalPen} usd={fila.capitalUsd} tc={ranking.tc} tono="gerencia" />
+                  <DesgloseMonedas pen={fila.capitalPen} usd={fila.capitalUsd} tc={ranking.tc} valorado={ranking.valoracion !== undefined} tono="gerencia" />
                   {(fila.capitalAjustePen > 0 || fila.capitalAjusteUsd > 0 || fila.contratosAjuste > 0) && (
                     <span
                       className="mt-1 block text-[10px] font-semibold text-amber-800"
@@ -621,7 +624,7 @@ function ProduccionFueraRankingPanel({
           )
           const cierres = (fila.conversion?.cierresNoReferidos ?? 0)
             + (fila.conversion?.cierresReferidos ?? 0)
-          const capital = totalEnSoles(capitalPen, capitalUsd, tc?.promedio)
+          const capital = capitalComercialEnSoles(capitalPen, capitalUsd, tc?.promedio, fila.capitalValorado)
 
           return (
             <li
@@ -643,7 +646,7 @@ function ProduccionFueraRankingPanel({
                 <span>
                   <span className="block text-[10px] font-semibold uppercase tracking-wide text-[var(--gi-muted)]">Capital confirmado</span>
                   <strong className="block text-sm tabular-nums text-[var(--gi-navy)]">{money(capital.total, 'PEN')}</strong>
-                  <DesgloseMonedas pen={capitalPen} usd={capitalUsd} tc={capital.tc} tono="gerencia" />
+                  <DesgloseMonedas pen={capitalPen} usd={capitalUsd} tc={capital.tc} valorado={capital.valorado === true} tono="gerencia" />
                 </span>
                 <span className="text-right text-[10px] font-semibold text-[var(--gi-muted)]">
                   {numero(contratos)} {contratos === 1 ? 'contrato' : 'contratos'}
@@ -675,6 +678,7 @@ export function RankingVendedoresPanel({
   equipo,
   metasVendedores,
   cumplimientoVendedores,
+  valoracionCapital,
   fueraRanking = [],
   supervisores = [],
   metaMensual,
@@ -776,8 +780,8 @@ export function RankingVendedoresPanel({
   // oculto; el ranking ponderado no depende de esta segunda lectura.
   const cosechaEnRevision = cosecha != null && !sondasNucleoVerificadas(cosecha.sondas)
   const rankingCapitalTotal = useMemo(
-    () => clasificarRankingCapitalTotal(equipoRanking, metasVendedores, cumplimientoVendedores, tc?.promedio ?? null),
-    [cumplimientoVendedores, equipoRanking, metasVendedores, tc],
+    () => clasificarRankingCapitalTotal(equipoRanking, metasVendedores, cumplimientoVendedores, tc?.promedio ?? null, valoracionCapital),
+    [cumplimientoVendedores, equipoRanking, metasVendedores, tc, valoracionCapital],
   )
   const filaDetalle = rankingCapitalTotal.conPuesto.find((fila) => fila.vendedor.vendedorId === detalleId) ?? null
   const origenesDetalle = useRankingOrigenVendedor(
@@ -787,8 +791,10 @@ export function RankingVendedoresPanel({
     periodoMes,
     filaDetalle?.vendedor.vendedorId ?? null,
     actorId,
+    valoracionCapital?.corte_id,
   )
-  const totalVendedores = equipoRanking.length
+  const totalVendedores = tipo === 'capital-total' && valoracionCapital
+    ? valoracionCapital.personas.filter((persona) => persona.en_ranking).length : equipoRanking.length
   const poblacionMensualIndisponible = fotoMensualCargando || Boolean(fotoMensualError)
   const errorActivo = fotoMensualError ?? (tipo === 'conversion'
     ? conversionError
@@ -805,7 +811,7 @@ export function RankingVendedoresPanel({
   const cargandoActivo = fotoMensualCargando || (tipo === 'conversion'
     ? conversionMensual === undefined || (fuenteConversion != null && lecturaFuente === undefined)
     : tipo === 'capital-total'
-      ? metaMensual.comparable && tc === undefined
+      ? metaMensual.comparable && valoracionCapital === undefined && tc === undefined
       : cosechaCargando)
   const etiquetaFuente = fuenteConversion == null
     ? null
@@ -871,6 +877,8 @@ export function RankingVendedoresPanel({
               : `Cuánto aporta ${etiquetaFuente} al índice comercial de cada analista.`
             : tipo === 'cosecha'
             ? 'De los leads que cada quien recibió este mes, cuántos ya son clientes'
+            : valoracionCapital
+              ? 'Cada venta conserva su equivalente en soles. La meta se mantiene en soles.'
             : tc === undefined
               ? `Contratos confirmados · total en S/ · consultando tipo de cambio… · ${metaMensual.etiqueta}`
               : rankingCapitalTotal.tc != null
@@ -881,11 +889,14 @@ export function RankingVendedoresPanel({
           <summary className="w-fit cursor-pointer rounded py-2 font-semibold text-[var(--gi-blue)] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent/40">Cómo se calcula</summary>
           <p className="mt-2 max-w-4xl">{tipo === 'conversion' ? formulaConversion
             : tipo === 'capital-total'
-              ? 'Capital y meta usan el mismo tipo de cambio. Sin TC, US$ se mantiene aparte. Los empates de cumplimiento se resuelven por capital confirmado y después por nombre. El puesto no indica por sí solo que se alcanzó la meta.'
+              ? valoracionCapital
+                ? 'El capital suma los equivalentes guardados de cada venta. Una cotización posterior no los modifica. Las ventas pendientes no reciben puesto; se conserva el último corte completo. Los empates se resuelven por capital confirmado y después por nombre.'
+                : 'Capital y meta usan el mismo tipo de cambio. Sin TC, US$ se mantiene aparte. Los empates de cumplimiento se resuelven por capital confirmado y después por nombre. El puesto no indica por sí solo que se alcanzó la meta.'
               : 'El lote reúne los leads recibidos en el mes y sigue madurando hasta hoy. No equivale a los cierres logrados durante el mes. Sólo se muestra cuando los datos están verificados.'}</p>
         </details>
         {onCompararAnalistas && <Button id="ranking-comparar-analistas" variant="outline" className="min-h-11" onClick={onCompararAnalistas}>Comparar dos analistas</Button>}
       </div>
+      {tipo === 'capital-total' && valoracionCapital && <div className="px-4 py-3 sm:px-5"><CoberturaCapitalAviso cobertura={valoracionCapital.cobertura} sellado={valoracionCapital.sellado} /></div>}
       {(['conversion', 'capital-total', 'cosecha'] as const).filter((valor) => valor !== tipo).map((valor) => (
         <div key={valor} role="tabpanel" id={IDS_TAB[valor].panel} aria-labelledby={IDS_TAB[valor].tab} hidden />
       ))}
@@ -935,7 +946,7 @@ export function RankingVendedoresPanel({
         </div>
       ) : (
         <>
-          {tc === null && (
+          {tc === null && valoracionCapital === undefined && (
             // Sin este botón, un fallo AISLADO del TC no tenía vía de recuperación:
             // ErrorRanking solo aparece cuando fallan las conversiones (hallazgo Codex).
             <div className="mx-4 mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300/70 bg-amber-50 px-4 py-2.5 sm:mx-5">
@@ -950,7 +961,24 @@ export function RankingVendedoresPanel({
           <RankingCapitalTotal ranking={rankingCapitalTotal} onAbrirDetalle={setDetalleId} />
         </>
       )}
-      {fuenteConversion == null && !fotoMensualCargando && !fotoMensualError && (
+      {valoracionCapital && tipo === 'capital-total' && !fotoMensualCargando && !fotoMensualError && [false, true].map(sonSupervisores => {
+        const personas = valoracionCapital.personas.filter(p => !p.en_ranking && (p.rol_crm === 'supervisor') === sonSupervisores)
+        const titulo = sonSupervisores ? 'Ventas propias de supervisores' : 'Producción fuera del ranking'
+        return personas.length > 0 && <aside key={titulo} aria-label={titulo} className="space-y-3 border-t p-4 sm:p-5">
+          <h3 className="text-sm font-bold">{titulo}</h3>
+          <p className="text-xs">{sonSupervisores ? 'Sus ventas propias suman al avance de su equipo, sin puesto individual.' : 'Suma al resultado de la empresa sin generar un puesto.'}</p>
+          <ul className="space-y-2">{personas.map(persona => (
+            <li key={persona.vendedor_id} className="flex flex-wrap justify-between gap-2 rounded-xl border p-3 text-xs">
+              <span>{persona.nombre} · Sin puesto</span>
+              <span><strong>{money(persona.capital_valorado.equivalente_pen, 'PEN')}</strong>
+                <DesgloseMonedas pen={persona.capital_valorado.capital_pen} usd={persona.capital_valorado.capital_usd} tc={null} valorado tono="gerencia" />
+                <span className="block">{numero(persona.capital_valorado.contratos)} operaciones</span>
+              </span>
+            </li>
+          ))}</ul>
+        </aside>
+      })}
+      {(!valoracionCapital || tipo !== 'capital-total') && fuenteConversion == null && !fotoMensualCargando && !fotoMensualError && (
         <>
           <ProduccionFueraRankingPanel filas={fueraRanking} tc={tc} />
           <ProduccionFueraRankingPanel filas={supervisores} tc={tc} sonSupervisores />
@@ -964,7 +992,9 @@ export function RankingVendedoresPanel({
         fuenteTc={tc?.fuente}
         cargando={cargandoActivo}
         error={errorActivo ?? (!metaMensual.comparable ? mensajeMetaNoComparable(metaMensual) : null)}
-        origenes={origenesDetalle.data}
+        valorado={valoracionCapital !== undefined}
+        operaciones={origenesDetalle.data && 'valoracion_activa' in origenesDetalle.data ? origenesDetalle.data : undefined}
+        origenes={origenesDetalle.data && !('valoracion_activa' in origenesDetalle.data) ? origenesDetalle.data : undefined}
         origenesCargando={origenesDetalle.isPending && origenesDetalle.fetchStatus === 'fetching'}
         origenesError={origenesDetalle.isError}
         onReintentarOrigenes={() => { void origenesDetalle.refetch() }}
