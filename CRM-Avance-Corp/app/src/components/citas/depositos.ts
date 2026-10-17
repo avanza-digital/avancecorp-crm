@@ -1,5 +1,6 @@
 import type { Moneda } from '@/lib/format'
 import { seguimientoInasistencias, type CitaConLead, type Recuperacion } from './datos'
+import { fechaLocalCitas, entrevistaCompatibleConVenta } from './fecha-comercial'
 
 /** Evidencia del depósito. Regla CRM: conversión a cliente, sin importe inferido. */
 export type DepositoEjemplo = {
@@ -9,7 +10,7 @@ export type DepositoEjemplo = {
   confirmadoEn: string | null
   anuladoEn?: string
 } & ({ fuente?: 'movimiento'; monto: number; moneda: Moneda }
-  | { fuente: 'conversion_cliente'; monto: null; moneda: null })
+  | { fuente: 'conversion_cliente'; monto: null; moneda: null; fechaComercial: string })
 
 export interface LeadConDeposito {
   original: CitaConLead
@@ -70,12 +71,21 @@ export function depositosDeInasistencias(citas: CitaConLead[], depositos: Deposi
     const confirmacion = Date.parse(deposito.confirmadoEn ?? '')
     if (!recuperada) continue
     if (deposito.fuente !== 'conversion_cliente' && (!Number.isFinite(deposito.monto) || deposito.monto <= 0)) continue
-    if (!(fecha > Date.parse(recuperada.nueva!.asistioEn!) && fecha <= limite && confirmacion >= fecha && confirmacion <= limite)) continue
+    if (deposito.fuente === 'conversion_cliente') {
+      // La carga puede ser posterior al mes comercial. Su instante solo acredita
+      // que el registro era conocido al corte, nunca el orden entrevista/venta.
+      if (!entrevistaCompatibleConVenta(recuperada.nueva!.asistioEn, deposito.fechaComercial)
+        || deposito.fechaComercial > fechaLocalCitas(corte)
+        || !(fecha <= limite && confirmacion >= fecha && confirmacion <= limite)) continue
+    } else if (!(fecha > Date.parse(recuperada.nueva!.asistioEn!) && fecha <= limite && confirmacion >= fecha && confirmacion <= limite)) continue
     if (deposito.anuladoEn && !(Date.parse(deposito.anuladoEn) > limite)) continue
     movimientos.set(deposito.id, deposito)
   }
 
-  const confirmados = [...movimientos.values()].sort((a, b) => Date.parse(a.depositadoEn) - Date.parse(b.depositadoEn) || a.id.localeCompare(b.id))
+  const dia = (d: DepositoEjemplo) => d.fuente === 'conversion_cliente' ? d.fechaComercial : fechaLocalCitas(d.depositadoEn)
+  const confirmados = [...movimientos.values()].sort((a, b) => dia(a).localeCompare(dia(b))
+    || (a.fuente !== 'conversion_cliente' && b.fuente !== 'conversion_cliente' ? Date.parse(a.depositadoEn) - Date.parse(b.depositadoEn) : 0)
+    || a.id.localeCompare(b.id))
   const leads: LeadConDeposito[] = [...recuperadas.values()].map(fila => ({ original: fila.original, asistencia: fila.nueva!, depositos: confirmados.filter(deposito => deposito.leadId === fila.original.leadId) })).filter(lead => lead.depositos.length > 0)
   return {
     inasistencias: [...originales.values()],

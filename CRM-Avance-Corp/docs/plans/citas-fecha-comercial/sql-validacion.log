@@ -1,0 +1,17 @@
+{"max_ms": 11.041000, "latencia": "anterior", "muestras": 20, "mediana_ms": 5.4375}
+{"max_ms": 8.477000, "latencia": "comercial", "muestras": 20, "mediana_ms": 7.439}
+NOTICE:  PASS: todos los campos anteriores idénticos: orden, población, fechas, capital y ámbito
+NOTICE:  PASS: testigo heredado exacto en ambos meses; nuevos clientes usan comercial
+NOTICE:  PASS: septiembre: cuatro ventas, mismo día compatible, entrevista posterior excluida
+NOTICE:  PASS: octubre: una venta comercial frente a cinco registros atribuibles; sin fecha no inventa venta
+NOTICE:  PASS: día uno de septiembre y carga de octubre separados sin convertir fecha comercial a UTC
+NOTICE:  PASS: lectores STABLE conservan semántica de solo lectura
+NOTICE:  PASS: supervisor no recibe ningún testigo global
+NOTICE:  PASS: supervisor no recibe cierres ni fechas del equipo ajeno
+NOTICE:  PASS: vendedor, coordinación, inactivo y anónimo denegados
+NOTICE:  PASS: la cohorte de asignación afecta entrevistas, nunca el mes comercial de ventas
+NOTICE:  PASS: una fuente que deja de ser elegible deja de fabricar venta comercial
+NOTICE:  PASS: renovación retirada: fecha ausente en recuperación y en gestión, sin criterios divergentes
+NOTICE:  PASS: el caso de ambigüedad contiene dos hechos reales del núcleo
+NOTICE:  PASS: ambigüedad global: ambos lectores excluyen fecha tanto en Gerencia como en Supervisión
+NOTICE:  PASS: ambigüedad global: ambos lectores excluyen fecha tanto en Gerencia como en Supervisión

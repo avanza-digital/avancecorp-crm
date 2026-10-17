@@ -1,3 +1,23 @@
+## 20261017043000 — Citas por fecha comercial
+
+**Candidata ensayada en Docker aislado; NO aplicada en producción.**
+Añade `fecha_comercial` canónica a conversiones de consulta y gestión,
+`criterio_depositos=fecha_comercial` y `testigo.comercial` independiente.
+Conserva los campos anteriores y la raíz del testigo para clientes publicados.
+Aplica también al lector de capital por corte si ya está instalado. No altera
+contratos, leads, acreditaciones, capital, permisos ni sellos monetarios.
+El servidor y el frontend cuentan ventas por mes comercial; entrevistas
+mantienen su configuración y se asocian por día de Lima, incluido el mismo día.
+
+Ensayo: payload anterior exacto al retirar las claves nuevas, matriz local de
+roles, conciliación completa Sep/Oct, RPC→esquema→cálculo, reversa transaccional
+y compatibilidad con la candidata de valoración por operación. El censo general
+ya tiene 11 incidencias ajenas: esta migración exige conservar exactamente su
+estado, sin ocultarlas, y verifica huellas de sus fuentes, declaraciones y ACL.
+Ver `docs/plans/citas-fecha-comercial/RESULTADO.md` para resultados, limitaciones
+y orden de publicación. Si se integra la valoración paralela, instalarla antes
+de esta migración: su preflight aún exige la huella anterior de Citas.
+
 ## 20261016232742 — Completa huellas de lectura de Coordinación
 
 **Ensayada en rama; pendiente de producción y gate RLS integral.**

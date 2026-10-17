@@ -1,0 +1,71 @@
+NOTICE:  PASS: el agregado de comparación no está vacío
+NOTICE:  PASS: Citas sin primer corte devuelve capital pendiente, no convierte las fuentes vivas
+NOTICE:  PASS: una venta ya valorada informa avance al publicar su corte nuevo
+NOTICE:  PASS: reconciliar sin cambios no informa otro corte nuevo
+NOTICE:  PASS: se publica un corte completo de las operaciones valoradas
+NOTICE:  PASS: la publicación tiene una revisión inicial
+NOTICE:  PASS: republicar sin cambios reutiliza la misma foto
+NOTICE:  PASS: el corte suma por operación y conserva el legado sin duplicar desgloses
+NOTICE:  PASS: Citas conserva el payload exacto cuando la presentación está desactivada
+NOTICE:  PASS: septiembre conserva exactamente Citas y su régimen anterior
+NOTICE:  PASS: supervisión conserva citas, cohortes, PII, identidad y capital elegible del lector original
+NOTICE:  PASS: el ticket de Citas suma equivalentes del corte con su ámbito y sin anulados
+NOTICE:  PASS: Citas conserva la exclusión de cooperativas anuladas aunque el ranking ATR-4 retenga capital
+NOTICE:  PASS: vincular o unificar identidades después del corte no cambia el divisor del ticket aceptado
+NOTICE:  PASS: el ensayo cambia realmente la identidad viva, sin reescribir la almacenada
+NOTICE:  PASS: Gerencia conserva el testigo independiente y la misma consulta original con sus identidades
+NOTICE:  PASS: el ámbito actual de supervisión filtra también el capital del corte
+NOTICE:  PASS: Coordinación, Directorio, vendedor y supervisor inactivo no reciben PII de Citas
+NOTICE:  PASS: solo la RPC autorizada de Citas queda expuesta, sin lectura global ni helpers privados
+NOTICE:  PASS: la valoración anterior no se presenta como vigente tras corregir fecha, monto y moneda
+NOTICE:  PASS: una corrección pendiente conserva la última foto completa sin retroceder el corte
+NOTICE:  PASS: resolver la corrección publica una nueva revisión del corte
+NOTICE:  PASS: la corrección usa su fecha comercial real y su tasa fija
+NOTICE:  PASS: el cliente compatible recibe exactamente v1 mientras no se activa
+NOTICE:  PASS: el vendedor solo recibe las filas autorizadas del ranking
+NOTICE:  PASS: el vendedor lee el equivalente guardado de su producción
+NOTICE:  PASS: el detalle por operación concilia con el mismo capital del ranking
+NOTICE:  PASS: el detalle no amplía la visibilidad del ranking
+NOTICE:  PASS: septiembre conserva exactamente la semántica anterior aunque octubre esté activo
+NOTICE:  PASS: el rol SQL authenticated ejecuta solo su lectura autorizada
+NOTICE:  PASS: supervisión conserva su acceso a Facturación valorada
+NOTICE:  PASS: el detalle de Facturación publica filas del corte solicitado
+NOTICE:  PASS: malla y detalle de Facturación concilian el equivalente del mismo corte
+NOTICE:  PASS: el detalle sirve monto, tasa y equivalente persistidos
+NOTICE:  PASS: el detalle no sustituye un corte faltante por el más reciente
+NOTICE:  PASS: el rango agosto-octubre separa dos meses legados sin tasa inventada y octubre por operación
+NOTICE:  PASS: se conserva el límite anterior y el nuevo rango sigue acotado
+NOTICE:  PASS: Coordinación conserva solo el nombre autorizado, sin identificadores ni contacto, también en el corte
+NOTICE:  PASS: no se pueden leer cortes globales ni forjar referencias de sello directamente
+NOTICE:  PASS: solo un censo completo y vigente permite activar la presentación
+NOTICE:  PASS: una deuda monetaria sin origen resuelto bloquea activación y cierre
+NOTICE:  PASS: no se publica una meta USD sin fijar su equivalente
+NOTICE:  PASS: la cobertura muestra solo la venta pendiente del analista autorizado
+NOTICE:  PASS: personas, importes y metas conservan el último corte completo con estado pendiente visible
+NOTICE:  PASS: Facturación muestra las dos ventas pendientes del equipo sin inventar equivalentes
+NOTICE:  PASS: Citas conserva importe, fecha y operación del último corte completo durante una corrección pendiente
+NOTICE:  PASS: el detalle de un corte abierto conserva la fecha y valoración anteriores ante una corrección pendiente
+NOTICE:  PASS: la solicitud no evalúa cierres con la presentación desactivada
+NOTICE:  PASS: sin cron configurado la reevaluación omite explícitamente y no cierra
+NOTICE:  PASS: el servicio respeta el ciclo pausado aunque otro job esté activo
+NOTICE:  PASS: reevaluar no modifica programación ni sellos mientras el ciclo está pausado
+NOTICE:  PASS: un comando distinto no autoriza eludir condiciones propias de la programación
+NOTICE:  PASS: una configuración ambigua no permite adivinar qué ciclo ejecutar
+NOTICE:  PASS: la programación de otra base no autoriza cerrar esta
+NOTICE:  PASS: reevaluar queda reservado al servicio sin identidad personal
+NOTICE:  PASS: desactivado, el cierre anterior funciona sin añadir un sello de valoración
+NOTICE:  PASS: el ciclo identifica falta de valoración y mantiene el siguiente intento
+NOTICE:  PASS: sin cobertura no se sella ningún componente del mes
+NOTICE:  PASS: pasadas 24 horas del plazo el estado indica atascado sin forzar un cierre
+NOTICE:  PASS: un atraso de 600 ventas PEN conocidas se difiere sin materializarlo bajo bloqueos del cierre
+NOTICE:  PASS: una tasa conocida no materializa el atraso bajo bloqueos del cierre: espera al worker
+NOTICE:  PASS: al resolver la cotización el mismo ciclo sella el mes completo
+NOTICE:  PASS: repetir la reevaluación conserva el sello y la programación sin cerrar otra vez
+NOTICE:  PASS: el sello conserva una referencia inmutable al corte completo de octubre
+NOTICE:  PASS: el cierre real guarda US$ 20 000 a 3,40 como S/ 68 000
+NOTICE:  PASS: cambio de cotización y reversa de presentación conservan los importes sellados
+NOTICE:  PASS: un mes sellado sigue usando su versión aun con la presentación suspendida
+NOTICE:  PASS: Citas sellada conserva USD 20 000 a 3,40 = S/ 68 000 tras otra cotización y suspensión de presentación
+NOTICE:  PASS: el detalle sellado conserva los equivalentes individuales y concilia al céntimo
+NOTICE:  PASS: un mes sellado rechaza un corte anterior aunque pertenezca al mismo analista
+NOTICE:  PASS: ningún usuario del navegador activa ni revierte la política

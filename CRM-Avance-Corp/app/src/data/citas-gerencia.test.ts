@@ -17,9 +17,9 @@ const fila = (cambios: Partial<ConsultaCitasRpc['citas'][number]> = {}): Consult
 const respuesta = (): Extract<ConsultaCitasRpc,{version:1}> => ({version:1,periodo:{desde:'2026-09-01',hasta:'2026-09-30'},generado_en:'2026-09-08T18:00:00Z',citas:[fila()],disponibilidad_depositos:'sin_registro',depositos:[],citas_clientes:0})
 const respuestaConversion = (): Extract<ConsultaCitasRpc,{version:2}> => {
   const {depositos:_depositos,...base}=respuesta()
-  return {...base,version:2,disponibilidad_depositos:'conversion_cliente',
+  return {...base,version:2,disponibilidad_depositos:'conversion_cliente',criterio_depositos:'fecha_comercial',
     citas:[fila(),fila({id:id(2),estado:'completada',reagendada_de:id(1),creado_en:'2026-09-02T16:00:00Z',vence_en:'2026-09-03T16:00:00Z',asistencia_registrada_en:'2026-09-03T17:00:00Z'})],
-    conversiones:[{lead_id:id(10),perfil_id:id(40),convertido_en:'2026-09-04T15:00:00Z'}]}
+    conversiones:[{lead_id:id(10),perfil_id:id(40),convertido_en:'2026-09-04T15:00:00Z', fecha_comercial:'2026-09-04'}]}
 }
 beforeEach(() => {
   vi.clearAllMocks()
@@ -37,7 +37,7 @@ describe('frontera de la consulta detallada de Citas',() => {
       poblacion: [{ lead_id: id(10), nombre: 'Persona', telefono: '900000001', origen: 'referido', moneda: 'PEN', monto_estimado: 5000,
         registro_manual: false, creado_por: id(20), analista_origen_id: id(20), analista_origen_nombre: 'Analista',
         supervisor_origen_id: id(30), supervisor_origen_nombre: 'Supervisor', primera_asignacion_en: '2026-09-01T05:00:00Z' }],
-      conversiones: [{ lead_id: id(10), perfil_id: id(40), convertido_en: '2026-09-04T15:00:00Z', analista_id: id(20), analista_nombre: 'Analista',
+      conversiones: [{ lead_id: id(10), perfil_id: id(40), convertido_en: '2026-09-04T15:00:00Z', fecha_comercial:'2026-09-04', analista_id: id(20), analista_nombre: 'Analista',
         supervisor_id: id(30), supervisor_nombre: 'Supervisor', contrato_id: null }],
       capital: [{ contrato_id: id(70), lead_id: id(10), perfil_id: id(40), analista_id: id(20), moneda: 'USD', monto: 1000, fecha: '2026-09-04T05:00:00Z' }],
     }
@@ -68,6 +68,36 @@ describe('frontera de la consulta detallada de Citas',() => {
       // Un tipo fuera del contrato lo rechaza el esquema; el resto, la frontera de gestión.
       await expect(cargarCitasGerencia('2026-09')).rejects.toThrow(defecto === 'capital_tipo_desconocido' ? 'incompleta' : 'fuentes de gestión')
     }
+  })
+  it('rechaza el servidor anterior aunque la lista de conversiones esté vacía', async () => {
+    const datos = respuestaConversion()
+    datos.conversiones = []
+    Reflect.deleteProperty(datos, 'criterio_depositos')
+    mocks.rpc.mockResolvedValue({ data: datos, error: null })
+    await expect(cargarCitasGerencia('2026-09')).rejects.toThrow('incompleta')
+  })
+  it.each(['2026-9-03', '03/09/2026', '2026-09-03T00:00:00Z'])('rechaza fecha comercial sin formato de día ISO: %s', async fecha => {
+    const datos = respuestaConversion()
+    datos.conversiones[0]!.fecha_comercial = fecha
+    mocks.rpc.mockResolvedValue({ data: datos, error: null })
+    await expect(cargarCitasGerencia('2026-09')).rejects.toThrow('incompleta')
+  })
+  it('no deriva fecha comercial desde convertido_en y conserva registro para auditoría', async () => {
+    const datos = respuestaConversion()
+    datos.conversiones[0]!.fecha_comercial = null
+    expect(adaptarDepositos(datos)).toEqual([])
+    expect(adaptarCitas(datos)[1]).toMatchObject({ cerrado: false, seguimiento: true })
+    Reflect.deleteProperty(datos.conversiones[0]!, 'fecha_comercial')
+    mocks.rpc.mockResolvedValue({ data: datos, error: null })
+    await expect(cargarCitasGerencia('2026-09')).rejects.toThrow('incompleta')
+  })
+  it('el estado de cierre de la cita usa la venta comercial, incluso el mismo día', () => {
+    const datos = respuestaConversion()
+    datos.conversiones[0]!.fecha_comercial = '2026-09-03'
+    expect(adaptarCitas(datos)[1]).toMatchObject({ cerrado: true, seguimiento: false })
+    datos.conversiones[0]!.fecha_comercial = '2026-09-02'
+    expect(adaptarCitas(datos)[1]).toMatchObject({ cerrado: false, seguimiento: true })
+    expect(adaptarDepositos(datos)[0]).toMatchObject({ fechaComercial: '2026-09-02', depositadoEn: '2026-09-04T15:00:00Z' })
   })
   it('consulta el mes completo, incluye futuras citas y propaga cancelación',async () => {
     const control = new AbortController()
@@ -184,9 +214,17 @@ describe('frontera de la consulta detallada de Citas',() => {
     mocks.rpc.mockResolvedValue({data:datos,error:null})
     await expect(cargarCitasGerencia('2026-09')).rejects.toThrow('respuesta')
   })
+  it('los movimientos del mismo día conservan el orden por hora aunque sus IDs ordenen al revés', () => {
+    const datos = respuestaConversion(), citas = adaptarCitas(datos)
+    const movimientos = [
+      { id: 'a-despues', leadId: id(10), monto: 20, moneda: 'PEN' as const, depositadoEn: '2026-09-04T16:00:00Z', confirmadoEn: '2026-09-04T16:00:00Z' },
+      { id: 'z-primero', leadId: id(10), monto: 10, moneda: 'PEN' as const, depositadoEn: '2026-09-04T15:00:00Z', confirmadoEn: '2026-09-04T15:00:00Z' },
+    ]
+    expect(depositosDeInasistencias(citas, movimientos, datos.generado_en, citas).leads[0]!.depositos.map(d => d.id)).toEqual(['z-primero', 'a-despues'])
+  })
   it('convertirse antes de asistir no completa la última etapa de esta recuperación',() => {
     const datos=respuestaConversion()
-    datos.conversiones[0]!.convertido_en='2026-09-02T15:00:00Z'
+    datos.conversiones[0]!.fecha_comercial='2026-09-02'
     const citas=adaptarCitas(datos)
     expect(depositosDeInasistencias(citas,adaptarDepositos(datos),datos.generado_en,citas).convertidos).toBe(0)
     datos.conversiones[0]!.convertido_en='2026-09-04T15:00:00Z'

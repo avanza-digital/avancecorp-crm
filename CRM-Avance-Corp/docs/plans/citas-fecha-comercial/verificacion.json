@@ -1,0 +1,45 @@
+{
+  "base_main": "e4ded65d",
+  "migracion": "20261017043000_crm_citas_fecha_comercial.sql",
+  "sha256_sql": "e719b2b57008fa63e6d4f13eba1cb2c8bf256cc85159aebd9b24787b0478c883",
+  "frontend_check": {
+    "estado": "PASS",
+    "archivos": 436,
+    "pruebas": 7014
+  },
+  "citas_e2e_docker": {
+    "estado": "PASS",
+    "pruebas": 14
+  },
+  "conciliacion_rpc_pantalla": {
+    "estado": "PASS",
+    "pruebas": 22
+  },
+  "dominio_sql": {
+    "estado": "PASS",
+    "aserciones": 15
+  },
+  "compatibilidad_tc": {
+    "estado": "PASS",
+    "aserciones": 71
+  },
+  "reversa": {
+    "estado": "PASS"
+  },
+  "revisor": {
+    "verdict": "CHANGES_REQUESTED",
+    "P0": 0,
+    "P1": 0,
+    "evaluacion_primary": "Resueltos con evidencia; ver DECISION-REVISION.md"
+  },
+  "publicado": false,
+  "limitaciones": [
+    "Gates HTTP RLS/advisors del entorno de publicación NOT RUN: sin credenciales de entorno candidato",
+    "Censo analítico general: 11 incidencias preexistentes conservadas exactamente"
+  ],
+  "latencia_fixture_ms": {
+    "muestras": 20,
+    "mediana_anterior": 5.4375,
+    "mediana_comercial": 7.439
+  }
+}
