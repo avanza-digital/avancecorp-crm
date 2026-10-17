@@ -1,6 +1,6 @@
 // Proyección de la hoja. Los totales y las conversiones siguen siendo los del modelo.
 import {
-  combinarEnSoles, construirMallaDeDias, etiquetaDiaLargo, numeroDia, TIPO_TODOS,
+  acumular, combinarEnSoles, construirMallaDeDias, etiquetaDiaLargo, numeroDia, TIPO_TODOS,
   TIPOS_FACTURACION, type CeldaFacturacion, type FilaFacturacion, type FilaFacturacionDia,
   type MallaFacturacion, type MetricaFacturacion, type PersonaFacturacion,
 } from '@/lib/facturacion'
@@ -73,7 +73,7 @@ export function celdaDeColumna(malla: MallaFacturacion, columna: ColumnaHoja, gr
   const valores = grupoId == null ? origen.totalPorDia : fila?.dias
   return columna.dias.reduce((s, dia) => {
     const c = valores?.[origen.dias.indexOf(dia)] ?? CERO
-    return { capital: s.capital + c.capital, contratos: s.contratos + c.contratos }
+    return acumular(s, c)
   }, CERO)
 }
 

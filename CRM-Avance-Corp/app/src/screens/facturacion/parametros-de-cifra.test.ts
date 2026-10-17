@@ -1,8 +1,24 @@
 import { describe, expect, it } from 'vitest'
-import { listaCuadraConNumero, mismosTotales, parametrosDeCifra, type CifraFacturacion } from './parametros-de-cifra'
+import { listaCuadraConNumero, mismosTotales, parametrosDeCifra, valorDeTotales, type CifraFacturacion } from './parametros-de-cifra'
 
 const base: CifraFacturacion = { dias: ['2026-10-01', '2026-10-02', '2026-10-03'], vista: 'TOTAL' }
 const rango = { p_desde: '2026-10-01', p_hasta: '2026-10-03', p_pagina: 1, p_tamano: 25 }
+it('la cifra abierta conserva el corte al paginar y admite el rango mixto acotado', () => {
+  const cifra = { ...base, dias: ['2026-08-01', '2026-10-31'], cortes: { '2026-10-01': 'corte-octubre' },
+    tasasLegadas: { '2026-08-01': { fecha: '2026-08-31', tasa: 3.6 } } }
+  expect(parametrosDeCifra(cifra, 2, 50)).toMatchObject({ p_cortes: cifra.cortes, tasasLegadas: cifra.tasasLegadas, p_pagina: 2, p_tamano: 50 })
+  expect(() => parametrosDeCifra({ ...cifra, dias: ['2025-10-01', '2026-10-31'] })).toThrow(/366/)
+  const totales = [{ moneda: 'USD' as const, monto: 20000, operaciones: 1, equivalente_pen: 68000 }]
+  expect(valorDeTotales(totales, 'TOTAL', 'capital', 3.1)).toBe(68000)
+  expect(valorDeTotales(totales, 'TOTAL', 'capital', 3.8)).toBe(68000)
+  expect(valorDeTotales([{ ...totales[0]!, equivalente_pen: null }], 'TOTAL', 'capital', 3.8)).toBeNull()
+  expect(mismosTotales(totales, [{ ...totales[0]!, equivalente_pen: 62000 }])).toBe(false)
+  const sinCotizacion = [{ ...totales[0]!, equivalente_pen: null }]
+  const lista = { version: 3 as const, pagina: 1, tamano: 25 as const, total: 1, filas: [], totales: sinCotizacion }
+  const abierto = { titulo: 'Cantidad', cifra, totales: sinCotizacion, valor: 1, metrica: 'contratos' as const }
+  expect(listaCuadraConNumero(abierto, lista)).toBe(true)
+  expect(listaCuadraConNumero({ ...abierto, metrica: 'capital', valor: 68000, tasa: 3.4 }, lista)).toBe(false)
+})
 describe('parametrosDeCifra: cada número conserva su ámbito', () => {
   it.each([
     ['pastilla total del tramo', {}, rango],

@@ -32,6 +32,20 @@ beforeEach(() => {
 })
 afterEach(() => vi.unstubAllGlobals())
 describe('hoja lateral: los seis estados aprobados y realidad de producción', () => {
+  it.each([1440, 390])('explica el equivalente fijo y la fecha de la operación sin volver a convertir (%s px)', (ancho) => {
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: ancho === 390 && (q === '(max-width: 640px)' || q === '(max-width: 1279px)'), addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+    const fila = { ...operacion, monto: 20000, moneda: 'USD' as const, equivalente_pen: 68000, tasa: 3.4,
+      fecha_comercial: '2026-10-05', fecha_tc: '2026-10-05', politica_tc: 'sbs_punto_medio_7d_v1' }
+    const totales = [{ moneda: 'USD' as const, operaciones: 1, monto: 20000, equivalente_pen: 68000 }]
+    doble.data = { ...respuesta([fila]), version: 3, totales }
+    pintar({ cifra: { ...abierto().cifra, cortes: { '2026-10-01': 'corte-fijo' } }, totales, valor: 68000, tasa: 3.1 })
+    const panel = screen.getByRole(ancho === 390 ? 'dialog' : 'region', { name: abierto().titulo })
+    expect(panel).toHaveTextContent('Cuadra. Pulsaste S/ 68,000')
+    expect(panel).toHaveTextContent('S/ 68,000 equivalentes')
+    expect(panel).toHaveTextContent('Tipo de cambio S/ 3.4000')
+    expect(panel).not.toHaveTextContent('× 3.1')
+    expect(doble.pedidos.at(-1)?.p_cortes).toEqual({ '2026-10-01': 'corte-fijo' })
+  })
   it('normal: conserva las monedas, conversión, anulada, tabla y pista', () => {
     doble.data = respuesta([{ ...operacion, anulado: true }, oculta])
     pintar()

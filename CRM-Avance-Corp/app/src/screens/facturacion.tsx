@@ -44,14 +44,16 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { listaOperacionesDemo } from './facturacion/lista-operaciones-demo'
 import { ListaOperaciones } from './facturacion/lista-operaciones'
-import { parametrosDeCifra, totalesDeCifra, valorDeTotales, type CifraFacturacion, type NumeroAbierto } from './facturacion/parametros-de-cifra'
-import { SIN_ANALISTA_ID } from '@/data/crm-api'
+import { contextoCortesDeMeses, listaCuadraConNumero, parametrosDeCifra, totalesDeCifra, valorDeTotales, type CifraFacturacion, type NumeroAbierto } from './facturacion/parametros-de-cifra'
+import { listarOperacionesFacturacion, SIN_ANALISTA_ID } from '@/data/crm-api'
 import { Pastilla } from '@/components/ui/pastilla'
 import { CELDA, ENCABEZADO } from '@/components/ui/estilos-hoja'
 import { accionOperaciones, columnasDeDias, columnasDeTipos, crearFormatoCifras, nombreColumna, proyectarMalla, type ColumnaHoja } from './facturacion/presentacion'
 import { TarjetasFacturacion } from './facturacion/tarjetas'
 import { useDisposicionFacturacion } from './facturacion/disposicion'
 import { PanelCargando, PanelError } from '@/components/common/estado-panel'
+import { CoberturaCapitalAviso } from '@/components/common/cobertura-capital'
+import { fechaCorteCapital } from '@/lib/capital-valorado'
 import { useEquipoReportes, useFacturacionDeMeses } from '@/data/crm-queries'
 import { useAhora } from '@/lib/ahora'
 import { useAuth } from '@/lib/auth-context'
@@ -557,6 +559,10 @@ export function Facturacion({
   const mesesVisibles = mesesQueTocan(diasVisibles)
   const consultasVisibles = consultas.filter((_, i) => mesesVisibles.includes(mesesNecesarios[i] ?? ''))
   const consultasPrevias = consultas.filter((_, i) => !mesesVisibles.includes(mesesNecesarios[i] ?? ''))
+  const valoraciones = consultasVisibles.flatMap((c) => c.data?.capitalValoracion ? [c.data.capitalValoracion] : [])
+  const cortesLegados = consultasVisibles.flatMap((c) => c.data?.tipoCambioLegado ? [c.data.tipoCambioLegado] : [])
+  const valoracionActiva = valoraciones.length > 0 || (fuente?.some((fila) => fila.capitalEquivalentePen !== undefined) ?? false)
+  const sinCorteCompleto = valoraciones.some((v) => v.corteId === null)
   const comparacionPendiente = consultasPrevias.some((c) => c.isPending)
   const comparacionFallida = consultasPrevias.some((c) => c.isError)
   const consulta = {
@@ -664,8 +670,9 @@ export function Facturacion({
   // «total» que esconda los dólares se lee celda a celda, y nadie comprueba la
   // letra pequeña 31 veces.
   const combinada = useMemo(
-    () => (vista === 'TOTAL' ? combinarEnSoles(mallaPen, mallaUsd, tc?.promedio) : null),
-    [vista, mallaPen, mallaUsd, tc],
+    () => (vista === 'TOTAL' ? valoracionActiva && mallaPen.total.contratos + mallaUsd.total.contratos === 0
+      ? mallaPen : combinarEnSoles(mallaPen, mallaUsd, tc?.promedio) : null),
+    [vista, mallaPen, mallaUsd, tc, valoracionActiva],
   )
   // La pantalla ABRE en «Todo S/». Si el tipo de cambio no llega, abrir vacía
   // sería el peor arranque posible: se repliega a Soles, la perilla se mueve
@@ -681,8 +688,8 @@ export function Facturacion({
   const [reintentandoTasa, setReintentandoTasa] = useState(false)
   if (reintentandoTasa && tc !== undefined) setReintentandoTasa(false)
   const reintentando = reintentandoTasa && tc === undefined
-  const sinTasaParaTotal = vista === 'TOTAL' && (tc === null || reintentando)
-  const consultandoTasa = vista === 'TOTAL' && tc === undefined && !reintentando
+  const sinTasaParaTotal = vista === 'TOTAL' && (valoracionActiva ? combinada === null : tc === null || reintentando)
+  const consultandoTasa = vista === 'TOTAL' && !valoracionActiva && tc === undefined && !reintentando
   const vistaEfectiva: VistaMoneda = sinTasaParaTotal ? 'PEN' : vista
   const totalSinTasa = consultandoTasa
   // Si la tasa llega mientras el foco estaba en un botón de reintento, ese botón
@@ -832,6 +839,8 @@ export function Facturacion({
       : 'Facturado'
   const composicionTotal = !hayDolares
     ? ''
+    : totalMes.valorado
+      ? `${money(totalMes.pen ?? 0, 'PEN')} + ${money(totalMes.usd ?? 0, 'USD')} · ${cortesLegados.length ? 'cortes mensuales legados y TC fijado por venta desde octubre' : 'tipo de cambio fijado por venta'}`
     : puedeUnificar && totalMes.tc != null
       ? `${money(totalMes.pen ?? 0, 'PEN')} + ${money(totalMes.usd ?? 0, 'USD')} al ${rotuloTasa(totalMes.tc, tc?.fuente ?? '')}`
       : tc === undefined
@@ -988,9 +997,11 @@ export function Facturacion({
   const tramo = hayMarcados ? 'los días elegidos' : granularidad === 'mes' ? 'el mes' : granularidad === 'semana' ? 'la semana' : 'el día'
   const alcance = (extra: Partial<CifraFacturacion> = {}): CifraFacturacion => ({
     dias: diasVisibles, diasMarcados: hayMarcados ? marcadosEnTramo : undefined,
+    ...contextoCortesDeMeses(consultas.map((c) => c.data), mesesNecesarios),
     analistas: filtro.analistas, equipoId: filtro.equipo, tipo, vista: vistaEfectiva, ...extra,
   })
-  const abrirNumero = (titulo: string, cifra: CifraFacturacion, valor: number, medida = metrica, cuenta?: NumeroAbierto['cuenta']) => {
+  const abrirNumero = (titulo: string, cifra: CifraFacturacion, valor: number | null, medida = metrica, cuenta?: NumeroAbierto['cuenta']) => {
+    if (valor === null) return
     origenLista.current = ultimoBoton.current ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null)
     setApertura((n) => n + 1)
     setSeleccion({ titulo, cifra, valor, metrica: medida, tasa: tc?.promedio, cuenta,
@@ -1024,16 +1035,24 @@ export function Facturacion({
     const resultados = await Promise.all(consultas.map((c) => c.refetch()))
     if (resultados.some((r) => r.isError)) throw new Error('No se pudo actualizar la facturación.')
     const filas = fuente ?? (esDemo ? demo : resultados.flatMap((r) => r.data ?? []))
-    setSeleccion((anterior) => {
-      if (!anterior || anterior !== seleccion) return anterior
-      const ts = totalesDeCifra(filas, parametrosDeCifra(anterior.cifra))
-      const base = valorDeTotales(ts, anterior.cifra.vista, anterior.metrica, anterior.tasa)
-      const cuenta = anterior.cuenta
-      const promedioNuevo = cuenta?.modo === 'promedio' ? base / cuenta.divisor : base
-      const valor = cuenta?.modo === 'promedio' ? anterior.metrica === 'capital' ? Math.round(promedioNuevo) : promedioNuevo
-        : base
-      return { ...anterior, totales: ts, valor, cuenta }
-    })
+    const anterior = seleccion
+    if (!anterior) return
+    const contexto = contextoCortesDeMeses(resultados.map((r) => r.data), mesesNecesarios)
+    const cifra = { ...anterior.cifra, cortes: contexto.cortes, tasasLegadas: contexto.tasasLegadas }
+    const parametros = parametrosDeCifra(cifra)
+    const ts = totalesDeCifra(filas, parametros)
+    const base = valorDeTotales(ts, cifra.vista, anterior.metrica, anterior.tasa)
+    if (base === null) throw new Error('Falta completar la valoración de la cifra.')
+    const cuenta = anterior.cuenta
+    const promedioNuevo = cuenta?.modo === 'promedio' ? base / cuenta.divisor : base
+    const valor = cuenta?.modo === 'promedio' ? anterior.metrica === 'capital' ? Math.round(promedioNuevo) : promedioNuevo
+      : base
+    const siguiente = { ...anterior, cifra, totales: ts, valor, cuenta }
+    if (anterior.cifra.cortes || cifra.cortes) {
+      const lista = await listarOperacionesFacturacion(parametros)
+      if (!listaCuadraConNumero(siguiente, lista)) throw new Error('El detalle no coincide con la cifra actualizada.')
+    }
+    setSeleccion((vigente) => vigente === anterior ? siguiente : vigente)
   }
   const q = normalizar(busqueda.trim())
   const rosterVisible = q === '' ? roster : roster.filter((p) => normalizar(p.nombre).includes(q))
@@ -1043,6 +1062,17 @@ export function Facturacion({
       .map((p) => [p.id, p] as const),
   ).values()]
 
+  if (sinCorteCompleto) return (
+    <section className="space-y-4" aria-label="Facturación pendiente de valoración">
+      <h1 className="text-xl font-bold">Facturación</h1>
+      <div className="flex flex-wrap items-center gap-3">
+        <Button variant="outline" onClick={() => moverPeriodo(-1)}>Periodo anterior</Button>
+        <Input type="date" aria-label="Fecha de consulta" value={ancla} onChange={(e) => { if (e.target.value) setAncla(e.target.value) }} />
+        <Button variant="outline" onClick={reintentar}>Actualizar valoraciones</Button>
+      </div>
+      {valoraciones.map((valoracion, i) => <Card key={i} className="p-4"><CoberturaCapitalAviso cobertura={valoracion.cobertura} /></Card>)}
+    </section>
+  )
   return (
     <div className={cn("facturacion-pantalla space-y-3.5", seleccion && "facturacion-con-lista")}
       onClickCapture={(e) => { if (e.target instanceof Element) ultimoBoton.current = e.target.closest('button') }}>
@@ -1050,6 +1080,8 @@ export function Facturacion({
       <p role="status" aria-live="polite" className="sr-only">
         {anuncio}
       </p>
+      {valoraciones.map((valoracion) => <Card key={valoracion.corteId ?? 'pendiente'} className="p-4"><CoberturaCapitalAviso cobertura={valoracion.cobertura} /></Card>)}
+      {valoracionActiva && cortesLegados.length > 0 && <p className="text-xs">Hasta septiembre se conserva el tipo de cambio mensual: {cortesLegados.map((corte) => `${fechaCorteCapital(corte.fecha)} · S/ ${corte.tasa.toFixed(4)}`).join('; ')}. Desde octubre, cada venta conserva su tasa.</p>}
 
       {esDemo && (
         // Solo en demo. Con datos reales este cartel sería una mentira al revés:
@@ -1352,7 +1384,7 @@ export function Facturacion({
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--chart-5)]/40 bg-[var(--chart-5)]/10 px-4 py-2.5 text-sm font-medium">
           <TriangleAlert aria-hidden className="size-4 shrink-0 text-[var(--chart-5)]" />
           <span>
-            {reintentando
+            {valoracionActiva ? 'Falta completar la valoración del rango. Los importes originales siguen disponibles por moneda.' : reintentando
               ? 'Consultando el tipo de cambio…'
               : 'No llegó el tipo de cambio, así que no se pueden sumar soles y dólares: estás viendo solo Soles.'}
           </span>
@@ -1361,9 +1393,9 @@ export function Facturacion({
             size="sm"
             data-reintento-tasa="true"
             aria-disabled={reintentando}
-            onClick={reintentarTasa}
+            onClick={valoracionActiva ? reintentar : reintentarTasa}
           >
-            <RotateCcw aria-hidden /> Reintentar el tipo de cambio
+            <RotateCcw aria-hidden /> {valoracionActiva ? 'Actualizar valoraciones' : 'Reintentar el tipo de cambio'}
           </Button>
         </div>
       )}
@@ -1739,6 +1771,8 @@ export function Facturacion({
                       <span className="block text-sm font-medium text-muted-foreground-strong">
                         {metrica !== 'capital'
                           ? 'contratos de ambas monedas'
+                          : totalMes.valorado
+                            ? cortesLegados.length ? 'Cortes mensuales legados y TC por venta desde octubre' : 'Tipo de cambio fijado por venta'
                           : totalMes.tc != null
                             // Solo la cifra (Miguel, 10/10/2026): sin institución ni promedio.
                             ? `S/ ${numero(totalMes.tc, 4)} por dólar`
@@ -1752,7 +1786,7 @@ export function Facturacion({
                           Mientras se reintenta sigue montado (el foco no cae en
                           <body>), y no se duplica si ya está el aviso de arriba,
                           que hace lo mismo. (Revisión a11y 08/10/2026.) */}
-                      {metrica === 'capital' && (tc === null || reintentando) && !sinTasaParaTotal && (
+                      {metrica === 'capital' && !valoracionActiva && (tc === null || reintentando) && !sinTasaParaTotal && (
                         <Button
                           variant="ghost"
                           size="sm"

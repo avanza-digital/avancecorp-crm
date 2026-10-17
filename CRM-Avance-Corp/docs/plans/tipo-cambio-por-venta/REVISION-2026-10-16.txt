@@ -1,0 +1,160 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+The plan is careful about cutoff, legacy months, sealing locks, payload compatibility and rollback. Five decisions are still open, and the plan has to settle them before Phase 2. They cannot be left to discovery:
+
+- **Coop and breakdown valuation date.** No valuation date is defined for cooperatives or breakdowns.
+- **One-sided midpoint frozen as final.** The calculator's fallback to a single side can be consolidated permanently.
+- **Daily ranking suspension.** Including the sale date in the cut means any day with a USD sale has no official ranking until BCRP publishes.
+- **No legacy rate exists.** Adjustments on pre-October operations point to a "legacy valuation" that was never stored.
+- **Auto-close behaviour.** The plan does not say what the automatic month close does when coverage is pending.
+
+There is also a simpler architecture than per-operation valuation rows, worth deciding explicitly. The cutoff by commercial date, keeping goals in PEN, splitting ranges that cross the boundary, and versioning the read contract are all sound.
+
+FINDINGS:
+
+[P1] Valuation date for cooperatives and breakdowns is undefined
+File: `supabase/migrations/20261009200000_crm_baja_analista_heredero.sql`
+Lines: 303–304, 341, 350–351, 358
+Problem:
+- Plan §1 and §5 key the rate to a "fecha comercial" distinct from the imputation month.
+- That only exists for contracts (`fecha_cierre_comercial`).
+- Cooperatives expose only `coalesce(fecha_imputacion, creado_en)`. That one value is both their date and their imputation month, and legacy rows fall back to an *instant* (`creado_en`), not a Lima date.
+- Breakdowns carry `fecha_operacion` (line 304) and a separate `o.periodo` (line 303). Neither is necessarily the parent contract's `fecha_cierre_comercial`.
+Evidence:
+- Line 351 uses the coalesce as the episode date.
+- Line 358 filters coops by instant, while contracts filter by local date (lines 279–280).
+- The plan text itself says "cooperativas utilizan `fecha_imputacion` o … la fecha de creación" but never names their valuation date.
+Impact:
+- §5 ("redistribuir entre meses no cambia la tasa") cannot hold for coops. Re-imputing a coop *is* changing its only date.
+- For breakdowns, the rate could come from either `fecha_operacion` or the contract date. Pick inconsistently and breakdowns no longer reconcile to the cent with stock.
+Recommendation:
+- Settle per source in the plan:
+  - Contract: valuation date = `fecha_cierre_comercial`.
+  - Breakdown: proposed valuation date = parent operation's valuation, so it reconciles by construction.
+  - Coop: valuation date = `(coalesce(fecha_imputacion, creado_en) at time zone 'America/Lima')::date`. If coops need a real commercial date, add one. State explicitly whether re-imputing a coop revalues it.
+- Note that today's observation (Oct coops all PEN, dates equal) does not test this. Ensure the Phase 5 table includes a USD coop and a re-imputed coop.
+
+[P1] The calculator's one-sided fallback can freeze a non-final rate
+File: `supabase/functions/crm-tipo-cambio/handler.ts`
+Lines: 224–228, 231–233
+Problem:
+- When only compra *or* venta is published for a date, the "midpoint" is that single side.
+- Under a 1-hour cache this self-heals. Under §3 "una vez consolidada … no se sustituye", a fetch taken between the two series' publications is frozen permanently.
+Evidence:
+- `valor = compraDia != null && ventaDia != null ? (c+v)/2 : (compraDia ?? ventaDia)!`
+- `dias` (line 255) only counts dates, so a one-sided day is invisible in the stored result.
+Impact: A permanently wrong rate on a consolidated date, affecting every USD sale that day and every later day whose 7-day window includes it.
+Recommendation:
+- Make the consolidation rule explicit:
+  - Require both series for every date in the window.
+  - Require `dias = 7`, or an explicit accepted lower bound, recorded with the rate.
+- A calendar-free finality rule fits the current method: cut D is final when both series contain D, or contain any date after D. That proves no later in-window publication can appear.
+- Persist the 7 raw (fecha, compra, venta) tuples. Then the rate can be recomputed in `numeric`, matching §4. Today it is JS float with `Math.round` (line 253).
+
+[P1] Including the sale date in the cut makes the official ranking suspended on any day with USD sales
+File: `handler.ts` line 232 (`item.timestamp <= corteTimestamp`); plan §3 and §8
+Problem:
+- The existing method includes cut date D itself, so a USD sale on D cannot be valued until D's SBS data is published. That is late in D or the next business day.
+- §8 suspends official classification whenever coverage is incomplete for the population.
+Impact:
+- On any day with at least one USD sale, the official ranking for that team or month is suspended until the next publication.
+- The Phase 5 row "Dos ventas en la misma fecha, antes y después de publicación BCRP… la primera puede estar pendiente" confirms this is expected, but not its operational consequence.
+- This is a business decision, not an implementation detail.
+Recommendation: Escalate to the user before Phase 2 with two options:
+- (a) Keep D in the cut and show a provisional ranking. Pending operations are labelled and excluded from, or estimated in, positions, and the official position is shown only once coverage is complete.
+- (b) Keep the same 7-midpoint method with cut D-1, so the rate is known at sale time.
+
+Option (b) is a method change, so it needs explicit user approval given "not a new spot-rate choice".
+
+[P1] Legacy adjustments reference a valuation that was never stored
+Files: plan §10 ("preservar la valoración legada de su mes original mediante una referencia auditada"); `app/src/lib/conversion-vendedores.ts:807–810`; `20261012165115_crm_coordinacion_reportes_lectura.sql:1046–1050`
+Problem:
+- Pre-October months never stored a PEN equivalent.
+- The sealed photo stores `aplicado_pen` / `aplicado_usd` separately.
+- The client converts USD with whatever `tc` the screen passes (line 810, `totalEnSoles(capitalPen, capitalUsd, tcValido)`).
+- So there is no "legacy valuation" to reference.
+Impact:
+- A September USD operation annulled, or carrying debt, into October produces an October deduction with no defined rate.
+- The obvious fallbacks each break something:
+  - Today's rate violates the requirement.
+  - Leaving it in USD breaks the single-PEN total.
+- It is also unknown from the evidence whether current debt and adjustment rows link to the originating operation. Only the counter `contratosAplicados` is visible, so this point is a hypothesis.
+Recommendation:
+- Decide the rule now. Suggested: value pre-October origins with the same method at their original commercial date, flagged `reconstruida`, without touching their sealed month.
+- Make "do adjustment rows carry an origin operation id?" a Phase 1 gate. If they don't, plan the schema addition.
+
+[P2] Per-operation valuation table may be unnecessary complexity
+Plan Phase 2: `crm.capital_valoraciones`, revision detection, per-operation worker, per-operation backfill
+Problem:
+- Once daily rates are immutable per (date, policy), the equivalent is deterministic: `round(monto * tasa(fecha_valoracion), 2)`.
+- Storing it per operation adds machinery the result does not need:
+  - a source-revision fingerprint (needed because `public` cannot get triggers);
+  - stale and pending states on every portal edit;
+  - backfill idempotency;
+  - a second identity scheme.
+- It also creates a failure mode. An amount edit makes the operation pending until the worker runs, which suspends the official ranking (see the previous P1) even though the rate is known.
+Recommendation: Evaluate an alternative:
+- Persist only `crm.tipo_cambio_diario`, a small worker keyed by date.
+- Have `capital_episodios`-level readers join on the valuation date.
+- Coverage pending is then simply "a required date has no consolidated rate".
+- The sealed snapshot freezes per-operation equivalents for audit, so corrections stay traceable via existing audit and the seal.
+- Keep `capital_valoraciones` only if a requirement truly needs per-operation history in open months, and state that requirement.
+
+[P2] Month close with pending coverage has no defined behaviour
+File: `20261012165115…sql:1031` (`'automatico', v_cierre.automatico`); plan Phase 3
+Problem:
+- The plan says `cerrar_periodo` must not seal with pending valuations, but automatic closes exist.
+- If BCRP is down at month end, the plan does not define:
+  - whether auto-close retries;
+  - how long a retry may delay the seal;
+  - who is alerted;
+  - whether other closing effects that don't depend on FX (conversion, adjustments) are also delayed.
+Recommendation: Settle retry and backoff, the maximum delay and alerting. State that the seal is all-or-nothing, which is presumably required.
+
+[P2] Legacy-side conversion rate for ranges crossing the boundary is unspecified
+Plan §7
+Problem:
+- "agregan por separado el tramo legado" does not say which rate converts the legacy USD part.
+- Today the client receives one `tc` (line 772). The evidence does not show which cut-off the screen uses for past months; that is a hypothesis to confirm in Phase 1.
+Recommendation: Record the current screen's `fecha_corte` rule for each consumer and keep it unchanged for the legacy part. Add an Aug–Oct range to the acceptance table.
+
+[P3] `dias < 7` and 16-day window edge
+`handler.ts` lines 25–26, 237, 255
+Problem:
+- Long holiday stretches can yield fewer than 7 dates.
+- The plan stores `días` but doesn't say whether a short window is consolidable.
+Recommendation: Decide the rule and test it as part of the first P1.
+
+[P3] Mid-month switch visibility
+Problem:
+- October's displayed numbers will change mid-month when activation happens.
+- The plan has a label but no user communication or before/after note for analysts and supervisors.
+Recommendation: Add a short communication step to activation step 6.
+
+TEST GAPS (planning level):
+- USD cooperative, re-imputed cooperative, and legacy cooperative without `fecha_imputacion`.
+- Breakdown whose `fecha_operacion` and `periodo` differ from the parent contract date.
+- Fetch where only one SBS series has D published, and `dias < 7`.
+- Pre-October USD operation producing an October adjustment.
+- Auto-close during a provider outage.
+
+ARCHITECTURE RISKS:
+- Two identity schemes (per-op valuations plus daily rates) unless the P2 simplification is evaluated.
+- The worker needs privileged writes, while the current function is explicitly "sin BD ni service_role" (`handler.ts:10`). The scheduling and runtime choice (pg_cron/pg_net vs scheduled Edge) is still undecided.
+
+REGRESSION RISKS:
+- Sealed photo `'version', 1` (line 1021) has strict front validators. Readers must keep handling v1 (client converts) alongside the new version indefinitely, for August and September.
+- Ranking suspension frequency could be perceived as a regression even when the numbers are correct.
+
+RECOMMENDED NEXT ACTIONS:
+1. Add to the plan a per-source valuation-date table covering contract, breakdown, coop and legacy coop, plus the re-imputation rule.
+2. Define the consolidation finality rule: both series present, D or a later date published, window count rule, raw tuples persisted, numeric recomputation.
+3. Take the "D included vs provisional display" decision to the user before Phase 2.
+4. Settle the rate for pre-October-origin adjustments, and make adjustment-to-operation linkage a Phase 1 gate.
+5. Decide between the daily-rate-join design and per-operation valuations, with an explicit justification.
+6. Define auto-close behaviour under pending coverage.
+
+CONFIDENCE:
+MEDIUM. The evidence is limited to the attached excerpts. Adjustment and debt storage, `cerrar_periodo`, and the screen's current `tc` cut-off were not shown.

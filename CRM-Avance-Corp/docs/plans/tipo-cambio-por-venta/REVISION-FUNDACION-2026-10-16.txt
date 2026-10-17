@@ -1,0 +1,151 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+The persistence and worker foundation is mostly sound. Rates and valuations are immutable, idempotency holds under `on conflict`, re-reads happen under per-source advisory locks, writers are service-only and grants are tight. It is not yet safe to build readers or seals on it, for two reasons.
+
+1. Neither the evidence nor the code guarantees that the valuation key matches the operation identity counted by `produccion_mes_por_vendedor`. The same is true for the date used for the rate versus the date used for the ranking month.
+2. Two cases have no resolution path and would block any "complete coverage" gate indefinitely:
+   - sales with a commercial date in September that are imputed in October;
+   - stale valuations.
+
+Extracting a shared per-operation helper is the right direction. Its granularity has to drive the valuation key, not the other way around. The proposed common-cutoff snapshot freezes attribution that v1 keeps live, and it will lag every day. I suggest a narrower design below.
+
+Items marked "plan requirement" are not yet implemented and are not counted as implementation defects.
+
+FINDINGS:
+
+[P1] Valuation identity is per `contrato_id`/`cierre_externo_id`, but the source is per episode and is not proven unique
+File: `supabase/migrations/20261016190725_crm_tipo_cambio_por_venta.sql`
+Lines: 99–118, 187–201, 221
+Problem: `capital_fuentes_tc` emits one row per `capital_episodios` stock episode. It keys the row by `e.contrato_id`, with no `distinct` and no uniqueness assertion.
+Evidence:
+- The canonical aggregate counts `count(*)` per episode row (`contratos_real`). Its `contratos_base` uses `k.contrato_id as id` without deduplication, so per-episode multiplicity is part of the v1 contract.
+- Commit c58f85d1 ("contar adicional de renovación como upgrade desde octubre") suggests October introduced episode types that may share a contract. This is a hypothesis; the body of `capital_episodios` was not attached.
+- If two stock episodes share one `(fuente, fuente_id)`:
+  - Line 201 compares only against the latest revision.
+  - Each run alternates between the two `firma_fuente` values and inserts a new `correccion` revision forever.
+  - The current-valuation semantics collapse two operations into one.
+- "Rerun creates zero" on the 108 real operations shows uniqueness only in current data, not structurally.
+Impact: Possible unbounded revision churn and a capital mismatch against v1. Readers would attach one valuation to two counted operations.
+Recommendation:
+- First define the per-operation helper (proposal item 1) with a stable operation key.
+- Derive `capital_fuentes_tc` from the same key, or add an episode discriminator to the key.
+- Assert `count(*) = count(distinct (fuente, fuente_id))` inside `materializar_capital_valoraciones` and raise if it fails.
+
+[P1] Rate date and ranking month come from different columns
+File: `supabase/migrations/20261016190725_crm_tipo_cambio_por_venta.sql` lines 105–107 and 113–114, compared with `private.produccion_mes_por_vendedor`
+Problem:
+- For contracts, the rate date is `c.fecha_cierre_comercial` from `public.contratos`.
+- The canonical function places a contract in a month by `(k.fecha at time zone 'America/Lima')::date`. That expression is aliased `fecha_cierre_comercial` inside `contratos_base`, but it is the episode date.
+- For external closings, the rate uses `ce.fecha_comercial`, while the ranking window uses `k.fecha`/`creado_en` ("Ventana por creado_en").
+Evidence: Both projections are shown side by side in the attachment. The source keeps `fecha_imputacion` separately precisely because the two dates can differ.
+Impact: Wherever they differ:
+- A sale can be valued at the rate of one date but ranked in another month.
+- If `fecha_comercial < 2026-10-01 <= fecha_imputacion`, line 202 leaves the operation pending forever, yet the v1 aggregate counts it in October. October coverage can then never be complete, and the planned seal (item 4) would fail permanently.
+Recommendation:
+- Before building readers, run a query on the restored bank: count stock episodes where the episode's Lima date differs from the commercial date, split by source.
+- Make an explicit policy decision on the rate date for late or backdated records. This is a plan requirement for "late records".
+- Expose both dates from the shared helper.
+
+[P1] Cross-boundary and legacy pending rows have no exit path and can starve the batch
+File: same migration, lines 191–207 and 194–196
+Problem:
+- Rows with `fecha_comercial < 2026-10-01` that pass the `fecha_imputacion` filter are counted as `pendientes` and skipped on every run.
+- PEN rows among them sort into the `true` group, earliest by date, so they are processed first.
+- A correction that moves an October sale's commercial date to September takes the same path. The latest valuation (October rate, stale signature) stays the most recent row, with no tombstone.
+Impact:
+- Coverage cannot complete.
+- If such rows reach `p_limite` (500), newer rows are never processed. Low probability, but structural.
+- Readers that use the latest revision without checking its signature would show a stale amount.
+Recommendation:
+- Exclude rows outside the policy from the materialization `limit` scan and report them through a separate counter or queue.
+- Define the coverage predicate as: for every helper operation in the cutoff, the latest valuation's `firma_fuente` equals the current source signature.
+- Add a test for an October-to-September date correction.
+
+[P2] Seal trigger behaviour while the feature flag is false is undefined (plan requirement)
+Problem: Item 4 makes the insert into `periodos_cerrados` fail when coverage is pending. Nothing reads `capital_valoracion_politica.activa` today, and the migration hard-codes `date '2026-10-01'` (lines 182, 191, 202) instead of reading `vigente_desde`.
+Impact:
+- If the seal triggers ship before activation, the existing October close (around Nov 1) changes behaviour, or fails on a USD sale from Oct 31 whose BCRP publication is still pending.
+- If the triggers ship as a no-op while inactive, October may be sealed without a snapshot. The foundation's guard at lines 7–12 only protects this migration, not a later activation.
+Recommendation: Decide explicitly, and write down, which of these applies to October:
+- (a) Triggers fail closed for periods ≥ October regardless of the flag. This requires user approval because it changes the close.
+- (b) The October seal is blocked or deferred until activation.
+
+Make the flag and `vigente_desde` the single source used by the SQL.
+
+[P2] A common complete cutoff will lag at least one business day and freezes attribution that v1 keeps live (proposal item 2)
+Evidence:
+- A USD sale made today stays `publicacion_pendiente` until the next BCRP publication (`consolidacion.ts` lines 88–94; DB check at line 139). A Friday or holiday sale waits until the next business day.
+- A common cutoff therefore hides valued PEN sales made after the earliest pending USD date.
+- Freezing attribution (vendor, metas snapshot) in `capital_cortes_valorados` while v1 `contratos_real`, conversion and denominators stay live creates v1/v2 discrepancies inside the same screen.
+Simpler alternative that still preserves the last complete ranking:
+- **Live mode (current month):**
+  - Take operations and attribution live from the shared helper, exactly as v1 does.
+  - Join each operation to its valuation whose `firma_fuente` matches the current source.
+  - Report operations without a match as `pendientes`, with their original amount and currency, outside the PEN total.
+  - No snapshot table is needed, and counts match v1 by construction.
+- **Frozen mode:**
+  - Only at the seal, persist the per-operation set of (operation, valuation revision, attribution) as the seal's reference.
+  - Optionally publish an intermediate "last complete" cut, storing only valuation pointers plus the cutoff timestamp.
+
+If a stable intra-month ranking during backdated corrections remains a hard requirement, keep item 2. In that case, also source its counts from the cut so a single screen never mixes live counts with frozen amounts.
+
+[P2] Proposal item 1: the extraction must preserve asymmetries in the aggregate
+Evidence:
+- `contratos_confirmados` is filtered by `vendedor_id is not null`. `externos_confirmados` is not, so `coalesce(mv.vendedor_id, ce.vendedor_id)` can emit a NULL-vendor group.
+- Contracts are windowed by Lima date; external closings by `creado_en` as a timestamp.
+- External closings are hard-coded `'nuevo'`. Contracts are restricted to three categories and two currencies.
+- Attribution depends on `p_periodo_id` (the `metas_vendedor` snapshot), so the helper is per period, not global.
+Recommendation:
+- In addition to the `prosrc` hash pin, compare full aggregate output across all of the following, including the NULL-vendor externals row:
+  - historical months;
+  - October;
+  - synthetic cases: ambiguous leads, analyst outside metas, author not a vendor, and an annulled cooperative.
+- Also pin `capital_episodios` signature and behaviour.
+- Check whether `capital_episodios(-inf, inf)` and `capital_episodios(p_ini, p_fin)` give the same `medida`/stock membership for the same operation, since the valuation scan and the ranking use different windows. This is a hypothesis: the function body was not attached.
+
+[P2] Pending USD monetary debts are not yet guarded
+Evidence: The ATR-4 rule zeroes `capital_pen`/`capital_usd` for new adjustments. The `pendiente_*` columns imply debts are consumed across months. Current data has zero pending USD.
+Recommendation: In the seal path (item 4), raise if any consumed `pendiente_usd <> 0` for periods ≥ October. Do not convert or invent a new sanction. This matches the PRIMARY's own "fail closed until mapped" rule; it should be enforced in code, not only in the inventory.
+
+[P3] Worker robustness
+- `handler.ts` lines 84–88: the `catch` calls `deps.resolver` again. If the reservation has expired (PT409), this rejects `Promise.all`, other resolutions may still be in flight, the final `reconciliar` is skipped, and the response is a 502. It is recoverable, because reservations expire, but use `Promise.allSettled` and an inner try/catch.
+- `consolidacion.ts` lines 95–99: one date present in only one series within the last 7 dates returns `serie_parcial` indefinitely, with 60-minute retries and no cap or alert on `intentos`. Add a threshold for operator alerting.
+- `consolidar_tc_venta` does not verify that the 7 pairs are the most recent publications before the cutoff (any 7 distinct dates ≤ cutoff pass). This is acceptable given service-only access, but it is weak as a database-level invariant.
+- `handler.ts` line 37 compares the bearer token with `!==`, which is not constant-time.
+- The row-level immutability triggers do not cover `TRUNCATE`. Add a `BEFORE TRUNCATE` statement trigger on `tipo_cambio_diario` and `capital_valoraciones`.
+- `materializar` scans `capital_episodios(-inf, inf)` twice per run. Watch its cost against the recent SLA performance work (e791502f).
+
+TEST GAPS:
+- Duplicate `(fuente, fuente_id)` from `capital_fuentes_tc`, with an assertion that reruns create zero revisions.
+- An episode date differing from `fecha_cierre_comercial` / `fecha_comercial`, for both contracts and external closings.
+- A September commercial date with October imputation; an October-to-September correction; a cross-month correction within October.
+- A source that leaves stock or the allowed categories after valuation (stale latest revision).
+- Two concurrent `materializar` sessions.
+- Handler path with an expired reservation; holiday or weekend cutoff where `confirmada` is the next business day; `n.d.` values inside the 7-day window.
+- Proposal item 1: the before/after aggregate comparison should include the NULL-vendor external group.
+
+ARCHITECTURE RISKS:
+- Two sources of truth for operation identity and month (`capital_fuentes_tc` versus the canonical CTE) until item 1 lands. Rebase `capital_fuentes_tc` on the shared helper rather than keeping both.
+- Hard-coded policy dates duplicated in SQL alongside the policy table.
+
+SECURITY RISKS:
+- None blocking in the foundation. For the v2 wrappers: call the original RPC's authorization in the same session, not a private helper with a broader roster. Use distinct function names to avoid PostgREST overload ambiguity. Add the wrappers to the RLS matrix with no direct grants on snapshot tables.
+
+REGRESSION RISKS:
+- Seal triggers changing the October close before activation.
+- Deploying the worker writes immutable production rows even while `activa=false`. Confirm this is covered by the activation authorization, since production writes are not authorized under the current goal.
+
+RECOMMENDED NEXT ACTIONS:
+1. On the restored bank, run three queries:
+   - the uniqueness of `(fuente, fuente_id)`;
+   - the count of episode date versus commercial date mismatches, by source;
+   - operations with commercial date ≤ September and imputation ≥ October.
+   
+   Fix the key and date semantics before item 1 builds on them.
+2. Implement the shared per-operation helper, then rebase `capital_fuentes_tc` on its key. Define coverage as "latest valuation signature equals current source signature" for every helper operation, and exclude out-of-policy rows from the materialization limit.
+3. Get an explicit decision on seal behaviour for October while the flag is off, and on the late-record rate date. Consider the live-plus-seal-freeze alternative before adding `capital_cortes_valorados`.
+
+CONFIDENCE:
+MEDIUM. The foundation code was fully attached. The P1 findings on identity and dates depend on the body of `capital_episodios` and on data distributions that were not provided, so they are stated as structural risks with concrete checks rather than as observed failures.

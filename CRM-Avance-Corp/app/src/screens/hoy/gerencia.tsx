@@ -45,6 +45,7 @@ import {
 } from '@/lib/conversion-vendedores'
 import { useTipoCambio } from '@/lib/tipo-cambio'
 import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
+import { capitalComercialEnSoles, metaComercialEnSoles } from '@/lib/capital-unificado'
 import {
   useActualizarCapacidadLeadsObjetivo,
   useEquipoReportes,
@@ -112,7 +113,7 @@ function DesgloseMonedas({
   return (
     <p className="text-[11px] tabular-nums text-[var(--gi-muted)]">
       {moneyK(capital.pen ?? 0, 'PEN')} + {moneyK(capital.usd ?? 0, 'USD')}
-      {!hayUsd ? null : capital.tc == null ? (
+      {capital.valorado ? <span> · TC fijado por venta</span> : !hayUsd ? null : capital.tc == null ? (
         <span className="text-amber-700"> · sin tipo de cambio: el total NO incluye los dólares</span>
       ) : (
         <span> · {rotuloTipoCambio(capital.tc, fuenteTc ?? 'TC del día')}</span>
@@ -608,13 +609,13 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   // PEN y USD no se suman a ciegas: se convierte a tasa real y se rotula cuál
   // se aplicó. Mismo criterio que el panel del analista (decisión #10).
   const tcPromedio = tipoCambio.tc?.promedio ?? null
-  const capitalTotal = totalEnSoles(capitalActualPen, capitalActualUsd, tcPromedio)
-  const metaTotalCapital = totalEnSoles(metaCapitalPen, metaCapitalUsd, tcPromedio)
+  const capitalTotal = capitalComercialEnSoles(capitalActualPen, capitalActualUsd, tcPromedio, cumplimiento?.capitalValorado)
+  const metaTotalCapital = metaComercialEnSoles(metaCapitalPen, metaCapitalUsd, tcPromedio, cumplimiento?.capitalValorado)
   // Sin dólares el tipo de cambio es irrelevante y no debe degradar nada; con
   // dólares y el TC en vuelo, no se puede afirmar todavía ni el total ni el %.
   const hayDolares = (capitalActualUsd ?? 0) > 0 || metaCapitalUsd > 0
-  const tcEnVuelo = tipoCambio.tc === undefined && hayDolares
-  const tcCaido = tipoCambio.tc === null && hayDolares
+  const tcEnVuelo = !capitalTotal.valorado && tipoCambio.tc === undefined && hayDolares
+  const tcCaido = !capitalTotal.valorado && tipoCambio.tc === null && hayDolares
   const ajusteCierre = cumplimiento?.ajuste
   const hayAjusteCierre = ajusteCierre != null && (
     ajusteCierre.aplicadoPen > 0
@@ -635,7 +636,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
 
   if (resumenMovil) return <ResumenGerenciaMovil
     dia={diaLima} mes={metaMensualRanking.etiqueta} capital={capitalTotal} meta={metaTotalCapital}
-    fuenteTc={tipoCambio.tc?.fuente ?? ''}
+    fuenteTc={tipoCambio.tc?.fuente ?? ''} valoracionCapital={cumplimientoRanking?.valoracionCapital}
     cargando={conversionMensualCargando || cumplimientoRankingCargando || tcEnVuelo}
     error={errorConversionMensual || errorFotoMensualRanking || metaMensualRanking.errorCarga ? 'No se pudieron actualizar el capital y la meta del mes.' : null}
     onReintentar={() => { reintentarConversionMensual(); if (sesionReal) void qCumplimientoRanking.refetch(); tipoCambio.recargar() }}
@@ -678,7 +679,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
           Hoy: es una decisión, no una alarma que tenga que seguir a cada pestaña. */}
 
       {esResumen && <ResumenGestionesHoy />}
-      {esResumen && <ResumenGerenciaPanel conversiones={datosConversion} conversionMensual={cumplimientoRankingCargando ? undefined : conversionMensualPaneles} origenFiltrado={origenActivo} fuenteConversion={fuenteActiva} lecturaFuente={lecturaFuentePaneles} reuniones={datosReuniones} equipo={datosEquipoConversionRango} equipoMensual={datosEquipoConversion} meta={meta} cumplimiento={cumplimiento} metaMensual={metaMensualRanking} tc={tipoCambio.tc} cargando={estaCargando(sesionReal, conversiones) || conversionMensualCargando || cumplimientoRankingCargando || estaCargando(sesionReal, reuniones)} rangoCargando={!conversionesDeEjemplo && fuenteCargando} mensualCargando={!conversionesDeEjemplo && (conversionMensualCargando || cumplimientoRankingCargando)} error={errorResumen} modoDemo={modoDemo} onReintentar={() => { reintentarConversiones(); reintentarConversionMensual(); void qCumplimientoRanking.refetch(); reintentarReuniones(); tipoCambio.recargar() }} />}
+      {esResumen && <ResumenGerenciaPanel conversiones={datosConversion} conversionMensual={cumplimientoRankingCargando ? undefined : conversionMensualPaneles} origenFiltrado={origenActivo} fuenteConversion={fuenteActiva} lecturaFuente={lecturaFuentePaneles} reuniones={datosReuniones} equipo={datosEquipoConversionRango} equipoMensual={datosEquipoConversion} meta={meta} cumplimiento={cumplimiento} valoracionCapital={cumplimientoRanking?.valoracionCapital} metaMensual={metaMensualRanking} tc={tipoCambio.tc} cargando={estaCargando(sesionReal, conversiones) || conversionMensualCargando || cumplimientoRankingCargando || estaCargando(sesionReal, reuniones)} rangoCargando={!conversionesDeEjemplo && fuenteCargando} mensualCargando={!conversionesDeEjemplo && (conversionMensualCargando || cumplimientoRankingCargando)} error={errorResumen} modoDemo={modoDemo} onReintentar={() => { reintentarConversiones(); reintentarConversionMensual(); void qCumplimientoRanking.refetch(); reintentarReuniones(); tipoCambio.recargar() }} />}
 
       {/* Por empresa: de dónde vino cada sol (Avance vs. COOPAC), por analista.
           Se oculta solo si el mes no tiene cierres en cooperativas. */}
@@ -753,6 +754,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
           cumplimientoVendedores={cumplimientoRanking?.porVendedor ?? {}}
           supervisores={cumplimientoRanking?.supervisores ?? []}
           fueraRanking={cumplimientoRanking?.fueraRanking ?? []}
+          valoracionCapital={cumplimientoRanking?.valoracionCapital}
           metaMensual={metaMensualRanking}
           // El mes vivo sigue el roster activo; solo un mes histórico congela
           // nombre, supervisor y población en la foto mensual.

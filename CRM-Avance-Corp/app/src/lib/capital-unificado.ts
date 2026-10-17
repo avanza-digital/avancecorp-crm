@@ -11,6 +11,7 @@
 // Sin tasa, el USD queda FUERA del total y se muestra aparte: jamás se inventa una.
 import { numero } from './format'
 import { usdAPen } from './tipo-cambio'
+import type { CapitalResumen } from './capital-valorado'
 
 export type EstadoCapitalUnificado =
   /** PEN + USD convertido: el total incluye ambas monedas. */
@@ -21,6 +22,9 @@ export type EstadoCapitalUnificado =
   | 'indisponible'
 
 export interface CapitalUnificado {
+  /** Una medida comercial ya persistida no tiene TC global. */
+  valorado?: boolean
+  corte?: string | null
   pen: number | null
   usd: number | null
   /**
@@ -85,4 +89,29 @@ export function totalEnSoles(
  */
 export function rotuloTipoCambio(tcAplicado: number, fuente: string): string {
   return `TC S/ ${numero(tcAplicado, 4)} (${fuente})`
+}
+
+/** Conserva el régimen legado y utiliza el importe aceptado al recibir v2. */
+export function capitalComercialEnSoles(
+  pen: number | null | undefined, usd: number | null | undefined, tc: number | null | undefined,
+  valoracion: CapitalResumen | null | undefined,
+): CapitalUnificado {
+  if (valoracion === undefined) return totalEnSoles(pen, usd, tc)
+  return {
+    pen: valoracion?.capital_pen ?? null, usd: valoracion?.capital_usd ?? null,
+    total: valoracion?.equivalente_pen ?? null, tc: null,
+    estado: valoracion ? 'convertido' : 'indisponible', valorado: true, corte: valoracion?.corte ?? null,
+  }
+}
+
+export function metaComercialEnSoles(
+  pen: number | null | undefined, usd: number | null | undefined, tc: number | null | undefined,
+  valoracion: CapitalResumen | null | undefined,
+): CapitalUnificado {
+  if (valoracion === undefined) return totalEnSoles(pen, usd, tc)
+  return {
+    pen: valoracion?.objetivo_pen ?? null, usd: valoracion ? 0 : null,
+    total: valoracion?.objetivo_pen ?? null, tc: null,
+    estado: valoracion ? 'convertido' : 'indisponible', valorado: true, corte: valoracion?.corte ?? null,
+  }
 }

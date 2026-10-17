@@ -34,6 +34,7 @@ import { resumenAgenda } from '@/lib/agenda-equipo-vista'
 import { SEMAFORO, SEV_COLOR } from '@/lib/semaforo'
 import { textoConversionOperativa } from '@/lib/metricas-vendedores'
 import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
+import { CoberturaCapitalAviso } from '@/components/common/cobertura-capital'
 import { moneyCompacta, moneyK, numero, porcentajeConversionCanonica, primerNombre } from '@/lib/format'
 import { hashDe } from '@/lib/router'
 import { cn } from '@/lib/utils'
@@ -947,9 +948,10 @@ function PuestoDeMando(): JSX.Element {
               <SectionHead
                 icon={Target}
                 title="Cumplimiento del mes"
-                right={tc ? <span className="text-xs text-muted-foreground-strong">{rotuloTipoCambio(tc.promedio, tc.fuente)}</span> : undefined}
+                right={datos.cumplimientoMensual?.valoracionCapital ? <span className="text-xs text-muted-foreground-strong">TC fijado por venta</span> : tc ? <span className="text-xs text-muted-foreground-strong">{rotuloTipoCambio(tc.promedio, tc.fuente)}</span> : undefined}
               />
               <CardContent className="space-y-4 pb-5 pt-0">
+                {datos.cumplimientoMensual?.valoracionCapital && <CoberturaCapitalAviso cobertura={datos.cumplimientoMensual.valoracionCapital.cobertura} sellado={datos.cumplimientoMensual.valoracionCapital.sellado} />}
                 {datos.filasMeta.map((f) => (
                   <div key={f.label}>
                     <div className="mb-1.5 flex items-baseline justify-between gap-2">

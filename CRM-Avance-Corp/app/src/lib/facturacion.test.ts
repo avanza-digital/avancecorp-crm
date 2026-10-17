@@ -46,6 +46,46 @@ import {
 
 const MES = '2026-09-01'
 
+describe('Facturación con equivalentes por operación', () => {
+  const filas = () => [
+    fila({ dia: '2026-10-02', moneda: 'USD', capital: 20000, capitalEquivalentePen: 68000 }),
+    fila({ dia: '2026-10-05', moneda: 'USD', capital: 10000, capitalEquivalentePen: 31000 }),
+    fila({ dia: '2026-10-02', moneda: 'PEN', capital: 500, capitalEquivalentePen: 500 }),
+  ]
+  it('malla, filas, días y total suman el equivalente aceptado con o sin una cotización posterior', () => {
+    const pen = construirMalla(filas(), '2026-10-01', 'PEN')
+    const usd = construirMalla(filas(), '2026-10-01', 'USD')
+    for (const tasa of [3.4, 3.1, null, undefined]) {
+      const combinada = combinarEnSoles(pen, usd, tasa)!
+      expect(combinada.total.capital).toBe(99500)
+      expect(combinada.totalPorDia[1]?.capital).toBe(68500)
+      expect(combinada.grupos[0]?.analistas[0]?.total.capital).toBe(99500)
+      const totales = totalesUnificados(pen, usd, tasa)
+      expect(totales.mes.capital).toMatchObject({ total: 99500, pen: 500, usd: 30000, valorado: true, tc: null })
+      expect(totales.porDia[4]?.capital.total).toBe(31000)
+    }
+    expect(usd.total.capital).toBe(30000)
+  })
+
+  it('un rango mixto usa su corte legado y no convierte todo con octubre', () => {
+    const datos = [fila({ dia: '2026-09-30', moneda: 'USD', capital: 1000, capitalEquivalentePen: 3500 }), ...filas()]
+    const dias = ['2026-09-30', '2026-10-02', '2026-10-05']
+    const pen = construirMallaDeDias(datos, dias, '2026-10-01', 'PEN')
+    const usd = construirMallaDeDias(datos, dias, '2026-10-01', 'USD')
+    expect(combinarEnSoles(pen, usd, 3.1)?.total.capital).toBe(103000)
+    expect(totalesUnificados(pen, usd, 3.1).mes.capital.total).toBe(103000)
+  })
+
+  it('si falta un corte legado, el total mixto queda pendiente aunque exista una tasa de hoy', () => {
+    const datos = [fila({ dia: '2026-09-30', moneda: 'USD', capital: 1000 }), ...filas()]
+    const dias = ['2026-09-30', '2026-10-02', '2026-10-05']
+    const pen = construirMallaDeDias(datos, dias, '2026-10-01', 'PEN')
+    const usd = construirMallaDeDias(datos, dias, '2026-10-01', 'USD')
+    expect(combinarEnSoles(pen, usd, 3.1)).toBeNull()
+    expect(totalesUnificados(pen, usd, 3.1).mes.capital.total).toBeNull()
+  })
+})
+
 /** Una fila con la forma que devuelve el servidor: ya agrupada. */
 function fila(parcial: Partial<FilaFacturacionDia> & { id?: string }): FilaFacturacionDia {
   const { id: _id, ...resto } = parcial

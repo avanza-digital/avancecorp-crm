@@ -110,6 +110,7 @@ test('supervisor real: el selector mensual recupera la foto completa de agosto',
   const foto = rankingAgostoReal()
   const llamadas: { ruta: string; cuerpo: Record<string, unknown> }[] = []
   const respuestasNoSimuladas: string[] = []
+  const compatibilidad: Promise<void>[] = []
   const consultasReconocimientos: string[] = []
   const respuestasReconocimientos: number[] = []
   page.on('request', (request) => {
@@ -134,6 +135,10 @@ test('supervisor real: el selector mensual recupera la foto completa de agosto',
     }
     if (response.status() < 400) return
     const request = response.request()
+    if (response.status() === 404 && new URL(response.url()).pathname === '/rest/v1/rpc/cumplimiento_metas_v2_fn') {
+      compatibilidad.push(response.json().then((cuerpo) => { expect(cuerpo.code).toBe('PGRST202') }))
+      return
+    }
     respuestasNoSimuladas.push(
       `${response.status()} ${request.method()} ${new URL(response.url()).pathname}`,
     )
@@ -194,6 +199,8 @@ test('supervisor real: el selector mensual recupera la foto completa de agosto',
       cuerpo: expect.objectContaining({ fecha_corte: '2026-08-31' }),
     }),
   ]))
+  await Promise.all(compatibilidad)
+  expect(compatibilidad.length).toBeGreaterThan(0)
   expect(respuestasNoSimuladas).toEqual([])
   expect(consultasReconocimientos).toEqual([
     'GET /rest/v1/alertas_reconocimientos_vigentes crm',
