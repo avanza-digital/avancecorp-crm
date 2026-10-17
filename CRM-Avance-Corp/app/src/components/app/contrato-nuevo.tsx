@@ -1249,8 +1249,9 @@ export function ContratoNuevo({
               </span>
             </div>
             <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-              Desde octubre de 2026, si la renovación trae capital adicional, cuenta como upgrade en la conversión
-              del mes (una vez por cliente y mes). El adicional queda separado para su pago.
+              Desde octubre de 2026, una renovación con capital adicional cuenta como upgrade en la conversión si es
+              la primera operación elegible del cliente en el mes, salvo corrección manual. El adicional queda
+              separado para su pago.
             </p>
           </section>
         ) : (
