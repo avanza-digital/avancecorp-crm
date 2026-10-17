@@ -1,3 +1,112 @@
+## 20261017054427 — SLA por filas · M3: la cola del día pagina sobre filas (v2)
+
+**Pendiente de banco/PR.** v2 del 17/10, con las revisiones de Codex, auditor-rls y el verificador independiente. Ensayada en el
+banco Docker (esquema de producción):
+- aplica;
+- se niega a una segunda vez, fuera de orden, con su versión ya en el índice, con el productor cambiado y con un guardián en rojo;
+- revierte con registro y se reaplica con versiones nuevas.
+
+Requiere `20261017054426`.
+
+`crm.cola_accion_v3_fn(...)` filtra, cuenta, ordena y pagina sobre `private.sla_operacion_autorizada_filas(null::uuid[])`:
+- la firma va tipada;
+- la identidad es por fila;
+- el núcleo se evalúa una vez;
+- arma jsonb solo para la página.
+
+El resultado es el mismo byte a byte, incluido el orden de los empates de «pendiente sin acción»: en ese caso la página sale del
+algoritmo anterior.
+
+`private.assert_cola_v3()`:
+- depende de `_filas`;
+- la puerta tiene una lista permitida de piezas privadas;
+- re-sello de la puerta (`6096aa636688f01677327c5504ffaa8b`);
+- `quote_all_identifiers` fijado.
+
+Cola `1ec76074…` → `6096aa63…`. Familia SLA `64 · f9ea9038…`. SHA-256 `94f695cbcfcb70b8259a69500279a586eae6eee6135978ca9ddb0e89fdd372cf`.
+
+Evidencia, cifras y reversa: [kit](../scripts/sla-por-filas/LEEME.md).
+
+## 20261017054426 — SLA por filas · M2: el resumen de avisos cuenta sobre filas (v2)
+
+**Pendiente de banco/PR.** Requiere `20261017054425`.
+
+`crm.avisos_sla_resumen_v2_fn()` cuenta sobre `private.sla_operacion_autorizada_filas(private.sla_leads_operativos())`. El
+resultado es el mismo byte a byte, con `COMMENT ON` nuevo.
+
+`private.assert_sla_avisos()`:
+- el resumen consume `_filas`, siempre acotada por el ayudante;
+- el resumen tiene una lista permitida de piezas privadas;
+- sello md5 del resumen;
+- `quote_all_identifiers` fijado.
+
+Exige también el productor ensayado (Codex P2).
+
+Resumen `e9ce617a…` → `82a7cabd…`. Familia SLA `64 · 5e4e27c4…`. SHA-256 `468624e2631271bcbbf1e8f2937dbf816d3b6b2a30964b702c29f1134dc8191f`.
+
+## 20261017054425 — SLA por filas · M1: ventana operativa por filas y autoridad única (v2)
+
+**Pendiente de banco/PR.** Plan «foto del SLA», Fase 3, paso 3a. Miguel autorizó el 16/10/2026 a las 23:55 tocar los 3
+guardianes del SLA (excepción a su decisión 4); el aviso a C2 está dejado.
+
+**Piezas nuevas,** las dos sin EXECUTE para nadie de la API y con `COMMENT ON`:
+- `private.sla_operacion_ambito(uuid[],boolean)`: la autorización de siempre, en un solo sitio para los dos modos. INVOKER.
+- `private.sla_operacion_autorizada_filas(uuid[])`: una fila por lead, más una fila de cabecera que existe siempre. DEFINER.
+
+**Envoltorio.** `private.sla_operacion_autorizada` queda como envoltorio del mismo jsonb, byte a byte:
+- con `false` o `NULL` conserva la salida temprana;
+- con `true` arma el objeto final en un solo `jsonb_build_object`, y la memoria de sus consumidores no sube.
+
+**`assert_sla_nucleo`:**
+- cadena autorizada → {ámbito, `_filas`} → núcleo;
+- exige que existan las firmas obligatorias y prohíbe sobrecargas;
+- `auth.` solo en el ámbito, sin distinguir mayúsculas;
+- dueño postgres;
+- sellos md5 del ámbito, `_filas` y el envoltorio;
+- `quote_all_identifiers` fijado.
+
+**`assert_sla_avisos`:** cambia la cadena.
+
+**Historial.** Las tres migraciones se niegan si su versión ya está en `supabase_migrations.schema_migrations`. Una reaplicación
+tras reversas registradas va con versiones nuevas.
+
+**Huellas:**
+- autorizada (prosrc): `a5fd870b…` → `7d8c8793…`;
+- familia SLA: `62 · 1adaf6c5…` → `64 · 1a632cfd…`;
+- censo analítico `45 · ff12620b…`, igual antes y después;
+- SHA-256: `e9c491d6c1167b8e88bf7ee13771ef729bf1b3b20c0f5cf4ff8c4a98034d1a28`.
+
+**Evidencia:**
+- equivalencia byte a byte con la serie aplicada, también con los consumidores del envoltorio y el arnés del verificador;
+- mutantes del escritor, del verificador y de las revisiones, todos detectados;
+- memoria y temporales: en el kit.
+
+**Alcance.** No toca public, tablas, policies, datos, pantallas ni la ACL de las puertas. No requiere regenerar tipos.
+
+**Gates:**
+- `npm run test:rls:preflight` y `npm run check:scripts`: PASS en local.
+- `test:rls` completo, ANTES y DESPUÉS de M1 → M2 → M3, en un stack local propio con el volcado de producción del 17/10:
+  PASS. Da los mismos 15 fallos ajenos en las dos corridas y ninguno es del SLA. `testSlaPorFilas` da 28/28 ANTES y 36/36
+  DESPUÉS, con `CRM_RLS_EXIGE_SLA_FILAS=1`. El bloque D recorre la cola entera y exige conjuntos no vacíos.
+  Evidencia: `scripts/foto-sla/fase3/gate-rls-3a/INFORME.md`.
+- Carga concurrente ABABAB, pool de 40: veredicto del arnés **NO PASA** en «producción» y «peor», solo por el p95 de ejecución
+  de `estado`:
+  - el pico de memoria baja de 1,56 a 1,12 GiB y de 2,24 a 1,78 GiB;
+  - avisos y cola bajan de −24 % a −28 %;
+  - de punta a punta, `estado` cambia +3,3 % y +9,8 %;
+  - el 2×2 de la sonda está en curso.
+
+  Evidencia: `scripts/foto-sla/fase3/carga-3a/INFORME.md`.
+- Codex de cierre: CHANGES_REQUESTED. Los cambios del kit (v3) ya están hechos: `foto-sla/fase3/ensayo-3a/RESULTADO-KIT-v3.md`.
+
+**Pendiente:**
+- el 2×2 de `estado` y la carga con Gestión Diaria;
+- las 71 cadenas del verificador;
+- advisors tras aplicar.
+
+Aplicación, registro, «commit hecho, registro pendiente» y reversas registradas (M3 → M2 → M1, como migraciones nuevas):
+[kit](../scripts/sla-por-filas/LEEME.md).
+
 ## 20261016232742 — Completa huellas de lectura de Coordinación
 
 **Ensayada en rama; pendiente de producción y gate RLS integral.**

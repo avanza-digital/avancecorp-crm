@@ -8821,6 +8821,181 @@ async function testGestionDiariaCitas(sessions, seed) {
   }
 }
 
+// — SLA por filas (paso 3a · 20261017054425 / 054426 / 054427; v2 con las revisiones del 17/10) ————————————————————
+// A/B/F (vía fuera de banda, exigen CRM_BANCO_PSQL_URL y M1 instalada): la ventana POR FILAS y su ayudante de autoridad
+// son PRIVADOS (ACL efectiva para todos los roles de la API y ACL guardada solo del dueño); forma (DEFINER/INVOKER,
+// STABLE, search_path vacío, dueño postgres); solo el ámbito lee auth.; los 3 guardianes en OK; y, con
+// CRM_RLS_EXIGE_SLA_FILAS=1, el GATE de la serie completa exige M3 (el resumen y la cola leen _filas).
+// C/D/E (solo API, sin CRM_BANCO_PSQL_URL): la API no alcanza las piezas privadas (PGRST106/PGRST202/42501); las puertas
+// responden por rol con su contrato y con ámbito ABSOLUTO (vend1 solo lo suyo, sup1 nada del equipo de sup2, monotonía
+// vend1 ≤ sup1 ≤ gerencia, estado_sla_leads_v2_fn no entrega un lead ajeno); anon, vendInactive y clientBank → 42501.
+// El ámbito se mide sobre la cola ENTERA (por cursor hasta hay_mas=false) y nunca en vacío: ≥1 lead en vend1 y sup1,
+// control positivo en gerencia (sí ve al equipo de sup2) y en estado_sla_leads_v2_fn (vend1 sí ve los suyos).
+async function testSlaPorFilas(sessions, seed) {
+  console.log('\n— SLA por filas (paso 3a): piezas privadas sin API, puertas por rol y ámbito absoluto —');
+  const FILAS = 'private.sla_operacion_autorizada_filas(uuid[])';
+  const AMBITO = 'private.sla_operacion_ambito(uuid[],boolean)';
+  const AUTORIZADA = 'private.sla_operacion_autorizada(uuid[],boolean)';
+  const exige = process.env.CRM_RLS_EXIGE_SLA_FILAS === '1';
+  const saltar = (msg) => { if (exige) fail(msg); else console.log(`  ${msg}`); };
+  const id = (key) => seed.profileIdByKey[key];
+  const leadId = (key) => seed.leadByName.get(LEAD_BY_KEY[key].name)?.id;
+  const itemLead = (i) => (Array.isArray(i) ? i[1] : i);
+  const leadsDeCola = (data) => (data?.items ?? []).map(itemLead).filter((i) => i?.sujeto?.tipo === 'lead');
+
+  // ── A/B/F: vía fuera de banda ────────────────────────────────────────────────────────────────
+  if (!process.env.CRM_BANCO_PSQL_URL) {
+    saltar('⚠ sin CRM_BANCO_PSQL_URL: A, B y F de SLA por filas SALTADOS (no probados); C, D y E van por la API');
+  } else if (textoFueraDeBanda('SLA por filas: ¿instalada?', `select to_regprocedure('${FILAS}') is not null`) !== 't') {
+    saltar('⚠ SLA por filas no instalada (falta M1): A, B y F SALTADOS (no probados)');
+  } else {
+    const cuenta = (etiqueta, sql) => contarFueraDeBanda(`SLA por filas: ${etiqueta}`, sql);
+    const PIEZAS = `'${FILAS}'::regprocedure, '${AMBITO}'::regprocedure, '${AUTORIZADA}'::regprocedure`;
+    // A. ACL EFECTIVA para TODOS los roles no superusuario ajenos a postgres, y ACL guardada: solo el dueño.
+    check(cuenta('grants', `select coalesce(cardinality(array_agg(r.rolname)), 0)
+        from pg_roles r, unnest(array['${FILAS}', '${AMBITO}', '${AUTORIZADA}']) f(firma)
+        where not r.rolsuper and r.rolname <> 'postgres' and not pg_has_role(r.oid, 'postgres', 'MEMBER')
+          and has_function_privilege(r.oid, f.firma, 'EXECUTE')`) === 0,
+      'ACL: ningún rol de la API (ni anon, authenticated, service_role, PUBLIC u otro) ejecuta _filas, el ámbito ni la autorizada');
+    check(cuenta('solo dueño', `select coalesce(cardinality(array_agg(p.oid)), 0) from pg_proc p,
+        aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a where p.oid in (${PIEZAS}) and a.grantee <> p.proowner`) === 0,
+      'ACL: las tres piezas privadas solo tienen EXECUTE para su dueño (sin PUBLIC)');
+    // B. Forma.
+    check(cuenta('forma', `select coalesce(cardinality(array_agg(p.oid)), 0) from pg_proc p
+        where p.oid in (${PIEZAS}) and p.provolatile = 's' and p.proconfig @> array['search_path=""']
+          and p.proowner = 'postgres'::regrole and p.prosecdef = (p.oid <> '${AMBITO}'::regprocedure)`) === 3,
+      'forma: _filas y la autorizada DEFINER, el ámbito INVOKER; los tres STABLE, search_path vacío y dueño postgres');
+    check(cuenta('auth', `select coalesce(cardinality(array_agg(p.oid)), 0) from pg_proc p
+        where p.oid in ('${FILAS}'::regprocedure, '${AUTORIZADA}'::regprocedure) and p.prosrc ~* '\\mauth\\s*\\.'`) === 0,
+      'cuerpos: solo el ámbito interpreta auth. (ni _filas ni la autorizada, sin distinguir mayúsculas)');
+    // F. Guardianes y GATE de la serie completa (Codex: exigir M3, no solo M1).
+    for (const g of ['private.assert_sla_nucleo()', 'private.assert_sla_avisos()', 'private.assert_cola_v3()']) {
+      const v = textoFueraDeBanda(`guardián ${g}`, `select ${g}`) ?? '';
+      check(v.startsWith('OK: '), `${g} responde OK (${v.slice(0, 60)}…)`);
+    }
+    const m3 = cuenta('serie M3', `select coalesce(cardinality(array_agg(p.oid)), 0) from pg_proc p
+        where p.oid in ('crm.avisos_sla_resumen_v2_fn()'::regprocedure, 'crm.cola_accion_v3_fn(integer,text,text,uuid,jsonb)'::regprocedure)
+          and p.prosrc ~ '\\mprivate\\.sla_operacion_autorizada_filas\\s*\\('`) === 2;
+    if (exige) check(m3, 'GATE: la serie completa está en M3 (el resumen y la cola leen _filas)');
+    else console.log(`  · serie M3 ${m3 ? 'instalada' : 'NO instalada (solo M1/M2)'}: el gate completo exige CRM_RLS_EXIGE_SLA_FILAS=1`);
+  }
+
+  // ── C. La API no alcanza las piezas privadas: el error tiene que ser de esquema no expuesto, función inexistente o permiso ──
+  const NO_ALCANZA = new Set(['PGRST106', 'PGRST202', '42501']);
+  for (const quien of ['gerencia', 'vend1']) {
+    const filas = await sessions[quien].client.schema('private').rpc('sla_operacion_autorizada_filas', { p_lead_ids: null });
+    check(NO_ALCANZA.has(String(filas.error?.code)), `${quien} NO alcanza private.sla_operacion_autorizada_filas por la API (${filas.error?.code ?? 'sin error!'})`);
+    const ambito = await sessions[quien].client.schema('private').rpc('sla_operacion_ambito', { p_lead_ids: null, p_incluir_operacion: true });
+    check(NO_ALCANZA.has(String(ambito.error?.code)), `${quien} NO alcanza private.sla_operacion_ambito por la API (${ambito.error?.code ?? 'sin error!'})`);
+  }
+
+  // ── D. Puertas por rol con su contrato y ámbito ABSOLUTO ──────────────────────────────────────
+  const oportunidades = {};
+  const colas = {};
+  for (const quien of ['vend1', 'sup1', 'gerencia']) {
+    const av = await sessions[quien].client.schema('crm').rpc('avisos_sla_resumen_v2_fn');
+    const d = av.data ?? {};
+    check(!av.error && d.version === 2 && Number.isInteger(d.total_oportunidades) && Array.isArray(d.grupos)
+        && !('filas' in d) && !('contexto_ambito' in d),
+      `${quien}: avisos_sla_resumen_v2_fn responde con su contrato (${av.error?.code ?? `${d.modo} · ${d.total_oportunidades} oportunidades`})`);
+    oportunidades[quien] = d.total_oportunidades;
+    const co = await sessions[quien].client.schema('crm').rpc('cola_accion_v3_fn', { p_limite: 200 });
+    const c = co.data ?? {};
+    check(!co.error && c.version === 3 && Array.isArray(c.items) && c.items.length <= 200 && Number.isInteger(c.total_items),
+      `${quien}: cola_accion_v3_fn responde con su contrato (${co.error?.code ?? `${c.total_items} ítems`})`);
+    colas[quien] = c;
+  }
+  check(Number.isInteger(oportunidades.vend1) && oportunidades.vend1 <= oportunidades.sup1 && oportunidades.sup1 <= oportunidades.gerencia,
+    `ámbito: total_oportunidades vend1 ≤ sup1 ≤ gerencia (${oportunidades.vend1} ≤ ${oportunidades.sup1} ≤ ${oportunidades.gerencia})`);
+  // Ámbito sobre la cola ENTERA (revisión de Codex, 17/10): una comprobación de ámbito no vale si pasa con el conjunto
+  // vacío o si los fixtures quedan fuera de la página examinada. Se recorre cada cola por cursor (200 por página) hasta
+  // hay_mas=false y se exige que lo recorrido sea total_items; además, ≥1 ítem de lead en vend1 y sup1, y un control
+  // positivo: la cola de gerencia SÍ trae leads del equipo de sup2 (si sup1 los recibiera, aquí se verían).
+  const colaCompleta = async (quien) => {
+    const items = []; let cursor = null; let total = null; let motivo = '';
+    for (let pagina = 1; pagina <= 50; pagina += 1) {
+      const args = { p_limite: 200 };
+      if (cursor) args.p_cursor = cursor;
+      const p = await sessions[quien].client.schema('crm').rpc('cola_accion_v3_fn', args);
+      if (p.error) { motivo = errorText(p.error); break; }
+      items.push(...(p.data?.items ?? []));
+      if (total === null) total = p.data?.total_items;
+      if (p.data?.total_items !== total) { motivo = `total_items cambió entre páginas (${total} → ${p.data?.total_items})`; break; }
+      if (!p.data?.hay_mas) {
+        const claves = items.map((i) => i?.clave);
+        if (items.length !== total) motivo = `recorridos ${items.length} ítems y total_items=${total}`;
+        else if (new Set(claves).size !== claves.length) motivo = 'claves repetidas entre páginas';
+        return { items, paginas: pagina, total, completa: motivo === '', motivo };
+      }
+      cursor = p.data?.cursor_siguiente;
+      if (!cursor) { motivo = 'hay_mas sin cursor_siguiente'; break; }
+    }
+    return { items, paginas: null, total, completa: false, motivo: motivo || 'más de 50 páginas' };
+  };
+  const enteras = {};
+  for (const quien of ['vend1', 'sup1', 'gerencia']) {
+    enteras[quien] = await colaCompleta(quien);
+    const e = enteras[quien];
+    check(e.completa && e.total === colas[quien]?.total_items,
+      `${quien}: la cola v3 se recorre ENTERA por cursor (${e.paginas ?? '?'} página(s), ${e.items.length} de ${e.total} ítems, total igual al de la primera lectura)`,
+      e.motivo || `primera lectura: ${colas[quien]?.total_items}`);
+  }
+  {
+    const leads = leadsDeCola({ items: enteras.vend1.items });
+    check(leads.length >= 1, `ámbito: la cola v3 de vend1 trae ≥1 ítem de lead (${leads.length}): la comprobación no pasa en vacío`);
+    const ajenos = leads.filter((i) => i?.lead?.analista_id !== id('vend1'));
+    check(ajenos.length === 0, `ámbito: todo ítem de lead de la cola v3 ENTERA de vend1 es suyo (${ajenos.length} ajenos de ${leads.length})`);
+  }
+  {
+    const equipoSup2 = new Set([id('vend3'), id('vend4'), id('vendInactive'), id('sup2')].filter(Boolean));
+    const leadsSup2 = new Set(['ana', 'rosa', 'inactiveOwned'].map(leadId).filter(Boolean));
+    const deSup2 = (i) => equipoSup2.has(i?.lead?.analista_id) || leadsSup2.has(i?.sujeto?.id);
+    const leads = leadsDeCola({ items: enteras.sup1.items });
+    check(leads.length >= 1, `ámbito: la cola v3 de sup1 trae ≥1 ítem de lead (${leads.length}): la comprobación no pasa en vacío`);
+    const control = leadsDeCola({ items: enteras.gerencia.items }).filter(deSup2);
+    check(control.length >= 1,
+      `ámbito (control positivo): la cola v3 ENTERA de gerencia sí trae leads del equipo de sup2 (${control.length}): la fuga se mide sobre fixtures que están en la ventana`);
+    const fuga = leads.filter(deSup2);
+    check(fuga.length === 0, `ámbito: la cola v3 ENTERA de sup1 no trae leads del equipo de sup2 (${fuga.length} de ${leads.length})`);
+  }
+  {
+    const ana = leadId('ana');
+    const propio = await sessions.vend1.client.schema('crm').rpc('estado_sla_leads_v2_fn', { p_lead_ids: [ana] });
+    check(!propio.error && Array.isArray(propio.data?.filas) && propio.data.filas.length === 0,
+      `ámbito: estado_sla_leads_v2_fn de vend1 con un lead de vend3 devuelve filas vacío (${propio.error?.code ?? propio.data?.filas?.length})`);
+    const ger = await sessions.gerencia.client.schema('crm').rpc('estado_sla_leads_v2_fn', { p_lead_ids: [ana] });
+    check(!ger.error && (ger.data?.filas ?? []).some((f) => f?.lead_id === ana),
+      `ámbito: la misma llamada de gerencia sí trae el lead de vend3 (${ger.error?.code ?? ger.data?.filas?.length})`);
+    // Control positivo de vend1 (Codex): con SUS leads (los fixtures juan y maría más los de su cola entera) y el de vend3
+    // en la misma llamada, estado_sla_leads_v2_fn trae ≥1 fila, solo suyas, todas las de su cola y nunca la de vend3.
+    const deCola = leadsDeCola({ items: enteras.vend1.items }).map((i) => i?.sujeto?.id).filter(Boolean);
+    const suyos = [...new Set([leadId('juan'), leadId('maria'), ...deCola].filter(Boolean))].slice(0, 199);
+    const suyosSet = new Set(suyos);
+    const mezcla = await sessions.vend1.client.schema('crm').rpc('estado_sla_leads_v2_fn', { p_lead_ids: [...suyos, ana] });
+    const vistos = new Set((mezcla.data?.filas ?? []).map((f) => f?.lead_id));
+    check(!mezcla.error && vistos.size >= 1 && !vistos.has(ana) && [...vistos].every((x) => suyosSet.has(x))
+        && deCola.filter((x) => suyosSet.has(x)).every((x) => vistos.has(x)),
+      `ámbito: estado_sla_leads_v2_fn de vend1 con ${suyos.length} leads suyos + 1 de vend3 trae ${vistos.size} fila(s), solo suyas, las de su cola y sin la de vend3`,
+      mezcla.error ? errorText(mezcla.error) : JSON.stringify({ vistos: vistos.size, ana: vistos.has(ana), cola: deCola.length }));
+  }
+
+  // ── E. Denegados: anon (sin EXECUTE), vendInactive y clientBank (sin rol CRM vigente) → error de AUTORIZACIÓN ──
+  {
+    const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-sla-filas'));
+    for (const fn of ['avisos_sla_resumen_v2_fn', 'cola_accion_v3_fn']) {
+      const { error } = await anon.schema('crm').rpc(fn, {});
+      check(isAuthorizationError(error), `anon NO ejecuta ${fn} (${error?.code ?? 'sin error!'})`);
+    }
+  }
+  for (const quien of ['vendInactive', 'clientBank']) {
+    if (!sessions[quien]) { saltar(`⚠ sin sesión de ${quien}: denegación SALTADA (no probada)`); continue; }
+    const av = await sessions[quien].client.schema('crm').rpc('avisos_sla_resumen_v2_fn');
+    check(av.error?.code === '42501', `${quien}: avisos_sla_resumen_v2_fn → 42501 (${av.error?.code ?? 'sin error!'})`);
+    const es = await sessions[quien].client.schema('crm').rpc('estado_sla_leads_v2_fn', { p_lead_ids: [leadId('juan')] });
+    check(es.error?.code === '42501', `${quien}: estado_sla_leads_v2_fn → 42501 (${es.error?.code ?? 'sin error!'})`);
+  }
+}
+
 // — Cola del día con clientes (crm.cola_accion_v3_fn · plan 2026-09-28, F1) ——————————————
 // UNA cola con las filas de leads de la ventana SLA (idénticas a la v2) + las tareas de CLIENTES del
 // día (perfil_id | inversionista_id). Se mide con sesiones reales, en el banco Docker: ámbito por rol
@@ -20777,6 +20952,7 @@ async function main() {
       await testGestionDiariaPendientes(sessions, verifiedSeed);
       await testGestionDiariaCitas(sessions, verifiedSeed);
       await testColaAccionV3(sessions, verifiedSeed);
+      await testSlaPorFilas(sessions, verifiedSeed);
       await testCapitalNucleo(sessions, verifiedSeed);
       await testCorreoAccesoCliente(sessions, verifiedSeed);
       await testVentaCruzada(sessions, verifiedSeed);
