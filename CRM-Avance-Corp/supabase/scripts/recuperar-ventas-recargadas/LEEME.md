@@ -15,4 +15,4 @@ Ledger: `supabase/migrations/MIGRACIONES.md`.
 | `reversa.sql` | Si hubiera que volver atrás: las cuatro funciones a su huella anterior (3 y 4 vuelven a contar como anuladas; 1, 2 y 5 siguen; las fechas no vuelven solas). Ensayada en D9. | producción |
 
 Banco: `probar.sh` y `mutantes.py` leen la contraseña de `BANCO_PGPASSWORD` o de `~/dev/banco-reemplazar-inversion/conexion.env`
-(fuera del repo). Estado el 18/10/2026 (v3): batería PASS (58 bloques) y 50/50 mutantes muertos; Codex revisó la v2 (CHANGES_REQUESTED: tope de referidos) y la v3 lo cierra.
+(fuera del repo). Estado: **EN PRODUCCIÓN desde la noche del 17/10/2026** (aplicada por Miguel con «!»; `comprobar-tras-aplicar.sql` → `APTA`). Batería PASS (58 bloques) y 50/50 mutantes muertos; Codex revisó la v2 (CHANGES_REQUESTED: tope de referidos) y la v3 lo cerró.
