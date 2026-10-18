@@ -1,6 +1,6 @@
 ## 20261017211313 — Reemplazar inversión: vista previa del mes de la venta
 
-**CANDIDATA LOCAL, SIN PUBLICAR.** Va después de 20261017162053 (su preflight lo exige).
+**EN PRODUCCIÓN 17/10/2026.** La aplicó Miguel con «!» y `db query --linked --file`: migración 20:12:26, `registrar.sql` 20:12:40 y `comprobar-tras-aplicar.sql` 20:14:28 → `APTA` (hora de Lima, según el registro de la sesión). Va después de 20261017162053 (su preflight lo exige).
 Para la pantalla de la Fase 2: `crm.reemplazar_inversion_vista_previa_fn` (solo lectura,
 DEFINER, VOLATILE por POST, las puertas comunes del reemplazo) dice en qué mes queda la
 venta y si el contrato tiene cuotas pagadas (el reemplazo se negaría; en producción, 294 de
@@ -16,7 +16,7 @@ Fase 1 en APTA); test-rls entero: los mismos 15 fallos ajenos, bloque 25/25; aud
 
 ## 20261017162053 — Reemplazar inversión sin perder la venta
 
-**CANDIDATA LOCAL, SIN PUBLICAR.** Nada aplicado en producción ni en branch.
+**EN PRODUCCIÓN 17/10/2026.** La aplicó Miguel con «!» y `db query --linked --file`: migración 20:08:38, `registrar.sql` 20:08:58 y `comprobar-tras-aplicar.sql` 20:11:58 → `APTA` (hora de Lima, según el registro de la sesión). Desde 20261017211313 su comprobación da NO APTA en «huellas» a propósito: el núcleo cambió y vale la de esa migración.
 Corrige un error de carga de una inversión de Avance sin anular la venta del lead:
 en una sola transacción elimina la original con copia «reemplazada por N°…»
 (`crm.inversiones_eliminadas.reemplazada_por`, sin anular), da de alta la correcta

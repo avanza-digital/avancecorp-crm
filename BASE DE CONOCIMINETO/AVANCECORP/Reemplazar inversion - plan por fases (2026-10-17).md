@@ -122,6 +122,16 @@ servidor con la MISMA regla que el reemplazo (migración nueva `20261017211313`,
 - [x] 8. Informe con «¿apta para producción?» y «qué arregla comercialmente» (abajo).
 - [x] 9. Este checklist.
 
+### Fase 3 en curso: servidor EN PRODUCCIÓN (17/10/2026)
+
+Lo aplicó Miguel con «!» y `db query --linked --file`, por PR #322 (`main` local `8274134e`). Horas de Lima, según el registro de la sesión:
+- [x] Fase 1 `20261017162053`: migración a las 20:08:38 → `registrar.sql` a las 20:08:58 → comprobación a las 20:11:58, `APTA`.
+- [x] Fase 2 `20261017211313`: migración a las 20:12:26 → `registrar.sql` a las 20:12:40 → comprobación a las 20:14:28, `APTA`.
+- `vigia_sin_pendientes` dio false en las dos comprobaciones. Es informativo: son pendientes ajenos de antes; lo nuestro lo cubre `fuera_del_censo` = true.
+- [ ] Fusionar la PR #322 y traer `avancecorp/main` al `main` local, para que los dos apunten al mismo commit.
+- [ ] `/release-crm`, con preflight contra lo vivo. Hasta entonces la pantalla publicada no llama a estas puertas.
+- [ ] Probar el reemplazo y el PDF del contrato nuevo con el perfil vendedor de pruebas.
+
 ### Revisiones (Fase 2, 17/10/2026)
 
 - **Codex r1** (migración + kit + pantalla, evidencia transcrita): CHANGES_REQUESTED.
