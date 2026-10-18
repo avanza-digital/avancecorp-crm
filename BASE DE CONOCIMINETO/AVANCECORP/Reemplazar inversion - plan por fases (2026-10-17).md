@@ -140,7 +140,11 @@ Lo aplicó Miguel con «!» y `db query --linked --file`, por PR #322 (`main` lo
   - Miguel, con su usuario admin, abrió «Reemplazar inversión» sobre `2026-01-001037`.
   - Comprobó: la original fija; «La correcta» precargada (20 000 USD, inicio 20/07/2026); «La venta queda en Julio 2026», calculado por la puerta de producción; el aviso «ya tiene cuotas pagadas»; y el botón de confirmar bloqueado. Cerró con «Cancelar».
   - Miguel: «todo coincide, sale el aviso de cuotas pagadas».
-- [ ] Prueba completa, reemplazo real y PDF. El perfil vendedor de pruebas no tiene ninguna inversión reemplazable: `candidatas-prueba.sql` muestra que `455468` y `000000` son demo y que sus 5 ventas reales tienen cuotas pagadas. Hace falta una inversión desechable: alta de prueba, luego reemplazo, luego «Eliminar inversión». Son escrituras reales: la decide Miguel.
+- [x] **Prueba completa en producción (17/10).** Cliente de prueba «DEMO DEMO DEMO» (`e3eb769a…`). Los tres pasos los hizo Miguel con su usuario superadmin; yo verifiqué cada uno con consultas de solo lectura (`scripts/reemplazar-inversion-vista-previa/produccion/`). Horas de Lima:
+  - Alta `72aa293a`, N° `2026-01-009999`, a las 21:10:05.
+  - **Reemplazo** «con los datos correctos» a las 21:11:16. La original quedó como copia «reemplazada por» `2aa2a251`. El contrato nuevo conservó el **mismo N°** y el **mismo analista** (`d731f284`): 20 000 PEN, inicio 14/10/2026, fecha comercial 14/10/2026, venta en octubre. Su **PDF salió sellado** (job `sellado`, 21:11:16).
+  - **Limpieza** con «Eliminar inversión» a las 21:15:21: no queda nada vivo, solo las dos copias de auditoría.
+  - No hubo ningún otro reemplazo ni eliminación en esas horas.
 
 ### Revisiones (Fase 2, 17/10/2026)
 
