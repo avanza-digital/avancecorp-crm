@@ -7680,6 +7680,14 @@ export type Database = {
         Args: { p_limite?: number }
         Returns: Json
       }
+      reemplazar_inversion_cooperativa_fn: {
+        Args: { p_cierre: Json; p_fuente_id: string; p_motivo: string }
+        Returns: Json
+      }
+      reemplazar_inversion_cooperativa_vista_previa_fn: {
+        Args: { p_fecha_comercial?: string; p_fuente_id: string }
+        Returns: Json
+      }
       reemplazar_inversion_fn: {
         Args: {
           p_contrato: Json

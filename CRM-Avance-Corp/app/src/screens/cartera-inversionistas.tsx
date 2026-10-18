@@ -24,18 +24,21 @@ import { criterioDesdeTexto, esBusquedaExacta } from '@/lib/venta-cruzada'
 import { FiltrosCarteraInversionistas } from '@/components/app/cartera-inversionistas-filtros'
 import { fechaLima } from '@/lib/agenda-derivada'
 import { fmtFecha, money } from '@/lib/format'
-import { EMPRESA_NOMBRE, FILTROS_INVERSIONISTAS_INICIALES, inversionReemplazable, mesLargo, type CarteraInversionistas as DatosCartera, type FiltrosInversionistas, type InversionFuente } from '@/lib/inversionistas'
+import { EMPRESA_NOMBRE, FILTROS_INVERSIONISTAS_INICIALES, inversionReemplazable, inversionReemplazableCooperativa, mesLargo, type CarteraInversionistas as DatosCartera, type FiltrosInversionistas, type InversionFuente } from '@/lib/inversionistas'
 import { limpiarIntentosInversion, leerIntentoInversion } from '@/lib/inversion-solicitud'
 import { inversionistasKeys, useInversionistas } from '@/data/inversionistas-queries'
 import {
-  CrmApiError, eliminarInversion as eliminarInversionServidor, mensajeDeError, reemplazarInversion, reemplazarInversionPorExistente,
-  vistaPreviaReemplazo, type InversionReemplazadaResultado,
+  CrmApiError, eliminarInversion as eliminarInversionServidor, mensajeDeError, reemplazarInversion, reemplazarInversionCooperativa,
+  reemplazarInversionPorExistente, vistaPreviaReemplazo, vistaPreviaReemplazoCooperativa, type InversionCooperativaReemplazadaResultado,
+  type InversionReemplazadaResultado,
 } from '@/data/crm-api'
 import type { ControlesReemplazo } from '@/components/app/inversion-reemplazar'
+import type { ControlesReemplazoCooperativa } from '@/components/app/inversion-reemplazar-cooperativa'
+import { subirComprobanteInversion } from '@/data/inversion-solicitud-api'
 import { descargarDocumentoInversionista } from '@/data/inversionistas-api'
 import { archivarContratoPdfConfirmado, ContratoEliminacionError, eliminarContratoConPdf } from '@/lib/contrato-pdf-archivo'
 import { useAuth } from '@/lib/auth-context'
-import { can, puedeCorregirCategoriaInversion, puedeEliminarContratos, puedeEliminarInversion, puedeEliminarInversiones, puedeReemplazarInversion } from '@/lib/roles'
+import { can, puedeCorregirCategoriaInversion, puedeEliminarContratos, puedeEliminarInversion, puedeEliminarInversiones, puedeReemplazarInversion, puedeReemplazarInversionCooperativa } from '@/lib/roles'
 import { corregirCategoriaInversion } from '@/data/categoria-inversion-api'
 import type { CategoriaContrato } from '@/lib/cronograma'
 import { crmQueryKeys } from '@/data/crm-queries'
@@ -51,6 +54,8 @@ export function CarteraInversionistas({actor, permiteInversion}: {
   const permiteEliminarInversion = yo?.id === actor && !yo.demo && puedeEliminarInversiones(yo)
   // «Reemplazar inversión»: el reemplazo de Avance exige admin del portal (la venta de un lead, además Gerencia).
   const permiteReemplazar = yo?.id === actor && !yo.demo && puedeEliminarContratos(yo)
+  // El de una cooperativa (Fase 4): SOLO Gerencia (siempre es la venta inicial de un lead). Nunca en una sesión demo.
+  const permiteReemplazarCooperativa = yo?.id === actor && !yo.demo && yo.rol === 'gerencia'
   const qc = useQueryClient()
   const [alta, setAlta] = useState(false)
   const altaEnCurso = useRef(false)
@@ -194,6 +199,19 @@ export function CarteraInversionistas({actor, permiteInversion}: {
     const venta = r.periodoVenta ? ` La venta quedó en ${mesLargo(r.periodoVenta).toLowerCase()}.` : ''
     toast.success(`${original} reemplazada por N° ${r.numeroContrato ?? 'nuevo'}.${venta}`)
   }
+  function reemplazoCooperativaTerminado(i: InversionFuente, r: InversionCooperativaReemplazadaResultado) {
+    void refrescarTrasEliminar()
+    const ahora = r.cooperativa && r.cooperativa !== i.empresa ? ` Ahora está en ${EMPRESA_NOMBRE[r.cooperativa]}.` : ''
+    const venta = r.periodoVenta ? ` La venta quedó en ${mesLargo(r.periodoVenta).toLowerCase()}.` : ''
+    toast.success(`Inversión en ${EMPRESA_NOMBRE[i.empresa]} reemplazada.${ahora}${venta}`)
+  }
+  const reemplazoCooperativa: ControlesReemplazoCooperativa | undefined = permiteReemplazarCooperativa ? {
+    puede: i => inversionReemplazableCooperativa(i) && puedeReemplazarInversionCooperativa(yo, i),
+    vistaPrevia: (i, fechaComercial) => vistaPreviaReemplazoCooperativa(i.fuente_id, fechaComercial),
+    subirComprobante: subirComprobanteInversion,
+    reemplazar: (i, motivo, cambios) => reemplazarInversionCooperativa(i.fuente_id, motivo, cambios),
+    alTerminar: reemplazoCooperativaTerminado,
+  } : undefined
   const reemplazo: ControlesReemplazo | undefined = permiteReemplazar ? {
     puede: i => inversionReemplazable(i) && i.perfil_id !== null && puedeReemplazarInversion(yo, i),
     vistaPrevia: (i, opciones) => vistaPreviaReemplazo(i.fuente_id, opciones),
@@ -280,7 +298,7 @@ export function CarteraInversionistas({actor, permiteInversion}: {
         onEliminar={permiteEliminar ? eliminarContrato : undefined}
         onEliminarInversion={permiteEliminarInversion ? eliminarInversion : undefined}
         puedeEliminarInversion={i => puedeEliminarInversion(yo, i)}
-        reemplazo={reemplazo}
+        reemplazo={reemplazo} reemplazoCooperativa={reemplazoCooperativa}
         onDocumento={(i, id) => void abrirDocumento(i, id)} onRecuperarPdf={permiteGestion ? i => void abrirDocumento(i, i.fuente_id, true) : undefined} />
     </Sheet>}
     {ventaCruzada && <VentaCruzada actor={actor} inicial={ventaCruzada.inicial} puedeRegistrar={registraVentaCruzada}

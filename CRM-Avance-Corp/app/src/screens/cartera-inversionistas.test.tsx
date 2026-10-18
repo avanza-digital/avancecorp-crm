@@ -22,9 +22,10 @@ vi.mock('@/lib/auth-context', () => ({useAuth: () => ({yo: {id: ACTOR_F5, rol: s
 
 const api = vi.hoisted(() => ({lista:vi.fn(), ficha:vi.fn(), bancos:vi.fn(), documento:vi.fn(), consultar:vi.fn(), preparar:vi.fn(),
   corregir:vi.fn(), responsable:vi.fn(), confirmar:vi.fn(), acceso:vi.fn(), subir:vi.fn(), postventa:vi.fn(), eliminar:vi.fn(),
-  buscarCliente:vi.fn(), eliminarInversion:vi.fn(), categoria:vi.fn()}))
+  buscarCliente:vi.fn(), eliminarInversion:vi.fn(), categoria:vi.fn(), previaCoop:vi.fn(), reemplazarCoop:vi.fn()}))
 vi.mock('@/data/categoria-inversion-api', () => ({corregirCategoriaInversion:api.categoria}))
-vi.mock('@/data/crm-api', async (original) => ({...await original<typeof import('@/data/crm-api')>(), eliminarInversion:api.eliminarInversion}))
+vi.mock('@/data/crm-api', async (original) => ({...await original<typeof import('@/data/crm-api')>(), eliminarInversion:api.eliminarInversion,
+  vistaPreviaReemplazoCooperativa:api.previaCoop, reemplazarInversionCooperativa:api.reemplazarCoop}))
 vi.mock('@/data/cliente-existente-api', () => ({buscarClienteExistente:api.buscarCliente, obtenerContextoClienteExistente:vi.fn(),
   cuentasClienteExistente:vi.fn(), datosLegalesClienteExistente:vi.fn(), contratosUpgradeClienteExistente:vi.fn()}))
 vi.mock('@/lib/contrato-pdf-archivo', async (original) => ({...await original<typeof import('@/lib/contrato-pdf-archivo')>(), eliminarContratoConPdf:api.eliminar}))
@@ -1189,5 +1190,63 @@ describe('Venta cruzada desde la Cartera', () => {
     const mes=api.lista.mock.calls[0]![0].mes
     await user.type(screen.getByLabelText('Buscar persona'),'Ana')
     await waitFor(() => expect(api.lista.mock.calls.at(-1)![0]).toMatchObject({texto:'Ana',mes}))
+  })
+})
+
+describe('Reemplazar inversión de cooperativa desde la ficha (Fase 4)', () => {
+  const previaCoop = (fecha: string) => ({fuente_id:FUENTE_F5,cooperativa:'qorilazo',es_inicial:true,anulada:false,venta_de_lead:true,
+    comprobante:true,fecha_comercial_actual:'2026-09-01',mes_actual:'2026-09-01',fecha_comercial_resultante:fecha,
+    mes_resultante:`${fecha.slice(0,7)}-01`,cambia_mes:!fecha.startsWith('2026-09'),fecha_futura:false,mes_sellado:false,
+    plazo_vencido:false,no_reemplazable:null})
+  beforeEach(() => {api.previaCoop.mockImplementation(async(_f:string,fecha:string)=>previaCoop(fecha))})
+  it.each([
+    ['gerencia','directorio',false,true], ['gerencia','superadmin',false,true], ['gerencia','analista',false,true],
+    // Admin del portal sin Gerencia: NO (es la venta de un lead; auditoría RLS, P1).
+    ['vendedor','admin',false,false], ['vendedor','superadmin',false,false], ['supervisor','admin',false,false],
+    ['vendedor','analista',false,false], ['supervisor','comercial',false,false], ['directorio','directorio',false,false],
+    ['gerencia','admin',true,false],                                                     // una sesión demo no reemplaza
+  ])('%s / %s (demo %s): se ofrece %s',async(rol,rolPortal,demo,visible)=>{
+    sesion.rol=rol;sesion.rolPortal=rolPortal;sesion.demo=demo
+    const {user}=montar()
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    await screen.findByRole('button',{name:'Ver inversión QORILAZO SINTÉTICO'})
+    expect(screen.queryAllByRole('button',{name:'Reemplazar inversión QORILAZO SINTÉTICO'})).toHaveLength(visible?1:0)
+  })
+  it.each([
+    ['un aporte adicional',{es_inicial:false}], ['una venta anulada',{estado:'anulado_comercialmente'}], ['la demostración',{es_demo:true}],
+  ])('no se ofrece en %s',async(_n,over)=>{
+    api.ficha.mockResolvedValue({...structuredClone(fichaF5),inversiones:[{...inversionF5,...over}]})
+    const {user}=montar()
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    await screen.findByRole('button',{name:'Ver inversión QORILAZO SINTÉTICO'})
+    expect(screen.queryByRole('button',{name:'Reemplazar inversión QORILAZO SINTÉTICO'})).not.toBeInTheDocument()
+  })
+  it('gerencia la pasa a Prodelco: viaja solo la cooperativa, avisa el mes de la venta y refresca lo mismo que eliminar',async()=>{
+    const ficha=structuredClone(fichaF5)
+    api.ficha.mockResolvedValue(ficha)
+    api.reemplazarCoop.mockImplementation(async()=>{
+      api.ficha.mockResolvedValue({...ficha,inversiones:[{...inversionF5,fuente_id:PERFIL_F5,empresa:'prodelco'}]})
+      return {cierreId:PERFIL_F5,cooperativa:'prodelco',fechaComercial:'2026-09-01',idempotente:false,periodoVenta:'2026-09-01'}
+    })
+    const exito=vi.spyOn(toast,'success')
+    const {user,qc}=montar()
+    const invalidar=vi.spyOn(qc,'invalidateQueries')
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    await user.click(await screen.findByRole('button',{name:'Reemplazar inversión QORILAZO SINTÉTICO'}))
+    const dialogo=screen.getByRole('dialog',{name:'Reemplazar inversión en Qorilazo QORILAZO SINTÉTICO'})
+    await waitFor(()=>expect(api.previaCoop).toHaveBeenCalledWith(FUENTE_F5,'2026-09-01'))
+    await user.click(within(dialogo).getByRole('radio',{name:/Prodelco/}))
+    await user.type(within(dialogo).getByLabelText('Motivo del reemplazo'),'Se registró en la cooperativa equivocada')
+    const confirmar=within(dialogo).getByRole('button',{name:'Reemplazar inversión'})
+    await waitFor(()=>expect(confirmar).toBeEnabled())
+    await user.click(confirmar)
+    await waitFor(()=>expect(exito).toHaveBeenCalledWith('Inversión en Qorilazo reemplazada. Ahora está en Prodelco. La venta quedó en septiembre 2026.'))
+    expect(api.reemplazarCoop).toHaveBeenCalledExactlyOnceWith(FUENTE_F5,'Se registró en la cooperativa equivocada',{cooperativa:'prodelco'})
+    expect(api.subir).not.toHaveBeenCalled()
+    expect(invalidar.mock.calls.map(([filtro])=>filtro?.queryKey)).toEqual(expect.arrayContaining([
+      inversionistasKeys.actor(ACTOR_F5), crmQueryKeys.contratos(), crmQueryKeys.metricas(), crmQueryKeys.leads(), postventaKeys.actor(ACTOR_F5),
+    ]))
+    await waitFor(()=>expect(screen.queryByRole('dialog',{name:/Reemplazar inversión en Qorilazo/})).not.toBeInTheDocument())
+    expect(await screen.findByText('Inversión en Prodelco')).toBeVisible()
   })
 })

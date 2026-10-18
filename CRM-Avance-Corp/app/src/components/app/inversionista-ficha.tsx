@@ -24,6 +24,7 @@ import { AYUDA_HISTORIAL_INCOMPLETO, AYUDA_TODAS_LAS_EMPRESAS, empresasSinHistor
 import { ContratoEliminar } from './contrato-eliminar'
 import { InversionEliminar } from './inversion-eliminar'
 import { InversionReemplazar, type ControlesReemplazo } from './inversion-reemplazar'
+import { InversionReemplazarCooperativa, type ControlesReemplazoCooperativa } from './inversion-reemplazar-cooperativa'
 import { InversionCorregirCategoria, type CorregirCategoria } from './inversion-corregir-categoria'
 import { GestionInversionistaDialogo } from './gestion-inversionista-dialogo'
 
@@ -78,7 +79,7 @@ function InversionDetalle({inversion, posicion, onDocumento, onOperacion, onRecu
   onEliminar?: ((inversion: InversionFuente) => void) | undefined
   /** «Eliminar inversión» (las tres empresas). Activa, reemplaza a «Eliminar contrato»: un solo botón rojo. */
   onEliminarInversion?: ((inversion: InversionFuente) => void) | undefined
-  /** «Reemplazar inversión» (17/10/2026): solo Avance, y solo si la pantalla lo permite para ESTA inversión. */
+  /** «Reemplazar inversión» (Avance 17/10/2026, cooperativas 18/10/2026): solo si la pantalla lo permite para ESTA inversión. */
   onReemplazar?: ((inversion: InversionFuente) => void) | undefined
   onDetalle?: ((inversion: InversionFuente) => void) | undefined
   onCategoria?: ((inversion: InversionFuente) => void) | undefined
@@ -168,7 +169,7 @@ function InversionDetalle({inversion, posicion, onDocumento, onOperacion, onRecu
   />
 }
 
-export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado, onNuevaInversion, onDocumento, onOperacion, onRecuperarPdf, onEliminar, onEliminarInversion, puedeEliminarInversion, reemplazo, enfocarInversiones = false, permiteGestion = true, onCorregirCategoria}: {
+export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado, onNuevaInversion, onDocumento, onOperacion, onRecuperarPdf, onEliminar, onEliminarInversion, puedeEliminarInversion, reemplazo, reemplazoCooperativa, enfocarInversiones = false, permiteGestion = true, onCorregirCategoria}: {
   actor: string; inversionistaId: string; onCerrar: () => void; onRevocado: () => void
   enfocarInversiones?: boolean
   permiteGestion?: boolean
@@ -181,8 +182,10 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
   onEliminarInversion?: ((inversion: InversionFuente, motivo: string) => Promise<void>) | undefined
   /** Filtro de UX por inversión (el servidor decide igual); sin él, se ofrece en todas. */
   puedeEliminarInversion?: ((inversion: InversionFuente) => boolean) | undefined
-  /** «Reemplazar inversión»: sin estos controles no se ofrece. */
+  /** «Reemplazar inversión» de Avance: sin estos controles no se ofrece. */
   reemplazo?: ControlesReemplazo | undefined
+  /** «Reemplazar inversión» de una cooperativa (Fase 4): sin estos controles no se ofrece. */
+  reemplazoCooperativa?: ControlesReemplazoCooperativa | undefined
 }) {
   const [categoriaCorregir, setCategoriaCorregir] = useState<InversionFuente | null>(null)
   const [contratoEliminar, setContratoEliminar] = useState<InversionFuente | null>(null)
@@ -218,8 +221,8 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
     if (!onCorregirCategoria || desactualizada || accesoRevocado) setCategoriaCorregir(null)
     if (!onEliminar || desactualizada || accesoRevocado) setContratoEliminar(null)
     if (!onEliminarInversion || desactualizada || accesoRevocado) setInversionEliminar(null)
-    if (!reemplazo || desactualizada || accesoRevocado) setInversionReemplazar(null)
-  }, [onEliminar, onEliminarInversion, onCorregirCategoria, reemplazo, desactualizada, accesoRevocado])
+    if ((!reemplazo && !reemplazoCooperativa) || desactualizada || accesoRevocado) setInversionReemplazar(null)
+  }, [onEliminar, onEliminarInversion, onCorregirCategoria, reemplazo, reemplazoCooperativa, desactualizada, accesoRevocado])
   useEffect(() => {
     if (!enfocarInversiones || focoAplicado.current || !ficha) return
     let segundo = 0
@@ -345,7 +348,7 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
             onRecuperarPdf={!desactualizada ? onRecuperarPdf : undefined}
             onEliminar={!desactualizada && onEliminar ? setContratoEliminar : undefined}
             onEliminarInversion={!desactualizada && onEliminarInversion && (puedeEliminarInversion?.(i) ?? true) ? setInversionEliminar : undefined}
-            onReemplazar={!desactualizada && reemplazo?.puede(i) ? setInversionReemplazar : undefined}
+            onReemplazar={!desactualizada && (i.empresa === 'avance' ? reemplazo : reemplazoCooperativa)?.puede(i) ? setInversionReemplazar : undefined}
             onOperacion={ficha.capacidades.nueva_inversion && !desactualizada ? onOperacion : undefined} /></li>)}
           </ul>
         </div>)}
@@ -394,8 +397,11 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
     {inversionEliminar && onEliminarInversion && !desactualizada && <InversionEliminar
       key={inversionEliminar.fuente_id} inversion={inversionEliminar} onConfirmar={onEliminarInversion}
       onCerrar={() => setInversionEliminar(null)} />}
-    {inversionReemplazar && reemplazo && !desactualizada && <InversionReemplazar
+    {inversionReemplazar && inversionReemplazar.empresa === 'avance' && reemplazo && !desactualizada && <InversionReemplazar
       key={inversionReemplazar.fuente_id} inversion={inversionReemplazar} ficha={ficha} controles={reemplazo}
+      focoAlTerminar={inversionesRef} onCerrar={() => setInversionReemplazar(null)} />}
+    {inversionReemplazar && inversionReemplazar.empresa !== 'avance' && reemplazoCooperativa && !desactualizada && <InversionReemplazarCooperativa
+      key={inversionReemplazar.fuente_id} inversion={inversionReemplazar} ficha={ficha} controles={reemplazoCooperativa}
       focoAlTerminar={inversionesRef} onCerrar={() => setInversionReemplazar(null)} />}
     {eligiendoUpgrade && ampliables.length > 0 && <Dialog open onClose={() => setEligiendoUpgrade(false)}
       ariaLabel={`Elegir la inversión que amplía este upgrade`} className="w-[520px]">
