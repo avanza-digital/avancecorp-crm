@@ -18746,6 +18746,53 @@ async function testReemplazarInversion(sessions) {
   await expectExpectedFailure('vista previa: gerencia sin admin del portal → 42501', ger.rpc('reemplazar_inversion_vista_previa_fn', argsPrevia), ['42501'], PORTAL);
 }
 
+// ── Recuperar ventas recargadas (20261018032400): tabla privada sin API, solo inserción; 4 funciones parchadas por ancla ──
+// El comportamiento (los cinco casos, rechazos del preflight, postflight, rehabilitación por fila) se prueba en el banco con
+// supabase/scripts/recuperar-ventas-recargadas/probar.sh + mutantes.py; aquí, catálogo, roles y Data API.
+async function testRecuperarVentasRecargadas(sessions) {
+  console.log('\n— Recuperar ventas recargadas: tabla sin API, triggers y huellas —');
+  const saltar = (msg) => {
+    if (process.env.CRM_RLS_EXIGE_RECUPERAR_VENTAS === '1') fail(msg);
+    else console.log(`  ${msg}`);
+  };
+  let aplicada;
+  try {
+    aplicada = contarFueraDeBanda('recuperar ventas: aplicada',
+      "select (to_regclass('crm.conversion_ventas_recuperadas') is not null and to_regprocedure('private.validar_venta_recuperada()') is not null)::int");
+  } catch (error) {
+    saltar(`⚠ Recuperar ventas SALTADO: sin vía fuera de banda (${error?.message ?? String(error)})`);
+    return;
+  }
+  if (aplicada !== 1) {
+    saltar('⚠ 20261018032400 (recuperar ventas recargadas) NO desplegada en esta base: bloque SALTADO (no probado)');
+    return;
+  }
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`recuperar ventas: ${etiqueta}`, sql);
+  check(cuenta('tabla', "select count(*) from pg_class c where c.oid = 'crm.conversion_ventas_recuperadas'::regclass and c.relrowsecurity and c.relowner = 'postgres'::regrole and not exists (select 1 from pg_policy p where p.polrelid = c.oid) and not exists (select 1 from unnest(array['anon','authenticated','service_role']) r(rol) where has_table_privilege(r.rol, c.oid, 'select, insert, update, delete, truncate, references, trigger') or has_any_column_privilege(r.rol, c.oid, 'select, insert, update, references'))") === 1,
+    'recuperar ventas: crm.conversion_ventas_recuperadas con RLS, de postgres, 0 políticas y ningún privilegio (tabla ni columna) para anon, authenticated ni service_role');
+  check(cuenta('triggers', "select count(*) from pg_trigger t where t.tgrelid = 'crm.conversion_ventas_recuperadas'::regclass and not t.tgisinternal and t.tgenabled = 'O' and (t.tgname, t.tgfoid) in (('trg_conversion_ventas_recuperadas_00_validar', 'private.validar_venta_recuperada()'::regprocedure::oid), ('trg_conversion_ventas_recuperadas_inmutables', 'private.proteger_venta_recuperada()'::regprocedure::oid), ('trg_conversion_ventas_recuperadas_no_truncate', 'private.proteger_venta_recuperada()'::regprocedure::oid), ('trg_audit_conversion_ventas_recuperadas', 'private.log_audit_crm()'::regprocedure::oid))") === 4,
+    'recuperar ventas: los 4 triggers (validación, inmutable, sin TRUNCATE, auditoría) habilitados y con su función');
+  check(cuenta('funciones de trigger', "select count(*) from pg_proc p where p.oid in ('private.proteger_venta_recuperada()'::regprocedure, 'private.validar_venta_recuperada()'::regprocedure) and p.proowner = 'postgres'::regrole and not p.prosecdef and p.proconfig = array['search_path=\"\"'] and not exists (select 1 from unnest(array['anon','authenticated','service_role']) r(rol) where has_function_privilege(r.rol, p.oid, 'EXECUTE'))") === 2,
+    'recuperar ventas: las dos funciones de trigger son de postgres, INVOKER, search_path vacío y sin EXECUTE para la API');
+  check(cuenta('cierre_anulado sin EXECUTE', "select count(*) from unnest(array['anon','authenticated','service_role']) r(rol) where has_function_privilege(r.rol, 'private.cierre_anulado(uuid)'::regprocedure, 'EXECUTE')") === 0,
+    'recuperar ventas: private.cierre_anulado sigue sin EXECUTE para anon, authenticated y service_role');
+  check(cuenta('huellas', "select count(*) from (select string_agg(p.oid::regprocedure::text || '=' || md5(pg_get_functiondef(p.oid)), ',' order by p.oid::regprocedure::text) as h from pg_proc p where p.oid in ('private.cierre_anulado(uuid)'::regprocedure, 'crm.cierres_estado_fn(uuid[])'::regprocedure, 'crm.altas_nuevas_por_analista_fn(integer)'::regprocedure, 'crm.anular_cierre_avance(uuid,text)'::regprocedure)) x where x.h = 'crm.altas_nuevas_por_analista_fn(integer)=7136e6ea0786ae7ec166a7957f6e77d2,crm.anular_cierre_avance(uuid,text)=9625124158f7d2d04a2a59c4be405942,crm.cierres_estado_fn(uuid[])=965b778f15e64d3b5f41b257d6469ec8,private.cierre_anulado(uuid)=878d19fffc19bc39649a5105bd51b082'") === 1,
+    'recuperar ventas: las cuatro funciones parchadas tienen la huella que dejó la migración (con search_path vacío)');
+  check(cuenta('filas', "select count(*) from crm.conversion_ventas_recuperadas r where (r.cierre_avance_anulado_id is null) = (r.inversion_eliminada_id is null)") === cuenta('filas totales', 'select count(*) from crm.conversion_ventas_recuperadas'),
+    'recuperar ventas: toda fila rehabilita una anulación completa (fila y copia) o ninguna');
+  // La tabla es deny-by-default: nadie la lee ni la escribe por la Data API.
+  for (const clave of ['vend1', 'sup1', 'coordinador', 'directorio', 'gerencia']) {
+    await expectHidden(`recuperar ventas: ${clave} no lee crm.conversion_ventas_recuperadas por la Data API`,
+      sessions[clave].client.schema('crm').from('conversion_ventas_recuperadas').select('id'));
+  }
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-recuperar-ventas'));
+  await expectHidden('recuperar ventas: anon no lee crm.conversion_ventas_recuperadas', anon.schema('crm').from('conversion_ventas_recuperadas').select('id'));
+  const escritura = await sessions.gerencia.client.schema('crm').from('conversion_ventas_recuperadas')
+    .insert({ lead_id: randomUUID(), acreditacion_id: randomUUID(), fuente_borrada_id: randomUUID(), contrato_vigente_id: randomUUID(),
+      fecha_comercial_antes: '2026-10-01', fecha_comercial_despues: '2026-10-01', motivo: 'Prueba del gate', autorizado_por: 'gate', respaldo: {} });
+  check(Boolean(escritura.error), 'recuperar ventas: gerencia no inserta en la tabla por la Data API');
+}
+
 // ── Eliminar lead por error de carga (20261015044917): gerencia o admin del portal; copia inmutable; 8 candados ──
 // r2 (20261015150731): borra también la ficha de inversionista sin dinero y sus anexos (10 tablas) y abre el candado de
 // solicitudes de tasa (9.º candado). Se detecta por la huella de la puerta (o por la copia `'version', 2`).
@@ -21057,6 +21104,7 @@ async function main() {
       await testEliminarInversion(sessions, verifiedSeed);
       await testEliminarLeadErrorCarga(sessions, verifiedSeed);
       await testReemplazarInversion(sessions);
+      await testRecuperarVentasRecargadas(sessions);
       await testCategoriaPorOperacion(sessions, verifiedSeed);
       // Fase 4 · grupo A (2.3 y 2.6), el ÚLTIMO a propósito: siembra y retira su propio mes sellado (2001-07) y deja
       // inactivas las identidades D-17; nada de eso puede alterar a un bloque posterior.

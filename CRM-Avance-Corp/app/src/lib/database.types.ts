@@ -7,7 +7,8 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Metadata HTTP preservada: el banco SQL no ejecuta PostgREST.
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
@@ -1460,6 +1461,72 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: true
             referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversion_ventas_recuperadas: {
+        Row: {
+          acreditacion_id: string
+          autorizado_por: string
+          cierre_avance_anulado_id: string | null
+          contrato_vigente_id: string
+          creado_en: string
+          fecha_comercial_antes: string
+          fecha_comercial_despues: string
+          fuente_borrada_id: string
+          id: string
+          inversion_eliminada_id: string | null
+          lead_id: string
+          motivo: string
+          respaldo: Json
+          transaccion: unknown
+        }
+        Insert: {
+          acreditacion_id: string
+          autorizado_por: string
+          cierre_avance_anulado_id?: string | null
+          contrato_vigente_id: string
+          creado_en?: string
+          fecha_comercial_antes: string
+          fecha_comercial_despues: string
+          fuente_borrada_id: string
+          id?: string
+          inversion_eliminada_id?: string | null
+          lead_id: string
+          motivo: string
+          respaldo: Json
+          transaccion?: unknown
+        }
+        Update: {
+          acreditacion_id?: string
+          autorizado_por?: string
+          cierre_avance_anulado_id?: string | null
+          contrato_vigente_id?: string
+          creado_en?: string
+          fecha_comercial_antes?: string
+          fecha_comercial_despues?: string
+          fuente_borrada_id?: string
+          id?: string
+          inversion_eliminada_id?: string | null
+          lead_id?: string
+          motivo?: string
+          respaldo?: Json
+          transaccion?: unknown
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversion_ventas_recuperadas_cierre_avance_anulado_id_fkey"
+            columns: ["cierre_avance_anulado_id"]
+            isOneToOne: true
+            referencedRelation: "cierres_avance_anulados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversion_ventas_recuperadas_inversion_eliminada_id_fkey"
+            columns: ["inversion_eliminada_id"]
+            isOneToOne: true
+            referencedRelation: "inversiones_eliminadas"
             referencedColumns: ["id"]
           },
         ]
@@ -9055,4 +9122,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-
