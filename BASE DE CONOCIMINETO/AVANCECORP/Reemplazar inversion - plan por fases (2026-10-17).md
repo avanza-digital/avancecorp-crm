@@ -117,7 +117,7 @@ servidor con la MISMA regla que el reemplazo (migración nueva `20261017211313`,
 - [x] 3. Llamadas solo por `crm-api.ts` (`vistaPreviaReemplazo`, `reemplazarInversion`, `reemplazarInversionPorExistente`), tipos regenerados con las 3 puertas; ninguna pantalla lee tablas.
 - [x] 4. `app/CLAUDE.md` (gate de realidad y accesibilidad) + revisor-a11y: 4 pasadas; la última, PASS sobre las correcciones (su único P3, no robar el foco tras reintentar, también corregido con test y mutante).
 - [x] 5. `npm run check` en verde (7131 tests, código final).
-- [x] 6. E2E Docker en verde: reemplazo correcto (1440, 1366×768 y 390), «quedarme con la otra», mes cerrado, cuotas pagadas y 4 combinaciones de rol (los que no pueden no ven el botón) — 10/10 sin reintentos. E2E completo: 451 PASS + 5 inestables por carga (las 3 specs, solas y sin reintentos: 30/30; ninguna toca el alta ni el reemplazo), 26 omitidos, 0 fallos.
+- [x] 6. E2E Docker en verde: reemplazo correcto (1440, 1366×768 y 390), «quedarme con la otra», mes cerrado, cuotas pagadas y 4 combinaciones de rol (los que no pueden no ven el botón) — 10/10 sin reintentos. E2E completo sobre el código final, con la máquina libre: **456 PASS, 0 fallos, 0 inestables** (26 omitidos). Una corrida anterior, con la máquina cargada, había dado 5 inestables que, solas, pasaron 30/30.
 - [x] 7. Codex sin P0/P1 abiertos: r1 CHANGES_REQUESTED (1 P1 + 3 P2, todos corregidos), **r2 PASS** («sin hallazgos obligatorios»); sus dos P3 también corregidos.
 - [x] 8. Informe con «¿apta para producción?» y «qué arregla comercialmente» (abajo).
 - [x] 9. Este checklist.
