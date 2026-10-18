@@ -112,7 +112,7 @@ Rama `crm/reemplazar-inversion-pantalla-20261017` (worktree `~/dev/avancecorp-cr
 SIN push. Decisiones de Miguel del 17/10: maqueta «Aprobada, constrúyela»; el mes antes de confirmar lo calcula el
 servidor con la MISMA regla que el reemplazo (migración nueva `20261017211313`, la de la Fase 1 no se tocó).
 
-- [x] 1. Maqueta local a escala real (`ui-playground/reemplazar-inversion.html`), aprobada por Miguel viéndola.
+- [x] 1. Maqueta local a escala real (`ui-playground/reemplazar-inversion.html`: diálogo de 1120 px, letra de 14 px, Plus Jakarta Sans, con selector de rol y de respuesta del servidor). Se escribió a las 15:55 y se abrió en la pantalla de Miguel con `open` a las 15:57 (hora de Lima). Miguel la aprobó viéndola: «Aprobada, constrúyela», a las 16:04.
 - [x] 2. Worktree, banco Docker `reemplazo-inv-db` y stack local propio (API 56521) con las dos migraciones; prueba real contra el servidor: reemplazo correcto (original borrada, mismo N°, copia «reemplazada por»), «quedarme con la otra» (la distinta rechazada con el mensaje del servidor, la igual aceptada), cuotas pagadas (aviso real y botón inactivo).
 - [x] 3. Llamadas solo por `crm-api.ts` (`vistaPreviaReemplazo`, `reemplazarInversion`, `reemplazarInversionPorExistente`), tipos regenerados con las 3 puertas; ninguna pantalla lee tablas.
 - [x] 4. `app/CLAUDE.md` (gate de realidad y accesibilidad) + revisor-a11y: 4 pasadas; la última, PASS sobre las correcciones (su único P3, no robar el foco tras reintentar, también corregido con test y mutante).
