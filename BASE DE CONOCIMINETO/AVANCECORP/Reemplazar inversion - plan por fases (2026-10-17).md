@@ -136,7 +136,11 @@ Lo aplicó Miguel con «!» y `db query --linked --file`, por PR #322 (`main` lo
   - desplegado por el MCP de Hostinger a las 20:48, aproximadamente.
   - Humo: `version.json` = `build-20261018T014717398Z`; home 200; `index-BudY7B4B.js` idéntico byte a byte al del build; 150/163 archivos idénticos (12 PNG recomprimidos por la CDN y `.htaccess` 403, como siempre).
   - Frente al vivo anterior, en `app/` solo cambió la pantalla de reemplazo.
-- [ ] Probar el reemplazo y el PDF del contrato nuevo con el perfil vendedor de pruebas. Es una escritura real en producción: la decide y la hace Miguel.
+- [x] **Prueba segura en producción, sin escribir datos (17/10).**
+  - Miguel, con su usuario admin, abrió «Reemplazar inversión» sobre `2026-01-001037`.
+  - Comprobó: la original fija; «La correcta» precargada (20 000 USD, inicio 20/07/2026); «La venta queda en Julio 2026», calculado por la puerta de producción; el aviso «ya tiene cuotas pagadas»; y el botón de confirmar bloqueado. Cerró con «Cancelar».
+  - Miguel: «todo coincide, sale el aviso de cuotas pagadas».
+- [ ] Prueba completa, reemplazo real y PDF. El perfil vendedor de pruebas no tiene ninguna inversión reemplazable: `candidatas-prueba.sql` muestra que `455468` y `000000` son demo y que sus 5 ventas reales tienen cuotas pagadas. Hace falta una inversión desechable: alta de prueba, luego reemplazo, luego «Eliminar inversión». Son escrituras reales: la decide Miguel.
 
 ### Revisiones (Fase 2, 17/10/2026)
 
