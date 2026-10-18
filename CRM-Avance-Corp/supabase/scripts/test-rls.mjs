@@ -18793,6 +18793,52 @@ async function testRecuperarVentasRecargadas(sessions) {
   check(Boolean(escritura.error), 'recuperar ventas: gerencia no inserta en la tabla por la Data API');
 }
 
+// ── Reemplazar inversión · cooperativas (20261018053228): Gerencia o admin del portal; núcleo cerrado; bucket parchado ──
+// El comportamiento (reemplazo con la venta conservada, rechazos, idempotencia, comprobante nuevo y sus políticas) se prueba en
+// el banco con supabase/scripts/reemplazar-inversion-cooperativa/probar.sh + mutantes.py; aquí, catálogo, roles y Data API.
+async function testReemplazarInversionCooperativa(sessions) {
+  console.log('\n— Reemplazar inversión · cooperativas: puertas, núcleo y bucket —');
+  const saltar = (msg) => {
+    if (process.env.CRM_RLS_EXIGE_REEMPLAZAR_COOPERATIVA === '1') fail(msg);
+    else console.log(`  ${msg}`);
+  };
+  let aplicada;
+  try {
+    aplicada = contarFueraDeBanda('reemplazar cooperativa: aplicada',
+      "select (to_regprocedure('crm.reemplazar_inversion_cooperativa_fn(uuid,text,jsonb)') is not null and to_regprocedure('private.f4_comprobante_reemplazo_autorizado(text)') is not null)::int");
+  } catch (error) {
+    saltar(`⚠ Reemplazar cooperativa SALTADO: sin vía fuera de banda (${error?.message ?? String(error)})`);
+    return;
+  }
+  if (aplicada !== 1) {
+    saltar('⚠ 20261018053228 (reemplazar inversión · cooperativas) NO desplegada en esta base: bloque SALTADO (no probado)');
+    return;
+  }
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`reemplazar cooperativa: ${etiqueta}`, sql);
+  check(cuenta('puertas', "select count(*) from pg_proc p where p.oid in ('crm.reemplazar_inversion_cooperativa_fn(uuid,text,jsonb)'::regprocedure, 'crm.reemplazar_inversion_cooperativa_vista_previa_fn(uuid,date)'::regprocedure) and p.prosecdef and p.proowner = 'postgres'::regrole and 'search_path=\"\"' = any(p.proconfig) and 'lock_timeout=5s' = any(p.proconfig) and has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('anon', p.oid, 'EXECUTE') and not has_function_privilege('service_role', p.oid, 'EXECUTE')") === 2,
+    'reemplazar cooperativa: las dos puertas son DEFINER de postgres, search_path vacío, lock_timeout 5s, EXECUTE solo authenticated');
+  check(cuenta('nucleo', "select count(*) from pg_proc p cross join unnest(array['anon','authenticated','service_role']) r(rol) where p.oid in ('private.reemplazar_inversion_cooperativa(uuid,jsonb,uuid,text,jsonb)'::regprocedure, 'private.registrar_inversion_reemplazada_cooperativa(jsonb,uuid,text,text,uuid,jsonb)'::regprocedure) and (has_function_privilege(r.rol, p.oid, 'EXECUTE') or p.prosecdef)") === 0,
+    'reemplazar cooperativa: el núcleo y la copia son INVOKER y sin EXECUTE para la API');
+  check(cuenta('bucket', "select count(*) from pg_proc p where p.oid in ('private.f4_comprobante_autorizado(text)'::regprocedure, 'private.f4_comprobante_visible(text)'::regprocedure, 'private.f4_comprobante_reemplazo_autorizado(text)'::regprocedure) and p.prosecdef and p.proowner = 'postgres'::regrole and 'search_path=\"\"' = any(p.proconfig) and has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('anon', p.oid, 'EXECUTE') and not has_function_privilege('service_role', p.oid, 'EXECUTE')") === 3,
+    'reemplazar cooperativa: los tres ayudantes del bucket son DEFINER de postgres, search_path vacío y EXECUTE solo authenticated');
+  check(cuenta('huellas del bucket', "select count(*) from (select string_agg(p.oid::regprocedure::text || '=' || md5(pg_get_functiondef(p.oid)), ',' order by p.oid::regprocedure::text) as h from pg_proc p where p.oid in ('private.f4_comprobante_autorizado(text)'::regprocedure, 'private.f4_comprobante_visible(text)'::regprocedure)) x where x.h = 'private.f4_comprobante_autorizado(text)=cdecad21e77c38d023ba156efd8faa74,private.f4_comprobante_visible(text)=d5e74abf371a35c677d42da9abb2ff82'") === 1,
+    'reemplazar cooperativa: los dos ayudantes del bucket tienen la huella que dejó la migración');
+  const DENEGADO = /permission denied/i;
+  const ROL = /Solo admin o gerencia pueden reemplazar inversiones/;
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-reemplazar-coop'));
+  const args = { p_fuente_id: randomUUID(), p_motivo: 'Prueba del gate de RLS', p_cierre: { fecha_comercial: '2026-10-01' } };
+  await expectExpectedFailure('reemplazar cooperativa: anon → 42501 (sin EXECUTE)', anon.schema('crm').rpc('reemplazar_inversion_cooperativa_fn', args), ['42501'], DENEGADO);
+  await expectExpectedFailure('reemplazar cooperativa: service_role → 42501 (sin EXECUTE)', admin.schema('crm').rpc('reemplazar_inversion_cooperativa_fn', args), ['42501'], DENEGADO);
+  for (const clave of ['vend1', 'sup1', 'coordinador', 'directorio']) {
+    await expectExpectedFailure(`reemplazar cooperativa: ${clave} → 42501`, sessions[clave].client.schema('crm').rpc('reemplazar_inversion_cooperativa_fn', args), ['42501'], ROL);
+    await expectExpectedFailure(`reemplazar cooperativa: vista previa de ${clave} → 42501`, sessions[clave].client.schema('crm').rpc('reemplazar_inversion_cooperativa_vista_previa_fn', { p_fuente_id: randomUUID() }), ['42501'], ROL);
+  }
+  const ger = sessions.gerencia.client.schema('crm');
+  await expectExpectedFailure('reemplazar cooperativa: gerencia con motivo corto → 22023', ger.rpc('reemplazar_inversion_cooperativa_fn', { ...args, p_motivo: 'abc' }), ['22023'], /motivo/);
+  await expectExpectedFailure('reemplazar cooperativa: gerencia sobre una fuente inexistente → P0002', ger.rpc('reemplazar_inversion_cooperativa_fn', args), ['P0002'], /no existe o ya fue eliminada/);
+  await expectExpectedFailure('reemplazar cooperativa: vista previa de una fuente inexistente → P0002', ger.rpc('reemplazar_inversion_cooperativa_vista_previa_fn', { p_fuente_id: randomUUID() }), ['P0002'], /no existe o ya fue eliminada/);
+}
+
 // ── Eliminar lead por error de carga (20261015044917): gerencia o admin del portal; copia inmutable; 8 candados ──
 // r2 (20261015150731): borra también la ficha de inversionista sin dinero y sus anexos (10 tablas) y abre el candado de
 // solicitudes de tasa (9.º candado). Se detecta por la huella de la puerta (o por la copia `'version', 2`).
@@ -21105,6 +21151,7 @@ async function main() {
       await testEliminarLeadErrorCarga(sessions, verifiedSeed);
       await testReemplazarInversion(sessions);
       await testRecuperarVentasRecargadas(sessions);
+      await testReemplazarInversionCooperativa(sessions);
       await testCategoriaPorOperacion(sessions, verifiedSeed);
       // Fase 4 · grupo A (2.3 y 2.6), el ÚLTIMO a propósito: siembra y retira su propio mes sellado (2001-07) y deja
       // inactivas las identidades D-17; nada de eso puede alterar a un bloque posterior.
