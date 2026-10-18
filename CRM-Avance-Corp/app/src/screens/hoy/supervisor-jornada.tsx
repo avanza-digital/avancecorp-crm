@@ -57,9 +57,9 @@ function ErrorFuente({ error, cargando, reintentar, nombre }: { error: boolean; 
   return null
 }
 
-function Frente({ icono, titulo, children, accion }: { icono: ReactNode; titulo: string; children: ReactNode; accion: ReactNode }) {
+function Frente({ icono, titulo, destino, children, accion }: { icono: ReactNode; titulo: string; destino?: string; children: ReactNode; accion: ReactNode }) {
   return <section className="sj-frente" aria-label={titulo}>
-    <header><span className="sj-paso" aria-hidden="true">{icono}</span><h2>{titulo}</h2></header>
+    <header><span className="sj-paso" aria-hidden="true">{icono}</span><h2>{destino ? <a href={destino}>{titulo}</a> : titulo}</h2></header>
     <div className="sj-frente-cuerpo">{children}</div><div className="sj-frente-accion">{accion}</div>
   </section>
 }
@@ -96,7 +96,6 @@ function JornadaSupervisor({ actor, hoy }: { actor: string; hoy: string }) {
   const [soloApoyo, setSoloApoyo] = useState(false)
   const [seleccion, setSeleccion] = useState<SeleccionSupervisor | null>(null)
   const [tasasAbiertas, setTasasAbiertas] = useState(false)
-  const [resultadosAbiertos, setResultadosAbiertos] = useState(false)
   const [tareasAbiertas, setTareasAbiertas] = useState(false)
   const [tareasAnalista, setTareasAnalista] = useState<{ id: string; vencidas: boolean } | null>(null)
   const [actualizando, setActualizando] = useState(false)
@@ -104,7 +103,6 @@ function JornadaSupervisor({ actor, hoy }: { actor: string; hoy: string }) {
   const tituloEquipo = useRef<HTMLHeadingElement>(null)
   const tituloPanel = useRef<HTMLHeadingElement>(null)
   const origenPanel = useRef<HTMLElement | null>(null)
-  const origenResultados = useRef<HTMLElement | null>(null)
   const origenTareas = useRef<HTMLElement | null>(null)
   const tituloTareas = useRef<HTMLHeadingElement>(null)
   const idEquipo = useId()
@@ -115,9 +113,6 @@ function JornadaSupervisor({ actor, hoy }: { actor: string; hoy: string }) {
   useEffect(() => {
     if (seleccion && !seleccionVigente) { origenPanel.current = tituloEquipo.current; setSeleccion(null) }
   }, [seleccion, seleccionVigente])
-  useEffect(() => {
-    if (resultadosAbiertos && !resultados) origenResultados.current = tituloEquipo.current
-  }, [resultadosAbiertos, resultados])
   useEffect(() => {
     if (!tareasAbiertas || (dia && (!tareasAnalista || filaTareas))) return
     origenTareas.current = tituloEquipo.current
@@ -147,10 +142,6 @@ function JornadaSupervisor({ actor, hoy }: { actor: string; hoy: string }) {
       setActualizacion(n => n + 1)
     } finally { setActualizando(false) }
   }
-  const abrirResultados = (control: HTMLElement) => {
-    origenResultados.current = control
-    setResultadosAbiertos(true)
-  }
   const abrirTareas = (control: HTMLElement, fila?: FilaEquipoPresentada) => {
     origenTareas.current = control
     setTareasAnalista(fila ? { id: fila.analista_id, vencidas: true } : null)
@@ -164,7 +155,7 @@ function JornadaSupervisor({ actor, hoy }: { actor: string; hoy: string }) {
 
   return <div className="sj-pagina ac-rise">
     <header className="sj-cabecera">
-      <div><p className="sj-antetitulo">HOY · SUPERVISIÓN</p><h1>Dirección de la jornada</h1><p>{FECHA.format(new Date(`${hoy}T12:00:00-05:00`))} · Hora de Lima</p></div>
+      <div><p className="sj-antetitulo">HOY · SUPERVISIÓN</p><h1>Dirección de la jornada</h1><p>{FECHA.format(new Date(`${hoy}T12:00:00-05:00`))}</p></div>
       <Button variant="outline" onClick={() => void actualizar()} disabled={actualizando}><RefreshCw className="size-4" aria-hidden />{actualizando ? 'Actualizando…' : 'Actualizar'}</Button>
     </header>
 
@@ -200,8 +191,8 @@ function JornadaSupervisor({ actor, hoy }: { actor: string; hoy: string }) {
     </div>}
 
     <div className="sj-frentes">
-      <Frente icono={<Phone />} titulo="Llamadas de hoy" accion={<button type="button" onClick={() => irAlEquipo('dia', true)}><b>{jornada?.primeras == null ? 'Revisar primeras gestiones' : `${numero(jornada.primeras)} primeras gestiones vencidas`}</b><span>Ver quién necesita apoyo <ChevronRight aria-hidden /></span></button>}>
-        <button type="button" className="sj-cifra" disabled={!dia} onClick={e => abrirAnalista(null, e.currentTarget)}><strong>{cifra(jornada?.llamadas)}</strong><span>llamadas del equipo <ArrowUpRight aria-hidden /></span></button>
+      <Frente icono={<Phone />} titulo="Llamadas de hoy" destino={hashDe('gestion-diaria')} accion={<a href={hashDe('gestion-diaria')}><b>{jornada?.primeras == null ? 'Revisar primeras gestiones' : `${numero(jornada.primeras)} primeras gestiones vencidas`}</b><span>Ver Gestión Diaria <ChevronRight aria-hidden /></span></a>}>
+        <a className="sj-cifra" href={hashDe('gestion-diaria')}><strong>{cifra(jornada?.llamadas)}</strong><span>llamadas del equipo <ArrowUpRight aria-hidden /></span></a>
         <div className="sj-linea"><span>Contacto en llamadas útiles</span><b>{tasa(jornada?.contacto)}</b></div>
         <div className="sj-barra" aria-hidden="true"><i style={{ width: `${jornada?.contacto ?? 0}%` }} /></div>
         <p className="sj-nota">{jornada ? `${numero(jornada.contestadas)} contestadas / ${numero(jornada.utiles)} útiles · ${numero(jornada.llamadas - jornada.utiles)} excluidas de la tasa.` : 'La actividad se confirma desde Gestión Diaria.'}</p>
@@ -215,12 +206,12 @@ function JornadaSupervisor({ actor, hoy }: { actor: string; hoy: string }) {
         <div className="sj-estados-citas"><span><b>{cifra(citasHoy?.noAsistio)}</b> no asistieron</span><span><b>{cifra(citasHoy?.canceladas)}</b> canceladas</span><span><b>{cifra(citasHoy?.reprogramadas)}</b> reprogramadas</span></div>
         <ErrorFuente nombre="Citas de hoy" error={errorCitas} cargando={datos.sesionReal && citas.consulta.isPending} reintentar={() => void citas.consulta.refetch()} />
       </Frente>
-      <Frente icono={<CircleCheck />} titulo="Resultados de hoy" accion={<button type="button" disabled={!resultados} onClick={e => abrirResultados(e.currentTarget)}><b>{resultados ? resultados.operaciones === 0 ? 'Sin cierres registrados hoy' : 'Detalle por analista' : 'Resultados por confirmar'}</b><span>Ver resultados de hoy <ChevronRight aria-hidden /></span></button>}>
-        <button type="button" className="sj-cifra" disabled={!resultados} onClick={e => abrirResultados(e.currentTarget)}><strong>{cifra(resultados?.operaciones)}</strong><span>{resultados?.operaciones === 1 ? 'operación cerrada' : 'operaciones cerradas'} <ArrowUpRight aria-hidden /></span></button>
+      <Frente icono={<CircleCheck />} titulo="Facturación de hoy" destino={hashDe('facturacion')} accion={<a href={hashDe('facturacion')}><b>{resultados ? resultados.operaciones === 0 ? 'Sin cierres registrados hoy' : 'Detalle por analista' : 'Facturación por confirmar'}</b><span>Ver Facturación de hoy <ChevronRight aria-hidden /></span></a>}>
+        <a className="sj-cifra" href={hashDe('facturacion')}><strong>{cifra(resultados?.operaciones)}</strong><span>{resultados?.operaciones === 1 ? 'operación cerrada' : 'operaciones cerradas'} <ArrowUpRight aria-hidden /></span></a>
         <div className="sj-linea"><span>Capital cerrado hoy</span></div>
         <p className="sj-importes-dia">{resultados ? <span>{money(resultados.pen, 'PEN')}</span> : '—'}{resultados && <span>{money(resultados.usd, 'USD')}</span>}</p>
-        {cierres.aviso && <p className="sj-nota" role={resultadosAbiertos ? undefined : 'status'}>{cierres.aviso}</p>}
-        <ErrorFuente nombre="Resultado de hoy" error={cierres.error} cargando={cierres.cargando} reintentar={() => void cierres.recargar()} />
+        {cierres.aviso && <p className="sj-nota" role="status">{cierres.aviso}</p>}
+        <ErrorFuente nombre="Facturación de hoy" error={cierres.error} cargando={cierres.cargando} reintentar={() => void cierres.recargar()} />
       </Frente>
     </div>
 
@@ -267,17 +258,6 @@ function JornadaSupervisor({ actor, hoy }: { actor: string; hoy: string }) {
       {seleccionVigente && <PanelAnalistaSupervisor id={idPanel} seleccion={seleccionVigente} fila={filaSeleccionada} dia={hoy} minimo={dia?.umbrales.minimo_llamadas_utiles} tituloRef={tituloPanel}
         ampliado={false} puedeAmpliar={false} ampliar={() => {}} cerrar={() => setSeleccion(null)} oculta={false} limpiar={() => {}} actualizacion={actualizacion}
         revalidar={() => void consultaDia.recargar()} esHoy ahora={datos.ahora} />}
-    </Dialog>
-    <Dialog open={resultadosAbiertos} onClose={() => setResultadosAbiertos(false)} focoAlCerrar={origenResultados} className="sj-detalle-resultados w-[720px]">
-      <DialogHeader className="flex-row items-center justify-between"><DialogTitle>Resultados de hoy</DialogTitle><Button variant="ghost" size="icon" aria-label="Cerrar resultados de hoy" onClick={() => setResultadosAbiertos(false)}><X aria-hidden /></Button></DialogHeader>
-      <DialogBody>
-        <ErrorFuente nombre="Resultado de hoy" error={cierres.error} cargando={cierres.cargando} reintentar={() => void cierres.recargar()} />
-        {cierres.aviso && <p className="sj-nota" role="status">{cierres.aviso}</p>}
-        {resultados && (resultados.analistas.length > 0 ? <TablaDesplazable nombre="Cierres de hoy por analista"><table className="sj-tabla"><caption className="sr-only">Cierres comerciales del {hoy}, todos los tipos de operación</caption><thead><tr><th scope="col">Analista</th><th scope="col">Operaciones</th><th scope="col">Soles</th><th scope="col">Dólares</th></tr></thead><tbody>
-          {resultados.analistas.map(f => <tr key={f.id}><th scope="row">{f.nombre}</th><td>{numero(f.operaciones)}</td><td>{money(f.pen, 'PEN')}</td><td>{money(f.usd, 'USD')}</td></tr>)}
-        </tbody><tfoot><tr><th scope="row">Total del día</th><td>{numero(resultados.operaciones)}</td><td>{money(resultados.pen, 'PEN')}</td><td>{money(resultados.usd, 'USD')}</td></tr></tfoot></table></TablaDesplazable> : <p className="sj-vacio">Hoy aún no se registran cierres.</p>)}
-        <a className="sj-enlace" href={hashDe('facturacion')}>Ver Facturación <ArrowUpRight className="size-4" aria-hidden /></a>
-      </DialogBody>
     </Dialog>
     <Dialog open={tasasAbiertas} onClose={() => setTasasAbiertas(false)} className="w-[900px]"><DialogHeader className="flex-row items-center justify-between"><DialogTitle>Tasas autorizadas del equipo</DialogTitle><Button variant="ghost" size="icon" aria-label="Cerrar tasas autorizadas" onClick={() => setTasasAbiertas(false)}><X aria-hidden /></Button></DialogHeader><DialogBody><TasasAutorizadasAnalistaPanel /></DialogBody></Dialog>
     <Dialog open={tareasAbiertas} onClose={() => setTareasAbiertas(false)} focoInicial={tituloTareas} focoAlCerrar={origenTareas} className="sj-detalle-tareas w-[780px]">
