@@ -11,7 +11,7 @@ No navegador, control del computador, Docker, publicación ni escrituras de dato
 | 3. Acciones | CERRADA | `MAPA-ACCIONES.md`; B3 corregida, 29 pruebas, tipos y lint PASS. |
 | 4. Interfaz | CERRADA | `REVISION-INTERFAZ.md`; build, lint y bundle PASS; visual NOT RUN. |
 | 5. Claude | CERRADA | Dos dictámenes, último PASS; hallazgos corregidos; 44 + 101 tests, lint, tipos y build Main PASS. |
-| 6. Validación integral | CERRADA | Gate completo PASS: 7.261 pruebas, lint, tipos, release config, SW, build, bundle y dup. |
+| 6. Validación integral | CERRADA | Gate completo PASS: 7.262 pruebas, lint, tipos, release config, SW, build, bundle y dup. |
 | 7. Revisión para ZIP | PREPARADA | `PREPARACION-ZIP.md`; identidad definitiva y cierre en acta externa. |
 | 8. ZIP y entrega | ACTA EXTERNA | Cierre y archivos en `releases/hoy-supervisor-2026-10-18/ENTREGA-ZIP.md`. |
 
@@ -76,3 +76,17 @@ Fase 6 cerrada: segunda ejecución de `npm run check` completa PASS. La fase 7
 fija el commit y la fase 8 construye desde él. Sus actas finales se escriben
 junto al artefacto (directorio releases, ignorado por Git): así el registro de
 la entrega no cambia el commit del ZIP después de haberlo construido.
+
+## Auditoría de entrada/retorno antes del artefacto
+
+Codex contrastó otra vez el requisito de volver al módulo: el timer mensual
+esperaba cinco minutos al montar. Se corrigió para consultar también al entrar,
+sin ejecutar un arranque desmontado ni duplicar StrictMode. Reabierta fase 2 y
+verificada su corrección: 79 pruebas dirigidas PASS. Fase 6 repetida sobre el
+código resultante: `npm run check` completo PASS, 7.262 pruebas. Se conserva el
+primer gate de 7.261 como antecedente, no como prueba del cambio posterior.
+
+Main remoto exige PR y checks (GH013 al intento normal de sincronización). Se
+usa PR #327, rama temporal de integración `codex/hoy-supervisor-20261018`, no una
+rama de release. No se omite la protección ni se publica desde esa rama. El ZIP
+se construirá solo desde el commit integrado a Main y verificado local/remoto.

@@ -79,3 +79,6 @@ El fallo booleano de `store.recargar` se registra en la portada como indisponibi
 mensual incluso si conserva una foto vigente en memoria. Reintentar y cambiar de
 mes comparten la petición en curso; una respuesta de otra sesión no reemplaza el
 estado del nuevo actor. El TC solo se reconsulta por cambio de día o recuperación.
+
+El resumen mensual también se revalida al entrar o regresar a Hoy; no espera
+el primer intervalo. El arranque se cancela si la vista ya se desmontó.

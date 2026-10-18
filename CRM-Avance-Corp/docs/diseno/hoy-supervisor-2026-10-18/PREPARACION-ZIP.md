@@ -46,3 +46,6 @@ creado el commit y comprobada igualdad local/remota. Se construye desde ese
 commit limpio, sin `--allow-dirty`. La identidad final, el cierre de fase 8 y
 los hashes se guardan en `releases/hoy-supervisor-2026-10-18/ENTREGA-ZIP.md` para
 no introducir otro commit después del build ni volver inconsistente su identidad.
+
+GitHub exige integración por PR y checks. Se usa PR #327 con una rama temporal
+de integración; el artefacto nunca sale de ella, sino de Main tras fusionar.

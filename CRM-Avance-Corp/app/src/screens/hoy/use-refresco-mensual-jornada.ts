@@ -9,13 +9,19 @@ export function useRefrescoMensualJornada({ actor, habilitado, recargar }: {
   useEffect(() => {
     if (!habilitado || !actor) return
     let enVuelo = false
-    const intervalo = window.setInterval(() => {
-      if (document.visibilityState === 'hidden' || enVuelo) return
+    let vigente = true
+    const consultar = () => {
+      if (!vigente || document.visibilityState === 'hidden' || enVuelo) return
       enVuelo = true
       // Las fuentes conservan su error y su reintento; el temporizador no debe
       // crear un rechazo sin gestionar ni lanzar una segunda vuelta en paralelo.
       void refrescar().catch(() => {}).finally(() => { enVuelo = false })
-    }, 5 * 60_000)
-    return () => window.clearInterval(intervalo)
+    }
+    // Volver de otro módulo también revalida la foto: no esperar el primer
+    // intervalo con cifras que el store pudo cargar mucho antes. Diferir un
+    // microturno evita duplicar el arranque al remontar efectos en StrictMode.
+    queueMicrotask(consultar)
+    const intervalo = window.setInterval(consultar, 5 * 60_000)
+    return () => { vigente = false; window.clearInterval(intervalo) }
   }, [actor, habilitado])
 }

@@ -9,7 +9,7 @@ El commit exacto de construcción y su huella se registran en
 | `npm run check` en app | PASS | Gate completo, código final integrado en Main. |
 | Lint | PASS | Sin errores; 11 advertencias existentes en archivos ajenos. |
 | TypeScript | PASS | `tsc -b --pretty false`. |
-| Vitest con cobertura | PASS | 450 archivos, 7.261 pruebas. |
+| Vitest con cobertura | PASS | 450 archivos, 7.262 pruebas. |
 | Cobertura | PASS | Líneas 85,06%; sentencias 82,12%; ramas 78,77%; funciones 79,26%. Umbrales conservados. |
 | Configuración de release (tests) | PASS | 4 pruebas, incluidas claves privilegiadas y destino equivocado. |
 | Service worker | PASS | 8 pruebas; sin intercepción de peticiones. |
@@ -27,7 +27,7 @@ El primer gate detectó tres expectativas antiguas de recarga síncrona/sin
 reintento en `supervisor.test.tsx`. Se corrigió la sincronización del banco y se
 verificó explícitamente el límite de dos intentos, sin retirar aserciones sobre
 metas viejas ni falsear resultados. 59 pruebas dirigidas PASS; repetición completa
-posterior: 7.261/7.261 PASS. No se omiten pruebas fallidas ni se bajan umbrales.
+posterior: 7.262/7.262 PASS. No se omiten pruebas fallidas ni se bajan umbrales.
 
 Cobertura de los casos exigidos: cero/falta/error/caché previa, reparto
 0→varios→parcial→0, actor y día/mes Lima, solicitud concurrente, recuperación

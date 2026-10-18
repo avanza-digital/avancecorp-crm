@@ -7,7 +7,7 @@ Datos reales autorizados por sus lectores existentes; capital PEN/USD separado
 en el día y valoración oficial mensual. Se conservó en el desglose la venta
 propia del supervisor que Main incorpora desde octubre, sin inventarle meta.
 
-Fases 1–6 cerradas, `npm run check` completo PASS: 7.261 pruebas. Integración
+Fases 1–6 cerradas, `npm run check` completo PASS: 7.262 pruebas. Integración
 selectiva en copia local limpia de Main para preservar los otros trabajos del
 taller. Sin cambios de SQL ni permisos. Las comprobaciones visual/E2E y de datos
 reales están NOT RUN por restricción de herramientas/entorno.

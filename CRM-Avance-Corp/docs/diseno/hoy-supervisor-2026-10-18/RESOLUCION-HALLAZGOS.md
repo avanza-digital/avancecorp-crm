@@ -52,3 +52,6 @@ ajenos), typecheck PASS y build Main PASS. Se corrigieron errores del banco nuev
 (mock parcial, nombre del hook de prueba y anotación de Promise); ninguna supresión
 de checks. Sin defectos aceptados pendientes. Dos consultas Claude completadas;
 no se necesita otra para volver a confirmar lo resuelto.
+
+Auditoría adicional de Codex previa al ZIP: refresco al volver al módulo corregido
+y probado (79 pruebas dirigidas), gate integral posterior PASS con 7.262 tests.
