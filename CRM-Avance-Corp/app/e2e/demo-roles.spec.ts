@@ -28,10 +28,13 @@ for (const rol of ROLES) {
   })
 }
 
-test('Supervisor: abre Derivar leads desde el KPI compacto de HOY por teclado', async ({ page }) => {
+test('Supervisor: abre Derivar leads desde el aviso de reparto de HOY por teclado', async ({ page }) => {
   await entrarDemo(page, 'Supervisor')
 
-  const reparto = page.getByRole('link', { name: 'Repartir 2 leads pendientes' })
+  const aviso = page.getByRole('region', { name: 'Leads por repartir' })
+  await expect(aviso).toContainText('2 leads por repartir')
+  await expect(aviso).toContainText('Por asignar')
+  const reparto = aviso.getByRole('link', { name: 'Repartir leads', exact: true })
   await expect(reparto).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Por repartir — tu bandeja' })).toHaveCount(0)
 

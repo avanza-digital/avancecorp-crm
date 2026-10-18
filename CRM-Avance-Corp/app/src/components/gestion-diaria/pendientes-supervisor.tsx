@@ -144,6 +144,7 @@ export function PendientesSupervisor({ analista, nombre, dia, fila, visible, sol
               <div className="flex flex-wrap items-center gap-2">
                 <Badge className="min-h-[22px] py-0 text-[11.5px]" color="var(--accent-press)">{tipo}</Badge>
                 {vencida && <Badge className="min-h-[22px] py-0 text-[11.5px]" color="var(--destructive-text)">Vencida</Badge>}
+                {tarea.sujeto_tipo && <Badge className="min-h-[22px] py-0 text-[11.5px]" color="var(--muted-foreground-strong)">Cliente</Badge>}
                 <EnlaceSujetoGestion sujeto={tarea} />
               </div>
               {/* El título solo si dice algo más que el tipo («WhatsApp» / «WhatsApp»). */}

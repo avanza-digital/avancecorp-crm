@@ -7,6 +7,7 @@ import { irAModulo } from './_navegacion'
 // ningún botón de acción (espejo del write-gating de demo-roles.spec.ts).
 // En todos: cero requests al host de Supabase (gate fail-closed).
 import { expect, test } from '@playwright/test'
+import { montarLecturasHoySupervisor } from './_hoy-supervisor'
 import {
   bloquearSupabase,
   entrarDemo,
@@ -154,6 +155,7 @@ test('supervisor real: el selector mensual recupera la foto completa de agosto',
       cosecha: foto.cosecha,
     },
   })
+  await montarLecturasHoySupervisor(page)
   await loginReal(page)
   await irAModulo(page, 'Gestión de equipo')
 
