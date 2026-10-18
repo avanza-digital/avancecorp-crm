@@ -70,7 +70,7 @@ export function RadioGroup<V extends string>({ leyenda, opciones, valor, onCambi
             />
             <span className="min-w-0 flex-1">
               <span className={cn('block text-sm', grande && 'text-base', marcada ? 'font-bold text-primary' : 'font-semibold')}>{opcion.etiqueta}</span>
-              {opcion.detalle !== undefined && <span className={cn('block text-xs text-muted-foreground', grande && 'text-base')}>{opcion.detalle}</span>}
+              {opcion.detalle !== undefined && <span className={cn('block text-xs text-muted-foreground', grande && 'text-base', marcada && 'text-[var(--muted-foreground-strong)]')}>{opcion.detalle}</span>}
             </span>
             {opcion.atajo !== undefined && (
               <kbd aria-hidden className={cn('rounded border border-border bg-muted px-1.5 text-[11px] font-bold text-[var(--muted-foreground-strong)]', grande && 'text-base')}>{opcion.atajo}</kbd>

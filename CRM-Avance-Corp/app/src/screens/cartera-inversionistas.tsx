@@ -24,14 +24,18 @@ import { criterioDesdeTexto, esBusquedaExacta } from '@/lib/venta-cruzada'
 import { FiltrosCarteraInversionistas } from '@/components/app/cartera-inversionistas-filtros'
 import { fechaLima } from '@/lib/agenda-derivada'
 import { fmtFecha, money } from '@/lib/format'
-import { EMPRESA_NOMBRE, FILTROS_INVERSIONISTAS_INICIALES, type CarteraInversionistas as DatosCartera, type FiltrosInversionistas, type InversionFuente } from '@/lib/inversionistas'
+import { EMPRESA_NOMBRE, FILTROS_INVERSIONISTAS_INICIALES, inversionReemplazable, mesLargo, type CarteraInversionistas as DatosCartera, type FiltrosInversionistas, type InversionFuente } from '@/lib/inversionistas'
 import { limpiarIntentosInversion, leerIntentoInversion } from '@/lib/inversion-solicitud'
 import { inversionistasKeys, useInversionistas } from '@/data/inversionistas-queries'
-import { CrmApiError, eliminarInversion as eliminarInversionServidor, mensajeDeError } from '@/data/crm-api'
+import {
+  CrmApiError, eliminarInversion as eliminarInversionServidor, mensajeDeError, reemplazarInversion, reemplazarInversionPorExistente,
+  vistaPreviaReemplazo, type InversionReemplazadaResultado,
+} from '@/data/crm-api'
+import type { ControlesReemplazo } from '@/components/app/inversion-reemplazar'
 import { descargarDocumentoInversionista } from '@/data/inversionistas-api'
 import { archivarContratoPdfConfirmado, ContratoEliminacionError, eliminarContratoConPdf } from '@/lib/contrato-pdf-archivo'
 import { useAuth } from '@/lib/auth-context'
-import { can, puedeCorregirCategoriaInversion, puedeEliminarContratos, puedeEliminarInversion, puedeEliminarInversiones } from '@/lib/roles'
+import { can, puedeCorregirCategoriaInversion, puedeEliminarContratos, puedeEliminarInversion, puedeEliminarInversiones, puedeReemplazarInversion } from '@/lib/roles'
 import { corregirCategoriaInversion } from '@/data/categoria-inversion-api'
 import type { CategoriaContrato } from '@/lib/cronograma'
 import { crmQueryKeys } from '@/data/crm-queries'
@@ -45,6 +49,8 @@ export function CarteraInversionistas({actor, permiteInversion}: {
   const puedeInvertir = permiteInversion && permiteGestion
   const permiteEliminar = yo?.id === actor && !yo.demo && puedeEliminarContratos(yo)
   const permiteEliminarInversion = yo?.id === actor && !yo.demo && puedeEliminarInversiones(yo)
+  // «Reemplazar inversión»: el reemplazo de Avance exige admin del portal (la venta de un lead, además Gerencia).
+  const permiteReemplazar = yo?.id === actor && !yo.demo && puedeEliminarContratos(yo)
   const qc = useQueryClient()
   const [alta, setAlta] = useState(false)
   const altaEnCurso = useRef(false)
@@ -176,6 +182,25 @@ export function CarteraInversionistas({actor, permiteInversion}: {
     toast.success(`Inversión eliminada. Copia de auditoría: ${auditoriaId}.${conversionAnulada
       ? ` La conversión del lead quedó anulada.${mesCerrado ? ' El mes ya estaba cerrado: el ajuste pasa al mes vivo.' : ''}` : ''}`)
   }
+  function reemplazoTerminado(i: InversionFuente, r: InversionReemplazadaResultado) {
+    void refrescarTrasEliminar()
+    // El PDF del contrato nuevo, como tras un alta: el servidor lo genera; si queda pendiente, la ficha ofrece recuperarlo.
+    if (r.modo === 'nueva' && !r.idempotente) {
+      void archivarContratoPdfConfirmado(r.contratoId).catch(() => {
+        toast.warning('El PDF del contrato nuevo quedó pendiente: recupéralo desde la ficha.')
+      })
+    }
+    const original = i.numero ? `Inversión ${i.numero}` : 'Inversión'
+    const venta = r.periodoVenta ? ` La venta quedó en ${mesLargo(r.periodoVenta).toLowerCase()}.` : ''
+    toast.success(`${original} reemplazada por N° ${r.numeroContrato ?? 'nuevo'}.${venta}`)
+  }
+  const reemplazo: ControlesReemplazo | undefined = permiteReemplazar ? {
+    puede: i => inversionReemplazable(i) && i.perfil_id !== null && puedeReemplazarInversion(yo, i),
+    vistaPrevia: (i, opciones) => vistaPreviaReemplazo(i.fuente_id, opciones),
+    reemplazar: (i, motivo, input, cronograma) => reemplazarInversion(i.fuente_id, motivo, input, cronograma),
+    conservar: (i, conservarId, motivo) => reemplazarInversionPorExistente(i.fuente_id, conservarId, motivo),
+    alTerminar: reemplazoTerminado,
+  } : undefined
   return <div className="@container/cartera mx-auto max-w-[1440px] space-y-3">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div><h2 ref={titulo} tabIndex={-1} className="text-xl font-bold tracking-tight outline-none">Cartera de inversionistas</h2>
@@ -255,6 +280,7 @@ export function CarteraInversionistas({actor, permiteInversion}: {
         onEliminar={permiteEliminar ? eliminarContrato : undefined}
         onEliminarInversion={permiteEliminarInversion ? eliminarInversion : undefined}
         puedeEliminarInversion={i => puedeEliminarInversion(yo, i)}
+        reemplazo={reemplazo}
         onDocumento={(i, id) => void abrirDocumento(i, id)} onRecuperarPdf={permiteGestion ? i => void abrirDocumento(i, i.fuente_id, true) : undefined} />
     </Sheet>}
     {ventaCruzada && <VentaCruzada actor={actor} inicial={ventaCruzada.inicial} puedeRegistrar={registraVentaCruzada}

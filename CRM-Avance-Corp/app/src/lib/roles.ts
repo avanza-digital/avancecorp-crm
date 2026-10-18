@@ -1,7 +1,7 @@
 // Fuente única de capacidades por rol (patrón VITANOVA, 4 niveles).
 // NO es seguridad (eso vive en la RLS del esquema crm) — es la UX.
 // Regla de oro: lo que can() oculta, la RLS también lo niega.
-import type { InversionFuente } from './inversionistas'
+import { esVentaDeLead, type InversionFuente } from './inversionistas'
 
 /** Catálogo runtime de roles CRM — fuente única: el tipo `Rol` se deriva de aquí.
  * `coordinador` (C1, 2026-07-22) es OFF-ROSTER como `directorio`: existe como
@@ -203,6 +203,19 @@ export function puedeEliminarContratos(identidad: IdentidadAdministrativa | null
  */
 export function puedeEliminarInversiones(identidad: IdentidadAdministrativa | null | undefined): boolean {
   return puedeEliminarContratos(identidad) || identidad?.rol === 'gerencia'
+}
+
+/**
+ * «Reemplazar inversión» (17/10/2026): una inversión de Avance la reemplaza un Admin/Superadmin del Portal; si es la
+ * venta de un lead, además Gerencia del CRM. Espejo de las puertas `crm.reemplazar_inversion_fn` y
+ * `crm.reemplazar_inversion_por_existente_fn`; el servidor vuelve a decidir siempre.
+ */
+export function puedeReemplazarInversion(
+  identidad: IdentidadAdministrativa | null | undefined,
+  inversion: Pick<InversionFuente, 'empresa' | 'lead_id' | 'es_inicial'>,
+): boolean {
+  if (inversion.empresa !== 'avance' || !puedeEliminarContratos(identidad)) return false
+  return !esVentaDeLead(inversion) || identidad?.rol === 'gerencia'
 }
 
 /** Corrige Nuevo/Renovación/Upgrade de cualquier cliente por su puerta auditada. */

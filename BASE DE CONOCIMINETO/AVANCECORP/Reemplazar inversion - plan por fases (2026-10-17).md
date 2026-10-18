@@ -105,3 +105,70 @@ informe «¿apta para producción?» + «qué arregla comercialmente», con su c
 - «Quedarme con la otra» pone a la que se conserva la fecha comercial de la venta original, aunque esa otra tuviera una corrección manual de Gerencia. Es a propósito (manda el día de la venta), pero lo decide Miguel.
 - Hay ~62 ventas cuya acreditación no coincide con `leads.contrato_id` (dato del contexto vivo). Si el lead apunta a OTRA inversión distinta de la que queda, el reemplazo pide revisión. Medir cuántas, solo lectura, con `!`: `select count(*) filter (where l.contrato_id is null), count(*) filter (where l.contrato_id is not null) from crm.conversion_acreditaciones ca join crm.leads l on l.id = ca.lead_id where ca.fuente_tipo = 'contrato' and l.contrato_id is distinct from ca.fuente_id and ca.estado in ('acreditada','mes_sellado','fecha_futura');`
 
+
+## Fase 2 — la pantalla · checklist (17/10/2026)
+
+Rama `crm/reemplazar-inversion-pantalla-20261017` (worktree `~/dev/avancecorp-crm-reemplazar-inversion`), SIN publicar y
+SIN push. Decisiones de Miguel del 17/10: maqueta «Aprobada, constrúyela»; el mes antes de confirmar lo calcula el
+servidor con la MISMA regla que el reemplazo (migración nueva `20261017211313`, la de la Fase 1 no se tocó).
+
+- [x] 1. Maqueta local a escala real (`ui-playground/reemplazar-inversion.html`), aprobada por Miguel viéndola.
+- [x] 2. Worktree, banco Docker `reemplazo-inv-db` y stack local propio (API 56521) con las dos migraciones; prueba real contra el servidor: reemplazo correcto (original borrada, mismo N°, copia «reemplazada por»), «quedarme con la otra» (la distinta rechazada con el mensaje del servidor, la igual aceptada), cuotas pagadas (aviso real y botón inactivo).
+- [x] 3. Llamadas solo por `crm-api.ts` (`vistaPreviaReemplazo`, `reemplazarInversion`, `reemplazarInversionPorExistente`), tipos regenerados con las 3 puertas; ninguna pantalla lee tablas.
+- [x] 4. `app/CLAUDE.md` (gate de realidad y accesibilidad) + revisor-a11y: 4 pasadas; la última, PASS sobre las correcciones (su único P3, no robar el foco tras reintentar, también corregido con test y mutante).
+- [x] 5. `npm run check` en verde (7131 tests, código final).
+- [x] 6. E2E Docker en verde: reemplazo correcto (1440, 1366×768 y 390), «quedarme con la otra», mes cerrado, cuotas pagadas y 4 combinaciones de rol (los que no pueden no ven el botón) — 10/10 sin reintentos. E2E completo: 451 PASS + 5 inestables por carga (las 3 specs, solas y sin reintentos: 30/30; ninguna toca el alta ni el reemplazo), 26 omitidos, 0 fallos.
+- [x] 7. Codex sin P0/P1 abiertos: r1 CHANGES_REQUESTED (1 P1 + 3 P2, todos corregidos), **r2 PASS** («sin hallazgos obligatorios»); sus dos P3 también corregidos.
+- [x] 8. Informe con «¿apta para producción?» y «qué arregla comercialmente» (abajo).
+- [x] 9. Este checklist.
+
+### Revisiones (Fase 2, 17/10/2026)
+
+- **Codex r1** (migración + kit + pantalla, evidencia transcrita): CHANGES_REQUESTED.
+  - P1: se podía confirmar con el mes de la fecha ANTERIOR (respiro de 350 ms + respuesta anterior en pantalla). Ahora confirmar exige un mes calculado para lo que se envía, y se revalida al enviar.
+  - P2: la reversa no veía llamadas en MAYÚSCULAS a los ayudantes.
+  - P2: un accesorio mal formado del acuse convertía un reemplazo hecho en error.
+  - P2: el kit podía declarar «16/16» sin haber probado (falta de contraseña).
+  - Todos corregidos, con prueba que los detecta (mutante).
+- **Codex r2**: PASS. Dos P3, corregidos: los ensayos de la reversa distinguen error de infraestructura (salida 3) y se registra un bloque `conversion` mal formado.
+- **revisor-a11y**:
+  - 1.ª pasada: P1, el formulario se desmontaba al ir a «quedarme con la otra» y volver, y el resumen y el mes quedaban viejos. Además, dos títulos de diálogo, acciones antes del motivo, parpadeo del aviso de cuotas y contraste.
+  - 2.ª pasada: P2, la pista prometía que bastaba el motivo cuando faltaba la cuenta. Más P3: Enter en un campo confirmaba el reemplazo (el e2e lo probó con un mutante), caso sin candidatas, categoría fija como campo de solo lectura.
+  - 3.ª pasada: P2, «Reintentar el cálculo» se desmontaba al pulsarlo.
+  - 4.ª pasada: PASS.
+- **Riesgo anterior a esta tarea, sin tocar:** el formulario de alta compartido deshabilita su envío durante CUALQUIER relectura de cuentas (`isFetching`). Al volver de otra ventana con el foco en el botón, el foco puede caer a `<body>`. Pasa igual en el alta suelta.
+
+## Informe de la Fase 2
+
+**¿Apta para producción? Sí, en cuanto se publique la Fase 1.** Se publica con el `!` de Miguel en este orden:
+1. Migración de la Fase 1, su `registrar.sql` y su `comprobar-tras-aplicar.sql`.
+2. Migración `20261017211313`, su `registrar.sql` y su `comprobar-tras-aplicar.sql` (debe dar `APTA`).
+3. `/release-crm`.
+
+No se aplicó nada en producción ni se publicó el CRM.
+
+Queda por probar en la Fase 3, con el perfil vendedor de pruebas, el PDF del contrato nuevo: no se pudo en local porque el runtime de Edge Functions estaba apagado.
+
+**Qué arregla comercialmente.** Gerencia y admin corrigen una inversión mal cargada (capital, tasa, fecha, número o cuenta) o una carga doble desde la ficha del inversionista, **sin perder la venta del lead**. Hoy «eliminar y volver a cargar» la anula para siempre.
+
+Antes de confirmar ven:
+- en qué mes queda la venta, con la misma regla que usa el servidor;
+- si se muda de mes;
+- si el contrato tiene cuotas pagadas (294 de 514 en producción el 17/10). En ese caso se avisa al abrir y no se deja seguir.
+
+Al terminar, la analista conserva su venta y el aviso dice «reemplazada por N°…» con el mes real.
+
+### Qué quedó construido (Fase 2)
+
+- **Servidor (migración nueva `20261017211313_crm_reemplazar_inversion_vista_previa.sql`, md5 `64274e14…`):** tres ayudantes INVOKER (`private.reemplazo_dia_registro_venta`, `private.reemplazo_fecha_comercial`, `private.contrato_tiene_cuotas_pagadas`) que usa el núcleo del reemplazo (parcheado por 3 anclas: huella `541ce30f…` → `b6af7422…`) y la puerta de solo lectura `crm.reemplazar_inversion_vista_previa_fn` (mes resultante, si se muda, si Gerencia corrigió la fecha, si hay cuotas pagadas). Kit en `CRM-Avance-Corp/supabase/scripts/reemplazar-inversion-vista-previa/` (probar, mutantes, reversa, registrar, comprobar).
+- **Pantalla:** botón «Reemplazar inversión» junto a «Eliminar inversión» (admin del portal; venta de un lead, además Gerencia). Diálogo en tres columnas: la original (cliente y analista fijos), «La correcta» (el formulario de alta de siempre, PRECARGADO e incrustado) o «La que se conserva» (lista de las del mismo cliente con «Igual a la original» / «Distinta: …»), y «Antes de confirmar» (mes del servidor, aviso de cuotas pagadas al abrir, cambios, motivo obligatorio, acciones al final). Confirmar exige un mes calculado PARA lo que se envía. Al terminar: ficha refrescada, aviso «… reemplazada por N° …» con el mes real, PDF del contrato nuevo como en un alta.
+- **Gate de realidad (producción, solo lectura, 17/10):** banderas `resolver_en_puertas`, `ficha_360_neutral` e `inversiones_escritura` en true; 916 fuentes, 0 sin conciliar; 514 contratos Avance «nuevo» vigentes, **294 con cuotas pagadas** (por eso el aviso sale al abrir, antes de llenar nada).
+- **Pruebas:** batería de la Fase 1 45/45 con el núcleo nuevo + vista previa 12/12 + candado de la reversa (mayúsculas/comillas); 16/16 mutantes (con corrida base obligatoria); carreras E1–E4 con el núcleo nuevo; reversa probada en el banco (Fase 1 APTA); test-rls sin fallos nuevos; vitest del diálogo, del formulario incrustado y del módulo cliente; e2e con mutantes (Enter en un campo no confirma; sin desplazamiento anidado en celular).
+
+### Límites conocidos (Fase 2)
+
+- Entre la vista previa y el reemplazo, una corrección comercial concurrente podría mover el mes: el aviso final dice el mes REAL que devolvió el servidor. Cerrarlo del todo pediría que las puertas reciban el mes esperado (cambio de contrato: migración nueva).
+- «Quedarme con…» se activa aunque la elegida sea «Distinta»: la pantalla lo advierte y el servidor la rechaza con su mensaje (el servidor decide).
+- PDF del contrato nuevo: mismo camino que un alta normal; no se probó en local (runtime de Edge Functions apagado). Probarlo en la Fase 3 con el perfil vendedor de pruebas.
+- La reversa no ve una llamada a los ayudantes armada con SQL dinámico (EXECUTE con texto concatenado): revisar a mano antes de revertir.
+- Orden para publicar (Fase 3, Miguel con `!`): Fase 1 (migración → registrar → comprobar) → esta migración → su `registrar.sql` → su comprobación `APTA` → `/release-crm`.

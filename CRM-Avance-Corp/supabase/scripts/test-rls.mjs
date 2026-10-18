@@ -18551,6 +18551,24 @@ async function testReemplazarInversion(sessions) {
   const ger = sessions.gerencia.client.schema('crm');
   await expectExpectedFailure('reemplazar inversión: gerencia sin admin del portal → 42501', ger.rpc('reemplazar_inversion_fn', args), ['42501'], PORTAL);
   await expectExpectedFailure('quedarme con la otra: gerencia sin admin del portal → 42501', ger.rpc('reemplazar_inversion_por_existente_fn', argsExistente), ['42501'], PORTAL);
+
+  // Vista previa del mes (20261017211313): solo lectura, mismas puertas de rol. Si la migración no está, salto RUIDOSO.
+  const previaAplicada = cuenta('vista previa: aplicada',
+    "select (to_regprocedure('crm.reemplazar_inversion_vista_previa_fn(uuid,date,uuid)') is not null)::int");
+  if (previaAplicada !== 1) {
+    saltar('⚠ 20261017211313 (vista previa del reemplazo) NO desplegada en esta base: casos SALTADOS (no probados)');
+    return;
+  }
+  check(cuenta('vista previa: puerta', "select count(*) from pg_proc p where p.oid = 'crm.reemplazar_inversion_vista_previa_fn(uuid,date,uuid)'::regprocedure and p.prosecdef and p.proowner = 'postgres'::regrole and 'search_path=\"\"' = any(p.proconfig) and has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('anon', p.oid, 'EXECUTE') and not has_function_privilege('service_role', p.oid, 'EXECUTE') and not exists (select 1 from aclexplode(p.proacl) a where a.grantee = 0)") === 1,
+    'vista previa del reemplazo: DEFINER de postgres, search_path vacío, EXECUTE solo authenticated');
+  check(cuenta('vista previa: ayudantes', "select count(*) from pg_proc p cross join unnest(array['anon','authenticated','service_role']) r(rol) where p.oid in ('private.reemplazo_dia_registro_venta(uuid)'::regprocedure, 'private.reemplazo_fecha_comercial(uuid,date)'::regprocedure) and has_function_privilege(r.rol, p.oid, 'EXECUTE')") === 0,
+    'vista previa del reemplazo: los ayudantes privados sin EXECUTE para la API');
+  const argsPrevia = { p_fuente_id: randomUUID(), p_fecha_inicio: '2026-10-01', p_conservar_id: null };
+  await expectExpectedFailure('vista previa: anon → 42501 (sin EXECUTE)', anon.schema('crm').rpc('reemplazar_inversion_vista_previa_fn', argsPrevia), ['42501'], DENEGADO);
+  for (const clave of ['vend1', 'sup1', 'coordinador', 'directorio']) {
+    await expectExpectedFailure(`vista previa: ${clave} → 42501`, sessions[clave].client.schema('crm').rpc('reemplazar_inversion_vista_previa_fn', argsPrevia), ['42501'], ROL);
+  }
+  await expectExpectedFailure('vista previa: gerencia sin admin del portal → 42501', ger.rpc('reemplazar_inversion_vista_previa_fn', argsPrevia), ['42501'], PORTAL);
 }
 
 // ── Eliminar lead por error de carga (20261015044917): gerencia o admin del portal; copia inmutable; 8 candados ──

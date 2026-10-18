@@ -1,3 +1,19 @@
+## 20261017211313 — Reemplazar inversión: vista previa del mes de la venta
+
+**CANDIDATA LOCAL, SIN PUBLICAR.** Va después de 20261017162053 (su preflight lo exige).
+Para la pantalla de la Fase 2: `crm.reemplazar_inversion_vista_previa_fn` (solo lectura,
+DEFINER, VOLATILE por POST, las puertas comunes del reemplazo) dice en qué mes queda la
+venta y si el contrato tiene cuotas pagadas (el reemplazo se negaría; en producción, 294 de
+514 inversiones «nuevo» vigentes) ANTES de confirmar. Las reglas salen del núcleo a tres
+ayudantes (`private.reemplazo_dia_registro_venta`, `private.reemplazo_fecha_comercial`,
+`private.contrato_tiene_cuotas_pagadas`) y el núcleo los usa (3 cambios por ancla, 541ce30f…
+→ b6af7422…): una sola regla para la vista previa y el reemplazo (decisión de Miguel 17/10).
+Verificación (banco Docker): batería de la Fase 1 45/45 con el núcleo nuevo; vista previa
+12/12 con paridad (mismo mes, mudanza, día de la venta, cadena, «quedarme con la otra»,
+fecha corregida, cuotas pagadas); no escribe; 16/16 mutantes; reversa probada (vuelve a la
+Fase 1 en APTA); test-rls entero: los mismos 15 fallos ajenos, bloque 25/25; auditor-rls PASS
+(sus P3 aplicados). Kit en `supabase/scripts/reemplazar-inversion-vista-previa/`.
+
 ## 20261017162053 — Reemplazar inversión sin perder la venta
 
 **CANDIDATA LOCAL, SIN PUBLICAR.** Nada aplicado en producción ni en branch.
