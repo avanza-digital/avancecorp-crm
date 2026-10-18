@@ -2,11 +2,13 @@
 import { expect, test, type Page } from '@playwright/test'
 import { loginReal, UID } from './_helpers'
 import { montarColaEquipo } from './_sla-cola'
+import { montarLecturasHoySupervisor } from './_hoy-supervisor'
 import { diaEquipoPrueba, filaEquipoPrueba } from '../src/lib/gestion-diaria-equipo.fixture'
 import { fechaLima } from '../src/lib/agenda-derivada'
 
 async function montarJornada(page: Page) {
   const { analistaUno, analistaDos } = await montarColaEquipo(page, 'supervisor')
+  await montarLecturasHoySupervisor(page)
   const hoy = fechaLima(Date.now())
   const base = filaEquipoPrueba()
   const filas = [
@@ -24,11 +26,6 @@ async function montarJornada(page: Page) {
     pedidos.push(route.request().postDataJSON())
     await route.fulfill({ status: caido ? 403 : 200, json: caido ? { code: '42501', message: 'Sin permiso' } : dia })
   })
-  await page.route('**/rest/v1/rpc/citas_gerencia_consulta_v2_fn', async route => {
-    const pedido = route.request().postDataJSON()
-    await route.fulfill({ json: { version: 1, periodo: { desde: pedido.p_desde, hasta: pedido.p_hasta }, generado_en: new Date().toISOString(),
-      disponibilidad_depositos: 'sin_registro', depositos: [], citas_clientes: 0, citas: [] } })
-  })
   return { pedidos, hoy, caer: () => { caido = true } }
 }
 
@@ -43,6 +40,8 @@ test('supervisor: resultado visible, tasas de contacto, tabla y detalle con tecl
   await expect(contacto).toContainText('102')
   await expect(contacto).toContainText('14.00%')
   await expect(contacto).toContainText('14 contestadas / 100 útiles')
+  await expect(page.getByRole('region', { name: 'Resultados de hoy', exact: true })
+    .getByRole('button', { name: '0 operaciones cerradas', exact: true })).toBeVisible()
   expect(pedidos.at(-1)).toMatchObject({ p_dia: hoy, p_supervisor_id: UID })
   await expect(page.getByRole('link', { name: /Ver citas del equipo/ })).toHaveAttribute('href', `#/reuniones/dia/${hoy}`)
   const pendientes = page.getByRole('button', { name: 'Ver pendientes', exact: true })

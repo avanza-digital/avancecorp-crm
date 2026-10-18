@@ -2,6 +2,7 @@ import { irAModulo } from './_navegacion'
 import { expect, test, type Page } from '@playwright/test'
 import { abrirLead, irAPipeline, leadReal, loginReal, montarBackendReal, UID } from './_helpers'
 import { aColaV3, montarColaEquipo, type PedidoCola } from './_sla-cola'
+import { montarLecturasHoySupervisor } from './_hoy-supervisor'
 import type { EstadoSlaV2 } from '../src/lib/sla-operacion'
 import muestraSql from '../src/data/sla-operacion-sql.test.fixture.json' with { type: 'json' }
 
@@ -157,25 +158,24 @@ for (const rol of ['gerencia', 'supervisor'] as const) {
   test(`${rol}: Seguimiento tiene módulo propio, filtra el ámbito servido y conserva la navegación paginada`, async ({ page }) => {
     await page.setViewportSize({ width: 1192, height: 784 })
     const { pedidos, analistaUno, analistaAjeno } = await montarColaEquipo(page, rol)
+    if (rol === 'supervisor') await montarLecturasHoySupervisor(page)
     const errores: string[] = []
     page.on('pageerror', (error) => errores.push(error.message))
     await loginReal(page)
     if (rol === 'gerencia') {
       await expect(page.getByRole('heading', { name: 'Resumen', exact: true })).toBeVisible()
     } else {
-      // 27/09/2026: el Hoy del supervisor es un puesto de mando con una VISTA
-      // PREVIA de 7 pendientes; el módulo completo sigue siendo Seguimiento.
-      await expect(page.getByRole('heading', { name: 'Pendientes del equipo', exact: true })).toBeVisible()
+      // Hoy resume la jornada; la cola paginada se consulta al abrir Seguimiento.
+      await expect(page.getByRole('heading', { name: 'Dirección de la jornada', exact: true })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Ver pendientes', exact: true })).toBeVisible()
     }
     await expect(page.getByRole('list', { name: 'Oportunidades de esta página' })).toHaveCount(0)
-    if (rol === 'gerencia') expect(pedidos).toHaveLength(0)
-    else expect(pedidos.every((pedido) => pedido.p_limite === 7 && pedido.p_cursor === null)).toBe(true)
+    expect(pedidos).toHaveLength(0)
     const antesDelModulo = pedidos.length
     if (rol === 'supervisor') {
       await expect(page.getByRole('button', { name: 'Seguimiento', exact: true })).toBeVisible()
-      await page.getByRole('link', { name: /en Seguimiento$/ }).click()
-      await expect(page).toHaveURL(/#\/seguimiento$/)
-    } else await irASeguimiento(page)
+    }
+    await irASeguimiento(page)
     await expect.poll(() => pedidos.length).toBeGreaterThan(antesDelModulo)
     const lista = page.getByRole('list', { name: 'Oportunidades de esta página' })
     const prioridades = page.getByRole('group', { name: 'Prioridades de seguimiento' })
