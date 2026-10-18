@@ -18675,6 +18675,77 @@ async function testEliminarInversion(sessions, seed) {
   check(Boolean(lectura.error), 'eliminar inversión: gerencia no lee la copia directamente (solo funciones del servidor)');
 }
 
+// ── Reemplazar inversión (20261017162053): admin del portal (y gerencia si es la venta de un lead); núcleo cerrado ──
+// El comportamiento con escrituras (borrado con copia sin anular, alta, venta que se muda, mes sellado, plazo, tasa
+// heredada, «quedarme con la otra») se prueba en el banco con supabase/scripts/reemplazar-inversion/test-reemplazar-
+// inversion.sql; aquí, catálogo y roles, sin tocar la semilla compartida (fuentes inexistentes con randomUUID).
+// Salto RUIDOSO si la migración no está en esta base; con CRM_RLS_EXIGE_REEMPLAZAR_INVERSION=1 es un FALLO.
+async function testReemplazarInversion(sessions) {
+  console.log('\n— Reemplazar inversión: puertas, núcleo y copia —');
+  const saltar = (msg) => {
+    if (process.env.CRM_RLS_EXIGE_REEMPLAZAR_INVERSION === '1') fail(msg);
+    else console.log(`  ${msg}`);
+  };
+  let aplicada;
+  try {
+    aplicada = contarFueraDeBanda('reemplazar inversión: aplicada',
+      "select (to_regprocedure('crm.reemplazar_inversion_fn(uuid,text,jsonb,jsonb,jsonb)') is not null and to_regprocedure('crm.reemplazar_inversion_por_existente_fn(uuid,uuid,text)') is not null)::int");
+  } catch (error) {
+    saltar(`⚠ Reemplazar inversión SALTADO: sin vía fuera de banda (${error?.message ?? String(error)})`);
+    return;
+  }
+  if (aplicada !== 1) {
+    saltar('⚠ 20261017162053 (reemplazar inversión) NO desplegada en esta base: bloque SALTADO (no probado)');
+    return;
+  }
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`reemplazar inversión: ${etiqueta}`, sql);
+  check(cuenta('puertas', "select count(*) from pg_proc p where p.oid in ('crm.reemplazar_inversion_fn(uuid,text,jsonb,jsonb,jsonb)'::regprocedure, 'crm.reemplazar_inversion_por_existente_fn(uuid,uuid,text)'::regprocedure) and p.prosecdef and p.proowner = 'postgres'::regrole and 'search_path=\"\"' = any(p.proconfig) and has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('anon', p.oid, 'EXECUTE') and not has_function_privilege('service_role', p.oid, 'EXECUTE') and not exists (select 1 from aclexplode(p.proacl) a where a.grantee = 0)") === 2,
+    'reemplazar inversión: las dos puertas son DEFINER de postgres, search_path vacío, EXECUTE solo authenticated');
+  check(cuenta('nucleo', "select count(*) from pg_proc p cross join unnest(array['anon','authenticated','service_role']) r(rol) where p.oid in ('private.reemplazar_inversion_avance(uuid,jsonb,uuid,text,jsonb,jsonb,jsonb,uuid)'::regprocedure, 'private.registrar_inversion_reemplazada_avance(jsonb,uuid,uuid,text,text,uuid,text,jsonb)'::regprocedure) and has_function_privilege(r.rol, p.oid, 'EXECUTE')") === 0,
+    'reemplazar inversión: el núcleo privado (reemplazo y copia) sin EXECUTE para la API');
+  check(cuenta('nucleo invoker', "select count(*) from pg_proc p where p.oid in ('private.reemplazar_inversion_avance(uuid,jsonb,uuid,text,jsonb,jsonb,jsonb,uuid)'::regprocedure, 'private.registrar_inversion_reemplazada_avance(jsonb,uuid,uuid,text,text,uuid,text,jsonb)'::regprocedure) and not p.prosecdef and 'search_path=\"\"' = any(p.proconfig)") === 2,
+    'reemplazar inversión: el núcleo es INVOKER con search_path vacío');
+  check(cuenta('copia', "select count(*) from pg_attribute a where a.attrelid = 'crm.inversiones_eliminadas'::regclass and a.attname = 'reemplazada_por' and not a.attisdropped and not has_column_privilege('authenticated', a.attrelid, a.attname, 'SELECT')") === 1,
+    'reemplazar inversión: la copia recuerda el contrato que quedó y la API no la lee');
+  const DENEGADO = /permission denied/i;
+  const ROL = /Solo admin o gerencia pueden reemplazar inversiones/;
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-reemplazar-inversion'));
+  const args = { p_fuente_id: randomUUID(), p_motivo: 'Prueba del gate de RLS', p_contrato: {}, p_cronograma: [], p_cuenta: {} };
+  const argsExistente = { p_fuente_id: randomUUID(), p_conservar_id: randomUUID(), p_motivo: 'Prueba del gate de RLS' };
+  await expectExpectedFailure('reemplazar inversión: anon → 42501 (sin EXECUTE)', anon.schema('crm').rpc('reemplazar_inversion_fn', args), ['42501'], DENEGADO);
+  await expectExpectedFailure('reemplazar inversión: service_role → 42501 (sin EXECUTE)', admin.schema('crm').rpc('reemplazar_inversion_fn', args), ['42501'], DENEGADO);
+  await expectExpectedFailure('quedarme con la otra: anon → 42501 (sin EXECUTE)', anon.schema('crm').rpc('reemplazar_inversion_por_existente_fn', argsExistente), ['42501'], DENEGADO);
+  for (const clave of ['vend1', 'sup1', 'coordinador', 'directorio']) {
+    await expectExpectedFailure(`reemplazar inversión: ${clave} → 42501`, sessions[clave].client.schema('crm').rpc('reemplazar_inversion_fn', args), ['42501'], ROL);
+    await expectExpectedFailure(`quedarme con la otra: ${clave} → 42501`, sessions[clave].client.schema('crm').rpc('reemplazar_inversion_por_existente_fn', argsExistente), ['42501'], ROL);
+  }
+  // La gerencia del fixture NO es admin del portal: una inversión de Avance la reemplaza un admin del portal, y la puerta lo
+  // exige antes de validar nada más. Las validaciones (motivo, fuente inexistente, «se conserva») y el camino feliz, con un
+  // actor admin del portal + Gerencia, se prueban en supabase/scripts/reemplazar-inversion/test-reemplazar-inversion.sql.
+  const PORTAL = /la reemplaza un admin del portal/;
+  const ger = sessions.gerencia.client.schema('crm');
+  await expectExpectedFailure('reemplazar inversión: gerencia sin admin del portal → 42501', ger.rpc('reemplazar_inversion_fn', args), ['42501'], PORTAL);
+  await expectExpectedFailure('quedarme con la otra: gerencia sin admin del portal → 42501', ger.rpc('reemplazar_inversion_por_existente_fn', argsExistente), ['42501'], PORTAL);
+
+  // Vista previa del mes (20261017211313): solo lectura, mismas puertas de rol. Si la migración no está, salto RUIDOSO.
+  const previaAplicada = cuenta('vista previa: aplicada',
+    "select (to_regprocedure('crm.reemplazar_inversion_vista_previa_fn(uuid,date,uuid)') is not null)::int");
+  if (previaAplicada !== 1) {
+    saltar('⚠ 20261017211313 (vista previa del reemplazo) NO desplegada en esta base: casos SALTADOS (no probados)');
+    return;
+  }
+  check(cuenta('vista previa: puerta', "select count(*) from pg_proc p where p.oid = 'crm.reemplazar_inversion_vista_previa_fn(uuid,date,uuid)'::regprocedure and p.prosecdef and p.proowner = 'postgres'::regrole and 'search_path=\"\"' = any(p.proconfig) and has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('anon', p.oid, 'EXECUTE') and not has_function_privilege('service_role', p.oid, 'EXECUTE') and not exists (select 1 from aclexplode(p.proacl) a where a.grantee = 0)") === 1,
+    'vista previa del reemplazo: DEFINER de postgres, search_path vacío, EXECUTE solo authenticated');
+  check(cuenta('vista previa: ayudantes', "select count(*) from pg_proc p cross join unnest(array['anon','authenticated','service_role']) r(rol) where p.oid in ('private.reemplazo_dia_registro_venta(uuid)'::regprocedure, 'private.reemplazo_fecha_comercial(uuid,date)'::regprocedure) and has_function_privilege(r.rol, p.oid, 'EXECUTE')") === 0,
+    'vista previa del reemplazo: los ayudantes privados sin EXECUTE para la API');
+  const argsPrevia = { p_fuente_id: randomUUID(), p_fecha_inicio: '2026-10-01', p_conservar_id: null };
+  await expectExpectedFailure('vista previa: anon → 42501 (sin EXECUTE)', anon.schema('crm').rpc('reemplazar_inversion_vista_previa_fn', argsPrevia), ['42501'], DENEGADO);
+  for (const clave of ['vend1', 'sup1', 'coordinador', 'directorio']) {
+    await expectExpectedFailure(`vista previa: ${clave} → 42501`, sessions[clave].client.schema('crm').rpc('reemplazar_inversion_vista_previa_fn', argsPrevia), ['42501'], ROL);
+  }
+  await expectExpectedFailure('vista previa: gerencia sin admin del portal → 42501', ger.rpc('reemplazar_inversion_vista_previa_fn', argsPrevia), ['42501'], PORTAL);
+}
+
 // ── Eliminar lead por error de carga (20261015044917): gerencia o admin del portal; copia inmutable; 8 candados ──
 // r2 (20261015150731): borra también la ficha de inversionista sin dinero y sus anexos (10 tablas) y abre el candado de
 // solicitudes de tasa (9.º candado). Se detecta por la huella de la puerta (o por la copia `'version', 2`).
@@ -20985,6 +21056,7 @@ async function main() {
       await testBasesCargadasB11(sessions);
       await testEliminarInversion(sessions, verifiedSeed);
       await testEliminarLeadErrorCarga(sessions, verifiedSeed);
+      await testReemplazarInversion(sessions);
       await testCategoriaPorOperacion(sessions, verifiedSeed);
       // Fase 4 · grupo A (2.3 y 2.6), el ÚLTIMO a propósito: siembra y retira su propio mes sellado (2001-07) y deja
       // inactivas las identidades D-17; nada de eso puede alterar a un bloque posterior.

@@ -2503,6 +2503,7 @@ export type Database = {
           inversionista_id: string | null
           lead_id: string | null
           motivo: string
+          reemplazada_por: string | null
           rol_actor: string
           snapshot: Json
           transaccion: unknown
@@ -2524,6 +2525,7 @@ export type Database = {
           inversionista_id?: string | null
           lead_id?: string | null
           motivo: string
+          reemplazada_por?: string | null
           rol_actor: string
           snapshot: Json
           transaccion?: unknown
@@ -2545,6 +2547,7 @@ export type Database = {
           inversionista_id?: string | null
           lead_id?: string | null
           motivo?: string
+          reemplazada_por?: string | null
           rol_actor?: string
           snapshot?: Json
           transaccion?: unknown
@@ -7610,6 +7613,28 @@ export type Database = {
         Args: { p_limite?: number }
         Returns: Json
       }
+      reemplazar_inversion_fn: {
+        Args: {
+          p_contrato: Json
+          p_cronograma: Json
+          p_cuenta: Json
+          p_fuente_id: string
+          p_motivo: string
+        }
+        Returns: Json
+      }
+      reemplazar_inversion_por_existente_fn: {
+        Args: { p_conservar_id: string; p_fuente_id: string; p_motivo: string }
+        Returns: Json
+      }
+      reemplazar_inversion_vista_previa_fn: {
+        Args: {
+          p_conservar_id?: string
+          p_fecha_inicio?: string
+          p_fuente_id: string
+        }
+        Returns: Json
+      }
       reevaluar_cierre_capital_fn: { Args: never; Returns: Json }
       registrar_actividad_v2: {
         Args: {
@@ -9030,3 +9055,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+

@@ -1,3 +1,58 @@
+## 20261017211313 — Reemplazar inversión: vista previa del mes de la venta
+
+**EN PRODUCCIÓN 17/10/2026.** La aplicó Miguel con «!» y `db query --linked --file`: migración 20:12:26, `registrar.sql` 20:12:40 y `comprobar-tras-aplicar.sql` 20:14:28 → `APTA` (hora de Lima, según el registro de la sesión). Va después de 20261017162053 (su preflight lo exige).
+Para la pantalla de la Fase 2: `crm.reemplazar_inversion_vista_previa_fn` (solo lectura,
+DEFINER, VOLATILE por POST, las puertas comunes del reemplazo) dice en qué mes queda la
+venta y si el contrato tiene cuotas pagadas (el reemplazo se negaría; en producción, 294 de
+514 inversiones «nuevo» vigentes) ANTES de confirmar. Las reglas salen del núcleo a tres
+ayudantes (`private.reemplazo_dia_registro_venta`, `private.reemplazo_fecha_comercial`,
+`private.contrato_tiene_cuotas_pagadas`) y el núcleo los usa (3 cambios por ancla, 541ce30f…
+→ b6af7422…): una sola regla para la vista previa y el reemplazo (decisión de Miguel 17/10).
+Verificación (banco Docker): batería de la Fase 1 45/45 con el núcleo nuevo; vista previa
+12/12 con paridad (mismo mes, mudanza, día de la venta, cadena, «quedarme con la otra»,
+fecha corregida, cuotas pagadas); no escribe; 16/16 mutantes; reversa probada (vuelve a la
+Fase 1 en APTA); test-rls entero: los mismos 15 fallos ajenos, bloque 25/25; auditor-rls PASS
+(sus P3 aplicados). Kit en `supabase/scripts/reemplazar-inversion-vista-previa/`.
+
+## 20261017162053 — Reemplazar inversión sin perder la venta
+
+**EN PRODUCCIÓN 17/10/2026.** La aplicó Miguel con «!» y `db query --linked --file`: migración 20:08:38, `registrar.sql` 20:08:58 y `comprobar-tras-aplicar.sql` 20:11:58 → `APTA` (hora de Lima, según el registro de la sesión). Desde 20261017211313 su comprobación da NO APTA en «huellas» a propósito: el núcleo cambió y vale la de esa migración.
+Corrige un error de carga de una inversión de Avance sin anular la venta del lead:
+en una sola transacción elimina la original con copia «reemplazada por N°…»
+(`crm.inversiones_eliminadas.reemplazada_por`, sin anular), da de alta la correcta
+por la puerta de siempre (`crm.reemplazar_inversion_fn`) o conserva la cargada dos
+veces (`crm.reemplazar_inversion_por_existente_fn`), vuelve a enlazar el lead y
+mueve la acreditación con su único escritor. La conversión y el capital del mes
+quedan iguales; si cambiarían, falla entero. Núcleo `private.reemplazar_inversion_avance`
+(INVOKER) y copia `private.registrar_inversion_reemplazada_avance`. Cambia por
+anclas `private.trg_contratos_observar_rentabilidad` (9a0c0411… → 1606e0a6…): la
+tasa aprobada se hereda solo si en la misma transacción hay copia del reemplazo
+con la misma tasa (y en enforcement, los mismos datos). No toca objetos de `public`.
+
+Decisiones de Miguel: Avance la reemplaza un admin del portal; si es la venta de
+un lead, además Gerencia. Cambia todo menos el cliente; mismo analista; mes
+sellado o plazo de carga vencido → no deja; otra fecha mueve la venta solo a un
+mes abierto, con el día de registro de la venta (también tras varios reemplazos).
+Rechaza: cuotas pagadas, upgrade/renovación, demo, dos convertidos, otro cliente,
+duplicado que no es igual (datos o cotitulares), venta con el lead enlazado a otra
+inversión. Pasa origen de capital confirmado y cotitulares.
+
+Verificación (banco Docker con esquema de producción, worktree propio): batería
+45 bloques PASS; 43/43 mutantes muertos; 5/5 carreras PASS (E4: un pago en curso
+se respeta; E5: la reversa a la vez que un reemplazo conserva su copia); regresión «Eliminar
+inversión» 24 y «Eliminar lead» 100/0 PASS; test-rls en stack propio: los mismos 15
+fallos ajenos antes y después, bloque nuevo 17/17; reversa ejecutada en el banco
+(observador vuelve a 9a0c0411… con dueño, configuración y ACL). Revisiones: Codex r1
+(6 hallazgos) y r2 (1 P1 + 2 P2: cadena A → B → C que saltaba el candado de tasa,
+cotitulares en «quedarme con la otra», reintento con origen confirmado), todos
+reproducidos en el banco y corregidos; auditor-rls sobre el delta r2 sin P0/P1 (su P2,
+orden de cotitulares, corregido); Codex r3 cerró los de r2 y abrió 1 P1 en la reversa
+(decidía con una foto vieja) + 1 P2 de mutante, corregidos y reproducidos; Codex r4
+PASS (todo cerrado); revisión consolidada final de Codex sobre todo el kit: PASS, ningún
+P0/P1 abierto; concurrencia, seguridad y negocio sin P0/P1 abiertos. Kit en `supabase/scripts/reemplazar-inversion/` (LEEME, reversa, registrar,
+comprobar, carreras).
+Plan: vault «Reemplazar inversion - plan por fases (2026-10-17)».
+
 ## 20261017054427 — SLA por filas · M3: la cola del día pagina sobre filas (v2)
 
 **EN PRODUCCIÓN 17/10/2026** (Miguel con «!»; M1 16:50, M2 16:52, M3 16:54, registro 16:58, hora de Lima; `db query --linked --file`, `verificar.sql` antes y después de cada una). Acta: `scripts/sla-por-filas/evidencia/13-acta-produccion-20261017.md`. v2 del 17/10, con las revisiones de Codex, auditor-rls y el verificador independiente. Ensayada en el

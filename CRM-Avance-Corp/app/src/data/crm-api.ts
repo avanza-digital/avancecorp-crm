@@ -183,10 +183,14 @@ import { EnteroNoNegativoRpcSchema, FechaSchema, NumeroRpcSchema } from '@/lib/e
 import { presentarCitas } from '@/lib/terminologia'
 import {
   InversionEliminadaSchema,
+  InversionReemplazadaSchema,
+  AcuseReemplazoAccesorios,
   MOTIVO_ELIMINACION_MAX,
   MOTIVO_ELIMINACION_MIN,
   motivoEliminacionValido,
+  VistaPreviaReemplazoSchema,
   type EmpresaInversion,
+  type VistaPreviaReemplazo,
 } from '@/lib/inversionistas'
 import {
   LeadEliminadoSchema,
@@ -7362,6 +7366,177 @@ export async function eliminarInversion(fuenteId: string, motivo: string): Promi
     conversionAnulada: respuesta.output.conversion_anulada,
     mesCerrado: respuesta.output.mes_cerrado,
   }
+}
+
+// ─── Reemplazar inversión (admin del portal; la venta de un lead, además gerencia — 17/10/2026) ───────────
+// Cambia una inversión de Avance cargada con error por la correcta EN UN SOLO PASO: la original se elimina con una
+// copia «reemplazada por N°…» y la venta del lead pasa a la que queda SIN anularse. Quién puede, si se puede (mes
+// cerrado, plazo vencido, cuotas pagadas, carga doble…) y en qué mes queda la venta lo decide el servidor; sus
+// mensajes ya llegan en español de negocio y se muestran tal cual.
+
+export interface InversionReemplazadaResultado {
+  /** El contrato que queda: el alta nueva o el que se conservó. */
+  contratoId: string
+  numeroContrato: string | null
+  modo: 'nueva' | 'existente'
+  /** El original ya se había reemplazado con estos mismos datos: se devolvió aquel resultado. */
+  idempotente: boolean
+  /** Mes en que quedó la venta del lead (si la había), según el servidor. */
+  periodoVenta: string | null
+}
+
+const REEMPLAZO_RECHAZOS: Record<string, string> = {
+  P0002: 'NO_ENCONTRADA', P0409: 'CONFLICTO', P0410: 'CONFLICTO', '55000': 'CONFLICTO',
+  '22023': 'REGLA_SERVIDOR', P0001: 'REGLA_SERVIDOR', '0A000': 'REGLA_SERVIDOR', '23505': 'REGLA_SERVIDOR',
+}
+
+/**
+ * Los RAISE de las puertas (42501, 22023, P0002, P0409, P0410, PT409, 55000) se muestran tal cual. Solo se reescribe
+ * lo que Postgres redacta en inglés (permiso del catálogo, bloqueos), y el corte de red, que no prueba que el
+ * reemplazo fallara.
+ */
+function aErrorReemplazarInversion(error: { code?: string | null; message?: string | null }, evento: string, accion: string): CrmApiError {
+  const pg = error.code ?? ''
+  const texto = error.message?.trim() ?? ''
+  let code = REEMPLAZO_RECHAZOS[pg] ?? 'POSTGREST_ERROR'
+  let mensaje = texto && pg in REEMPLAZO_RECHAZOS ? texto : `No se pudo ${accion}.`
+  if (pg === '') {
+    code = 'RESPUESTA_NO_RECIBIDA'
+    mensaje = accion === 'calcular el mes'
+      ? 'No llegó la respuesta del servidor. Comprueba tu conexión y vuelve a intentarlo.'
+      : 'No llegó la respuesta del servidor y el reemplazo pudo hacerse. Comprueba tu conexión y vuelve a abrir la ficha antes de reintentar.'
+  } else if (pg === '42501' || pg === 'PGRST301') {
+    code = 'SIN_PERMISO'
+    mensaje = pg === '42501' && texto && !texto.startsWith('permission denied')
+      ? texto : 'No tienes permiso para reemplazar esta inversión.'
+  } else if (pg === 'PT409' || pg === '55P03' || pg === '40001' || pg === '40P01') {
+    code = 'REINTENTAR'
+    mensaje = pg === 'PT409' && texto ? texto : 'Otra operación está usando esta inversión. Vuelve a intentarlo en unos segundos.'
+  }
+  const fallo = new CrmApiError(mensaje, code)
+  registrarError(evento, fallo, { pg })
+  return fallo
+}
+
+function exigirMotivoReemplazo(motivo: string): string {
+  const limpio = motivo.trim()
+  if (!motivoEliminacionValido(limpio)) {
+    throw new CrmApiError(
+      `Escribe el motivo del reemplazo (de ${MOTIVO_ELIMINACION_MIN} a ${MOTIVO_ELIMINACION_MAX} caracteres).`,
+      'INVERSION_MOTIVO_INVALIDO',
+    )
+  }
+  return limpio
+}
+
+function exigirUuidInversion(id: string, mensaje: string): void {
+  if (!v.safeParse(UuidSchema, id).success) throw new CrmApiError(mensaje, 'INVERSION_FUENTE_INVALIDA')
+}
+
+function acuseReemplazo(data: unknown, fuenteId: string, evento: string): InversionReemplazadaResultado {
+  const r = v.safeParse(InversionReemplazadaSchema, data)
+  if (!r.success || r.output.fuente_id.toLowerCase() !== fuenteId.toLowerCase()) {
+    // El servidor respondió 2xx: el reemplazo pudo hacerse aunque el acuse no sea el pactado.
+    const fallo = new CrmApiError(
+      'El servidor no confirmó el reemplazo con el formato esperado; pudo hacerse. Vuelve a abrir la ficha antes de reintentar.',
+      'INVERSION_REEMPLAZADA_CONTRACT',
+    )
+    registrarError(evento, fallo)
+    throw fallo
+  }
+  // El reemplazo YA está hecho: un accesorio con otra forma se registra y se deja en blanco, nunca se vuelve error.
+  const crudo = data as Record<string, unknown>
+  const conversion = crudo.conversion && typeof crudo.conversion === 'object' && !Array.isArray(crudo.conversion)
+    ? crudo.conversion as Record<string, unknown> : null
+  if (crudo.conversion != null && conversion === null) {
+    registrarError(`${evento}.accesorio`, new CrmApiError('Acuse del reemplazo: «conversion» con otra forma.', 'INVERSION_REEMPLAZADA_ACCESORIO'))
+  }
+  const accesorio = <T,>(campo: string, esquema: v.GenericSchema<unknown, T>, valor: unknown, enBlanco: T): T => {
+    if (valor === undefined) return enBlanco
+    const a = v.safeParse(esquema, valor)
+    if (a.success) return a.output
+    registrarError(`${evento}.accesorio`, new CrmApiError(`Acuse del reemplazo: «${campo}» con otra forma.`, 'INVERSION_REEMPLAZADA_ACCESORIO'))
+    return enBlanco
+  }
+  return {
+    contratoId: r.output.contrato_id,
+    numeroContrato: accesorio('numero_contrato', AcuseReemplazoAccesorios.numero_contrato, crudo.numero_contrato, null),
+    modo: r.output.modo,
+    idempotente: accesorio('idempotente', AcuseReemplazoAccesorios.idempotente, crudo.idempotente, false),
+    periodoVenta: accesorio('conversion.periodo_despues', AcuseReemplazoAccesorios.periodo_despues, conversion?.periodo_despues, null),
+  }
+}
+
+/** En qué mes quedaría la venta (solo lectura): con la fecha de inicio de la correcta o la de la que se conserva. */
+export async function vistaPreviaReemplazo(
+  fuenteId: string,
+  opciones: { fechaInicio: string } | { conservarId: string },
+): Promise<VistaPreviaReemplazo> {
+  exigirUuidInversion(fuenteId, 'El identificador de la inversión no es válido.')
+  const conservar = 'conservarId' in opciones ? opciones.conservarId : null
+  if (conservar) exigirUuidInversion(conservar, 'El identificador de la inversión que se conserva no es válido.')
+  const fecha = 'fechaInicio' in opciones ? opciones.fechaInicio : null
+  if (!conservar && !(fecha && /^\d{4}-\d{2}-\d{2}$/.test(fecha))) {
+    throw new CrmApiError('Indica la fecha de inicio de la inversión correcta.', 'INVERSION_FECHA_INVALIDA')
+  }
+  const { data, error } = await cliente().schema('crm').rpc('reemplazar_inversion_vista_previa_fn', {
+    p_fuente_id: fuenteId,
+    ...(conservar ? { p_conservar_id: conservar } : { p_fecha_inicio: fecha as string }),
+  })
+  if (error) throw aErrorReemplazarInversion(error, 'crm.inversiones.reemplazo_previa_fallida', 'calcular el mes')
+  const r = v.safeParse(VistaPreviaReemplazoSchema, data)
+  if (!r.success || r.output.fuente_id.toLowerCase() !== fuenteId.toLowerCase()) {
+    const fallo = new CrmApiError('El servidor no devolvió el mes de la venta. Vuelve a intentarlo.', 'VISTA_PREVIA_CONTRACT')
+    registrarError('crm.inversiones.reemplazo_previa_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return r.output
+}
+
+/**
+ * Reemplaza la inversión por la correcta (alta nueva por la puerta de siempre, mismo cliente y mismo analista: el
+ * servidor los fija). Viaja el MISMO contenido económico que el alta (`prepararPayloadContrato`).
+ */
+export async function reemplazarInversion(
+  fuenteId: string,
+  motivo: string,
+  input: CrearContratoInput,
+  cronograma: CuotaCronograma[],
+): Promise<InversionReemplazadaResultado> {
+  exigirUuidInversion(fuenteId, 'El identificador de la inversión no es válido.')
+  const limpio = exigirMotivoReemplazo(motivo)
+  const p_contrato = prepararPayloadContrato(input)
+  // El analista y el cliente los fija el servidor (los del original); la clave del alta no aplica: el reemplazo es
+  // idempotente por la inversión original.
+  delete p_contrato.analista_cierre_id
+  delete p_contrato.clave_idempotencia
+  const { data, error } = await cliente().schema('crm').rpc('reemplazar_inversion_fn', {
+    p_fuente_id: fuenteId,
+    p_motivo: limpio,
+    p_contrato: p_contrato as unknown as Json,
+    p_cronograma: cronograma as unknown as Json,
+    p_cuenta: input.cuenta_pago as unknown as Json,
+  })
+  if (error) throw aErrorReemplazarInversion(error, 'crm.inversiones.reemplazo_fallido', 'reemplazar la inversión')
+  return acuseReemplazo(data, fuenteId, 'crm.inversiones.reemplazo_fuera_de_contrato')
+}
+
+/** «Quedarme con la otra»: la venta pasa a la inversión del mismo cliente cargada dos veces, sin alta. */
+export async function reemplazarInversionPorExistente(
+  fuenteId: string,
+  conservarId: string,
+  motivo: string,
+): Promise<InversionReemplazadaResultado> {
+  exigirUuidInversion(fuenteId, 'El identificador de la inversión no es válido.')
+  exigirUuidInversion(conservarId, 'El identificador de la inversión que se conserva no es válido.')
+  const limpio = exigirMotivoReemplazo(motivo)
+  const { data, error } = await cliente().schema('crm').rpc('reemplazar_inversion_por_existente_fn', {
+    p_fuente_id: fuenteId,
+    p_conservar_id: conservarId,
+    p_motivo: limpio,
+  })
+  if (error) throw aErrorReemplazarInversion(error, 'crm.inversiones.reemplazo_fallido', 'reemplazar la inversión')
+  return acuseReemplazo(data, fuenteId, 'crm.inversiones.reemplazo_fuera_de_contrato')
 }
 
 // ─── Eliminar lead por error de carga (gerencia o admin del portal, 14/10/2026) ──
