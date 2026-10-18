@@ -1,10 +1,9 @@
-// Datos COMPARTIDOS de Hoy · supervisor (27/09/2026). Los usan las dos
-// pantallas del rol: la clásica (./supervisor.tsx, que sigue sirviendo el modo
-// legado y el demo) y el puesto de mando (./supervisor-mando.tsx, modo activo).
+// Datos compartidos de Hoy · supervisor. Dirección de la jornada usa las
+// mismas fuentes que las vistas anteriores, conservadas como referencia.
 // Se extrajeron tal cual de supervisor.tsx para que la meta, el reparto, la
 // agenda y el tipo de cambio tengan UNA sola derivación: dos copias de esta
 // lógica divergirían en silencio. La cola NO vive aquí: cada modo trae la suya.
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   DIA_MS,
   capitalPrincipal,
@@ -36,6 +35,7 @@ import { useResumenCarteraOperativo } from '@/data/use-resumen-cartera-operativo
 import { rotuloTipoCambio } from '@/lib/capital-unificado'
 import { capitalComercialEnSoles, metaComercialEnSoles } from '@/lib/capital-unificado'
 import { useTipoCambio } from '@/lib/tipo-cambio'
+import { useRefrescoMensualJornada } from './use-refresco-mensual-jornada'
 
 // Texto neutro de una meta que gerencia todavía no fijó para el mes.
 const SIN_META = 'Sin meta fijada para este mes'
@@ -48,7 +48,9 @@ export interface FilaMeta {
   nota?: string | null
 }
 
-export function useDatosSupervisor() {
+export function useDatosSupervisor({ conConsultaOperativa = true, actualizarEnVivo = false }: {
+  conConsultaOperativa?: boolean; actualizarEnVivo?: boolean
+} = {}) {
   const {
     ambito,
     actividades,
@@ -65,27 +67,50 @@ export function useDatosSupervisor() {
   const ahora = useAhora()
   const periodoVigente = periodoLima(ahora)
   const periodoStoreIntentado = useRef<string | null>(null)
-  const [recargaPeriodoFallida, setRecargaPeriodoFallida] = useState(false)
+  const claveMensual = `${yo?.id}|${periodoVigente}`
+  const [ultimoRefresco, setUltimoRefresco] = useState<{ clave: string; fallido: boolean; objetivos: typeof objetivos; cumplimiento: typeof cumplimientoMetas } | null>(null)
+  const recargaEnVuelo = useRef<{ clave: string; promesa: Promise<void> } | null>(null)
+  const recargarFotoMensual = useCallback(() => {
+    if (recargaEnVuelo.current?.clave === claveMensual) return recargaEnVuelo.current.promesa
+    // Compartir el refresco manual, periódico y del cambio de mes. Una respuesta
+    // de otra sesión no puede reemplazar el estado del pedido más reciente.
+    const terminar = (fallido: boolean) => {
+      if (recargaEnVuelo.current?.promesa === promesa) setUltimoRefresco({ clave: claveMensual, fallido, objetivos, cumplimiento: cumplimientoMetas })
+    }
+    const promesa: Promise<void> = Promise.resolve().then(() => recargaEnVuelo.current?.promesa === promesa ? recargar() : true)
+      .then(async ok => {
+        // El store también devuelve false si otra ficha se abrió mientras viajaba.
+        // Una sola nueva lectura permite confirmar la foto sin cambiar ese contrato.
+        if (!ok && recargaEnVuelo.current?.promesa === promesa) ok = await recargar()
+        terminar(!ok)
+      })
+      .catch(() => { terminar(true) })
+      .finally(() => { if (recargaEnVuelo.current?.promesa === promesa) recargaEnVuelo.current = null })
+    recargaEnVuelo.current = { clave: claveMensual, promesa }
+    return promesa
+  }, [claveMensual, recargar, objetivos, cumplimientoMetas])
+  useEffect(() => () => { recargaEnVuelo.current = null; periodoStoreIntentado.current = null }, [claveMensual])
+  // Foco o una mutación también pueden recuperar la fuente: no ocultar una foto
+  // nueva por un fallo de la foto anterior. Los flags del store siguen mandando.
+  const falloRefrescoMensual = ultimoRefresco?.clave === claveMensual && ultimoRefresco.fallido
+    && ultimoRefresco.objetivos === objetivos && ultimoRefresco.cumplimiento === cumplimientoMetas
   const fotoMensualStoreVigente = yo?.demo === true || (
     objetivos.periodo === periodoVigente
     && (cumplimientoMetas == null || cumplimientoMetas.periodo === periodoVigente)
   )
   useEffect(() => {
-    if (yo?.demo || fotoMensualStoreVigente
-      || periodoStoreIntentado.current === periodoVigente) return
-    periodoStoreIntentado.current = periodoVigente
-    setRecargaPeriodoFallida(false)
-    void recargar().then((ok) => {
-      if (!ok) setRecargaPeriodoFallida(true)
-    })
-  }, [fotoMensualStoreVigente, periodoVigente, recargar, yo?.demo])
+    if (!yo || yo.demo || fotoMensualStoreVigente
+      || periodoStoreIntentado.current === claveMensual) return
+    periodoStoreIntentado.current = claveMensual
+    void recargarFotoMensual()
+  }, [fotoMensualStoreVigente, claveMensual, recargarFotoMensual, yo])
 
   // ── F1b: los agregados llegan del servidor (o del espejo demo vivo) ──
   // resumen_cartera_fn → tiles de capital/activos/parkeados;
   // metricas_vendedores_fn → ranking.
-  const resumenOp = useResumenCarteraOperativo(ambito.leads, actividades)
+  const resumenOp = useResumenCarteraOperativo(ambito.leads, actividades, true, actualizarEnVivo)
   const resumen = resumenOp.resumen
-  const vendedoresOp = useMetricasVendedoresOperativas(ambito.vendedores, equipo, ambito.leads, actividades)
+  const vendedoresOp = useMetricasVendedoresOperativas(ambito.vendedores, equipo, ambito.leads, actividades, conConsultaOperativa)
   const rank = vendedoresOp.metricas?.filas ?? null
   // TC izado UNA vez por pantalla: el hook no pasa por TanStack (sin cache ni
   // dedupe), así que uno por fila multiplicaría las llamadas a la edge.
@@ -154,13 +179,13 @@ export function useDatosSupervisor() {
   // de equipo, su meta y su producción viajan juntas (ver `metaVigente`).
   const fotoMensualStoreCargando = !yo?.demo
     && !fotoMensualStoreVigente
-    && !recargaPeriodoFallida
-  const objetivosMensualesError = fotoMensualStoreVigente
+    && !falloRefrescoMensual
+  const objetivosMensualesError = falloRefrescoMensual || (fotoMensualStoreVigente
     ? objetivosError
-    : recargaPeriodoFallida
-  const cumplimientoMensualError = fotoMensualStoreVigente
+    : false)
+  const cumplimientoMensualError = falloRefrescoMensual || (fotoMensualStoreVigente
     ? cumplimientoMetasError
-    : recargaPeriodoFallida
+    : false)
   const objetivosMensuales = fotoMensualStoreVigente
     ? objetivos
     : objetivosCero(periodoVigente)
@@ -298,10 +323,7 @@ export function useDatosSupervisor() {
   const hayErrorMensual = objetivosMensualesError || cumplimientoMensualError || conversionMensualError || tcCaido
   const reintentarMensual = () => {
     if (objetivosMensualesError || cumplimientoMensualError) {
-      setRecargaPeriodoFallida(false)
-      void recargar().then((ok) => {
-        if (!ok && !fotoMensualStoreVigente) setRecargaPeriodoFallida(true)
-      })
+      void recargarFotoMensual()
     }
     if (conversionMensualError) void qConversionMensual.refetch()
     if (tcCaido) recargarTipoCambio()
@@ -313,7 +335,7 @@ export function useDatosSupervisor() {
   const sesionReal = Boolean(yo && !yo.demo)
   const hastaMA = fechaLima(ahora)
   const desdeMA = fechaLima(ahora - 6 * DIA_MS)
-  const consultaAgenda = useMetricasAgenda(sesionReal, desdeMA, hastaMA)
+  const consultaAgenda = useMetricasAgenda(sesionReal && conConsultaOperativa, desdeMA, hastaMA)
   // En sesión real con data aún undefined y sin error, viaja undefined a
   // propósito: el panel muestra su estado de carga.
   const datosAgenda = sesionReal ? consultaAgenda.data : metricasAgendaDemo(desdeMA, hastaMA)
@@ -341,6 +363,19 @@ export function useDatosSupervisor() {
   // refetch fallido, y una señal vieja no puede pasar por vigente.
   const agendaConfirmada = errorAgenda == null ? datosAgenda : undefined
 
+  const recargarMensual = async () => {
+    if (!sesionReal) return
+    await Promise.allSettled([recargarFotoMensual(), qConversionMensual.refetch()])
+    // El día ya dispara su propia consulta; no cambiar la cotización en cada
+    // sondeo mensual. Un fallo sí puede recuperarse al actualizar.
+    if (tcCaido) recargarTipoCambio()
+  }
+  useRefrescoMensualJornada({
+    actor: yo?.id ?? null,
+    habilitado: sesionReal && actualizarEnVivo,
+    recargar: recargarMensual,
+  })
+
   return {
     ahora,
     ambito,
@@ -358,11 +393,22 @@ export function useDatosSupervisor() {
     detalleReparto,
     etiquetaAccesoReparto,
     cumplimientoMensual,
+    cumplimientoMensualError,
+    objetivosMensuales,
+    objetivosMensualesError,
+    fotoMensualStoreCargando,
+    capitalConfirmado,
+    metaCapital,
+    metaConversion,
+    conversionMensual,
+    lecturaConversion,
+    totalConversion,
     conversionConfirmada,
     conversionMensualError,
     filasMeta,
     hayErrorMensual,
     reintentarMensual,
+    recargarMensual,
     sesionReal,
     datosAgenda,
     agendaConfirmada,

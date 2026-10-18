@@ -363,3 +363,5 @@ Hay **tres capas**, complementarias:
 - Máximo 3 intentos automáticos; si sigue fallando, escalar con explicación clara.
 
 - [[Notificaciones de tasa - publicadas 2026-09-11]] — Avisos de tasas activos en la PWA; falta permiso y prueba del teléfono.
+
+- [[Hoy supervisor - modulo verificado y preparacion del ZIP (2026-10-18)]] — Goal con revisión por fases, 7.262 pruebas PASS; identidad y entrega del ZIP en su acta externa. Sin publicación.

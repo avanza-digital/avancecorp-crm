@@ -4948,6 +4948,8 @@ const FacturacionDiaRowSchema = v.object({
 /** El array de filas, más cuántas vinieron ilegibles (para poder avisarlo). */
 export type FacturacionDelMes = FilaFacturacionDia[] & {
   descartadas: number
+  /** Solo el RPC tabular legado está sujeto a max_rows; V2 devuelve un único JSON. */
+  posibleRecorte?: true
   capitalValoracion?: { activa: true; corteId: string | null; corte: string | null; cobertura: CoberturaCapital }
   tipoCambioLegado?: { fecha: string; tasa: number }
 }
@@ -5023,6 +5025,9 @@ export async function listarFacturacionDiaria(
   // Se DECLARA cuántas filas no se pudieron leer para que la pantalla pueda
   // avisar. Un total al que le faltan cifras sin decirlo es peor que un error.
   if (valoracion && descartadas) throw new CrmApiError('El corte de Facturación contiene filas ilegibles.', 'ROW_CONTRACT')
+  // supabase/config.toml fija max_rows=1000. El sobre JSON V2 (incluso inactivo) no se recorta.
+  const completitud = !versionada && (Array.isArray(data) ? data.length : 0) >= 1000
+    ? { posibleRecorte: true as const } : {}
   if (consolidarLegado && mes < '2026-10-01') {
     const [anio, mesNumero] = mes.split('-').map(Number)
     const ultimo = new Date(Date.UTC(anio!, mesNumero!, 0)).toISOString().slice(0, 10)
@@ -5031,14 +5036,14 @@ export async function listarFacturacionDiaria(
       lanzarAbortSiCorresponde(signal)
       return Object.assign(items.map((fila) => ({ ...fila,
         capitalEquivalentePen: fila.moneda === 'PEN' ? fila.capital : fila.capital * tasa.promedio,
-      })), { descartadas, tipoCambioLegado: { fecha: ultimo, tasa: tasa.promedio } })
+      })), { descartadas, ...completitud, tipoCambioLegado: { fecha: ultimo, tasa: tasa.promedio } })
     } catch {
       lanzarAbortSiCorresponde(signal)
       // Las monedas originales siguen disponibles. Un total mixto queda
       // incompleto hasta recuperar el corte histórico, sin tasa de emergencia.
     }
   }
-  return Object.assign(items, { descartadas, ...(valoracion ? { capitalValoracion: valoracion } : {}) })
+  return Object.assign(items, { descartadas, ...completitud, ...(valoracion ? { capitalValoracion: valoracion } : {}) })
 }
 
 /** Contrato versionado de la lista: se valida ENTERO, nunca se descartan operaciones. */

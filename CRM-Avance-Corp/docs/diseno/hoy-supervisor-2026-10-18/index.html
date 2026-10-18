@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hoy · Supervisor — dos propuestas comerciales</title>
+  <link rel="stylesheet" href="estilos.css">
+  <script src="propuestas.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#contenido">Saltar al contenido</a>
+  <header class="prototipo">
+    <div><strong>ESTUDIO DE DISEÑO</strong><span>Datos y personas ficticios · Sin conexión al CRM</span></div>
+    <nav aria-label="Elegir propuesta">
+      <button type="button" data-vista="a" aria-pressed="true">01 · Resultados del equipo</button>
+      <button type="button" data-vista="b" aria-pressed="false">02 · Dirección de la jornada</button>
+    </nav>
+  </header>
+  <div class="app">
+    <aside class="sidebar" aria-label="Contexto del CRM">
+      <div class="marca"><span class="simbolo">A</span><span>AVANCE<span class="marca-light">CORP</span><small>ESPACIO DEL SUPERVISOR</small></span></div>
+      <p class="grupo">PRINCIPAL</p>
+      <div class="menu-item elegido"><span>▦</span> Hoy <b>01</b></div>
+      <div class="menu-item"><span>☷</span> Seguimiento</div>
+      <div class="menu-item"><span>◷</span> Gestión Diaria</div>
+      <div class="menu-item"><span>▣</span> Citas</div>
+      <div class="menu-item"><span>▤</span> Facturación</div>
+      <p class="grupo">GESTIÓN COMERCIAL</p>
+      <div class="menu-item"><span>◫</span> Pipeline</div>
+      <div class="menu-item"><span>◎</span> Leads y cartera</div>
+      <div class="menu-item"><span>⇄</span> Derivar leads</div>
+      <div class="menu-item"><span>♧</span> Gestión de equipo</div>
+      <div class="perfil"><span class="avatar">SV</span><div>Supervisor<small>Equipo de ejemplo · 6 analistas</small></div></div>
+    </aside>
+    <main id="contenido">
+      <div class="cabecera"><div><p class="eyebrow">MI EQUIPO / HOY</p><h1 id="titulo">Resultados del equipo</h1><p id="bajada">El resultado del mes, el aporte de cada analista y las decisiones de hoy.</p></div><div class="fecha"><b>16 oct 2026 · 16:00</b><span>Corte ilustrativo · Hora de Lima</span></div></div>
+      <div class="contexto"><span><i class="punto"></i> Todo mi equipo · 6 analistas</span><span>Mes: <b>octubre 2026</b></span><span>Montos de ejemplo en soles</span></div>
+
+      <section id="vista-a" aria-label="Propuesta 1: Resultados del equipo">
+        <div class="kpis">
+          <button type="button" class="kpi principal" data-detalle="capital"><span class="kpi-label">CAPITAL CONFIRMADO · MES <span>↗</span></span><strong>S/ 1 360 000</strong><span class="meta-linea"><b>68% de la meta</b><span>Meta S/ 2 000 000</span></span><span class="barra"><i style="width:68%"></i></span><span class="pie-kpi">Faltan <b>S/ 640 000</b> para completar la meta.</span></button>
+          <button type="button" class="kpi" data-detalle="operaciones"><span class="kpi-label">OPERACIONES · MES <span>↗</span></span><strong>26</strong><span class="pie-kpi">Nuevas inversiones, adicionales,<br>renovaciones y cooperativas.</span><span class="etiqueta azul">Hoy: 2 operaciones · S/ 85 000</span></button>
+          <button type="button" class="kpi" data-detalle="conversion"><span class="kpi-label">CONVERSIÓN OFICIAL · MES <span>↗</span></span><strong>8,2<span class="unidad">%</span></strong><span class="pie-kpi">Meta: 12%<br>Brecha: 3,8 puntos porcentuales</span><span class="etiqueta neutra">Con las reglas del CRM</span></button>
+        </div>
+        <div class="pulso" aria-label="Resumen del día"><span class="pulso-label">HOY<br><small>16 OCT</small></span><button type="button" data-detalle="llamadas"><b>180</b><span>Llamadas registradas</span></button><button type="button" data-detalle="contacto"><b>43,5%</b><span>Contacto · 74 de 170 útiles</span></button><button type="button" data-detalle="citas"><b>7 / 13</b><span>Citas de hoy realizadas</span></button><button type="button" data-detalle="vencidas"><b class="rojo">24</b><span>Tareas vencidas · al corte</span></button></div>
+        <div class="contenido-grid">
+          <section class="panel tabla-panel">
+            <div class="panel-head"><div><h2>El aporte de cada analista</h2><p>Capital y conversión del mes · Actividad de hoy</p></div><label class="orden">Ordenar<select id="orden-a"><option value="capital">Mayor capital</option><option value="brecha">Mayor brecha de meta</option><option value="nombre">Nombre</option></select></label></div>
+            <div class="scroll-tabla" tabindex="0" role="region" aria-label="Resultados por analista, tabla desplazable"><table><caption class="sr-only">Resultados del equipo por analista. Capital y meta del mes; llamadas del día y tareas vencidas al corte.</caption><thead><tr><th scope="col">Analista</th><th scope="col">Capital del mes</th><th scope="col">Avance de meta</th><th scope="col">Conversión<br><small>oficial · mes</small></th><th scope="col">Llamadas<br><small>hoy</small></th><th scope="col">Vencidas<br><small>al corte</small></th><th scope="col"><span class="sr-only">Detalle</span></th></tr></thead><tbody id="tabla-a"></tbody></table></div>
+            <div class="panel-footer"><span>6 analistas · <b>S/ 1 360 000</b> de capital confirmado</span><span>Selecciona un nombre para ver su detalle.</span></div>
+          </section>
+          <section class="panel foco-panel"><div class="panel-head"><div><p class="eyebrow">TU INTERVENCIÓN</p><h2>Tres puntos para revisar</h2></div></div><button type="button" class="foco" data-detalle="brecha"><span class="numero-foco">01</span><div><b>La brecha se concentra en 2 personas</b><p>Valeria y Mateo aportan S/ 130 000. Les faltan S/ 470 000 para sus metas.</p><span>Ver su resultado →</span></div></button><button type="button" class="foco" data-detalle="oportunidades"><span class="numero-foco">02</span><div><b>16 oportunidades con entrevista realizada</b><p>Potencial declarado: S/ 620 000. Revisa la próxima acción de cada caso.</p><span>Ver oportunidades →</span></div></button><button type="button" class="foco" data-detalle="primeras"><span class="numero-foco">03</span><div><b>7 primeras gestiones fuera de plazo</b><p>La oportunidad ya llegó al equipo. Revisa con su responsable el primer contacto.</p><span>Ver responsables →</span></div></button></section>
+        </div>
+        <div class="inferior-grid"><section class="panel mezcla"><div class="panel-head"><div><h2>De dónde viene el capital</h2><p>Operaciones confirmadas · Octubre</p></div><button type="button" class="texto" data-detalle="capital">Ver desglose ↗</button></div><div class="barra-apilada" role="img" aria-label="Nueva inversión 900 mil, adicionales 260 mil, renovaciones 180 mil, cooperativas 20 mil soles"><i style="width:66.18%;background:#2563eb"></i><i style="width:19.12%;background:#111e3d"></i><i style="width:13.23%;background:#93a7ce"></i><i style="width:1.47%;background:#d79b26"></i></div><div class="leyenda"><span><i style="background:#2563eb"></i>Nueva inversión <b>S/ 900 000</b></span><span><i style="background:#111e3d"></i>Adicionales <b>S/ 260 000</b></span><span><i style="background:#93a7ce"></i>Renovaciones <b>S/ 180 000</b></span><span><i style="background:#d79b26"></i>Cooperativas <b>S/ 20 000</b></span></div></section><section class="nota-comercial"><p class="eyebrow">LECTURA COMERCIAL</p><h2>Resultado, esfuerzo y oportunidad en la misma vista.</h2><p>Una buena venta no oculta un seguimiento pendiente. Muchas llamadas tampoco sustituyen una venta.</p><button type="button" class="texto" data-detalle="criterios">Ver definiciones de los indicadores →</button></section></div>
+      </section>
+
+      <section id="vista-b" aria-label="Propuesta 2: Dirección de la jornada" hidden>
+        <div class="resumen-mes"><div><span>OCTUBRE · CAPITAL CONFIRMADO</span><strong>S/ 1 360 000</strong></div><div class="avance-mes"><span><b>68% de S/ 2 000 000</b><span>Faltan S/ 640 000</span></span><span class="barra"><i style="width:68%"></i></span></div><button type="button" data-detalle="operaciones"><b>26</b> operaciones ↗</button><button type="button" data-detalle="conversion"><b>8,2%</b> conversión oficial ↗</button></div>
+        <div class="seccion-titulo"><div><p class="eyebrow">LA JORNADA, DE PRINCIPIO A FIN</p><h2>Dónde necesita apoyo tu equipo</h2></div><span class="etiqueta neutra">Cada bloque indica su período</span></div>
+        <div class="frentes">
+          <section class="frente"><div class="frente-head"><span class="icono-frente">01</span><div><h3>Lograr el contacto</h3><p>Actividad de hoy · 16 oct</p></div></div><div class="frente-numero">180 <span>llamadas registradas</span></div><div class="frente-linea"><span>Contacto efectivo en llamadas útiles</span><b>43,5%</b></div><div class="mini-barra"><i style="width:43.5%"></i></div><p class="explicacion">74 contestadas / 170 útiles.<br>10 llamadas excluidas de la tasa.</p><button type="button" class="accion-frente" data-detalle="primeras"><b>7 primeras gestiones vencidas</b><span>Ver responsables →</span></button></section>
+          <section class="frente"><div class="frente-head"><span class="icono-frente">02</span><div><h3>Concretar las citas</h3><p>Citas previstas para hoy · 16 oct</p></div></div><div class="frente-numero">7 <span>realizadas de 13 previstas</span></div><div class="frente-linea"><span>4 pendientes · 2 no asistieron</span><b>0 anuladas</b></div><div class="mini-barra"><i style="width:53.85%;background:#111e3d"></i></div><p class="explicacion">Realizadas, pendientes e inasistencias separadas.<br>Crear una cita es un indicador distinto.</p><button type="button" class="accion-frente" data-detalle="citas"><b>Revisar las 4 citas pendientes</b><span>Ver agenda del equipo →</span></button></section>
+          <section class="frente"><div class="frente-head"><span class="icono-frente">03</span><div><h3>Acompañar el cierre</h3><p>Oportunidades abiertas · al corte</p></div></div><div class="frente-numero">16 <span>con entrevista realizada</span></div><div class="frente-linea"><span>Potencial declarado en estas fichas</span><b>S/ 620 000</b></div><div class="mini-barra potencial"></div><p class="explicacion">16 de 16 con monto declarado.<br>Este potencial no es capital confirmado.</p><button type="button" class="accion-frente" data-detalle="oportunidades"><b>Revisar próximo paso y responsable</b><span>Ver oportunidades →</span></button><button type="button" class="texto" data-detalle="hoy">Hoy: S/ 85 000 en 2 operaciones ↗</button></section>
+        </div>
+        <section class="panel tabla-panel"><div class="panel-head"><div><h2>Con quién trabajar ahora</h2><p id="subtabla-b">Llamadas de hoy · Vencimientos acumulados al corte</p></div><div class="segmentos" aria-label="Contenido de la tabla"><button type="button" data-tabla="dia" aria-pressed="true">Gestión de hoy</button><button type="button" data-tabla="mes" aria-pressed="false">Resultado del mes</button></div></div><div class="scroll-tabla" tabindex="0" role="region" aria-label="Equipo y gestión, tabla desplazable"><table><caption class="sr-only">Gestión por analista</caption><thead id="cabecera-b"></thead><tbody id="tabla-b"></tbody></table></div><div class="panel-footer"><span>El contacto usa llamadas útiles; no equivale a personas únicas.</span><button type="button" class="texto" data-detalle="contacto">Cómo se calcula →</button></div></section>
+        <div class="b-pie"><section class="pendientes-franja"><div><span class="etiqueta roja">24 tareas vencidas</span><h3>La agenda pendiente también cuenta.</h3><p>Revisar por antigüedad y responsable, con acceso al caso.</p></div><button type="button" class="boton" data-detalle="vencidas">Ver pendientes →</button></section><p>En esta propuesta el supervisor recorre la jornada: contacto, citas y oportunidades. El resultado del mes permanece visible arriba.</p></div>
+      </section>
+      <footer class="referencias"><p>Propuestas para conversar · No publicadas · Los números son ilustrativos.</p><div>Inspiración consultada en 21st: <a href="https://21st.dev/@uvain/components/revenue-charts-kpi" target="_blank" rel="noreferrer">Charts & KPI Cards</a><span> · </span><a href="https://21st.dev/@isaiahbjork/components/leads-data-table" target="_blank" rel="noreferrer">Leads Data Table</a></div></footer>
+    </main>
+  </div>
+  <dialog id="detalle" aria-labelledby="detalle-titulo"><div class="dialog-head"><div><p class="eyebrow">DETALLE · EJEMPLO FICTICIO</p><h2 id="detalle-titulo"></h2></div><button type="button" id="cerrar" aria-label="Cerrar detalle">✕</button></div><div id="detalle-cuerpo"></div><div class="dialog-footer"><span>Maqueta de navegación. No modifica datos.</span><button type="button" id="volver" class="boton">Volver al equipo</button></div></dialog>
+</body>
+</html>

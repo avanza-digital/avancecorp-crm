@@ -246,7 +246,7 @@ export const crmQueryKeys = {
   // hacerlo sobre metricas() refrescaría también las fotografías por periodo
   // de gerencia en cada llamada del analista. Se retira en F3.
   metricasAmbito: () => [...crmQueryKeys.raiz, 'metricas-ambito'] as const,
-  resumenCartera: () => [...crmQueryKeys.metricasAmbito(), 'resumen-cartera'] as const,
+  resumenCartera: (actorId?: string | null) => [...crmQueryKeys.metricasAmbito(), 'resumen-cartera', ...(actorId ? [actorId] : [])] as const,
   // Bitácora de Hoy · Directorio (Fase 3 «sin topes»): cuelga del prefijo de
   // métricas del ámbito para que cada mutación la invalide como a los tiles.
   actividadesRecientes: (limite: number) => [...crmQueryKeys.metricasAmbito(), 'actividades-recientes', limite] as const,
@@ -555,11 +555,18 @@ export function useCuentasBancariasCliente(clienteId: string, moneda: 'PEN' | 'U
 //    NUNCA se toca la red (fail-closed). Las pantallas no usan este hook a pelo:
 //    consumen data/use-resumen-cartera-operativo, que decide la fuente. ─────────
 
-export function useResumenCartera(habilitada: boolean) {
+export function useResumenCartera(habilitada: boolean, actorId?: string | null, enVivo = false) {
   return useQuery({
-    queryKey: crmQueryKeys.resumenCartera(),
+    queryKey: crmQueryKeys.resumenCartera(actorId),
     queryFn: ({ signal }) => listarResumenCartera(signal),
     enabled: habilitada,
+    // Hoy puede permanecer abierto mientras Coordinación incorpora nuevos leads.
+    // El reparto ya invalida el prefijo; este sondeo cubre escrituras de otra sesión.
+    refetchInterval: enVivo ? 60_000 : false,
+    refetchIntervalInBackground: false,
+    refetchOnMount: enVivo ? 'always' : true,
+    refetchOnWindowFocus: enVivo ? 'always' : true,
+    refetchOnReconnect: enVivo ? 'always' : true,
   })
 }
 
