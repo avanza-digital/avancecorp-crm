@@ -1,0 +1,3108 @@
+ROLE: SECONDARY_REVIEWER.
+Codex is PRIMARY. No modificar, implementar, invocar Codex, delegar ni iniciar otra revisión.
+Revisión única de fase 4 (publicar Formulario 3). Incluye función especializada auditor-rls adjunta. Nivel 3. Responder formato VERDICT/SUMMARY/FINDINGS con evidencia/P0-P3/NEXT ACTIONS/CONFIDENCE. El revisor es asesor. No herramientas disponibles.
+Requisitos de Miguel: Google Sheets → n8n → CRM; campaña visible Formulario 3 con mismas reglas de FORMULARIO, mismo reparto Coordinación→Supervisor→Analista, sin reclasificar contactos existentes. No se importa aún: fase5 una fila y fase6 resto. Usuario opera navegador.
+Estado: fase1-3 probadas en rama real, retirada. Ambas migraciones y 44 fuentes son exactamente las ensayadas. Esta fase integra en copia limpia de avancecorp/main 2cf798a2 (sin conflictos), repara gate de realidad y prepara publicación. La nueva fuente de gate permite dos consultas fijas en READ ONLY con CLI, proyecto debe coincidir con URL, sin cambiar grants. Se completa medición administrativa, no sustituye pruebas Auth/RLS. Se corrigió el resumen que podía decir 'sin divergencias' aunque hubiera errores. 6 tests nuevos y gate vivo completo, 45 ventas de bajas y 273 sin domicilio permanecen. Criterio: no bloquean esta campaña porque no cambia facturación/domicilio ni contratos; la conversión original se conserva y se probó con domicilio completo. No corregir datos para forzar verde.
+Plan pendiente de publicación: verificar huellas frescas → nueva branch autorizada → aplicar las dos migraciones exactas, repetir SQL/RLS, advisors → merge solo dos migraciones, sin sincronizar configuración/cron ajeno → comprobar capacidad/esquema → Edge → frontend desde main sincronizado y artefacto limpio. Mantener n8n OFF. Retención de fallos antes de activar fase6. Correo de prueba productivo ejecución52 success. El conector disponible es Agency y no lista CRM; se verifica acceso correcto antes de cualquier publicación.
+Pedir hallazgos concretos sobre gate nuevo, integridad de ambas migraciones, compatibilidad del frontend vivo durante transición, permisos de campaña y conservación de datos. Indicar pendientes de ejecución aparte de defectos. Las 98 pruebas remotas son de fase3; NO nueva rama todavía. Reviewer previo señaló gaps resueltos documentados, no se solicita validar ciegamente sus conclusiones.
+CodeGraph se usó primero para gate-realidad/artefacto, devolvió símbolos ajenos; se leyó el archivo exacto como fallback. El gate mide agregados, no da permisos a usuarios. Adjuntamos fuente verbatim numerada.
+
+
+=== .claude/agents/auditor-rls.md ===
+1: ---
+2: name: auditor-rls
+3: description: Auditor de seguridad RLS del esquema crm. Usar PROACTIVAMENTE sobre toda migración SQL nueva que toque tablas, policies, funciones o grants del CRM, antes del gate de test-rls.
+4: tools: Read, Grep, Glob
+5: ---
+6: 
+7: Eres un auditor de seguridad de PostgreSQL/Supabase especializado en RLS, revisando
+8: migraciones del esquema `crm` de CRM-Avance-Corp. Responde SIEMPRE en español.
+9: 
+10: ROLE: SECONDARY_REVIEWER. Sigue `.ai/REVIEW_PROTOCOL.md`: solo analiza, no
+11: modifiques archivos, no ejecutes agentes ni delegues o inicies otro review.
+12: El PRIMARY adjunta contexto de CodeGraph y decide si esta consulta corresponde
+13: al nivel de riesgo y al presupuesto compartido de 0–2 reviews de la tarea.
+14: 
+15: Contexto fijo del proyecto:
+16: - Tres roles con visibilidad escalonada: comercial (solo su cartera/subárbol),
+17:   coordinador, gerencia/lector global (`private.es_lector_global()`).
+18: - PII sensible en `crm.leads`: DNI, teléfono, fecha_nacimiento, genero, monto_estimado.
+19: - Ledger inmutable `crm.lead_asignaciones`; log inmutable `crm.actividades`.
+20: - Reglas no negociables: RLS ON al crear la tabla; deny-by-default; sin policy DELETE
+21:   (soft-delete `activo=false`); nada de tocar objetos de `public`; toda tabla `crm.*`
+22:   lleva el trigger de auditoría `private.log_audit_crm` (o `private.log_audit_sin_secretos`,
+23:   con las columnas a enmascarar, si guarda secretos: tokens, claves, contraseñas o credenciales).
+24: - ⚠️ `crm.leads` tiene grants POR COLUMNA: columna nueva sin GRANT explícito = invisible
+25:   para PostgREST (falla silenciosa conocida del proyecto).
+26: 
+27: Checklist de auditoría sobre cada `.sql` bajo revisión:
+28: 
+29: 1. **RLS**: ¿toda tabla nueva tiene `ENABLE ROW LEVEL SECURITY` en el mismo bloque?
+30:    ¿Las policies son deny-by-default (nada de `USING (true)` sin justificación)? ¿Existe
+31:    alguna policy DELETE? (prohibido).
+32: 2. **Fugas entre roles**: ¿puede un comercial ver leads/clientes fuera de su subárbol?
+33:    ¿Un miembro con `activo=false` conserva lecturas? ¿Alguna vista o función expone PII
+34:    cross-rol? Compara contra los patrones ya aceptados (`clientes_basicos_fn` gateada).
+35: 3. **SECURITY DEFINER**: cada función definer debe tener `SET search_path` fijo,
+36:    justificación escrita y gate interno de rol. Vistas: preferir invoker + función
+37:    definer gateada (patrón del proyecto); `security_definer_view` es hallazgo ERROR.
+38: 4. **Grants**: mínimos necesarios; en `crm.leads`, grants por columna presentes para
+39:    toda columna nueva. ¿Se revoca lo que sobra (hardening)? ¿`service_role` pierde o gana
+40:    EXECUTE sin que el ledger lo documente?
+41: 5. **Inmutabilidad**: ¿la migración debilita triggers de inmutabilidad de actividades o
+42:    del ledger de asignaciones?
+43: 6. **`public` intocable**: cualquier statement sobre objetos de `public` es hallazgo
+44:    BLOQUEANTE salvo que el ledger documente OK explícito de Miguel.
+45: 7. **Matriz de pruebas**: ¿`supabase/scripts/test-rls.mjs` cubre los casos nuevos
+46:    (permitido Y denegado por rol)? Si no, señalar exactamente qué casos faltan.
+47: 8. **Ledger**: ¿`MIGRACIONES.md` tiene la fila nueva con estado honesto?
+48: 
+49: Formato de salida: `.ai/REVIEW_PROTOCOL.md`, con VERDICT, hallazgos P0–P3,
+50: archivo:línea, evidencia, impacto y fix propuesto. Si no hay hallazgos,
+51: decláralo explícitamente junto con qué verificaste. No modifiques archivos.
+
+=== CRM-Avance-Corp/supabase/scripts/formulario3-fase4/verificacion.json ===
+1: {
+2:   "app_check": "PASS: 420 archivos, 6707 tests; lint/typecheck/build/bundle/duplicación",
+3:   "scripts_check": "PASS",
+4:   "edge_preflight": "PASS",
+5:   "seed_preflight": "PASS con valores ficticios offline",
+6:   "rls_preflight": "PASS con valores ficticios offline",
+7:   "e2e_docker": "PASS: 3 pruebas específicas Formulario 3",
+8:   "n8n_unitarias": "PASS: 25",
+9:   "gate_sql_unitarias": "PASS: 6",
+10:   "gate_realidad": "PASS en modo de advertencias, 10 mediciones completas; 2 divergencias conservadas",
+11:   "sql_remoto": "98 PASS de fase 3; las 44 fuentes mantienen SHA256; nueva rama de publicación pendiente",
+12:   "produccion": "SIN PUBLICAR"
+13: }
+
+=== CRM-Avance-Corp/supabase/scripts/formulario3-fase4/preflight-produccion.json ===
+1: {
+2:   "momento": "2026-10-15T00:43:19.229459+00:00",
+3:   "version": "PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-bit",
+4:   "funciones": [
+5:     {
+6:       "firma": "crm.cartera_pagina_fn(integer,timestamp with time zone,uuid,text,uuid,boolean,text)",
+7:       "cuerpo": "7a1eb4200109bed50da469159002f616",
+8:       "permisos": "{postgres=X/postgres,authenticated=X/postgres}",
+9:       "definicion": "4bbfd838ef6665f3bdad4603fa400e65"
+10:     },
+11:     {
+12:       "firma": "crm.cierres_estado_fn(uuid[])",
+13:       "cuerpo": "de315a8a3b33c77797269eee51e84c9a",
+14:       "permisos": "{postgres=X/postgres,authenticated=X/postgres}",
+15:       "definicion": "5f6eca13b613aaa40b459ea56f7c8ac5"
+16:     },
+17:     {
+18:       "firma": "crm.importar_lead_fn(jsonb)",
+19:       "cuerpo": "261411a75326cbe78220d3ef1a61a7cd",
+20:       "permisos": "{postgres=X/postgres,service_role=X/postgres}",
+21:       "definicion": "0518b2643f258ca458d3a6acc492a7bf"
+22:     },
+23:     {
+24:       "firma": "crm.registrar_reingreso_lead_fn(uuid,text,jsonb)",
+25:       "cuerpo": "2875987459d47958333637736c057ffb",
+26:       "permisos": "{postgres=X/postgres,service_role=X/postgres}",
+27:       "definicion": "c3c4ab696ba6f3e30895cae1a9a27b77"
+28:     },
+29:     {
+30:       "firma": "private.registrar_solicitud_cliente_fn(uuid,text,jsonb)",
+31:       "cuerpo": "38cc98b993d92b10816c95a479994d20",
+32:       "permisos": "{postgres=X/postgres}",
+33:       "definicion": "23c2b6216684ac77801e39af5efe4b7c"
+34:     },
+35:     {
+36:       "firma": "crm.resumen_cartera_fn()",
+37:       "cuerpo": "60e64060c1d620bf04ce93b0d263bac9",
+38:       "permisos": "{postgres=X/postgres,authenticated=X/postgres}",
+39:       "definicion": "4a896597486e8b23788a2b2497f16309"
+40:     },
+41:     {
+42:       "firma": "crm.cartera_filtrada_fn(integer,timestamp with time zone,uuid,text,uuid,boolean,text,date,date,text,text,boolean,text,text)",
+43:       "cuerpo": "648b178531c414644f4da2ee7051661e",
+44:       "permisos": "{postgres=X/postgres,authenticated=X/postgres}",
+45:       "definicion": "23a63cc3965472b9db85aa81cadffbeb"
+46:     }
+47:   ],
+48:   "migraciones": [
+49:     {
+50:       "name": "crm_conversion_adicional_renovacion",
+51:       "version": "20261014185718"
+52:     },
+53:     {
+54:       "name": "crm_sla_agrupar_tareas_por_lead",
+55:       "version": "20261014013830"
+56:     },
+57:     {
+58:       "name": "crm_f7_redeclarar_huella_metricas_cartera",
+59:       "version": "20261014013757"
+60:     },
+61:     {
+62:       "name": "crm_atencion_venta_hardening",
+63:       "version": "20261013193653"
+64:     },
+65:     {
+66:       "name": "crm_atencion_venta_separadas",
+67:       "version": "20261013192850"
+68:     },
+69:     {
+70:       "name": "crm_facturacion_nombres_coordinacion",
+71:       "version": "20261013171002"
+72:     },
+73:     {
+74:       "name": "crm_llamadas_celular_operacion_hoy_rendimiento",
+75:       "version": "20261013145935"
+76:     },
+77:     {
+78:       "name": "crm_realizacion_cuenta_anticipada",
+79:       "version": "20261013145852"
+80:     }
+81:   ]
+82: }
+
+=== CRM-Avance-Corp/supabase/scripts/formulario3-fase4/gate-realidad.json ===
+1: [
+2:   {
+3:     "clave": "metas_publicadas",
+4:     "titulo": "Hay una revisión de metas publicada",
+5:     "valor": 24,
+6:     "esperado": "≥ 1 periodo con revisión publicada",
+7:     "diverge": false,
+8:     "error": null,
+9:     "afecta": [
+10:       "Hoy · asesor → «Tu cumplimiento del mes» (las 3 columnas de meta)",
+11:       "Hoy · supervisor y gerencia → metas de equipo y empresa",
+12:       "Ranking de vendedores (capital y conversión): sin meta no hay % de avance"
+13:     ],
+14:     "via": "PostgREST"
+15:   },
+16:   {
+17:     "clave": "roster_metas_completo",
+18:     "titulo": "Todo vendedor activo tiene supervisor activo",
+19:     "valor": 0,
+20:     "esperado": "0 vendedores sin supervisor activo",
+21:     "diverge": false,
+22:     "error": null,
+23:     "afecta": [
+24:       "Configuración · Metas → publicar la revisión del mes",
+25:       "Hoy · asesor → sin revisión publicada no hay meta que enseñar",
+26:       "Rankings y metas de equipo (la atribución sale del supervisor)"
+27:     ],
+28:     "via": "PostgREST"
+29:   },
+30:   {
+31:     "clave": "leads_en_cartera",
+32:     "titulo": "La cartera tiene leads que trabajar",
+33:     "valor": 3687,
+34:     "esperado": "≥ 5 leads activos",
+35:     "diverge": false,
+36:     "error": null,
+37:     "afecta": [
+38:       "Cartera → paginación keyset y «Cargar más» (con 1 lead nunca aparece)",
+39:       "Pipeline → columnas del kanban",
+40:       "Hoy · asesor → cola de acción y agenda"
+41:     ],
+42:     "via": "PostgREST"
+43:   },
+44:   {
+45:     "clave": "actividades",
+46:     "titulo": "Los leads tienen historial de contacto",
+47:     "valor": 27303,
+48:     "esperado": "≥ 1 actividad",
+49:     "diverge": false,
+50:     "error": null,
+51:     "afecta": [
+52:       "Cartera → semáforo de último contacto (todo saldrá «sin contactar»)",
+53:       "Hoy · asesor → buckets de la cola (sin_responder, insistir, seguimiento)"
+54:     ],
+55:     "via": "PostgREST"
+56:   },
+57:   {
+58:     "clave": "tareas_pendientes",
+59:     "titulo": "Hay agenda viva (tareas pendientes)",
+60:     "valor": 1732,
+61:     "esperado": "≥ 1 tarea pendiente",
+62:     "diverge": false,
+63:     "error": null,
+64:     "afecta": [
+65:       "Hoy · asesor → agenda del día y el modo «viernes de higiene»",
+66:       "Cola de acción → el escudo de «tiene plan vigente»"
+67:     ],
+68:     "via": "PostgREST"
+69:   },
+70:   {
+71:     "clave": "equipo_operativo",
+72:     "titulo": "Hay fuerza de ventas activa en el CRM",
+73:     "valor": 31,
+74:     "esperado": "≥ 2 entre vendedores y supervisores activos",
+75:     "diverge": false,
+76:     "error": null,
+77:     "afecta": [
+78:       "Gestión de equipo y rankings (sin vendedores, tabla vacía)",
+79:       "Reparto de la cola global (sin supervisores no hay destino)"
+80:     ],
+81:     "via": "PostgREST"
+82:   },
+83:   {
+84:     "clave": "facturacion_ventas_de_analistas_de_baja",
+85:     "titulo": "Hay ventas de analistas dados de baja (cuentan al heredero)",
+86:     "valor": 45,
+87:     "esperado": "0 (con ventas de bajas, la cifra la decide la regla del heredero, no el fixture)",
+88:     "diverge": true,
+89:     "error": null,
+90:     "afecta": [
+91:       "Facturación → malla y totales por analista y por equipo",
+92:       "Metas, cumplimiento y el sello del mes (capital_real)",
+93:       "Cartera → ficha del inversionista («Analista de la operación»)",
+94:       "Altas de contratos nuevos por analista"
+95:     ],
+96:     "via": "PostgREST"
+97:   },
+98:   {
+99:     "clave": "clientes_con_domicilio_legal",
+100:     "titulo": "Los clientes tienen domicilio legal",
+101:     "valor": 273,
+102:     "esperado": "0 clientes activos sin domicilio legal",
+103:     "diverge": true,
+104:     "error": null,
+105:     "afecta": [
+106:       "Mi cartera · «+ Contrato» → el alta se REVIERTE entera sin domicilio",
+107:       "Convertir lead → contrato (el domicilio se captura ahí y por eso ese camino sí funciona)",
+108:       "Ver / descargar el PDF de un contrato viejo que aún no lo tenga sellado"
+109:     ],
+110:     "via": "PostgREST"
+111:   },
+112:   {
+113:     "clave": "metas_bajo_el_sello",
+114:     "titulo": "Ninguna revisión de metas vive por debajo del último mes sellado",
+115:     "valor": 0,
+116:     "esperado": "0 revisiones bajo el sello sin fotografiar (residuo de 20260815223000)",
+117:     "diverge": false,
+118:     "error": null,
+119:     "afecta": [
+120:       "Cierre de mes: un mes con metas bajo el suelo jamás se sellará (metas muertas)",
+121:       "Configuración · Metas: el editor las mostraría como si contaran"
+122:     ],
+123:     "via": "Supabase CLI · SQL READ ONLY"
+124:   },
+125:   {
+126:     "clave": "conversion_un_solo_nucleo",
+127:     "titulo": "La conversión del mes es UNA por los cuatro caminos",
+128:     "valor": "cuadra · 5 caminos · 6.3 % (2026-10-01 → 2026-10-14)",
+129:     "esperado": "los cuatro caminos con el mismo divisor, numerador y %",
+130:     "diverge": false,
+131:     "error": null,
+132:     "afecta": [
+133:       "Hoy · gerencia → Resumen (número grande del rango)",
+134:       "Conversiones → héroe «Índice comercial»",
+135:       "Distribución → índice del núcleo",
+136:       "Ranking, Metas y HOY → lectura mensual (la cifra oficial)"
+137:     ],
+138:     "via": "Supabase CLI · SQL READ ONLY"
+139:   }
+140: ]
+
+=== CRM-Avance-Corp/supabase/scripts/gate-realidad.mjs ===
+1: // Gate de REALIDAD: contrasta los supuestos con los que se construye y prueba
+2: // el CRM contra lo que de verdad hay en la base.
+3: //
+4: // Por qué existe
+5: // --------------
+6: // Tres veces en dos días un cambio pasó el gate entero (1.500+ tests, e2e, RLS)
+7: // y no hizo NADA en producción, siempre por la misma razón: los tests montan el
+8: // mundo del FIXTURE —metas publicadas, cartera poblada, gate de leads abierto—
+9: // y producción es otro mundo. El bug no estaba en el código: estaba en el
+10: // mundo que el código daba por hecho.
+11: //
+12: //   · el ranking del supervisor se colgó de una vista que su rol no puede abrir;
+13: //   · la campana se pintaba con una regla y se abría con otra;
+14: //   · la columna de dólares del asesor se mostraba por «no se sabe», y resultó
+15: //     que «no se sabe» es el estado de TODOS los días mientras nadie publique
+16: //     metas.
+17: //
+18: // Este gate no prueba código: audita la DISTANCIA entre lo que el producto
+19: // asume y lo que existe. Cada divergencia dice qué pantallas están hoy
+20: // probándose contra un mundo que no está ahí fuera.
+21: //
+22: // Es de SOLO LECTURA y por eso —a diferencia del seed y de test-rls, que
+23: // bloquean producción a propósito— aquí apuntar a producción es justamente el
+24: // punto. No escribe una sola fila.
+25: //
+26: // Uso:
+27: //   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node supabase/scripts/gate-realidad.mjs
+28: //   ... --json     salida legible por máquina (para CI)
+29: //   ... --estricto  sale con código 1 si hay divergencias (por defecto: 0, es un aviso)
+30: //   ... --sql-project-ref <ref>  mide sellos/conversión con la sesión administrativa
+31: //       de Supabase CLI, en transacciones READ ONLY. Debe ser la misma base de URL.
+32: 
+33: import { createClient } from '@supabase/supabase-js';
+34: import { codigoSalida, medirSQL, proyectoSQL } from './gate-realidad-sql.mjs';
+35: 
+36: const ARGS = process.argv.slice(2);
+37: const JSON_OUT = ARGS.includes('--json');
+38: const ESTRICTO = ARGS.includes('--estricto');
+39: 
+40: const SUPABASE_URL = process.env.SUPABASE_URL?.trim();
+41: const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+42: 
+43: function fatal(mensaje) {
+44:   process.stderr.write(`✗ ${mensaje}\n`);
+45:   process.exit(2);
+46: }
+47: 
+48: if (!SUPABASE_URL) fatal('Falta SUPABASE_URL.');
+49: if (!SERVICE_KEY) fatal('Falta SUPABASE_SERVICE_ROLE_KEY (lectura de conteos).');
+50: let SQL_PROJECT;
+51: try { SQL_PROJECT = proyectoSQL(ARGS, SUPABASE_URL); } catch (error) { fatal(error.message); }
+52: 
+53: const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
+54:   auth: { persistSession: false, autoRefreshToken: false },
+55:   db: { schema: 'crm' },
+56: });
+57: 
+58: /**
+59:  * Un SUPUESTO es algo que el front o los tests dan por cierto sin decirlo.
+60:  * `medir` devuelve el número real; `esperado` describe lo que el producto
+61:  * asume; `divergeSi` decide si eso es una divergencia digna de aviso.
+62:  *
+63:  * `afecta` es la parte importante: sin ella un conteo es trivia. Con ella, el
+64:  * aviso dice qué pantalla está hoy probándose contra un mundo que no existe.
+65:  */
+66: const SUPUESTOS = [
+67:   {
+68:     clave: 'metas_publicadas',
+69:     titulo: 'Hay una revisión de metas publicada',
+70:     asume: 'Los fixtures (METAS_DEMO) dan metas a todos los vendedores, en PEN y en USD.',
+71:     afecta: [
+72:       'Hoy · asesor → «Tu cumplimiento del mes» (las 3 columnas de meta)',
+73:       'Hoy · supervisor y gerencia → metas de equipo y empresa',
+74:       'Ranking de vendedores (capital y conversión): sin meta no hay % de avance',
+75:     ],
+76:     consecuencia:
+77:       'Sin metas, el store degrada a objetivosCero y el cumplimiento llega NULO. '
+78:       + 'Toda lógica que distinga «no tiene meta» de «no pude leer la meta» está '
+79:       + 'hoy en el primer caso, y ningún test que use el fixture lo ejerce.',
+80:     async medir() {
+81:       const { count, error } = await admin.from('meta_periodos')
+82:         .select('id', { count: 'exact', head: true });
+83:       if (error) throw error;
+84:       return count ?? 0;
+85:     },
+86:     divergeSi: (n) => n === 0,
+87:     esperado: '≥ 1 periodo con revisión publicada',
+88:   },
+89:   {
+90:     clave: 'roster_metas_completo',
+91:     titulo: 'Todo vendedor activo tiene supervisor activo',
+92:     asume: 'Los fixtures cuelgan a TODOS los vendedores de un supervisor; nadie queda huérfano.',
+93:     afecta: [
+94:       'Configuración · Metas → publicar la revisión del mes',
+95:       'Hoy · asesor → sin revisión publicada no hay meta que enseñar',
+96:       'Rankings y metas de equipo (la atribución sale del supervisor)',
+97:     ],
+98:     consecuencia:
+99:       'Un vendedor sin supervisor no cabe en crm.metas_vendedor (supervisor_id es '
+100:       + 'NOT NULL). Ese hueco de datos DEJÓ SIN METAS AL CRM ENTERO durante días: '
+101:       + 'el editor ofrecía las metas del roster y el servidor las exigía de todos, '
+102:       + 'así que la publicación fallaba siempre y nadie tenía objetivo del mes.',
+103:     async medir() {
+104:       // Sin acceso a private.* desde PostgREST se replica el predicado de
+105:       // private.rol_crm, que exige activo en LOS DOS lados: la membresía del
+106:       // equipo y el perfil del portal. Comprobar solo uno da un conteo bonito
+107:       // y falso, que es justo lo que este gate existe para no hacer.
+108:       const { data, error } = await admin.from('equipo')
+109:         .select('perfil_id, rol_crm, supervisor_id').eq('activo', true);
+110:       if (error) throw error;
+111:       const miembros = data ?? [];
+112:       if (miembros.length === 0) return 0;
+113:       const { data: perfiles, error: errorPerfiles } = await admin.schema('public')
+114:         .from('perfiles').select('id, activo, rol').in('id', miembros.map((f) => f.perfil_id));
+115:       if (errorPerfiles) throw errorPerfiles;
+116:       const portal = new Map((perfiles ?? []).map((p) => [p.id, p]));
+117:       // Misma excepción que private.rol_crm: al superadmin del portal solo le
+118:       // suma autoridad una membresía de Gerencia; con cualquier otro rol queda
+119:       // fuera del CRM y no debe contarse como vendedor huérfano.
+120:       const rolVigente = new Map(miembros
+121:         .filter((f) => portal.get(f.perfil_id)?.activo
+122:           && (portal.get(f.perfil_id)?.rol !== 'superadmin' || f.rol_crm === 'gerencia'))
+123:         .map((f) => [f.perfil_id, f.rol_crm]));
+124:       return miembros.filter((fila) => rolVigente.get(fila.perfil_id) === 'vendedor'
+125:         && rolVigente.get(fila.supervisor_id ?? '') !== 'supervisor').length;
+126:     },
+127:     divergeSi: (n) => n > 0,
+128:     esperado: '0 vendedores sin supervisor activo',
+129:   },
+130:   {
+131:     clave: 'leads_en_cartera',
+132:     titulo: 'La cartera tiene leads que trabajar',
+133:     asume: 'Los fixtures siembran 7 leads y la demo ~20; las pantallas se prueban con lista llena.',
+134:     afecta: [
+135:       'Cartera → paginación keyset y «Cargar más» (con 1 lead nunca aparece)',
+136:       'Pipeline → columnas del kanban',
+137:       'Hoy · asesor → cola de acción y agenda',
+138:     ],
+139:     consecuencia:
+140:       'Con la cartera casi vacía, «Nada pendiente» es el estado permanente: una '
+141:       + 'pantalla rota y una pantalla vacía se ven IGUAL en producción.',
+142:     async medir() {
+143:       const { count, error } = await admin.from('leads')
+144:         .select('id', { count: 'exact', head: true }).eq('activo', true);
+145:       if (error) throw error;
+146:       return count ?? 0;
+147:     },
+148:     divergeSi: (n) => n < 5,
+149:     esperado: '≥ 5 leads activos',
+150:   },
+151:   {
+152:     clave: 'actividades',
+153:     titulo: 'Los leads tienen historial de contacto',
+154:     asume: 'La cola de acción, el semáforo del kanban y `ultimo_contacto_en` se prueban con timeline.',
+155:     afecta: [
+156:       'Cartera → semáforo de último contacto (todo saldrá «sin contactar»)',
+157:       'Hoy · asesor → buckets de la cola (sin_responder, insistir, seguimiento)',
+158:     ],
+159:     consecuencia:
+160:       'Sin actividades, `ultimo_contacto_en` es NULL en todas las filas y los '
+161:       + 'buckets que dependen de «cuándo se le habló» colapsan a uno solo.',
+162:     async medir() {
+163:       const { count, error } = await admin.from('actividades')
+164:         .select('id', { count: 'exact', head: true });
+165:       if (error) throw error;
+166:       return count ?? 0;
+167:     },
+168:     divergeSi: (n) => n === 0,
+169:     esperado: '≥ 1 actividad',
+170:   },
+171:   {
+172:     clave: 'tareas_pendientes',
+173:     titulo: 'Hay agenda viva (tareas pendientes)',
+174:     asume: 'La agenda héroe y el «plan vigente» de la cola se prueban con tareas sembradas.',
+175:     afecta: [
+176:       'Hoy · asesor → agenda del día y el modo «viernes de higiene»',
+177:       'Cola de acción → el escudo de «tiene plan vigente»',
+178:     ],
+179:     consecuencia:
+180:       'Sin tareas, todo lead abierto cae en «sin próxima acción» y la agenda '
+181:       + 'está vacía siempre: dos caminos del código que nadie recorre en vivo.',
+182:     async medir() {
+183:       const { count, error } = await admin.from('tareas')
+184:         .select('id', { count: 'exact', head: true })
+185:         .eq('estado', 'pendiente').eq('activo', true);
+186:       if (error) throw error;
+187:       return count ?? 0;
+188:     },
+189:     divergeSi: (n) => n === 0,
+190:     esperado: '≥ 1 tarea pendiente',
+191:   },
+192:   {
+193:     clave: 'equipo_operativo',
+194:     titulo: 'Hay fuerza de ventas activa en el CRM',
+195:     asume: 'El roster de los fixtures tiene 10 miembros activos con jerarquía de 2 niveles.',
+196:     afecta: [
+197:       'Gestión de equipo y rankings (sin vendedores, tabla vacía)',
+198:       'Reparto de la cola global (sin supervisores no hay destino)',
+199:     ],
+200:     consecuencia:
+201:       'Un roster mínimo hace que los agregados por vendedor y las comparativas '
+202:       + 'de equipo no tengan nada que comparar.',
+203:     async medir() {
+204:       const { count, error } = await admin.from('equipo')
+205:         .select('perfil_id', { count: 'exact', head: true })
+206:         .eq('activo', true).in('rol_crm', ['vendedor', 'supervisor']);
+207:       if (error) throw error;
+208:       return count ?? 0;
+209:     },
+210:     divergeSi: (n) => n < 2,
+211:     esperado: '≥ 2 entre vendedores y supervisores activos',
+212:   },
+213:   {
+214:     clave: 'facturacion_ventas_de_analistas_de_baja',
+215:     titulo: 'Hay ventas de analistas dados de baja (cuentan al heredero)',
+216:     asume: 'Los fixtures de Facturación (facturacion.test.tsx, e2e facturacion-realidad) solo traen ventas '
+217:       + 'de analistas activos: el analista de cada fila es siempre quien la registró.',
+218:     afecta: [
+219:       'Facturación → malla y totales por analista y por equipo',
+220:       'Metas, cumplimiento y el sello del mes (capital_real)',
+221:       'Cartera → ficha del inversionista («Analista de la operación»)',
+222:       'Altas de contratos nuevos por analista',
+223:     ],
+224:     consecuencia:
+225:       'Desde 20261009200000 (09/10/2026) la venta de un analista de baja se cuenta al responsable '
+226:       + 'actual ACTIVO de su cliente; si no hay ninguno, se queda con la persona de baja. Ese camino '
+227:       + 'vive solo en la base: ningún fixture de pantalla lo ejerce. Su oráculo es '
+228:       + 'supabase/scripts/baja-analista-heredero/ensayo-sintetico.sql (banco Docker).',
+229:     async medir() {
+230:       const { data: bajas, error: errorBajas } = await admin.from('equipo')
+231:         .select('perfil_id').eq('activo', false);
+232:       if (errorBajas) throw errorBajas;
+233:       const ids = (bajas ?? []).map((fila) => fila.perfil_id);
+234:       if (ids.length === 0) return 0;
+235:       const { count, error } = await admin.schema('public').from('contratos')
+236:         .select('id', { count: 'exact', head: true })
+237:         .eq('es_demo', false)
+238:         .in('analista_cierre_id', ids);
+239:       if (error) throw error;
+240:       return count ?? 0;
+241:     },
+242:     // Diverge mientras exista UNA: entonces Facturación se está mostrando con una regla que
+243:     // los tests de pantalla no ven. No es un error que arreglar, es un mundo que vigilar.
+244:     divergeSi: (n) => n > 0,
+245:     esperado: '0 (con ventas de bajas, la cifra la decide la regla del heredero, no el fixture)',
+246:   },
+247:   {
+248:     clave: 'clientes_con_domicilio_legal',
+249:     titulo: 'Los clientes tienen domicilio legal',
+250:     asume: 'Los fixtures dan por hecho que un cliente se puede contratar sin más.',
+251:     afecta: [
+252:       'Mi cartera · «+ Contrato» → el alta se REVIERTE entera sin domicilio',
+253:       'Convertir lead → contrato (el domicilio se captura ahí y por eso ese camino sí funciona)',
+254:       'Ver / descargar el PDF de un contrato viejo que aún no lo tenga sellado',
+255:     ],
+256:     consecuencia:
+257:       'El PDF se reserva en la MISMA transacción del alta y '
+258:       + 'private.contrato_pdf_snapshot_v2_base exige el domicilio: sin él, el raise '
+259:       + '23514 revierte el contrato ENTERO. El 2026-08-19 se midieron 332 de 339 '
+260:       + 'clientes activos sin domicilio (98%) y CERO contratos creados en todo el día. '
+261:       + 'Ningún fixture reproduce ese mundo: todos nacen con domicilio.',
+262:     async medir() {
+263:       const { count, error } = await admin.schema('public').from('perfiles')
+264:         .select('id', { count: 'exact', head: true })
+265:         .eq('rol', 'cliente')
+266:         .eq('activo', true)
+267:         .is('domicilio', null);
+268:       if (error) throw error;
+269:       return count ?? 0;
+270:     },
+271:     // Diverge mientras QUEDE alguno: este número bajando es la única prueba de
+272:     // que el arreglo está llegando a la gente, no de que se desplegó.
+273:     divergeSi: (n) => n > 0,
+274:     esperado: '0 clientes activos sin domicilio legal',
+275:   },
+276:   {
+277:     clave: 'metas_bajo_el_sello',
+278:     titulo: 'Ninguna revisión de metas vive por debajo del último mes sellado',
+279:     asume: 'El candado del cierre (20260815150000 + 20260815223000) rechaza publicar '
+280:       + 'metas de un mes ≤ al último sellado, serializado con el sellado del MISMO mes.',
+281:     afecta: [
+282:       'Cierre de mes: un mes con metas bajo el suelo jamás se sellará (metas muertas)',
+283:       'Configuración · Metas: el editor las mostraría como si contaran',
+284:     ],
+285:     consecuencia:
+286:       'Es el CANARIO del residuo documentado en 20260815223000: publicar un mes P '
+287:       + 'mientras se sella OTRO mes M > P no queda serializado. Si esta cuenta deja '
+288:       + 'de ser 0, esa carrera ocurrió de verdad: las filas son inertes (el suelo '
+289:       + 'las ignora), pero hay que saberlo y decidir si se limpian.',
+290:     async medir() {
+291:       // Las metas del propio mes sellado son legítimas (se selló CON ellas).
+292:       // Lo anómalo: una revisión MAYOR que la fotografiada por su sello, o un
+293:       // mes bajo el suelo que ni siquiera tiene sello propio.
+294:       if (SQL_PROJECT) return medirSQL('metas_bajo_el_sello', SQL_PROJECT);
+295:       const { data: sellos, error: errorSellos } = await admin.from('periodos_cerrados')
+296:         .select('periodo, meta_revision');
+297:       if (errorSellos) throw errorSellos;
+298:       if (!sellos || sellos.length === 0) return 0;
+299:       const porPeriodo = new Map(sellos.map((s) => [s.periodo, s.meta_revision]));
+300:       const ultimo = sellos.map((s) => s.periodo).sort().at(-1);
+301:       const { data: metas, error } = await admin.from('meta_periodos')
+302:         .select('periodo, revision').lte('periodo', ultimo);
+303:       if (error) throw error;
+304:       return (metas ?? []).filter((m) => {
+305:         const sellada = porPeriodo.get(m.periodo);
+306:         return sellada === undefined || m.revision > sellada;
+307:       }).length;
+308:     },
+309:     divergeSi: (n) => n > 0,
+310:     esperado: '0 revisiones bajo el sello sin fotografiar (residuo de 20260815223000)',
+311:   },
+312:   {
+313:     clave: 'conversion_un_solo_nucleo',
+314:     titulo: 'La conversión del mes es UNA por los cuatro caminos',
+315:     asume: 'Resumen, Conversiones y Distribución recalculan por su cuenta y se da por hecho que '
+316:       + 'coinciden con Ranking, Metas y HOY (la lectura mensual). Hasta el 21/09/2026 lo único '
+317:       + 'que se comprobaba era una sonda que compara el núcleo consigo mismo.',
+318:     afecta: [
+319:       'Hoy · gerencia → Resumen (número grande del rango)',
+320:       'Conversiones → héroe «Índice comercial»',
+321:       'Distribución → índice del núcleo',
+322:       'Ranking, Metas y HOY → lectura mensual (la cifra oficial)',
+323:     ],
+324:     consecuencia:
+325:       'Si los caminos discrepan, dos pantallas enseñan dos porcentajes distintos del mismo '
+326:       + 'mes y ninguna dice cuál manda. Pasa en cuanto haya un mes sellado o una deuda por '
+327:       + 'anulación que viaje de mes; hoy coinciden por casualidad, no por construcción.',
+328:     async medir() {
+329:       // crm.alarma_conversion_fn solo la puede ejecutar service_role: compara divisor,
+330:       // numerador y % por los cuatro caminos y devuelve solo agregados.
+331:       const { data, error } = SQL_PROJECT
+332:         ? { data: await medirSQL('conversion_un_solo_nucleo', SQL_PROJECT), error: null }
+333:         : await admin.rpc('alarma_conversion_fn');
+334:       if (error) throw error;
+335:       if (data?.cuadra == null) return `sin veredicto (${data?.motivo ?? 'sin datos'})`;
+336:       const d = data.detalle ?? {};
+337:       const resumen = Object.entries(d).map(([k, v]) => `${k} ${v.pct ?? '—'} %`).join(' · ');
+338:       return data.cuadra
+339:         ? `cuadra · ${data.caminos_leidos} caminos · ${d.nucleo_directo?.pct ?? '—'} % (${data.mes} → ${data.hasta})`
+340:         : `NO CUADRA · ${resumen}`;
+341:     },
+342:     divergeSi: (v) => typeof v !== 'string' || !v.startsWith('cuadra'),
+343:     esperado: 'los cuatro caminos con el mismo divisor, numerador y %',
+344:   },
+345: ];
+346: 
+347: function pintar(resultados) {
+348:   const divergentes = resultados.filter((r) => r.diverge);
+349:   process.stdout.write('\n— Gate de realidad: lo que el producto ASUME vs lo que HAY —\n\n');
+350:   for (const r of resultados) {
+351:     if (r.error) {
+352:       process.stdout.write(`  ⚠️  ${r.titulo}\n      no se pudo medir: ${r.error}\n\n`);
+353:       continue;
+354:     }
+355:     const marca = r.diverge ? '⚠️ ' : '✓ ';
+356:     process.stdout.write(`  ${marca} ${r.titulo}: ${r.valor}  (se asume ${r.esperado})\n`);
+357:     if (!r.diverge) continue;
+358:     process.stdout.write(`      ${r.asume}\n`);
+359:     process.stdout.write(`      Consecuencia: ${r.consecuencia}\n`);
+360:     process.stdout.write('      Pantallas que hoy se prueban contra un mundo que no existe:\n');
+361:     for (const p of r.afecta) process.stdout.write(`        · ${p}\n`);
+362:     process.stdout.write('\n');
+363:   }
+364: 
+365:   const errores = resultados.filter(r => r.error);
+366:   if (errores.length) {
+367:     process.stdout.write(`\n❌ Medición incompleta: ${errores.length} errores; no se puede aprobar el gate.\n`);
+368:   }
+369:   if (divergentes.length === 0 && errores.length === 0) {
+370:     process.stdout.write('\n✅ Sin divergencias: los fixtures y la base cuentan la misma película.\n');
+371:     return;
+372:   }
+373:   if (divergentes.length) process.stdout.write(
+374:     `\n⚠️  ${divergentes.length} de ${resultados.length} supuestos NO se cumplen en esta base.\n`
+375:     + '   Esto no es un bug: es la lista de sitios donde un cambio puede pasar\n'
+376:     + '   el gate entero y no hacer nada en producción. Antes de dar por bueno\n'
+377:     + '   un arreglo que toque una de esas pantallas, escribe el test EN ESE\n'
+378:     + '   estado (el vacío), no solo con el fixture lleno.\n',
+379:   );
+380: }
+381: 
+382: async function principal() {
+383:   const resultados = [];
+384:   for (const supuesto of SUPUESTOS) {
+385:     try {
+386:       const valor = await supuesto.medir();
+387:       const via = SQL_PROJECT && ['metas_bajo_el_sello', 'conversion_un_solo_nucleo'].includes(supuesto.clave)
+388:         ? 'Supabase CLI · SQL READ ONLY' : 'PostgREST';
+389:       resultados.push({ ...supuesto, valor, diverge: supuesto.divergeSi(valor), error: null, via });
+390:     } catch (error) {
+391:       resultados.push({
+392:         ...supuesto, valor: null, diverge: false,
+393:         error: error?.message ?? String(error),
+394:       });
+395:     }
+396:   }
+397: 
+398:   if (JSON_OUT) {
+399:     process.stdout.write(`${JSON.stringify(
+400:       resultados.map(({ clave, titulo, valor, esperado, diverge, error, afecta, via }) => ({
+401:         clave, titulo, valor, esperado, diverge, error, afecta, via,
+402:       })),
+403:       null, 2,
+404:     )}\n`);
+405:   } else {
+406:     pintar(resultados);
+407:   }
+408: 
+409:   process.exitCode = codigoSalida(resultados, ESTRICTO);
+410: }
+411: 
+412: principal().catch((error) => fatal(error?.message ?? String(error)));
+
+=== CRM-Avance-Corp/supabase/scripts/gate-realidad-sql.mjs ===
+1: // Dos mediciones administrativas del gate, sin ampliar la API ni sus permisos.
+2: // Opt-in explícito; la CLI usa su sesión local, nunca una clave en argumentos.
+3: import { execFile } from 'node:child_process';
+4: import { promisify } from 'node:util';
+5: 
+6: const ejecutar = promisify(execFile);
+7: const CONSULTAS = Object.freeze({
+8:   metas_bajo_el_sello: `select count(*)::integer as valor
+9:     from crm.meta_periodos m
+10:     left join crm.periodos_cerrados s on s.periodo = m.periodo
+11:     where m.periodo <= (select max(periodo) from crm.periodos_cerrados)
+12:       and (s.periodo is null or m.revision > s.meta_revision)`,
+13:   conversion_un_solo_nucleo: 'select crm.alarma_conversion_fn() as valor',
+14: });
+15: 
+16: export function proyectoSQL(args, url) {
+17:   const posicion = args.indexOf('--sql-project-ref');
+18:   if (posicion < 0) return null;
+19:   const ref = args[posicion + 1];
+20:   if (!/^[a-z]{20}$/.test(ref ?? '') || args.lastIndexOf('--sql-project-ref') !== posicion) {
+21:     throw new Error('--sql-project-ref requiere una única referencia válida de proyecto.');
+22:   }
+23:   // Evitar combinar conteos de una base con sellos/conversión de otra.
+24:   if (url !== `https://${ref}.supabase.co` && url !== `https://${ref}.supabase.co/`) {
+25:     throw new Error('El proyecto SQL debe coincidir exactamente con SUPABASE_URL.');
+26:   }
+27:   return ref;
+28: }
+29: 
+30: export async function medirSQL(clave, proyecto, ejecutarCLI = ejecutar) {
+31:   if (!Object.hasOwn(CONSULTAS, clave) || !/^[a-z]{20}$/.test(proyecto ?? '')) {
+32:     throw new Error('Medición SQL o proyecto no permitido.');
+33:   }
+34:   const sql = `begin read only; set local statement_timeout = '80s';\n${CONSULTAS[clave]};\nrollback;`;
+35:   let stdout;
+36:   try {
+37:     ({ stdout } = await ejecutarCLI('supabase', [
+38:       'db', 'query', '--linked', '--project-ref', proyecto, '--output', 'json', sql,
+39:     ], { timeout: 90_000, maxBuffer: 256 * 1024, encoding: 'utf8' }));
+40:   } catch {
+41:     // Los errores del proceso pueden incluir el entorno/argumentos: no volcarlos.
+42:     throw new Error(`No se pudo medir ${clave} mediante Supabase CLI (sesión, permisos o timeout).`);
+43:   }
+44:   let rows;
+45:   try { ({ rows } = JSON.parse(stdout)); } catch {
+46:     throw new Error('La CLI no devolvió JSON válido; medición incompleta.');
+47:   }
+48:   if (!Array.isArray(rows) || rows.length !== 1 || !Object.hasOwn(rows[0], 'valor')) {
+49:     throw new Error('La CLI no devolvió exactamente una medición; no se presume cero.');
+50:   }
+51:   const valor = rows[0].valor;
+52:   if (clave === 'metas_bajo_el_sello' && (!Number.isSafeInteger(valor) || valor < 0)) {
+53:     throw new Error('Conteo de sellos inválido.');
+54:   }
+55:   if (clave === 'conversion_un_solo_nucleo' &&
+56:       (!valor || typeof valor !== 'object' || Array.isArray(valor) ||
+57:        !Object.hasOwn(valor, 'cuadra') || ![true, false, null].includes(valor.cuadra))) {
+58:     throw new Error('Veredicto de conversión inválido.');
+59:   }
+60:   return valor;
+61: }
+62: 
+63: export function codigoSalida(resultados, estricto) {
+64:   if (resultados.some(r => r.error)) return 2;
+65:   return estricto && resultados.some(r => r.diverge) ? 1 : 0;
+66: }
+
+=== CRM-Avance-Corp/supabase/scripts/gate-realidad-sql.test.mjs ===
+1: import test from 'node:test';
+2: import assert from 'node:assert/strict';
+3: import { codigoSalida, medirSQL, proyectoSQL } from './gate-realidad-sql.mjs';
+4: 
+5: const ref = 'abcdefghijklmnopqrst';
+6: const url = `https://${ref}.supabase.co`;
+7: const devolver = valor => async () => ({ stdout: JSON.stringify({ rows: [{ valor }] }) });
+8: 
+9: test('la medición administrativa exige selección explícita de la misma base', () => {
+10:   assert.equal(proyectoSQL([], url), null);
+11:   assert.equal(proyectoSQL(['--sql-project-ref', ref], url), ref);
+12:   for (const args of [['--sql-project-ref'], ['--sql-project-ref', '--json'],
+13:     ['--sql-project-ref', ref, '--sql-project-ref', ref]]) {
+14:     assert.throws(() => proyectoSQL(args, url));
+15:   }
+16:   for (const otro of ['http://'+ref+'.supabase.co', url+'.otro.test', url+'/rest/v1', 'https://otro.supabase.co']) {
+17:     assert.throws(() => proyectoSQL(['--sql-project-ref', ref], otro));
+18:   }
+19: });
+20: 
+21: test('SQL solo lectura, rollback, timeout acotado y destino explícito sin shell', async () => {
+22:   for (const clave of ['metas_bajo_el_sello', 'conversion_un_solo_nucleo']) {
+23:     await medirSQL(clave, ref, async (cmd, args, opciones) => {
+24:       assert.equal(cmd, 'supabase');
+25:       assert.deepEqual(args.slice(0, 7), ['db', 'query', '--linked', '--project-ref', ref, '--output', 'json']);
+26:       assert.match(args[7], /^begin read only;/);
+27:       assert.match(args[7], /statement_timeout = '80s'/);
+28:       assert.match(args[7], /rollback;$/);
+29:       assert.equal(opciones.shell, undefined);
+30:       assert.equal(opciones.timeout, 90_000);
+31:       return { stdout: JSON.stringify({ rows: [{ valor: clave === 'metas_bajo_el_sello' ? 0 : { cuadra: true } }] }) };
+32:     });
+33:   }
+34:   await assert.rejects(medirSQL('select 1; delete from crm.leads', ref));
+35: });
+36: 
+37: test('respuesta vacía, truncada o mal tipada no equivale a un control aprobado', async () => {
+38:   for (const stdout of ['', '{}', '{"rows":[]}', '{"rows":[{},{}]}', '{"rows":[{}]}']) {
+39:     await assert.rejects(medirSQL('metas_bajo_el_sello', ref, async () => ({ stdout })));
+40:   }
+41:   for (const valor of [null, -1, '0', 0.5]) {
+42:     await assert.rejects(medirSQL('metas_bajo_el_sello', ref, devolver(valor)));
+43:   }
+44:   for (const valor of [null, {}, [], { cuadra: 'true' }]) {
+45:     await assert.rejects(medirSQL('conversion_un_solo_nucleo', ref, devolver(valor)));
+46:   }
+47: });
+48: 
+49: test('conserva las divergencias y el estado sin veredicto de la base', async () => {
+50:   assert.equal(await medirSQL('metas_bajo_el_sello', ref, devolver(2)), 2);
+51:   for (const cuadra of [true, false, null]) {
+52:     assert.deepEqual(await medirSQL('conversion_un_solo_nucleo', ref, devolver({ cuadra })), { cuadra });
+53:   }
+54: });
+55: 
+56: test('un fallo de la CLI no divulga su salida ni queda oculto como cero', async () => {
+57:   await assert.rejects(medirSQL('metas_bajo_el_sello', ref, async () => {
+58:     throw new Error('secreto-simulado-en-stderr');
+59:   }), error => !error.message.includes('secreto-simulado') && /No se pudo medir/.test(error.message));
+60: });
+61: 
+62: test('errores bloquean en ambos modos; divergencias solo son fatales en estricto', () => {
+63:   assert.equal(codigoSalida([{ error: null, diverge: false }], false), 0);
+64:   assert.equal(codigoSalida([{ error: null, diverge: true }], false), 0);
+65:   assert.equal(codigoSalida([{ error: null, diverge: true }], true), 1);
+66:   for (const estricto of [true, false]) {
+67:     assert.equal(codigoSalida([{ error: 'timeout', diverge: false }], estricto), 2);
+68:     assert.equal(codigoSalida([{ error: 'permiso', diverge: true }], estricto), 2);
+69:   }
+70: });
+
+=== CRM-Avance-Corp/supabase/migrations/20261014210146_crm_formulario3_campania_origen.sql ===
+1: -- Formulario 3, fase 1. Cambio aditivo; ninguna reclasificación histórica.
+2: -- Solo crm/private. Las mismas puertas y transacciones conservan reparto e identidad.
+3: begin;
+4: set local lock_timeout = '5s';
+5: 
+6: -- Atributos previos para probar también su conservación después de reemplazar.
+7: create temporary table formulario3_funciones_previas on commit drop as
+8: select p.oid, p.proconfig, p.prosecdef, p.proowner, p.proacl
+9: from pg_catalog.pg_proc p where p.oid in (
+10:   'crm.importar_lead_fn(jsonb)'::regprocedure,
+11:   'crm.registrar_reingreso_lead_fn(uuid,text,jsonb)'::regprocedure,
+12:   'private.registrar_solicitud_cliente_fn(uuid,text,jsonb)'::regprocedure
+13: );
+14: 
+15: -- Baseline leído de la base viva: cuerpo, definición, dueño y ACL completos.
+16: do $preflight$
+17: declare r record;
+18: begin
+19:   for r in select * from (values
+20:     ('crm.importar_lead_fn(jsonb)', '261411a75326cbe78220d3ef1a61a7cd','0518b2643f258ca458d3a6acc492a7bf','{postgres=X/postgres,service_role=X/postgres}'),
+21:     ('crm.registrar_reingreso_lead_fn(uuid,text,jsonb)', '2875987459d47958333637736c057ffb','c3c4ab696ba6f3e30895cae1a9a27b77','{postgres=X/postgres,service_role=X/postgres}'),
+22:     ('private.registrar_solicitud_cliente_fn(uuid,text,jsonb)', '38cc98b993d92b10816c95a479994d20','23c2b6216684ac77801e39af5efe4b7c','{postgres=X/postgres}')
+23:   ) as f(firma, huella, definicion, permisos) loop
+24:     if (select pg_catalog.md5(p.prosrc) from pg_catalog.pg_proc p
+25:          where p.oid = pg_catalog.to_regprocedure(r.firma)) is distinct from r.huella then
+26:       raise exception 'Deriva previa en %; revisar antes de aplicar', r.firma;
+27:     end if;
+28:     if not exists (
+29:       select 1 from pg_catalog.pg_proc p
+30:        where p.oid=pg_catalog.to_regprocedure(r.firma)
+31:          and pg_catalog.md5(pg_catalog.pg_get_functiondef(p.oid))=r.definicion
+32:          and pg_catalog.pg_get_userbyid(p.proowner)='postgres'
+33:          and p.proacl::text=r.permisos
+34:     ) then raise exception 'Deriva de atributos o permisos en %',r.firma; end if;
+35:   end loop;
+36:   if not (select relrowsecurity from pg_catalog.pg_class where oid='crm.leads'::regclass) then
+37:     raise exception 'crm.leads debe conservar RLS';
+38:   end if;
+39: end;
+40: $preflight$;
+41: 
+42: -- En la base viva authenticated tiene UPDATE de tabla. Convertirlo a los mismos
+43: -- permisos efectivos sobre columnas existentes, ANTES de agregar la nueva.
+44: -- REVOKE de una sola columna no vencería al grant de tabla.
+45: do $permisos$
+46: declare v_columnas text;
+47: begin
+48:   select pg_catalog.string_agg(pg_catalog.quote_ident(a.attname), ', ' order by a.attnum)
+49:     into v_columnas
+50:     from pg_catalog.pg_attribute a
+51:    where a.attrelid='crm.leads'::regclass and a.attnum>0 and not a.attisdropped
+52:      and pg_catalog.has_column_privilege('authenticated', a.attrelid, a.attnum, 'UPDATE');
+53:   revoke update on crm.leads from authenticated;
+54:   if v_columnas is not null then
+55:     execute 'grant update (' || v_columnas || ') on crm.leads to authenticated';
+56:   end if;
+57: end;
+58: $permisos$;
+59: 
+60: alter table crm.leads add column campania_origen text;
+61: comment on column crm.leads.campania_origen is
+62:   'Campaña de la primera importación; NULL en históricos. El canal origen conserva las reglas comerciales.';
+63: grant select (campania_origen) on crm.leads to authenticated;
+64: 
+65: -- Validador compartido por el importador, sin otra superficie de escritura.
+66: create function private.normalizar_campania_origen(p_valor jsonb, p_origen text)
+67: returns text language plpgsql immutable set search_path = '' as $normalizar$
+68: declare v text;
+69: begin
+70:   if p_valor is null or p_valor='null'::jsonb then return null; end if;
+71:   if pg_catalog.jsonb_typeof(p_valor)<>'string' then
+72:     raise exception 'Campaña debe ser texto' using errcode='22023';
+73:   end if;
+74:   v := pg_catalog.btrim(p_valor #>> '{}');
+75:   if pg_catalog.char_length(v) not between 1 and 80 or v ~ '[[:cntrl:]]' then
+76:     raise exception 'Campaña debe tener de 1 a 80 caracteres sin controles' using errcode='22023';
+77:   end if;
+78:   if pg_catalog.lower(v)='formulario 3' then
+79:     if p_origen is distinct from 'formulario' then
+80:       raise exception 'Formulario 3 requiere el canal FORMULARIO' using errcode='22023';
+81:     end if;
+82:     v := 'Formulario 3';
+83:   end if;
+84:   return v;
+85: end;
+86: $normalizar$;
+87: revoke all on function private.normalizar_campania_origen(jsonb,text) from public, anon, authenticated, service_role;
+88: 
+89: alter table crm.leads add constraint leads_campania_origen_valida check (
+90:   campania_origen is null or (
+91:     campania_origen=pg_catalog.btrim(campania_origen)
+92:     and pg_catalog.char_length(campania_origen) between 1 and 80
+93:     and campania_origen !~ '[[:cntrl:]]'
+94:     and (pg_catalog.lower(campania_origen)<>'formulario 3'
+95:          or campania_origen='Formulario 3')
+96:   )
+97: );
+98: 
+99: -- El grant impide PATCH directo. El trigger también protege las rutas DEFINER
+100: -- que actúan con auth.uid() humano; no basta con mirar current_user=postgres.
+101: create function private.proteger_campania_lead()
+102: returns trigger language plpgsql set search_path = '' as $proteger$
+103: begin
+104:   if (tg_op='INSERT' and new.campania_origen is not null)
+105:      or (tg_op='UPDATE' and new.campania_origen is distinct from old.campania_origen) then
+106:     if (select auth.uid()) is not null or current_user not in ('postgres','service_role','supabase_admin') then
+107:       raise exception 'La campaña de origen solo la escribe el servidor' using errcode='42501';
+108:     end if;
+109:   end if;
+110:   return new;
+111: end;
+112: $proteger$;
+113: revoke all on function private.proteger_campania_lead() from public, anon, authenticated, service_role;
+114: create trigger trg_leads_campania_controlada before insert or update on crm.leads
+115:   for each row execute function private.proteger_campania_lead();
+116: 
+117: CREATE OR REPLACE FUNCTION crm.importar_lead_fn(p_fila jsonb)
+118:  RETURNS jsonb
+119:  LANGUAGE plpgsql
+120:  SECURITY DEFINER
+121:  SET search_path TO ''
+122:  SET lock_timeout TO '5s'
+123: AS $function$
+124: declare
+125:   v_id         uuid := pg_catalog.gen_random_uuid();
+126:   v_nombre     text := nullif(pg_catalog.btrim(p_fila->>'nombre_completo'), '');
+127:   v_telefono   text := nullif(pg_catalog.btrim(p_fila->>'telefono'), '');
+128:   v_alt        text := nullif(pg_catalog.btrim(p_fila->>'telefono_alternativo'), '');
+129:   v_alt_crudo  text := nullif(pg_catalog.btrim(p_fila->>'telefono_alternativo_crudo'), '');
+130:   v_correo     text := nullif(pg_catalog.btrim(p_fila->>'correo'), '');
+131:   v_dni        text := nullif(pg_catalog.btrim(p_fila->>'dni'), '');
+132:   v_genero     text := nullif(pg_catalog.btrim(p_fila->>'genero'), '');
+133:   v_fecha      date;
+134:   v_distrito   text := nullif(pg_catalog.btrim(p_fila->>'distrito'), '');
+135:   v_campania   text;
+136:   v_origen     text := nullif(pg_catalog.btrim(p_fila->>'origen'), '');
+137:   v_monto      numeric;
+138:   v_moneda     text := nullif(pg_catalog.btrim(p_fila->>'moneda'), '');
+139:   v_categoria  text := nullif(pg_catalog.btrim(p_fila->>'categoria_interes'), '');
+140:   v_nota       text := nullif(pg_catalog.btrim(p_fila->>'nota'), '');
+141:   v_cons_en    timestamptz;
+142:   v_cons_fuente text := nullif(pg_catalog.btrim(p_fila->>'consentimiento_fuente'), '');
+143:   v_vendedor   uuid;
+144:   v_detalle    text;
+145:   v_constraint text;
+146:   v_veredicto  jsonb;
+147:   v_resultado  text;
+148:   v_lead       uuid;
+149:   v_reingreso  jsonb;
+150:   v_datos      jsonb;
+151:   v_prev       uuid;
+152:   v_perfil     uuid;      -- F2.b [D-20]
+153:   v_lead_vivo  uuid;      -- F2.b [D-20]
+154:   v_solicitud  jsonb;     -- F2.b [D-20]
+155: begin
+156:   -- F2.b [D-4]: solo el importador (service_role, sin sesión de usuario), la misma regla que registrar_reingreso_lead_fn.
+157:   if (select auth.uid()) is not null then
+158:     raise exception 'Solo el importador (service_role) usa esta puerta' using errcode = '42501';
+159:   end if;
+160:   -- Defensa en profundidad (auditor N5): esta puerta nunca corre como operación privilegiada, venga como venga la sesión.
+161:   perform pg_catalog.set_config('crm.op_privilegiada', 'off', true);
+162:   if p_fila is null or pg_catalog.jsonb_typeof(p_fila) <> 'object' then
+163:     raise exception 'Fila invalida' using errcode = '22023';
+164:   end if;
+165:   -- Los casts van DESPUÉS de la autorización (Codex v3 #6): un payload malformado no cambia el 42501 por un 22xxx.
+166:   v_campania := private.normalizar_campania_origen(p_fila->'campania_origen', v_origen);
+167:   v_fecha    := nullif(pg_catalog.btrim(p_fila->>'fecha_nacimiento'), '')::date;
+168:   v_monto    := nullif(pg_catalog.btrim(p_fila->>'monto_estimado'), '')::numeric;
+169:   v_cons_en  := nullif(pg_catalog.btrim(p_fila->>'consentimiento_en'), '')::timestamptz;
+170:   v_vendedor := nullif(pg_catalog.btrim(p_fila->>'vendedor_id'), '')::uuid;
+171:   -- La puerta NO valida el formato: lo hace la fila al nacer (trigger 00: teléfono y DNI → 22023 con el mismo texto de
+172:   -- hoy; NOT NULL y CHECKs de la tabla), con la MISMA prioridad que el INSERT directo —el veto de la persona (000) va
+173:   -- antes que el formato— (Codex v4 #9). El teléfono viaja crudo, como lo manda el edge; lo normaliza el trigger de la tabla.
+174: 
+175:   -- Orden TOTAL de candados (b1/D-13, el de crm.crear_lead_si_disponible): documento → persona → contactos → fila.
+176:   -- El INSERT directo de hoy YA los toma en ese orden (triggers BEFORE 000 → 00, antes de tocar tupla e índice). Aquí
+177:   -- se toman explícitos SOLO los de identidad (documento → persona; apagada la bandera no toman nada), antes del
+178:   -- sub-bloque para que sobrevivan a su rollback y el reingreso corra con la persona retenida. Los de CONTACTO los toma
+179:   -- el trigger 00 del INSERT, DESPUÉS del veto de la persona (000), exactamente como el INSERT directo: una persona
+180:   -- vetada recibe su «no insistir» sin esperar por un teléfono retenido (Codex v3 #3). D-4 no cambia el orden: lo que
+181:   -- aporta es un veredicto único sin parsear SQLSTATE y el reingreso en la misma transacción.
+182:   perform private.identidad_bloquear_documento('DNI', v_dni);
+183:   perform private.identidad_bloquear_persona('DNI', v_dni);
+184: 
+185:   -- El CONTRATO del importador es el de la fila al nacer sin sesión humana (trigger de disponibilidad: «un escritor
+186:   -- interno se serializa pero conserva su contrato especializado»): NO se consulta la disponibilidad comercial
+187:   -- (enfriamiento, ficha de cliente, «no insistir» de un lead viejo) —el cliente que vuelve por la hoja es el mejor
+188:   -- lead posible—; sí mandan el índice único de teléfono VIVO (duplicado) y, con la identidad encendida, los triggers
+189:   -- de nacimiento: 000 (la persona vetada → P0429) y zz (la persona ya tiene lead o está en conversión → P0481 por
+190:   -- identidad). Por eso la puerta hace el MISMO INSERT (payload exacto del edge: sin sesión, cola global, alta_manual
+191:   -- por defecto) y convierte esos tres resultados en un veredicto en vez de una excepción.
+192:   begin
+193:     insert into crm.leads (
+194:       id, nombre_completo, telefono, telefono_alternativo, telefono_alternativo_crudo, correo, dni, genero,
+195:       fecha_nacimiento, distrito, origen, campania_origen, etapa, monto_estimado, moneda, categoria_interes, nota, no_contactar,
+196:       consentimiento_en, consentimiento_fuente, vendedor_id, asignado_supervisor_id, activo, creado_por
+197:     ) values (
+198:       v_id, v_nombre, v_telefono, v_alt, v_alt_crudo, v_correo, v_dni, v_genero,
+199:       v_fecha, v_distrito, v_origen, v_campania, 'nuevo', v_monto, v_moneda, v_categoria, v_nota, false,
+200:       v_cons_en, v_cons_fuente, v_vendedor, null, true, null
+201:     );
+202:     return pg_catalog.jsonb_build_object('resultado', 'importado', 'lead_id', v_id, 'veredicto', null, 'reingreso', null);
+203:   exception
+204:     when unique_violation then
+205:       -- uq_leads_telefono_vivo (o uq_leads_dni_vivo): ya hay un lead VIVO con ese contacto → DUPLICADO (hoy: 23505).
+206:       -- Se devuelve el NOMBRE del índice, no el DETAIL (que lleva el teléfono o el DNI en claro; auditor N1).
+207:       get stacked diagnostics v_constraint = constraint_name;
+208:       v_veredicto := pg_catalog.jsonb_build_object('estado', 'duplicado', 'indice', coalesce(v_constraint, 'desconocido'));
+209:       v_resultado := 'duplicado';
+210:     when sqlstate 'P0481' then
+211:       -- «Contacto no disponible» con el veredicto en DETAIL (hoy lo parsea el edge): ya_es_cliente por identidad
+212:       -- (con lead_id) o en conversión → ya_cliente; cualquier otro → rechazado.
+213:       get stacked diagnostics v_detalle = pg_exception_detail;
+214:       begin
+215:         v_veredicto := v_detalle::jsonb;
+216:       exception when others then
+217:         v_veredicto := pg_catalog.jsonb_build_object('estado', 'no_disponible', 'detalle', pg_catalog.left(coalesce(v_detalle, ''), 200));
+218:       end;
+219:       v_resultado := case when v_veredicto->>'estado' = 'ya_es_cliente' and v_veredicto->>'via' = 'identidad' then 'ya_cliente' else 'rechazado' end;
+220:     when sqlstate 'P0429' then
+221:       -- La persona tiene «No insistir» (trigger 000, identidad encendida) → RECHAZADO (hoy: P0429).
+222:       get stacked diagnostics v_detalle = pg_exception_detail;
+223:       begin
+224:         v_veredicto := coalesce(nullif(v_detalle, '')::jsonb, pg_catalog.jsonb_build_object('estado', 'no_contactar'));
+225:       exception when others then
+226:         v_veredicto := pg_catalog.jsonb_build_object('estado', 'no_contactar');
+227:       end;
+228:       v_resultado := 'rechazado';
+229:   end;
+230: 
+231:   v_lead := nullif(v_veredicto->>'lead_id', '')::uuid;
+232:   -- F2.b [D-20] (auditor A1): `private.leads_de_personas` devuelve enlace ∪ puente ∪ sueltos, así que `v_lead`
+233:   -- también trae leads CONVERTIDOS y descartados. Anotar el reingreso en uno cerrado es escribir donde nadie mira.
+234:   -- La bifurcación va por el lead VIVO: solo ése es un trabajo que alguien tiene en su bandeja.
+235:   -- Y no basta con mirar el lead que trae el veredicto: si ése está cerrado pero la persona conserva OTRO vivo, crear
+236:   -- una tarea duplicaría el trabajo (Codex). Se busca cualquier lead vivo suyo, prefiriendo el del veredicto.
+237:   select l.id into v_lead_vivo
+238:     from crm.leads l
+239:    where l.activo
+240:      and l.etapa not in ('convertido', 'descartado')
+241:      and (l.id = v_lead
+242:           or (nullif(pg_catalog.btrim(coalesce(v_dni, '')), '') is not null and l.dni = v_dni)
+243:           or (l.inversionista_id is not null
+244:               and l.inversionista_id = private.inversionista_por_documento('DNI', v_dni)))
+245:    order by (l.id = v_lead) desc, l.creado_en desc
+246:    limit 1;
+247:   if v_resultado = 'ya_cliente' and v_lead_vivo is not null then
+248:     -- El reingreso en la MISMA transacción (hoy el edge lo pedía aparte tras leer el error). Si fallara de forma
+249:     -- DEFINITIVA, la fila sigue siendo «ya cliente» y el edge lo dice en la hoja, como hoy.
+250:     v_datos := pg_catalog.jsonb_build_object(
+251:       'fila', p_fila->'fila', 'nombre', v_nombre, 'telefono', v_telefono, 'telefono_alternativo', v_alt,
+252:       'correo', v_correo, 'capital', v_monto, 'moneda', v_moneda, 'canal', v_origen, 'distrito', v_distrito,
+253:       'interes', v_categoria, 'nota', v_nota);
+254:     -- Ausente no añade una clave nula: se conserva la igualdad de solicitudes antiguas.
+255:     if v_campania is not null then
+256:       v_datos := v_datos || pg_catalog.jsonb_build_object('campania_origen', v_campania);
+257:     end if;
+258:     -- IDEMPOTENCIA (Codex v4 #7, v5 #3): si la hoja reenvía la MISMA fila (perdió la confirmación HTTP o el lote falló
+259:     -- después), el reingreso ya anotado vale: no se escribe una segunda nota. Misma persona, mismo origen y los mismos
+260:     -- DATOS —sin el número de fila, que cambia si alguien inserta una fila encima— en los últimos 7 días (una caída larga
+261:     -- del CRM tampoco la burla). Es lo que registrar_reingreso_lead_fn guarda en metadata.datos.
+262:     select a.id into v_prev
+263:       from crm.actividades a
+264:      where a.lead_id = v_lead_vivo
+265:        and a.metadata->>'evento' = 'reingreso'
+266:        and a.metadata->>'origen' = 'hoja'
+267:        and (a.metadata->'datos') - 'fila' = v_datos - 'fila'
+268:        and a.creado_en > pg_catalog.now() - interval '7 days'
+269:      order by a.creado_en desc
+270:      limit 1;
+271:     if v_prev is not null then
+272:       v_reingreso := pg_catalog.jsonb_build_object('ok', true, 'actividad_id', v_prev, 'repetido', true);
+273:     else
+274:       begin
+275:         v_reingreso := crm.registrar_reingreso_lead_fn(v_lead_vivo, 'hoja', v_datos);
+276:       exception when others then
+277:         -- Solo los errores DE NEGOCIO quedan anotados como definitivos en la respuesta (datos 22xxx, integridad 23xxx y
+278:         -- los P0xxx que levantan nuestras funciones: lead inexistente, origen inválido, identidad apagada). Cualquier
+279:         -- otro —transacción, recursos, candado, cancelación, E/S, límites (54), internos, configuración— sube entero: el
+280:         -- edge lo trata como temporal y la hoja reintenta la fila (auditor M4; Codex v4 #8 y v5 #4).
+281:         if pg_catalog.left(sqlstate, 2) not in ('22', '23', 'P0') then
+282:           raise;
+283:         end if;
+284:         v_reingreso := pg_catalog.jsonb_build_object('ok', false, 'error', sqlstate || ': ' || pg_catalog.left(sqlerrm, 120));
+285:       end;
+286:     end if;
+287:   elsif v_resultado = 'ya_cliente' then
+288:     -- F2.b [D-20]: es cliente y NO conserva lead vivo (el caso de 407 de los 424 clientes activos en producción al
+289:     -- 06/09). Sin esta rama la solicitud se perdía: la hoja la daba por cerrada y en el CRM no quedaba nada. Se deja
+290:     -- la huella donde el analista mira: nota en la ficha del cliente y tarea de llamada para el responsable de su
+291:     -- cartera. Nunca las dos vías a la vez: si hubiera lead vivo, la rama de arriba ya anotó el reingreso.
+292:     v_datos := pg_catalog.jsonb_build_object(
+293:       'fila', p_fila->'fila', 'nombre', v_nombre, 'telefono', v_telefono, 'telefono_alternativo', v_alt,
+294:       'correo', v_correo, 'capital', v_monto, 'moneda', v_moneda, 'canal', v_origen, 'distrito', v_distrito,
+295:       'interes', v_categoria, 'nota', v_nota);
+296:     -- Ausente no añade una clave nula: se conserva la igualdad de solicitudes antiguas.
+297:     if v_campania is not null then
+298:       v_datos := v_datos || pg_catalog.jsonb_build_object('campania_origen', v_campania);
+299:     end if;
+300:     -- La persona ya está reconocida (el veredicto lo dice), así que su ficha de cliente sale de la identidad. El
+301:     -- respaldo por documento exacto cubre a un cliente cuya identidad todavía no lleva el perfil enlazado.
+302:     select i.perfil_id into v_perfil
+303:       from crm.inversionistas i
+304:      where i.id = private.inversionista_por_documento('DNI', v_dni) and i.perfil_id is not null;
+305:     if v_perfil is null and nullif(pg_catalog.btrim(coalesce(v_dni, '')), '') is not null then
+306:       select p.id into v_perfil
+307:         from public.perfiles p
+308:        where p.rol = 'cliente' and p.activo
+309:          and nullif(pg_catalog.btrim(coalesce(p.dni, '')), '') is not null
+310:          and (coalesce(nullif(pg_catalog.btrim(p.tipo_documento), ''), 'DNI') || ':' ||
+311:               pg_catalog.upper(pg_catalog.regexp_replace(p.dni, '[^A-Za-z0-9]', '', 'g')))
+312:              = ('DNI:' || pg_catalog.upper(pg_catalog.regexp_replace(coalesce(v_dni, ''), '[^A-Za-z0-9]', '', 'g')))
+313:        limit 1;
+314:     end if;
+315:     if v_perfil is not null then
+316:       begin
+317:         v_solicitud := private.registrar_solicitud_cliente_fn(v_perfil, 'hoja', v_datos);
+318:       exception when others then
+319:         -- Mismo criterio que el reingreso: solo los errores DE NEGOCIO se anotan como definitivos; cualquier otro
+320:         -- sube entero para que la hoja reintente la fila.
+321:         if pg_catalog.left(sqlstate, 2) not in ('22', '23', 'P0') then
+322:           raise;
+323:         end if;
+324:         v_solicitud := pg_catalog.jsonb_build_object('ok', false, 'error', sqlstate || ': ' || pg_catalog.left(sqlerrm, 120));
+325:       end;
+326:     else
+327:       v_solicitud := pg_catalog.jsonb_build_object('ok', false, 'error', 'no se pudo ubicar la ficha del cliente');
+328:     end if;
+329:   end if;
+330: 
+331:   return pg_catalog.jsonb_build_object('resultado', v_resultado, 'lead_id', v_lead, 'veredicto', v_veredicto, 'reingreso', v_reingreso)
+332:       || case when v_solicitud is null then '{}'::jsonb else pg_catalog.jsonb_build_object('solicitud', v_solicitud) end;
+333: end;
+334: $function$;
+335: 
+336: CREATE OR REPLACE FUNCTION crm.registrar_reingreso_lead_fn(p_lead_id uuid, p_origen text, p_datos jsonb DEFAULT '{}'::jsonb)
+337:  RETURNS jsonb
+338:  LANGUAGE plpgsql
+339:  SECURITY DEFINER
+340:  SET search_path TO ''
+341: AS $function$
+342: declare
+343:   v_id uuid;
+344:   v_datos jsonb;
+345: begin
+346:   if (select auth.uid()) is not null then
+347:     raise exception 'Solo el importador (service_role) registra reingresos' using errcode = '42501';
+348:   end if;
+349:   -- Paridad apagada: superficie inerte mientras la identidad no esté activa (Codex E1).
+350:   if not private.resolver_en_puertas_bajo_candado() then
+351:     raise exception 'Identidad unificada apagada: el reingreso no se registra' using errcode = 'P0409';
+352:   end if;
+353:   if p_lead_id is null or not exists (select 1 from crm.leads l where l.id = p_lead_id) then
+354:     raise exception 'Lead inexistente' using errcode = 'P0002';
+355:   end if;
+356:   if p_origen is null or pg_catalog.length(pg_catalog.btrim(p_origen)) not between 1 and 40 then
+357:     raise exception 'Origen inválido' using errcode = '22023';
+358:   end if;
+359:   -- Sin documento en claro en la actividad: solo datos comerciales del formulario.
+360:   v_datos := (
+361:     select coalesce(pg_catalog.jsonb_object_agg(e.key, e.value), '{}'::jsonb)
+362:     from pg_catalog.jsonb_each(coalesce(p_datos, '{}'::jsonb)) e
+363:     where e.key in ('nombre','telefono','telefono_alternativo','correo','capital','moneda','canal','distrito','interes','nota','fila','campania_origen')
+364:   );
+365:   insert into crm.actividades (lead_id, tipo, detalle, metadata, creado_por)
+366:   values (
+367:     p_lead_id, 'nota',
+368:     'Reingreso por ' || pg_catalog.btrim(p_origen) || ': la persona volvió a dejar sus datos'
+369:       || coalesce(' · campaña: ' || nullif(v_datos->>'campania_origen', ''), ''),
+370:     pg_catalog.jsonb_build_object('evento', 'reingreso', 'origen', pg_catalog.btrim(p_origen), 'datos', v_datos),
+371:     null)
+372:   returning id into v_id;
+373:   return pg_catalog.jsonb_build_object('ok', true, 'actividad_id', v_id);
+374: end;
+375: $function$;
+376: 
+377: CREATE OR REPLACE FUNCTION private.registrar_solicitud_cliente_fn(p_perfil uuid, p_origen text, p_datos jsonb)
+378:  RETURNS jsonb
+379:  LANGUAGE plpgsql
+380:  SECURITY DEFINER
+381:  SET search_path TO ''
+382:  SET lock_timeout TO '5s'
+383: AS $function$
+384: declare
+385:   v_cliente   public.perfiles%rowtype;
+386:   v_huella    text;
+387:   v_detalle   text;
+388:   v_prev_act  uuid;
+389:   v_act       uuid;
+390:   v_tarea     uuid;
+391:   v_sin_asesor boolean := false;
+392:   v_motivo    text;
+393:   v_dest      uuid;      -- a nombre de quién queda la nota (la tabla exige responsable)
+394: begin
+395:   -- F2.b [D-20]. Solo el importador, la misma regla que registrar_reingreso_lead_fn: nunca una sesión humana.
+396:   if (select auth.uid()) is not null then
+397:     raise exception 'Solo el importador (service_role) registra solicitudes de cliente' using errcode = '42501';
+398:   end if;
+399:   if not private.resolver_en_puertas_bajo_candado() then
+400:     raise exception 'Identidad unificada apagada: la solicitud no se registra' using errcode = 'P0409';
+401:   end if;
+402:   if p_origen is null or p_origen not in ('hoja', 'landing', 'web') then
+403:     raise exception 'Origen inválido' using errcode = '22023';
+404:   end if;
+405:   select * into v_cliente from public.perfiles p where p.id = p_perfil and p.rol = 'cliente';
+406:   if not found then
+407:     raise exception 'Cliente inexistente' using errcode = 'P0002';
+408:   end if;
+409:   if not v_cliente.activo then
+410:     raise exception 'Cliente inactivo: la solicitud no se registra' using errcode = 'P0409';
+411:   end if;
+412:   -- Auditor D-20 #A2: los dos triggers de veto se EXIMEN cuando no hay sesión (auth.uid() null), que es justo el caso
+413:   -- del importador. La ley 29571 no puede depender de un razonamiento sobre el orden de los triggers: se comprueba aquí.
+414:   if private.persona_vetada_perfil(p_perfil) then
+415:     return pg_catalog.jsonb_build_object('ok', false, 'vetado', true, 'sin_tarea', true,
+416:       'error', 'La persona tiene la restricción «No insistir»: no se registra seguimiento');
+417:   end if;
+418:   -- Auditor #M6: la idempotencia se sostiene sola. Hoy el importador ya serializa por persona, pero el ayudante no
+419:   -- puede depender de quién lo llame.
+420:   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('solicitud_cliente:' || p_perfil::text));
+421: 
+422:   -- Huella de la solicitud SIN el número de fila (que cambia si alguien inserta una fila encima), igual que el
+423:   -- reingreso: si la hoja reenvía la misma fila porque perdió la confirmación, no se duplica ni la nota ni la tarea.
+424:   v_huella := pg_catalog.md5(coalesce((p_datos - 'fila')::text, ''));
+425:   v_detalle := 'Pidió información por la web'
+426:     -- Antes de la nota larga; la huella sigue al final y conserva la campaña.
+427:     || coalesce(' · campaña: ' || nullif(p_datos->>'campania_origen', ''), '')
+428:     || coalesce(' · interés: ' || nullif(pg_catalog.btrim(coalesce(p_datos->>'interes', '')), ''), '')
+429:     || coalesce(' · capital: ' || nullif(pg_catalog.btrim(coalesce(p_datos->>'capital', '')), ''), '')
+430:     || coalesce(' ' || nullif(pg_catalog.btrim(coalesce(p_datos->>'moneda', '')), ''), '')
+431:     || coalesce(' · distrito: ' || nullif(pg_catalog.btrim(coalesce(p_datos->>'distrito', '')), ''), '')
+432:     || coalesce(' · canal: ' || nullif(pg_catalog.btrim(coalesce(p_datos->>'canal', '')), ''), '')
+433:     || coalesce(' · teléfono: ' || nullif(pg_catalog.btrim(coalesce(p_datos->>'telefono', '')), ''), '')
+434:     || coalesce(' · nota: ' || nullif(pg_catalog.btrim(coalesce(p_datos->>'nota', '')), ''), '');
+435:   -- `detalle` y `nota` topan en 2000 caracteres, pero la nota del formulario no tiene límite: se recorta el cuerpo y
+436:   -- la huella se añade DESPUÉS, porque recortar por el final la destruiría y con ella la idempotencia (auditor #M1).
+437:   v_detalle := pg_catalog.left(v_detalle, 1900) || ' · Ref: ' || v_huella;
+438: 
+439:   select a.id into v_prev_act
+440:     from crm.actividades_cliente a
+441:    where a.cliente_id = p_perfil
+442:      and a.tipo = 'nota'
+443:      -- La comparación va contra la COLA, no contra el interior (Codex): el sufijo « · Ref: <huella>» lo añadimos
+444:      -- nosotros SIEMPRE al final, mientras que la nota del visitante queda antes y recortada. Con `strpos`, un texto
+445:      -- del formulario que contuviera «Ref: <huella>» podía hacer pasar por repetida una solicitud jamás registrada.
+446:      and pg_catalog.right(coalesce(a.detalle, ''), pg_catalog.length(' · Ref: ' || v_huella)) = ' · Ref: ' || v_huella
+447:      and a.creado_por is null   -- auditor #M2: solo cuenta la nota que escribió el importador, no una copiada a mano
+448:      and a.creado_en > pg_catalog.now() - interval '7 days'
+449:    order by a.creado_en desc
+450:    limit 1;
+451:   if v_prev_act is not null then
+452:     return pg_catalog.jsonb_build_object('ok', true, 'actividad_id', v_prev_act, 'repetido', true);
+453:   end if;
+454: 
+455:   -- `actividades_cliente` exige responsable en toda nota (CHECK) y que ese responsable esté en el equipo (FK). El
+456:   -- analista de la cartera es el destino natural; si el perfil no lo tiene, se usa el responsable VIVO de su identidad
+457:   -- (423 de los 424 clientes activos lo tienen). Sin ninguno de los dos no hay a quién atribuirla: se dice y ya.
+458:   v_dest := v_cliente.asesor_perfil_id;
+459:   if v_dest is null or not exists (select 1 from crm.equipo e where e.perfil_id = v_dest and e.activo and e.rol_crm in ('vendedor','supervisor')) then
+460:     select r.responsable_id into v_dest
+461:       from crm.inversionista_responsables r
+462:       join crm.inversionistas i on i.id = r.inversionista_id
+463:      where i.perfil_id = p_perfil and r.hasta is null
+464:        and exists (select 1 from crm.equipo e where e.perfil_id = r.responsable_id and e.activo and e.rol_crm in ('vendedor','supervisor'))
+465:      order by r.desde desc
+466:      limit 1;
+467:   end if;
+468:   if v_dest is null then
+469:     return pg_catalog.jsonb_build_object('ok', false, 'sin_ficha', true, 'sin_tarea', true,
+470:       'error', 'el cliente no tiene analista ni responsable activo: nadie a quien atribuir la solicitud');
+471:   end if;
+472: 
+473:   insert into crm.actividades_cliente (cliente_id, vendedor_id, tipo, detalle, creado_por)
+474:   values (p_perfil, v_dest, 'nota', v_detalle, null)
+475:   returning id into v_act;
+476: 
+477:   -- La TAREA es lo que hace que alguien la trabaje. El trigger de la tabla resuelve el analista desde la cartera del
+478:   -- cliente y rechaza si no lo tiene o si no está activo en el CRM; eso NO puede tumbar la importación de la fila, así
+479:   -- que se anota como «sin analista» y la nota queda igual en la ficha para que Gerencia lo vea.
+480:   begin
+481:     insert into crm.tareas (perfil_id, tipo, titulo, nota, vence_en, estado, creado_por)
+482:     values (p_perfil, 'llamada', 'Pidió información por la web', v_detalle,
+483:             pg_catalog.now() + interval '1 day', 'pendiente', null)
+484:     returning id into v_tarea;
+485:   exception when others then
+486:     if pg_catalog.left(sqlstate, 2) not in ('22', '23', 'P0') then
+487:       raise;
+488:     end if;
+489:     v_sin_asesor := true;
+490:     v_motivo := sqlstate || ': ' || pg_catalog.left(sqlerrm, 120);
+491:   end;
+492: 
+493:   return pg_catalog.jsonb_build_object('ok', true, 'actividad_id', v_act, 'tarea_id', v_tarea,
+494:                                        'repetido', false, 'sin_tarea', v_sin_asesor, 'motivo', v_motivo);
+495: end;
+496: $function$;
+497: 
+498: -- CREATE OR REPLACE preserva dueño/ACL de las tres puertas, sin ampliarlos.
+499: -- Defensa posterior: nunca permitir que un grant heredado habilite la nueva escritura.
+500: do $postflight$
+501: begin
+502:   if exists (
+503:     select 1 from formulario3_funciones_previas a
+504:     join pg_catalog.pg_proc p on p.oid=a.oid
+505:     where row(a.proconfig,a.prosecdef,a.proowner,a.proacl)
+506:           is distinct from row(p.proconfig,p.prosecdef,p.proowner,p.proacl)
+507:   ) then raise exception 'Se alteraron atributos o permisos de una puerta existente'; end if;
+508:   if pg_catalog.has_column_privilege('authenticated','crm.leads','campania_origen','UPDATE')
+509:      or pg_catalog.has_column_privilege('authenticated','crm.leads','campania_origen','INSERT') then
+510:     raise exception 'La campaña no debe admitir escritura authenticated';
+511:   end if;
+512:   if not pg_catalog.has_column_privilege('authenticated','crm.leads','campania_origen','SELECT') then
+513:     raise exception 'Falta lectura de campaña bajo RLS';
+514:   end if;
+515: end;
+516: $postflight$;
+517: notify pgrst, 'reload schema';
+518: commit;
+
+=== CRM-Avance-Corp/supabase/migrations/20261014215453_crm_formulario3_cartera.sql ===
+1: -- Formulario 3 · fase 2. Requiere la migración de campaña de fase 1.
+2: -- Lectura informativa y filtro sobre la misma base de filas, totales, capital y embudo.
+3: -- Las firmas vivas y sus dependencias se inspeccionaron el 14/10/2026.
+4: -- No se alteran políticas, reparto, conversión, datos históricos ni objetos de public.
+5: begin;
+6: set local lock_timeout = '5s';
+7: 
+8: create temporary table formulario3_fase2_metadatos(nombre text primary key, comentario text) on commit drop;
+9: 
+10: do $preflight$
+11: declare r record; f regprocedure;
+12: begin
+13:   if not exists (select 1 from information_schema.columns
+14:     where table_schema='crm' and table_name='leads' and column_name='campania_origen')
+15:     or not has_column_privilege('authenticated','crm.leads','campania_origen','SELECT')
+16:     or has_column_privilege('authenticated','crm.leads','campania_origen','UPDATE')
+17:     or has_column_privilege('authenticated','crm.leads','campania_origen','INSERT') then
+18:     raise exception 'Falta fase 1 o sus permisos de campaña no coinciden';
+19:   end if;
+20:   for r in select * from (values
+21:     ('crm.cartera_filtrada_fn(integer,timestamp with time zone,uuid,text,uuid,boolean,text,date,date,text,text,boolean,text,text)', '23a63cc3965472b9db85aa81cadffbeb'),
+22:     ('crm.cartera_pagina_fn(integer,timestamp with time zone,uuid,text,uuid,boolean,text)', '4bbfd838ef6665f3bdad4603fa400e65')
+23:   ) esperado(firma,huella) loop
+24:     f := to_regprocedure(r.firma);
+25:     if f is null or md5(pg_get_functiondef(f)) <> r.huella
+26:       or not exists (select 1 from pg_proc where oid=f
+27:         and pg_get_userbyid(proowner)='postgres' and not prosecdef
+28:         and provolatile='s' and proconfig=array['search_path=""']
+29:         and proacl::text='{postgres=X/postgres,authenticated=X/postgres}') then
+30:       raise exception 'Contrato vivo modificado: %. Revisar antes de aplicar.',r.firma;
+31:     end if;
+32:     if exists(select 1 from pg_depend where refclassid='pg_proc'::regclass and refobjid=f and deptype <> 'e') then
+33:       raise exception 'Dependencia nueva sobre %. No usar CASCADE.',r.firma;
+34:     end if;
+35:     if exists(select 1 from pg_seclabel where classoid='pg_proc'::regclass and objoid=f) then
+36:       raise exception 'Etiqueta de seguridad nueva sobre %. Revisar antes de recrear.',r.firma;
+37:     end if;
+38:     insert into formulario3_fase2_metadatos
+39:       select proname, obj_description(oid,'pg_proc') from pg_proc where oid=f;
+40:   end loop;
+41:   if (select count(*) from pg_proc where pronamespace='crm'::regnamespace
+42:       and proname in ('cartera_filtrada_fn','cartera_pagina_fn')) <> 2 then
+43:     raise exception 'Firmas de cartera ambiguas';
+44:   end if;
+45:   -- pg_depend no registra llamadas dentro de cuerpos PL/pgSQL. Se inspeccionó
+46:   -- prosrc en producción: resumen es el único llamador; cierres solo las cita
+47:   -- en comentarios. Cualquier cuerpo nuevo o cambiado requiere otra revisión.
+48:   if exists(select 1 from pg_proc p
+49:       where p.prokind in ('f','p')
+50:         and (p.prosrc ilike '%cartera_pagina_fn%' or p.prosrc ilike '%cartera_filtrada_fn%')
+51:         and not (p.pronamespace='crm'::regnamespace and p.proname in ('cartera_pagina_fn','cartera_filtrada_fn'))
+52:         and not (
+53:           (p.oid='crm.resumen_cartera_fn()'::regprocedure and md5(pg_get_functiondef(p.oid))='4a896597486e8b23788a2b2497f16309')
+54:           or (p.oid='crm.cierres_estado_fn(uuid[])'::regprocedure and md5(pg_get_functiondef(p.oid))='5f6eca13b613aaa40b459ea56f7c8ac5')
+55:         )) then
+56:     raise exception 'Nuevo cuerpo dependiente de cartera; revisar compatibilidad antes de aplicar';
+57:   end if;
+58: end;
+59: $preflight$;
+60: 
+61: -- Cambiar los argumentos/RETURNS TABLE exige retirar las firmas exactas.
+62: -- El wrapper resumen_cartera_fn usa parámetros nominales y sigue resolviendo
+63: -- p_limite=>1. Su bloque resumen conserva exactamente las claves anteriores.
+64: drop function crm.cartera_filtrada_fn(integer,timestamp with time zone,uuid,text,uuid,boolean,text,date,date,text,text,boolean,text,text);
+65: drop function crm.cartera_pagina_fn(integer,timestamp with time zone,uuid,text,uuid,boolean,text);
+66: 
+67: CREATE OR REPLACE FUNCTION crm.cartera_filtrada_fn(p_limite integer DEFAULT 50, p_antes_de timestamp with time zone DEFAULT NULL::timestamp with time zone, p_antes_id uuid DEFAULT NULL::uuid, p_etapa text DEFAULT NULL::text, p_vendedor_id uuid DEFAULT NULL::uuid, p_sin_asignar boolean DEFAULT false, p_texto text DEFAULT NULL::text, p_desde date DEFAULT NULL::date, p_hasta date DEFAULT NULL::date, p_origen text DEFAULT NULL::text, p_procedencia text DEFAULT NULL::text, p_reasignados boolean DEFAULT false, p_gestion text DEFAULT NULL::text, p_potencial text DEFAULT NULL::text, p_campania_origen text DEFAULT NULL::text)
+68:  RETURNS jsonb
+69:  LANGUAGE plpgsql
+70:  STABLE
+71:  SET search_path TO ''
+72: AS $function$
+73: declare
+74:   v_uid uuid := (select auth.uid());
+75:   v_global boolean;
+76:   v_visibles uuid[];
+77:   v_texto text := nullif(btrim(p_texto), '');
+78:   v_reparto boolean;
+79:   v_digitos text;
+80:   v_salida jsonb;
+81:   v_potencial boolean;
+82: begin
+83:   if v_uid is null or not private.puede_acceder_crm() then
+84:     raise exception 'No autorizado' using errcode = '42501';
+85:   end if;
+86:   if p_limite is null or p_limite < 1 or p_limite > 200
+87:      or (p_antes_de is null) <> (p_antes_id is null)
+88:      or (p_sin_asignar and p_vendedor_id is not null)
+89:      or (p_sin_asignar and p_desde is not null)
+90:      or (p_desde is null) <> (p_hasta is null)
+91:      or p_desde > p_hasta
+92:      or p_hasta > (now() at time zone 'America/Lima')::date
+93:      or (p_etapa is not null and p_etapa not in
+94:        ('nuevo','contactado','reunion_agendada','propuesta_enviada','convertido','descartado'))
+95:      -- Mismo dominio que el CHECK de crm.leads.origen: los 5 vigentes y los 3
+96:      -- históricos (web, campania, whatsapp) siguen siendo consultables.
+97:      or (p_origen is not null and p_origen not in
+98:        ('referido','landing','formulario','oficina','otro','web','campania','whatsapp'))
+99:      -- Procedencia: 'sistema' (puente automático) o 'manual' (una persona).
+100:      -- Otro valor se rechaza: nunca un «cero resultados» silencioso.
+101:      or (p_procedencia is not null and p_procedencia not in ('sistema','manual'))
+102:      -- Gestión: 'con_gestion' (el titular actual ya intentó el contacto) o
+103:      -- 'sin_gestion' (el resto). Otro valor se rechaza, igual que arriba.
+104:      or (p_gestion is not null and p_gestion not in ('con_gestion','sin_gestion'))
+105:      -- Potencial: uno de los tres niveles o 'sin_marca' (leads sin marca). Otro valor se
+106:      -- rechaza, igual que arriba.
+107:      or (p_potencial is not null and p_potencial not in ('estrella','tibio','frio','sin_marca'))
+108:      -- Campaña de origen: texto canónico, nunca un cambio del canal comercial.
+109:      or (p_campania_origen is not null and
+110:        (p_campania_origen <> btrim(p_campania_origen)
+111:          or length(p_campania_origen) not between 1 and 80
+112:          or p_campania_origen ~ '[[:cntrl:]]'
+113:          or (lower(p_campania_origen) = 'formulario 3' and p_campania_origen <> 'Formulario 3')))
+114:      or (v_texto is not null and length(v_texto) < 2) then
+115:     raise exception 'Filtros de cartera inválidos' using errcode = '22023';
+116:   end if;
+117:   v_texto := left(v_texto, 80);
+118:   v_digitos := left(regexp_replace(v_texto, '\D', '', 'g'), 15);
+119:   v_global := private.rol_crm(v_uid) = 'gerencia' or private.es_lector_global();
+120:   v_visibles := array(select private.vendedor_ids_visibles(v_uid));
+121:   v_reparto := private.cartera_puede_operar_reparto_fn();
+122:   -- El potencial solo existe con su bandera encendida y para quien tiene ámbito de FILAS (global
+123:   -- o con analistas visibles). Sin eso la respuesta es la de siempre (sin `resumen.potencial`) y
+124:   -- pedir el filtro se rechaza como en la puerta de marcar. Quien solo opera el reparto no lee
+125:   -- leads por su RLS: tampoco recibe conteos por nivel (ni dentro de crm.resumen_cartera_fn).
+126:   v_potencial := crm.bandera_activa('potencial_lead') is true
+127:     and (coalesce(v_global, false) or cardinality(v_visibles) > 0);
+128:   if p_potencial is not null and not v_potencial then
+129:     raise exception 'El potencial del lead no está habilitado' using errcode = '55000';
+130:   end if;
+131: 
+132:   with recepciones as materialized (
+133:     select * from private.cartera_recepciones_fn(p_desde,p_hasta)
+134:   ), marcas as materialized (
+135:     -- Marca vigente de los leads que el actor puede ver. Ayudante DEFINER: las tablas del
+136:     -- potencial no tienen grants de API. Sin potencial para este actor, ni se le llama.
+137:     select m.lead_id, m.nivel from private.cartera_potencial_fn() m where v_potencial
+138:   ), previa as materialized (
+139:     select l.id, l.nombre_completo, l.telefono, l.telefono_alternativo,
+140:       l.telefono_alternativo_crudo, l.correo, l.dni, l.genero,
+141:       l.fecha_nacimiento, l.distrito, l.origen, l.campania_origen, l.etapa, l.motivo_descarte,
+142:       l.monto_estimado, l.moneda, l.categoria_interes, l.vendedor_id,
+143:       l.asignado_supervisor_id, l.creado_en, l.tenencia_desde, l.convertido_en,
+144:       l.contrato_id, l.actualizado_en, l.activo, l.nota, l.no_contactar,
+145:       -- Procedencia sellada por el servidor: `alta_manual` (columna del 01/09)
+146:       -- o, para los leads anteriores a ella, tener autor. El puente inserta
+147:       -- como service_role sin autor: nunca cae en 'manual'.
+148:       case when l.alta_manual or l.creado_por is not null then 'manual' else 'sistema' end as procedencia,
+149:       l.creado_por as cargado_por,
+150:       coalesce(mov.reasignado, false) as reasignado,
+151:       r.recibido_en, coalesce(r.aproximado,false) as recepcion_aproximada,
+152:       mk.nivel as potencial_nivel
+153:     from crm.leads l
+154:     -- Una primera entrega desde la cola tiene vendedor_anterior NULL. Solo
+155:     -- cuenta un analista ANTERIOR, incluso si volvió al mismo titular tras
+156:     -- pasar por la bandeja. El evento lo emite el trigger del servidor.
+157:     left join lateral (
+158:       select true as reasignado
+159:       from crm.actividades a
+160:       where l.vendedor_id is not null
+161:         and a.lead_id = l.id
+162:         and a.tipo = 'reasignacion'
+163:         and a.metadata ->> 'vendedor_anterior' is not null
+164:       limit 1
+165:     ) mov on true
+166:     left join recepciones r on r.lead_id = l.id
+167:     left join marcas mk on mk.lead_id = l.id
+168:     where l.activo is true
+169:       and (v_global or l.vendedor_id = any(v_visibles)
+170:         or (l.vendedor_id is null and (l.asignado_supervisor_id = any(v_visibles)
+171:           or v_reparto)))
+172:       and (p_desde is null or r.lead_id is not null)
+173:       -- La consulta por recepción puede recuperar convertidos antiguos que
+174:       -- siguen siendo visibles por RLS; sin fechas se conserva la ventana operativa.
+175:       and (p_desde is not null or l.etapa <> 'convertido' or l.convertido_en >= now() - interval '45 days')
+176:       and (p_etapa is null or l.etapa = p_etapa)
+177:       -- El origen acota la MISMA base: filas, totales, capital y embudo juntos.
+178:       and (p_origen is null or l.origen = p_origen)
+179:       and (p_campania_origen is null or l.campania_origen = p_campania_origen)
+180:       -- La procedencia acota esa misma base, con la misma regla que la columna
+181:       -- `procedencia` de arriba.
+182:       and (p_procedencia is null or (l.alta_manual or l.creado_por is not null) = (p_procedencia = 'manual'))
+183:       and (not coalesce(p_reasignados,false) or coalesce(mov.reasignado,false))
+184:       -- Gestión vigente: el titular ACTUAL ya intentó el contacto desde que
+185:       -- recibió el lead (`tenencia_desde`, que se renueva al reasignar y al
+186:       -- reabrir). Lo que gestionó un titular anterior no cuenta, ni un resultado
+187:       -- de llamada deshecho (`deshecho_en`: no ocurrió); sin titular o sin
+188:       -- tenencia no hay gestión. Acota la MISMA base; el payload no cambia.
+189:       and (p_gestion is null or (l.vendedor_id is not null
+190:         and l.tenencia_desde is not null
+191:         and exists (select 1 from crm.actividades g
+192:           where g.lead_id = l.id
+193:             and g.tipo in ('llamada_realizada','llamada_no_contestada',
+194:               'whatsapp_enviado','whatsapp_recibido','reunion_realizada')
+195:             and g.creado_en >= l.tenencia_desde
+196:             and not (g.metadata ? 'deshecho_en'))) = (p_gestion = 'con_gestion'))
+197:       and (p_vendedor_id is null or l.vendedor_id = p_vendedor_id)
+198:       and (not coalesce(p_sin_asignar,false) or l.vendedor_id is null)
+199:       and (v_texto is null or strpos(lower(l.nombre_completo),lower(v_texto)) > 0
+200:         or (length(v_digitos) >= 3 and (strpos(l.telefono,v_digitos) > 0
+201:           or strpos(l.telefono_alternativo,v_digitos) > 0 or strpos(l.dni,v_digitos) > 0)))
+202:   ), base as not materialized (
+203:     -- El potencial recorta DESPUÉS de los demás filtros: `previa` alimenta los conteos por
+204:     -- nivel (cuántos hay de cada uno con los demás filtros puestos, sin que cambien al elegir
+205:     -- uno) y `base`, como siempre, las filas, los totales, el capital y el embudo.
+206:     select pv.* from previa pv
+207:     where p_potencial is null
+208:       or (p_potencial = 'sin_marca' and pv.potencial_nivel is null)
+209:       or pv.potencial_nivel = p_potencial
+210:   ), pagina as (
+211:     select b.* from base b
+212:     where p_antes_de is null or b.actualizado_en < p_antes_de
+213:       or (b.actualizado_en = p_antes_de and b.id > p_antes_id)
+214:     order by b.actualizado_en desc,b.id asc limit p_limite
+215:   ), filas as (
+216:     select p.*, uc.creado_en as ultimo_contacto_en
+217:     from pagina p left join lateral (
+218:       select act.creado_en from crm.actividades act
+219:       where act.lead_id = p.id and act.tipo in ('llamada_realizada',
+220:         'llamada_no_contestada','whatsapp_enviado','whatsapp_recibido','reunion_realizada')
+221:       order by act.creado_en desc limit 1
+222:     ) uc on true
+223:   ), metricas as (
+224:     select count(*) as vivos,
+225:       count(*) filter(where etapa not in ('convertido','descartado')) as abiertos,
+226:       count(*) filter(where etapa not in ('convertido','descartado') and vendedor_id is not null) as asignados,
+227:       count(*) filter(where etapa not in ('convertido','descartado') and vendedor_id is null) as parkeados,
+228:       count(*) filter(where etapa = 'convertido') as convertidos,
+229:       count(*) filter(where etapa = 'descartado') as descartados,
+230:       count(*) filter(where reasignado) as reasignados,
+231:       count(*) filter(where etapa not in ('convertido','descartado') and vendedor_id is not null and moneda='PEN') as asignados_pen,
+232:       count(*) filter(where etapa not in ('convertido','descartado') and vendedor_id is not null and moneda='USD') as asignados_usd
+233:     from base
+234:   ), capital as (
+235:     select jsonb_object_agg(tipo,valor) as valor from (
+236:       select t.tipo, jsonb_build_object(
+237:         'pen',coalesce(sum(b.monto_estimado) filter(where b.moneda='PEN'),0),
+238:         'usd',coalesce(sum(b.monto_estimado) filter(where b.moneda='USD'),0)) as valor
+239:       from (values('asignado'),('parkeado'),('ganado')) t(tipo)
+240:       left join base b on (t.tipo='ganado' and b.etapa='convertido')
+241:         or (b.etapa not in ('convertido','descartado') and
+242:           ((t.tipo='asignado' and b.vendedor_id is not null) or (t.tipo='parkeado' and b.vendedor_id is null)))
+243:       group by t.tipo
+244:     ) montos
+245:   )
+246:   select jsonb_build_object('version',1,'generado_en',now(),
+247:     'desde',p_desde,'hasta',p_hasta,'origen',p_origen,'procedencia',p_procedencia,
+248:     'reasignados',coalesce(p_reasignados,false),'campania_origen',p_campania_origen,
+249:     -- La columna de trabajo `potencial_nivel` no viaja: las filas tienen la forma de siempre.
+250:     'items',coalesce((select jsonb_agg(to_jsonb(f) - 'potencial_nivel' order by f.actualizado_en desc,f.id) from filas f),'[]'::jsonb),
+251:     'resumen',jsonb_build_object('totales',(select to_jsonb(m) from metricas m),
+252:       'capital',(select valor from capital),
+253:       'conversion',jsonb_build_object(
+254:         'convertidos',(select count(*) from base where etapa='convertido' and vendedor_id is not null),
+255:         'base',(select count(*) from base where vendedor_id is not null),
+256:         'pct',coalesce((select round(100.0 * count(*) filter(where etapa='convertido')
+257:           / nullif(count(*),0))::int from base where vendedor_id is not null),0)),
+258:       'descartes',jsonb_build_object(
+259:         'total',(select count(*) from base where etapa='descartado'),
+260:         'sin_motivo',(select count(*) from base where etapa='descartado' and motivo_descarte is null),
+261:         'por_motivo',(select coalesce(jsonb_agg(to_jsonb(d) order by d.n desc,d.motivo),'[]'::jsonb)
+262:           from (select motivo_descarte as motivo,count(*) as n from base
+263:             where etapa='descartado' and motivo_descarte is not null group by motivo_descarte) d)),
+264:       'sin_tocar',(select count(*) from base b where b.etapa not in('convertido','descartado')
+265:         and b.vendedor_id is not null and not exists(select 1 from crm.actividades a
+266:           where a.lead_id=b.id and a.tipo in ('llamada_realizada','llamada_no_contestada',
+267:             'whatsapp_enviado','whatsapp_recibido','reunion_realizada'))),
+268:       'embudo',(select jsonb_agg(jsonb_build_object('etapa',e.etapa,'n',
+269:         (select count(*) from base b where b.etapa=e.etapa)) order by e.ord)
+270:         from (values('nuevo',1),('contactado',2),('reunion_agendada',3),
+271:           ('propuesta_enviada',4),('convertido',5),('descartado',6)) e(etapa,ord)))
+272:       -- Conteos por nivel sobre `previa` (antes de `p_potencial`) y el eco del filtro. Solo con
+273:       -- el potencial vigente para el actor: si no, el resumen es byte a byte el de antes.
+274:       || case when v_potencial then jsonb_build_object('potencial',(select jsonb_build_object(
+275:           'filtro',p_potencial,
+276:           'estrella',count(*) filter(where pv.potencial_nivel='estrella'),
+277:           'tibio',count(*) filter(where pv.potencial_nivel='tibio'),
+278:           'frio',count(*) filter(where pv.potencial_nivel='frio'),
+279:           'sin_marca',count(*) filter(where pv.potencial_nivel is null)) from previa pv))
+280:         else '{}'::jsonb end)
+281:   into v_salida;
+282:   return v_salida;
+283: end;
+284: $function$
+285: ;
+286: CREATE OR REPLACE FUNCTION crm.cartera_pagina_fn(p_limite integer DEFAULT 50, p_antes_de timestamp with time zone DEFAULT NULL::timestamp with time zone, p_antes_id uuid DEFAULT NULL::uuid, p_etapa text DEFAULT NULL::text, p_vendedor_id uuid DEFAULT NULL::uuid, p_sin_asignar boolean DEFAULT false, p_texto text DEFAULT NULL::text)
+287:  RETURNS TABLE(id uuid, nombre_completo text, telefono text, telefono_alternativo text, telefono_alternativo_crudo text, correo text, dni text, genero text, fecha_nacimiento date, distrito text, origen text, etapa text, motivo_descarte text, monto_estimado numeric, moneda text, categoria_interes text, vendedor_id uuid, asignado_supervisor_id uuid, creado_en timestamp with time zone, tenencia_desde timestamp with time zone, convertido_en timestamp with time zone, contrato_id uuid, actualizado_en timestamp with time zone, activo boolean, nota text, no_contactar boolean, ultimo_contacto_en timestamp with time zone, campania_origen text)
+288:  LANGUAGE plpgsql
+289:  STABLE
+290:  SET search_path TO ''
+291: AS $function$
+292: declare
+293:   v_uid uuid := (select auth.uid());
+294:   v_rol text;
+295:   v_lector boolean;
+296:   v_visibles uuid[];
+297:   v_corte timestamptz := now() - interval '45 days'; -- ventana_convertidos_dias
+298:   v_texto text;
+299:   v_digitos text;
+300:   v_patron_texto text;
+301:   v_patron_digitos text;
+302: begin
+303:   -- Guardia de ADMISION (el ALCANCE lo pone la RLS, ver 20260810141953).
+304:   v_rol := private.rol_crm(v_uid);
+305:   v_lector := private.es_lector_global();
+306:   if v_uid is null or (v_rol is null and not v_lector) then
+307:     raise exception 'No autorizado' using errcode = '42501';
+308:   end if;
+309:   -- Se resuelve UNA vez (la policy lo evalua como SubPlan en cada fila).
+310:   v_visibles := array(select private.vendedor_ids_visibles(v_uid));
+311: 
+312:   if p_limite is null or p_limite < 1 or p_limite > 200 then
+313:     raise exception 'Parametro p_limite invalido' using errcode = '22023';
+314:   end if;
+315: 
+316:   -- Cursor A MEDIAS = paginas que se saltan filas en silencio. O los dos
+317:   -- componentes o ninguno: el desempate por id es parte del cursor, no un extra.
+318:   if (p_antes_de is null) <> (p_antes_id is null) then
+319:     raise exception 'Cursor incompleto: p_antes_de y p_antes_id viajan juntos'
+320:       using errcode = '22023';
+321:   end if;
+322: 
+323:   if p_etapa is not null and p_etapa not in (
+324:     'nuevo', 'contactado', 'reunion_agendada', 'propuesta_enviada',
+325:     'convertido', 'descartado'
+326:   ) then
+327:     raise exception 'Parametro p_etapa invalido' using errcode = '22023';
+328:   end if;
+329: 
+330:   -- "Sin asignar" y "de este vendedor" son mutuamente excluyentes: pedir ambos
+331:   -- solo puede ser un bug del llamante, y devolver 0 filas lo esconderia.
+332:   if coalesce(p_sin_asignar, false) and p_vendedor_id is not null then
+333:     raise exception 'Filtro contradictorio: p_sin_asignar con p_vendedor_id'
+334:       using errcode = '22023';
+335:   end if;
+336: 
+337:   v_texto := nullif(btrim(coalesce(p_texto, '')), '');
+338:   if v_texto is not null then
+339:     if length(v_texto) < 2 then
+340:       raise exception 'Parametro p_texto invalido: minimo 2 caracteres'
+341:         using errcode = '22023';
+342:     end if;
+343:     v_texto := left(v_texto, 80);
+344:     v_digitos := left(regexp_replace(v_texto, '\D', '', 'g'), 15);
+345:     -- El texto del usuario es un LITERAL, no un patron: `\`, `%` y `_` se
+346:     -- escapan antes de envolverlo en comodines (la barra PRIMERO, o se
+347:     -- re-escaparian las que introducen los otros dos replace). Los `ilike` de
+348:     -- abajo declaran `escape` explicitamente en vez de confiar en el default:
+349:     -- asi la intencion no depende de `standard_conforming_strings`.
+350:     v_patron_texto := '%' || replace(replace(replace(v_texto, E'\\', E'\\\\'), '%', E'\\%'), '_', E'\\_') || '%';
+351:     v_patron_digitos := case when length(v_digitos) >= 3 then '%' || v_digitos || '%' end;
+352:   end if;
+353: 
+354:   return query
+355:   select l.id,
+356:          l.nombre_completo,
+357:          l.telefono,
+358:          -- EL CAMBIO DE ESTA MIGRACION. Sin esta linea la ficha del lead no
+359:          -- puede dibujar el segundo numero aunque la base lo tenga guardado.
+360:          l.telefono_alternativo,
+361:          -- EL CAMBIO DE ESTA MIGRACION. La ficha se sirve del store, no de esta
+362:          -- pagina, asi que tecnicamente podria vivir sin la columna — pero
+363:          -- entonces `Lead` tendria DOS formas segun de donde venga la fila, y esa
+364:          -- divergencia es exactamente como se pierde un dato sin que nadie lo vea.
+365:          l.telefono_alternativo_crudo,
+366:          l.correo,
+367:          l.dni,
+368:          l.genero,
+369:          l.fecha_nacimiento,
+370:          l.distrito,
+371:          l.origen,
+372:          l.etapa,
+373:          l.motivo_descarte,
+374:          l.monto_estimado,
+375:          l.moneda,
+376:          l.categoria_interes,
+377:          l.vendedor_id,
+378:          l.asignado_supervisor_id,
+379:          l.creado_en,
+380:          l.tenencia_desde,
+381:          l.convertido_en,
+382:          l.contrato_id,
+383:          l.actualizado_en,
+384:          l.activo,
+385:          l.nota,
+386:          l.no_contactar,
+387:          uc.creado_en as ultimo_contacto_en,
+388:          l.campania_origen
+389:   from crm.leads l
+390:   -- Ultimo CONTACTO real (semaforo del kanban): los 5 tipos de TIPOS_CONTACTO,
+391:   -- jamas cualquier fila del timeline. Mismo criterio que cola_accion_fn — que
+392:   -- este dato viaje YA en la pagina es lo que deja a F3 sin migraciones.
+393:   left join lateral (
+394:     select act.creado_en
+395:     from crm.actividades act
+396:     where act.lead_id = l.id
+397:       and act.tipo in ('llamada_realizada', 'llamada_no_contestada',
+398:                        'whatsapp_enviado', 'whatsapp_recibido', 'reunion_realizada')
+399:     order by act.creado_en desc
+400:     limit 1
+401:   ) uc on true
+402:   -- Redundante para todos los roles menos el lector global, que es justamente a
+403:   -- quien le mezclaba filas con sus tiles (20260810151433).
+404:   where l.activo is true
+405:     and (l.etapa <> 'convertido' or l.convertido_en >= v_corte)
+406:     -- Pista de ambito: REDUNDANTE con la policy. Solo puede restar filas; lo
+407:     -- que se ve lo sigue decidiendo `leads_select`.
+408:     and (
+409:       v_lector
+410:       or v_rol = 'gerencia'
+411:       or l.vendedor_id = any(v_visibles)
+412:       or (l.vendedor_id is null and l.asignado_supervisor_id = any(v_visibles))
+413:     )
+414:     -- Keyset. Los sentidos del orden son MIXTOS (actualizado_en desc, id asc),
+415:     -- asi que la comparacion NO puede escribirse como tupla `(a, b) < (x, y)`:
+416:     -- esa forma solo es correcta cuando ambas columnas ordenan igual.
+417:     and (
+418:       p_antes_de is null
+419:       or l.actualizado_en < p_antes_de
+420:       or (l.actualizado_en = p_antes_de and l.id > p_antes_id)
+421:     )
+422:     and (p_etapa is null or l.etapa = p_etapa)
+423:     and (p_vendedor_id is null or l.vendedor_id = p_vendedor_id)
+424:     and (not coalesce(p_sin_asignar, false) or l.vendedor_id is null)
+425:     and (
+426:       v_texto is null
+427:       or l.nombre_completo ilike v_patron_texto escape E'\\'
+428:       or (v_patron_digitos is not null
+429:           and (l.telefono ilike v_patron_digitos escape E'\\'
+430:                -- Buscar por el SEGUNDO numero. Sin esto, el vendedor que recibe
+431:                -- una llamada del alternativo escribe ese numero y el buscador le
+432:                -- responde que el lead no existe.
+433:                or l.telefono_alternativo ilike v_patron_digitos escape E'\\'
+434:                or l.dni ilike v_patron_digitos escape E'\\'))
+435:     )
+436:   order by l.actualizado_en desc, l.id asc
+437:   limit p_limite;
+438: end;
+439: $function$
+440: ;
+441: 
+442: revoke all on function crm.cartera_filtrada_fn(integer,timestamp with time zone,uuid,text,uuid,boolean,text,date,date,text,text,boolean,text,text,text) from public, anon, authenticated, service_role;
+443: grant execute on function crm.cartera_filtrada_fn(integer,timestamp with time zone,uuid,text,uuid,boolean,text,date,date,text,text,boolean,text,text,text) to authenticated;
+444: revoke all on function crm.cartera_pagina_fn(integer,timestamp with time zone,uuid,text,uuid,boolean,text) from public, anon, authenticated, service_role;
+445: grant execute on function crm.cartera_pagina_fn(integer,timestamp with time zone,uuid,text,uuid,boolean,text) to authenticated;
+446: 
+447: -- DROP elimina los comentarios del catálogo: conservarlos también en OpenAPI.
+448: do $metadatos$
+449: declare r record; f regprocedure;
+450: begin
+451:   for r in select * from formulario3_fase2_metadatos loop
+452:     select oid::regprocedure into strict f from pg_proc
+453:       where pronamespace='crm'::regnamespace and proname=r.nombre;
+454:     execute format('comment on function %s is %L',f,r.comentario);
+455:     if obj_description(f,'pg_proc') is distinct from r.comentario then
+456:       raise exception 'Comentario perdido al recrear %',f;
+457:     end if;
+458:   end loop;
+459: end;
+460: $metadatos$;
+461: 
+462: do $postflight$
+463: begin
+464:   if (select count(*) from pg_proc where pronamespace='crm'::regnamespace
+465:       and proname in ('cartera_filtrada_fn','cartera_pagina_fn')) <> 2
+466:     or to_regprocedure('crm.cartera_filtrada_fn(integer,timestamp with time zone,uuid,text,uuid,boolean,text,date,date,text,text,boolean,text,text)') is not null then
+467:     raise exception 'La cartera debe tener una sola firma por nombre';
+468:   end if;
+469:   if exists(select 1 from pg_proc where pronamespace='crm'::regnamespace
+470:       and proname in ('cartera_filtrada_fn','cartera_pagina_fn')
+471:       and (pg_get_userbyid(proowner)<>'postgres' or prosecdef
+472:         or provolatile<>'s' or proconfig is distinct from array['search_path=""']
+473:         or proacl::text is distinct from '{postgres=X/postgres,authenticated=X/postgres}')) then
+474:     raise exception 'Atributos o permisos de cartera alterados';
+475:   end if;
+476:   if md5(pg_get_functiondef('crm.resumen_cartera_fn()'::regprocedure)) <> '4a896597486e8b23788a2b2497f16309' then
+477:     raise exception 'El envoltorio de resumen cambió; revisar compatibilidad';
+478:   end if;
+479: end;
+480: $postflight$;
+481: notify pgrst, 'reload schema';
+482: commit;
+483: 
+
+=== CRM-Avance-Corp/supabase/scripts/formulario3-fase1/permisos.sql ===
+1: \set ON_ERROR_STOP on
+2: begin;
+3: \ir fixtures.sql
+4: create temporary table comprobaciones(nombre text);
+5: create function pg_temp.exigir(v boolean,nombre text) returns void language plpgsql as $$
+6: begin
+7:   if v is distinct from true then raise exception 'FAIL: %',nombre; end if;
+8:   insert into comprobaciones values(nombre);
+9: end;
+10: $$;
+11: -- Capturar resultados bajo el rol real sin que el contador conceda permisos al CRM.
+12: grant select,insert on comprobaciones to authenticated,anon,service_role;
+13: insert into crm.leads(id,nombre_completo,telefono,origen,campania_origen,monto_estimado,vendedor_id) values
+14:  ('f3300000-0000-0000-0000-000000000001','Prueba cartera propia','983000001','formulario','Formulario 3',5000,'f3000000-0000-0000-0000-000000000001'),
+15:  ('f3300000-0000-0000-0000-000000000002','Prueba cartera externa','983000002','formulario','Formulario 3',5000,'f3000000-0000-0000-0000-000000000004');
+16: 
+17: do $acl$
+18: begin
+19:   perform pg_temp.exigir(not has_column_privilege('authenticated','crm.leads','campania_origen','INSERT') and not has_column_privilege('authenticated','crm.leads','campania_origen','UPDATE'),'campaña no editable por authenticated');
+20:   perform pg_temp.exigir(has_column_privilege('authenticated','crm.leads','campania_origen','SELECT'),'campaña legible bajo RLS');
+21:   perform pg_temp.exigir(not has_function_privilege('authenticated','crm.importar_lead_fn(jsonb)','EXECUTE') and not has_function_privilege('anon','crm.importar_lead_fn(jsonb)','EXECUTE'),'puerta solo servidor');
+22:   perform pg_temp.exigir(not has_function_privilege('authenticated','private.registrar_solicitud_cliente_fn(uuid,text,jsonb)','EXECUTE') and not has_function_privilege('service_role','private.registrar_solicitud_cliente_fn(uuid,text,jsonb)','EXECUTE'),'ayudante de cliente sigue privado');
+23:   perform pg_temp.exigir(not has_function_privilege('authenticated','crm.registrar_reingreso_lead_fn(uuid,text,jsonb)','EXECUTE') and not has_function_privilege('anon','crm.registrar_reingreso_lead_fn(uuid,text,jsonb)','EXECUTE') and has_function_privilege('service_role','crm.registrar_reingreso_lead_fn(uuid,text,jsonb)','EXECUTE'),'reingreso mantiene ACL de servidor');
+24:   perform pg_temp.exigir(not has_function_privilege('service_role','private.normalizar_campania_origen(jsonb,text)','EXECUTE'),'normalizador privado sin EXECUTE de API');
+25: end;
+26: $acl$;
+27: 
+28: set local role authenticated;
+29: select set_config('request.jwt.claims','{"sub":"f3000000-0000-0000-0000-000000000001","role":"authenticated"}',true);
+30: -- Medir únicamente las dos fixtures; la branch remota contiene datos anteriores.
+31: select pg_temp.exigir((select count(*)=1 and bool_and(campania_origen='Formulario 3') from crm.leads where id in ('f3300000-0000-0000-0000-000000000001','f3300000-0000-0000-0000-000000000002')),'vendedor lee campaña propia y no otra cartera');
+32: do $escritura$
+33: begin
+34:   begin
+35:     update crm.leads set campania_origen='Alterada' where id='f3300000-0000-0000-0000-000000000001';
+36:     raise exception 'Se permitió UPDATE de campaña';
+37:   exception when insufficient_privilege then perform pg_temp.exigir(true,'PATCH campaña denegado'); end;
+38:   update crm.leads set nota='Edición comercial permitida' where id='f3300000-0000-0000-0000-000000000001';
+39:   perform pg_temp.exigir(found,'las columnas previas conservan UPDATE');
+40:   update crm.leads set nota='No debe llegar' where id='f3300000-0000-0000-0000-000000000002';
+41:   perform pg_temp.exigir(not found,'UPDATE cruzado sigue bloqueado por RLS');
+42:   update crm.leads set etapa='descartado',motivo_descarte='otro' where id='f3300000-0000-0000-0000-000000000001';
+43:   perform crm.reabrir_lead_fn('f3300000-0000-0000-0000-000000000001');
+44:   perform pg_temp.exigir((select etapa='nuevo' and campania_origen='Formulario 3' from crm.leads where id='f3300000-0000-0000-0000-000000000001'),'reapertura humana conserva campaña y misma ficha');
+45: end;
+46: $escritura$;
+47: 
+48: select set_config('request.jwt.claims','{"sub":"f3000000-0000-0000-0000-000000000003","role":"authenticated"}',true);
+49: select pg_temp.exigir((select count(*)=1 from crm.leads where id in ('f3300000-0000-0000-0000-000000000001','f3300000-0000-0000-0000-000000000002')),'supervisor mantiene su subárbol');
+50: select set_config('request.jwt.claims','{"sub":"f3000000-0000-0000-0000-000000000002","role":"authenticated"}',true);
+51: select pg_temp.exigir((select count(*)=2 from crm.leads where id in ('f3300000-0000-0000-0000-000000000001','f3300000-0000-0000-0000-000000000002')),'gerencia conserva lectura global');
+52: select set_config('request.jwt.claims','{"sub":"f3000000-0000-0000-0000-000000000006","role":"authenticated"}',true);
+53: select pg_temp.exigir((select count(*)=0 from crm.leads where id in ('f3300000-0000-0000-0000-000000000001','f3300000-0000-0000-0000-000000000002')),'coordinador conserva restricción de lectura directa de leads');
+54: select set_config('request.jwt.claims','{"sub":"f3000000-0000-0000-0000-000000000007","role":"authenticated"}',true);
+55: select pg_temp.exigir((select count(*)=0 from crm.leads where id in ('f3300000-0000-0000-0000-000000000001','f3300000-0000-0000-0000-000000000002')),'miembro inactivo no lee campañas');
+56: select set_config('request.jwt.claims','{"sub":"f3000000-0000-0000-0000-000000000002","role":"authenticated"}',true);
+57: reset role;
+58: -- Simula escritor DEFINER: postgres con sesión humana tampoco puede editar campaña.
+59: do $definer$
+60: begin
+61:   begin
+62:     update crm.leads set campania_origen='Alterada' where id='f3300000-0000-0000-0000-000000000001';
+63:     raise exception 'Una puerta DEFINER humana alteró campaña';
+64:   exception when insufficient_privilege then perform pg_temp.exigir(true,'trigger rechaza escritor elevado con auth.uid humano'); end;
+65: end;
+66: $definer$;
+67: select set_config('request.jwt.claims','{}',true);
+68: set local role service_role;
+69: update crm.leads set campania_origen='Corrección de servidor' where id='f3300000-0000-0000-0000-000000000001';
+70: select pg_temp.exigir((select campania_origen='Corrección de servidor' from crm.leads where id='f3300000-0000-0000-0000-000000000001'),'service_role conserva capacidad de mantenimiento controlado');
+71: reset role;
+72: set local role anon;
+73: do $anon$
+74: begin
+75:   begin
+76:     perform campania_origen from crm.leads;
+77:     raise exception 'Anon leyó campaña';
+78:   exception when insufficient_privilege then perform pg_temp.exigir(true,'anon sin acceso a leads'); end;
+79: end;
+80: $anon$;
+81: reset role;
+82: select count(*) as comprobaciones_rls_aprobadas from comprobaciones;
+83: rollback;
+
+=== CRM-Avance-Corp/supabase/scripts/formulario3-fase3/http-permisos.json ===
+1: [
+2:   {
+3:     "nombre": "HTTP real acepta campaña y envíos antiguos",
+4:     "estado": "PASS",
+5:     "resultados": [
+6:       {
+7:         "fila": 11,
+8:         "resultado": "importado",
+9:         "estado": "IMPORTADO ✓"
+10:       },
+11:       {
+12:         "fila": 12,
+13:         "resultado": "importado",
+14:         "estado": "IMPORTADO ✓"
+15:       },
+16:       {
+17:         "fila": 13,
+18:         "resultado": "importado",
+19:         "estado": "IMPORTADO ✓"
+20:       }
+21:     ]
+22:   },
+23:   {
+24:     "nombre": "Auth real inicia sesión de vendedor",
+25:     "estado": "PASS"
+26:   },
+27:   {
+28:     "nombre": "Auth real inicia sesión de gerencia",
+29:     "estado": "PASS"
+30:   },
+31:   {
+32:     "nombre": "Auth real inicia sesión de supervisor",
+33:     "estado": "PASS"
+34:   },
+35:   {
+36:     "nombre": "Auth real inicia sesión de vendedor_otro",
+37:     "estado": "PASS"
+38:   },
+39:   {
+40:     "nombre": "Auth real inicia sesión de supervisor_otro",
+41:     "estado": "PASS"
+42:   },
+43:   {
+44:     "nombre": "Auth real inicia sesión de coordinador",
+45:     "estado": "PASS"
+46:   },
+47:   {
+48:     "nombre": "Auth real inicia sesión de inactivo",
+49:     "estado": "PASS"
+50:   },
+51:   {
+52:     "nombre": "Auth real inicia sesión de directorio",
+53:     "estado": "PASS"
+54:   },
+55:   {
+56:     "nombre": "Persistencia conserva campaña, canal y procedencia automática",
+57:     "estado": "PASS",
+58:     "leads": [
+59:       {
+60:         "id": "c6bbd610-b17e-4eca-b98b-7d7104f685a1",
+61:         "nombre_completo": "PRUEBA F3 Rol Legacy",
+62:         "telefono": "+51984300011",
+63:         "origen": "formulario",
+64:         "campania_origen": null,
+65:         "vendedor_id": "0a713da7-6886-4794-b8b1-4c9f6f3fc0e2",
+66:         "alta_manual": false,
+67:         "nota": null,
+68:         "creado_por": null,
+69:         "asignado_supervisor_id": null
+70:       },
+71:       {
+72:         "id": "9af83cb1-8b39-41fd-8037-cbfd3cb477a4",
+73:         "nombre_completo": "PRUEBA F3 Rol Campaña",
+74:         "telefono": "+51984300012",
+75:         "origen": "formulario",
+76:         "campania_origen": "Formulario 3",
+77:         "vendedor_id": "0a713da7-6886-4794-b8b1-4c9f6f3fc0e2",
+78:         "alta_manual": false,
+79:         "nota": null,
+80:         "creado_por": null,
+81:         "asignado_supervisor_id": null
+82:       },
+83:       {
+84:         "id": "b7f8094e-cd60-4b3a-9e16-3ec5f4c255c7",
+85:         "nombre_completo": "PRUEBA F3 Rol Otro",
+86:         "telefono": "+51984300013",
+87:         "origen": "formulario",
+88:         "campania_origen": "Formulario 3",
+89:         "vendedor_id": "3091ae93-3868-4767-a37c-b77f2df74013",
+90:         "alta_manual": false,
+91:         "nota": null,
+92:         "creado_por": null,
+93:         "asignado_supervisor_id": null
+94:       }
+95:     ]
+96:   },
+97:   {
+98:     "nombre": "RLS HTTP: vendedor solo lee su ámbito",
+99:     "estado": "PASS",
+100:     "cantidad": 2
+101:   },
+102:   {
+103:     "nombre": "Filtro y cifras HTTP: vendedor",
+104:     "estado": "PASS",
+105:     "cantidad": 1
+106:   },
+107:   {
+108:     "nombre": "RLS HTTP: supervisor solo lee su ámbito",
+109:     "estado": "PASS",
+110:     "cantidad": 2
+111:   },
+112:   {
+113:     "nombre": "Filtro y cifras HTTP: supervisor",
+114:     "estado": "PASS",
+115:     "cantidad": 1
+116:   },
+117:   {
+118:     "nombre": "RLS HTTP: vendedor_otro solo lee su ámbito",
+119:     "estado": "PASS",
+120:     "cantidad": 1
+121:   },
+122:   {
+123:     "nombre": "Filtro y cifras HTTP: vendedor_otro",
+124:     "estado": "PASS",
+125:     "cantidad": 1
+126:   },
+127:   {
+128:     "nombre": "RLS HTTP: supervisor_otro solo lee su ámbito",
+129:     "estado": "PASS",
+130:     "cantidad": 1
+131:   },
+132:   {
+133:     "nombre": "Filtro y cifras HTTP: supervisor_otro",
+134:     "estado": "PASS",
+135:     "cantidad": 1
+136:   },
+137:   {
+138:     "nombre": "RLS HTTP: gerencia solo lee su ámbito",
+139:     "estado": "PASS",
+140:     "cantidad": 3
+141:   },
+142:   {
+143:     "nombre": "Filtro y cifras HTTP: gerencia",
+144:     "estado": "PASS",
+145:     "cantidad": 2
+146:   },
+147:   {
+148:     "nombre": "RLS HTTP: directorio solo lee su ámbito",
+149:     "estado": "PASS",
+150:     "cantidad": 3
+151:   },
+152:   {
+153:     "nombre": "Filtro y cifras HTTP: directorio",
+154:     "estado": "PASS",
+155:     "cantidad": 2
+156:   },
+157:   {
+158:     "nombre": "RLS HTTP: coordinador solo lee su ámbito",
+159:     "estado": "PASS",
+160:     "cantidad": 0
+161:   },
+162:   {
+163:     "nombre": "Filtro y cifras HTTP: coordinador",
+164:     "estado": "PASS",
+165:     "cantidad": 0
+166:   },
+167:   {
+168:     "nombre": "RLS HTTP: inactivo solo lee su ámbito",
+169:     "estado": "PASS",
+170:     "cantidad": 0
+171:   },
+172:   {
+173:     "nombre": "RPC rechaza membresía CRM inactiva",
+174:     "estado": "PASS"
+175:   },
+176:   {
+177:     "nombre": "PATCH humano de campaña rechazado",
+178:     "estado": "PASS"
+179:   },
+180:   {
+181:     "nombre": "PATCH comercial permitido conserva campaña",
+182:     "estado": "PASS"
+183:   },
+184:   {
+185:     "nombre": "PATCH cruzado no modifica otra cartera",
+186:     "estado": "PASS"
+187:   },
+188:   {
+189:     "nombre": "Usuario autenticado no ejecuta la puerta del servidor",
+190:     "estado": "PASS",
+191:     "codigo": "42501"
+192:   },
+193:   {
+194:     "nombre": "Anónimo sin lectura de leads",
+195:     "estado": "PASS",
+196:     "codigo": "42501"
+197:   },
+198:   {
+199:     "nombre": "Reenvío HTTP con otra fila no altera fichas ni crea leads",
+200:     "estado": "PASS",
+201:     "resultados": [
+202:       {
+203:         "fila": 111,
+204:         "resultado": "duplicado",
+205:         "estado": "DUPLICADO: ya existe en el CRM"
+206:       },
+207:       {
+208:         "fila": 112,
+209:         "resultado": "duplicado",
+210:         "estado": "DUPLICADO: ya existe en el CRM"
+211:       },
+212:       {
+213:         "fila": 113,
+214:         "resultado": "duplicado",
+215:         "estado": "DUPLICADO: ya existe en el CRM"
+216:       }
+217:     ]
+218:   },
+219:   {
+220:     "nombre": "Campaña inválida rechazada sin alta parcial",
+221:     "estado": "PASS"
+222:   }
+223: ]
+
+=== CRM-Avance-Corp/supabase/scripts/formulario3-fase3/http-reparto.json ===
+1: [
+2:   {
+3:     "nombre": "HTTP crea dos altas en la cola normal de FORMULARIO",
+4:     "estado": "PASS"
+5:   },
+6:   {
+7:     "nombre": "Campaña y legacy llegan sin forzar vendedor ni supervisor",
+8:     "estado": "PASS"
+9:   },
+10:   {
+11:     "nombre": "Misma configuración vigente: Coordinación libre",
+12:     "estado": "PASS",
+13:     "configuracion": {
+14:       "version": 1,
+15:       "revision": 1,
+16:       "actualizado_en": "2026-10-07T15:37:31.37571+00:00",
+17:       "coordinacion_libre": true
+18:     }
+19:   },
+20:   {
+21:     "nombre": "Analista no reparte PRUEBA F3 Reparto Legacy",
+22:     "estado": "PASS"
+23:   },
+24:   {
+25:     "nombre": "Coordinación reparte PRUEBA F3 Reparto Legacy",
+26:     "estado": "PASS",
+27:     "resultado": {
+28:       "lead_id": "1afacc1c-d60a-44cd-b3ec-8d889b70a72f",
+29:       "supervisor": "PRUEBA F3 SUPERVISOR",
+30:       "repartido_en": "2026-10-14T23:45:56.36982+00:00",
+31:       "repartido_por": "d92e382d-8c3c-4b14-86ec-4da2e01c82e5",
+32:       "excepcion_turno": true,
+33:       "asignado_supervisor_id": "5bad4098-3d30-4680-b340-9ea1cb41e104"
+34:     }
+35:   },
+36:   {
+37:     "nombre": "Segundo reparto rechazado para la misma ficha",
+38:     "estado": "PASS"
+39:   },
+40:   {
+41:     "nombre": "Analista no reparte PRUEBA F3 Reparto Campaña",
+42:     "estado": "PASS"
+43:   },
+44:   {
+45:     "nombre": "Coordinación reparte PRUEBA F3 Reparto Campaña",
+46:     "estado": "PASS",
+47:     "resultado": {
+48:       "lead_id": "83d946ae-4f07-47af-ae77-a89a9829eb98",
+49:       "supervisor": "PRUEBA F3 SUPERVISOR",
+50:       "repartido_en": "2026-10-14T23:45:57.091504+00:00",
+51:       "repartido_por": "d92e382d-8c3c-4b14-86ec-4da2e01c82e5",
+52:       "excepcion_turno": true,
+53:       "asignado_supervisor_id": "5bad4098-3d30-4680-b340-9ea1cb41e104"
+54:     }
+55:   },
+56:   {
+57:     "nombre": "Segundo reparto rechazado para la misma ficha",
+58:     "estado": "PASS"
+59:   },
+60:   {
+61:     "nombre": "Supervisor deriva ambos al analista mediante la puerta normal",
+62:     "estado": "PASS",
+63:     "resultado": {
+64:       "version": 1,
+65:       "lead_ids": [
+66:         "1afacc1c-d60a-44cd-b3ec-8d889b70a72f",
+67:         "83d946ae-4f07-47af-ae77-a89a9829eb98"
+68:       ],
+69:       "derivados": 2
+70:     }
+71:   },
+72:   {
+73:     "nombre": "Segunda derivación rechazada",
+74:     "estado": "PASS",
+75:     "codigo": "P0001"
+76:   },
+77:   {
+78:     "nombre": "Reparto conserva campaña de origen y procedimiento comercial",
+79:     "estado": "PASS",
+80:     "leads": [
+81:       {
+82:         "id": "1afacc1c-d60a-44cd-b3ec-8d889b70a72f",
+83:         "nombre_completo": "PRUEBA F3 Reparto Legacy",
+84:         "origen": "formulario",
+85:         "campania_origen": null,
+86:         "vendedor_id": "0a713da7-6886-4794-b8b1-4c9f6f3fc0e2",
+87:         "asignado_supervisor_id": null,
+88:         "alta_manual": false
+89:       },
+90:       {
+91:         "id": "83d946ae-4f07-47af-ae77-a89a9829eb98",
+92:         "nombre_completo": "PRUEBA F3 Reparto Campaña",
+93:         "origen": "formulario",
+94:         "campania_origen": "Formulario 3",
+95:         "vendedor_id": "0a713da7-6886-4794-b8b1-4c9f6f3fc0e2",
+96:         "asignado_supervisor_id": null,
+97:         "alta_manual": false
+98:       }
+99:     ]
+100:   },
+101:   {
+102:     "nombre": "Reenvío después del reparto conserva dueño y fichas",
+103:     "estado": "PASS"
+104:   }
+105: ]
+
+=== CRM-Avance-Corp/supabase/scripts/formulario3-fase3/revision-resolucion.md ===
+1: # Resolución de la revisión de fase 3
+2: 
+3: Codex PRIMARY. Primer review: `revision-claude.txt`, CHANGES_REQUESTED, sin P0/P1. Se aceptan los hallazgos respaldados por evidencia; no se cambia el producto para alterar las reglas comerciales.
+4: 
+5: | Hallazgo | Decisión y comprobación |
+6: |---|---|
+7: | P2: recibo importado → duplicado tras confirmación perdida | Aceptado y documentado. Ejecuciones 49/50 prueban ausencia de doble alta. Las cifras de altas de campaña salen de CRM, no de sumar recibos `importado`. |
+8: | P2: falta estado productivo n8n | Aceptado. Exportación e historial en `n8n-estados.json`. Se encontró selección temporal en el principal y se restauró la referencia original. Diff final vacío frente a versión anterior. Flujo apagado y recibos 0. |
+9: | P2: errorWorkflow fuera del generador | Corregido en el generador de ensayo, mediante modo `preparado`, con ID y cron utilizados. Comparación real: 22 nodos, 26 conexiones y ajustes PASS; el modo predeterminado mantiene HTTP deshabilitado. No publica automáticamente. |
+10: | P2: conversión solo divisor | Completado. Seis casos HTTP/Auth/Storage reales; dos cierres por la puerta vigente `preparar_inversion_fn` + `confirmar_inversion_revisada_fn`. Cada uno aporta numerador 1/divisor 1. Evidencia `conversion-real.json` y `conversion-numerador.json`. |
+11: | P3: límite de avisos | Documentado como agrupación por hora de reloj, sin promesa de exclusión atómica o ventana móvil. No se añadió un canal alternativo que el usuario no pidió. |
+12: | P3: rechazos ante cambios de parser | Procedimiento documentado: exportar/revisar/retirar solo rechazos afectados, con envío parado, y reintentar. |
+13: | P3: reintentos 4xx | Sin cambio obligatorio; comportamiento ya probado y acotado. |
+14: 
+15: Gaps: se agregó reconocimiento/reingreso por HTTP real para ambas variantes; solicitud de cliente sin ficha viva y ficha cerrada/viva quedan respaldadas por los bloques SQL exactos y sus logs remotos (36 + 1). No se afirma ensayo remoto del 5xx/timeout específico ni Error Trigger causado por fallo de recibo; son límites explícitos y no impiden acreditar la recuperación y el aviso automático del objetivo mediante los casos ejecutados.
+16: 
+17: Seguridad y limpieza: archivo de secretos retirado; rama eliminada, hoja/tablas eliminadas y flujos archivados. La entrada de credencial temporal queda inservible y fuera del principal; no hay herramienta MCP de borrado. Los JSON de usuarios/respuestas se revisaron: contienen únicamente fixtures, sin valores privados. Retención productiva de errores se fija antes de activar.
+18: 
+19: Gate de realidad: permanece FAIL original, con complemento SQL de solo lectura para ambas mediciones. El reviewer confirmó que no invalida el ensayo aislado. Reparación/enmienda formal requerida para fase 4. Las divergencias de datos ajenas no se modifican.
+20: 
+21: Una segunda revisión dirigida se justifica por la nueva evidencia de credencial en el principal y su restauración, más la conversión real añadida. No se repite la pregunta inicial buscando un PASS. Se adjuntan estados/diffs y logs, no solo prosa.
+22: 
+23: ## Segunda revisión dirigida y decisión final
+24: 
+25: `revision-cierre-claude.txt`: CHANGES_REQUESTED, sin P0/P1. Se conserva el dictamen tal como fue emitido; las resoluciones siguientes son del PRIMARY, sin una tercera consulta.
+26: 
+27: | Hallazgo | Resolución y límites |
+28: |---|---|
+29: | P2: línea base autosalvada sin comparación nominal | Se agregó el diff completo `cbc1ce82 → 95f649de` y la definición de Schedule Trigger: 21 nodos con omisiones de parámetros/objetos vacíos del autosave, sin cambios de credenciales ni conexiones; el intervalo omitido conserva su valor predeterminado de 5 minutos. No se llama vacío a ese diff. Los settings históricos no están expuestos por el MCP: se acredita igualdad de los actuales con la captura previa a restaurar y se declara el límite. `n8n-cierre.json`. |
+30: | P2: historial posterior a restauración | Se volvió a leer: `95f649de` es la última versión; original asignada, envío deshabilitado y flujo inactivo. Se indicó recargar/cerrar pestañas antiguas. Volver a verificar historial, credencial y ajustes es condición expresa de fase 4; no se presume observación del navegador. |
+31: | P2: primer reingreso Legacy ya existente | Fue una corrida parcial anterior: preparó la persona y anotó el reingreso; luego falló porque el fixture omitía la referencia obligatoria del certificado. Se repitió tras corregir ese fixture conservando el lead. LEEME explica la asimetría y la sobrescritura del primer artefacto. El script ahora registra resultados de alta para futuras ejecuciones; la evidencia histórica no se rellena retrospectivamente. |
+32: | P3: procedencia de la consulta del numerador | Se añadió `conversion-numerador.sql`, equivalente reconstruida a partir de la respuesta y las fuentes. Se indica que no es transcripción exacta ni nueva ejecución tras el retiro. La respuesta conservada demuestra numerador/divisor 1/1 en ambas variantes. |
+33: | P3: IDs retirados en modo preparado | Aviso en generador y LEEME: son IDs históricos para auditar la configuración; repetir requiere recursos nuevos. |
+34: | P3: nombre antiguo del aviso productivo | Añadido a fase 4: probar su trigger y guardar una versión nominal con nombre actualizado; no se modifica ahora el flujo de avisos productivo. |
+35: 
+36: Decisión: objetivo de fase 3 acreditado por recorrido, fallos, recuperación, aviso automático, roles y paridad comercial. Se cierra el ensayo aislado con los límites anteriores. El gate de publicación permanece FAIL original; cierre de fase 3 no equivale a aprobación de despliegue. La eliminación de la entrada inerte de credencial se registra conforme al resultado de la comprobación, sin convertir la confirmación de pantalla en evidencia API de ausencia.
+37: 
+38: 
+39: ## Cierre posterior de la credencial
+40: 
+41: Miguel borró la entrada temporal y su ausencia se verificó por MCP. Se materializó el riesgo del autosave que Claude había señalado: versión UI `907688a7` volvió a referenciar la temporal. Tras confirmar el cierre de pestañas, Codex repuso exclusivamente la original; versión `29940eb5-d36c-49c7-bf7f-686b66cc3f76`, diff vacío y ajustes iguales frente a la primera restauración, con los tres controles de envío cerrados. `cierre-credencial.json` documenta el resultado. Se aplica la recomendación previa, sin una tercera revisión ni cambios funcionales.
+
+=== Diff frontend y scripts ===
+diff --git a/CRM-Avance-Corp/app/e2e/_helpers.ts b/CRM-Avance-Corp/app/e2e/_helpers.ts
+index 4253a586..36a81fe8 100644
+--- a/CRM-Avance-Corp/app/e2e/_helpers.ts
++++ b/CRM-Avance-Corp/app/e2e/_helpers.ts
+@@ -120,6 +120,7 @@ const SESSION = {
+ }
+ 
+ export interface LeadReal {
++  campania_origen?: string | null
+   id: string
+   documento?: { tipo: string; numero: string | null }
+   reasignado?: boolean
+@@ -879,6 +880,7 @@ export function carteraPaginaReal(
+     p_reasignados?: boolean
+     p_gestion?: string | null
+     p_potencial?: string | null
++    p_campania_origen?: string | null
+   },
+   conGestion: (lead: LeadReal) => boolean = () => false,
+   nivelDe: (lead: LeadReal) => string | null = () => null,
+@@ -889,6 +891,7 @@ export function carteraPaginaReal(
+   const filtrados = leads.filter((l) => {
+     if (!l.activo) return false
+     if (args.p_origen && l.origen !== args.p_origen) return false
++    if (args.p_campania_origen && l.campania_origen !== args.p_campania_origen) return false
+     if (args.p_reasignados && (!l.reasignado || !l.vendedor_id)) return false
+     if (args.p_desde) {
+       const fecha = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(new Date(l.creado_en))
+@@ -3481,6 +3484,7 @@ export async function montarBackendReal(
+       // La FORMA de la respuesta no cambia con `p_gestion`: ni eco ni campos nuevos.
+       return json(route, { version: 1, generado_en: new Date().toISOString(),
+         desde: body.p_desde ?? null, hasta: body.p_hasta ?? null, origen: body.p_origen ?? null,
++        campania_origen: body.p_campania_origen ?? null,
+         reasignados: body.p_reasignados ?? false, resumen: potencial ? { ...resumen, potencial } : resumen,
+         items: carteraPaginaReal(estado.leads, body, conGestionVigente, nivelDe).map((l) => ({ ...l,
+           recibido_en: body.p_desde ? l.creado_en : null, recepcion_aproximada: false })),
+diff --git a/CRM-Avance-Corp/app/src/components/app/lead-drawer-datos.test.tsx b/CRM-Avance-Corp/app/src/components/app/lead-drawer-datos.test.tsx
+index 523d813c..426cff1b 100644
+--- a/CRM-Avance-Corp/app/src/components/app/lead-drawer-datos.test.tsx
++++ b/CRM-Avance-Corp/app/src/components/app/lead-drawer-datos.test.tsx
+@@ -248,7 +248,7 @@ describe('LeadDrawer — edición de clasificación por capital', () => {
+     // el origen escribió mal y que la fila muestra como «sin validar».
+     const user = userEvent.setup()
+     const { editarLead } = montar({
+-      lead: { telefono_alternativo: null, telefono_alternativo_crudo: '99988 7' },
++      lead: { telefono_alternativo: null, telefono_alternativo_crudo: '99988 7', campania_origen: 'Formulario 3' },
+     })
+ 
+     await user.click(screen.getByRole('button', { name: 'Editar' }))
+@@ -263,6 +263,8 @@ describe('LeadDrawer — edición de clasificación por capital', () => {
+       expect.any(String),
+       expect.objectContaining({ telefono_alternativo: '999887766' }),
+     )
++    expect(editarLead.mock.calls[0]?.[1]).not.toHaveProperty('campania_origen')
++    expect(screen.getByTitle('Campaña de origen: Formulario 3')).toBeInTheDocument()
+   })
+ 
+   it('vaciar el segundo número es legítimo y llega como null', async () => {
+diff --git a/CRM-Avance-Corp/app/src/components/app/lead-drawer.tsx b/CRM-Avance-Corp/app/src/components/app/lead-drawer.tsx
+index 3c6e116d..4fe2aeb9 100644
+--- a/CRM-Avance-Corp/app/src/components/app/lead-drawer.tsx
++++ b/CRM-Avance-Corp/app/src/components/app/lead-drawer.tsx
+@@ -106,6 +106,7 @@ import {
+ } from '@/lib/tipos'
+ import { ChipProcedencia } from '@/components/app/procedencia-chip'
+ import { ChipReasignado } from '@/components/app/reasignado-chip'
++import { ChipCampania } from '@/components/app/campania-chip'
+ import { fechaLima, proximoSlotSugerido, tareaAEvento } from '@/lib/agenda-derivada'
+ import { tituloProximaAccion } from '@/lib/campos-siguiente'
+ import { presentarCitas } from '@/lib/terminologia'
+@@ -243,6 +244,7 @@ function Ficha({ l }: { l: Lead }) {
+                 <Badge color="var(--chart-4)">Inversión · {CAT_LABEL[l.categoria_interes]}</Badge>
+               )}
+               <Badge color="var(--muted-foreground)">{origenLabel(l.origen)}</Badge>
++              <ChipCampania lead={l} />
+               <ChipProcedencia lead={l} conNombre />
+               <ChipReasignado lead={l} />
+               <ChipPotencialDeLead leadId={l.id} />
+diff --git a/CRM-Avance-Corp/app/src/components/app/lead-hover-card.tsx b/CRM-Avance-Corp/app/src/components/app/lead-hover-card.tsx
+index 0460ea12..aae33677 100644
+--- a/CRM-Avance-Corp/app/src/components/app/lead-hover-card.tsx
++++ b/CRM-Avance-Corp/app/src/components/app/lead-hover-card.tsx
+@@ -55,6 +55,7 @@ export function LeadHoverCard({ lead, children }: { lead: Lead; children: ReactN
+             <span className="tabular-nums">{lead.telefono}</span>
+           </Fila>
+           <Fila label="Origen">{origenLabel(lead.origen)}</Fila>
++          {lead.campania_origen && <Fila label="Campaña">{lead.campania_origen}</Fila>}
+           {textoCargadoPor(lead) && <Fila label="Cargado por">{textoCargadoPor(lead)}</Fila>}
+           {lead.categoria_interes && <Fila label="Interés">{CAT_LABEL[lead.categoria_interes]}</Fila>}
+           <Fila label="Creado">{fmtFecha(lead.creado_en)}</Fila>
+diff --git a/CRM-Avance-Corp/app/src/data/crm-api-cartera-msw.test.ts b/CRM-Avance-Corp/app/src/data/crm-api-cartera-msw.test.ts
+index c7b905bd..78af684d 100644
+--- a/CRM-Avance-Corp/app/src/data/crm-api-cartera-msw.test.ts
++++ b/CRM-Avance-Corp/app/src/data/crm-api-cartera-msw.test.ts
+@@ -36,6 +36,44 @@ function payloadFiltrado(n = 60) {
+ 
+ describe('cartera integrada: listado y total del mismo filtro', () => {
+   const filtros = { integrada: true, recepcion: { desde: '2026-09-01', hasta: '2026-09-03' } }
++  it('campaña viaja en cada página, se mapea y fuerza la ruta integrada incluso desde la antigua', async () => {
++    const cuerpos: Record<string, unknown>[] = []
++    server.use(http.post(RPC_INTEGRADA, async ({ request }) => {
++      cuerpos.push(await request.json() as Record<string, unknown>)
++      const payload = payloadFiltrado()
++      return HttpResponse.json({ ...payload, campania_origen: 'Formulario 3', origen: 'formulario', procedencia: 'sistema',
++        items: payload.items.map(l => ({ ...l, campania_origen: 'Formulario 3', origen: 'formulario', procedencia: 'sistema' })) })
++    }))
++    const pedido = { ...filtros, integrada: false, campania: 'Formulario 3' as const,
++      origen: 'formulario' as const, procedencia: 'sistema' as const }
++    const primera = await listarCarteraPagina(pedido, null)
++    await listarCarteraPagina(pedido, primera.cursor)
++    expect(cuerpos).toHaveLength(2)
++    expect(cuerpos.every(c => c.p_campania_origen === 'Formulario 3')).toBe(true)
++    expect(cuerpos[0]).toMatchObject({ p_desde: '2026-09-01', p_hasta: '2026-09-03',
++      p_origen: 'formulario', p_procedencia: 'sistema' })
++    expect(cuerpos[1]?.p_antes_id).toBe(primera.cursor?.id)
++    expect(primera.items.every(l => l.campania_origen === 'Formulario 3')).toBe(true)
++    expect(primera.resumen?.totales.vivos).toBe(60)
++  })
++  it.each(['sin eco', 'otra campaña', 'fila sin campaña', 'fila ajena'])('rechaza la campaña inconsistente: %s', async caso => {
++    const p = payloadFiltrado()
++    const payload: Record<string, unknown> = { ...p, campania_origen: 'Formulario 3',
++      items: p.items.map(l => ({ ...l, campania_origen: 'Formulario 3' as string | null })) }
++    if (caso === 'sin eco') delete payload.campania_origen
++    if (caso === 'otra campaña') payload.campania_origen = 'Otra'
++    if (caso.startsWith('fila')) (payload.items as Array<{ campania_origen: string | null }>)[0]!.campania_origen = caso === 'fila ajena' ? 'Otra' : null
++    server.use(http.post(RPC_INTEGRADA, () => HttpResponse.json(payload)))
++    await expect(listarCarteraPagina({ ...filtros, campania: 'Formulario 3' }, null)).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
++  })
++  it('Todas conserva el contrato anterior sin eco ni campaña en sus filas', async () => {
++    server.use(http.post(RPC_INTEGRADA, async ({ request }) => {
++      expect(await request.json()).not.toHaveProperty('p_campania_origen')
++      return HttpResponse.json(payloadFiltrado())
++    }))
++    const pagina = await listarCarteraPagina({ ...filtros, campania: 'todas' }, null)
++    expect(pagina.items.every(l => l.campania_origen === null)).toBe(true)
++  })
+   it('Gestionado envía etapa nuevo y gestión vigente, también al pedir la segunda página', async () => {
+     const cuerpos: Record<string, unknown>[] = []
+     server.use(http.post(RPC_INTEGRADA, async ({ request }) => {
+diff --git a/CRM-Avance-Corp/app/src/data/crm-api-msw.test.ts b/CRM-Avance-Corp/app/src/data/crm-api-msw.test.ts
+index ed30e590..1675bd3e 100644
+--- a/CRM-Avance-Corp/app/src/data/crm-api-msw.test.ts
++++ b/CRM-Avance-Corp/app/src/data/crm-api-msw.test.ts
+@@ -286,12 +286,13 @@ describe('obtenerLeadDelAmbitoPorId (msw)', () => {
+     server.use(http.get(RUTA_LEADS, ({ request }) => {
+       pedida = new URL(request.url)
+       expect(request.headers.get('accept-profile')).toBe('crm')
+-      return HttpResponse.json([fila({ id: 'fuera-del-lote', monto_estimado: '2000.50', nota: 'Detalle completo' })])
++      return HttpResponse.json([fila({ id: 'fuera-del-lote', monto_estimado: '2000.50', nota: 'Detalle completo', campania_origen: 'Formulario 3' })])
+     }))
+-    await expect(obtenerLeadDelAmbitoPorId('fuera-del-lote')).resolves.toMatchObject({ id: 'fuera-del-lote', monto_estimado: 2000.5, nota: 'Detalle completo', telefono: '+51987650000' })
++    await expect(obtenerLeadDelAmbitoPorId('fuera-del-lote')).resolves.toMatchObject({ id: 'fuera-del-lote', monto_estimado: 2000.5, nota: 'Detalle completo', telefono: '+51987650000', campania_origen: 'Formulario 3' })
+     expect(pedida?.searchParams.get('id')).toBe('eq.fuera-del-lote')
+     expect(pedida?.searchParams.get('activo')).toBe('eq.true')
+     expect(pedida?.searchParams.get('select')).toContain('telefono,')
++    expect(pedida?.searchParams.get('select')).toContain('campania_origen')
+     expect(pedida?.searchParams.has('or')).toBe(false)
+   })
+   it('devuelve null si RLS no devuelve el lead, sin revelar su existencia', async () => {
+diff --git a/CRM-Avance-Corp/app/src/data/crm-api.ts b/CRM-Avance-Corp/app/src/data/crm-api.ts
+index d4ad2c9c..438cc628 100644
+--- a/CRM-Avance-Corp/app/src/data/crm-api.ts
++++ b/CRM-Avance-Corp/app/src/data/crm-api.ts
+@@ -193,6 +193,7 @@ const COLUMNAS_LEAD = [
+   'fecha_nacimiento',
+   'distrito',
+   'origen',
++  'campania_origen',
+   'etapa',
+   'motivo_descarte',
+   'monto_estimado',
+@@ -259,6 +260,7 @@ const LeadRowSchema = v.object({
+   // Catálogo de LECTURA: incluye `base_cargada` (solo lo pone el servidor, B7). Un origen cerrado al alta
+   // descartaba EN SILENCIO al contacto de base y lo hacía desaparecer de toda lista (hallazgo del F0, 04/10).
+   origen: v.picklist(ORIGENES_LECTURA.map((o) => o.k)),
++  campania_origen: v.optional(v.nullable(v.string())),
+   // Procedencia: la RPC de la cartera manda `procedencia` + `cargado_por` ya
+   // resueltos; el ámbito (select directo) manda las columnas crudas
+   // `alta_manual` + `creado_por` y el mapper deriva. Todo opcional: un servidor
+@@ -510,6 +512,7 @@ function aLead(fila: LeadRow): Lead {
+     fecha_nacimiento: fila.fecha_nacimiento ?? null,
+     distrito: fila.distrito,
+     origen: fila.origen, // ya validado contra el catálogo por LeadRowSchema
++    campania_origen: fila.campania_origen ?? null,
+     procedencia: procedenciaDeFila(fila),
+     reasignado: fila.reasignado ?? null,
+     cargado_por: fila.cargado_por ?? fila.creado_por ?? null,
+@@ -681,6 +684,8 @@ export async function obtenerLeadDelAmbitoPorId(id: string, signal?: AbortSignal
+ // aquí solo para normalizar lo que teclea el usuario.
+ 
+ export interface FiltrosCartera {
++  /** Campaña de origen: el recorte se aplica antes de contar o paginar. */
++  campania?: import('@/lib/campania').FiltroCampania
+   etapa?: Etapa | 'todas'
+   vendedorId?: string | 'todos' | 'sin_asignar'
+   texto?: string
+@@ -745,6 +750,7 @@ const CarteraFiltradaSchema = v.object({
+   origen: v.optional(v.nullable(v.string())),
+   // Eco de la procedencia filtrada, con la misma lógica que `origen`.
+   procedencia: v.optional(v.nullable(v.string())),
++  campania_origen: v.optional(v.nullable(v.string())),
+   // Presente desde la migración de reasignados; un servidor previo no inventa cero.
+   reasignados: v.optional(v.boolean()),
+   items: v.array(v.object({
+@@ -773,6 +779,10 @@ export async function listarCarteraPagina(
+   cursor: CursorCartera | null,
+   signal?: AbortSignal,
+ ): Promise<PaginaCartera> {
++  const campaniaPedida = filtros.campania && filtros.campania !== 'todas' ? filtros.campania : null
++  // La ruta legada no implementa este filtro. Si se pide, toda la consulta
++  // (incluidos sus demás filtros) usa la ruta integrada; nunca se ignora.
++  const integrada = filtros.integrada === true || campaniaPedida !== null
+   const texto = textoBuscable(filtros.texto)
+   // Se pide UNA fila de más: es lo que distingue "hay más" de "justo cabía",
+   // sin gastar una petición extra que vuelva vacía al final de la lista.
+@@ -792,18 +802,18 @@ export async function listarCarteraPagina(
+   // El servidor RECHAZA (22023) un texto por debajo del mínimo: quien decide si
+   // el filtro viaja es `textoBuscable`, la MISMA regla que aplica el espejo demo.
+   if (texto !== null) argumentos.p_texto = texto
+-  if (filtros.integrada && filtros.recepcion) {
++  if (integrada && filtros.recepcion) {
+     argumentos.p_desde = filtros.recepcion.desde
+     argumentos.p_hasta = filtros.recepcion.hasta
+   }
+   // «todos» no viaja: un servidor previo a la firma con p_origen sigue
+   // resolviendo la llamada sin él (PGRST202 evitado), igual que en métricas.
+-  const origenPedido = filtros.integrada && filtros.origen && filtros.origen !== 'todos' ? filtros.origen : null
++  const origenPedido = integrada && filtros.origen && filtros.origen !== 'todos' ? filtros.origen : null
+   if (origenPedido !== null) argumentos.p_origen = origenPedido
+   // «todas» tampoco viaja: mismo motivo, misma tolerancia a un servidor previo.
+-  const procedenciaPedida = filtros.integrada && filtros.procedencia && filtros.procedencia !== 'todas' ? filtros.procedencia : null
++  const procedenciaPedida = integrada && filtros.procedencia && filtros.procedencia !== 'todas' ? filtros.procedencia : null
+   if (procedenciaPedida !== null) argumentos.p_procedencia = procedenciaPedida
+-  const reasignadosPedidos = filtros.integrada && filtros.reasignados === true
++  const reasignadosPedidos = integrada && filtros.reasignados === true
+   if (reasignadosPedidos) argumentos.p_reasignados = true
+   // La gestión solo viaja cuando recorta, y solo a la lista integrada: sin
+   // ella la llamada es idéntica a la de siempre (Leads y las demás columnas no
+@@ -812,15 +822,16 @@ export async function listarCarteraPagina(
+   // Tampoco se comprueba contra las filas: la regla descarta los resultados de
+   // llamada deshechos, así que un lead `sin_gestion` puede traer un
+   // `ultimo_contacto_en` posterior a su tenencia y estar bien servido.
+-  const gestionPedida = filtros.integrada && filtros.gestion ? filtros.gestion : null
++  const gestionPedida = integrada && filtros.gestion ? filtros.gestion : null
+   if (gestionPedida !== null) argumentos.p_gestion = gestionPedida
+   // El potencial solo viaja cuando recorta, y solo a la lista integrada: un
+   // servidor anterior a `p_potencial` sigue resolviendo la llamada sin él.
+-  const potencialPedido = filtros.integrada && filtros.potencial ? filtros.potencial : null
++  const potencialPedido = integrada && filtros.potencial ? filtros.potencial : null
+   if (potencialPedido !== null) argumentos.p_potencial = potencialPedido
++  if (campaniaPedida !== null) argumentos.p_campania_origen = campaniaPedida
+ 
+   lanzarAbortSiCorresponde(signal)
+-  let consulta = cliente().schema('crm').rpc(filtros.integrada ? 'cartera_filtrada_fn' : 'cartera_pagina_fn', argumentos)
++  let consulta = cliente().schema('crm').rpc(integrada ? 'cartera_filtrada_fn' : 'cartera_pagina_fn', argumentos)
+   if (signal) consulta = consulta.abortSignal(signal)
+   const { data, error } = await consulta
+   lanzarAbortSiCorresponde(signal)
+@@ -842,6 +853,7 @@ export async function listarCarteraPagina(
+       etapa: filtros.etapa ?? 'todas',
+       filtraVendedor: Boolean(filtros.vendedorId && filtros.vendedorId !== 'todos'),
+       filtraOrigen: origenPedido !== null,
++      filtraCampania: campaniaPedida !== null,
+       filtraProcedencia: procedenciaPedida !== null,
+       filtraReasignados: reasignadosPedidos,
+       filtraGestion: gestionPedida !== null,
+@@ -852,7 +864,7 @@ export async function listarCarteraPagina(
+     throw fallo
+   }
+ 
+-  if (filtros.integrada) {
++  if (integrada) {
+     const resultado = v.safeParse(CarteraFiltradaSchema, data)
+     if (!resultado.success) throw new CrmApiError('La cartera y sus indicadores no cumplen el contrato esperado.', 'ROW_CONTRACT')
+     const payload = resultado.output
+@@ -864,6 +876,8 @@ export async function listarCarteraPagina(
+       // (o no lo aplicó), los indicadores no serían los del filtro en pantalla.
+       || (payload.origen ?? null) !== origenPedido
+       || (origenPedido !== null && payload.items.some((l) => l.origen !== origenPedido))
++      || (payload.campania_origen ?? null) !== campaniaPedida
++      || (campaniaPedida !== null && payload.items.some((l) => l.campania_origen !== campaniaPedida))
+       // Misma exigencia para la procedencia: eco y filas coherentes, o nada.
+       || (payload.procedencia ?? null) !== procedenciaPedida
+       || (procedenciaPedida !== null && payload.items.some((l) => l.procedencia !== procedenciaPedida))
+diff --git a/CRM-Avance-Corp/app/src/data/crm-queries.test.ts b/CRM-Avance-Corp/app/src/data/crm-queries.test.ts
+index 48084731..b1d75e7e 100644
+--- a/CRM-Avance-Corp/app/src/data/crm-queries.test.ts
++++ b/CRM-Avance-Corp/app/src/data/crm-queries.test.ts
+@@ -96,13 +96,11 @@ describe('claves de la caché de cartera (contrato con las invalidaciones)', ()
+     const gestionado = crmQueryKeys.carteraPagina('nuevo', 'v-1', '', true, null, null, 'todos', 'todas', false, 'con_gestion')
+     const etapaEntera = crmQueryKeys.carteraPagina('nuevo', 'v-1', '', true)
+ 
+-    // Literal A PROPÓSITO: el penúltimo componente es la gestión y el último el
+-    // potencial (Leads); `null` = sin recorte.
++    // Literal A PROPÓSITO: gestión, potencial y campaña son filtros independientes.
+     expect(gestionado).toEqual([
+-      'crm', 'leads', 'cartera-pagina', 'nuevo', 'v-1', '', true, null, null, 'todos', 'todas', false, 'con_gestion', null,
++      'crm', 'leads', 'cartera-pagina', 'nuevo', 'v-1', '', true, null, null, 'todos', 'todas', false, 'con_gestion', null, 'todas',
+     ])
+-    expect(etapaEntera.at(-2)).toBeNull()
+-    expect(etapaEntera.at(-1)).toBeNull()
++    expect(etapaEntera.slice(-3)).toEqual([null, null, 'todas'])
+     expect(new Set([nuevo, gestionado, etapaEntera].map((clave) => JSON.stringify(clave))).size).toBe(3)
+ 
+     const { cliente } = arnes()
+@@ -118,8 +116,21 @@ describe('claves de la caché de cartera (contrato con las invalidaciones)', ()
+     const sinFiltro = crmQueryKeys.carteraPagina(...base)
+     const claves = [sinFiltro, ...(['frio', 'tibio', 'estrella', 'sin_marca'] as const).map((p) => crmQueryKeys.carteraPagina(...base, p))]
+     expect(new Set(claves.map((clave) => JSON.stringify(clave))).size).toBe(5)
+-    expect(crmQueryKeys.carteraPagina(...base, 'tibio').at(-1)).toBe('tibio')
+-    expect(sinFiltro.at(-1)).toBeNull()
++    expect(crmQueryKeys.carteraPagina(...base, 'tibio').at(-2)).toBe('tibio')
++    expect(sinFiltro.slice(-2)).toEqual([null, 'todas'])
++  })
++
++  it('la campaña separa páginas y conserva las invalidaciones del ámbito', async () => {
++    const base = ['todas', 'todos', '', true, null, null, 'todos', 'todas', false, null, null] as const
++    const todas = crmQueryKeys.carteraPagina(...base)
++    const formulario3 = crmQueryKeys.carteraPagina(...base, 'Formulario 3')
++    expect(todas).not.toEqual(formulario3)
++    const { cliente } = arnes()
++    cliente.setQueryData(todas, { pages: [{ items: ['histórico'] }], pageParams: [null] })
++    cliente.setQueryData(formulario3, { pages: [{ items: ['campaña'] }], pageParams: [null] })
++    await cliente.invalidateQueries({ queryKey: crmQueryKeys.leads() })
++    expect(cliente.getQueryState(todas)?.isInvalidated).toBe(true)
++    expect(cliente.getQueryState(formulario3)?.isInvalidated).toBe(true)
+   })
+ 
+   it('abre una foto operativa nueva cuando cambia el mes calendario', () => {
+diff --git a/CRM-Avance-Corp/app/src/data/crm-queries.ts b/CRM-Avance-Corp/app/src/data/crm-queries.ts
+index 96b4474f..d6ab499a 100644
+--- a/CRM-Avance-Corp/app/src/data/crm-queries.ts
++++ b/CRM-Avance-Corp/app/src/data/crm-queries.ts
+@@ -288,8 +288,8 @@ export const crmQueryKeys = {
+   // la MISMA etapa y el mismo analista — sin ella en la clave compartirían
+   // caché y las dos columnas pintarían la misma lista. `null` = sin recorte.
+   // El potencial (Frío · Tibio · Estrella · sin marca), por el mismo motivo.
+-  carteraPagina: (etapa: string, vendedor: string, texto: string, integrada = false, desde: string | null = null, hasta: string | null = null, origen = 'todos', procedencia = 'todas', reasignados = false, gestion: string | null = null, potencial: string | null = null) =>
+-    [...crmQueryKeys.carteraPaginas(), etapa, vendedor, texto, integrada, desde, hasta, origen, procedencia, reasignados, gestion, potencial] as const,
++  carteraPagina: (etapa: string, vendedor: string, texto: string, integrada = false, desde: string | null = null, hasta: string | null = null, origen = 'todos', procedencia = 'todas', reasignados = false, gestion: string | null = null, potencial: string | null = null, campania = 'todas') =>
++    [...crmQueryKeys.carteraPaginas(), etapa, vendedor, texto, integrada, desde, hasta, origen, procedencia, reasignados, gestion, potencial, campania] as const,
+   /** Prefijo de TODAS las listas de la cartera (cualquier combinación de filtros). */
+   carteraPaginas: () => [...crmQueryKeys.leads(), 'cartera-pagina'] as const,
+ }
+@@ -766,7 +766,7 @@ export function useCarteraInfinita(habilitada: boolean, filtros: FiltrosCartera)
+   const vendedor = filtros.vendedorId ?? 'todos'
+   const texto = filtros.texto ?? ''
+   return useInfiniteQuery({
+-    queryKey: crmQueryKeys.carteraPagina(etapa, vendedor, texto, filtros.integrada, filtros.recepcion?.desde, filtros.recepcion?.hasta, filtros.origen ?? 'todos', filtros.procedencia ?? 'todas', filtros.reasignados ?? false, filtros.gestion ?? null, filtros.potencial ?? null),
++    queryKey: crmQueryKeys.carteraPagina(etapa, vendedor, texto, filtros.integrada, filtros.recepcion?.desde, filtros.recepcion?.hasta, filtros.origen ?? 'todos', filtros.procedencia ?? 'todas', filtros.reasignados ?? false, filtros.gestion ?? null, filtros.potencial ?? null, filtros.campania ?? 'todas'),
+     queryFn: ({ pageParam, signal }) => listarCarteraPagina(filtros, pageParam, signal),
+     initialPageParam: null as CursorCartera | null,
+     // `cursor: null` significa "no hay más" y lo decide el SERVIDOR (pidió una
+diff --git a/CRM-Avance-Corp/app/src/data/use-cartera-paginada.test.tsx b/CRM-Avance-Corp/app/src/data/use-cartera-paginada.test.tsx
+index cc5a8d78..ad4f58b3 100644
+--- a/CRM-Avance-Corp/app/src/data/use-cartera-paginada.test.tsx
++++ b/CRM-Avance-Corp/app/src/data/use-cartera-paginada.test.tsx
+@@ -58,6 +58,26 @@ describe('sesión demo', () => {
+ 
+   beforeEach(() => { mocks.yo = { id: 'u-demo', rol: 'vendedor', demo: true } })
+ 
++  it('filtra campaña antes de paginar, cuenta todo y reinicia la ventana al cambiar', () => {
++    const filas = Array.from({ length: 130 }, (_, i) => ({ ...lead(i), campania_origen: i >= 60 ? 'Formulario 3' : null }))
++    const { wrapper } = arnes()
++    const { result, rerender } = renderHook(
++      ({ campania }: { campania: 'todas' | 'Formulario 3' }) => useCarteraPaginada(filas, { campania }),
++      { wrapper, initialProps: { campania: 'todas' } },
++    )
++    act(() => { result.current.cargarMas() })
++    expect(result.current.leads).toHaveLength(100)
++    rerender({ campania: 'Formulario 3' })
++    expect(result.current.leads).toHaveLength(50)
++    expect(result.current.leads[0]?.id).toBe('lead-060')
++    expect(result.current.resumen?.totales.vivos).toBe(70)
++    expect(result.current.resumen?.capital.asignado.pen).toBe(70_000)
++    act(() => { result.current.cargarMas() })
++    expect(result.current.leads).toHaveLength(70)
++    expect(result.current.hayMas).toBe(false)
++    expect(mocks.listarCarteraPagina).not.toHaveBeenCalled()
++  })
++
+   it('pagina el ámbito vivo del store sin tocar la red', () => {
+     const { wrapper } = arnes()
+     const { result } = renderHook(() => useCarteraPaginada(ambito, {}), { wrapper })
+diff --git a/CRM-Avance-Corp/app/src/data/use-cartera-paginada.ts b/CRM-Avance-Corp/app/src/data/use-cartera-paginada.ts
+index 5cc246a2..665da4e3 100644
+--- a/CRM-Avance-Corp/app/src/data/use-cartera-paginada.ts
++++ b/CRM-Avance-Corp/app/src/data/use-cartera-paginada.ts
+@@ -60,6 +60,7 @@ export function useCarteraPaginada(
+   const vendedorId = filtros.vendedorId ?? 'todos'
+   const texto = filtros.texto ?? ''
+   const origen = filtros.origen ?? 'todos'
++  const campania = filtros.campania ?? 'todas'
+   const procedencia = filtros.procedencia ?? 'todas'
+   const reasignados = filtros.reasignados ?? false
+   // Gestión vigente (columnas «Nuevo»/«Gestionado» del Pipeline). Solo recorta
+@@ -76,12 +77,13 @@ export function useCarteraPaginada(
+     () => ({ etapa, vendedorId, texto, integrada: true,
+       // El origen solo viaja cuando recorta: «todos» es el valor neutro y no se manda.
+       ...(origen !== 'todos' ? { origen } : {}),
++      ...(campania !== 'todas' ? { campania } : {}),
+       ...(procedencia !== 'todas' ? { procedencia } : {}),
+       ...(reasignados ? { reasignados: true } : {}),
+       ...(gestion ? { gestion } : {}),
+       ...(potencial ? { potencial } : {}),
+       ...(desde != null && hasta != null ? { recepcion: { desde, hasta }, recepcionDemo: { desde, hasta } } : {}) }),
+-    [etapa, vendedorId, texto, origen, procedencia, reasignados, gestion, potencial, desde, hasta],
++    [etapa, vendedorId, texto, origen, campania, procedencia, reasignados, gestion, potencial, desde, hasta],
+   )
+ 
+   const rangoValido = rangoFechaCarteraValido(filtrosEstables.recepcion ?? null, fechaLima(Date.now()))
+@@ -103,7 +105,7 @@ export function useCarteraPaginada(
+   // Cambiar de filtro EMPIEZA una lista nueva: conservar el número de páginas
+   // dejaría la vista mostrando 150 resultados de una búsqueda que acaba de
+   // cambiar (y en real el cursor viejo ni siquiera sería válido).
+-  useEffect(() => { setPaginasDemo(1) }, [etapa, vendedorId, texto, origen, procedencia, reasignados, gestion, potencial, desde, hasta])
++  useEffect(() => { setPaginasDemo(1) }, [etapa, vendedorId, texto, origen, campania, procedencia, reasignados, gestion, potencial, desde, hasta])
+ 
+   // Como en el servidor: primero todos los DEMÁS filtros (`previa`), de ahí salen
+   // los conteos por potencial, y después el recorte por potencial.
+diff --git a/CRM-Avance-Corp/app/src/lib/cartera-keyset.ts b/CRM-Avance-Corp/app/src/lib/cartera-keyset.ts
+index 1aa06e51..b2c86625 100644
+--- a/CRM-Avance-Corp/app/src/lib/cartera-keyset.ts
++++ b/CRM-Avance-Corp/app/src/lib/cartera-keyset.ts
+@@ -47,6 +47,7 @@ const MAX_BUSQUEDA = 80
+ export type GestionCartera = 'con_gestion' | 'sin_gestion'
+ 
+ export interface FiltrosCarteraLocal {
++  campania?: import('./campania').FiltroCampania
+   etapa?: Etapa | 'todas'
+   vendedorId?: string | 'todos' | 'sin_asignar'
+   texto?: string
+@@ -113,6 +114,7 @@ export function filtrarCarteraLocal(
+     if (!coincideFechaRecepcionDemo(l, filtros.recepcionDemo)) return false
+     if (filtros.etapa && filtros.etapa !== 'todas' && l.etapa !== filtros.etapa) return false
+     if (filtros.origen && filtros.origen !== 'todos' && l.origen !== filtros.origen) return false
++    if (filtros.campania && filtros.campania !== 'todas' && l.campania_origen !== filtros.campania) return false
+     // Sin dato de procedencia el lead NO coincide con ningún recorte: un
+     // «sistema» inventado sobre un lead sin sello sería un dato falso.
+     if (filtros.procedencia && filtros.procedencia !== 'todas' && l.procedencia !== filtros.procedencia) return false
+diff --git a/CRM-Avance-Corp/app/src/lib/database.types.ts b/CRM-Avance-Corp/app/src/lib/database.types.ts
+index a606e05c..b7bb39ee 100644
+--- a/CRM-Avance-Corp/app/src/lib/database.types.ts
++++ b/CRM-Avance-Corp/app/src/lib/database.types.ts
+@@ -3164,6 +3164,7 @@ export type Database = {
+           actualizado_en: string
+           alta_manual: boolean
+           asignado_supervisor_id: string | null
++          campania_origen: string | null
+           categoria_interes: string | null
+           ciclo_actual: number
+           clasificacion_auto: string | null
+@@ -3207,6 +3208,7 @@ export type Database = {
+           actualizado_en?: string
+           alta_manual?: boolean
+           asignado_supervisor_id?: string | null
++          campania_origen?: string | null
+           categoria_interes?: string | null
+           ciclo_actual?: number
+           clasificacion_auto?: string | null
+@@ -3250,6 +3252,7 @@ export type Database = {
+           actualizado_en?: string
+           alta_manual?: boolean
+           asignado_supervisor_id?: string | null
++          campania_origen?: string | null
+           categoria_interes?: string | null
+           ciclo_actual?: number
+           clasificacion_auto?: string | null
+@@ -5503,6 +5506,7 @@ export type Database = {
+         Args: {
+           p_antes_de?: string
+           p_antes_id?: string
++          p_campania_origen?: string
+           p_desde?: string
+           p_etapa?: string
+           p_gestion?: string
+@@ -5560,6 +5564,7 @@ export type Database = {
+           activo: boolean
+           actualizado_en: string
+           asignado_supervisor_id: string
++          campania_origen: string
+           categoria_interes: string
+           contrato_id: string
+           convertido_en: string
+diff --git a/CRM-Avance-Corp/app/src/lib/demo.ts b/CRM-Avance-Corp/app/src/lib/demo.ts
+index cededc27..59b9c91b 100644
+--- a/CRM-Avance-Corp/app/src/lib/demo.ts
++++ b/CRM-Avance-Corp/app/src/lib/demo.ts
+@@ -61,7 +61,7 @@ const LEADS_DEMO_BASE: Lead[] = [
+   { id: 'l2', genero: 'F', nombre_completo: 'MARÍA LÓPEZ CASTRO', telefono: '+51987654322', correo: 'maria.lopez@gmail.com', etapa: 'contactado', origen: 'landing', monto_estimado: 30000, moneda: 'PEN', categoria_interes: 'nuevo', vendedor_id: 'd-v1', vendedor_nombre: 'ANALISTA UNO', creado_en: hace(2), activo: true, dni: '45871236', distrito: 'San Isidro' },
+   { id: 'l8', genero: 'F', nombre_completo: 'ELENA VARGAS RÍOS', telefono: '+51987654328', etapa: 'descartado', origen: 'web', monto_estimado: 5000, moneda: 'PEN', categoria_interes: null, vendedor_id: 'd-v1', vendedor_nombre: 'ANALISTA UNO', creado_en: hace(9), activo: true, motivo_descarte: 'sin_fondos', nota: 'Retomará en unos meses, cuando venda un terreno' },
+   { id: 'l9', genero: 'M', nombre_completo: 'JORGE CHÁVEZ PAREDES', telefono: '+51998812345', correo: 'jchavezp@outlook.com', etapa: 'convertido', origen: 'referido', monto_estimado: 25000, moneda: 'USD', categoria_interes: 'renovacion', vendedor_id: 'd-v1', vendedor_nombre: 'ANALISTA UNO', creado_en: hace(18), activo: true, dni: '41236587', distrito: 'San Borja' },
+-  { id: 'l12', genero: 'F', nombre_completo: 'PATRICIA FERNÁNDEZ SOTO', telefono: '+51954321876', correo: 'pfernandezsoto@gmail.com', etapa: 'propuesta_enviada', origen: 'formulario', monto_estimado: 15000, moneda: 'USD', categoria_interes: 'upgrade', vendedor_id: 'd-v1', vendedor_nombre: 'ANALISTA UNO', creado_en: hace(5), activo: true, dni: '46752198', nota: 'Evalúa la propuesta en dólares con su esposo' },
++  { id: 'l12', genero: 'F', nombre_completo: 'PATRICIA FERNÁNDEZ SOTO', telefono: '+51954321876', correo: 'pfernandezsoto@gmail.com', etapa: 'propuesta_enviada', origen: 'formulario', campania_origen: 'Formulario 3', monto_estimado: 15000, moneda: 'USD', categoria_interes: 'upgrade', vendedor_id: 'd-v1', vendedor_nombre: 'ANALISTA UNO', creado_en: hace(5), activo: true, dni: '46752198', nota: 'Evalúa la propuesta en dólares con su esposo' },
+   { id: 'l15', genero: 'F', nombre_completo: 'TERESA GONZALES PAZ', telefono: '+51911223344', etapa: 'nuevo', origen: 'landing', monto_estimado: 20000, moneda: 'PEN', categoria_interes: 'nuevo', vendedor_id: 'd-v1', vendedor_nombre: 'ANALISTA UNO', creado_en: hace(1.4), activo: true, distrito: 'Surquillo' }, // SIN actividad → sin_responder crítica
+   { id: 'l16', genero: 'M', nombre_completo: 'FERNANDO QUIROZ BEDOYA', telefono: '+51922334455', correo: 'fquirozb@gmail.com', etapa: 'contactado', origen: 'campania', monto_estimado: 45000, moneda: 'PEN', categoria_interes: 'renovacion', vendedor_id: 'd-v1', vendedor_nombre: 'ANALISTA UNO', creado_en: hace(6), activo: true, dni: '42718395' }, // última act hace 4d → seguimiento
+   { id: 'l17', genero: 'F', nombre_completo: 'GLORIA NAVARRO IBÁÑEZ', telefono: '+51933445566', etapa: 'propuesta_enviada', origen: 'referido', monto_estimado: 65000, moneda: 'PEN', categoria_interes: 'nuevo', vendedor_id: 'd-v1', vendedor_nombre: 'ANALISTA UNO', creado_en: hace(9), activo: true, dni: '44561287', distrito: 'San Miguel', nota: 'Pidió tiempo para revisar la propuesta con su contador' }, // última act hace 6d → propuesta_sin_respuesta
+@@ -70,7 +70,7 @@ const LEADS_DEMO_BASE: Lead[] = [
+   { id: 'l3', genero: 'M', nombre_completo: 'CARLOS RUIZ MENDOZA', telefono: '+51987654323', etapa: 'reunion_agendada', origen: 'oficina', monto_estimado: 10000, moneda: 'USD', categoria_interes: 'upgrade', vendedor_id: 'd-v2', vendedor_nombre: 'ANALISTA DOS', creado_en: hace(4), activo: true, dni: '40125879' }, // última act hace 3.4d → seguimiento
+   { id: 'l6', genero: 'F', nombre_completo: 'ROSA DÍAZ HUAMÁN', telefono: '+51987654326', etapa: 'contactado', origen: 'referido', monto_estimado: 22000, moneda: 'PEN', categoria_interes: 'nuevo', vendedor_id: 'd-v2', vendedor_nombre: 'ANALISTA DOS', creado_en: hace(3), activo: true, distrito: 'La Molina' },
+   { id: 'l10', genero: 'F', nombre_completo: 'CARMEN SALAZAR TICONA', telefono: '+51976543210', etapa: 'descartado', origen: 'whatsapp', monto_estimado: 12000, moneda: 'PEN', categoria_interes: null, vendedor_id: 'd-v2', vendedor_nombre: 'ANALISTA DOS', creado_en: hace(11), activo: true, motivo_descarte: 'no_responde' },
+-  { id: 'l18', genero: 'M', nombre_completo: 'OMAR VILLANUEVA REYES', telefono: '+51944556677', etapa: 'nuevo', origen: 'formulario', monto_estimado: 12000, moneda: 'PEN', categoria_interes: 'nuevo', vendedor_id: 'd-v2', vendedor_nombre: 'ANALISTA DOS', creado_en: hace(2.2), activo: true, distrito: 'Breña' }, // SIN actividad → sin_responder crítica
++  { id: 'l18', genero: 'M', nombre_completo: 'OMAR VILLANUEVA REYES', telefono: '+51944556677', etapa: 'nuevo', origen: 'formulario', campania_origen: 'Formulario 3', monto_estimado: 12000, moneda: 'PEN', categoria_interes: 'nuevo', vendedor_id: 'd-v2', vendedor_nombre: 'ANALISTA DOS', creado_en: hace(2.2), activo: true, distrito: 'Breña' }, // SIN actividad → sin_responder crítica
+   { id: 'l19', genero: 'F', nombre_completo: 'DIANA PONCE ARELLANO', telefono: '+51955667788', correo: 'dponcea@gmail.com', etapa: 'convertido', origen: 'oficina', monto_estimado: 40000, moneda: 'PEN', categoria_interes: 'nuevo', vendedor_id: 'd-v2', vendedor_nombre: 'ANALISTA DOS', creado_en: hace(15), activo: true, dni: '40987123' },
+ 
+   // ── ANALISTA TRES (d-v3) ── 3 abiertos · 1 convertido
+diff --git a/CRM-Avance-Corp/app/src/lib/store-real.test.tsx b/CRM-Avance-Corp/app/src/lib/store-real.test.tsx
+index 8b51e175..d4b6f867 100644
+--- a/CRM-Avance-Corp/app/src/lib/store-real.test.tsx
++++ b/CRM-Avance-Corp/app/src/lib/store-real.test.tsx
+@@ -1067,6 +1067,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
+   })
+ 
+   it('Gerencia edita un lead de otro analista y persiste el cambio', async () => {
++    listarLeads.mockResolvedValueOnce([{ ...leadBase(), campania_origen: 'Formulario 3' }])
+     const { api, mutar } = montar('gerencia')
+     await waitFor(() => expect(api().leads).toHaveLength(1))
+ 
+@@ -1075,6 +1076,8 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
+     expect(res).toMatchObject({ ok: true })
+     expect(api().lead(leadBase().id)?.telefono).toBe('+51999111222')
+     expect(editarLeadFn).toHaveBeenCalledWith(leadBase().id, expect.objectContaining({ telefono: '+51999111222' }))
++    expect(editarLeadFn.mock.calls[0]?.[1]).not.toHaveProperty('campania_origen')
++    expect(api().lead(leadBase().id)?.campania_origen).toBe('Formulario 3')
+   })
+ 
+   it('actividad y siguiente reunión viajan en un solo comando con los campos normalizados', async () => {
+@@ -1234,6 +1237,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
+     expect(res.codigo).toBeUndefined() // NO 'fuente_no_habilitada'
+     expect(insertarLead).toHaveBeenCalledTimes(1)
+     expect(insertarLead).toHaveBeenCalledWith(expect.objectContaining({ monto_estimado: 5000, moneda: 'PEN' }))
++    expect(insertarLead.mock.calls[0]?.[0]).not.toHaveProperty('campania_origen')
+     await expect(res.persistido).resolves.toEqual({ ok: true })
+     await waitFor(() => expect(listarTareas).toHaveBeenCalledTimes(2)) // resync
+     expect(invalidarQueriesMock).toHaveBeenCalledWith({
+diff --git a/CRM-Avance-Corp/app/src/lib/tipos.ts b/CRM-Avance-Corp/app/src/lib/tipos.ts
+index 6c562f9f..cc4c7fd7 100644
+--- a/CRM-Avance-Corp/app/src/lib/tipos.ts
++++ b/CRM-Avance-Corp/app/src/lib/tipos.ts
+@@ -498,6 +498,8 @@ export interface Lead {
+   correo?: string | null
+   etapa: Etapa
+   origen: OrigenLectura
++  /** Campaña atribuida al alta por el servidor; no se edita en la ficha. */
++  readonly campania_origen?: string | null
+   /**
+    * Capital estimado. `null` SOLO cuando el servidor lo devuelve vacío: un contacto de base cargada sin capital
+    * en el Excel (E8, Miguel 04/10/2026; la base lo permite solo con origen `base_cargada`). Nunca se inventa 0:
+diff --git a/CRM-Avance-Corp/app/src/screens/cartera.test.tsx b/CRM-Avance-Corp/app/src/screens/cartera.test.tsx
+index 34a8dffa..19f34951 100644
+--- a/CRM-Avance-Corp/app/src/screens/cartera.test.tsx
++++ b/CRM-Avance-Corp/app/src/screens/cartera.test.tsx
+@@ -33,6 +33,7 @@ let CONSULTA_GERENCIA: { consulta: { gestionAnalista: { id: string; nombre: stri
+ const ABRIR_LEAD = vi.fn()
+ 
+ beforeEach(() => {
++  sessionStorage.clear()
+   ABRIR_LEAD.mockClear()
+   CONSULTAR_CARTERA.mockClear()
+   ACTIVIDADES = []
+@@ -92,6 +93,31 @@ vi.mock('@/data/use-cartera-paginada', async () => {
+ 
+ const { Cartera } = await import('./cartera')
+ 
++describe('Cartera · campaña de origen', () => {
++  it('rotula la campaña, conserva FORMULARIO y combina su filtro con los existentes', () => {
++    montar([
++      lead({ id: 'f3', nombre_completo: 'ALTA FORMULARIO', origen: 'formulario', campania_origen: 'Formulario 3' }),
++      lead({ id: 'viejo', nombre_completo: 'CONTACTO ANTERIOR', origen: 'formulario', campania_origen: null, nota: 'Reingreso por Formulario 3' }),
++      lead({ id: 'otra', nombre_completo: 'OTRA CAMPAÑA', campania_origen: 'Campaña anterior' }),
++    ])
++    const fila = screen.getByRole('row', { name: /ALTA FORMULARIO/ })
++    expect(fila).toHaveTextContent('Formulario 3')
++    expect(fila).toHaveTextContent('FORMULARIO')
++    expect(fila).toHaveAccessibleDescription('Campaña de origen: Formulario 3')
++    expect(screen.getByRole('row', { name: /CONTACTO ANTERIOR/ })).not.toHaveTextContent('Campaña de origen:')
++    const filtro = screen.getByLabelText('Filtrar por campaña')
++    fireEvent.change(filtro, { target: { value: 'Formulario 3' } })
++    expect(screen.queryByRole('row', { name: /CONTACTO ANTERIOR/ })).not.toBeInTheDocument()
++    expect(screen.queryByRole('row', { name: /OTRA CAMPAÑA/ })).not.toBeInTheDocument()
++    expect(within(chipDe('Total leads')).getByText('1')).toBeInTheDocument()
++    fireEvent.change(screen.getByLabelText('Filtrar por origen'), { target: { value: 'landing' } })
++    expect(screen.getByText('Sin resultados')).toBeInTheDocument()
++    fireEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }))
++    expect(filtro).toHaveValue('todas')
++    expect(screen.getByRole('row', { name: /CONTACTO ANTERIOR/ })).toBeInTheDocument()
++  })
++})
++
+ describe('Cartera · filtro Gestionado', () => {
+   it('pide la clasificación al servidor, compone con origen y la retira al cambiar de etapa', () => {
+     montar([lead({ gestion_vigente: true })])
+diff --git a/CRM-Avance-Corp/app/src/screens/cartera.tsx b/CRM-Avance-Corp/app/src/screens/cartera.tsx
+index e17a67c4..6b539d3d 100644
+--- a/CRM-Avance-Corp/app/src/screens/cartera.tsx
++++ b/CRM-Avance-Corp/app/src/screens/cartera.tsx
+@@ -19,6 +19,9 @@ import { TablaEnvoltura, Td, Th, TheadCrm } from '@/components/common/tabla'
+ import { ETAPAS, TERMINALES, MOTIVOS_DESCARTE_LECTURA, CAT_LABEL, ORIGENES, ORIGENES_HEREDADOS, origenLabel, type Etapa, type Origen, type Procedencia } from '@/lib/tipos'
+ import { ChipProcedencia } from '@/components/app/procedencia-chip'
+ import { ChipReasignado } from '@/components/app/reasignado-chip'
++import { ChipCampania } from '@/components/app/campania-chip'
++import { CAMPANIAS, esFiltroCampania } from '@/lib/campania'
++import { useFiltroCampania } from '@/lib/use-filtro-campania'
+ import { ChipPotencial } from '@/components/app/potencial-chip'
+ import { FiltroPotencialCartera } from '@/components/app/potencial-filtro'
+ import { idsDescripcion, potencialFila } from '@/components/app/potencial-efectos'
+@@ -180,6 +183,7 @@ export function Cartera() {
+   const [q, setQ] = useState('')
+   const [fEtapa, setFEtapa] = useState<FiltroEtapa>('todas')
+   const [fOrigen, setFOrigen] = useState<FiltroOrigen>('todos')
++  const [fCampania, setFCampania] = useFiltroCampania(yo ? `${yo.demo ? 'demo' : 'real'}:${yo.id}` : null)
+   const [fProc, setFProc] = useState<FiltroProcedencia>('todas')
+   const [fReasignados, setFReasignados] = useState(false)
+   // Potencial del lead: un nivel a la vez o «sin marcar»; null = sin filtro.
+@@ -212,10 +216,10 @@ export function Cartera() {
+     useMemo(
+       () => ({ etapa: fEtapa === 'gestionado' ? 'nuevo' : fEtapa,
+         ...(fEtapa === 'gestionado' ? { gestion: 'con_gestion' as const } : {}),
+-        vendedorId: fVend, texto: qDiferido, origen: fOrigen, procedencia: fProc, reasignados: fReasignados,
++        vendedorId: fVend, texto: qDiferido, origen: fOrigen, campania: fCampania, procedencia: fProc, reasignados: fReasignados,
+         ...(fPotencial ? { potencial: fPotencial } : {}),
+         recepcion: periodo }),
+-      [fEtapa, fVend, qDiferido, fOrigen, fProc, fReasignados, fPotencial, periodo],
++      [fEtapa, fVend, qDiferido, fOrigen, fCampania, fProc, fReasignados, fPotencial, periodo],
+     ),
+   )
+   // Fase 4e: el store conoce lo que la tabla muestra (verbos de escritura por id).
+@@ -344,7 +348,7 @@ export function Cartera() {
+     toast.info('El filtro por potencial ya no está disponible. Se quitó de la lista.')
+   }, [potencialApagado])
+ 
+-  const hayFiltro = q.trim() !== '' || fEtapa !== 'todas' || fOrigen !== 'todos' || fProc !== 'todas' || fReasignados || fPotencial !== null || fVend !== 'todos' || modoFecha !== 'todas'
++  const hayFiltro = q.trim() !== '' || fEtapa !== 'todas' || fOrigen !== 'todos' || fCampania !== 'todas' || fProc !== 'todas' || fReasignados || fPotencial !== null || fVend !== 'todos' || modoFecha !== 'todas'
+ 
+   // El nombre del analista lo resuelve el roster: `crm.leads` guarda el id y la
+   // RPC de la página no lo desnormaliza (el store hace lo mismo con su ámbito).
+@@ -493,6 +497,14 @@ export function Cartera() {
+             </optgroup>
+           </Select>
+         </div>
++        <div className="w-[180px]">
++          <Select aria-label="Filtrar por campaña" value={fCampania} onChange={(e) => {
++            if (esFiltroCampania(e.target.value)) setFCampania(e.target.value)
++          }}>
++            <option value="todas">Todas las campañas</option>
++            {CAMPANIAS.map((campania) => <option key={campania} value={campania}>{campania}</option>)}
++          </Select>
++        </div>
+         {/* Procedencia: quién lo metió (puente vs. persona). Es otra pregunta que
+             el origen: desde el 01/09 un LANDING puede haberlo cargado un analista. */}
+         <div className="w-[170px]">
+@@ -533,7 +545,7 @@ export function Cartera() {
+             de 300» contando un array parcial es justo la mentira que esta fase
+             viene a matar. */}
+         {hayFiltro && <Button variant="ghost" size="sm" onClick={() => {
+-          setQ(''); setFEtapa('todas'); setFOrigen('todos'); setFProc('todas'); setFReasignados(false); setFPotencial(null); setFVend('todos'); setModoFecha('todas')
++          setQ(''); setFEtapa('todas'); setFOrigen('todos'); setFCampania('todas'); setFProc('todas'); setFReasignados(false); setFPotencial(null); setFVend('todos'); setModoFecha('todas')
+         }}>Limpiar filtros</Button>}
+         {/* La región viva queda SIEMPRE montada y solo cambia su texto: una
+             región que aparece ya escrita no se anuncia de forma fiable, y es el
+@@ -626,6 +638,7 @@ export function Cartera() {
+                       aria-describedby={idsDescripcion(
+                         potencial.porLead.get(l.id)?.nivel && `potencial-${l.id}`,
+                         descripcionProcedencia(l) && `procedencia-${l.id}`,
++                        l.campania_origen && `campania-${l.id}`,
+                       )}
+                       onClick={() => abrirLead(l.id)}
+                       onKeyDown={(ev) => {
+@@ -644,13 +657,14 @@ export function Cartera() {
+                             <div className="leading-tight">
+                               {/* text-[13px]: misma densidad de nombre que FilaCliente/
+                                   FilaContrato — las tres carteras leen como una familia. */}
+-                              <p className="flex items-center gap-1.5 text-[13px] font-semibold">
++                              <p className="flex flex-wrap items-center gap-1.5 text-[13px] font-semibold">
+                                 {l.nombre_completo}
+                                 <ChipPotencial id={`potencial-${l.id}`} marca={potencial.porLead.get(l.id)} />
+                                 {/* Procedencia a simple vista, pegada al nombre: lo manual
+                                     en azul, lo del sistema en gris silencioso. */}
+                                 <ChipProcedencia lead={l} />
+                                 <ChipReasignado lead={l} />
++                                <ChipCampania id={`campania-${l.id}`} lead={l} />
+                                 {descripcionProcedencia(l) && (
+                                   <span id={`procedencia-${l.id}`} className="sr-only">{descripcionProcedencia(l)}</span>
+                                 )}
+diff --git a/CRM-Avance-Corp/app/src/screens/pipeline-gestionado.test.tsx b/CRM-Avance-Corp/app/src/screens/pipeline-gestionado.test.tsx
+index a3e5a785..82f7d2f0 100644
+--- a/CRM-Avance-Corp/app/src/screens/pipeline-gestionado.test.tsx
++++ b/CRM-Avance-Corp/app/src/screens/pipeline-gestionado.test.tsx
+@@ -232,10 +232,10 @@ describe('Pipeline con listas reales · «Nuevo» y «Gestionado» no comparten
+     const claves = cliente.getQueryCache().findAll({ queryKey: [...crmQueryKeys.leads(), 'cartera-pagina', 'nuevo'] })
+       .map((q) => q.queryKey)
+     expect(claves).toHaveLength(2)
+-    // La gestión es el PENÚLTIMO componente de la clave; el último es el potencial
+-    // (filtro de Leads), que el Pipeline no usa: `null`.
+-    expect(claves.map((clave) => clave.at(-2)).sort()).toEqual(['con_gestion', 'sin_gestion'])
+-    expect(claves.map((clave) => clave.at(-1))).toEqual([null, null])
++    // La cola de filtros incluye gestión, potencial y campaña. El Pipeline
++    // conserva sus recortes de gestión y no pide potencial ni campaña.
++    expect(claves.map((clave) => clave.at(-3)).sort()).toEqual(['con_gestion', 'sin_gestion'])
++    expect(claves.map((clave) => clave.slice(-2))).toEqual([[null, 'todas'], [null, 'todas']])
+   })
+ })
+ 
+diff --git a/CRM-Avance-Corp/app/src/screens/pipeline.tsx b/CRM-Avance-Corp/app/src/screens/pipeline.tsx
+index 7bd15eb5..f6151e5a 100644
+--- a/CRM-Avance-Corp/app/src/screens/pipeline.tsx
++++ b/CRM-Avance-Corp/app/src/screens/pipeline.tsx
+@@ -22,6 +22,7 @@ import {
+ import { StatStrip, type StatChipData } from '@/components/common/stat-strip'
+ import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
+ import { CAT_LABEL, ETAPA_INFO, TERMINALES, origenLabel, type EtapaActiva, type Lead } from '@/lib/tipos'
++import { ChipCampania } from '@/components/app/campania-chip'
+ import {
+   COLUMNAS_TABLERO,
+   agruparPorColumna,
+@@ -175,13 +176,14 @@ function LeadCard({ l, nombreVendedor, semaforo, rotuloEtapa, escribe, arrastran
+           <p className="shrink-0 text-sm font-extrabold tabular-nums text-primary">{moneyK(l.monto_estimado, l.moneda)}</p>
+         )}
+       </div>
+-      <div className="mt-2 flex items-center gap-1.5">
++      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+         {l.categoria_interes ? (
+           <Badge color="var(--chart-4)" className="text-[10px]">Inversión · {CAT_LABEL[l.categoria_interes]}</Badge>
+         ) : (
+           <Badge color="var(--muted-foreground)" className="text-[10px]">{origenLabel(l.origen)}</Badge>
+         )}
+         <ChipPotencial marca={potencial} pequeno />
++        <ChipCampania lead={l} />
+       </div>
+       <div className="mt-2.5 flex items-center justify-between border-t border-border pt-2">
+         {l.vendedor_id == null ? (
+diff --git a/CRM-Avance-Corp/package.json b/CRM-Avance-Corp/package.json
+index 98384060..38e36e0a 100644
+--- a/CRM-Avance-Corp/package.json
++++ b/CRM-Avance-Corp/package.json
+@@ -7,7 +7,7 @@
+     "node": ">=22.12.0"
+   },
+   "scripts": {
+-    "check:scripts": "node --check supabase/scripts/fixtures.mjs && node --check supabase/scripts/seed-demo.mjs && node --check supabase/scripts/clean-crm-data.mjs && node --check supabase/scripts/clean-crm-data.test.mjs && node --check supabase/scripts/reconciliar-claves-crm-core.mjs && node --check supabase/scripts/reconciliar-claves-crm.mjs && node --check supabase/scripts/reconciliar-claves-crm.test.mjs && node --check supabase/scripts/test-rls.mjs && node --check supabase/scripts/gate-config-operativa.mjs && node --check supabase/scripts/gate-realidad.mjs && node --check supabase/scripts/gate-auditoria.mjs && node --check supabase/scripts/gate-analista-vigencia.mjs && node --check supabase/scripts/gate-analitica-lc.mjs && node --check supabase/scripts/gate-vigias.mjs && bash -n supabase/scripts/run-test-ficha-360-local.sh && npm run test:reconcile:crm-passwords && npm run test:importar-leads-edge && npm run gate:apps-script && npm run test:puente && npm run test:puente:e2e && npm run test:mutantes && npm run test:f5:preflight && npm run check:multiempresa:f7 && npm run check:multiempresa:f8 && node --check supabase/scripts/rls-vigente/f8-candado.test.mjs && node --check supabase/scripts/rls-vigente/guardas.test.mjs && npm run test:gestion-diaria-typesafe && npm run test:gestion-diaria-cortes:preflight && node --check scripts/jev/cliente.mjs && node --check scripts/jev/auditor.mjs && node --check scripts/jev/reglas.mjs && npm run test:jev && node --check supabase/scripts/conversion/gate-conversion.mjs && npm run test:conversion:gate",
++    "check:scripts": "node --check supabase/scripts/fixtures.mjs && node --check supabase/scripts/seed-demo.mjs && node --check supabase/scripts/clean-crm-data.mjs && node --check supabase/scripts/clean-crm-data.test.mjs && node --check supabase/scripts/reconciliar-claves-crm-core.mjs && node --check supabase/scripts/reconciliar-claves-crm.mjs && node --check supabase/scripts/reconciliar-claves-crm.test.mjs && node --check supabase/scripts/test-rls.mjs && node --check supabase/scripts/gate-config-operativa.mjs && node --check supabase/scripts/gate-realidad.mjs && node --test supabase/scripts/gate-realidad-sql.test.mjs && node --check supabase/scripts/gate-auditoria.mjs && node --check supabase/scripts/gate-analista-vigencia.mjs && node --check supabase/scripts/gate-analitica-lc.mjs && node --check supabase/scripts/gate-vigias.mjs && bash -n supabase/scripts/run-test-ficha-360-local.sh && npm run test:reconcile:crm-passwords && npm run test:importar-leads-edge && npm run gate:apps-script && npm run test:puente && npm run test:puente:e2e && npm run test:mutantes && npm run test:f5:preflight && npm run check:multiempresa:f7 && npm run check:multiempresa:f8 && node --check supabase/scripts/rls-vigente/f8-candado.test.mjs && node --check supabase/scripts/rls-vigente/guardas.test.mjs && npm run test:gestion-diaria-typesafe && npm run test:gestion-diaria-cortes:preflight && node --check scripts/jev/cliente.mjs && node --check scripts/jev/auditor.mjs && node --check scripts/jev/reglas.mjs && npm run test:jev && node --check supabase/scripts/conversion/gate-conversion.mjs && npm run test:conversion:gate",
+     "gate:apps-script": "node scripts/gate-apps-script.mjs",
+     "seed:demo": "node supabase/scripts/seed-demo.mjs",
+     "seed:preflight": "node supabase/scripts/seed-demo.mjs --preflight",
+@@ -16,7 +16,7 @@
+     "reconcile:crm-passwords": "node supabase/scripts/reconciliar-claves-crm.mjs",
+     "test:reconcile:crm-passwords": "node --test supabase/scripts/reconciliar-claves-crm.test.mjs",
+     "test:edge-preflight": "node --test supabase/functions/crm-inversion-bienvenida/handler.test.mjs ../_supabase_functions/functions/crm-inversion-portal/handler.test.mjs ../_supabase_functions/functions/_shared/bancarios.test.mjs ../_supabase_functions/functions/_shared/alta-perfil-cuentas.test.mjs ../_supabase_functions/functions/_shared/domicilio.test.mjs ../_supabase_functions/functions/crm-convertir-lead/acceso.test.mjs ../_supabase_functions/functions/crm-convertir-lead/preflight.test.mjs ../_supabase_functions/functions/crm-convertir-lead/domicilio-atomico.test.mjs ../_supabase_functions/functions/crm-convertir-lead/tasa-preconversion.test.mjs ../_supabase_functions/functions/crear-cliente/autorizacion.test.mjs && deno check --node-modules-dir=auto --frozen ../_supabase_functions/functions/crm-inversion-portal/index.ts ../_supabase_functions/functions/crm-convertir-lead/index.ts ../_supabase_functions/functions/crear-cliente/index.ts supabase/functions/crm-inversion-bienvenida/index.ts supabase/functions/crm-tipo-cambio/index.ts supabase/functions/crm-tipo-cambio/handler.ts && deno test --node-modules-dir=auto --frozen supabase/functions/crm-tipo-cambio/handler.test.ts && npm run test:push-tasa",
+-    "test:importar-leads-edge": "deno test supabase/functions/crm-importar-leads/autorizacion-contacto.test.ts supabase/functions/crm-importar-leads/destinos.test.ts supabase/functions/crm-importar-leads/resultado-importacion.test.ts supabase/functions/crm-importar-leads/catalogo.test.ts",
++    "test:importar-leads-edge": "deno test --node-modules-dir=auto --frozen supabase/functions/crm-importar-leads/autorizacion-contacto.test.ts supabase/functions/crm-importar-leads/destinos.test.ts supabase/functions/crm-importar-leads/resultado-importacion.test.ts supabase/functions/crm-importar-leads/catalogo.test.ts supabase/functions/crm-importar-leads/campania.test.ts && deno test --node-modules-dir=auto --frozen --allow-env=CRM_IMPORTAR_SECRET,SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY supabase/functions/crm-importar-leads/handler.test.ts",
+     "test:puente": "node --test scripts/puente-drive-origen.test.mjs",
+     "test:gestion-diaria-typesafe": "node --check scripts/jev/cliente.mjs && node --check scripts/gestion-diaria-typesafe/piloto.mjs && node --check scripts/gestion-diaria-typesafe/banco/app.mjs && node --check scripts/gestion-diaria-typesafe/comparar.mjs && node --test scripts/gestion-diaria-typesafe/*.test.mjs",
+     "gestion-diaria:banco": "node scripts/gestion-diaria-typesafe/banco.mjs",
+diff --git a/CRM-Avance-Corp/supabase/scripts/test-rls.mjs b/CRM-Avance-Corp/supabase/scripts/test-rls.mjs
+index 2e782574..a761562e 100644
+--- a/CRM-Avance-Corp/supabase/scripts/test-rls.mjs
++++ b/CRM-Avance-Corp/supabase/scripts/test-rls.mjs
+@@ -9,6 +9,17 @@ import { execFileSync } from 'node:child_process';
+ import { fileURLToPath } from 'node:url';
+ import { readFileSync } from 'node:fs';
+ 
++// Cambio aditivo de campaña: matriz focalizada sobre banco local exclusivo.
++if (process.argv.length === 3 && process.argv[2] === '--formulario3-fase2') {
++  await import('./formulario3-fase2/rls.mjs');
++  process.exit(0);
++}
++
++if (process.argv.length === 3 && process.argv[2] === '--formulario3') {
++  await import('./formulario3-fase1/rls.mjs');
++  process.exit(0);
++}
++
+ // Regresión de las puertas de atención/venta y del offboarding con Auth real.
+ // El módulo cierra sus destinos al banco exclusivo autorizado de esta tarea.
+ if (process.argv.length === 3 && process.argv[2] === '--atencion-venta') {
+@@ -161,6 +172,8 @@ Gate RLS del CRM (solo branch/staging con seed-demo)
+ 
+ Uso:
+   node supabase/scripts/test-rls.mjs [--preflight] [--contratos | --identidad-d5 | --facturacion-nombres | --llamadas]
++  node supabase/scripts/test-rls.mjs --formulario3
++  node supabase/scripts/test-rls.mjs --formulario3-fase2
+ 
+ Opciones:
+   --preflight  Valida runtime, variables y matriz sin abrir conexiones.

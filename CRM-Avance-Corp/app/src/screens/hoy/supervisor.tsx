@@ -51,6 +51,7 @@ import { useColaAccionOperativa } from '@/data/use-cola-accion-operativa'
 import { textoConversionOperativa } from '@/lib/metricas-vendedores'
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { DesgloseMonedas } from '@/components/common/desglose-monedas'
+import { CoberturaCapitalAviso } from '@/components/common/cobertura-capital'
 import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
 
 // Tope de la cola del equipo: los primeros son la plata (colaDe ya ordena por
@@ -724,6 +725,7 @@ export function HoySupervisor(): JSX.Element {
               right={<span className="text-xs text-muted-foreground">contratos confirmados · este mes</span>}
             />
             <CardContent className="space-y-4 pb-5 pt-0">
+              {cumplimientoMensual?.valoracionCapital && <CoberturaCapitalAviso cobertura={cumplimientoMensual.valoracionCapital.cobertura} sellado={cumplimientoMensual.valoracionCapital.sellado} />}
               {filasMeta.map((f) => (
                 <div key={f.label}>
                   <div className="mb-1.5 flex items-baseline justify-between gap-2">

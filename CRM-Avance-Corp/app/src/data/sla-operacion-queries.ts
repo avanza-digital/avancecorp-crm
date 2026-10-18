@@ -4,7 +4,7 @@ import { crmQueryKeys } from './crm-queries'
 import { cambiarModoSla, publicarReglasSlaAprobadas, obtenerConfiguracionSlaV2, listarColaDia, obtenerEstadosSlaV2, obtenerResumenAvisosSla } from './sla-operacion-api'
 import { CrmApiError } from './crm-api'
 import type { CursorSla, FiltrosSla } from '@/lib/sla-operacion'
-import { intervaloReconsultaSla } from './sla-operacion-reloj'
+import { frescuraSla, intervaloReconsultaSla } from './sla-operacion-reloj'
 
 // Ambas lecturas heredan la invalidación existente de cada gestión, tarea y cambio de ámbito.
 export const slaOperacionKeys = {
@@ -21,12 +21,14 @@ export function useResumenAvisosSla(habilitada: boolean) {
   const { yo } = useAuth()
   return useQuery({ queryKey: slaOperacionKeys.avisos(yo?.id ?? null),
     queryFn: ({ signal }) => obtenerResumenAvisosSla(signal), enabled: Boolean(habilitada && yo && !yo.demo),
-    refetchInterval: (query) => intervaloReconsultaSla(query.state.error ? undefined : query.state.data, query.state.dataUpdatedAt), refetchOnWindowFocus: 'always', refetchOnReconnect: 'always' })
+    refetchInterval: (query) => intervaloReconsultaSla(query.state.error ? undefined : query.state.data, query.state.dataUpdatedAt),
+    staleTime: (query) => frescuraSla(query.state.data), refetchOnWindowFocus: true, refetchOnReconnect: 'always' })
 }
 export function useEstadosSlaV2(ids: string[]) {
   const { yo } = useAuth()
   return useQuery({ queryKey: slaOperacionKeys.estado(yo?.id ?? null, ids),
-    queryFn: ({ signal }) => obtenerEstadosSlaV2(ids, signal), enabled: Boolean(yo && !yo.demo), refetchInterval: (query) => intervaloReconsultaSla(query.state.error ? undefined : query.state.data, query.state.dataUpdatedAt), refetchOnWindowFocus: 'always', refetchOnReconnect: 'always' })
+    queryFn: ({ signal }) => obtenerEstadosSlaV2(ids, signal), enabled: Boolean(yo && !yo.demo), refetchInterval: (query) => intervaloReconsultaSla(query.state.error ? undefined : query.state.data, query.state.dataUpdatedAt),
+    staleTime: (query) => frescuraSla(query.state.data), refetchOnWindowFocus: true, refetchOnReconnect: 'always' })
 }
 export function useModoSla() {
   const { yo } = useAuth()
@@ -44,7 +46,8 @@ export function useColaDiaPagina(filtros: FiltrosSla, cursor: CursorSla | null, 
   const { yo } = useAuth()
   return useQuery({ queryKey: slaOperacionKeys.colaDia(yo?.id ?? null, filtros, cursor, limite),
     queryFn: ({ signal }) => listarColaDia(filtros, cursor, limite, signal), enabled: Boolean(habilitada && yo && !yo.demo),
-    refetchInterval: (query) => intervaloReconsultaSla(query.state.error ? undefined : query.state.data, query.state.dataUpdatedAt), refetchOnWindowFocus: 'always', refetchOnReconnect: 'always',
+    refetchInterval: (query) => intervaloReconsultaSla(query.state.error ? undefined : query.state.data, query.state.dataUpdatedAt),
+    staleTime: (query) => frescuraSla(query.state.data), refetchOnWindowFocus: true, refetchOnReconnect: 'always',
   })
 }
 

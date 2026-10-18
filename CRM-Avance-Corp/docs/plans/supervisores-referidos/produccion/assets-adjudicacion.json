@@ -1,0 +1,10 @@
+{
+  "resultado_js_css_html_version": "PASS",
+  "http_comprobados": 161,
+  "coinciden_binarios": 149,
+  "png_con_diferencia_binaria_previa": 12,
+  "png_fuente_identica_al_release_anterior": true,
+  "png_http_identicos_al_release_anterior": true,
+  "comparacion_binaria_total": "FAIL (12 PNG transformados por la entrega; mismos bytes servidos que antes)",
+  "evidencia_anterior": "../../supervisores-metas/produccion/assets-http.json"
+}

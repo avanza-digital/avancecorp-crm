@@ -12,16 +12,16 @@ export interface ConsultaAlertas {
 const INICIAL: ConsultaAlertas = { prioridad: 'todas', tipo: 'todos', busqueda: '', filtrosAbiertos: false }
 
 /** Vive en el proveedor de la sesión (key usuario/rol); sin almacenamiento de datos. */
-export function useConsultaAlertas(gerencia: boolean) {
+export function useConsultaAlertas(conservar: boolean) {
   const contexto = useConsultaGerencia()
   const [local, setLocal] = useState(INICIAL)
-  const consulta = gerencia && contexto ? (contexto.consulta.alertas ?? INICIAL) : local
+  const consulta = conservar && contexto ? (contexto.consulta.alertas ?? INICIAL) : local
   function cambiar<K extends keyof ConsultaAlertas>(campo: K, valor: SetStateAction<ConsultaAlertas[K]>) {
     const actualizar = (anterior: ConsultaAlertas): ConsultaAlertas => ({
       ...anterior,
       [campo]: typeof valor === 'function' ? valor(anterior[campo]) : valor,
     })
-    if (gerencia && contexto) contexto.setConsulta(anterior => ({ ...anterior, alertas: actualizar(anterior.alertas ?? INICIAL) }))
+    if (conservar && contexto) contexto.setConsulta(anterior => ({ ...anterior, alertas: actualizar(anterior.alertas ?? INICIAL) }))
     else setLocal(actualizar)
   }
   return { ...consulta, cambiar }

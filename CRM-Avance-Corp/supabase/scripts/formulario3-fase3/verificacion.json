@@ -1,0 +1,113 @@
+{
+  "fecha_utc": "2026-10-15T00:21:37.034036+00:00",
+  "fase": 3,
+  "decision_primary": "OBJETIVO_VALIDADO_SIN_PUBLICAR",
+  "sql_remoto": {
+    "estado": "PASS",
+    "comprobaciones": 98
+  },
+  "http_auth_real": {
+    "estado": "PASS",
+    "casos": 49
+  },
+  "conversion_http_storage": {
+    "estado": "PASS",
+    "casos": 6,
+    "nota": "Legacy repetido tras ejecución parcial; ver LEEME"
+  },
+  "ui_docker_real": {
+    "roles_validados": 4,
+    "primera_corrida": "3 PASS / 1 timeout",
+    "repeticion_directorio": "PASS"
+  },
+  "n8n_integrado": {
+    "estado": "PASS",
+    "ejecuciones": [
+      36,
+      37,
+      39,
+      41,
+      43,
+      44,
+      45,
+      46,
+      47,
+      49,
+      50
+    ],
+    "fallos_esperados": [
+      43,
+      45,
+      49
+    ]
+  },
+  "unitarias_n8n": {
+    "estado": "PASS",
+    "tests": 25
+  },
+  "comprobaciones_locales": {
+    "estado": "PASS",
+    "fuentes_producto_iguales": 44,
+    "json_validos": 27,
+    "mjs_sintaxis": 4,
+    "python_sintaxis": true,
+    "diff_check": "PASS",
+    "n8n_ajustes_y_estado": "PASS",
+    "patrones_privados_en_nueva_evidencia": "sin coincidencias"
+  },
+  "regresion_fase2": "6.700 tests, build y 9 E2E previos conservados; no reejecutados sin cambios de producto",
+  "reviews": [
+    {
+      "archivo": "revision-claude.txt",
+      "veredicto": "CHANGES_REQUESTED"
+    },
+    {
+      "archivo": "revision-cierre-claude.txt",
+      "veredicto": "CHANGES_REQUESTED"
+    }
+  ],
+  "resolucion_primary": "revision-resolucion.md",
+  "gate_realidad_original": "FAIL; complemento SQL documentado; reparar/enmendar antes de fase 4",
+  "not_run_remoto": [
+    "5xx/timeout específico",
+    "respuesta error_temporal del Edge desde n8n",
+    "Error Trigger por fallo del recibo",
+    "consulta SQL reconstruida al cierre",
+    "script conversión tras mejora solo de registro"
+  ],
+  "produccion": {
+    "workflow_activo": false,
+    "http_deshabilitado": true,
+    "envio_apagado": true,
+    "sin_publicar_campania": true,
+    "correccion_credencial": "Original restaurada tras cierre de pestañas; diff vacío y ajustes iguales. Ver cierre-credencial.json",
+    "versionId": "29940eb5-d36c-49c7-bf7f-686b66cc3f76"
+  },
+  "limpieza": "limpieza.json y limpieza-local.json; comprobar estado separado de la entrada de credencial",
+  "figma": {
+    "estado": "ACTUALIZADO_Y_REVISADO_VISUALMENTE",
+    "url": "https://www.figma.com/board/JB4jRdmLXZXS0hBhEHxRbV?node-id=2-34",
+    "mutatedNodeIds": [
+      "3:48",
+      "3:51",
+      "3:52",
+      "3:53",
+      "3:54",
+      "3:84",
+      "1:12"
+    ],
+    "limpieza_actualizada": true
+  },
+  "vault": {
+    "estado": "ACTUALIZADO_Y_VERIFICADO",
+    "notas": [
+      "Inicio.md",
+      "Formulario 3 - plan de integración en CRM y activación (2026-10-14).md",
+      "Formulario 3 - fase 3 integrada y validada sin publicar (2026-10-14).md"
+    ]
+  },
+  "higiene_interfaz": {
+    "estado": "COMPLETADA",
+    "evidencia": "cierre-credencial.json"
+  }
+}

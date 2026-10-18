@@ -1,7 +1,7 @@
 // Fuente única de capacidades por rol (patrón VITANOVA, 4 niveles).
 // NO es seguridad (eso vive en la RLS del esquema crm) — es la UX.
 // Regla de oro: lo que can() oculta, la RLS también lo niega.
-import type { InversionFuente } from './inversionistas'
+import { esVentaDeLead, type InversionFuente } from './inversionistas'
 
 /** Catálogo runtime de roles CRM — fuente única: el tipo `Rol` se deriva de aquí.
  * `coordinador` (C1, 2026-07-22) es OFF-ROSTER como `directorio`: existe como
@@ -119,15 +119,14 @@ export const CAPS: Record<Rol, Caps> = {
     verConfiguracion: true, editarConfiguracion: false,
     verReportes: true, editarMetas: false, editarCapacidad: false, soloLecturaTotal: true,
   },
-  // Coordinador: reparte la cola global y consulta Facturación/Ranking (12/10/2026).
-  // verTodo:false es CRÍTICO — su ámbito de leads es ∅ (espejo exacto de la RLS:
-  // private.vendedor_ids_visibles devuelve vacío para este rol). No tiene cartera
-  // ni cartera operativa. Los reportes usan una proyección mínima de nombres.
+  // Coordinación consulta los leads y clientes de toda la empresa (15/10/2026).
+  // La lectura global no concede gestión comercial: reparto y corrección de
+  // categoría tienen sus propias puertas, revalidadas por el servidor.
   coordinador: {
-    verTodo: false, verEquipo: false, filtrarPorVendedor: false,
+    verTodo: true, verEquipo: true, filtrarPorVendedor: true,
     altaDirectaCliente: false,
-    reasignar: false, repartirLeads: false, repartirCola: true, verCartera: false,
-    verPipeline: false, verLeads: false, verAgenda: false, verGestionEquipo: false,
+    reasignar: false, repartirLeads: false, repartirCola: true, verCartera: true,
+    verPipeline: false, verLeads: true, verAgenda: false, verGestionEquipo: false,
     verDerivacionesEquipo: false,
     verFacturacion: true, verRanking: true,
     verCitasEquipo: false,
@@ -155,9 +154,9 @@ export function can(rol: Rol | null | undefined, accion: Accion): boolean {
   return !!c[accion]
 }
 
-/** ¿El rol puede escribir en general? (directorio nunca) */
+/** Escritura comercial general. Coordinación usa capacidades específicas. */
 export function puedeEscribir(rol: Rol | null | undefined): boolean {
-  return !can(rol, 'soloLecturaTotal')
+  return rol !== 'coordinador' && !can(rol, 'soloLecturaTotal')
 }
 
 /** Identidad mínima para capacidades que cruzan la frontera Portal ↔ CRM. */
@@ -204,6 +203,47 @@ export function puedeEliminarContratos(identidad: IdentidadAdministrativa | null
  */
 export function puedeEliminarInversiones(identidad: IdentidadAdministrativa | null | undefined): boolean {
   return puedeEliminarContratos(identidad) || identidad?.rol === 'gerencia'
+}
+
+/**
+ * «Reemplazar inversión» (17/10/2026): una inversión de Avance la reemplaza un Admin/Superadmin del Portal; si es la
+ * venta de un lead, además Gerencia del CRM. Espejo de las puertas `crm.reemplazar_inversion_fn` y
+ * `crm.reemplazar_inversion_por_existente_fn`; el servidor vuelve a decidir siempre.
+ */
+export function puedeReemplazarInversion(
+  identidad: IdentidadAdministrativa | null | undefined,
+  inversion: Pick<InversionFuente, 'empresa' | 'lead_id' | 'es_inicial'>,
+): boolean {
+  if (inversion.empresa !== 'avance' || !puedeEliminarContratos(identidad)) return false
+  return !esVentaDeLead(inversion) || identidad?.rol === 'gerencia'
+}
+
+/**
+ * «Reemplazar inversión» de una COOPERATIVA (Fase 4, 18/10/2026): SOLO Gerencia del CRM. Toda inversión de cooperativa
+ * reemplazable es la venta inicial de un lead, y la venta de un lead solo la toca Gerencia (como «Eliminar inversión» de
+ * una venta vigente y «Reemplazar» de Avance; auditoría RLS, P1). Un admin del portal sin Gerencia, no. Espejo de
+ * `crm.reemplazar_inversion_cooperativa_fn` y su vista previa; el servidor vuelve a decidir siempre.
+ */
+export function puedeReemplazarInversionCooperativa(
+  identidad: IdentidadAdministrativa | null | undefined,
+  inversion: Pick<InversionFuente, 'empresa'>,
+): boolean {
+  return inversion.empresa !== 'avance' && identidad?.rol === 'gerencia'
+}
+
+/** Corrige Nuevo/Renovación/Upgrade de cualquier cliente por su puerta auditada. */
+export function puedeCorregirCategoriaInversion(identidad: IdentidadAdministrativa | null | undefined): boolean {
+  return identidad?.rol !== 'directorio' && (puedeEliminarContratos(identidad)
+    || identidad?.rol === 'gerencia' || identidad?.rol === 'coordinador')
+}
+
+/**
+ * «Eliminar lead (error de carga)» (14/10/2026): el mismo par que «Eliminar inversión»
+ * —Gerencia del CRM o Admin/Superadmin del Portal—. Espejo del gate de
+ * `crm.eliminar_lead_error_carga`; si el lead se puede borrar lo decide el servidor.
+ */
+export function puedeEliminarLeadErrorCarga(identidad: IdentidadAdministrativa | null | undefined): boolean {
+  return puedeEliminarInversiones(identidad)
 }
 
 /**

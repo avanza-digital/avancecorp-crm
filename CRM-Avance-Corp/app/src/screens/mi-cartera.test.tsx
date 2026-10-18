@@ -659,7 +659,9 @@ describe('MiCartera (pantalla)', () => {
     await user.click(screen.getByRole('button', { name: 'Registrar upgrade' }))
 
     expect(screen.getByRole('dialog', { name: 'Registrar upgrade de CLIENTE UNO' })).toBeInTheDocument()
-    expect(screen.getAllByText('Upgrade').length).toBeGreaterThan(0)
+    // Categoría fija: un campo de solo lectura asociado a su etiqueta (no un texto suelto).
+    expect(screen.getByLabelText('Categoría')).toHaveValue('Upgrade')
+    expect(screen.getByLabelText('Categoría')).toHaveAttribute('readonly')
     expect(screen.queryByRole('option', { name: 'Renovación' })).not.toBeInTheDocument()
   })
 

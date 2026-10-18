@@ -31,6 +31,7 @@ vi.mock('@/data/gestion-diaria-api', async (importActual) => ({
 }))
 import { crmQueryKeys } from '@/data/crm-queries'
 import { slaOperacionKeys } from '@/data/sla-operacion-queries'
+import { gestionDiariaKeys } from '@/data/gestion-diaria-queries'
 import { queryClient } from './query-client'
 
 vi.mock('sonner', () => ({
@@ -802,6 +803,39 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
       expect(montaje.api().lead(ID_A)).toBeUndefined()
     })
 
+    // «Eliminar lead (error de carga)»: `recargar()` conserva los leads conocidos (Fase 4e);
+    // el lead que el servidor ya borró se olvida, su ficha se cierra y se refrescan listas y cola.
+    it('olvidarLeadEliminado retira el lead borrado, cierra su ficha y refresca listas y la cola del día', async () => {
+      obtenerLeadPorId.mockResolvedValueOnce(filaA())
+      const montaje = montar()
+      await waitFor(() => expect(montaje.estado().cargando).toBe(false))
+      expect(await abrir(montaje, ID_A)).toBe(true)
+      expect(montaje.api().lead(ID_A)).toBeDefined()
+      invalidarQueriesMock.mockClear()
+
+      await act(async () => { expect(await montaje.api().olvidarLeadEliminado(ID_A)).toBe(true) })
+
+      expect(montaje.api().lead(ID_A)).toBeUndefined()
+      expect(montaje.api().ambito.leads.map((l) => l.id)).toEqual([leadBase().id])
+      expect(montaje.panelState().leadAbiertoId).toBeNull()
+      await waitFor(() => {
+        expect(invalidarQueriesMock).toHaveBeenCalledWith({ queryKey: crmQueryKeys.leads() })
+        expect(invalidarQueriesMock).toHaveBeenCalledWith({ queryKey: gestionDiariaKeys.raiz() })
+      })
+    })
+
+    it('olvidarLeadEliminado retira también un lead conocido que no está abierto (el resync lo conservaría)', async () => {
+      const montaje = montar()
+      await waitFor(() => expect(montaje.estado().cargando).toBe(false))
+      act(() => { montaje.api().conocerLeads([filaB()]) })
+      expect(montaje.api().lead(ID_B)).toBeDefined()
+
+      await act(async () => { expect(await montaje.api().olvidarLeadEliminado(ID_B)).toBe(true) })
+
+      expect(montaje.api().lead(ID_B)).toBeUndefined()
+      expect(montaje.api().ambito.leads.map((l) => l.id)).toEqual([leadBase().id])
+    })
+
     it('una revalidación lenta de A no borra B abierta mientras viajaba el resync', async () => {
       obtenerLeadPorId.mockResolvedValueOnce(filaA())
       const montaje = montar()
@@ -1067,6 +1101,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
   })
 
   it('Gerencia edita un lead de otro analista y persiste el cambio', async () => {
+    listarLeads.mockResolvedValueOnce([{ ...leadBase(), campania_origen: 'Formulario 3' }])
     const { api, mutar } = montar('gerencia')
     await waitFor(() => expect(api().leads).toHaveLength(1))
 
@@ -1075,6 +1110,8 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     expect(res).toMatchObject({ ok: true })
     expect(api().lead(leadBase().id)?.telefono).toBe('+51999111222')
     expect(editarLeadFn).toHaveBeenCalledWith(leadBase().id, expect.objectContaining({ telefono: '+51999111222' }))
+    expect(editarLeadFn.mock.calls[0]?.[1]).not.toHaveProperty('campania_origen')
+    expect(api().lead(leadBase().id)?.campania_origen).toBe('Formulario 3')
   })
 
   it('actividad y siguiente reunión viajan en un solo comando con los campos normalizados', async () => {
@@ -1234,6 +1271,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     expect(res.codigo).toBeUndefined() // NO 'fuente_no_habilitada'
     expect(insertarLead).toHaveBeenCalledTimes(1)
     expect(insertarLead).toHaveBeenCalledWith(expect.objectContaining({ monto_estimado: 5000, moneda: 'PEN' }))
+    expect(insertarLead.mock.calls[0]?.[0]).not.toHaveProperty('campania_origen')
     await expect(res.persistido).resolves.toEqual({ ok: true })
     await waitFor(() => expect(listarTareas).toHaveBeenCalledTimes(2)) // resync
     expect(invalidarQueriesMock).toHaveBeenCalledWith({

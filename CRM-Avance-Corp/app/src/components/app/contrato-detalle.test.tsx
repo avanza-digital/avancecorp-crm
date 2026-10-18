@@ -26,7 +26,7 @@ let CRONOGRAMA: Consulta<Cuota[] | null> = consulta([])
 let ATRIBUCION: AtribucionContrato | null = null
 let REFETCH_ATRIBUCION = vi.fn()
 let REFETCH_CONTRATO = vi.fn()
-const MUTACIONES = vi.hoisted(() => ({ reasignar: vi.fn() }))
+const MUTACIONES = vi.hoisted(() => ({ reasignar: vi.fn(), previa: vi.fn() }))
 
 function consulta<T>(data: T, error: unknown = null): Consulta<T> {
   return {
@@ -38,6 +38,8 @@ function consulta<T>(data: T, error: unknown = null): Consulta<T> {
     isFetching: false,
   }
 }
+
+vi.mock('@/data/cambio-responsabilidad-api', () => ({previsualizarResponsabilidad: MUTACIONES.previa, confirmarResponsabilidad: MUTACIONES.reasignar}))
 
 vi.mock('@/data/crm-api', async (importActual) => ({
   ...(await importActual<typeof import('@/data/crm-api')>()),
@@ -96,6 +98,7 @@ beforeEach(() => {
   REFETCH_ATRIBUCION = vi.fn()
   REFETCH_CONTRATO = vi.fn()
   MUTACIONES.reasignar.mockReset().mockResolvedValue(undefined)
+  MUTACIONES.previa.mockReset().mockResolvedValue({version: 'revision', accion: 'venta', id: 'k-1', destino: 'v-2', anterior_nombre: 'ANA UNO', destino_nombre: 'BRUNO DOS', aviso: 'El capital se conserva.', efectos: []})
 })
 
 function montar(
@@ -169,15 +172,16 @@ describe('ContratoDetalle · co-titulares', () => {
     })
     const invalidar = vi.spyOn(queryClient, 'invalidateQueries')
 
-    await user.click(screen.getByRole('button', { name: 'Reasignar' }))
+    await user.click(screen.getByRole('button', { name: 'Corregir dueño de la venta' }))
     await user.selectOptions(screen.getByLabelText('Pasa a'), 'v-2')
     await user.type(screen.getByLabelText('Motivo'), 'Corrección de atribución')
-    await user.click(screen.getByRole('button', { name: 'Reasignar' }))
+    await user.click(screen.getByRole('button', { name: 'Revisar efecto' }))
+    expect(MUTACIONES.reasignar).not.toHaveBeenCalled()
+    await user.click(await screen.findByRole('button', { name: 'Confirmar corrección de venta' }))
 
     await vi.waitFor(() => {
       expect(MUTACIONES.reasignar).toHaveBeenCalledWith(
-        'k-1',
-        'v-2',
+        expect.objectContaining({version: 'revision', id: 'k-1', destino: 'v-2'}),
         'Corrección de atribución',
       )
       expect(REFETCH_ATRIBUCION).toHaveBeenCalledOnce()

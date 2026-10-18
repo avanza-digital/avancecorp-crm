@@ -534,6 +534,10 @@ export function InversionNueva({actor, persona, operacion, origenLead, origenCli
     <ResumenRevision datos={base} />
     {solicitud?.identidad_fusionada && <p className="text-sm">La identidad fue unificada. Los antecedentes originales se conservan.</p>}
     <p className="text-sm">Responsable actual: {ficha.persona.responsable_nombre}</p>
+    <p className="text-sm font-semibold">Vendedor de esta inversión: {solicitud?.analista_cierre_id
+      ? solicitud.analista_cierre_id === actor ? 'Tú (venta cruzada)' : 'El analista fijado en la solicitud'
+      : solicitud?.responsable_actual_id === ficha.persona.responsable_id ? ficha.persona.responsable_nombre ?? 'Sin responsable' : 'Responsable actualizado; revisa la ficha antes de confirmar'}.</p>
+    <p className="text-xs text-muted-foreground">Confirma que el importe y el vendedor corresponden a esta venta. Registrar la inversión no cambia por sí solo a quién se atribuye.</p>
     {empresa !== 'avance' && <div className="space-y-2">{archivo
       ? <p className="text-sm font-medium">Comprobante PDF, JPG o PNG (hasta 10 MB)</p>
       : <Label htmlFor="f5-comprobante-revision">Comprobante PDF, JPG o PNG (hasta 10 MB)</Label>}

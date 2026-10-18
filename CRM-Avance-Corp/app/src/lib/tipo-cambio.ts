@@ -42,6 +42,16 @@ const TipoCambioSchema = v.object({
   fecha_corte: v.optional(v.string()),
 })
 
+/** Corte mensual legado para un rango que cruza la vigencia de octubre. */
+export async function consultarTipoCambioHistorico(fecha: string): Promise<TipoCambio> {
+  if (!sb) throw new Error('Tipo de cambio no disponible')
+  const { data, error } = await sb.functions.invoke('crm-tipo-cambio', { body: { fecha_corte: fecha } })
+  if (error) throw error
+  const resultado = v.safeParse(TipoCambioSchema, data)
+  if (!resultado.success || resultado.output.fecha_corte !== fecha) throw new Error('Cotización histórica fuera de contrato')
+  return resultado.output
+}
+
 /**
  * Motivo legible de un fallo de la edge. supabase-js envuelve un 4xx/5xx en
  * `FunctionsHttpError` con la `Response` en `context` y un mensaje genérico;

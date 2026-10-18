@@ -1,0 +1,153 @@
+{
+  "antes": 419,
+  "despues": 423,
+  "banco_final": "formulario3_fase2_20261014_review",
+  "nuevos": [
+    {
+      "name": "unused_index",
+      "title": "Unused Index",
+      "level": "INFO",
+      "facing": "EXTERNAL",
+      "categories": [
+        "PERFORMANCE"
+      ],
+      "description": "Detects if an index has never been used and may be a candidate for removal.",
+      "detail": "Index `actividades_cliente_cliente_fecha_idx` on table `crm.actividades_cliente` has not been used",
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index",
+      "metadata": {
+        "name": "actividades_cliente",
+        "type": "table",
+        "schema": "crm"
+      },
+      "cacheKey": "unused_index_crm_actividades_cliente_actividades_cliente_cliente_fecha_idx"
+    },
+    {
+      "name": "unused_index",
+      "title": "Unused Index",
+      "level": "INFO",
+      "facing": "EXTERNAL",
+      "categories": [
+        "PERFORMANCE"
+      ],
+      "description": "Detects if an index has never been used and may be a candidate for removal.",
+      "detail": "Index `conversion_reservas_inv_idx` on table `crm.conversion_reservas` has not been used",
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index",
+      "metadata": {
+        "name": "conversion_reservas",
+        "type": "table",
+        "schema": "crm"
+      },
+      "cacheKey": "unused_index_crm_conversion_reservas_conversion_reservas_inv_idx"
+    },
+    {
+      "name": "unused_index",
+      "title": "Unused Index",
+      "level": "INFO",
+      "facing": "EXTERNAL",
+      "categories": [
+        "PERFORMANCE"
+      ],
+      "description": "Detects if an index has never been used and may be a candidate for removal.",
+      "detail": "Index `idx_actividades_lead` on table `crm.actividades` has not been used",
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index",
+      "metadata": {
+        "name": "actividades",
+        "type": "table",
+        "schema": "crm"
+      },
+      "cacheKey": "unused_index_crm_actividades_idx_actividades_lead"
+    },
+    {
+      "name": "unused_index",
+      "title": "Unused Index",
+      "level": "INFO",
+      "facing": "EXTERNAL",
+      "categories": [
+        "PERFORMANCE"
+      ],
+      "description": "Detects if an index has never been used and may be a candidate for removal.",
+      "detail": "Index `inversionista_leads_inv_idx` on table `crm.inversionista_leads` has not been used",
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index",
+      "metadata": {
+        "name": "inversionista_leads",
+        "type": "table",
+        "schema": "crm"
+      },
+      "cacheKey": "unused_index_crm_inversionista_leads_inversionista_leads_inv_idx"
+    },
+    {
+      "name": "unused_index",
+      "title": "Unused Index",
+      "level": "INFO",
+      "facing": "EXTERNAL",
+      "categories": [
+        "PERFORMANCE"
+      ],
+      "description": "Detects if an index has never been used and may be a candidate for removal.",
+      "detail": "Index `tareas_perfil_idx` on table `crm.tareas` has not been used",
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index",
+      "metadata": {
+        "name": "tareas",
+        "type": "table",
+        "schema": "crm"
+      },
+      "cacheKey": "unused_index_crm_tareas_tareas_perfil_idx"
+    },
+    {
+      "name": "unused_index",
+      "title": "Unused Index",
+      "level": "INFO",
+      "facing": "EXTERNAL",
+      "categories": [
+        "PERFORMANCE"
+      ],
+      "description": "Detects if an index has never been used and may be a candidate for removal.",
+      "detail": "Index `tareas_reversion_gestion_idx` on table `crm.tareas` has not been used",
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index",
+      "metadata": {
+        "name": "tareas",
+        "type": "table",
+        "schema": "crm"
+      },
+      "cacheKey": "unused_index_crm_tareas_tareas_reversion_gestion_idx"
+    }
+  ],
+  "retirados": [
+    {
+      "name": "unused_index",
+      "title": "Unused Index",
+      "level": "INFO",
+      "facing": "EXTERNAL",
+      "categories": [
+        "PERFORMANCE"
+      ],
+      "description": "Detects if an index has never been used and may be a candidate for removal.",
+      "detail": "Index `actividades_contacto_episodio_idx` on table `crm.actividades` has not been used",
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index",
+      "metadata": {
+        "name": "actividades",
+        "type": "table",
+        "schema": "crm"
+      },
+      "cacheKey": "unused_index_crm_actividades_actividades_contacto_episodio_idx"
+    },
+    {
+      "name": "unused_index",
+      "title": "Unused Index",
+      "level": "INFO",
+      "facing": "EXTERNAL",
+      "categories": [
+        "PERFORMANCE"
+      ],
+      "description": "Detects if an index has never been used and may be a candidate for removal.",
+      "detail": "Index `actividades_reasignacion_historial_idx` on table `crm.actividades` has not been used",
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index",
+      "metadata": {
+        "name": "actividades",
+        "type": "table",
+        "schema": "crm"
+      },
+      "cacheKey": "unused_index_crm_actividades_actividades_reasignacion_historial_idx"
+    }
+  ]
+}

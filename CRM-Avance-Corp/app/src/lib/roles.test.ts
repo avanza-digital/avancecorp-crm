@@ -10,6 +10,7 @@ import {
   puedeEliminarContratos,
   puedeEliminarInversion,
   puedeEliminarInversiones,
+  puedeEliminarLeadErrorCarga,
   puedeEscribir,
   puedeOrganizarJerarquiaCrm,
   puedeVerDirectorioUsuariosCrm,
@@ -49,7 +50,7 @@ describe('capacidades por rol', () => {
     expect(can('coordinador', 'verAlertas')).toBe(false)
   })
 
-  it('acota al coordinador al reparto de la cola (C1): sin ámbito, sin cartera', () => {
+  it('Coordinación consulta toda la cartera y conserva su reparto específico', () => {
     // repartirCola ≠ repartirLeads: la primera es la COLA GLOBAL (coordinador),
     // la segunda es bajar de la bandeja al analista (supervisor).
     expect(can('coordinador', 'repartirCola')).toBe(true)
@@ -57,10 +58,10 @@ describe('capacidades por rol', () => {
     expect(can('supervisor', 'repartirCola')).toBe(false)
     expect(can('vendedor', 'repartirCola')).toBe(false)
     expect(can('directorio', 'repartirCola')).toBe(false)
-    // verTodo:false es el espejo exacto de la RLS (su ámbito de leads es ∅).
-    expect(can('coordinador', 'verTodo')).toBe(false)
-    expect(can('coordinador', 'verEquipo')).toBe(false)
-    expect(can('coordinador', 'verCartera')).toBe(false)
+    // El alcance global es de consulta; no concede reasignación ni altas.
+    expect(can('coordinador', 'verTodo')).toBe(true)
+    expect(can('coordinador', 'verEquipo')).toBe(true)
+    expect(can('coordinador', 'verCartera')).toBe(true)
     expect(can('coordinador', 'reasignar')).toBe(false)
     expect(can('coordinador', 'repartirLeads')).toBe(false)
     // Los roles operativos y de auditoría conservan la cartera unificada.
@@ -141,7 +142,7 @@ describe('capacidades por rol', () => {
     expect(ROLES.filter((rol) => CAPS[rol].tomarLeadDirecto)).toEqual(['vendedor'])
   })
 
-  it('Facturación añade la lectura de Coordinación sin abrir su cartera', () => {
+  it('Facturación conserva la lectura de Coordinación', () => {
     // Directorio desde el 08/10/2026 (Miguel: «sí, que la vea»): el servidor ya
     // le abría la empresa entera por ser lector global.
     expect(ROLES.filter((rol) => CAPS[rol].verFacturacion)).toEqual(['supervisor', 'gerencia', 'directorio', 'coordinador'])
@@ -153,11 +154,11 @@ describe('capacidades por rol', () => {
 
   it('Coordinación consulta Ranking sin adquirir escrituras ni perder el reparto', () => {
     expect(ROLES.filter((rol) => CAPS[rol].verRanking)).toEqual(['gerencia', 'coordinador'])
-    for (const accion of ['verTodo', 'verCartera', 'verLeads', 'editarMetas', 'editarCapacidad', 'editarConfiguracion', 'soloLecturaTotal'] as const) {
+    for (const accion of ['editarMetas', 'editarCapacidad', 'editarConfiguracion', 'soloLecturaTotal'] as const) {
       expect(can('coordinador', accion)).toBe(false)
     }
     expect(can('coordinador', 'repartirCola')).toBe(true)
-    expect(puedeEscribir('coordinador')).toBe(true)
+    expect(puedeEscribir('coordinador')).toBe(false)
   })
 
   it('reserva Citas a Gerencia y Supervisión; el servidor reduce al equipo', () => {
@@ -210,6 +211,20 @@ describe('capacidades administrativas Portal ↔ CRM', () => {
     expect(puedeEliminarInversion(identidad, { empresa: 'avance' })).toBe(avance)
     expect(puedeEliminarInversion(identidad, { empresa: 'qorilazo' })).toBe(cooperativa)
     expect(puedeEliminarInversion(identidad, { empresa: 'prodelco' })).toBe(cooperativa)
+  })
+
+  // «Eliminar lead (error de carga)» (14/10/2026): espejo del gate de crm.eliminar_lead_error_carga.
+  it.each([
+    ['gerencia', { rol: 'gerencia' as const, rol_portal: 'directorio' }, true],
+    ['admin del portal', { rol: 'directorio' as const, rol_portal: 'admin' }, true],
+    ['superadmin del portal', { rol: 'vendedor' as const, rol_portal: 'superadmin' }, true],
+    ['analista', { rol: 'vendedor' as const, rol_portal: 'analista' }, false],
+    ['supervisor', { rol: 'supervisor' as const, rol_portal: 'comercial' }, false],
+    ['coordinador', { rol: 'coordinador' as const, rol_portal: 'comercial' }, false],
+    ['directorio', { rol: 'directorio' as const, rol_portal: 'directorio' }, false],
+    ['sin identidad', null, false],
+  ])('eliminar un lead por error de carga · %s: %s', (_, identidad, esperado) => {
+    expect(puedeEliminarLeadErrorCarga(identidad)).toBe(esperado)
   })
 
   it('Gerencia administra personas y jerarquía, pero no roles', () => {

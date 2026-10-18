@@ -3,17 +3,10 @@ import { irAModulo } from './_navegacion'
 // no existía ninguna prueba end-to-end). Verifica el recorrido real: login
 // demo → panel Hoy → navegación → ficha de lead (incluido el manejo por
 // TECLADO y el focus-trap del drawer, arreglos de esta misma auditoría).
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
+import { entrarDemo } from './_helpers'
 
 const ROLES = ['Analista', 'Supervisor', 'Gerencia', 'Directorio'] as const
-
-async function entrarDemo(page: Page, rol: (typeof ROLES)[number]): Promise<void> {
-  await page.goto('/')
-  await page.getByRole('button', { name: /explorar en modo demo/i }).click()
-  await page.getByRole('button', { name: new RegExp(`^${rol}`) }).click()
-  // El workspace queda listo cuando aparece la navegación lateral.
-  await expect(page.locator('aside').getByRole('navigation').getByRole('button', { name: rol === 'Gerencia' ? 'Resumen' : 'Hoy', exact: true })).toBeVisible()
-}
 
 for (const rol of ROLES) {
   test(`${rol}: entra a la demo, ve su panel principal y navega el pipeline`, async ({ page }) => {
@@ -35,10 +28,13 @@ for (const rol of ROLES) {
   })
 }
 
-test('Supervisor: abre Derivar leads desde el KPI compacto de HOY por teclado', async ({ page }) => {
+test('Supervisor: abre Derivar leads desde el aviso de reparto de HOY por teclado', async ({ page }) => {
   await entrarDemo(page, 'Supervisor')
 
-  const reparto = page.getByRole('link', { name: 'Repartir 2 leads pendientes' })
+  const aviso = page.getByRole('region', { name: 'Leads por repartir' })
+  await expect(aviso).toContainText('2 leads por repartir')
+  await expect(aviso).toContainText('Por asignar')
+  const reparto = aviso.getByRole('link', { name: 'Repartir leads', exact: true })
   await expect(reparto).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Por repartir — tu bandeja' })).toHaveCount(0)
 

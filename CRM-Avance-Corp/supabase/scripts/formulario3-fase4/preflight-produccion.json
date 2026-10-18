@@ -1,0 +1,82 @@
+{
+  "momento": "2026-10-15T00:43:19.229459+00:00",
+  "version": "PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-bit",
+  "funciones": [
+    {
+      "firma": "crm.cartera_pagina_fn(integer,timestamp with time zone,uuid,text,uuid,boolean,text)",
+      "cuerpo": "7a1eb4200109bed50da469159002f616",
+      "permisos": "{postgres=X/postgres,authenticated=X/postgres}",
+      "definicion": "4bbfd838ef6665f3bdad4603fa400e65"
+    },
+    {
+      "firma": "crm.cierres_estado_fn(uuid[])",
+      "cuerpo": "de315a8a3b33c77797269eee51e84c9a",
+      "permisos": "{postgres=X/postgres,authenticated=X/postgres}",
+      "definicion": "5f6eca13b613aaa40b459ea56f7c8ac5"
+    },
+    {
+      "firma": "crm.importar_lead_fn(jsonb)",
+      "cuerpo": "261411a75326cbe78220d3ef1a61a7cd",
+      "permisos": "{postgres=X/postgres,service_role=X/postgres}",
+      "definicion": "0518b2643f258ca458d3a6acc492a7bf"
+    },
+    {
+      "firma": "crm.registrar_reingreso_lead_fn(uuid,text,jsonb)",
+      "cuerpo": "2875987459d47958333637736c057ffb",
+      "permisos": "{postgres=X/postgres,service_role=X/postgres}",
+      "definicion": "c3c4ab696ba6f3e30895cae1a9a27b77"
+    },
+    {
+      "firma": "private.registrar_solicitud_cliente_fn(uuid,text,jsonb)",
+      "cuerpo": "38cc98b993d92b10816c95a479994d20",
+      "permisos": "{postgres=X/postgres}",
+      "definicion": "23c2b6216684ac77801e39af5efe4b7c"
+    },
+    {
+      "firma": "crm.resumen_cartera_fn()",
+      "cuerpo": "60e64060c1d620bf04ce93b0d263bac9",
+      "permisos": "{postgres=X/postgres,authenticated=X/postgres}",
+      "definicion": "4a896597486e8b23788a2b2497f16309"
+    },
+    {
+      "firma": "crm.cartera_filtrada_fn(integer,timestamp with time zone,uuid,text,uuid,boolean,text,date,date,text,text,boolean,text,text)",
+      "cuerpo": "648b178531c414644f4da2ee7051661e",
+      "permisos": "{postgres=X/postgres,authenticated=X/postgres}",
+      "definicion": "23a63cc3965472b9db85aa81cadffbeb"
+    }
+  ],
+  "migraciones": [
+    {
+      "name": "crm_conversion_adicional_renovacion",
+      "version": "20261014185718"
+    },
+    {
+      "name": "crm_sla_agrupar_tareas_por_lead",
+      "version": "20261014013830"
+    },
+    {
+      "name": "crm_f7_redeclarar_huella_metricas_cartera",
+      "version": "20261014013757"
+    },
+    {
+      "name": "crm_atencion_venta_hardening",
+      "version": "20261013193653"
+    },
+    {
+      "name": "crm_atencion_venta_separadas",
+      "version": "20261013192850"
+    },
+    {
+      "name": "crm_facturacion_nombres_coordinacion",
+      "version": "20261013171002"
+    },
+    {
+      "name": "crm_llamadas_celular_operacion_hoy_rendimiento",
+      "version": "20261013145935"
+    },
+    {
+      "name": "crm_realizacion_cuenta_anticipada",
+      "version": "20261013145852"
+    }
+  ]
+}

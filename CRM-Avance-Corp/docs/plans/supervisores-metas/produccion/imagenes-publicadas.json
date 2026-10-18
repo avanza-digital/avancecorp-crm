@@ -1,0 +1,211 @@
+{
+  "imagenes": [
+    {
+      "ruta": "aliados/clinica-alvarez.png",
+      "dimensiones": [
+        852,
+        368
+      ],
+      "misma_dimension": true,
+      "pixeles_distintos": 0,
+      "visibles_distintos": 0,
+      "alpha_distinto": 0,
+      "max_delta_visible": 0,
+      "sin_cambios_desde_release_anterior": true,
+      "dimensiones_servidas": [
+        852,
+        368
+      ]
+    },
+    {
+      "ruta": "aliados/prodelco.png",
+      "dimensiones": [
+        1187,
+        267
+      ],
+      "misma_dimension": true,
+      "pixeles_distintos": 0,
+      "visibles_distintos": 0,
+      "alpha_distinto": 0,
+      "max_delta_visible": 0,
+      "sin_cambios_desde_release_anterior": true,
+      "dimensiones_servidas": [
+        1187,
+        267
+      ]
+    },
+    {
+      "ruta": "aliados/mascapital.png",
+      "dimensiones": [
+        3508,
+        3253
+      ],
+      "misma_dimension": false,
+      "pixeles_distintos": 0,
+      "visibles_distintos": 0,
+      "alpha_distinto": 0,
+      "max_delta_visible": 0,
+      "sin_cambios_desde_release_anterior": true,
+      "dimensiones_servidas": [
+        1600,
+        1484
+      ]
+    },
+    {
+      "ruta": "aliados/ntc-agency.png",
+      "dimensiones": [
+        3508,
+        3253
+      ],
+      "misma_dimension": false,
+      "pixeles_distintos": 0,
+      "visibles_distintos": 0,
+      "alpha_distinto": 0,
+      "max_delta_visible": 0,
+      "sin_cambios_desde_release_anterior": true,
+      "dimensiones_servidas": [
+        1600,
+        1484
+      ]
+    },
+    {
+      "ruta": "aliados/phoenix.png",
+      "dimensiones": [
+        3508,
+        3253
+      ],
+      "misma_dimension": false,
+      "pixeles_distintos": 0,
+      "visibles_distintos": 0,
+      "alpha_distinto": 0,
+      "max_delta_visible": 0,
+      "sin_cambios_desde_release_anterior": true,
+      "dimensiones_servidas": [
+        1600,
+        1484
+      ]
+    },
+    {
+      "ruta": "aliados/belysh.png",
+      "dimensiones": [
+        3508,
+        3253
+      ],
+      "misma_dimension": false,
+      "pixeles_distintos": 0,
+      "visibles_distintos": 0,
+      "alpha_distinto": 0,
+      "max_delta_visible": 0,
+      "sin_cambios_desde_release_anterior": true,
+      "dimensiones_servidas": [
+        1600,
+        1484
+      ]
+    },
+    {
+      "ruta": "aliados/qorilazo.png",
+      "dimensiones": [
+        3508,
+        3253
+      ],
+      "misma_dimension": false,
+      "pixeles_distintos": 0,
+      "visibles_distintos": 0,
+      "alpha_distinto": 0,
+      "max_delta_visible": 0,
+      "sin_cambios_desde_release_anterior": true,
+      "dimensiones_servidas": [
+        1600,
+        1484
+      ]
+    },
+    {
+      "ruta": "brand/avance-icon-192.png",
+      "dimensiones": [
+        192,
+        192
+      ],
+      "misma_dimension": true,
+      "pixeles_distintos": 0,
+      "visibles_distintos": 0,
+      "alpha_distinto": 0,
+      "max_delta_visible": 0,
+      "sin_cambios_desde_release_anterior": true,
+      "dimensiones_servidas": [
+        192,
+        192
+      ]
+    },
+    {
+      "ruta": "brand/avance-icon-512.png",
+      "dimensiones": [
+        512,
+        512
+      ],
+      "misma_dimension": true,
+      "pixeles_distintos": 0,
+      "visibles_distintos": 0,
+      "alpha_distinto": 0,
+      "max_delta_visible": 0,
+      "sin_cambios_desde_release_anterior": true,
+      "dimensiones_servidas": [
+        512,
+        512
+      ]
+    },
+    {
+      "ruta": "brand/avance-icon.png",
+      "dimensiones": [
+        512,
+        512
+      ],
+      "misma_dimension": true,
+      "pixeles_distintos": 0,
+      "visibles_distintos": 0,
+      "alpha_distinto": 0,
+      "max_delta_visible": 0,
+      "sin_cambios_desde_release_anterior": true,
+      "dimensiones_servidas": [
+        512,
+        512
+      ]
+    },
+    {
+      "ruta": "brand/avance-logo-full.png",
+      "dimensiones": [
+        1200,
+        1200
+      ],
+      "misma_dimension": true,
+      "pixeles_distintos": 0,
+      "visibles_distintos": 0,
+      "alpha_distinto": 0,
+      "max_delta_visible": 0,
+      "sin_cambios_desde_release_anterior": true,
+      "dimensiones_servidas": [
+        1200,
+        1200
+      ]
+    },
+    {
+      "ruta": "contrato/fondo-corporativo.png",
+      "dimensiones": [
+        1449,
+        2048
+      ],
+      "misma_dimension": true,
+      "pixeles_distintos": 0,
+      "visibles_distintos": 0,
+      "alpha_distinto": 0,
+      "max_delta_visible": 0,
+      "sin_cambios_desde_release_anterior": true,
+      "dimensiones_servidas": [
+        1449,
+        2048
+      ]
+    }
+  ],
+  "sin_cambios_en_esta_publicacion": true,
+  "rgba_exactas": 7,
+  "redimensionadas_por_capa_de_entrega": 5
+}

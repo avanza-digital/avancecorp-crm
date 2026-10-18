@@ -1,0 +1,102 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+La migración es aditiva y la ACL está razonada. La conversión de UPDATE de tabla a UPDATE por columnas es correcta. El REVOKE de tabla también revoca los privilegios de columna, pero `v_columnas` se calcula antes, y el postflight falla cerrado si queda un grant de otro grantor. El contrato legacy e idempotencia se conserva: la clave ausente no altera `v_datos` ni la huella md5. El fix `v_lead` → `v_lead_vivo` es coherente entre la búsqueda de idempotencia y la escritura.
+
+No encontré P0 ni P1 demostrados. Hay riesgos accionables, algunos como hipótesis que el PRIMARY puede confirmar con evidencia del repo:
+
+- el CHECK acopla campaña y canal;
+- faltan garantías de que `CREATE OR REPLACE` conserve `proconfig`;
+- hay escritores DEFINER que podrían copiar filas;
+- importa el orden de despliegue;
+- falta ejecutar el gate RLS.
+
+FINDINGS:
+
+[P2] El CHECK vuelve a acoplar campaña y canal: puede romper ediciones legítimas de `origen`
+File: supabase/migrations/20261014210146_crm_formulario3_campania_origen.sql
+Lines: 74-82
+Problem: `campania_origen='Formulario 3'` exige `origen='formulario'` para siempre, no solo al nacer. Cualquier UPDATE posterior de `origen` sobre ese lead falla con 23514. Esto afecta a un comercial vía PATCH si `origen` está entre las columnas con UPDATE para authenticated, y a una puerta DEFINER de reclasificación, conversión o renovación.
+Evidence: El objetivo declarado es "campaña separada de canal". El edge (`campania.ts:21-26`) y `normalizar_campania_origen` (líneas 62-67) ya validan la combinación al alta. El CHECK añade una restricción permanente sobre filas vivas. Es una hipótesis: la evidencia no muestra si `origen` figura en las columnas UPDATE capturadas (hash 996cd…) ni qué funciones lo modifican.
+Impact: Error opaco 23514 en una edición comercial o en un flujo de servidor que hoy funciona. Rompe el principio "no cambiar reparto/conversión" si algún flujo reetiqueta el canal.
+Recommendation: Verificar con `has_column_privilege('authenticated','crm.leads','origen','UPDATE')` y localizar en CodeGraph o grep los `update crm.leads set ... origen`.
+- Si existe esa ruta, hay dos opciones: limitar el CHECK a forma (trim, 1–80, sin controles, canónico) y dejar la regla canal↔campaña solo en la puerta, o validarla en un trigger solo en INSERT.
+- Si se mantiene el CHECK, documentar la decisión y añadir un test que cambie `origen` en un lead con Formulario 3.
+
+[P2] El trigger rechaza INSERT con campaña en cualquier ruta DEFINER con sesión humana, incluidas copias de fila
+File: supabase/migrations/20261014210146_crm_formulario3_campania_origen.sql
+Lines: 86-100
+Problem: `proteger_campania_lead` lanza 42501 en cualquier INSERT con `campania_origen` no nulo cuando `auth.uid()` no es nulo. Una función DEFINER invocada por un humano que cree un lead copiando otro lead quedaría bloqueada si el original tiene campaña. Ejemplos: rescate o reapertura de descartados, fusión, `insert ... select`, `jsonb_populate_record(to_jsonb(l))`.
+Evidence: Es una hipótesis. El repo tiene flujos de rescate y reapertura (git status: `propuesta-centro-rescate-descartados.html`, `propuesta-carpeta-rescate.html`) y `crm.crear_lead_si_disponible`. La evidencia no incluye un inventario de escritores de `crm.leads`. `permisos.sql:53-60` solo prueba UPDATE.
+Impact: Un flujo comercial existente fallaría solo para leads de Formulario 3, sin que ningún test lo detecte hoy.
+Recommendation: Hacer un inventario de funciones con `INSERT INTO crm.leads` o `UPDATE crm.leads` mediante `pg_proc` y `prosrc ilike '%crm.leads%'`, y adjuntar el resultado. Si alguna copia filas, decidir explícitamente si hereda la campaña, solo bajo servidor, o la anula. Añadir un caso de prueba con un lead que lleve campaña por cada flujo humano que crea leads.
+
+[P2] El preflight y el postflight no verifican `proconfig`, `prosecdef`, owner ni ACL de las tres puertas
+File: supabase/migrations/20261014210146_crm_formulario3_campania_origen.sql
+Lines: 7-24, 102-108, 321-326, 362-368, 483-495
+Problem: El preflight compara solo `md5(prosrc)`. `CREATE OR REPLACE` sustituye las cláusulas `SET` por las que se escriben. `registrar_reingreso_lead_fn` se redefine sin `SET lock_timeout`, mientras que las otras dos sí lo llevan. Si la versión viva tenía `lock_timeout` u otro `SET` en `proconfig`, se pierde en silencio, porque el md5 de `prosrc` no lo cubre. El comentario de la línea 483 afirma que se preservan owner y ACL, pero ninguna aserción lo comprueba.
+Evidence: `permisos.sql:21-22` comprueba EXECUTE de `importar_lead_fn` y de `registrar_solicitud_cliente_fn`, pero no de `crm.registrar_reingreso_lead_fn`. Tampoco revisa `proconfig` ni `prosecdef`.
+Impact: Regresión silenciosa de timeouts y candados, o pérdida o ampliación de EXECUTE sin detección.
+Recommendation:
+- Incluir en el preflight `md5(prosrc || coalesce(proconfig::text,'') || prosecdef::text || proowner::regrole::text || coalesce(proacl::text,''))`, con el baseline vivo.
+- En el postflight, exigir que `proconfig`, `prosecdef`, `proowner` y `proacl` sigan iguales.
+- Añadir a `permisos.sql` la comprobación de que authenticated y anon no tienen EXECUTE sobre `crm.registrar_reingreso_lead_fn(uuid,text,jsonb)`, y de que service_role sí lo conserva.
+
+[P2] Orden de despliegue: un edge nuevo sobre el SQL viejo pierde la campaña en silencio
+File: supabase/functions/crm-importar-leads/handler.ts
+Lines: 424, 495-499
+Problem: Si el edge se publica antes que la migración, o la migración se revierte, el `importar_lead_fn` vivo ignora `p_fila->'campania_origen'`. La fila queda "IMPORTADO ✓" sin campaña ni error.
+Evidence: El cuerpo previo de la puerta, con baseline 2611…, no lee esa clave. El handler no tiene una señal de versión.
+Impact: Leads de Formulario 3 sin atribución y sin posibilidad de reconstruirla, sobre todo con n8n reactivado.
+Recommendation: Documentar en LEEME y en MIGRACIONES.md el orden obligatorio: migración, verificación, edge y por último n8n. Como opción barata, que la puerta devuelva `campania_origen` en la respuesta de `importado` y que el edge marque error temporal si la envió y no vuelve.
+
+[P3] `normalizar_campania_origen` concede EXECUTE a service_role sin necesitarlo
+File: supabase/migrations/20261014210146_crm_formulario3_campania_origen.sql
+Lines: 71-72
+Problem: La única llamante es `importar_lead_fn`, que es DEFINER con owner postgres. El grant a service_role amplía la superficie sin uso. Además es incoherente con la línea 98, que revoca a service_role el EXECUTE del trigger.
+Recommendation: Revocar a service_role, o justificarlo en el ledger según la checklist punto 4.
+
+[P3] Paridad de controles entre edge y SQL, y etiquetas parecidas
+File: campania.ts:14 y migración:59, 78
+Problem: El edge rechaza U+0080–U+009F. `[[:cntrl:]]` en PostgreSQL depende de `LC_CTYPE` y de la colación, y con algunas colaciones no clasifica C1 como control. Ninguna capa normaliza a NFC ni trata NBSP (U+00A0) o espacios Unicode: "Formulario\u00A03" o "Campaña" en NFD serían campañas distintas. Hoy el edge es más estricto que el SQL, así que no hay riesgo inmediato.
+Impact: Las etiquetas fragmentadas afectarán al filtro de fase 2.
+Recommendation: Probar `normalizar_campania_origen('"x\u0085y"')` en el banco con la colación real. Valorar aplicar NFC y rechazar espacios no ASCII antes de fase 2.
+
+[P3] Idempotencia en la transición de despliegue
+File: migración, líneas 247-255
+Problem: Los reingresos escritos antes del fix sobre el lead cerrado (`v_lead`) no los encuentra la nueva búsqueda por `v_lead_vivo`. Un reenvío de la misma fila en los 7 días siguientes al despliegue genera una nota en la ficha viva.
+Impact: Bajo, y discutiblemente deseable porque la nota original estaba mal ubicada. Conviene declararlo.
+Recommendation: Mencionarlo en el ledger. No requiere código.
+
+TEST GAPS:
+- `test-rls.mjs --formulario3` no se ha ejecutado. Es el gate obligatorio y no puede darse por cubierto con `permisos.sql`.
+- `contrato.sql`: desde la línea 24 (`reset role`) casi todas las aserciones corren como postgres, no como service_role. El efecto interno es equivalente por ser DEFINER, pero no se prueba el EXECUTE real de service_role en los caminos de duplicado, reingreso y solicitud. Conviene envolverlos en `set local role service_role`.
+- Falta un test de UPDATE de `origen` sobre un lead con Formulario 3, por P2 #1.
+- Falta un test de los flujos humanos que crean o actualizan leads con un lead que ya tiene campaña, por P2 #2.
+- Falta comprobar EXECUTE de `registrar_reingreso_lead_fn` y `proconfig` de las tres puertas, por P2 #3.
+- Falta un test de que service_role por PATCH directo puede escribir campaña. Si se acepta, documentarlo, porque contradice "nunca se sobrescribe" en el sentido estricto.
+- Las fixtures de ACL existentes (`gestion-diaria-cola/fixtures/acl.json`, modificada en el árbol) podrían fijar el UPDATE de tabla de authenticated sobre `crm.leads` y romperse con el cambio. Es una hipótesis: ejecutar `check:scripts` completo.
+- Las 35 aserciones, los 40 tests unitarios, el handler y `deno check` se reportan como PASS. Solo veo la salida declarada, no logs.
+
+ARCHITECTURE RISKS:
+- A partir de esta migración, `crm.leads` deja de tener UPDATE de tabla para authenticated. Toda columna futura nace sin UPDATE humano. Es coherente con la falla conocida de grants por columna, pero cambia el contrato para otras ramas abiertas que asuman UPDATE de tabla. Hay que dejarlo explícito en MIGRACIONES.md y en la checklist del auditor.
+- Hay una regla de negocio duplicada en edge, función y CHECK. Mantenerla en tres sitios aumenta la probabilidad de deriva.
+
+SECURITY RISKS:
+- No veo escalada. Authenticated no tiene INSERT ni UPDATE sobre la columna, con postflight que lo confirma. El trigger cubre DEFINER con sesión humana. Las puertas mantienen `search_path=''` y el gate `auth.uid()`. El helper de solicitud sigue privado. No se toca ningún objeto de `public`; solo se lee `public.perfiles` dentro de la puerta, como antes.
+- El riesgo residual es que service_role puede escribir cualquier campaña directamente, solo limitada por el CHECK. Es aceptable por modelo de confianza, pero debe documentarse.
+
+REGRESSION RISKS:
+- Ediciones de `origen` (P2 #1), copias de leads (P2 #2), `proconfig` de las puertas (P2 #3) y fixtures de ACL de otros scripts.
+- ADD COLUMN y ADD CONSTRAINT toman ACCESS EXCLUSIVE sobre `crm.leads`. Con `lock_timeout` de 5s fallan limpio, pero conviene aplicar en una ventana sin el importador activo, que de hecho está detenido.
+
+RECOMMENDED NEXT ACTIONS:
+1. Ejecutar `npm run test:rls -- --formulario3` y `check:scripts` completo, y adjuntar las salidas.
+2. Adjuntar `has_column_privilege(...,'origen','UPDATE')` y el inventario de funciones que escriben en `crm.leads`. Según el resultado, relajar el CHECK a forma o añadir tests de ruta.
+3. Ampliar preflight y postflight con `proconfig`, `prosecdef`, owner y ACL de las tres puertas. Añadir la aserción de EXECUTE de `registrar_reingreso_lead_fn` en `permisos.sql`.
+4. Registrar en MIGRACIONES.md una fila con estado honesto: no aplicada, gate pendiente, orden SQL→edge→n8n y cambio de UPDATE de tabla a columnas. No vi la fila del ledger en la evidencia.
+5. Opcional: retirar el grant a service_role en `normalizar_campania_origen` y probar C1 con la colación real.
+
+CONFIDENCE:
+MEDIUM. El análisis de ACL, idempotencia y contrato legacy tiene confianza alta. P2 #1 y #2 son hipótesis que dependen de evidencia no adjunta: columnas UPDATE vigentes e inventario de escritores. El gate RLS sigue sin ejecutarse.

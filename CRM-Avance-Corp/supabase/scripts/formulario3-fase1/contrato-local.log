@@ -1,0 +1,27 @@
+BEGIN
+DO
+INSERT 0 4
+INSERT 0 2
+ set_config 
+------------
+ on
+(1 row)
+
+INSERT 0 7
+INSERT 0 7
+INSERT 0 7
+ set_config 
+------------
+ off
+(1 row)
+
+CREATE TABLE
+CREATE FUNCTION
+CREATE FUNCTION
+DO
+ comprobaciones_aprobadas 
+--------------------------
+                       36
+(1 row)
+
+ROLLBACK

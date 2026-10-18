@@ -6,6 +6,7 @@ import { totalEnSoles } from '@/lib/capital-unificado'
 import { money, numero, porcentajeConversionCanonica } from '@/lib/format'
 import type { RankingCapitalTotalVendedores } from '@/lib/conversion-vendedores'
 import type { RankingOrigenVendedor } from '@/lib/ranking-origen'
+import { fechaCorteCapital, type CapitalOperaciones } from '@/lib/capital-valorado'
 import { etiquetaOrigen } from '@/lib/tipos'
 
 type FilaCapital = RankingCapitalTotalVendedores['conPuesto'][number]
@@ -152,7 +153,34 @@ export function BotonDetalleRanking({ id, nombre, equipo, variante, onAbrir }: {
   )
 }
 
-export function DetalleCapitalRanking({ abierto, fila, periodo, tc, fuenteTc, cargando, error, origenes, origenesCargando, origenesError, onReintentarOrigenes, onCerrar, onReintentar, onAbrirConversiones }: {
+function OperacionesValoradas({ datos, total, cargando, reintentar }: {
+  datos: CapitalOperaciones | undefined; total: number; cargando: boolean; reintentar?: (() => void) | undefined
+}) {
+  if (cargando) return <p role="status" className="text-xs">Cargando ventas del mismo corte…</p>
+  const completo = datos?.valoracion_activa === true
+    && Math.round(datos.total_pen * 100) === Math.round(total * 100)
+    && datos.operaciones.reduce((suma, operacion) => suma + Math.round(operacion.equivalente_pen * 100), 0) === Math.round(total * 100)
+  if (!completo || !datos?.valoracion_activa) return (
+    <div className="space-y-2 text-xs"><p role="status">El detalle del mismo corte no está disponible todavía.</p>
+      {reintentar && <Button variant="outline" size="sm" onClick={reintentar}>Reintentar detalle</Button>}
+    </div>
+  )
+  return (
+    <section aria-label="Ventas con tipo de cambio fijado" className="space-y-3">
+      <h3 className="text-sm font-bold">Ventas del corte {fechaCorteCapital(datos.corte)}</h3>
+      <ul className="space-y-3">{datos.operaciones.map((operacion) => (
+        <li key={`${operacion.fuente}:${operacion.fuente_id}`} className="space-y-2 rounded-xl border p-3 text-xs">
+          <div className="flex flex-wrap justify-between gap-2"><strong>{operacion.numero}</strong><strong>{money(operacion.equivalente_pen, 'PEN')}</strong></div>
+          <p>Venta del {fechaCorteCapital(operacion.fecha_comercial)} · {money(operacion.monto, operacion.moneda)} · TC S/ {operacion.tasa.toFixed(4)}</p>
+          {operacion.fecha_imputacion !== operacion.fecha_comercial && <p>Imputada el {fechaCorteCapital(operacion.fecha_imputacion)}</p>}
+          {operacion.politica_tc === 'sbs_punto_medio_hasta7_legado_v1' && <p>Reconstrucción con la regla de cierre de {fechaCorteCapital(operacion.fecha_tc!)}</p>}
+        </li>
+      ))}</ul>
+    </section>
+  )
+}
+
+export function DetalleCapitalRanking({ abierto, fila, periodo, tc, fuenteTc, cargando, error, origenes, valorado = false, operaciones, origenesCargando, origenesError, onReintentarOrigenes, onCerrar, onReintentar, onAbrirConversiones }: {
   abierto: boolean
   fila: FilaCapital | null
   periodo: string
@@ -161,6 +189,8 @@ export function DetalleCapitalRanking({ abierto, fila, periodo, tc, fuenteTc, ca
   cargando: boolean
   error: string | null
   origenes?: RankingOrigenVendedor | null | undefined
+  valorado?: boolean
+  operaciones?: CapitalOperaciones | undefined
   origenesCargando?: boolean
   origenesError?: boolean
   onReintentarOrigenes?: () => void
@@ -200,7 +230,7 @@ export function DetalleCapitalRanking({ abierto, fila, periodo, tc, fuenteTc, ca
                   <dt className="text-xs font-semibold text-[var(--muted-foreground-strong)]">Capital confirmado (S/)</dt>
                   <dd className="mt-3 space-y-3">
                     <strong className="block text-2xl leading-8 tabular-nums text-[var(--gi-navy)]">{money(fila.capitalTotal, 'PEN')}</strong>
-                    <DesgloseMonedas pen={fila.capitalPen} usd={fila.capitalUsd} tc={tc} tono="gerencia" />
+                    <DesgloseMonedas pen={fila.capitalPen} usd={fila.capitalUsd} tc={tc} valorado={valorado} tono="gerencia" />
                   </dd>
                 </div>
                 <div>
@@ -221,9 +251,9 @@ export function DetalleCapitalRanking({ abierto, fila, periodo, tc, fuenteTc, ca
                 </p>
               )}
               <p className="text-xs text-[var(--muted-foreground-strong)]">
-                {tc != null ? `TC S/ ${numero(tc, 4)} · ${fuenteTc ?? 'BCRP'}` : 'TC no disponible · US$ separado'}
+                {valorado ? 'Capital en soles con TC fijado por venta' : tc != null ? `TC S/ ${numero(tc, 4)} · ${fuenteTc ?? 'BCRP'}` : 'TC no disponible · US$ separado'}
               </p>
-              {ejemplo
+              {valorado ? <OperacionesValoradas datos={operaciones} total={fila.capitalTotal} cargando={origenesCargando ?? false} reintentar={onReintentarOrigenes} /> : ejemplo
                 ? <VistaOrigenes filas={filasEjemplo(fila)} tc={tc} total={fila.capitalTotal} ejemplo />
                 : origenesCargando
                   ? <p role="status" className="text-xs text-[var(--gi-muted)]">Cargando orígenes…</p>
@@ -233,7 +263,7 @@ export function DetalleCapitalRanking({ abierto, fila, periodo, tc, fuenteTc, ca
                       capitalPen: origen.capital_pen,
                       capitalUsd: origen.capital_usd,
                       conversionPct: origen.conversion_pct,
-                      mostrarConversion: ['landing', 'formulario', 'referido', 'oficina'].includes(origen.origen),
+                      mostrarConversion: ['landing', 'formulario', 'formulario_3', 'referido', 'oficina'].includes(origen.origen),
                     }))} tc={tc} total={fila.capitalTotal} ejemplo={false} cartera={origenes?.cartera ?? fila.cartera} />
                     : <div className="flex items-center justify-between gap-3 text-xs text-[var(--gi-muted)]">
                         <span>Desglose no disponible</span>

@@ -12,8 +12,10 @@ import type {
   AnularCierreExternoDatos,
   ConvertirLeadExternoDatos,
   CorregirCierreExternoDatos,
+  FijarPlazoCargaMesDatos,
 } from './crm-api'
 import { normalizarLeadIds } from '@/lib/cierre-estado'
+import { codigoDeError } from '@/lib/plazo-carga-mes'
 import type { ConversionMensual } from '@/lib/conversion-mensual'
 import type { MetricasConversionesEquipo } from '@/lib/metricas-conversiones-equipo'
 import { cumplimientoDesdeRpc } from '@/lib/objetivos'
@@ -25,7 +27,9 @@ import {
   convertirLeadExterno,
   corregirCierreExterno,
   derivarLeadsEquipo,
+  fijarPlazoCargaMes,
   obtenerCierreMesEstado,
+  obtenerPlazosCargaMes,
   obtenerCierresEstado,
   obtenerConversionEstado,
   obtenerCierresExternos,
@@ -56,6 +60,7 @@ import {
   obtenerConversionMensual,
   obtenerCumplimientoMetas,
   obtenerRankingOrigenVendedor,
+  obtenerCapitalOperacionesValoradas,
   listarMetricasReuniones,
   listarAltasNuevasPorAnalista,
   listarFacturacionDiaria,
@@ -215,6 +220,9 @@ export const crmQueryKeys = {
   // El estado de la maquinaria del cierre de MES (no de los cierres de venta).
   // Sin parámetros: habla del reloj, no del período que se esté mirando.
   cierreMesEstado: () => [...crmQueryKeys.raiz, 'cierre-mes-estado'] as const,
+  // El plazo de carga por mes que decide Gerencia. Clave propia y no colgada de
+  // cierreMesEstado: el sondeo del aviso no tiene por qué arrastrar esta lectura.
+  plazosCargaMes: () => [...crmQueryKeys.raiz, 'plazos-carga-mes'] as const,
   // Cierres en cooperativas (Qorilazo/Prodelco). Clave propia bajo metricas():
   // el ámbito lo recorta el servidor. El builder SIN periodo existe para que la
   // mutación de convertir invalide todos los meses cacheados de una pasada.
@@ -238,7 +246,7 @@ export const crmQueryKeys = {
   // hacerlo sobre metricas() refrescaría también las fotografías por periodo
   // de gerencia en cada llamada del analista. Se retira en F3.
   metricasAmbito: () => [...crmQueryKeys.raiz, 'metricas-ambito'] as const,
-  resumenCartera: () => [...crmQueryKeys.metricasAmbito(), 'resumen-cartera'] as const,
+  resumenCartera: (actorId?: string | null) => [...crmQueryKeys.metricasAmbito(), 'resumen-cartera', ...(actorId ? [actorId] : [])] as const,
   // Bitácora de Hoy · Directorio (Fase 3 «sin topes»): cuelga del prefijo de
   // métricas del ámbito para que cada mutación la invalide como a los tiles.
   actividadesRecientes: (limite: number) => [...crmQueryKeys.metricasAmbito(), 'actividades-recientes', limite] as const,
@@ -288,8 +296,8 @@ export const crmQueryKeys = {
   // la MISMA etapa y el mismo analista — sin ella en la clave compartirían
   // caché y las dos columnas pintarían la misma lista. `null` = sin recorte.
   // El potencial (Frío · Tibio · Estrella · sin marca), por el mismo motivo.
-  carteraPagina: (etapa: string, vendedor: string, texto: string, integrada = false, desde: string | null = null, hasta: string | null = null, origen = 'todos', procedencia = 'todas', reasignados = false, gestion: string | null = null, potencial: string | null = null) =>
-    [...crmQueryKeys.carteraPaginas(), etapa, vendedor, texto, integrada, desde, hasta, origen, procedencia, reasignados, gestion, potencial] as const,
+  carteraPagina: (etapa: string, vendedor: string, texto: string, integrada = false, desde: string | null = null, hasta: string | null = null, origen = 'todos', procedencia = 'todas', reasignados = false, gestion: string | null = null, potencial: string | null = null, campania = 'todas') =>
+    [...crmQueryKeys.carteraPaginas(), etapa, vendedor, texto, integrada, desde, hasta, origen, procedencia, reasignados, gestion, potencial, campania] as const,
   /** Prefijo de TODAS las listas de la cartera (cualquier combinación de filtros). */
   carteraPaginas: () => [...crmQueryKeys.leads(), 'cartera-pagina'] as const,
 }
@@ -331,6 +339,13 @@ const CLAVES_INVALIDACION_COMERCIAL = {
     crmQueryKeys.cierresEstadoPrefijo(),
     ...CLAVES_FOTOS_POR_PERIODO,
     crmQueryKeys.metricasAmbito(),
+  ],
+  // Fijar el plazo de carga vuelve a decidir conversiones del mes (fuera de
+  // plazo → acreditada) y, al reabrir, devuelve ventas en cooperativa a su mes:
+  // se mueven conversión, cumplimiento, cierres externos, el estado de cada
+  // cierre y la lista diaria de Facturación. Todas cuelgan de metricas().
+  plazoCarga: [
+    crmQueryKeys.metricas(),
   ],
 } as const satisfies Record<string, readonly QueryKey[]>
 
@@ -540,11 +555,18 @@ export function useCuentasBancariasCliente(clienteId: string, moneda: 'PEN' | 'U
 //    NUNCA se toca la red (fail-closed). Las pantallas no usan este hook a pelo:
 //    consumen data/use-resumen-cartera-operativo, que decide la fuente. ─────────
 
-export function useResumenCartera(habilitada: boolean) {
+export function useResumenCartera(habilitada: boolean, actorId?: string | null, enVivo = false) {
   return useQuery({
-    queryKey: crmQueryKeys.resumenCartera(),
+    queryKey: crmQueryKeys.resumenCartera(actorId),
     queryFn: ({ signal }) => listarResumenCartera(signal),
     enabled: habilitada,
+    // Hoy puede permanecer abierto mientras Coordinación incorpora nuevos leads.
+    // El reparto ya invalida el prefijo; este sondeo cubre escrituras de otra sesión.
+    refetchInterval: enVivo ? 60_000 : false,
+    refetchIntervalInBackground: false,
+    refetchOnMount: enVivo ? 'always' : true,
+    refetchOnWindowFocus: enVivo ? 'always' : true,
+    refetchOnReconnect: enVivo ? 'always' : true,
   })
 }
 
@@ -766,7 +788,7 @@ export function useCarteraInfinita(habilitada: boolean, filtros: FiltrosCartera)
   const vendedor = filtros.vendedorId ?? 'todos'
   const texto = filtros.texto ?? ''
   return useInfiniteQuery({
-    queryKey: crmQueryKeys.carteraPagina(etapa, vendedor, texto, filtros.integrada, filtros.recepcion?.desde, filtros.recepcion?.hasta, filtros.origen ?? 'todos', filtros.procedencia ?? 'todas', filtros.reasignados ?? false, filtros.gestion ?? null, filtros.potencial ?? null),
+    queryKey: crmQueryKeys.carteraPagina(etapa, vendedor, texto, filtros.integrada, filtros.recepcion?.desde, filtros.recepcion?.hasta, filtros.origen ?? 'todos', filtros.procedencia ?? 'todas', filtros.reasignados ?? false, filtros.gestion ?? null, filtros.potencial ?? null, filtros.campania ?? 'todas'),
     queryFn: ({ pageParam, signal }) => listarCarteraPagina(filtros, pageParam, signal),
     initialPageParam: null as CursorCartera | null,
     // `cursor: null` significa "no hay más" y lo decide el SERVIDOR (pidió una
@@ -875,7 +897,7 @@ export function useEquipoReportes(habilitada: boolean, actorId?: string | null) 
  */
 export function useFacturacionDeMeses(habilitada: boolean, meses: readonly string[]) {
   const mesActual = useDiaLima().slice(0, 7)
-  return useQueries({
+  const consultas = useQueries({
     queries: meses.map((mes) => ({
       queryKey: crmQueryKeys.facturacionDiaria(mes),
       queryFn: ({ signal }: { signal: AbortSignal }) => listarFacturacionDiaria(mes, signal),
@@ -885,16 +907,32 @@ export function useFacturacionDeMeses(habilitada: boolean, meses: readonly strin
       refetchOnWindowFocus: mes.slice(0, 7) < mesActual ? 'always' as const : true,
     })),
   })
+  const necesitaTramos = consultas.some((c) => c.data?.capitalValoracion?.activa)
+  const anteriores = necesitaTramos ? meses.filter((mes) => mes < '2026-10-01') : []
+  const legadas = useQueries({ queries: anteriores.map((mes) => ({
+    queryKey: [...crmQueryKeys.facturacionDiaria(mes), 'corte-mensual-legado'],
+    queryFn: ({ signal }: { signal: AbortSignal }) => listarFacturacionDiaria(mes, signal, true),
+    enabled: habilitada, staleTime: 30 * 60_000,
+  })) })
+  return consultas.map((consulta, i) => {
+    const indice = anteriores.indexOf(meses[i] ?? '')
+    return indice < 0 ? consulta : legadas[indice]!
+  })
 }
 
 /** Cada filtro y la página forman la clave; ninguna respuesta de otra cifra se reutiliza. */
+export function opcionesListaOperacionesFacturacion(parametros: ParametrosOperacionesFacturacion) {
+  return {
+    queryKey: [...crmQueryKeys.metricas(), 'operaciones-facturacion', parametros],
+    queryFn: ({ signal }: { signal: AbortSignal }) => listarOperacionesFacturacion(parametros, signal),
+  }
+}
 export function useListaOperacionesFacturacion(habilitada: boolean, parametros: ParametrosOperacionesFacturacion,
   detenerRefresco: (datos: ListaOperacionesFacturacion) => boolean = () => false) {
   const cerrado = parametros.p_hasta.slice(0, 7) < useDiaLima().slice(0, 7)
   return useQuery({
-    queryKey: [...crmQueryKeys.metricas(), 'operaciones-facturacion', parametros],
+    ...opcionesListaOperacionesFacturacion(parametros),
     placeholderData: keepPreviousData,
-    queryFn: ({ signal }) => listarOperacionesFacturacion(parametros, signal),
     enabled: habilitada,
     staleTime: cerrado ? 30 * 60_000 : 5 * 60_000,
     refetchOnMount: 'always',
@@ -1145,10 +1183,13 @@ export function useRankingOrigenVendedor(
   periodo: string,
   vendedorId: string | null,
   actorId?: string | null,
+  corteId?: string | null,
 ) {
   return useQuery({
-    queryKey: crmQueryKeys.rankingOrigenes(periodo, vendedorId ?? '', actorId),
-    queryFn: ({ signal }) => obtenerRankingOrigenVendedor(periodo, vendedorId!, signal),
+    queryKey: [...crmQueryKeys.rankingOrigenes(periodo, vendedorId ?? '', actorId), corteId ?? 'legado'],
+    queryFn: async ({ signal }) => corteId
+      ? obtenerCapitalOperacionesValoradas(periodo, vendedorId!, corteId, signal)
+      : obtenerRankingOrigenVendedor(periodo, vendedorId!, signal),
     enabled: habilitada && Boolean(periodo) && Boolean(vendedorId) && Boolean(actorId),
   })
 }
@@ -1206,6 +1247,57 @@ export function useCierreMesEstado(habilitada: boolean) {
   }, [consulta.data, queryClient, ultimoCerrado])
 
   return consulta
+}
+
+/**
+ * Opciones de la lectura del plazo de carga, puras para probarlas sin montar.
+ * Mismo sondeo que el aviso del ciclo: el sello de las 09:20 y la medianoche de
+ * Lima cambian lo que la tarjeta dice (abierto → cerrado, vigente → vencido)
+ * sin que nadie toque la pantalla.
+ */
+export function opcionesPlazosCargaMes(habilitada: boolean) {
+  return {
+    queryKey: crmQueryKeys.plazosCargaMes(),
+    queryFn: ({ signal }: { signal?: AbortSignal }) => obtenerPlazosCargaMes(signal),
+    enabled: habilitada,
+    refetchInterval: INTERVALO_CIERRE_MES_ESTADO_MS,
+  }
+}
+
+/** El plazo de carga de los meses que Gerencia puede decidir (`crm.plazos_carga_mes_fn`). */
+export function usePlazosCargaMes(habilitada: boolean) {
+  return useQuery(opcionesPlazosCargaMes(habilitada))
+}
+
+/**
+ * Un error tras el que el plazo PUDO guardarse (sin respuesta, o un acuse
+ * 2xx fuera de contrato): la caché se refresca igual que en un éxito, para que
+ * la tarjeta enseñe lo que de verdad quedó antes de que alguien reintente.
+ */
+const ERRORES_PLAZO_INCIERTO = new Set(['RESPUESTA_NO_RECIBIDA', 'PLAZO_CARGA_CONTRACT'])
+
+async function invalidarTrasPlazoCarga(queryClient: QueryClient): Promise<void> {
+  // Las fotos de métricas no se esperan: refrescan pantallas que no son esta y
+  // el diálogo no debe quedarse «Guardando…» por ellas.
+  void invalidarLecturasComerciales(queryClient, CLAVES_INVALIDACION_COMERCIAL.plazoCarga)
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: crmQueryKeys.plazosCargaMes() }),
+    // El aviso del ciclo: `cierra_el` refleja el plazo nuevo y, al reabrir,
+    // el último mes sellado retrocede.
+    queryClient.invalidateQueries({ queryKey: crmQueryKeys.cierreMesEstado() }),
+  ])
+}
+
+/** Gerencia amplía el plazo de carga de un mes o, si ya se selló, lo reabre. */
+export function useFijarPlazoCargaMes() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (datos: FijarPlazoCargaMesDatos) => fijarPlazoCargaMes(datos),
+    onSuccess: () => invalidarTrasPlazoCarga(queryClient),
+    onError: async (error) => {
+      if (ERRORES_PLAZO_INCIERTO.has(codigoDeError(error) ?? '')) await invalidarTrasPlazoCarga(queryClient)
+    },
+  })
 }
 
 /** Ranking de conversión del equipo/global (decisión #10, parte b2). */

@@ -156,12 +156,12 @@ describe('Topbar — buscador', () => {
     expect(screen.getByText(/Búscalo en «Cartera», en el menú lateral/)).toBeInTheDocument()
   })
 
-  it('a quien NO tiene cartera (coordinador) no se le manda a una pantalla que no ve', async () => {
+  it('Coordinación recibe el acceso a Cartera al buscar un cliente', async () => {
     const user = userEvent.setup()
     montar({ rol: 'coordinador' })
     await user.type(campoBusqueda(), 'zzz')
     expect(screen.getByText(/Sin resultados en tus leads/, { selector: 'p:not(.sr-only)' })).toBeInTheDocument()
-    expect(screen.queryByText(/menú lateral/)).not.toBeInTheDocument()
+    expect(screen.getByText(/Búscalo en «Cartera», en el menú lateral/)).toBeInTheDocument()
   })
 
   it('el título de la cartera usa el MISMO rótulo por rol que el resto del CRM', () => {

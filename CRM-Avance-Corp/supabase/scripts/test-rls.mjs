@@ -9,8 +9,75 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 
+// Citas: misma autorización y ámbito en ambas puertas, con Auth cloud real.
+if (process.argv[2] === '--citas-fecha-comercial-cloud' && process.argv.length <= 4) {
+  await import('./citas-fecha-comercial/http-cloud.mjs');
+  process.exit(0);
+}
+
+// Tipo de cambio por venta: misma matriz HTTP sobre la rama cloud aprobada.
+if (process.argv.length === 3 && process.argv[2] === '--tipo-cambio-venta-cloud') {
+  process.argv.push('--cloud');
+  await import('./tipo-cambio-por-venta/verificar-http-local.mjs');
+  process.exit(0);
+}
+
+// Referidos propios: sesiones Auth reales en la rama exclusiva de validación.
+if (process.argv.length === 4 && process.argv[2] === '--supervisores-referidos') {
+  const { ejecutar } = await import('./supervisores-referidos/http-cloud.mjs');
+  await ejecutar(process.argv[3]);
+  process.exit(0);
+}
+
+// Ventas propias de supervisores: rama cloud sintética con Auth/PostgREST reales.
+if (process.argv.length === 4 && process.argv[2] === '--supervisores-metas') {
+  const { ejecutar } = await import('./supervisores-metas/http-cloud.mjs');
+  await ejecutar(process.argv[3]);
+  process.exit(0);
+}
+
+// Sesiones Auth reales en la rama exclusiva autorizada para Coordinación.
+if (process.argv.length === 3 && process.argv[2] === '--permisos-coordinacion') {
+  const { ejecutar } = await import('./permisos-coordinacion/http-cloud.mjs');
+  await ejecutar();
+  process.exit(0);
+}
+
+// Origen nativo: matriz HTTP focalizada en la copia cloud autorizada. No exige
+// reemplazar su población por seed-demo ni modifica el gate general.
+if (process.argv.length === 4 && process.argv[2] === '--formulario3-origen') {
+  const { ejecutar } = await import('./formulario3-origen/http-cloud.mjs');
+  await ejecutar(process.argv[3]);
+  process.exit(0);
+}
+
+// Cambio aditivo de campaña: matriz focalizada sobre banco local exclusivo.
+if (process.argv.length === 3 && process.argv[2] === '--formulario3-fase2') {
+  await import('./formulario3-fase2/rls.mjs');
+  process.exit(0);
+}
+
+if (process.argv.length === 3 && process.argv[2] === '--formulario3') {
+  await import('./formulario3-fase1/rls.mjs');
+  process.exit(0);
+}
+
+// Regresión de las puertas de atención/venta y del offboarding con Auth real.
+// El módulo cierra sus destinos al banco exclusivo autorizado de esta tarea.
+if (process.argv.length === 3 && process.argv[2] === '--atencion-venta') {
+  await import('./atencion-venta/integracion-permisos.mjs');
+  process.exit(0);
+}
+
 if (process.argv.length === 3 && process.argv[2] === '--origen-concreto') {
   await import('./ranking-origen/test-rls-origen-concreto.mjs');
+  process.exit(0);
+}
+
+// Plazo de carga por mes (20261015000852): Auth y PostgREST reales con ESCRITURAS de verdad (decisiones de Gerencia),
+// solo en un banco LOCAL propio que el módulo limpia al terminar. No sustituye al bloque del gate general.
+if (process.argv.length === 3 && process.argv[2] === '--plazo-carga-mes') {
+  await import('./plazo-carga-mes/integracion-permisos.mjs');
   process.exit(0);
 }
 
@@ -153,12 +220,15 @@ const HELP = `
 Gate RLS del CRM (solo branch/staging con seed-demo)
 
 Uso:
-  node supabase/scripts/test-rls.mjs [--preflight] [--contratos | --identidad-d5 | --llamadas]
+  node supabase/scripts/test-rls.mjs [--preflight] [--contratos | --identidad-d5 | --facturacion-nombres | --llamadas]
+  node supabase/scripts/test-rls.mjs --formulario3
+  node supabase/scripts/test-rls.mjs --formulario3-fase2
 
 Opciones:
   --preflight  Valida runtime, variables y matriz sin abrir conexiones.
   --contratos  Ejecuta visibilidad, frontera bancaria, contratos y acceso anónimo.
   --identidad-d5 Repite solo D-5 con un lead nuevo; admite un banco ya utilizado.
+  --facturacion-nombres Ejecuta Facturación v1/v2 y nombres; no sustituye la matriz general.
   --llamadas   Ejecuta visibilidad y llamadas del celular, incluidas las banderas F4-b/F4-e.
   --help       Muestra esta ayuda sin exigir variables de entorno.
 
@@ -175,7 +245,7 @@ tareas/ICS, las metas versionadas y la frontera bancaria del CRM.
 `;
 
 const args = new Set(process.argv.slice(2));
-const allowedArgs = new Set(['--help', '-h', '--preflight', '--contratos', '--identidad-d5', '--llamadas']);
+const allowedArgs = new Set(['--help', '-h', '--preflight', '--contratos', '--identidad-d5', '--facturacion-nombres', '--llamadas']);
 const unknownArgs = [...args].filter((arg) => !allowedArgs.has(arg));
 
 if (unknownArgs.length > 0) {
@@ -189,8 +259,8 @@ if (args.has('--help') || args.has('-h')) {
   process.exit(0);
 }
 
-if (['--contratos', '--identidad-d5', '--llamadas'].filter((arg) => args.has(arg)).length > 1) {
-  console.error('Elige un solo alcance: --contratos, --identidad-d5 o --llamadas.');
+if (['--contratos', '--identidad-d5', '--facturacion-nombres', '--llamadas'].filter((alcance) => args.has(alcance)).length > 1) {
+  console.error('Elige un solo alcance: --contratos, --identidad-d5, --facturacion-nombres o --llamadas.');
   process.exit(2);
 }
 
@@ -2965,7 +3035,7 @@ async function testDomicilioLegal(sessions, seed) {
     /fuera de tu cartera/i,
   );
   await expectExpectedFailure(
-    'coordinación no tiene ámbito de cartera y queda fuera',
+    'coordinación no puede escribir el domicilio legal',
     escribir(sessions.coordinador.client, DOMICILIO_OK),
     ['42501', 'P0001'],
     /fuera de tu cartera/i,
@@ -6271,7 +6341,7 @@ async function testActividadesDeLead(sessions, seed) {
   }
 
   // Denegación EXPLÍCITA (nunca vacío). Dos razones distintas para el 42501:
-  // coordinador PASA la admisión al CRM pero no ve el lead (visibilidad);
+  // Un analista fuera del equipo no ve el lead (visibilidad);
   // vendInactive NO pasa la admisión (P04: revocado ≠ ajeno). Nombrarlas
   // distinto es lo que hace útil al mutante «quitar el exists de la puerta».
   for (const key of ['vend3', 'sup2', 'vend2']) {
@@ -6280,9 +6350,9 @@ async function testActividadesDeLead(sessions, seed) {
       rpc(key, { p_lead_id: juanLead.id }),
     );
   }
-  await expectExpectedFailure(
-    'coordinador: admitido al CRM pero sin ambito sobre juan → 42501 de VISIBILIDAD',
-    rpc('coordinador', { p_lead_id: juanLead.id }), ['42501'], /fuera de tu cartera/i,
+  await positive(
+    'coordinador consulta el historial de cualquier lead',
+    rpc('coordinador', { p_lead_id: juanLead.id }),
   );
   await expectExpectedFailure(
     'vendInactive: membresia revocada → 42501 de ADMISION (P04)',
@@ -7352,11 +7422,8 @@ async function testMetricasServidor(sessions, seed) {
     }
   }
 
-  // Tanda 2 (20260809144920): la rama de reparto da al coordinador los
-  // AGREGADOS de TODOS los sin-dueño (cola global + bandejas) en resumen y
-  // series — y NADA más. Oraculo: los sin-dueño que ve gerencia por RLS,
-  // leidos inmediatamente antes (la suite es secuencial: nada muta entre
-  // ambas lecturas).
+  // Coordinación consulta el resumen global de Leads. La serie histórica de
+  // reparto conserva su ámbito original de sin-dueño (no se amplía esa RPC).
   const parkGerencia = await positive(
     'gerencia lista los sin-dueno como oraculo del coordinador',
     sessions.gerencia.client.schema('crm').from('leads')
@@ -7370,18 +7437,16 @@ async function testMetricasServidor(sessions, seed) {
     'coordinador llama resumen_cartera_fn',
     sessions.coordinador.client.schema('crm').rpc('resumen_cartera_fn'),
   );
-  if (coordResumen && sinDueno) {
-    const abiertosSinDueno = sinDueno.filter((l) => ETAPAS_ABIERTAS_F1.has(l.etapa));
-    const parkPen = abiertosSinDueno
-      .filter((l) => l.moneda !== 'USD')
-      .reduce((suma, l) => suma + Number(l.monto_estimado ?? 0), 0);
-    const t = coordResumen.data?.totales ?? {};
-    check(t.parkeados === abiertosSinDueno.length && t.asignados === 0,
-      'coordinador ve exactamente los parkeados (rama de reparto) y cero asignados',
-      JSON.stringify({ rpc: t, esperado: abiertosSinDueno.length }));
-    check(Number(coordResumen.data?.capital?.parkeado?.pen ?? -1) === parkPen
-      && Number(coordResumen.data?.capital?.asignado?.pen ?? -1) === 0,
-      'coordinador: el capital parkeado cuadra y el asignado sigue en cero');
+  const gerResumen = await positive(
+    'gerencia consulta el resumen global como oráculo de Coordinación',
+    sessions.gerencia.client.schema('crm').rpc('resumen_cartera_fn'),
+  );
+  if (coordResumen && gerResumen) {
+    check(['parkeados', 'asignados', 'vivos'].every((k) =>
+      coordResumen.data?.totales?.[k] === gerResumen.data?.totales?.[k]),
+    'coordinador ve los mismos totales de leads que gerencia');
+    check(JSON.stringify(coordResumen.data?.capital) === JSON.stringify(gerResumen.data?.capital),
+      'coordinador ve el capital estimado de todos los leads');
   }
   const coordCola = await positive(
     'coordinador llama cola_accion_fn',
@@ -8769,6 +8834,181 @@ async function testGestionDiariaCitas(sessions, seed) {
   }
 }
 
+// — SLA por filas (paso 3a · 20261017054425 / 054426 / 054427; v2 con las revisiones del 17/10) ————————————————————
+// A/B/F (vía fuera de banda, exigen CRM_BANCO_PSQL_URL y M1 instalada): la ventana POR FILAS y su ayudante de autoridad
+// son PRIVADOS (ACL efectiva para todos los roles de la API y ACL guardada solo del dueño); forma (DEFINER/INVOKER,
+// STABLE, search_path vacío, dueño postgres); solo el ámbito lee auth.; los 3 guardianes en OK; y, con
+// CRM_RLS_EXIGE_SLA_FILAS=1, el GATE de la serie completa exige M3 (el resumen y la cola leen _filas).
+// C/D/E (solo API, sin CRM_BANCO_PSQL_URL): la API no alcanza las piezas privadas (PGRST106/PGRST202/42501); las puertas
+// responden por rol con su contrato y con ámbito ABSOLUTO (vend1 solo lo suyo, sup1 nada del equipo de sup2, monotonía
+// vend1 ≤ sup1 ≤ gerencia, estado_sla_leads_v2_fn no entrega un lead ajeno); anon, vendInactive y clientBank → 42501.
+// El ámbito se mide sobre la cola ENTERA (por cursor hasta hay_mas=false) y nunca en vacío: ≥1 lead en vend1 y sup1,
+// control positivo en gerencia (sí ve al equipo de sup2) y en estado_sla_leads_v2_fn (vend1 sí ve los suyos).
+async function testSlaPorFilas(sessions, seed) {
+  console.log('\n— SLA por filas (paso 3a): piezas privadas sin API, puertas por rol y ámbito absoluto —');
+  const FILAS = 'private.sla_operacion_autorizada_filas(uuid[])';
+  const AMBITO = 'private.sla_operacion_ambito(uuid[],boolean)';
+  const AUTORIZADA = 'private.sla_operacion_autorizada(uuid[],boolean)';
+  const exige = process.env.CRM_RLS_EXIGE_SLA_FILAS === '1';
+  const saltar = (msg) => { if (exige) fail(msg); else console.log(`  ${msg}`); };
+  const id = (key) => seed.profileIdByKey[key];
+  const leadId = (key) => seed.leadByName.get(LEAD_BY_KEY[key].name)?.id;
+  const itemLead = (i) => (Array.isArray(i) ? i[1] : i);
+  const leadsDeCola = (data) => (data?.items ?? []).map(itemLead).filter((i) => i?.sujeto?.tipo === 'lead');
+
+  // ── A/B/F: vía fuera de banda ────────────────────────────────────────────────────────────────
+  if (!process.env.CRM_BANCO_PSQL_URL) {
+    saltar('⚠ sin CRM_BANCO_PSQL_URL: A, B y F de SLA por filas SALTADOS (no probados); C, D y E van por la API');
+  } else if (textoFueraDeBanda('SLA por filas: ¿instalada?', `select to_regprocedure('${FILAS}') is not null`) !== 't') {
+    saltar('⚠ SLA por filas no instalada (falta M1): A, B y F SALTADOS (no probados)');
+  } else {
+    const cuenta = (etiqueta, sql) => contarFueraDeBanda(`SLA por filas: ${etiqueta}`, sql);
+    const PIEZAS = `'${FILAS}'::regprocedure, '${AMBITO}'::regprocedure, '${AUTORIZADA}'::regprocedure`;
+    // A. ACL EFECTIVA para TODOS los roles no superusuario ajenos a postgres, y ACL guardada: solo el dueño.
+    check(cuenta('grants', `select coalesce(cardinality(array_agg(r.rolname)), 0)
+        from pg_roles r, unnest(array['${FILAS}', '${AMBITO}', '${AUTORIZADA}']) f(firma)
+        where not r.rolsuper and r.rolname <> 'postgres' and not pg_has_role(r.oid, 'postgres', 'MEMBER')
+          and has_function_privilege(r.oid, f.firma, 'EXECUTE')`) === 0,
+      'ACL: ningún rol de la API (ni anon, authenticated, service_role, PUBLIC u otro) ejecuta _filas, el ámbito ni la autorizada');
+    check(cuenta('solo dueño', `select coalesce(cardinality(array_agg(p.oid)), 0) from pg_proc p,
+        aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a where p.oid in (${PIEZAS}) and a.grantee <> p.proowner`) === 0,
+      'ACL: las tres piezas privadas solo tienen EXECUTE para su dueño (sin PUBLIC)');
+    // B. Forma.
+    check(cuenta('forma', `select coalesce(cardinality(array_agg(p.oid)), 0) from pg_proc p
+        where p.oid in (${PIEZAS}) and p.provolatile = 's' and p.proconfig @> array['search_path=""']
+          and p.proowner = 'postgres'::regrole and p.prosecdef = (p.oid <> '${AMBITO}'::regprocedure)`) === 3,
+      'forma: _filas y la autorizada DEFINER, el ámbito INVOKER; los tres STABLE, search_path vacío y dueño postgres');
+    check(cuenta('auth', `select coalesce(cardinality(array_agg(p.oid)), 0) from pg_proc p
+        where p.oid in ('${FILAS}'::regprocedure, '${AUTORIZADA}'::regprocedure) and p.prosrc ~* '\\mauth\\s*\\.'`) === 0,
+      'cuerpos: solo el ámbito interpreta auth. (ni _filas ni la autorizada, sin distinguir mayúsculas)');
+    // F. Guardianes y GATE de la serie completa (Codex: exigir M3, no solo M1).
+    for (const g of ['private.assert_sla_nucleo()', 'private.assert_sla_avisos()', 'private.assert_cola_v3()']) {
+      const v = textoFueraDeBanda(`guardián ${g}`, `select ${g}`) ?? '';
+      check(v.startsWith('OK: '), `${g} responde OK (${v.slice(0, 60)}…)`);
+    }
+    const m3 = cuenta('serie M3', `select coalesce(cardinality(array_agg(p.oid)), 0) from pg_proc p
+        where p.oid in ('crm.avisos_sla_resumen_v2_fn()'::regprocedure, 'crm.cola_accion_v3_fn(integer,text,text,uuid,jsonb)'::regprocedure)
+          and p.prosrc ~ '\\mprivate\\.sla_operacion_autorizada_filas\\s*\\('`) === 2;
+    if (exige) check(m3, 'GATE: la serie completa está en M3 (el resumen y la cola leen _filas)');
+    else console.log(`  · serie M3 ${m3 ? 'instalada' : 'NO instalada (solo M1/M2)'}: el gate completo exige CRM_RLS_EXIGE_SLA_FILAS=1`);
+  }
+
+  // ── C. La API no alcanza las piezas privadas: el error tiene que ser de esquema no expuesto, función inexistente o permiso ──
+  const NO_ALCANZA = new Set(['PGRST106', 'PGRST202', '42501']);
+  for (const quien of ['gerencia', 'vend1']) {
+    const filas = await sessions[quien].client.schema('private').rpc('sla_operacion_autorizada_filas', { p_lead_ids: null });
+    check(NO_ALCANZA.has(String(filas.error?.code)), `${quien} NO alcanza private.sla_operacion_autorizada_filas por la API (${filas.error?.code ?? 'sin error!'})`);
+    const ambito = await sessions[quien].client.schema('private').rpc('sla_operacion_ambito', { p_lead_ids: null, p_incluir_operacion: true });
+    check(NO_ALCANZA.has(String(ambito.error?.code)), `${quien} NO alcanza private.sla_operacion_ambito por la API (${ambito.error?.code ?? 'sin error!'})`);
+  }
+
+  // ── D. Puertas por rol con su contrato y ámbito ABSOLUTO ──────────────────────────────────────
+  const oportunidades = {};
+  const colas = {};
+  for (const quien of ['vend1', 'sup1', 'gerencia']) {
+    const av = await sessions[quien].client.schema('crm').rpc('avisos_sla_resumen_v2_fn');
+    const d = av.data ?? {};
+    check(!av.error && d.version === 2 && Number.isInteger(d.total_oportunidades) && Array.isArray(d.grupos)
+        && !('filas' in d) && !('contexto_ambito' in d),
+      `${quien}: avisos_sla_resumen_v2_fn responde con su contrato (${av.error?.code ?? `${d.modo} · ${d.total_oportunidades} oportunidades`})`);
+    oportunidades[quien] = d.total_oportunidades;
+    const co = await sessions[quien].client.schema('crm').rpc('cola_accion_v3_fn', { p_limite: 200 });
+    const c = co.data ?? {};
+    check(!co.error && c.version === 3 && Array.isArray(c.items) && c.items.length <= 200 && Number.isInteger(c.total_items),
+      `${quien}: cola_accion_v3_fn responde con su contrato (${co.error?.code ?? `${c.total_items} ítems`})`);
+    colas[quien] = c;
+  }
+  check(Number.isInteger(oportunidades.vend1) && oportunidades.vend1 <= oportunidades.sup1 && oportunidades.sup1 <= oportunidades.gerencia,
+    `ámbito: total_oportunidades vend1 ≤ sup1 ≤ gerencia (${oportunidades.vend1} ≤ ${oportunidades.sup1} ≤ ${oportunidades.gerencia})`);
+  // Ámbito sobre la cola ENTERA (revisión de Codex, 17/10): una comprobación de ámbito no vale si pasa con el conjunto
+  // vacío o si los fixtures quedan fuera de la página examinada. Se recorre cada cola por cursor (200 por página) hasta
+  // hay_mas=false y se exige que lo recorrido sea total_items; además, ≥1 ítem de lead en vend1 y sup1, y un control
+  // positivo: la cola de gerencia SÍ trae leads del equipo de sup2 (si sup1 los recibiera, aquí se verían).
+  const colaCompleta = async (quien) => {
+    const items = []; let cursor = null; let total = null; let motivo = '';
+    for (let pagina = 1; pagina <= 50; pagina += 1) {
+      const args = { p_limite: 200 };
+      if (cursor) args.p_cursor = cursor;
+      const p = await sessions[quien].client.schema('crm').rpc('cola_accion_v3_fn', args);
+      if (p.error) { motivo = errorText(p.error); break; }
+      items.push(...(p.data?.items ?? []));
+      if (total === null) total = p.data?.total_items;
+      if (p.data?.total_items !== total) { motivo = `total_items cambió entre páginas (${total} → ${p.data?.total_items})`; break; }
+      if (!p.data?.hay_mas) {
+        const claves = items.map((i) => i?.clave);
+        if (items.length !== total) motivo = `recorridos ${items.length} ítems y total_items=${total}`;
+        else if (new Set(claves).size !== claves.length) motivo = 'claves repetidas entre páginas';
+        return { items, paginas: pagina, total, completa: motivo === '', motivo };
+      }
+      cursor = p.data?.cursor_siguiente;
+      if (!cursor) { motivo = 'hay_mas sin cursor_siguiente'; break; }
+    }
+    return { items, paginas: null, total, completa: false, motivo: motivo || 'más de 50 páginas' };
+  };
+  const enteras = {};
+  for (const quien of ['vend1', 'sup1', 'gerencia']) {
+    enteras[quien] = await colaCompleta(quien);
+    const e = enteras[quien];
+    check(e.completa && e.total === colas[quien]?.total_items,
+      `${quien}: la cola v3 se recorre ENTERA por cursor (${e.paginas ?? '?'} página(s), ${e.items.length} de ${e.total} ítems, total igual al de la primera lectura)`,
+      e.motivo || `primera lectura: ${colas[quien]?.total_items}`);
+  }
+  {
+    const leads = leadsDeCola({ items: enteras.vend1.items });
+    check(leads.length >= 1, `ámbito: la cola v3 de vend1 trae ≥1 ítem de lead (${leads.length}): la comprobación no pasa en vacío`);
+    const ajenos = leads.filter((i) => i?.lead?.analista_id !== id('vend1'));
+    check(ajenos.length === 0, `ámbito: todo ítem de lead de la cola v3 ENTERA de vend1 es suyo (${ajenos.length} ajenos de ${leads.length})`);
+  }
+  {
+    const equipoSup2 = new Set([id('vend3'), id('vend4'), id('vendInactive'), id('sup2')].filter(Boolean));
+    const leadsSup2 = new Set(['ana', 'rosa', 'inactiveOwned'].map(leadId).filter(Boolean));
+    const deSup2 = (i) => equipoSup2.has(i?.lead?.analista_id) || leadsSup2.has(i?.sujeto?.id);
+    const leads = leadsDeCola({ items: enteras.sup1.items });
+    check(leads.length >= 1, `ámbito: la cola v3 de sup1 trae ≥1 ítem de lead (${leads.length}): la comprobación no pasa en vacío`);
+    const control = leadsDeCola({ items: enteras.gerencia.items }).filter(deSup2);
+    check(control.length >= 1,
+      `ámbito (control positivo): la cola v3 ENTERA de gerencia sí trae leads del equipo de sup2 (${control.length}): la fuga se mide sobre fixtures que están en la ventana`);
+    const fuga = leads.filter(deSup2);
+    check(fuga.length === 0, `ámbito: la cola v3 ENTERA de sup1 no trae leads del equipo de sup2 (${fuga.length} de ${leads.length})`);
+  }
+  {
+    const ana = leadId('ana');
+    const propio = await sessions.vend1.client.schema('crm').rpc('estado_sla_leads_v2_fn', { p_lead_ids: [ana] });
+    check(!propio.error && Array.isArray(propio.data?.filas) && propio.data.filas.length === 0,
+      `ámbito: estado_sla_leads_v2_fn de vend1 con un lead de vend3 devuelve filas vacío (${propio.error?.code ?? propio.data?.filas?.length})`);
+    const ger = await sessions.gerencia.client.schema('crm').rpc('estado_sla_leads_v2_fn', { p_lead_ids: [ana] });
+    check(!ger.error && (ger.data?.filas ?? []).some((f) => f?.lead_id === ana),
+      `ámbito: la misma llamada de gerencia sí trae el lead de vend3 (${ger.error?.code ?? ger.data?.filas?.length})`);
+    // Control positivo de vend1 (Codex): con SUS leads (los fixtures juan y maría más los de su cola entera) y el de vend3
+    // en la misma llamada, estado_sla_leads_v2_fn trae ≥1 fila, solo suyas, todas las de su cola y nunca la de vend3.
+    const deCola = leadsDeCola({ items: enteras.vend1.items }).map((i) => i?.sujeto?.id).filter(Boolean);
+    const suyos = [...new Set([leadId('juan'), leadId('maria'), ...deCola].filter(Boolean))].slice(0, 199);
+    const suyosSet = new Set(suyos);
+    const mezcla = await sessions.vend1.client.schema('crm').rpc('estado_sla_leads_v2_fn', { p_lead_ids: [...suyos, ana] });
+    const vistos = new Set((mezcla.data?.filas ?? []).map((f) => f?.lead_id));
+    check(!mezcla.error && vistos.size >= 1 && !vistos.has(ana) && [...vistos].every((x) => suyosSet.has(x))
+        && deCola.filter((x) => suyosSet.has(x)).every((x) => vistos.has(x)),
+      `ámbito: estado_sla_leads_v2_fn de vend1 con ${suyos.length} leads suyos + 1 de vend3 trae ${vistos.size} fila(s), solo suyas, las de su cola y sin la de vend3`,
+      mezcla.error ? errorText(mezcla.error) : JSON.stringify({ vistos: vistos.size, ana: vistos.has(ana), cola: deCola.length }));
+  }
+
+  // ── E. Denegados: anon (sin EXECUTE), vendInactive y clientBank (sin rol CRM vigente) → error de AUTORIZACIÓN ──
+  {
+    const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-sla-filas'));
+    for (const fn of ['avisos_sla_resumen_v2_fn', 'cola_accion_v3_fn']) {
+      const { error } = await anon.schema('crm').rpc(fn, {});
+      check(isAuthorizationError(error), `anon NO ejecuta ${fn} (${error?.code ?? 'sin error!'})`);
+    }
+  }
+  for (const quien of ['vendInactive', 'clientBank']) {
+    if (!sessions[quien]) { saltar(`⚠ sin sesión de ${quien}: denegación SALTADA (no probada)`); continue; }
+    const av = await sessions[quien].client.schema('crm').rpc('avisos_sla_resumen_v2_fn');
+    check(av.error?.code === '42501', `${quien}: avisos_sla_resumen_v2_fn → 42501 (${av.error?.code ?? 'sin error!'})`);
+    const es = await sessions[quien].client.schema('crm').rpc('estado_sla_leads_v2_fn', { p_lead_ids: [leadId('juan')] });
+    check(es.error?.code === '42501', `${quien}: estado_sla_leads_v2_fn → 42501 (${es.error?.code ?? 'sin error!'})`);
+  }
+}
+
 // — Cola del día con clientes (crm.cola_accion_v3_fn · plan 2026-09-28, F1) ——————————————
 // UNA cola con las filas de leads de la ventana SLA (idénticas a la v2) + las tareas de CLIENTES del
 // día (perfil_id | inversionista_id). Se mide con sesiones reales, en el banco Docker: ámbito por rol
@@ -9452,11 +9692,14 @@ async function testFacturacionDiaria(sessions, seed) {
       && !ids.has(seed.profileIdByKey.coordinador) && !ids.has(seed.profileIdByKey.vendInactive),
     'roster de reportes abarca dos equipos y excluye al coordinador y al analista inactivo');
   }
-  const operativo = await positive('Coordinación conserva solo su identidad en el roster operativo',
+  const operativo = await positive('Coordinación consulta el equipo para filtrar la cartera',
     sessions.coordinador.client.schema('crm').rpc('equipo_visible_fn'));
-  check(operativo && Array.isArray(operativo.data) && operativo.data.length === 1
-    && operativo.data[0].perfil_id === seed.profileIdByKey.coordinador,
-    'el roster de reportes no amplía equipo_visible_fn');
+  const equipoGerencia = await positive('Gerencia consulta el equipo completo como oráculo',
+    sessions.gerencia.client.schema('crm').rpc('equipo_visible_fn'));
+  const idsEquipo = (filas) => (filas ?? []).map((fila) => fila.perfil_id).sort().join(',');
+  check(operativo && equipoGerencia && operativo.data?.length > 1
+    && idsEquipo(operativo.data) === idsEquipo(equipoGerencia.data),
+    'Coordinación consulta el mismo equipo que Gerencia');
   for (const quien of ['vend1', 'sup1', 'vendInactive', 'clientBank']) {
     await expectExplicitAuthorizationDenied(`${quien} no ejecuta equipo_reportes_fn`,
       sessions[quien].client.schema('crm').rpc('equipo_reportes_fn'));
@@ -9633,17 +9876,37 @@ async function testFacturacionDiaria(sessions, seed) {
       and not has_function_privilege('service_role', p.oid, 'EXECUTE')
       and has_function_privilege('authenticated', p.oid, 'EXECUTE') = e.definidor) is true
   `) === 2, `${FN}: puerta 3B SQL/DEFINER solo authenticated y núcleo plpgsql/INVOKER solo postgres, ambos STABLE`);
-  // CENSO cerrado. El núcleo sin verja solo admite _visibles; esta admite cifra y lista; lista solo su puerta.
+  // CENSO cerrado: además de 3A/3B, admite la consulta de nombres sellada si está instalada.
+  const nombresInstalados = contarFueraDeBanda('Facturación nombres: presencia en censo', `select count(*) from pg_proc
+    where oid=to_regprocedure('private.facturacion_lista_nombres${FIRMA_LISTA}')`) === 1;
+  if (nombresInstalados) check(contarFueraDeBanda('Facturación nombres: contrato de las dos piezas', `
+    select count(*) from (values
+      ('private.facturacion_lista_nombres${FIRMA_LISTA}',false,'plpgsql','{postgres=X/postgres}'),
+      ('crm.listar_operaciones_facturacion_v2_fn${FIRMA_LISTA}',true,'sql','{postgres=X/postgres,authenticated=X/postgres}')
+    ) e(firma,definidor,lenguaje,acl) join pg_proc p on p.oid=to_regprocedure(e.firma)
+    join pg_language l on l.oid=p.prolang
+    where (p.prosecdef=e.definidor and p.provolatile='s' and l.lanname=e.lenguaje
+      and pg_get_userbyid(p.proowner)='postgres' and p.proacl::text=e.acl
+      and p.prorettype='jsonb'::regtype and not p.proretset and p.pronargdefaults=9
+      and cardinality(p.proconfig)=1 and p.proconfig[1] in ('search_path=','search_path=""')
+      and not has_function_privilege('anon',p.oid,'EXECUTE')
+      and not has_function_privilege('service_role',p.oid,'EXECUTE')
+      and has_function_privilege('authenticated',p.oid,'EXECUTE')=e.definidor) is true
+  `) === 2, `${FN}: nombres v2 sellados, sin ampliar ACL del núcleo`);
   check(contarFueraDeBanda('Facturación 3B: censo de llamadores', `
     select count(*) from pg_proc p
     where (p.prosrc ~* 'private\\.facturacion_operaciones\\s*\\('
            and p.oid is distinct from to_regprocedure('private.facturacion_operaciones_visibles(timestamptz,timestamptz)'))
        or (p.prosrc ~* 'private\\.facturacion_operaciones_visibles\\s*\\('
            and p.oid is distinct from to_regprocedure('crm.facturacion_diaria_fn(date)')
-           and p.oid is distinct from to_regprocedure('private.facturacion_lista${FIRMA_LISTA}'))
+           and p.oid is distinct from to_regprocedure('private.facturacion_lista${FIRMA_LISTA}')
+           and p.oid is distinct from to_regprocedure('private.facturacion_lista_nombres${FIRMA_LISTA}'))
        or (p.prosrc ~* 'private\\.facturacion_lista\\s*\\('
-           and p.oid is distinct from to_regprocedure('crm.listar_operaciones_facturacion_fn${FIRMA_LISTA}'))
-  `) === 0, `${FN}: llamadores exactamente dentro de la lista cerrada 3A + 3B`);
+           and p.oid is distinct from to_regprocedure('crm.listar_operaciones_facturacion_fn${FIRMA_LISTA}')
+           and p.oid is distinct from to_regprocedure('private.facturacion_lista_nombres${FIRMA_LISTA}'))
+       or (p.prosrc ~* 'private\\.facturacion_lista_nombres\\s*\\('
+           and p.oid is distinct from to_regprocedure('crm.listar_operaciones_facturacion_v2_fn${FIRMA_LISTA}'))
+  `) === 0, `${FN}: llamadores exactamente dentro de la lista cerrada 3A + 3B + nombres v2`);
   check(contarFueraDeBanda('Facturación 3B: las dos cadenas existen', `
     select count(*) from pg_proc p
     where (p.oid = to_regprocedure('private.facturacion_operaciones_visibles(timestamptz,timestamptz)')
@@ -9654,7 +9917,12 @@ async function testFacturacionDiaria(sessions, seed) {
            and p.prosrc ~* 'private\\.facturacion_operaciones_visibles\\s*\\(')
        or (p.oid = to_regprocedure('crm.listar_operaciones_facturacion_fn${FIRMA_LISTA}')
            and p.prosrc ~* 'private\\.facturacion_lista\\s*\\(')
-  `) === 4, `${FN}: cifra → _visibles y puerta → lista → _visibles → núcleo existen en catálogo`);
+       or (p.oid = to_regprocedure('private.facturacion_lista_nombres${FIRMA_LISTA}')
+           and p.prosrc ~* 'private\\.facturacion_lista\\s*\\('
+           and p.prosrc ~* 'private\\.facturacion_operaciones_visibles\\s*\\(')
+       or (p.oid = to_regprocedure('crm.listar_operaciones_facturacion_v2_fn${FIRMA_LISTA}')
+           and p.prosrc ~* 'private\\.facturacion_lista_nombres\\s*\\(')
+  `) === (nombresInstalados ? 6 : 4), `${FN}: las cadenas aprobadas de cifras/listas/nombres existen en catálogo`);
 }
 
 // 3B: la lista suma SU cifra por identidad; los datos dependen de la relación actual.
@@ -9931,6 +10199,32 @@ async function testFacturacionLista(sessions, seed) {
       if (referencia) recibidas.set(quien, referencia);
     }
     const g = recibidas.get('gerencia'); const d = recibidas.get('directorio');
+    // Regresión de nombres: v1 sigue siendo el oráculo publicado. La copia de
+    // Coordinación v2 debe conservar sus cifras/filtros y los nombres de Gerencia.
+    // Ejecutar también al modificar facturacion_lista, sin ampliar permiso de ficha.
+    const v2 = 'listar_operaciones_facturacion_v2_fn';
+    if (contarFueraDeBanda('Facturación nombres: API v2 instalada', `select count(*) from pg_proc
+      where oid=to_regprocedure('crm.${v2}${firma}')`) === 1) {
+      check(g?.filas.some((f) => f.tipo === 'cooperativa') && g.filas.some((f) => f.tipo !== 'cooperativa'),
+        `${v2}: oráculo HTTP tiene contratos y cooperativas`);
+      for (const [quien, anterior] of recibidas) {
+        for (let pagina = 1; pagina <= Math.max(1, Math.ceil(anterior.total / 100)); pagina += 1) {
+          const { data, error } = await sessions[quien].client.schema('crm').rpc(v2,
+            { ...base, p_pagina: pagina, p_tamano: 100 });
+          const esperadas = anterior.filas.slice((pagina - 1) * 100, pagina * 100).map((f) => quien === 'coordinador'
+            ? { ...f, nombre_visible: true, cliente_nombre: g?.filas[f.n - 1]?.cliente_nombre } : f);
+          const esperado = { version: 2, pagina, tamano: 100, total: anterior.total, totales: anterior.totales, filas: esperadas };
+          // Comparación de valores y claves ordenadas: el orden JSON no es un contrato.
+          const ordenar = (valor) => Array.isArray(valor) ? valor.map(ordenar) : valor && typeof valor === 'object'
+            ? Object.fromEntries(Object.keys(valor).sort().map((k) => [k, ordenar(valor[k])])) : valor;
+          check(!error && sinDni({ data, error }) && iguales(ordenar(data), ordenar(esperado)),
+            `${v2}: ${quien} página ${pagina}, nombres exactos y ningún campo extra; v1 y cifras intactas`);
+        }
+      }
+      const anonimo = await createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-facturacion-v2'))
+        .schema('crm').rpc(v2, base);
+      check(anonimo.error?.code === '42501', `${v2}: anónimo sin EXECUTE`);
+    } else console.log(`  ⚠ ${v2} NO desplegada: nombres de Coordinación SALTADOS (no probados)`);
     const datosOperacion = (f) => Object.fromEntries(comunes.filter((k) => !['visible', 'cliente_nombre'].includes(k)).map((k) => [k, f[k]]));
     check(g && d && g.total === d.total && iguales(g.totales, d.totales)
       && iguales(g.filas.map(datosOperacion), d.filas.map(datosOperacion))
@@ -11806,7 +12100,9 @@ async function testCarteraKeyset(sessions, seed) {
       // sesion un intento sin respuesta: sello del servidor, dentro de su tenencia.
       // Quien lo ve lo tiene en con_gestion; quien no, en ninguna mitad.
       const idIntentado = TRANSIENT_IDS.avanceLeadIntento;
-      if (['vend1', 'sup1', 'gerencia', 'directorio'].includes(key)) {
+      // Coordinación ya consulta leads activos por la policy publicada;
+      // la lectura no le concede autoridad de escritura sobre la cartera.
+      if (['vend1', 'sup1', 'gerencia', 'directorio', 'coordinador'].includes(key)) {
         check(idsCon.has(idIntentado) && !idsSin.has(idIntentado),
           `${key}: el lead que vend1 ya intento esta en con_gestion (y no en sin_gestion)`);
       } else {
@@ -11881,26 +12177,29 @@ async function testCarteraKeyset(sessions, seed) {
   // interna «No autorizado»; esto si: EXECUTE exactamente para authenticated,
   // INVOKER, stable, search_path vacio y una sola firma. La viva es la de 13
   // (20261001154153, p_gestion) o, desde la entrega B del potencial
-  // (20261001212341), la de 14: p_gestion sigue 13.o y p_potencial es el 14.o.
+  // (20261001212341), la de 14. F3 (20261014215453) añade la de 15:
+  // p_gestion sigue 13.o, p_potencial 14.o y p_campania_origen 15.o.
   if (process.env.CRM_BANCO_PSQL_URL) {
     const F13 = 'crm.cartera_filtrada_fn(integer,timestamptz,uuid,text,uuid,boolean,text,date,date,text,text,boolean,text)';
     const F14 = 'crm.cartera_filtrada_fn(integer,timestamptz,uuid,text,uuid,boolean,text,date,date,text,text,boolean,text,text)';
+    const F15 = 'crm.cartera_filtrada_fn(integer,timestamptz,uuid,text,uuid,boolean,text,date,date,text,text,boolean,text,text,text)';
     const cuenta = (etiqueta, sql) => contarFueraDeBanda(`cartera con gestion: ${etiqueta}`, sql);
     check(cuenta('una sola firma', `select count(*) from pg_proc where proname = 'cartera_filtrada_fn' and pronamespace = 'crm'::regnamespace`) === 1,
       'cartera_filtrada_fn: una sola firma (dos candidatas romperian PostgREST)');
     const con14 = cuenta('firma de 14', `select count(*) from pg_proc p where p.oid = to_regprocedure('${F14}')`) === 1;
-    const VIVA = con14 ? F14 : F13;
-    const N = con14 ? 14 : 13;
+    const con15 = cuenta('firma de 15', `select count(*) from pg_proc p where p.oid = to_regprocedure('${F15}')`) === 1;
+    const VIVA = con15 ? F15 : con14 ? F14 : F13;
+    const N = con15 ? 15 : con14 ? 14 : 13;
     const existe = cuenta('firma viva', `select count(*) from pg_proc p where p.oid = to_regprocedure('${VIVA}')`) === 1;
-    check(existe, `cartera_filtrada_fn: la firma viva es la de ${N} argumentos (con p_gestion${con14 ? ' y p_potencial' : ''})`);
+    check(existe, `cartera_filtrada_fn: la firma viva es la de ${N} argumentos (con p_gestion${N >= 14 ? ', p_potencial' : ''}${con15 ? ' y p_campania_origen' : ''})`);
     if (existe) {
       check(cuenta('grants', `select count(*) from (select '${VIVA}'::text as firma) f
         where has_function_privilege('anon', f.firma, 'EXECUTE') or has_function_privilege('service_role', f.firma, 'EXECUTE')
            or not has_function_privilege('authenticated', f.firma, 'EXECUTE')
            or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid = f.firma::regprocedure and a.grantee = 0)`) === 0,
         `cartera_filtrada_fn(${N}): EXECUTE exactamente para authenticated (ni anon, ni service_role, ni PUBLIC)`);
-      check(cuenta('forma', `select count(*) from pg_proc p where p.oid = '${VIVA}'::regprocedure and not p.prosecdef and p.provolatile = 's' and p.proconfig = array['search_path=""'] and p.pronargs = ${N} and p.proargnames[13] = 'p_gestion'${con14 ? " and p.proargnames[14] = 'p_potencial'" : ''}`) === 1,
-        `cartera_filtrada_fn(${N}): INVOKER, stable, search_path vacio y p_gestion como 13.o argumento${con14 ? ' (p_potencial, 14.o)' : ''}`);
+      check(cuenta('forma', `select count(*) from pg_proc p where p.oid = '${VIVA}'::regprocedure and not p.prosecdef and p.provolatile = 's' and p.proconfig = array['search_path=""'] and p.pronargs = ${N} and p.proargnames[13] = 'p_gestion'${N >= 14 ? " and p.proargnames[14] = 'p_potencial'" : ''}${con15 ? " and p.proargnames[15] = 'p_campania_origen'" : ''}`) === 1,
+        `cartera_filtrada_fn(${N}): INVOKER, stable, search_path vacio y nombres/posiciones exactos de gestion, potencial y campaña`);
     }
   } else {
     console.log('  · ACL/forma de cartera_filtrada_fn: NOT RUN (sin CRM_BANCO_PSQL_URL)');
@@ -12164,16 +12463,19 @@ async function testCarteraKeyset(sessions, seed) {
       JSON.stringify(nombres));
   }
 
-  // ── El coordinador: 0 filas, pero NO un error ─────────────────────────────
-  // Es la mitad que da sentido a la guardia de admision. Sin esta asercion, la
-  // comparacion "vacio == vacio" del bucle de arriba pasa sin probar nada.
+  // Coordinación tiene consulta global: buscar devuelve la misma página que Gerencia.
   const coordinador = await positive(
     'coordinador ejecuta cartera_pagina_fn (pasa la guardia)',
     sessions.coordinador.client.schema('crm').rpc('cartera_pagina_fn', { p_limite: 50 }),
   );
-  if (coordinador) {
-    check((coordinador.data ?? []).length === 0,
-      'el coordinador recibe 0 filas y NO un 42501 (su ambito de leads es ∅ por diseno)');
+  const paginaGerencia = await positive(
+    'gerencia consulta la misma página como oráculo global',
+    sessions.gerencia.client.schema('crm').rpc('cartera_pagina_fn', { p_limite: 50 }),
+  );
+  if (coordinador && paginaGerencia) {
+    check(coordinador.data?.length > 0 && JSON.stringify(coordinador.data.map((f) => f.id))
+      === JSON.stringify(paginaGerencia.data.map((f) => f.id)),
+    'Coordinación recibe la misma página de leads que Gerencia');
   }
 
   // ── ultimo_contacto_en: mismo valor para todos los que ven el lead ─────────
@@ -12581,7 +12883,35 @@ async function testIdentidadF2bD2(sessions) {
          or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid = f.firma::regprocedure and a.grantee = 0)
          or not exists (select 1 from pg_proc p where p.oid = f.firma::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'])`) === 0,
       'D-2 las tres RPC conservan sus grants (solo authenticated) y son DEFINER con search_path vacío');
-    check(FIRMAS.reduce((n, f) => n + marcador(f), 0) === 3, 'D-2 las tres funciones llevan la transformación (marcador en el cuerpo)');
+    // Atención/venta (20261013192850) convirtió la tercera RPC en adaptador.
+    // D-2 vive ahora en la implementación privada: exigir ambos enlaces y sus
+    // permisos, no un comentario en el adaptador ni aceptar cualquier helper.
+    const reasignacionD2 = cuenta('implementación de la reasignación', `
+      select case when to_regprocedure('private.ejecutar_cambio_responsabilidad(text,uuid,uuid,text,text,boolean)') is null
+        then (strpos(prosrc, 'F2.b [D-2]') > 0)::int
+        else (exists (
+          select 1 from pg_proc nucleo cross join pg_proc impl
+          where nucleo.oid = to_regprocedure('private.ejecutar_cambio_responsabilidad(text,uuid,uuid,text,text,boolean)')
+            and impl.oid = to_regprocedure('private.cambiar_atencion_persona(uuid,uuid,text)')
+            and strpos(regexp_replace(adaptador.prosrc, '[[:space:]]+', '', 'g'),
+              'returnprivate.ejecutar_cambio_responsabilidad(''atencion_persona'',p_inversionista,p_nuevo_responsable,p_motivo,null,true)') > 0
+            and strpos(regexp_replace(nucleo.prosrc, '[[:space:]]+', '', 'g'),
+              'v_resultado:=private.cambiar_atencion_persona(v_persona,p_destino,v_motivo)') > 0
+            and strpos(impl.prosrc, 'F2.b [D-2]') > 0
+            and not nucleo.prosecdef and not impl.prosecdef
+            and nucleo.proconfig @> array['search_path=""', 'lock_timeout=5s']
+            and impl.proconfig @> array['search_path=""', 'lock_timeout=5s']
+            and not exists (
+              select 1 from unnest(array['anon','authenticated','service_role']) r(rol)
+              where has_function_privilege(r.rol, nucleo.oid, 'EXECUTE')
+                 or has_function_privilege(r.rol, impl.oid, 'EXECUTE'))
+            and not exists (
+              select 1 from aclexplode(coalesce(nucleo.proacl, acldefault('f', nucleo.proowner))) a where a.grantee=0)
+            and not exists (
+              select 1 from aclexplode(coalesce(impl.proacl, acldefault('f', impl.proowner))) a where a.grantee=0)
+        ))::int end from pg_proc adaptador where oid = '${FIRMAS[2]}'::regprocedure`);
+    check(FIRMAS.slice(0, 2).reduce((n, f) => n + marcador(f), 0) === 2 && reasignacionD2 === 1,
+      'D-2 conserva offboarding y reasignación: implementación directa o cadena privada completa y sin grants API');
     check(cuenta('conteo retirado', `select (to_regprocedure('crm.personas_por_responsable_fn(uuid)') is null)::int`) === 1,
       'D-2 crm.personas_por_responsable_fn no existe (un conteo no es un interlock; retirada en b5 v2)');
     check(cuenta('leads_de_personas', `select count(*) from pg_proc p where p.oid = 'private.leads_de_personas(uuid[])'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""']`) === 1,
@@ -12898,9 +13228,9 @@ async function testIdentidadF2bD15(sessions, seed) {
     check(!e4 && r4?.ok === true && r4?.dni_por_puerta === false && cuenta('editada', `select count(*) from crm.leads where id = '${L_V1}' and nota = 'editada por su analista' and distrito = 'Lima' and dni is null`) === 1,
       'D-15 OFF vend1 edita el suyo por editar_lead_fn → escrito (nota, distrito, dni null), dni_por_puerta=false (el UPDATE de hoy)', e4?.message ?? JSON.stringify(r4));
     await expectExpectedFailure('D-15 vend1 editar_lead_fn sin cambios ({}) → 22023', sessions.vend1.client.schema('crm').rpc('editar_lead_fn', { p_lead_id: L_V1, p_cambios: {} }), ['22023'], /sin cambios|inválidos/i);
-    // Matriz de roles (auditor v5 #3): los que no ven el lead (RLS) → P0002 sin sondear; los jerárquicos escriben.
+    // Matriz de roles: sin permiso UPDATE → P0002; consultar el lead no concede edición.
     for (const clave of ['coordinador', 'directorio', 'clientBank', 'vendInactive']) {
-      await expectExpectedFailure(`D-15 ${clave} editar_lead_fn sobre el lead de vend1 → P0002 (la RLS no se lo muestra)`, sessions[clave].client.schema('crm').rpc('editar_lead_fn', { p_lead_id: L_V1, p_cambios: { nota: 'ajena' } }), ['P0002'], /no encontrado/i);
+      await expectExpectedFailure(`D-15 ${clave} editar_lead_fn sobre el lead de vend1 → P0002 (la RLS no permite actualizarlo)`, sessions[clave].client.schema('crm').rpc('editar_lead_fn', { p_lead_id: L_V1, p_cambios: { nota: 'ajena' } }), ['P0002'], /no encontrado/i);
     }
     const { data: r5, error: e5 } = await sessions.sup1.client.schema('crm').rpc('editar_lead_fn', { p_lead_id: L_V1, p_cambios: { nota: 'editada por el supervisor' } });
     check(!e5 && r5?.ok === true && cuenta('editada sup1', `select count(*) from crm.leads where id = '${L_V1}' and nota = 'editada por el supervisor'`) === 1, 'D-15 OFF sup1 edita el lead de su analista (ámbito jerárquico)', e5?.message ?? JSON.stringify(r5));
@@ -12917,9 +13247,8 @@ async function testIdentidadF2bD15(sessions, seed) {
       const { data: r8, error: e8 } = await sessions.vend1.client.schema('crm').rpc('editar_lead_fn', { p_lead_id: L_V1, p_cambios: { dni: DNI_LIBRE, nota: 'con documento por su puerta' } });
       check(!e8 && r8?.ok === true && r8?.dni_por_puerta === true && cuenta('dni y nota', `select count(*) from crm.leads where id = '${L_V1}' and dni = '${DNI_LIBRE}' and nota = 'con documento por su puerta'`) === 1,
         'D-15 ON: DNI libre + nota → el DNI por su puerta (dni_por_puerta=true) y la nota en la misma transacción', e8?.message ?? JSON.stringify(r8));
-      // coordinador no ve el lead (P0002 antes de llamar a la puerta); directorio (lector global) lo VE pero no tiene rol CRM
-      // que edite: la puerta del DNI lo rechaza con 42501 antes de tocar nada.
-      await expectExpectedFailure('D-15 ON coordinador editar_lead_fn con otro DNI → P0002 (la RLS no muestra el lead; la puerta del DNI no llega a llamarse)', sessions.coordinador.client.schema('crm').rpc('editar_lead_fn', { p_lead_id: L_V1, p_cambios: { dni: `7${RUN_IDENTIDAD}193` } }), ['P0002'], /no encontrado/i);
+      // Coordinación y Directorio consultan el lead; la puerta del DNI exige un rol que pueda editarlo.
+      await expectExpectedFailure('D-15 ON coordinador editar_lead_fn con otro DNI → 42501 (consulta no concede edición)', sessions.coordinador.client.schema('crm').rpc('editar_lead_fn', { p_lead_id: L_V1, p_cambios: { dni: `7${RUN_IDENTIDAD}193` } }), ['42501'], /revocado/i);
       await expectExpectedFailure('D-15 ON directorio editar_lead_fn con otro DNI → 42501 (lo ve como lector global, pero la puerta del DNI exige rol CRM que edite)', sessions.directorio.client.schema('crm').rpc('editar_lead_fn', { p_lead_id: L_V1, p_cambios: { dni: `7${RUN_IDENTIDAD}193` } }), ['42501', 'P0002'], /revocado|no encontrado/i);
     } finally {
       flagD15(false);
@@ -13506,11 +13835,9 @@ async function testConversionMensual(sessions, seed) {
   }).format(fecha);
   const MES = enLima(new Date()).slice(0, 7);
   const PERIODO = `${MES}-01`;
-  // Tope de referidos (migracion 20261007160937): desde 2026-10 el referido que cierra vale 1 y entre todos los
-  // referidos de un analista solo cuentan hasta el 15 % de sus cierres de leads asignados (landing y formulario). El
-  // oraculo de este bloque SIGUE el mes: antes de octubre, factor 0,15 y suma exacta; desde octubre, factor 1 y la suma
-  // exacta pasa a ser una COTA (el tope depende de los cierres de landing y formulario sin alta manual, que el payload no
-  // separa de los de base cargada ni de los de alta manual).
+  // Regla vigente (20261012220959): desde octubre el peso nominal es 1, limitado
+  // al 15 % de los propios cierres referidos, sin redondeo. Antes de octubre el
+  // peso es 0,15 y no hay tope. El oráculo usa el peso y límite declarados del mes.
   const TOPE_ACTIVO = MES >= '2026-10';
   const FACTOR_ESPERADO = TOPE_ACTIVO ? 1 : 0.15;
   const ids = seed.profileIdByKey;
@@ -13926,17 +14253,10 @@ async function testConversionMensual(sessions, seed) {
       && deltaVend1((f) => f.cierres_referidos) === 1,
       'T2/T3 · los dos cierres del mes se atribuyen a vend1, cada uno en su cubo',
       JSON.stringify({ cnr: deltaVend1((f) => f.cierres_no_referidos), cr: deltaVend1((f) => f.cierres_referidos) }));
-    // Antes del tope: 1 + 0,15 × 1 exactos. Con tope (octubre en adelante) el referido vale 1 si cabe en el tope
-    // (siempre cabe el primero del mes: el cierre landing de este mismo bloque es base) y 0 si otro referido anterior de vend1
-    // ya ocupa el lugar: el delta cae en [1, 1 + factor]. NO es un oraculo exacto a proposito: la base del tope (landing y
-    // formulario sin alta manual) no se separa en este payload de los cierres de base cargada y de alta manual, ni de los
-    // referidos del fixture, asi que el caso exacto lo prueba conversion-tope-referidos/prueba-tope.sql en el banco.
-    check(TOPE_ACTIVO
-        ? (deltaVend1((f) => f.numerador) >= 1 - 1e-9 && deltaVend1((f) => f.numerador) <= 1 + FACTOR_ESPERADO + 1e-9)
-        : cerca(deltaVend1((f) => f.numerador), 1.15),
-      TOPE_ACTIVO
-        ? 'T6 · con el tope de referidos el numerador de vend1 sube entre 1 y 1 + factor (el referido cuenta o queda fuera del tope)'
-        : 'T6 · el numerador sube 1,15 exactos: 1 + 0,15 × 1, fraccionario y sin redondear',
+    // Un directo y un referido: delta exacta, también con el límite vigente.
+    const aporteReferidoEsperado = topeDeclarado == null ? factor : Math.min(factor, Number(topeDeclarado) / 100);
+    check(cerca(deltaVend1((f) => f.numerador), 1 + aporteReferidoEsperado),
+      'T6 · el numerador sube un directo más el aporte referido limitado sobre sus propios cierres, sin redondear',
       String(deltaVend1((f) => f.numerador)));
     check(deltaVend1((f) => f.referidos.cerrados) === 1
       && deltaVend1((f) => f.referidos.dados_de_alta) === 1,
@@ -13977,7 +14297,7 @@ async function testConversionMensual(sessions, seed) {
       && deltaTotal('cierres_no_referidos') === 1
       && deltaTotal('cierres_referidos') === 1
       && deltaTotal('referidos_recibidos') === 2
-      && cerca(deltaTotal('numerador'), TOPE_ACTIVO ? 1 + FACTOR_ESPERADO : 1.15)
+      && cerca(deltaTotal('numerador'), 1 + aporteReferidoEsperado)
       && deltaTotal('analistas') === 0,
       `D8 · el TOTAL global se mueve lo sembrado INCLUYENDO al productor fuera de roster (+2 divisor; el listado de analistas conserva su tamaño)`,
       JSON.stringify({ antes: totalAntes, despues: totalDespues, sup1YaContaba: deltaAnalistaFueraRoster === 0 }));
@@ -15248,7 +15568,7 @@ async function testCierresExternos(sessions, seed) {
     timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit',
   }).format(fecha);
   const PERIODO = `${enLima(new Date()).slice(0, 7)}-01`;
-  const VENCE_COOP = enLima(new Date(Date.now() + 365 * 86400_000));
+  const VENCE_COOP = enLima(new Date(Date.now() + 360 * 86400_000));
   const ids = seed.profileIdByKey;
 
   const pedirFn = (clave) => sessions[clave].client
@@ -15580,15 +15900,14 @@ async function testCierresExternos(sessions, seed) {
       'el lector global ve el estado igual que gerencia (la policy se lo permite)',
       JSON.stringify(estadoDir?.data));
 
-    // El coordinador PASA el gate y recibe vacio: su ambito de leads es ∅, igual
-    // que en cumplimiento_metas_fn. Es 200 con [], no 42501 — quien acota es
-    // `vendedor_ids_visibles`, no la admision.
+    // Coordinación consulta el estado del cierre en toda la empresa.
     const estadoCoord = await positive(
       'coordinador pasa el gate de cierres_estado_fn',
       estado('coordinador', [IDS_CIERRES_EXTERNOS.leadCoop]),
     );
-    check((estadoCoord?.data ?? []).length === 0,
-      'el coordinador recibe la lista VACIA (ambito ∅)', JSON.stringify(estadoCoord?.data));
+    check(estadoCoord?.data?.length === 1
+      && JSON.stringify(estadoCoord.data) === JSON.stringify(estadoGer?.data),
+      'Coordinación recibe el mismo estado del cierre que Gerencia', JSON.stringify(estadoCoord?.data));
 
     await expectExplicitAuthorizationDenied(
       'cliente denegado en cierres_estado_fn',
@@ -16223,16 +16542,13 @@ async function testAtribucionVentas(sessions, seed) {
   );
 }
 
-// ── Categoría por operación (20261009120000) ────────────────────────────────────────────────────────────────────────
-// La puerta crm.corregir_categoria_contrato_fn (solo Gerencia vigente, motivo de 5 a 300, respaldo de la operación de
-// cartera) y los dos triggers. NO escribe en el mundo compartido: las negaciones no escriben y el único camino feliz pide
-// la categoría que el contrato YA tiene ({cambio:false}). La sincronización, el sellado, el PDF, el libro de rentabilidad
-// y la prevención sobre contratos con operación se prueban en el banco (supabase/scripts/categoria-por-operacion/prueba.sql),
-// porque la semilla no trae contratos con operación de cartera. 20261009180000 (sin operación, solo 'nuevo', toda vía): un
-// caso fuera de banda que se deshace; el resto, en el banco (supabase/scripts/categoria-sin-operacion/prueba.sql).
+// ── Corrección manual de categoría (20261015212939) ──────────────────────────
+// La puerta admite Admin/Superadmin, Gerencia y Coordinación, con motivo de 5 a 300.
+// Aquí solo sondas sin escrituras y negativas. Las seis direcciones, conversión, ranking,
+// auditoría y sello mensual se ejercitan en permisos-coordinacion/prueba.sql con rollback.
 async function testCategoriaPorOperacion(sessions, seed) {
   void seed;
-  console.log('\n— Categoría por operación: puerta de Gerencia (autoridad, motivo, respaldo) —');
+  console.log('\n— Corrección manual de categoría: autoridad, motivo y auditoría —');
   const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-categoria'));
   const gerencia = sessions.gerencia.client.schema('crm');
   let contratoId;
@@ -16265,24 +16581,28 @@ async function testCategoriaPorOperacion(sessions, seed) {
   check(!sonda.error && sonda.data?.cambio === false,
     'categoría: Gerencia pidiendo la categoría que ya tiene → {cambio:false} y nada escrito', errorText(sonda.error));
 
-  // Autoridad: solo Gerencia.
+  const sondaCoord = await llamar(sessions.coordinador.client.schema('crm'), 'nuevo', motivo);
+  check(!sondaCoord.error && sondaCoord.data?.cambio === false,
+    'categoría: Coordinación puede corregir; repetir la categoría vigente no escribe', errorText(sondaCoord.error));
+
+  // La consulta global no habilita a los demás roles para corregir.
   await expectExplicitAuthorizationDenied('categoría: anon no corrige', llamar(anon.schema('crm'), 'upgrade', motivo), ['42501', 'PGRST202']);
-  for (const key of ['vend1', 'sup1', 'coordinador', 'directorio']) {
+  for (const key of ['vend1', 'sup1', 'directorio', 'vendInactive']) {
     if (!sessions[key]) continue;
-    await expectExplicitAuthorizationDenied(`categoría: ${key} no corrige (solo Gerencia)`,
+    await expectExplicitAuthorizationDenied(`categoría: ${key} no corrige`,
       llamar(sessions[key].client.schema('crm'), 'upgrade', motivo), ['42501']);
   }
   // Datos.
   await expectExpectedFailure('categoría: motivo en blanco → 22023', llamar(gerencia, 'upgrade', '    '), ['22023'], /motivo/i);
   await expectExpectedFailure('categoría: motivo de 4 caracteres → 22023', llamar(gerencia, 'upgrade', 'abcd'), ['22023'], /motivo/i);
   await expectExpectedFailure('categoría: categoría inválida → 22023', llamar(gerencia, 'otra', motivo), ['22023'], /categor/i);
-  // Respaldo: sin operación de cartera solo cabe 'nuevo'.
-  await expectExpectedFailure('categoría: un contrato sin operación de cartera no pasa a upgrade → 23514',
-    llamar(gerencia, 'upgrade', motivo), ['23514'], /sin operaci[oó]n de cartera solo puede quedar como nuevo/i);
+  // La corrección manual sin operación se verifica con rollback en el banco sintético.
+  await expectExpectedFailure('categoría: Coordinación tampoco puede omitir el motivo → 22023',
+    llamar(sessions.coordinador.client.schema('crm'), 'upgrade', ' '), ['22023'], /motivo/i);
   check(filasDeMotivo() === filasAntes
       && textoFueraDeBanda('categoría: categoría del contrato sonda', `select categoria from public.contratos where id = '${contratoId}'`) === 'nuevo',
     'categoría: ninguna sonda escribió (sin filas de motivo nuevas y el contrato sigue en nuevo)');
-  // 20261009180000: la regla vale para TODA vía, no solo la puerta. Fuera de banda, un UPDATE directo de un contrato
+  // El UPDATE directo sigue sin la excepción de corrección auditada. Fuera de banda, un UPDATE de un contrato
   // legacy sin operación a upgrade, dentro de una subtransacción que termina SIEMPRE en raise (no escribe nada). Se salta
   // si la regla no está desplegada en esta base.
   if (contarFueraDeBanda('categoría: guarda con la regla sin operación',
@@ -16500,6 +16820,118 @@ async function testCierreDeMes(sessions, seed) {
   }
 }
 
+// ── Plazo de carga por mes (20261015000852): crm.fijar_plazo_carga_mes y crm.plazos_carga_mes_fn ────────────────────
+// Solo Gerencia. Esta matriz NO fija ningún plazo: una decisión es historia append-only y movería para siempre el plazo
+// (y con él el sello) de un mes de la branch. Gerencia pasa el gate y la detiene una VALIDACIÓN (22023): ese rechazo ES
+// el positivo sin escribir, como en el potencial del lead. El resto, 42501. La lectura sí se prueba en positivo (no
+// escribe). Las escrituras, la reapertura, la reevaluación y los candados: supabase/scripts/plazo-carga-mes/prueba.sql
+// (deshecha, con mutantes); las dos sesiones: dos-sesiones.py; Auth/HTTP con escrituras: `test-rls.mjs --plazo-carga-mes`.
+// Aquí no entran Gerencia de baja, admin/superadmin del Portal ni service_role (el seed no tiene esas sesiones, y llamar sin
+// EXECUTE tumbaba el backend en imágenes viejas): los cubren prueba.sql (B5) e integracion-permisos.mjs.
+const TABLAS_PLAZO_CARGA = ['plazos_carga_mes', 'reaperturas_mes'];
+const CLAVES_MES_PLAZO = ['ampliado', 'decision', 'mes', 'mes_nombre', 'motivo_no_reabrible', 'plazo_base_ultimo_dia',
+  'plazo_ultimo_dia', 'reabrible', 'sellado', 'ultima_reapertura'];
+
+function diaLima(desplazamientoDias = 0) {
+  const hoy = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(new Date());
+  const d = new Date(`${hoy}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + desplazamientoDias);
+  return d.toISOString().slice(0, 10);
+}
+
+async function testPlazoCargaMes(sessions, seed) {
+  console.log('\n— Plazo de carga por mes: puertas de Gerencia (sin escribir) —');
+  void seed;
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-plazo'));
+  const sonda = await sessions.gerencia.client.schema('crm').rpc('plazos_carga_mes_fn');
+  if (sonda.error && String(sonda.error.code ?? '') === 'PGRST202') {
+    // Salto RUIDOSO; con CRM_RLS_EXIGE_PLAZO_CARGA=1 (la base ya debería tenerla) es un FALLO, no un aviso.
+    if (process.env.CRM_RLS_EXIGE_PLAZO_CARGA === '1') {
+      fail('Plazo de carga: crm.plazos_carga_mes_fn no existe y CRM_RLS_EXIGE_PLAZO_CARGA=1 la exige');
+      return;
+    }
+    console.log('  ⚠ OMITIDO: 20261015000852 no está aplicada en esta base (crm.plazos_carga_mes_fn no existe)');
+    return;
+  }
+  const hoyLima = diaLima();
+  const mesPasado = `${new Date(Date.UTC(Number(hoyLima.slice(0, 4)), Number(hoyLima.slice(5, 7)) - 2, 1))
+    .toISOString().slice(0, 7)}-01`;
+  const args = { p_periodo: mesPasado, p_ultimo_dia: diaLima(5), p_motivo: 'Intento del gate de roles' };
+
+  // (A) Las dos tablas no se leen ni se escriben por la Data API, ni siquiera Gerencia.
+  for (const tabla of TABLAS_PLAZO_CARGA) {
+    for (const key of [...ROLES_CON_AVISO, ...ROLES_SIN_AVISO]) {
+      if (!sessions[key]) continue;
+      await expectExplicitAuthorizationDenied(
+        `${key} no lee crm.${tabla} directamente`,
+        sessions[key].client.schema('crm').from(tabla).select('*').limit(1),
+        ['42501', 'PGRST205', 'PGRST202'],
+      );
+    }
+    await expectExplicitAuthorizationDenied(
+      `anon no lee crm.${tabla}`,
+      anon.schema('crm').from(tabla).select('*').limit(1),
+      ['42501', 'PGRST205', 'PGRST202'],
+    );
+    await expectBlockedMutation(
+      `gerencia no inserta en crm.${tabla}`,
+      sessions.gerencia.client.schema('crm').from(tabla).insert({ periodo: '2020-01-01', motivo: 'Intento directo' }).select(),
+      ['42501', 'PGRST205', 'PGRST202'],
+    );
+  }
+
+  // (B) Fijar el plazo: solo Gerencia. Los demás cortan en el gate ANTES de mirar nada (no escriben).
+  for (const key of ['vend1', 'sup1', 'coordinador', 'directorio', 'vendInactive', 'clientBank']) {
+    if (!sessions[key]) continue;
+    await expectExpectedFailure(
+      `${key} no fija el plazo de carga (42501)`,
+      sessions[key].client.schema('crm').rpc('fijar_plazo_carga_mes', args),
+      ['42501'], /Solo Gerencia decide el plazo de carga/,
+    );
+  }
+  await expectExplicitAuthorizationDenied(
+    'anon no fija el plazo de carga',
+    anon.schema('crm').rpc('fijar_plazo_carga_mes', args),
+    ['42501', 'PGRST202'],
+  );
+  // Gerencia pasa el gate: lo prueba que la detenga la validación (sin escribir nada).
+  await expectExpectedFailure(
+    'gerencia pasa el gate y la detiene la validación del motivo (22023, sin escribir)',
+    sessions.gerencia.client.schema('crm').rpc('fijar_plazo_carga_mes', { ...args, p_motivo: 'abc' }),
+    ['22023'], /motivo debe tener entre 5 y 300/,
+  );
+  await expectExpectedFailure(
+    'gerencia no fija un último día en el pasado (22023, sin escribir)',
+    sessions.gerencia.client.schema('crm').rpc('fijar_plazo_carga_mes', { ...args, p_ultimo_dia: diaLima(-1) }),
+    ['22023'], /no puede ser anterior a hoy/,
+  );
+
+  // (C) La lectura: Gerencia la recibe con su forma exacta (el front la valida con strictObject); el resto, 42501.
+  const { data, error } = await sessions.gerencia.client.schema('crm').rpc('plazos_carga_mes_fn');
+  if (check(!error, 'gerencia lee crm.plazos_carga_mes_fn', errorText(error))) {
+    check(data?.version === 1 && data?.zona === 'America/Lima' && data?.hoy === hoyLima
+      && Array.isArray(data?.meses) && data.meses.length >= 2,
+    'la lectura trae versión, hoy de Lima y al menos el mes anterior y el mes en curso', JSON.stringify(data)?.slice(0, 300));
+    check((data?.meses ?? []).every((m) => JSON.stringify(Object.keys(m).sort()) === JSON.stringify(CLAVES_MES_PLAZO)),
+      'cada mes trae exactamente sus claves', JSON.stringify(data?.meses?.[0]));
+    check((data?.meses ?? []).some((m) => m.mes === mesPasado.slice(0, 7)),
+      'el mes anterior siempre aparece', JSON.stringify((data?.meses ?? []).map((m) => m.mes)));
+  }
+  for (const key of ['vend1', 'sup1', 'coordinador', 'directorio', 'vendInactive', 'clientBank']) {
+    if (!sessions[key]) continue;
+    await expectExpectedFailure(
+      `${key} no lee los plazos de carga (42501)`,
+      sessions[key].client.schema('crm').rpc('plazos_carga_mes_fn'),
+      ['42501'], /Solo Gerencia ve y decide los plazos de carga/,
+    );
+  }
+  await expectExplicitAuthorizationDenied(
+    'anon no lee los plazos de carga',
+    anon.schema('crm').rpc('plazos_carga_mes_fn'),
+    ['42501', 'PGRST202'],
+  );
+}
+
 let verifiedSeed = null;
 
 // ── Potencial del lead (20260930213647): puerta crm.marcar_potencial_lead_fn ──────────────────
@@ -16667,8 +17099,16 @@ async function testBaseGestionB1(sessions, seed) {
     'B1/B1b trigger del sello BEFORE INSERT OR UPDATE OF las tres columnas, habilitado');
   check(cuenta('anon', `select (has_column_privilege('anon', 'crm.leads', 'enfriado_hasta', 'SELECT') or has_column_privilege('anon', 'crm.leads', 'reactivado_en', 'SELECT') or has_column_privilege('anon', 'crm.leads', 'proxima_llamada_en', 'SELECT'))::int`) === 0,
     'B1/B1b anon no lee las columnas nuevas');
-  check(cuenta('acl por columna', `select count(*) from pg_attribute a, aclexplode(a.attacl) e where a.attrelid = 'crm.leads'::regclass and a.attname in ('reactivado_en', 'enfriado_hasta', 'proxima_llamada_en') and e.privilege_type in ('INSERT', 'UPDATE') and e.grantee in ('anon'::regrole, 'authenticated'::regrole)`) === 0,
-    'B1/B1b sin INSERT/UPDATE por columna para la API (pg_attribute.attacl)');
+  // F3 (20261014210146) trasladó UPDATE de tabla a columnas para excluir
+  // campania_origen. Conserva los no-op; los cambios reales siguen sellados
+  // por el trigger y las siete negativas HTTP de arriba. No se concede nada.
+  const conF3 = cuenta('F3 aplicada', `select count(*) from pg_attribute where attrelid='crm.leads'::regclass and attname='campania_origen' and not attisdropped`) === 1;
+  check(cuenta('sin INSERT ni UPDATE anon', `select count(*) from pg_attribute a, aclexplode(a.attacl) e where a.attrelid = 'crm.leads'::regclass and a.attname in ('reactivado_en', 'enfriado_hasta', 'proxima_llamada_en') and ((e.privilege_type = 'INSERT' and e.grantee in ('anon'::regrole, 'authenticated'::regrole)) or (e.privilege_type = 'UPDATE' and e.grantee = 'anon'::regrole))`) === 0,
+    'B1/B1b sin INSERT por columna para la API ni UPDATE para anon');
+  check(cuenta('UPDATE de la forma publicada', `select count(*) from pg_attribute a, aclexplode(a.attacl) e where a.attrelid = 'crm.leads'::regclass and a.attname in ('reactivado_en', 'enfriado_hasta', 'proxima_llamada_en') and e.privilege_type = 'UPDATE' and e.grantee = 'authenticated'::regrole and not e.is_grantable`) === (conF3 ? 3 : 0)
+    && cuenta('UPDATE de tabla', `select has_table_privilege('authenticated','crm.leads','UPDATE')::int`) === (conF3 ? 0 : 1)
+    && cuenta('sin GRANT OPTION', `select count(*) from pg_attribute a, aclexplode(a.attacl) e where a.attrelid='crm.leads'::regclass and a.attname in ('reactivado_en','enfriado_hasta','proxima_llamada_en') and e.grantee in ('anon'::regrole,'authenticated'::regrole) and e.is_grantable`) === 0,
+    `B1/B1b UPDATE exacto ${conF3 ? 'por columna tras F3' : 'por tabla antes de F3'}, sin GRANT OPTION y con sello funcional`);
   check(cuenta('acl exacta', `select count(*) from pg_attribute a, aclexplode(a.attacl) e where a.attrelid = 'crm.leads'::regclass and a.attname in ('reactivado_en', 'enfriado_hasta', 'proxima_llamada_en') and e.privilege_type = 'SELECT' and not e.is_grantable and e.grantee in ('authenticated'::regrole, 'service_role'::regrole)`) === 6,
     'B1/B1b ACL por columna exacta: 6 entradas SELECT (authenticated + service_role × 3)');
   check(cuenta('constantes', `select (c.max_intentos = 3 and c.dias_enfriamiento = 30 and c.dias_max_rellamada = 10)::int from private.base_gestion_constantes() c`) === 1,
@@ -16835,9 +17275,8 @@ async function testPotencialLectura(sessions, seed) {
 //       que la RLS de crm.leads deja ver a ese actor, y «sin_marca» el resto. Después borra sus
 //       cuatro marcas y repone la bandera (finally), y comprueba las dos cosas.
 //   3 · La ruta SIN RLS (auditor-rls f3b): crm.resumen_cartera_fn es DEFINER y llama a la cartera
-//       sin RLS. Para quien tiene ámbito de filas sus conteos son los mismos que por la API;
-//       coordinación, que opera el reparto pero no lee leads, NO recibe conteos por nivel ni por la
-//       API ni por el envoltorio. Y el ayudante no se alcanza por PostgREST (esquema private).
+//       sin RLS. Sus conteos son los mismos que por la API, incluida la consulta global de
+//       Coordinación. El ayudante no se alcanza por PostgREST (esquema private).
 // Mismo AISLAMIENTO que el bloque de lectura: la suite se niega a correr contra producción y usa un
 // banco desechable; si el proceso muere a mitad quedan la bandera encendida y hasta cuatro marcas
 // sintéticas (apagar-bandera.sql y un delete de esas filas las reponen). Denegados: dado de baja,
@@ -16875,10 +17314,7 @@ async function testPotencialFiltro(sessions, seed) {
   }
 
   const FN = 'cartera_filtrada_fn';
-  // Coordinación opera el reparto pero su RLS no le deja leer leads: no tiene ámbito de filas y
-  // para ella el potencial no existe (ni conteos ni filtro). Va aparte.
-  const CON_AMBITO = ['vend1', 'vend3', 'sup1', 'sup1Nested', 'sup2', 'gerencia', 'directorio'];
-  const ROLES = [...CON_AMBITO, 'coordinador'];
+  const ROLES = ['vend1', 'vend3', 'sup1', 'sup1Nested', 'sup2', 'gerencia', 'directorio', 'coordinador'];
   const NIVELES = ['estrella', 'tibio', 'frio'];
   const AYUDANTE = 'private.cartera_potencial_fn()';
   const resumenDe = (cliente) => cliente.schema('crm').rpc('resumen_cartera_fn');
@@ -16896,7 +17332,7 @@ async function testPotencialFiltro(sessions, seed) {
                      and (a.grantee not in ('postgres'::regrole, 'authenticated'::regrole) or (a.grantee = 'authenticated'::regrole and a.is_grantable)))`) === 0,
   'cartera_potencial_fn: EXECUTE exactamente para authenticated (ni anon, ni service_role, ni PUBLIC, sin opción de concederlo)');
   check(contarFueraDeBanda('potencial filtro: huella del ayudante',
-    `set search_path = ''; set quote_all_identifiers = off; select (md5(pg_get_functiondef(to_regprocedure('${AYUDANTE}'))) = '73e993d618b203cdbe21e8127f7ea5b4')::int`) === 1,
+    `set search_path = ''; set quote_all_identifiers = off; select (md5(pg_get_functiondef(to_regprocedure('${AYUDANTE}'))) = 'c475709205aed4422a44c852d1b28b81')::int`) === 1,
   'cartera_potencial_fn: el cuerpo es el ensayado (gate, bandera y espejo de leads_select)');
   check(contarFueraDeBanda('potencial filtro: tabla sin grants',
     `select (has_table_privilege('authenticated', 'crm.lead_potencial', 'SELECT') or has_any_column_privilege('authenticated', 'crm.lead_potencial', 'SELECT') or has_table_privilege('anon', 'crm.lead_potencial', 'SELECT') or has_any_column_privilege('anon', 'crm.lead_potencial', 'SELECT'))::int`) === 0,
@@ -16973,20 +17409,7 @@ async function testPotencialFiltro(sessions, seed) {
       `insert into crm.lead_potencial (lead_id, nivel, origen, marcado_por, marcado_en) values ${MARCAS.map((m) =>
         `('${m.lead}', '${m.nivel}', 'manual', '${m.por}', now())`).join(', ')};`);
     fijarBandera(true);
-    // Coordinación: ni conteos ni filtro, por la API y por el envoltorio (que sí cuenta su bandeja).
-    {
-      const porApi = await cartera(sessions.coordinador.client);
-      check(!porApi.error && porApi.data?.resumen && !('potencial' in porApi.data.resumen),
-        'potencial filtro coordinador: encendida → por la API no recibe conteos por nivel',
-        porApi.error ? `${porApi.error.code ?? ''} ${porApi.error.message}` : JSON.stringify(porApi.data?.resumen?.potencial ?? null));
-      await expectExpectedFailure('potencial filtro coordinador: pedir un nivel → 55000 (sin ámbito de filas el filtro no existe)',
-        cartera(sessions.coordinador.client, { p_potencial: 'frio' }), ['55000'], /no est[aá] habilitado/i);
-      const porEnvoltorio = await resumenDe(sessions.coordinador.client);
-      check(!porEnvoltorio.error && porEnvoltorio.data && !('potencial' in porEnvoltorio.data),
-        'potencial filtro coordinador: encendida → resumen_cartera_fn (sin RLS) tampoco le da conteos por nivel',
-        porEnvoltorio.error ? `${porEnvoltorio.error.code ?? ''} ${porEnvoltorio.error.message}` : JSON.stringify(porEnvoltorio.data?.potencial ?? null));
-    }
-    for (const clave of CON_AMBITO) {
+    for (const clave of ROLES) {
       const cliente = sessions[clave].client;
       const todos = await cartera(cliente);
       if (todos.error) {
@@ -17053,6 +17476,7 @@ async function testPotencialFiltro(sessions, seed) {
     check(esLista(await idsDe('sup1', 'frio'), [idDe('luis')]), 'potencial filtro sup1 con frío: el parqueado de su bandeja (luis)');
     check(esLista(await idsDe('sup2', 'tibio'), []), 'potencial filtro sup2 con tibio: maría es de otro equipo');
     check(esLista(await idsDe('gerencia', 'estrella'), [idDe('juan'), idDe('ana')]), 'potencial filtro gerencia con estrella: juan y ana');
+    check(esLista(await idsDe('coordinador', 'estrella'), [idDe('juan'), idDe('ana')]), 'potencial filtro coordinador con estrella: juan y ana de ambos equipos');
     // Negativa cruzada: pedir el analista de OTRO equipo con un nivel no enseña nada ni cuenta nada.
     {
       const { data, error } = await cartera(sessions.vend1.client, { p_vendedor_id: seed.profileIdByKey.vend3, p_potencial: 'estrella' });
@@ -17663,7 +18087,7 @@ async function testBasesCargadasB7(sessions, seed) {
   const vend1 = sessions.vend1.client.schema('crm');
   const sup1 = sessions.sup1.client.schema('crm');
   const ger = sessions.gerencia.client.schema('crm');
-  check(cuenta('tablas', `select count(*) from pg_class c where c.oid in ('crm.bases_carga'::regclass, 'crm.base_carga_leads'::regclass, 'crm.base_carga_operaciones'::regclass) and c.relrowsecurity and c.relacl is not null and not exists (select 1 from aclexplode(c.relacl) a where a.grantee <> 'postgres'::regrole)`) === 3,
+  check(cuenta('tablas', `select count(*) from pg_class c where c.oid in ('crm.bases_carga'::regclass, 'crm.base_carga_leads'::regclass, 'crm.base_carga_operaciones'::regclass) and c.relrowsecurity and c.relowner = 'postgres'::regrole and not exists (select 1 from aclexplode(coalesce(c.relacl, acldefault('r', c.relowner))) a where a.grantee <> 'postgres'::regrole)`) === 3,
     'B7 las 3 tablas con RLS y sin ningún grant fuera de postgres');
   check(cuenta('sello', `select count(*) from pg_trigger t join pg_proc p on p.oid = t.tgfoid where t.tgrelid = 'crm.leads'::regclass and t.tgname = 'trg_leads_000_base_cargada_solo_puerta' and t.tgenabled = 'O' and t.tgtype = 23 and t.tgqual is null and t.tgattr = ''::int2vector and not p.prosecdef and p.proconfig = array['search_path=""']::text[] and not has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('service_role', p.oid, 'EXECUTE')`) === 1,
     'B7 sello de crm.leads habilitado (BEFORE INSERT OR UPDATE, por fila, sin WHEN), INVOKER con search_path vacío y sin EXECUTE para la API');
@@ -18249,6 +18673,376 @@ async function testEliminarInversion(sessions, seed) {
   await expectExpectedFailure('eliminar inversión: gerencia sobre una fuente inexistente → P0002', ger.rpc('eliminar_inversion_fn', args), ['P0002'], /no existe o ya fue eliminada/);
   const lectura = await sessions.gerencia.client.schema('crm').from('inversiones_eliminadas').select('id').limit(1);
   check(Boolean(lectura.error), 'eliminar inversión: gerencia no lee la copia directamente (solo funciones del servidor)');
+}
+
+// ── Reemplazar inversión (20261017162053): admin del portal (y gerencia si es la venta de un lead); núcleo cerrado ──
+// El comportamiento con escrituras (borrado con copia sin anular, alta, venta que se muda, mes sellado, plazo, tasa
+// heredada, «quedarme con la otra») se prueba en el banco con supabase/scripts/reemplazar-inversion/test-reemplazar-
+// inversion.sql; aquí, catálogo y roles, sin tocar la semilla compartida (fuentes inexistentes con randomUUID).
+// Salto RUIDOSO si la migración no está en esta base; con CRM_RLS_EXIGE_REEMPLAZAR_INVERSION=1 es un FALLO.
+async function testReemplazarInversion(sessions) {
+  console.log('\n— Reemplazar inversión: puertas, núcleo y copia —');
+  const saltar = (msg) => {
+    if (process.env.CRM_RLS_EXIGE_REEMPLAZAR_INVERSION === '1') fail(msg);
+    else console.log(`  ${msg}`);
+  };
+  let aplicada;
+  try {
+    aplicada = contarFueraDeBanda('reemplazar inversión: aplicada',
+      "select (to_regprocedure('crm.reemplazar_inversion_fn(uuid,text,jsonb,jsonb,jsonb)') is not null and to_regprocedure('crm.reemplazar_inversion_por_existente_fn(uuid,uuid,text)') is not null)::int");
+  } catch (error) {
+    saltar(`⚠ Reemplazar inversión SALTADO: sin vía fuera de banda (${error?.message ?? String(error)})`);
+    return;
+  }
+  if (aplicada !== 1) {
+    saltar('⚠ 20261017162053 (reemplazar inversión) NO desplegada en esta base: bloque SALTADO (no probado)');
+    return;
+  }
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`reemplazar inversión: ${etiqueta}`, sql);
+  check(cuenta('puertas', "select count(*) from pg_proc p where p.oid in ('crm.reemplazar_inversion_fn(uuid,text,jsonb,jsonb,jsonb)'::regprocedure, 'crm.reemplazar_inversion_por_existente_fn(uuid,uuid,text)'::regprocedure) and p.prosecdef and p.proowner = 'postgres'::regrole and 'search_path=\"\"' = any(p.proconfig) and has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('anon', p.oid, 'EXECUTE') and not has_function_privilege('service_role', p.oid, 'EXECUTE') and not exists (select 1 from aclexplode(p.proacl) a where a.grantee = 0)") === 2,
+    'reemplazar inversión: las dos puertas son DEFINER de postgres, search_path vacío, EXECUTE solo authenticated');
+  check(cuenta('nucleo', "select count(*) from pg_proc p cross join unnest(array['anon','authenticated','service_role']) r(rol) where p.oid in ('private.reemplazar_inversion_avance(uuid,jsonb,uuid,text,jsonb,jsonb,jsonb,uuid)'::regprocedure, 'private.registrar_inversion_reemplazada_avance(jsonb,uuid,uuid,text,text,uuid,text,jsonb)'::regprocedure) and has_function_privilege(r.rol, p.oid, 'EXECUTE')") === 0,
+    'reemplazar inversión: el núcleo privado (reemplazo y copia) sin EXECUTE para la API');
+  check(cuenta('nucleo invoker', "select count(*) from pg_proc p where p.oid in ('private.reemplazar_inversion_avance(uuid,jsonb,uuid,text,jsonb,jsonb,jsonb,uuid)'::regprocedure, 'private.registrar_inversion_reemplazada_avance(jsonb,uuid,uuid,text,text,uuid,text,jsonb)'::regprocedure) and not p.prosecdef and 'search_path=\"\"' = any(p.proconfig)") === 2,
+    'reemplazar inversión: el núcleo es INVOKER con search_path vacío');
+  check(cuenta('copia', "select count(*) from pg_attribute a where a.attrelid = 'crm.inversiones_eliminadas'::regclass and a.attname = 'reemplazada_por' and not a.attisdropped and not has_column_privilege('authenticated', a.attrelid, a.attname, 'SELECT')") === 1,
+    'reemplazar inversión: la copia recuerda el contrato que quedó y la API no la lee');
+  const DENEGADO = /permission denied/i;
+  const ROL = /Solo admin o gerencia pueden reemplazar inversiones/;
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-reemplazar-inversion'));
+  const args = { p_fuente_id: randomUUID(), p_motivo: 'Prueba del gate de RLS', p_contrato: {}, p_cronograma: [], p_cuenta: {} };
+  const argsExistente = { p_fuente_id: randomUUID(), p_conservar_id: randomUUID(), p_motivo: 'Prueba del gate de RLS' };
+  await expectExpectedFailure('reemplazar inversión: anon → 42501 (sin EXECUTE)', anon.schema('crm').rpc('reemplazar_inversion_fn', args), ['42501'], DENEGADO);
+  await expectExpectedFailure('reemplazar inversión: service_role → 42501 (sin EXECUTE)', admin.schema('crm').rpc('reemplazar_inversion_fn', args), ['42501'], DENEGADO);
+  await expectExpectedFailure('quedarme con la otra: anon → 42501 (sin EXECUTE)', anon.schema('crm').rpc('reemplazar_inversion_por_existente_fn', argsExistente), ['42501'], DENEGADO);
+  for (const clave of ['vend1', 'sup1', 'coordinador', 'directorio']) {
+    await expectExpectedFailure(`reemplazar inversión: ${clave} → 42501`, sessions[clave].client.schema('crm').rpc('reemplazar_inversion_fn', args), ['42501'], ROL);
+    await expectExpectedFailure(`quedarme con la otra: ${clave} → 42501`, sessions[clave].client.schema('crm').rpc('reemplazar_inversion_por_existente_fn', argsExistente), ['42501'], ROL);
+  }
+  // La gerencia del fixture NO es admin del portal: una inversión de Avance la reemplaza un admin del portal, y la puerta lo
+  // exige antes de validar nada más. Las validaciones (motivo, fuente inexistente, «se conserva») y el camino feliz, con un
+  // actor admin del portal + Gerencia, se prueban en supabase/scripts/reemplazar-inversion/test-reemplazar-inversion.sql.
+  const PORTAL = /la reemplaza un admin del portal/;
+  const ger = sessions.gerencia.client.schema('crm');
+  await expectExpectedFailure('reemplazar inversión: gerencia sin admin del portal → 42501', ger.rpc('reemplazar_inversion_fn', args), ['42501'], PORTAL);
+  await expectExpectedFailure('quedarme con la otra: gerencia sin admin del portal → 42501', ger.rpc('reemplazar_inversion_por_existente_fn', argsExistente), ['42501'], PORTAL);
+
+  // Vista previa del mes (20261017211313): solo lectura, mismas puertas de rol. Si la migración no está, salto RUIDOSO.
+  const previaAplicada = cuenta('vista previa: aplicada',
+    "select (to_regprocedure('crm.reemplazar_inversion_vista_previa_fn(uuid,date,uuid)') is not null)::int");
+  if (previaAplicada !== 1) {
+    saltar('⚠ 20261017211313 (vista previa del reemplazo) NO desplegada en esta base: casos SALTADOS (no probados)');
+    return;
+  }
+  check(cuenta('vista previa: puerta', "select count(*) from pg_proc p where p.oid = 'crm.reemplazar_inversion_vista_previa_fn(uuid,date,uuid)'::regprocedure and p.prosecdef and p.proowner = 'postgres'::regrole and 'search_path=\"\"' = any(p.proconfig) and has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('anon', p.oid, 'EXECUTE') and not has_function_privilege('service_role', p.oid, 'EXECUTE') and not exists (select 1 from aclexplode(p.proacl) a where a.grantee = 0)") === 1,
+    'vista previa del reemplazo: DEFINER de postgres, search_path vacío, EXECUTE solo authenticated');
+  check(cuenta('vista previa: ayudantes', "select count(*) from pg_proc p cross join unnest(array['anon','authenticated','service_role']) r(rol) where p.oid in ('private.reemplazo_dia_registro_venta(uuid)'::regprocedure, 'private.reemplazo_fecha_comercial(uuid,date)'::regprocedure) and has_function_privilege(r.rol, p.oid, 'EXECUTE')") === 0,
+    'vista previa del reemplazo: los ayudantes privados sin EXECUTE para la API');
+  const argsPrevia = { p_fuente_id: randomUUID(), p_fecha_inicio: '2026-10-01', p_conservar_id: null };
+  await expectExpectedFailure('vista previa: anon → 42501 (sin EXECUTE)', anon.schema('crm').rpc('reemplazar_inversion_vista_previa_fn', argsPrevia), ['42501'], DENEGADO);
+  for (const clave of ['vend1', 'sup1', 'coordinador', 'directorio']) {
+    await expectExpectedFailure(`vista previa: ${clave} → 42501`, sessions[clave].client.schema('crm').rpc('reemplazar_inversion_vista_previa_fn', argsPrevia), ['42501'], ROL);
+  }
+  await expectExpectedFailure('vista previa: gerencia sin admin del portal → 42501', ger.rpc('reemplazar_inversion_vista_previa_fn', argsPrevia), ['42501'], PORTAL);
+}
+
+// ── Recuperar ventas recargadas (20261018032400): tabla privada sin API, solo inserción; 4 funciones parchadas por ancla ──
+// El comportamiento (los cinco casos, rechazos del preflight, postflight, rehabilitación por fila) se prueba en el banco con
+// supabase/scripts/recuperar-ventas-recargadas/probar.sh + mutantes.py; aquí, catálogo, roles y Data API.
+async function testRecuperarVentasRecargadas(sessions) {
+  console.log('\n— Recuperar ventas recargadas: tabla sin API, triggers y huellas —');
+  const saltar = (msg) => {
+    if (process.env.CRM_RLS_EXIGE_RECUPERAR_VENTAS === '1') fail(msg);
+    else console.log(`  ${msg}`);
+  };
+  let aplicada;
+  try {
+    aplicada = contarFueraDeBanda('recuperar ventas: aplicada',
+      "select (to_regclass('crm.conversion_ventas_recuperadas') is not null and to_regprocedure('private.validar_venta_recuperada()') is not null)::int");
+  } catch (error) {
+    saltar(`⚠ Recuperar ventas SALTADO: sin vía fuera de banda (${error?.message ?? String(error)})`);
+    return;
+  }
+  if (aplicada !== 1) {
+    saltar('⚠ 20261018032400 (recuperar ventas recargadas) NO desplegada en esta base: bloque SALTADO (no probado)');
+    return;
+  }
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`recuperar ventas: ${etiqueta}`, sql);
+  check(cuenta('tabla', "select count(*) from pg_class c where c.oid = 'crm.conversion_ventas_recuperadas'::regclass and c.relrowsecurity and c.relowner = 'postgres'::regrole and not exists (select 1 from pg_policy p where p.polrelid = c.oid) and not exists (select 1 from unnest(array['anon','authenticated','service_role']) r(rol) where has_table_privilege(r.rol, c.oid, 'select, insert, update, delete, truncate, references, trigger') or has_any_column_privilege(r.rol, c.oid, 'select, insert, update, references'))") === 1,
+    'recuperar ventas: crm.conversion_ventas_recuperadas con RLS, de postgres, 0 políticas y ningún privilegio (tabla ni columna) para anon, authenticated ni service_role');
+  check(cuenta('triggers', "select count(*) from pg_trigger t where t.tgrelid = 'crm.conversion_ventas_recuperadas'::regclass and not t.tgisinternal and t.tgenabled = 'O' and (t.tgname, t.tgfoid) in (('trg_conversion_ventas_recuperadas_00_validar', 'private.validar_venta_recuperada()'::regprocedure::oid), ('trg_conversion_ventas_recuperadas_inmutables', 'private.proteger_venta_recuperada()'::regprocedure::oid), ('trg_conversion_ventas_recuperadas_no_truncate', 'private.proteger_venta_recuperada()'::regprocedure::oid), ('trg_audit_conversion_ventas_recuperadas', 'private.log_audit_crm()'::regprocedure::oid))") === 4,
+    'recuperar ventas: los 4 triggers (validación, inmutable, sin TRUNCATE, auditoría) habilitados y con su función');
+  check(cuenta('funciones de trigger', "select count(*) from pg_proc p where p.oid in ('private.proteger_venta_recuperada()'::regprocedure, 'private.validar_venta_recuperada()'::regprocedure) and p.proowner = 'postgres'::regrole and not p.prosecdef and p.proconfig = array['search_path=\"\"'] and not exists (select 1 from unnest(array['anon','authenticated','service_role']) r(rol) where has_function_privilege(r.rol, p.oid, 'EXECUTE'))") === 2,
+    'recuperar ventas: las dos funciones de trigger son de postgres, INVOKER, search_path vacío y sin EXECUTE para la API');
+  check(cuenta('cierre_anulado sin EXECUTE', "select count(*) from unnest(array['anon','authenticated','service_role']) r(rol) where has_function_privilege(r.rol, 'private.cierre_anulado(uuid)'::regprocedure, 'EXECUTE')") === 0,
+    'recuperar ventas: private.cierre_anulado sigue sin EXECUTE para anon, authenticated y service_role');
+  check(cuenta('huellas', "select count(*) from (select string_agg(p.oid::regprocedure::text || '=' || md5(pg_get_functiondef(p.oid)), ',' order by p.oid::regprocedure::text) as h from pg_proc p where p.oid in ('private.cierre_anulado(uuid)'::regprocedure, 'crm.cierres_estado_fn(uuid[])'::regprocedure, 'crm.altas_nuevas_por_analista_fn(integer)'::regprocedure, 'crm.anular_cierre_avance(uuid,text)'::regprocedure)) x where x.h = 'crm.altas_nuevas_por_analista_fn(integer)=7136e6ea0786ae7ec166a7957f6e77d2,crm.anular_cierre_avance(uuid,text)=9625124158f7d2d04a2a59c4be405942,crm.cierres_estado_fn(uuid[])=965b778f15e64d3b5f41b257d6469ec8,private.cierre_anulado(uuid)=878d19fffc19bc39649a5105bd51b082'") === 1,
+    'recuperar ventas: las cuatro funciones parchadas tienen la huella que dejó la migración (con search_path vacío)');
+  check(cuenta('filas', "select count(*) from crm.conversion_ventas_recuperadas r where (r.cierre_avance_anulado_id is null) = (r.inversion_eliminada_id is null)") === cuenta('filas totales', 'select count(*) from crm.conversion_ventas_recuperadas'),
+    'recuperar ventas: toda fila rehabilita una anulación completa (fila y copia) o ninguna');
+  // La tabla es deny-by-default: nadie la lee ni la escribe por la Data API.
+  for (const clave of ['vend1', 'sup1', 'coordinador', 'directorio', 'gerencia']) {
+    await expectHidden(`recuperar ventas: ${clave} no lee crm.conversion_ventas_recuperadas por la Data API`,
+      sessions[clave].client.schema('crm').from('conversion_ventas_recuperadas').select('id'));
+  }
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-recuperar-ventas'));
+  await expectHidden('recuperar ventas: anon no lee crm.conversion_ventas_recuperadas', anon.schema('crm').from('conversion_ventas_recuperadas').select('id'));
+  const escritura = await sessions.gerencia.client.schema('crm').from('conversion_ventas_recuperadas')
+    .insert({ lead_id: randomUUID(), acreditacion_id: randomUUID(), fuente_borrada_id: randomUUID(), contrato_vigente_id: randomUUID(),
+      fecha_comercial_antes: '2026-10-01', fecha_comercial_despues: '2026-10-01', motivo: 'Prueba del gate', autorizado_por: 'gate', respaldo: {} });
+  check(Boolean(escritura.error), 'recuperar ventas: gerencia no inserta en la tabla por la Data API');
+}
+
+// ── Reemplazar inversión · cooperativas (20261018053228): solo Gerencia (es la venta de un lead); núcleo cerrado; bucket parchado ──
+// El comportamiento (reemplazo con la venta conservada, rechazos, idempotencia, comprobante nuevo y sus políticas) se prueba en
+// el banco con supabase/scripts/reemplazar-inversion-cooperativa/probar.sh + mutantes.py; aquí, catálogo, roles y Data API.
+async function testReemplazarInversionCooperativa(sessions) {
+  console.log('\n— Reemplazar inversión · cooperativas: puertas, núcleo y bucket —');
+  const saltar = (msg) => {
+    if (process.env.CRM_RLS_EXIGE_REEMPLAZAR_COOPERATIVA === '1') fail(msg);
+    else console.log(`  ${msg}`);
+  };
+  let aplicada;
+  try {
+    aplicada = contarFueraDeBanda('reemplazar cooperativa: aplicada',
+      "select (to_regprocedure('crm.reemplazar_inversion_cooperativa_fn(uuid,text,jsonb)') is not null and to_regprocedure('private.f4_comprobante_reemplazo_autorizado(text)') is not null)::int");
+  } catch (error) {
+    saltar(`⚠ Reemplazar cooperativa SALTADO: sin vía fuera de banda (${error?.message ?? String(error)})`);
+    return;
+  }
+  if (aplicada !== 1) {
+    saltar('⚠ 20261018053228 (reemplazar inversión · cooperativas) NO desplegada en esta base: bloque SALTADO (no probado)');
+    return;
+  }
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`reemplazar cooperativa: ${etiqueta}`, sql);
+  check(cuenta('puertas', "select count(*) from pg_proc p where p.oid in ('crm.reemplazar_inversion_cooperativa_fn(uuid,text,jsonb)'::regprocedure, 'crm.reemplazar_inversion_cooperativa_vista_previa_fn(uuid,date)'::regprocedure) and p.prosecdef and p.proowner = 'postgres'::regrole and 'search_path=\"\"' = any(p.proconfig) and 'lock_timeout=5s' = any(p.proconfig) and has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('anon', p.oid, 'EXECUTE') and not has_function_privilege('service_role', p.oid, 'EXECUTE')") === 2,
+    'reemplazar cooperativa: las dos puertas son DEFINER de postgres, search_path vacío, lock_timeout 5s, EXECUTE solo authenticated');
+  check(cuenta('nucleo', "select count(*) from pg_proc p cross join unnest(array['anon','authenticated','service_role']) r(rol) where p.oid in ('private.reemplazar_inversion_cooperativa(uuid,jsonb,uuid,text,jsonb)'::regprocedure, 'private.registrar_inversion_reemplazada_cooperativa(jsonb,uuid,text,text,uuid,jsonb)'::regprocedure) and (has_function_privilege(r.rol, p.oid, 'EXECUTE') or p.prosecdef)") === 0,
+    'reemplazar cooperativa: el núcleo y la copia son INVOKER y sin EXECUTE para la API');
+  check(cuenta('bucket', "select count(*) from pg_proc p where p.oid in ('private.f4_comprobante_autorizado(text)'::regprocedure, 'private.f4_comprobante_visible(text)'::regprocedure) and p.prosecdef and p.proowner = 'postgres'::regrole and 'search_path=\"\"' = any(p.proconfig) and has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('anon', p.oid, 'EXECUTE') and not has_function_privilege('service_role', p.oid, 'EXECUTE')") === 2,
+    'reemplazar cooperativa: los dos ayudantes del bucket siguen DEFINER de postgres, search_path vacío y EXECUTE solo authenticated');
+  check(cuenta('regla del bucket', "select count(*) from pg_proc p where p.oid = 'private.f4_comprobante_reemplazo_autorizado(text)'::regprocedure and p.prosecdef and p.proowner = 'postgres'::regrole and 'search_path=\"\"' = any(p.proconfig) and not has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('anon', p.oid, 'EXECUTE') and not has_function_privilege('service_role', p.oid, 'EXECUTE')") === 1,
+    'reemplazar cooperativa: la regla del bucket es DEFINER de postgres, search_path vacío y sin EXECUTE para la API (la llama el ayudante vivo)');
+  check(cuenta('huellas del bucket', "select count(*) from (select string_agg(p.oid::regprocedure::text || '=' || md5(pg_get_functiondef(p.oid)), ',' order by p.oid::regprocedure::text) as h from pg_proc p where p.oid in ('private.f4_comprobante_autorizado(text)'::regprocedure, 'private.f4_comprobante_visible(text)'::regprocedure)) x where x.h = 'private.f4_comprobante_autorizado(text)=cdecad21e77c38d023ba156efd8faa74,private.f4_comprobante_visible(text)=32739f4abf073f33ac3fc2191312e2bc'") === 1,
+    'reemplazar cooperativa: los dos ayudantes del bucket tienen la huella que dejó la migración');
+  const DENEGADO = /permission denied/i;
+  const ROL = /Solo admin o gerencia pueden reemplazar inversiones/;
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-reemplazar-coop'));
+  const args = { p_fuente_id: randomUUID(), p_motivo: 'Prueba del gate de RLS', p_cierre: { fecha_comercial: '2026-10-01' } };
+  await expectExpectedFailure('reemplazar cooperativa: anon → 42501 (sin EXECUTE)', anon.schema('crm').rpc('reemplazar_inversion_cooperativa_fn', args), ['42501'], DENEGADO);
+  await expectExpectedFailure('reemplazar cooperativa: service_role → 42501 (sin EXECUTE)', admin.schema('crm').rpc('reemplazar_inversion_cooperativa_fn', args), ['42501'], DENEGADO);
+  for (const clave of ['vend1', 'sup1', 'coordinador', 'directorio']) {
+    await expectExpectedFailure(`reemplazar cooperativa: ${clave} → 42501`, sessions[clave].client.schema('crm').rpc('reemplazar_inversion_cooperativa_fn', args), ['42501'], ROL);
+    await expectExpectedFailure(`reemplazar cooperativa: vista previa de ${clave} → 42501`, sessions[clave].client.schema('crm').rpc('reemplazar_inversion_cooperativa_vista_previa_fn', { p_fuente_id: randomUUID() }), ['42501'], ROL);
+  }
+  const ger = sessions.gerencia.client.schema('crm');
+  await expectExpectedFailure('reemplazar cooperativa: gerencia con motivo corto → 22023', ger.rpc('reemplazar_inversion_cooperativa_fn', { ...args, p_motivo: 'abc' }), ['22023'], /motivo/);
+  await expectExpectedFailure('reemplazar cooperativa: gerencia sobre una fuente inexistente → P0002', ger.rpc('reemplazar_inversion_cooperativa_fn', args), ['P0002'], /no existe o ya fue eliminada/);
+  await expectExpectedFailure('reemplazar cooperativa: vista previa de una fuente inexistente → P0002', ger.rpc('reemplazar_inversion_cooperativa_vista_previa_fn', { p_fuente_id: randomUUID() }), ['P0002'], /no existe o ya fue eliminada/);
+}
+
+// ── Eliminar lead por error de carga (20261015044917): gerencia o admin del portal; copia inmutable; 8 candados ──
+// r2 (20261015150731): borra también la ficha de inversionista sin dinero y sus anexos (10 tablas) y abre el candado de
+// solicitudes de tasa (9.º candado). Se detecta por la huella de la puerta (o por la copia `'version', 2`).
+// El borrado de verdad (copia, cascada, cuadre y la llave de los candados) se prueba en el banco aislado con
+// supabase/scripts/eliminar-lead-error-carga/test-eliminar-lead.sql. Esta matriz NO borra ningún lead de la semilla
+// compartida: catálogo, roles, validaciones, rechazo de negocio (P0409) y DML directa cerrada. Toda llamada que podría
+// pasar el rol lleva un lead inexistente (randomUUID) o uno que la puerta rechaza (convertido o con contrato); los
+// leads REALES solo van con roles que la puerta corta antes de mirar el lead (42501).
+// Salto RUIDOSO si la migración (r1 o r2) no está en esta base; con CRM_RLS_EXIGE_ELIMINAR_LEAD=1 es un FALLO.
+async function testEliminarLeadErrorCarga(sessions, seed) {
+  console.log('\n— Eliminar lead por error de carga: puertas, candados y copia inmutable —');
+  const saltar = (msg) => {
+    if (process.env.CRM_RLS_EXIGE_ELIMINAR_LEAD === '1') fail(msg);
+    else console.log(`  ${msg}`);
+  };
+  let aplicada;
+  try {
+    aplicada = contarFueraDeBanda('eliminar lead: aplicada',
+      "select (to_regprocedure('crm.eliminar_lead_error_carga(uuid,text)') is not null and to_regprocedure('crm.listar_leads_eliminados()') is not null and to_regclass('crm.leads_eliminados') is not null)::int");
+  } catch (error) {
+    saltar(`⚠ Eliminar lead SALTADO: sin vía fuera de banda (${error?.message ?? String(error)})`);
+    return;
+  }
+  if (aplicada !== 1) {
+    saltar('⚠ 20261015044917 (eliminar lead por error de carga) NO desplegada en esta base: bloque SALTADO (no probado)');
+    return;
+  }
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`eliminar lead: ${etiqueta}`, sql);
+  // r2: la huella acreditada en el banco y en el postflight de 20261015150731; si una versión posterior la cambia, basta
+  // con que la puerta siga escribiendo la copia versión 2 (aviso, no fallo).
+  const PUERTA = "'crm.eliminar_lead_error_carga(uuid,text)'::regprocedure";
+  const huellaR2 = cuenta('huella r2', `select (md5(pg_get_functiondef(${PUERTA})) = '15ce9327e21306ec9682552815936e71')::int`) === 1;
+  const textoR2 = cuenta('copia versión 2', `select (position($v$'version', 2,$v$ in p.prosrc) > 0)::int from pg_proc p where p.oid = ${PUERTA}`) === 1;
+  const r2 = huellaR2 || textoR2;
+  if (!r2) {
+    saltar('⚠ 20261015150731 (eliminar lead r2: ficha de inversionista y candado de tasa) NO desplegada en esta base: casos r2 SALTADOS (no probados)');
+  } else if (!huellaR2) {
+    console.log('  ⚠ eliminar lead: la puerta escribe la copia versión 2 pero su huella no es la de r2 (6e7fedf2…): ¿versión posterior?');
+  } else {
+    console.log('  · eliminar lead: r2 desplegada (huella 6e7fedf2… de la puerta)');
+  }
+
+  // ── Catálogo (fuera de banda) ──
+  const PUERTAS = "'crm.eliminar_lead_error_carga(uuid,text)'::regprocedure, 'crm.listar_leads_eliminados()'::regprocedure";
+  const NUCLEO = "'private.borrado_lead_error_autoriza(text,jsonb)'::regprocedure, 'private.proteger_lead_eliminado()'::regprocedure";
+  const CANDADOS = ['private.trg_sla_nucleo_entrada_guard()', 'private.trg_lead_asignacion_sla_hitos_guard()',
+    'private.trg_lead_sla_etapas_guard()', 'private.trg_lead_sla_ciclos_guard()', 'private.trg_lead_asignaciones_inmutables()',
+    'private.trg_sla_recibo_guard()', 'private.potencial_evento_inmutable()', 'private.trg_actividades_no_contactar_solo_puerta()']
+    .map((f) => `'${f}'::regprocedure`).join(', ');
+  const LLAVE = 'private.borrado_lead_error_autoriza(tg_table_name, pg_catalog.to_jsonb(old))';
+  check(cuenta('puertas', `select count(*) from pg_proc p where p.oid in (${PUERTAS}) and p.prosecdef and p.proowner = 'postgres'::regrole and 'search_path=""' = any(p.proconfig) and p.proacl is not null and has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('anon', p.oid, 'EXECUTE') and not has_function_privilege('service_role', p.oid, 'EXECUTE') and not exists (select 1 from aclexplode(p.proacl) a where a.grantee = 0 or (a.grantee <> p.proowner and a.grantee <> 'authenticated'::regrole))`) === 2,
+    'eliminar lead C1: las dos puertas son DEFINER de postgres, search_path vacío, EXECUTE solo authenticated (sin anon, service_role ni PUBLIC)');
+  check(cuenta('nucleo', `select count(*) from pg_proc p cross join unnest(array['anon','authenticated','service_role']) r(rol) where p.oid in (${NUCLEO}) and has_function_privilege(r.rol, p.oid, 'EXECUTE')`) === 0,
+    'eliminar lead C2: la llave de los candados y el candado de la copia sin EXECUTE para anon, authenticated ni service_role');
+  check(cuenta('copia', "select count(*) from pg_class c where c.oid = 'crm.leads_eliminados'::regclass and c.relrowsecurity and not exists (select 1 from pg_policy p where p.polrelid = c.oid) and not exists (select 1 from unnest(array['anon','authenticated','service_role']) r(rol) where has_table_privilege(r.rol, c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER') or has_any_column_privilege(r.rol, c.oid, 'SELECT, INSERT, UPDATE, REFERENCES'))") === 1,
+    'eliminar lead C3: crm.leads_eliminados con RLS, 0 políticas y ningún privilegio (tabla ni columna) para anon, authenticated ni service_role');
+  check(cuenta('triggers de la copia', "select count(*) from pg_trigger t where t.tgrelid = 'crm.leads_eliminados'::regclass and not t.tgisinternal and t.tgenabled = 'O' and t.tgname in ('trg_audit_leads_eliminados', 'trg_leads_eliminados_inmutables', 'trg_leads_eliminados_no_truncate')") === 3,
+    'eliminar lead C4: la copia conserva sus 3 triggers habilitados (auditoría, inmutable, sin TRUNCATE)');
+  // C5: los 8 de r1 siempre; el de solicitudes de tasa lleva la excepción solo con r2 (sin r2 tiene que seguir sin ella).
+  const TASA = "'private.trg_solicitudes_tasa_solo_por_puerta()'::regprocedure";
+  const conLlave = (etiqueta, lista) => cuenta(etiqueta, `select count(*) from pg_proc p where p.oid in (${lista}) and (length(p.prosrc) - length(replace(p.prosrc, '${LLAVE}', ''))) = length('${LLAVE}')`);
+  const candadosR1 = conLlave('candados', CANDADOS);
+  const candadoTasa = conLlave('candado de tasa', TASA);
+  check(candadosR1 === 8 && candadoTasa === (r2 ? 1 : 0),
+    r2 ? 'eliminar lead C5: los 9 candados (8 de r1 + solicitudes de tasa) llevan la excepción del DELETE exactamente una vez'
+      : 'eliminar lead C5: los 8 candados de r1 llevan la excepción del DELETE exactamente una vez (el de tasa, sin ella)',
+    `r1: ${candadosR1}/8 · tasa: ${candadoTasa}/${r2 ? 1 : 0}`);
+  if (r2) {
+    // ── Catálogo r2 (20261015150731) ──
+    check(cuenta('candado de tasa: dueño y permisos', `select count(*) from pg_proc p where p.oid = ${TASA} and p.prosecdef and p.proowner = 'postgres'::regrole and 'search_path=""' = any(p.proconfig) and p.proacl = '{postgres=X/postgres}'::aclitem[]`) === 1,
+      'eliminar lead C6 (r2): el candado de tasa es DEFINER de postgres, search_path vacío y proacl exacto {postgres=X/postgres}');
+    check(cuenta('trigger del candado de tasa', `select count(*) from pg_trigger t where t.tgrelid = 'crm.solicitudes_tasa'::regclass and not t.tgisinternal and t.tgname = 'trg_solicitudes_tasa_00_solo_por_puerta' and t.tgfoid = ${TASA} and t.tgenabled = 'O' and replace(replace(pg_get_triggerdef(t.oid), 'crm.', ''), 'private.', '') = 'CREATE TRIGGER trg_solicitudes_tasa_00_solo_por_puerta BEFORE DELETE OR UPDATE ON solicitudes_tasa FOR EACH ROW EXECUTE FUNCTION trg_solicitudes_tasa_solo_por_puerta()'`) === 1,
+      'eliminar lead C7 (r2): trg_solicitudes_tasa_00_solo_por_puerta BEFORE DELETE OR UPDATE FOR EACH ROW, sin WHEN y habilitado (O)');
+    const TABLAS_R2 = ['inversionistas', 'inversionista_leads', 'inversionista_identificadores', 'inversionista_responsables',
+      'inversionista_gestiones', 'cartera_lecturas', 'inversionista_datos_contacto', 'inversion_solicitudes', 'solicitudes_tasa',
+      'envios_push_tasa'].map((t) => `'crm.${t}'`).join(', ');
+    const abiertas = textoFueraDeBanda('eliminar lead: privilegios de escritura en las tablas de r2',
+      `select string_agg(t.rel::text || ' ' || r.rol, ', ' order by t.rel::text, r.rol) from unnest(array[${TABLAS_R2}]::regclass[]) t(rel) cross join unnest(array['anon','authenticated','service_role']) r(rol) where has_table_privilege(r.rol, t.rel, 'DELETE, UPDATE, TRUNCATE') or has_any_column_privilege(r.rol, t.rel, 'UPDATE')`);
+    check(abiertas === null,
+      'eliminar lead C8 (r2): las 10 tablas que r2 borra sin DELETE, UPDATE (tabla ni columna) ni TRUNCATE para anon, authenticated ni service_role',
+      `con privilegio: ${abiertas}`);
+  }
+
+  // ── RPC denegados (ninguno escribe: lead inexistente o rechazado) ──
+  const DENEGADO = /permission denied/i;
+  const ROL = /Solo gerencia o un admin del portal/;
+  const MOTIVO = 'Prueba del gate de RLS: lead cargado por error';
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-eliminar-lead'));
+  const args = () => ({ p_lead_id: randomUUID(), p_motivo: MOTIVO });
+  await expectExpectedFailure('eliminar lead: anon → 42501 (sin EXECUTE)', anon.schema('crm').rpc('eliminar_lead_error_carga', args()), ['42501'], DENEGADO);
+  await expectExpectedFailure('eliminar lead: service_role → 42501 (sin EXECUTE)', admin.schema('crm').rpc('eliminar_lead_error_carga', args()), ['42501'], DENEGADO);
+  for (const clave of ['vend1', 'vend2', 'vend3', 'vend4', 'vendNested', 'sup1', 'sup2', 'sup1Nested', 'coordinador', 'directorio', 'clientBank', 'vendInactive']) {
+    await expectExpectedFailure(`eliminar lead: ${clave} → 42501`, sessions[clave].client.schema('crm').rpc('eliminar_lead_error_carga', args()), ['42501'], ROL);
+  }
+  const ger = sessions.gerencia.client.schema('crm');
+  const MOTIVOS_INVALIDOS = [
+    ['motivo corto (abc)', 'abc', /al menos 10 caracteres/],
+    ['motivo solo de blancos', ` \t\n${String.fromCharCode(160)}  `, /al menos 10 caracteres/],
+    ['motivo nulo', null, /al menos 10 caracteres/],
+    ['motivo de 501 caracteres', 'x'.repeat(501), /500 caracteres/],
+  ];
+  for (const [etiqueta, motivo, patron] of MOTIVOS_INVALIDOS) {
+    await expectExpectedFailure(`eliminar lead: gerencia con ${etiqueta} → 22023`, ger.rpc('eliminar_lead_error_carga', { p_lead_id: randomUUID(), p_motivo: motivo }), ['22023'], patron);
+  }
+  await expectExpectedFailure('eliminar lead: gerencia sin lead (nulo) → 22023', ger.rpc('eliminar_lead_error_carga', { p_lead_id: null, p_motivo: MOTIVO }), ['22023'], /Falta el lead/);
+  await expectExpectedFailure('eliminar lead: gerencia sobre un lead inexistente → P0002', ger.rpc('eliminar_lead_error_carga', args()), ['P0002'], /no existe o ya fue eliminado/);
+  // P0409: un lead convertido o con contrato (de la semilla si alguno lo está a esta altura; si no, el que haya en la base).
+  const semilla = seed.leads.map((l) => `'${l.id}'`).join(', ');
+  const bloqueado = textoFueraDeBanda('eliminar lead: lead convertido o con contrato',
+    `select l.id::text from crm.leads l where l.contrato_id is not null or l.convertido_en is not null or exists (select 1 from crm.lead_asignaciones a where a.lead_id = l.id and a.resultado = 'convertido') order by (l.id in (${semilla})) desc, l.id limit 1`);
+  if (!bloqueado) {
+    saltar('⚠ eliminar lead: P0409 NO probado — la base no tiene ningún lead convertido ni con contrato');
+  } else {
+    await expectExpectedFailure('eliminar lead: gerencia sobre un lead convertido o con contrato → P0409',
+      ger.rpc('eliminar_lead_error_carga', { p_lead_id: bloqueado, p_motivo: MOTIVO }), ['P0409'],
+      /No se puede eliminar este lead: .*(contrato enlazado|conversi.n registrada)/);
+    check(cuenta('P0409 sin efecto', `select (exists (select 1 from crm.leads where id = '${bloqueado}') and not exists (select 1 from crm.leads_eliminados where lead_id = '${bloqueado}'))::int`) === 1,
+      'eliminar lead: tras el P0409 el lead sigue en crm.leads y no quedó copia en crm.leads_eliminados');
+  }
+
+  // ── DML directa por la API: los candados y la RLS siguen cerrando el DELETE ──
+  const vend1Leads = [LEAD_BY_KEY.juan.name, LEAD_BY_KEY.maria.name].map((n) => `'${seed.leadByName.get(n).id}'`).join(', ');
+  const objetivo = textoFueraDeBanda('eliminar lead: lead de vend1 para la DML directa',
+    `select coalesce((select l.id::text from crm.leads l where l.id in (${vend1Leads}) and exists (select 1 from crm.lead_asignaciones a where a.lead_id = l.id) order by l.id limit 1), '${seed.leadByName.get(LEAD_BY_KEY.juan.name).id}')`);
+  const asignacionesAntes = cuenta('asignaciones antes', `select count(*) from crm.lead_asignaciones where lead_id = '${objetivo}'`);
+  for (const clave of ['gerencia', 'vend1']) {
+    const crm = sessions[clave].client.schema('crm');
+    await expectBlockedMutation(`eliminar lead: ${clave} borra directo crm.lead_asignaciones`,
+      crm.from('lead_asignaciones').delete().eq('lead_id', objetivo).select('id'));
+    await expectBlockedMutation(`eliminar lead: ${clave} borra directo crm.leads`,
+      crm.from('leads').delete().eq('id', objetivo).select('id'));
+  }
+  check(cuenta('lead sigue', `select count(*) from crm.leads where id = '${objetivo}'`) === 1
+      && cuenta('asignaciones después', `select count(*) from crm.lead_asignaciones where lead_id = '${objetivo}'`) === asignacionesAntes,
+    `eliminar lead: tras la DML directa el lead sigue y conserva sus ${asignacionesAntes} asignación(es)`);
+  const exigeError = async (label, ejecutar) => {
+    let r;
+    try {
+      r = await ejecutar();
+    } catch (error) {
+      fail(`${label}: excepción inesperada — ${error?.message ?? String(error)}`);
+      return;
+    }
+    check(Boolean(r.error), `${label}${r.error ? ` (rechazo: ${r.error.code || 'sin código'})` : ''}`, r.error ? '' : `aceptado: ${JSON.stringify(r.data)}`);
+  };
+  for (const [quien, cliente] of [['gerencia', sessions.gerencia.client], ['anon', anon]]) {
+    const copia = () => cliente.schema('crm').from('leads_eliminados');
+    await exigeError(`eliminar lead: ${quien} no lee crm.leads_eliminados directo`, () => copia().select('id').limit(1));
+    await exigeError(`eliminar lead: ${quien} no inserta en crm.leads_eliminados`, () => copia()
+      .insert({ lead_id: randomUUID(), motivo: MOTIVO, eliminado_por: randomUUID(), rol_actor: 'gerencia', copia: { lead: {} }, filas: {} }).select('id'));
+    await exigeError(`eliminar lead: ${quien} no actualiza crm.leads_eliminados`, () => copia().update({ motivo: MOTIVO }).eq('lead_id', randomUUID()).select('id'));
+    await exigeError(`eliminar lead: ${quien} no borra en crm.leads_eliminados`, () => copia().delete().eq('lead_id', randomUUID()).select('id'));
+  }
+
+  // ── DML directa sobre las tablas que la puerta borra desde r2 (la frontera es el privilegio; vale también sin r2) ──
+  // Cada DELETE apunta a una fila REAL (si la tabla tiene alguna): 0 filas o error, y el conteo de la tabla intacto.
+  const DIRECTAS = [['solicitudes_tasa', 'id'], ['inversionistas', 'id'], ['inversion_solicitudes', 'id'],
+    ['inversionista_identificadores', 'id'], ['inversionista_datos_contacto', 'inversionista_id']];
+  for (const [tabla, pk] of DIRECTAS) {
+    const fila = textoFueraDeBanda(`eliminar lead: una fila de crm.${tabla}`, `select ${pk}::text from crm.${tabla} order by ${pk} limit 1`);
+    const antes = cuenta(`${tabla} antes`, `select count(*) from crm.${tabla}`);
+    for (const clave of ['gerencia', 'vend1']) {
+      await expectBlockedMutation(`eliminar lead: ${clave} borra directo crm.${tabla}${fila ? '' : ' (tabla vacía en esta base)'}`,
+        sessions[clave].client.schema('crm').from(tabla).delete().eq(pk, fila ?? randomUUID()).select(pk),
+        // PGRST205: tabla sin grant alguno, fuera de la caché de la API. P0409: el candado de tasa (cinturón).
+        tabla === 'solicitudes_tasa' ? ['PGRST205', 'P0409'] : ['PGRST205']);
+    }
+    const despues = cuenta(`${tabla} después`, `select count(*) from crm.${tabla}`);
+    check(despues === antes, `eliminar lead: tras la DML directa crm.${tabla} conserva sus ${antes} fila(s)`, `después: ${despues}`);
+  }
+
+  // ── Fuga de información: un rol sin permiso sobre un lead REAL recibe el 42501 de rol, nunca el detalle del P0409 ──
+  const leadsReales = [['propio de vend1', objetivo], ['de vend3, fuera de su alcance', seed.leadByName.get(LEAD_BY_KEY.ana.name).id]];
+  if (bloqueado) leadsReales.push(['convertido o con contrato', bloqueado]);
+  for (const clave of ['vend1', 'sup1', 'coordinador']) {
+    for (const [cual, leadId] of leadsReales) {
+      const label = `eliminar lead (fuga): ${clave} sobre un lead real ${cual} → 42501 de rol, sin detalle`;
+      let r;
+      try {
+        r = await sessions[clave].client.schema('crm').rpc('eliminar_lead_error_carga', { p_lead_id: leadId, p_motivo: MOTIVO });
+      } catch (error) {
+        fail(`${label}: excepción inesperada — ${error?.message ?? String(error)}`);
+        continue;
+      }
+      check(r.error?.code === '42501' && /^Solo gerencia o un admin del portal pueden eliminar un lead$/.test(r.error?.message ?? '')
+          && !r.error?.details && !r.error?.hint,
+        label, r.error ? errorText(r.error) : `aceptado: ${JSON.stringify(r.data)}`);
+    }
+  }
+  const idsReales = [...new Set(leadsReales.map(([, id]) => id))];
+  const listaReales = idsReales.map((id) => `'${id}'`).join(', ');
+  check(cuenta('leads reales siguen', `select count(*) from crm.leads where id in (${listaReales})`) === idsReales.length
+      && cuenta('sin copia de los leads reales', `select count(*) from crm.leads_eliminados where lead_id in (${listaReales})`) === 0,
+    'eliminar lead (fuga): los leads reales siguen en crm.leads y sin copia en crm.leads_eliminados');
+
+  // ── Lectura por la puerta ──
+  const lista = await positive('eliminar lead: gerencia lista los leads eliminados', ger.rpc('listar_leads_eliminados'));
+  if (lista) check(Array.isArray(lista.data), 'eliminar lead: listar_leads_eliminados devuelve un arreglo a gerencia', typeof lista.data);
+  for (const clave of ['vend1', 'sup1']) {
+    await expectExpectedFailure(`eliminar lead: ${clave} lista los leads eliminados → 42501`,
+      sessions[clave].client.schema('crm').rpc('listar_leads_eliminados'), ['42501'], /Solo gerencia ve los leads eliminados/);
+  }
 }
 
 // ── Venta cruzada (20260924005126 … 20260924045245): puertas del cliente existente ──
@@ -18929,8 +19723,9 @@ async function testLlamadasCelular(sessions, seed) {
         && Boolean(analistaDe(opGS1, 'vend1')) && !analistaDe(opGS1, 'vend3'), 'operación de hoy: gerencia con sup1 como id ve solo su equipo', errorText(opGS1.error));
       // Claves de equipo = las de «Actividad del día» (gestion_diaria_pulso_fn), para que las pestañas coincidan.
       const pulso = await rpc('gerencia', 'gestion_diaria_pulso_fn', {});
-      const personasPulso = (pulso.data?.equipos ?? []).flatMap((equipo) => equipo.personas ?? []);
-      const supervisorPulso = new Map(personasPulso.map((p) => [p.analista_id, p.supervisor_id ?? null]));
+      // El contrato del pulso agrupa las personas dentro de equipos, no en la raíz.
+      const supervisorPulso = new Map((pulso.data?.equipos ?? []).flatMap((equipo) =>
+        (equipo.personas ?? []).map((persona) => [persona.analista_id, equipo.supervisor_id ?? null])));
       check(!pulso.error && (opG.data?.analistas ?? []).length > 0
         && (opG.data?.analistas ?? []).every((a) => supervisorPulso.has(a.analista_id) && supervisorPulso.get(a.analista_id) === (a.supervisor_id ?? null)),
       'operación de hoy: cada analista cuelga del mismo supervisor que en el pulso de Gestión Diaria', errorText(pulso.error));
@@ -19196,7 +19991,7 @@ async function prepararActoresD17(d17) {
     if (!listos.has(usuario.key)) continue;
     const id = d17.ids[usuario.key];
     const medida = contarFueraDeBanda(`D-17: excepción medida para ${usuario.key}`, `
-      create function pg_temp.excepcion_d17(p uuid) returns int language plpgsql as $f$
+      create or replace function pg_temp.excepcion_d17(p uuid) returns int language plpgsql as $f$
       begin
         perform set_config('request.jwt.claim.sub', p::text, true);
         perform set_config('request.jwt.claims', json_build_object('sub', p, 'role', 'authenticated')::text, true);
@@ -20209,6 +21004,36 @@ async function main() {
         ejecutarFueraDeBanda('restaurar F3 después de D-5',
           `update crm.multiempresa_flags set activo=${f3Anterior} where nombre='resolver_en_puertas';`);
       }
+    } else if (args.has('--facturacion-nombres')) {
+      console.log('ALCANCE: Facturación v1/v2 y nombres de Coordinación; no sustituye la matriz global.');
+      // El oráculo necesita dos ventas del mes actual. La matriz general las crea
+      // en sus recorridos; este alcance debe preparar su propio fixture y retirarlo.
+      const contratosOraculo = [randomUUID(), randomUUID()];
+      const listaOraculo = contratosOraculo.map((id) => `'${id}'::uuid`).join(',');
+      const idsOraculo = verifiedSeed.profileIdByKey;
+      try {
+        ejecutarFueraDeBanda('Facturación nombres: ventas sintéticas del oráculo', `
+          set local session_replication_role = replica;
+          insert into public.contratos(id,numero_contrato,cliente_id,capital,moneda,tasa_anual,modalidad,
+            tipo_interes,fecha_inicio,fecha_cierre_comercial,fecha_vencimiento,estado,categoria,
+            creado_por,analista_cierre_id,es_demo,producto_condicion_id)
+          select id,'NOMBRES-ORACULO-'||id::text,'${idsOraculo.clientBank}',1000,'PEN',15,'mensual',
+            'simple',dia,dia,dia+365,'activo','nuevo','${idsOraculo.gerencia}','${idsOraculo.vend1}',false,
+            private.crear_snapshot_producto_legacy(id,'nuevo','PEN','mensual','simple',1000,15,dia,dia+365)
+          from unnest(array[${listaOraculo}]) id
+          cross join (select date_trunc('month',now() at time zone 'America/Lima')::date+4 as dia) fecha;
+        `);
+        await testFacturacionDiaria(sessions, verifiedSeed);
+        await testFacturacionLista(sessions, verifiedSeed);
+      } finally {
+        ejecutarFueraDeBanda('Facturación nombres: retirar ventas del oráculo', `
+          set local session_replication_role = replica;
+          delete from public.contratos where id in (${listaOraculo});
+          with condiciones as (
+            delete from crm.producto_condiciones where legacy_contrato_id in (${listaOraculo}) returning version_id
+          ) delete from crm.producto_versiones where id in (select version_id from condiciones);
+        `);
+      }
     } else if (args.has('--llamadas')) {
       console.log('ALCANCE: llamadas del celular y visibilidad; no sustituye la matriz global.');
       await readVisibilityMatrix(sessions, verifiedSeed);
@@ -20289,6 +21114,7 @@ async function main() {
       await conInversionesVigentes(() => testConversionMensual(sessions, verifiedSeed));
       await testCumplimientoMetas(sessions, verifiedSeed);
       await testCierreDeMes(sessions, verifiedSeed);
+      await testPlazoCargaMes(sessions, verifiedSeed);
       await testAtribucionVentas(sessions, verifiedSeed);
       await testCapacidadUnificada(sessions, verifiedSeed);
       await testVentasNucleoF5c(sessions, verifiedSeed);
@@ -20305,6 +21131,7 @@ async function main() {
       await testGestionDiariaPendientes(sessions, verifiedSeed);
       await testGestionDiariaCitas(sessions, verifiedSeed);
       await testColaAccionV3(sessions, verifiedSeed);
+      await testSlaPorFilas(sessions, verifiedSeed);
       await testCapitalNucleo(sessions, verifiedSeed);
       await testCorreoAccesoCliente(sessions, verifiedSeed);
       await testVentaCruzada(sessions, verifiedSeed);
@@ -20323,6 +21150,10 @@ async function main() {
       await testBasesCargadasB10(sessions, verifiedSeed);
       await testBasesCargadasB11(sessions);
       await testEliminarInversion(sessions, verifiedSeed);
+      await testEliminarLeadErrorCarga(sessions, verifiedSeed);
+      await testReemplazarInversion(sessions);
+      await testRecuperarVentasRecargadas(sessions);
+      await testReemplazarInversionCooperativa(sessions);
       await testCategoriaPorOperacion(sessions, verifiedSeed);
       // Fase 4 · grupo A (2.3 y 2.6), el ÚLTIMO a propósito: siembra y retira su propio mes sellado (2001-07) y deja
       // inactivas las identidades D-17; nada de eso puede alterar a un bloque posterior.
@@ -20358,7 +21189,8 @@ async function main() {
   // Auditor P3-2: si el grupo A se saltó (sin CRM_RLS_EXIGE_GRUPO_A=1), el resumen no puede decir «gate aprobado» a secas.
   const noProbado = grupoANoProbado.length > 0 ? `grupo A NO PROBADO (${grupoANoProbado.join(' · ')})` : '';
   if (failures === 0) {
-    const alcance = args.has('--contratos') ? ' CONTRATOS' : args.has('--identidad-d5') ? ' IDENTIDAD D5' : args.has('--llamadas') ? ' LLAMADAS' : '';
+    const alcance = args.has('--contratos') ? ' CONTRATOS' : args.has('--identidad-d5') ? ' IDENTIDAD D5'
+      : args.has('--facturacion-nombres') ? ' FACTURACIÓN NOMBRES' : args.has('--llamadas') ? ' LLAMADAS' : '';
     if (noProbado) {
       console.log(`\n⚠️ RLS${alcance} OK — ${assertions} aserciones; ${noProbado}. Esto NO aprueba el grupo A: repetir en su branch `
         + 'con CRM_RLS_EXIGE_GRUPO_A=1.');

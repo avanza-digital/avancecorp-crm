@@ -1,0 +1,64 @@
+{
+  "security": {
+    "before": 381,
+    "after": 381,
+    "new_findings": []
+  },
+  "performance": {
+    "before": 192,
+    "after": 192,
+    "new_findings": []
+  },
+  "edge": {
+    "unchanged": true,
+    "count": 23
+  },
+  "migration": {
+    "version": "20261016162937",
+    "statements": 5,
+    "sql_content_exact": true
+  },
+  "branch_deleted": true,
+  "negocio_antes": {
+    "sellos": 1,
+    "contratos": 820,
+    "operaciones": 165,
+    "sellos_hash": "1677a37db633b2211a9080a948fa2ae9",
+    "contratos_hash": "b84d87bacaea8a0d22c1cf98e2d749b4",
+    "operaciones_hash": "ff7449443fbe3520c67936180a2753d0"
+  },
+  "negocio_despues": {
+    "sellos": 1,
+    "contratos": 820,
+    "operaciones": 165,
+    "sellos_hash": "1677a37db633b2211a9080a948fa2ae9",
+    "contratos_hash": "b84d87bacaea8a0d22c1cf98e2d749b4",
+    "operaciones_hash": "ff7449443fbe3520c67936180a2753d0"
+  },
+  "funcion_md5_antes": "be18b2feac623d18db695830d70e2a2e",
+  "funcion_md5_despues": "b1b3661f98745096d4a7d584981b19a2",
+  "lecturas_antes": 14,
+  "lecturas_despues": 14,
+  "supervisores_octubre": [
+    {
+      "filas_propias": 1,
+      "solo_propio": true,
+      "coincide_con_gerencia": true
+    },
+    {
+      "filas_propias": 1,
+      "solo_propio": true,
+      "coincide_con_gerencia": true
+    },
+    {
+      "filas_propias": 0,
+      "solo_propio": true,
+      "coincide_con_gerencia": true
+    },
+    {
+      "filas_propias": 1,
+      "solo_propio": true,
+      "coincide_con_gerencia": true
+    }
+  ]
+}

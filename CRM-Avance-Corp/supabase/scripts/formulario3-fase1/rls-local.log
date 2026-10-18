@@ -1,0 +1,107 @@
+
+> avancecorp-crm-tools@0.0.0 test:rls
+> node supabase/scripts/test-rls.mjs --formulario3
+
+BEGIN
+DO
+INSERT 0 4
+INSERT 0 2
+ set_config 
+------------
+ on
+(1 row)
+
+INSERT 0 7
+INSERT 0 7
+INSERT 0 7
+ set_config 
+------------
+ off
+(1 row)
+
+CREATE TABLE
+CREATE FUNCTION
+GRANT
+INSERT 0 2
+DO
+SET
+                              set_config                               
+-----------------------------------------------------------------------
+ {"sub":"f3000000-0000-0000-0000-000000000001","role":"authenticated"}
+(1 row)
+
+ exigir 
+--------
+ 
+(1 row)
+
+DO
+                              set_config                               
+-----------------------------------------------------------------------
+ {"sub":"f3000000-0000-0000-0000-000000000003","role":"authenticated"}
+(1 row)
+
+ exigir 
+--------
+ 
+(1 row)
+
+                              set_config                               
+-----------------------------------------------------------------------
+ {"sub":"f3000000-0000-0000-0000-000000000002","role":"authenticated"}
+(1 row)
+
+ exigir 
+--------
+ 
+(1 row)
+
+                              set_config                               
+-----------------------------------------------------------------------
+ {"sub":"f3000000-0000-0000-0000-000000000006","role":"authenticated"}
+(1 row)
+
+ exigir 
+--------
+ 
+(1 row)
+
+                              set_config                               
+-----------------------------------------------------------------------
+ {"sub":"f3000000-0000-0000-0000-000000000007","role":"authenticated"}
+(1 row)
+
+ exigir 
+--------
+ 
+(1 row)
+
+                              set_config                               
+-----------------------------------------------------------------------
+ {"sub":"f3000000-0000-0000-0000-000000000002","role":"authenticated"}
+(1 row)
+
+RESET
+DO
+ set_config 
+------------
+ {}
+(1 row)
+
+SET
+UPDATE 1
+ exigir 
+--------
+ 
+(1 row)
+
+RESET
+SET
+DO
+RESET
+ comprobaciones_rls_aprobadas 
+------------------------------
+                           18
+(1 row)
+
+ROLLBACK

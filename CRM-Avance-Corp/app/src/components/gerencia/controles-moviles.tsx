@@ -2,7 +2,7 @@ import { useId, useState, type ReactNode } from 'react'
 import { SlidersHorizontal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-/** Una sola instancia de los controles: se pliegan por CSS solo en Gerencia móvil. */
+/** Una sola instancia de los controles: se pliegan por CSS en la navegación móvil de Gerencia y Analista. */
 export function ControlesMoviles({ titulo, resumen, aviso, children }: { titulo: string; resumen: string; aviso?: ReactNode; children: ReactNode }) {
   const [abiertos, setAbiertos] = useState(false)
   const id = useId()

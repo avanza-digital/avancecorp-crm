@@ -1,0 +1,25 @@
+{
+  "seguridad": {
+    "antes": 380,
+    "despues": 380,
+    "nuevos": 0
+  },
+  "rendimiento": {
+    "antes": 336,
+    "despues": 215,
+    "nuevos": [
+      {
+        "grupo": "unused_index",
+        "detail": "Index \\`solicitudes_tasa_estado_idx\\` on table \\`crm.solicitudes_tasa\\` has not been used",
+        "metadata": {
+          "name": "solicitudes_tasa",
+          "type": "table",
+          "schema": "crm"
+        }
+      }
+    ],
+    "retirados": 122
+  },
+  "nota": "Comparación de la retoma. El banco se reconstruyó entre las capturas; las estadísticas de uso no son un baseline inmutable. El único aviso añadido se refiere a un índice ya existente sin cambios. Catálogo posterior a RLS y mutantes idéntico al posterior a las tres candidatas; no hay índices nuevos.",
+  "remediacion": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+}

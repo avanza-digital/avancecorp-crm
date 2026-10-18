@@ -4,6 +4,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from './database.types'
 import { CONFIG, HAY_SUPABASE, PROBLEMAS_CONFIG } from './config'
+import { crearFetchCrm } from './transporte-crm'
 import {
   instalarObservabilidadGlobal,
   registrarAviso,
@@ -22,6 +23,7 @@ function crearCliente(): ClienteCrm | null {
   if (!HAY_SUPABASE || !CONFIG.SUPABASE_URL || !CONFIG.SUPABASE_ANON_KEY) return null
   try {
     return createClient<Database>(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, {
+      global: { fetch: crearFetchCrm(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY) },
       auth: {
         persistSession: true,
         autoRefreshToken: true,

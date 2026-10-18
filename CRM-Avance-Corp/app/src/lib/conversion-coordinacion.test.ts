@@ -83,6 +83,32 @@ export function payloadSellado(conDesglose = true): ConversionCoordinacion {
 }
 
 describe('conversionCoordinacionConsistente', () => {
+  it('separa F3 sin duplicar llegadas ni cierres y rechaza un desglose vivo nulo', () => {
+    const datos = payloadValido()
+    datos.analistas[0]!.divisor_formulario = 55
+    datos.analistas[0]!.divisor_formulario_3 = 10
+    datos.empresa.divisor_formulario = 116
+    datos.empresa.divisor_formulario_3 = 10
+    datos.analistas[0]!.cierres!.formulario = 3
+    datos.analistas[0]!.cierres!.formulario_3 = 2
+    datos.empresa.cierres!.formulario = 9
+    datos.empresa.cierres!.formulario_3 = 2
+    expect(conversionCoordinacionConsistente(datos, '2026-09-01', '2026-09-30')).toBe(true)
+    datos.empresa.divisor_formulario = 126
+    expect(conversionCoordinacionConsistente(datos, '2026-09-01', '2026-09-30')).toBe(false)
+    datos.empresa.divisor_formulario = 116
+    datos.empresa.cierres!.formulario_3 = null
+    expect(conversionCoordinacionConsistente(datos, '2026-09-01', '2026-09-30')).toBe(false)
+  })
+
+  it('un mes sellado puede desconocer F3 y nunca debe inventar su divisor', () => {
+    const datos = payloadSellado()
+    datos.empresa.divisor_formulario_3 = null
+    datos.empresa.cierres!.formulario_3 = null
+    expect(conversionCoordinacionConsistente(datos, '2026-09-01', '2026-09-30')).toBe(true)
+    datos.empresa.divisor_formulario_3 = 0
+    expect(conversionCoordinacionConsistente(datos, '2026-09-01', '2026-09-30')).toBe(false)
+  })
   it('acepta el payload del núcleo (Astrid 65 + 50 = 115 y 5 + 2 + 0,15 + 4 = 11,15; empresa = analistas + sin analista)', () => {
     expect(conversionCoordinacionConsistente(payloadValido(), '2026-09-01', '2026-09-30')).toBe(true)
   })

@@ -1,0 +1,131 @@
+{
+  "fecha": "2026-10-14T21:00:12.314529+00:00",
+  "proyecto": "dctqcbznekcyxhjujuci",
+  "branch": "yeiwghzhcrvwfcybymxy",
+  "branch_id": "58636694-c82f-46e8-97b4-398ce224569c",
+  "autorizacion": "Miguel confirmó expresamente aplicar en producción el 14/10/2026.",
+  "commit_candidato": "c58f85d1825e5d27fc363cf818ce636e53d719d5",
+  "pr": "https://github.com/avanza-digital/avancecorp-crm/pull/278",
+  "sql_sha256": "22c37322ad8f2614d19542d4b59960f00d5375d45e12214dbde7ae2020cc82ea",
+  "sql_md5_igual_en_branch": "d0b438b7efca5c0d4aa9ecb4b3da802b",
+  "migracion_remota": "20261014185718",
+  "migraciones_previas_iguales": 475,
+  "funciones_inspeccionadas": 1047,
+  "unico_cambio": "private.conversion_episodios",
+  "edge_functions_identicas": 23,
+  "nucleo_antes": {
+    "acl": "{postgres=X/postgres}",
+    "hash": "ed15fbd034c636e4897c7600002ee8cf",
+    "owner": "postgres",
+    "config": [
+      "search_path=\"\""
+    ],
+    "definer": true,
+    "volatile": "s"
+  },
+  "nucleo_candidato": {
+    "acl": "{postgres=X/postgres}",
+    "hash": "13d0c920eb7f620d1992826fb43cb584",
+    "owner": "postgres",
+    "config": [
+      "search_path=\"\""
+    ],
+    "definer": true,
+    "volatile": "s"
+  },
+  "meses_cerrados": [
+    "2026-08-01",
+    "2026-09-01"
+  ],
+  "pesos": [
+    {
+      "tope": 15,
+      "desde": "2026-10-01",
+      "referido": 1,
+      "renovacion": 0
+    }
+  ],
+  "huellas": {
+    "fotos": "fc78c0e94638d60939f3950a19b11c69",
+    "pesos": "8b53019eb0786d9bb411cfb2025df004",
+    "contratos": "27c2e028b3204d8ede34ca184c15b6e0",
+    "operaciones": "63c33cbd1175b12b5de963487f50602c",
+    "periodos_cerrados": "24898809569af4b018768327eed39cd6"
+  },
+  "cron": [
+    {
+      "jobid": 1,
+      "active": true,
+      "jobname": "recordatorio-cuotas-3d"
+    },
+    {
+      "jobid": 2,
+      "active": true,
+      "jobname": "ciclo-contratos-diario"
+    },
+    {
+      "jobid": 3,
+      "active": true,
+      "jobname": "crm-cierre-mes-diario"
+    },
+    {
+      "jobid": 4,
+      "active": true,
+      "jobname": "crm-recordatorios-caducidad"
+    },
+    {
+      "jobid": 5,
+      "active": true,
+      "jobname": "crm-alertas-reconocimientos-caducidad"
+    },
+    {
+      "jobid": 6,
+      "active": true,
+      "jobname": "crm-auditoria-vigia"
+    },
+    {
+      "jobid": 16,
+      "active": true,
+      "jobname": "crm-vigencia-analista-vigia"
+    },
+    {
+      "jobid": 26,
+      "active": true,
+      "jobname": "crm-analitica-lc-vigia"
+    },
+    {
+      "jobid": 37,
+      "active": true,
+      "jobname": "crm-f7-piezas-vigia"
+    },
+    {
+      "jobid": 38,
+      "active": true,
+      "jobname": "crm-notificaciones-tasa"
+    },
+    {
+      "jobid": 39,
+      "active": true,
+      "jobname": "crm-potencial-lead-caducidad"
+    },
+    {
+      "jobid": 40,
+      "active": true,
+      "jobname": "crm-llamadas-celular-caducidad"
+    }
+  ],
+  "estado": "PREFLIGHT_HISTORICO_SUPERADO_POR_PRODUCCION_JSON",
+  "github": {
+    "pr": "https://github.com/avanza-digital/avancecorp-crm/pull/278",
+    "head": "c58f85d1825e5d27fc363cf818ce636e53d719d5",
+    "estado": "REVIEW_REQUIRED",
+    "preflight": "PASS",
+    "app_check": "PASS",
+    "verify": "PASS",
+    "tests": 6689,
+    "archivos_test": 419,
+    "build": "PASS",
+    "regla": "1 aprobación; code owner obligatorio; historial lineal; checks verify y preflight"
+  },
+  "resultado_final": "APLICADO Y VERIFICADO; ver produccion.json"
+}

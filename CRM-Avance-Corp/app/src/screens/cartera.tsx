@@ -19,6 +19,9 @@ import { TablaEnvoltura, Td, Th, TheadCrm } from '@/components/common/tabla'
 import { ETAPAS, TERMINALES, MOTIVOS_DESCARTE_LECTURA, CAT_LABEL, ORIGENES, ORIGENES_HEREDADOS, origenLabel, type Etapa, type Origen, type Procedencia } from '@/lib/tipos'
 import { ChipProcedencia } from '@/components/app/procedencia-chip'
 import { ChipReasignado } from '@/components/app/reasignado-chip'
+import { ChipCampania } from '@/components/app/campania-chip'
+import { muestraCampania } from '@/lib/campania'
+import { useFiltroOrigen } from '@/lib/use-filtro-origen'
 import { ChipPotencial } from '@/components/app/potencial-chip'
 import { FiltroPotencialCartera } from '@/components/app/potencial-filtro'
 import { idsDescripcion, potencialFila } from '@/components/app/potencial-efectos'
@@ -179,7 +182,7 @@ export function Cartera() {
   const rangoValido = rangoFechaCarteraValido(periodo, hoy)
   const [q, setQ] = useState('')
   const [fEtapa, setFEtapa] = useState<FiltroEtapa>('todas')
-  const [fOrigen, setFOrigen] = useState<FiltroOrigen>('todos')
+  const [fOrigen, setFOrigen] = useFiltroOrigen(yo ? `${yo.demo ? 'demo' : 'real'}:${yo.id}` : null)
   const [fProc, setFProc] = useState<FiltroProcedencia>('todas')
   const [fReasignados, setFReasignados] = useState(false)
   // Potencial del lead: un nivel a la vez o «sin marcar»; null = sin filtro.
@@ -212,7 +215,7 @@ export function Cartera() {
     useMemo(
       () => ({ etapa: fEtapa === 'gestionado' ? 'nuevo' : fEtapa,
         ...(fEtapa === 'gestionado' ? { gestion: 'con_gestion' as const } : {}),
-        vendedorId: fVend, texto: qDiferido, origen: fOrigen, procedencia: fProc, reasignados: fReasignados,
+        vendedorId: fVend, texto: qDiferido, origen: fOrigen, campania: 'todas', procedencia: fProc, reasignados: fReasignados,
         ...(fPotencial ? { potencial: fPotencial } : {}),
         recepcion: periodo }),
       [fEtapa, fVend, qDiferido, fOrigen, fProc, fReasignados, fPotencial, periodo],
@@ -626,6 +629,7 @@ export function Cartera() {
                       aria-describedby={idsDescripcion(
                         potencial.porLead.get(l.id)?.nivel && `potencial-${l.id}`,
                         descripcionProcedencia(l) && `procedencia-${l.id}`,
+                        muestraCampania(l) && `campania-${l.id}`,
                       )}
                       onClick={() => abrirLead(l.id)}
                       onKeyDown={(ev) => {
@@ -644,13 +648,14 @@ export function Cartera() {
                             <div className="leading-tight">
                               {/* text-[13px]: misma densidad de nombre que FilaCliente/
                                   FilaContrato — las tres carteras leen como una familia. */}
-                              <p className="flex items-center gap-1.5 text-[13px] font-semibold">
+                              <p className="flex flex-wrap items-center gap-1.5 text-[13px] font-semibold">
                                 {l.nombre_completo}
                                 <ChipPotencial id={`potencial-${l.id}`} marca={potencial.porLead.get(l.id)} />
                                 {/* Procedencia a simple vista, pegada al nombre: lo manual
                                     en azul, lo del sistema en gris silencioso. */}
                                 <ChipProcedencia lead={l} />
                                 <ChipReasignado lead={l} />
+                                <ChipCampania id={`campania-${l.id}`} lead={l} />
                                 {descripcionProcedencia(l) && (
                                   <span id={`procedencia-${l.id}`} className="sr-only">{descripcionProcedencia(l)}</span>
                                 )}

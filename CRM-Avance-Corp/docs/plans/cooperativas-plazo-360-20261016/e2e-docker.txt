@@ -1,0 +1,13 @@
+npm notice run app@0.0.0 test:e2e:docker
+npm notice run bash scripts/e2e-docker.sh e2e/f5-cartera.spec.ts e2e/f6-postventa.spec.ts --workers=2
+E2E en Docker · imagen mcr.microsoft.com/playwright:v1.61.1-noble
+Instalando dependencias (package-lock.json cambió o volumen nuevo)…
+npm warn deprecated jpeg-exif@1.1.4: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+npm warn deprecated crypto-js@4.2.0: Active development of CryptoJS has been discontinued. This library is no longer maintained.
+
+added 366 packages in 8s
+
+Running 29 tests using 2 workers
+·····························
+::notice title=🎭 Playwright Run Summary::  29 passed (1.7m)
+  29 passed (1.7m)

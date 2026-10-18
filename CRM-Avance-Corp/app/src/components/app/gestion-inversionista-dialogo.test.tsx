@@ -25,7 +25,7 @@ beforeEach(()=>{
   mock.sesion.mockResolvedValue({data:{session:{user:{id:actor}}},error:null})
   mock.rpc.mockImplementation((nombre:string)=>{
     if(nombre==='inversionista_gestion_fn')return leer()
-    if(nombre==='inversionista_corregir_contacto_fn')return escribir()
+    if(nombre==='inversionista_corregir_contacto_fn' || nombre==='inversionista_corregir_coopac_fn')return escribir()
     if(nombre==='postventa_operacion_estado_fn')return respuesta({registrada:true})
     throw new Error('RPC no esperada: '+nombre)
   })
@@ -36,6 +36,27 @@ function montar(fuenteId:string|null=null){
   return {...render(<QueryClientProvider client={qc}><GestionInversionistaDialogo actor={actor} persona={persona} fuente={fuenteId} onCerrar={cerrar} onRevocado={revocado}/></QueryClientProvider>),qc,user:userEvent.setup()}
 }
 describe('Gestión desde ficha neutral',()=>{
+  it.each(['PEN','USD'] as const)('corrige un plazo histórico en %s con la revisión del servidor y sin adelantar otra fecha',async(moneda)=>{
+    base.inversion={empresa:moneda==='USD'?'prodelco':'qorilazo',fuente_id:fuente,
+      puede_corregir:true,sin_limite:true,puede_reasignar:false,contrato:null,operaciones:[],
+      coopac:{monto:1000,moneda,numero_transaccion:'OP-HISTORICA',referencia:null,nota:null,
+        creado_en:'2026-01-31T12:00:00Z',fecha_comercial:'2026-01-31',vence_en:'2027-01-31',
+        anulado_en:null,motivo_anulacion:null,plazo_meses:12,tasa_anual:12.5,revision:'revision-del-servidor'}}
+    escribir=()=>Promise.resolve(respuesta({ok:true,inversionista_id:persona,fuente_id:fuente}))
+    const {user}=montar(fuente)
+    await user.click(await screen.findByRole('button',{name:'Corregir inversión'}))
+    expect(screen.getByLabelText(moneda==='USD'?'Capital en dólares':'Capital en soles')).toHaveValue(1000)
+    const plazo=screen.getByLabelText('Plazo en meses')
+    await user.clear(plazo);await user.type(plazo,'6')
+    expect(screen.getByText(/conservando la forma de calcular el plazo de ese contrato/)).toBeInTheDocument()
+    expect(document.querySelector('input[type="date"]')).toBeNull()
+    await user.click(screen.getByRole('button',{name:'Guardar corrección'}))
+    await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('inversionista_corregir_coopac_fn',expect.objectContaining({
+      p_inversionista:persona,p_fuente:fuente,p_revision:'revision-del-servidor',
+      p_datos:{monto:1000,numero_transaccion:'OP-HISTORICA',referencia:null,nota:null,plazo_meses:6,tasa_anual:12.5,vence_en:'2027-01-31'},
+    })))
+    await waitFor(()=>expect(cerrar).toHaveBeenCalledTimes(1))
+  })
   it('precarga, guarda una vez, bloquea Escape durante el envío y retorna a la ficha',async()=>{
     let resolver!:(x:unknown)=>void
     escribir=()=>new Promise(r=>{resolver=r})

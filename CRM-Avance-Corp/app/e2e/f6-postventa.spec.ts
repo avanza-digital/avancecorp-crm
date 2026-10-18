@@ -113,7 +113,7 @@ test('un fallo de ficha conserva postventa visible y bloquea nuevas acciones has
   s.fichaSinConexion=true
   await page.evaluate(()=>window.dispatchEvent(new Event('focus')))
   await expect(page.getByText(/Se conservan los últimos datos confirmados/)).toBeVisible({timeout:18000})
-  for(const name of ['Agendar gestión','Cambiar responsable','Marcar No contactar']) {
+  for(const name of ['Agendar gestión','Cambiar quién atiende','Marcar No contactar']) {
     await expect(page.getByRole('button',{name,exact:true})).toBeDisabled()
   }
   s.fichaSinConexion=false
@@ -184,7 +184,7 @@ for (const vista of [{nombre:'escritorio',width:1280,height:900},{nombre:'móvil
   test(`${vista.nombre}: cerrar la entrevista desde Seguimiento conserva abierta la ficha`,async({page},info)=>{
     const s=await montarF6(page)
     await page.setViewportSize({width:vista.width,height:vista.height})
-    if(vista.nombre==='móvil')await page.getByRole('button',{name:'Ocultar menú'}).click()
+    if(vista.nombre==='móvil')await expect(page.getByRole('navigation', { name: 'Navegación principal de Analista' })).toBeVisible()
     await abrir(page);await agendar(page,'Cita de renovación')
     await expect(page.getByText('Gestión agendada · la verás en Hoy y en Agenda',{exact:true})).toBeVisible()
     Object.assign(s.tareas[0]!,{tipo:'reunion',modalidad_reunion:'virtual'})
@@ -207,7 +207,7 @@ for (const vista of [{nombre:'escritorio',width:1280,height:900},{nombre:'móvil
   })
 }
 test('móvil: recupera un alta confirmada cuya respuesta se cortó sin duplicarla',async({page},info)=>{
-  const s=await montarF6(page);await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'Ocultar menú'}).click()
+  const s=await montarF6(page);await page.setViewportSize({width:390,height:844});await expect(page.getByRole('navigation', { name: 'Navegación principal de Analista' })).toBeVisible()
   await abrir(page);s.cortar=true;await agendar(page,'Gestión con respuesta interrumpida')
   await expect(page.getByRole('button',{name:'Verificar envío guardado'})).toBeVisible()
   await page.reload();await expect(page.getByRole('button',{name:'Agendar gestión',exact:true})).toBeVisible()
@@ -274,7 +274,7 @@ test('Directorio no recibe acciones ni agenda neutral',async({page})=>{
   await expect(page.getByText('Información del cliente')).toBeVisible()
   await expect(page.getByRole('button',{name:'Agendar gestión',exact:true})).toHaveCount(0)
   await expect(page.getByRole('button',{name:'Registrar solicitud de retiro',exact:true})).toHaveCount(0)
-  for(const name of ['Cambiar responsable','Marcar No contactar']) await expect(page.getByRole('button',{name,exact:true})).toHaveCount(0)
+  for(const name of ['Cambiar quién atiende','Marcar No contactar']) await expect(page.getByRole('button',{name,exact:true})).toHaveCount(0)
   await expect(page.getByRole('heading',{name:'Solicitudes de retiro'})).toHaveCount(0)
 })
 test('un rechazo al confirmar reunión neutral muestra el error y conserva la tarea',async({page})=>{
@@ -325,4 +325,29 @@ test('el cierre de la ficha aparece con resultado en Resumen, Registro y Citas d
   await expect(citas.getByText('Propuesta presentada',{exact:true})).toBeVisible()
   await citas.screenshot({path:info.outputPath('citas-clientes-supervision.png')})
   expect(s.cierres).toHaveLength(1)
+})
+
+test('cambiar atención exige revisar efecto y vuelve a revisar tras conflicto',async({page})=>{
+  await montarF6(page,'gerencia');await abrir(page)
+  let vistas=0, escrituras=0
+  await page.route('**/rest/v1/rpc/previsualizar_cambio_responsabilidad_fn',async route=>{
+    vistas++;const b=route.request().postDataJSON()
+    await route.fulfill({json:{version:'a'.repeat(32),accion:b.p_accion,id:b.p_id,destino:b.p_destino,
+      anterior:UID,anterior_nombre:'Responsable anterior',destino_nombre:'Responsable elegido',persona_id:PERSONA_F5,
+      cliente_id:null,perfil_cambia:false,leads:0,tareas:0,aviso:'Se conserva el vendedor histórico.',efectos:[]}})
+  })
+  await page.route('**/rest/v1/rpc/confirmar_cambio_responsabilidad_fn',async route=>{
+    escrituras++;expect(route.request().postDataJSON().p_version).toBe('a'.repeat(32))
+    await route.fulfill({status:409,json:{code:'PT409',message:'La información cambió. Revisa de nuevo el efecto antes de guardar'}})
+  })
+  await page.getByRole('button',{name:'Cambiar quién atiende',exact:true}).click()
+  await page.getByLabel('Responsable',{exact:true}).selectOption(UID)
+  await page.getByLabel('Motivo, sin números de documento').fill('Cambio solicitado para atención')
+  await page.getByRole('button',{name:'Revisar efecto',exact:true}).click()
+  await expect(page.getByText('Se conserva el vendedor histórico.')).toBeVisible()
+  expect(vistas).toBe(1);expect(escrituras).toBe(0)
+  await page.getByRole('button',{name:'Confirmar cambio de atención',exact:true}).click()
+  await expect(page.getByRole('alert').filter({hasText:'La información cambió'})).toBeVisible()
+  expect(escrituras).toBe(1)
+  await expect(page.getByRole('button',{name:'Revisar efecto',exact:true})).toBeVisible()
 })

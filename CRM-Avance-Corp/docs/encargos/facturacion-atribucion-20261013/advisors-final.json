@@ -1,0 +1,128 @@
+[
+  {
+    "name": "auth_rls_initplan",
+    "title": "Auth RLS Initialization Plan",
+    "level": "WARN",
+    "facing": "EXTERNAL",
+    "categories": [
+      "PERFORMANCE"
+    ],
+    "description": "Detects if calls to `current_setting()` and `auth.\u003cfunction\u003e()` in RLS policies are being unnecessarily re-evaluated for each row",
+    "detail": "Table `crm.gestion_diaria_control_avisos` has a row level security policy `lectura_interna` that re-evaluates current_setting() or auth.\u003cfunction\u003e() for each row. This produces suboptimal query performance at scale. Resolve the issue by replacing `auth.\u003cfunction\u003e()` with `(select auth.\u003cfunction\u003e())`. See [docs](https://supabase.com/docs/guides/database/postgres/row-level-security#call-functions-with-select) for more info.",
+    "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0003_auth_rls_initplan",
+    "metadata": {
+      "name": "gestion_diaria_control_avisos",
+      "type": "table",
+      "schema": "crm"
+    },
+    "cache_key": "auth_rls_init_plan_crm_gestion_diaria_control_avisos_lectura_interna"
+  },
+  {
+    "name": "auth_rls_initplan",
+    "title": "Auth RLS Initialization Plan",
+    "level": "WARN",
+    "facing": "EXTERNAL",
+    "categories": [
+      "PERFORMANCE"
+    ],
+    "description": "Detects if calls to `current_setting()` and `auth.\u003cfunction\u003e()` in RLS policies are being unnecessarily re-evaluated for each row",
+    "detail": "Table `crm.gestion_diaria_entregas` has a row level security policy `lectura_interna` that re-evaluates current_setting() or auth.\u003cfunction\u003e() for each row. This produces suboptimal query performance at scale. Resolve the issue by replacing `auth.\u003cfunction\u003e()` with `(select auth.\u003cfunction\u003e())`. See [docs](https://supabase.com/docs/guides/database/postgres/row-level-security#call-functions-with-select) for more info.",
+    "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0003_auth_rls_initplan",
+    "metadata": {
+      "name": "gestion_diaria_entregas",
+      "type": "table",
+      "schema": "crm"
+    },
+    "cache_key": "auth_rls_init_plan_crm_gestion_diaria_entregas_lectura_interna"
+  },
+  {
+    "name": "multiple_permissive_policies",
+    "title": "Multiple Permissive Policies",
+    "level": "WARN",
+    "facing": "EXTERNAL",
+    "categories": [
+      "PERFORMANCE"
+    ],
+    "description": "Detects if multiple permissive row level security policies are present on a table for the same `role` and `action` (e.g. insert). Multiple permissive policies are suboptimal for performance as each policy must be executed for every relevant query.",
+    "detail": "Table `public.audit_log` has multiple permissive policies for role `authenticated` for action `SELECT`. Policies include `{audit_log_admin_select,audit_log_superadmin_select}`",
+    "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0006_multiple_permissive_policies",
+    "metadata": {
+      "name": "audit_log",
+      "type": "table",
+      "schema": "public"
+    },
+    "cache_key": "multiple_permissive_policies_public_audit_log_authenticated_SELECT"
+  },
+  {
+    "name": "multiple_permissive_policies",
+    "title": "Multiple Permissive Policies",
+    "level": "WARN",
+    "facing": "EXTERNAL",
+    "categories": [
+      "PERFORMANCE"
+    ],
+    "description": "Detects if multiple permissive row level security policies are present on a table for the same `role` and `action` (e.g. insert). Multiple permissive policies are suboptimal for performance as each policy must be executed for every relevant query.",
+    "detail": "Table `public.contratos` has multiple permissive policies for role `authenticated` for action `SELECT`. Policies include `{contratos_analista_select,contratos_select}`",
+    "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0006_multiple_permissive_policies",
+    "metadata": {
+      "name": "contratos",
+      "type": "table",
+      "schema": "public"
+    },
+    "cache_key": "multiple_permissive_policies_public_contratos_authenticated_SELECT"
+  },
+  {
+    "name": "multiple_permissive_policies",
+    "title": "Multiple Permissive Policies",
+    "level": "WARN",
+    "facing": "EXTERNAL",
+    "categories": [
+      "PERFORMANCE"
+    ],
+    "description": "Detects if multiple permissive row level security policies are present on a table for the same `role` and `action` (e.g. insert). Multiple permissive policies are suboptimal for performance as each policy must be executed for every relevant query.",
+    "detail": "Table `public.cronograma_pagos` has multiple permissive policies for role `authenticated` for action `SELECT`. Policies include `{cronograma_analista_select,cronograma_select}`",
+    "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0006_multiple_permissive_policies",
+    "metadata": {
+      "name": "cronograma_pagos",
+      "type": "table",
+      "schema": "public"
+    },
+    "cache_key": "multiple_permissive_policies_public_cronograma_pagos_authenticated_SELECT"
+  },
+  {
+    "name": "multiple_permissive_policies",
+    "title": "Multiple Permissive Policies",
+    "level": "WARN",
+    "facing": "EXTERNAL",
+    "categories": [
+      "PERFORMANCE"
+    ],
+    "description": "Detects if multiple permissive row level security policies are present on a table for the same `role` and `action` (e.g. insert). Multiple permissive policies are suboptimal for performance as each policy must be executed for every relevant query.",
+    "detail": "Table `public.perfiles` has multiple permissive policies for role `authenticated` for action `SELECT`. Policies include `{perfiles_analista_select,perfiles_select}`",
+    "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0006_multiple_permissive_policies",
+    "metadata": {
+      "name": "perfiles",
+      "type": "table",
+      "schema": "public"
+    },
+    "cache_key": "multiple_permissive_policies_public_perfiles_authenticated_SELECT"
+  },
+  {
+    "name": "multiple_permissive_policies",
+    "title": "Multiple Permissive Policies",
+    "level": "WARN",
+    "facing": "EXTERNAL",
+    "categories": [
+      "PERFORMANCE"
+    ],
+    "description": "Detects if multiple permissive row level security policies are present on a table for the same `role` and `action` (e.g. insert). Multiple permissive policies are suboptimal for performance as each policy must be executed for every relevant query.",
+    "detail": "Table `public.perfiles` has multiple permissive policies for role `authenticated` for action `UPDATE`. Policies include `{perfiles_analista_update,perfiles_update}`",
+    "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0006_multiple_permissive_policies",
+    "metadata": {
+      "name": "perfiles",
+      "type": "table",
+      "schema": "public"
+    },
+    "cache_key": "multiple_permissive_policies_public_perfiles_authenticated_UPDATE"
+  }
+]

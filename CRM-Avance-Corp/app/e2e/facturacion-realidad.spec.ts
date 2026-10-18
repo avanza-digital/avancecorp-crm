@@ -145,7 +145,7 @@ async function montarFacturacion(
     return route.fulfill({ status: 200, headers: CORS, json: porMes[String(cuerpo.p_mes)] ?? [] })
   })
   // Fase 4: el inspector consume operaciones. Este fixture sigue siendo local y respeta el ámbito enviado.
-  await page.route('**/rest/v1/rpc/listar_operaciones_facturacion_fn', async (route) => {
+  await page.route('**/rest/v1/rpc/listar_operaciones_facturacion_v2_fn', async (route) => {
     if (route.request().method() !== 'POST') return route.fallback()
     const p = route.request().postDataJSON()
     const filas = (porMes === 'error' ? [] : Object.values(porMes).flat()).filter((f) =>
@@ -155,7 +155,7 @@ async function montarFacturacion(
       (!p.p_tipos || p.p_tipos.includes(f.tipo)) && (!p.p_moneda || p.p_moneda === f.moneda))
     const ops = filas.flatMap((f) => Array.from({ length: f.operaciones }, () => f))
     const pagina = p.p_pagina ?? 1; const tamano = p.p_tamano ?? 25
-    return route.fulfill({ headers: CORS, json: { version: 1, pagina, tamano, total: ops.length,
+    return route.fulfill({ headers: CORS, json: { version: 2, pagina, tamano, total: ops.length,
       totales: (['PEN', 'USD'] as const).flatMap((moneda) => {
         const propias = filas.filter((f) => f.moneda === moneda)
         return propias.length ? [{ moneda, operaciones: propias.reduce((n, f) => n + f.operaciones, 0), monto: propias.reduce((n, f) => n + f.capital, 0) }] : []

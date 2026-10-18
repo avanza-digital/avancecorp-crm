@@ -54,3 +54,18 @@ test('el payload cambiado llega a la misma clave: sólo el servidor decide su co
   assert.equal(a.llamadas[1].datos.p_clave,b.llamadas[1].datos.p_clave);
   assert.equal(b.llamadas[1].datos.p_datos.monto,2000);
 });
+for (const meses of [1, 12, 24]) {
+  test(`el fixture solicita ${meses * 30} días para ${meses} meses sin alterar la tasa`, async () => {
+    const a = actor();
+    await convertirCoopVigente(a.client, {...args, p_plazo_meses: meses, p_tasa_anual: 16.5});
+    const datos = a.llamadas[1].datos.p_datos;
+    assert.equal((Date.parse(datos.vence_en) - Date.parse(datos.fecha_comercial)) / 86400000, meses * 30);
+    assert.equal(datos.plazo_meses, meses);
+    assert.equal(datos.tasa_anual, 16.5);
+  });
+}
+test('una fecha explícita incorrecta llega al servidor para que la rechace', async () => {
+  const a = actor();
+  await convertirCoopVigente(a.client, {...args, p_vence_en: '2028-02-29'});
+  assert.equal(a.llamadas[1].datos.p_datos.vence_en, '2028-02-29');
+});

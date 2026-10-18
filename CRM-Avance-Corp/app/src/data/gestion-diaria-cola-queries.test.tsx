@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { focusManager, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import type { PedidoColaTrabajo, ColaTrabajo } from '@/lib/gestion-diaria-cola'
 import muestra from './gestion-diaria-cola-sql.fixture.json'
@@ -79,5 +79,55 @@ describe('foto de la cola por ámbito y navegación', () => {
     dobles.obtener.mockResolvedValue(deshecha)
     await act(async () => { await result.current.refetch() })
     await waitFor(() => expect(result.current.data?.items.every((f) => f.ultima_gestion === null)).toBe(true))
+  })
+  it('tras fallar con la frontera vencida no reconsulta cada segundo', async () => {
+    vi.useFakeTimers(); vi.setSystemTime(new Date('2026-09-30T17:44:06Z'))
+    focusManager.setFocused(true)
+    try {
+      dobles.obtener.mockResolvedValueOnce({ ...muestra, generado_en: '2026-09-30T17:44:06Z', proximo_cambio_en: '2026-09-30T17:44:08Z' })
+        .mockRejectedValue(new Error('corte'))
+      const pasar = async (ms: number) => { await act(async () => { await vi.advanceTimersByTimeAsync(ms) }) }
+      const { result } = renderHook(() => useColaTrabajo(p, '2026-09-30'), { wrapper: wrapper() })
+      await pasar(1)
+      expect(result.current.data).toBeDefined()
+      // Vence la frontera (2 s) y fallan la consulta y sus 2 reintentos (1 s + 2 s).
+      await pasar(5_000)
+      expect(result.current.isError).toBe(true)
+      expect(dobles.obtener).toHaveBeenCalledTimes(4)
+      await pasar(10_000)
+      expect(dobles.obtener).toHaveBeenCalledTimes(4)
+    } finally {
+      vi.useRealTimers(); focusManager.setFocused(undefined)
+    }
+  })
+  it('tras el error reconsulta con el respaldo de 60 s y, recuperada, vuelve a la frontera del servidor', async () => {
+    vi.useFakeTimers(); vi.setSystemTime(new Date('2026-09-30T17:44:06Z'))
+    focusManager.setFocused(true)
+    try {
+      dobles.obtener.mockResolvedValueOnce({ ...muestra, generado_en: '2026-09-30T17:44:06Z', proximo_cambio_en: '2026-09-30T17:44:08Z' })
+        .mockRejectedValue(new Error('corte'))
+      const pasar = async (ms: number) => { await act(async () => { await vi.advanceTimersByTimeAsync(ms) }) }
+      const { result } = renderHook(() => useColaTrabajo(p, '2026-09-30'), { wrapper: wrapper() })
+      await pasar(1)
+      // Vence la frontera (2 s) y fallan la consulta y sus 2 reintentos (1 s + 2 s): error a los 5 s.
+      await pasar(5_000)
+      expect(result.current.isError).toBe(true)
+      expect(dobles.obtener).toHaveBeenCalledTimes(4)
+      // Respaldo de 60 s desde el error: a los 50 s todavía no; a los 65 s, sí, y esta vez responde.
+      await pasar(45_000)
+      expect(dobles.obtener).toHaveBeenCalledTimes(4)
+      dobles.obtener.mockResolvedValue({ ...muestra, generado_en: '2026-09-30T17:45:11Z', proximo_cambio_en: '2026-09-30T17:45:16Z' })
+      await pasar(15_000)
+      expect(dobles.obtener).toHaveBeenCalledTimes(5)
+      expect(result.current.isError).toBe(false)
+      expect(result.current.data?.generado_en).toBe('2026-09-30T17:45:11Z')
+      // Recuperada, vuelve a la frontera nueva (5 s), no al respaldo de 60 s.
+      await pasar(4_000)
+      expect(dobles.obtener).toHaveBeenCalledTimes(5)
+      await pasar(1_000)
+      expect(dobles.obtener).toHaveBeenCalledTimes(6)
+    } finally {
+      vi.useRealTimers(); focusManager.setFocused(undefined)
+    }
   })
 })

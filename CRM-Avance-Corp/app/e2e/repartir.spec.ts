@@ -128,6 +128,84 @@ function fechaLimaConDesplazamiento(dias: number): string {
   return `${valor('year')}-${valor('month')}-${valor('day')}`
 }
 
+for (const ancho of [390, 1366]) {
+  test(`Formulario 3 se identifica en Coordinación, conserva turno y filtra la cola completa (${ancho}px)`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: 1366, height: 900 })
+    const agenda = agendaRepartoHoy()
+    const turno = { supervisor_id: 'sup-2', supervisor_nombre: 'SUPERVISOR DOS', supervisor_alias: 'Supervisor dos', derivados: 7, coincide_turno: true }
+    const externo = { supervisor_id: 'sup-1', supervisor_nombre: 'SUPERVISOR UNO', supervisor_alias: 'Supervisor uno', derivados: 2, coincide_turno: false }
+    const backend = await aterrizarComoCoordinador(page, {
+      colaReparto: Array.from({ length: 25 }, (_, indice) => ({
+        ...LEAD_CREDITO, id: `camp-${indice}`, nombre_completo: `CONTACTO ${indice}`,
+        clasificacion_auto: null, comentario: indice === 0 ? 'Campaña: Formulario 3' : null,
+        origen: indice === 24 ? 'formulario_3' : 'formulario', campania_origen: indice === 24 ? 'Formulario 3' : null,
+      })),
+      agendaReparto: {
+        ...agenda,
+        dias: [{ ...agenda.dias[0], origenes: [
+          { origen: 'formulario_3', turno: 'formulario', derivados: 5, fuera_turno: 2, entregas: [{ ...turno, derivados: 3 }, externo] },
+          { origen: 'formulario', turno: 'formulario', derivados: 4, fuera_turno: 0, entregas: [{ ...turno, derivados: 4 }] },
+        ], asignaciones: [{ ...agenda.dias[0]!.asignaciones[0], origenes: [] }, {
+          ...agenda.dias[0]!.asignaciones[1], derivados: 9, fuera_turno: 2, entregas: [turno, externo],
+          origenes: [
+            { origen: 'formulario_3', derivados: 5, fuera_turno: 2, entregas: [{ ...turno, derivados: 3 }, externo] },
+            { origen: 'formulario', derivados: 4, fuera_turno: 0, entregas: [{ ...turno, derivados: 4 }] },
+          ],
+        }] }],
+      },
+    })
+    await page.setViewportSize({ width: ancho, height: 900 })
+    if (ancho < 600) await page.getByRole('button', { name: 'Ocultar menú', exact: true }).click()
+    await page.getByRole('tab', { name: 'Agenda de turnos' }).click()
+    await expect(page.getByText('9 entregados · 2 fuera de turno')).toBeVisible()
+    await expect(page.getByRole('combobox', { name: /Asignar .* a una supervisora/ })).toHaveCount(2)
+    const filtroAgenda = page.getByLabel('Filtrar entregas a supervisoras por origen')
+    await filtroAgenda.selectOption('formulario_3')
+    await expect(filtroAgenda).toHaveValue('formulario_3')
+    await expect(page.getByRole('row', { name: /Formulario 3 Supervisor dos 3 0/ })).toBeVisible()
+    await expect(page.getByRole('row', { name: /Formulario 3 Supervisor uno 2 2/ })).toBeVisible()
+    await expect(page.getByText('5 entregados · 2 fuera de turno')).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+    await page.screenshot({ path: testInfo.outputPath(`coordinacion-formulario3-${ancho}.png`), fullPage: true })
+    if (ancho < 600) {
+      await page.getByRole('table', { name: 'Entregas por origen y supervisora' }).scrollIntoViewIfNeeded()
+      await page.screenshot({ path: testInfo.outputPath('coordinacion-formulario3-movil-entregas.png'), fullPage: true })
+    }
+
+    await page.getByRole('tab', { name: 'Cola de nuevos' }).click()
+    await page.getByRole('button', { name: 'Siguiente' }).click()
+    await page.getByLabel('Filtrar por origen del lead').selectOption('formulario_3')
+    await expect(page.locator('[data-lead-id]')).toHaveCount(1)
+    await expect(page.getByText('CONTACTO 24', { exact: true })).toBeVisible()
+    await expect(page.getByText('CONTACTO 0', { exact: true })).toHaveCount(0)
+    await expect(page.getByText('Campaña de origen: Formulario 3', { exact: true })).toHaveCount(0)
+    await expect(page.getByLabel('Asignar CONTACTO 24 a un supervisor')).toHaveValue('sup-2')
+    await expect(page.getByLabel('Asignar CONTACTO 24 a un supervisor')).toBeDisabled()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+    await page.screenshot({ path: testInfo.outputPath(`cola-formulario3-${ancho}.png`), fullPage: true })
+    await page.getByRole('button', { name: 'Repartir a CONTACTO 24', exact: true }).click()
+    await expect.poll(() => backend.llamadas.rpcRepartirLead).toBe(1)
+    expect(backend.ultimoReparto).toEqual({ lead: 'camp-24', supervisor: 'sup-2' })
+    await expect(page.locator('[data-lead-id]')).toHaveCount(0)
+  })
+}
+
+test('la agenda conserva el origen de entregas históricas aunque su cola esté vacía', async ({ page }) => {
+  const agenda = agendaRepartoHoy()
+  const entrega = { supervisor_id: 'sup-2', supervisor_nombre: 'SUPERVISOR DOS', supervisor_alias: 'Supervisor dos', derivados: 5, coincide_turno: true }
+  await aterrizarComoCoordinador(page, {
+    colaReparto: [],
+    agendaReparto: { ...agenda, dias: [{ ...agenda.dias[0], origenes: [{ origen: 'formulario_3', turno: 'formulario', derivados: 5, fuera_turno: 0, entregas: [entrega] }], asignaciones: [{ ...agenda.dias[0]!.asignaciones[0], origenes: [] }, {
+      ...agenda.dias[0]!.asignaciones[1], derivados: 5, entregas: [entrega],
+      origenes: [{ origen: 'formulario_3', derivados: 5, fuera_turno: 0, entregas: [entrega] }],
+    }] }] },
+  })
+  await page.getByRole('tab', { name: 'Agenda de turnos' }).click()
+  await expect(page.getByText('5 entregados · 0 fuera de turno')).toBeVisible()
+  await page.getByLabel('Filtrar entregas a supervisoras por origen').selectOption('formulario_3')
+  await expect(page.getByRole('row', { name: /Formulario 3 Supervisor dos 5 0/ })).toBeVisible()
+})
+
 test('Supervisión → analistas permite auditar entregas por fecha, analista y origen con filtros combinables', async ({ page }) => {
   const ayer = fechaLimaConDesplazamiento(-1)
   await aterrizarComoCoordinador(page, {
@@ -178,7 +256,7 @@ test('Supervisión → analistas permite auditar entregas por fecha, analista y 
   const metrica = (etiqueta: string) => resumen.locator(':scope > div').filter({ hasText: etiqueta })
   await expect(metrica('Leads entregados').getByText('14', { exact: true })).toBeVisible()
 
-  const supervisor = page.getByLabel('Filtrar entregas por supervisor')
+  const supervisor = page.getByLabel('Filtrar entregas por supervisor', { exact: true })
   const analista = page.getByLabel('Filtrar entregas por analista')
   const origen = page.getByLabel('Filtrar entregas por origen')
   await supervisor.selectOption('10000000-0000-4000-8000-000000000001')
@@ -295,9 +373,22 @@ test('Coordinación muestra la entrega real antes de que Supervisión la reparta
       ],
       dias: [{
         fecha: hoy,
+        origenes: [
+          { origen: 'landing', turno: 'landing', derivados: 22, fuera_turno: 20, entregas: [
+            { supervisor_id: 'sup-jor', supervisor_nombre: 'JORGE', supervisor_alias: 'Jor', derivados: 2, coincide_turno: true },
+            { supervisor_id: 'sup-carmen', supervisor_nombre: 'CARMEN JARAMILLO', supervisor_alias: 'Carmen', derivados: 20, coincide_turno: false },
+          ] },
+          { origen: 'formulario', turno: 'formulario', derivados: 30, fuera_turno: 0, entregas: [
+            { supervisor_id: 'sup-carmen', supervisor_nombre: 'CARMEN JARAMILLO', supervisor_alias: 'Carmen', derivados: 30, coincide_turno: true },
+          ] },
+        ],
         asignaciones: [
           {
             origen: 'landing',
+            origenes: [{ origen: 'landing', derivados: 22, fuera_turno: 20, entregas: [
+              { supervisor_id: 'sup-jor', supervisor_nombre: 'JORGE', supervisor_alias: 'Jor', derivados: 2, coincide_turno: true },
+              { supervisor_id: 'sup-carmen', supervisor_nombre: 'CARMEN JARAMILLO', supervisor_alias: 'Carmen', derivados: 20, coincide_turno: false },
+            ] }],
             supervisor_id: 'sup-jor',
             supervisor_nombre: 'JORGE',
             supervisor_alias: 'Jor',
@@ -310,6 +401,9 @@ test('Coordinación muestra la entrega real antes de que Supervisión la reparta
           },
           {
             origen: 'formulario',
+            origenes: [{ origen: 'formulario', derivados: 30, fuera_turno: 0, entregas: [
+              { supervisor_id: 'sup-carmen', supervisor_nombre: 'CARMEN JARAMILLO', supervisor_alias: 'Carmen', derivados: 30, coincide_turno: true },
+            ] }],
             supervisor_id: 'sup-carmen',
             supervisor_nombre: 'CARMEN JARAMILLO',
             supervisor_alias: 'Carmen',
@@ -325,15 +419,14 @@ test('Coordinación muestra la entrega real antes de que Supervisión la reparta
   })
 
   await expect(page.getByRole('tab', { name: 'Coordinación → supervisores' })).toHaveAttribute('aria-selected', 'true')
-  const landing = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Landing', exact: true }) })
-  await expect(landing.getByText('22 entregados', { exact: true })).toBeVisible()
-  await expect(landing.getByText('Jor: 2', { exact: true })).toBeVisible()
-  await expect(landing.getByText('Carmen: 20', { exact: true })).toBeVisible()
-  await expect(landing.getByRole('status')).toContainText('20 entregas no coinciden')
-
-  const formulario = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Formulario', exact: true }) })
-  await expect(formulario.getByText('30 entregados', { exact: true })).toBeVisible()
-  await expect(formulario.getByText('Carmen: 30', { exact: true })).toBeVisible()
+  await page.getByRole('tab', { name: 'Agenda de turnos' }).click()
+  const tabla = page.getByRole('table', { name: 'Entregas por origen y supervisora' })
+  await expect(tabla.getByRole('row', { name: 'LANDING Jor 2 0' })).toBeVisible()
+  await expect(tabla.getByRole('row', { name: 'LANDING Carmen 20 20' })).toBeVisible()
+  await expect(tabla.getByRole('row', { name: 'FORMULARIO Carmen 30 0' })).toBeVisible()
+  await expect(page.getByText('52 entregados · 20 fuera de turno')).toBeVisible()
+  await page.getByLabel('Filtrar entregas a supervisoras por origen').selectOption('landing')
+  await expect(page.getByText('22 entregados · 20 fuera de turno')).toBeVisible()
 })
 
 test('el coordinador aterriza en Repartir y su navegación se reduce a lo suyo', async ({ page }) => {
@@ -342,18 +435,19 @@ test('el coordinador aterriza en Repartir y su navegación se reduce a lo suyo',
   // Aterrizaje por capacidad (no por hash guardado): su vista base es 'repartir'.
   await expect(page).toHaveURL(/#\/repartir$/)
 
-  // El nav NO le ofrece cartera, equipo ni configuración (espejo de la RLS: su
-  // ámbito de leads es vacío y no tiene cartera propia).
+  // Consulta global de Leads y Cartera; conserva Repartir como inicio.
   await expect(page.getByRole('button', { name: 'Repartir leads' })).toBeVisible()
-  for (const ajena of ['Mi cartera', 'Cartera', 'Equipo', 'Configuración', 'Pipeline']) {
+  await expect(page.getByRole('button', { name: 'Cartera', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Leads', exact: true })).toBeVisible()
+  for (const ajena of ['Mi cartera', 'Equipo', 'Configuración', 'Pipeline']) {
     await expect(page.getByRole('button', { name: ajena, exact: true })).toHaveCount(0)
   }
 })
 
-test('#/mi-cartera por URL expulsa al coordinador de vuelta a Repartir', async ({ page }) => {
+test('#/pipeline por URL sigue expulsando al coordinador de vuelta a Repartir', async ({ page }) => {
   await entrarComoCoordinador(page)
 
-  await page.evaluate(() => { window.location.hash = '#/mi-cartera' })
+  await page.evaluate(() => { window.location.hash = '#/pipeline' })
 
   await expect(page).toHaveURL(/#\/repartir$/)
   await expect(page.getByRole('heading', { name: 'Repartir leads' })).toBeVisible()
@@ -479,7 +573,7 @@ test('el StatStrip dice lo que dice el SERVIDOR, aunque no cuadre con las filas 
 test('resumen_reparto_fn caída: los tiles degradan a «—» con aviso y la cola sigue repartible', async ({ page }) => {
   const backend = await entrarComoCoordinador(page, { fallarResumenReparto: true })
 
-  await expect(page.getByRole('status')).toContainText(/No se pudieron cargar los indicadores de la cola/)
+  await expect(page.getByRole('status').filter({ hasText: 'No se pudieron cargar los indicadores de la cola' })).toBeVisible()
   for (const etiqueta of ['Por repartir', 'Capital en juego (PEN)', 'Capital en juego (USD)', 'Espera más larga']) {
     await expect(page.locator('.ac-lift').filter({ hasText: etiqueta }).getByText('—')).toBeVisible()
   }

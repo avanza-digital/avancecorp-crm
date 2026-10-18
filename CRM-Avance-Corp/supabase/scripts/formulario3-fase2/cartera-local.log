@@ -1,0 +1,130 @@
+
+> avancecorp-crm-tools@0.0.0 test:rls
+> node supabase/scripts/test-rls.mjs --formulario3-fase2
+
+BEGIN
+DO
+INSERT 0 1
+INSERT 0 4
+INSERT 0 2
+ set_config 
+------------
+ on
+(1 row)
+
+INSERT 0 7
+INSERT 0 7
+INSERT 0 7
+ set_config 
+------------
+ off
+(1 row)
+
+INSERT 0 1
+INSERT 0 1
+INSERT 0 144
+CREATE FUNCTION
+CREATE TABLE
+GRANT
+CREATE FUNCTION
+ exigir 
+--------
+ 
+(1 row)
+
+ exigir 
+--------
+ 
+(1 row)
+
+ exigir 
+--------
+ 
+(1 row)
+
+ exigir 
+--------
+ 
+(1 row)
+
+SET
+                              set_config                               
+-----------------------------------------------------------------------
+ {"sub":"f3000000-0000-0000-0000-000000000001","role":"authenticated"}
+(1 row)
+
+DO
+                              set_config                               
+-----------------------------------------------------------------------
+ {"sub":"f3000000-0000-0000-0000-000000000003","role":"authenticated"}
+(1 row)
+
+ exigir 
+--------
+ 
+(1 row)
+
+                              set_config                               
+-----------------------------------------------------------------------
+ {"sub":"f3000000-0000-0000-0000-000000000002","role":"authenticated"}
+(1 row)
+
+ exigir 
+--------
+ 
+(1 row)
+
+                              set_config                               
+-----------------------------------------------------------------------
+ {"sub":"f3000000-0000-0000-0000-000000000008","role":"authenticated"}
+(1 row)
+
+ exigir 
+--------
+ 
+(1 row)
+
+                              set_config                               
+-----------------------------------------------------------------------
+ {"sub":"f3000000-0000-0000-0000-000000000004","role":"authenticated"}
+(1 row)
+
+ exigir 
+--------
+ 
+(1 row)
+
+                              set_config                               
+-----------------------------------------------------------------------
+ {"sub":"f3000000-0000-0000-0000-000000000006","role":"authenticated"}
+(1 row)
+
+ exigir 
+--------
+ 
+(1 row)
+
+                              set_config                               
+-----------------------------------------------------------------------
+ {"sub":"f3000000-0000-0000-0000-000000000007","role":"authenticated"}
+(1 row)
+
+DO
+ set_config 
+------------
+ {}
+(1 row)
+
+DO
+RESET
+ comprobaciones 
+----------------
+             40
+(1 row)
+
+ROLLBACK
+                         resultado                         
+-----------------------------------------------------------
+ PASS: cartera, paginación y permisos; fixtures revertidas
+(1 row)
+

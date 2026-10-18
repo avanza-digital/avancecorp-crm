@@ -32,6 +32,7 @@ import {
   MOTIVOS_DESCARTE,
   MOTIVOS_DESCARTE_LECTURA,
   origenLabel,
+  turnoDeOrigen,
   type ColaLead,
   type DiaAgendaReparto,
   type LeadDescartado,
@@ -62,7 +63,9 @@ import { PanelCargando, PanelError, PanelVacio } from '@/components/common/estad
 import { HistorialDerivaciones } from '@/components/app/historial-derivaciones'
 import { PanelDistribucionReparto } from '@/components/app/panel-distribucion-reparto'
 import { AgendaRepartoDiaria } from '@/components/app/agenda-reparto-diaria'
+import { PlanillaReparto } from '@/components/app/planilla-reparto'
 import { ConversionCoordinacion } from '@/components/app/conversion-coordinacion'
+import { ChipCampania } from '@/components/app/campania-chip'
 import { Paginacion } from '@/components/common/paginacion'
 import { paginar } from '@/lib/paginacion'
 import { hoyLimaIso } from '@/lib/distribucion-lecturas'
@@ -127,8 +130,8 @@ interface EstadoReparto {
   error: string | null
 }
 
-function origenUsaTurno(origen: OrigenLectura): origen is 'landing' | 'formulario' {
-  return origen === 'landing' || origen === 'formulario'
+function origenUsaTurno(origen: OrigenLectura): boolean {
+  return turnoDeOrigen(origen) !== null
 }
 
 /** Mantiene visible el contador del turno mientras Rosa sigue en la cola. */
@@ -140,7 +143,7 @@ function sumarEntregaLocal(
   if (!agendaHoy || !origenUsaTurno(origen)) return agendaHoy
   return {
     ...agendaHoy,
-    asignaciones: agendaHoy.asignaciones.map((asignacion) => asignacion.origen === origen
+    asignaciones: agendaHoy.asignaciones.map((asignacion) => asignacion.origen === turnoDeOrigen(origen)
       ? {
           ...asignacion,
           derivados: asignacion.derivados + 1,
@@ -151,18 +154,21 @@ function sumarEntregaLocal(
   }
 }
 
-function useReparto() {
+function useReparto(activo: boolean, revision: number, onCambio: () => void) {
   const [estado, setEstado] = useState<EstadoReparto>({
     cola: [], supervisores: [], agendaHoy: null, repartoLibre: false, cargando: true, error: null,
   })
   const [enviandoIds, setEnviandoIds] = useState<ReadonlySet<string>>(() => new Set())
   const enviandoRef = useRef<Set<string>>(new Set())
+  const recargaPendienteRef = useRef(false)
+  const [revisionPostEnvio, setRevisionPostEnvio] = useState(0)
   const abortRef = useRef<AbortController | null>(null)
-  const permisoAbortRef = useRef<AbortController | null>(null)
 
   const iniciarEnvio = useCallback((leadId: string): boolean => {
     if (enviandoRef.current.has(leadId)) return false
-    permisoAbortRef.current?.abort()
+    abortRef.current?.abort()
+    abortRef.current = null
+    setEstado((e) => ({ ...e, cargando: false }))
     enviandoRef.current = new Set(enviandoRef.current).add(leadId)
     setEnviandoIds(enviandoRef.current)
     return true
@@ -173,11 +179,16 @@ function useReparto() {
     siguientes.delete(leadId)
     enviandoRef.current = siguientes
     setEnviandoIds(siguientes)
+    if (siguientes.size === 0 && recargaPendienteRef.current) setRevisionPostEnvio((n) => n + 1)
   }, [])
 
   const cargar = useCallback(async () => {
+    if (enviandoRef.current.size) {
+      recargaPendienteRef.current = true
+      return
+    }
+    recargaPendienteRef.current = false
     abortRef.current?.abort()
-    permisoAbortRef.current?.abort()
     const ctrl = new AbortController()
     abortRef.current = ctrl
     setEstado((e) => ({ ...e, cargando: true, error: null }))
@@ -209,40 +220,28 @@ function useReparto() {
     }
   }, [])
 
-  // Volver a la ventana solo refresca el permiso, sin desmontar filas ni
-  // sobrescribir selecciones, entregas locales o escrituras en curso.
-  const actualizarPermiso = useCallback(async () => {
-    if (enviandoRef.current.size || abortRef.current || permisoAbortRef.current) return
-    const ctrl = new AbortController()
-    permisoAbortRef.current = ctrl
-    try {
-      const agenda = await agendaRepartoDiaria({ desde: hoyLimaIso(), dias: 1 }, ctrl.signal)
-      if (!ctrl.signal.aborted) {
-        setEstado((e) => ({ ...e, repartoLibre: agenda.reparto_libre === true }))
-      }
-    } catch {
-      // Conserva la pantalla ante un fallo transitorio. Cada reparto vuelve
-      // a comprobar el permiso en el servidor y relee si la regla cambió.
-    } finally {
-      if (permisoAbortRef.current === ctrl) permisoAbortRef.current = null
-    }
-  }, [])
-
+  // Releer cola y turnos conserva los controles locales por id. No iniciar
+  // una lectura durante una escritura ni dejar que una lectura vieja la reponga.
   useEffect(() => {
+    if (!activo) return
     void cargar()
     let pendiente: ReturnType<typeof setTimeout> | undefined
     const alVolver = () => {
+      if (document.visibilityState === 'hidden') return
       clearTimeout(pendiente)
-      pendiente = setTimeout(() => { void actualizarPermiso() }, 250)
+      pendiente = setTimeout(() => {
+        if (!enviandoRef.current.size && !abortRef.current) void cargar()
+      }, 250)
     }
     window.addEventListener('focus', alVolver)
+    document.addEventListener('visibilitychange', alVolver)
     return () => {
-      window.removeEventListener('focus', alVolver)
       clearTimeout(pendiente)
+      window.removeEventListener('focus', alVolver)
+      document.removeEventListener('visibilitychange', alVolver)
       abortRef.current?.abort()
-      permisoAbortRef.current?.abort()
     }
-  }, [cargar, actualizarPermiso])
+  }, [activo, revision, revisionPostEnvio, cargar])
 
   /** Reparte un lead. El servidor manda: si rechaza, la fila NO se mueve. */
   const repartir = useCallback(async (lead: ColaLead, supervisorId: string) => {
@@ -276,8 +275,9 @@ function useReparto() {
       }
     } finally {
       terminarEnvio(lead.id)
+      onCambio()
     }
-  }, [cargar, estado.supervisores, iniciarEnvio, terminarEnvio])
+  }, [cargar, estado.supervisores, iniciarEnvio, terminarEnvio, onCambio])
 
   /** C1-bis: cierra el lead con motivo. Devuelve si el descarte ENTRÓ (el
    *  llamador decide a dónde va el foco). El deshacer vive en el toast — la
@@ -304,6 +304,7 @@ function useReparto() {
               } finally {
                 // Con o sin éxito, la verdad la tiene el servidor.
                 void cargar()
+                onCambio()
                 refrescarResumenReparto()
               }
             })()
@@ -322,15 +323,18 @@ function useReparto() {
       return false
     } finally {
       terminarEnvio(lead.id)
+      onCambio()
     }
-  }, [cargar, iniciarEnvio, terminarEnvio])
+  }, [cargar, iniciarEnvio, terminarEnvio, onCambio])
 
   return { ...estado, enviandoIds, recargar: cargar, repartir, descartar }
 }
 
 /** Pestaña "Cola": repartir o descartar los leads nuevos sin dueño. */
-function PanelCola() {
-  const { cola, supervisores, agendaHoy, repartoLibre, cargando, error, enviandoIds, recargar, repartir, descartar } = useReparto()
+function PanelCola({ activo, revision, onCambio, onOcupado }: { activo: boolean; revision: number; onCambio: () => void; onOcupado: (valor: boolean) => void }) {
+  const { cola, supervisores, agendaHoy, repartoLibre, cargando, error, enviandoIds, recargar, repartir, descartar } = useReparto(activo, revision, onCambio)
+  const ocupado = enviandoIds.size > 0
+  useEffect(() => { onOcupado(ocupado); return () => onOcupado(false) }, [ocupado, onOcupado])
   const { yo } = useAuth()
   const esAdministrador = yo?.rol_portal === 'superadmin'
   const puedeElegirDestino = esAdministrador || repartoLibre
@@ -370,7 +374,8 @@ function PanelCola() {
   }, [])
 
   const marcados = useMemo(() => contarMarcados(cola), [cola])
-  const origenes = useMemo(() => origenesDeCola(cola), [cola])
+  const sinFiltroOrigen = useMemo(() => filtrarYOrdenarCola(cola, { ...filtros, origen: '' }), [cola, filtros])
+  const origenes = useMemo(() => [...new Set([...origenesDeCola(sinFiltroOrigen), ...(filtros.origen ? [filtros.origen] : [])])], [sinFiltroOrigen, filtros.origen])
   const colaFiltrada = useMemo(() => filtrarYOrdenarCola(cola, filtros), [cola, filtros])
   const paginaCola = paginar(colaFiltrada, pagina, PAGINA)
   const colaVisible = paginaCola.visibles
@@ -428,7 +433,7 @@ function PanelCola() {
       <StatStrip stats={stats} />
 
       {agendaHoy ? (
-        <Card className="overflow-hidden border-primary/20">
+        <Card className="overflow-hidden">
           <SectionHead
             icon={CalendarDays}
             title="Turno de hoy"
@@ -438,16 +443,17 @@ function PanelCola() {
               </span>
             )}
           />
-          <div className="grid border-t border-border sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+          <div className="flex flex-wrap gap-x-6 gap-y-2 border-t border-border px-5 py-3">
             {(['landing', 'formulario'] as const).map((origen) => {
               const asignacion = agendaHoy.asignaciones.find((fila) => fila.origen === origen)
               const total = asignacion?.derivados ?? 0
               return (
-                <div key={origen} className="border-b border-border px-5 py-3 last:border-b-0 sm:border-b-0">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                <div key={origen} className="flex flex-wrap items-baseline gap-x-2 text-xs">
+                  <p className="font-semibold text-muted-foreground">
                     {origenLabel(origen)}
                   </p>
-                  <p className="mt-0.5 text-sm font-bold text-foreground">
+                  {origen === 'formulario' ? <span className="text-muted-foreground">(incluye Formulario 3)</span> : null}
+                  <p className="font-semibold text-foreground">
                     {asignacion?.supervisor_nombre ?? 'Turno sin guardar'}
                   </p>
                   <p className="mt-0.5 text-[11px] text-muted-foreground">
@@ -476,16 +482,16 @@ function PanelCola() {
           icon={Split}
           title="Cola de leads nuevos"
           right={
-            <span className="text-[11px] font-semibold text-muted-foreground">
+            <div className="flex items-center gap-3"><span className="text-[11px] font-semibold text-muted-foreground">
               {cola.length > 0
                 ? `${hayFiltrosActivos ? `${colaFiltrada.length} de ${cola.length}` : `${cola.length} en espera`} · ${
                   filtros.orden === 'recientes' ? 'más recientes primero' : 'más antiguos primero'}`
                 : ''}
-            </span>
+            </span><Button size="sm" variant="outline" disabled={cargando || enviandoIds.size > 0} onClick={() => void recargar()}>Actualizar</Button></div>
           }
         />
 
-        {cargando ? (
+        {cargando && cola.length === 0 ? (
           <PanelCargando filas={4} />
         ) : error ? (
           <PanelError mensaje={error} onReintentar={() => void recargar()} reintentando={cargando} />
@@ -505,7 +511,7 @@ function PanelCola() {
           <>
             {/* Herramientas de la cola: buscar, ordenar, filtrar. Presentación
                 pura — el servidor sigue mandando la cola completa en FIFO. */}
-            <div className="flex flex-col gap-2 px-5 pb-3 sm:flex-row sm:items-center">
+            <div className="flex flex-col gap-2 px-5 pb-3 sm:flex-row sm:flex-wrap sm:items-center">
               <div className="relative flex-1 sm:max-w-[280px]">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
                 <Input
@@ -534,7 +540,7 @@ function PanelCola() {
                 >
                   <option value="">Todos los orígenes</option>
                   {origenes.map((o) => (
-                    <option key={o} value={o}>{origenLabel(o)}</option>
+                    <option key={o} value={o}>{origenLabel(o)} ({sinFiltroOrigen.filter((lead) => lead.origen === o).length})</option>
                   ))}
                 </Select>
               </div>
@@ -570,7 +576,7 @@ function PanelCola() {
                 </Button>
               </PanelVacio>
             ) : (
-              <div ref={refCola} tabIndex={-1} className="space-y-2 px-5 pb-5 outline-none">
+              <div ref={refCola} tabIndex={-1} className="divide-y divide-border px-5 pb-3 outline-none">
                 {/* tabIndex={-1}: destino PROGRAMÁTICO del foco cuando la fila
                     enfocada desaparece (descarte exitoso); no es alcanzable con
                     Tab, por eso el outline-none aquí es legítimo. */}
@@ -579,7 +585,7 @@ function PanelCola() {
                   const usaTurno = origenUsaTurno(lead.origen)
                   const turnoObligatorio = usaTurno && !puedeElegirDestino
                   const asignacionTurno = usaTurno
-                    ? agendaHoy?.asignaciones.find((fila) => fila.origen === lead.origen)
+                    ? agendaHoy?.asignaciones.find((fila) => fila.origen === turnoDeOrigen(lead.origen))
                     : undefined
                   const elegido = turnoObligatorio
                     ? asignacionTurno?.supervisor_id ?? ''
@@ -595,11 +601,12 @@ function PanelCola() {
                     <div
                       key={lead.id}
                       data-lead-id={lead.id}
-                      className="flex flex-col gap-2.5 rounded-xl border border-border p-3 sm:flex-row sm:items-start"
+                      className="flex flex-col gap-2.5 py-3 lg:flex-row lg:items-start"
                     >
                       <div className="min-w-0 flex-1">
-                        <p className="flex items-center gap-1.5 text-sm font-semibold">
+                        <p className="flex flex-wrap items-center gap-1.5 text-sm font-semibold">
                           <span className="truncate">{lead.nombre_completo}</span>
+                          <ChipCampania lead={lead} />
                           {marcado ? <BadgeCredito /> : null}
                         </p>
                         <p className="truncate text-[11px] text-muted-foreground">
@@ -638,7 +645,7 @@ function PanelCola() {
                         ) : null}
                       </div>
                       {enDescarte ? (
-                        <div className="flex items-center gap-2 sm:w-[380px] sm:shrink-0">
+                        <div className="flex items-center gap-2 lg:w-[340px] lg:shrink-0">
                           <Select
                             ref={(el) => {
                               if (el) refMotivo.current.set(lead.id, el)
@@ -693,7 +700,7 @@ function PanelCola() {
                           </Button>
                         </div>
                       ) : (
-                        <div className="sm:w-[380px] sm:shrink-0">
+                        <div className="lg:w-[340px] lg:shrink-0">
                           <div className="flex items-center gap-2">
                             <Select
                               value={elegido}
@@ -866,7 +873,7 @@ function PanelDescartados({ onCambio }: { onCambio: () => void }) {
               <div
                 key={lead.id}
                 data-descartado-id={lead.id}
-                className="flex flex-col gap-2.5 rounded-xl border border-border p-3 sm:flex-row sm:items-start"
+                className="flex flex-col gap-2.5 py-3 lg:flex-row lg:items-start"
               >
                 <div className="min-w-0 flex-1">
                   <p className="flex flex-wrap items-center gap-1.5 text-sm font-semibold">
@@ -949,10 +956,16 @@ function PanelDescartados({ onCambio }: { onCambio: () => void }) {
 }
 
 export function Repartir() {
-  const [tab, setTab] = useState<'coordinacion' | 'panel' | 'conversiones' | 'cola' | 'descartados' | 'historial'>('coordinacion')
+  const [tab, setTab] = useState<'coordinacion' | 'agenda' | 'panel' | 'conversiones' | 'cola' | 'descartados' | 'historial'>('coordinacion')
   // Al deshacer desde Descartados el lead vuelve a la cola: forzamos un remonte
   // de la pestaña Cola (key) para que la relea al volver a ella.
-  const [colaKey, setColaKey] = useState(0)
+  const [colaRevision, setColaRevision] = useState(0)
+  const [visitadas, setVisitadas] = useState(() => new Set([tab]))
+  const [colaOcupada, setColaOcupada] = useState(false)
+  const [planillaRevision, setPlanillaRevision] = useState(0)
+  const actualizarPlanilla = useCallback(() => setPlanillaRevision((n) => n + 1), [])
+  const [repartiendo, setRepartiendo] = useState(false)
+  const actualizarReparto = useCallback(() => { setColaRevision((n) => n + 1); refrescarResumenReparto() }, [])
 
   return (
     <div className="mx-auto max-w-[1240px] space-y-4">
@@ -969,13 +982,15 @@ export function Repartir() {
             ['cola', 'Cola de nuevos'],
             ['historial', 'Historial'],
             ['descartados', 'Descartados'],
+            ['agenda', 'Agenda de turnos'],
           ] as const).map(([k, label]) => (
             <button
               key={k}
               type="button"
               role="tab"
               aria-selected={tab === k}
-              onClick={() => setTab(k)}
+              disabled={repartiendo || colaOcupada}
+              onClick={() => { setVisitadas((prev) => new Set(prev).add(k)); setTab(k) }}
               className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
                 tab === k ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
               }`}
@@ -986,11 +1001,13 @@ export function Repartir() {
         </div>
       </div>
 
-      {tab === 'coordinacion' ? <AgendaRepartoDiaria /> : tab === 'panel' ? <PanelDistribucionReparto /> : tab === 'conversiones' ? <ConversionCoordinacion /> : tab === 'cola' ? <PanelCola key={colaKey} /> : tab === 'historial' ? <HistorialDerivaciones /> : (
-        <PanelDescartados
-          onCambio={() => { setColaKey((n) => n + 1); refrescarResumenReparto() }}
-        />
-      )}
+      {visitadas.has('coordinacion') ? <div hidden={tab !== 'coordinacion'}><PlanillaReparto activo={tab === 'coordinacion'} revision={colaRevision + planillaRevision} onCambio={actualizarReparto} onOcupado={setRepartiendo} /></div> : null}
+      {visitadas.has('agenda') ? <div hidden={tab !== 'agenda'}><AgendaRepartoDiaria activo={tab === 'agenda'} /></div> : null}
+      {visitadas.has('cola') ? <div hidden={tab !== 'cola'}><PanelCola activo={tab === 'cola'} revision={colaRevision} onCambio={actualizarPlanilla} onOcupado={setColaOcupada} /></div> : null}
+      {tab === 'panel' ? <PanelDistribucionReparto /> : null}
+      {tab === 'conversiones' ? <ConversionCoordinacion /> : null}
+      {tab === 'historial' ? <HistorialDerivaciones /> : null}
+      {tab === 'descartados' ? <PanelDescartados onCambio={() => { setColaRevision((n) => n + 1); refrescarResumenReparto() }} /> : null}
     </div>
   )
 }

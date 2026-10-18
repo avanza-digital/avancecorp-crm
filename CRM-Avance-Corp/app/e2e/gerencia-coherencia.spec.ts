@@ -22,7 +22,9 @@ test('siete hallazgos: conserva el corte mensual, combina fuentes y protege el m
     const mensual = desde.endsWith('-01')
     const plantilla = metricasConversionesDemo(desde, hasta)
     const datos = metricasConversionesReal()
-    const cierres = mensual ? origen == null ? 2 : origen === 'referido' ? 0 : 1 : 0
+    // La foto de agosto tiene un cierre Landing y uno Formulario; F3 todavía
+    // no existía. Consultar su fuente no inventa cierres históricos.
+    const cierres = mensual ? origen == null ? 2 : ['landing', 'formulario'].includes(origen) ? 1 : 0 : 0
     const semanas = plantilla.cierres_por_semana!.semanas.map((semana, indice) => ({
       ...semana, cierres: indice === 0 ? cierres : 0, aporte_cierres: indice === 0 ? cierres : 0,
     }))
@@ -66,14 +68,14 @@ test('siete hallazgos: conserva el corte mensual, combina fuentes y protege el m
   await expect(page.getByText('Prospectos del período que cerraron', { exact: true })).toBeVisible()
   await page.getByRole('checkbox', { name: 'Referido', exact: true }).uncheck()
   await page.getByRole('checkbox', { name: 'Renovación', exact: true }).uncheck()
-  await expect(hero).toContainText('Landing + Formulario + Upgrade')
+  await expect(hero).toContainText('Landing + Formulario + Formulario 3 + Upgrade')
   await expect(hero).toContainText('0 cierres + 1 operaciones')
   await expect(hero).toContainText('10.00%')
   await page.getByRole('button', { name: 'Ranking', exact: true }).click()
   await expect(page.getByLabel('Mes calendario')).toHaveValue('2026-08')
-  await expect(page.getByRole('tab', { name: 'Aporte: Landing + Formulario + Upgrade', exact: true })).toBeVisible()
+  await expect(page.getByRole('tab', { name: 'Aporte: Landing + Formulario + Formulario 3 + Upgrade', exact: true })).toBeVisible()
   await expect(page.getByRole('cell', { name: /^16.67%/ })).toBeVisible()
-  for (const origen of [null, 'landing', 'formulario']) {
+  for (const origen of [null, 'landing', 'formulario', 'formulario_3']) {
     expect(consultas).toContainEqual({ p_desde: '2026-08-01', p_hasta: '2026-08-31', p_origen: origen })
   }
   await page.screenshot({ path: testInfo.outputPath('ranking-fuentes-desktop.png'), fullPage: true, animations: 'disabled' })

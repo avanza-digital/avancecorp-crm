@@ -1,3 +1,4 @@
+import { useRefrescarAlVolver } from '@/lib/use-refrescar-al-volver'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, History, Search } from 'lucide-react'
 import { historialDerivaciones, TAMANO_PAGINA_HISTORIAL_REPARTO } from '@/data/crm-api'
@@ -62,6 +63,8 @@ export function HistorialDerivaciones() {
     return () => abortRef.current?.abort()
   }, [recargar])
 
+  useRefrescarAlVolver(recargar, estado.paginaActual > 0 || estado.cargando || estado.cargandoSiguiente)
+
   const irSiguiente = useCallback(async () => {
     if (estado.cargandoSiguiente) return
     if (estado.paginaActual < estado.paginas.length - 1) {
@@ -122,9 +125,9 @@ export function HistorialDerivaciones() {
           icon={History}
           title="Historial de derivaciones"
           right={(
-            <span className="text-[11px] font-semibold text-muted-foreground">
+            <div className="flex items-center gap-3"><span className="text-[11px] font-semibold text-muted-foreground">
               Página {estado.paginaActual + 1} · hasta {TAMANO_PAGINA_HISTORIAL_REPARTO} movimientos
-            </span>
+            </span><Button size="sm" variant="outline" disabled={estado.cargando || estado.cargandoSiguiente} onClick={() => void recargar()}>Actualizar historial</Button></div>
           )}
         />
         <div className="border-b border-border px-5 py-3">

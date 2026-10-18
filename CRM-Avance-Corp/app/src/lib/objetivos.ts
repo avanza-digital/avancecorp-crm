@@ -10,6 +10,7 @@ import {
 } from './esquemas-rpc'
 import type { ConfiguracionMetas, DetalleMeta, MetaVendedorConfig } from './metas-versionadas'
 import { CATEGORIAS_PRODUCTO, MONEDAS_PRODUCTO } from './productos-inversion'
+import { CapitalResumenSchema, CapitalValoracionSchema, sumarCapitalValorado, type CapitalResumen, type CapitalValoracion } from './capital-valorado'
 
 export type CategoriaMeta = DetalleMeta['categoria']
 export type MonedaMeta = DetalleMeta['moneda']
@@ -23,6 +24,7 @@ export interface ObjetivoDetalle {
 
 /** Meta mensual. La moneda y la categoría nunca se pierden al agregar. */
 export interface ObjetivoComercial {
+  capitalValorado?: CapitalResumen | null
   conversionObjetivo: number
   detalles: ObjetivoDetalle[]
 }
@@ -157,6 +159,9 @@ export function capitalObjetivo(
   moneda: MonedaMeta,
   categoria?: CategoriaMeta,
 ): number {
+  if (meta.capitalValorado) return meta.capitalValorado.detalles.reduce((total, detalle) => (
+    detalle.moneda === moneda && (categoria == null || detalle.categoria === categoria) ? total + detalle.capital_objetivo : total
+  ), 0)
   return meta.detalles.reduce((total, detalle) => (
     detalle.moneda === moneda && (categoria == null || detalle.categoria === categoria)
       ? total + detalle.capitalObjetivo
@@ -373,7 +378,22 @@ export const CumplimientoMetasSchema = v.strictObject({
   fuera_ranking: v.optional(v.array(ProduccionFueraRankingSchema)),
 })
 
-export type CumplimientoMetasRpc = v.InferOutput<typeof CumplimientoMetasSchema>
+// V1 mantiene su contrato estricto. Solo la puerta versionada admite las claves
+// de valoración, y sigue aceptando la respuesta anterior durante la transición.
+export const CumplimientoMetasV2Schema = v.strictObject({
+  ...CumplimientoMetasSchema.entries,
+  vendedores: v.array(v.strictObject({
+    ...CumplimientoVendedorSchema.entries,
+    capital_valorado: v.optional(v.nullable(CapitalResumenSchema)),
+  })),
+  fuera_ranking: v.optional(v.array(v.strictObject({
+    ...ProduccionFueraRankingSchema.entries,
+    capital_valorado: v.optional(v.nullable(CapitalResumenSchema)),
+  }))),
+  capital_valoracion: v.optional(CapitalValoracionSchema),
+})
+
+export type CumplimientoMetasRpc = v.InferOutput<typeof CumplimientoMetasV2Schema>
 
 export interface CumplimientoDetalle extends ObjetivoDetalle {
   capitalReal: number
@@ -400,6 +420,8 @@ export interface AjusteCumplimiento {
 }
 
 export interface CumplimientoComercial {
+  /** undefined = régimen anterior; null = aún no existe un corte completo. */
+  capitalValorado?: CapitalResumen | null
   conversionObjetivo: number
   conversionReal: number | null
   convertidos: number
@@ -427,6 +449,7 @@ export interface CumplimientoVendedor extends CumplimientoComercial {
 }
 
 export interface ProduccionFueraRanking {
+  capitalValorado?: CapitalResumen | null
   personaId: string
   nombre: string
   rolCrm:
@@ -474,6 +497,7 @@ export interface FuentesRealesCumplimientoMetas {
 }
 
 export interface CumplimientoMetasJerarquico {
+  valoracionCapital?: CapitalValoracion
   periodo: string
   revision: number
   publicadaEn: string | null
@@ -491,6 +515,8 @@ export interface CumplimientoMetasJerarquico {
   porVendedor: Record<string, CumplimientoVendedor>
   /** Produccion identificada que cuadra en empresa sin generar un puesto. */
   fueraRanking: ProduccionFueraRanking[]
+  /** Ventas propias, al final del ranking y con aporte al equipo. */
+  supervisores: ProduccionFueraRanking[]
 }
 
 function cumplimientoDesdeVendedor(
@@ -521,6 +547,7 @@ function cumplimientoDesdeVendedor(
 
   return {
     vendedorId: fila.vendedor_id,
+    ...(fila.capital_valorado !== undefined ? { capitalValorado: fila.capital_valorado } : {}),
     nombre: fila.nombre,
     supervisorId: fila.supervisor_id,
     supervisorNombre: fila.supervisor_nombre,
@@ -599,8 +626,10 @@ export function agregarCumplimientos(
     }
   }
 
+  const capitalValorado = sumarCapitalValorado(filas.map((fila) => fila.capitalValorado))
   return {
     conversionObjetivo: metas.conversionObjetivo,
+    ...(capitalValorado !== undefined ? { capitalValorado } : {}),
     ...(tieneAjuste ? { ajuste } : {}),
     detalles: metas.detalles.map((meta) => {
       const real = reales.get(`${meta.categoria}:${meta.moneda}`) ?? {
@@ -654,19 +683,21 @@ export function metaVigente(
 
 /**
  * Producción de TODA persona con cierres en el mes: `porVendedor` (quien tiene
- * meta) más `fueraRanking` (supervisores o analistas sin meta). «Por empresa»
+ * meta), `fueraRanking` y `supervisores` (desde octubre). «Por empresa»
  * la necesita completa: sin la segunda parte decía «falta su foto de
  * cumplimiento» de quien sí la tiene. Si un id está en las dos, gana la fila
  * con meta.
  */
 export function produccionPorPersona(
-  cumplimiento: Pick<CumplimientoMetasJerarquico, 'porVendedor'> & { fueraRanking?: readonly ProduccionFueraRanking[] } | null | undefined,
+  cumplimiento: Pick<CumplimientoMetasJerarquico, 'porVendedor'> & { fueraRanking?: readonly ProduccionFueraRanking[]; supervisores?: readonly ProduccionFueraRanking[] } | null | undefined,
 ): Record<string, Pick<CumplimientoVendedor, 'nombre' | 'detalles'>> | null {
   if (cumplimiento == null) return null
-  const fuera = Object.fromEntries((cumplimiento.fueraRanking ?? [])
+  const fuera = Object.fromEntries([...(cumplimiento.fueraRanking ?? []), ...(cumplimiento.supervisores ?? [])]
     .map((fila) => [fila.personaId, { nombre: fila.nombre, detalles: fila.detalles }]))
   return { ...fuera, ...cumplimiento.porVendedor }
 }
+
+const VENTAS_SUPERVISORES_DESDE = '2026-10-01'
 
 export function cumplimientoDesdeRpc(
   respuesta: CumplimientoMetasRpc,
@@ -677,6 +708,7 @@ export function cumplimientoDesdeRpc(
   )
   const filas = Object.values(porVendedor)
   const fueraRanking: ProduccionFueraRanking[] = (respuesta.fuera_ranking ?? []).map((fila) => ({
+    ...(fila.capital_valorado !== undefined ? { capitalValorado: fila.capital_valorado } : {}),
     personaId: fila.persona_id,
     nombre: fila.nombre,
     rolCrm: fila.rol_crm,
@@ -716,7 +748,13 @@ export function cumplimientoDesdeRpc(
       renovacionesSinDesglose: fila.cartera.renovaciones_sin_desglose,
     },
   }))
-  const fueraComoCumplimiento: CumplimientoComercial[] = fueraRanking.map((fila) => ({
+  // Mismo corte comercial que la puerta SQL; el servidor mantiene fuera_ranking
+  // compatible para todos los lectores y el adaptador separa su presentación.
+  const supervisores = respuesta.periodo >= VENTAS_SUPERVISORES_DESDE
+    ? fueraRanking.filter((fila) => fila.rolCrm === 'supervisor' && fila.motivo === 'supervisor')
+    : []
+  const comoCumplimiento = (fila: ProduccionFueraRanking): CumplimientoComercial => ({
+    ...(fila.capitalValorado !== undefined ? { capitalValorado: fila.capitalValorado } : {}),
     conversionObjetivo: 0,
     conversionReal: null,
     convertidos: (fila.conversion?.cierresNoReferidos ?? 0)
@@ -725,9 +763,23 @@ export function cumplimientoDesdeRpc(
     resueltos: fila.conversion?.divisor ?? 0,
     numerador: fila.conversion?.numerador ?? 0,
     detalles: fila.detalles,
-  }))
+  })
+  const propias = Object.fromEntries(supervisores.map((fila) => [fila.personaId, comoCumplimiento(fila)]))
+  const propia = actorId ? propias[actorId] : undefined
+  const equipo = filas.filter((fila) => fila.supervisorId === actorId)
+  const metaEquipo = agregarCumplimientos(equipo)
+  const equipoConVentas = agregarCumplimientos([...equipo, ...(propia ? [propia] : [])])
+  const gerencia = agregarCumplimientos([...filas, ...fueraRanking.map(comoCumplimiento)])
+  const personasCapital = respuesta.capital_valoracion?.personas
+  if (personasCapital) {
+    if (gerencia) gerencia.capitalValorado = sumarCapitalValorado(personasCapital.map(p => p.capital_valorado)) ?? null
+    if (equipoConVentas) equipoConVentas.capitalValorado = sumarCapitalValorado(personasCapital
+      .filter(p => (p.en_ranking && p.supervisor_id === actorId)
+        || (p.vendedor_id === actorId && p.rol_crm === 'supervisor')).map(p => p.capital_valorado)) ?? null
+  }
   return {
     periodo: respuesta.periodo,
+    ...(respuesta.capital_valoracion ? { valoracionCapital: respuesta.capital_valoracion } : {}),
     revision: respuesta.revision,
     publicadaEn: respuesta.publicada_en,
     fuentesReales: {
@@ -736,10 +788,16 @@ export function cumplimientoDesdeRpc(
     },
     cierre: respuesta.cierre ?? null,
     vendedor: actorId ? (porVendedor[actorId] ?? null) : null,
-    supervisor: agregarCumplimientos(filas.filter((fila) => fila.supervisorId === actorId)),
-    gerencia: agregarCumplimientos([...filas, ...fueraComoCumplimiento]),
+    // Su producción aporta capital y contratos; no añade una meta individual
+    // ni diluye el objetivo de conversión pactado con los analistas.
+    supervisor: equipoConVentas == null ? null : {
+      ...equipoConVentas,
+      conversionObjetivo: metaEquipo?.conversionObjetivo ?? 0,
+    },
+    gerencia,
     porVendedor,
-    fueraRanking,
+    fueraRanking: fueraRanking.filter((fila) => !supervisores.includes(fila)),
+    supervisores,
   }
 }
 
@@ -748,6 +806,9 @@ export function capitalReal(
   moneda: MonedaMeta,
   categoria?: CategoriaMeta,
 ): number {
+  if (cumplimiento.capitalValorado) return cumplimiento.capitalValorado.detalles.reduce((total, detalle) => (
+    detalle.moneda === moneda && (categoria == null || detalle.categoria === categoria) ? total + detalle.capital_real : total
+  ), 0)
   return cumplimiento.detalles.reduce((total, detalle) => (
     detalle.moneda === moneda && (categoria == null || detalle.categoria === categoria)
       ? total + detalle.capitalReal
@@ -760,6 +821,9 @@ export function contratosReales(
   moneda: MonedaMeta,
   categoria?: CategoriaMeta,
 ): number {
+  if (cumplimiento.capitalValorado) return cumplimiento.capitalValorado.detalles.reduce((total, detalle) => (
+    detalle.moneda === moneda && (categoria == null || detalle.categoria === categoria) ? total + detalle.contratos_real : total
+  ), 0)
   return cumplimiento.detalles.reduce((total, detalle) => (
     detalle.moneda === moneda && (categoria == null || detalle.categoria === categoria)
       ? total + detalle.contratosReal

@@ -61,7 +61,7 @@ const LEADS_DEMO_BASE: Lead[] = [
   { id: 'l2', genero: 'F', nombre_completo: 'MARÍA LÓPEZ CASTRO', telefono: '+51987654322', correo: 'maria.lopez@gmail.com', etapa: 'contactado', origen: 'landing', monto_estimado: 30000, moneda: 'PEN', categoria_interes: 'nuevo', vendedor_id: 'd-v1', vendedor_nombre: 'ANALISTA UNO', creado_en: hace(2), activo: true, dni: '45871236', distrito: 'San Isidro' },
   { id: 'l8', genero: 'F', nombre_completo: 'ELENA VARGAS RÍOS', telefono: '+51987654328', etapa: 'descartado', origen: 'web', monto_estimado: 5000, moneda: 'PEN', categoria_interes: null, vendedor_id: 'd-v1', vendedor_nombre: 'ANALISTA UNO', creado_en: hace(9), activo: true, motivo_descarte: 'sin_fondos', nota: 'Retomará en unos meses, cuando venda un terreno' },
   { id: 'l9', genero: 'M', nombre_completo: 'JORGE CHÁVEZ PAREDES', telefono: '+51998812345', correo: 'jchavezp@outlook.com', etapa: 'convertido', origen: 'referido', monto_estimado: 25000, moneda: 'USD', categoria_interes: 'renovacion', vendedor_id: 'd-v1', vendedor_nombre: 'ANALISTA UNO', creado_en: hace(18), activo: true, dni: '41236587', distrito: 'San Borja' },
-  { id: 'l12', genero: 'F', nombre_completo: 'PATRICIA FERNÁNDEZ SOTO', telefono: '+51954321876', correo: 'pfernandezsoto@gmail.com', etapa: 'propuesta_enviada', origen: 'formulario', monto_estimado: 15000, moneda: 'USD', categoria_interes: 'upgrade', vendedor_id: 'd-v1', vendedor_nombre: 'ANALISTA UNO', creado_en: hace(5), activo: true, dni: '46752198', nota: 'Evalúa la propuesta en dólares con su esposo' },
+  { id: 'l12', genero: 'F', nombre_completo: 'PATRICIA FERNÁNDEZ SOTO', telefono: '+51954321876', correo: 'pfernandezsoto@gmail.com', etapa: 'propuesta_enviada', origen: 'formulario_3', campania_origen: 'Formulario 3', monto_estimado: 15000, moneda: 'USD', categoria_interes: 'upgrade', vendedor_id: 'd-v1', vendedor_nombre: 'ANALISTA UNO', creado_en: hace(5), activo: true, dni: '46752198', nota: 'Evalúa la propuesta en dólares con su esposo' },
   { id: 'l15', genero: 'F', nombre_completo: 'TERESA GONZALES PAZ', telefono: '+51911223344', etapa: 'nuevo', origen: 'landing', monto_estimado: 20000, moneda: 'PEN', categoria_interes: 'nuevo', vendedor_id: 'd-v1', vendedor_nombre: 'ANALISTA UNO', creado_en: hace(1.4), activo: true, distrito: 'Surquillo' }, // SIN actividad → sin_responder crítica
   { id: 'l16', genero: 'M', nombre_completo: 'FERNANDO QUIROZ BEDOYA', telefono: '+51922334455', correo: 'fquirozb@gmail.com', etapa: 'contactado', origen: 'campania', monto_estimado: 45000, moneda: 'PEN', categoria_interes: 'renovacion', vendedor_id: 'd-v1', vendedor_nombre: 'ANALISTA UNO', creado_en: hace(6), activo: true, dni: '42718395' }, // última act hace 4d → seguimiento
   { id: 'l17', genero: 'F', nombre_completo: 'GLORIA NAVARRO IBÁÑEZ', telefono: '+51933445566', etapa: 'propuesta_enviada', origen: 'referido', monto_estimado: 65000, moneda: 'PEN', categoria_interes: 'nuevo', vendedor_id: 'd-v1', vendedor_nombre: 'ANALISTA UNO', creado_en: hace(9), activo: true, dni: '44561287', distrito: 'San Miguel', nota: 'Pidió tiempo para revisar la propuesta con su contador' }, // última act hace 6d → propuesta_sin_respuesta
@@ -70,7 +70,7 @@ const LEADS_DEMO_BASE: Lead[] = [
   { id: 'l3', genero: 'M', nombre_completo: 'CARLOS RUIZ MENDOZA', telefono: '+51987654323', etapa: 'reunion_agendada', origen: 'oficina', monto_estimado: 10000, moneda: 'USD', categoria_interes: 'upgrade', vendedor_id: 'd-v2', vendedor_nombre: 'ANALISTA DOS', creado_en: hace(4), activo: true, dni: '40125879' }, // última act hace 3.4d → seguimiento
   { id: 'l6', genero: 'F', nombre_completo: 'ROSA DÍAZ HUAMÁN', telefono: '+51987654326', etapa: 'contactado', origen: 'referido', monto_estimado: 22000, moneda: 'PEN', categoria_interes: 'nuevo', vendedor_id: 'd-v2', vendedor_nombre: 'ANALISTA DOS', creado_en: hace(3), activo: true, distrito: 'La Molina' },
   { id: 'l10', genero: 'F', nombre_completo: 'CARMEN SALAZAR TICONA', telefono: '+51976543210', etapa: 'descartado', origen: 'whatsapp', monto_estimado: 12000, moneda: 'PEN', categoria_interes: null, vendedor_id: 'd-v2', vendedor_nombre: 'ANALISTA DOS', creado_en: hace(11), activo: true, motivo_descarte: 'no_responde' },
-  { id: 'l18', genero: 'M', nombre_completo: 'OMAR VILLANUEVA REYES', telefono: '+51944556677', etapa: 'nuevo', origen: 'formulario', monto_estimado: 12000, moneda: 'PEN', categoria_interes: 'nuevo', vendedor_id: 'd-v2', vendedor_nombre: 'ANALISTA DOS', creado_en: hace(2.2), activo: true, distrito: 'Breña' }, // SIN actividad → sin_responder crítica
+  { id: 'l18', genero: 'M', nombre_completo: 'OMAR VILLANUEVA REYES', telefono: '+51944556677', etapa: 'nuevo', origen: 'formulario_3', campania_origen: 'Formulario 3', monto_estimado: 12000, moneda: 'PEN', categoria_interes: 'nuevo', vendedor_id: 'd-v2', vendedor_nombre: 'ANALISTA DOS', creado_en: hace(2.2), activo: true, distrito: 'Breña' }, // SIN actividad → sin_responder crítica
   { id: 'l19', genero: 'F', nombre_completo: 'DIANA PONCE ARELLANO', telefono: '+51955667788', correo: 'dponcea@gmail.com', etapa: 'convertido', origen: 'oficina', monto_estimado: 40000, moneda: 'PEN', categoria_interes: 'nuevo', vendedor_id: 'd-v2', vendedor_nombre: 'ANALISTA DOS', creado_en: hace(15), activo: true, dni: '40987123' },
 
   // ── ANALISTA TRES (d-v3) ── 3 abiertos · 1 convertido
@@ -86,7 +86,7 @@ const LEADS_DEMO_BASE: Lead[] = [
 ]
 
 /** Canales que en producción solo trae el puente (más los históricos, que eran importación). */
-const ORIGENES_DEL_PUENTE: ReadonlySet<string> = new Set(['landing', 'formulario', 'web', 'campania', 'whatsapp'])
+const ORIGENES_DEL_PUENTE: ReadonlySet<string> = new Set(['landing', 'formulario', 'formulario_3', 'web', 'campania', 'whatsapp'])
 /** Leads de canal automático que en el demo CARGÓ una persona (posible desde el 01/09/2026). */
 const MANUALES_DE_CANAL_AUTOMATICO: ReadonlySet<string> = new Set(['l15', 'l13'])
 
@@ -296,4 +296,5 @@ export const CUMPLIMIENTO_METAS_DEMO: CumplimientoMetasJerarquico = {
   gerencia: agregarCumplimientos(CUMPLIMIENTO_DEMO_FILAS),
   porVendedor: CUMPLIMIENTO_VENDEDORES_DEMO,
   fueraRanking: [],
+  supervisores: [],
 }

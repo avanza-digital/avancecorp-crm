@@ -33,6 +33,7 @@ let CONSULTA_GERENCIA: { consulta: { gestionAnalista: { id: string; nombre: stri
 const ABRIR_LEAD = vi.fn()
 
 beforeEach(() => {
+  sessionStorage.clear()
   ABRIR_LEAD.mockClear()
   CONSULTAR_CARTERA.mockClear()
   ACTIVIDADES = []
@@ -91,6 +92,33 @@ vi.mock('@/data/use-cartera-paginada', async () => {
 })
 
 const { Cartera } = await import('./cartera')
+
+describe('Cartera · Formulario 3 como origen', () => {
+  it('muestra un solo origen y filtra sin confundir las notas de reingreso', () => {
+    montar([
+      lead({ id: 'f3', nombre_completo: 'ALTA FORMULARIO', origen: 'formulario_3', campania_origen: 'Formulario 3' }),
+      lead({ id: 'viejo', nombre_completo: 'CONTACTO ANTERIOR', origen: 'formulario', campania_origen: null, nota: 'Reingreso por Formulario 3' }),
+      lead({ id: 'otra', nombre_completo: 'OTRA CAMPAÑA', campania_origen: 'Campaña anterior' }),
+    ])
+    const fila = screen.getByRole('row', { name: /ALTA FORMULARIO/ })
+    expect(fila).toHaveTextContent('Formulario 3')
+    expect(fila.textContent?.match(/Formulario 3/g)).toHaveLength(1)
+    expect(within(fila).queryByText('FORMULARIO', { exact: true })).not.toBeInTheDocument()
+    expect(fila).not.toHaveAccessibleDescription('Campaña de origen: Formulario 3')
+    expect(screen.getByRole('row', { name: /CONTACTO ANTERIOR/ })).not.toHaveTextContent('Campaña de origen:')
+    expect(screen.queryByLabelText('Filtrar por campaña')).not.toBeInTheDocument()
+    const filtro = screen.getByLabelText('Filtrar por origen')
+    fireEvent.change(filtro, { target: { value: 'formulario_3' } })
+    expect(screen.queryByRole('row', { name: /CONTACTO ANTERIOR/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('row', { name: /OTRA CAMPAÑA/ })).not.toBeInTheDocument()
+    expect(within(chipDe('Total leads')).getByText('1')).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Filtrar por etapa'), { target: { value: 'descartado' } })
+    expect(screen.getByText('Sin resultados')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }))
+    expect(filtro).toHaveValue('todos')
+    expect(screen.getByRole('row', { name: /CONTACTO ANTERIOR/ })).toBeInTheDocument()
+  })
+})
 
 describe('Cartera · filtro Gestionado', () => {
   it('pide la clasificación al servidor, compone con origen y la retira al cambiar de etapa', () => {

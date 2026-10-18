@@ -17,7 +17,7 @@ for (const rol of ['vendedor', 'gerencia'] as const) {
       await page.setViewportSize({width: ancho, height: ancho === 390 ? 844 : 1000})
       if (ancho === 390) {
         if (rol === 'gerencia') await expect(page.getByRole('navigation', {name: 'Navegación principal de Gerencia'})).toBeVisible()
-        else await page.getByRole('button', {name: 'Ocultar menú'}).click()
+        else await expect(page.getByRole('navigation', { name: 'Navegación principal de Analista' })).toBeVisible()
       }
       await page.getByRole('button', {name: 'Ver detalle', exact: true}).click()
       const anterior = page.getByRole('dialog', {name: persona.nombre_completo})
@@ -50,7 +50,7 @@ for (const rol of ['vendedor', 'gerencia'] as const) {
       const nueva = page.getByRole('dialog', {name: persona.nombre_completo})
       await expect(nueva.getByRole('button', {name: 'Agendar gestión', exact: true})).toBeVisible()
       expect(Math.abs((await nueva.boundingBox())!.width - medidaAnterior!.width)).toBeLessThanOrEqual(1)
-      await expect(nueva.getByRole('button', {name: 'Cambiar responsable'})).toHaveCount(rol === 'gerencia' ? 1 : 0)
+      await expect(nueva.getByRole('button', {name: 'Cambiar quién atiende', exact: true})).toHaveCount(rol === 'gerencia' ? 1 : 0)
       await expect(nueva.getByRole('region', {name: 'Continuidad comercial del cliente'})).toContainText('S/ 10,000')
       await page.screenshot({path: info.outputPath('ficha-multiempresa.png'), fullPage: true})
 

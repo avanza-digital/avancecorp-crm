@@ -57,8 +57,8 @@ export const OPCIONES_CONTROL_CITAS = {
     opciones: { entrevistas: 'Todas las entrevistas realizadas', personas_entrevistadas: 'Personas entrevistadas, una vez por persona' },
   },
   mes_resultado: {
-    etiqueta: 'Mes al que corresponde el resultado',
-    ayuda: 'Define dónde se cuenta una asistencia o conversión que ocurre en un mes posterior.',
+    etiqueta: 'Mes al que corresponde la entrevista',
+    ayuda: 'Define dónde se cuenta una asistencia posterior. Las ventas siempre pertenecen al mes de su fecha comercial.',
     opciones: { asignacion: 'Mes de asignación del lead', evento: 'Mes en que ocurre cada resultado' },
   },
   analista_resultado: {

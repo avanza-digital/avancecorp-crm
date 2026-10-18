@@ -22,7 +22,7 @@ export async function entrarDemo(page: Page, rol: RolDemo): Promise<void> {
   await page.goto('/')
   await page.getByRole('button', { name: /explorar en modo demo/i }).click()
   await page.getByRole('button', { name: new RegExp(`^${rol}`) }).click()
-  await expect(page.getByRole('navigation').getByRole('button', { name: rol === 'Gerencia' ? 'Resumen' : 'Hoy', exact: true })).toBeVisible({ timeout: 10_000 })
+  await expect(page.getByRole('navigation').getByRole('button', { name: rol === 'Gerencia' ? 'Resumen' : /^(Hoy|Mi día)$/, exact: true })).toBeVisible({ timeout: 10_000 })
 }
 
 /** Navega al Pipeline (donde viven las cards de lead operables). */
@@ -41,6 +41,11 @@ export async function irAMiCartera(page: Page): Promise<void> {
   if (await titulo.count() > 0) return
   if (await page.getByRole('navigation', { name: 'Navegación principal de Gerencia' }).isVisible()) {
     await irAModulo(page, 'Cartera')
+    await expect(titulo).toBeVisible()
+    return
+  }
+  if (await page.getByRole('navigation', { name: 'Navegación principal de Analista' }).isVisible()) {
+    await irAModulo(page, 'Mi cartera')
     await expect(titulo).toBeVisible()
     return
   }
@@ -120,6 +125,7 @@ const SESSION = {
 }
 
 export interface LeadReal {
+  campania_origen?: string | null
   id: string
   documento?: { tipo: string; numero: string | null }
   reasignado?: boolean
@@ -879,6 +885,7 @@ export function carteraPaginaReal(
     p_reasignados?: boolean
     p_gestion?: string | null
     p_potencial?: string | null
+    p_campania_origen?: string | null
   },
   conGestion: (lead: LeadReal) => boolean = () => false,
   nivelDe: (lead: LeadReal) => string | null = () => null,
@@ -888,7 +895,11 @@ export function carteraPaginaReal(
   const digitos = texto.replace(/\D/g, '')
   const filtrados = leads.filter((l) => {
     if (!l.activo) return false
-    if (args.p_origen && l.origen !== args.p_origen) return false
+    // Contrato A→B de cartera_filtrada_fn: la campaña legada y la clave nativa
+    // comparten el filtro exacto F3; Formulario no las incluye.
+    const origen = l.origen === 'formulario' && l.campania_origen === 'Formulario 3' ? 'formulario_3' : l.origen
+    if (args.p_origen && origen !== args.p_origen) return false
+    if (args.p_campania_origen && l.campania_origen !== args.p_campania_origen) return false
     if (args.p_reasignados && (!l.reasignado || !l.vendedor_id)) return false
     if (args.p_desde) {
       const fecha = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(new Date(l.creado_en))
@@ -1786,6 +1797,30 @@ export interface PotencialRealDetalle {
 /** 'YYYY-MM-DD' de Lima, hoy más N días. */
 export function diaLimaReal(dias = 0): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(new Date(Date.now() + dias * 86_400_000))
+}
+
+/** Un mes de `crm.plazos_carga_mes_fn`: abierto, sin decisión y con su plazo normal. */
+export function mesPlazoCargaReal(over: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    mes: '2026-08', mes_nombre: 'agosto 2026', sellado: false,
+    plazo_base_ultimo_dia: '2026-09-10', plazo_ultimo_dia: '2026-09-10', ampliado: false,
+    decision: null, reabrible: false, motivo_no_reabrible: null, ultima_reapertura: null,
+    ...over,
+  }
+}
+
+/**
+ * `crm.plazos_carga_mes_fn` coherente con el `cierre_mes_estado_fn` del backend
+ * simulado (02/09): agosto abierto en su ventana y setiembre en curso.
+ */
+export function plazosCargaMesReal(
+  hoy = '2026-09-02',
+  meses: Record<string, unknown>[] = [
+    mesPlazoCargaReal(),
+    mesPlazoCargaReal({ mes: '2026-09', mes_nombre: 'setiembre 2026', plazo_base_ultimo_dia: '2026-10-10', plazo_ultimo_dia: '2026-10-10' }),
+  ],
+): Record<string, unknown> {
+  return { version: 1, generado_en: `${hoy}T15:00:00.000000+00:00`, hoy, zona: 'America/Lima', meses }
 }
 
 /**
@@ -2919,6 +2954,13 @@ export async function montarBackendReal(
     // ── C1: reparto de la cola global (pantalla del coordinador) ──
     if (p === '/rest/v1/rpc/leads_por_repartir') {
       estado.llamadas.rpcLeadsPorRepartir += 1
+      if (req.headers()['prefer']?.includes('count=exact')) {
+        const inicio = Number(url.searchParams.get('offset') ?? 0)
+        const limite = Number(url.searchParams.get('limit') ?? 500)
+        const ordenada = [...estado.colaReparto].sort((a, b) => String(a.creado_en).localeCompare(String(b.creado_en)) || String(a.id).localeCompare(String(b.id)))
+        const pagina = ordenada.slice(inicio, inicio + limite)
+        return route.fulfill({ json: pagina, headers: { ...cors, 'content-range': pagina.length ? `${inicio}-${inicio + pagina.length - 1}/${ordenada.length}` : `*/${ordenada.length}` } })
+      }
       return json(route, estado.colaReparto)
     }
     if (p === '/rest/v1/rpc/supervisores_para_reparto') {
@@ -3268,6 +3310,16 @@ export async function montarBackendReal(
         },
       })
     }
+    if (p === '/rest/v1/rpc/plazos_carga_mes_fn' && method === 'POST') {
+      // La tarjeta «Plazo de carga» de Hoy · Gerencia. Sin esta ruta, todo spec
+      // de Gerencia real recibiría un 500 de la red fail-closed.
+      return json(route, plazosCargaMesReal())
+    }
+    if (['/rest/v1/rpc/cumplimiento_metas_v2_fn', '/rest/v1/rpc/facturacion_diaria_v2_fn', '/rest/v1/rpc/citas_gerencia_consulta_v2_fn'].includes(p) && method === 'POST') {
+      // Compatibilidad con el servidor previo a TC por venta. Los escenarios
+      // nuevos sobrescriben estas puertas con sus respuestas SQL versionadas.
+      return json(route, { code: 'PGRST202', message: 'Función versionada aún no instalada' }, 404)
+    }
     if (p === '/rest/v1/rpc/cumplimiento_metas_fn' && method === 'POST') {
       const body = (req.postDataJSON() ?? {}) as { p_periodo?: string }
       const periodo = body.p_periodo ?? String(estado.cumplimientoMetas.periodo)
@@ -3481,6 +3533,7 @@ export async function montarBackendReal(
       // La FORMA de la respuesta no cambia con `p_gestion`: ni eco ni campos nuevos.
       return json(route, { version: 1, generado_en: new Date().toISOString(),
         desde: body.p_desde ?? null, hasta: body.p_hasta ?? null, origen: body.p_origen ?? null,
+        campania_origen: body.p_campania_origen ?? null,
         reasignados: body.p_reasignados ?? false, resumen: potencial ? { ...resumen, potencial } : resumen,
         items: carteraPaginaReal(estado.leads, body, conGestionVigente, nivelDe).map((l) => ({ ...l,
           recibido_en: body.p_desde ? l.creado_en : null, recepcion_aproximada: false })),

@@ -1,0 +1,155 @@
+{
+  "filas_iniciales_inalteradas": [
+    {
+      "id": "0cccb65c-4dbd-4731-bb40-20e73408afbd",
+      "nombre_completo": "PRUEBA F3 HTTP Uno",
+      "telefono": "+51984300001",
+      "campania_origen": "Formulario 3",
+      "origen": "formulario",
+      "monto_estimado": "50000",
+      "moneda": "PEN",
+      "alta_manual": false,
+      "vendedor_id": null,
+      "asignado_supervisor_id": null,
+      "creado_en": "2026-10-14 23:49:46.757146+00",
+      "nota": "Campaña: Formulario 3\nFecha original: 14/10/2026\nCapital declarado: de_50,000_a_100,000\nMoneda declarada: soles\nIntención: Invertir\nInformación solicitada: Tasa\nConsulta para el asesor: Sin contacto: datos ficticios"
+    },
+    {
+      "id": "2c2e84da-1609-482a-ada5-87644dd81b7f",
+      "nombre_completo": "PRUEBA F3 HTTP Dos",
+      "telefono": "+51984300002",
+      "campania_origen": "Formulario 3",
+      "origen": "formulario",
+      "monto_estimado": "50000",
+      "moneda": "USD",
+      "alta_manual": false,
+      "vendedor_id": null,
+      "asignado_supervisor_id": null,
+      "creado_en": "2026-10-14 23:49:46.324302+00",
+      "nota": "Campaña: Formulario 3\nFecha original: 14/10/2026\nCapital declarado: de_50,000_a_100,000\nMoneda declarada: dólares\nIntención: Invertir\nInformación solicitada: Plazo\nConsulta para el asesor: Sin contacto: datos ficticios"
+    }
+  ],
+  "altas_finales": [
+    {
+      "telefono": "+51984300001",
+      "altas": 1,
+      "reglas_conservadas": true
+    },
+    {
+      "telefono": "+51984300002",
+      "altas": 1,
+      "reglas_conservadas": true
+    },
+    {
+      "telefono": "+51984300003",
+      "altas": 1,
+      "reglas_conservadas": true
+    },
+    {
+      "telefono": "+51984300004",
+      "altas": 1,
+      "reglas_conservadas": true
+    },
+    {
+      "telefono": "+51984300005",
+      "altas": 1,
+      "reglas_conservadas": true
+    }
+  ],
+  "recibos": {
+    "rows": [
+      {
+        "huella": "cb79bacf6fa3bb7337bf514c45ab34dc0055184d3274f97fe1cf439db193fdb8",
+        "campania": "Formulario 3",
+        "fila": 3,
+        "resultado": "importado",
+        "estado": "IMPORTADO ✓",
+        "procesado_en": "2026-10-14T23:49:46.404Z",
+        "id": 1,
+        "createdAt": "2026-10-14T23:49:46.425Z",
+        "updatedAt": "2026-10-14T23:49:46.425Z"
+      },
+      {
+        "huella": "781df1b1bbc23f2722b02a0cdf0d36ba3615fd12850a8e090cb8f4e1249ad900",
+        "campania": "Formulario 3",
+        "fila": 2,
+        "resultado": "importado",
+        "estado": "IMPORTADO ✓",
+        "procesado_en": "2026-10-14T23:49:46.841Z",
+        "id": 2,
+        "createdAt": "2026-10-14T23:49:46.860Z",
+        "updatedAt": "2026-10-14T23:49:46.860Z"
+      },
+      {
+        "huella": "889eb96432b0a4c755a86016491f17f17a0b3a0b040a084ff1f8a2b3647a4f10",
+        "campania": "Formulario 3",
+        "fila": 4,
+        "resultado": "duplicado",
+        "estado": "DUPLICADO: ya existe en el CRM",
+        "procesado_en": "2026-10-14T23:51:30.146Z",
+        "id": 3,
+        "createdAt": "2026-10-14T23:51:30.168Z",
+        "updatedAt": "2026-10-14T23:51:30.168Z"
+      },
+      {
+        "huella": "9409f713f850ae91eda92dad6795e9bebf50d96911eac327e5860b129a2bca1c",
+        "campania": "Formulario 3",
+        "fila": 5,
+        "resultado": "rechazado",
+        "estado": "RECHAZADO: Moneda no reconocida: debe indicar soles o dólares",
+        "procesado_en": "2026-10-14T23:51:30.193Z",
+        "id": 4,
+        "createdAt": "2026-10-14T23:51:30.212Z",
+        "updatedAt": "2026-10-14T23:51:30.212Z"
+      },
+      {
+        "huella": "4ddb11a4f6a7852a3893bfab0212294e72fd8422672d27d1c48630031dfa3ba1",
+        "campania": "Formulario 3",
+        "fila": 6,
+        "resultado": "importado",
+        "estado": "IMPORTADO ✓",
+        "procesado_en": "2026-10-14T23:53:02.315Z",
+        "id": 5,
+        "createdAt": "2026-10-14T23:53:02.331Z",
+        "updatedAt": "2026-10-14T23:53:02.331Z"
+      },
+      {
+        "huella": "0fdcc53d972a666fea3ab8f34464af9c1ecb51c7768d3de56bb935085865698b",
+        "campania": "Formulario 3",
+        "fila": 5,
+        "resultado": "duplicado",
+        "estado": "DUPLICADO: ya existe en el CRM",
+        "procesado_en": "2026-10-14T23:54:16.020Z",
+        "id": 6,
+        "createdAt": "2026-10-14T23:54:16.035Z",
+        "updatedAt": "2026-10-14T23:54:16.035Z"
+      },
+      {
+        "huella": "a7590394c294e075f951b7d1eef77948c2e11ad80eb449ea678cede04e9fc1ee",
+        "campania": "Formulario 3",
+        "fila": 7,
+        "resultado": "importado",
+        "estado": "IMPORTADO ✓",
+        "procesado_en": "2026-10-14T23:54:16.363Z",
+        "id": 7,
+        "createdAt": "2026-10-14T23:54:16.377Z",
+        "updatedAt": "2026-10-14T23:54:16.377Z"
+      }
+    ],
+    "count": 7
+  },
+  "avisos": {
+    "rows": [
+      {
+        "clave": "OKrtxmixSxpfhVxE|error|497783",
+        "workflow": "OKrtxmixSxpfhVxE",
+        "enviado_en": "2026-10-14T23:52:10.442Z",
+        "id": 1,
+        "createdAt": "2026-10-14T23:52:10.452Z",
+        "updatedAt": "2026-10-14T23:52:10.452Z"
+      }
+    ],
+    "count": 1
+  },
+  "nota": "Datos exclusivamente ficticios. No se incluyen sesiones, tokens ni claves."
+}

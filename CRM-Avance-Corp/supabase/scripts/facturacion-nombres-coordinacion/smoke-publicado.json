@@ -1,0 +1,753 @@
+{
+  "fecha_utc": "2026-10-13T18:36:46.798676+00:00",
+  "resultado": "PASS",
+  "destino": "crm.miavance.com",
+  "fuente_commit": "4e31dbbf13efc8b462c7ceb217d18eb408c58203",
+  "build_id": "build-20261013T182849030Z",
+  "archivo": {
+    "nombre": "crm-20261013T182850Z-4e31dbbf13ef.zip",
+    "bytes": 2537197,
+    "sha256": "aeda98ff7557268176e0a2cb7f246555c9c55f6689579eb8b44921811b0154b6"
+  },
+  "comprobados": 123,
+  "archivos": [
+    {
+      "ruta": "assets/acciones-reconocer-alerta-DeHIeyHK.js",
+      "http": 200,
+      "sha256": "c4f8e1fea6b02b2b8573c74ba77332f84bbfca330c3395ab383bb038bbd4f794",
+      "bytes": 2612
+    },
+    {
+      "ruta": "assets/actividad-visual-BlnP9GhN.js",
+      "http": 200,
+      "sha256": "29b485eca49e62cc4cf4b06882ab04da8002e33237f3e4bc1b1941efdb28f73c",
+      "bytes": 737
+    },
+    {
+      "ruta": "assets/agenda-C9-oFjjG.js",
+      "http": 200,
+      "sha256": "059dc0c83f97246c41eb65c778ba285e185f7c793422b7502f7e8bb859b1b81c",
+      "bytes": 31368
+    },
+    {
+      "ruta": "assets/alertas-9oKTWS_z.js",
+      "http": 200,
+      "sha256": "370e2daf828cf2a4d5d900c09ad82ac3c3b1958b5b5f5a5394638f71b7817c9b",
+      "bytes": 14724
+    },
+    {
+      "ruta": "assets/alertas-C0W4FAbO.css",
+      "http": 200,
+      "sha256": "57a1788d95fc70d210f3c9877496dda2c5d4457188b885521ba1abbff989ea94",
+      "bytes": 986
+    },
+    {
+      "ruta": "assets/alertas-presentacion-B4NsBEfD.js",
+      "http": 200,
+      "sha256": "3791c57c923a5a527771c91630615d3582ef5031afba468e2bb3e4e3adec4e85",
+      "bytes": 595
+    },
+    {
+      "ruta": "assets/animated-value-CxWwuyas.js",
+      "http": 200,
+      "sha256": "18d958c2ff460396a0c0d4c31c414874a61452722022b4b1111f99fa5f3e7258",
+      "bytes": 947
+    },
+    {
+      "ruta": "assets/argumentos-rpc-CZnLpNy5.js",
+      "http": 200,
+      "sha256": "b6464d4e979016d87b1285d5694a793601cee73e4744bbca24941b03071d6d06",
+      "bytes": 98
+    },
+    {
+      "ruta": "assets/avatar-0iw-Vq-Z.js",
+      "http": 200,
+      "sha256": "04727498f12fd43591ac143f2b63ea2c3ac89978c4dfe8b4e5d0f156044803ed",
+      "bytes": 2459
+    },
+    {
+      "ruta": "assets/aviso-degradacion-aW5Jo4xN.js",
+      "http": 200,
+      "sha256": "2f2bcda7591b9f679ae6735455ab818692ea751f45550fc5c19259673bd3f016",
+      "bytes": 1309
+    },
+    {
+      "ruta": "assets/badge-ypeLoRxr.js",
+      "http": 200,
+      "sha256": "a23f0347e1d37f3d95142f52861331c7992eeefac43c1d4f5935fe72eabfd0e8",
+      "bytes": 650
+    },
+    {
+      "ruta": "assets/bases-Bx59CyLR.js",
+      "http": 200,
+      "sha256": "195fe4dcfdc862893732d4a187d861668feebc604de7e2a67aa8a7547a452a65",
+      "bytes": 41269
+    },
+    {
+      "ruta": "assets/button-CmyU_qcq.js",
+      "http": 200,
+      "sha256": "db1791b1e3d2caf251b8f51cbc09c5f242f0e1ef13dd7ea11dfbbfbd4fc226b1",
+      "bytes": 1964
+    },
+    {
+      "ruta": "assets/card-CDou0iii.js",
+      "http": 200,
+      "sha256": "a1e04b4844ee810e8be74863df481787bea865957af0a319f64c0e88d8a90d2b",
+      "bytes": 737
+    },
+    {
+      "ruta": "assets/cargar-base-CEnt0CHA.js",
+      "http": 200,
+      "sha256": "ea7e4cd955c636f39cb0613add80e4ef5f45093785e95cd63f444f97d7c7aab5",
+      "bytes": 37268
+    },
+    {
+      "ruta": "assets/cartera-Do_B5bHv.js",
+      "http": 200,
+      "sha256": "3d8ba0bcd4d3eefced6a09e3fc5b18adc9ed1a0b517b8c5de14dbda50555ad53",
+      "bytes": 23723
+    },
+    {
+      "ruta": "assets/cierres-externos-seccion-UX1Is5zJ.js",
+      "http": 200,
+      "sha256": "9cfbcdfed39c8dc69ab4bd732d70ae959a6b8438c0617d6897c8957272488238",
+      "bytes": 15870
+    },
+    {
+      "ruta": "assets/cliente-detalle-CYABjpAV.js",
+      "http": 200,
+      "sha256": "9225e598db676f6d1518d5d7bc8d49c0d1e4991c105f4d9f21a2f1d8e651d09f",
+      "bytes": 12688
+    },
+    {
+      "ruta": "assets/cola-seguimiento-Cm1e_qB_.js",
+      "http": 200,
+      "sha256": "9f965adc01638e7eeacf7e4753f10d882440ac60ac8e515d29f14b8e9f5339eb",
+      "bytes": 735
+    },
+    {
+      "ruta": "assets/config-celulares-CEh_Ft15.js",
+      "http": 200,
+      "sha256": "aba4cb90ff463b3c5ae93b6588467ee4826411b933f310d43bd0e8d7800e9e7e",
+      "bytes": 24028
+    },
+    {
+      "ruta": "assets/config-citas-3fnJsrP9.js",
+      "http": 200,
+      "sha256": "fb9ed04cf7080c56391c8a4a0e6a69cb8f0ce674c8a84c81fa45a9ccdfe906e6",
+      "bytes": 17086
+    },
+    {
+      "ruta": "assets/config-gestion-diaria-8CzctR2U.js",
+      "http": 200,
+      "sha256": "ef3fe82b23156ffb2ae1f30f3372b79421dd6e4456e332c419d60db417dd2c54",
+      "bytes": 12174
+    },
+    {
+      "ruta": "assets/config-GP9COzzD.js",
+      "http": 200,
+      "sha256": "2b499d9c2695af7ec789500077cb39094cc14d72b2d2b428b43c96b5b208e92b",
+      "bytes": 15507
+    },
+    {
+      "ruta": "assets/config-metas-BUwA7FyL.js",
+      "http": 200,
+      "sha256": "277078163736a1cc4ddcfa93af06d640cd8215fb2bc005887efc41bd6f53a50c",
+      "bytes": 16150
+    },
+    {
+      "ruta": "assets/config-productos-6xJRwNDi.js",
+      "http": 200,
+      "sha256": "2a996898679898d925a44f30c7b719086936c0fc23678cfa13fc782a754d2727",
+      "bytes": 27269
+    },
+    {
+      "ruta": "assets/config-rentabilidad-D48a7fgE.js",
+      "http": 200,
+      "sha256": "71fe3b4d22a3f66249c5c2b2c0579e2c870d535f7d614072909f211372b20b84",
+      "bytes": 14547
+    },
+    {
+      "ruta": "assets/config-sla-BgTGkQ3b.js",
+      "http": 200,
+      "sha256": "f1913db4cc94913429dcab30410c3a4a3a831a0b7911bd641c25e8d8f44573ca",
+      "bytes": 17381
+    },
+    {
+      "ruta": "assets/config-usuarios-8-nsELFZ.js",
+      "http": 200,
+      "sha256": "016491e2a32d341c8acbfce9b30f8fd003be369a5ff7b641fe436513af7fa11c",
+      "bytes": 27069
+    },
+    {
+      "ruta": "assets/configuracion-shell-E4OMMZ4W.js",
+      "http": 200,
+      "sha256": "a4653108c375dca7d96f8f0018b2be20723ac2989fca0ee1cb7b7a6d2cf20a48",
+      "bytes": 1971
+    },
+    {
+      "ruta": "assets/control-citas-DwC1JvLl.js",
+      "http": 200,
+      "sha256": "5b34e018a94697fb37cf41d68fbee006ab28d814f02967263d701fd47eae3c3c",
+      "bytes": 4187
+    },
+    {
+      "ruta": "assets/controles-periodo-derivaciones-CKCG2Avm.js",
+      "http": 200,
+      "sha256": "6b985aad554f4e6952c6b60632028f6ee51b71140973a83508375deb48c78ced",
+      "bytes": 2528
+    },
+    {
+      "ruta": "assets/crm-api-TFy-BXtT.js",
+      "http": 200,
+      "sha256": "019f953952e3c9027bd09a9fc9f95702bafcc20f24032d98d1b09d99e6c5760c",
+      "bytes": 283426
+    },
+    {
+      "ruta": "assets/crm-queries-B1Xof4Kf.js",
+      "http": 200,
+      "sha256": "16d138fef1b7973fbbe5cc09eed1bdfa93b0d11ac059db77a03a4c46b470626d",
+      "bytes": 22224
+    },
+    {
+      "ruta": "assets/data-vendor-hxr3O6zl.js",
+      "http": 200,
+      "sha256": "32460896bd4d259fbcae9279756ae62767cd3ae5d370fbb16361ce5f6ceb353a",
+      "bytes": 244592
+    },
+    {
+      "ruta": "assets/demo-config-DCXcf92E.js",
+      "http": 200,
+      "sha256": "9037ec53848e0c2a1110884093c86e38ef098892eb15507554aa4af43c6ca815",
+      "bytes": 10568
+    },
+    {
+      "ruta": "assets/derivaciones-DnQpl-OM.js",
+      "http": 200,
+      "sha256": "bd8bde73ee06e281da1633d3888d4e654d6e532647b2cc7930d4495c47793aa5",
+      "bytes": 13680
+    },
+    {
+      "ruta": "assets/desglose-monedas-C03ht-CZ.js",
+      "http": 200,
+      "sha256": "6c5e86115656cbd22b69f51309af03a3003d6280f2ea42e197d8690fb55eb05f",
+      "bytes": 771
+    },
+    {
+      "ruta": "assets/dialog-C7hUQ8p9.js",
+      "http": 200,
+      "sha256": "cf6f54c68cb7db9bd87e42e8cc5281fa1357859600b5e8f36644b30cd1a3e439",
+      "bytes": 2957
+    },
+    {
+      "ruta": "assets/dist-DAse8jiX.js",
+      "http": 200,
+      "sha256": "1770acebf7adfedbf9dec1c4d53e718cf21d9543fbafb02991de59ddfd3dd3de",
+      "bytes": 12574
+    },
+    {
+      "ruta": "assets/distribucion-lecturas-BsdsiGSK.js",
+      "http": 200,
+      "sha256": "fab7b583b77a78fbe046a46cbf02c781deb7f28a697d4029b55a42a2cc98ee48",
+      "bytes": 7528
+    },
+    {
+      "ruta": "assets/dropdown-menu-D5cVgrVY.js",
+      "http": 200,
+      "sha256": "5272b40bb33b62a034fb341d4a002a97fa055622f4e9aca10f8e1a93c1cef419",
+      "bytes": 3134
+    },
+    {
+      "ruta": "assets/echart-bar-v-fhrASN.js",
+      "http": 200,
+      "sha256": "df714bdd5a2e955ef5f192b0179e257baf79e0b2df9dc28cb9e385d08ea29513",
+      "bytes": 21988
+    },
+    {
+      "ruta": "assets/echart-Bg5TfA8m.js",
+      "http": 200,
+      "sha256": "04f00b9d4d7d8d5389cb9127424195463c76b50362721abcd5f21465c24064dc",
+      "bytes": 487201
+    },
+    {
+      "ruta": "assets/echart-line-CEd5-ImO.js",
+      "http": 200,
+      "sha256": "ed5e11ae6349d3966df448fbf09d8b3213432ecfbaad70e9b113ac39b91c4cd0",
+      "bytes": 45314
+    },
+    {
+      "ruta": "assets/equipo-BhTbjBcG.js",
+      "http": 200,
+      "sha256": "cc27fd1a4e9df77fd71606d283cc7712975dbda70ee61b9d06dac8e7d5e2ed3c",
+      "bytes": 26901
+    },
+    {
+      "ruta": "assets/escape-dialogo-D5GnlN_m.js",
+      "http": 200,
+      "sha256": "812fbe53a6bdc36db000561d7b14d25e5ebc4f4053ddadb50f6f6e2ce0cb3b35",
+      "bytes": 20319
+    },
+    {
+      "ruta": "assets/estado-panel-BqUVt-7q.js",
+      "http": 200,
+      "sha256": "8fb637a7d189cdf100af1dc7f499bcc2ce22838eff1b2de4630a3fe0ecd7d4d1",
+      "bytes": 3225
+    },
+    {
+      "ruta": "assets/estilos-gestion-tVVTyUGz.js",
+      "http": 200,
+      "sha256": "85beb20352401ca6f717e7e6f73d102b692082cdd7d977fb18552784c8895d25",
+      "bytes": 1701
+    },
+    {
+      "ruta": "assets/estilos-hoja-BJjnbNbT.js",
+      "http": 200,
+      "sha256": "b8ec0136bac870e7b95596e7a5b30ac0e2186bd2110cc530911610bd81a29424",
+      "bytes": 314
+    },
+    {
+      "ruta": "assets/exportar-csv-CWrqHuXK.js",
+      "http": 200,
+      "sha256": "5dad92517ca837dd671afffc5acaccae693f52c656516734127a02679c2e3d31",
+      "bytes": 3658
+    },
+    {
+      "ruta": "assets/facturacion-BpD46X4W.css",
+      "http": 200,
+      "sha256": "c185a386ed643e815a1e743d2a983fa8ec0ad9819198c3e88fa98a9cb934a350",
+      "bytes": 7784
+    },
+    {
+      "ruta": "assets/facturacion-Dsi-KNZd.js",
+      "http": 200,
+      "sha256": "3bb4269f821515b99f1162cabb962819f82750bce50424157df60b32e0c388cf",
+      "bytes": 64003
+    },
+    {
+      "ruta": "assets/foco-Dos0YiNm.js",
+      "http": 200,
+      "sha256": "60b738f1dd770eb487eb5a4f1814473aa72464a60987dca2fce82158d51af70b",
+      "bytes": 215
+    },
+    {
+      "ruta": "assets/gerencia-B4SbKz7u.js",
+      "http": 200,
+      "sha256": "8a0b05241295dc7823b3c49e33b0132f2449ca23a3d8c0b93ba43f7fadb3d9aa",
+      "bytes": 220905
+    },
+    {
+      "ruta": "assets/gerencia-BaLUQF8y.css",
+      "http": 200,
+      "sha256": "5152a3e3ccda9418f840b3d987f460aeee0699e9dfd09e53101d04a10028d293",
+      "bytes": 17293
+    },
+    {
+      "ruta": "assets/gerencia-Cxu0rW1H.css",
+      "http": 200,
+      "sha256": "4eaf2093dea2e8949441234ec0d3bd039bedd90653f0c6be3f5e06d91fee5eec",
+      "bytes": 6420
+    },
+    {
+      "ruta": "assets/gerencia-DaqCWpBO.js",
+      "http": 200,
+      "sha256": "5a820e674f02784711f2b45581be16c842d5b61d63d752c13f2009cc13fed570",
+      "bytes": 92087
+    },
+    {
+      "ruta": "assets/gestion-diaria-api-D6BiIR0L.js",
+      "http": 200,
+      "sha256": "393a9055b8b2afa4e62221e98f29ec714453f1a656f5537f78808be6fa1389c3",
+      "bytes": 33405
+    },
+    {
+      "ruta": "assets/gestion-diaria-avisos-qmnWb9Wz.js",
+      "http": 200,
+      "sha256": "04eef23946794994c563f3f8630bc743c98cb8011c3ea10057cfcdc294dc5109",
+      "bytes": 4607
+    },
+    {
+      "ruta": "assets/gestion-diaria-BBZybB0i.js",
+      "http": 200,
+      "sha256": "d2511505bac3da765a13e8c617ee3c64edf3275a6b335c46964e22c5f456b9f5",
+      "bytes": 245832
+    },
+    {
+      "ruta": "assets/gestion-diaria-DKGVjwXy.css",
+      "http": 200,
+      "sha256": "16a767f5340ddc9408707d6c0318b4d9a2336bf70a1e1f36b700fed8d530bf6f",
+      "bytes": 10589
+    },
+    {
+      "ruta": "assets/gestion-diaria-queries-vgoca3aF.js",
+      "http": 200,
+      "sha256": "41feb11e256898139cb9abc2aa6b1e4b503e30a8e9d7aa68d39016005d6a032c",
+      "bytes": 1832
+    },
+    {
+      "ruta": "assets/historial-decisiones-tasa-gerencia-aIzEaWt7.js",
+      "http": 200,
+      "sha256": "7267cfbdba925562c27e3b4311e82fb605419ec37ee3a1195c072759a2561e38",
+      "bytes": 14206
+    },
+    {
+      "ruta": "assets/hoja-base-D-53jtY0.js",
+      "http": 200,
+      "sha256": "44cba94634181ff765099921737172d9735c350b505dcbe20db25fd06293b106",
+      "bytes": 13266
+    },
+    {
+      "ruta": "assets/hoy-BY9QBCS8.css",
+      "http": 200,
+      "sha256": "896aad491c208a1bca1dbb5a1d53fcc9ca7e5c45778dd4ee2d16d630ab3c6357",
+      "bytes": 6378
+    },
+    {
+      "ruta": "assets/hoy-Dkpos0xF.js",
+      "http": 200,
+      "sha256": "cd8a9f23ba111f818e2645f9bf74d7030c6abe937230c2ac60b3f9b0408873fd",
+      "bytes": 153902
+    },
+    {
+      "ruta": "assets/index-11ldsf1c.js",
+      "http": 200,
+      "sha256": "62de3f780962590c62126e2e0295325b0700cc3dc5b45df18c059aaa8f431004",
+      "bytes": 719306
+    },
+    {
+      "ruta": "assets/index-BnrdhjO-.css",
+      "http": 200,
+      "sha256": "8a667a0c1c0fd592f9a160e51e4b0b6d6a45c0c876acff8b1cab8af3178b57b8",
+      "bytes": 197382
+    },
+    {
+      "ruta": "assets/input-BZ2lxz2k.js",
+      "http": 200,
+      "sha256": "46dd3d83f6f095ce5d2409d067bfe0ff329d8a35cd578168b70e656880e9f9df",
+      "bytes": 1011
+    },
+    {
+      "ruta": "assets/inversionistas-api-DAz0W2ki.js",
+      "http": 200,
+      "sha256": "9cba44c63faf5a9fec6cdcb1a2a8d7c8447b94c309e8d43aee94f31c6543a493",
+      "bytes": 3411
+    },
+    {
+      "ruta": "assets/kpi-card-BPBxi-z5.js",
+      "http": 200,
+      "sha256": "5ca19221b170844833271186f7a97829389a45fee93008d08c47f52992ae3221",
+      "bytes": 1141
+    },
+    {
+      "ruta": "assets/label-DUVWJb6O.js",
+      "http": 200,
+      "sha256": "e49805879caffc9ce09d2352af89fc00f8a33ed78dd6f32f4dd023094a330152",
+      "bytes": 241
+    },
+    {
+      "ruta": "assets/lead-hover-card-0y-fgGbh.js",
+      "http": 200,
+      "sha256": "d7bb0434ae365b7dbec58663c2a5cf0220fc7b9724855fb92f28dedafce552c0",
+      "bytes": 33958
+    },
+    {
+      "ruta": "assets/llamadas-celular-DFve8s0F.js",
+      "http": 200,
+      "sha256": "5019b1fe173297de8667ac9515eca7b52dd86a829ae7d3c0198c305ded9c4672",
+      "bytes": 5761
+    },
+    {
+      "ruta": "assets/media-DQ7wMsg1.js",
+      "http": 200,
+      "sha256": "d16a53384c51481a0c4f7024c2f8b988009fdbcecd79039b513f50a7e9412d49",
+      "bytes": 774
+    },
+    {
+      "ruta": "assets/metricas-multiempresa-CxkYADSo.js",
+      "http": 200,
+      "sha256": "d138a97be255c89e11e26f6dcf3f8ebfd4b22d3d0547848b7eef0b2aafca6c67",
+      "bytes": 20011
+    },
+    {
+      "ruta": "assets/mi-cartera-D5Ue9Zfu.js",
+      "http": 200,
+      "sha256": "687f03d45ad8b8901ff2e9f2d047b11385d8250106de9af740024b968a2ed176",
+      "bytes": 210257
+    },
+    {
+      "ruta": "assets/notificaciones-tasa-DMas8SQD.js",
+      "http": 200,
+      "sha256": "6fd2072fb89f2de9fcb80b6a9c41b6004ea898c6d05f763e5d363c70483bc21e",
+      "bytes": 4175
+    },
+    {
+      "ruta": "assets/paginacion-D8GbO-wY.js",
+      "http": 200,
+      "sha256": "fac40124ffca31ebdfeffe996f0eb0f7e288021e6c8f8b8990b54ab97e7bef07",
+      "bytes": 990
+    },
+    {
+      "ruta": "assets/pastilla-D08i_QPx.js",
+      "http": 200,
+      "sha256": "9b6e80c90c168c8596ed248ff739132cd574182055e4ccd1a4dabcfb1c38f4d0",
+      "bytes": 1290
+    },
+    {
+      "ruta": "assets/periodo-y8vwDglz.js",
+      "http": 200,
+      "sha256": "100d8311cd6c615657ac98e80fed5bd18d33b62650d6e13098949170950f9d05",
+      "bytes": 1829
+    },
+    {
+      "ruta": "assets/piezas-base-BH-HI_WU.js",
+      "http": 200,
+      "sha256": "ad6de08c7b1f4cdf872486c5581f49c79220e0bcaf6074fe2c136e6c3bc238cb",
+      "bytes": 17926
+    },
+    {
+      "ruta": "assets/piezas-bases-D9Y3WNfc.js",
+      "http": 200,
+      "sha256": "0af6b1043659afac34213b5c6b48c3d15a8b916ae50f66070eb96a9bdaf07fa1",
+      "bytes": 21397
+    },
+    {
+      "ruta": "assets/pipeline-Co33QPlZ.js",
+      "http": 200,
+      "sha256": "3997f4eb98dabbd856fb7865ded8d6b4bfe618eb010b2e3ad1aee0fd0687df48",
+      "bytes": 19189
+    },
+    {
+      "ruta": "assets/pipeline-columnas-CvVwwg7H.js",
+      "http": 200,
+      "sha256": "059c2181ec70b1aeeaf36299d450d256057bdf1a1859ebb570d7a3b8d53c7ea6",
+      "bytes": 1505
+    },
+    {
+      "ruta": "assets/postventa-api-cqVZ4DkE.js",
+      "http": 200,
+      "sha256": "9449c56f10c1558e23b587a55ef9f2c8c7f2af1caab1aee068927d5647544c31",
+      "bytes": 3754
+    },
+    {
+      "ruta": "assets/potencial-demo-BX8cRYLA.js",
+      "http": 200,
+      "sha256": "a34ae8a851899c9dc48e949c74f12ed8d4dbe0746defbfa17aa46ec4df15cf9c",
+      "bytes": 1575
+    },
+    {
+      "ruta": "assets/progress-DSdwG13c.js",
+      "http": 200,
+      "sha256": "a56245f415b9410955ee479fa53b3c441a5f6c5f184d0c7ffc303a157d7f092d",
+      "bytes": 426
+    },
+    {
+      "ruta": "assets/query-client-F7qUvsfC.js",
+      "http": 200,
+      "sha256": "3fa23bcf8ea7958932aaeb6ac03464a78153ac2d3e1c37aabca22b76f79b2596",
+      "bytes": 1765
+    },
+    {
+      "ruta": "assets/radio-group-D3vq8pgV.js",
+      "http": 200,
+      "sha256": "540897bce9629a9ace26fcb025c75f4f0813a0ebde86d4a3a606f58efc79ae88",
+      "bytes": 2121
+    },
+    {
+      "ruta": "assets/ranking-vendedores-D-i870gm.js",
+      "http": 200,
+      "sha256": "08a86bf2246b370353f970152b098b005b8b2e9961eed1f38f4247d572281d8b",
+      "bytes": 41866
+    },
+    {
+      "ruta": "assets/react-vendor-BXy-oECh.js",
+      "http": 200,
+      "sha256": "b2afb358dc57c4cf68025302de03ee54bff6694c93558199ea6e8fbc312b0f18",
+      "bytes": 190815
+    },
+    {
+      "ruta": "assets/registrar-resultado-Bl9p5kXE.js",
+      "http": 200,
+      "sha256": "5bec47e1e9d37fded9e92cbb54f433b007c42ff3f0c4cb48341667e772d5aadd",
+      "bytes": 28127
+    },
+    {
+      "ruta": "assets/repartir-D4q1eLBW.js",
+      "http": 200,
+      "sha256": "104ddb88ccd7d633d7b4b9b974be798d8f987b1374731b4ee93bcabd10bee8fb",
+      "bytes": 72064
+    },
+    {
+      "ruta": "assets/rescate-carpeta-wI2qUzXU.js",
+      "http": 200,
+      "sha256": "35e44f486fb9c32dd20c8199dc8f6b9ee4e71e1a10a3f782e0c444abe35231fa",
+      "bytes": 183
+    },
+    {
+      "ruta": "assets/rescate-descartados-sTzGJuwj.js",
+      "http": 200,
+      "sha256": "91996f2d5c7e21d99687903b725e979f722001c2513ced2029ee7e6ccac59785",
+      "bytes": 31616
+    },
+    {
+      "ruta": "assets/rescate-ejD8dhjb.js",
+      "http": 200,
+      "sha256": "4077a69ba9cead4e50899997465939190e9a60da8b18f58b4ffc57002745b76d",
+      "bytes": 66181
+    },
+    {
+      "ruta": "assets/resumen-gestiones-r7fWpiMZ.js",
+      "http": 200,
+      "sha256": "f33bb8fed13459d9fcadd91b7a8b5c0ecb31e18068c1cf2eb871f9f12eb114cc",
+      "bytes": 39690
+    },
+    {
+      "ruta": "assets/roles-DSGicJjX.js",
+      "http": 200,
+      "sha256": "cd8ac091be816d377b47b2581ff285157bb2ff07b69d3fe42943d0418037c9d4",
+      "bytes": 3344
+    },
+    {
+      "ruta": "assets/rolldown-runtime-QTnfLwEv.js",
+      "http": 200,
+      "sha256": "5db5ba82eef00d1dee7e86e663098c9427d01183a88d357437daff295aec3e75",
+      "bytes": 694
+    },
+    {
+      "ruta": "assets/section-head-DDent87j.js",
+      "http": 200,
+      "sha256": "a51f90ae6057f23d65be9649140eab2d9a18cbb32da1be6fd0a7cb5d360d1461",
+      "bytes": 432
+    },
+    {
+      "ruta": "assets/seguimiento-C3xEbtH7.js",
+      "http": 200,
+      "sha256": "3f742c0d1d7bd3e291e826afa21eea09053a77c5254a1e091ea1ee03caa38377",
+      "bytes": 233
+    },
+    {
+      "ruta": "assets/segundo-numero-eTNGZVbp.js",
+      "http": 200,
+      "sha256": "52bac33d4246ee97bc0b77a340ae1cd5fbd800855e8323fe37cbe69edb7b58c7",
+      "bytes": 4973
+    },
+    {
+      "ruta": "assets/select-C6WWNPwG.js",
+      "http": 200,
+      "sha256": "4a3f1fce1a3f1cf887077ef5b2e122dbb9bac57a134b9e8665069425afed5841",
+      "bytes": 868
+    },
+    {
+      "ruta": "assets/sla-operacion-BFw7vnqW.js",
+      "http": 200,
+      "sha256": "e869f474683a6997c836b16ee30a999a5c73b2955fa20fa1e2392c278b6f157a",
+      "bytes": 6964
+    },
+    {
+      "ruta": "assets/sla-operacion-queries-DterWmKU.js",
+      "http": 200,
+      "sha256": "22a9fa609225c5da73458483ff2be067371e9d76bea791ef06074357335fa09f",
+      "bytes": 5357
+    },
+    {
+      "ruta": "assets/stat-strip-BbVQaOfU.js",
+      "http": 200,
+      "sha256": "48e02b3205e47b69116a5f6f9b5884c5216d205c67888fd4db9f5403227ece22",
+      "bytes": 2196
+    },
+    {
+      "ruta": "assets/store-context-8oahbTda.js",
+      "http": 200,
+      "sha256": "3484103a074f0a67c81b8aeddc548d58cf9438f0e70308ff69f187474eb4da53",
+      "bytes": 675
+    },
+    {
+      "ruta": "assets/tabla-CqKusG7y.js",
+      "http": 200,
+      "sha256": "b5b027509abc97ecafa2d1110b96963031a3c1a21fbeea32cb3310cb513c3d4e",
+      "bytes": 774
+    },
+    {
+      "ruta": "assets/telefono-9z_U36Kc.js",
+      "http": 200,
+      "sha256": "cb38928a6ac895395d4bc22f7167618287db7c687ce801deac5a04db703f2e13",
+      "bytes": 215
+    },
+    {
+      "ruta": "assets/textarea-dw7KXCos.js",
+      "http": 200,
+      "sha256": "03467467f0657d97c8550a8c228d7f1402f2e99dbfd5e88f6e5fc09bbb59a73f",
+      "bytes": 727
+    },
+    {
+      "ruta": "assets/ui-vendor-lrcbir9p.js",
+      "http": 200,
+      "sha256": "0dbf7adcca66d35cf1a62c26617bc1fdc8599aa18b757cf4c968a1c17efe290d",
+      "bytes": 100845
+    },
+    {
+      "ruta": "assets/universal-DwCjmUkO.js",
+      "http": 200,
+      "sha256": "178778fd03056b4203b2b41fea7263fa8b1da87f1f485c3572f48cb2844aac09",
+      "bytes": 62638
+    },
+    {
+      "ruta": "assets/use-cartera-paginada-Bc70P4Oh.js",
+      "http": 200,
+      "sha256": "55f4c212f35b78c518e7341d6fed652a3dba349218bf062c0bbb799e8e2d6057",
+      "bytes": 2249
+    },
+    {
+      "ruta": "assets/use-etapa-visible-DJFU1Kh3.js",
+      "http": 200,
+      "sha256": "dbdf54ef14d96ede8d4ad079c07ed8b28889aad1cd990f47ad88b63810d8001e",
+      "bytes": 593
+    },
+    {
+      "ruta": "assets/use-metricas-vendedores-operativas-FYAP5MbB.js",
+      "http": 200,
+      "sha256": "65e416e9adf4bc0876529d9ef1543e5d20f2772c18fc3fd0718e589aa5490ed9",
+      "bytes": 1564
+    },
+    {
+      "ruta": "assets/use-periodo-gerencia-PvtzrUdP.js",
+      "http": 200,
+      "sha256": "737de3e89206bac7c2a790a9f2aa9962ed3cfca0d5bd8eda8d76c16d94469a0f",
+      "bytes": 290
+    },
+    {
+      "ruta": "assets/use-resumen-cartera-operativo-y2XCGfdE.js",
+      "http": 200,
+      "sha256": "6b6826819273fa3c3a381a070f7d9b6b15145e51024bfcb555ea32d0ae0bd798",
+      "bytes": 494
+    },
+    {
+      "ruta": "assets/use-valor-diferido-C5pSPdfy.js",
+      "http": 200,
+      "sha256": "affc968124d89af3f59bc58884f81e3e3101efe1a22d65e3f55ef0350cf5099f",
+      "bytes": 298
+    },
+    {
+      "ruta": "assets/utils-Bcl_2xCf.js",
+      "http": 200,
+      "sha256": "6f093887f675066c079b2271c3bba27cfbf1e81dc20a7f121b7c64b9063e8e43",
+      "bytes": 26939
+    },
+    {
+      "ruta": "index.html",
+      "http": 200,
+      "sha256": "c58b82a76754d0c0810cb67b420ec98d4eb6cdb5adb95ef1672b3f659a51fbf5",
+      "bytes": 4286
+    },
+    {
+      "ruta": "sw-crm.js",
+      "http": 200,
+      "sha256": "bb8b17431e6f05e609b09d9b111a1182830ec745c9d376a4a62a9bbff20e35e6",
+      "bytes": 3742
+    },
+    {
+      "ruta": "version.json",
+      "http": 200,
+      "sha256": "9df5a3b3df9cb879f26e79cf344df0c91244690aca1984f6e6d45ad067e4862f",
+      "bytes": 51
+    }
+  ]
+}

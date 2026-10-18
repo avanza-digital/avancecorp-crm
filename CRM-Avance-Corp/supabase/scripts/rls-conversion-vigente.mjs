@@ -39,12 +39,14 @@ export async function convertirCoopVigente(client, args) {
   const persona = await reconocer(client, args.p_lead_id, args.p_documento_tipo, args.p_documento, args.p_nombre);
   if (persona.error) return persona;
   const id = claveConversion(args.p_lead_id, args.p_numero_transaccion);
-  const fin = `${Number(fecha.slice(0,4)) + 1}${fecha.slice(4)}`;
+  const plazo = args.p_plazo_meses ?? 12;
+  const fin = new Date(`${fecha}T00:00:00Z`);
+  fin.setUTCDate(fin.getUTCDate() + plazo * 30);
   return confirmar(client, id, {
     inversionista_id: persona.data.inversionista_id, lead_id: args.p_lead_id,
     empresa: args.p_cooperativa, moneda: args.p_moneda, monto: args.p_monto,
-    fecha_comercial: fecha, vence_en: args.p_vence_en ?? fin,
-    plazo_meses: args.p_plazo_meses ?? 12, tasa_anual: args.p_tasa_anual ?? 18,
+    fecha_comercial: fecha, vence_en: args.p_vence_en ?? fin.toISOString().slice(0, 10),
+    plazo_meses: plazo, tasa_anual: args.p_tasa_anual ?? 18,
     numero_transaccion: args.p_numero_transaccion, referencia: args.p_referencia ?? 'COMPROBANTE SINTETICO RLS',
     ...(args.p_nota ? { nota: args.p_nota } : {}),
     evidencia: { ruta: `${persona.data.inversionista_id}/${id}/comprobante.png` },

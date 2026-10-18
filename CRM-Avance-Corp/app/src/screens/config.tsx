@@ -10,6 +10,7 @@ import { CalendarioGoogle } from '@/components/app/calendario-google'
 import { NotificacionesTasa } from '@/components/app/notificaciones-tasa'
 import { ConfiguracionRespuestasTasa } from '@/components/app/respuestas-tasa'
 import { RepartoLibre } from '@/components/config/reparto-libre'
+import { PlazoCargaMesPanel } from '@/components/config/plazo-carga-mes'
 import {
   useCatalogoUsuariosAdministrables,
   useConfiguracionMetas,
@@ -266,6 +267,9 @@ export function Config() {
       <ConfiguracionRespuestasTasa />
       <RielEstadoConfiguracion pasos={pasos} />
       {edita && <RepartoLibre />}
+      {/* Plazo de carga por mes (15/10/2026, Miguel: en Configuración, no en Hoy). Solo Gerencia real: la
+          tarjeta lo vuelve a comprobar por dentro y las dos puertas exigen el rol en el servidor. */}
+      {edita && <PlazoCargaMesPanel />}
 
       {/* Áreas de gobierno disponibles para la identidad actual. */}
       {secciones.length > 0 && <div className="grid gap-4 sm:grid-cols-2">

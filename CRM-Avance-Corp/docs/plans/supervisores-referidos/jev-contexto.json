@@ -1,0 +1,36 @@
+{
+  "consulta": "¿Qué evidencia debe revisar Claude para habilitar referidos propios de supervisores en formulario, store y RPC, conservando autoría, ámbito e idempotencia?",
+  "corte": 2,
+  "extractos": [
+    {
+      "de": "crm.crear_lead_si_disponible vivo",
+      "puntos": 2.3,
+      "confianza": 0.67
+    },
+    {
+      "de": "Decisión de Miguel 2026-10-16",
+      "puntos": 2.18,
+      "confianza": 0.72
+    },
+    {
+      "de": "crm.crear_lead_documento_fn vivo",
+      "puntos": 2.06,
+      "confianza": 0.79
+    },
+    {
+      "de": "Formulario LeadNuevo",
+      "puntos": 2.05,
+      "confianza": 0.92
+    },
+    {
+      "de": "private.leads_before_update vivo",
+      "puntos": 2,
+      "confianza": 0.7
+    },
+    {
+      "de": "Cambio previo ventas supervisor (ya publicado)",
+      "puntos": 0.57,
+      "confianza": 0.44
+    }
+  ]
+}

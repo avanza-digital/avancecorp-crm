@@ -1,0 +1,110 @@
+{
+  "fecha": "2026-10-14",
+  "fase": 2,
+  "estado": "PREPARADA_Y_VALIDADA_LOCALMENTE_SIN_PUBLICAR",
+  "banco": "formulario3_fase2_20261014_review",
+  "checks": {
+    "app_integral": {
+      "estado": "PASS",
+      "archivos": 420,
+      "pruebas": 6700,
+      "log": "check-app-final.log"
+    },
+    "scripts": {
+      "estado": "PASS",
+      "log": "check-scripts-final.log"
+    },
+    "e2e_docker": {
+      "estado": "PASS",
+      "pruebas": 9,
+      "reintentos": 0,
+      "log": "e2e-auditoria-final.log",
+      "duracion_segundos": 28.5,
+      "cobertura_adicional": "Pipeline: segunda página, etiqueta, histórico sin etiqueta y ficha por teclado"
+    },
+    "sql_final": {
+      "estado": "PASS",
+      "comprobaciones": 43,
+      "log": "cartera-final.log"
+    },
+    "migracion_final": {
+      "estado": "PASS",
+      "log": "migracion-final.log"
+    },
+    "post_review": {
+      "estado": "PASS",
+      "pruebas": 262,
+      "archivos": 6,
+      "typecheck": "PASS",
+      "log": "revision-pruebas-app.log",
+      "lint": "PASS (oxlint, tres archivos de tests)"
+    },
+    "advisors_locales": {
+      "estado": "PASS_SIN_NUEVAS_ALERTAS_SEGURIDAD_WARN_ERROR",
+      "diferencias": "INFO unused_index por estadísticas de clones",
+      "archivo": "advisors-comparacion.json"
+    },
+    "gate_realidad_general": {
+      "estado": "NOT RUN",
+      "motivo": "variables de credencial ausentes; inspección SQL específica documentada"
+    },
+    "auth_http_integrado_y_rama_remota_final": {
+      "estado": "NOT RUN",
+      "motivo": "fase 3"
+    },
+    "artefactos_finales": {
+      "estado": "PASS",
+      "detalle": "git diff --check, 31 huellas, JSON, logs, 5 capturas; Pipeline inspeccionado y tablero Figma previamente verificado"
+    }
+  },
+  "review": {
+    "consultas": 1,
+    "verdict": "CHANGES_REQUESTED",
+    "resultado_primary": "resuelto con evidencia, corrección de metadatos y pruebas",
+    "resolucion": "revision-resolucion.md"
+  },
+  "n8n": "inactivo; enviar_crm=false; Importar en CRM disabled",
+  "produccion": "sin columna de campaña; sin publicación ni importación en esta fase",
+  "sha256_fuentes": {
+    "app/e2e/_helpers.ts": "6f0ba46a835cd771af2f59736462fbb45baae80833bb44487e88806d687390e5",
+    "app/e2e/formulario3-campania.spec.ts": "446de38d1f10226cb7c5eed83aa3c6840d55cc5602e26c84c3e8b78d0840e24b",
+    "app/src/components/app/campania-chip.tsx": "9c30154bfff50c2b24909533472536be251f4113b7c3837a9c8f7091153e73c6",
+    "app/src/components/app/lead-drawer-datos.test.tsx": "36f0df8af4184201a04f035ec2dfe7940848a5ec437fbd7f41b4995f406adca5",
+    "app/src/components/app/lead-drawer.tsx": "75933963977017c4f40aca125adbf7e8ba19b1eb28aa397a5eae82f176666a56",
+    "app/src/components/app/lead-hover-card.tsx": "dd3f435e107b80f7e0b584d3ebddc4585856ee788b5ac6e1d14128b8896ae9aa",
+    "app/src/data/crm-api-cartera-msw.test.ts": "87a684fe5005d0a664debdbe8ea639d91299d3bf6685045be9973b621543ff9e",
+    "app/src/data/crm-api-msw.test.ts": "ce401af0509cabc00d6e0624e2b645e0de547fc57b3540919313b32a58a43d32",
+    "app/src/data/crm-api.ts": "065bebda7e3c3ed6c0240a03d646d6bb2ad78814e968163f565865c149e35583",
+    "app/src/data/crm-queries.test.ts": "c19f16d0f23255d875b049df9d8e30aa607ae4bad547aa9bb1eba47bcea08822",
+    "app/src/data/crm-queries.ts": "7988f69b84e3a999e54a6844d5e64df8b4f89aae92185daa4497a34991a0d6a6",
+    "app/src/data/use-cartera-paginada.test.tsx": "bac5c7ee85ba0dda2191eeba72dbfc960c58d22b47e01d480237193108dfc941",
+    "app/src/data/use-cartera-paginada.ts": "7fa0586c100e2270a1baabc8cbb48db1f7afbb1a537ebf768fd4722f2ad610ae",
+    "app/src/lib/campania.ts": "ac75276752374770ef98f2323bf44569a68f78f0b72b9ec559312aeb71622efb",
+    "app/src/lib/cartera-keyset.ts": "132d7a95706dab901ae54dd78af5c9dc9719b42616644acf46968c627dd74e1a",
+    "app/src/lib/database.types.ts": "c175ffdac8588d49c68f1d3f20687e71227dff47ab2c43f614f0090f2c7e782a",
+    "app/src/lib/demo.ts": "dcf5eba7d3d63df0db1cbf92ea3eee4e2f84d1cc362e2f93dfc852e0c9dd4736",
+    "app/src/lib/store-real.test.tsx": "6966300a5ef3dc625e4cdcc90be8a17bffcc4954cecdad41658795810acec76c",
+    "app/src/lib/tipos.ts": "95b48df68ebe48e7491cfa29b756db1d123bbead1f1f7096eeb3f595e6d17001",
+    "app/src/lib/use-filtro-campania.test.ts": "b69f133f729833f201821140aaa65a9de8723da6d99c5b1cc56cd67ccb930961",
+    "app/src/lib/use-filtro-campania.ts": "2f72f0b79f10fdd9ccf1c5bd1ca54352ba128cbcba17b933eb734e1ac1a6928c",
+    "app/src/screens/cartera.test.tsx": "b3c721630dac258c0564c4df0fd809396d22e937034cd2e1925aa58e56d9c225",
+    "app/src/screens/cartera.tsx": "f862e78bcdeaf9e93114c50995159b432ca1e605788a147326b2272f714b8511",
+    "app/src/screens/pipeline-gestionado.test.tsx": "a3dec2e2429b5461a47fca06e0bd20a27f3b797487e23a756145be9feaa1829a",
+    "app/src/screens/pipeline.tsx": "e836ee039ad47dcbe3568fcb076b2d41bbcd5c28c698e8c6ddff72d7609ca350",
+    "supabase/migrations/20261014215453_crm_formulario3_cartera.sql": "e49913e30471ceccf1493926078b949b66c7f365be0b8fc627271cb112fbb891",
+    "supabase/scripts/formulario3-fase2/cartera-anterior.sql": "bef910604e86d798e05907d3b12557f37c078b7c7585a07785ff9352a72fef11",
+    "supabase/scripts/formulario3-fase2/cartera.sql": "9d88dea855590a6a7a4975b397b61a4f4130afe68c964008ab053ed3c30b431d",
+    "supabase/scripts/formulario3-fase2/fixtures.sql": "a62dd160065d6c5567f0d8f9dc998723c440f651a0c922e0fa3c470d240bfbad",
+    "supabase/scripts/formulario3-fase2/rls.mjs": "1f0efba979ca4201cad55644071e61c85c62c3183c7b51717c12fc73aac4c646",
+    "supabase/scripts/test-rls.mjs": "ea1d9b06188179c9b8e65857e8a775834ec9f9922a8d6492467f748c98d9ffc8"
+  },
+  "auditoria_objetivo": {
+    "fecha": "2026-10-14",
+    "resultado": "PASS_LOCAL",
+    "evidencia": "auditoria-objetivo.md",
+    "cambio_desde_cierre_anterior": "app/e2e/formulario3-campania.spec.ts",
+    "lint_test_ampliado": "PASS (oxlint)",
+    "producto_y_sql_sin_cambios": true,
+    "capturas": 5
+  }
+}

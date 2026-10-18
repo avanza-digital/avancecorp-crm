@@ -1,0 +1,19 @@
+# Evaluación del cierre por Codex PRIMARY
+
+Claude revisó el alcance ampliado de cuatro pasos en dos consultas acotadas. La corrección real tuvo su revisión específica previa. Dictamen de cierre: CHANGES_REQUESTED, sin P0/P1. [Respuesta original](review-cierre.txt). No se volvió a consultar para obtener conformidad.
+
+| Hallazgo | Resolución con evidencia |
+| --- | --- |
+| P2 atención legacy mueve atribución sin revisión | Aceptado. La guarda general bloquea cualquier efecto efectivo salvo el contrato directo de una corrección de venta. Integración 83 local/remota crea una venta de A por la puerta real, da de baja A hacia B y comprueba rechazo P0409 al intentar cambiar atención hacia supervisor. Toda la foto queda igual. SQL 29 y concurrencia repetidos |
+| P2 escritores externos sin inventario | [Búsqueda](escritores-externos.txt) en ambas carpetas Edge, todo portal/js y app/src. crear-cliente:183, importar-clientes:163 y crm-convertir-lead:204 llaman crear_perfil_cliente_con_cuentas; no actualizan directamente asesor. Sus RPC privilegiados de alta/F4 permanecen. Portal clientes: asignación usa nueva puerta; edición no incluye asesor; alta/importación conservan solo datos iniciales. Otros hits son lecturas, tipos o demo. No hay llamadas Edge a reasignar_analista_contrato. El helper CRM antiguo de venta conserva su adaptador. PATCH directo denegado para admin, vendedor y service_role; teléfono con asesor legado funciona en API y HTML |
+| P2 flags y orden de despliegue | Producción resolver_en_puertas=true e inversiones_escritura=true comprobados en lectura. Preparar artefactos antes de backend; merge rama primero y publicación inmediata portal/CRM. Workflows GitHub no ejecutan migraciones. La autorización expresa de publicar los cuatro pasos cubre la publicación; no se interpreta el consejo del reviewer como una nueva aprobación obligatoria. La rama principal Supabase está vinculada a main; cualquier sincronización se tratará como publicación autorizada y se verificará por ledger |
+| P3 múltiples operaciones por contrato | Descartado: producción tiene UNIQUE(contrato_nuevo_id), además del índice por origen renovado |
+| P3 autorización antes de locks | Mejora opcional, no una escalada: la autorización real precede a cualquier mutación y fue probada. Se mantiene orden común de locks para evitar carrera con baja |
+| P3 FOR SHARE | Se conserva: evita que cambien rol/activo entre autorización y escritura. FOR KEY SHARE no protege esos campos. Conflicto corto explícito y probado |
+| P3 venta histórica a inactivo | Política anterior conservada. SQL prueba herencia y postcondición efectiva; atención requiere destino activo |
+| P3 D8 | Agregación usa delta del analista. Oráculo numérico separado: 16 casos vigentes con valores absolutos, fracciones y bordes PASS. La regla antigua de ceil(15% de automáticos) fue sustituida por límite exacto sobre referidos, ya publicada. El ensayo completo histórico falla en expectativas obsoletas; el ensayo nuevo completo conserva una expectativa NULL que la atribución vigente resuelve por episodio. No se modificó conversión ni se declaró PASS de esos ensayos completos; se ejecutó el prefijo vigente en limite-referidos-oraculo.sql |
+| P3 comentario «solo candidata local» | Retirado |
+
+La matriz RLS oficial completa se repitió después de la guarda: 3.933 PASS. F4 y baja fueron comprobadas con Auth/API reales. La baja probada usa Gerencia comercial; la variante de baja por Gerencia con rol portal analista es un límite no cubierto por ese caso focal. Las nuevas acciones sí cubren esa variante de rol; no se cambia aquí el núcleo preexistente de bajas.
+
+Los advisors remotos reportan las dos puertas DEFINER deliberadas. El aviso Auth de contraseñas ya existe en producción. Sin nuevos avisos de rendimiento. No se presenta como «cero avisos nuevos».

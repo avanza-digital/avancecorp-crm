@@ -92,6 +92,48 @@ function respuestaCumplimiento(): CumplimientoMetasRpc {
   }
 }
 
+function produccionSupervisor(personaId = S2): NonNullable<CumplimientoMetasRpc['fuera_ranking']>[number] {
+  return {
+    persona_id: personaId,
+    nombre: 'Supervisor con inversión propia',
+    rol_crm: 'supervisor',
+    motivo: 'supervisor',
+    conversion: {
+      divisor: 4,
+      divisor_aproximado: 0,
+      divisor_por_motivo: { asignacion: 4 },
+      cierres_no_referidos: 1,
+      cierres_referidos: 0,
+      cierres_de_arrastre: 0,
+      referidos_recibidos: 0,
+      numerador: 1,
+    },
+    detalles: detalles(0, 0).map((detalle, indice) => ({
+      ...detalle,
+      capital_objetivo: 0,
+      capital_real: indice === 0 ? 70_000 : indice === 1 ? 1_000 : 0,
+      capital_cumplimiento_pct: null,
+      contratos_objetivo: 0,
+      contratos_real: indice < 2 ? 1 : 0,
+      contratos_cumplimiento_pct: null,
+      capital_ajuste: 0,
+      contratos_ajuste: 0,
+    })),
+    cartera: {
+      conversiones_clientes: 1,
+      conversiones_renovacion: 1,
+      conversiones_upgrade: 0,
+      operaciones_renovacion: 1,
+      operaciones_upgrade: 0,
+      capital_renovado_pen: 5_000,
+      capital_renovado_usd: 0,
+      capital_adicional_pen: 0,
+      capital_adicional_usd: 0,
+      renovaciones_sin_desglose: 0,
+    },
+  }
+}
+
 describe('metas versionadas y jerarquía', () => {
   it('no inventa una meta de conversión cuando no existe o falló la lectura', () => {
     expect(metaConversionAplicable(0)).toBeNull()
@@ -162,45 +204,7 @@ describe('metas versionadas y jerarquía', () => {
 
   it('suma la producción externa solo al total empresa y nunca crea un puesto', () => {
     const respuesta = respuestaCumplimiento()
-    respuesta.fuera_ranking = [{
-      persona_id: S2,
-      nombre: 'Supervisor con inversión propia',
-      rol_crm: 'supervisor',
-      motivo: 'supervisor',
-      conversion: {
-        divisor: 4,
-        divisor_aproximado: 0,
-        divisor_por_motivo: { asignacion: 4 },
-        cierres_no_referidos: 1,
-        cierres_referidos: 0,
-        cierres_de_arrastre: 0,
-        referidos_recibidos: 0,
-        numerador: 1,
-      },
-      detalles: detalles(0, 0).map((detalle, indice) => ({
-        ...detalle,
-        capital_objetivo: 0,
-        capital_real: indice === 0 ? 70_000 : indice === 1 ? 1_000 : 0,
-        capital_cumplimiento_pct: null,
-        contratos_objetivo: 0,
-        contratos_real: indice < 2 ? 1 : 0,
-        contratos_cumplimiento_pct: null,
-        capital_ajuste: 0,
-        contratos_ajuste: 0,
-      })),
-      cartera: {
-        conversiones_clientes: 1,
-        conversiones_renovacion: 1,
-        conversiones_upgrade: 0,
-        operaciones_renovacion: 1,
-        operaciones_upgrade: 0,
-        capital_renovado_pen: 5_000,
-        capital_renovado_usd: 0,
-        capital_adicional_pen: 0,
-        capital_adicional_usd: 0,
-        renovaciones_sin_desglose: 0,
-      },
-    }]
+    respuesta.fuera_ranking = [produccionSupervisor()]
 
     const cumplimiento = cumplimientoDesdeRpc(
       v.parse(CumplimientoMetasSchema, respuesta),
@@ -218,6 +222,73 @@ describe('metas versionadas y jerarquía', () => {
     expect(capitalReal(cumplimiento.supervisor!, 'PEN')).toBeCloseTo(204_166.67, 1)
     expect(capitalReal(cumplimiento.gerencia!, 'PEN')).toBeCloseTo(274_166.67, 1)
     expect(capitalReal(cumplimiento.gerencia!, 'USD')).toBeCloseTo(21_416.67, 1)
+  })
+
+  it.each(['2026-10-01', '2026-11-01', '2027-01-01'])('desde octubre suma ventas propias al equipo una sola vez (%s)', (periodo) => {
+    const respuesta = respuestaCumplimiento()
+    respuesta.periodo = periodo
+    const sinPropias = cumplimientoDesdeRpc(respuesta, S1)
+    respuesta.fuera_ranking = [produccionSupervisor(S1), produccionSupervisor(S2)]
+    // La API mantiene el contrato estricto existente, incluso con cliente viejo.
+    const resultado = cumplimientoDesdeRpc(v.parse(CumplimientoMetasSchema, respuesta), S1)
+    expect(capitalReal(resultado.supervisor!, 'PEN')).toBeCloseTo(274_166.67, 1)
+    expect(capitalReal(resultado.supervisor!, 'USD')).toBeCloseTo(21_416.67, 1)
+    expect(resultado.supervisor!.detalles.filter((fila) => fila.moneda === 'PEN').reduce((total, fila) => total + fila.contratosReal, 0)).toBe(7)
+    expect(resultado.supervisor!.detalles.filter((fila) => fila.moneda === 'USD').reduce((total, fila) => total + fila.contratosReal, 0)).toBe(7)
+    expect(capitalObjetivo(resultado.supervisor!, 'PEN')).toBe(capitalObjetivo(sinPropias.supervisor!, 'PEN'))
+    expect(contratosObjetivo(resultado.supervisor!, 'PEN')).toBe(contratosObjetivo(sinPropias.supervisor!, 'PEN'))
+    expect(resultado.supervisor!.conversionObjetivo).toBe(25)
+    expect('conversionReal' in resultado.supervisor!).toBe(false)
+    expect('numerador' in resultado.supervisor!).toBe(false)
+    expect(resultado.porVendedor).toEqual(sinPropias.porVendedor)
+    expect(resultado.vendedor).toBeNull()
+    expect(resultado.supervisores?.map((fila) => fila.personaId)).toEqual([S1, S2])
+    expect(resultado.fueraRanking).toEqual([])
+    // Empresa incluye las dos ventas personales, una vez cada una, nunca suma equipos.
+    expect(capitalReal(resultado.gerencia!, 'PEN')).toBeCloseTo(344_166.67, 1)
+    expect(capitalReal(resultado.gerencia!, 'USD')).toBeCloseTo(22_416.67, 1)
+    expect(produccionPorPersona(resultado)?.[S1]?.detalles[0]?.capitalReal).toBe(70_000)
+  })
+
+  it('septiembre conserva el aporte solo a empresa y octubre mantiene exactamente su total', () => {
+    const respuesta = respuestaCumplimiento()
+    respuesta.periodo = '2026-09-01'
+    respuesta.fuera_ranking = [produccionSupervisor(S1)]
+    const septiembre = cumplimientoDesdeRpc(respuesta, S1)
+    const octubre = cumplimientoDesdeRpc({ ...respuesta, periodo: '2026-10-01' }, S1)
+    expect(capitalReal(septiembre.supervisor!, 'PEN')).toBeCloseTo(204_166.67, 1)
+    expect(septiembre.supervisores).toEqual([])
+    expect(septiembre.fueraRanking).toHaveLength(1)
+    expect(octubre.gerencia).toEqual(septiembre.gerencia)
+  })
+
+  it('el mismo equipo suma igual desde una respuesta global o recortada por permisos', () => {
+    const global = respuestaCumplimiento()
+    global.periodo = '2026-10-01'
+    global.vendedores[1]!.supervisor_id = S2
+    global.fuera_ranking = [produccionSupervisor(S1), produccionSupervisor(S2)]
+    const propia = { ...global, vendedores: [global.vendedores[0]!], fuera_ranking: [produccionSupervisor(S1)] }
+    expect(cumplimientoDesdeRpc(global, S1).supervisor).toEqual(cumplimientoDesdeRpc(propia, S1).supervisor)
+    expect(cumplimientoDesdeRpc(global, S1).supervisor!.conversionObjetivo).toBe(20)
+  })
+
+  it('un supervisor sin analistas ve su venta sin inventar metas; sin venta conserva el vacío', () => {
+    const respuesta = { ...respuestaCumplimiento(), periodo: '2026-10-01', vendedores: [] }
+    expect(cumplimientoDesdeRpc(respuesta, S1).supervisor).toBeNull()
+    const resultado = cumplimientoDesdeRpc({ ...respuesta, fuera_ranking: [produccionSupervisor(S1)] }, S1)
+    expect(capitalReal(resultado.supervisor!, 'PEN')).toBe(70_000)
+    expect(capitalObjetivo(resultado.supervisor!, 'PEN')).toBe(0)
+    expect(resultado.supervisor!.conversionObjetivo).toBe(0)
+    expect(resultado.supervisor).toEqual(resultado.gerencia)
+  })
+
+  it('conserva otros responsables fuera del ranking y no atribuye sus ventas al supervisor', () => {
+    const externa = { ...produccionSupervisor(S2), rol_crm: 'fuera_equipo' as const, motivo: 'fuera_estructura' as const }
+    const respuesta = { ...respuestaCumplimiento(), periodo: '2026-10-01', fuera_ranking: [externa] }
+    const resultado = cumplimientoDesdeRpc(v.parse(CumplimientoMetasSchema, respuesta), S1)
+    expect(resultado.supervisores).toEqual([])
+    expect(resultado.fueraRanking).toHaveLength(1)
+    expect(capitalReal(resultado.supervisor!, 'PEN')).toBeCloseTo(204_166.67, 1)
   })
 
   it('conserva y agrega el descuento aplicado en una foto mensual cerrada', () => {

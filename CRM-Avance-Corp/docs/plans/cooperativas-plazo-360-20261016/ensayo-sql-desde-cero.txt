@@ -1,0 +1,60 @@
+DO
+SET
+INSERT 0 2
+SELECT 2
+SELECT 700
+BEGIN
+SET
+DO
+ALTER TABLE
+ALTER TABLE
+COMMENT
+CREATE FUNCTION
+ALTER FUNCTION
+REVOKE
+COMMENT
+CREATE FUNCTION
+COMMENT
+ALTER TABLE
+ALTER TABLE
+COMMENT
+CREATE FUNCTION
+COMMIT
+CREATE FUNCTION
+ exigir 
+--------
+ 
+(1 row)
+
+ exigir 
+--------
+ 
+(1 row)
+
+ exigir 
+--------
+ 
+(1 row)
+
+ exigir 
+--------
+ 
+(1 row)
+
+ exigir 
+--------
+ 
+(1 row)
+
+DO
+psql:/tmp/coopac360-test-final.sql:67: NOTICE:  PASS: 7 fechas y diferencias exactas; 2 cálculos históricos
+psql:/tmp/coopac360-test-final.sql:90: NOTICE:  PASS: 10 entradas inválidas rechazadas
+DO
+psql:/tmp/coopac360-test-final.sql:115: NOTICE:  PASS: ambas cooperativas; 4 restricciones; corrección de nota conserva fecha
+DO
+SET
+      resultado      
+---------------------
+ COOPAC_360_SQL_PASS
+(1 row)
+

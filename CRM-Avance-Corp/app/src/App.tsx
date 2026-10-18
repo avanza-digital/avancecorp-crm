@@ -336,7 +336,7 @@ function ErrorCargaReal({ onReintentar }: { onReintentar: () => void }) {
 function Workspace() {
   const { yo } = useAuth()
   const esMovil = useEsMovil()
-  const navegacionInferior = esMovil && yo?.rol === 'gerencia'
+  const navegacionInferior = esMovil && (yo?.rol === 'gerencia' || yo?.rol === 'vendedor')
   const tecladoAbierto = useViewportMovil(navegacionInferior)
   useEffect(() => {
     vincularCuentaPushTasa(yo?.rol === 'gerencia' && !yo.demo ? yo.id : null)
@@ -471,7 +471,7 @@ function Workspace() {
   return (
     <GestionDiariaAvisosProvider key={`${yo?.id}:${yo?.rol}`}><AlertasCRMProvider>
       <RespuestasTasaProvider>
-      <div data-gerencia-movil={navegacionInferior} data-teclado-abierto={tecladoAbierto} className={`relative z-10 flex h-svh overflow-hidden${navegacionInferior ? ' flex-col' : ''}`}>
+      <div data-navegacion-movil={navegacionInferior} data-rol-movil={navegacionInferior ? yo?.rol : undefined} data-gerencia-movil={navegacionInferior && yo?.rol === 'gerencia'} data-teclado-abierto={tecladoAbierto} className={`relative z-10 flex h-svh overflow-hidden${navegacionInferior ? ' flex-col' : ''}`}>
         <Sidebar vista={vista} onNavegar={navegarDesdeUI} movil={navegacionInferior} />
         <main className={`ac-scroll flex min-w-0 flex-1 flex-col${navegacionInferior ? ' min-h-0' : ''}`} tabIndex={-1}>
           <PeriodoGerenciaProvider>
@@ -485,7 +485,7 @@ function Workspace() {
                 cuando hay algo que decir. */}
             <ReceptorLlamada />
             {navegacionInferior && <AvisoConexionGerencia />}
-            <AreaConsultaGerencia vista={vista} habilitada={yo?.rol === 'gerencia'} key={vista}>
+            <AreaConsultaGerencia vista={vista} controlesAnalista={yo?.rol === 'vendedor'} habilitada={yo?.rol === 'gerencia' || (yo?.rol === 'vendedor' && vista === 'alertas')} key={vista}>
               {/* Boundary POR pantalla (key la remonta al cambiar de vista) */}
               <ErrorBoundary>
                 <Suspense fallback={<PantallaCargando />}>

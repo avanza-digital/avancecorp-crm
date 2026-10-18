@@ -1,0 +1,84 @@
+VERDICT:
+PASS
+
+SUMMARY:
+El reemplazo de `private.conversion_episodios` cumple la decisión de Miguel según el cuerpo adjuntado.
+
+- La primera operación elegible por cliente y mes se decide **antes** de reclasificarla. `row_number()` se calcula sobre `tipo` y `elegible_conversion`, sin depender de `categoria_conversion`. Por eso una renovación pura que llega primero sigue bloqueando un adicional o un upgrade posterior.
+- La reclasificación solo afecta a `periodo >= 2026-10-01` con `capital_adicional > 0`.
+- `NULL` y `0` siguen pasando por `peso_renovacion_conversion`, que vale 0 desde octubre.
+- No cambian la firma, el dueño, la ACL ni el ámbito.
+- Las guardas de aplicación son correctas y siguen el orden de locks de `cerrar_periodo`, así que no hay riesgo de deadlock.
+- No encontré cambios obligatorios. Dejo verificaciones recomendadas y riesgos menores.
+
+FINDINGS:
+
+[P2] Nueva dependencia de un dato que puede mutar: `capital_adicional`
+File: migración 20261014174026, subconsulta `o0` (`case when o0.tipo='renovacion' and o0.periodo >= '2026-10-01' and o0.capital_adicional > 0`)
+Problem: hasta ahora, el aporte de una operación dependía de `tipo`, `elegible_conversion`, fechas y pesos. Desde este cambio también depende de `capital_adicional`. Ese campo puede ser `NULL` ("unknown breakdown may be NULL") y completarse después; ver `renovaciones_sin_desglose` y el caso fuente `backfill_agosto_2026` en el fixture.
+Evidence: en `prueba.sql:53` (caso `nulo`), una renovación sin desglose aporta 0. Si luego alguien completa el desglose con un valor positivo, el núcleo vivo sube +1 de forma retroactiva dentro del mes.
+Impact:
+- Dentro del mes abierto o de la ventana del 1 al 10, es el comportamiento esperado.
+- Después del cierre, la foto queda congelada y la puerta oficial lee la foto (verificado en `cierre.sql:55-58`), así que no hay fuga hacia pagos.
+- Sin embargo, el recálculo vivo (`private.conversion_mensual_por_vendedor`) y la foto divergirían sin una línea de ajuste. Es el mismo patrón que ya existe para otros insumos, no una regresión de seguridad.
+- Es una hipótesis: no tengo evidencia de si `operaciones_cartera.capital_adicional` admite UPDATE después del alta, ni de si `registrar_ajuste_si_mes_cerrado` lo vigila.
+Recommendation:
+- Confirmar con el catálogo, sin cambiar código, si existe un UPDATE permitido o trigger sobre `capital_adicional` / `desglose_completo`.
+- Si existe, documentar en el LEEME que completar un desglose después del cierre no genera ajuste.
+- No hace falta rediseñar.
+
+[P2] Consumidores de `categoria` = 'upgrade' para una operación con `tipo` = 'renovacion'
+File: `private.metricas_cartera_por_vendedor` (sin cambios); la foto `cierre_mes_vendedor.cartera`
+Problem: `conversiones_upgrade` se obtiene de `e.categoria`, mientras que `operaciones_*` y el capital se obtienen de `o.tipo` y de `capital_episodios` con `categoria='renovacion'`. Vladimir queda con `conversiones_upgrade=2`, `conversiones_renovacion=0` y `operaciones_renovacion=1` (`cierre.sql:34-36`).
+Evidence: el desglose de capital sigue filtrando `k.categoria = 'renovacion'`. Esto es correcto, pero rompe cualquier supuesto implícito de UI o tests como `conversiones_upgrade <= operaciones_upgrade` o "las conversiones de renovación implican operaciones de renovación".
+Impact: posible confusión de etiqueta en Cartera o en Metas. Pasaron 108 tests de frontend, pero no se indica que alguno cubra esta combinación.
+Recommendation:
+- Hacer un grep en el frontend de `conversiones_upgrade` y `conversiones_renovacion` en busca de invariantes o ratios contra `operaciones_*`.
+- Agregar al LEEME o al tooltip que una renovación con adicional cuenta como upgrade de conversión aunque siga siendo una renovación en la operación y en el capital.
+
+[P3] Regla codificada con fecha fija, fuera de `conversion_pesos` y no sellada en `periodos_cerrados`
+File: migración, literal `date '2026-10-01'` dentro del núcleo
+Problem: los pesos son versionados por datos, pero la regla "adicional = upgrade" es código. `periodos_cerrados` sella `ponderacion_renovacion=0` y `ponderacion_referido=1`, pero no sella esta regla.
+Impact: es aceptable porque las fotos se congelan. Pero un futuro cambio de pesos (por ejemplo, reactivar `peso_renovacion > 0`) no tendría forma de desactivar esta regla, y el sello no la explica.
+Recommendation: solo documentarlo en el ledger o LEEME. No exigir rediseño.
+
+[P3] El postflight no verifica la integridad del nuevo cuerpo
+File: migración, `$postflight$`
+Problem:
+- Comprueba dueño, ACL, `SECURITY DEFINER`, `STABLE` y `search_path`, pero no el `md5(prosrc)` resultante.
+- El `raise` no tiene `errcode`, a diferencia del preflight.
+Recommendation: opcionalmente, añadir el `md5` esperado del nuevo `prosrc` (calculado en la branch) para que producción aplique exactamente el cuerpo revisado, y añadir `errcode='P0409'` por consistencia.
+
+AUDITORÍA RLS (checklist):
+1. RLS y policies: no hay tablas ni policies nuevas. No aplica.
+2. Fugas entre roles: el filtro `(p_global or analista_efectivo_contrato(...) = any(p_visibles))` está intacto. `seguridad.sql` (43 contextos) muestra las mismas denegaciones, los mismos IDs visibles y el mismo divisor, con un delta de +1 solo cuando Vladimir es visible. La reclasificación no expone columnas nuevas ni PII.
+3. SECURITY DEFINER: se conservan `search_path=''`, `STABLE` y la ACL `{postgres=X/postgres}`. No hay gate interno, pero eso es preexistente: es un núcleo privado no ejecutable por anon, authenticated ni service_role (`seguridad.sql:55-58`). Sin hallazgo.
+4. Grants: sin cambios. `CREATE OR REPLACE` conserva la ACL y el postflight lo verifica.
+5. Inmutabilidad: no toca triggers de `actividades` ni de `lead_asignaciones`.
+6. `public`: la migración no toca `public`. Solo `prueba.sql` inserta en `public.contratos`, dentro de una transacción con rollback. Correcto.
+7. Matriz `test-rls.mjs`: no se ejecutó la matriz HTTP/Auth (falta `SUPABASE_URL`). Al no haber cambios de grants ni de firmas, no lo considero bloqueante para la branch, pero debe correrse antes de producción.
+8. Ledger: la fila nueva es honesta ("NO APLICADA EN PRODUCCIÓN").
+
+TEST GAPS:
+- No hay un rango parcial que cruce la frontera septiembre/octubre con `p_periodo` nulo (por ejemplo, del 15/09 al 15/10), para confirmar que cada operación usa la categoría de su propio `periodo`. Las pruebas 09 y 10 son solo de octubre.
+- No hay un caso de renovación **no elegible** con `capital_adicional > 0`. El caso 06 usa un upgrade no elegible.
+- No hay un caso de completar el desglose (`NULL` → positivo) en el mismo mes para fijar el comportamiento esperado de +1 (relacionado con el P2 anterior).
+- Falta ejecutar `test:rls` HTTP antes de producción.
+
+ARCHITECTURE RISKS:
+- La regla de negocio vive en código con una fecha fija mientras los pesos viven en datos (P3). La dualidad tipo/categoría queda ahora visible en Cartera (P2).
+
+SECURITY RISKS:
+- Ninguno nuevo dentro del alcance revisado.
+
+REGRESSION RISKS:
+- Histórico: la equivalencia de diciembre 2025 a septiembre 2026 está demostrada con 7 salidas × 10 meses en la misma transacción. Las fotos de agosto y septiembre quedan intactas (`cierre.sql:66-71`).
+- La guarda que impide aplicar con octubre o un mes posterior cerrado es la elección correcta, dado que `cerrar_periodo` inserta el sello antes de calcular.
+
+RECOMMENDED NEXT ACTIONS:
+1. Verificar la mutabilidad de `capital_adicional` / `desglose_completo` después del alta y documentar el comportamiento post-cierre.
+2. Grep en el frontend de supuestos sobre `conversiones_upgrade` frente a `operaciones_upgrade`, y ajustar el texto si hace falta.
+3. Antes de producción: ejecutar `test:rls` con `SUPABASE_URL` y, opcionalmente, añadir el `md5` del nuevo `prosrc` al postflight.
+
+CONFIDENCE:
+MEDIUM-HIGH. Es alta para la lógica del núcleo, las guardas y la ACL. Es media para los consumidores de `categoria` y la mutabilidad de `capital_adicional`, porque no recibí evidencia sobre esos dos puntos.

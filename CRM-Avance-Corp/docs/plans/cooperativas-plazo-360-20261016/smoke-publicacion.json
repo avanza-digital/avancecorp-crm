@@ -1,0 +1,277 @@
+{
+  "fecha": "2026-10-17T04:27:14.026Z",
+  "commit": "f1e6f60269b300f300291b64ad0a007788d9a94b",
+  "release": "crm-20261017T042148Z-f1e6f60269b3",
+  "build": {
+    "schema": 1,
+    "buildId": "build-20261017T042147508Z"
+  },
+  "portada": 200,
+  "principal": "./assets/index-CWTWIlpJ.js",
+  "core": {
+    "estado": "PASS",
+    "archivos": 148,
+    "js": 115,
+    "css": 7
+  },
+  "png": {
+    "http": "PASS",
+    "exactos": 1,
+    "total": 13,
+    "archivos": [
+      {
+        "ruta": "aliados/belysh.png",
+        "http": 200,
+        "sha256": "61f594fd5e373092c15fd4c715f5d218691f482ab5691d96ed99eb8b4fa737cb",
+        "sha_esperado": "a19fa07263508d395c805de986d3792318e959c147ab0f7fbfcb242d294373e7",
+        "bytes": 258420,
+        "bytes_esperados": 212660,
+        "igual": false,
+        "dimensiones": [
+          1600,
+          1484
+        ],
+        "dimensiones_originales": [
+          3508,
+          3253
+        ],
+        "cache": "MISS",
+        "fuente_identica_al_release_anterior": true
+      },
+      {
+        "ruta": "aliados/clinica-alvarez.png",
+        "http": 200,
+        "sha256": "3675cf4e5bde40f544ac2b9d0e3a0bfcc21db9dc632d58a92d68c48b75161282",
+        "sha_esperado": "80f4ef5a70b77306d9b175e86e94e9ec2c9fd200a79a28f3564f9c55c2554c91",
+        "bytes": 21120,
+        "bytes_esperados": 21196,
+        "igual": false,
+        "dimensiones": [
+          852,
+          368
+        ],
+        "dimensiones_originales": [
+          852,
+          368
+        ],
+        "cache": "MISS",
+        "fuente_identica_al_release_anterior": true
+      },
+      {
+        "ruta": "aliados/mascapital.png",
+        "http": 200,
+        "sha256": "e9e8b4337d5b5519a9747c78ddac7839b80a38a32cb56f3dddb79e865cc66f5c",
+        "sha_esperado": "b3d1e8a90902d6148b1f7e6a91821748fb36201b12eae447a70f6d6c8eb1dd76",
+        "bytes": 145044,
+        "bytes_esperados": 133622,
+        "igual": false,
+        "dimensiones": [
+          1600,
+          1484
+        ],
+        "dimensiones_originales": [
+          3508,
+          3253
+        ],
+        "cache": "MISS",
+        "fuente_identica_al_release_anterior": true
+      },
+      {
+        "ruta": "aliados/ntc-agency.png",
+        "http": 200,
+        "sha256": "a126f2bd63727ff0573d3474bf1d8db4e4c6ef2652cda402014a45319739b8c9",
+        "sha_esperado": "1ee5e9d534cbd53f7675496a7139594268215a8c3bad51a1a4c10a559a65746f",
+        "bytes": 101069,
+        "bytes_esperados": 112725,
+        "igual": false,
+        "dimensiones": [
+          1600,
+          1484
+        ],
+        "dimensiones_originales": [
+          3508,
+          3253
+        ],
+        "cache": "MISS",
+        "fuente_identica_al_release_anterior": true
+      },
+      {
+        "ruta": "aliados/phoenix.png",
+        "http": 200,
+        "sha256": "3567651689adf05c76f6183e136860a195bfbd47a4ea1c9efb57e519b28c959b",
+        "sha_esperado": "41e41de03ef70c7c1d0f7ddc74561b7823fff33eaa577f390faefc55f4cf3f11",
+        "bytes": 248796,
+        "bytes_esperados": 237650,
+        "igual": false,
+        "dimensiones": [
+          1600,
+          1484
+        ],
+        "dimensiones_originales": [
+          3508,
+          3253
+        ],
+        "cache": "MISS",
+        "fuente_identica_al_release_anterior": true
+      },
+      {
+        "ruta": "aliados/prodelco.png",
+        "http": 200,
+        "sha256": "34a38f8c144cae9b5b4b747eb9d3e9777f99fe1cf86d965aab0a061c41b477f9",
+        "sha_esperado": "82a47d53f487fbcb064a569fc71680fc499c90ee2f24430ce87047d85f5dbce6",
+        "bytes": 38710,
+        "bytes_esperados": 39491,
+        "igual": false,
+        "dimensiones": [
+          1187,
+          267
+        ],
+        "dimensiones_originales": [
+          1187,
+          267
+        ],
+        "cache": "MISS",
+        "fuente_identica_al_release_anterior": true
+      },
+      {
+        "ruta": "aliados/qorilazo.png",
+        "http": 200,
+        "sha256": "e596e831377952c3255b03a10148e761bff142d40dad9021789f01efebf01528",
+        "sha_esperado": "f47a9cce1698229f3f70f70846860332a9f72950a8ef4302a70329ae38e6ce86",
+        "bytes": 219874,
+        "bytes_esperados": 188016,
+        "igual": false,
+        "dimensiones": [
+          1600,
+          1484
+        ],
+        "dimensiones_originales": [
+          3508,
+          3253
+        ],
+        "cache": "MISS",
+        "fuente_identica_al_release_anterior": true
+      },
+      {
+        "ruta": "brand/avance-icon-192.png",
+        "http": 200,
+        "sha256": "d8f58269f11078f1ef5d1162663f267c374d038ef2184b4afa3dba2ce9b1de67",
+        "sha_esperado": "d040c05f00518a77751d08ecb5facf0fe0c54d698ed6640f3c057704cc603b8d",
+        "bytes": 8471,
+        "bytes_esperados": 8476,
+        "igual": false,
+        "dimensiones": [
+          192,
+          192
+        ],
+        "dimensiones_originales": [
+          192,
+          192
+        ],
+        "cache": "MISS",
+        "fuente_identica_al_release_anterior": true
+      },
+      {
+        "ruta": "brand/avance-icon-512.png",
+        "http": 200,
+        "sha256": "d43504c50216c99a808acfcc56be7df800482448dedba948f9fbd3a2c591dd11",
+        "sha_esperado": "1d7920ff66091d00cbcb0bdd71cd2d7f55dad29f21ca3c523ffa4a75d2d7dbb0",
+        "bytes": 23167,
+        "bytes_esperados": 30652,
+        "igual": false,
+        "dimensiones": [
+          512,
+          512
+        ],
+        "dimensiones_originales": [
+          512,
+          512
+        ],
+        "cache": "MISS",
+        "fuente_identica_al_release_anterior": true
+      },
+      {
+        "ruta": "brand/avance-icon.png",
+        "http": 200,
+        "sha256": "d43504c50216c99a808acfcc56be7df800482448dedba948f9fbd3a2c591dd11",
+        "sha_esperado": "1d7920ff66091d00cbcb0bdd71cd2d7f55dad29f21ca3c523ffa4a75d2d7dbb0",
+        "bytes": 23167,
+        "bytes_esperados": 30652,
+        "igual": false,
+        "dimensiones": [
+          512,
+          512
+        ],
+        "dimensiones_originales": [
+          512,
+          512
+        ],
+        "cache": "MISS",
+        "fuente_identica_al_release_anterior": true
+      },
+      {
+        "ruta": "brand/avance-logo-full.png",
+        "http": 200,
+        "sha256": "6045f5a7829d94198c6cc4c6c6916eea6256906ad41a1f93aad60ea7a9ddb8cc",
+        "sha_esperado": "bb481fe98ef35badcce89e2ddb6af3a4f8a8914883339cc28f63f1e21e6afa8f",
+        "bytes": 33094,
+        "bytes_esperados": 33721,
+        "igual": false,
+        "dimensiones": [
+          1200,
+          1200
+        ],
+        "dimensiones_originales": [
+          1200,
+          1200
+        ],
+        "cache": "MISS",
+        "fuente_identica_al_release_anterior": true
+      },
+      {
+        "ruta": "brand/favicon-32.png",
+        "http": 200,
+        "sha256": "006c5d1ab73c2667d4cdaa3296a615b70689b3bae9455828353093d7d4d48f23",
+        "sha_esperado": "006c5d1ab73c2667d4cdaa3296a615b70689b3bae9455828353093d7d4d48f23",
+        "bytes": 2097,
+        "bytes_esperados": 2097,
+        "igual": true,
+        "dimensiones": [
+          32,
+          32
+        ],
+        "dimensiones_originales": [
+          32,
+          32
+        ],
+        "cache": "MISS",
+        "fuente_identica_al_release_anterior": true
+      },
+      {
+        "ruta": "contrato/fondo-corporativo.png",
+        "http": 200,
+        "sha256": "e5689c571b5af5db3de1a973cf5c82fc64df91633619a26b85fb0621f987894b",
+        "sha_esperado": "bd5ce8d1adf795cccbb73427b5f374397050945e8b6cdb6f7a81af8d51446898",
+        "bytes": 109007,
+        "bytes_esperados": 108685,
+        "igual": false,
+        "dimensiones": [
+          1449,
+          2048
+        ],
+        "dimensiones_originales": [
+          1449,
+          2048
+        ],
+        "cache": "MISS",
+        "fuente_identica_al_release_anterior": true
+      }
+    ]
+  },
+  "comparacion_literal_inicial": {
+    "estado": "FAIL",
+    "exactos": 149,
+    "total": 161,
+    "discrepancias_solo_png": true
+  }
+}

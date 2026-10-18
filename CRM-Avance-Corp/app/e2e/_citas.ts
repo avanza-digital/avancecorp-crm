@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test'
 
 /** Respuesta de la nueva RPC; nunca deriva filas de las métricas agregadas. */
-export async function montarConsultaCitas(page: Page, citaAdicional?: 'pendiente' | 'no_show', conGestion: boolean | 'mensual'=false) {
+export async function montarConsultaCitas(page: Page, citaAdicional?: 'pendiente' | 'no_show', conGestion: boolean | 'mensual'=false, escenario?: 'carga_tardia' | 'discrepancia') {
   await page.route('**/rest/v1/rpc/citas_gerencia_consulta_fn',async route => {
     const {p_desde:desde,p_hasta:hasta}=route.request().postDataJSON()
     const id=(n:number) => `84000000-0000-4000-8000-${String(n).padStart(12,'0')}`
@@ -17,9 +17,9 @@ export async function montarConsultaCitas(page: Page, citaAdicional?: 'pendiente
       asistencia_registrada_en:n===2 ? `${mes}-03T16:30:00Z` : null,cierre_posterior:false,
       manual_propio:false,registro_manual:false,
     }))
-    await route.fulfill({json:{version:2,periodo:{desde,hasta},generado_en:'2026-09-04T15:00:00Z',citas,
-      conversiones:[{lead_id:id(10),perfil_id:id(50),convertido_en:`${mes}-04T14:00:00Z`}],
-      disponibilidad_depositos:'conversion_cliente',citas_clientes:0,
+    const payload = {version:2,periodo:{desde,hasta},generado_en:'2026-09-04T15:00:00Z',citas,
+      conversiones:[{lead_id:id(10),perfil_id:id(50),convertido_en:`${mes}-04T14:00:00Z`, fecha_comercial:`${mes}-04`}],
+      disponibilidad_depositos:'conversion_cliente',criterio_depositos:'fecha_comercial',citas_clientes:0,
       ...(conGestion ? {gestion:{version:1,citas_por_lead:1.25,entrevistas_porcentaje:70,depositos_porcentaje:70,
         ...(conGestion === 'mensual' ? {version:2,actividad_manuales:'incluir',
           control:{version:1,mes_inicio:mes,configuracion:{citas_por_lead:1.25,entrevistas_porcentaje:70,depositos_porcentaje:70,
@@ -28,7 +28,7 @@ export async function montarConsultaCitas(page: Page, citaAdicional?: 'pendiente
           poblacion:[10,11,12,13,14].map(n=>({lead_id:id(n),nombre:n===10?'PERSONA RECUPERADA':`PERSONA DE PRUEBA ${n}`,telefono:'900000001',origen:'referido',moneda:'PEN',monto_estimado:35000,
             registro_manual:n===14,creado_por:id(n===14?21:20),analista_origen_id:id(n===14?21:20),analista_origen_nombre:n===14?'ANALISTA SIN CITAS':'ANALISTA DE PRUEBA',
             primera_asignacion_en:`${mes}-01T15:00:00Z`,supervisor_origen_id:id(30),supervisor_origen_nombre:'SUPERVISOR DE PRUEBA'})),
-          conversiones:[{lead_id:id(10),perfil_id:id(50),convertido_en:`${mes}-04T14:00:00Z`,analista_id:id(20),analista_nombre:'ANALISTA DE PRUEBA',supervisor_id:id(30),supervisor_nombre:'SUPERVISOR DE PRUEBA',contrato_id:id(70)}],
+          conversiones:[{lead_id:id(10),perfil_id:id(50),convertido_en:`${mes}-04T14:00:00Z`, fecha_comercial:`${mes}-04`,analista_id:id(20),analista_nombre:'ANALISTA DE PRUEBA',supervisor_id:id(30),supervisor_nombre:'SUPERVISOR DE PRUEBA',contrato_id:id(70)}],
           capital:[{lead_id:id(10),perfil_id:id(50),contrato_id:id(70),analista_id:id(20),moneda:'USD',monto:1000,fecha:`${mes}-04T05:00:00Z`},
             {lead_id:id(10),perfil_id:id(50),contrato_id:id(71),analista_id:id(20),moneda:'PEN',monto:2000,fecha:`${mes}-04T05:00:00Z`}],
         }:{}),
@@ -36,6 +36,22 @@ export async function montarConsultaCitas(page: Page, citaAdicional?: 'pendiente
           analista_nombre:n===14 ? 'ANALISTA SIN CITAS' : 'ANALISTA DE PRUEBA',
           supervisor_id:id(30),supervisor_nombre:'SUPERVISOR DE PRUEBA',
           asignado_en:`${mes}-01T15:00:00Z`,manual_propio:conGestion==='mensual'&&n===14,registro_manual:conGestion==='mensual'&&n===14,nombre:`PERSONA DE PRUEBA ${n}`,
-          telefono:'900000001',origen:'referido',moneda:'PEN',monto_estimado:35000}))}} : {})}})
+          telefono:'900000001',origen:'referido',moneda:'PEN',monto_estimado:35000}))}} : {})}
+    if (escenario) {
+      const gestion = payload.gestion!
+      const testigo = {version:1,calculado_en:payload.generado_en,reglas_listas:true,
+        configuracion:gestion.control!.configuracion,entrevistas:1,personas_entrevistadas:1,
+        clientes_periodo:1,clientes_vinculados:1,base_conversion:1,conversion_pct:100}
+      if (escenario === 'carga_tardia') {
+        payload.generado_en='2026-10-07T15:00:00Z'
+        payload.conversiones[0]!.convertido_en='2026-10-06T15:00:00Z'
+        gestion.conversiones![0]!.convertido_en='2026-10-06T15:00:00Z'
+        testigo.calculado_en=payload.generado_en
+        await route.fulfill({json:{...payload,testigo:{...testigo,clientes_periodo:0,
+          clientes_vinculados:0,conversion_pct:0,comercial:testigo}}})
+      } else await route.fulfill({json:{...payload,testigo:{...testigo,comercial:{...testigo,clientes_periodo:2}}}})
+      return
+    }
+    await route.fulfill({json:payload})
   })
 }

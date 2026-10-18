@@ -1,4 +1,6 @@
 import { DocumentoLeadSchema } from '@/lib/documento-lead'
+import { diaRepartoCoherente } from '@/lib/origenes-reparto'
+import { origenDeFila } from '@/lib/tipos'
 import { TareaRowSchema } from '@/lib/tarea-schema'
 import * as v from 'valibot'
 import { ESTADOS_SOLICITUD_TASA_VIVOS } from '@/lib/rentabilidad'
@@ -89,7 +91,20 @@ import { RankingOrigenVendedorSchema, type RankingOrigenVendedor } from '@/lib/r
 import { MetricasReunionesSchema, type MetricasReuniones } from '@/lib/metricas-reuniones'
 import { ConfiguracionMetasSchema, type ConfiguracionMetas } from '@/lib/metas-versionadas'
 import { CierreMesEstadoSchema, type CierreMesEstadoRpc } from '@/lib/cierre-de-mes'
-import { CumplimientoMetasSchema, type CumplimientoMetasRpc } from '@/lib/objetivos'
+import {
+  CODIGO_PLAZO_NO_DISPONIBLE,
+  MOTIVO_PLAZO_MAX,
+  MOTIVO_PLAZO_MIN,
+  PlazoCargaFijadoSchema,
+  PlazosCargaMesSchema,
+  motivoPlazoValido,
+  periodoDelMes,
+  type PlazoCargaFijado,
+  type PlazosCargaMes,
+} from '@/lib/plazo-carga-mes'
+import { CumplimientoMetasV2Schema, type CumplimientoMetasRpc } from '@/lib/objetivos'
+import { CapitalOperacionesSchema, CoberturaCapitalSchema, type CapitalOperaciones, type CoberturaCapital } from '@/lib/capital-valorado'
+import { consultarTipoCambioHistorico } from '@/lib/tipo-cambio'
 import {
   DisponibilidadLeadSchema,
   ResultadoCreacionLeadAtomicaSchema,
@@ -168,11 +183,25 @@ import { EnteroNoNegativoRpcSchema, FechaSchema, NumeroRpcSchema } from '@/lib/e
 import { presentarCitas } from '@/lib/terminologia'
 import {
   InversionEliminadaSchema,
+  InversionReemplazadaSchema,
+  InversionCooperativaReemplazadaSchema,
+  AcuseReemplazoAccesorios,
+  AcuseReemplazoCooperativaAccesorios,
   MOTIVO_ELIMINACION_MAX,
   MOTIVO_ELIMINACION_MIN,
   motivoEliminacionValido,
+  VistaPreviaReemplazoSchema,
+  VistaPreviaReemplazoCooperativaSchema,
   type EmpresaInversion,
+  type VistaPreviaReemplazo,
+  type VistaPreviaReemplazoCooperativa,
 } from '@/lib/inversionistas'
+import {
+  LeadEliminadoSchema,
+  MOTIVO_ELIMINAR_LEAD_MAX,
+  MOTIVO_ELIMINAR_LEAD_MIN,
+  motivoEliminarLeadValido,
+} from '@/lib/lead-error-carga'
 import { conGestionVigente } from './gestion-vigente'
 
 export type { DisponibilidadLead, ResultadoCreacionLeadAtomica, ResultadoTomaLead } from '@/lib/disponibilidad-lead'
@@ -193,6 +222,7 @@ const COLUMNAS_LEAD = [
   'fecha_nacimiento',
   'distrito',
   'origen',
+  'campania_origen',
   'etapa',
   'motivo_descarte',
   'monto_estimado',
@@ -259,6 +289,7 @@ const LeadRowSchema = v.object({
   // Catálogo de LECTURA: incluye `base_cargada` (solo lo pone el servidor, B7). Un origen cerrado al alta
   // descartaba EN SILENCIO al contacto de base y lo hacía desaparecer de toda lista (hallazgo del F0, 04/10).
   origen: v.picklist(ORIGENES_LECTURA.map((o) => o.k)),
+  campania_origen: v.optional(v.nullable(v.string())),
   // Procedencia: la RPC de la cartera manda `procedencia` + `cargado_por` ya
   // resueltos; el ámbito (select directo) manda las columnas crudas
   // `alta_manual` + `creado_por` y el mapper deriva. Todo opcional: un servidor
@@ -509,7 +540,8 @@ function aLead(fila: LeadRow): Lead {
     genero: fila.genero ?? null,
     fecha_nacimiento: fila.fecha_nacimiento ?? null,
     distrito: fila.distrito,
-    origen: fila.origen, // ya validado contra el catálogo por LeadRowSchema
+    origen: origenDeFila(fila.origen, fila.campania_origen),
+    campania_origen: fila.campania_origen ?? null,
     procedencia: procedenciaDeFila(fila),
     reasignado: fila.reasignado ?? null,
     cargado_por: fila.cargado_por ?? fila.creado_por ?? null,
@@ -681,6 +713,8 @@ export async function obtenerLeadDelAmbitoPorId(id: string, signal?: AbortSignal
 // aquí solo para normalizar lo que teclea el usuario.
 
 export interface FiltrosCartera {
+  /** Campaña de origen: el recorte se aplica antes de contar o paginar. */
+  campania?: import('@/lib/campania').FiltroCampania
   etapa?: Etapa | 'todas'
   vendedorId?: string | 'todos' | 'sin_asignar'
   texto?: string
@@ -745,6 +779,7 @@ const CarteraFiltradaSchema = v.object({
   origen: v.optional(v.nullable(v.string())),
   // Eco de la procedencia filtrada, con la misma lógica que `origen`.
   procedencia: v.optional(v.nullable(v.string())),
+  campania_origen: v.optional(v.nullable(v.string())),
   // Presente desde la migración de reasignados; un servidor previo no inventa cero.
   reasignados: v.optional(v.boolean()),
   items: v.array(v.object({
@@ -773,6 +808,10 @@ export async function listarCarteraPagina(
   cursor: CursorCartera | null,
   signal?: AbortSignal,
 ): Promise<PaginaCartera> {
+  const campaniaPedida = filtros.campania && filtros.campania !== 'todas' ? filtros.campania : null
+  // La ruta legada no implementa este filtro. Si se pide, toda la consulta
+  // (incluidos sus demás filtros) usa la ruta integrada; nunca se ignora.
+  const integrada = filtros.integrada === true || campaniaPedida !== null
   const texto = textoBuscable(filtros.texto)
   // Se pide UNA fila de más: es lo que distingue "hay más" de "justo cabía",
   // sin gastar una petición extra que vuelva vacía al final de la lista.
@@ -792,18 +831,18 @@ export async function listarCarteraPagina(
   // El servidor RECHAZA (22023) un texto por debajo del mínimo: quien decide si
   // el filtro viaja es `textoBuscable`, la MISMA regla que aplica el espejo demo.
   if (texto !== null) argumentos.p_texto = texto
-  if (filtros.integrada && filtros.recepcion) {
+  if (integrada && filtros.recepcion) {
     argumentos.p_desde = filtros.recepcion.desde
     argumentos.p_hasta = filtros.recepcion.hasta
   }
   // «todos» no viaja: un servidor previo a la firma con p_origen sigue
   // resolviendo la llamada sin él (PGRST202 evitado), igual que en métricas.
-  const origenPedido = filtros.integrada && filtros.origen && filtros.origen !== 'todos' ? filtros.origen : null
+  const origenPedido = integrada && filtros.origen && filtros.origen !== 'todos' ? filtros.origen : null
   if (origenPedido !== null) argumentos.p_origen = origenPedido
   // «todas» tampoco viaja: mismo motivo, misma tolerancia a un servidor previo.
-  const procedenciaPedida = filtros.integrada && filtros.procedencia && filtros.procedencia !== 'todas' ? filtros.procedencia : null
+  const procedenciaPedida = integrada && filtros.procedencia && filtros.procedencia !== 'todas' ? filtros.procedencia : null
   if (procedenciaPedida !== null) argumentos.p_procedencia = procedenciaPedida
-  const reasignadosPedidos = filtros.integrada && filtros.reasignados === true
+  const reasignadosPedidos = integrada && filtros.reasignados === true
   if (reasignadosPedidos) argumentos.p_reasignados = true
   // La gestión solo viaja cuando recorta, y solo a la lista integrada: sin
   // ella la llamada es idéntica a la de siempre (Leads y las demás columnas no
@@ -812,15 +851,16 @@ export async function listarCarteraPagina(
   // Tampoco se comprueba contra las filas: la regla descarta los resultados de
   // llamada deshechos, así que un lead `sin_gestion` puede traer un
   // `ultimo_contacto_en` posterior a su tenencia y estar bien servido.
-  const gestionPedida = filtros.integrada && filtros.gestion ? filtros.gestion : null
+  const gestionPedida = integrada && filtros.gestion ? filtros.gestion : null
   if (gestionPedida !== null) argumentos.p_gestion = gestionPedida
   // El potencial solo viaja cuando recorta, y solo a la lista integrada: un
   // servidor anterior a `p_potencial` sigue resolviendo la llamada sin él.
-  const potencialPedido = filtros.integrada && filtros.potencial ? filtros.potencial : null
+  const potencialPedido = integrada && filtros.potencial ? filtros.potencial : null
   if (potencialPedido !== null) argumentos.p_potencial = potencialPedido
+  if (campaniaPedida !== null) argumentos.p_campania_origen = campaniaPedida
 
   lanzarAbortSiCorresponde(signal)
-  let consulta = cliente().schema('crm').rpc(filtros.integrada ? 'cartera_filtrada_fn' : 'cartera_pagina_fn', argumentos)
+  let consulta = cliente().schema('crm').rpc(integrada ? 'cartera_filtrada_fn' : 'cartera_pagina_fn', argumentos)
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
   lanzarAbortSiCorresponde(signal)
@@ -842,6 +882,7 @@ export async function listarCarteraPagina(
       etapa: filtros.etapa ?? 'todas',
       filtraVendedor: Boolean(filtros.vendedorId && filtros.vendedorId !== 'todos'),
       filtraOrigen: origenPedido !== null,
+      filtraCampania: campaniaPedida !== null,
       filtraProcedencia: procedenciaPedida !== null,
       filtraReasignados: reasignadosPedidos,
       filtraGestion: gestionPedida !== null,
@@ -852,7 +893,7 @@ export async function listarCarteraPagina(
     throw fallo
   }
 
-  if (filtros.integrada) {
+  if (integrada) {
     const resultado = v.safeParse(CarteraFiltradaSchema, data)
     if (!resultado.success) throw new CrmApiError('La cartera y sus indicadores no cumplen el contrato esperado.', 'ROW_CONTRACT')
     const payload = resultado.output
@@ -863,7 +904,9 @@ export async function listarCarteraPagina(
       // El servidor devuelve el origen que aplicó: si no coincide con el pedido
       // (o no lo aplicó), los indicadores no serían los del filtro en pantalla.
       || (payload.origen ?? null) !== origenPedido
-      || (origenPedido !== null && payload.items.some((l) => l.origen !== origenPedido))
+      || (origenPedido !== null && payload.items.some((l) => origenDeFila(l.origen, l.campania_origen) !== origenPedido))
+      || (payload.campania_origen ?? null) !== campaniaPedida
+      || (campaniaPedida !== null && payload.items.some((l) => l.campania_origen !== campaniaPedida))
       // Misma exigencia para la procedencia: eco y filas coherentes, o nada.
       || (payload.procedencia ?? null) !== procedenciaPedida
       || (procedenciaPedida !== null && payload.items.some((l) => l.procedencia !== procedenciaPedida))
@@ -1136,17 +1179,42 @@ export async function obtenerMetasDelMes(periodo: string, signal?: AbortSignal):
  * categoría/moneda en cada dimensión contractual.
  */
 export async function obtenerCumplimientoMetas(periodo: string, signal?: AbortSignal): Promise<CumplimientoMetasRpc> {
-  let consulta = cliente().schema('crm').rpc('cumplimiento_metas_fn', { p_periodo: periodo })
+  let consulta = cliente().schema('crm').rpc('cumplimiento_metas_v2_fn', { p_periodo: periodo })
   if (signal) consulta = consulta.abortSignal(signal)
-  const { data, error } = await consulta
+  let { data, error } = await consulta
+  // Solo una función ausente permite usar el servidor anterior. Un rechazo de
+  // autorización o un payload inválido jamás provoca otra consulta más amplia.
+  if (error?.code === 'PGRST202') {
+    consulta = cliente().schema('crm').rpc('cumplimiento_metas_fn', { p_periodo: periodo })
+    if (signal) consulta = consulta.abortSignal(signal)
+    ;({ data, error } = await consulta)
+  }
   lanzarAbortSiCorresponde(signal)
   if (error) {
     const fallo = new CrmApiError('No se pudo calcular el cumplimiento de metas.', error.code || 'POSTGREST_ERROR')
     registrarError('crm.metas.cumplimiento_fallido', fallo)
     throw fallo
   }
-  const resultado = v.safeParse(CumplimientoMetasSchema, data)
+  const resultado = v.safeParse(CumplimientoMetasV2Schema, data)
   if (!resultado.success) throw contratoMetasInvalido('crm.metas.cumplimiento_contrato_invalido')
+  return resultado.output
+}
+
+/** Detalle de la misma publicación de capital que el ranking, sin recalcular TC. */
+export async function obtenerCapitalOperacionesValoradas(
+  periodo: string, vendedorId: string, corteId: string, signal?: AbortSignal,
+): Promise<CapitalOperaciones> {
+  let consulta = cliente().schema('crm').rpc('capital_operaciones_valoradas_fn', {
+    p_periodo: periodo, p_vendedor_id: vendedorId, p_corte_id: corteId,
+  })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw new CrmApiError('No se pudo cargar el detalle de capital valorado.', error.code || 'POSTGREST_ERROR')
+  const resultado = v.safeParse(CapitalOperacionesSchema, data)
+  if (!resultado.success || (resultado.output.valoracion_activa && resultado.output.corte_id !== corteId)) {
+    throw new CrmApiError('El detalle no corresponde al corte del ranking.', 'CAPITAL_VALORADO_CONTRACT')
+  }
   return resultado.output
 }
 
@@ -1201,6 +1269,133 @@ export async function obtenerCierreMesEstado(signal?: AbortSignal): Promise<Cier
   return resultado.output
 }
 
+// ── Plazo de carga por mes (solo Gerencia) ──────────────────────────────────
+
+/**
+ * Los meses cuyo plazo de carga Gerencia puede ver y decidir
+ * (`crm.plazos_carga_mes_fn`): plazo vigente, última decisión, si el mes está
+ * sellado y si se puede reabrir (con el porqué si no). Sin cifras ni PII.
+ *
+ * PGRST202 (la función todavía no existe: front publicado antes que la
+ * migración) es `NO_DISPONIBLE` y la tarjeta se oculta; no se registra porque
+ * es un estado esperado del despliegue, y el sondeo lo repetiría cada 5 min.
+ */
+export async function obtenerPlazosCargaMes(signal?: AbortSignal): Promise<PlazosCargaMes> {
+  let consulta = cliente().schema('crm').rpc('plazos_carga_mes_fn')
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) {
+    if (error.code === 'PGRST202') {
+      throw new CrmApiError('El plazo de carga llega con la próxima actualización del servidor.', CODIGO_PLAZO_NO_DISPONIBLE)
+    }
+    const fallo = error.code === '42501' || error.code === 'PGRST301'
+      ? new CrmApiError('Solo Gerencia ve el plazo de carga.', 'SIN_PERMISO')
+      : new CrmApiError('No se pudo leer el plazo de carga.', error.code || 'POSTGREST_ERROR')
+    registrarError('crm.plazo_carga.lectura_fallida', fallo, { pg: error.code ?? '' })
+    throw fallo
+  }
+  const resultado = v.safeParse(PlazosCargaMesSchema, data)
+  if (!resultado.success) {
+    const fallo = new CrmApiError('El servidor devolvió un plazo de carga no reconocido.', 'ROW_CONTRACT')
+    registrarError('crm.plazo_carga.contrato_invalido', fallo)
+    throw fallo
+  }
+  return resultado.output
+}
+
+export interface FijarPlazoCargaMesDatos {
+  /** Mes 'YYYY-MM', tal como lo sirve `plazos_carga_mes_fn` (la puerta recibe su primer día). */
+  mes: string
+  /** Último día INCLUIDO para cargar: 'YYYY-MM-DD'. */
+  ultimoDia: string
+  motivo: string
+}
+
+/**
+ * Los RAISE de la puerta (42501, 22023, P0409) llegan en español de negocio y
+ * se muestran tal cual: dicen por qué no (fecha antes del día 10, mes que ya no
+ * se puede reabrir…). Solo se reescribe lo que Postgres redacta por su cuenta
+ * (permiso del catálogo, candados) y el corte de red, que no prueba que el
+ * plazo NO se guardara.
+ */
+function aErrorFijarPlazo(error: { code?: string | null; message?: string | null }): CrmApiError {
+  const pg = error.code ?? ''
+  const texto = error.message?.trim() ?? ''
+  let code = 'POSTGREST_ERROR'
+  let mensaje = 'No se pudo guardar el plazo de carga.'
+  if (pg === '') {
+    code = 'RESPUESTA_NO_RECIBIDA'
+    mensaje = 'No llegó la respuesta del servidor y el plazo pudo guardarse. Revisa el plazo de carga antes de reintentar.'
+  } else if (pg === '42501' || pg === 'PGRST301') {
+    code = 'SIN_PERMISO'
+    // «permission denied for function …» es del catálogo (falta un GRANT), no un mensaje de la puerta.
+    mensaje = pg === '42501' && texto && !texto.startsWith('permission denied')
+      ? texto : 'Solo Gerencia decide el plazo de carga.'
+  } else if (pg === 'P0001' && texto.startsWith('REAPERTURA:')) {
+    // Postflight de private.reabrir_mes: una comprobación interna falló y la
+    // transacción entera se deshizo. Su texto habla del mecanismo, no del negocio.
+    code = 'REAPERTURA_INCOMPLETA'
+    mensaje = 'No se reabrió el mes: una comprobación interna no cuadró y no se cambió nada. Avisa a soporte.'
+  } else if (pg === '22023' || pg === 'P0001') {
+    code = 'REGLA_SERVIDOR'
+    if (texto) mensaje = texto
+  } else if (pg === 'P0409' || pg === '55000') {
+    code = 'CONFLICTO'
+    if (texto) mensaje = texto
+  } else if (pg === 'PT409' || pg === '55P03' || pg === '40001' || pg === '40P01') {
+    code = 'REINTENTAR'
+    mensaje = 'Otra operación está usando el cierre de este mes. Vuelve a intentarlo en unos segundos.'
+  } else if (pg === 'PGRST202') {
+    code = CODIGO_PLAZO_NO_DISPONIBLE
+    mensaje = 'Ampliar el plazo de carga llega con la próxima actualización del servidor.'
+  }
+  const fallo = new CrmApiError(mensaje, code)
+  registrarError('crm.plazo_carga.fijar_fallido', fallo, { pg })
+  return fallo
+}
+
+/**
+ * Gerencia fija el último día de carga de un mes (`crm.fijar_plazo_carga_mes`).
+ * Si el mes ya estaba sellado, la misma puerta lo REABRE (y se niega con el
+ * motivo si no se puede). El acuse dice qué movió: conversiones revisadas con
+ * el plazo nuevo y ventas devueltas al mes reabierto.
+ */
+export async function fijarPlazoCargaMes(datos: FijarPlazoCargaMesDatos): Promise<PlazoCargaFijado> {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(datos.mes)) {
+    throw new CrmApiError('El mes del plazo de carga no es válido.', 'PLAZO_CARGA_MES_INVALIDO')
+  }
+  if (!v.safeParse(FechaSchema, datos.ultimoDia).success) {
+    throw new CrmApiError('Elige una fecha válida para el último día de carga.', 'PLAZO_CARGA_FECHA_INVALIDA')
+  }
+  const motivo = datos.motivo.trim()
+  if (!motivoPlazoValido(motivo)) {
+    throw new CrmApiError(
+      `Escribe el motivo (de ${MOTIVO_PLAZO_MIN} a ${MOTIVO_PLAZO_MAX} caracteres).`,
+      'PLAZO_CARGA_MOTIVO_INVALIDO',
+    )
+  }
+
+  const { data, error } = await cliente().schema('crm').rpc('fijar_plazo_carga_mes', {
+    p_periodo: periodoDelMes(datos.mes),
+    p_ultimo_dia: datos.ultimoDia,
+    p_motivo: motivo,
+  })
+  if (error) throw aErrorFijarPlazo(error)
+
+  const respuesta = v.safeParse(PlazoCargaFijadoSchema, data)
+  if (!respuesta.success || respuesta.output.mes !== datos.mes || respuesta.output.ultimo_dia !== datos.ultimoDia) {
+    // El servidor respondió 2xx: el plazo pudo guardarse aunque el acuse no sea el pactado.
+    const fallo = new CrmApiError(
+      'El servidor no confirmó el plazo con el formato esperado; pudo guardarse. Revisa el plazo de carga antes de reintentar.',
+      'PLAZO_CARGA_CONTRACT',
+    )
+    registrarError('crm.plazo_carga.fijar_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return respuesta.output
+}
+
 // ── Reparto de la cola global (C1) — 3 RPC SECURITY DEFINER con gate propio ───
 // El coordinador NO ve leads por RLS (ámbito ∅): todo su trabajo pasa por aquí.
 
@@ -1223,6 +1418,7 @@ const ColaLeadSchema = v.object({
   // caerse del parseo (deploy seguro en cualquier orden, BD antes o después).
   clasificacion_auto: v.optional(v.nullable(v.picklist(['posible_credito'] as const)), null),
   comentario: v.optional(v.nullable(v.string()), null),
+  campania_origen: v.optional(v.nullable(v.string())),
 })
 
 const SupervisorRepartoSchema = v.object({
@@ -1286,6 +1482,14 @@ const EntregaAgendaRepartoSchema = v.object({
   coincide_turno: v.boolean(),
 })
 
+const OrigenEntregasRepartoSchema = v.object({
+  origen: v.picklist(ORIGENES_LECTURA.map((o) => o.k)),
+  turno: v.optional(v.nullable(OrigenAgendaRepartoSchema)),
+  derivados: v.pipe(v.union([v.number(), v.string()]), v.transform(Number)),
+  fuera_turno: v.nullable(v.pipe(v.union([v.number(), v.string()]), v.transform(Number))),
+  entregas: v.array(EntregaAgendaRepartoSchema),
+})
+
 const AsignacionAgendaRepartoSchema = v.object({
   origen: OrigenAgendaRepartoSchema,
   supervisor_id: v.nullable(v.string()),
@@ -1296,11 +1500,13 @@ const AsignacionAgendaRepartoSchema = v.object({
   // siempre los sirve; el frontend anterior puede ignorarlos sin caerse.
   fuera_turno: v.optional(v.pipe(v.union([v.number(), v.string()]), v.transform(Number))),
   entregas: v.optional(v.array(EntregaAgendaRepartoSchema)),
+  origenes: v.optional(v.array(OrigenEntregasRepartoSchema)),
 })
 
 const DiaAgendaRepartoSchema = v.object({
   fecha: v.string(),
   asignaciones: v.array(AsignacionAgendaRepartoSchema),
+  origenes: v.optional(v.array(OrigenEntregasRepartoSchema)),
 })
 
 const AgendaRepartoDiariaSchema = v.object({
@@ -1325,25 +1531,42 @@ export interface FiltrosAgendaRepartoDiaria {
   dias?: number
 }
 
-export async function leadsPorRepartir(signal?: AbortSignal): Promise<ColaLead[]> {
-  let consulta = cliente().schema('crm').rpc('leads_por_repartir')
-  if (signal) consulta = consulta.abortSignal(signal)
-  const { data, error } = await consulta
-  // Un fetch ABORTADO (desmontaje, recarga, doble efecto de StrictMode) no es un
-  // fallo del servidor. Antes se propagaba como CrmApiError sin reportarlo, lo que
-  // dejaba la query en ERROR y podía pintar un aviso de degradación falso al volver
-  // a la pantalla; ahora usa la MISMA guarda que el resto de lecturas.
-  lanzarAbortSiCorresponde(signal)
-  if (error) {
-    const fallo = new CrmApiError('No se pudo cargar la cola de leads.', error.code || 'POSTGREST_ERROR')
-    registrarError('crm.reparto.cola_fallida', fallo)
-    throw fallo
-  }
+/** La planilla exige conteo exacto y páginas completas; la cola individual conserva su contrato legado. */
+export async function leadsPorRepartir(signal?: AbortSignal, completa = false): Promise<ColaLead[]> {
   const items: ColaLead[] = []
-  for (const cruda of data ?? []) {
-    const r = v.safeParse(ColaLeadSchema, cruda)
-    if (r.success) items.push(r.output)
-  }
+  const vistos = new Set<string>()
+  let total: number | null = null
+  do {
+    let consulta = completa
+      ? cliente().schema('crm').rpc('leads_por_repartir', undefined, { count: 'exact' })
+        .order('creado_en', { ascending: true }).order('id', { ascending: true }).range(items.length, items.length + 499)
+      : cliente().schema('crm').rpc('leads_por_repartir')
+    if (signal) consulta = consulta.abortSignal(signal)
+    const { data, error, count } = await consulta
+    lanzarAbortSiCorresponde(signal)
+    if (error) {
+      const fallo = new CrmApiError('No se pudo cargar la cola de leads.', error.code || 'POSTGREST_ERROR')
+      registrarError('crm.reparto.cola_fallida', fallo)
+      throw fallo
+    }
+    if (completa && (count === null || !Number.isSafeInteger(count) || count < 0 || (total !== null && count !== total) || (count > items.length && !data?.length))) {
+      throw new CrmApiError('La cola cambió o llegó incompleta. Actualiza antes de preparar el reparto.', 'COLA_INCOMPLETA')
+    }
+    total = count
+    for (const cruda of data ?? []) {
+      const r = v.safeParse(ColaLeadSchema, cruda)
+      if (completa && (!r.success || vistos.has(r.output.id) || !Number.isFinite(Date.parse(r.output.creado_en)))) {
+        throw new CrmApiError('La cola tiene una fila inválida o repetida. No se pueden calcular los disponibles.', 'COLA_INCOMPLETA')
+      }
+      if (r.success) {
+        const { campania_origen, ...cruda } = r.output
+        const fila = { ...cruda, origen: origenDeFila(cruda.origen, campania_origen) }
+        items.push(campania_origen === undefined ? fila : { ...fila, campania_origen })
+        vistos.add(fila.id)
+      }
+    }
+    if (completa && total !== null && items.length > total) throw new CrmApiError('La cola cambió durante la consulta. Actualiza.', 'COLA_INCOMPLETA')
+  } while (completa && total !== null && items.length < total)
   return items
 }
 
@@ -1402,7 +1625,7 @@ export async function agendaRepartoDiaria(
     throw fallo
   }
   const resultado = v.safeParse(AgendaRepartoDiariaSchema, data)
-  if (!resultado.success) {
+  if (!resultado.success || !resultado.output.dias.every(diaRepartoCoherente)) {
     const fallo = new CrmApiError('La agenda de reparto no tiene el formato esperado.', 'AGENDA_REPARTO_CONTRACT')
     registrarError('crm.reparto.agenda_fuera_de_contrato', fallo)
     throw fallo
@@ -4717,25 +4940,52 @@ const FacturacionDiaRowSchema = v.object({
   supervisor_nombre: v.string(),
   operaciones: NumericoRpc,
   capital: NumericoRpc,
+  capital_equivalente_pen: v.optional(NumericoRpc),
 })
 
 
 /** Facturación de UN mes comercial (`p_mes` = 'YYYY-MM-01'). */
 /** El array de filas, más cuántas vinieron ilegibles (para poder avisarlo). */
-export type FacturacionDelMes = FilaFacturacionDia[] & { descartadas: number }
+export type FacturacionDelMes = FilaFacturacionDia[] & {
+  descartadas: number
+  /** Solo el RPC tabular legado está sujeto a max_rows; V2 devuelve un único JSON. */
+  posibleRecorte?: true
+  capitalValoracion?: { activa: true; corteId: string | null; corte: string | null; cobertura: CoberturaCapital }
+  tipoCambioLegado?: { fecha: string; tasa: number }
+}
+
+const FacturacionV2Schema = v.variant('valoracion_activa', [
+  v.object({ version: v.literal(2), valoracion_activa: v.literal(false), filas: v.array(v.unknown()) }),
+  v.object({ version: v.literal(2), valoracion_activa: v.literal(true), filas: v.array(v.unknown()),
+    corte_id: v.nullable(v.string()), corte: v.nullable(v.string()), cobertura: CoberturaCapitalSchema }),
+])
 
 export async function listarFacturacionDiaria(
   mes: string,
   signal?: AbortSignal,
+  consolidarLegado = false,
 ): Promise<FacturacionDelMes> {
-  let consulta = cliente().schema('crm').rpc('facturacion_diaria_fn', { p_mes: mes })
+  let consulta = cliente().schema('crm').rpc('facturacion_diaria_v2_fn', { p_mes: mes })
   if (signal) consulta = consulta.abortSignal(signal)
-  const { data, error } = await consulta
+  let { data, error } = await consulta
+  if (error?.code === 'PGRST202') {
+    let anterior = cliente().schema('crm').rpc('facturacion_diaria_fn', { p_mes: mes })
+    if (signal) anterior = anterior.abortSignal(signal)
+    const legado = await anterior
+    data = legado.data
+    error = legado.error
+  }
   lanzarAbortSiCorresponde(signal)
   if (error) throw falloMetricas(error, 'crm.metricas.facturacion_diaria_fallido')
+  const respuesta = Array.isArray(data) ? null : v.safeParse(FacturacionV2Schema, data)
+  if (respuesta && !respuesta.success) throw new CrmApiError('Facturación devolvió una valoración inválida.', 'ROW_CONTRACT')
+  const versionada = respuesta?.success ? respuesta.output : null
+  const valoracion = versionada?.valoracion_activa ? {
+    activa: true as const, corteId: versionada.corte_id, corte: versionada.corte, cobertura: versionada.cobertura,
+  } : undefined
   const items: FilaFacturacionDia[] = []
   let descartadas = 0
-  for (const cruda of data ?? []) {
+  for (const cruda of versionada?.filas ?? (Array.isArray(data) ? data : [])) {
     const r = v.safeParse(FacturacionDiaRowSchema, cruda)
     // La moneda llega como texto libre del servidor; si no es una de las dos que
     // el CRM maneja, la fila no se pinta: sumarla a la columna equivocada sería
@@ -4752,6 +5002,8 @@ export async function listarFacturacionDiaria(
     // (Auditoría de Codex, 11/09/2026.)
     const operaciones = aNumero(r.output.operaciones)
     const capital = aNumero(r.output.capital)
+    const equivalente = r.output.capital_equivalente_pen !== undefined ? aNumero(r.output.capital_equivalente_pen) : null
+    if (valoracion && (equivalente === null || equivalente < 0)) throw new CrmApiError('Falta el equivalente aceptado de una fila.', 'ROW_CONTRACT')
     if (operaciones == null || capital == null || !/^\d{4}-\d{2}-\d{2}$/.test(r.output.dia)) {
       descartadas += 1
       continue
@@ -4766,16 +5018,44 @@ export async function listarFacturacionDiaria(
       supervisorNombre: r.output.supervisor_nombre,
       operaciones,
       capital,
+      ...(equivalente !== null ? { capitalEquivalentePen: equivalente } : {}),
     })
   }
   registrarFilasMetricasInvalidas('facturacion_diaria', descartadas)
   // Se DECLARA cuántas filas no se pudieron leer para que la pantalla pueda
   // avisar. Un total al que le faltan cifras sin decirlo es peor que un error.
-  return Object.assign(items, { descartadas })
+  if (valoracion && descartadas) throw new CrmApiError('El corte de Facturación contiene filas ilegibles.', 'ROW_CONTRACT')
+  // supabase/config.toml fija max_rows=1000. El sobre JSON V2 (incluso inactivo) no se recorta.
+  const completitud = !versionada && (Array.isArray(data) ? data.length : 0) >= 1000
+    ? { posibleRecorte: true as const } : {}
+  if (consolidarLegado && mes < '2026-10-01') {
+    const [anio, mesNumero] = mes.split('-').map(Number)
+    const ultimo = new Date(Date.UTC(anio!, mesNumero!, 0)).toISOString().slice(0, 10)
+    try {
+      const tasa = await consultarTipoCambioHistorico(ultimo)
+      lanzarAbortSiCorresponde(signal)
+      return Object.assign(items.map((fila) => ({ ...fila,
+        capitalEquivalentePen: fila.moneda === 'PEN' ? fila.capital : fila.capital * tasa.promedio,
+      })), { descartadas, ...completitud, tipoCambioLegado: { fecha: ultimo, tasa: tasa.promedio } })
+    } catch {
+      lanzarAbortSiCorresponde(signal)
+      // Las monedas originales siguen disponibles. Un total mixto queda
+      // incompleto hasta recuperar el corte histórico, sin tasa de emergencia.
+    }
+  }
+  return Object.assign(items, { descartadas, ...completitud, ...(valoracion ? { capitalValoracion: valoracion } : {}) })
 }
 
 /** Contrato versionado de la lista: se valida ENTERO, nunca se descartan operaciones. */
-export type ParametrosOperacionesFacturacion = Database['crm']['Functions']['listar_operaciones_facturacion_fn']['Args']
+export interface ContextoCortesFacturacion {
+  cortes?: Record<string, string> | undefined
+  tasasLegadas?: Record<string, { fecha: string; tasa: number }> | undefined
+}
+export type ParametrosOperacionesFacturacion = Database['crm']['Functions']['listar_operaciones_facturacion_v2_fn']['Args'] & {
+  p_cortes?: Record<string, string> | undefined
+  /** Solo presentación del régimen anterior; jamás se envía una tasa al servidor. */
+  tasasLegadas?: ContextoCortesFacturacion['tasasLegadas']
+}
 const NumeroListaFacturacion = v.pipe(v.number(), v.finite())
 const EnteroListaFacturacion = v.pipe(NumeroListaFacturacion, v.integer(), v.minValue(0))
 const TipoOperacionFacturacion = v.picklist(['contrato_nuevo', 'contrato_upgrade', 'contrato_renovacion', 'cooperativa'])
@@ -4789,29 +5069,61 @@ const BaseOperacionFacturacion = {
   analista_id: v.nullable(v.string()), analista_nombre: v.string(),
   supervisor_id: v.nullable(v.string()), supervisor_nombre: v.string(),
 }
-const OperacionFacturacionSchema = v.union([
-  v.strictObject({ ...BaseOperacionFacturacion, visible: v.literal(false), cliente_nombre: v.literal('Cliente de otro equipo') }),
-  v.strictObject({ ...BaseOperacionFacturacion, visible: v.literal(true), cliente_nombre: v.nullable(v.string()),
+function operacionesFacturacionSchema(valorada: boolean) {
+  const extra = valorada ? ValorOperacionFacturacionSchema : {}
+  return v.union([
+  v.strictObject({ ...BaseOperacionFacturacion, ...extra, visible: v.literal(false), cliente_nombre: v.literal('Cliente de otro equipo') }),
+  v.strictObject({ ...BaseOperacionFacturacion, ...extra, visible: v.literal(false), nombre_visible: v.literal(true), cliente_nombre: v.nullable(v.string()) }),
+  v.strictObject({ ...BaseOperacionFacturacion, ...extra, visible: v.literal(true), cliente_nombre: v.nullable(v.string()),
     estado: v.nullable(v.string()), tipo: v.literal('cooperativa'), cierre_externo_id: v.string(),
     cooperativa: v.nullable(v.string()), lead_id: v.nullable(v.string()) }),
-  v.strictObject({ ...BaseOperacionFacturacion, visible: v.literal(true), cliente_nombre: v.nullable(v.string()),
+  v.strictObject({ ...BaseOperacionFacturacion, ...extra, visible: v.literal(true), cliente_nombre: v.nullable(v.string()),
     estado: v.nullable(v.string()), tipo: v.picklist(['contrato_nuevo', 'contrato_upgrade', 'contrato_renovacion']),
     contrato_id: v.string(), numero_contrato: v.nullable(v.string()), cliente_id: v.nullable(v.string()) }),
-])
-const ListaOperacionesFacturacionSchema = v.strictObject({
-  version: v.literal(1), pagina: v.pipe(EnteroListaFacturacion, v.minValue(1)), tamano: v.picklist([25, 50, 100]),
+]) }
+const ValorOperacionFacturacionSchema = {
+  equivalente_pen: v.nullable(NumeroListaFacturacion),
+  tasa: v.nullable(v.pipe(NumeroListaFacturacion, v.minValue(Number.MIN_VALUE))),
+  fecha_comercial: v.nullable(v.pipe(v.string(), v.isoDate())),
+  fecha_tc: v.nullable(v.pipe(v.string(), v.isoDate())), politica_tc: v.nullable(v.string()),
+}
+const OperacionFacturacionSchema = operacionesFacturacionSchema(false)
+const OperacionValoradaFacturacionSchema = operacionesFacturacionSchema(true)
+const ListaFacturacionComun = {
+  pagina: v.pipe(EnteroListaFacturacion, v.minValue(1)), tamano: v.picklist([25, 50, 100]),
   total: EnteroListaFacturacion,
   totales: v.array(v.strictObject({ moneda: v.picklist(['PEN', 'USD']), operaciones: v.pipe(EnteroListaFacturacion, v.minValue(1)), monto: NumeroListaFacturacion })),
-  filas: v.array(OperacionFacturacionSchema),
-})
-export type OperacionFacturacion = v.InferOutput<typeof OperacionFacturacionSchema>
-export type ListaOperacionesFacturacion = v.InferOutput<typeof ListaOperacionesFacturacionSchema>
+}
+const ListaOperacionesFacturacionSchema = v.union([
+  v.strictObject({ ...ListaFacturacionComun, version: v.picklist([1, 2]), filas: v.array(OperacionFacturacionSchema) }),
+  v.strictObject({ ...ListaFacturacionComun, version: v.literal(3), filas: v.array(OperacionValoradaFacturacionSchema),
+    cortes: v.record(v.pipe(v.string(), v.regex(/^\d{4}-\d{2}-01$/)), v.pipe(v.string(), v.uuid())),
+    totales_por_mes: v.array(v.strictObject({ mes: v.pipe(v.string(), v.isoDate()), moneda: v.picklist(['PEN', 'USD']),
+      operaciones: v.pipe(EnteroListaFacturacion, v.minValue(1)), monto: NumeroListaFacturacion, equivalente_pen: v.nullable(NumeroListaFacturacion) })),
+  }),
+])
+export type OperacionFacturacion = v.InferOutput<typeof OperacionFacturacionSchema> & Partial<v.InferOutput<v.ObjectSchema<typeof ValorOperacionFacturacionSchema, undefined>>>
+type ListaFacturacionSalida = v.InferOutput<typeof ListaOperacionesFacturacionSchema>
+export type ListaOperacionesFacturacion = Omit<ListaFacturacionSalida, 'totales' | 'filas'> & {
+  totales: Array<{ moneda: 'PEN' | 'USD'; operaciones: number; monto: number; equivalente_pen?: number | null }>
+  filas: OperacionFacturacion[]
+  cortes?: Record<string, string>
+  totales_por_mes?: Array<{ mes: string; moneda: 'PEN' | 'USD'; operaciones: number; monto: number; equivalente_pen: number | null }>
+}
 
 export function parsearListaOperacionesFacturacion(datos: unknown): ListaOperacionesFacturacion {
   const resultado = v.safeParse(ListaOperacionesFacturacionSchema, datos)
   const fallo = () => new CrmApiError('La lista de operaciones llegó con un formato o una versión no compatible. Vuelve a intentarlo; no se muestran datos incompletos.', 'CONTRATO_FACTURACION')
   if (!resultado.success) throw fallo()
   const lista = resultado.output
+  if (lista.version === 1 && lista.filas.some((f) => 'nombre_visible' in f)) throw fallo()
+  if (lista.version === 3 && (new Set(lista.totales_por_mes.map((t) => `${t.mes}:${t.moneda}`)).size !== lista.totales_por_mes.length ||
+      lista.totales_por_mes.some((t) => !t.mes.endsWith('-01') || !lista.totales.some((r) => r.moneda === t.moneda)) ||
+      lista.totales.some((t) => {
+        const meses = lista.totales_por_mes.filter((m) => m.moneda === t.moneda)
+        return meses.reduce((s, m) => s + m.operaciones, 0) !== t.operaciones ||
+          Math.round(meses.reduce((s, m) => s + m.monto, 0) * 100) !== Math.round(t.monto * 100)
+      }))) throw fallo()
   const inicio = (lista.pagina - 1) * lista.tamano
   if (new Set(lista.totales.map((t) => t.moneda)).size !== lista.totales.length ||
       lista.totales.reduce((n, t) => n + t.operaciones, 0) !== lista.total ||
@@ -4826,16 +5138,53 @@ export function parsearListaOperacionesFacturacion(datos: unknown): ListaOperaci
 }
 
 export async function listarOperacionesFacturacion(params: ParametrosOperacionesFacturacion, signal?: AbortSignal): Promise<ListaOperacionesFacturacion> {
-  let consulta = cliente().schema('crm').rpc('listar_operaciones_facturacion_fn', params)
+  const { tasasLegadas, ...args } = params
+  let consulta = cliente().schema('crm').rpc(params.p_cortes ? 'listar_operaciones_facturacion_v3_fn' : 'listar_operaciones_facturacion_v2_fn', args)
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
   lanzarAbortSiCorresponde(signal)
   if (error) throw new CrmApiError(error.code === '22023'
-    ? 'No se puede abrir este número: elige un tramo de hasta 31 días y revisa los filtros y el tamaño de página.'
+    ? `No se puede abrir este número: elige un tramo de hasta ${params.p_cortes ? 366 : 31} días y revisa los filtros y el tamaño de página.`
     : 'No se pudo cargar la lista de operaciones. Vuelve a intentarlo.', error.code || 'POSTGREST_ERROR')
   const lista = parsearListaOperacionesFacturacion(data)
+  if (lista.version !== (params.p_cortes ? 3 : 2)) throw new CrmApiError('La lista de operaciones llegó con una versión no compatible. Vuelve a intentarlo.', 'CONTRATO_FACTURACION')
   if (lista.pagina !== (params.p_pagina ?? 1) || lista.tamano !== (params.p_tamano ?? 25)) {
     throw new CrmApiError('La página recibida no corresponde a la solicitada. Vuelve a intentarlo.', 'CONTRATO_FACTURACION')
+  }
+  if (params.p_cortes) {
+    if (!lista.cortes || Object.keys(params.p_cortes).length !== Object.keys(lista.cortes).length ||
+        Object.entries(params.p_cortes).some(([mes, id]) => lista.cortes?.[mes] !== id) ||
+        lista.filas.some((f) => f.fecha < params.p_desde || f.fecha > params.p_hasta) ||
+        lista.totales_por_mes?.some((t) => t.mes < `${params.p_desde.slice(0, 7)}-01` || t.mes > `${params.p_hasta.slice(0, 7)}-01`)) {
+      throw new CrmApiError('El detalle no corresponde a los cortes de la cifra. Actualiza la facturación.', 'CONTRATO_FACTURACION')
+    }
+    const equivalente = (mes: string, moneda: 'PEN' | 'USD', monto: number, guardado: number | null | undefined) => {
+      if (mes >= '2026-10-01') {
+        if (guardado == null) throw new CrmApiError('Falta la valoración guardada de una operación del corte.', 'CONTRATO_FACTURACION')
+        return guardado
+      }
+      if (moneda === 'PEN') return monto
+      const corte = tasasLegadas?.[mes]
+      const fin = new Date(Date.UTC(Number(mes.slice(0, 4)), Number(mes.slice(5, 7)), 0)).toISOString().slice(0, 10)
+      return corte?.fecha === fin && Number.isFinite(corte.tasa) && corte.tasa > 0 ? monto * corte.tasa : null
+    }
+    lista.filas = lista.filas.map((f) => {
+      const mes = `${f.fecha.slice(0, 7)}-01`
+      const legado = mes < '2026-10-01' ? tasasLegadas?.[mes] : undefined
+      const valor = equivalente(mes, f.moneda, f.monto, f.equivalente_pen)
+      return { ...f, equivalente_pen: valor,
+        ...(legado && valor !== null && f.moneda === 'USD' ? { tasa: legado.tasa, fecha_tc: legado.fecha } : {}) }
+    })
+    lista.totales_por_mes = lista.totales_por_mes!.map((t) => ({ ...t, equivalente_pen: equivalente(t.mes, t.moneda, t.monto, t.equivalente_pen) }))
+    lista.totales = lista.totales.map((t) => {
+      const meses = lista.totales_por_mes!.filter((m) => m.moneda === t.moneda)
+      return { ...t, equivalente_pen: meses.some((m) => m.equivalente_pen == null) ? null : meses.reduce((s, m) => s + m.equivalente_pen!, 0) }
+    })
+    if (lista.pagina === 1 && lista.filas.length === lista.total && lista.totales_por_mes.some((t) => {
+      const filas = lista.filas.filter((f) => `${f.fecha.slice(0, 7)}-01` === t.mes && f.moneda === t.moneda)
+      return filas.length !== t.operaciones || (t.equivalente_pen !== null &&
+        (filas.some((f) => f.equivalente_pen == null) || Math.abs(filas.reduce((s, f) => s + f.equivalente_pen!, 0) - t.equivalente_pen) >= 0.005))
+    })) throw new CrmApiError('Los equivalentes del detalle no concilian con su total.', 'CONTRATO_FACTURACION')
   }
   return lista
 }
@@ -7026,6 +7375,365 @@ export async function eliminarInversion(fuenteId: string, motivo: string): Promi
     conversionAnulada: respuesta.output.conversion_anulada,
     mesCerrado: respuesta.output.mes_cerrado,
   }
+}
+
+// ─── Reemplazar inversión (admin del portal; la venta de un lead, además gerencia — 17/10/2026) ───────────
+// Cambia una inversión de Avance cargada con error por la correcta EN UN SOLO PASO: la original se elimina con una
+// copia «reemplazada por N°…» y la venta del lead pasa a la que queda SIN anularse. Quién puede, si se puede (mes
+// cerrado, plazo vencido, cuotas pagadas, carga doble…) y en qué mes queda la venta lo decide el servidor; sus
+// mensajes ya llegan en español de negocio y se muestran tal cual.
+
+export interface InversionReemplazadaResultado {
+  /** El contrato que queda: el alta nueva o el que se conservó. */
+  contratoId: string
+  numeroContrato: string | null
+  modo: 'nueva' | 'existente'
+  /** El original ya se había reemplazado con estos mismos datos: se devolvió aquel resultado. */
+  idempotente: boolean
+  /** Mes en que quedó la venta del lead (si la había), según el servidor. */
+  periodoVenta: string | null
+}
+
+const REEMPLAZO_RECHAZOS: Record<string, string> = {
+  P0002: 'NO_ENCONTRADA', P0409: 'CONFLICTO', P0410: 'CONFLICTO', '55000': 'CONFLICTO',
+  '22023': 'REGLA_SERVIDOR', P0001: 'REGLA_SERVIDOR', '0A000': 'REGLA_SERVIDOR', '23505': 'REGLA_SERVIDOR',
+}
+
+/**
+ * Los RAISE de las puertas (42501, 22023, P0002, P0409, P0410, PT409, 55000) se muestran tal cual. Solo se reescribe
+ * lo que Postgres redacta en inglés (permiso del catálogo, bloqueos), y el corte de red, que no prueba que el
+ * reemplazo fallara.
+ */
+function aErrorReemplazarInversion(error: { code?: string | null; message?: string | null }, evento: string, accion: string): CrmApiError {
+  const pg = error.code ?? ''
+  const texto = error.message?.trim() ?? ''
+  let code = REEMPLAZO_RECHAZOS[pg] ?? 'POSTGREST_ERROR'
+  let mensaje = texto && pg in REEMPLAZO_RECHAZOS ? texto : `No se pudo ${accion}.`
+  if (pg === '') {
+    code = 'RESPUESTA_NO_RECIBIDA'
+    mensaje = accion === 'calcular el mes'
+      ? 'No llegó la respuesta del servidor. Comprueba tu conexión y vuelve a intentarlo.'
+      : 'No llegó la respuesta del servidor y el reemplazo pudo hacerse. Comprueba tu conexión y vuelve a abrir la ficha antes de reintentar.'
+  } else if (pg === '42501' || pg === 'PGRST301') {
+    code = 'SIN_PERMISO'
+    mensaje = pg === '42501' && texto && !texto.startsWith('permission denied')
+      ? texto : 'No tienes permiso para reemplazar esta inversión.'
+  } else if (pg === 'PT409' || pg === '55P03' || pg === '40001' || pg === '40P01') {
+    code = 'REINTENTAR'
+    mensaje = pg === 'PT409' && texto ? texto : 'Otra operación está usando esta inversión. Vuelve a intentarlo en unos segundos.'
+  }
+  const fallo = new CrmApiError(mensaje, code)
+  registrarError(evento, fallo, { pg })
+  return fallo
+}
+
+function exigirMotivoReemplazo(motivo: string): string {
+  const limpio = motivo.trim()
+  if (!motivoEliminacionValido(limpio)) {
+    throw new CrmApiError(
+      `Escribe el motivo del reemplazo (de ${MOTIVO_ELIMINACION_MIN} a ${MOTIVO_ELIMINACION_MAX} caracteres).`,
+      'INVERSION_MOTIVO_INVALIDO',
+    )
+  }
+  return limpio
+}
+
+function exigirUuidInversion(id: string, mensaje: string): void {
+  if (!v.safeParse(UuidSchema, id).success) throw new CrmApiError(mensaje, 'INVERSION_FUENTE_INVALIDA')
+}
+
+/**
+ * Lo común a los acuses del reemplazo (Avance y cooperativas). Si lo IMPRESCINDIBLE no viene, el servidor respondió 2xx
+ * y el reemplazo pudo hacerse: se dice así, nunca «error». Lo accesorio (`accesorio`, `conversion`) con otra forma se
+ * registra y se deja en blanco: tras un 2xx el reemplazo YA está hecho y la pantalla no puede decir «error».
+ */
+function leerAcuseReemplazo<T extends { fuente_id: string }>(esquema: v.GenericSchema<unknown, T>, data: unknown, fuenteId: string, evento: string) {
+  const r = v.safeParse(esquema, data)
+  if (!r.success || r.output.fuente_id.toLowerCase() !== fuenteId.toLowerCase()) {
+    const fallo = new CrmApiError(
+      'El servidor no confirmó el reemplazo con el formato esperado; pudo hacerse. Vuelve a abrir la ficha antes de reintentar.',
+      'INVERSION_REEMPLAZADA_CONTRACT',
+    )
+    registrarError(evento, fallo)
+    throw fallo
+  }
+  const crudo = data as Record<string, unknown>
+  const conversion = crudo.conversion && typeof crudo.conversion === 'object' && !Array.isArray(crudo.conversion)
+    ? crudo.conversion as Record<string, unknown> : null
+  if (crudo.conversion != null && conversion === null) {
+    registrarError(`${evento}.accesorio`, new CrmApiError('Acuse del reemplazo: «conversion» con otra forma.', 'INVERSION_REEMPLAZADA_ACCESORIO'))
+  }
+  const accesorio = <A,>(campo: string, esquemaCampo: v.GenericSchema<unknown, A>, valor: unknown, enBlanco: A): A => {
+    if (valor === undefined) return enBlanco
+    const a = v.safeParse(esquemaCampo, valor)
+    if (a.success) return a.output
+    registrarError(`${evento}.accesorio`, new CrmApiError(`Acuse del reemplazo: «${campo}» con otra forma.`, 'INVERSION_REEMPLAZADA_ACCESORIO'))
+    return enBlanco
+  }
+  return { r: r.output, crudo, conversion, accesorio }
+}
+
+function acuseReemplazo(data: unknown, fuenteId: string, evento: string): InversionReemplazadaResultado {
+  const { r, crudo, conversion, accesorio } = leerAcuseReemplazo(InversionReemplazadaSchema, data, fuenteId, evento)
+  return {
+    contratoId: r.contrato_id,
+    numeroContrato: accesorio('numero_contrato', AcuseReemplazoAccesorios.numero_contrato, crudo.numero_contrato, null),
+    modo: r.modo,
+    idempotente: accesorio('idempotente', AcuseReemplazoAccesorios.idempotente, crudo.idempotente, false),
+    periodoVenta: accesorio('conversion.periodo_despues', AcuseReemplazoAccesorios.periodo_despues, conversion?.periodo_despues, null),
+  }
+}
+
+/** En qué mes quedaría la venta (solo lectura): con la fecha de inicio de la correcta o la de la que se conserva. */
+export async function vistaPreviaReemplazo(
+  fuenteId: string,
+  opciones: { fechaInicio: string } | { conservarId: string },
+): Promise<VistaPreviaReemplazo> {
+  exigirUuidInversion(fuenteId, 'El identificador de la inversión no es válido.')
+  const conservar = 'conservarId' in opciones ? opciones.conservarId : null
+  if (conservar) exigirUuidInversion(conservar, 'El identificador de la inversión que se conserva no es válido.')
+  const fecha = 'fechaInicio' in opciones ? opciones.fechaInicio : null
+  if (!conservar && !(fecha && /^\d{4}-\d{2}-\d{2}$/.test(fecha))) {
+    throw new CrmApiError('Indica la fecha de inicio de la inversión correcta.', 'INVERSION_FECHA_INVALIDA')
+  }
+  const { data, error } = await cliente().schema('crm').rpc('reemplazar_inversion_vista_previa_fn', {
+    p_fuente_id: fuenteId,
+    ...(conservar ? { p_conservar_id: conservar } : { p_fecha_inicio: fecha as string }),
+  })
+  if (error) throw aErrorReemplazarInversion(error, 'crm.inversiones.reemplazo_previa_fallida', 'calcular el mes')
+  return leerVistaPrevia(VistaPreviaReemplazoSchema, data, fuenteId, 'crm.inversiones.reemplazo_previa_fuera_de_contrato')
+}
+
+/** Una vista previa (Avance o cooperativa) con otra forma, o de otra inversión, no se muestra como mes. */
+function leerVistaPrevia<T extends { fuente_id: string }>(esquema: v.GenericSchema<unknown, T>, data: unknown, fuenteId: string, evento: string): T {
+  const r = v.safeParse(esquema, data)
+  if (!r.success || r.output.fuente_id.toLowerCase() !== fuenteId.toLowerCase()) {
+    const fallo = new CrmApiError('El servidor no devolvió el mes de la venta. Vuelve a intentarlo.', 'VISTA_PREVIA_CONTRACT')
+    registrarError(evento, fallo)
+    throw fallo
+  }
+  return r.output
+}
+
+/**
+ * Reemplaza la inversión por la correcta (alta nueva por la puerta de siempre, mismo cliente y mismo analista: el
+ * servidor los fija). Viaja el MISMO contenido económico que el alta (`prepararPayloadContrato`).
+ */
+export async function reemplazarInversion(
+  fuenteId: string,
+  motivo: string,
+  input: CrearContratoInput,
+  cronograma: CuotaCronograma[],
+): Promise<InversionReemplazadaResultado> {
+  exigirUuidInversion(fuenteId, 'El identificador de la inversión no es válido.')
+  const limpio = exigirMotivoReemplazo(motivo)
+  const p_contrato = prepararPayloadContrato(input)
+  // El analista y el cliente los fija el servidor (los del original); la clave del alta no aplica: el reemplazo es
+  // idempotente por la inversión original.
+  delete p_contrato.analista_cierre_id
+  delete p_contrato.clave_idempotencia
+  const { data, error } = await cliente().schema('crm').rpc('reemplazar_inversion_fn', {
+    p_fuente_id: fuenteId,
+    p_motivo: limpio,
+    p_contrato: p_contrato as unknown as Json,
+    p_cronograma: cronograma as unknown as Json,
+    p_cuenta: input.cuenta_pago as unknown as Json,
+  })
+  if (error) throw aErrorReemplazarInversion(error, 'crm.inversiones.reemplazo_fallido', 'reemplazar la inversión')
+  return acuseReemplazo(data, fuenteId, 'crm.inversiones.reemplazo_fuera_de_contrato')
+}
+
+/** «Quedarme con la otra»: la venta pasa a la inversión del mismo cliente cargada dos veces, sin alta. */
+export async function reemplazarInversionPorExistente(
+  fuenteId: string,
+  conservarId: string,
+  motivo: string,
+): Promise<InversionReemplazadaResultado> {
+  exigirUuidInversion(fuenteId, 'El identificador de la inversión no es válido.')
+  exigirUuidInversion(conservarId, 'El identificador de la inversión que se conserva no es válido.')
+  const limpio = exigirMotivoReemplazo(motivo)
+  const { data, error } = await cliente().schema('crm').rpc('reemplazar_inversion_por_existente_fn', {
+    p_fuente_id: fuenteId,
+    p_conservar_id: conservarId,
+    p_motivo: limpio,
+  })
+  if (error) throw aErrorReemplazarInversion(error, 'crm.inversiones.reemplazo_fallido', 'reemplazar la inversión')
+  return acuseReemplazo(data, fuenteId, 'crm.inversiones.reemplazo_fuera_de_contrato')
+}
+
+// ─── Reemplazar inversión de COOPERATIVA (solo Gerencia: es la venta de un lead — Fase 4, 18/10/2026) ──────
+// En una cooperativa el reemplazo cambia SOLO la cooperativa, la fecha comercial (el mes de la venta) y el comprobante;
+// el resto lo copia el servidor de la original. Viajan SOLO las claves que cambian: la que no viaja, el servidor la toma
+// de la original. Los rechazos (mes cerrado, plazo vencido, movimientos, venta anulada…) llegan en español y se
+// muestran tal cual, como en Avance.
+
+export interface CambiosReemplazoCooperativa {
+  cooperativa?: Cooperativa | undefined
+  /** 'AAAA-MM-DD'. */
+  fechaComercial?: string | undefined
+  /** Ruta del comprobante NUEVO, ya subido a f4-comprobantes. Sin ella, la nueva conserva el de la original. */
+  comprobanteRuta?: string | undefined
+}
+
+export interface InversionCooperativaReemplazadaResultado {
+  /** El cierre que queda (la inversión nueva). */
+  cierreId: string
+  cooperativa: Cooperativa | null
+  fechaComercial: string | null
+  /** La original ya se había reemplazado con estos mismos datos: se devolvió aquel resultado. */
+  idempotente: boolean
+  /** Mes en que quedó la venta del lead (si la había), según el servidor. */
+  periodoVenta: string | null
+}
+
+const FECHA_REEMPLAZO_RE = /^\d{4}-\d{2}-\d{2}$/
+
+function exigirFechaComercial(fecha: string): void {
+  if (!FECHA_REEMPLAZO_RE.test(fecha)) {
+    throw new CrmApiError('Indica la fecha comercial de la inversión correcta.', 'INVERSION_FECHA_INVALIDA')
+  }
+}
+
+/** En qué mes quedaría la venta con esa fecha comercial y qué se negaría (solo lectura). */
+export async function vistaPreviaReemplazoCooperativa(fuenteId: string, fechaComercial?: string): Promise<VistaPreviaReemplazoCooperativa> {
+  exigirUuidInversion(fuenteId, 'El identificador de la inversión no es válido.')
+  if (fechaComercial !== undefined) exigirFechaComercial(fechaComercial)
+  const { data, error } = await cliente().schema('crm').rpc('reemplazar_inversion_cooperativa_vista_previa_fn', {
+    p_fuente_id: fuenteId,
+    ...(fechaComercial === undefined ? {} : { p_fecha_comercial: fechaComercial }),
+  })
+  if (error) throw aErrorReemplazarInversion(error, 'crm.inversiones.reemplazo_cooperativa_previa_fallida', 'calcular el mes')
+  return leerVistaPrevia(VistaPreviaReemplazoCooperativaSchema, data, fuenteId, 'crm.inversiones.reemplazo_cooperativa_previa_fuera_de_contrato')
+}
+
+/** Reemplaza la inversión de cooperativa por la correcta: la misma, con otra cooperativa, fecha comercial o comprobante. */
+export async function reemplazarInversionCooperativa(
+  fuenteId: string,
+  motivo: string,
+  cambios: CambiosReemplazoCooperativa,
+): Promise<InversionCooperativaReemplazadaResultado> {
+  exigirUuidInversion(fuenteId, 'El identificador de la inversión no es válido.')
+  const limpio = exigirMotivoReemplazo(motivo)
+  const p_cierre: Record<string, string> = {}
+  if (cambios.cooperativa !== undefined) {
+    if (!(COOPERATIVAS as readonly string[]).includes(cambios.cooperativa)) {
+      throw new CrmApiError('La cooperativa indicada no es válida.', 'INVERSION_COOPERATIVA_INVALIDA')
+    }
+    p_cierre.cooperativa = cambios.cooperativa
+  }
+  if (cambios.fechaComercial !== undefined) {
+    exigirFechaComercial(cambios.fechaComercial)
+    p_cierre.fecha_comercial = cambios.fechaComercial
+  }
+  if (cambios.comprobanteRuta !== undefined) {
+    const ruta = cambios.comprobanteRuta.trim()
+    if (!ruta) throw new CrmApiError('Sube el comprobante nuevo antes de confirmar.', 'INVERSION_COMPROBANTE_INVALIDO')
+    p_cierre.comprobante_ruta = ruta
+  }
+  if (Object.keys(p_cierre).length === 0) {
+    throw new CrmApiError('Nada que reemplazar: cambia la cooperativa, la fecha comercial o el comprobante.', 'INVERSION_SIN_CAMBIOS')
+  }
+  const { data, error } = await cliente().schema('crm').rpc('reemplazar_inversion_cooperativa_fn', {
+    p_fuente_id: fuenteId,
+    p_motivo: limpio,
+    p_cierre,
+  })
+  if (error) throw aErrorReemplazarInversion(error, 'crm.inversiones.reemplazo_cooperativa_fallido', 'reemplazar la inversión')
+  const { r, crudo, conversion, accesorio } = leerAcuseReemplazo(InversionCooperativaReemplazadaSchema, data, fuenteId,
+    'crm.inversiones.reemplazo_cooperativa_fuera_de_contrato')
+  return {
+    cierreId: r.cierre_id,
+    cooperativa: accesorio('cooperativa', AcuseReemplazoCooperativaAccesorios.cooperativa, crudo.cooperativa, null),
+    fechaComercial: accesorio('fecha_comercial', AcuseReemplazoCooperativaAccesorios.fecha_comercial, crudo.fecha_comercial, null),
+    idempotente: accesorio('idempotente', AcuseReemplazoAccesorios.idempotente, crudo.idempotente, false),
+    periodoVenta: accesorio('conversion.periodo_despues', AcuseReemplazoAccesorios.periodo_despues, conversion?.periodo_despues, null),
+  }
+}
+
+// ─── Eliminar lead por error de carga (gerencia o admin del portal, 14/10/2026) ──
+// crm.eliminar_lead_error_carga borra un lead cargado por error con sus tareas,
+// actividades e historial de asignación, y deja ANTES una copia inmutable con el
+// motivo y su autor. Quién puede y si ese lead se puede borrar (sin contrato ni
+// conversión, de hace 30 días o menos, fuera de un mes cerrado…) lo decide el
+// servidor; si no se puede, su mensaje trae TODAS las razones.
+
+export interface LeadEliminadoResultado {
+  copiaId: string
+  /** Filas copiadas y borradas, por tabla (las claves las pone el servidor). */
+  filas: Record<string, number>
+}
+
+/**
+ * Los RAISE de la puerta (42501, 22023, P0002, P0409, 55000) ya llegan en español
+ * de negocio: se muestran tal cual. Solo se reescribe lo que Postgres redacta en
+ * inglés (permiso del catálogo, bloqueos y conflictos de concurrencia) y el corte
+ * de red, que no prueba que la eliminación fallara.
+ */
+const RECHAZOS_ELIMINAR_LEAD: Record<string, string> = {
+  P0409: 'CONFLICTO', // «No se puede eliminar este lead: …razones…» (todas, en un mensaje)
+  '55000': 'CONFLICTO', // tablas nuevas enlazadas al lead o borrado incompleto: no se aplicó nada
+  '22023': 'REGLA_SERVIDOR', // motivo fuera de 10–500 caracteres o falta el lead
+  P0001: 'REGLA_SERVIDOR',
+}
+
+function aErrorEliminarLeadErrorCarga(error: { code?: string | null; message?: string | null }): CrmApiError {
+  const pg = error.code ?? ''
+  const texto = error.message?.trim() ?? ''
+  let code = 'POSTGREST_ERROR'
+  let mensaje = 'No se pudo eliminar el lead.'
+  if (pg === '') {
+    code = 'RESPUESTA_NO_RECIBIDA'
+    mensaje = 'No llegó la respuesta del servidor y el lead pudo eliminarse. Comprueba tu conexión y búscalo de nuevo antes de reintentar.'
+  } else if (pg === '42501' || pg === 'PGRST301') {
+    code = 'SIN_PERMISO'
+    // «permission denied for function …» es del catálogo (falta un GRANT), no un mensaje de la puerta.
+    mensaje = pg === '42501' && texto && !texto.startsWith('permission denied')
+      ? texto : 'No tienes permiso para eliminar este lead.'
+  } else if (pg === 'P0002') {
+    code = 'NO_ENCONTRADA'
+    mensaje = texto || 'El lead no existe o ya fue eliminado.'
+  } else if (Object.hasOwn(RECHAZOS_ELIMINAR_LEAD, pg)) {
+    code = RECHAZOS_ELIMINAR_LEAD[pg] ?? code
+    if (texto) mensaje = texto
+  } else if (pg === 'PT409' || pg === '55P03' || pg === '40001' || pg === '40P01') {
+    code = 'REINTENTAR'
+    mensaje = pg === 'PT409' && texto ? texto : 'Otra operación está usando este lead. Vuelve a intentarlo en unos segundos.'
+  }
+  const fallo = new CrmApiError(mensaje, code)
+  registrarError('crm.leads.eliminar_error_carga_fallido', fallo, { pg })
+  return fallo
+}
+
+/** Elimina un lead cargado por error, con su motivo (de 10 a 500 caracteres). */
+export async function eliminarLeadErrorCarga(leadId: string, motivo: string): Promise<LeadEliminadoResultado> {
+  if (!v.safeParse(UuidSchema, leadId).success) {
+    throw new CrmApiError('El identificador del lead no es válido.', 'LEAD_ELIMINAR_INVALIDO')
+  }
+  const limpio = motivo.trim()
+  if (!motivoEliminarLeadValido(limpio)) {
+    throw new CrmApiError(
+      `Escribe el motivo de la eliminación (de ${MOTIVO_ELIMINAR_LEAD_MIN} a ${MOTIVO_ELIMINAR_LEAD_MAX} caracteres).`,
+      'LEAD_ELIMINAR_MOTIVO_INVALIDO',
+    )
+  }
+
+  const { data, error } = await cliente().schema('crm').rpc('eliminar_lead_error_carga', {
+    p_lead_id: leadId,
+    p_motivo: limpio,
+  })
+  if (error) throw aErrorEliminarLeadErrorCarga(error)
+
+  const respuesta = v.safeParse(LeadEliminadoSchema, data)
+  if (!respuesta.success || respuesta.output.lead_id.toLowerCase() !== leadId.toLowerCase()) {
+    // El servidor respondió 2xx: el borrado pudo completarse aunque el acuse no sea el pactado.
+    const fallo = new CrmApiError(
+      'El servidor no confirmó la eliminación con el formato esperado; pudo completarse. Busca el lead de nuevo antes de reintentar.',
+      'LEAD_ELIMINADO_CONTRACT',
+    )
+    registrarError('crm.leads.eliminar_error_carga_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return { copiaId: respuesta.output.copia_id, filas: respuesta.output.filas }
 }
 
 /** Crédito temporal leído de la puerta autorizada, separado del estado de cierre. */

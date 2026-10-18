@@ -1,3 +1,832 @@
+## 20261018053228 — Reemplazar inversión, Fase 4: cooperativas (Prodelco y Qorilazo)
+
+**SERVIDOR EN PRODUCCIÓN 18/10/2026 ~01:50 (hora de Lima).** La aplicó Miguel con «!» y `db query --linked --file`: antes `foto-prod.sql` (0 orígenes confirmados activos sobre cierres iniciales; 78 ventas de cooperativa vigentes; las 7 funciones que leen `creado_en` de cierres solo eligen «el más reciente» para mostrar nombre o responsable), luego la migración, `registrar.sql` y `comprobar-tras-aplicar.sql` → `APTA` (bucket, funciones, permisos; 0 reemplazos hechos). Acta escrita a las 01:51 (`date`). **FRONT PUBLICADO 18/10/2026 02:30 (hora de Lima)** con `/release-crm` de Miguel: artefacto `crm-20261018T070707Z-f25942197d84` (build `build-20261018T070707022Z`, commit `f2594219` = `main` = `avancecorp/main`), construido con `npm ci` en un worktree limpio, `check` + `verify` + preflight OK sobre el vivo `f489296d`; subido con `_DEV_NO_SUBIR/deploy-hostinger-mcp.mjs deploy` (el MCP de Hostinger no conectaba: `@latest` reinstalaba en cada arranque y pasaba de los 30 s; quedó fijado a 3.1.0). Humo: home 200 e `index-Dot2R_EV.js` idéntico al del dist. ⚠️ Corrección del acta anterior: `gen:types` NO llegó a ejecutarse (dejó un `.tmp` vacío); los tipos de `database.types.ts` se escribieron a mano y compilan; queda regenerarlos y comparar. Revisada por Codex y auditor-rls, hallazgos cerrados. Decisiones de Miguel del 18/10: alcance SOLO lo que «Corregir» no corrige (la cooperativa, la fecha comercial y el comprobante); el comprobante se reutiliza salvo que suban otro; rechazos los de Avance más «ya tiene movimientos»; sin «quedarme con la otra»; solo la inversión INICIAL (un aporte adicional se corrige o se elimina). **Quién: SOLO Gerencia** (auditor-rls P1: toda inversión reemplazable es la venta inicial de un lead, y la venta de un lead la toca solo Gerencia en «Eliminar inversión» y en «Reemplazar» de Avance; la decisión original «Gerencia o admin del portal» partía de la premisa errada «los mismos que hoy eliminan»). Plan: vault «Reemplazar inversion - plan por fases (2026-10-17)».
+
+Qué hace (espejo de la Fase 1 de Avance, 20261017162053, sobre `crm.cierres_externos`):
+- `private.registrar_inversion_reemplazada_cooperativa`: copia de la original en `crm.inversiones_eliminadas` (es_conversion según el contexto, `conversion_anulada` FALSE, `reemplazada_por` = la nueva) y borrado con la misma válvula de un solo uso de «Eliminar inversión», sin exigir la anulación. Espejo de `private.eliminar_inversion_cooperativa`.
+- `private.reemplazar_inversion_cooperativa` (núcleo INVOKER): candado global, contexto y candados de «Eliminar inversión», validaciones (Gerencia; solo cooperativas; movimientos; venta anulada; solo la inicial; origen de capital confirmado → revisión; venta acreditada a otra; cooperativa activa y moneda admitida; fecha no futura; comprobante EXACTAMENTE en `<persona canónica>/reemplazo-<esta inversión>/<archivo>`, válido y que no respalde ya otra inversión; algo tiene que cambiar), try-lock de los meses, sellos, detector del mes de la venta, plazo de carga; copia + borrado; alta de la nueva fila con el id ya decidido (todo igual salvo cooperativa, fecha comercial, comprobante y el vencimiento recalculado con la misma convención), depósito reclamado, `crm.inversiones` por `private.inversion_vincular_fuente`, cotitulares, evento «registro»; la venta pasa con `private.conversion_acreditar_fuente` e INVARIANTE (misma acreditación, estado, episodio, analista, persona, origen; el mes de la fecha que queda). Idempotente por la original; un reintento con otros datos se niega.
+- Puertas `crm.reemplazar_inversion_cooperativa_fn(p_fuente_id, p_motivo, p_cierre)` (`p_cierre = {cooperativa?, fecha_comercial?, comprobante_ruta?}`) y `crm.reemplazar_inversion_cooperativa_vista_previa_fn(p_fuente_id, p_fecha_comercial?)` (solo lectura: mes resultante y qué se negaría).
+- **Bucket `f4-comprobantes`:** el comprobante nuevo va a `<persona canónica>/reemplazo-<cierre>/<archivo>`. Se parchan por ancla, con huella antes y después, `private.f4_comprobante_autorizado` (7cdb9ea7… → cdecad21…; una línea que delega en la regla nueva `private.f4_comprobante_reemplazo_autorizado`: Gerencia, inversión inicial vigente de ESA persona; sin EXECUTE para la API, la llama el ayudante DEFINER) y `private.f4_comprobante_visible` (45fb7ff2… → 32739f4a…; la ruta de un reemplazo que ya respalda una inversión se ve como la ficha —gerencia o el responsable de la relación visible— y la del comprobante de una inversión ya reemplazada, en su copia, la ve Gerencia: Codex P2). No toca `storage.objects` ni sus políticas (ya llamaban a estas funciones). Deuda conocida: un comprobante subido y no confirmado queda huérfano en el bucket sin que nadie lo vea ni lo borre (auditor-rls P3).
+
+Kit en `supabase/scripts/reemplazar-inversion-cooperativa/`: `probar.sh` (banco Docker `reemplazo-inv-db`, una transacción con ROLLBACK; siembra propia de 5 ventas de cooperativa + aporte adicional + anulada) → **PASS 12 bloques** el 18/10/2026 (catálogo, vista previa, 32 rechazos —incluidos membresía revocada, origen confirmado, comprobante de otra carpeta/otra inversión/otro mimetype/ya usado—, venta acreditada a otra, red del invariante, cambio de fecha con capital, idempotencia y cadena, cambio de cooperativa por Gerencia sin portal, comprobante nuevo con las dos políticas del bucket y la copia tras un segundo reemplazo, cotitulares, identidad fusionada); `mutantes.py` → **44/44 muertos** (las defensas dobles o triples —puerta/núcleo/copia, puerta/núcleo/regla del bucket— se apagan juntas); `reversa.sql` (ensayada: retira las cinco funciones y devuelve la política de subida a su huella; la visibilidad SOLO vuelve si ningún comprobante de reemplazo quedó adoptado, si no se conserva y avisa —Codex P1—; las copias quedan como historia); `comprobar-tras-aplicar.sql`; `registrar.sql` (generado); `produccion/` (los cuerpos vivos de los dos ayudantes). Gate `test-rls.mjs`: bloque «Reemplazar inversión · cooperativas». Hechos del banco: `storage.objects` llega sin grants ni políticas (la batería concede UPDATE a postgres dentro de la transacción; en producción lo tiene: el alta hace `for key share`); las políticas reales de Storage y la concurrencia con dos conexiones NO se probaron (huecos declarados por Codex y auditor-rls). No hubo escenario íntegro en que la llamada explícita a `conversion_acreditar_fuente` haga falta (el trigger del alta siempre mueve la venta): queda como red idempotente.
+
+Tras aplicar: `registrar.sql`, `comprobar-tras-aplicar.sql` → `APTA`, `npm run gen:types`, y el front con `/release-crm` (la pantalla llama a las dos puertas y sube el comprobante a la ruta nueva).
+
+## 20261018032400 — Recuperar cinco ventas perdidas al borrar y recargar el contrato
+
+**EN PRODUCCIÓN 17/10/2026 (noche, hora de Lima).** La aplicó Miguel con «!» y `db query --linked --file` (v3): antes, `foto-tope-referidos.sql` (Astrid 0,15 → 0,30 y Nayra 0,30 → 0,45: «OK: el postflight pasa») y `foto-casos.sql` (los cinco como se midieron); después, `registrar.sql` y `comprobar-tras-aplicar.sql` → `APTA` (huellas, tabla, ventas recuperadas, otras anulaciones siguen). Acta escrita a las 23:53 (`date`); la hora exacta de aplicación es el `creado_en` de las cinco filas de `crm.conversion_ventas_recuperadas`. Codex dio CHANGES_REQUESTED sobre la v2 y la v3 cerró su P1. Decisión de Miguel (17/10/2026): «esas ventas precisas hay que arreglar» y «ármalo con los cinco». Excepción autorizada, por fila exacta, a «una anulación es de un solo sentido» (20260813235119): la anulación no se borra, queda rehabilitada.
+
+En las cinco, la acreditación apuntaba a un contrato BORRADO que se había vuelto a cargar: la métrica la descartaba como «fuente retirada». Dos de ellas además quedaron ANULADAS al borrar con «Eliminar inversión». Los casos:
+- Julio César Núñez (Astrid), octubre.
+- Nancy Atuncar (Nayra), octubre: su fecha comercial vuelve al 01/10.
+- María Aurora Ccance (Jurado), octubre: estaba anulada.
+- Victor Arango (Adelayda), octubre: estaba anulada. Gerencia lo pasó a «nuevo» con «Corregir categoría» el 17/10 (el preflight lo exige).
+- José Pedro Mejía (Linda), SEPTIEMBRE: su fecha comercial vuelve al 30/09; pasado a «nuevo» el 17/10.
+
+Qué hace:
+- Tabla `crm.conversion_ventas_recuperadas`: UNA fila por venta, solo inserción (UPDATE/DELETE/TRUNCATE → P0409), RLS sin políticas y sin grants para la API, auditada, con el respaldo de cómo estaba todo. Trigger BEFORE INSERT `private.validar_venta_recuperada`: la acreditación, la anulación y la copia son DE ESE lead y de ese contrato (23514).
+- CUATRO funciones parchadas por ancla, con huella antes y después: `private.cierre_anulado` (2 anclas; df71c2b1… → 878d19ff…), `crm.cierres_estado_fn` (el chip «CIERRE ANULADO»; f543c809… → 965b778f…), `crm.altas_nuevas_por_analista_fn` (el informe «Altas nuevas»; b421dfb1… → 7136e6ea…) y `crm.anular_cierre_avance` (una venta rehabilitada no se vuelve a anular: P0409 «Esta venta se anuló y después se recuperó…»; 03b67308… → 96251241…). La excepción es por id de fila: otra copia anulada del mismo lead, una anulación futura o el canal de cooperativa siguen contando.
+- Preflight con candados: global de periodos + SHARE sobre `periodos_cerrados`, `capital_mes_sellos`, `leads` y `lead_asignaciones` (las dos fotos de la conversión son comparables) + try-lock de 2026-09 y 2026-10 en orden + FOR UPDATE NOWAIT de lead, acreditación (por id y lead) y contrato vivo; exige cada dato medido (etapa, perfil, enlace, estado, analista, periodo, sin sello, contrato activo «nuevo» del mismo cliente con el capital y moneda medidos, anulación exacta, plazo de carga vigente, fecha final en el mes).
+- Por caso: corrige la fecha comercial si hace falta (válvula de `crm.corregir_fecha_cierre_comercial`, fuente `correccion_manual`, pasa la fecha a `crm.inversiones` y revaloriza el capital), registra la fila, re-acredita con `private.conversion_acreditar_fuente`, re-enlaza el lead (válvula `crm.op_privilegiada`) y deja una nota en `crm.actividades` (metadata `accion = recuperacion_venta`). INVARIANTE: misma acreditación, episodio, analista, persona y origen; «acreditada»; el mes esperado; ya no anulada.
+- Postflight: huellas y metadatos de las 4 funciones; tabla y funciones de trigger cerradas a la API; 5 filas; cada uno de los cinco tiene EXACTAMENTE un cierre válido en su mes; la conversión de sep y oct es IGUAL para todos los demás leads y operaciones; nada entra a F7, vigencia ni censo analítico. **Referidos** (casos 1 y 2; P1 de Codex): desde octubre un referido pesa 1 y el tope es 15 %, y `private.conversion_episodios` reparte n × 15 % entre los n referidos del analista en orden de fecha, así que recuperar uno mueve el aporte individual de los otros (y el suyo puede quedar en 0). El postflight compara la SUMA de referidos del analista y mes (sube exactamente una cuota por recuperado) y deja fuera su aporte individual; antes de aplicar, `foto-tope-referidos.sql` proyecta el reparto real.
+
+Toca `public.contratos` (fecha comercial de 2 contratos) con OK explícito de Miguel del 17/10 (fila en el registro de excepciones a `public`). El capital de esos dos contratos cambia de mes: 10 000 PEN de sep a oct y 353 000 PEN de oct a sep. Las dos rehabilitadas ya no se pueden anular ni eliminar con «Eliminar inversión» (mensaje claro; si su inversión cambia, «Reemplazar inversión»). Aplicar como postgres SIN sesión de usuario (`db query --linked --file`): la nota en `crm.actividades` depende de que `auth.uid()` sea nulo (trigger de atribución). Tras aplicar: `registrar.sql`, `comprobar-tras-aplicar.sql` → `APTA`, y `npm run gen:types`.
+
+Kit en `supabase/scripts/recuperar-ventas-recargadas/`: `probar.sh` (banco Docker `reemplazo-inv-db`, una transacción con ROLLBACK) → **PASS 58 bloques** el 18/10/2026 (siembra de los 5 casos con las puertas reales, A y B referidos, E con 353 000 PEN + controles F, que sigue anulado, y G, otro referido del mismo analista; 34 rechazos del preflight; 2 aplicaciones; 13 inyecciones que el postflight detecta; D1–D9, con la reversa ensayada en D9); `mutantes.py` → **50/50 muertos** (cada uno dice qué aserción lo mata; los de las funciones parchadas con las huellas recalculadas: los mata D6); `reversa.sql` (deja las cuatro huellas anteriores; 3 y 4 vuelven a contar como anuladas; 1, 2 y 5 siguen contando y las fechas no vuelven solas: están en el respaldo); `comprobar-tras-aplicar.sql`; `registrar.sql` (generado); `foto-casos.sql`, `foto-huellas.sql`, `foto-sellos-plazos.sql`, `foto-tope-referidos.sql` (solo lectura, prod). E vuelve a septiembre, antes de la política de valoración del capital (01/10): conserva su valoración histórica en PEN y el capital del mes se mueve igual. Gate `test-rls.mjs`: bloque «Recuperar ventas recargadas» (catálogo, roles y Data API; se salta si la migración no está en la base). Desde aquí, las comprobaciones de eliminar-inversion y reemplazar-inversion que fijan la huella vieja de `cierre_anulado` (df71c2b1…) dan deriva a propósito; también `eliminar-inversion/reversa.sql` se negará a correr.
+
+## 20261017211313 — Reemplazar inversión: vista previa del mes de la venta
+
+**EN PRODUCCIÓN 17/10/2026.** La aplicó Miguel con «!» y `db query --linked --file`: migración 20:12:26, `registrar.sql` 20:12:40 y `comprobar-tras-aplicar.sql` 20:14:28 → `APTA` (hora de Lima, según el registro de la sesión). Va después de 20261017162053 (su preflight lo exige).
+Para la pantalla de la Fase 2: `crm.reemplazar_inversion_vista_previa_fn` (solo lectura,
+DEFINER, VOLATILE por POST, las puertas comunes del reemplazo) dice en qué mes queda la
+venta y si el contrato tiene cuotas pagadas (el reemplazo se negaría; en producción, 294 de
+514 inversiones «nuevo» vigentes) ANTES de confirmar. Las reglas salen del núcleo a tres
+ayudantes (`private.reemplazo_dia_registro_venta`, `private.reemplazo_fecha_comercial`,
+`private.contrato_tiene_cuotas_pagadas`) y el núcleo los usa (3 cambios por ancla, 541ce30f…
+→ b6af7422…): una sola regla para la vista previa y el reemplazo (decisión de Miguel 17/10).
+Verificación (banco Docker): batería de la Fase 1 45/45 con el núcleo nuevo; vista previa
+12/12 con paridad (mismo mes, mudanza, día de la venta, cadena, «quedarme con la otra»,
+fecha corregida, cuotas pagadas); no escribe; 16/16 mutantes; reversa probada (vuelve a la
+Fase 1 en APTA); test-rls entero: los mismos 15 fallos ajenos, bloque 25/25; auditor-rls PASS
+(sus P3 aplicados). Kit en `supabase/scripts/reemplazar-inversion-vista-previa/`.
+
+## 20261017162053 — Reemplazar inversión sin perder la venta
+
+**EN PRODUCCIÓN 17/10/2026.** La aplicó Miguel con «!» y `db query --linked --file`: migración 20:08:38, `registrar.sql` 20:08:58 y `comprobar-tras-aplicar.sql` 20:11:58 → `APTA` (hora de Lima, según el registro de la sesión). Desde 20261017211313 su comprobación da NO APTA en «huellas» a propósito: el núcleo cambió y vale la de esa migración.
+Corrige un error de carga de una inversión de Avance sin anular la venta del lead:
+en una sola transacción elimina la original con copia «reemplazada por N°…»
+(`crm.inversiones_eliminadas.reemplazada_por`, sin anular), da de alta la correcta
+por la puerta de siempre (`crm.reemplazar_inversion_fn`) o conserva la cargada dos
+veces (`crm.reemplazar_inversion_por_existente_fn`), vuelve a enlazar el lead y
+mueve la acreditación con su único escritor. La conversión y el capital del mes
+quedan iguales; si cambiarían, falla entero. Núcleo `private.reemplazar_inversion_avance`
+(INVOKER) y copia `private.registrar_inversion_reemplazada_avance`. Cambia por
+anclas `private.trg_contratos_observar_rentabilidad` (9a0c0411… → 1606e0a6…): la
+tasa aprobada se hereda solo si en la misma transacción hay copia del reemplazo
+con la misma tasa (y en enforcement, los mismos datos). No toca objetos de `public`.
+
+Decisiones de Miguel: Avance la reemplaza un admin del portal; si es la venta de
+un lead, además Gerencia. Cambia todo menos el cliente; mismo analista; mes
+sellado o plazo de carga vencido → no deja; otra fecha mueve la venta solo a un
+mes abierto, con el día de registro de la venta (también tras varios reemplazos).
+Rechaza: cuotas pagadas, upgrade/renovación, demo, dos convertidos, otro cliente,
+duplicado que no es igual (datos o cotitulares), venta con el lead enlazado a otra
+inversión. Pasa origen de capital confirmado y cotitulares.
+
+Verificación (banco Docker con esquema de producción, worktree propio): batería
+45 bloques PASS; 43/43 mutantes muertos; 5/5 carreras PASS (E4: un pago en curso
+se respeta; E5: la reversa a la vez que un reemplazo conserva su copia); regresión «Eliminar
+inversión» 24 y «Eliminar lead» 100/0 PASS; test-rls en stack propio: los mismos 15
+fallos ajenos antes y después, bloque nuevo 17/17; reversa ejecutada en el banco
+(observador vuelve a 9a0c0411… con dueño, configuración y ACL). Revisiones: Codex r1
+(6 hallazgos) y r2 (1 P1 + 2 P2: cadena A → B → C que saltaba el candado de tasa,
+cotitulares en «quedarme con la otra», reintento con origen confirmado), todos
+reproducidos en el banco y corregidos; auditor-rls sobre el delta r2 sin P0/P1 (su P2,
+orden de cotitulares, corregido); Codex r3 cerró los de r2 y abrió 1 P1 en la reversa
+(decidía con una foto vieja) + 1 P2 de mutante, corregidos y reproducidos; Codex r4
+PASS (todo cerrado); revisión consolidada final de Codex sobre todo el kit: PASS, ningún
+P0/P1 abierto; concurrencia, seguridad y negocio sin P0/P1 abiertos. Kit en `supabase/scripts/reemplazar-inversion/` (LEEME, reversa, registrar,
+comprobar, carreras).
+Plan: vault «Reemplazar inversion - plan por fases (2026-10-17)».
+
+## 20261017054427 — SLA por filas · M3: la cola del día pagina sobre filas (v2)
+
+**EN PRODUCCIÓN 17/10/2026** (Miguel con «!»; M1 16:50, M2 16:52, M3 16:54, registro 16:58, hora de Lima; `db query --linked --file`, `verificar.sql` antes y después de cada una). Acta: `scripts/sla-por-filas/evidencia/13-acta-produccion-20261017.md`. v2 del 17/10, con las revisiones de Codex, auditor-rls y el verificador independiente. Ensayada en el
+banco Docker (esquema de producción):
+- aplica;
+- se niega a una segunda vez, fuera de orden, con su versión ya en el índice, con el productor cambiado y con un guardián en rojo;
+- revierte con registro y se reaplica con versiones nuevas.
+
+Requiere `20261017054426`.
+
+`crm.cola_accion_v3_fn(...)` filtra, cuenta, ordena y pagina sobre `private.sla_operacion_autorizada_filas(null::uuid[])`:
+- la firma va tipada;
+- la identidad es por fila;
+- el núcleo se evalúa una vez;
+- arma jsonb solo para la página.
+
+El resultado es el mismo byte a byte, incluido el orden de los empates de «pendiente sin acción»: en ese caso la página sale del
+algoritmo anterior.
+
+`private.assert_cola_v3()`:
+- depende de `_filas`;
+- la puerta tiene una lista permitida de piezas privadas;
+- re-sello de la puerta (`6096aa636688f01677327c5504ffaa8b`);
+- `quote_all_identifiers` fijado.
+
+Cola `1ec76074…` → `6096aa63…`. Familia SLA `64 · f9ea9038…`. SHA-256 `94f695cbcfcb70b8259a69500279a586eae6eee6135978ca9ddb0e89fdd372cf`.
+
+Evidencia, cifras y reversa: [kit](../scripts/sla-por-filas/LEEME.md).
+
+## 20261017054426 — SLA por filas · M2: el resumen de avisos cuenta sobre filas (v2)
+
+**EN PRODUCCIÓN 17/10/2026** (Miguel con «!»; M1 16:50, M2 16:52, M3 16:54, registro 16:58, hora de Lima; `db query --linked --file`, `verificar.sql` antes y después de cada una). Acta: `scripts/sla-por-filas/evidencia/13-acta-produccion-20261017.md`. Requiere `20261017054425`.
+
+`crm.avisos_sla_resumen_v2_fn()` cuenta sobre `private.sla_operacion_autorizada_filas(private.sla_leads_operativos())`. El
+resultado es el mismo byte a byte, con `COMMENT ON` nuevo.
+
+`private.assert_sla_avisos()`:
+- el resumen consume `_filas`, siempre acotada por el ayudante;
+- el resumen tiene una lista permitida de piezas privadas;
+- sello md5 del resumen;
+- `quote_all_identifiers` fijado.
+
+Exige también el productor ensayado (Codex P2).
+
+Resumen `e9ce617a…` → `82a7cabd…`. Familia SLA `64 · 5e4e27c4…`. SHA-256 `468624e2631271bcbbf1e8f2937dbf816d3b6b2a30964b702c29f1134dc8191f`.
+
+## 20261017054425 — SLA por filas · M1: ventana operativa por filas y autoridad única (v2)
+
+**EN PRODUCCIÓN 17/10/2026** (Miguel con «!»; M1 16:50, M2 16:52, M3 16:54, registro 16:58, hora de Lima; `db query --linked --file`, `verificar.sql` antes y después de cada una). Acta: `scripts/sla-por-filas/evidencia/13-acta-produccion-20261017.md`. Plan «foto del SLA», Fase 3, paso 3a. Miguel autorizó el 16/10/2026 a las 23:55 tocar los 3
+guardianes del SLA (excepción a su decisión 4); el aviso a C2 está dejado.
+
+**Piezas nuevas,** las dos sin EXECUTE para nadie de la API y con `COMMENT ON`:
+- `private.sla_operacion_ambito(uuid[],boolean)`: la autorización de siempre, en un solo sitio para los dos modos. INVOKER.
+- `private.sla_operacion_autorizada_filas(uuid[])`: una fila por lead, más una fila de cabecera que existe siempre. DEFINER.
+
+**Envoltorio.** `private.sla_operacion_autorizada` queda como envoltorio del mismo jsonb, byte a byte:
+- con `false` o `NULL` conserva la salida temprana;
+- con `true` arma el objeto final en un solo `jsonb_build_object`, y la memoria de sus consumidores no sube.
+
+**`assert_sla_nucleo`:**
+- cadena autorizada → {ámbito, `_filas`} → núcleo;
+- exige que existan las firmas obligatorias y prohíbe sobrecargas;
+- `auth.` solo en el ámbito, sin distinguir mayúsculas;
+- dueño postgres;
+- sellos md5 del ámbito, `_filas` y el envoltorio;
+- `quote_all_identifiers` fijado.
+
+**`assert_sla_avisos`:** cambia la cadena.
+
+**Historial.** Las tres migraciones se niegan si su versión ya está en `supabase_migrations.schema_migrations`. Una reaplicación
+tras reversas registradas va con versiones nuevas.
+
+**Huellas:**
+- autorizada (prosrc): `a5fd870b…` → `7d8c8793…`;
+- familia SLA: `62 · 1adaf6c5…` → `64 · 1a632cfd…`;
+- censo analítico `45 · ff12620b…`, igual antes y después;
+- SHA-256: `e9c491d6c1167b8e88bf7ee13771ef729bf1b3b20c0f5cf4ff8c4a98034d1a28`.
+
+**Evidencia:**
+- equivalencia byte a byte con la serie aplicada, también con los consumidores del envoltorio y el arnés del verificador;
+- mutantes del escritor, del verificador y de las revisiones, todos detectados;
+- memoria y temporales: en el kit.
+
+**Alcance.** No toca public, tablas, policies, datos, pantallas ni la ACL de las puertas. No requiere regenerar tipos.
+
+**Gates:**
+- `npm run test:rls:preflight` y `npm run check:scripts`: PASS en local.
+- `test:rls` completo, ANTES y DESPUÉS de M1 → M2 → M3, en un stack local propio con el volcado de producción del 17/10:
+  PASS. Da los mismos 15 fallos ajenos en las dos corridas y ninguno es del SLA. `testSlaPorFilas` da 28/28 ANTES y 36/36
+  DESPUÉS, con `CRM_RLS_EXIGE_SLA_FILAS=1`. El bloque D recorre la cola entera y exige conjuntos no vacíos.
+  Evidencia: `scripts/foto-sla/fase3/gate-rls-3a/INFORME.md`.
+- Carga concurrente ABABAB, pool de 40: veredicto del arnés **NO PASA** en «producción» y «peor», solo por el p95 de ejecución
+  de `estado`:
+  - el pico de memoria baja de 1,56 a 1,12 GiB y de 2,24 a 1,78 GiB;
+  - avisos y cola bajan de −24 % a −28 %;
+  - de punta a punta, `estado` cambia +3,3 % y +9,8 %;
+  - el 2×2 de la sonda: abajo.
+
+  Evidencia: `scripts/foto-sla/fase3/carga-3a/INFORME.md`.
+- Codex (cierre y verificación): sin fugas ni diferencias de resultado. Lo que pidió sobre el registro del historial está en el kit
+  v4: las reversas se registran solas en su transacción, con orden global y NULL (`sla-por-filas/evidencia/11-kit-v4.md`).
+- Las 239 cadenas del verificador hasta el final: 5.733 páginas, 0 diferencias.
+
+- 2×2 de `estado` con sonda dedicada: la misma CPU por llamada (~3,3 ms; +0,08 ms, IC [−0,27, +0,43]). Con Gestión Diaria
+  en la mezcla: memoria 2,19 → 1,81 GiB; Gestión Diaria ≈ +5 MiB de temporales por llamada (+10 MiB gerencia) hasta la Fase 4.
+
+**Decisión de Miguel (17/10, 16:45):** acepta la excepción de latencia de `estado`. El arnés da NO PASA, pero la CPU es la misma.
+
+**Tras aplicar:**
+- advisors sin alertas nuevas: las piezas privadas no aparecen y las puertas siguen con la misma ACL;
+- 0 errores de Postgres;
+- las RPC del SLA y de Gestión Diaria responden 200.
+
+Aplicación, registro, «commit hecho, registro pendiente» y reversas registradas (M3 → M2 → M1, como migraciones nuevas):
+[kit](../scripts/sla-por-filas/LEEME.md).
+
+## 20261017043000 — Citas por fecha comercial
+
+**EN PRODUCCIÓN — 17/10/2026 06:46 UTC**, por merge nativo desde rama aislada
+tras gates SQL/Auth/Advisors. Frontend `bc3c4303`, build
+`build-20261017T064501541Z`; conciliación real Sep/Oct, HTTP/bytes y UI PASS.
+Acta: `docs/plans/citas-fecha-comercial/PUBLICACION.md`.
+Añade `fecha_comercial` canónica a conversiones de consulta y gestión,
+`criterio_depositos=fecha_comercial` y `testigo.comercial` independiente.
+Conserva los campos anteriores y la raíz del testigo para clientes publicados.
+Aplica también al lector de capital por corte si ya está instalado. No altera
+contratos, leads, acreditaciones, capital, permisos ni sellos monetarios.
+El servidor y el frontend cuentan ventas por mes comercial; entrevistas
+mantienen su configuración y se asocian por día de Lima, incluido el mismo día.
+
+Ensayo: payload anterior exacto al retirar las claves nuevas, matriz local de
+roles, conciliación completa Sep/Oct, RPC→esquema→cálculo, reversa transaccional
+y compatibilidad con la candidata de valoración por operación. El censo general
+ya tiene 11 incidencias ajenas: esta migración exige conservar exactamente su
+estado, sin ocultarlas, y verifica huellas de sus fuentes, declaraciones y ACL.
+Ver `docs/plans/citas-fecha-comercial/RESULTADO.md` para resultados, limitaciones
+y orden de publicación. Si se integra la valoración paralela, instalarla antes
+de esta migración: su preflight aún exige la huella anterior de Citas.
+
+## 20261017040525 — Conservar la certificación del censo analítico
+
+**CANDIDATA EN RAMA DE PRUEBAS; PRODUCCIÓN PENDIENTE.** Conserva las 44
+declaraciones nativas, actualiza exclusivamente la huella conocida del cierre
+y declara las dos piezas analíticas extraídas para producción/Citas. No cambia
+el tope 14, permisos, clasificadores ni deuda ajena. Guardas de cuerpo/sello y
+pruebas de rechazo con rollback PASS. Replay de once candidatas: 89 aserciones
+de cortes/permisos PASS. Estado de publicación en
+docs/plans/tipo-cambio-por-venta/PUBLICACION-20261017.md.
+
+## 20261017033241 — Cierre acotado: reconciliar antes de bloquear
+
+**CANDIDATA LOCAL, SIN PUBLICAR.** Elimina el bucle de materialización de atrasos
+bajo los locks del sello. Exige cobertura previa, revalida bajo bloqueo y limita
+espera de locks a 5 s. Guard MD5 exacto. SQL: 27 +16 +89 aserciones y cuatro
+carreras PASS con diez candidatas; 600 ventas conocidas se difieren sin crear
+valoraciones durante el cierre. Auth HTTP/F4 y Advisors finales PASS. Estado
+vigente en docs/plans/tipo-cambio-por-venta/ESTADO.md; las cifras de entradas
+anteriores documentan sus respectivas etapas, no pendientes actuales.
+
+## 20261017025829 — Índices de las relaciones nuevas
+
+**CANDIDATA LOCAL, SIN PUBLICAR.** Cuatro índices para FK de cortes/meta,
+sellos/corte y valoraciones/anterior y tasa/política. Comparación oficial
+Advisors antes/después ya no añade FK sin índice ni WARN/ERROR. Los INFO
+unused_index del banco vacío y RLS deny-all se justifican en ADVISORS.md.
+
+## 20261016233037 — Ticket y CSV de Citas por operación
+
+**CANDIDATA LOCAL, SIN PUBLICAR.** Nueva lectura v2 sobre el corte aceptado;
+conserva la puerta v1, permisos/PII, población, testigo y stock sin anulados.
+Congela la identidad canónica en base para conservar también el divisor del
+ticket. Guards de cuerpo original y catálogo de public intacto. SQL completo:
+27 + 14 + 87 aserciones y cuatro escenarios concurrentes PASS, ocho candidatas.
+API/UI/CSV y E2E locales: ver estado y límites en docs/plans/tipo-cambio-por-venta.
+
+## 20261016230914 — Reevaluación de cierre después de reconciliar
+
+**CANDIDATA LOCAL, SIN PUBLICAR.** RPC exclusiva de servicio; tras el commit de
+reconciliación solicita el ciclo normal solo con política activa y cron único,
+activo y compatible. Omite ausencia/pausa; no altera cron. La Edge conserva el
+éxito monetario aunque falle solicitar el ciclo. Nueva señal cortes_publicados.
+Deno 30 PASS; SQL prueba metadata simulada y ciclo nativo, no scheduler real.
+
+## 20261016223745 — Valoración en la transacción de altas y correcciones
+
+**CANDIDATA LOCAL, SIN PUBLICAR.** Comparte el materializador monetario entre
+worker y escritores, acotando fecha/fuente/id para una operación. Integra el
+alta CRM con cuenta, el helper privado de vinculación, la corrección comercial
+y un trigger de cierres externos en crm. Con PEN o tasa existente guarda la
+revisión al escribir; sin tasa conserva la venta y deja pendiente la revisión.
+El corrector toma el cerrojo global del cierre antes de bloquear la fuente.
+No cambia tablas, funciones ni triggers de public ni payloads de los escritores.
+
+Gate SQL PASS: 27 + 14 + 62 aserciones y cuatro escenarios concurrentes con las
+seis candidatas. Alta real SQL del portal con rol authenticated, cuenta/PDF,
+idempotencia y US$ 20 000 → S/ 68 000; fallo documental revierte todo; corrección
+PEN/USD y cooperativa mediante RPC nativa, con triggers y constraints diferidos
+comprobados. Mil pendientes no bloquean PEN; 10 000 fuentes adicionales: 4,52 ms
+en uno de los ensayos individuales locales. No acredita todavía GoTrue/PostgREST,
+todos los roles ni el wizard completo con F4 activa. Detalle en el estado del plan.
+
+## 20261016220524 — Detalle de Facturación del mismo corte
+
+**CANDIDATA LOCAL, SIN PUBLICAR.** Añade `listar_operaciones_facturacion_v3_fn`
+con referencias explícitas de cortes por mes, monto original, equivalente,
+fecha comercial y tasa por operación. Reutiliza la lógica de filtros,
+paginación y máscaras de las puertas anteriores; v1/v2 conservan exactamente
+sus payloads y límite de 31 días. Solo v3 admite hasta 366 días para agregar
+cortes mensuales: legado hasta septiembre y valoraciones desde octubre. Un
+mes sellado exige su referencia exacta. Las tasas del cliente no entran a SQL.
+
+Replay de cinco candidatas PASS; 45 aserciones de cortes/permisos, incluidas
+paridad v2 con filas, rango agosto-octubre y privacidad de Coordinación.
+Cliente integrado con fixtures generados por SQL, 6 732 pruebas del gate
+frontend y dos E2E Docker de Ranking/Facturación. Altas reales, Auth/HTTP y
+otros gates del plan siguen pendientes; esta evidencia no autoriza activación.
+
+## 20261016204946 — Sello de capital valorado y activación explícita
+
+**CANDIDATA LOCAL, SIN ACTIVAR EN PRODUCCIÓN.** El cierre toma el candado
+existente y bloquea escritores de las fuentes durante la foto. Con la política
+activa, una valoración pendiente revierte el mes entero antes de conversión y
+ajustes; el ciclo existente conserva su siguiente intento. Una referencia
+inmutable enlaza el sello con la publicación de operaciones/metas de ese corte.
+La suspensión de presentación conserva las lecturas de meses ya sellados.
+Activación de servicio exige bundle compatible y huella vigente del censo;
+rechaza cobertura pendiente, sellos incompatibles, metas USD sin valoración,
+desgloses contradictorios o ajustes monetarios sin correspondencia resuelta.
+No reactiva cron. La instalación desactivada conserva el cierre anterior.
+
+Ensayo local con reloj simulado y replay desde el esquema base: cierre pendiente,
+recuperación, S/ 68 000 invariables, reversa, guardas de activación y permisos SQL
+authenticated. Detalle y alcance de pruebas en ESTADO.md; todavía no es release.
+
+## 20261016204221 — Cortes completos, cobertura y lecturas compatibles
+
+**CANDIDATA LOCAL.** Publicaciones inmutables por mes/corte con importes,
+cantidades, metas y personas de la misma revisión. Una corrección pendiente
+conserva el último corte completo. Ámbitos extraídos de las puertas originales;
+RPC v2 para cumplimiento, Facturación y detalle de operaciones sin ampliar
+payloads v1. Cobertura recortada por actor, pendientes en moneda original y
+estado atascado después de 24 horas del plazo de cierre. Referencias de
+valoración/tasa permiten conciliar el detalle con el mismo corte del ranking.
+
+## 20261016201516 — Proyección canónica por operación
+
+**CANDIDATA LOCAL.** Extrae la atribución vigente de producción sin cambiar sus
+agregados: analista explícito, leads/autor, fuera de metas y fechas distintas de
+cooperativas. Comparación idéntica de once meses en banco histórico, 14
+aserciones específicas y guardas de huella de los núcleos antes de instalar.
+
+## 20261016190725 — Tipo de cambio fijo por venta: persistencia y cola
+
+**CANDIDATA, PROBADA SOLO EN BANCO LOCAL; ACTIVACIÓN DESHABILITADA.** Vigencia
+comercial desde 01/10/2026. Tasas/evidencias inmutables por fecha, promedio de
+siete pares compra/venta BCRP calculado en numeric y equivalentes por operación
+con revisiones auditables. Cola persistente con reservas, expiración y reintentos.
+RLS, revokes y escritores exclusivos de servicio; sin acceso directo a tablas.
+No altera tablas/triggers/policies de public ni modifica todavía las lecturas
+comerciales o el cierre. Esa integración continúa en el plan de tipo de cambio.
+
+Esquema productivo vigente copiado en modo lectura a Docker exclusivo. 27
+aserciones SQL de dominio/legado y reversa antes de datos consolidados aprobadas; 24
+pruebas Deno del calculador y la Edge candidata, typecheck y preflight Edge
+anterior aprobados. La reconstrucción aislada de octubre valoró 108 operaciones
+(17 USD) con nueve tasas reales BCRP: equivalente total S/ 4 588 500,67; repetir
+creó cero revisiones adicionales. Identidades personales ficticias en el ensayo.
+El cierre se integra y ensaya en la candidata 20261016204946. Falta todavía el
+alta real y Auth/HTTP, integración completa de UI y validación final de release.
+Detalle y pendientes: `../../docs/plans/tipo-cambio-por-venta/ESTADO.md`.
+## 20261016232742 — Completa huellas de lectura de Coordinación
+
+**Ensayada en rama; pendiente de producción y gate RLS integral.**
+Completa la corrección del control autorizada por Miguel: los validadores
+de tareas pendientes y actividades recientes también conservaban las huellas
+anteriores al permiso de consulta ya publicado. Se cambian dos constantes,
+con guardas del cuerpo completo y de la policy vigente. No altera políticas,
+ACL, propietarios, firmas ni comprobaciones. Las tareas de Coordinación siguen
+limitadas a leads activos. Los tres validadores de lectura pasan en rama.
+SHA256 SQL `9cc1490237da010ab3849a956fbb26024cda2af865e243a4fa3d5b748d076a37`.
+
+## 20261016231301 — Actualiza huellas de las policies de consulta de Coordinación
+
+**APROBADA POR MIGUEL y ensayada en rama; pendiente de producción.**
+El gate integral detectó que `assert_actividades_de_lead_base()` conservaba
+las huellas anteriores a la consulta de Coordinación ya publicada. Las
+policies reales de `crm.leads` y `crm.actividades` mantienen ámbitos coextensivos.
+Esta migración cambia únicamente las dos constantes del validador, con guardas
+sobre la función y las policies actuales. Conserva firma, propietario, ACL,
+modo de seguridad y todas las comprobaciones. Los dos validadores dependientes
+pasan en rama. Matriz RLS y advisors en curso antes de merge.
+SQL exacto: SHA256 `be058004682a2f198da54ff8be3a49d3cb461f4178e50be759c42edd2a59a827`.
+
+## 20261016195003 — Plazo de cooperativas a 360 días
+
+**SQL APROBADO Y ENSAYADO EN RAMA TEMPORAL; NO INSTALADO EN PRODUCCIÓN NI PUBLICADO.**
+Decisión de Miguel del 16/10/2026: Qorilazo y Prodelco vencen a los
+360 días de la fecha de inicio en lugar de 12 meses calendario.
+Cada mes del plazo equivale a 30 días corridos. Rentabilidad anual intacta.
+
+La fuente conserva su convención en `base_plazo`: las filas existentes
+siguen con calendario; las altas posteriores usan `dias_360`. La corrección
+de Gerencia utiliza la convención persistida. No se recalculan históricos,
+no hay nuevos grants ni cambios en objetos de public o firmas expuestas.
+SQL protegido por huellas del helper, la corrección y el CHECK productivos.
+
+Ensayo con Auth/RPC/Storage reales: 95 comprobaciones PASS; advisors sin
+avisos nuevos. Rama temporal eliminada. Pendientes: matriz RLS/Edge integral
+y gates de release, integración en Main y publicación coordinada con
+actualización de la PWA. Los tres borradores
+COOPAC observados deberán editarse/revisarse para recalcular su vencimiento.
+Reversa conserva la convención de los contratos que ya hayan sido creados.
+
+Ver `supabase/scripts/coopac-plazo-360/` y el expediente local
+`docs/plans/cooperativas-plazo-360-20261016/`.
+
+## 20261016190408 — SLA: «próximo cambio» en el mismo paso
+
+**APLICADA EN PRODUCCIÓN el 16/10/2026** (entre 15:24 y 15:27 Lima), con `db query --linked --file` lanzado por Miguel desde `afc0fda7`
+(PR #311), entre dos `verificar.sql`; fila del índice registrada a mano. [Acta de publicación](../../docs/plans/sla-proximo-cambio/PUBLICACION.md).
+Decisión de Miguel, 16/10/2026: hacer la mejora corta por el disco.
+`private.sla_operacion_autorizada(uuid[],boolean)` calcula `proximo_cambio_en` con `min()` en el mismo `SELECT` que arma
+`v_filas`; deja de recorrer otra vez todo el JSON con `jsonb_array_elements`.
+- Mismo `jsonb` y mismos errores para todo lo que devuelve el productor: 2.403 comparaciones, más 43 de un verificador independiente
+  y 163 con esta migración aplicada en el banco; 0 diferencias.
+- Con 30+ consultas pesadas a la vez: −16 a −19 % de escrituras temporales (no es el I/O total ni latencia); la memoria total no
+  cambia de forma medible.
+
+Cambio protegido por huella productiva `0f4f44bed201e7eeb00301d82cc6401f`, productor `e47f610fb4cde0741f2a22c3e2e7ee2c` y DDL
+`a5bd718f2f288565ecb510f6ba1e8634`; resultado `a5fd870bf432dc907f5849a61a5fb9a8` (familia SLA `1adaf6c5708637fd916705cc090a4218`).
+- Conserva firma, ACL, SECURITY DEFINER, search_path, volatilidad, paralelismo, comentario y el resto de atributos (comprobados).
+- Corre `assert_sla_nucleo`, `assert_cola_v3` y `assert_sla_avisos` antes del `commit`. Mutante probado: un guardián rojo aborta.
+- No toca objetos de public, tablas, policies, grants, datos, fórmulas ni sellos. No requiere regenerar tipos.
+
+Revisiones:
+- `auditor-rls`: PASS, solo P3, incorporados.
+- Codex: plan CHANGES_REQUESTED → incorporado; migración CHANGES_REQUESTED (solo lectura de `verificar.sql` y registro tras una
+  reversa) → incorporado.
+
+Gates: CI `crm-rls-preflight` en local 4/4 PASS. `test:rls` completo NOT RUN: hace falta una pila con fixtures; no cambian permisos.
+
+Ver [kit, aplicación y reversa](../scripts/sla-proximo-cambio/LEEME.md). Aplicar con `db query --linked --file` (con el «!» de
+Miguel), entre dos corridas de `verificar.sql`, y registrar la fila del índice solo si la segunda da lo esperado.
+
+## 20261016183308 — Referidos propios de supervisores
+
+**APLICADA EN PRODUCCIÓN el 16/10/2026**, por merge de la rama validada.
+Decisión de Miguel, 16/10/2026:
+el supervisor puede registrar referidos, siempre a su propio cargo al darlos
+de alta. `crm.crear_lead_si_disponible` admite Referido para analista o supervisor,
+normaliza el destino omitido al actor y rechaza cualquier destino ajeno, incluido
+un analista del equipo. Gerencia y los demás roles conservan el rechazo.
+
+Cambio protegido por huella productiva `b6ec8dddaa8ab81b9248a79f4de3a51f`;
+resultado `145b30a30e69807a1838c1b960a0675d`. Misma firma, ACL, SECURITY DEFINER,
+search_path, candados y revalidación de rol; el envoltorio documental hereda
+el control. No toca objetos de public, policies, datos, fórmulas ni sellos.
+Formulario y store reflejan la misma regla. No requiere regenerar tipos.
+
+Ver [kit local](../scripts/supervisores-referidos/LEEME.md),
+[alcance y verificación](../../docs/plans/supervisores-referidos/VERIFICACION.md).
+Rama Supabase validada: SQL 67 PASS, Auth/PostgREST 28 PASS y advisors cotejados.
+Backend promovido primero y frontend publicado después. SQL productivo 6 PASS,
+1110 funciones cotejadas y advisors sin cambios. Rama temporal eliminada.
+Ver [publicación y artefacto](../../docs/plans/supervisores-referidos/PUBLICACION.md).
+
+## 20261016162937 — Ventas propias de supervisores y aporte al equipo
+
+**APLICADA EN PRODUCCIÓN el 16/10/2026**, mediante merge de la rama validada.
+Frontend publicado desde `3a0fa7075296`; rama temporal eliminada.
+[Acta de publicación](../../docs/plans/supervisores-metas/PUBLICACION.md).
+Decisión de Miguel, 16/10/2026:
+desde octubre las ventas personales de Supervisión también aportan a su equipo,
+y sus filas aparecen al final del ranking. `crm.cumplimiento_metas_fn(date)`
+mantiene firma, ACL y claves JSON; solo amplía la lectura propia del supervisor
+activo, filtrando por UUID antes de unir identidades y en la foto sellada.
+Lectores globales y analistas conservan su respuesta exacta. No cambia tablas,
+policies, metas publicadas, atribución, conversión ni sellos.
+
+Frontend compatible: suma capital/contratos propios al equipo y mantiene su meta
+de conversión; empresa cuenta cada venta una vez. Migra desde la huella de función
+`be18b2feac623d18db695830d70e2a2e`, con reversa protegida y ensayo transaccional.
+Ver [kit y límites](../scripts/supervisores-metas/LEEME.md) y
+[verificación](../../docs/plans/supervisores-metas/VERIFICACION.md).
+
+Promoción del bloque Coordinación: [acta cloud](../scripts/permisos-coordinacion/VERIFICACION-CLOUD.md).
+93 pruebas SQL + 61 Auth/PostgREST PASS; merge de rama, cero WARN/ERROR nuevos y rama eliminada.
+
+## 20261015224848 — Consolidar policies de consulta de Coordinación
+
+**APLICADA Y VERIFICADA EN PRODUCCIÓN 15/10/2026 18:58 Lima.** Hardening del bloque de permisos: une mediante
+OR los predicados equivalentes de SELECT original y Coordinación en leads/actividades/tareas;
+verifica huellas, rol y permisividad antes de modificar. Conserva los filtros restrictivos y
+no cambia escrituras. Advisors locales antes/después: mismos 7 avisos, cero nuevos.
+Reversa protegida `../scripts/permisos-coordinacion/reversa-politicas.sql`, antes de las otras
+dos reversas. Replay de las tres + matriz 87 checks PASS. No modifica migraciones ya versionadas.
+
+## 20261015212939 — Corrección manual auditada de categoría de inversión
+
+**APLICADA Y VERIFICADA EN PRODUCCIÓN 15/10/2026 18:58 Lima.** Pedido y confirmación de Miguel, 15/10/2026:
+Admin/Superadmin, Gerencia y Coordinadora corrigen errores de Nuevo/Renovación/Upgrade y
+la corrección actualiza conversión y ranking. Mantiene la firma de la RPC existente;
+autoriza contra perfil/membresía activos con bloqueo, exige motivo y guarda auditoría
+inmutable sin grants de API. Excepción del trigger ligada a actor/transacción/contrato/categorías.
+Proyección comercial de las operaciones, sin modificar hechos financieros; conserva capital,
+tasa, fechas, reloj de captación, identidad única y sellos mensuales. Producto catalogado/archivado
+admite reclasificación sin relajar sus condiciones económicas. Cambios de funciones por
+huellas verificadas, incluida variante F3. Depende de la migración de consulta siguiente.
+
+Ensayo PostgreSQL 17: 93 checks PASS, reversa/reaplicación PASS y dos carreras (baja CRM/sello)
+PASS. Tipos regenerados localmente. Gate frontend y revisión: ver
+`../scripts/permisos-coordinacion/VERIFICACION.md`. Kit y límites en
+`../scripts/permisos-coordinacion/LEEME.md`. Reversa se niega después de la primera corrección;
+conservar historia y usar compensación auditada.
+
+## 20261015211217 — Coordinación consulta Leads y cartera de toda la empresa
+
+**APLICADA Y VERIFICADA EN PRODUCCIÓN 15/10/2026 18:58 Lima.** Coordinación activa obtiene SELECT de leads,
+actividades y tareas de leads; búsqueda/listado, filtros de equipo, fichas y estados, y
+cartera F5 completa. No amplía helpers compartidos de escritura. Mantiene bancos, archivos,
+postventa y gestión general fuera del permiso de consulta; corrección de categoría usa su
+puerta específica. Front habilita Cartera/Leads y conserva Repartir como inicio.
+Preflight de 16 definiciones por huella (incluida variante F3); 29 funciones entre ambas
+migraciones compatibles con el catálogo vivo leído al preparar el cambio. Misma prueba y
+reversa documentadas en `../scripts/permisos-coordinacion/LEEME.md`.
+
+## 20261015173031 — Formulario 3: activación del origen y reclasificación conservadora (B)
+
+Publicación: [acta verificada](../../docs/FORMULARIO3-ORIGEN-NATIVO-PUBLICADO.md). 116 leads nativos, cero legados; un convertido y su acreditación conservados. Huellas de negocio antes/después idénticas. Web `597cab1c`, Edge v26, recarga del equipo confirmada antes de B. MD5 SQL registrado: `0f8f34071f7565105f8e8af2f410e420`.
+
+**APLICADA Y REGISTRADA EN PRODUCCIÓN 15/10/2026, autorización explícita de Miguel.** Requiere A, frontend/Edge compatibles y pestañas del equipo
+renovadas. Drena escritores previos con el bloqueo de `crm.leads` y normaliza productores legados a
+`formulario_3`; no cambia n8n ni sus recibos. Reclasifica exclusivamente `formulario` + campaña exacta
+`Formulario 3`, conservando asignaciones, estado, veto, tareas, historial, ledger y fotos cerradas.
+
+Se detectó un cliente ya convertido durante el desarrollo: B admite solo acreditaciones coherentes,
+no selladas y del mes de alta. Verifica identidad, episodio/analista acreditado, fuente, fecha y confirmación.
+Actualiza primero SOLO el origen acreditado y después el del lead; el retorno temprano de las tres funciones
+comerciales guardadas por huella conserva motivo, relojes y atribución. Meses con try-lock y filas NOWAIT:
+si hay una operación financiera en curso, aborta B sin esperarla reteniendo leads. Comparaciones antes/después
+exigen igualdad de fuentes, inversiones, solicitudes, historial y conversión total, incluida suma
+Formulario + F3 por analista/empresa. Rechaza meses sellados, datos incoherentes o cambios concurrentes.
+
+Ensayos: convertido previo → B → sincronización sin recalcular PASS; tres cierres reales sintéticos
+(manual, automático, legado); mes/fecha/identidad incompatibles sin efectos parciales PASS; dos conexiones
+con mes/fila ocupados rechazan en 0,05/0,04 s y luego reintentan; escritor n8n previo incluido sin duplicados.
+El CHECK de campaña acepta NULL en alta manual F3 o la campaña exacta de importación. No toca permisos de campaña.
+Rama `yefiownpxvembwvfbtfx`: A/B PASS, 116 copiados reclasificados (1 convertido), cero legados restantes;
+huellas de los 3.861 leads/dependencias conservadas salvo orígenes y timestamp técnico permitido.
+Matriz focalizada RLS HTTP + Edge: **111 comprobaciones PASS**, ocho Auth reales. Advisors: cero hallazgos
+nuevos; deuda previa no saneada. Gate RLS general con seed-demo **NOT RUN** sobre copia con datos.
+Los 12 cron se desactivaron; rama y credenciales retiradas el 15/10 a las 20:40 UTC.
+Evidencia y orden: [`formulario3-origen/LEEME.md`](../scripts/formulario3-origen/LEEME.md).
+
+## 20261015171407 — Formulario 3: compatibilidad de origen, reparto y métricas (A)
+
+Promovida antes de frontend/Edge y B; 22 huellas vivas comprobadas. Registro original con el archivo íntegro: MD5 `b7f8878b3dcd95e0da737897dd3b44bb`. Lecturas productivas bajo authenticated de cuatro roles PASS antes y después de B. [Acta](../../docs/FORMULARIO3-ORIGEN-NATIVO-PUBLICADO.md).
+
+**APLICADA Y REGISTRADA EN PRODUCCIÓN 15/10/2026, autorización explícita de Miguel.** `formulario_3` usa `crm.leads.origen` y las mismas puertas,
+RLS, roles y asignación existentes. Actualiza 22 funciones verificadas por huella, dos CHECKs de catálogo y
+tres helpers privados. F3 es filtro/origen propio y comparte únicamente el turno operativo Formulario
+(dos turnos de agenda). Peso: llegada automática 1, manual 0 y cierre 1; mantiene primer analista y fotos
+históricas. Añade desglose diario por origen en agenda, campo campaña en cola y columnas aditivas F3 de
+conversión; el histórico sin desglose F3 devuelve NULL. Los cuatro retornos recreados conservan firmas de
+entrada, ACL, propietario y dependencias, sin CASCADE. Re-sella solo sus declaraciones del censo, sin
+alterar el tope ni ocultar deuda previa. Cartera encuentra legados por filtro F3 antes del backfill.
+
+Hasta B, el trigger persiste importaciones canónicas con forma legada y rechaza temporalmente altas
+manuales F3; no genera una clave desconocida para el cliente anterior. El ranking vacío conserva su
+catálogo previo. Comparadores de identidad reconocen reintentos legado/canónico en ambos sentidos,
+sin reescribir las huellas originales ni duplicar solicitudes, notas o tareas.
+
+Matriz A/B/ROLLBACK y A persistida/B revertida PASS; solamente 22 contratos + tres helpers, ACL/owners
+conservados; repetición de A rechazada. Roles de vendedor, supervisor, gerencia inactiva y Directorio
+rechazados en Coordinación; helpers sin ejecución API. Tipos regenerados con postgres-meta v0.99.0,
+nueve contratos cotejados. Revisión Claude y agentes propios evaluada en
+[`formulario3-origen/REVISION.md`](../scripts/formulario3-origen/REVISION.md).
+
+## 20261015150731 — Eliminar lead: también con ficha de inversionista sin dinero (r2)
+
+**APLICADA EN PRODUCCIÓN 15/10/2026 ~11:50 Lima** (Miguel, `supabase db query --linked --file`; PR #288 fusionada
+`b12aaee2`). Verificado en producción, solo lectura: puerta `15ce9327e21306ec9682552815936e71`, candado de tasa
+`9d5d0a1a82675f2b5ae8ec7e93e5e5d1` y las 11 funciones intactas con la huella de r1; ACL igual (puerta: `authenticated`
+EXECUTE; candado: solo `postgres`); los 3 triggers de `crm.solicitudes_tasa` activos. Advisors: mismas 5 categorías de
+seguridad y 6 de rendimiento que tras r1, ninguna nueva. Pedido de Miguel (15/10): «yo quiero borrar
+cualquier tipo de lead»; el que tiene contrato, inversión, cierre o conversión es cliente y nunca se borra; se mantienen
+30 días y mes sellado. `crm.eliminar_lead_error_carga` (misma firma y grants) ya no rechaza por inversionista: borra con
+el lead sus fichas de inversionista si son SOLO suyas, nacieron con o después del lead, y no tienen dinero ni historia
+propia (perfil o alta al portal, otro lead, inversiones, cierres, reservas, acreditaciones, postventa, fusiones,
+cotitulares, operaciones, tareas, búsquedas, backfill, veto «no contactar»), con su enlace, identificadores,
+responsables, gestiones sin tarea, lecturas, datos de contacto y solicitudes de inversión canceladas (de ESTE lead y SU
+ficha, nunca confirmadas, sin revisiones ni fuentes). Solicitud de tasa sin usar y no de un cliente → se borra con sus
+envíos push; el candado `private.trg_solicitudes_tasa_solo_por_puerta` gana la misma excepción de 5 líneas que los otros 8.
+Orden de bloqueo ficha → lead (como `crm.reservar_conversion_lead`); enlaces y gestiones bloqueados antes de validar.
+Medido en producción: de 3.535 leads no clientes, 7 con ficha; 5 quedan borrables (2 tienen perfil de cliente).
+
+Banco `banco-elimlead-20261014`: pre/postflight en verde (huella de la puerta r2 `15ce9327e21306ec9682552815936e71`);
+`test-eliminar-lead.sql` **100/100 PASS** (incluye 31 casos nuevos de r2); carrera de dos conexiones (el enlace de la ficha
+se mueve a otro lead mientras se borra → espera y rechaza, nada borrado); reversa-r2 → huellas exactas de producción y
+se niega si algo cambió. Review: auditor-rls (CHANGES_REQUESTED, 1 P1 de tasa de cliente) y Codex 2 rondas (2 P1 de
+pertenencia y bloqueo, cerrados; 1 P2 de ficha preexistente, cerrado); todo aceptado. `test-rls.mjs` ampliado
+(preflight PASS; contra base NOT RUN). Sin cambios de pantalla. Reversa: `../scripts/eliminar-lead-error-carga/reversa-r2.sql`.
+
+## 20261015044917 — Eliminar lead por error de carga
+
+**APLICADA EN PRODUCCIÓN 15/10/2026 ~00:55 Lima** (Miguel, `supabase db query --linked --file`; PR #283 fusionada
+`abd04f61`). Verificado en producción, solo lectura: las 12 funciones (4 nuevas + 8 candados) con la misma huella
+md5, dueño y ACL que en el banco; `crm.leads_eliminados` con RLS, 0 políticas, sin grants, 3 triggers y 0 filas; los
+17 triggers de los candados idénticos. Advisors: los objetos nuevos solo aparecen en `rls_enabled_no_policy` (INFO) y
+`authenticated_security_definer_function_executable` (WARN), igual que `crm.inversiones_eliminadas` y
+`crm.eliminar_inversion_fn`; ninguna categoría nueva. Front publicado 15/10 ~01:05 (`build-20261015T055830904Z`,
+commit `f6c711f2`). Primer uso real: MARGARITA `de667c0d` borrada 15/10 01:19 Lima (copia versión 1 con 6 filas hijas;
+0 filas suyas en las 22 tablas que apuntan a `crm.leads`).
+Vía oficial para que gerencia (rol CRM) o admin/superadmin (portal) borre un lead cargado por error con todo
+lo que cuelga de él: `crm.eliminar_lead_error_carga(p_lead_id, p_motivo)`. Antes de borrar guarda una copia
+completa e inmutable en `crm.leads_eliminados` (RLS sin políticas ni grants; gerencia la consulta con
+`crm.listar_leads_eliminados()`). Rechaza (P0409, con todas las razones) leads con contrato, perfil,
+inversionista, conversión o cierre, historia de inversión, tareas o llamadas enlazadas desde otro lead, de más
+de 30 días (confirmado por Miguel el 14/10) o con un mes cerrado desde su alta. Los 8 candados que custodian
+filas del lead ganan UNA excepción, solo para DELETE y solo si la fila está ya copiada, idéntica, en esta
+transacción, por este actor, y el permiso `crm.borrado_lead_error` nombra a ese lead
+(`private.borrado_lead_error_autoriza`); el resto de cada candado queda idéntico a producción (postflight por
+huella). Sin `DISABLE TRIGGER`. Fail-closed ante llaves foráneas nuevas (columnas de origen y destino y acción),
+padres bloqueados antes de copiar, cuadre de lo borrado contra lo copiado, READ COMMITTED obligatorio. No toca `public`.
+
+Banco `banco-elimlead-20261014` (127.0.0.1:55491; 1.049 funciones crm+private = producción): migración
+1049 → 1053 con pre/postflight en verde; `test-eliminar-lead.sql` 69/69 PASS (roles, 19 rechazos aislados,
+13 DELETE directos bloqueados, 8 copias trucadas, borrado completo por gerencia/admin/superadmin, lectura);
+mutantes de la llave 5/6 cazados (el 6.º, «hay sesión», es redundante con «mismo actor»); preflight se niega
+con un trigger `WHEN (false)`; carreras reales de dos conexiones (INSERT y UPDATE de una fila hija) resueltas;
+reversa → huella exacta de producción, y se niega si un candado cambió después. Front: `npm run check` PASS,
+e2e Docker 415 PASS / 26 skipped. `test-rls.mjs`: bloque `testEliminarLeadErrorCarga` (preflight PASS; NOT RUN
+contra base: el banco no tiene PostgREST). Review: Codex r1 y r2 (CHANGES_REQUESTED, sin P0; todo aceptado y
+corregido) y auditor-rls (CHANGES_REQUESTED, sin P0/P1; aceptado). Evidencia en `../scripts/eliminar-lead-error-carga/`.
+Reversa: `../scripts/eliminar-lead-error-carga/reversa.sql` (conserva las copias si existen).
+
+## 20261015000852 — Plazo de carga por mes, decidido por Gerencia (y reapertura del último mes sellado)
+
+**APLICADA, REGISTRADA Y VERIFICADA EN PRODUCCIÓN (15/10/2026, ~10:40 Lima, por Miguel con `!`):** ensayo con ROLLBACK «ENSAYO OK» (fijar septiembre a 7 días: 1 acreditación «fuera de plazo» pasaría a acreditada, 0 conflictos) → aplicar → registrar (md5 del archivo `b4708ca2…`) → `verificar-produccion.sql`: «APLICADA Y REGISTRADA», 14 huellas OK, censo de `crm.cerrar_periodo` re-sellado (`4b89856a…`, vigente, sello al día), 0 decisiones, ciclo diario aún en pausa. Revisiones Codex r1 y r2 aplicadas. Pedido y decisiones de Miguel (14/10): solo
+Gerencia decide, sin tope de fecha, ampliar el plazo Y reabrir un mes sellado desde la pantalla
+([diseño](../../docs/plans/plazo-carga-mes/DISENO.md)). `crm.fijar_plazo_carga_mes(date,date,text)` fija el último día
+incluido (plazo = 00:00 de Lima del día siguiente; nunca antes de la base del día 10, desde hoy, motivo de 5 a 300; solo
+un mes con metas publicadas, porque el ciclo solo sella esos; 22023 para un mes sin metas o sin sellar por detrás del
+último cierre) y, si el mes está sellado, tiene metas y es el ÚLTIMO sellado y el ANTERIOR al mes en curso, lo reabre (`private.reabrir_mes`: las operaciones de `scripts/reexpresion-septiembre-2026/01-reabrir.sql` en el
+mismo orden, sin `ALTER TABLE` ni GUC). La autorización de los candados es la fila de `crm.reaperturas_mes`: solo su mes,
+solo su transacción superior (id e instante, fijados por trigger; llave única `(transaccion, reabierto_en)`; vale también
+en sus subtransacciones) y, para un cierre en cooperativa, solo una venta que esa reapertura respaldó y solo para devolver
+su imputación a la fecha comercial, sin ningún otro cambio en la fila. Reevalúa las acreditaciones «fuera de
+plazo»/«mes sellado» del mes con la decisión, la exclusión de fuente, la regla de identidad (antes de decidir el estado,
+como el escritor) y su candado.
+`crm.plazos_carga_mes_fn()` (solo Gerencia) alimenta la tarjeta «Plazo de carga». Las dos puertas validan, autorizan y
+delegan en núcleo `private` (`fijar_plazo_carga`, `plazos_carga_mes_lectura`): ningún salto de capa nuevo.
+Tablas nuevas `crm.plazos_carga_mes` y `crm.reaperturas_mes`: RLS sin políticas, sin grants, append-only, auditoría
+`log_audit_crm` de los tres verbos (el respaldo va sin documento ni nombre del cliente). Sin `negocio_id` (el cierre de
+mes no tiene inquilino). `private.conversion_plazo_hasta` pasa a STABLE (última decisión o la base nueva
+`private.conversion_plazo_base`); `conversion_decidir_plazo` y `cierre_mes_ventana_desde`, IMMUTABLE → STABLE con el
+cuerpo intacto; CHECK de plazo de `crm.conversion_acreditaciones` de igualdad → mínimo
+(`conversion_acreditaciones_plazo_minimo_check`). Los tres candados del cierre (`trg_cierre_mes_append_only`,
+`f4_fuente_inmutable`, `trg_cierres_externos_inmutables`) son los cuerpos vivos + la rama de la reapertura.
+`crm.cerrar_periodo` = cuerpo vivo + una segunda mirada a la ventana DESPUÉS de tomar sus candados (si Gerencia amplió
+el plazo mientras el sello esperaba, 22023; el ciclo lo anota en su `fallo`).
+Preflight con las huellas de lo vivo (7 piezas que cambian, 14 que se llaman o se reproducen); postflight con permisos
+exactos, intentos que deben rebotar y la foto de trinquetes (F7, analítica, vigencia, auditoría) igual antes y después.
+No toca `public` (salvo el DML de siempre de los triggers), el cron, `crm.ciclo_cierre_mes` ni la forma de
+`crm.cierre_mes_estado_fn`.
+**Revisión:** `auditor-rls` CHANGES_REQUESTED sin P0/P1 (1 P2 y P3 de endurecimiento): todo aceptado y aplicado. Codex
+r1 (LEVEL 3): FAIL, 1 P1 + 2 P2 + 3 P3; aceptados y corregidos los seis + la vista previa (que ahora falla si la
+operación simulada falla): P1 la carrera del sello con una ampliación (con «sin tope» podía sellar antes del plazo un
+mes que la pantalla ya no reabre) → `crm.cerrar_periodo` vuelve a mirar la ventana con los candados; P2 la rama de la
+reapertura con la válvula `crm.op_privilegiada` dejaba cambiar otras columnas → igualdad de toda la fila salvo la
+imputación; P2 un mes abierto con decisión y sin metas desaparecía de la lectura → entra (y un nombre en blanco sale
+«(sin nombre · …)»); P3 identidad antes de decidir el estado; P3 llave única `(transaccion, reabierto_en)`; P3 alcance
+de la autorización documentado (transacción superior con sus subtransacciones). Rechazado con evidencia: la identidad
+guardada en un reintento (el escritor tampoco la refresca en su rama de reintento). Codex r2: FAIL por 1 P2 (mes sin
+metas fuera del sellado), sin P0/P1; confirmó las correcciones r1; aceptado: solo meses con metas admiten plazo y
+reapertura (`private.fijar_plazo_carga` 22023 tras los candados y antes de mirar el sello; `private.reapertura_impedimento`
+con su motivo). Con esa regla, la rama «meses abiertos con decisión» de la lectura queda redundante (se conserva).
+**Primer ensayo en producción (15/10, 01:15): NEGADO sin escribir** en el postflight: `crm.cerrar_periodo(date)` está
+DECLARADA en el censo analítico de producción (`private.analitica_leads_citas_exenciones`, clase analitica, huella
+`8073f806…`) y el banco de solo esquema no tenía esa fila. Corregido con la plantilla de `20261013145852`: candados del
+censo, preflight (huella normalizada viva, declaración vigente, sello al día), RE-SELLADO de su huella a la del cuerpo
+nuevo (`4b89856a…`) y del sello de la lista, postflight de todas las declaraciones y del tope; la reversa re-sella de
+vuelta. Probado sobre los registros REALES de producción (`leer-registros-produccion.sql`: 43 declaraciones, sello
+`412aba2d…` igual al calculado, F7, vigencia y auditoría): el ensayo exacto pasa y la foto de trinquetes queda igual.
+**Verificación local** (banco Docker propio, esquema de producción del 14/10 sin datos + #280, 1049 funciones
+crm+private): `prueba.sql` 186 casos PASS (12 bloques; B12: con un mes ampliado, el ciclo no sella el siguiente y
+`crm.cerrar_periodo` responde «Falta cerrar»); 62/62 mutantes mueren (+4 controles de defensa redundante que sobreviven a
+propósito); dos sesiones 14/14 (otra transacción no hereda la autorización; candados global, mensual y de
+identidad; el sello que esperaba a una ampliación se niega a mano y por el ciclo; mutantes sin candados y con el sello
+de antes); Auth/HTTP real 42 PASS (ampliar y reabrir; `test-rls.mjs --plazo-carga-mes`); transporte 21/21 (el ensayo
+exacto del LEEME sobre un mundo con los registros REALES de producción, también cuando la operación simulada falla; el
+ciclo aplicar → registrar → verificar → reversa sobre ese mundo; 5 mutantes del re-sellado que se niegan; la reversa que
+se niega; el registrador); oráculo del cierre de mes 22/22 y `eliminar_inversion` 24 bloques con la migración puesta; foto de los 36
+`assert_*` y de los censos (103 filas) idéntica con y sin la migración; reversa al byte (huella del esquema igual a la de
+antes, `crm.cerrar_periodo` incluido) y reaplicación PASS; plpgsql_check sin avisos en las 11 funciones de una tabla y,
+en `f4_fuente_inmutable` (trigger de tres tablas), los mismos «record has no field» de ramas guardadas por tabla que la
+versión revisada antes; `verificar-produccion.sql` exige las 14 huellas exactas; `check:scripts` (340 pass) y
+`test:rls:preflight` PASS. Bloque «Plazo de carga por mes» añadido a la matriz general de `test-rls.mjs` (NO corrido: necesita el seed de una
+branch). Advisors: NOT RUN (son de la nube). Tipos generados desde el banco (con #280 y esta migración) iguales al
+`database.types.ts` de la rama salvo el formato y la metadata HTTP preservada.
+**Aplicación (Miguel con `!`):** ensayo con ROLLBACK + vista previa → aplicar → registrar → verificar → front →
+Gerencia fija el plazo de septiembre → `reactivar-ciclo.sql` (job 3, solo con plazo futuro). Pasos exactos, reversa y
+límites: [`scripts/plazo-carga-mes/LEEME.md`](../scripts/plazo-carga-mes/LEEME.md).
+
+## 20261014215453 — Campaña de origen en cartera y filtro, fase 2
+
+**APLICADA Y VERIFICADA EN PRODUCCIÓN (15/10/2026 UTC; 14/10 en Lima).** Versión
+exacta `20261014215453`, después de fase 1. La cartera
+integrada devuelve `campania_origen` y acepta `p_campania_origen` antes de calcular
+filas, totales, capital, embudo y conteos por potencial. El lector anterior también
+devuelve la campaña para mantener coherente la ficha y el resto del CRM.
+
+Se retiran las dos firmas exactas y se recrean en la misma transacción, sin CASCADE.
+Preflight por huellas completas, dueño, atributos, permisos y dependencias;
+postflight de firma única y grants idénticos. Se conserva el envoltorio
+`resumen_cartera_fn` y sus claves, las policies y todos los permisos de escritura.
+No hay reclasificación de datos ni cambios de reparto o conversión.
+
+Banco final `formulario3_fase2_20261014_review`: 43 comprobaciones SQL PASS, con
+roles reales y rollback. Tras review se conservan comentarios del catálogo y se
+anclan los cuerpos que mencionan ambas puertas, además de `pg_depend`.
+Evidencia y estado final de los gates en
+`../scripts/formulario3-fase2/LEEME.md`. Se publicó después de fase 1 y antes del
+frontend; firma única de 15 argumentos, permisos y caché PostgREST comprobados.
+Cuatro contextos SQL authenticated en producción aprobaron lectura anterior y
+filtro nuevo dentro de transacciones READ ONLY; no equivalen a sesiones HTTP.
+Fuente `0fa4a398`, build `build-20261015T041350920Z`; 124 archivos HTTP exactos.
+[Acta posterior a publicar](../../docs/N8N-FORMULARIO3-FASE4-PUBLICADA.md).
+Reversión operativa: volver al frontend anterior, conservando el esquema aditivo.
+
+## 20261014210146 — Campaña de origen Formulario 3, fase 1
+
+**APLICADA Y VERIFICADA EN PRODUCCIÓN (15/10/2026 UTC; 14/10 en Lima).** Versión
+exacta `20261014210146`. Campo opcional
+`crm.leads.campania_origen`; validación de texto 1–80 caracteres y combinación
+Formulario 3 + formulario. Alta atómica en el importador, compatibilidad con
+payloads anteriores, campaña en reingresos y solicitudes de clientes sin
+reclasificar registros existentes. Reproducción local del reingreso dirigido a
+ficha cerrada pese a otra viva: corrección mínima de destino e idempotencia.
+La ACL viva tenía UPDATE de tabla para authenticated: se conservan sus permisos
+efectivos de columnas previas y se excluye la nueva; lectura bajo las mismas
+policies, más trigger de defensa frente a puertas DEFINER con sesión humana.
+No altera objetos de public, reglas de reparto/conversión ni EXECUTE de las tres
+puertas existentes. Preflight de cuerpo/definición/owner/ACL y postflight de
+atributos; la validación canal/campaña se aplica en la entrada, sin bloquear
+correcciones autorizadas posteriores del canal. Columnas futuras necesitan su
+GRANT UPDATE explícito si deben ser editables por humanos.
+36 comprobaciones de contrato + 18 de permisos + regresión de ficha viva PASS
+en local y remoto; Edge, check:scripts y check completo de app PASS. Revisión
+de Claude evaluada y mejoras justificadas incorporadas. Advisors sin alertas
+nuevas; 8 conjuntos de filas históricas idénticos, incluidos 3.677 leads.
+Rama `sdgqkuejylkeqabpplyk` retirada el 14/10/2026 21:35 UTC, sin merge.
+Versión histórica de ensayo asignada por conector: `20261014213157`; no es la
+versión aplicada en producción. Orden cumplido: SQL → comprobar capacidad/huellas
+→ Edge v24 (`verify_jwt=true`) → frontend. SELECT de campaña autorizado,
+INSERT/UPDATE humano y anónimo denegados; RLS conservado. Los 3.687 leads de la
+comprobación productiva siguen sin campaña: no se importó la hoja ni se
+reclasificó el histórico. n8n sigue apagado hasta la prueba controlada de fase 5.
+Los reintentos de notas antes mal ubicadas pueden añadir
+una nota correcta a la ficha viva; no crean otro lead. UI/filtro: fase 2.
+[Pruebas y evidencia](../scripts/formulario3-fase1/LEEME.md) ·
+[Publicación y verificación](../../docs/N8N-FORMULARIO3-FASE4-PUBLICADA.md).
+
+## 20261014174026 — Adicional de renovación como upgrade de conversión
+
+**APLICADA Y VERIFICADA EN PRODUCCIÓN (14/10/2026, 21:29 UTC).** Decisión de Miguel:
+desde octubre, la primera operación elegible del cliente/mes, si es renovación
+con `capital_adicional > 0`, aporta 1 como upgrade. Renovación pura, pesos de
+renovación/referido, divisor, importes y fotos anteriores intactos. Solo cambia
+`private.conversion_episodios`, conservando firma, dueño y permisos. La migración
+rechaza si octubre o un mes posterior ya está cerrado o si deriva el núcleo.
+Branch autorizada con datos `yeiwghzhcrvwfcybymxy`: merge completado y branch retirada.
+Versión productiva `20261014185718`; PR #278 integrado en Main `23385141`.
+Comparados 32 perfiles: solo Vladimir pasa de 3/67 (4,48 %) a 4/67 (5,97 %).
+Histórico completo diciembre 2025–setiembre 2026 idéntico; 22 casos sintéticos,
+7 aserciones de cierre con reloj simulado, 6 guardas y 43 contextos SQL de roles PASS.
+Revisión independiente de migración y RLS PASS; 7 contextos con Auth/HTTP real y
+preflight RLS PASS. Matriz general ajena al cambio no ejecutada sobre la copia con datos.
+Miguel confirmó la aplicación en producción el 14/10/2026. Preflight, pruebas,
+tipos, lint y build PASS en el PR fusionado. Comprobación productiva: 32 analistas,
+solo Vladimir +1; 7 contextos Auth/HTTP PASS, huellas de pesos/fotos/contratos/
+operaciones intactas, cron y Edge Functions conservadas, advisors sin diferencias. [Evidencia y guía](../scripts/conversion-adicional-renovacion/LEEME.md).
+
+## 20261014001346 — SLA: agregar tareas una vez por lead
+
+**APLICADA Y VERIFICADA EN PRODUCCIÓN (14/10/2026 02:38 UTC; 13/10 en Lima).**
+Merge desde `banco-f7`, versión remota `20261014013830`. Sustituye el
+escaneo lateral repetido por una agregación por lead. Conserva las seis columnas,
+filtros, NULL, desempates y reglas SLA. Propietario, ACL y definición previa
+anclados; cuatro guardianes posteriores. Oráculo completo: seis ámbitos con
+2.009 leads y 6.860 tareas sintéticas nuevas; igualdad exacta. EXPLAIN del núcleo
+667,874 → 301,780 ms en el banco (no es una medición de producción).
+44 pares de RPC/respuestas/denegaciones idénticos, reversa exacta y reaplicación
+PASS. Huella completa anterior `12749d608bb0a296f763e000f18c03de`, nueva
+`0abdf640b5f4f10ab2e85b6bd2494522`.
+Banco reconstruido con autorización: 13 bloques SQL y 3.931 aserciones HTTP PASS;
+advisors sin avisos nuevos de seguridad ni WARN/ERROR de rendimiento. Producción:
+EXPLAIN puntual del núcleo 1.808,639 → 1.244,137 ms (3.594 filas); RPC de equipo
+1.644,650 → 1.369,887 ms. Los 473 registros previos, ACL, tablas y demás funciones
+se conservan; 23 Edge con contenido idéntico. No se aplica SQL directamente al padre.
+[Kit, pruebas, reversa y límites](../scripts/incidencias-20261013/LEEME.md).
+
+## 20261014001044 — F7: sello de metricas_cartera tras Coordinación
+
+**APLICADA Y VERIFICADA EN PRODUCCIÓN (14/10/2026 02:38 UTC; 13/10 en Lima).**
+Merge desde `banco-f7`, versión remota `20261014013757`. La migración de
+Coordinación aplicada como `20261012223850` cambió el cuerpo autorizado de
+`crm.metricas_cartera_fn(date)` sin actualizar su huella F7. Se actualiza solo
+`huella_md5` y su nota, manteniendo `cerrada_permanente`, propietario, ACL y
+atributos. Anclas de cuerpo y definición completa; exige la causa exacta del
+vigilante, preserva el candado y comprueba que rechaza una escritura indebida.
+Ensayo positivo y rechazos por repetición, apertura de ACL y cambio de atributos
+PASS. F7 vuelve a OK con 15 piezas en producción. `vigia_f7_piezas()` ejecutado
+a las 02:39:01 UTC: cero alertas F7 abiertas. Solo cambiaron huella y nota.
+La deriva previa del guardián
+analítico general queda documentada; no se reescriben sus declaraciones.
+[Kit y secuencia de verificación](../scripts/incidencias-20261013/LEEME.md).
+
+## 20261013154615 — Nombres en Facturación para Coordinación, solo lectura
+
+**APLICADA Y PUBLICADA; VERIFICADA EN PRODUCCIÓN (13/10/2026).** Miguel aprobó
+mostrar nombres para los reportes de Rosa el 13/10/2026. Nueva RPC v2 y helper
+privado sellado: Coordinación activa CRM+Portal recibe `nombre_visible:true`,
+mantiene `visible:false` y no recibe IDs de clientes/contratos/leads/cierres,
+referencias, documentos, contactos ni escrituras. Otros roles delegan exactamente
+en v1; la RPC publicada v1 permanece intacta para pestañas anteriores.
+SQL sintético y reversa PASS; 15 comparaciones de otros roles, 220 filas en tres
+meses/páginas, bajas, RLS y ACL. Frontend PASS: 6.671 tests; 54 E2E Docker PASS.
+Auditor RLS independiente PASS; tipos del banco real. Matriz Auth: 3.932 PASS;
+Facturación sobre backend vigente: 392 PASS. Advisors sin alertas nuevas. Merge
+de rama Supabase: historial `20261013171002`, único delta del padre. Fuente viva
+`4e31dbbf13ef`, build `build-20261013T182849030Z`, smoke 123 archivos PASS;
+Rosa: 71 filas con nombres, sin campos privados y totales intactos. Rama retirada.
+Backend antes del frontend; reversa en el
+orden inverso. Al modificar `private.facturacion_lista`, comprobar también la
+copia de Coordinación y su paridad SQL/HTTP.
+[Guía, evidencia y reversa](../scripts/facturacion-nombres-coordinacion/LEEME.md).
+
 ## 20261013145935 — F4-e: rendimiento de la operación de hoy
 
 **APLICADA Y REGISTRADA EN PRODUCCIÓN (13/10/2026, verificada 15:39 UTC / 10:39 Lima).**
@@ -6293,6 +7122,7 @@ funcionar como control — mantenerlo al día es parte de la regla, no un extra)
 
 | Versión | Qué toca de `public` | OK de Miguel |
 |---------|----------------------|--------------|
+| 20261018032400 — EN PRODUCCIÓN 17/10/2026 | sin DDL en `public`: UPDATE de `fecha_cierre_comercial` y `fuente_cierre_comercial` de **2 filas** de `public.contratos` (recargados 87fd8286 → 01/10 y 25b94389 → 30/09) por la válvula `crm.correccion_periodo_comercial`, la misma de «Corregir fecha comercial» | sí, 17/10/2026 («ármalo con los cinco»; la corrección de fecha explicada y aceptada) |
 | 20260914042114 — APLICADA como 20260914174353 | `public.crear_contrato`: rechaza más de dos decimales antes del INSERT a numeric(5,2); conserva firma, dueño, ACL, tablas y policies. Adapta también el observador privado de rentabilidad existente. | Sí, 14/09: «haz depoloy», posterior a la pausa; banco PortalAvanceCorp hasta US$1 autorizado. Instalada y verificada, banco eliminado. |
 | 20260908211349 — revisión publicable | Mismo alcance F4 sobre `public` que la candidata técnica; conserva además el origen de Rentabilidad R4 en el wrapper PDF. | Sí, 08/09: «publica f4 y dame el plan de implementacion para f5». Instalar con escritores/ficha neutral apagados; no constituye encendido comercial general. |
 | 20260907191832 — preparada, NO APLICADA | `public.crear_contrato`, excepción acotada en `public.proteger_campos_inmutables`, triggers de identidad/vínculo en contratos y procedencia en contrato_titulares; REVOKE API de `_sync_contrato_titulares`; referencias a las fuentes contractuales | Desarrollo y ensayos locales dentro del encargo explícito de terminar F4 (08/09). No constituye OK para aplicar/publicar/encender en producción ni cambiar el PDF. |
@@ -18377,7 +19207,9 @@ el heredero y por el que se fue, y el tercero es esta anotación del ciclo.
 
 ## 20261012184345 — Renovaciones sin aporte a conversión desde octubre
 
-**Estado: VALIDADA EN RAMA REMOTA; PENDIENTE MERGE.** Decisión de Miguel del 12/10/2026,
+**Estado: ACTIVA EN PRODUCCIÓN, 12/10/2026 21:39 UTC.** Versión productiva `20261012213521`.
+PR #256 fusionada en Main `16f493006dce0ee4a82d0b065d9660f251953469`.
+Decisión de Miguel del 12/10/2026,
 explícitamente a nivel del sistema. Octubre está abierto; agosto y septiembre sellados no cambian.
 
 **Cambio:** `crm.conversion_pesos` de octubre: renovación 0 (antes 0,15); referido 1
@@ -18397,7 +19229,12 @@ Versión remota `20261012202228`, mismo SHA-256 que el archivo. Matriz RLS globa
 E2E NOT RUN; no se publicó frontend. Las correcciones del review fueron reensayadas.
 
 **Reversa y evidencia:** `supabase/scripts/conversion-sin-renovaciones/LEEME.md`,
-`reversa.sql`, `prueba.sql`. No se aplica directo a producción: pendiente circuito de rama/gates/merge.
+`reversa.sql`, `prueba.sql`. Publicada por rama/gates/merge, sin aplicación directa.
+Nueva rama `conversion-activar-20261012`: 22 SQL y 319 RLS PASS. Producción: renovación
+0 en oficial/Coordinación/Metas; referido 1 y tope 15 %. Fotos, periodos, operaciones
+y funciones conservan sus huellas. Advisors productivos 366/235 sin altas ni bajas.
+Rama propia eliminada a las 21:40 UTC. Acta `PUBLICACION.md`
+y evidencia `activacion.json` en el kit. La versión del ensayo anterior no se publicó.
 
 ## 20261012203925 — Detalle de cierres de Coordinación
 
@@ -18568,3 +19405,11 @@ EXECUTE solo postgres), el comentario (md5 `4a052fcd…` = el que exige el prefl
 `npm run check` PASS (410 archivos, 6 623 pruebas). **Codex PASS** sobre F4.2-bis y la integración (`fase-4/grupo-b/revision/` del plan). **Despliegue: servidor
 primero** (la migración, por la branch y su merge), **después** `/release-crm` con el texto «citas vencidas o ya realizadas» (la RPC no gana claves: los dos órdenes
 son compatibles; así el texto nuevo nunca describe la regla vieja). Revertir: `supabase/scripts/metricas-reuniones-realizacion/reversa.sql`.
+
+### 2026-10-13 · Atención y venta separadas (verificada para publicación autorizada)
+
+- `20261013192850_crm_atencion_venta_separadas.sql`: núcleos privados, vista previa con versión y confirmación atómica; adaptador `public.reasignar_analista_contrato` y guardia de UPDATE directo de asesor. Miguel autorizó expresamente implementar y probar en banco aislado, tocar esos objetos de `public` y permitir atención completa a Gerencia y administradores del portal. Operaciones conserva solo sus permisos previos de corrección de venta.
+- `20261013193653_crm_atencion_venta_hardening.sql`: ACL mínimas del bloque; `private` no expuesto. Definer solo en puertas que requieren atravesar RLS; núcleos invoker y autorización interna.
+- Banco propio `avancecorp-facturacion-atribucion-20261013`, `127.0.0.1:55483`, esquema productivo sin datos; 338 funciones CRM y 700 privadas con huellas idénticas antes del cambio. 29 aserciones SQL finales PASS, con roles, rollback, cooperativas y foto sellada; HTTP real PostgREST 14.5 con dos sesiones PASS; advisors 7 → 7, sin avisos nuevos. Conflictos traducidos a HTTP 409 en las puertas para evitar reintentos automáticos.
+- Reversa de código: `supabase/scripts/atencion-venta/reversa.sql`; preserva datos e historial. Reversa y reinstalación ensayadas. No modifica snapshots sellados ni el vendedor histórico del ledger de cartera.
+- Estado previo al merge: dos candidatas probadas localmente y en rama Supabase; RLS 3.933 y focal 83 PASS. Publicación de los cuatro pasos autorizada. La venta 001595 ya fue corregida separadamente por la puerta auditada existente. Evidencia, review, delta de advisors y publicación efectiva: `docs/encargos/facturacion-atribucion-20261013/`.

@@ -6,6 +6,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { StrictMode } from 'react'
 import type { AgendaRepartoDiaria, ColaLead, HistorialDerivacion, PanelDistribucionReparto, SupervisorReparto } from '@/lib/tipos'
 import type { ReporteDerivacionesCoordinacion } from '@/lib/reporte-derivaciones-coordinacion'
 import { payloadValido as payloadConversionValido } from '@/lib/conversion-coordinacion.test'
@@ -127,6 +128,12 @@ vi.mock('@/data/crm-api', async (importActual) => {
   }
 })
 
+// La planilla tiene su banco propio (fechas, RPC y envíos parciales).
+// Este banco conserva las regresiones de cola y agenda sin lecturas ajenas.
+vi.mock('@/components/app/planilla-reparto', () => ({
+  PlanillaReparto: () => <h3>Coordinación → supervisores</h3>,
+}))
+
 // F1b tanda 3: los tiles ya NO los cuenta la pantalla, se los sirve el RPC. Se
 // mockea el hook de fuente con el ESPEJO PURO sobre la misma cola del test —
 // números derivados de verdad, sin red ni QueryClientProvider — y con un
@@ -148,6 +155,13 @@ vi.mock('@/data/use-resumen-reparto-operativo', async () => {
 
 const { Repartir } = await import('./repartir')
 const { CrmApiError } = await import('@/data/crm-api')
+
+it('la agenda termina de cargar al remontar los efectos en StrictMode', async () => {
+  render(<StrictMode><Repartir /></StrictMode>)
+  await userEvent.click(screen.getByRole('tab', { name: 'Agenda de turnos' }))
+  expect(await screen.findByLabelText('Asignar Landing a una supervisora')).toBeInTheDocument()
+  expect(screen.queryByText('Cargando agenda…')).not.toBeInTheDocument()
+})
 
 function lead(over: Partial<ColaLead> = {}): ColaLead {
   return {
@@ -269,7 +283,7 @@ describe('pantalla Repartir leads', () => {
     render(<Repartir />)
 
     expect(await screen.findByRole('heading', { name: 'Coordinación → supervisores' })).toBeInTheDocument()
-    expect(screen.getByText(/No depende de que Supervisión lo reparta después/)).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Agenda de turnos' })).toHaveAttribute('aria-selected', 'false')
     expect(panelMock).not.toHaveBeenCalled()
 
     await usuario.click(screen.getByRole('tab', { name: 'Supervisión → analistas' }))
@@ -303,11 +317,14 @@ describe('pantalla Repartir leads', () => {
         ],
       }],
     }
+    AGENDA.dias[0]!.origenes = [{ origen: 'landing', turno: 'landing', derivados: 22, fuera_turno: 20,
+      entregas: AGENDA.dias[0]!.asignaciones[0]!.entregas! }]
     render(<Repartir />)
-
-    expect(await screen.findByText('Supervisora uno: 20')).toBeInTheDocument()
-    expect(screen.getByText('Supervisora dos: 2')).toBeInTheDocument()
-    expect(screen.getByText('20 entregas no coinciden con el turno guardado.')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('tab', { name: 'Agenda de turnos' }))
+    const tabla = await screen.findByRole('table', { name: 'Entregas por origen y supervisora' })
+    expect(within(tabla).getByRole('row', { name: /Supervisora uno 20 20/ })).toBeInTheDocument()
+    expect(within(tabla).getByRole('row', { name: /Supervisora dos 2 0/ })).toBeInTheDocument()
+    expect(screen.getByText('22 entregados · 20 fuera de turno')).toBeInTheDocument()
   })
 
   it('muestra a Coordinación el conteo diario por analista y aplica el rango elegido', async () => {
@@ -432,6 +449,7 @@ describe('pantalla Repartir leads', () => {
     }
     const usuario = userEvent.setup()
     render(<Repartir />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Agenda de turnos' }))
 
     expect(await screen.findByRole('heading', { name: 'Coordinación → supervisores' })).toBeInTheDocument()
     await usuario.selectOptions(screen.getByLabelText('Asignar Landing a una supervisora'), 'sup-carmen')
@@ -460,6 +478,168 @@ describe('pantalla Repartir leads', () => {
     await usuario.click(screen.getByRole('button', { name: 'Siguiente' }))
     expect(await screen.findByText('LEAD 21')).toBeInTheDocument()
     expect(screen.queryByText('LEAD 1')).not.toBeInTheDocument()
+  })
+
+  it('muestra una tabla de entregas por origen y conserva exactamente dos turnos', async () => {
+    const entrega = { supervisor_id: 'sup-2', supervisor_nombre: 'SUPERVISOR DOS', supervisor_alias: 'Supervisora dos', derivados: 10, coincide_turno: true }
+    const fuera = { supervisor_id: 'sup-1', supervisor_nombre: 'SUPERVISOR UNO', supervisor_alias: 'Supervisora uno', derivados: 2, coincide_turno: false }
+    AGENDA.dias[0]!.origenes = [
+      { origen: 'formulario_3', turno: 'formulario', derivados: 12, fuera_turno: 2, entregas: [entrega, fuera] },
+      { origen: 'formulario', turno: 'formulario', derivados: 18, fuera_turno: 0, entregas: [{ ...entrega, derivados: 18 }] },
+      { origen: 'referido', turno: null, derivados: 1, fuera_turno: null, entregas: [{ ...entrega, derivados: 1 }] },
+    ]
+    const usuario = userEvent.setup()
+    render(<Repartir />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Agenda de turnos' }))
+    expect(await screen.findByText('31 entregados · 2 fuera de turno')).toBeInTheDocument()
+    expect(colaMock).not.toHaveBeenCalled()
+    expect(screen.getAllByLabelText(/^Asignar .* a una supervisora$/)).toHaveLength(2)
+    expect(screen.getAllByRole('table')).toHaveLength(1)
+    expect(screen.getByText('No aplica')).toBeInTheDocument()
+    await usuario.click(screen.getByRole('button', { name: 'Invertir' }))
+    await usuario.selectOptions(screen.getByLabelText('Filtrar entregas a supervisoras por origen'), 'formulario_3')
+    expect(screen.getByText('12 entregados · 2 fuera de turno')).toBeInTheDocument()
+    expect(screen.getByLabelText('Asignar Landing a una supervisora')).toHaveValue('sup-2')
+    await usuario.click(screen.getByRole('tab', { name: 'Cola de nuevos' }))
+    await usuario.click(screen.getByRole('tab', { name: 'Agenda de turnos' }))
+    expect(screen.getByLabelText('Asignar Landing a una supervisora')).toHaveValue('sup-2')
+    await usuario.click(screen.getByRole('button', { name: 'Guardar turno' }))
+    await waitFor(() => expect(guardarAgendaMock).toHaveBeenCalledWith(fechaHoyLima, 'sup-2', 'sup-1'))
+  })
+
+  it('distingue un desglose ausente de un día sin entregas', async () => {
+    render(<Repartir />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Agenda de turnos' }))
+    expect(await screen.findByText(/Desglose por origen no disponible/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Filtrar entregas a supervisoras por origen')).toBeDisabled()
+    expect(screen.queryByText('0 entregados · 0 fuera de turno')).not.toBeInTheDocument()
+  })
+
+  it('conserva el turno confirmado cuando falla la relectura posterior al guardado', async () => {
+    const usuario = userEvent.setup()
+    render(<Repartir />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Agenda de turnos' }))
+    await screen.findByLabelText('Asignar Landing a una supervisora')
+    await usuario.click(screen.getByRole('button', { name: 'Invertir' }))
+    agendaMock.mockRejectedValueOnce(new Error('Sin conexión temporal'))
+    await usuario.click(screen.getByRole('button', { name: 'Guardar turno' }))
+    expect(await screen.findByText('Sin conexión temporal')).toBeInTheDocument()
+    expect(screen.getByLabelText('Asignar Landing a una supervisora')).toHaveValue('sup-2')
+    expect(screen.getByLabelText('Asignar Formulario a una supervisora')).toHaveValue('sup-1')
+    expect(screen.getByText('Turno guardado.')).toBeInTheDocument()
+  })
+
+  it('al regresar a Coordinación recarga los conteos sin requerir foco del navegador', async () => {
+    const usuario = userEvent.setup()
+    render(<Repartir />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Agenda de turnos' }))
+    await screen.findByLabelText('Asignar Landing a una supervisora')
+    await abrirCola(usuario)
+    const lecturas = agendaMock.mock.calls.length
+    await usuario.click(screen.getByRole('tab', { name: 'Agenda de turnos' }))
+    await waitFor(() => expect(agendaMock).toHaveBeenCalledTimes(lecturas + 1))
+  })
+
+  it('recupera la lectura aplazada al volver con borrador y deshacerlo', async () => {
+    const usuario = userEvent.setup()
+    render(<Repartir />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Agenda de turnos' }))
+    await screen.findByLabelText('Asignar Landing a una supervisora')
+    await usuario.click(screen.getByRole('button', { name: 'Invertir' }))
+    await abrirCola(usuario)
+    const lecturas = agendaMock.mock.calls.length
+    await usuario.click(screen.getByRole('tab', { name: 'Agenda de turnos' }))
+    expect(agendaMock).toHaveBeenCalledTimes(lecturas)
+    await usuario.click(screen.getByRole('button', { name: 'Invertir' }))
+    await waitFor(() => expect(agendaMock).toHaveBeenCalledTimes(lecturas + 1))
+  })
+
+  it('un guardado fallido no deja la agenda cargando después de abortar su lectura', async () => {
+    const usuario = userEvent.setup()
+    let resolver!: (datos: AgendaRepartoDiaria) => void
+    render(<Repartir />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Agenda de turnos' }))
+    await screen.findByLabelText('Asignar Landing a una supervisora')
+    agendaMock.mockImplementationOnce(() => new Promise((r) => { resolver = r }))
+    await usuario.click(screen.getByRole('button', { name: 'Actualizar' }))
+    await usuario.click(screen.getByRole('button', { name: 'Invertir' }))
+    guardarAgendaMock.mockRejectedValueOnce(new Error('Guardado interrumpido'))
+    await usuario.click(screen.getByRole('button', { name: 'Guardar turno' }))
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Guardado interrumpido'))
+    await usuario.click(screen.getByRole('button', { name: 'Invertir' }))
+    expect(screen.getByRole('button', { name: 'Actualizar' })).toBeEnabled()
+    await act(async () => resolver(AGENDA))
+    expect(screen.getByRole('button', { name: 'Actualizar' })).toBeEnabled()
+  })
+
+  it('bloquea cambiar de vista durante un reparto y reconcilia al volver después', async () => {
+    COLA = [lead()]
+    let resolver!: () => void
+    repartirMock.mockImplementation(() => new Promise<void>((r) => { resolver = r }))
+    const usuario = userEvent.setup()
+    render(<Repartir />)
+    await abrirCola(usuario)
+    await usuario.click(await screen.findByRole('button', { name: 'Repartir a ROSA QUISPE' }))
+    const lecturas = colaMock.mock.calls.length
+    expect(screen.getByRole('tab', { name: 'Coordinación → supervisores' })).toBeDisabled()
+    await usuario.click(screen.getByRole('tab', { name: 'Coordinación → supervisores' }))
+    await abrirCola(usuario)
+    expect(colaMock).toHaveBeenCalledTimes(lecturas)
+    COLA = []
+    await act(async () => resolver())
+    await usuario.click(screen.getByRole('tab', { name: 'Coordinación → supervisores' }))
+    await abrirCola(usuario)
+    await waitFor(() => expect(colaMock).toHaveBeenCalledTimes(lecturas + 1))
+    expect(screen.queryByText('ROSA QUISPE')).not.toBeInTheDocument()
+  })
+
+  it('un desglose vacío explícito sí informa cero entregas', async () => {
+    AGENDA.dias[0]!.origenes = []
+    render(<Repartir />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Agenda de turnos' }))
+    expect(await screen.findByText('0 entregados · 0 fuera de turno')).toBeInTheDocument()
+    expect(screen.getByText('No hay entregas con estos filtros en el día seleccionado.')).toBeInTheDocument()
+  })
+
+  it('filtra Formulario 3 en toda la cola y conserva filtro y turno después del reparto', async () => {
+    COLA = Array.from({ length: 25 }, (_, indice) => lead({
+      id: `camp-${indice}`, nombre_completo: `CONTACTO ${indice}`, origen: indice === 24 ? 'formulario_3' : 'formulario',
+      creado_en: '2026-08-01T12:00:00Z', campania_origen: indice === 24 ? 'Formulario 3' : null,
+      comentario: indice === 0 ? 'Campaña: Formulario 3' : null,
+    }))
+    const usuario = userEvent.setup()
+    render(<Repartir />)
+    await abrirCola(usuario)
+    expect(screen.queryByText('CONTACTO 24')).not.toBeInTheDocument()
+    await usuario.click(screen.getByRole('button', { name: 'Siguiente' }))
+    await usuario.selectOptions(screen.getByLabelText('Filtrar por origen del lead'), 'formulario_3')
+    expect(screen.getByText('CONTACTO 24')).toBeInTheDocument()
+    expect(screen.queryByText('CONTACTO 0')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Siguiente' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Campaña de origen: Formulario 3')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Asignar CONTACTO 24 a un supervisor')).toHaveValue('sup-2')
+    expect(screen.getByLabelText('Asignar CONTACTO 24 a un supervisor')).toBeDisabled()
+    await usuario.click(screen.getByRole('button', { name: 'Repartir a CONTACTO 24' }))
+    await waitFor(() => expect(repartirMock).toHaveBeenCalledWith('camp-24', 'sup-2'))
+    expect(await screen.findByText('Ningún lead coincide con la búsqueda o los filtros')).toBeInTheDocument()
+    expect(screen.getByLabelText('Filtrar por origen del lead')).toHaveValue('formulario_3')
+    await usuario.click(screen.getByRole('button', { name: 'Limpiar filtros' }))
+    expect(screen.getByText('CONTACTO 0')).toBeInTheDocument()
+  })
+
+  it('Formulario 3 conserva el reparto libre y el destino elegido entre pestañas', async () => {
+    AGENDA.reparto_libre = true
+    COLA = [lead({ origen: 'formulario_3' }), lead({ id: 'anterior', nombre_completo: 'ANTERIOR' })]
+    const usuario = userEvent.setup()
+    render(<Repartir />)
+    await abrirCola(usuario)
+    await usuario.selectOptions(screen.getByLabelText('Asignar ROSA QUISPE a un supervisor'), 'sup-1')
+    await usuario.click(screen.getByRole('tab', { name: 'Coordinación → supervisores' }))
+    await abrirCola(usuario)
+    expect(screen.getByLabelText('Asignar ROSA QUISPE a un supervisor')).toHaveValue('sup-1')
+    await usuario.click(screen.getByRole('button', { name: 'Repartir a ROSA QUISPE' }))
+    await waitFor(() => expect(repartirMock).toHaveBeenCalledWith('lead-1', 'sup-1'))
+    expect(screen.getByText('ANTERIOR')).toBeInTheDocument()
   })
 
   it('navega el historial por páginas de 25 sin anexar tarjetas previas', async () => {
@@ -648,7 +828,7 @@ describe('pantalla Repartir leads', () => {
     expect(toastSuccess).not.toHaveBeenCalled()
   })
 
-  it('al volver actualiza el permiso sin recargar filas ni perder el destino elegido', async () => {
+  it('al volver actualiza cola y permiso sin perder el destino elegido', async () => {
     COLA = [lead()]
     AGENDA.reparto_libre = false
     const usuario = userEvent.setup()
@@ -668,8 +848,8 @@ describe('pantalla Repartir leads', () => {
     fireEvent.focus(window)
     await act(async () => { await vi.advanceTimersByTimeAsync(300) })
     expect(agendaMock).toHaveBeenCalledTimes(lecturas + 2)
-    expect(colaMock).toHaveBeenCalledTimes(1)
-    expect(supervisoresMock).toHaveBeenCalledTimes(1)
+    expect(colaMock).toHaveBeenCalledTimes(3)
+    expect(supervisoresMock).toHaveBeenCalledTimes(3)
     expect(screen.getByLabelText('Asignar ROSA QUISPE a un supervisor')).toBe(selector)
     expect(selector).toHaveValue('sup-2')
     AGENDA = { ...AGENDA, reparto_libre: false }
@@ -694,13 +874,15 @@ describe('pantalla Repartir leads', () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(300) })
     expect(agendaMock).toHaveBeenCalledTimes(lecturas)
     expect(boton).toHaveTextContent('Enviando…')
+    COLA = COLA.filter((fila) => fila.nombre_completo !== 'ROSA QUISPE')
+    AGENDA.dias[0]!.asignaciones[0]!.derivados = 1
     await act(async () => resolver())
     fireEvent.focus(window)
     await act(async () => { await vi.advanceTimersByTimeAsync(300) })
     expect(agendaMock).toHaveBeenCalledTimes(lecturas + 1)
     expect(screen.getByText('1 entregado hoy por Coordinación')).toBeInTheDocument()
     expect(screen.queryByText('ROSA QUISPE')).not.toBeInTheDocument()
-    expect(colaMock).toHaveBeenCalledTimes(1)
+    expect(colaMock).toHaveBeenCalledTimes(2)
   })
 
   it('cancela la recarga pendiente y retira el listener al salir de la pantalla', async () => {
@@ -847,12 +1029,12 @@ describe('pantalla Repartir leads', () => {
     const celdas = within(astrid).getAllByRole('cell').map((celda) => celda.textContent ?? '')
     expect(celdas[0]).toBe('ASTRID CENTENAROVer cierres')
     expect(within(astrid).getByRole('button', { name: 'Ver cierres de ASTRID CENTENARO' })).toBeEnabled()
-    expect(celdas.slice(2, 5)).toEqual(['65', '50', '115'])            // llegadas: formulario, landing, total
-    expect(celdas[7]).toBe('0')                                          // base cargada (B11)
-    expect(celdas[8]).toContain('1 · 0.15')                              // referidos: cantidad · aporte
-    expect(celdas[10]).toBe('4')                                         // upgrade
-    expect(celdas[12]).toBe('11.15')                                     // cierres ponderados
-    expect(celdas[13]).toBe('9.70%')
+    expect(celdas.slice(2, 6)).toEqual(['65', '—desglose de Formulario 3 no disponible', '50', '115'])            // llegadas: formulario, landing, total
+    expect(celdas[9]).toBe('0')                                          // base cargada (B11)
+    expect(celdas[10]).toContain('1 · 0.15')                              // referidos: cantidad · aporte
+    expect(celdas[12]).toBe('4')                                         // upgrade
+    expect(celdas[14]).toBe('11.15')                                     // cierres ponderados
+    expect(celdas[15]).toBe('9.70%')
     expect(screen.getByText(/Este conteo es distinto del reporte de entregas/)).toBeInTheDocument()
   })
 })

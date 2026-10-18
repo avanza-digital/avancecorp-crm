@@ -358,6 +358,7 @@ export function cumplimientoMetasConversionEquipoDemo(): CumplimientoMetasJerarq
     gerencia: agregarCumplimientos(filas),
     porVendedor,
     fueraRanking: [],
+    supervisores: [],
   }
 }
 

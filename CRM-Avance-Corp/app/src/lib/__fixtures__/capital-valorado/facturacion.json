@@ -1,0 +1,85 @@
+{
+  "corte": "2026-10-16",
+  "filas": [
+    {
+      "dia": "2026-10-02",
+      "tipo": "contrato_nuevo",
+      "moneda": "PEN",
+      "capital": 8000,
+      "analista_id": "f1000000-0000-4000-8000-000000000002",
+      "operaciones": 1,
+      "supervisor_id": "f1000000-0000-4000-8000-000000000001",
+      "analista_nombre": "Persona sintética 2",
+      "supervisor_nombre": "Persona sintética 1",
+      "capital_equivalente_pen": 8000
+    },
+    {
+      "dia": "2026-10-02",
+      "tipo": "cooperativa",
+      "moneda": "USD",
+      "capital": 10000,
+      "analista_id": "f1000000-0000-4000-8000-000000000003",
+      "operaciones": 1,
+      "supervisor_id": "f1000000-0000-4000-8000-000000000001",
+      "analista_nombre": "Persona sintética 3",
+      "supervisor_nombre": "Persona sintética 1",
+      "capital_equivalente_pen": 35000
+    },
+    {
+      "dia": "2026-10-02",
+      "tipo": "contrato_renovacion",
+      "moneda": "USD",
+      "capital": 2000,
+      "analista_id": "f1000000-0000-4000-8000-000000000003",
+      "operaciones": 1,
+      "supervisor_id": "f1000000-0000-4000-8000-000000000001",
+      "analista_nombre": "Persona sintética 3",
+      "supervisor_nombre": "Persona sintética 1",
+      "capital_equivalente_pen": 6800
+    },
+    {
+      "dia": "2026-10-03",
+      "tipo": "cooperativa",
+      "moneda": "USD",
+      "capital": 9000,
+      "analista_id": "f1000000-0000-4000-8000-000000000003",
+      "operaciones": 1,
+      "supervisor_id": "f1000000-0000-4000-8000-000000000001",
+      "analista_nombre": "Persona sintética 3",
+      "supervisor_nombre": "Persona sintética 1",
+      "capital_equivalente_pen": 30600
+    },
+    {
+      "dia": "2026-10-05",
+      "tipo": "contrato_nuevo",
+      "moneda": "USD",
+      "capital": 20000,
+      "analista_id": "f1000000-0000-4000-8000-000000000002",
+      "operaciones": 1,
+      "supervisor_id": "f1000000-0000-4000-8000-000000000001",
+      "analista_nombre": "Persona sintética 2",
+      "supervisor_nombre": "Persona sintética 1",
+      "capital_equivalente_pen": 62000
+    }
+  ],
+  "version": 2,
+  "corte_id": "628a4674-249d-4121-ae39-94c805df3cd6",
+  "cobertura": {
+    "corte": "2026-10-16",
+    "estado": "completo",
+    "pendientes": {
+      "pen": 0,
+      "usd": 0,
+      "cantidad": 0
+    },
+    "generado_en": "2026-10-16T22:27:31.162255+00:00",
+    "por_incorporar": {
+      "pen": 0,
+      "usd": 0,
+      "cantidad": 0
+    },
+    "ventas_pendientes": []
+  },
+  "generado_en": "2026-10-16T22:27:31.162255+00:00",
+  "valoracion_activa": true
+}

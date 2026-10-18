@@ -1,0 +1,94 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+Los hallazgos del review r1 que puedo contrastar con la evidencia adjunta quedan resueltos. La matriz de 10 roles × 3 acciones confirma que la revocación CRM prevalece sobre admin. Gerencia como destino mueve la tarea por persona. El PATCH directo se rechaza para admin, vendedor y service_role. Un `asesor_id` legado no rompe la edición de otros campos. La baja real es idempotente. La precedencia OFF del adaptador legacy está cubierta por la matriz.
+
+El nuevo esquema de candado/gate es coherente: preview antes de los locks, `NOWAIT` en orden fijo, re-preview y comparación de versión, postcondiciones con las funciones de Facturación y traducción a PT409 solo en la frontera HTTP. No encuentro P0 ni P1.
+
+Quedan tres hallazgos accionables P2:
+1. La puerta legacy de atención confirma cambios de atribución efectiva sin mostrarlos.
+2. Falta evidencia de que ningún escritor fuera de la base cambie el asesor por UPDATE.
+3. El release tiene acoplamientos de orden y de estado de flags no verificados.
+
+FINDINGS:
+
+[P2] La puerta legacy de atención no tiene la guarda de «alcance ampliado» que sí tiene venta
+File: supabase/migrations/20261013192850_crm_atencion_venta_separadas.sql
+Lines: 344-348 (guarda legacy de venta), 431-442 (`crm.reasignar_responsable_relacion_fn`), 176-177 y 231 (cálculo del previsto)
+Problem: `crm.reasignar_responsable_relacion_fn` llama a `ejecutar_cambio_responsabilidad(..., p_legacy => true)`. Esa ruta no exige versión y solo bloquea el alcance ampliado cuando `p_accion='venta'`. Sin embargo, un cambio de atención con destino operativo cambia `v_asesor`. `analista_previsto_contrato` usa ese valor como heredero en `heredero_de_baja(analista, asesor)`. Las cooperativas usan `heredero_de_baja(ce.vendedor_id, p_destino)` en las líneas 254-255.
+Evidence: El propio aviso de la línea 299 reconoce que la herencia por baja puede cambiar la atribución efectiva. Las postcondiciones (líneas 392-402) solo verifican que el resultado coincide con lo calculado; no verifican que alguien lo haya visto.
+Impact: Si algún cliente sigue llamando a la puerta crm legacy, Gerencia cambia la atribución efectiva de ventas de vendedores dados de baja sin preview ni confirmación versionada. Eso contradice el requisito «dos acciones separadas con preview servidor y confirmación versionada». El adaptador aprobado era el de `public`; este es de `crm`.
+Recommendation: Aplicar en legacy la misma guarda para cualquier acción: rechazar con P0409 si algún efecto tiene `anterior ≠ previsto`, salvo el propio contrato en venta. Alternativa: confirmar con evidencia que ningún consumidor actual lo invoca y restringirlo o retirarlo. Añadir un caso a la matriz RLS: persona con contrato de vendedor inactivo, puerta legacy y rechazo.
+
+[P2] Falta evidencia sobre escritores del asesor fuera de la base (Edge y portal)
+File: misma migración, líneas 447-458 (`aaa_asesor_solo_nucleo`) y adjunto `inventario-escritores-local.json`
+Problem: El trigger rechaza cualquier UPDATE de `asesor_perfil_id`/`asesor_id` cuyo `current_user` no sea `postgres`. Antes, para analistas y operaciones, esos campos se congelaban en silencio o se rechazaban solo para operaciones. Ahora el rechazo es 42501 para todos, incluidos admin y service_role, que antes podían escribir. El inventario adjunto cubre funciones y triggers SQL. «Edge22 idénticas» demuestra paridad entre rama y producción, pero no que ninguna Edge ni otra página del portal haga `update perfiles set asesor_*`. `portal.spec.cjs` solo ejercita `admin/clientes.html`.
+Impact (hipótesis): cualquier Edge con service_role o cualquier página del portal o del CRM que reasigne por UPDATE directo, incluido un upsert `on conflict do update` que incluya asesor, falla en producción con 42501.
+Recommendation: Adjuntar a la decisión de merge un grep de `asesor_perfil_id|asesor_id` en escrituras de `supabase/functions/**`, `public_html/**` y `CRM-Avance-Corp/app/src/**`, con el resultado clasificado.
+
+[P2] Riesgos de release: orden de despliegue y estado de flags
+File: migración, líneas 222-224 (atención exige `resolver_en_puertas`) y 457 (trigger); `public_html` (gitlink modificado en git status)
+Problem:
+(a) Tras la migración, toda atención, incluida la de clientes sin identidad unificada, exige `resolver_en_puertas=ON`. El script de integración lo enciende explícitamente (líneas 77 y 88), así que la evidencia no muestra su estado en producción.
+(b) El portal anterior asignaba por UPDATE directo (el spec comprueba `ediciones=0` precisamente por eso). Entre la migración y la publicación del portal nuevo, «asignar» falla con 42501. En el orden inverso, el portal llama a RPC inexistentes.
+(c) Hipótesis: si la integración GitHub de Supabase está activa, el merge a main es en sí mismo el despliegue de migraciones a producción.
+Impact: Funcionalidad de atención caída en producción o despliegue no autorizado por la vía del merge.
+Recommendation: Incluir en el preflight `select activo from crm.multiempresa_flags where nombre='resolver_en_puertas'` en producción. Definir el orden de despliegue (migración y luego portal y CRM, en una ventana corta). Confirmar si el merge dispara migraciones y, si es así, tratar el merge como un paso que requiere OK explícito de Miguel.
+
+[P3] La autorización se evalúa después de validar el motivo y tomar los candados
+File: migración, líneas 311-319
+Problem: Un actor no autorizado recibe 22023 si el motivo es inválido. Con motivo válido, toma el candado de resolver y el lock compartido de jerarquía antes de que `cambio_responsabilidad_previa` lo rechace con 42501.
+Impact: Bajo. Hay una pequeña fuga de semántica de errores y una contención breve con el offboarding exclusivo.
+Recommendation: Hacer un chequeo barato de rol (el mismo `case` de las líneas 191-193) al inicio de `ejecutar_cambio_responsabilidad`.
+
+[P3] Posible «more than one row» en la postcondición del desglose (hipótesis)
+File: migración, líneas 247-250 y 395-396
+Problem: La preview hace `left join operaciones_cartera on contrato_nuevo_id`, y la postcondición usa una subconsulta escalar por `contrato_nuevo_id`. Si un contrato tuviera más de una operación con ese `contrato_nuevo_id`, la preview duplicaría efectos y la postcondición fallaría con error 21000. Ese error no se traduce a un mensaje útil.
+Recommendation: Confirmar que existe UNIQUE sobre `operaciones_cartera.contrato_nuevo_id`. Si no existe, agregar con `limit 1` o hacer el join explícito.
+
+[P3] `FOR SHARE` sobre el perfil del destino y del actor
+File: migración, línea 322
+Problem: Este lock entra en conflicto con cualquier UPDATE normal (FOR NO KEY UPDATE) de esos perfiles, por ejemplo un sello de último acceso, si existe. El resultado es un PT409 espurio, y además bloquea esas escrituras durante la transacción.
+Recommendation: Si la intención es solo impedir cambios de `activo`/`rol` durante el cambio, el interlock de jerarquía y el re-preview ya lo cubren. Valorar `FOR KEY SHARE`. Es aceptable tal cual si no hay escrituras frecuentes sobre perfiles del equipo.
+
+[P3] Destino de venta inactivo
+File: migración, líneas 197-198
+Problem: Para venta solo se exige que exista una fila en `crm.equipo`, no que esté activa. Probablemente sea intencional para correcciones históricas: la herencia y la línea 260 lo encauzan. No hay un test que lo fije.
+Recommendation: Documentar la decisión o añadir un caso a la matriz.
+
+[P3] Cambio del oráculo D8
+File: test-rls.mjs, hunk D8
+Problem: `deltaTotal('numerador') === deltaVend1(numerador)` comprueba la agregación, pero ya no un valor absoluto. Si la delta de vend1 cae en regresión, D8 la acompaña. El cambio corrige una deriva preexistente ajena a esta tarea.
+Recommendation: Asegurar que `conversion-tope-referidos/prueba-tope.sql` forme parte del gate de release. Corregir también el comentario, que todavía habla de «+1 por sup1».
+
+[P3] Comentario obsoleto en la migración
+File: migración, línea 2
+Problem: «Solo candidata local» contradice su aplicación en la rama y su promoción.
+
+TEST GAPS:
+- Puerta crm legacy de atención con un contrato cuyo analista está inactivo: hoy cambia la atribución efectiva sin rechazo (ver el primer P2).
+- Baja (`fijar_membresia_activa_fn`) ejecutada por Gerencia con `rol='analista'`. La baja no fija `crm.atencion_autorizada`, así que `proteger_campos_inmutables` congelaría `asesor_perfil_id` para `es_analista()`. La integración solo prueba la baja con Gerencia `comercial`.
+- Atención sobre una identidad fusionada o no activa, y sobre un cliente sin identidad con destino Gerencia: se espera 22023.
+- Focal remoto y advisors en la rama: pendientes y, como el propio PRIMARY indica, no deben darse por PASS.
+
+ARCHITECTURE RISKS:
+- `aaa_asesor_solo_nucleo` confía en que todo escritor legítimo sea DEFINER propiedad de `postgres`. Cualquier DEFINER futuro de `postgres` que actualice perfiles podrá mover el asesor sin pasar por el núcleo. Es aceptado y está documentado, pero conviene que el inventario de escritores forme parte de la matriz RLS como censo.
+- La versión incluye todo `crm.equipo` y `periodos_cerrados`. Es conservador y correcto, pero cualquier edición de equipo invalida las previews abiertas, lo que produce PT409 frecuentes en horas de alta actividad.
+
+SECURITY RISKS:
+- No hay escalada demostrada. Las puertas son DEFINER con `search_path` vacío y solo están concedidas a `authenticated`. Los núcleos privados tienen grants revocados (`hardening`). El GUC `crm.atencion_autorizada` no autoriza por sí solo: `current_user='postgres'` y `atencion_perfil_permitida` revalidan el estado real. El token de versión es de integridad, no una capacidad, y queda ligado al actor.
+
+REGRESSION RISKS:
+- Cambio de comportamiento: lo que antes se congelaba en silencio ahora produce 42501 para cualquier UPDATE de `asesor_*` hecho por clientes. Ver el segundo P2.
+- `service_role` pierde EXECUTE en `public.reasignar_analista_contrato`. Hay que verificar que ninguna Edge la invoque.
+- Ventana de despliegue entre migración y portal (ver el tercer P2).
+
+RECOMMENDED NEXT ACTIONS:
+1. Añadir la guarda de alcance ampliado a la ruta legacy de atención, o retirar o justificar con evidencia `crm.reasignar_responsable_relacion_fn`, y cubrirlo en la matriz.
+2. Adjuntar el grep de escritores de `asesor_*` en Edge, portal y CRM, y el estado del flag `resolver_en_puertas` en producción.
+3. Fijar el orden de despliegue migración → portal/CRM y confirmar si el merge dispara migraciones a producción. En ese caso, pedir OK explícito de Miguel antes del merge.
+4. Ejecutar el focal remoto y los advisors en la rama antes del merge, como ya está previsto.
+
+CONFIDENCE:
+MEDIUM. La evidencia SQL e integración es amplia. Las dudas restantes dependen de artefactos no adjuntos: código Edge y portal completo, flags de producción y configuración de la integración de Supabase.

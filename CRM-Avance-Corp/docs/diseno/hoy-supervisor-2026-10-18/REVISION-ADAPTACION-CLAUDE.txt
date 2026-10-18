@@ -1,0 +1,100 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+La portada mantiene el cierre ante fallos en la actividad diaria, en Citas y en el capital mensual, y respeta la atribución del mes en el régimen valorado. El test de cuadre cubre bien ese régimen. Quedan cuatro defectos accionables:
+
+- la columna de conversión por analista puede quedar entera en «—»;
+- mientras carga la foto del mes, la meta se presenta como «Sin meta fijada»;
+- el frente de Oportunidades no retira cifras antiguas cuando falla su fuente;
+- la meta de conversión no disponible se rotula como inexistente.
+
+Ningún test cubre conversión con datos reales.
+
+FINDINGS:
+
+[P1] Una sola identidad sin fila de conversión deja en «—» la conversión de todo el equipo
+File: app/src/screens/hoy/jornada-supervisor.ts
+Lines: 78-100 (consumidor: app/src/lib/conversion-vendedores.ts:567-573)
+Problem: `identidades` reúne personas de tres fuentes: metas (l.83), cumplimiento (l.84) y personas valoradas (l.88). Después se pasan todas a `adaptarConversionMensual`. El adaptador exige `[...identidadPorId.keys()].every(id => detallePorId.has(id))` para considerar completos los responsables. Si no lo están, devuelve `detalle = null` para todos.
+Evidence: Basta un analista con meta o capital atribuido en la foto del mes que no figure en `conversion.responsables` del alcance `equipo`. Por ejemplo, alguien trasladado cuya atribución se conserva (pie de la tabla, l.187), o un analista con meta y sin leads recibidos. En ese caso `responsablesCompletos` es false y se pierde la conversión de todo el equipo, no solo la suya.
+Impact: La pestaña «Resultado del mes» muestra «—» en «Conversión oficial» y en «Leads recibidos» para todo el equipo. La cabecera, que usa el total del servidor, sí muestra la tasa, así que la tabla parece contradecirla.
+Recommendation:
+- Pasar al adaptador solo las identidades de `conversion.responsables` filtradas por `supervisor_id`, que es la población propia de la conversión, como recuerda `objetivos.ts:762`.
+- Unir el detalle por id a las filas de capital y meta.
+- O bien confirmar con el contrato de `conversion_mensual_fn` que todo integrante con meta siempre trae fila de responsable.
+- En ambos casos, añadir un test con `conversion` no nulo e identidades desalineadas.
+
+[P2] Mientras se recarga la foto del mes, la meta se muestra como «Sin meta fijada»
+File: app/src/screens/hoy/supervisor-jornada.tsx:132 · app/src/screens/hoy/datos-supervisor.ts:164-166
+Problem: Si la foto del mes no es vigente y no ha fallado, ocurre lo siguiente:
+- `fotoMensualStoreCargando` es true;
+- `objetivosMensuales` es `objetivosCero(periodoVigente)`;
+- `metaCapital.total` vale 0;
+- el ternario de l.132 cae en `'Sin meta fijada'`.
+
+Evidence: El orden del ternario solo comprueba `objetivosMensualesError`, `meta.total === null` y `meta.total <= 0`. No mira `fotoMensualStoreCargando`. La pantalla clásica sí lo distinguía en `filasMeta[0].sinDato`, l.255-256.
+Impact: Al cambiar de mes, o con la foto rezagada, el supervisor lee una afirmación falsa («no hay meta») en lugar de «por confirmar».
+Recommendation: Anteponer `datos.fotoMensualStoreCargando ? 'Meta por confirmar'` y añadir un test unitario con `fotoMensualStoreCargando: true`.
+
+[P2] El frente «Acompañar el cierre» y el acceso a derivaciones publican cifras aunque su fuente haya fallado
+File: app/src/screens/hoy/supervisor-jornada.tsx
+Lines: 120, 164, 166, 168, 193
+Problem: `entrevistas`, `datos.resumen.capital.asignado` y `datos.totalPorRepartir` se leen sin comprobar `datos.resumenOp.error`. Al mismo tiempo, l.168 muestra «Oportunidades no disponible».
+Evidence: Los otros dos frentes aplican cierre explícito ante fallos (l.68 y l.72-73) porque TanStack conserva `data` tras un refetch fallido. Aquí no se aplica. No veo el cuerpo de `useResumenCarteraOperativo`, así que es hipótesis si ese hook ya anula `resumen` con error.
+Impact: Puede aparecer, en la misma tarjeta, un potencial y un número de entrevistas antiguos junto al aviso de error.
+Recommendation: Derivar `const resumen = datos.resumenOp.error ? null : datos.resumen` y usarlo en l.120, 166 y 193, o confirmar con evidencia que el hook ya lo hace. Añadir el caso al test de «retira cifras antiguas».
+
+[P2] Si la meta de conversión no está disponible, la pantalla dice «Sin meta de conversión»
+File: app/src/screens/hoy/supervisor-jornada.tsx:137
+Problem: `metaConversionAplicable(meta.conversionObjetivo, objetivosMensualesError)` devuelve un valor nulo ante el error. La UI traduce ese null siempre como «Sin meta de conversión».
+Evidence: `datos-supervisor.ts:169` y l.291-292 distinguen «Meta mensual no disponible» de `SIN_META`. La portada nueva pierde esa distinción, y lo mismo ocurre durante `fotoMensualStoreCargando`.
+Impact: Una fuente caída se presenta como una decisión de gerencia de no fijar meta.
+Recommendation: Ramificar así: con `objetivosMensualesError`, «Meta no disponible»; con `fotoMensualStoreCargando`, «Meta por confirmar»; en otro caso, el texto actual.
+
+[P3] El orden «mayor capital confirmado» mezcla totales que no son comparables
+File: app/src/screens/hoy/jornada-supervisor.ts:113
+Problem: En el régimen legado sin TC, una fila `solo_pen` ordena por su total parcial en PEN frente a filas `convertido`.
+Recommendation: Ordenar primero por `capitalComparable` y después por total. Otra opción es tratar los no comparables como `-1`.
+
+[P3] Con el TC en vuelo se muestra «S/ X + $Y · sin convertir» en lugar de «Calculando…»
+File: supervisor-jornada.tsx:41 · datos-supervisor.ts:218
+Problem: `tcEnVuelo` no se exporta, y `Importe` solo distingue comparable de no comparable.
+Recommendation: Exportar `tcEnVuelo` y mostrar «Calculando…» mientras sea true.
+
+[P3] Semántica de cifras no verificable con la evidencia adjunta (hipótesis)
+File: app/src/screens/hoy/supervisor-jornada.tsx
+Lines: 120/164, 179, 22 (de jornada-supervisor.ts)
+Problem: Tres puntos que no puedo confirmar con el material adjunto:
+- l.120/164: `etapa === 'propuesta_enviada'` se rotula «con entrevista realizada». Hay que confirmar que esa etapa equivale a la entrevista realizada en el embudo del dominio.
+- l.179: la columna «Citas · pendientes hoy» usa `f.citas_hoy` de Gestión Diaria, mientras el frente 02 usa el RPC de Citas con todos los estados. Si `citas_hoy` no cuenta solo pendientes, el subtítulo engaña y las dos cifras no cuadran.
+- jornada-supervisor.ts:21-22: con `equipo` vacío, `every` es true y `primeras` vale 0. El resultado es «0 primeras gestiones vencidas» para un equipo sin analistas. Es inocuo pero conviene revisarlo.
+
+[P3] Consultas que la nueva portada no usa
+File: datos-supervisor.ts:88, 316
+Problem: `useMetricasVendedoresOperativas` y `useMetricasAgenda` siguen ejecutándose en cada carga de Hoy del supervisor, aunque la jornada no consume `rank` ni la agenda.
+Impact: Carga de red y RPC innecesaria.
+Recommendation: No es bloqueante. Puede resolverse más adelante con un flag o separando los hooks.
+
+TEST GAPS:
+- `filasMensualesJornada` con `conversion` no nulo: población alineada, población desalineada (el P1) y responsable sin meta. Hoy todos los tests pasan `conversion: null`.
+- Portada con `fotoMensualStoreCargando: true`: la meta no debe decir «Sin meta fijada».
+- Portada con `resumenOp.error`: no debe mostrar potencial, entrevistas ni leads por repartir.
+- Portada con `objetivosMensualesError`: la conversión debe mostrar «Meta no disponible».
+- Citas en `isPending`, para cubrir el texto de carga. Confirmar también que el supervisor tiene `can('verCitasEquipo')`. Si no lo tuviera, la consulta quedaría deshabilitada y se vería «Consultando citas…» de forma perpetua (hipótesis).
+- Modo demo (`sesionReal: false`) de la portada completa. Ningún test unitario lo renderiza.
+
+REGRESSION RISKS:
+- `hoy.tsx:16` deja inalcanzables la pantalla clásica y el puesto de mando, aunque se dice que se conservan. Sus tests pasan sobre código muerto de cara al usuario. Se pierden la agenda de 7 días, el ranking y los rezagos de agenda que antes veía el supervisor. Es aceptable si esa es la decisión de la propuesta 2, pero conviene dejarlo documentado.
+
+SECURITY RISKS:
+- No encuentro ninguno nuevo. `obtenerDiaEquipo` valida `supervisor_id` y `dia` de la respuesta. La vista exige el rol supervisor y las citas siguen el lector existente limitado por actor.
+
+RECOMMENDED NEXT ACTIONS:
+1. Corregir el P1 (población de conversión) y añadir su test.
+2. Corregir los dos rótulos de meta (P2 de carga y P2 de conversión) y el cierre ante fallos de `resumen`.
+3. Confirmar con el código o el contrato la semántica de `propuesta_enviada` y de `citas_hoy`.
+4. Ejecutar el gate de realidad cuando exista `SUPABASE_URL`. Hoy está NOT RUN y no debe declararse cubierto.
+
+CONFIDENCE:
+MEDIUM. Los P2 de rótulos derivan directamente del código adjunto. El P1 depende del contrato de `responsables`, que no se adjuntó, y el P2 de `resumen` depende de `useResumenCarteraOperativo`, que tampoco se adjuntó.

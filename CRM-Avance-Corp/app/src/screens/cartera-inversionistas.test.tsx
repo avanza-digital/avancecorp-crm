@@ -22,8 +22,10 @@ vi.mock('@/lib/auth-context', () => ({useAuth: () => ({yo: {id: ACTOR_F5, rol: s
 
 const api = vi.hoisted(() => ({lista:vi.fn(), ficha:vi.fn(), bancos:vi.fn(), documento:vi.fn(), consultar:vi.fn(), preparar:vi.fn(),
   corregir:vi.fn(), responsable:vi.fn(), confirmar:vi.fn(), acceso:vi.fn(), subir:vi.fn(), postventa:vi.fn(), eliminar:vi.fn(),
-  buscarCliente:vi.fn(), eliminarInversion:vi.fn()}))
-vi.mock('@/data/crm-api', async (original) => ({...await original<typeof import('@/data/crm-api')>(), eliminarInversion:api.eliminarInversion}))
+  buscarCliente:vi.fn(), eliminarInversion:vi.fn(), categoria:vi.fn(), previaCoop:vi.fn(), reemplazarCoop:vi.fn()}))
+vi.mock('@/data/categoria-inversion-api', () => ({corregirCategoriaInversion:api.categoria}))
+vi.mock('@/data/crm-api', async (original) => ({...await original<typeof import('@/data/crm-api')>(), eliminarInversion:api.eliminarInversion,
+  vistaPreviaReemplazoCooperativa:api.previaCoop, reemplazarInversionCooperativa:api.reemplazarCoop}))
 vi.mock('@/data/cliente-existente-api', () => ({buscarClienteExistente:api.buscarCliente, obtenerContextoClienteExistente:vi.fn(),
   cuentasClienteExistente:vi.fn(), datosLegalesClienteExistente:vi.fn(), contratosUpgradeClienteExistente:vi.fn()}))
 vi.mock('@/lib/contrato-pdf-archivo', async (original) => ({...await original<typeof import('@/lib/contrato-pdf-archivo')>(), eliminarContratoConPdf:api.eliminar}))
@@ -53,6 +55,56 @@ beforeEach(() => {
 })
 afterEach(() => {cleanup(); vi.restoreAllMocks()})
 describe('F5: cartera y ficha con acceso vigente', () => {
+  it.each([
+    ['coordinador','comercial',true],['gerencia','comercial',true],['vendedor','admin',true],
+    ['gerencia','superadmin',true],['vendedor','comercial',false],['supervisor','comercial',false],['directorio','directorio',false],
+  ])('categoría: %s / %s ofrece corrección %s', async (rol,portal,visible) => {
+    sesion.rol=rol; sesion.rolPortal=portal
+    const d=structuredClone(fichaF5)
+    d.inversiones=[{...inversionF5,empresa:'avance',numero:'CONTRATO DE PRUEBA',perfil_id:PERFIL_F5,
+      contrato:{fecha_inicio:'2026-10-05',tasa_anual:15,modalidad:'mensual',tipo_interes:'simple',categoria:'nuevo'}}]
+    if(rol==='coordinador') d.capacidades={...d.capacidades,nueva_inversion:false,postventa:false,documentos:false,cuentas_perfil_ids:[]}
+    api.ficha.mockResolvedValue(d)
+    const {user}=montar()
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    await screen.findByText('CONTRATO DE PRUEBA · Vencimiento:',{exact:false})
+    const boton=screen.queryByRole('button',{name:'Corregir categoría de CONTRATO DE PRUEBA'})
+    if(visible) expect(boton).toBeEnabled()
+    else expect(boton).not.toBeInTheDocument()
+    if(rol==='coordinador') {
+      expect(screen.queryByRole('button',{name:'Datos y correcciones'})).not.toBeInTheDocument()
+      expect(screen.queryByRole('button',{name:'Detalle completo de CONTRATO DE PRUEBA'})).not.toBeInTheDocument()
+      expect(screen.queryByRole('button',{name:'Registrar nueva inversión'})).not.toBeInTheDocument()
+    }
+  })
+
+  it('corrige con motivo, conserva el error del servidor e invalida cartera y ranking al guardar', async () => {
+    sesion.rol='coordinador';sesion.rolPortal='comercial'
+    const d=structuredClone(fichaF5)
+    d.capacidades={...d.capacidades,nueva_inversion:false,postventa:false,documentos:false,cuentas_perfil_ids:[]}
+    d.inversiones=[{...inversionF5,empresa:'avance',numero:'CORREGIBLE',perfil_id:PERFIL_F5,
+      contrato:{fecha_inicio:'2026-10-05',tasa_anual:15,modalidad:'mensual',tipo_interes:'simple',categoria:'nuevo'}}]
+    api.ficha.mockResolvedValue(d)
+    api.categoria.mockRejectedValueOnce(new CrmApiError('El mes ya está sellado','P0409')).mockResolvedValue({cambio:true})
+    const {user,qc}=montar()
+    const invalidar=vi.spyOn(qc,'invalidateQueries')
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    await user.click(await screen.findByRole('button',{name:'Corregir categoría de CORREGIBLE'}))
+    const guardar=screen.getByRole('button',{name:'Guardar corrección'})
+    expect(guardar).toBeDisabled()
+    await user.selectOptions(screen.getByLabelText('Categoría correcta'),'renovacion')
+    expect(guardar).toBeDisabled()
+    await user.type(screen.getByLabelText('Motivo de la corrección'),'El analista seleccionó Nuevo por error')
+    await user.click(guardar)
+    expect(await screen.findByRole('alert')).toHaveTextContent('El mes ya está sellado')
+    expect(screen.getByLabelText('Motivo de la corrección')).toHaveValue('El analista seleccionó Nuevo por error')
+    await user.click(guardar)
+    await waitFor(()=>expect(screen.queryByRole('dialog',{name:'Corregir categoría de inversión'})).not.toBeInTheDocument())
+    expect(api.categoria).toHaveBeenLastCalledWith(FUENTE_F5,'renovacion','El analista seleccionó Nuevo por error')
+    expect(invalidar).toHaveBeenCalledWith({queryKey:inversionistasKeys.actor(ACTOR_F5)})
+    expect(invalidar).toHaveBeenCalledWith({queryKey:crmQueryKeys.metricas()})
+    expect(invalidar).toHaveBeenCalledWith({queryKey:crmQueryKeys.metricasAmbito()})
+  })
   it.each([
     ['gerencia',true,true],['supervisor',true,true],['analista',true,false],
     ['directorio',true,false],['gerencia',false,false],
@@ -595,7 +647,7 @@ describe('F5: revisión y recuperación económica', () => {
     await user.type(screen.getByLabelText('Número de operación del depósito'),'F5-DEP-001')
     await user.clear(screen.getByLabelText('Fecha comercial (inicio)')); await user.type(screen.getByLabelText('Fecha comercial (inicio)'),'2026-09-01')
     await user.type(screen.getByLabelText('Plazo (meses)'),'12')
-    expect(screen.getByLabelText('Vencimiento')).toHaveValue('2027-09-01')
+    expect(screen.getByLabelText('Vencimiento')).toHaveValue('2027-08-27')
     expect(screen.getByLabelText('Vencimiento')).toHaveAttribute('readonly')
     await user.type(screen.getByLabelText('Rentabilidad anual (%)'),'12')
     await user.type(screen.getByLabelText('Referencia de la inversión'),'REFERENCIA SINTÉTICA')
@@ -606,7 +658,7 @@ describe('F5: revisión y recuperación económica', () => {
     fireEvent.submit(screen.getByRole('button',{name:'Revisar inversión'}).closest('form')!)
     await screen.findByRole('button',{name:'Confirmar inversión'})
     expect(confirmada).not.toHaveBeenCalled(); expect(api.confirmar).not.toHaveBeenCalled()
-    expect(leerIntentoInversion(ACTOR_F5,PERSONA_F5)?.datos).toMatchObject({plazo_meses:12,tasa_anual:12,vence_en:'2027-09-01'})
+    expect(leerIntentoInversion(ACTOR_F5,PERSONA_F5)?.datos).toMatchObject({plazo_meses:12,tasa_anual:12,vence_en:'2027-08-27'})
     await user.click(screen.getByRole('button',{name:'Confirmar inversión'}))
     expect(api.confirmar).toHaveBeenCalledWith(vigente.solicitud_id,3)
     await screen.findByText('Respuesta perdida')
@@ -1138,5 +1190,63 @@ describe('Venta cruzada desde la Cartera', () => {
     const mes=api.lista.mock.calls[0]![0].mes
     await user.type(screen.getByLabelText('Buscar persona'),'Ana')
     await waitFor(() => expect(api.lista.mock.calls.at(-1)![0]).toMatchObject({texto:'Ana',mes}))
+  })
+})
+
+describe('Reemplazar inversión de cooperativa desde la ficha (Fase 4)', () => {
+  const previaCoop = (fecha: string) => ({fuente_id:FUENTE_F5,cooperativa:'qorilazo',es_inicial:true,anulada:false,venta_de_lead:true,
+    comprobante:true,fecha_comercial_actual:'2026-09-01',mes_actual:'2026-09-01',fecha_comercial_resultante:fecha,
+    mes_resultante:`${fecha.slice(0,7)}-01`,cambia_mes:!fecha.startsWith('2026-09'),fecha_futura:false,mes_sellado:false,
+    plazo_vencido:false,no_reemplazable:null})
+  beforeEach(() => {api.previaCoop.mockImplementation(async(_f:string,fecha:string)=>previaCoop(fecha))})
+  it.each([
+    ['gerencia','directorio',false,true], ['gerencia','superadmin',false,true], ['gerencia','analista',false,true],
+    // Admin del portal sin Gerencia: NO (es la venta de un lead; auditoría RLS, P1).
+    ['vendedor','admin',false,false], ['vendedor','superadmin',false,false], ['supervisor','admin',false,false],
+    ['vendedor','analista',false,false], ['supervisor','comercial',false,false], ['directorio','directorio',false,false],
+    ['gerencia','admin',true,false],                                                     // una sesión demo no reemplaza
+  ])('%s / %s (demo %s): se ofrece %s',async(rol,rolPortal,demo,visible)=>{
+    sesion.rol=rol;sesion.rolPortal=rolPortal;sesion.demo=demo
+    const {user}=montar()
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    await screen.findByRole('button',{name:'Ver inversión QORILAZO SINTÉTICO'})
+    expect(screen.queryAllByRole('button',{name:'Reemplazar inversión QORILAZO SINTÉTICO'})).toHaveLength(visible?1:0)
+  })
+  it.each([
+    ['un aporte adicional',{es_inicial:false}], ['una venta anulada',{estado:'anulado_comercialmente'}], ['la demostración',{es_demo:true}],
+  ])('no se ofrece en %s',async(_n,over)=>{
+    api.ficha.mockResolvedValue({...structuredClone(fichaF5),inversiones:[{...inversionF5,...over}]})
+    const {user}=montar()
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    await screen.findByRole('button',{name:'Ver inversión QORILAZO SINTÉTICO'})
+    expect(screen.queryByRole('button',{name:'Reemplazar inversión QORILAZO SINTÉTICO'})).not.toBeInTheDocument()
+  })
+  it('gerencia la pasa a Prodelco: viaja solo la cooperativa, avisa el mes de la venta y refresca lo mismo que eliminar',async()=>{
+    const ficha=structuredClone(fichaF5)
+    api.ficha.mockResolvedValue(ficha)
+    api.reemplazarCoop.mockImplementation(async()=>{
+      api.ficha.mockResolvedValue({...ficha,inversiones:[{...inversionF5,fuente_id:PERFIL_F5,empresa:'prodelco'}]})
+      return {cierreId:PERFIL_F5,cooperativa:'prodelco',fechaComercial:'2026-09-01',idempotente:false,periodoVenta:'2026-09-01'}
+    })
+    const exito=vi.spyOn(toast,'success')
+    const {user,qc}=montar()
+    const invalidar=vi.spyOn(qc,'invalidateQueries')
+    await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    await user.click(await screen.findByRole('button',{name:'Reemplazar inversión QORILAZO SINTÉTICO'}))
+    const dialogo=screen.getByRole('dialog',{name:'Reemplazar inversión en Qorilazo QORILAZO SINTÉTICO'})
+    await waitFor(()=>expect(api.previaCoop).toHaveBeenCalledWith(FUENTE_F5,'2026-09-01'))
+    await user.click(within(dialogo).getByRole('radio',{name:/Prodelco/}))
+    await user.type(within(dialogo).getByLabelText('Motivo del reemplazo'),'Se registró en la cooperativa equivocada')
+    const confirmar=within(dialogo).getByRole('button',{name:'Reemplazar inversión'})
+    await waitFor(()=>expect(confirmar).toBeEnabled())
+    await user.click(confirmar)
+    await waitFor(()=>expect(exito).toHaveBeenCalledWith('Inversión en Qorilazo reemplazada. Ahora está en Prodelco. La venta quedó en septiembre 2026.'))
+    expect(api.reemplazarCoop).toHaveBeenCalledExactlyOnceWith(FUENTE_F5,'Se registró en la cooperativa equivocada',{cooperativa:'prodelco'})
+    expect(api.subir).not.toHaveBeenCalled()
+    expect(invalidar.mock.calls.map(([filtro])=>filtro?.queryKey)).toEqual(expect.arrayContaining([
+      inversionistasKeys.actor(ACTOR_F5), crmQueryKeys.contratos(), crmQueryKeys.metricas(), crmQueryKeys.leads(), postventaKeys.actor(ACTOR_F5),
+    ]))
+    await waitFor(()=>expect(screen.queryByRole('dialog',{name:/Reemplazar inversión en Qorilazo/})).not.toBeInTheDocument())
+    expect(await screen.findByText('Inversión en Prodelco')).toBeVisible()
   })
 })

@@ -33,20 +33,20 @@ async function preparar(page: Page, roster: 'normal' | 'error' = 'normal') {
       analista_id: ANA, analista_nombre: 'ANA PRUEBA', supervisor_id: SUP, supervisor_nombre: 'SUPERVISORA PRUEBA',
     }] : [] })
   })
-  await page.route('**/rest/v1/rpc/listar_operaciones_facturacion_fn', (route) => {
+  await page.route('**/rest/v1/rpc/listar_operaciones_facturacion_v2_fn', (route) => {
     if (route.request().method() !== 'POST') return route.fallback()
-    return route.fulfill({ headers: CORS, json: { version: 1, pagina: 1, tamano: 25, total: 1,
+    return route.fulfill({ headers: CORS, json: { version: 2, pagina: 1, tamano: 25, total: 1,
       totales: [{ moneda: 'PEN', operaciones: 1, monto: 27000 }], filas: [{
         n: 1, fecha: '2026-10-05', tipo: 'contrato_nuevo', moneda: 'PEN', monto: 27000, anulado: false,
         analista_id: ANA, analista_nombre: 'ANA PRUEBA', supervisor_id: SUP, supervisor_nombre: 'SUPERVISORA PRUEBA',
-        visible: false, cliente_nombre: 'Cliente de otro equipo',
+        visible: false, nombre_visible: true, cliente_nombre: 'CLIENTE DEL REPORTE',
       }] } })
   })
   await loginReal(page)
   return pedidos
 }
 
-test('Coordinación consulta Facturación y el detalle numérico sin ficha de clientes', async ({ page }) => {
+test('Coordinación consulta nombres en Facturación y conserva el reporte sin ficha de clientes', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   const pedidos = await preparar(page)
   await expect(page).toHaveURL(/#\/repartir$/)
@@ -57,7 +57,9 @@ test('Coordinación consulta Facturación y el detalle numérico sin ficha de cl
   await expect(malla.getByText('ANALISTA SIN VENTAS', { exact: true })).toBeVisible()
   await malla.getByRole('button', { name: /^ANA PRUEBA, lunes, 5 de octubre: S\/ 27,000, ver 1 operación$/ }).click()
   const panel = page.locator('.lista-operaciones')
-  await expect(panel).toContainText('Cliente de otro equipo')
+  await expect(panel).toContainText('CLIENTE DEL REPORTE')
+  await expect(panel).not.toContainText('Cliente de otro equipo')
+  await expect(panel.getByRole('link')).toHaveCount(0)
   await expect(panel.getByRole('button', { name: /Abrir|Ver ficha|Editar|Anular/ })).toHaveCount(0)
   await page.keyboard.press('Escape')
   for (const nombre of ['Mi cartera', 'Equipo', 'Configuración', 'Pipeline', 'Metas']) {
@@ -66,7 +68,9 @@ test('Coordinación consulta Facturación y el detalle numérico sin ficha de cl
   await page.evaluate(() => { window.location.hash = '#/configuracion' })
   await expect(page).toHaveURL(/#\/repartir$/)
   expect(pedidos).toContain('equipo_reportes_fn')
-  expect(pedidos).not.toContain('equipo_visible_fn')
+  expect(pedidos).toContain('equipo_visible_fn')
+  await expect(page.getByRole('button', { name: 'Cartera', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Leads', exact: true })).toBeVisible()
 })
 
 test('Ranking de Coordinación consulta el mes completo y permite cambiar la lectura', async ({ page }) => {

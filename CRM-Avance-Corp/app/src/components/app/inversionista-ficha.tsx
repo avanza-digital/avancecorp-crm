@@ -2,7 +2,7 @@ import { PostventaPersona, type ControlesPostventa } from './postventa-persona'
 // La ficha neutral comparte la cabecera, las secciones, la banca y el Sheet
 // publicados. Una cooperativa nunca se adapta a un perfil ficticio de Avance.
 import { useEffect, useId, useRef, useState } from 'react'
-import { CalendarClock, ChevronDown, FileText, History, Landmark, TrendingUp, UserRound, WalletCards } from 'lucide-react'
+import { CalendarClock, ChevronDown, FileText, History, Landmark, RefreshCw, TrendingUp, UserRound, WalletCards } from 'lucide-react'
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -23,6 +23,9 @@ import { AYUDA_UPGRADE, CATEGORIA_LABEL, ESTADO_COLOR, ESTADO_CONTRATO_LABEL, ET
 import { AYUDA_HISTORIAL_INCOMPLETO, AYUDA_TODAS_LAS_EMPRESAS, empresasSinHistorial } from '@/lib/inversion-por-empresa'
 import { ContratoEliminar } from './contrato-eliminar'
 import { InversionEliminar } from './inversion-eliminar'
+import { InversionReemplazar, type ControlesReemplazo } from './inversion-reemplazar'
+import { InversionReemplazarCooperativa, type ControlesReemplazoCooperativa } from './inversion-reemplazar-cooperativa'
+import { InversionCorregirCategoria, type CorregirCategoria } from './inversion-corregir-categoria'
 import { GestionInversionistaDialogo } from './gestion-inversionista-dialogo'
 
 const AYUDA_UPGRADE_COOPERATIVA = 'Registra un aporte adicional vinculado a una inversión vigente. La inversión original se conserva; la reinversión se registra por separado.'
@@ -65,7 +68,7 @@ function CuentasAvance({actor, identidad, perfil, onRevocado}: {
   </div>
 }
 
-function InversionDetalle({inversion, posicion, onDocumento, onOperacion, onRecuperarPdf, postventa, onRetiro, onEliminar, onEliminarInversion, onDetalle}: {
+function InversionDetalle({inversion, posicion, onDocumento, onOperacion, onRecuperarPdf, postventa, onRetiro, onEliminar, onEliminarInversion, onReemplazar, onDetalle, onCategoria}: {
   posicion: number
   postventa?: boolean | undefined
   onRetiro?: ((inversion: InversionFuente) => void) | undefined
@@ -76,7 +79,10 @@ function InversionDetalle({inversion, posicion, onDocumento, onOperacion, onRecu
   onEliminar?: ((inversion: InversionFuente) => void) | undefined
   /** «Eliminar inversión» (las tres empresas). Activa, reemplaza a «Eliminar contrato»: un solo botón rojo. */
   onEliminarInversion?: ((inversion: InversionFuente) => void) | undefined
+  /** «Reemplazar inversión» (Avance 17/10/2026, cooperativas 18/10/2026): solo si la pantalla lo permite para ESTA inversión. */
+  onReemplazar?: ((inversion: InversionFuente) => void) | undefined
   onDetalle?: ((inversion: InversionFuente) => void) | undefined
+  onCategoria?: ((inversion: InversionFuente) => void) | undefined
 }) {
   const i = inversion
   const [abierta, setAbierta] = useState(false)
@@ -132,6 +138,7 @@ function InversionDetalle({inversion, posicion, onDocumento, onOperacion, onRecu
       </Button>)}</div>}
     </div>}
     acciones={<>
+      {onCategoria && i.empresa === 'avance' && i.contrato && <Button variant="outline" size="xs" className="min-h-10" onClick={() => onCategoria(i)} aria-label={`Corregir categoría de ${referenciaAccesible}`}>Corregir categoría</Button>}
       {onDetalle && <Button variant="outline" size="xs" className="min-h-10" onClick={()=>onDetalle(i)} aria-label={`Detalle completo de ${referenciaAccesible}`}>Detalle y gestión</Button>}
       <Button type="button" variant="outline" size="xs" className="min-h-10" aria-expanded={abierta} aria-controls={detalleId}
         aria-label={`${abierta ? 'Ocultar detalle de' : 'Ver inversión'} ${referenciaAccesible}`}
@@ -139,6 +146,8 @@ function InversionDetalle({inversion, posicion, onDocumento, onOperacion, onRecu
         <ChevronDown aria-hidden className={abierta ? 'rotate-180' : undefined} /> {abierta ? 'Ocultar detalle' : 'Ver inversión'}
       </Button>
       {i.pdf?.reintentable && onRecuperarPdf && <Button variant="outline" size="xs" className="min-h-10" onClick={() => onRecuperarPdf(i)}>Recuperar PDF pendiente</Button>}
+      {onReemplazar && <Button variant="outline" size="xs" className="min-h-10"
+        aria-label={`Reemplazar inversión ${referenciaAccesible}`} onClick={() => onReemplazar(i)}><RefreshCw aria-hidden />Reemplazar inversión</Button>}
       {onEliminarInversion ? <Button variant="destructive" size="xs" className="min-h-10"
         aria-label={`Eliminar inversión ${referenciaAccesible}`} onClick={() => onEliminarInversion(i)}>Eliminar inversión</Button>
         : onEliminar && i.empresa === 'avance' && i.contrato && <Button variant="destructive" size="xs" className="min-h-10"
@@ -160,9 +169,11 @@ function InversionDetalle({inversion, posicion, onDocumento, onOperacion, onRecu
   />
 }
 
-export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado, onNuevaInversion, onDocumento, onOperacion, onRecuperarPdf, onEliminar, onEliminarInversion, puedeEliminarInversion, enfocarInversiones = false}: {
+export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado, onNuevaInversion, onDocumento, onOperacion, onRecuperarPdf, onEliminar, onEliminarInversion, puedeEliminarInversion, reemplazo, reemplazoCooperativa, enfocarInversiones = false, permiteGestion = true, onCorregirCategoria}: {
   actor: string; inversionistaId: string; onCerrar: () => void; onRevocado: () => void
   enfocarInversiones?: boolean
+  permiteGestion?: boolean
+  onCorregirCategoria?: CorregirCategoria | undefined
   onOperacion?: ((operacion: OperacionInversion) => void) | undefined
   onNuevaInversion?: ((ficha: FichaInversionista) => void) | undefined
   onDocumento?: ((inversion: InversionFuente, documentoId: string) => void) | undefined
@@ -171,9 +182,15 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
   onEliminarInversion?: ((inversion: InversionFuente, motivo: string) => Promise<void>) | undefined
   /** Filtro de UX por inversión (el servidor decide igual); sin él, se ofrece en todas. */
   puedeEliminarInversion?: ((inversion: InversionFuente) => boolean) | undefined
+  /** «Reemplazar inversión» de Avance: sin estos controles no se ofrece. */
+  reemplazo?: ControlesReemplazo | undefined
+  /** «Reemplazar inversión» de una cooperativa (Fase 4): sin estos controles no se ofrece. */
+  reemplazoCooperativa?: ControlesReemplazoCooperativa | undefined
 }) {
+  const [categoriaCorregir, setCategoriaCorregir] = useState<InversionFuente | null>(null)
   const [contratoEliminar, setContratoEliminar] = useState<InversionFuente | null>(null)
   const [inversionEliminar, setInversionEliminar] = useState<InversionFuente | null>(null)
+  const [inversionReemplazar, setInversionReemplazar] = useState<InversionFuente | null>(null)
   const [gestion, setGestion] = useState<{fuente:string|null}|null>(null)
   const [retiroElegido, setRetiroElegido] = useState<InversionFuente | null>(null)
   const [eligiendoUpgrade, setEligiendoUpgrade] = useState(false)
@@ -201,9 +218,11 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
     : q.isError && confirmada?.clave === clave ? confirmada.ficha : null
   const desactualizada = Boolean(ficha && q.isError)
   useEffect(() => {
+    if (!onCorregirCategoria || desactualizada || accesoRevocado) setCategoriaCorregir(null)
     if (!onEliminar || desactualizada || accesoRevocado) setContratoEliminar(null)
     if (!onEliminarInversion || desactualizada || accesoRevocado) setInversionEliminar(null)
-  }, [onEliminar, onEliminarInversion, desactualizada, accesoRevocado])
+    if ((!reemplazo && !reemplazoCooperativa) || desactualizada || accesoRevocado) setInversionReemplazar(null)
+  }, [onEliminar, onEliminarInversion, onCorregirCategoria, reemplazo, reemplazoCooperativa, desactualizada, accesoRevocado])
   useEffect(() => {
     if (!enfocarInversiones || focoAplicado.current || !ficha) return
     let segundo = 0
@@ -323,11 +342,13 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
           <h4 className="text-[11px] font-bold text-muted-foreground">{EMPRESA_NOMBRE[inversiones[0]!.empresa]} · {inversiones[0]!.moneda}</h4>
           <ul className="space-y-2" aria-label={`Inversiones ${EMPRESA_NOMBRE[inversiones[0]!.empresa]} ${inversiones[0]!.moneda}`}>
           {inversiones.map((i, posicion) => <li key={i.fuente_id}><InversionDetalle inversion={i} posicion={posicion + 1} postventa={ficha.capacidades.postventa && !desactualizada}
-            onDetalle={!desactualizada ? inversion=>setGestion({fuente:inversion.fuente_id}) : undefined}
+            onCategoria={!desactualizada && onCorregirCategoria ? setCategoriaCorregir : undefined}
+            onDetalle={permiteGestion && !desactualizada ? inversion=>setGestion({fuente:inversion.fuente_id}) : undefined}
             onRetiro={setRetiroElegido} onDocumento={ficha.capacidades.documentos && !desactualizada ? onDocumento : undefined}
             onRecuperarPdf={!desactualizada ? onRecuperarPdf : undefined}
             onEliminar={!desactualizada && onEliminar ? setContratoEliminar : undefined}
             onEliminarInversion={!desactualizada && onEliminarInversion && (puedeEliminarInversion?.(i) ?? true) ? setInversionEliminar : undefined}
+            onReemplazar={!desactualizada && (i.empresa === 'avance' ? reemplazo : reemplazoCooperativa)?.puede(i) ? setInversionReemplazar : undefined}
             onOperacion={ficha.capacidades.nueva_inversion && !desactualizada ? onOperacion : undefined} /></li>)}
           </ul>
         </div>)}
@@ -335,7 +356,7 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
         <Paginacion paginaActual={paginaInversiones - 1} paginas={Math.max(1, Math.ceil(ficha.inversiones_total / 25))}
           total={ficha.inversiones_total} onCambio={n => setPaginaInversiones(n + 1)} ariaLabel="Paginación de inversiones" />
       </FichaComercialSeccion>
-      <FichaComercialSeccion icono={UserRound} titulo="Información del cliente" descripcion="Datos para reconocerlo y contactarlo correctamente." accion={<div className="flex flex-wrap gap-2">{acciones}<Button variant="outline" size="xs" className="min-h-10" disabled={desactualizada} onClick={()=>setGestion({fuente:null})}>Datos y correcciones</Button></div>}>
+      <FichaComercialSeccion icono={UserRound} titulo="Información del cliente" descripcion="Datos para reconocerlo y contactarlo correctamente." accion={<div className="flex flex-wrap gap-2">{acciones}{permiteGestion && <Button variant="outline" size="xs" className="min-h-10" disabled={desactualizada} onClick={()=>setGestion({fuente:null})}>Datos y correcciones</Button>}</div>}>
         <div className="grid grid-cols-2 gap-3 rounded-xl border border-border bg-muted/20 p-3 sm:grid-cols-3">
           <DatoCliente etiqueta="Nombres y apellidos">{p.nombre}</DatoCliente>
           <DatoCliente etiqueta={p.documento_tipo || 'Documento'}>{p.documento || 'Pendiente de completar'}</DatoCliente>
@@ -367,12 +388,21 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
       </FichaComercialSeccionPlegable>}
     </SheetBody>
     <SheetFooter className="justify-between"><Button variant="outline" className="min-h-11" onClick={onCerrar}>Cerrar</Button>{agendar}</SheetFooter>
+    {categoriaCorregir && onCorregirCategoria && !desactualizada && <InversionCorregirCategoria
+      key={categoriaCorregir.fuente_id} inversion={categoriaCorregir} onConfirmar={onCorregirCategoria}
+      onCerrar={() => setCategoriaCorregir(null)} />}
     {contratoEliminar && onEliminar && !desactualizada && <ContratoEliminar
       key={contratoEliminar.fuente_id} inversion={contratoEliminar} onConfirmar={onEliminar}
       onCerrar={() => setContratoEliminar(null)} />}
     {inversionEliminar && onEliminarInversion && !desactualizada && <InversionEliminar
       key={inversionEliminar.fuente_id} inversion={inversionEliminar} onConfirmar={onEliminarInversion}
       onCerrar={() => setInversionEliminar(null)} />}
+    {inversionReemplazar && inversionReemplazar.empresa === 'avance' && reemplazo && !desactualizada && <InversionReemplazar
+      key={inversionReemplazar.fuente_id} inversion={inversionReemplazar} ficha={ficha} controles={reemplazo}
+      focoAlTerminar={inversionesRef} onCerrar={() => setInversionReemplazar(null)} />}
+    {inversionReemplazar && inversionReemplazar.empresa !== 'avance' && reemplazoCooperativa && !desactualizada && <InversionReemplazarCooperativa
+      key={inversionReemplazar.fuente_id} inversion={inversionReemplazar} ficha={ficha} controles={reemplazoCooperativa}
+      focoAlTerminar={inversionesRef} onCerrar={() => setInversionReemplazar(null)} />}
     {eligiendoUpgrade && ampliables.length > 0 && <Dialog open onClose={() => setEligiendoUpgrade(false)}
       ariaLabel={`Elegir la inversión que amplía este upgrade`} className="w-[520px]">
       <DialogHeader><DialogTitle>¿Qué {objetoUpgrade} amplía este upgrade?</DialogTitle></DialogHeader>
@@ -393,7 +423,7 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
       </DialogBody>
       <DialogFooter><Button variant="outline" onClick={() => setEligiendoUpgrade(false)}>Cancelar</Button></DialogFooter>
     </Dialog>}
-    {gestion && <GestionInversionistaDialogo actor={actor} persona={p.inversionista_id} fuente={gestion.fuente}
+    {gestion && permiteGestion && <GestionInversionistaDialogo actor={actor} persona={p.inversionista_id} fuente={gestion.fuente}
       onCerrar={()=>setGestion(null)} onRevocado={onRevocado} />}
   </>
   return <PostventaPersona actor={actor} ficha={ficha} retiroElegido={retiroElegido}

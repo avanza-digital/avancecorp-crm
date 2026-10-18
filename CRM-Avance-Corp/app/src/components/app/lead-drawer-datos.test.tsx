@@ -248,7 +248,7 @@ describe('LeadDrawer — edición de clasificación por capital', () => {
     // el origen escribió mal y que la fila muestra como «sin validar».
     const user = userEvent.setup()
     const { editarLead } = montar({
-      lead: { telefono_alternativo: null, telefono_alternativo_crudo: '99988 7' },
+      lead: { telefono_alternativo: null, telefono_alternativo_crudo: '99988 7', campania_origen: 'Formulario 3' },
     })
 
     await user.click(screen.getByRole('button', { name: 'Editar' }))
@@ -263,6 +263,8 @@ describe('LeadDrawer — edición de clasificación por capital', () => {
       expect.any(String),
       expect.objectContaining({ telefono_alternativo: '999887766' }),
     )
+    expect(editarLead.mock.calls[0]?.[1]).not.toHaveProperty('campania_origen')
+    expect(screen.getByTitle('Campaña de origen: Formulario 3')).toBeInTheDocument()
   })
 
   it('vaciar el segundo número es legítimo y llega como null', async () => {

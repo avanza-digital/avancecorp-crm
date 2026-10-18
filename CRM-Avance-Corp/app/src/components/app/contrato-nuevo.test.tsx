@@ -817,7 +817,12 @@ describe('ContratoNuevo — el aviso de la cadena de upgrade (ATR-3)', () => {
     expect(
       screen.getByText(/Esta renovación cuenta al analista del upgrade: MARIA UPGRADE/),
     ).toBeInTheDocument()
-    expect(screen.getByText(/El núcleo determina el aporte de la renovación/)).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'Desde octubre de 2026, una renovación con capital adicional cuenta como upgrade en la conversión si es la primera operación elegible del cliente en el mes, salvo corrección manual. El adicional queda separado para su pago.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/no crea otra conversión/)).not.toBeInTheDocument()
     expect(screen.queryByText(/La renovación suma una conversión/)).not.toBeInTheDocument()
     vi.mocked(crmQueries.useAtribucionContrato).mockReturnValue({ data: null, isPending: false, isError: false } as never)
   })
@@ -1173,5 +1178,66 @@ describe('ContratoNuevo — referencia y borrador del upgrade', () => {
     montar(undefined, {...opciones, borrador})
     expect(screen.getByLabelText('Tasa anual (%)')).toHaveValue('16')
     expect(screen.getByLabelText('Contrato que se amplía')).toHaveValue('origen-0')
+  })
+})
+
+describe('ContratoNuevo — incrustado en otro diálogo («La correcta» de Reemplazar inversión)', () => {
+  beforeEach(() => {
+    legalesEstado.error = false; legalesEstado.faltaDomicilio = false
+    legalesEstado.faltanCliente = []; legalesEstado.faltanAnalista = []
+    cuentasEstado.error = false; cuentasEstado.pending = false; cuentasEstado.fetching = false; cuentasEstado.ocultarPen = false
+  })
+
+  it('un solo título de diálogo, sin acciones propias; avisa si está listo y se envía desde fuera con form=', async () => {
+    const user = userEvent.setup()
+    const onRevisar = vi.fn<NonNullable<ContratoNuevoProps['onRevisar']>>(async () => undefined)
+    const onListoCambio = vi.fn()
+    render(
+      <Dialog open onClose={() => undefined} ariaLabel="Reemplazar inversión">
+        <ContratoNuevo clienteId="cli-1" clienteNombre="CLIENTE PORTAL UNO" categoriaFija="nuevo" onRevisar={onRevisar}
+          incrustado={{titulo: 'La correcta', idTitulo: 'ct-incrustado-titulo', idFormulario: 'ct-incrustado', onListoCambio}}
+          onCreado={vi.fn()} onOmitir={vi.fn()} />
+        <button type="submit" form="ct-incrustado">Enviar desde fuera</button>
+      </Dialog>,
+    )
+    expect(screen.queryAllByRole('heading', {level: 2})).toHaveLength(0)       // el título es del diálogo que lo envuelve
+    expect(screen.getByRole('heading', {level: 3, name: 'La correcta'})).toHaveAttribute('id', 'ct-incrustado-titulo')
+    expect(screen.queryByRole('button', {name: /Revisar inversión|Cancelar|Omitir/})).toBeNull()
+    expect(onListoCambio).toHaveBeenLastCalledWith(false, expect.any(String))   // sin capital ni cuenta todavía: con su razón
+    expect(screen.getByLabelText('Categoría')).toHaveValue('Nuevo')               // campo de solo lectura con su etiqueta
+    await user.type(screen.getByLabelText('Capital'), '10000')
+    await user.type(screen.getByLabelText('N° de contrato'), '000777')
+    await waitFor(() => expect(onListoCambio).toHaveBeenLastCalledWith(false, 'Elige la cuenta de pago del contrato.'))
+    await user.click(screen.getByRole('radio', {name: /BCP/}))
+    await waitFor(() => expect(onListoCambio).toHaveBeenLastCalledWith(true, null))
+    // Que un Enter en un campo NO confirme lo prueba el e2e (Chromium): jsdom no hace el envío implícito con un botón form=.
+    await user.click(screen.getByRole('button', {name: 'Enviar desde fuera'}))
+    await waitFor(() => expect(onRevisar).toHaveBeenCalledTimes(1))
+    expect(onRevisar.mock.calls[0]![0]).toMatchObject({capital: 10000, categoria: 'nuevo'})
+  })
+
+  it('incrustado: un segundo clic mientras envía no manda otro reemplazo', async () => {
+    const user = userEvent.setup()
+    let soltar: () => void = () => {}
+    const onRevisar = vi.fn<NonNullable<ContratoNuevoProps['onRevisar']>>(() => new Promise<void>(r => { soltar = r }))
+    const onEnviandoCambio = vi.fn()
+    render(
+      <Dialog open onClose={() => undefined} ariaLabel="Reemplazar inversión">
+        <ContratoNuevo clienteId="cli-1" clienteNombre="CLIENTE PORTAL UNO" categoriaFija="nuevo" onRevisar={onRevisar}
+          incrustado={{titulo: 'La correcta', idTitulo: 't', idFormulario: 'ct-incrustado', onListoCambio: vi.fn()}}
+          onEnviandoCambio={onEnviandoCambio} onCreado={vi.fn()} onOmitir={vi.fn()} />
+        <button type="submit" form="ct-incrustado">Enviar desde fuera</button>
+      </Dialog>,
+    )
+    await user.type(screen.getByLabelText('Capital'), '10000')
+    await user.type(screen.getByLabelText('N° de contrato'), '000777')
+    await user.click(screen.getByRole('radio', {name: /BCP/}))
+    const enviar = screen.getByRole('button', {name: 'Enviar desde fuera'})
+    await user.click(enviar)
+    await user.click(enviar)
+    expect(onRevisar).toHaveBeenCalledTimes(1)
+    expect(onEnviandoCambio).toHaveBeenLastCalledWith(true)
+    soltar()
+    await waitFor(() => expect(onEnviandoCambio).toHaveBeenLastCalledWith(false))
   })
 })

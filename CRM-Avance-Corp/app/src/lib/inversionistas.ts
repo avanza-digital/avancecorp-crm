@@ -1,5 +1,6 @@
 // Frontera neutral F5. Ningún UUID de perfil sustituye a la persona.
 import * as v from 'valibot'
+import { COOPERATIVAS } from './cierres-externos'
 
 export const EMPRESAS_INVERSION = ['avance', 'qorilazo', 'prodelco'] as const
 export type EmpresaInversion = (typeof EMPRESAS_INVERSION)[number]
@@ -78,6 +79,93 @@ export const InversionEliminadaSchema = v.strictObject({
   ok: v.literal(true), fuente_id: Uuid, empresa: Empresa, auditoria_id: Uuid,
   conversion_anulada: v.boolean(), mes_cerrado: v.boolean(),
 })
+// ─── Reemplazar inversión (Fase 2, 17/10/2026) ─────────────────────────────────────────────────────────────
+const FechaIso = v.pipe(v.string(), v.regex(/^\d{4}-\d{2}-\d{2}$/))
+/** Vista previa del mes (crm.reemplazar_inversion_vista_previa_fn). Estricta: la forma es nuestra. */
+export const VistaPreviaReemplazoSchema = v.strictObject({
+  fuente_id: Uuid, fecha_inicio: FechaIso,
+  fecha_comercial_actual: FechaIso, mes_actual: FechaIso,
+  fecha_comercial_resultante: FechaIso, mes_resultante: FechaIso,
+  cambia_mes: v.boolean(), fecha_corregida: v.boolean(),
+  /** El reemplazo se negaría: el contrato ya tiene cuotas pagadas (se perderían). */
+  cuotas_pagadas: v.boolean(),
+})
+/**
+ * Acuse del reemplazo (crm.reemplazar_inversion_fn y crm.reemplazar_inversion_por_existente_fn). Lo que PRUEBA la
+ * escritura es `contrato_id`; lo demás (el bloque del alta, la conversión) se lee con tolerancia: tras un 2xx el
+ * reemplazo ya ocurrió y la pantalla no puede decir «error» (lección del alta confirmada).
+ */
+/** Lo IMPRESCINDIBLE del acuse: qué quedó. Lo accesorio se lee aparte, campo a campo, y si viene mal no tumba el acuse. */
+export const InversionReemplazadaSchema = v.looseObject({
+  ok: v.literal(true), fuente_id: Uuid, contrato_id: Uuid, modo: v.picklist(['nueva', 'existente']),
+})
+export const AcuseReemplazoAccesorios = {
+  numero_contrato: v.nullable(v.string()),
+  idempotente: v.boolean(),
+  // El mes REAL en que quedó la venta (puede diferir de la vista previa si algo cambió entre medias: auditor-rls, P3-7).
+  periodo_despues: v.nullable(FechaIso),
+}
+const MESES_LARGOS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'] as const
+/** '2026-09-01' → 'Septiembre 2026'. */
+export function mesLargo(iso: string): string {
+  const [anio, mes] = iso.split('-')
+  const nombre = MESES_LARGOS[Number(mes) - 1]
+  return nombre && anio ? `${nombre[0]!.toUpperCase()}${nombre.slice(1)} ${anio}` : iso
+}
+/** Hoy el reemplazo es de Avance, de una inversión «nuevo» real; lo demás ni se ofrece (el servidor decide igual). */
+export function inversionReemplazable(i: InversionFuente): boolean {
+  return i.empresa === 'avance' && i.contrato !== null && i.contrato.categoria === 'nuevo' && !i.es_demo
+    && (i.estado === 'activo' || i.estado === 'vencido')
+}
+/** Es la venta de un lead: su reemplazo exige además Gerencia. */
+export function esVentaDeLead(i: Pick<InversionFuente, 'lead_id' | 'es_inicial'>): boolean {
+  return i.lead_id !== null || i.es_inicial === true
+}
+const claveTitulares = (i: InversionFuente) =>
+  i.cotitulares.map(c => `${c.tipo_documento}:${c.documento.trim().toUpperCase()}`).sort().join('|')
+/** Pista para «quedarme con la otra»: los mismos datos que exige el servidor para una carga doble. Solo orienta. */
+export function diferenciasDeCarga(original: InversionFuente, otra: InversionFuente): string[] {
+  const d: string[] = []
+  if (otra.capital !== original.capital || otra.moneda !== original.moneda) d.push('capital')
+  if (otra.contrato?.tasa_anual !== original.contrato?.tasa_anual) d.push('tasa')
+  if (otra.contrato?.fecha_inicio !== original.contrato?.fecha_inicio || otra.vence_en !== original.vence_en) d.push('fechas')
+  if (otra.contrato?.modalidad !== original.contrato?.modalidad || otra.contrato?.tipo_interes !== original.contrato?.tipo_interes) d.push('pago de intereses')
+  if (claveTitulares(otra) !== claveTitulares(original)) d.push('cotitulares')
+  return d
+}
+export type VistaPreviaReemplazo = v.InferOutput<typeof VistaPreviaReemplazoSchema>
+
+// ─── Reemplazar inversión de COOPERATIVA (Fase 4, 18/10/2026) ──────────────────────────────────────────────
+// En una cooperativa el reemplazo cambia SOLO la cooperativa, la fecha comercial (el mes de la venta) y el comprobante;
+// lo demás se copia de la original (para eso está «Corregir»). Decisiones de Miguel del 18/10/2026.
+/** Vista previa (crm.reemplazar_inversion_cooperativa_vista_previa_fn): el mes de la venta y qué se negaría. Estricta. */
+export const VistaPreviaReemplazoCooperativaSchema = v.strictObject({
+  fuente_id: Uuid, cooperativa: v.picklist(COOPERATIVAS), es_inicial: v.boolean(), anulada: v.boolean(),
+  venta_de_lead: v.boolean(),
+  /** La original tiene comprobante (si no suben otro, la nueva se queda con ese). */
+  comprobante: v.boolean(),
+  // Una fila antigua puede no tener fecha comercial propia; el mes actual sale entonces de su alta.
+  fecha_comercial_actual: v.nullable(FechaIso), mes_actual: FechaIso,
+  fecha_comercial_resultante: FechaIso, mes_resultante: FechaIso,
+  cambia_mes: v.boolean(), fecha_futura: v.boolean(), mes_sellado: v.boolean(), plazo_vencido: v.boolean(),
+  /** Por qué la original no se reemplaza con ninguna fecha (anulada, aporte adicional, movimientos…); null si se puede. */
+  no_reemplazable: v.nullable(v.string()),
+})
+export type VistaPreviaReemplazoCooperativa = v.InferOutput<typeof VistaPreviaReemplazoCooperativaSchema>
+/** Lo IMPRESCINDIBLE del acuse: qué cierre quedó. Lo demás se lee aparte (ver `AcuseReemplazoAccesorios`). */
+export const InversionCooperativaReemplazadaSchema = v.looseObject({
+  ok: v.literal(true), fuente_id: Uuid, cierre_id: Uuid,
+})
+export const AcuseReemplazoCooperativaAccesorios = {
+  cooperativa: v.nullable(v.picklist(COOPERATIVAS)),
+  fecha_comercial: v.nullable(FechaIso),
+}
+/** Solo la inversión INICIAL de una cooperativa, real y vigente o vencida; el servidor decide igual. */
+export function inversionReemplazableCooperativa(i: InversionFuente): boolean {
+  return i.empresa !== 'avance' && i.es_inicial === true && !i.es_demo
+    && (i.estado === 'vigente' || i.estado === 'activo' || i.estado === 'vencido')
+}
+
 /** Espejo del CHECK de crm.inversiones_eliminadas: length(btrim(motivo)) between 5 and 300. */
 export const MOTIVO_ELIMINACION_MIN = 5
 export const MOTIVO_ELIMINACION_MAX = 300

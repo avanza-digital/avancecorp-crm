@@ -1,0 +1,129 @@
+{
+  "security": {
+    "antes": [
+      {
+        "nombre": "rls_enabled_no_policy",
+        "cantidad": 86
+      },
+      {
+        "nombre": "anon_security_definer_function_executable",
+        "cantidad": 2
+      },
+      {
+        "nombre": "authenticated_security_definer_function_executable",
+        "cantidad": 280
+      }
+    ],
+    "despues": [
+      {
+        "nombre": "rls_enabled_no_policy",
+        "cantidad": 86
+      },
+      {
+        "nombre": "anon_security_definer_function_executable",
+        "cantidad": 2
+      },
+      {
+        "nombre": "authenticated_security_definer_function_executable",
+        "cantidad": 282
+      },
+      {
+        "nombre": "auth_leaked_password_protection",
+        "cantidad": 1
+      }
+    ],
+    "nuevos": [
+      {
+        "grupo": "authenticated_security_definer_function_executable",
+        "level": "WARN",
+        "metadata": {
+          "name": "confirmar_cambio_responsabilidad_fn",
+          "schema": "crm",
+          "language": "plpgsql",
+          "arguments": "p_accion text, p_id uuid, p_destino uuid, p_motivo text, p_version text",
+          "security_definer": true
+        },
+        "detail": "Function `crm.confirmar_cambio_responsabilidad_fn(p_accion text, p_id uuid, p_destino uuid, p_motivo text, p_version text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/confirmar_cambio_responsabilidad_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+        "clasificacion": "Puerta deliberada, authenticated solamente; núcleo privado revalida autorización. Revisada por Claude y probada con 10 actores."
+      },
+      {
+        "grupo": "authenticated_security_definer_function_executable",
+        "level": "WARN",
+        "metadata": {
+          "name": "previsualizar_cambio_responsabilidad_fn",
+          "schema": "crm",
+          "language": "sql",
+          "arguments": "p_accion text, p_id uuid, p_destino uuid",
+          "security_definer": true
+        },
+        "detail": "Function `crm.previsualizar_cambio_responsabilidad_fn(p_accion text, p_id uuid, p_destino uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/previsualizar_cambio_responsabilidad_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+        "clasificacion": "Puerta deliberada, authenticated solamente; núcleo privado revalida autorización. Revisada por Claude y probada con 10 actores."
+      },
+      {
+        "grupo": "auth_leaked_password_protection",
+        "level": "WARN",
+        "metadata": {
+          "type": "auth",
+          "entity": "Auth"
+        },
+        "detail": "Supabase Auth prevents the use of compromised passwords by checking against HaveIBeenPwned.org. Enable this feature to enhance security.",
+        "clasificacion": "También presente en producción antes del cambio; configuración Auth preexistente"
+      }
+    ]
+  },
+  "performance": {
+    "antes": [
+      {
+        "nombre": "unindexed_foreign_keys",
+        "cantidad": 52
+      },
+      {
+        "nombre": "auth_rls_initplan",
+        "cantidad": 2
+      },
+      {
+        "nombre": "no_primary_key",
+        "cantidad": 2
+      },
+      {
+        "nombre": "unused_index",
+        "cantidad": 280
+      },
+      {
+        "nombre": "multiple_permissive_policies",
+        "cantidad": 5
+      },
+      {
+        "nombre": "auth_db_connections_absolute",
+        "cantidad": 1
+      }
+    ],
+    "despues": [
+      {
+        "nombre": "unindexed_foreign_keys",
+        "cantidad": 52
+      },
+      {
+        "nombre": "auth_rls_initplan",
+        "cantidad": 2
+      },
+      {
+        "nombre": "no_primary_key",
+        "cantidad": 2
+      },
+      {
+        "nombre": "unused_index",
+        "cantidad": 263
+      },
+      {
+        "nombre": "multiple_permissive_policies",
+        "cantidad": 5
+      },
+      {
+        "nombre": "auth_db_connections_absolute",
+        "cantidad": 1
+      }
+    ],
+    "nuevos": []
+  }
+}

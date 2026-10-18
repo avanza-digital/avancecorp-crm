@@ -45,6 +45,7 @@ import {
 } from '@/lib/conversion-vendedores'
 import { useTipoCambio } from '@/lib/tipo-cambio'
 import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
+import { capitalComercialEnSoles, metaComercialEnSoles } from '@/lib/capital-unificado'
 import {
   useActualizarCapacidadLeadsObjetivo,
   useEquipoReportes,
@@ -112,7 +113,7 @@ function DesgloseMonedas({
   return (
     <p className="text-[11px] tabular-nums text-[var(--gi-muted)]">
       {moneyK(capital.pen ?? 0, 'PEN')} + {moneyK(capital.usd ?? 0, 'USD')}
-      {!hayUsd ? null : capital.tc == null ? (
+      {capital.valorado ? <span> · TC fijado por venta</span> : !hayUsd ? null : capital.tc == null ? (
         <span className="text-amber-700"> · sin tipo de cambio: el total NO incluye los dólares</span>
       ) : (
         <span> · {rotuloTipoCambio(capital.tc, fuenteTc ?? 'TC del día')}</span>
@@ -326,6 +327,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   // llegan calculados por el mismo núcleo comercial.
   const origenActivo = fuenteActiva === 'landing'
     || fuenteActiva === 'formulario'
+    || fuenteActiva === 'formulario_3'
     || fuenteActiva === 'referido'
     ? fuenteActiva
     : null
@@ -360,6 +362,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   const seleccionMultiple = fuenteActiva != null && typeof fuenteActiva !== 'string' ? fuenteActiva : []
   const conversionLanding = useMetricasConversiones(sesionReal && consultarFuente && seleccionMultiple.includes('landing'), periodoConsultaConversion.desde, periodoConsultaConversion.hasta, 'landing')
   const conversionFormulario = useMetricasConversiones(sesionReal && consultarFuente && seleccionMultiple.includes('formulario'), periodoConsultaConversion.desde, periodoConsultaConversion.hasta, 'formulario')
+  const conversionFormulario3 = useMetricasConversiones(sesionReal && consultarFuente && seleccionMultiple.includes('formulario_3'), periodoConsultaConversion.desde, periodoConsultaConversion.hasta, 'formulario_3')
   const conversionReferido = useMetricasConversiones(sesionReal && consultarFuente && seleccionMultiple.includes('referido'), periodoConsultaConversion.desde, periodoConsultaConversion.hasta, 'referido')
   const conversiones = useMetricasConversiones(
     sesionReal && consultarFuente,
@@ -368,6 +371,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   const consultasFuente = consultarFuente ? [conversiones,
     ...(seleccionMultiple.includes('landing') ? [conversionLanding] : []),
     ...(seleccionMultiple.includes('formulario') ? [conversionFormulario] : []),
+    ...(seleccionMultiple.includes('formulario_3') ? [conversionFormulario3] : []),
     ...(seleccionMultiple.includes('referido') ? [conversionReferido] : []),
   ] : []
   const fuenteCargando = consultasFuente.some((consulta) => estaCargando(sesionReal, consulta))
@@ -536,11 +540,11 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
     if (datosConversion?.periodo?.desde !== periodoConsultaConversion.desde
       || datosConversion?.periodo?.hasta !== periodoConsultaConversion.hasta) return null
     return adaptarAporteConversionRango(datosConversion, fuenteActiva, {
-      landing: conversionLanding.data, formulario: conversionFormulario.data, referido: conversionReferido.data,
+      landing: conversionLanding.data, formulario: conversionFormulario.data, formulario_3: conversionFormulario3.data, referido: conversionReferido.data,
     })
   }, [datosConversion, fuenteActiva, fuenteMensualSellada, fuenteMensualPendiente, necesitaConversiones,
     periodoConsultaConversion.desde, periodoConsultaConversion.hasta,
-    conversionLanding.data, conversionFormulario.data, conversionReferido.data])
+    conversionLanding.data, conversionFormulario.data, conversionFormulario3.data, conversionReferido.data])
   const lecturaFuentePaneles = fuenteActiva != null && !conversionesDeEjemplo
     && (fuenteCargando || fuenteMensualPendiente) ? undefined : lecturaFuenteConversion
   const datosEquipoConversionRango = conversionesDeEjemplo
@@ -605,13 +609,13 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   // PEN y USD no se suman a ciegas: se convierte a tasa real y se rotula cuál
   // se aplicó. Mismo criterio que el panel del analista (decisión #10).
   const tcPromedio = tipoCambio.tc?.promedio ?? null
-  const capitalTotal = totalEnSoles(capitalActualPen, capitalActualUsd, tcPromedio)
-  const metaTotalCapital = totalEnSoles(metaCapitalPen, metaCapitalUsd, tcPromedio)
+  const capitalTotal = capitalComercialEnSoles(capitalActualPen, capitalActualUsd, tcPromedio, cumplimiento?.capitalValorado)
+  const metaTotalCapital = metaComercialEnSoles(metaCapitalPen, metaCapitalUsd, tcPromedio, cumplimiento?.capitalValorado)
   // Sin dólares el tipo de cambio es irrelevante y no debe degradar nada; con
   // dólares y el TC en vuelo, no se puede afirmar todavía ni el total ni el %.
   const hayDolares = (capitalActualUsd ?? 0) > 0 || metaCapitalUsd > 0
-  const tcEnVuelo = tipoCambio.tc === undefined && hayDolares
-  const tcCaido = tipoCambio.tc === null && hayDolares
+  const tcEnVuelo = !capitalTotal.valorado && tipoCambio.tc === undefined && hayDolares
+  const tcCaido = !capitalTotal.valorado && tipoCambio.tc === null && hayDolares
   const ajusteCierre = cumplimiento?.ajuste
   const hayAjusteCierre = ajusteCierre != null && (
     ajusteCierre.aplicadoPen > 0
@@ -632,7 +636,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
 
   if (resumenMovil) return <ResumenGerenciaMovil
     dia={diaLima} mes={metaMensualRanking.etiqueta} capital={capitalTotal} meta={metaTotalCapital}
-    fuenteTc={tipoCambio.tc?.fuente ?? ''}
+    fuenteTc={tipoCambio.tc?.fuente ?? ''} valoracionCapital={cumplimientoRanking?.valoracionCapital}
     cargando={conversionMensualCargando || cumplimientoRankingCargando || tcEnVuelo}
     error={errorConversionMensual || errorFotoMensualRanking || metaMensualRanking.errorCarga ? 'No se pudieron actualizar el capital y la meta del mes.' : null}
     onReintentar={() => { reintentarConversionMensual(); if (sesionReal) void qCumplimientoRanking.refetch(); tipoCambio.recargar() }}
@@ -670,8 +674,12 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
           Solo en sesión real — el estado habla de la maquinaria de verdad. */}
       {sesionReal && <AvisoCierreMesPanel />}
 
+      {/* Hasta qué día cuentan las ventas de cada mes, y el botón de Gerencia
+          para ampliarlo o reabrir el mes sellado. Junto al aviso, pero solo en
+          Hoy: es una decisión, no una alarma que tenga que seguir a cada pestaña. */}
+
       {esResumen && <ResumenGestionesHoy />}
-      {esResumen && <ResumenGerenciaPanel conversiones={datosConversion} conversionMensual={cumplimientoRankingCargando ? undefined : conversionMensualPaneles} origenFiltrado={origenActivo} fuenteConversion={fuenteActiva} lecturaFuente={lecturaFuentePaneles} reuniones={datosReuniones} equipo={datosEquipoConversionRango} equipoMensual={datosEquipoConversion} meta={meta} cumplimiento={cumplimiento} metaMensual={metaMensualRanking} tc={tipoCambio.tc} cargando={estaCargando(sesionReal, conversiones) || conversionMensualCargando || cumplimientoRankingCargando || estaCargando(sesionReal, reuniones)} rangoCargando={!conversionesDeEjemplo && fuenteCargando} mensualCargando={!conversionesDeEjemplo && (conversionMensualCargando || cumplimientoRankingCargando)} error={errorResumen} modoDemo={modoDemo} onReintentar={() => { reintentarConversiones(); reintentarConversionMensual(); void qCumplimientoRanking.refetch(); reintentarReuniones(); tipoCambio.recargar() }} />}
+      {esResumen && <ResumenGerenciaPanel conversiones={datosConversion} conversionMensual={cumplimientoRankingCargando ? undefined : conversionMensualPaneles} origenFiltrado={origenActivo} fuenteConversion={fuenteActiva} lecturaFuente={lecturaFuentePaneles} reuniones={datosReuniones} equipo={datosEquipoConversionRango} equipoMensual={datosEquipoConversion} meta={meta} cumplimiento={cumplimiento} valoracionCapital={cumplimientoRanking?.valoracionCapital} metaMensual={metaMensualRanking} tc={tipoCambio.tc} cargando={estaCargando(sesionReal, conversiones) || conversionMensualCargando || cumplimientoRankingCargando || estaCargando(sesionReal, reuniones)} rangoCargando={!conversionesDeEjemplo && fuenteCargando} mensualCargando={!conversionesDeEjemplo && (conversionMensualCargando || cumplimientoRankingCargando)} error={errorResumen} modoDemo={modoDemo} onReintentar={() => { reintentarConversiones(); reintentarConversionMensual(); void qCumplimientoRanking.refetch(); reintentarReuniones(); tipoCambio.recargar() }} />}
 
       {/* Por empresa: de dónde vino cada sol (Avance vs. COOPAC), por analista.
           Se oculta solo si el mes no tiene cierres en cooperativas. */}
@@ -744,7 +752,9 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
           equipo={datosEquipoConversion}
           metasVendedores={metasVendedoresRanking}
           cumplimientoVendedores={cumplimientoRanking?.porVendedor ?? {}}
+          supervisores={cumplimientoRanking?.supervisores ?? []}
           fueraRanking={cumplimientoRanking?.fueraRanking ?? []}
+          valoracionCapital={cumplimientoRanking?.valoracionCapital}
           metaMensual={metaMensualRanking}
           // El mes vivo sigue el roster activo; solo un mes histórico congela
           // nombre, supervisor y población en la foto mensual.

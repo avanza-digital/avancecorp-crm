@@ -1,0 +1,101 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+No encontré defectos P0/P1 demostrables en lo adjuntado. Las cifras, poblaciones, aislamiento por actor/día y el comportamiento ante fallos de cada fuente son coherentes con la matriz:
+- Retiro de datos en caché ante error en Gestión Diaria, reparto, Citas, Facturación y mes.
+- Un corte anterior a hoy no acredita cero.
+- Remontaje por `id|demo|hoy`.
+
+Quedan cuatro hallazgos:
+- Un aviso de Facturación se deriva de datos viejos durante un error.
+- Dos hipótesis sobre el refresco mensual cada 5 min. Dependen de `store.recargar` y `useTipoCambio`, que no vienen en la evidencia.
+- Detalles menores de accesibilidad y textos.
+
+Corregir el primero es barato. Las hipótesis requieren evidencia antes del ZIP.
+
+FINDINGS:
+
+[P2] El aviso de cortes se calcula con datos viejos mientras la fuente está en error
+File: app/src/screens/hoy/use-resultados-hoy.ts
+Lines: 30, 33-34, 38-41
+Problem: `valoracion` sale de `consulta.data?.capitalValoracion` sin comprobar `error`. TanStack conserva `data` tras un refetch fallido. Por eso `aviso`, `sinCorte` y `diaSinConfirmar` se siguen calculando con la foto anterior.
+Evidence:
+- `filas` sí es null con `error` (línea 37), pero `aviso` no se condiciona a `error`.
+- La tarjeta pinta `cierres.aviso` (supervisor-jornada.tsx:220) junto a la alerta de `ErrorFuente` (línea 221). El diálogo hace lo mismo en las líneas 271-272.
+Impact: con la fuente caída, la tarjeta puede decir «Hay cierres pendientes de incorporar. Se muestra el último corte confirmado.» sin mostrar nada, y al mismo tiempo «Resultado de hoy no disponible». Es un mensaje contradictorio en la misma área que la iteración endureció (fail-closed).
+Recommendation: `const valoracion = !esDemo && !error ? consulta.data?.capitalValoracion : undefined`. Ojo: hoy `error` se declara después, así que hay que reordenar. Añadir a `use-resultados-hoy.test.tsx` un caso con datos previos que traen `por_incorporar.cantidad > 0`, después `error`, y esperar `aviso === null`.
+
+[P2] (HIPÓTESIS) El sondeo mensual llama a `store.recargar` completo, sin coordinarse con la resincronización del store
+File: app/src/screens/hoy/datos-supervisor.ts, app/src/screens/hoy/use-refresco-mensual-jornada.ts, app/src/lib/store.tsx
+Lines: datos-supervisor.ts:346-355; use-refresco-mensual-jornada.ts:11-18; store.tsx:1406-1413
+Problem:
+- `recargarMensual` ejecuta el `recargar()` del store, no una lectura acotada a objetivos y cumplimiento.
+- El hook evita solapar sus propias vueltas (`enVuelo`). No consulta `resincronizacionesRealesEnVueloRef`, que sí usa el handler de foco del store.
+- El botón «Actualizar» (supervisor-jornada.tsx:145) también llama a `recargarMensual` sin pasar por ese guardián.
+Evidence: no se adjuntó la implementación de `recargar` del store. No puedo confirmar estos tres puntos:
+- si recarga también leads o actividades (coste cada 5 min);
+- si serializa llamadas concurrentes;
+- si un `recargar()` que resuelve `false` con la foto vigente activa `objetivosError` o `cumplimientoMetasError`.
+
+El tercer punto es el más importante. `recargarMensual` ignora el booleano (línea 348). Si el store no levanta las banderas de error, un refresco periódico fallido dejaría el capital y la meta anteriores sin aviso de antigüedad.
+Impact (si se confirma):
+- Peor caso: cifras mensuales antiguas presentadas como vigentes tras un fallo silencioso.
+- Además, carga redundante o carreras con la resincronización por foco y por mutaciones.
+Recommendation: adjuntar `recargar` de store.tsx para cerrar o descartar la hipótesis. Si no marca error con la foto vigente, propagar `ok === false` a un estado de error mensual. Añadir un test: refresco periódico con `recargar → false` y foto vigente debe retirar capital y meta, o al menos avisar.
+
+[P3] (HIPÓTESIS) Tipo de cambio reconsultado cada 5 min por cada Hoy abierto
+File: app/src/screens/hoy/datos-supervisor.ts
+Lines: 92-94, 349
+Problem: el comentario de la línea 92 dice que `useTipoCambio` no pasa por TanStack («sin cache ni dedupe»). `recargarMensual` lo invoca en cada vuelta del sondeo y en cada «Actualizar».
+Impact:
+- Más llamadas a la edge function.
+- En meses en legado (sin valoración), el capital convertido puede moverse dentro del mismo día sin que cambie ninguna venta.
+
+No se adjuntó la implementación para confirmar si la edge cachea por día.
+Recommendation: limitar `recargarTipoCambio` al cambio de día (ya existe en las líneas 95-101) o cuando `tcCaido`; o adjuntar evidencia de caché diaria en la edge.
+
+[P3] Región viva montada junto con su contenido
+File: app/src/screens/hoy/supervisor-jornada.tsx
+Lines: 171-178
+Problem: `role="status"` vive dentro de una sección que solo se monta cuando `porRepartir > 0`.
+Evidence: el paso 0 → N que trae el sondeo de un minuto inserta la región y su texto en el mismo commit. Varios lectores de pantalla no anuncian regiones vivas insertadas con contenido.
+Impact: la llegada de leads por repartir, que es el caso de B1/B4, puede no anunciarse. Es una inferencia de accesibilidad; no hubo inspección con lector de pantalla.
+Recommendation: mantener montado un contenedor `role="status"` vacío y rellenarlo, o aceptarlo y documentarlo.
+
+[P3] Textos de control que no corresponden al estado
+File: app/src/screens/hoy/supervisor-jornada.tsx
+Lines: 247, 281
+Problem:
+- `aria-label` «Ver 1 tareas atrasadas de …» no concuerda en número.
+- En la vista de un analista, el botón de cierre sigue diciendo «Cerrar pendientes del equipo».
+Impact: menor, afecta a lo que oye un lector de pantalla.
+Recommendation: pluralizar según el número y usar un rótulo neutro, por ejemplo «Cerrar tareas».
+
+TEST GAPS:
+- Error de Facturación con datos previos que traían cobertura o corte: no debe quedar aviso derivado (P2 anterior).
+- `recargarMensual` con `recargar → false` y foto vigente: no debe mantener capital o meta antiguos sin aviso.
+- «Actualizar» concurrente con el sondeo de 5 min o con la resincronización por foco del store.
+- `PendientesSupervisor` está mockeado en supervisor-jornada.test.tsx:51-53. Falta probar que el `revalidar` por 42501 y el `actualizacion` del botón «Actualizar» lleguen al lector real desde el diálogo nuevo. Basta un test sin mock de la integración, o la referencia al test existente si ya lo cubre.
+- Citas de hoy no tiene sondeo propio en la evidencia. Solo se refresca por foco, invalidación o «Actualizar». La matriz no lo exige, pero conviene confirmarlo como decisión.
+- El paso 0 → N → 1 → 0 está cubierto por separado: el hook con su QueryClient real y la vista con `rerender` y mocks. No hay prueba que una el sondeo real con la vista. Es aceptable si se declara.
+
+ARCHITECTURE RISKS:
+- Hay dos fuentes de «citas de hoy» con rótulos distintos: la tarjeta usa la consulta de Citas y la tabla diaria usa `citas_hoy` de Gestión Diaria. Pueden discrepar momentáneamente. Está rotulado, pero conviene dejarlo anotado en la matriz.
+- Los diálogos se renderizan por portal fuera de `.sj-pagina`. Las reglas `.sj-pagina svg` y `.sj-pagina :focus-visible` no aplican dentro de ellos, aunque se añadieron reglas de foco específicas. `ChevronRight` en `.sj-persona` del diálogo de tareas solo recibe `width: 13px`; la altura queda en el valor por defecto de lucide. Posible desajuste visual, no verificado porque no hubo inspección visual.
+
+SECURITY RISKS:
+- Ninguno demostrable. `useResumenCartera` incluye el actor en la clave, la invalidación por prefijo sigue alcanzándola (test en use-resumen-cartera-operativo.test.tsx:41-49), la caché se limpia con `AUTH_CLEARED_EVENT` y el detalle de tareas usa el lector autorizado existente. Para descartar el único resquicio, falta confirmar que ningún `setQueryData` o lectura exacta use todavía `crmQueryKeys.resumenCartera()` sin actor. No se adjuntó una búsqueda que lo acredite.
+
+REGRESSION RISKS:
+- Cambio de la clave de `resumenCartera` (con actor) y de las opciones `refetchOnMount`/`refetchOnWindowFocus: 'always'` solo cuando `enVivo`. Otras pantallas que llamen `useResumenCartera` sin actor tendrían una entrada de caché distinta, sin fuga pero sin compartir datos.
+- `DialogTitle` ahora acepta `ComponentProps<'h2'>`. Es compatible hacia atrás. El build y los tipos pasan.
+
+RECOMMENDED NEXT ACTIONS:
+1. Condicionar `valoracion` a `!error` en use-resultados-hoy.ts y añadir el test correspondiente.
+2. Adjuntar `recargar` de store.tsx y `useTipoCambio`. Si un fallo con la foto vigente no marca error, propagar `ok === false`. Valorar sacar el TC del sondeo.
+3. Corregir los rótulos P3 y, opcionalmente, la región viva del reparto.
+4. Mantener declarados como NOT RUN el gate de realidad, la ejecución E2E y la inspección visual antes del ZIP.
+
+CONFIDENCE:
+MEDIUM. Es alta para la lógica adjuntada; las hipótesis P2/P3 dependen de código del store y del tipo de cambio que no se incluyó.

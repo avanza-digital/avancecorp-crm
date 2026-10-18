@@ -1,0 +1,127 @@
+{
+  "fecha_utc": "2026-10-15T00:30:21.783Z",
+  "credencial_temporal": {
+    "id": "Ag61FRD4BJjGI4hZ",
+    "presente_en_mcp": false,
+    "estado": "ELIMINADA_POR_USUARIO_Y_AUSENCIA_VERIFICADA_MCP",
+    "credencial_original_conservada": true,
+    "destino_eliminado": true,
+    "asignada_al_principal": false
+  },
+  "usuario_confirmo_pestanas_cerradas": true,
+  "autosave_reaparecido": {
+    "success": true,
+    "workflowId": "BjI5m1PKVWhO0NDb",
+    "fromVersionId": "95f649de-8cdc-43af-ba89-5cd4a3d74840",
+    "toVersionId": "907688a7-4b90-4850-ad4d-929511c90ab9",
+    "nodesAdded": [],
+    "nodesRemoved": [],
+    "nodesModified": [
+      {
+        "id": "b2d0bc45-f78c-4a58-8a2f-e99538aa8539",
+        "name": "Importar en CRM",
+        "type": "n8n-nodes-base.httpRequest",
+        "changes": {
+          "credentials": {
+            "httpTemplatedCustomAuth": {
+              "id": {
+                "__old": "YNRHr2PjhfLXnKff",
+                "__new": "Ag61FRD4BJjGI4hZ"
+              },
+              "name": {
+                "__old": "Simplified Custom Auth account",
+                "__new": "Simplified Custom Auth account 2"
+              }
+            }
+          }
+        }
+      }
+    ],
+    "connectionsAdded": [],
+    "connectionsRemoved": []
+  },
+  "restauracion": {
+    "workflowId": "BjI5m1PKVWhO0NDb",
+    "name": "Avance Corp — Formulario 3 → CRM",
+    "nodeCount": 22,
+    "url": "https://n8n-t27j.srv1906432.hstgr.cloud/workflow/BjI5m1PKVWhO0NDb",
+    "appliedOperations": 1,
+    "autoAssignedCredentials": [],
+    "validationWarnings": []
+  },
+  "historial_final": {
+    "success": true,
+    "workflowId": "BjI5m1PKVWhO0NDb",
+    "versions": [
+      {
+        "versionId": "29940eb5-d36c-49c7-bf7f-686b66cc3f76",
+        "authors": "Avance Corp mascapital (via MCP)",
+        "name": "Credencial original tras cierre de pestañas y retiro del ensayo",
+        "description": "Miguel confirmó el cierre de las pestañas del editor y la credencial temporal ya no figura en MCP. Se restaura únicamente la referencia original del importador; el flujo y el envío permanecen apagados.",
+        "autosaved": false,
+        "createdAt": "2026-10-15T00:29:19.200Z",
+        "updatedAt": "2026-10-15T00:29:19.200Z"
+      },
+      {
+        "versionId": "907688a7-4b90-4850-ad4d-929511c90ab9",
+        "authors": "Avance Corp mascapital",
+        "name": null,
+        "description": null,
+        "autosaved": true,
+        "createdAt": "2026-10-15T00:20:23.047Z",
+        "updatedAt": "2026-10-15T00:20:23.047Z"
+      },
+      {
+        "versionId": "95f649de-8cdc-43af-ba89-5cd4a3d74840",
+        "authors": "Avance Corp mascapital (via MCP)",
+        "name": "Restaurar credencial original tras selección de prueba",
+        "description": "El historial identificó una selección de la credencial temporal en el flujo principal. Se restaura exclusivamente la referencia original. El envío permanece deshabilitado y el flujo sin publicar.",
+        "autosaved": false,
+        "createdAt": "2026-10-15T00:04:39.486Z",
+        "updatedAt": "2026-10-15T00:04:39.486Z"
+      }
+    ],
+    "count": 3
+  },
+  "diff_tras_restaurar": {
+    "success": true,
+    "workflowId": "BjI5m1PKVWhO0NDb",
+    "fromVersionId": "95f649de-8cdc-43af-ba89-5cd4a3d74840",
+    "toVersionId": "29940eb5-d36c-49c7-bf7f-686b66cc3f76",
+    "nodesAdded": [],
+    "nodesRemoved": [],
+    "nodesModified": [],
+    "connectionsAdded": [],
+    "connectionsRemoved": []
+  },
+  "principal": {
+    "id": "BjI5m1PKVWhO0NDb",
+    "versionId": "29940eb5-d36c-49c7-bf7f-686b66cc3f76",
+    "active": false,
+    "activeVersionId": null,
+    "updatedAt": "2026-10-15T00:29:19.196Z",
+    "importarDisabled": true,
+    "credencial": {
+      "httpTemplatedCustomAuth": {
+        "id": "YNRHr2PjhfLXnKff",
+        "name": "Simplified Custom Auth account"
+      }
+    },
+    "control": {
+      "mode": "raw",
+      "jsonOutput": "={{ JSON.stringify({enviar_crm:false,simular_registro:false,inicio_ms:$now.toMillis()}) }}",
+      "options": {}
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "availableInMCP": true,
+      "timezone": "America/Lima",
+      "executionTimeout": 180,
+      "saveManualExecutions": true,
+      "saveDataErrorExecution": "all",
+      "saveDataSuccessExecution": "none",
+      "errorWorkflow": "4jfthNhVJLiZUeIo",
+      "binaryMode": "separate"
+    }
+  }
+}

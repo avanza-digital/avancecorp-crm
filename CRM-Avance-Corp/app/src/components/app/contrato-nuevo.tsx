@@ -208,7 +208,25 @@ export interface ContratoNuevoProps {
   ventaCruzada?: LlaveVentaCruzada | undefined
   onCreado: (numero: string, creadoLocal?: ContratoCreadoLocal) => void
   onOmitir: () => void
+  /**
+   * Dentro de otro diálogo (p. ej. «La correcta» en «Reemplazar inversión»): un encabezado propio (no el título del
+   * diálogo, que es uno solo) y sin acciones; el contenedor pone las suyas, que envían con `form={idFormulario}`, y
+   * se entera de si el formulario está listo para enviarse y, si no, por qué. Solo con `onRevisar` (ver abajo).
+   */
+  incrustado?: FormularioIncrustado | undefined
 }
+
+export interface FormularioIncrustado {
+  titulo: string
+  idTitulo: string
+  idFormulario: string
+  onListoCambio: (listo: boolean, razon: string | null) => void
+}
+
+/** Incrustado no tiene dónde pintar la confirmación del alta (título y acciones propias): exige `onRevisar`. */
+type IncrustadoConRevision =
+  | { incrustado?: undefined }
+  | { incrustado: FormularioIncrustado; onRevisar: NonNullable<ContratoNuevoProps['onRevisar']> }
 
 export function ContratoNuevo({
   clienteId,
@@ -235,7 +253,8 @@ export function ContratoNuevo({
   condicionesIniciales,
   leadOrigenId,
   ventaCruzada,
-}: ContratoNuevoProps) {
+  incrustado,
+}: ContratoNuevoProps & IncrustadoConRevision) {
   // De quién es la venta. Arranca en quien registra si esa persona está en la
   // lista; si no está (una administrativa, por ejemplo), arranca vacío y hay que
   // elegir — que es exactamente lo que pide la decisión 2.
@@ -330,6 +349,8 @@ export function ContratoNuevo({
     tasa, origenUpgrade, fechaInicio, plazo, vencManual, prefijo, numero, notas, cuentaSeleccionada,
     cuentaNueva, titulares, domicilio, enviando, borradorLocal?.requiereReingresarDatosSensibles])
   const esDemo = pdfDatosDemo != null
+  // Las secciones internas cuelgan del título: el del diálogo (h2) o el propio cuando va incrustado (h3).
+  const EncabezadoSeccion = incrustado ? 'h4' : 'h3'
   const bloqueoTasa = esDemo ? null : rangoTasa?.bloqueoContrato ?? (
     !rangoTasa || rangoTasa.minimo == null || rangoTasa.maximo == null || ['cargando', 'error', 'incompleta'].includes(rangoTasa.modo)
       ? 'Todavía no se conoce la tasa base de la política. Espera o reintenta antes de crear el contrato.'
@@ -531,6 +552,29 @@ export function ContratoNuevo({
         : interesProgramado <= 0
           ? 'Las cuotas de interés salen en 0.00 con este capital y esta tasa: el contrato no pagaría rendimiento.'
           : null
+  // Se bloquea por el MOTIVO (sin cuotas de interés incluido), no por la
+  // longitud del cronograma — que nunca es 0 (siempre trae el retorno).
+  const listoParaEnviar = !bloqueoTasa &&
+    motivoCronograma === null &&
+    !cuentasPendientes &&
+    !cuentasReintentando &&
+    !cuentasConError &&
+    !!cuentaSeleccionada &&
+    // Faltas legales CONFIRMADAS por el servidor. Un fallo de la consulta
+    // NO entra aquí a propósito: dejaría sin emitir a quien lo tiene todo.
+    !faltaDomicilio &&
+    !bloqueoLegalAjeno
+  // Lo primero que falta, en palabras: el contenedor lo muestra junto a SU botón (que vive lejos de los campos).
+  const razonNoListo = listoParaEnviar ? null
+    : bloqueoTasa ?? motivoCronograma
+      ?? (cuentasPendientes || cuentasReintentando ? 'Cargando las cuentas de pago del cliente…'
+        : cuentasConError ? 'No se pudieron cargar las cuentas de pago del cliente: reinténtalo en el formulario.'
+        : !cuentaSeleccionada ? 'Elige la cuenta de pago del contrato.'
+        : faltaDomicilio ? 'Falta el domicilio legal del cliente: complétalo en el formulario.'
+        : textoBloqueoLegalAjeno || 'Faltan datos legales para emitir el contrato.')
+  const avisarListo = useRef(incrustado?.onListoCambio)
+  avisarListo.current = incrustado?.onListoCambio
+  useEffect(() => {avisarListo.current?.(listoParaEnviar, razonNoListo)}, [listoParaEnviar, razonNoListo])
 
   const cambiarTipo = (t: TipoInteres) => {
     setTipoInteres(t)
@@ -992,27 +1036,40 @@ export function ContratoNuevo({
   }
 
   return (
+    // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Incrustado: Enter en un campo no confirma (el envío implícito del formulario), no es un control nuevo.
     <form
-      className="flex min-h-0 flex-1 flex-col"
+      id={incrustado?.idFormulario}
+      className={incrustado ? 'flex flex-col' : 'flex min-h-0 flex-1 flex-col'}
       aria-describedby={error ? 'ct-error-resumen' : undefined}
       onChangeCapture={() => {formularioEditado.current = true}}
+      // Incrustado, enviar es CONFIRMAR una operación que no se deshace: solo con el botón, nunca con un Enter en un campo.
+      onKeyDown={incrustado ? (evento) => {
+        if (evento.key === 'Enter' && evento.target instanceof HTMLInputElement) evento.preventDefault()
+      } : undefined}
       onSubmit={(evento) => {
         evento.preventDefault()
         void guardar()
       }}
     >
-      <DialogHeader>
-        <DialogTitle className="flex items-center gap-2">
-          <FileSignature className="size-4 text-primary" />{' '}
-          {categoria === 'renovacion' && renovacionOrigen
-            ? `Renovar ${renovacionOrigen.numeroContrato}`
-            : categoria === 'upgrade'
-              ? `Registrar upgrade de ${clienteNombre}`
-              : `Crear contrato de ${clienteNombre}`}
-        </DialogTitle>
-      </DialogHeader>
+      {incrustado
+        ? <div className="border-b border-border px-5 py-3">
+            <h3 id={incrustado.idTitulo} className="flex items-center gap-2 text-[15px] font-bold tracking-tight">
+              <FileSignature aria-hidden className="size-4 text-primary" />{incrustado.titulo}
+            </h3>
+          </div>
+        : <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <FileSignature className="size-4 text-primary" />{' '}
+            {categoria === 'renovacion' && renovacionOrigen
+              ? `Renovar ${renovacionOrigen.numeroContrato}`
+              : categoria === 'upgrade'
+                ? `Registrar upgrade de ${clienteNombre}`
+                : `Crear contrato de ${clienteNombre}`}
+          </DialogTitle>
+        </DialogHeader>}
       {indicadorPaso}
-      <DialogBody className="max-h-[65vh] space-y-3 overflow-y-auto">
+      {/* Incrustado, el cuerpo crece: el desplazamiento lo lleva el contenedor (uno solo, no uno dentro de otro). */}
+      <DialogBody className={incrustado ? 'space-y-3 overflow-visible' : 'max-h-[65vh] space-y-3 overflow-y-auto'}>
         {borradorLocal && <p role="status" className="text-xs text-muted-foreground">Recuperamos las condiciones que escribiste en esta pestaña. Revísalas antes de continuar.
           {borradorLocal.requiereReingresarDatosSensibles && ' Por seguridad, vuelve a ingresar la cuenta nueva o los co-titulares que habías añadido.'}</p>}
         {faltaDomicilio && ventaCruzada && (
@@ -1026,10 +1083,11 @@ export function ContratoNuevo({
             aria-labelledby="ct-domicilio-titulo"
             className="space-y-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3"
           >
-            <h3 id="ct-domicilio-titulo" className="flex items-center gap-2 text-xs font-semibold">
+            {/* Incrustado, el formulario ya es un h3 («La correcta»): esta sección va debajo. */}
+            <EncabezadoSeccion id="ct-domicilio-titulo" className="flex items-center gap-2 text-xs font-semibold">
               <Home className="size-4" aria-hidden="true" />
               Falta el domicilio legal de {clienteNombre}
-            </h3>
+            </EncabezadoSeccion>
             <p className="text-[11px] leading-relaxed text-muted-foreground">
               Va escrito literalmente en el contrato, así que sin él no se puede emitir. Complétalo aquí y sigue con el
               alta.
@@ -1092,13 +1150,14 @@ export function ContratoNuevo({
           <div className="space-y-1.5">
             <Label htmlFor="ct-categoria">Categoría</Label>
             {categoriaFija || renovacionOrigen ? (
-              <div
+              // Campo de solo lectura (no un div con aria-label): la etiqueta se asocia y se lee como «Categoría».
+              <Input
                 id="ct-categoria"
-                aria-label="Categoría"
-                className="flex h-9 items-center rounded-lg border border-input bg-muted px-3 text-sm font-bold text-foreground"
-              >
-                {CATEGORIAS_CONTRATO_UI.find((opcion) => opcion.k === categoria)?.label ?? '—'}
-              </div>
+                value={CATEGORIAS_CONTRATO_UI.find((opcion) => opcion.k === categoria)?.label ?? '—'}
+                readOnly
+                aria-readonly="true"
+                className="bg-muted font-bold"
+              />
             ) : (
               <Select
                 id="ct-categoria"
@@ -1249,8 +1308,9 @@ export function ContratoNuevo({
               </span>
             </div>
             <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-              El núcleo determina el aporte de la renovación a la conversión del mes. El adicional queda separado
-              para su pago y no crea otra conversión.
+              Desde octubre de 2026, una renovación con capital adicional cuenta como upgrade en la conversión si es
+              la primera operación elegible del cliente en el mes, salvo corrección manual. El adicional queda
+              separado para su pago.
             </p>
           </section>
         ) : (
@@ -1464,28 +1524,11 @@ export function ContratoNuevo({
           </p>
         )}
       </DialogBody>
-      <DialogFooter className="justify-between">
+      {!incrustado && <DialogFooter className="justify-between">
         <Button type="button" variant="ghost" size="sm" onClick={onOmitir} disabled={enviando}>
           {categoriaFija || renovacionOrigen ? 'Cancelar' : 'Omitir por ahora'}
         </Button>
-        {/* Se bloquea por el MOTIVO (sin cuotas de interés incluido), no por la
-            longitud del cronograma — que nunca es 0 (siempre trae el retorno). */}
-        <Button
-          type="submit"
-          size="sm"
-          disabled={
-            enviando || !!bloqueoTasa ||
-            motivoCronograma !== null ||
-            cuentasPendientes ||
-            cuentasReintentando ||
-            cuentasConError ||
-            !cuentaSeleccionada ||
-            // Faltas legales CONFIRMADAS por el servidor. Un fallo de la consulta
-            // NO entra aquí a propósito: dejaría sin emitir a quien lo tiene todo.
-            faltaDomicilio ||
-            bloqueoLegalAjeno
-          }
-        >
+        <Button type="submit" size="sm" disabled={enviando || !listoParaEnviar}>
           <BadgeCheck />{' '}
           {enviando
             ? (onRevisar ? 'Preparando revisión…' : 'Creando…')
@@ -1495,7 +1538,7 @@ export function ContratoNuevo({
                 ? 'Crear upgrade'
                 : 'Crear contrato'}
         </Button>
-      </DialogFooter>
+      </DialogFooter>}
     </form>
   )
 }

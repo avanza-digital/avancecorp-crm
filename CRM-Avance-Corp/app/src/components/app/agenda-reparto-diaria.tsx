@@ -1,21 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  AlertTriangle,
   CalendarDays,
   Check,
   ChevronLeft,
   ChevronRight,
-  ClipboardPenLine,
-  MousePointerClick,
   Shuffle,
   UsersRound,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { origenLabel } from '@/lib/tipos'
+import { useRefrescarAlVolver } from '@/lib/use-refrescar-al-volver'
+import { TablaEnvoltura, Td, Th, TheadCrm } from '@/components/common/tabla'
 import { agendaRepartoDiaria, guardarAgendaRepartoDiaria } from '@/data/crm-api'
 import type {
   AgendaRepartoDiaria as AgendaRepartoDiariaData,
   AsignacionAgendaReparto,
   OrigenAgendaReparto,
+  OrigenEntregasReparto,
 } from '@/lib/tipos'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -83,20 +84,16 @@ function asignacionDe(
   return asignaciones?.find((asignacion) => asignacion.origen === origen)
 }
 
-function IconoOrigen({ origen, className }: { origen: OrigenAgendaReparto; className?: string }) {
-  const Icono = origen === 'landing' ? MousePointerClick : ClipboardPenLine
-  return <Icono aria-hidden className={className} />
-}
-
 /**
  * Reporte operativo de la primera etapa: Coordinación fija el turno y ve cada
  * entrega real a supervisores, aunque después nadie la derive a un analista.
  */
-export function AgendaRepartoDiaria() {
+export function AgendaRepartoDiaria({ activo = true }: { activo?: boolean }) {
   const [fechaSeleccionada, setFechaSeleccionada] = useState(() => fechaLima())
   const [estado, setEstado] = useState<EstadoAgenda>({ datos: null, cargando: true, error: null })
-  const [landing, setLanding] = useState('')
-  const [formulario, setFormulario] = useState('')
+  const [borradores, setBorradores] = useState<Record<string, { landing: string; formulario: string }>>({})
+  const [filtroOrigen, setFiltroOrigen] = useState('')
+  const [filtroSupervisor, setFiltroSupervisor] = useState('')
   const [guardando, setGuardando] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
   const desde = useMemo(() => inicioSemana(fechaSeleccionada), [fechaSeleccionada])
@@ -119,11 +116,8 @@ export function AgendaRepartoDiaria() {
       }))
     }
   }, [desde])
-
-  useEffect(() => {
-    void cargar()
-    return () => abortRef.current?.abort()
-  }, [cargar])
+  const cargarActualRef = useRef(cargar)
+  useEffect(() => { cargarActualRef.current = cargar }, [cargar])
 
   const diaSeleccionado = useMemo(
     () => estado.datos?.dias.find((dia) => dia.fecha === fechaSeleccionada),
@@ -132,35 +126,71 @@ export function AgendaRepartoDiaria() {
   const asignacionLanding = asignacionDe(diaSeleccionado?.asignaciones, 'landing')
   const asignacionFormulario = asignacionDe(diaSeleccionado?.asignaciones, 'formulario')
 
-  useEffect(() => {
-    setLanding(asignacionLanding?.supervisor_id ?? '')
-    setFormulario(asignacionFormulario?.supervisor_id ?? '')
-  }, [asignacionFormulario?.supervisor_id, asignacionLanding?.supervisor_id, fechaSeleccionada])
-
+  const borrador = borradores[fechaSeleccionada]
+  const landing = borrador?.landing ?? asignacionLanding?.supervisor_id ?? ''
+  const formulario = borrador?.formulario ?? asignacionFormulario?.supervisor_id ?? ''
+  const setLanding = (valor: string) => setBorradores((prev) => ({ ...prev, [fechaSeleccionada]: { landing: valor, formulario } }))
+  const setFormulario = (valor: string) => setBorradores((prev) => ({ ...prev, [fechaSeleccionada]: { landing, formulario: valor } }))
   const esHistorico = fechaSeleccionada < fechaLima()
   const estaCompleta = Boolean(landing && formulario && landing !== formulario)
   const hayCambios = landing !== (asignacionLanding?.supervisor_id ?? '')
     || formulario !== (asignacionFormulario?.supervisor_id ?? '')
 
+  useRefrescarAlVolver(cargar, !activo || hayCambios || guardando)
+
+  const consultaVisibleRef = useRef('')
+  useEffect(() => {
+    if (!activo) {
+      consultaVisibleRef.current = ''
+      return
+    }
+    const clave = `${activo}:${desde}`
+    if (consultaVisibleRef.current === clave || hayCambios || guardando) return
+    consultaVisibleRef.current = clave
+    void cargar()
+  }, [activo, desde, cargar, hayCambios, guardando])
+  useEffect(() => () => {
+    abortRef.current?.abort()
+    consultaVisibleRef.current = ''
+  }, [])
+
   const guardar = useCallback(async () => {
     if (!estaCompleta || guardando) return
+    abortRef.current?.abort()
+    setEstado((prev) => ({ ...prev, cargando: false }))
     setGuardando(true)
     try {
       await guardarAgendaRepartoDiaria(fechaSeleccionada, landing, formulario)
+      // El recibo confirmó estos turnos. Una relectura fallida no debe volver
+      // a mostrar los valores anteriores como si fueran los guardados.
+      setEstado((prev) => ({ ...prev, datos: prev.datos ? { ...prev.datos,
+        dias: prev.datos.dias.map((dia) => dia.fecha !== fechaSeleccionada ? dia : {
+          ...dia, asignaciones: dia.asignaciones.map((asignacion) => {
+            const id = asignacion.origen === 'landing' ? landing : formulario
+            const destino = prev.datos!.destinos.find((d) => d.perfil_id === id)
+            return { ...asignacion, supervisor_id: id,
+              supervisor_nombre: destino?.nombre ?? null, supervisor_alias: destino?.alias ?? null }
+          }),
+        }),
+      } : null }))
+      setBorradores((prev) => {
+        const siguientes = { ...prev }
+        delete siguientes[fechaSeleccionada]
+        return siguientes
+      })
       toast.success(`Turno del ${textoFecha(fechaSeleccionada)} guardado`)
-      await cargar()
+      await cargarActualRef.current()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'No se pudo guardar la agenda de reparto.')
     } finally {
       setGuardando(false)
     }
-  }, [cargar, estaCompleta, fechaSeleccionada, formulario, guardando, landing])
+  }, [estaCompleta, fechaSeleccionada, formulario, guardando, landing])
 
   const invertir = useCallback(() => {
     if (!landing || !formulario) return
-    setLanding(formulario)
-    setFormulario(landing)
-  }, [formulario, landing])
+    setBorradores((prev) => ({ ...prev, [fechaSeleccionada]: { landing: formulario, formulario: landing } }))
+  }, [fechaSeleccionada, formulario, landing])
 
   const cambiarDia = useCallback((delta: number) => {
     setFechaSeleccionada((actual) => sumarDias(actual, delta))
@@ -188,11 +218,12 @@ export function AgendaRepartoDiaria() {
   const dias = estado.datos?.dias ?? []
 
   return (
-    <Card className="overflow-hidden border-primary/20 bg-gradient-to-br from-card via-card to-primary/[0.045]">
+    <Card className="overflow-hidden">
       <SectionHead
         icon={CalendarDays}
         title="Coordinación → supervisores"
-        right={<span className="text-[11px] font-semibold text-muted-foreground">Turno y entregas reales</span>}
+        right={<Button size="sm" variant="outline" disabled={estado.cargando || guardando || hayCambios}
+          onClick={() => void cargar()}>Actualizar</Button>}
       />
       <p className="px-4 pb-3 text-xs text-muted-foreground sm:px-5">
         El conteo aumenta apenas Coordinación entrega un lead a una bandeja. No depende de que Supervisión lo reparta después a un analista.
@@ -210,7 +241,7 @@ export function AgendaRepartoDiaria() {
             <ChevronLeft />
           </Button>
           <div className="min-w-[13rem] flex-1">
-            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-primary">Turno seleccionado</p>
+            <p className="text-xs font-medium text-muted-foreground">Turno seleccionado</p>
             <p className="mt-0.5 text-base font-bold capitalize tracking-tight">{textoFecha(fechaSeleccionada)}</p>
           </div>
           <label className="sr-only" htmlFor="fecha-agenda-reparto">Cambiar fecha de agenda</label>
@@ -270,8 +301,8 @@ export function AgendaRepartoDiaria() {
       {destinos.length < 2 ? (
         <PanelVacio
           icono={UsersRound}
-          titulo="Falta habilitar a Carmen y Jor"
-          detalle="La agenda se activará cuando ambas supervisoras estén disponibles para reparto."
+          titulo="Faltan supervisoras para los turnos"
+          detalle="Se necesitan al menos dos supervisoras habilitadas para programar los turnos."
         />
       ) : !diaSeleccionado ? (
         <PanelVacio
@@ -281,93 +312,28 @@ export function AgendaRepartoDiaria() {
         />
       ) : (
         <div className="p-4 sm:p-5">
-          <div className="grid gap-3 lg:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2" aria-label="Turnos del día">
             {ORIGENES.map((origen) => {
               const esLanding = origen === 'landing'
-              const valor = esLanding ? landing : formulario
-              const cambiar = esLanding ? setLanding : setFormulario
               const asignacion = esLanding ? asignacionLanding : asignacionFormulario
-              const entregas = asignacion?.entregas ?? []
-              const fueraTurno = asignacion?.fuera_turno ?? 0
-              const totalEntregado = asignacion?.derivados ?? 0
               return (
-                <section
-                  key={origen}
-                  className={`rounded-xl border p-3.5 ${
-                    esLanding ? 'border-primary/20 bg-primary/[0.055]' : 'border-accent/25 bg-accent/[0.07]'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-2.5">
-                      <span className={`grid size-8 place-items-center rounded-lg ${esLanding ? 'bg-primary text-primary-foreground' : 'bg-accent text-accent-foreground'}`}>
-                        <IconoOrigen origen={origen} className="size-4" />
-                      </span>
-                      <div>
-                        <h3 className="text-sm font-bold">{etiquetaOrigen(origen)}</h3>
-                        <p className="text-[11px] text-muted-foreground">Origen a distribuir</p>
-                      </div>
-                    </div>
-                    <span className="rounded-full border border-border bg-card/80 px-2 py-0.5 text-[11px] font-bold tabular-nums text-foreground">
-                      {totalEntregado} {totalEntregado === 1 ? 'entregado' : 'entregados'}
-                    </span>
-                  </div>
-                  <label className="mt-3 block text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground" htmlFor={`agenda-${origen}`}>
-                    Supervisora de turno
+                <div key={origen}>
+                  <label className="mb-1.5 block text-sm font-semibold" htmlFor={`agenda-${origen}`}>
+                    {etiquetaOrigen(origen)}
                   </label>
-                  <Select
-                    id={`agenda-${origen}`}
-                    value={valor}
-                    disabled={esHistorico || guardando}
-                    aria-label={`Asignar ${etiquetaOrigen(origen)} a una supervisora`}
-                    onChange={(event) => cambiar(event.target.value)}
-                    className="mt-1.5 bg-card"
-                  >
+                  <Select id={`agenda-${origen}`} value={esLanding ? landing : formulario}
+                    disabled={esHistorico || guardando} aria-label={`Asignar ${etiquetaOrigen(origen)} a una supervisora`}
+                    onChange={(event) => (esLanding ? setLanding : setFormulario)(event.target.value)}>
                     <option value="">Seleccionar supervisora…</option>
-                    {destinos.map((destino) => (
-                      <option key={destino.perfil_id} value={destino.perfil_id}>
-                        {destino.alias} · {destino.nombre}
-                      </option>
-                    ))}
+                    {destinos.map((destino) => <option key={destino.perfil_id} value={destino.perfil_id}>
+                      {destino.alias} · {destino.nombre}
+                    </option>)}
                   </Select>
-                  <p className="mt-2 text-[11px] text-muted-foreground">
-                    {asignacion?.supervisor_alias
-                      ? `Turno guardado: ${asignacion.supervisor_alias}`
-                      : 'Aún no tiene un turno guardado.'}
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    {asignacion?.supervisor_alias ? `Turno guardado: ${asignacion.supervisor_alias}` : 'Aún no tiene un turno guardado.'}
+                    {!esLanding ? ' Formulario y Formulario 3 comparten este turno.' : ''}
                   </p>
-                  <div className="mt-3 rounded-lg border border-border/80 bg-card/70 p-2.5">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
-                      Entregado realmente por Coordinación
-                    </p>
-                    {entregas.length > 0 ? (
-                      <div className="mt-1.5 flex flex-wrap gap-1.5">
-                        {entregas.map((entrega) => (
-                          <span
-                            key={entrega.supervisor_id ?? entrega.supervisor_nombre}
-                            className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold tabular-nums ${
-                              entrega.coincide_turno
-                                ? 'border-primary/20 bg-primary/[0.06] text-foreground'
-                                : 'border-warning/40 bg-warning/10 text-warning-text'
-                            }`}
-                          >
-                            {entrega.supervisor_alias ?? entrega.supervisor_nombre}: {entrega.derivados}
-                          </span>
-                        ))}
-                      </div>
-                    ) : totalEntregado > 0 ? (
-                      <p className="mt-1.5 text-[11px] font-medium text-foreground">
-                        {totalEntregado} registrados. Actualiza la base para ver el desglose por destino.
-                      </p>
-                    ) : (
-                      <p className="mt-1.5 text-[11px] text-muted-foreground">Aún no hay entregas en este origen.</p>
-                    )}
-                    {fueraTurno > 0 ? (
-                      <p className="mt-2 flex items-start gap-1.5 text-[11px] font-semibold text-warning-text" role="status">
-                        <AlertTriangle className="mt-px size-3.5 shrink-0" aria-hidden />
-                        {fueraTurno} {fueraTurno === 1 ? 'entrega no coincide' : 'entregas no coinciden'} con el turno guardado.
-                      </p>
-                    ) : null}
-                  </div>
-                </section>
+                </div>
               )
             })}
           </div>
@@ -407,6 +373,40 @@ export function AgendaRepartoDiaria() {
             ) : null}
           </div>
 
+          <section className="mt-6 border-t border-border pt-4" aria-label="Entregas realizadas">
+            <div className="mb-3 flex flex-wrap items-center gap-3">
+              <h3 className="mr-auto text-sm font-semibold">Entregas realizadas</h3>
+              <div className="w-full sm:w-48">
+              <Select aria-label="Filtrar entregas a supervisoras por origen" value={filtroOrigen}
+                disabled={diaSeleccionado.origenes === undefined} onChange={(e) => setFiltroOrigen(e.target.value)}>
+                <option value="">Todos los orígenes</option>
+                {[...new Set([...(diaSeleccionado.origenes ?? []).map((fila) => fila.origen), ...(filtroOrigen ? [filtroOrigen] : [])])]
+                  .map((origen) => <option key={origen} value={origen}>{origenLabel(origen)}</option>)}
+              </Select>
+              </div>
+              <div className="w-full sm:w-56">
+              <Select aria-label="Filtrar entregas por supervisora" value={filtroSupervisor}
+                onChange={(e) => setFiltroSupervisor(e.target.value)}>
+                <option value="">Todas las supervisoras</option>
+                {[...new Map([
+                  ...destinos.map((destino) => [destino.perfil_id, destino.alias] as const),
+                  ...(diaSeleccionado.origenes ?? []).flatMap((grupo) => grupo.entregas
+                    .filter((entrega) => entrega.supervisor_id !== null)
+                    .map((entrega) => [entrega.supervisor_id!, entrega.supervisor_alias ?? entrega.supervisor_nombre ?? 'Supervisora'] as const)),
+                  ...(filtroSupervisor ? [[filtroSupervisor, destinos.find((d) => d.perfil_id === filtroSupervisor)?.alias ?? 'Supervisora seleccionada'] as const] : []),
+                ])].map(([id, nombre]) => <option key={id} value={id}>{nombre}</option>)}
+              </Select>
+              </div>
+            </div>
+            {diaSeleccionado.origenes === undefined ? (
+              <p className="text-sm text-muted-foreground">Desglose por origen no disponible.
+                {' '}{diaSeleccionado.asignaciones.reduce((total, fila) => total + fila.derivados, 0)} entregas registradas en los turnos.
+              </p>
+            ) : (
+              <EntregasPorOrigen origenes={diaSeleccionado.origenes} origen={filtroOrigen} supervisor={filtroSupervisor} />
+            )}
+          </section>
+
           {estado.error ? (
             <p className="mt-3 rounded-lg bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive" role="status">
               {estado.error}
@@ -416,4 +416,28 @@ export function AgendaRepartoDiaria() {
       )}
     </Card>
   )
+}
+
+function EntregasPorOrigen({ origenes, origen, supervisor }: {
+  origenes: OrigenEntregasReparto[]; origen: string; supervisor: string
+}) {
+  const filas = origenes.filter((grupo) => !origen || grupo.origen === origen).flatMap((grupo) =>
+    grupo.entregas.filter((entrega) => !supervisor || entrega.supervisor_id === supervisor)
+      .map((entrega) => ({ ...entrega, origen: grupo.origen, turno: grupo.turno,
+        fuera: grupo.turno == null ? null : entrega.coincide_turno ? 0 : entrega.derivados })))
+  const total = filas.reduce((suma, fila) => suma + fila.derivados, 0)
+  const fuera = filas.reduce((suma, fila) => suma + (fila.fuera ?? 0), 0)
+  return <>
+    <p className="mb-2 text-xs text-muted-foreground" role="status">{total} entregados · {fuera} fuera de turno</p>
+    {filas.length === 0 ? <p className="py-4 text-sm text-muted-foreground">No hay entregas con estos filtros en el día seleccionado.</p> : (
+      <TablaEnvoltura ariaLabel="Entregas por origen y supervisora">
+        <TheadCrm><Th>Origen</Th><Th>Supervisora destino</Th><Th className="text-right">Entregados</Th><Th className="text-right">Fuera de turno</Th></TheadCrm>
+        <tbody>{filas.map((fila) => <tr key={`${fila.origen}:${fila.supervisor_id}`} className="border-b border-border last:border-0">
+          <Td>{origenLabel(fila.origen)}</Td><Td>{fila.supervisor_alias ?? fila.supervisor_nombre}</Td>
+          <Td className="text-right tabular-nums">{fila.derivados}</Td>
+          <Td className={`text-right tabular-nums ${fila.fuera ? 'font-semibold text-warning-text' : ''}`}>{fila.fuera ?? 'No aplica'}</Td>
+        </tr>)}</tbody>
+      </TablaEnvoltura>
+    )}
+  </>
 }

@@ -23,7 +23,7 @@ async function montar(page: Page, estado: 'normal' | 'ajeno' | 'vacio' | 'error'
     const args = route.request().postDataJSON()
     return route.fulfill({ headers: CORS, json: args.p_mes === '2026-10-01' && estado !== 'vacio' ? [agregado] : [] })
   })
-  await page.route('**/rest/v1/rpc/listar_operaciones_facturacion_fn', async (route) => {
+  await page.route('**/rest/v1/rpc/listar_operaciones_facturacion_v2_fn', async (route) => {
     if (route.request().method() !== 'POST') return route.fallback()
     const p: ParametrosOperacionesFacturacion = route.request().postDataJSON()
     pedidos.push(p)
@@ -32,7 +32,7 @@ async function montar(page: Page, estado: 'normal' | 'ajeno' | 'vacio' | 'error'
       (!p.p_dias || p.p_dias.includes(f.fecha)) && (!p.p_analistas || p.p_analistas.includes(f.analista_id!)) &&
       (!p.p_equipo || f.supervisor_id === p.p_equipo) && (!p.p_moneda || f.moneda === p.p_moneda) && (!p.p_tipos || p.p_tipos.includes(f.tipo)))
     const pagina = p.p_pagina ?? 1; const tamano = p.p_tamano ?? 25
-    return route.fulfill({ headers: CORS, json: { version: 1, pagina, tamano, total: filas.length,
+    return route.fulfill({ headers: CORS, json: { version: 2, pagina, tamano, total: filas.length,
       totales: filas.length ? [{ moneda: 'PEN', operaciones: filas.length, monto: filas.length * 1000 }] : [],
       filas: filas.slice((pagina - 1) * tamano, pagina * tamano).map((f) => estado === 'ajeno'
         ? { n: f.n, fecha: f.fecha, tipo: f.tipo, moneda: f.moneda, monto: f.monto, anulado: f.anulado,

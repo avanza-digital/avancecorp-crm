@@ -1,0 +1,244 @@
+{
+  "fase": 5,
+  "estado": "COMPLETADA",
+  "objetivo_cumplido": true,
+  "fotografia_utc": "2026-10-15T05:34:23Z",
+  "alcance": "Prueba controlada de una fila real; no carga masiva ni activación periódica.",
+  "n8n": {
+    "workflow_id": "BjI5m1PKVWhO0NDb",
+    "version_id": "0db44882-4f8c-4799-954c-bc922805e5f1",
+    "active": false,
+    "active_version_id": null,
+    "cron_deshabilitado": true,
+    "http_deshabilitado": true,
+    "enviar_crm": false,
+    "simular_registro": true,
+    "fila_objetivo": 2,
+    "huella_objetivo": null,
+    "limite_filas": 1,
+    "recibos_confirmados_para_fila": 1,
+    "ejecuciones_pendientes_en_instancia": 0,
+    "guarda_una_fila_codigo_conservado": true,
+    "huella_congelada_al_cierre": false,
+    "huella_congelada_durante_54_y_55": true,
+    "cierre_seguro": "Huella liberada tras cada ejecución: cualquier envío futuro exige fijarla de nuevo o sustituir deliberadamente la guarda en fase 6. La guarda conservada rechaza huella nula y límite distinto de 1."
+  },
+  "retencion": {
+    "resultado": "PASS_CONFIGURACION",
+    "fuente": "Salida de terminal aportada por Miguel al recrear el servicio n8n",
+    "EXECUTIONS_DATA_PRUNE": "true",
+    "EXECUTIONS_DATA_MAX_AGE": 144,
+    "EXECUTIONS_DATA_HARD_DELETE_BUFFER": 1,
+    "imagen_fijada": "docker.n8n.io/n8nio/n8n:2.43.5",
+    "comparacion_imagen_previa": true,
+    "recreacion_solo_n8n_sin_pull": true,
+    "observacion_ciclo_poda": "NOT_RUN",
+    "borrado_forense": "NOT_RUN",
+    "comprobacion_posterior": "Revisar la eliminación de ejecuciones 53–55 una vez transcurridas 144 h más buffer y ciclo de poda; referencia 2026-10-21 después de 06:30 UTC. Verificación pendiente; no se creó una tarea automática."
+  },
+  "ejecuciones": [
+    {
+      "id": "53",
+      "workflowId": "BjI5m1PKVWhO0NDb",
+      "status": "success",
+      "mode": "manual",
+      "startedAt": "2026-10-15T05:16:14.760Z",
+      "stoppedAt": "2026-10-15T05:16:16.227Z",
+      "waitTill": null,
+      "proposito": "Vista previa: una fila, cero envíos",
+      "control_efectivo": {
+        "enviar_crm": false,
+        "simular_registro": true,
+        "fila_objetivo": 2,
+        "limite_filas": 1,
+        "huella_objetivo_prefijo": null
+      },
+      "fuente_control": "Salida de Control del envío en los datos persistidos de la propia ejecución",
+      "workflow_version_observada_antes_de_ejecutar": "00706fea-1439-4c22-94ea-0388bfdf1fb7",
+      "fuente_version": "Lectura MCP de workflow inmediatamente anterior; get_workflow_execution no expone workflowData ni workflowVersionId"
+    },
+    {
+      "id": "54",
+      "workflowId": "BjI5m1PKVWhO0NDb",
+      "status": "success",
+      "mode": "manual",
+      "startedAt": "2026-10-15T05:21:40.184Z",
+      "stoppedAt": "2026-10-15T05:21:41.719Z",
+      "waitTill": null,
+      "proposito": "Importación real: una alta confirmada",
+      "control_efectivo": {
+        "enviar_crm": true,
+        "simular_registro": false,
+        "fila_objetivo": 2,
+        "limite_filas": 1,
+        "huella_objetivo_prefijo": "89c47cd4"
+      },
+      "fuente_control": "Salida de Control del envío en los datos persistidos de la propia ejecución",
+      "workflow_version_observada_antes_de_ejecutar": "82d72a5c-3868-45b2-9890-6a1b2c3ac8d8",
+      "fuente_version": "Lectura MCP de workflow inmediatamente anterior; get_workflow_execution no expone workflowData ni workflowVersionId"
+    },
+    {
+      "id": "55",
+      "workflowId": "BjI5m1PKVWhO0NDb",
+      "status": "success",
+      "mode": "manual",
+      "startedAt": "2026-10-15T05:25:05.197Z",
+      "stoppedAt": "2026-10-15T05:25:05.750Z",
+      "waitTill": null,
+      "proposito": "Repetición: fila omitida por recibo",
+      "control_efectivo": {
+        "enviar_crm": true,
+        "simular_registro": false,
+        "fila_objetivo": 2,
+        "limite_filas": 1,
+        "huella_objetivo_prefijo": "89c47cd4"
+      },
+      "fuente_control": "Salida de Control del envío en los datos persistidos de la propia ejecución",
+      "workflow_version_observada_antes_de_ejecutar": "0ec4576e-f907-4973-8214-3cae928b3e55",
+      "fuente_version": "Lectura MCP de workflow inmediatamente anterior; get_workflow_execution no expone workflowData ni workflowVersionId"
+    }
+  ],
+  "verificacion": {
+    "tests_locales": {
+      "resultado": "PASS",
+      "total": 30,
+      "comando_desde_raiz": "node --test CRM-Avance-Corp/scripts/n8n/formulario3.test.mjs CRM-Avance-Corp/scripts/n8n/formulario3.workflow.test.mjs CRM-Avance-Corp/scripts/n8n/formulario3.alertas.test.mjs CRM-Avance-Corp/scripts/n8n/formulario3.fase5.test.mjs"
+    },
+    "validacion_mcp_configuracion": "PASS",
+    "huella_sha256_nodo_contra_calculo_independiente": "PASS",
+    "huella_prefijo": "89c47cd4",
+    "preflight_identidad": {
+      "coincidencias": 0,
+      "recibos": 0,
+      "leads_campania": 0,
+      "total_crm": 3687
+    },
+    "post_importacion": {
+      "coincidencias": 1,
+      "total_crm": 3688,
+      "leads_campania": 1,
+      "checks": {
+        "nota": true,
+        "etapa": true,
+        "activo": true,
+        "moneda": true,
+        "origen": true,
+        "distrito": true,
+        "telefono": true,
+        "alta_manual": true,
+        "cola_global": true,
+        "no_contactar": true,
+        "monto_estimado": true,
+        "campania_origen": true,
+        "nombre_completo": true,
+        "categoria_interes": true,
+        "creado_por_sistema": true,
+        "telefono_alternativo": true,
+        "consentimiento_fuente": true,
+        "sin_contacto_inventado": true,
+        "consentimiento_registrado": true,
+        "telefono_alternativo_crudo": true
+      },
+      "creado_en": "2026-10-15T05:21:41.535283+00:00"
+    },
+    "recibo": {
+      "resultado": "importado",
+      "fila": 2,
+      "confirmados": 1,
+      "procesado_en": "2026-10-15T05:21:41.648Z"
+    },
+    "coordinacion": {
+      "resultado": "PASS",
+      "metodo": "RPC crm.leads_por_repartir() en transacción READ ONLY, SET LOCAL ROLE authenticated y claims de un coordinador activo; no representa un login HTTP",
+      "antes_ejecucion_55": {
+        "rol_sql": "authenticated",
+        "visible": 1,
+        "monto_presente": true,
+        "origen_formulario": true,
+        "campania_en_comentario": true
+      },
+      "despues_ejecucion_55": {
+        "rol_sql": "authenticated",
+        "visible": 1,
+        "monto_presente": true,
+        "origen_formulario": true,
+        "campania_en_comentario": true
+      }
+    },
+    "captura_usuario": {
+      "resultado": "PASS",
+      "fecha_lima": "2026-10-15T00:28:49-05:00",
+      "pantalla": "Repartir / Cola de leads nuevos",
+      "filas_visibles": 1,
+      "origen_visible": "FORMULARIO",
+      "campania_visible_en_comentario": "Campaña: Formulario 3",
+      "turno_guardado": false,
+      "asignacion_humana_ejecutada": false,
+      "captura_con_datos_personales_no_copiada": true
+    },
+    "reparto": {
+      "resultado": "PASS",
+      "estado": "Cola global para Coordinación",
+      "vendedor_asignado": false,
+      "supervisor_asignado": false,
+      "episodios_antes": 0,
+      "episodios_despues": 0,
+      "turno_o_supervisor_no_modificados": true
+    },
+    "repeticion": {
+      "resultado": "PASS",
+      "sameFingerprint": true,
+      "remainingItems": 0,
+      "httpExecuted": false,
+      "receiptWritten": false,
+      "alta_unica": true,
+      "mismo_lead": true,
+      "huella_fila_crm_sin_cambios": true,
+      "recibo_sin_cambios": true,
+      "asignacion_sin_cambios": true
+    }
+  },
+  "claude": {
+    "primera_revision": "CHANGES_REQUESTED",
+    "hallazgos_p0_p1": 0,
+    "medidas_aplicadas": [
+      "Validación de conexiones, nodos y parámetros críticos contra el recorrido revisado.",
+      "Simulación de recibos en vista previa y cierre.",
+      "Envío limitado a una fila y su huella congelada.",
+      "Imagen fijada y comparación previa; recreación sin pull y con copia privada de configuración preservada.",
+      "Repetición solo tras éxito, recibo único y alta única comprobados.",
+      "Comparación de fila CRM completa, recibo y asignaciones antes y después."
+    ],
+    "segunda_revision": "CHANGES_REQUESTED",
+    "revision_final_conclusion": "La evidencia técnica respalda cerrar fase 5; cerrar documentación y precisar el alcance sin otro review.",
+    "correcciones_de_evidencia_aplicadas": [
+      "Distinguir la huella fijada durante 54/55 de la guarda conservada con huella nula al cierre.",
+      "Registrar controles efectivos desde cada ejecución y versiones observadas antes; no atribuir al MCP un versionId histórico que no devuelve.",
+      "Explicitar objetivo de fase5 frente al plan completo y referencias antes/después de55.",
+      "Retención marcada PASS_CONFIGURACION y comprobación de envejecimiento pendiente.",
+      "Figma y vault actualizados sin datos personales."
+    ],
+    "observaciones_contrastadas": [
+      "El test existente «el envío exige una única fila con la identidad y contrato revisados» ya rechaza limite_filas=25, huella nula y fila distinta; no se agregó un test duplicado.",
+      "La lectura persistida de Control del envío de53/54/55 confirma los flags efectivos; el MCP no expone el workflow histórico completo.",
+      "La UI de Repartir identifica la campaña desde el comentario; campania_origen persiste separadamente en CRM y las demás vistas ya desplegadas."
+    ]
+  },
+  "figma": {
+    "url": "https://www.figma.com/board/JB4jRdmLXZXS0hBhEHxRbV?node-id=2-54",
+    "estado_visible": "FASE 5 / COMPLETADA",
+    "captura_revisada": true,
+    "avance": "Una alta real, un recibo y repetición sin HTTP ni reasignación. Fase 6 siguiente; programación apagada."
+  },
+  "siguiente_paso": "Fase 6: nueva foto de la hoja, lotes supervisados de hasta 25 pendientes, conciliación y, tras aceptar la carga, activación cada cinco minutos.",
+  "pendiente_diferido_por_miguel": "Rediseñar la pantalla Supervisores dentro de Coordinación para distinguir Formulario 3; se hará después del plan principal. Se mantiene el turno comercial de FORMULARIO.",
+  "limites": [
+    "Solo una fila real ensayada; no acredita la carga completa ni el cron activo.",
+    "El rol de la sesión de la captura no se infiere; el permiso de Coordinación se verificó por SQL authenticated.",
+    "Formulario 3 aparece en el comentario de Repartir; el canal visible sigue siendo FORMULARIO.",
+    "No se efectuó reparto humano ni se creó una agenda de turnos.",
+    "Poda configurada a 144 horas y buffer de 1 hora; no se observó un ciclo de envejecimiento ni borrado forense."
+  ],
+  "objetivo_cumplido_alcance": "Solo fase 5; la carga y activación de fase 6 siguen pendientes.",
+  "plan_principal_completo": false
+}

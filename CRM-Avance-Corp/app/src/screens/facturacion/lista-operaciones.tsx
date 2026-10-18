@@ -18,13 +18,14 @@ const TIPOS = { contrato_nuevo: 'Nuevo', contrato_upgrade: 'Upgrade', contrato_r
 const EXPLICACION_AJENA = 'El cliente hoy lo atiende otro equipo: ves el importe, no sus datos.'
 // Los Dialog/Sheet de Radix se identifican por data-slot y no siempre llevan aria-modal.
 const CAPA_EXTERNA = '[aria-modal="true"], [data-slot="dialog"], [data-slot="sheet"], [data-sonner-toaster]'
-const nombreCliente = (f: OperacionFacturacion) => f.visible ? f.cliente_nombre ?? 'Cliente sin nombre' : 'Cliente de otro equipo'
+const nombreVisible = (f: OperacionFacturacion) => f.visible || ('nombre_visible' in f && f.nombre_visible === true)
+const nombreCliente = (f: OperacionFacturacion) => nombreVisible(f) ? f.cliente_nombre ?? 'Cliente sin nombre' : 'Cliente de otro equipo'
 const referencia = (f: OperacionFacturacion) => !f.visible ? '—' : (f.tipo === 'cooperativa' ? f.cooperativa : f.numero_contrato) ?? '—'
 
 function Cliente({ fila }: { fila: OperacionFacturacion }) {
   return <div className="lista-cliente">
-    <span className={cn('text-base font-semibold', !fila.visible && 'italic text-muted-foreground-strong')}>
-      {!fila.visible && <EyeOff aria-hidden className="mr-1 inline size-4" />}{nombreCliente(fila)}
+    <span className={cn('text-base font-semibold', !nombreVisible(fila) && 'italic text-muted-foreground-strong')}>
+      {!nombreVisible(fila) && <EyeOff aria-hidden className="mr-1 inline size-4" />}{nombreCliente(fila)}
     </span>
     {fila.anulado && <span className="lista-anulada">Anulada · cuenta igual</span>}
   </div>
@@ -34,6 +35,15 @@ function Referencia({ fila, tarjeta = false }: { fila: OperacionFacturacion; tar
   const texto = referencia(fila)
   return texto === '—' ? <><span aria-hidden>—</span><span className="sr-only">sin dato</span></>
     : <>{tarjeta && fila.tipo !== 'cooperativa' ? 'N.º ' : ''}{texto}</>
+}
+
+function Valoracion({ fila }: { fila: OperacionFacturacion }) {
+  if (fila.equivalente_pen === undefined) return null
+  return <div className="whitespace-normal text-sm font-normal">
+    <strong>{fila.equivalente_pen === null ? 'Equivalente pendiente' : `${money(fila.equivalente_pen, 'PEN')} equivalentes`}</strong>
+    {fila.moneda === 'USD' && fila.tasa != null && <p>Tipo de cambio S/ {fila.tasa.toFixed(4)}{fila.fecha_tc ? ` · ${etiquetaDiaLargo(fila.fecha_tc)}` : ''}</p>}
+    {fila.fecha_comercial && <p>Venta: {etiquetaDiaLargo(fila.fecha_comercial)}</p>}
+  </div>
 }
 
 /** Inspector en escritorio amplio; modal lateral en ventana estrecha y tarjetas en celular. */
@@ -201,7 +211,7 @@ export function ListaOperaciones({ abierto, origen, focoRespaldo, onCerrar, onAc
     setActualizadas(false)
     try {
       await onActualizar()
-      if (!ejemplo) {
+      if (!ejemplo && !abierto.cifra.cortes) {
         const resultado = await consulta.refetch()
         if (resultado.isError) throw resultado.error
       }
@@ -224,9 +234,9 @@ export function ListaOperaciones({ abierto, origen, focoRespaldo, onCerrar, onAc
     setPagina(n); setTamano(t)
   }
   const moneda = abierto.cifra.vista === 'USD' ? 'USD' : 'PEN'
-  const formato = (v: number) => abierto.metrica === 'capital' ? money(v, moneda) : `${numero(v, 1)} operaciones`
+  const formato = (v: number | null) => v === null ? 'equivalente pendiente' : abierto.metrica === 'capital' ? money(v, moneda) : `${numero(v, 1)} operaciones`
   const suma = datos ? valorDeTotales(datos.totales, abierto.cifra.vista, abierto.metrica, abierto.tasa) : 0
-  const ajenas = datos?.filas.filter((f) => !f.visible).length ?? 0
+  const ajenas = datos?.filas.filter((f) => !nombreVisible(f)).length ?? 0
   const ultimo = datos ? Math.min(datos.total, pagina * tamano) : 0
   const primero = datos?.filas.length ? (pagina - 1) * tamano + 1 : 0
 
@@ -252,8 +262,10 @@ export function ListaOperaciones({ abierto, origen, focoRespaldo, onCerrar, onAc
                 : `Pulsaste ${formato(abierto.valor)}: la lista ${abierto.metrica === 'capital' ? 'suma' : 'tiene'} ${formato(suma)}, en todas sus páginas.`}
             </p>
             {abierto.cifra.vista === 'TOTAL' && abierto.metrica === 'capital' && <p className="mt-1 text-muted-foreground-strong">
-              {money(datos.totales.find((t) => t.moneda === 'PEN')?.monto ?? 0, 'PEN')} + {money(datos.totales.find((t) => t.moneda === 'USD')?.monto ?? 0, 'USD')}
-              {abierto.tasa != null ? ` × ${numero(abierto.tasa, 4)} (tipo de cambio en soles).` : ' · todo en soles.'} Soles y dólares se muestran por separado.
+              {abierto.cifra.cortes ? 'Suma de los equivalentes por operación del corte consultado. Los meses anteriores a octubre usan su corte mensual histórico.' : <>
+                {money(datos.totales.find((t) => t.moneda === 'PEN')?.monto ?? 0, 'PEN')} + {money(datos.totales.find((t) => t.moneda === 'USD')?.monto ?? 0, 'USD')}
+                {abierto.tasa != null ? ` × ${numero(abierto.tasa, 4)} (tipo de cambio en soles).` : ' · todo en soles.'} Soles y dólares se muestran por separado.
+              </>}
             </p>}
           </div>
         </div>
@@ -272,18 +284,19 @@ export function ListaOperaciones({ abierto, origen, focoRespaldo, onCerrar, onAc
         : datos?.total === 0 ? <div className="lista-vacio"><ListX aria-hidden /><h3 className="text-base font-bold">Sin operaciones en este número</h3><p>No hay operaciones con los días y filtros de esta cifra.</p></div>
         : datos?.filas.length === 0 ? <div className="lista-vacio"><p>No hay operaciones en esta página.</p><button type="button" className="lista-volver" onClick={() => ir(1)}>Volver a la primera página</button></div>
         : datos && (celular ? <div role="list" className="lista-tarjetas">
-          {datos.filas.map((f) => <div role="listitem" tabIndex={-1} key={f.n} className={cn('lista-tarjeta', !f.visible && 'lista-ajena')}>
+          {datos.filas.map((f) => <div role="listitem" tabIndex={-1} key={f.n} className={cn('lista-tarjeta', !nombreVisible(f) && 'lista-ajena')}>
             <div className="flex items-start gap-2"><span className="text-sm tabular-nums">{f.n}</span><div className="min-w-0 flex-1"><Cliente fila={f} /></div><strong className="text-base tabular-nums">{money(f.monto, f.moneda)}</strong></div>
             <p className="mt-2 text-sm">{etiquetaDiaLargo(f.fecha)} · {TIPOS[f.tipo]}</p>
+            <Valoracion fila={f} />
             {f.visible && <p className="text-sm"><Referencia fila={f} tarjeta /></p>}
             <p className="mt-1 text-base">Analista {f.analista_nombre} · equipo de {f.supervisor_nombre}</p>
-            {!f.visible && <p className="mt-2 text-sm text-muted-foreground-strong">{EXPLICACION_AJENA}</p>}
+            {!nombreVisible(f) && <p className="mt-2 text-sm text-muted-foreground-strong">{EXPLICACION_AJENA}</p>}
           </div>)}
         </div> : <table className="lista-tabla">
           <caption className="sr-only">Operaciones de este número, página {pagina}</caption>
           <thead><tr>{['#', 'Fecha', 'Tipo', 'Cliente', 'N.º de contrato / Cooperativa', 'Analista', 'Supervisor', 'Monto'].map((t, i) =>
             <th key={t} scope="col" className={cn(ENCABEZADO, `lista-col-${i}`)}>{t === '#' ? <><span aria-hidden>#</span><span className="sr-only">Número de fila</span></> : t}</th>)}</tr></thead>
-          <tbody>{datos.filas.map((f) => <tr key={f.n} className={cn(!f.visible && 'lista-ajena')}>
+          <tbody>{datos.filas.map((f) => <tr key={f.n} className={cn(!nombreVisible(f) && 'lista-ajena')}>
             <td className={cn(CELDA, 'lista-col-0')}>{f.n}</td>
             <td className={cn(CELDA, 'lista-col-1')}>{numero(Number(f.fecha.slice(8)))} {new Date(`${f.fecha}T12:00:00`).toLocaleDateString('es-PE', { month: 'short' })}</td>
             <td className={CELDA}><span className={`lista-tipo lista-${f.tipo}`}>{TIPOS[f.tipo]}</span></td>
@@ -291,7 +304,7 @@ export function ListaOperaciones({ abierto, origen, focoRespaldo, onCerrar, onAc
             <td className={CELDA}><Referencia fila={f} /></td>
             <td className={cn(CELDA, 'lista-persona')}>{f.analista_nombre}</td>
             <td className={cn(CELDA, 'lista-persona')}>{f.supervisor_nombre}</td>
-            <td className={cn(CELDA, 'lista-col-7')}>{money(f.monto, f.moneda)}</td>
+            <td className={cn(CELDA, 'lista-col-7')}>{money(f.monto, f.moneda)}<Valoracion fila={f} /></td>
           </tr>)}</tbody>
         </table>)}
     </div>

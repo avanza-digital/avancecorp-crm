@@ -24,22 +24,38 @@ import { criterioDesdeTexto, esBusquedaExacta } from '@/lib/venta-cruzada'
 import { FiltrosCarteraInversionistas } from '@/components/app/cartera-inversionistas-filtros'
 import { fechaLima } from '@/lib/agenda-derivada'
 import { fmtFecha, money } from '@/lib/format'
-import { EMPRESA_NOMBRE, FILTROS_INVERSIONISTAS_INICIALES, type CarteraInversionistas as DatosCartera, type FiltrosInversionistas, type InversionFuente } from '@/lib/inversionistas'
+import { EMPRESA_NOMBRE, FILTROS_INVERSIONISTAS_INICIALES, inversionReemplazable, inversionReemplazableCooperativa, mesLargo, type CarteraInversionistas as DatosCartera, type FiltrosInversionistas, type InversionFuente } from '@/lib/inversionistas'
 import { limpiarIntentosInversion, leerIntentoInversion } from '@/lib/inversion-solicitud'
 import { inversionistasKeys, useInversionistas } from '@/data/inversionistas-queries'
-import { CrmApiError, eliminarInversion as eliminarInversionServidor, mensajeDeError } from '@/data/crm-api'
+import {
+  CrmApiError, eliminarInversion as eliminarInversionServidor, mensajeDeError, reemplazarInversion, reemplazarInversionCooperativa,
+  reemplazarInversionPorExistente, vistaPreviaReemplazo, vistaPreviaReemplazoCooperativa, type InversionCooperativaReemplazadaResultado,
+  type InversionReemplazadaResultado,
+} from '@/data/crm-api'
+import type { ControlesReemplazo } from '@/components/app/inversion-reemplazar'
+import type { ControlesReemplazoCooperativa } from '@/components/app/inversion-reemplazar-cooperativa'
+import { subirComprobanteInversion } from '@/data/inversion-solicitud-api'
 import { descargarDocumentoInversionista } from '@/data/inversionistas-api'
 import { archivarContratoPdfConfirmado, ContratoEliminacionError, eliminarContratoConPdf } from '@/lib/contrato-pdf-archivo'
 import { useAuth } from '@/lib/auth-context'
-import { can, puedeEliminarContratos, puedeEliminarInversion, puedeEliminarInversiones } from '@/lib/roles'
+import { can, puedeCorregirCategoriaInversion, puedeEliminarContratos, puedeEliminarInversion, puedeEliminarInversiones, puedeReemplazarInversion, puedeReemplazarInversionCooperativa } from '@/lib/roles'
+import { corregirCategoriaInversion } from '@/data/categoria-inversion-api'
+import type { CategoriaContrato } from '@/lib/cronograma'
 import { crmQueryKeys } from '@/data/crm-queries'
 
 export function CarteraInversionistas({actor, permiteInversion}: {
   actor: string; permiteInversion: boolean
 }) {
   const {yo} = useAuth()
+  const permiteCategoria = yo?.id === actor && !yo.demo && puedeCorregirCategoriaInversion(yo)
+  const permiteGestion = yo?.rol !== 'coordinador'
+  const puedeInvertir = permiteInversion && permiteGestion
   const permiteEliminar = yo?.id === actor && !yo.demo && puedeEliminarContratos(yo)
   const permiteEliminarInversion = yo?.id === actor && !yo.demo && puedeEliminarInversiones(yo)
+  // «Reemplazar inversión»: el reemplazo de Avance exige admin del portal (la venta de un lead, además Gerencia).
+  const permiteReemplazar = yo?.id === actor && !yo.demo && puedeEliminarContratos(yo)
+  // El de una cooperativa (Fase 4): SOLO Gerencia (siempre es la venta inicial de un lead). Nunca en una sesión demo.
+  const permiteReemplazarCooperativa = yo?.id === actor && !yo.demo && yo.rol === 'gerencia'
   const qc = useQueryClient()
   const [alta, setAlta] = useState(false)
   const altaEnCurso = useRef(false)
@@ -64,7 +80,7 @@ export function CarteraInversionistas({actor, permiteInversion}: {
   // Venta cruzada: buscar a un cliente de otra cartera y registrar su inversión (vendedor o
   // supervisor). Gerencia también busca, para abrir la ficha.
   const [ventaCruzada, setVentaCruzada] = useState<{inicial?: CriterioBusqueda | undefined} | null>(null)
-  const puedeVentaCruzada = yo?.id === actor && !yo.demo && permiteInversion
+  const puedeVentaCruzada = yo?.id === actor && !yo.demo && puedeInvertir
   const registraVentaCruzada = puedeVentaCruzada && (yo?.rol === 'vendedor' || yo?.rol === 'supervisor')
   const [aviso, setAviso] = useState('')
   const [descargando, setDescargando] = useState(false)
@@ -152,6 +168,12 @@ export function CarteraInversionistas({actor, permiteInversion}: {
     qc.invalidateQueries({queryKey: crmQueryKeys.leads()}),
     qc.invalidateQueries({queryKey: postventaKeys.actor(actor)}),
   ])
+  async function corregirCategoria(i: InversionFuente, categoria: CategoriaContrato, motivo: string) {
+    if (!permiteCategoria || i.empresa !== 'avance' || !i.contrato) throw new CrmApiError('No tienes permiso para corregir esta categoría.', '42501')
+    await corregirCategoriaInversion(i.fuente_id, categoria, motivo)
+    await refrescarGestionInversionista(qc, actor)
+    toast.success('Categoría corregida. Conversión y ranking actualizados.')
+  }
   async function eliminarContrato(i: InversionFuente) {
     if (!permiteEliminar || i.empresa !== 'avance' || !i.contrato) throw new ContratoEliminacionError('No tienes permiso para eliminar este contrato.')
     const {auditoriaId} = await eliminarContratoConPdf(i.fuente_id)
@@ -165,6 +187,38 @@ export function CarteraInversionistas({actor, permiteInversion}: {
     toast.success(`Inversión eliminada. Copia de auditoría: ${auditoriaId}.${conversionAnulada
       ? ` La conversión del lead quedó anulada.${mesCerrado ? ' El mes ya estaba cerrado: el ajuste pasa al mes vivo.' : ''}` : ''}`)
   }
+  function reemplazoTerminado(i: InversionFuente, r: InversionReemplazadaResultado) {
+    void refrescarTrasEliminar()
+    // El PDF del contrato nuevo, como tras un alta: el servidor lo genera; si queda pendiente, la ficha ofrece recuperarlo.
+    if (r.modo === 'nueva' && !r.idempotente) {
+      void archivarContratoPdfConfirmado(r.contratoId).catch(() => {
+        toast.warning('El PDF del contrato nuevo quedó pendiente: recupéralo desde la ficha.')
+      })
+    }
+    const original = i.numero ? `Inversión ${i.numero}` : 'Inversión'
+    const venta = r.periodoVenta ? ` La venta quedó en ${mesLargo(r.periodoVenta).toLowerCase()}.` : ''
+    toast.success(`${original} reemplazada por N° ${r.numeroContrato ?? 'nuevo'}.${venta}`)
+  }
+  function reemplazoCooperativaTerminado(i: InversionFuente, r: InversionCooperativaReemplazadaResultado) {
+    void refrescarTrasEliminar()
+    const ahora = r.cooperativa && r.cooperativa !== i.empresa ? ` Ahora está en ${EMPRESA_NOMBRE[r.cooperativa]}.` : ''
+    const venta = r.periodoVenta ? ` La venta quedó en ${mesLargo(r.periodoVenta).toLowerCase()}.` : ''
+    toast.success(`Inversión en ${EMPRESA_NOMBRE[i.empresa]} reemplazada.${ahora}${venta}`)
+  }
+  const reemplazoCooperativa: ControlesReemplazoCooperativa | undefined = permiteReemplazarCooperativa ? {
+    puede: i => inversionReemplazableCooperativa(i) && puedeReemplazarInversionCooperativa(yo, i),
+    vistaPrevia: (i, fechaComercial) => vistaPreviaReemplazoCooperativa(i.fuente_id, fechaComercial),
+    subirComprobante: subirComprobanteInversion,
+    reemplazar: (i, motivo, cambios) => reemplazarInversionCooperativa(i.fuente_id, motivo, cambios),
+    alTerminar: reemplazoCooperativaTerminado,
+  } : undefined
+  const reemplazo: ControlesReemplazo | undefined = permiteReemplazar ? {
+    puede: i => inversionReemplazable(i) && i.perfil_id !== null && puedeReemplazarInversion(yo, i),
+    vistaPrevia: (i, opciones) => vistaPreviaReemplazo(i.fuente_id, opciones),
+    reemplazar: (i, motivo, input, cronograma) => reemplazarInversion(i.fuente_id, motivo, input, cronograma),
+    conservar: (i, conservarId, motivo) => reemplazarInversionPorExistente(i.fuente_id, conservarId, motivo),
+    alTerminar: reemplazoTerminado,
+  } : undefined
   return <div className="@container/cartera mx-auto max-w-[1440px] space-y-3">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div><h2 ref={titulo} tabIndex={-1} className="text-xl font-bold tracking-tight outline-none">Cartera de inversionistas</h2>
@@ -233,17 +287,19 @@ export function CarteraInversionistas({actor, permiteInversion}: {
             onCambio={n => setFiltros(f => ({...f, pagina: n + 1}))} mostrarSiempre ariaLabel="Paginación de inversionistas" /></div>
         </>}
     </Card>
-    <VencimientosPostventa key={filtros.empresa} actor={actor} empresa={filtros.empresa} onAbrir={seleccionar} />
+    {permiteGestion && <VencimientosPostventa key={filtros.empresa} actor={actor} empresa={filtros.empresa} onAbrir={seleccionar} />}
     {seleccion && !nueva && <Sheet open onClose={() => {documento.current?.abort(); setDescargando(false); seleccionar(null)}} ariaLabel="Ficha del inversionista" className="w-[620px] max-w-full">
       {descargando && <p role="status" className="px-5 pt-3 text-sm">Comprobando acceso y descargando documento…</p>}
       <InversionistaFicha key={seleccion} actor={actor} inversionistaId={seleccion} onCerrar={() => seleccionar(null)} onRevocado={revocar}
-        enfocarInversiones={volverAInversiones}
-        onNuevaInversion={permiteInversion ? f => setNueva({persona: f.persona.inversionista_id}) : undefined}
-        onOperacion={permiteInversion ? op => setNueva({persona: seleccion, operacion: op}) : undefined}
+        enfocarInversiones={volverAInversiones} permiteGestion={permiteGestion}
+        onCorregirCategoria={permiteCategoria ? corregirCategoria : undefined}
+        onNuevaInversion={puedeInvertir ? f => setNueva({persona: f.persona.inversionista_id}) : undefined}
+        onOperacion={puedeInvertir ? op => setNueva({persona: seleccion, operacion: op}) : undefined}
         onEliminar={permiteEliminar ? eliminarContrato : undefined}
         onEliminarInversion={permiteEliminarInversion ? eliminarInversion : undefined}
         puedeEliminarInversion={i => puedeEliminarInversion(yo, i)}
-        onDocumento={(i, id) => void abrirDocumento(i, id)} onRecuperarPdf={i => void abrirDocumento(i, i.fuente_id, true)} />
+        reemplazo={reemplazo} reemplazoCooperativa={reemplazoCooperativa}
+        onDocumento={(i, id) => void abrirDocumento(i, id)} onRecuperarPdf={permiteGestion ? i => void abrirDocumento(i, i.fuente_id, true) : undefined} />
     </Sheet>}
     {ventaCruzada && <VentaCruzada actor={actor} inicial={ventaCruzada.inicial} puedeRegistrar={registraVentaCruzada}
       onCerrar={() => setVentaCruzada(null)}

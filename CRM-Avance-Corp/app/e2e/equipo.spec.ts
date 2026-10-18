@@ -7,13 +7,80 @@ import { irAModulo } from './_navegacion'
 // ningún botón de acción (espejo del write-gating de demo-roles.spec.ts).
 // En todos: cero requests al host de Supabase (gate fail-closed).
 import { expect, test } from '@playwright/test'
+import { montarLecturasHoySupervisor } from './_hoy-supervisor'
 import {
   bloquearSupabase,
   entrarDemo,
   loginReal,
   montarBackendReal,
   rankingAgostoReal,
+  UID,
 } from './_helpers'
+
+for (const rolCrm of ['supervisor', 'gerencia'] as const) {
+test(`${rolCrm}: ventas propias al final desde octubre y nunca como puesto de analista`, async ({ page }, testInfo) => {
+  await page.clock.setFixedTime(new Date('2026-10-16T15:00:00.000Z'))
+  const foto = rankingAgostoReal()
+  const ventasPropias = {
+    persona_id: UID,
+    nombre: 'SUPERVISOR VENTAS PROPIAS',
+    rol_crm: 'supervisor',
+    motivo: 'supervisor',
+    conversion: null,
+    detalles: (['nuevo', 'renovacion', 'upgrade'] as const).flatMap((categoria) =>
+      (['PEN', 'USD'] as const).map((moneda) => ({
+        categoria, moneda, capital_objetivo: 0,
+        capital_real: categoria === 'nuevo' && moneda === 'PEN' ? 900_000 : 0,
+        capital_cumplimiento_pct: null, contratos_objetivo: 0,
+        contratos_real: categoria === 'nuevo' && moneda === 'PEN' ? 1 : 0,
+        contratos_cumplimiento_pct: null,
+      }))),
+    cartera: {
+      conversiones_clientes: 0, conversiones_renovacion: 0, conversiones_upgrade: 0,
+      operaciones_renovacion: 0, operaciones_upgrade: 0, capital_renovado_pen: 0,
+      capital_renovado_usd: 0, capital_adicional_pen: 0, capital_adicional_usd: 0,
+      renovaciones_sin_desglose: 0,
+    },
+  }
+  await montarBackendReal(page, {
+    rolCrm, rolPortal: 'comercial',
+    configuracionMetas: { ...foto.configuracionMetas, periodo: '2026-10-01' },
+    cumplimientoMetas: { ...foto.cumplimientoMetas, periodo: '2026-10-01', fuera_ranking: [ventasPropias] },
+    metricas: { conversionMensual: foto.conversionMensual, cosecha: foto.cosecha },
+  })
+  // El mes vigente usa el equipo vivo: sus UUID deben coincidir con las metas.
+  const analistas = foto.configuracionMetas.vendedores as Array<{ vendedor_id: string; nombre: string }>
+  await page.route('**/rest/v1/rpc/equipo_visible_fn', (route) => route.fulfill({ json: [
+    { perfil_id: UID, nombre_completo: 'Usuario de prueba', rol_crm: rolCrm, supervisor_id: null, activo: true },
+    ...analistas.map((fila) => ({ perfil_id: fila.vendedor_id, nombre_completo: fila.nombre,
+      rol_crm: 'vendedor', supervisor_id: UID, activo: true })),
+  ] }))
+  await loginReal(page)
+  if (rolCrm === 'supervisor') await irAModulo(page, 'Gestión de equipo')
+  else await page.getByRole('button', { name: 'Ranking', exact: true }).click()
+  const selectorMes = page.getByLabel(rolCrm === 'supervisor' ? 'Mes del ranking' : 'Mes calendario')
+  await expect(selectorMes).toHaveValue('2026-10')
+  const ventas = page.getByRole('complementary', { name: 'Ventas propias de supervisores' })
+  await expect(ventas.getByText('SUPERVISOR VENTAS PROPIAS')).toBeVisible()
+  await expect(ventas.getByText('Aporta a su equipo')).toBeVisible()
+  await expect(ventas.getByText('S/ 900,000', { exact: true })).toBeVisible()
+  await page.getByRole('tab', { name: 'Capital total' }).click()
+  const tabla = page.getByRole('table', { name: 'Ranking de capital total en soles' })
+  await expect(tabla).toBeVisible()
+  await expect(tabla.getByRole('row', { name: /ANA AGOSTO/ })).toContainText('S/ 43,530')
+  await expect(tabla.getByRole('row', { name: /BRUNO AGOSTO/ })).toContainText('S/ 21,765')
+  await expect(tabla.getByText('SUPERVISOR VENTAS PROPIAS')).toHaveCount(0)
+  expect(await tabla.evaluate((el) => Boolean(el.compareDocumentPosition(
+    document.querySelector('[aria-label="Ventas propias de supervisores"]')!,
+  ) & Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true)
+  await ventas.scrollIntoViewIfNeeded()
+  await page.screenshot({ path: testInfo.outputPath('supervisor-al-final.png') })
+  // Incluso si una respuesta anterior trae producción global, el corte del
+  // adaptador impide presentar septiembre con las reglas de octubre.
+  await selectorMes.fill('2026-09')
+  await expect(ventas).toHaveCount(0)
+})
+}
 
 test('demo supervisor: Gestión de equipo conserva seguimiento y separa el reparto', async ({ page }) => {
   // Fail-closed: en demo NINGÚN request debe salir al host de Supabase.
@@ -44,6 +111,7 @@ test('supervisor real: el selector mensual recupera la foto completa de agosto',
   const foto = rankingAgostoReal()
   const llamadas: { ruta: string; cuerpo: Record<string, unknown> }[] = []
   const respuestasNoSimuladas: string[] = []
+  const compatibilidad: Promise<void>[] = []
   const consultasReconocimientos: string[] = []
   const respuestasReconocimientos: number[] = []
   page.on('request', (request) => {
@@ -68,6 +136,10 @@ test('supervisor real: el selector mensual recupera la foto completa de agosto',
     }
     if (response.status() < 400) return
     const request = response.request()
+    if (response.status() === 404 && new URL(response.url()).pathname === '/rest/v1/rpc/cumplimiento_metas_v2_fn') {
+      compatibilidad.push(response.json().then((cuerpo) => { expect(cuerpo.code).toBe('PGRST202') }))
+      return
+    }
     respuestasNoSimuladas.push(
       `${response.status()} ${request.method()} ${new URL(response.url()).pathname}`,
     )
@@ -83,6 +155,7 @@ test('supervisor real: el selector mensual recupera la foto completa de agosto',
       cosecha: foto.cosecha,
     },
   })
+  await montarLecturasHoySupervisor(page)
   await loginReal(page)
   await irAModulo(page, 'Gestión de equipo')
 
@@ -128,6 +201,8 @@ test('supervisor real: el selector mensual recupera la foto completa de agosto',
       cuerpo: expect.objectContaining({ fecha_corte: '2026-08-31' }),
     }),
   ]))
+  await Promise.all(compatibilidad)
+  expect(compatibilidad.length).toBeGreaterThan(0)
   expect(respuestasNoSimuladas).toEqual([])
   expect(consultasReconocimientos).toEqual([
     'GET /rest/v1/alertas_reconocimientos_vigentes crm',

@@ -1,0 +1,23 @@
+npm notice run app@0.0.0 npx
+npm notice run 'vitest' run src/data/crm-api-cartera-msw.test.ts src/lib/store-real.test.tsx src/components/app/lead-drawer-datos.test.tsx src/data/crm-api-disponibilidad-msw.test.ts src/data/documento-lead.test.ts src/data/crm-api-reabrir-dni-msw.test.ts
+
+ RUN  v4.1.11 /Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/app
+
+(node:28972) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28968) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28971) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28973) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28970) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28969) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ Test Files  6 passed (6)
+      Tests  262 passed (262)
+   Start at  17:43:17
+   Duration  6.99s (transform 2.40s, setup 660ms, import 3.66s, tests 8.21s, environment 1.16s)
+

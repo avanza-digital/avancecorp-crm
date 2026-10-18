@@ -344,9 +344,12 @@ export function Alertas(): JSX.Element {
   const { alertas, pospuestas, rol, cargando, errores, generadoEn, reintentar } = useAlertasCRM()
   const copy = copyRol(rol)
   const esMovil = useEsMovil()
-  const movilGerencia = rol === 'gerencia' && esMovil
+  // La consulta sigue siendo la misma al rotar o pasar a escritorio. Allí los
+  // filtros quedan siempre visibles; solo su presentación plegable es móvil.
+  const conservaConsulta = rol === 'gerencia' || rol === 'vendedor'
+  const movilOperativo = conservaConsulta && esMovil
   const enLinea = useEstaEnLinea()
-  const { prioridad, tipo, busqueda, filtrosAbiertos, cambiar } = useConsultaAlertas(rol === 'gerencia')
+  const { prioridad, tipo, busqueda, filtrosAbiertos, cambiar } = useConsultaAlertas(conservaConsulta)
   const setPrioridad = (valor: FiltroPrioridad) => cambiar('prioridad', valor)
   const setTipo = (valor: FiltroTipo) => cambiar('tipo', valor)
   const setBusqueda = (valor: string) => cambiar('busqueda', valor)
@@ -357,8 +360,8 @@ export function Alertas(): JSX.Element {
   // viven en su propia sección, siempre al final y sin filtrar.
   const activas = useMemo(
     // Los cortes pospuestos del supervisor siguen visibles según su contrato.
-    () => movilGerencia ? alertasActivas(alertas) : alertas.filter(a => a.reconocimiento == null && a.corte?.estado !== 'reconocido'),
-    [alertas, movilGerencia],
+    () => movilOperativo ? alertasActivas(alertas) : alertas.filter(a => a.reconocimiento == null && a.corte?.estado !== 'reconocido'),
+    [alertas, movilOperativo],
   )
   const reconocidas = useMemo(
     () => alertas.filter((alerta) => alerta.reconocimiento != null || alerta.corte?.estado === 'reconocido'),
@@ -397,7 +400,7 @@ export function Alertas(): JSX.Element {
   }
 
   return (
-    <section className={`mx-auto max-w-5xl space-y-4${movilGerencia ? ' alertas-gerencia-movil' : ''}`} aria-label="Pendientes actuales" data-consulta-lista={!cargando}>
+    <section className={`mx-auto max-w-5xl space-y-4${movilOperativo ? ' alertas-movil' : ''}`} aria-label="Pendientes actuales" data-consulta-lista={!cargando}>
       <header className="overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
         <div className="h-1 bg-gradient-to-r from-primary via-accent to-primary" aria-hidden />
         <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-6">
@@ -427,7 +430,7 @@ export function Alertas(): JSX.Element {
         </div>
       </header>
 
-      {movilGerencia && !enLinea && <p className="rounded-xl border border-warning/35 bg-warning/5 p-3 text-sm" role="status">Sin conexión. Los avisos pueden estar desactualizados.</p>}
+      {movilOperativo && !enLinea && <p className="rounded-xl border border-warning/35 bg-warning/5 p-3 text-sm" role="status">Sin conexión. Los avisos pueden estar desactualizados.</p>}
       {cargando && alertas.length === 0 && pospuestas === 0 ? (
         <CargaAlertas />
       ) : errores.length > 0 && alertas.length === 0 && pospuestas === 0 ? (
@@ -456,8 +459,8 @@ export function Alertas(): JSX.Element {
           {activas.length > 0 && (
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <FiltrosPrioridad valor={prioridad} onCambiar={setPrioridad} total={activas.length} criticas={criticas} />
-              {movilGerencia && <div className="flex items-center justify-between gap-2"><Button type="button" variant="outline" aria-expanded={filtrosAbiertos} aria-controls="alertas-filtros" onClick={() => cambiar('filtrosAbiertos', !filtrosAbiertos)}><SlidersHorizontal aria-hidden />Filtrar{hayFiltros ? ' · activos' : ''}</Button>{hayFiltros && <Button type="button" variant="ghost" onClick={limpiar}>Limpiar filtros</Button>}</div>}
-              <div id="alertas-filtros" hidden={movilGerencia && !filtrosAbiertos} className={movilGerencia && !filtrosAbiertos ? 'hidden' : 'flex flex-col gap-2 sm:flex-row sm:items-center'}>
+              {movilOperativo && <div className="flex items-center justify-between gap-2"><Button type="button" variant="outline" aria-expanded={filtrosAbiertos} aria-controls="alertas-filtros" onClick={() => cambiar('filtrosAbiertos', !filtrosAbiertos)}><SlidersHorizontal aria-hidden />Filtrar{hayFiltros ? ' · activos' : ''}</Button>{hayFiltros && <Button type="button" variant="ghost" onClick={limpiar}>Limpiar filtros</Button>}</div>}
+              <div id="alertas-filtros" hidden={movilOperativo && !filtrosAbiertos} className={movilOperativo && !filtrosAbiertos ? 'hidden' : 'flex flex-col gap-2 sm:flex-row sm:items-center'}>
                 <Select
                   aria-label="Filtrar por tipo"
                   value={tipo}

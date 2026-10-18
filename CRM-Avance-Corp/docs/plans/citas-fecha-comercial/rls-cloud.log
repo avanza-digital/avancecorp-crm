@@ -1,0 +1,90 @@
+PASS: Sesión Auth real 1
+PASS: Sesión Auth real 2
+PASS: Sesión Auth real 3
+PASS: Sesión Auth real 4
+PASS: Sesión Auth real 5
+PASS: Sesión Auth real 6
+PASS: Sesión Auth real 7
+PASS: citas_gerencia_consulta_fn 09: lectura comercial rol 1
+PASS: citas_gerencia_consulta_fn 09: testigo comercial concilia
+PASS: citas_gerencia_consulta_fn 09: testigo anterior compatible
+PASS: citas_gerencia_consulta_fn 09: fecha comercial y registro separados, rol 1
+PASS: citas_gerencia_consulta_fn 09: fechas exactas y ausencia de fecha en fuentes no acreditadas, rol 1
+PASS: citas_gerencia_consulta_fn 09: lectura comercial rol 2
+PASS: citas_gerencia_consulta_fn 09: supervisor 2 sin total global
+PASS: citas_gerencia_consulta_fn 09: supervisor 2 conserva su ámbito, incluido su lead sin venta acreditada
+PASS: citas_gerencia_consulta_fn 09: fecha comercial y registro separados, rol 2
+PASS: citas_gerencia_consulta_fn 09: fechas exactas y ausencia de fecha en fuentes no acreditadas, rol 2
+PASS: citas_gerencia_consulta_fn 09: lectura comercial rol 4
+PASS: citas_gerencia_consulta_fn 09: supervisor 4 sin total global
+PASS: citas_gerencia_consulta_fn 09: supervisor 4 conserva su ámbito, incluido su lead sin venta acreditada
+PASS: citas_gerencia_consulta_fn 09: fecha comercial y registro separados, rol 4
+PASS: citas_gerencia_consulta_fn 09: fechas exactas y ausencia de fecha en fuentes no acreditadas, rol 4
+PASS: citas_gerencia_consulta_fn 09: acceso denegado rol 3
+PASS: citas_gerencia_consulta_fn 09: acceso denegado rol 6
+PASS: citas_gerencia_consulta_fn 09: acceso denegado rol 7
+PASS: citas_gerencia_consulta_fn 09: anónimo denegado
+PASS: citas_gerencia_consulta_fn 10: lectura comercial rol 1
+PASS: citas_gerencia_consulta_fn 10: testigo comercial concilia
+PASS: citas_gerencia_consulta_fn 10: testigo anterior compatible
+PASS: citas_gerencia_consulta_fn 10: fecha comercial y registro separados, rol 1
+PASS: citas_gerencia_consulta_fn 10: fechas exactas y ausencia de fecha en fuentes no acreditadas, rol 1
+PASS: citas_gerencia_consulta_fn 10: lectura comercial rol 2
+PASS: citas_gerencia_consulta_fn 10: supervisor 2 sin total global
+PASS: citas_gerencia_consulta_fn 10: supervisor 2 conserva su ámbito, incluido su lead sin venta acreditada
+PASS: citas_gerencia_consulta_fn 10: fecha comercial y registro separados, rol 2
+PASS: citas_gerencia_consulta_fn 10: fechas exactas y ausencia de fecha en fuentes no acreditadas, rol 2
+PASS: citas_gerencia_consulta_fn 10: lectura comercial rol 4
+PASS: citas_gerencia_consulta_fn 10: supervisor 4 sin total global
+PASS: citas_gerencia_consulta_fn 10: supervisor 4 conserva su ámbito, incluido su lead sin venta acreditada
+PASS: citas_gerencia_consulta_fn 10: fecha comercial y registro separados, rol 4
+PASS: citas_gerencia_consulta_fn 10: fechas exactas y ausencia de fecha en fuentes no acreditadas, rol 4
+PASS: citas_gerencia_consulta_fn 10: acceso denegado rol 3
+PASS: citas_gerencia_consulta_fn 10: acceso denegado rol 6
+PASS: citas_gerencia_consulta_fn 10: acceso denegado rol 7
+PASS: citas_gerencia_consulta_fn 10: anónimo denegado
+PASS: citas_gerencia_consulta_v2_fn 09: lectura comercial rol 1
+PASS: citas_gerencia_consulta_v2_fn 09: testigo comercial concilia
+PASS: citas_gerencia_consulta_v2_fn 09: testigo anterior compatible
+PASS: citas_gerencia_consulta_v2_fn 09: fecha comercial y registro separados, rol 1
+PASS: citas_gerencia_consulta_v2_fn 09: fechas exactas y ausencia de fecha en fuentes no acreditadas, rol 1
+PASS: citas_gerencia_consulta_v2_fn 09: lectura comercial rol 2
+PASS: citas_gerencia_consulta_v2_fn 09: supervisor 2 sin total global
+PASS: citas_gerencia_consulta_v2_fn 09: supervisor 2 conserva su ámbito, incluido su lead sin venta acreditada
+PASS: citas_gerencia_consulta_v2_fn 09: fecha comercial y registro separados, rol 2
+PASS: citas_gerencia_consulta_v2_fn 09: fechas exactas y ausencia de fecha en fuentes no acreditadas, rol 2
+PASS: citas_gerencia_consulta_v2_fn 09: lectura comercial rol 4
+PASS: citas_gerencia_consulta_v2_fn 09: supervisor 4 sin total global
+PASS: citas_gerencia_consulta_v2_fn 09: supervisor 4 conserva su ámbito, incluido su lead sin venta acreditada
+PASS: citas_gerencia_consulta_v2_fn 09: fecha comercial y registro separados, rol 4
+PASS: citas_gerencia_consulta_v2_fn 09: fechas exactas y ausencia de fecha en fuentes no acreditadas, rol 4
+PASS: citas_gerencia_consulta_v2_fn 09: acceso denegado rol 3
+PASS: citas_gerencia_consulta_v2_fn 09: acceso denegado rol 6
+PASS: citas_gerencia_consulta_v2_fn 09: acceso denegado rol 7
+PASS: citas_gerencia_consulta_v2_fn 09: anónimo denegado
+PASS: citas_gerencia_consulta_v2_fn 10: lectura comercial rol 1
+PASS: citas_gerencia_consulta_v2_fn 10: consulta por corte valorado rol 1
+PASS: citas_gerencia_consulta_v2_fn 10: conserva importes PEN por operación rol 1
+PASS: citas_gerencia_consulta_v2_fn 10: testigo comercial concilia
+PASS: citas_gerencia_consulta_v2_fn 10: testigo anterior compatible
+PASS: citas_gerencia_consulta_v2_fn 10: fecha comercial y registro separados, rol 1
+PASS: citas_gerencia_consulta_v2_fn 10: fechas exactas y ausencia de fecha en fuentes no acreditadas, rol 1
+PASS: citas_gerencia_consulta_v2_fn 10: lectura comercial rol 2
+PASS: citas_gerencia_consulta_v2_fn 10: consulta por corte valorado rol 2
+PASS: citas_gerencia_consulta_v2_fn 10: conserva importes PEN por operación rol 2
+PASS: citas_gerencia_consulta_v2_fn 10: supervisor 2 sin total global
+PASS: citas_gerencia_consulta_v2_fn 10: supervisor 2 conserva su ámbito, incluido su lead sin venta acreditada
+PASS: citas_gerencia_consulta_v2_fn 10: fecha comercial y registro separados, rol 2
+PASS: citas_gerencia_consulta_v2_fn 10: fechas exactas y ausencia de fecha en fuentes no acreditadas, rol 2
+PASS: citas_gerencia_consulta_v2_fn 10: lectura comercial rol 4
+PASS: citas_gerencia_consulta_v2_fn 10: consulta por corte valorado rol 4
+PASS: citas_gerencia_consulta_v2_fn 10: conserva importes PEN por operación rol 4
+PASS: citas_gerencia_consulta_v2_fn 10: supervisor 4 sin total global
+PASS: citas_gerencia_consulta_v2_fn 10: supervisor 4 conserva su ámbito, incluido su lead sin venta acreditada
+PASS: citas_gerencia_consulta_v2_fn 10: fecha comercial y registro separados, rol 4
+PASS: citas_gerencia_consulta_v2_fn 10: fechas exactas y ausencia de fecha en fuentes no acreditadas, rol 4
+PASS: citas_gerencia_consulta_v2_fn 10: acceso denegado rol 3
+PASS: citas_gerencia_consulta_v2_fn 10: acceso denegado rol 6
+PASS: citas_gerencia_consulta_v2_fn 10: acceso denegado rol 7
+PASS: citas_gerencia_consulta_v2_fn 10: anónimo denegado
+PASS: 89 aserciones Auth/PostgREST; cuentas y datos solo en rama temporal

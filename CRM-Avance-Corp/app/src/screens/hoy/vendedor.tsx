@@ -76,6 +76,8 @@ import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { useAuth } from '@/lib/auth-context'
 import { money, moneyK, numero, porcentajeConversionCanonica, primerNombre } from '@/lib/format'
 import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
+import { CoberturaCapitalAviso } from '@/components/common/cobertura-capital'
+import { capitalComercialEnSoles, metaComercialEnSoles } from '@/lib/capital-unificado'
 import { useTipoCambio } from '@/lib/tipo-cambio'
 import { useEstadoSlaOperativo } from '@/data/use-estado-sla-operativo'
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
@@ -84,6 +86,8 @@ import { TasasAutorizadasAnalistaPanel } from './tasas-autorizadas-analista'
 import { CitasAnalista } from './citas-analista'
 import { LeadsRecibidosHoy } from './leads-recibidos-hoy'
 import { AgendaLeadsHoy } from './agenda-leads-hoy'
+import { PendientesMovil } from './pendientes-movil'
+import { useEsMovil } from '@/lib/media'
 import { cn } from '@/lib/utils'
 
 // ── Helpers puros ─────────────────────────────────────────────────────────────
@@ -220,7 +224,7 @@ function DesgloseCapital({
   return (
     <p className="text-[11px] tabular-nums text-muted-foreground">
       {moneyK(capital.pen ?? 0, 'PEN')} + {moneyK(capital.usd ?? 0, 'USD')}
-      {soloPen || capital.tc == null ? (
+      {capital.valorado ? <span> · TC fijado por venta</span> : soloPen || capital.tc == null ? (
         <span className="text-warning-text"> · sin tipo de cambio: el total NO incluye los dólares</span>
       ) : (
         <span> · {rotuloTipoCambio(capital.tc, fuenteTc ?? 'TC del día')}</span>
@@ -842,6 +846,7 @@ function LineaBaseGestion({ paraHoy, vencidas }: { paraHoy: number; vencidas: nu
 // ── Pantalla ──────────────────────────────────────────────────────────────────
 
 export function HoyVendedor(): JSX.Element {
+  const esMovil = useEsMovil()
   const modoSla = useModoSla()
   const {
     ambito,
@@ -999,11 +1004,11 @@ export function HoyVendedor(): JSX.Element {
     recargarTipoCambio()
   }, [diaTipoCambio, recargarTipoCambio])
   const tcPromedio = tipoCambio?.promedio ?? null
-  const capitalTotal = totalEnSoles(capitalConfirmadoPen, capitalConfirmadoUsd, tcPromedio)
-  const metaTotal = totalEnSoles(metaCapitalPen, metaCapitalUsd, tcPromedio)
+  const capitalTotal = capitalComercialEnSoles(capitalConfirmadoPen, capitalConfirmadoUsd, tcPromedio, cumplimiento?.capitalValorado)
+  const metaTotal = metaComercialEnSoles(metaCapitalPen, metaCapitalUsd, tcPromedio, cumplimiento?.capitalValorado)
   const hayDolares = (capitalConfirmadoUsd ?? 0) > 0 || metaCapitalUsd > 0
-  const tcEnVuelo = tipoCambio === undefined && hayDolares
-  const tcCaido = tipoCambio === null && hayDolares
+  const tcEnVuelo = !capitalTotal.valorado && tipoCambio === undefined && hayDolares
+  const tcCaido = !capitalTotal.valorado && tipoCambio === null && hayDolares
   const ajusteCierre = cumplimiento?.ajuste
   const hayAjusteCierre = ajusteCierre != null && (
     ajusteCierre.aplicadoPen > 0
@@ -1229,6 +1234,7 @@ export function HoyVendedor(): JSX.Element {
         </span>
       </div>
       <CardContent className="border-t border-border/80 pt-4">
+        {cumplimientoMensual?.valoracionCapital && <div className="mb-4"><CoberturaCapitalAviso cobertura={cumplimientoMensual.valoracionCapital.cobertura} sellado={cumplimientoMensual.valoracionCapital.sellado} /></div>}
         <div className="grid gap-x-8 gap-y-4 md:grid-cols-2">
           <MetaFila
             icon={Wallet}
@@ -1671,6 +1677,8 @@ export function HoyVendedor(): JSX.Element {
       {/* Fuera del modo activo (legado/demo, o mientras el seguimiento se
           consulta o falla) el cumplimiento sigue aquí, debajo y a todo el ancho. */}
       {!modoSla.activo && tarjetaCumplimiento}
+
+      {esMovil && yo?.rol === 'vendedor' && <PendientesMovil />}
 
       <p className="shrink-0 text-[11px] text-muted-foreground">
         {yo?.demo ? 'Demo — ves' : 'Ves'} únicamente tu propia cartera; cada analista trabaja solo con sus leads.

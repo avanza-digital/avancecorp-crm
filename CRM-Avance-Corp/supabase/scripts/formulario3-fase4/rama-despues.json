@@ -1,0 +1,31 @@
+[
+  {
+    "momento": "2026-10-15 01:11:00.981572+00",
+    "leads": 3687,
+    "campanias_historicas": 0,
+    "cron_activos": 0,
+    "humano_lee": true,
+    "humano_edita": false,
+    "humano_inserta": false,
+    "anon_edita": false,
+    "anon_inserta": false,
+    "cartera": [
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "firma": "crm.cartera_filtrada_fn(integer,timestamp with time zone,uuid,text,uuid,boolean,text,date,date,text,text,boolean,text,text,text)",
+        "huella": "37e4e2a13b50c757ffc7a8fdcb3c37b0",
+        "argumentos": 15
+      }
+    ],
+    "cambios": [
+      {
+        "nombre": "crm_formulario3_campania_origen",
+        "version": "20261014210146"
+      },
+      {
+        "nombre": "crm_formulario3_cartera",
+        "version": "20261014215453"
+      }
+    ]
+  }
+]

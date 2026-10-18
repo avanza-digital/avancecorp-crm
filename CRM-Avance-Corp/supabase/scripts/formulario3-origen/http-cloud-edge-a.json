@@ -1,0 +1,27 @@
+{
+  "ref": "yefiownpxvembwvfbtfx",
+  "fase": "edge-a",
+  "estado": "PASS",
+  "pruebas": [
+    {
+      "nombre": "Edge: gateway exige JWT",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Edge: exige secreto separado",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Edge A: n8n legado, etiqueta nueva y Formulario conservan contrato y cola",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Edge: alias canónico y otra fila no duplican ni alteran la ficha",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Edge: campaña incompatible rechazada sin alta parcial",
+      "estado": "PASS"
+    }
+  ]
+}

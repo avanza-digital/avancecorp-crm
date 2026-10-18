@@ -4,8 +4,7 @@
 import type { JSX } from 'react'
 import { useAuth } from '@/lib/auth-context'
 import { HoyVendedor } from './hoy/vendedor'
-// Puesto de mando (27/09/2026). Rollback = volver a <HoySupervisor /> de './hoy/supervisor'.
-import { HoySupervisorMando } from './hoy/supervisor-mando'
+import { HoySupervisorJornada } from './hoy/supervisor-jornada'
 import { HoyGerencia } from './hoy/gerencia'
 import { HoyDirectorio } from './hoy/directorio'
 import { ConfiguracionRespuestasTasa } from '@/components/app/respuestas-tasa'
@@ -14,7 +13,7 @@ export function Hoy(): JSX.Element {
   const { yo } = useAuth()
   switch (yo?.rol) {
     case 'supervisor':
-      return <><ConfiguracionRespuestasTasa soloActivacion /><HoySupervisorMando /></>
+      return <><ConfiguracionRespuestasTasa soloActivacion /><HoySupervisorJornada /></>
     case 'gerencia':
       return <HoyGerencia seccion="resumen" />
     case 'directorio':

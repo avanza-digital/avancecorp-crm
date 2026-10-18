@@ -59,22 +59,22 @@ describe('ConversionCoordinacion', () => {
     const astrid = within(tabla).getByRole('row', { name: /ASTRID CENTENARO/ })
     // Analista · Supervisor · Llegadas (F, L, total) · Cierres (F, L, base, referido «n · aporte», sin peso (oficina + otros), upgrade, renovación «n · aporte», ponderados) · %
     expect(within(astrid).getAllByRole('cell').map(textoHablado))
-      .toEqual(['ASTRID CENTENAROVer cierres', 'SUPERVISORA', '65', '50', '115', '5', '2', '0', '1 referido, aporta 0.15', '1', '4', '0 renovaciones, aportan 0', '11.15', '9.70%'])
-    expect(within(astrid).getAllByRole('cell')[8]?.querySelector('[aria-hidden="true"]')?.textContent).toBe('1 · 0.15')
+      .toEqual(['ASTRID CENTENAROVer cierres', 'SUPERVISORA', '65', 'desglose de Formulario 3 no disponible', '50', '115', '5', 'desglose de Formulario 3 no disponible', '2', '0', '1 referido, aporta 0.15', '1', '4', '0 renovaciones, aportan 0', '11.15', '9.70%'])
+    expect(within(astrid).getAllByRole('cell')[10]?.querySelector('[aria-hidden="true"]')?.textContent).toBe('1 · 0.15')
 
     const merlys = within(tabla).getByRole('row', { name: /MERLYS GARCIA/ })
     expect(within(merlys).getAllByRole('cell').map(textoHablado))
-      .toEqual(['MERLYS GARCIAVer cierres', 'SUPERVISORA', '60', '28', '88', '6', '1', '0', '0 referidos, aportan 0', '0', '2', '0 renovaciones, aportan 0', '9', '10.23%'])
+      .toEqual(['MERLYS GARCIAVer cierres', 'SUPERVISORA', '60', 'desglose de Formulario 3 no disponible', '28', '88', '6', 'desglose de Formulario 3 no disponible', '1', '0', '0 referidos, aportan 0', '0', '2', '0 renovaciones, aportan 0', '9', '10.23%'])
 
     // La fila sin analista: se ve «—» pero se oye «no aplica».
     const sinAnalista = within(tabla).getByRole('row', { name: /Sin analista asignado/ })
     const celdas = within(sinAnalista).getAllByRole('cell')
     expect(celdas.map(textoHablado))
-      .toEqual(['Sin analista asignado', 'no aplica', 'no aplica', 'no aplica', '2', 'no aplica', 'no aplica', 'no aplica', 'no aplica', 'no aplica', 'no aplica', 'no aplica', '0', 'no aplica'])
+      .toEqual(['Sin analista asignado', 'no aplica', 'no aplica', 'no aplica', 'no aplica', '2', 'no aplica', 'no aplica', 'no aplica', 'no aplica', 'no aplica', 'no aplica', 'no aplica', 'no aplica', '0', 'no aplica'])
     expect(celdas[1]?.querySelector('[aria-hidden="true"]')?.textContent).toBe('—')
 
     // Cabecera agrupada: Llegadas y Cierres con sus columnas.
-    expect(within(tabla).getByRole('columnheader', { name: 'Cierres' })).toHaveAttribute('colspan', '8')
+    expect(within(tabla).getByRole('columnheader', { name: 'Cierres' })).toHaveAttribute('colspan', '9')
     // El período de lo que se ve, a la vista y sin aviso de desfase cuando los controles coinciden.
     expect(screen.getByTestId('periodo-visible')).toHaveTextContent(/^Conversión de setiembre 2026$/)
     expect(within(tabla).getByRole('columnheader', { name: 'Upgrade' })).toBeInTheDocument()
@@ -90,7 +90,7 @@ describe('ConversionCoordinacion', () => {
     expect(cifra('Upgrade')).toBe('6')
     expect(textoHablado(within(resumen).getByText('Renovación').nextElementSibling as HTMLElement)).toBe('0 renovaciones, aportan 0')
     expect(screen.getByTestId('formula-numerador')).toHaveTextContent(
-      'Cierres ponderados 20.15 = 14 directos (formulario y landing) + 0 de base cargada + 0.15 de referidos (1 × 0.15) + 6 de upgrade + 0 de renovación (0 × 0.15). Sin peso: 1 de oficina y 0 de otros orígenes.',
+      'Cierres ponderados 20.15 = 14 directos (Formulario, Formulario 3 y Landing) + 0 de base cargada + 0.15 de referidos (1 × 0.15) + 6 de upgrade + 0 de renovación (0 × 0.15). Sin peso: 1 de oficina y 0 de otros orígenes.',
     )
 
     expect(screen.getByRole('status')).toHaveTextContent('Conversión de setiembre 2026: 205 llegadas, 9.83%.')
@@ -149,7 +149,7 @@ describe('ConversionCoordinacion', () => {
     const tabla = screen.getByRole('table', { name: 'Conversión por analista' })
     const astrid = within(tabla).getByRole('row', { name: /ASTRID CENTENARO/ })
     expect(within(astrid).getAllByRole('cell').map(textoHablado))
-      .toEqual(['ASTRID CENTENAROVer cierres', 'SUPERVISORA', 'sin desglose: mes cerrado', 'sin desglose: mes cerrado', '115', '5', '2', '0', '1 referido, aporta 0.15', '1', '4', '0 renovaciones, aportan 0', '11.15', '9.70%'])
+      .toEqual(['ASTRID CENTENAROVer cierres', 'SUPERVISORA', 'sin desglose: mes cerrado', 'sin desglose: mes cerrado', 'sin desglose: mes cerrado', '115', '5', 'desglose de Formulario 3 no disponible', '2', '0', '1 referido, aporta 0.15', '1', '4', '0 renovaciones, aportan 0', '11.15', '9.70%'])
     const resumen = screen.getByRole('group', { name: 'Resumen de conversión del mes' })
     expect(textoHablado(within(resumen).getByText('Formulario').nextElementSibling as HTMLElement)).toBe('sin desglose: mes cerrado')
     expect(screen.getByRole('status')).toHaveTextContent(/Mes cerrado: se muestra la foto del cierre/)
@@ -248,8 +248,8 @@ describe('ConversionCoordinacion', () => {
     const tabla = await screen.findByRole('table', { name: 'Conversión por analista' })
     const astrid = within(tabla).getByRole('row', { name: /ASTRID CENTENARO/ })
     const celdas = within(astrid).getAllByRole('cell').map(textoHablado)
-    expect(celdas.slice(5, 12)).toEqual(Array(7).fill('sin desglose: mes cerrado'))
-    expect(celdas[12]).toBe('11.15')
+    expect(celdas.slice(6, 14)).toEqual(Array(8).fill('sin desglose: mes cerrado'))
+    expect(celdas[14]).toBe('11.15')
     expect(screen.queryByTestId('formula-numerador')).not.toBeInTheDocument()
   })
 
@@ -268,11 +268,11 @@ describe('ConversionCoordinacion', () => {
     expect(within(tabla).getByRole('columnheader', { name: 'Base cargada' })).toBeInTheDocument()
     const merlys = within(tabla).getByRole('row', { name: /MERLYS GARCIA/ })
     expect(within(merlys).getAllByRole('cell').map(textoHablado))
-      .toEqual(['MERLYS GARCIAVer cierres', 'SUPERVISORA', '60', '28', '88', '6', '1', '2', '0 referidos, aportan 0', '0', '2', '0 renovaciones, aportan 0', '11', '12.50%'])
+      .toEqual(['MERLYS GARCIAVer cierres', 'SUPERVISORA', '60', 'desglose de Formulario 3 no disponible', '28', '88', '6', 'desglose de Formulario 3 no disponible', '1', '2', '0 referidos, aportan 0', '0', '2', '0 renovaciones, aportan 0', '11', '12.50%'])
     const resumen = screen.getByRole('group', { name: 'Resumen de conversión del mes' })
     expect(within(resumen).getByText('Base cargada').nextElementSibling?.textContent).toBe('2')
     expect(screen.getByTestId('formula-numerador')).toHaveTextContent(
-      'Cierres ponderados 22.15 = 14 directos (formulario y landing) + 2 de base cargada + 0.15 de referidos (1 × 0.15) + 6 de upgrade',
+      'Cierres ponderados 22.15 = 14 directos (Formulario, Formulario 3 y Landing) + 2 de base cargada + 0.15 de referidos (1 × 0.15) + 6 de upgrade',
     )
   })
 
@@ -287,7 +287,7 @@ describe('ConversionCoordinacion', () => {
 
     const tabla = await screen.findByRole('table', { name: 'Conversión por analista' })
     const astrid = within(tabla).getByRole('row', { name: /ASTRID CENTENARO/ })
-    expect(textoHablado(within(astrid).getAllByRole('cell')[7]!)).toBe('la foto del mes cerrado no guarda los cierres de base')
+    expect(textoHablado(within(astrid).getAllByRole('cell')[9]!)).toBe('la foto del mes cerrado no guarda los cierres de base')
     // El resumen de arriba dice lo mismo que la celda: sin un 0 inventado.
     const resumen = screen.getByRole('group', { name: 'Resumen de conversión del mes' })
     expect(textoHablado(within(resumen).getByText('Base cargada').nextElementSibling as HTMLElement)).toBe('la foto del mes cerrado no guarda los cierres de base')
@@ -305,7 +305,7 @@ describe('ConversionCoordinacion', () => {
 
     const tabla = await screen.findByRole('table', { name: 'Conversión por analista' })
     const merlys = within(tabla).getByRole('row', { name: /MERLYS GARCIA/ })
-    expect(within(merlys).getAllByRole('cell')[12]).toHaveTextContent('8bruto 9 − ajuste 1')
+    expect(within(merlys).getAllByRole('cell')[14]).toHaveTextContent('8bruto 9 − ajuste 1')
     // La empresa no es «bruto − ajuste»: el suelo en cero va por analista, así que no se afirma esa igualdad.
     expect(screen.getByTestId('formula-numerador')).toHaveTextContent('Ajuste de meses ya pagados: 1, descontado por analista con suelo en cero. Netos: 19.15.')
     expect(screen.getByTestId('formula-numerador')).not.toHaveTextContent('= 19.15')
