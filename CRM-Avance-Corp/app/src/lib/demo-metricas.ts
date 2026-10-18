@@ -15,9 +15,34 @@ import type {
   FilaVencimientos,
 } from './metricas'
 import type { Moneda } from './format'
+import type { FilaFacturacionDia } from './facturacion'
 import { formatDateLocal } from './cronograma'
 import { CLIENTES_DEMO, CONTRATOS_DEMO, CRONOGRAMAS_DEMO } from './demo-clientes'
 import { EQUIPO_DEMO } from './demo'
+
+/** Contratos de la demo existente, por cierre comercial. No fabrica cierres de hoy. */
+export function demoFacturacionDiaria(mes: string): FilaFacturacionDia[] {
+  const buckets = new Map<string, FilaFacturacionDia>()
+  for (const contrato of CONTRATOS_DEMO) {
+    const dia = contrato.fecha_cierre_comercial
+    if (!dia || dia.slice(0, 7) !== mes.slice(0, 7)) continue
+    const cliente = CLIENTES_DEMO.find(c => c.id === contrato.cliente_id)
+    const analistaId = cliente?.asesor_perfil_id ?? cliente?.creado_por ?? contrato.creado_por
+    const analista = EQUIPO_DEMO.find(p => p.perfil_id === analistaId)
+    if (!analista) continue
+    const supervisorId = analista.rol_crm === 'supervisor' ? analista.perfil_id : analista.supervisor_id
+    const supervisor = EQUIPO_DEMO.find(p => p.perfil_id === supervisorId)
+    if (!supervisor) continue
+    const tipo = `contrato_${contrato.categoria ?? 'nuevo'}`
+    const clave = `${dia}|${tipo}|${contrato.moneda}|${analista.perfil_id}`
+    const previa = buckets.get(clave)
+    buckets.set(clave, { dia, tipo, moneda: contrato.moneda,
+      analistaId: analista.perfil_id, analistaNombre: analista.nombre_completo,
+      supervisorId: supervisor.perfil_id, supervisorNombre: supervisor.nombre_completo,
+      operaciones: (previa?.operaciones ?? 0) + 1, capital: (previa?.capital ?? 0) + contrato.capital })
+  }
+  return [...buckets.values()]
+}
 
 // ── Meses (mismo formato 'YYYY-MM-01' que devuelven las RPCs) ──────────────────
 

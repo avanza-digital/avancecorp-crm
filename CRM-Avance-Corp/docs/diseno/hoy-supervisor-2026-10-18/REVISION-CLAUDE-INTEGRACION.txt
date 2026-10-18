@@ -1,0 +1,60 @@
+VERDICT:
+PASS
+
+SUMMARY:
+Dentro de la evidencia adjunta, las correcciones de la primera revisión están bien resueltas. El estado del refresco mensual (fallo, recuperación, cambio de mes, concurrencia y otra sesión) es consistente y falla de forma cerrada. El desglose con la venta propia del supervisor usa la misma población que `cumplimientoDesdeRpc` en los dos regímenes, legado y valorado. No encuentro P0, P1 ni P2 demostrados. Quedan tres P3 no obligatorios y algunos huecos de prueba. Este dictamen no sustituye el gate integral, que sigue pendiente, ni los recorridos NOT RUN.
+
+FINDINGS:
+
+[P3] Un fallo antiguo puede ocultar una foto mensual ya resincronizada con éxito
+File: app/src/screens/hoy/datos-supervisor.ts
+Lines: 71, 87, 174–179; store.tsx 1408–1416, 1232–1240
+Problem: `ultimoRefresco.fallido` solo se limpia cuando la propia portada vuelve a pedir datos. Una resincronización correcta del store, por ejemplo por foco o por una mutación, reemplaza `objetivos` y `cumplimientoMetas`, pero no toca `ultimoRefresco`.
+Evidence: `resincronizarReal` llama a `setAuxiliares` solo en caso de éxito (1232–1241), y `falloRefrescoMensual` depende únicamente de `ultimoRefresco` (87).
+Impact: Tras un sondeo fallido, la portada sigue mostrando «Resultado mensual no disponible» y retira capital y meta hasta 5 minutos, aunque el store ya tenga una foto vigente. Falla de forma cerrada, así que no hay cifra incorrecta, pero es una indisponibilidad falsa.
+Recommendation: Limpiar el fallo cuando cambie la identidad de `objetivos` o `cumplimientoMetas` respecto a la registrada al fallar. Como el store solo los reemplaza en caso de éxito, ese cambio acredita la recuperación. Añadir un caso de prueba: fallo → el store cambia de foto → sin error.
+
+[P3] Hipótesis: un descarte por apertura de ficha se presenta como fallo
+File: app/src/lib/store.tsx · app/src/screens/hoy/datos-supervisor.ts
+Lines: store.tsx 1209–1212; datos-supervisor.ts 81
+Problem: `resincronizarReal` devuelve `false` tanto ante un error como cuando se descarta la respuesta porque cambió `aperturaRef`, es decir, porque se abrió otra ficha mientras viajaba la lectura. La portada interpreta ambos casos como `fallido`.
+Evidence: Las líneas 1212 y 1244 devuelven el mismo `false`. No está acreditado que `EnlaceSujetoGestion`, dentro del diálogo de tareas, abra la ficha y cambie `aperturaRef`; por eso es una hipótesis.
+Impact: Si ocurre, aparece una alerta espuria y se ocultan capital y meta hasta el siguiente sondeo o Actualizar.
+Recommendation: Comprobar si ese enlace abre la ficha. Si la abre, hay dos opciones: reintentar una vez ante `false` o distinguir el descarte del error sin cambiar el contrato público. Si no la abre, basta con documentar la limitación.
+
+[P3] La tabla mensual muestra «No disponible» mientras la foto está cargando
+File: app/src/screens/hoy/supervisor-jornada.tsx
+Lines: 128–132, 255–257; jornada-supervisor.ts 120–122
+Problem: Durante `fotoMensualStoreCargando`, `objetivosCero` deja vacío `porVendedor`, pero las filas de `conversion.responsables` siguen creando identidades. Por eso `filasMesVisibles.length > 0` y nunca se ve el texto «Consultando el resultado del mes…».
+Impact: Las filas dicen «No disponible» o «—» en lugar de «Consultando». Es solo una cuestión de rótulo; no hay cifra falsa.
+Recommendation: Mostrar el mensaje de carga cuando `datos.fotoMensualStoreCargando` sea verdadero, o pasar el estado a las celdas de meta y capital.
+
+Puntos verificados sin hallazgo:
+- **Población del supervisor en régimen valorado.** El filtro de `valorados` (jornada-supervisor.ts 114–115) coincide exactamente con el de `equipoConVentas.capitalValorado` (objetivos.ts 776–778). La suma por filas cuadra con el total oficial.
+- **Supervisor en régimen legado.** Usa `propias` (`supervisores`, con corte desde `2026-10-01`). La meta del supervisor queda indisponible porque `objetivo` es `undefined` y se rotula «Sin meta individual». No se inventa conversión.
+- **Peticiones concurrentes y otra sesión.** La guarda `recargaEnVuelo.current?.promesa === promesa` impide que una respuesta tardía escriba. Además, el `key` de `JornadaSupervisor` remonta la vista por actor y día.
+- **Tipo de cambio.** Solo se vuelve a consultar por cambio de día o cuando `tcCaido`. `useEffectEvent` entrega a `recargarMensual` el valor vigente de `tcCaido`.
+- **Aviso de resultados con error.** Se retira el aviso y no se ofrece valoración (use-resultados-hoy.ts 31 y 38–41).
+
+TEST GAPS:
+- No hay caso de recuperación por una resincronización externa del store (P3 1).
+- No hay prueba de render de la pestaña «Resultado del mes» con la fila del supervisor: «Supervisor · ventas propias», «Sin meta individual», operaciones «—» y orden.
+- Régimen legado con `tc` que produce decimales: no se verifica que la suma por filas coincida con el total de cabecera si `usdAPen` redondea por fila. Es una hipótesis; la prueba actual usa 3.75 con importes redondos.
+- No se adjuntó `use-refresco-mensual-jornada.test.tsx` ni su resultado: intervalo, pestaña oculta, guarda `enVuelo` y rechazo sin gestionar quedan sin evidencia. El 37/37 cubre cuatro archivos, aparentemente sin este.
+- `tcCaido` con `hayErrorMensual` anuncia «Resultado mensual no disponible» aunque el capital en soles se muestre parcialmente. Falta un caso que fije el texto esperado.
+
+REGRESSION RISKS:
+- `useDatosSupervisor` es compartido. El efecto de cambio de día del TC y el nuevo estado de fallo también afectan a las vistas que lo usan con `actualizarEnVivo=false`. Conviene confirmarlo en el gate integral.
+
+SECURITY RISKS:
+- Ninguno en el alcance revisado. No hay cambios en SQL, autorización ni lectura entre actores. La demo no consulta fuentes reales, y hay prueba de ello.
+
+RECOMMENDED NEXT ACTIONS:
+1. Opcional: aplicar la limpieza del fallo por cambio de identidad de la foto (P3 1) y añadir su prueba.
+2. Ejecutar el gate integral, incluido `use-refresco-mensual-jornada.test.tsx`, y declarar NOT RUN los recorridos de navegador/E2E y la conciliación productiva.
+3. Añadir la prueba de render de la fila del supervisor en la tabla mensual.
+
+CONFIDENCE:
+MEDIUM. El análisis es alto en la lógica adjunta, pero no se aportaron `capitalReal`, `metaVigente`, `usdAPen`, el test del hook de refresco ni el componente `EnlaceSujetoGestion`.
+
+Nota: actúo como SECONDARY_REVIEWER sin escritura, así que no creé ningún archivo de plan pese al modo plan activo.

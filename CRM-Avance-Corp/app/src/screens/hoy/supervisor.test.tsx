@@ -340,9 +340,9 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-it('recarga una sola vez si la foto del store quedó en el mes anterior', () => {
+it('recarga una sola vez si la foto del store quedó en el mes anterior', async () => {
   montar({ periodoObjetivos: '2026-06-01', estricto: true })
-
+  await act(async () => {})
   expect(recargar).toHaveBeenCalledTimes(1)
 })
 
@@ -358,9 +358,10 @@ it('nunca rotula la foto anterior como vigente y deja reintentar si el rollover 
 
   expect(screen.queryByText(/de 99%/)).not.toBeInTheDocument()
   expect(screen.getAllByText('Meta mensual no disponible')).toHaveLength(2)
+  expect(recargar).toHaveBeenCalledTimes(2) // lectura y un único reintento ante false
   fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
   await act(async () => {})
-  expect(recargar).toHaveBeenCalledTimes(2)
+  expect(recargar).toHaveBeenCalledTimes(4)
 })
 
 // 2026-08-23 «una cosa se avisa en un solo lugar»: la tarjeta «Leads sin
@@ -818,7 +819,7 @@ describe('Hoy · supervisor — meta del equipo', () => {
     expect(screen.queryByText('Capital confirmado USD')).not.toBeInTheDocument()
   })
 
-  it('si la lectura de metas falla no reemplaza el error por 15 %', () => {
+  it('si la lectura de metas falla no reemplaza el error por 15 %', async () => {
     CONVERSION_MENSUAL = conversionMensualEquipo(30, 10)
     montar({
       objetivos: objetivosCero('2026-07-01').supervisor,
@@ -829,6 +830,7 @@ describe('Hoy · supervisor — meta del equipo', () => {
     expect(screen.queryByText(/de 15%/)).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+    await act(async () => {})
     expect(recargar).toHaveBeenCalled()
   })
 

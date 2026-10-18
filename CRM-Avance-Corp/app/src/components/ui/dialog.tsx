@@ -2,7 +2,7 @@
 // fondo inerte, scroll lock, Esc por capas — con modales apilados cierra SOLO
 // el de más arriba — y retorno de foco al cerrar). El aspecto es el mismo de
 // siempre: mismas clases, mismos keyframes. API sin cambios: open/onClose.
-import { useRef, type HTMLAttributes, type ReactNode, type RefObject } from 'react'
+import { useRef, type ComponentProps, type HTMLAttributes, type ReactNode, type RefObject } from 'react'
 import * as RadixDialog from '@radix-ui/react-dialog'
 import { cn } from '@/lib/utils'
 import { cerrarEscapeAnidado, protegerEscapeAnidado } from './escape-dialogo'
@@ -106,7 +106,7 @@ export function DialogHeader({ className, ...props }: HTMLAttributes<HTMLDivElem
 }
 
 /** Título accesible: Radix lo enlaza como aria-labelledby del dialog. */
-export function DialogTitle({ className, ...props }: HTMLAttributes<HTMLHeadingElement>) {
+export function DialogTitle({ className, ...props }: ComponentProps<'h2'>) {
   return (
     <RadixDialog.Title asChild>
       <h2 className={cn('text-[15px] font-bold tracking-tight', className)} {...props} />

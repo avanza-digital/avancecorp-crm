@@ -1,90 +1,95 @@
-// Hoy del supervisor como puesto de mando (27/09/2026), en el MUNDO DE
-// PRODUCCIÓN: seguimiento ACTIVO. Se recorre con teclado a 1440×900 y se deja
-// una captura para la revisión visual de Miguel.
-import { expect, test } from '@playwright/test'
-import { loginReal } from './_helpers'
+// Dirección de la jornada integrada al CRM: sesión real simulada, sin metas.
+import { expect, test, type Page } from '@playwright/test'
+import { loginReal, UID } from './_helpers'
 import { montarColaEquipo } from './_sla-cola'
+import { diaEquipoPrueba, filaEquipoPrueba } from '../src/lib/gestion-diaria-equipo.fixture'
+import { fechaLima } from '../src/lib/agenda-derivada'
 
-test('supervisor: decide primero, cola filtrada en el servidor y detalle — todo con teclado', async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 })
-  const { pedidos, analistaUno } = await montarColaEquipo(page, 'supervisor')
+async function montarJornada(page: Page) {
+  const { analistaUno, analistaDos } = await montarColaEquipo(page, 'supervisor')
+  const hoy = fechaLima(Date.now())
+  const base = filaEquipoPrueba()
+  const filas = [
+    filaEquipoPrueba({ analista_id: analistaUno, nombre_completo: 'Analista Norte Uno',
+      marcador: { ...base.marcador, llamadas: 12, utiles: 10, contestadas: 5, tasa_contacto_pct: 50, nivel: 'bien' },
+      gestiones_hoy: 12, tareas_pendientes: 7, tareas_vencidas: 4, primer_intento_vencido: 2,
+      requiere_atencion: true, motivos_atencion: ['tarea_vencida', 'primer_intento_vencido'] }),
+    filaEquipoPrueba({ analista_id: analistaDos, nombre_completo: 'Analista Norte Dos',
+      marcador: { ...base.marcador, llamadas: 90, utiles: 90, contestadas: 9, tasa_contacto_pct: 10, nivel: 'bajo' }, gestiones_hoy: 90 }),
+  ]
+  const dia = { ...diaEquipoPrueba(filas), dia: hoy, supervisor_id: UID, generado_en: new Date().toISOString() }
+  let caido = false
+  const pedidos: unknown[] = []
+  await page.route('**/rest/v1/rpc/gestion_diaria_equipo_fn', async route => {
+    pedidos.push(route.request().postDataJSON())
+    await route.fulfill({ status: caido ? 403 : 200, json: caido ? { code: '42501', message: 'Sin permiso' } : dia })
+  })
+  await page.route('**/rest/v1/rpc/citas_gerencia_consulta_v2_fn', async route => {
+    const pedido = route.request().postDataJSON()
+    await route.fulfill({ json: { version: 1, periodo: { desde: pedido.p_desde, hasta: pedido.p_hasta }, generado_en: new Date().toISOString(),
+      disponibilidad_depositos: 'sin_registro', depositos: [], citas_clientes: 0, citas: [] } })
+  })
+  return { pedidos, hoy, caer: () => { caido = true } }
+}
+
+test('supervisor: resultado visible, tasas de contacto, tabla y detalle con teclado', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  const { pedidos, hoy } = await montarJornada(page)
   const errores: string[] = []
-  page.on('pageerror', (error) => errores.push(error.message))
+  page.on('pageerror', error => errores.push(error.message))
   await loginReal(page)
+  await expect(page.getByRole('heading', { name: 'Dirección de la jornada' })).toBeVisible()
+  const contacto = page.getByRole('region', { name: 'Llamadas de hoy', exact: true })
+  await expect(contacto).toContainText('102')
+  await expect(contacto).toContainText('14.00%')
+  await expect(contacto).toContainText('14 contestadas / 100 útiles')
+  expect(pedidos.at(-1)).toMatchObject({ p_dia: hoy, p_supervisor_id: UID })
+  await expect(page.getByRole('link', { name: /Ver citas del equipo/ })).toHaveAttribute('href', `#/reuniones/dia/${hoy}`)
+  const pendientes = page.getByRole('button', { name: 'Ver pendientes', exact: true })
+  await pendientes.click()
+  const tareas = page.getByRole('dialog', { name: 'Pendientes del equipo', exact: true })
+  await expect(tareas.getByRole('button', { name: 'Ver tareas de Analista Norte Uno', exact: true })).toBeVisible()
+  await expect(tareas.getByRole('row', { name: /Total del equipo/ })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(pendientes).toBeFocused()
+  await page.screenshot({ path: test.info().outputPath('jornada-supervisor-escritorio.png'), fullPage: true, animations: 'disabled' })
 
-  // 1 · Decide primero: la primera gestión vencida la cuenta el servidor.
-  await expect(page.getByRole('heading', { name: 'Decide primero', exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Hoy: 4 primeras gestiones vencidas' })).toBeVisible()
-
-  // 2 · Cola: vista previa de 7 del seguimiento, conteos del servidor.
-  await expect(page.getByRole('heading', { name: 'Pendientes del equipo', exact: true })).toBeVisible()
-  const lista = page.getByRole('list', { name: /^Pendientes del equipo/ })
-  await expect(lista.locator(':scope > li')).toHaveCount(7)
-  expect(pedidos.at(-1)).toMatchObject({ p_limite: 7, p_senal: 'pendientes', p_cursor: null })
-  await expect(page.getByRole('link', { name: /en Seguimiento$/ })).toHaveAttribute('href', '#/seguimiento')
-  await page.screenshot({ path: test.info().outputPath('hoy-supervisor-1440x900.png'), animations: 'disabled' })
-
-  // Abrir la ficha con teclado y volver con Esc: el foco regresa a la fila
-  // (con `disabled` en la fila se perdía a <body>; revisor a11y P1).
-  const primeraFila = lista.locator(':scope > li').first().getByRole('button', { name: /^Abrir ficha de / })
-  await primeraFila.focus()
-  await page.keyboard.press('Enter')
-  await expect(page.getByRole('dialog')).toBeVisible()
+  const abrir = page.getByRole('button', { name: 'Ver día de Analista Norte Uno', exact: true })
+  await abrir.focus(); await page.keyboard.press('Enter')
+  await expect(page.getByRole('dialog', { name: 'Detalle de Analista Norte Uno', exact: true })).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page.getByRole('dialog')).toHaveCount(0)
-  await expect(primeraFila).toBeFocused()
-
-  // Pestañas con flechas (tabindex itinerante) → la señal va al servidor.
-  await page.getByRole('tab', { name: /Para atender ahora/ }).focus()
+  await expect(abrir).toBeFocused()
+  await page.getByRole('checkbox', { name: /Solo quienes necesitan apoyo/ }).check()
+  await expect(page.getByRole('button', { name: 'Ver día de Analista Norte Dos', exact: true })).toHaveCount(0)
+  await page.getByRole('tab', { name: 'Gestión de hoy', exact: true }).focus()
   await page.keyboard.press('ArrowRight')
-  await expect(page.getByRole('tab', { name: 'Primera gestión: 4' })).toBeFocused()
-  await expect.poll(() => pedidos.at(-1)?.p_senal).toBe('primera_atencion')
-  await expect(lista.locator(':scope > li')).toHaveCount(4)
-
-  // La tarjeta despliega su contexto y deja la cola en esa pestaña.
-  const tarjeta = page.getByRole('button', { name: 'Hoy: 4 primeras gestiones vencidas' })
-  await tarjeta.focus()
-  await page.keyboard.press('Enter')
-  await expect(tarjeta).toHaveAttribute('aria-expanded', 'true')
-  await expect(page.getByText('Revisa la primera gestión con cada analista: abajo quedan solo esos casos.')).toBeVisible()
-
-  // Chip de analista: el filtro lo hace el SERVIDOR.
-  // Dos analistas con el mismo primer nombre: los chips los distinguen.
-  const chips = page.getByRole('group', { name: 'Filtrar por analista' })
-  await expect(chips.getByRole('button', { name: 'Analista Norte Uno' })).toHaveText('Analista U.')
-  await chips.getByRole('button', { name: 'Analista Norte Uno' }).click()
-  await expect.poll(() => pedidos.some((p) => p.p_analista_id === analistaUno)).toBe(true)
-  await expect(page.getByRole('heading', { name: 'Pendientes de Analista U.', exact: true })).toBeVisible()
-
-  // 3 · Detalle: Enter abre, Esc cierra y el foco vuelve al botón.
-  const detalle = page.getByRole('button', { name: 'Detalle', exact: true })
-  await detalle.focus()
-  await page.keyboard.press('Enter')
-  const dialogo = page.getByRole('dialog', { name: 'Detalle del equipo' })
-  await expect(dialogo).toBeVisible()
-  await expect(dialogo.getByRole('heading', { name: 'Cumplimiento del mes' })).toBeVisible()
-  await page.screenshot({ path: test.info().outputPath('hoy-supervisor-detalle.png'), animations: 'disabled' })
-  await page.keyboard.press('Escape')
-  await expect(dialogo).toHaveCount(0)
-  await expect(detalle).toBeFocused()
-
-  // Sin jerga en pantalla.
-  await expect(page.locator('main')).not.toContainText(/pipeline|SLA/)
+  await expect(page.getByRole('tab', { name: 'Resultado del mes', exact: true })).toBeFocused()
+  await expect(page.getByRole('link', { name: 'Ver Facturación', exact: true })).toBeVisible()
+  await expect(page.locator('main')).not.toContainText(/Cómo leer las cifras|Si faltan datos/)
   expect(errores).toEqual([])
 })
 
-test('supervisor: en un celular (375 px) la pantalla reacomoda sin cortar lo esencial', async ({ page }) => {
-  await page.setViewportSize({ width: 375, height: 800 })
-  await montarColaEquipo(page, 'supervisor')
-  // En el celular no hay menú de escritorio que esperar.
+test('supervisor: los errores de refresco retiran cifras y detalle anteriores', async ({ page }) => {
+  const { caer } = await montarJornada(page)
+  await loginReal(page)
+  await expect(page.getByRole('button', { name: 'Ver día de Analista Norte Uno' })).toBeVisible()
+  caer()
+  await page.getByRole('button', { name: 'Actualizar', exact: true }).click()
+  await expect(page.getByRole('region', { name: 'Llamadas de hoy', exact: true })).toContainText('Actividad de hoy no disponible')
+  await expect(page.getByRole('button', { name: 'Ver día de Analista Norte Uno' })).toHaveCount(0)
+  await expect(page.getByRole('region', { name: 'Llamadas de hoy', exact: true })).not.toContainText('14 contestadas')
+})
+
+test('supervisor: móvil sin desborde y acceso a la tabla del mes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await montarJornada(page)
   await loginReal(page, { esperarWorkspace: false })
-  await expect(page.getByRole('heading', { name: 'Pendientes del equipo', exact: true })).toBeVisible()
-  const lista = page.getByRole('list', { name: /^Pendientes del equipo/ })
-  await expect(lista.locator(':scope > li')).toHaveCount(7)
-  // Sin columna de analista, el dueño pasa a la segunda línea de cada fila.
-  await expect(lista.locator(':scope > li').first()).toContainText('Analista U. ·')
-  // Nada desborda en horizontal.
-  const desborde = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
-  expect(desborde).toBeLessThanOrEqual(0)
-  await page.screenshot({ path: test.info().outputPath('hoy-supervisor-375.png'), fullPage: true, animations: 'disabled' })
+  await expect(page.getByRole('heading', { name: 'Dirección de la jornada' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Ver día de Analista Norte Uno' })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0)
+  await page.getByRole('tab', { name: 'Resultado del mes', exact: true }).click()
+  await expect(page.getByRole('tab', { name: 'Resultado del mes', exact: true })).toHaveAttribute('aria-selected', 'true')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0)
+  await page.screenshot({ path: test.info().outputPath('jornada-supervisor-movil.png'), fullPage: true, animations: 'disabled' })
 })

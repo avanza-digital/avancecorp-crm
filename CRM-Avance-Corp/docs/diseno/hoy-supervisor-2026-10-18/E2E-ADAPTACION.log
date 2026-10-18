@@ -1,0 +1,7 @@
+npm notice run app@0.0.0 test:e2e:docker
+npm notice run bash scripts/e2e-docker.sh e2e/hoy-supervisor-mando.spec.ts --workers=1 --retries=0 --timeout=120000 --reporter=list
+E2E en Docker · imagen mcr.microsoft.com/playwright:v1.61.1-noble
+
+Running 3 tests using 1 worker
+
+  ✘  1 [chromium] › e2e/hoy-supervisor-mando.spec.ts:35:1 › supervisor: resultado visible, tasas de contacto, tabla y detalle con teclado (1.1m)

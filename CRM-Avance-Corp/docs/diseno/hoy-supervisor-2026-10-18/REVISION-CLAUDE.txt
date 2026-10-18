@@ -1,0 +1,91 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+La propuesta está bien argumentada. Verifiqué todas las cifras sintéticas y son coherentes entre sí (capital 1 360 000 = Σ analistas; meta 2 000 000; 68 %; brecha 640 000; 26 operaciones; 180 llamadas; 74/170 = 43,5 %; 7/13 citas; 24 vencidas; 7 primeras; 16 oportunidades / 620 000; desglose 900+260+180+20). La conversión del equipo (8,2 %) no coincide con el promedio individual (≈7,55 %), así que el mockup no modela el promedio de tasas. Las reglas de confianza son correctas.
+
+El problema está en la maqueta. Presenta como disponibles y comparables varios indicadores que el propio análisis, o la evidencia adjunta, no acredita: la base de la meta, las metas y la conversión por analista, la meta de conversión y el estado de las citas. Como portada comercial, eso puede inducir a error en la conversación con Miguel. Las correcciones son de semántica y rotulado, no de implementación.
+
+FINDINGS:
+
+[P1] El numerador de «% de la meta» puede no corresponder al alcance de la meta
+File: maqueta `index.html` (KPI `capital`, `resumen-mes`), `propuestas.js` (`detalles.capital`)
+Problem: El KPI principal divide el capital total, con renovaciones y cooperativas, entre la meta (1 360 000 / 2 000 000). El texto reconoce que «el alcance de la meta debe coincidir con el capital comparado», pero la cifra que se ve modela justamente la comparación que el texto pide evitar.
+Evidence: El documento remite a «las reglas sobre renovaciones» (`facturacion.ts:33`, `crm-api.ts:4745`). El commit HEAD `c58f85d1` («contar adicional de renovación como upgrade desde octubre») cambia la clasificación justo en el mes del ejemplo. La leyenda tiene cuatro categorías y ninguna para «adicional de renovación». No se adjuntó `datos-supervisor.ts:153/215`. Es una hipótesis: no puedo confirmar qué tipos computan para la meta publicada.
+Impact: Es la cifra más visible de la portada. Si la meta excluye o pondera renovaciones, el supervisor leería un avance inflado.
+Recommendation:
+- Rotular el KPI como «Capital computable a meta», con el alcance explícito.
+- Mostrar aparte el capital total, si difiere.
+- En el desglose, marcar qué tipos cuentan para la meta y ubicar «adicional de renovación» según la regla de octubre.
+- Añadir la base de la meta a la lista «No prometer… sin confirmar» hasta que `datos-supervisor.ts:153/215` lo acredite.
+
+[P2] Metas individuales, brecha neta y conversión por analista se presentan como disponibles sin evidencia
+File: `propuestas.js` (`equipo[].meta`, `equipo[].conversion`, `avance`, orden `brecha`, `detalles.brecha`); tabla A y tabla B «mes»
+Problem: La tabla A ordena por «Mayor brecha de meta». La tarjeta 01 afirma que «la brecha neta incluye la compensación de Camila». Ambas cosas suponen que existen metas por analista y que suman exactamente la meta del equipo. La columna «Conversión oficial · mes» por analista supone que el núcleo sirve conversión individual al supervisor.
+Evidence: La evidencia solo muestra `useConversionMensual(..., 'equipo', ...)` (`datos-supervisor.ts:176-207`). El propio documento cita la nota del 27/09: Conversiones completa era exclusiva de Gerencia. En «Disponible» no figuran ni la conversión individual ni las metas por analista.
+Impact: Se podría aprobar una tabla central cuyas dos columnas clave no existen o no cuadran. La meta del equipo puede no ser Σ metas individuales, por ejemplo con vacantes, ingresos a mitad de mes o metas de equipo fijadas aparte.
+Recommendation:
+- Mover a «confirmar antes de prometer»: meta por analista, relación Σ individuales ↔ meta del equipo, y conversión por analista con su autorización para el supervisor.
+- Si no existen, mostrar el estado «Sin meta» en la maqueta, que ya está previsto en las reglas pero no aparece en ninguna fila.
+
+[P2] La «Meta: 12 %» de conversión no tiene fuente
+File: KPI `conversion`, `detalles.conversion`
+Problem: Se muestran una meta de conversión y una brecha de 3,8 pp como datos.
+Evidence: Ningún contrato citado menciona una meta de conversión.
+Impact: Si se aprueba, generará una petición de dato inexistente o un umbral inventado.
+Recommendation: Retirarla o marcarla explícitamente como «meta por definir».
+
+[P2] «6 pendientes» confunde citas no realizadas con citas pendientes
+File: vista B, frente 02 («Faltan por realizar 6», «Revisar las 6 citas pendientes»); `detalles.citas`
+Problem: Calcula previstas − realizadas = pendientes. A las 16:00 esa diferencia incluye inasistencias, anuladas y reprogramadas.
+Evidence: El documento lista «previstas, realizadas, pendientes y no asistidas» como estados distintos y critica que la columna real «CIERRES» los mezcle (diagnóstico 5).
+Impact: La maqueta reproduciría la ambigüedad que la propuesta señala.
+Recommendation: Mostrar los cuatro estados, o al menos «7 realizadas · X pendientes · Y no asistidas/anuladas», de modo que sumen las previstas.
+
+[P3] El estado «Muestra insuficiente» no aparece en la maqueta
+File: `propuestas.js` filas de Mateo (10 útiles → 30 %)
+Problem: Las reglas exigen el mínimo de muestra vigente, pero la maqueta calcula la tasa siempre.
+Recommendation: Incluir un caso por debajo del umbral para validar el rótulo con Miguel.
+
+[P3] La tabla A mezcla dos universos de personas en una fila
+File: tabla A («Capital y conversión del mes · Actividad de hoy»)
+Problem: El capital mensual usa atribución oficial y las llamadas de hoy usan el equipo actual. No hay regla para las filas de un analista trasladado o recién llegado. Solo se menciona en «criterios».
+Recommendation: Definir el universo de filas (la unión de ambos, con marca de «trasladado» o «sin actividad hoy») y rotularlo.
+
+[P3] «Tres puntos para revisar» está redactado a mano, sin regla
+File: `foco-panel`, `detalles.brecha`
+Problem: Señala a dos personas a mitad de mes sin criterio de ritmo, mientras el mismo documento dice «no etiquetar como atrasado sin criterio temporal».
+Recommendation: Indicar que la selección y el orden de las intervenciones requieren una regla determinista acordada, o retirar los nombres.
+
+[P3] Patrones de la maqueta que no deben pasar al producto
+File: `propuestas.js`
+Problem: Usa `innerHTML` con nombres interpolados y el formato `fr-FR` con reemplazo de `\u202f`.
+Impact: Es aceptable con datos estáticos, pero no debe replicarse.
+Recommendation: Anotar que la integración usa los formateadores de moneda existentes y renderizado React escapado.
+
+TEST GAPS:
+- Los futuros tests deben verificar:
+  - % meta = capital computable / meta del mismo alcance, incluyendo «adicional de renovación» de octubre;
+  - tasa de contacto del equipo = Σcontestadas / Σútiles;
+  - conversión del equipo igual al total canónico, no al promedio;
+  - estados «Sin meta», «Muestra insuficiente», «No disponible» y error ≠ 0;
+  - previstas = realizadas + pendientes + no asistidas + anuladas.
+- `node --check` solo valida sintaxis. La aritmética de los literales del HTML no está atada a `equipo`; hoy cuadra, pero solo porque se revisó a mano.
+
+ARCHITECTURE RISKS:
+- La recomendación de «componer lectores existentes, sin nuevo núcleo» es correcta. Depende, sin embargo, de agregados no confirmados: metas y conversión individuales, citas por estado y oportunidades por etapa. Esos agregados podrían requerir SQL. El documento ya exige proponerlo primero.
+
+SECURITY RISKS:
+- Autorización del supervisor para el detalle de conversión y para las metas individuales: ya está señalado y debe mantenerse como bloqueante de la integración.
+- La maqueta no envía datos reales. Según lo declarado, no se envió información a 21st.
+
+REGRESSION RISKS:
+- Ninguno en el producto: fuera del alcance, sin cambios en la app.
+
+RECOMMENDED NEXT ACTIONS:
+1. Confirmar en `datos-supervisor.ts:153/215` y en las reglas de Facturación qué tipos computan para la meta, incluido el adicional de renovación desde octubre. Después, rotular el KPI principal en consecuencia.
+2. Pasar a «confirmar» las metas por analista, Σmetas = meta del equipo, la conversión por analista con su permiso, y la meta de conversión. Retirar o marcar «por definir» lo que no exista.
+3. Separar los estados de las citas en la vista B y añadir en la maqueta ejemplos de «Sin meta» y «Muestra insuficiente».
+
+CONFIDENCE:
+MEDIUM. La aritmética y la semántica de la maqueta están verificadas. El P1 sobre el alcance de la meta es una hipótesis condicionada a código que no se adjuntó.

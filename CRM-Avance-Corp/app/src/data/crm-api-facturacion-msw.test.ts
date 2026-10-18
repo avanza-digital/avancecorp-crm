@@ -46,6 +46,17 @@ beforeEach(() => {
 })
 
 describe('frontera HTTP de Facturación', () => {
+  it('marca el posible recorte solo en el RPC tabular legado, no en el sobre V2 inactivo', async () => {
+    const milFilas = Array.from({ length: 1000 }, () => FILA_HEREDADA)
+    server.use(http.post(RPC, () => HttpResponse.json(milFilas)))
+    const legado = await listarFacturacionDiaria('2026-09-01')
+    expect(legado.posibleRecorte).toBe(true)
+    server.use(http.post('http://supabase.test/rest/v1/rpc/facturacion_diaria_v2_fn', () =>
+      HttpResponse.json({ version: 2, valoracion_activa: false, filas: milFilas })))
+    const versionada = await listarFacturacionDiaria('2026-09-01')
+    expect(versionada).toHaveLength(1000)
+    expect(versionada.posibleRecorte).toBeUndefined()
+  })
   it('valida la respuesta v2 ejecutada en SQL y conserva equivalentes y cobertura', async () => {
     server.use(http.post('http://supabase.test/rest/v1/rpc/facturacion_diaria_v2_fn', () => HttpResponse.json(facturacionValorada)))
     const filas = await listarFacturacionDiaria('2026-10-01')

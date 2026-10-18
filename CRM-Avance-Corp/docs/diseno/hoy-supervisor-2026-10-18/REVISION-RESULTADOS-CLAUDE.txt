@@ -1,0 +1,86 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+The change meets most of the stated requirements. Cached data is withdrawn when a refresh fails. Discarded rows, the absence of a cut and a cut from the previous day do not turn into a confirmed zero. Currencies stay separate. The supervisor's own sales are counted, attribution is historical, and the demo is isolated from the real query. I found one actionable point on scope, which may undercount when there are nested supervisors. I also found two hypotheses about misleading data that depend on evidence that was not attached: the semantics of `corte` and the source of the rows behind the 1000-row guard. The rest are minor a11y and test issues. None are P0.
+
+FINDINGS:
+
+[P2] The client filter cuts the scope to direct reports only and drops the subtree the server authorizes
+File: app/src/screens/hoy/jornada-supervisor.ts
+Lines: 47
+Problem: `resumirResultadosHoy` drops any row where `supervisorId !== supervisorId && analistaId !== supervisorId`. The server already scopes rows with `f.supervisor_id = any(v_ambito.subarbol) or f.analista_id = v_ambito.uid` (migration 20261016204221, line 414).
+Evidence: The server includes operations from analysts of sub-supervisors in the subtree. The client keeps only those whose historical supervisor is exactly the actor. The same screen imports `CumplimientoMetasJerarquico` (jornada-supervisor.ts:7), so the monthly view appears to be hierarchical.
+Impact: A supervisor with sub-supervisors would see a smaller daily total than the server allows. That total would also be inconsistent with the monthly card. This silent undercount of money is exactly what the task asks to avoid.
+Recommendation: Rely on the server scope, which already covers the subtree and the actor's own sales, and only filter by `dia === hoy`. If showing direct reports only is a deliberate product decision, document it in the JSDoc and add a test with a sub-supervisor. Confirm with `private.ambito_facturacion()` whether `subarbol` can contain more than the actor.
+
+[P2] (Hypothesis) The `corte < hoy` guard depends on the type and semantics of `capital_cortes_valorados.corte`, which were not attached
+File: app/src/screens/hoy/use-resultados-hoy.ts
+Lines: 36
+Problem: Two things are unknown. The first is the type of `corte`. A Lima date string compares correctly. A UTC `timestamptz` such as `2026-10-18T02:00:00Z`, which is still the 17th in Lima, would pass as "today confirmed". The second is the meaning of `corte`. If it means "covers through the end of day X" and is generated the next day, then `corte === hoy` would never occur, and the card would always read "por confirmar".
+Evidence: The migration only shows `'corte', v_corte.corte`. The test uses `'2026-10-18'` with no time component (use-resultados-hoy.test.tsx:17,55).
+Impact: Depending on the case, the card either publishes a confirmed zero that is false or never shows results at all.
+Recommendation: Attach the definition of the `corte` column and of the job that generates intraday cuts. If it is a timestamp, compare by Lima commercial day, not by lexicographic string.
+
+[P2] (Hypothesis) `posibleRecorte` cannot tell the truncated legacy RPC apart from V2 with `valoracion_activa:false`
+File: app/src/screens/hoy/use-resultados-hoy.ts
+Lines: 32
+Problem: `!valoracion && length >= 1000` covers two cases. One is the `PGRST202` fallback (crm-api.ts:4787), which really is subject to max-rows. The other is V2 inactive, which returns `filas` inside a single `jsonb` (migration lines 399-400) and is not truncated by PostgREST.
+Evidence: `FacturacionDelMes` does not expose which path produced it (crm-api.ts:4767-4771).
+Impact: For V2 inactive, a scope with many grouped rows late in the month (day×type×currency×analyst) would show an error with no justification. In the opposite direction, if the server's `db-max-rows` is not 1000, real truncation would go undetected.
+Recommendation: Have `listarFacturacionDiaria` expose an origin field such as `origen: 'v2' | 'legado'`, and apply the guard only to the legacy path. If that is out of scope, document that the threshold is tied to `max-rows`.
+
+[P3] Focus on close returns to a control that may be disabled
+File: app/src/screens/hoy/supervisor-jornada.tsx
+Lines: 192-193, 244
+Problem: `focoAlCerrar={origenResultados}` points to a button that becomes `disabled` if `resultados` turns `null` while the modal is open, for example after a refresh error or the 5-minute poll.
+Impact: Focus is lost to `body` when the modal closes.
+Recommendation: Fall back to the card heading or the `Frente` container if the source is disabled. Alternatively, keep the button enabled and let the modal show the state.
+
+[P3] Duplicate `role="status"` regions
+File: app/src/screens/hoy/supervisor-jornada.tsx
+Lines: 196, 248
+Problem: The same `aviso` is rendered in two live regions while the modal is open.
+Impact: Screen readers may announce it twice.
+Recommendation: Hide the card copy, or remove `role` from it, while the modal is open.
+
+[P3] Inconsistent naming
+File: supervisor-jornada.tsx
+Lines: 197, 247
+Problem: `ErrorFuente nombre="Resultado de hoy"` does not match the title "Resultados de hoy".
+Impact: Cosmetic only.
+Recommendation: Use the same name in both places.
+
+TEST GAPS:
+- `resumirResultadosHoy` has no direct test covering:
+  - rows from another day;
+  - a USD row;
+  - the supervisor's own sale whose `supervisorId` belongs to their manager;
+  - an analyst who is no longer on the roster;
+  - a row from a sub-supervisor (see the first P2).
+- No case covers `rol !== 'supervisor'`, where the query should be disabled and the result `null`.
+- No case covers a pending valuation (`pendientes.cantidad > 0`), which should keep the total and show the warning; only `por_incorporar` is covered.
+- The demo test mocks `@/lib/demo-metricas`. Nothing checks that `demoFacturacionDiaria` does not invent closings for today, or that it filters by month.
+- No component test covers the modal, specifically:
+  - the empty state "Hoy aún no se registran cierres";
+  - the footer total;
+  - the disabled buttons while the state is unconfirmed.
+- E2E is NOT RUN, at the user's request. The modal's real behaviour (focus, scroll on mobile) has not been verified.
+
+ARCHITECTURE RISKS:
+- The daily card (Facturación, by `fecha_cierre_comercial` and cut) and the monthly card (cumplimiento) come from different sources. A temporary disagreement between them can be expected. This is accepted by design, but there is no note telling the user about it.
+
+SECURITY RISKS:
+- None in scope. The scope stays with the server (`security definer` + `ambito_facturacion`). The demo goes through a dynamic import gated by `DEV && VITE_ENABLE_DEMO`, and outside DEV it falls into an error instead of real data.
+
+REGRESSION RISKS:
+- Low. The `useFacturacionDiaria` key is shared with the Facturación screen. With the same `mes` it reuses the cache, which is intentional. The new poll adds one request every 5 minutes on Hoy for supervisors.
+
+RECOMMENDED NEXT ACTIONS:
+1. Decide on the subtree filter (jornada-supervisor.ts:47). Either drop it in favour of the server scope or document it, and add a test either way.
+2. Attach or confirm the type and semantics of `capital_cortes_valorados.corte`, and adjust the comparison if it is a timestamp.
+3. Mark the origin of the data (V2 or legacy) so the 1000-row guard only applies where truncation actually exists.
+4. Add the listed unit tests for `resumirResultadosHoy` and the pending-valuation case.
+
+CONFIDENCE:
+MEDIUM

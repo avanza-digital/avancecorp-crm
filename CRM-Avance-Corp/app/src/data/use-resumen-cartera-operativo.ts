@@ -27,10 +27,11 @@ export function useResumenCarteraOperativo(
   leads: readonly Lead[],
   actividades: readonly Actividad[],
   habilitado = true,
+  enVivo = false,
 ): ResumenCarteraOperativo {
   const { yo } = useAuth()
   const sesionReal = Boolean(habilitado && yo && !yo.demo)
-  const consulta = useResumenCartera(sesionReal)
+  const consulta = useResumenCartera(sesionReal, yo?.id, enVivo)
   const resumen = useMemo(
     () => {
       if (!habilitado || !yo) return null
@@ -48,6 +49,6 @@ export function useResumenCarteraOperativo(
     resumen,
     cargando: sesionReal && consulta.isPending,
     error: sesionReal ? consulta.error : null,
-    recargar: async () => { await consulta.refetch() },
+    recargar: async () => { if (sesionReal) await consulta.refetch() },
   }
 }
