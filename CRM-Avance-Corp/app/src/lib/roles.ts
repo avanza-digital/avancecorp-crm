@@ -218,6 +218,19 @@ export function puedeReemplazarInversion(
   return !esVentaDeLead(inversion) || identidad?.rol === 'gerencia'
 }
 
+/**
+ * «Reemplazar inversión» de una COOPERATIVA (Fase 4, 18/10/2026): SOLO Gerencia del CRM. Toda inversión de cooperativa
+ * reemplazable es la venta inicial de un lead, y la venta de un lead solo la toca Gerencia (como «Eliminar inversión» de
+ * una venta vigente y «Reemplazar» de Avance; auditoría RLS, P1). Un admin del portal sin Gerencia, no. Espejo de
+ * `crm.reemplazar_inversion_cooperativa_fn` y su vista previa; el servidor vuelve a decidir siempre.
+ */
+export function puedeReemplazarInversionCooperativa(
+  identidad: IdentidadAdministrativa | null | undefined,
+  inversion: Pick<InversionFuente, 'empresa'>,
+): boolean {
+  return inversion.empresa !== 'avance' && identidad?.rol === 'gerencia'
+}
+
 /** Corrige Nuevo/Renovación/Upgrade de cualquier cliente por su puerta auditada. */
 export function puedeCorregirCategoriaInversion(identidad: IdentidadAdministrativa | null | undefined): boolean {
   return identidad?.rol !== 'directorio' && (puedeEliminarContratos(identidad)

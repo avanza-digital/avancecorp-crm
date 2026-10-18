@@ -46,6 +46,8 @@ commits = [x.start() for x in re.finditer(r'(?m)^commit;[ \t]*$', m)]
 if len(begins) != 2 or len(commits) != 2 or commits[1] < begins[1]:
     falla('la migración no tiene la forma esperada (dos transacciones: candado de sesión y cuerpo)')
 cuerpo = m[begins[1] + len('begin;'):commits[1]]
+# «set transaction isolation level» solo vale como primera sentencia: la prueba corre dentro de su propia transacción.
+cuerpo = re.sub(r'(?im)^[ \t]*set[ \t]+transaction[ \t]+isolation[ \t]+level[^;]*;[ \t]*\n', '', cuerpo)
 cola = re.sub(r'(?m)^[ \t]*--.*$', '', m[commits[1]:])
 if not re.fullmatch(r'\s*commit;\s*(select\s+(pg_catalog\.)?pg_advisory_unlock\s*\([^;]*\)\s*;\s*)*', cola, re.I):
     falla('después del commit final queda algo más que soltar el candado de sesión')

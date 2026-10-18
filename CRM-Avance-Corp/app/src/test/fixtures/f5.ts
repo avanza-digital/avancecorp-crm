@@ -19,3 +19,7 @@ export const fichaF5: FichaInversionista = {version: 1, persona: {...personaF5, 
 export const carteraF5: CarteraInversionistas = {version: 2, pagina: 1, tamano: 25, total: 1,
   filas: [{...personaF5, empresas: ['qorilazo'], ultima_fecha_comercial:'2026-09-01', resumen:totalesF5}], totales: totalesF5,
   sin_inversiones_total:0, solo_avance:false, opciones_meses:['2026-09','2026-08'], opciones_responsables:[{id:ACTOR_F5,nombre:'ANALISTA F5'}]}
+/** Inversión INICIAL de cooperativa (Prodelco), vigente y con condiciones: la que se reemplaza en la Fase 4. */
+export const inversionProdelcoF5: InversionFuente = {...inversionF5, empresa: 'prodelco', numero: 'PRODELCO SINTÉTICO',
+  capital: 3000, fecha_comercial: '2026-10-05', fecha_imputacion: '2026-10-05', vence_en: '2027-09-30', es_inicial: true,
+  numero_transaccion: 'OP-SINTÉTICA-1', analista_venta_nombre: 'ANALISTA DE LA VENTA', condiciones_coopac: {plazo_meses: 12, tasa_anual: 12}}

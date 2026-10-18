@@ -18793,7 +18793,7 @@ async function testRecuperarVentasRecargadas(sessions) {
   check(Boolean(escritura.error), 'recuperar ventas: gerencia no inserta en la tabla por la Data API');
 }
 
-// ── Reemplazar inversión · cooperativas (20261018053228): Gerencia o admin del portal; núcleo cerrado; bucket parchado ──
+// ── Reemplazar inversión · cooperativas (20261018053228): solo Gerencia (es la venta de un lead); núcleo cerrado; bucket parchado ──
 // El comportamiento (reemplazo con la venta conservada, rechazos, idempotencia, comprobante nuevo y sus políticas) se prueba en
 // el banco con supabase/scripts/reemplazar-inversion-cooperativa/probar.sh + mutantes.py; aquí, catálogo, roles y Data API.
 async function testReemplazarInversionCooperativa(sessions) {
@@ -18819,9 +18819,11 @@ async function testReemplazarInversionCooperativa(sessions) {
     'reemplazar cooperativa: las dos puertas son DEFINER de postgres, search_path vacío, lock_timeout 5s, EXECUTE solo authenticated');
   check(cuenta('nucleo', "select count(*) from pg_proc p cross join unnest(array['anon','authenticated','service_role']) r(rol) where p.oid in ('private.reemplazar_inversion_cooperativa(uuid,jsonb,uuid,text,jsonb)'::regprocedure, 'private.registrar_inversion_reemplazada_cooperativa(jsonb,uuid,text,text,uuid,jsonb)'::regprocedure) and (has_function_privilege(r.rol, p.oid, 'EXECUTE') or p.prosecdef)") === 0,
     'reemplazar cooperativa: el núcleo y la copia son INVOKER y sin EXECUTE para la API');
-  check(cuenta('bucket', "select count(*) from pg_proc p where p.oid in ('private.f4_comprobante_autorizado(text)'::regprocedure, 'private.f4_comprobante_visible(text)'::regprocedure, 'private.f4_comprobante_reemplazo_autorizado(text)'::regprocedure) and p.prosecdef and p.proowner = 'postgres'::regrole and 'search_path=\"\"' = any(p.proconfig) and has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('anon', p.oid, 'EXECUTE') and not has_function_privilege('service_role', p.oid, 'EXECUTE')") === 3,
-    'reemplazar cooperativa: los tres ayudantes del bucket son DEFINER de postgres, search_path vacío y EXECUTE solo authenticated');
-  check(cuenta('huellas del bucket', "select count(*) from (select string_agg(p.oid::regprocedure::text || '=' || md5(pg_get_functiondef(p.oid)), ',' order by p.oid::regprocedure::text) as h from pg_proc p where p.oid in ('private.f4_comprobante_autorizado(text)'::regprocedure, 'private.f4_comprobante_visible(text)'::regprocedure)) x where x.h = 'private.f4_comprobante_autorizado(text)=cdecad21e77c38d023ba156efd8faa74,private.f4_comprobante_visible(text)=d5e74abf371a35c677d42da9abb2ff82'") === 1,
+  check(cuenta('bucket', "select count(*) from pg_proc p where p.oid in ('private.f4_comprobante_autorizado(text)'::regprocedure, 'private.f4_comprobante_visible(text)'::regprocedure) and p.prosecdef and p.proowner = 'postgres'::regrole and 'search_path=\"\"' = any(p.proconfig) and has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('anon', p.oid, 'EXECUTE') and not has_function_privilege('service_role', p.oid, 'EXECUTE')") === 2,
+    'reemplazar cooperativa: los dos ayudantes del bucket siguen DEFINER de postgres, search_path vacío y EXECUTE solo authenticated');
+  check(cuenta('regla del bucket', "select count(*) from pg_proc p where p.oid = 'private.f4_comprobante_reemplazo_autorizado(text)'::regprocedure and p.prosecdef and p.proowner = 'postgres'::regrole and 'search_path=\"\"' = any(p.proconfig) and not has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('anon', p.oid, 'EXECUTE') and not has_function_privilege('service_role', p.oid, 'EXECUTE')") === 1,
+    'reemplazar cooperativa: la regla del bucket es DEFINER de postgres, search_path vacío y sin EXECUTE para la API (la llama el ayudante vivo)');
+  check(cuenta('huellas del bucket', "select count(*) from (select string_agg(p.oid::regprocedure::text || '=' || md5(pg_get_functiondef(p.oid)), ',' order by p.oid::regprocedure::text) as h from pg_proc p where p.oid in ('private.f4_comprobante_autorizado(text)'::regprocedure, 'private.f4_comprobante_visible(text)'::regprocedure)) x where x.h = 'private.f4_comprobante_autorizado(text)=cdecad21e77c38d023ba156efd8faa74,private.f4_comprobante_visible(text)=32739f4abf073f33ac3fc2191312e2bc'") === 1,
     'reemplazar cooperativa: los dos ayudantes del bucket tienen la huella que dejó la migración');
   const DENEGADO = /permission denied/i;
   const ROL = /Solo admin o gerencia pueden reemplazar inversiones/;

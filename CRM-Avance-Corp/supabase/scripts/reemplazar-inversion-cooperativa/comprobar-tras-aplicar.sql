@@ -9,7 +9,7 @@ bucket as (
           from pg_catalog.pg_proc p
           where p.oid in ('private.f4_comprobante_autorizado(text)'::regprocedure, 'private.f4_comprobante_visible(text)'::regprocedure))
          = 'private.f4_comprobante_autorizado(text)=cdecad21e77c38d023ba156efd8faa74,'
-           'private.f4_comprobante_visible(text)=d5e74abf371a35c677d42da9abb2ff82' as ok
+           'private.f4_comprobante_visible(text)=32739f4abf073f33ac3fc2191312e2bc' as ok
 ),
 funciones as (
   select to_regprocedure('crm.reemplazar_inversion_cooperativa_fn(uuid,text,jsonb)') is not null
@@ -26,12 +26,17 @@ permisos as (
      and (select count(*) from pg_catalog.pg_proc p
           where p.oid in ('crm.reemplazar_inversion_cooperativa_fn(uuid,text,jsonb)'::regprocedure,
                           'crm.reemplazar_inversion_cooperativa_vista_previa_fn(uuid,date)'::regprocedure,
-                          'private.f4_comprobante_reemplazo_autorizado(text)'::regprocedure,
                           'private.f4_comprobante_autorizado(text)'::regprocedure, 'private.f4_comprobante_visible(text)'::regprocedure)
             and p.prosecdef and p.proowner = 'postgres'::regrole and 'search_path=""' = any (p.proconfig)
             and pg_catalog.has_function_privilege('authenticated', p.oid, 'execute')
             and not pg_catalog.has_function_privilege('anon', p.oid, 'execute')
-            and not pg_catalog.has_function_privilege('service_role', p.oid, 'execute')) = 5 as ok
+            and not pg_catalog.has_function_privilege('service_role', p.oid, 'execute')) = 4
+     and (select count(*) from pg_catalog.pg_proc p
+          where p.oid = 'private.f4_comprobante_reemplazo_autorizado(text)'::regprocedure
+            and p.prosecdef and p.proowner = 'postgres'::regrole and 'search_path=""' = any (p.proconfig)
+            and not pg_catalog.has_function_privilege('authenticated', p.oid, 'execute')
+            and not pg_catalog.has_function_privilege('anon', p.oid, 'execute')
+            and not pg_catalog.has_function_privilege('service_role', p.oid, 'execute')) = 1 as ok
 )
 select case when b.ok and f.ok and p.ok then 'APTA' else 'NO APTA' end as veredicto,
   b.ok as bucket, f.ok as funciones, p.ok as permisos,

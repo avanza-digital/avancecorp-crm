@@ -1,13 +1,13 @@
 import { useEffect, useId, useMemo, useRef, useState, type RefObject } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { LoaderCircle, Lock, RefreshCw } from 'lucide-react'
+import { RefreshCw } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Dialog, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
 import { RadioGroup } from '@/components/ui/radio-group'
-import { Textarea } from '@/components/ui/textarea'
 import { ContratoNuevo } from './contrato-nuevo'
+import {
+  AccionesReemplazo, AvisoReemplazo, BotonReemplazo, CampoMotivo, DialogoReemplazo, ListaCambios, RegionMes, SeccionOriginal,
+  type CambioReemplazo,
+} from './inversion-reemplazar-partes'
 import { CrmApiError, mensajeDeError, type CrearContratoInput, type InversionReemplazadaResultado } from '@/data/crm-api'
 import { MODALIDAD_LABEL } from '@/lib/contratos-catalogo'
 import type { CuotaCronograma } from '@/lib/cronograma'
@@ -18,7 +18,7 @@ import { parseMonto } from '@/lib/numero'
 import { cn } from '@/lib/utils'
 import {
   MOTIVO_ELIMINACION_MAX, MOTIVO_ELIMINACION_MIN, diferenciasDeCarga, inversionReemplazable, largoMotivoEliminacion,
-  mesLargo, motivoEliminacionValido, type FichaInversionista, type InversionFuente, type VistaPreviaReemplazo,
+  motivoEliminacionValido, type FichaInversionista, type InversionFuente, type VistaPreviaReemplazo,
 } from '@/lib/inversionistas'
 
 /** Lo que la pantalla le presta a la ficha para reemplazar (el servidor decide todo). */
@@ -55,8 +55,6 @@ function borradorDesde(i: InversionFuente): CrearContratoInput {
     cuenta_pago: { tipo: 'existente', cuenta_id: '' },
   }
 }
-
-interface Cambio { etiqueta: string; antes?: string; ahora: string }
 
 /** Lo que cambió respecto de la original (solo lo que el formulario cuenta mientras se edita). */
 interface CambiosFormulario { capital: string; moneda: 'PEN' | 'USD'; tasa: string; fechaInicio: string; prefijo: string; numero: string }
@@ -136,11 +134,11 @@ export function InversionReemplazar({ inversion, ficha, controles, onCerrar, foc
     && i.perfil_id === original.perfil_id && inversionReemplazable(i)), [ficha.inversiones, original])
   const elegida = candidatas.find(i => i.fuente_id === conservarId) ?? null
 
-  const cambios = useMemo((): Cambio[] => {
+  const cambios = useMemo((): CambioReemplazo[] => {
     if (modo === 'existente') return elegida
       ? [{ etiqueta: 'Se conserva', ahora: elegida.numero || 'Inversión registrada' }, { etiqueta: 'Se elimina', ahora: referencia }] : []
     if (!formulario) return []
-    const lista: Cambio[] = []
+    const lista: CambioReemplazo[] = []
     const capital = parseMonto(formulario.capital)
     if (capital !== null && (capital !== original.capital || formulario.moneda !== original.moneda)) {
       lista.push({ etiqueta: 'Capital', antes: money(original.capital, original.moneda), ahora: money(capital, formulario.moneda) })
@@ -207,8 +205,7 @@ export function InversionReemplazar({ inversion, ficha, controles, onCerrar, foc
     }
   }
 
-  const p = previa.data
-  const cuotasPagadas = cuotasVistas || p?.cuotas_pagadas === true
+  const cuotasPagadas = cuotasVistas || previa.data?.cuotas_pagadas === true
   const sinCandidatas = modo === 'existente' && candidatas.length === 0
   // Lo primero que falta para confirmar, en palabras (nunca una instrucción que no se cumple). Las cuotas pagadas ya
   // tienen su aviso; mientras recalcula el mes basta el indicador de la región.
@@ -224,163 +221,84 @@ export function InversionReemplazar({ inversion, ficha, controles, onCerrar, foc
   const pagoIntereses = c ? (c.tipo_interes === 'compuesto' ? 'Al vencimiento · interés compuesto'
     : `${MODALIDAD_LABEL[c.modalidad] ?? c.modalidad} · interés simple`) : '—'
   const idFormulario = `${id}-formulario`
-  const enviandoClase = enviando ? 'pointer-events-none opacity-50' : undefined
-  return <Dialog open onClose={() => { if (!enCurso.current) onCerrar() }} ariaLabel={titulo}
+  return <DialogoReemplazo id={id} titulo={titulo} onClose={() => { if (!enCurso.current) onCerrar() }}
     focoAlCerrar={terminado ? focoAlTerminar : undefined}
-    className="w-[1160px] max-w-[95vw] max-h-[92svh]">
-    <DialogHeader className="flex-row flex-wrap items-center justify-between gap-3">
-      <div className="min-w-0">
-        <DialogTitle className="text-base">{titulo}</DialogTitle>
-        <p id={`${id}-consecuencia`} className="mt-0.5 text-sm text-muted-foreground">La venta se conserva. La original se elimina y queda una copia «reemplazada por».</p>
-      </div>
-      <div role="group" aria-label="Cómo se reemplaza" className="inline-flex gap-1 rounded-xl bg-muted p-1">
-        {([['nueva', 'Con los datos correctos'], ['existente', 'Quedarme con la otra']] as const).map(([m, etiqueta]) =>
-          <button key={m} type="button" aria-pressed={modo === m} aria-controls={`${id}-medio`} disabled={enviando}
-            className={cn('min-h-10 rounded-lg px-3.5 text-sm font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-              // Presionado: pastilla con borde de acento, no solo otro fondo.
-              modo === m ? 'bg-card text-primary shadow-[var(--shadow-card)] ring-2 ring-accent' : 'text-[var(--muted-foreground-strong)] hover:text-foreground')}
-            onClick={() => cambiarModo(m)}>{etiqueta}</button>)}
-      </div>
-    </DialogHeader>
-
-    {/* Un solo desplazamiento en celular; en escritorio, cada columna el suyo. */}
-    <div className="ac-scroll flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-4 lg:flex-row lg:overflow-hidden">
-      {/* La original: solo lectura. */}
-      <section aria-labelledby={`${id}-original`} className="lg:w-[270px] lg:shrink-0 lg:overflow-y-auto">
-        <h3 id={`${id}-original`} className="mb-2 text-xs font-extrabold uppercase tracking-wide text-[var(--muted-foreground-strong)]">La original</h3>
-        <div className="rounded-xl border border-border bg-muted/40 p-3.5 text-sm">
-        {/* Nombre y analista a lo ancho (son largos); con candado: no cambian en un reemplazo. */}
-        <dl className="space-y-2 border-b border-border pb-2.5">
-          <div className="space-y-0.5">
-            <dt className="text-muted-foreground">Cliente</dt>
-            <dd className="flex items-start gap-1.5 text-base font-bold [overflow-wrap:anywhere]"><Lock aria-hidden className="mt-1 size-3.5 shrink-0 text-muted-foreground" />{ficha.persona.nombre}</dd>
-          </div>
-          <div className="space-y-0.5">
-            <dt className="text-muted-foreground">Analista de la venta</dt>
-            <dd className="flex items-start gap-1.5 font-semibold [overflow-wrap:anywhere]"><Lock aria-hidden className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />{original.analista_venta_nombre ?? original.analista_origen_nombre ?? 'Sin información'}</dd>
-          </div>
-        </dl>
-        <dl className="mt-2.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-2">
-          <dt className="text-muted-foreground">Capital</dt><dd className="text-right font-semibold tabular-nums">{money(original.capital, original.moneda)}</dd>
-          <dt className="text-muted-foreground">Tasa anual</dt><dd className="text-right font-semibold">{c?.tasa_anual}%</dd>
-          <dt className="text-muted-foreground">Inicio</dt><dd className="text-right font-semibold tabular-nums">{fmtFecha(c?.fecha_inicio)}</dd>
-          <dt className="text-muted-foreground">Vencimiento</dt><dd className="text-right font-semibold tabular-nums">{fmtFecha(original.vence_en)}</dd>
-          <dt className="text-muted-foreground">Pago de intereses</dt><dd className="text-right font-semibold">{pagoIntereses}</dd>
-          <dt className="text-muted-foreground">Fecha comercial</dt><dd className="text-right font-semibold tabular-nums">{fmtFecha(original.fecha_comercial)}</dd>
-          {original.cotitulares.length > 0 && <><dt className="text-muted-foreground">Cotitulares</dt><dd className="text-right font-semibold">{original.cotitulares.length}</dd></>}
-        </dl>
-        </div>
-        <p className="mt-2 text-sm text-muted-foreground">El cliente y el analista no cambian en un reemplazo.</p>
-      </section>
-
+    cabecera={<div role="group" aria-label="Cómo se reemplaza" className="inline-flex gap-1 rounded-xl bg-muted p-1">
+      {([['nueva', 'Con los datos correctos'], ['existente', 'Quedarme con la otra']] as const).map(([m, etiqueta]) =>
+        <button key={m} type="button" aria-pressed={modo === m} aria-controls={`${id}-medio`} disabled={enviando}
+          className={cn('min-h-10 rounded-lg px-3.5 text-sm font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+            // Presionado: pastilla con borde de acento, no solo otro fondo.
+            modo === m ? 'bg-card text-primary shadow-[var(--shadow-card)] ring-2 ring-accent' : 'text-[var(--muted-foreground-strong)] hover:text-foreground')}
+          onClick={() => cambiarModo(m)}>{etiqueta}</button>)}
+    </div>}
+    original={<SeccionOriginal id={id} cliente={ficha.persona.nombre}
+      analista={original.analista_venta_nombre ?? original.analista_origen_nombre ?? 'Sin información'}
+      nota="El cliente y el analista no cambian en un reemplazo.">
+      <dt className="text-muted-foreground">Capital</dt><dd className="text-right font-semibold tabular-nums">{money(original.capital, original.moneda)}</dd>
+      <dt className="text-muted-foreground">Tasa anual</dt><dd className="text-right font-semibold">{c?.tasa_anual}%</dd>
+      <dt className="text-muted-foreground">Inicio</dt><dd className="text-right font-semibold tabular-nums">{fmtFecha(c?.fecha_inicio)}</dd>
+      <dt className="text-muted-foreground">Vencimiento</dt><dd className="text-right font-semibold tabular-nums">{fmtFecha(original.vence_en)}</dd>
+      <dt className="text-muted-foreground">Pago de intereses</dt><dd className="text-right font-semibold">{pagoIntereses}</dd>
+      <dt className="text-muted-foreground">Fecha comercial</dt><dd className="text-right font-semibold tabular-nums">{fmtFecha(original.fecha_comercial)}</dd>
+      {original.cotitulares.length > 0 && <><dt className="text-muted-foreground">Cotitulares</dt><dd className="text-right font-semibold">{original.cotitulares.length}</dd></>}
+    </SeccionOriginal>}
+    medio={<>
       {/* La correcta (el formulario de alta de siempre, precargado) o la que se conserva. El formulario NO se desmonta al
           cambiar de modo: lo editado, el resumen y el mes anunciado siguen coincidiendo al volver. */}
-      <div id={`${id}-medio`} className="flex min-w-0 flex-col rounded-xl border border-border lg:min-h-0 lg:flex-1 lg:overflow-hidden">
-        <section aria-labelledby={`${id}-correcta`} hidden={modo !== 'nueva'} className="ac-scroll flex flex-col lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
-          <ContratoNuevo
-            clienteId={original.perfil_id ?? ''} clienteNombre={ficha.persona.nombre}
-            categoriaFija="nuevo" borrador={borrador}
-            incrustado={{ titulo: 'La correcta', idTitulo: `${id}-correcta`, idFormulario,
-              onListoCambio: (listo, razon) => { setFormularioListo(listo); setRazonFormulario(razon) } }}
-            onEnviandoCambio={v => { enCurso.current = v; setEnviando(v) }}
-            onBorradorLocal={d => setFormulario({ capital: d.capital, moneda: d.moneda, tasa: d.tasa, fechaInicio: d.fechaInicio, prefijo: d.prefijo, numero: d.numero })}
-            onRevisar={reemplazar}
-            onCreado={() => {}} onOmitir={onCerrar} />
-        </section>
-        {modo === 'existente' && <section aria-labelledby={`${id}-conservar`} className="ac-scroll flex flex-col lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
-          <div className="border-b border-border px-5 py-3">
-            <h3 id={`${id}-conservar`} className="flex items-center gap-2 text-[15px] font-bold tracking-tight">
-              <RefreshCw aria-hidden className="size-4 text-primary" />La que se conserva</h3>
-          </div>
-          <div className="p-4">
-            {candidatas.length === 0
-              ? <p className="rounded-xl border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
-                  Este cliente no tiene otra inversión de Avance para conservar. Usa «Con los datos correctos».</p>
-              : <RadioGroup grande leyenda="Inversiones de Avance de este cliente" valor={conservarId} onCambio={valor => { setConservarId(valor); setError('') }}
-                  opciones={candidatas.map(i => {
-                    const difiere = diferenciasDeCarga(original, i)
-                    return {
-                      valor: i.fuente_id,
-                      deshabilitada: enviando,
-                      etiqueta: <span className="flex flex-wrap items-center gap-2"><span className="tabular-nums">{i.numero || 'Inversión registrada'}</span>
-                        {difiere.length === 0 ? <Badge dot color="var(--accent-press)" className="text-sm">Igual a la original</Badge>
-                          : <Badge color="var(--muted-foreground-strong)" className="text-sm">Distinta: {difiere.join(', ')}</Badge>}</span>,
-                      detalle: <span className="tabular-nums">{money(i.capital, i.moneda)} · {i.contrato?.tasa_anual}% · inicio {fmtFecha(i.contrato?.fecha_inicio)} · cargada el {fmtFecha(i.creado_en)}</span>,
-                    }
-                  })} />}
-            {elegida && diferenciasDeCarga(original, elegida).length > 0 && <p className="mt-3 text-sm font-semibold text-warning-text">
-              Solo se conserva una carga doble: la otra tiene que ser igual a la original (capital, moneda, tasa, fechas, pago de intereses y cotitulares).</p>}
-          </div>
-        </section>}
-      </div>
-
-      {/* Antes de confirmar: el mes (lo calcula el servidor), los cambios, el motivo y, al final, las acciones. */}
-      <section aria-labelledby={`${id}-confirmar`} className="ac-scroll lg:w-[300px] lg:shrink-0 lg:overflow-y-auto">
-        <h3 id={`${id}-confirmar`} className="mb-2 text-xs font-extrabold uppercase tracking-wide text-[var(--muted-foreground-strong)]">Antes de confirmar</h3>
-        <div role="status" aria-live="polite" aria-busy={previa.isFetching || undefined}
-          className={`rounded-xl border p-3.5 ${p?.cambia_mes ? 'border-warning/40 bg-warning/5' : 'border-accent/25 bg-accent/5'}`}>
-          <p className="flex items-center justify-between gap-2 text-sm font-bold text-[var(--muted-foreground-strong)]">La venta queda en
-            {previa.isFetching && !previa.isPending && <LoaderCircle aria-hidden className="size-3.5 animate-spin" />}</p>
-          {consultaPrevia === null || !mostrarMes ? <p className="mt-1 text-sm text-[var(--muted-foreground-strong)]">{modo === 'nueva' ? 'Indica la fecha de inicio.'
-            : sinCandidatas ? 'No hay otra inversión de este cliente para conservar.' : 'Elige la inversión que se conserva.'}</p>
-            : previa.isPending || reintentando ? <p className="mt-1 flex items-center gap-2 text-sm text-[var(--muted-foreground-strong)]"><LoaderCircle aria-hidden className="size-4 animate-spin" />Calculando el mes…</p>
-            : previa.isError ? <p className="mt-1 text-sm text-destructive-text">{mensajeDeError(previa.error, 'No se pudo calcular el mes.')}</p>
-            : p && <>
-              <p className="mt-1 text-xl font-extrabold tracking-tight text-primary">{mesLargo(p.mes_resultante)}</p>
-              <p className={`mt-1 text-sm font-bold ${p.cambia_mes ? 'text-warning-text' : 'text-accent'}`}>
-                {p.cambia_mes ? `Se muda desde ${mesLargo(p.mes_actual).toLowerCase()} (ese mes tiene que estar abierto)` : 'Igual que ahora'}</p>
-              {p.fecha_corregida && <p className="mt-1 text-sm text-[var(--muted-foreground-strong)]">Gerencia corrigió la fecha de esta venta: se conserva.</p>}
-            </>}
-        </div>
-        {/* Fuera de la región viva: un control no se anuncia como estado. */}
-        {mostrarMes && (previa.isError || reintentando) && <Button type="button" variant="outline" size="lg"
-          className={cn('mt-2 px-4', reintentando && 'pointer-events-none opacity-50')}
-          aria-disabled={reintentando || undefined} aria-busy={reintentando || undefined} onClick={e => void reintentarCalculo(e.currentTarget)}>
-          {reintentando ? <LoaderCircle className="animate-spin" aria-hidden /> : <RefreshCw aria-hidden />}
-          {reintentando ? 'Calculando…' : 'Reintentar el cálculo'}</Button>}
-        {cuotasPagadas && <p role="alert" className="mt-3 rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-sm font-semibold text-destructive-text">
-          Este contrato ya tiene cuotas pagadas: el reemplazo perdería esos pagos. No se puede reemplazar.</p>}
-        {/* role explícito: Safari + VoiceOver le quita la semántica de lista a un ul con estilos. */}
-        {/* oxlint-disable-next-line jsx-a11y/no-redundant-roles */}
-        {cambios.length > 0 && <ul role="list" className="mt-3 text-sm" aria-label="Cambios">
-          {cambios.map(cambio => <li key={cambio.etiqueta} className="flex justify-between gap-3 border-t border-dashed border-border py-2">
-            <span className="text-muted-foreground">{cambio.etiqueta}</span>
-            <span className="text-right font-bold tabular-nums">{cambio.antes !== undefined && <><span className="sr-only">antes </span><span className="mr-1.5 font-medium text-muted-foreground line-through">{cambio.antes}</span><span className="sr-only">, ahora </span></>}{cambio.ahora}</span>
-          </li>)}
-        </ul>}
-        <div className="mt-4 space-y-2">
-          <Label htmlFor={`${id}-motivo`}>Motivo del reemplazo</Label>
-          <Textarea ref={motivoRef} id={`${id}-motivo`} rows={3} value={motivo} disabled={enviando} aria-required="true"
-            placeholder="Por ejemplo: el capital se registró mal" aria-invalid={excedido || undefined}
-            aria-describedby={[`${id}-consecuencia`, `${id}-contador`, pista ? `${id}-pista` : null].filter(Boolean).join(' ')}
-            onChange={e => setMotivo(e.target.value)} />
-          <p id={`${id}-contador`} className={excedido ? 'text-sm font-semibold text-destructive-text' : 'text-sm text-muted-foreground'}>
-            {largo} de {MOTIVO_ELIMINACION_MAX} caracteres · mínimo {MOTIVO_ELIMINACION_MIN}</p>
-          {/* Montada desde el inicio: se anuncia al pasarse del tope, cuando el botón queda inactivo. */}
-          <p role="status" className="sr-only">{excedido ? `El motivo pasa de ${MOTIVO_ELIMINACION_MAX} caracteres: acórtalo para poder reemplazar.` : ''}</p>
-          {pista && <p id={`${id}-pista`} className="text-sm text-muted-foreground">{pista}</p>}
-        </div>
-        {error && <p role="alert" className="mt-3 rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-sm font-semibold text-destructive-text">{error}</p>}
-        {/* Las acciones van DESPUÉS del motivo (orden de foco y de lectura). Mientras envía, `aria-disabled` y no
-            `disabled`: deshabilitar de verdad tira el foco a <body>. `enCurso` impide el segundo envío. */}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
-          <Button type="button" variant="ghost" size="lg" className="px-4" disabled={enviando} onClick={onCerrar}>Cancelar</Button>
-          {modo === 'nueva'
-            ? <Button type="submit" form={idFormulario} size="lg" className={cn('px-4', enviandoClase)}
-                disabled={!puedeConfirmar} aria-disabled={enviando || undefined} aria-busy={enviando || undefined}
-                onClick={e => { if (enCurso.current) e.preventDefault() }}>
-                {enviando ? <LoaderCircle className="animate-spin" aria-hidden /> : <RefreshCw aria-hidden />}
-                {enviando ? 'Reemplazando…' : 'Reemplazar inversión'}
-              </Button>
-            : <Button type="button" size="lg" className={cn('px-4', enviandoClase)}
-                disabled={!puedeConfirmar} aria-disabled={enviando || undefined} aria-busy={enviando || undefined}
-                onClick={() => void conservar()}>
-                {enviando ? <LoaderCircle className="animate-spin" aria-hidden /> : <RefreshCw aria-hidden />}
-                {enviando ? 'Reemplazando…' : elegida ? `Quedarme con ${elegida.numero || 'esa inversión'}`
-                  : sinCandidatas ? 'Sin inversión para conservar' : 'Elige la que se conserva'}
-              </Button>}
-        </div>
+      <section aria-labelledby={`${id}-correcta`} hidden={modo !== 'nueva'} className="ac-scroll flex flex-col lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+        <ContratoNuevo
+          clienteId={original.perfil_id ?? ''} clienteNombre={ficha.persona.nombre}
+          categoriaFija="nuevo" borrador={borrador}
+          incrustado={{ titulo: 'La correcta', idTitulo: `${id}-correcta`, idFormulario,
+            onListoCambio: (listo, razon) => { setFormularioListo(listo); setRazonFormulario(razon) } }}
+          onEnviandoCambio={v => { enCurso.current = v; setEnviando(v) }}
+          onBorradorLocal={d => setFormulario({ capital: d.capital, moneda: d.moneda, tasa: d.tasa, fechaInicio: d.fechaInicio, prefijo: d.prefijo, numero: d.numero })}
+          onRevisar={reemplazar}
+          onCreado={() => {}} onOmitir={onCerrar} />
       </section>
-    </div>
-  </Dialog>
+      {modo === 'existente' && <section aria-labelledby={`${id}-conservar`} className="ac-scroll flex flex-col lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+        <div className="border-b border-border px-5 py-3">
+          <h3 id={`${id}-conservar`} className="flex items-center gap-2 text-[15px] font-bold tracking-tight">
+            <RefreshCw aria-hidden className="size-4 text-primary" />La que se conserva</h3>
+        </div>
+        <div className="p-4">
+          {candidatas.length === 0
+            ? <p className="rounded-xl border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
+                Este cliente no tiene otra inversión de Avance para conservar. Usa «Con los datos correctos».</p>
+            : <RadioGroup grande leyenda="Inversiones de Avance de este cliente" valor={conservarId} onCambio={valor => { setConservarId(valor); setError('') }}
+                opciones={candidatas.map(i => {
+                  const difiere = diferenciasDeCarga(original, i)
+                  return {
+                    valor: i.fuente_id,
+                    deshabilitada: enviando,
+                    etiqueta: <span className="flex flex-wrap items-center gap-2"><span className="tabular-nums">{i.numero || 'Inversión registrada'}</span>
+                      {difiere.length === 0 ? <Badge dot color="var(--accent-press)" className="text-sm">Igual a la original</Badge>
+                        : <Badge color="var(--muted-foreground-strong)" className="text-sm">Distinta: {difiere.join(', ')}</Badge>}</span>,
+                    detalle: <span className="tabular-nums">{money(i.capital, i.moneda)} · {i.contrato?.tasa_anual}% · inicio {fmtFecha(i.contrato?.fecha_inicio)} · cargada el {fmtFecha(i.creado_en)}</span>,
+                  }
+                })} />}
+          {elegida && diferenciasDeCarga(original, elegida).length > 0 && <p className="mt-3 text-sm font-semibold text-warning-text">
+            Solo se conserva una carga doble: la otra tiene que ser igual a la original (capital, moneda, tasa, fechas, pago de intereses y cotitulares).</p>}
+        </div>
+      </section>}
+    </>}
+    confirmar={<>
+      <RegionMes previa={previa} reintentando={reintentando} onReintentar={b => void reintentarCalculo(b)}
+        vacio={consultaPrevia === null || !mostrarMes ? (modo === 'nueva' ? 'Indica la fecha de inicio.'
+          : sinCandidatas ? 'No hay otra inversión de este cliente para conservar.' : 'Elige la inversión que se conserva.') : null}
+        reintento={mostrarMes && (previa.isError || reintentando)}
+        detalle={v => v.fecha_corregida && <p className="mt-1 text-sm text-[var(--muted-foreground-strong)]">Gerencia corrigió la fecha de esta venta: se conserva.</p>} />
+      {cuotasPagadas && <AvisoReemplazo>Este contrato ya tiene cuotas pagadas: el reemplazo perdería esos pagos. No se puede reemplazar.</AvisoReemplazo>}
+      <ListaCambios cambios={cambios} />
+      <CampoMotivo ref={motivoRef} id={id} valor={motivo} onCambio={setMotivo} deshabilitado={enviando}
+        placeholder="Por ejemplo: el capital se registró mal" pista={pista} />
+      {error && <AvisoReemplazo>{error}</AvisoReemplazo>}
+      <AccionesReemplazo enviando={enviando} onCancelar={onCerrar}>
+        {modo === 'nueva'
+          ? <BotonReemplazo type="submit" form={idFormulario} enviando={enviando} habilitado={puedeConfirmar} etiqueta="Reemplazar inversión"
+              onClick={e => { if (enCurso.current) e.preventDefault() }} />
+          : <BotonReemplazo type="button" enviando={enviando} habilitado={puedeConfirmar} onClick={() => void conservar()}
+              etiqueta={elegida ? `Quedarme con ${elegida.numero || 'esa inversión'}` : sinCandidatas ? 'Sin inversión para conservar' : 'Elige la que se conserva'} />}
+      </AccionesReemplazo>
+    </>} />
 }

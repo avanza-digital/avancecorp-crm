@@ -184,13 +184,17 @@ import { presentarCitas } from '@/lib/terminologia'
 import {
   InversionEliminadaSchema,
   InversionReemplazadaSchema,
+  InversionCooperativaReemplazadaSchema,
   AcuseReemplazoAccesorios,
+  AcuseReemplazoCooperativaAccesorios,
   MOTIVO_ELIMINACION_MAX,
   MOTIVO_ELIMINACION_MIN,
   motivoEliminacionValido,
   VistaPreviaReemplazoSchema,
+  VistaPreviaReemplazoCooperativaSchema,
   type EmpresaInversion,
   type VistaPreviaReemplazo,
+  type VistaPreviaReemplazoCooperativa,
 } from '@/lib/inversionistas'
 import {
   LeadEliminadoSchema,
@@ -7433,10 +7437,14 @@ function exigirUuidInversion(id: string, mensaje: string): void {
   if (!v.safeParse(UuidSchema, id).success) throw new CrmApiError(mensaje, 'INVERSION_FUENTE_INVALIDA')
 }
 
-function acuseReemplazo(data: unknown, fuenteId: string, evento: string): InversionReemplazadaResultado {
-  const r = v.safeParse(InversionReemplazadaSchema, data)
+/**
+ * Lo común a los acuses del reemplazo (Avance y cooperativas). Si lo IMPRESCINDIBLE no viene, el servidor respondió 2xx
+ * y el reemplazo pudo hacerse: se dice así, nunca «error». Lo accesorio (`accesorio`, `conversion`) con otra forma se
+ * registra y se deja en blanco: tras un 2xx el reemplazo YA está hecho y la pantalla no puede decir «error».
+ */
+function leerAcuseReemplazo<T extends { fuente_id: string }>(esquema: v.GenericSchema<unknown, T>, data: unknown, fuenteId: string, evento: string) {
+  const r = v.safeParse(esquema, data)
   if (!r.success || r.output.fuente_id.toLowerCase() !== fuenteId.toLowerCase()) {
-    // El servidor respondió 2xx: el reemplazo pudo hacerse aunque el acuse no sea el pactado.
     const fallo = new CrmApiError(
       'El servidor no confirmó el reemplazo con el formato esperado; pudo hacerse. Vuelve a abrir la ficha antes de reintentar.',
       'INVERSION_REEMPLAZADA_CONTRACT',
@@ -7444,24 +7452,28 @@ function acuseReemplazo(data: unknown, fuenteId: string, evento: string): Invers
     registrarError(evento, fallo)
     throw fallo
   }
-  // El reemplazo YA está hecho: un accesorio con otra forma se registra y se deja en blanco, nunca se vuelve error.
   const crudo = data as Record<string, unknown>
   const conversion = crudo.conversion && typeof crudo.conversion === 'object' && !Array.isArray(crudo.conversion)
     ? crudo.conversion as Record<string, unknown> : null
   if (crudo.conversion != null && conversion === null) {
     registrarError(`${evento}.accesorio`, new CrmApiError('Acuse del reemplazo: «conversion» con otra forma.', 'INVERSION_REEMPLAZADA_ACCESORIO'))
   }
-  const accesorio = <T,>(campo: string, esquema: v.GenericSchema<unknown, T>, valor: unknown, enBlanco: T): T => {
+  const accesorio = <A,>(campo: string, esquemaCampo: v.GenericSchema<unknown, A>, valor: unknown, enBlanco: A): A => {
     if (valor === undefined) return enBlanco
-    const a = v.safeParse(esquema, valor)
+    const a = v.safeParse(esquemaCampo, valor)
     if (a.success) return a.output
     registrarError(`${evento}.accesorio`, new CrmApiError(`Acuse del reemplazo: «${campo}» con otra forma.`, 'INVERSION_REEMPLAZADA_ACCESORIO'))
     return enBlanco
   }
+  return { r: r.output, crudo, conversion, accesorio }
+}
+
+function acuseReemplazo(data: unknown, fuenteId: string, evento: string): InversionReemplazadaResultado {
+  const { r, crudo, conversion, accesorio } = leerAcuseReemplazo(InversionReemplazadaSchema, data, fuenteId, evento)
   return {
-    contratoId: r.output.contrato_id,
+    contratoId: r.contrato_id,
     numeroContrato: accesorio('numero_contrato', AcuseReemplazoAccesorios.numero_contrato, crudo.numero_contrato, null),
-    modo: r.output.modo,
+    modo: r.modo,
     idempotente: accesorio('idempotente', AcuseReemplazoAccesorios.idempotente, crudo.idempotente, false),
     periodoVenta: accesorio('conversion.periodo_despues', AcuseReemplazoAccesorios.periodo_despues, conversion?.periodo_despues, null),
   }
@@ -7484,10 +7496,15 @@ export async function vistaPreviaReemplazo(
     ...(conservar ? { p_conservar_id: conservar } : { p_fecha_inicio: fecha as string }),
   })
   if (error) throw aErrorReemplazarInversion(error, 'crm.inversiones.reemplazo_previa_fallida', 'calcular el mes')
-  const r = v.safeParse(VistaPreviaReemplazoSchema, data)
+  return leerVistaPrevia(VistaPreviaReemplazoSchema, data, fuenteId, 'crm.inversiones.reemplazo_previa_fuera_de_contrato')
+}
+
+/** Una vista previa (Avance o cooperativa) con otra forma, o de otra inversión, no se muestra como mes. */
+function leerVistaPrevia<T extends { fuente_id: string }>(esquema: v.GenericSchema<unknown, T>, data: unknown, fuenteId: string, evento: string): T {
+  const r = v.safeParse(esquema, data)
   if (!r.success || r.output.fuente_id.toLowerCase() !== fuenteId.toLowerCase()) {
     const fallo = new CrmApiError('El servidor no devolvió el mes de la venta. Vuelve a intentarlo.', 'VISTA_PREVIA_CONTRACT')
-    registrarError('crm.inversiones.reemplazo_previa_fuera_de_contrato', fallo)
+    registrarError(evento, fallo)
     throw fallo
   }
   return r.output
@@ -7537,6 +7554,95 @@ export async function reemplazarInversionPorExistente(
   })
   if (error) throw aErrorReemplazarInversion(error, 'crm.inversiones.reemplazo_fallido', 'reemplazar la inversión')
   return acuseReemplazo(data, fuenteId, 'crm.inversiones.reemplazo_fuera_de_contrato')
+}
+
+// ─── Reemplazar inversión de COOPERATIVA (solo Gerencia: es la venta de un lead — Fase 4, 18/10/2026) ──────
+// En una cooperativa el reemplazo cambia SOLO la cooperativa, la fecha comercial (el mes de la venta) y el comprobante;
+// el resto lo copia el servidor de la original. Viajan SOLO las claves que cambian: la que no viaja, el servidor la toma
+// de la original. Los rechazos (mes cerrado, plazo vencido, movimientos, venta anulada…) llegan en español y se
+// muestran tal cual, como en Avance.
+
+export interface CambiosReemplazoCooperativa {
+  cooperativa?: Cooperativa | undefined
+  /** 'AAAA-MM-DD'. */
+  fechaComercial?: string | undefined
+  /** Ruta del comprobante NUEVO, ya subido a f4-comprobantes. Sin ella, la nueva conserva el de la original. */
+  comprobanteRuta?: string | undefined
+}
+
+export interface InversionCooperativaReemplazadaResultado {
+  /** El cierre que queda (la inversión nueva). */
+  cierreId: string
+  cooperativa: Cooperativa | null
+  fechaComercial: string | null
+  /** La original ya se había reemplazado con estos mismos datos: se devolvió aquel resultado. */
+  idempotente: boolean
+  /** Mes en que quedó la venta del lead (si la había), según el servidor. */
+  periodoVenta: string | null
+}
+
+const FECHA_REEMPLAZO_RE = /^\d{4}-\d{2}-\d{2}$/
+
+function exigirFechaComercial(fecha: string): void {
+  if (!FECHA_REEMPLAZO_RE.test(fecha)) {
+    throw new CrmApiError('Indica la fecha comercial de la inversión correcta.', 'INVERSION_FECHA_INVALIDA')
+  }
+}
+
+/** En qué mes quedaría la venta con esa fecha comercial y qué se negaría (solo lectura). */
+export async function vistaPreviaReemplazoCooperativa(fuenteId: string, fechaComercial?: string): Promise<VistaPreviaReemplazoCooperativa> {
+  exigirUuidInversion(fuenteId, 'El identificador de la inversión no es válido.')
+  if (fechaComercial !== undefined) exigirFechaComercial(fechaComercial)
+  const { data, error } = await cliente().schema('crm').rpc('reemplazar_inversion_cooperativa_vista_previa_fn', {
+    p_fuente_id: fuenteId,
+    ...(fechaComercial === undefined ? {} : { p_fecha_comercial: fechaComercial }),
+  })
+  if (error) throw aErrorReemplazarInversion(error, 'crm.inversiones.reemplazo_cooperativa_previa_fallida', 'calcular el mes')
+  return leerVistaPrevia(VistaPreviaReemplazoCooperativaSchema, data, fuenteId, 'crm.inversiones.reemplazo_cooperativa_previa_fuera_de_contrato')
+}
+
+/** Reemplaza la inversión de cooperativa por la correcta: la misma, con otra cooperativa, fecha comercial o comprobante. */
+export async function reemplazarInversionCooperativa(
+  fuenteId: string,
+  motivo: string,
+  cambios: CambiosReemplazoCooperativa,
+): Promise<InversionCooperativaReemplazadaResultado> {
+  exigirUuidInversion(fuenteId, 'El identificador de la inversión no es válido.')
+  const limpio = exigirMotivoReemplazo(motivo)
+  const p_cierre: Record<string, string> = {}
+  if (cambios.cooperativa !== undefined) {
+    if (!(COOPERATIVAS as readonly string[]).includes(cambios.cooperativa)) {
+      throw new CrmApiError('La cooperativa indicada no es válida.', 'INVERSION_COOPERATIVA_INVALIDA')
+    }
+    p_cierre.cooperativa = cambios.cooperativa
+  }
+  if (cambios.fechaComercial !== undefined) {
+    exigirFechaComercial(cambios.fechaComercial)
+    p_cierre.fecha_comercial = cambios.fechaComercial
+  }
+  if (cambios.comprobanteRuta !== undefined) {
+    const ruta = cambios.comprobanteRuta.trim()
+    if (!ruta) throw new CrmApiError('Sube el comprobante nuevo antes de confirmar.', 'INVERSION_COMPROBANTE_INVALIDO')
+    p_cierre.comprobante_ruta = ruta
+  }
+  if (Object.keys(p_cierre).length === 0) {
+    throw new CrmApiError('Nada que reemplazar: cambia la cooperativa, la fecha comercial o el comprobante.', 'INVERSION_SIN_CAMBIOS')
+  }
+  const { data, error } = await cliente().schema('crm').rpc('reemplazar_inversion_cooperativa_fn', {
+    p_fuente_id: fuenteId,
+    p_motivo: limpio,
+    p_cierre,
+  })
+  if (error) throw aErrorReemplazarInversion(error, 'crm.inversiones.reemplazo_cooperativa_fallido', 'reemplazar la inversión')
+  const { r, crudo, conversion, accesorio } = leerAcuseReemplazo(InversionCooperativaReemplazadaSchema, data, fuenteId,
+    'crm.inversiones.reemplazo_cooperativa_fuera_de_contrato')
+  return {
+    cierreId: r.cierre_id,
+    cooperativa: accesorio('cooperativa', AcuseReemplazoCooperativaAccesorios.cooperativa, crudo.cooperativa, null),
+    fechaComercial: accesorio('fecha_comercial', AcuseReemplazoCooperativaAccesorios.fecha_comercial, crudo.fecha_comercial, null),
+    idempotente: accesorio('idempotente', AcuseReemplazoAccesorios.idempotente, crudo.idempotente, false),
+    periodoVenta: accesorio('conversion.periodo_despues', AcuseReemplazoAccesorios.periodo_despues, conversion?.periodo_despues, null),
+  }
 }
 
 // ─── Eliminar lead por error de carga (gerencia o admin del portal, 14/10/2026) ──

@@ -1,5 +1,6 @@
 // Frontera neutral F5. Ningún UUID de perfil sustituye a la persona.
 import * as v from 'valibot'
+import { COOPERATIVAS } from './cierres-externos'
 
 export const EMPRESAS_INVERSION = ['avance', 'qorilazo', 'prodelco'] as const
 export type EmpresaInversion = (typeof EMPRESAS_INVERSION)[number]
@@ -133,6 +134,37 @@ export function diferenciasDeCarga(original: InversionFuente, otra: InversionFue
   return d
 }
 export type VistaPreviaReemplazo = v.InferOutput<typeof VistaPreviaReemplazoSchema>
+
+// ─── Reemplazar inversión de COOPERATIVA (Fase 4, 18/10/2026) ──────────────────────────────────────────────
+// En una cooperativa el reemplazo cambia SOLO la cooperativa, la fecha comercial (el mes de la venta) y el comprobante;
+// lo demás se copia de la original (para eso está «Corregir»). Decisiones de Miguel del 18/10/2026.
+/** Vista previa (crm.reemplazar_inversion_cooperativa_vista_previa_fn): el mes de la venta y qué se negaría. Estricta. */
+export const VistaPreviaReemplazoCooperativaSchema = v.strictObject({
+  fuente_id: Uuid, cooperativa: v.picklist(COOPERATIVAS), es_inicial: v.boolean(), anulada: v.boolean(),
+  venta_de_lead: v.boolean(),
+  /** La original tiene comprobante (si no suben otro, la nueva se queda con ese). */
+  comprobante: v.boolean(),
+  // Una fila antigua puede no tener fecha comercial propia; el mes actual sale entonces de su alta.
+  fecha_comercial_actual: v.nullable(FechaIso), mes_actual: FechaIso,
+  fecha_comercial_resultante: FechaIso, mes_resultante: FechaIso,
+  cambia_mes: v.boolean(), fecha_futura: v.boolean(), mes_sellado: v.boolean(), plazo_vencido: v.boolean(),
+  /** Por qué la original no se reemplaza con ninguna fecha (anulada, aporte adicional, movimientos…); null si se puede. */
+  no_reemplazable: v.nullable(v.string()),
+})
+export type VistaPreviaReemplazoCooperativa = v.InferOutput<typeof VistaPreviaReemplazoCooperativaSchema>
+/** Lo IMPRESCINDIBLE del acuse: qué cierre quedó. Lo demás se lee aparte (ver `AcuseReemplazoAccesorios`). */
+export const InversionCooperativaReemplazadaSchema = v.looseObject({
+  ok: v.literal(true), fuente_id: Uuid, cierre_id: Uuid,
+})
+export const AcuseReemplazoCooperativaAccesorios = {
+  cooperativa: v.nullable(v.picklist(COOPERATIVAS)),
+  fecha_comercial: v.nullable(FechaIso),
+}
+/** Solo la inversión INICIAL de una cooperativa, real y vigente o vencida; el servidor decide igual. */
+export function inversionReemplazableCooperativa(i: InversionFuente): boolean {
+  return i.empresa !== 'avance' && i.es_inicial === true && !i.es_demo
+    && (i.estado === 'vigente' || i.estado === 'activo' || i.estado === 'vencido')
+}
 
 /** Espejo del CHECK de crm.inversiones_eliminadas: length(btrim(motivo)) between 5 and 300. */
 export const MOTIVO_ELIMINACION_MIN = 5

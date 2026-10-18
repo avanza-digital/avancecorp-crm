@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { diferenciasDeCarga, esVentaDeLead, inversionReemplazable, mesLargo, type InversionFuente } from './inversionistas'
-import { puedeReemplazarInversion } from './roles'
-import { inversionF5 } from '@/test/fixtures/f5'
+import { diferenciasDeCarga, esVentaDeLead, inversionReemplazable, inversionReemplazableCooperativa, mesLargo, type InversionFuente } from './inversionistas'
+import { puedeReemplazarInversion, puedeReemplazarInversionCooperativa } from './roles'
+import { inversionF5, inversionProdelcoF5 } from '@/test/fixtures/f5'
 
 const avance = (over: Partial<InversionFuente> = {}): InversionFuente => ({
   ...inversionF5, empresa: 'avance', perfil_id: '44444444-4444-4444-8444-444444444444', numero: '2026-01-999999', capital: 5000,
@@ -66,5 +66,33 @@ describe('mes largo', () => {
     expect(mesLargo('2026-09-01')).toBe('Septiembre 2026')
     expect(mesLargo('2026-12-01')).toBe('Diciembre 2026')
     expect(mesLargo('raro')).toBe('raro')
+  })
+})
+
+describe('cooperativas (Fase 4): quién y qué inversión', () => {
+  it.each([
+    ['gerencia', 'analista', true], ['gerencia', 'admin', true], ['gerencia', 'superadmin', true],
+    // Un admin del portal sin Gerencia, NO: es la venta de un lead (auditoría RLS, P1).
+    ['vendedor', 'admin', false], ['vendedor', 'superadmin', false], ['supervisor', 'admin', false],
+    ['vendedor', 'analista', false], ['supervisor', 'analista', false], ['coordinador', 'analista', false], ['directorio', 'directorio', false],
+  ])('%s / %s → %s (solo Gerencia: es la venta de un lead)', (rol, portal, esperado) => {
+    expect(puedeReemplazarInversionCooperativa(identidad(rol, portal), inversionProdelcoF5)).toBe(esperado)
+  })
+  it('una inversión de Avance no entra por aquí; sin sesión, no', () => {
+    expect(puedeReemplazarInversionCooperativa(identidad('gerencia', 'admin'), avance())).toBe(false)
+    expect(puedeReemplazarInversionCooperativa(null, inversionProdelcoF5)).toBe(false)
+  })
+  it('solo la inicial, real y vigente o vencida', () => {
+    expect(inversionReemplazableCooperativa(inversionProdelcoF5)).toBe(true)
+    expect(inversionReemplazableCooperativa(inversionF5)).toBe(true)                               // Qorilazo
+    expect(inversionReemplazableCooperativa({ ...inversionProdelcoF5, estado: 'vencido' })).toBe(true)
+    expect(inversionReemplazableCooperativa({ ...inversionProdelcoF5, es_inicial: false })).toBe(false)  // aporte adicional
+    expect(inversionReemplazableCooperativa({ ...inversionProdelcoF5, es_inicial: null })).toBe(false)
+    expect(inversionReemplazableCooperativa({ ...inversionProdelcoF5, estado: 'anulado_comercialmente' })).toBe(false)
+    expect(inversionReemplazableCooperativa({ ...inversionProdelcoF5, es_demo: true })).toBe(false)
+    expect(inversionReemplazableCooperativa(avance())).toBe(false)
+  })
+  it('la de Avance sigue siendo solo de Avance', () => {
+    expect(inversionReemplazable(inversionProdelcoF5)).toBe(false)
   })
 })

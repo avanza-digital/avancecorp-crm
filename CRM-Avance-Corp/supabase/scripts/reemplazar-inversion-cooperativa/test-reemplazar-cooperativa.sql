@@ -213,8 +213,9 @@ begin
     'P3 K4 aporte adicional: no reemplazable');
   r := pg_temp.previa(a2, pg_temp.sembrado('k5'));
   perform pg_temp.exigir((r ->> 'anulada')::boolean and r ->> 'no_reemplazable' like '%ya fue anulada%', 'P4 K5 anulada: no reemplazable');
-  r := pg_temp.previa(a1, pg_temp.sembrado('k2'), date '2026-10-01');
-  perform pg_temp.exigir(r ->> 'cooperativa' = 'qorilazo' and not (r ->> 'cambia_mes')::boolean, 'P5 admin del portal sin CRM también consulta');
+  r := pg_temp.previa('a0000000-0000-4000-8000-0000000000a3', pg_temp.sembrado('k2'), date '2026-10-01');
+  perform pg_temp.exigir(r ->> 'cooperativa' = 'qorilazo' and not (r ->> 'cambia_mes')::boolean, 'P5 Gerencia sin portal también consulta');
+  perform pg_temp.rechaza(format('select pg_temp.previa(%L::uuid, %L::uuid)', a1, pg_temp.sembrado('k1')), '42501', 'Solo gerencia puede reemplazar una inversión de cooperativa');
   perform pg_temp.rechaza(format('select pg_temp.previa(%L::uuid, %L::uuid)', a4, pg_temp.sembrado('k1')), '42501', 'Solo admin o gerencia');
   perform pg_temp.rechaza(format('select pg_temp.previa(%L::uuid, %L::uuid)', a2, gen_random_uuid()), 'P0002', 'no existe');
   perform pg_temp.rechaza(format('select pg_temp.previa(%L::uuid, %L::uuid, %L::date)', a2, pg_temp.sembrado('k1'), 'infinity'), '22023', 'fecha comercial no es válida');
@@ -236,6 +237,8 @@ declare
 begin
   perform pg_temp.rechaza(pg_temp.sql_reemplazar(a4, k1, 'Error de carga de prueba', cambio), '42501', 'Solo admin o gerencia');
   perform pg_temp.rechaza(pg_temp.sql_reemplazar(a6, k1, 'Error de carga de prueba', cambio), '42501', 'Solo admin o gerencia');
+  perform pg_temp.rechaza(pg_temp.sql_reemplazar('a0000000-0000-4000-8000-0000000000a1', k1, 'Error de carga de prueba', cambio), '42501', 'Solo gerencia puede reemplazar una inversión de cooperativa');
+  perform pg_temp.rechaza(pg_temp.sql_reemplazar(a2, k1, 'Error de carga de prueba', '[1]'), '22023', 'datos del reemplazo no son válidos');
   perform pg_temp.rechaza(pg_temp.sql_reemplazar(a2, k1, 'abc', cambio), '22023', 'motivo del reemplazo');
   perform pg_temp.rechaza(pg_temp.sql_reemplazar(a2, k1, repeat('x', 301), cambio), '22023', 'como máximo 300');
   perform pg_temp.rechaza(pg_temp.sql_reemplazar(a2, null, 'Error de carga de prueba', cambio), '22023', 'Indica la inversión');
@@ -250,15 +253,30 @@ begin
   perform pg_temp.rechaza(pg_temp.sql_reemplazar(a2, pg_temp.sembrado('k4'), 'Error de carga de prueba', cambio), 'P0409', 'Solo se reemplaza la inversión inicial');
   perform pg_temp.rechaza(pg_temp.sql_reemplazar(a2, pg_temp.sembrado('k5'), 'Error de carga de prueba', cambio), 'P0409', 'ya fue anulada');
   perform pg_temp.rechaza(pg_temp.sql_reemplazar(a2, v_contrato, 'Error de carga de prueba', cambio), '0A000', 'puerta de Avance');
-  -- El comprobante: de otra persona, inexistente, o un objeto que no es un comprobante válido.
+  -- El comprobante: un objeto VÁLIDO en la carpeta de otra persona, o de otra inversión de la misma persona; inexistente; grande;
+  -- otro mimetype; uno que ya respalda otra inversión viva.
+  perform pg_temp.objeto('b2000000-0000-4000-8000-000000000002/reemplazo-' || k1 || '/x.pdf');
   perform pg_temp.rechaza(pg_temp.sql_reemplazar(a2, k1, 'Error de carga de prueba',
-      jsonb_build_object('comprobante_ruta', 'b2000000-0000-4000-8000-000000000002/reemplazo-' || k1 || '/x.pdf')), '22023', 'carpeta de esta persona');
+      jsonb_build_object('comprobante_ruta', 'b2000000-0000-4000-8000-000000000002/reemplazo-' || k1 || '/x.pdf')), '22023', 'carpeta de esta inversión');
+  perform pg_temp.objeto('b2000000-0000-4000-8000-000000000001/reemplazo-' || pg_temp.sembrado('k3') || '/x.pdf');
+  perform pg_temp.rechaza(pg_temp.sql_reemplazar(a2, k1, 'Error de carga de prueba',
+      jsonb_build_object('comprobante_ruta', 'b2000000-0000-4000-8000-000000000001/reemplazo-' || pg_temp.sembrado('k3') || '/x.pdf')), '22023', 'carpeta de esta inversión');
+  perform pg_temp.objeto('b2000000-0000-4000-8000-000000000001/reemplazo-' || k1 || '/texto.pdf', 1000, 'text/plain');
+  perform pg_temp.rechaza(pg_temp.sql_reemplazar(a2, k1, 'Error de carga de prueba',
+      jsonb_build_object('comprobante_ruta', 'b2000000-0000-4000-8000-000000000001/reemplazo-' || k1 || '/texto.pdf')), 'P0409', 'Sube el comprobante válido');
+  perform pg_temp.objeto('b2000000-0000-4000-8000-000000000001/reemplazo-' || k1 || '/ajeno.pdf');
+  set local session_replication_role = replica;
+  update crm.cierres_externos set comprobante_objeto_id = (select o.id from storage.objects o where o.name = 'b2000000-0000-4000-8000-000000000001/reemplazo-' || k1 || '/ajeno.pdf')
+    where id = pg_temp.sembrado('k3');
+  set local session_replication_role = origin;
+  perform pg_temp.rechaza(pg_temp.sql_reemplazar(a2, k1, 'Error de carga de prueba',
+      jsonb_build_object('comprobante_ruta', 'b2000000-0000-4000-8000-000000000001/reemplazo-' || k1 || '/ajeno.pdf')), 'P0409', 'ya respalda otra inversión');
   perform pg_temp.rechaza(pg_temp.sql_reemplazar(a2, k1, 'Error de carga de prueba',
       jsonb_build_object('comprobante_ruta', 'b2000000-0000-4000-8000-000000000001/reemplazo-' || k1 || '/no-existe.pdf')), 'P0409', 'Sube el comprobante válido');
   perform pg_temp.objeto('b2000000-0000-4000-8000-000000000001/reemplazo-' || k1 || '/grande.pdf', 20000000);
   perform pg_temp.rechaza(pg_temp.sql_reemplazar(a2, k1, 'Error de carga de prueba',
       jsonb_build_object('comprobante_ruta', 'b2000000-0000-4000-8000-000000000001/reemplazo-' || k1 || '/grande.pdf')), 'P0409', 'Sube el comprobante válido');
-  raise notice 'PASS R1 rechazos: roles, motivo, fuente, claves ajenas, nada que reemplazar, fecha futura/inválida, cooperativa, moneda, aporte adicional, anulada, Avance, comprobante';
+  raise notice 'PASS R1 rechazos: roles (solo Gerencia), motivo, fuente, p_cierre, claves ajenas, nada que reemplazar, fecha futura/inválida, cooperativa, moneda, aporte adicional, anulada, Avance, comprobante (carpeta de ESTA inversión, inexistente, grande, mimetype, ya usado)';
 end $r$;
 
 -- Mes sellado, plazo vencido y movimientos: estado preparado en una subtransacción que se deshace con el centinela P7999.
@@ -308,9 +326,29 @@ begin
     perform pg_temp.deshacer();
   exception when sqlstate 'P7999' then null;
   end;
+  begin
+    -- Membresía del CRM revocada (Gerencia dada de baja en crm.equipo, pero sigue siendo admin del portal).
+    set local session_replication_role = replica;
+    update crm.equipo set activo = false where perfil_id = a2;
+    set local session_replication_role = origin;
+    perform pg_temp.rechaza(pg_temp.sql_reemplazar(a2, k1, 'Error de carga de prueba', '{"fecha_comercial": "2026-09-15"}'), '42501', 'Solo gerencia puede reemplazar');
+    perform pg_temp.rechaza(format('select pg_temp.previa(%L::uuid, %L::uuid)', a2, k1), '42501', 'Solo gerencia puede reemplazar');
+    perform pg_temp.deshacer();
+  exception when sqlstate 'P7999' then null;
+  end;
+  begin
+    -- Un origen de capital confirmado por Gerencia sobre K1: no se traslada a ciegas.
+    set local session_replication_role = replica;
+    insert into crm.origenes_capital_confirmados (id, cierre_externo_id, origen, motivo, confirmado_por, activo, fecha_comercial)
+      values (gen_random_uuid(), k1, 'oficina', 'Confirmación de prueba del banco', a2, true, date '2026-10-10');
+    set local session_replication_role = origin;
+    perform pg_temp.rechaza(pg_temp.sql_reemplazar(a2, k1, 'Error de carga de prueba', '{"fecha_comercial": "2026-09-15"}'), 'P0409', 'origen de capital confirmado');
+    perform pg_temp.deshacer();
+  exception when sqlstate 'P7999' then null;
+  end;
   perform pg_temp.exigir(exists (select 1 from crm.cierres_externos ce where ce.id = k1) and pg_temp.cierres_validos('f2000000-0000-4000-8000-000000000001') = 1,
     'R2: nada cambió tras los rechazos');
-  raise notice 'PASS R2 rechazos con estado: mes sellado (conversión y capital), plazo vencido, movimientos; la vista previa los avisa';
+  raise notice 'PASS R2 rechazos con estado: mes sellado (conversión y capital), plazo vencido, movimientos, membresía revocada, origen confirmado; la vista previa los avisa';
 end $r2$;
 
 do $r3$
@@ -358,6 +396,8 @@ declare
   a2 constant uuid := 'a0000000-0000-4000-8000-0000000000a2';
   f1 constant uuid := 'f2000000-0000-4000-8000-000000000001';
   k1 uuid := pg_temp.sembrado('k1');
+  v_cap_oct jsonb := pg_temp.foto_capital('2026-10-01');
+  v_cap_sep jsonb := pg_temp.foto_capital('2026-09-01');
   v_antes crm.cierres_externos%rowtype;
   v_acr_antes crm.conversion_acreditaciones%rowtype := pg_temp.acr(f1);
   v_inv_antes uuid := (select i.id from crm.inversiones i where i.cierre_externo_id = k1);
@@ -409,6 +449,10 @@ begin
       'V1: la MISMA venta (acreditación, episodio, analista) ahora en septiembre y a la nueva fuente');
     perform pg_temp.exigir(pg_temp.cuenta_conversion('2026-10-01') = v_oct - 1 and pg_temp.cuenta_conversion('2026-09-01') = v_sep + 1,
       format('V1: la conversión se muda de octubre a septiembre (oct %s → %s, sep %s → %s)', v_oct, pg_temp.cuenta_conversion('2026-10-01'), v_sep, pg_temp.cuenta_conversion('2026-09-01')));
+    set constraints all immediate; set constraints all deferred;
+    perform pg_temp.exigir(coalesce((pg_temp.foto_capital('2026-10-01') ->> 'PEN')::numeric, 0) = coalesce((v_cap_oct ->> 'PEN')::numeric, 0) - 3000
+        and coalesce((pg_temp.foto_capital('2026-09-01') ->> 'PEN')::numeric, 0) = coalesce((v_cap_sep ->> 'PEN')::numeric, 0) + 3000,
+      format('V1: el capital de K1 (3 000 PEN) se muda de octubre a septiembre (oct %s → %s, sep %s → %s)', v_cap_oct, pg_temp.foto_capital('2026-10-01'), v_cap_sep, pg_temp.foto_capital('2026-09-01')));
     -- Idempotencia: el mismo pedido devuelve lo mismo; otro pedido, se niega.
     r2 := pg_temp.reemplazar(a2, k1, 'La fecha se registró mal', '{"fecha_comercial": "2026-09-15"}');
     perform pg_temp.exigir((r2 ->> 'idempotente')::boolean and (r2 ->> 'cierre_id')::uuid = v_nuevo and (r2 ->> 'auditoria_id')::uuid = v_copia.id,
@@ -428,10 +472,10 @@ begin
   raise notice 'PASS V1 cambio de fecha: la venta se muda de mes, la copia «reemplazada por», idempotencia y cadena';
 end $v1$;
 
--- V2 · K2 cambia de cooperativa (qorilazo → prodelco), mismo mes; lo hace un admin del portal SIN rol del CRM (a1).
+-- V2 · K2 cambia de cooperativa (qorilazo → prodelco), mismo mes; lo hace Gerencia SIN ser admin del portal (a3).
 do $v2$
 declare
-  a1 constant uuid := 'a0000000-0000-4000-8000-0000000000a1';
+  a1 constant uuid := 'a0000000-0000-4000-8000-0000000000a3';
   f2 constant uuid := 'f2000000-0000-4000-8000-000000000002';
   k2 uuid := pg_temp.sembrado('k2');
   v_acr_antes crm.conversion_acreditaciones%rowtype := pg_temp.acr(f2);
@@ -445,14 +489,15 @@ begin
         and (r #>> '{conversion,periodo_antes}')::date = (r #>> '{conversion,periodo_despues}')::date, format('V2: el acuse (%s)', r));
     perform pg_temp.exigir((select ce.cooperativa = 'prodelco' and ce.fecha_comercial = date '2026-10-12' and ce.vence_en = date '2027-10-12' from crm.cierres_externos ce where ce.id = v_nuevo)
         and exists (select 1 from crm.inversiones i where i.cierre_externo_id = v_nuevo and i.empresa_id = (select e.id from crm.empresas e where e.clave = 'prodelco'))
-        and (select e.rol_actor = 'admin' and not e.conversion_anulada from crm.inversiones_eliminadas e where e.fuente_id = k2),
-      'V2: la nueva es de Prodelco (empresa de la inversión incluida); la copia registra al admin del portal');
+        and (select e.rol_actor = 'gerencia' and not e.conversion_anulada from crm.inversiones_eliminadas e where e.fuente_id = k2),
+      'V2: la nueva es de Prodelco (empresa de la inversión incluida); la copia registra a Gerencia');
     perform pg_temp.exigir((pg_temp.acr(f2)).id = v_acr_antes.id and (pg_temp.acr(f2)).fuente_id = v_nuevo and (pg_temp.acr(f2)).periodo_comercial = date '2026-10-01'
         and pg_temp.cuenta_conversion('2026-10-01') = v_oct, 'V2: la venta sigue en octubre, misma acreditación, misma conversión');
+    set constraints all immediate; set constraints all deferred;
     perform pg_temp.deshacer();
   exception when sqlstate 'P7999' then null;
   end;
-  raise notice 'PASS V2 cambio de cooperativa por un admin del portal: misma venta y mes';
+  raise notice 'PASS V2 cambio de cooperativa por Gerencia sin portal: misma venta y mes';
 end $v2$;
 
 -- V3 · K1 con comprobante NUEVO: la ruta de reemplazo pasa la política de subida (Gerencia y admin sí; vendedor no), el
@@ -470,7 +515,8 @@ begin
   begin
     -- La política de SUBIDA: antes de subir nada.
     perform pg_temp.como(a2); select private.f4_comprobante_autorizado(v_ruta) into v_ok; perform pg_temp.exigir(v_ok, 'V3: Gerencia puede subir la ruta de reemplazo');
-    perform pg_temp.como(a1); select private.f4_comprobante_autorizado(v_ruta) into v_ok; perform pg_temp.exigir(v_ok, 'V3: el admin del portal también');
+    perform pg_temp.como('a0000000-0000-4000-8000-0000000000a3'); select private.f4_comprobante_autorizado(v_ruta) into v_ok; perform pg_temp.exigir(v_ok, 'V3: Gerencia sin portal también');
+    perform pg_temp.como(a1); select private.f4_comprobante_autorizado(v_ruta) into v_ok; perform pg_temp.exigir(not v_ok, 'V3: el admin del portal sin Gerencia no');
     perform pg_temp.como(a4); select private.f4_comprobante_autorizado(v_ruta) into v_ok; perform pg_temp.exigir(not v_ok, 'V3: un vendedor no');
     perform pg_temp.como(a2);
     select private.f4_comprobante_autorizado('b2000000-0000-4000-8000-000000000002/reemplazo-' || k1 || '/nuevo.pdf') into v_ok;
@@ -497,11 +543,18 @@ begin
     perform pg_temp.como(a4); select private.f4_comprobante_visible(v_ruta) into v_ok; perform pg_temp.exigir(v_ok, 'V3: el responsable de la relación lo ve');
     perform pg_temp.como(a7); select private.f4_comprobante_visible(v_ruta) into v_ok; perform pg_temp.exigir(not v_ok, 'V3: otro vendedor no lo ve');
     perform pg_temp.como(null);
+    -- Un SEGUNDO reemplazo con OTRO comprobante: el primero queda en la copia de la inversión reemplazada y lo sigue viendo Gerencia.
+    perform pg_temp.objeto('b2000000-0000-4000-8000-000000000001/reemplazo-' || v_nuevo || '/otro.pdf');
+    r := pg_temp.reemplazar(a2, v_nuevo, 'Otro comprobante más', jsonb_build_object('comprobante_ruta', 'b2000000-0000-4000-8000-000000000001/reemplazo-' || v_nuevo || '/otro.pdf'));
+    perform pg_temp.como(a2); select private.f4_comprobante_visible(v_ruta) into v_ok; perform pg_temp.exigir(v_ok, 'V3: el comprobante de la copia (historia) lo ve Gerencia');
+    perform pg_temp.como(a4); select private.f4_comprobante_visible(v_ruta) into v_ok; perform pg_temp.exigir(not v_ok, 'V3: el comprobante de la copia no lo ve el responsable (solo Gerencia)');
+    perform pg_temp.como(null);
+    set constraints all immediate; set constraints all deferred;
     perform pg_temp.deshacer();
   exception when sqlstate 'P7999' then null;
   end;
   perform pg_temp.como(null);
-  raise notice 'PASS V3 comprobante nuevo: la política de subida (quién y qué ruta), el reemplazo lo usa, la visibilidad después';
+  raise notice 'PASS V3 comprobante nuevo: la política de subida (quién y qué ruta), el reemplazo lo usa, la visibilidad después y la de la copia';
 end $v3$;
 
 -- V4 · Cotitulares: la nueva inversión hereda los titulares no principales de la original.
@@ -524,11 +577,54 @@ begin
         and exists (select 1 from crm.inversion_titulares t join crm.inversiones i on i.id = t.inversion_id
                     where i.cierre_externo_id = v_nuevo and t.rol = 'cotitular' and t.inversionista_id = 'b2000000-0000-4000-8000-000000000009'),
       'V4: la nueva inversión tiene al titular principal y al cotitular de la original');
+    set constraints all immediate; set constraints all deferred;
     perform pg_temp.deshacer();
   exception when sqlstate 'P7999' then null;
   end;
   raise notice 'PASS V4 cotitulares heredados';
 end $v4$;
+
+-- V5 · Identidad fusionada: la inversión K6 apunta a b6, fusionada en b8 (la canónica, la que ve la ficha). El comprobante nuevo
+-- va en la carpeta de b8: la regla del bucket y el núcleo exigen la misma carpeta; la de b6 no vale en ninguna de las dos.
+do $v5$
+declare
+  a2 constant uuid := 'a0000000-0000-4000-8000-0000000000a2';
+  k6 uuid := pg_temp.sembrado('k6');
+  b6 constant uuid := 'b2000000-0000-4000-8000-000000000006';
+  b8 constant uuid := 'b2000000-0000-4000-8000-000000000008';
+  v_ruta text := 'b2000000-0000-4000-8000-000000000008/reemplazo-' || pg_temp.sembrado('k6') || '/nuevo.pdf';
+  v_ruta_vieja text := 'b2000000-0000-4000-8000-000000000006/reemplazo-' || pg_temp.sembrado('k6') || '/nuevo.pdf';
+  v_ok boolean; r jsonb;
+begin
+  begin
+    set local session_replication_role = replica;
+    insert into crm.inversionistas (id, estado, perfil_id, responsable_relacion_id, no_contactar, creado_por)
+      values (b8, 'activo', null, 'a0000000-0000-4000-8000-0000000000a7', false, a2);
+    update crm.inversionistas set estado = 'fusionado', inversionista_canonico_id = b8, fusionado_en = now() where id = b6;
+    set local session_replication_role = origin;
+    perform pg_temp.exigir(private.inversionista_canonica(b6) = b8, 'V5: b6 fusionada en b8');
+    perform pg_temp.como(a2);
+    select private.f4_comprobante_autorizado(v_ruta) into v_ok; perform pg_temp.exigir(v_ok, 'V5: el bucket admite la carpeta de la canónica');
+    select private.f4_comprobante_autorizado(v_ruta_vieja) into v_ok; perform pg_temp.exigir(not v_ok, 'V5: el bucket no admite la carpeta de la fusionada');
+    perform pg_temp.como(null);
+    perform pg_temp.objeto(v_ruta);
+    perform pg_temp.objeto(v_ruta_vieja);
+    perform pg_temp.rechaza(pg_temp.sql_reemplazar(a2, k6, 'El comprobante era de otra operación', jsonb_build_object('comprobante_ruta', v_ruta_vieja)), '22023', 'carpeta de esta inversión');
+    r := pg_temp.reemplazar(a2, k6, 'El comprobante era de otra operación', jsonb_build_object('comprobante_ruta', v_ruta));
+    perform pg_temp.exigir((r ->> 'comprobante_cambiado')::boolean
+        and exists (select 1 from crm.inversiones i where i.cierre_externo_id = (r ->> 'cierre_id')::uuid and i.inversionista_id = b8),
+      'V5: con la carpeta de la canónica el reemplazo pasa y la inversión nueva es de la canónica');
+    set constraints all immediate; set constraints all deferred;
+    perform pg_temp.deshacer();
+  exception when sqlstate 'P7999' then null;
+  end;
+  perform pg_temp.como(null);
+  raise notice 'PASS V5 identidad fusionada: la carpeta del comprobante es la de la persona canónica, en el bucket y en el núcleo';
+end $v5$;
+
+-- (No hay V6: con la política vigente, todo lead con acreditación tiene su asignación convertida desde septiembre, así que el
+-- trigger del alta siempre mueve la venta; un fixture con la asignación en agosto rompe la integridad del ledger («2 episodios
+-- de cierre»). La llamada explícita a private.conversion_acreditar_fuente del núcleo es una red idempotente, no una ruta viva.)
 
 -- ── D · Después de todo: nada quedó a medias ────────────────────────────────────────────────────────────────────────────
 do $d$
@@ -540,5 +636,5 @@ begin
   end loop;
   perform pg_temp.exigir(not exists (select 1 from crm.inversiones_eliminadas e where e.fuente_tipo = 'cierre_externo' and e.reemplazada_por is not null),
     'D: ninguna copia «reemplazada por» quedó (todo se deshizo)');
-  raise notice 'PASS reemplazar_cooperativa: 11 bloques (S, C, P, R1, R2, R3, V1, V2, V3, V4, D); se revierte';
+  raise notice 'PASS reemplazar_cooperativa: 12 bloques (S, C, P, R1, R2, R3, V1, V2, V3, V4, V5, D); se revierte';
 end $d$;

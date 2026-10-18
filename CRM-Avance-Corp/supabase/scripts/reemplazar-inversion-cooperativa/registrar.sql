@@ -1,7 +1,7 @@
 -- REGISTRO en supabase_migrations.schema_migrations de 20261018053228_crm_reemplazar_inversion_cooperativa.
 -- GENERADO por generar-registrador.mjs: no editar a mano. `db query --linked --file` NO registra: correr DESPUÉS de aplicar
 -- la migración. Idempotente; se niega si los objetos no están, o si la versión ya está registrada con otro nombre u otro contenido.
--- statements = el archivo entero (md5 1bf91b3039d55a21119d17c763a67c63).
+-- statements = el archivo entero (md5 035fe97818226b21169173757e0cecbb).
 begin;
 set local lock_timeout = '5s';
 select pg_advisory_xact_lock(hashtext('crm_reemplazar_inversion_cooperativa_registro'));
@@ -23,7 +23,9 @@ begin
 --   · Alcance: SOLO lo que «Corregir» (crm.inversionista_corregir_coopac_fn) no corrige: la cooperativa, la fecha comercial (el
 --     mes de la venta) y el comprobante. Monto, moneda, plazo, tasa, número de operación, referencia y nota NO cambian aquí:
 --     el reemplazo los copia tal cual de la original (para eso está «Corregir», que conserva la venta).
---   · Quién: Gerencia o admin del portal (los mismos que hoy eliminan una cooperativa).
+--   · Quién: SOLO Gerencia (auditor-rls, 18/10): toda inversión de cooperativa reemplazable es la venta inicial de un lead, y la
+--     venta de un lead la toca solo Gerencia en «Eliminar inversión» (anular) y en «Reemplazar» de Avance. Un admin del portal
+--     que no sea Gerencia del CRM no reemplaza.
 --   · Comprobante: se reutiliza el de la original salvo que suban otro (p_cierre ->> 'comprobante_ruta').
 --   · Rechazos: los de Avance (mes sellado, plazo de carga vencido, venta anulada, lead por revisar) más «ya tiene
 --     movimientos» (private.inversion_motivo_no_eliminable: reinversión, retiro, ajustes de mes cerrado, eventos propios).
@@ -65,6 +67,7 @@ select pg_advisory_lock(hashtext('crm_migracion_funciones'));
 commit;
 
 begin;
+set transaction isolation level repeatable read;
 set local lock_timeout = '10s';
 set local statement_timeout = '120s';
 set local search_path = '';
@@ -257,7 +260,7 @@ as $function$
 declare
   v_portal text := p_roles ->> 'portal';
   v_gerencia boolean := coalesce((p_roles ->> 'gerencia')::boolean, false);
-  v_rol text := case when v_gerencia then 'gerencia' else v_portal end;
+  v_rol text := 'gerencia';
   v_ctx jsonb;
   v_no text;
   v_previo crm.inversiones_eliminadas%rowtype;
@@ -291,8 +294,11 @@ begin
   if p_fuente is null then
     raise exception 'Indica la inversión que se reemplaza' using errcode = '22023';
   end if;
-  if v_rol is null then
+  if v_portal is null and not v_gerencia then
     raise exception 'Solo admin o gerencia pueden reemplazar inversiones' using errcode = '42501';
+  end if;
+  if not v_gerencia then
+    raise exception 'Solo gerencia puede reemplazar una inversión de cooperativa: es la venta de un lead' using errcode = '42501';
   end if;
   if p_cierre is not null and jsonb_typeof(p_cierre) <> 'object' then
     raise exception 'Los datos del reemplazo no son válidos' using errcode = '22023';
@@ -316,9 +322,14 @@ begin
         raise exception 'Esta inversión ya se reemplazó con otros datos; no se hizo otro cambio'
           using errcode = 'P0409', hint = 'REEMPLAZO_YA_HECHO_CON_OTROS_DATOS';
       end if;
+      -- Los datos de la que quedó: vivos, o de su copia si a su vez ya se reemplazó (cadena A → B → C).
       return jsonb_build_object('ok', true, 'idempotente', true, 'fuente_id', p_fuente, 'cierre_id', v_previo.reemplazada_por,
-        'auditoria_id', v_previo.id, 'cooperativa', (select ce.cooperativa from crm.cierres_externos ce where ce.id = v_previo.reemplazada_por),
-        'fecha_comercial', (select ce.fecha_comercial from crm.cierres_externos ce where ce.id = v_previo.reemplazada_por));
+        'auditoria_id', v_previo.id,
+        'cooperativa', coalesce((select ce.cooperativa from crm.cierres_externos ce where ce.id = v_previo.reemplazada_por),
+          (select e2.snapshot #>> '{cierre,cooperativa}' from crm.inversiones_eliminadas e2 where e2.fuente_tipo = 'cierre_externo' and e2.fuente_id = v_previo.reemplazada_por)),
+        'fecha_comercial', coalesce((select ce.fecha_comercial from crm.cierres_externos ce where ce.id = v_previo.reemplazada_por),
+          (select (e2.snapshot #>> '{cierre,fecha_comercial}')::date from crm.inversiones_eliminadas e2 where e2.fuente_tipo = 'cierre_externo' and e2.fuente_id = v_previo.reemplazada_por)),
+        'vigente', exists (select 1 from crm.cierres_externos ce where ce.id = v_previo.reemplazada_por));
     end if;
     raise exception 'La inversión no existe o ya fue eliminada' using errcode = 'P0002';
   end if;
@@ -339,6 +350,11 @@ begin
   end if;
   if not v_ce.es_cierre_inicial then
     raise exception 'Solo se reemplaza la inversión inicial de la cooperativa (la venta del lead); un aporte adicional se corrige con «Corregir» o se elimina'
+      using errcode = 'P0409';
+  end if;
+  -- Un origen de capital confirmado por Gerencia apunta al cierre por id (sin FK): el reemplazo no lo traslada a ciegas.
+  if exists (select 1 from crm.origenes_capital_confirmados o where o.cierre_externo_id = p_fuente and o.activo) then
+    raise exception 'Esta inversión tiene un origen de capital confirmado por Gerencia; requiere revisión antes de reemplazar'
       using errcode = 'P0409';
   end if;
   v_es_conversion := coalesce((v_ctx ->> 'es_conversion')::boolean, false);
@@ -379,16 +395,23 @@ begin
   if v_fecha > v_hoy then
     raise exception 'La fecha comercial no puede ser futura' using errcode = '22023';
   end if;
+  -- La persona CANÓNICA de la inversión (una identidad fusionada apunta a la que quedó): la carpeta del comprobante, la
+  -- regla del bucket y la ficha hablan de ella.
+  v_persona := private.inversionista_canonica(v_ce.inversionista_id);
   v_ruta := nullif(btrim(p_cierre ->> 'comprobante_ruta'), '');
   if v_ruta is not null then
-    -- El comprobante nuevo: ya subido al bucket por la pantalla, en la carpeta de ESTA persona (como exige el alta).
-    if v_ruta !~ ('^' || v_ce.inversionista_id::text || '/[A-Za-z0-9_/-]+\.(pdf|jpg|jpeg|png)$') then
-      raise exception 'El comprobante tiene que estar en la carpeta de esta persona (PDF, JPG o PNG)' using errcode = '22023';
+    -- El comprobante nuevo: ya subido al bucket por la pantalla, en la carpeta de ESTA persona y de ESTA inversión (la misma
+    -- ruta que autoriza la regla del bucket): un archivo subido para otro reemplazo no se adopta.
+    if (v_ruta ~ ('^' || v_persona::text || '/reemplazo-' || p_fuente::text || '/[A-Za-z0-9_-]+\.(pdf|jpg|jpeg|png)$')) is not true then
+      raise exception 'El comprobante tiene que estar en la carpeta de esta inversión (PDF, JPG o PNG)' using errcode = '22023';
     end if;
     select * into v_obj from storage.objects o where o.bucket_id = 'f4-comprobantes' and o.name = v_ruta for key share;
     if v_obj.id is null or coalesce((v_obj.metadata ->> 'size')::bigint, 0) not between 1 and 10485760
        or coalesce(v_obj.metadata ->> 'mimetype', '') not in ('application/pdf', 'image/jpeg', 'image/png') then
       raise exception 'Sube el comprobante válido antes de confirmar el reemplazo' using errcode = 'P0409';
+    end if;
+    if exists (select 1 from crm.cierres_externos ce2 where ce2.comprobante_objeto_id = v_obj.id) then
+      raise exception 'Ese comprobante ya respalda otra inversión; sube el de esta' using errcode = 'P0409';
     end if;
     v_obj_id := v_obj.id;
   else
@@ -438,9 +461,9 @@ begin
       pg_catalog.to_char(v_fecha, 'MM/YYYY') using errcode = 'P0409';
   end if;
 
-  -- Lo que la nueva hereda de la inversión: la persona canónica, la marca de primera conversión y los cotitulares.
-  v_persona := private.inversionista_canonica(v_ce.inversionista_id);
+  -- Lo que la nueva hereda de la inversión: la marca de primera conversión y los cotitulares (bloqueados antes de leerlos).
   select i.es_primera_conversion into v_primera from crm.inversiones i where i.id = (v_ctx ->> 'inversion_id')::uuid;
+  perform 1 from crm.inversion_titulares t where t.inversion_id = (v_ctx ->> 'inversion_id')::uuid order by t.id for update;
   v_titulares := coalesce((select jsonb_agg(jsonb_build_object('inversionista_id', t.inversionista_id, 'rol', t.rol) order by t.id)
     from crm.inversion_titulares t where t.inversion_id = (v_ctx ->> 'inversion_id')::uuid and t.rol <> 'principal'), '[]'::jsonb);
 
@@ -464,9 +487,12 @@ begin
     insert into crm.depositos_reclamados (numero_norm, cierre_id, reclamado_por)
     values (upper(btrim(v_ce.numero_transaccion)), v_nuevo, p_actor);
   exception when unique_violation then
-    raise exception 'Ese número de operación del depósito ya está registrado en otra inversión; no se hizo ningún cambio' using errcode = 'P0409';
+    raise exception 'Ese número de operación del depósito (o un cierre inicial de ese lead) ya está registrado; no se hizo ningún cambio' using errcode = 'P0409';
+  when check_violation or not_null_violation or foreign_key_violation then
+    -- Sin el DETAIL («Failing row contains…»): traería la fila con documento y nombre.
+    raise exception 'La inversión nueva no es válida; requiere revisión. No se hizo ningún cambio' using errcode = '55000';
   end;
-  v_inv := private.inversion_vincular_fuente(v_persona, null, v_nuevo, p_actor, coalesce(v_primera, true));
+  v_inv := private.inversion_vincular_fuente(v_persona, null, v_nuevo, p_actor, coalesce(v_primera, false));
   for v_t in select (x ->> 'inversionista_id')::uuid as inversionista_id, x ->> 'rol' as rol from jsonb_array_elements(v_titulares) x loop
     insert into crm.inversion_titulares (inversion_id, inversionista_id, rol, creado_por)
     select v_inv, v_t.inversionista_id, v_t.rol, p_actor
@@ -476,9 +502,9 @@ begin
   values (v_inv, 'registro', left('Reemplazo de inversión: ' || p_motivo, 300), p_actor);
 
   -- e. La venta pasa a la nueva con su único escritor. El trigger del alta (private.conversion_sincronizar_lead) ya la movió al
-  --    insertar la fila si el lead tiene su asignación convertida desde septiembre; esta llamada es la red para cuando no la
-  --    tiene (el motivo que queda en la acreditación es el del primero que la mueve; el del reemplazo está en la copia y en
-  --    el evento «registro»).
+  --    insertar la fila: con la política vigente, todo lead con acreditación tiene su asignación convertida desde septiembre.
+  --    Esta llamada es una red idempotente (no una ruta viva: el banco no encontró un estado íntegro en que haga falta); el
+  --    motivo que queda en la acreditación es el del trigger; el del reemplazo está en la copia y en el evento «registro».
   if v_mueve_venta then
     perform private.conversion_acreditar_fuente(v_lead, 'cierre_externo', v_nuevo, 'Reemplazo de inversión: ' || left(p_motivo, 270));
     -- f. INVARIANTE: misma venta (acreditación, estado, episodio, analista, persona, origen) y el mes de la fecha que queda.
@@ -539,9 +565,16 @@ begin
   if current_setting('transaction_isolation') <> 'read committed' then
     raise exception 'El reemplazo exige READ COMMITTED' using errcode = '0A000';
   end if;
-  v_roles := private.eliminar_inversion_roles(v_uid);
+  begin
+    v_roles := private.eliminar_inversion_roles(v_uid);
+  exception when deadlock_detected or lock_not_available then
+    raise exception 'Otra operación está usando estos datos; vuelve a intentar en unos segundos' using errcode = 'PT409';
+  end;
   if v_roles ->> 'portal' is null and not coalesce((v_roles ->> 'gerencia')::boolean, false) then
     raise exception 'Solo admin o gerencia pueden reemplazar inversiones' using errcode = '42501';
+  end if;
+  if not coalesce((v_roles ->> 'gerencia')::boolean, false) then
+    raise exception 'Solo gerencia puede reemplazar una inversión de cooperativa: es la venta de un lead' using errcode = '42501';
   end if;
   if private.membresia_crm_revocada() then
     raise exception 'Tu membresía del CRM está revocada: no puedes reemplazar inversiones' using errcode = '42501';
@@ -594,6 +627,9 @@ begin
   if v_roles ->> 'portal' is null and not coalesce((v_roles ->> 'gerencia')::boolean, false) then
     raise exception 'Solo admin o gerencia pueden reemplazar inversiones' using errcode = '42501';
   end if;
+  if not coalesce((v_roles ->> 'gerencia')::boolean, false) then
+    raise exception 'Solo gerencia puede reemplazar una inversión de cooperativa: es la venta de un lead' using errcode = '42501';
+  end if;
   if private.membresia_crm_revocada() then
     raise exception 'Tu membresía del CRM está revocada: no puedes reemplazar inversiones' using errcode = '42501';
   end if;
@@ -638,7 +674,7 @@ $function$;
 
 -- ── 3b · El bucket de comprobantes admite el comprobante de un reemplazo ──────────────────────────────────────────────
 -- La regla nueva, aparte (para que el ancla en el ayudante vivo sea una línea): <persona>/reemplazo-<cierre>/<archivo>.ext,
--- subido por Gerencia o admin del portal, para la inversión inicial VIGENTE de ESA persona. El reemplazo vuelve a comprobar
+-- subido por Gerencia, para la inversión inicial VIGENTE de ESA persona. El reemplazo vuelve a comprobar
 -- la ruta y el objeto al confirmar. Fail-closed: cualquier duda devuelve false.
 create function private.f4_comprobante_reemplazo_autorizado(p_ruta text)
 returns boolean
@@ -664,7 +700,7 @@ begin
     return false;
   end;
   v_roles := private.eliminar_inversion_roles(v_uid);
-  if (v_roles ->> 'portal' is null and not coalesce((v_roles ->> 'gerencia')::boolean, false)) or private.membresia_crm_revocada() then
+  if not coalesce((v_roles ->> 'gerencia')::boolean, false) or private.membresia_crm_revocada() then
     return false;
   end if;
   return exists (select 1 from crm.cierres_externos ce
@@ -724,6 +760,14 @@ as $function$
       private.rol_crm((select auth.uid()))='gerencia'
       or i.responsable_relacion_id in (select private.vendedor_ids_visibles((select auth.uid())))
     )
+  ) or exists (
+    -- 18/10/2026: el comprobante de una inversión ya reemplazada (historia, en su copia): solo Gerencia (Codex, P2).
+    select 1 from crm.inversiones_eliminadas e
+    cross join lateral jsonb_array_elements(e.archivos) a
+    join storage.objects o on o.id = (a ->> 'objeto_id')::uuid
+    where p_ruta ~ '^[a-f0-9-]{36}/reemplazo-' and e.fuente_tipo = 'cierre_externo' and e.reemplazada_por is not null
+      and o.bucket_id = 'f4-comprobantes' and o.name = p_ruta
+      and private.rol_crm((select auth.uid()))='gerencia'
   )),false);
 $function$;
 
@@ -732,9 +776,8 @@ revoke all on function private.registrar_inversion_reemplazada_cooperativa(jsonb
   from public, anon, authenticated, service_role;
 revoke all on function private.reemplazar_inversion_cooperativa(uuid, jsonb, uuid, text, jsonb)
   from public, anon, authenticated, service_role;
--- La regla del bucket la llama el ayudante vivo (DEFINER, EXECUTE a authenticated): la nueva, igual que él.
-revoke all on function private.f4_comprobante_reemplazo_autorizado(text) from public, anon, service_role;
-grant execute on function private.f4_comprobante_reemplazo_autorizado(text) to authenticated;
+-- La regla del bucket solo la llama el ayudante vivo (DEFINER de postgres): sin EXECUTE para la API.
+revoke all on function private.f4_comprobante_reemplazo_autorizado(text) from public, anon, authenticated, service_role;
 revoke all on function crm.reemplazar_inversion_cooperativa_fn(uuid, text, jsonb) from public, anon, service_role;
 grant execute on function crm.reemplazar_inversion_cooperativa_fn(uuid, text, jsonb) to authenticated;
 revoke all on function crm.reemplazar_inversion_cooperativa_vista_previa_fn(uuid, date) from public, anon, service_role;
@@ -750,14 +793,14 @@ comment on function private.reemplazar_inversion_cooperativa(uuid, jsonb, uuid, 
   'comprobante; copia el resto de la original; la venta del lead pasa a la nueva con private.conversion_acreditar_fuente. '
   'Rechaza venta anulada, aporte adicional, movimientos, mes sellado y plazo vencido. Idempotente por la original.';
 comment on function private.f4_comprobante_reemplazo_autorizado(text) is
-  'Bucket f4-comprobantes (20261018053228): autoriza subir <persona>/reemplazo-<cierre>/<archivo> a Gerencia o admin del portal '
-  'para la inversión inicial vigente de esa persona. La llama private.f4_comprobante_autorizado; el reemplazo lo revalida.';
+  'Bucket f4-comprobantes (20261018053228): autoriza subir <persona>/reemplazo-<cierre>/<archivo> a Gerencia para la inversión '
+  'inicial vigente de esa persona. La llama private.f4_comprobante_autorizado; el reemplazo exige esa misma ruta al confirmar.';
 comment on function private.f4_comprobante_autorizado(text) is
   'Bucket f4-comprobantes: la ruta de una solicitud preparada (alta) o, desde 20261018053228, la de un reemplazo de '
   'cooperativa (private.f4_comprobante_reemplazo_autorizado).';
 comment on function private.f4_comprobante_visible(text) is
   'Bucket f4-comprobantes: visible la ruta de una solicitud del inversionista visible y, desde 20261018053228, la del '
-  'comprobante que ya respalda una inversión de cooperativa, con la misma visibilidad que la ficha.';
+  'comprobante que ya respalda una inversión de cooperativa (como la ficha) o el de una inversión ya reemplazada (su copia; Gerencia).';
 comment on function crm.reemplazar_inversion_cooperativa_fn(uuid, text, jsonb) is
   'Puerta de «Reemplazar inversión» para cooperativas (Gerencia o admin del portal): p_cierre = {cooperativa?, '
   'fecha_comercial?, comprobante_ruta?}. Valida sesión, roles, membresía y motivo (5–300) y delega en el núcleo.';
@@ -773,17 +816,24 @@ begin
       from pg_catalog.pg_proc p
       where p.oid in ('private.f4_comprobante_autorizado(text)'::regprocedure, 'private.f4_comprobante_visible(text)'::regprocedure))
      is distinct from 'private.f4_comprobante_autorizado(text)=cdecad21e77c38d023ba156efd8faa74,'
-                      'private.f4_comprobante_visible(text)=d5e74abf371a35c677d42da9abb2ff82' then
+                      'private.f4_comprobante_visible(text)=32739f4abf073f33ac3fc2191312e2bc' then
     raise exception 'POSTFLIGHT reemplazar_cooperativa: un ayudante del bucket no quedó como se ensayó';
   end if;
   if exists (select 1 from pg_catalog.pg_proc p
-             where p.oid in ('private.f4_comprobante_autorizado(text)'::regprocedure, 'private.f4_comprobante_visible(text)'::regprocedure,
-                             'private.f4_comprobante_reemplazo_autorizado(text)'::regprocedure)
+             where p.oid in ('private.f4_comprobante_autorizado(text)'::regprocedure, 'private.f4_comprobante_visible(text)'::regprocedure)
                and (p.proowner <> 'postgres'::regrole or not p.prosecdef or not ('search_path=""' = any (p.proconfig))
                     or not has_function_privilege('authenticated', p.oid, 'execute') or has_function_privilege('anon', p.oid, 'execute')
                     or has_function_privilege('service_role', p.oid, 'execute')
                     or p.proacl is null or exists (select 1 from unnest(p.proacl) x where x::text like '=X/%'))) then
     raise exception 'POSTFLIGHT reemplazar_cooperativa: los ayudantes del bucket tienen que ser DEFINER de postgres, search_path vacío y EXECUTE solo authenticated';
+  end if;
+  if exists (select 1 from pg_catalog.pg_proc p
+             where p.oid = 'private.f4_comprobante_reemplazo_autorizado(text)'::regprocedure
+               and (p.proowner <> 'postgres'::regrole or not p.prosecdef or not ('search_path=""' = any (p.proconfig))
+                    or has_function_privilege('authenticated', p.oid, 'execute') or has_function_privilege('anon', p.oid, 'execute')
+                    or has_function_privilege('service_role', p.oid, 'execute')
+                    or p.proacl is null or exists (select 1 from unnest(p.proacl) x where x::text like '=X/%'))) then
+    raise exception 'POSTFLIGHT reemplazar_cooperativa: la regla del bucket tiene que ser DEFINER de postgres, search_path vacío y sin EXECUTE para la API';
   end if;
   -- Dueño postgres; el núcleo y la copia INVOKER y sin EXECUTE para la API; las puertas DEFINER con EXECUTE solo authenticated.
   if exists (select 1 from pg_catalog.pg_proc p
@@ -859,7 +909,9 @@ values ('20261018053228', 'crm_reemplazar_inversion_cooperativa', array[$mig$-- 
 --   · Alcance: SOLO lo que «Corregir» (crm.inversionista_corregir_coopac_fn) no corrige: la cooperativa, la fecha comercial (el
 --     mes de la venta) y el comprobante. Monto, moneda, plazo, tasa, número de operación, referencia y nota NO cambian aquí:
 --     el reemplazo los copia tal cual de la original (para eso está «Corregir», que conserva la venta).
---   · Quién: Gerencia o admin del portal (los mismos que hoy eliminan una cooperativa).
+--   · Quién: SOLO Gerencia (auditor-rls, 18/10): toda inversión de cooperativa reemplazable es la venta inicial de un lead, y la
+--     venta de un lead la toca solo Gerencia en «Eliminar inversión» (anular) y en «Reemplazar» de Avance. Un admin del portal
+--     que no sea Gerencia del CRM no reemplaza.
 --   · Comprobante: se reutiliza el de la original salvo que suban otro (p_cierre ->> 'comprobante_ruta').
 --   · Rechazos: los de Avance (mes sellado, plazo de carga vencido, venta anulada, lead por revisar) más «ya tiene
 --     movimientos» (private.inversion_motivo_no_eliminable: reinversión, retiro, ajustes de mes cerrado, eventos propios).
@@ -901,6 +953,7 @@ select pg_advisory_lock(hashtext('crm_migracion_funciones'));
 commit;
 
 begin;
+set transaction isolation level repeatable read;
 set local lock_timeout = '10s';
 set local statement_timeout = '120s';
 set local search_path = '';
@@ -1093,7 +1146,7 @@ as $function$
 declare
   v_portal text := p_roles ->> 'portal';
   v_gerencia boolean := coalesce((p_roles ->> 'gerencia')::boolean, false);
-  v_rol text := case when v_gerencia then 'gerencia' else v_portal end;
+  v_rol text := 'gerencia';
   v_ctx jsonb;
   v_no text;
   v_previo crm.inversiones_eliminadas%rowtype;
@@ -1127,8 +1180,11 @@ begin
   if p_fuente is null then
     raise exception 'Indica la inversión que se reemplaza' using errcode = '22023';
   end if;
-  if v_rol is null then
+  if v_portal is null and not v_gerencia then
     raise exception 'Solo admin o gerencia pueden reemplazar inversiones' using errcode = '42501';
+  end if;
+  if not v_gerencia then
+    raise exception 'Solo gerencia puede reemplazar una inversión de cooperativa: es la venta de un lead' using errcode = '42501';
   end if;
   if p_cierre is not null and jsonb_typeof(p_cierre) <> 'object' then
     raise exception 'Los datos del reemplazo no son válidos' using errcode = '22023';
@@ -1152,9 +1208,14 @@ begin
         raise exception 'Esta inversión ya se reemplazó con otros datos; no se hizo otro cambio'
           using errcode = 'P0409', hint = 'REEMPLAZO_YA_HECHO_CON_OTROS_DATOS';
       end if;
+      -- Los datos de la que quedó: vivos, o de su copia si a su vez ya se reemplazó (cadena A → B → C).
       return jsonb_build_object('ok', true, 'idempotente', true, 'fuente_id', p_fuente, 'cierre_id', v_previo.reemplazada_por,
-        'auditoria_id', v_previo.id, 'cooperativa', (select ce.cooperativa from crm.cierres_externos ce where ce.id = v_previo.reemplazada_por),
-        'fecha_comercial', (select ce.fecha_comercial from crm.cierres_externos ce where ce.id = v_previo.reemplazada_por));
+        'auditoria_id', v_previo.id,
+        'cooperativa', coalesce((select ce.cooperativa from crm.cierres_externos ce where ce.id = v_previo.reemplazada_por),
+          (select e2.snapshot #>> '{cierre,cooperativa}' from crm.inversiones_eliminadas e2 where e2.fuente_tipo = 'cierre_externo' and e2.fuente_id = v_previo.reemplazada_por)),
+        'fecha_comercial', coalesce((select ce.fecha_comercial from crm.cierres_externos ce where ce.id = v_previo.reemplazada_por),
+          (select (e2.snapshot #>> '{cierre,fecha_comercial}')::date from crm.inversiones_eliminadas e2 where e2.fuente_tipo = 'cierre_externo' and e2.fuente_id = v_previo.reemplazada_por)),
+        'vigente', exists (select 1 from crm.cierres_externos ce where ce.id = v_previo.reemplazada_por));
     end if;
     raise exception 'La inversión no existe o ya fue eliminada' using errcode = 'P0002';
   end if;
@@ -1175,6 +1236,11 @@ begin
   end if;
   if not v_ce.es_cierre_inicial then
     raise exception 'Solo se reemplaza la inversión inicial de la cooperativa (la venta del lead); un aporte adicional se corrige con «Corregir» o se elimina'
+      using errcode = 'P0409';
+  end if;
+  -- Un origen de capital confirmado por Gerencia apunta al cierre por id (sin FK): el reemplazo no lo traslada a ciegas.
+  if exists (select 1 from crm.origenes_capital_confirmados o where o.cierre_externo_id = p_fuente and o.activo) then
+    raise exception 'Esta inversión tiene un origen de capital confirmado por Gerencia; requiere revisión antes de reemplazar'
       using errcode = 'P0409';
   end if;
   v_es_conversion := coalesce((v_ctx ->> 'es_conversion')::boolean, false);
@@ -1215,16 +1281,23 @@ begin
   if v_fecha > v_hoy then
     raise exception 'La fecha comercial no puede ser futura' using errcode = '22023';
   end if;
+  -- La persona CANÓNICA de la inversión (una identidad fusionada apunta a la que quedó): la carpeta del comprobante, la
+  -- regla del bucket y la ficha hablan de ella.
+  v_persona := private.inversionista_canonica(v_ce.inversionista_id);
   v_ruta := nullif(btrim(p_cierre ->> 'comprobante_ruta'), '');
   if v_ruta is not null then
-    -- El comprobante nuevo: ya subido al bucket por la pantalla, en la carpeta de ESTA persona (como exige el alta).
-    if v_ruta !~ ('^' || v_ce.inversionista_id::text || '/[A-Za-z0-9_/-]+\.(pdf|jpg|jpeg|png)$') then
-      raise exception 'El comprobante tiene que estar en la carpeta de esta persona (PDF, JPG o PNG)' using errcode = '22023';
+    -- El comprobante nuevo: ya subido al bucket por la pantalla, en la carpeta de ESTA persona y de ESTA inversión (la misma
+    -- ruta que autoriza la regla del bucket): un archivo subido para otro reemplazo no se adopta.
+    if (v_ruta ~ ('^' || v_persona::text || '/reemplazo-' || p_fuente::text || '/[A-Za-z0-9_-]+\.(pdf|jpg|jpeg|png)$')) is not true then
+      raise exception 'El comprobante tiene que estar en la carpeta de esta inversión (PDF, JPG o PNG)' using errcode = '22023';
     end if;
     select * into v_obj from storage.objects o where o.bucket_id = 'f4-comprobantes' and o.name = v_ruta for key share;
     if v_obj.id is null or coalesce((v_obj.metadata ->> 'size')::bigint, 0) not between 1 and 10485760
        or coalesce(v_obj.metadata ->> 'mimetype', '') not in ('application/pdf', 'image/jpeg', 'image/png') then
       raise exception 'Sube el comprobante válido antes de confirmar el reemplazo' using errcode = 'P0409';
+    end if;
+    if exists (select 1 from crm.cierres_externos ce2 where ce2.comprobante_objeto_id = v_obj.id) then
+      raise exception 'Ese comprobante ya respalda otra inversión; sube el de esta' using errcode = 'P0409';
     end if;
     v_obj_id := v_obj.id;
   else
@@ -1274,9 +1347,9 @@ begin
       pg_catalog.to_char(v_fecha, 'MM/YYYY') using errcode = 'P0409';
   end if;
 
-  -- Lo que la nueva hereda de la inversión: la persona canónica, la marca de primera conversión y los cotitulares.
-  v_persona := private.inversionista_canonica(v_ce.inversionista_id);
+  -- Lo que la nueva hereda de la inversión: la marca de primera conversión y los cotitulares (bloqueados antes de leerlos).
   select i.es_primera_conversion into v_primera from crm.inversiones i where i.id = (v_ctx ->> 'inversion_id')::uuid;
+  perform 1 from crm.inversion_titulares t where t.inversion_id = (v_ctx ->> 'inversion_id')::uuid order by t.id for update;
   v_titulares := coalesce((select jsonb_agg(jsonb_build_object('inversionista_id', t.inversionista_id, 'rol', t.rol) order by t.id)
     from crm.inversion_titulares t where t.inversion_id = (v_ctx ->> 'inversion_id')::uuid and t.rol <> 'principal'), '[]'::jsonb);
 
@@ -1300,9 +1373,12 @@ begin
     insert into crm.depositos_reclamados (numero_norm, cierre_id, reclamado_por)
     values (upper(btrim(v_ce.numero_transaccion)), v_nuevo, p_actor);
   exception when unique_violation then
-    raise exception 'Ese número de operación del depósito ya está registrado en otra inversión; no se hizo ningún cambio' using errcode = 'P0409';
+    raise exception 'Ese número de operación del depósito (o un cierre inicial de ese lead) ya está registrado; no se hizo ningún cambio' using errcode = 'P0409';
+  when check_violation or not_null_violation or foreign_key_violation then
+    -- Sin el DETAIL («Failing row contains…»): traería la fila con documento y nombre.
+    raise exception 'La inversión nueva no es válida; requiere revisión. No se hizo ningún cambio' using errcode = '55000';
   end;
-  v_inv := private.inversion_vincular_fuente(v_persona, null, v_nuevo, p_actor, coalesce(v_primera, true));
+  v_inv := private.inversion_vincular_fuente(v_persona, null, v_nuevo, p_actor, coalesce(v_primera, false));
   for v_t in select (x ->> 'inversionista_id')::uuid as inversionista_id, x ->> 'rol' as rol from jsonb_array_elements(v_titulares) x loop
     insert into crm.inversion_titulares (inversion_id, inversionista_id, rol, creado_por)
     select v_inv, v_t.inversionista_id, v_t.rol, p_actor
@@ -1312,9 +1388,9 @@ begin
   values (v_inv, 'registro', left('Reemplazo de inversión: ' || p_motivo, 300), p_actor);
 
   -- e. La venta pasa a la nueva con su único escritor. El trigger del alta (private.conversion_sincronizar_lead) ya la movió al
-  --    insertar la fila si el lead tiene su asignación convertida desde septiembre; esta llamada es la red para cuando no la
-  --    tiene (el motivo que queda en la acreditación es el del primero que la mueve; el del reemplazo está en la copia y en
-  --    el evento «registro»).
+  --    insertar la fila: con la política vigente, todo lead con acreditación tiene su asignación convertida desde septiembre.
+  --    Esta llamada es una red idempotente (no una ruta viva: el banco no encontró un estado íntegro en que haga falta); el
+  --    motivo que queda en la acreditación es el del trigger; el del reemplazo está en la copia y en el evento «registro».
   if v_mueve_venta then
     perform private.conversion_acreditar_fuente(v_lead, 'cierre_externo', v_nuevo, 'Reemplazo de inversión: ' || left(p_motivo, 270));
     -- f. INVARIANTE: misma venta (acreditación, estado, episodio, analista, persona, origen) y el mes de la fecha que queda.
@@ -1375,9 +1451,16 @@ begin
   if current_setting('transaction_isolation') <> 'read committed' then
     raise exception 'El reemplazo exige READ COMMITTED' using errcode = '0A000';
   end if;
-  v_roles := private.eliminar_inversion_roles(v_uid);
+  begin
+    v_roles := private.eliminar_inversion_roles(v_uid);
+  exception when deadlock_detected or lock_not_available then
+    raise exception 'Otra operación está usando estos datos; vuelve a intentar en unos segundos' using errcode = 'PT409';
+  end;
   if v_roles ->> 'portal' is null and not coalesce((v_roles ->> 'gerencia')::boolean, false) then
     raise exception 'Solo admin o gerencia pueden reemplazar inversiones' using errcode = '42501';
+  end if;
+  if not coalesce((v_roles ->> 'gerencia')::boolean, false) then
+    raise exception 'Solo gerencia puede reemplazar una inversión de cooperativa: es la venta de un lead' using errcode = '42501';
   end if;
   if private.membresia_crm_revocada() then
     raise exception 'Tu membresía del CRM está revocada: no puedes reemplazar inversiones' using errcode = '42501';
@@ -1430,6 +1513,9 @@ begin
   if v_roles ->> 'portal' is null and not coalesce((v_roles ->> 'gerencia')::boolean, false) then
     raise exception 'Solo admin o gerencia pueden reemplazar inversiones' using errcode = '42501';
   end if;
+  if not coalesce((v_roles ->> 'gerencia')::boolean, false) then
+    raise exception 'Solo gerencia puede reemplazar una inversión de cooperativa: es la venta de un lead' using errcode = '42501';
+  end if;
   if private.membresia_crm_revocada() then
     raise exception 'Tu membresía del CRM está revocada: no puedes reemplazar inversiones' using errcode = '42501';
   end if;
@@ -1474,7 +1560,7 @@ $function$;
 
 -- ── 3b · El bucket de comprobantes admite el comprobante de un reemplazo ──────────────────────────────────────────────
 -- La regla nueva, aparte (para que el ancla en el ayudante vivo sea una línea): <persona>/reemplazo-<cierre>/<archivo>.ext,
--- subido por Gerencia o admin del portal, para la inversión inicial VIGENTE de ESA persona. El reemplazo vuelve a comprobar
+-- subido por Gerencia, para la inversión inicial VIGENTE de ESA persona. El reemplazo vuelve a comprobar
 -- la ruta y el objeto al confirmar. Fail-closed: cualquier duda devuelve false.
 create function private.f4_comprobante_reemplazo_autorizado(p_ruta text)
 returns boolean
@@ -1500,7 +1586,7 @@ begin
     return false;
   end;
   v_roles := private.eliminar_inversion_roles(v_uid);
-  if (v_roles ->> 'portal' is null and not coalesce((v_roles ->> 'gerencia')::boolean, false)) or private.membresia_crm_revocada() then
+  if not coalesce((v_roles ->> 'gerencia')::boolean, false) or private.membresia_crm_revocada() then
     return false;
   end if;
   return exists (select 1 from crm.cierres_externos ce
@@ -1560,6 +1646,14 @@ as $function$
       private.rol_crm((select auth.uid()))='gerencia'
       or i.responsable_relacion_id in (select private.vendedor_ids_visibles((select auth.uid())))
     )
+  ) or exists (
+    -- 18/10/2026: el comprobante de una inversión ya reemplazada (historia, en su copia): solo Gerencia (Codex, P2).
+    select 1 from crm.inversiones_eliminadas e
+    cross join lateral jsonb_array_elements(e.archivos) a
+    join storage.objects o on o.id = (a ->> 'objeto_id')::uuid
+    where p_ruta ~ '^[a-f0-9-]{36}/reemplazo-' and e.fuente_tipo = 'cierre_externo' and e.reemplazada_por is not null
+      and o.bucket_id = 'f4-comprobantes' and o.name = p_ruta
+      and private.rol_crm((select auth.uid()))='gerencia'
   )),false);
 $function$;
 
@@ -1568,9 +1662,8 @@ revoke all on function private.registrar_inversion_reemplazada_cooperativa(jsonb
   from public, anon, authenticated, service_role;
 revoke all on function private.reemplazar_inversion_cooperativa(uuid, jsonb, uuid, text, jsonb)
   from public, anon, authenticated, service_role;
--- La regla del bucket la llama el ayudante vivo (DEFINER, EXECUTE a authenticated): la nueva, igual que él.
-revoke all on function private.f4_comprobante_reemplazo_autorizado(text) from public, anon, service_role;
-grant execute on function private.f4_comprobante_reemplazo_autorizado(text) to authenticated;
+-- La regla del bucket solo la llama el ayudante vivo (DEFINER de postgres): sin EXECUTE para la API.
+revoke all on function private.f4_comprobante_reemplazo_autorizado(text) from public, anon, authenticated, service_role;
 revoke all on function crm.reemplazar_inversion_cooperativa_fn(uuid, text, jsonb) from public, anon, service_role;
 grant execute on function crm.reemplazar_inversion_cooperativa_fn(uuid, text, jsonb) to authenticated;
 revoke all on function crm.reemplazar_inversion_cooperativa_vista_previa_fn(uuid, date) from public, anon, service_role;
@@ -1586,14 +1679,14 @@ comment on function private.reemplazar_inversion_cooperativa(uuid, jsonb, uuid, 
   'comprobante; copia el resto de la original; la venta del lead pasa a la nueva con private.conversion_acreditar_fuente. '
   'Rechaza venta anulada, aporte adicional, movimientos, mes sellado y plazo vencido. Idempotente por la original.';
 comment on function private.f4_comprobante_reemplazo_autorizado(text) is
-  'Bucket f4-comprobantes (20261018053228): autoriza subir <persona>/reemplazo-<cierre>/<archivo> a Gerencia o admin del portal '
-  'para la inversión inicial vigente de esa persona. La llama private.f4_comprobante_autorizado; el reemplazo lo revalida.';
+  'Bucket f4-comprobantes (20261018053228): autoriza subir <persona>/reemplazo-<cierre>/<archivo> a Gerencia para la inversión '
+  'inicial vigente de esa persona. La llama private.f4_comprobante_autorizado; el reemplazo exige esa misma ruta al confirmar.';
 comment on function private.f4_comprobante_autorizado(text) is
   'Bucket f4-comprobantes: la ruta de una solicitud preparada (alta) o, desde 20261018053228, la de un reemplazo de '
   'cooperativa (private.f4_comprobante_reemplazo_autorizado).';
 comment on function private.f4_comprobante_visible(text) is
   'Bucket f4-comprobantes: visible la ruta de una solicitud del inversionista visible y, desde 20261018053228, la del '
-  'comprobante que ya respalda una inversión de cooperativa, con la misma visibilidad que la ficha.';
+  'comprobante que ya respalda una inversión de cooperativa (como la ficha) o el de una inversión ya reemplazada (su copia; Gerencia).';
 comment on function crm.reemplazar_inversion_cooperativa_fn(uuid, text, jsonb) is
   'Puerta de «Reemplazar inversión» para cooperativas (Gerencia o admin del portal): p_cierre = {cooperativa?, '
   'fecha_comercial?, comprobante_ruta?}. Valida sesión, roles, membresía y motivo (5–300) y delega en el núcleo.';
@@ -1609,17 +1702,24 @@ begin
       from pg_catalog.pg_proc p
       where p.oid in ('private.f4_comprobante_autorizado(text)'::regprocedure, 'private.f4_comprobante_visible(text)'::regprocedure))
      is distinct from 'private.f4_comprobante_autorizado(text)=cdecad21e77c38d023ba156efd8faa74,'
-                      'private.f4_comprobante_visible(text)=d5e74abf371a35c677d42da9abb2ff82' then
+                      'private.f4_comprobante_visible(text)=32739f4abf073f33ac3fc2191312e2bc' then
     raise exception 'POSTFLIGHT reemplazar_cooperativa: un ayudante del bucket no quedó como se ensayó';
   end if;
   if exists (select 1 from pg_catalog.pg_proc p
-             where p.oid in ('private.f4_comprobante_autorizado(text)'::regprocedure, 'private.f4_comprobante_visible(text)'::regprocedure,
-                             'private.f4_comprobante_reemplazo_autorizado(text)'::regprocedure)
+             where p.oid in ('private.f4_comprobante_autorizado(text)'::regprocedure, 'private.f4_comprobante_visible(text)'::regprocedure)
                and (p.proowner <> 'postgres'::regrole or not p.prosecdef or not ('search_path=""' = any (p.proconfig))
                     or not has_function_privilege('authenticated', p.oid, 'execute') or has_function_privilege('anon', p.oid, 'execute')
                     or has_function_privilege('service_role', p.oid, 'execute')
                     or p.proacl is null or exists (select 1 from unnest(p.proacl) x where x::text like '=X/%'))) then
     raise exception 'POSTFLIGHT reemplazar_cooperativa: los ayudantes del bucket tienen que ser DEFINER de postgres, search_path vacío y EXECUTE solo authenticated';
+  end if;
+  if exists (select 1 from pg_catalog.pg_proc p
+             where p.oid = 'private.f4_comprobante_reemplazo_autorizado(text)'::regprocedure
+               and (p.proowner <> 'postgres'::regrole or not p.prosecdef or not ('search_path=""' = any (p.proconfig))
+                    or has_function_privilege('authenticated', p.oid, 'execute') or has_function_privilege('anon', p.oid, 'execute')
+                    or has_function_privilege('service_role', p.oid, 'execute')
+                    or p.proacl is null or exists (select 1 from unnest(p.proacl) x where x::text like '=X/%'))) then
+    raise exception 'POSTFLIGHT reemplazar_cooperativa: la regla del bucket tiene que ser DEFINER de postgres, search_path vacío y sin EXECUTE para la API';
   end if;
   -- Dueño postgres; el núcleo y la copia INVOKER y sin EXECUTE para la API; las puertas DEFINER con EXECUTE solo authenticated.
   if exists (select 1 from pg_catalog.pg_proc p
@@ -1687,7 +1787,7 @@ do $post$
 begin
   if not exists (select 1 from supabase_migrations.schema_migrations
                  where version = '20261018053228' and name = 'crm_reemplazar_inversion_cooperativa' and cardinality(statements) = 1
-                   and md5(statements[1]) = '1bf91b3039d55a21119d17c763a67c63') then
+                   and md5(statements[1]) = '035fe97818226b21169173757e0cecbb') then
     raise exception 'REGISTRO: la fila 20261018053228 / crm_reemplazar_inversion_cooperativa no quedó como se esperaba';
   end if;
   raise notice 'REGISTRO: 20261018053228 / crm_reemplazar_inversion_cooperativa (1 sentencia: el archivo entero)';

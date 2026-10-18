@@ -25,34 +25,64 @@ def off(msg):
 # (nombre, [(antes, después), ...]) — cada «antes» debe aparecer EXACTAMENTE una vez en la migración.
 MUTANTES = [
     # ── Puerta ──
-    # La puerta y el núcleo exigen el rol los dos (uno es la red del otro): el mutante honesto apaga ambos.
-    ('puerta y núcleo: sin exigir rol',
-     [("""    raise exception 'Solo admin o gerencia pueden reemplazar inversiones' using errcode = '42501';
+    # La puerta, el núcleo y la copia exigen rol (uno es la red del otro): el mutante honesto apaga los tres; un vendedor pasaría.
+    ('puerta, núcleo y copia: sin exigir rol',
+     [("""  if v_roles ->> 'portal' is null and not coalesce((v_roles ->> 'gerencia')::boolean, false) then
+    raise exception 'Solo admin o gerencia pueden reemplazar inversiones' using errcode = '42501';
+  end if;
+  if not coalesce((v_roles ->> 'gerencia')::boolean, false) then
+    raise exception 'Solo gerencia puede reemplazar una inversión de cooperativa: es la venta de un lead' using errcode = '42501';
   end if;
   if private.membresia_crm_revocada() then
     raise exception 'Tu membresía del CRM está revocada: no puedes reemplazar inversiones' using errcode = '42501';
   end if;
   if coalesce(length(v_motivo), 0) < 5 then""",
-       """    null;
+       """  if private.membresia_crm_revocada() then
+    raise exception 'Tu membresía del CRM está revocada: no puedes reemplazar inversiones' using errcode = '42501';
+  end if;
+  if coalesce(length(v_motivo), 0) < 5 then"""),
+      ("""  if v_portal is null and not v_gerencia then
+    raise exception 'Solo admin o gerencia pueden reemplazar inversiones' using errcode = '42501';
+  end if;
+  if not v_gerencia then
+    raise exception 'Solo gerencia puede reemplazar una inversión de cooperativa: es la venta de un lead' using errcode = '42501';
+  end if;""", ""),
+      ("     or p_rol is null or p_rol not in ('gerencia', 'admin', 'superadmin') then", "     then")]),
+    # Solo Gerencia: puerta, núcleo y regla del bucket (el admin del portal sin CRM pasaría).
+    ('puerta, núcleo y regla del bucket: sin exigir Gerencia',
+     [("""  if not coalesce((v_roles ->> 'gerencia')::boolean, false) then
+    raise exception 'Solo gerencia puede reemplazar una inversión de cooperativa: es la venta de un lead' using errcode = '42501';
   end if;
   if private.membresia_crm_revocada() then
     raise exception 'Tu membresía del CRM está revocada: no puedes reemplazar inversiones' using errcode = '42501';
   end if;
+  if coalesce(length(v_motivo), 0) < 5 then""",
+       """  if private.membresia_crm_revocada() then
+    raise exception 'Tu membresía del CRM está revocada: no puedes reemplazar inversiones' using errcode = '42501';
+  end if;
   if coalesce(length(v_motivo), 0) < 5 then"""),
-      ("  if v_rol is null then\n    raise exception 'Solo admin o gerencia pueden reemplazar inversiones' using errcode = '42501';", "  if false then\n    raise exception 'Solo admin o gerencia pueden reemplazar inversiones' using errcode = '42501';")]),
+      ("""  if not v_gerencia then
+    raise exception 'Solo gerencia puede reemplazar una inversión de cooperativa: es la venta de un lead' using errcode = '42501';
+  end if;
+  if p_cierre is not null""", "  if p_cierre is not null"),
+      ("  if not coalesce((v_roles ->> 'gerencia')::boolean, false) or private.membresia_crm_revocada() then\n    return false;", "  if private.membresia_crm_revocada() then\n    return false;")]),
+    # (sin mutante de «membresía revocada»: con «solo Gerencia», una membresía revocada ya no es Gerencia y la rechaza el chequeo
+    #  anterior; la comprobación queda como red redundante, no como defensa propia)
     ('puerta: sin el mínimo del motivo', [("  if coalesce(length(v_motivo), 0) < 5 then", "  if false then")]),
     ('puerta: sin el máximo del motivo', [("  if length(v_motivo) > 300 then\n    raise exception 'El motivo admite como máximo 300 caracteres' using errcode = '22023';\n  end if;\n  begin\n    return private.reemplazar_inversion_cooperativa",
                                           "  begin\n    return private.reemplazar_inversion_cooperativa")]),
-    ('vista previa: sin exigir rol',
-     [("""    raise exception 'Solo admin o gerencia pueden reemplazar inversiones' using errcode = '42501';
+    ('vista previa: sin exigir rol ni Gerencia',
+     [("""  if v_roles ->> 'portal' is null and not coalesce((v_roles ->> 'gerencia')::boolean, false) then
+    raise exception 'Solo admin o gerencia pueden reemplazar inversiones' using errcode = '42501';
+  end if;
+  if not coalesce((v_roles ->> 'gerencia')::boolean, false) then
+    raise exception 'Solo gerencia puede reemplazar una inversión de cooperativa: es la venta de un lead' using errcode = '42501';
   end if;
   if private.membresia_crm_revocada() then
     raise exception 'Tu membresía del CRM está revocada: no puedes reemplazar inversiones' using errcode = '42501';
   end if;
   select * into v_ce from crm.cierres_externos ce where ce.id = p_fuente_id;""",
-       """    null;
-  end if;
-  if private.membresia_crm_revocada() then
+       """  if private.membresia_crm_revocada() then
     raise exception 'Tu membresía del CRM está revocada: no puedes reemplazar inversiones' using errcode = '42501';
   end if;
   select * into v_ce from crm.cierres_externos ce where ce.id = p_fuente_id;""")]),
@@ -61,6 +91,9 @@ MUTANTES = [
     ('vista previa: sin «plazo vencido»', [("    'plazo_vencido', v_acr.id is not null and v_acr.estado = 'acreditada'\n                     and pg_catalog.clock_timestamp() >= private.conversion_plazo_hasta(v_mes),",
                                              "    'plazo_vencido', false,")]),
     # ── Núcleo: lo que no se reemplaza ──
+    ('núcleo: admite un p_cierre que no es objeto', [("  if p_cierre is not null and jsonb_typeof(p_cierre) <> 'object' then", "  if false then")]),
+    ('núcleo: sin «origen de capital confirmado»', [("  if exists (select 1 from crm.origenes_capital_confirmados o where o.cierre_externo_id = p_fuente and o.activo) then", "  if false then")]),
+    ('núcleo: sin «ya respalda otra inversión»', [("    if exists (select 1 from crm.cierres_externos ce2 where ce2.comprobante_objeto_id = v_obj.id) then", "    if false then")]),
     ('núcleo: admite claves ajenas en p_cierre', [("  if exists (select 1 from jsonb_object_keys(p_cierre) k where k not in ('cooperativa', 'fecha_comercial', 'comprobante_ruta')) then", "  if false then")]),
     ('núcleo: sin «solo cooperativas» (0A000)', [("  if v_ctx ->> 'tipo' is distinct from 'cierre_externo' then\n    raise exception 'Esta puerta reemplaza", "  if false then\n    raise exception 'Esta puerta reemplaza")]),
     ('núcleo y copia: sin «movimientos» (motivo no eliminable)', [("  v_no := private.inversion_motivo_no_eliminable('cierre_externo', p_fuente, (v_ctx ->> 'inversion_id')::uuid);\n  if v_no is not null then\n    raise exception '%', v_no using errcode = 'P0409';\n  end if;\n  select * into v_ce",
@@ -73,8 +106,19 @@ MUTANTES = [
     ('núcleo: sin validar la cooperativa', [("  if v_e.id is null then\n    raise exception 'La cooperativa indicada no existe", "  if false then\n    raise exception 'La cooperativa indicada no existe")]),
     ('núcleo: sin la moneda admitida', [("  if not (v_ce.moneda = any (coalesce(v_e.monedas, '{}'::text[]))) then", "  if false then")]),
     ('núcleo: sin «fecha futura»', [("  if v_fecha > v_hoy then", "  if false then")]),
-    ('núcleo: sin la carpeta de la persona en el comprobante', [("    if v_ruta !~ ('^' || v_ce.inversionista_id::text || '/[A-Za-z0-9_/-]+\\.(pdf|jpg|jpeg|png)$') then", "    if false then")]),
-    ('núcleo: sin validar el objeto del comprobante', [("    if v_obj.id is null or coalesce((v_obj.metadata ->> 'size')::bigint, 0) not between 1 and 10485760", "    if false and (v_obj.id is null or coalesce((v_obj.metadata ->> 'size')::bigint, 0) not between 1 and 10485760)")]),
+    ('núcleo: sin la carpeta de esta inversión en el comprobante (un objeto válido en otra carpeta entra)',
+     [("    if (v_ruta ~ ('^' || v_persona::text || '/reemplazo-' || p_fuente::text || '/[A-Za-z0-9_-]+\\.(pdf|jpg|jpeg|png)$')) is not true then", "    if false then")]),
+    ('núcleo: la carpeta sin exigir ESTA inversión (otra carpeta de reemplazo de la misma persona entra)',
+     [("    if (v_ruta ~ ('^' || v_persona::text || '/reemplazo-' || p_fuente::text || '/[A-Za-z0-9_-]+\\.(pdf|jpg|jpeg|png)$')) is not true then",
+       "    if (v_ruta ~ ('^' || v_persona::text || '/reemplazo-[a-f0-9-]{36}/[A-Za-z0-9_-]+\\.(pdf|jpg|jpeg|png)$')) is not true then")]),
+    ('núcleo: la carpeta se compara con la identidad sin canonizar',
+     [("    if (v_ruta ~ ('^' || v_persona::text || '/reemplazo-' || p_fuente::text || '/[A-Za-z0-9_-]+\\.(pdf|jpg|jpeg|png)$')) is not true then",
+       "    if (v_ruta ~ ('^' || v_ce.inversionista_id::text || '/reemplazo-' || p_fuente::text || '/[A-Za-z0-9_-]+\\.(pdf|jpg|jpeg|png)$')) is not true then")]),
+    ('núcleo: sin validar el objeto del comprobante (existencia, tamaño y mimetype)',
+     [("""    if v_obj.id is null or coalesce((v_obj.metadata ->> 'size')::bigint, 0) not between 1 and 10485760
+       or coalesce(v_obj.metadata ->> 'mimetype', '') not in ('application/pdf', 'image/jpeg', 'image/png') then""", "    if false then")]),
+    ('núcleo: el objeto del comprobante sin el mimetype',
+     [("       or coalesce(v_obj.metadata ->> 'mimetype', '') not in ('application/pdf', 'image/jpeg', 'image/png') then", "       then")]),
     ('núcleo: sin «nada que reemplazar»', [("  if v_coop = v_ce.cooperativa and v_fecha is not distinct from v_ce.fecha_comercial and v_obj_id is not distinct from v_ce.comprobante_objeto_id then", "  if false then")]),
     ('núcleo: sin recalcular el vencimiento', [("    v_vence := private.coopac_validar_condiciones_base(v_fecha, v_ce.plazo_meses, v_ce.tasa_anual, v_ce.base_plazo);", "    v_vence := v_ce.vence_en;")]),
     ('núcleo: sin los sellos', [("  if exists (select 1 from crm.periodos_cerrados pc where pc.periodo >= v_periodos[1])\n     or exists (select 1 from crm.capital_mes_sellos s where s.periodo >= v_periodos[1]) then", "  if false then")]),
@@ -82,9 +126,9 @@ MUTANTES = [
      [("  if exists (select 1 from crm.periodos_cerrados pc where pc.periodo >= v_periodos[1])\n     or exists (select 1 from crm.capital_mes_sellos s where s.periodo >= v_periodos[1]) then", "  if false then"),
       ("    if v_venta.p_desconocido or v_venta.p_sellado then", "    if false then")]),
     ('núcleo: sin el plazo de carga', [("  if v_mueve_venta and v_acr.estado = 'acreditada'\n     and pg_catalog.clock_timestamp() >= private.conversion_plazo_hasta(pg_catalog.date_trunc('month', v_fecha::timestamp)::date) then", "  if false then")]),
-    ('núcleo: sin la copia «reemplazada por» (null)', [("  v_aud := private.registrar_inversion_reemplazada_cooperativa(v_ctx, p_actor, v_rol, p_motivo, v_nuevo,", "  v_aud := private.registrar_inversion_reemplazada_cooperativa(v_ctx, p_actor, v_rol, p_motivo, gen_random_uuid(),")]),
+    ('núcleo: la copia apunta a OTRO id (no al de la nueva)', [("  v_aud := private.registrar_inversion_reemplazada_cooperativa(v_ctx, p_actor, v_rol, p_motivo, v_nuevo,", "  v_aud := private.registrar_inversion_reemplazada_cooperativa(v_ctx, p_actor, v_rol, p_motivo, gen_random_uuid(),")]),
     ('núcleo: sin el depósito reclamado', [("    insert into crm.depositos_reclamados (numero_norm, cierre_id, reclamado_por)\n    values (upper(btrim(v_ce.numero_transaccion)), v_nuevo, p_actor);\n", "")]),
-    ('núcleo: la inversión nueva sin la marca de primera conversión', [("  v_inv := private.inversion_vincular_fuente(v_persona, null, v_nuevo, p_actor, coalesce(v_primera, true));", "  v_inv := private.inversion_vincular_fuente(v_persona, null, v_nuevo, p_actor, false);")]),
+    ('núcleo: la inversión nueva sin la marca de primera conversión', [("  v_inv := private.inversion_vincular_fuente(v_persona, null, v_nuevo, p_actor, coalesce(v_primera, false));", "  v_inv := private.inversion_vincular_fuente(v_persona, null, v_nuevo, p_actor, false);")]),
     ('núcleo: sin los cotitulares', [("  for v_t in select (x ->> 'inversionista_id')::uuid as inversionista_id, x ->> 'rol' as rol from jsonb_array_elements(v_titulares) x loop", "  for v_t in select (x ->> 'inversionista_id')::uuid as inversionista_id, x ->> 'rol' as rol from jsonb_array_elements('[]'::jsonb) x loop")]),
     ('núcleo: sin el evento «registro»', [("  insert into crm.inversion_eventos (inversion_id, tipo, motivo, creado_por)\n  values (v_inv, 'registro', left('Reemplazo de inversión: ' || p_motivo, 300), p_actor);\n", "")]),
     ('núcleo: sin el invariante de la venta', [("    if v_acr2.id is distinct from v_acr.id or v_acr2.fuente_tipo is distinct from 'cierre_externo'", "    if false and (v_acr2.id is distinct from v_acr.id or v_acr2.fuente_tipo is distinct from 'cierre_externo'"),
@@ -94,12 +138,14 @@ MUTANTES = [
     ('núcleo: la fecha nueva no llega a la fila', [("      v_ce.inversionista_id, true, v_fecha, v_fecha, v_obj_id, v_ce.plazo_meses, v_ce.tasa_anual, v_ce.base_plazo);", "      v_ce.inversionista_id, true, v_ce.fecha_comercial, v_ce.fecha_comercial, v_obj_id, v_ce.plazo_meses, v_ce.tasa_anual, v_ce.base_plazo);")]),
     # ── La copia y el borrado ──
     ('copia: conversion_anulada verdadero', [("    v_es_conversion, false, null, p_motivo, p_actor, p_rol,", "    v_es_conversion, v_es_conversion, null, p_motivo, p_actor, p_rol,")]),
-    ('copia: sin registrar al actor y su rol', [("    v_es_conversion, false, null, p_motivo, p_actor, p_rol,\n    jsonb_build_object(", "    v_es_conversion, false, null, p_motivo, p_actor, 'gerencia',\n    jsonb_build_object(")]),
+    # (sin mutante del rol de la copia: con «solo Gerencia» el rol registrado es siempre 'gerencia')
     # ── El bucket (huella apagada) ──
     ('bucket: sin la rama de reemplazo en la política de subida',
      [("  if p_ruta ~ ''^[a-f0-9-]{36}/reemplazo-'' then return private.f4_comprobante_reemplazo_autorizado(p_ruta); end if;\n", ""), HUELLA_BUCKET_OFF]),
-    ('bucket: la regla de reemplazo sin exigir rol',
-     [("  if (v_roles ->> 'portal' is null and not coalesce((v_roles ->> 'gerencia')::boolean, false)) or private.membresia_crm_revocada() then\n    return false;", "  if false then\n    return false;")]),
+    ('bucket: la regla de reemplazo sin exigir Gerencia ni membresía',
+     [("  if not coalesce((v_roles ->> 'gerencia')::boolean, false) or private.membresia_crm_revocada() then\n    return false;", "  if false then\n    return false;")]),
+    ('bucket: sin la rama de las copias en la visibilidad (huella apagada)',
+     [("    where p_ruta ~ '^[a-f0-9-]{36}/reemplazo-' and e.fuente_tipo = 'cierre_externo' and e.reemplazada_por is not null\n", "    where false and e.fuente_tipo = 'cierre_externo' and e.reemplazada_por is not null\n"), HUELLA_BUCKET_OFF]),
     ('bucket: la regla de reemplazo sin la persona ni la vigencia',
      [("                 where ce.id = v_cierre and ce.anulado_en is null and ce.es_cierre_inicial\n                   and private.inversionista_canonica(ce.inversionista_id) = v_persona);", "                 where ce.id = v_cierre);")]),
     ('bucket: sin la rama de reemplazo en la visibilidad',
@@ -108,9 +154,11 @@ MUTANTES = [
      [("""      private.rol_crm((select auth.uid()))='gerencia'
       or i.responsable_relacion_id in (select private.vendedor_ids_visibles((select auth.uid())))
     )
-  )),false);""", """      true
+  ) or exists (
+    -- 18/10/2026: el comprobante de una inversión ya reemplazada""", """      true
     )
-  )),false);"""), HUELLA_BUCKET_OFF]),
+  ) or exists (
+    -- 18/10/2026: el comprobante de una inversión ya reemplazada"""), HUELLA_BUCKET_OFF]),
 ]
 
 

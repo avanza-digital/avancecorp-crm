@@ -12,6 +12,6 @@ Ledger: `supabase/migrations/MIGRACIONES.md`. Plan: vault «Reemplazar inversion
 | la migración | Aplicar en UN mensaje, como postgres (`db query --linked --file`). El preflight se niega si cambió alguna función que llama o parcha. | producción |
 | `registrar.sql` | DESPUÉS de aplicar: registra la versión (generado por `generar-registrador.mjs`; regenerar tras cualquier edición). | producción |
 | `comprobar-tras-aplicar.sql` | DESPUÉS de aplicar: `APTA` / `NO APTA` (huellas del bucket, funciones, permisos; cuenta los reemplazos hechos). Solo lectura. | producción |
-| `reversa.sql` | Retira las cinco funciones nuevas y devuelve los dos ayudantes del bucket a su huella. Los reemplazos ya hechos quedan (copia «reemplazada por» + inversión nueva). Revertir primero el front. | producción |
+| `reversa.sql` | Retira las cinco funciones nuevas y devuelve la política de subida a su huella; la visibilidad solo vuelve si ningún comprobante de reemplazo quedó adoptado (si no, se conserva y avisa). Los reemplazos ya hechos quedan (copia «reemplazada por» + inversión nueva). Revertir primero el front. | producción |
 
-Estado el 18/10/2026: batería PASS (11 bloques), 37/37 mutantes muertos, reversa ensayada en el banco. Pendiente: revisión de Codex (nivel 3: cambia dos funciones de las políticas del bucket) y auditor-rls.
+Estado el 18/10/2026: batería PASS (12 bloques), 44/44 mutantes muertos, reversa ensayada en el banco. Codex (CHANGES_REQUESTED sobre la v1: reversa que cegaba comprobantes, comprobante de la copia, identidad fusionada, mutantes) y auditor-rls (P1 solo Gerencia; P2 comprobante exacto; P3 origen confirmado, PT409, REPEATABLE READ, EXECUTE sobrante) aplicados. Sin probar: políticas reales de Storage y concurrencia con dos conexiones.
