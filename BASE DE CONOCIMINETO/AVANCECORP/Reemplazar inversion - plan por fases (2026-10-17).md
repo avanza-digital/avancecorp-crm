@@ -122,15 +122,29 @@ servidor con la MISMA regla que el reemplazo (migración nueva `20261017211313`,
 - [x] 8. Informe con «¿apta para producción?» y «qué arregla comercialmente» (abajo).
 - [x] 9. Este checklist.
 
-### Fase 3 en curso: servidor EN PRODUCCIÓN (17/10/2026)
+### Fase 3: EN PRODUCCIÓN, servidor y pantalla (17/10/2026)
 
 Lo aplicó Miguel con «!» y `db query --linked --file`, por PR #322 (`main` local `8274134e`). Horas de Lima, según el registro de la sesión:
 - [x] Fase 1 `20261017162053`: migración a las 20:08:38 → `registrar.sql` a las 20:08:58 → comprobación a las 20:11:58, `APTA`.
 - [x] Fase 2 `20261017211313`: migración a las 20:12:26 → `registrar.sql` a las 20:12:40 → comprobación a las 20:14:28, `APTA`.
 - `vigia_sin_pendientes` dio false en las dos comprobaciones. Es informativo: son pendientes ajenos de antes; lo nuestro lo cubre `fuera_del_censo` = true.
-- [ ] Fusionar la PR #322 y traer `avancecorp/main` al `main` local, para que los dos apunten al mismo commit.
-- [ ] `/release-crm`, con preflight contra lo vivo. Hasta entonces la pantalla publicada no llama a estas puertas.
-- [ ] Probar el reemplazo y el PDF del contrato nuevo con el perfil vendedor de pruebas.
+- [x] PR #322 fusionada a las 20:40 (squash `f489296d`). Miguel eligió alinear el `main` local a `f489296d` (`reset --keep`, sin cambiar archivos), así que `main` = `avancecorp/main` = `f489296d`.
+- [x] `/release-crm` (lo invocó Miguel):
+  - build en un worktree limpio en `f489296d` con `npm ci`; `npm run check` PASS (7131);
+  - artefacto `crm-20261018T014718Z-f489296d8637` (sha256 `a8df425d…`, `ARTEFACTO_OK`);
+  - preflight OK contra el vivo `build-20261017T064501541Z` / `bc3c4303` (#318). Su ZIP no estaba en `releases/` del taller: se encontró en el worktree de Citas, se verificó (buildId, entry y 162 huellas) y se copió;
+  - desplegado por el MCP de Hostinger a las 20:48, aproximadamente.
+  - Humo: `version.json` = `build-20261018T014717398Z`; home 200; `index-BudY7B4B.js` idéntico byte a byte al del build; 150/163 archivos idénticos (12 PNG recomprimidos por la CDN y `.htaccess` 403, como siempre).
+  - Frente al vivo anterior, en `app/` solo cambió la pantalla de reemplazo.
+- [x] **Prueba segura en producción, sin escribir datos (17/10).**
+  - Miguel, con su usuario admin, abrió «Reemplazar inversión» sobre `2026-01-001037`.
+  - Comprobó: la original fija; «La correcta» precargada (20 000 USD, inicio 20/07/2026); «La venta queda en Julio 2026», calculado por la puerta de producción; el aviso «ya tiene cuotas pagadas»; y el botón de confirmar bloqueado. Cerró con «Cancelar».
+  - Miguel: «todo coincide, sale el aviso de cuotas pagadas».
+- [x] **Prueba completa en producción (17/10).** Cliente de prueba «DEMO DEMO DEMO» (`e3eb769a…`). Los tres pasos los hizo Miguel con su usuario superadmin; yo verifiqué cada uno con consultas de solo lectura (`scripts/reemplazar-inversion-vista-previa/produccion/`). Horas de Lima:
+  - Alta `72aa293a`, N° `2026-01-009999`, a las 21:10:05.
+  - **Reemplazo** «con los datos correctos» a las 21:11:16. La original quedó como copia «reemplazada por» `2aa2a251`. El contrato nuevo conservó el **mismo N°** y el **mismo analista** (`d731f284`): 20 000 PEN, inicio 14/10/2026, fecha comercial 14/10/2026, venta en octubre. Su **PDF salió sellado** (job `sellado`, 21:11:16).
+  - **Limpieza** con «Eliminar inversión» a las 21:15:21: no queda nada vivo, solo las dos copias de auditoría.
+  - No hubo ningún otro reemplazo ni eliminación en esas horas.
 
 ### Revisiones (Fase 2, 17/10/2026)
 
