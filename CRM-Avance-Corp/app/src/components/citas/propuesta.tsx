@@ -71,7 +71,7 @@ export function TableroCitas({ conservarConsulta = false }: { conservarConsulta?
   const consultaSesion = useConsultaGerencia()
   const guardarConsulta = conservarConsulta ? consultaSesion?.setConsulta : undefined
   const guardada = conservarConsulta ? consultaSesion?.consulta.citas : undefined
-  const { citas: CITAS, equipo: EQUIPO, gestion, corte, modoDemo, mesInicial, cargando, error: errorCarga, onReintentar, onMes, onMesesProyeccion } = useDatosCitas()
+  const { citas: CITAS, equipo: EQUIPO, gestion, corte, modoDemo, mesInicial, cargando, error: errorCarga, onReintentar, onMes, onMesesProyeccion, proyeccion } = useDatosCitas()
   const inicial = () => defaults(mesInicial)
   const desdeEnlace = () => {
     const consulta = leerHash().consultaCitas
@@ -110,7 +110,12 @@ export function TableroCitas({ conservarConsulta = false }: { conservarConsulta?
   const [desde, hasta] = rangoConsulta(filtros)
   // Resultados y Proyección van a todo el ancho, sin la tarjeta de las vistas operativas.
   const analitica = vista === 'resultados' || vista === 'proyeccion'
-  const textoConteo = cargando ? 'Cargando las citas de tu consulta…' : errorCarga ? 'Consulta no disponible. Vuelve a intentarlo.' : error ? 'Revisa los filtros para consultar las citas.' : citas.length + (modoDemo ? ' de ' + CITAS.length + ' citas del ejemplo' : ' citas de tu consulta') + (vista === 'agenda' ? ' · orden cronológico · hora de Lima' : ' · según tus filtros')
+  // Proyección con cargador propio: su carga y su error son los de los meses de SU
+  // rango, no los del mes de arriba (que puede quedar fuera del rango).
+  const proyeccionPropia = vista === 'proyeccion' && proyeccion !== undefined
+  const cargandoVista = cargando && !proyeccionPropia
+  const errorVista = proyeccionPropia ? null : errorCarga
+  const textoConteo = cargandoVista ? 'Cargando las citas de tu consulta…' : errorVista ? 'Consulta no disponible. Vuelve a intentarlo.' : error ? 'Revisa los filtros para consultar las citas.' : citas.length + (modoDemo ? ' de ' + CITAS.length + ' citas del ejemplo' : ' citas de tu consulta') + (vista === 'agenda' ? ' · orden cronológico · hora de Lima' : ' · según tus filtros')
 
   useEffect(() => { if (rangoConsulta(filtros)[0]) onMes?.(filtros.mes) }, [filtros, onMes])
 
@@ -237,7 +242,7 @@ export function TableroCitas({ conservarConsulta = false }: { conservarConsulta?
             })}
           </div>}
           <div id="citas-panel" role="tabpanel" aria-labelledby={'citas-tab-' + vista} tabIndex={0} className="outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent">
-            {cargando ? <p role="status" className="p-8">Cargando las citas de tu consulta…</p> : errorCarga ? <div role="alert" className="space-y-3 p-8"><p>{errorCarga}</p><Button variant="outline" onClick={onReintentar}>Reintentar</Button></div> : error || (citas.length === 0 && vista !== 'proyeccion' && !(vista === 'resultados' && hayBase)) ? <div className="space-y-3 px-4 py-12 text-center">
+            {cargandoVista ? <p role="status" className="p-8">Cargando las citas de tu consulta…</p> : errorVista ? <div role="alert" className="space-y-3 p-8"><p>{errorVista}</p><Button variant="outline" onClick={onReintentar}>Reintentar</Button></div> : error || (citas.length === 0 && vista !== 'proyeccion' && !(vista === 'resultados' && hayBase)) ? <div className="space-y-3 px-4 py-12 text-center">
               <SearchX aria-hidden className="mx-auto size-7 text-muted-foreground" /><h3 className="font-semibold">{error ? 'Revisa los filtros de la consulta' : 'No hay citas con esta combinación'}</h3>
               <p className="text-sm text-muted-foreground-strong">{error || 'Quita algún filtro o elige otro período.'}</p><Button variant="outline" onClick={restablecer}>Limpiar filtros</Button>
             </div> : vista === 'bandeja' ? <Bandeja citas={visibles} onDetalle={setDetalle} /> : vista === 'agenda' ? <Agenda citas={citas} onDetalle={setDetalle} />

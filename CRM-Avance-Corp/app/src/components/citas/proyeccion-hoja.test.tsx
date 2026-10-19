@@ -273,6 +273,21 @@ describe('Pestaña Proyección de Citas', () => {
     expect(pedir).toHaveBeenLastCalledWith([])
   })
 
+  it('con el mes de arriba cargando o en error, la Proyección se pinta con los meses de su propio rango', async () => {
+    // Codex (19/10): el mes de arriba puede quedar fuera del rango; su carga o su
+    // error no deben tapar una hoja cuyos meses ya llegaron.
+    const propia = { onMesesProyeccion: vi.fn(), proyeccion: { meses: ['2026-10'], citas: CITAS, gestion: gestion(), corte: fuente.corte, cargando: false, error: null, onReintentar: vi.fn() } }
+    const { hoja, vista } = await abrirProyeccion({ ...propia, cargando: true })
+    expect(hoja.querySelectorAll('tr.pc-fila')).toHaveLength(3)
+    expect(screen.getByRole('tabpanel')).not.toHaveTextContent('Cargando las citas de tu consulta…')
+    vista.rerender(<ContextoCitas value={{ ...fuente, ...propia, cargando: false, error: 'No se pudieron cargar las citas.' }}><TableroCitas /></ContextoCitas>)
+    expect(screen.getByRole('table', { name: /Proyección de citas por analista/ }).querySelectorAll('tr.pc-fila')).toHaveLength(3)
+    expect(within(screen.getByRole('tabpanel')).queryByRole('alert')).not.toBeInTheDocument()
+    // Sin cargador propio (demo), la compuerta del mes de arriba sigue mandando.
+    vista.rerender(<ContextoCitas value={{ ...fuente, cargando: true }}><TableroCitas /></ContextoCitas>)
+    expect(within(screen.getByRole('tabpanel')).getByRole('status')).toHaveTextContent('Cargando las citas de tu consulta…')
+  })
+
   it('ESTADO DE PRODUCCIÓN (mes sin citas): cabecera, ninguna fila, total en cero y ningún error', async () => {
     const { hoja } = await abrirProyeccion({ citas: [], gestion: gestion([]) })
     expect(hoja.querySelectorAll('tr.pc-fila')).toHaveLength(0)
