@@ -34,14 +34,14 @@ describe('guía por hechos', () => {
   it('no confunde la etapa de entrevista con pruebas de asistencia y entrevista', () => {
     montar({ etapa: 'propuesta_enviada' })
     expect(screen.getAllByText('Pendiente')).toHaveLength(2)
-    expect(screen.getByText(/Cambiar de etapa no registra/)).toBeVisible()
     expect(screen.getByText(/bloqueo todavía no se aplica/)).toBeVisible()
-    expect(screen.queryByText(/Completa los dos requisitos/)).not.toBeInTheDocument()
   })
-  it('muestra exigencia solo cuando el servidor la declara para ese lead', () => {
+  it('con exigencia activa conserva ambos pendientes y las acciones disponibles', () => {
     consulta.porLead.set(id(1), recorridoFixture(id(1), { exigible: true }))
     montar()
-    expect(screen.getByText(/Completa los dos requisitos/)).toBeVisible()
+    expect(screen.getAllByText('Pendiente')).toHaveLength(2)
+    expect(screen.getByRole('button', { name: 'Agendar cita' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Llegó sin cita' })).toBeVisible()
     expect(screen.queryByText(/Seguimiento informativo/)).not.toBeInTheDocument()
   })
   it('no agrega llamadas o contacto como impedimentos al completar los dos hechos', () => {

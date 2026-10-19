@@ -94,25 +94,23 @@ export function RecorridoFicha({ lead, puedeOperar, onAgendar, onAgenda, onHisto
   if ((consulta.estado === 'inactivo' || (consulta.estado === 'listo' && item?.aplica === false))
     && !oficina && !tarea) return null
   return <>
-    <section aria-labelledby={`${id}-titulo`} className="space-y-3 rounded-xl border border-border bg-muted/30 p-3">
+    <section aria-labelledby={`${id}-titulo`} className="space-y-2 rounded-xl border border-border bg-muted/30 p-2.5">
       <div className="flex items-center justify-between gap-2">
         <h3 ref={encabezado} tabIndex={-1} id={`${id}-titulo`} className="flex items-center gap-2 rounded-md text-sm font-bold focus-visible:outline-2 focus-visible:outline-ring"><ClipboardCheck aria-hidden className="size-4" />Antes de convertir a cliente</h3>
-        <Button type="button" variant="ghost" size="icon" className="shrink-0 pointer-coarse:size-11" aria-label="Volver a comprobar" title="Volver a comprobar" aria-disabled={consulta.estado === 'cargando'} onClick={() => { if (consulta.estado !== 'cargando') void consulta.refetch() }}><RefreshCw aria-hidden /></Button>
+        <Button type="button" variant="ghost" size="icon" className="size-8 shrink-0 pointer-coarse:size-11" aria-label="Volver a comprobar" title="Volver a comprobar" aria-disabled={consulta.estado === 'cargando'} onClick={() => { if (consulta.estado !== 'cargando') void consulta.refetch() }}><RefreshCw aria-hidden /></Button>
       </div>
-      <p role="status" aria-atomic="true" className="text-sm text-muted-foreground-strong">{consulta.estado === 'cargando'
+      <p role="status" aria-atomic="true" className={consulta.estado === 'listo' && item ? 'sr-only' : 'text-xs text-muted-foreground-strong'}>{consulta.estado === 'cargando'
         ? 'Comprobando asistencia y entrevista…' : consulta.estado === 'listo' && item
           ? siguienteDelRecorrido(item) : 'No se pudo comprobar el recorrido. Puedes continuar registrando tu gestión.'}</p>
       {consulta.estado === 'listo' && item && <>
         {/* Safari conserva la lista bajo el reset de Tailwind. */}
         {/* oxlint-disable-next-line jsx-a11y/no-redundant-roles */}
-        <ul role="list" className="space-y-2" aria-label="Requisitos del ciclo actual">
+        <ul role="list" className="space-y-1.5" aria-label="Requisitos del ciclo actual">
           <Hecho hecho={item.pasos.asistencia} ambiguo={item.estado === 'ambiguo'}>Asistencia a la cita</Hecho>
           <Hecho hecho={item.pasos.entrevista} ambiguo={item.estado === 'ambiguo'}>Entrevista comercial</Hecho>
         </ul>
-        <p className="text-xs text-muted-foreground-strong">Deben corresponder a la misma cita de este ciclo. Cambiar de etapa no registra estos hechos.</p>
         {item.cita_pendiente_en && <p className="text-xs text-muted-foreground-strong">Cita: {fechaSla(item.cita_pendiente_en)}</p>}
         {item.estado === 'ambiguo' && <p className="text-xs text-muted-foreground-strong">El historial disponible no permite confirmar ambos hechos. Revisa lo registrado antes de crear otra cita.</p>}
-        {item.exigible && !item.habilita_conversion && <p className="text-xs font-semibold">Completa los dos requisitos para convertir a este lead.</p>}
         {!item.exigible && !item.habilita_conversion && <p className="text-xs text-muted-foreground-strong">Seguimiento informativo: el bloqueo todavía no se aplica a este lead.</p>}
         <div className="flex flex-wrap gap-2">
           {item.pendiente === 'esperar_cita' && <Button type="button" variant="outline" size="sm" className="pointer-coarse:min-h-11" onClick={onAgenda}>Ver cita</Button>}

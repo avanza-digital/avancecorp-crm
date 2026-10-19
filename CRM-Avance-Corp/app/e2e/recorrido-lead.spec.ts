@@ -39,7 +39,6 @@ test('la guía comprueba hechos, conserva la ficha ante error y permite recupera
   await expect(guia.getByRole('listitem')).toHaveCount(2)
   await expect(guia.getByRole('listitem').filter({ hasText: 'Asistencia a la cita' })).toContainText('Pendiente')
   await expect(guia.getByRole('listitem').filter({ hasText: 'Entrevista comercial' })).toContainText('Pendiente')
-  await expect(guia).toContainText('Cambiar de etapa no registra estos hechos')
 })
 
 test('oficina mantiene campos tras respuesta perdida, reintenta la misma operación y devuelve el foco', async ({ page }) => {
