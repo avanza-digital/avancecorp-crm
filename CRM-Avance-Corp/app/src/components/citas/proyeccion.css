@@ -1,9 +1,5 @@
 /* Proyección de citas: hoja tipo Excel a todo el ancho (propuesta B aprobada el 19/10/2026). */
 .pc-panel { font-variant-numeric: tabular-nums; --pc-cruz: color-mix(in srgb, var(--accent) 6%, white); }
-.pc-barra { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-bottom: 10px; }
-.pc-pastillas { display: flex; flex: 1 1 0; flex-wrap: wrap; gap: 6px; min-width: 0; }
-.pc-pastillas > * { padding-block: 4px; font-size: 13px; }
-.pc-acciones { display: flex; flex-wrap: wrap; gap: 8px; }
 .pc-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 10px; }
 .pc-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 3px 0 10px; border: 1px solid color-mix(in srgb, var(--accent) 22%, white); border-radius: 999px; background: color-mix(in srgb, var(--accent) 9%, white); color: var(--accent-press); font-size: 12px; font-weight: 500; }
 .pc-chip b { font-weight: 600; }
@@ -11,15 +7,19 @@
 .pc-chip button:hover { background: color-mix(in srgb, var(--accent) 16%, white); }
 .pc-chip svg { width: 12px; height: 12px; }
 
-/* ── Periodo: Desde–Hasta y atajos ── */
+/* ── Barra única: Supervisor · periodo · atajos · columnas de tiempo · acciones ── */
 .pc-periodo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 10px; }
+.pc-supervisor > div { width: 190px; }
 .pc-rotulo { min-width: 110px; color: var(--primary); font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .pc-fecha { display: inline-flex; align-items: center; gap: 6px; color: var(--muted-foreground-strong); font-size: 13px; font-weight: 500; }
 .pc-fecha input { width: 150px; }
 .pc-atajos { display: flex; flex-wrap: wrap; gap: 4px; }
 .pc-atajo { height: 28px; padding: 0 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--card); color: var(--muted-foreground-strong); font-size: 12px; font-weight: 600; cursor: pointer; transition: border-color 0.15s, background 0.15s, color 0.15s; }
-.pc-atajo:hover { border-color: var(--border-strong); color: var(--primary); }
+.pc-atajo:hover:not(:disabled, [aria-pressed='true']) { border-color: var(--border-strong); color: var(--primary); }
 .pc-atajo[aria-pressed='true'] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, white); color: var(--accent-press); }
+.pc-atajo:disabled { opacity: 0.45; cursor: not-allowed; }
+.pc-tiempos { padding-left: 12px; border-left: 1px solid var(--border-strong); }
+.pc-acciones { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
 .pc-rango-error { flex-basis: 100%; color: var(--destructive-text); font-size: 13px; }
 
 /* ── La hoja ── */
@@ -54,21 +54,43 @@ th[data-filtro='true'] .pc-th-orden { color: var(--accent-press); }
 .pc-hoja tbody th.pc-analista { color: var(--primary); font-size: 16px; font-weight: 600; }
 .pc-nombre { display: flex; align-items: center; gap: 10px; min-width: 180px; max-width: 260px; white-space: normal; line-height: 1.25; }
 .pc-avatar { display: grid; place-items: center; width: 28px; height: 28px; flex-shrink: 0; border-radius: 50%; background: var(--secondary); color: var(--primary); font-size: 10px; font-weight: 700; }
+
+/* Columnas de tiempo, justo antes de «Citas» (que lleva el borde que las cierra). Sin embudo ni orden. */
+.pc-hoja .pc-tiempo { min-width: 52px; }
+.pc-hoja thead th.pc-tiempo { padding: 0 8px; }
+.pc-tiempo-cab { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; height: 42px; color: var(--primary); font-size: 13px; font-weight: 600; line-height: 1.15; }
+.pc-tiempo-cab small { color: var(--muted-foreground-strong); font-size: 12px; font-weight: 500; }
+.pc-hoja :is(th, td).pc-domingo { background: color-mix(in srgb, var(--primary) 4%, white); }
+.pc-hoja thead th.pc-domingo { background: color-mix(in srgb, var(--primary) 10%, white); }
+.pc-hoja :is(th, td).pc-hoy { background: color-mix(in srgb, var(--accent) 7%, white); }
+.pc-hoja thead th.pc-hoy { background: color-mix(in srgb, var(--accent) 16%, white); }
+.pc-hoja thead th.pc-hoy .pc-tiempo-cab { color: var(--accent-press); }
+.pc-hoja td.pc-futuro .pc-n { color: var(--muted-foreground); }
+.pc-hoja :is(th, td).pc-tcierre { border-left: 2px solid var(--border-strong); }
+.pc-hoja[data-tiempo='dias'] .pc-tiempo { min-width: 44px; padding-inline: 6px; }
+.pc-hoja[data-tiempo='dias'] thead th.pc-tiempo { padding-inline: 6px; }
+/* Semanas: hasta 5 columnas de tiempo (un mes que no empieza el día 1) caben a 1440 px sin desplazar.
+   Como «Días» en la pieza aprobada: celdas más apretadas, y los títulos largos en dos líneas. */
+.pc-hoja[data-tiempo='semanas'] :is(td, tbody th, tfoot th) { padding-inline: 5px; }
+.pc-hoja[data-tiempo='semanas'] .pc-th { padding: 0 1px 0 5px; }
+.pc-hoja[data-tiempo='semanas'] .pc-tiempo { min-width: 40px; }
+.pc-hoja[data-tiempo='semanas'] thead th.pc-tiempo { padding-inline: 5px; }
+/* Si el rango cruza meses, el mes del detalle («22–30 set») baja de línea solo cuando no cabe. */
+.pc-hoja[data-tiempo='semanas'] .pc-tiempo-cab small { white-space: normal; line-height: 1.05; text-align: right; }
+.pc-tiempo-cab small > span { white-space: nowrap; }
+.pc-hoja[data-tiempo='semanas'] .pc-nombre { min-width: 120px; }
+.pc-hoja[data-tiempo='semanas'] tfoot th.pc-analista { white-space: normal; line-height: 1.2; }
+.pc-hoja[data-tiempo='semanas'] :is([data-col='monto'], [data-col='ticket'], [data-col='proyectado']) .pc-th-orden { white-space: normal; line-height: 1.15; text-align: right; }
+.pc-hoja[data-tiempo='semanas'] .pc-n { margin: 0 -4px; padding: 0 4px; }
+.pc-hoja[data-tiempo='semanas'] .cm-senal { min-width: 60px; margin-left: -4px; }
 .pc-fila:is(:hover, :focus-within) :is(td, th) { background: var(--pc-cruz); }
 .pc-fila:hover .pc-n0 { background: color-mix(in srgb, var(--accent) 12%, white); color: var(--primary); }
 .pc-hoja .pc-proyectado { background: color-mix(in srgb, var(--background) 65%, white); }
 
-.pc-banda th { height: 36px; padding: 0; background: var(--secondary); border-right: 0; text-align: left; }
-.pc-banda button { position: sticky; left: 0; display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px 0 16px; color: var(--primary); font-size: 13px; font-weight: 600; cursor: pointer; }
-.pc-banda button:hover { color: var(--accent-press); }
-.pc-banda small { font-size: 12px; font-weight: 500; color: var(--muted-foreground-strong); }
-.pc-banda svg { width: 14px; height: 14px; transition: transform 0.2s var(--ease-out-expo); }
-.pc-banda button[aria-expanded='false'] svg { transform: rotate(-90deg); }
-
 .pc-hoja tfoot :is(th, td) { position: sticky; bottom: 0; z-index: 3; height: 46px; border-top: 1px solid var(--border-strong); border-bottom: 0; background: var(--muted); color: var(--primary); font-weight: 700; }
 .pc-hoja tfoot :is(.pc-n0, .pc-analista) { z-index: 4; }
 .pc-hoja tfoot .pc-n { font-weight: 700; }
-.pc-hoja tfoot .pc-proyectado { background: var(--muted); }
+.pc-hoja tfoot :is(.pc-proyectado, .pc-tiempo) { background: var(--muted); }
 
 .pc-n { display: inline-flex; align-items: center; justify-content: flex-end; min-width: 36px; height: 32px; margin: 0 -8px; padding: 0 8px; border-radius: 6px; color: inherit; font: inherit; font-weight: 500; transition: background 0.14s, color 0.14s; }
 button.pc-n { cursor: pointer; }
@@ -119,22 +141,21 @@ button.pc-persona:hover { color: var(--accent-press); text-decoration: underline
 .pc-panel :is(.pc-scroll, .pc-hoja button):focus-visible { outline-offset: -2px; }
 @media (max-width: 1440px) { .pc-avatar { display: none; } .pc-hoja :is(th, td) { padding-inline: 8px; } .pc-nombre { min-width: 150px; max-width: 210px; } .pc-scroll { scroll-padding-left: 270px; } }
 @media (max-width: 767px) {
-  .pc-pastillas { flex-basis: 100%; }
   .pc-nombre { min-width: 132px; }
   .pc-hoja tbody th.pc-analista { white-space: normal; }
   .pc-scroll { max-height: none; }
-  .pc-pastillas > * { font-size: 12px; }
+  .pc-tiempos { padding-left: 0; border-left: 0; }
 }
 /* Táctil: toda zona pulsable mide al menos 44 px. */
 @media (pointer: coarse) {
   .pc-embudo { min-width: 44px; min-height: 44px; }
   .pc-chip button { position: relative; }
   .pc-chip button::after { content: ''; position: absolute; inset: -11px; }
-  .pc-hoja .pc-n, .pc-hoja button.cm-senal, .pc-banda button { height: 44px; min-height: 44px; }
+  .pc-hoja .pc-n, .pc-hoja button.cm-senal { height: 44px; min-height: 44px; }
   .pc-op, .pc-atajo { min-height: 44px; }
-  .pc-fecha input { height: 44px; }
+  .pc-fecha :is(input, select) { height: 44px; }
   .pc-menu input:not([type='checkbox']) { height: 44px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .pc-menu, .pc-flecha, .pc-banda svg, .pc-n { animation: none !important; transition: none !important; }
+  .pc-menu, .pc-flecha, .pc-n, .pc-atajo { animation: none !important; transition: none !important; }
 }

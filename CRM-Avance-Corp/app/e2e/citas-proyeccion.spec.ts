@@ -66,14 +66,24 @@ async function abrirProyeccion(page: Page) {
   await page.getByRole('tab', { name: 'Proyección' }).click()
   return page.getByRole('table', { name: /Proyección de citas por analista/ })
 }
+const atajo = (page: Page, nombre: string) => page.getByRole('group', { name: 'Atajos de periodo' }).getByRole('button', { name: nombre, exact: true })
+const tiempo = (page: Page, nombre: 'Mes' | 'Semanas' | 'Días') => page.getByRole('group', { name: 'Columnas de tiempo' }).getByRole('button', { name: nombre, exact: true })
 
 test('Proyección: la hoja pinta una fila por analista, un número abre su lista y un embudo filtra', async ({ page }, info) => {
   await page.setViewportSize({ width: 1440, height: 1000 })
   const hoja = await abrirProyeccion(page)
   await expect(hoja.locator('tr.pc-fila')).toHaveCount(3)
-  await expect(hoja.getByRole('button', { name: /^Equipo SUPERVISORA NORTE/ })).toContainText('2 analistas · 5 citas')
+  // Hoja plana: sin bandas por equipo ni pastillas de totales, # continuo; los filtros de arriba no se pintan.
+  await expect(hoja.getByRole('button', { name: /^Equipo / })).toHaveCount(0)
+  await expect(page.getByRole('group', { name: 'Totales de la proyección' })).toHaveCount(0)
+  await expect(hoja.locator('tr.pc-fila td.pc-n0')).toHaveText(['1', '2', '3'])
+  await expect(page.getByRole('region', { name: 'Consulta de citas' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Exportar citas' })).toHaveCount(0)
   await expect(hoja.getByRole('row', { name: /^Total · 3 analistas/ })).toBeVisible()
-  // Sin desplazamiento horizontal a 1440 px en la vista del mes.
+  // Nombres propios: Resultados ya usa «Ticket del mes» y «Cierre proyectado» para otras cifras.
+  await expect(hoja.locator('thead th[data-col]')).toHaveText(['Analista', 'Citas', 'Monto S/', 'Ticket cita S/', '% Entrev.', '% Conv.',
+    'Proyectado citas S/', 'Referidos', 'Clientes', 'Leads'])
+  // Sin desplazamiento horizontal a 1440 px en la vista del mes, aun con esos dos nombres largos.
   const scroll = page.getByRole('region', { name: 'Hoja de proyección por analista' })
   const anchos = await hoja.locator('thead th').evaluateAll(ths => ths.map(th => `${th.textContent}:${Math.round(th.getBoundingClientRect().width)}`).join(' · '))
   expect(await scroll.evaluate(el => el.scrollWidth - el.clientWidth), anchos).toBeLessThanOrEqual(0)
@@ -114,23 +124,91 @@ test('Proyección: la hoja pinta una fila por analista, un número abre su lista
   await expect(page.getByTestId('pc-rotulo-rango')).toHaveText('25 set – 19 oct 2026')
   await expect(hoja.getByRole('button', { name: '5 citas de ANALISTA UNO' })).toBeVisible()
   await expect(hoja.getByRole('button', { name: '3 citas de ANALISTA TRES' })).toBeVisible()
-  await page.getByRole('button', { name: 'S3' }).click()
+  await atajo(page, 'S3').click()
   await expect(page.getByTestId('pc-rotulo-rango')).toHaveText('15–21 oct 2026')
   await expect(hoja.locator('tr.pc-fila')).toHaveCount(2)
+  // El Supervisor de la barra acota la hoja.
+  await page.getByRole('group', { name: 'Consulta de la proyección' }).getByLabel('Supervisor').selectOption({ label: 'SUPERVISOR SUR' })
+  await expect(hoja.locator('tr.pc-fila')).toHaveCount(1)
+  await expect(hoja.getByRole('row', { name: /ANALISTA TRES/ })).toBeVisible()
+})
+
+test('Proyección: Semanas y Días ponen columnas de tiempo antes de Citas y cada número abre su lista', async ({ page }, info) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  const hoja = await abrirProyeccion(page)
+  const uno = hoja.getByRole('row', { name: /ANALISTA UNO/ })
+  // ANALISTA UNO, 1–19 oct: tres citas creadas el 2, 3 y 4 (S1) y una el 12 (S2).
+  await tiempo(page, 'Semanas').click()
+  await expect(tiempo(page, 'Semanas')).toHaveAttribute('aria-pressed', 'true')
+  await expect(hoja.locator('thead th.pc-tiempo .sr-only')).toHaveText(['S1 1–7 oct', 'S2 8–14 oct', 'S3 15–19 oct'])
+  await expect(hoja.locator('thead th.pc-tcierre')).toContainText('Citas')
+  expect(await uno.locator('td').evaluateAll(celdas => celdas.slice(0, 5).map(td => td.textContent))).toEqual(['1', '3', '1', '0', '4'])
+  const sumas = await hoja.locator('tbody tr, tfoot tr').evaluateAll(filas => filas.map(tr => {
+    const n = [...tr.querySelectorAll('td')].map(td => Number(td.textContent))
+    return n[1]! + n[2]! + n[3]! - n[4]!
+  }))
+  expect(sumas).toEqual([0, 0, 0, 0])
+  await page.screenshot({ path: info.outputPath('proyeccion-semanas-1440.png'), fullPage: true })
+  await uno.getByRole('button', { name: '3 citas de ANALISTA UNO, S1 1–7 oct' }).click()
+  const semana = page.getByRole('dialog', { name: 'Citas · S1 1–7 oct · ANALISTA UNO' })
+  await expect(semana.getByTestId('pc-detalle-conteo')).toHaveText('1–7 oct 2026 · 3 citas')
+  await expect(semana.locator('tbody tr')).toHaveCount(3)
+  await page.keyboard.press('Escape')
+  await expect(semana).toHaveCount(0)
+  // Un mes completo en Semanas (4 semanas) y un rango de un mes que cruza dos (5) caben a 1440 px sin desplazar la hoja.
+  const scroll = page.getByRole('region', { name: 'Hoja de proyección por analista' })
+  for (const [desde, hasta, semanas] of [['2026-10-01', '2026-10-31', 4], ['2026-09-20', '2026-10-20', 5]] as const) {
+    await page.getByLabel('Desde', { exact: true }).fill(desde)
+    await page.getByLabel('Hasta', { exact: true }).fill(hasta)
+    await expect(hoja.locator('thead th.pc-tiempo')).toHaveCount(semanas)
+    const anchos = await hoja.locator('thead th').evaluateAll(ths => ths.map(th => `${th.textContent}:${Math.round(th.getBoundingClientRect().width)}`).join(' · '))
+    expect(await scroll.evaluate(el => el.scrollWidth - el.clientWidth), `${desde} → ${hasta}: ${anchos}`).toBeLessThanOrEqual(0)
+    await page.screenshot({ path: info.outputPath(`proyeccion-semanas-${semanas}-1440.png`), fullPage: true })
+  }
+  await atajo(page, 'Mes').click()
+  await expect(page.getByTestId('pc-rotulo-rango')).toHaveText('1–19 oct 2026')
+
+  await tiempo(page, 'Días').click()
+  await expect(hoja.locator('thead th.pc-tiempo')).toHaveCount(19)
+  await expect(hoja.locator('thead th.pc-hoy .sr-only')).toHaveText('lun 19 oct')
+  await expect(hoja.locator('thead th.pc-domingo')).toHaveCount(3)
+  // La hoja se desplaza dentro de su contenedor, nunca la página; # y Analista quedan fijos.
+  expect(await scroll.evaluate(el => el.scrollWidth > el.clientWidth)).toBe(true)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0)
+  const nombre = uno.getByRole('rowheader')
+  const antes = await nombre.boundingBox()
+  await scroll.evaluate(el => { el.scrollLeft = el.scrollWidth })
+  expect((await nombre.boundingBox())?.x).toBe(antes?.x)
+  await scroll.evaluate(el => { el.scrollLeft = 0 })
+  await page.screenshot({ path: info.outputPath('proyeccion-dias-1440.png'), fullPage: true })
+  await uno.getByRole('button', { name: '1 cita de ANALISTA UNO, 2 oct' }).click()
+  const dia = page.getByRole('dialog', { name: 'Citas · 2 oct · ANALISTA UNO' })
+  await expect(dia.getByTestId('pc-detalle-conteo')).toHaveText('2 oct 2026 · 1 cita')
+  await expect(dia.locator('tbody tr')).toHaveCount(1)
+  await page.keyboard.press('Escape')
+  await expect(dia).toHaveCount(0)
+  // Con más de 31 días, «Días» se deshabilita y la hoja cae a semanas.
+  await page.getByLabel('Desde', { exact: true }).fill('2026-09-01')
+  await expect(tiempo(page, 'Días')).toBeDisabled()
+  await expect(tiempo(page, 'Semanas')).toHaveAttribute('aria-pressed', 'true')
+  await expect(hoja.locator('thead th.pc-tiempo .sr-only').first()).toHaveText('S1 1–7 set')
 })
 
 test('Proyección: el mes sin citas muestra la hoja vacía sin errores y en el celular solo desplaza la hoja', async ({ page }, info) => {
   await page.setViewportSize({ width: 1440, height: 1000 })
   const hoja = await abrirProyeccion(page)
   await expect(hoja.locator('tr.pc-fila')).toHaveCount(3)
-  await page.getByLabel('Mes').fill('2026-08')
+  // Los filtros de arriba no se pintan en Proyección: el periodo se elige en su barra.
+  await page.getByLabel('Desde', { exact: true }).fill('2026-08-01')
+  await page.getByLabel('Hasta', { exact: true }).fill('2026-08-31')
   await expect(page.getByTestId('pc-rotulo-rango')).toHaveText('1–31 ago 2026')
   await expect(hoja.locator('tr.pc-fila')).toHaveCount(0)
   await expect(hoja.getByRole('row', { name: /^Total · 0 analistas/ })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Exportar CSV' })).toBeDisabled()
   await expect(page.getByRole('alert')).toHaveCount(0)
   await expect(page.getByText('No hay citas con esta combinación')).toHaveCount(0)
-  await page.getByRole('button', { name: 'Quitar Mes: 2026-08' }).click()
+  await atajo(page, 'Mes').click()
+  await expect(page.getByTestId('pc-rotulo-rango')).toHaveText('1–19 oct 2026')
   await expect(hoja.locator('tr.pc-fila')).toHaveCount(3)
   await page.setViewportSize({ width: 390, height: 844 })
   await expect(hoja.locator('tr.pc-fila')).toHaveCount(3)

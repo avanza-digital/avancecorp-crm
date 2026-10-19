@@ -8,7 +8,7 @@
 
 // 'repartir' (C1, 2026-07-22) NO entra en VISTAS_LEADS a propósito: el gate de
 // leads está cerrado para el coordinador y ocultaría la única pantalla que debe ver.
-import { consultaCitasValida, type ConsultaCitasEnlace } from './enlace-citas'
+import { consultaCitasValida, esConsultaProyeccion, type ConsultaCitasEnlace, type VistaProyeccionEnlace } from './enlace-citas'
 
 export const VISTAS = [
   'hoy',
@@ -192,7 +192,8 @@ function detalleGestionValido(detalle: DetalleGestion | undefined): detalle is D
 
 export function hashDe(vista: Vista, leadId?: string | null, inversionistaId?: string, solicitudTasaId?: string, detalleGestion?: DetalleGestion, llamadaNumero?: string, consultaCitas?: ConsultaCitasEnlace, llamadaOrigenId?: string): string {
   if (vista === 'reuniones' && consultaCitasValida(consultaCitas)) {
-    const periodo = consultaCitas.dia ? `dia/${consultaCitas.dia}` : `mes/${consultaCitas.mes}${consultaCitas.semana ? `/semana/${consultaCitas.semana}` : ''}`
+    const periodo = esConsultaProyeccion(consultaCitas) ? `proyeccion/${consultaCitas.desde}/${consultaCitas.hasta}${consultaCitas.vista ? `/${consultaCitas.vista}` : ''}`
+      : consultaCitas.dia ? `dia/${consultaCitas.dia}` : `mes/${consultaCitas.mes}${consultaCitas.semana ? `/semana/${consultaCitas.semana}` : ''}`
     return `#/reuniones/${periodo}${consultaCitas.equipo ? `/equipo/${consultaCitas.equipo}` : ''}${leadId ? `/lead/${encodeURIComponent(leadId)}` : ''}`
   }
   if (vista === 'gestion-diaria' && detalleGestionValido(detalleGestion)) {
@@ -216,11 +217,18 @@ export function leerHash(): RutaHash {
   const crudo = window.location.hash.replace(/^#\/?/, '')
   const partes = crudo.split('/').filter(Boolean)
   const vista = resolverVista(partes[0])
-  const indiceEquipo = partes[1] === 'mes' && partes[3] === 'semana' ? 5 : 3
+  // Proyección: «proyeccion/<desde>/<hasta>[/<vista>]»; lo que ocupe el lugar de la vista y no sea
+  // «equipo» ni «lead» se toma como vista y la validación lo descarta si no lo es.
+  const vistaProyeccion = partes[1] === 'proyeccion' && partes[4] !== 'equipo' && partes[4] !== 'lead' ? partes[4] : undefined
+  const indiceEquipo = partes[1] === 'proyeccion' ? (vistaProyeccion === undefined ? 4 : 5)
+    : partes[1] === 'mes' && partes[3] === 'semana' ? 5 : 3
   const equipoCitas = partes[indiceEquipo] === 'equipo' ? { equipo: partes[indiceEquipo + 1] ?? '' } : {}
   const candidataCitas = vista === 'reuniones' && partes[2]
     ? partes[1] === 'dia' ? { dia: partes[2], ...equipoCitas }
-      : partes[1] === 'mes' ? { mes: partes[2], ...(partes[3] === 'semana' ? { semana: partes[4] ?? '' } : {}), ...equipoCitas } : undefined
+      : partes[1] === 'mes' ? { mes: partes[2], ...(partes[3] === 'semana' ? { semana: partes[4] ?? '' } : {}), ...equipoCitas }
+      : partes[1] === 'proyeccion' ? { desde: partes[2], hasta: partes[3] ?? '',
+        ...(vistaProyeccion === undefined ? {} : { vista: vistaProyeccion as VistaProyeccionEnlace }), ...equipoCitas }
+      : undefined
     : undefined
   const consultaCitas = consultaCitasValida(candidataCitas) ? candidataCitas : undefined
   let leadId: string | null = null

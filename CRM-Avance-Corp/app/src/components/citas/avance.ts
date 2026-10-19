@@ -2,7 +2,8 @@ import { normalizar, type CitaEjemplo, type FiltrosCitas } from './modelo'
 import { baseCitasFiltrada, type GestionCitas } from './metas'
 import type { GestionMensualCitas } from '@/lib/gestion-citas'
 import { totalEnSoles, tcAplicable } from '@/lib/capital-unificado'
-import { fechaLocalCitas, entrevistaCompatibleConVenta, ventaComercialDelMes } from './fecha-comercial'
+import { fechaLocalCitas, ventaComercialDelMes } from './fecha-comercial'
+import { enAmbito, reglaDueno, ventaCierraEntrevista } from './atribucion'
 export { fechaLocalCitas } from './fecha-comercial'
 
 type Persona = GestionMensualCitas['poblacion'][number]
@@ -65,10 +66,9 @@ export function calcularAvanceCitas(gestion: GestionCitas, todas: CitaEjemplo[],
     ...todas.map(c => [c.analista, { id: c.analista, nombre: c.analistaNombre, supervisor: c.supervisor, supervisorId: c.supervisorId }] as const),
     ...datos.conversiones.filter(c => c.analista_id).map(c => [c.analista_id!, { id: c.analista_id!, nombre: c.analista_nombre, supervisor: c.supervisor_nombre, supervisorId: c.supervisor_id ?? 'sin_supervisor' }] as const),
   ])
-  const ambito = (id: string | null) => id !== null && (!filtros.analista || id === filtros.analista)
-    && (!filtros.equipo || roster.get(id)?.supervisorId === filtros.equipo)
-  const owner = (lead: string, evento: string | null) => config.analista_resultado === 'asignacion'
-    ? personas.get(lead)?.analista_origen_id ?? null : evento
+  const alcance = { analistas: filtros.analista ? new Set([filtros.analista]) : null, equipo: filtros.equipo, supervisorDe: (id: string) => roster.get(id)?.supervisorId }
+  const ambito = (id: string | null) => enAmbito(id, alcance)
+  const owner = reglaDueno(config.analista_resultado, lead => personas.get(lead)?.analista_origen_id)
   const mesResultado = (p: Persona, fecha: string) => config.mes_resultado === 'asignacion'
     ? p.primera_asignacion_en !== null && fechaLocalCitas(p.primera_asignacion_en).startsWith(filtros.mes)
     : fechaLocalCitas(fecha).startsWith(filtros.mes)
@@ -112,9 +112,10 @@ export function calcularAvanceCitas(gestion: GestionCitas, todas: CitaEjemplo[],
     const clientesMes = cierres.filter(c => !id || owner(c.lead_id, c.analista_id) === id)
     // Cada fila compara entrevistas propias. El total del ámbito reconoce
     // también la colaboración entre analistas incluidos en la consulta.
-    const vinculados = clientesMes.filter(c => visitas.some(v => personaEntrevistada(v.leadId) === personaEntrevistada(c.lead_id)
-      && (!id || owner(v.leadId, v.analista) === owner(c.lead_id, c.analista_id))
-      && entrevistaCompatibleConVenta(v.asistioEn, c.fecha_comercial)))
+    const vinculados = clientesMes.filter(c => {
+      const venta = { dueno: owner(c.lead_id, c.analista_id), fecha_comercial: c.fecha_comercial }
+      return visitas.some(v => personaEntrevistada(v.leadId) === personaEntrevistada(c.lead_id) && ventaCierraEntrevista(v.asistioEn, venta, id || null))
+    })
     const perfilesVinculados = new Set(vinculados.map(c => personaEntrevistada(c.lead_id)))
     const clientes = perfilesVinculados.size
     const clientesPeriodo = new Set(clientesMes.map(c => personaEntrevistada(c.lead_id))).size
