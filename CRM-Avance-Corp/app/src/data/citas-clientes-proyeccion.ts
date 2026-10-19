@@ -8,7 +8,13 @@ import { FechaSchema } from '@/lib/esquemas-rpc'
  * Proyección de citas, Fase 0b (19/10/2026): reuniones con CLIENTES que no tienen lead,
  * contadas por fecha de CREACIÓN (día de Lima), sin paginar. Puerta
  * `crm.citas_clientes_proyeccion_fn` → núcleo `private.citas_clientes_proyeccion`
- * (migración 20261019213516). BORRADOR: todavía no lo usa ninguna pantalla.
+ * (migración 20261019213516 + enmienda 20261019224227). BORRADOR: todavía no lo usa ninguna pantalla.
+ *
+ * `generado_en` es el CORTE (enmienda 20261019224227): el servidor sólo devuelve reuniones
+ * creadas, y asistencias registradas, hasta ese instante; por eso el validador lo exige.
+ * Coste medido en el banco: ~0,7 ms por persona F6 distinta y ~6 ms por perfil distinto; con
+ * el `statement_timeout` de 8 s, un rango con más de ~1 000 perfiles distintos da 57014
+ * (en producción no hay reuniones de perfil: las 39 históricas son de persona F6).
  *
  * Para la pantalla:
  * - Estas reuniones NO están en `crm.citas_gerencia_consulta[_v2]_fn` (que sólo recorre
