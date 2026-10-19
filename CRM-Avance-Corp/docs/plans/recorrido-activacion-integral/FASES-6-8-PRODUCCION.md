@@ -16,6 +16,8 @@ Miguel aprobó el paquete SQL exacto y su activación: «ok hazlo tienes aprobac
 
 Evidencia: `fase6-preflight-produccion.json`, `fase6-postflight-produccion.json`, `fase6-catalogo-produccion.json`, `fase6-edge-paridad.json`, `fase6-guia-produccion.json` y `fase6-advisors-produccion.json`.
 
+CodeRabbit observó en el PR #333 que la salida guardada del postflight solo mostraba el control inicial: la CLI conservó el último SELECT. Se completó la evidencia mediante una **nueva lectura de producción a las 15:12:19 UTC**, que registra **524 = 509 + 15**, digest de la base y las quince versiones, nombres y huellas observadas, comparadas con el paquete aprobado. Ver [salida productiva detallada](evidencia/fase6-postflight-migraciones-produccion.json) y [SQL de solo lectura reproducible](operacion/06-evidencia-paquete-produccion.sql). La captura identifica el control activo en ese momento; el [registro original](evidencia/fase6-postflight-produccion.json) conserva por separado la observación inicial. La evidencia de la rama de ensayo no se usa como sustituto de esta consulta productiva.
+
 ## Fase 7 — PASS, 6/6
 
 Se ejecutó el `03-activar.sql` aprobado después del postflight, mediante la RPC administrativa existente. Control vigente confirmado: modo `exigir`, revisión 2, fecha del servidor **2026-10-19T14:44:22.886326Z** y actor administrativo autorizado.

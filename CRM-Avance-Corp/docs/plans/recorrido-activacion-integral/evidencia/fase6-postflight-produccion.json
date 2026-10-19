@@ -1,7 +1,14 @@
-[
-  {
-    "cohorte_desde": null,
-    "modo": "observacion",
-    "revision": 1
-  }
-]
+{
+  "momento": "Fin de la instalación, antes de la primera activación",
+  "sql_ejecutado": "../operacion/02-postflight-instalacion.sql",
+  "salida_original_cli": [
+    {
+      "cohorte_desde": null,
+      "modo": "observacion",
+      "revision": 1
+    }
+  ],
+  "limite_de_captura": "La CLI conservó únicamente el último SELECT del postflight; las comprobaciones anteriores se ejecutaron sin error pero sus valores no se conservaron en esta salida.",
+  "evidencia_detallada_migraciones": "fase6-postflight-migraciones-produccion.json",
+  "momento_evidencia_detallada": "Revalidación productiva de solo lectura del 19/10/2026 a las 15:12:19 UTC, posterior a la activación; conserva su propia fecha y el control activo al capturar."
+}
