@@ -97,9 +97,9 @@ export function RecorridoFicha({ lead, puedeOperar, onAgendar, onAgenda, onHisto
     <section aria-labelledby={`${id}-titulo`} className="space-y-2 rounded-xl border border-border bg-muted/30 p-2.5">
       <div className="flex items-center justify-between gap-2">
         <h3 ref={encabezado} tabIndex={-1} id={`${id}-titulo`} className="flex items-center gap-2 rounded-md text-sm font-bold focus-visible:outline-2 focus-visible:outline-ring"><ClipboardCheck aria-hidden className="size-4" />Antes de convertir a cliente</h3>
-        <Button type="button" variant="ghost" size="icon" className="size-8 shrink-0 pointer-coarse:size-11" aria-label="Volver a comprobar" title="Volver a comprobar" aria-disabled={consulta.estado === 'cargando'} onClick={() => { if (consulta.estado !== 'cargando') void consulta.refetch() }}><RefreshCw aria-hidden /></Button>
+        <Button type="button" variant="ghost" size="icon" className="size-8 shrink-0 any-pointer-coarse:size-11" aria-label="Volver a comprobar" title="Volver a comprobar" aria-disabled={consulta.estado === 'cargando'} onClick={() => { if (consulta.estado !== 'cargando') void consulta.refetch() }}><RefreshCw aria-hidden /></Button>
       </div>
-      <p role="status" aria-atomic="true" className={consulta.estado === 'listo' && item ? 'sr-only' : 'text-xs text-muted-foreground-strong'}>{consulta.estado === 'cargando'
+      <p role="status" aria-atomic="true" className={consulta.estado === 'listo' && item?.pendiente === 'agendar_cita' && permite && !item.tarea_pendiente_id && !item.habilita_conversion ? 'sr-only' : 'text-xs text-muted-foreground-strong'}>{consulta.estado === 'cargando'
         ? 'Comprobando asistencia y entrevista…' : consulta.estado === 'listo' && item
           ? siguienteDelRecorrido(item) : 'No se pudo comprobar el recorrido. Puedes continuar registrando tu gestión.'}</p>
       {consulta.estado === 'listo' && item && <>
