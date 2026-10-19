@@ -62,6 +62,7 @@ import { filasTrabajoDemo, paginarTrabajoDemo } from '@/lib/gestion-diaria-cola-
 import { leerContextoCola, guardarContextoCola, textoGestion } from '@/lib/gestion-diaria-cola'
 import { useContactoInversionista } from '@/data/inversionistas-queries'
 import { CerrarTareaDialog } from '@/components/app/cerrar-tarea'
+import { RecorridoEnMiDia } from '@/components/app/recorrido-lead'
 import { abrirInversionista } from '@/lib/router'
 import { useActividadesDeLead } from '@/data/use-actividades-de-lead'
 import { haceRelativo, ICONO_ACTIVIDAD } from '@/components/app/actividad-visual'
@@ -835,6 +836,7 @@ function PanelAhora({ fila, lead, sinConversacionDias, ahora, cargando, colaCaid
                 {fila.senal === null ? 'Historial no cargado. Ábrelo en la ficha antes de llamar.' : detalleDeFila(fila, sinConversacionDias)}
               </p>
             </div>}
+            {registro === undefined && <RecorridoEnMiDia key={fila.lead_id} leadId={fila.lead_id} onAbrirFicha={onAbrirFicha} />}
             {registro === undefined && <LoUltimo leadId={fila.lead_id} nombre={fila.nombre_completo} ahora={ahora} onVerTodo={onAbrirFicha} />}
             {registro !== undefined ? (
               <>

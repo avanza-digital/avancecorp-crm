@@ -1,0 +1,98 @@
+b0000000-0000-4000-8000-000000000002
+
+
+
+
+bf1c562e-ed08-4cc3-92a8-34f1fa3e9127
+psql:<stdin>:114: NOTICE:  00000: PASS: contexto causal inmutable, reloj del servidor y metadata falsificada sin efecto
+LOCATION:  exec_stmt_raise, pl_exec.c:3911
+psql:<stdin>:114: NOTICE:  00000: PASS: asistencia+entrevista vinculadas, sin contacto adicional; futura, no_show, cancelada y sin resultado no habilitan
+LOCATION:  exec_stmt_raise, pl_exec.c:3911
+psql:<stdin>:161: NOTICE:  00000: PASS: historia ambigua, reapertura, reasignacion y llamadas/activacion de base dormida
+LOCATION:  exec_stmt_raise, pl_exec.c:3911
+psql:<stdin>:208: NOTICE:  00000: PASS: roles por arbol, puerta privada cerrada, lotes, modo, revision y cohorte inmutable
+LOCATION:  exec_stmt_raise, pl_exec.c:3911
+psql:<stdin>:243: NOTICE:  00000: PASS: cohorte nueva, exclusion de antiguos y reversion sin cambiar el corte
+LOCATION:  exec_stmt_raise, pl_exec.c:3911
+psql:<stdin>:263: NOTICE:  00000: PASS: eliminacion auditada con y sin contexto, copia v3 y nucleo SLA intacto
+LOCATION:  exec_stmt_raise, pl_exec.c:3911
+b0000000-0000-4000-8000-000000000002
+
+
+psql:<stdin>:112: NOTICE:  00000: PASS: oficina atomica, proxima accion, replay con capital protegido, veto y rechazos
+LOCATION:  exec_stmt_raise, pl_exec.c:3911
+psql:<stdin>:112: NOTICE:  00000: PASS: vendedor propio, supervisor y gerencia; coordinacion/directorio/ajenos/sin sesion rechazados
+LOCATION:  exec_stmt_raise, pl_exec.c:3911
+psql:<stdin>:139: NOTICE:  00000: PASS: vinculo causal privado, fecha del servidor, transaccion integra y nucleo conservado
+LOCATION:  exec_stmt_raise, pl_exec.c:3911
+1
+b0000000-0000-4000-8000-000000000002
+
+
+bf1c562e-ed08-4cc3-92a8-34f1fa3e9127
+
+{"modo": "exigir", "motivo": "Ensayo local de cohortes y primera conversion", "revision": 2, "cohorte_desde": "2026-10-19T02:33:39.569439+00:00", "actualizado_en": "2026-10-19T02:33:39.56944+00:00", "actualizado_por": "bf1c562e-ed08-4cc3-92a8-34f1fa3e9127"}
+
+b0000000-0000-4000-8000-000000000002
+
+
+b0000000-0000-4000-8000-000000000002
+
+
+
+
+b0000000-0000-4000-8000-000000000002
+
+b0000000-0000-4000-8000-000000000002
+
+
+
+
+
+
+
+b0000000-0000-4000-8000-000000000002
+{"ok": true, "fuente": {"vence_en": "2027-10-13", "cierre_id": "1b21f2d8-d69a-4bf5-a194-7e341d7d5f46", "tasa_anual": 12, "plazo_meses": 12, "fecha_comercial": "2026-10-18", "fecha_imputacion": "2026-10-18", "ajuste_mes_cerrado": false}, "empresa": "qorilazo", "lead_id": "2cdb35a9-6a41-42d3-ba4d-d8da9291b8cc", "inversion_id": "27710b22-4404-46df-91ab-68e1577ca440", "solicitud_id": "2cd45a91-9067-439d-aa2b-d86473f4ad0f", "revision_datos": 0, "inversionista_id": "851e2cf6-2dde-428f-b81b-6980d9e8aef2"}
+
+b0000000-0000-4000-8000-000000000002
+
+b0000000-0000-4000-8000-000000000002
+
+b0000000-0000-4000-8000-000000000002
+
+bf1c562e-ed08-4cc3-92a8-34f1fa3e9127
+{"ok": true, "etapa": "nuevo", "lead_id": "174c8d02-b472-4dd5-9d3b-01c83f5ae9e7", "enlazado": true, "reabierto_en": "2026-10-19T02:33:39.875666+00:00", "reabierto_por": "bf1c562e-ed08-4cc3-92a8-34f1fa3e9127", "inversionista_id": "95691eac-ee1f-451e-868e-5e6b492cb937"}
+
+
+
+on
+
+off
+
+b0000000-0000-4000-8000-000000000002
+
+
+bf1c562e-ed08-4cc3-92a8-34f1fa3e9127
+{"modo": "observacion", "motivo": "Ensayo observacion sin bloqueo comercial", "revision": 3, "cohorte_desde": "2026-10-19T02:33:39.569439+00:00", "actualizado_en": "2026-10-19T02:33:39.894858+00:00", "actualizado_por": "bf1c562e-ed08-4cc3-92a8-34f1fa3e9127"}
+b0000000-0000-4000-8000-000000000002
+{"ok": true, "fuente": {"vence_en": "2027-10-13", "cierre_id": "674231fd-34e7-40ca-ba6e-690b6f0623c2", "tasa_anual": 12, "plazo_meses": 12, "fecha_comercial": "2026-10-18", "fecha_imputacion": "2026-10-18", "ajuste_mes_cerrado": false}, "empresa": "qorilazo", "lead_id": "002ff311-4df1-4f4a-99b6-6b22e02388b5", "inversion_id": "585d44d0-f958-4c73-ab09-fb9ebe573265", "solicitud_id": "50232dde-fbb5-4e76-ae66-7852db27a587", "revision_datos": 0, "inversionista_id": "1029d3e6-5b81-49e9-b627-7869bcb32d00"}
+bf1c562e-ed08-4cc3-92a8-34f1fa3e9127
+{"modo": "apagado", "motivo": "Ensayo de rollback conservando el corte", "revision": 4, "cohorte_desde": "2026-10-19T02:33:39.569439+00:00", "actualizado_en": "2026-10-19T02:33:39.916834+00:00", "actualizado_por": "bf1c562e-ed08-4cc3-92a8-34f1fa3e9127"}
+{"modo": "exigir", "motivo": "Reactivacion del mismo corte sin exenciones", "revision": 5, "cohorte_desde": "2026-10-19T02:33:39.569439+00:00", "actualizado_en": "2026-10-19T02:33:39.917534+00:00", "actualizado_por": "bf1c562e-ed08-4cc3-92a8-34f1fa3e9127"}
+
+
+
+
+psql:<stdin>:94: NOTICE:  00000: PASS: identidad bloqueada sin hechos, solo etapa, futura o asistencia sin resultado; cita e entrevista sin llamada previa aceptadas
+LOCATION:  exec_stmt_raise, pl_exec.c:3911
+psql:<stdin>:169: NOTICE:  00000: PASS: primera conversion de ambas cooperativas, antiguos no retrobloqueados, nueva solicitud y confirmacion protegidas; borrador conservado
+LOCATION:  exec_stmt_raise, pl_exec.c:3911
+psql:<stdin>:204: NOTICE:  00000: PASS: replay confirmado y fotografia inmutable; inversion adicional sin nueva entrevista
+LOCATION:  exec_stmt_raise, pl_exec.c:3911
+psql:<stdin>:252: NOTICE:  00000: PASS: claim sin Auth no exime; Auth creado con respuesta perdida se recupera, primera conversion sigue bloqueada
+LOCATION:  exec_stmt_raise, pl_exec.c:3911
+psql:<stdin>:275: NOTICE:  00000: PASS: ciclo reabierto exige nuevos hechos; escrituras internas no saltan la defensa de tabla
+LOCATION:  exec_stmt_raise, pl_exec.c:3911
+psql:<stdin>:339: NOTICE:  00000: PASS: observacion y apagado permiten conversion nueva sin hechos; reactivar exige sin reiniciar el corte
+LOCATION:  exec_stmt_raise, pl_exec.c:3911
+PASS: contrato inicial de cartera, upgrade, renovación y replay; rollback íntegro, sin activar el banco.

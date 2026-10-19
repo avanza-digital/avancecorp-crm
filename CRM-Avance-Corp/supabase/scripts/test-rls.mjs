@@ -9,6 +9,12 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 
+// Recorrido: Auth/PostgREST reales sobre una copia desechable del banco local propio.
+if (process.argv.length === 3 && process.argv[2] === '--recorrido-lead') {
+  await import('./recorrido-lead/http.mjs');
+  process.exit(0);
+}
+
 // Citas: misma autorización y ámbito en ambas puertas, con Auth cloud real.
 if (process.argv[2] === '--citas-fecha-comercial-cloud' && process.argv.length <= 4) {
   await import('./citas-fecha-comercial/http-cloud.mjs');
@@ -223,6 +229,7 @@ Uso:
   node supabase/scripts/test-rls.mjs [--preflight] [--contratos | --identidad-d5 | --facturacion-nombres | --llamadas]
   node supabase/scripts/test-rls.mjs --formulario3
   node supabase/scripts/test-rls.mjs --formulario3-fase2
+  node supabase/scripts/test-rls.mjs --recorrido-lead
 
 Opciones:
   --preflight  Valida runtime, variables y matriz sin abrir conexiones.
@@ -230,6 +237,7 @@ Opciones:
   --identidad-d5 Repite solo D-5 con un lead nuevo; admite un banco ya utilizado.
   --facturacion-nombres Ejecuta Facturación v1/v2 y nombres; no sustituye la matriz general.
   --llamadas   Ejecuta visibilidad y llamadas del celular, incluidas las banderas F4-b/F4-e.
+  --recorrido-lead Auth/PostgREST reales en copia desechable del banco local propio (sin seed-demo).
   --help       Muestra esta ayuda sin exigir variables de entorno.
 
 Variables requeridas:

@@ -1,0 +1,22 @@
+npm notice run app@0.0.0 test:run
+npm notice run vitest run src/components/app/inversion-recorrido.test.tsx src/components/app/inversion-desde-lead-foco.test.tsx src/screens/cartera-inversionistas.test.tsx src/components/app/inversion-nueva-venta-cruzada.test.tsx src/components/app/lead-drawer-retomar-conversion.test.tsx src/data/inversion-solicitud-api.test.ts src/lib/inversion-solicitud.test.ts
+
+ RUN  v4.1.11 /private/tmp/hoy-supervisor-goal-20261018/candidato-main/CRM-Avance-Corp/app
+
+(node:88893) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88895) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88896) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88894) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88892) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88897) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ Test Files  6 passed (6)
+      Tests  161 passed (161)
+   Start at  20:40:54
+   Duration  12.64s (transform 2.64s, setup 767ms, import 4.51s, tests 13.44s, environment 3.48s)

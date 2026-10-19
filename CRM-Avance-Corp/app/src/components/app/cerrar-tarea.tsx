@@ -11,7 +11,7 @@ import { FormTareaPostventa } from './postventa-tarea'
 // La escritura real es la RPC atómica crm.cerrar_tarea (cierre + log +
 // siguiente en una transacción); aquí solo se arma el input y se traduce el
 // resultado a toasts honestos.
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { toast } from 'sonner'
 import {
   CheckCircle2,
@@ -39,6 +39,10 @@ import {
 } from '@/components/app/campos-reunion'
 import { validarReunionOperativa } from '@/lib/reunion-operativa'
 import { useCRMData } from '@/lib/store-context'
+import { useAuth } from '@/lib/auth-context'
+import type { CompletarTareaInput } from '@/lib/store'
+import { registrarAtencionOficina } from '@/data/recorrido-oficina-api'
+import { mensajeDeError } from '@/data/crm-api'
 import { useActividadesDeLead } from '@/data/use-actividades-de-lead'
 import { useAhora } from '@/lib/ahora'
 import { sugerirSiguiente } from '@/lib/motor-siguiente'
@@ -58,6 +62,7 @@ import {
   TIPOS_TAREA,
   esTipoTarea,
   type Tarea,
+  type Lead,
   type MotivoNoRealizadaManual,
   type ResultadoReunionOperativo,
   type TipoActividadManual,
@@ -143,7 +148,7 @@ function opcionesDe(tipo: TipoTarea): OpcionCierre[] {
   }
 }
 
-export function CerrarTareaDialog({ tarea, onCerrar }: { tarea: Tarea | null; onCerrar: () => void }) {
+export function CerrarTareaDialog({ tarea, onCerrar, onGuardado, focoAlCerrar }: { tarea: Tarea | null; onCerrar: () => void; onGuardado?: () => void; focoAlCerrar?: RefObject<HTMLElement | null> }) {
   const [ocupado, setOcupado] = useState(false)
   const { lead, asegurarLead } = useCRMData()
   // Fase 4e «sin topes»: sin foto inicial, el lead de la llamada puede no ser
@@ -168,10 +173,10 @@ export function CerrarTareaDialog({ tarea, onCerrar }: { tarea: Tarea | null; on
   // origen y el foco caía al cuerpo del documento.
   return (
     <>
-      <Dialog open={tarea != null} onClose={() => { if (!ocupado) onCerrar() }} ariaLabel="Cerrar tarea">
+      <Dialog open={tarea != null} onClose={() => { if (!ocupado) onCerrar() }} ariaLabel="Cerrar tarea" focoAlCerrar={focoAlCerrar}>
         {tarea && (tarea.inversionista_id
           ? <FormTareaPostventa key={tarea.id} tarea={tarea} onCerrar={onCerrar} onOcupado={setOcupado} />
-          : <FormCierre key={tarea.id} tarea={tarea} onCerrar={onCerrar} onRegistrarLlamada={leadDeLlamada ? () => setPanelLlamada(tarea.id) : undefined} />)}
+          : <FormCierre key={tarea.id} tarea={tarea} onCerrar={onCerrar} onGuardado={onGuardado} onRegistrarLlamada={leadDeLlamada ? () => setPanelLlamada(tarea.id) : undefined} />)}
       </Dialog>
       {tarea && leadDeLlamada && panelLlamada === tarea.id && (
         <RegistrarResultado key={tarea.id} lead={leadDeLlamada} tarea={tarea} onClose={() => { setPanelLlamada(null); onCerrar() }} />
@@ -180,14 +185,61 @@ export function CerrarTareaDialog({ tarea, onCerrar }: { tarea: Tarea | null; on
   )
 }
 
-function FormCierre({ tarea, onCerrar, onRegistrarLlamada }: { tarea: Tarea; onCerrar: () => void; onRegistrarLlamada?: (() => void) | undefined }) {
+/** Presenta el MISMO formulario de entrevista y motor de siguiente acción.
+ * La tarea de contexto solo existe en memoria: el único writer es la RPC. */
+export function AtenderOficinaDialog({ lead, onCerrar, onGuardado, focoAlCerrar }: { lead: Lead; onCerrar: () => void; onGuardado?: () => void; focoAlCerrar?: RefObject<HTMLElement | null> }) {
+  const { yo } = useAuth()
+  const { asegurarLead, recargar } = useCRMData()
+  const [ocupado, setOcupado] = useState(false)
+  const actorActual = useRef(yo?.id)
+  actorActual.current = yo?.id
+  const [tarea] = useState<Tarea>(() => ({
+    id: `oficina:${lead.id}`, lead_id: lead.id, tipo: 'reunion', titulo: 'Visita y entrevista en oficina',
+    estado: 'pendiente', activo: true, reprogramaciones: 0, modalidad_reunion: 'presencial',
+    ubicacion_reunion: 'Oficina', creado_en: new Date().toISOString(), vence_en: new Date().toISOString(),
+  }))
+  async function guardar(input: CompletarTareaInput): Promise<boolean> {
+    if (!yo || yo.demo) {
+      toast.error('Registra la visita desde tu sesión del CRM.')
+      return false
+    }
+    const actor = yo.id
+    try {
+      await registrarAtencionOficina(actor, lead.id, input)
+    } catch (error) {
+      if (actorActual.current === actor) toast.error(mensajeDeError(error, 'No se pudo confirmar la visita. Reintenta.'))
+      return false
+    }
+    if (actorActual.current !== actor) return false
+    // La escritura ya se confirmó. Un fallo posterior de lectura no la revierte
+    // ni vuelve a enviar la entrevista; el refresco tiene su propio aviso.
+    void Promise.allSettled([asegurarLead(lead.id), recargar()]).then((resultados) => {
+      if (actorActual.current === actor && resultados.some((r) => r.status === 'rejected' || !r.value)) {
+        toast.warning('Visita registrada. Actualiza la ficha para ver los datos más recientes.')
+      }
+    })
+    return true
+  }
+  return <Dialog open onClose={() => { if (!ocupado) onCerrar() }} ariaLabel="Registrar visita y entrevista" focoAlCerrar={focoAlCerrar}>
+    <FormCierre tarea={tarea} onCerrar={onCerrar} onGuardado={onGuardado} oficina={{ lead, guardar }} onOcupado={setOcupado} />
+  </Dialog>
+}
+
+function FormCierre({ tarea, onCerrar, onGuardado, onRegistrarLlamada, oficina, onOcupado }: {
+  tarea: Tarea
+  onCerrar: () => void
+  onGuardado?: (() => void) | undefined
+  onRegistrarLlamada?: (() => void) | undefined
+  oficina?: { lead: Lead; guardar: (input: CompletarTareaInput) => Promise<boolean> }
+  onOcupado?: (valor: boolean) => void
+}) {
   // Tarea de LLAMADA de un lead: el resultado (siete opciones) vive en el panel
   // de Gestión Diaria; aquí quedan el contexto del lead y «anular».
   const etapaDe = useEtapaVisible()
   const llamadaTipificada = onRegistrarLlamada != null
   const { lead, completarTarea, anularTarea, descartar, tareasDe } = useCRMData()
   const ahora = useAhora()
-  const l = tarea.lead_id ? lead(tarea.lead_id) : undefined
+  const l = oficina?.lead ?? (tarea.lead_id ? lead(tarea.lead_id) : undefined)
   // Historial POR LEAD (Fase 1 «sin topes»): el plantón y el retroceso ya no
   // se leen de la lista global del ámbito, que PostgREST recorta a 1 000 filas.
   const historial = useActividadesDeLead(tarea.lead_id ?? null)
@@ -199,11 +251,13 @@ function FormCierre({ tarea, onCerrar, onRegistrarLlamada }: { tarea: Tarea; onC
     (tarea.perfil_id
       ? nombreClienteDeTitulo(tarea.titulo)
       : '')
-  const opciones = opcionesDe(tarea.tipo)
+  const opciones = oficina
+    ? opcionesDe('reunion').filter((op) => op.estado === 'completada').map((op) => ({ ...op, label: 'Asistió y realizamos la entrevista' }))
+    : opcionesDe(tarea.tipo)
 
   const [eleccion, setEleccion] = useState<OpcionCierre | null>(
     // "Hecha" es la única opción de una tarea genérica: preseleccionada.
-    opciones.length === 1 ? (opciones[0] ?? null) : null,
+    !oficina && opciones.length === 1 ? (opciones[0] ?? null) : null,
   )
   const [detalle, setDetalle] = useState('')
   const [resultadoReunion, setResultadoReunion] = useState<ResultadoReunionOperativo | null>(null)
@@ -302,6 +356,8 @@ function FormCierre({ tarea, onCerrar, onRegistrarLlamada }: { tarea: Tarea; onC
   // Mientras espera, el botón se bloquea: un segundo clic mandaría un cierre de
   // una tarea que el espejo local ya dio por cerrada → "Tarea no encontrada".
   const [procesando, setProcesando] = useState(false)
+  const enviando = useRef(false)
+  useEffect(() => { onOcupado?.(procesando) }, [procesando, onOcupado])
   // MODO ANULAR — "esta tarea ya no hace falta". No es un resultado más: no
   // afirma NADA sobre el cliente, así que no puede vivir en la grilla de
   // "¿Qué pasó?" (ahí, entre Contestó y No contestó, se elegiría por descarte).
@@ -460,7 +516,7 @@ function FormCierre({ tarea, onCerrar, onRegistrarLlamada }: { tarea: Tarea; onC
     const persistio = await (res.persistido ?? Promise.resolve(true))
     setProcesando(false)
     if (!persistio) return
-    onCerrar()
+    ;(onGuardado ?? onCerrar)()
     // Orden de los avisos: el retroceso de etapa manda sobre el "sin próxima
     // acción" porque es el cambio más grande y el que el analista no pidió
     // explícitamente. Los dos son ciertos a la vez a menudo (anular la última
@@ -476,7 +532,7 @@ function FormCierre({ tarea, onCerrar, onRegistrarLlamada }: { tarea: Tarea; onC
   }
 
   const confirmar = async () => {
-    if (procesando) return
+    if (procesando || enviando.current) return
     if (!eleccion) return
     if (tarea.tipo === 'reunion' && eleccion.estado === 'completada' && !resultadoReunion) {
       toast.error('Selecciona el resultado comercial de la cita')
@@ -512,7 +568,7 @@ function FormCierre({ tarea, onCerrar, onRegistrarLlamada }: { tarea: Tarea; onC
       toast.error(reunionSiguiente.error)
       return
     }
-    const res = completarTarea({
+    const input: CompletarTareaInput = {
       tarea_id: tarea.id,
       estado: eleccion.estado,
       // El PLANTÓN deja rastro: `no_show` mandaba `null` y el timeline se
@@ -533,7 +589,22 @@ function FormCierre({ tarea, onCerrar, onRegistrarLlamada }: { tarea: Tarea; onC
               ...camposTareaDeReunion(reunionSiguiente?.ok ? reunionSiguiente : null),
             }
           : null,
-    })
+    }
+    if (oficina) {
+      enviando.current = true
+      setProcesando(true)
+      try {
+        if (await oficina.guardar(input)) {
+          toast.success(conSiguiente ? 'Visita y entrevista registradas. Siguiente acción agendada.' : 'Visita y entrevista registradas.')
+          ;(onGuardado ?? onCerrar)()
+        }
+      } finally {
+        enviando.current = false
+        setProcesando(false)
+      }
+      return
+    }
+    const res = completarTarea(input)
     if (!res.ok) {
       toast.error(res.error ?? 'No se pudo cerrar la tarea')
       return
@@ -573,7 +644,7 @@ function FormCierre({ tarea, onCerrar, onRegistrarLlamada }: { tarea: Tarea; onC
     } else {
       toast.success(partes.join(' · '))
     }
-    onCerrar()
+    ;(onGuardado ?? onCerrar)()
   }
 
   // La guarda del botón es EXACTAMENTE la de `confirmar()` (`if (!eleccion)
@@ -587,9 +658,11 @@ function FormCierre({ tarea, onCerrar, onRegistrarLlamada }: { tarea: Tarea; onC
     <>
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2">
-          <CheckCircle2 className="size-4 text-[var(--accent)]" aria-hidden /> Cerrar tarea
+          <CheckCircle2 className="size-4 text-[var(--accent)]" aria-hidden /> {oficina ? 'Registrar visita y entrevista' : 'Cerrar tarea'}
         </DialogTitle>
-        <DialogDescription className="truncate">{presentarCitas(tarea.titulo)}</DialogDescription>
+        <DialogDescription className={oficina ? '' : 'truncate'}>{oficina
+          ? 'Confirma que asistió hoy a la oficina y registra el resultado de la entrevista.'
+          : presentarCitas(tarea.titulo)}</DialogDescription>
         {tarea.perfil_id && !l && (
           <Badge color="var(--primary)" className="mt-1 w-fit text-[10px]">
             Gestión de cliente · Mi cartera
@@ -657,7 +730,7 @@ function FormCierre({ tarea, onCerrar, onRegistrarLlamada }: { tarea: Tarea; onC
               menor: no es "qué pasó" (no pasó nada), es "esto ya no aplica".
               Meterla como tercer botón junto a Contestó/No contestó la
               convertiría en el clic fácil para vaciar la agenda. */}
-          {!anulando && (
+          {!anulando && !oficina && (
             <button
               type="button"
               ref={refEnlaceAnular}
@@ -1029,7 +1102,7 @@ function FormCierre({ tarea, onCerrar, onRegistrarLlamada }: { tarea: Tarea; onC
                 onClick={() => void confirmar()}
                 disabled={requiereEleccion || procesando}
               >
-                <CheckCircle2 /> {procesando ? 'Guardando…' : 'Cerrar tarea'}
+                <CheckCircle2 aria-hidden /> {procesando ? 'Guardando…' : oficina ? 'Guardar entrevista' : 'Cerrar tarea'}
               </Button>
             )}
           </>

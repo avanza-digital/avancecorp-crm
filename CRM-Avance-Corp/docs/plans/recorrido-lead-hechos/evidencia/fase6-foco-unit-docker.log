@@ -1,0 +1,165 @@
+
+> app@0.0.0 typecheck
+> tsc -b --pretty false
+
+
+> app@0.0.0 lint
+> oxlint
+
+
+  ⚠ jsx-a11y(no-noninteractive-tabindex): `tabIndex` should only be declared on interactive elements.
+     ╭─[src/components/ui/coverflow-carousel.tsx:299:11]
+ 298 │           ref={frameRef}
+ 299 │           tabIndex={0}
+     ·           ────────────
+ 300 │           onPointerDown={onPointerDown}
+     ╰────
+  help: The `tabIndex` attribute should be removed.
+
+  ⚠ jsx-a11y(no-static-element-interactions): Static HTML elements with event handlers require a role.
+     ╭─[src/components/ui/coverflow-carousel.tsx:297:10]
+ 296 │       <div className="relative">
+ 297 │         <div
+     ·          ───
+ 298 │           ref={frameRef}
+     ╰────
+  help: Add a role attribute to this element, or use a semantic HTML element instead.
+
+  ⚠ jsx-a11y(click-events-have-key-events): Enforce a clickable non-interactive element has at least one keyboard event listener.
+     ╭─[src/components/ui/coverflow-carousel.tsx:327:15]
+ 326 │                 {slides.map((slide, index) => (
+ 327 │ ╭─▶               <div
+ 328 │ │                   key={slide.src}
+ 329 │ │                   ref={(node) => {
+ 330 │ │                     cardRefs.current[index] = node
+ 331 │ │                   }}
+ 332 │ │                   role="group"
+ 333 │ │                   aria-roledescription="slide"
+ 334 │ │                   aria-label={`${index + 1} de ${count}`}
+ 335 │ │                   className={cn(
+ 336 │ │                     "absolute left-1/2 top-0 aspect-square overflow-hidden rounded-2xl bg-muted shadow-xl will-change-transform",
+ 337 │ │                     onSlideClick &&
+ 338 │ │                       "cursor-pointer ring-ring focus-visible:ring-2",
+ 339 │ │                     cardClassName,
+ 340 │ │                   )}
+ 341 │ │                   style={{ width: "var(--cf-card)" }}
+ 342 │ │                   onClick={() => {
+ 343 │ │                     if (draggedRef.current) {
+ 344 │ │                       draggedRef.current = false
+ 345 │ │                       return
+ 346 │ │                     }
+ 347 │ │                     const currentSlide = slides[index]
+ 348 │ │                     if (currentSlide) onSlideClick?.(index, currentSlide)
+ 349 │ │                   }}
+ 350 │ ╰─▶               >
+ 351 │                     {/* The portal is static-hosted; regular img keeps this primitive framework-neutral. */}
+     ╰────
+  help: Visible, non-interactive elements with click handlers must have one of `keyup`, `keydown`, or `keypress` listener.
+
+  ⚠ jsx-a11y(no-noninteractive-element-interactions): Non-interactive elements should not be assigned mouse or keyboard event listeners.
+     ╭─[src/components/ui/coverflow-carousel.tsx:327:16]
+ 326 │             {slides.map((slide, index) => (
+ 327 │               <div
+     ·                ───
+ 328 │                 key={slide.src}
+     ╰────
+  help: Move the handler to an interactive element, or use an appropriate interactive role.
+
+  ⚠ jsx-a11y(no-redundant-roles): The `ul` element has an implicit role of `list`. Defining this explicitly is redundant and should be avoided.
+    ╭─[src/screens/facturacion/tarjetas.tsx:30:13]
+ 29 │         </div>
+ 30 │         <ul role="list" className="space-y-2.5">
+    ·             ───────────
+ 31 │           {grupo.analistas.map((analista, i) => {
+    ╰────
+  help: Remove the redundant role `list` from the element `ul`.
+
+  ⚠ react-hooks(exhaustive-deps): React Hook useCallback has missing dependencies: 'sinGestion', and 'cartera'
+    ╭─[src/screens/hoy/use-leads-recibidos-hoy.ts:29:6]
+ 27 │   const recargar = useCallback(async () => {
+ 28 │     await Promise.all([cartera.recargar(), sinGestion.recargar()])
+    ·                        ───────             ──────────
+ 29 │   }, [cartera.recargar, sinGestion.recargar])
+    ·      ───────────────────────────────────────
+ 30 │   const sesionReal = Boolean(yo && !yo.demo)
+    ╰────
+  help: Either include it or remove the dependency array.
+
+  ⚠ react-hooks(exhaustive-deps): React Hook useCallback has unnecessary dependency: cartera.recargar
+    ╭─[src/screens/hoy/use-leads-recibidos-hoy.ts:29:6]
+ 28 │     await Promise.all([cartera.recargar(), sinGestion.recargar()])
+ 29 │   }, [cartera.recargar, sinGestion.recargar])
+    ·      ───────────────────────────────────────
+ 30 │   const sesionReal = Boolean(yo && !yo.demo)
+    ╰────
+  help: Either include it or remove the dependency array.
+
+  ⚠ react-hooks(exhaustive-deps): React Hook useCallback has unnecessary dependency: sinGestion.recargar
+    ╭─[src/screens/hoy/use-leads-recibidos-hoy.ts:29:6]
+ 28 │     await Promise.all([cartera.recargar(), sinGestion.recargar()])
+ 29 │   }, [cartera.recargar, sinGestion.recargar])
+    ·      ───────────────────────────────────────
+ 30 │   const sesionReal = Boolean(yo && !yo.demo)
+    ╰────
+  help: Either include it or remove the dependency array.
+
+  ⚠ react(only-export-components): Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components.
+    ╭─[src/components/gestion-diaria/su-celular-analista.tsx:12:14]
+ 11 │
+ 12 │ export const COLOR_TONO: Record<TonoSalud, string> = {
+    ·              ──────────
+ 13 │   bien: 'var(--accent)',
+    ╰────
+
+  ⚠ react-hooks(exhaustive-deps): React hook useMemo depends on `equipo`, which changes every render
+     ╭─[src/screens/hoy/gerencia.tsx:232:9]
+ 231 │   const consultaEquipo = useEquipoReportes(lecturaCoordinacion && !yo?.demo && seccion === 'ranking-vendedores', yo?.id)
+ 232 │   const equipo = lecturaCoordinacion ? consultaEquipo.data ?? [] : equipoOperativo
+     ·         ───┬──
+     ·            ╰── `equipo` is declared here
+ 233 │   const esMovil = useEsMovil()
+     ╰────
+     ╭─[src/screens/hoy/gerencia.tsx:488:25]
+ 487 │     () => identidadesEquipoConversion(lecturaCoordinacion ? equipo.filter((m) => m.rol_crm === 'vendedor') : ambito.vendedores, equipo),
+ 488 │     [ambito.vendedores, equipo, lecturaCoordinacion],
+     ·                         ───┬──
+     ·                            ╰── it will always cause this hook to re-evaluate
+ 489 │   )
+     ╰────
+  help: Try memoizing this variable with `useRef` or `useCallback`.
+
+  ⚠ react-hooks(exhaustive-deps): React hook useMemo depends on `equipo`, which changes every render
+     ╭─[src/screens/hoy/gerencia.tsx:232:9]
+ 231 │   const consultaEquipo = useEquipoReportes(lecturaCoordinacion && !yo?.demo && seccion === 'ranking-vendedores', yo?.id)
+ 232 │   const equipo = lecturaCoordinacion ? consultaEquipo.data ?? [] : equipoOperativo
+     ·         ───┬──
+     ·            ╰── `equipo` is declared here
+ 233 │   const esMovil = useEsMovil()
+     ╰────
+     ╭─[src/screens/hoy/gerencia.tsx:493:6]
+ 492 │     () => new Map(equipo.map((m) => [m.perfil_id, m.nombre_completo])),
+ 493 │     [equipo],
+     ·      ───┬──
+     ·         ╰── it will always cause this hook to re-evaluate
+ 494 │   )
+     ╰────
+  help: Try memoizing this variable with `useRef` or `useCallback`.
+
+Found 11 warnings and 0 errors.
+Finished in 380ms on 1199 files with 133 rules using 15 threads.
+
+> app@0.0.0 test:run
+> vitest run src/components/app/atender-oficina.test.tsx src/components/app/recorrido-lead.test.tsx src/components/app/cerrar-tarea.test.tsx src/data/sla-operacion-comandos.test.ts
+
+
+ RUN  v4.1.11 /app
+
+ ✓ src/components/app/recorrido-lead.test.tsx (18 tests) 316ms
+ ✓ src/data/sla-operacion-comandos.test.ts (32 tests) 148ms
+ ✓ src/components/app/atender-oficina.test.tsx (5 tests) 736ms
+ ✓ src/components/app/cerrar-tarea.test.tsx (32 tests) 1413ms
+
+ Test Files  4 passed (4)
+      Tests  87 passed (87)
+   Start at  21:02:03
+   Duration  5.25s (transform 2.62s, setup 2.26s, import 4.88s, tests 2.61s, environment 6.53s)

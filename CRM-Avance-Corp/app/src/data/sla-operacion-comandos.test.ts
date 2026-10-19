@@ -22,6 +22,34 @@ afterEach(() => { servidor.resetHandlers(); vi.restoreAllMocks(); vi.unstubAllGl
 afterAll(() => servidor.close())
 
 describe('recibos de gestiones SLA', () => {
+  const oficinaArgs = { p_lead_id: 'lead', p_resultado_reunion: 'interesado', p_capital_estimado: 1500, p_moneda: 'PEN', p_siguiente: null }
+  const sobreOficina = (cuerpo: Record<string, unknown>) => ({ ok: true, version: 1,
+    operacion_id: cuerpo.p_operacion_id, lead_id: cuerpo.p_lead_id, comando: 'recorrido_atender_oficina',
+    origen: 'oficina', ciclo_n: 2, tarea_id: 'cita-real', actividad_id: 'asistencia-real', siguiente_id: null })
+
+  it('oficina recupera el envío íntegro tras perder respuesta y no admite cambiar capital mientras es incierto', async () => {
+    const cuerpos: Record<string, unknown>[] = []
+    servidor.use(http.post(ruta, async ({ request, params }) => {
+      expect(params.comando).toBe('recorrido_atender_oficina_fn')
+      const cuerpo = await request.json() as Record<string, unknown>; cuerpos.push(cuerpo)
+      return cuerpos.length === 1 ? HttpResponse.error() : HttpResponse.json(sobreOficina(cuerpo))
+    }))
+    await expect(ejecutarComandoSla('actor', 'recorrido_atender_oficina_fn', 'lead', oficinaArgs)).rejects.toMatchObject({ code: 'SLA_CONFIRMACION_PENDIENTE' })
+    await expect(ejecutarComandoSla('actor', 'recorrido_atender_oficina_fn', 'lead', { ...oficinaArgs, p_capital_estimado: 3000 })).rejects.toMatchObject({ code: 'SLA_CONFIRMACION_PENDIENTE' })
+    expect(cuerpos).toHaveLength(1)
+    await confirmarPendienteSla('actor', listarPendientesSla('actor')[0]!.operacion)
+    expect(cuerpos[1]).toEqual(cuerpos[0])
+    expect(listarPendientesSla('actor')).toEqual([])
+  })
+
+  it.each([{ origen: 'otro' }, { actividad_id: null }, { tarea_id: null }, { ciclo_n: 0 }, { siguiente_id: 'no-pedida' }])(
+    'oficina no anuncia éxito ante un recibo incompleto: %j', async (parche) => {
+      servidor.use(http.post(ruta, async ({ request }) => HttpResponse.json({ ...sobreOficina(await request.json() as Record<string, unknown>), ...parche })))
+      await expect(ejecutarComandoSla('actor', 'recorrido_atender_oficina_fn', 'lead', oficinaArgs)).rejects.toMatchObject({ code: 'SLA_CONFIRMACION_PENDIENTE' })
+      expect(listarPendientesSla('actor')).toHaveLength(1)
+    },
+  )
+
   const entradaLlamada = { p_lead_id: 'lead', p_resultado: 'no_interesado', p_submotivo: 'otro', p_descartar: false }
   const sobreLlamada = (cuerpo: Record<string, unknown>) => ({
     ok: true, version: 2, operacion_id: cuerpo.p_operacion_id, lead_id: 'lead',

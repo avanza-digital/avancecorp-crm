@@ -9,6 +9,7 @@ import { leerConversionAbierta } from '@/lib/inversion-solicitud'
 import { VentaCruzada } from './venta-cruzada'
 import { ChipPotencialDeLead } from './potencial-chip'
 import { SeccionPotencial } from './potencial-seccion'
+import { RecorridoFicha } from './recorrido-lead'
 import { buscarClienteExistente, type BusquedaCliente } from '@/data/cliente-existente-api'
 import { eliminarLeadErrorCarga, type CondicionesTasaLead } from '@/data/crm-api'
 import { fechaSla, puedeRegistrarGestionSla, type AvisoSla } from '@/lib/sla-operacion'
@@ -209,6 +210,8 @@ function Ficha({ l }: { l: Lead }) {
   // Señal header → Datos: el badge "Sin capital estimado" abre el modo edición
   // de la sección Datos sin duplicar su estado (contador incremental).
   const [pedirEditarDatos, setPedirEditarDatos] = useState(0)
+  const [pedirCita, setPedirCita] = useState(0)
+  const refAgenda = useRef<HTMLDivElement>(null)
   const [componiendoGestion, setComponiendoGestion] = useState(false)
   const [tareaAviso, setTareaAviso] = useState<Tarea | null>(null)
   const refEtapa = useRef<HTMLDivElement>(null)
@@ -298,10 +301,15 @@ function Ficha({ l }: { l: Lead }) {
 
       <SheetBody className="space-y-5">
         <div ref={refEtapa} tabIndex={-1} className="rounded-lg focus-visible:outline-2 focus-visible:outline-ring">{esTerminal ? <BannerTerminal l={l} escribe={escribe} onClienteDelLead={setClienteDelLead} /> : <Stepper l={l} escribe={escribe} etapaVisible={info.k} />}</div>
+        {!esTerminal && <RecorridoFicha key={`${yo?.id}:${l.id}`} lead={l}
+          puedeOperar={escribe && (seraMiCliente || operaEquipo || (operaGlobal && tieneAnalista))}
+          onAgendar={() => setPedirCita((n) => n + 1)}
+          onAgenda={() => { refAgenda.current?.focus(); refAgenda.current?.scrollIntoView({ block: 'nearest' }) }}
+          onHistorial={() => { refActividad.current?.focus(); refActividad.current?.scrollIntoView({ block: 'nearest' }) }} />}
         <SeccionPotencial lead={l} />
         {!esTerminal && tieneAnalista && <SolicitudTasaLeadPlegable lead={l} demo={Boolean(yo?.demo)} puedeEditar={puedeConvertir} onCambio={setCondicionesLead} />}
         {!esTerminal && <EstadoSlaFicha leadId={l.id} onActuar={escribe ? actuarSobreAviso : undefined} />}
-        <ProximaAccion l={l} escribe={escribe} activa={!esTerminal} />
+        <div ref={refAgenda} tabIndex={-1} className="rounded-lg focus-visible:outline-2 focus-visible:outline-ring"><ProximaAccion l={l} escribe={escribe} activa={!esTerminal} pedirCita={pedirCita} /></div>
         {/* `activa` faltaba AQUÍ y solo aquí: la ficha de un convertido seguía
             ofreciendo "Editar" y "Faltan DNI… → Completar" sobre un lead que el
             store ya no deja escribir. */}
@@ -312,7 +320,7 @@ function Ficha({ l }: { l: Lead }) {
           puedeReasignar={puedeReasignar}
           pedirEditar={pedirEditarDatos}
         /></div>
-        <div ref={refActividad}><Timeline l={l} escribe={escribe} activa={!esTerminal} puedeRegistrarGestion={puedeRegistrarGestion} componiendo={componiendoGestion} setComponiendo={setComponiendoGestion} /></div>
+        <div ref={refActividad} tabIndex={-1} className="rounded-lg focus-visible:outline-2 focus-visible:outline-ring"><Timeline l={l} escribe={escribe} activa={!esTerminal} puedeRegistrarGestion={puedeRegistrarGestion} componiendo={componiendoGestion} setComponiendo={setComponiendoGestion} /></div>
       </SheetBody>
 
       {escribe && !esTerminal && (
@@ -592,7 +600,7 @@ function fueraDeVentanaLegal(fecha: string, hora: string): boolean {
   return dow === 0 || (h ?? 12) < 7 || (h ?? 12) >= 20
 }
 
-export function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; activa: boolean }) {
+export function ProximaAccion({ l, escribe, activa, pedirCita = 0 }: { l: Lead; escribe: boolean; activa: boolean; pedirCita?: number }) {
   const { tareasDe, crearTarea, anularTarea, obtenerTareaParaRevision } = useCRMData()
   const { yo } = useAuth()
   const ahora = useAhora()
@@ -645,6 +653,21 @@ export function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolea
   const [hora, setHora] = useState('10:00')
   const [camposReunion, setCamposReunion] =
     useState<EstadoCamposReunion>(CAMPOS_REUNION_VACIOS)
+
+  const peticionAtendida = useRef(0)
+  const refTipo = useRef<HTMLSelectElement>(null)
+  useEffect(() => {
+    if (!escribe || !activa || pedirCita === 0 || pedirCita === peticionAtendida.current) return
+    peticionAtendida.current = pedirCita
+    setAgendarOtra(true)
+    setTipo('reunion')
+    if (!tituloEditado) setTitulo(tituloProximaAccion('reunion', l.nombre_completo))
+    const frame = requestAnimationFrame(() => {
+      refTipo.current?.focus()
+      refTipo.current?.scrollIntoView({ block: 'nearest' })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [pedirCita, escribe, activa, tituloEditado, l.nombre_completo])
 
   if (!escribe && pendientes.length === 0 && !fueraDelLote) return null
   // Lead cerrado: sus pendientes ya fueron canceladas por el trigger; nada que agendar.
@@ -1036,6 +1059,7 @@ export function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolea
           <div className="space-y-2">
             <div className="grid grid-cols-[110px_1fr] gap-2">
               <Select
+                ref={refTipo}
                 aria-label="Tipo de tarea"
                 value={tipo}
                 onChange={(e) => cambiarTipo(e.target.value)}

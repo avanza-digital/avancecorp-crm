@@ -52,6 +52,25 @@ test('Fallo recuperable conserva el token sin filtrar el mensaje interno',async(
   const j=await r.json();assert.equal(j.token,token);assert(!j.error.includes('SECRETO'));
 });
 
+test('el requisito del recorrido detiene el alta antes de cualquier llamada Auth privilegiada', async () => {
+  const rutas = [], token = 'b'.repeat(48);
+  const mensaje = 'Antes de convertir, registra que asistió a su cita y que la entrevista se realizó, con su resultado.';
+  const h = crear(async (url, opciones) => {
+    const ruta = new URL(url).pathname; rutas.push(ruta);
+    assert.equal(new Headers(opciones.headers).get('apikey'), 'ANON_FICTICIA');
+    if (ruta === '/auth/v1/user') return Response.json({ id });
+    assert.equal(ruta, '/rest/v1/rpc/acceso_inversion_fn');
+    assert.equal(JSON.parse(opciones.body).p_paso, 'reclamar');
+    return Response.json({ code: 'P0409', message: mensaje, details: 'regla y contexto internos' }, { status: 409 });
+  });
+  const r = await h(request(JSON.stringify({ solicitud_id: id, token })));
+  assert.equal(r.status, 409);
+  assert.deepEqual(rutas, ['/auth/v1/user', '/rest/v1/rpc/acceso_inversion_fn']);
+  const data = await r.json();
+  assert.equal(data.error, mensaje); assert.equal(data.token, token); assert.equal(data.solicitud_id, id);
+  assert.equal(data.details, undefined);
+});
+
 // Contrato HTTP real: una clave sb_secret_ no es un JWT. El gateway la acepta
 // como apikey; Auth rechaza esa misma clave si se presenta como Bearer.
 for (const serviceKey of ['sb_secret_SERVICIO_FICTICIO', 'cabecera.servicio.firma']) {

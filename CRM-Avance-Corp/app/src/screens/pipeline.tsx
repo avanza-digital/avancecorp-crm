@@ -48,6 +48,9 @@ import { useLeadsSinAsignar } from '@/data/crm-queries'
 import { ChipPotencial } from '@/components/app/potencial-chip'
 import { potencialCarta } from '@/components/app/potencial-efectos'
 import { usePotencialLeads } from '@/data/potencial-queries'
+import { useRecorridoLeads, type EstadoConsultaRecorrido } from '@/data/recorrido-queries'
+import { RecorridoBreve } from '@/components/app/recorrido-lead'
+import type { RecorridoLead } from '@/lib/recorrido-lead'
 import type { PotencialLead } from '@/lib/potencial'
 
 // "hace X" compacto a partir de DÍAS ya calculados (el reloj lo decide
@@ -139,13 +142,15 @@ interface LeadCardProps {
   arrastrando: boolean
   /** Marca de potencial del lead (undefined = sin dato o función apagada). */
   potencial: PotencialLead | undefined
+  recorrido: RecorridoLead | undefined
+  estadoRecorrido: EstadoConsultaRecorrido
   onAbrir: () => void
   onMover: (etapa: EtapaActiva) => void
   onDragStart: (e: DragEvent<HTMLDivElement>) => void
   onDragEnd: () => void
 }
 
-function LeadCard({ l, nombreVendedor, semaforo, rotuloEtapa, escribe, arrastrando, potencial, onAbrir, onMover, onDragStart, onDragEnd }: LeadCardProps) {
+function LeadCard({ l, nombreVendedor, semaforo, rotuloEtapa, escribe, arrastrando, potencial, recorrido, estadoRecorrido, onAbrir, onMover, onDragStart, onDragEnd }: LeadCardProps) {
   // ac-lift (will-change) crea un stacking context por card: mientras el menú
   // está abierto hay que elevar ESTA card o el panel queda bajo la siguiente.
   const [menuAbierto, setMenuAbierto] = useState(false)
@@ -185,6 +190,7 @@ function LeadCard({ l, nombreVendedor, semaforo, rotuloEtapa, escribe, arrastran
         <ChipPotencial marca={potencial} pequeno />
         <ChipCampania lead={l} />
       </div>
+      <RecorridoBreve item={recorrido} estado={estadoRecorrido} />
       <div className="mt-2.5 flex items-center justify-between border-t border-border pt-2">
         {l.vendedor_id == null ? (
           <Badge color="var(--warning)" className="text-[10px]">sin asignar</Badge>
@@ -356,6 +362,7 @@ export function Pipeline() {
     () => (sesionReal ? leadsEnTablero : ambito.leads).map((l) => l.id),
     [sesionReal, leadsEnTablero, ambito.leads],
   ))
+  const recorrido = useRecorridoLeads(leadsEnTablero.map((l) => l.id))
   const buscarEnTablero = (id: string): Lead | undefined =>
     (sesionReal ? leadsEnTablero : ambito.leads).find((x) => x.id === id)
   // Solo las COLUMNAS se filtran; los stats y terminales resumen el ámbito completo.
@@ -842,6 +849,8 @@ export function Pipeline() {
                     escribe={escribe}
                     arrastrando={dragId === l.id}
                     potencial={potencial.porLead.get(l.id)}
+                    recorrido={recorrido.porLead.get(l.id)}
+                    estadoRecorrido={recorrido.estado}
                     onAbrir={() => abrir(l.id)}
                     onMover={(etapa) => mover(l.id, etapa)}
                     onDragStart={alDragStart(l.id, col.k)}

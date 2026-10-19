@@ -15,6 +15,7 @@ import {guardarConversionAbierta,guardarIntentoInversion,leerConversionAbierta,l
 import {useDocumentoLead,type DocumentoLead} from '@/data/documento-lead'
 import {ACTOR_F5,PERSONA_F5,FUENTE_F5} from '@/test/fixtures/f5'
 import {InversionDesdeLead} from './inversion-desde-lead'
+import {CrmApiError} from '@/data/crm-api'
 
 const api=vi.hoisted(()=>({persona:vi.fn(),contexto:vi.fn(),documento:vi.fn(),montajes:{n:0,desmontajes:0}}))
 // `documento` puede devolver el dato, una promesa que nunca responde (carga) o una rechazada (caída).
@@ -88,6 +89,21 @@ const sigueElWizard=async()=>{
 }
 
 describe('Volver a la ventana con el wizard abierto',()=>{
+  it('un requisito de asistencia/entrevista conserva lo escrito y permite reintentar la identidad',async()=>{
+    api.persona.mockRejectedValueOnce(new CrmApiError('Antes de convertir, registra la asistencia y la entrevista.','P0409'))
+    const {user,onClose}=montar()
+    await user.type(await screen.findByLabelText('Documento'),'93334444')
+    await user.click(screen.getByRole('button',{name:'Continuar a Nueva inversión'}))
+    expect(await screen.findByRole('alert')).toHaveTextContent('registra la asistencia y la entrevista')
+    expect(screen.getByLabelText('Documento')).toHaveValue('93334444')
+    expect(screen.getByLabelText('Nombre completo')).toHaveValue(lead.nombre_completo)
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.queryByLabelText('Capital del contrato')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button',{name:'Continuar a Nueva inversión'}))
+    expect(await screen.findByLabelText('Capital del contrato')).toBeInTheDocument()
+    expect(api.persona).toHaveBeenCalledTimes(2)
+  })
+
   it('la resincronización de la cartera (lead con otra fecha de actualización) conserva el wizard',async()=>{
     const {user,conLead}=montar()
     await llegarAlWizard(user)

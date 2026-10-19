@@ -1,3 +1,4 @@
+vi.mock('@/data/recorrido-queries', () => ({ useRecorridoLeads: () => ({ estado: 'inactivo', porLead: new Map() }) }))
 // Cola de hoy · potencial del lead. Solo las filas de LEAD llevan marca: las de
 // cliente no tienen `lead_id`. El hook de datos se sustituye: se prueba lo que
 // la cola PINTA con la bandera apagada, encendida sin marcas y con marcas.

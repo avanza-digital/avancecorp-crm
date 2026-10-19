@@ -6,7 +6,8 @@ import type { Tarea } from '@/lib/tipos'
 import { CrmApiError } from './crm-api'
 
 type Comando = 'registrar_actividad_v2' | 'cerrar_tarea_v2' | 'cerrar_reunion_v2' |
-  'cerrar_reunion_v3' | 'reprogramar_reunion_v2' | 'reprogramar_tarea_v2' | 'registrar_llamada_v3' | 'registrar_llamada_v4' | 'registrar_llamada_v5'
+  'cerrar_reunion_v3' | 'reprogramar_reunion_v2' | 'reprogramar_tarea_v2' | 'registrar_llamada_v3' | 'registrar_llamada_v4' | 'registrar_llamada_v5' |
+  'recorrido_atender_oficina_fn'
 // Los opcionales admiten `null` a propósito. El generador (CLI 2.114.0) los
 // declara `x?: T`, pero en estas puertas todos valen NULL por defecto, así que
 // mandar null o no mandarlo es lo mismo para el servidor. Aquí NO se omiten: la
@@ -26,7 +27,7 @@ interface Intencion {
 }
 const PREFIJO = 'crm.sla.operacion.v2:'
 const EVENTO = 'crm:sla-intenciones-cambiadas'
-const COMANDOS = new Set<Comando>(['registrar_actividad_v2', 'cerrar_tarea_v2', 'cerrar_reunion_v2', 'cerrar_reunion_v3', 'reprogramar_reunion_v2', 'reprogramar_tarea_v2', 'registrar_llamada_v3', 'registrar_llamada_v4', 'registrar_llamada_v5'])
+const COMANDOS = new Set<Comando>(['registrar_actividad_v2', 'cerrar_tarea_v2', 'cerrar_reunion_v2', 'cerrar_reunion_v3', 'reprogramar_reunion_v2', 'reprogramar_tarea_v2', 'registrar_llamada_v3', 'registrar_llamada_v4', 'registrar_llamada_v5', 'recorrido_atender_oficina_fn'])
 const esLlamada = (comando: Comando) => comando === 'registrar_llamada_v3' || comando === 'registrar_llamada_v4' || comando === 'registrar_llamada_v5'
 const vuelos = new Map<string, Promise<Respuesta | undefined>>()
 const notificar = () => { if (typeof window !== 'undefined') window.dispatchEvent(new Event(EVENTO)) }
@@ -39,7 +40,10 @@ const notificar = () => { if (typeof window !== 'undefined') window.dispatchEven
 // una tarea compartiría llave con `cerrar_tarea_v2` y el segundo guardado
 // moriría con SLA_CONFIRMACION_PENDIENTE aunque fuera otra operación.
 function clave(actor: string, sujeto: string, comando: Comando): string {
-  const cubo = comando === 'registrar_actividad_v2' ? 'actividad' : esLlamada(comando) ? 'llamada' : 'tarea'
+  // Oficina reutiliza la recuperación del cliente; su RPC y recibo en servidor
+  // son propios y no amplían el dispatcher ni las tablas protegidas del SLA.
+  const cubo = comando === 'recorrido_atender_oficina_fn' ? 'oficina'
+    : comando === 'registrar_actividad_v2' ? 'actividad' : esLlamada(comando) ? 'llamada' : 'tarea'
   return `${PREFIJO}${actor}:${cubo}:${sujeto}`
 }
 
@@ -206,13 +210,19 @@ export async function ejecutarComandoSla(...[actor, comando, sujeto, argumentos,
     }
     const respuesta = data as Record<string, Json> | null
     const leadEsperado = 'p_lead_id' in argumentos ? argumentos.p_lead_id : tarea?.lead_id
-    if (!respuesta || respuesta.ok !== true || respuesta.version !== 2 || respuesta.operacion_id !== enviada.operacion ||
+    const oficina = comando === 'recorrido_atender_oficina_fn'
+    if (!respuesta || respuesta.ok !== true || respuesta.version !== (oficina ? 1 : 2) || respuesta.operacion_id !== enviada.operacion ||
       // El servidor nombra el comando del NÚCLEO, sin la versión de la puerta:
       // `cerrar_reunion_v3` confirma `cerrar_reunion`, igual que la v2. Sin
       // contemplar la v3 aquí, un cierre que el servidor SÍ escribió se
       // anunciaría como «no confirmado» y el analista lo repetiría.
-      respuesta.comando !== comando.replace(/_v[2345]$/, '') || (leadEsperado && respuesta.lead_id !== leadEsperado)) {
+      respuesta.comando !== (oficina ? 'recorrido_atender_oficina' : comando.replace(/_v[2345]$/, '')) || (leadEsperado && respuesta.lead_id !== leadEsperado)) {
       throw new CrmApiError('El servidor no confirmó el guardado. Reintenta con los mismos datos.', 'SLA_CONFIRMACION_PENDIENTE')
+    }
+    if (oficina && (respuesta.origen !== 'oficina' || typeof respuesta.ciclo_n !== 'number' || !Number.isInteger(respuesta.ciclo_n) || respuesta.ciclo_n < 1 ||
+      typeof respuesta.tarea_id !== 'string' || !respuesta.tarea_id || typeof respuesta.actividad_id !== 'string' || !respuesta.actividad_id ||
+      (enviada.argumentos.p_siguiente != null ? typeof respuesta.siguiente_id !== 'string' || !respuesta.siguiente_id : respuesta.siguiente_id !== null))) {
+      throw new CrmApiError('No se confirmó la visita y su entrevista. Reintenta el mismo guardado.', 'SLA_CONFIRMACION_PENDIENTE')
     }
     if ((comando === 'registrar_llamada_v4' || comando === 'registrar_llamada_v5') && (
       respuesta.resultado !== enviada.argumentos.p_resultado ||
