@@ -1,0 +1,24 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: psql:<stdin>:5: ERROR:  55P03: could not obtain lock on row in relation "leads"
+CONTEXT:  SQL statement "SELECT 1 from crm.leads where id=v_lead for update nowait"
+PL/pgSQL function private.recorrido_serializar_invalidacion() line 7 at PERFORM
+LOCATION:  heap_lock_tuple, heapam.c:4985
+
+
+3 !== 0
+
+    at correcto (file:///private/tmp/hoy-supervisor-goal-20261018/candidato-main/CRM-Avance-Corp/supabase/scripts/recorrido-lead/concurrencia.mjs:49:32)
+    at file:///private/tmp/hoy-supervisor-goal-20261018/candidato-main/CRM-Avance-Corp/supabase/scripts/recorrido-lead/concurrencia.mjs:72:3
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 3,
+  expected: 0,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v26.4.0

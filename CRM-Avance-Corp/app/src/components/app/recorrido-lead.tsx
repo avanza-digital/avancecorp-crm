@@ -91,7 +91,8 @@ export function RecorridoFicha({ lead, puedeOperar, onAgendar, onAgenda, onHisto
   }
 
   // Un refresco fallido nunca desmonta un formulario que ya se está llenando.
-  if (consulta.estado === 'inactivo' && !oficina && !tarea) return null
+  if ((consulta.estado === 'inactivo' || (consulta.estado === 'listo' && item?.aplica === false))
+    && !oficina && !tarea) return null
   return <>
     <section aria-labelledby={`${id}-titulo`} className="space-y-3 rounded-xl border border-border bg-muted/30 p-3">
       <div className="flex items-center justify-between gap-2">

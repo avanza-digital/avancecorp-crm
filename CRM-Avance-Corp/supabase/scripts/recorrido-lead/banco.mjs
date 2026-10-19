@@ -52,8 +52,12 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     sql('set role postgres;\n' + archivo('../../migrations/20261019001700_crm_recorrido_conversion.sql'));
     sql('set role postgres;\n' + archivo('../../migrations/20261019001701_crm_recorrido_conversion_hardening.sql'));
     console.log('PASS: defensas de conversión y hardening aplicados solo al stack propio.');
-  } else if (accion === 'test' || accion === 'rendimiento' || accion === 'test-oficina' || accion === 'test-conversion') {
-    const rutaTest = { test: './test-evaluacion.sql', rendimiento: './rendimiento.sql', 'test-oficina': './test-oficina.sql', 'test-conversion': './test-conversion.sql' }[accion];
+  } else if (accion === 'instalar-revision') {
+    sql('set role postgres;\n' + archivo('../../migrations/20261019001702_crm_recorrido_revision_pr.sql'));
+    sql('set role postgres;\n' + archivo('../../migrations/20261019001703_crm_recorrido_revision_pr_hardening.sql'));
+    console.log('PASS: correcciones del PR y hardening aplicados solo al stack propio.');
+  } else if (accion === 'test' || accion === 'rendimiento' || accion === 'test-oficina' || accion === 'test-conversion' || accion === 'test-revision') {
+    const rutaTest = { test: './test-evaluacion.sql', rendimiento: './rendimiento.sql', 'test-oficina': './test-oficina.sql', 'test-conversion': './test-conversion.sql', 'test-revision': './test-revision-pr.sql' }[accion];
     const r = ejecutar(archivo(rutaTest));
     if (r.stdout) process.stdout.write(r.stdout);
     if (r.stderr) process.stderr.write(r.stderr);
@@ -66,6 +70,6 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     sql('begin; set local role postgres;\n' + funciones.join('\n') + '\ncommit;');
     console.log('Funciones candidatas actualizadas solo en banco; no sustituye replay integral de la migración.');
   } else {
-    throw new Error('Uso: banco.mjs configuracion <json> | instalar | instalar-oficina | instalar-conversion | test | test-oficina | test-conversion | rendimiento | actualizar-funciones');
+    throw new Error('Uso: banco.mjs configuracion <json> | instalar | instalar-oficina | instalar-conversion | instalar-revision | test | test-oficina | test-conversion | test-revision | rendimiento | actualizar-funciones');
   }
 }

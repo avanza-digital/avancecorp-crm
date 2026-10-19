@@ -12,7 +12,7 @@ Objetivo íntegro: implementar las ocho fases del [plan FigJam](https://www.figm
 | 4. Guía | PASS local | FASE-4-VERIFICACION.md: 469 tests, a11y corregido, foco Radix, typecheck/lint/build. |
 | 5. Conversión | PASS local | FASE-5-VERIFICACION.md: SQL, replay, concurrencia, cartera, 161 UI + 16 Edge, revisiones corregidas. |
 | 6. Validación | PASS local | FASE-6-VERIFICACION.md: 79 HTTP, 467 E2E + 26 omitidos, regresión final 41/41 y gate integral 7.314 tests. Hosted/advisors antes de instalación productiva. |
-| 7. PR/Main | EN CURSO | Revisión, correcciones e integración sin sobrescribir cambios remotos. |
+| 7. PR/Main | EN CURSO · 3/5 | [PR #331](https://github.com/avanza-digital/avancecorp-crm/pull/331), tres hallazgos corregidos y revalidados. FASE-7-REVISION-PR.md. Pendientes integración y paridad Main. |
 | 8. ZIP | PENDIENTE | Artefacto desde commit verificado, SHA-256 y manifiesto. |
 
 ## Entorno

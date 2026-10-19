@@ -12,6 +12,17 @@ async function abrir(page: Page) {
   return ficha
 }
 
+test('una ficha con respuesta no aplicable conserva su gestión sin ofrecer requisitos del recorrido', async ({ page }) => {
+  const lead = leadReal({ vendedor_id: UID })
+  await montarBackendReal(page, { leads: [lead] })
+  await page.route('**/rest/v1/rpc/recorrido_leads_fn', route => route.fulfill({
+    json: recorridosFixture([recorridoFixture(lead.id, { aplica: false })]),
+  }))
+  const ficha = await abrir(page)
+  await expect(ficha.getByRole('region', { name: 'Antes de convertir a cliente' })).toHaveCount(0)
+  await expect(ficha.getByRole('button', { name: /Convertir a cliente/i })).toBeVisible()
+})
+
 test('la guía comprueba hechos, conserva la ficha ante error y permite recuperar la lectura', async ({ page }) => {
   const lead = leadReal({ vendedor_id: UID, etapa: 'propuesta_enviada' })
   await montarBackendReal(page, { leads: [lead] })

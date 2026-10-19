@@ -1,3 +1,9 @@
+## 20261019001702–03 — Recorrido: correcciones de revisión del PR #331
+
+**CANDIDATO LOCAL, NO APLICADO EN PRODUCCIÓN.** Captura `sin_ciclo` cuando falta el ciclo, conservando `base_sin_ciclo` para bases dormidas. Registrar una gestión no inventa el ciclo ni habilita conversión, en ningún modo. Un ciclo reparado después tampoco se apropia de esa actividad. Se conserva el guard de primera conversión y su corte.
+
+El lock de invalidación sigue protegiendo DELETE y campos consumidos por el evaluador (incluidos ID, tipo, fecha y vínculos), sin bloquear una confirmación de tarea que solo cambia `confirmada_en`. Inmutabilidad del lead, RLS, auditoría, autorización y recibos de oficina permanecen. Preflight por huellas y hardening posterior. Pruebas: cuatro grupos SQL nuevos, ocho carreras de gestión/oficina, cinco de conversión y replay, 79 HTTP/Auth/RLS, regresión de cartera y 7 E2E Docker PASS. Acta `docs/plans/recorrido-lead-hechos/FASE-7-REVISION-PR.md`.
+
 ## 20261019001700–01 — Recorrido del lead, fase 5: primera conversión
 
 **CANDIDATO LOCAL, NO APLICADO EN PRODUCCIÓN.** Guard central en preparación, solicitud, acceso externo y confirmación; defensa de tablas y fotografía inmutable en `inversion_solicitudes.recorrido_confirmado`. Preserva recuperación de borradores y Auth ya creado, replays confirmados y operaciones de cartera. Sin DDL en public, sin activar el modo. Corte inicial explícito acotado a 24 h; fallback por creado_en para ciclo nuevo ausente. Permisos originales conservados y hardening separado.

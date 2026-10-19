@@ -4,7 +4,7 @@ El Goal termina con código integrado y ZIP verificable. **No autoriza publicar 
 
 ## Backend requerido
 
-Aplicar, en este orden, los seis archivos versionados de `supabase/migrations/`:
+Aplicar, en este orden, los ocho archivos versionados de `supabase/migrations/`:
 
 1. `20261019001500_crm_recorrido_evaluacion.sql`
 2. `20261019001501_crm_recorrido_evaluacion_hardening.sql`
@@ -12,12 +12,16 @@ Aplicar, en este orden, los seis archivos versionados de `supabase/migrations/`:
 4. `20261019001601_crm_recorrido_oficina_hardening.sql`
 5. `20261019001700_crm_recorrido_conversion.sql`
 6. `20261019001701_crm_recorrido_conversion_hardening.sql`
+7. `20261019001702_crm_recorrido_revision_pr.sql`
+8. `20261019001703_crm_recorrido_revision_pr_hardening.sql`
 
 Cada bloque contiene preflight/postflight y hardening. Las huellas de las funciones previas deben coincidir: si el backend cambió, detener la instalación, comparar el nuevo contrato y preparar una migración aditiva. No quitar preflights, forzar versiones ni editar migraciones ya comprometidas. No se modifica el esquema `public` y no se requiere desplegar una Edge nueva: el handler existente de acceso ya transmite el rechazo público del servidor.
 
 Antes de instalar en producción, completar el circuito de `supabase/migrations/LEEME.md`: rama Supabase autorizada, aplicación, matriz RLS, advisors y revisión del merge de base. La validación de este Goal usó un banco Supabase local y copias desechables con Auth/PostgREST reales. La validación hosted y sus advisors se reportan separadamente como NOT RUN mientras no exista rama autorizada; no se sustituyen por un preflight offline. La consulta sobre organización/costo está pendiente y no se ha aceptado ningún gasto.
 
 El frontend tolera una RPC de recorrido todavía ausente (`PGRST202`) y no muestra la guía en ese caso. Eso permite una instalación gradual, pero **no acredita que el bloqueo esté instalado**. Una lectura fallida distinta de RPC ausente se muestra como desconocida y nunca como requisitos cumplidos.
+
+Las dos migraciones finales incluyen las correcciones del PR: la gestión sin ciclo se conserva como `sin_ciclo`, sin acreditar asistencia ni entrevista ni inventar un ciclo. El estado `base_sin_ciclo` se mantiene para bases cargadas dormidas. Los cambios de evidencia conservan serialización; confirmar una tarea sin cambiar sus hechos no adquiere ese lock adicional.
 
 ## Política de cohortes propuesta y ensayada
 

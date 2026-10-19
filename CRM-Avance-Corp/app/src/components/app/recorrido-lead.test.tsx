@@ -120,6 +120,21 @@ describe('guía por hechos', () => {
     const { container } = montar()
     expect(container).toBeEmptyDOMElement()
   })
+  it('oculta requisitos y acciones si el servidor excluye el lead del recorrido', () => {
+    consulta.porLead.set(id(1), recorridoFixture(id(1), { aplica: false }))
+    const { container } = montar()
+    expect(container).toBeEmptyDOMElement()
+  })
+  it('conserva la visita en curso si deja de aplicar y oculta la guía al cerrar', async () => {
+    const { rerender, props, container } = montar()
+    await userEvent.click(screen.getByRole('button', { name: 'Llegó sin cita' }))
+    await userEvent.type(screen.getByLabelText('Nota de oficina'), 'Atención en curso')
+    consulta.porLead.set(id(1), recorridoFixture(id(1), { aplica: false }))
+    rerender(<RecorridoFicha {...props} />)
+    expect(screen.getByLabelText('Nota de oficina')).toHaveValue('Atención en curso')
+    await userEvent.click(screen.getByRole('button', { name: 'Cerrar oficina' }))
+    expect(container).toBeEmptyDOMElement()
+  })
   it('Mi día lleva a la ficha y el resumen de listas no anida controles', async () => {
     const abrir = vi.fn()
     const { unmount } = render(<RecorridoEnMiDia leadId={id(1)} onAbrirFicha={abrir} />)

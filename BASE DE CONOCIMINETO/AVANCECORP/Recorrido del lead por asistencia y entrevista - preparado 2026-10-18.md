@@ -14,7 +14,9 @@ La evaluación vive en el CRM y se vuelve a comprobar en las puertas de identida
 
 Instalación inicial en observación. El corte de una activación futura es inmutable: ciclos anteriores no quedan retrobloqueados; una reapertura posterior sí pertenece al nuevo corte. La política histórica es propuesta, todavía sin autorización comercial para activar. No se inventa evidencia ni se aplica un backfill de asistencia. No hace falta n8n.
 
-El Goal incluye PR/Main y ZIP, **sin publicación ni migración productiva**. Se verificó en un banco Supabase local y copias desechables: SQL/RLS, concurrencia, 79 comprobaciones Auth/PostgREST reales, seis E2E nuevos y regresión Docker. Los límites y gates hosted previos a una publicación futura están en el informe técnico.
+La revisión del PR #331 conserva actividades sin ciclo como `sin_ciclo`, sin atribuirlas retroactivamente cuando se repare el ciclo. Confirmar una tarea sin modificar evidencia evita el lock adicional; fechas, resultados y vínculos mantienen serialización.
+
+El Goal incluye PR/Main y ZIP, **sin publicación ni migración productiva**. Se verificó en un banco Supabase local y copias desechables: SQL/RLS, concurrencia, 79 comprobaciones Auth/PostgREST reales, siete E2E nuevos y regresión Docker. Los límites y gates hosted previos a una publicación futura están en el informe técnico.
 
 - [Plan con barras, fases y subfases en FigJam](https://www.figma.com/board/kg289vO84cJjFMCuBJbqhM?node-id=46-190).
 - [Estado y evidencia](../../CRM-Avance-Corp/docs/plans/recorrido-lead-hechos/ESTADO.md).

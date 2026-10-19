@@ -14,6 +14,7 @@ const sesiones = [];
 const lead = randomUUID();
 const leadCita = randomUUID();
 const tarea = randomUUID();
+const tareaConfirmacion = randomUUID();
 let actividad;
 
 function sesion(nombre) {
@@ -59,6 +60,31 @@ try {
     set local request.jwt.claim.sub=${q(analista)};
     select crm.cerrar_reunion_v3(${q(randomUUID())},${q(tarea)},'completada','interesado',null,'Entrevista',null,1000,'PEN'); commit;`);
   actividad = sql(`select resultado_actividad_id from crm.tareas where id=${q(tarea)};`);
+
+  // Confirmar asistencia futura de agenda no modifica la evidencia de entrevista.
+  // Una actividad concurrente puede retener el lead sin impedir este PATCH.
+  sql(`insert into crm.tareas(id,lead_id,tipo,titulo,vence_en,creado_por)
+    values(${q(tareaConfirmacion)},${q(lead)},'llamada','Tarea para confirmar',clock_timestamp()+interval '1 day',${q(analista)});`);
+  const confirmacionA = sesion('confirmada_a');
+  confirmacionA.enviar(`begin; select id from crm.leads where id=${q(lead)} for update;\n\\echo CONFIRMACION_LISTA`);
+  await marcador(confirmacionA, 'CONFIRMACION_LISTA');
+  const confirmacionB = sesion('confirmada_b');
+  correcto(await confirmacionB.cerrar(`begin; set local role authenticated;
+    set local request.jwt.claim.sub=${q(analista)};
+    update crm.tareas set confirmada_en=clock_timestamp() where id=${q(tareaConfirmacion)};
+    commit;`));
+  assert.equal(sql(`select confirmada_en is not null from crm.tareas where id=${q(tareaConfirmacion)};`), 't');
+  correcto(await confirmacionA.cerrar('commit;'));
+  console.log('PASS: confirmar tarea por API no toma lock de evidencia ni falla con un lead ocupado.');
+
+  const evidenciaA = sesion('vence_a');
+  evidenciaA.enviar(`begin; select id from crm.leads where id=${q(lead)} for update;\n\\echo EVIDENCIA_LISTA`);
+  await marcador(evidenciaA, 'EVIDENCIA_LISTA');
+  const evidenciaB = sesion('vence_b');
+  await evidenciaB.cerrar(`begin; update crm.tareas set vence_en=vence_en+interval '1 hour' where id=${q(tareaConfirmacion)}; commit;`);
+  assert.notEqual(evidenciaB.codigo, 0); assert.match(evidenciaB.error, /55P03/);
+  correcto(await evidenciaA.cerrar('commit;'));
+  console.log('PASS: modificar fecha de tarea mantiene la serializacion de evidencia.');
 
   // Dos inserts internos: el segundo espera ANTES del FK; ambos terminan.
   const a = sesion('insert_a');

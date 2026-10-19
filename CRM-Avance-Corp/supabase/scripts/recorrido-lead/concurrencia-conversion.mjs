@@ -107,6 +107,25 @@ try {
   sql('set role postgres;\n' + archivo('../../migrations/20261019001700_crm_recorrido_conversion.sql'));
   sql('set role postgres;\n' + archivo('../../migrations/20261019001701_crm_recorrido_conversion_hardening.sql'));
   console.log('PASS: replay íntegro de fase 5 + hardening desde los contratos previos, en copia desechable.');
+  const fase3 = archivo('../../migrations/20261019001600_crm_recorrido_oficina.sql');
+  const extraer = (fuente, prefijo) => {
+    const a = fuente.indexOf(prefijo), b = fuente.indexOf('end $$;', a) + 7;
+    assert(a >= 0 && b > a);
+    return fuente.slice(a, b).replace(/^create function/, 'create or replace function');
+  };
+  sql(`begin;set local role postgres;
+    ${extraer(fase3, 'create or replace function private.recorrido_capturar_actividad()')}
+    ${extraer(fase2, 'create function private.recorrido_serializar_invalidacion()')}
+    alter table crm.actividad_ciclo_contexto
+      drop constraint actividad_ciclo_contexto_estado_ciclo_check,
+      drop constraint actividad_ciclo_contexto_check1,
+      add constraint actividad_ciclo_contexto_estado_ciclo_check check (estado_ciclo in ('ciclo','base_sin_ciclo')),
+      add constraint actividad_ciclo_contexto_check1 check ((estado_ciclo='ciclo' and ciclo_n is not null)
+        or (estado_ciclo='base_sin_ciclo' and ciclo_n is null));
+    commit;`);
+  sql('set role postgres;\n' + archivo('../../migrations/20261019001702_crm_recorrido_revision_pr.sql'));
+  sql('set role postgres;\n' + archivo('../../migrations/20261019001703_crm_recorrido_revision_pr_hardening.sql'));
+  console.log('PASS: replay íntegro de correcciones del PR + hardening, sin alterar migraciones anteriores.');
   sql("insert into storage.buckets(id,name,public) values('f4-comprobantes','f4-comprobantes',false) on conflict(id) do nothing;");
   sql(modo('exigir'));
   const a = fixture('CONFIRMAR PRIMERO');

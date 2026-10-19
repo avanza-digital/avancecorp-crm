@@ -1,0 +1,8 @@
+PASS: confirmar tarea por API no toma lock de evidencia ni falla con un lead ocupado.
+PASS: modificar fecha de tarea mantiene la serializacion de evidencia.
+PASS: inserts internos concurrentes serializados, sin deadlock ni contexto perdido.
+PASS: reapertura concurrente captura el ciclo confirmado después de esperar.
+PASS: invalidación en orden inverso rechaza sin efectos ni espera circular.
+PASS: la evaluación posterior al lock ve la invalidación ya confirmada.
+PASS: doble envio simultaneo de oficina devuelve el mismo cierre y una sola asistencia.
+PASS: rollback de una visita concurrente permite reintentar sin recibo ni cita a medias.
