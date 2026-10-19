@@ -1,0 +1,57 @@
+{
+  "gate_global": "FAIL: 5 funciones previas requieren cron/net, no instalados en banco aislado",
+  "gate_funciones_candidatas": "PASS",
+  "funciones_candidatas": [
+    "crm.acceso_inversion_fn",
+    "crm.confirmar_inversion_revisada_fn",
+    "crm.eliminar_lead_error_carga",
+    "crm.preparar_persona_lead_inversion_fn",
+    "crm.recorrido_atender_oficina_fn",
+    "crm.recorrido_configurar_fn",
+    "crm.recorrido_leads_fn",
+    "private.conversion_lead_con_inversion",
+    "private.recorrido_bloquear_insert",
+    "private.recorrido_capturar_actividad",
+    "private.recorrido_contexto_guard",
+    "private.recorrido_control_guard",
+    "private.recorrido_evaluar",
+    "private.recorrido_exigir",
+    "private.recorrido_insert_convertido_guard",
+    "private.recorrido_serializar_invalidacion",
+    "private.recorrido_solicitud_guard"
+  ],
+  "hallazgos_candidatos": [],
+  "hallazgos_ajenos": [
+    {
+      "function": "crm.reevaluar_cierre_capital_fn",
+      "errors": [
+        "relation \"cron.job\" does not exist"
+      ]
+    },
+    {
+      "function": "private.assert_auditoria",
+      "errors": [
+        "relation \"cron.job\" does not exist"
+      ]
+    },
+    {
+      "function": "private.assert_f7_piezas_cerradas",
+      "errors": [
+        "relation \"cron.job\" does not exist"
+      ]
+    },
+    {
+      "function": "private.despertar_push_tasa",
+      "errors": [
+        "schema \"net\" does not exist"
+      ]
+    },
+    {
+      "function": "private.veredicto_f7",
+      "errors": [
+        "relation \"cron.job\" does not exist"
+      ]
+    }
+  ],
+  "advisors_hosted": "NOT RUN: sin rama autorizada; requisito para instalación productiva futura"
+}

@@ -49,7 +49,7 @@ export function siguienteDelRecorrido(r: RecorridoLead): string {
     case 'asignar_analista': return 'Asignar un analista'
     case 'esperar_cita': return 'Cita pendiente de realizar'
     case 'cerrar_entrevista': return 'Registrar qué pasó en la cita'
-    case 'revisar_historial': return 'Revisar asistencia e entrevista'
+    case 'revisar_historial': return 'Revisar asistencia y entrevista'
     case 'revisar_entrevista': return 'Completar el resultado de la entrevista'
     case 'agendar_cita': return 'Agendar una cita'
   }

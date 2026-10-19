@@ -148,7 +148,7 @@ function opcionesDe(tipo: TipoTarea): OpcionCierre[] {
   }
 }
 
-export function CerrarTareaDialog({ tarea, onCerrar, focoAlCerrar }: { tarea: Tarea | null; onCerrar: () => void; focoAlCerrar?: RefObject<HTMLElement | null> }) {
+export function CerrarTareaDialog({ tarea, onCerrar, onGuardado, focoAlCerrar }: { tarea: Tarea | null; onCerrar: () => void; onGuardado?: () => void; focoAlCerrar?: RefObject<HTMLElement | null> }) {
   const [ocupado, setOcupado] = useState(false)
   const { lead, asegurarLead } = useCRMData()
   // Fase 4e «sin topes»: sin foto inicial, el lead de la llamada puede no ser
@@ -176,7 +176,7 @@ export function CerrarTareaDialog({ tarea, onCerrar, focoAlCerrar }: { tarea: Ta
       <Dialog open={tarea != null} onClose={() => { if (!ocupado) onCerrar() }} ariaLabel="Cerrar tarea" focoAlCerrar={focoAlCerrar}>
         {tarea && (tarea.inversionista_id
           ? <FormTareaPostventa key={tarea.id} tarea={tarea} onCerrar={onCerrar} onOcupado={setOcupado} />
-          : <FormCierre key={tarea.id} tarea={tarea} onCerrar={onCerrar} onRegistrarLlamada={leadDeLlamada ? () => setPanelLlamada(tarea.id) : undefined} />)}
+          : <FormCierre key={tarea.id} tarea={tarea} onCerrar={onCerrar} onGuardado={onGuardado} onRegistrarLlamada={leadDeLlamada ? () => setPanelLlamada(tarea.id) : undefined} />)}
       </Dialog>
       {tarea && leadDeLlamada && panelLlamada === tarea.id && (
         <RegistrarResultado key={tarea.id} lead={leadDeLlamada} tarea={tarea} onClose={() => { setPanelLlamada(null); onCerrar() }} />
@@ -187,7 +187,7 @@ export function CerrarTareaDialog({ tarea, onCerrar, focoAlCerrar }: { tarea: Ta
 
 /** Presenta el MISMO formulario de entrevista y motor de siguiente acción.
  * La tarea de contexto solo existe en memoria: el único writer es la RPC. */
-export function AtenderOficinaDialog({ lead, onCerrar, focoAlCerrar }: { lead: Lead; onCerrar: () => void; focoAlCerrar?: RefObject<HTMLElement | null> }) {
+export function AtenderOficinaDialog({ lead, onCerrar, onGuardado, focoAlCerrar }: { lead: Lead; onCerrar: () => void; onGuardado?: () => void; focoAlCerrar?: RefObject<HTMLElement | null> }) {
   const { yo } = useAuth()
   const { asegurarLead, recargar } = useCRMData()
   const [ocupado, setOcupado] = useState(false)
@@ -221,13 +221,14 @@ export function AtenderOficinaDialog({ lead, onCerrar, focoAlCerrar }: { lead: L
     return true
   }
   return <Dialog open onClose={() => { if (!ocupado) onCerrar() }} ariaLabel="Registrar visita y entrevista" focoAlCerrar={focoAlCerrar}>
-    <FormCierre tarea={tarea} onCerrar={onCerrar} oficina={{ lead, guardar }} onOcupado={setOcupado} />
+    <FormCierre tarea={tarea} onCerrar={onCerrar} onGuardado={onGuardado} oficina={{ lead, guardar }} onOcupado={setOcupado} />
   </Dialog>
 }
 
-function FormCierre({ tarea, onCerrar, onRegistrarLlamada, oficina, onOcupado }: {
+function FormCierre({ tarea, onCerrar, onGuardado, onRegistrarLlamada, oficina, onOcupado }: {
   tarea: Tarea
   onCerrar: () => void
+  onGuardado?: (() => void) | undefined
   onRegistrarLlamada?: (() => void) | undefined
   oficina?: { lead: Lead; guardar: (input: CompletarTareaInput) => Promise<boolean> }
   onOcupado?: (valor: boolean) => void
@@ -515,7 +516,7 @@ function FormCierre({ tarea, onCerrar, onRegistrarLlamada, oficina, onOcupado }:
     const persistio = await (res.persistido ?? Promise.resolve(true))
     setProcesando(false)
     if (!persistio) return
-    onCerrar()
+    ;(onGuardado ?? onCerrar)()
     // Orden de los avisos: el retroceso de etapa manda sobre el "sin próxima
     // acción" porque es el cambio más grande y el que el analista no pidió
     // explícitamente. Los dos son ciertos a la vez a menudo (anular la última
@@ -595,7 +596,7 @@ function FormCierre({ tarea, onCerrar, onRegistrarLlamada, oficina, onOcupado }:
       try {
         if (await oficina.guardar(input)) {
           toast.success(conSiguiente ? 'Visita y entrevista registradas. Siguiente acción agendada.' : 'Visita y entrevista registradas.')
-          onCerrar()
+          ;(onGuardado ?? onCerrar)()
         }
       } finally {
         enviando.current = false
@@ -643,7 +644,7 @@ function FormCierre({ tarea, onCerrar, onRegistrarLlamada, oficina, onOcupado }:
     } else {
       toast.success(partes.join(' · '))
     }
-    onCerrar()
+    ;(onGuardado ?? onCerrar)()
   }
 
   // La guarda del botón es EXACTAMENTE la de `confirmar()` (`if (!eleccion)

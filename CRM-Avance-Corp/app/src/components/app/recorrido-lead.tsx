@@ -13,7 +13,7 @@ import { AtenderOficinaDialog, CerrarTareaDialog } from './cerrar-tarea'
 /** Sin controles anidados: también se usa dentro de tarjetas/filas pulsables. */
 export function RecorridoBreve({ item, estado }: { item: RecorridoLead | undefined; estado: EstadoConsultaRecorrido }) {
   if (estado === 'inactivo' || (item && !item.aplica)) return null
-  const texto = estado === 'cargando' ? 'Comprobando asistencia e entrevista…'
+  const texto = estado === 'cargando' ? 'Comprobando asistencia y entrevista…'
     : estado === 'error' || !item ? 'Asistencia y entrevista sin comprobar'
       : siguienteDelRecorrido(item)
   return <span className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground-strong">
@@ -66,9 +66,10 @@ export function RecorridoFicha({ lead, puedeOperar, onAgendar, onAgenda, onHisto
     && (yo?.rol === 'vendedor' || yo?.rol === 'supervisor' || yo?.rol === 'gerencia')
   const permisoActual = useRef(permite)
   permisoActual.current = permite
-  function cerrar() {
+  function cerrar(guardado = false) {
     // El Dialog común ejecuta UNA restauración cuando retira su trampa.
-    focoRetorno.current = origen.current?.isConnected ? origen.current : encabezado.current
+    // Guardar retira el botón al refrescar los hechos; el encabezado permanece.
+    focoRetorno.current = !guardado && origen.current?.isConnected ? origen.current : encabezado.current
     setOficina(false); setTarea(null)
   }
 
@@ -98,7 +99,7 @@ export function RecorridoFicha({ lead, puedeOperar, onAgendar, onAgenda, onHisto
         <Button type="button" variant="ghost" size="icon" className="shrink-0 pointer-coarse:size-11" aria-label="Volver a comprobar" title="Volver a comprobar" aria-disabled={consulta.estado === 'cargando'} onClick={() => { if (consulta.estado !== 'cargando') void consulta.refetch() }}><RefreshCw aria-hidden /></Button>
       </div>
       <p role="status" aria-atomic="true" className="text-sm text-muted-foreground-strong">{consulta.estado === 'cargando'
-        ? 'Comprobando asistencia e entrevista…' : consulta.estado === 'listo' && item
+        ? 'Comprobando asistencia y entrevista…' : consulta.estado === 'listo' && item
           ? siguienteDelRecorrido(item) : 'No se pudo comprobar el recorrido. Puedes continuar registrando tu gestión.'}</p>
       {consulta.estado === 'listo' && item && <>
         {/* Safari conserva la lista bajo el reset de Tailwind. */}
@@ -123,7 +124,7 @@ export function RecorridoFicha({ lead, puedeOperar, onAgendar, onAgenda, onHisto
         </div>
       </>}
     </section>
-    {oficina && <AtenderOficinaDialog lead={lead} onCerrar={cerrar} focoAlCerrar={focoRetorno} />}
-    <CerrarTareaDialog tarea={tarea} onCerrar={cerrar} focoAlCerrar={focoRetorno} />
+    {oficina && <AtenderOficinaDialog lead={lead} onCerrar={cerrar} onGuardado={() => cerrar(true)} focoAlCerrar={focoRetorno} />}
+    <CerrarTareaDialog tarea={tarea} onCerrar={cerrar} onGuardado={() => cerrar(true)} focoAlCerrar={focoRetorno} />
   </>
 }

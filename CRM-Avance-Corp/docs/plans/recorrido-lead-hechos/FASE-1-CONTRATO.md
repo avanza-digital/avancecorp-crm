@@ -2,7 +2,7 @@
 
 Base de código: Main 6ace3d441bd874a1e06613ee5718b1023e08c39d. Catálogo de producción leído el 18/10/2026; cuerpos en evidencia/. Este documento define implementación y pruebas, no autoriza activación productiva.
 
-**Aclaración vinculante del usuario durante el goal:** «el objetivo es que no convierta a clientes sin marcar que ya vino a cita y ya tuvo una entrevista». El candado de primera conversión exige asistencia real e entrevista cerrada, vinculadas a la misma cita del ciclo vigente. Gestión/contacto se muestran como guía comercial; no son bloqueos adicionales si la asistencia y la entrevista ya están demostradas. Esta decisión sustituye el requisito anterior de contacto previo obligatorio.
+**Aclaración vinculante del usuario durante el goal:** «el objetivo es que no convierta a clientes sin marcar que ya vino a cita y ya tuvo una entrevista». El candado de primera conversión exige asistencia declarada y entrevista cerrada, vinculadas a la misma cita del ciclo vigente. El servidor comprueba el registro, no presencia física. Gestión/contacto se muestran como guía comercial; no son bloqueos adicionales si la asistencia y la entrevista ya están demostradas. Esta decisión sustituye el requisito anterior de contacto previo obligatorio.
 
 ## Decisiones sustentadas
 

@@ -31,7 +31,7 @@ beforeEach(() => {
 })
 
 describe('guía por hechos', () => {
-  it('no confunde la etapa de entrevista con pruebas de asistencia e entrevista', () => {
+  it('no confunde la etapa de entrevista con pruebas de asistencia y entrevista', () => {
     montar({ etapa: 'propuesta_enviada' })
     expect(screen.getAllByText('Pendiente')).toHaveLength(2)
     expect(screen.getByText(/Cambiar de etapa no registra/)).toBeVisible()
@@ -136,7 +136,7 @@ it('conserva el mismo estado accesible desde la consulta hasta su resultado', ()
   consulta.estado = 'cargando'; consulta.porLead = new Map()
   const { rerender, props } = montar()
   const estado = screen.getByRole('status')
-  expect(estado).toHaveTextContent('Comprobando asistencia e entrevista')
+  expect(estado).toHaveTextContent('Comprobando asistencia y entrevista')
   consulta.estado = 'listo'; consulta.porLead.set(id(1), recorridoFixture())
   rerender(<RecorridoFicha {...props} />)
   expect(screen.getByRole('status')).toBe(estado)
