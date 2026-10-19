@@ -1,0 +1,140 @@
+/* Proyección de citas: hoja tipo Excel a todo el ancho (propuesta B aprobada el 19/10/2026). */
+.pc-panel { font-variant-numeric: tabular-nums; --pc-cruz: color-mix(in srgb, var(--accent) 6%, white); }
+.pc-barra { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-bottom: 10px; }
+.pc-pastillas { display: flex; flex: 1 1 0; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.pc-pastillas > * { padding-block: 4px; font-size: 13px; }
+.pc-acciones { display: flex; flex-wrap: wrap; gap: 8px; }
+.pc-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 10px; }
+.pc-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 3px 0 10px; border: 1px solid color-mix(in srgb, var(--accent) 22%, white); border-radius: 999px; background: color-mix(in srgb, var(--accent) 9%, white); color: var(--accent-press); font-size: 12px; font-weight: 500; }
+.pc-chip b { font-weight: 600; }
+.pc-chip button { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; color: inherit; cursor: pointer; }
+.pc-chip button:hover { background: color-mix(in srgb, var(--accent) 16%, white); }
+.pc-chip svg { width: 12px; height: 12px; }
+
+/* ── Periodo: Desde–Hasta y atajos ── */
+.pc-periodo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 10px; }
+.pc-rotulo { min-width: 110px; color: var(--primary); font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pc-fecha { display: inline-flex; align-items: center; gap: 6px; color: var(--muted-foreground-strong); font-size: 13px; font-weight: 500; }
+.pc-fecha input { width: 150px; }
+.pc-atajos { display: flex; flex-wrap: wrap; gap: 4px; }
+.pc-atajo { height: 28px; padding: 0 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--card); color: var(--muted-foreground-strong); font-size: 12px; font-weight: 600; cursor: pointer; transition: border-color 0.15s, background 0.15s, color 0.15s; }
+.pc-atajo:hover { border-color: var(--border-strong); color: var(--primary); }
+.pc-atajo[aria-pressed='true'] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, white); color: var(--accent-press); }
+.pc-rango-error { flex-basis: 100%; color: var(--destructive-text); font-size: 13px; }
+
+/* ── La hoja ── */
+/* El foco no queda bajo la cabecera, el total ni las columnas fijas (WCAG 2.4.11). */
+.pc-scroll { overflow: auto; max-height: max(420px, calc(100dvh - 300px)); scroll-padding: 46px 0 50px 320px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); outline-offset: -2px; }
+.pc-hoja { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px; font-variant-numeric: tabular-nums; }
+.pc-hoja :is(th, td) { height: 44px; padding: 0 12px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); background: var(--card); color: var(--foreground); text-align: right; white-space: nowrap; font-weight: 400; }
+.pc-hoja :is(th, td):last-child { border-right: 0; }
+/* `.gerencia-inteligencia th` pone versalitas y 0.66rem: la hoja usa la letra normal de la casa. */
+.pc-panel .pc-hoja th { font-size: 14px; letter-spacing: normal; text-transform: none; }
+.pc-panel .pc-hoja thead th { font-size: 13px; }
+.pc-hoja thead th { position: sticky; top: 0; z-index: 3; height: 42px; padding: 0; border-bottom-color: var(--border-strong); background: var(--muted); color: var(--muted-foreground-strong); font-size: 13px; font-weight: 600; }
+.pc-th { display: flex; align-items: center; justify-content: flex-end; gap: 2px; height: 42px; padding: 0 4px 0 8px; }
+.pc-th-orden { display: inline-flex; flex: 1; align-items: center; justify-content: flex-end; gap: 4px; height: 100%; color: inherit; font: inherit; cursor: pointer; }
+.pc-th-orden:hover { color: var(--primary); }
+.pc-texto .pc-th, .pc-texto .pc-th-orden { justify-content: flex-start; }
+/* La flecha solo ocupa sitio en la columna ordenada: así la hoja cabe a 1440 px. */
+.pc-flecha { display: none; width: 12px; height: 12px; flex-shrink: 0; transition: transform 0.18s var(--ease-out-expo); }
+th[aria-sort] .pc-flecha { display: block; color: var(--accent-press); }
+th[aria-sort='ascending'] .pc-flecha { transform: rotate(180deg); }
+.pc-embudo { display: grid; place-items: center; width: 24px; height: 26px; flex-shrink: 0; border-radius: 6px; color: var(--muted-foreground-strong); cursor: pointer; transition: background 0.15s, color 0.15s; }
+.pc-embudo:hover, .pc-embudo[aria-expanded='true'] { background: var(--secondary); color: var(--primary); }
+.pc-embudo svg { width: 14px; height: 14px; }
+th[data-filtro='true'] .pc-embudo { background: color-mix(in srgb, var(--accent) 12%, white); color: var(--accent-press); }
+th[data-filtro='true'] .pc-embudo svg { fill: currentColor; }
+th[data-filtro='true'] .pc-th-orden { color: var(--accent-press); }
+
+/* # y Analista quedan fijos al desplazar. */
+.pc-hoja .pc-n0 { position: sticky; left: 0; z-index: 2; width: 44px; min-width: 44px; padding: 0; background: var(--muted); color: var(--muted-foreground-strong); text-align: center; font-size: 12px; font-weight: 500; }
+.pc-hoja .pc-analista { position: sticky; left: 44px; z-index: 2; text-align: left; box-shadow: 1px 0 0 var(--border-strong); }
+.pc-hoja thead :is(.pc-n0, .pc-analista) { z-index: 4; }
+.pc-hoja tbody th.pc-analista { color: var(--primary); font-size: 16px; font-weight: 600; }
+.pc-nombre { display: flex; align-items: center; gap: 10px; min-width: 180px; max-width: 260px; white-space: normal; line-height: 1.25; }
+.pc-avatar { display: grid; place-items: center; width: 28px; height: 28px; flex-shrink: 0; border-radius: 50%; background: var(--secondary); color: var(--primary); font-size: 10px; font-weight: 700; }
+.pc-fila:is(:hover, :focus-within) :is(td, th) { background: var(--pc-cruz); }
+.pc-fila:hover .pc-n0 { background: color-mix(in srgb, var(--accent) 12%, white); color: var(--primary); }
+.pc-hoja .pc-proyectado { background: color-mix(in srgb, var(--background) 65%, white); }
+
+.pc-banda th { height: 36px; padding: 0; background: var(--secondary); border-right: 0; text-align: left; }
+.pc-banda button { position: sticky; left: 0; display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px 0 16px; color: var(--primary); font-size: 13px; font-weight: 600; cursor: pointer; }
+.pc-banda button:hover { color: var(--accent-press); }
+.pc-banda small { font-size: 12px; font-weight: 500; color: var(--muted-foreground-strong); }
+.pc-banda svg { width: 14px; height: 14px; transition: transform 0.2s var(--ease-out-expo); }
+.pc-banda button[aria-expanded='false'] svg { transform: rotate(-90deg); }
+
+.pc-hoja tfoot :is(th, td) { position: sticky; bottom: 0; z-index: 3; height: 46px; border-top: 1px solid var(--border-strong); border-bottom: 0; background: var(--muted); color: var(--primary); font-weight: 700; }
+.pc-hoja tfoot :is(.pc-n0, .pc-analista) { z-index: 4; }
+.pc-hoja tfoot .pc-n { font-weight: 700; }
+.pc-hoja tfoot .pc-proyectado { background: var(--muted); }
+
+.pc-n { display: inline-flex; align-items: center; justify-content: flex-end; min-width: 36px; height: 32px; margin: 0 -8px; padding: 0 8px; border-radius: 6px; color: inherit; font: inherit; font-weight: 500; transition: background 0.14s, color 0.14s; }
+button.pc-n { cursor: pointer; }
+button.pc-n:hover { background: color-mix(in srgb, var(--accent) 12%, white); color: var(--accent-press); }
+.pc-cero { color: var(--muted-foreground-strong); font-weight: 400; }
+.pc-m { margin-right: 4px; color: var(--muted-foreground-strong); font-size: 12px; font-weight: 400; }
+.pc-hoja .cm-metrica { display: inline-flex; justify-content: flex-end; }
+.pc-hoja .cm-senal { margin-left: 0; }
+
+/* ── Embudo tipo Excel ── */
+.pc-menu { position: fixed; z-index: 60; width: 280px; max-width: calc(100vw - 16px); overflow: auto; padding: 6px 0; border: 1px solid var(--border); border-radius: 10px; background: var(--card); box-shadow: var(--shadow-pop); color: var(--foreground); font-size: 14px; animation: pc-pop 0.22s var(--ease-out-expo); }
+@keyframes pc-pop { from { opacity: 0; transform: translateY(-6px) scale(0.98); } to { opacity: 1; transform: none; } }
+.pc-menu-titulo { padding: 6px 14px 8px; color: var(--muted-foreground-strong); font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+.pc-menu-item { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 36px; padding: 0 14px; text-align: left; cursor: pointer; }
+.pc-menu-item:hover { background: var(--secondary); }
+.pc-menu-item[aria-pressed='true'] { color: var(--accent-press); font-weight: 600; }
+.pc-menu-item svg { width: 15px; height: 15px; color: var(--muted-foreground-strong); }
+.pc-menu-item[aria-pressed='true'] svg { color: var(--accent-press); }
+.pc-menu hr { margin: 6px 0; border: 0; border-top: 1px solid var(--border); }
+.pc-menu-busca { margin: 4px 14px 6px; }
+.pc-menu-lista { max-height: 220px; overflow: auto; padding: 2px 6px; }
+.pc-op { display: flex; align-items: center; gap: 10px; min-height: 32px; padding: 0 8px; border-radius: 6px; cursor: pointer; }
+.pc-op:hover { background: var(--secondary); }
+.pc-op input { width: 16px; height: 16px; flex-shrink: 0; margin: 0; accent-color: var(--accent); }
+.pc-op span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pc-op small { color: var(--muted-foreground-strong); font-size: 12px; font-variant-numeric: tabular-nums; }
+.pc-rango { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 4px 14px 6px; }
+.pc-rango label { display: flex; flex-direction: column; gap: 2px; color: var(--muted-foreground-strong); font-size: 12px; }
+.pc-menu-pie { display: flex; gap: 8px; padding: 8px 14px 6px; }
+.pc-menu-pie > * { flex: 1; }
+
+/* ── Lista lateral ── */
+.pc-lista { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+.pc-lista thead th { position: sticky; top: 0; z-index: 1; padding: 8px 10px; border-bottom: 1px solid var(--border-strong); background: var(--muted); color: var(--muted-foreground-strong); text-align: left; font-size: 13px; font-weight: 600; }
+.pc-lista :is(td, tbody th) { height: 42px; padding: 0 10px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; font-weight: 400; }
+.pc-lista .pc-num { text-align: right; }
+.pc-persona { color: var(--primary); font-size: 16px; font-weight: 600; }
+button.pc-persona { cursor: pointer; text-align: left; }
+button.pc-persona:hover { color: var(--accent-press); text-decoration: underline; }
+.pc-estado, .pc-origen { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 5px; background: var(--secondary); color: var(--muted-foreground-strong); font-size: 12px; font-weight: 600; }
+.pc-estado[data-estado='realizada'] { background: color-mix(in srgb, var(--accent) 10%, white); color: var(--accent-press); }
+.pc-origen[data-origen='cliente'] { background: var(--primary); color: #fff; }
+.pc-origen[data-origen='referido'] { background: color-mix(in srgb, var(--accent) 10%, white); color: var(--accent-press); }
+.pc-origen[data-origen='lead'] { color: var(--primary); }
+
+:is(.pc-panel, .pc-menu, .pc-detalle) :is(button, [tabindex], input):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Dentro de la hoja el anillo va hacia dentro: el contenedor con desplazamiento lo recortaría. */
+.pc-panel :is(.pc-scroll, .pc-hoja button):focus-visible { outline-offset: -2px; }
+@media (max-width: 1440px) { .pc-avatar { display: none; } .pc-hoja :is(th, td) { padding-inline: 8px; } .pc-nombre { min-width: 150px; max-width: 210px; } .pc-scroll { scroll-padding-left: 270px; } }
+@media (max-width: 767px) {
+  .pc-pastillas { flex-basis: 100%; }
+  .pc-nombre { min-width: 132px; }
+  .pc-hoja tbody th.pc-analista { white-space: normal; }
+  .pc-scroll { max-height: none; }
+  .pc-pastillas > * { font-size: 12px; }
+}
+/* Táctil: toda zona pulsable mide al menos 44 px. */
+@media (pointer: coarse) {
+  .pc-embudo { min-width: 44px; min-height: 44px; }
+  .pc-chip button { position: relative; }
+  .pc-chip button::after { content: ''; position: absolute; inset: -11px; }
+  .pc-hoja .pc-n, .pc-hoja button.cm-senal, .pc-banda button { height: 44px; min-height: 44px; }
+  .pc-op, .pc-atajo { min-height: 44px; }
+  .pc-fecha input { height: 44px; }
+  .pc-menu input:not([type='checkbox']) { height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pc-menu, .pc-flecha, .pc-banda svg, .pc-n { animation: none !important; transition: none !important; }
+}

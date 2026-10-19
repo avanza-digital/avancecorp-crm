@@ -1,9 +1,11 @@
 import { useMemo } from 'react'
+import { useQueries, type UseQueryResult } from '@tanstack/react-query'
 import { useAuth } from '@/lib/auth-context'
 import { can } from '@/lib/roles'
 import { useCRMData } from '@/lib/store-context'
 import { useAhora } from '@/lib/ahora'
-import { useCitasGerencia, adaptarCitas, type ConsultaCitasRpc } from '@/data/citas-gerencia'
+import { useCitasGerencia, adaptarCitas, fusionarConsultasCitas, opcionesCitasGerencia, type ConsultaCitasRpc } from '@/data/citas-gerencia'
+import type { DatosProyeccionCitas } from '@/components/citas/contexto'
 import { defaults, rango } from '@/components/citas/modelo'
 
 /** La misma lectura y adaptación para el módulo Citas y el Resumen móvil. */
@@ -39,4 +41,29 @@ export function useDatosCitasGerencia(mes: string) {
   const datos = yo?.demo ? demo : consulta.data
   const citas = useMemo(() => datos ? adaptarCitas(datos) : [],[datos])
   return { yo, ahora, datos, citas, consulta, equipo }
+}
+
+// Fuera del componente: una referencia estable evita recombinar en cada render.
+const combinarMeses = (resultados: UseQueryResult<ConsultaCitasRpc>[]) => ({
+  datos: resultados.every(r => r.data) ? resultados.map(r => r.data!) : null,
+  error: resultados.find(r => r.isError)?.error ?? null,
+  reintentar: () => { for (const r of resultados) if (r.isError) void r.refetch() },
+})
+
+/** Meses completos de un rango de Proyección: misma consulta y caché que el mes de
+ * la pantalla. Mientras falte alguno no hay datos (nunca cifras parciales). */
+export function useMesesCitasGerencia(meses: readonly string[]): DatosProyeccionCitas {
+  const { yo } = useAuth()
+  const habilitada = can(yo?.rol, 'verCitasEquipo') && !yo?.demo
+  const estado = useQueries({
+    queries: meses.map(mes => opcionesCitasGerencia(mes, yo?.id ?? null, habilitada)),
+    combine: combinarMeses,
+  })
+  const fusion = useMemo(() => estado.datos ? fusionarConsultasCitas(estado.datos) : null, [estado.datos])
+  return {
+    meses: [...meses], ...(fusion ?? { citas: [], gestion: undefined, corte: '' }),
+    cargando: !fusion && !estado.error,
+    error: estado.error ? (estado.error instanceof Error ? estado.error.message : 'No se pudieron cargar las citas.') : null,
+    onReintentar: estado.reintentar,
+  }
 }

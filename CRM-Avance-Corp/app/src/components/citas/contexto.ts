@@ -3,6 +3,11 @@ import { equipoCitas } from './modelo'
 import type { CitaConLead } from './datos'
 import type { DepositoEjemplo } from './depositos'
 import type { GestionCitas } from './metas'
+/** Citas fusionadas de los meses del rango de Proyección (lo provee la pantalla). */
+export interface DatosProyeccionCitas {
+  meses: string[]; citas: CitaConLead[]; gestion: GestionCitas | undefined; corte: string;
+  cargando: boolean; error: string | null; onReintentar: () => void;
+}
 export interface DatosCitas {
   citas: CitaConLead[]; corte: string; depositos: DepositoEjemplo[]; depositosDisponibles: boolean;
   depositoPorConversion?: boolean;
@@ -10,6 +15,8 @@ export interface DatosCitas {
   mesInicial: string; modoDemo: boolean; meses: string[];
   cargando?: boolean; error?: string | null; onReintentar?: () => void;
   onMes?: (mes: string) => void; onAbrirLead?: (id: string, tareaId: string) => void;
+  /** Proyección avisa qué meses necesita su rango; sin cargador usa las citas de arriba. */
+  onMesesProyeccion?: (meses: string[]) => void; proyeccion?: DatosProyeccionCitas;
 }
 export const ContextoCitas = createContext<DatosCitas | null>(null)
 export function useDatosCitas() {
