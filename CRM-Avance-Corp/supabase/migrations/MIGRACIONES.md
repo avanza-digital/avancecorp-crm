@@ -1,8 +1,14 @@
 ## 20261019170422 — Gestión Diaria cuenta las llamadas a CLIENTES
 
-**ENSAYADA EN BANCO PROPIO, SIN APLICAR (19/10/2026; la aplica Miguel con `!`).** Decisión de Miguel (19/10): las llamadas
-a clientes suman al mismo número «Llamadas» del analista, a la tasa de contacto y a los cortes/mínimo de útiles. Síntoma:
-Vladimir Jurado cerró 5 llamadas a clientes el 19/10 y su marcador decía «1».
+**APLICADA EN PRODUCCIÓN EL 19/10/2026 (~16:20 Lima, `!` de Miguel, `supabase db query --linked --file`) Y REGISTRADA
+(`registrar-20261019170422.sql`, cuerpo md5 `357046d2…` = `main`).** Verificado tras aplicar: huellas vivas = ensayo (ayudante
+`35c22cec…`, lector `a209ec1b…`, agregador `23184500…`, gate del analista `b3a4970e…` con la sección 1b); gate de citas OK;
+analista y pulso rojos SOLO por el roster ajeno (`58bd0554…`). Por la puerta real: Vladimir Jurado ve 14 llamadas · 11 contestadas
+· 14 útiles (9 a leads + 5 a clientes, igual que la cuenta a mano); su supervisor ve lo mismo en Equipo y en los cortes (1.º 6 de 3
+cumplido); el Registro de clientes da 5/5 y total 14. Front publicado a las 16:31 Lima: `build-20261019T213057330Z` = `fcf159c0`
+(PR #338, squash), smoke 130/130 JS/CSS/HTML idénticos. Decisión de Miguel (19/10): las llamadas a clientes suman al mismo número
+«Llamadas» del analista, a la tasa de contacto y a los cortes/mínimo de útiles. Síntoma: Vladimir cerró 5 llamadas a clientes el
+19/10 y su marcador decía «1».
 
 - `20261019170422_crm_gestion_diaria_llamadas_clientes.sql`: ayudante `private.gestion_diaria_llamadas_clientes_eventos`
   (SECURITY DEFINER justificado: `crm.inversionista_gestiones` no tiene policy de lectura; ESPEJO de la visibilidad del
