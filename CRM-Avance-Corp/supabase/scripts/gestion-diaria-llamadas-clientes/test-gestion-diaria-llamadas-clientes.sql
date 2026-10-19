@@ -101,7 +101,8 @@ declare
     ['T13', 'llamada',  'completada', 'no_contesto',     'inicio'],
     ['T14', 'llamada',  'completada', 'agendo_reunion',  'ahora'],
     ['T15', 'llamada',  'pendiente',  null,              'ahora'],
-    ['T16', 'llamada',  'completada', 'no_contesto',     'fin']
+    ['T16', 'llamada',  'completada', 'no_contesto',     'fin'],
+    ['T17', 'llamada',  'completada', 'agendo_reunion',  'jornada']
   ];
 begin
   select * into a from o_actores;
@@ -115,7 +116,8 @@ begin
   for v_i in 1..array_length(v_casos, 1) loop
     v_t := gen_random_uuid();
     v_res := v_casos[v_i][4];
-    v_ts := case v_casos[v_i][5] when 'ahora' then now() when 'ayer' then w.ini - interval '1 second' when 'fin' then w.fin else w.ini end;
+    v_ts := case v_casos[v_i][5] when 'ahora' then now() when 'ayer' then w.ini - interval '1 second' when 'fin' then w.fin
+                                 when 'jornada' then (w.hoy + time '09:30') at time zone 'America/Lima' else w.ini end;
     insert into crm.tareas (id, inversionista_id, vendedor_id, tipo, titulo, vence_en, estado, activo, creado_por, creado_en, postventa_revision,
                             cancelada_por, resultado_reunion)
     values (v_t, case when v_casos[v_i][1] = 'T14' then v_inv2 else v_inv1 end,
@@ -173,9 +175,9 @@ end $lead$;
 grant select on o_actores, o_ventana, o_base, o_ids, o_lead to authenticated;
 
 -- ── Lecturas bajo la RLS ──────────────────────────────────────────────────────
--- Delta esperado para v1: clientes +10 llamadas (T1–T7, T11, T13, A1), +6 contestadas (T1–T5, A1), +8 útiles
--- (T1–T6, T13, A1); lead +1/+1/+1 y +1 lead tocado. Total: +11 llamadas, +7 contestadas, +9 útiles, +1 lead.
--- por_resultado: agendo_reunion +3, volver_a_llamar +3 (2 clientes + 1 lead), no_contesto +2, numero_errado +1,
+-- Delta esperado para v1: clientes +11 llamadas (T1–T7, T11, T13, T17, A1), +7 contestadas (T1–T5, T17, A1), +9 útiles
+-- (T1–T6, T13, T17, A1); lead +1/+1/+1 y +1 lead tocado. Total: +12 llamadas, +8 contestadas, +10 útiles, +1 lead.
+-- por_resultado: agendo_reunion +4, volver_a_llamar +3 (2 clientes + 1 lead), no_contesto +2, numero_errado +1,
 -- sin_resultado +2 (T11 y A1).
 do $lecturas$
 declare
@@ -190,14 +192,14 @@ begin
   r := crm.gestion_diaria_analista_fn();
   reset role;
   m := r->'marcador';
-  v_pct := round(100.0 * (b.contestadas + 7) / (b.utiles + 9));
-  if (m->>'llamadas')::int is distinct from b.llamadas + 11 or (m->>'contestadas')::int is distinct from b.contestadas + 7
-     or (m->>'utiles')::int is distinct from b.utiles + 9 or (m->>'leads_tocados')::int is distinct from b.leads_tocados + 1
+  v_pct := round(100.0 * (b.contestadas + 8) / (b.utiles + 10));
+  if (m->>'llamadas')::int is distinct from b.llamadas + 12 or (m->>'contestadas')::int is distinct from b.contestadas + 8
+     or (m->>'utiles')::int is distinct from b.utiles + 10 or (m->>'leads_tocados')::int is distinct from b.leads_tocados + 1
      or (m->>'tasa_contacto_pct')::numeric is distinct from v_pct
      or m->>'nivel' is distinct from (case when v_pct >= 45 then 'bien' when v_pct >= 25 then 'atencion' else 'bajo' end) then
     raise exception '1: marcador inesperado (base %): %', row_to_json(b), m;
   end if;
-  for v_k, v_n in select * from (values ('agendo_reunion', 3), ('volver_a_llamar', 3), ('no_contesto', 2), ('numero_errado', 1), ('sin_resultado', 2)) t loop
+  for v_k, v_n in select * from (values ('agendo_reunion', 4), ('volver_a_llamar', 3), ('no_contesto', 2), ('numero_errado', 1), ('sin_resultado', 2)) t loop
     if coalesce((m#>>array['por_resultado', v_k])::int, 0) <> coalesce((b.por_resultado->>v_k)::int, 0) + v_n then
       raise exception '1: por_resultado[%] esperaba % y trajo %', v_k, coalesce((b.por_resultado->>v_k)::int, 0) + v_n, m->'por_resultado';
     end if;
@@ -217,26 +219,48 @@ begin
   perform set_config('request.jwt.claims', json_build_object('sub', a.sup1, 'role', 'authenticated')::text, true);
   set local role authenticated;
   r := crm.gestion_diaria_analista_fn(null, a.v1);
-  if (r#>>'{marcador,llamadas}')::int <> b.llamadas + 11 or (r#>>'{marcador,contestadas}')::int <> b.contestadas + 7 then
+  if (r#>>'{marcador,llamadas}')::int is distinct from b.llamadas + 12 or (r#>>'{marcador,contestadas}')::int is distinct from b.contestadas + 8 then
     raise exception '2: el supervisor no ve las llamadas a clientes de su analista: %', r->'marcador';
   end if;
   r := crm.gestion_diaria_equipo_fn(w.hoy);
   select f into v_fila from jsonb_array_elements(r->'equipo') f where (f->>'analista_id')::uuid = a.v1;
-  if v_fila is null or (v_fila#>>'{marcador,llamadas}')::int <> b.llamadas + 11 or (v_fila#>>'{marcador,contestadas}')::int <> b.contestadas + 7
+  if v_fila is null or (v_fila#>>'{marcador,llamadas}')::int is distinct from b.llamadas + 12 or (v_fila#>>'{marcador,contestadas}')::int is distinct from b.contestadas + 8
      or v_fila->>'ultima_llamada_en' is null and v_fila#>>'{marcador,ultima_llamada_en}' is null then
     raise exception '2: la vista de equipo no trae las llamadas a clientes: %', v_fila;
   end if;
-  -- Cortes: con una hora fija de la tarde (ambos cortes ya pasados) el primer corte ve las llamadas de la mañana
-  -- del oráculo (ventana [inicio de jornada, corte1)); se compara con la cuenta a mano del propio núcleo.
+  -- Cortes de jornada: con una hora fija de la tarde (ambos cortes ya pasados) el primer corte del núcleo debe traer
+  -- EXACTAMENTE la cuenta a mano de las llamadas de v1 (leads + clientes, misma regla) en su ventana, que es
+  -- [inicio del DÍA Lima, primer corte) (gestion_diaria_cortes: v_ini = p_dia a medianoche). T17 (09:30 Lima, cliente,
+  -- agendó reunión) y T13 (00:00 Lima) garantizan llamadas a clientes dentro de esa ventana.
   select f into v_fila from jsonb_array_elements(r#>'{cortes,equipo}') f where (f->>'analista_id')::uuid = a.v1;
   if v_fila is null then raise exception '2: los cortes de jornada no traen al analista: %', r->'cortes'; end if;
   reset role;
-  select c.* into v_fila from (select to_jsonb(x) as x from private.gestion_diaria_cortes(w.hoy, array[a.v1], (w.hoy + time '20:30') at time zone 'America/Lima') x) c(c) limit 1;
-  if v_fila is null then raise exception '2: el nucleo de cortes no devolvio nada para v1'; end if;
+  select to_jsonb(x) into r from private.gestion_diaria_cortes(w.hoy, array[a.v1], (w.hoy + time '20:30') at time zone 'America/Lima') x;
+  select f into v_fila from jsonb_array_elements(r->'equipo') f where (f->>'analista_id')::uuid = a.v1;
+  if v_fila is null then raise exception '2: el nucleo de cortes no devolvio nada para v1: %', r; end if;
+  with ventana as (
+    select w.ini as ini, (r->>'primer_corte_en')::timestamptz as fin
+  ), a_mano as (
+    select x.id from crm.actividades x, ventana v
+    where x.creado_por = a.v1 and x.tipo in ('llamada_realizada', 'llamada_no_contestada') and x.creado_en >= v.ini and x.creado_en < v.fin
+    union all
+    select g.id from crm.inversionista_gestiones g join crm.tareas t on t.id = g.tarea_id, ventana v
+    where g.tipo = 'cierre' and g.creado_por = a.v1 and g.creado_en >= v.ini and g.creado_en < v.fin
+      and coalesce(g.metadata->>'tipo_tarea', t.tipo) = 'llamada' and coalesce(g.metadata->>'estado', t.estado) = 'completada'
+    union all
+    select ac.id from crm.actividades_cliente ac left join crm.tareas t on t.id = ac.tarea_id, ventana v
+    where ac.creado_por = a.v1 and ac.tipo in ('llamada_realizada', 'llamada_no_contestada') and ac.creado_en >= v.ini and ac.creado_en < v.fin
+      and coalesce(t.estado, 'completada') = 'completada'
+      and not exists (select 1 from crm.inversionista_gestiones g where g.tarea_id = ac.tarea_id and g.tipo = 'cierre')
+  ) select coalesce(cardinality(array_agg(id)), 0) into v_n from a_mano;
+  if v_n < 1 then raise exception '2: el fixture no dejo ninguna llamada dentro de la primera ventana de la jornada (%)', r - 'equipo'; end if;
+  if (v_fila#>>'{primer_corte,llamadas}')::int is distinct from v_n then
+    raise exception '2: el primer corte cuenta % y a mano salen % (ventana % → %): %', v_fila#>>'{primer_corte,llamadas}', v_n, w.ini, r->>'primer_corte_en', v_fila;
+  end if;
   set local role authenticated;
   -- Paridad con el Registro de clientes: mismas 10 llamadas y 6 contestadas de clientes para v1 hoy.
   r := crm.gestiones_resumen_fn(w.hoy, w.hoy, array[a.v1]);
-  if (r#>>'{totales,clientes,llamadas}')::int <> b.llamadas_clientes + 10 or (r#>>'{totales,clientes,contestadas}')::int <> b.contestadas_clientes + 6 then
+  if (r#>>'{totales,clientes,llamadas}')::int is distinct from b.llamadas_clientes + 11 or (r#>>'{totales,clientes,contestadas}')::int is distinct from b.contestadas_clientes + 7 then
     raise exception '2: el Registro de clientes y el marcador no cuentan lo mismo: %', r->'totales';
   end if;
   -- Otro equipo: la puerta lo niega.
@@ -270,7 +294,7 @@ begin
   set local role authenticated;
   select cardinality(array_agg(e.id)), cardinality(array_agg(e.id) filter (where e.vendedor_id <> a.v1)) into v_n, v_c
     from private.gestion_diaria_llamadas_clientes_eventos(w.ini, w.fin, array[a.v1, a.v2]) e;
-  if coalesce(v_n, 0) <> b.llamadas_clientes + 10 or coalesce(v_c, 0) <> 0 then raise exception '3: v1 vio % filas (% ajenas)', v_n, v_c; end if;
+  if coalesce(v_n, 0) <> b.llamadas_clientes + 11 or coalesce(v_c, 0) <> 0 then raise exception '3: v1 vio % filas (% ajenas)', v_n, v_c; end if;
   reset role; -- las comprobaciones fila a fila cruzan tablas privadas: como postgres, con la identidad de v1 (el ayudante lee auth.uid())
   -- Clasificación fila a fila (T7 número errado: no contestada y no útil; T11 sin resultado: realizada y no útil; A1 legado: contacto).
   if not exists (select 1 from private.gestion_diaria_llamadas_clientes_eventos(w.ini, w.fin, array[a.v1]) e
@@ -301,9 +325,9 @@ begin
   perform set_config('request.jwt.claims', json_build_object('sub', a.ger, 'role', 'authenticated')::text, true);
   set local role authenticated;
   select cardinality(array_agg(e.id)) into v_n from private.gestion_diaria_llamadas_clientes_eventos(w.ini, w.fin, array[a.v1, a.v2]) e;
-  if coalesce(v_n, 0) <> b.llamadas_clientes + 11 then raise exception '4: gerencia vio % (esperaba %)', v_n, b.llamadas_clientes + 11; end if;
+  if coalesce(v_n, 0) <> b.llamadas_clientes + 12 then raise exception '4: gerencia vio % (esperaba %)', v_n, b.llamadas_clientes + 12; end if;
   r := crm.gestion_diaria_analista_fn(null, a.v1);
-  if (r#>>'{marcador,llamadas}')::int <> b.llamadas + 11 then raise exception '4: gerencia no ve el dia de v1 completo: %', r->'marcador'; end if;
+  if (r#>>'{marcador,llamadas}')::int is distinct from b.llamadas + 12 then raise exception '4: gerencia no ve el dia de v1 completo: %', r->'marcador'; end if;
   r := crm.gestion_diaria_pulso_fn(w.hoy);
   if r is null or r->'generado_en' is null and r->'dia' is null then raise exception '4: pulso vacio: %', r; end if;
   r := crm.gestion_diaria_habitos_fn(w.hoy, 7);
@@ -354,7 +378,7 @@ begin
   perform set_config('request.jwt.claim.sub', a.sup1::text, true);
   perform set_config('request.jwt.claims', json_build_object('sub', a.sup1, 'role', 'authenticated')::text, true);
   select cardinality(array_agg(e.id)) into v_n from private.gestion_diaria_llamadas_clientes_eventos(w.ini, w.fin, array[a.v1]) e;
-  if coalesce(v_n, 0) <> b.llamadas_clientes + 10 then raise exception '5b: el supervisor dejo de ver el historico de su analista inactivo (%)', v_n; end if;
+  if coalesce(v_n, 0) <> b.llamadas_clientes + 11 then raise exception '5b: el supervisor dejo de ver el historico de su analista inactivo (%)', v_n; end if;
   alter table crm.equipo disable trigger user;
   update crm.equipo set activo = true where perfil_id = a.v1;
   alter table crm.equipo enable trigger user;
@@ -367,7 +391,7 @@ begin
   set local role authenticated;
   r := crm.gestion_diaria_analista_fn();
   reset role;
-  if (r#>>'{marcador,llamadas}')::int <> b.llamadas + 11 or (r#>>'{marcador,contestadas}')::int <> b.contestadas + 7 then
+  if (r#>>'{marcador,llamadas}')::int is distinct from b.llamadas + 12 or (r#>>'{marcador,contestadas}')::int is distinct from b.contestadas + 8 then
     raise exception '6: en solo lectura el marcador cambio: %', r->'marcador';
   end if;
   perform set_config('request.jwt.claim.sub', a.sup1::text, true);
@@ -376,7 +400,7 @@ begin
   r := crm.gestion_diaria_equipo_fn(w.hoy);
   reset role;
   select f into v_fila from jsonb_array_elements(r->'equipo') f where (f->>'analista_id')::uuid = a.v1;
-  if (v_fila#>>'{marcador,llamadas}')::int <> b.llamadas + 11 then raise exception '6: en solo lectura la vista de equipo cambio: %', v_fila->'marcador'; end if;
+  if (v_fila#>>'{marcador,llamadas}')::int is distinct from b.llamadas + 12 then raise exception '6: en solo lectura la vista de equipo cambio: %', v_fila->'marcador'; end if;
   perform set_config('request.jwt.claim.sub', a.ger::text, true);
   perform set_config('request.jwt.claims', json_build_object('sub', a.ger, 'role', 'authenticated')::text, true);
   set local role authenticated;

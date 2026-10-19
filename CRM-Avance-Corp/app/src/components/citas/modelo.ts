@@ -11,6 +11,8 @@ export interface CitaEjemplo {
   citaAnteriorId?: string; reprogramadaEn?: string; asistioEn?: string;
   manualPropio?: boolean;
   registroManual?: boolean; creadoEn?: string;
+  /** La persona YA era cliente al crearse la cita (servidor, Fase 0). Ausente: la Proyección usa su respaldo. */
+  esCliente?: boolean;
 }
 export interface FiltrosCitas {
   q: string; equipo: string; analista: string; mes: string; semana: string; leadId?: string;
@@ -54,14 +56,18 @@ export function errorFiltros(f: FiltrosCitas) {
   if (f.moneda && f.min !== '' && f.max !== '' && Number(f.min) > Number(f.max)) return 'El monto mínimo debe ser menor o igual al máximo.'
   return ''
 }
+/** Búsqueda libre de la consulta: todas las palabras en prospecto, teléfono o código; o los dígitos del teléfono. */
+export function coincideBusqueda(c: Pick<CitaEjemplo, 'nombre' | 'telefono' | 'id'>, q: string) {
+  const palabras = normalizar(q).split(/\s+/).filter(Boolean)
+  const numeros = q.replace(/\D/g, '')
+  const texto = normalizar(`${c.nombre} ${c.telefono} ${c.id}`)
+  return palabras.every((p) => texto.includes(p)) || (numeros.length > 2 && /^[\d\s+()-]+$/.test(q) && c.telefono.replace(/\D/g, '').includes(numeros))
+}
 export function filtrar<T extends CitaEjemplo>(f: FiltrosCitas, citas: T[]) {
   if (errorFiltros(f)) return []
   const [desde, hasta] = rango(f)
-  const palabras = normalizar(f.q).split(/\s+/).filter(Boolean)
-  const numeros = f.q.replace(/\D/g, '')
   return citas.filter((c) => {
-    const texto = normalizar(`${c.nombre} ${c.telefono} ${c.id}`)
-    const busqueda = palabras.every((p) => texto.includes(p)) || (numeros.length > 2 && /^[\d\s+()-]+$/.test(f.q) && c.telefono.replace(/\D/g, '').includes(numeros))
+    const busqueda = coincideBusqueda(c, f.q)
     return (!f.leadId || c.leadId === f.leadId) && busqueda && (!desde || c.fecha >= desde) && (!hasta || c.fecha <= hasta)
       && (!f.equipo || c.supervisorId === f.equipo) && (!f.analista || c.analista === f.analista)
       && (!f.estados.length || f.estados.includes(c.estado)) && (!f.modalidad || c.modalidad === f.modalidad)

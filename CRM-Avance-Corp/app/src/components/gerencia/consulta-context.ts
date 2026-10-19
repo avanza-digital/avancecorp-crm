@@ -7,7 +7,7 @@ export type TipoRankingGerencia = 'conversion' | 'capital-total' | 'cosecha'
 
 export interface ConsultaGerencia {
   alertas?: ConsultaAlertas
-  citas?: { filtros: ConsultaCitas; vista: 'bandeja' | 'agenda' | 'resultados'; pagina: number }
+  citas?: { filtros: ConsultaCitas; vista: 'bandeja' | 'agenda' | 'resultados' | 'proyeccion'; pagina: number; rango?: { mes: string; desde: string; hasta: string } }
   gestionAnalista: { id: string; nombre: string } | null
   administrarMetasPeriodo: string | null
   rendimientoEquipo: string | null

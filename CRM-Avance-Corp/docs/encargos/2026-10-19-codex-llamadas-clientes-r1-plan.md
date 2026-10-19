@@ -1,3 +1,8 @@
+> **Nota posterior (19/10, tras la ronda 1).** Este encargo es el texto enviado a Codex y no se reescribe. El recuento de
+> Vladimir que trae («6 cierres de clientes») se corrigió después al medir con la regla final: de los 6 cierres, uno era una
+> tarea **cancelada** y no cuenta; cuentan 5 llamadas a clientes (3 «agendó reunión», 2 «volver a llamar»), todas contestadas.
+> La cifra buena está en `MIGRACIONES.md` y en la nota del vault.
+
 ROLE: SECONDARY_REVIEWER.
 
 Do not modify files. Do not implement the task. Do not invoke Claude.
