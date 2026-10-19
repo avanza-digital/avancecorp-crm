@@ -9,8 +9,8 @@ Objetivo íntegro: implementar las ocho fases del [plan FigJam](https://www.figm
 | 1. Contratos | PASS documental | FASE-1-CONTRATO.md y REVISION-ARQUITECTURA.md; revisión Claude evaluada y corregida por Codex. No implica runtime validado. |
 | 2. Evaluación | PASS local | FASE-2-VERIFICACION.md: replay limpio + hardening, SQL/RLS, concurrencia, carga, tipos y typecheck. |
 | 3. Cierres/oficina | PASS local | FASE-3-VERIFICACION.md: RPC, formulario compartido, idempotencia, SQL, concurrencia y 67 tests. Entrada desde ficha en fase 4. |
-| 4. Guía | EN CURSO | Ficha, Mi día y tablero; consulta independiente del guardado. |
-| 5. Conversión | PENDIENTE | Inicio, retoma, acceso y confirmación. |
+| 4. Guía | PASS local | FASE-4-VERIFICACION.md: 469 tests, a11y corregido, foco Radix, typecheck/lint/build. |
+| 5. Conversión | EN CURSO | Inicio, retoma, acceso y confirmación. |
 | 6. Validación | PENDIENTE | SQL/RLS aislado, Docker E2E, concurrencia y carga. |
 | 7. PR/Main | PENDIENTE | Revisión, correcciones e integración sin sobrescribir cambios remotos. |
 | 8. ZIP | PENDIENTE | Artefacto desde commit verificado, SHA-256 y manifiesto. |
@@ -36,8 +36,8 @@ No ejecutar publicación, migraciones de producción ni activación de bloqueos.
 - PASS: inventario de funciones/ciclos de producción por lectura del catálogo.
 - PASS: Docker responde.
 - PASS: fase 2 en banco propio; seis grupos de oráculos SQL, cuatro escenarios concurrentes, carga sintética y typecheck.
-- NOT RUN: interfaz, protección de conversión y E2E del cambio; fases posteriores pendientes.
+- PASS: guía de interfaz local. NOT RUN: protección de conversión y E2E integral del cambio; fases posteriores pendientes.
 
 ## Seguimiento visual
 
-[Avance con barras, fases y subfases en el mismo FigJam](https://www.figma.com/board/kg289vO84cJjFMCuBJbqhM?node-id=46-190). Los porcentajes representan subfases verificadas; no tiempo estimado. Tres de ocho fases cerradas tras el gate local de fase 3; producción sin modificar.
+[Avance con barras, fases y subfases en el mismo FigJam](https://www.figma.com/board/kg289vO84cJjFMCuBJbqhM?node-id=46-190). Los porcentajes representan subfases verificadas; no tiempo estimado. Cuatro de ocho fases cerradas tras el gate local de fase 4; producción sin modificar.

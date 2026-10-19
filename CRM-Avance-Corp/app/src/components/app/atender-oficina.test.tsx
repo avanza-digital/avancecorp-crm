@@ -8,6 +8,11 @@ import type { StoreDataApi } from '@/lib/store'
 import type { Lead } from '@/lib/tipos'
 import { registrarAtencionOficina } from '@/data/recorrido-oficina-api'
 import { AtenderOficinaDialog } from './cerrar-tarea'
+import { RecorridoFicha } from './recorrido-lead'
+import { recorridoFixture } from '@/test/fixtures/recorrido'
+import type { EstadoConsultaRecorrido } from '@/data/recorrido-queries'
+const consulta = { estado: 'listo' as EstadoConsultaRecorrido, porLead: new Map(), refetch: vi.fn() }
+vi.mock('@/data/recorrido-queries', () => ({ useRecorridoLeads: () => consulta }))
 
 vi.mock('@/data/recorrido-oficina-api', () => ({ registrarAtencionOficina: vi.fn() }))
 vi.mock('@/data/use-actividades-de-lead', () => ({ useActividadesDeLead: () => ({ items: [], cargando: false, error: null, senales: {} }) }))
@@ -15,21 +20,23 @@ vi.mock('@/lib/use-etapa-visible', () => ({ useEtapaVisible: () => () => ({ labe
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() } }))
 
 const lead = { id: 'lead-oficina', nombre_completo: 'PERSONA DE PRUEBA', telefono: '999888777',
-  etapa: 'nuevo', origen: 'oficina', activo: true, monto_estimado: 5000, moneda: 'PEN', no_contactar: false } as Lead
+  vendedor_id: 'analista', etapa: 'nuevo', origen: 'oficina', activo: true, monto_estimado: 5000, moneda: 'PEN', no_contactar: false } as Lead
 const sesion: AuthContextValue = { fase: 'listo', yo: { id: 'analista', nombre_completo: 'ANALISTA', rol: 'vendedor', demo: false, puede_contratar: true },
   error: null, entrar: async () => ({ ok: true }), entrarDemo: () => {}, reintentar: () => {}, salir: async () => {} }
 
-function montar(recarga = true) {
+function montar(recarga = true, guia = false) {
   const cerrar = vi.fn()
   const completar = vi.fn()
   const asegurar = vi.fn().mockResolvedValue(true)
   const recargar = vi.fn().mockResolvedValue(recarga)
   const api = { lead: () => lead, completarTarea: completar, anularTarea: vi.fn(), descartar: vi.fn(),
     tareasDe: () => [], asegurarLead: asegurar, recargar } as unknown as StoreDataApi
-  render(<AuthContext.Provider value={sesion}><StoreDataContext.Provider value={api}>
-    <AtenderOficinaDialog lead={lead} onCerrar={cerrar} />
-  </StoreDataContext.Provider></AuthContext.Provider>)
-  return { cerrar, completar, asegurar, recargar }
+  const arbol = () => <AuthContext.Provider value={sesion}><StoreDataContext.Provider value={api}>
+    {guia ? <RecorridoFicha lead={lead} puedeOperar onAgendar={vi.fn()} onAgenda={vi.fn()} onHistorial={vi.fn()} />
+      : <AtenderOficinaDialog lead={lead} onCerrar={cerrar} />}
+  </StoreDataContext.Provider></AuthContext.Provider>
+  const { rerender } = render(arbol())
+  return { cerrar, completar, asegurar, recargar, redibujar: () => rerender(arbol()) }
 }
 
 async function completarFormulario(saltar = false) {
@@ -41,7 +48,7 @@ async function completarFormulario(saltar = false) {
   return usuario
 }
 
-beforeEach(() => vi.clearAllMocks())
+beforeEach(() => { vi.clearAllMocks(); consulta.estado = 'listo'; consulta.porLead = new Map([[lead.id, recorridoFixture(lead.id)]]) })
 
 describe('atención en oficina con el formulario de cierre vigente', () => {
   it('exige marcar asistencia, conserva el motor y espera confirmación antes de cerrar', async () => {
@@ -93,5 +100,21 @@ describe('atención en oficina con el formulario de cierre vigente', () => {
     await waitFor(() => expect(toast.warning).toHaveBeenCalledWith('Visita registrada. Actualiza la ficha para ver los datos más recientes.'))
     expect(toast.error).not.toHaveBeenCalled()
     expect(registrarAtencionOficina).toHaveBeenCalledTimes(1)
+  })
+})
+
+
+describe('foco de la guía con el diálogo Radix real', () => {
+  it.each([false, true])('restaura el foco al cerrar; consulta fallida: %s', async (falla) => {
+    const { redibujar } = montar(true, true)
+    const usuario = userEvent.setup()
+    await usuario.click(screen.getByRole('button', { name: 'Llegó sin cita' }))
+    expect(await screen.findByRole('dialog')).toHaveAccessibleName('Registrar visita y entrevista')
+    if (falla) { consulta.estado = 'error'; consulta.porLead = new Map(); redibujar() }
+    await usuario.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    const destino = falla ? screen.getByRole('heading', { name: 'Antes de convertir a cliente' })
+      : screen.getByRole('button', { name: 'Llegó sin cita' })
+    await waitFor(() => expect(destino).toHaveFocus())
   })
 })

@@ -1,0 +1,8 @@
+ROLE: SECONDARY_REVIEWER — revisor_a11y_recorrido
+VERDICT: CHANGES_REQUESTED
+SUMMARY: Guía con controles de teclado, nombres accesibles, foco visible y separación consulta/guardado. Sin P0/P1 sustentados.
+P2: recorrido-lead.tsx, RecorridoFicha, ul de requisitos: añadir role=list para conservar semántica Safari/VoiceOver bajo reset Tailwind. No desactivar reglas globales.
+TEST GAPS: Safari/VoiceOver NOT RUN. Comprobar retorno de foco si desaparece el disparador y anuncio final del estado de lectura.
+CONFIDENCE: alta estática, media comportamiento asistivo.
+
+DECISIÓN PRIMARY: aceptar P2; corregido. También se resolvieron los dos gaps automatizables: una sola restauración de foco por Dialog, tests con Radix real; live region persistente, test de identidad del nodo y contenido final. Prueba manual asistiva pendiente explícita.

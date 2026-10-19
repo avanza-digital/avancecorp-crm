@@ -15,11 +15,20 @@ Material para capacitación. Estado: comportamiento objetivo del plan; la puesta
 
 - Una llamada atendida acredita Gestión y Contacto a la vez.
 - Atender en oficina registra una visita real, cita inmediata y entrevista en una operación. No inventa una llamada ni permite fecharla hacia atrás.
-- Reasignar analista conserva el ciclo y sus hechos. Reabrir un descartado inicia ciclo nuevo y pide nuevo contacto, cita y entrevista.
+- Reasignar analista conserva el ciclo y sus hechos. Reabrir un descartado inicia un ciclo nuevo: la asistencia y la entrevista deben pertenecer a ese nuevo ciclo. El contacto sigue siendo una guía, no un requisito adicional de conversión.
 - Deshacer un contacto retira ese indicador. Invalidar la asistencia o la entrevista sí retira el requisito obligatorio. El servidor reevalúa antes de confirmar y conserva el borrador para corregir lo pendiente.
 - Una anulación posterior a la conversión no deshace automáticamente una inversión ya confirmada.
-- Saltar esta vez solo cambia el lead atendido en Mi día; no elimina requisitos.
+- Saltar esta vez omite la siguiente tarea propuesta; no elimina la asistencia ni la entrevista exigidas para convertir.
 - Inversión adicional, renovación y upgrade de clientes actuales conservan su flujo propio.
 - Si falla la consulta de progreso, se muestra que no se pudo consultar. Una gestión guardada correctamente sigue guardada y Mi día puede continuar.
 
 Ejemplo de capacitación: llamada sin respuesta → Gestión cumplida y Contacto pendiente. Llamada atendida que agenda cita → Gestión, Contacto y Cita cumplidos. La cita de mañana mantiene Entrevista pendiente. Al realizarla y cerrar su resultado, se puede completar la inversión, sujeto a permisos y controles actuales.
+
+## Dónde actuar
+
+- En la ficha, **Antes de convertir a cliente** muestra asistencia y entrevista. «Registrada» significa evidencia comprobada del ciclo vigente; «Sin confirmar» pide revisar el historial.
+- **Registrar resultado de la cita** abre el cierre habitual. Marca que se realizó y registra el resultado comercial. Una cita futura ofrece **Ver cita** hasta que corresponda cerrarla.
+- **Llegó sin cita** sirve cuando la persona está hoy en oficina: confirma «Asistió y realizamos la entrevista», completa el resultado y guarda. Si ya tiene una cita pendiente, usa esa cita.
+- **Agendar cita** abre el formulario de próxima acción con el tipo Cita; no guarda nada automáticamente.
+- Mi día y el tablero muestran el siguiente paso; **Ver pasos en la ficha** lleva al mismo lugar de trabajo.
+- «Seguimiento informativo» indica que el bloqueo aún no rige para ese lead. Cuando el servidor lo exija, el CRM vuelve a comprobar los dos hechos al convertir, aunque el formulario estuviera abierto antes.

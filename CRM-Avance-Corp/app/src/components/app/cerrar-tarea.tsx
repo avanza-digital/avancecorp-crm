@@ -11,7 +11,7 @@ import { FormTareaPostventa } from './postventa-tarea'
 // La escritura real es la RPC atómica crm.cerrar_tarea (cierre + log +
 // siguiente en una transacción); aquí solo se arma el input y se traduce el
 // resultado a toasts honestos.
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { toast } from 'sonner'
 import {
   CheckCircle2,
@@ -148,7 +148,7 @@ function opcionesDe(tipo: TipoTarea): OpcionCierre[] {
   }
 }
 
-export function CerrarTareaDialog({ tarea, onCerrar }: { tarea: Tarea | null; onCerrar: () => void }) {
+export function CerrarTareaDialog({ tarea, onCerrar, focoAlCerrar }: { tarea: Tarea | null; onCerrar: () => void; focoAlCerrar?: RefObject<HTMLElement | null> }) {
   const [ocupado, setOcupado] = useState(false)
   const { lead, asegurarLead } = useCRMData()
   // Fase 4e «sin topes»: sin foto inicial, el lead de la llamada puede no ser
@@ -173,7 +173,7 @@ export function CerrarTareaDialog({ tarea, onCerrar }: { tarea: Tarea | null; on
   // origen y el foco caía al cuerpo del documento.
   return (
     <>
-      <Dialog open={tarea != null} onClose={() => { if (!ocupado) onCerrar() }} ariaLabel="Cerrar tarea">
+      <Dialog open={tarea != null} onClose={() => { if (!ocupado) onCerrar() }} ariaLabel="Cerrar tarea" focoAlCerrar={focoAlCerrar}>
         {tarea && (tarea.inversionista_id
           ? <FormTareaPostventa key={tarea.id} tarea={tarea} onCerrar={onCerrar} onOcupado={setOcupado} />
           : <FormCierre key={tarea.id} tarea={tarea} onCerrar={onCerrar} onRegistrarLlamada={leadDeLlamada ? () => setPanelLlamada(tarea.id) : undefined} />)}
@@ -187,7 +187,7 @@ export function CerrarTareaDialog({ tarea, onCerrar }: { tarea: Tarea | null; on
 
 /** Presenta el MISMO formulario de entrevista y motor de siguiente acción.
  * La tarea de contexto solo existe en memoria: el único writer es la RPC. */
-export function AtenderOficinaDialog({ lead, onCerrar }: { lead: Lead; onCerrar: () => void }) {
+export function AtenderOficinaDialog({ lead, onCerrar, focoAlCerrar }: { lead: Lead; onCerrar: () => void; focoAlCerrar?: RefObject<HTMLElement | null> }) {
   const { yo } = useAuth()
   const { asegurarLead, recargar } = useCRMData()
   const [ocupado, setOcupado] = useState(false)
@@ -220,7 +220,7 @@ export function AtenderOficinaDialog({ lead, onCerrar }: { lead: Lead; onCerrar:
     })
     return true
   }
-  return <Dialog open onClose={() => { if (!ocupado) onCerrar() }} ariaLabel="Registrar visita y entrevista">
+  return <Dialog open onClose={() => { if (!ocupado) onCerrar() }} ariaLabel="Registrar visita y entrevista" focoAlCerrar={focoAlCerrar}>
     <FormCierre tarea={tarea} onCerrar={onCerrar} oficina={{ lead, guardar }} onOcupado={setOcupado} />
   </Dialog>
 }

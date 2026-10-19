@@ -27,6 +27,8 @@ import { textoGestion, type ColaTrabajo } from '@/lib/gestion-diaria-cola'
 import { ChipPotencial } from '@/components/app/potencial-chip'
 import { potencialFila } from '@/components/app/potencial-efectos'
 import { usePotencialLeads } from '@/data/potencial-queries'
+import { useRecorridoLeads } from '@/data/recorrido-queries'
+import { RecorridoBreve } from '@/components/app/recorrido-lead'
 
 export const FILAS_POR_PAGINA = 8
 
@@ -74,6 +76,7 @@ export function ColaDeHoy({
   // Potencial del lead: solo las filas de lead lo llevan (las de cliente no
   // tienen `lead_id`). Una lectura por la página que se ve.
   const potencial = usePotencialLeads(vista.filas.flatMap((fila) => (fila.lead_id ? [fila.lead_id] : [])))
+  const recorrido = useRecorridoLeads(vista.filas.flatMap((fila) => fila.lead_id ? [fila.lead_id] : []))
   const sinAnterior = vista.pagina === 0
   const sinSiguiente = vista.pagina >= vista.paginas - 1
   const vacioTodo = trabajo ? trabajo.totales.todo.total === 0 : pestanas.every((p) => p.total === 0)
@@ -152,6 +155,7 @@ export function ColaDeHoy({
                               <ChipPotencial marca={fila.lead_id ? potencial.porLead.get(fila.lead_id) : undefined} />
                             </span>
                             <span className="truncate text-xs font-medium text-[var(--muted-foreground-strong)]">{apoyo}</span>
+                            {fila.lead_id && <RecorridoBreve item={recorrido.porLead.get(fila.lead_id)} estado={recorrido.estado} />}
                             {textoGestion(fila) && <span className="text-xs font-semibold text-[var(--accent-press)]">{textoGestion(fila)}</span>}
                           </span>
                           {seleccionada && <span className="sr-only">Elegido</span>}
