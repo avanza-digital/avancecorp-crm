@@ -1,0 +1,6 @@
+VERDICT: PASS (alcance especializado de ACL/RLS y ámbito).
+Reviewer: /root/auditor_rls, SECONDARY_REVIEWER, solo evidencia suministrada; sin shell ni escritura.
+Revisó 01600/01601 y 01700/01701, extractos numerados y catálogo real posterior.
+FINDINGS: ninguno obligatorio. Rol/ámbito antes y después del lock; recibo privado actor/hash; RPC authenticated; helpers privados; solicitud RLS sin policies ni grants API; Auth de recuperación exige claim+correo. ACL originales conservadas.
+TEST GAPS: no ejecutó SQL. PRIMARY debe completar matriz general con actor desactivado, pérdida de ámbito antes del replay y acceso directo. Recomienda comprobar ACL de las cuatro reemplazadas en hardening (aceptado y añadido).
+CONFIDENCE: MEDIUM por extractos, no acceso directo al diff.

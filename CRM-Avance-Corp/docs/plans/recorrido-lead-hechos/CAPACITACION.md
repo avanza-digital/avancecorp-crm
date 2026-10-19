@@ -32,3 +32,9 @@ Ejemplo de capacitación: llamada sin respuesta → Gestión cumplida y Contacto
 - **Agendar cita** abre el formulario de próxima acción con el tipo Cita; no guarda nada automáticamente.
 - Mi día y el tablero muestran el siguiente paso; **Ver pasos en la ficha** lleva al mismo lugar de trabajo.
 - «Seguimiento informativo» indica que el bloqueo aún no rige para ese lead. Cuando el servidor lo exija, el CRM vuelve a comprobar los dos hechos al convertir, aunque el formulario estuviera abierto antes.
+
+## Si el CRM detiene la conversión
+
+El mensaje indica que falta registrar asistencia y entrevista. Vuelve a la ficha, completa el resultado de la cita realizada y retoma **la misma solicitud**. Conserva su capital y comprobante; no hace falta empezar otra inversión. Un acceso Avance creado no significa que la inversión esté confirmada.
+
+La asistencia y la entrevista las declara el analista al cerrar la cita. Regístralas solo cuando ocurrieron; el CRM comprueba el registro, su vínculo y el ciclo, pero no verifica físicamente la visita. Una cita cerrada conserva su fecha e historial.

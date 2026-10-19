@@ -1,0 +1,149 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+I found no direct P0 bypass in phase 5. The final authority holds up: the lead-update trigger `private.conversion_lead_con_inversion` calls `recorrido_exigir`, and the inversion request (`solicitud`) gets a trigger-computed, immutable snapshot. Confirmed replays return before the guard (001700:260-270). The converted-lead recovery path returns before the guard (001700:162-167). The Auth exemption needs both the claim and a matching email (001700:574-579). The lock order lead → control SHARE → separate evaluation statement is consistent, and `recorrido_configurar_fn` takes only the control row, so there is no cycle.
+
+Several issues need fixes or evidence before activation:
+- Some new rejections fire regardless of mode, which contradicts "observation default".
+- The test suite cannot tell observation-mode exemption from old-cohort exemption.
+- A future cutoff is permanently immutable.
+- The attendance time check relies on a client-controlled `vence_en`.
+- The old-cohort exemption can be laundered by binding a new identity to an old lead.
+
+Most findings are hypotheses that need the evidence listed. I do not consider the goal complete.
+
+FINDINGS:
+
+[P2] Unconditional rejections even in `observacion`/`apagado` (install changes behavior)
+File: supabase/migrations/20261019001700_crm_recorrido_conversion.sql
+Lines: 34-36, 39-41, 73-75 (also 76, 82, 171, 278, 578, 691)
+Problem: `recorrido_exigir` raises in every mode when:
+- isolation is not READ COMMITTED (55000);
+- the lead is inactive, `convertido` or `descartado` (P0409);
+- it cannot get the lead lock with NOWAIT (55P03).
+
+Separately, `recorrido_solicitud_guard` rejects any INSERT of `estado='confirmada'` with `lead_origen_id` in every mode.
+Evidence: None of these checks is gated on `v_c.modo`. The mode is only read at line 42, after the isolation and state checks. Lines 74-75 have no mode or cohort condition at all.
+Impact: Installing "in observation" adds new failure modes to every first-conversion writer, including internal or privileged ones. Examples are an importer, backfill or legacy path that inserts confirmed requests, a fusion that converts an inactive lead, or a job running at REPEATABLE READ. `apagado` is meant as the rollback mode but does not restore the prior behavior.
+Recommendation:
+- In `apagado`, short-circuit before the isolation and state checks; at most return a snapshot.
+- Gate the INSERT-confirmada rejection on `modo='exigir'`, or attach evidence (a grep over migrations, functions and scripts) that no writer inserts confirmed requests with `lead_origen_id`.
+- Confirm that no existing UPDATE→convertido path runs on an inactive lead.
+
+[P2] Observation-mode test cannot detect an enforcement leak
+File: supabase/scripts/recorrido-lead/test-conversion.sql
+Lines: 36, 42-45, 266-277
+Problem: The `observacion` case is created and prepared before the cutoff (lines 36, 42 happen before line 45), so it is old-cohort. Its `exigible=false` is explained by the cohort alone, regardless of `modo`.
+Evidence: The assertion at 276-277 would still pass if observation mode enforced exactly like `exigir`.
+Impact: The core rollout claim, that observation lets new-cohort leads without evidence operate, is unproven. So is the claim that `apagado` restores the prior behavior.
+Recommendation: Add a lead created after the cutoff with no evidence. Prepare and confirm it under `observacion` and under `apagado`, and assert success with snapshot `exigible=false`. Then reactivate `exigir` and assert that an equivalent lead is blocked.
+
+[P2] A cutoff can be set arbitrarily far in the future and then never changed
+File: supabase/migrations/20261019001500_crm_recorrido_evaluacion.sql
+Lines: 153-155, 178-186
+Problem: The first `p_cohorte_desde` only has to be ≥ now. After that, both the trigger and the function forbid any change.
+Evidence: Line 181 checks only the lower bound. Line 154 makes any non-null value permanent. Line 186 also lets a future cutoff be set while moving to `observacion`.
+Impact: One typo, such as 2106 instead of 2026, would leave `modo='exigir'` showing enforcement while enforcing nothing. Fixing it would need a migration, because the function and trigger contract allows no correction.
+Recommendation: Bound the cutoff, for example to ≤ `clock_timestamp()` plus a small window. Or allow lowering a cutoff that has not been reached yet down to now (never raising it), and audit that change.
+
+[P2] The attendance timing check trusts a client-controlled `vence_en`
+File: 20261019001500:220-224; test-conversion.sql:69-71, 81
+Problem: `asistencia_valida` and `entrevista_valida` require `t.vence_en <= a.registrado_en`. The comment says the check "no confía en backdates". But `vence_en` is set by the client: the test, running as `authenticated`, inserts a meeting task 1 minute in the past and closes it immediately. That is the "normal_sin_llamada" acceptance case.
+Evidence: test lines 69-71 (`interval '-1 minute'`) and line 81 (closed and accepted), plus 001500:222-223.
+Impact:
+- Booking a meeting in the past and closing it at once defeats the "esperar_cita" protection.
+- Hypothesis: if `vence_en` can still be edited after completion (dragging), a future appointment closed early becomes valid once it is dragged earlier. Validity is computed from the live `t.vence_en`.
+
+The office flow already allows an instant declaration, so the practical gain is small. However, the check's stated guarantee is not real.
+Recommendation:
+- Either document attendance as declarative (closure plus result) and drop the "no backdate" claim,
+- or require `vence_en >= <server creation time from tarea_sla_contexto or equivalent>` for non-office tasks, and freeze `vence_en` once `estado='completada'`.
+
+Please attach evidence on whether `vence_en` is mutable after closure.
+
+[P2] Old-cohort exemption can be laundered by binding a new person to an old lead
+File: 20261019001700:144, 171, 204-205; 001700:44-46
+Problem: Whether a conversion is enforceable depends only on the lead's current-cycle `iniciado_en`. `preparar_persona_lead_inversion_fn` lets a lead with no DNI receive any DNI, and it overwrites `nombre_completo` (line 204). An open old-cohort lead with no DNI can therefore be used to convert a brand-new person with no attendance or interview.
+Evidence: Line 144 only rejects when `v_pre.dni` is non-null and different. Lines 204-205 set the name and DNI. Line 171 passes for any old cycle because `exigible=false`.
+Impact: This is the intended policy gap for old leads, but it is exploitable for new customers. It is not a schema bug.
+Recommendation: Before the old-lead policy exists, at minimum record in the snapshot whether identity was bound in this same conversion (for example `identidad_asignada_en_conversion`). Report old-cohort conversions during observation. Consider treating an old lead whose identity is first bound after the cutoff as enforceable. This needs a policy decision.
+
+[P2] Hypothesis: a missing current-cycle row fails open under `exigir`
+File: 20261019001500:199-201, 253; 001700:44-46
+Problem: If `lead_sla_ciclos` has no row for `ciclo_actual`, `ciclo_inicio` is null. The comparison is then null, `coalesce(...,false)` makes it false, and the lead is not enforceable. It is reported only as `ambiguo`.
+Evidence: The coalesce in `recorrido_exigir` and in `recorrido_leads_fn` (001500:284-286).
+Impact: Any active lead created after the cutoff that lacks a cycle row bypasses enforcement. Candidates are a reactivated `base_cargada` lead or an importer that skips SLA. Line 102-108 shows such states exist.
+Recommendation: When `iniciado_en` is null and `modo='exigir'`, fall back to `leads.creado_en >= cohorte_desde`, the same criterion the INSERT guard uses at 001700:97. Alternatively, attach evidence that `assert_sla_nucleo` guarantees a cycle row for every active, non-discarded lead.
+
+[P2] Hypothesis: draft resume through the normal entry point is blocked after invalidation
+File: 20261019001700:171, 209-211; test-conversion.sql:151-154
+Problem: `preparar_persona_lead_inversion_fn` returns the existing `preparada` `solicitud_id` (209-211), which suggests the UI resumes drafts through it. Line 171 now rejects that call when evidence has been invalidated. The test proves resume only through `preparar_inversion_fn` called directly.
+Impact: The data is preserved, but the draft may be unreachable from the UI, which conflicts with "preserve drafts".
+Recommendation: Attach the UI resume call sequence. If resume goes through `preparar_persona`, return the existing draft id read-only before line 171 when a `preparada` request exists for this lead and person, and add a test for that path.
+
+[P2] Hypothesis: converted-lead INSERT guard may break existing-customer flows
+File: 20261019001700:90-104
+Problem: In `exigir` mode, any `INSERT` into `crm.leads` with `etapa='convertido'` is rejected, no matter which flow does it.
+Impact: Any current writer that creates a lead already converted would fail, for example portal client registration, cross-sell or identity reconciliation. That would break the requirement that additional, renewal and upgrade flows keep working.
+Evidence needed:
+- The list of writers that insert converted leads.
+- The name and firing order of the trigger that sets `creado_en`. The guard relies on it at line 95 ("guard_tenencia ya fijó creado_en"); BEFORE triggers fire alphabetically.
+- A test where a privileged INSERT with a backdated `creado_en` is still rejected.
+
+[P3] Snapshot rereads `resultado_actividad_id` instead of using the evaluated pair
+File: 20261019001700:55-59
+Problem: `asistencia_id` comes from a separate read of `crm.tareas`, while `recorrido_evaluar` already returns the validated `evidencias.asistencia_id` (001500:260).
+Impact: The values are consistent today, because it is the same lock and the same validated join. It is still duplicated logic that could drift.
+Recommendation: Use `v_r#>>'{evidencias,asistencia_id}'`.
+
+[P3] `lead_origen_id` can change in the same UPDATE as the transition to confirmed
+File: 20261019001700:81-83
+Problem: The guard reads `new.lead_origen_id`. If an UPDATE sets it to null while confirming, the guard is skipped.
+Impact: Low. The lead would then not convert either, because `conversion_lead_con_inversion` requires a request linked to the lead. Only definer functions write this table.
+Recommendation: Reject `new.lead_origen_id is distinct from old.lead_origen_id`, as `recorrido_serializar_invalidacion` already does for activities.
+
+[P3] NOWAIT in confirm turns waits into immediate failures
+File: 20261019001700:39, 278
+Problem: Before this change, confirm first locked the lead at the UPDATE on line 421, which waits under `lock_timeout=5s`. It now locks it at line 278 with FOR UPDATE NOWAIT. FOR UPDATE conflicts with the FOR KEY SHARE taken by any concurrent FK insert, such as a note or task on the same lead.
+Impact: Confirm fails immediately; requests with `inversion_solicitud_origenes` get PT409 and others the raw 55P03. Replay is safe, so this is a UX regression only.
+Recommendation: In confirm the order person → request → lead already matches the global order, so waiting under the existing `lock_timeout` is safe there. Keep NOWAIT only where the order is inverted.
+
+TEST GAPS:
+- Under `observacion` and `apagado`, a post-cutoff lead with no evidence prepares and confirms successfully.
+- Phase 5 concurrency was not run:
+  - `recorrido_configurar_fn` racing a confirm;
+  - evidence invalidation (UPDATE/DELETE on activities or tasks) racing a confirm;
+  - two parallel confirms of the same request;
+  - `reclamar` racing invalidation.
+- `reclamar` negatives:
+  - an Auth user with the matching `claim_id` but a different email must be enforced;
+  - an Auth user whose claim belongs to another request.
+- `vence_en` edited after closure, and a task created with a past `vence_en`, under the chosen policy.
+- A far-future cutoff is rejected.
+- An enforceable lead with a missing current-cycle row.
+- A privileged INSERT of a converted lead with a backdated `creado_en`.
+- Draft resume through `preparar_persona_lead_inversion_fn` after invalidation.
+- HTTP E2E of the handler with a lost response after `admin/users` (phase 6). The current test inserts `auth.users` synthetically.
+
+ARCHITECTURE RISKS:
+- Enforcement depends on `lead_sla_ciclos.iniciado_en`. The integrity of the cutoff therefore depends on the SLA core and on lead identity being stable; see the laundering finding.
+- The office flow and the normal-task flow now provide equivalent evidence. The "real attendance" guarantee is declarative in both and should be documented as such.
+
+SECURITY RISKS:
+- No exposed helper was found. Phase 5 helpers are revoked, and the hardening checks execute ACLs, owner and search_path (001701:6-17).
+- Hardening does not assert the ACL of `private.recorrido_evaluar` or the INSERT privilege on `recorrido_confirmado`. Leave both to auditor-RLS.
+
+REGRESSION RISKS:
+- Outside phase 5, but relevant: 001500:140-143 fires `recorrido_serializar_invalidacion` (FOR UPDATE NOWAIT on the lead) on every UPDATE/DELETE of `crm.tareas` and `crm.actividades`, with no WHEN clause. That includes edits unrelated to evidence, such as titles, assignment changes or non-tracked activity types. Any concurrent holder of FOR KEY SHARE on the lead makes those updates fail immediately. Narrow it with `WHEN` to evidence-relevant tipos and columns.
+- The unconditional checks in the first finding apply even in `apagado`.
+
+RECOMMENDED NEXT ACTIONS:
+1. Make `apagado` a true no-op and gate the INSERT-confirmada rejection on mode. Otherwise attach evidence that no writer is affected.
+2. Add the post-cutoff test for `observacion` and `apagado`, then run the phase 5 concurrency suite.
+3. Bound or allow correcting a future cutoff; decide the `vence_en` policy (declarative or frozen); fail closed, or prove impossible, a missing cycle row.
+4. Attach evidence for the UI draft-resume path and for converted-lead INSERT writers and their trigger order.
+5. Record identity-bound-in-conversion in the snapshot for the future old-lead policy.
+
+CONFIDENCE:
+MEDIUM. The source shown supports the findings on unconditional checks, the observation test gap and cutoff immutability. The `vence_en` mutability, the INSERT writers, the UI resume path and the missing-cycle findings are hypotheses that depend on code not attached.

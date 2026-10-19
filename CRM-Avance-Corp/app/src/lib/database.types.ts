@@ -2416,6 +2416,7 @@ export type Database = {
           lead_origen_id: string | null
           motivo_atribucion: string | null
           puerta: string
+          recorrido_confirmado: Json | null
           responsable_esperado_id: string
           resultado: Json | null
           revision_datos: number
@@ -2440,6 +2441,7 @@ export type Database = {
           lead_origen_id?: string | null
           motivo_atribucion?: string | null
           puerta?: string
+          recorrido_confirmado?: Json | null
           responsable_esperado_id: string
           resultado?: Json | null
           revision_datos?: number
@@ -2464,6 +2466,7 @@ export type Database = {
           lead_origen_id?: string | null
           motivo_atribucion?: string | null
           puerta?: string
+          recorrido_confirmado?: Json | null
           responsable_esperado_id?: string
           resultado?: Json | null
           revision_datos?: number

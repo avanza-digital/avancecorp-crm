@@ -1,0 +1,24 @@
+✔ CORS solo refleja los orígenes publicados y nunca usa wildcard (9.784166ms)
+✔ Cuerpo transmitido sin longitud se corta antes de acumular más de 4096 bytes (3.124209ms)
+✔ Límite por bytes multibyte y UTF-8 inválido, sin llamadas privilegiadas (0.470333ms)
+✔ Longitud declarada inválida o excesiva y JSON inválido se rechazan (0.630709ms)
+✔ Errores PostgreSQL no contractuales ocultan mensaje y detalles (1.445167ms)
+✔ Errores contractuales mantienen diagnóstico público y estado autorizado (0.359833ms)
+✔ Fallo de Auth externo no expone sus mensajes internos (0.224709ms)
+✔ Fallo recuperable conserva el token sin filtrar el mensaje interno (0.369ms)
+✔ el requisito del recorrido detiene el alta antes de cualquier llamada Auth privilegiada (1.738834ms)
+✔ completa el acceso con secret key: crear (1.859459ms)
+✔ completa el acceso con secret key: reanudar (0.560083ms)
+✔ completa el acceso con secret key: correo_registrado (0.472209ms)
+✔ completa el acceso con JWT legacy: crear (0.310584ms)
+✔ completa el acceso con JWT legacy: reanudar (0.226792ms)
+✔ completa el acceso con JWT legacy: correo_registrado (0.298042ms)
+✔ la clave de servicio no se usa si el usuario o el ámbito de la solicitud se rechazan (0.255458ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 128.496

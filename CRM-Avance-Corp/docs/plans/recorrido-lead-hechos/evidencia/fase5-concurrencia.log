@@ -1,0 +1,7 @@
+PASS: replay íntegro de fase 5 + hardening desde los contratos previos, en copia desechable.
+PASS: confirmar retiene evidencia; invalidación inversa rechaza sin deadlock ni pérdida.
+PASS: invalidación gana; el reintento lee hechos vigentes y conserva el borrador sin inversión.
+PASS: confirmación simultánea con respuesta perdida devuelve la misma inversión, sin duplicar.
+PASS: confirmación revertida mientras otro envío espera crea una sola inversión al recuperar.
+PASS: cambio de modo concurrente serializado; fotografía refleja la decisión confirmada.
+Base desechable eliminada; modo/corte del banco principal intactos.

@@ -1,3 +1,9 @@
+## 20261019001700–01 — Recorrido del lead, fase 5: primera conversión
+
+**CANDIDATO LOCAL, NO APLICADO EN PRODUCCIÓN.** Guard central en preparación, solicitud, acceso externo y confirmación; defensa de tablas y fotografía inmutable en `inversion_solicitudes.recorrido_confirmado`. Preserva recuperación de borradores y Auth ya creado, replays confirmados y operaciones de cartera. Sin DDL en public, sin activar el modo. Corte inicial explícito acotado a 24 h; fallback por creado_en para ciclo nuevo ausente. Permisos originales conservados y hardening separado.
+
+Codex: SQL de negocio/roles, replay completo, 5 carreras reales, upgrade/renovación, 161 tests UI y 16 Edge PASS. Claude crítico revisado y correcciones aceptadas verificadas; auditor RLS PASS especializado. Matriz integral y E2E: fase 6. Acta `docs/plans/recorrido-lead-hechos/FASE-5-VERIFICACION.md`; decisiones `REVISION-CONVERSION.md`. Activar producción exige instrucción específica y política de antiguos; n8n no participa del bloqueo.
+
 ## 20261019001600–01 — Recorrido del lead, fase 3: atención en oficina
 
 **CANDIDATO LOCAL, NO APLICADO EN PRODUCCIÓN.** `recorrido_atender_oficina_fn` registra cita inmediata presencial y entrevista mediante el cierre v3 vigente, con capital y siguiente acción. Permisos y veto actuales; requiere analista asignado. Recibo propio en `multiempresa_idempotencia` por actor/operación, hash íntegro y marca causal validada contra ese recibo. No amplía el núcleo SLA, no convierte ni activa exigencia. Hardening separado, sin tablas ni cambios en public.
