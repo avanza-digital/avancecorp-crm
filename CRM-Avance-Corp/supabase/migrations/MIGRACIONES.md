@@ -1,3 +1,54 @@
+## 20261019170422 — Gestión Diaria cuenta las llamadas a CLIENTES
+
+**ENSAYADA EN BANCO PROPIO, SIN APLICAR (19/10/2026; la aplica Miguel con `!`).** Decisión de Miguel (19/10): las llamadas
+a clientes suman al mismo número «Llamadas» del analista, a la tasa de contacto y a los cortes/mínimo de útiles. Síntoma:
+Vladimir Jurado cerró 5 llamadas a clientes el 19/10 y su marcador decía «1».
+
+- `20261019170422_crm_gestion_diaria_llamadas_clientes.sql`: ayudante `private.gestion_diaria_llamadas_clientes_eventos`
+  (SECURITY DEFINER justificado: `crm.inversionista_gestiones` no tiene policy de lectura; ESPEJO de la visibilidad del
+  actor: `vendedor_ids_visibles` + `puede_acceder_crm` + rol vendedor/supervisor/gerencia sin lector global + banderas de
+  postventa leídas SIN candado, como `postventa_visible_actor`; filtra, nunca lanza); el lector INVOKER
+  `gestion_diaria_llamadas_eventos` pasa a leads ∪ clientes (misma firma y retorno; `lead_id` NULL en clientes); el
+  agregador `gestion_diaria_llamadas` excluye el NULL de `leads_tocados` (sigue contando solo leads). Misma regla de
+  estado, tipo de tarea, catálogo de 7 resultados y legado antiespejo que el Registro de clientes
+  (`gestiones_clientes_eventos`). Re-sella desde el cuerpo VIVO, con reemplazos anclados y preflight de anclas, los tres
+  gates que sellaban esas huellas: `assert_gestion_diaria_analista` (+ sección 2b del ayudante), `assert_gestion_diaria_citas`
+  y `assert_gestion_diaria_pulso`. Mutantes nuevos `assert_gestion_diaria_llamadas_clientes_mutantes` (12; se niegan si el
+  gate ya está en rojo). Postflight: citas VERDE obligatorio; analista y pulso verdes o rojos SOLO por `crm.equipo_visible_fn`
+  (ajeno, 15/10, huella 58bd0554… fijada en el texto aceptado) y por el censo analítico ajeno (pulso); cualquier otro rojo
+  aborta. La sección 1b del ayudante va ANTES de la huella del roster: el rojo ajeno demuestra que 1b ya pasó.
+- 🔴 Hallazgo del ensayo: `crm.postventa_estado_fn()` → `postventa_modo()` hace `for share nowait`, y PostgREST corre las
+  puertas STABLE del marcador en transacción de SOLO LECTURA → habría roto Mi día. Por eso el ayudante lee las banderas sin
+  candado. Divergencia declarada con el Registro: aquel exige además la cobertura de la cartera F5.
+- Banco propio `crm-banco-llamadas-clientes-20261019` (Postgres de Supabase 17.6.1.167 + volcado de esquema de producción
+  + roles + configuración sin datos personales): 22 huellas de Gestión Diaria/postventa iguales a producción antes de
+  instalar. Ensayo `supabase/scripts/gestion-diaria-llamadas-clientes/ensayar.mjs`: huellas en dos pasadas (migración y
+  reversa); **12 mutantes nuevos y 24 viejos detectados** (los viejos con `20261016211001` SIMULADO solo en el banco); oráculo
+  `GESTION_DIARIA_LLAMADAS_CLIENTES_OK` (analista, supervisor y vista de equipo, espejo de visibilidad con dos equipos,
+  gerencia/pulso/hábitos, sin sesión, banderas apagadas con el legado intacto, actor dado de baja, y todo otra vez en
+  `transaction_read_only`; paridad EXACTA con `gestiones_resumen_fn`); censo analítico intacto; reversa devuelve lector,
+  agregador y los tres gates EXACTOS de producción; reinstalación determinista. Tiempos en solo lectura (banco sin datos):
+  Mi día ~30 ms, Pulso ~40 ms, Hábitos 30 días ~0,5–0,7 s (+~0,2 s por ~180 llamadas al ayudante). `verificacion.json`
+  con las huellas selladas; `registrar-20261019170422.sql` (fail-closed) y `comprobar-tras-aplicar.sql` para el día de
+  la aplicación.
+- Revisiones: Codex r1 (diseño) CHANGES_REQUESTED → 4 aceptados, 1 rechazado con evidencia. **auditor-rls**
+  CHANGES_REQUESTED sin fuga: aceptados ledger, legado con la regla exacta del Registro (estado de la tarea, sin bandera),
+  sección 1b antes del roster, huella fija del rojo ajeno, reversa con precondiciones y oráculo ampliado; declarados para
+  Miguel: Directorio y las métricas derivadas. **Codex r2** (código) CHANGES_REQUESTED sin fuga: F1 y F2 ya cubiertos por lo
+  anterior; aceptados F3 (contestadas por hora = realizada Y útil, como el total) y F4 (reversa que pinna las huellas y
+  verifica los tres gates); mutantes 8/11/12 específicos; `is distinct from` en el oráculo. Rechazado con evidencia:
+  pinnar la lista exacta del censo ajeno (cambia con trabajos de otros; se acepta solo si no nombra lo nuestro). Encargos
+  y respuestas en `docs/encargos/2026-10-19-codex-llamadas-clientes-*.md`.
+- Pantalla: solo el texto de Mi día («a leads y a clientes»); el contrato JSON no cambia. `npm run check` PASS; E2E Docker
+  aislado (gestion-diaria-analista, gestion-diaria-equipo, hoy-supervisor-mando): 19 passed. `test:rls` hosted: NOT RUN
+  (sin `SUPABASE_URL` en esta sesión; el oráculo del banco cubre los casos de visibilidad).
+- ⚠️ Para el re-sellado de guardianes en pausa (`20261016211001`, rama `crm/guardianes-resellar-20261016`): esta migración
+  cambia los cuerpos de `assert_gestion_diaria_analista`, `_citas` y `_pulso`; sus preflights que pinnen esas huellas
+  (p. ej. `eb2c03fd…`) deben regenerarse midiendo producción tras aplicar esta. Nota: `AVISO-GUARDIANES-1610.md` en el kit.
+- Límites declarados: «leads distintos» y «llamadas por lead» siguen siendo solo de leads (lead y cliente no comparten
+  identidad); `gestiones_hoy` de la vista de equipo sigue leyendo solo actividades de leads. Los números del día de la
+  aplicación se recalculan con las llamadas a clientes ya registradas; los cortes reconocidos no se reabren.
+- Reversa: `supabase/scripts/gestion-diaria-llamadas-clientes/reversa.sql` (compone con otros re-sellados del mismo gate).
 ## 20261019170214 — Citas: marca «es cliente» por cita (Proyección de citas, Fase 0)
 
 **APLICADA EN PRODUCCIÓN EL 19/10/2026 (entre 13:47 y 14:07 Lima, `!` de Miguel, `supabase db query --linked --file`).** Verificado tras aplicar: auxiliar creada; lectores con los md5 ensayados `676f078a…` / `387c8f36…`; sello cuadra; censo 47/9 idéntico. Registrada en el historial con `migration repair --status applied 20261019170214 --linked` (Miguel, 19/10 ~14:09). Añade la clave `es_cliente` a cada elemento de `citas[]` en los dos lectores privados de Citas (`private.citas_gerencia_consulta` y `private.citas_gerencia_consulta_corte`) por reemplazo anclado único sobre la definición viva (huellas previas `d07e19d9…` y `89ef3e8c…`), con una auxiliar nueva `private.cita_con_cliente(uuid,timestamptz)` (plpgsql, INVOKER, sólo postgres, camino rápido por el propio lead). **Definición:** la persona del lead, o una identidad fusionada con ella, tenía ESTRICTAMENTE ANTES de generarse la cita una conversión o un cierre externo que SIGUE VIGENTE HOY (una anulación posterior la quita, igual que quita la venta); `convertido_en = creado_en` no es cliente; `tareas.perfil_id` marca cliente. Supervisión recibe el booleano calculado sobre toda la persona (decisión del PRIMARY; no recibe filas ni cifras nuevas). No cambia alcance por rol, población, capital ni la forma pública.
