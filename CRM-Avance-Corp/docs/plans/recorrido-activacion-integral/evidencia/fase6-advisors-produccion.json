@@ -1,0 +1,64 @@
+{
+  "security": {
+    "rls_enabled_no_policy": 100,
+    "extension_in_public": 1,
+    "anon_security_definer_function_executable": 2,
+    "authenticated_security_definer_function_executable": 299,
+    "auth_leaked_password_protection": 1
+  },
+  "performance": {
+    "unindexed_foreign_keys": 54,
+    "auth_rls_initplan": 2,
+    "no_primary_key": 3,
+    "unused_index": 128,
+    "multiple_permissive_policies": 5,
+    "auth_db_connections_absolute": 1
+  },
+  "evaluacion": "Los permisos y el esquema public coinciden con el catálogo anterior. pg_net en public es preexistente; ninguna migración del paquete crea extensiones. Las 2 tablas privadas usan RLS sin policies deliberadamente y las RPC autenticadas comprueban rol/ámbito. Los 128 índices sin uso reflejan actividad real de producción, frente a 254 del banco sintético.",
+  "remediaciones": [
+    {
+      "name": "rls_enabled_no_policy",
+      "url": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy"
+    },
+    {
+      "name": "extension_in_public",
+      "url": "https://supabase.com/docs/guides/database/database-linter?lint=0014_extension_in_public"
+    },
+    {
+      "name": "anon_security_definer_function_executable",
+      "url": "https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable"
+    },
+    {
+      "name": "authenticated_security_definer_function_executable",
+      "url": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable"
+    },
+    {
+      "name": "auth_leaked_password_protection",
+      "url": "https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection"
+    },
+    {
+      "name": "unindexed_foreign_keys",
+      "url": "https://supabase.com/docs/guides/database/database-linter?lint=0001_unindexed_foreign_keys"
+    },
+    {
+      "name": "auth_rls_initplan",
+      "url": "https://supabase.com/docs/guides/database/database-linter?lint=0003_auth_rls_initplan"
+    },
+    {
+      "name": "no_primary_key",
+      "url": "https://supabase.com/docs/guides/database/database-linter?lint=0004_no_primary_key"
+    },
+    {
+      "name": "unused_index",
+      "url": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+    },
+    {
+      "name": "multiple_permissive_policies",
+      "url": "https://supabase.com/docs/guides/database/database-linter?lint=0006_multiple_permissive_policies"
+    },
+    {
+      "name": "auth_db_connections_absolute",
+      "url": "https://supabase.com/docs/guides/deployment/going-into-prod"
+    }
+  ]
+}

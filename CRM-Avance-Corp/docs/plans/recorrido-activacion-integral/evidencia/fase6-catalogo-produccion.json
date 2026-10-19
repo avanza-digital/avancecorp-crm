@@ -1,0 +1,47 @@
+{
+  "estado": "PASS",
+  "funciones_totales": 1180,
+  "funciones_modificadas": [
+    "crm.acceso_inversion_fn(uuid,text,jsonb)",
+    "crm.confirmar_inversion_revisada_fn(uuid,integer)",
+    "crm.eliminar_lead_error_carga(uuid,text)",
+    "crm.preparar_persona_lead_inversion_fn(uuid,text,text,text)",
+    "private.conversion_lead_con_inversion()"
+  ],
+  "funciones_nuevas": [
+    "crm.recorrido_atender_oficina_fn(uuid,uuid,text,text,jsonb,numeric,text,text)",
+    "crm.recorrido_configurar_fn(text,text,integer,timestamp with time zone)",
+    "crm.recorrido_leads_fn(uuid[])",
+    "private.recorrido_bloquear_insert()",
+    "private.recorrido_capturar_actividad()",
+    "private.recorrido_contexto_guard()",
+    "private.recorrido_control_guard()",
+    "private.recorrido_evaluar(uuid[])",
+    "private.recorrido_exigir(uuid,text)",
+    "private.recorrido_insert_convertido_guard()",
+    "private.recorrido_serializar_invalidacion()",
+    "private.recorrido_solicitud_guard()"
+  ],
+  "tablas_nuevas": [
+    "crm.actividad_ciclo_contexto",
+    "crm.recorrido_control"
+  ],
+  "tablas_modificadas": {
+    "crm.actividades": [
+      "triggers"
+    ],
+    "crm.inversion_solicitudes": [
+      "columnas",
+      "restricciones",
+      "triggers"
+    ],
+    "crm.leads": [
+      "triggers"
+    ],
+    "crm.tareas": [
+      "triggers"
+    ]
+  },
+  "public": "sin cambios",
+  "roles_auth_storage_acl": "sin cambios"
+}

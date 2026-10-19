@@ -1,0 +1,11 @@
+{
+  "fecha": "2026-10-19 14:50:21 UTC",
+  "id": "c42dac35-1185-40b9-9e24-5961e9c29981",
+  "ref": "zwnecxkwsxzybefmdrut",
+  "eliminada": true,
+  "otras_ramas_sin_tocar": [
+    "banco-f7",
+    "plan-backend-fase4"
+  ],
+  "produccion": "FUNCTIONS_DEPLOYED"
+}

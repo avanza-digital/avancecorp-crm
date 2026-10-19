@@ -1,6 +1,6 @@
 # Cómo acreditar el recorrido de un lead
 
-Material para capacitación. La puesta en marcha empieza en observación; su estado real se consulta en el [plan integral](../recorrido-activacion-integral/PLAN-Y-ESTADO.md). Mover una tarjeta no acredita un hecho. Al activar la exigencia, esta cubre toda primera conversión pendiente, tanto de leads nuevos como antiguos.
+Material para capacitación. **La exigencia está activa desde el 19/10/2026 a las 09:44:22 de Lima** y cubre toda primera conversión pendiente, tanto de leads nuevos como antiguos. Mover una tarjeta no acredita un hecho. Ver el [estado y la aceptación pendiente](../recorrido-activacion-integral/FASES-6-8-PRODUCCION.md).
 
 **Regla obligatoria para convertir: asistencia a la cita + entrevista realizada y cerrada con resultado, ambas de la misma cita del ciclo actual.** Gestión y contacto orientan la labor comercial; no añaden un bloqueo si la cita y la entrevista ya están acreditadas.
 

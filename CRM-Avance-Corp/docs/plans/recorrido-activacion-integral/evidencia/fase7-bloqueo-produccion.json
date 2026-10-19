@@ -1,0 +1,6 @@
+{
+  "resultado": "PASS",
+  "leads_rechazados_sin_escritura": 100,
+  "escrituras": 0,
+  "metodo": "Guard real del servidor sobre leads existentes; transacción con ROLLBACK. No sustituye conversión positiva real."
+}

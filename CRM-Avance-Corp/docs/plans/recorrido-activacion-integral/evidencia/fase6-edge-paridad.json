@@ -1,0 +1,176 @@
+{
+  "fecha": "2026-10-19T14:38:00Z",
+  "funciones": 24,
+  "coinciden": true,
+  "detalle": [
+    {
+      "slug": "ciclo-contratos",
+      "sha256": "a3fbd1f190e1da1a474c5419b05f410fc51ad88b58cc500721a351cedfb81afb",
+      "verify_jwt": false,
+      "import_map": false,
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "corregir-correo-cliente",
+      "sha256": "08bddc31af6dd7ffe8b7b965023c9c4c1800ebe846d2728574272fb6e8f9eb65",
+      "verify_jwt": true,
+      "import_map": false,
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "crear-admin",
+      "sha256": "f13d02d6a92b823c49e3b7cfe0430b89ba8463ee053a0c86d79f06bf04246fef",
+      "verify_jwt": true,
+      "import_map": false,
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "crear-cliente",
+      "sha256": "50d2f8d7e49fce652f4d93d3b7ee770ef4ae93098dd1f8e39b16d0a27e0c6e31",
+      "verify_jwt": true,
+      "import_map": false,
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "crm-agenda-ics",
+      "sha256": "3a397b8289ab77f443a30936e5a79bdcca1ea5a4e84dccd6c729deb4224c7f13",
+      "verify_jwt": false,
+      "import_map": false,
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "crm-capital-valorar",
+      "sha256": "f0a98ab4aec9a81d46aa20c1389f4c63d6f4c8c1e8c48089c5bd9579d70977f3",
+      "verify_jwt": true,
+      "import_map": false,
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "crm-contrato-pdf-v2",
+      "sha256": "6b76ecb125c535d628075ac6d9fcdc941dea53e427beb7382a6d7a0be343a707",
+      "verify_jwt": true,
+      "import_map": true,
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "crm-convertir-lead",
+      "sha256": "49d4e1e8c4242d229faf82d6d9ac3eae3107859ca9d6ab85620484bf38d0f565",
+      "verify_jwt": true,
+      "import_map": false,
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "crm-importar-leads",
+      "sha256": "cdfa643bd26706155d6edb7ec48179d6697b8705019ff54550e713af2284a251",
+      "verify_jwt": true,
+      "import_map": false,
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "crm-inversion-bienvenida",
+      "sha256": "23eeb124d2c39c224f7816ee3028cc0f60da8e534da803bd3084130ad48f3b21",
+      "verify_jwt": false,
+      "import_map": false,
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "crm-inversion-documento",
+      "sha256": "0ed4c12ef7249755e4b3e26ba1d1fc70b9b50118d079e635f62feecbb27c0855",
+      "verify_jwt": true,
+      "import_map": false,
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "crm-inversion-portal",
+      "sha256": "263d07d838dfa5ac84c4945f18649f7d0766a113af4e360289ae39cabdd9a7fc",
+      "verify_jwt": true,
+      "import_map": false,
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "crm-llamadas-ingesta",
+      "sha256": "030ce12c1b39c74277614d5f29d545297c75e620ea949d649d3a54e13d5b4b4f",
+      "verify_jwt": false,
+      "import_map": false,
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "crm-notificaciones-tasa",
+      "sha256": "6bb0fef217d78ab2bedc4cc2b48b637a53d98688cc4daf48c05fdafe05409510",
+      "verify_jwt": false,
+      "import_map": false,
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "crm-tipo-cambio",
+      "sha256": "59490cd99802e369f1ee64971e427d8ed91c0b0e146f8671c641f86d87406718",
+      "verify_jwt": true,
+      "import_map": false,
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "crm-usuarios",
+      "sha256": "efe6488a1b327bea8dc8047346acd90dc12bd077e1cc410ce1a981e590a6d15a",
+      "verify_jwt": true,
+      "import_map": false,
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "diagnostico-push",
+      "sha256": "a2efe89f32a560d4a811e938fd49ad08c2da91f4cd845f24730c210904b94190",
+      "verify_jwt": true,
+      "import_map": false,
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "eliminar-cliente",
+      "sha256": "f5c9f65365d32029e45fc9318fd897b9deb69393b8542dd9a9b165be3433328e",
+      "verify_jwt": true,
+      "import_map": false,
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "enviar-comunicado",
+      "sha256": "4e0fba9830ee53df896fb06d4dd91bc3018e0d6f53f5ee9698df3ee6a6b611f0",
+      "verify_jwt": true,
+      "import_map": false,
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "enviar-push",
+      "sha256": "625dd89d0b936df7d50299e710e7c5480696d71cf15dd72054868ef6443a4d8f",
+      "verify_jwt": true,
+      "import_map": false,
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "importar-clientes",
+      "sha256": "dda9f9b85a2669a256b89105e06852e004083dce30f244805ec5288c2c54a2f7",
+      "verify_jwt": true,
+      "import_map": false,
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "notificar-cambio-cuenta",
+      "sha256": "2a5a931b5edafd9a2cbce430f8e6248d33a979392723fcb44907f0317863e00c",
+      "verify_jwt": true,
+      "import_map": false,
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "notificar-pagos",
+      "sha256": "74de8c1f87d5814dcd337c40b725749aaba051e5c6bc5b723262372e62b4bb8f",
+      "verify_jwt": false,
+      "import_map": false,
+      "status": "ACTIVE"
+    },
+    {
+      "slug": "resetear-password",
+      "sha256": "76d3b89ab2600bed3af989a95bb3c14da63d9931b1ce6180299d48f141a79b85",
+      "verify_jwt": true,
+      "import_map": false,
+      "status": "ACTIVE"
+    }
+  ],
+  "postmerge": "24/24 mismo SHA256, verify_jwt, import_map y estado"
+}

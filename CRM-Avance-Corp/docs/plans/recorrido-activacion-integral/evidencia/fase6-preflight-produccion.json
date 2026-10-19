@@ -1,0 +1,6 @@
+[
+  {
+    "postgres": "17.6",
+    "sla": "OK: nucleo SLA privado, adaptadores dependientes, entradas cerradas y auditadas"
+  }
+]

@@ -29,14 +29,17 @@ Cada fase tiene 6 subfases. Se cierra tras revisión Codex, corrección y revali
 - Fase 2: PASS local / 6 de 6. Ver FASE-2-REGLA.md.
 - Fase 3: PASS local / 6 de 6. SQL, 81 comprobaciones Auth/HTTP/RLS y 42 E2E Docker; ver FASE-3-PRUEBAS.md.
 - Fase 4: PASS / 6 de 6. Instalación de 13 migraciones, 81 HTTP/Auth/RLS hosted, reversión y advisors evaluados; ver FASE-4-ENSAYO-HOSTED.md.
-- Fase 5: EN CURSO. 2/6: Claude entregó CHANGES_REQUESTED; observaciones evaluadas y corregidas, con 99 HTTP/Auth/RLS locales y hosted PASS. [PR #332](https://github.com/avanza-digital/avancecorp-crm/pull/332) abierto; CodeRabbit e integración pendientes. Ver FASE-5-REVISION.md.
-- Fases 6–8: PENDIENTES.
-- Producción: backend ausente (0/15 migraciones del paquete integral), guía oculta, bloqueo inactivo.
+- Fase 5: PASS / 6 de 6. Claude entregó CHANGES_REQUESTED; observaciones evaluadas y corregidas, 99 HTTP/Auth/RLS locales y hosted PASS. [PR #332](https://github.com/avanza-digital/avancecorp-crm/pull/332) integrado; CodeRabbit reconoció la corrección, CI PASS y ZIP exacto verificado desde Main `3d5c040d`. FASE-5-REVISION.md conserva la revisión previa al merge.
+- Fase 6: PASS / 6 de 6. Autorización exacta recibida; merge Supabase, 15 migraciones e instalación en observación verificados.
+- Fase 7: PASS / 6 de 6. Exigencia activa desde 19/10/2026 09:44:22 Lima, revisión 2. Cien rechazos productivos sin escrituras y guía validada por roles; camino positivo/reversión acreditados en banco.
+- Fase 8: EN CURSO / 4 de 6. Falta una primera conversión comercial real con cita/entrevista acreditadas y la aceptación del equipo. No se inventan hechos para cerrar el plan.
+- Total: **46/48 subfases (95,8 %), 7/8 fases cerradas**. [Acta productiva y límites de la evidencia](FASES-6-8-PRODUCCION.md).
+- Producción: **15/15 instaladas, guía disponible, bloqueo activo**, modo `exigir`, revisión 2. Nuevos y antiguos pendientes incluidos.
 - Figma: sección comercial 72:190 del mismo archivo, separada del desarrollo técnico 46:190.
-- Rama Git: `feat/recorrido-activacion-integral-20261019`, copia aislada existente. Taller compartido preservado.
+- Código integrado: Main `3d5c040d9feac7d15f7c24a037188bb5ac62f148`, copia aislada existente. Taller compartido preservado.
 - Banco local propio existente disponible: `supabase_db_avancecorp-recorrido-lead-20261018`.
-- Organización confirmada por Miguel: `AVANCECORP- CRM-PORTAL`. Cotización: US$0.01344 por hora. Gasto y creación autorizados: «Sí, hasta 24 horas». Rama `recorrido-integral-20261019` creada el 19/10 a las 06:29 UTC; eliminar al terminar y, como máximo, antes del 20/10 a las 06:29 UTC.
-- Ningún SQL productivo ni activación se ejecutó en esta fase. El paquete concreto se presentará antes de su instalación conforme a las reglas del proyecto.
+- Organización confirmada por Miguel: `AVANCECORP- CRM-PORTAL`. Cotización: US$0.01344 por hora. Gasto y creación autorizados: «Sí, hasta 24 horas». Rama `recorrido-integral-20261019` creada el 19/10 a las 06:29 UTC; **eliminada y ausencia verificada el mismo día a las 14:50 UTC**, dentro del plazo. Limpieza programada retirada.
+- SQL exacto presentado y autorizado por Miguel: «ok hazlo tienes aprobacion». Instalación y activación ejecutadas; actuación técnica auditada con la cuenta administrativa.
 
 ## Aceptación final
 

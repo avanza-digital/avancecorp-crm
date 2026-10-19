@@ -1,0 +1,16 @@
+{
+  "resultado": "PASS",
+  "modo": "exigir",
+  "revision": 2,
+  "roles": [
+    "coordinador",
+    "gerencia",
+    "supervisor",
+    "vendedor"
+  ],
+  "filas": 12,
+  "ajenos_excluidos": 2,
+  "rechazos": 2,
+  "contrato": "RecorridosSchema del frontend publicado",
+  "solo_lectura": true
+}
