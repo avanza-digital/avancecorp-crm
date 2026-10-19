@@ -1,0 +1,69 @@
+{
+  "fecha": "2026-10-19T06:54:02.507Z",
+  "base": {
+    "digest": "8fe3fd28649301bac91ed91973d1dc8c",
+    "cantidad": 509
+  },
+  "migraciones": [
+    {
+      "archivo": "20261019001500_crm_recorrido_evaluacion.sql",
+      "sha256": "512f4c8cc7ec7f338fbc4ef6204650bd952ef8520340fab3fdacd25ea58d05a1"
+    },
+    {
+      "archivo": "20261019001501_crm_recorrido_evaluacion_hardening.sql",
+      "sha256": "c46ab7e5787c77c95cb20a47ac265383605e5f825142bdde2135f24ebaf04710"
+    },
+    {
+      "archivo": "20261019001600_crm_recorrido_oficina.sql",
+      "sha256": "7f6e8633747fd9e3d4897cd3a803033ae56efa822a9a9dad1ad0fef4238392a2"
+    },
+    {
+      "archivo": "20261019001601_crm_recorrido_oficina_hardening.sql",
+      "sha256": "7d0d3d499cffe258b85adbc923beee15bada9bfb5114fbdf64d6275f6f7008a9"
+    },
+    {
+      "archivo": "20261019001700_crm_recorrido_conversion.sql",
+      "sha256": "a058c3210f563a8f7d3749c282fdbf6d3319131541cc9495456a7ef83ec0a1e8"
+    },
+    {
+      "archivo": "20261019001701_crm_recorrido_conversion_hardening.sql",
+      "sha256": "23e3aac05c860ad22f904cbfc8fe13af1df77088ca755e7a0ba9008e8d1e4086"
+    },
+    {
+      "archivo": "20261019001702_crm_recorrido_revision_pr.sql",
+      "sha256": "e68cc5b2a3a8e5f5fec889bdbe89b9411e4aa9d215d28fd5eee81bfe1855a920"
+    },
+    {
+      "archivo": "20261019001703_crm_recorrido_revision_pr_hardening.sql",
+      "sha256": "5b0125535939a98d378d843eedd568b19c5f06428cf5c9bcfa7dc79e5a15a2b2"
+    },
+    {
+      "archivo": "20261019061000_crm_recorrido_todos_pendientes.sql",
+      "sha256": "09b78d486805a577f3221e85ba9d59290dec43bcd0c0b8c69697512ded79bbc4"
+    },
+    {
+      "archivo": "20261019061001_crm_recorrido_todos_pendientes_hardening.sql",
+      "sha256": "b9c28fdb36b3dccf68525d1cde7d2d3299c3bad73790689bc2f41da4f06f7e51"
+    },
+    {
+      "archivo": "20261019061002_crm_recorrido_indice_cita.sql",
+      "sha256": "dfce6face8217bc42583b410753cf6c7c3720ee5f0a753d6628ef5718a518b72"
+    },
+    {
+      "archivo": "20261019061003_crm_recorrido_conflicto_http.sql",
+      "sha256": "1dc2b8367dd730fcafbb16734177a326251ff2f6559af743f39a4088749be50f"
+    },
+    {
+      "archivo": "20261019061004_crm_recorrido_conflicto_http_hardening.sql",
+      "sha256": "ef3f9985900c22e4db27cdecb91990334067bf3683330249a6d9d72b2cbb2bcc"
+    },
+    {
+      "archivo": "20261019061005_crm_recorrido_revision_claude.sql",
+      "sha256": "d09c3415bf262e565e86ae686db2c528b9695640e55e0261416a1b08ec5e4dbf"
+    },
+    {
+      "archivo": "20261019061006_crm_recorrido_revision_claude_hardening.sql",
+      "sha256": "bd2a2953b6552688e19a8d66832b572774f8ff0ffbf9907dc23c69e2901d0c1c"
+    }
+  ]
+}

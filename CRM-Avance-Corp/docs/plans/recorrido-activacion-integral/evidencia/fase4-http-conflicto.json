@@ -1,0 +1,13 @@
+{
+  "peticiones": 123,
+  "maxMs": 792,
+  "conflicto": [
+    {
+      "ruta": "/rest/v1/rpc/recorrido_configurar_fn",
+      "method": "POST",
+      "status": 409,
+      "code": "PT409",
+      "ms": 170
+    }
+  ]
+}

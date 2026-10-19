@@ -1,0 +1,147 @@
+{
+  "fecha": "2026-10-19T07:11:10.409Z",
+  "security": [
+    {
+      "nombre": "rls_enabled_no_policy",
+      "nivel": "INFO",
+      "cantidad": 100,
+      "url": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy",
+      "recorrido": [
+        {
+          "detalle": "Table \\`crm.actividad_ciclo_contexto\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "actividad_ciclo_contexto",
+            "type": "table",
+            "schema": "crm"
+          }
+        },
+        {
+          "detalle": "Table \\`crm.recorrido_control\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "recorrido_control",
+            "type": "table",
+            "schema": "crm"
+          }
+        }
+      ]
+    },
+    {
+      "nombre": "anon_security_definer_function_executable",
+      "nivel": "WARN",
+      "cantidad": 2,
+      "url": "https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "recorrido": []
+    },
+    {
+      "nombre": "authenticated_security_definer_function_executable",
+      "nivel": "WARN",
+      "cantidad": 299,
+      "url": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "recorrido": [
+        {
+          "detalle": "Function `crm.recorrido_atender_oficina_fn(p_operacion_id uuid, p_lead_id uuid, p_resultado_reunion text, p_detalle text, p_siguiente jsonb, p_capital_estimado numeric, p_moneda text, p_ubicacion text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/recorrido_atender_oficina_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+          "metadata": {
+            "name": "recorrido_atender_oficina_fn",
+            "schema": "crm",
+            "language": "plpgsql",
+            "arguments": "p_operacion_id uuid, p_lead_id uuid, p_resultado_reunion text, p_detalle text, p_siguiente jsonb, p_capital_estimado numeric, p_moneda text, p_ubicacion text",
+            "security_definer": true
+          }
+        },
+        {
+          "detalle": "Function `crm.recorrido_configurar_fn(p_modo text, p_motivo text, p_revision integer, p_cohorte_desde timestamp with time zone)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/recorrido_configurar_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+          "metadata": {
+            "name": "recorrido_configurar_fn",
+            "schema": "crm",
+            "language": "plpgsql",
+            "arguments": "p_modo text, p_motivo text, p_revision integer, p_cohorte_desde timestamp with time zone",
+            "security_definer": true
+          }
+        },
+        {
+          "detalle": "Function `crm.recorrido_leads_fn(p_lead_ids uuid[])` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/recorrido_leads_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+          "metadata": {
+            "name": "recorrido_leads_fn",
+            "schema": "crm",
+            "language": "plpgsql",
+            "arguments": "p_lead_ids uuid[]",
+            "security_definer": true
+          }
+        }
+      ]
+    },
+    {
+      "nombre": "auth_leaked_password_protection",
+      "nivel": "WARN",
+      "cantidad": 1,
+      "url": "https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection",
+      "recorrido": []
+    }
+  ],
+  "performance": [
+    {
+      "nombre": "unindexed_foreign_keys",
+      "nivel": "INFO",
+      "cantidad": 54,
+      "url": "https://supabase.com/docs/guides/database/database-linter?lint=0001_unindexed_foreign_keys",
+      "recorrido": [
+        {
+          "detalle": "Table \\`crm.recorrido_control\\` has a foreign key \\`recorrido_control_actualizado_por_fkey\\` without a covering index. This can lead to suboptimal query performance.",
+          "metadata": {
+            "name": "recorrido_control",
+            "type": "table",
+            "schema": "crm",
+            "fkey_name": "recorrido_control_actualizado_por_fkey",
+            "fkey_columns": [
+              6
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "nombre": "auth_rls_initplan",
+      "nivel": "WARN",
+      "cantidad": 2,
+      "url": "https://supabase.com/docs/guides/database/database-linter?lint=0003_auth_rls_initplan",
+      "recorrido": []
+    },
+    {
+      "nombre": "no_primary_key",
+      "nivel": "INFO",
+      "cantidad": 3,
+      "url": "https://supabase.com/docs/guides/database/database-linter?lint=0004_no_primary_key",
+      "recorrido": []
+    },
+    {
+      "nombre": "unused_index",
+      "nivel": "INFO",
+      "cantidad": 254,
+      "url": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index",
+      "recorrido": [
+        {
+          "detalle": "Index \\`actividad_ciclo_contexto_oficina_tarea_idx\\` on table \\`crm.actividad_ciclo_contexto\\` has not been used",
+          "metadata": {
+            "name": "actividad_ciclo_contexto",
+            "type": "table",
+            "schema": "crm"
+          }
+        }
+      ]
+    },
+    {
+      "nombre": "multiple_permissive_policies",
+      "nivel": "WARN",
+      "cantidad": 5,
+      "url": "https://supabase.com/docs/guides/database/database-linter?lint=0006_multiple_permissive_policies",
+      "recorrido": []
+    },
+    {
+      "nombre": "auth_db_connections_absolute",
+      "nivel": "INFO",
+      "cantidad": 1,
+      "url": "https://supabase.com/docs/guides/deployment/going-into-prod",
+      "recorrido": []
+    }
+  ]
+}

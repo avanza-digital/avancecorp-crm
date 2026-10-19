@@ -59,6 +59,9 @@ select pg_temp.exigir((select bool_and((r.resultado->>'ciclo_inicio')::timestamp
  cross join crm.recorrido_control ctl),'los nuevos pertenecen a la cohorte de exigencia');
 set local role authenticated;
 select set_config('request.jwt.claim.sub','b0000000-0000-4000-8000-000000000002',true);
+select pg_temp.rechaza(format('select crm.preparar_persona_lead_inversion_fn(%L,''DNI'',%L,''ANTIGUO SIN ENTREVISTA'')',id,documento),'P0409','Antes de convertir')
+ from conversion_casos where nombre='identidad_tardia';
+select pg_temp.oficina('identidad_tardia');
 select pg_temp.preparar_persona('identidad_tardia');
 do $$
 declare c record;r jsonb;
@@ -134,6 +137,10 @@ do $$
 declare c record;r jsonb;
 begin
   for c in select * from conversion_casos where persona is not null and nombre<>'nueva_solicitud' loop
+    if c.nombre in ('antiguo','observacion') then
+      perform pg_temp.rechaza(format('select crm.preparar_inversion_fn(%L,%L)',c.solicitud,c.datos),'P0409','Antes de convertir');
+      perform pg_temp.oficina(c.nombre);
+    end if;
     r:=crm.preparar_inversion_fn(c.solicitud,c.datos);
     update conversion_casos set respuesta=r where id=c.id;
   end loop;
@@ -164,7 +171,7 @@ begin
     r:=crm.confirmar_inversion_revisada_fn(c.solicitud,0);
     update conversion_casos set respuesta=r where id=c.id;
   end loop;
-  raise notice 'PASS: primera conversion de ambas cooperativas, antiguos no retrobloqueados, nueva solicitud y confirmacion protegidas; borrador conservado';
+  raise notice 'PASS: primera conversion de ambas cooperativas; antiguos requieren hechos reales, nueva solicitud y confirmacion protegidas; borrador conservado';
 end $$;
 reset role;
 select pg_temp.exigir((select s.estado='preparada' and s.datos=c.datos and s.inversion_id is null and s.recorrido_confirmado is null
@@ -174,10 +181,12 @@ select pg_temp.exigir((select bool_and(s.recorrido_confirmado->>'modo'='exigir' 
  and s.recorrido_confirmado->>'asistencia_id'=c.actividad::text and s.recorrido_confirmado->>'entrevista_tarea_id'=c.tarea::text
  and l.etapa='convertido') from crm.inversion_solicitudes s join conversion_casos c on c.solicitud=s.id join crm.leads l on l.id=c.id
  where c.nombre in ('normal_sin_llamada','prodelco','confirmado')),'snapshot de la misma cita y conversion efectiva');
-select pg_temp.exigir((select not (s.recorrido_confirmado->>'exigible')::boolean and s.recorrido_confirmado->>'estado'='incompleto'
- from crm.inversion_solicitudes s join conversion_casos c on c.solicitud=s.id where c.nombre='antiguo'),'antiguos sin backfill ni falsa evidencia');
-select pg_temp.exigir((select not (s.recorrido_confirmado->>'exigible')::boolean and s.recorrido_confirmado->>'identidad_vinculada_en' is not null
- from crm.inversion_solicitudes s join conversion_casos c on c.solicitud=s.id where c.nombre='identidad_tardia'),'fecha de identidad registrada para revisar politica de antiguos, sin cambiar su corte');
+select pg_temp.exigir((select (s.recorrido_confirmado->>'exigible')::boolean and s.recorrido_confirmado->>'estado'='completo'
+ and s.recorrido_confirmado->>'asistencia_id'=c.actividad::text
+ from crm.inversion_solicitudes s join conversion_casos c on c.solicitud=s.id where c.nombre='antiguo'),'antiguos requieren asistencia y entrevista reales, sin backfill');
+select pg_temp.exigir((select (s.recorrido_confirmado->>'exigible')::boolean and s.recorrido_confirmado->>'identidad_vinculada_en' is not null
+ and s.recorrido_confirmado->>'asistencia_id'=c.actividad::text
+ from crm.inversion_solicitudes s join conversion_casos c on c.solicitud=s.id where c.nombre='identidad_tardia'),'identidad posterior no exime al lead anterior al inicio de exigencia');
 select set_config('request.jwt.claim.sub','',true);
 update crm.actividades set metadata=metadata||jsonb_build_object('deshecho_en',clock_timestamp())
  where id=(select actividad from conversion_casos where nombre='confirmado');

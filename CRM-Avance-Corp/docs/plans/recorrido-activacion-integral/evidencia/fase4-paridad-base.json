@@ -1,0 +1,48 @@
+{
+  "fecha": "2026-10-19T06:53:53.279Z",
+  "funciones": 1168,
+  "relaciones": 161,
+  "columnasAcl": 62,
+  "resultado": "PASS con 3 CHECK equivalentes: asociación AND; ningún cambio de operador, valor o validación",
+  "checks": [
+    {
+      "tabla": "crm.alertas_reconocimientos",
+      "fuente": [
+        "alertas_reconocimientos_miembros_check",
+        "CHECK ((((cardinality(miembros) >= 1) AND (cardinality(miembros) <= 2000)) AND (array_ndims(miembros) = 1)))",
+        true
+      ],
+      "rama": [
+        "alertas_reconocimientos_miembros_check",
+        "CHECK (((cardinality(miembros) >= 1) AND (cardinality(miembros) <= 2000) AND (array_ndims(miembros) = 1)))",
+        true
+      ]
+    },
+    {
+      "tabla": "crm.empresas",
+      "fuente": [
+        "empresas_monedas_check",
+        "CHECK ((((cardinality(monedas) >= 1) AND (cardinality(monedas) <= 5)) AND (monedas <@ ARRAY['PEN'::text, 'USD'::text]) AND (array_ndims(monedas) = 1)))",
+        true
+      ],
+      "rama": [
+        "empresas_monedas_check",
+        "CHECK (((cardinality(monedas) >= 1) AND (cardinality(monedas) <= 5) AND (monedas <@ ARRAY['PEN'::text, 'USD'::text]) AND (array_ndims(monedas) = 1)))",
+        true
+      ]
+    },
+    {
+      "tabla": "crm.producto_condiciones",
+      "fuente": [
+        "producto_condiciones_capital_check",
+        "CHECK ((((capital_minimo >= (100)::numeric) AND (capital_minimo <= (100000000)::numeric)) AND ((capital_maximo >= capital_minimo) AND (capital_maximo <= (100000000)::numeric))))",
+        true
+      ],
+      "rama": [
+        "producto_condiciones_capital_check",
+        "CHECK (((capital_minimo >= (100)::numeric) AND (capital_minimo <= (100000000)::numeric) AND ((capital_maximo >= capital_minimo) AND (capital_maximo <= (100000000)::numeric))))",
+        true
+      ]
+    }
+  ]
+}

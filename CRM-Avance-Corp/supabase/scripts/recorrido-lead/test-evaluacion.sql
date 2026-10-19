@@ -195,9 +195,10 @@ begin
   perform set_config('request.jwt.claim.sub','bf1c562e-ed08-4cc3-92a8-34f1fa3e9127',true);
   perform pg_temp.exigir(jsonb_array_length(crm.recorrido_leads_fn(ids)->'filas')=11,'gerencia ve todos los activos');
   perform pg_temp.rechaza('select crm.recorrido_configurar_fn(''exigir'',''Corte retroactivo'',1,now()-interval ''1 day'')','22023');
+  perform pg_temp.rechaza('select crm.recorrido_configurar_fn(''observacion'',''Fecha sin activacion'',1,clock_timestamp()+interval ''1 hour'')','22023');
   r:=crm.recorrido_configurar_fn('exigir','Ensayo aislado de nuevos ciclos',1);
   perform pg_temp.exigir(r->>'modo'='exigir' and r->>'cohorte_desde' is not null,'exigencia con corte del servidor');
-  perform pg_temp.rechaza('select crm.recorrido_configurar_fn(''apagado'',''Revision obsoleta'',1)','40001');
+  perform pg_temp.rechaza('select crm.recorrido_configurar_fn(''apagado'',''Revision obsoleta'',1)','PT409');
   perform pg_temp.rechaza('select crm.recorrido_configurar_fn(''apagado'',''Cambiar corte anterior'',2,clock_timestamp()+interval ''1 day'')','22023');
   perform pg_temp.exigir(crm.recorrido_configurar_fn('apagado','Reversion de la regla nueva',2)->>'cohorte_desde'=r->>'cohorte_desde','apagar conserva cohorte');
   perform pg_temp.exigir(crm.recorrido_configurar_fn('observacion','Volver al modo de observacion',3)->>'cohorte_desde'=r->>'cohorte_desde','observacion conserva cohorte');
@@ -231,14 +232,14 @@ begin
   r:=crm.recorrido_leads_fn(ids);
   perform pg_temp.exigir((select (f->>'exigible')::boolean from jsonb_array_elements(r->'filas') f
     where f->>'lead_id'=(select id::text from recorrido_casos where nombre='corte_nuevo')),'nuevo ciclo incluido');
-  perform pg_temp.exigir((select not (f->>'exigible')::boolean from jsonb_array_elements(r->'filas') f
-    where f->>'lead_id'=(select id::text from recorrido_casos where nombre='vacio')),'ciclo antiguo no bloqueado retroactivamente');
+  perform pg_temp.exigir((select (f->>'exigible')::boolean from jsonb_array_elements(r->'filas') f
+    where f->>'lead_id'=(select id::text from recorrido_casos where nombre='vacio')),'primera conversion del ciclo antiguo también incluida');
   perform crm.recorrido_configurar_fn('apagado','Reversion tras verificar el corte',5);
   r:=crm.recorrido_leads_fn(ids);
   perform pg_temp.exigir(not exists(select 1 from jsonb_array_elements(r->'filas') f
     where (f->>'exigible')::boolean),'apagado revierte exigencia para toda cohorte');
   perform set_config('request.jwt.claim.sub','',true);
-  raise notice 'PASS: cohorte nueva, exclusion de antiguos y reversion sin cambiar el corte';
+  raise notice 'PASS: nuevos y antiguos incluidos; reversion sin cambiar la fecha de primera activacion';
 end $$;
 reset role;
 

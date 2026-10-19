@@ -1,0 +1,20 @@
+{
+  "peticiones": 150,
+  "maximoMs": 842,
+  "conflictosPT409": [
+    {
+      "ruta": "/rest/v1/rpc/recorrido_configurar_fn",
+      "method": "POST",
+      "status": 409,
+      "code": "PT409",
+      "ms": 201
+    },
+    {
+      "ruta": "/rest/v1/rpc/acceso_inversion_fn",
+      "method": "POST",
+      "status": 409,
+      "code": "PT409",
+      "ms": 148
+    }
+  ]
+}

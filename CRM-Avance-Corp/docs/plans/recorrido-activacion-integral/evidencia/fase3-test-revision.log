@@ -1,0 +1,8 @@
+psql:<stdin>:50: NOTICE:  00000: PASS: gestion real sin ciclo en observacion, sello no acreditado y sin backfill
+LOCATION:  exec_stmt_raise, pl_exec.c:3911
+psql:<stdin>:50: NOTICE:  00000: PASS: gestion real sin ciclo en apagado, sello no acreditado y sin backfill
+LOCATION:  exec_stmt_raise, pl_exec.c:3911
+psql:<stdin>:50: NOTICE:  00000: PASS: gestion real sin ciclo en exigir, sello no acreditado y sin backfill
+LOCATION:  exec_stmt_raise, pl_exec.c:3911
+psql:<stdin>:73: NOTICE:  00000: PASS: conservar gestion sin ciclo no habilita primera conversion nueva
+LOCATION:  exec_stmt_raise, pl_exec.c:3911

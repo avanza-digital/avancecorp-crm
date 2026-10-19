@@ -1,0 +1,9 @@
+b0000000-0000-4000-8000-000000000002
+
+
+psql:<stdin>:112: NOTICE:  00000: PASS: oficina atomica, proxima accion, replay con capital protegido, veto y rechazos
+LOCATION:  exec_stmt_raise, pl_exec.c:3911
+psql:<stdin>:112: NOTICE:  00000: PASS: vendedor propio, supervisor y gerencia; coordinacion/directorio/ajenos/sin sesion rechazados
+LOCATION:  exec_stmt_raise, pl_exec.c:3911
+psql:<stdin>:139: NOTICE:  00000: PASS: vinculo causal privado, fecha del servidor, transaccion integra y nucleo conservado
+LOCATION:  exec_stmt_raise, pl_exec.c:3911

@@ -56,8 +56,22 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     sql('set role postgres;\n' + archivo('../../migrations/20261019001702_crm_recorrido_revision_pr.sql'));
     sql('set role postgres;\n' + archivo('../../migrations/20261019001703_crm_recorrido_revision_pr_hardening.sql'));
     console.log('PASS: correcciones del PR y hardening aplicados solo al stack propio.');
-  } else if (accion === 'test' || accion === 'rendimiento' || accion === 'test-oficina' || accion === 'test-conversion' || accion === 'test-revision') {
-    const rutaTest = { test: './test-evaluacion.sql', rendimiento: './rendimiento.sql', 'test-oficina': './test-oficina.sql', 'test-conversion': './test-conversion.sql', 'test-revision': './test-revision-pr.sql' }[accion];
+  } else if (accion === 'instalar-todos') {
+    sql('set role postgres;\n' + archivo('../../migrations/20261019061000_crm_recorrido_todos_pendientes.sql'));
+    sql('set role postgres;\n' + archivo('../../migrations/20261019061001_crm_recorrido_todos_pendientes_hardening.sql'));
+    console.log('PASS: alcance de todas las primeras conversiones y hardening aplicados solo al stack propio.');
+  } else if (accion === 'instalar-ajustes') {
+    for (const nombre of ['20261019061002_crm_recorrido_indice_cita.sql',
+      '20261019061003_crm_recorrido_conflicto_http.sql', '20261019061004_crm_recorrido_conflicto_http_hardening.sql']) {
+      sql('set role postgres;\n' + archivo('../../migrations/' + nombre));
+    }
+    console.log('PASS: índice y conflicto HTTP 409 aplicados solo al stack propio.');
+  } else if (accion === 'instalar-claude') {
+    for (const nombre of ['20261019061005_crm_recorrido_revision_claude.sql',
+      '20261019061006_crm_recorrido_revision_claude_hardening.sql']) sql('set role postgres;\n' + archivo('../../migrations/' + nombre));
+    console.log('PASS: correcciones de revisión aplicadas solo al banco propio.');
+  } else if (['test', 'rendimiento', 'test-oficina', 'test-conversion', 'test-revision', 'test-todos'].includes(accion)) {
+    const rutaTest = { test: './test-evaluacion.sql', rendimiento: './rendimiento.sql', 'test-oficina': './test-oficina.sql', 'test-conversion': './test-conversion.sql', 'test-revision': './test-revision-pr.sql', 'test-todos': './test-todos-pendientes.sql' }[accion];
     const r = ejecutar(archivo(rutaTest));
     if (r.stdout) process.stdout.write(r.stdout);
     if (r.stderr) process.stderr.write(r.stderr);
@@ -70,6 +84,6 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     sql('begin; set local role postgres;\n' + funciones.join('\n') + '\ncommit;');
     console.log('Funciones candidatas actualizadas solo en banco; no sustituye replay integral de la migración.');
   } else {
-    throw new Error('Uso: banco.mjs configuracion <json> | instalar | instalar-oficina | instalar-conversion | instalar-revision | test | test-oficina | test-conversion | test-revision | rendimiento | actualizar-funciones');
+    throw new Error('Uso: banco.mjs configuracion <json> | instalar | instalar-oficina | instalar-conversion | instalar-revision | instalar-todos | instalar-ajustes | instalar-claude | test | test-oficina | test-conversion | test-revision | test-todos | rendimiento | actualizar-funciones');
   }
 }

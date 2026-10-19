@@ -1,0 +1,19 @@
+{
+  "fecha": "2026-10-19T07:27:56.419Z",
+  "erroresAccesoPreexistentes": [
+    "    raise exception 'La solicitud cambió; vuelve a cargarla' using errcode='40001';",
+    "        raise exception 'El proceso de acceso cambió; recupera la solicitud' using errcode='40001';",
+    "    raise exception 'El acceso cambió; vuelve a reclamar con tu token' using errcode='40001';"
+  ],
+  "definicionOrigenMd5": "38229cbb9fde4d9b5e23ee55ca6e6784",
+  "triggers": [
+    {
+      "nombre": "trg_leads_conversion_con_inversion",
+      "definicion": "CREATE TRIGGER trg_leads_conversion_con_inversion BEFORE UPDATE OF etapa ON crm.leads FOR EACH ROW EXECUTE FUNCTION private.conversion_lead_con_inversion()"
+    },
+    {
+      "nombre": "trg_leads_zzzz_recorrido_insert",
+      "definicion": "CREATE TRIGGER trg_leads_zzzz_recorrido_insert BEFORE INSERT ON crm.leads FOR EACH ROW WHEN ((new.etapa = 'convertido'::text)) EXECUTE FUNCTION private.recorrido_insert_convertido_guard()"
+    }
+  ]
+}

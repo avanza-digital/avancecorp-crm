@@ -1,0 +1,18 @@
+{
+  "fecha": "2026-10-19T07:27:19.301Z",
+  "revision": "ajustes Claude 61005/61006",
+  "security": {
+    "rls_enabled_no_policy": 100,
+    "anon_security_definer_function_executable": 2,
+    "authenticated_security_definer_function_executable": 299,
+    "auth_leaked_password_protection": 1
+  },
+  "performance": {
+    "unindexed_foreign_keys": 54,
+    "auth_rls_initplan": 2,
+    "no_primary_key": 3,
+    "unused_index": 254,
+    "multiple_permissive_policies": 5,
+    "auth_db_connections_absolute": 1
+  }
+}
