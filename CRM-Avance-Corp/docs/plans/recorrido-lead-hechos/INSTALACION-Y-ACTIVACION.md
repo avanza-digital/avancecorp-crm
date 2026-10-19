@@ -1,6 +1,6 @@
 # Entrega, instalación y activación del recorrido
 
-El Goal original terminó con código integrado y ZIP verificable. El frontend ya se publicó, pero el ZIP de la web no instala su backend. El 19/10/2026 Miguel aprobó comenzar la [puesta en marcha integral](../recorrido-activacion-integral/PLAN-Y-ESTADO.md). Esta guía recoge la política corregida; no acredita una instalación ni activación productiva. El estado comprobado está en el nuevo plan.
+El Goal original terminó con código integrado y ZIP verificable. El frontend ya se publicó y, tras aprobar el SQL concreto, **las 15 migraciones quedaron instaladas y la exigencia se activó el 19/10/2026 a las 09:44:22 de Lima**. El [acta productiva](../recorrido-activacion-integral/FASES-6-8-PRODUCCION.md) acredita instalación, pruebas, alcance y aceptación comercial pendiente. Esta guía conserva el procedimiento; los SQL de instalación inicial y primera activación no deben repetirse sobre el control ya activo.
 
 ## Backend requerido
 

@@ -1,0 +1,12 @@
+[
+  {
+    "recorrido_configurar_fn": {
+      "actualizado_en": "2026-10-19T14:44:22.886331+00:00",
+      "actualizado_por": "bf1c562e-ed08-4cc3-92a8-34f1fa3e9127",
+      "cohorte_desde": "2026-10-19T14:44:22.886326+00:00",
+      "modo": "exigir",
+      "motivo": "Activacion tecnica autorizada por Miguel: toda primera conversion pendiente requiere asistencia y entrevista de la misma cita y ciclo.",
+      "revision": 2
+    }
+  }
+]

@@ -1,0 +1,20 @@
+{
+  "sla": "OK: nucleo SLA privado, adaptadores dependientes, entradas cerradas y auditadas",
+  "censo": {
+    "listos": 0,
+    "ambiguos": 78,
+    "pendientes": 2116,
+    "incompletos": 2038,
+    "anteriores_al_inicio": 2116
+  },
+  "fecha": "2026-10-19T14:49:09.614072+00:00",
+  "control": {
+    "modo": "exigir",
+    "inicio": "2026-10-19T14:44:22.886326+00:00",
+    "motivo": "Activacion tecnica autorizada por Miguel: toda primera conversion pendiente requiere asistencia y entrevista de la misma cita y ciclo.",
+    "revision": 2,
+    "actualizado_por": "bf1c562e-ed08-4cc3-92a8-34f1fa3e9127"
+  },
+  "migraciones": 524,
+  "hechos_contexto": 12
+}
