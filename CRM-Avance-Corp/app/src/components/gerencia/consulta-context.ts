@@ -1,13 +1,18 @@
 import { createContext, type Dispatch, type RefObject, type SetStateAction } from 'react'
 
 import type { ConsultaCitas } from '@/components/citas/datos'
+import type { TiempoProyeccion } from '@/components/citas/proyeccion-rango'
 import type { ConsultaAlertas } from './use-consulta-alertas'
 
 export type TipoRankingGerencia = 'conversion' | 'capital-total' | 'cosecha'
 
 export interface ConsultaGerencia {
   alertas?: ConsultaAlertas
-  citas?: { filtros: ConsultaCitas; vista: 'bandeja' | 'agenda' | 'resultados' | 'proyeccion'; pagina: number; rango?: { mes: string; desde: string; hasta: string } }
+  citas?: {
+    filtros: ConsultaCitas; vista: 'bandeja' | 'agenda' | 'resultados' | 'proyeccion'; pagina: number
+    /** Rango de la Proyección y sus columnas de tiempo (Mes · Semanas · Días). */
+    rango?: { mes: string; desde: string; hasta: string; tiempo?: TiempoProyeccion }
+  }
   gestionAnalista: { id: string; nombre: string } | null
   administrarMetasPeriodo: string | null
   rendimientoEquipo: string | null

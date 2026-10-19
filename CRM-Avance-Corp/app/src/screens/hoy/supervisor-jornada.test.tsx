@@ -137,6 +137,9 @@ describe('portada comercial del supervisor', () => {
   it('enlaza las citas con su fecha; no concede esta vista a otros roles', () => {
     const { rerender } = render(<HoySupervisorJornada />)
     expect(screen.getByRole('link', { name: /Ver citas del equipo/ })).toHaveAttribute('href', '#/reuniones/dia/2026-10-18')
+    expect(screen.getByRole('link', { name: /pendientes? de resultado/ })).toHaveAttribute('href', '#/reuniones/dia/2026-10-18')
+    // «Citas de hoy» cuenta citas PREVISTAS hoy; la Proyección cuenta citas CREADAS: el título no enlaza allí (misma palabra, otra cifra).
+    expect(screen.queryByRole('link', { name: 'Citas de hoy' })).not.toBeInTheDocument()
     actor = { ...actor, rol: 'vendedor' }; rerender(<HoySupervisorJornada />)
     expect(screen.queryByRole('heading', { name: 'Dirección de la jornada' })).not.toBeInTheDocument()
     expect(screen.getByRole('alert')).toHaveTextContent('supervisores autorizados')

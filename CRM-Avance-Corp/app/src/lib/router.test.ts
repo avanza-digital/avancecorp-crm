@@ -10,6 +10,7 @@ import {
   VISTAS,
   VISTAS_GERENCIA,
 } from './router'
+import { esConsultaProyeccion, mesConsultaCitas, type ConsultaCitasEnlace } from './enlace-citas'
 
 describe('router por hash', () => {
   beforeEach(() => {
@@ -44,6 +45,68 @@ describe('router por hash', () => {
       window.history.replaceState(null, '', hash)
       expect(leerHash().consultaCitas).toBeUndefined()
     }
+  })
+
+  it('lleva la Proyección por rango con y sin vista, equipo y ficha, y vuelve igual', () => {
+    const casos: [ConsultaCitasEnlace, string | null, string][] = [
+      [{ desde: '2026-10-01', hasta: '2026-10-19' }, null, '#/reuniones/proyeccion/2026-10-01/2026-10-19'],
+      [{ desde: '2026-10-01', hasta: '2026-10-19', vista: 'dias' }, null, '#/reuniones/proyeccion/2026-10-01/2026-10-19/dias'],
+      [{ desde: '2026-05-01', hasta: '2026-10-31', vista: 'semanas', equipo: 'd-sup1' }, null, '#/reuniones/proyeccion/2026-05-01/2026-10-31/semanas/equipo/d-sup1'],
+      [{ desde: '2026-10-19', hasta: '2026-10-19', equipo: 'sin_supervisor' }, 'lead/1', '#/reuniones/proyeccion/2026-10-19/2026-10-19/equipo/sin_supervisor/lead/lead%2F1'],
+      [{ desde: '2026-10-01', hasta: '2026-10-19', vista: 'dias' }, 'l1', '#/reuniones/proyeccion/2026-10-01/2026-10-19/dias/lead/l1'],
+      [{ desde: '2026-10-01', hasta: '2026-10-19' }, 'l1', '#/reuniones/proyeccion/2026-10-01/2026-10-19/lead/l1'],
+      [{ desde: '2026-10-01', hasta: '2026-10-19', vista: 'semanas', equipo: '10000000-0000-4000-8000-000000000001' }, 'l1',
+        '#/reuniones/proyeccion/2026-10-01/2026-10-19/semanas/equipo/10000000-0000-4000-8000-000000000001/lead/l1'],
+    ]
+    for (const [consulta, leadId, hash] of casos) {
+      escribirHash('reuniones', leadId, true, undefined, undefined, undefined, undefined, consulta)
+      expect(window.location.hash).toBe(hash)
+      expect(leerHash()).toEqual({ vista: 'reuniones', leadId, consultaCitas: consulta })
+      // Al cerrar la ficha el rango sigue en la URL.
+      escribirHash('reuniones', null, true, undefined, undefined, undefined, undefined, leerHash().consultaCitas)
+      expect(leerHash().consultaCitas).toEqual(consulta)
+    }
+    expect(hashDe('hoy', null, undefined, undefined, undefined, undefined, { desde: '2026-10-01', hasta: '2026-10-19' })).toBe('#/hoy')
+  })
+
+  it('rechaza rangos imposibles, invertidos, vistas desconocidas y equipos con forma rara', () => {
+    for (const hash of [
+      '#/reuniones/proyeccion/2026-10-20/2026-10-01',
+      '#/reuniones/proyeccion/2026-02-30/2026-03-01',
+      '#/reuniones/proyeccion/2026-10-01/2026-13-01',
+      '#/reuniones/proyeccion/2026-10-01/2026-10-19/anios',
+      '#/reuniones/proyeccion/2026-10-01/2026-10-19/Dias',
+      '#/reuniones/proyeccion/2026-10-01/2026-10-19/equipo/../../x',
+      '#/reuniones/proyeccion/2026-10-01/2026-10-19/dias/equipo/x-sup1',
+      '#/reuniones/proyeccion/2026-10-01/2026-10-19/equipo',
+      '#/reuniones/proyeccion/2026-10-01',
+      '#/reuniones/proyeccion/2026-10/2026-10-19',
+      '#/reuniones/proyeccion/2026-10-01/equipo/d-sup1',
+      '#/hoy/proyeccion/2026-10-01/2026-10-19',
+    ]) {
+      window.history.replaceState(null, '', hash)
+      expect(leerHash().consultaCitas, hash).toBeUndefined()
+    }
+    // Un rango inválido no se escribe: la URL cae en la vista sin contexto.
+    expect(hashDe('reuniones', null, undefined, undefined, undefined, undefined, { desde: '2026-10-20', hasta: '2026-10-01' })).toBe('#/reuniones')
+    expect(hashDe('reuniones', null, undefined, undefined, undefined, undefined,
+      { desde: '2026-10-01', hasta: '2026-10-19', vista: 'anios' } as unknown as ConsultaCitasEnlace)).toBe('#/reuniones')
+    // Ni mezclas de variantes: el enlace significa una sola cosa.
+    expect(hashDe('reuniones', null, undefined, undefined, undefined, undefined,
+      { desde: '2026-10-01', hasta: '2026-10-19', dia: '2026-10-05' } as unknown as ConsultaCitasEnlace)).toBe('#/reuniones')
+    expect(hashDe('reuniones', null, undefined, undefined, undefined, undefined,
+      { dia: '2026-10-05', vista: 'dias' } as unknown as ConsultaCitasEnlace)).toBe('#/reuniones')
+  })
+
+  it('el mes que carga Citas sale del final del rango; la guarda distingue la Proyección', () => {
+    expect(mesConsultaCitas({ desde: '2026-05-01', hasta: '2026-10-19', vista: 'semanas' })).toBe('2026-10')
+    expect(mesConsultaCitas({ desde: '2026-09-28', hasta: '2026-11-02' })).toBe('2026-11')
+    expect(mesConsultaCitas({ dia: '2026-10-05' })).toBe('2026-10')
+    expect(mesConsultaCitas({ mes: '2026-09', semana: '2' })).toBe('2026-09')
+    expect(esConsultaProyeccion({ desde: '2026-10-01', hasta: '2026-10-19' })).toBe(true)
+    expect(esConsultaProyeccion({ dia: '2026-10-05' })).toBe(false)
+    expect(esConsultaProyeccion({ mes: '2026-10' })).toBe(false)
+    expect(esConsultaProyeccion(undefined)).toBe(false)
   })
 
   it('conserva equipo/analista al abrir y cerrar la ficha desde Gestión Diaria', () => {
