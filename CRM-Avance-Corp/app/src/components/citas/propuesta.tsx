@@ -1,7 +1,7 @@
 import { useConsultaGerencia } from '@/components/gerencia/use-consulta-gerencia'
 import { useDatosCitas, corteLima } from './contexto'
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { CalendarDays, ChartNoAxesCombined, ChevronLeft, ChevronRight, CircleHelp, Download, List, SearchX, X } from 'lucide-react'
+import { CalendarDays, ChartNoAxesCombined, ChevronLeft, ChevronRight, CircleHelp, Download, List, SearchX, Table2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
 import { Sheet, SheetBody, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet'
@@ -12,6 +12,9 @@ import { consultaInicial as defaults, consultarCitas as filtrar, rangoConsulta, 
 import { Filtros } from './filtros'
 import { Agenda, Bandeja, Estado } from './vistas'
 import { Resultados, DetalleLeads } from './resultados'
+import { ProyeccionCitas } from './proyeccion-hoja'
+import { errorRango, mesesDelRango, rangoInicial, rotuloRango, type RangoProyeccion } from './proyeccion-rango'
+import { fechaLocalCitas } from './fecha-comercial'
 import { siguientePaso, contextoCita } from './presentacion'
 import { baseCitasFiltrada } from './metas'
 import { escribirHash, leerHash } from '@/lib/router'
@@ -21,11 +24,12 @@ function filtrosDelEnlace(consulta: ConsultaCitasEnlace): FiltrosCitas {
   return { ...defaults(mesConsultaCitas(consulta)), ...(consulta.dia ? { dia: consulta.dia } : {}), semana: consulta.semana ?? '', equipo: consulta.equipo ?? '' }
 }
 
-type VistaCitas = 'bandeja' | 'agenda' | 'resultados'
+type VistaCitas = 'bandeja' | 'agenda' | 'resultados' | 'proyeccion'
 const VISTAS = [
   { id: 'bandeja', titulo: 'Bandeja comercial', icono: List },
   { id: 'agenda', titulo: 'Agenda', icono: CalendarDays },
   { id: 'resultados', titulo: 'Resultados', icono: ChartNoAxesCombined },
+  { id: 'proyeccion', titulo: 'Proyección', icono: Table2 },
 ] as const
 const ATAJOS: (EstadoCita | '')[] = ['', 'vencida', 'programada', 'realizada', 'no_show']
 const POR_PAGINA = 8
@@ -67,7 +71,7 @@ export function TableroCitas({ conservarConsulta = false }: { conservarConsulta?
   const consultaSesion = useConsultaGerencia()
   const guardarConsulta = conservarConsulta ? consultaSesion?.setConsulta : undefined
   const guardada = conservarConsulta ? consultaSesion?.consulta.citas : undefined
-  const { citas: CITAS, equipo: EQUIPO, gestion, corte, modoDemo, mesInicial, cargando, error: errorCarga, onReintentar, onMes } = useDatosCitas()
+  const { citas: CITAS, equipo: EQUIPO, gestion, corte, modoDemo, mesInicial, cargando, error: errorCarga, onReintentar, onMes, onMesesProyeccion, proyeccion } = useDatosCitas()
   const inicial = () => defaults(mesInicial)
   const desdeEnlace = () => {
     const consulta = leerHash().consultaCitas
@@ -77,9 +81,18 @@ export function TableroCitas({ conservarConsulta = false }: { conservarConsulta?
   const [vista, setVista] = useState<VistaCitas>(() => leerHash().consultaCitas ? 'agenda' : guardada?.vista ?? 'resultados')
   const enlaceAnterior = useRef(JSON.stringify(leerHash().consultaCitas ?? null))
   const [pagina, setPagina] = useState(() => leerHash().consultaCitas ? 1 : guardada?.pagina ?? 1)
+  // Rango Desde–Hasta de Proyección: propio de esa pestaña. Nace del mes de arriba
+  // y vuelve a nacer si ese mes cambia; no toca los filtros de las otras vistas.
+  const rangoDelMes = (mes: string) => ({ mes, ...rangoInicial(mes, fechaLocalCitas(corte)) })
+  const [rangoMes, setRangoMes] = useState<{ mes: string } & RangoProyeccion>(() =>
+    guardada?.rango && guardada.rango.mes === filtros.mes && !errorRango(guardada.rango) ? guardada.rango : rangoDelMes(filtros.mes))
+  if (rangoMes.mes !== filtros.mes && rangoConsulta(defaults(filtros.mes))[0]) setRangoMes(rangoDelMes(filtros.mes))
+  const rangoProyeccion = { desde: rangoMes.desde, hasta: rangoMes.hasta }
+  const mesesProyeccion = vista === 'proyeccion' && !errorRango(rangoProyeccion) ? mesesDelRango(rangoProyeccion).join(',') : ''
+  useEffect(() => { onMesesProyeccion?.(mesesProyeccion ? mesesProyeccion.split(',') : []) }, [mesesProyeccion, onMesesProyeccion])
   useEffect(() => {
-    guardarConsulta?.(anterior => ({ ...anterior, citas: { filtros, vista, pagina } }))
-  }, [filtros, vista, pagina, guardarConsulta])
+    guardarConsulta?.(anterior => ({ ...anterior, citas: { filtros, vista, pagina, rango: rangoMes } }))
+  }, [filtros, vista, pagina, rangoMes, guardarConsulta])
   const [detalle, setDetalle] = useState<CitaEjemplo | null>(null)
   const [desglose, setDesglose] = useState<string | null>(null)
   const [leadAbierto, setLeadAbierto] = useState<string | null>(null)
@@ -95,7 +108,14 @@ export function TableroCitas({ conservarConsulta = false }: { conservarConsulta?
   const paginaActual = Math.min(pagina, paginas)
   const visibles = ordenar(citas, filtros.sort).slice((paginaActual - 1) * POR_PAGINA, paginaActual * POR_PAGINA)
   const [desde, hasta] = rangoConsulta(filtros)
-  const textoConteo = cargando ? 'Cargando las citas de tu consulta…' : errorCarga ? 'Consulta no disponible. Vuelve a intentarlo.' : error ? 'Revisa los filtros para consultar las citas.' : citas.length + (modoDemo ? ' de ' + CITAS.length + ' citas del ejemplo' : ' citas de tu consulta') + (vista === 'agenda' ? ' · orden cronológico · hora de Lima' : ' · según tus filtros')
+  // Resultados y Proyección van a todo el ancho, sin la tarjeta de las vistas operativas.
+  const analitica = vista === 'resultados' || vista === 'proyeccion'
+  // Proyección con cargador propio: su carga y su error son los de los meses de SU
+  // rango, no los del mes de arriba (que puede quedar fuera del rango).
+  const proyeccionPropia = vista === 'proyeccion' && proyeccion !== undefined
+  const cargandoVista = cargando && !proyeccionPropia
+  const errorVista = proyeccionPropia ? null : errorCarga
+  const textoConteo = cargandoVista ? 'Cargando las citas de tu consulta…' : errorVista ? 'Consulta no disponible. Vuelve a intentarlo.' : error ? 'Revisa los filtros para consultar las citas.' : citas.length + (modoDemo ? ' de ' + CITAS.length + ' citas del ejemplo' : ' citas de tu consulta') + (vista === 'agenda' ? ' · orden cronológico · hora de Lima' : ' · según tus filtros')
 
   useEffect(() => { if (rangoConsulta(filtros)[0]) onMes?.(filtros.mes) }, [filtros, onMes])
 
@@ -204,15 +224,15 @@ export function TableroCitas({ conservarConsulta = false }: { conservarConsulta?
             variant="ghost" className={cn('citas-pestana', vista === item.id && 'citas-pestana-activa')} onClick={() => cambiarVista(item.id)}>
             <item.icono aria-hidden />{item.titulo}
           </Button>)}
-        </div><p className="citas-corte">Citas: {fmtFecha(desde)}–{fmtFecha(hasta)}<span>Seguimiento al {corteLima(corte)}</span></p></div>
-        <section className={vista === 'resultados' ? undefined : 'gi-card citas-vista-operativa'} aria-label="Resultados de la consulta">
-          <div className={vista === 'resultados' ? 'sr-only' : 'flex flex-wrap items-center justify-between gap-3 py-4'}>
-            <div><h2 className="text-base font-semibold">{vista === 'agenda' ? 'Agenda por día' : vista === 'resultados' ? 'Resultados por analista' : 'Todas las citas de tu consulta'}</h2>
+        </div><p className="citas-corte">Citas: {vista === 'proyeccion' ? rotuloRango(rangoProyeccion) : `${fmtFecha(desde)}–${fmtFecha(hasta)}`}<span>Seguimiento al {corteLima(corte)}</span></p></div>
+        <section className={analitica ? undefined : 'gi-card citas-vista-operativa'} aria-label="Resultados de la consulta">
+          <div className={analitica ? 'sr-only' : 'flex flex-wrap items-center justify-between gap-3 py-4'}>
+            <div><h2 className="text-base font-semibold">{vista === 'agenda' ? 'Agenda por día' : vista === 'resultados' ? 'Resultados por analista' : vista === 'proyeccion' ? 'Proyección por analista' : 'Todas las citas de tu consulta'}</h2>
               <p className="citas-nota" data-testid="conteo-citas">{textoConteo}</p>
             </div>
             {vista === 'bandeja' && <label className="flex items-center gap-2 whitespace-nowrap text-xs text-muted-foreground-strong">Ordenar por<Select value={filtros.sort} onChange={e => cambiar({ sort: e.target.value })}><option value="prioridad">Pendientes primero</option><option value="fecha">Más antiguas primero</option><option value="reciente">Más recientes primero</option><option value="nombre">Prospecto A–Z</option></Select></label>}
           </div>
-          {vista !== 'resultados' && <div className="flex flex-wrap items-center gap-2 pb-4" role="group" aria-label="Consultas rápidas por estado">
+          {!analitica && <div className="flex flex-wrap items-center gap-2 pb-4" role="group" aria-label="Consultas rápidas por estado">
             <span className="mr-1 text-xs text-muted-foreground-strong">Ver por estado</span>{ATAJOS.map(estado => {
               const seleccionado = estado ? filtros.estados.includes(estado) : !filtros.estados.length
               const cantidad = estado ? sinEstado.filter(cita => cita.estado === estado).length : sinEstado.length
@@ -222,10 +242,11 @@ export function TableroCitas({ conservarConsulta = false }: { conservarConsulta?
             })}
           </div>}
           <div id="citas-panel" role="tabpanel" aria-labelledby={'citas-tab-' + vista} tabIndex={0} className="outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent">
-            {cargando ? <p role="status" className="p-8">Cargando las citas de tu consulta…</p> : errorCarga ? <div role="alert" className="space-y-3 p-8"><p>{errorCarga}</p><Button variant="outline" onClick={onReintentar}>Reintentar</Button></div> : error || (citas.length === 0 && !(vista === 'resultados' && hayBase)) ? <div className="space-y-3 px-4 py-12 text-center">
+            {cargandoVista ? <p role="status" className="p-8">Cargando las citas de tu consulta…</p> : errorVista ? <div role="alert" className="space-y-3 p-8"><p>{errorVista}</p><Button variant="outline" onClick={onReintentar}>Reintentar</Button></div> : error || (citas.length === 0 && vista !== 'proyeccion' && !(vista === 'resultados' && hayBase)) ? <div className="space-y-3 px-4 py-12 text-center">
               <SearchX aria-hidden className="mx-auto size-7 text-muted-foreground" /><h3 className="font-semibold">{error ? 'Revisa los filtros de la consulta' : 'No hay citas con esta combinación'}</h3>
               <p className="text-sm text-muted-foreground-strong">{error || 'Quita algún filtro o elige otro período.'}</p><Button variant="outline" onClick={restablecer}>Limpiar filtros</Button>
             </div> : vista === 'bandeja' ? <Bandeja citas={visibles} onDetalle={setDetalle} /> : vista === 'agenda' ? <Agenda citas={citas} onDetalle={setDetalle} />
+              : vista === 'proyeccion' ? <ProyeccionCitas filtros={filtros} rango={rangoProyeccion} onRango={r => setRangoMes({ mes: filtros.mes, ...r })} />
               : <Resultados citas={citas} filtros={filtros} onAnalista={verAnalista} onDesglose={id => { setLeadAbierto(null); setDesglose(id) }} onDetalle={abrirCitaDelRecorrido} leadAbierto={leadAbierto} onLead={setLeadAbierto} />}
           </div>
           {vista === 'bandeja' && !error && !errorCarga && !cargando && citas.length > 0 && <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border py-3">

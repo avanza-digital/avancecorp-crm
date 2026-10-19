@@ -1,11 +1,11 @@
 import { CitasClientes } from '@/components/citas/citas-clientes'
 import { useConsultaGerencia } from '@/components/gerencia/use-consulta-gerencia'
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { usePanelesActions } from '@/lib/store-context'
 import { adaptarDepositos, adaptarGestion } from '@/data/citas-gerencia'
 import { leerHash } from '@/lib/router'
 import { consultaCitasValida, mesConsultaCitas } from '@/lib/enlace-citas'
-import { useDatosCitasGerencia } from './use-datos-citas-gerencia'
+import { useDatosCitasGerencia, useMesesCitasGerencia } from './use-datos-citas-gerencia'
 import { ContextoCitas } from '@/components/citas/contexto'
 import { TableroCitas } from '@/components/citas/propuesta'
 import { mesLima } from '@/components/citas/modelo'
@@ -21,6 +21,10 @@ export function CitasGerencia() {
   })
   const { yo, ahora, datos, citas, consulta } = useDatosCitasGerencia(mes)
   const { abrirLead } = usePanelesActions()
+  // Meses que pide el rango de Proyección (vacío en las otras pestañas).
+  const [mesesProyeccion, setMesesProyeccion] = useState<string[]>([])
+  const pedirMeses = useCallback((meses: string[]) => setMesesProyeccion(actual => actual.join() === meses.join() ? actual : meses), [])
+  const proyeccion = useMesesCitasGerencia(mesesProyeccion)
   const depositos = useMemo(() => datos ? adaptarDepositos(datos) : [],[datos])
   const gestion = useMemo(() => datos ? adaptarGestion(datos) : undefined,[datos])
   const error = consulta.error instanceof Error ? consulta.error.message : 'No se pudieron cargar las citas.'
@@ -32,6 +36,8 @@ export function CitasGerencia() {
     cargando:!yo?.demo && consulta.isPending,error:!yo?.demo && consulta.isError ? error : null,
     onMes:setMes,onReintentar:() => { if (!yo?.demo) void consulta.refetch() },
     onAbrirLead:(id) => { void abrirLead(id) },
+    // En demostración las citas de arriba ya traen todos los meses del ejemplo.
+    onMesesProyeccion:pedirMeses,...(yo?.demo || !mesesProyeccion.length ? {} : {proyeccion}),
   }}>
     <TableroCitas conservarConsulta={yo?.rol === 'gerencia'} />
     <CitasClientes mes={mes} />

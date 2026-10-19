@@ -131,8 +131,9 @@
   .citas-filtros-fila { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 8px; padding: 12px; }
   .citas-filtros-fila > label:first-child { grid-column: span 2; }
   .citas-filtros-fila > button:last-child { justify-self: end; }
-  .citas-vistas { width: 100%; gap: 0; }
-  .citas-vistas .citas-pestana { flex: 1; padding-inline: 8px; font-size: 12px; }
+  /* Cuatro pestañas: si no caben en una línea (320–375 px), pasan a la siguiente. */
+  .citas-vistas { width: 100%; flex-wrap: wrap; gap: 0; }
+  .citas-vistas .citas-pestana { flex: 1 1 auto; padding-inline: 8px; font-size: 12px; }
   .citas-vistas .citas-pestana svg { display: none; }
   .citas-corte { font-size: 11px; }
   .citas-corte span { display: block; margin-left: 0; }

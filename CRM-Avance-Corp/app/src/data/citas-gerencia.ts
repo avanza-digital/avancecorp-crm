@@ -28,6 +28,8 @@ const CitaSchema = v.object({
   asistencia_registrada_en: v.nullable(Instante), cierre_posterior: v.boolean(),
   manual_propio: v.optional(v.boolean()),
   registro_manual: v.optional(v.boolean()),
+  // Fase 0 de la Proyección: opcional para leer también al servidor que aún no lo envía.
+  es_cliente: v.optional(v.boolean()),
 })
 const CamposGestion = {
   citas_por_lead: v.pipe(v.number(),v.finite(),v.minValue(0.01),v.maxValue(10)),
@@ -117,6 +119,7 @@ export function adaptarCitas(datos: ConsultaCitasRpc): CitaConLead[] {
     ...(c.asistencia_registrada_en ? {asistioEn:c.asistencia_registrada_en} : {}),
     ...(c.manual_propio !== undefined ? {manualPropio:c.manual_propio} : {}),
     creadoEn:c.creado_en,registroManual:c.registro_manual ?? c.manual_propio ?? false,
+    ...(c.es_cliente !== undefined ? {esCliente:c.es_cliente} : {}),
   }))
 }
 
@@ -190,11 +193,12 @@ export async function cargarCitasGerencia(mes: string, signal?: AbortSignal): Pr
   return resultado.output
 }
 
-export function useCitasGerencia(mes: string, actorId: string | null, habilitada: boolean) {
+/** Opciones de la consulta mensual: las comparten el mes de la pantalla y los meses del rango de Proyección. */
+export function opcionesCitasGerencia(mes: string, actorId: string | null, habilitada: boolean) {
   // Clave por actor/mes y sin placeholderData: nunca presenta otro período.
-  return useQuery({
+  return {
     queryKey:crmQueryKeys.citasGerencia(actorId,mes),
-    queryFn:({signal}) => cargarCitasGerencia(mes,signal),
+    queryFn:({signal}: {signal: AbortSignal}) => cargarCitasGerencia(mes,signal),
     enabled:habilitada && Boolean(actorId) && Boolean(rango(defaults(mes))[0]),
     staleTime:30_000,
     // Incluye cambios de otros analistas y el paso de programada a vencida.
@@ -203,5 +207,34 @@ export function useCitasGerencia(mes: string, actorId: string | null, habilitada
     refetchOnWindowFocus:true,
     refetchOnReconnect:true,
     retry:1,
-  })
+  }
+}
+
+export function useCitasGerencia(mes: string, actorId: string | null, habilitada: boolean) {
+  return useQuery(opcionesCitasGerencia(mes, actorId, habilitada))
+}
+
+const ultimoPorLead = <T,>(listas: T[][], clave: (fila: T) => string) => [...new Map(listas.flat().map(fila => [clave(fila), fila])).values()]
+
+/** Fusiona meses completos (en orden) para un rango que cruza meses. Las citas se
+ * concatenan sin repetir id; población, conversiones y asignaciones se deduplican
+ * por lead (gana el mes más reciente); la configuración es la del último mes. */
+export function fusionarConsultasCitas(consultas: ConsultaCitasRpc[]): { citas: CitaConLead[]; gestion: GestionCitas | undefined; corte: string } {
+  const citas = [...new Map(consultas.flatMap(adaptarCitas).map(c => [c.id, c])).values()]
+  const corte = consultas.map(c => c.generado_en).reduce((a, b) => Date.parse(b) > Date.parse(a) ? b : a, consultas[0]?.generado_en ?? new Date(0).toISOString())
+  const gestiones = consultas.map(adaptarGestion).filter((g): g is GestionCitas => g !== undefined)
+  const ultima = gestiones.at(-1)
+  if (!ultima) return { citas, gestion: undefined, corte }
+  const avances = gestiones.flatMap(g => g.avance ? [g.avance] : [])
+  const gestion: GestionCitas = {
+    ...ultima,
+    asignaciones: ultimoPorLead(gestiones.map(g => g.asignaciones), l => l.leadId),
+    ...(ultima.avance ? { avance: {
+      ...ultima.avance,
+      poblacion: ultimoPorLead(avances.map(a => a.poblacion), p => p.lead_id),
+      conversiones: ultimoPorLead(avances.map(a => a.conversiones), c => c.lead_id),
+      capital: ultimoPorLead(avances.map(a => a.capital), k => k.contrato_id ?? k.cierre_externo_id ?? `${k.lead_id}|${k.fecha}`),
+    } } : {}),
+  }
+  return { citas, gestion, corte }
 }
