@@ -1,0 +1,160 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+El contrato es coherente con el núcleo vivo en lo central: ciclo vía `ciclo_actual`/`lead_sla_ciclos`, identidad canónica, inmutabilidad post-confirmación y desacople de n8n. Hay que corregir cinco puntos antes de escribir la migración:
+
+1. Almacenar el contexto causal de actividades en `metadata` es frágil. Conviene una tabla de contexto 1:1, que ya es patrón establecido.
+2. El orden causal no puede apoyarse en `creado_en` para writers con `auth.uid()` NULL.
+3. El lock del lead no está garantizado para todos los writers de actividades.
+4. El ámbito de "oficina" no coincide con el ámbito de conversión en bandejas.
+5. Falta fijar la lectura del modo y del snapshot bajo concurrencia.
+
+Para la configuración recomiendo un singleton administrativo propio, con la forma de `sla_operacion_control` pero sin compartir tabla ni guard. No hace falta un modelo tenant.
+
+FINDINGS:
+
+[P1] El contexto causal en `metadata` es falsificable u ordenable mal; usar tabla de contexto 1:1
+File: contrato §"Cobertura y ambigüedad histórica"; `private.trg_sla_tarea_contexto`; `private.trg_sla_nucleo_entrada_guard`
+Problem: El contrato propone estampar una clave reservada en `crm.actividades.metadata` con un trigger BEFORE.
+Evidence:
+- Las tareas ya resuelven este problema con `crm.tarea_sla_contexto(tarea_id, lead_id, ciclo_n, fuente)`. La fila se inserta en un trigger AFTER bajo `for update` del lead, y el guard exige `fuente='evento'`, `pg_trigger_depth()>=2` y un writer flag.
+- `metadata` es jsonb compartido. Los BEFORE triggers corren en orden alfabético, así que otro trigger posterior podría reescribirlo.
+- No se aportó evidencia de las policies de UPDATE sobre `actividades`. No consta que un cliente no pueda editar `metadata`.
+Impact:
+- Riesgo de falsificación o pérdida del contexto.
+- El evaluador tendría que filtrar por jsonb, lo que empeora el objetivo p95 < 300 ms con 60k actividades.
+- "UPDATE preserva el contexto" exige un guard adicional sobre una tabla heredada.
+Recommendation:
+- Crear `crm.actividad_ciclo_contexto(actividad_id pk fk, lead_id, ciclo_n, registrado_en, gesto_id null, fuente)`, insertada por un trigger AFTER INSERT propio del recorrido.
+- Protegerla con su propio guard inmutable: sin UPDATE/DELETE/TRUNCATE, solo vía writer flag más depth. Copiar el patrón, no modificar `trg_sla_nucleo_entrada_guard`, que pertenece al núcleo SLA.
+- Aplicar RLS sin policies de escritura e indexar `(lead_id, ciclo_n)`.
+- No es un "ledger paralelo de hechos": es una clave causal, igual que `tarea_sla_contexto`.
+
+[P1] El orden "contacto antes de la cita" no puede usar `creado_en` en todos los casos
+File: `private.trg_gestion_lead_serializada`
+Problem: La regla de Orden (§4) compara tiempos de actividad contra la creación de la tarea.
+Evidence:
+- El trigger devuelve `new` sin tocar `creado_en` cuando `v_actor is null` ("writers internos ... conservan backfill").
+- También lo devuelve para los tipos `cambio_etapa`, `reasignacion` y `conversion`.
+- Solo los inserts autenticados reciben `clock_timestamp()` después del lock.
+Impact: Un writer interno o un backfill puede fabricar o romper el orden contacto→cita.
+Recommendation:
+- Ordenar por `registrado_en := clock_timestamp()`, tomado por el trigger de contexto después de su propio lock del lead.
+- Para tareas, usar una marca equivalente en su contexto, o documentar que solo se acreditan tareas cuyo `creado_en` fue sellado por el servidor.
+- Identificar el gesto compuesto de oficina por `gesto_id`, no por igualdad de timestamps: `clock_timestamp` difiere entre sentencias.
+
+[P1] "Bajo el lock del lead" no está garantizado hoy para todos los inserts de actividades
+File: `private.trg_gestion_lead_serializada`
+Evidence: El early return para `auth.uid()` NULL y para tipos de sistema ocurre antes del `select ... for update`.
+Impact: Sin lock propio, una actividad interna concurrente con una reapertura (descartado→nuevo incrementa `ciclo_actual` en `trg_leads_guard_tenencia`) puede quedar asociada al ciclo equivocado.
+Recommendation:
+- El trigger de contexto debe tomar `select ... from crm.leads where id=new.lead_id for update` siempre, como hace `trg_sla_tarea_contexto`.
+- Usar FOR UPDATE y no FOR SHARE, para no crear upgrades share→update que provoquen deadlocks con el UPDATE del lead.
+
+[P1] Evaluador del guard: snapshot y orden de locks
+File: contrato §"Piezas" (Deshacer/Tareas/Confirmación); `private.inversion_persona_contexto_para`
+Evidence: Los órdenes de lock vivos son:
+- persona: `inversionistas FOR UPDATE` → `leads FOR SHARE NOWAIT` → `conversion_reservas FOR UPDATE NOWAIT`
+- comandos: `recibo` → `leads FOR UPDATE`
+- deshacer: actividad → lead
+- tareas: lead → tarea
+Impact:
+- En READ COMMITTED, si el lock del lead y la evaluación se hacen en la misma sentencia, las lecturas de `actividades`/`tareas` usan el snapshot previo a la espera (solo la fila bloqueada se re-chequea). Un deshacer o una cancelación ya confirmados podrían seguir acreditando.
+- Si el lead se toma antes que `inversionistas` en el guard de confirmación, se invierte el orden de `inversion_persona_contexto_para`.
+Recommendation:
+- (a) El guard toma el lead en una sentencia y evalúa en una sentencia posterior. El evaluador debe ser VOLATILE, o STABLE pero invocado en una sentencia nueva.
+- (b) El evaluador no bloquea filas: solo lecturas MVCC.
+- (c) En `confirmar_inversion_revisada_fn`, insertar el guard después de la cadena de locks existente, nunca antes de `inversionistas`.
+- (d) Hace falta un inventario de todos los writers de `tareas.estado/activo` y de "deshacer" que no tomen primero el lead. No se aportó el cuerpo de `deshacer_resultado_llamada` ni la definición de eventos (INSERT/UPDATE) del trigger serializado. Hasta verlo, que no haya ventana es una hipótesis.
+
+[P2] El ámbito de oficina no coincide con el de conversión
+File: `trg_gestion_lead_serializada` vs `inversion_persona_contexto_para` y `trg_leads_guard_tenencia`
+Evidence:
+- La gestión permite a un supervisor actuar sobre un lead de bandeja (`vendedor_id is null and asignado_supervisor_id in visibles`).
+- La conversión exige `v_l.vendedor_id in vendedor_ids_visibles` y `vendedor_id = responsable_relacion_id`.
+- Además, `trg_leads_guard_tenencia` rechaza convertir con `old.vendedor_id is null`.
+Impact: Se puede registrar una visita de oficina pero no convertir. El "mismo formulario de cierre" fallaría en el último paso.
+Recommendation:
+- El gesto de oficina valida antes de escribir que el lead tiene analista igual al responsable de la persona, o rechaza con una acción "asigna analista".
+- No reasignar implícitamente dentro del gesto: el guard exige operaciones separadas.
+
+[P2] Gesto de oficina: idempotencia, veto y límite con el núcleo SLA
+File: `private.sla_ejecutar_comando`; `trg_gestion_lead_serializada`
+Evidence:
+- La lista blanca de comandos está hardcodeada en `p_comando not in (...)`.
+- La deduplicación compara el payload completo y responde 23505 ante otro contenido.
+- El veto se salta con `crm.op_privilegiada='on'`.
+Impact:
+- Añadir un comando "oficina" modifica un objeto del dispatcher SLA. Si `sla_operacion_recibos.comando` tiene un CHECK (no aportado), también cambia su esquema.
+- El capital no pasa por el recibo, así que "replay con datos distintos no altera capital" no queda garantizado si se escribe fuera de esa transacción.
+Recommendation:
+- Decidir explícitamente si el gesto es una función hermana que reutiliza `crm.sla_operacion_recibos` con la misma semántica de payload exacto, o una ampliación aprobada del dispatcher.
+- El capital permanece en el flujo de inversión/solicitud, nunca en el payload de oficina.
+- Prohibir `op_privilegiada` en el gesto: el veto «No insistir» debe aplicarse.
+- La marca de oficina la escribe solo el núcleo en `actividad_ciclo_contexto.fuente/gesto_id`, nunca a partir del payload.
+
+[P2] Configuración: singleton administrativo propio, con modo leído bajo lock y revisión capturada
+Evidence:
+- `select * into strict v_control from crm.sla_operacion_control where id` muestra el patrón singleton de PK booleana.
+- El guard impone `revision = old.revision+1`, `primera_activacion_en` inmutable y el writer flag `crm.sla_control_writer`.
+- No existen columnas `negocio_id`, `organizacion_id` ni `tenant_id` (catálogo del PRIMARY).
+Recommendation:
+- Crear `crm.recorrido_control(id boolean pk default true check(id), modo check in ('apagado','observacion','exigir'), cohorte_desde timestamptz, revision int, actualizado_por, actualizado_en)`.
+- Añadir `crm.recorrido_control_historial`, append-only, como auditoría.
+- Las escrituras solo pasan por una función de comando de gerencia con writer flag más guard propio: owner check, revisión +1, `cohorte_desde` inmutable una vez fijada.
+- Activar RLS con lectura solo vía función definer.
+- Documentar en un ADR que es estado de instalación y no dato de dominio, de modo que la regla genérica de `negocio_id` no aplica, sin debilitar el aislamiento. No reutilizar `multiempresa_flags`, que solo admite booleanos y no admite cohorte.
+- La confirmación lee el singleton con `FOR SHARE` y guarda `revision` en el snapshot. El comando de modo toma `FOR UPDATE`. Así no hay carrera modo↔confirmación.
+- No permitir `cohorte_desde` anterior al momento de pasar a `exigir`: impide bloquear de forma retroactiva ciclos con historia ambigua.
+- Documentar que una reapertura posterior a `cohorte_desde` entra en la cohorte, porque `lead_sla_ciclos` crea un ciclo nuevo.
+
+[P2] Acceso externo recuperable: decidir con estado persistido, no reevaluando
+File: contrato §"Acceso externo"; `inversion_persona_contexto_para` (uso de `conversion_reservas.efectos_iniciados_en`)
+Problem: El contrato pide no bloquear la recuperación de un alta externa ya efectuada, pero no define con qué dato se reconoce ese caso.
+Evidence: El estado de "efectos iniciados" ya vive en `conversion_reservas.efectos_iniciados_en`.
+Impact: Si `acceso_inversion_fn('reclamar')` reevalúa el recorrido, un deshacer posterior al inicio de efectos deja el alta a medias y bloquea su recuperación.
+Recommendation:
+- El reclamo con `efectos_iniciados_en not null` o una solicitud ya confirmada omite la evaluación.
+- Solo el reclamo nuevo evalúa, y lo hace antes de insertar la reserva y en la misma transacción. Si la reserva se crea en otra transacción, un rechazo posterior la deja viva hasta `expira_en` y dispara "conversión anterior pendiente". Esto es una hipótesis: no se aportó el cuerpo de `acceso_inversion_fn`.
+
+[P3] Clasificación histórica: hay vínculos demostrables que el contrato no aprovecha
+- Un lead cuyo único ciclo en `lead_sla_ciclos` es el 1 tiene todas sus actividades en el ciclo 1 sin comparar horas. Esto reduce mucho los casos ambiguos.
+- `lead_sla_etapa_ajustes.origen_actividad_id` → `lead_sla_etapas.ciclo_n` también es un vínculo demostrable.
+- Para `reunion_realizada`, el camino es `metadata.tarea_id` → `tarea_sla_contexto.ciclo_n`.
+- Las 72 citas sin contexto se clasifican como ambiguas. No se reconstruyen en esta fase: la fuente 'reconstruido' pertenece al núcleo SLA.
+
+[P3] Ambigüedades de la matriz
+- Definir si un `reunion_realizada` registrado vía `registrar_actividad`, sin tarea, cuenta como Gestionado. Hoy está permitido por `sla_ejecutar_comando`.
+- Definir a qué campo se aplica "sin fecha futura" en Entrevista: `tareas.vence_en` frente al sello de la actividad.
+
+TEST GAPS:
+- Reapertura concurrente con un insert de actividad hecho con `auth.uid()` NULL: el ciclo estampado debe ser correcto.
+- Guard tras espera de lock: un deshacer o una cancelación confirmados durante la espera no deben acreditar.
+- Carrera entre cambio de modo y confirmación: el snapshot registra la revisión efectiva.
+- Oficina sobre lead de bandeja, sobre persona vetada, y replay con payload distinto (debe dar 23505 sin efectos).
+- Reclamo de acceso con efectos iniciados después de un deshacer.
+- Intento de falsificar o actualizar el contexto causal desde un cliente.
+- Benchmark del evaluador con el índice `(lead_id, ciclo_n)`.
+
+ARCHITECTURE RISKS:
+- Riesgo de acoplar el recorrido al núcleo SLA si se tocan `sla_ejecutar_comando`, `trg_sla_nucleo_entrada_guard` o `sla_operacion_recibos`. Exigir una decisión explícita.
+
+SECURITY RISKS:
+- Contexto o marca de oficina derivables del payload o de `metadata` del cliente.
+- Uso de `op_privilegiada` dentro del gesto.
+
+REGRESSION RISKS:
+- Un guard insertado antes de la cadena de locks de persona puede introducir deadlocks y timeouts NOWAIT en la preparación y confirmación existentes.
+
+RECOMMENDED NEXT ACTIONS:
+1. Sustituir el estampado en `metadata` por `crm.actividad_ciclo_contexto` con trigger AFTER, lock propio FOR UPDATE, `registrado_en` y `gesto_id`.
+2. Fijar en el contrato el singleton `crm.recorrido_control` con historial, la regla de `cohorte_desde` y la lectura `FOR SHARE` más revisión en el snapshot.
+3. Especificar la posición del guard en `confirmar_inversion_revisada_fn` y el patrón lock→sentencia nueva→evaluar. Aportar los cuerpos de `deshacer_resultado_llamada`, `acceso_inversion_fn`, `confirmar_inversion_revisada_fn` y las definiciones de triggers sobre `tareas`/`actividades` para cerrar el inventario.
+4. Resolver la frontera del gesto de oficina con el dispatcher SLA y la precondición de analista igual al responsable.
+5. Añadir las reglas históricas demostrables (ciclo único, ajustes SLA, `tarea_id`).
+
+CONFIDENCE:
+MEDIUM. Los cuerpos clave están presentes. Faltan `deshacer_resultado_llamada`, `acceso_inversion_fn`, la confirmación, las policies de UPDATE de `actividades` y los eventos de los triggers.
+
+_Nota: no se escribió plan ni se usaron herramientas, por la restricción de rol SECONDARY_REVIEWER sin herramientas._

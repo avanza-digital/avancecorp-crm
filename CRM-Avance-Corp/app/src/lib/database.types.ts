@@ -14,6 +14,65 @@ export type Database = {
   }
   crm: {
     Tables: {
+      actividad_ciclo_contexto: {
+        Row: {
+          actividad_id: string
+          ciclo_n: number | null
+          estado_ciclo: string
+          gesto_oficina_id: string | null
+          lead_id: string
+          oficina_tarea_id: string | null
+          registrado_en: string
+        }
+        Insert: {
+          actividad_id: string
+          ciclo_n?: number | null
+          estado_ciclo: string
+          gesto_oficina_id?: string | null
+          lead_id: string
+          oficina_tarea_id?: string | null
+          registrado_en: string
+        }
+        Update: {
+          actividad_id?: string
+          ciclo_n?: number | null
+          estado_ciclo?: string
+          gesto_oficina_id?: string | null
+          lead_id?: string
+          oficina_tarea_id?: string | null
+          registrado_en?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "actividad_ciclo_contexto_actividad_id_fkey"
+            columns: ["actividad_id"]
+            isOneToOne: true
+            referencedRelation: "actividades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "actividad_ciclo_contexto_lead_id_ciclo_n_fkey"
+            columns: ["lead_id", "ciclo_n"]
+            isOneToOne: false
+            referencedRelation: "lead_sla_ciclos"
+            referencedColumns: ["lead_id", "ciclo_n"]
+          },
+          {
+            foreignKeyName: "actividad_ciclo_contexto_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "actividad_ciclo_contexto_oficina_tarea_id_fkey"
+            columns: ["oficina_tarea_id"]
+            isOneToOne: false
+            referencedRelation: "tareas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       actividades: {
         Row: {
           creado_en: string
@@ -4990,6 +5049,36 @@ export type Database = {
         }
         Relationships: []
       }
+      recorrido_control: {
+        Row: {
+          actualizado_en: string
+          actualizado_por: string | null
+          cohorte_desde: string | null
+          id: boolean
+          modo: string
+          motivo: string
+          revision: number
+        }
+        Insert: {
+          actualizado_en?: string
+          actualizado_por?: string | null
+          cohorte_desde?: string | null
+          id?: boolean
+          modo?: string
+          motivo?: string
+          revision?: number
+        }
+        Update: {
+          actualizado_en?: string
+          actualizado_por?: string | null
+          cohorte_desde?: string | null
+          id?: boolean
+          modo?: string
+          motivo?: string
+          revision?: number
+        }
+        Relationships: []
+      }
       rentabilidad_hitos: {
         Row: {
           clave: string
@@ -7680,6 +7769,16 @@ export type Database = {
         Args: { p_limite?: number }
         Returns: Json
       }
+      recorrido_configurar_fn: {
+        Args: {
+          p_cohorte_desde?: string
+          p_modo: string
+          p_motivo: string
+          p_revision: number
+        }
+        Returns: Json
+      }
+      recorrido_leads_fn: { Args: { p_lead_ids: string[] }; Returns: Json }
       reemplazar_inversion_cooperativa_fn: {
         Args: { p_cierre: Json; p_fuente_id: string; p_motivo: string }
         Returns: Json

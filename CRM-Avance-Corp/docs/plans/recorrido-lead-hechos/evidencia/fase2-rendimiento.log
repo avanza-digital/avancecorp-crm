@@ -1,0 +1,7 @@
+on
+off
+b0000000-0000-4000-8000-000000000002
+{"max_ms": 15.49, "p50_ms": 10.38, "p95_ms": 12.59, "tamano": 50, "muestras": 40}
+{"max_ms": 52.91, "p50_ms": 34.44, "p95_ms": 37.60, "tamano": 100, "muestras": 40}
+psql:<stdin>:60: NOTICE:  00000: PASS: evaluacion por lotes sobre 4000 leads / 60000 actividades / 4000 citas, p95 < 300 ms
+LOCATION:  exec_stmt_raise, pl_exec.c:3911
