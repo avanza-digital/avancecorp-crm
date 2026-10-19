@@ -1083,7 +1083,7 @@ function MiActividad({ dia, analistaId, hoy, deshaciendo, onDeshacer, onAbrirFic
         <BarrasPorHora porHora={m.por_hora} titulo="Llamadas por hora" alto={130}
           apoyo={m.ultima_llamada_en !== null ? `Primera ${horaLimaDe(m.primera_llamada_en)} · última ${horaLimaDe(m.ultima_llamada_en)}` : undefined} />
         <p className="text-xs leading-relaxed text-[var(--muted-foreground-strong)]">
-          Tocaste {m.leads_tocados} {m.leads_tocados === 1 ? 'lead' : 'leads'}. Llamadas = marcadas + no contestadas; no incluye WhatsApp ni citas.
+          Tocaste {m.leads_tocados} {m.leads_tocados === 1 ? 'lead' : 'leads'}. Llamadas = marcadas + no contestadas, a leads y a clientes; no incluye WhatsApp ni citas.
           Un número errado no entra en el contacto, y el nivel se juzga desde {dia.umbrales.minimo_llamadas_utiles} llamadas útiles. Tu supervisor ve esto mismo de ti.
         </p>
       </div>

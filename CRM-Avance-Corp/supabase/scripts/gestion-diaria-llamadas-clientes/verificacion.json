@@ -1,0 +1,35 @@
+{
+  "version": "20261019170422",
+  "nombre": "crm_gestion_diaria_llamadas_clientes",
+  "banco": "crm-banco-llamadas-clientes-20261019/postgres",
+  "ensayado_en": "2026-10-19T20:26:25.239Z",
+  "md5_ayudante": "35c22cec66e3f7fa929d1514c338e3b3",
+  "md5_lector": "a209ec1be82b2eeff40c7f6488342d69",
+  "md5_agregador": "231845001abb2386645231442a5fb103",
+  "md5_gate": "b3a4970ea1d88619c97c550d40f664b0",
+  "md5_gate_citas": "d82d0e95f2b9c5d956137e4a402f2fc8",
+  "md5_gate_pulso": "c12d11b58ac2e821e77801bd2a2923ed",
+  "md5_gate_produccion_antes": "eb2c03fd99f13cda077f8c02e4533ec4",
+  "sha256_migracion": "06b8de077eb8f7f4bf6eb49dafda04bd0dee526daeed4e31be0f931597003a98",
+  "sha256_reversa": "34dc528c13dae1113b27cd707877b61db6f2814392cb1e42bdd8827ce1c425ab",
+  "gate_antes": "ROJO: P0001: El cuerpo de crm.equipo_visible_fn() cambio: re-sellar el dia del analista de Gestion Diaria (md5 58bd05540d2a3eb576a7b648978707e7)",
+  "mutantes_nuevos": "OK: 12 mutantes detectados por private.assert_gestion_diaria_analista()",
+  "mutantes_viejos": "OK: 24 mutantes detectados por private.assert_gestion_diaria()",
+  "paraguas_con_211001_simulado": "OK: Gestion Diaria [OK: registro de Gestion Diaria bajo la RLS (puerta y nucleo INVOKER), EXECUTE solo authenticated, indice presente, policies selladas por la base del historial por lead] [OK: resultado de llamada — puertas DEFINER selladas (EXECUTE solo authenticated), nucleo y trigger solo postgres, CHECK de forma validado, trigger anti-falsificacion habilitado, cuerpos propios y compuestos con su md5, historial por lead con metadata] [OK: dia del analista — puerta y nucleos INVOKER (EXECUTE solo authenticated) con su md5, sin contadores crudos, cola v2 y politica_abandono en su forma, cadena invoker con sus permisos, tareas_select sellada por la base de las tareas por cursor] [OK: equipo completo, agregado canónico y acceso por identidad] [OK: cortes Lima, política versionada OFF, RLS sin escrituras API] [OK: avisos persistentes sellados, RLS del lector y entregas únicas] [OK: configuración gerencial estricta, versionada y futura; control de avisos auditado] [OK: pendientes SLA agrupados y contexto de llamadas bajo RLS; tasa baja OFF] [OK: lectura completa bajo RLS; escrituras de cortes sin cómputo SLA] [OK: pendientes H3 paginados, ámbito canónico compartido, invoker/RLS y referencias mínimas] [OK: citas G4b INVOKER con ACL exacta (postgres y authenticated), misma definición que la cifra y fuentes del pulso selladas]",
+  "oraculo": "GESTION_DIARIA_LLAMADAS_CLIENTES_OK",
+  "censo_intacto": true,
+  "reversa_a_produccion": true,
+  "solo_lectura": {
+    "instalada_ms": {
+      "analista_ms": 30,
+      "pulso_ms": 49,
+      "habitos30_ms": 682
+    },
+    "produccion_ms": {
+      "analista_ms": 52,
+      "pulso_ms": 52,
+      "habitos30_ms": 499
+    },
+    "banco_sin_datos": true
+  }
+}
