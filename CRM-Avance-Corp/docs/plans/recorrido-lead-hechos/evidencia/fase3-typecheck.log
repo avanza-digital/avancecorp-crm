@@ -1,0 +1,2 @@
+npm notice run app@0.0.0 typecheck
+npm notice run tsc -b --pretty false

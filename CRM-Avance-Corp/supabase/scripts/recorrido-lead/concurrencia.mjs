@@ -7,7 +7,9 @@ import { contenedor, literal as q, sql } from './banco.mjs';
 
 const gerente = 'bf1c562e-ed08-4cc3-92a8-34f1fa3e9127';
 const analista = 'b0000000-0000-4000-8000-000000000002';
-const prefijo = `prueba_recorrido_${randomUUID().replaceAll('-', '')}`;
+// application_name se trunca a 63 bytes en PostgreSQL; reservar espacio para
+// el escenario permite observar y limpiar exactamente las sesiones creadas.
+const prefijo = `prueba_recorrido_${randomUUID().replaceAll('-', '').slice(0, 16)}`;
 const sesiones = [];
 const lead = randomUUID();
 const leadCita = randomUUID();
@@ -111,6 +113,41 @@ try {
   correcto(await h.cerrar('commit;'));
   assert.match(h.salida, /ELEGIBLE=false/);
   console.log('PASS: la evaluación posterior al lock ve la invalidación ya confirmada.');
+
+  if (process.argv.includes('--oficina')) {
+    const operar = (id, operacion) => `set local role authenticated;
+      set local request.jwt.claim.sub=${q(analista)};
+      select crm.recorrido_atender_oficina_fn(${q(operacion)},${q(id)},'interesado','Visita concurrente',null,1100,'PEN');`;
+    const leerResultado = (s) => JSON.parse(s.salida.split('\n').find((linea) => linea.startsWith('{')));
+    const opDoble = randomUUID();
+    const i = sesion('oficina_a');
+    i.enviar(`begin; ${operar(lead, opDoble)}\n\\echo VISITA_LISTA`);
+    await marcador(i, 'VISITA_LISTA');
+    const j = sesion('oficina_b');
+    j.enviar(`begin; ${operar(lead, opDoble)}\n\\echo REPLAY_LISTO`);
+    await esperaLock(j);
+    correcto(await i.cerrar('commit;'));
+    await marcador(j, 'REPLAY_LISTO');
+    correcto(await j.cerrar('commit;'));
+    assert.deepEqual(leerResultado(i), leerResultado(j));
+    assert.equal(sql(`select count(*) from crm.actividad_ciclo_contexto where gesto_oficina_id=${q(opDoble)};`), '1');
+    console.log('PASS: doble envio simultaneo de oficina devuelve el mismo cierre y una sola asistencia.');
+
+    const opAbortada = randomUUID();
+    const k = sesion('oficina_rollback');
+    k.enviar(`begin; ${operar(leadCita, opAbortada)}\n\\echo VISITA_SIN_COMMIT`);
+    await marcador(k, 'VISITA_SIN_COMMIT');
+    const m = sesion('oficina_recuperada');
+    m.enviar(`begin; ${operar(leadCita, opAbortada)}\n\\echo VISITA_RECUPERADA`);
+    await esperaLock(m);
+    correcto(await k.cerrar('rollback;'));
+    await marcador(m, 'VISITA_RECUPERADA');
+    correcto(await m.cerrar('commit;'));
+    assert.equal(sql(`select count(*) from crm.actividad_ciclo_contexto where gesto_oficina_id=${q(opAbortada)};`), '1');
+    assert.equal(sql(`select count(*) from crm.multiempresa_idempotencia
+      where clave=${q(`recorrido_oficina:${analista}:${opAbortada}`)} and resultado is not null;`), '1');
+    console.log('PASS: rollback de una visita concurrente permite reintentar sin recibo ni cita a medias.');
+  }
 } finally {
   // Solo procesos del ensayo actual. Un error no deja transacciones retenidas.
   for (const s of sesiones) {

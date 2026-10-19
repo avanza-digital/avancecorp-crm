@@ -8,8 +8,8 @@ Objetivo íntegro: implementar las ocho fases del [plan FigJam](https://www.figm
 |---|---|---|
 | 1. Contratos | PASS documental | FASE-1-CONTRATO.md y REVISION-ARQUITECTURA.md; revisión Claude evaluada y corregida por Codex. No implica runtime validado. |
 | 2. Evaluación | PASS local | FASE-2-VERIFICACION.md: replay limpio + hardening, SQL/RLS, concurrencia, carga, tipos y typecheck. |
-| 3. Cierres/oficina | PENDIENTE | Reutilizar cierres y motor existentes. |
-| 4. Guía | PENDIENTE | Ficha, Mi día y tablero; consulta independiente del guardado. |
+| 3. Cierres/oficina | PASS local | FASE-3-VERIFICACION.md: RPC, formulario compartido, idempotencia, SQL, concurrencia y 67 tests. Entrada desde ficha en fase 4. |
+| 4. Guía | EN CURSO | Ficha, Mi día y tablero; consulta independiente del guardado. |
 | 5. Conversión | PENDIENTE | Inicio, retoma, acceso y confirmación. |
 | 6. Validación | PENDIENTE | SQL/RLS aislado, Docker E2E, concurrencia y carga. |
 | 7. PR/Main | PENDIENTE | Revisión, correcciones e integración sin sobrescribir cambios remotos. |
@@ -40,4 +40,4 @@ No ejecutar publicación, migraciones de producción ni activación de bloqueos.
 
 ## Seguimiento visual
 
-[Avance con barras, fases y subfases en el mismo FigJam](https://www.figma.com/board/kg289vO84cJjFMCuBJbqhM?node-id=46-190). Los porcentajes representan subfases verificadas; no tiempo estimado. Dos de ocho fases cerradas tras el gate local de fase 2; producción sin modificar.
+[Avance con barras, fases y subfases en el mismo FigJam](https://www.figma.com/board/kg289vO84cJjFMCuBJbqhM?node-id=46-190). Los porcentajes representan subfases verificadas; no tiempo estimado. Tres de ocho fases cerradas tras el gate local de fase 3; producción sin modificar.

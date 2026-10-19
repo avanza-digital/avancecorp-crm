@@ -7769,6 +7769,19 @@ export type Database = {
         Args: { p_limite?: number }
         Returns: Json
       }
+      recorrido_atender_oficina_fn: {
+        Args: {
+          p_capital_estimado?: number
+          p_detalle?: string
+          p_lead_id: string
+          p_moneda?: string
+          p_operacion_id: string
+          p_resultado_reunion: string
+          p_siguiente?: Json
+          p_ubicacion?: string
+        }
+        Returns: Json
+      }
       recorrido_configurar_fn: {
         Args: {
           p_cohorte_desde?: string

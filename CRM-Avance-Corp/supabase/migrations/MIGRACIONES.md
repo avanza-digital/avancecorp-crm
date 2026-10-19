@@ -1,3 +1,9 @@
+## 20261019001600–01 — Recorrido del lead, fase 3: atención en oficina
+
+**CANDIDATO LOCAL, NO APLICADO EN PRODUCCIÓN.** `recorrido_atender_oficina_fn` registra cita inmediata presencial y entrevista mediante el cierre v3 vigente, con capital y siguiente acción. Permisos y veto actuales; requiere analista asignado. Recibo propio en `multiempresa_idempotencia` por actor/operación, hash íntegro y marca causal validada contra ese recibo. No amplía el núcleo SLA, no convierte ni activa exigencia. Hardening separado, sin tablas ni cambios en public.
+
+Codex verificó SQL/RLS local, rollback integral, replay, doble envío concurrente y recuperación; 67 tests cliente/formulario, tipos, typecheck, lint y build PASS. Acta `docs/plans/recorrido-lead-hechos/FASE-3-VERIFICACION.md`. Revisión RLS integral y a11y conjunta del flujo se completan en fases siguientes antes de publicar el artefacto. Producción no modificada.
+
 ## 20261019001500–01 — Recorrido del lead, fase 2: evaluación y evidencias causales
 
 **CANDIDATO LOCAL, NO APLICADO EN PRODUCCIÓN.** Objetivo aclarado por Miguel: impedir primera conversión sin asistencia y entrevista registradas en la misma cita del ciclo vigente. Gestión/contacto son guía, sin otro candado. Plan y seguimiento: `docs/plans/recorrido-lead-hechos/ESTADO.md`.

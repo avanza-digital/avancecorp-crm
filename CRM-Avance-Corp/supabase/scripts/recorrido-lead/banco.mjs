@@ -44,8 +44,13 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     sql('set role postgres;\n' + archivo('../../migrations/20261019001500_crm_recorrido_evaluacion.sql'));
     sql('set role postgres;\n' + archivo('../../migrations/20261019001501_crm_recorrido_evaluacion_hardening.sql'));
     console.log('PASS: migración de evaluación aplicada únicamente al stack local propio.');
-  } else if (accion === 'test' || accion === 'rendimiento') {
-    const r = ejecutar(archivo(accion === 'test' ? './test-evaluacion.sql' : './rendimiento.sql'));
+  } else if (accion === 'instalar-oficina') {
+    sql('set role postgres;\n' + archivo('../../migrations/20261019001600_crm_recorrido_oficina.sql'));
+    sql('set role postgres;\n' + archivo('../../migrations/20261019001601_crm_recorrido_oficina_hardening.sql'));
+    console.log('PASS: oficina y hardening aplicados únicamente al stack local propio.');
+  } else if (accion === 'test' || accion === 'rendimiento' || accion === 'test-oficina') {
+    const rutaTest = { test: './test-evaluacion.sql', rendimiento: './rendimiento.sql', 'test-oficina': './test-oficina.sql' }[accion];
+    const r = ejecutar(archivo(rutaTest));
     if (r.stdout) process.stdout.write(r.stdout);
     if (r.stderr) process.stderr.write(r.stderr);
     assert.equal(r.status, 0, 'FAIL: oráculo SQL del recorrido.');
@@ -57,6 +62,6 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     sql('begin; set local role postgres;\n' + funciones.join('\n') + '\ncommit;');
     console.log('Funciones candidatas actualizadas solo en banco; no sustituye replay integral de la migración.');
   } else {
-    throw new Error('Uso: banco.mjs configuracion <json> | instalar | test | rendimiento | actualizar-funciones');
+    throw new Error('Uso: banco.mjs configuracion <json> | instalar | instalar-oficina | test | test-oficina | rendimiento | actualizar-funciones');
   }
 }
