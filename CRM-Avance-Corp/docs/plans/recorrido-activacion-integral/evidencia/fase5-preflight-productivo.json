@@ -1,0 +1,10 @@
+{
+  "resultado": "PASS",
+  "rows": [
+    {
+      "postgres": "17.6",
+      "sla": "OK: nucleo SLA privado, adaptadores dependientes, entradas cerradas y auditadas"
+    }
+  ],
+  "tipo": "solo lectura; historial 509 y seis huellas previas verificados"
+}

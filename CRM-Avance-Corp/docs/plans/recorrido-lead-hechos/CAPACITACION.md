@@ -1,6 +1,6 @@
 # Cómo acreditar el recorrido de un lead
 
-Material para capacitación. Estado: comportamiento objetivo del plan; la puesta en marcha empieza en observación. Mover una tarjeta no acredita un hecho. La exigencia final de conversión se activa por servidor, con política explícita para antiguos.
+Material para capacitación. La puesta en marcha empieza en observación; su estado real se consulta en el [plan integral](../recorrido-activacion-integral/PLAN-Y-ESTADO.md). Mover una tarjeta no acredita un hecho. Al activar la exigencia, esta cubre toda primera conversión pendiente, tanto de leads nuevos como antiguos.
 
 **Regla obligatoria para convertir: asistencia a la cita + entrevista realizada y cerrada con resultado, ambas de la misma cita del ciclo actual.** Gestión y contacto orientan la labor comercial; no añaden un bloqueo si la cita y la entrevista ya están acreditadas.
 
@@ -20,6 +20,7 @@ Material para capacitación. Estado: comportamiento objetivo del plan; la puesta
 - Una anulación posterior a la conversión no deshace automáticamente una inversión ya confirmada.
 - Saltar esta vez omite la siguiente tarea propuesta; no elimina la asistencia ni la entrevista exigidas para convertir.
 - Inversión adicional, renovación y upgrade de clientes actuales conservan su flujo propio.
+- Un lead antiguo también necesita los dos hechos de la misma cita y ciclo. Una cita anterior a la activación sirve si tiene evidencia válida y trazable. La antigüedad por sí sola no permite convertir.
 - Si falla la consulta de progreso, se muestra que no se pudo consultar. Una gestión guardada correctamente sigue guardada y Mi día puede continuar.
 
 Ejemplo de capacitación: llamada sin respuesta → Gestión cumplida y Contacto pendiente. Llamada atendida que agenda cita → Gestión, Contacto y Cita cumplidos. La cita de mañana mantiene Entrevista pendiente. Al realizarla y cerrar su resultado, se puede completar la inversión, sujeto a permisos y controles actuales.
@@ -38,3 +39,5 @@ Ejemplo de capacitación: llamada sin respuesta → Gestión cumplida y Contacto
 El mensaje indica que falta registrar asistencia y entrevista. Vuelve a la ficha, completa el resultado de la cita realizada y retoma **la misma solicitud**. Conserva su capital y comprobante; no hace falta empezar otra inversión. Un acceso Avance creado no significa que la inversión esté confirmada.
 
 La asistencia y la entrevista las declara el analista al cerrar la cita. Regístralas solo cuando ocurrieron; el CRM comprueba el registro, su vínculo y el ciclo, pero no verifica físicamente la visita. Una cita cerrada conserva su fecha e historial.
+
+Si la atención es histórica y aparece «Sin confirmar», el supervisor debe revisar la cita y su resultado. No registrar otra visita ficticia, cambiar fechas de citas cerradas ni marcar entrevistas en lote. Un registro ambiguo permanece pendiente hasta contar con evidencia válida; no tiene una excepción automática. «Llegó sin cita» registra una visita que ocurre ahora, no certifica una visita antigua.

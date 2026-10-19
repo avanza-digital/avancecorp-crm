@@ -1,0 +1,72 @@
+1
+b0000000-0000-4000-8000-000000000002
+
+
+bf1c562e-ed08-4cc3-92a8-34f1fa3e9127
+
+{"modo": "exigir", "motivo": "Ensayo local de cohortes y primera conversion", "revision": 2, "cohorte_desde": "2026-10-19T06:21:45.816738+00:00", "actualizado_en": "2026-10-19T06:21:45.816739+00:00", "actualizado_por": "bf1c562e-ed08-4cc3-92a8-34f1fa3e9127"}
+
+b0000000-0000-4000-8000-000000000002
+
+
+
+
+b0000000-0000-4000-8000-000000000002
+
+
+
+
+b0000000-0000-4000-8000-000000000002
+
+b0000000-0000-4000-8000-000000000002
+
+
+
+
+
+
+
+b0000000-0000-4000-8000-000000000002
+{"ok": true, "fuente": {"vence_en": "2027-10-14", "cierre_id": "c3283549-466d-4025-a54a-2eef5989c21e", "tasa_anual": 12, "plazo_meses": 12, "fecha_comercial": "2026-10-19", "fecha_imputacion": "2026-10-19", "ajuste_mes_cerrado": false}, "empresa": "qorilazo", "lead_id": "e1a6698c-3936-4f36-96e2-1a98dbbee74b", "inversion_id": "36c30242-9cd8-41e5-b745-869a37f8559b", "solicitud_id": "82345aeb-76b0-437c-afde-138a3f6d1c71", "revision_datos": 0, "inversionista_id": "02916b36-6903-435b-b5cc-3f9f6f054862"}
+
+b0000000-0000-4000-8000-000000000002
+
+b0000000-0000-4000-8000-000000000002
+
+b0000000-0000-4000-8000-000000000002
+
+bf1c562e-ed08-4cc3-92a8-34f1fa3e9127
+{"ok": true, "etapa": "nuevo", "lead_id": "ce5d0a96-0c2b-4434-8d42-0c3dc98b3dac", "enlazado": true, "reabierto_en": "2026-10-19T06:21:46.097411+00:00", "reabierto_por": "bf1c562e-ed08-4cc3-92a8-34f1fa3e9127", "inversionista_id": "1f445698-1244-4299-bcb0-a2dd0cd5dde2"}
+
+
+
+on
+
+off
+
+b0000000-0000-4000-8000-000000000002
+
+
+bf1c562e-ed08-4cc3-92a8-34f1fa3e9127
+{"modo": "observacion", "motivo": "Ensayo observacion sin bloqueo comercial", "revision": 3, "cohorte_desde": "2026-10-19T06:21:45.816738+00:00", "actualizado_en": "2026-10-19T06:21:46.117838+00:00", "actualizado_por": "bf1c562e-ed08-4cc3-92a8-34f1fa3e9127"}
+b0000000-0000-4000-8000-000000000002
+{"ok": true, "fuente": {"vence_en": "2027-10-14", "cierre_id": "10d192bb-39cf-43b7-856e-f2a33be580f1", "tasa_anual": 12, "plazo_meses": 12, "fecha_comercial": "2026-10-19", "fecha_imputacion": "2026-10-19", "ajuste_mes_cerrado": false}, "empresa": "qorilazo", "lead_id": "ef72f0c0-2265-4efc-bb96-27a0b5cadc32", "inversion_id": "8fe48bfc-e7d2-4668-ac8e-81e854885832", "solicitud_id": "692acf11-fa85-4a8c-9be4-2f689a6e1652", "revision_datos": 0, "inversionista_id": "9a8b64fb-bc9d-4b4d-b402-ece9a92d7894"}
+bf1c562e-ed08-4cc3-92a8-34f1fa3e9127
+{"modo": "apagado", "motivo": "Ensayo de rollback conservando el corte", "revision": 4, "cohorte_desde": "2026-10-19T06:21:45.816738+00:00", "actualizado_en": "2026-10-19T06:21:46.136028+00:00", "actualizado_por": "bf1c562e-ed08-4cc3-92a8-34f1fa3e9127"}
+{"modo": "exigir", "motivo": "Reactivacion del mismo corte sin exenciones", "revision": 5, "cohorte_desde": "2026-10-19T06:21:45.816738+00:00", "actualizado_en": "2026-10-19T06:21:46.136534+00:00", "actualizado_por": "bf1c562e-ed08-4cc3-92a8-34f1fa3e9127"}
+
+
+
+
+psql:<stdin>:97: NOTICE:  00000: PASS: identidad bloqueada sin hechos, solo etapa, futura o asistencia sin resultado; cita e entrevista sin llamada previa aceptadas
+LOCATION:  exec_stmt_raise, pl_exec.c:3911
+psql:<stdin>:176: NOTICE:  00000: PASS: primera conversion de ambas cooperativas; antiguos requieren hechos reales, nueva solicitud y confirmacion protegidas; borrador conservado
+LOCATION:  exec_stmt_raise, pl_exec.c:3911
+psql:<stdin>:213: NOTICE:  00000: PASS: replay confirmado y fotografia inmutable; inversion adicional sin nueva entrevista
+LOCATION:  exec_stmt_raise, pl_exec.c:3911
+psql:<stdin>:261: NOTICE:  00000: PASS: claim sin Auth no exime; Auth creado con respuesta perdida se recupera, primera conversion sigue bloqueada
+LOCATION:  exec_stmt_raise, pl_exec.c:3911
+psql:<stdin>:284: NOTICE:  00000: PASS: ciclo reabierto exige nuevos hechos; escrituras internas no saltan la defensa de tabla
+LOCATION:  exec_stmt_raise, pl_exec.c:3911
+psql:<stdin>:348: NOTICE:  00000: PASS: observacion y apagado permiten conversion nueva sin hechos; reactivar exige sin reiniciar el corte
+LOCATION:  exec_stmt_raise, pl_exec.c:3911

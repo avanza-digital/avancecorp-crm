@@ -1,0 +1,82 @@
+PASS: vendedor obtiene exactamente su ámbito
+PASS: supervisor obtiene exactamente su ámbito
+PASS: ajeno obtiene exactamente su ámbito
+PASS: ajenoSupervisor obtiene exactamente su ámbito
+PASS: gerencia obtiene exactamente su ámbito
+PASS: coordinacion obtiene exactamente su ámbito
+PASS: directorio obtiene exactamente su ámbito
+PASS: anon no puede consultar el recorrido
+PASS: servicio no puede consultar el recorrido
+PASS: sinMembresia no puede consultar el recorrido
+PASS: inactivoPerfil no puede consultar el recorrido
+PASS: inactivoCrm no puede consultar el recorrido
+PASS: El lote mayor a 100 se rechaza
+PASS: anon no activa el bloqueo
+PASS: servicio no activa el bloqueo
+PASS: supervisor no activa el bloqueo
+PASS: ajenoSupervisor no activa el bloqueo
+PASS: vendedor no activa el bloqueo
+PASS: reemplazo no activa el bloqueo
+PASS: ajeno no activa el bloqueo
+PASS: coordinacion no activa el bloqueo
+PASS: directorio no activa el bloqueo
+PASS: sinMembresia no activa el bloqueo
+PASS: inactivoPerfil no activa el bloqueo
+PASS: inactivoCrm no activa el bloqueo
+PASS: Solo Gerencia activa exigencia y fija corte del servidor
+PASS: Revisión obsoleta devuelve HTTP 409 sin sobrescribir el modo
+PASS: El lead anterior al inicio también requiere asistencia y entrevista
+PASS: La guía declara exigible al lead antiguo sin hechos
+PASS: Primera conversión sin hechos rechazada por API
+PASS: Cambiar de etapa no acredita asistencia ni entrevista
+PASS: Antiguo habilitado por hechos de su cita, sin exención por fecha
+PASS: ajeno no registra visita fuera de su permiso
+PASS: ajenoSupervisor no registra visita fuera de su permiso
+PASS: coordinacion no registra visita fuera de su permiso
+PASS: directorio no registra visita fuera de su permiso
+PASS: sinMembresia no registra visita fuera de su permiso
+PASS: inactivoPerfil no registra visita fuera de su permiso
+PASS: inactivoCrm no registra visita fuera de su permiso
+PASS: anon no registra visita fuera de su permiso
+PASS: servicio no registra visita fuera de su permiso
+PASS: Clave repetida con otro capital rechazada
+PASS: Oficina crea una sola cita y asistencia ante respuesta perdida
+PASS: La API confirma dos hechos de la misma cita y del ciclo vigente
+PASS: Identidad autorizada después de registrar ambos hechos
+PASS: supervisor puede registrar visita dentro de su ámbito
+PASS: gerencia puede registrar visita dentro de su ámbito
+PASS: qorilazo: invalidar entrevista bloquea la confirmación final
+PASS: qorilazo: rechazo conserva borrador, condiciones y referencia del comprobante
+PASS: vendedor: no puede falsificar snapshot de qorilazo
+PASS: servicio: no puede falsificar snapshot de qorilazo
+PASS: qorilazo: confirmación guarda pareja vigente y el reintento no duplica
+PASS: prodelco: invalidar entrevista bloquea la confirmación final
+PASS: prodelco: rechazo conserva borrador, condiciones y referencia del comprobante
+PASS: vendedor: no puede falsificar snapshot de prodelco
+PASS: servicio: no puede falsificar snapshot de prodelco
+PASS: prodelco: confirmación guarda pareja vigente y el reintento no duplica
+PASS: Avance: falta de entrevista impide crear Auth mediante el handler oficial
+PASS: Avance: primera conversión crea contrato y conserva los hechos vigentes
+PASS: vendedor no lee directamente recorrido_control
+PASS: vendedor no escribe directamente recorrido_control
+PASS: vendedor no lee directamente actividad_ciclo_contexto
+PASS: vendedor no escribe directamente actividad_ciclo_contexto
+PASS: gerencia no lee directamente recorrido_control
+PASS: gerencia no escribe directamente recorrido_control
+PASS: gerencia no lee directamente actividad_ciclo_contexto
+PASS: gerencia no escribe directamente actividad_ciclo_contexto
+PASS: servicio no lee directamente recorrido_control
+PASS: servicio no escribe directamente recorrido_control
+PASS: servicio no lee directamente actividad_ciclo_contexto
+PASS: servicio no escribe directamente actividad_ciclo_contexto
+PASS: anon no lee directamente recorrido_control
+PASS: anon no escribe directamente recorrido_control
+PASS: anon no lee directamente actividad_ciclo_contexto
+PASS: anon no escribe directamente actividad_ciclo_contexto
+PASS: Helpers privados tienen owner, SECURITY DEFINER, search_path y ACL cerrados
+PASS: Ni un replay permite leer tras perder ámbito
+PASS: Reasignar conserva el ciclo y los hechos
+PASS: El JWT previo pierde acceso al desactivar la membresía
+PASS: La membresía revocada no puede atender visitas
+PASS: El reemplazo conserva acceso al lead transferido
+HTTP/RLS recorrido: 81 comprobaciones PASS con Auth/PostgREST reales.

@@ -1,0 +1,30 @@
+2027-10-14
+b0000000-0000-4000-8000-000000000002
+bf1c562e-ed08-4cc3-92a8-34f1fa3e9127
+1
+{"modo": "exigir", "motivo": "Exigencia de todas las primeras conversiones pendientes", "revision": 2, "cohorte_desde": "2026-10-19T06:19:43.585913+00:00", "actualizado_en": "2026-10-19T06:19:43.585914+00:00", "actualizado_por": "bf1c562e-ed08-4cc3-92a8-34f1fa3e9127"}
+b0000000-0000-4000-8000-000000000002
+psql:<stdin>:60: ERROR:  P0001: TODOS PENDIENTES: los tres ciclos anteriores están incluidos en la exigencia
+CONTEXT:  PL/pgSQL function pg_temp_5.exigir(boolean,text) line 2 at RAISE
+LOCATION:  exec_stmt_raise, pl_exec.c:3911
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: FAIL: oráculo SQL del recorrido.
+
+3 !== 0
+
+    at file:///private/tmp/hoy-supervisor-goal-20261018/candidato-main/CRM-Avance-Corp/supabase/scripts/recorrido-lead/banco.mjs:68:12
+    at ModuleJob.run (node:internal/modules/esm/module_job:447:25)
+    at async node:internal/modules/esm/loader:646:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 3,
+  expected: 0,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v26.4.0

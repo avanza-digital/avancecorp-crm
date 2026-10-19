@@ -1,0 +1,5 @@
+bf1c562e-ed08-4cc3-92a8-34f1fa3e9127
+{"modo": "exigir", "motivo": "Activacion tecnica autorizada por Miguel: toda primera conversion pendiente requiere asistencia y entrevista de la misma cita y ciclo.", "revision": 2, "cohorte_desde": "2026-10-19T07:31:30.554735+00:00", "actualizado_en": "2026-10-19T07:31:30.554737+00:00", "actualizado_por": "bf1c562e-ed08-4cc3-92a8-34f1fa3e9127"}
+
+psql:<stdin>:54: NOTICE:  00000: PASS: 1 leads pendientes sin hechos rechazados por el guard; ninguna escritura
+LOCATION:  exec_stmt_raise, pl_exec.c:3911

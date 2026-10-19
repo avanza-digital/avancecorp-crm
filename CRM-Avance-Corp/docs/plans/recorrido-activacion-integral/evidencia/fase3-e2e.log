@@ -1,0 +1,8 @@
+npm notice run app@0.0.0 test:e2e:docker
+npm notice run bash scripts/e2e-docker.sh e2e/recorrido-lead.spec.ts e2e/gestion-diaria-clientes.spec.ts e2e/hoy-leads-recibidos.spec.ts e2e/ficha-cliente-cierre.spec.ts e2e/f6-postventa.spec.ts e2e/sla-operacion.spec.ts --workers=2 --retries=0 --output=test-results-recorrido
+E2E en Docker · imagen mcr.microsoft.com/playwright:v1.61.1-noble
+
+Running 42 tests using 2 workers
+··········································
+::notice title=🎭 Playwright Run Summary::  42 passed (1.9m)
+  42 passed (1.9m)

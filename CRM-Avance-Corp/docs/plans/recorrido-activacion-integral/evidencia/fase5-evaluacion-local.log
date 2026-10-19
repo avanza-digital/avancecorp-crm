@@ -1,0 +1,18 @@
+b0000000-0000-4000-8000-000000000002
+
+
+
+
+bf1c562e-ed08-4cc3-92a8-34f1fa3e9127
+psql:<stdin>:114: NOTICE:  00000: PASS: contexto causal inmutable, reloj del servidor y metadata falsificada sin efecto
+LOCATION:  exec_stmt_raise, pl_exec.c:3911
+psql:<stdin>:114: NOTICE:  00000: PASS: asistencia+entrevista vinculadas, sin contacto adicional; futura, no_show, cancelada y sin resultado no habilitan
+LOCATION:  exec_stmt_raise, pl_exec.c:3911
+psql:<stdin>:161: NOTICE:  00000: PASS: historia ambigua, reapertura, reasignacion y llamadas/activacion de base dormida
+LOCATION:  exec_stmt_raise, pl_exec.c:3911
+psql:<stdin>:209: NOTICE:  00000: PASS: roles por arbol, puerta privada cerrada, lotes, modo, revision y cohorte inmutable
+LOCATION:  exec_stmt_raise, pl_exec.c:3911
+psql:<stdin>:244: NOTICE:  00000: PASS: nuevos y antiguos incluidos; reversion sin cambiar la fecha de primera activacion
+LOCATION:  exec_stmt_raise, pl_exec.c:3911
+psql:<stdin>:264: NOTICE:  00000: PASS: eliminacion auditada con y sin contexto, copia v3 y nucleo SLA intacto
+LOCATION:  exec_stmt_raise, pl_exec.c:3911

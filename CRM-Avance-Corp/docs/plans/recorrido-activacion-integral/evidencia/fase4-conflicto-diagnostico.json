@@ -1,0 +1,13 @@
+{
+  "fecha": "2026-10-19T07:04:15.018Z",
+  "causa": "Reintentos de PostgREST v14 por 40001: conflicto de revisión tratado como serialización transitoria",
+  "documentacion": "https://supabase.com/docs/guides/troubleshooting/high-cpu-and-infinite-transaction-retries-when-using-custom-error-codes-in-rpc-functions-77326b",
+  "procesos": [
+    {
+      "pid": 9323,
+      "rol": "authenticator",
+      "inicio": "2026-10-19T07:04:15.053861+00:00",
+      "consulta": "WITH pgrst_source AS (SELECT pgrst_call.pgrst_scalar FROM (SELECT $1 AS json_data) pgrst_payload, LATERAL (SELECT \"p_modo\", \"p_motivo\", \"p_revision\" FROM json_to_record(pgrst_payload.json_data) AS _(\"p_modo\" text, \"p_motivo\" text, \"p_revision\" integer) LIMIT 1) pgrst_body , LATERAL (SELECT \"crm\".\"recorrido_configurar_fn\"(\"p_modo\" := pgrst_body.\"p_modo\", \"p_motivo\" := pgrst_body.\"p_motivo\", \"p_revision\" := pgrst_body.\"p_revision\") pgrst_scalar) pgrst_call) SELECT null::bigint AS total_result_set, 1 AS page_total, coalesce(json_agg(_postgrest_t.pgrst_scalar)->0, 'null') AS body, nullif(current_setting('response.headers', true), '') AS response_headers, nullif(current_setting('response.status', true), '') AS response_status, '' AS response_inserted FROM (SELECT \"recorrido_configurar_fn\".* FROM \"pgrst_source\" AS \"recorrido_configurar_fn\"   LIMIT $2 OFFSET $3) _postgrest_t"
+    }
+  ]
+}

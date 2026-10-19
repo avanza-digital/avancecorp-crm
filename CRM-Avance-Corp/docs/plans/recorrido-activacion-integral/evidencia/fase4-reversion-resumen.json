@@ -1,0 +1,11 @@
+{
+  "fecha": "2026-10-19T07:09:34.558Z",
+  "resultado": "PASS",
+  "modos": [
+    "observacion",
+    "apagado",
+    "exigir"
+  ],
+  "evidenciaYConfirmaciones": "huellas idénticas antes/después",
+  "control": "restaurado exactamente por ROLLBACK"
+}

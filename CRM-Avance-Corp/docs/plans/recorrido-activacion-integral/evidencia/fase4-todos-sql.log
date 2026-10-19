@@ -1,0 +1,26 @@
+2027-10-14
+b0000000-0000-4000-8000-000000000002
+bf1c562e-ed08-4cc3-92a8-34f1fa3e9127
+1
+{"modo": "exigir", "motivo": "Exigencia de todas las primeras conversiones pendientes", "revision": 2, "cohorte_desde": "2026-10-19T06:57:54.46016+00:00", "actualizado_en": "2026-10-19T06:57:54.460165+00:00", "actualizado_por": "bf1c562e-ed08-4cc3-92a8-34f1fa3e9127"}
+b0000000-0000-4000-8000-000000000002
+
+
+
+
+
+
+
+b0000000-0000-4000-8000-000000000002
+
+1
+bf1c562e-ed08-4cc3-92a8-34f1fa3e9127
+{"modo": "exigir", "motivo": "Inicio programado de la exigencia para todos", "revision": 2, "cohorte_desde": "2026-10-19T06:58:01.084389+00:00", "actualizado_en": "2026-10-19T06:57:59.086675+00:00", "actualizado_por": "bf1c562e-ed08-4cc3-92a8-34f1fa3e9127"}
+b0000000-0000-4000-8000-000000000002
+
+b0000000-0000-4000-8000-000000000002
+
+psql:<stdin>:85: NOTICE:  00000: PASS: antiguos y borrador anterior bloqueados por RPC y tabla; sin pérdida del borrador
+LOCATION:  exec_stmt_raise, pl_exec.c:3897
+psql:<stdin>:149: NOTICE:  00000: PASS: inicio futuro coherente en guía y servidor; antiguo incluido al llegar la fecha
+LOCATION:  exec_stmt_raise, pl_exec.c:3897

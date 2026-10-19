@@ -1,3 +1,17 @@
+## 20261019061005–06 — Recorrido: correcciones de la revisión Claude
+
+**CANDIDATO, NO APLICADO EN PRODUCCIÓN.** Los tres conflictos deterministas de acceso Portal ahora responden PT409, conservando autorización, transacciones, token y versión. La fecha de inicio solo se acepta con modo exigir. Huellas previas y posteriores, propietarios, search_path, ACL y SLA comprobados. La hipótesis de bypass por descarte/inactividad se cubre con regresiones SQL/HTTP: el contexto financiero existente rechaza ambos estados y conserva el borrador. Evidencia y resolución: `docs/plans/recorrido-activacion-integral/FASE-5-REVISION.md`.
+
+## 20261019061002–04 — Recorrido: correcciones del ensayo hosted
+
+**CANDIDATO, NO APLICADO EN PRODUCCIÓN.** Índice de `actividad_ciclo_contexto.oficina_tarea_id` para cubrir la FK cuando crezca el historial. El conflicto de revisión de `recorrido_configurar_fn` responde `PT409`/HTTP 409: dos ensayos en la rama reprodujeron los reintentos indefinidos de PostgREST 14 al usar `40001`. Se detuvieron exclusivamente los procesos de esa prueba y se corrigió mediante migraciones aditivas con huellas previas/posteriores y hardening. No cambia la autorización, el modo ni la fecha de activación. La matriz exige el status HTTP y código correctos. Evidencia y estado: `docs/plans/recorrido-activacion-integral/`.
+
+## 20261019061000–01 — Recorrido: todas las primeras conversiones pendientes
+
+**CANDIDATO EN DESARROLLO, NO APLICADO EN PRODUCCIÓN.** Plan de puesta en marcha aprobado el 19/10. Amplía la exigencia a leads antiguos y nuevos todavía pendientes de primera conversión. `cohorte_desde` se conserva en la API como fecha inmutable de inicio global; deja de eximir ciclos por antigüedad. No bloquea antes de una fecha futura programada. Lectura, guard central e INSERT terminal usan ese mismo alcance; inversiones confirmadas y reintentos conservan sus caminos.
+
+Migración aditiva, sin alterar las ocho anteriores. Requiere contratos previos exactos y control todavía sin primera activación. Mantiene modo, permisos, RLS, datos e historial. No acredita hechos antiguos ni fabrica entrevistas. Snapshot de confirmación identifica el alcance. Hardening separado. SQL, concurrencia, 81 HTTP/Auth/RLS locales y 42 E2E Docker PASS. Los dos P2 del auditor RLS se corrigieron y comprobaron. La instalación en rama pasó; cierre del ensayo hosted y Claude se registran en `docs/plans/recorrido-activacion-integral/PLAN-Y-ESTADO.md`.
+
 ## 20261019001702–03 — Recorrido: correcciones de revisión del PR #331
 
 **CANDIDATO LOCAL, NO APLICADO EN PRODUCCIÓN.** Captura `sin_ciclo` cuando falta el ciclo, conservando `base_sin_ciclo` para bases dormidas. Registrar una gestión no inventa el ciclo ni habilita conversión, en ningún modo. Un ciclo reparado después tampoco se apropia de esa actividad. Se conserva el guard de primera conversión y su corte.

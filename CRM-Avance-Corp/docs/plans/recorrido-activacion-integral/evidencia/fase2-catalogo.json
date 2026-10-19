@@ -1,0 +1,38 @@
+[
+  {
+    "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+    "firma": "crm.recorrido_configurar_fn(text,text,integer,timestamp with time zone)",
+    "owner": "postgres",
+    "config": [
+      "search_path=\"\""
+    ],
+    "definer": true
+  },
+  {
+    "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+    "firma": "crm.recorrido_leads_fn(uuid[])",
+    "owner": "postgres",
+    "config": [
+      "search_path=\"\""
+    ],
+    "definer": true
+  },
+  {
+    "acl": "{postgres=X/postgres}",
+    "firma": "private.recorrido_exigir(uuid,text)",
+    "owner": "postgres",
+    "config": [
+      "search_path=\"\""
+    ],
+    "definer": true
+  },
+  {
+    "acl": "{postgres=X/postgres}",
+    "firma": "private.recorrido_insert_convertido_guard()",
+    "owner": "postgres",
+    "config": [
+      "search_path=\"\""
+    ],
+    "definer": true
+  }
+]

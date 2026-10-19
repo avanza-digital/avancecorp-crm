@@ -1,0 +1,77 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+The core rule looks sound within the evidence provided. The server gates (`recorrido_exigir`, the solicitud guard, the conversion trigger and the insert guard) no longer use lead or cycle age. The guide and the server share one start-time predicate, and the scheduled start is checked against `clock_timestamp()`. The 61000 preflight now locks the control row until COMMIT, the hardening rejects any extra grantee, and 61003/61004 apply PT409 safely, check the expected function hash first, and keep the ACL through `CREATE OR REPLACE`. The hosted HTTP/Auth/RLS matrix, the concurrency log and the postflight support installing this candidate in observation mode.
+
+One possible bypass needs an explicit test before the production SQL package is prepared. Exigibility depends on the lead's current `etapa` and `activo`, and those can change without any attendance or interview. I found no blocker for opening the PR or running CodeRabbit.
+
+FINDINGS:
+
+[P1] (Hypothesis, needs a test) Moving a lead with a pending draft to `descartado`, or setting it inactive, may skip the rule at confirmation
+File: `private.recorrido_evaluar(uuid[])` (installed md5 `5ee9a8d4…`), `private.recorrido_exigir` (aa974c79…), `crm.confirmar_inversion_revisada_fn` (33af606a…), `private.conversion_lead_con_inversion` (e8c5fff9…)
+Lines: evaluar L59; exigir L21-24; confirmar L57-64, L200-210; conversion trigger L8-19
+Problem: The only scope test is `aplica = h.activo and h.etapa not in ('convertido','descartado')`. `confirmar_inversion_revisada_fn` checks the solicitud state but never the lead's `etapa` or `activo` before calling `recorrido_exigir`.
+Evidence:
+- In http-matriz L91-93 a vendedor can PATCH `etapa` directly (the test calls this "permitido por el contrato vigente").
+- Possible sequence: draft prepared → PATCH `etapa='descartado'` → confirm. Both the `recorrido_exigir` call in confirmar and the solicitud guard would see `aplica=false`, so `exigible=false`.
+- After that, `update crm.leads set etapa='convertido'` fires the conversion trigger. It sees `old.etapa='descartado'<>'convertido'`. A confirmed solicitud with a vigente first investment exists by then. Its `recorrido_exigir` call reads the stored row, still `descartado`, so it again finds nothing to enforce.
+- Not in the evidence: whether `inversion_persona_contexto_para`, a stage-transition trigger or a descarte trigger blocks `descartado→convertido` or cancels preparada drafts. That is why this is a hypothesis.
+Impact: If it holds, a stage change would exempt a first conversion from attendance and interview. That breaks "Cambiar de columna no acredita hechos" for exactly the old cohort that has drafts.
+Recommendation:
+- Add a SQL test and an HTTP test: preparada draft → `descartado` (and separately `activo=false`) → mode `exigir` → confirm. Expect P0409, or rejection by a pre-existing gate.
+- If it is not rejected, base `aplica` on "no confirmed first conversion yet" for the conversion steps (`p_paso` in confirmar/insertar/convertir/crear_acceso), not on `etapa`. Or reject confirmation when the lead is `descartado` or inactive.
+
+[P2] `crm.acceso_inversion_fn` still raises SQLSTATE 40001 for deterministic business conflicts
+File: `crm.acceso_inversion_fn(uuid,text,jsonb)` (installed md5 `282a3e9f…`, part of this 13-migration package)
+Lines: L44 (solicitud changed identity), L153 (claim changed), L177-178 (stale `version`)
+Problem: This is the same anti-pattern you fixed in 61003. A stale `version` sent by a second tab or after a lost response fails the same way on every attempt. PostgREST 14 treats 40001 as retryable, so it can loop.
+Evidence: Your own hosted finding (infinite retry and backend hang for the stale revision in `recorrido_configurar_fn`) and the Supabase doc you cited. The Edge handler calls this RPC through PostgREST. The matrix only covers the happy path and the missing-interview 409, not a stale `version`.
+Impact: Hanging backends and high CPU in the Portal access flow. Not verified whether the 40001 lines already exist in prod body `38229cbb…`. If they do, this is pre-existing but still ships inside the package being approved.
+Recommendation: Diff the 40001 occurrences against the prod body. Either convert them additively to PT409, or record them explicitly as a pre-existing risk in the approval package with a follow-up. Add one HTTP test with a stale `version` and assert HTTP 409 within a bounded time.
+
+[P3] A scheduled date can be fixed while the mode stays `observacion`
+File: 61000 / installed `crm.recorrido_configurar_fn` L28-29
+Problem: `cohorte_desde=coalesce(cohorte_desde,p_cohorte_desde,…)` applies for any `p_modo`. A call like `('observacion', motivo, rev, now()+1h)` fixes the immutable "first activation" date without activating anything. A later `exigir` then starts immediately, under a date that no longer marks the real first activation.
+Impact: The audit meaning of "fecha inmutable de primera activación" becomes ambiguous. There is no enforcement bypass.
+Recommendation: Reject `p_cohorte_desde` unless `p_modo='exigir'`, or document the behavior in the runbook.
+
+[P3] The hash preflights were validated on PostgreSQL 17.11, while prod runs 17.6
+File: 61000 L13-16, 61003 L12, 61004 L10
+Problem: The hardcoded md5 values of `pg_get_functiondef` were checked on the branch and locally, not on 17.6.
+Impact: These checks fail closed, so the risk is an aborted install, not an unsafe one.
+Recommendation: Add a read-only prod query to the approval package that computes these four md5 values (plus the prior bodies) before `db push`.
+
+[P3] The single control row takes a FOR SHARE lock on every lead INSERT and every `recorrido_exigir` call
+File: `private.recorrido_insert_convertido_guard` L9; `private.recorrido_exigir` L16
+Problem: Bulk lead imports put concurrent row locks on one tuple (multixact churn) and queue behind a pending `configurar` FOR UPDATE.
+Impact: Minor throughput cost and multixact growth. The behavior is correct.
+Recommendation: Optional. Read without a lock when `modo<>'exigir'`, or accept the cost and document it.
+
+TEST GAPS:
+- Draft → `descartado` / `activo=false` → confirm under `exigir` (P1 above), through SQL, HTTP and the Avance `reclamar` step.
+- Stale `version` on `acceso_inversion_fn` → HTTP 409 with bounded latency.
+- Hosted coverage of the insert guard: inserting a lead as `convertido` under `exigir`, before and after a scheduled date.
+- Confirming whether `trg_leads_zzzz_recorrido_insert` has a `WHEN new.etapa='convertido'` clause. The function itself does not check it; that later lead inserts pass after activation suggests it does, but the clause is not shown.
+- The corrupt-cycle case (no cycle row) is local only. Acceptable, but say so in the package.
+- Timing (BEFORE vs AFTER) of the trigger that calls `conversion_lead_con_inversion` is not shown. With AFTER, the in-trigger check would always read `convertido`, so `aplica=false`. The earlier defenses still cover the normal path, but the "última defensa" comment would be misleading.
+
+ARCHITECTURE RISKS:
+- Scope depends on mutable `etapa`/`activo` instead of a fact like "no first conversion confirmed".
+- The hash-gated `replace()` in 61003 is fragile for future edits, though acceptable as one-shot.
+
+SECURITY RISKS:
+- No grant widening found. Private helpers are owner-only, RPCs are `authenticated`-only with role checks, the snapshot column has no API UPDATE, and direct table access is denied. All of this is backed by the 81/81 hosted results.
+
+REGRESSION RISKS:
+- Interviews recorded before install have no `registrado_en`, so once `exigir` is active every pending old lead needs a new real visit. This is intended, but the guide and training must prepare analysts for that load at activation.
+- The 40001 loop in the Portal access flow if it is not addressed (P2).
+
+RECOMMENDED NEXT ACTIONS:
+1. Proceed to PR and CodeRabbit.
+2. Before preparing the production SQL package, add and run the `descartado`/inactive bypass tests. If they confirm the gap, fix it additively with a new migration and hash-gated hardening.
+3. Decide how to handle 40001 in `acceso_inversion_fn`: fix it in this package or document it as pre-existing with a follow-up. Add the stale-version HTTP test.
+4. Add the prod read-only md5 preflight query and the observacion+date rule (fix or document) to the approval package.
+
+CONFIDENCE:
+MEDIUM. The P1 depends on code paths not included in the evidence (`inversion_persona_contexto_para`, stage-transition and descarte triggers).

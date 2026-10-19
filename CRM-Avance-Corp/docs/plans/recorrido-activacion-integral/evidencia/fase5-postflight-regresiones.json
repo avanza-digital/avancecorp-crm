@@ -1,0 +1,32 @@
+{
+  "fecha": "2026-10-19T07:43:28.450Z",
+  "postgres": "17.6 local",
+  "entorno": "historial temporal con las 524 entradas del ensayo; sin modificar ledger real; todos los cambios revertidos",
+  "casos": [
+    {
+      "caso": "correcto",
+      "resultado": "PASS",
+      "esperado": "acepta"
+    },
+    {
+      "caso": "version_sustituida",
+      "resultado": "PASS",
+      "esperado": "rechaza"
+    },
+    {
+      "caso": "nombre_distinto",
+      "resultado": "PASS",
+      "esperado": "rechaza"
+    },
+    {
+      "caso": "contenido_distinto",
+      "resultado": "PASS",
+      "esperado": "rechaza"
+    },
+    {
+      "caso": "indice_ausente",
+      "resultado": "PASS",
+      "esperado": "rechaza"
+    }
+  ]
+}

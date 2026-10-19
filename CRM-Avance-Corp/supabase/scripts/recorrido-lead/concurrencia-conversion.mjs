@@ -126,6 +126,42 @@ try {
   sql('set role postgres;\n' + archivo('../../migrations/20261019001702_crm_recorrido_revision_pr.sql'));
   sql('set role postgres;\n' + archivo('../../migrations/20261019001703_crm_recorrido_revision_pr_hardening.sql'));
   console.log('PASS: replay íntegro de correcciones del PR + hardening, sin alterar migraciones anteriores.');
+  const integral = archivo('../../migrations/20261019061000_crm_recorrido_todos_pendientes.sql');
+  const finPreflight = integral.indexOf('end $$;') + 'end $$;'.length;
+  assert(finPreflight > 'end $$;'.length, 'El preflight integral debe existir.');
+  const preflight = integral.slice(integral.indexOf('do $$'), finPreflight);
+  const revisionPrevia = Number(sql('select revision from crm.recorrido_control where id'));
+  const yaActivo = ejecutar(`${inicio} set local request.jwt.claim.sub=${q(gerente)};
+    select crm.recorrido_configurar_fn('exigir','Activacion previa sintetica',${revisionPrevia});
+    reset role; set local role postgres; ${preflight} rollback;`);
+  assert.notEqual(yaActivo.status, 0); assert.match(yaActivo.stderr, /55000: El alcance integral se instala antes/);
+  assert.equal(sql('select cohorte_desde is null from crm.recorrido_control where id'), 't');
+  // Pausa entre sentencias reales del archivo, manteniendo su transacción.
+  // Una activación concurrente debe esperar a que termine la instalación.
+  const instalar = sesion('instalacion_integral');
+  instalar.enviar('set role postgres;\n' + integral.slice(0, finPreflight) + '\n\\echo LISTO');
+  await marcador(instalar);
+  const activar = sesion('activacion_integral'); activar.enviar(modo('exigir'));
+  await esperaLock(activar);
+  correcto(await instalar.cerrar(integral.slice(finPreflight)));
+  correcto(await activar.cerrar());
+  console.log('PASS: preflight rechaza un control activado y serializa instalación con activación concurrente.');
+  const hardeningIntegral = archivo('../../migrations/20261019061001_crm_recorrido_todos_pendientes_hardening.sql');
+  const grantAjeno = ejecutar(`begin;set local role postgres;
+    grant execute on function private.recorrido_exigir(uuid,text) to pg_monitor;
+    ${hardeningIntegral.replace(/^begin;\s*$/m, '').replace(/^commit;\s*$/m, '')}
+    rollback;`);
+  assert.notEqual(grantAjeno.status, 0); assert.match(grantAjeno.stderr, /Helper expuesto: private.recorrido_exigir/);
+  sql('set role postgres;\n' + hardeningIntegral);
+  console.log('PASS: hardening rechaza también un grant inesperado a un rol fuera de los roles API.');
+  console.log('PASS: replay íntegro del alcance para todos los pendientes + hardening.');
+  sql('set role postgres;\n' + archivo('../../migrations/20261019061003_crm_recorrido_conflicto_http.sql'));
+  sql('set role postgres;\n' + archivo('../../migrations/20261019061004_crm_recorrido_conflicto_http_hardening.sql'));
+  console.log('PASS: replay de conflicto HTTP 409 + hardening, sin reintentos por SQLSTATE 40001.');
+  for (const nombre of ['20261019061005_crm_recorrido_revision_claude.sql', '20261019061006_crm_recorrido_revision_claude_hardening.sql']) {
+    sql('set role postgres;\n' + archivo('../../migrations/' + nombre));
+  }
+  console.log('PASS: replay de ajustes Claude y hardening conserva permisos y contrato.');
   sql("insert into storage.buckets(id,name,public) values('f4-comprobantes','f4-comprobantes',false) on conflict(id) do nothing;");
   sql(modo('exigir'));
   const a = fixture('CONFIRMAR PRIMERO');

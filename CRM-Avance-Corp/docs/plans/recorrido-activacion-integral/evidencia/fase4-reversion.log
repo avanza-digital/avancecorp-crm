@@ -1,0 +1,7 @@
+
+psql:<stdin>:27: NOTICE:  00000: PASS hosted: modo observacion, fecha inmutable y comportamiento del servidor coherente
+LOCATION:  exec_stmt_raise, pl_exec.c:3897
+psql:<stdin>:27: NOTICE:  00000: PASS hosted: modo apagado, fecha inmutable y comportamiento del servidor coherente
+LOCATION:  exec_stmt_raise, pl_exec.c:3897
+psql:<stdin>:27: NOTICE:  00000: PASS hosted: modo exigir, fecha inmutable y comportamiento del servidor coherente
+LOCATION:  exec_stmt_raise, pl_exec.c:3897
