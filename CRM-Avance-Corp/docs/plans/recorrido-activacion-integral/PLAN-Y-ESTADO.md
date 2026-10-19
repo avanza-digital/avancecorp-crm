@@ -29,7 +29,7 @@ Cada fase tiene 6 subfases. Se cierra tras revisión Codex, corrección y revali
 - Fase 2: PASS local / 6 de 6. Ver FASE-2-REGLA.md.
 - Fase 3: PASS local / 6 de 6. SQL, 81 comprobaciones Auth/HTTP/RLS y 42 E2E Docker; ver FASE-3-PRUEBAS.md.
 - Fase 4: PASS / 6 de 6. Instalación de 13 migraciones, 81 HTTP/Auth/RLS hosted, reversión y advisors evaluados; ver FASE-4-ENSAYO-HOSTED.md.
-- Fase 5: EN CURSO. 1/6: Claude entregó CHANGES_REQUESTED; observaciones evaluadas y corregidas, con 99 HTTP/Auth/RLS locales y hosted PASS. PR e integración pendientes. Ver FASE-5-REVISION.md.
+- Fase 5: EN CURSO. 2/6: Claude entregó CHANGES_REQUESTED; observaciones evaluadas y corregidas, con 99 HTTP/Auth/RLS locales y hosted PASS. [PR #332](https://github.com/avanza-digital/avancecorp-crm/pull/332) abierto; CodeRabbit e integración pendientes. Ver FASE-5-REVISION.md.
 - Fases 6–8: PENDIENTES.
 - Producción: backend ausente (0/15 migraciones del paquete integral), guía oculta, bloqueo inactivo.
 - Figma: sección comercial 72:190 del mismo archivo, separada del desarrollo técnico 46:190.
