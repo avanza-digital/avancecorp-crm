@@ -1,0 +1,115 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+La cadena causal del loop principal está bien sustentada. Coinciden tres fuentes: el código adjunto, la semántica de TanStack v5 y una reproducción con control positivo y negativo. La tasa observada en producción también es coherente con el mecanismo. Los cambios que pido son de alcance: completar dos piezas de evidencia antes de afirmar que el fallo «sigue latente en la release actual», y ajustar varias afirmaciones del informe al usuario. La prioridad propuesta (gate de capacidad en frontend y romper el ciclo de montaje, sin tocar permisos ni reglas financieras) es correcta. Abajo va una propuesta concreta de remediación.
+
+FINDINGS:
+
+[P1] Loop de montaje y desmontaje padre/hijo con observación y 403 (confirmado)
+File: `app/src/components/app/condiciones-tasa-lead.tsx`, `app/src/components/app/tasa-politica.tsx`, `app/src/data/crm-queries.ts`
+Lines: condiciones-tasa-lead.tsx:77-87; tasa-politica.tsx:141; crm-queries.ts:166, 971-977
+Problem: el padre y el hijo observan la misma queryKey. El padre desmonta al hijo cuando `isPending` y lo vuelve a montar cuando hay error en modo observación.
+Evidence:
+- Las claves son idénticas. El padre usa `ESTADOS_SOLICITUD_TASA_SEGUIMIENTO` con `{ leadId }`. El hijo, cuando hay `leadId`, usa la misma clave porque `clienteId=""` hace que gane la rama `{ leadId }` (crm-queries.ts:166).
+- En v5, un fetch sin datos previos pone `status: 'pending'` y limpia el error. Entonces la línea 81 devuelve el placeholder y desmonta `TasaPolitica`.
+- Cuando el fetch termina con error, la línea 82 no corta en observación. La línea 87 vuelve a montar el hijo.
+- El hijo es un observador nuevo, sin datos y con la query en error. Con `retryOnMount` en true por defecto, monta y relanza el fetch.
+- `retry:false` (query-client.ts:29) no cubre este caso, porque solo afecta a los reintentos dentro de un mismo fetch.
+- La reproducción da 12 llamadas en 299 ms con 20 ms de latencia simulada. El control con `retryOnMount:false` da 1 llamada y el control en enforcement da 1 llamada.
+- La tasa de producción encaja: unas 140-153/min equivalen a ~400 ms por ciclo, una latencia realista. Además fueron 25 minutos continuos de un único actor contra un único endpoint, sin otros endpoints en los minutos pico. Eso apunta a un drawer abierto y no a acción humana.
+Impact: un solo usuario generó el 86,3 % de los errores HTTP del día y miles de 42501 en la base, con CPU de cliente y red sostenidas. Cualquier actor sin capacidad que abra un lead no terminal con analista puede repetirlo.
+Recommendation: ver la remediación A+B+C más abajo.
+
+[P1] Causa disparadora: el panel se monta para actores sin capacidad de leer tasas
+File: `app/src/components/app/lead-drawer.tsx`
+Lines: 310
+Problem: `SolicitudTasaLeadPlegable` se renderiza con `!esTerminal && tieneAnalista`, sin comprobar la capacidad que exige el servidor (`puede_registrar_ventas OR es_lector_global`). `puedeEditar={puedeConvertir}` solo bloquea la edición.
+Evidence: el actor es coordinador y queda fuera de las dos ramas del guard de `private.solicitudes_tasa_impl`. El 403/42501 es el comportamiento esperado.
+Impact: cada apertura del drawer por un coordinador hace al menos una petición condenada a fallar. En observación esa petición entra en el loop del hallazgo anterior.
+Recommendation: condicionar el montaje (o `habilitada`) a la misma capacidad que usa el servidor. Hay que reutilizar el helper o espejo de permisos que ya exista en el frontend en lugar de codificar roles a mano; la evidencia adjunta no muestra cuál es. No hay que ampliar permisos en la base.
+
+[P2] Evidencia incompleta para afirmar «latente en la release actual» y «misma lógica al mediodía»
+Problem: el `git diff 6479402d..avancecorp/main` adjunto cubre condiciones, tasa y query-client. No cubre `crm-queries.ts` (`useSolicitudesTasa`, `crmQueryKeys.solicitudesTasa`) ni `lead-drawer.tsx`, que es el gate de montaje. Las dos piezas forman parte de la cadena.
+Evidence: la lista de rutas del diff en la solicitud.
+Impact: la conclusión probablemente es cierta, pero hoy no está probada para todo el camino. Tampoco se acredita que la versión de `@tanstack/react-query` empaquetada en el build publicado sea la 5.101.2 reproducida: se cita el «rango del lock», no el resolved del lock ni el bundle.
+Recommendation: ampliar el diff a `crm-queries.ts` y `lead-drawer.tsx`, y citar la versión resuelta del lockfile del commit publicado. Hasta entonces, redactarlo como «reproducido sobre main a980bb71; altamente probable en la release publicada».
+
+[P2] Las P0409 se exponen como HTTP 500 (hipótesis, confianza media)
+File: funciones `preparar_persona_lead_inversion_fn` / `confirmar_inversion_revisada_fn`
+Evidence: 102 P0409 («falta asistencia o entrevista») frente a 84+9+2 respuestas 500. PostgREST mapea los SQLSTATE de clase `P0` distintos de `P0001` a 500. Este mapeo no está verificado en la evidencia adjunta.
+Impact: una validación de negocio esperada aparece como fallo del servidor. Infla la métrica de errores y oculta 500 reales. No es un loop, coincido con el PRIMARY.
+Recommendation: tarea separada. Usar un código o hint que PostgREST traduzca a 4xx (por ejemplo, `PT409` u otro mecanismo vigente) y asegurar que el frontend lo trata como validación. No mezclarlo con el fix del loop.
+
+[P2] Edges asíncronas de cron con 401 (notificar-pagos, ciclo-contratos)
+Evidence: pg_net registra 401 mientras el SQL del job termina bien.
+Impact: puede haber notificaciones o ciclos de contrato que no se ejecutaron hoy, con impacto real en negocio. La causa no está establecida.
+Recommendation: investigación separada, solo lectura: qué credencial o secreto envía el job y si rotó o caducó. Hasta verificarlo, informar como «falló de punta a punta», no como «cron sano».
+
+[P3] 404 de recorrido_leads_fn hasta las 09:39 Lima
+Coincido con la interpretación de un desfase de despliegue (el frontend antes que la función). La distinción OPTIONS/POST está bien hecha. Recomiendo una regla de orden de despliegue: backend/RPC primero y frontend después. Sin el cuerpo de la respuesta, debe quedar como «consistente con», no como causa probada.
+
+[P3] crm-tipo-cambio 502 (14) y 3 logs de supavisor sin leer
+Sin causa establecida. Basta mencionarlo como pendiente, sin atribuirlo.
+
+REMEDIACIÓN PROPUESTA (alcance acotado, solo frontend):
+
+- **A. Gate de capacidad** (`lead-drawer.tsx:310`). Montar `SolicitudTasaLeadPlegable` solo si el actor puede registrar ventas o es lector global, con un helper existente que espeje al servidor. El servidor sigue siendo la autoridad. Hay que decidir la UX del coordinador: ocultar el panel, o mostrar un aviso estático sin consulta.
+
+- **B. No desmontar al hijo en un refetch tras error** (`condiciones-tasa-lead.tsx:81`). El placeholder solo debe mostrarse en la carga inicial real. Opciones:
+  - `q.isPending && q.errorUpdateCount === 0`;
+  - en observación, una vez hubo error, seguir renderizando `CondicionesEditables`.
+
+  Alternativa más limpia, pero de mayor alcance: pasar el resultado de la query del padre a `TasaPolitica` cuando hay `leadId`, para no duplicar el observador. Hay que evaluarla porque `TasaPolitica` también se usa con `clienteId`.
+
+- **C. Defensa en profundidad** (`crm-queries.ts:971`). Añadir `retryOnMount: false` en `useSolicitudesTasa`, no en el `queryClient` global: el cambio global tiene un radio de regresión que no está revisado.
+  - Efecto secundario aceptable: si el drawer se reabre dentro de `gcTime` (5 min) tras un error, no hay refetch automático. Se recupera con «Reintentar condiciones» en enforcement, o con el `refetchInterval` del hijo en observación.
+  - Opcional: clasificar 403/42501 como error de permiso terminal, con su propio estado de UI.
+
+- **No tocar:** RLS, grants, `puede_registrar_ventas`, `politica_rentabilidad`, el modo observación ni las reglas de tasa.
+
+Orden recomendado: B+C (rompen el loop para cualquier causa de error) y después A (elimina la petición inútil). Pueden ir en el mismo PR.
+
+TEST GAPS / REGRESSION GATES:
+Los tests de producto actuales mockean `useSolicitudesTasa` y no pueden ver el ciclo de vida de los observadores. Los gates deben:
+- usar un `QueryClient` real construido con los mismos `defaultOptions` de `lib/query-client.ts` (exportar una factoría para no duplicarlos);
+- mockear solo `listarSolicitudesTasa`;
+- usar fake timers.
+
+Casos:
+1. Observación + 403: exactamente 1 llamada tras avanzar ≥2 s, y el hijo queda montado.
+2. Enforcement + 403: 1 llamada y se ve la alerta. «Reintentar» produce exactamente 1 llamada más.
+3. Carga correcta: 1 llamada, se renderiza `CondicionesEditables` con `inicial` y el polling de 60 s funciona.
+4. Pending → éxito sin parpadeo de desmontaje: el hijo se monta una sola vez.
+5. Error → refetch correcto en observación: el hijo no se desmonta y los datos se actualizan.
+6. Coordinador: 0 llamadas y panel ausente o con aviso, según la UX elegida. Si el lead es terminal o no tiene analista, 0 llamadas.
+7. Paso de enforcement a observación con el drawer abierto: sin loop.
+8. Opcional: un e2e de Playwright que cuente las peticiones a `solicitudes_tasa_lead_fn` con la ruta mockeada a 403 y exija ≤2 en 10 s.
+
+Gate adicional recomendado: una alerta de observabilidad cuando un único actor supere N 403/min en un endpoint.
+
+ARCHITECTURE RISKS:
+- Hay dos observadores de la misma clave en componentes anidados, y el padre controla el montaje del hijo según el estado de esa misma query. El patrón es frágil y puede repetirse en otros paneles. Conviene buscar con CodeGraph otros casos de padre que hace `return placeholder` con `isPending` y un hijo que usa la misma clave.
+
+SECURITY RISKS:
+- No hay escalada. El servidor negó correctamente. El riesgo de seguridad está en un «fix» que amplíe permisos; el PRIMARY ya lo descarta y coincido.
+
+REGRESSION RISKS:
+- `retryOnMount` global afectaría a todas las queries. Mantenerlo local.
+- El gate A, si el helper no espeja exactamente al servidor, puede ocultar el panel a roles legítimos (admin/analista/supervisor/gerencia/directorio). Hay que testear cada rol.
+
+PITFALLS DEL INFORME AL USUARIO:
+- No decir «el servidor estuvo caído o sobrecargado». Solo hay una foto sana al momento de la auditoría y no hay historial de CPU/RAM.
+- No sumar HTTP con Postgres ni afirmar una relación uno a uno.
+- Dejar claro que el 86 % de los errores salió de una sesión de un coordinador por un bug de frontend, no por la base ni por el cron.
+- No llamar «loop» a los 500 ni a los 404.
+- Marcar como «causa no establecida» los 401 de pg_net, los 502 de tipo de cambio y supavisor.
+- No incluir PII del actor.
+
+RECOMMENDED NEXT ACTIONS:
+1. Ampliar el diff a `crm-queries.ts` y `lead-drawer.tsx` y citar la versión resuelta de TanStack en el lock del commit publicado.
+2. Implementar B+C+A con los gates 1-7 en un único PR, sin tocar el backend.
+3. Abrir dos tareas separadas: 401 de las edges de cron (prioridad alta por impacto en negocio) y mapeo P0409→4xx.
+
+CONFIDENCE:
+HIGH en el mecanismo del loop y la remediación; MEDIUM en «latente en la release publicada» hasta cerrar el P2 de evidencia.

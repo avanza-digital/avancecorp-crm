@@ -1,0 +1,39 @@
+{
+  "before": "6479402d",
+  "after": "a980bb719bdefa8939f8ff4fe205395edc62c4d7",
+  "checks": {
+    "app/src/components/app/condiciones-tasa-lead.tsx": {
+      "same_complete_file": true
+    },
+    "app/src/components/app/tasa-politica.tsx": {
+      "same_complete_file": true
+    },
+    "app/src/lib/query-client.ts": {
+      "same_complete_file": true
+    },
+    "hook": {
+      "file": "app/src/data/crm-queries.ts",
+      "same_fragment": true,
+      "sha256": "9de8df713ff7b202cbfc3c19a4ddcd82e2c2c81195494e50caca12b2bf7b712a",
+      "fragment": "export function useSolicitudesTasa(estados: EstadoSolicitudTasa[] | null, habilitada: boolean, refrescarCadaMs: number | false = false, opciones?: OpcionesSolicitudesTasa) {\n  return useQuery({\n    queryKey: crmQueryKeys.solicitudesTasa(estados, opciones),\n    queryFn: ({ signal }) => listarSolicitudesTasa(estados, signal, opciones),\n    enabled: habilitada,\n    refetchInterval: refrescarCadaMs,\n  })\n}"
+    },
+    "query_key": {
+      "file": "app/src/data/crm-queries.ts",
+      "same_fragment": true,
+      "sha256": "82701251e4ac1b6cb718102ba9e82ebd3184c3d422f36f60bf09afdfd6443ec0",
+      "fragment": "  solicitudesTasa: (estados: readonly string[] | null, opciones?: OpcionesSolicitudesTasa) =>\n    [...crmQueryKeys.rentabilidad(), 'solicitudes', estados ? [...estados].sort().join(',') : 'todas', opciones?.soloMias ? 'mias' : 'ambito', opciones?.clienteId ?? 'todos', opciones?.limite ?? 200, ...(opciones?.leadId ? ['lead', opciones.leadId] : [])] as const,"
+    },
+    "mount_gate": {
+      "file": "app/src/components/app/lead-drawer.tsx",
+      "same_fragment": true,
+      "sha256": "4afdf0e4eb4650a16196c89a25f36eed4bcd281db01c82ea4f0ddd872c86090f",
+      "fragment": "        {!esTerminal && tieneAnalista && <SolicitudTasaLeadPlegable lead={l} demo={Boolean(yo?.demo)} puedeEditar={puedeConvertir} onCambio={setCondicionesLead} />}"
+    },
+    "resolved_versions": {
+      "react": "19.2.7",
+      "@tanstack/react-query": "5.101.2",
+      "@supabase/supabase-js": "2.110.2",
+      "vitest": "4.1.11"
+    }
+  }
+}

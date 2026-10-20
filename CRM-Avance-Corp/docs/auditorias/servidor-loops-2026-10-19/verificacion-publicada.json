@@ -1,0 +1,46 @@
+{
+  "time_utc": "2026-10-20T04:39:54.995049Z",
+  "source": {
+    "commit": "a980bb719bdefa8939f8ff4fe205395edc62c4d7",
+    "worktree_sucio": false,
+    "cambios": []
+  },
+  "files": [
+    {
+      "path": "index.html",
+      "sha256_live": "6365a70063a6e58f812e1fc2bef5f3648919d3d5179de0540f09afb73d4cf1eb",
+      "sha256_zip": "6365a70063a6e58f812e1fc2bef5f3648919d3d5179de0540f09afb73d4cf1eb",
+      "matches_manifest": true
+    },
+    {
+      "path": "assets/index-CqtHOqKz.js",
+      "sha256_live": "f3ff13116cc033e3a0b4faa7efaf27e328832efdfc0d47ca2e69f5c1c5732a6c",
+      "sha256_zip": "f3ff13116cc033e3a0b4faa7efaf27e328832efdfc0d47ca2e69f5c1c5732a6c",
+      "matches_manifest": true
+    },
+    {
+      "path": "assets/data-vendor-hxr3O6zl.js",
+      "sha256_live": "32460896bd4d259fbcae9279756ae62767cd3ae5d370fbb16361ce5f6ceb353a",
+      "sha256_zip": "32460896bd4d259fbcae9279756ae62767cd3ae5d370fbb16361ce5f6ceb353a",
+      "matches_manifest": true
+    },
+    {
+      "path": "assets/react-vendor-BXy-oECh.js",
+      "sha256_live": "b2afb358dc57c4cf68025302de03ee54bff6694c93558199ea6e8fbc312b0f18",
+      "sha256_zip": "b2afb358dc57c4cf68025302de03ee54bff6694c93558199ea6e8fbc312b0f18",
+      "matches_manifest": true
+    },
+    {
+      "path": "assets/crm-queries-e_oPOo2Z.js",
+      "sha256_live": "7234c1acd04df5d12890b743e51c1b222c3026a077a85e0dd57380b5255221e9",
+      "sha256_zip": "7234c1acd04df5d12890b743e51c1b222c3026a077a85e0dd57380b5255221e9",
+      "matches_manifest": true
+    },
+    {
+      "path": "assets/query-client-F7qUvsfC.js",
+      "sha256_live": "3fa23bcf8ea7958932aaeb6ac03464a78153ac2d3e1c37aabca22b76f79b2596",
+      "sha256_zip": "3fa23bcf8ea7958932aaeb6ac03464a78153ac2d3e1c37aabca22b76f79b2596",
+      "matches_manifest": true
+    }
+  ]
+}

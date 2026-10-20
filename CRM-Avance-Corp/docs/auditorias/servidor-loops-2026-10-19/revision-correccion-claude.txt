@@ -1,0 +1,77 @@
+VERDICT: CHANGES_REQUESTED
+
+SUMMARY:
+The core fix is correct and well targeted. Coordinación no longer mounts `SolicitudTasaLeadPlegable`, and the capability is explicit for every role and for null/undefined. The two-observer loop is broken in two places: `retryOnMount: false` and an `enabled` predicate that turns off auto-fetch after a permission error. Enforcement still fails closed and keeps its manual retry. Observation keeps the draft during later pending states. Directorio stays read-only. The tests cover the production failure with the real hook and a negative control. Neither backend nor RLS access expands.
+
+I found one actionable correctness problem (P2-1). It comes from the normalizer folding `PGRST301` into the same code as 42501. There is also one scope issue (P2-2) and some weak test assertions (P3). Neither P2 is a release blocker for stopping the Oct 19 errors. Both are cheap to fix now, before they turn into a support issue.
+
+FINDINGS:
+
+[P2-1] A JWT-expiry error now silently and permanently stops solicitudes polling for authorized roles
+File: `CRM-Avance-Corp/app/src/data/crm-queries.ts` (hunk @@ -967), together with the `crm-api.ts` normalizer (~2743)
+Problem: The `enabled` guard disables auto-fetch on `SIN_PERMISO`. The normalizer maps both `42501` and `PGRST301` to `SIN_PERMISO`. In PostgREST, `PGRST301` is a JWT error: an expired or undecodable token, sent as HTTP 401. It is not a policy denial.
+Evidence:
+- Normalizer: `codigoPg === '42501' || codigoPg === 'PGRST301'` → `code = 'SIN_PERMISO'`.
+- Guard: `!['SIN_PERMISO','42501'].includes(codigoDeError(...))`.
+- Recovery paths named in the diff comment are explicit `refetch()` or "Auth limpia la caché al cambiar sesión". A successful token refresh is not a session change, so no `AUTH_CLEARED_EVENT` fires.
+- In observation mode the panel renders no retry button. Only the `!observacion && q.isError` branch shows "Reintentar condiciones".
+Impact (hypothesis on frequency; the mechanism follows from the code shown): A request can race an expired token, for example on laptop wake or tab resume before supabase-js refreshes. After that, a seller or supervisor in observation mode gets a query with no polling, no focus/reconnect refresh, no invalidation refresh and no visible retry. That lasts until gc (5 min with no observers) or logout. Pending-solicitud status in the ficha then stops updating without any notice. Before this diff, the next poll or focus event would have recovered.
+Recommendation: Make the stop condition specific to a real authorization denial. Options:
+- (a) Have the normalizer keep the original `codigoPg` or HTTP status on `CrmApiError` and stop only on 42501/403.
+- (b) Exclude `PGRST301` by checking status 401 vs 403 if `CrmApiError` already carries it.
+Add one unit case asserting that a `PGRST301`/401 error does not disable auto-refetch.
+
+[P2-2] `retryOnMount: false` changes behaviour for every consumer of `useSolicitudesTasa`, not only the lead panel
+File: `CRM-Avance-Corp/app/src/data/crm-queries.ts` (same hunk)
+Problem: `useSolicitudesTasa` is the shared Rentabilidad hook. Its docstring and the `refrescarCadaMs`/`opciones` parameters point to other consumers, such as the approval tray and notifications. The `enabled` guard is reasonable for all of them, because a 403 should never poll. `retryOnMount: false`, however, also suppresses the mount-time retry after transient errors such as NETWORK_ERROR or 5xx.
+Evidence: In TanStack v5, `shouldLoadOnMount` skips fetching when `status === 'error' && retryOnMount === false` and there is no data. The option is set unconditionally in the hook.
+Impact: Consider a screen that does not poll and has no retry button. Before this change, navigating away and back after a transient failure recovered automatically. Now it keeps the error until focus, reconnect or gc. That is a quiet regression outside the stated scope ("fix the lead panel loop").
+Recommendation: Do one of the following:
+- Confirm that every `useSolicitudesTasa` call site either polls or renders an explicit retry, and record that list.
+- Pass `retryOnMount` through `OpcionesSolicitudesTasa` and set it only from `CondicionesTasaLeadPanel`/`SolicitudTasaLeadPlegable`.
+
+Either way keeps the loop fix, because the shared key's parent and child both come from that panel.
+
+[P3-1] The query-cache assertion in the drawer tests may be vacuous
+File: `CRM-Avance-Corp/app/src/components/app/lead-drawer-datos.test.tsx` (new `describe('Ficha · lectura de condiciones de tasa')`)
+Problem: `q.queryKey.includes('solicitudes')` is an exact-element match on the array. If `crmQueryKeys.solicitudesTasa` yields something like `['crm','rentabilidad','solicitudes-tasa',…]`, the filter never matches and `toHaveLength(0)` passes no matter what.
+Evidence: The key shape is not included in the evidence. The consultas test invalidates through `crmQueryKeys.rentabilidad()` as a prefix, so the actual segment name is unconfirmed.
+Recommendation: Either:
+- match the prefix with `crmQueryKeys.solicitudesTasa(...)` via `partialMatchKey` or `queryCache.findAll({ queryKey: … })`, or
+- assert directly that the mocked `listarSolicitudesTasa` was never called.
+
+Check it once against original main: the cache assertion on its own should fail there.
+
+[P3-2] Some E2E call counts are read synchronously, so they can miss late requests
+File: `CRM-Avance-Corp/app/e2e/tasa-lead-sin-bucle.spec.ts`
+Problem: `expect(consultas).toBe(0)` and `toBe(1)` run right after `page.clock.fastForward(...)` or an action, with nothing waiting for network idle. An in-flight extra request could land after the assertion. For the "0 calls" and "still 1 call" checks, that race makes the test pass.
+Recommendation: Before counting, wait for a deterministic UI settle, or run `page.waitForLoadState('networkidle')` and a short real-time drain. Alternatively, assert with `expect.poll(() => consultas)` over a bounded window that the count stays fixed.
+
+[P3-3] The docstring lost its polling semantics
+File: `crm-queries.ts`, docstring of `useSolicitudesTasa`
+Problem: The old text said "Se refresca solo mientras hay pendientes que esperar", which described what `refrescarCadaMs` is for. The new docstring only describes the 403 behaviour.
+Recommendation: Keep both sentences.
+
+TEST GAPS:
+- No test covers `PGRST301`/401 being treated differently from a real 403 (see P2-1).
+- No inventory or test of other `useSolicitudesTasa` consumers under coordinator or transient errors. For coordinator, the `enabled` guard bounds any such consumer to one call per cache lifetime, so a new loop is not possible. It would still emit the occasional 403 line in the error dashboard.
+- Enforcement mode with a transient error and a later refetch: the parent still shows the loader and unmounts the draft. This was pre-existing and is acceptable as fail-closed, but it is undocumented in the tests.
+
+ARCHITECTURE RISKS:
+- `verSolicitudesTasa` is a UX capability, not a security boundary. That is correct given the user's constraint; the backend 42501 stays the source of truth. The comment in `roles.ts` already states the intent.
+
+SECURITY RISKS:
+- None introduced. Access only narrows: the coordinator no longer requests the data, and there are no SQL, RLS or API changes.
+
+REGRESSION RISKS:
+- P2-1: seller or supervisor polling can stall silently after a token-expiry race.
+- P2-2: other solicitudes screens lose the auto-retry on mount after transient errors.
+- The full gate is not yet confirmed. `pipeline-columnas-demo.test.tsx:130` passing in isolation but failing in the full run looks like an order-dependent flake unrelated to this diff, but treat it as unresolved until the final full-gate result is reported.
+
+RECOMMENDED NEXT ACTIONS:
+1. Narrow the `enabled` stop condition to real 403/42501 denials (keep the raw code or status on `CrmApiError`), and add a `PGRST301` unit case.
+2. Either scope `retryOnMount: false` to the lead-panel call site, or document that every other consumer polls or exposes a retry.
+3. Harden the drawer cache assertion and the synchronous E2E counts, then rerun the full `npm run check` and report its real result.
+
+CONFIDENCE:
+MEDIUM. The loop fix, role gating and recovery logic are well supported by the diff and the TanStack v5 semantics. P2-1's frequency and P2-2's set of affected call sites depend on code that was not included: `codigoDeError`, the `CrmApiError` fields, the other `useSolicitudesTasa` consumers and the `crmQueryKeys.solicitudesTasa` shape.

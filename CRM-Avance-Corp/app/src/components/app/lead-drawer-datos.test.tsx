@@ -11,6 +11,7 @@ import {
   StoreDataContext,
 } from '@/lib/store-context'
 import type { PanelesActions, ResultadoMut, StoreDataApi } from '@/lib/store'
+import type { Rol } from '@/lib/roles'
 import type { EtapaActiva, Lead, Tarea } from '@/lib/tipos'
 import { LeadDrawer, Timeline } from './lead-drawer'
 
@@ -56,6 +57,7 @@ const SESION: AuthContextValue = {
 }
 
 function montar({
+  rol = 'vendedor',
   lead = {},
   resultadoEditar = { ok: true },
   avance,
@@ -67,6 +69,7 @@ function montar({
   persistenciaAnulacion,
   retroceso,
 }: {
+  rol?: Rol
   lead?: Partial<Lead>
   resultadoEditar?: ResultadoMut
   /** Etapa a la que sube el lead SOLO por registrar la actividad (avance automático). */
@@ -129,7 +132,7 @@ function montar({
 
   render(
     <QueryClientProvider client={queryClient}>
-      <AuthContext.Provider value={SESION}>
+      <AuthContext.Provider value={{ ...SESION, yo: { ...SESION.yo!, rol } }}>
         <StoreDataContext.Provider value={api}>
           <PanelStateContext.Provider
             value={{ leadAbiertoId: l.id, nuevoLeadAbierto: false, etapaInicial: 'nuevo', telefonoInicial: null }}
@@ -143,7 +146,7 @@ function montar({
     </QueryClientProvider>,
   )
 
-  return { editarLead, registrarActividad, crearTarea, anularTarea }
+  return { editarLead, registrarActividad, crearTarea, anularTarea, queryClient }
 }
 
 function montarComposerSla({
@@ -885,5 +888,28 @@ describe('F5a · ficha de un contacto de base cargada', () => {
     expect(screen.getAllByText('S/ 5,000').length).toBeGreaterThan(0)
     expect(screen.queryByText(/Sin capital estimado/)).not.toBeInTheDocument()
     expect(screen.queryByText('Base cargada')).not.toBeInTheDocument()
+  })
+})
+
+
+describe('Ficha · lectura de condiciones de tasa', () => {
+  it('Coordinación no monta el apartado ni registra consultas de solicitudes', () => {
+    const { queryClient } = montar({ rol: 'coordinador' })
+    expect(screen.getByRole('heading', { name: LEAD.nombre_completo })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Mostrar solicitud de tasa' })).not.toBeInTheDocument()
+    expect(queryClient.getQueryCache().getAll().filter(q => q.queryKey.includes('solicitudes'))).toHaveLength(0)
+  })
+
+  it.each(['vendedor', 'supervisor', 'gerencia', 'directorio'] as const)('%s conserva la lectura del apartado', (rol) => {
+    const { queryClient } = montar({ rol })
+    expect(screen.getByRole('button', { name: 'Mostrar solicitud de tasa' })).toBeInTheDocument()
+    expect(queryClient.getQueryCache().getAll().filter(q => q.queryKey.includes('solicitudes'))).toHaveLength(1)
+    if (rol === 'directorio') expect(screen.queryByRole('button', { name: /Convertir a cliente/ })).not.toBeInTheDocument()
+  })
+
+  it.each([{ etapa: 'convertido' }, { etapa: 'descartado', motivo_descarte: 'sin_interes' }, { vendedor_id: null }] as const)('no consulta tasas para un lead sin contexto operativo: %j', (lead) => {
+    const { queryClient } = montar({ lead })
+    expect(screen.queryByRole('button', { name: 'Mostrar solicitud de tasa' })).not.toBeInTheDocument()
+    expect(queryClient.getQueryCache().getAll().filter(q => q.queryKey.includes('solicitudes'))).toHaveLength(0)
   })
 })

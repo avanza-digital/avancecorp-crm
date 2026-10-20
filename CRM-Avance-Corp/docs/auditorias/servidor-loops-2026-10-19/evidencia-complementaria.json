@@ -1,0 +1,105 @@
+{
+  "method_counts": {
+    "result": [
+      {
+        "method": "POST",
+        "n": 110634,
+        "status": "200"
+      },
+      {
+        "method": "GET",
+        "n": 11655,
+        "status": "200"
+      },
+      {
+        "method": "OPTIONS",
+        "n": 7230,
+        "status": "200"
+      },
+      {
+        "method": "POST",
+        "n": 1757,
+        "status": "403"
+      },
+      {
+        "method": "POST",
+        "n": 123,
+        "status": "404"
+      },
+      {
+        "method": "POST",
+        "n": 98,
+        "status": "500"
+      },
+      {
+        "method": "POST",
+        "n": 53,
+        "status": "400"
+      },
+      {
+        "method": "PATCH",
+        "n": 52,
+        "status": "200"
+      },
+      {
+        "method": "POST",
+        "n": 51,
+        "status": "201"
+      },
+      {
+        "method": "POST",
+        "n": 21,
+        "status": "204"
+      },
+      {
+        "method": "POST",
+        "n": 5,
+        "status": "502"
+      }
+    ]
+  },
+  "recorrido_methods": {
+    "result": [
+      {
+        "first_utc": "2026-10-19T14:39:20.586000",
+        "last_utc": "2026-10-20T03:08:24.837000",
+        "method": "POST",
+        "n": 4283,
+        "status": "200"
+      },
+      {
+        "first_utc": "2026-10-19T13:35:48.621000",
+        "last_utc": "2026-10-20T03:08:24.744000",
+        "method": "OPTIONS",
+        "n": 152,
+        "status": "200"
+      },
+      {
+        "first_utc": "2026-10-19T05:25:17.052000",
+        "last_utc": "2026-10-19T14:39:04.148000",
+        "method": "POST",
+        "n": 123,
+        "status": "404"
+      },
+      {
+        "first_utc": "2026-10-19T20:36:40.993000",
+        "last_utc": "2026-10-19T20:36:40.993000",
+        "method": "POST",
+        "n": 1,
+        "status": "502"
+      }
+    ]
+  },
+  "supavisor_errors": {
+    "result": [
+      {
+        "event_message": "ClientHandler: Exchange error: password authentication failed for user \"cli_login_postgres\"",
+        "n": 3
+      },
+      {
+        "event_message": "ClientHandler: Validation secrets changed, cache updated, deleting upstream auth",
+        "n": 3
+      }
+    ]
+  }
+}
