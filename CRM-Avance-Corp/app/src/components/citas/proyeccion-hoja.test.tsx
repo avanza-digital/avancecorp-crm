@@ -663,11 +663,15 @@ describe('Proyección con reuniones con clientes sin lead', () => {
 
 // Fase 3: en el celular (< 768 px) la hoja se vuelve tarjetas, con el mismo estado (orden, embudos y listas).
 describe('Proyección en el celular: tarjetas', () => {
+  /** Ancho simulado de la ventana: cada `max-width` se resuelve contra él. */
+  let ancho = 390
   beforeEach(() => {
-    vi.stubGlobal('matchMedia', (consulta: string) => ({
-      matches: consulta.includes('max-width: 767px') || consulta.includes('prefers-reduced-motion'), media: consulta,
-      addEventListener: () => {}, removeEventListener: () => {},
-    }))
+    ancho = 390
+    vi.stubGlobal('matchMedia', (consulta: string) => {
+      const maximo = /max-width: (\d+)px/.exec(consulta)
+      return { matches: maximo ? ancho <= Number(maximo[1]) : consulta.includes('prefers-reduced-motion'), media: consulta,
+        addEventListener: () => {}, removeEventListener: () => {} }
+    })
   })
   afterEach(() => { vi.unstubAllGlobals() })
 
@@ -681,6 +685,9 @@ describe('Proyección en el celular: tarjetas', () => {
   const nombresTarjetas = (lista: HTMLElement) => tarjetas(lista).map(t => t.querySelector('.pc-tarjeta-nombre')!.textContent)
   const tarjeta = (lista: HTMLElement, nombre: string) => tarjetas(lista).find(t => t.querySelector('.pc-tarjeta-nombre')!.textContent === nombre)!
   const filtros = () => screen.getByRole('button', { name: /^Filtros/ })
+  /** La lista lateral en el celular: una tarjeta por cita. */
+  const citasDe = (detalle: HTMLElement) => within(within(detalle).getByRole('list')).getAllByRole('listitem')
+  const citaDe = (detalle: HTMLElement, persona: string) => citasDe(detalle).find(li => li.querySelector('.pc-persona')!.textContent === persona)!
 
   it('una tarjeta por analista en el orden de la hoja, con el Total primero; cada cifra es botón (salvo ceros y «—») y abre la misma lista', async () => {
     const { usuario, lista } = await abrirTarjetas()
@@ -703,15 +710,60 @@ describe('Proyección en el celular: tarjetas', () => {
     await usuario.click(within(ana).getByRole('button', { name: '4 citas de Ana Torres' }))
     let detalle = screen.getByRole('dialog', { name: 'Citas · Ana Torres' })
     expect(within(detalle).getByTestId('pc-detalle-conteo')).toHaveTextContent('1–19 oct 2026 · 4 citas')
-    expect(within(detalle).getAllByRole('row')).toHaveLength(5)
+    // La lista lateral también es de tarjetas: una por cita, sin tabla que deslizar de lado.
+    expect(within(detalle).queryByRole('table')).not.toBeInTheDocument()
+    expect(citasDe(detalle)).toHaveLength(4)
     await usuario.click(within(detalle).getByRole('button', { name: 'Cerrar lista' }))
     const total = tarjeta(lista, 'Total · 3 analistas')
     await usuario.click(within(total).getByRole('button', { name: '1 cita con cliente de todos los analistas' }))
     detalle = screen.getByRole('dialog', { name: 'Citas con clientes · Total' })
-    expect(within(detalle).getByRole('row', { name: /Persona d1/ })).toHaveTextContent('Diego Salas')
+    expect(citaDe(detalle, 'Persona d1')).toHaveTextContent('Diego Salas')
     await usuario.keyboard('{Escape}')
     await usuario.click(within(ana).getByRole('button', { name: /^% Conv\. de Ana Torres: 50%/ }))
-    expect(within(screen.getByRole('dialog', { name: 'Entrevistas que cerraron cliente · Ana Torres' })).getAllByRole('row')).toHaveLength(2)
+    expect(citasDe(screen.getByRole('dialog', { name: 'Entrevistas que cerraron cliente · Ana Torres' }))).toHaveLength(1)
+  })
+
+  it('la lista lateral pinta una tarjeta por cita con los mismos datos de la tabla y la persona abre su ficha', async () => {
+    const onAbrirLead = vi.fn()
+    const usuario = userEvent.setup()
+    render(<ContextoCitas value={{ ...fuente, onAbrirLead }}><TableroCitas /></ContextoCitas>)
+    await usuario.click(screen.getByRole('tab', { name: 'Proyección' }))
+    const lista = screen.getByRole('list', { name: 'Proyección de citas por analista · 1–19 oct 2026' })
+    await usuario.click(within(tarjeta(lista, 'Total · 3 analistas')).getByRole('button', { name: '7 citas de todos los analistas' }))
+    const detalle = screen.getByRole('dialog', { name: 'Citas · Total' })
+    expect(within(detalle).getByRole('list', { name: 'Citas · Total' })).toBeVisible()
+    // El mismo orden que la tabla: por fecha y hora de la cita (aquí todas a la misma hora, así que por código), no el de llegada.
+    expect(citasDe(detalle).map(li => li.querySelector('.pc-persona')!.textContent)).toEqual(
+      ['Persona a1', 'Persona a2', 'Persona a3', 'Persona a4', 'Persona d1', 'Persona d2', 'Persona l1'])
+    // Los mismos datos que la fila de la tabla, en el mismo orden; con varios analistas, también el analista.
+    const a2 = citaDe(detalle, 'Persona a2')
+    expect(within(a2).getAllByRole('term').map(dt => dt.textContent)).toEqual(['Creada', 'Cita', 'Analista', 'Estado', 'Monto'])
+    expect(within(a2).getAllByRole('definition').map(dd => dd.textContent)).toEqual(['03 oct. 2026', '10 oct. 2026 · 10:00', 'Ana Torres', 'Realizada', 'US$ 2,000 ·S/ 7,500'])
+    expect(a2.querySelector('.pc-origen')).toHaveTextContent('Lead')
+    expect(citaDe(detalle, 'Persona a3').querySelector('.pc-origen')).toHaveTextContent('Referido')
+    expect(within(citaDe(detalle, 'Persona a4')).getAllByRole('definition').at(-1)).toHaveTextContent('—')
+    await usuario.click(within(a2).getByRole('button', { name: 'Persona a2' }))
+    await vi.waitFor(() => expect(onAbrirLead).toHaveBeenCalledWith('lead-a2', 'a2'))
+    expect(screen.queryByRole('dialog', { name: 'Citas · Total' })).not.toBeInTheDocument()
+    // La lista de un solo analista no repite su nombre en cada tarjeta.
+    await usuario.click(within(tarjeta(lista, 'Ana Torres')).getByRole('button', { name: '4 citas de Ana Torres' }))
+    expect(within(citaDe(screen.getByRole('dialog', { name: 'Citas · Ana Torres' }), 'Persona a1')).getAllByRole('term').map(dt => dt.textContent)).toEqual(['Creada', 'Cita', 'Estado', 'Monto'])
+  })
+
+  it('en una tablet la hoja sigue siendo tabla, pero su lista lateral usa tarjetas hasta 1 079 px porque la tabla no cabe en el panel', async () => {
+    for (const [px, enTarjetas] of [[900, true], [1079, true], [1080, false], [1440, false]] as const) {
+      cleanup()
+      ancho = px
+      const { usuario, hoja } = await abrirProyeccion()
+      await usuario.click(within(fila(hoja, 'Ana Torres')).getByRole('button', { name: '4 citas de Ana Torres' }))
+      const detalle = screen.getByRole('dialog', { name: 'Citas · Ana Torres' })
+      if (enTarjetas) {
+        expect(within(detalle).queryByRole('table'), `${px} px`).not.toBeInTheDocument()
+        expect(citasDe(detalle), `${px} px`).toHaveLength(4)
+      } else {
+        expect(within(detalle).getAllByRole('row'), `${px} px`).toHaveLength(5)
+      }
+    }
   })
 
   it('«Ordenar por» y «Filtros» usan el mismo orden y los mismos embudos de la hoja', async () => {
@@ -779,7 +831,7 @@ describe('Proyección en el celular: tarjetas', () => {
     expect(within(tarjeta(lista, 'Total · 3 analistas')).getByRole('group', { name: 'Citas por semana de todos los analistas' })).toBeVisible()
     await usuario.click(within(semanas).getByRole('button', { name: '1 cita de Ana Torres, S2 8–14 oct' }))
     const detalle = screen.getByRole('dialog', { name: 'Citas · S2 8–14 oct · Ana Torres' })
-    expect(within(detalle).getByRole('row', { name: /Persona a4/ })).toBeVisible()
+    expect(citaDe(detalle, 'Persona a4')).toBeVisible()
     await usuario.keyboard('{Escape}')
     await usuario.click(tiempo('Días'))
     const dias = within(tarjeta(lista, 'Luis Vega')).getByRole('group', { name: 'Citas por día de Luis Vega' })

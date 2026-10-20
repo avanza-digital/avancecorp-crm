@@ -148,6 +148,37 @@ test('Proyección: la hoja pinta una fila por analista, un número abre su lista
   await expect(lista.locator('tbody tr')).toHaveCount(4)
   await page.keyboard.press('Escape')
   await expect(lista).toHaveCount(0)
+  // En escritorio la tabla del total (con la columna Analista) cabe entera en el panel: nada que deslizar de lado.
+  await hoja.getByRole('button', { name: '10 citas de todos los analistas' }).click()
+  const listaTotal = page.getByRole('dialog', { name: 'Citas · Total' })
+  await expect(listaTotal.locator('tbody tr')).toHaveCount(10)
+  const desborde = () => listaTotal.locator('table').evaluate(t => t.parentElement!.scrollWidth - t.parentElement!.clientWidth)
+  expect(await desborde()).toBeLessThanOrEqual(0)
+  // En una tablet (la hoja sigue siendo tabla) la tabla ya no cabe: la lista pasa a tarjetas, y vuelve a tabla al ensanchar.
+  await page.setViewportSize({ width: 1024, height: 900 })
+  await expect(listaTotal.locator('table')).toHaveCount(0)
+  await expect(listaTotal.getByRole('listitem')).toHaveCount(10)
+  expect(await listaTotal.locator('.pc-citas').evaluate(el => el.parentElement!.scrollWidth - el.parentElement!.clientWidth)).toBeLessThanOrEqual(0)
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await expect(listaTotal.locator('tbody tr')).toHaveCount(10)
+  // El peor contenido posible en cada columna (nombre sin espacios, estado más largo, millones en dólares con su
+  // conversión) parte línea pero no ensancha la tabla, ni a 1 440 px ni en el umbral de 1 080 px.
+  await listaTotal.locator('tbody tr').evaluateAll(filas => { for (const tr of filas) {
+    tr.querySelector('.pc-persona')!.textContent = 'INVERSIONESINMOBILIARIASINTERNACIONALESDELASAMERICASSAC'
+    tr.querySelector('.pc-lista-analista')!.textContent = 'MARIAFERNANDAGUTIERREZDELACRUZYMONTOYA'
+    tr.querySelector('.pc-estado')!.textContent = 'Cancelada por sistema'
+    tr.querySelector('.pc-num')!.innerHTML = '<span class="pc-m">US$ 1,000,000,000 ·</span><span>S/ 3,750,000,000</span>'
+    tr.querySelector('.pc-origen')!.textContent = 'Referido'
+    tr.cells[0]!.textContent = '30 sept. 2026'
+    tr.cells[1]!.textContent = '30 sept. 2026 · 23:59'
+  } })
+  expect(await desborde()).toBeLessThanOrEqual(0)
+  await page.setViewportSize({ width: 1080, height: 900 })
+  await expect(listaTotal.locator('tbody tr')).toHaveCount(10)
+  expect(await desborde()).toBeLessThanOrEqual(0)
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.keyboard.press('Escape')
+  await expect(listaTotal).toHaveCount(0)
 
   const conversion = hoja.getByRole('button', { name: /^% Conv\. de ANALISTA UNO: 50%/ })
   await conversion.click()
@@ -280,7 +311,23 @@ test('Proyección: el mes sin citas muestra la hoja vacía sin errores y en el c
   await uno.getByRole('button', { name: '4 citas de ANALISTA UNO' }).click()
   const lista = page.getByRole('dialog', { name: 'Citas · ANALISTA UNO' })
   await expect(lista.getByTestId('pc-detalle-conteo')).toHaveText('1–19 oct 2026 · 4 citas')
-  await expect(lista.locator('tbody tr')).toHaveCount(4)
+  // La lista lateral también es de tarjetas: todo a la vista sin deslizar de lado, nombre a 16 px y detalle a 14 px.
+  await expect(lista.locator('table')).toHaveCount(0)
+  const citas = lista.getByRole('list', { name: 'Citas · ANALISTA UNO' }).getByRole('listitem')
+  await expect(citas).toHaveCount(4)
+  const cuerpo = lista.locator('.pc-citas')
+  expect(await cuerpo.evaluate(el => el.parentElement!.scrollWidth - el.parentElement!.clientWidth)).toBeLessThanOrEqual(0)
+  for (const derecha of await citas.evaluateAll(lis => lis.map(li => li.getBoundingClientRect().right))) expect(derecha).toBeLessThanOrEqual(390)
+  const tamanos = await citas.evaluateAll(lis => lis.flatMap(li => [...li.querySelectorAll('.pc-persona, dt, dd, .pc-estado, .pc-origen, .pc-m')]
+    .map(e => ({ que: e.classList[0] ?? e.tagName, px: parseFloat(getComputedStyle(e).fontSize) }))))
+  expect(tamanos.filter(t => t.que === 'pc-persona').map(t => t.px)).toEqual([16, 16, 16, 16])
+  expect(tamanos.filter(t => t.px < 14)).toEqual([])
+  await page.screenshot({ path: info.outputPath('proyeccion-lista-390.png') })
+  // A 320 px tampoco se desliza de lado.
+  await page.setViewportSize({ width: 320, height: 800 })
+  expect(await cuerpo.evaluate(el => el.parentElement!.scrollWidth - el.parentElement!.clientWidth)).toBeLessThanOrEqual(0)
+  for (const derecha of await citas.evaluateAll(lis => lis.map(li => li.getBoundingClientRect().right))) expect(derecha).toBeLessThanOrEqual(320)
+  await page.setViewportSize({ width: 390, height: 844 })
   await page.keyboard.press('Escape')
   await expect(lista).toHaveCount(0)
   // Días: la fila de tramos se desplaza dentro de la tarjeta, nunca la página.
