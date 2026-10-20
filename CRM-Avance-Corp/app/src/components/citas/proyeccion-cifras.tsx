@@ -17,9 +17,10 @@ function Cifra({ cantidad, texto, etiqueta, onAbrir, dinero = false }: { cantida
   return <button type="button" className="pc-n" aria-label={`${texto} ${etiqueta}`} onClick={onAbrir}>{contenido}</button>
 }
 
-/** Ticket cita y Proyectado: derivados, no listas; «—» sin base. */
-function Derivada({ valor }: { valor: number | null }) {
-  return <span className={cn('pc-n', valor === null && 'pc-cero')}>{valor === null ? '—' : <><span className="pc-m" aria-hidden>S/</span>{numero(valor)}</>}</span>
+/** Ticket cita y Proyectado citas: se calculan con las citas con lead y abren esa lista (Codex 19/10: «todo número se abre»); «—» sin base. */
+function Derivada({ valor, etiqueta, base, onAbrir }: { valor: number | null; etiqueta: string; base: number; onAbrir: () => void }) {
+  if (valor === null) return <span className={cn('pc-n', 'pc-cero')}>—</span>
+  return <Cifra cantidad={base} texto={soles(valor)} etiqueta={etiqueta} onAbrir={onAbrir} dinero />
 }
 
 /** La cifra de una columna para una fila (`nombre`: el analista o «todos los analistas»). */
@@ -30,10 +31,10 @@ export function CifraColumna({ columna, m, nombre, objetivos, abrir }: {
   switch (columna) {
     case 'citas': return <Cifra cantidad={m.citas.length} texto={numero(m.citas.length)} etiqueta={`${etiquetaCitas('citas', m.citas.length)} ${de}`} onAbrir={() => abrir('citas')} />
     case 'monto': return <Cifra cantidad={m.conMonto.length} texto={m.pendienteTc ? 'Pendiente de TC' : m.conMonto.length ? soles(m.monto) : '—'} etiqueta={`en citas ${de}`} onAbrir={() => abrir('monto')} dinero />
-    case 'ticket': return <Derivada valor={m.ticket} />
+    case 'ticket': return <Derivada valor={m.ticket} base={m.citasConLead.length} etiqueta={`de ticket cita ${de}`} onAbrir={() => abrir('conLead')} />
     case 'entrevistas': return <SenalMetrica valor={m.pctEntrevistas} objetivo={objetivos.entrevistas} etiqueta={`% Entrev. ${de}`} abrir={m.entrevistas.length ? () => abrir('entrevistas') : undefined} />
     case 'conversion': return <SenalMetrica valor={m.pctConversion} objetivo={objetivos.conversion} etiqueta={`% Conv. ${de}`} abrir={m.convertidas.length ? () => abrir('conversion') : undefined} />
-    case 'proyectado': return <Derivada valor={m.proyectado} />
+    case 'proyectado': return <Derivada valor={m.proyectado} base={m.citasConLead.length} etiqueta={`proyectado en citas ${de}`} onAbrir={() => abrir('conLead')} />
     default: {
       const origen = ORIGEN_DE_COLUMNA[columna]!
       const n = m[columna].length

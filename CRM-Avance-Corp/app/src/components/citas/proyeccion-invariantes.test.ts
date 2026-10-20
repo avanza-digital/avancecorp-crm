@@ -419,6 +419,22 @@ describe('Invariantes con reuniones con clientes sin lead', () => {
     expect(hoja.total.convertidas.length).toBeGreaterThan(0)
   })
 
+  it('«Citas del periodo» (= citas del total) son exactamente las de las filas visibles, con embudos combinados de personas, moneda y Mín/Máx', () => {
+    // Codex (19/10, Fase 3): el CSV del periodo se arma con las citas del total; esto fija que ese total es la unión
+    // exacta de las filas que se ven, también con varios embudos a la vez.
+    const COMBINADOS: FiltrosColumnas[] = [
+      { personas: { lead: ['lead:lead-2', 'lead:lead-3', 'lead:lead-5'] }, monedas: ['PEN'], rangos: { citas: { min: 1 } } },
+      { analistas: ['ana', 'luis', 'sofia'], personas: { cliente: ['persona:p2', 'oculta:r10'] }, rangos: { monto: { max: 60_000 } } },
+      { monedas: ['USD'], rangos: { entrevistas: { min: 0 }, citas: { max: 40 } } },
+    ]
+    for (const columnas of COMBINADOS) {
+      const hoja = calcularProyeccion(conReuniones(OCTUBRE), columnas)
+      expect(ids(hoja.total.citas)).toEqual(ids(hoja.filas.flatMap(f => f.citas)))
+      // Con un embudo de moneda activo, las reuniones (sin moneda) quedan fuera; ninguna cita viola el embudo.
+      if (columnas.monedas) for (const c of hoja.total.citas) expect(columnas.monedas).toContain(c.cita.moneda)
+    }
+  })
+
   it.each(RANGOS)('Citas = Referidos + Clientes + Leads y las columnas de tiempo suman Citas, con reuniones ($desde → $hasta)', rango => {
     for (const tiempo of TIEMPOS) {
       for (const m of filasYTotal(calcularProyeccion(conReuniones(rango, { tiempo })))) {

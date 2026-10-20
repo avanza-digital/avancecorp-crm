@@ -23,11 +23,12 @@ export const COLUMNAS: readonly { id: ColumnaProyeccion; titulo: string; corto: 
 export const CIFRAS = COLUMNAS.filter((c): c is (typeof COLUMNAS)[number] & { id: ColumnaNumerica } => c.id !== 'analista')
 export const ORIGEN_DE_COLUMNA: Partial<Record<ColumnaProyeccion, OrigenCita>> = { referidos: 'referido', clientes: 'cliente', leads: 'lead' }
 
-export type TipoLista = 'citas' | 'monto' | 'entrevistas' | 'conversion' | OrigenCita
+/** «conLead»: la base de Ticket cita y Proyectado citas (todo número se abre, también los calculados). */
+export type TipoLista = 'citas' | 'monto' | 'entrevistas' | 'conversion' | 'conLead' | OrigenCita
 /** Abre la lista de una cifra; `tramo`, la de una columna de tiempo. */
 export type AbrirLista = (tipo: TipoLista, tramo?: string) => void
 export const TITULOS_LISTA: Record<TipoLista, string> = {
-  citas: 'Citas', monto: 'Monto en citas', entrevistas: 'Entrevistas', conversion: 'Entrevistas que cerraron cliente',
+  citas: 'Citas', monto: 'Monto en citas', entrevistas: 'Entrevistas', conversion: 'Entrevistas que cerraron cliente', conLead: 'Citas con lead',
   referido: 'Citas de referidos', cliente: 'Citas con clientes', lead: 'Citas con leads',
 }
 const ETIQUETAS_CITAS: Record<'citas' | OrigenCita, [string, string]> = {
@@ -35,7 +36,7 @@ const ETIQUETAS_CITAS: Record<'citas' | OrigenCita, [string, string]> = {
   cliente: ['cita con cliente', 'citas con clientes'], lead: ['cita con lead', 'citas con leads'],
 }
 export const etiquetaCitas = (tipo: 'citas' | OrigenCita, n: number) => ETIQUETAS_CITAS[tipo][n === 1 ? 0 : 1]
-export const listaDe = (m: MetricasProyeccion, tipo: TipoLista) => tipo === 'citas' ? m.citas : tipo === 'monto' ? m.conMonto
+export const listaDe = (m: MetricasProyeccion, tipo: TipoLista) => tipo === 'citas' ? m.citas : tipo === 'monto' ? m.conMonto : tipo === 'conLead' ? m.citasConLead
   : tipo === 'entrevistas' ? m.entrevistas : tipo === 'conversion' ? m.convertidas : m[COLUMNA_DE_ORIGEN[tipo]]
 /** Orden de toda lista de citas (y de su CSV): fecha y hora de la cita; a igualdad, el código. */
 export const porFechaDeCita = (a: CitaProyectada, b: CitaProyectada) =>

@@ -168,7 +168,7 @@ button.pc-persona:hover { color: var(--accent-press); text-decoration: underline
 .pc-tarjeta-tramos { display: flex; gap: 4px; margin: 10px -14px 0; padding: 0 14px 2px; overflow-x: auto; overscroll-behavior-x: contain; scroll-padding-inline: 14px; scrollbar-width: thin; }
 .pc-tarjeta-tramos .pc-tiempo { display: flex; flex: 0 0 auto; flex-direction: column; align-items: center; min-width: 50px; padding: 4px 4px 2px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); }
 .pc-tarjeta-tramos .pc-tiempo-cab { display: flex; flex-direction: column; align-items: center; color: var(--primary); font-size: 14px; font-weight: 600; line-height: 1.15; white-space: nowrap; }
-.pc-tarjeta-tramos .pc-tiempo-cab small { color: var(--muted-foreground-strong); font-size: 13px; font-weight: 500; }
+.pc-tarjeta-tramos .pc-tiempo-cab small { color: var(--muted-foreground-strong); font-size: 14px; font-weight: 500; }
 .pc-tarjeta-tramos .pc-n { justify-content: center; min-width: 40px; margin: 0; padding: 0 6px; font-size: 16px; font-weight: 600; }
 .pc-tarjeta-tramos .pc-cero { font-weight: 400; }
 .pc-tarjeta-tramos .pc-domingo { background: color-mix(in srgb, var(--primary) 5%, white); }

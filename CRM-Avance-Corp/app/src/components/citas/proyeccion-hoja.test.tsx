@@ -73,7 +73,7 @@ function capturarDescargas() {
 const codigos = (filas: string[]) => filas.map(f => f.slice(1, f.indexOf('"', 1)))
 
 describe('Pestaña Proyección de Citas', () => {
-  it('pinta una hoja plana, una fila por analista y # continuo; toda cifra es botón, salvo los ceros y los derivados', async () => {
+  it('pinta una hoja plana, una fila por analista y # continuo; toda cifra es botón (también Ticket cita y Proyectado citas), salvo ceros y «—»', async () => {
     const { hoja } = await abrirProyeccion()
     expect(screen.getByRole('tab', { name: 'Proyección' })).toHaveAttribute('aria-selected', 'true')
     // Sin bandas por equipo ni pastillas de totales: la fila Σ da los totales.
@@ -82,7 +82,6 @@ describe('Pestaña Proyección de Citas', () => {
     expect(hoja.querySelectorAll('tr.pc-fila')).toHaveLength(3)
     expect([...hoja.querySelectorAll('tr.pc-fila td.pc-n0')].map(td => td.textContent)).toEqual(['1', '2', '3'])
     // Columnas: # · Citas · Monto · Ticket · % Entrev. · % Conv. · Proyectado · Referidos · Clientes · Leads
-    const DERIVADAS = [3, 6]
     for (const tr of hoja.querySelectorAll<HTMLTableRowElement>('tr.pc-fila')) {
       const celdas = within(tr).getAllByRole('cell')
       expect(celdas).toHaveLength(10)
@@ -91,12 +90,15 @@ describe('Pestaña Proyección de Citas', () => {
         const texto = celda.textContent!.trim()
         // La señal añade su estado para el lector («0% · Brecha alta»): cuenta la cifra.
         const sinValor = ['0', '—', '0%'].includes(texto.replace(/ · .*$/, ''))
-        expect(within(celda).queryByRole('button') !== null, `${tr.textContent} · columna ${columna}`).toBe(!sinValor && !DERIVADAS.includes(columna))
+        expect(within(celda).queryByRole('button') !== null, `${tr.textContent} · columna ${columna}`).toBe(!sinValor)
       })
     }
     const ana = fila(hoja, 'Ana Torres')
     expect(within(ana).getByRole('button', { name: '4 citas de Ana Torres' })).toBeVisible()
     expect(within(ana).getByRole('button', { name: 'S/ 37,500 en citas de Ana Torres' })).toBeVisible()
+    // Codex (19/10): «todo número se abre»; Ticket cita y Proyectado citas abren su base, las citas con lead.
+    expect(within(ana).getByRole('button', { name: /^S\/ 9,375 de ticket cita de Ana Torres$/ })).toBeVisible()
+    expect(within(ana).getByRole('button', { name: /proyectado en citas de Ana Torres$/ })).toBeVisible()
     // % Entrev. como Resultados: 2 realizadas ÷ 3 resueltas (la programada a4 no es base).
     expect(within(ana).getByRole('button', { name: /^% Entrev\. de Ana Torres: 66\.7%/ })).toBeVisible()
     expect(within(fila(hoja, 'Luis Vega')).getAllByRole('cell')[4]).toHaveTextContent('— · Sin base para evaluar')
@@ -680,7 +682,7 @@ describe('Proyección en el celular: tarjetas', () => {
   const tarjeta = (lista: HTMLElement, nombre: string) => tarjetas(lista).find(t => t.querySelector('.pc-tarjeta-nombre')!.textContent === nombre)!
   const filtros = () => screen.getByRole('button', { name: /^Filtros/ })
 
-  it('una tarjeta por analista en el orden de la hoja, con el Total primero; cada cifra es botón (salvo ceros y derivados) y abre la misma lista', async () => {
+  it('una tarjeta por analista en el orden de la hoja, con el Total primero; cada cifra es botón (salvo ceros y «—») y abre la misma lista', async () => {
     const { usuario, lista } = await abrirTarjetas()
     expect(screen.queryByRole('table', { name: /Proyección de citas por analista/ })).not.toBeInTheDocument()
     expect(nombresTarjetas(lista)).toEqual(['Total · 3 analistas', 'Ana Torres', 'Diego Salas', 'Luis Vega'])
@@ -692,7 +694,7 @@ describe('Proyección en el celular: tarjetas', () => {
       for (const par of t.querySelectorAll<HTMLElement>('dl > div')) {
         const texto = within(par).getByRole('definition').textContent!.trim().replace(/ · .*$/, '')
         const sinValor = ['0', '—', '0%'].includes(texto)
-        expect(within(par).queryByRole('button') !== null, `${t.textContent} · ${par.dataset.col}`).toBe(!sinValor && !['ticket', 'proyectado'].includes(par.dataset.col!))
+        expect(within(par).queryByRole('button') !== null, `${t.textContent} · ${par.dataset.col}`).toBe(!sinValor)
       }
     }
     // El semáforo de % Entrev. y % Conv. se conserva.
@@ -785,5 +787,18 @@ describe('Proyección en el celular: tarjetas', () => {
     expect(dias.querySelector('.pc-hoy .sr-only')).toHaveTextContent('lun 19 oct')
     expect(within(dias).getByRole('button', { name: '1 cita de Luis Vega, 18 oct' })).toBeVisible()
     expect(screen.getByRole('button', { name: 'Exportar' })).toBeEnabled()
+  })
+})
+
+describe('Proyección: Ticket cita y Proyectado citas abren su base', () => {
+  it('abren la lista de las citas con lead de la fila (sin las reuniones con clientes sin lead)', async () => {
+    const { usuario, hoja } = await abrirProyeccion()
+    await usuario.click(within(fila(hoja, 'Ana Torres')).getByRole('button', { name: /de ticket cita de Ana Torres$/ }))
+    let lista = screen.getByRole('dialog', { name: 'Citas con lead · Ana Torres' })
+    expect(within(lista).getByTestId('pc-detalle-conteo')).toHaveTextContent('· 4 citas')
+    await usuario.keyboard('{Escape}')
+    await usuario.click(within(fila(hoja, 'Ana Torres')).getByRole('button', { name: /proyectado en citas de Ana Torres$/ }))
+    lista = screen.getByRole('dialog', { name: 'Citas con lead · Ana Torres' })
+    expect(within(lista).getAllByRole('row')).toHaveLength(5)
   })
 })
