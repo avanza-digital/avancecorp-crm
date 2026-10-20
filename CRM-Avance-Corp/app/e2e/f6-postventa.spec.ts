@@ -299,7 +299,7 @@ test('un rechazo de postventa no cierra una ficha F5 que sigue autorizada',async
   await expect(page.getByRole('button',{name:'Cerrar ficha',exact:true}).last()).toBeVisible()
 })
 
-test('el cierre de la ficha aparece con resultado en Resumen, Registro y Citas de gerencia',async({page},info)=>{
+test('el cierre de la ficha aparece con resultado en Gestión Diaria, Registro y Citas de gerencia',async({page},info)=>{
   const s=await montarF6(page,'gerencia');await abrir(page);await agendar(page,'Entrevista para renovar')
   Object.assign(s.tareas[0]!,{tipo:'reunion',modalidad_reunion:'virtual'})
   await page.reload()
@@ -308,7 +308,8 @@ test('el cierre de la ficha aparece con resultado en Resumen, Registro y Citas d
   await page.getByLabel('Detalle de la gestión').fill('Entrevista realizada; propuesta de renovación enviada')
   await page.getByRole('button',{name:'Guardar gestión',exact:true}).click()
   await expect(page.getByText('Entrevista registrada. La agenda está actualizada.')).toBeVisible()
-  await page.evaluate(()=>{window.location.hash='#/hoy'})
+  await page.evaluate(()=>{window.location.hash='#/gestion-diaria'})
+  await page.getByRole('button',{name:'Gestión de clientes',exact:true}).click()
   const resumen=page.getByRole('region',{name:'Gestión de leads y clientes',exact:true})
   await expect(resumen.getByRole('row',{name:'Clientes 0 0 1 1',exact:true})).toBeVisible()
   await resumen.getByRole('button',{name:'Ver gestiones',exact:true}).click()
@@ -319,6 +320,10 @@ test('el cierre de la ficha aparece con resultado en Resumen, Registro y Citas d
   await registro.getByRole('button',{name:'ANA SINTÉTICA F5',exact:true}).click()
   await expect(page.getByText('Información del cliente',{exact:true})).toBeVisible()
   await page.getByRole('button',{name:'Cerrar ficha',exact:true}).last().click()
+  await page.keyboard.press('Escape')
+  await expect(registro).toHaveCount(0)
+  await page.keyboard.press('Escape')
+  await expect(resumen).toHaveCount(0)
   await page.getByRole('navigation').getByRole('button',{name:'Citas',exact:true}).click()
   const citas=page.getByRole('region',{name:'Citas de clientes',exact:true})
   await expect(citas.getByText('Entrevista realizada',{exact:true})).toBeVisible()
