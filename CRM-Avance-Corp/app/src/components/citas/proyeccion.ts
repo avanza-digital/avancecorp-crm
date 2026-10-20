@@ -5,22 +5,26 @@
 // Desde–Hasta de la pestaña y, si se eligió, del supervisor de su barra. El
 // analista se acota con el embudo de su columna. Las citas llegan del servidor por
 // mes de su fecha prevista; la pantalla carga cada mes del rango y los fusiona
-// antes de llegar aquí.
+// antes de llegar aquí. La cohorte decide Citas, Monto, Ticket cita, las columnas
+// de tiempo y el ritmo del Proyectado.
 //
-// «No puede haber data distinta» (Miguel, 19/10/2026): % Entrev. y % Conv. usan
-// las MISMAS reglas que Resultados (`calcularAvanceCitas`): entrevistas ÷ citas
-// resueltas y el vínculo entrevista → venta por fecha comercial y por DUEÑO de la
-// venta (`atribucion.ts`, compartido con Resultados).
+// «No puede haber data distinta» (Miguel, 19 y 20/10/2026): % Entrev. y % Conv.
+// son los de Resultados, calculados por el MISMO código (`resultados-periodo.ts`)
+// con el rango como periodo: cuentan las citas cuyo RESULTADO cae en el rango
+// (aunque se crearan antes) y las ventas con fecha comercial en él. Con el rango
+// de un mes, cada analista y el total dan lo mismo que Resultados de ese mes.
 //
 // Reuniones con CLIENTES sin lead (Fase 0b, decisión de Miguel 19/10/2026): son
-// citas de origen Cliente. Cuentan en Citas, Clientes, las columnas de tiempo y
-// % Entrev.; no tienen monto ni se «convierten», así que Monto, Ticket cita,
-// % Conv. y Proyectado siguen siendo los de las citas con lead, sin cambio.
-import type { ControlCitas } from '@/lib/control-citas'
+// citas de origen Cliente. Cuentan en Citas, Clientes y las columnas de tiempo;
+// no tienen monto, no son de Resultados ni se «convierten»: Monto, Ticket cita,
+// % Entrev., % Conv. y Proyectado no las usan (Miguel, 20/10/2026).
+import type { GestionMensualCitas } from '@/lib/gestion-citas'
 import { tcAplicable } from '@/lib/capital-unificado'
 import { usdAPen } from '@/lib/tipo-cambio'
-import { enAmbito, reglaDueno, ventaCierraEntrevista, type AmbitoAnalistas } from './atribucion'
+import { enAmbito, type AmbitoAnalistas } from './atribucion'
 import { fechaLocalCitas } from './fecha-comercial'
+import type { LeadBaseCitas } from './metas'
+import { asignadosDeLaMeta, resultadosDelPeriodo, rosterDeAnalistas, type AnalistaRoster } from './resultados-periodo'
 import { ESTADOS, normalizar, type CitaEjemplo, type FiltrosCitas } from './modelo'
 import { diasEntre, errorRango, tramosDelRango, type RangoProyeccion, type TiempoProyeccion, type TramoProyeccion } from './proyeccion-rango'
 
@@ -41,12 +45,12 @@ export interface ConversionProyeccion {
   analista_id: string | null
   /** Su supervisor: decide si la venta entra en el ámbito del supervisor elegido. */
   supervisor_id?: string | null | undefined
+  analista_nombre?: string | undefined; supervisor_nombre?: string | undefined
 }
-export interface PersonaProyeccion {
-  lead_id: string; identidad_persona?: string | undefined
-  /** Analista (y su supervisor) de origen del lead: dueño de sus ventas con la regla «asignacion». */
-  analista_origen_id?: string | null | undefined; supervisor_origen_id?: string | null | undefined
-}
+type Persona = GestionMensualCitas['poblacion'][number]
+/** Persona de la población del avance: solo las que admite Resultados tienen resultados y ventas. */
+export type PersonaProyeccion = Pick<Persona, 'lead_id' | 'analista_origen_id' | 'registro_manual' | 'creado_por' | 'primera_asignacion_en'>
+  & Partial<Pick<Persona, 'identidad_persona' | 'supervisor_origen_id' | 'analista_origen_nombre' | 'supervisor_origen_nombre'>>
 /**
  * Reunión con un cliente que no tiene lead (lector `crm.citas_clientes_proyeccion_fn`): sin lead, monto ni moneda.
  * Analista y supervisor son los del lector; el estado, el de Citas (`ESTADOS`).
@@ -74,14 +78,18 @@ export interface FuenteProyeccion {
   tipoCambio?: number | null | undefined
   /** null: el servidor no envió conversiones; la conversión queda sin base, nunca en 0 %. */
   conversiones: readonly ConversionProyeccion[] | null
+  /** Lo que usa Resultados para sus tasas, del lector del avance; sin control ni población, % Entrev. y % Conv. quedan sin base. */
   poblacion?: readonly PersonaProyeccion[] | undefined
-  /** Regla de Resultados para el dueño de una venta (`analista_resultado` de la gestión); sin ella, la del evento. */
-  analistaResultado?: ControlCitas['analista_resultado'] | undefined
+  control?: GestionMensualCitas['control'] | undefined
+  /** Base asignada: la meta de la regla «meta_proyectada». */
+  asignaciones?: readonly LeadBaseCitas[] | undefined
+  /** Capital del avance: solo aporta analistas y supervisores, como en Resultados. */
+  capital?: GestionMensualCitas['capital'] | undefined
 }
 
 export interface CitaProyectada {
   cita: CitaHoja
-  /** Día de Lima en que se creó la cita (la cohorte y los tramos se cortan por él). */
+  /** Día de Lima en que se creó la cita (la cohorte y los tramos se cortan por él); '' si no lo trae (solo de un resultado). */
   creada: string
   /** Identidad de la persona (misma regla que el avance mensual). */
   persona: string
@@ -95,23 +103,25 @@ export const conLead = (c: CitaProyectada): boolean => c.cita.leadId !== null
 export interface PeriodoProyeccion { desde: string; hasta: string; hoy: string; dias: number; transcurridos: number; cerrado: boolean }
 
 export interface MetricasProyeccion {
-  citas: CitaProyectada[]; conMonto: CitaProyectada[]; entrevistas: CitaProyectada[]
-  /** Las citas con lead: la base de Monto, Ticket cita, % Conv. y Proyectado. */
+  citas: CitaProyectada[]; conMonto: CitaProyectada[]
+  /** Las citas con lead de la cohorte: la base de Monto, Ticket cita y el ritmo del Proyectado. */
   citasConLead: CitaProyectada[]
-  /** Base de % Entrev., como en Resultados: realizadas + no asistió. */
+  /** Las de Resultados en el rango: citas con lead cuyo resultado (realizada o no asistió) cae en él, sean de cuando sean. */
   resueltas: CitaProyectada[]
+  entrevistas: CitaProyectada[]
   /**
-   * Entrevistas vinculadas a una venta con la regla de Resultados: fecha comercial no anterior al día de la
-   * entrevista y venta del analista de la fila (en el total, de un analista del ámbito).
+   * Entrevistas del rango vinculadas a una venta del rango con la regla de Resultados: fecha comercial no anterior al
+   * día de la entrevista y venta del analista de la fila (en el total, de un analista del ámbito).
    */
   convertidas: CitaProyectada[]
   referidos: CitaProyectada[]; clientes: CitaProyectada[]; leads: CitaProyectada[]
   montoPen: number; montoUsd: number; pendienteTc: boolean
   /** «Ticket cita»: monto en citas ÷ citas con lead. No es el «Ticket del mes» de Resultados (capital real ÷ clientes). */
   monto: number | null; ticket: number | null
-  /** % Entrev. de la hoja (todas las citas) y el de las citas con lead, que es el que proyecta. */
-  pctEntrevistas: number | null; pctEntrevistasConLead: number | null; pctConversion: number | null
-  /** Personas de las entrevistas CON LEAD: la base de % Conv. */
+  /** Las tasas de Resultados (`tasaEntrevistas` y `conversion`) en porcentaje, con sus bases según las reglas de gestión. */
+  pctEntrevistas: number | null; pctConversion: number | null
+  baseEntrevistas: number; baseConversion: number
+  /** Personas distintas entrevistadas en el rango y las que cerraron cliente. */
   personasEntrevistadas: number; personasClientes: number
   /** Citas con lead esperadas al cierre del rango. */
   citasEsperadas: number | null; proyectado: number | null
@@ -145,6 +155,8 @@ export interface HojaProyeccion {
   filas: FilaProyeccion[]
   /** El proyectado del total SUMA el de cada analista con base; nunca promedia tasas. */
   total: MetricasProyeccion
+  /** Analistas con resultados (o base de meta) en el rango, sin el embudo de Analista: también son opciones de ese embudo. */
+  conResultados: AnalistaRoster[]
 }
 
 /** Días del rango, días ya transcurridos hasta hoy y si el rango ya terminó. */
@@ -167,18 +179,9 @@ interface Contexto {
   conocidas: boolean
   /** Conversiones de la persona: el respaldo de «cliente» mira `convertido_en`. */
   conversionesDe: (persona: string) => readonly ConversionProyeccion[]
-  /** Ventas de la persona hasta el corte, sin recortarlas al mes: la cohorte se sigue hasta hoy. */
-  ventasDe: (persona: string) => readonly VentaProyeccion[]
-}
-interface VentaProyeccion {
-  lead_id: string; fecha_comercial: string | null
-  /** Analista al que Resultados atribuye la venta (`reglaDueno`). */
-  dueno: string | null
-  /** Su dueño está en el ámbito de la hoja: solo así cuenta en el total. */
-  enAmbito: boolean
 }
 
-function prepararContexto(fuente: FuenteProyeccion, columnas: FiltrosColumnas) {
+function prepararContexto(fuente: FuenteProyeccion) {
   // Misma identidad que el avance mensual: la del servidor; si falta, el perfil
   // cliente del lead convertido; si no, el propio lead.
   const conversiones = fuente.conversiones ?? []
@@ -187,46 +190,19 @@ function prepararContexto(fuente: FuenteProyeccion, columnas: FiltrosColumnas) {
     p.identidad_persona ?? (perfiles.has(p.lead_id) ? `perfil:${perfiles.get(p.lead_id)}` : `lead:${p.lead_id}`)]))
   const persona = (lead: string) => identidades.get(lead) ?? `lead:${lead}`
   const periodo = periodoProyeccion(fuente.rango, fuente.corte)
-  const corte = Date.parse(fuente.corte)
-  const agrupar = <T extends { lead_id: string }>(lista: readonly T[]) => {
-    const porPersona = new Map<string, T[]>()
-    for (const c of lista) {
-      const clave = persona(c.lead_id)
-      const suyas = porPersona.get(clave)
-      if (suyas) suyas.push(c)
-      else porPersona.set(clave, [c])
-    }
-    return porPersona
+  const porPersona = new Map<string, ConversionProyeccion[]>()
+  for (const c of conversiones) {
+    const suyas = porPersona.get(persona(c.lead_id))
+    if (suyas) suyas.push(c)
+    else porPersona.set(persona(c.lead_id), [c])
   }
-  const porPersona = agrupar(conversiones)
-  // Dueño de la venta, como en Resultados: con «asignacion», el analista de origen del lead; si no, el de la venta.
-  const origenes = new Map((fuente.poblacion ?? []).map(p => [p.lead_id, p.analista_origen_id]))
-  const dueno = reglaDueno(fuente.analistaResultado, lead => origenes.get(lead))
-  // Supervisor de cada analista con la precedencia del roster de Resultados para
-  // las fuentes que llegan aquí: origen de la población, citas y, al final, ventas.
-  const supervisores = new Map<string, string>([
-    ...(fuente.poblacion ?? []).filter(p => p.analista_origen_id).map(p => [p.analista_origen_id!, p.supervisor_origen_id ?? 'sin_supervisor'] as const),
-    ...fuente.citas.map(c => [c.analista, c.supervisorId] as const),
-    ...conversiones.filter(c => c.analista_id).map(c => [c.analista_id!, c.supervisor_id ?? 'sin_supervisor'] as const),
-  ])
-  // ÁMBITO de la hoja (el de la consulta de Resultados): los analistas que deja el
-  // embudo de Analista (sin embudo, todos) del supervisor elegido en la barra (sin
-  // él, todos). Una venta cuenta en el TOTAL solo si su dueño está dentro; los
-  // embudos de Mín/Máx ocultan filas, no cambian el ámbito.
-  const ambito: AmbitoAnalistas = {
-    analistas: columnas.analistas ? new Set(columnas.analistas) : null, equipo: fuente.filtros.equipo, supervisorDe: id => supervisores.get(id),
-  }
-  // Una venta registrada después del corte aún no existe para la consulta.
-  const ventas = agrupar(conversiones.filter(c => periodo !== null && c.fecha_comercial != null
-    && c.fecha_comercial <= periodo.hoy && Date.parse(c.convertido_en) <= corte).map((c): VentaProyeccion => {
-    const suyo = dueno(c.lead_id, c.analista_id)
-    return { lead_id: c.lead_id, fecha_comercial: c.fecha_comercial ?? null, dueno: suyo, enAmbito: enAmbito(suyo, ambito) }
-  }))
   const contexto: Contexto = {
     periodo, tramos: periodo ? tramosDelRango(fuente.rango, fuente.tiempo ?? 'mes', periodo.hoy) : [], tc: tcAplicable(fuente.tipoCambio),
-    conocidas: fuente.conversiones !== null, conversionesDe: clave => porPersona.get(clave) ?? [], ventasDe: clave => ventas.get(clave) ?? [],
+    conocidas: fuente.conversiones !== null, conversionesDe: clave => porPersona.get(clave) ?? [],
   }
-  return { contexto, persona }
+  // Analistas y supervisores con las fuentes y la precedencia de Resultados: el supervisor decide el ámbito.
+  const roster = rosterDeAnalistas({ capital: fuente.capital, poblacion: fuente.poblacion, asignaciones: fuente.asignaciones, citas: fuente.citas, ventas: conversiones })
+  return { contexto, persona, roster }
 }
 
 function proyectar(cita: CitaEjemplo, creada: string, persona: string, contexto: Contexto): CitaProyectada {
@@ -240,6 +216,51 @@ function proyectar(cita: CitaEjemplo, creada: string, persona: string, contexto:
     : contexto.tc === null ? null : usdAPen(cita.monto, contexto.tc)
   return { cita, creada, persona, origen, enSoles }
 }
+
+/** Día de Lima en que se creó la cita; '' si no trae una fecha válida. */
+const diaDeCreacion = (c: CitaHoja) => c.creadoEn && Number.isFinite(Date.parse(c.creadoEn)) ? fechaLocalCitas(c.creadoEn) : ''
+
+/**
+ * % Entrev. y % Conv. de la hoja: `resultadosDelPeriodo` (el código de Resultados) con el rango como periodo,
+ * sobre las citas con lead que dejan los embudos de moneda y personas. El de Analista entra en el ámbito
+ * (por dueño del resultado, como el filtro de analista de Resultados); sin `analistas`, no se aplica.
+ */
+function resultadosDelRango(fuente: FuenteProyeccion, contexto: Contexto, persona: (lead: string) => string, roster: ReadonlyMap<string, AnalistaRoster>,
+  delLector: readonly CitaProyectada[], columnas: FiltrosColumnas, analistas: readonly string[] | undefined) {
+  const { periodo } = contexto
+  if (!periodo || !fuente.control) return null
+  const control = fuente.control
+  const proyectadas = new Map(delLector.map(c => [c.cita.id, c]))
+  const citas = recortar(delLector, columnas, 'analistas').map(c => c.cita as CitaEjemplo)
+  const personas = new Map((fuente.poblacion ?? []).map(p => [p.lead_id, p]))
+  const elegidos = analistas ? new Set(analistas) : null
+  const { equipo } = fuente.filtros
+  const ambito: AmbitoAnalistas = { analistas: elegidos, equipo, supervisorDe: id => roster.get(id)?.supervisorId }
+  const resultados = resultadosDelPeriodo({
+    citas, ventas: fuente.conversiones ?? [], personas, identidad: persona, control,
+    periodo: { desde: periodo.desde, hasta: periodo.hasta, corte: fuente.corte }, ambito: id => enAmbito(id, ambito),
+  })
+  // La base de la meta («meta_proyectada»): asignados en el rango, con el supervisor y los analistas de la consulta, como en Resultados.
+  const asignados = asignadosDeLaMeta((fuente.asignaciones ?? []).filter(l => (!equipo || l.supervisorId === equipo)
+    && (!elegidos || elegidos.has(l.id))), personas, control, periodo)
+  const leads = (analista?: string, duenos?: ReadonlySet<string>) =>
+    new Set(asignados.filter(l => analista ? l.id === analista : !duenos || duenos.has(l.id)).map(l => l.leadId)).size
+  return {
+    dueno: resultados.dueno,
+    resueltas: resultados.resueltas,
+    /**
+     * Con la regla «meta_proyectada», los analistas con base en el rango y dentro del ámbito (su supervisor es el del
+     * roster, no el de la asignación): su % Entrev. existe (0 % sin entrevistas), como en Resultados.
+     */
+    conMeta: control.configuracion.base_avance === 'meta_proyectada' ? [...new Set(asignados.map(l => l.id))].filter(id => enAmbito(id, ambito)) : [],
+    medir: (analista?: string, duenos?: ReadonlySet<string>): ResultadosDeFila => ({
+      medida: resultados.medir(analista, leads(analista, duenos), duenos), de: c => proyectadas.get(c.id)!,
+    }),
+  }
+}
+type MedidaResultados = ReturnType<ReturnType<typeof resultadosDelPeriodo<CitaEjemplo, ConversionProyeccion>>['medir']>
+/** Lo que Resultados mide para una fila (o el total) y cómo volver de sus citas a las de la hoja. */
+interface ResultadosDeFila { medida: MedidaResultados; de: (cita: CitaEjemplo) => CitaProyectada }
 
 function cohorte(fuente: FuenteProyeccion, persona: (lead: string) => string, contexto: Contexto): CitaProyectada[] {
   const periodo = contexto.periodo
@@ -277,13 +298,8 @@ export function repartirEnTramos(lista: readonly CitaProyectada[], tramos: reado
 const suma = (lista: readonly CitaProyectada[], moneda: Moneda) =>
   lista.reduce((n, c) => n + (c.cita.moneda === moneda && c.cita.monto != null ? c.cita.monto : 0), 0)
 
-const realizada = (c: CitaProyectada) => c.cita.estado === 'realizada'
-// Como Resultados: las programadas, canceladas o aún sin resultado no son base.
-const resuelta = (c: CitaProyectada) => realizada(c) || c.cita.estado === 'no_show'
-const tasa = (parte: number, base: number) => base ? parte / base * 100 : null
-
-/** `fila`: el analista de la fila; null, el total de la hoja. */
-function medir(lista: CitaProyectada[], contexto: Contexto, fila: string | null): MetricasProyeccion {
+/** `resultados`: lo que Resultados mide para la fila o el total; null sin reglas de gestión ni periodo válido. */
+function medir(lista: CitaProyectada[], contexto: Contexto, resultados: ResultadosDeFila | null): MetricasProyeccion {
   // Métricas de prospectos: solo las citas con lead (las reuniones con clientes sin lead no tienen monto ni se convierten).
   const citasConLead = lista.filter(conLead)
   const n = citasConLead.length
@@ -293,35 +309,29 @@ function medir(lista: CitaProyectada[], contexto: Contexto, fila: string | null)
   const pendienteTc = montoUsd > 0 && contexto.tc === null
   const monto = pendienteTc ? null : montoPen + (contexto.tc === null ? 0 : usdAPen(montoUsd, contexto.tc))
   const ticket = monto !== null && n ? monto / n : null
-  // % Entrev. de la hoja: también las reuniones con clientes (completada = entrevista, no asistió = resuelta).
-  const entrevistas = lista.filter(realizada)
-  const resueltas = lista.filter(resuelta)
-  const entrevistasConLead = citasConLead.filter(realizada)
-  // Vínculo entrevista → cliente: la MISMA regla de Resultados, importada, no copiada.
-  // En la fila, solo una venta de ese analista; en el total, la de cualquier dueño
-  // del ámbito (dos analistas que entrevistan a la misma persona colaboran).
-  const convertidas = entrevistasConLead.filter(c => contexto.ventasDe(c.persona)
-    .some(v => (fila !== null || v.enAmbito) && ventaCierraEntrevista(c.cita.asistioEn, v, fila)))
-  const personasEntrevistadas = new Set(entrevistasConLead.map(c => c.persona)).size
-  const personasClientes = new Set(convertidas.map(c => c.persona)).size
-  const pctEntrevistas = tasa(entrevistas.length, resueltas.length)
-  const pctEntrevistasConLead = tasa(entrevistasConLead.length, citasConLead.filter(resuelta).length)
-  const pctConversion = contexto.conocidas ? tasa(personasClientes, personasEntrevistadas) : null
+  // % Entrev. y % Conv.: los de Resultados en el rango, medidos por su código, no recalculados aquí.
+  const r = resultados?.medida
+  const deLaHoja = (citas: readonly CitaEjemplo[] | undefined) => resultados ? (citas ?? []).map(resultados.de) : []
+  const pctEntrevistas = r?.tasaEntrevistas == null ? null : r.tasaEntrevistas * 100
+  const pctConversion = contexto.conocidas && r?.conversion != null ? r.conversion * 100 : null
   const periodo = contexto.periodo
   const hastaHoy = periodo ? citasConLead.filter(c => c.creada <= periodo.hoy).length : n
   // Citas esperadas al cierre: el ritmo de los días transcurridos llevado al periodo entero.
   const citasEsperadas = !n || !periodo ? null : periodo.cerrado || !periodo.transcurridos ? n
     : Math.max(n, hastaHoy / periodo.transcurridos * periodo.dias)
-  // Como Resultados: citas esperadas × tasa de entrevistas × conversión × ticket, todo de las citas con lead.
-  // Sin citas resueltas, o sin personas entrevistadas para la conversión, queda «sin base», nunca 0.
-  const proyectado = citasEsperadas !== null && pctEntrevistasConLead !== null && pctConversion !== null && ticket !== null
-    ? citasEsperadas * (pctEntrevistasConLead / 100) * (pctConversion / 100) * ticket : null
+  // Como el cierre proyectado de Resultados: la tasa OBSERVADA de entrevistas (realizadas ÷ citas con resultado,
+  // sea cual sea la regla de conteo del % Entrev.) × conversión × ticket cita. Sin base, «sin base», nunca 0.
+  const tasaObservada = r?.resultado.length ? r.visitas.length / r.resultado.length : null
+  const proyectado = citasEsperadas !== null && tasaObservada !== null && pctConversion !== null && ticket !== null
+    ? citasEsperadas * tasaObservada * (pctConversion / 100) * ticket : null
   return {
-    citas: lista, citasConLead, conMonto, entrevistas, resueltas, convertidas,
+    citas: lista, citasConLead, conMonto, entrevistas: deLaHoja(r?.visitas), resueltas: deLaHoja(r?.resultado), convertidas: deLaHoja(r?.visitasVinculadas),
     referidos: lista.filter(c => c.origen === 'referido'), clientes: lista.filter(c => c.origen === 'cliente'),
     leads: lista.filter(c => c.origen === 'lead'),
-    montoPen, montoUsd, pendienteTc, monto, ticket, pctEntrevistas, pctEntrevistasConLead, pctConversion,
-    personasEntrevistadas, personasClientes, citasEsperadas, proyectado, porTramo: repartirEnTramos(lista, contexto.tramos),
+    montoPen, montoUsd, pendienteTc, monto, ticket, pctEntrevistas, pctConversion,
+    baseEntrevistas: r?.baseEntrevistas ?? 0, baseConversion: r?.baseConversion ?? 0,
+    personasEntrevistadas: r?.gente.size ?? 0, personasClientes: r?.clientes ?? 0,
+    citasEsperadas, proyectado, porTramo: repartirEnTramos(lista, contexto.tramos),
   }
 }
 
@@ -370,21 +380,37 @@ function comparar(orden: OrdenProyeccion) {
 }
 
 export function calcularProyeccion(fuente: FuenteProyeccion, columnas: FiltrosColumnas = {}, orden: OrdenProyeccion = ORDEN_INICIAL): HojaProyeccion {
-  const { contexto, persona } = prepararContexto(fuente, columnas)
+  const { contexto, persona, roster } = prepararContexto(fuente)
   const base = cohorte(fuente, persona, contexto)
   const visibles = recortar(base, columnas)
+  // Todas las citas del lector como citas de la hoja: de ellas salen los resultados del rango.
+  const delLector = contexto.periodo && fuente.control ? fuente.citas.map(c => proyectar(c, diaDeCreacion(c), persona(c.leadId), contexto)) : []
+  const delRango = resultadosDelRango(fuente, contexto, persona, roster, delLector, columnas, columnas.analistas)
   const porAnalista = new Map<string, CitaProyectada[]>()
-  for (const c of visibles) porAnalista.set(c.cita.analista, [...(porAnalista.get(c.cita.analista) ?? []), c])
-  const filas: FilaProyeccion[] = [...porAnalista.values()].map(lista => {
-    const { analista: id, analistaNombre: nombre, supervisor, supervisorId } = lista[0]!.cita
-    return { id, nombre, supervisor, supervisorId, ...medir(lista, contexto, id) }
+  for (const c of visibles) {
+    const suyas = porAnalista.get(c.cita.analista)
+    if (suyas) suyas.push(c)
+    else porAnalista.set(c.cita.analista, [c])
+  }
+  // Un analista con resultados en el rango (o con base de meta) tiene fila aunque no haya creado citas en él: Resultados también la tiene.
+  const duenos = (resultados: ReturnType<typeof resultadosDelRango>) => resultados === null ? []
+    : [...new Set([...resultados.resueltas.flatMap(c => resultados.dueno(c.leadId, c.analista) ?? []), ...resultados.conMeta])]
+  for (const id of duenos(delRango)) if (!porAnalista.has(id)) porAnalista.set(id, [])
+  const quien = (id: string): AnalistaRoster => roster.get(id) ?? { id, nombre: 'Sin analista', supervisor: 'Sin supervisor', supervisorId: 'sin_supervisor' }
+  const filas: FilaProyeccion[] = [...porAnalista].map(([id, lista]) => {
+    const { analistaNombre: nombre, supervisor, supervisorId } = lista[0]?.cita ?? { ...quien(id), analistaNombre: quien(id).nombre }
+    return { id, nombre, supervisor, supervisorId, ...medir(lista, contexto, delRango?.medir(id) ?? null) }
   }).filter(f => dentroDeRangos(f, columnas.rangos)).sort(comparar(orden))
+  // Con Mín/Máx, el total mide solo las filas que quedan; sin ellos, todo el ámbito, como el total de Resultados.
+  const hayRangos = Object.values(columnas.rangos ?? {}).some(r => r && (r.min !== undefined || r.max !== undefined))
   const conBase = filas.filter(f => f.proyectado !== null)
-  const total = { ...medir(filas.flatMap(f => f.citas), contexto, null),
+  const total = { ...medir(filas.flatMap(f => f.citas), contexto, delRango?.medir(undefined, hayRangos ? new Set(filas.map(f => f.id)) : undefined) ?? null),
     proyectado: conBase.length ? conBase.reduce((n, f) => n + f.proyectado!, 0) : null }
+  const sinEmbudo = columnas.analistas ? resultadosDelRango(fuente, contexto, persona, roster, delLector, columnas, undefined) : delRango
   return {
     periodo: contexto.periodo, tc: contexto.tc, cohorte: base, tramos: contexto.tramos, filas, total,
     requiereTc: base.some(c => c.cita.moneda === 'USD' && (c.cita.monto ?? 0) > 0),
+    conResultados: duenos(sinEmbudo).map(quien),
   }
 }
 
@@ -399,9 +425,11 @@ function contar(lista: readonly CitaProyectada[], clave: (c: CitaProyectada) => 
   }
   return ordenarOpciones(opciones)
 }
-/** Analistas de la cohorte con su n.º de citas (respetando los demás embudos). */
+/** Analistas de la cohorte con su n.º de citas (respetando los demás embudos) y, con 0, los que solo tienen resultados en el rango. */
 export function opcionesAnalistas(hoja: HojaProyeccion, columnas: FiltrosColumnas): OpcionEmbudo[] {
-  return contar(recortar(hoja.cohorte, columnas, 'analistas'), c => [c.cita.analista, c.cita.analistaNombre])
+  const opciones = new Map(contar(recortar(hoja.cohorte, columnas, 'analistas'), c => [c.cita.analista, c.cita.analistaNombre]).map(o => [o.id, o]))
+  for (const a of hoja.conResultados) if (!opciones.has(a.id)) opciones.set(a.id, { id: a.id, nombre: a.nombre, citas: 0 })
+  return ordenarOpciones(opciones)
 }
 /** Personas de un origen (id = identidad) con su n.º de citas. */
 export function opcionesPersonas(hoja: HojaProyeccion, columnas: FiltrosColumnas, origen: OrigenCita): OpcionEmbudo[] {

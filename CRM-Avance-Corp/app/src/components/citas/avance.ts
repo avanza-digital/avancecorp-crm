@@ -3,7 +3,8 @@ import { baseCitasFiltrada, type GestionCitas } from './metas'
 import type { GestionMensualCitas } from '@/lib/gestion-citas'
 import { totalEnSoles, tcAplicable } from '@/lib/capital-unificado'
 import { fechaLocalCitas, ventaComercialDelMes } from './fecha-comercial'
-import { enAmbito, reglaDueno, ventaCierraEntrevista } from './atribucion'
+import { enAmbito } from './atribucion'
+import { asignadosDeLaMeta, resultadosDelPeriodo, rosterDeAnalistas } from './resultados-periodo'
 export { fechaLocalCitas } from './fecha-comercial'
 
 type Persona = GestionMensualCitas['poblacion'][number]
@@ -11,7 +12,6 @@ type Capital = GestionMensualCitas['capital'][number]
 const TIPOS_CAPITAL = { contrato_nuevo: 'nuevos', contrato_upgrade: 'upgrades', contrato_renovacion: 'renovaciones', cooperativa: 'cooperativas' } as const
 export type OperacionesCapital = Record<(typeof TIPOS_CAPITAL)[keyof typeof TIPOS_CAPITAL], number>
 const instanteCita = (c: CitaEjemplo) => Date.parse(`${c.fecha}T${c.hora}:00-05:00`)
-const fechaResultado = (c: CitaEjemplo) => c.estado === 'realizada' ? c.asistioEn : `${c.fecha}T${c.hora}:00-05:00`
 export function periodoAvance(mes: string, corte: string) {
   const [anio, numero] = mes.split('-').map(Number)
   const dias = new Date(Date.UTC(anio!, numero!, 0)).getUTCDate()
@@ -53,41 +53,17 @@ export function calcularAvanceCitas(gestion: GestionCitas, todas: CitaEjemplo[],
     : k.perfil_id ? `perfil:${k.perfil_id}` : k.lead_id ? `lead:${k.lead_id}` : `externo:${k.cierre_externo_id}`)
   const periodo = periodoAvance(filtros.mes, corte)
   const personas = new Map(datos.poblacion.filter(p => coincidePersona(p, filtros, todas)).map(p => [p.lead_id, p]))
-  const roster = new Map([
-    ...datos.capital.filter(k => k.analista_id).map(k => [k.analista_id!, {
-      id: k.analista_id!, nombre: k.analista_nombre ?? 'Sin analista',
-      supervisor: k.supervisor_nombre ?? 'Sin supervisor', supervisorId: k.supervisor_id ?? 'sin_supervisor',
-    }] as const),
-    ...datos.poblacion.filter(p => p.analista_origen_id).map(p => [p.analista_origen_id!, {
-      id: p.analista_origen_id!, nombre: p.analista_origen_nombre,
-      supervisor: p.supervisor_origen_nombre, supervisorId: p.supervisor_origen_id ?? 'sin_supervisor',
-    }] as const),
-    ...gestion.asignaciones.map(a => [a.id, { id: a.id, nombre: a.nombre, supervisor: a.supervisor, supervisorId: a.supervisorId }] as const),
-    ...todas.map(c => [c.analista, { id: c.analista, nombre: c.analistaNombre, supervisor: c.supervisor, supervisorId: c.supervisorId }] as const),
-    ...datos.conversiones.filter(c => c.analista_id).map(c => [c.analista_id!, { id: c.analista_id!, nombre: c.analista_nombre, supervisor: c.supervisor_nombre, supervisorId: c.supervisor_id ?? 'sin_supervisor' }] as const),
-  ])
+  const roster = rosterDeAnalistas({ capital: datos.capital, poblacion: datos.poblacion, asignaciones: gestion.asignaciones, citas: todas, ventas: datos.conversiones })
   const alcance = { analistas: filtros.analista ? new Set([filtros.analista]) : null, equipo: filtros.equipo, supervisorDe: (id: string) => roster.get(id)?.supervisorId }
   const ambito = (id: string | null) => enAmbito(id, alcance)
-  const owner = reglaDueno(config.analista_resultado, lead => personas.get(lead)?.analista_origen_id)
-  const mesResultado = (p: Persona, fecha: string) => config.mes_resultado === 'asignacion'
-    ? p.primera_asignacion_en !== null && fechaLocalCitas(p.primera_asignacion_en).startsWith(filtros.mes)
-    : fechaLocalCitas(fecha).startsWith(filtros.mes)
-  const limiteResultado = config.mes_resultado === 'asignacion' ? Date.parse(corte) : periodo.corte
-  const actividad = (lead: string, id: string | null) => {
-    const p = personas.get(lead)
-    return p && (config.actividad_manuales === 'incluir' || !p.registro_manual || p.creado_por !== id)
-  }
-  const asignados = baseCitasFiltrada(gestion.asignaciones, { ...filtros, q: '' })
-    .filter(p => personas.has(p.leadId) && (!config.excluir_manuales_base || !p.manualPropio))
+  // Citas con resultado, ventas y tasas del mes: la regla compartida con la Proyección.
+  const delPeriodo = { desde: `${filtros.mes}-01`, hasta: `${filtros.mes}-${String(periodo.dias).padStart(2, '0')}`, corte }
+  const delMes = resultadosDelPeriodo({ citas: todas, ventas: datos.conversiones, personas, identidad: personaEntrevistada,
+    control: datos.control, periodo: delPeriodo, ambito })
+  const { dueno: owner, actividad, resueltas, cierres, listas: reglasListas } = delMes
+  const asignados = asignadosDeLaMeta(baseCitasFiltrada(gestion.asignaciones, { ...filtros, q: '' }), personas, datos.control, delPeriodo)
   const registradas = todas.filter(c => c.creadoEn && personas.has(c.leadId) && ambito(c.analista)
     && actividad(c.leadId, c.analista) && Date.parse(c.creadoEn) >= periodo.inicio && Date.parse(c.creadoEn) <= periodo.corte)
-  const resueltas = todas.filter(c => ['realizada', 'no_show'].includes(c.estado) && fechaResultado(c)
-    && personas.has(c.leadId) && ambito(owner(c.leadId, c.analista)) && actividad(c.leadId, owner(c.leadId, c.analista))
-    && Date.parse(fechaResultado(c)!) <= limiteResultado && mesResultado(personas.get(c.leadId)!, fechaResultado(c)!))
-  const entrevistas = resueltas.filter(c => c.estado === 'realizada')
-  const cierres = datos.conversiones.filter(c => personas.has(c.lead_id)
-    && ambito(owner(c.lead_id, c.analista_id)) && actividad(c.lead_id, owner(c.lead_id, c.analista_id))
-    && ventaComercialDelMes(c, filtros.mes, corte))
   // Todo el capital del mes cuenta para el ticket: contratos nuevos, upgrades,
   // renovaciones y cooperativas, atribuidos al analista del núcleo (Miguel,
   // 15/09/2026: «nada debe quedar fuera»). No exige que el cliente venga de un
@@ -100,32 +76,14 @@ export function calcularAvanceCitas(gestion: GestionCitas, todas: CitaEjemplo[],
   // Personas con capital en el mes, antes del recorte por analista o equipo: un
   // cliente convertido por Ana cuyo contrato firmó Luis no «carece» de capital.
   const conCapital = new Set(capitalPeriodo.map(personaCapital))
-  const reglasListas = datos.control.version > 0 && datos.control.mes_inicio !== null && config.mes_inicio !== null
-    && config.mes_resultado !== null && config.analista_resultado !== null && config.base_depositos !== null
-    && config.base_avance !== null && config.conteo_entrevistas !== null && config.actividad_manuales !== null
   const resultados = (id?: string) => {
     const base = asignados.filter(p => !id || p.id === id)
     const citas = registradas.filter(c => !id || c.analista === id)
-    const resultado = resueltas.filter(c => !id || owner(c.leadId, c.analista) === id)
-    const visitas = entrevistas.filter(c => !id || owner(c.leadId, c.analista) === id)
-    const gente = new Set(visitas.map(c => personaEntrevistada(c.leadId)))
-    const clientesMes = cierres.filter(c => !id || owner(c.lead_id, c.analista_id) === id)
-    // Cada fila compara entrevistas propias. El total del ámbito reconoce
-    // también la colaboración entre analistas incluidos en la consulta.
-    const vinculados = clientesMes.filter(c => {
-      const venta = { dueno: owner(c.lead_id, c.analista_id), fecha_comercial: c.fecha_comercial }
-      return visitas.some(v => personaEntrevistada(v.leadId) === personaEntrevistada(c.lead_id) && ventaCierraEntrevista(v.asistioEn, venta, id || null))
-    })
+    const leads = new Set(base.map(p => p.leadId)).size
+    const { resultado, visitas, gente, ventas: clientesMes, vinculados, clientes, baseEntrevistas, baseConversion, tasaEntrevistas, conversion } = delMes.medir(id, leads)
     const perfilesVinculados = new Set(vinculados.map(c => personaEntrevistada(c.lead_id)))
-    const clientes = perfilesVinculados.size
     const clientesPeriodo = new Set(clientesMes.map(c => personaEntrevistada(c.lead_id))).size
     const fuera = new Set(clientesMes.filter(c => !perfilesVinculados.has(personaEntrevistada(c.lead_id))).map(c => personaEntrevistada(c.lead_id))).size
-    const leads = new Set(base.map(p => p.leadId)).size
-    const nEntrevistas = config.conteo_entrevistas === 'personas_unicas' ? gente.size : visitas.length
-    const baseEntrevistas = config.base_avance === 'meta_proyectada' ? leads * config.citas_por_lead : resultado.length
-    const baseConversion = config.base_depositos === 'entrevistas' ? visitas.length : gente.size
-    const tasaEntrevistas = reglasListas && baseEntrevistas ? nEntrevistas / baseEntrevistas : null
-    const conversion = reglasListas && baseConversion ? clientes / baseConversion : null
     // El ticket es mensual aunque el seguimiento esté configurado por cohorte.
     const cierresTicket = datos.conversiones.filter(c => personas.has(c.lead_id) && ambito(c.analista_id)
       && (!id || c.analista_id === id) && actividad(c.lead_id, c.analista_id)

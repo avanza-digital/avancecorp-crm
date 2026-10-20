@@ -41,9 +41,14 @@ const CITAS = [
 // Cada venta lleva su dueño: como en Resultados, una venta sin analista no cierra ninguna entrevista.
 const conversion = (lead: string, instante: string, analista: keyof typeof EQUIPO) => ({ lead_id: lead, perfil_id: `perfil-${lead}`, convertido_en: instante, fecha_comercial: instante.slice(0, 10),
   analista_id: analista, analista_nombre: EQUIPO[analista][0], supervisor_id: EQUIPO[analista][1], supervisor_nombre: EQUIPO[analista][2], contrato_id: null })
+// La población del avance, como la manda el servidor: una persona por lead. % Entrev. y % Conv. son los de Resultados,
+// que solo mide a las personas de la población.
+const POBLACION = [...new Set(CITAS.map(c => c.leadId))].map(lead_id => ({ lead_id, nombre: lead_id, telefono: '900000000', origen: 'formulario',
+  moneda: 'PEN' as const, monto_estimado: 1000, registro_manual: false, creado_por: null, analista_origen_id: null, analista_origen_nombre: 'Sin analista',
+  supervisor_origen_id: null, supervisor_origen_nombre: 'Sin supervisor', primera_asignacion_en: null }))
 const gestion = (conversiones = [conversion('lead-a1', '2026-10-08T15:00:00Z', 'ana'), conversion('lead-d1', '2026-10-01T15:00:00Z', 'diego')]): GestionCitas => ({
   citasPorLead: 1.25, entrevistasPorcentaje: 70, depositosPorcentaje: 70, asignaciones: [],
-  avance: { control: { version: 1, mes_inicio: '2026-10', configuracion: { ...controlCitasInicial(), mes_inicio: '2026-10' } }, poblacion: [], conversiones, capital: [] },
+  avance: { control: { version: 1, mes_inicio: '2026-10', configuracion: { ...controlCitasInicial(), mes_inicio: '2026-10' } }, poblacion: POBLACION, conversiones, capital: [] },
 })
 const fuente: DatosCitas = { citas: CITAS, corte: '2026-10-19T17:00:00Z', depositos: [], depositosDisponibles: false, mesInicial: '2026-10', modoDemo: false, meses: [], gestion: gestion() }
 async function abrirProyeccion(cambios: Partial<DatosCitas> = {}) {
@@ -546,7 +551,7 @@ describe('Proyección con reuniones con clientes sin lead', () => {
     meses: ['2026-10'], citas: CITAS, gestion: gestion(), corte: fuente.corte, rango: OCTUBRE_19, reunionesClientes: REUNIONES,
     cargando: false, error: null, onReintentar: vi.fn(), ...cambios } })
 
-  it('cuentan en Citas, Clientes y % Entrev.; Monto, Ticket cita, % Conv. y Proyectado quedan los de las citas con lead', async () => {
+  it('cuentan en Citas y Clientes; Monto, Ticket cita, % Entrev., % Conv. y Proyectado quedan los de las citas con lead', async () => {
     const { hoja: sinReuniones, vista } = await abrirProyeccion(cargador({ reunionesClientes: [] }))
     // La señal añade su estado para el lector («60% · Por mejorar»): cuenta la cifra.
     const cifras = (tr: HTMLElement) => within(tr).getAllByRole('cell').slice(1).map(td => td.textContent!.replace(/ · .*$/, ''))
@@ -555,8 +560,8 @@ describe('Proyección con reuniones con clientes sin lead', () => {
     vista.unmount()
     const { hoja } = await abrirProyeccion(cargador())
     ana = fila(hoja, 'Ana Torres')
-    // 4 citas con lead + 2 reuniones = 6 · % Entrev. (2 + 1) ÷ (3 + 2) = 60 % · lo demás, igual.
-    expect(cifras(ana)).toEqual(['6', 'S/37,500', 'S/9,375', '60%', '50%', 'S/12,500', '1', '2', '3'])
+    // 4 citas con lead + 2 reuniones = 6 · % Entrev., el de Resultados: 2 ÷ 3, sin las reuniones (20/10/2026) · lo demás, igual.
+    expect(cifras(ana)).toEqual(['6', 'S/37,500', 'S/9,375', '66.7%', '50%', 'S/12,500', '1', '2', '3'])
     expect(within(ana).getByRole('button', { name: '6 citas de Ana Torres' })).toBeVisible()
     expect(within(filaTotal(hoja)).getByRole('button', { name: '3 citas con clientes de todos los analistas' })).toBeVisible()
   })
